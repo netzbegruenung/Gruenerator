@@ -89,6 +89,8 @@
  * umbenannt.
  */
 
+import { GEMMA_31B_ALTERNATE, GEMMA_31B_PRIMARY } from './gemmaHosts.js';
+
 import type { ProviderName } from './providers.js';
 
 export interface IntermediateLaneConfig {
@@ -109,19 +111,20 @@ export interface IntermediateLaneConfig {
 /** Der Ausgangszustand: was `INTERMEDIATE_MODEL` für alle 36 Stellen war. */
 const REGOLO_SMALL_4 = { provider: 'regolo', model: 'mistral-small-4-119b' } as const;
 
-/** Gemma 4 auf Regolo — dieselben Gewichte, die `TEXT_TYPES` und der Synth-Slot
- *  fahren (TEXT_MODEL in providerSelector.ts). Regolos DEFAULT kommt aus der
- *  Umgebung, das Modell muss also benannt werden. */
-/** Gemma 4 als dichtes 31B auf Regolo — was `heavy` bis zum 01.08.2026 fuhr.
- *  Seit 21.08.2026 der AUSWEICH der `pruefung`-Stufe, Begründung dort. */
-const GEMMA_4_REGOLO = 'gemma4-31b';
-
-/** Dieselben Gewichte über Cortecs, vermittelt an infercom (Luxemburg,
- *  Verarbeitung Deutschland) mit `berget` als zweitem Endpunkt. Primär der
- *  `pruefung`-Stufe. Bekommt KEINEN `reasoning_effort`-Pin: infercom weist den
- *  Wert mit HTTP 400 ab, weshalb die Whitelist in cortecsRequestPolicy.ts
- *  dieses Modell bewusst nicht führt. */
-const GEMMA_4_31B_CORTECS = 'gemma-4-31b-it';
+/**
+ * Das dichte Gemma 4 31B — Primär und Ausweich kommen beide aus `gemmaHosts.ts`.
+ *
+ * Hier steht KEIN Host und KEIN Modellname mehr. Diese Stufen waren zwei von
+ * sechs Stellen, die den Gemma-Host je einzeln notierten; welcher Anbieter ihn
+ * bedient, entscheidet seit dem 25.08.2026 ausschliesslich jene Datei. Die
+ * Begründung für die aktuelle Wahl steht dort, die Begründung dafür, dass
+ * `pruefung` überhaupt ZWEI Seiten hat, unten bei der Stufe.
+ *
+ * Der Ausweich ist bewusst der jeweils ANDERE Vertragspartner und kein
+ * Reservemodell: ein Einbruch bei einem Anbieter nimmt sonst beide Seiten.
+ */
+const GEMMA_PRIMARY = GEMMA_31B_PRIMARY;
+const GEMMA_HEDGE = GEMMA_31B_ALTERNATE;
 
 /** `mistral-medium-2604` === Mistral Medium 3.5. Provider bleibt `mistral`:
  *  `routeMistralModel` schickt genau diese ID nach Scaleway/Paris, und alles
@@ -217,9 +220,12 @@ export const INTERMEDIATE_LANES = {
    * Endpunkt war quantisiert und fiel durch den Standardfilter, `scaleway
    * direkt` lief zur selben Zeit einwandfrei.
    *
-   * Das dichte 31B liegt bei infercom UND berget, hat also eine Reserve. Der
-   * Preis ist der dokumentierte: die MoE-Variante antwortete rund doppelt so
-   * schnell. Bezahlt wird er für Verfügbarkeit.
+   * Das dichte 31B lag zu diesem Zeitpunkt bei infercom UND berget. Das gilt
+   * seit dem 25.08.2026 nicht mehr — der Katalog führt nur noch `infercom`,
+   * und berget ist nicht erzwingbar (siehe services/ai/gemmaHosts.ts). Die
+   * Reserve dieser Stufe ist damit allein der Regolo-Hedge unten, nicht der
+   * Router. Der Preis der MoE-Ablösung ist der dokumentierte: sie antwortete
+   * rund doppelt so schnell. Bezahlt wird er für Verfügbarkeit.
    *
    * KEIN Denk-Pin für dieses Modell — und das ist kein Versäumnis: infercom
    * weist `reasoning_effort` mit HTTP 400 ab, weshalb die Whitelist in
@@ -239,7 +245,7 @@ export const INTERMEDIATE_LANES = {
    * hätte bei diesem Umzug einen Scaleway-Namen an Regolo geschickt. Es pinnt
    * jetzt explizit — siehe dort.
    */
-  heavy: { provider: 'cortecs', model: GEMMA_4_31B_CORTECS },
+  heavy: { provider: GEMMA_PRIMARY.provider, model: GEMMA_PRIMARY.model },
 
   /**
    * Rechnen. Eigene Stufe, weil hier als Einzigem ein Modellfehler als
@@ -326,10 +332,11 @@ export const INTERMEDIATE_LANES = {
    * Der Ausweich ist deshalb kein Reservemodell, sondern derselbe Prüfer auf
    * einem anderen Vertragspartner: der Aufrufer schaltet ihn nach einer Frist
    * PARALLEL dazu. Dass Primär und Ausweich bei verschiedenen Anbietern liegen,
-   * ist die ganze Absicht — ein Einbruch nimmt sonst beide Seiten. Cortecs hat
-   * für dieses Modell zusätzlich `berget` als zweiten Endpunkt in der
-   * Hinterhand, Regolo hat für seines genau einen Host; das war der Ausfallweg
-   * vom 14.08.
+   * ist die ganze Absicht — ein Einbruch nimmt sonst beide Seiten. Dass Cortecs
+   * `berget` als zweiten Endpunkt in der Hinterhand habe, stand hier bis zum
+   * 25.08.2026 und ist widerlegt (siehe services/ai/gemmaHosts.ts): BEIDE
+   * Seiten hängen an genau einem Host. Umso mehr zählt, dass es zwei
+   * Vertragspartner sind — das war der Ausfallweg vom 14.08.
    *
    * GreenPTs `gemma4` wäre der dritte Kandidat und ist es NICHT: welche
    * Gewichte es trägt, ist unbelegt (siehe GEMMA_4_GREENPT in
@@ -337,9 +344,9 @@ export const INTERMEDIATE_LANES = {
    * ausgerechnet beim Prüfschritt der teuerste Fehler.
    */
   pruefung: {
-    provider: 'cortecs',
-    model: GEMMA_4_31B_CORTECS,
-    hedge: { provider: 'regolo', model: GEMMA_4_REGOLO },
+    provider: GEMMA_PRIMARY.provider,
+    model: GEMMA_PRIMARY.model,
+    hedge: { provider: GEMMA_HEDGE.provider, model: GEMMA_HEDGE.model },
   },
 } as const satisfies Record<string, IntermediateLaneConfig>;
 

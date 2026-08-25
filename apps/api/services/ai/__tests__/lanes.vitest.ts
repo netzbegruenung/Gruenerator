@@ -95,11 +95,19 @@ describe('laneFallback', () => {
   });
 
   it('makes GPT-OSS the fallback for both creation families, not the primary', () => {
-    // Finished texts run on Gemma 4 (regolo), structured creation on Mistral.
-    // Either way litellm/GPT-OSS is now the first fallback rather than where
-    // these lanes started.
-    expect(laneFallback('antrag')).toEqual(['litellm', 'mistral']);
-    expect(laneFallback('social')).toEqual(['litellm', 'mistral']);
+    // Finished texts run on Gemma 4, structured creation on Mistral. Either
+    // way litellm/GPT-OSS is now the first fallback rather than where these
+    // lanes started.
+    //
+    // `regolo` steht seit dem 25.08.2026 MIT in der Kette der Textlanes, und
+    // das ist ein Gewinn, kein Nebeneffekt: der Gemma-Primär liegt jetzt auf
+    // Cortecs (services/ai/gemmaHosts.ts), also filtert `laneFallback` Regolo
+    // nicht mehr als eigenen Primär heraus — und Regolo ist der ZWEITE Host
+    // derselben Gewichte. Vorher hatten diese Lanes nach GPT-OSS nur noch
+    // Mistral; jetzt liegt dazwischen dasselbe Modell bei einem anderen
+    // Vertragspartner.
+    expect(laneFallback('antrag')).toEqual(['litellm', 'regolo', 'mistral']);
+    expect(laneFallback('social')).toEqual(['litellm', 'regolo', 'mistral']);
     // `doc_generation` liegt auf GreenPT, das in keiner der beiden Ketten
     // steht — also bleiben alle drei übrig, Mistral als letzte Instanz.
     expect(laneFallback('doc_generation')).toEqual(['litellm', 'regolo', 'mistral']);

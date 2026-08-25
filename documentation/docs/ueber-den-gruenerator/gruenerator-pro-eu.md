@@ -13,16 +13,17 @@ Der Grünerator ist die souveräne Alternative: **100% europäische Infrastruktu
 ## Unsere europäischen Partner
 
 {/* Modell-Stand aus dem Code: apps/api/routes/chat/agents/providers.ts,
-apps/api/services/ai/providers.ts, apps/api/services/flux/,
+apps/api/services/ai/providers.ts, apps/api/services/ai/gemmaHosts.ts, apps/api/services/flux/,
 apps/api/services/transcription/providerPolicy.ts,
 apps/api/services/providers/providerSelector.ts */}
 
 - **Mistral AI** (Frankreich) — Standardmodell Mistral Medium 3.5 (`mistral-medium-2604`), Bildverstehen mit Pixtral Large, Suche und Notebooks mit `mistral-embed`, Transkription mit Voxtral
 - **Black Forest Labs** (Freiburg, Deutschland) — Bilderzeugung und -bearbeitung mit FLUX 2 Pro (`flux-2-pro`), ausschließlich über den EU-Endpunkt `api.eu.bfl.ai`
-- **Regolo / Seeweb** (Italien) — Open-Source-Modelle (Gemma 4, GPT-OSS 120B, Mistral Small 4) und das Bildmodell Qwen-Image — Zero Data Retention, 100 % erneuerbare Energie
+- **Cortecs** (Vermittler, EU) — vermittelt Gemma 4 (`gemma-4-31b-it`) an **Infercom SCS** (Luxemburg, Verarbeitung in Deutschland). Seit August 2026 das Modell, das die meisten Chat-Antworten und fertigen Texte schreibt sowie lange Dokumente zusammenfasst. Cortecs bekommt bei jeder Anfrage die Weisung, nur in der EU ansässige Anbieter mit Zero Data Retention einzusetzen; welcher Anbieter tatsächlich gerechnet hat, steht in jeder Antwort und wird protokolliert
+- **Regolo / Seeweb** (Italien) — Open-Source-Modelle (GPT-OSS 120B, Mistral Small 4, Gemma 4 als Ausweichweg) und das Bildmodell Qwen-Image — Zero Data Retention, 100 % erneuerbare Energie
 - **GreenPT** (Paris und Helsinki) — Werkzeug-Planung mit Mistral Small (Ausweichwege: Regolo und verdigado), erzeugte Dateien (PDFs, Präsentationen, Tabellen, Dokumente) mit Gemma 4 sowie der Ausweichweg für die Transkription, 100 % erneuerbare Energie
-- **Scaleway** (Paris) — Gemma 4 (`gemma-4-26b-a4b-it`) für das Zusammenfassen langer Dokumente
-- **netzbegrünung e.V. / verdigado eG** (Deutschland / Finnland) — Infrastruktur, Datenbank, selbst gehostetes GPT-OSS 120B (und Gemma 4 als Ausweichweg)
+- **Scaleway** (Paris) — Gemma 4 (`gemma-4-26b-a4b-it`); das Zusammenfassen langer Dokumente lief hier bis August 2026 und läuft seitdem über Cortecs
+- **netzbegrünung e.V. / verdigado eG** (Deutschland / Finnland) — Infrastruktur, Datenbank, selbst gehostetes GPT-OSS 120B
 - **SearXNG** (selbstgehostet, Deutschland) — Suche
 - **Hetzner** (Deutschland) — Hosting, an deutschen Standorten mit 100 % Wasserkraft
 
