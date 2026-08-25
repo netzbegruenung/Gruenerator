@@ -32,6 +32,8 @@ export const EXPECTED_ROWS: ReadonlyArray<{ datenart: string; speicherdauer: str
 export const EXPECTED_HEADERS = ['Datenart', 'Speicherdauer'] as const;
 
 /** Gemessene Zeichenzahl der PDF.js-Direktextraktion — dieselbe Zahl, die das
- *  Backend-Log meldet (`PDF.js extraction completed: 8/8 pages, 18601 characters`).
- *  Weicht sie ab, hat sich pdfjs-dist oder die Zusammensetzung geändert. */
-export const PDFJS_CHARS = 18_601;
+ *  Backend-Log meldet (`PDF.js extraction completed: 8/8 pages, … characters`).
+ *  Weicht sie ab, hat sich pdfjs-dist oder die Zusammensetzung geändert.
+ *  Gemessen 26.08.2026 mit der geometrie-basierten Zusammensetzung aus #2830
+ *  (vorher, mit `join(' ')`: 18 601). */
+export const PDFJS_CHARS = 17_500;
