@@ -106,7 +106,7 @@ export default function FeedbackWidget({
       return res.body;
     },
     onSuccess: () => {
-      toast.success('Danke! Dein Feedback ist bei der Entwicklung gelandet.');
+      toast.success('Danke! Dein Feedback ist angekommen.');
       setOpen(false);
       setMessage('');
       setScreenshot(null);
@@ -162,9 +162,9 @@ export default function FeedbackWidget({
             <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
             <p>
               <span className="font-medium text-foreground">Das hier ist kein Chat:</span> Deine
-              Nachricht geht per E-Mail an die Entwicklung des Grünerators und wird dort von einem
-              Menschen gelesen. In diesem Fenster kommt keine Antwort — bei Rückfragen melden wir
-              uns per E-Mail. Fragen an die KI stellst du im Chat.
+              Nachricht geht per E-Mail an die Entwicklung und wird von einem Menschen gelesen. Eine
+              Antwort kommt nicht hier, sondern bei Rückfragen per E-Mail. Fragen an die KI stellst
+              du im Chat.
             </p>
           </div>
 
