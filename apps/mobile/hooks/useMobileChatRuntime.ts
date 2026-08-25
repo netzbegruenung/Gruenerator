@@ -120,7 +120,7 @@ export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
   );
 
   const onThreadCreated = useCallback((newThreadId: string) => {
-    useAgentStore.getState().setCurrentThread(newThreadId);
+    useAgentStore.getState().mintThreadFromDraft(newThreadId);
   }, []);
 
   const fetchFn = useChatConfigStore((s) => s.fetch);
