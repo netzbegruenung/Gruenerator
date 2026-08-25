@@ -14,12 +14,12 @@
           "role": "primary"
         },
         {
-          "model": "gemma4-31b",
-          "code": "gemma4-31b",
+          "model": "gemma-4-31b-it",
+          "code": "gemma-4-31b-it",
           "label": "Gemma 4 (31 Mrd.)",
-          "provider": "regolo",
-          "host": "Regolo",
-          "flag": "🇮🇹",
+          "provider": "cortecs",
+          "host": "Cortecs",
+          "flag": "🇱🇺",
           "role": "fallback"
         }
       ]
@@ -29,21 +29,21 @@
       "task": "Kreativtexte, Antworten schreiben",
       "models": [
         {
+          "model": "gemma-4-31b-it",
+          "code": "gemma-4-31b-it",
+          "label": "Gemma 4 (31 Mrd.)",
+          "provider": "cortecs",
+          "host": "Cortecs",
+          "flag": "🇱🇺",
+          "role": "primary"
+        },
+        {
           "model": "gemma4-31b",
           "code": "gemma4-31b",
           "label": "Gemma 4 (31 Mrd.)",
           "provider": "regolo",
           "host": "Regolo",
           "flag": "🇮🇹",
-          "role": "primary"
-        },
-        {
-          "model": "gemma-4-26b-a4b-it",
-          "code": "gemma-4-26b-a4b-it",
-          "label": "Gemma 4 (26 Mrd., MoE)",
-          "provider": "scaleway",
-          "host": "Scaleway",
-          "flag": "🇫🇷",
           "role": "fallback"
         }
       ]
@@ -77,12 +77,12 @@
       "task": "Lange Dokumente zusammenfassen",
       "models": [
         {
-          "model": "gemma-4-26b-a4b-it",
-          "code": "gemma-4-26b-a4b-it",
-          "label": "Gemma 4 (26 Mrd., MoE)",
-          "provider": "scaleway",
-          "host": "Scaleway",
-          "flag": "🇫🇷",
+          "model": "gemma-4-31b-it",
+          "code": "gemma-4-31b-it",
+          "label": "Gemma 4 (31 Mrd.)",
+          "provider": "cortecs",
+          "host": "Cortecs",
+          "flag": "🇱🇺",
           "role": "primary"
         }
       ]
@@ -231,10 +231,10 @@
   ],
   "hosts": [
     "Black Forest Labs 🇩🇪",
+    "Cortecs 🇱🇺",
     "GreenPT 🇪🇺",
     "Mistral AI 🇫🇷",
     "Regolo 🇮🇹",
-    "Scaleway 🇫🇷",
     "verdigado 🇩🇪"
   ]
 }

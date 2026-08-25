@@ -73,6 +73,27 @@ const log = createLogger('cortecsRequestPolicy');
  * gemessene Aussage über dieses Modell, und wenn Cortecs den Endpunkt
  * zurückbringt, muss der Pin sofort wieder greifen. Ohne ihn kommt bei knappem
  * Budget leerer Inhalt.
+ *
+ * `gemma-4-31b-it` steht hier NICHT, und der Grund ist nicht der, der bis zum
+ * 25.08.2026 an mehreren Stellen im Repo stand („infercom weist
+ * `reasoning_effort` mit HTTP 400 ab"). Live nachgemessen am 25.08.2026 gegen
+ * api.cortecs.ai stimmt das so nicht:
+ *
+ *   reasoning_effort: 'low' | 'medium' | 'high'  → HTTP 200, aber WIRKUNGSLOS
+ *                                                  (0 Zeichen Reasoning, Antwort
+ *                                                  zeichengleich zum Baseline)
+ *   reasoning_effort: 'none'                     → HTTP 400 „value must be one
+ *                                                  of 'low', 'medium', 'high'"
+ *
+ * Es ist also genau umgekehrt: die GRADIERTEN Werte gehen durch und tun
+ * nichts, und `none` ist der abgelehnte. Ein Pin wäre hier deshalb doppelt
+ * sinnlos — er würde abgelehnt, und das Modell denkt ohne Flag ohnehin nicht
+ * (gemessen: 0 Zeichen Reasoning im Baseline).
+ *
+ * Der Hebel, der auf diesem Host WIRKT, ist `chat_template_kwargs.enable_thinking`
+ * — an wie aus, beides bestätigt. Er sitzt nicht hier, sondern im Denk-Strom
+ * (services/ai/regoloReasoningStream.ts), weil nur der die `reasoning_content`-
+ * Deltas auch lesen kann.
  */
 const REASONING_OFF_MODELS: ReadonlySet<string> = new Set(['gemma-4-26b-a4b-it']);
 
@@ -182,7 +203,7 @@ export const cortecsFetchWithPolicy: typeof fetch = async (input, init) => {
  * hier zählt, ist dass es AUFFÄLLT — ein stiller Fail-open-Filter ist sonst
  * von aussen nicht von einem wirksamen zu unterscheiden.
  */
-function assertSovereignUpstream(response: Response): void {
+export function assertSovereignUpstream(response: Response): void {
   const upstream = response.headers.get(CORTECS_UPSTREAM_HEADER);
   if (!upstream) {
     // Nur bei einer erfolgreichen Antwort aussagekräftig — Fehlerantworten
