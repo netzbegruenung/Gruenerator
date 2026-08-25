@@ -10,6 +10,8 @@
  * so desktop builds get an absolute origin) and `baseUrl` to suit the consumer.
  */
 
+import { sharedMediaPreviewUrl } from './shareUrl.js';
+
 export const DEFAULT_THUMBNAIL_WIDTHS = [200, 400, 800] as const;
 
 export interface SharedMediaSrcSetOptions {
@@ -37,7 +39,7 @@ function buildPreviewUrl(
   fmt: 'avif' | 'webp',
   resolveUrl: (url: string) => string
 ): string {
-  return resolveUrl(`${base}/share/${shareToken}/preview?w=${width}&fmt=${fmt}`);
+  return resolveUrl(sharedMediaPreviewUrl(shareToken, { baseUrl: base, width, fmt }));
 }
 
 export function buildSharedMediaSrcSet(

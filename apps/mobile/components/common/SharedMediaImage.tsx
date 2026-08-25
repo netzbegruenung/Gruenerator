@@ -1,11 +1,11 @@
+import { sharedMediaPreviewUrl } from '@gruenerator/shared/media-library/shareUrl';
 import { Image, type ImageContentFit, type ImageStyle } from 'expo-image';
 import { type StyleProp } from 'react-native';
 
-// Share files are served at the origin root (`/share/...`), not under `/api`.
-const API_ORIGIN = (process.env.EXPO_PUBLIC_API_URL || 'https://gruenerator.eu/api').replace(
-  /\/api\/?$/,
-  ''
-);
+// Die Datei liegt UNTER `/api` (`app.use('/api/share', …, shareFileRouter)`).
+// `/share/<token>` an der Herkunftswurzel ist die Web-Seite dazu und wird vom
+// SPA-Fallback als HTML beantwortet — expo-image zeigt dann nichts.
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://gruenerator.eu/api';
 
 export interface SharedMediaImageProps {
   /** The shared-media share token (`shared_media.share_token`). */
@@ -21,7 +21,7 @@ export interface SharedMediaImageProps {
 
 /**
  * App-wide standard for shared-media preview images on mobile. Requests a
- * right-sized WebP variant from `/share/<token>/preview?w=&fmt=webp` (backed by
+ * right-sized WebP variant from `/api/share/<token>/preview?w=&fmt=webp` (backed by
  * the API's pre-generated variants) and uses expo-image's native BlurHash
  * placeholder + fade transition. Use instead of a bare `<Image>` pointed at the
  * full-resolution preview.
@@ -34,7 +34,7 @@ export function SharedMediaImage({
   style,
   accessibilityLabel,
 }: SharedMediaImageProps) {
-  const uri = `${API_ORIGIN}/share/${shareToken}/preview?w=${width}&fmt=webp`;
+  const uri = sharedMediaPreviewUrl(shareToken, { baseUrl: API_BASE_URL, width });
   return (
     <Image
       source={{ uri }}

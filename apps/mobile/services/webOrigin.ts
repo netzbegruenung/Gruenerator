@@ -11,6 +11,14 @@
  * One helper rather than the per-screen `startsWith('http')` ternary this
  * replaces: two screens had it, a third did not, and the third is the one whose
  * canvas tiles were empty.
+ *
+ * Zugleich die Quelle fuer Links, die die App nach aussen gibt (Teilen, Verlauf,
+ * `Linking.openURL`). Diese Herkunft ist NICHT `EXPO_PUBLIC_API_URL`: die
+ * Variable schliesst `/api` ein und zeigt lokal auf eine Emulator-Adresse — ein
+ * Teilen-Link daraus war unter `…/api/notebooks/…` und ausserhalb des Emulators
+ * gar nicht aufloesbar (#2841). Bewusst ein Literal ohne Env-Schalter: ein
+ * geteilter Link ist fuer jemand anderen, also immer die Produktions-Herkunft.
+ * `services/apiBaseConvention.vitest.ts` bewacht die Trennung.
  */
 export const WEB_ORIGIN = 'https://gruenerator.eu';
 
