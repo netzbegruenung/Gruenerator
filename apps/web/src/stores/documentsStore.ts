@@ -1,10 +1,15 @@
+import {
+  type DocumentStatusResponse as ContractDocumentStatusResponse,
+  type DocumentStatusValue,
+  type UploadOnlyResponse,
+} from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 
 import apiClient from '../components/utils/apiClient';
 
-type DocumentStatus = 'completed' | 'processing' | 'pending' | 'uploaded' | 'failed';
+type DocumentStatus = DocumentStatusValue;
 
 // === API RESPONSE SHAPES ===
 interface DocumentsListResponse {
@@ -22,21 +27,21 @@ interface CombinedContentResponse {
   };
 }
 
-interface DocumentUploadResponse {
-  success: boolean;
-  message?: string;
-  data: Document;
-}
+/**
+ * Both shapes come from the contract now instead of being transcribed here.
+ * That transcription is how the status poll came to cast `data.status` straight
+ * into `DocumentStatus`: a field renamed on the server would not have failed
+ * anywhere, it would have shown up as a document stuck in its spinner forever.
+ * The upload route itself stays a raw multer handler — multipart does not go
+ * through ts-rest in this repo — but it answers with this same schema.
+ *
+ * `Partial` on the status payload because axios hands over whatever came back:
+ * the schema describes the 200, and the poll must also survive a 404 body.
+ */
+type DocumentUploadResponse = UploadOnlyResponse;
 
 interface DocumentStatusResponse {
-  data?: {
-    status: DocumentStatus;
-    vectorCount?: number;
-    processingStage?: 'extracting' | 'chunking' | 'upserting' | null;
-    processingProgress?: { stage: string; current: number; total: number } | null;
-    /** Why processing failed — only set for status='failed'. */
-    error?: string | null;
-  };
+  data?: Partial<ContractDocumentStatusResponse['data']>;
 }
 
 /**
