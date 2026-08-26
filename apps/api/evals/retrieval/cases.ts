@@ -466,8 +466,12 @@ export const RETRIEVAL_CASES: RetrievalCase[] = [
     id: 'manual-kommunalwiki-klimaanpassung',
     collection: 'kommunalwiki-system',
     query: 'Klimaanpassung',
-    // 73 chunks, all in one document — the clearest "many mentions" case.
-    expect: [{ titlePattern: 'Transnationale|Klima-Netzwerke' }],
+    // Mis-curated at first: the term occurs in 73 chunks of one link-list
+    // article ("Transnationale Klima-Netzwerke"), and picking the document
+    // with the most occurrences made that the gold answer. It is not — the
+    // articles named after the term are. Occurrence count locates candidates;
+    // it does not settle which document a search should return.
+    expect: [{ titlePattern: 'Klimaanpassung' }],
     kind: 'manual',
   },
   {
