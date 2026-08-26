@@ -11,7 +11,7 @@ import { memo } from 'react';
 
 import { SEARCH_DEPTHS, type SearchDepthIconKey } from '../lib/composerControls';
 import { useScopedSearchMode, useScopedSetSearchMode } from '../lib/useScopedAgentState';
-import { composerToolbarButtonClass } from '../lib/utils';
+import { composerActiveChipClass, composerActiveChipIconClass } from '../lib/utils';
 
 import { useChatDensity } from './thread/chatDensityContext';
 
@@ -70,14 +70,9 @@ export const SearchDepthToggle = memo(function SearchDepthToggle() {
     <ResponsiveMenu
       sheetTitle="Recherchetiefe"
       trigger={
-        <button
-          type="button"
-          className={`${composerToolbarButtonClass(isCompact)} rounded-full border border-primary-200 text-primary-700 dark:border-primary-400/30 dark:text-primary-300`}
-        >
-          <ActiveIcon className="h-4 w-4" />
-          <span className="max-w-32 truncate text-[12px] font-medium tracking-tight">
-            {active.label}
-          </span>
+        <button type="button" className={composerActiveChipClass(isCompact)}>
+          <ActiveIcon className={composerActiveChipIconClass} />
+          <span className="max-w-32 truncate">{active.label}</span>
         </button>
       }
       desktopContent={desktopContent}
