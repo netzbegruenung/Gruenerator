@@ -3,16 +3,15 @@
 import { useEffect } from 'react';
 
 import { useAgentStore } from '../stores/chatStore';
+import { draftRoleState } from '../stores/draftRole';
 import { useUserProfileStore } from '../stores/userProfileStore';
 
 /**
- * Legt die zuletzt gewählte Rolle auf einen NEUEN Chat — und bei genau einer
- * eingerichteten Rolle diese eine, solange nie etwas anderes gewählt wurde.
- *
- * Die Rolle im Composer war bis hierher reiner Sitzungszustand: sie steht in
- * den Thread-Einstellungen, und die gibt es erst, wenn der Thread existiert.
- * Wer im Entwurf eine Rolle wählte und neu lud — oder nur zur Startseite ging,
- * die `resetChatContext()` ruft — stand wieder ohne da.
+ * Trägt die Standardrolle nach, wenn die Hydration ERST NACH dem Reset der
+ * „Neuer Chat"-Fläche eintrifft. Den Normalfall — Reset bei bereits
+ * hydriertem Profil — deckt `resetChatContext()` selbst ab, synchron über
+ * `draftRoleState`; dieser Effekt existiert nur für den Kaltstart, bei dem
+ * die React-Query-Antwort später kommt als jeder Mount-Effekt.
  *
  * Drei Bedingungen, und jede hat einen Grund:
  *  - `currentThreadId === null`: ein offener Thread trägt seine eigene Rolle,
@@ -41,23 +40,9 @@ export function ActiveRoleSyncEffect() {
     if (!isHydrated) return;
     if (currentThreadId || selectedAgentId) return;
     if (threadMode !== 'chat') return;
-    // Wer nie etwas gewählt hat und genau eine Rolle eingerichtet hat, meint
-    // diese eine — für sie ist die Rollenwahl keine Wahl. Ab zwei Rollen wäre
-    // jede Vorauswahl geraten, also bleibt es beim leeren Start. „Ohne Rolle"
-    // im Composer setzt `hasChosenRole` und beendet die Vorauswahl.
-    const wanted = hasChosenRole ? activeRole : roles.length === 1 ? roles[0] : null;
-    if (!wanted) return;
-    // Die gemerkte Rolle kann seit dem letzten Besuch gelöscht worden sein;
-    // dann trägt sie auch keinen Prompt mehr und der Server fände sie nicht.
-    const role = roles.find((r) => r.ebene === wanted.ebene && r.rolle === wanted.rolle);
-    if (!role) return;
-    useAgentStore.setState({
-      threadMode: 'eigener',
-      customRoleRef: { ebene: role.ebene, rolle: role.rolle },
-      customRoleName: role.rolle,
-      customSystemPrompt: role.systemPrompt ?? null,
-      roleRefSource: 'default',
-    });
+    const draft = draftRoleState();
+    if (!draft) return;
+    useAgentStore.setState(draft);
   }, [isHydrated, activeRole, hasChosenRole, roles, currentThreadId, selectedAgentId, threadMode]);
 
   return null;
