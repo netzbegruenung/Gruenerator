@@ -68,6 +68,7 @@ import { rewritesSuppliedText } from './routing.js';
 import { createSourceRegistry } from './sourceRegistry.js';
 import { buildConnectorNotes, buildSynthSystem, type SynthPromptContext } from './synthPrompt.js';
 import { createAnswerValidator, finalizeAnswerText, pdfProblemNote } from './synthVerdicts.js';
+import { createToolCostLedger } from './toolCostLedger.js';
 import { buildToolUsageBlock } from './toolUsageBlock.js';
 import { logTurnSummary } from './turnSummary.js';
 import { type PersistedStep } from './types.js';
@@ -157,6 +158,9 @@ export async function streamAgenticResponse(
   const sourceRegistry = createSourceRegistry();
   const guards = createLoopGuards(sourceRegistry);
   const steps: PersistedStep[] = [];
+  // Hängt an der Werkzeug-Naht (`ToolHooks`) und wird am Turn-Ende einmal
+  // protokolliert — reine Buchführung, kein Budget.
+  const costLedger = createToolCostLedger({ onInfo: (m) => log.info(m) });
   const emitter = createAnswerEmitter(sse);
   let resolution: Awaited<ReturnType<typeof resolveModel>> | null = null;
   let mcpCatalog: McpCatalog | null = null;
@@ -254,6 +258,7 @@ export async function streamAgenticResponse(
 
     const wrapped = wrapAssembledTools(tools, {
       sse,
+      hooks: costLedger.hooks,
       guards,
       recordStep: (step) => steps.push(step),
       perCallTimeoutMs: budget.perCallTimeoutMs,
@@ -651,6 +656,7 @@ export async function streamAgenticResponse(
     mcpMountMs,
     onInfo: (m) => log.info(m),
   });
+  costLedger.log();
 
   return {
     fullText: emitter.text,
