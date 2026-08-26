@@ -389,6 +389,7 @@ export const notebookContractRouter = s.router(notebookContract, {
         relevant_content: highlightSnippet(r.relevant_content, trimmed),
         similarity_score: r.similarity_score,
         chunk_count: r.chunk_count,
+        term_chunk_count: r.term_chunk_count,
         top_chunks: (r.top_chunks ?? []).map((c) => ({
           preview: truncateSnippet(c.preview, 200),
           chunk_index: c.chunk_index,

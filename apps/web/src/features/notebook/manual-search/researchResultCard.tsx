@@ -1,3 +1,4 @@
+import { formatResearchHitCount } from '@gruenerator/shared/utils';
 import { type JSX } from 'react';
 import rehypeRaw from 'rehype-raw';
 
@@ -40,8 +41,7 @@ const SNIPPET_REHYPE_PLUGINS = [rehypeRaw];
 export function resultToCardProps(result: ResearchResult) {
   const similarityPercent = Math.round(result.similarity_score * 100);
   const tags = result.collection_name ? [result.collection_name] : [];
-  const chunkLabel =
-    result.chunk_count === 1 ? '1 Textabschnitt' : `${result.chunk_count} Textabschnitte`;
+  const chunkLabel = formatResearchHitCount(result.term_chunk_count, result.chunk_count);
 
   const metaParts = [`${chunkLabel} · ${similarityPercent}% Relevanz`];
   if (result.published_at) metaParts.push(formatPublishedDate(result.published_at));
