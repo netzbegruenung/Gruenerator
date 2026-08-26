@@ -1,4 +1,3 @@
-import { DEFAULT_INSTANCE_ID } from '@gruenerator/shared/instances';
 import {
   NOTEBOOK_REGISTRY,
   isNotebookOfferedIn,
@@ -6,6 +5,8 @@ import {
   type NotebookId,
 } from '@gruenerator/shared/notebooks';
 import { type IoniconsIconName } from '@react-native-vector-icons/ionicons';
+
+import { CURRENT_INSTANCE } from './instance';
 
 export interface NotebookCollection {
   id: string;
@@ -72,14 +73,20 @@ const NOTEBOOK_IONICONS = {
  * Mobile gallery notebooks, derived from the shared registry, then resolved to
  * an Ionicons name by id.
  *
- * Pinned to `DEFAULT_INSTANCE_ID`: the app ships as ONE binary against whatever
- * backend it is configured for, so it has no build-time instance of its own.
- * Until it learns its instance from the API (see docs/instanz-filterung-plan.md),
- * production's conservative selection is the right default — and it is exactly
- * what the previous `!nb.devOnly && nb.enabled !== false` filter produced.
+ * Cut to `CURRENT_INSTANCE`. The app still ships as ONE binary against whatever
+ * backend it is configured for and still has no build-time instance of its own
+ * — this is the "until it learns its instance from the API" the pin to
+ * `DEFAULT_INSTANCE_ID` was waiting for (#2903). It learns it from the API
+ * *origin* rather than from a call: `EXPO_PUBLIC_API_URL` is inlined at bundle
+ * time, so `config/instance.ts` resolves synchronously at module load and a
+ * plain constant here is still correct — no loading state, no correction after
+ * the first render.
+ *
+ * An unrecognised origin still falls back to production's conservative
+ * selection, so this is a no-op for every deployment that exists today.
  */
 export const MOBILE_SYSTEM_NOTEBOOKS: MobileNotebookEntry[] = NOTEBOOK_REGISTRY.filter((nb) =>
-  isNotebookOfferedIn(nb.id, DEFAULT_INSTANCE_ID)
+  isNotebookOfferedIn(nb.id, CURRENT_INSTANCE)
 )
   .map((nb) => ({
     id: nb.id,

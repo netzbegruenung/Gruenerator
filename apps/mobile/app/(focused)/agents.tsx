@@ -8,6 +8,7 @@ import {
   isAdminVisibleSkill,
   isAgentVisibleForPlatform,
   isLandesverbandIdentifier,
+  isSkillOfferedIn,
   landesverbandLabel,
   landesverbandRegion,
   type Agent,
@@ -30,6 +31,7 @@ import {
 import { agentIcon } from '../../components/chat/sidebarIcons';
 import { ChipGroup, ListGroup, ListRow, SkeletonRows } from '../../components/common';
 import { ScreenScaffold } from '../../components/navigation/ScreenScaffold';
+import { CURRENT_INSTANCE } from '../../config/instance';
 import { usePublicUserAgents } from '../../hooks/agents/usePublicUserAgents';
 import { useUserAgents } from '../../hooks/agents/useUserAgents';
 import { spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../theme';
@@ -67,7 +69,9 @@ export default function AgentsScreen() {
 
   const systemAgents = useMemo(
     () =>
-      getVisibleSystemAgentsForLocale(locale).filter((a) => isAgentVisibleForPlatform(a, 'mobile')),
+      getVisibleSystemAgentsForLocale(locale, CURRENT_INSTANCE).filter((a) =>
+        isAgentVisibleForPlatform(a, 'mobile')
+      ),
     [locale]
   );
   const generalSystemAgents = useMemo(
@@ -97,12 +101,14 @@ export default function AgentsScreen() {
   // Recipes ("Rezepte") whose owning agent is hidden on mobile would open a chat
   // with an agent this app cannot render, so they are filtered the same way the
   // agents are. Also drops anything an admin hid from discovery on this
-  // deployment.
+  // deployment, and anything this instance does not carry at all — the same
+  // three questions web's AgenturaPage asks.
   const skills = useMemo(
     () =>
       agentsList.filter((s) => {
         if (s.audience !== undefined && s.audience !== 'all' && s.audience !== locale) return false;
         if (!isAdminVisibleSkill(s.mention, hiddenSkillMentions)) return false;
+        if (!isSkillOfferedIn(s, CURRENT_INSTANCE)) return false;
         const owner = getSystemAgent(s.identifier);
         return !owner || isAgentVisibleForPlatform(owner, 'mobile');
       }),

@@ -1,7 +1,7 @@
-import { DEFAULT_INSTANCE_ID } from '@gruenerator/shared/instances';
 import { NOTEBOOK_REGISTRY, isNotebookOfferedIn } from '@gruenerator/shared/notebooks';
 import { describe, expect, it } from 'vitest';
 
+import { CURRENT_INSTANCE } from './instance';
 import {
   getMobileNotebooksByCategory,
   getNotebookConfig,
@@ -20,9 +20,9 @@ import {
  */
 
 describe('MOBILE_SYSTEM_NOTEBOOKS', () => {
-  it('excludes notebooks the default instance does not offer', () => {
+  it('excludes notebooks this instance does not offer', () => {
     const excluded = NOTEBOOK_REGISTRY.filter(
-      (nb) => !isNotebookOfferedIn(nb.id, DEFAULT_INSTANCE_ID)
+      (nb) => !isNotebookOfferedIn(nb.id, CURRENT_INSTANCE)
     );
     const ids = MOBILE_SYSTEM_NOTEBOOKS.map((nb) => nb.id);
 
@@ -57,7 +57,7 @@ describe('getVisibleNotebooks', () => {
 
   it('shows notebooks marked for all audiences to both locales', () => {
     const shared = NOTEBOOK_REGISTRY.filter(
-      (nb) => (nb.audience ?? 'all') === 'all' && isNotebookOfferedIn(nb.id, DEFAULT_INSTANCE_ID)
+      (nb) => (nb.audience ?? 'all') === 'all' && isNotebookOfferedIn(nb.id, CURRENT_INSTANCE)
     ).filter((nb) => !HIDDEN_NOTEBOOK_IDS.includes(nb.id));
 
     const de = getVisibleNotebooks('de-DE').map((nb) => nb.id);
