@@ -30,13 +30,16 @@ const publicCollection = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
-function serveCollections(collections: ReturnType<typeof publicCollection>[]) {
+function serveCollections(
+  collections: ReturnType<typeof publicCollection>[],
+  // The tool tiles fetch live subtexts; empty payloads keep them on their
+  // static descriptions instead of failing the unhandled-request guard.
+  monitor: Record<string, unknown> = { topics: [] }
+) {
   server.use(
     http.get(PUBLIC_ENDPOINT, () => HttpResponse.json({ success: true, collections })),
     http.get(LIKES_ENDPOINT, () => HttpResponse.json({ success: true, liked_ids: [] })),
-    // The tool tiles fetch live subtexts; empty payloads keep them on their
-    // static descriptions instead of failing the unhandled-request guard.
-    http.get(MONITOR_LATEST, () => HttpResponse.json({ topics: [] }, { status: 200 })),
+    http.get(MONITOR_LATEST, () => HttpResponse.json(monitor, { status: 200 })),
     http.get(MONITOR_POLLS, () => HttpResponse.json({ average: {} }, { status: 200 }))
   );
 }
@@ -91,5 +94,42 @@ describe('NotebooksIndexFooter — "Von der Basis"', () => {
     // is measured after the public query settled, not before it resolved.
     expect(await screen.findByText('Neues Notebook erstellen')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Von der Basis/ })).not.toBeInTheDocument();
+  });
+});
+
+describe('NotebooksIndexFooter — live tool tiles', () => {
+  it('replaces the Themen and Trends descriptions with live monitor data', async () => {
+    serveCollections([], {
+      topics: [
+        { topic: 'klima', articleCount: 12, topArticles: [{ title: 'Kohleausstieg vorgezogen' }] },
+      ],
+      socialTrends: [
+        { rank: 1, name: '#Klimageld', url: 'https://x.com/search?q=%23Klimageld' },
+        { rank: 2, name: '#Bundestag', url: 'https://x.com/search?q=%23Bundestag' },
+      ],
+    });
+
+    renderWithProviders(<NotebooksIndexFooter />);
+
+    expect(await screen.findByText('Kohleausstieg vorgezogen')).toBeInTheDocument();
+    expect(await screen.findByText('Jetzt im Trend: #Klimageld')).toBeInTheDocument();
+    // Both tiles link to their own page.
+    expect(screen.getByRole('link', { name: /Themen/ })).toHaveAttribute(
+      'href',
+      expect.stringContaining('/themen')
+    );
+    expect(screen.getByRole('link', { name: /Trends/ })).toHaveAttribute(
+      'href',
+      expect.stringContaining('/trends')
+    );
+  });
+
+  it('falls back to the static descriptions when the snapshot carries no trends', async () => {
+    serveCollections([], { topics: [], socialTrends: [] });
+
+    renderWithProviders(<NotebooksIndexFooter />);
+
+    expect(await screen.findByText('Was gerade auf X und Bluesky läuft.')).toBeInTheDocument();
+    expect(screen.getByText('Meistdiskutierte Themen der letzten 24 Stunden.')).toBeInTheDocument();
   });
 });
