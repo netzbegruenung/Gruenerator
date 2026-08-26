@@ -48,7 +48,11 @@ import {
   useScopedSetCustomRoleName,
   useScopedSetCustomRoleRef,
 } from '../../lib/useScopedAgentState';
-import { cn, composerToolbarButtonClass } from '../../lib/utils';
+import {
+  composerActiveChipClass,
+  composerActiveChipIconClass,
+  composerToolbarButtonClass,
+} from '../../lib/utils';
 import { useAgentStore } from '../../stores/chatStore';
 import { useSkillFavoritesStore } from '../../stores/skillFavoritesStore';
 import { useUserProfileStore } from '../../stores/userProfileStore';
@@ -611,31 +615,24 @@ export const PlusMenu = memo(function PlusMenu({
               showModeBadge ? `Aktionen und Modus — ${eigenerBadgeLabel}` : 'Aktionen und Modus'
             }
             title={showModeBadge ? eigenerBadgeLabel : undefined}
-            /* cn/tailwind-merge, nicht Template-String: der Basis-Knopf bringt
-               eigene bg-/text-Klassen mit, deren Reihenfolge im Stylesheet sonst
-               entscheidet — nicht die im Attribut. */
-            className={cn(
-              composerToolbarButtonClass(isCompact),
-              showModeBadge &&
-                'rounded-full bg-primary-50 text-primary-700 hover:bg-primary-100 hover:text-primary-700 active:bg-primary-200 dark:bg-primary-400/15 dark:text-primary-200 dark:hover:bg-primary-400/25 dark:hover:text-primary-200 dark:active:bg-primary-400/30'
-            )}
+            className={
+              showModeBadge
+                ? composerActiveChipClass(isCompact)
+                : composerToolbarButtonClass(isCompact)
+            }
           >
-            {/* Im Rollen-Chip trägt das Plus die Strichstärke des Labels mit
+            {/* Im Chip trägt das Plus die Strichstärke des fetten Labels mit
                 (Variante 2c); ohne Rolle bleibt es der dünne Toolbar-Knopf. */}
             <PlusIcon
               className={
                 showModeBadge
-                  ? 'h-4 w-4 stroke-[2.4px]'
+                  ? `${composerActiveChipIconClass} stroke-[2.4px]`
                   : isCompact
                     ? 'h-4 w-4 stroke-[1.5px]'
                     : 'h-5 w-5 stroke-[1.5px]'
               }
             />
-            {showModeBadge && (
-              <span className="max-w-32 truncate text-[13px] font-bold tracking-[0.03em]">
-                {eigenerChipLabel}
-              </span>
-            )}
+            {showModeBadge && <span className="max-w-32 truncate">{eigenerChipLabel}</span>}
           </button>
         }
         desktopContent={desktopContent}
