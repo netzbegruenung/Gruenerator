@@ -1,5 +1,6 @@
 import {
   agentsList,
+  useHiddenAgentIdentifiers,
   useHiddenSkillMentions,
   useSkillFavoritesStore,
   useUserLandesverbaende,
@@ -8,6 +9,7 @@ import {
 import {
   getAgentSlug,
   getVisibleSystemAgentsForLocale,
+  isAdminVisibleAgent,
   isAdminVisibleSkill,
   isLvItemVisibleForRoles,
   isSkillOfferedIn,
@@ -209,6 +211,8 @@ function AgenturaPage() {
   }, [sharedSystemAgents, sharedUserAgents]);
 
   const hiddenSkillMentions = useHiddenSkillMentions();
+  const hiddenAgentIdentifiers = useHiddenAgentIdentifiers();
+  const hiddenAgentKey = hiddenAgentIdentifiers.join(',');
 
   // All skills available to this locale (unfiltered by search), minus any an
   // admin hid from discovery on this deployment and minus what this instance
@@ -235,9 +239,11 @@ function AgenturaPage() {
   const systemAgents = useMemo(() => {
     const sharedIds = new Set(sharedAgents.map((e) => e.agent.identifier));
     return getVisibleSystemAgentsForLocale(userLocale, CURRENT_INSTANCE).filter(
-      (a) => !sharedIds.has(a.identifier)
+      (a) =>
+        !sharedIds.has(a.identifier) && isAdminVisibleAgent(a.identifier, hiddenAgentIdentifiers)
     );
-  }, [userLocale, sharedAgents]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- die Array-Identität wechselt bei jedem Abruf; `hiddenAgentKey` ist die stabile Abhängigkeit
+  }, [userLocale, sharedAgents, hiddenAgentKey]);
 
   const generalSystemAgents = useMemo(
     () => systemAgents.filter((a) => !isLandesverbandIdentifier(a.identifier)),
