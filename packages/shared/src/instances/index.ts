@@ -335,6 +335,26 @@ export function policyCoversTool(
 }
 
 /**
+ * Does this instance offer the tool? The id half of the question only — a
+ * tool's `channel` lives on the tool and stays a separate check at the call
+ * site (`isChannelVisibleIn`), exactly as with notebooks.
+ *
+ * Named rather than left to each caller unpacking `getInstance(id).hide`:
+ * three call sites did that, each remembering only the `hide` tier, so a
+ * `block`ed tool would have stayed on offer. Surfaces that decide whether a
+ * *feature* exists at all — the admin area's Vorlagen tab, for one — need the
+ * same answer the tiles and the search catalogue give.
+ */
+export function isToolOfferedIn(toolId: string, instanceId: InstanceId): boolean {
+  return isToolOfferedUnder(toolId, getInstance(instanceId));
+}
+
+/** {@link isToolOfferedIn} against a policy view rather than a registered id. */
+export function isToolOfferedUnder(toolId: string, view: InstancePolicyView): boolean {
+  return !policyCoversTool(view.hide, toolId) && !policyCoversTool(view.block, toolId);
+}
+
+/**
  * Does `policy` cover this recipe? Shared by the hide and block tiers.
  *
  * Keyed on `mention`, never on `identifier`: the identifier names the owning

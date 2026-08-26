@@ -192,6 +192,7 @@ export const researchContractRouter = s.router(researchContract, {
         relevant_content: highlightSnippet(r.relevant_content, trimmedQuery),
         similarity_score: r.similarity_score,
         chunk_count: r.chunk_count,
+        term_chunk_count: r.term_chunk_count,
         top_chunks: r.top_chunks.map((chunk: TopChunk) => ({
           preview: truncateSnippet(chunk.preview, CHUNK_PREVIEW_MAX_CHARS),
           chunk_index: chunk.chunk_index,
