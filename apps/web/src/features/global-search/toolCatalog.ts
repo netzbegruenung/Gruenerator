@@ -11,9 +11,8 @@
  * the registry-derived catalog.
  */
 import {
-  getInstance,
   isChannelVisibleIn,
-  policyCoversTool,
+  isToolOfferedIn,
   type InstanceChannel,
 } from '@gruenerator/shared/instances';
 
@@ -210,9 +209,9 @@ export const CATALOG: ToolCatalogEntry[] = [
 ] satisfies RegisteredEntry[];
 
 export function getToolCatalog(): ToolCatalogEntry[] {
-  const hidePolicy = getInstance(CURRENT_INSTANCE).hide;
   return CATALOG.filter(
     (entry) =>
-      isChannelVisibleIn(entry.channel, CURRENT_INSTANCE) && !policyCoversTool(hidePolicy, entry.id)
+      isChannelVisibleIn(entry.channel, CURRENT_INSTANCE) &&
+      isToolOfferedIn(entry.id, CURRENT_INSTANCE)
   );
 }

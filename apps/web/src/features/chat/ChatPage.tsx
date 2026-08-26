@@ -236,7 +236,10 @@ function ChatPage() {
   // A Landesverband hub slug (`gruene-berlin`) opens a landing offering both LV
   // agents instead of resolving straight to one. Checked first so the slug
   // never falls through to agent resolution (which would bind a bogus agent).
-  const hub = slug ? getLandesverbandHubBySlug(slug) : null;
+  // Mit Instanz: ohne sie fällt der Standardwert auf `production` zurück, und
+  // eine Instanz, die einen Landesverband wirklich sperrt, bekäme seine Landing
+  // samt drei funktionsfähiger Agenten trotzdem.
+  const hub = slug ? getLandesverbandHubBySlug(slug, CURRENT_INSTANCE) : null;
   // Agentura skill links land on `/chat?skill=<mention>` (e.g. presse-bayern).
   // Resolve the mention to its agent identifier so the agent activates and its
   // own welcome screen (welcomeQuestion + opening-question examples) renders

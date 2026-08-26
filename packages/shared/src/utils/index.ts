@@ -11,6 +11,7 @@ export {
 
 // Stable citation keys for search hits (shared by both MCP servers)
 export { buildSourceRef, canonicalizeSourceUrl, type SourceRefInput } from './sourceRefs.js';
+export { formatResearchHitCount } from './researchHitLabel.js';
 
 // String distance and similarity utilities
 export {

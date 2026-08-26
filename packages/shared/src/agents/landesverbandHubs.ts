@@ -122,6 +122,22 @@ export function getLvAgentIdsHiddenIn(instanceId: InstanceId): ReadonlySet<strin
 }
 
 /**
+ * Does this instance carry Landesverband content at all?
+ *
+ * The complement of {@link getLvAgentIdsHiddenIn}, which answers the same
+ * question one Landesverband at a time. Surfaces that decide whether a whole
+ * *area* exists — the admin area's Landesverbände tab — need the aggregate:
+ * an instance that hides `notebookCategories: ['landesebene', 'oesterreich']`
+ * has nobody left to administer.
+ *
+ * Deliberately `isNotebookOfferedIn` and not `isNotebookResolvableIn`: this
+ * answers what is on offer, not what a shared link still opens.
+ */
+export function hasLandesverbandContentIn(instanceId: InstanceId): boolean {
+  return LV_HUBS.some((hub) => isNotebookOfferedIn(hub.notebookId, instanceId));
+}
+
+/**
  * Every agent identifier owned by a hub. Used by the inventory (AllAgentsDialog)
  * to hide the per-LV specialist agents — they're reached through their hub, so
  * listing them all individually would re-introduce the clutter the hub removes.

@@ -1,4 +1,4 @@
-import { getInstance, policyCoversTool, type InstanceId } from '@gruenerator/shared/instances';
+import { isToolOfferedIn, type InstanceId } from '@gruenerator/shared/instances';
 
 import { SYSTEM_NOTEBOOKS } from '../features/notebook/config/notebooksConfig';
 
@@ -61,11 +61,10 @@ export const getFavouriteItemsById = (
   ids: string[],
   instance: InstanceId = CURRENT_INSTANCE
 ): FavouriteItemConfig[] => {
-  const hidePolicy = getInstance(instance).hide;
   return ids
     .map((id) => FAVOURITE_ITEMS_MAP.get(id))
     .filter(Boolean)
-    .filter((item) => !policyCoversTool(hidePolicy, item!.id)) as FavouriteItemConfig[];
+    .filter((item) => isToolOfferedIn(item!.id, instance)) as FavouriteItemConfig[];
 };
 
 export const isFavouritableItem = (id: string): boolean => FAVOURITE_ITEMS_MAP.has(id);

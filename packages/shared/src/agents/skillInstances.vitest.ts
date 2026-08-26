@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { isSkillOfferedIn, type SkillInstanceView } from './skillInstances.js';
+import { type InstancePolicyView } from '../instances/index.js';
+
+import { isSkillOfferedIn, skillPolicyOffers, type SkillInstanceView } from './skillInstances.js';
 
 const generic = (over: Partial<SkillInstanceView> = {}): SkillInstanceView => ({
   mention: 'presse',
@@ -56,5 +58,41 @@ describe('isSkillOfferedIn — owner cascade', () => {
       identifier: 'gruenerator-oeffentlichkeitsarbeit-at',
     });
     expect(isSkillOfferedIn(at, 'bgst')).toBe(false);
+  });
+});
+
+/**
+ * Die `block`-Stufe ist die stärkere Aussage — was sie deckt, ist erst recht
+ * nicht im Angebot. Sie war für Rezepte nie geprüft, weil die Registry keine
+ * Instanz führt, die sie setzt: ein `block: { skillMentions: [...] }` wäre
+ * schwächer gewesen als ein `hide` und das erst dem aufgefallen, der es einträgt.
+ */
+describe('skillPolicyOffers — beide Stufen', () => {
+  const view = (over: Partial<InstancePolicyView> = {}): InstancePolicyView => ({
+    channels: ['stable'],
+    ...over,
+  });
+
+  it('bietet an, was keine Stufe deckt', () => {
+    expect(skillPolicyOffers(generic(), view())).toBe(true);
+  });
+
+  it('lässt ein ausgeblendetes Rezept fallen', () => {
+    expect(skillPolicyOffers(generic(), view({ hide: { skillMentions: ['presse'] } }))).toBe(false);
+  });
+
+  it('lässt ein gesperrtes Rezept ebenso fallen', () => {
+    expect(skillPolicyOffers(generic(), view({ block: { skillMentions: ['presse'] } }))).toBe(
+      false
+    );
+  });
+
+  it('trägt die Kategorie-Regel auf beiden Stufen', () => {
+    expect(skillPolicyOffers(generic(), view({ block: { skillCategories: ['presse'] } }))).toBe(
+      false
+    );
+    expect(skillPolicyOffers(generic(), view({ block: { skillCategories: ['social'] } }))).toBe(
+      true
+    );
   });
 });
