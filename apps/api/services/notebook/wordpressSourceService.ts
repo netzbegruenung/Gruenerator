@@ -360,6 +360,11 @@ async function deleteDocumentFully(documentId: string, userId: string): Promise<
     log.warn(`Vector deletion failed for ${documentId} (continuing):`, error);
   }
   await getPostgresDocumentService().deleteDocument(documentId, userId);
+  // Notebook membership lives in Qdrant, so nothing cascades. Leaving the join
+  // point behind is self-defeating here: the next sync asks
+  // `findReferencedDocumentIds` whether this document is still in use, and its
+  // own leftover answers yes.
+  await new NotebookQdrantHelper().removeDocumentsFromAllCollections([documentId]);
 }
 
 function slugifyFilename(title: string): string {

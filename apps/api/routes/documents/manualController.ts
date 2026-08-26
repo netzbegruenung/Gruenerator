@@ -19,6 +19,8 @@ import {
   DOCUMENT_MAX_UPLOAD_BYTES,
   DOCUMENT_UPLOAD_FORMAT_HINT,
   resolveDocumentUploadFormat,
+  uploadOnlyBodySchema,
+  type UploadOnlyResponse,
 } from '@gruenerator/contracts';
 import express, { type Router, type Response, type NextFunction, type Request } from 'express';
 import multer from 'multer';
@@ -27,7 +29,6 @@ import { kickIngestWorker } from '../../services/document-services/DocumentProce
 import { getDocumentProcessingService } from '../../services/document-services/DocumentProcessingService/index.js';
 import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
 import { createLogger } from '../../utils/logger.js';
-import { fromParam, type DocumentId } from '../../utils/types/branded.js';
 
 import type {
   DocumentRequest,
@@ -158,7 +159,21 @@ router.post(
         return;
       }
 
-      const title = (req.body as UploadManualRequestBody).title || file.originalname;
+      // The text field beside the file, validated rather than cast. multipart
+      // bodies arrive as strings from busboy, so `title` is the only thing to
+      // check — but casting it meant a client sending `title: 42` reached
+      // `.trim()` and produced a 500 that read like a server fault.
+      const parsedBody = uploadOnlyBodySchema.safeParse(req.body);
+      if (!parsedBody.success) {
+        removePendingUpload(file.path);
+        res.status(400).json({
+          success: false,
+          message: 'Der Titel muss Text sein.',
+        });
+        return;
+      }
+
+      const title = parsedBody.data.title || file.originalname;
 
       const documentMetadata = await postgresDocumentService.saveDocumentMetadata(userId, {
         title: title.trim(),
@@ -184,7 +199,9 @@ router.post(
       // had happened. Indexing now runs while the user finishes the wizard.
       kickIngestWorker();
 
-      res.json({
+      // Built against the contract's schema, so the one raw handler left on this
+      // route cannot drift from what the clients derive their types from.
+      const body: UploadOnlyResponse = {
         success: true,
         message: 'File uploaded successfully',
         data: {
@@ -193,7 +210,8 @@ router.post(
           filename: file.originalname,
           status: 'uploaded',
         },
-      });
+      };
+      res.json(body);
     } catch (error) {
       log.error('[POST /upload-only] Error:', error);
       // Clean up uploaded file on error
@@ -206,72 +224,13 @@ router.post(
   }
 );
 
-/**
- * GET /:id/status - Get document processing status
+/*
+ * GET /:id/status moved to documentsContractRouter.ts. Its shape is pinned by
+ * `documentStatusResponseSchema` rather than tidied: shipped mobile binaries
+ * poll this exact path, so the camelCase keys and the `data` envelope are
+ * frozen. The contract is registered on the app before this router is mounted,
+ * so a `/:id/status` re-added here would never be reached.
  */
-router.get(
-  '/:id/status',
-  async (req: DocumentRequest<{ id: string }>, res: Response): Promise<void> => {
-    try {
-      const userId = req.user?.id;
-      if (!userId) {
-        res.status(401).json({ error: 'Unauthorized' });
-        return;
-      }
-
-      const id = fromParam<DocumentId>(req.params.id);
-      const document = await postgresDocumentService.getDocumentById(id, userId);
-      if (!document) {
-        res.status(404).json({ success: false, message: 'Document not found' });
-        return;
-      }
-
-      log.debug(
-        `[GET /:id/status] poll user=${userId} doc=${req.params.id} status=${document.status}`
-      );
-
-      // Surface processing stage/progress from the metadata JSONB so the
-      // upload UI can render per-doc stage labels + an upsert progress bar.
-      const docMeta =
-        typeof document.metadata === 'string'
-          ? (JSON.parse(document.metadata) as Record<string, unknown>)
-          : ((document.metadata ?? {}) as Record<string, unknown>);
-      const processingStage =
-        (docMeta.processing_stage as 'extracting' | 'chunking' | 'upserting' | null | undefined) ??
-        null;
-      const processingProgress =
-        (docMeta.processing_progress as
-          | {
-              stage: string;
-              current: number;
-              total: number;
-            }
-          | null
-          | undefined) ?? null;
-      // Why a 'failed' document failed — written by processUploadedDocument.
-      const processingError = (docMeta.processing_error as string | null | undefined) ?? null;
-
-      res.json({
-        success: true,
-        data: {
-          id: document.id,
-          status: document.status,
-          title: document.title,
-          vectorCount: document.vector_count || 0,
-          processingStage,
-          processingProgress,
-          error: processingError,
-        },
-      });
-    } catch (error) {
-      log.error('[GET /:id/status] Error:', error);
-      res.status(500).json({
-        success: false,
-        message: (error as Error).message || 'Failed to get document status',
-      });
-    }
-  }
-);
 
 /**
  * POST /upload-manual - Manual file upload (no file storage, vectors only)
