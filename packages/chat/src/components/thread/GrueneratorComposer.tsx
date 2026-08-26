@@ -49,6 +49,7 @@ import {
   PASTED_TEXT_ATTACHMENT_NAME,
   shouldCreatePastedTextAttachment,
 } from '../../lib/pastedText';
+import { pillsAfterThreadChange } from '../../lib/pillLifecycle';
 import { useScopedAgentId } from '../../lib/useScopedAgentState';
 import { useAgentStore } from '../../stores/chatStore';
 import { useUserProfileStore } from '../../stores/userProfileStore';
@@ -337,19 +338,19 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   const [mention, setMention] = useState<MentionState>(INITIAL_MENTION_STATE);
   // Function/agent mentions picked from the popover or plus menu live here as
   // chips ("pills") instead of raw `@websuche` text in the textarea. At send
-  // time they are flushed back into the text as exactly that plain-mention
-  // prefix, so parsing, routing, persistence and the message-bubble chips all
-  // stay on today's path (see buildMentionPrefix).
+  // time they are flushed back into the text as durable mention tokens, so
+  // parsing, routing, persistence and the message-bubble chips all agree on one
+  // text (see buildMentionPrefix).
   const [pillMentions, setPillMentions] = useState<Mentionable[]>([]);
   const pillMentionsRef = useRef(pillMentions);
   pillMentionsRef.current = pillMentions;
 
-  // Pills are a draft property of the current thread's composer — a thread
-  // switch (or new chat, which nulls the id) starts from a clean slate, same
-  // as the store does for activeSkillMention/pinnedConnector.
+  // Switching INTO a thread starts the composer from a clean slate; landing on
+  // the draft keeps what the user already picked (see pillsAfterThreadChange —
+  // the flip to null is what ate the mention on /start).
   const currentThreadId = useAgentStore((s) => s.currentThreadId);
   useEffect(() => {
-    setPillMentions([]);
+    setPillMentions((prev) => pillsAfterThreadChange(prev, currentThreadId));
   }, [currentThreadId]);
 
   // `interactive-widget=resizes-visual` (apps/web/index.html) keeps the layout
@@ -792,10 +793,14 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
           }));
           break;
         case 'Enter':
-        case 'Tab':
+        case 'Tab': {
           e.preventDefault();
-          handleSelect(filtered[mention.selectedIndex]);
+          // The list can shrink under a held index while `mentionableSync`
+          // refills it; picking nothing beats picking the wrong row.
+          const picked = filtered[mention.selectedIndex];
+          if (picked) handleSelect(picked);
           break;
+        }
         case 'Escape':
           e.preventDefault();
           dismissPopover();

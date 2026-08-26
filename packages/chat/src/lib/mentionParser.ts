@@ -1,4 +1,8 @@
-import { buildMentionToken, type MentionTokenType } from '@gruenerator/shared/utils';
+import {
+  buildMentionToken,
+  parseMentionTokens,
+  type MentionTokenType,
+} from '@gruenerator/shared/utils';
 
 import { getDefaultAgent } from './agents';
 import { resolveDocumentSlug } from './documentMentionables';
@@ -6,6 +10,7 @@ import {
   decodeWolkeToken,
   decodeConnectToken,
   resolveMentionable,
+  type MentionableType,
   type WolkeFileToken,
   type ConnectFileToken,
 } from './mentionables';
@@ -320,8 +325,8 @@ const TOKEN_ID_SAFE = /^[A-Za-z0-9:_.-]{1,128}$/;
  * it. Returns undefined for types that have no durable form (payload mentions
  * handled earlier).
  */
-function mentionTokenFor(m: {
-  type: string;
+export function mentionTokenFor(m: {
+  type: MentionableType;
   identifier: string;
   title: string;
   mention: string;
@@ -354,6 +359,23 @@ function mentionTokenFor(m: {
     default:
       return undefined;
   }
+}
+
+/**
+ * Did the user scope this turn to an MCP server themselves? The sticky pinned
+ * connector must stand back when they did, or the turn carries two scopes.
+ *
+ * Both carriers count. `forcedTools` catches a hand-typed `@tally` (the parser
+ * resolves it against the registry); the token scan catches a message whose
+ * mention is already durable — a pill flushed by `buildMentionPrefix`, or an
+ * edit-resubmit of a persisted message. Checking only `forcedTools`, as this
+ * did, missed both of those.
+ */
+export function hasExplicitMcpScope(forcedTools: readonly string[], text: string): boolean {
+  return (
+    forcedTools.some((t) => t.startsWith('mcp:')) ||
+    parseMentionTokens(text).some((t) => t.type === 'mcp')
+  );
 }
 
 export type MentionPreviewKind =
