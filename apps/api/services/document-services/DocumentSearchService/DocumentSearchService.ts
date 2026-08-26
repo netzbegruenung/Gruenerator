@@ -53,12 +53,7 @@ import type {
 import type { QdrantFilter as QdrantServiceFilter } from '../../../database/services/QdrantService/types.js';
 import type { QdrantService } from '../../../database/services/QdrantService.js';
 import type { SearchParamsInput } from '../../../utils/validation/types.js';
-import type {
-  SearchParams,
-  SearchResponse,
-  HybridMetadata,
-  DocumentData,
-} from '../../BaseSearchService/types.js';
+import type { SearchParams, SearchResponse, DocumentData } from '../../BaseSearchService/types.js';
 
 /**
  * Main DocumentSearchService class
@@ -914,17 +909,6 @@ export class DocumentSearchService extends BaseSearchService {
 
   override extractChunkData(chunk: DocumentRawChunk): DocumentChunkData {
     return scoring.extractChunkData(chunk);
-  }
-
-  calculateEnhancedDocumentScore(chunks: DocumentChunkData[]): DocumentEnhancedScore {
-    return scoring.calculateEnhancedDocumentScore(chunks);
-  }
-
-  calculateHybridDocumentScore(
-    chunks: DocumentChunkData[],
-    hybridMetadata?: HybridMetadata
-  ): DocumentEnhancedScore {
-    return scoring.calculateHybridDocumentScore(chunks, hybridMetadata);
   }
 
   override buildRelevanceInfo(doc: DocumentData, enhancedScore: DocumentEnhancedScore): string {
