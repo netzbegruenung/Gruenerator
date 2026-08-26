@@ -11,8 +11,6 @@
  * code the routes serve.
  */
 
-import { rerankPipeline } from './rerankPipeline.js';
-
 /** The fields the ranking needs; both routers' result types satisfy this. */
 export interface RankableSearchResult {
   document_id: string;
@@ -26,23 +24,13 @@ export interface RankableSearchResult {
 export type ManualSearchSort = 'relevance' | 'date_desc' | 'date_asc';
 
 export interface ManualSearchRankingOptions<T extends RankableSearchResult> {
-  query: string;
   results: T[];
   sortBy: ManualSearchSort;
   /** Final result count. */
   limit: number;
   /** Documents scoring below this are dropped entirely. */
   minScore: number;
-  /** Run the cross-encoder for `relevance` sorting. */
-  rerank: boolean;
 }
-
-/** Cross-encoder input size; also the cap on how deep reordering can reach. */
-const RERANK_INPUT_LIMIT = 30;
-/** Below this many candidates the cross-encoder has nothing to reorder. */
-const RERANK_MIN_CANDIDATES = 3;
-/** Chars of body text handed to the cross-encoder per document. */
-const RERANK_CONTENT_CHARS = 500;
 
 function byDateThenScore<T extends RankableSearchResult>(direction: 'asc' | 'desc') {
   return (a: T, b: T): number => {
@@ -75,15 +63,29 @@ function dedupeByDocument<T extends RankableSearchResult>(results: T[]): T[] {
 /**
  * Dedupe → threshold → order → slice.
  *
- * For `relevance` the cross-encoder decides the order when enabled: bi-encoder
- * embeddings cannot tell "Artenschutz" from "Datenschutz" (both project onto
- * "Schutz" topics), while a cross-encoder reads query and document together.
- * Date sorts skip it — the order is already determined.
+ * No cross-encoder. It used to rank the `relevance` case here, on the
+ * reasoning that bi-encoder embeddings cannot tell "Artenschutz" from
+ * "Datenschutz". Measured against the live index it did the opposite of that
+ * promise in this pipeline (`EVAL_PIPELINE=manual`, 12 keyword cases):
+ *
+ *   cross-encoder replaces retrieval order   Hit@1 25.0 %   MRR 0.309
+ *   its ranking fused with retrieval (RRF)   Hit@1 41.7 %   MRR 0.542
+ *   no cross-encoder                         Hit@1 75.0 %   MRR 0.787
+ *
+ * It is not a short-query effect: the 52 wordy Q&A queries run through this
+ * same pipeline (`EVAL_CASE_KIND=qa`) also score worse with it — Hit@1 44.2 %
+ * against 53.8 %. It saturates (1.000 / 0.998 / 0.995 across unrelated
+ * documents) and reads only a 500-char excerpt, so it cannot see the one
+ * signal a document lookup turns on: whether the document is *about* the term
+ * or merely mentions it. Before reintroducing it, re-run both case sets.
+ *
+ * The chat and Q&A paths keep their own rerank — this finding is about
+ * ranking whole documents in a search field, not about picking passages.
  */
-export async function rankManualSearchResults<T extends RankableSearchResult>(
+export function rankManualSearchResults<T extends RankableSearchResult>(
   options: ManualSearchRankingOptions<T>
-): Promise<T[]> {
-  const { query, results, sortBy, limit, minScore, rerank } = options;
+): T[] {
+  const { results, sortBy, limit, minScore } = options;
 
   const deduped = dedupeByDocument(results).filter((r) => r.similarity_score >= minScore);
 
@@ -91,35 +93,5 @@ export async function rankManualSearchResults<T extends RankableSearchResult>(
     return deduped.sort(byDateThenScore(sortBy === 'date_desc' ? 'desc' : 'asc')).slice(0, limit);
   }
 
-  if (!rerank || deduped.length <= RERANK_MIN_CANDIDATES) {
-    return deduped.sort((a, b) => b.similarity_score - a.similarity_score).slice(0, limit);
-  }
-
-  // Score order first: the cross-encoder only ever sees this many candidates,
-  // so an unordered cut would hand it whichever documents happened to come
-  // back first — across several collections that is concatenation order, not
-  // relevance, and a strong hit past the cut can never be reranked into view.
-  deduped.sort((a, b) => b.similarity_score - a.similarity_score);
-  const candidates = deduped.slice(0, RERANK_INPUT_LIMIT);
-  const { rankedIndices, scores } = await rerankPipeline({
-    query,
-    items: candidates.map((r) => ({
-      title: r.title ?? '',
-      content: (r.relevant_content ?? '').slice(0, RERANK_CONTENT_CHARS),
-      relevance: r.similarity_score,
-    })),
-    inputLimit: RERANK_INPUT_LIMIT,
-    outputLimit: limit,
-    minRelevance: 0.05,
-    minKeep: Math.min(5, candidates.length),
-    applyDiversity: true,
-  });
-
-  const reranked = rankedIndices.flatMap((i) => {
-    const candidate = candidates[i];
-    if (!candidate) return [];
-    return [{ ...candidate, similarity_score: scores.get(i) ?? candidate.similarity_score }];
-  });
-
-  return reranked.slice(0, limit);
+  return deduped.sort((a, b) => b.similarity_score - a.similarity_score).slice(0, limit);
 }
