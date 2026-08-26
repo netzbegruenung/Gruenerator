@@ -164,9 +164,12 @@ export function contrastRatio(
  * often than not.
  *
  * Blending toward the ground's opposite keeps the hue, which dropping to the
- * label colour would throw away. Termination is guaranteed: pure white reaches
- * 11.2:1 on the dark chip, pure black 17.6:1 on the light one.
+ * label colour would throw away. The last step is a full blend — pure white
+ * (11.2:1 on the dark chip) or pure black (17.6:1 on the light one) — so the
+ * loop always returns.
  */
+const BLEND_STEPS = 20;
+
 export function legibleBrandColor(color: string, mode: 'light' | 'dark'): string {
   const rgb = parseColor(color);
   if (!rgb) return 'currentColor';
@@ -174,7 +177,12 @@ export function legibleBrandColor(color: string, mode: 'light' | 'dark'): string
   if (contrastRatio(rgb, ground) >= MIN_ICON_CONTRAST) return color;
 
   const toward = mode === 'dark' ? 255 : 0;
-  for (let mix = 0.05; mix <= 1; mix += 0.05) {
+  // Counted in twentieths rather than `mix += 0.05`: the accumulating form
+  // drifts over 20 additions and can fall a hair past 1 on the last iteration,
+  // skipping exactly the step that guarantees an exit. `step / BLEND_STEPS`
+  // hits 1 exactly.
+  for (let step = 1; step <= BLEND_STEPS; step++) {
+    const mix = step / BLEND_STEPS;
     const blended: [number, number, number] = [
       Math.round(rgb[0] + (toward - rgb[0]) * mix),
       Math.round(rgb[1] + (toward - rgb[1]) * mix),
@@ -184,5 +192,7 @@ export function legibleBrandColor(color: string, mode: 'light' | 'dark'): string
       return `rgb(${blended[0]} ${blended[1]} ${blended[2]})`;
     }
   }
+  // Unreachable — at step 20 the blend IS pure white/black. TypeScript cannot
+  // see that, and a thrown error here would be a worse answer than a visible icon.
   return mode === 'dark' ? 'rgb(255 255 255)' : 'rgb(0 0 0)';
 }

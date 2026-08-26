@@ -79,6 +79,18 @@ describe('legibleBrandColor', () => {
     }
   });
 
+  it('rescues a mark the exact colour of the chip it sits on', () => {
+    // The worst input there is: 1:1 against the ground, so the blend has to run
+    // deep. It is also the case that would expose a loop which stops short of a
+    // full blend — the last step is what makes the exit unconditional.
+    for (const [ground, mode] of [
+      ['#f2f2f2', 'light'],
+      ['#3b3b3b', 'dark'],
+    ] as const) {
+      expect(ratioOnChip(legibleBrandColor(ground, mode), mode), mode).toBeGreaterThanOrEqual(3);
+    }
+  });
+
   it('falls back to the label colour for a colour it cannot parse', () => {
     expect(legibleBrandColor('rebeccapurple', 'dark')).toBe('currentColor');
   });
