@@ -31,6 +31,14 @@ type PublicOwnership = 'owner' | 'public_data';
 const NOTEBOOK_SEARCH_PAGE_SIZE = 200;
 const NOTEBOOK_SEARCH_MAX_PAGES = 10;
 
+/**
+ * Paging for the bulk notebook↔document join. 20 × 1000 links is far above
+ * anything the public listing holds today; the cap only exists so a runaway
+ * scroll cannot spin forever, and hitting it is logged as an error.
+ */
+const COLLECTION_LINK_PAGE_SIZE = 1000;
+const COLLECTION_LINK_MAX_PAGES = 20;
+
 export type NotebookShareMode = 'private' | 'groups' | 'authenticated';
 export type NotebookEditPolicy = 'owner_only' | 'group_admins' | 'all_members';
 export type NotebookAudience = 'de-DE' | 'de-AT';
@@ -932,6 +940,80 @@ class NotebookQdrantHelper {
       // Fail closed: treating everything as referenced skips deletion, which
       // leaves clutter. The opposite would destroy other notebooks' documents.
       return new Set(documentIds);
+    }
+  }
+
+  /**
+   * The same join for MANY notebooks in one filtered scroll.
+   *
+   * The public "Von der Basis" listing enriches up to 200 notebooks per
+   * request; asking per notebook turns one page load into 200 Qdrant round
+   * trips. `any` on `collection_id` collapses that into a paged scroll whose
+   * cost tracks the number of LINKS, not the number of notebooks.
+   *
+   * Collections without a single link are absent from the map — callers must
+   * treat a missing key as "no documents", not as "not looked up".
+   */
+  async getCollectionDocumentsForCollections(
+    collectionIds: readonly string[]
+  ): Promise<Map<string, CollectionDocument[]>> {
+    const byCollection = new Map<string, CollectionDocument[]>();
+    if (collectionIds.length === 0) return byCollection;
+    await this.ensureInitialized();
+
+    try {
+      const filter: QdrantFilter = {
+        must: [{ key: 'collection_id', match: { any: [...collectionIds] } }],
+      };
+
+      // Paged rather than one huge limit: a silent truncation here would show
+      // up as a notebook that lost half its sources, which is exactly the
+      // failure this whole change is about. `offset` is inclusive, hence the
+      // dropped first row on every page but the first (same idiom as
+      // listDocumentLinksPage).
+      let after: string | number | null = null;
+      let pages = 0;
+      for (; pages < COLLECTION_LINK_MAX_PAGES; pages++) {
+        const points: ScrollPoint[] = await this.qdrantOps!.scrollDocuments(
+          this.qdrant.collections.notebook_collection_documents,
+          filter,
+          {
+            limit: after === null ? COLLECTION_LINK_PAGE_SIZE : COLLECTION_LINK_PAGE_SIZE + 1,
+            withPayload: true,
+            offset: after,
+          }
+        );
+
+        // Annotated: `after` is narrowed from `page`'s last id, so leaving this
+        // to inference makes the two circular (TS7022).
+        const page: ScrollPoint[] = after === null ? points : points.slice(1);
+        for (const point of page) {
+          const collectionId = String(point.payload.collection_id);
+          const entry = byCollection.get(collectionId);
+          const doc: CollectionDocument = {
+            document_id: point.payload.document_id as string,
+            added_at: point.payload.added_at as string,
+            added_by: point.payload.added_by as string | null,
+          };
+          if (entry) entry.push(doc);
+          else byCollection.set(collectionId, [doc]);
+        }
+
+        if (page.length < COLLECTION_LINK_PAGE_SIZE) return byCollection;
+        after = page[page.length - 1]?.id ?? null;
+        if (after === null) return byCollection;
+      }
+
+      logger.error(
+        `Verknüpfungs-Scroll für ${collectionIds.length} Notizbücher nach ${pages} Seiten ` +
+          `(${COLLECTION_LINK_PAGE_SIZE * pages} Verknüpfungen) abgebrochen — ` +
+          `weitere Quellen fehlen in dieser Antwort.`
+      );
+      return byCollection;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error(`Error getting collection documents in bulk: ${message}`);
+      return byCollection;
     }
   }
 
