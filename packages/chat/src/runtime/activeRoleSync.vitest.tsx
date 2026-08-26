@@ -164,6 +164,95 @@ describe('ActiveRoleSyncEffect', () => {
   });
 });
 
+describe('resetChatContext', () => {
+  const hydrated = () =>
+    useUserProfileStore.getState().hydrate({
+      roles: [LGS, KV],
+      activeRole: LGS,
+      hasChosenRole: true,
+      isHydrated: true,
+    });
+
+  it('wendet die Standardrolle synchron an — ohne auf einen Effekt zu warten', () => {
+    hydrated();
+
+    useAgentStore.getState().resetChatContext();
+
+    const state = useAgentStore.getState();
+    expect(state.threadMode).toBe('eigener');
+    expect(state.customRoleRef).toEqual(LGS);
+    expect(state.roleRefSource).toBe('default');
+  });
+
+  it('Reload-Race: Reset NACH dem Sync-Effekt im selben Durchlauf verliert die Rolle nicht', () => {
+    // Beim Reload mountet der lazy Runtime-Chunk Effekt und Composer-Fläche im
+    // selben Commit: erst trägt der Effekt die Rolle auf, dann nullte der
+    // Mount-Reset der Fläche sie — und weil `threadMode` für den nächsten
+    // Render wieder unverändert 'chat' war, feuerte der Effekt nie erneut.
+    hydrated();
+
+    render(<ActiveRoleSyncEffect />);
+    useAgentStore.getState().resetChatContext();
+
+    const state = useAgentStore.getState();
+    expect(state.threadMode).toBe('eigener');
+    expect(state.customRoleRef).toEqual(LGS);
+  });
+
+  it('nullt vor der Hydration — dort übernimmt später der Sync-Effekt', () => {
+    useAgentStore.setState({
+      threadMode: 'eigener',
+      customRoleRef: LGS,
+      customRoleName: LGS.rolle,
+    });
+
+    useAgentStore.getState().resetChatContext();
+
+    expect(useAgentStore.getState().threadMode).toBe('chat');
+    expect(useAgentStore.getState().customRoleRef).toBeNull();
+  });
+
+  it('respektiert „Ohne Rolle" als getroffene Wahl', () => {
+    useUserProfileStore.getState().hydrate({
+      roles: [LGS],
+      activeRole: null,
+      hasChosenRole: true,
+      isHydrated: true,
+    });
+
+    useAgentStore.getState().resetChatContext();
+
+    expect(useAgentStore.getState().threadMode).toBe('chat');
+    expect(useAgentStore.getState().customRoleRef).toBeNull();
+  });
+
+  it('legt eine inzwischen gelöschte Rolle nicht auf', () => {
+    useUserProfileStore.getState().hydrate({
+      roles: [KV],
+      activeRole: LGS,
+      hasChosenRole: true,
+      isHydrated: true,
+    });
+
+    useAgentStore.getState().resetChatContext();
+
+    expect(useAgentStore.getState().threadMode).toBe('chat');
+    expect(useAgentStore.getState().customRoleRef).toBeNull();
+  });
+
+  it('räumt Agent und Skill-Kontext trotz angewandter Rolle ab', () => {
+    hydrated();
+    useAgentStore.setState({ selectedAgentId: 'pressemitteilung', activeSkillMention: 'insta' });
+
+    useAgentStore.getState().resetChatContext();
+
+    const state = useAgentStore.getState();
+    expect(state.selectedAgentId).toBeNull();
+    expect(state.activeSkillMention).toBeNull();
+    expect(state.customRoleRef).toEqual(LGS);
+  });
+});
+
 describe('setActiveRole', () => {
   it('schreibt die Wahl in die Konto-Einstellungen', () => {
     const persistActiveRole = vi.fn();
