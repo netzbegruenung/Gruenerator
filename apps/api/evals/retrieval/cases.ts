@@ -458,8 +458,10 @@ export const RETRIEVAL_CASES: RetrievalCase[] = [
     id: 'manual-kommunalwiki-quartiersmanagement',
     collection: 'kommunalwiki-system',
     query: 'Quartiersmanagement',
-    // Occurs in exactly one document.
-    expect: [{ titlePattern: 'Mannheim' }],
+    // Same mis-curation as the Klimaanpassung case: the term occurs most often
+    // in "Bürgerbeteiligung in Mannheim", but the wiki has an article called
+    // "Quartiersmanagement", and that is what this query asks for.
+    expect: [{ titlePattern: 'Quartiersmanagement' }],
     kind: 'manual',
   },
   {
