@@ -651,7 +651,8 @@ NUTZE WENN:
 NUTZE WENN eine Frage sich auf eine angehängte Datei bezieht und die bereits gezeigten Passagen nicht ausreichen.
 
 - Für eine gezielte Frage: \`query\` mit einem präzisen Suchbegriff.
-- Wenn die Frage keinen brauchbaren Suchbegriff hergibt (z. B. „was steht am Anfang", „lies weiter"): \`abschnitt\` mit \`von\` als Zeichenposition — die Antwort sagt dir, wo du weiterlesen kannst.${mehrere ? '\n- `dateiname` grenzt auf eine der Dateien ein.' : ''}
+- Wenn die Frage keinen brauchbaren Suchbegriff hergibt (z. B. „was steht am Anfang", „lies weiter"): \`abschnitt\` mit \`von\` als Zeichenposition — die Antwort sagt dir, wo du weiterlesen kannst.
+- Auch wenn die Frage Vollständigkeit verlangt („alle …", „wie viele …", jede Zeile einer Tabelle, eine ganze Liste): \`abschnitt\`, nicht \`query\` — die Passagensuche ordnet nach Relevanz und liefert nur die besten Treffer, nie alle.${mehrere ? '\n- `dateiname` grenzt auf eine der Dateien ein.' : ''}
 
 NICHT für eine Zusammenfassung des ganzen Dokuments — dafür gibt es \`summarize\`, das den vollständigen Text verarbeitet statt einzelner Passagen.`,
         inputSchema: z.object({
