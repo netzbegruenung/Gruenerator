@@ -6,7 +6,7 @@ import { useSettingsDialogStore, type SettingsTab } from './settingsDialogStore'
 // Legacy /profile/* tab names and the canonical /settings/:tab values both
 // resolve here; unknown tabs fall back to Allgemein. Namen, die es mal gab,
 // bleiben als Alias stehen — geteilte Links sollen nicht ins Leere laufen.
-const TAB_MAP: Record<string, SettingsTab> = {
+export const SETTINGS_TAB_MAP: Record<string, SettingsTab> = {
   // Führt ins Leere, sobald die Einrichtung erledigt ist — der Dialog fällt dann
   // auf Allgemein zurück, wo die Zeile steht, die sie zurückholt.
   onboarding: 'onboarding',
@@ -26,7 +26,11 @@ const TAB_MAP: Record<string, SettingsTab> = {
   konnektoren: 'konnektoren',
   mcp: 'konnektoren',
   nutzung: 'nutzung',
-  support: 'support',
+  barrierefreiheit: 'barrierefreiheit',
+  // Support ist seit #2387 kein eigener Bereich mehr — seine Hälfte steht unter
+  // Barrierefreiheit. Der Name bleibt als Alias stehen: geteilte Links auf
+  // /settings/support gibt es, und sie sollen nicht bei Allgemein landen.
+  support: 'barrierefreiheit',
 };
 
 // Old profile sub-pages that were never settings — keep their redirects alive.
@@ -48,7 +52,7 @@ const SettingsRedirect = () => {
       // Einrichtung geht vor. Ein Pfad MIT Bereich meint genau den.
       useSettingsDialogStore
         .getState()
-        .openSettings(tab ? (TAB_MAP[tab] ?? 'allgemein') : undefined);
+        .openSettings(tab ? (SETTINGS_TAB_MAP[tab] ?? 'allgemein') : undefined);
     }
     void navigate(pageRedirect ?? '/start', { replace: true });
   }, [tab, navigate]);

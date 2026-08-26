@@ -158,6 +158,7 @@ const TAB_SKELETONS: Record<SettingsTab, () => React.ReactElement> = {
   onboarding: () => <SettingsCardsSkeleton cards={1} />,
   allgemein: () => <SettingsRowsSkeleton rows={6} />,
   hintergrund: () => <SettingsTilesSkeleton />,
+  // Zwei Schalter plus den Support-Block darunter.
   barrierefreiheit: () => <SettingsRowsSkeleton rows={3} />,
   datenschutz: () => <SettingsRowsSkeleton rows={2} />,
   friends: () => <SettingsCardsSkeleton cards={4} />,
@@ -170,7 +171,6 @@ const TAB_SKELETONS: Record<SettingsTab, () => React.ReactElement> = {
   websites: () => <SettingsCardsSkeleton cards={2} />,
   konnektoren: () => <SettingsCardsSkeleton cards={3} />,
   nutzung: () => <SettingsStatsSkeleton />,
-  support: () => <SettingsRowsSkeleton rows={3} />,
 };
 
 /** Suspense fallback for a tab body whose chunk is still in flight. */
