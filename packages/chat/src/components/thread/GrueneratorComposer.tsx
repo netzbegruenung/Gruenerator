@@ -793,10 +793,14 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
           }));
           break;
         case 'Enter':
-        case 'Tab':
+        case 'Tab': {
           e.preventDefault();
-          handleSelect(filtered[mention.selectedIndex]);
+          // The list can shrink under a held index while `mentionableSync`
+          // refills it; picking nothing beats picking the wrong row.
+          const picked = filtered[mention.selectedIndex];
+          if (picked) handleSelect(picked);
           break;
+        }
         case 'Escape':
           e.preventDefault();
           dismissPopover();
