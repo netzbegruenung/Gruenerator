@@ -290,6 +290,67 @@ describe('wrapToolsForLoop — Hooks', () => {
     expect(out.results).toEqual(['erste']);
   });
 
+  /**
+   * Die Synchron-Invariante des Concurrency-Guards überlebt den Hook: Guard-
+   * Kette und `noteCall` bleiben EIN synchroner Block, das Hook-Await kommt
+   * erst danach. Läge es dazwischen, sähen parallele Geschwister-Aufrufe eines
+   * Model-Steps gegenseitig `inFlight = 0` und das Limit (2) griffe nicht mehr,
+   * sobald irgendein `beforeToolCall`-Handler konfiguriert ist — die Eval
+   * prüfte dann einen Pfad, den es in Produktion nicht gibt.
+   */
+  it('mit beforeToolCall hält das Concurrency-Limit für parallele Aufrufe eines Steps', async () => {
+    const hooks: ToolHooks = { beforeToolCall: async () => {} };
+    const { ctx } = makeCtx({
+      hooks,
+      guards: createToolLoopGuards({ searchToolNames: new Set(['search']) }),
+    });
+    const execute = vi.fn(async () => ({ results: [] }));
+    const tools = wrapToolsForLoop({ search: { execute } } as unknown as ToolSet, ctx);
+
+    const results = (await Promise.all([
+      run(tools, 'search', { query: 'a' }, 'call_1'),
+      run(tools, 'search', { query: 'b' }, 'call_2'),
+      run(tools, 'search', { query: 'c' }, 'call_3'),
+    ])) as Array<{ error?: string }>;
+
+    expect(execute).toHaveBeenCalledTimes(2);
+    const deferred = results.filter((r) => r.error);
+    expect(deferred).toHaveLength(1);
+    expect(deferred[0].error).toMatch(/laufen bereits/);
+  });
+
+  it('eine nach dem Hook-Timeout eintreffende Attrappe macht einen echten Lauf nicht zu mocked=true', async () => {
+    // Der Handler hängt über die 500-ms-Grenze (fail-open, das Werkzeug läuft
+    // echt) — und seine Attrappe landet erst WÄHREND der echten Ausführung.
+    // Der Zweig-Entscheid ist da schon gefallen; `afterToolCall` muss den Lauf
+    // als echt melden, sonst bucht der Kosten-Ledger ihn als Attrappe.
+    let capturedMock: ((result: unknown) => void) | null = null;
+    const seen: Array<{ mocked: boolean }> = [];
+    const hooks: ToolHooks = {
+      beforeToolCall: (e) => {
+        capturedMock = e.mock;
+        return new Promise<void>(() => {});
+      },
+      afterToolCall: (e) => seen.push({ mocked: e.mocked }),
+    };
+    const { ctx } = makeCtx({ hooks });
+    const tools = wrapToolsForLoop(
+      {
+        search: {
+          execute: async () => {
+            capturedMock?.({ results: ['zu spät'] });
+            return { results: ['echt'] };
+          },
+        },
+      } as unknown as ToolSet,
+      ctx
+    );
+
+    const out = (await run(tools, 'search', { query: 'x' })) as { results: unknown[] };
+    expect(out.results).toEqual(['echt']);
+    expect(seen).toEqual([{ mocked: false }]);
+  }, 2000);
+
   it('ein Fehler-Ergebnis aus einer Attrappe zählt als Fehlversuch wie ein echtes', async () => {
     const hooks: ToolHooks = { beforeToolCall: (e) => e.mock({ error: 'attrappierter Ausfall' }) };
     const { ctx, events } = makeCtx({ hooks });
