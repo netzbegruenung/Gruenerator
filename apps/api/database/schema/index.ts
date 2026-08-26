@@ -36,6 +36,7 @@ export * from './monitor.js';
 export * from './contentSync.js';
 export * from './userWebsites.js';
 export * from './userLetterheads.js';
+export * from './adminHiddenAgents.js';
 export * from './adminHiddenSkills.js';
 export * from './landesverbaende.js';
 export * from './aiModelLatency.js';

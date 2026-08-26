@@ -20,6 +20,7 @@ export {
   matchesRecipeAudience,
   localizeAgent,
   getSystemAgentsForLocale,
+  getCuratableSystemAgents,
   getVisibleSystemAgentsForLocale,
 } from './audience.js';
 
@@ -32,6 +33,7 @@ export {
   type SystemAgentId,
 } from './system.js';
 
+export { isAdminVisibleAgent } from './agentVisibility.js';
 export { isAdminVisibleSkill } from './skillVisibility.js';
 
 export {
