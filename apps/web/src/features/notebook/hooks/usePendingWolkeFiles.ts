@@ -8,6 +8,8 @@
 import { getContractsClient } from '@gruenerator/shared/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+import { invalidateFileMentions } from '../utils/invalidateFileMentions';
+
 const pendingKey = (collectionId: string) => ['wolkePending', collectionId] as const;
 
 export function usePendingWolkeFiles(collectionId: string, enabled = true) {
@@ -44,6 +46,7 @@ export function useAddPendingFile(collectionId: string) {
       // The notebook gained a document — refresh its detail + listings.
       void queryClient.invalidateQueries({ queryKey: ['notebook', 'collection'] });
       void queryClient.invalidateQueries({ queryKey: ['notebookCollections'] });
+      invalidateFileMentions(queryClient);
     },
   });
 }

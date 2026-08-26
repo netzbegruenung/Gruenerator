@@ -99,6 +99,18 @@ describe('useCombinedContentQuery', () => {
   });
 });
 
+/** A list entry with every field `mentionCollectionSchema` requires. */
+function collection(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'c1',
+    name: 'Wahlprogramm',
+    description: null,
+    document_count: 1,
+    documents: [{ id: 'd1', title: 'Antrag', created_at: '2026-08-01', status: 'completed' }],
+    ...overrides,
+  };
+}
+
 describe('useNotebookCollectionsQuery', () => {
   it('requests the contracted notebook-collections path', async () => {
     const spy = installFetch(() => jsonResponse({ collections: [] }));
@@ -107,5 +119,44 @@ describe('useNotebookCollectionsQuery', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(spy).toHaveBeenCalledWith('/api/auth/notebook-collections');
+  });
+
+  it('carries the readiness the server derived', async () => {
+    installFetch(() => jsonResponse({ collections: [collection({ indexing_state: 'indexing' })] }));
+
+    const { result } = renderHook(() => useNotebookCollectionsQuery(true), { wrapper });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(result.current.data?.[0]?.indexingState).toBe('indexing');
+  });
+
+  it('derives readiness itself when the backend predates the field', async () => {
+    installFetch(() =>
+      jsonResponse({
+        collections: [
+          collection({
+            documents: [
+              { id: 'd1', title: 'Antrag', created_at: '2026-08-01', status: 'uploaded' },
+            ],
+          }),
+        ],
+      })
+    );
+
+    const { result } = renderHook(() => useNotebookCollectionsQuery(true), { wrapper });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(result.current.data?.[0]?.indexingState).toBe('indexing');
+  });
+
+  it('surfaces a payload that does not match the contract as an error', async () => {
+    // Not an empty list: an unreadable answer renders identically to "you have
+    // no notebooks", which is the failure this hook was already bitten by once.
+    installFetch(() => jsonResponse({ collections: [{ id: 'c1' }] }));
+
+    const { result } = renderHook(() => useNotebookCollectionsQuery(true), { wrapper });
+    await waitFor(() => expect(result.current.isError).toBe(true), { timeout: 5000 });
+
+    expect(result.current.data).toBeUndefined();
   });
 });
