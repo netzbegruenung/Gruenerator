@@ -23,7 +23,7 @@ import {
 import { getQdrantInstance } from '../../database/services/QdrantService/index.js';
 import { scrollDocuments } from '../../database/services/QdrantService/operations/batchOperations.js';
 import { getQdrantDocumentService } from '../../services/document-services/index.js';
-import { rerankPipeline } from '../../services/search/rerankPipeline.js';
+import { rankManualSearchResults } from '../../services/search/manualSearchRanking.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -40,6 +40,9 @@ import type { DocumentResult, TopChunk } from '../../services/BaseSearchService/
 import type { Application } from 'express';
 
 const log = createLogger('researchContractRouter');
+
+/** Documents below this aggregated score never reach the result list. */
+const SYSTEM_COLLECTION_MIN_SCORE = 0.35;
 
 interface TaggedDocumentResult extends DocumentResult {
   collection_id: string;
@@ -173,62 +176,14 @@ export const researchContractRouter = s.router(researchContract, {
 
       const allResults = (await Promise.all(searchPromises)).flat();
 
-      // Deduplicate by source_url (or document_id), keeping highest similarity_score
-      const dedupMap = new Map<string, TaggedDocumentResult>();
-      for (const result of allResults) {
-        const key = result.source_url || result.document_id;
-        const existing = dedupMap.get(key);
-        if (!existing || result.similarity_score > existing.similarity_score) {
-          dedupMap.set(key, result);
-        }
-      }
-
-      let deduped = Array.from(dedupMap.values()).filter((r) => r.similarity_score >= 0.35);
-
-      // Cross-encoder rerank for relevance mode. Bi-encoder embeddings can't tell
-      // "Artenschutz" from "Datenschutz" (both project to "Schutz" topics);
-      // a cross-encoder reads query+document together and scores the actual match.
-      if (effectiveSort === 'relevance' && deduped.length > 3) {
-        const rerankInputLimit = 30;
-        const candidates = deduped.slice(0, rerankInputLimit);
-        const items = candidates.map((r) => ({
-          title: r.title ?? '',
-          content: (r.relevant_content ?? '').slice(0, 500),
-          relevance: r.similarity_score,
-        }));
-        const { rankedIndices, scores } = await rerankPipeline({
-          query: trimmedQuery,
-          items,
-          inputLimit: rerankInputLimit,
-          outputLimit: effectiveLimit,
-          minRelevance: 0.05,
-          minKeep: Math.min(5, candidates.length),
-          applyDiversity: true,
-        });
-        deduped = rankedIndices.flatMap((i) => {
-          const c = candidates[i];
-          if (!c) return [];
-          return [{ ...c, similarity_score: scores.get(i) ?? c.similarity_score }];
-        });
-      } else if (effectiveSort === 'date_desc') {
-        deduped.sort((a, b) => {
-          const dateA = a.published_at || '';
-          const dateB = b.published_at || '';
-          if (dateB !== dateA) return dateB.localeCompare(dateA);
-          return b.similarity_score - a.similarity_score;
-        });
-      } else if (effectiveSort === 'date_asc') {
-        deduped.sort((a, b) => {
-          const dateA = a.published_at || '';
-          const dateB = b.published_at || '';
-          if (dateA !== dateB) return dateA.localeCompare(dateB);
-          return b.similarity_score - a.similarity_score;
-        });
-      } else {
-        deduped.sort((a, b) => b.similarity_score - a.similarity_score);
-      }
-
-      deduped = deduped.slice(0, effectiveLimit);
+      const deduped = await rankManualSearchResults({
+        query: trimmedQuery,
+        results: allResults,
+        sortBy: effectiveSort,
+        limit: effectiveLimit,
+        minScore: SYSTEM_COLLECTION_MIN_SCORE,
+        rerank: true,
+      });
 
       // Extract best snippets with query-term highlighting. Map explicitly to
       // the contract result shape (normalise optional → null).

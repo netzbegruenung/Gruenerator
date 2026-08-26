@@ -34,6 +34,7 @@ import {
   normalizeRecentLimit,
 } from '../../services/notebook/notebookRecentService.js';
 import { getNotebookStats } from '../../services/notebook/notebookStatsService.js';
+import { rankManualSearchResults } from '../../services/search/manualSearchRanking.js';
 import { recordItemUsageSafe } from '../../services/usage/ItemUsageService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
@@ -66,6 +67,9 @@ const MODE_WEIGHTS: Record<'hybrid' | 'vector' | 'text', readonly [number, numbe
   vector: [1.0, 0.0],
   text: [0.0, 1.0],
 };
+
+/** Documents below this aggregated score never reach the result list. */
+const USER_NOTEBOOK_MIN_SCORE = 0.3;
 
 /**
  * Extract the authenticated user id or return a 401 contract response.
@@ -371,35 +375,14 @@ export const notebookContractRouter = s.router(notebookContract, {
         published_at: doc.published_at ?? null,
       }));
 
-      const dedupMap = new Map<string, (typeof tagged)[number]>();
-      for (const r of tagged) {
-        const key = r.source_url || r.document_id;
-        const existing = dedupMap.get(key);
-        if (!existing || r.similarity_score > existing.similarity_score) {
-          dedupMap.set(key, r);
-        }
-      }
-
-      let deduped = Array.from(dedupMap.values()).filter((r) => r.similarity_score >= 0.3);
-
-      if (effectiveSort === 'date_desc') {
-        deduped.sort((a, b) => {
-          const dateA = a.published_at || '';
-          const dateB = b.published_at || '';
-          if (dateB !== dateA) return dateB.localeCompare(dateA);
-          return b.similarity_score - a.similarity_score;
-        });
-      } else if (effectiveSort === 'date_asc') {
-        deduped.sort((a, b) => {
-          const dateA = a.published_at || '';
-          const dateB = b.published_at || '';
-          if (dateA !== dateB) return dateA.localeCompare(dateB);
-          return b.similarity_score - a.similarity_score;
-        });
-      } else {
-        deduped.sort((a, b) => b.similarity_score - a.similarity_score);
-      }
-      deduped = deduped.slice(0, effectiveLimit);
+      const deduped = await rankManualSearchResults({
+        query: trimmed,
+        results: tagged,
+        sortBy: effectiveSort,
+        limit: effectiveLimit,
+        minScore: USER_NOTEBOOK_MIN_SCORE,
+        rerank: false,
+      });
 
       const truncated = deduped.map((r) => ({
         document_id: r.document_id,

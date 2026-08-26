@@ -1,0 +1,157 @@
+{
+  "pipeline": "manual",
+  "depth": "fast",
+  "withRerank": false,
+  "outcomes": [
+    {
+      "id": "manual-berlin-hitzeschutz",
+      "collection": "berlin-system",
+      "query": "Hitzeschutz",
+      "rank": null,
+      "topTitles": [
+        "20210820_WPS_Bündnisgrüne Antwort_Bürgerinitiative Grüner Kiez Pankow_Nachhaltige Stadtentwicklung",
+        "Ein bezahlbares Zuhause für alle Berliner*innen schaffen – Für eine soziale Wohnungspolitik, faire Mieten und eine nachhaltige Stadtentwicklung: Beschluss auf der Landesdelegiertenkonferenz:\nDie...",
+        "Die großen Baustellen der Innenpolitik – Sonntagsreden schaffen keine Sicherheit",
+        "Das schwarz-rote Schneller-Bauen-Gesetz geht am Problem vorbei: Massive Lücken und mehr Doppelstrukturen",
+        "Radwege-Stopp: Erschüttertes Vertrauen, Kommunikationschaos, ungeklärte rechtliche und haushalterische Fragen: Angesichts des erklärten Radwege-Stopps erklären Philmon..."
+      ]
+    },
+    {
+      "id": "manual-berlin-baumfaellmoratorium",
+      "collection": "berlin-system",
+      "query": "Baumfäll-Moratorium",
+      "rank": null,
+      "topTitles": [
+        "Grüne Antworten Berliner Mieterverein",
+        "20210820_WPS_Bündnisgrüne Antwort_Bürgerinitiative Grüner Kiez Pankow_Nachhaltige Stadtentwicklung",
+        "Schneller-Bauen-Gesetz wird Berliner Anforderungen nicht gerecht",
+        "Es braucht einen Paradigmenwechsel in der Wohnungspolitik – für ein faires und gemeinwohlorientiertes Miet- und Baurecht!: Beschluss auf dem Landesausschuss:\nJede*r braucht ein...",
+        "Ein Landesamt Unterbringung: Zusammenbringen, was zusammen gehört"
+      ]
+    },
+    {
+      "id": "manual-berlin-milieuschutz",
+      "collection": "berlin-system",
+      "query": "Milieuschutz",
+      "rank": 6,
+      "topTitles": [
+        "Unser Wahlprogramm - Kapitel 6: Berlin funktioniert zuverlässig\nIn Berlin treffen...",
+        "20210826_Grüne Antworten_WPS_Nachbarschaftsrat KMA II e.V",
+        "Klimaschutz ist auch Gesundheitsschutz: Den Berliner Hitzschlag vermeiden",
+        "20210705_Grüne Antworten_WPS_Deutscher Anglerverband_LV Berlin",
+        "Für eine Partei, in der sich alle sicher fühlen: Beschluss der Sonder-FLINTA-Konferenz:\nAlle Menschen..."
+      ]
+    },
+    {
+      "id": "manual-bayern-moorschutz",
+      "collection": "bayern-system",
+      "query": "Moorschutz",
+      "rank": 8,
+      "topTitles": [
+        "Aktionsbündnis Hochwasserschutz: Vorbeugen, schützen, absichern!",
+        "„Rettet die Berge – Bergliebe statt Bausünde“",
+        "Erfolge des Volksbegehrens sind gefährdet",
+        "Offensiver Umweltschutz jetzt: Natur, Gesundheit und Wirtschaft erhalten",
+        "Hitzeschutz ist eine Frage der Gerechtigkeit"
+      ]
+    },
+    {
+      "id": "manual-bayern-nationalpark",
+      "collection": "bayern-system",
+      "query": "Nationalpark",
+      "rank": null,
+      "topTitles": [
+        "„Aus Rappenalpbach lernen und endlich richtig vorbeugen“",
+        "Statement zum Wassercent",
+        "Spessart stärken statt blockieren",
+        "Staatsforsten müssen konsequent auf den Rohstoffmarkt einwirken",
+        "Gemeinsame Experten-Anhörung von SPD und Grünen: Alpen vor Ausverkauf schützen!"
+      ]
+    },
+    {
+      "id": "manual-grundsatz-kindergrundsicherung",
+      "collection": "grundsatz-system",
+      "query": "Kindergrundsicherung",
+      "rank": 3,
+      "topTitles": [
+        "EU-Wahlprogramm 2024 – Was uns schützt",
+        "Regierungsprogramm 2025 – Zusammen wachsen",
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt"
+      ]
+    },
+    {
+      "id": "manual-grundsatz-schuldenbremse",
+      "collection": "grundsatz-system",
+      "query": "Schuldenbremse",
+      "rank": 1,
+      "topTitles": [
+        "Regierungsprogramm 2025 – Zusammen wachsen",
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt",
+        "EU-Wahlprogramm 2024 – Was uns schützt"
+      ]
+    },
+    {
+      "id": "manual-kommunalwiki-baumschutzsatzung",
+      "collection": "kommunalwiki-system",
+      "query": "Baumschutzsatzung",
+      "rank": 19,
+      "topTitles": [
+        "Bundesbodenschutzgesetz",
+        "Urbanes Grün",
+        "Kommunales Wildtierverbot für Zirkusaufführungen umstritten",
+        "Anschluss- und Benutzungszwang",
+        "Verkehrssicherungspflicht an Badestellen"
+      ]
+    },
+    {
+      "id": "manual-kommunalwiki-quartiersmanagement",
+      "collection": "kommunalwiki-system",
+      "query": "Quartiersmanagement",
+      "rank": null,
+      "topTitles": [
+        "Baukulturelles Erbe in den Städten",
+        "Interkommunaler Leistungsvergleich",
+        "Hauptseite",
+        "Innenstadt",
+        "Sport im öffentlichen Raum"
+      ]
+    },
+    {
+      "id": "manual-kommunalwiki-klimaanpassung",
+      "collection": "kommunalwiki-system",
+      "query": "Klimaanpassung",
+      "rank": null,
+      "topTitles": [
+        "Baukulturelles Erbe in den Städten",
+        "Klimaschutz in finanzschwachen Kommunen",
+        "Anpassung an den Klimawandel",
+        "Klimaschutz als kommunale Pflichtaufgabe?",
+        "Starkregen"
+      ]
+    },
+    {
+      "id": "manual-gruene-de-heizungsgesetz",
+      "collection": "gruene-de-system",
+      "query": "Heizungsgesetz",
+      "rank": 14,
+      "topTitles": [
+        "Das Bürokratieentlastungsgesetz",
+        "Klima schützen",
+        "Neue Gaskraftwerke der Union sind ein teurer Irrweg.",
+        "WIRTSCHAFTSINNOVATION",
+        "Das haben wir 2024 geschafft"
+      ]
+    },
+    {
+      "id": "manual-at-klimaticket",
+      "collection": "oesterreich-gruene-system",
+      "query": "Klimaticket",
+      "rank": 1,
+      "topTitles": [
+        "EU-Wahlprogramm 2024 der Grünen (Österreich)",
+        "Wahlprogramm Nationalratswahl 2024 der Grünen (Österreich)",
+        "Grundsatzprogramm der Grünen (Österreich)"
+      ]
+    }
+  ]
+}
