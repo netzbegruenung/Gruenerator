@@ -1,3 +1,5 @@
+import type { NotebookIndexingState } from '@gruenerator/contracts';
+
 export type DocumentSourceType = 'notebook' | 'document' | 'text';
 
 export interface DocumentMention {
@@ -32,13 +34,20 @@ export interface NotebookCollectionItem {
   description: string | null;
   documentCount: number;
   documents: NotebookDocumentItem[];
+  /**
+   * Whether the notebook's sources are searchable yet. Carried this far because
+   * mentioning a notebook that is still indexing produces an answer built on
+   * nothing — indistinguishable, to the reader, from the notebook having no
+   * relevant content. `null` only for a backend predating the field.
+   */
+  indexingState: NotebookIndexingState | null;
 }
 
 export interface NotebookDocumentItem {
   id: string;
   title: string;
-  pageCount?: number;
-  sourceType?: string;
+  pageCount: number | null;
+  sourceType: string | null;
 }
 
 export interface DocumentSearchResult {

@@ -16,7 +16,12 @@
  * guard only — should never fire in production).
  */
 
-import { documentsContract } from '@gruenerator/contracts';
+import {
+  documentsContract,
+  type DocumentProcessingProgress,
+  type DocumentProcessingStage,
+  type DocumentStatusValue,
+} from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { COLLECTION_MAP } from '../../config/collectionMap.js';
@@ -53,6 +58,56 @@ function getUserId(req: Request): string {
     throw new Error('Authentication required');
   }
   return user.id;
+}
+
+// ── documents.metadata readers ─────────────────────────────────────────────
+//
+// `metadata` is an untyped JSONB bag, and Postgres hands it back as an object
+// or as a string depending on the driver path. Both status routes below have to
+// normalize the same three keys out of it, so the narrowing lives here once —
+// an unknown value degrades to null rather than reaching a Zod-validated
+// response and turning a poll into a 500.
+
+const DOCUMENT_STATUSES = new Set<string>([
+  'pending',
+  'uploaded',
+  'processing',
+  'completed',
+  'failed',
+]);
+const PROCESSING_STAGES = new Set<string>(['extracting', 'chunking', 'upserting']);
+
+function readMetadata(raw: unknown): Record<string, unknown> {
+  if (typeof raw === 'string') {
+    try {
+      return JSON.parse(raw) as Record<string, unknown>;
+    } catch {
+      return {};
+    }
+  }
+  return (raw ?? {}) as Record<string, unknown>;
+}
+
+/** Legacy rows and statuses not yet in the enum fall back to 'pending'. */
+function normalizeStatus(raw: unknown): DocumentStatusValue {
+  return typeof raw === 'string' && DOCUMENT_STATUSES.has(raw)
+    ? (raw as DocumentStatusValue)
+    : 'pending';
+}
+
+function normalizeStage(raw: unknown): DocumentProcessingStage | null {
+  return typeof raw === 'string' && PROCESSING_STAGES.has(raw)
+    ? (raw as DocumentProcessingStage)
+    : null;
+}
+
+function normalizeProgress(raw: unknown): DocumentProcessingProgress | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const candidate = raw as { stage?: unknown; current?: unknown; total?: unknown };
+  const stage = normalizeStage(candidate.stage);
+  if (!stage) return null;
+  if (typeof candidate.current !== 'number' || typeof candidate.total !== 'number') return null;
+  return { stage, current: candidate.current, total: candidate.total };
 }
 
 // ── Contract router ────────────────────────────────────────────────────────
@@ -219,6 +274,56 @@ export const documentsContractRouter = s.router(documentsContract, {
     }
   },
 
+  getStatus: async (args) => {
+    try {
+      const userId = getUserId(args.req);
+      const { id } = args.params;
+
+      const document = await postgresDocumentService.getDocumentById(id, userId);
+      if (!document) {
+        return {
+          status: 404 as const,
+          body: { success: false as const, message: 'Document not found' },
+        };
+      }
+
+      // The processing stage and progress ride in the metadata JSONB so the
+      // upload UI can label the step instead of showing one generic spinner.
+      // `processing_error` is the only place a failure reason is written —
+      // there is no error column.
+      const meta = readMetadata(document.metadata);
+
+      log.debug(
+        `[documentsContract.getStatus] poll user=${userId} doc=${id} status=${document.status}`
+      );
+
+      return {
+        status: 200 as const,
+        body: {
+          success: true as const,
+          data: {
+            id: document.id,
+            status: normalizeStatus(document.status),
+            title: document.title,
+            vectorCount: document.vector_count || 0,
+            processingStage: normalizeStage(meta.processing_stage),
+            processingProgress: normalizeProgress(meta.processing_progress),
+            error: typeof meta.processing_error === 'string' ? meta.processing_error : null,
+          },
+        },
+      };
+    } catch (error) {
+      log.error('[documentsContract.getStatus] Error:', error);
+      return {
+        status: 500 as const,
+        body: {
+          success: false as const,
+          message: (error as Error).message || 'Failed to get document status',
+        },
+      };
+    }
+  },
+
   getDocumentStatuses: async (args) => {
     try {
       const userId = getUserId(args.req);
@@ -235,44 +340,13 @@ export const documentsContractRouter = s.router(documentsContract, {
       }>;
 
       // IDs not owned by the caller are silently omitted (don't leak existence).
-      // Unknown status strings get normalized to 'pending' — defensive against
-      // legacy rows or future statuses that haven't been added to the enum yet.
-      const allowedStatuses = new Set(['pending', 'uploaded', 'processing', 'completed', 'failed']);
-      const allowedStages = new Set(['extracting', 'chunking', 'upserting']);
-
       const statuses = rows.map((r) => {
-        const meta =
-          typeof r.metadata === 'string'
-            ? (JSON.parse(r.metadata) as Record<string, unknown>)
-            : ((r.metadata ?? {}) as Record<string, unknown>);
-
-        const rawStage = meta.processing_stage as string | null | undefined;
-        const stage =
-          rawStage && allowedStages.has(rawStage)
-            ? (rawStage as 'extracting' | 'chunking' | 'upserting')
-            : null;
-
-        const rawProgress = meta.processing_progress as
-          { stage?: string; current?: number; total?: number } | null | undefined;
-        const progress =
-          rawProgress &&
-          typeof rawProgress.stage === 'string' &&
-          allowedStages.has(rawProgress.stage) &&
-          typeof rawProgress.current === 'number' &&
-          typeof rawProgress.total === 'number'
-            ? {
-                stage: rawProgress.stage as 'extracting' | 'chunking' | 'upserting',
-                current: rawProgress.current,
-                total: rawProgress.total,
-              }
-            : null;
-
+        const meta = readMetadata(r.metadata);
         return {
           id: r.id,
-          status: (allowedStatuses.has(r.status) ? r.status : 'pending') as
-            'pending' | 'uploaded' | 'processing' | 'completed' | 'failed',
-          stage,
-          progress,
+          status: normalizeStatus(r.status),
+          stage: normalizeStage(meta.processing_stage),
+          progress: normalizeProgress(meta.processing_progress),
         };
       });
 
