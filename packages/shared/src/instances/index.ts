@@ -18,6 +18,14 @@
  *     content already has (a notebook's `category`), so a new Landesverband
  *     notebook inherits the rule for free.
  *
+ * **The one documented exception to "content never names instances": content
+ * that is EXCLUSIVE to an instance names its instances itself** (a recipe's
+ * `instances`, see `agents/skillInstances.ts`). Curating it from here would
+ * invert the maintenance cost the rule exists to avoid — every new BGSt recipe
+ * would mean editing the four *other* instances to hide it, and forgetting one
+ * leaks. Read it as the mirror image of `audience`: the content states where it
+ * belongs, the instance states what it drops.
+ *
  * **Pure data and pure functions — no `import.meta.env`, no framework imports.**
  * This module is consumed by the web bundle, the React Native binary and the
  * Node backend alike, and only the first of those has `import.meta.env`. Each
@@ -59,6 +67,21 @@ export interface InstanceContentPolicy {
    * — list every alias that should disappear, not just the canonical one.
    */
   toolIds?: readonly string[];
+  /**
+   * Recipe (`Skill`) curation, same category-before-id preference as notebooks:
+   * `skillCategories` matches a recipe's `skillCategory`, `skillMentions` names
+   * the individual cases a category cannot express.
+   *
+   * This is the *negative* half of recipe visibility — dropping shared recipes
+   * an instance does not want. The positive half (a recipe that exists only on
+   * some instances) lives on the content as `Skill.instances`; see the module
+   * header for why the two halves sit on opposite sides.
+   *
+   * Recipes owned by an agent that this instance hides need no entry here: they
+   * fall with their owner through `agents/skillInstances.ts`.
+   */
+  skillCategories?: readonly string[];
+  skillMentions?: readonly string[];
 }
 
 /**
@@ -105,11 +128,45 @@ export interface InstanceDefinition {
    */
   defaultRole?: { ebeneId: string; rolle: string };
   /**
+   * Narrows what the role wizard OFFERS. An instance serving a single
+   * organisation has no use for the other four Ebenen, and every role a user can
+   * pick is a role whose Baustein and content entitlements the instance then has
+   * to carry — the Landesgeschäftsstelle role, for one, is what unlocks
+   * Landesverband content (`agents/landesverbandForRoles.ts`).
+   *
+   * **Discovery-only, like `hide`**: roles a user already saved stay listed,
+   * keep their Baustein and keep working. `services/roles/roleSystemPrompt.ts`
+   * is deliberately instance-blind — filtering there would silently degrade
+   * running chats of people who joined before the narrowing, which is the
+   * server-side twin of a 404 on a shared link.
+   *
+   * Ebene ids and role names are plain strings rather than imports from
+   * `../roles/rolesConfig.js`: that module reaches back here through
+   * `notebooks/`, and the cycle would be real. `index.vitest.ts` asserts every
+   * value against the role registry instead, so a typo fails at test time.
+   */
+  offeredRoles?: {
+    /** Ebene ids to offer (`DE_EBENEN`/`AT_EBENEN`). Absent = all of them. */
+    ebenen?: readonly string[];
+    /** Role names to offer, across Ebenen. Absent = all roles of the offered Ebenen. */
+    rollen?: readonly string[];
+    /** Offer the "Sonstige" free-text role? Absent = yes. */
+    allowCustom?: boolean;
+  };
+  /**
    * Fixed hero greeting overriding the DE/AT rotation in
    * `utils/greeting.ts`. Same `@Vorname` token as the rotation templates.
    */
   heroGreeting?: string;
 }
+
+/**
+ * Public origin of the production instance — the fallback for links handed to
+ * someone else (share links, invite links, webview handoffs) when no runtime
+ * origin is available. The one name for what used to be five (#2855); mobile
+ * re-exports it as `WEB_ORIGIN` in `apps/mobile/services/webOrigin.ts`.
+ */
+export const PRODUCTION_WEB_ORIGIN = 'https://gruenerator.eu';
 
 export const INSTANCES = [
   {
@@ -137,8 +194,24 @@ export const INSTANCES = [
     channels: ['stable'],
     hide: {
       toolIds: ['canvas-vorlagen', 'reels-untertitel', 'vorlagen', 'tool-vorlagen', 'tool-reel'],
+      // The Bundesgeschäftsstelle works on the federal level: the twelve
+      // Landesverband notebooks and the Austrian ones are noise here. By
+      // category, not by id, so a new Landesverband inherits the rule — and the
+      // three agents per Landesverband, their hubs and their recipes fall with
+      // it (`agents/landesverbandHubs.ts`, `agents/skillInstances.ts`).
+      notebookCategories: ['landesebene', 'oesterreich'],
+      // The Reel tools are hidden above; leaving the recipe would offer a text
+      // form for a tool this instance does not have.
+      skillMentions: ['reel'],
     },
     defaultRole: { ebeneId: 'bund', rolle: 'Mitarbeiter*in Bundesgeschäftsstelle' },
+    offeredRoles: {
+      ebenen: ['bund'],
+      rollen: ['Mitarbeiter*in Bundesgeschäftsstelle'],
+      allowCustom: false,
+    },
+    defaultLocale: 'de-DE',
+    lockedLocale: true,
     heroGreeting: 'Willkommen zur Bgst-KI, @Vorname',
   },
   {
@@ -251,6 +324,25 @@ export function policyCoversTool(
   toolId: string
 ): boolean {
   return policy?.toolIds?.includes(toolId) ?? false;
+}
+
+/**
+ * Does `policy` cover this recipe? Shared by the hide and block tiers.
+ *
+ * Keyed on `mention`, never on `identifier`: the identifier names the owning
+ * agent and several recipes share one, so an id list there would take out
+ * siblings nobody meant to touch (same reason `admin_hidden_skills` keys on
+ * mention). Recipes that should fall *with* their owner do so in
+ * `agents/skillInstances.ts`, which is where the owner is known.
+ */
+export function policyCoversSkill(
+  policy: InstanceContentPolicy | null | undefined,
+  skill: { mention: string; skillCategory?: string }
+): boolean {
+  if (!policy) return false;
+  if (policy.skillMentions?.some((mention) => mention === skill.mention)) return true;
+  if (!skill.skillCategory) return false;
+  return policy.skillCategories?.includes(skill.skillCategory) ?? false;
 }
 
 /**

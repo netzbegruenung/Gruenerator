@@ -15,6 +15,7 @@ const getSearchContext = vi.fn();
 const rerankNotebookResults = vi.fn();
 const resolveModel = vi.fn();
 const streamWithFallback = vi.fn();
+const streamForResolution = vi.fn();
 const isProviderConfigured = vi.fn(() => true);
 const expandQuery = vi.fn();
 
@@ -29,7 +30,7 @@ vi.mock('../../services/notebook/rerankNotebookResults.js', () => ({
 vi.mock('./services/responseStreamingService.js', () => ({
   resolveModel: (...args: unknown[]) => resolveModel(...args),
   streamWithFallback: (...args: unknown[]) => streamWithFallback(...args),
-  streamForResolution: vi.fn(),
+  streamForResolution: (...args: unknown[]) => streamForResolution(...args),
 }));
 vi.mock('./agents/providers.js', () => ({
   isProviderConfigured: (...args: unknown[]) => isProviderConfigured(...args),
@@ -86,18 +87,46 @@ function searchContextWith(n: number) {
   };
 }
 
-async function run(mode?: NotebookDepth) {
+async function run(mode?: NotebookDepth, messages?: unknown[]) {
   const { req, res, sse, sent } = makeReqRes();
   await handleNotebookStream({
     req,
     res,
     sse,
-    messages: [{ role: 'user', content: 'Was steht zur sozialen Sicherung drin?' }],
+    messages: (messages ?? [
+      { role: 'user', content: 'Was steht zur sozialen Sicherung drin?' },
+    ]) as Parameters<typeof handleNotebookStream>[0]['messages'],
     collectionId: 'grundsatz-system',
     ...(mode && { mode }),
     closeStream: false,
   });
   return sent;
+}
+
+/** A two-turn thread ending in a follow-up, as the ultra client sends it. */
+const HISTORY_MESSAGES = [
+  { role: 'user', content: 'Was sagt das Programm zu Windkraft?' },
+  {
+    role: 'assistant',
+    content: 'Das Programm fordert massiven Ausbau [1].',
+    citations: [
+      {
+        index: '1',
+        document_id: 'doc-old',
+        document_title: 'Wahlprogramm',
+        cited_text: 'Windkraft massiv ausbauen',
+        chunk_index: 4,
+      },
+    ],
+  },
+  { role: 'user', content: 'Und was heißt das für Bayern?' },
+];
+
+/** The messages the model actually received (via buildStream → streamForResolution). */
+function modelMessages(): Array<{ role: string; content: string }> {
+  const call = streamForResolution.mock.calls[0]?.[0] as
+    { messages: Array<{ role: string; content: string }> } | undefined;
+  return call?.messages ?? [];
 }
 
 /** The rerank window a tier asked for, from a clean slate each time. */
@@ -119,8 +148,25 @@ function setupMocks() {
       rerankTimeMs: 5,
     })
   );
-  resolveModel.mockResolvedValue({ provider: 'mistral', model: 'mistral-medium-2604' });
-  streamWithFallback.mockResolvedValue('Eine Antwort mit Beleg [1].');
+  resolveModel.mockResolvedValue({
+    provider: 'mistral',
+    model: 'mistral-medium-2604',
+    contextWindow: 262144,
+  });
+  // Drive buildStream so streamForResolution records the model messages.
+  streamWithFallback.mockImplementation(
+    async ({
+      primary,
+      buildStream,
+    }: {
+      primary: unknown;
+      buildStream: (r: unknown) => Promise<string | null>;
+    }) => {
+      await buildStream(primary);
+      return 'Eine Antwort mit Beleg [1].';
+    }
+  );
+  streamForResolution.mockResolvedValue('Eine Antwort mit Beleg [1].');
   isProviderConfigured.mockReturnValue(true);
   expandQuery.mockResolvedValue({
     primary: 'Was steht zur sozialen Sicherung drin?',
@@ -223,5 +269,50 @@ describe('handleNotebookStream — reranking per tier', () => {
     );
     const sent = await run('deep');
     expect(sent.some((e) => e.event === 'completion')).toBe(true);
+  });
+});
+
+describe('handleNotebookStream — conversation history (ultra only)', () => {
+  it('hands the history to the model in ultra, between system prompt and question', async () => {
+    await run('ultra', HISTORY_MESSAGES);
+    const msgs = modelMessages();
+    expect(msgs.map((m) => m.role)).toEqual(['system', 'user', 'assistant', 'user']);
+    expect(msgs[1].content).toBe('Was sagt das Programm zu Windkraft?');
+    // The final user message carries the CURRENT question plus sources.
+    expect(msgs[3].content).toContain('Und was heißt das für Bayern?');
+  });
+
+  it.each(['fast', 'deep'] as const)('drops incoming history explicitly in %s', async (mode) => {
+    // The chat-mode client has always sent the full thread to this endpoint;
+    // below ultra it must be ignored, not spread unbudgeted into the prompt.
+    await run(mode, HISTORY_MESSAGES);
+    const msgs = modelMessages();
+    expect(msgs.map((m) => m.role)).toEqual(['system', 'user']);
+  });
+
+  it('rewrites old citation markers to the merged numbering and appends the carried source', async () => {
+    await run('ultra', HISTORY_MESSAGES);
+    const msgs = modelMessages();
+    const oldAnswer = msgs[2].content;
+    // referencesMap of the reranked context is empty in this harness, so the
+    // carried source becomes id 1 — the old [1] happens to map onto it; what
+    // matters is that the marker went through the mapping, not verbatim.
+    expect(oldAnswer).toContain('[1]');
+    // The carried passage is offered as a citable source in the prompt.
+    expect(msgs[3].content).toContain('aus früherer Antwort');
+    expect(msgs[3].content).toContain('Wahlprogramm');
+  });
+
+  it('passes the conversation to the query rewrite in ultra', async () => {
+    await run('ultra', HISTORY_MESSAGES);
+    const [query, opts] = expandQuery.mock.calls[0] as [string, { historyContext?: string }];
+    expect(query).toBe('Und was heißt das für Bayern?');
+    expect(opts.historyContext).toContain('Was sagt das Programm zu Windkraft?');
+  });
+
+  it('sends no history context to the query rewrite on a first question', async () => {
+    await run('ultra');
+    const [, opts] = expandQuery.mock.calls[0] as [string, { historyContext?: string }];
+    expect(opts.historyContext).toBeUndefined();
   });
 });

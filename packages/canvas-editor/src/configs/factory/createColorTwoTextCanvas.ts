@@ -25,6 +25,7 @@ import { getPlaceholder } from '../placeholders';
 import { createShareSection } from '../shareSection';
 
 import { createBaseActions } from './actionFactories';
+import { carryInstanceState } from './carryInstanceState';
 import { makeSectionDefiner } from './defineSection';
 
 import type { CanvasFeatures, CanvasDimensions, IconState } from './baseTypes';
@@ -64,6 +65,8 @@ export interface ColorTwoTextStateBase {
   secondaryOpacity?: number;
   primaryColor?: string;
   secondaryColor?: string;
+  primaryPosition?: { x: number; y: number } | null;
+  secondaryPosition?: { x: number; y: number } | null;
 
   // Base state
   assetInstances: AssetInstance[];
@@ -199,6 +202,24 @@ export interface ColorTwoTextOptions<
 // ============================================================================
 // FACTORY FUNCTION
 // ============================================================================
+
+/**
+ * Copies the text-styling keys `createTextElement` wires into every
+ * primary/secondary text (colour, opacity, dragged position) out of the seed
+ * props. Absent keys are omitted rather than carried as an explicit
+ * `undefined`, so the optional state fields stay unset.
+ */
+function carryTextStyling(props: Record<string, unknown>): Record<string, unknown> {
+  const keys = [
+    'primaryColor',
+    'secondaryColor',
+    'primaryOpacity',
+    'secondaryOpacity',
+    'primaryPosition',
+    'secondaryPosition',
+  ];
+  return Object.fromEntries(keys.filter((k) => props[k] != null).map((k) => [k, props[k]]));
+}
 
 export function createColorTwoTextCanvas<
   const TPrimary extends string,
@@ -401,20 +422,20 @@ export function createColorTwoTextCanvas<
         // Background color
         backgroundColor: (props.backgroundColor as string) || defaultBackgroundColor,
 
+        // Toolbar-written text styling. Rides along for the same reason as
+        // the font sizes above: card renders and remote-sync re-seeds run
+        // through here, and a key that is neither carried nor listed in
+        // `passthroughStateKeys` is dropped — the colour/opacity slider then
+        // applied live and forgot the change on the next render.
+        ...carryTextStyling(props),
+
         // Base state
-        assetInstances: [],
         isDesktop: typeof window !== 'undefined' && window.innerWidth >= 900,
-        selectedIcons: [],
-        iconStates: {},
-        shapeInstances: [],
-        illustrationInstances: [],
-        additionalTexts: [],
-        pillBadgeInstances: [],
-        circleBadgeInstances: [],
-        balkenInstances: [],
-        frameInstances: [],
-        chartInstances: [],
-        userImageInstances: [],
+
+        // Everything the user added to the canvas. These were hard-set to `[]`
+        // here, so a chat edit — which re-seeds through this function with the
+        // full previous state — erased added icons, shapes and texts.
+        ...carryInstanceState(props),
 
         ...Object.fromEntries(
           passthroughStateKeys.filter((k) => k in props).map((k) => [k, props[k]])

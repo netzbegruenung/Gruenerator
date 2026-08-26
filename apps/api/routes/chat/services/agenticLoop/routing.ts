@@ -748,8 +748,10 @@ export interface AgenticDecisionInput {
   compoundGeneration: boolean;
   /** image_edit / vision turns stay single-pass. */
   hasImageAttachments: boolean;
-  /** A fill ask ("füll das aus") on a thread that has a PDF. Precomputed by the
-   *  caller (isSheetFillRequest) so this module stays import-free. */
+  /** A fill ask ("füll das aus") on a thread that has a REACHABLE form — a PDF
+   *  whose bytes were kept because `isFillablePdf` accepted it. Precomputed by
+   *  the caller (isSheetFillRequest + hasReachableForm) so this module stays
+   *  import-free. */
   isPdfFillRequest: boolean;
   /** The classifier answered `needsResearch: true` and then picked `direct`.
    *  Rescues the turn into the loop even when it isn't shaped like a question —

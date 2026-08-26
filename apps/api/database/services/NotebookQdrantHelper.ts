@@ -231,7 +231,7 @@ class NotebookQdrantHelper {
    */
   async storeNotebookCollection(
     collectionData: NotebookCollectionData
-  ): Promise<{ success: boolean; collection_id: string }> {
+  ): Promise<{ success: boolean; collection_id: string; slug_suffix: string }> {
     await this.ensureInitialized();
 
     try {
@@ -279,7 +279,11 @@ class NotebookQdrantHelper {
       await this.qdrantOps!.batchUpsert(this.qdrant.collections.notebook_collections, [point]);
 
       logger.info(`Stored Notebook collection: ${collectionId}`);
-      return { success: true, collection_id: collectionId };
+      // The suffix is minted here, so it has to travel back out: the create
+      // handler builds its response from the caller's data, which never had it,
+      // and the frontend fell back to the raw UUID for every freshly created
+      // notebook — the pretty URL was unreachable until the next page load.
+      return { success: true, collection_id: collectionId, slug_suffix: slugSuffix };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       logger.error(`Error storing Notebook collection: ${message}`);

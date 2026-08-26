@@ -3,16 +3,19 @@
  * Combines vector and text search with various fusion methods
  */
 
-import { type QdrantClient } from '@qdrant/js-client-rest';
+import { type QdrantClient, type Schemas } from '@qdrant/js-client-rest';
 
+import { BM25_SPARSE_VECTOR_NAME } from '../../../../config/qdrantCollectionsSchema.js';
 import { vectorConfig } from '../../../../config/vectorConfig.js';
 import {
+  encodeBm25Query,
   generateQueryVariants,
   normalizeQuery,
   tokenizeQuery,
 } from '../../../../services/text/index.js';
 import { createLogger } from '../../../../utils/logger.js';
 
+import { collectionSupportsBm25 } from './batchOperations.js';
 import { vectorSearch } from './vectorSearch.js';
 
 import type {
@@ -61,6 +64,23 @@ export async function hybridSearch(
 
   try {
     logger.debug(`Hybrid search - vector weight: ${vectorWeight}, text weight: ${textWeight}`);
+
+    // Server-side hybrid via Query API (dense + BM25 sparse, RRF fusion) for
+    // migrated collections. Legacy client-side scroll fusion remains the
+    // fallback for collections that don't declare the sparse vector yet.
+    if (await collectionSupportsBm25(client, collection)) {
+      const serverResult = await hybridSearchServerSide(
+        client,
+        collection,
+        queryVector,
+        query,
+        filter,
+        { limit, threshold, recallLimit: recallLimit ?? null },
+        hybridCfg
+      );
+      if (serverResult) return serverResult;
+      logger.debug('Server-side hybrid unavailable for this query - using legacy fusion');
+    }
 
     const recallText = Math.max(limit, recallLimit || limit * 4);
     const textResults = await performTextSearch(client, collection, query, filter, recallText);
@@ -155,6 +175,94 @@ export async function hybridSearch(
 }
 
 /**
+ * Server-side hybrid search: one Query API round trip with a dense and a BM25
+ * sparse prefetch, fused via RRF in Qdrant. Replaces the client-side
+ * scroll+TF-heuristic fusion for collections that declare the sparse vector.
+ * Returns null when the query yields no sparse terms (stopwords only) so the
+ * caller can fall back to the legacy path.
+ */
+async function hybridSearchServerSide(
+  client: QdrantClient,
+  collection: string,
+  queryVector: number[],
+  query: string,
+  filter: QdrantFilter,
+  opts: { limit: number; threshold: number; recallLimit: number | null },
+  hybridCfg: HybridConfig
+): Promise<HybridSearchResponse | null> {
+  const sparseQuery = encodeBm25Query(query);
+  if (sparseQuery.indices.length === 0) return null;
+
+  const { limit, threshold, recallLimit } = opts;
+  const recall = Math.max(limit, recallLimit || limit * 4);
+  const hasFilter = Boolean(filter.must?.length || filter.should?.length || filter.must_not);
+  const prefetchFilter = hasFilter ? (filter as Schemas['Filter']) : undefined;
+
+  const prefetch: Schemas['Prefetch'][] = [
+    {
+      query: queryVector,
+      using: '',
+      limit: recall,
+      score_threshold: threshold,
+      params: { hnsw_ef: Math.max(100, recall * 2) },
+      ...(prefetchFilter && { filter: prefetchFilter }),
+    },
+    {
+      query: { indices: sparseQuery.indices, values: sparseQuery.values },
+      using: BM25_SPARSE_VECTOR_NAME,
+      limit: recall,
+      ...(prefetchFilter && { filter: prefetchFilter }),
+    },
+  ];
+
+  const response = await client.query(collection, {
+    prefetch,
+    query: { fusion: 'rrf' },
+    limit: recall,
+    with_payload: true,
+  });
+
+  // Qdrant's server-side RRF scores are HIGHER than the legacy client-side
+  // 1/(60+rank) domain (measured: rank 1 in both lists ≈ 1.0). The quality
+  // gate's minFinalScore was tuned for the lower legacy domain, so it only
+  // ever filters less here — never more — and stays safe to apply.
+  let results: HybridSearchResult[] = response.points.map((point) => ({
+    id: point.id,
+    score: point.score,
+    payload: (point.payload as Record<string, unknown>) || {},
+    searchMethod: 'hybrid' as const,
+    originalVectorScore: null,
+    originalTextScore: null,
+  }));
+
+  if (hybridCfg.enableQualityGate) {
+    results = applyQualityGate(results, true, hybridCfg);
+  }
+  results = results.slice(0, limit);
+
+  logger.info(
+    `Server-side hybrid (rrf): ${results.length}/${response.points.length} results for "${query}"`
+  );
+
+  return {
+    success: true,
+    results,
+    metadata: {
+      vectorResults: -1,
+      textResults: -1,
+      fusionMethod: 'rrf-server',
+      vectorWeight: 0.5,
+      textWeight: 0.5,
+      dynamicThreshold: threshold,
+      qualityFiltered: hybridCfg.enableQualityGate,
+      autoSwitchedFromRRF: false,
+      hasRealTextMatches: true,
+      textMatchTypes: ['bm25'],
+    },
+  };
+}
+
+/**
  * Perform text-based search using Qdrant's scroll API with multi-variant support
  */
 export async function performTextSearch(
@@ -181,8 +289,7 @@ export async function performTextSearch(
 
       try {
         const scrollResult = await client.scroll(collection, {
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any
-          filter: textFilter as any,
+          filter: textFilter as Schemas['Filter'],
           limit: Math.ceil(limit / variants.length) + 5,
           with_payload: true,
           with_vector: false,
@@ -243,8 +350,7 @@ export async function performTextSearch(
           tokFilter.must!.push({ key: 'chunk_text', match: { text: tok } });
           try {
             const tokRes = await client.scroll(collection, {
-              // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any
-              filter: tokFilter as any,
+              filter: tokFilter as Schemas['Filter'],
               limit: Math.ceil(limit / tokens.length) + 3,
               with_payload: true,
               with_vector: false,

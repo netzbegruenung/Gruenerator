@@ -34,7 +34,6 @@ import {
   applyDefaultFilter,
   type SubcategoryFilters,
 } from '../../config/systemCollectionsConfig.js';
-import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { checkNotebookAccess } from '../../routes/notebook/notebookAccess.js';
 import { createLogger } from '../../utils/logger.js';
 import { aiText } from '../ai/generate.js';
@@ -57,6 +56,9 @@ import {
   formatDe,
 } from '../search/index.js';
 
+import { inspectCorpusState } from './corpusState.js';
+
+import type { CorpusStateInspection } from './corpusState.js';
 import type {
   QAMultiCollectionParams,
   QASingleCollectionParams,
@@ -121,19 +123,6 @@ function withProgramFilter(
  * briefly — but still the matched passage, not the chunk's opening.
  */
 const FAST_DRAFT_SOURCE_MAX_CHARS = 900;
-
-interface CorpusDocSummary {
-  id: string;
-  title: string | null;
-}
-
-interface CorpusStateInspection {
-  state: 'indexing' | 'failed' | 'ready';
-  indexing: CorpusDocSummary[];
-  failed: CorpusDocSummary[];
-  ready: CorpusDocSummary[];
-  total: number;
-}
 
 export class NotebookQAService {
   /**
@@ -424,7 +413,7 @@ export class NotebookQAService {
 
     if (sorted.length === 0) {
       const corpus =
-        !isSystem && documentIds ? await this._inspectCorpusState(documentIds, userId) : null;
+        !isSystem && documentIds ? await inspectCorpusState(documentIds, userId) : null;
       const answer = this._buildEmptyResultMessage(collection.name, corpus);
       return {
         success: true,
@@ -1131,65 +1120,12 @@ export class NotebookQAService {
         corpus_state_detail: {
           indexing_count: corpus.indexing.length,
           failed_count: corpus.failed.length,
+          stale_count: corpus.stale.length,
           ready_count: corpus.ready.length,
           total_count: corpus.total,
         },
       }),
     };
-  }
-
-  /**
-   * Inspect the Postgres state of the requested documents so we can tell the
-   * user *why* a search came back empty (still indexing / failed / genuine miss).
-   */
-  private async _inspectCorpusState(
-    documentIds: readonly string[],
-    userId: string
-  ): Promise<CorpusStateInspection> {
-    if (documentIds.length === 0) {
-      return { state: 'ready', indexing: [], failed: [], ready: [], total: 0 };
-    }
-
-    try {
-      const postgres = getPostgresInstance();
-      const rows = (await postgres.query(
-        `SELECT id, title, status, vector_count
-         FROM documents
-         WHERE id = ANY($1) AND user_id = $2`,
-        [documentIds, userId]
-      )) as Array<{
-        id: string;
-        title: string | null;
-        status: string;
-        vector_count: number | null;
-      }>;
-
-      const indexing: CorpusDocSummary[] = [];
-      const failed: CorpusDocSummary[] = [];
-      const ready: CorpusDocSummary[] = [];
-
-      for (const row of rows) {
-        const summary: CorpusDocSummary = { id: row.id, title: row.title };
-        if (row.status === 'uploaded' || row.status === 'processing' || row.status === 'pending') {
-          indexing.push(summary);
-        } else if (row.status === 'failed') {
-          failed.push(summary);
-        } else if (row.status === 'completed' && (row.vector_count ?? 0) > 0) {
-          ready.push(summary);
-        } else {
-          // status='completed' but vector_count=0 — treat as failed for UX purposes
-          failed.push(summary);
-        }
-      }
-
-      const state: CorpusStateInspection['state'] =
-        indexing.length > 0 ? 'indexing' : failed.length > 0 ? 'failed' : 'ready';
-
-      return { state, indexing, failed, ready, total: rows.length };
-    } catch (error) {
-      log.warn(`[QA Single] _inspectCorpusState failed: ${(error as Error).message}`);
-      return { state: 'ready', indexing: [], failed: [], ready: [], total: 0 };
-    }
   }
 
   private _buildEmptyResultMessage(
@@ -1202,6 +1138,15 @@ export class NotebookQAService {
         `Die Dokumente in der Sammlung "${collectionName}" werden gerade indexiert ` +
         `(${corpus.ready.length}/${total} bereit). ` +
         `Bitte probier es in ein bis zwei Minuten erneut.`
+      );
+    }
+    if (corpus && corpus.stale.length > 0) {
+      const total = corpus.total || corpus.stale.length;
+      return (
+        `Für ${corpus.stale.length} von ${total} Dokumenten in "${collectionName}" fehlt der ` +
+        `Suchindex — die Dokumente sind noch da, aber nicht durchsuchbar. Das ist ein Fehler auf ` +
+        `unserer Seite und liegt nicht an deiner Frage. Lade die betroffenen Dateien erneut hoch ` +
+        `oder melde dich, damit wir den Index neu aufbauen.`
       );
     }
     if (corpus && corpus.failed.length > 0) {

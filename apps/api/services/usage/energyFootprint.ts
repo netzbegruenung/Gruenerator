@@ -116,6 +116,26 @@ const MODEL_ENERGY: Readonly<Record<string, EnergyCoefficients>> = {
     mWhFixed: 0,
     basis: 'measured',
   },
+  // Cortecs' `gemma-4-31b-it` — DIESELBEN Gewichte wie `gemma4-31b` eine Zeile
+  // höher, nur unter der Kennung des Routers. Seit dem Cortecs-Umzug ist das
+  // die ID, die `heavy` und `pruefung` tatsächlich senden und die die
+  // Buchhaltung als `model` führt (usageModelMiddleware.ts nimmt
+  // `wrapped.modelId`); ohne diesen Eintrag fielen beide Stufen still auf
+  // „nicht abgedeckt". Denselben Koeffizienten unter zwei IDs zu führen ist
+  // hier schon die Regel — `verdigado-think` unten tut es aus demselben Grund.
+  //
+  // Der Host ist ein anderer als der der Messung, und das ist bewusst
+  // hingenommen: was der Koeffizient trägt, sind die Gewichte, und den
+  // Rechenzentrums-Unterschied rechnet `pueFor(provider)` getrennt heraus —
+  // die Middleware bucht dafür den aufgelösten Upstream (`infercom`/`berget`),
+  // nicht den Router-Namen. Der GPU-Unterschied bleibt unkorrigiert, genau wie
+  // bei `verdigado-think`.
+  'gemma-4-31b-it': {
+    mWhPerOutputToken: 0.722,
+    mWhPerInputToken: 0.0085,
+    mWhFixed: 0,
+    basis: 'measured',
+  },
   // `gemma-4-26b-a4b-it` (Scaleway, die `heavy`-Stufe seit 01.08.2026) fehlt
   // hier BEWUSST und bleibt „nicht abgedeckt". Es ist eine andere Architektur
   // als das 31B — MoE mit 4B aktiven Parametern —, der Koeffizient des 31B gilt
@@ -226,6 +246,33 @@ const GRID_INTENSITY_G_PER_KWH: Readonly<Record<string, number>> = {
   // Fallback only — GreenPT rows carry measured emissions. Same value as
   // Scaleway because GreenPT runs on Scaleway Paris.
   greenpt: 24,
+  // FALLBACK, nicht der Normalfall. Cortecs ist ein Router ohne eigenen
+  // Standort, und `usageModelMiddleware` bucht deshalb den Unterauftragnehmer
+  // aus dem Antwort-Header (`x-cortecs-provider`) statt der Lane — eine Zeile
+  // mit diesem Schlüssel entsteht also nur, wenn der Header fehlte.
+  //
+  // Der Wert ist dann die beste verfügbare Auskunft und keine Erfindung: für
+  // `gemma-4-26b-a4b-it`, das einzige Modell dieser Lane, nannte der Header am
+  // 21.08.2026 in 8 von 8 Anfragen `scaleway`. Garantiert ist das nicht —
+  // dasselbe Modell hat auch einen Endpunkt bei `aki` (Deutschland, 363
+  // g/kWh), weshalb der Header überhaupt ausgelesen wird.
+  cortecs: 24,
+  // Die Unterauftragnehmer, an die Cortecs für unsere Modelle tatsächlich
+  // vermittelt — sie und nicht `cortecs` landen in der Buchhaltung, seit
+  // `usageModelMiddleware` den Antwort-Header ausliest.
+  //
+  // infercom bedient `gemma-4-31b-it`, den Primär der `pruefung`-Stufe
+  // (10/10 Anfragen am 21.08.2026). Infercom SCS sitzt in Luxemburg und
+  // verarbeitet nach der Cortecs-DPA vom 11.08.2026 in DEUTSCHLAND — daher
+  // derselbe Wert wie litellm/Hetzner und nicht Scaleways 24.
+  infercom: 363, // Deutschland 2024, Umweltbundesamt
+  // berget ist der zweite Endpunkt desselben Modells und antwortet heute nicht,
+  // kann es aber jederzeit. Berget AI AB (Schweden) gibt als
+  // Verarbeitungsort EWR an, ohne ein Land zu nennen; 45 ist Schwedens Wert
+  // (Ember 2024) und damit die günstigste Lesart einer unbestimmten Angabe.
+  // Erring high wäre hier die vorsichtigere Wahl — die Zahl steht deshalb
+  // unter Vorbehalt, bis der Header sie überhaupt einmal nennt.
+  berget: 45,
   // Black Forest Labs (image generation) — German mix, and here is the whole
   // chain of what is known and what is not.
   //
@@ -272,7 +319,7 @@ const GRID_INTENSITY_G_PER_KWH: Readonly<Record<string, number>> = {
  * per lane is EVIDENCE, and the bar is a named instrument, not a green
  * self-image:
  *
- *  scaleway/greenpt — Guarantee of Origin, stated in Scaleway's Impact Report
+ *  scaleway/greenpt/cortecs — Guarantee of Origin, stated in Scaleway's Impact Report
  *    2025 alongside its own location-based Scope 2 figure. The strongest case,
  *    and note what Scaleway itself does with it: it holds the GoO AND still
  *    reports location-based. That is the model this table copies.
@@ -302,6 +349,15 @@ const GRID_INTENSITY_G_PER_KWH: Readonly<Record<string, number>> = {
 const MARKET_INTENSITY_G_PER_KWH: Readonly<Record<string, number>> = {
   mistral: 0,
   scaleway: 0,
+  // Erbt Scaleways Instrument, weil es dieselbe Erzeugung ist — siehe die
+  // Header-Messung bei GRID_INTENSITY_G_PER_KWH. Ein Router als solcher trägt
+  // kein eigenes Zertifikat; was zählt, ist wer tatsächlich rechnet.
+  cortecs: 0,
+  // KEIN Instrument für infercom und berget: für beide ist uns keine
+  // Herkunftsnachweis- oder EMAS-Erklärung bekannt. Sie fehlen hier bewusst
+  // und fallen damit auf den Standortfaktor zurück — dieselbe Behandlung wie
+  // `bfl`, und aus demselben Grund: ein fremdes Zertifikat ist nicht unseres
+  // zu behaupten.
   greenpt: 0,
   litellm: 0,
   regolo: 0,
@@ -348,6 +404,11 @@ const PUE_BY_PROVIDER: Readonly<Record<string, number>> = {
   // explicitly so nobody replaces it with Scaleway's 1,375 fleet average, which
   // includes the non-AI sites.
   scaleway: 1.25,
+  // Derselbe Standort über den Vermittler — siehe oben.
+  cortecs: 1.25,
+  // Kein PUE für infercom und berget — keiner der beiden veröffentlicht einen.
+  // Die Tabelle fällt dafür auf ihren Standardwert zurück, was ehrlicher ist
+  // als ein von einem anderen Betreiber geliehener Wert.
 };
 
 export interface Footprint {

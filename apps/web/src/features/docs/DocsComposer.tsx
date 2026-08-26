@@ -1,7 +1,18 @@
 // The store subpath, not the package root: the composer sits on landing pages
 // that must not pull the chat UI into their chunk.
 import { useAgentStore } from '@gruenerator/chat/stores';
-import { TypingAnimation, useIsMobile } from '@gruenerator/ui';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  TypingAnimation,
+  useIsMobile,
+} from '@gruenerator/ui';
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import {
   FiCloud,
@@ -60,6 +71,12 @@ interface DocsComposerProps {
   /** Placeholder rotation. Defaults to the office examples; override per surface. */
   promptExamples?: string[];
   promptExamplesShort?: string[];
+  /** Static placeholder instead of the rotating examples. The rotation reads as a
+   * list of create commands, which hides that the field searches too. */
+  placeholder?: string;
+  /** Glyph on the submit button. `search` on surfaces that lead with finding
+   * things; the action stays "create" either way. */
+  submitIcon?: 'arrow' | 'search';
   onGenerate: (kind: DocKind, prompt: string) => void;
   onSelectTemplate: (kind: DocKind, id: string) => void;
   onImport: (kind: ImportKind) => void;
@@ -98,6 +115,8 @@ export function DocsComposer({
   forcedKind,
   promptExamples = PROMPT_EXAMPLES,
   promptExamplesShort = PROMPT_EXAMPLES_SHORT,
+  placeholder,
+  submitIcon = 'arrow',
   onGenerate,
   onSelectTemplate,
   onImport,
@@ -107,6 +126,9 @@ export function DocsComposer({
   const [q, setQ] = useState('');
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
+  // Set when a create was attempted on text that reads like a chat message —
+  // holds the prompt the dialog then either hands to the chat or creates anyway.
+  const [chatAsk, setChatAsk] = useState<string | null>(null);
   const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // The blur→close timer outlives the input when a route change unmounts the
@@ -157,23 +179,36 @@ export function DocsComposer({
   // a block: the create action stays available right below.
   const chatIntent = detectChatIntent(query);
 
+  const create = (prompt: string) => {
+    onGenerate(detectedKind, prompt);
+  };
+
+  // Asking a question here used to silently produce a document out of it. The
+  // dropdown notice was easy to miss (mouse users go straight for the arrow
+  // button), so the create is confirmed instead — the chat is one click away.
   const runCreate = () => {
     if (!query || isGenerating) return;
-    onGenerate(detectedKind, query);
+    if (chatIntent) {
+      setOpen(false);
+      setChatAsk(query);
+      return;
+    }
+    create(query);
   };
 
   // Hand the text over as a *draft*, not a sent message: the detection is a
   // heuristic, so the user gets to read it in the chat composer and press send.
-  const runChatHandoff = () => {
-    if (!query) return;
+  const runChatHandoff = (prompt = query) => {
+    if (!prompt) return;
     setOpen(false);
-    useAgentStore.getState().setPendingDraft(query);
+    setChatAsk(null);
+    useAgentStore.getState().setPendingDraft(prompt);
     void navigate('/chat');
   };
 
   const chatOption: Option = {
     key: 'chat',
-    onSelect: runChatHandoff,
+    onSelect: () => runChatHandoff(),
     render: () => (
       <div className="flex w-full min-w-0 items-center gap-3">
         <span className="flex h-[26px] w-[26px] flex-none items-center justify-center rounded-lg bg-[#E6F0EA] text-[#3E7A5F] dark:bg-grey-700 dark:text-grey-200">
@@ -343,7 +378,7 @@ export function DocsComposer({
     <div className="relative mx-auto mt-10 w-full max-w-[760px]">
       <div className="flex items-center gap-3 rounded-full border border-[#DFE8E2] bg-white py-[9px] pl-[22px] pr-[9px] shadow-[0_4px_22px_rgba(31,63,51,.07)] transition-colors focus-within:border-grey-400 max-sm:gap-2 max-sm:pl-4 dark:border-grey-700 dark:bg-grey-800 dark:focus-within:border-grey-500">
         <div className="relative min-w-0 flex-1">
-          {query.length === 0 && (
+          {query.length === 0 && !placeholder && (
             <TypingAnimation
               words={isMobile ? promptExamplesShort : promptExamples}
               loop
@@ -366,6 +401,7 @@ export function DocsComposer({
               blurTimer.current = setTimeout(() => setOpen(false), 120);
             }}
             onKeyDown={onKeyDown}
+            placeholder={placeholder}
             aria-label="Erstellen oder suchen"
             className="w-full min-w-0 border-0 bg-transparent py-[9px] text-base text-[#22382E] outline-none placeholder:text-muted-brand dark:text-foreground"
           />
@@ -400,6 +436,8 @@ export function DocsComposer({
         >
           {isGenerating ? (
             <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+          ) : submitIcon === 'search' ? (
+            <FiSearch className="h-[17px] w-[17px]" strokeWidth={2.1} />
           ) : (
             <svg
               viewBox="0 0 24 24"
@@ -465,6 +503,35 @@ export function DocsComposer({
           ))}
         </div>
       )}
+
+      <AlertDialog open={chatAsk !== null} onOpenChange={(o) => !o && setChatAsk(null)}>
+        {/* Default size, not `sm`: that one is 320px wide and its footer is a
+            hard `grid-cols-2`, built for two short buttons. The third would
+            wrap into a row of its own, left-aligned beside empty space. */}
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Das klingt nach einer Frage</AlertDialogTitle>
+            <AlertDialogDescription>
+              Hier entstehen Dokumente, Boards, Tabellen und Präsentationen — beantworten kann deine
+              Frage der Chat. Dein Text wird dorthin übernommen, abgeschickt wird er erst von dir.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {/* Radix focuses the Cancel button when the dialog opens, so the
+              non-committal option has to sit there: the dialog is reached by
+              pressing Enter in the composer, and a second Enter must not be
+              able to do the thing the dialog is asking about. Both real
+              choices are Actions — they close the dialog either way. */}
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction variant="outline" onClick={() => chatAsk && create(chatAsk)}>
+              Trotzdem erstellen
+            </AlertDialogAction>
+            <AlertDialogAction onClick={() => chatAsk && runChatHandoff(chatAsk)}>
+              Im Chat fragen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
 
+import { cortecsBaseUrl } from './cortecsEndpoint.js';
 import {
   type ProviderName,
   LITELLM_DEFAULT_BASE_URL,
@@ -42,6 +43,24 @@ const MODEL_METADATA: Record<string, { name: string; reasoning: boolean; vision:
   'mistral-small-latest': { name: 'Mistral Small', reasoning: false, vision: false },
   'mistral-small-2503': { name: 'Mistral Small (Vision)', reasoning: false, vision: true },
   'gemma4-31b': { name: 'Gemma 4 31B', reasoning: true, vision: true },
+  // DASSELBE Modell über Cortecs (infercom) — der Primär aller
+  // Gemma-Lanes seit 25.08.2026, siehe services/ai/gemmaHosts.ts. Zwei Flags,
+  // die absichtlich vom Zwilling darüber abweichen:
+  //
+  //   `reasoning: false` — es denkt auf diesem Host OHNE Flag nicht (gemessen
+  //   21.08. und 25.08.2026: 0 Zeichen Denken im Baseline). Dieses Feld
+  //   beschreibt genau das und nicht mehr; angeschaltet wird über
+  //   `chat_template_kwargs.enable_thinking` im Denk-Strom, den
+  //   `isReasoningStreamModel` gesondert führt.
+  //
+  //   `vision: false` — GEMESSEN, nicht vorsichtshalber: ein echter Bild-Turn
+  //   gegen infercom antwortet am 25.08.2026 mit HTTP 500 (`unexpected_error`),
+  //   obwohl der Katalog `input_modalities: ['text','image']` und den Tag
+  //   `Image` führt. Der Katalog beschreibt die Gewichte, nicht den Endpunkt.
+  //   Folge: die Bild-Weiche in responseStreamingService.ts sieht den
+  //   vision-fähigen Sibling (Regolo) und tauscht innerhalb der Lane dorthin —
+  //   ein geprüfter Pfad, und sie protokolliert es.
+  'gemma-4-31b-it': { name: 'Gemma 4 31B', reasoning: false, vision: false },
   // Scaleway's Gemma 4, MoE with 4B active parameters — the `heavy` stage.
   // `reasoning: true` is the honest flag (it thinks by DEFAULT), which is
   // exactly why its client forces `reasoning_effort: 'none'`; see
@@ -105,6 +124,7 @@ const CATEGORY_NAMES: Record<ProviderName, string> = {
   regolo: 'Regolo',
   greenpt: 'GreenPT',
   scaleway: 'Scaleway',
+  cortecs: 'Cortecs',
 };
 
 const CAT_ORDER: Record<string, number> = {
@@ -227,6 +247,10 @@ const PROVIDER_ENDPOINTS: Record<
     url: () => `${scalewayBaseUrl()}/models`,
     getApiKey: () => env.SCALEWAY_API_KEY ?? null,
   },
+  cortecs: {
+    url: () => `${cortecsBaseUrl()}/models`,
+    getApiKey: () => env.CORTECS_API_KEY ?? null,
+  },
 };
 
 function fetchModelsForProvider(provider: ProviderName): Promise<PlaygroundModel[]> {
@@ -244,10 +268,11 @@ const FALLBACK_MODELS: PlaygroundModel[] = ['mistral-medium-2604', 'mistral-smal
   );
 
 async function discoverModels(): Promise<PlaygroundModel[]> {
-  // `greenpt` and `scaleway` are deliberately absent, not forgotten: this list
-  // feeds the Playground's model picker, and both are backend-only lanes
-  // (scaleway serves the `heavy` intermediate stage). They keep their
-  // PROVIDER_ENDPOINTS entry so adding them here is a one-word change.
+  // `greenpt`, `scaleway` und `cortecs` sind bewusst abwesend, nicht vergessen:
+  // diese Liste speist die Modellauswahl im Playground, und alle drei sind
+  // reine Backend-Lanes (cortecs bedient seit 21.08.2026 die `heavy`-Stufe,
+  // vorher scaleway). Ihr PROVIDER_ENDPOINTS-Eintrag bleibt, damit das
+  // Aufnehmen ein Ein-Wort-Eingriff ist.
   const providers: ProviderName[] = ['mistral', 'litellm', 'regolo'];
   const results = await Promise.allSettled(
     providers.filter((p) => isProviderConfigured(p)).map((p) => fetchModelsForProvider(p))

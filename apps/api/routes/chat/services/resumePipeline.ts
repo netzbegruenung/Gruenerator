@@ -150,6 +150,11 @@ export async function runChatGraphResume({
     // pipelineStateStore strips the PDF bytes before writing to Redis (they are
     // already in processedMeta — storing both would double the payload). Rebuild
     // the field here so the PDF form tools still work on a resumed turn.
+    // `fileData` presence IS the fillability verdict here (only fillable PDFs
+    // get bytes persisted) — with one known gap: a fillable PDF over
+    // MAX_PDF_BYTES_PERSISTED has no bytes anywhere after the original request
+    // ended, so the "oversized form stays usable on its upload turn" guarantee
+    // (#2835) does not survive a resume. Nothing to rebuild it from.
     classifiedState.pdfFormAttachments = requestContext.processedMeta
       .filter((m) => m.mimeType === 'application/pdf' && m.fileData != null)
       .map((m) => ({ name: m.name, data: m.fileData as string }));

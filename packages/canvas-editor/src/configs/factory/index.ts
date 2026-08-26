@@ -31,6 +31,8 @@ export type { AiTextField, CreateAiCapabilitiesOptions } from './createAiCapabil
 export { fromLayout } from './layoutAccessors';
 export { createPrimaryText, createSecondaryText } from './createTextElement';
 export { makeSectionDefiner } from './defineSection';
+export { carryInstanceState, CARRIED_INSTANCE_KEYS } from './carryInstanceState';
+export type { CarriedInstanceState } from './carryInstanceState';
 
 export type {
   BaseCanvasState,

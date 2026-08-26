@@ -78,6 +78,8 @@ export interface LoadedMessage {
     /** Stamped by messagesController when the row is still status='streaming'
      *  after request end — i.e. the turn was interrupted (crash/abort). */
     interrupted?: boolean;
+    /** Rezept-Attribution des Turns (siehe `StreamMetadata.recipesUsed`). */
+    recipesUsed?: { mention: string; title: string; source?: 'system' | 'user' }[];
   };
 }
 
@@ -235,6 +237,8 @@ function buildCustomMetadata(metadata: LoadedMessage['metadata']): Record<string
       intent: metadata.intent ?? 'direct',
       searchCount: metadata.searchCount ?? 0,
       ...(metadata.traceId && { traceId: metadata.traceId }),
+      // Rezept-Attribution — reload half of the live `done.metadata.recipesUsed`.
+      ...(metadata.recipesUsed?.length ? { recipesUsed: metadata.recipesUsed } : {}),
     };
   }
 

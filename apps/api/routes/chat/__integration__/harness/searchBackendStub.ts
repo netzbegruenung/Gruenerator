@@ -158,3 +158,41 @@ export function fakeLookupUmfragen(
     `Sonntagsfrage${bundesland ? ` ${bundesland}` : ''}: Grüne 15 %, SPD 16 %, CDU/CSU 27 %.`
   );
 }
+
+/**
+ * Der Dokument-Abruf hinter dem Vorab-Seed, `dokumente_lesen` und `summarize`.
+ *
+ * Ohne ihn hat der Integrationsnetz-Lauf gar keinen Dokumentpfad: Qdrant ist in
+ * der gepinnten Umgebung nicht erreichbar, der Seed fängt den Fehler (wie er
+ * soll) und der Turn sähe aus wie einer ganz ohne Anhang — die Kette, um die es
+ * geht, wäre unbeobachtet. Nur das BACKEND wird ersetzt; Fan-out,
+ * Quellen-Registry, Werkzeugmontage und der Werkzeug-Pin bleiben echt.
+ */
+export function fakeQdrantDocumentService(): {
+  search: (args: { query: string; filters?: { documentIds?: string[] } }) => Promise<unknown>;
+  getMultipleDocumentsFullText: (userId: string, ids: string[]) => Promise<unknown>;
+} {
+  return {
+    search: ({ query, filters }) => {
+      record('documentSearch', query);
+      return Promise.resolve({
+        results: (filters?.documentIds ?? ['doc-1']).map((id) => ({
+          document_id: id,
+          title: 'Beschlusspapier.pdf',
+          relevant_content: 'Der Radverkehr in Berlin wird bis 2030 ausgebaut.',
+          similarity_score: 0.82,
+        })),
+      });
+    },
+    getMultipleDocumentsFullText: (_userId, ids) => {
+      record('documentFullText', ids.join(','));
+      return Promise.resolve({
+        documents: ids.map((id) => ({
+          id,
+          fullText: 'Moderne Mobilität für Berlin. Der Radverkehr wird bis 2030 ausgebaut.',
+          chunkCount: 1,
+        })),
+      });
+    },
+  };
+}

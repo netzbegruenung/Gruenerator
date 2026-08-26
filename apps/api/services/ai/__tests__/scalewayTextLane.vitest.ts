@@ -1,7 +1,13 @@
 /**
- * Die `heavy`-Stufe läuft auf Scaleway (`provider: 'scaleway'`), NICHT über
- * `routeMistralModel`. Zwei Dinge tragen diese Lane, und keines davon bewacht
- * der Compiler — deshalb dieser Test.
+ * Der Scaleway-Text-Client und die `KNOWN`-Liste.
+ *
+ * Die `heavy`-Stufe ZOG AM 21.08.2026 AUF CORTECS UM — ihr Wächter steht jetzt
+ * in `cortecsTextLane.vitest.ts`. Diese Datei bleibt, weil der
+ * Scaleway-Text-Client über `case 'scaleway'` weiter erreichbar ist und seinen
+ * Denk-Pin behalten muss, solange er das ist.
+ *
+ * Zwei Dinge tragen diesen Pfad, und keines davon bewacht der Compiler —
+ * deshalb dieser Test.
  *
  *  1. `reasoning_effort: 'none'`. Gemma 4 26B-A4B denkt per Default und
  *     antwortet dann mit LEEREM `content` (gemessen 01.08.2026: leer auch bei
@@ -17,7 +23,6 @@
 import { describe, expect, it } from 'vitest';
 
 import { KNOWN_PROVIDERS } from '../execution/index.js';
-import { intermediateLane } from '../intermediateLanes.js';
 import { normalizeProviderName } from '../providers.js';
 import { scalewayFetchWithThinkingDisabled } from '../scalewayThinkingFetch.js';
 
@@ -25,7 +30,14 @@ import type { ProviderName } from '../providers.js';
 
 /** Jeder Wert der Union. Wächst die Union, muss diese Liste mitwachsen — und
  *  genau dann fällt der Test unten auf, falls `KNOWN` vergessen wurde. */
-const ALL_PROVIDERS: ProviderName[] = ['mistral', 'litellm', 'regolo', 'greenpt', 'scaleway'];
+const ALL_PROVIDERS: ProviderName[] = [
+  'mistral',
+  'litellm',
+  'regolo',
+  'greenpt',
+  'scaleway',
+  'cortecs',
+];
 
 describe('scaleway text lane', () => {
   it('erzwingt reasoning_effort none auf jedem Chat-Request', async () => {
@@ -71,13 +83,6 @@ describe('scaleway text lane', () => {
     }
 
     expect(seen).toBe('nicht-json');
-  });
-
-  it('heavy zeigt auf die Scaleway-Lane', () => {
-    expect(intermediateLane('heavy')).toEqual({
-      provider: 'scaleway',
-      model: 'gemma-4-26b-a4b-it',
-    });
   });
 });
 

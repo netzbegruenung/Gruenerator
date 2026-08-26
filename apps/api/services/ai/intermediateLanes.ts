@@ -89,6 +89,8 @@
  * umbenannt.
  */
 
+import { GEMMA_31B_ALTERNATE, GEMMA_31B_PRIMARY } from './gemmaHosts.js';
+
 import type { ProviderName } from './providers.js';
 
 export interface IntermediateLaneConfig {
@@ -109,18 +111,20 @@ export interface IntermediateLaneConfig {
 /** Der Ausgangszustand: was `INTERMEDIATE_MODEL` für alle 36 Stellen war. */
 const REGOLO_SMALL_4 = { provider: 'regolo', model: 'mistral-small-4-119b' } as const;
 
-/** Gemma 4 auf Regolo — dieselben Gewichte, die `TEXT_TYPES` und der Synth-Slot
- *  fahren (TEXT_MODEL in providerSelector.ts). Regolos DEFAULT kommt aus der
- *  Umgebung, das Modell muss also benannt werden. */
-/** Gemma 4 auf Scaleway/Paris, als MoE mit 4B AKTIVEN Parametern — deshalb rund
- *  doppelt so schnell wie das dichte `gemma4-31b`, das diese Stufe bis zum
- *  01.08.2026 auf Regolo fuhr. Braucht zwingend den Client aus
- *  `scalewayThinkingFetch.ts`, sonst kommt leerer Inhalt zurück. */
-const GEMMA_4_SCALEWAY = 'gemma-4-26b-a4b-it';
-
-/** Gemma 4 als dichtes 31B auf Regolo — was `heavy` bis zum 01.08.2026 fuhr.
- *  Lebt nur noch in der `pruefung`-Stufe weiter, Begründung dort. */
-const GEMMA_4_REGOLO = 'gemma4-31b';
+/**
+ * Das dichte Gemma 4 31B — Primär und Ausweich kommen beide aus `gemmaHosts.ts`.
+ *
+ * Hier steht KEIN Host und KEIN Modellname mehr. Diese Stufen waren zwei von
+ * sechs Stellen, die den Gemma-Host je einzeln notierten; welcher Anbieter ihn
+ * bedient, entscheidet seit dem 25.08.2026 ausschliesslich jene Datei. Die
+ * Begründung für die aktuelle Wahl steht dort, die Begründung dafür, dass
+ * `pruefung` überhaupt ZWEI Seiten hat, unten bei der Stufe.
+ *
+ * Der Ausweich ist bewusst der jeweils ANDERE Vertragspartner und kein
+ * Reservemodell: ein Einbruch bei einem Anbieter nimmt sonst beide Seiten.
+ */
+const GEMMA_PRIMARY = GEMMA_31B_PRIMARY;
+const GEMMA_HEDGE = GEMMA_31B_ALTERNATE;
 
 /** `mistral-medium-2604` === Mistral Medium 3.5. Provider bleibt `mistral`:
  *  `routeMistralModel` schickt genau diese ID nach Scaleway/Paris, und alles
@@ -196,15 +200,42 @@ export const INTERMEDIATE_LANES = {
    * überdeckt — dieselbe Diagnose wie bei Commit 27b8a205a.
    *
    * PREIS, bewusst angenommen: für dieses Modell existiert kein
-   * Energie-Koeffizient, und Scaleway meldet keinen Verbrauch zurück. `heavy`
-   * fällt damit aus der CO₂-Übersicht (siehe services/usage/energyFootprint.ts).
-   * Das Pariser Netz (24 g/kWh gegen Regolos 270) spricht dafür, dass die reale
-   * Bilanz besser wird — beziffern lässt sie sich nicht mehr. Schätzen aus der
-   * Geschwindigkeit lag im Repo schon einmal um 62 % daneben.
+   * Energie-Koeffizient, und weder Scaleway noch Cortecs melden Verbrauch
+   * zurück. `heavy` fällt damit aus der CO₂-Übersicht (siehe
+   * services/usage/energyFootprint.ts). Das Pariser Netz (24 g/kWh gegen
+   * Regolos 270) spricht dafür, dass die reale Bilanz besser wird — beziffern
+   * lässt sie sich nicht mehr. Schätzen aus der Geschwindigkeit lag im Repo
+   * schon einmal um 62 % daneben.
    *
-   * MUSS mitkommen, wenn diese Stufe erneut umzieht: `provider: 'scaleway'`
-   * bekommt einen Client, der `reasoning_effort: 'none'` erzwingt
-   * (scalewayThinkingFetch.ts). Ohne den antwortet dieses Modell mit LEEREM
+   * ── 21.08.2026: zurück auf das dichte 31B ──
+   *
+   * Diese Stufe fuhr seit dem 01.08.2026 die MoE-Variante `gemma-4-26b-a4b-it`,
+   * und die Begründung oben gilt für sie unverändert. Sie ist trotzdem weg, aus
+   * einem Grund, der nichts mit Qualität zu tun hat: das MoE war über Cortecs
+   * an EINEN Unterauftragnehmer gebunden (scaleway), und der verschwand an
+   * diesem Tag binnen einer Stunde aus dem Katalog — derselbe Aufruf, der um
+   * 15:52 lief, antwortete um 16:31 mit
+   * `No endpoint passed quantization_filter. Details: {scaleway: Provider not
+   * in allowed providers}, {aki: Endpoint uses quantization}`. Der zweite
+   * Endpunkt war quantisiert und fiel durch den Standardfilter, `scaleway
+   * direkt` lief zur selben Zeit einwandfrei.
+   *
+   * Das dichte 31B lag zu diesem Zeitpunkt bei infercom UND berget. Das gilt
+   * seit dem 25.08.2026 nicht mehr — der Katalog führt nur noch `infercom`,
+   * und berget ist nicht erzwingbar (siehe services/ai/gemmaHosts.ts). Die
+   * Reserve dieser Stufe ist damit allein der Regolo-Hedge unten, nicht der
+   * Router. Der Preis der MoE-Ablösung ist der dokumentierte: sie antwortete
+   * rund doppelt so schnell. Bezahlt wird er für Verfügbarkeit.
+   *
+   * KEIN Denk-Pin für dieses Modell — und das ist kein Versäumnis: infercom
+   * weist `reasoning_effort` mit HTTP 400 ab, weshalb die Whitelist in
+   * cortecsRequestPolicy.ts es bewusst nicht führt. Es denkt von sich aus
+   * nicht (gemessen 21.08.2026: 420 Zeichen Inhalt, 0 Zeichen Denken, ohne
+   * jeden Parameter), die Falle unten greift hier also nicht.
+   *
+   * MUSS MITKOMMEN, wenn diese Stufe je wieder ein DENKENDES Modell fährt: der
+   * Client braucht dann einen erzwungenen `reasoning_effort: 'none'`
+   * (cortecsRequestPolicy.ts). Ohne den antwortete das MoE mit LEEREM
    * `content` — auch bei max_tokens 1500, nach 5386 Zeichen Reasoning. Leerer
    * Inhalt ist für die Fassade kein Fehler, sondern startet die Fallback-Kette;
    * `classifyDeliverable` mit seinen 20 Token stirbt zuerst.
@@ -214,7 +245,7 @@ export const INTERMEDIATE_LANES = {
    * hätte bei diesem Umzug einen Scaleway-Namen an Regolo geschickt. Es pinnt
    * jetzt explizit — siehe dort.
    */
-  heavy: { provider: 'scaleway', model: GEMMA_4_SCALEWAY },
+  heavy: { provider: GEMMA_PRIMARY.provider, model: GEMMA_PRIMARY.model },
 
   /**
    * Rechnen. Eigene Stufe, weil hier als Einzigem ein Modellfehler als
@@ -261,38 +292,61 @@ export const INTERMEDIATE_LANES = {
    *    ein Modell, das seinen eigenen Text im eigenen Kontext bewertete und
    *    „keine schwierigen Stellen" meldete, während ein Ortsname fehlte.
    *
-   * Modell: das dichte `gemma4-31b` auf Regolo, ausdrücklich gewünscht. Es ist
-   * NICHT dasselbe wie `heavy`: diese Stufe zog am 01.08.2026 auf Scaleways
-   * MoE-Variante um, weil die mit 4B aktiven Parametern rund doppelt so schnell
-   * antwortet (Zusammenfassung 2,36 s gegen 5,28 s; p50 unter 10 parallelen
-   * Anfragen 1,78 s gegen 2,62 s) bei gleicher Inhaltstreue. Der Preis wird
-   * hier bewusst gezahlt — die Kette läuft ohnehin hinter einer gestreamten
-   * Antwort, ihre Latenz steht dem Lesen also nicht im Weg.
+   * Modell: das dichte 31B, auf BEIDEN Seiten dasselbe — Primär über Cortecs,
+   * Ausweich auf Regolo. Es ist NICHT dasselbe wie `heavy`: diese Stufe zog am
+   * 01.08.2026 auf die MoE-Variante um, weil die mit 4B aktiven Parametern
+   * rund doppelt so schnell antwortet, und kam zurück, weil das dichte 31B den
+   * Prüfbericht ausdrücklich besser trägt.
    *
-   * ── 14.08.2026: der Sibling, und warum er kein Ersatz ist ──
+   * ── 21.08.2026: warum Cortecs den Primär bekommt ──
    *
-   * Regolos `gemma4-31b` antwortete an diesem Tag mit **3,7 tok/s**; die Notiz
-   * bei GEMMA_4 in routes/chat/agents/providers.ts hält für dieselbe Lane
-   * ~76 tok/s fest. Regolo selbst war gesund (sein `mistral-small-4-119b` lief
-   * mit 113 tok/s), es war dieses eine Modell dort. Ein Prüfbericht, der ruhig
-   * 36 s braucht, brauchte 218 s und riss die Zeitsperre.
+   * Gemessen am Prüf-Prompt, gestreamt, verschränkt, mit Aufwärmlauf, je fünf
+   * ruhige Läufe und vier gleichzeitige:
    *
-   * Eine Störung ist keine Eigenschaft, also bleibt der Primär stehen. Statt
-   * dessen ein Sibling, den der Aufrufer nach einer Frist PARALLEL dazuschaltet.
-   * Gemessen am echten Prüf-Prompt, zwei Läufe: 16,8 s / 15,3 s, vollständige
-   * Abdeckungs- und Modalitätstabelle, der fehlende Urheber als MITTEL-Befund.
-   * Der Client aus `scalewayThinkingFetch.ts` kommt über `case 'scaleway'` in
-   * services/ai/providers.ts von selbst mit.
+   *                        TTFT     Durchsatz    gesamt
+   *   regolo/gemma4-31b     129 ms   81,3 tok/s   5,06 s
+   *   cortecs (infercom)   1122 ms  210,7 tok/s   2,81 s
    *
-   * GreenPTs `gemma4` wäre der andere Kandidat und ist es NICHT: welche Gewichte
-   * es trägt, ist unbelegt (siehe GEMMA_4_GREENPT in
+   * Regolo antwortet neunmal schneller AN, Cortecs generiert 2,6-mal schneller.
+   * Der Gleichstand liegt bei rund 130 Ausgabe-Tokens — und diese Stufe hat
+   * einen Deckel von 11.000. Auf einen ~3.000-Token-Bericht gerechnet: Regolo
+   * 0,13 + 36,9 = 37 s, was die am 14.08.2026 gemessenen 35,9 / 36,9 s genau
+   * trifft; Cortecs 1,1 + 14,2 = 15 s. Die Sekunde Anlauf ist bei dieser
+   * Ausgabelänge belanglos, zumal die Kette hinter einer bereits gestreamten
+   * Antwort läuft.
+   *
+   * Inhaltstreue war in 22 Läufen nicht unterscheidbar: beide Hosts fanden
+   * jedes Mal eine eingebaute Auslassung UND einen Zahlendreher, mit
+   * Abdeckungstabelle und Gesamturteil, ohne die Regeln der Einfachen Sprache
+   * fälschlich als Mangel zu melden. Messwerkzeug:
+   * `scripts/probeGemma31Hosts.ts`.
+   *
+   * ── 14.08.2026: warum es überhaupt zwei Seiten gibt ──
+   *
+   * Regolos `gemma4-31b` antwortete an diesem Tag mit **3,7 tok/s** statt der
+   * sonst gemessenen ~76. Regolo selbst war gesund (sein `mistral-small-4-119b`
+   * lief mit 113 tok/s), es war dieses eine Modell dort. Ein Prüfbericht, der
+   * ruhig 36 s braucht, brauchte 218 s und riss die Zeitsperre — auf dieselben
+   * 3.000 Tokens gerechnet wären es 810 s gewesen.
+   *
+   * Der Ausweich ist deshalb kein Reservemodell, sondern derselbe Prüfer auf
+   * einem anderen Vertragspartner: der Aufrufer schaltet ihn nach einer Frist
+   * PARALLEL dazu. Dass Primär und Ausweich bei verschiedenen Anbietern liegen,
+   * ist die ganze Absicht — ein Einbruch nimmt sonst beide Seiten. Dass Cortecs
+   * `berget` als zweiten Endpunkt in der Hinterhand habe, stand hier bis zum
+   * 25.08.2026 und ist widerlegt (siehe services/ai/gemmaHosts.ts): BEIDE
+   * Seiten hängen an genau einem Host. Umso mehr zählt, dass es zwei
+   * Vertragspartner sind — das war der Ausfallweg vom 14.08.
+   *
+   * GreenPTs `gemma4` wäre der dritte Kandidat und ist es NICHT: welche
+   * Gewichte es trägt, ist unbelegt (siehe GEMMA_4_GREENPT in
    * routes/chat/agents/providers.ts), und ein stilles Qualitätsgefälle ist
    * ausgerechnet beim Prüfschritt der teuerste Fehler.
    */
   pruefung: {
-    provider: 'regolo',
-    model: GEMMA_4_REGOLO,
-    hedge: { provider: 'scaleway', model: GEMMA_4_SCALEWAY },
+    provider: GEMMA_PRIMARY.provider,
+    model: GEMMA_PRIMARY.model,
+    hedge: { provider: GEMMA_HEDGE.provider, model: GEMMA_HEDGE.model },
   },
 } as const satisfies Record<string, IntermediateLaneConfig>;
 

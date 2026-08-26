@@ -17,6 +17,15 @@ export type DocSection = {
   sidebarId: string;
   /** 'direct' = own navbar entry, 'more' = inside the "Mehr" dropdown. */
   navbar: 'direct' | 'more';
+  /**
+   * Position among the 'direct' navbar entries, lowest first. Entries without
+   * one keep their array order behind those that have one.
+   *
+   * Separate from the array order on purpose: this list also drives the
+   * startpage grid and the footer, where the reading order is a different
+   * question from what belongs leftmost in the header.
+   */
+  navbarOrder?: number;
   topPages: { label: string; to: string }[];
 };
 
@@ -141,6 +150,7 @@ export const SECTIONS: DocSection[] = [
     intro: '/docs/grundlagen/wie-llms-funktionieren',
     sidebarId: 'grundlagenSidebar',
     navbar: 'direct',
+    navbarOrder: 1,
     topPages: [
       { label: 'Wie LLMs funktionieren', to: '/docs/grundlagen/wie-llms-funktionieren' },
       { label: 'Risiken & Gefahren', to: '/docs/grundlagen/risiken-und-gefahren-von-llms' },
@@ -156,11 +166,6 @@ export const QUICK_TASKS: QuickTask[] = [
     label: 'Fragen stellen & Texte schreiben',
     description: 'Anträge, Reden und Pressemitteilungen direkt im Chat entwerfen.',
     to: '/docs/chat/was-kann-ich-fragen',
-  },
-  {
-    label: 'Social-Media-Post mit Sharepic',
-    description: 'Text und Bild für Instagram & Co. in einem Schritt erstellen.',
-    to: '/docs/chat/social-media-post',
   },
   {
     label: 'Gemeinsam an einem Dokument arbeiten',

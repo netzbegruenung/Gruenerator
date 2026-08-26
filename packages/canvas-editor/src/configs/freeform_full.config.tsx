@@ -23,6 +23,7 @@ import { CANVAS_RECOMMENDED_ASSETS } from '../utils/canvasAssets';
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
 import { createBaseActions } from './factory/actionFactories';
+import { carryInstanceState } from './factory/carryInstanceState';
 import { makeSectionDefiner } from './factory/defineSection';
 import { injectFeatureProps } from './featureInjector';
 import { createShareSection } from './shareSection';
@@ -344,22 +345,13 @@ export const freeformFullConfig: FullCanvasConfig<FreeformState, FreeformActions
     backgroundImageOpacity: (props.backgroundImageOpacity as number | undefined) ?? 1,
     imageAttribution: (props.imageAttribution as StockImageAttribution | null | undefined) ?? null,
 
-    // Empty element arrays
-    assetInstances: [],
-    selectedIcons: [],
-    iconStates: {},
-    shapeInstances: [],
-    illustrationInstances: [],
-    additionalTexts: [],
-    pillBadgeInstances: [],
-    circleBadgeInstances: [],
-    balkenInstances: [],
-    frameInstances: [],
-    chartInstances: [],
-    userImageInstances: [],
+    // Alles selbst Hinzugefuegte. Stand hier hart auf `[]`, und weil
+    // Karten-Render und Chat-Bearbeitung durch diese Funktion neu setzen,
+    // war die ganze freie Flaeche danach leer.
+    ...carryInstanceState(props),
 
     // Layer ordering
-    layerOrder: [],
+    layerOrder: (props.layerOrder as string[] | undefined) ?? [],
 
     // UI state
     isDesktop: typeof window !== 'undefined' && window.innerWidth >= 900,

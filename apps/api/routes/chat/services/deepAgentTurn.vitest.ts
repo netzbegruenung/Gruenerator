@@ -19,7 +19,7 @@ const createDocumentWithContent = vi.fn<(...args: unknown[]) => Promise<{ id: st
 const chargeDeepResearch = vi.fn<(userId: string) => Promise<void>>();
 let linkupService: unknown = {};
 const envMock = {
-  SCALEWAY_API_KEY: 'sk-test',
+  CORTECS_API_KEY: 'sk-test',
 };
 
 vi.mock('../../../config/env.js', () => ({ env: envMock }));
@@ -86,7 +86,7 @@ async function runServed(sse: ReturnType<typeof makeSse>, state: object = STATE)
 
 beforeEach(() => {
   vi.clearAllMocks();
-  envMock.SCALEWAY_API_KEY = 'sk-test';
+  envMock.CORTECS_API_KEY = 'sk-test';
   linkupService = {};
   chargeDeepResearch.mockResolvedValue();
   createDocumentWithContent.mockResolvedValue({ id: 'doc-42' });
@@ -95,7 +95,7 @@ beforeEach(() => {
 
 describe('gates — each one falls through to the old path', () => {
   it('does nothing without a Scaleway key, and stays silent doing it', async () => {
-    envMock.SCALEWAY_API_KEY = '';
+    envMock.CORTECS_API_KEY = '';
     const sse = makeSse();
 
     expect(await run(sse)).toBeNull();

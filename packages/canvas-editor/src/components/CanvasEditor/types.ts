@@ -49,6 +49,13 @@ export interface CanvasEditorProps {
    */
   onInvitePeople?: () => void;
   /**
+   * When provided, the share surfaces show a "Vorlage" entry that triggers
+   * this callback. The host owns the template flow — it knows the document
+   * identity (canvas id, collab doc) this package deliberately doesn't.
+   * Without it the entry is hidden.
+   */
+  onSaveAsTemplate?: () => void;
+  /**
    * Collab mode only: fired with a fresh stage render after local edits
    * settle (debounced) and when the tab is hidden. Hosts use it to keep the
    * document thumbnail current — without it the gallery/recents preview only

@@ -24,6 +24,7 @@ import { SLIDER_CONFIG, calculateSliderLayout, getSliderColors } from '../utils/
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
 import { createBaseActions } from './factory/actionFactories';
+import { carryInstanceState } from './factory/carryInstanceState';
 import { makeSectionDefiner } from './factory/defineSection';
 import { fromLayout } from './factory/layoutAccessors';
 import { injectFeatureProps } from './featureInjector';
@@ -52,6 +53,9 @@ import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
 import type { SliderColorScheme } from '../utils/sliderLayout';
 
 // Default arrow icon ID (HeroIcons chevron-right, resolved via canvasIcons.ts)
+/** Feste Id der Pille, die die Folien-Beschriftung traegt. */
+const SLIDER_LABEL_PILL_ID = 'slider-label-pill';
+
 const ARROW_ICON_ID = 'hi-chevronright';
 
 // ============================================================================
@@ -87,6 +91,11 @@ export interface SliderState extends BaseCanvasState {
   headlineOpacity?: number;
   subtextOpacity?: number;
   subtext2Opacity?: number;
+  headlinePosition?: { x: number; y: number };
+  subtextPosition?: { x: number; y: number };
+  subtext2Position?: { x: number; y: number };
+  sunflowerOpacity?: number;
+  sunflowerOffset?: { x: number; y: number };
 
   // Pill badge instances (dynamic, editable)
   pillBadgeInstances: PillBadgeInstance[];
@@ -239,6 +248,30 @@ const calculateLayout = (state: SliderState): LayoutResult => {
 // ELEMENTS
 // ============================================================================
 
+/**
+ * Uebernimmt die Schluessel, die die Werkzeugleiste an den drei Textelementen
+ * schreibt (Farbe, Deckkraft, gezogene Position), aus dem Seed. Fehlende
+ * Schluessel bleiben weg statt als `undefined` im Zustand zu stehen.
+ */
+function carrySliderTextStyling(props: Record<string, unknown>): Partial<SliderState> {
+  const keys = [
+    'labelColor',
+    'headlineColor',
+    'subtextColor',
+    'subtext2Color',
+    'labelOpacity',
+    'headlineOpacity',
+    'subtextOpacity',
+    'subtext2Opacity',
+    'headlinePosition',
+    'subtextPosition',
+    'subtext2Position',
+  ];
+  return Object.fromEntries(
+    keys.filter((k) => props[k] != null).map((k) => [k, props[k]])
+  ) as Partial<SliderState>;
+}
+
 const backgroundElement: BackgroundElementConfig<SliderState> = {
   id: 'background',
   type: 'background',
@@ -263,6 +296,8 @@ const sunflowerElement: ImageElementConfig<SliderState> = {
   draggable: true,
   constrainToBounds: false,
   opacity: () => SLIDER_CONFIG.sunflower.opacity,
+  opacityStateKey: 'sunflowerOpacity',
+  offsetKey: 'sunflowerOffset',
   visible: (state) => state.slideVariant !== 'content',
 };
 
@@ -286,6 +321,7 @@ const headlineTextElement: TextElementConfig<SliderState> = {
   opacityStateKey: 'headlineOpacity',
   fill: (state) => getSliderColors(state.colorScheme).headlineText,
   fillStateKey: 'headlineColor',
+  positionStateKey: 'headlinePosition',
 };
 
 const subtextTextElement: TextElementConfig<SliderState> = {
@@ -308,6 +344,7 @@ const subtextTextElement: TextElementConfig<SliderState> = {
   opacityStateKey: 'subtextOpacity',
   fill: (state) => getSliderColors(state.colorScheme).subtextText,
   fillStateKey: 'subtextColor',
+  positionStateKey: 'subtextPosition',
 };
 
 const subtext2TextElement: TextElementConfig<SliderState> = {
@@ -330,6 +367,7 @@ const subtext2TextElement: TextElementConfig<SliderState> = {
   opacityStateKey: 'subtext2Opacity',
   fill: (state) => getSliderColors(state.colorScheme).subtextText,
   fillStateKey: 'subtext2Color',
+  positionStateKey: 'subtext2Position',
   visible: (state) => state.slideVariant === 'content',
 };
 
@@ -580,17 +618,68 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
       opacity: 1,
     };
 
-    // Create pill badge instance for cover slides
+    // Der Pfeil ist eine Vorgabe, keine Zwangsjacke: liegt schon eine
+    // Icon-Auswahl vor, gilt sie — sonst haette jedes Neu-Setzen die selbst
+    // hinzugefuegten Icons durch den blossen Pfeil ersetzt.
+    //
+    // Entschieden wird am *Vorhandensein* des Schluessels, nicht an seiner
+    // Laenge: eine leere Auswahl heisst "der Pfeil wurde entfernt" und darf
+    // nicht als "noch nie gesetzt" gelesen werden, sonst kommt er bei jeder
+    // Chat-Bearbeitung zurueck. Die Neuanlage-Pfade in `usePageManager`
+    // reichen nur `defaultNewPageState` und `INHERITABLE_KEYS` durch, also
+    // nie einen Instanz-Schluessel — ein Re-Seed dagegen immer.
+    const iconsSeeded = Array.isArray(props.selectedIcons);
+    const carriedIcons = iconsSeeded ? (props.selectedIcons as string[]) : [];
+    const iconStatesSeeded = !!props.iconStates && typeof props.iconStates === 'object';
+    const carriedIconStates = iconStatesSeeded
+      ? (props.iconStates as Record<string, IconState>)
+      : {};
+
+    // Die Kopf-Pille traegt die Beschriftung der Folie und wird deshalb aus
+    // `label` und dem Farbschema abgeleitet. Erkannt wird sie an ihrer festen
+    // Id, nicht an ihrer Position in der Liste: entfernt man die Kopf-Pille
+    // und behaelt eine selbst hinzugefuegte, rutscht diese sonst auf Index 0
+    // und bekaeme hier ihren Text ueberschrieben.
+    //
+    // Aeltere Staende kennen die feste Id noch nicht. Dort wird gar nichts
+    // angefasst, weil sich nicht beweisen laesst, welche Pille die Kopf-Pille
+    // ist — Zerstoeren waere der teurere Fehler. Die Farben holt ohnehin
+    // `setColorScheme` fuer alle Pillen nach, und `setLabel` fasst die Pille
+    // im Editor auch heute nicht an.
     const pillBadgeColors = getPillBadgeColorsForScheme(colorScheme);
-    const initialPillBadge = showPill
-      ? [
-          createPillBadgeInstance(colorScheme === 'tanne-sand' ? 'slider-inverted' : 'slider', {
-            text: (props.label as string) || 'Wusstest du?',
-            backgroundColor: pillBadgeColors.backgroundColor,
-            textColor: pillBadgeColors.textColor,
-          }),
-        ]
+    const pillText = (props.label as string) || 'Wusstest du?';
+    const carriedPills = Array.isArray(props.pillBadgeInstances)
+      ? (props.pillBadgeInstances as PillBadgeInstance[])
       : [];
+    const pillsSeeded = Array.isArray(props.pillBadgeInstances);
+    const hasLabelPill = carriedPills.some((badge) => badge.id === SLIDER_LABEL_PILL_ID);
+    let initialPillBadge: PillBadgeInstance[];
+    if (!showPill) {
+      initialPillBadge = [];
+    } else if (hasLabelPill) {
+      initialPillBadge = carriedPills.map((badge) =>
+        badge.id === SLIDER_LABEL_PILL_ID
+          ? {
+              ...badge,
+              text: pillText,
+              backgroundColor: pillBadgeColors.backgroundColor,
+              textColor: pillBadgeColors.textColor,
+            }
+          : badge
+      );
+    } else if (pillsSeeded) {
+      // Aeltere Staende ohne feste Id, oder eine bewusst geloeschte Pille.
+      initialPillBadge = carriedPills;
+    } else {
+      initialPillBadge = [
+        createPillBadgeInstance(colorScheme === 'tanne-sand' ? 'slider-inverted' : 'slider', {
+          id: SLIDER_LABEL_PILL_ID,
+          text: pillText,
+          backgroundColor: pillBadgeColors.backgroundColor,
+          textColor: pillBadgeColors.textColor,
+        }),
+      ];
+    }
 
     return {
       // Text fields
@@ -606,30 +695,41 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
       colorScheme,
       backgroundColor: colors.background,
 
+      // Sunflower watermark tweaks — must survive re-seeds, the initial state
+      // is a whitelist and would drop them otherwise.
+      ...(typeof props.sunflowerOpacity === 'number'
+        ? { sunflowerOpacity: props.sunflowerOpacity }
+        : {}),
+      ...(props.sunflowerOffset
+        ? { sunflowerOffset: props.sunflowerOffset as { x: number; y: number } }
+        : {}),
+
       // Font size overrides
-      customLabelFontSize: null,
-      customHeadlineFontSize: null,
-      customSubtextFontSize: null,
-      customSubtext2FontSize: null,
+      // Aus den Props, nicht hart genullt: Karten-Render und Remote-Sync
+      // laufen durch diese Funktion, ein fester Wert verwarf jede per Regler
+      // gesetzte Schriftgroesse beim naechsten Render.
+      customLabelFontSize: (props.customLabelFontSize as number | null | undefined) ?? null,
+      customHeadlineFontSize: (props.customHeadlineFontSize as number | null | undefined) ?? null,
+      customSubtextFontSize: (props.customSubtextFontSize as number | null | undefined) ?? null,
+      customSubtext2FontSize: (props.customSubtext2FontSize as number | null | undefined) ?? null,
 
-      // Pill badge instances
-      pillBadgeInstances: initialPillBadge,
-
-      // Circle badge, balken, and frame instances
-      circleBadgeInstances: [],
-      balkenInstances: [],
-      frameInstances: [],
-      chartInstances: [],
-      userImageInstances: [],
+      // Farbe, Deckkraft und gezogene Position der drei Texte. Sie standen
+      // ueberhaupt nicht in dieser Funktion und fielen deshalb still weg.
+      ...carrySliderTextStyling(props),
 
       // Base state
-      assetInstances: [],
+      // Alles selbst Hinzugefuegte statt hart `[]`: sonst raeumt jede
+      // Chat-Bearbeitung Formen, Diagramme und Zusatztexte ab. Pfeil und
+      // Pille darunter ueberschreiben ihre eigenen Schluessel.
+      ...carryInstanceState(props),
       isDesktop: typeof window !== 'undefined' && window.innerWidth >= 900,
-      selectedIcons: includeArrow ? [ARROW_ICON_ID] : [],
-      iconStates: includeArrow ? { [ARROW_ICON_ID]: arrowIconState } : {},
-      shapeInstances: [],
-      illustrationInstances: [],
-      additionalTexts: [],
+      selectedIcons: iconsSeeded ? carriedIcons : includeArrow ? [ARROW_ICON_ID] : [],
+      iconStates: iconStatesSeeded
+        ? carriedIconStates
+        : includeArrow
+          ? { [ARROW_ICON_ID]: arrowIconState }
+          : {},
+      pillBadgeInstances: initialPillBadge,
     };
   },
 

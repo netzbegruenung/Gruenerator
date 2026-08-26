@@ -76,13 +76,3 @@ export function pushOfficeItem(router: AppRouter, item: OfficeItem): void {
       router.push({ pathname: '/(fullscreen)/doc-editor', params });
   }
 }
-
-const WEB_BASE = 'https://gruenerator.eu';
-
-/** Full web-editor URL for "Im Browser öffnen" — mirrors apps/web routes.ts. */
-export function officeWebUrl(kind: OfficeKind, id: string): string {
-  if (kind === 'board') return `${WEB_BASE}/boards/${id}`;
-  if (kind === 'canvas') return `${WEB_BASE}/studio/canvas/${id}`;
-  // docs, sheets, presentations all dispatch through /office/:id (CollabDocRoute).
-  return `${WEB_BASE}/office/${id}`;
-}

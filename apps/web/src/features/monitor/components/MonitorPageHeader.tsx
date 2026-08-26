@@ -7,10 +7,12 @@ import { MONITOR_EYEBROW, MONITOR_HEADING } from './theme';
 
 import type { ReactNode } from 'react';
 
-type MonitorPage = 'themen' | 'umfragen';
+type MonitorPage = 'themen' | 'trends' | 'feed' | 'umfragen';
 
 const SIBLINGS: { key: MonitorPage; label: string; path: string }[] = [
   { key: 'themen', label: 'Themen', path: '/themen' },
+  { key: 'trends', label: 'Trends', path: '/trends' },
+  { key: 'feed', label: 'Feed', path: '/feed' },
   { key: 'umfragen', label: 'Umfragen', path: '/umfragen' },
 ];
 

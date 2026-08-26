@@ -7,7 +7,6 @@ import {
   StyleSheet,
   FlatList,
   Pressable,
-  ActivityIndicator,
   useColorScheme,
   useWindowDimensions,
   RefreshControl,
@@ -15,6 +14,7 @@ import {
   Alert,
 } from 'react-native';
 
+import { SkeletonTiles } from '../../../components/common';
 import {
   fetchVorlagen,
   fetchVorlagenCategories,
@@ -222,6 +222,21 @@ export default function VorlagenScreen() {
     [handleTemplatePress, handleLikeToggle, likedTemplates, theme.textSecondary, itemSize]
   );
 
+  // Not an early return that swallows the whole screen: the grid is empty while
+  // it loads, so the placeholder goes where the cards go and the chrome around
+  // it stays put. Same tile size and gap as `renderItem`, so nothing shifts
+  // when the templates land.
+  const gridSkeleton = (
+    <SkeletonTiles
+      count={numColumns * 3}
+      itemWidth={itemSize}
+      columns={numColumns}
+      gap={ITEM_GAP}
+      aspectRatio={1 / 0.75}
+      radius={borderRadius.medium}
+    />
+  );
+
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
       <Ionicons name="document-outline" size={64} color={theme.textSecondary} />
@@ -238,15 +253,6 @@ export default function VorlagenScreen() {
     () => [{ id: null, label: 'Alle' } as const, ...categories],
     [categories]
   );
-
-  if (isLoading && templates.length === 0) {
-    return (
-      <View style={[styles.container, styles.centered, { backgroundColor: theme.background }]}>
-        <ActivityIndicator size="large" color={colors.primary[600]} />
-        <Text style={[styles.loadingText, { color: theme.textSecondary }]}>Lade Vorlagen...</Text>
-      </View>
-    );
-  }
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -270,7 +276,7 @@ export default function VorlagenScreen() {
         numColumns={numColumns}
         contentContainerStyle={styles.listContent}
         columnWrapperStyle={styles.columnWrapper}
-        ListEmptyComponent={renderEmpty}
+        ListEmptyComponent={isLoading && templates.length === 0 ? gridSkeleton : renderEmpty}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -286,10 +292,6 @@ export default function VorlagenScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  centered: {
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   categoryListContainer: {
     flexGrow: 0,
@@ -411,9 +413,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: spacing.xsmall,
     paddingHorizontal: spacing.xlarge,
-  },
-  loadingText: {
-    ...typography.body,
-    marginTop: spacing.medium,
   },
 });

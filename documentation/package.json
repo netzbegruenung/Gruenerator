@@ -17,6 +17,8 @@
     "agentura:check": "node scripts/generate-agentura.mjs --check",
     "reference:generate": "node scripts/generate-reference.mjs",
     "reference:check": "node scripts/generate-reference.mjs --check",
+    "models:generate": "node scripts/generate-models.mjs",
+    "models:check": "node scripts/generate-models.mjs --check",
     "tools:generate": "node scripts/generate-tool-catalog.mjs",
     "tools:check": "node scripts/generate-tool-catalog.mjs --check",
     "tools:audit": "node scripts/generate-tool-catalog.mjs --audit",

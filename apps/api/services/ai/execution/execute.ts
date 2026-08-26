@@ -112,6 +112,7 @@ const CONFIG_HINT: Record<ProviderName, string> = {
   regolo: 'REGOLO_API_KEY',
   greenpt: 'GREENPT_API_KEY',
   scaleway: 'SCALEWAY_API_KEY',
+  cortecs: 'CORTECS_API_KEY',
 };
 
 export async function execute(

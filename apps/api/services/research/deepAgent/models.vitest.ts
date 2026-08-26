@@ -18,7 +18,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 interface CapturedConfig {
   model: string;
   modelKwargs?: Record<string, unknown>;
-  configuration?: { baseURL?: string };
+  configuration?: { baseURL?: string; fetch?: unknown };
   apiKey?: string;
 }
 
@@ -32,6 +32,9 @@ vi.mock('@langchain/openai', () => ({
   },
 }));
 
+vi.mock('../../ai/cortecsEndpoint.js', () => ({
+  cortecsBaseUrl: () => 'https://cortecs.example/v1',
+}));
 vi.mock('../../ai/scalewayEndpoint.js', () => ({
   scalewayBaseUrl: () => 'https://scaleway.example/v1',
 }));
@@ -45,9 +48,14 @@ vi.mock('../../ai/providerInstances.js', () => ({
   MISTRAL_API_URL: 'https://mistral.example/v1',
 }));
 
-const envMock: { SCALEWAY_API_KEY?: string; MISTRAL_API_KEY?: string } = {
+const envMock: {
+  SCALEWAY_API_KEY?: string;
+  MISTRAL_API_KEY?: string;
+  CORTECS_API_KEY?: string;
+} = {
   SCALEWAY_API_KEY: 'test-key',
   MISTRAL_API_KEY: 'mistral-test-key',
+  CORTECS_API_KEY: 'cortecs-test-key',
 };
 vi.mock('../../../config/env.js', () => ({
   get env() {
@@ -55,12 +63,17 @@ vi.mock('../../../config/env.js', () => ({
   },
 }));
 
+// Echt, nicht attrappiert: models.ts importiert aus demselben Modul ohnehin
+// die Anbieterliste, und der Test will die IDENTITÄT der Funktion prüfen —
+// eine Attrappe würde genau die Aussage aushöhlen.
+const { cortecsFetchWithPolicy } = await import('../../ai/cortecsRequestPolicy.js');
 const { leadModel, workerModel } = await import('./models.js');
 
 beforeEach(() => {
   constructed.length = 0;
   envMock.SCALEWAY_API_KEY = 'test-key';
   envMock.MISTRAL_API_KEY = 'mistral-test-key';
+  envMock.CORTECS_API_KEY = 'cortecs-test-key';
   routing.enabled = false; // the deployed default since 08/2026
 });
 
@@ -108,27 +121,52 @@ describe('workerModel', () => {
     const worker = configOf(workerModel);
     const lead = configOf(leadModel);
     expect(worker.model).not.toBe(lead.model);
-    expect(worker.model).toBe('gemma-4-26b-a4b-it');
+    expect(worker.model).toBe('gemma-4-31b-it');
   });
 
-  it('switches reasoning off — the property that decided the host', () => {
-    // GreenPT accepts `reasoning_effort` and ignores it (~5,400 characters of
-    // thinking per step); Scaleway honours it. That asymmetry, not price, is
-    // why the worker sits here.
-    expect(configOf(workerModel).modelKwargs).toMatchObject({ reasoning_effort: 'none' });
+  it('schickt KEIN reasoning_effort — infercom weist den Wert ab', () => {
+    // Die Umkehrung des alten Wächters, und aus gemessenem Grund: dieses Modell
+    // liegt bei infercom, das `reasoning_effort` mit HTTP 400 beantwortet
+    // ("value must be one of 'low', 'medium', 'high'"). Nötig wäre der Wert
+    // ohnehin nicht — das Modell denkt von sich aus nicht.
+    //
+    // Was NICHT zurückkommen darf: GreenPT als Worker-Host. Sein `gemma4`
+    // nimmt den Wert an und ignoriert ihn (~5.400 Zeichen Denken je Schritt),
+    // was für einen Loop ruinös ist — 500 s ohne Bericht gegen 156 s.
+    expect(configOf(workerModel).modelKwargs).not.toHaveProperty('reasoning_effort');
   });
 
   it('does not batch tool calls — a worker never delegates', () => {
     expect(configOf(workerModel).modelKwargs).toMatchObject({ parallel_tool_calls: false });
   });
 
-  it('stays on Scaleway whatever the Mistral routing does', () => {
+  it('hängt die Souveränitäts-Nachprüfung in den Transport', () => {
+    // Der Kommentar im Modul behauptete, die Nachprüfung am Antwort-Header sei
+    // hier „mangels `fetch`-Haken" nicht zu haben. `ChatOpenAI` reicht
+    // `configuration.fetch` aber an den OpenAI-Client durch, und ohne sie liefe
+    // ausgerechnet der Pfad mit den MEISTEN Modellaufrufen als einziger
+    // ungeprüft — bei einem Filter, der fail-open ist, ist das die teuerste
+    // Stelle für eine Lücke.
+    expect(configOf(workerModel).configuration?.fetch).toBe(cortecsFetchWithPolicy);
+  });
+
+  it('trägt die Weisung ZUSÄTZLICH im Anfrage-Body', () => {
+    // Doppelt, und mit Absicht: der Haken setzt dieselben Felder deckungsgleich,
+    // aber die Weisung gehört in den Body, wo sie im Diff steht. Fällt der Haken
+    // je weg, verliert man dann nur die Nachprüfung, nicht die Weisung selbst.
+    expect(configOf(workerModel).modelKwargs).toMatchObject({
+      eu_native: true,
+      allow_zero_data_retention: true,
+    });
+  });
+
+  it('bleibt auf Cortecs, was auch immer das Mistral-Routing tut', () => {
     // The switch is about Mistral Medium's host, and Gemma is not Mistral. The
-    // worker's reason for sitting here (Scaleway honours `reasoning_effort`,
-    // see above) is untouched by it — so it must NOT ride along.
-    expect(configOf(workerModel).configuration?.baseURL).toBe('https://scaleway.example/v1');
+    // worker's reason for sitting here is untouched by it — so it must NOT
+    // ride along.
+    expect(configOf(workerModel).configuration?.baseURL).toBe('https://cortecs.example/v1');
     routing.enabled = true;
-    expect(configOf(workerModel).configuration?.baseURL).toBe('https://scaleway.example/v1');
+    expect(configOf(workerModel).configuration?.baseURL).toBe('https://cortecs.example/v1');
   });
 });
 
@@ -144,7 +182,14 @@ describe('configuration faults', () => {
   });
 
   it('names the missing key instead of failing somewhere inside a run', () => {
+    delete envMock.CORTECS_API_KEY;
+    expect(() => workerModel()).toThrow(/CORTECS_API_KEY/);
+  });
+
+  it('der Worker haengt am Cortecs-Schluessel, nicht mehr am Scaleway-Schluessel', () => {
+    // Nach dem Umzug vom 21.08.2026 die eigentliche Trennlinie: ein
+    // Deployment, das nur noch den alten Schluessel fuehrt, faellt hier auf.
     delete envMock.SCALEWAY_API_KEY;
-    expect(() => workerModel()).toThrow(/SCALEWAY_API_KEY/);
+    expect(() => workerModel()).not.toThrow();
   });
 });

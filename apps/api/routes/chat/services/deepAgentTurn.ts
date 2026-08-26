@@ -65,8 +65,13 @@ export async function runDeepAgentTurn(params: {
   const question = state.searchQuery?.trim() ?? '';
   const userId = state.agentConfig?.userId ?? '';
 
-  if (!env.SCALEWAY_API_KEY) {
-    log.info('[DeepAgent] Kein SCALEWAY_API_KEY — der alte Pfad übernimmt');
+  // Der Worker-Host, seit 21.08.2026 Cortecs statt Scaleway. Er ist der
+  // richtige Prüfstein, weil der Worker die überwältigende Mehrheit der
+  // Modellaufrufe eines Laufs macht — der Lead holt sich seinen Schlüssel in
+  // `leadModel()`. Was dieses Gate NICHT sieht: ein leeres Cortecs-Guthaben,
+  // das erst auf der Leitung als 401 auftaucht.
+  if (!env.CORTECS_API_KEY) {
+    log.info('[DeepAgent] Kein CORTECS_API_KEY — der alte Pfad übernimmt');
     return null;
   }
   // Linkup is the floor under the search tools: GreenPT is optional and refuses

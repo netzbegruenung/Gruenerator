@@ -24,6 +24,7 @@ import {
   scrollDocuments,
   batchUpsert,
   batchDelete,
+  setPayload,
 } from '../../../database/services/QdrantService/operations/batchOperations.js';
 import { BRAND } from '../../../utils/domainUtils.js';
 import { generatePointId } from '../../../utils/validation/index.js';
@@ -31,7 +32,18 @@ import { chunkQualityService } from '../../ChunkQualityService/index.js';
 import { smartChunkDocument, buildEmbeddingTexts } from '../../document-services/index.js';
 import { mistralEmbeddingService } from '../../mistral/index.js';
 import { BaseScraper } from '../base/BaseScraper.js';
+import {
+  recordExtraction,
+  recordExtractionSkip,
+  recordRedundantExtraction,
+} from '../extractionRecorder.js';
 import { recordSyncEvent, toExcerpt } from '../syncEventRecorder.js';
+import {
+  conditionalHeaders,
+  fingerprintResponse,
+  isSameFile,
+  type FileFingerprint,
+} from '../utils/binaryFingerprint.js';
 
 import type { QdrantService } from '../../../database/services/QdrantService/index.js';
 import type { ScraperResult } from '../types.js';
@@ -190,12 +202,26 @@ export class ProgramPdfScraper extends BaseScraper {
     };
   }
 
-  async #downloadPdf(url: string): Promise<string> {
+  /**
+   * Download the PDF unless the server confirms the stored validators with 304.
+   * Returns the temp-file path plus the fingerprint of what was downloaded, so
+   * the caller can decide against extraction before paying for it.
+   */
+  async #downloadPdf(
+    url: string,
+    storedPayload: Record<string, unknown> | null
+  ): Promise<{ tempPath: string; fingerprint: FileFingerprint } | { notModified: true }> {
     const response = await this.fetchWithRetry(url, {
       timeout: 120_000,
       maxRetries: 3,
       userAgent: BRAND?.botUserAgent || 'Gruenerator-Bot/1.0',
+      headers: conditionalHeaders(storedPayload),
+      acceptStatus: [304],
     });
+
+    if (response.status === 304) {
+      return { notModified: true };
+    }
 
     const buffer = Buffer.from(await response.arrayBuffer());
     if (buffer.length < 1024) {
@@ -207,7 +233,7 @@ export class ProgramPdfScraper extends BaseScraper {
       `program_pdf_${crypto.randomBytes(8).toString('hex')}.pdf`
     );
     fs.writeFileSync(tempPath, buffer);
-    return tempPath;
+    return { tempPath, fingerprint: fingerprintResponse(buffer, response) };
   }
 
   /** PDF.js direct extraction with Mistral OCR fallback (same policy as reprocess-pdfs). */
@@ -237,7 +263,7 @@ export class ProgramPdfScraper extends BaseScraper {
     return { text: ocr.text, method: 'mistral-ocr', pageCount: ocr.pageCount };
   }
 
-  async #documentExists(documentId: string): Promise<{ content_hash: string } | null> {
+  async #existingPayload(documentId: string): Promise<Record<string, unknown> | null> {
     try {
       const points = await scrollDocuments(
         this.qdrant.client!,
@@ -245,13 +271,30 @@ export class ProgramPdfScraper extends BaseScraper {
         { must: [{ key: 'document_id', match: { value: documentId } }] },
         { limit: 1, withPayload: true, withVector: false }
       );
-      if (points.length > 0) {
-        return { content_hash: (points[0].payload.content_hash as string) || '' };
-      }
-      return null;
+      return points.length > 0 ? points[0].payload : null;
     } catch {
       return null;
     }
+  }
+
+  /**
+   * Persist the fingerprint on points whose text did not change. Without this
+   * the very first run after deploy would extract, find the text identical,
+   * write nothing — and re-extract the same PDF on every following run.
+   */
+  async #persistFingerprint(
+    documentId: string,
+    fingerprint: FileFingerprint,
+    existingPayload: Record<string, unknown>
+  ): Promise<void> {
+    const patch = Object.fromEntries(
+      Object.entries(fingerprint).filter(([key, value]) => existingPayload[key] !== value)
+    );
+    if (Object.keys(patch).length === 0) return;
+
+    await setPayload(this.qdrant.client!, this.config.collectionName, patch, {
+      must: [{ key: 'document_id', match: { value: documentId } }],
+    });
   }
 
   async #processDocument(
@@ -261,20 +304,42 @@ export class ProgramPdfScraper extends BaseScraper {
     let tempPath: string | null = null;
 
     try {
-      tempPath = await this.#downloadPdf(doc.pdfUrl);
+      // Immer nachschlagen, auch bei forceUpdate: der Treffer entscheidet unten
+      // über das Löschen der alten Chunks. Nur die Spar-Gatter bekommen ihn
+      // vorenthalten, damit forceUpdate wirklich neu ausliest.
+      const existingPayload = await this.#existingPayload(doc.documentId);
+      const gateOn = forceUpdate ? null : existingPayload;
+
+      const download = await this.#downloadPdf(doc.pdfUrl, gateOn);
+      if ('notModified' in download) {
+        recordExtractionSkip('not_modified');
+        return { stored: false, reason: 'unchanged' };
+      }
+      tempPath = download.tempPath;
+
+      // Byte-gleiche Datei → die Extraktion (PDF.js, bei Bedarf Mistral-OCR pro
+      // Seite) und die Einbettung würden dasselbe Ergebnis erneut erzeugen.
+      if (gateOn && isSameFile(gateOn, download.fingerprint)) {
+        recordExtractionSkip('same_bytes');
+        return { stored: false, reason: 'unchanged' };
+      }
+
       const extraction = await this.#extractText(tempPath);
+      recordExtraction({ method: extraction.method, pages: extraction.pageCount });
 
       if (!extraction.text || extraction.text.length < 1000) {
         return { stored: false, reason: 'too_short' };
       }
 
       const contentHash = this.generateHash(extraction.text);
-      const existing = await this.#documentExists(doc.documentId);
 
-      if (existing && existing.content_hash === contentHash && !forceUpdate) {
+      if (gateOn && gateOn.content_hash === contentHash) {
+        await this.#persistFingerprint(doc.documentId, download.fingerprint, gateOn);
+        recordRedundantExtraction();
         return { stored: false, reason: 'unchanged' };
       }
 
+      const existing = existingPayload !== null;
       if (existing) {
         await batchDelete(this.qdrant.client!, this.config.collectionName, {
           must: [{ key: 'document_id', match: { value: doc.documentId } }],
@@ -306,6 +371,7 @@ export class ProgramPdfScraper extends BaseScraper {
           source_url: doc.sourceUrl,
           pdf_url: doc.pdfUrl,
           content_hash: contentHash,
+          ...download.fingerprint,
           chunk_index: index,
           chunk_text: chunkTexts[index],
           quality_score: chunkQualityService.calculateQualityScore(chunkTexts[index]),

@@ -20,6 +20,7 @@
  * an override and keeps its existing contract schema.
  */
 
+import { GEMMA_31B_PRIMARY } from './gemmaHosts.js';
 import { intermediateLane } from './intermediateLanes.js';
 
 import type { ProviderName } from './providers.js';
@@ -42,9 +43,11 @@ export interface LaneConfig {
 
 const MISTRAL_MEDIUM = 'mistral-medium-2604';
 const VERDIGADO_PRO = 'verdigado-pro';
-/** Gemma 4 — named explicitly because Regolo's DEFAULT comes from the
- *  environment and is not guaranteed to be this model. */
-const GEMMA_4 = 'gemma4-31b';
+/** Gemma 4, dichtes 31B — Provider UND Modellname kommen aus `gemmaHosts.ts`,
+ *  der einen Stelle, die den Host wählt. Nicht hier benennen: die beiden Hosts
+ *  schreiben denselben Modellnamen verschieden, ein hart notierter Name
+ *  überlebt den nächsten Wechsel als 404. */
+const GEMMA_4 = GEMMA_31B_PRIMARY.model;
 /** Gemma 4 bei GreenPT — welche Gewichte, ist unbelegt (siehe GEMMA_4_GREENPT in
  *  routes/chat/agents/providers.ts). Gewählt ist es dafür, dass es den
  *  erzwungenen Tool-Call bedient statt JSON als Prosa zu schreiben, anders als
@@ -89,21 +92,33 @@ export const AI_LANES = {
   //   (services/ai/execution/execute.ts) reicht keine Reasoning-Option durch. Im
   //   Streaming-Pfad (agents/langgraph/streamingProcessor.ts) gilt sie und
   //   wird dort providerspezifisch gesetzt.
-  antrag: { provider: 'regolo', model: GEMMA_4, structuredMode: 'tool' },
-  antrag_simple: { provider: 'regolo', model: GEMMA_4, structuredMode: 'tool' },
-  kleine_anfrage: { provider: 'regolo', model: GEMMA_4, structuredMode: 'tool' },
-  grosse_anfrage: { provider: 'regolo', model: GEMMA_4, structuredMode: 'tool' },
-  universal: { provider: 'regolo', model: GEMMA_4, structuredMode: 'tool' },
-  leichte_sprache: { provider: 'regolo', model: GEMMA_4, structuredMode: 'tool' },
-  custom_prompt: { provider: 'regolo', model: GEMMA_4, structuredMode: 'tool' },
-  protokoll: { provider: 'regolo', model: GEMMA_4, structuredMode: 'tool' },
-  rede: { provider: 'regolo', model: GEMMA_4, structuredMode: 'tool' },
-  wahlprogramm: { provider: 'regolo', model: GEMMA_4, structuredMode: 'tool' },
-  buergeranfragen: { provider: 'regolo', model: GEMMA_4, structuredMode: 'tool' },
-  social: { provider: 'regolo', model: GEMMA_4, structuredMode: 'tool' },
-  social_post_generation: { provider: 'regolo', model: GEMMA_4, structuredMode: 'tool' },
-  social_post_edit: { provider: 'regolo', model: GEMMA_4, structuredMode: 'tool' },
-  subtitler_social: { provider: 'regolo', model: GEMMA_4, structuredMode: 'tool' },
+  antrag: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
+  antrag_simple: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
+  kleine_anfrage: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
+  grosse_anfrage: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
+  universal: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
+  leichte_sprache: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
+  custom_prompt: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
+  protokoll: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
+  rede: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
+  wahlprogramm: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
+  buergeranfragen: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
+  social: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
+  social_post_generation: {
+    provider: GEMMA_31B_PRIMARY.provider,
+    model: GEMMA_4,
+    structuredMode: 'tool',
+  },
+  social_post_edit: {
+    provider: GEMMA_31B_PRIMARY.provider,
+    model: GEMMA_4,
+    structuredMode: 'tool',
+  },
+  subtitler_social: {
+    provider: GEMMA_31B_PRIMARY.provider,
+    model: GEMMA_4,
+    structuredMode: 'tool',
+  },
 
   // — Candidate-site content. Mistral, which the route always intended; it used
   //   to say so with a top-level `provider` that selected the adapter without
@@ -218,10 +233,19 @@ export function laneTarget(
  */
 export function providerForModel(modelName = ''): ProviderName {
   const name = String(modelName || '').toLowerCase();
-  // Before the generic gemma test below: `gemma-4-26b-a4b-it` is Scaleway's id,
-  // while `gemma4-31b` (no dash after gemma) is Regolo's. An operator who names
-  // the Scaleway one would otherwise land on the wrong host and get a 404.
+  // Before the generic gemma test below: die MoE-Variante `gemma-4-26b-a4b-it`
+  // ist NUR direkt bei Scaleway zu haben. Über Cortecs lief sie am 21.08.2026
+  // für einen halben Tag und ist dort unbedienbar geworden (der einzige
+  // brauchbare Unterauftragnehmer verschwand aus dem Katalog, der zweite ist
+  // quantisiert) — wer sie hier auf `cortecs` schickt, erntet genau diesen
+  // Filterfehler. `gemma4-31b` (ohne Bindestrich nach gemma) ist Regolos.
   if (name === 'gemma-4-26b-a4b-it') return 'scaleway';
+  // Das DICHTE 31B dagegen ist die Cortecs-Seite: Primär von `heavy` und
+  // `pruefung` und der Ausweich der Gemma-Antwortlane. Ohne diese Zeile fällt
+  // der Name durch die ganze Kette bis zum `return 'mistral'` am Ende — es
+  // gibt gar keinen generischen gemma-Test — und ein Operator bekäme einen 404
+  // von einem Anbieter, der das Modell nicht führt.
+  if (name === 'gemma-4-31b-it') return 'cortecs';
   if (
     name.includes('mistral-medium-') ||
     name.includes('mistral-large-') ||

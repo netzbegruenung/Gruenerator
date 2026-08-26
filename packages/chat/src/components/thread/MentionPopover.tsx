@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 
-import { filterMentionables, mentionableKey, type Mentionable } from '../../lib/mentionables';
+import { mentionableKey, type Mentionable } from '../../lib/mentionables';
 import { getFilteredMentionables } from '../../lib/mentionDetection';
+import { buildMentionSections, countMentionSectionItems } from '../../lib/mentionSections';
 
 import { MentionFloatingPanel } from './MentionFloatingPanel';
 
@@ -16,12 +17,6 @@ interface MentionPopoverProps {
   anchorRect: { x: number; y: number } | null;
 }
 
-type MentionSubgroup = { sublabel: string; items: Mentionable[] };
-
-type MentionSection =
-  | { kind: 'flat'; label: string; items: Mentionable[] }
-  | { kind: 'grouped'; label: string; groups: MentionSubgroup[] };
-
 export function MentionPopover({
   query,
   visible,
@@ -31,79 +26,12 @@ export function MentionPopover({
   anchorRect,
 }: MentionPopoverProps) {
   const listRef = useRef<HTMLDivElement>(null);
-  const {
-    agents,
-    customAgents,
-    notebooks,
-    userNotebooks,
-    tools,
-    boards,
-    docs,
-    documents,
-    wolke,
-    connect,
-    canva,
-  } = filterMentionables(query);
 
-  const sections: MentionSection[] = useMemo(() => {
-    const notebookGroups: MentionSubgroup[] = [];
-    if (userNotebooks.length > 0) {
-      notebookGroups.push({ sublabel: 'meine', items: userNotebooks });
-    }
-    if (notebooks.length > 0) {
-      notebookGroups.push({ sublabel: 'system', items: notebooks });
-    }
-
-    // Recipes lost their own '/' trigger, so they lead the combined list.
-    // "Aus deinen Gruppen" stays a separate sublabel: a shared recipe is
-    // usable right away, but it should never look like one of your own.
-    const recipeGroups: MentionSubgroup[] = [];
-    const ownRecipes = customAgents.filter((m) => !m.sharedFromGroup);
-    const sharedRecipes = customAgents.filter((m) => m.sharedFromGroup);
-    if (agents.length > 0) recipeGroups.push({ sublabel: 'mitgeliefert', items: agents });
-    if (ownRecipes.length > 0) recipeGroups.push({ sublabel: 'eigene', items: ownRecipes });
-    if (sharedRecipes.length > 0) {
-      recipeGroups.push({ sublabel: 'aus deinen Gruppen', items: sharedRecipes });
-    }
-
-    const all: MentionSection[] = [
-      ...(recipeGroups.length > 0
-        ? [{ kind: 'grouped' as const, label: 'Rezepte', groups: recipeGroups }]
-        : []),
-      { kind: 'flat', label: 'Werkzeuge', items: tools },
-      { kind: 'flat', label: 'Boards', items: boards },
-      { kind: 'flat', label: 'Dokumente', items: docs },
-      { kind: 'flat', label: 'Dateien', items: documents },
-      { kind: 'flat', label: 'Wolke', items: wolke },
-      { kind: 'flat', label: 'Verbundene Accounts', items: connect },
-      { kind: 'flat', label: 'Canva', items: canva },
-      ...(notebookGroups.length > 0
-        ? [{ kind: 'grouped' as const, label: 'Notizbücher', groups: notebookGroups }]
-        : []),
-    ];
-
-    return all.filter((s) =>
-      s.kind === 'flat' ? s.items.length > 0 : s.groups.some((g) => g.items.length > 0)
-    );
-  }, [
-    agents,
-    customAgents,
-    tools,
-    boards,
-    docs,
-    documents,
-    wolke,
-    connect,
-    canva,
-    notebooks,
-    userNotebooks,
-  ]);
-
-  const totalItems = sections.reduce(
-    (sum, s) =>
-      sum + (s.kind === 'flat' ? s.items.length : s.groups.reduce((n, g) => n + g.items.length, 0)),
-    0
-  );
+  // Not memoised on `query` alone: `filterMentionables` reads module-level lists
+  // that `mentionableSync` refills asynchronously, and those writes are what a
+  // re-render is meant to pick up.
+  const sections = buildMentionSections(query);
+  const totalItems = countMentionSectionItems(sections);
 
   useEffect(() => {
     if (!visible) return;

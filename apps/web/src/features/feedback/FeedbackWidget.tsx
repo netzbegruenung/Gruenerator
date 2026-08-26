@@ -1,5 +1,6 @@
 import { type FeedbackPageContext } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
+import { useMediaQuery } from '@gruenerator/shared/hooks';
 import {
   Button,
   Checkbox,
@@ -13,11 +14,17 @@ import {
   toast,
 } from '@gruenerator/ui';
 import { useMutation } from '@tanstack/react-query';
-import { Loader2, Maximize2 } from 'lucide-react';
+import { Info, Loader2, Maximize2 } from 'lucide-react';
 import { domToJpeg } from 'modern-screenshot';
 import { useCallback, useState, type JSX } from 'react';
 
 import DraggableFeedbackLauncher, { type LauncherCorner } from './DraggableFeedbackLauncher';
+
+// Unterhalb von Tailwinds `lg:` — Handys und Tablets. Dort ist die Textpille
+// (~110px) breit genug, um Bedienelemente am Rand zu überdecken, und der Platz
+// zum Ausweichen fehlt; das Icon (48px) tut dasselbe auf einem Sechstel der
+// Fläche. Die Einstellung bleibt unangetastet, nur ihre Darstellung schrumpft.
+const COMPACT_LAUNCHER_QUERY = '(width < 64rem)';
 
 interface FeedbackWidgetProps {
   /** Optional scope label sent with the feedback (e.g. a phase or feature name). */
@@ -75,6 +82,7 @@ export default function FeedbackWidget({
   visible = true,
   variant = 'text',
 }: FeedbackWidgetProps): JSX.Element | null {
+  const compactLauncher = useMediaQuery(COMPACT_LAUNCHER_QUERY);
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState('');
   const [screenshot, setScreenshot] = useState<string | null>(null);
@@ -98,7 +106,7 @@ export default function FeedbackWidget({
       return res.body;
     },
     onSuccess: () => {
-      toast.success('Danke für dein Feedback!');
+      toast.success('Danke! Dein Feedback ist angekommen.');
       setOpen(false);
       setMessage('');
       setScreenshot(null);
@@ -129,7 +137,7 @@ export default function FeedbackWidget({
       <DraggableFeedbackLauncher
         onOpen={handleLauncherClick}
         defaultCorner={position}
-        variant={variant}
+        variant={compactLauncher ? 'icon' : variant}
       />
 
       <Dialog open={open} onOpenChange={setOpen}>
@@ -139,17 +147,31 @@ export default function FeedbackWidget({
           className="sm:max-w-2xl"
         >
           <DialogHeader>
-            <DialogTitle>Feedback geben</DialogTitle>
+            <DialogTitle>Feedback an die Entwicklung</DialogTitle>
             <DialogDescription>
               Was ist dir aufgefallen? Automatisch mitgesendet werden die aktuelle Seite (URL),
               Browser-Informationen und – falls verfügbar – ein Screenshot.
             </DialogDescription>
           </DialogHeader>
 
+          {/* Der Knopf schwebt auf jeder Seite, auch über dem Chat — viele
+              tippen hier hinein, als wäre es ein weiteres Chatfenster. Der
+              Hinweis sagt vor dem Schreiben, wo der Text landet und dass hier
+              keine Antwort kommt. */}
+          <div className="flex items-start gap-2 rounded-md border border-border bg-muted/60 px-3 py-2 text-sm text-muted-foreground">
+            <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+            <p>
+              <span className="font-medium text-foreground">Das hier ist kein Chat:</span> Deine
+              Nachricht geht per E-Mail an die Entwicklung und wird von einem Menschen gelesen. Eine
+              Antwort kommt nicht hier, sondern bei Rückfragen per E-Mail. Fragen an die KI stellst
+              du im Chat.
+            </p>
+          </div>
+
           <Textarea
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            placeholder="Dein Feedback…"
+            placeholder="Dein Feedback an die Entwicklung…"
             rows={5}
             autoFocus
           />

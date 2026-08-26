@@ -76,6 +76,13 @@ export interface ThreadAttachment {
    *  retrieve it via RAG instead of re-injecting its truncated full text. */
   documentId: string | null;
   summary: string | null;
+  /** Ob für diesen Anhang die ORIGINALBYTES in `file_data` liegen. Nur dann kann
+   *  ein späterer Turn die Datei selbst wieder anfassen (Tabellen-Reload,
+   *  `fill_pdf_form`) — geschrieben wird die Spalte nur für tabellarische
+   *  Anhänge und für PDFs, die `isFillablePdf` als Formular erkannt hat
+   *  (attachmentProcessingService). Ein PDF ohne Bytes ist damit ein PDF, von
+   *  dem beim Upload feststand, dass es kein ausfüllbares Formular ist. */
+  hasFileData: boolean;
   createdAt: Date;
 }
 
@@ -212,7 +219,8 @@ export async function getThreadAttachments(
   const postgres = getPostgresInstance();
 
   const result = await postgres.query(
-    `SELECT id, name, mime_type, is_image, extracted_text, document_id, summary, created_at
+    `SELECT id, name, mime_type, is_image, extracted_text, document_id, summary, created_at,
+            file_data IS NOT NULL AS has_file_data
      FROM chat_thread_attachments
      WHERE thread_id = $1
      ORDER BY created_at DESC
@@ -228,6 +236,7 @@ export async function getThreadAttachments(
     extractedText: row.extracted_text as string | null,
     documentId: row.document_id as string | null,
     summary: row.summary as string | null,
+    hasFileData: row.has_file_data === true,
     createdAt: row.created_at as Date,
   }));
 

@@ -27,6 +27,77 @@ function normalizeCiteMarkers(text: string): string {
   return text.replace(/\[cite:(\d+)\]/g, '[$1]');
 }
 
+/** Client-side coarse cap on history length; the server holds the fine, token-based budget. */
+const HISTORY_MAX_MESSAGES = 12;
+/** Carried passages only need to identify the cited place, not repeat the chunk. */
+const HISTORY_CITATION_TEXT_MAX_CHARS = 600;
+
+interface WireHistoryMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  citations?: Array<Record<string, unknown>>;
+}
+
+/**
+ * Minimal subset of a raw notebook citation for the history payload — enough
+ * for the server's carried-source merge (identity + passage), nothing more.
+ */
+function pickHistoryCitation(c: Record<string, unknown>): Record<string, unknown> {
+  return {
+    index: String(c.index ?? ''),
+    ...(typeof c.document_id === 'string' && { document_id: c.document_id }),
+    ...(typeof c.document_title === 'string' && { document_title: c.document_title }),
+    ...(typeof c.title === 'string' && { title: c.title }),
+    ...(typeof c.cited_text === 'string' && {
+      cited_text: c.cited_text.slice(0, HISTORY_CITATION_TEXT_MAX_CHARS),
+    }),
+    ...(typeof c.source_url === 'string' && { source_url: c.source_url }),
+    ...(typeof c.chunk_index === 'number' && { chunk_index: c.chunk_index }),
+    ...(typeof c.page_number === 'number' && { page_number: c.page_number }),
+    ...(typeof c.filename === 'string' && { filename: c.filename }),
+    ...(typeof c.similarity_score === 'number' && { similarity_score: c.similarity_score }),
+    ...(typeof c.collection_id === 'string' && { collection_id: c.collection_id }),
+    ...(typeof c.collection_name === 'string' && { collection_name: c.collection_name }),
+    ...(typeof c.date === 'string' && { date: c.date }),
+  };
+}
+
+/**
+ * Conversation history for the wire — Ultra only. Prior messages travel as
+ * `{role, content, citations?}`; `rawCitations` from the message metadata
+ * (present after a live turn, a localStorage resume and a thread reload) let
+ * the server merge previously cited sources into the new turn.
+ */
+function buildWireHistory(
+  messages: ChatModelRunOptions['messages'],
+  lastUserMessage: ChatModelRunOptions['messages'][number] | undefined
+): WireHistoryMessage[] {
+  if (!lastUserMessage) return [];
+  const prior = messages.slice(0, messages.lastIndexOf(lastUserMessage));
+  const history: WireHistoryMessage[] = [];
+  for (const m of prior) {
+    if (m.role !== 'user' && m.role !== 'assistant') continue;
+    const text = m.content
+      .filter((p): p is { type: 'text'; text: string } => p.type === 'text')
+      .map((p) => p.text)
+      .join('')
+      .trim();
+    if (!text) continue;
+    const raw = (m.metadata?.custom as Record<string, unknown> | undefined)?.rawCitations;
+    const citations = Array.isArray(raw)
+      ? (raw as Array<Record<string, unknown>>)
+          .filter((c) => c && typeof c === 'object')
+          .map(pickHistoryCitation)
+      : [];
+    history.push({
+      role: m.role,
+      content: text,
+      ...(citations.length > 0 && { citations }),
+    });
+  }
+  return history.slice(-HISTORY_MAX_MESSAGES);
+}
+
 function mapToChatCitations(citations: Citation[]): ChatCitation[] {
   return citations.map((c) => ({
     id: parseInt(c.index, 10),
@@ -189,8 +260,14 @@ export function createNotebookModelAdapter(
         console.warn('[Notebook] getExtraParams threw:', err);
       }
 
+      // Conversation history is an Ultra-tier capability. The server's depth
+      // profile is the authority (other tiers drop history explicitly); the
+      // client just avoids shipping payload the server would ignore.
+      const wireHistory =
+        config.mode === 'ultra' ? buildWireHistory(messages, lastUserMessage) : [];
+
       const payload = {
-        messages: [{ role: 'user', content: question }],
+        messages: [...wireHistory, { role: 'user', content: question }],
         ...(isMulti
           ? { collectionIds: config.collectionIds }
           : { collectionId: config.collectionId || config.collectionIds?.[0] }),

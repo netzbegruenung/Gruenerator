@@ -60,6 +60,14 @@ export {
   type DeclarableContentOrigin,
 } from './contentOrigin.js';
 
+// Gespeicherte Share-URL → ladbare Bild-URL
+export {
+  resolveStoredImageUrl,
+  sharedMediaPreviewUrl,
+  shareTokenFromShareUrl,
+  type SharedMediaPreviewOptions,
+} from './shareUrl.js';
+
 // Responsive thumbnail URL builder
 export {
   buildSharedMediaSrcSet,
