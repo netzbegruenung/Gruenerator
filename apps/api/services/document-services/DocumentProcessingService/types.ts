@@ -124,4 +124,11 @@ export interface QdrantDocumentServiceLike {
     metadata: Record<string, unknown>,
     onBatchUpserted?: (upserted: number, total: number) => Promise<void> | void
   ) => Promise<unknown>;
+  /**
+   * Optional so existing test doubles keep satisfying this interface. Used to
+   * clear a previous, partially written run before re-indexing: an upsert that
+   * died halfway leaves chunks behind, and a retry producing fewer chunks would
+   * otherwise strand the surplus as unreachable duplicates.
+   */
+  deleteDocumentVectors?: (documentId: string, userId: string) => Promise<unknown>;
 }

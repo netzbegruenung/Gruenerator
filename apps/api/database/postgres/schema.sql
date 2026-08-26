@@ -205,7 +205,9 @@ CREATE TABLE IF NOT EXISTS documents (
     wolke_etag TEXT,
     vector_count INTEGER DEFAULT 0,
     last_synced_at TIMESTAMPTZ,
-    group_wolke_share_id TEXT
+    group_wolke_share_id TEXT,
+    processing_started_at TIMESTAMPTZ,
+    processing_attempts INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS document_daily_versions (
