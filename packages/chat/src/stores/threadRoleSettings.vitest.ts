@@ -140,3 +140,50 @@ describe('loadThreadSettings', () => {
     expect(useAgentStore.getState().customRoleName).toBe(ROLE.rolle);
   });
 });
+
+describe('Konto-Voreinstellung gegen Thread-Einstellung', () => {
+  // Die Voreinstellung liegt auf dem Entwurf, bevor der Thread bekannt ist.
+  // Öffnet man danach einen Chat, der nie eine Rolle hatte, muss sie weichen —
+  // sonst erbt ein alter Chat eine Rolle, die er nie trug.
+  it('räumt eine vorausgewählte Rolle weg, wenn der Thread keine hat (404)', async () => {
+    useAgentStore.setState({ roleRefSource: 'default' });
+    const { client } = fakeClient('notfound');
+
+    await useAgentStore.getState().loadThreadSettings('thread-1', client);
+
+    const state = useAgentStore.getState();
+    expect(state.threadMode).toBe('chat');
+    expect(state.customRoleRef).toBeNull();
+  });
+
+  it('lässt die eigene Rolle des Threads stehen', async () => {
+    useAgentStore.setState({ roleRefSource: 'default' });
+    const { client } = fakeClient({
+      customSystemPrompt: null,
+      customEnabledTools: null,
+      roleRef: ROLE,
+    });
+
+    await useAgentStore.getState().loadThreadSettings('thread-1', client);
+
+    expect(useAgentStore.getState().customRoleRef).toEqual(ROLE);
+    expect(useAgentStore.getState().roleRefSource).toBe('load');
+  });
+
+  it('stellt den Modus einer frei eingetippten Rolle wieder her', async () => {
+    // Die trägt keine Referenz, nur ihren erzeugten Prompttext. Ohne den Modus
+    // war der Chip nach dem Neuladen weg und die Anfrage ging als normaler
+    // Chat mitsamt `agentId` raus.
+    useAgentStore.setState({ threadMode: 'chat', customRoleRef: null, customSystemPrompt: null });
+    const { client } = fakeClient({
+      customSystemPrompt: 'Du bist Pressesprecherin.',
+      customEnabledTools: null,
+      roleRef: null,
+    });
+
+    await useAgentStore.getState().loadThreadSettings('thread-1', client);
+
+    expect(useAgentStore.getState().threadMode).toBe('eigener');
+    expect(useAgentStore.getState().customSystemPrompt).toBe('Du bist Pressesprecherin.');
+  });
+});
