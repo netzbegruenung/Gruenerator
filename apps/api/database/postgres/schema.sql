@@ -1063,20 +1063,6 @@ BEGIN
 END $$;
 CREATE INDEX IF NOT EXISTS idx_chat_threads_group_id ON chat_threads(group_id) WHERE group_id IS NOT NULL;
 
--- Add foreign key for compacted_up_to_message_id (deferred to avoid circular dependency during creation)
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM information_schema.table_constraints
-        WHERE constraint_name = 'fk_chat_threads_compacted_message'
-    ) THEN
-        ALTER TABLE chat_threads
-            ADD CONSTRAINT fk_chat_threads_compacted_message
-            FOREIGN KEY (compacted_up_to_message_id) REFERENCES chat_messages(id)
-            ON DELETE SET NULL;
-    END IF;
-END $$;
-
 -- Chat messages within threads
 CREATE TABLE IF NOT EXISTS chat_messages (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1102,6 +1088,24 @@ CREATE INDEX IF NOT EXISTS idx_chat_messages_created_at ON chat_messages(created
 CREATE INDEX IF NOT EXISTS idx_chat_messages_thread_created ON chat_messages(thread_id, created_at);
 -- Feedback endpoint: resolve a Langfuse trace id back to the turn that produced it.
 CREATE INDEX IF NOT EXISTS idx_chat_messages_trace_id ON chat_messages ((tool_results ->> 'traceId')) WHERE tool_results ->> 'traceId' IS NOT NULL;
+
+-- Foreign key for chat_threads.compacted_up_to_message_id.
+-- MUST stay after CREATE TABLE chat_messages: the referenced table has to
+-- exist when the constraint is added. Standing earlier in the file, this
+-- block aborted with `relation "chat_messages" does not exist` and — because
+-- schema.sql is loaded as one statement — took the whole schema load with it.
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'fk_chat_threads_compacted_message'
+    ) THEN
+        ALTER TABLE chat_threads
+            ADD CONSTRAINT fk_chat_threads_compacted_message
+            FOREIGN KEY (compacted_up_to_message_id) REFERENCES chat_messages(id)
+            ON DELETE SET NULL;
+    END IF;
+END $$;
 
 -- Chat thread attachments for persistent document context across messages
 CREATE TABLE IF NOT EXISTS chat_thread_attachments (
