@@ -268,10 +268,12 @@ function KeywordsAndTrends({
   keywords,
   trends,
   totalArticles,
+  locale,
 }: {
   keywords: MonitorKeywordEntry[];
   trends: SocialTrend[];
   totalArticles: number;
+  locale: MonitorLocale;
 }) {
   const keywordWords = useMemo(() => {
     const top = [...keywords].sort((a, b) => b.count - a.count).slice(0, 20);
@@ -304,7 +306,7 @@ function KeywordsAndTrends({
       {trendWords.length > 0 && (
         <WordCloudCard
           title="X/Twitter Trends"
-          subtitle="Top Trends in Deutschland gerade jetzt"
+          subtitle={`Top Trends in ${locale === 'at' ? 'Österreich' : 'Deutschland'} gerade jetzt`}
           words={trendWords}
         />
       )}
@@ -394,6 +396,7 @@ function ThemenOverview({
         keywords={snapshot.keywords}
         trends={snapshot.socialTrends}
         totalArticles={snapshot.totalArticles}
+        locale={locale}
       />
       <BlueskyGrid locale={locale} />
     </>
