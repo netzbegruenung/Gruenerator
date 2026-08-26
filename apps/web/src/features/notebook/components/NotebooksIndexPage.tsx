@@ -16,7 +16,7 @@ import {
   Skeleton,
   cn,
 } from '@gruenerator/ui';
-import { BarChart3, Flame, Map as MapIcon, Plus, type LucideIcon } from 'lucide-react';
+import { BarChart3, Flame, Map as MapIcon, Plus, TrendingUp, type LucideIcon } from 'lucide-react';
 import { memo, useCallback, useMemo, useState, type ReactNode } from 'react';
 import {
   HiBookOpen,
@@ -409,6 +409,18 @@ const WISSEN_TOOL_TILES: WissenToolTile[] = [
     localeAware: true,
   },
   {
+    id: 'monitor-trends',
+    title: 'Trends',
+    description: 'Was gerade auf X und Bluesky läuft.',
+    path: '/trends',
+    Icon: TrendingUp,
+    tile: 'bg-[#F7DEEB] hover:shadow-[0_14px_30px_rgba(195,0,100,0.18)] dark:bg-[#2B1222]',
+    icon: 'text-[#BA006D] dark:text-[#EA5AA7]',
+    titleColor: 'text-[#960059] dark:text-[#EDA0CC]',
+    descColor: 'text-[#875573] dark:text-[#B4769A]',
+    localeAware: true,
+  },
+  {
     id: 'monitor-umfragen',
     title: 'Umfragen',
     description: 'Sonntagsfrage, Ländertrends und Meinungsbild.',
@@ -433,8 +445,8 @@ function pickGrueneValue(average: Record<string, number> | undefined): number | 
 
 /**
  * Live "intelligence" subtext for the Monitor tiles: the current hot topic
- * (Themen) and the Grüne polling value (Umfragen). Falls back to the tile's
- * static description while loading.
+ * (Themen), the #1 X trend (Trends) and the Grüne polling value (Umfragen).
+ * Falls back to the tile's static description while loading.
  */
 function useWissenTileIntel(locale: 'de' | 'at') {
   const { data: snapshot } = useMonitorSnapshot(locale);
@@ -446,6 +458,10 @@ function useWissenTileIntel(locale: 'de' | 'at') {
       // der Snapshot da war, `topics` aber fehlte — die ganze Wissen-Seite fiel
       // dann in die Fehlergrenze. Aufgefallen an der Lane mit leerem Datenstand.
       if (id === 'monitor-themen') return snapshot?.topics?.[0]?.topArticles?.[0]?.title ?? null;
+      if (id === 'monitor-trends') {
+        const top = snapshot?.socialTrends?.[0]?.name;
+        return top ? `Jetzt im Trend: ${top}` : null;
+      }
       if (id === 'monitor-umfragen') {
         const g = pickGrueneValue(polls?.average);
         return g != null
