@@ -509,6 +509,7 @@ export class BaseSearchService {
           text: tc.text,
         })),
         chunk_count: doc.chunks.length,
+        term_chunk_count: doc.chunks.filter((c) => c.has_term).length,
         relevance_info: this.buildRelevanceInfo(doc, enhancedScore),
       };
     });
@@ -1022,6 +1023,9 @@ export class BaseSearchService {
           text: tc.text,
         })),
         chunk_count: doc.chunks.length,
+        // Über alle Chunks im Pool, nicht über `topChunks` — die schneiden bei
+        // `maxChunksPerDocument` ab und würden bei 10 stehen bleiben.
+        term_chunk_count: doc.chunks.filter((c) => c.has_term).length,
         search_methods: searchMethods,
         hybrid_metadata: {
           hasVectorMatch: doc.hybridMetadata?.hasVectorMatch || false,
@@ -1267,6 +1271,8 @@ export class BaseSearchService {
           text: tc.text,
         })),
         chunk_count: doc.chunks.length,
+        // Dieser Pfad bewertet nicht lexikalisch, es gibt also kein `has_term`.
+        term_chunk_count: 0,
         relevance_info: `Found ${doc.chunks.length} relevant sections in "${doc.title}"`,
       };
     });
