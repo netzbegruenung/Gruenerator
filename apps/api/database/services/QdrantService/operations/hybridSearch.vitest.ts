@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { applyWeightedCombination, calculateDynamicThreshold } from './hybridSearch.js';
+import {
+  applyWeightedCombination,
+  calculateDynamicThreshold,
+  calculateTextSearchScore,
+} from './hybridSearch.js';
 
 import type { HybridConfig, TextSearchResult, VectorSearchResult } from './types.js';
 
@@ -92,6 +96,62 @@ describe('applyWeightedCombination', () => {
     );
 
     expect(results.map((r) => r.id)).toEqual(['a', 'b']);
+  });
+
+  it('never scores a chunk lower because the keyword lane also found it', () => {
+    // The inversion that buried keyword hits: blending pulled a chunk both
+    // lanes found toward the lower text score (0.5·0.72 + 0.5·0.1 = 0.41),
+    // while an equally similar chunk the keyword lane never saw kept 0.72.
+    const bothLanes = applyWeightedCombination([vec('a', 0.72)], [txt('a', 0.1)], 0.5, 0.5, 10);
+
+    expect(scoreOf(bothLanes, 'a')).toBeCloseTo(0.72, 5);
+  });
+
+  it('ranks the chunk containing the term above an equally similar one without it', () => {
+    const results = applyWeightedCombination(
+      [vec('with-term', 0.72), vec('without-term', 0.72)],
+      [txt('with-term', 0.1)],
+      0.5,
+      0.5,
+      10
+    );
+
+    expect(results[0]?.id).toBe('with-term');
+  });
+});
+
+describe('calculateTextSearchScore', () => {
+  it('rises with the number of occurrences', () => {
+    const once = calculateTextSearchScore('hitzeschutz', 'Ein Satz über Hitzeschutz.');
+    const thrice = calculateTextSearchScore(
+      'hitzeschutz',
+      'Hitzeschutz hier, Hitzeschutz dort, und nochmal Hitzeschutz.'
+    );
+
+    expect(thrice).toBeGreaterThan(once);
+  });
+
+  it('scores two chunks with equal term counts equally, whatever their scroll position', () => {
+    // The old signature took the index in the scroll output and multiplied by
+    // `max(0.1, 1 - position * 0.1)`. Qdrant returns scroll pages in point-id
+    // order, so that number was arbitrary — and with recall windows in the
+    // hundreds it flattened almost every hit onto the 0.1 floor.
+    const text = 'Hitzeschutz und nochmal Hitzeschutz.';
+
+    expect(calculateTextSearchScore('hitzeschutz', text)).toBe(
+      calculateTextSearchScore('hitzeschutz', text)
+    );
+  });
+
+  it('lets short terms contribute less than long ones', () => {
+    expect(calculateTextSearchScore('ab', 'ab ab ab ab ab')).toBeLessThan(
+      calculateTextSearchScore('klimaanpassung', 'klimaanpassung klimaanpassung')
+    );
+  });
+
+  it('falls back to the floor without text or term', () => {
+    expect(calculateTextSearchScore('hitzeschutz', undefined)).toBe(0.1);
+    expect(calculateTextSearchScore('', 'irgendein Text')).toBe(0.1);
   });
 });
 
