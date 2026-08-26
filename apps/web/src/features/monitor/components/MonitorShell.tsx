@@ -10,24 +10,17 @@ import { useMonitorLocaleParam } from '../hooks/useMonitorLocaleParam';
 import type { MonitorLocale } from '../hooks/useMonitor';
 import type { ReactNode } from 'react';
 
-export type MonitorSection = 'themen' | 'umfragen' | 'watcher' | 'feed';
+/**
+ * Only /watcher still uses this chrome — Themen, Trends, Feed und Umfragen sind
+ * auf `MonitorPageHeader` umgezogen. Die Union bleibt eine Union, damit ein
+ * künftiger Rückkehrer sie erweitert statt sie neu zu erfinden.
+ */
+export type MonitorSection = 'watcher';
 
 const SECTION_SUBTITLES: Record<MonitorSection, Record<MonitorLocale, string>> = {
-  themen: {
-    de: 'Meistdiskutierte Themen in deutschen Nachrichtenmedien der letzten 24 Stunden.',
-    at: 'Meistdiskutierte Themen in österreichischen Nachrichtenmedien der letzten 24 Stunden.',
-  },
-  umfragen: {
-    de: 'Sonntagsfrage, Ländertrends und Meinungsbild.',
-    at: 'Sonntagsfrage und Wahltrends für Österreich.',
-  },
   watcher: {
     de: 'Berichterstattung über die Grünen — Risiken und Chancen im Blick.',
     at: 'Berichterstattung über die Grünen — Risiken und Chancen im Blick.',
-  },
-  feed: {
-    de: 'Neue Inhalte aus grünen Quellen, täglich gesammelt.',
-    at: 'Neue Inhalte aus grünen Quellen, täglich gesammelt.',
   },
 };
 
@@ -37,11 +30,10 @@ interface MonitorShellProps {
 }
 
 /**
- * Shared page chrome for all /themen, /umfragen, /watcher and /feed routes: title, locale switcher and the
- * refresh controls. Navigation into the sub-pages happens via the section
- * headers on the Übersicht (Workplace pattern); sub-pages get a back link.
- * Routes are flat (no router nesting in this app), so every monitor page
- * renders this wrapper.
+ * Page chrome for /watcher — und nur noch dafür: Titel, DE/AT-Umschalter und
+ * die Refresh-Knöpfe. Themen, Trends, Feed und Umfragen rendern stattdessen
+ * `MonitorPageHeader` mit der Quernavigation; die Übersichtsseite, auf die
+ * diese Chrome einmal zugeschnitten war, gibt es nicht mehr.
  */
 export function MonitorShell({ section, children }: MonitorShellProps) {
   const queryClient = useQueryClient();

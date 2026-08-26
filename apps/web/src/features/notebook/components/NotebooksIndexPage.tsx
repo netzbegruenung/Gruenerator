@@ -16,7 +16,15 @@ import {
   Skeleton,
   cn,
 } from '@gruenerator/ui';
-import { BarChart3, Flame, Map as MapIcon, Plus, TrendingUp, type LucideIcon } from 'lucide-react';
+import {
+  BarChart3,
+  Flame,
+  Map as MapIcon,
+  Plus,
+  Rss,
+  TrendingUp,
+  type LucideIcon,
+} from 'lucide-react';
 import { memo, useCallback, useMemo, useState, type ReactNode } from 'react';
 import {
   HiBookOpen,
@@ -39,7 +47,7 @@ import { getPublicAppOrigin } from '../../../utils/platform';
 import { useNotebookCollections } from '../../auth/hooks/useProfileData';
 import { useGroups } from '../../groups/hooks/useGroups';
 import { useEntityLikes } from '../../likes/hooks/useEntityLikes';
-import { useMonitorSnapshot, usePolls } from '../../monitor/hooks/useMonitor';
+import { useMonitorSnapshot, usePolls, useWhatHappened } from '../../monitor/hooks/useMonitor';
 import { useMonitorLocaleParam } from '../../monitor/hooks/useMonitorLocaleParam';
 import { getNotebookConfig } from '../config/notebookPagesConfig';
 import {
@@ -411,13 +419,25 @@ const WISSEN_TOOL_TILES: WissenToolTile[] = [
   {
     id: 'monitor-trends',
     title: 'Trends',
-    description: 'Was gerade auf X und Bluesky läuft.',
+    description: 'Was gerade auf X im Trend liegt.',
     path: '/trends',
     Icon: TrendingUp,
     tile: 'bg-[#F7DEEB] hover:shadow-[0_14px_30px_rgba(195,0,100,0.18)] dark:bg-[#2B1222]',
     icon: 'text-[#BA006D] dark:text-[#EA5AA7]',
     titleColor: 'text-[#960059] dark:text-[#EDA0CC]',
     descColor: 'text-[#875573] dark:text-[#B4769A]',
+    localeAware: true,
+  },
+  {
+    id: 'monitor-feed',
+    title: 'Feed',
+    description: 'Bluesky und neue Beiträge der Landesverbände.',
+    path: '/feed',
+    Icon: Rss,
+    tile: 'bg-[#F2DCF0] hover:shadow-[0_14px_30px_rgba(166,0,116,0.18)] dark:bg-[#271226]',
+    icon: 'text-[#A60074] dark:text-[#E45AB4]',
+    titleColor: 'text-[#86005F] dark:text-[#E7A0D4]',
+    descColor: 'text-[#815578] dark:text-[#B0769E]',
     localeAware: true,
   },
   {
@@ -445,12 +465,15 @@ function pickGrueneValue(average: Record<string, number> | undefined): number | 
 
 /**
  * Live "intelligence" subtext for the Monitor tiles: the current hot topic
- * (Themen), the #1 X trend (Trends) and the Grüne polling value (Umfragen).
- * Falls back to the tile's static description while loading.
+ * (Themen), the #1 X trend (Trends), the newest Landesverband article (Feed)
+ * and the Grüne polling value (Umfragen). Falls back to the tile's static
+ * description while loading.
  */
 function useWissenTileIntel(locale: 'de' | 'at') {
   const { data: snapshot } = useMonitorSnapshot(locale);
   const { data: polls } = usePolls(locale === 'at' ? 'oesterreich' : 'deutschland');
+  // Same query key as the non-expert /feed view, so both share one cache entry.
+  const { data: feed } = useWhatHappened(locale, { days: 7 });
 
   return useCallback(
     (id: string): string | null => {
@@ -462,6 +485,10 @@ function useWissenTileIntel(locale: 'de' | 'at') {
         const top = snapshot?.socialTrends?.[0]?.name;
         return top ? `Jetzt im Trend: ${top}` : null;
       }
+      if (id === 'monitor-feed') {
+        const newest = feed?.days?.[0]?.articles?.[0]?.title;
+        return newest ?? null;
+      }
       if (id === 'monitor-umfragen') {
         const g = pickGrueneValue(polls?.average);
         return g != null
@@ -470,7 +497,7 @@ function useWissenTileIntel(locale: 'de' | 'at') {
       }
       return null;
     },
-    [snapshot, polls]
+    [snapshot, polls, feed]
   );
 }
 
