@@ -18,6 +18,7 @@
     "eval:degeneration": "cross-env NODE_OPTIONS=--conditions=development npx tsx evals/degenerationProbe.ts",
     "eval:retrieval": "cross-env NODE_OPTIONS=--conditions=development npx tsx evals/retrieval/runRetrievalEval.ts",
     "eval:retrieval:ann": "cross-env NODE_OPTIONS=--conditions=development npx tsx evals/retrieval/annRecallCheck.ts",
+    "eval:manual:stages": "cross-env NODE_OPTIONS=--conditions=development npx tsx evals/retrieval/inspectManualStages.ts",
     "eval:longthread": "cross-env EVAL_SLOW=1 EVAL_FILTER=longthread NODE_OPTIONS=--conditions=development npx tsx evals/runChatEval.ts",
     "eval:mcp:setup": "cross-env NODE_OPTIONS=--conditions=development npx tsx evals/tools/setupMcpServers.ts",
     "eval:mcp": "cross-env EVAL_MCP=1 EVAL_FILTER=mcp NODE_OPTIONS=--conditions=development npx tsx evals/runChatEval.ts",

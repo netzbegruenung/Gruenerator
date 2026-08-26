@@ -16,11 +16,21 @@ export interface RetrievalExpectation {
   urlPattern?: string;
 }
 
+/**
+ * `qa` cases are natural-language questions as the notebook Q&A asks them.
+ * `manual` cases are the keyword lookups people type into the notebook search
+ * field — a different retrieval problem, because the winning document is the
+ * one that literally carries the term, not the one that is topically nearest.
+ */
+export type RetrievalCaseKind = 'qa' | 'manual';
+
 export interface RetrievalCase {
   id: string;
   collection: string;
   query: string;
   expect: RetrievalExpectation[];
+  /** Defaults to `qa`. */
+  kind?: RetrievalCaseKind;
 }
 
 export const RETRIEVAL_CASES: RetrievalCase[] = [
@@ -373,5 +383,112 @@ export const RETRIEVAL_CASES: RetrievalCase[] = [
     collection: 'gruene-at-system',
     query: 'Frauenpolitik und Gewaltschutz in Österreich',
     expect: [{ titlePattern: 'Frauen|Gewalt' }, { urlPattern: 'frauen|gewalt' }],
+  },
+
+  // ── Manuelle Recherche: Stichwortsuche im Notizbuch-Suchfeld ──
+  //
+  // Gold labels were read off the live index (scroll on `chunk_text`), so each
+  // one is a fact about the corpus, not a guess: either the term occurs in
+  // exactly one document, or the expected title carries the term literally.
+  // A keyword query whose literal match ranks below a merely topical neighbour
+  // is the failure these cases exist to catch.
+  {
+    id: 'manual-berlin-hitzeschutz',
+    collection: 'berlin-system',
+    query: 'Hitzeschutz',
+    // 33 chunks across 20 documents; six carry it in the title, the strongest
+    // (5 chunks) is "Hitzeschutz für alle Berliner*innen".
+    expect: [{ titlePattern: 'Hitzeschutz' }],
+    kind: 'manual',
+  },
+  {
+    id: 'manual-berlin-baumfaellmoratorium',
+    collection: 'berlin-system',
+    query: 'Baumfäll-Moratorium',
+    // Occurs in exactly one document.
+    expect: [{ titlePattern: 'Baumfäll-Moratorium' }],
+    kind: 'manual',
+  },
+  {
+    id: 'manual-berlin-milieuschutz',
+    collection: 'berlin-system',
+    query: 'Milieuschutz',
+    expect: [{ titlePattern: 'Wohnungspolitik|Milieuschutz|Mieten' }],
+    kind: 'manual',
+  },
+  {
+    id: 'manual-bayern-moorschutz',
+    collection: 'bayern-system',
+    query: 'Moorschutz',
+    expect: [{ titlePattern: 'Moorschutz' }],
+    kind: 'manual',
+  },
+  {
+    id: 'manual-bayern-nationalpark',
+    collection: 'bayern-system',
+    query: 'Nationalpark',
+    expect: [{ titlePattern: 'Nationalpark' }],
+    kind: 'manual',
+  },
+  {
+    id: 'manual-grundsatz-kindergrundsicherung',
+    collection: 'grundsatz-system',
+    query: 'Kindergrundsicherung',
+    // Occurs in exactly one document.
+    expect: [{ titlePattern: 'Grundsatzprogramm' }],
+    kind: 'manual',
+  },
+  {
+    id: 'manual-grundsatz-schuldenbremse',
+    collection: 'grundsatz-system',
+    query: 'Schuldenbremse',
+    // Occurs in exactly one document.
+    expect: [{ titlePattern: 'Regierungsprogramm' }],
+    kind: 'manual',
+  },
+  {
+    id: 'manual-kommunalwiki-baumschutzsatzung',
+    collection: 'kommunalwiki-system',
+    query: 'Baumschutzsatzung',
+    // Occurs in exactly one document.
+    expect: [{ titlePattern: 'Satzungsrecht' }],
+    kind: 'manual',
+  },
+  {
+    id: 'manual-kommunalwiki-quartiersmanagement',
+    collection: 'kommunalwiki-system',
+    query: 'Quartiersmanagement',
+    // Same mis-curation as the Klimaanpassung case: the term occurs most often
+    // in "Bürgerbeteiligung in Mannheim", but the wiki has an article called
+    // "Quartiersmanagement", and that is what this query asks for.
+    expect: [{ titlePattern: 'Quartiersmanagement' }],
+    kind: 'manual',
+  },
+  {
+    id: 'manual-kommunalwiki-klimaanpassung',
+    collection: 'kommunalwiki-system',
+    query: 'Klimaanpassung',
+    // Mis-curated at first: the term occurs in 73 chunks of one link-list
+    // article ("Transnationale Klima-Netzwerke"), and picking the document
+    // with the most occurrences made that the gold answer. It is not — the
+    // articles named after the term are. Occurrence count locates candidates;
+    // it does not settle which document a search should return.
+    expect: [{ titlePattern: 'Klimaanpassung' }],
+    kind: 'manual',
+  },
+  {
+    id: 'manual-gruene-de-heizungsgesetz',
+    collection: 'gruene-de-system',
+    query: 'Heizungsgesetz',
+    expect: [{ titlePattern: 'Heizungsgesetz' }],
+    kind: 'manual',
+  },
+  {
+    id: 'manual-at-klimaticket',
+    collection: 'oesterreich-gruene-system',
+    query: 'Klimaticket',
+    // Occurs in exactly one document.
+    expect: [{ titlePattern: 'Nationalratswahl|Wahlprogramm' }],
+    kind: 'manual',
   },
 ];

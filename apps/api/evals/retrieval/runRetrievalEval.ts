@@ -6,12 +6,20 @@
  *   pnpm --filter @gruenerator/api eval:retrieval
  *
  * Env:
+ *   EVAL_PIPELINE    qa (default) | manual — see below
  *   EVAL_COLLECTION  only run cases for this collection id (substring match)
  *   EVAL_FILTER      only run cases whose id contains this substring
- *   EVAL_DEPTH       depth profile: fast | deep | ultra (default fast)
- *   EVAL_RERANK=1    additionally score the post-rerank ranking (Regolo)
+ *   EVAL_DEPTH       depth profile: fast | deep | ultra (default fast), qa only
+ *   EVAL_RERANK=1    additionally score the post-rerank ranking (Regolo), qa only
+ *   EVAL_CASE_KIND   run another kind's cases through the chosen pipeline
  *   EVAL_VERBOSE=1   print top-5 titles for every miss (gold-label curation)
  *   EVAL_OUT         write per-case results as JSON to this path
+ *
+ * Two pipelines, because the product has two: `qa` is the notebook Q&A path
+ * (depth profile + optional rerank), `manual` is the notebook search field
+ * (`/api/research/search` params, then the real `rankManualSearchResults` the
+ * route runs — not a copy of it, so the eval cannot drift away from the code
+ * it measures). `manual` defaults to the `kind: 'manual'` cases.
  *
  * A case scores at rank r when the first matching result appears at position
  * r (1-based). Metrics: Hit@1 / Hit@3 / Hit@5, MRR@10 — per collection and
@@ -34,6 +42,7 @@ const { getSearchParams, getSystemCollectionConfig, applyDefaultFilter } =
 const { DocumentSearchService } =
   await import('../../services/document-services/DocumentSearchService/index.js');
 const { rerankPipeline } = await import('../../services/search/rerankPipeline.js');
+const { rankManualSearchResults } = await import('../../services/search/manualSearchRanking.js');
 
 const { RETRIEVAL_CASES } = await import('./cases.js');
 
@@ -46,6 +55,12 @@ type DocumentSearchService = InstanceType<typeof DocumentSearchService>;
 
 const MRR_K = 10;
 const HIT_KS = [1, 3, 5] as const;
+
+// Request defaults of the manual search field, as the web client sends them.
+const MANUAL_VECTOR_WEIGHT = 0.7;
+const MANUAL_TEXT_WEIGHT = 0.3;
+const MANUAL_RESULT_LIMIT = 30;
+const MANUAL_MIN_SCORE = 0.35;
 
 interface CaseOutcome {
   id: string;
@@ -160,6 +175,69 @@ async function runCase(
   }
 }
 
+/**
+ * The notebook search field: `/api/research/search` search params, then the
+ * production ranking helper. Mirrors the route's request defaults — hybrid
+ * mode, relevance sort, 30 results.
+ */
+async function runManualCase(
+  searchService: DocumentSearchService,
+  evalCase: RetrievalCase
+): Promise<CaseOutcome> {
+  const base: CaseOutcome = {
+    id: evalCase.id,
+    collection: evalCase.collection,
+    query: evalCase.query,
+    rank: null,
+    topTitles: [],
+  };
+
+  const config = getSystemCollectionConfig(evalCase.collection);
+  if (!config) {
+    return { ...base, error: `unknown collection id: ${evalCase.collection}` };
+  }
+
+  const searchParams = getSearchParams(evalCase.collection);
+  const additionalFilter = applyDefaultFilter(evalCase.collection, undefined);
+
+  try {
+    const resp = await searchService.search({
+      query: evalCase.query,
+      userId: undefined,
+      options: {
+        limit: searchParams.limit,
+        mode: 'hybrid',
+        vectorWeight: MANUAL_VECTOR_WEIGHT,
+        textWeight: MANUAL_TEXT_WEIGHT,
+        threshold: searchParams.threshold,
+        searchCollection: config.qdrantCollection,
+        recallLimit: searchParams.recallLimit,
+        qualityMin: searchParams.qualityMin,
+        additionalFilter,
+      },
+    } as Parameters<DocumentSearchService['search']>[0]);
+
+    if (resp.success === false) {
+      return { ...base, error: resp.error || resp.message || 'search returned success=false' };
+    }
+
+    const ranked = rankManualSearchResults({
+      results: (resp.results ?? []) as DocumentResult[],
+      sortBy: 'relevance',
+      limit: MANUAL_RESULT_LIMIT,
+      minScore: MANUAL_MIN_SCORE,
+    });
+
+    return {
+      ...base,
+      rank: firstMatchRank(ranked, evalCase),
+      topTitles: ranked.slice(0, 5).map((r) => r.title || r.source_url || '?'),
+    };
+  } catch (error) {
+    return { ...base, error: (error as Error).message };
+  }
+}
+
 function computeMetrics(outcomes: CaseOutcome[], rankOf: (o: CaseOutcome) => number | null) {
   const n = outcomes.length;
   const hits = Object.fromEntries(HIT_KS.map((k) => [k, 0])) as Record<number, number>;
@@ -179,13 +257,20 @@ function computeMetrics(outcomes: CaseOutcome[], rankOf: (o: CaseOutcome) => num
 }
 
 async function main() {
+  const pipeline = process.env.EVAL_PIPELINE === 'manual' ? 'manual' : 'qa';
   const depth = (process.env.EVAL_DEPTH || 'fast') as NotebookDepth;
   const withRerank = process.env.EVAL_RERANK === '1';
   const verbose = process.env.EVAL_VERBOSE === '1';
   const collectionFilter = process.env.EVAL_COLLECTION;
   const idFilter = process.env.EVAL_FILTER;
 
-  let cases = RETRIEVAL_CASES;
+  // Each pipeline runs its own cases by default: keyword lookups say nothing
+  // about the Q&A path, and questions say nothing about the search field.
+  // EVAL_CASE_KIND crosses them deliberately — running the long `qa` queries
+  // through the manual pipeline is how one checks whether a ranking stage
+  // behaves differently for wordy queries than for keywords.
+  const caseKind = process.env.EVAL_CASE_KIND || pipeline;
+  let cases = RETRIEVAL_CASES.filter((c) => (c.kind ?? 'qa') === caseKind);
   if (collectionFilter) cases = cases.filter((c) => c.collection.includes(collectionFilter));
   if (idFilter) cases = cases.filter((c) => c.id.includes(idFilter));
 
@@ -194,14 +279,19 @@ async function main() {
     process.exit(1);
   }
 
+  const modeLabel =
+    pipeline === 'manual' ? 'manual search' : `depth=${depth}${withRerank ? ', +rerank' : ''}`;
   console.log(
-    `Running ${cases.length} retrieval cases (depth=${depth}${withRerank ? ', +rerank' : ''}) against ${process.env.QDRANT_URL || 'QDRANT_URL unset!'}`
+    `Running ${cases.length} retrieval cases (${modeLabel}) against ${process.env.QDRANT_URL || 'QDRANT_URL unset!'}`
   );
 
   const searchService = new DocumentSearchService();
   const outcomes: CaseOutcome[] = [];
   for (const evalCase of cases) {
-    const outcome = await runCase(searchService, evalCase, depth, withRerank);
+    const outcome =
+      pipeline === 'manual'
+        ? await runManualCase(searchService, evalCase)
+        : await runCase(searchService, evalCase, depth, withRerank);
     outcomes.push(outcome);
     const rankLabel = outcome.error
       ? `ERROR ${outcome.error}`
@@ -211,7 +301,9 @@ async function main() {
     console.log(
       `  ${outcome.rank !== null ? '✓' : '✗'} [${outcome.collection}] ${outcome.id}: ${rankLabel}`
     );
-    if (verbose && outcome.rank === null && !outcome.error) {
+    // Anything that is not rank 1 is worth seeing: for keyword lookups the
+    // interesting failure is "found, but behind something else".
+    if (verbose && !outcome.error && (outcome.rank === null || outcome.rank > 1)) {
       for (const t of outcome.topTitles) console.log(`      • ${t}`);
     }
   }
@@ -246,7 +338,10 @@ async function main() {
   }
 
   if (process.env.EVAL_OUT) {
-    writeFileSync(process.env.EVAL_OUT, JSON.stringify({ depth, withRerank, outcomes }, null, 2));
+    writeFileSync(
+      process.env.EVAL_OUT,
+      JSON.stringify({ pipeline, depth, withRerank, outcomes }, null, 2)
+    );
     console.log(`\nErgebnisse geschrieben: ${process.env.EVAL_OUT}`);
   }
 
