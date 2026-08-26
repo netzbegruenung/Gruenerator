@@ -36,8 +36,7 @@ export type SettingsTab =
   | 'wolke'
   | 'websites'
   | 'konnektoren'
-  | 'nutzung'
-  | 'support';
+  | 'nutzung';
 
 export type SettingsPlatform = 'web' | 'mobile';
 
@@ -167,6 +166,20 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
     platforms: ['mobile'],
   },
   {
+    // Keine Zeile mit Schalter, sondern die Hilfe-Hälfte des Reiters: seit
+    // #2387 stehen die Kontaktwege unter Barrierefreiheit statt in einem
+    // eigenen Bereich, der nichts einstellte. Die id bleibt `support.kontakt` —
+    // sie ist die Beschriftung, auf die Oberfläche und Doku sich einigen, und
+    // wird nicht umbenannt, nur weil der Reiter darüber anders heißt.
+    //
+    // Web-only: die App hat keine Support-Fläche. Der Weg dorthin führt
+    // ohnehin nach außen (Doku, Feedback, Mail), nicht in eine App-Einstellung.
+    id: 'support.kontakt',
+    tab: 'barrierefreiheit',
+    title: 'Support',
+    description: 'Wo du Hilfe bekommst und Rückmeldung loswirst',
+  },
+  {
     // Web-only: this resets the driver.js tours through Workplace, Dokumente,
     // Tabellen, Präsentationen und Sharepic-Studio — surfaces the app doesn't
     // have. The app's "Einführung erneut ansehen" opens its own onboarding and is
@@ -236,14 +249,6 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
     tab: 'nutzung',
     title: 'Nutzung',
     description: 'Wie viele Anfragen, Tokens, Bilder und Recherchen auf dein Konto gehen',
-  },
-  {
-    // Web-only: die App hat keine Support-Fläche. Der Weg dorthin führt
-    // ohnehin nach außen (Doku, Feedback, Mail), nicht in eine App-Einstellung.
-    id: 'support.kontakt',
-    tab: 'support',
-    title: 'Support',
-    description: 'Wo du Hilfe bekommst und Rückmeldung loswirst',
   },
 ] as const;
 

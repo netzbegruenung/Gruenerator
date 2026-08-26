@@ -43,7 +43,6 @@ const LOADERS: Record<SettingsTab, () => Promise<SettingsTabModule>> = {
   barrierefreiheit: () => import('./tabs/AccessibilityTab'),
   datenschutz: () => import('./tabs/PrivacyTab'),
   nutzung: () => import('./tabs/UsageTab'),
-  support: () => import('./tabs/SupportTab'),
 };
 
 const SETTINGS_TABS = Object.keys(LOADERS) as SettingsTab[];

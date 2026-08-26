@@ -55,9 +55,10 @@ export const TAB_NOTES: TabNote[] = [
   {
     tab: 'barrierefreiheit',
     intro:
-      'Einstellungen, die die Oberfläche zugänglicher machen. Sie folgen zunächst den Vorgaben deines Betriebssystems und lassen sich hier gezielt übersteuern; Änderungen greifen sofort und gelten auf allen Geräten, an denen du angemeldet bist.',
+      'Einstellungen, die die Oberfläche zugänglicher machen — und darunter die Wege zum Support. Die Schalter folgen zunächst den Vorgaben deines Betriebssystems und lassen sich hier gezielt übersteuern; Änderungen greifen sofort und gelten auf allen Geräten, an denen du angemeldet bist.',
     extras: [
       '**Animationen reduzieren** und **Transparenz reduzieren** schalten dekorative Bewegung bzw. durchscheinende Flächen und Unschärfe ab — hilfreich bei Reizempfindlichkeit oder auf schwächerer Hardware.',
+      'Unter **Support** stehen die Kontaktwege, wenn etwas klemmt oder dir etwas fehlt: der Chat-Kanal der Community und eine E-Mail-Adresse für Österreich. Einzustellen gibt es dort nichts. „Support" war bis dahin ein eigener Bereich; ältere Links dorthin öffnen jetzt diesen hier.',
     ],
   },
   {
@@ -146,10 +147,5 @@ export const TAB_NOTES: TabNote[] = [
       'Der Zeitraum ist umschaltbar (7, 30 oder 90 Tage); Tabellen schlüsseln den Verbrauch nach Bereich und nach Modell auf.',
       'Hier gibt es nichts einzustellen — der Bereich zeigt nur an. Automatische Hintergrundprozesse zählen nicht mit.',
     ],
-  },
-  {
-    tab: 'support',
-    intro:
-      'Kontaktwege, wenn etwas klemmt oder dir etwas fehlt: der Chat-Kanal der Community und eine E-Mail-Adresse. Hier gibt es nichts einzustellen.',
   },
 ];

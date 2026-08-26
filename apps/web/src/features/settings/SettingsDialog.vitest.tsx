@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { closeCompletesOnboarding, resolveSettingsTab, visibleSettingsNav } from './SettingsDialog';
+import { SETTINGS_TAB_MAP } from './SettingsRedirect';
 
 /**
  * Welcher Bereich beim Öffnen offen ist, hängt an drei Zuständen, die sich nur
@@ -54,5 +55,26 @@ describe('closeCompletesOnboarding', () => {
 
   it('rührt eine bereits erledigte Einrichtung nicht an', () => {
     expect(closeCompletesOnboarding(false, 'onboarding')).toBe(false);
+  });
+});
+
+describe('Barrierefreiheit & Hilfe', () => {
+  it('führt Support nicht mehr als eigenen Bereich', () => {
+    expect(visibleSettingsNav(false).map((e) => e.value)).not.toContain('support');
+  });
+
+  it('behält den Bereich, an dem die Katalog-Zeilen hängen', () => {
+    expect(visibleSettingsNav(false).map((e) => e.value)).toContain('barrierefreiheit');
+  });
+
+  // Der Alias ist der Grund, warum `support` als Schlüssel überhaupt noch
+  // irgendwo steht: geteilte Links auf /settings/support sollen nicht bei
+  // Allgemein landen, nur weil der Reiter zusammengelegt wurde.
+  it('leitet den alten Deep-Link /settings/support auf den Bereich um', () => {
+    expect(SETTINGS_TAB_MAP.support).toBe('barrierefreiheit');
+  });
+
+  it('macht /settings/barrierefreiheit erreichbar', () => {
+    expect(SETTINGS_TAB_MAP.barrierefreiheit).toBe('barrierefreiheit');
   });
 });

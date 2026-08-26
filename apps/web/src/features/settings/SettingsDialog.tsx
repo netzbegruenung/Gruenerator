@@ -17,7 +17,6 @@ import {
   FiBell,
   FiCloud,
   FiGlobe,
-  FiHelpCircle,
   FiServer,
   FiSettings,
   FiShield,
@@ -47,8 +46,12 @@ import { useOnboarding } from './useOnboarding';
 // Reihenfolge = wie oft ein Bereich angefasst wird, nicht wie er sich
 // thematisch einsortieren ließe. Oben stehen die Bereiche, an denen man
 // laufend nachjustiert; nach unten wird es Einmal-Einrichtung, ganz unten das
-// reine Nachschlagen (Nutzung und Support stellen nichts ein). Davor steht die
-// Einrichtung selbst — einmalig, deshalb ganz oben und deshalb wieder weg.
+// reine Nachschlagen (Nutzung stellt nichts ein). Davor steht die Einrichtung
+// selbst — einmalig, deshalb ganz oben und deshalb wieder weg.
+//
+// Support stand am Ende und stellte ebenfalls nichts ein; seit #2387 ist er
+// die untere Hälfte von Barrierefreiheit. An der Reihenfolge selbst hat das
+// nichts geändert.
 //
 // hideHeading: the tab's content brings its own top-level heading.
 // onlyWhileOnboarding: verschwindet, sobald die Einrichtung erledigt ist.
@@ -81,10 +84,9 @@ const NAV: {
   { value: 'konnektoren', label: 'Konnektoren', icon: FiServer, hideHeading: true },
   { value: 'wolke', label: 'Wolke', icon: FiCloud },
   { value: 'websites', label: 'Meine Websites', icon: FiGlobe },
-  { value: 'barrierefreiheit', label: 'Barrierefreiheit', icon: IoAccessibilityOutline },
+  { value: 'barrierefreiheit', label: 'Barrierefreiheit & Hilfe', icon: IoAccessibilityOutline },
   { value: 'datenschutz', label: 'Datenschutz', icon: FiShield },
   { value: 'nutzung', label: 'Nutzung', icon: FiBarChart2 },
-  { value: 'support', label: 'Support', icon: FiHelpCircle },
 ];
 
 /** Die Seitenleiste, wie sie in diesem Moment aussieht. */
