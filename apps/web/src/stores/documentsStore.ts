@@ -46,6 +46,13 @@ interface DocumentStatusResponse {
 export interface DocumentPollResult {
   status: DocumentStatus;
   error: string | null;
+  /**
+   * True when polling gave up before the document reached a terminal state.
+   * Distinct from `failed`: nothing is known to be wrong with the file, we just
+   * stopped watching. Callers must not read this as success — reporting the
+   * give-up as "done" is exactly what made a half-imported notebook look ready.
+   */
+  timedOut?: boolean;
 }
 
 interface DocumentDeleteResponse {
@@ -447,9 +454,19 @@ export const useDocumentsStore = create<DocumentsStore>()(
 
       // Poll document status until it reaches a terminal state.
       // Terminal = chunks queryable in Qdrant: status='completed' && vectorCount>0, or 'failed'.
-      // 'uploaded' is transient (attach triggers processing); soft-timeout below bounds it.
+      //
+      // There used to be a 30s escape hatch for documents sitting in 'uploaded',
+      // which resolved as if the document were done. It existed because nothing
+      // started indexing until the document was attached to a notebook, so
+      // during creation the status could not move — and the wizard therefore
+      // showed a finished-looking row for a file that had not been read at all.
+      // Upload now kicks the ingest worker, so 'uploaded' is a brief hop; the
+      // bound below is a real give-up, reported as `timedOut` rather than
+      // disguised as success.
       pollDocumentStatus: async (documentId, onStatusChange) => {
-        const STUCK_UPLOADED_TIMEOUT_MS = 30_000;
+        // Generous: OCR plus embedding of a large scanned PDF legitimately runs
+        // for minutes, and a queue backlog adds to that.
+        const GIVE_UP_AFTER_MS = 15 * 60 * 1000;
         const startedAt = Date.now();
 
         const poll = (): Promise<DocumentPollResult> =>
@@ -462,7 +479,6 @@ export const useDocumentsStore = create<DocumentsStore>()(
                 const status = (response.data?.data?.status ?? 'pending') as DocumentStatus;
                 const vectorCount = response.data?.data?.vectorCount ?? 0;
                 const error = response.data?.data?.error ?? null;
-                console.debug('[notebook-upload] poll', { documentId, status, vectorCount });
 
                 if (onStatusChange) onStatusChange(status);
 
@@ -478,12 +494,14 @@ export const useDocumentsStore = create<DocumentsStore>()(
                   return;
                 }
 
-                if (status === 'uploaded' && Date.now() - startedAt > STUCK_UPLOADED_TIMEOUT_MS) {
+                if (Date.now() - startedAt > GIVE_UP_AFTER_MS) {
                   console.warn(
-                    `[notebook-upload] doc ${documentId} stuck in 'uploaded' >${STUCK_UPLOADED_TIMEOUT_MS}ms — releasing spinner`
+                    `[notebook-upload] doc ${documentId} still '${status}' after ${Math.round(
+                      GIVE_UP_AFTER_MS / 60000
+                    )}min — stopped watching`
                   );
                   clearInterval(interval);
-                  resolve({ status, error });
+                  resolve({ status, error, timedOut: true });
                 }
               } catch {
                 clearInterval(interval);

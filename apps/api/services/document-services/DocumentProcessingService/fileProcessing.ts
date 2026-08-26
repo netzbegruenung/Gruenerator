@@ -164,6 +164,20 @@ export async function processUploadedDocument(
     });
 
     await markStage('upserting', { current: 0, total: chunks.length });
+    // Clear anything a previous attempt wrote before upserting. Chunk ids are
+    // derived from the position, so a retry that produces fewer chunks would
+    // leave the surplus behind — orphaned points that still match searches.
+    // Cheap no-op on a first run, and it makes re-processing idempotent.
+    if (qdrantDocumentService.deleteDocumentVectors) {
+      try {
+        await qdrantDocumentService.deleteDocumentVectors(documentId, userId);
+      } catch (err) {
+        console.warn(
+          `[DocumentProcessingService] Vektor-Vorreinigung für ${documentId} übersprungen:`,
+          (err as Error).message
+        );
+      }
+    }
     await qdrantDocumentService.storeDocumentVectors(
       userId,
       documentId,
