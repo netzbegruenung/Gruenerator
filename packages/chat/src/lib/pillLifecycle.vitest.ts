@@ -26,6 +26,16 @@ describe('pillsAfterThreadChange', () => {
     expect(pillsAfterThreadChange([tally], 'thread-abc')).toEqual([]);
   });
 
+  it('never follows the user into a thread they switched to', () => {
+    // The leak #2857 guarded against, from the other direction: pills left on a
+    // draft must not ride along into a pre-existing thread opened from the
+    // sidebar. That transition ends at a real id, so it clears.
+    let pills = [tally];
+    pills = pillsAfterThreadChange(pills, null); // user leaves a thread for the draft
+    pills = pillsAfterThreadChange(pills, 'thread-fremd'); // …then opens another thread
+    expect(pills).toEqual([]);
+  });
+
   it('survives the whole /start sequence a picked connector goes through', () => {
     // rehydrated id → draft (null) → the user picks → mint on send.
     let pills = pillsAfterThreadChange([], null); // boot nulls the persisted id

@@ -17,6 +17,15 @@ import type { Mentionable } from './mentionables';
  * The mint flip (`null` → fresh id when the message is actually sent) is
  * harmless either way: `flushPillMentions` runs synchronously before `send()`,
  * so the pills are already empty by then.
+ *
+ * Why a null-check is sound here, when `switchThread` in chatStore explicitly
+ * refuses one (#2857): there the question was whether the transition came FROM
+ * a draft, and `null → id` cannot tell "my draft just became a thread" from "I
+ * clicked a different thread in the sidebar" — so an abandoned draft's pin
+ * leaked. This asks the opposite direction. Every `→ id` transition clears,
+ * including draft → pre-existing thread, so nothing can follow the user into a
+ * thread they switched to. Only the draft keeps its pills, and they stay
+ * visible as removable chips.
  */
 export function pillsAfterThreadChange(
   pills: Mentionable[],
