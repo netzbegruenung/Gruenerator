@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import RolesSection from './RolesSection';
 
@@ -108,5 +108,58 @@ describe('RolesSection — Rollen-Assistent (de-AT)', () => {
 
     expect(screen.getByText('Was ist deine Rolle?')).toBeInTheDocument();
     expect(screen.getByText('Mitarbeiter*in Landesorganisation')).toBeInTheDocument();
+  });
+});
+
+/**
+ * Vergibt die Instanz ihre eine Rolle selbst, gibt es hier nichts mehr zu tun:
+ * kein „Hinzufügen" (die eine Rolle steht schon da) und kein Löschknopf — der
+ * Server schriebe sie beim nächsten Lesen der User-Defaults zurück, der Knopf
+ * wäre also eine Lüge.
+ */
+describe('RolesSection auf einer Instanz, die ihre Rolle selbst vergibt', () => {
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  afterEach(() => {
+    vi.doUnmock('../../../config/instance');
+    vi.doUnmock('../../user-defaults/userDefaultsQueries');
+  });
+
+  it('zeigt die gesetzte Rolle ohne Hinzufügen und ohne Entfernen', async () => {
+    vi.doMock('../../../config/instance', () => ({ CURRENT_INSTANCE: 'bgst' }));
+    vi.doMock('../../user-defaults/userDefaultsQueries', () => ({
+      useUserDefault: () => ({
+        value: [{ ebene: 'bund', rolle: 'Mitarbeiter*in Bundesgeschäftsstelle' }],
+      }),
+      useSetUserDefault: () => ({ mutateAsync: vi.fn() }),
+    }));
+
+    // Nach `resetModules` bekommt die frisch geladene Sektion eine eigene Kopie
+    // von react-query — der oben statisch importierte Provider spannte einen
+    // Context auf, den sie nicht sieht („No QueryClient set"). Also beide aus
+    // demselben Ladevorgang holen.
+    const { default: Section } = await import('./RolesSection');
+    const { QueryClient: FreshClient, QueryClientProvider: FreshProvider } =
+      await import('@tanstack/react-query');
+
+    const queryClient = new FreshClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <MemoryRouter>
+        <FreshProvider client={queryClient}>
+          <Dialog open onOpenChange={vi.fn()}>
+            <DialogContent>
+              <DialogTitle>Einstellungen</DialogTitle>
+              <Section />
+            </DialogContent>
+          </Dialog>
+        </FreshProvider>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText('Mitarbeiter*in Bundesgeschäftsstelle')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /entfernen/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Hinzufügen/ })).toBeNull();
   });
 });
