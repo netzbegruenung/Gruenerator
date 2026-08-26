@@ -3,7 +3,6 @@ import { useMemo } from 'react';
 
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import PageContainer from '../../../components/common/PageContainer';
-import { BlueskyGrid } from '../components/BlueskyGrid';
 import { MonitorPageHeader } from '../components/MonitorPageHeader';
 import {
   MONITOR_ACCENT,
@@ -18,7 +17,7 @@ import { formatDateTime } from '../formatDateTime';
 import { useMonitorSnapshot } from '../hooks/useMonitor';
 import { useMonitorLocaleParam } from '../hooks/useMonitorLocaleParam';
 
-import type { MonitorLocale, MonitorSnapshot } from '../hooks/useMonitor';
+import type { MonitorSnapshot } from '../hooks/useMonitor';
 
 type SocialTrend = MonitorSnapshot['socialTrends'][number];
 
@@ -87,13 +86,7 @@ function TopTrendHero({ trends, createdAt }: { trends: SocialTrend[]; createdAt:
   );
 }
 
-function TrendsOverview({
-  snapshot,
-  locale,
-}: {
-  snapshot: MonitorSnapshot;
-  locale: MonitorLocale;
-}) {
+function TrendsOverview({ snapshot }: { snapshot: MonitorSnapshot }) {
   const trendWords = useMemo(() => {
     const top = [...snapshot.socialTrends].sort((a, b) => a.rank - b.rank).slice(0, CLOUD_TRENDS);
     const n = top.length || 1;
@@ -115,15 +108,14 @@ function TrendsOverview({
           words={trendWords}
         />
       )}
-      <BlueskyGrid locale={locale} />
     </>
   );
 }
 
 /**
- * /trends — the social pulse: what is trending on X right now and what the
- * Grüne Bluesky account is posting. Split off from /themen, which covers the
- * NLP-classified news corpus instead.
+ * /trends — what is trending on X right now. Split off from /themen, which
+ * covers the NLP-classified news corpus; the Bluesky posts sit on /feed
+ * alongside the Landesverband articles.
  */
 function MonitorTrendsPage() {
   const { locale } = useMonitorLocaleParam();
@@ -136,7 +128,7 @@ function MonitorTrendsPage() {
         title="Trends"
         right={
           <p className={cn('m-0 max-w-[280px] text-right text-[0.9rem]', MONITOR_MUTED)}>
-            Was gerade auf X und Bluesky läuft
+            Was gerade auf X im Trend liegt
             {snapshot && snapshot.socialTrends.length > 0
               ? ` · ${snapshot.socialTrends.length} Trends`
               : ''}
@@ -144,7 +136,7 @@ function MonitorTrendsPage() {
         }
       />
       {isLoading && <LoadingSection />}
-      {snapshot && <TrendsOverview snapshot={snapshot} locale={locale} />}
+      {snapshot && <TrendsOverview snapshot={snapshot} />}
     </PageContainer>
   );
 }
