@@ -1,15 +1,29 @@
 /**
- * Twitter/X Trends Scraper for Germany
- * Scrapes trends24.in/germany/ for top trending topics.
- * Free, no API key needed.
+ * Twitter/X Trends Scraper.
+ * Scrapes trends24.in for top trending topics, one page per monitor locale
+ * (Germany and Austria). Free, no API key needed.
  */
 
 import { createLogger } from '../../utils/logger.js';
 import { urlCrawler } from '../scrapers/implementations/UrlCrawler/index.js';
 
+import { MONITOR_LOCALES, type MonitorLocale, type SocialTrend } from './types.js';
+
 const log = createLogger('TwitterTrends');
 
-const TRENDS_URL = 'https://trends24.in/germany/';
+const TRENDS_URLS: Record<MonitorLocale, string> = {
+  de: 'https://trends24.in/germany/',
+  at: 'https://trends24.in/austria/',
+};
+
+const LOCALE_LABELS: Record<MonitorLocale, string> = {
+  de: 'Germany',
+  at: 'Austria',
+};
+
+/** Navigation/boilerplate lines the last-resort text extraction must not take for trends. */
+const BOILERPLATE_LINE =
+  /^(home|about|privacy|contact|trends|worldwide|germany|deutschland|austria|österreich|oesterreich)/i;
 
 export interface TwitterTrend {
   rank: number;
@@ -17,11 +31,13 @@ export interface TwitterTrend {
   url: string;
 }
 
-export async function scrapeTwitterTrends(): Promise<TwitterTrend[]> {
-  log.info('Scraping Twitter trends for Germany...');
+export async function scrapeTwitterTrends(locale: MonitorLocale): Promise<TwitterTrend[]> {
+  const trendsUrl = TRENDS_URLS[locale];
+  const label = LOCALE_LABELS[locale];
+  log.info(`Scraping Twitter trends for ${label}...`);
 
   try {
-    const result = await urlCrawler.fetchUrl(TRENDS_URL, { timeout: 15000 });
+    const result = await urlCrawler.fetchUrl(trendsUrl, { timeout: 15000 });
     const html = result.html;
 
     const trends: TwitterTrend[] = [];
@@ -66,7 +82,7 @@ export async function scrapeTwitterTrends(): Promise<TwitterTrend[]> {
       const contentExtractor =
         await import('../scrapers/implementations/UrlCrawler/extractors/ContentExtractor.js');
       const extractor = new contentExtractor.ContentExtractor();
-      const content = extractor.extractContent(html, TRENDS_URL);
+      const content = extractor.extractContent(html, trendsUrl);
 
       // The page content lists trends as plain text lines
       const lines = content.content
@@ -76,7 +92,7 @@ export async function scrapeTwitterTrends(): Promise<TwitterTrend[]> {
       for (const line of lines) {
         if (seen.has(line.toLowerCase())) continue;
         // Skip navigation/boilerplate
-        if (/^(home|about|privacy|contact|trends|germany|worldwide)/i.test(line)) continue;
+        if (BOILERPLATE_LINE.test(line)) continue;
         seen.add(line.toLowerCase());
 
         trends.push({
@@ -89,10 +105,42 @@ export async function scrapeTwitterTrends(): Promise<TwitterTrend[]> {
       }
     }
 
-    log.info(`Scraped ${trends.length} Twitter trends for Germany`);
+    log.info(`Scraped ${trends.length} Twitter trends for ${label}`);
     return trends.slice(0, 50);
   } catch (error) {
-    log.error(`Twitter trends scrape failed: ${error}`);
+    log.error(`Twitter trends scrape for ${label} failed: ${error}`);
     return [];
   }
+}
+
+/**
+ * Scrape every monitor locale in parallel. A locale that fails contributes an
+ * empty list instead of taking the whole refresh down.
+ */
+export async function scrapeTrendsByLocale(): Promise<Record<MonitorLocale, SocialTrend[]>> {
+  const entries = await Promise.all(
+    MONITOR_LOCALES.map(
+      async (locale) => [locale, await scrapeTwitterTrends(locale).catch(() => [])] as const
+    )
+  );
+  return Object.fromEntries(entries) as Record<MonitorLocale, SocialTrend[]>;
+}
+
+/**
+ * Read the trends for one locale out of a stored snapshot.
+ *
+ * `legacyTrends` is the single German list that `monitor_snapshots.social_trends`
+ * held before trends were scraped per locale. Rows written back then carry no
+ * Austrian trends at all — falling back to the German list for `at` would be
+ * exactly the bug this replaced, so Austria gets an empty list until the next
+ * refresh.
+ */
+export function pickTrendsForLocale(
+  byLocale: Partial<Record<MonitorLocale, SocialTrend[]>> | null,
+  legacyTrends: SocialTrend[] | null,
+  locale: MonitorLocale
+): SocialTrend[] {
+  const stored = byLocale?.[locale];
+  if (stored && stored.length > 0) return stored;
+  return locale === 'de' ? (legacyTrends ?? []) : [];
 }
