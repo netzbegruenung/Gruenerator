@@ -1205,7 +1205,8 @@ CREATE TABLE IF NOT EXISTS monitor_snapshots (
     topic_scores JSONB NOT NULL,
     articles JSONB NOT NULL DEFAULT '[]', -- legacy blob; superseded by monitor_articles
     keywords JSONB DEFAULT '[]',
-    social_trends JSONB DEFAULT '[]'
+    social_trends JSONB DEFAULT '[]', -- German list only; kept for rows predating social_trends_by_locale
+    social_trends_by_locale JSONB DEFAULT '{}' -- {"de": [...], "at": [...]}
 );
 
 CREATE INDEX IF NOT EXISTS idx_monitor_snapshots_created ON monitor_snapshots(created_at DESC);
