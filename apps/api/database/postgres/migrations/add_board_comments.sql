@@ -40,6 +40,11 @@ COMMENT ON COLUMN board_comments.content IS 'Plain text extracted from blocks fo
 COMMENT ON COLUMN board_comments.blocks IS 'Array of content blocks. Types: text, mention, link, code';
 COMMENT ON COLUMN board_comments.mentioned_user_ids IS 'Extracted user IDs from mention blocks for notification fan-out';
 
+-- CREATE TRIGGER kennt kein IF NOT EXISTS. Ohne das vorangestellte DROP
+-- scheitert diese Migration auf jeder DB, die schema.sql geladen hat — und
+-- zwar bei jedem Boot erneut, weil eine gescheiterte Migration nicht in
+-- schema_migrations landet.
+DROP TRIGGER IF EXISTS set_board_comments_updated_at ON board_comments;
 CREATE TRIGGER set_board_comments_updated_at
     BEFORE UPDATE ON board_comments
     FOR EACH ROW
@@ -64,17 +69,17 @@ COMMENT ON TABLE board_comment_reactions IS 'Emoji reactions on board comments (
 -- Indexes: board_comments
 -- ──────────────────────────────────────────────────────────────────────────
 
-CREATE INDEX idx_board_comments_board_card
+CREATE INDEX IF NOT EXISTS idx_board_comments_board_card
     ON board_comments (board_id, card_id, created_at);
 
-CREATE INDEX idx_board_comments_parent
+CREATE INDEX IF NOT EXISTS idx_board_comments_parent
     ON board_comments (parent_id)
     WHERE parent_id IS NOT NULL;
 
-CREATE INDEX idx_board_comments_user
+CREATE INDEX IF NOT EXISTS idx_board_comments_user
     ON board_comments (user_id);
 
-CREATE INDEX idx_board_comments_mentioned
+CREATE INDEX IF NOT EXISTS idx_board_comments_mentioned
     ON board_comments USING gin (mentioned_user_ids)
     WHERE mentioned_user_ids != '{}';
 
@@ -82,5 +87,5 @@ CREATE INDEX idx_board_comments_mentioned
 -- Indexes: board_comment_reactions
 -- ──────────────────────────────────────────────────────────────────────────
 
-CREATE INDEX idx_board_comment_reactions_comment
+CREATE INDEX IF NOT EXISTS idx_board_comment_reactions_comment
     ON board_comment_reactions (comment_id);
