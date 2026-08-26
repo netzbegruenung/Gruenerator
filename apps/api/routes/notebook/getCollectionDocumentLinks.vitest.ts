@@ -16,7 +16,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const mockHelper = vi.hoisted(() => ({
   getNotebookCollection: vi.fn(),
   getCollectionDocuments: vi.fn(),
+  getCollectionDocumentsForCollections: vi.fn(),
   getNotebookCollectionBySlugSuffix: vi.fn(),
+  getPublicNotebookCollections: vi.fn(),
 }));
 vi.mock('../../database/services/NotebookQdrantHelper.js', () => ({
   NotebookQdrantHelper: function NotebookQdrantHelper() {
@@ -124,5 +126,67 @@ describe('getCollection — document links are resolved, not assumed absent', ()
     expect(res.status).toBe(200);
     expect(res.body.collection?.document_count).toBe(0);
     expect(res.body.collection?.indexing_state).toBe('empty');
+  });
+});
+
+const callListPublicCollections = () =>
+  (
+    notebookCollectionsContractRouter.listPublicCollections as (args: unknown) => Promise<{
+      status: number;
+      body: { collections?: Array<{ id: string; document_count: number }> };
+    }>
+  )({
+    req: { user: { id: 'user-1' }, originalUrl: '/api/auth/notebook-collections/public' },
+    query: {},
+  });
+
+describe('listPublicCollections — links are resolved in bulk, not per notebook', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockPg.query.mockResolvedValue([] as never);
+  });
+
+  it('asks once for all notebooks and never falls back to the per-notebook lookup', async () => {
+    mockHelper.getPublicNotebookCollections.mockResolvedValue([
+      { id: 'pub-1', user_id: 'u1', name: 'Eins', audience: 'de-DE' },
+      { id: 'pub-2', user_id: 'u2', name: 'Zwei', audience: 'de-DE' },
+      { id: 'pub-3', user_id: 'u3', name: 'Drei', audience: 'de-DE' },
+    ]);
+    mockHelper.getCollectionDocumentsForCollections.mockResolvedValue(
+      new Map([
+        ['pub-1', [{ document_id: 'doc-a' }, { document_id: 'doc-b' }]],
+        // pub-2 has links too; pub-3 is absent from the map — "none", not "unknown".
+        ['pub-2', [{ document_id: 'doc-c' }]],
+      ])
+    );
+    mockPg.query.mockImplementation(async (sql: string, params?: unknown[]) => {
+      if (!sql.includes('FROM documents')) return [];
+      const ids = (params?.[0] ?? []) as string[];
+      return ids.map((id) => ({
+        id,
+        title: id,
+        page_count: 1,
+        created_at: '2026-08-26T00:00:00.000Z',
+        source_type: 'upload',
+        wolke_share_link_id: null,
+      }));
+    });
+
+    const res = await callListPublicCollections();
+
+    expect(res.status).toBe(200);
+    expect(mockHelper.getCollectionDocumentsForCollections).toHaveBeenCalledTimes(1);
+    expect(mockHelper.getCollectionDocumentsForCollections).toHaveBeenCalledWith([
+      'pub-1',
+      'pub-2',
+      'pub-3',
+    ]);
+    // The per-notebook fallback is the N+1 this bulk call exists to avoid.
+    expect(mockHelper.getCollectionDocuments).not.toHaveBeenCalled();
+
+    const counts = Object.fromEntries(
+      (res.body.collections ?? []).map((c) => [c.id, c.document_count])
+    );
+    expect(counts).toEqual({ 'pub-1': 2, 'pub-2': 1, 'pub-3': 0 });
   });
 });
