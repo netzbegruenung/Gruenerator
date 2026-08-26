@@ -3,7 +3,7 @@ import { getSystemAgent } from '@gruenerator/shared/agents';
 import { notifyAiConsentRequired } from '@gruenerator/shared/api';
 import { buildMentionToken } from '@gruenerator/shared/utils';
 
-import { parseAllMentions } from '../../lib/mentionParser';
+import { hasExplicitMcpScope, parseAllMentions } from '../../lib/mentionParser';
 import { notifyWarning } from '../../lib/notify';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { useAgentStore } from '../../stores/chatStore';
@@ -527,7 +527,7 @@ export function createGrueneratorModelAdapter(
             // server this turn (typed @connector) — their explicit choice wins
             // and re-injecting would double the scope.
             const pinned = config.pinnedConnector;
-            if (pinned && !forcedTools.some((t) => t.startsWith('mcp:'))) {
+            if (pinned && !hasExplicitMcpScope(forcedTools, textPart.text)) {
               textPart.text =
                 `${textPart.text} ${buildMentionToken(pinned.label, 'mcp', pinned.id)}`.trim();
               forcedTools = [...forcedTools, `mcp:${pinned.id}`];
