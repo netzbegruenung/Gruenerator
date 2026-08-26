@@ -266,6 +266,7 @@ const CollabCanvasStudioPage = lazy(
 const GruenOMatDemoPage = lazy(() => import('../features/gruen-o-mat/GruenOMatDemoPage'));
 const TestsommerPage = lazy(() => import('../features/testsommer/TestsommerPage'));
 const MonitorThemenPage = lazy(() => import('../features/monitor/pages/MonitorThemenPage'));
+const MonitorTrendsPage = lazy(() => import('../features/monitor/pages/MonitorTrendsPage'));
 const MonitorUmfragenPage = lazy(() => import('../features/monitor/pages/MonitorUmfragenPage'));
 const MonitorTransparenzPage = lazy(
   () => import('../features/monitor/pages/MonitorTransparenzPage')
@@ -397,6 +398,7 @@ const standardRoutes: RouteConfig[] = [
   // grouping segment is gone from the URLs and the navigation.
   { path: '/themen', component: MonitorThemenPage },
   { path: '/themen/:topic', component: MonitorThemenPage },
+  { path: '/trends', component: MonitorTrendsPage },
   { path: '/umfragen', component: MonitorUmfragenPage },
   { path: '/transparenz', component: MonitorTransparenzPage },
   { path: '/watcher', component: MonitorWatcherPage },
