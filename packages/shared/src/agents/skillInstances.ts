@@ -19,7 +19,12 @@
  * resolving (URL-Sonderrecht, CLAUDE.md). What changes is what gets *offered* —
  * pickers, galleries, the library and the catalogue the model may load from.
  */
-import { getInstance, policyCoversSkill, type InstanceId } from '../instances/index.js';
+import {
+  getInstance,
+  policyCoversSkill,
+  type InstanceId,
+  type InstancePolicyView,
+} from '../instances/index.js';
 
 import { getLvAgentIdsHiddenIn } from './landesverbandHubs.js';
 
@@ -31,9 +36,31 @@ export interface SkillInstanceView {
   instances?: readonly string[];
 }
 
-/** Does this instance offer the recipe? See the module header for the three rules. */
+/**
+ * Does this instance offer the recipe? See the module header for the three rules.
+ *
+ * Both tiers, not just `hide`: `block` is the stronger statement, so anything it
+ * covers is also not on offer. Folgenlos, solange keine Instanz `block` für
+ * Rezepte setzt — aber ohne die Zeile wäre ein `block: { skillMentions: [...] }`
+ * schwächer als ein `hide`, und das fiele erst dem auf, der es einträgt.
+ *
+ * Das schließt die Entdeckungs-Hälfte von `block`. Die andere Hälfte — ein
+ * Direktlink, der 404t — gibt es für Rezepte gar nicht: `resolveSkillMention`
+ * ist bewusst ungefiltert, damit ein alter Thread weiter auflöst. Wer `block`
+ * für Rezepte wirklich braucht, baut sie dort.
+ */
 export function isSkillOfferedIn(skill: SkillInstanceView, instanceId: InstanceId): boolean {
   if (skill.instances && !skill.instances.includes(instanceId)) return false;
-  if (policyCoversSkill(getInstance(instanceId).hide, skill)) return false;
+  if (!skillPolicyOffers(skill, getInstance(instanceId))) return false;
   return !getLvAgentIdsHiddenIn(instanceId).has(skill.identifier);
+}
+
+/**
+ * Rule 2 alone, against a policy view rather than a registered id — die Form,
+ * in der sich beide Stufen prüfen lassen. Die Registry führt heute keine
+ * Instanz, die `block` für Rezepte setzt; ohne diese Naht bliebe die Stufe
+ * ungeprüft, bis jemand sie einträgt.
+ */
+export function skillPolicyOffers(skill: SkillInstanceView, view: InstancePolicyView): boolean {
+  return !policyCoversSkill(view.hide, skill) && !policyCoversSkill(view.block, skill);
 }

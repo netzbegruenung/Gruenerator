@@ -8,14 +8,14 @@
 import { initContract } from '@ts-rest/core';
 
 import {
-  bgstUsersResponseSchema,
-  bgstRolesResponseSchema,
-  bgstOverviewErrorResponseSchema,
-} from '../schemas/bgstInstanceOverview.js';
+  instanceAdminUsersResponseSchema,
+  instanceAdminRolesResponseSchema,
+  instanceAdminOverviewErrorResponseSchema,
+} from '../schemas/instanceAdminOverview.js';
 
 const c = initContract();
 
-export const bgstInstanceOverviewContract = c.router(
+export const instanceAdminOverviewContract = c.router(
   {
     /**
      * GET /api/auth/admin/bgst/users
@@ -25,10 +25,10 @@ export const bgstInstanceOverviewContract = c.router(
       method: 'GET',
       path: '/api/auth/admin/bgst/users',
       responses: {
-        200: bgstUsersResponseSchema,
-        401: bgstOverviewErrorResponseSchema,
-        403: bgstOverviewErrorResponseSchema,
-        500: bgstOverviewErrorResponseSchema,
+        200: instanceAdminUsersResponseSchema,
+        401: instanceAdminOverviewErrorResponseSchema,
+        403: instanceAdminOverviewErrorResponseSchema,
+        500: instanceAdminOverviewErrorResponseSchema,
       },
       summary: 'List users on this deployment (admin, data-minimal)',
     },
@@ -41,10 +41,10 @@ export const bgstInstanceOverviewContract = c.router(
       method: 'GET',
       path: '/api/auth/admin/bgst/roles',
       responses: {
-        200: bgstRolesResponseSchema,
-        401: bgstOverviewErrorResponseSchema,
-        403: bgstOverviewErrorResponseSchema,
-        500: bgstOverviewErrorResponseSchema,
+        200: instanceAdminRolesResponseSchema,
+        401: instanceAdminOverviewErrorResponseSchema,
+        403: instanceAdminOverviewErrorResponseSchema,
+        500: instanceAdminOverviewErrorResponseSchema,
       },
       summary: 'Read-only overview of self-reported roles on this deployment (admin)',
     },

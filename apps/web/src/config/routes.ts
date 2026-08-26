@@ -159,9 +159,8 @@ const TexteRedirectToChat = lazy(() => Promise.resolve({ default: TexteRedirectT
 const VorlagenGallery = lazy(() => import('../components/common/Gallery'));
 const MeineVorlagenPage = lazy(() => import('../features/vorlagen/MeineVorlagenPage'));
 const GeteilteVorlagePage = lazy(() => import('../features/vorlagen/GeteilteVorlagePage'));
-const AdminDashboardPage = lazy(() => import('../features/admin/AdminDashboardPage'));
+const AdminPage = lazy(() => import('../features/admin/AdminPage'));
 const AdminSkillsPage = lazy(() => import('../features/admin/AdminSkillsPage'));
-const BgstAdminPage = lazy(() => import('../features/admin/bgst/BgstAdminPage'));
 const LandesverbandAdminPage = lazy(
   () => import('../features/landesverband-admin/LandesverbandAdminPage')
 );
@@ -446,9 +445,14 @@ const standardRoutes: RouteConfig[] = [
     path: '/experiments/monitor/feed',
     component: lazy(() => Promise.resolve({ default: createRedirect('/feed') })),
   },
-  { path: '/admin', component: AdminDashboardPage },
+  { path: '/admin', component: AdminPage },
   { path: '/admin/skills', component: AdminSkillsPage },
-  { path: '/admin/bgst', component: BgstAdminPage },
+  // Der Instanz-Admin ist in `/admin` aufgegangen; die alte URL leitet dorthin,
+  // statt zu verschwinden (URL-Sonderrecht, CLAUDE.md).
+  {
+    path: '/admin/bgst',
+    component: lazy(() => Promise.resolve({ default: createRedirect('/admin') })),
+  },
   {
     path: '/admin/landesverband/:lvId',
     component: LandesverbandAdminPage,

@@ -7,6 +7,8 @@ import {
   getPinnedLocale,
   isChannelVisibleIn,
   isInstanceId,
+  isToolOfferedIn,
+  isToolOfferedUnder,
   policyCoversNotebook,
   policyCoversSkill,
   resolveInstance,
@@ -269,5 +271,27 @@ describe('policyCoversSkill', () => {
 
   it('leaves a recipe without a category alone when only categories are named', () => {
     expect(policyCoversSkill({ skillCategories: ['social'] }, { mention: 'ohne' })).toBe(false);
+  });
+});
+
+describe('isToolOfferedIn', () => {
+  it('offers a tool no policy names', () => {
+    expect(isToolOfferedIn('sharepic', 'bgst')).toBe(true);
+    expect(isToolOfferedIn('vorlagen', 'production')).toBe(true);
+  });
+
+  it('drops a tool the instance hides', () => {
+    // bgst lists the Vorlagen tool under all three ids it goes by.
+    expect(isToolOfferedIn('vorlagen', 'bgst')).toBe(false);
+    expect(isToolOfferedIn('canvas-vorlagen', 'bgst')).toBe(false);
+    expect(isToolOfferedIn('tool-vorlagen', 'bgst')).toBe(false);
+  });
+
+  // The three call sites that used to unpack `hide` by hand each forgot this
+  // tier — a blocked tool would have stayed on offer.
+  it('drops a blocked tool too, not just a hidden one', () => {
+    const view = { channels: ['stable'], block: { toolIds: ['gesperrt'] } } as const;
+    expect(isToolOfferedUnder('gesperrt', view)).toBe(false);
+    expect(isToolOfferedUnder('erlaubt', view)).toBe(true);
   });
 });

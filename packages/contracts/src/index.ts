@@ -77,7 +77,7 @@ export {
   userTextFormsContract,
   skillPromptContract,
   skillVisibilityContract,
-  bgstInstanceOverviewContract,
+  instanceAdminOverviewContract,
   lvAdminAssignmentContract,
   landesverbandAdminContract,
   recurringTasksContract,
@@ -186,5 +186,5 @@ export * from './schemas/scanner.js';
 export * from './schemas/prompts.js';
 export * from './schemas/landesverbaende.js';
 export * from './schemas/lvAdminAssignment.js';
-export * from './schemas/bgstInstanceOverview.js';
+export * from './schemas/instanceAdminOverview.js';
 export * from './schemas/landesverbandAdmin.js';
