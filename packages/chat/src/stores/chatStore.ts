@@ -20,6 +20,7 @@ import { useLastComputeStore } from './lastComputeStore';
 import { usePythonFileStore } from './pythonFileStore';
 import { useReelLiveStore } from './reelLiveStore';
 import { useSharepicLiveStore } from './sharepicLiveStore';
+import { draftRoleState } from './draftRole';
 import { useUserProfileStore } from './userProfileStore';
 
 import type { ChatApiClient } from '../context/ChatContext';
@@ -189,9 +190,11 @@ interface AgentState {
    *  thread mode) while keeping the selected agent. Used when switching agents
    *  so the new agent starts from a clean thread. */
   resetThreadContext: () => void;
-  /** Full blank-slate reset for a NEW chat: `resetThreadContext()` plus
-   *  deselecting the agent. The single source of truth for "new chat" used by
-   *  every new-chat surface (workplace composer, /chat overview, ChatPage). */
+  /** Reset for a NEW chat: `resetThreadContext()` plus deselecting the agent —
+   *  and then applying the account's default role (`draftRoleState`), because a
+   *  fresh draft starts with "my role", not blank. The single source of truth
+   *  for "new chat" used by every new-chat surface (workplace composer, /chat
+   *  overview, ChatPage). */
   resetChatContext: () => void;
   loadThreadSettings: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
   saveThreadSettings: (threadId: string, apiClient: ChatApiClient) => Promise<boolean>;
@@ -264,12 +267,19 @@ export const useAgentStore = create<AgentState>()(
           selectedAgentId: null,
           activeSkillMention: null,
           pinnedConnector: null,
-          customSystemPrompt: null,
-          customRoleName: null,
-          customRoleRef: null,
-          roleRefSource: 'load',
           customEnabledTools: null,
-          threadMode: 'chat',
+          // Die Standardrolle synchron mit anwenden, statt zu nullen und auf
+          // den ActiveRoleSyncEffect zu warten: läuft dieser Reset im selben
+          // Effekt-Durchlauf NACH dem Effekt, sieht der nächste Render lauter
+          // unveränderte Werte und der Effekt feuert nie wieder — die Rolle
+          // wäre nach jedem Reload weg (Herleitung in `draftRoleState`).
+          ...(draftRoleState() ?? {
+            customSystemPrompt: null,
+            customRoleName: null,
+            customRoleRef: null,
+            roleRefSource: 'load',
+            threadMode: 'chat',
+          }),
         }),
 
       setSelectedProvider: (provider) => set({ selectedProvider: provider }),
