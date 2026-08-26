@@ -67,7 +67,9 @@ describe('Claim-Auswahl', () => {
     // Reihenfolge einer der beiden Zustände dauerhaft liegen.
     expect(sql).toContain("status = 'uploaded'");
     expect(sql).toContain("status = 'processing'");
-    expect(sql).toContain('processing_started_at <');
+    // Die Altersgrenze für den zweiten Zweig — die NULL-sichere Form prüft der
+    // Test weiter unten.
+    expect(sql).toMatch(/< NOW\(\) - \(\$1::text \|\| ' milliseconds'\)::interval/);
   });
 
   it('claimt unter FOR UPDATE SKIP LOCKED, damit mehrere Prozesse parallel laufen dürfen', async () => {
@@ -85,6 +87,21 @@ describe('Claim-Auswahl', () => {
     expect(sql).toContain('processing_attempts');
     expect(sql).toContain('< $2');
     expect(params[1]).toBe(3);
+  });
+
+  it('schließt Zeilen ohne processing_started_at nicht aus', async () => {
+    queueContains();
+    await drainIngestQueue();
+
+    // `processing_started_at` kam erst mit diesem Merkmal — jede Zeile, die
+    // vorher schon in 'processing' feststeckte, hat dort NULL. Ein direkter
+    // Vergleich (`processing_started_at < …`) ergibt in SQL NULL und damit
+    // nicht-wahr: genau der Altbestand, den der Worker einsammeln soll, wäre
+    // dauerhaft unsichtbar. GREATEST übergeht NULL und fällt auf updated_at
+    // zurück.
+    const [sql] = claimCalls()[0];
+    expect(sql).toContain('GREATEST(processing_started_at, updated_at)');
+    expect(sql).not.toMatch(/\bprocessing_started_at\s*</);
   });
 });
 
