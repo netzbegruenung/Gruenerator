@@ -320,6 +320,22 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
         return { error: block.modelMessage };
       }
 
+      // Captured at tool START (before execution) — the semantics of textOffset.
+      const textOffset = ctx.getTextOffset?.();
+      // Drained once at START: the planner sentence(s) that announced this call.
+      // Parallel siblings in one model step share the announcement, so only the
+      // first sendStart gets it — the rest drain empty. Split mode only.
+      const narration = ctx.takeNarration?.() ?? null;
+
+      // MUSS vor dem Hook-Await gebucht sein: `checkSearchConcurrency` verlässt
+      // sich darauf, dass Guard-Kette und `noteCall` EIN synchroner Block sind
+      // (siehe Kommentar dort) — parallele Geschwister-Aufrufe eines Model-Steps
+      // sehen sich sonst gegenseitig nicht und das Concurrency-Limit greift
+      // nicht mehr, sobald ein `beforeToolCall`-Handler konfiguriert ist. Aus
+      // demselben Fenster: die Narration wird hier gedrained, damit sie
+      // deterministisch beim ersten Aufruf des Steps landet.
+      ctx.guards.noteCall(toolName);
+
       // Eigener Halter statt einer `let`-Variablen: gesetzt wird in einer
       // Closure, und die Flussanalyse verengt eine solche Variable danach auf
       // ihren Anfangswert.
@@ -362,14 +378,6 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
         }
       }
 
-      // Captured at tool START (before execution) — the semantics of textOffset.
-      const textOffset = ctx.getTextOffset?.();
-      // Drained once at START: the planner sentence(s) that announced this call.
-      // Parallel siblings in one model step share the announcement, so only the
-      // first sendStart gets it — the rest drain empty. Split mode only.
-      const narration = ctx.takeNarration?.() ?? null;
-
-      ctx.guards.noteCall(toolName);
       sendStart(stepId, args, narration);
 
       let output: unknown;
@@ -386,7 +394,12 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
       // ein regulär zurückgegebenes `{ error }`.
       let thrown: { error: string; timedOut: boolean } | null = null;
       const startedAt = Date.now();
-      if (mock.hit) {
+      // Am Verzweigungspunkt eingefroren: eine Attrappe, die nach dem
+      // 500-ms-Timeout doch noch aus der hängenden Zusage eintrifft, kippt
+      // `mock.hit` DANACH auf true — der Aufruf lief dann aber echt, und
+      // `afterToolCall` darf ihn nicht rückwirkend als attrappiert melden.
+      const usedMock = mock.hit;
+      if (usedMock) {
         output = mock.result;
       } else {
         try {
@@ -460,7 +473,7 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
             stepId,
             result: output,
             ok,
-            mocked: mock.hit,
+            mocked: usedMock,
             durationMs,
           })
         );
