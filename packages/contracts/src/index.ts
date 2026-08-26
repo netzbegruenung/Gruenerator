@@ -76,6 +76,7 @@ export {
   userAgentsSharingContract,
   userTextFormsContract,
   skillPromptContract,
+  agentVisibilityContract,
   skillVisibilityContract,
   instanceAdminOverviewContract,
   lvAdminAssignmentContract,

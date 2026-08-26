@@ -1,6 +1,6 @@
 import { DEFAULT_INSTANCE_ID, type InstanceId } from '../instances/index.js';
 
-import { getLvAgentIdsHiddenIn } from './landesverbandHubs.js';
+import { getHubMemberAgentIds, getLvAgentIdsHiddenIn } from './landesverbandHubs.js';
 import { SYSTEM_AGENTS, VISIBLE_SYSTEM_AGENTS } from './system.js';
 
 import type { Agent } from './types.js';
@@ -130,4 +130,27 @@ export function getVisibleSystemAgentsForLocale(
   return VISIBLE_SYSTEM_AGENTS.filter(
     (a) => !hiddenLvAgents.has(a.identifier) && isAgentVisibleForLocale(a, userLocale)
   ).map((a) => localizeAgent(a, userLocale));
+}
+
+/**
+ * Die Agenten, die ein Instanz-Admin einzeln kuratieren kann.
+ *
+ * **Ohne Locale-Filter**, anders als {@link getVisibleSystemAgentsForLocale}:
+ * wer den Katalog der Instanz pflegt, soll sehen, was sie führt — nicht, was
+ * der eigene Spracheinstellung gerade zeigt.
+ *
+ * **Ohne die Landesverbands-Spezialisten.** Sie werden über ihren Hub erreicht
+ * und über die Instanz-Registry kuratiert (`hide.notebookCategories`), nicht
+ * einzeln: 36 Zeilen für zwölf Landesverbände wären Kleinteiligkeit, die
+ * niemand braucht, und ein einzeln versteckter Spezialist stünde quer zu der
+ * Kaskade, die seine Rezepte und sein Notizbuch gemeinsam schaltet.
+ */
+export function getCuratableSystemAgents(
+  instanceId: InstanceId = DEFAULT_INSTANCE_ID
+): readonly Agent[] {
+  const hiddenLvAgents = getLvAgentIdsHiddenIn(instanceId);
+  const hubMembers = getHubMemberAgentIds();
+  return VISIBLE_SYSTEM_AGENTS.filter(
+    (a) => !hiddenLvAgents.has(a.identifier) && !hubMembers.has(a.identifier)
+  );
 }
