@@ -9,6 +9,7 @@ import { useEffect } from 'react';
 
 import { useAuthStore } from '../../../stores/authStore';
 import { useProfileStore } from '../../../stores/profileStore';
+import { invalidateFileMentions } from '../../notebook/utils/invalidateFileMentions';
 import {
   type AnweisungenSaveData,
   type AnweisungenWissen,
@@ -215,6 +216,7 @@ export const useNotebookCollections = ({ isActive, enabled = true }: TabHookOpti
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.notebookCollections(user?.id) });
       void queryClient.invalidateQueries({ queryKey: ['notebook', 'collection'] });
+      invalidateFileMentions(queryClient);
     },
   });
 
@@ -229,6 +231,7 @@ export const useNotebookCollections = ({ isActive, enabled = true }: TabHookOpti
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.notebookCollections(user?.id) });
       void queryClient.invalidateQueries({ queryKey: ['notebook', 'collection'] });
+      invalidateFileMentions(queryClient);
     },
   });
 
@@ -237,6 +240,7 @@ export const useNotebookCollections = ({ isActive, enabled = true }: TabHookOpti
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.notebookCollections(user?.id) });
       void queryClient.invalidateQueries({ queryKey: ['notebook', 'collection'] });
+      invalidateFileMentions(queryClient);
     },
   });
 
@@ -245,6 +249,7 @@ export const useNotebookCollections = ({ isActive, enabled = true }: TabHookOpti
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.notebookCollections(user?.id) });
       void queryClient.invalidateQueries({ queryKey: ['notebook', 'collection'] });
+      invalidateFileMentions(queryClient);
     },
   });
 
