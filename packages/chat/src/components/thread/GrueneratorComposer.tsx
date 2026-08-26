@@ -374,19 +374,22 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   const [mention, setMention] = useState<MentionState>(INITIAL_MENTION_STATE);
   // Function/agent mentions picked from the popover or plus menu live here as
   // chips ("pills") instead of raw `@websuche` text in the textarea. At send
-  // time they are flushed back into the text as exactly that plain-mention
-  // prefix, so parsing, routing, persistence and the message-bubble chips all
-  // stay on today's path (see buildMentionPrefix).
+  // time they are flushed back into the text as durable mention tokens, so
+  // parsing, routing, persistence and the message-bubble chips all agree on one
+  // text (see buildMentionPrefix).
   const [pillMentions, setPillMentions] = useState<Mentionable[]>([]);
   const pillMentionsRef = useRef(pillMentions);
   pillMentionsRef.current = pillMentions;
 
-  // Pills are a draft property of the current thread's composer — a thread
-  // switch (or new chat, which nulls the id) starts from a clean slate, same
-  // as the store does for activeSkillMention/pinnedConnector.
+  // Pills are a draft property of the current thread's composer, so switching
+  // INTO a thread starts from a clean slate. Landing on the draft (null) must
+  // not: /start resets the chat context and switches to a new thread
+  // asynchronously on mount, and clearing on that settle silently ate a pill
+  // picked in the meantime. The mint flip (null → fresh id) is harmless — the
+  // flush runs synchronously before send().
   const currentThreadId = useAgentStore((s) => s.currentThreadId);
   useEffect(() => {
-    setPillMentions([]);
+    if (currentThreadId !== null) setPillMentions([]);
   }, [currentThreadId]);
 
   // `interactive-widget=resizes-visual` (apps/web/index.html) keeps the layout
