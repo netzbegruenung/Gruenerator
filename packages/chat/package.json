@@ -26,6 +26,11 @@
       "require": "./src/pyodide/index.ts",
       "types": "./src/pyodide/index.ts"
     },
+    "./connectors": {
+      "import": "./src/connectors/index.ts",
+      "require": "./src/connectors/index.ts",
+      "types": "./src/connectors/index.ts"
+    },
     "./styles": "./src/styles/chat.css",
     "./styles/embedded": "./src/styles/chat-embedded.css"
   },
