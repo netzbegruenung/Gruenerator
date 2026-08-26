@@ -208,6 +208,17 @@ export interface DocumentResult {
   chunk_index?: number | null | undefined;
   top_chunks: TopChunk[];
   chunk_count: number;
+  /**
+   * Abgerufene Chunks dieses Dokuments, die den Suchbegriff wörtlich tragen.
+   * Zählt über ALLE Chunks des Dokuments im Trefferpool, nicht nur über die
+   * `top_chunks` (die bei `CONTENT_MAX_CHUNKS_PER_DOC` abschneiden). Bei einer
+   * semantischen Anfrage ohne wörtliche Treffer ist der Wert 0.
+   *
+   * Eine Untergrenze, keine Gesamtzahl: was das Recall-Fenster nicht geholt
+   * hat, kann hier nicht mitgezählt werden. Wer die Zahl anzeigt, sagt das
+   * dazu.
+   */
+  term_chunk_count: number;
   relevance_info: string;
   search_methods?: string[] | undefined;
   hybrid_metadata?: {

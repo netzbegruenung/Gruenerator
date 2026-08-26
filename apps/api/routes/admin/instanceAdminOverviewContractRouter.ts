@@ -4,7 +4,7 @@
  * skillVisibilityContractRouter/adminTemplates — `requireAuth` at the mount
  * prefix in routes.ts covers authentication only.
  */
-import { bgstInstanceOverviewContract } from '@gruenerator/contracts';
+import { instanceAdminOverviewContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
@@ -15,7 +15,7 @@ import { createLogger } from '../../utils/logger.js';
 
 import type { Application } from 'express';
 
-const log = createLogger('bgstOverviewContractRouter');
+const log = createLogger('instanceAdminOverviewContractRouter');
 
 const FORBIDDEN = {
   status: 403 as const,
@@ -44,7 +44,7 @@ interface ProfileRolesRow {
 
 const s = initServer();
 
-export const bgstOverviewContractRouter = s.router(bgstInstanceOverviewContract, {
+export const instanceAdminOverviewContractRouter = s.router(instanceAdminOverviewContract, {
   listUsers: async (args) => {
     try {
       const authedUser = getAuthedUser(args.req);
@@ -72,7 +72,7 @@ export const bgstOverviewContractRouter = s.router(bgstInstanceOverviewContract,
         },
       };
     } catch (error) {
-      log.error('[bgstInstanceOverviewContract.listUsers] Error:', error);
+      log.error('[instanceAdminOverviewContract.listUsers] Error:', error);
       return {
         status: 500 as const,
         body: { success: false, message: 'Fehler beim Laden der Nutzerliste.' },
@@ -108,7 +108,7 @@ export const bgstOverviewContractRouter = s.router(bgstInstanceOverviewContract,
         },
       };
     } catch (error) {
-      log.error('[bgstInstanceOverviewContract.listRoles] Error:', error);
+      log.error('[instanceAdminOverviewContract.listRoles] Error:', error);
       return {
         status: 500 as const,
         body: { success: false, message: 'Fehler beim Laden der Rollenübersicht.' },
@@ -117,8 +117,8 @@ export const bgstOverviewContractRouter = s.router(bgstInstanceOverviewContract,
   },
 });
 
-export function mountBgstOverviewContractRouter(app: Application): void {
-  createExpressEndpoints(bgstInstanceOverviewContract, bgstOverviewContractRouter, app, {
-    requestValidationErrorHandler: logContractValidationError(log, 'bgstInstanceOverviewContract'),
+export function mountInstanceAdminOverviewContractRouter(app: Application): void {
+  createExpressEndpoints(instanceAdminOverviewContract, instanceAdminOverviewContractRouter, app, {
+    requestValidationErrorHandler: logContractValidationError(log, 'instanceAdminOverviewContract'),
   });
 }

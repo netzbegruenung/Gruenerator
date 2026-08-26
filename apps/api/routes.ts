@@ -12,7 +12,7 @@ import authMiddleware from './middleware/authMiddleware.js';
 import { deprecatedRoute } from './middleware/deprecatedRoute.js';
 import { rateLimitMiddleware } from './middleware/rateLimitMiddleware.js';
 import { requireAiConsent } from './middleware/requireAiConsent.js';
-import { mountBgstOverviewContractRouter } from './routes/admin/bgstOverviewContractRouter.js';
+import { mountInstanceAdminOverviewContractRouter } from './routes/admin/instanceAdminOverviewContractRouter.js';
 import { mountLandesverbandAdminContractRouter } from './routes/admin/landesverbandAdminContractRouter.js';
 import { mountLvAdminAssignmentContractRouter } from './routes/admin/lvAdminAssignmentContractRouter.js';
 import antraegeRouter from './routes/antraege/index.js';
@@ -367,7 +367,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   // BGST-instance admin overview (read-only) — same requireAuth-at-prefix +
   // per-handler requireInstanceAdmin check.
   app.use('/api/auth/admin/bgst', requireAuth);
-  mountBgstOverviewContractRouter(app);
+  mountInstanceAdminOverviewContractRouter(app);
   // Hauptgrünerator-Super-Admin: Landesverband master data + who
   // administers which Landesverband, plus the assignment user picker.
   app.use('/api/auth/admin/landesverbaende', requireAuth);

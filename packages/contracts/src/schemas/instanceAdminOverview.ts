@@ -6,7 +6,7 @@
  */
 import { z } from 'zod';
 
-export const bgstUserSummarySchema = z.object({
+export const instanceAdminUserSummarySchema = z.object({
   id: z.string(),
   email: z.string().nullable(),
   displayName: z.string().nullable(),
@@ -15,27 +15,27 @@ export const bgstUserSummarySchema = z.object({
   createdAt: z.string().nullable(),
 });
 
-export const bgstUsersResponseSchema = z.object({
+export const instanceAdminUsersResponseSchema = z.object({
   success: z.boolean(),
-  data: z.array(bgstUserSummarySchema),
+  data: z.array(instanceAdminUserSummarySchema),
 });
 
 // Read projection over `profiles.user_defaults.profile.roles` — no new
 // table, no write capability. Shape mirrors UserRole in @gruenerator/chat
 // loosely (kept untyped here since the jsonb blob isn't schema-validated).
-export const bgstUserRoleSummarySchema = z.object({
+export const instanceAdminUserRoleSummarySchema = z.object({
   userId: z.string(),
   email: z.string().nullable(),
   displayName: z.string().nullable(),
   roles: z.array(z.record(z.string(), z.unknown())).nullable(),
 });
 
-export const bgstRolesResponseSchema = z.object({
+export const instanceAdminRolesResponseSchema = z.object({
   success: z.boolean(),
-  data: z.array(bgstUserRoleSummarySchema),
+  data: z.array(instanceAdminUserRoleSummarySchema),
 });
 
-export const bgstOverviewErrorResponseSchema = z.object({
+export const instanceAdminOverviewErrorResponseSchema = z.object({
   success: z.boolean(),
   message: z.string(),
 });
