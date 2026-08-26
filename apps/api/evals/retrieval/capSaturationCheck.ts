@@ -3,19 +3,25 @@
  *
  *   pnpm --filter @gruenerator/api eval:cap
  *
- * `computeSafeBaseScore` deckelt bei `SCORING_MAX_FINAL_SCORE`, danach deckelt
- * `calculateHybridDocumentScore` noch einmal bei 1.0. Wo mehrere Dokumente den
- * Deckel erreichen, entscheidet nicht mehr die Bewertung, sondern was danach
- * kommt — genau die Sättigung, an der der Titel-Entscheider aus #2889 hängt und
- * an der jeder Zuschlag verpufft (#2891).
+ * `calculateEnhancedDocumentScore` deckelt bei `SCORING_MAX_FINAL_SCORE`,
+ * danach deckelt `calculateHybridDocumentScore` noch einmal bei 1.0. Wo mehrere
+ * Dokumente den Deckel erreichen, entscheidet nicht mehr die Bewertung, sondern
+ * was danach kommt — die Sättigung, an der der Titel-Entscheider aus #2889
+ * hängt.
  *
  * Das Skript braucht keine Instrumentierung: `max_similarity`,
- * `avg_similarity`, `diversity_bonus`, `hybrid_bonus` und `quality_avg` stehen
- * am Ergebnis, also lässt sich der **ungedeckelte** Wert exakt nachrechnen und
- * gegen den Deckel halten.
+ * `avg_similarity`, `position_score`, `diversity_bonus` und `hybrid_bonus`
+ * stehen am Ergebnis, also lässt sich der **ungedeckelte** Wert exakt
+ * nachrechnen und gegen den Deckel halten.
  *
  * Gemessen wird über beide Fallmengen (Stichwort und Q&A), denn die Sättigung
  * hängt an der Anfragelänge.
+ *
+ * Was damit schon gemessen ist (08/2026, #2891): der Deckel bindet — 16,2 %
+ * der Stichwort-Plätze, 13,2 % der Q&A-Plätze —, aber ihn aufzuweichen hilft
+ * nicht. Eine weiche Sättigung ab 0.9 statt des harten Schnitts liess die
+ * Stichwortfälle unverändert und verschlechterte Q&A (Hit@1 53,8 → 51,9 %,
+ * MRR 0,670 → 0,661). Wer den Deckel wieder anfassen will, misst zuerst.
  */
 import dotenv from 'dotenv';
 
