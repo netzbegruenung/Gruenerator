@@ -2,6 +2,7 @@
  * Tests for mentionParser — unresolvedMentions tracking
  */
 
+import { parseMentionTokens } from '@gruenerator/shared/utils';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import {
@@ -12,7 +13,8 @@ import {
   setDocMentionables,
   toolMentionables,
 } from './mentionables';
-import { parseAllMentions } from './mentionParser';
+import { buildMentionPrefix } from './mentionInsertion';
+import { hasExplicitMcpScope, parseAllMentions } from './mentionParser';
 
 beforeAll(() => {
   // Set up some known mentionables
@@ -170,5 +172,60 @@ describe('mentionParser: skill mentions carry the recipe, not just the agent', (
     expect(result.boardIds).toHaveLength(0);
     expect(result.skillMention).toBeNull();
     expect(result.tokenText).toBe('was steht hier?');
+  });
+});
+
+describe('durable tokens: idempotency and the pill prefix', () => {
+  it('leaves an already-durable token untouched', () => {
+    const text = '@[Tally](mcp:fb75887f-bf1c-4369) bau mir ein formular';
+    const result = parseAllMentions(text);
+    expect(result.tokenText).toBe(text);
+    expect(result.unresolvedMentions).toHaveLength(0);
+  });
+
+  it('keeps a multi-word label intact — the second word is no new mention', () => {
+    const text = '@[Google Drive](mcp:srv-7) suche die folien';
+    expect(parseAllMentions(text).tokenText).toBe(text);
+    expect(parseAllMentions(text).unresolvedMentions).toHaveLength(0);
+  });
+
+  it('the pill prefix equals what the plain form would have been rewritten to', () => {
+    // The composer flushes pills as tokens now instead of `@kampagnenplan-berlin`.
+    // Both must reach the wire as the same text, or persistence changes shape.
+    const board = resolveMentionable('kampagnenplan-berlin');
+    expect(board).toBeDefined();
+    expect(buildMentionPrefix([board!])).toBe(
+      parseAllMentions('@kampagnenplan-berlin').tokenText.trim()
+    );
+  });
+
+  it('a flushed pill carries its routing in the token, not the body field', () => {
+    // The client parser leaves durable tokens alone, so `boardIds` stays empty
+    // — the id travels in the text and the server unions it back in
+    // (deriveMentionTokenFields). Same contract as an edit-resubmit.
+    const board = resolveMentionable('kampagnenplan-berlin');
+    const result = parseAllMentions(`${buildMentionPrefix([board!])} was steht hier?`);
+    expect(result.boardIds).toHaveLength(0);
+    expect(result.unresolvedMentions).toHaveLength(0);
+    expect(parseMentionTokens(result.tokenText)).toEqual([
+      expect.objectContaining({ type: 'board', id: 'board-abc' }),
+    ]);
+  });
+});
+
+describe('hasExplicitMcpScope', () => {
+  it('is false for a turn the user did not scope', () => {
+    expect(hasExplicitMcpScope([], 'was gibt es neues?')).toBe(false);
+    expect(hasExplicitMcpScope(['websearch'], 'was gibt es neues?')).toBe(false);
+  });
+
+  it('sees a hand-typed mention via forcedTools', () => {
+    expect(hasExplicitMcpScope(['mcp:srv-7'], 'formular bitte')).toBe(true);
+  });
+
+  it('sees a flushed pill / edit-resubmit via the token alone', () => {
+    // forcedTools is empty here: the parser skips durable tokens, so only the
+    // text carries the scope. Missing this double-scoped the pinned connector.
+    expect(hasExplicitMcpScope([], '@[Tally](mcp:srv-7) formular bitte')).toBe(true);
   });
 });

@@ -104,7 +104,7 @@ function TrendsOverview({ snapshot }: { snapshot: MonitorSnapshot }) {
       {trendWords.length > 0 && (
         <WordCloudCard
           title="X/Twitter Trends"
-          subtitle="Top Trends in Deutschland gerade jetzt · Größe zeigt die Platzierung"
+          subtitle={`Top Trends in ${locale === 'at' ? 'Österreich' : 'Deutschland'} gerade jetzt · Größe zeigt die Platzierung`}
           words={trendWords}
         />
       )}
