@@ -23,6 +23,9 @@ const mockHelper = vi.hoisted(() => ({
   getUserNotebookCollections: vi.fn(),
   getNotebookCollectionsByShareMode: vi.fn(),
   getNotebookCollectionsByIds: vi.fn(),
+  // The enricher looks the document links up itself when a collection arrives
+  // without them; the real getUserNotebookCollections always attaches them.
+  getCollectionDocuments: vi.fn(async () => []),
 }));
 vi.mock('../../database/services/NotebookQdrantHelper.js', () => ({
   // Constructable stub: returning an object from a constructor makes `new`

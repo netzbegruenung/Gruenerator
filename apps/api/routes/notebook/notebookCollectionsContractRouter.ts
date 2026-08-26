@@ -152,6 +152,28 @@ type NotebookCollectionFromQdrantRaw = {
 };
 
 /**
+ * The notebook↔document links, whether or not the caller loaded them.
+ *
+ * Only the list getters (`getUserNotebookCollections`, `getNotebookCollectionsByIds`)
+ * attach `notebook_collection_documents`; `getNotebookCollection` and
+ * `getPublicNotebookCollections` hand back the bare payload, where the field is
+ * simply absent. Treating that absence as "no documents" made every
+ * single-notebook response report `document_count: 0` and an `empty` readiness
+ * — a fully indexed notebook greeted its owner with "hat noch keine Quellen".
+ *
+ * `undefined` means "not loaded" and is looked up; an empty array means the
+ * caller looked and found none, and is taken at face value so the list path
+ * does not pay for a second scroll per notebook.
+ */
+async function resolveCollectionDocumentLinks(collection: {
+  id: string;
+  notebook_collection_documents?: Array<{ document_id: string }>;
+}): Promise<Array<{ document_id: string }>> {
+  if (collection.notebook_collection_documents) return collection.notebook_collection_documents;
+  return notebookHelper.getCollectionDocuments(collection.id);
+}
+
+/**
  * Enrich a raw Qdrant notebook collection with the derived fields the API
  * contract response expects (documents, wolke_share_links, labels parsed
  * out of settings, etc.). Caller picks `accessSource` based on how the
@@ -164,7 +186,7 @@ async function enrichNotebookCollection(
   accessSource: 'owned' | 'shared' | 'authenticated'
 ) {
   const postgres = getPostgresInstance();
-  const documentIds = (collection.notebook_collection_documents || []).map(
+  const documentIds = (await resolveCollectionDocumentLinks(collection)).map(
     (qcd) => qcd.document_id
   );
 
@@ -405,7 +427,7 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
 
       const transformedData = await Promise.all(
         collections.map(async (collection) => {
-          const documentIds = (collection.notebook_collection_documents || []).map(
+          const documentIds = (await resolveCollectionDocumentLinks(collection)).map(
             (qcd) => qcd.document_id
           );
 
