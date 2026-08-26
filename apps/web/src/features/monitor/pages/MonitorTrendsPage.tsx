@@ -17,7 +17,7 @@ import { formatDateTime } from '../formatDateTime';
 import { useMonitorSnapshot } from '../hooks/useMonitor';
 import { useMonitorLocaleParam } from '../hooks/useMonitorLocaleParam';
 
-import type { MonitorSnapshot } from '../hooks/useMonitor';
+import type { MonitorLocale, MonitorSnapshot } from '../hooks/useMonitor';
 
 type SocialTrend = MonitorSnapshot['socialTrends'][number];
 
@@ -86,7 +86,15 @@ function TopTrendHero({ trends, createdAt }: { trends: SocialTrend[]; createdAt:
   );
 }
 
-function TrendsOverview({ snapshot }: { snapshot: MonitorSnapshot }) {
+function TrendsOverview({
+  snapshot,
+  locale,
+}: {
+  snapshot: MonitorSnapshot;
+  /** Benennt das Land in der Wolken-Unterzeile — die Trends werden seit #2879
+   * pro Locale gescrapt. */
+  locale: MonitorLocale;
+}) {
   const trendWords = useMemo(() => {
     const top = [...snapshot.socialTrends].sort((a, b) => a.rank - b.rank).slice(0, CLOUD_TRENDS);
     const n = top.length || 1;
@@ -136,7 +144,7 @@ function MonitorTrendsPage() {
         }
       />
       {isLoading && <LoadingSection />}
-      {snapshot && <TrendsOverview snapshot={snapshot} />}
+      {snapshot && <TrendsOverview snapshot={snapshot} locale={locale} />}
     </PageContainer>
   );
 }
