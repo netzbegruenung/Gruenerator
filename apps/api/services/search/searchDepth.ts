@@ -220,6 +220,17 @@ export function resolveSearchPlan(params: {
  * (F0: it is persisted in tool-call arguments that later turns replay) and stays
  * the default for the classifier path, which resolves its tier from the intent.
  *
+ * Damit ist die Intent-Abfrage unten (`research` → `gruendlich`) eine Aussage
+ * über den EINZELDURCHLAUF und nur über ihn: in der Schleife benennt das Modell
+ * den Tier immer (`web_search` hat `.default('gruendlich')` im Schema), und ein
+ * angefragtes `standard` klemmt die erste Zeile hoch — das Ergebnis hängt dort
+ * also nicht am Intent. Sie bleibt trotzdem stehen, weil der Einzeldurchlauf
+ * nach dem Lane-Flip aus Phase R3 nicht verschwindet: er bedient weiter jeden
+ * `research`-Turn, den ein Notausschalter (gewählte Wissenssammlung, Verbund,
+ * Bildanhang, ausgeschaltete Schleife) aus der Schleife hält, und ohne diese
+ * Zeile bekäme er dort 5 Quellen statt 10. Der Flip braucht sie umgekehrt NICHT
+ * zu ersetzen: die Voreinstellung des Werkzeugs ist dieselbe Stufe.
+ *
  * `complexity` is deliberately not a parameter any more. It used to buy a step,
  * and since `detectComplexity` returns `complex` for any "vergleich" or
  * "ausführlich" in the text, that step was handed out constantly — which is the

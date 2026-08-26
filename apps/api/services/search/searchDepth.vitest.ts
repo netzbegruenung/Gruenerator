@@ -92,6 +92,35 @@ describe('resolveSearchTier', () => {
     ).toBe('gruendlich');
   });
 
+  /**
+   * Position 3 der Gleichmacher-Liste (Phase R3, R1 §4): der Intent-Default
+   * (`research` → `gruendlich`) ist eine Aussage über den EINZELDURCHLAUF, und
+   * nur über ihn.
+   *
+   * In der Schleife benennt das Modell den Tier immer — `web_search` hat
+   * `.default('gruendlich')` im Schema, ein Aufruf ohne das Argument kommt also
+   * mit `gruendlich` an, und ein angefragtes `standard` wird eine Zeile später
+   * dorthin hochgeklemmt. Damit ist das Ergebnis dort vom Intent unabhängig,
+   * und der Lane-Flip nimmt einem `@recherche`-Turn seine Suchtiefe NICHT weg:
+   * die Voreinstellung des Werkzeugs ist dieselbe Stufe, die der Intent-Default
+   * gegeben hätte. Ein eigener Mechanismus dafür wäre eine zweite Antwort auf
+   * dieselbe Frage.
+   *
+   * `web_search` übergibt hart `intent: 'web'` (searchTools.ts) — die Zeile
+   * unten prüft trotzdem die ganze Familie, damit die Unabhängigkeit als
+   * Eigenschaft dasteht und nicht als Zufall dieses einen Aufrufers.
+   */
+  it('ist vom Intent unabhängig, sobald das Modell den Tier benennt', () => {
+    for (const requestedTier of SEARCH_TIERS) {
+      const tiers = ['research', 'search', 'web', 'agentic'].map((intent) =>
+        resolveSearchTier({ intent, requestedTier })
+      );
+      expect(new Set(tiers).size, `requestedTier=${requestedTier}`).toBe(1);
+      // Und nie unterhalb des Normalfalls: `standard` wird hochgeklemmt.
+      expect(tiers[0], `requestedTier=${requestedTier}`).not.toBe('standard');
+    }
+  });
+
   it('never lets the allowance upgrade a tier the model did not ask for', () => {
     // The allowance is permission to honour a request, not a reason to invent
     // one: an ordinary search stays ordinary even with budget in hand.

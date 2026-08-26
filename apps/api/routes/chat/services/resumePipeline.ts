@@ -16,6 +16,7 @@ import { type ChatIntentId } from '@gruenerator/shared/chat-intents';
 import {
   buildSystemMessage,
   briefGeneratorNode,
+  wantsResearchBrief,
   classifierNode,
   pandasComputeNode,
   computeVerifierNode,
@@ -465,7 +466,11 @@ export async function runChatGraphResume({
       const toolEnabled = forcedTool || enabledTools?.[classifiedState.intent] !== false;
       if (toolEnabled) {
         let searchInputState = classifiedState;
-        if (classifiedState.complexity === 'complex' && classifiedState.intent === 'research') {
+        // Dieselbe Bedingung wie beim ersten Anlauf (`searchBranch`). Sie stand
+        // hier enger (`complex` statt `complex|moderate`), also blieb ein
+        // wiederaufgenommener `moderate`-Recherche-Turn ohne den Brief, den
+        // derselbe Turn ohne Unterbrechung bekommen hätte.
+        if (wantsResearchBrief(classifiedState)) {
           const briefResult = await briefGeneratorNode(classifiedState);
           searchInputState = { ...classifiedState, ...briefResult } as ChatGraphState;
         }

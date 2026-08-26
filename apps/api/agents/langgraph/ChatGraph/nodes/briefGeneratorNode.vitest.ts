@@ -5,7 +5,7 @@ vi.mock('../../../../services/ai/execution/index.js', () => ({
   executeProvider: (...args: unknown[]) => executeProvider(...args),
 }));
 
-const { briefGeneratorNode } = await import('./briefGeneratorNode.js');
+const { briefGeneratorNode, wantsResearchBrief } = await import('./briefGeneratorNode.js');
 
 import type { ChatGraphState } from '../types.js';
 
@@ -213,5 +213,27 @@ describe('briefGeneratorNode', () => {
     const promptContent = call[0].messages[0].content as string;
 
     expect(promptContent).toContain('Part one. Part two.');
+  });
+});
+
+/**
+ * Die Bedingung stand in drei Fassungen (hier, `searchBranch`,
+ * `resumePipeline`) und die dritte war enger als die beiden anderen. Seit sie
+ * exportiert ist, gibt es eine — und diese Zusicherungen sagen, welche.
+ */
+describe('wantsResearchBrief — die eine Fassung der Bedingung', () => {
+  it('gilt für research auf complex und moderate', () => {
+    expect(wantsResearchBrief(makeState({ complexity: 'complex' }))).toBe(true);
+    expect(wantsResearchBrief(makeState({ complexity: 'moderate' }))).toBe(true);
+  });
+
+  it('gilt nicht für simple', () => {
+    expect(wantsResearchBrief(makeState({ complexity: 'simple' }))).toBe(false);
+  });
+
+  it('gilt für keinen anderen Intent der Suchfamilie', () => {
+    for (const intent of ['search', 'web', 'agentic', 'compare'] as const) {
+      expect(wantsResearchBrief(makeState({ intent, complexity: 'complex' })), intent).toBe(false);
+    }
   });
 });

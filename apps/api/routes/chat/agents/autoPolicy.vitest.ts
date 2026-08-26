@@ -120,6 +120,33 @@ describe('autoPolicy — lane assignment per task shape', () => {
     }
   });
 
+  /**
+   * Die eine Stelle, an der die Suchfamilie in der Auto-Politik auseinander
+   * fällt — festgenagelt statt nur beschrieben, weil R3 die drei Intents auf
+   * EINEN Ausführungsweg legt und eine stille Verschiebung sonst niemandem
+   * auffiele.
+   *
+   * `>=` oben lässt jede Anhebung durch; hier stehen die Werte selbst. Der
+   * Grund für den Unterschied ist die Materialmenge des EINZELDURCHLAUFS
+   * (`resolveSearchTier`: `research` → `gruendlich` = 10 Quellen, `search`/
+   * `web` → `standard` = 5), nicht das Wort „Recherche" — siehe den Kommentar
+   * an der Tabellenzeile.
+   */
+  it('nagelt die eine Stufe fest, in der die Suchfamilie auseinander fällt', () => {
+    const grades = (intent: string) =>
+      (['simple', 'moderate', 'complex'] as const).map(
+        (complexity) => resolveAutoSelection({ intent, complexity }).reasoning
+      );
+
+    expect(grades('research')).toEqual(['low', 'medium', 'medium']);
+    for (const intent of ['search', 'web']) {
+      expect(grades(intent), intent).toEqual(['low', 'low', 'medium']);
+    }
+    // Das Etikett, das die MEISTEN Loop-Turns tragen (Tier-3.5-Demotion), denkt
+    // flach — der Unterschied hängt also an der Erwähnung, nicht an der Arbeit.
+    expect(grades('agentic')).toEqual(['low', 'low', 'low']);
+  });
+
   it('short/structured turns take the Gemma content lane', () => {
     // Reporting/summarising over material that is already in context. Folded
     // into the single Gemma 4 (31B) lane on 07.08.2026 — see the lane comment
