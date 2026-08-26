@@ -37,8 +37,17 @@ const searchNode = vi.fn(async (_state: ChatGraphState) => ({
   searchTimeMs: 1,
 }));
 const briefGeneratorNode = vi.fn(async (_state: ChatGraphState): Promise<unknown> => ({}));
-vi.mock('../../../../agents/langgraph/ChatGraph/index.js', () => ({
+vi.mock('../../../../agents/langgraph/ChatGraph/index.js', async () => ({
   briefGeneratorNode: (s: ChatGraphState) => briefGeneratorNode(s),
+  // Die ECHTE Fassung des Prädikats, gezielt aus seinem Knoten geholt — keine
+  // Kopie (die wäre die dritte, die dieser Umbau beseitigt hat) und kein
+  // `false`-Stummel: die #2856-Regressionstests unten brauchen das echte Gate
+  // (moderate/complex ∧ research), sonst liefe der Brief-Pfad nie.
+  wantsResearchBrief: (
+    await vi.importActual<
+      typeof import('../../../../agents/langgraph/ChatGraph/nodes/briefGeneratorNode.js')
+    >('../../../../agents/langgraph/ChatGraph/nodes/briefGeneratorNode.js')
+  ).wantsResearchBrief,
   searchNode: (s: ChatGraphState) => searchNode(s),
   rerankNode: vi.fn(async () => ({})),
   imageNode: vi.fn(),

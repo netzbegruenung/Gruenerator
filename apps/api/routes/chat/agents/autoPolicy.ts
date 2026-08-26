@@ -178,6 +178,25 @@ export const POLICY: Record<Exclude<SearchIntent, ExemptIntent>, AutoEntry> = {
   // synthesis and takes the default lane like `web` does.
 
   // ── Prose over sources: Gemma 4 (31B, Regolo) ──
+  //
+  // `research` denkt auf `moderate` eine Stufe mehr als der Rest der Familie,
+  // und der Grund ist NICHT der Intent, sondern die Materialmenge: der
+  // Einzeldurchlauf leitet seinen Tier aus dem Intent ab
+  // (`resolveSearchTier`: `research` → `gruendlich`, alle anderen →
+  // `standard`), und das sind 10 statt 5 Quellen für dieselbe Schreibarbeit.
+  //
+  // Die Aussage gilt damit nur für den EINZELDURCHLAUF. In der Schleife
+  // resolvet `web_search` seinen Tier selbst — Voreinstellung `gruendlich`,
+  // und ein angefragtes `standard` wird dorthin hochgeklemmt (searchTools.ts,
+  // `resolveSearchTier`) —, also bekommt dort JEDER Intent die 10 Quellen und
+  // die Stufe steht ohne ihren Grund da. Gemessen wird sie trotzdem: der Loop
+  // löst sein Synth-Modell über dieselbe Tabelle auf
+  // (`agenticRespondService` → `resolveModel` → `resolveAutoSelection`), und
+  // ein per Erwähnung erzwungener Turn behält seinen Intent.
+  //
+  // Bleibt (H-Regel: ein begründeter Anker wird dokumentiert, nicht
+  // gleichgemacht). Wer sie fallen lässt, macht damit eine Aussage über den
+  // Einzeldurchlauf — dort steht der Grund noch.
   research: { modelId: GEMMA, reasoning: graded('low', 'medium', 'medium') },
   search: { modelId: GEMMA, reasoning: graded('low', 'low', 'medium') },
   web: { modelId: GEMMA, reasoning: graded('low', 'low', 'medium') },
