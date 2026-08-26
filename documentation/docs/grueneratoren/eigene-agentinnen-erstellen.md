@@ -70,7 +70,7 @@ Lege dir vorher unter [Notebooks](../wissen/eigenes-notebook-erstellen) ein eige
 :::
 
 :::info[Wiederkehrende Aufgaben]
-Du kannst einen Agenten auch als **wiederkehrende Aufgabe** anlegen — er läuft dann automatisch nach Zeitplan (z. B. „jeden Montag eine Presseschau"). Starte dazu die Erstellung aus dem Regal **Wiederkehrende Aufgaben** in der Agentura; im Editor erscheint ein zusätzlicher **Zeitplan**-Tab.
+Du kannst einen Agenten auch als **wiederkehrende Aufgabe** anlegen — er läuft dann automatisch nach Zeitplan (z. B. „jeden Montag eine Presseschau"). Starte dazu die Erstellung über den Link **Neue wiederkehrende Aufgabe** — er steht in der Agentura im Regal **Meine Grüneratoren**, im Unterabschnitt **Wiederkehrende Aufgaben** (ein eigenes Regal dafür gibt es nicht). Im Editor erscheint dann ein zusätzlicher **Zeitplan**-Tab. Denselben Tab siehst du auch, wenn du später einen Agenten bearbeitest, der bereits einen Zeitplan hat.
 :::
 
 ## Schritt 4: Speichern und nutzen
