@@ -40,6 +40,13 @@ function getHybridConfig(): HybridConfig {
   return vectorConfig.get('hybrid') as HybridConfig;
 }
 
+/** Score a keyword hit gets per occurrence of the term in the chunk. */
+const TEXT_SCORE_PER_MATCH = 0.1;
+/** Ceiling for term frequency — beyond this, more repetitions say nothing. */
+const TEXT_SCORE_MAX = 0.8;
+/** Every keyword hit is worth at least this much. */
+const TEXT_SCORE_FLOOR = 0.1;
+
 /**
  * Perform hybrid search combining vector and keyword search
  */
@@ -392,9 +399,9 @@ export async function performTextSearch(
       logger.debug(`No text matches found for "${searchTerm}"`);
     }
 
-    const results: TextSearchResult[] = mergedPoints.map(({ point, variant }, index) => ({
+    const results: TextSearchResult[] = mergedPoints.map(({ point, variant }) => ({
       id: point.id,
-      score: calculateTextSearchScore(searchTerm, point.payload.chunk_text as string, index),
+      score: calculateTextSearchScore(searchTerm, point.payload.chunk_text as string),
       payload: point.payload,
       searchMethod: 'text' as const,
       searchTerm: searchTerm,
@@ -417,14 +424,17 @@ export async function performTextSearch(
 }
 
 /**
- * Calculate text search score based on term frequency and position
+ * Score a keyword hit by how often the term occurs in the chunk.
+ *
+ * There used to be a position penalty here (`1 - position * 0.1`), but
+ * `position` is the index in the `client.scroll` output — Qdrant returns those
+ * in point-id order, which carries no relevance at all. With a recall window in
+ * the hundreds every hit past the ninth was multiplied by the 0.1 floor, so
+ * term frequency was erased for all but a handful of arbitrarily chosen chunks
+ * and every keyword hit scored the same 0.1.
  */
-export function calculateTextSearchScore(
-  searchTerm: string,
-  text: string | undefined,
-  position: number
-): number {
-  if (!text || !searchTerm) return 0.1;
+export function calculateTextSearchScore(searchTerm: string, text: string | undefined): number {
+  if (!text || !searchTerm) return TEXT_SCORE_FLOOR;
 
   const lowerText = text.toLowerCase();
   const lowerTerm = searchTerm.toLowerCase();
@@ -432,15 +442,13 @@ export function calculateTextSearchScore(
   const matches = (
     lowerText.match(new RegExp(lowerTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []
   ).length;
-  let score = Math.min(matches * 0.1, 0.8);
+  let score = Math.min(matches * TEXT_SCORE_PER_MATCH, TEXT_SCORE_MAX);
 
-  const positionPenalty = Math.max(0.1, 1 - position * 0.1);
-  score *= positionPenalty;
+  // Short terms match by accident far more often than long ones, so they are
+  // allowed to contribute less.
+  score *= Math.min(1, searchTerm.length / 10);
 
-  const lengthNormalization = Math.min(1, searchTerm.length / 10);
-  score *= lengthNormalization;
-
-  return Math.min(1.0, Math.max(0.1, score));
+  return Math.min(1.0, Math.max(TEXT_SCORE_FLOOR, score));
 }
 
 /**
@@ -606,9 +614,21 @@ export function applyWeightedCombination(
           ? normalizedVectorWeight
           : normalizedVectorWeight + normalizedTextWeight;
 
+      const blended = (result.vectorScore + result.textScore) / (contributingWeight || 1);
+
+      // Finding the query term is evidence FOR a chunk, so it may only ever
+      // raise the score. Blending alone inverted the ranking: a chunk matched
+      // by both lanes was pulled toward the lower text score, while a chunk
+      // the keyword lane never saw kept its full cosine — so documents that
+      // literally contain the search term ranked below ones that merely sit
+      // near it in embedding space, and often fell out of the result window
+      // entirely.
+      const score =
+        hasVector && hasText ? Math.max(result.originalVectorScore as number, blended) : blended;
+
       return {
         id: result.item.id,
-        score: (result.vectorScore + result.textScore) / (contributingWeight || 1),
+        score,
         payload: result.item.payload,
         searchMethod: result.searchMethod,
         originalVectorScore: result.originalVectorScore,
