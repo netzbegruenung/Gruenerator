@@ -155,6 +155,14 @@ interface AgentState {
   setSelectedProvider: (provider: Provider) => void;
   setSelectedModel: (model: SelectedModel) => void;
   setCurrentThread: (threadId: string | null) => void;
+  /** The draft the user is typing in just became a real thread (lazy
+   *  `initialize()` / `onThreadCreated` of its FIRST send). Same transition
+   *  bookkeeping as `setCurrentThread`, but skill mention and pinned connector
+   *  survive — this is a continuation of the same conversation, not a switch.
+   *  Only the actual mint sites may call this; navigation writers (sidebar/URL
+   *  sync) stay on `setCurrentThread`, whose unconditional clear is what keeps
+   *  an abandoned draft's pin out of unrelated pre-existing threads. */
+  mintThreadFromDraft: (threadId: string) => void;
   setCurrentThreadTitle: (title: string | null) => void;
   toggleTool: (tool: ToolKey) => void;
   setAllTools: (enabled: boolean) => void;
@@ -275,37 +283,9 @@ export const useAgentStore = create<AgentState>()(
         }
       },
 
-      setCurrentThread: (threadId) => {
-        if (useAgentStore.getState().currentThreadId === threadId) return;
-        set({
-          currentThreadId: threadId,
-          currentThreadTitle: null,
-          compactionState: { ...DEFAULT_COMPACTION_STATE },
-          messageCount: 0,
-          needsCompaction: false,
-          activeSkillMention: null,
-          pinnedConnector: null,
-        });
-        // The Sharepic-Modus (docked artifact panel) is thread-scoped: a
-        // variant from the old thread must not stay pinned — nor be sent as
-        // the currentSharepic edit target — in the new one.
-        useSharepicLiveStore.getState().setActiveVariant(null);
-        // Same for Reel-Modus: a stale activeReel would inject the old
-        // thread's transcript into the new one, hijack bare edit verbs into
-        // subtitle edits of the old reel, and bind the wrong reel to the new
-        // thread on the first successful edit.
-        useReelLiveStore.getState().setActiveReel(null);
-        // Same for a docked HTML/SVG artifact: activeArtifact is module-global,
-        // so without this reset the old thread's artifact stays pinned in the new one.
-        useArtifactLiveStore.getState().setActiveArtifact(null);
-        // Tabular files attached for the in-browser interpreter are session-
-        // scoped too — an old thread's Excel/CSV must not leak into the new one.
-        usePythonFileStore.getState().clear();
-        // Same for the last spreadsheet computation forwarded to the model.
-        useLastComputeStore.getState().clear();
-        // And for the interpreter's output files (download-chip byte stash).
-        useComputeExportStore.getState().clear();
-      },
+      setCurrentThread: (threadId) => switchThread(threadId, { keepMentions: false }),
+
+      mintThreadFromDraft: (threadId) => switchThread(threadId, { keepMentions: true }),
 
       setCurrentThreadTitle: (title) => set({ currentThreadTitle: title }),
 
@@ -665,3 +645,46 @@ export const useAgentStore = create<AgentState>()(
     }
   )
 );
+
+/**
+ * Shared transition bookkeeping behind `setCurrentThread` and
+ * `mintThreadFromDraft`. `keepMentions` is the ONLY divergence: a mint (the
+ * draft's first send just created this thread) is a continuation of the same
+ * conversation, so skill mention and pinned connector survive it — a connector
+ * pinned on the Startseite otherwise died the moment the first answer streamed,
+ * and every follow-up lost its MCP scope. Every other transition — including
+ * draft → pre-existing thread via sidebar/URL, which looks identical from the
+ * store's point of view (null → id) — must clear, or an abandoned draft's pin
+ * would leak into an unrelated thread. That is why the distinction lives at the
+ * call sites, not in a null-check here.
+ */
+function switchThread(threadId: string | null, opts: { keepMentions: boolean }): void {
+  if (useAgentStore.getState().currentThreadId === threadId) return;
+  useAgentStore.setState({
+    currentThreadId: threadId,
+    currentThreadTitle: null,
+    compactionState: { ...DEFAULT_COMPACTION_STATE },
+    messageCount: 0,
+    needsCompaction: false,
+    ...(opts.keepMentions ? {} : { activeSkillMention: null, pinnedConnector: null }),
+  });
+  // The Sharepic-Modus (docked artifact panel) is thread-scoped: a
+  // variant from the old thread must not stay pinned — nor be sent as
+  // the currentSharepic edit target — in the new one.
+  useSharepicLiveStore.getState().setActiveVariant(null);
+  // Same for Reel-Modus: a stale activeReel would inject the old
+  // thread's transcript into the new one, hijack bare edit verbs into
+  // subtitle edits of the old reel, and bind the wrong reel to the new
+  // thread on the first successful edit.
+  useReelLiveStore.getState().setActiveReel(null);
+  // Same for a docked HTML/SVG artifact: activeArtifact is module-global,
+  // so without this reset the old thread's artifact stays pinned in the new one.
+  useArtifactLiveStore.getState().setActiveArtifact(null);
+  // Tabular files attached for the in-browser interpreter are session-
+  // scoped too — an old thread's Excel/CSV must not leak into the new one.
+  usePythonFileStore.getState().clear();
+  // Same for the last spreadsheet computation forwarded to the model.
+  useLastComputeStore.getState().clear();
+  // And for the interpreter's output files (download-chip byte stash).
+  useComputeExportStore.getState().clear();
+}

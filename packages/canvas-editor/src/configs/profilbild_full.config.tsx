@@ -18,6 +18,7 @@ import {
 import { HiPaintBrush } from 'react-icons/hi2';
 
 import { createBaseActions } from './factory/actionFactories';
+import { carryInstanceState } from './factory/carryInstanceState';
 import { makeSectionDefiner } from './factory/defineSection';
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
 import { BackgroundSection } from '../sidebar/sections';
@@ -59,6 +60,7 @@ export interface ProfilbildFullState extends BaseCanvasState {
   backgroundColor: string;
   imagePosition: { x: number; y: number };
   imageSize: { w: number; h: number };
+  imageOpacity?: number;
 }
 
 type BaseActions = ReturnType<typeof createBaseActions<ProfilbildFullState>>;
@@ -94,22 +96,19 @@ function createProfilbildInitialState(props: Record<string, unknown>): Profilbil
 
   return {
     isDesktop: true,
-    assetInstances: [],
-    selectedIcons: [],
-    iconStates: {},
-    shapeInstances: [],
-    illustrationInstances: [],
-    additionalTexts: [],
-    pillBadgeInstances: [],
-    circleBadgeInstances: [],
-    balkenInstances: [],
-    frameInstances: [],
-    chartInstances: [],
-    userImageInstances: [],
+
+    // Alles selbst Hinzugefuegte. Stand hier hart auf `[]`, und weil
+    // Karten-Render und Chat-Bearbeitung durch diese Funktion neu setzen,
+    // waren Icons, Formen und Zusatztexte danach weg.
+    ...carryInstanceState(props),
     transparentImage,
     backgroundColor,
-    imagePosition: position,
-    imageSize: size,
+    // Aus den Props, nicht aus dem Standard-Layout: Karten-Render und
+    // Remote-Sync laufen durch diese Funktion, und ein fest gesetzter Wert
+    // schob den verschobenen Avatar jedes Mal zurueck in die Mitte.
+    imagePosition: (props.imagePosition as { x: number; y: number } | undefined) ?? position,
+    imageSize: (props.imageSize as { w: number; h: number } | undefined) ?? size,
+    ...(typeof props.imageOpacity === 'number' ? { imageOpacity: props.imageOpacity } : {}),
   };
 }
 
@@ -148,6 +147,7 @@ const avatarElement: ImageElementConfig<ProfilbildFullState> = {
   height: (state) => state.imageSize.h,
   draggable: true,
   transformable: true,
+  opacityStateKey: 'imageOpacity',
 };
 
 // ============================================================================

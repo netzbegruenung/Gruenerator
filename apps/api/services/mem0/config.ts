@@ -16,6 +16,8 @@ import { REGOLO_BASE_URL } from '../ai/providers.js';
 import { regoloFetchWithThinkingDisabled } from '../ai/regoloThinkingFetch.js';
 import { MistralEmbeddingService } from '../mistral/MistralEmbeddingService/MistralEmbeddingService.js';
 
+import { withRemovedSearchCompat } from './qdrantSearchCompat.js';
+
 import type { MemoryConfig } from 'mem0ai/oss';
 
 /**
@@ -31,6 +33,22 @@ import type { MemoryConfig } from 'mem0ai/oss';
  * folgen — also folgt er ihr nicht mehr. Wer das Modell hier wechselt, wechselt
  * es bewusst und prüft die JSON-Extraktion (der defensive Parser unten existiert,
  * weil Reasoning-Modelle das JSON in Chain-of-Thought wickeln).
+ *
+ * ── 25.08.2026: warum das hier NICHT mit auf Cortecs gezogen ist ──
+ *
+ * Alle übrigen Gemma-Primäre liegen seit diesem Tag auf Cortecs
+ * (services/ai/gemmaHosts.ts). Diese Stelle bleibt, und zwar aus demselben
+ * Grund, aus dem sie 2026-08-01 aufhörte, einer Lane zu folgen: der Adapter
+ * baut seinen Client aus `REGOLO_BASE_URL` + `REGOLO_API_KEY` +
+ * `regoloFetchWithThinkingDisabled`. Ein Umzug ist deshalb ein
+ * TRANSPORT-Wechsel (andere Basis-URL, anderer Schlüssel, und statt der
+ * Denk-Abschaltung die Souveränitäts-Weisung aus cortecsRequestPolicy.ts),
+ * nicht das Umhängen eines Modellnamens.
+ *
+ * Der Preis eines unbedachten Umzugs steht direkt darunter: scheitert die
+ * JSON-Extraktion, liefert der Adapter still `{"facts": [], "memory": []}`.
+ * Das Gedächtnis hörte dann auf zu arbeiten, ohne dass irgendwo ein Fehler
+ * erscheint. Erst messen, dann ziehen.
  */
 const LANE = { provider: 'regolo' as const, model: 'gemma4-31b' };
 
@@ -158,6 +176,10 @@ class LiteLLMAdapter {
 /**
  * Create a configured Qdrant client for mem0.
  * Uses the existing connection logic which properly handles basic auth via headers.
+ *
+ * Der Client geht durch `withRemovedSearchCompat()`, weil mem0s Qdrant-Store
+ * noch `client.search()` ruft — seit `@qdrant/js-client-rest@1.19.0` entfernt.
+ * Siehe `qdrantSearchCompat.ts` für die vollständige Begründung.
  */
 function createMem0QdrantClient() {
   const url = env.QDRANT_URL || 'http://localhost:6333';
@@ -165,13 +187,15 @@ function createMem0QdrantClient() {
   const basicAuthUsername = env.QDRANT_BASIC_AUTH_USERNAME;
   const basicAuthPassword = env.QDRANT_BASIC_AUTH_PASSWORD;
 
-  return createQdrantClient({
-    url,
-    apiKey,
-    ...(basicAuthUsername ? { basicAuthUsername } : {}),
-    ...(basicAuthPassword ? { basicAuthPassword } : {}),
-    timeout: 60000,
-  });
+  return withRemovedSearchCompat(
+    createQdrantClient({
+      url,
+      apiKey,
+      ...(basicAuthUsername ? { basicAuthUsername } : {}),
+      ...(basicAuthPassword ? { basicAuthPassword } : {}),
+      timeout: 60000,
+    })
+  );
 }
 
 /**

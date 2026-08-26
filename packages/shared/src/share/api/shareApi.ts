@@ -10,7 +10,6 @@ import type {
   ShareResponse,
   ShareListResponse,
   DeleteShareResponse,
-  SaveAsTemplateResponse,
   CreateVideoShareParams,
   CreateImageShareParams,
   UpdateImageShareParams,
@@ -35,7 +34,6 @@ export const SHARE_ENDPOINTS = {
   UPDATE_IMAGE: (token: string) => `/share/${token}/image`,
   DELETE_SHARE: (token: string) => `/share/${token}`,
   PUBLISH: (token: string) => `/share/${token}/publish`,
-  SAVE_AS_TEMPLATE: (token: string) => `/share/${token}/save-as-template`,
 } as const;
 
 /**
@@ -134,20 +132,6 @@ export async function deleteShare(shareToken: string): Promise<DeleteShareRespon
 }
 
 /**
- * Save a share as a public template
- */
-export async function saveAsTemplate(
-  shareToken: string,
-  title: string,
-  visibility: 'private' | 'unlisted' | 'public' = 'private'
-): Promise<SaveAsTemplateResponse> {
-  return apiRequest<SaveAsTemplateResponse>('post', SHARE_ENDPOINTS.SAVE_AS_TEMPLATE(shareToken), {
-    title,
-    visibility,
-  });
-}
-
-/**
  * Share API object for convenient access
  */
 export const shareApi = {
@@ -160,6 +144,5 @@ export const shareApi = {
   getShareInfo,
   deleteShare,
   publishShare,
-  saveAsTemplate,
   endpoints: SHARE_ENDPOINTS,
 };

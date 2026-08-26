@@ -76,6 +76,7 @@ export interface AnweisungenSaveResponse {
 
 // === Q&A COLLECTION TYPES ===
 import type { NotebookCollection, NotebookCollectionInput } from '../../../types/notebook';
+import type { CreatedNotebookCollection } from '@gruenerator/contracts';
 
 // === CUSTOM GENERATOR TYPES ===
 export interface CustomGeneratorData {
@@ -421,12 +422,18 @@ export const profileApiService = {
       throw new Error('Failed to fetch Q&A collections');
     }
 
-    // Contract collection schema vs the app's richer NotebookCollection domain
-    // type describe the same rows but aren't mutually assignable; boundary cast.
-    return response.body.collections as unknown as NotebookCollection[];
+    return response.body.collections;
   },
 
-  async createQACollection(collectionData: NotebookCollectionInput): Promise<NotebookCollection> {
+  /**
+   * Returns what the create endpoint actually sends — a narrower record than a
+   * listed collection (no `documents`, no `updated_at`). This used to claim the
+   * full type via a cast, which is how a caller could read fields off a response
+   * that never carried them.
+   */
+  async createQACollection(
+    collectionData: NotebookCollectionInput
+  ): Promise<CreatedNotebookCollection> {
     const selectionMode: 'documents' | 'wolke' =
       collectionData.selectionMode === 'wolke' ? 'wolke' : 'documents';
     const body = {
@@ -466,7 +473,7 @@ export const profileApiService = {
       throw err;
     }
 
-    return response.body.collection as unknown as NotebookCollection;
+    return response.body.collection;
   },
 
   async updateQACollection(
@@ -643,13 +650,20 @@ export const profileApiService = {
     return { success: response.body.success, message: response.body.message };
   },
 
+  /**
+   * Visibility and lifecycle move together: the gallery only shows rows that
+   * are both public AND `published`, so flipping `is_private` alone left
+   * "veröffentlichte" templates stranded as drafts — invisible to everyone,
+   * including the review queue. The server resolves the actual transition
+   * (an already-published template is not pushed back into review).
+   */
   async updateTemplateVisibility(
     templateId: string | number,
     isPrivate: boolean
   ): Promise<UserTemplateResponse> {
     const response = await getContractsClient().userTemplates.update({
       params: { id: String(templateId) },
-      body: { is_private: isPrivate },
+      body: { is_private: isPrivate, status: isPrivate ? 'draft' : 'pending_review' },
     });
 
     if (response.status !== 200) {

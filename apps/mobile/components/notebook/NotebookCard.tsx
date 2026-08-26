@@ -22,6 +22,7 @@ import {
   BODY_FONT,
 } from '../../theme';
 import { gridColumns } from '../../theme/layout';
+import { SkeletonBar, SkeletonCircle, SkeletonGroup } from '../common/Skeleton';
 
 /**
  * The notebook gallery card. One component for both system and user notebooks —
@@ -89,6 +90,52 @@ export function NotebookCard({
     </Pressable>
   );
 }
+
+/**
+ * A stack of cards in outline, for a shelf that is still loading. It lives here
+ * rather than at the call sites so it keeps sharing `styles.card` — the border,
+ * the radius and the padding stay in step with the real card by construction.
+ */
+export function NotebookCardSkeleton({
+  count = 4,
+  itemStyle,
+}: {
+  count?: number;
+  /** The grid width from `useNotebookGrid().item`, where there is a grid. */
+  itemStyle?: StyleProp<ViewStyle>;
+}) {
+  const colorScheme = useColorScheme();
+  const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
+  const titleWidths = ['64%', '48%', '73%', '55%'] as const;
+
+  return (
+    <>
+      {Array.from({ length: count }).map((_, i) => (
+        <View
+          key={i}
+          style={[
+            styles.card,
+            itemStyle,
+            { backgroundColor: theme.card, borderColor: theme.cardBorder },
+          ]}
+        >
+          <SkeletonGroup on="card" style={skeletonCardStyles.row}>
+            <SkeletonCircle size={18} />
+            <View style={skeletonCardStyles.text}>
+              <SkeletonBar width={titleWidths[i % titleWidths.length]} height={14} />
+              <SkeletonBar width="34%" height={11} />
+            </View>
+          </SkeletonGroup>
+        </View>
+      ))}
+    </>
+  );
+}
+
+const skeletonCardStyles = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.xsmall, flex: 1 },
+  text: { flex: 1, gap: 3 },
+});
 
 const styles = StyleSheet.create({
   card: {

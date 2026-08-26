@@ -26,6 +26,11 @@ export interface SerializedCollection {
 }
 
 // Strips the -system id, backend tuning fields, and mcpHidden facets.
+//
+// Not filtered by the instance policy: `mcpExposed` is what decides whether a
+// collection reaches MCP at all, and `hide` is curation for the surfaces that
+// *offer* content rather than a gate on one named by an external client. See
+// the note on `SEARCH_COLLECTIONS` in `routes/mcp-server/serverFactory.ts`.
 export function serializeMcpCatalog(): SerializedCollection[] {
   return getMcpExposedCollections().map((c) => ({
     key: c.key,

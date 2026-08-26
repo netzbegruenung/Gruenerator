@@ -7,13 +7,19 @@ import {
   StyleSheet,
   ScrollView,
   useColorScheme,
-  ActivityIndicator,
   Pressable,
   Linking,
   RefreshControl,
 } from 'react-native';
 
-import { ListGroup, ListRow } from '../../../../components/common';
+import {
+  ListGroup,
+  ListRow,
+  SkeletonBar,
+  SkeletonCircle,
+  SkeletonGroup,
+  SkeletonRows,
+} from '../../../../components/common';
 import { ScreenScaffold } from '../../../../components/navigation/ScreenScaffold';
 import { GroupAvatar } from '../../../../components/workplace/GroupAvatar';
 import { GroupContentSection } from '../../../../components/workplace/GroupContentSection';
@@ -72,9 +78,16 @@ export default function ProjektDetailScreen() {
   );
 
   if (detailsQuery.isPending) {
+    // The hero as it will stand: the 88-dp avatar, the name, the role pill —
+    // then the members section that follows it.
     return scaffold(
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color={colors.primary[600]} />
+      <View style={styles.scrollContent}>
+        <SkeletonGroup style={styles.hero}>
+          <SkeletonCircle size={88} />
+          <SkeletonBar width="52%" height={22} radius={6} />
+          <SkeletonBar width={96} height={20} radius={borderRadius.full} />
+        </SkeletonGroup>
+        <SkeletonRows count={4} leading={44} />
       </View>
     );
   }
@@ -140,7 +153,7 @@ export default function ProjektDetailScreen() {
       {section(
         `Mitglieder${members.length ? ` (${members.length})` : ''}`,
         membersQuery.isPending ? (
-          <ActivityIndicator color={colors.primary[600]} />
+          <SkeletonRows count={3} leading={44} />
         ) : members.length === 0 ? (
           <Text style={[styles.emptyLine, { color: theme.textSecondary }]}>
             Keine Mitglieder gefunden.

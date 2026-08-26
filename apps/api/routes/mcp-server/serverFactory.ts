@@ -78,6 +78,15 @@ const log = createLogger('McpServerFactory');
  * reason (the loop could not search a Landesverband either). The two stay
  * separate anyway: this surface is not locale-filtered and does not bundle
  * Austria behind one key, both of which that list does for the chat client.
+ *
+ * Deliberately NOT gated by the instance policy either, though `searchTools.ts`
+ * gates the chat list. `hide` is curation, not access: it takes content out of
+ * galleries, pickers and *implicit* search while a directly named target keeps
+ * resolving — and an MCP client naming a collection is naming it, not
+ * discovering it. Keeping a deployment's content out of MCP entirely is what
+ * `mcpExposed: false` on the collection is for. Gating here would also have
+ * dropped `gruene` from production's published enum, which external clients
+ * have searched since v1.
  */
 const SEARCH_COLLECTIONS = getMcpExposedCollections()
   .map((c) => c.key)

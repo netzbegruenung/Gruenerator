@@ -16,7 +16,6 @@ import type {
   UpdateImageShareParams,
   ShareMediaType,
   ShareStatus,
-  SaveAsTemplateResponse,
 } from '../types.js';
 
 const initialState: ShareStoreState = {
@@ -246,26 +245,6 @@ export const useShareStore = create<ShareStoreState & ShareStoreActions>((set, g
     } catch (error) {
       const errorMessage = extractErrorMessage(error, 'Failed to delete share');
       set({ error: errorMessage });
-      throw new Error(errorMessage);
-    }
-  },
-
-  /**
-   * Save a share as a template
-   */
-  saveAsTemplate: async (
-    shareToken: string,
-    title: string,
-    visibility: 'private' | 'unlisted' | 'public'
-  ): Promise<SaveAsTemplateResponse> => {
-    set({ isLoading: true, error: null, errorCode: null });
-    try {
-      const result = await shareApi.saveAsTemplate(shareToken, title, visibility);
-      set({ isLoading: false });
-      return result;
-    } catch (error) {
-      const errorMessage = extractErrorMessage(error, 'Failed to save as template');
-      set({ isLoading: false, error: errorMessage });
       throw new Error(errorMessage);
     }
   },

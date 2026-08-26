@@ -30,6 +30,80 @@ import type { ToolSet } from 'ai';
 
 const log = createLogger('agenticTools');
 
+/**
+ * Ein lokaler Beobachtungspunkt um die Werkzeugausführung — die Naht, an der
+ * Eval-Attrappen, Kostenrechnung und (später) eine `enabledTools`-Policy
+ * ansetzen, ohne den Wrapper selbst weiter aufzublähen.
+ *
+ * Bewusst NUR lokale Handler: LobeHubs Vorbild kennt zusätzlich eine
+ * Webhook-Zustellung, die Serialisierbarkeit erzwingt (dort der Grund für zwei
+ * getrennte `beforeToolCall`-Ereignistypen, weil eine `mock`-Funktion keine
+ * Serialisierung überlebt). Diese Anforderung holen wir uns nicht ins Haus.
+ *
+ * Ein von einem Guard geblockter Aufruf feuert KEINEN Hook: er hat nicht
+ * stattgefunden — dieselbe Begründung, aus der er auch keine Karte und keinen
+ * persistierten Schritt bekommt (siehe `wrappedExecute`). Ein Kosten-Hook, der
+ * geblockte Aufrufe mitzählt, liefert falsche Zahlen.
+ */
+export interface ToolHooks {
+  /** Läuft NACH der Guard-Kette und VOR `tool_step_start`. Ruft ein Handler
+   *  `mock(result)`, wird `execute` übersprungen und das übergebene Ergebnis
+   *  wie ein echtes behandelt (Karte, Persistenz und Rückgabe an das Modell
+   *  laufen unverändert weiter). Nur der erste `mock`-Aufruf zählt. */
+  beforeToolCall?: (event: {
+    toolName: string;
+    args: Record<string, unknown>;
+    stepId: string;
+    mock: (result: unknown) => void;
+  }) => void | Promise<void>;
+  /** Läuft für JEDEN ausgeführten Aufruf — auch für einen fehlgeschlagenen
+   *  (`ok: false`) und für einen attrappierten (`mocked: true`). */
+  afterToolCall?: (event: {
+    toolName: string;
+    args: Record<string, unknown>;
+    stepId: string;
+    result: unknown;
+    ok: boolean;
+    mocked: boolean;
+    durationMs: number;
+  }) => void;
+  /** Nur wenn das Werkzeug GEWORFEN hat oder abgeschrieben wurde — nicht bei
+   *  einem regulär zurückgegebenen `{ error }` (das ist `afterToolCall` mit
+   *  `ok: false`). `timedOut` ist ein eigenes Feld, weil ein Timeout hier den
+   *  Abbruch des WARTENS meint: das Werkzeug läuft weiter (siehe `withTimeout`). */
+  onToolCallError?: (event: {
+    toolName: string;
+    args: Record<string, unknown>;
+    stepId: string;
+    error: string;
+    timedOut: boolean;
+  }) => void;
+}
+
+/** Enge eigene Grenze für `beforeToolCall`: der einzige Hook, auf den gewartet
+ *  wird (er kann attrappieren), also der einzige, der den Loop aufhalten
+ *  könnte. Läuft er darüber, wird das Werkzeug ganz normal ausgeführt. */
+const BEFORE_HOOK_TIMEOUT_MS = 500;
+
+/**
+ * Beobachtende Hooks sind Fire-and-Forget: eine Ausnahme darf den Turn nicht
+ * kippen. Die Rückgabe ist `void` typisiert, das hindert einen Handler aber
+ * nicht daran, `async` zu sein — eine abgelehnte Zusage käme dann als
+ * unbeobachtete Rejection zurück, deshalb wird auch darauf geprüft.
+ */
+function fireAndForget(hookName: string, run: () => unknown): void {
+  try {
+    const returned = run();
+    if (returned && typeof (returned as { then?: unknown }).then === 'function') {
+      void (returned as Promise<unknown>).catch((err: unknown) => {
+        log.warn(`[ToolHook] ${hookName} abgelehnt: ${err instanceof Error ? err.message : err}`);
+      });
+    }
+  } catch (err) {
+    log.warn(`[ToolHook] ${hookName} geworfen: ${err instanceof Error ? err.message : err}`);
+  }
+}
+
 export interface WrapToolsContext {
   sse: SSEWriter;
   guards: ToolLoopGuards;
@@ -61,6 +135,9 @@ export interface WrapToolsContext {
   takeNarration?: () => string | null;
   /** Safety-net cap on the serialized model-facing result. Default 6000. */
   maxResultChars?: number;
+  /** Optional. Nicht gesetzt ⇒ Verhalten unverändert (es wird nichts
+   *  zusätzlich awaitet). */
+  hooks?: ToolHooks;
 }
 
 function isErrorResult(value: unknown): boolean {
@@ -250,7 +327,57 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
       // first sendStart gets it — the rest drain empty. Split mode only.
       const narration = ctx.takeNarration?.() ?? null;
 
+      // MUSS vor dem Hook-Await gebucht sein: `checkSearchConcurrency` verlässt
+      // sich darauf, dass Guard-Kette und `noteCall` EIN synchroner Block sind
+      // (siehe Kommentar dort) — parallele Geschwister-Aufrufe eines Model-Steps
+      // sehen sich sonst gegenseitig nicht und das Concurrency-Limit greift
+      // nicht mehr, sobald ein `beforeToolCall`-Handler konfiguriert ist. Aus
+      // demselben Fenster: die Narration wird hier gedrained, damit sie
+      // deterministisch beim ersten Aufruf des Steps landet.
       ctx.guards.noteCall(toolName);
+
+      // Eigener Halter statt einer `let`-Variablen: gesetzt wird in einer
+      // Closure, und die Flussanalyse verengt eine solche Variable danach auf
+      // ihren Anfangswert.
+      const mock: { hit: boolean; result: unknown } = { hit: false, result: null };
+      // Nach der Guard-Kette, vor der Karte — ein geblockter Aufruf hat nicht
+      // stattgefunden und feuert deshalb keinen Hook. Nur wenn ein Handler
+      // gesetzt ist, wird überhaupt gewartet: sonst bliebe das Verhalten nicht
+      // identisch zum Stand ohne Hooks.
+      const beforeHook = ctx.hooks?.beforeToolCall;
+      if (beforeHook) {
+        try {
+          await withTimeout(
+            Promise.resolve(
+              beforeHook({
+                toolName,
+                args,
+                stepId,
+                mock: (result: unknown) => {
+                  // Nur der erste Aufruf zählt; ein späterer (etwa aus einer
+                  // Zusage, die nach der Zeitgrenze noch landet) käme ohnehin zu
+                  // spät, weil hier bereits weitergelaufen wird.
+                  if (mock.hit) return;
+                  mock.hit = true;
+                  mock.result = result;
+                },
+              })
+            ),
+            BEFORE_HOOK_TIMEOUT_MS
+          );
+        } catch (err) {
+          // Fail-open: ein werfender oder hängender Handler kostet den Turn
+          // nichts, das Werkzeug läuft ganz normal. Eine bereits eingetragene
+          // Attrappe bleibt gültig — der Handler hat sie entschieden, bevor er
+          // umgefallen ist.
+          log.warn(
+            `[ToolHook] beforeToolCall (${toolName}) fehlgeschlagen: ${
+              err instanceof Error ? err.message : String(err)
+            }`
+          );
+        }
+      }
+
       sendStart(stepId, args, narration);
 
       let output: unknown;
@@ -263,16 +390,32 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
       // success it could not know about. This signal is how a tool can tell; the
       // generation tools check it immediately before they commit anything.
       const abandoned = new AbortController();
-      try {
-        const timeoutMs = ctx.perCallTimeoutOverridesMs?.[toolName] ?? ctx.perCallTimeoutMs;
-        output = await withTimeout(
-          Promise.resolve(original(input, { ...options, abortSignal: abandoned.signal })),
-          timeoutMs,
-          () => abandoned.abort()
-        );
-      } catch (err) {
-        output = { error: err instanceof Error ? err.message : String(err) };
+      // Nur für den Hook: ein GEWORFENES bzw. abgeschriebenes Werkzeug, nicht
+      // ein regulär zurückgegebenes `{ error }`.
+      let thrown: { error: string; timedOut: boolean } | null = null;
+      const startedAt = Date.now();
+      // Am Verzweigungspunkt eingefroren: eine Attrappe, die nach dem
+      // 500-ms-Timeout doch noch aus der hängenden Zusage eintrifft, kippt
+      // `mock.hit` DANACH auf true — der Aufruf lief dann aber echt, und
+      // `afterToolCall` darf ihn nicht rückwirkend als attrappiert melden.
+      const usedMock = mock.hit;
+      if (usedMock) {
+        output = mock.result;
+      } else {
+        try {
+          const timeoutMs = ctx.perCallTimeoutOverridesMs?.[toolName] ?? ctx.perCallTimeoutMs;
+          output = await withTimeout(
+            Promise.resolve(original(input, { ...options, abortSignal: abandoned.signal })),
+            timeoutMs,
+            () => abandoned.abort()
+          );
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          thrown = { error: message, timedOut: err instanceof ToolTimeoutError };
+          output = { error: message };
+        }
       }
+      const durationMs = Date.now() - startedAt;
 
       ctx.guards.noteCompletion(toolName);
       const ok = !isErrorResult(output);
@@ -313,6 +456,28 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
         ...(narration ? { narration } : {}),
       });
       sendResult(stepId, ok, output);
+
+      const errorHook = ctx.hooks?.onToolCallError;
+      if (errorHook && thrown) {
+        const failure = thrown;
+        fireAndForget('onToolCallError', () =>
+          errorHook({ toolName, args, stepId, error: failure.error, timedOut: failure.timedOut })
+        );
+      }
+      const afterHook = ctx.hooks?.afterToolCall;
+      if (afterHook) {
+        fireAndForget('afterToolCall', () =>
+          afterHook({
+            toolName,
+            args,
+            stepId,
+            result: output,
+            ok,
+            mocked: usedMock,
+            durationMs,
+          })
+        );
+      }
 
       // Model-facing payload only — the full result already went to the card /
       // persisted step above.

@@ -30,6 +30,7 @@ export function createShareSection<TState, TActions = unknown>(
         onCaptureCanvas: context?.onCaptureCanvas ?? (() => {}),
         onDownload: context?.onDownload ?? (() => {}),
         onNavigateToGallery: context?.onNavigateToGallery ?? (() => {}),
+        onSaveAsTemplate: context?.onSaveAsTemplate,
         canvasText,
         canvasType,
         pageCount: context?.pageCount as number | undefined,

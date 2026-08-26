@@ -9,6 +9,7 @@ import { dipSearchUrl, btpProtokollPdfUrl as btpPdfUrl } from '@gruenerator/cont
 import { isIntentAllowedForLocale, intentDeclineNote } from '@gruenerator/shared/chat-intents';
 
 import { NOTEBOOK_GATE } from '../../../../config/notebookCollectionMap.js';
+import { getChatNotebookProfile } from '../../../../config/notebookDepthProfiles.js';
 import { vectorConfig } from '../../../../config/vectorConfig.js';
 import {
   executeDirectSearch,
@@ -16,6 +17,7 @@ import {
   executeDirectExamplesSearch,
   executeDirectWebSearch,
 } from '../../../../routes/chat/agents/directSearch.js';
+import { roleAwareDefaultRecipeMention } from '../../../../routes/chat/agents/lvRecipePreference.js';
 import {
   lvEbeneForMentions,
   narrowLvScopeToEbene,
@@ -838,7 +840,14 @@ const FANOUT_MIN_CHUNKS_PER_SOURCE = 3;
 export async function executeMultiDocFanout(
   query: string,
   sources: DocumentSource[],
-  agentConfig: AgentConfig
+  agentConfig: AgentConfig,
+  /**
+   * `rerankChunks`: Chunks vor der Gruppierung durch den Cross-Encoder. Opt-in
+   * und nicht der Standard, weil der Einzelpfad danach ohnehin `rerankNode`
+   * fährt — dort wäre es eine zweite Stufe für dasselbe Geld. Gesetzt wird es
+   * vom Loop-Anhang-Pfad, dem einzigen ohne solche zweite Stufe.
+   */
+  opts?: { rerankChunks?: boolean }
 ): Promise<MultiDocFanoutResult> {
   const perSourceLimit = fairShare(
     FANOUT_CHUNK_BUDGET,
@@ -868,6 +877,7 @@ export async function executeMultiDocFanout(
             limit: perSourceLimit,
             mode: 'hybrid',
             threshold: 0.15,
+            ...(opts?.rerankChunks === true && { rerankChunks: true }),
           },
           filters: {
             documentIds: [src.id],
@@ -880,6 +890,11 @@ export async function executeMultiDocFanout(
           content: r.relevant_content || '',
           url: r.source_url || undefined,
           relevance: r.similarity_score ?? 0.5,
+          // Der stabile Schlüssel, unter dem die Quellenregistrierung denselben
+          // Anhang über Turns hinweg wiedererkennt. Fehlte er, unterschied sie
+          // mitgeführten und frischen Treffer nur am Inhaltsanfang — und der
+          // wechselt mit jeder Anfrage.
+          documentId: r.document_id || src.id,
           documentSourceId: src.id,
         }));
         return [src.id, results];
@@ -1480,10 +1495,18 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         }
 
         // Search all sub-queries (if decomposed) + expanded variants across all collections
-        // Notebook-scoped searches get deeper recall (10 vs 3 per collection)
+        //
+        // Notizbuch-gebundene Turns fahren das Profil der Notizbuch-Stufe
+        // „Mittel" (`CHAT_NOTEBOOK_DEPTH`) statt einer eigenen Zahl. Vorher
+        // standen hier 10 — das war die HARTE Obergrenze des Turns, nicht die
+        // Decke einer Auswahl: der Reranker bekam 10 Kandidaten und reichte 10
+        // durch, während `MAX_SOURCES` (20) und der Prompt-Boden (8000 Zeichen)
+        // das Doppelte getragen hätten. Dieselbe Sammlung über die
+        // Notizbuch-Fläche holt auf ihrer Voreinstellung 40.
         const baseQueries = state.subQueries?.length ? state.subQueries : [query];
         const subQueries = [...baseQueries, ...expandedQueries];
-        const perCollectionLimit = isNotebookScoped ? 10 : 3;
+        const notebookProfile = isNotebookScoped ? getChatNotebookProfile() : null;
+        const perCollectionLimit = notebookProfile ? notebookProfile.searchLimit : 3;
 
         const searchPromises = uniqueCollections.flatMap((collection) =>
           subQueries.map((sq) => {
@@ -1541,9 +1564,18 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         }
 
         // Sort by relevance and take top results
-        // Notebook-scoped searches keep more candidates for reranking
+        //
+        // Notizbuch-gebundene Turns nehmen die Kappe der Stufe: `single` bei
+        // einer Sammlung, `multi` bei mehreren — dieselbe Unterscheidung, die
+        // `notebookStreamCore` trifft. Die Zahl muss mindestens so groß sein
+        // wie das Reranker-Fenster (`rerankInput`), sonst wird hier verworfen,
+        // was der Cross-Encoder gleich bewerten soll.
         allResults.sort((a, b) => (b.relevance || 0) - (a.relevance || 0));
-        const resultsCap = isNotebookScoped ? 20 : 8;
+        const resultsCap = notebookProfile
+          ? uniqueCollections.length > 1
+            ? notebookProfile.sortLimit.multi
+            : notebookProfile.sortLimit.single
+          : 8;
         results = allResults.slice(0, resultsCap);
         citations = buildCitations(results);
 
@@ -1716,10 +1748,16 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         // überwiegt — ein Partei-Rezept bekäme also überwiegend
         // Fraktionsvorlagen. `defaultRecipeMention` ist hier der zulässige
         // Rückfall: dieser Zweig läuft nur für einen Schreib-Intent, also genau
-        // den Fall, in dem `respondNode` gleich dasselbe Rezept einsetzt.
+        // den Fall, in dem `respondNode` gleich dasselbe Rezept einsetzt —
+        // deshalb derselbe LV-bewusste Rückfall wie dort
+        // (`roleAwareDefaultRecipeMention`), sonst misst die Ebene ein anderes
+        // Rezept als das, mit dem gleich geschrieben wird.
         const lvEbene = lvEbeneForMentions([
           state.activeSkillMention,
-          agentConfig.defaultRecipeMention,
+          roleAwareDefaultRecipeMention(agentConfig, {
+            userRoles: state.userRoles,
+            userLocale: state.userLocale,
+          }),
         ]);
         const lvScope = narrowLvScopeToEbene(
           resolveExamplesLvScope(agentConfig, {

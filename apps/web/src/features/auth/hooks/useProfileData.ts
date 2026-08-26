@@ -3,6 +3,7 @@
  * Uses React Query with the profileApiService for consistent caching and state management
  * Syncs with profileStore for UI state management and optimistic updates
  */
+import { deriveIndexingState } from '@gruenerator/contracts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 
@@ -196,6 +197,17 @@ export const useNotebookCollections = ({ isActive, enabled = true }: TabHookOpti
     refetchOnWindowFocus: false,
     refetchOnMount: true,
     retry: 1,
+    // Indexing finishes in the background, with nothing pushing the result to
+    // the client. Without this poll a freshly created notebook kept its "Wird
+    // indexiert" badge until the user reloaded — the 15-minute staleTime made
+    // "it never becomes ready" the normal experience. Stops on its own once
+    // every notebook is settled.
+    refetchInterval: (q) =>
+      (q.state.data ?? []).some(
+        (c) => (c.indexing_state ?? deriveIndexingState(c.documents ?? [])) === 'indexing'
+      )
+        ? 5000
+        : false,
   });
 
   const createMutation = useMutation({

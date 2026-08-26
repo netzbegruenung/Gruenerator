@@ -1,4 +1,5 @@
-import { useState, useEffect, memo, useCallback } from 'react';
+import { useMeasuredCornerReservation } from '@gruenerator/ui';
+import { useState, useEffect, memo, useCallback, useRef } from 'react';
 import { FaCheck, FaExclamationTriangle } from 'react-icons/fa';
 import { useMediaQuery } from '@gruenerator/shared/hooks';
 
@@ -7,6 +8,8 @@ import { useAutoSaveStore } from '../stores/useAutoSaveStore';
 import type { SidebarTabBarProps, SidebarTabId, SidebarTab } from './types';
 
 import { cn } from '../utils/cn';
+
+const MOBILE_TAB_BAR_CORNERS = ['bottom-left', 'bottom-right'] as const;
 
 interface TabButtonProps {
   tab: SidebarTab;
@@ -100,10 +103,22 @@ export const SidebarTabBar = memo(function SidebarTabBar({
   }, [autoSaveStatus]);
 
   const isHorizontal = horizontal || isMobile;
+  const mobileBarRef = useRef<HTMLDivElement>(null);
+
+  // Die mobile Tab-Leiste klebt an der unteren Kante — schwebende Nachbarn
+  // (Feedback-Button) rücken darüber, statt Tabs zu verdecken.
+  useMeasuredCornerReservation(mobileBarRef, {
+    corner: MOBILE_TAB_BAR_CORNERS,
+    axis: 'vertical',
+    active: isMobile,
+  });
 
   if (isMobile) {
     return (
-      <div className="fixed bottom-0 left-0 right-0 w-full flex items-center justify-evenly overflow-x-auto bg-[var(--editor-surface)] border-t border-[var(--editor-border)] shadow-[0_-2px_8px_rgba(0,0,0,0.08)] pt-2 pb-[calc(6px+env(safe-area-inset-bottom))] z-[100] min-h-[var(--mobile-tab-bar-height,60px)]">
+      <div
+        ref={mobileBarRef}
+        className="fixed bottom-0 left-0 right-0 w-full flex items-center justify-evenly overflow-x-auto bg-[var(--editor-surface)] border-t border-[var(--editor-border)] shadow-[0_-2px_8px_rgba(0,0,0,0.08)] pt-2 pb-[calc(6px+env(safe-area-inset-bottom))] z-[100] min-h-[var(--mobile-tab-bar-height,60px)]"
+      >
         {tabs.map((tab) => (
           <TabButton
             key={tab.id}

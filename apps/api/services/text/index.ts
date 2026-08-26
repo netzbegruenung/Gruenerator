@@ -28,3 +28,13 @@ export {
   DASH_CHARS,
   SOFT_HYPHEN,
 } from './constants.js';
+
+// BM25 sparse-vector encoding (Qdrant hybrid search)
+export {
+  encodeBm25Document,
+  encodeBm25Query,
+  bm25Terms,
+  cistem,
+  hashTerm,
+  type SparseVector,
+} from './bm25.js';

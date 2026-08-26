@@ -11,31 +11,16 @@ import {
 import { useAuiState } from '@assistant-ui/store';
 import { useMobileKeyboardOffset } from '@gruenerator/shared/hooks';
 import { mcpBrandColor } from '@gruenerator/shared/utils';
-import { cn, useIsMobile } from '@gruenerator/ui';
+import { cn, useIsMobile, useMeasuredCornerReservation } from '@gruenerator/ui';
 import { ArrowUp, Mic, Plug, Square, X } from 'lucide-react';
 import { memo, useEffect, useRef, useState, useCallback, type ClipboardEvent } from 'react';
-import { type IconType } from 'react-icons';
 import { RiVoiceAiFill } from 'react-icons/ri';
-import {
-  SiGithub,
-  SiNotion,
-  SiGoogledrive,
-  SiHubspot,
-  SiBrevo,
-  SiZapier,
-  SiTodoist,
-  SiMiro,
-  SiStatista,
-  SiGooglemaps,
-  SiTrivago,
-  SiJira,
-  SiConfluence,
-} from 'react-icons/si';
 
 import { useMentionablesQuery } from '../../hooks/useMentionablesQuery';
 import { handleAttachmentAddError } from '../../lib/attachmentErrorHandler';
 import { getCaretCoords } from '../../lib/caretPosition';
 import { showsSearchDepth } from '../../lib/composerControls';
+import { connectorBrandIcon } from '../../lib/connectorBrand';
 import {
   registerDocumentSlug,
   buildDocumentMentionAttachment,
@@ -64,6 +49,7 @@ import {
   PASTED_TEXT_ATTACHMENT_NAME,
   shouldCreatePastedTextAttachment,
 } from '../../lib/pastedText';
+import { pillsAfterThreadChange } from '../../lib/pillLifecycle';
 import { useScopedAgentId } from '../../lib/useScopedAgentState';
 import { useAgentStore } from '../../stores/chatStore';
 import { useUserProfileStore } from '../../stores/userProfileStore';
@@ -73,6 +59,7 @@ import { SearchDepthToggle } from '../SearchDepthToggle';
 import { CanvaMentionPopover } from './CanvaMentionPopover';
 import { useChatDensity } from './chatDensityContext';
 import { ComposerMentionPills } from './ComposerMentionPills';
+import { ComposerToken } from './ComposerToken';
 import { ConnectMentionPopover } from './ConnectMentionPopover';
 import { FileMentionPopover } from './FileMentionPopover';
 import { MentionPopover } from './MentionPopover';
@@ -81,29 +68,6 @@ import { PlusMenu, type ComposerPreset } from './PlusMenu';
 import { VorlagenMentionPopover } from './VorlagenMentionPopover';
 import { WebMentionPopover } from './WebMentionPopover';
 import { WolkeMentionPopover } from './WolkeMentionPopover';
-
-// Real vendor logo for the pinned-connector chip, keyword-matched on the
-// connector name/host (mirrors apps/web McpSection). No match → generic Plug.
-const CONNECTOR_BRAND_ICONS: ReadonlyArray<readonly [RegExp, IconType]> = [
-  [/github/i, SiGithub],
-  [/notion/i, SiNotion],
-  [/google\s*drive|drive\.google/i, SiGoogledrive],
-  [/google\s*maps|mapstools|maps\.google/i, SiGooglemaps],
-  [/hubspot/i, SiHubspot],
-  [/brevo/i, SiBrevo],
-  [/zapier/i, SiZapier],
-  [/todoist/i, SiTodoist],
-  [/miro/i, SiMiro],
-  [/statista/i, SiStatista],
-  [/trivago/i, SiTrivago],
-  [/jira/i, SiJira],
-  [/confluence/i, SiConfluence],
-];
-
-function connectorBrandIcon(label: string): IconType | null {
-  for (const [re, Icon] of CONNECTOR_BRAND_ICONS) if (re.test(label)) return Icon;
-  return null;
-}
 
 interface GrueneratorComposerProps {
   isRunning?: boolean;
@@ -340,6 +304,8 @@ const INITIAL_MENTION_STATE: MentionState = {
   mentionStart: -1,
 };
 
+const COMPOSER_CORNERS = ['bottom-left', 'bottom-right'] as const;
+
 export const GrueneratorComposer = memo(function GrueneratorComposer({
   isRunning,
   toolbarExtra,
@@ -359,6 +325,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   requireProfileHydration = false,
   enablePastedTextAttachments = false,
 }: GrueneratorComposerProps) {
+  const composerAreaRef = useRef<HTMLDivElement>(null);
   const composerRuntime = useAui().composer;
   const isCompact = useChatDensity() === 'compact';
   const isMobile = useIsMobile();
@@ -371,19 +338,19 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   const [mention, setMention] = useState<MentionState>(INITIAL_MENTION_STATE);
   // Function/agent mentions picked from the popover or plus menu live here as
   // chips ("pills") instead of raw `@websuche` text in the textarea. At send
-  // time they are flushed back into the text as exactly that plain-mention
-  // prefix, so parsing, routing, persistence and the message-bubble chips all
-  // stay on today's path (see buildMentionPrefix).
+  // time they are flushed back into the text as durable mention tokens, so
+  // parsing, routing, persistence and the message-bubble chips all agree on one
+  // text (see buildMentionPrefix).
   const [pillMentions, setPillMentions] = useState<Mentionable[]>([]);
   const pillMentionsRef = useRef(pillMentions);
   pillMentionsRef.current = pillMentions;
 
-  // Pills are a draft property of the current thread's composer — a thread
-  // switch (or new chat, which nulls the id) starts from a clean slate, same
-  // as the store does for activeSkillMention/pinnedConnector.
+  // Switching INTO a thread starts the composer from a clean slate; landing on
+  // the draft keeps what the user already picked (see pillsAfterThreadChange —
+  // the flip to null is what ate the mention on /start).
   const currentThreadId = useAgentStore((s) => s.currentThreadId);
   useEffect(() => {
-    setPillMentions([]);
+    setPillMentions((prev) => pillsAfterThreadChange(prev, currentThreadId));
   }, [currentThreadId]);
 
   // `interactive-widget=resizes-visual` (apps/web/index.html) keeps the layout
@@ -392,6 +359,18 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   // `--mobile-keyboard-offset` on `:root`; the surfaces that own the composer's
   // bottom edge shrink themselves by it.
   useMobileKeyboardOffset(textareaRef);
+
+  // Auf dem Handy klebt der Composer an der unteren Kante, und sein
+  // Senden-/Stop-Knopf sitzt genau dort, wo der Feedback-Button verankert ist.
+  // Gemessen statt deklariert, weil die Höhe am Inhalt hängt (bis zu 6 Zeilen,
+  // Anhänge, umbrechende Mention-Pills). Auf breiten Schirmen endet der
+  // zentrierte `max-w-3xl`-Composer weit vor der Ecke und meldet von selbst
+  // nichts an — ebenso in Dialogen und Einstellungen, die denselben Composer
+  // mitten auf der Seite zeigen.
+  useMeasuredCornerReservation(composerAreaRef, {
+    corner: COMPOSER_CORNERS,
+    axis: 'vertical',
+  });
 
   // Composer mount drives lazy fetching of mentionable data (custom agents,
   // boards, docs). The query is deduplicated across consumers via React Query.
@@ -814,10 +793,14 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
           }));
           break;
         case 'Enter':
-        case 'Tab':
+        case 'Tab': {
           e.preventDefault();
-          handleSelect(filtered[mention.selectedIndex]);
+          // The list can shrink under a held index while `mentionableSync`
+          // refills it; picking nothing beats picking the wrong row.
+          const picked = filtered[mention.selectedIndex];
+          if (picked) handleSelect(picked);
           break;
+        }
         case 'Escape':
           e.preventDefault();
           dismissPopover();
@@ -882,28 +865,17 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     />
   ) : null;
 
-  // Sticky connector chip (web-only for now): a compact INLINE pill at the start
-  // of the input line (ChatGPT-style), with the connector's real brand logo and
-  // a neutral surface. The × unpins. Rendered inside the input row below.
-  const pinnedConnectorBrand = pinnedConnector ? mcpBrandColor(pinnedConnector.label) : '';
-  const PinnedConnectorIcon = pinnedConnector
-    ? (connectorBrandIcon(pinnedConnector.label) ?? Plug)
-    : Plug;
+  // Sticky connector chip (web-only for now): a compact INLINE token at the
+  // start of the input line (ChatGPT-style), with the connector's real brand
+  // logo. The × unpins. Rendered inside the input row below.
   const pinnedConnectorChip = pinnedConnector ? (
-    <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-black/[0.05] py-1 pl-2 pr-1.5 text-[13px] font-medium dark:bg-white/10">
-      <PinnedConnectorIcon className="h-3.5 w-3.5" style={{ color: pinnedConnectorBrand }} />
-      <span className="max-w-40 truncate" style={{ color: pinnedConnectorBrand }}>
-        {pinnedConnector.label}
-      </span>
-      <button
-        type="button"
-        aria-label={`${pinnedConnector.label} lösen`}
-        onClick={() => setPinnedConnector(null)}
-        className="flex h-4 w-4 items-center justify-center rounded-full text-foreground-muted hover:bg-black/10 dark:hover:bg-white/10"
-      >
-        <X className="h-3 w-3" />
-      </button>
-    </span>
+    <ComposerToken
+      icon={connectorBrandIcon(pinnedConnector.label) ?? Plug}
+      brandColor={mcpBrandColor(pinnedConnector.label)}
+      label={pinnedConnector.label}
+      removeLabel={`${pinnedConnector.label} lösen`}
+      onRemove={() => setPinnedConnector(null)}
+    />
   ) : null;
 
   const modelPickerNode = showModelPicker ? <ModelPicker /> : null;
@@ -932,7 +904,10 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   );
 
   return (
-    <div className="px-4 pb-[max(0.25rem,env(safe-area-inset-bottom))] sm:px-6 sm:pb-[max(1rem,env(safe-area-inset-bottom))] lg:px-8">
+    <div
+      ref={composerAreaRef}
+      className="px-4 pb-[max(0.25rem,env(safe-area-inset-bottom))] sm:px-6 sm:pb-[max(1rem,env(safe-area-inset-bottom))] lg:px-8"
+    >
       <ComposerPrimitive.Root
         // Runs before the Root's internal submit handler (composeEventHandlers),
         // so an Enter-submitted draft carries the pills when send() reads it.

@@ -205,7 +205,9 @@ CREATE TABLE IF NOT EXISTS documents (
     wolke_etag TEXT,
     vector_count INTEGER DEFAULT 0,
     last_synced_at TIMESTAMPTZ,
-    group_wolke_share_id TEXT
+    group_wolke_share_id TEXT,
+    processing_started_at TIMESTAMPTZ,
+    processing_attempts INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS document_daily_versions (
@@ -1205,7 +1207,8 @@ CREATE TABLE IF NOT EXISTS monitor_snapshots (
     topic_scores JSONB NOT NULL,
     articles JSONB NOT NULL DEFAULT '[]', -- legacy blob; superseded by monitor_articles
     keywords JSONB DEFAULT '[]',
-    social_trends JSONB DEFAULT '[]'
+    social_trends JSONB DEFAULT '[]', -- German list only; kept for rows predating social_trends_by_locale
+    social_trends_by_locale JSONB DEFAULT '{}' -- {"de": [...], "at": [...]}
 );
 
 CREATE INDEX IF NOT EXISTS idx_monitor_snapshots_created ON monitor_snapshots(created_at DESC);

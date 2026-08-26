@@ -221,6 +221,61 @@ export const wolkeShareLinkSchema = z.object({
 });
 
 /**
+ * Readiness of a notebook's corpus, derived from its documents — never stored.
+ * A persisted field would have to be written through the notebook's
+ * read-modify-write path and would drift exactly the way `document_count` does.
+ *
+ * `partial` and `failed` are kept apart because the remedy differs: `partial`
+ * still answers questions from the documents that made it, `failed` cannot.
+ */
+export const notebookIndexingStateSchema = z.enum([
+  'empty',
+  'indexing',
+  'partial',
+  'failed',
+  'ready',
+]);
+
+export type NotebookIndexingState = z.infer<typeof notebookIndexingStateSchema>;
+
+/**
+ * Derive a notebook's readiness from its document rows.
+ *
+ * Shared by the API (which knows `vector_count` and so can catch documents that
+ * report `completed` without ever having produced a vector) and the clients,
+ * which fall back to this when talking to a backend that predates
+ * `indexing_state`. Passing no `vector_count` simply trusts the status.
+ */
+export function deriveIndexingState(
+  documents: ReadonlyArray<{ status?: string | null; vector_count?: number | null }>
+): NotebookIndexingState {
+  if (documents.length === 0) return 'empty';
+
+  let pending = 0;
+  let ready = 0;
+  let failed = 0;
+
+  for (const doc of documents) {
+    const status = doc.status ?? 'completed';
+    if (status === 'uploaded' || status === 'processing' || status === 'pending') {
+      pending++;
+    } else if (status === 'failed') {
+      failed++;
+    } else if (status === 'completed' && doc.vector_count === 0) {
+      // Indexing reported success but left nothing searchable — for the reader
+      // this is indistinguishable from a failure, so name it one.
+      failed++;
+    } else {
+      ready++;
+    }
+  }
+
+  if (pending > 0) return 'indexing';
+  if (failed === 0) return 'ready';
+  return ready > 0 ? 'partial' : 'failed';
+}
+
+/**
  * TransformedCollection — the shape returned by GET /. Uses z.unknown() for
  * `settings` because it is a Record<string, unknown> with no index signature.
  *
@@ -264,7 +319,25 @@ export const transformedCollectionSchema = z.object({
   access_source: notebookAccessSourceSchema.nullish(),
   slug_suffix: z.string().nullish(),
   creator_name: z.string().nullish(),
+  /**
+   * Derived server-side from the documents above (see deriveIndexingState).
+   * Nullish so responses from a backend predating this field still parse —
+   * clients fall back to deriving it themselves.
+   */
+  indexing_state: notebookIndexingStateSchema.nullish(),
+  indexing_counts: z
+    .object({
+      ready: z.number(),
+      indexing: z.number(),
+      failed: z.number(),
+      total: z.number(),
+    })
+    .nullish(),
 });
+
+/** The collection shape every client reads. Derive from this — never re-declare it. */
+export type TransformedCollection = z.infer<typeof transformedCollectionSchema>;
+export type NotebookDocumentRecord = z.infer<typeof documentRecordSchema>;
 
 // ── Response schemas ────────────────────────────────────────────────────────
 
@@ -312,6 +385,15 @@ export const createCollectionResponseSchema = z.object({
   }),
   message: z.string(),
 });
+
+/**
+ * What POST / returns — deliberately narrower than a listed collection (no
+ * `documents`, no `updated_at`). Exported so callers can type against the real
+ * shape instead of casting it up to the full record.
+ */
+export type CreatedNotebookCollection = z.infer<
+  typeof createCollectionResponseSchema
+>['collection'];
 
 export const updateCollectionResponseSchema = z.object({
   success: z.boolean(),

@@ -113,6 +113,16 @@ vi.mock('../../../services/monitor/UmfragenService.js', async (orig) => {
   };
 });
 
+// Der Dokument-Abruf hinter Seed, `dokumente_lesen` und `summarize` — dieselbe
+// Begründung wie beim DIP und bei PolitPro: nur das Backend, nicht die Kette.
+vi.mock('../../../services/document-services/DocumentSearchService/index.js', async (orig) => {
+  const { fakeQdrantDocumentService } = await import('./harness/searchBackendStub.js');
+  return {
+    ...((await orig()) as Record<string, unknown>),
+    getQdrantDocumentService: fakeQdrantDocumentService,
+  };
+});
+
 vi.mock('ai', async (orig) => {
   const { fakeLoopStreamText, fakeLoopGenerateText } = await import('./harness/loopScript.js');
   return {
@@ -259,6 +269,13 @@ describe('loop decision maps', () => {
         loopScript.calls[0]?.system ?? '',
         `${scenario.id}: der Systemtext des ersten Planer-Schritts sollte "${scenario.systemIncludes}" enthalten`
       ).toContain(scenario.systemIncludes);
+    }
+
+    if (scenario.synthSystemIncludes) {
+      expect(
+        loopScript.calls[loopScript.calls.length - 1]?.system ?? '',
+        `${scenario.id}: der Systemtext des Schreibers sollte "${scenario.synthSystemIncludes}" enthalten`
+      ).toContain(scenario.synthSystemIncludes);
     }
 
     for (const point of scenario.notReached ?? []) {

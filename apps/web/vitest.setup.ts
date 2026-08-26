@@ -21,6 +21,19 @@ globalThis.ResizeObserver ??= class {
   unobserve() {}
   disconnect() {}
 } as unknown as typeof ResizeObserver;
+// Same category: framer-motion's viewport hooks (TypingAnimation and every
+// `whileInView`) construct one while mounting.
+globalThis.IntersectionObserver ??= class {
+  readonly root = null;
+  readonly rootMargin = '';
+  readonly thresholds: readonly number[] = [];
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+  takeRecords() {
+    return [];
+  }
+} as unknown as typeof IntersectionObserver;
 Element.prototype.scrollIntoView ??= function scrollIntoView() {};
 
 // MSW: intercept HTTP for the dom lane. Unhandled requests error out so a stray

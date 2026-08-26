@@ -158,6 +158,7 @@ const TexteRedirectToChatComponent: FC<Record<string, unknown>> = () =>
 const TexteRedirectToChat = lazy(() => Promise.resolve({ default: TexteRedirectToChatComponent }));
 const VorlagenGallery = lazy(() => import('../components/common/Gallery'));
 const MeineVorlagenPage = lazy(() => import('../features/vorlagen/MeineVorlagenPage'));
+const GeteilteVorlagePage = lazy(() => import('../features/vorlagen/GeteilteVorlagePage'));
 const AdminDashboardPage = lazy(() => import('../features/admin/AdminDashboardPage'));
 const AdminSkillsPage = lazy(() => import('../features/admin/AdminSkillsPage'));
 const BgstAdminPage = lazy(() => import('../features/admin/bgst/BgstAdminPage'));
@@ -233,6 +234,7 @@ const ChatPage = lazy(() => import('../features/chat/ChatPage'));
 const VoiceAgentPage = lazy(() => import('../features/voice-agent/VoiceAgentPage'));
 
 const MobileEditorPage = lazy(() => import('../pages/MobileEditorPage'));
+const MobileRenderPage = lazy(() => import('../pages/MobileRenderPage'));
 
 const ScannerPage = lazy(() => import('../features/scanner/ScannerPage'));
 const ZeichenzaehlerPage = lazy(() => import('../features/zeichenzaehler/ZeichenzaehlerPage'));
@@ -264,6 +266,7 @@ const CollabCanvasStudioPage = lazy(
 const GruenOMatDemoPage = lazy(() => import('../features/gruen-o-mat/GruenOMatDemoPage'));
 const TestsommerPage = lazy(() => import('../features/testsommer/TestsommerPage'));
 const MonitorThemenPage = lazy(() => import('../features/monitor/pages/MonitorThemenPage'));
+const MonitorTrendsPage = lazy(() => import('../features/monitor/pages/MonitorTrendsPage'));
 const MonitorUmfragenPage = lazy(() => import('../features/monitor/pages/MonitorUmfragenPage'));
 const MonitorTransparenzPage = lazy(
   () => import('../features/monitor/pages/MonitorTransparenzPage')
@@ -298,6 +301,7 @@ export const GrueneratorenBundle = {
   Reel: Reel,
   Chat: ChatPage,
   MobileEditor: MobileEditorPage,
+  MobileRender: MobileRenderPage,
   Scanner: ScannerPage,
   Transkription: TranskriptionPage,
   Transfer: TransferPage,
@@ -394,6 +398,7 @@ const standardRoutes: RouteConfig[] = [
   // grouping segment is gone from the URLs and the navigation.
   { path: '/themen', component: MonitorThemenPage },
   { path: '/themen/:topic', component: MonitorThemenPage },
+  { path: '/trends', component: MonitorTrendsPage },
   { path: '/umfragen', component: MonitorUmfragenPage },
   { path: '/transparenz', component: MonitorTransparenzPage },
   { path: '/watcher', component: MonitorWatcherPage },
@@ -459,6 +464,10 @@ const standardRoutes: RouteConfig[] = [
   { path: '/icon-test', component: IconAnimationTestPage, channel: 'internal' },
   { path: '/vorlagen', component: GrueneratorenBundle.VorlagenListe },
   { path: '/vorlagen/meine', component: MeineVorlagenPage },
+  // Link-shared Vorlage. `public` because the öffentlich mode has to open
+  // without an account; the page itself asks for a login when the link is
+  // the login-gated kind.
+  { path: '/vorlagen/v/:id', component: GeteilteVorlagePage, public: true },
   {
     path: '/datenbank/vorlagen',
     component: lazy(() => Promise.resolve({ default: createRedirect('/vorlagen') })),
@@ -733,6 +742,16 @@ const standardRoutes: RouteConfig[] = [
 standardRoutes.push({
   path: '/mobile-editor',
   component: GrueneratorenBundle.MobileEditor,
+  layoutMode: 'noChrome',
+});
+
+// Offscreen sharepic renderer for the app's hidden WebView. Deliberately NOT
+// `public`: a rendered sharepic can reference stock images behind `requireAuth`,
+// so the page needs the session the handoff cookie carries. Nobody navigates
+// here by hand — the app opens it through `/api/auth/v2/web-handoff`.
+standardRoutes.push({
+  path: '/mobile-render',
+  component: GrueneratorenBundle.MobileRender,
   layoutMode: 'noChrome',
 });
 

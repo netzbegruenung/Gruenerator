@@ -4,6 +4,12 @@
  */
 
 import { env } from '../../../config/env.js';
+import {
+  GEMMA_31B_ALTERNATE,
+  GEMMA_31B_ON_CORTECS,
+  GEMMA_31B_ON_REGOLO,
+  GEMMA_31B_PRIMARY,
+} from '../../../services/ai/gemmaHosts.js';
 import { isVisionCapable } from '../../../services/ai/modelDiscovery.js';
 import { pickHealthyTarget } from '../../../services/ai/modelSiblings.js';
 import {
@@ -11,12 +17,14 @@ import {
   getLiteLLMProvider,
   getMistralProvider,
   getRegoloProvider,
+  getCortecsProvider,
   getScalewayProvider,
   getScalewayTextProvider,
   isProviderConfigured,
   routeMistralModel,
 } from '../../../services/ai/providerInstances.js';
 import { regoloTextDefault } from '../../../services/ai/textModelPolicy.js';
+import { withWireSafeToolCallIds } from '../../../services/ai/toolCallIds.js';
 import {
   tryAcquireVerdigadoSlot,
   releaseVerdigadoSlot,
@@ -43,9 +51,35 @@ const log = createLogger('chatProviders');
 
 const LITELLM_DEFAULT_MODEL = 'verdigado-pro';
 
+/**
+ * Wohin ein Zug mit Bildern geht, wenn die gewählte Lane keine Bilder kann.
+ *
+ * BLEIBT AUF REGOLO, obwohl alle anderen Gemma-Lanes am 25.08.2026 auf Cortecs
+ * gezogen sind (services/ai/gemmaHosts.ts). Das ist kein Übersehen: ob die
+ * Cortecs-Endpunkt (infercom) Bildteile annimmt, ist GEMESSEN und die Antwort
+ * ist nein: ein echter Bild-Turn am 25.08.2026 endet in HTTP 500
+ * (`unexpected_error`), obwohl der Katalog `input_modalities: ['text','image']`
+ * behauptet. Es ist eine Frage an den Endpunkt, nicht an das Modell.
+ *
+ * Hängt zusammen mit dem `vision: false` von `gemma-4-31b-it` in
+ * modelDiscovery.ts: solange das dort so steht, schickt die Bild-Weiche in
+ * responseStreamingService.ts Bild-Züge ohnehin auf den Regolo-Sibling. Wer
+ * das eine aufhebt, hebt das andere mit auf — und probt vorher.
+ */
 export const VISION_MODEL = {
-  provider: 'regolo' as const,
-  model: env.VISION_DEFAULT_MODEL || 'gemma4-31b',
+  // IMMER Gemma 4 31B — dasselbe Modell, das alle Textlanes fahren, abgeleitet
+  // aus derselben Quelle. Ein hier abgetippter Modellname würde beim nächsten
+  // Modellwechsel zurückbleiben und die Bild-Weiche stillschweigend auf ein
+  // anderes Modell zeigen lassen.
+  //
+  // Der HOST ist auf Regolo festgenagelt und folgt bewusst NICHT
+  // `GEMMA_31B_PRIMARY`: der Cortecs-Endpunkt beantwortet einen echten
+  // Bild-Turn mit HTTP 500 (gemessen 25.08.2026), obwohl sein Katalog
+  // `input_modalities: ['text','image']` behauptet. Bildfähigkeit ist eine
+  // Eigenschaft des ENDPUNKTS, nicht der Gewichte — und Regolo ist die Seite,
+  // auf der sie belegt ist.
+  provider: GEMMA_31B_ON_REGOLO.provider,
+  model: env.VISION_DEFAULT_MODEL || GEMMA_31B_ON_REGOLO.model,
 };
 
 export { getIntermediateModel } from '../../../services/ai/providers.js';
@@ -62,7 +96,7 @@ export { isVisionCapable };
  * first-token-timeout fallback for the chosen side.
  *
  */
-export type Provider = 'mistral' | 'litellm' | 'regolo' | 'greenpt' | 'scaleway';
+export type Provider = 'mistral' | 'litellm' | 'regolo' | 'greenpt' | 'scaleway' | 'cortecs';
 
 const GREENPT_DEFAULT_MODEL = 'mistral-medium-3.5-128b';
 
@@ -181,9 +215,9 @@ const GPT_OSS_OVERFLOW: ModelConfigOverflow = {
  */
 const GEMMA_4_REGOLO: ModelConfigSingle = {
   kind: 'single',
-  provider: 'regolo',
-  model: 'gemma4-31b',
-  contextWindow: CTX_FULL,
+  provider: GEMMA_31B_ON_REGOLO.provider,
+  model: GEMMA_31B_ON_REGOLO.model,
+  contextWindow: GEMMA_31B_ON_REGOLO.contextWindow,
   // Der Ausweichhost war bis 19.08.2026 `gemma-4-verdigado` — dieselben
   // Gewichte, aber der teuerste denkbare Ausweg: 20s bis zum ersten Token,
   // Denken nicht abschaltbar, und vor allem EIN einziger Inferenz-Slot, den
@@ -192,55 +226,150 @@ const GEMMA_4_REGOLO: ModelConfigSingle = {
   // geworden: Regolo hustete, der Ausweg fand keinen freien Slot, und der Zug
   // starb an BEIDEN Lanes mit „Antwort konnte nicht generiert werden".
   //
-  // Jetzt weicht die Lane auf die kleinere Schwester auf Scaleway aus. Bewusst
-  // abgewogen:
-  //   - 31B → 26B ist ein Qualitätsverlust im (seltenen) Ausweichfall, dafür
-  //     0,4s statt 20s bis zum ersten Token und kein Denken (Scaleway pinnt
-  //     `reasoning_effort:'none'` im Transport, siehe GEMMA_4_26B).
+  // Seit 21.08.2026 weicht die Lane auf DIESELBEN Gewichte bei einem anderen
+  // Vertragspartner aus: das dichte 31B über Cortecs. Was das löst und was es
+  // kostet, steht bei GEMMA_4_31B_CORTECS. Drei Dinge, die der Ausweg dadurch
+  // erfüllt und die vorherigen nicht:
+  //   - kein Qualitätsgefälle. Der Ausweg schreibt dem Nutzer Prosa; ein
+  //     kleineres oder unbelegtes Modell verschiebt den Fehler dorthin, wo
+  //     niemand ihn misst.
   //   - kein Slot, der belegt sein kann — der Ausweg hängt nicht mehr an
   //     derselben Engstelle wie die Lane, die ihn braucht.
-  //   - beide Seiten CTX_FULL. Vorher erbte der Sibling nur provider/model,
-  //     nicht das Kontextfenster: der Prompt wurde gegen Regolos 262k bemessen
-  //     und lief auf Verdigados 120k in eine stille Kürzung.
-  // `streamWithFallback` ist single-step by design — der eigene Fallback der
-  // 26B (`gemma-4-greenpt`) greift auf DIESEM Weg also nicht.
-  fallback: 'gemma-4-26b',
+  //   - jede Seite trägt ihr EIGENES Kontextfenster. Früher erbte der Sibling
+  //     nur provider/model: der Prompt wurde gegen Regolos 262k bemessen und
+  //     lief auf Verdigados 120k in eine stille Kürzung.
+  //
+  // Dieser dritte Punkt stand hier bis zum 25.08.2026 als „beide Seiten
+  // CTX_FULL" und war damit eine Beruhigung, die sich selbst überholt hat: seit
+  // dem gemessenen Kontextfenster des Cortecs-Endpunkts (128k, siehe
+  // GEMMA_31B_ON_CORTECS) sind die beiden Seiten NICHT mehr gleich gross. Der
+  // Mechanismus ist deshalb nicht kosmetisch, sondern tragend — jede
+  // Konfiguration zieht ihr Fenster aus ihrem eigenen Host-Deskriptor.
+  //
+  // WORAUF ZU ACHTEN IST, wenn jemand die Ausweichrichtung ändert:
+  // `ResolvedModelTuple.sibling` führt nur provider/model, kein Fenster — bei
+  // einem Ausweich bleibt also die Zahl des PRIMÄRS stehen. Von der
+  // Antwortlane aus ist das harmlos (Cortecs 128k → Regolo 262k, es wird
+  // grösser). Andersherum ist es die stille Kürzung von oben: wer `gemma-regolo`
+  // auflöst (262k) und von dort auf Cortecs ausweicht, hat gegen 262k bemessen
+  // und landet auf 128k. Diese Kennung ist backend-only und wird heute von
+  // nichts von selbst gewählt — wer das ändert, misst vorher.
+  //
+  // `streamWithFallback` ist single-step by design — der eigene Fallback des
+  // Ausweichs (`gemma-regolo`) greift auf DIESEM Weg also nicht.
+  fallback: GEMMA_31B_ON_CORTECS.laneId,
 };
 
 /**
- * Gemma 4 26B-A4B on Scaleway — the SMALL side of the Gemma family, and the
- * lane the auto policy's short/structured turns take.
+ * Das dichte Gemma 4 31B über Cortecs — der Ausweichweg der Gemma-Antwortlane.
  *
- * `provider: 'scaleway'` is correct here and would be wrong for Mistral Medium:
- * the caveat in services/ai/providers.ts applies to models that need the
- * mistral policy set (`isAgenticToolCapable`, context windows, fallback
- * chains). This lane needs none of it — it writes prose over material that is
- * already in context and calls no tools of its own. Gemma 4 26B is exactly the
- * case that comment names: a model Scaleway serves and Mistral does not
- * publish.
+ * Der Registry-Name sagt `gemma-4-26b` und meint es nicht mehr. Er bleibt
+ * trotzdem stehen: F1 (CLAUDE.md), er steckt in persistierten Thread-Zuständen
+ * und wird nicht umbenannt. Was er BEDEUTET, steht hier.
  *
- * The host also happens to match the lane's rule that it never thinks:
- * `scalewayThinkingFetch` pins `reasoning_effort: 'none'` on every request, so
- * "reasoning off" is enforced at the transport instead of being requested.
+ * Die Lane braucht nichts aus dem Mistral-Regelwerk (`isAgenticToolCapable`,
+ * Kontextfenster, Fallback-Ketten): sie schreibt Prosa über Material, das schon
+ * im Kontext steht, und ruft keine eigenen Werkzeuge auf.
  *
- * Failover is Gemma 4 on GreenPT — same family, second EU host.
+ * ── WEG VOM 26B, 21.08.2026 ──
+ *
+ * Diese Lane fuhr `gemma-4-26b-a4b-it`, erst direkt auf Scaleway, dann über
+ * Cortecs. Über Cortecs hatte diese Modell-ID genau EINEN brauchbaren
+ * Unterauftragnehmer, und der verschwand an diesem Tag binnen einer Stunde aus
+ * dem Katalog — derselbe Aufruf, der um 15:52 lief, antwortete um 16:31 mit
+ * `No endpoint passed quantization_filter. Details: {scaleway: Provider not in
+ * allowed providers}, {aki: Endpoint uses quantization}`. Der zweite Endpunkt
+ * war quantisiert und fiel durch den Standardfilter.
+ *
+ * ── UND WARUM NICHT GREENPT, obwohl es der naheliegende Hafen wäre ──
+ *
+ * GreenPTs `gemma4` war der erste Ersatz und ist es nach einem halben Tag nicht
+ * mehr. Zwei Gründe, beide betreffen ausgerechnet den Ausweichfall:
+ *
+ *  1. **Es DENKT IMMER**, rund 5.400 Zeichen, und kein Flag schaltet es ab —
+ *     `enable_thinking:false`, `think:false` und `reasoning_effort:'none'`
+ *     wurden alle drei geprobt, alle drei angenommen und ignoriert
+ *     (nachgemessen 21.08.2026). Live gemessen auf dieser Lane: 4956 ms
+ *     gesamt, davon 4615 ms bis zum ersten Token. Der Ausweg springt ein, wenn
+ *     der Primär schon Zeit verbrannt hat; er darf nicht der langsamere sein.
+ *  2. **Welche Gewichte es trägt, ist unbelegt** — siehe den Doc-Block bei
+ *     GEMMA_4_GREENPT. Ein stilles Qualitätsgefälle ist auf einer Lane, die
+ *     dem Nutzer Prosa schreibt, teuer und unsichtbar zugleich.
+ *
+ * Das dichte 31B über Cortecs hat keinen der beiden Nachteile: dieselben
+ * Gewichte wie der Primär (also gar kein Gefälle) und es denkt von sich aus
+ * nicht (gemessen 21.08.2026: 420 Zeichen Inhalt, 0 Zeichen Denken, ohne jeden
+ * Parameter) — anschalten lässt es sich über
+ * `chat_template_kwargs.enable_thinking`, siehe regoloReasoningStream.ts.
+ *
+ * Die dritte Begründung, die hier bis zum 25.08.2026 stand — „es liegt bei ZWEI
+ * Endpunkten (infercom, berget) statt bei einem" — ist WEG, weil sie nicht mehr
+ * stimmt: der Katalog führt für dieses Modell nur noch `infercom`, und berget
+ * ist über `allowed_providers` nicht erzwingbar (`Endpoint uses quantization`,
+ * auch mit `allow_quantization: true`). Cortecs ist für uns also ebenfalls ein
+ * Ein-Endpunkt-Host; die Reserve dieser Lane ist der Regolo-Ausweich, nicht der
+ * Router. Dieselben Gewichte fahren seit demselben Tag auch `heavy` und
+ * `pruefung` in services/ai/intermediateLanes.ts — dort steht die Messreihe
+ * (TTFT 1122 ms, 210,7 tok/s).
+ *
+ * KEIN Denk-Pin für dieses Modell — aber nicht aus dem Grund, der hier bis zum
+ * 25.08.2026 stand. Live nachgemessen nimmt infercom `reasoning_effort` in den
+ * gradierten Stufen an und IGNORIERT es; abgelehnt (HTTP 400) wird nur `none`.
+ * Ein Pin wäre also wirkungslos oder ein Fehler. Der Hebel, der wirkt, heisst
+ * `chat_template_kwargs.enable_thinking` und sitzt im Denk-Strom
+ * (services/ai/regoloReasoningStream.ts) — Messreihe dort.
+ *
+ * PREIS, bewusst angenommen: Cortecs ist VORAUSBEZAHLT. Ein leeres Guthaben
+ * antwortet mit HTTP 401 wie ein fehlender Schlüssel — dann fällt der Ausweg
+ * aus, und zwar unabhängig davon, warum der Primär ausfiel. Der Schalter
+ * dagegen ist Auto-Top-up im Cortecs-Konto, nicht Code.
+ *
+ * Failover dieses Eintrags ist die Gemma-Familie auf Regolo. Auf dem Weg über
+ * `streamWithFallback` greift das nicht (single-step by design) — es zählt,
+ * wenn jemand `gemma-4-26b` direkt auflöst.
  */
-const GEMMA_4_26B: ModelConfigSingle = {
+const GEMMA_4_31B_CORTECS: ModelConfigSingle = {
   kind: 'single',
-  provider: 'scaleway',
-  model: 'gemma-4-26b-a4b-it',
-  contextWindow: CTX_FULL,
-  fallback: 'gemma-4-greenpt',
+  provider: GEMMA_31B_ON_CORTECS.provider,
+  model: GEMMA_31B_ON_CORTECS.model,
+  // Das kleinere der beiden Fenster, und das ist der Preis des Hosts: der
+  // Ausweich auf Regolo trägt 262k, dieser Endpunkt 128k. Wer hier CTX_FULL
+  // hinschreibt, bekommt keine Fehlermeldung, sondern eine stille Kürzung.
+  contextWindow: GEMMA_31B_ON_CORTECS.contextWindow,
+  fallback: GEMMA_31B_ON_REGOLO.laneId,
 };
 
 /**
- * GreenPTs `gemma4`, erreichbar NUR als Ausweichweg der Lane darüber.
+ * Die Gemma-Antwortlane — welcher der beiden Hosts sie schreibt, entscheidet
+ * `services/ai/gemmaHosts.ts` und sonst nichts.
+ *
+ * Beide Konfigurationen oben bleiben registriert, weil beide Kennungen
+ * auflösbar bleiben müssen (`gemma-regolo`, `gemma-4-26b`) und weil jede die
+ * Ausweichseite der anderen ist. Was hier ausgewählt wird, ist nur, welche von
+ * beiden die Lane-Namen bedient, die der Chat tatsächlich benutzt.
+ */
+const GEMMA_ANSWER_LANE: ModelConfigSingle = {
+  kind: 'single',
+  provider: GEMMA_31B_PRIMARY.provider,
+  model: GEMMA_31B_PRIMARY.model,
+  contextWindow: GEMMA_31B_PRIMARY.contextWindow,
+  // Der Ausweich ist der ANDERE Host — abgeleitet, nicht behauptet. Ein zweites
+  // Mal hingeschriebener Kennungsname wäre genau die Stelle, an der ein
+  // Host-Wechsel den Ausweg auf sich selbst zeigen liesse.
+  fallback: GEMMA_31B_ALTERNATE.laneId,
+};
+
+/**
+ * GreenPTs `gemma4`. Seit 21.08.2026 OHNE Aufrufer: es war der Ausweichweg der
+ * Lane darüber, und die weicht jetzt auf das dichte 31B über Cortecs aus —
+ * Begründung bei GEMMA_4_31B_CORTECS. Der Eintrag bleibt registriert, damit die
+ * Kennung auflösbar bleibt, ist aber kein Pfad mehr, den irgendetwas von selbst
+ * nimmt.
  *
  * Welche Gewichte das sind, ist UNBELEGT: diese Stelle behauptete „the SAME 26B
  * model", `scripts/probeGreenptImpact.ts` ordnet dieselbe ID unserer dichten 31B
- * zu. GreenPT nennt keine Parameterzahl, und aus dem Namen folgt keine.
- * Ausweichweg ist dieser Eintrag deshalb wegen der gemessenen Zahlen unten, nicht
- * wegen einer Identität mit seinem Primär.
+ * zu. GreenPT nennt keine Parameterzahl, und aus dem Namen folgt keine. Genau
+ * diese Unschärfe ist einer der zwei Gründe, warum es den Ausweichweg verlor.
  *
  * Not in the user-facing catalog and not an auto-policy target: picking it
  * deliberately would opt into a behaviour nobody wants as a default. Measured 31.07.2026, three runs against
@@ -328,13 +457,18 @@ export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
 
   // Overflow lanes — Verdigado primary, Regolo on overflow when slot is busy.
   'gpt-oss': GPT_OSS_OVERFLOW,
-  'gemma-4': GEMMA_4_REGOLO,
-  // The small side of the Gemma family. No longer an auto-policy target (folded
-  // into `gemma-litellm` on 07.08.2026 — see autoPolicy.ts); stays registered
-  // for persisted lane ids. Backend-only, like `mistral-small-4`: not in
-  // MODEL_OPTIONS, so nothing picks it by hand.
-  'gemma-4-26b': GEMMA_4_26B,
-  // Failover target only — see GEMMA_4_GREENPT.
+  'gemma-4': GEMMA_ANSWER_LANE,
+  // Der Name lügt seit 21.08.2026 und bleibt trotzdem: F0/F1 — er steckt in
+  // persistierten Thread-Zuständen. Dahinter liegt das DICHTE 31B über Cortecs,
+  // siehe GEMMA_4_31B_CORTECS. Kein Auto-Policy-Ziel mehr (in `gemma-litellm`
+  // gefaltet am 07.08.2026 — siehe autoPolicy.ts), backend-only wie
+  // `mistral-small-4`: nicht in MODEL_OPTIONS, also greift es niemand von Hand.
+  // Seit dem 25.08.2026 ist es nicht mehr bloss ein Ausweich-Zeiger: dieselbe
+  // Konfiguration bedient über GEMMA_ANSWER_LANE auch `gemma-4`,
+  // `gemma-litellm` und `gruenerator-medium`. Der Ausweich-Zeiger zeigt jetzt
+  // andersherum — von hier auf `gemma-regolo`.
+  'gemma-4-26b': GEMMA_4_31B_CORTECS,
+  // Ohne Aufrufer seit 21.08.2026 — siehe GEMMA_4_GREENPT.
   'gemma-4-greenpt': GEMMA_4_GREENPT,
 };
 
@@ -351,7 +485,7 @@ export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
  * umhängen, ohne dass ein ausgeliefertes Bundle davon weiß.
  */
 AVAILABLE_MODELS['gruenerator-small'] = GPT_OSS_OVERFLOW;
-AVAILABLE_MODELS['gruenerator-medium'] = GEMMA_4_REGOLO;
+AVAILABLE_MODELS['gruenerator-medium'] = GEMMA_ANSWER_LANE;
 AVAILABLE_MODELS['gruenerator-ultra'] = AVAILABLE_MODELS['mistral-medium-3.5'];
 
 // Legacy IDs from persisted client state and DB. All point to the new overflow
@@ -359,7 +493,7 @@ AVAILABLE_MODELS['gruenerator-ultra'] = AVAILABLE_MODELS['mistral-medium-3.5'];
 // release cycle once chatStore migration v8 has propagated.
 AVAILABLE_MODELS['litellm'] = GPT_OSS_OVERFLOW;
 AVAILABLE_MODELS['gpt-oss-regolo'] = GPT_OSS_OVERFLOW;
-AVAILABLE_MODELS['gemma-litellm'] = GEMMA_4_REGOLO;
+AVAILABLE_MODELS['gemma-litellm'] = GEMMA_ANSWER_LANE;
 AVAILABLE_MODELS['gemma-regolo'] = GEMMA_4_REGOLO;
 // `gemma-4-verdigado` gab es hier bis 19.08.2026 als reines Failover-Ziel der
 // Gemma-Lane. Es stand nie im User-Katalog, war nie ein Auto-Policy-Ziel und
@@ -488,6 +622,10 @@ export function getContextWindow(
   if (provider === 'greenpt') return CTX_FULL;
   // Gemma 4 26B-A4B carries 262k on Scaleway's H100 instances (model card).
   if (provider === 'scaleway') return CTX_FULL;
+  // NICHT CTX_FULL, obwohl die Gewichte mehr tragen: der Cortecs-Endpunkt
+  // führt 128k (Katalog). Die Zahl steht bei GEMMA_31B_ON_CORTECS, damit ein
+  // Host-Wechsel sie nicht hier vergisst.
+  if (provider === 'cortecs') return GEMMA_31B_ON_CORTECS.contextWindow;
 
   return DEFAULT_CONTEXT_WINDOW;
 }
@@ -535,7 +673,14 @@ export function getModel(
   // is the same model on a different upstream, which users should not be shown.
   const upstream =
     lane.provider === 'mistral' ? routeMistralModel(lane.model, options).upstream : lane.provider;
-  const model = withUsageTracking(instantiateModel(lane.provider, lane.model, options), upstream);
+  // Werkzeug-Aufruf-IDs werden erst hier leitungsfähig gemacht — siehe
+  // services/ai/toolCallIds.ts. Das ist die Tür, die der ganze Chat-Pfad
+  // benutzt, und damit die, über die der Wiederabspieler seine persistierten
+  // `tc_…`-IDs auf die Leitung schickt.
+  const model = withUsageTracking(
+    withWireSafeToolCallIds(instantiateModel(lane.provider, lane.model, options)),
+    upstream
+  );
 
   // Ein Gesundheits-Tausch IST ein anderes Modell — anders als der
   // Scaleway-Upstream oben. Er wird nach `instantiateModel` gemeldet, weil das den
@@ -608,10 +753,10 @@ function instantiateModel(
     // The TEXT instance, not `getScalewayProvider()`: that one carries the
     // Mistral-fallback fetch, which belongs to Medium 3.5 and would route a
     // Gemma id to an upstream that does not serve it. This one pins
-    // `reasoning_effort: 'none'` instead — the enforcement Lane A relies on.
+    // `reasoning_effort: 'none'` instead — the enforcement the MoE relies on.
     case 'scaleway': {
       if (!env.SCALEWAY_API_KEY) {
-        // Without the key every Lane A turn would 401 and only then fail over.
+        // Without the key every turn here would 401 and only then fail over.
         // Naming the substitute here keeps the lane inside the Gemma family and
         // says so once in the log instead of once per request downstream.
         log.warn(
@@ -620,7 +765,25 @@ function instantiateModel(
         lastFallbackProvider = 'regolo';
         return getRegoloProvider().chat(GEMMA_4_REGOLO.model);
       }
-      return getScalewayTextProvider().chat(modelId || GEMMA_4_26B.model);
+      // Literal, NICHT aus einer Lane-Konfiguration gezogen: das ist der Name,
+      // den DIESER Host serviert. Eine Lane, die den Provider wechselt, nähme
+      // ihren Modellnamen sonst mit und liesse hier einen unbekannten zurück —
+      // genau das passierte am 21.08.2026 beim Umzug auf GreenPT.
+      return getScalewayTextProvider().chat(modelId || 'gemma-4-26b-a4b-it');
+    }
+    // Dieselbe Ersatzregel wie oben, aus demselben Grund — und hier zusätzlich,
+    // weil Cortecs vorausbezahlt ist: ein leeres Guthaben antwortet mit 401 wie
+    // ein fehlender Schlüssel, nur eben erst auf der Leitung. Der Schlüsseltest
+    // fängt den einen Fall früh ab, die Fallback-Kette den anderen.
+    case 'cortecs': {
+      if (!env.CORTECS_API_KEY) {
+        log.warn(
+          `CORTECS_API_KEY not set — answering on Regolo Gemma 4 instead (requested "${modelId}")`
+        );
+        lastFallbackProvider = 'regolo';
+        return getRegoloProvider().chat(GEMMA_4_REGOLO.model);
+      }
+      return getCortecsProvider().chat(modelId || GEMMA_4_31B_CORTECS.model);
     }
     case 'anthropic':
       throw new Error('Anthropic provider is not yet implemented');
@@ -806,6 +969,8 @@ export function getProviderName(provider: AgentConfig['provider'] | Provider): s
       return 'GreenPT';
     case 'scaleway':
       return 'Scaleway';
+    case 'cortecs':
+      return 'Cortecs';
     case 'anthropic':
       return 'Anthropic Claude';
     default:

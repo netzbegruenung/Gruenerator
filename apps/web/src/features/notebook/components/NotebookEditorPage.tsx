@@ -91,13 +91,17 @@ function NotebookEditorPageInner({ mode }: NotebookEditorPageProps) {
       toast.success(`Notebook „${data.name}" gespeichert`);
       goBack();
 
+      // Watching the newly added documents used to happen here, as a detached
+      // promise that only survived while this page stayed mounted — and it just
+      // navigated away. The list and the notebook page now poll themselves for
+      // as long as anything is indexing, which survives navigation and
+      // deduplicates across tabs.
       if (addedIds.length > 0) {
-        void Promise.all(addedIds.map((id) => pollDocumentStatus(id))).finally(() => {
-          void queryClient.invalidateQueries({ queryKey: ['notebookCollections'] });
-        });
+        void queryClient.invalidateQueries({ queryKey: ['notebookCollections'] });
+        void queryClient.invalidateQueries({ queryKey: ['notebook', 'collection'] });
       }
     },
-    [updateQACollection, goBack, pollDocumentStatus, queryClient]
+    [updateQACollection, goBack, queryClient]
   );
 
   const handleCreateSave = useCallback(
@@ -115,7 +119,10 @@ function NotebookEditorPageInner({ mode }: NotebookEditorPageProps) {
       const slug = created.slug_suffix
         ? buildNotebookSlug(created.name, created.slug_suffix)
         : created.id;
-      void navigate(`/notebooks/${slug}/bearbeiten`);
+      // Land on the notebook itself, not the editor: indexing is still running
+      // at this point, and the notebook page is where that is visible (banner +
+      // poll) and where the user wants to go next anyway.
+      void navigate(`/notebooks/${slug}`);
     },
     [createQACollection, navigate]
   );

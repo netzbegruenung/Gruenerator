@@ -1,9 +1,11 @@
+import { getProject } from '@gruenerator/shared';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { View, Pressable, StyleSheet, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { PulseLoader } from '../../components/common';
 import { ErrorBoundary } from '../../components/common/ErrorBoundary';
 import { SubtitleEditorScreen } from '../../components/subtitle-editor';
 import { useSubtitleEditorStore } from '../../stores/subtitleEditorStore';
@@ -17,7 +19,7 @@ export default function FullscreenSubtitleEditor() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{
     projectId: string;
-    projectData: string;
+    projectData?: string;
     openShare?: string;
   }>();
 
@@ -29,13 +31,51 @@ export default function FullscreenSubtitleEditor() {
     };
   }, []);
 
-  const project: Project | null = params.projectData
-    ? (JSON.parse(params.projectData) as Project)
-    : null;
+  // Two ways in: the reel tool pushes the full project as `projectData`; the
+  // Studio tab's media grid only has the id and lets this screen fetch. Without
+  // the id path, Studio reels had nowhere native to open and fell back to the
+  // browser.
+  const [project, setProject] = useState<Project | null>(() =>
+    params.projectData ? (JSON.parse(params.projectData) as Project) : null
+  );
+  const [loadFailed, setLoadFailed] = useState(false);
+
+  const needsFetch = !project && !!params.projectId;
+
+  useEffect(() => {
+    if (!needsFetch) return;
+    let cancelled = false;
+    getProject(params.projectId)
+      .then((loaded) => {
+        if (!cancelled) setProject(loaded);
+      })
+      .catch(() => {
+        if (!cancelled) setLoadFailed(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [needsFetch, params.projectId]);
+
+  const unopenable = loadFailed || (!project && !params.projectId);
+  useEffect(() => {
+    if (unopenable) router.back();
+  }, [unopenable]);
+
+  if (unopenable) {
+    return null;
+  }
 
   if (!project) {
-    router.back();
-    return null;
+    return (
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
+        <PulseLoader
+          title="Reel wird geladen..."
+          icon="videocam-outline"
+          onCancel={() => router.back()}
+        />
+      </View>
+    );
   }
 
   const handleClose = () => {

@@ -1,9 +1,14 @@
 import '@testing-library/jest-dom/vitest';
 
 import { cleanup } from '@testing-library/react';
-import { afterEach } from 'vitest';
+import { afterEach, expect } from 'vitest';
+import * as axeMatchers from 'vitest-axe/matchers';
 
 import { installMatchMediaStub } from './src/test/match-media';
+
+// jest-dom + axe matchers (toBeInTheDocument, toHaveNoViolations, …). The axe
+// runner itself is preconfigured in `src/test-utils.ts` — import it from there.
+expect.extend(axeMatchers);
 
 installMatchMediaStub();
 

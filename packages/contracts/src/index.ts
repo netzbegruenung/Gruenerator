@@ -70,6 +70,7 @@ export {
   imageEditContract,
   adminVorlagenContract,
   userTemplatesContract,
+  sharedTemplateContract,
   templateInteractionsContract,
   userAgentsContract,
   userAgentsSharingContract,
@@ -151,6 +152,7 @@ export * from './schemas/mcpServers.js';
 export * from './schemas/imageEdit.js';
 export * from './schemas/adminVorlagen.js';
 export * from './schemas/userTemplates.js';
+export * from './schemas/sharedTemplate.js';
 export * from './schemas/templateInteractions.js';
 export * from './schemas/userAgents.js';
 export * from './schemas/userAgentsSharing.js';

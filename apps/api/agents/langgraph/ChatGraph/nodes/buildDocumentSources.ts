@@ -59,6 +59,9 @@ interface BuildOpts {
   connectFiles: ConnectFileRef[];
   threadAttachments: ChatGraphState['threadAttachments'];
   currentDocument: ChatGraphState['currentDocument'];
+  /** documentId → Dateiname für Anhänge, die in DIESEM Turn hochgeladen wurden
+   *  und deshalb noch in keiner `threadAttachments`-Zeile stehen. */
+  documentChatLabels?: Record<string, string> | undefined;
 }
 
 /**
@@ -71,11 +74,16 @@ export function buildDocumentSources(opts: BuildOpts): DocumentSource[] {
   const sources: DocumentSource[] = [];
   // An attachment that was vectorized carries its Qdrant id — that id is what
   // arrives here as a documentChatId, so the file's real name is recoverable.
-  const nameByDocumentId = new Map(
-    (opts.threadAttachments ?? [])
+  const nameByDocumentId = new Map([
+    // Anhänge früherer Turns …
+    ...(opts.threadAttachments ?? [])
       .filter((a) => !a.isImage && a.documentId)
-      .map((a) => [a.documentId as string, a.name] as const)
-  );
+      .map((a) => [a.documentId as string, a.name] as const),
+    // … und die dieses Turns, die es noch in keine Anhang-Zeile geschafft
+    // haben (die entsteht erst nach der Antwort). Zuletzt, damit der frische
+    // Name gewinnt, falls dieselbe id in beiden steht.
+    ...Object.entries(opts.documentChatLabels ?? {}),
+  ]);
   let unnamed = 0;
   /**
    * A label for a source we only know by id.

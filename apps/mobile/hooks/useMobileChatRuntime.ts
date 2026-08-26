@@ -73,9 +73,7 @@ export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
     (): GrueneratorAdapterConfig => ({
       agentId: selectedAgentId,
       modelId: selectedModel,
-      // Web search is removed from the mobile app; the shared store may still
-      // carry web: true from web/legacy state, so force it off here.
-      enabledTools: { ...enabledTools, web: false },
+      enabledTools,
       threadId: useAgentStore.getState().currentThreadId,
       selectedNotebookId,
       // Notebook mode scopes RAG by collection id. System notebooks resolve to
@@ -122,7 +120,7 @@ export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
   );
 
   const onThreadCreated = useCallback((newThreadId: string) => {
-    useAgentStore.getState().setCurrentThread(newThreadId);
+    useAgentStore.getState().mintThreadFromDraft(newThreadId);
   }, []);
 
   const fetchFn = useChatConfigStore((s) => s.fetch);

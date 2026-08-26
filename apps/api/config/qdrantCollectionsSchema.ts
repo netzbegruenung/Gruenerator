@@ -11,9 +11,15 @@ export type OptimizerPresetKey = 'large' | 'medium' | 'small' | 'tiny' | 'minima
 
 export interface OptimizerConfig {
   default_segment_number: number;
+  /** In KB, not points — Qdrant measures both segment size and index threshold in kilobytes. */
   max_segment_size: number;
   memmap_threshold?: number;
-  indexing_threshold?: number;
+  /**
+   * In KB. Required, and it MUST stay below `max_segment_size`: a segment can
+   * never grow past its own cap, so a threshold at or above the cap means the
+   * HNSW index is never built. See the note on OPTIMIZER_PRESETS.
+   */
+  indexing_threshold: number;
 }
 
 export type HnswPresetKey = 'standard' | 'enhanced' | 'minimal';
@@ -55,36 +61,74 @@ export interface CollectionConfig {
     size: number;
     distance: 'Cosine';
   };
+  sparse_vectors?: Record<string, { modifier?: 'idf'; index?: { on_disk?: boolean } }>;
   optimizers_config?: OptimizerConfig;
   hnsw_config?: HnswConfig;
 }
+
+/**
+ * Name of the BM25 sparse vector on every collection. The dense vector stays
+ * unnamed (`''`) for backward compatibility with all existing points and the
+ * legacy search API. NOTE: Qdrant can only declare sparse vectors at
+ * createCollection time — existing collections need the copy migration in
+ * `scripts/migrate-bm25-sparse.ts`, updateCollection cannot add them.
+ */
+export const BM25_SPARSE_VECTOR_NAME = 'bm25';
 
 // =============================================================================
 // Optimizer Presets
 // =============================================================================
 
+/**
+ * Both numbers are in KB. `indexing_threshold` is where Qdrant starts building
+ * the HNSW index, `max_segment_size` is the ceiling the optimizer keeps every
+ * segment under — so the threshold has to sit BELOW the ceiling, otherwise no
+ * segment ever crosses it and `indexed_vectors_count` stays 0 forever, at any
+ * collection size.
+ *
+ * Every preset used to violate that: `large` set both to 20000, and the other
+ * four left `indexing_threshold` unset, which lands on Qdrant's default of
+ * 20000 — at or above each of their caps. Measured on the prod instance before
+ * the fix: `documents` held 33,175 points (136 MB) across 13 segments of ~10 MB
+ * each, indexed 0. The only collection in the whole deployment with a built
+ * index was `landesverbaende_documents`, whose live config carries
+ * indexing_threshold 10000 against max_segment_size 20000 — a value that comes
+ * from neither preset. The ratio below is that working collection's.
+ *
+ * Note this only shapes collections at CREATE time; `getCollectionConfig` is
+ * only ever read by `createCollection`, and nothing in the codebase issues an
+ * `updateCollection`. Existing collections keep whatever they were made with.
+ */
 export const OPTIMIZER_PRESETS: Record<OptimizerPresetKey, OptimizerConfig> = {
   large: {
     default_segment_number: 2,
     max_segment_size: 20000,
     memmap_threshold: 10000,
-    indexing_threshold: 20000,
+    indexing_threshold: 10000,
   },
   medium: {
     default_segment_number: 2,
     max_segment_size: 20000,
+    indexing_threshold: 10000,
   },
   small: {
     default_segment_number: 1,
     max_segment_size: 10000,
+    indexing_threshold: 5000,
   },
+  // The two smallest presets stay well under hnsw.full_scan_threshold (10000
+  // points), so Qdrant answers them exactly regardless of whether an index
+  // exists. The threshold is set anyway to keep the invariant uniform — a
+  // preset that grows into a bigger role should not have to rediscover it.
   tiny: {
     default_segment_number: 1,
     max_segment_size: 5000,
+    indexing_threshold: 2500,
   },
   minimal: {
     default_segment_number: 1,
     max_segment_size: 1000,
+    indexing_threshold: 500,
   },
 };
 
@@ -147,11 +191,21 @@ export const SYSTEM_COLLECTION_STANDARD_INDEXES: CollectionSchemaIndex[] = [
 // =============================================================================
 
 export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
+  // Per-user documents. Its `chunk_text`/`title`/`filename`/`user_id` indexes come
+  // from TEXT_SEARCH_INDEXES below, not from this list — so a field that is only
+  // ever filtered (never text-searched) has to be named here or it stays
+  // unindexed. `document_id` is the main filter of every notebook query
+  // (searchOperations.ts drops the `user_id` clause once documentIds is set, so
+  // shared notebooks stay visible) and was missing from both lists: Qdrant read
+  // the payload of all ~33k points per query, 125 ms instead of ~4 ms.
   documents: {
     name: 'documents',
     optimizer: 'large',
     hnsw: 'standard',
-    indexes: [],
+    indexes: [
+      { field: 'document_id', type: 'keyword' },
+      { field: 'source_type', type: 'keyword' },
+    ],
   },
   grundsatz_documents: {
     name: 'grundsatz_documents',
@@ -507,6 +561,9 @@ export function getCollectionConfig(
     vectors: {
       size: vectorSize,
       distance: 'Cosine',
+    },
+    sparse_vectors: {
+      [BM25_SPARSE_VECTOR_NAME]: { modifier: 'idf' },
     },
   };
 

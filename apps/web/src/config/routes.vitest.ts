@@ -22,6 +22,12 @@ const EXPECTED_PUBLIC_PATHS = [
   '/subtitler/share/:shareToken',
   '/share/:shareToken',
   '/boards/public/:id',
+  // A Vorlage whose owner set share_mode='public'. The id is the credential:
+  // the endpoint behind it answers 401 for a login-gated link and 404 for a
+  // private one, so an anonymous visitor only ever sees a Vorlage that was
+  // deliberately opened. The page shows title, blurb and preview — making a
+  // copy still needs an account.
+  '/vorlagen/v/:id',
   // Legally required to be reachable without an account.
   '/datenschutz',
   '/impressum',

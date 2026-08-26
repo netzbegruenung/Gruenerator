@@ -24,6 +24,7 @@ import { isEmbedded } from '../../utils/platform';
 import { useTourAutostart } from '../tours/useTourAutostart';
 
 import { CanvasChatDocContext } from './CanvasChatDocContext';
+import { SaveAsTemplateDialog } from './components/SaveAsTemplateDialog';
 import { ShareCanvasDialog } from './components/ShareCanvasDialog';
 import { updateCanvasThumbnail } from './services/canvasThumbnailService';
 import { WebCanvasEditorProvider } from './WebCanvasEditorProvider';
@@ -34,6 +35,7 @@ function CollabCanvasStudioContent() {
   const user = useAuthStore((s) => s.user);
   const config = useCollaborationConfig();
   const [shareOpen, setShareOpen] = useState(false);
+  const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
 
   const queryClient = useQueryClient();
 
@@ -220,15 +222,17 @@ function CollabCanvasStudioContent() {
               chromeCenter={chromeCenter}
               chromeRight={chromeRight}
               onInvitePeople={() => setShareOpen(true)}
+              onSaveAsTemplate={() => setSaveTemplateOpen(true)}
             />
           </div>
-          <ShareCanvasDialog
+          <ShareCanvasDialog canvasId={canvas.id} open={shareOpen} onOpenChange={setShareOpen} />
+          <SaveAsTemplateDialog
             canvasId={canvas.id}
             canvasType={canvas.template_type}
             initialState={canvas.initial_state}
             defaultTitle={canvas.title}
-            open={shareOpen}
-            onOpenChange={setShareOpen}
+            open={saveTemplateOpen}
+            onOpenChange={setSaveTemplateOpen}
           />
         </div>
       </CanvasChatDocContext.Provider>

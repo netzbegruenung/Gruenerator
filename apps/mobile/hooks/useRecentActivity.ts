@@ -5,8 +5,7 @@ import { useCallback } from 'react';
 import { Linking } from 'react-native';
 
 import { DEV_FIXTURES_ENABLED, DEV_RECENT_ACTIVITY } from '../services/devFixtures';
-
-const WEB_ORIGIN = 'https://gruenerator.eu';
+import { WEB_ORIGIN } from '../services/webOrigin';
 
 export type RecentItemType = 'doc' | 'board' | 'image' | 'video' | 'presentation' | 'canvas';
 
@@ -49,8 +48,9 @@ export function useRecentActivity(): { items: RecentItem[]; isLoading: boolean }
 /**
  * Opens a recent item where mobile can actually render it: docs in the native
  * editor, canvases in the read-only viewer, image shares in the in-app viewer
- * (which downloads, previews and offers save/share). Everything else has no
- * native surface yet and opens on the web.
+ * (which downloads, previews and offers save/share), reels in the native
+ * subtitle editor. Everything else has no native surface yet and opens on the
+ * web.
  */
 export function useOpenRecentItem(): (item: RecentItem) => void {
   const router = useRouter();
@@ -75,6 +75,15 @@ export function useOpenRecentItem(): (item: RecentItem) => void {
         router.push({
           pathname: '/(fullscreen)/pushed-content',
           params: { shareToken: item.id, mediaType: 'image', title: item.title },
+        } as Href);
+        return;
+      }
+      // Reels open in the native subtitle editor, the same one the reel tool
+      // pushes to. Only the id travels — the editor fetches the project itself.
+      if (item.type === 'video') {
+        router.push({
+          pathname: '/(fullscreen)/subtitle-editor',
+          params: { projectId: item.id },
         } as Href);
         return;
       }

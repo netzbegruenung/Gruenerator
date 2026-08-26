@@ -19,6 +19,7 @@ import { getErrorMessage } from '../../utils/errors/handlers.js';
 import { createLogger } from '../../utils/logger.js';
 
 import { buildMem0Config, isMem0Available, validateMem0Environment } from './config.js';
+import { recordMem0Failure, recordMem0Success } from './mem0Health.js';
 
 import type { Mem0Message, Mem0Memory, Mem0MemoryMetadata, Mem0HistoryRecord } from './types.js';
 
@@ -144,6 +145,12 @@ export class Mem0Service {
           // Non-fatal, but a real silent-extraction failure: the SDK couldn't
           // parse the LLM output, so 0 memories were saved. Surface at warn (not
           // debug) so an unhealthy extraction model is visible in normal logs.
+          // Zaehlt als Ausfall, nicht als leeres Ergebnis: hier wurden 0
+          // Erinnerungen gespeichert, WEIL das Extraktionsmodell unlesbar
+          // geantwortet hat. Liefe das am Zaehler vorbei, waere ein dauerhaft
+          // kaputtes Modell wieder weder ok noch failed — genau die Blindheit,
+          // gegen die mem0Health.ts geschrieben ist.
+          recordMem0Failure('add');
           log.warn(
             `[Mem0] ${errName} from mem0ai SDK — extraction parse failed, 0 memories saved for user ${userId}`
           );
@@ -181,9 +188,15 @@ export class Mem0Service {
       } else {
         log.info(`[Mem0] Added ${addedMemories.length} memories for user ${userId}`);
       }
+      recordMem0Success('add');
       return addedMemories;
     } catch (error) {
-      log.warn(`[Mem0] Error adding memories for user ${userId}: ${getErrorMessage(error)}`);
+      // error, nicht warn: hier landet auch ein Totalausfall des Vektorspeichers
+      // (mem0s `addToVectorStore` holt ungeschuetzt Dedupe-Nachbarn, bevor die
+      // Extraktion laeuft). Der Turn laeuft trotzdem weiter — genau deshalb
+      // braucht es die laute Zeile UND den Zaehler, siehe mem0Health.ts.
+      recordMem0Failure('add');
+      log.error(`[Mem0] Error adding memories for user ${userId}: ${getErrorMessage(error)}`);
       return [];
     }
   }
@@ -230,9 +243,14 @@ export class Mem0Service {
         `[Mem0] Found ${memories.length} relevant memories (${allMemories.length - memories.length} filtered below threshold) for user ${userId}`
       );
 
+      recordMem0Success('search');
       return memories;
     } catch (error) {
-      log.warn(`[Mem0] Error searching memories for user ${userId}: ${getErrorMessage(error)}`);
+      // error, nicht warn: ein leeres Ergebnis und ein toter Vektorspeicher
+      // sahen im Log identisch aus — genau daran blieb #2807 fuenf Tage lang
+      // unbemerkt.
+      recordMem0Failure('search');
+      log.error(`[Mem0] Error searching memories for user ${userId}: ${getErrorMessage(error)}`);
       return [];
     }
   }

@@ -1,0 +1,240 @@
+{
+  "rows": [
+    {
+      "id": "chat",
+      "task": "Chat & Texte (Standard)",
+      "models": [
+        {
+          "model": "mistral-medium-2604",
+          "code": "mistral-medium-2604",
+          "label": "Mistral Medium 3.5",
+          "provider": "mistral",
+          "host": "Mistral AI",
+          "flag": "🇫🇷",
+          "role": "primary"
+        },
+        {
+          "model": "gemma-4-31b-it",
+          "code": "gemma-4-31b-it",
+          "label": "Gemma 4 (31 Mrd.)",
+          "provider": "cortecs",
+          "host": "Cortecs",
+          "flag": "🇱🇺",
+          "role": "fallback"
+        }
+      ]
+    },
+    {
+      "id": "kreativ",
+      "task": "Kreativtexte, Antworten schreiben",
+      "models": [
+        {
+          "model": "gemma-4-31b-it",
+          "code": "gemma-4-31b-it",
+          "label": "Gemma 4 (31 Mrd.)",
+          "provider": "cortecs",
+          "host": "Cortecs",
+          "flag": "🇱🇺",
+          "role": "primary"
+        },
+        {
+          "model": "gemma4-31b",
+          "code": "gemma4-31b",
+          "label": "Gemma 4 (31 Mrd.)",
+          "provider": "regolo",
+          "host": "Regolo",
+          "flag": "🇮🇹",
+          "role": "fallback"
+        }
+      ]
+    },
+    {
+      "id": "schnell",
+      "task": "Schnelle Antworten",
+      "models": [
+        {
+          "model": "verdigado-pro",
+          "code": "verdigado-pro",
+          "label": "GPT-OSS 120B",
+          "provider": "litellm",
+          "host": "verdigado",
+          "flag": "🇩🇪",
+          "role": "primary"
+        },
+        {
+          "model": "gpt-oss-120b",
+          "code": "gpt-oss-120b",
+          "label": "GPT-OSS 120B",
+          "provider": "regolo",
+          "host": "Regolo",
+          "flag": "🇮🇹",
+          "role": "overflow"
+        }
+      ]
+    },
+    {
+      "id": "zusammenfassen",
+      "task": "Lange Dokumente zusammenfassen",
+      "models": [
+        {
+          "model": "gemma-4-31b-it",
+          "code": "gemma-4-31b-it",
+          "label": "Gemma 4 (31 Mrd.)",
+          "provider": "cortecs",
+          "host": "Cortecs",
+          "flag": "🇱🇺",
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "einordnen",
+      "task": "Anfragen einordnen, Zwischenschritte",
+      "models": [
+        {
+          "model": "mistral-small-4-119b",
+          "code": "mistral-small-4-119b",
+          "label": "Mistral Small 4",
+          "provider": "regolo",
+          "host": "Regolo",
+          "flag": "🇮🇹",
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "werkzeuge",
+      "task": "Werkzeuge planen und aufrufen",
+      "models": [
+        {
+          "model": "mistral-small-3.2-24b-instruct-2506",
+          "code": "mistral-small-3.2-24b-instruct-2506",
+          "label": "Mistral Small 3.2",
+          "provider": "greenpt",
+          "host": "GreenPT",
+          "flag": "🇪🇺",
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "artefakte",
+      "task": "Dokumente, Präsentationen, PDFs, Tabellen",
+      "models": [
+        {
+          "model": "gemma4",
+          "code": "gemma4",
+          "label": "Gemma 4",
+          "provider": "greenpt",
+          "host": "GreenPT",
+          "flag": "🇪🇺",
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "bilder-verstehen",
+      "task": "Bilder verstehen",
+      "models": [
+        {
+          "model": "gemma4-31b",
+          "code": "gemma4-31b",
+          "label": "Gemma 4 (31 Mrd.)",
+          "provider": "regolo",
+          "host": "Regolo",
+          "flag": "🇮🇹",
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "bilder-erzeugen",
+      "task": "Bilder erzeugen & bearbeiten",
+      "models": [
+        {
+          "model": "/v1/flux-2-pro",
+          "code": "flux-2-pro",
+          "label": "FLUX 2 Pro",
+          "provider": "bfl",
+          "host": "Black Forest Labs",
+          "flag": "🇩🇪",
+          "role": "primary"
+        },
+        {
+          "model": "/v1/flux-2-klein-9b",
+          "code": "flux-2-klein-9b",
+          "label": "FLUX 2 Klein",
+          "provider": "bfl",
+          "host": "Black Forest Labs",
+          "flag": "🇩🇪",
+          "role": "primary"
+        },
+        {
+          "model": "/v1/flux-2-max",
+          "code": "flux-2-max",
+          "label": "FLUX 2 Max",
+          "provider": "bfl",
+          "host": "Black Forest Labs",
+          "flag": "🇩🇪",
+          "role": "primary"
+        },
+        {
+          "model": "Qwen-Image",
+          "code": "Qwen-Image",
+          "label": "Qwen-Image",
+          "provider": "regolo",
+          "host": "Regolo",
+          "flag": "🇮🇹",
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "id": "transkription",
+      "task": "Untertitel & Transkription",
+      "models": [
+        {
+          "model": "voxtral-mini-latest",
+          "code": "voxtral-mini-latest",
+          "label": "Voxtral Mini",
+          "provider": "voxtral",
+          "host": "Mistral AI",
+          "flag": "🇫🇷",
+          "role": "primary"
+        },
+        {
+          "model": "green-s-pro",
+          "code": "green-s-pro",
+          "label": "Green S Pro",
+          "provider": "greenpt",
+          "host": "GreenPT",
+          "flag": "🇪🇺",
+          "role": "fallback"
+        }
+      ]
+    },
+    {
+      "id": "embeddings",
+      "task": "Suche & Notebooks (Embeddings)",
+      "models": [
+        {
+          "model": "mistral-embed",
+          "code": "mistral-embed",
+          "label": "Mistral Embed",
+          "provider": "mistral",
+          "host": "Mistral AI",
+          "flag": "🇫🇷",
+          "role": "primary"
+        }
+      ]
+    }
+  ],
+  "hosts": [
+    "Black Forest Labs 🇩🇪",
+    "Cortecs 🇱🇺",
+    "GreenPT 🇪🇺",
+    "Mistral AI 🇫🇷",
+    "Regolo 🇮🇹",
+    "verdigado 🇩🇪"
+  ]
+}

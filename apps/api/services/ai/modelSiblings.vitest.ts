@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { _resetModelHealthForTests, recordSlowVerdict } from './modelHealth.js';
 import { pickHealthyTarget, resolveAlternative } from './modelSiblings.js';
 
-const configured = new Set(['regolo', 'scaleway', 'litellm', 'mistral']);
+const configured = new Set(['regolo', 'cortecs', 'litellm', 'mistral']);
 
 vi.mock('./providers.js', () => ({
   isProviderConfigured: (p: string) => configured.has(p),
@@ -21,7 +21,7 @@ describe('modelSiblings', () => {
   beforeEach(() => {
     _resetModelHealthForTests();
     configured.clear();
-    for (const p of ['regolo', 'scaleway', 'litellm', 'mistral']) configured.add(p);
+    for (const p of ['regolo', 'cortecs', 'litellm', 'mistral']) configured.add(p);
   });
 
   it('ohne Vermerk bleibt alles, wie es war', () => {
@@ -31,14 +31,14 @@ describe('modelSiblings', () => {
   it('das belegte Geschwister geht vor der Fallback-Kette', () => {
     markSlow('regolo', 'gemma4-31b');
     expect(pickHealthyTarget('regolo', 'gemma4-31b')).toEqual({
-      provider: 'scaleway',
-      model: 'gemma-4-26b-a4b-it',
+      provider: 'cortecs',
+      model: 'gemma-4-31b-it',
     });
   });
 
   it('ist das Geschwister selbst zäh, greift die Kette', () => {
     markSlow('regolo', 'gemma4-31b');
-    markSlow('scaleway', 'gemma-4-26b-a4b-it');
+    markSlow('cortecs', 'gemma-4-31b-it');
     expect(pickHealthyTarget('regolo', 'gemma4-31b')).toEqual({
       provider: 'litellm',
       model: 'verdigado-pro',
@@ -46,7 +46,7 @@ describe('modelSiblings', () => {
   });
 
   it('ein nicht konfigurierter Anbieter wird übersprungen', () => {
-    configured.delete('scaleway');
+    configured.delete('cortecs');
     configured.delete('litellm');
     markSlow('regolo', 'gemma4-31b');
     expect(pickHealthyTarget('regolo', 'gemma4-31b')).toEqual({
@@ -57,7 +57,7 @@ describe('modelSiblings', () => {
 
   it('ist alles zäh, bleibt es beim Primär — langsam schlägt gar nicht', () => {
     markSlow('regolo', 'gemma4-31b');
-    markSlow('scaleway', 'gemma-4-26b-a4b-it');
+    markSlow('cortecs', 'gemma-4-31b-it');
     markSlow('litellm', 'verdigado-pro');
     markSlow('mistral', 'mistral-medium-2604');
     expect(pickHealthyTarget('regolo', 'gemma4-31b')).toBeNull();
@@ -98,7 +98,7 @@ describe('modelSiblings', () => {
       // Ohne Veto wäre `litellm` das erste Kettenglied für ein zähes Mistral.
       markSlow('mistral', 'mistral-medium-2604');
       configured.delete('regolo');
-      configured.delete('scaleway');
+      configured.delete('cortecs');
       expect(pickHealthyTarget('mistral', 'mistral-medium-2604', mayWriteAnswer)).toBeNull();
     });
 
@@ -107,7 +107,7 @@ describe('modelSiblings', () => {
       configured.add('litellm');
       configured.add('regolo');
       markSlow('regolo', 'gemma4-31b');
-      markSlow('scaleway', 'gemma-4-26b-a4b-it');
+      markSlow('cortecs', 'gemma-4-31b-it');
       // Übrig bliebe nur litellm/verdigado-pro — das Veto lehnt es ab.
       expect(pickHealthyTarget('regolo', 'gemma4-31b', mayWriteAnswer)).toBeNull();
       // Gegenprobe: OHNE Veto ist es genau das, was die Kette zurückgibt.

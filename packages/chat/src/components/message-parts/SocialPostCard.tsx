@@ -16,7 +16,7 @@ import type { SharepicData } from '../../hooks/useChatGraphStream';
 const COLLAPSE_THRESHOLD = 600;
 
 /** Public documentation for the experimental social-post feature. */
-const SOCIAL_POST_DOC_URL = 'https://doku.gruenerator.eu/docs/chat/social-media-post';
+const SOCIAL_POST_DOC_URL = 'https://doku.gruenerator.eu/docs/chat/was-kann-ich-fragen';
 
 /** Highlight hashtags inside the plain post text (design: primary, bold). */
 function renderPostText(text: string): React.ReactNode[] {

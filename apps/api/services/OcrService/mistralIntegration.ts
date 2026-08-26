@@ -5,6 +5,19 @@
  * Two entry points:
  * - extractTextWithMistralOCR(filePath) — reads file from disk
  * - extractBase64WithMistralOCR(base64, filename, mimeType) — accepts base64 directly (chat attachments)
+ *
+ * KEIN `tableFormat`. Die Antwort trägt Tabellen sonst NICHT im Markdown,
+ * sondern als eigenes Asset in `page.tables[]` — im Markdown bleibt nur ein
+ * Verweis `[tbl-0.html](tbl-0.html)`. Wir lesen aber ausschliesslich
+ * `page.markdown`, also fiel jede Tabelle still unter den Tisch. Gemessen am
+ * 24.08.2026 an einer Seite mit der Löschfristen-Tabelle: mit der Option 202
+ * Zeichen und keine einzige Zelle, ohne sie 632 Zeichen mit der vollständigen
+ * Tabelle als Markdown.
+ *
+ * Sie kam am 01.03.2026 herein („for OCR 3's improved table extraction") und
+ * hat das Gegenteil bewirkt, weil der Leser nie nachgezogen wurde. Wer sie
+ * wiederhaben will, muss zuerst `page.tables` einlesen und an der Stelle des
+ * Verweises einsetzen — vorher ist sie ein stiller Datenverlust.
  */
 
 import { promises as fs } from 'fs';
@@ -66,7 +79,6 @@ export async function extractTextWithMistralOCR(
       model: 'mistral-ocr-4-0',
       document,
       includeImageBase64: false,
-      tableFormat: 'html',
     });
 
     if (!ocrResponse.pages || ocrResponse.pages.length === 0) {
@@ -149,7 +161,6 @@ export async function extractBase64WithMistralOCR(
       model: 'mistral-ocr-4-0',
       document,
       includeImageBase64: false,
-      tableFormat: 'html',
     });
 
     if (!ocrResponse.pages || ocrResponse.pages.length === 0) {

@@ -28,6 +28,7 @@ import { loadLandesverbandContacts } from '../../config/landesverbaendeConfig.js
 import { sendContentSyncEmail } from '../../services/email/emailService.js';
 import { upsertSyncEvents } from '../../services/monitor/ContentSyncEventsService.js';
 import { getContentStatsMarkdown } from '../../services/scrapers/contentStats.js';
+import { drainExtractionStats } from '../../services/scrapers/extractionRecorder.js';
 import { drainSyncEvents } from '../../services/scrapers/syncEventRecorder.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { toError, toUserFacingMessage } from '../../utils/errors/index.js';
@@ -226,6 +227,27 @@ async function persistRecordedEvents(): Promise<void> {
 }
 
 /**
+ * Drain the extraction counters and log what the run cost. Mandatory even when
+ * nobody reads the numbers: this is a long-lived process, and an undrained
+ * buffer would carry one run's figures into the next run's report.
+ */
+function drainAndLogExtraction(label: string): ReturnType<typeof drainExtractionStats> {
+  const extraction = drainExtractionStats();
+  const gated =
+    extraction.skipped.not_modified +
+    extraction.skipped.same_bytes +
+    extraction.skipped.freshly_indexed;
+  if (extraction.documents > 0 || gated > 0) {
+    log.info(
+      `Extraction ${label}: read ${extraction.documents} docs / ${extraction.pages} pages ` +
+        `(OCR ${extraction.ocrDocuments}/${extraction.ocrPages}), ` +
+        `${extraction.redundant} for nothing, ${gated} gated`
+    );
+  }
+  return extraction;
+}
+
+/**
  * Scoped per-LV run — mirrors update-all-content.ts's `--landesverband` CLI
  * path, including its own email notification (recipient from
  * landesverbaendeContacts.json, suppressed when nothing changed).
@@ -246,6 +268,8 @@ async function runScopedLandesverband(
     recent: opts.recent,
     landesverband,
   });
+
+  const extraction = drainAndLogExtraction(`LV ${landesverband}`);
 
   const hasChanges = result.stored + result.updated + result.errors > 0;
   if (!opts.dryRun) {
@@ -283,6 +307,7 @@ async function runScopedLandesverband(
               skipped: result.skipped,
               errors: result.errors,
             },
+            extraction,
             runUrl,
             dryRun: opts.dryRun,
           });
@@ -377,6 +402,7 @@ async function executeSyncRun(
     clearTimeout(timeoutId!);
 
     await persistRecordedEvents();
+    drainAndLogExtraction(lockKey);
 
     const durationMs = Date.now() - startTime;
 
@@ -407,6 +433,7 @@ async function executeSyncRun(
     const durationMs = Date.now() - startTime;
     // Articles indexed before the failure are real — keep their events.
     await persistRecordedEvents();
+    drainAndLogExtraction(lockKey);
     log.error(`Content sync failed: ${lockKey} — ${err.message}`);
     return {
       status: 500,

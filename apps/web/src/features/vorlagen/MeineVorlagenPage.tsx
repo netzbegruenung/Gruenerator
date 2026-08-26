@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import FavoriteVorlagenSection from './components/FavoriteVorlagenSection';
+import { ShareVorlageDialog } from './components/ShareVorlageDialog';
 import VorlagenListSection from './components/VorlagenListSection';
 import { useTemplateActions } from './hooks/useTemplateActions';
 import { isCanvasEditorType, isGrueneratorType, type Template } from './types';
@@ -19,9 +20,11 @@ import { SHOW_CANVAS_EDITOR } from '@/config/featureFlags';
 const MeineVorlagenPage = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
+  const [sharingTemplate, setSharingTemplate] = useState<Template | null>(null);
 
   const { query, openTemplate, getActions, updateTemplate } = useTemplateActions({
     onEdit: setEditingTemplate,
+    onShare: setSharingTemplate,
   });
 
   const { gruenerator, canvasEditor, canva } = useMemo(() => {
@@ -151,6 +154,16 @@ const MeineVorlagenPage = () => {
           onClose={() => setShowAddModal(false)}
           onSuccess={handleAddSuccess}
         />
+
+        {sharingTemplate && (
+          <ShareVorlageDialog
+            template={sharingTemplate}
+            open={true}
+            onOpenChange={(next) => {
+              if (!next) setSharingTemplate(null);
+            }}
+          />
+        )}
 
         {editingTemplate && (
           <EditTemplateModal

@@ -25,6 +25,7 @@ import {
   createFrameActions,
   createUserImageActions,
 } from './factory/actionFactories';
+import { carryInstanceState } from './factory/carryInstanceState';
 import { makeSectionDefiner } from './factory/defineSection';
 import { injectFeatureProps } from './featureInjector';
 import { PLACEHOLDER_TEXT } from './placeholders';
@@ -66,6 +67,8 @@ export interface VeranstaltungFullState {
   beschreibungOpacity?: number;
   titleColor?: string;
   beschreibungColor?: string;
+  eventTitlePosition?: { x: number; y: number };
+  beschreibungPosition?: { x: number; y: number };
   assetInstances: AssetInstance[];
   isDesktop: boolean;
   // Icons & Shapes
@@ -97,6 +100,25 @@ export interface VeranstaltungFullState {
 // ============================================================================
 // ACTIONS TYPE
 // ============================================================================
+
+/**
+ * Uebernimmt die Schluessel, die die Werkzeugleiste an Titel und Beschreibung
+ * schreibt (Deckkraft, Farbe, gezogene Position), aus dem Seed. Fehlende
+ * Schluessel bleiben weg statt als `undefined` im Zustand zu stehen.
+ */
+function carryTextStyling(props: Record<string, unknown>): Partial<VeranstaltungFullState> {
+  const keys = [
+    'eventTitleOpacity',
+    'beschreibungOpacity',
+    'titleColor',
+    'beschreibungColor',
+    'eventTitlePosition',
+    'beschreibungPosition',
+  ];
+  return Object.fromEntries(
+    keys.filter((k) => props[k] != null).map((k) => [k, props[k]])
+  ) as Partial<VeranstaltungFullState>;
+}
 
 export interface VeranstaltungFullActions {
   setEventTitle: (val: string) => void;
@@ -239,6 +261,8 @@ function createDateCircleTextLines(
 /**
  * Create initial date circle badge instance
  */
+const DATE_CIRCLE_ID = 'date-circle';
+
 function createInitialDateCircleBadge(
   weekday: string,
   date: string,
@@ -246,7 +270,7 @@ function createInitialDateCircleBadge(
 ): CircleBadgeInstance {
   const circleConfig = VERANSTALTUNG_CONFIG.circle;
   return {
-    id: 'date-circle',
+    id: DATE_CIRCLE_ID,
     x: circleConfig.centerX,
     y: circleConfig.centerY,
     radius: circleConfig.radius,
@@ -257,6 +281,32 @@ function createInitialDateCircleBadge(
     opacity: 1,
     textLines: createDateCircleTextLines(weekday, date, time),
   };
+}
+
+/**
+ * Haelt den Datumskreis am Termin, ohne die Bearbeitung wegzuwerfen.
+ *
+ * `createInitialState` baut nicht nur den ersten Zustand: Karten-Render und
+ * Chat-Bearbeitung setzen den vollen alten Zustand hier neu. Ein festes
+ * `[createInitialDateCircleBadge(...)]` verwarf dabei jede Verschiebung, jede
+ * Groessenaenderung und alle selbst hinzugefuegten Kreise. Uebernommen wird
+ * deshalb der bestehende Kreis, ueberschrieben nur die Zeilen aus dem Termin.
+ */
+function carryDateCircleBadges(
+  props: Record<string, unknown>,
+  weekday: string,
+  date: string,
+  time: string
+): CircleBadgeInstance[] {
+  // Am Vorhandensein des Schluessels entschieden, nicht an der Laenge: eine
+  // leere Liste heisst "der Kreis wurde entfernt". Neu angelegte Seiten
+  // bringen den Schluessel gar nicht erst mit.
+  if (!Array.isArray(props.circleBadgeInstances)) {
+    return [createInitialDateCircleBadge(weekday, date, time)];
+  }
+  const carried = props.circleBadgeInstances as CircleBadgeInstance[];
+  const textLines = createDateCircleTextLines(weekday, date, time);
+  return carried.map((badge) => (badge.id === DATE_CIRCLE_ID ? { ...badge, textLines } : badge));
 }
 
 // ============================================================================
@@ -481,6 +531,7 @@ export const veranstaltungFullConfig: FullCanvasConfig<
       opacityStateKey: 'eventTitleOpacity',
       fill: (state: VeranstaltungFullState, _layout: LayoutResult) => state.titleColor ?? '#FFFFFF',
       fillStateKey: 'titleColor',
+      positionStateKey: 'eventTitlePosition',
     },
     // Description
     {
@@ -517,6 +568,7 @@ export const veranstaltungFullConfig: FullCanvasConfig<
       fill: (state: VeranstaltungFullState, _layout: LayoutResult) =>
         state.beschreibungColor ?? '#FFFFFF',
       fillStateKey: 'beschreibungColor',
+      positionStateKey: 'beschreibungPosition',
     },
     // Date circle is now rendered via circleBadgeInstances for text support
   ],
@@ -548,22 +600,17 @@ export const veranstaltungFullConfig: FullCanvasConfig<
         (props.customEventTitleFontSize as number | null | undefined) ?? null,
       customBeschreibungFontSize:
         (props.customBeschreibungFontSize as number | null | undefined) ?? null,
-      eventTitleOpacity: 1,
-      beschreibungOpacity: 1,
-      assetInstances: [],
+      // Aus den Props statt hart auf 1: dieselbe Begruendung wie bei den
+      // Schriftgroessen darueber. Farbe und gezogene Position standen
+      // ueberhaupt nicht hier und fielen bei jedem Re-Seed weg.
+      ...carryTextStyling(props),
+      // Alles selbst Hinzugefuegte statt hart `[]`: sonst raeumt jede
+      // Chat-Bearbeitung Icons, Formen und Zusatztexte ab. Der Datumskreis
+      // ueberschreibt seinen Schluessel gleich darunter.
+      ...carryInstanceState(props),
       isDesktop: typeof window !== 'undefined' && window.innerWidth >= 900,
-      selectedIcons: [],
-      iconStates: {},
-      shapeInstances: [],
       selectedShapeId: null,
-      illustrationInstances: [],
-      additionalTexts: [],
-      circleBadgeInstances: [createInitialDateCircleBadge(weekday, date, time)],
-      pillBadgeInstances: [],
-      balkenInstances: [],
-      frameInstances: [],
-      chartInstances: [],
-      userImageInstances: [],
+      circleBadgeInstances: carryDateCircleBadges(props, weekday, date, time),
       imageAttribution:
         (props.imageAttribution as StockImageAttribution | null | undefined) ?? null,
     };

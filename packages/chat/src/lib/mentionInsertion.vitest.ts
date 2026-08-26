@@ -1,3 +1,4 @@
+import { parseMentionTokens } from '@gruenerator/shared/utils';
 import { describe, expect, it } from 'vitest';
 
 import { type Mentionable } from './mentionables';
@@ -71,19 +72,38 @@ describe('computePillMentionInsertion', () => {
 });
 
 describe('buildMentionPrefix', () => {
-  it('joins every mention with @ — skills live in the @-namespace', () => {
+  it('emits a durable mcp token for a connector pill', () => {
+    const prefix = buildMentionPrefix([
+      mentionable({ identifier: 'mcp:fb75887f-bf1c-4369', title: 'Tally', mention: 'tally' }),
+    ]);
+    expect(prefix).toBe('@[Tally](mcp:fb75887f-bf1c-4369)');
+  });
+
+  it('renders as a chip — the whole point of the token form', () => {
+    const prefix = buildMentionPrefix([
+      mentionable({ identifier: 'mcp:fb75887f-bf1c-4369', title: 'Tally', mention: 'tally' }),
+    ]);
+    expect(parseMentionTokens(prefix)).toEqual([
+      expect.objectContaining({ type: 'mcp', id: 'fb75887f-bf1c-4369', label: 'Tally' }),
+    ]);
+  });
+
+  it('tokenises tools and notebooks, joined by a space', () => {
     expect(
       buildMentionPrefix([
         mentionable({}),
-        mentionable({ category: 'skill', mention: 'presse' }),
-        mentionable({ mention: 'berlin' }),
+        mentionable({ type: 'notebook', identifier: 'klima-berlin', title: 'Klima' }),
       ])
-    ).toBe('@websuche @presse @berlin');
+    ).toBe('@[Websuche](tool:websearch) @[Klima](notebook:klima-berlin)');
   });
 
-  it('round-trips through the same text shape computeMentionInsertion produces', () => {
-    const typed = computeMentionInsertion('', mentionable({}), -1, 0).newText;
-    expect(`${buildMentionPrefix([mentionable({})])} `).toBe(typed);
+  it('keeps the plain form for recipes — the skill token carries no agent', () => {
+    expect(
+      buildMentionPrefix([
+        mentionable({ type: 'agent', category: 'skill', title: 'Presse', mention: 'presse' }),
+        mentionable({ type: 'textform', category: 'skill', title: 'Grüße', mention: 'gruesse' }),
+      ])
+    ).toBe('@presse @gruesse');
   });
 });
 

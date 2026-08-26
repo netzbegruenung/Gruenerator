@@ -1,7 +1,12 @@
 import { getAuthErrorMessage } from '@gruenerator/collab';
 import { DocsProvider } from '@gruenerator/docs';
 import { getContractsClient } from '@gruenerator/shared/api';
-import { ConfirmDialogProvider, Fab } from '@gruenerator/ui';
+import {
+  ConfirmDialogProvider,
+  Fab,
+  useIsMobile,
+  useScreenCornerReservation,
+} from '@gruenerator/ui';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { FiMessageSquare, FiX } from 'react-icons/fi';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -11,6 +16,7 @@ import withAuthRequired from '../../components/common/LoginRequired/withAuthRequ
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { useDocumentTitle } from '../../components/hooks/useDocumentTitle';
 import { useBoardsTyped } from '../../hooks/useBoardsTyped';
+import { useHostAwareBack } from '../../hooks/useHostAwareBack';
 import useUserDefaults from '../../hooks/useUserDefaults';
 import { useAuthStore } from '../../stores/authStore';
 import { webAppDocsAdapter } from '../docs/docsAdapter';
@@ -92,10 +98,15 @@ function BoardContent() {
     []
   );
 
+  // Deleting the board we are looking at has to leave this page, and where
+  // "away" is depends on the host: in the app's WebView `/workplace` is not a
+  // way out but a chrome-less dead end (`RouteComponent` forces `noChrome`
+  // while embedded), reachable only via the host's own close button.
+  const leaveBoard = useHostAwareBack('/workplace');
   const handleDelete = useCallback(() => {
     if (!id) return;
-    deleteBoard.mutate(id, { onSuccess: () => void navigate('/workplace') });
-  }, [deleteBoard, id, navigate]);
+    deleteBoard.mutate(id, { onSuccess: leaveBoard });
+  }, [deleteBoard, id, leaveBoard]);
   const handleArchiveToggle = useCallback(() => {
     if (!id) return;
     const willArchive = !board || !isBoardArchived(board);
@@ -236,6 +247,9 @@ function BoardContent() {
   );
 }
 
+// `w-80` der Assistenten-Leiste, siehe unten.
+const ASSISTANT_PANEL_CORNERS = ['top-right', 'bottom-right'] as const;
+
 function BoardViewContent({
   ydoc,
   isSynced,
@@ -296,6 +310,16 @@ function BoardViewContent({
   const [searchQuery, setSearchQuery] = useState('');
   const [quickFilters, setQuickFilters] = useState<QuickFilter[]>([]);
   const [includeArchived, setIncludeArchived] = useState(false);
+  const isMobile = useIsMobile();
+
+  // Das offene Assistenten-Panel belegt die ganze rechte Kante; unter `md`
+  // deckt es den Bildschirm. Schwebende Nachbarn weichen aus bzw. verschwinden.
+  useScreenCornerReservation({
+    corner: ASSISTANT_PANEL_CORNERS,
+    horizontal: '20rem',
+    blocked: isMobile,
+    active: assistantOpen,
+  });
 
   // Deep-link to a specific card via `?card=<rowId>` (e.g. from an assignment /
   // comment notification). Resolve against ALL rows so quick-filters/archived

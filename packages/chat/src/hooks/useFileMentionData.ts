@@ -75,8 +75,11 @@ export function useCombinedContentQuery(enabled: boolean) {
     staleTime: STALE_TIME,
     retry: 1,
     queryFn: async () => {
-      const response = await configFetch('/api/auth/documents/combined-content');
-      if (!response.ok) return { documents: [], texts: [] };
+      // `/api/documents`, NOT `/api/auth/documents`: the authRouter has no
+      // `documents` branch, so the old path never resolved — and returning an
+      // empty result on `!ok` made that 404 look like an empty account.
+      const response = await configFetch('/api/documents/combined-content');
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
       interface RawDocItem {
         id: string;
@@ -159,6 +162,9 @@ export function useFileMentionData(enabled: boolean) {
   const contentQuery = useCombinedContentQuery(enabled);
   const searchInCollection = useCollectionSearch();
 
+  // The `*Failed` flags exist so a broken endpoint cannot keep passing for an
+  // empty account: every consumer renders an empty list identically to a
+  // successful "you have no files", which is what hid the 404 above.
   return useMemo(
     () => ({
       collections: collectionsQuery.data ?? [],
@@ -166,13 +172,17 @@ export function useFileMentionData(enabled: boolean) {
       texts: contentQuery.data?.texts ?? [],
       loadingCollections: collectionsQuery.isLoading,
       loadingContent: contentQuery.isLoading,
+      collectionsFailed: collectionsQuery.isError,
+      contentFailed: contentQuery.isError,
       searchInCollection,
     }),
     [
       collectionsQuery.data,
       collectionsQuery.isLoading,
+      collectionsQuery.isError,
       contentQuery.data,
       contentQuery.isLoading,
+      contentQuery.isError,
       searchInCollection,
     ]
   );
