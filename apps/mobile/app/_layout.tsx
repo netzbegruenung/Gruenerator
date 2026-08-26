@@ -6,6 +6,7 @@ import {
   Raleway_600SemiBold,
   Raleway_700Bold,
 } from '@expo-google-fonts/raleway';
+import { setMentionInstance } from '@gruenerator/chat';
 import { useAuthStore } from '@gruenerator/shared/stores';
 import { QueryClientProvider } from '@tanstack/react-query';
 import * as Notifications from 'expo-notifications';
@@ -25,6 +26,7 @@ import { DomWarmup } from '../components/common/DomWarmup';
 import { ErrorBoundary } from '../components/common/ErrorBoundary';
 import { AppDrawer } from '../components/navigation';
 import { SettingsSheet } from '../components/settings';
+import { CURRENT_INSTANCE } from '../config/instance';
 import { useAppInitialization } from '../hooks/useAppInitialization';
 import { queryClient } from '../services/queryClient';
 import { useOnboardingStore } from '../stores/onboardingStore';
@@ -62,6 +64,26 @@ Notifications.setNotificationHandler({
  * while off screen.
  */
 enableFreeze(true);
+
+/**
+ * Tell the chat package which instance this binary talks to.
+ *
+ * `getAgentMentionables()` (the `@`-picker) and the recipe library ask
+ * `getMentionInstance()` at call time; without this the module default pinned
+ * every install to `production`, so an instance that hides recipes still had
+ * them in the picker (#2903).
+ *
+ * Here rather than next to `configureMobileChat()` in `services/chatConfig.ts`:
+ * that module is only imported by the chat providers and the thread list, so a
+ * call there would not provably precede every mention surface. The root layout
+ * is the root of the Expo Router tree — every screen renders as its child, so
+ * this module body runs before anything can render a mention list. Same reason
+ * `enableFreeze` sits at module scope above.
+ *
+ * Module scope rather than an effect, mirroring web's `ChatPage`: unlike the
+ * locale, the instance is fixed for the lifetime of the bundle.
+ */
+setMentionInstance(CURRENT_INSTANCE);
 
 function RootLayout() {
   const colorScheme = useColorScheme();
