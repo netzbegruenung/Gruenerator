@@ -32,6 +32,7 @@ vi.mock('../bundestag/index.js', () => ({
 }));
 
 const { notebookQAService } = await import('./NotebookQAService.js');
+const { inspectCorpusState, summarizeDocumentRows } = await import('./corpusState.js');
 
 interface CorpusInspection {
   state: string;
@@ -42,13 +43,7 @@ interface CorpusInspection {
   total: number;
 }
 
-/** `_inspectCorpusState` ist privat — der Zustand ist genau das Prüfziel. */
-const inspect = (ids: string[]): Promise<CorpusInspection> =>
-  (
-    notebookQAService as unknown as {
-      _inspectCorpusState(ids: readonly string[], userId: string): Promise<CorpusInspection>;
-    }
-  )._inspectCorpusState(ids, 'user-1');
+const inspect = (ids: string[]): Promise<CorpusInspection> => inspectCorpusState(ids, 'user-1');
 
 const emptyMessage = (corpus: CorpusInspection | null): string =>
   (
@@ -141,6 +136,52 @@ describe('Korpus-Prüfung fragt Qdrant statt vector_count', () => {
 
     expect(corpus.state).toBe('indexing');
     expect(corpus.stale).toHaveLength(1);
+  });
+});
+
+describe('Abgeleiteter Notizbuch-Zustand für die Liste', () => {
+  // Die Liste darf Qdrant nicht befragen (ein Aufruf pro Notizbuch wäre das
+  // nächste N+1) — sie klassifiziert allein aus den Postgres-Zeilen.
+  const state = (rows: Array<Record<string, unknown>>) =>
+    summarizeDocumentRows(rows as Parameters<typeof summarizeDocumentRows>[0]).state;
+
+  it('nennt ein Notizbuch ohne Dokumente leer', () => {
+    expect(state([])).toBe('empty');
+  });
+
+  it('meldet indexing, solange ein Dokument noch wartet', () => {
+    expect(state([row('a'), row('b', { status: 'uploaded' })])).toBe('indexing');
+  });
+
+  it('zählt processing und pending ebenfalls als indexing', () => {
+    expect(state([row('a', { status: 'processing' })])).toBe('indexing');
+    expect(state([row('a', { status: 'pending' })])).toBe('indexing');
+  });
+
+  it('meldet ready, wenn alle Dokumente Vektoren haben', () => {
+    expect(state([row('a'), row('b')])).toBe('ready');
+  });
+
+  it('unterscheidet partial von failed', () => {
+    expect(state([row('a'), row('b', { status: 'failed' })])).toBe('partial');
+    expect(state([row('a', { status: 'failed' })])).toBe('failed');
+  });
+
+  it('wertet completed ohne Vektoren als fehlgeschlagen', () => {
+    // Für die lesende Person ist das von einem Fehler nicht zu unterscheiden:
+    // das Dokument gilt als fertig und ist trotzdem nicht durchsuchbar.
+    expect(state([row('a', { vector_count: 0 })])).toBe('failed');
+    expect(state([row('a'), row('b', { vector_count: 0 })])).toBe('partial');
+  });
+
+  it('liefert Zählwerte passend zum Zustand', () => {
+    const { counts } = summarizeDocumentRows([
+      row('a'),
+      row('b', { status: 'failed' }),
+      row('c', { status: 'processing' }),
+    ] as Parameters<typeof summarizeDocumentRows>[0]);
+
+    expect(counts).toEqual({ ready: 1, indexing: 1, failed: 1, total: 3 });
   });
 });
 

@@ -31,6 +31,7 @@ import {
   likeEntity,
   unlikeEntity,
 } from '../../services/entityLikes/EntityLikesService.js';
+import { summarizeDocumentRows } from '../../services/notebook/corpusState.js';
 import { createNotification } from '../../services/notifications/NotificationService.js';
 import { getUsageMap } from '../../services/usage/ItemUsageService.js';
 import { getProfileService } from '../../services/user/ProfileService.js';
@@ -168,16 +169,23 @@ async function enrichNotebookCollection(
   );
 
   let documents: DocumentRecord[] = [];
+  let vectorCounts = new Map<string, number | null>();
   if (documentIds.length > 0) {
     // `status` and the failure reason ride along so the editor can mark
     // unreadable documents on open. `metadata` is read here but never returned:
     // it also holds the on-disk filePath, which has no business leaving the
     // server.
-    const rows = await postgres.query<DocumentRecord & { metadata?: unknown }>(
-      'SELECT id, title, page_count, created_at, source_type, wolke_share_link_id, status, metadata FROM documents WHERE id = ANY($1)',
+    const rows = await postgres.query<
+      DocumentRecord & { metadata?: unknown; vector_count?: number | null }
+    >(
+      'SELECT id, title, page_count, created_at, source_type, wolke_share_link_id, status, vector_count, metadata FROM documents WHERE id = ANY($1)',
       [documentIds]
     );
-    documents = rows.map(({ metadata, ...doc }) => {
+    // `vector_count` never reaches the client — it only feeds the readiness
+    // derivation below, where a `completed` document without vectors has to
+    // count as failed rather than ready.
+    vectorCounts = new Map(rows.map((row) => [row.id, row.vector_count ?? null]));
+    documents = rows.map(({ metadata, vector_count: _vectorCount, ...doc }) => {
       const meta = (
         typeof metadata === 'string'
           ? (JSON.parse(metadata) as Record<string, unknown>)
@@ -211,10 +219,24 @@ async function enrichNotebookCollection(
     ? (settings.wordpress_sites as WordpressSiteRef[])
     : [];
 
+  // Readiness is derived, never stored: a persisted field would have to travel
+  // through updateNotebookCollection's read-modify-write and would drift the
+  // way document_count did. The rows are already loaded, so this costs nothing.
+  const readiness = summarizeDocumentRows(
+    documents.map((doc) => ({
+      id: doc.id,
+      title: doc.title ?? null,
+      status: doc.status ?? 'completed',
+      vector_count: vectorCounts.get(doc.id) ?? null,
+    }))
+  );
+
   return {
     ...collection,
     documents,
     document_count: documents.length,
+    indexing_state: readiness.state,
+    indexing_counts: readiness.counts,
     selection_mode: collection.selection_mode || 'documents',
     wolke_share_links,
     has_wolke_sources: wolke_share_links.length > 0,
@@ -602,6 +624,9 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
           collection: {
             id: collectionId,
             ...collectionData,
+            // Minted inside storeNotebookCollection — without passing it back the
+            // client has no slug and falls back to the raw UUID URL.
+            slug_suffix: result.slug_suffix,
             document_count: allDocumentIds.length,
             documents_from_wolke: selection_mode === 'wolke' ? wolkeDocuments.length : 0,
             wolke_share_links: selection_mode === 'wolke' ? wolke_share_link_ids : [],
