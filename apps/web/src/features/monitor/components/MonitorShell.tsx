@@ -30,11 +30,10 @@ interface MonitorShellProps {
 }
 
 /**
- * Shared page chrome for all /themen, /umfragen, /watcher and /feed routes: title, locale switcher and the
- * refresh controls. Navigation into the sub-pages happens via the section
- * headers on the Übersicht (Workplace pattern); sub-pages get a back link.
- * Routes are flat (no router nesting in this app), so every monitor page
- * renders this wrapper.
+ * Page chrome for /watcher — und nur noch dafür: Titel, DE/AT-Umschalter und
+ * die Refresh-Knöpfe. Themen, Trends, Feed und Umfragen rendern stattdessen
+ * `MonitorPageHeader` mit der Quernavigation; die Übersichtsseite, auf die
+ * diese Chrome einmal zugeschnitten war, gibt es nicht mehr.
  */
 export function MonitorShell({ section, children }: MonitorShellProps) {
   const queryClient = useQueryClient();
