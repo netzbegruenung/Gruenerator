@@ -62,7 +62,7 @@ import {
   userAgentsSharingContract,
   skillPromptContract,
   skillVisibilityContract,
-  bgstInstanceOverviewContract,
+  instanceAdminOverviewContract,
   lvAdminAssignmentContract,
   landesverbandAdminContract,
   userTextFormsContract,
@@ -292,7 +292,7 @@ const _userAgentsClient = () => initClient(userAgentsContract, CLIENT_OPTS);
 const _userAgentsSharingClient = () => initClient(userAgentsSharingContract, CLIENT_OPTS);
 const _skillPromptClient = () => initClient(skillPromptContract, CLIENT_OPTS);
 const _skillVisibilityClient = () => initClient(skillVisibilityContract, CLIENT_OPTS);
-const _bgstInstanceOverviewClient = () => initClient(bgstInstanceOverviewContract, CLIENT_OPTS);
+const _instanceAdminOverviewClient = () => initClient(instanceAdminOverviewContract, CLIENT_OPTS);
 const _lvAdminAssignmentClient = () => initClient(lvAdminAssignmentContract, CLIENT_OPTS);
 const _landesverbandAdminClient = () => initClient(landesverbandAdminContract, CLIENT_OPTS);
 const _userTextFormsClient = () => initClient(userTextFormsContract, CLIENT_OPTS);
@@ -361,7 +361,7 @@ export interface ContractsClient {
   userAgentsSharing: ReturnType<typeof _userAgentsSharingClient>;
   skillPrompt: ReturnType<typeof _skillPromptClient>;
   skillVisibility: ReturnType<typeof _skillVisibilityClient>;
-  bgstInstanceOverview: ReturnType<typeof _bgstInstanceOverviewClient>;
+  instanceAdminOverview: ReturnType<typeof _instanceAdminOverviewClient>;
   lvAdminAssignment: ReturnType<typeof _lvAdminAssignmentClient>;
   landesverbandAdmin: ReturnType<typeof _landesverbandAdminClient>;
   userTextForms: ReturnType<typeof _userTextFormsClient>;
@@ -444,7 +444,7 @@ export function getContractsClient(): ContractsClient {
     userAgentsSharing: _userAgentsSharingClient(),
     skillPrompt: _skillPromptClient(),
     skillVisibility: _skillVisibilityClient(),
-    bgstInstanceOverview: _bgstInstanceOverviewClient(),
+    instanceAdminOverview: _instanceAdminOverviewClient(),
     lvAdminAssignment: _lvAdminAssignmentClient(),
     landesverbandAdmin: _landesverbandAdminClient(),
     userTextForms: _userTextFormsClient(),

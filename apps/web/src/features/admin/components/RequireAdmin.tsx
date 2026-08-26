@@ -10,7 +10,7 @@ import { useMyLandesverbandAdminScopes } from '../../landesverband-admin/hooks/u
 /**
  * Shared "is this user allowed here" gate for admin pages — replaces the
  * copy-pasted `is_admin` check + "Kein Zugriff" fallback that used to live
- * inline in AdminDashboardPage/AdminSkillsPage.
+ * inline in the admin pages before they were merged into AdminPage.
  *
  * `{ type: 'instanceAdmin' }` — today's `user.is_admin === true` check.
  * `{ type: 'lvAdmin', landesverbandId }` — the URL's `landesverbandId` is
