@@ -17,12 +17,19 @@ import type { MonitorLocale } from '../hooks/useMonitor';
 const MAX_POSTS = 9;
 
 /** Latest posts of the locale's Grüne Bluesky account. */
-export function BlueskyGrid({ locale }: { locale: MonitorLocale }) {
+export function BlueskyGrid({
+  locale,
+  className = 'mt-12',
+}: {
+  locale: MonitorLocale;
+  /** Section spacing — the Feed page leads with this block, so it overrides. */
+  className?: string;
+}) {
   const { data: posts, isLoading } = useBlueskyFeed(locale);
 
   if (isLoading) {
     return (
-      <section className="mt-12">
+      <section className={className}>
         <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-[18px]">
           {['a', 'b', 'c'].map((k) => (
             <Skeleton key={k} className="h-40 rounded-2xl" />
@@ -35,7 +42,7 @@ export function BlueskyGrid({ locale }: { locale: MonitorLocale }) {
   const account = posts[0]?.authorHandle;
 
   return (
-    <section className="mt-12">
+    <section className={className}>
       <div className="mb-5 flex items-baseline justify-between gap-4">
         <h2 className={cn('m-0 text-[1.35rem] font-semibold tracking-[-0.01em]', MONITOR_HEADING)}>
           Von Bluesky
