@@ -18,7 +18,8 @@ import {
   MONITOR_TILE,
 } from '../components/theme';
 import { TopicDetail } from '../components/TopicDetail';
-import { useBlueskyFeed } from '../hooks/useBlueskyFeed';
+import { WordCloudCard } from '../components/WordCloudCard';
+import { formatDateTime } from '../formatDateTime';
 import {
   MONITOR_CITATION_LINK_CONFIG,
   mapMonitorCitations,
@@ -33,19 +34,6 @@ import type { TopicCategory } from '../topicConfig';
 
 type TopicScore = MonitorSnapshot['topics'][number];
 type MonitorKeywordEntry = MonitorSnapshot['keywords'][number];
-type SocialTrend = MonitorSnapshot['socialTrends'][number];
-
-function formatDateTime(iso: string | null): string {
-  if (!iso) return '';
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return '';
-  return d.toLocaleString('de-DE', {
-    day: 'numeric',
-    month: 'long',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
 
 /** Top-ranked topic as a hero card with the AI briefing ("KI-Einordnung"). */
 function HotTopicHero({ locale }: { locale: MonitorLocale }) {
@@ -208,168 +196,30 @@ function ThemenRanking({
   );
 }
 
-/** Size a word-cloud entry by its normalized weight (0..1). */
-function cloudEntry(weight: number): { style: { fontSize: string }; className: string } {
-  const tier = weight >= 0.66 ? 2 : weight >= 0.33 ? 1 : 0;
-  return {
-    style: { fontSize: `${(0.82 + weight * 0.6).toFixed(2)}rem` },
-    className:
-      tier === 2
-        ? 'font-bold text-[#316049] dark:text-[#6fae90]'
-        : tier === 1
-          ? 'font-semibold text-[#5c6b63] dark:text-grey-300'
-          : 'font-semibold text-[#8b978f] dark:text-grey-500',
-  };
-}
-
-function WordCloudCard({
-  title,
-  subtitle,
-  words,
-}: {
-  title: string;
-  subtitle: string;
-  words: { key: string; word: string; weight: number; url?: string }[];
-}) {
-  return (
-    <div>
-      <h2
-        className={cn('m-0 mb-1 text-[1.35rem] font-semibold tracking-[-0.01em]', MONITOR_HEADING)}
-      >
-        {title}
-      </h2>
-      <p className={cn('m-0 mb-5 text-[0.9rem]', MONITOR_MUTED)}>{subtitle}</p>
-      <div className={cn('flex flex-wrap items-baseline gap-x-3.5 gap-y-2 p-6', MONITOR_CARD)}>
-        {words.map((w) => {
-          const { style, className } = cloudEntry(w.weight);
-          return w.url ? (
-            <a
-              key={w.key}
-              href={w.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={style}
-              className={cn('leading-tight no-underline hover:underline', className)}
-            >
-              {w.word}
-            </a>
-          ) : (
-            <span key={w.key} style={style} className={cn('leading-tight', className)}>
-              {w.word}
-            </span>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function KeywordsAndTrends({
+/** Top-Keywords word cloud over the classified article corpus. */
+function TopKeywords({
   keywords,
-  trends,
   totalArticles,
 }: {
   keywords: MonitorKeywordEntry[];
-  trends: SocialTrend[];
   totalArticles: number;
 }) {
   const keywordWords = useMemo(() => {
-    const top = [...keywords].sort((a, b) => b.count - a.count).slice(0, 20);
+    const top = [...keywords].sort((a, b) => b.count - a.count).slice(0, 30);
     const max = Math.max(...top.map((k) => k.count), 1);
     return top.map((k) => ({ key: k.keyword, word: k.keyword, weight: k.count / max }));
   }, [keywords]);
 
-  const trendWords = useMemo(() => {
-    const top = [...trends].sort((a, b) => a.rank - b.rank).slice(0, 20);
-    const n = top.length || 1;
-    return top.map((t) => ({
-      key: `${t.rank}-${t.name}`,
-      word: t.name,
-      weight: (n - top.indexOf(t)) / n,
-      url: t.url,
-    }));
-  }, [trends]);
-
-  if (keywordWords.length === 0 && trendWords.length === 0) return null;
+  if (keywordWords.length === 0) return null;
 
   return (
-    <div className="mt-12 grid grid-cols-1 gap-12 lg:grid-cols-[1.45fr_1fr]">
-      {keywordWords.length > 0 && (
-        <WordCloudCard
-          title="Top-Keywords"
-          subtitle={`Top-Begriffe aus ${totalArticles.toLocaleString('de-DE')} Artikeln · Größe zeigt die Häufigkeit`}
-          words={keywordWords}
-        />
-      )}
-      {trendWords.length > 0 && (
-        <WordCloudCard
-          title="X/Twitter Trends"
-          subtitle="Top Trends in Deutschland gerade jetzt"
-          words={trendWords}
-        />
-      )}
+    <div className="mt-12">
+      <WordCloudCard
+        title="Top-Keywords"
+        subtitle={`Top-Begriffe aus ${totalArticles.toLocaleString('de-DE')} Artikeln · Größe zeigt die Häufigkeit`}
+        words={keywordWords}
+      />
     </div>
-  );
-}
-
-function BlueskyGrid({ locale }: { locale: MonitorLocale }) {
-  const { data: posts, isLoading } = useBlueskyFeed(locale);
-  if (isLoading) {
-    return (
-      <section className="mt-12">
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-[18px]">
-          {['a', 'b', 'c'].map((k) => (
-            <Skeleton key={k} className="h-40 rounded-2xl" />
-          ))}
-        </div>
-      </section>
-    );
-  }
-  if (!posts || posts.length === 0) return null;
-  const account = posts[0]?.authorHandle;
-
-  return (
-    <section className="mt-12">
-      <div className="mb-5 flex items-baseline justify-between gap-4">
-        <h2 className={cn('m-0 text-[1.35rem] font-semibold tracking-[-0.01em]', MONITOR_HEADING)}>
-          Von Bluesky
-        </h2>
-        {account && (
-          <span className={cn('text-[0.85rem] font-bold', MONITOR_ACCENT)}>@{account}</span>
-        )}
-      </div>
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-[18px]">
-        {posts.slice(0, 6).map((post) => (
-          <div key={post.uri} className={cn('flex flex-col gap-3.5 p-6', MONITOR_TILE)}>
-            <div className="flex flex-col gap-0.5">
-              <span className={cn('text-[0.95rem] font-bold', MONITOR_HEADING)}>
-                {post.authorName}
-              </span>
-              <span className={cn('text-[0.8rem]', MONITOR_FAINT)}>@{post.authorHandle}</span>
-            </div>
-            <p className={cn('m-0 flex-1 text-[0.92rem] leading-[1.6] line-clamp-5', MONITOR_BODY)}>
-              {post.text}
-            </p>
-            <div className="flex items-center justify-between gap-3 border-t border-[#eef2ef] pt-3 dark:border-grey-700/60">
-              <span className={cn('text-[0.78rem]', MONITOR_FAINT)}>
-                {formatDateTime(post.createdAt)}
-              </span>
-              <a
-                href={post.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={cn(
-                  'text-[0.8rem] font-bold no-underline hover:underline',
-                  MONITOR_ACCENT
-                )}
-              >
-                Ansehen
-              </a>
-            </div>
-          </div>
-        ))}
-      </div>
-    </section>
   );
 }
 
@@ -390,17 +240,15 @@ function ThemenOverview({
         keywords={snapshot.keywords}
         onOpen={(topic) => navigate(withLocale(`/themen/${topic}`))}
       />
-      <KeywordsAndTrends
-        keywords={snapshot.keywords}
-        trends={snapshot.socialTrends}
-        totalArticles={snapshot.totalArticles}
-      />
-      <BlueskyGrid locale={locale} />
+      <TopKeywords keywords={snapshot.keywords} totalArticles={snapshot.totalArticles} />
     </>
   );
 }
 
-/** /themen and /themen/:topic. */
+/**
+ * /themen and /themen/:topic — the NLP-classified news corpus of the last 24h.
+ * The social pulse (X trends, Bluesky) lives on /trends.
+ */
 function MonitorThemenPage() {
   const { topic } = useParams<{ topic?: string }>();
   const navigate = useNavigate();
@@ -446,5 +294,8 @@ function MonitorThemenPage() {
     </PageContainer>
   );
 }
+
+/** Unwrapped for component tests — the default export gates on auth. */
+export { MonitorThemenPage as MonitorThemenContent };
 
 export default withAuthRequired(MonitorThemenPage, { title: 'Themen' });
