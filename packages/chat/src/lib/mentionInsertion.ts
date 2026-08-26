@@ -1,3 +1,5 @@
+import { mentionTokenFor } from './mentionParser';
+
 import type { Mentionable } from './mentionables';
 
 export interface MentionInsertionResult {
@@ -61,15 +63,37 @@ export function computePillMentionInsertion(
 }
 
 /**
- * The plain-text prefix a set of pill mentions contributes at send time —
- * `@websuche @berlin @presse `. Prepending this to the draft re-enters the
- * exact text path a hand-typed mention takes today (`parseAllMentions` →
- * routing + durable `@[Label](type:id)` tokens), so the wire format and the
- * persisted message stay byte-identical to the hand-typed behaviour. Skills
- * use '@' like everything else since they joined the @-namespace.
+ * The prefix a set of pill mentions contributes at send time — already in the
+ * durable `@[Label](type:id)` form, not the plain `@websuche` one.
+ *
+ * The plain form used to be enough because the adapter rewrote it to tokens on
+ * the way out. But that rewrite only ever touched the wire COPY of the message
+ * (`textPart.text = parsed.tokenText`), never the runtime's own — so the bubble
+ * the user saw carried bare `@tally` text, and `UserMessageText` renders chips
+ * only from tokens. The tag looked lost until a reload re-read the (correctly
+ * tokenised) server row. Emitting tokens here makes the optimistic message, the
+ * wire message and the persisted row carry the same text.
+ *
+ * Safe to hand back into the parser: `parseAllMentions` skips `@[`-prefixed
+ * aliases and preserves them in `tokenText`, which is exactly the path an
+ * edit-resubmit of a persisted message already takes. The backend derives the
+ * same routing fields from the token that the plain form produced client-side
+ * (`deriveMentionTokenFields` is the declared inverse of `mentionTokenFor`).
+ *
+ * Recipes are the exception and keep the plain `@presse`: their durable form is
+ * a `skill:` token, and a skill token deliberately carries no agent — the
+ * backend leaves `agentId` to the body, and only the plain form makes the
+ * client's parser resolve the owning agent. Recipes lose nothing by it; their
+ * chip rides `activeSkillMention` in the store, as before.
  */
+const CARRIES_ITS_OWN_AGENT = new Set(['agent', 'textform']);
+
 export function buildMentionPrefix(
-  mentions: ReadonlyArray<Pick<Mentionable, 'category' | 'mention'>>
+  mentions: ReadonlyArray<Pick<Mentionable, 'type' | 'identifier' | 'title' | 'mention'>>
 ): string {
-  return mentions.map((m) => `@${m.mention}`).join(' ');
+  return mentions
+    .map(
+      (m) => (CARRIES_ITS_OWN_AGENT.has(m.type) ? undefined : mentionTokenFor(m)) ?? `@${m.mention}`
+    )
+    .join(' ');
 }
