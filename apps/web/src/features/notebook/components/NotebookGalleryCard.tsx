@@ -1,6 +1,9 @@
+import { type NotebookIndexingState } from '@gruenerator/contracts';
 import { cn } from '@gruenerator/ui';
 import { memo, type ReactNode } from 'react';
 import { FiFolder, FiLayers } from 'react-icons/fi';
+
+import NotebookIndexingBadge from './NotebookIndexingBadge';
 
 import type { IconType } from 'react-icons';
 
@@ -38,6 +41,12 @@ export interface NotebookGalleryCardProps {
   action?: ReactNode;
   /** Pink icon + border accent for the "Wissen" notebook surface. Defaults to neutral. */
   accent?: 'pink';
+  /**
+   * Readiness of the notebook's sources. Renders a badge over the preview for
+   * anything but `ready`/`empty`, so a notebook that cannot answer yet no longer
+   * looks exactly like one that can. Omitted for system notebooks.
+   */
+  indexingState?: NotebookIndexingState | null;
   className?: string;
 }
 
@@ -59,6 +68,7 @@ const NotebookGalleryCard = memo(
     menu,
     action,
     accent,
+    indexingState,
     className,
   }: NotebookGalleryCardProps) => {
     const Icon = icon ?? FiFolder;
@@ -109,6 +119,10 @@ const NotebookGalleryCard = memo(
               coverNode
             )}
           </div>
+          {/* Left of the action pills so a long badge never collides with them. */}
+          <div className="pointer-events-none absolute left-2 top-2 z-20">
+            <NotebookIndexingBadge state={indexingState} />
+          </div>
           {(action || menu) && (
             <div className="absolute right-2 top-2 z-20 flex items-center gap-1">
               {action && (
@@ -142,8 +156,11 @@ const NotebookGalleryCard = memo(
 
     return (
       <div className={rootClass}>
-        <div className="flex aspect-[5/4] items-center justify-center bg-grey-50 dark:bg-grey-800/40">
+        <div className="relative flex aspect-[5/4] items-center justify-center bg-grey-50 dark:bg-grey-800/40">
           <Icon className="size-9 text-grey-400 dark:text-grey-500" />
+          <div className="pointer-events-none absolute left-2 top-2 z-20">
+            <NotebookIndexingBadge state={indexingState} />
+          </div>
         </div>
 
         <div className="flex items-start gap-2 border-t border-grey-100 px-3 py-2.5 dark:border-grey-700/60">

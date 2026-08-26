@@ -16,6 +16,7 @@ import {
   type ExtraAction,
   type NotebookMessageMetadata,
 } from '@gruenerator/chat';
+import { deriveIndexingState } from '@gruenerator/contracts';
 import React, { useState, useCallback, useEffect, useMemo, type ReactNode } from 'react';
 import { FaFileWord } from 'react-icons/fa';
 import { useLocation, useParams, useSearchParams } from 'react-router-dom';
@@ -32,6 +33,7 @@ import { useNotebookCollection } from '../hooks/useNotebookCollection';
 import useNotebookStore from '../stores/notebookStore';
 
 import { NotebookAccessError } from './NotebookAccessError';
+import NotebookIndexingNotice from './NotebookIndexingNotice';
 import { NotebookStartpage } from './NotebookStartpage';
 import { PendingQuestionSender } from './PendingQuestionSender';
 
@@ -504,14 +506,25 @@ export const DynamicNotebookPage = ({ id: idProp }: DynamicNotebookPageProps = {
     persistMessages: true,
   };
 
+  const indexingState =
+    collection.indexing_state ?? deriveIndexingState(collection.documents ?? []);
+
   return (
-    <NotebookPageContent
-      config={config}
-      showStats={false}
-      showLastAdded={false}
-      showManualSearch
-      manualSearchNotebookId={collection.id}
-    />
+    <>
+      {/* The chat stays usable while indexing — it can already answer from the
+          sources that finished, and blocking it would punish exactly the
+          freshly created notebook this notice exists for. Saying nothing was
+          the old behaviour: every question came back "nichts gefunden", which
+          reads like a wrong answer instead of an unfinished import. */}
+      <NotebookIndexingNotice state={indexingState} counts={collection.indexing_counts} />
+      <NotebookPageContent
+        config={config}
+        showStats={false}
+        showLastAdded={false}
+        showManualSearch
+        manualSearchNotebookId={collection.id}
+      />
+    </>
   );
 };
 

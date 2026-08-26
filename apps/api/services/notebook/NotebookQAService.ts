@@ -34,7 +34,6 @@ import {
   applyDefaultFilter,
   type SubcategoryFilters,
 } from '../../config/systemCollectionsConfig.js';
-import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { checkNotebookAccess } from '../../routes/notebook/notebookAccess.js';
 import { createLogger } from '../../utils/logger.js';
 import { aiText } from '../ai/generate.js';
@@ -57,6 +56,9 @@ import {
   formatDe,
 } from '../search/index.js';
 
+import { inspectCorpusState } from './corpusState.js';
+
+import type { CorpusStateInspection } from './corpusState.js';
 import type {
   QAMultiCollectionParams,
   QASingleCollectionParams,
@@ -121,25 +123,6 @@ function withProgramFilter(
  * briefly — but still the matched passage, not the chunk's opening.
  */
 const FAST_DRAFT_SOURCE_MAX_CHARS = 900;
-
-interface CorpusDocSummary {
-  id: string;
-  title: string | null;
-}
-
-interface CorpusStateInspection {
-  state: 'indexing' | 'stale' | 'failed' | 'ready';
-  indexing: CorpusDocSummary[];
-  failed: CorpusDocSummary[];
-  /**
-   * Postgres calls them finished, Qdrant has no points for them. Kept apart
-   * from `failed` because the cause and the remedy differ: these documents
-   * never reported an error, so nothing in the UI ever hinted at a problem.
-   */
-  stale: CorpusDocSummary[];
-  ready: CorpusDocSummary[];
-  total: number;
-}
 
 export class NotebookQAService {
   /**
@@ -430,7 +413,7 @@ export class NotebookQAService {
 
     if (sorted.length === 0) {
       const corpus =
-        !isSystem && documentIds ? await this._inspectCorpusState(documentIds, userId) : null;
+        !isSystem && documentIds ? await inspectCorpusState(documentIds, userId) : null;
       const answer = this._buildEmptyResultMessage(collection.name, corpus);
       return {
         success: true,
@@ -1143,98 +1126,6 @@ export class NotebookQAService {
         },
       }),
     };
-  }
-
-  /**
-   * Inspect the Postgres state of the requested documents so we can tell the
-   * user *why* a search came back empty (still indexing / failed / genuine miss).
-   */
-  private async _inspectCorpusState(
-    documentIds: readonly string[],
-    userId: string
-  ): Promise<CorpusStateInspection> {
-    if (documentIds.length === 0) {
-      return { state: 'ready', indexing: [], failed: [], stale: [], ready: [], total: 0 };
-    }
-
-    try {
-      const postgres = getPostgresInstance();
-      const rows = (await postgres.query(
-        `SELECT id, title, status, vector_count
-         FROM documents
-         WHERE id = ANY($1) AND user_id = $2`,
-        [documentIds, userId]
-      )) as Array<{
-        id: string;
-        title: string | null;
-        status: string;
-        vector_count: number | null;
-      }>;
-
-      const indexing: CorpusDocSummary[] = [];
-      const failed: CorpusDocSummary[] = [];
-      const stale: CorpusDocSummary[] = [];
-      const claimedReady: CorpusDocSummary[] = [];
-
-      for (const row of rows) {
-        const summary: CorpusDocSummary = { id: row.id, title: row.title };
-        if (row.status === 'uploaded' || row.status === 'processing' || row.status === 'pending') {
-          indexing.push(summary);
-        } else if (row.status === 'failed') {
-          failed.push(summary);
-        } else if (row.status === 'completed' && (row.vector_count ?? 0) > 0) {
-          claimedReady.push(summary);
-        } else {
-          // status='completed' but vector_count=0 — treat as failed for UX purposes
-          failed.push(summary);
-        }
-      }
-
-      // `vector_count` only records what indexing reported once; nothing rewrites
-      // it when the points later disappear. Believing it turned a wiped index
-      // into "leider nichts gefunden" — a wrong answer the user could not tell
-      // apart from a genuine miss. We are already on the empty-result path here,
-      // so the probe costs nothing on a normal search.
-      const ready: CorpusDocSummary[] = [];
-      // Own try/catch: if Qdrant is unreachable the whole inspection used to
-      // collapse to an empty 'ready', throwing away the Postgres findings we
-      // already have. Falling back to "trust Postgres" keeps the indexing /
-      // failed messages working during a Qdrant outage.
-      let counts = new Map<string, number>();
-      try {
-        counts = await documentSearchService.countVectorsByDocument(claimedReady.map((d) => d.id));
-      } catch (probeError) {
-        log.warn(`[QA Single] Vektor-Probe übersprungen: ${(probeError as Error).message}`);
-      }
-      for (const doc of claimedReady) {
-        const stored = counts.get(doc.id);
-        // Probe failed (id absent) → keep trusting Postgres rather than
-        // reporting a Qdrant hiccup as missing data.
-        if (stored === 0) stale.push(doc);
-        else ready.push(doc);
-      }
-
-      if (stale.length > 0) {
-        log.error(
-          `[QA Single] ${stale.length}/${rows.length} Dokument(e) haben keine Vektoren in Qdrant, ` +
-            `obwohl Postgres sie als fertig führt: ${stale.map((d) => d.id).join(', ')}`
-        );
-      }
-
-      const state: CorpusStateInspection['state'] =
-        indexing.length > 0
-          ? 'indexing'
-          : stale.length > 0
-            ? 'stale'
-            : failed.length > 0
-              ? 'failed'
-              : 'ready';
-
-      return { state, indexing, failed, stale, ready, total: rows.length };
-    } catch (error) {
-      log.warn(`[QA Single] _inspectCorpusState failed: ${(error as Error).message}`);
-      return { state: 'ready', indexing: [], failed: [], stale: [], ready: [], total: 0 };
-    }
   }
 
   private _buildEmptyResultMessage(
