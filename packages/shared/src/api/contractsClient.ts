@@ -61,6 +61,7 @@ import {
   userAgentsContract,
   userAgentsSharingContract,
   skillPromptContract,
+  agentVisibilityContract,
   skillVisibilityContract,
   instanceAdminOverviewContract,
   lvAdminAssignmentContract,
@@ -291,6 +292,7 @@ const _templateInteractionsClient = () => initClient(templateInteractionsContrac
 const _userAgentsClient = () => initClient(userAgentsContract, CLIENT_OPTS);
 const _userAgentsSharingClient = () => initClient(userAgentsSharingContract, CLIENT_OPTS);
 const _skillPromptClient = () => initClient(skillPromptContract, CLIENT_OPTS);
+const _agentVisibilityClient = () => initClient(agentVisibilityContract, CLIENT_OPTS);
 const _skillVisibilityClient = () => initClient(skillVisibilityContract, CLIENT_OPTS);
 const _instanceAdminOverviewClient = () => initClient(instanceAdminOverviewContract, CLIENT_OPTS);
 const _lvAdminAssignmentClient = () => initClient(lvAdminAssignmentContract, CLIENT_OPTS);
@@ -360,6 +362,7 @@ export interface ContractsClient {
   userAgents: ReturnType<typeof _userAgentsClient>;
   userAgentsSharing: ReturnType<typeof _userAgentsSharingClient>;
   skillPrompt: ReturnType<typeof _skillPromptClient>;
+  agentVisibility: ReturnType<typeof _agentVisibilityClient>;
   skillVisibility: ReturnType<typeof _skillVisibilityClient>;
   instanceAdminOverview: ReturnType<typeof _instanceAdminOverviewClient>;
   lvAdminAssignment: ReturnType<typeof _lvAdminAssignmentClient>;
@@ -443,6 +446,7 @@ export function getContractsClient(): ContractsClient {
     userAgents: _userAgentsClient(),
     userAgentsSharing: _userAgentsSharingClient(),
     skillPrompt: _skillPromptClient(),
+    agentVisibility: _agentVisibilityClient(),
     skillVisibility: _skillVisibilityClient(),
     instanceAdminOverview: _instanceAdminOverviewClient(),
     lvAdminAssignment: _lvAdminAssignmentClient(),

@@ -69,6 +69,7 @@ export { texteContract } from './texteContract.js';
 export { reisekostenContract } from './reisekostenContract.js';
 export { promptsContract } from './promptsContract.js';
 export { skillPromptContract } from './skillPromptContract.js';
+export { agentVisibilityContract } from './agentVisibilityContract.js';
 export { skillVisibilityContract } from './skillVisibilityContract.js';
 export { instanceAdminOverviewContract } from './instanceAdminOverviewContract.js';
 export { lvAdminAssignmentContract } from './lvAdminAssignmentContract.js';

@@ -6,7 +6,11 @@
  * Ordered so the curated tool catalog (with synonyms) wins the dedup over the
  * plainer nav-derived entries pointing at the same path.
  */
-import { getAgentSlug, getVisibleSystemAgentsForLocale } from '@gruenerator/shared/agents';
+import {
+  getAgentSlug,
+  getVisibleSystemAgentsForLocale,
+  isAdminVisibleAgent,
+} from '@gruenerator/shared/agents';
 import { foldUmlauts } from '@gruenerator/shared/utils';
 
 import { getDirectMenuItems, getFooterLinks } from '../../components/layout/Header/menuData';
@@ -44,6 +48,8 @@ export interface BuildFeatureIndexArgs {
   isAustrian: boolean;
   locale: string;
   userAgents: Agent[];
+  /** Vom Admin ausgeblendete System-Agenten. Weglassen = nichts ausgeblendet. */
+  hiddenAgentIdentifiers?: readonly string[];
 }
 
 interface FeatureSource {
@@ -59,6 +65,7 @@ export function buildFeatureIndex({
   isAustrian,
   locale,
   userAgents,
+  hiddenAgentIdentifiers = [],
 }: BuildFeatureIndexArgs): FeatureHit[] {
   const hits: FeatureHit[] = [];
   const seen = new Set<string>();
@@ -109,6 +116,7 @@ export function buildFeatureIndex({
   }
 
   for (const agent of getVisibleSystemAgentsForLocale(locale, CURRENT_INSTANCE)) {
+    if (!isAdminVisibleAgent(agent.identifier, hiddenAgentIdentifiers)) continue;
     push({
       id: `agent-${agent.identifier}`,
       title: agent.title,
