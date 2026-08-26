@@ -17,6 +17,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   setCustomAgents,
+  setTextforms,
   setUserNotebookMentionables,
   type Mentionable,
 } from '../../lib/mentionables';
@@ -36,6 +37,14 @@ function renderedRows(): string[] {
   });
 }
 
+/** Titles of the rows rendered under one sublabel ("eigene", "aus deinen Gruppen"). */
+function rowTitlesUnder(sublabel: string): string[] {
+  const group = screen.getByText(sublabel).parentElement;
+  return Array.from(group?.querySelectorAll('[role="option"]') ?? []).map(
+    (el) => el.querySelector('p')?.textContent ?? ''
+  );
+}
+
 beforeEach(() => {
   setCustomAgents([
     { id: 'own-1', name: 'Mein Rezept', slug: 'mein-rezept' },
@@ -45,6 +54,7 @@ beforeEach(() => {
     { id: 'nb-1', title: 'Mein Notizbuch', slug: 'mein-notizbuch' },
     { id: 'nb-2', title: 'Ortsverband', slug: 'ortsverband' },
   ]);
+  setTextforms([]);
 });
 
 describe('MentionPopover ↔ keyboard list', () => {
@@ -94,5 +104,61 @@ describe('MentionPopover ↔ keyboard list', () => {
     const mentions = getFilteredMentionables('notiz').map((m) => m.mention);
     expect(mentions).toContain('mein-notizbuch');
     expect(mentions).toContain('ortsverband');
+  });
+});
+
+/**
+ * "Aus deinen Gruppen" was an unreachable branch: the split reads
+ * `sharedFromGroup`, but no setter accepted the field, so every shared recipe
+ * rendered as one of the user’s own (#2876).
+ */
+describe('recipes shared from a group', () => {
+  const renderPopover = (query: string) =>
+    render(
+      <MentionPopover
+        query={query}
+        visible
+        onSelect={vi.fn()}
+        onDismiss={vi.fn()}
+        selectedIndex={0}
+        anchorRect={anchorRect}
+      />
+    );
+
+  it('lists a shared recipe apart from the user’s own', () => {
+    setTextforms([
+      { mention: 'eigene-pressemitteilung', title: 'Eigene Pressemitteilung' },
+      {
+        mention: 'geteilte-pressemitteilung',
+        title: 'Geteilte Pressemitteilung',
+        sharedFromGroup: 'Ortsverband Mitte',
+      },
+    ]);
+    renderPopover('pressemitteilung');
+
+    expect(rowTitlesUnder('eigene')).toEqual(['Eigene Pressemitteilung']);
+    expect(rowTitlesUnder('aus deinen Gruppen')).toEqual(['Geteilte Pressemitteilung']);
+  });
+
+  it('keeps the group section away when nothing is shared', () => {
+    setTextforms([{ mention: 'eigene-pressemitteilung', title: 'Eigene Pressemitteilung' }]);
+    renderPopover('pressemitteilung');
+
+    expect(rowTitlesUnder('eigene')).toEqual(['Eigene Pressemitteilung']);
+    expect(screen.queryByText('aus deinen Gruppen')).toBeNull();
+  });
+
+  it('keeps the split consistent with the keyboard list', () => {
+    setTextforms([
+      { mention: 'eigene-pressemitteilung', title: 'Eigene Pressemitteilung' },
+      {
+        mention: 'geteilte-pressemitteilung',
+        title: 'Geteilte Pressemitteilung',
+        sharedFromGroup: 'Ortsverband Mitte',
+      },
+    ]);
+    renderPopover('pressemitteilung');
+
+    expect(renderedRows()).toEqual(getFilteredMentionables('pressemitteilung').map(rowKey));
   });
 });
