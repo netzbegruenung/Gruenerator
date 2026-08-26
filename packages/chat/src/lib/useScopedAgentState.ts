@@ -4,6 +4,7 @@ import { createStore, useStore } from 'zustand';
 
 import { useChatSurfaceContext, type ChatSurfaceState } from '../context/ChatSurfaceContext';
 import { useAgentStore, type SearchMode, type ThreadMode } from '../stores/chatStore';
+import { useUserProfileStore } from '../stores/userProfileStore';
 
 import { AUTO_MODEL_ID, type SelectedModel } from './resolveAutoModel';
 
@@ -132,6 +133,30 @@ export function useScopedSetCustomRoleRef(): (ref: RoleRef | null) => void {
   const globalSet = useAgentStore((s) => s.setCustomRoleRef);
   if (!ctx) return globalSet;
   return (ref) => ctx.store.getState().setCustomRoleRef(ref);
+}
+
+/** Stabil, damit die Identität des Rückgabewerts nicht bei jedem Render wechselt. */
+const NOOP_SET_ACTIVE_ROLE = (_role: RoleRef | null): void => {};
+
+/**
+ * Die Konto-Voreinstellung für neue Chats. Anders als die Nachbarn hier gibt es
+ * keine oberflächen-eigene Entsprechung — eine eingebettete Fläche (Docs,
+ * Boards, Sheets, Präsentationen) hält ihren Rollenzustand bewusst bei sich,
+ * und ihre Wahl darf nicht zum Standard für jeden `/chat`-Entwurf werden. In
+ * einer solchen Fläche schreibt diese Funktion deshalb nichts.
+ *
+ * Erreichbar ist der Fall heute nicht: alle vier Konsumenten setzen
+ * `showToolToggles={false}`, und `includeModes` verbirgt damit das gesamte
+ * Rollen-Untermenü. Das ist aber ein Schutz durch ein fremdes UI-Flag, keine
+ * Bereichsprüfung — schaltet eine künftige Fläche die Werkzeug-Schalter ein,
+ * weil sie die braucht, bekäme sie das Leck gratis dazu. Genau die Sorte Leck,
+ * die der Rest dieser Änderung in der anderen Richtung schließt.
+ */
+export function useScopedSetActiveRole(): (role: RoleRef | null) => void {
+  const ctx = useChatSurfaceContext();
+  const globalSet = useUserProfileStore((s) => s.setActiveRole);
+  if (ctx) return NOOP_SET_ACTIVE_ROLE;
+  return globalSet;
 }
 
 // ─── snapshot reader (for callbacks, e.g. adapter getConfig) ────────────────
