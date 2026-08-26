@@ -18,6 +18,7 @@ import { fromNodeHeaders } from 'better-auth/node';
 import { auth } from '../../config/betterAuth.js';
 import { getQdrantDocumentService } from '../../services/document-services/DocumentSearchService/index.js';
 import { setUserLocale } from '../../services/localization/localeCache.js';
+import { assignInstanceRole } from '../../services/roles/instanceRoleAssignment.js';
 import { getProfileService } from '../../services/user/ProfileService.js';
 import { forwardBetterAuthCookies } from '../../utils/betterAuthBridge.js';
 import { refreshSessionUserSnapshot } from '../../utils/betterAuthSessionUser.js';
@@ -456,6 +457,11 @@ export const userProfileContractRouter = s.router(userProfileContract, {
           avatar_robot_id: 1,
         });
       }
+
+      // Eine Instanz mit genau einem Rollen-Angebot vergibt es selbst, statt
+      // eine Frage mit einer möglichen Antwort zu stellen. Auf allen anderen
+      // ein reiner `null`-Check ohne DB-Zugriff.
+      profile = await assignInstanceRole(profile);
 
       const userDefaults = profileService.getUserDefaults(profile);
 
