@@ -201,6 +201,19 @@ export const notebookResearchResultSchema = z.object({
   relevant_content: z.string(),
   similarity_score: z.number(),
   chunk_count: z.number(),
+  /**
+   * Abschnitte, in denen der Suchbegriff wörtlich vorkommt — 0 bei einem rein
+   * semantischen Treffer.
+   *
+   * Eine Untergrenze: gezählt wird über die abgerufenen Chunks, und das
+   * Recall-Fenster schneidet vorher ab. Gemessen am 26.08.2026 über 38
+   * Trefferdokumente deckte sich die Zahl in 65,8 % der Fälle mit der echten
+   * Zahl im Dokument, lag in 34,2 % darunter und **nie** darüber. Deshalb
+   * beschriftet die Karte sie mit „mind." und nicht als Gesamtzahl.
+   *
+   * Additiv nachgereicht (F0): ältere Clients ignorieren das Feld.
+   */
+  term_chunk_count: z.number().nullish(),
   top_chunks: z.array(
     z.object({
       preview: z.string(),

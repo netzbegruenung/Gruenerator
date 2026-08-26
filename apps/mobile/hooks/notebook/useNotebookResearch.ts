@@ -13,6 +13,8 @@ export interface ResearchResult {
   relevant_content: string;
   similarity_score: number;
   chunk_count?: number;
+  /** Abschnitte mit wörtlichem Begriffstreffer — Untergrenze, siehe Contract. */
+  term_chunk_count?: number | null;
   top_chunks?: Array<{ preview: string; chunk_index: number; page_number: number | null }>;
   collection_id?: string | null;
   collection_name?: string | null;
