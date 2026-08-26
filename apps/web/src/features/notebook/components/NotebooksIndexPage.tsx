@@ -1,3 +1,4 @@
+import { deriveIndexingState } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import coverEigene from '@gruenerator/shared/assets/notebook-covers/eigene.webp';
 import coverLaenderverbaende from '@gruenerator/shared/assets/notebook-covers/landesverbaende.webp';
@@ -278,6 +279,9 @@ const EigeneNotebooks = memo(
                     />
                   }
                   accent="pink"
+                  // Server-derived; the local derivation is the fallback for a
+                  // backend that predates the field (and for cached responses).
+                  indexingState={c.indexing_state ?? deriveIndexingState(c.documents ?? [])}
                   onActivate={() => onView(c.id)}
                   menu={
                     <DropdownMenu>
