@@ -60,6 +60,13 @@ import type {
 } from './types.js';
 
 /**
+ * Abzug für Dokumente, deren Titel den gesuchten Begriff nicht trägt. Klein
+ * genug, dass er nur Gleichstände entscheidet — Dokumentscores laufen in einen
+ * Deckel bei 1.0, und dahinter steht sonst die Einfügereihenfolge.
+ */
+const NO_TITLE_MATCH_TIE_BREAK = 0.02;
+
+/**
  * Unter dieser Poolgrösse lohnt der Cross-Encoder nicht — `rerankPipeline`
  * überspringt bei ≤2 ohnehin, und bei drei Chunks entscheidet der Deckel je
  * Dokument (10) sowieso nichts weg.
@@ -924,6 +931,19 @@ export class BaseSearchService {
         noTermMatchPenalty = doc.maxSimilarity >= 0.7 ? 0.05 : 0.12;
       }
 
+      // Document scores saturate: the aggregation caps at 1.0 and several
+      // documents reach it, after which their order is whatever the map
+      // happened to yield. Measured on "Nationalpark", four documents shared
+      // 1.000 and the one actually titled "Nationalpark Berchtesgaden" landed
+      // fourth. A title carrying the search term is the natural tie-breaker,
+      // so everything else gives up a sliver. Small enough that it only ever
+      // decides a near-tie, and only for short queries — in a sentence-long
+      // question the words in a title say much less.
+      const titleTieBreak =
+        normQuery && isShortQuery && !containsNormalized(doc.title || '', normQuery)
+          ? NO_TITLE_MATCH_TIE_BREAK
+          : 0;
+
       doc.chunks.sort(
         (a, b) => (b.similarity_adjusted ?? b.similarity) - (a.similarity_adjusted ?? a.similarity)
       );
@@ -978,7 +998,10 @@ export class BaseSearchService {
         source_url: doc.source_url,
         source_id: doc.source_id ?? null,
         relevant_content: relevantContent,
-        similarity_score: Math.max(0, enhancedScore.finalScore - noTermMatchPenalty),
+        similarity_score: Math.max(
+          0,
+          enhancedScore.finalScore - noTermMatchPenalty - titleTieBreak
+        ),
         max_similarity: enhancedScore.maxSimilarity,
         avg_similarity: enhancedScore.avgSimilarity,
         position_score: enhancedScore.positionScore,
