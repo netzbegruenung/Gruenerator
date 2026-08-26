@@ -47,6 +47,7 @@ import {
   useScopedSetCustomSystemPrompt,
   useScopedSetCustomRoleName,
   useScopedSetCustomRoleRef,
+  useScopedSetActiveRole,
 } from '../../lib/useScopedAgentState';
 import {
   composerActiveChipClass,
@@ -144,6 +145,10 @@ export const PlusMenu = memo(function PlusMenu({
   const setCustomRoleRef = useScopedSetCustomRoleRef();
   const customRoleRef = useScopedCustomRoleRef();
   const roles = useUserProfileStore((s) => s.roles);
+  // Kontoweit, nicht oberflächen-lokal: „welche Rolle bin ich" gilt für jeden
+  // neuen Chat und jedes Gerät — anders als der Thread-Zustand daneben. In
+  // einer eingebetteten Fläche schreibt der Haken nichts, siehe dort.
+  const setActiveRole = useScopedSetActiveRole();
 
   const showModes = includeModes && !insideAgent;
   // Eine Katalogrolle bringt keinen Prompttext mit — ihr Auftrag ist
@@ -170,6 +175,7 @@ export const PlusMenu = memo(function PlusMenu({
     setCustomRoleName(null);
     setCustomRoleRef(null);
     setThreadMode('chat');
+    setActiveRole(null);
   };
 
   const selectRole = (roleIndex: number) => {
@@ -181,6 +187,7 @@ export const PlusMenu = memo(function PlusMenu({
     setCustomSystemPrompt(role.systemPrompt ?? null);
     setCustomRoleName(role.rolle);
     setThreadMode('eigener');
+    setActiveRole({ ebene: role.ebene, rolle: role.rolle });
   };
 
   const selectEigener = () => {

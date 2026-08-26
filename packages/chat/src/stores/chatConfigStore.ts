@@ -1,7 +1,12 @@
 import { create } from 'zustand';
 
 import type { SharepicVariant } from '../hooks/useChatGraphStream';
-import type { ClientPlatform, CurrentBoard, EditorOperationsEvent } from '@gruenerator/contracts';
+import type {
+  ClientPlatform,
+  CurrentBoard,
+  EditorOperationsEvent,
+  RoleRef,
+} from '@gruenerator/contracts';
 
 /** A raw file handed to the in-browser Python interpreter (Pyodide worker). */
 export interface PythonFile {
@@ -162,6 +167,13 @@ export interface ChatConfig {
   } | null>;
   /** Opens a subtitler project in the Sub-Studio (web: /reel/studio deep link). */
   onOpenReelStudio?: (projectId: string) => void;
+  /**
+   * Speichert die Rolle, mit der neue Chats starten, in den Konto-Einstellungen
+   * der Person (`profile.activeRole`). Injiziert, weil die Nutzer-Voreinstellungen
+   * in der Host-App liegen; ohne sie merkt sich der Composer die Wahl nur für
+   * die Sitzung. Fehlschläge dürfen im Chat nicht auftauchen.
+   */
+  persistActiveRole?: (role: RoleRef | null) => void;
 }
 
 export interface ResolvedEndpoints {
@@ -287,6 +299,7 @@ interface ChatConfigStore extends ResolvedChatConfig {
   fetchReelProject?: ChatConfig['fetchReelProject'];
   fetchReelAutoProgress?: ChatConfig['fetchReelAutoProgress'];
   onOpenReelStudio?: ChatConfig['onOpenReelStudio'];
+  persistActiveRole?: ChatConfig['persistActiveRole'];
   platform?: ChatConfig['platform'];
   /** URL the @wolke empty-state CTA opens (new tab). Hidden when unset. */
   wolkeConnectUrl?: string;
@@ -423,6 +436,7 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
       fetchReelProject: config?.fetchReelProject,
       fetchReelAutoProgress: config?.fetchReelAutoProgress,
       onOpenReelStudio: config?.onOpenReelStudio,
+      persistActiveRole: config?.persistActiveRole,
       platform: config?.platform,
       wolkeConnectUrl: config?.wolkeConnectUrl,
     });
