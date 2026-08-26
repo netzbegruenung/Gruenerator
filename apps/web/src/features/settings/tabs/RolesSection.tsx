@@ -24,6 +24,7 @@ import {
   offeredEbenen,
   offeredRollen,
   isCustomRolleOffered,
+  autoAssignedRole,
 } from '@gruenerator/shared/roles';
 import {
   Button,
@@ -113,12 +114,15 @@ function RoleCard({
   onDelete,
   onRegenerate,
   regenerating,
+  fixed,
 }: {
   role: UserRole;
   ebenen: EbeneConfig[];
   onDelete: () => void;
   onRegenerate: () => void;
   regenerating: boolean;
+  /** Von der Instanz vergeben: kein Löschknopf, der Server setzt sie wieder. */
+  fixed: boolean;
 }) {
   const ebene = ebenen.find((e) => e.id === role.ebene);
   const subtitle = [role.gliederung, role.bundesland].filter(Boolean).join(' · ');
@@ -153,14 +157,16 @@ function RoleCard({
           <HiOutlineArrowPath className={`size-4 ${regenerating ? 'animate-spin' : ''}`} />
         </button>
       )}
-      <button
-        type="button"
-        onClick={onDelete}
-        className="shrink-0 p-1 text-grey-400 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 max-sm:opacity-100"
-        aria-label={`Rolle ${role.rolle} entfernen`}
-      >
-        <HiOutlineTrash className="size-4" />
-      </button>
+      {!fixed && (
+        <button
+          type="button"
+          onClick={onDelete}
+          className="shrink-0 p-1 text-grey-400 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 max-sm:opacity-100"
+          aria-label={`Rolle ${role.rolle} entfernen`}
+        >
+          <HiOutlineTrash className="size-4" />
+        </button>
+      )}
     </div>
   );
 }
@@ -279,6 +285,12 @@ export default function RolesSection() {
   // registry, so a stale instance config can never point at a non-existent
   // role.
   const instanceDefaultRole = getInstance(CURRENT_INSTANCE).defaultRole;
+
+  // Vergibt die Instanz ihre eine Rolle selbst, gibt es hier nichts mehr
+  // hinzuzufügen und nichts zu entfernen — der Server schriebe sie beim
+  // nächsten Lesen der User-Defaults ohnehin zurück
+  // (`services/roles/instanceRoleAssignment.ts`).
+  const assignedRole = useMemo(() => autoAssignedRole(CURRENT_INSTANCE), []);
 
   const startAddRole = useCallback(() => {
     setAddingRole(true);
@@ -814,7 +826,7 @@ export default function RolesSection() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>Deine Rollen</CardTitle>
-                {roles.length > 0 && (
+                {roles.length > 0 && !assignedRole && (
                   <Button variant="ghost" size="sm" onClick={startAddRole}>
                     <HiPlus className="size-4 mr-1" />
                     Hinzufügen
@@ -822,16 +834,26 @@ export default function RolesSection() {
                 )}
               </div>
               <CardDescription>
-                Definiere deine Rollen — der Grünerator passt sich automatisch an.
+                {assignedRole
+                  ? 'Diese Instanz führt genau eine Rolle — sie ist gesetzt, der Grünerator schreibt dafür.'
+                  : 'Definiere deine Rollen — der Grünerator passt sich automatisch an.'}
               </CardDescription>
             </CardHeader>
             <CardContent>
               {roles.length === 0 ? (
                 <div className="text-center py-md">
-                  <Button variant="outline" onClick={startAddRole}>
-                    <HiPlus className="size-4 mr-1" />
-                    Erste Rolle hinzufügen
-                  </Button>
+                  {assignedRole ? (
+                    // Die Rolle kommt vom Server, beim Lesen der User-Defaults.
+                    // Sie fehlt hier also nur, solange die Abfrage läuft — ein
+                    // Knopf „Erste Rolle hinzufügen" wäre eine Aufforderung zu
+                    // etwas, das gerade von selbst passiert.
+                    <p className="m-0 text-sm text-grey-500 dark:text-grey-400">Wird geladen…</p>
+                  ) : (
+                    <Button variant="outline" onClick={startAddRole}>
+                      <HiPlus className="size-4 mr-1" />
+                      Erste Rolle hinzufügen
+                    </Button>
+                  )}
                 </div>
               ) : (
                 <div className="flex flex-col gap-sm">
@@ -840,6 +862,9 @@ export default function RolesSection() {
                       key={`${role.ebene}-${role.rolle}-${i}`}
                       role={role}
                       ebenen={ebenen}
+                      fixed={
+                        assignedRole?.ebene === role.ebene && assignedRole?.rolle === role.rolle
+                      }
                       onDelete={() => {
                         void handleDeleteRole(i);
                       }}

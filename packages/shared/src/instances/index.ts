@@ -96,6 +96,21 @@ export interface InstanceContentPolicy {
  */
 export type InstancePolicyView = Pick<InstanceDefinition, 'channels' | 'hide' | 'block'>;
 
+/**
+ * What the role wizard may offer. Named rather than inline on
+ * `InstanceDefinition` so `roles/instanceRoleOffer.ts` can take one apart
+ * without an instance around it — that is what lets its tests exercise policies
+ * the registry does not (yet) contain.
+ */
+export interface InstanceRoleOffer {
+  /** Ebene ids to offer (`DE_EBENEN`/`AT_EBENEN`). Absent = all of them. */
+  ebenen?: readonly string[];
+  /** Role names to offer, across Ebenen. Absent = all roles of the offered Ebenen. */
+  rollen?: readonly string[];
+  /** Offer the "Sonstige" free-text role? Absent = yes. */
+  allowCustom?: boolean;
+}
+
 export interface InstanceDefinition {
   id: string;
   /** Hostnames served by this instance, lowercase and without port. */
@@ -145,14 +160,7 @@ export interface InstanceDefinition {
    * `notebooks/`, and the cycle would be real. `index.vitest.ts` asserts every
    * value against the role registry instead, so a typo fails at test time.
    */
-  offeredRoles?: {
-    /** Ebene ids to offer (`DE_EBENEN`/`AT_EBENEN`). Absent = all of them. */
-    ebenen?: readonly string[];
-    /** Role names to offer, across Ebenen. Absent = all roles of the offered Ebenen. */
-    rollen?: readonly string[];
-    /** Offer the "Sonstige" free-text role? Absent = yes. */
-    allowCustom?: boolean;
-  };
+  offeredRoles?: InstanceRoleOffer;
   /**
    * Fixed hero greeting overriding the DE/AT rotation in
    * `utils/greeting.ts`. Same `@Vorname` token as the rotation templates.
