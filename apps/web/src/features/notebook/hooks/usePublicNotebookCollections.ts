@@ -14,7 +14,7 @@ async function fetchPublicNotebookCollections(): Promise<NotebookCollection[]> {
   // domain type (view_count, public_url_token, …) describe the same wire rows
   // but neither is assignable to the other; unifying them is out of scope for
   // this client-adoption pass.
-  return res.body.collections as unknown as NotebookCollection[];
+  return res.body.collections;
 }
 
 export function usePublicNotebookCollections({ enabled = true }: { enabled?: boolean } = {}) {
