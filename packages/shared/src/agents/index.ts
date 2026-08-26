@@ -91,6 +91,7 @@ export {
   getLandesverbandHubBySlug,
   getLandesverbandHubs,
   getHubMemberAgentIds,
+  hasLandesverbandContentIn,
 } from './landesverbandHubs.js';
 
 export { isSkillOfferedIn, type SkillInstanceView } from './skillInstances.js';

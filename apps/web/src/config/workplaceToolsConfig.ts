@@ -9,9 +9,8 @@
  * registry-derived counterpart.
  */
 import {
-  getInstance,
   isChannelVisibleIn,
-  policyCoversTool,
+  isToolOfferedIn,
   type InstanceChannel,
 } from '@gruenerator/shared/instances';
 import { RiSpyLine } from 'react-icons/ri';
@@ -259,10 +258,10 @@ export const TOOL_MENUS: WorkplaceToolMenu[] = [
 export function filterWorkplaceTools<T extends { id: string; channel?: InstanceChannel }>(
   tools: T[]
 ): T[] {
-  const hidePolicy = getInstance(CURRENT_INSTANCE).hide;
   return tools.filter(
     (tool) =>
-      isChannelVisibleIn(tool.channel, CURRENT_INSTANCE) && !policyCoversTool(hidePolicy, tool.id)
+      isChannelVisibleIn(tool.channel, CURRENT_INSTANCE) &&
+      isToolOfferedIn(tool.id, CURRENT_INSTANCE)
   );
 }
 
