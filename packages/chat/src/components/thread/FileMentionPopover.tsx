@@ -1,5 +1,6 @@
 'use client';
 
+import { type NotebookIndexingState } from '@gruenerator/contracts';
 import {
   Badge,
   Command,
@@ -28,6 +29,37 @@ import type {
 } from '../../lib/documentMentionables';
 
 type Level = 'root' | 'documents';
+
+/**
+ * Marks a notebook whose sources cannot answer a question yet.
+ *
+ * Mentioning one is worse than mentioning nothing: the notebook is attached, the
+ * search runs, and it finds nothing — which reads as "there is nothing about
+ * this in there" rather than "this is not ready". `ready`/`empty` render
+ * nothing; an empty notebook already shows its `0` count next to this.
+ * Deliberately the same wording as the web notebook cards' badge.
+ */
+function MentionIndexingHint({ state }: { state: NotebookIndexingState | null }) {
+  if (state !== 'indexing' && state !== 'partial' && state !== 'failed') return null;
+
+  const label =
+    state === 'indexing'
+      ? 'Wird indexiert'
+      : state === 'failed'
+        ? 'Nicht durchsuchbar'
+        : 'Teilweise indexiert';
+
+  return (
+    <span
+      title={label}
+      className={
+        state === 'indexing' ? 'text-xs text-foreground-muted' : 'text-xs text-destructive'
+      }
+    >
+      {label}
+    </span>
+  );
+}
 
 export type FileMentionSelection =
   { kind: 'document'; doc: DocumentMention } | { kind: 'collab'; doc: CollabDocSelection };
@@ -255,9 +287,12 @@ export function FileMentionPopover({
                             <span className="text-base flex-shrink-0">📓</span>
                             <span className="truncate text-sm">{collection.name}</span>
                           </div>
-                          <Badge variant="secondary" className="flex-shrink-0 text-xs">
-                            {collection.documentCount}
-                          </Badge>
+                          <div className="flex flex-shrink-0 items-center gap-1.5">
+                            <MentionIndexingHint state={collection.indexingState} />
+                            <Badge variant="secondary" className="text-xs">
+                              {collection.documentCount}
+                            </Badge>
+                          </div>
                         </CommandItem>
                       ))}
                     </CommandGroup>

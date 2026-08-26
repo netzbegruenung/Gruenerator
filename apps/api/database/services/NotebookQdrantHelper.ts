@@ -832,6 +832,73 @@ class NotebookQdrantHelper {
   }
 
   /**
+   * Drop a deleted document out of every notebook that referenced it.
+   *
+   * The mirror image of `deleteNotebookCollection`, which clears the join by
+   * `collection_id`; this clears it by `document_id` and belongs on the
+   * document-deletion path. Without it the join points outlive the document:
+   * `getCollectionDocuments` keeps handing back ids with no Postgres row behind
+   * them, those ids reach QA queries as a filter that can never match, and
+   * `findReferencedDocumentIds` reports a long-deleted document as still in use
+   * — which is what stops the WordPress importer from cleaning up after itself.
+   *
+   * Postgres does have a `notebook_collection_documents` table with the right
+   * `ON DELETE CASCADE`, but no query reads or writes it: membership lives only
+   * in Qdrant, so that cascade never fires.
+   *
+   * Best-effort by design. The caller has already deleted the Postgres row by
+   * the time it gets here, and failing the request afterwards would report a
+   * deletion that did happen as an error.
+   */
+  async removeDocumentsFromAllCollections(documentIds: string[]): Promise<void> {
+    if (documentIds.length === 0) return;
+    await this.ensureInitialized();
+
+    try {
+      const filter: QdrantFilter = {
+        must: [{ key: 'document_id', match: { any: documentIds } }],
+      };
+
+      await this.qdrantOps!.batchDelete(
+        this.qdrant.collections.notebook_collection_documents,
+        filter
+      );
+
+      logger.info(`Removed ${documentIds.length} deleted document(s) from all notebooks`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error(`Error removing deleted documents from notebooks: ${message}`);
+    }
+  }
+
+  /**
+   * One page of the notebook↔document join, for the orphan sweep.
+   *
+   * `scrollDocuments` drops Qdrant's `next_page_offset`, so paging is done by
+   * handing back the last point id and asking the caller to pass it as the next
+   * `after`. Qdrant treats that offset as inclusive, hence the drop of the first
+   * row on every page but the first.
+   */
+  async listDocumentLinksPage(
+    pageSize: number,
+    after: string | number | null = null
+  ): Promise<{ documentIds: string[]; last: string | number | null }> {
+    await this.ensureInitialized();
+
+    const points: ScrollPoint[] = await this.qdrantOps!.scrollDocuments(
+      this.qdrant.collections.notebook_collection_documents,
+      {},
+      { limit: after === null ? pageSize : pageSize + 1, withPayload: true, offset: after }
+    );
+
+    const page = after === null ? points : points.slice(1);
+    return {
+      documentIds: page.map((p) => String(p.payload.document_id)),
+      last: page.length > 0 ? (page[page.length - 1]?.id ?? null) : null,
+    };
+  }
+
+  /**
    * Get documents associated with a Notebook collection
    */
   /**

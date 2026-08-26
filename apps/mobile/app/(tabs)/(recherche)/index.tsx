@@ -24,6 +24,7 @@ import {
 import { useNotebookSharing } from '../../../hooks/notebook/useNotebookSharing';
 import { useContentColumn } from '../../../hooks/useLayout';
 import {
+  collectionIndexingState,
   useNotebookCollections,
   type MobileNotebookCollection,
 } from '../../../hooks/useNotebookCollections';
@@ -34,9 +35,19 @@ import { FLOATING_TAB_BAR_HEIGHT } from '../../../theme/layout';
 import { getSurfaceFab } from '../../../theme/toolTheme';
 import { routeWithParams } from '../../../types/routes';
 
-/** "12 Dokumente · Beschreibung" line for a user's own notebook card. */
+/**
+ * "12 Dokumente · Beschreibung" line for a user's own notebook card.
+ *
+ * Readiness displaces the description rather than joining it: the card gives
+ * this one truncated line, and a notebook that cannot answer yet is the more
+ * useful thing to read there. Wording matches the web notebook cards.
+ */
 function collectionSubtitle(c: MobileNotebookCollection): string {
   const docs = `${c.document_count} Dokument${c.document_count === 1 ? '' : 'e'}`;
+  const state = collectionIndexingState(c);
+  if (state === 'indexing') return `${docs} · Wird indexiert`;
+  if (state === 'failed') return `${docs} · Nicht durchsuchbar`;
+  if (state === 'partial') return `${docs} · Teilweise indexiert`;
   return c.description ? `${docs} · ${c.description}` : docs;
 }
 
@@ -54,8 +65,7 @@ export default function NotebooksScreen() {
   const [askVisible, setAskVisible] = useState(false);
   const { user } = useAuth();
   const locale: 'de-DE' | 'de-AT' = user?.locale === 'de-AT' ? 'de-AT' : 'de-DE';
-  const { collections, isLoading, processingIds, createCollection, deleteCollection } =
-    useNotebookCollections();
+  const { collections, isLoading, createCollection, deleteCollection } = useNotebookCollections();
   // Last tab: swiping right walks back to Studio, swiping left does nothing.
   const swipe = useTabNavigationSwipe('/(tabs)/(recherche)');
   const { showActionSheetWithOptions } = useActionSheet();
@@ -280,7 +290,7 @@ export default function NotebooksScreen() {
                         subtitle={collectionSubtitle(c)}
                         onPress={() => handleCollectionPress(c.id, c.name)}
                         onLongPress={() => handleCollectionActions(c)}
-                        isProcessing={processingIds.has(c.id)}
+                        isProcessing={collectionIndexingState(c) === 'indexing'}
                         style={notebookGrid.item}
                       />
                     ))}

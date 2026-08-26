@@ -38,6 +38,7 @@ import {
 import { startBoardAgentWorker } from './services/boards/boardAgentWorker.js';
 import { startBoardScheduleWorker } from './services/boards/boardScheduleWorker.js';
 import { startCardDueReminderWorker } from './services/boards/cardDueReminderWorker.js';
+import { startNotebookLinkCleanup } from './services/cleanup/notebookLinkCleanupService.js';
 import { startUploadsCleanup } from './services/cleanup/uploadsCleanupService.js';
 import { startDocumentIngestWorker } from './services/document-services/DocumentProcessingService/documentIngestWorker.js';
 import { mem0HealthSnapshot } from './services/mem0/mem0Health.js';
@@ -89,6 +90,7 @@ if (skipCluster) {
   // Start cleanup schedulers
   startExportCleanup();
   startUploadsCleanup();
+  startNotebookLinkCleanup();
   startNotificationCleanup();
   startDeepResearchCleanup();
   startModelLatencyCleanup();
@@ -171,6 +173,7 @@ if (skipCluster) {
   // Start cleanup schedulers (runs in master process only)
   startExportCleanup();
   startUploadsCleanup();
+  startNotebookLinkCleanup();
   startNotificationCleanup();
   startDeepResearchCleanup();
   startModelLatencyCleanup();

@@ -121,11 +121,72 @@ export const documentStatusesResponseSchema = z.object({
   ),
 });
 
+/**
+ * GET /api/documents/:id/status — the per-document poll the upload UI runs.
+ *
+ * This schema PINS the shape already on the wire; it does not tidy it. Shipped
+ * mobile binaries poll this exact path, and the web upload store reads
+ * `data.vectorCount` and `data.error` — so the camelCase keys, the field name
+ * `error` (the column behind it is `metadata.processing_error`) and the `data`
+ * envelope are frozen. Widening is fine here, renaming is not.
+ *
+ * `vectorCount` is load-bearing rather than informational: `status='completed'`
+ * with zero vectors means indexing reported success and left nothing
+ * searchable, which a caller must not read as done.
+ */
+export const documentStatusResponseSchema = z.object({
+  success: z.literal(true),
+  data: z.object({
+    id: z.string(),
+    status: documentStatusValueSchema,
+    title: z.string(),
+    vectorCount: z.number(),
+    processingStage: documentProcessingStageSchema.nullable(),
+    processingProgress: documentProcessingProgressSchema.nullable(),
+    error: z.string().nullable(),
+  }),
+});
+
+/** 404 / 413 / 415 / 500 on the status and upload routes share this envelope. */
+export const documentStatusErrorSchema = z.object({
+  success: z.literal(false),
+  message: z.string(),
+});
+
+/**
+ * POST /api/documents/upload-only.
+ *
+ * Multipart, so it stays a raw multer handler NEXT TO the contract rather than
+ * inside it — `@ts-rest/express` has no multipart support, and the repo already
+ * settled this the same way for transfers, voice, scanner and group avatars.
+ * These two schemas are what that handler validates its text field and its
+ * answer against, and what the clients derive their types from instead of
+ * transcribing them a third time.
+ */
+export const uploadOnlyBodySchema = z.object({
+  /** Absent means "use the file name" — the upload UI does not always send one. */
+  title: z.string().nullish(),
+});
+
+export const uploadOnlyResponseSchema = z.object({
+  success: z.literal(true),
+  message: z.string(),
+  data: z.object({
+    id: z.string(),
+    title: z.string(),
+    filename: z.string(),
+    status: documentStatusValueSchema,
+  }),
+});
+
 export type DocumentStatusValue = z.infer<typeof documentStatusValueSchema>;
 export type DocumentProcessingStage = z.infer<typeof documentProcessingStageSchema>;
 export type DocumentProcessingProgress = z.infer<typeof documentProcessingProgressSchema>;
 export type DocumentStatusesRequest = z.infer<typeof documentStatusesRequestSchema>;
 export type DocumentStatusesResponse = z.infer<typeof documentStatusesResponseSchema>;
+export type DocumentStatusResponse = z.infer<typeof documentStatusResponseSchema>;
+export type UploadOnlyBody = z.infer<typeof uploadOnlyBodySchema>;
+export type UploadOnlyResponse = z.infer<typeof uploadOnlyResponseSchema>;
 
 // ── document content (GET /:id/content) ─────────────────────────────────────
 

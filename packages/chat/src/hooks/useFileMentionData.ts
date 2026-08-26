@@ -1,5 +1,7 @@
+import { deriveIndexingState, transformedCollectionSchema } from '@gruenerator/contracts';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
+import { z } from 'zod';
 
 import { useChatConfigStore } from '../stores/chatConfigStore';
 
@@ -12,23 +14,25 @@ import type {
 
 const STALE_TIME = 5 * 60 * 1000;
 
-interface RawDocument {
-  id: string;
-  title?: string;
-  name?: string;
-  page_count?: number;
-  pageCount?: number;
-  source_type?: string;
-  sourceType?: string;
-}
-interface RawCollection {
-  id: string;
-  name: string;
-  description?: string | null;
-  document_count?: number;
-  documentCount?: number;
-  documents?: RawDocument[];
-}
+/**
+ * Only the fields the picker actually shows, picked off the contract's
+ * `transformedCollectionSchema` so the shape is derived rather than transcribed.
+ * Picking instead of using `collectionsListResponseSchema` whole keeps the blast
+ * radius small: a drift in a field nobody here reads must not take the mention
+ * list down.
+ */
+const mentionCollectionSchema = transformedCollectionSchema.pick({
+  id: true,
+  name: true,
+  description: true,
+  document_count: true,
+  documents: true,
+  indexing_state: true,
+});
+
+const mentionCollectionsResponseSchema = z.object({
+  collections: z.array(mentionCollectionSchema),
+});
 
 function useConfigFetch() {
   return useChatConfigStore((s) => s.fetch);
@@ -44,18 +48,24 @@ export function useNotebookCollectionsQuery(enabled: boolean) {
     queryFn: async () => {
       const response = await configFetch('/api/auth/notebook-collections');
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const json = (await response.json()) as RawCollection[] | { collections: RawCollection[] };
-      const data: RawCollection[] = Array.isArray(json) ? json : json.collections || [];
-      return data.map<NotebookCollectionItem>((c) => ({
+      // Parsing rather than casting, for the same reason the `!ok` branch above
+      // throws: a silently mistyped payload renders exactly like "you have no
+      // notebooks", which is the failure mode this file already had once.
+      const { collections } = mentionCollectionsResponseSchema.parse(await response.json());
+      return collections.map<NotebookCollectionItem>((c) => ({
         id: c.id,
         name: c.name,
-        description: c.description || null,
-        documentCount: c.document_count ?? c.documentCount ?? c.documents?.length ?? 0,
-        documents: (c.documents || []).map((d) => ({
+        description: c.description,
+        documentCount: c.document_count,
+        // A backend predating `indexing_state` still answers here, so fall back
+        // to deriving it — same fallback the web notebook list uses. The list
+        // response carries no `vector_count`, so the derivation trusts `status`.
+        indexingState: c.indexing_state ?? deriveIndexingState(c.documents),
+        documents: c.documents.map((d) => ({
           id: d.id,
-          title: d.title || d.name || 'Unbekanntes Dokument',
-          pageCount: d.page_count ?? d.pageCount,
-          sourceType: d.source_type ?? d.sourceType,
+          title: d.title || 'Unbekanntes Dokument',
+          pageCount: d.page_count ?? null,
+          sourceType: d.source_type ?? null,
         })),
       }));
     },
