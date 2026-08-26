@@ -28,6 +28,7 @@ import type {
   DocumentSearchResult,
   NotebookCollectionItem,
 } from '@gruenerator/chat';
+import type { NotebookIndexingState } from '@gruenerator/contracts';
 
 interface DocumentBrowserSheetProps {
   visible: boolean;
@@ -92,7 +93,7 @@ export function DocumentBrowserSheet({
 
   const handleDocSelect = useCallback(
     (
-      doc: { id: string; title: string; sourceType?: string },
+      doc: { id: string; title: string; sourceType?: string | null },
       collectionId?: string,
       collectionName?: string
     ) => {
@@ -251,13 +252,13 @@ function RootLevel({
   onUpload,
 }: {
   collections: NotebookCollectionItem[];
-  documents: { id: string; title: string; sourceType?: string }[];
+  documents: { id: string; title: string; sourceType?: string | null }[];
   texts: { id: string; title: string }[];
   /** A request failed. Without this an outage renders as "you have no files". */
   failed: boolean;
   theme: Theme;
   onSelectCollection: (c: NotebookCollectionItem) => void;
-  onSelectDoc: (doc: { id: string; title: string; sourceType?: string }) => void;
+  onSelectDoc: (doc: { id: string; title: string; sourceType?: string | null }) => void;
   onUpload: () => void;
 }) {
   const isDark = useColorScheme() === 'dark';
@@ -337,6 +338,7 @@ function RootLevel({
                   <Ionicons name="folder-outline" size={20} color={theme.textGreen} />
                   <View style={styles.rowText}>
                     <Text style={[styles.rowTitle, { color: theme.text }]}>{c.name}</Text>
+                    <IndexingHint state={c.indexingState} theme={theme} errorTint={errorTint} />
                   </View>
                   <Text style={[styles.badge, { color: theme.textSecondary }]}>
                     {c.documentCount}
@@ -384,6 +386,45 @@ function RootLevel({
   );
 }
 
+/**
+ * Says that a notebook cannot answer yet.
+ *
+ * Attaching one whose sources are still being indexed produces an answer built
+ * on nothing, and an empty result reads as "there is nothing about this in
+ * there" rather than "this is not ready". `ready`/`empty` render nothing — the
+ * count next to the row already says an empty notebook is empty. Wording kept
+ * identical to the web notebook cards.
+ */
+function IndexingHint({
+  state,
+  theme,
+  errorTint,
+}: {
+  state: NotebookIndexingState | null;
+  theme: Theme;
+  errorTint: string;
+}) {
+  if (state !== 'indexing' && state !== 'partial' && state !== 'failed') return null;
+
+  const label =
+    state === 'indexing'
+      ? 'Wird indexiert'
+      : state === 'failed'
+        ? 'Nicht durchsuchbar'
+        : 'Teilweise indexiert';
+
+  return (
+    <Text
+      style={[
+        styles.rowSubtitle,
+        { color: state === 'indexing' ? theme.textSecondary : errorTint },
+      ]}
+    >
+      {label}
+    </Text>
+  );
+}
+
 function CollectionDocs({
   collection,
   theme,
@@ -391,7 +432,7 @@ function CollectionDocs({
 }: {
   collection: NotebookCollectionItem | undefined;
   theme: Theme;
-  onSelect: (doc: { id: string; title: string; sourceType?: string }) => void;
+  onSelect: (doc: { id: string; title: string; sourceType?: string | null }) => void;
 }) {
   if (!collection || !collection.documents?.length) {
     return <Text style={[styles.emptyText, { color: theme.textSecondary }]}>Keine Dokumente</Text>;
