@@ -25,6 +25,8 @@ const { rerankPipeline } = await import('../../services/search/rerankPipeline.js
 
 import type { DocumentResult } from '../../services/BaseSearchService/types.js';
 
+type DocumentSearchService = InstanceType<typeof DocumentSearchService>;
+
 const MANUAL_VECTOR_WEIGHT = 0.7;
 const MANUAL_TEXT_WEIGHT = 0.3;
 const MANUAL_MIN_SCORE = 0.35;
