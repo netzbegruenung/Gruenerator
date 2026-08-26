@@ -64,6 +64,7 @@ import {
   PASTED_TEXT_ATTACHMENT_NAME,
   shouldCreatePastedTextAttachment,
 } from '../../lib/pastedText';
+import { pillsAfterThreadChange } from '../../lib/pillLifecycle';
 import { useScopedAgentId } from '../../lib/useScopedAgentState';
 import { useAgentStore } from '../../stores/chatStore';
 import { useUserProfileStore } from '../../stores/userProfileStore';
@@ -381,15 +382,12 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   const pillMentionsRef = useRef(pillMentions);
   pillMentionsRef.current = pillMentions;
 
-  // Pills are a draft property of the current thread's composer, so switching
-  // INTO a thread starts from a clean slate. Landing on the draft (null) must
-  // not: /start resets the chat context and switches to a new thread
-  // asynchronously on mount, and clearing on that settle silently ate a pill
-  // picked in the meantime. The mint flip (null → fresh id) is harmless — the
-  // flush runs synchronously before send().
+  // Switching INTO a thread starts the composer from a clean slate; landing on
+  // the draft keeps what the user already picked (see pillsAfterThreadChange —
+  // the flip to null is what ate the mention on /start).
   const currentThreadId = useAgentStore((s) => s.currentThreadId);
   useEffect(() => {
-    if (currentThreadId !== null) setPillMentions([]);
+    setPillMentions((prev) => pillsAfterThreadChange(prev, currentThreadId));
   }, [currentThreadId]);
 
   // `interactive-widget=resizes-visual` (apps/web/index.html) keeps the layout
