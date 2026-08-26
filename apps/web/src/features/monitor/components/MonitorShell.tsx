@@ -10,24 +10,17 @@ import { useMonitorLocaleParam } from '../hooks/useMonitorLocaleParam';
 import type { MonitorLocale } from '../hooks/useMonitor';
 import type { ReactNode } from 'react';
 
-export type MonitorSection = 'themen' | 'umfragen' | 'watcher' | 'feed';
+/**
+ * Only /watcher still uses this chrome — Themen, Trends, Feed und Umfragen sind
+ * auf `MonitorPageHeader` umgezogen. Die Union bleibt eine Union, damit ein
+ * künftiger Rückkehrer sie erweitert statt sie neu zu erfinden.
+ */
+export type MonitorSection = 'watcher';
 
 const SECTION_SUBTITLES: Record<MonitorSection, Record<MonitorLocale, string>> = {
-  themen: {
-    de: 'Meistdiskutierte Themen in deutschen Nachrichtenmedien der letzten 24 Stunden.',
-    at: 'Meistdiskutierte Themen in österreichischen Nachrichtenmedien der letzten 24 Stunden.',
-  },
-  umfragen: {
-    de: 'Sonntagsfrage, Ländertrends und Meinungsbild.',
-    at: 'Sonntagsfrage und Wahltrends für Österreich.',
-  },
   watcher: {
     de: 'Berichterstattung über die Grünen — Risiken und Chancen im Blick.',
     at: 'Berichterstattung über die Grünen — Risiken und Chancen im Blick.',
-  },
-  feed: {
-    de: 'Neue Inhalte aus grünen Quellen, täglich gesammelt.',
-    at: 'Neue Inhalte aus grünen Quellen, täglich gesammelt.',
   },
 };
 
