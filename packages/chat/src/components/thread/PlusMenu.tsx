@@ -1,5 +1,6 @@
 'use client';
 
+import { roleShortLabel } from '@gruenerator/shared/roles';
 import {
   DropdownMenuSub,
   DropdownMenuSubTrigger,
@@ -47,7 +48,11 @@ import {
   useScopedSetCustomRoleName,
   useScopedSetCustomRoleRef,
 } from '../../lib/useScopedAgentState';
-import { composerToolbarButtonClass } from '../../lib/utils';
+import {
+  composerActiveChipClass,
+  composerActiveChipIconClass,
+  composerToolbarButtonClass,
+} from '../../lib/utils';
 import { useAgentStore } from '../../stores/chatStore';
 import { useSkillFavoritesStore } from '../../stores/skillFavoritesStore';
 import { useUserProfileStore } from '../../stores/userProfileStore';
@@ -147,14 +152,19 @@ export const PlusMenu = memo(function PlusMenu({
   const hasCustomPrompt = !!customSystemPrompt || !!customRoleRef;
   const hasRoles = roles.length > 0;
 
-  const activeRoleName =
+  const activeRole =
     threadMode === 'eigener' && hasRoles
-      ? (
-          roles.find((r) => r.ebene === customRoleRef?.ebene && r.rolle === customRoleRef?.rolle) ??
-          roles.find((r) => r.systemPrompt && r.systemPrompt === customSystemPrompt)
-        )?.rolle
+      ? (roles.find((r) => r.ebene === customRoleRef?.ebene && r.rolle === customRoleRef?.rolle) ??
+        roles.find((r) => r.systemPrompt && r.systemPrompt === customSystemPrompt))
       : null;
+  const activeRoleName = activeRole?.rolle ?? null;
   const eigenerBadgeLabel = activeRoleName || (firstName ? `${firstName}s Chat` : 'Eigener');
+  // Im Chip steht die Kurzform, im Menü und im Tooltip die volle Bezeichnung —
+  // „Mitarbeiter*in Landesgeschäftsstelle" wurde dort bisher mitten im Wort
+  // abgeschnitten.
+  const eigenerChipLabel = activeRole
+    ? roleShortLabel(activeRole.ebene, activeRole.rolle)
+    : eigenerBadgeLabel;
 
   const selectChatMode = () => {
     setCustomRoleName(null);
@@ -601,19 +611,28 @@ export const PlusMenu = memo(function PlusMenu({
         trigger={
           <button
             type="button"
-            aria-label="Aktionen und Modus"
-            className={`${composerToolbarButtonClass(isCompact)} ${
+            aria-label={
+              showModeBadge ? `Aktionen und Modus — ${eigenerBadgeLabel}` : 'Aktionen und Modus'
+            }
+            title={showModeBadge ? eigenerBadgeLabel : undefined}
+            className={
               showModeBadge
-                ? 'rounded-full border border-primary-200 text-primary-700 dark:border-primary-400/30 dark:text-primary-300'
-                : ''
-            }`}
+                ? composerActiveChipClass(isCompact)
+                : composerToolbarButtonClass(isCompact)
+            }
           >
-            <PlusIcon className={isCompact ? 'h-4 w-4 stroke-[1.5px]' : 'h-5 w-5 stroke-[1.5px]'} />
-            {showModeBadge && (
-              <span className="max-w-32 truncate text-[12px] font-medium tracking-tight">
-                {eigenerBadgeLabel}
-              </span>
-            )}
+            {/* Im Chip trägt das Plus die Strichstärke des fetten Labels mit
+                (Variante 2c); ohne Rolle bleibt es der dünne Toolbar-Knopf. */}
+            <PlusIcon
+              className={
+                showModeBadge
+                  ? `${composerActiveChipIconClass} stroke-[2.4px]`
+                  : isCompact
+                    ? 'h-4 w-4 stroke-[1.5px]'
+                    : 'h-5 w-5 stroke-[1.5px]'
+              }
+            />
+            {showModeBadge && <span className="max-w-32 truncate">{eigenerChipLabel}</span>}
           </button>
         }
         desktopContent={desktopContent}
