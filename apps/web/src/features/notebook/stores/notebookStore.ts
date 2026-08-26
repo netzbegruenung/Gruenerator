@@ -54,29 +54,6 @@ interface NotebookState {
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   fetchQACollections: () => Promise<void>;
-  createQACollection: (collectionData: {
-    name: string;
-    description?: string;
-    custom_prompt?: string;
-    selectionMode?: 'documents' | 'wolke';
-    documents?: string[];
-    wolkeShareLinks?: string[];
-    labels?: string[];
-  }) => Promise<NotebookCollection>;
-  updateQACollection: (
-    collectionId: string,
-    collectionData: {
-      name: string;
-      description?: string;
-      custom_prompt?: string;
-      selectionMode?: 'documents' | 'wolke';
-      documents?: string[];
-      wolkeShareLinks?: string[];
-      labels?: string[];
-    }
-  ) => Promise<void>;
-  deleteQACollection: (collectionId: string) => Promise<void>;
-  removeDocumentFromCollection: (collectionId: string, documentId: string) => Promise<void>;
   getQACollection: (collectionId: string) => NotebookCollection | undefined;
   clearError: () => void;
   getEnhancedCollection: (collectionId: string) => NotebookCollection | null;
@@ -155,135 +132,6 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error('Error fetching Notebook collections:', error);
       set({ error: errorMessage, loading: false });
-    }
-  },
-
-  // Create new Notebook collection
-  createQACollection: async (collectionData) => {
-    set({ loading: true, error: null });
-    try {
-      const requestData: {
-        name: string;
-        description?: string;
-        custom_prompt?: string;
-        selection_mode: 'documents' | 'wolke';
-        document_ids?: string[];
-        wolke_share_link_ids?: string[];
-        labels?: string[];
-      } = {
-        name: collectionData.name,
-        description: collectionData.description,
-        custom_prompt: collectionData.custom_prompt,
-        selection_mode: collectionData.selectionMode === 'wolke' ? 'wolke' : 'documents',
-      };
-
-      // Add selection-specific data
-      if (collectionData.selectionMode === 'wolke') {
-        requestData.wolke_share_link_ids = collectionData.wolkeShareLinks || [];
-      } else {
-        requestData.document_ids = collectionData.documents || [];
-      }
-
-      if (collectionData.labels) {
-        requestData.labels = collectionData.labels;
-      }
-
-      const response = await getContractsClient().notebookCollections.createCollection({
-        body: requestData,
-      });
-
-      if (response.status !== 201) {
-        throw new Error('Failed to create Notebook collection');
-      }
-
-      // Refresh collections
-      await get().fetchQACollections();
-      set({ loading: false });
-
-      // The contract's create-response collection and the app's richer
-      // NotebookCollection domain type describe the same row but aren't
-      // mutually assignable; boundary cast at the store edge.
-      return response.body.collection as unknown as NotebookCollection;
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error('Error creating Notebook collection:', error);
-      set({ error: errorMessage, loading: false });
-      throw error;
-    }
-  },
-
-  // Update Notebook collection
-  updateQACollection: async (collectionId, collectionData) => {
-    set({ loading: true, error: null });
-    try {
-      const requestData: {
-        name: string;
-        description?: string;
-        custom_prompt?: string;
-        selection_mode: 'documents' | 'wolke';
-        document_ids?: string[];
-        wolke_share_link_ids?: string[];
-        labels?: string[];
-      } = {
-        name: collectionData.name,
-        description: collectionData.description,
-        custom_prompt: collectionData.custom_prompt,
-        selection_mode: collectionData.selectionMode === 'wolke' ? 'wolke' : 'documents',
-      };
-
-      // Add selection-specific data
-      if (collectionData.selectionMode === 'wolke') {
-        requestData.wolke_share_link_ids = collectionData.wolkeShareLinks || [];
-      } else {
-        requestData.document_ids = collectionData.documents || [];
-      }
-
-      if (collectionData.labels) {
-        requestData.labels = collectionData.labels;
-      }
-
-      const response = await getContractsClient().notebookCollections.updateCollection({
-        params: { id: collectionId },
-        body: requestData,
-      });
-
-      if (response.status !== 200) {
-        throw new Error('Failed to update Notebook collection');
-      }
-
-      // Refresh collections
-      await get().fetchQACollections();
-      set({ loading: false });
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error('Error updating Notebook collection:', error);
-      set({ error: errorMessage, loading: false });
-      throw error;
-    }
-  },
-
-  // Delete Notebook collection
-  deleteQACollection: async (collectionId) => {
-    set({ loading: true, error: null });
-    try {
-      const response = await getContractsClient().notebookCollections.deleteCollection({
-        params: { id: collectionId },
-      });
-
-      if (response.status !== 200) {
-        throw new Error('Failed to delete Notebook collection');
-      }
-
-      // Update local state
-      set((state) => ({
-        qaCollections: state.qaCollections.filter((c) => c.id !== collectionId),
-        loading: false,
-      }));
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error('Error deleting Notebook collection:', error);
-      set({ error: errorMessage, loading: false });
-      throw error;
     }
   },
 
@@ -408,41 +256,6 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
   getSelectedDocumentIds: (collectionId) => {
     const { selectedDocumentIds } = get();
     return selectedDocumentIds[collectionId] || [];
-  },
-
-  // ─── Document Management Actions ───────────────────────────────────────
-
-  removeDocumentFromCollection: async (collectionId, documentId) => {
-    try {
-      const response = await getContractsClient().notebookCollections.removeDocument({
-        params: { id: collectionId, documentId },
-      });
-      if (response.status !== 200) {
-        throw new Error('Failed to remove document');
-      }
-
-      set((state) => ({
-        qaCollections: state.qaCollections.map((c) => {
-          if (c.id !== collectionId) return c;
-          return {
-            ...c,
-            documents: (c.documents || []).filter((d) => d.id !== documentId),
-            document_count: Math.max(0, (c.document_count || 0) - 1),
-          };
-        }),
-        selectedDocumentIds: {
-          ...state.selectedDocumentIds,
-          [collectionId]: (state.selectedDocumentIds[collectionId] || []).filter(
-            (id) => id !== documentId
-          ),
-        },
-      }));
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error('Error removing document from collection:', error);
-      set({ error: errorMessage });
-      throw error;
-    }
   },
 
   // ─── Filter Actions ────────────────────────────────────────────────────
