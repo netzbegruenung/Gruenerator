@@ -15,6 +15,7 @@
  * fetched, so a caller can also render it.
  */
 
+import { type TextForm } from '@gruenerator/contracts';
 import { isUnauthorizedError } from '@gruenerator/shared/api';
 
 import {
@@ -48,11 +49,14 @@ export interface UserNotebookListItem {
   name: string;
 }
 
-export interface TextFormListItem {
-  kind: 'preset' | 'custom';
-  mention: string;
-  title: string;
-}
+/**
+ * The slice of `/api/text-forms` this module reads, derived from the contract
+ * schema instead of retyped. Hand-narrowing it is how `sharedFromGroup` went
+ * missing: the field the picker splits recipes on was simply absent from the
+ * transport type, so nothing ever flagged that the mapping below dropped it
+ * (#2876).
+ */
+export type TextFormListItem = Pick<TextForm, 'kind' | 'mention' | 'title' | 'sharedFromGroup'>;
 
 export interface McpServerListItem {
   id: string;
@@ -99,6 +103,11 @@ export async function syncCustomAgents(get: MentionableFetch): Promise<CustomAge
  * User's custom text forms ("Texte anlernen") → per-form `/mention` skills.
  * Presets ride the existing system-skill mentions, so only custom forms surface
  * here. Anonymous users / no forms resolve to an empty list.
+ *
+ * `sharedFromGroup` rides along: `/api/text-forms` returns the user's own forms
+ * plus every form shared into one of their groups, and both arrive with the
+ * owner's `kind: 'custom'`. Without the field the picker cannot tell them apart
+ * and lists a colleague's recipe as one of your own.
  */
 export async function syncTextforms(get: MentionableFetch): Promise<TextformMentionable[]> {
   const res = await get<{ forms?: TextFormListItem[] }>('/api/text-forms').catch(() => ({
@@ -107,7 +116,11 @@ export async function syncTextforms(get: MentionableFetch): Promise<TextformMent
   const list = Array.isArray(res?.forms)
     ? res.forms
         .filter((f) => f.kind === 'custom')
-        .map((f) => ({ mention: f.mention, title: f.title }))
+        .map((f) => ({
+          mention: f.mention,
+          title: f.title,
+          sharedFromGroup: f.sharedFromGroup ?? null,
+        }))
     : [];
   setTextforms(list);
   return list;

@@ -115,6 +115,12 @@ export interface Mentionable {
   intentCategory?: string;
 }
 
+/**
+ * A user-authored or saved custom prompt. No `sharedFromGroup`: `custom_prompts`
+ * / `saved_prompts` know a public directory and a bookmark, not group shares —
+ * the wire (`customPromptSchema`) carries no group name at all. Group-shared
+ * agents live in the separate `user_agents` table and do not reach this list.
+ */
 export interface CustomAgentMentionable {
   id: string;
   name: string;
@@ -322,6 +328,12 @@ export function getCustomAgentMentionables(): Mentionable[] {
 export interface TextformMentionable {
   mention: string;
   title: string;
+  /**
+   * Name of the group this recipe was shared from, `null` for the user's own.
+   * The picker splits the recipe section on it, so dropping it here makes a
+   * colleague's recipe look like one of your own (#2876).
+   */
+  sharedFromGroup?: string | null;
 }
 
 export function textformToMentionable(t: TextformMentionable): Mentionable {
@@ -331,10 +343,11 @@ export function textformToMentionable(t: TextformMentionable): Mentionable {
     trigger: '@',
     identifier: t.mention,
     title: t.title,
-    description: 'Eigene Textform',
+    description: t.sharedFromGroup ? `Rezept aus ${t.sharedFromGroup}` : 'Eigene Textform',
     avatar: '✍️',
     backgroundColor: '#316049',
     mention: t.mention,
+    ...(t.sharedFromGroup ? { sharedFromGroup: t.sharedFromGroup } : {}),
   };
 }
 
