@@ -24,9 +24,14 @@ import type {
  * Mistral OCR für Anhang und Zusammenfassung, PDF.js für die Indizierung —
  * denn `extractTextFromDocument` prüft die Direkt-Lesbarkeit vorweg und
  * `extractTextFromBase64` tut das nicht. Zitiert wurde immer die PDF.js-Fassung,
- * weil nur sie in Qdrant landet, und die plättet Tabellen in eine durchgehende
- * Zeile (gemessen 24.08.2026: Zeilengrenzen der Löschfristen-Tabelle komplett
- * verloren). Ein Text pro Datei — derselbe, den das Modell im Anhang liest.
+ * weil nur sie in Qdrant landet. Deren Tabellen-Schaden ist mit #2830 behoben:
+ * `OcrService/textItemJoin.ts` setzt die pdfjs-Items über die Seiten-Geometrie
+ * zusammen, Zeilenwechsel werden zu `\n`, und `evals/extraction/tableExtraction.vitest.ts`
+ * schreibt fest, dass alle 16 Zellen wortgetreu und zeilenweise ankommen.
+ * Was bleibt: gesperrt gesetzte Spaltenköpfe („D a t e n a r t") — pdfjs baut
+ * deren Leerzeichen INNERHALB eines Items in `str` ein, keine Join-Logik erreicht
+ * das; der Eval nagelt den Mangel als bestehenden Test fest.
+ * Ein Text pro Datei — derselbe, den das Modell im Anhang liest.
  */
 export async function processFileUpload(
   postgresDocumentService: PostgresDocumentServiceLike,
