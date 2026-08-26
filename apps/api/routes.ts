@@ -15,6 +15,7 @@ import { requireAiConsent } from './middleware/requireAiConsent.js';
 import { mountInstanceAdminOverviewContractRouter } from './routes/admin/instanceAdminOverviewContractRouter.js';
 import { mountLandesverbandAdminContractRouter } from './routes/admin/landesverbandAdminContractRouter.js';
 import { mountLvAdminAssignmentContractRouter } from './routes/admin/lvAdminAssignmentContractRouter.js';
+import { mountAgentVisibilityContractRouter } from './routes/agents/agentVisibilityContractRouter.js';
 import antraegeRouter from './routes/antraege/index.js';
 import { mountGroupsContractRouter } from './routes/auth/groups/groupsContract/index.js';
 import { mountImageModelPreferenceContractRouter } from './routes/auth/imageModelPreferenceContractRouter.js';
@@ -364,6 +365,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   // Admin-curated Rezepte visibility — same requireAuth-at-prefix +
   // per-handler is_admin check as admin Vorlagen above.
   app.use('/api/auth/admin/skills', requireAuth);
+  // Admin-kuratierte Agenten-Sichtbarkeit — dieselbe Bauform.
+  app.use('/api/auth/admin/agents', requireAuth);
   // BGST-instance admin overview (read-only) — same requireAuth-at-prefix +
   // per-handler requireInstanceAdmin check.
   app.use('/api/auth/admin/bgst', requireAuth);
@@ -868,6 +871,11 @@ export async function setupRoutes(app: Application): Promise<void> {
   // list/setHidden under /api/auth/admin/skills (guarded near admin Vorlagen).
   // Both prefixes are set up before this single mount call.
   mountSkillVisibilityContractRouter(app);
+  // Agenten-Sichtbarkeit, gleiche Bauform: `getVisibility` unter /api/agents,
+  // `list`/`setHidden` unter /api/auth/admin/agents (beide Präfixe oben
+  // abgesichert), ein einziger Mount-Aufruf.
+  app.use('/api/agents', requireAuth);
+  mountAgentVisibilityContractRouter(app);
   // Per-user external MCP server registry (EXPERIMENTAL). requireAuth at the
   // prefix — every route is user-scoped and handles user-entered credentials.
   app.use('/api/mcp/servers', requireAuth);

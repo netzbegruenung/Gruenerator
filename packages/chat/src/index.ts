@@ -313,7 +313,7 @@ export { useFileMentionData } from './hooks/useFileMentionData';
 // once high in the tree (e.g. alongside useMentionablesQuery) and read the
 // returned array directly wherever a live Rezepte catalog is rendered
 // (Agentura, SkillLibraryModal, PlusMenu).
-export { useHiddenSkillMentions } from './hooks/useMentionablesQuery';
+export { useHiddenAgentIdentifiers, useHiddenSkillMentions } from './hooks/useMentionablesQuery';
 
 // Landesverbands-Zuteilung aus den Profilrollen. Steuert, welche LV-Agenten,
 // -Rezepte und -Notizbücher eine Person überhaupt angeboten bekommt.

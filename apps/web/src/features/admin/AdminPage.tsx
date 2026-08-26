@@ -10,6 +10,7 @@ import { CURRENT_INSTANCE } from '../../config/instance';
 
 import RequireAdmin from './components/RequireAdmin';
 import LandesverbandAssignmentTab from './landesverband-assignment/LandesverbandAssignmentTab';
+import AgentsTab from './tabs/AgentsTab';
 import RolesTab from './tabs/RolesTab';
 import SkillsTab from './tabs/SkillsTab';
 import UsersTab from './tabs/UsersTab';
@@ -51,6 +52,14 @@ function buildTabs(instanceId: typeof CURRENT_INSTANCE): AdminTab[] {
       description:
         'Welche Rezepte diese Instanz im Katalog anbietet. Ausgeblendete Rezepte bleiben über einen bestehenden Link oder eine explizite @-Erwähnung weiter erreichbar.',
       render: () => <SkillsTab />,
+    },
+    {
+      value: 'agents',
+      label: 'Agenten',
+      title: 'Grünerator-Agenten',
+      description:
+        'Welche Agenten diese Instanz im Katalog anbietet. Ausgeblendete Agenten bleiben über einen bestehenden Link erreichbar. Die Landesverbands-Agenten stehen nicht einzeln hier — sie fallen mit ihrem Landesverband.',
+      render: () => <AgentsTab />,
     },
     {
       value: 'roles',
