@@ -12,6 +12,7 @@ const PUBLIC_ENDPOINT = 'http://localhost/api/auth/notebook-collections/public';
 const LIKES_ENDPOINT = 'http://localhost/api/auth/notebook-collections/likes';
 const MONITOR_LATEST = 'http://localhost/api/monitor/latest';
 const MONITOR_POLLS = 'http://localhost/api/monitor/polls';
+const MONITOR_FEED = 'http://localhost/api/monitor/what-happened';
 
 // Minimal wire shape of a public collection — only the fields the gallery reads.
 const publicCollection = (over: Record<string, unknown> = {}) => ({
@@ -30,17 +31,21 @@ const publicCollection = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
+const EMPTY_FEED = { days: [], totalCount: 0, sourceGroups: [], landesverbaende: [] };
+
 function serveCollections(
   collections: ReturnType<typeof publicCollection>[],
   // The tool tiles fetch live subtexts; empty payloads keep them on their
   // static descriptions instead of failing the unhandled-request guard.
-  monitor: Record<string, unknown> = { topics: [] }
+  monitor: Record<string, unknown> = { topics: [] },
+  feed: Record<string, unknown> = EMPTY_FEED
 ) {
   server.use(
     http.get(PUBLIC_ENDPOINT, () => HttpResponse.json({ success: true, collections })),
     http.get(LIKES_ENDPOINT, () => HttpResponse.json({ success: true, liked_ids: [] })),
     http.get(MONITOR_LATEST, () => HttpResponse.json(monitor, { status: 200 })),
-    http.get(MONITOR_POLLS, () => HttpResponse.json({ average: {} }, { status: 200 }))
+    http.get(MONITOR_POLLS, () => HttpResponse.json({ average: {} }, { status: 200 })),
+    http.get(MONITOR_FEED, () => HttpResponse.json(feed, { status: 200 }))
   );
 }
 
@@ -98,22 +103,44 @@ describe('NotebooksIndexFooter — "Von der Basis"', () => {
 });
 
 describe('NotebooksIndexFooter — live tool tiles', () => {
-  it('replaces the Themen and Trends descriptions with live monitor data', async () => {
-    serveCollections([], {
-      topics: [
-        { topic: 'klima', articleCount: 12, topArticles: [{ title: 'Kohleausstieg vorgezogen' }] },
-      ],
-      socialTrends: [
-        { rank: 1, name: '#Klimageld', url: 'https://x.com/search?q=%23Klimageld' },
-        { rank: 2, name: '#Bundestag', url: 'https://x.com/search?q=%23Bundestag' },
-      ],
-    });
+  it('replaces the Themen, Trends and Feed descriptions with live data', async () => {
+    serveCollections(
+      [],
+      {
+        topics: [
+          {
+            topic: 'klima',
+            articleCount: 12,
+            topArticles: [{ title: 'Kohleausstieg vorgezogen' }],
+          },
+        ],
+        socialTrends: [
+          { rank: 1, name: '#Klimageld', url: 'https://x.com/search?q=%23Klimageld' },
+          { rank: 2, name: '#Bundestag', url: 'https://x.com/search?q=%23Bundestag' },
+        ],
+      },
+      {
+        days: [
+          {
+            date: '2026-08-26',
+            counts: { stored: 1, updated: 0 },
+            articles: [{ title: 'Landesparteitag beschliesst Wohnraumprogramm' }],
+          },
+        ],
+        totalCount: 1,
+        sourceGroups: ['landesverbaende'],
+        landesverbaende: ['BY'],
+      }
+    );
 
     renderWithProviders(<NotebooksIndexFooter />);
 
     expect(await screen.findByText('Kohleausstieg vorgezogen')).toBeInTheDocument();
     expect(await screen.findByText('Jetzt im Trend: #Klimageld')).toBeInTheDocument();
-    // Both tiles link to their own page.
+    expect(
+      await screen.findByText('Landesparteitag beschliesst Wohnraumprogramm')
+    ).toBeInTheDocument();
+    // Each tile links to its own page.
     expect(screen.getByRole('link', { name: /Themen/ })).toHaveAttribute(
       'href',
       expect.stringContaining('/themen')
@@ -122,14 +149,19 @@ describe('NotebooksIndexFooter — live tool tiles', () => {
       'href',
       expect.stringContaining('/trends')
     );
+    expect(screen.getByRole('link', { name: /Feed/ })).toHaveAttribute(
+      'href',
+      expect.stringContaining('/feed')
+    );
   });
 
   it('falls back to the static descriptions when the snapshot carries no trends', async () => {
-    serveCollections([], { topics: [], socialTrends: [] });
+    serveCollections([], { topics: [], socialTrends: [] }, EMPTY_FEED);
 
     renderWithProviders(<NotebooksIndexFooter />);
 
-    expect(await screen.findByText('Was gerade auf X und Bluesky läuft.')).toBeInTheDocument();
+    expect(await screen.findByText('Was gerade auf X im Trend liegt.')).toBeInTheDocument();
     expect(screen.getByText('Meistdiskutierte Themen der letzten 24 Stunden.')).toBeInTheDocument();
+    expect(screen.getByText('Bluesky und neue Beiträge der Landesverbände.')).toBeInTheDocument();
   });
 });
