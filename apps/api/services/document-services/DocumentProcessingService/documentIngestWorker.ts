@@ -27,12 +27,31 @@ import { processUploadedDocument } from './fileProcessing.js';
 const log = createLogger('DocumentIngest');
 
 /**
- * How long a document may sit in `processing` before we assume the worker that
- * claimed it died. Generous: OCR of a large scanned PDF plus embedding can run
- * for several minutes, and reclaiming a run that is still alive wastes an
- * expensive pipeline.
+ * How long a document may sit in `processing` without any sign of life before
+ * we assume the worker that claimed it died. Generous: OCR of a large scanned
+ * PDF plus embedding can run for several minutes, and reclaiming a run that is
+ * still alive wastes an expensive pipeline.
  */
 const STALE_PROCESSING_MS = 20 * 60 * 1000;
+
+/**
+ * "Last sign of life" for a row in `processing`.
+ *
+ * NOT plain `processing_started_at`: that column arrived with this feature, so
+ * every row already stuck in `processing` from before the migration has it as
+ * NULL — and `NULL < NOW() - interval` is NULL, i.e. never true. Comparing it
+ * directly would silently exclude exactly the stranded backlog this worker
+ * exists to rescue. Postgres' GREATEST ignores NULL operands, so those rows
+ * fall back to `updated_at`.
+ *
+ * Using GREATEST rather than COALESCE also buys a heartbeat: a BEFORE UPDATE
+ * trigger keeps `updated_at` current, and the pipeline writes its stage into
+ * the row as it goes, so a long-but-live run keeps renewing its own lease
+ * instead of being reclaimed at the 20-minute mark. A freshly inserted row
+ * (saveDocumentMetadata defaults to `processing`) is likewise protected: its
+ * `updated_at` is now, so a synchronous upload in flight is never stolen.
+ */
+const LAST_ACTIVITY_SQL = 'GREATEST(processing_started_at, updated_at)';
 
 /** Give up after this many claims so a poison document cannot loop forever. */
 const MAX_ATTEMPTS = 3;
@@ -63,7 +82,7 @@ async function failExhaustedDocuments(): Promise<number> {
             )
       WHERE status = 'processing'
         AND processing_attempts >= $1
-        AND processing_started_at < NOW() - ($2::text || ' milliseconds')::interval
+        AND ${LAST_ACTIVITY_SQL} < NOW() - ($2::text || ' milliseconds')::interval
       RETURNING id`,
     [MAX_ATTEMPTS, String(STALE_PROCESSING_MS)]
   )) as Array<{ id: string }>;
@@ -97,7 +116,7 @@ async function claimNextDocument(): Promise<ClaimedDocument | null> {
                  status = 'uploaded'
                  OR (
                    status = 'processing'
-                   AND processing_started_at < NOW() - ($1::text || ' milliseconds')::interval
+                   AND ${LAST_ACTIVITY_SQL} < NOW() - ($1::text || ' milliseconds')::interval
                  )
                )
            AND COALESCE(processing_attempts, 0) < $2
