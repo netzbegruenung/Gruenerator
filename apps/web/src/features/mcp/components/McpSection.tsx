@@ -4,6 +4,7 @@
  * of hand-picked, remote-hosted servers plus a custom-server form. Auth is
  * `none`, `bearer` (token dialog) or `oauth` (PKCE/DCR popup).
  */
+import { connectorBrandIcon } from '@gruenerator/chat/connectors';
 import { mcpBrandColor } from '@gruenerator/shared/utils';
 import {
   Dialog,
@@ -17,23 +18,6 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { FiServer, FiSearch, FiCheck, FiRefreshCw, FiAlertCircle } from 'react-icons/fi';
-import {
-  SiNotion,
-  SiCoda,
-  SiHubspot,
-  SiBrevo,
-  SiStatista,
-  SiZapier,
-  SiGooglemaps,
-  SiTypeform,
-  SiZoom,
-  SiTodoist,
-  SiMiro,
-  SiIfttt,
-  SiBookingdotcom,
-  SiExpedia,
-  SiTrivago,
-} from 'react-icons/si';
 
 import {
   useMcpServers,
@@ -58,8 +42,6 @@ import {
   type McpServerSummary,
 } from '../lib/mcpApi';
 import { openOAuthPopup, waitForOAuthPopup } from '../lib/mcpOAuthPopup';
-
-import type { IconType } from 'react-icons';
 
 import { SettingsCardsSkeleton } from '@/features/settings/components/SettingsSkeleton';
 import { cn } from '@/utils/cn';
@@ -112,34 +94,12 @@ async function runOAuth(resolveServerId: () => Promise<string>): Promise<RunOAut
 
 // ── Presentation helpers ─────────────────────────────────────────────────────
 
-// Real vendor logos where Simple Icons ships one; keyword-matched so it works on
-// both a title ("Notion") and a connected server's host ("mcp.notion.com"). Any
-// service without a match keeps the coloured-monogram fallback below.
-const BRAND_ICONS: ReadonlyArray<readonly [RegExp, IconType]> = [
-  [/notion/i, SiNotion],
-  [/coda/i, SiCoda],
-  [/hubspot/i, SiHubspot],
-  [/brevo/i, SiBrevo],
-  [/statista/i, SiStatista],
-  [/zapier/i, SiZapier],
-  [/google\s*maps|mapstools|maps\.google/i, SiGooglemaps],
-  [/typeform/i, SiTypeform],
-  [/zoom/i, SiZoom],
-  [/todoist/i, SiTodoist],
-  [/miro/i, SiMiro],
-  [/ifttt/i, SiIfttt],
-  [/booking/i, SiBookingdotcom],
-  [/expedia/i, SiExpedia],
-  [/trivago/i, SiTrivago],
-];
-
-function brandIcon(label: string): IconType | null {
-  for (const [re, Icon] of BRAND_ICONS) if (re.test(label)) return Icon;
-  return null;
-}
-
+// Vendor logos come from the same registry the composer chip draws from — this
+// page and the chip once kept separate lists and drifted, so a service showed
+// its logo here and a generic plug there. A service with no match keeps the
+// coloured-monogram fallback below.
 const McpLogo = memo(({ title, size = 50 }: { title: string; size?: number }) => {
-  const Icon = brandIcon(title);
+  const Icon = connectorBrandIcon(title);
   return (
     <div
       className="flex-none flex items-center justify-center rounded-xl text-white font-bold select-none"
