@@ -1,6 +1,6 @@
 import { mentionTokenFor } from './mentionParser';
 
-import type { Mentionable } from './mentionables';
+import type { Mentionable, MentionableType } from './mentionables';
 
 export interface MentionInsertionResult {
   newText: string;
@@ -86,7 +86,13 @@ export function computePillMentionInsertion(
  * client's parser resolve the owning agent. Recipes lose nothing by it; their
  * chip rides `activeSkillMention` in the store, as before.
  */
-const CARRIES_ITS_OWN_AGENT = new Set(['agent', 'textform']);
+// Typed against the union, not `Set<string>`: renaming or dropping a member has
+// to break the build here. Untyped, the set would silently stop matching, every
+// recipe would tokenise, and each one would quietly lose its agent.
+const CARRIES_ITS_OWN_AGENT: ReadonlySet<MentionableType> = new Set<MentionableType>([
+  'agent',
+  'textform',
+]);
 
 export function buildMentionPrefix(
   mentions: ReadonlyArray<Pick<Mentionable, 'type' | 'identifier' | 'title' | 'mention'>>

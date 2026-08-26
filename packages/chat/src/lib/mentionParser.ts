@@ -10,6 +10,7 @@ import {
   decodeWolkeToken,
   decodeConnectToken,
   resolveMentionable,
+  type MentionableType,
   type WolkeFileToken,
   type ConnectFileToken,
 } from './mentionables';
@@ -325,7 +326,7 @@ const TOKEN_ID_SAFE = /^[A-Za-z0-9:_.-]{1,128}$/;
  * handled earlier).
  */
 export function mentionTokenFor(m: {
-  type: string;
+  type: MentionableType;
   identifier: string;
   title: string;
   mention: string;
