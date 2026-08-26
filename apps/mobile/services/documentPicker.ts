@@ -6,6 +6,7 @@
  */
 
 import { FILE_LIMITS, isSupportedFileType, isImageMimeType } from '@gruenerator/chat';
+import { type UploadOnlyResponse } from '@gruenerator/contracts';
 import * as DocumentPicker from 'expo-document-picker';
 import { File as ExpoFile } from 'expo-file-system';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -224,11 +225,10 @@ export async function uploadDocumentOnly(doc: PickedDocument): Promise<UploadedD
 
     formData.append('title', doc.name);
 
-    interface UploadOnlyResponse {
-      success: boolean;
-      data: { id: string; title?: string };
-      message?: string;
-    }
+    // The route stays multipart and therefore outside ts-rest, but its answer is
+    // `uploadOnlyResponseSchema` — derived here rather than transcribed, which
+    // is how this copy came to declare `title` optional while the web copy had
+    // it required.
     const response = await apiClient.post<UploadOnlyResponse>('/documents/upload-only', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
       timeout: 120000,
