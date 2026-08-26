@@ -127,6 +127,25 @@ Beispiele: #2817 (doppelte Quelle — der Deckel ist nicht der Kern, der Schlüs
 
 Was **kein** Issue braucht: was du im selben Zug reparierst, und was schon eins hat (`gh issue list --search`).
 
+### Ein PR, der ein Issue abarbeitet, schließt es selbst
+
+**Wer ein Issue in einem PR repariert, verlinkt es so, dass GitHub es beim Merge selbst schließt.** Sonst steht das Issue noch offen, wenn die Ursache längst weg ist, und die nächste Person arbeitet es ein zweites Mal ab — genau die Verschwendung, gegen die der Abschnitt oben antritt.
+
+GitHub wertet dafür **nur englische Schlüsselwörter** aus, direkt gefolgt von `#<nummer>`, und nur in der **PR-Beschreibung** oder einer Commit-Message — **nicht im PR-Titel**: `close`/`closes`/`closed`, `fix`/`fixes`/`fixed`, `resolve`/`resolves`/`resolved`. Ein deutsches „Behebt #2887" liest sich für Menschen richtig und tut **nichts**; es erzeugt bloß eine Erwähnung. Mehrere Issues brauchen je ein eigenes Schlüsselwort: `Closes #1, closes #2` — `Closes #1, #2` verlinkt nur das erste.
+
+**Nachsehen, nicht annehmen.** Ob die Verknüpfung wirklich steht, sagt die API, nicht der Text:
+
+```bash
+gh api graphql -f query='{repository(owner:"netzbegruenung",name:"Gruenerator"){pullRequest(number:PRNUMMER){closingIssuesReferences(first:10){nodes{number state}}}}}' \
+  -q '.data.repository.pullRequest.closingIssuesReferences.nodes'
+```
+
+Leeres Array = kein Schlüsselwort erkannt. Steht es, erscheint es auch als „Linked issues" in der PR-Seitenleiste.
+
+**Automatisch geschlossen wird nur beim Merge in `master`.** Ein PR gegen `test-branch` lässt das Issue offen, auch mit korrektem Schlüsselwort — die Verknüpfung bleibt aber stehen und greift, sobald dieselbe Arbeit auf `master` landet.
+
+Ohne Schlüsselwort bleibt, was nur *erwähnt* gehört: verwandte Issues, Vorgänger-PRs, und ein Nebenbefund, den dieser PR gerade **nicht** repariert — der bekommt sein eigenes Issue, siehe oben.
+
 ### Agent-Skills & versionsgenaue Doku
 
 **Bevor du Code gegen eine Library änderst (AI SDK, Tailwind v4, LangGraph, Drizzle, Zod, Qdrant, Expo, Tiptap, Better Auth, Linkup, …): erst die versionsgenaue Quelle lesen, nicht aus dem Gedächtnis schreiben.** Welche Skill bzw. welches `llms.txt` — und die Fallen dabei — stehen in `docs/CLAUDE-agent-docs.md`. Ein Tool-Call ist billiger als ein Debug-Zyklus an einer umbenannten API.
