@@ -43,6 +43,7 @@ import { chatSuggestions } from '../lib/suggestions';
 import { useChatConfigStore } from '../stores/chatConfigStore';
 import { useAgentStore } from '../stores/chatStore';
 
+import { ActiveRoleSyncEffect } from './ActiveRoleSyncEffect';
 import { AgentSwitchListener } from './AgentSwitchListener';
 import { GrueneratorAttachmentAdapter } from './GrueneratorAttachmentAdapter';
 import {
@@ -255,6 +256,12 @@ function useGrueneratorThreadRuntime() {
     useAgentStore.getState().mintThreadFromDraft(newThreadId);
     const state = useAgentStore.getState();
     if (state.threadMode === 'eigener' && (state.customSystemPrompt || state.customRoleRef)) {
+      // Ab hier gehört die Rolle dem Thread, nicht mehr der Konto-Voreinstellung
+      // — und zwar sofort, nicht erst wenn das PATCH zurückkommt: der
+      // ThreadDataSyncEffect fragt die Einstellungen des frisch angelegten
+      // Threads parallel ab, und eine 404 auf dem Weg dorthin hätte eine noch
+      // als `default` markierte Rolle wieder weggeräumt.
+      useAgentStore.setState({ roleRefSource: 'load' });
       void state.saveThreadSettings(newThreadId, runtimeApiClientRef.current);
     }
   }, []);
@@ -524,6 +531,10 @@ export function GrueneratorChatRuntimeProvider({
             {/* After MainThreadSyncEffect: it writes currentThreadId, which the
               per-thread loads below use as their "still current" guard. */}
             <ThreadDataSyncEffect />
+            {/* After ThreadDataSyncEffect: the account-wide default role only
+              applies to a draft, and the thread's own settings must have had
+              their chance to land first. */}
+            <ActiveRoleSyncEffect />
             <ThreadTitleEffect />
             <AgentSwitchListener />
             {threadListPortalSlotId && <ChatThreadListPortal slotId={threadListPortalSlotId} />}
