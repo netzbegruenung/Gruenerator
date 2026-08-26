@@ -1,4 +1,23 @@
+import {
+  SiBookingdotcom,
+  SiBrevo,
+  SiCoda,
+  SiExpedia,
+  SiGooglemaps,
+  SiHubspot,
+  SiIfttt,
+  SiMiro,
+  SiNotion,
+  SiStatista,
+  SiTodoist,
+  SiTrivago,
+  SiTypeform,
+  SiZapier,
+  SiZoom,
+} from 'react-icons/si';
 import { describe, expect, it } from 'vitest';
+
+import { connectorBrandIcon as connectorBrandIconViaSubpath } from '../connectors';
 
 import { connectorBrandIcon, contrastRatio, legibleBrandColor, parseColor } from './connectorBrand';
 
@@ -9,12 +28,37 @@ describe('connectorBrandIcon', () => {
     expect(connectorBrandIcon('HUBSPOT CRM')).not.toBeNull();
   });
 
-  it('covers the vendors the settings directory also draws', () => {
-    // These were in apps/web McpSection but missing here, so the composer drew a
-    // generic plug for a service the settings page showed a logo for.
-    for (const name of ['Coda', 'Typeform', 'Zoom', 'IFTTT', 'Booking.com', 'Expedia']) {
-      expect(connectorBrandIcon(name), name).not.toBeNull();
+  it('draws every vendor the settings directory used to keep its own list for', () => {
+    // apps/web McpSection had its own 15-entry copy of this map. It now reads
+    // this one, so every title that used to resolve there must still resolve —
+    // and to the same mark: an earlier keyword in the merged order winning over
+    // the right one would swap a logo silently.
+    const settingsDirectory = [
+      ['Notion', SiNotion],
+      ['Coda', SiCoda],
+      ['HubSpot', SiHubspot],
+      ['Brevo', SiBrevo],
+      ['Statista', SiStatista],
+      ['Zapier', SiZapier],
+      ['Google Maps', SiGooglemaps],
+      ['Typeform', SiTypeform],
+      ['Zoom', SiZoom],
+      ['Todoist', SiTodoist],
+      ['Miro', SiMiro],
+      ['IFTTT', SiIfttt],
+      ['Booking.com', SiBookingdotcom],
+      ['Expedia', SiExpedia],
+      ['Trivago', SiTrivago],
+    ] as const;
+    for (const [title, mark] of settingsDirectory) {
+      expect(connectorBrandIcon(title), title).toBe(mark);
     }
+  });
+
+  it('is the same function behind the subpath the settings page imports', () => {
+    // apps/web reaches it as `@gruenerator/chat/connectors`; a barrel that stops
+    // re-exporting is a broken build there and green tests here.
+    expect(connectorBrandIconViaSubpath).toBe(connectorBrandIcon);
   });
 
   it('returns null for an unknown service so the caller can fall back', () => {
