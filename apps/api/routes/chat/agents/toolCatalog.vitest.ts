@@ -1042,6 +1042,25 @@ describe('toolCatalog dokumente_lesen', () => {
   });
 
   /**
+   * Die Scheibe wurde live nie gewählt: bei drei Turns zu derselben angehängten
+   * PDF griff der Planer dreimal zur Ähnlichkeitssuche, einmal davon mit exakt
+   * der Anfrage des Vorab-Abrufs. Das Tor war nur als „die Frage gibt keinen
+   * Suchbegriff her" formuliert — eine Aufzählungsfrage („nenne alle
+   * Löschfristen") gibt einen exzellenten Suchbegriff her und landete deshalb
+   * bei `query`, das nach Relevanz ordnet statt vollständig zu sein.
+   */
+  it('nennt Vollständigkeitsfragen als zweiten Grund für `abschnitt`', () => {
+    const { tools } = catalogWithDocs([pdf]);
+    const description = tools.dokumente_lesen?.description ?? '';
+
+    expect(description).toMatch(/Vollständigkeit/);
+    expect(description).toMatch(/nur die besten Treffer/);
+    // Die Abgrenzung zu `summarize` bleibt stehen: die Scheibe ist der Weg zu
+    // ALLEN Einträgen, nicht ein zweiter Weg zur Zusammenfassung.
+    expect(description).toContain('NICHT für eine Zusammenfassung');
+  });
+
+  /**
    * Ohne Suchbegriff UND ohne Abschnitt bei genau einer Datei: der Anfang ist
    * die ehrlichere Antwort als eine Ähnlichkeitssuche nach der Frage selbst —
    * die trifft bei „worum geht es hier" nur Zufälliges.
