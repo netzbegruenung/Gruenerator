@@ -161,9 +161,14 @@ type NotebookCollectionFromQdrantRaw = {
  * single-notebook response report `document_count: 0` and an `empty` readiness
  * — a fully indexed notebook greeted its owner with "hat noch keine Quellen".
  *
- * `undefined` means "not loaded" and is looked up; an empty array means the
- * caller looked and found none, and is taken at face value so the list path
- * does not pay for a second scroll per notebook.
+ * `undefined` means "not loaded" and is looked up one notebook at a time; an
+ * empty array means the caller already looked and found none, and is taken at
+ * face value. Callers enriching MANY collections must therefore pre-resolve in
+ * bulk (`getCollectionDocumentsForCollections`) rather than leave the field
+ * unset — otherwise this fallback fires once per notebook. listCollections
+ * gets the field for free from `getUserNotebookCollections`;
+ * listPublicCollections pre-loads it; only the single-notebook getCollection
+ * actually lands in the lookup below.
  */
 async function resolveCollectionDocumentLinks(collection: {
   id: string;
@@ -411,6 +416,16 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         collections.map((c) => c.id)
       );
 
+      // `getPublicNotebookCollections` returns the bare payload, so none of
+      // these carry their document links. Resolving them per entry would put
+      // one Qdrant scroll per listed notebook (up to 200) on every page load;
+      // one bulk scroll costs a round trip regardless of the page size.
+      // Notebooks with no links are absent from the map — `?? []` is the
+      // "looked up, found none" answer resolveCollectionDocumentLinks expects.
+      const linksByCollection = await notebookHelper.getCollectionDocumentsForCollections(
+        collections.map((c) => c.id)
+      );
+
       const userIds = Array.from(new Set(collections.map((c) => c.user_id)));
       const profileRows = userIds.length
         ? await postgres.query<{
@@ -427,9 +442,15 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
 
       const transformedData = await Promise.all(
         collections.map(async (collection) => {
-          const documentIds = (await resolveCollectionDocumentLinks(collection)).map(
-            (qcd) => qcd.document_id
-          );
+          const documentIds = (
+            await resolveCollectionDocumentLinks({
+              ...collection,
+              notebook_collection_documents:
+                collection.notebook_collection_documents ??
+                linksByCollection.get(collection.id) ??
+                [],
+            })
+          ).map((qcd) => qcd.document_id);
 
           let documents: DocumentRecord[] = [];
           if (documentIds.length > 0) {
