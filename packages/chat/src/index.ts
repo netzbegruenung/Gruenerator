@@ -171,7 +171,11 @@ export { ReelArtifactPanel } from './components/ReelArtifactPanel';
 export { ArtifactPanel } from './components/ArtifactPanel';
 export { useDockedPanelActive } from './hooks/useDockedPanelActive';
 export { useReportPanelDockable } from './hooks/useReportPanelDockable';
-export { composerToolbarButtonClass } from './lib/utils';
+export {
+  composerActiveChipClass,
+  composerActiveChipIconClass,
+  composerToolbarButtonClass,
+} from './lib/utils';
 export { useChatDensity, type ChatDensity } from './components/thread/chatDensityContext';
 export { GrueneratorComposer } from './components/thread/GrueneratorComposer';
 export { type ComposerPreset } from './components/thread/PlusMenu';
