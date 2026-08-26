@@ -1,4 +1,5 @@
 import { type UserRole } from '@gruenerator/chat';
+import { type RoleRef } from '@gruenerator/contracts';
 
 export interface UserDefaultsRegistry {
   profile: {
@@ -10,6 +11,13 @@ export interface UserDefaultsRegistry {
      * hätte dieselbe Person am zweiten Rechner erneut begrüßt.
      */
     onboardingCompleted: boolean;
+    /**
+     * Die Rolle, mit der neue Chats starten — `null` heißt „Ohne Rolle".
+     * Kontoweit aus demselben Grund wie `onboardingCompleted`: die Rolle ist
+     * eine Eigenschaft der Person, nicht des Browsers. Der Composer schreibt
+     * sie bei jeder Wahl (siehe `ChatConfig.persistActiveRole`).
+     */
+    activeRole: RoleRef | null;
   };
   notifications: Record<string, boolean>;
   boards: Record<string, boolean>;

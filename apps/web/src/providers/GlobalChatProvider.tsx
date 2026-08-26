@@ -4,6 +4,7 @@ import {
   preloadChatRuntime,
   type SharepicVariant,
 } from '@gruenerator/chat';
+import { type RoleRef } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
@@ -21,6 +22,7 @@ import { useNotebookChatStore } from '../features/notebook/stores/notebookChatSt
 import useNotebookStore from '../features/notebook/stores/notebookStore';
 import { resolveNotebookChatEntries } from '../features/notebook/utils/notebookChatResolver';
 import { uploadVideoToTus } from '../features/subtitler/utils/videoUtils';
+import { useSetUserDefault } from '../features/user-defaults/userDefaultsQueries';
 import { sessionDebug } from '../lib/sessionDebug';
 import { runPython } from '../services/pythonInterpreter';
 import { useAuthStore } from '../stores/authStore';
@@ -68,6 +70,15 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
   const location = useLocation();
   const qaCollectionsLength = useNotebookStore((s) => s.qaCollections.length);
   const { enabledModelIds } = useModelPreferences({ enabled: !!userId });
+
+  // Rollenwahl im Composer → Konto-Voreinstellung. Über einen Ref, weil
+  // `chatConfig` bewusst einmalig gebaut wird ([] als Abhängigkeiten) und die
+  // Mutation an den QueryClient dieses Renders gebunden ist.
+  const setUserDefault = useSetUserDefault<'profile', 'activeRole'>();
+  const setUserDefaultRef = useRef(setUserDefault);
+  useEffect(() => {
+    setUserDefaultRef.current = setUserDefault;
+  }, [setUserDefault]);
 
   // Notebook collections power @notebook mention metadata; fetch lazily when
   // an authenticated user actually needs them. React Query caches the result.
@@ -321,6 +332,16 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
         window.open(`/reel/studio?project=${projectId}`, '_blank', 'noopener,noreferrer');
       },
       onExportPdfLetterhead: requestPdfLetterheadExport,
+      persistActiveRole: (role: RoleRef | null) => {
+        // Best effort: die Rolle gilt in dieser Sitzung ohnehin schon. Die
+        // Mutation rollt den Cache bei Fehlschlag selbst zurück; ein Hinweis
+        // im Chat wäre für eine nebenbei gemerkte Voreinstellung zu laut.
+        setUserDefaultRef.current.mutate({
+          generator: 'profile',
+          key: 'activeRole',
+          value: role,
+        });
+      },
       onEditInDocs: async (content: string, title?: string, existingDocId?: string) => {
         if (existingDocId) {
           window.open(`/office/${existingDocId}`, '_blank', 'noopener,noreferrer');

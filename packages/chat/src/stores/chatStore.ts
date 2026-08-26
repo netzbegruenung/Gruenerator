@@ -139,8 +139,11 @@ interface AgentState {
    * Wer die Rolle zuletzt gesetzt hat. `load` heißt: sie kommt aus den
    * Thread-Einstellungen und steht dort bereits — ein Zurückschreiben wäre eine
    * überflüssige Anfrage und im Fehlerfall ein irreführender Hinweis.
+   * `default` heißt: sie kommt aus der Konto-Voreinstellung und gehört diesem
+   * Thread nicht (siehe `ActiveRoleSyncEffect`) — `loadThreadSettings` räumt
+   * sie weg, sobald ein Thread ohne eigene Rolle geöffnet wird.
    */
-  roleRefSource: 'user' | 'load';
+  roleRefSource: 'user' | 'load' | 'default';
   customEnabledTools: Record<string, boolean> | null;
   /** Mention key of the active /skill (e.g. 'instagram'). Composer sets this
    *  when a skill mention is inserted; cleared on agent change / new thread.
@@ -413,14 +416,22 @@ export const useAgentStore = create<AgentState>()(
             // Person — der Thread merkt sich nur die Referenz. Ist die Rolle
             // inzwischen gelöscht, bleibt die gespeicherte Bezeichnung als
             // Anzeige stehen; der Server fängt den fehlenden Treffer ab.
-            ...(roleRef && {
-              threadMode: 'eigener' as const,
-              customRoleName:
-                useUserProfileStore
-                  .getState()
-                  .roles.find((r) => r.ebene === roleRef.ebene && r.rolle === roleRef.rolle)
-                  ?.rolle ?? roleRef.rolle,
-            }),
+            ...(roleRef
+              ? {
+                  threadMode: 'eigener' as const,
+                  customRoleName:
+                    useUserProfileStore
+                      .getState()
+                      .roles.find((r) => r.ebene === roleRef.ebene && r.rolle === roleRef.rolle)
+                      ?.rolle ?? roleRef.rolle,
+                }
+              : // Frei eingetippte Rolle: sie hat keine Referenz, nur ihren
+                // erzeugten Prompttext. Ohne diesen Zweig kam der Text zwar
+                // zurück, der Modus aber nicht — der Chip war weg und die
+                // Anfrage ging als normaler Chat mitsamt `agentId` raus.
+                response.customSystemPrompt
+                ? { threadMode: 'eigener' as const }
+                : {}),
           });
         } catch (error) {
           // 404 is the normal "thread has no settings row yet" case and falls
@@ -440,16 +451,21 @@ export const useAgentStore = create<AgentState>()(
         // Eine Katalogrolle hat keinen `customSystemPrompt` — ohne die
         // `customRoleRef`-Bedingung hätte dieser Reset jeden Rollen-Chat beim
         // Neuladen in den normalen Chat zurückgeworfen.
+        //
+        // `default` ist der zweite Fall: die Rolle stammt aus der
+        // Konto-Voreinstellung, nicht aus diesem Thread. Sie muss auch dann
+        // weichen, wenn sie gesetzt ist — sonst erbt ein alter Chat ohne
+        // Einstellungszeile (404) eine Rolle, die er nie hatte.
         if (
           state.currentThreadId === threadId &&
           state.threadMode === 'eigener' &&
-          !state.customSystemPrompt &&
-          !state.customRoleRef
+          (state.roleRefSource === 'default' || (!state.customSystemPrompt && !state.customRoleRef))
         ) {
           set({
             threadMode: 'chat',
             customRoleName: null,
             customRoleRef: null,
+            customSystemPrompt: null,
             roleRefSource: 'load',
           });
         }
