@@ -3,11 +3,13 @@ import {
   SKILLS,
   getSystemAgent,
   getVisibleSystemAgentsForLocale,
+  isAdminVisibleAgent,
   resolveSkillMention,
   type Skill,
   type SkillIcon,
 } from '@gruenerator/shared/agents';
 
+import { getHiddenAgentIdentifiers } from './hiddenAgentsState';
 import { getMentionInstance } from './instanceState';
 import { resolveSkillIcon } from './skillIcons';
 
@@ -49,8 +51,10 @@ export interface PinnedAgent {
  * there. Order follows the agent registry.
  */
 export function getPinnedAgents(userLocale: string): PinnedAgent[] {
+  const hidden = getHiddenAgentIdentifiers();
   return getVisibleSystemAgentsForLocale(userLocale, getMentionInstance())
     .filter((agent) => agent.pinnedToSidebar === true)
+    .filter((agent) => isAdminVisibleAgent(agent.identifier, hidden))
     .map((agent) => ({
       identifier: agent.identifier,
       title: agent.title,

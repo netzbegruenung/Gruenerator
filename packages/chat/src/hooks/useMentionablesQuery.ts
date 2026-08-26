@@ -13,6 +13,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo } from 'react';
 
 import { createChatApiClient } from '../context/ChatContext';
+import { setHiddenAgentIdentifiers } from '../lib/hiddenAgentsState';
 import {
   setHiddenSkillMentions,
   type Mentionable,
@@ -416,6 +417,30 @@ export function useVorlagenSearchQuery(query: string, enabled = true) {
 // effect. Components that render a live catalog (Agentura, SkillLibraryModal,
 // PlusMenu) read the returned array directly instead.
 
+/**
+ * Dasselbe für Agenten. Eigener Endpunkt statt eines gemeinsamen, weil die
+ * beiden Listen verschiedene Schlüssel tragen (Rezept-`mention` gegen
+ * Agenten-`identifier`) und getrennt ungültig werden.
+ *
+ * Fällt der Abruf aus, bleibt die Liste leer und alles sichtbar — ein
+ * Netzwerkfehler darf den Katalog nicht leeren.
+ */
+export function useHiddenAgentIdentifiers(): readonly string[] {
+  const apiClient = useApiClient();
+  const { data } = useQuery<{ hiddenIdentifiers: string[] }>({
+    queryKey: ['admin-hidden-agents'],
+    queryFn: () => apiClient.get<{ hiddenIdentifiers: string[] }>('/api/agents/visibility'),
+    staleTime: 5 * 60_000,
+    retry: 1,
+  });
+  const hiddenIdentifiers = data?.hiddenIdentifiers ?? [];
+  useEffect(() => {
+    setHiddenAgentIdentifiers(hiddenIdentifiers);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- array identity changes every fetch; join() is the stable dependency
+  }, [hiddenIdentifiers.join(',')]);
+  return hiddenIdentifiers;
+}
+
 export function useHiddenSkillMentions(): readonly string[] {
   const apiClient = useApiClient();
   const { data } = useQuery<{ hiddenMentions: string[] }>({
@@ -446,6 +471,7 @@ export function useMentionablesQuery(): void {
   useUserNotebooksQuery();
   useMcpServersQuery();
   useHiddenSkillMentions();
+  useHiddenAgentIdentifiers();
 }
 
 /**

@@ -1,4 +1,9 @@
-import { getVisibleSystemAgentsForLocale, type Agent } from '@gruenerator/shared/agents';
+import { useHiddenAgentIdentifiers } from '@gruenerator/chat';
+import {
+  getVisibleSystemAgentsForLocale,
+  isAdminVisibleAgent,
+  type Agent,
+} from '@gruenerator/shared/agents';
 import { useMemo } from 'react';
 
 import { CURRENT_INSTANCE } from '../../../config/instance';
@@ -32,6 +37,8 @@ export function useBoardAgentOptions(query = ''): BoardAgentOption[] {
   const { data: userAgents = [] } = useUserAgents();
   const { data: sharedUserAgents = [] } = useSharedUserAgents();
   const userLocale = useAuthStore((s) => s.locale) ?? 'de-DE';
+  const hiddenAgentIdentifiers = useHiddenAgentIdentifiers();
+  const hiddenKey = hiddenAgentIdentifiers.join(',');
 
   return useMemo(() => {
     const byIdentifier = new Map<string, BoardAgentOption>();
@@ -40,6 +47,7 @@ export function useBoardAgentOptions(query = ''): BoardAgentOption[] {
       if (!byIdentifier.has(agent.identifier)) byIdentifier.set(agent.identifier, toOption(agent));
     }
     for (const agent of getVisibleSystemAgentsForLocale(userLocale, CURRENT_INSTANCE)) {
+      if (!isAdminVisibleAgent(agent.identifier, hiddenAgentIdentifiers)) continue;
       if (!byIdentifier.has(agent.identifier)) byIdentifier.set(agent.identifier, toOption(agent));
     }
 
@@ -49,5 +57,6 @@ export function useBoardAgentOptions(query = ''): BoardAgentOption[] {
     return all.filter(
       (o) => o.title.toLowerCase().includes(q) || o.identifier.toLowerCase().includes(q)
     );
-  }, [userAgents, sharedUserAgents, userLocale, query]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- die Array-Identität wechselt bei jedem Abruf; `hiddenKey` ist die stabile Abhängigkeit
+  }, [userAgents, sharedUserAgents, userLocale, query, hiddenKey]);
 }

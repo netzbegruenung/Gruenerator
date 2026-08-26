@@ -10,10 +10,11 @@
  *   turns like "welche MCP-Server kennst du", model-decided).
  */
 
-import { getVisibleSystemAgentsForLocale } from '@gruenerator/shared/agents';
+import { getVisibleSystemAgentsForLocale, isAdminVisibleAgent } from '@gruenerator/shared/agents';
 
 import { CURRENT_INSTANCE } from '../../config/instance.js';
 import { getMcpExposedCollections } from '../../config/systemCollectionsConfig.js';
+import { getHiddenAgentIdentifiersCached } from '../agents/AdminHiddenAgentsService.js';
 import { localizePlaceholders } from '../localization/index.js';
 import { type Locale } from '../localization/types.js';
 import { getManagedConnectors, isSourceGermanOnly } from '../mcp/systemMcpServers.js';
@@ -89,18 +90,22 @@ const STATIC_TOOL_LINES = [
   '- Monitor: Wahlumfragen, Themen und Stimmungsbilder beobachten',
 ];
 
-const agentLinesByLocale = new Map<Locale, string>();
+// Gepuffert nach Locale UND dem Stand der ausgeblendeten Agenten: schaltet ein
+// Admin einen Agenten weg, darf ihn der Systemprompt nicht weiter anpreisen.
+const agentLinesByLocale = new Map<string, string>();
 
-function formatAgentLines(locale: Locale): string {
-  const cached = agentLinesByLocale.get(locale);
+function formatAgentLines(locale: Locale, hiddenIdentifiers: readonly string[]): string {
+  const key = `${locale}|${[...hiddenIdentifiers].sort().join(',')}`;
+  const cached = agentLinesByLocale.get(key);
   if (cached) return cached;
   const lines = getVisibleSystemAgentsForLocale(locale, CURRENT_INSTANCE)
+    .filter((a) => isAdminVisibleAgent(a.identifier, hiddenIdentifiers))
     .map((a) => {
       const desc = a.description.length > 100 ? `${a.description.slice(0, 97)}…` : a.description;
       return `- ${a.title}: ${desc}`;
     })
     .join('\n');
-  agentLinesByLocale.set(locale, lines);
+  agentLinesByLocale.set(key, lines);
   return lines;
 }
 
@@ -171,6 +176,8 @@ export async function buildProductKnowledgeBlock(opts: {
 }): Promise<string> {
   const { locale, userId, question } = opts;
 
+  const hiddenAgentIdentifiers = await getHiddenAgentIdentifiersCached();
+
   const mcpSection =
     isMcpMetaQuestion(question) && userId
       ? `\n\n### Verbundene eigene MCP-Server\n${await formatConnectedServerLines(userId)}`
@@ -181,7 +188,7 @@ export async function buildProductKnowledgeBlock(opts: {
 ## GRÜNERATOR-WISSEN (Funktionen des Produkts)
 
 ### Grüneratoren (spezialisierte Assistenten, Agentura)
-${formatAgentLines(locale)}
+${formatAgentLines(locale, hiddenAgentIdentifiers)}
 
 ### Werkzeuge
 ${STATIC_TOOL_LINES.join('\n')}

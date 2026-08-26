@@ -28,6 +28,7 @@ vi.mock('./components/RequireAdmin', () => ({
 
 vi.mock('./tabs/UsersTab', () => ({ default: () => <div>Nutzerliste</div> }));
 vi.mock('./tabs/SkillsTab', () => ({ default: () => <div>Rezeptliste</div> }));
+vi.mock('./tabs/AgentsTab', () => ({ default: () => <div>Agentenliste</div> }));
 vi.mock('./tabs/RolesTab', () => ({ default: () => <div>Rollenliste</div> }));
 vi.mock('./tabs/VorlagenTab', () => ({ default: () => <div>Vorlagenliste</div> }));
 vi.mock('./landesverband-assignment/LandesverbandAssignmentTab', () => ({
@@ -68,7 +69,14 @@ describe('AdminPage', () => {
   it('trägt auf einer Vollinstanz alle Reiter', async () => {
     await renderAdminOn('production');
 
-    expect(tabNames()).toEqual(['Nutzer:innen', 'Rezepte', 'Rollen', 'Vorlagen', 'Landesverbände']);
+    expect(tabNames()).toEqual([
+      'Nutzer:innen',
+      'Rezepte',
+      'Agenten',
+      'Rollen',
+      'Vorlagen',
+      'Landesverbände',
+    ]);
   });
 
   // bgst blendet das Vorlagen-Werkzeug (`hide.toolIds`) und beide
@@ -76,7 +84,7 @@ describe('AdminPage', () => {
   it('lässt weg, was die Instanz nicht führt', async () => {
     await renderAdminOn('bgst');
 
-    expect(tabNames()).toEqual(['Nutzer:innen', 'Rezepte', 'Rollen']);
+    expect(tabNames()).toEqual(['Nutzer:innen', 'Rezepte', 'Agenten', 'Rollen']);
     expect(screen.queryByRole('tab', { name: 'Vorlagen' })).toBeNull();
     expect(screen.queryByRole('tab', { name: 'Landesverbände' })).toBeNull();
   });
