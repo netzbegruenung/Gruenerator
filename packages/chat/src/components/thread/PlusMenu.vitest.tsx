@@ -18,6 +18,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useAgentStore } from '../../stores/chatStore';
+import { useUserProfileStore } from '../../stores/userProfileStore';
 
 import { PlusMenu } from './PlusMenu';
 
@@ -201,5 +202,36 @@ describe('notebook mode', () => {
     // `threadMode = 'notebook'`, which dispatches to a different endpoint.
     expect(within(menu).queryByText('Notebooks')).toBeNull();
     expect(within(menu).queryByText('Notizbücher')).toBeNull();
+  });
+});
+
+describe('Rollen-Chip', () => {
+  const ROLE = { ebene: 'land', rolle: 'Mitarbeiter*in Landesgeschäftsstelle' };
+
+  beforeEach(() => {
+    useUserProfileStore.setState({ roles: [ROLE], isHydrated: true });
+    useAgentStore.setState({
+      threadMode: 'eigener',
+      customRoleRef: ROLE,
+      customRoleName: ROLE.rolle,
+    });
+  });
+
+  it('trägt die Kurzform, nicht den abgeschnittenen vollen Namen', async () => {
+    renderMenu();
+
+    // Der volle Name passt in keinen Chip; `truncate` schnitt ihn bisher
+    // mitten im Wort ab („Mitarbeiter*in Landesgeschäft…").
+    expect(await screen.findByText('LGS')).toBeInTheDocument();
+    expect(screen.queryByText(ROLE.rolle)).toBeNull();
+  });
+
+  it('nennt die volle Rolle für Screenreader und im Tooltip', async () => {
+    renderMenu();
+
+    const trigger = await screen.findByRole('button', {
+      name: `Aktionen und Modus — ${ROLE.rolle}`,
+    });
+    expect(trigger).toHaveAttribute('title', ROLE.rolle);
   });
 });

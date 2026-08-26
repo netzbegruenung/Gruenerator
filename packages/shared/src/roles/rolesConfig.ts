@@ -247,3 +247,60 @@ export function needsAbgeordneteName(rolle: string): boolean {
     lower.includes('abgeordnete') || lower.includes('mdb-büro') || lower.includes('nr-abgeordneten')
   );
 }
+
+/**
+ * Kurzform jeder Katalogrolle für die Rollen-Anzeige im Composer. Der volle
+ * Name („Mitarbeiter*in Landesgeschäftsstelle") sprengt dort jede Chipbreite
+ * und wurde bisher mitten im Wort abgeschnitten.
+ *
+ * Der Schlüssel ist der Baustein, nicht die Bezeichnung: `roleBausteinKey`
+ * löst damit gleich die Doppeldeutigkeit von „Ratsmitglied" mit auf (im
+ * Kreisverband der Kreistag, im Ortsverband der Rat).
+ *
+ * Drei Muster, damit die Kürzel untereinander lesbar bleiben:
+ * Gliederungen tragen ihr eingeführtes Buchstabenkürzel (BGSt, LGS, KV, OV,
+ * LO, BO, GG), Fraktionen und Klubs die Ebene plus Gremium (BT-Fraktion,
+ * LT-Klub), Mandate und Büros das Gremium selbst (Kreistag, Rat, MdB-Büro).
+ *
+ * Anzeigetext, kein persistierter Wert — F2, frei umbenennbar.
+ */
+export const ROLE_SHORT_LABELS: Record<RoleBausteinKey, string> = {
+  'eu-abgeordnete': 'MdEP',
+  'eu-abgeordnetenbuero': 'MdEP-Büro',
+  europagruppe: 'Europagruppe',
+  bundesgeschaeftsstelle: 'BGSt',
+  bundestagsfraktion: 'BT-Fraktion',
+  'mdb-buero': 'MdB-Büro',
+  landesgeschaeftsstelle: 'LGS',
+  landtagsfraktion: 'LT-Fraktion',
+  'mdl-buero': 'MdL-Büro',
+  kreisverband: 'KV',
+  kreistagsfraktion: 'KT-Fraktion',
+  kreistagsmitglied: 'Kreistag',
+  ortsverband: 'OV',
+  ratsfraktion: 'Ratsfraktion',
+  ratsmitglied: 'Rat',
+  'presse-social-media': 'Presse',
+  'at-bundespartei': 'Bundespartei',
+  'at-gruener-klub': 'NR-Klub',
+  'at-nr-abgeordnetenbuero': 'NR-Büro',
+  'at-landesorganisation': 'LO',
+  'at-landtagsklub': 'LT-Klub',
+  'at-lt-abgeordnetenbuero': 'LT-Büro',
+  'at-bezirksorganisation': 'BO',
+  'at-bezirksraetin': 'BR',
+  'at-gemeindegruppe': 'GG',
+  'at-gemeinderaetin': 'GR',
+};
+
+/**
+ * Die Kurzform einer Rolle. Frei eingetippte Rollen haben keinen Baustein und
+ * damit kein Kürzel — für sie fällt die Anzeige auf die Bezeichnung ohne das
+ * vorangestellte „Mitarbeiter*in" zurück; die bleibt beliebig lang, das UI
+ * kürzt sie weiter.
+ */
+export function roleShortLabel(ebene: string, rolle: string): string {
+  const key = roleBausteinKey(ebene, rolle);
+  if (key) return ROLE_SHORT_LABELS[key];
+  return rolle.replace(/^Mitarbeiter\*in\s+/u, '').trim() || rolle;
+}
