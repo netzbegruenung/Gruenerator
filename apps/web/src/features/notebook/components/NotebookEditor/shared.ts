@@ -4,28 +4,26 @@ import {
   DOCUMENT_UPLOAD_FORMAT_HINT,
   NOTEBOOK_MAX_DOCUMENTS,
   resolveDocumentUploadFormat,
-  type LinkedDocRef,
-  type WolkeFolderRef,
-  type WordpressSiteRef,
+  type TransformedCollection,
 } from '@gruenerator/contracts';
 import { type DragEvent } from 'react';
 
-export interface NotebookCollection {
-  id?: string;
-  name: string;
-  description?: string;
-  documents?: {
-    id: string;
-    title?: string;
-    source_type?: string | null;
-    status?: string | null;
-    processing_error?: string | null;
-  }[];
-  labels?: string[];
-  wolke_folders?: WolkeFolderRef[];
-  linked_docs?: LinkedDocRef[];
-  wordpress_sites?: WordpressSiteRef[];
-}
+/**
+ * What the editor reads off a collection. Derived from the contract shape
+ * instead of re-declared: the hand-written version had `description?: string`
+ * where the API sends `string | null`, and a `selection_mode: 'mixed'` that
+ * exists nowhere else — differences that only surfaced as casts at the seams.
+ * `id` stays optional because the create wizard edits a collection that does
+ * not exist yet.
+ */
+export type NotebookCollection = Partial<Pick<TransformedCollection, 'id'>> &
+  Pick<TransformedCollection, 'name'> &
+  Partial<
+    Pick<
+      TransformedCollection,
+      'description' | 'documents' | 'labels' | 'wolke_folders' | 'linked_docs' | 'wordpress_sites'
+    >
+  >;
 
 export interface NotebookEditorFormData {
   name: string;
