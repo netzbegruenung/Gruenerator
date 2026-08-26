@@ -14,6 +14,7 @@ export { initializeChatState } from './ChatGraph.js';
 export {
   classifierNode,
   briefGeneratorNode,
+  wantsResearchBrief,
   searchNode,
   rerankNode,
   imageNode,

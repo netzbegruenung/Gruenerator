@@ -434,3 +434,48 @@ describe('decideTurnPlan — der Degradierungsfall der Loop-Achse', () => {
     expect(p.intent).toBe('mcp');
   });
 });
+
+/**
+ * Der IST-Stand der Suchfamilie am Erwähnungs-Pfad, festgenagelt VOR dem
+ * Lane-Flip aus Phase R3 — damit der Flip als Diff in Zusicherungen erscheint
+ * und nicht nur als Zeilenänderung in einer Tabelle.
+ *
+ * Und mit ihm der Befund, der den Flip gefährlich macht: `@deepresearch` ist
+ * eine VARIANTE von `research` (`forcedIntentStage` setzt genau denselben
+ * Intent plus `forcedTool`), und der Entscheider bekommt heute kein einziges
+ * Feld, an dem er die beiden unterscheiden könnte. Solange die Familie
+ * `single-pass` trägt, ist das folgenlos — beide bleiben einzeln. Ab dem Flip
+ * wäre es der stille Tod des Dossier-Wegs: seine beiden Engines lesen
+ * `deepResearchRequested` ausschliesslich im Einzeldurchlauf
+ * (`intentHandlers/searchBranch.ts`), ein in die Schleife gehobener Turn liefe
+ * als gewöhnliche Recherche weiter und niemand sähe einen Fehler.
+ */
+describe('decideTurnPlan — die Suchfamilie am Erwähnungs-Pfad (IST vor dem R3-Flip)', () => {
+  it.each(['research', 'search', 'web'] as const)(
+    '%s: eine Erwähnung hält den Turn im Einzeldurchlauf',
+    (intent) => {
+      const p = plan({ intent, forcedTool: true });
+      expect(p.lane).toBe('single-pass');
+      expect(p.runAgentic).toBe(false);
+      expect(p.intent).toBe(intent);
+    }
+  );
+
+  /**
+   * Und die Kehrseite, als Aussage über die EINGABE statt über das Ergebnis:
+   * `TurnPlanInput` führt kein Feld, das die Tiefenrecherche benennt. Der
+   * Entscheider bekommt für `@deepresearch` genau das, was `forcedIntentStage`
+   * auch für `@recherche` setzt — `intent: 'research'`, `forcedTool: true`,
+   * Werkzeug-Pin gelöscht —, und ein zweiter Aufruf mit denselben Werten wäre
+   * eine Tautologie, kein Beweis.
+   *
+   * Diese Zeile ist deshalb der Beweis: sie fällt in dem Moment, in dem jemand
+   * dem Entscheider das trennende Feld gibt — und genau das MUSS beim Lane-Flip
+   * passieren, sonst reisst er den Dossier-Weg mit.
+   */
+  it('hat am Entscheider kein Feld, das die Tiefenrecherche benennt', () => {
+    expect(Object.keys(base).filter((k) => /deep/i.test(k))).toEqual([]);
+    const deepresearchFields = plan({ intent: 'research', forcedTool: true });
+    expect(deepresearchFields.lane).toBe('single-pass');
+  });
+});

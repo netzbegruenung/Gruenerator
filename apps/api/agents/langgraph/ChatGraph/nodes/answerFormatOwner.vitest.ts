@@ -154,3 +154,131 @@ describe('Formatregel — eine gewaehlte Textform ist ein Eigentuemer', () => {
     expect(prompt).not.toContain(TEXTFORM_OWNED);
   });
 });
+
+/**
+ * Position 2 der Gleichmacher-Liste (R1 §4), erste Hälfte: `search` steht NICHT
+ * in `EXTERNAL_RESEARCH_INTENTS` und ist damit als einziges Mitglied der
+ * Suchfamilie von der Gliederungsregel ausgeschlossen.
+ *
+ * Festgenagelt statt gleichgemacht, weil der Zweig ERREICHBAR ist und bleibt —
+ * das ist die Prüfung, die Phase R3 an dieser Position verlangt. Drei Wege
+ * führen mit `intent: 'search'` in `respondNode`:
+ *
+ *  1. `@dokumente` — die Erwähnung setzt das Verdikt, und sie behält es auch
+ *     nach dem Lane-Flip (der ändert die LANE, nicht den Intent).
+ *  2. `CHAT_AGENT_LOOP=false` — `fallbackIntentFor` schreibt jeden demotierten
+ *     `agentic`-Turn auf `search` um.
+ *  3. Ein Klassifikator-Verdikt `search`, das ein Notausschalter (gewählte
+ *     Wissenssammlung, Verbund, Bildanhang) aus der Schleife hält.
+ *
+ * Weg 2 ist zugleich die Asymmetrie, die diese Zeile kostet: DERSELBE Turn
+ * bekommt mit eingeschalteter Schleife (`agentic`, in der Menge) die
+ * Gliederungsregel und mit ausgeschalteter (`search`, nicht in der Menge) den
+ * generischen Satz. Ein Deployment-Schalter entscheidet über die Antwortform.
+ * Nicht in R3 geändert: es ist eine Aussage über die Quellenart (extern vs.
+ * hauseigene Dokumente), sie ist von keinem Korpus-Szenario beobachtet, und
+ * eine unbeobachtete Formänderung gehört nicht in denselben PR wie ein
+ * gemessener Lane-Wechsel.
+ */
+describe('Formatregel — die Suchfamilie fällt an EXTERNAL_RESEARCH_INTENTS auseinander', () => {
+  const EXPANDED = 'gliedere sie mit';
+
+  it.each(['research', 'web', 'agentic'] as const)(
+    '%s bekommt die Gliederungsregel, sobald Abruf erwartet wird',
+    async (intent) => {
+      const prompt = await buildSystemMessage(state({ intent }), { retrievalExpected: true });
+      expect(prompt).toContain(EXPANDED);
+      expect(prompt).not.toContain(GENERIC);
+    }
+  );
+
+  it('search bekommt sie nicht — auch nicht mit erwartetem Abruf', async () => {
+    const prompt = await buildSystemMessage(state({ intent: 'search' }), {
+      retrievalExpected: true,
+    });
+    expect(prompt).toContain(GENERIC);
+    expect(prompt).not.toContain(EXPANDED);
+  });
+
+  // Und auch nicht mit zehn bereits gezählten Quellen, also auf dem Weg, den
+  // der Einzeldurchlauf nimmt (dort ist `retrievalExpected` false und die Zahl
+  // echt). Die Schwelle liegt bei 4.
+  it('search bekommt sie auch mit zehn gezählten Quellen nicht', async () => {
+    const citations = Array.from({ length: 10 }, (_, i) => ({
+      id: i + 1,
+      title: `Quelle ${i + 1}`,
+      url: `https://example.org/${i + 1}`,
+      snippet: 'x',
+      source: 'gruenerator',
+    }));
+    const prompt = await buildSystemMessage(state({ intent: 'search', citations }));
+    expect(prompt).toContain(GENERIC);
+    expect(prompt).not.toContain(EXPANDED);
+  });
+});
+
+/**
+ * Position 2 der Gleichmacher-Liste (R1 §4), zweite Hälfte: `isPolishedContent`
+ * unterdrückt Inline-Zitate für einen erkannten Textsorten-Auftrag — ausser der
+ * Intent ist `search`.
+ *
+ * Der Kommentar an der Zeile sagte „research questions always cite inline",
+ * die Zeile nennt aber nur `search`. Beides zugleich stimmt nicht, und der
+ * Unterschied ist erreichbar: `contentType` wird ausschliesslich von den drei
+ * `produktion.*`-Regeln der Heuristik gesetzt, den Intent überschreibt danach
+ * die Erwähnung (`forcedIntentStage` läuft NACH dem Klassifikator). Also:
+ *
+ *   `@dokumente` + „schreib eine Pressemitteilung über X" → Inline-Zitate
+ *   `@recherche` + derselbe Satz                          → keine
+ *
+ * Festgenagelt statt gleichgemacht: welche der beiden Seiten richtig ist, ist
+ * eine PRODUKTfrage (entscheidet die Erwähnung die Quelle oder auch die Form?),
+ * kein Lane-Problem — und kein Korpus-Szenario beobachtet sie. Die zwei
+ * Erwähnungs-Anker aus R2 stellen Fragen, keine Schreibaufträge, und bleiben
+ * deshalb auf beiden Seiten unberührt.
+ */
+describe('Inline-Zitate — die Textsorte schlägt die Erwähnung, ausser bei @dokumente', () => {
+  const SUPPRESSED = 'setze KEINE Inline-Quellenverweise';
+  const CITE_INLINE = 'als Quellenverweise';
+
+  const withSources = (over: Partial<ChatGraphState>): ChatGraphState =>
+    state({
+      searchResults: [
+        { source: 'gruenerator:test', title: 'Wahlprogramm', content: 'x'.repeat(50) },
+      ],
+      citations: [
+        {
+          id: 1,
+          title: 'Wahlprogramm',
+          url: 'https://example.org/1',
+          snippet: 'x',
+          source: 'gruenerator',
+        },
+      ],
+      ...over,
+    } as Partial<ChatGraphState>);
+
+  it('ein Schreibauftrag unterdrückt die Inline-Marker', async () => {
+    const prompt = await buildSystemMessage(
+      withSources({ intent: 'research', contentType: 'pressemitteilung' })
+    );
+    expect(prompt).toContain(SUPPRESSED);
+    expect(prompt).not.toContain(CITE_INLINE);
+  });
+
+  it('unter search NICHT — dort gewinnt die Frage gegen die Textsorte', async () => {
+    const prompt = await buildSystemMessage(
+      withSources({ intent: 'search', contentType: 'pressemitteilung' })
+    );
+    expect(prompt).toContain(CITE_INLINE);
+    expect(prompt).not.toContain(SUPPRESSED);
+  });
+
+  it('ohne Textsorte zitiert jeder Intent der Familie inline', async () => {
+    for (const intent of ['research', 'search', 'web'] as const) {
+      const prompt = await buildSystemMessage(withSources({ intent, contentType: null }));
+      expect(prompt, intent).toContain(CITE_INLINE);
+      expect(prompt, intent).not.toContain(SUPPRESSED);
+    }
+  });
+});
