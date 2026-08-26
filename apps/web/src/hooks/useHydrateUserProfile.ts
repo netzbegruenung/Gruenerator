@@ -15,9 +15,17 @@ export function useHydrateUserProfile() {
 
   useEffect(() => {
     if (!isSuccess) return;
-    const roles = data?.profile?.roles ?? [];
+    const profile = data?.profile ?? {};
     useUserProfileStore.getState().hydrate({
-      roles,
+      roles: profile.roles ?? [],
+      // Über `hydrate`, nicht `setActiveRole`: das hier ist der Lesepfad, ein
+      // Zurückschreiben wäre eine überflüssige PATCH-Anfrage bei jedem Start.
+      activeRole: profile.activeRole ?? null,
+      // Das Vorhandensein des Schlüssels IST die Antwort auf „hat je gewählt?".
+      // `activeRole: null` (bewusst ohne Rolle) und ein fehlender Schlüssel
+      // (nie gewählt) lesen sich sonst gleich, und die Vorauswahl bei genau
+      // einer Rolle wäre nicht abwählbar.
+      hasChosenRole: 'activeRole' in profile,
       locale: locale || 'de-DE',
       isHydrated: true,
     });
