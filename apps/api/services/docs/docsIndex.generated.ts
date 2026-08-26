@@ -2197,7 +2197,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Auf dem Handy",
     "anchor": "#auf-dem-handy",
     "category": "Office",
-    "text": "Dokumente, Tabellen, Folien und Boards findest du in der Grünerator-App unter dem Tab Arbeiten. Dokumente kannst du dort auch bearbeiten — mit Formatierung, Slash-Menü und Titel, gemeinsam in Echtzeit wie im Browser. Tabellen, Folien und Boards siehst du auf dem Handy als Ansicht, nicht als Editor. Zum Bearbeiten öffnest du sie im Browser."
+    "text": "Dokumente, Tabellen, Folien und Boards findest du in der Grünerator-App unter dem Tab Arbeiten. Alle vier öffnen dort einen Editor — nur auf zwei verschiedenen Wegen: Dokumente öffnen einen nativen Editor — mit Formatierung, Slash-Menü und Titel, gemeinsam in Echtzeit wie im Browser. Tabellen, Folien und Boards öffnen den eingebetteten Web-Editor: dieselbe Oberfläche wie im Browser, nur ohne Menüleiste drumherum. Der eingebettete Weg lädt die Web-Anwendung in die App nach — dafür braucht das Handy eine Internetverbindung."
   },
   {
     "url": "/docs/office/intro",
