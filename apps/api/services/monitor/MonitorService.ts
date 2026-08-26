@@ -14,8 +14,8 @@ import { getHotTopicAnalysis } from './HotTopicPipeline.js';
 import { collectArticles } from './MonitorCollectorService.js';
 import { getEntitySummary } from './MonitorSummaryService.js';
 import { getPolitProPolls } from './PolitProService.js';
-import { scrapeTwitterTrends } from './TwitterTrendsScraper.js';
-import { TOPIC_CATEGORIES } from './types.js';
+import { pickTrendsForLocale, scrapeTrendsByLocale } from './TwitterTrendsScraper.js';
+import { MONITOR_LOCALES, TOPIC_CATEGORIES } from './types.js';
 import { WATCHER_ENTITIES } from './watcherEntities.js';
 
 import type {
@@ -112,9 +112,9 @@ export async function refreshMonitor(): Promise<MonitorSnapshot> {
     text: item.excerpt,
   }));
 
-  const [classifications, socialTrends] = await Promise.all([
+  const [classifications, trendsByLocale] = await Promise.all([
     classifyArticles<TopicCategory>(nlpInput),
-    scrapeTwitterTrends().catch(() => []),
+    scrapeTrendsByLocale(),
   ]);
   if (classifications.length === 0) {
     throw new Error('NLP service returned no results');
@@ -163,30 +163,35 @@ export async function refreshMonitor(): Promise<MonitorSnapshot> {
     });
 
   const sources = [...new Set(collected.map((c) => c.source))];
+  // The locale-less snapshot keeps the German trends, as it always did; the
+  // per-locale snapshots below pick their own list out of trendsByLocale.
   const snapshot = buildSnapshot(
     classifiedArticles,
     allArticles.length,
     sources,
     keywords,
-    socialTrends
+    trendsByLocale.de
   );
 
   // Store articles in normalized table + snapshot aggregates
-  await Promise.all([upsertArticles(allArticles), saveSnapshotAggregates(snapshot)]);
+  await Promise.all([
+    upsertArticles(allArticles),
+    saveSnapshotAggregates(snapshot, trendsByLocale),
+  ]);
 
   // Cache snapshot in Redis. Non-fatal: DB still has canonical data, but a
   // failure here means /monitor/latest pays the rebuild cost on every request.
   await setCachedJson(snapshotCacheKey(), snapshot, REDIS_TTL_SECONDS);
 
   // Drop stale per-locale snapshots; the warm tasks below rebuild and re-cache them.
-  await Promise.all((['de', 'at'] as const).map((loc) => deleteCachedKey(snapshotCacheKey(loc))));
+  await Promise.all(MONITOR_LOCALES.map((loc) => deleteCachedKey(snapshotCacheKey(loc))));
 
   const warmTasks: Array<{ name: string; run: () => Promise<unknown> }> = [];
 
   warmTasks.push({ name: 'polls:de', run: () => getPolitProPolls('deutschland') });
   warmTasks.push({ name: 'polls:at', run: () => getPolitProPolls('oesterreich') });
 
-  for (const locale of ['de', 'at'] as const) {
+  for (const locale of MONITOR_LOCALES) {
     warmTasks.push({
       name: `hot-topic:${locale}`,
       run: async () => {
@@ -323,7 +328,10 @@ async function upsertArticles(articles: MonitorArticle[]): Promise<void> {
   }
 }
 
-async function saveSnapshotAggregates(snapshot: MonitorSnapshot): Promise<void> {
+async function saveSnapshotAggregates(
+  snapshot: MonitorSnapshot,
+  trendsByLocale: Record<MonitorLocale, SocialTrend[]>
+): Promise<void> {
   try {
     // Drizzle typed insert: the column set is checked against the schema, so a
     // reference to a non-existent column (the bug that broke this table before)
@@ -336,6 +344,7 @@ async function saveSnapshotAggregates(snapshot: MonitorSnapshot): Promise<void> 
       topic_scores: snapshot.topics,
       keywords: snapshot.keywords,
       social_trends: snapshot.socialTrends,
+      social_trends_by_locale: trendsByLocale,
     });
   } catch (error) {
     log.error(`Failed to save snapshot: ${toError(error).message}`);
@@ -402,7 +411,7 @@ export async function getLatestSnapshot(locale?: MonitorLocale): Promise<Monitor
         articles.length,
         snapshot.sources,
         localeKeywords,
-        snapshot.socialTrends || [],
+        pickTrendsForLocale(row.social_trends_by_locale, row.social_trends, locale),
         locale
       );
       await setCachedJson(snapshotCacheKey(locale), localeSnapshot, REDIS_TTL_SECONDS);

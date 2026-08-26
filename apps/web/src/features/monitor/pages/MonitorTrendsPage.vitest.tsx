@@ -80,6 +80,20 @@ describe('MonitorTrendsPage', () => {
 
     expect(await screen.findByRole('heading', { name: 'X/Twitter Trends' })).toBeInTheDocument();
   });
+
+  // The list itself is scraped per locale on the backend (#2878); the label has
+  // to follow, or Austrian users read "Deutschland" over Austrian trends.
+  it('names the country the trends come from', async () => {
+    serveMonitor();
+
+    const { unmount } = renderWithProviders(<MonitorTrendsContent />, { route: '/trends' });
+    expect(await screen.findByText(/Top Trends in Deutschland/)).toBeInTheDocument();
+    unmount();
+
+    serveMonitor();
+    renderWithProviders(<MonitorTrendsContent />, { route: '/trends?locale=at' });
+    expect(await screen.findByText(/Top Trends in Österreich/)).toBeInTheDocument();
+  });
 });
 
 describe('MonitorThemenPage after the split', () => {
