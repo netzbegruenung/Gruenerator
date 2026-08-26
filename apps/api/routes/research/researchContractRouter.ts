@@ -176,13 +176,11 @@ export const researchContractRouter = s.router(researchContract, {
 
       const allResults = (await Promise.all(searchPromises)).flat();
 
-      const deduped = await rankManualSearchResults({
-        query: trimmedQuery,
+      const deduped = rankManualSearchResults({
         results: allResults,
         sortBy: effectiveSort,
         limit: effectiveLimit,
         minScore: SYSTEM_COLLECTION_MIN_SCORE,
-        rerank: true,
       });
 
       // Extract best snippets with query-term highlighting. Map explicitly to

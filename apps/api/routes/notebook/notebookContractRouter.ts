@@ -375,13 +375,11 @@ export const notebookContractRouter = s.router(notebookContract, {
         published_at: doc.published_at ?? null,
       }));
 
-      const deduped = await rankManualSearchResults({
-        query: trimmed,
+      const deduped = rankManualSearchResults({
         results: tagged,
         sortBy: effectiveSort,
         limit: effectiveLimit,
         minScore: USER_NOTEBOOK_MIN_SCORE,
-        rerank: false,
       });
 
       const truncated = deduped.map((r) => ({

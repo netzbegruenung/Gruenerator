@@ -11,6 +11,7 @@
  *   EVAL_FILTER      only run cases whose id contains this substring
  *   EVAL_DEPTH       depth profile: fast | deep | ultra (default fast), qa only
  *   EVAL_RERANK=1    additionally score the post-rerank ranking (Regolo), qa only
+ *   EVAL_CASE_KIND   run another kind's cases through the chosen pipeline
  *   EVAL_VERBOSE=1   print top-5 titles for every miss (gold-label curation)
  *   EVAL_OUT         write per-case results as JSON to this path
  *
@@ -220,13 +221,11 @@ async function runManualCase(
       return { ...base, error: resp.error || resp.message || 'search returned success=false' };
     }
 
-    const ranked = await rankManualSearchResults({
-      query: evalCase.query,
+    const ranked = rankManualSearchResults({
       results: (resp.results ?? []) as DocumentResult[],
       sortBy: 'relevance',
       limit: MANUAL_RESULT_LIMIT,
       minScore: MANUAL_MIN_SCORE,
-      rerank: true,
     });
 
     return {
@@ -267,7 +266,11 @@ async function main() {
 
   // Each pipeline runs its own cases by default: keyword lookups say nothing
   // about the Q&A path, and questions say nothing about the search field.
-  let cases = RETRIEVAL_CASES.filter((c) => (c.kind ?? 'qa') === pipeline);
+  // EVAL_CASE_KIND crosses them deliberately — running the long `qa` queries
+  // through the manual pipeline is how one checks whether a ranking stage
+  // behaves differently for wordy queries than for keywords.
+  const caseKind = process.env.EVAL_CASE_KIND || pipeline;
+  let cases = RETRIEVAL_CASES.filter((c) => (c.kind ?? 'qa') === caseKind);
   if (collectionFilter) cases = cases.filter((c) => c.collection.includes(collectionFilter));
   if (idFilter) cases = cases.filter((c) => c.id.includes(idFilter));
 
