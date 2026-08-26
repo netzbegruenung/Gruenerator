@@ -14,10 +14,19 @@
 # declared; the real cause sat two `[cause]` levels down. The lockfile pins both
 # musl variants, so `--frozen-lockfile` cannot lose one.
 
+# Node 22, not 20: the lockfile install pulls undici 8.10 (root `pnpm.overrides`
+# pins `undici: >=8.9.0`), which declares `engines: node >=22.19.0` and calls
+# `worker_threads.markAsUncloneable` — a Node 22 API. On node:20-alpine that is
+# `undefined`, and the docs build died three `[cause]` levels down in
+# `@easyops-cn/docusaurus-search-local` → cheerio → undici with
+# "webidl.util.markAsUncloneable is not a function". pnpm does not enforce
+# `engines`, so the install stayed green. The docs-build.yml lane never saw it:
+# it runs on setup-node 22.
+
 # Cache busting argument for forced rebuilds
 ARG CACHEBUST=1
 
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
 # Install pnpm — same activation as apps/web/Dockerfile
 RUN corepack enable && corepack prepare pnpm@10 --activate
