@@ -39,6 +39,8 @@ export const TOPIC_CATEGORIES: TopicCategory[] = [
 
 export type MonitorLocale = 'de' | 'at';
 
+export const MONITOR_LOCALES = ['de', 'at'] as const satisfies readonly MonitorLocale[];
+
 export interface TopicScore {
   topic: TopicCategory;
   score: number;

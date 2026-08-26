@@ -43,7 +43,12 @@ export const monitorSnapshots = pgTable('monitor_snapshots', {
   // Legacy blob, superseded by the normalized monitor_articles table.
   articles: jsonb('articles').$type<unknown[]>().notNull().default([]),
   keywords: jsonb('keywords').$type<MonitorKeywordEntry[]>().default([]),
+  // German list only. Superseded by social_trends_by_locale; still written so
+  // rows stay readable for anything reading the old column.
   social_trends: jsonb('social_trends').$type<SocialTrend[]>().default([]),
+  social_trends_by_locale: jsonb('social_trends_by_locale')
+    .$type<Partial<Record<MonitorLocale, SocialTrend[]>>>()
+    .default({}),
 });
 export type MonitorSnapshotRow = InferSelectModel<typeof monitorSnapshots>;
 
