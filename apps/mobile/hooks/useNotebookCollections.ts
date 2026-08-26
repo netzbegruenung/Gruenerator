@@ -1,14 +1,19 @@
-import { getGlobalApiClient } from '@gruenerator/shared/api';
+import { deriveIndexingState, type TransformedCollection } from '@gruenerator/contracts';
+import { getContractsClient } from '@gruenerator/shared/api';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback } from 'react';
 import { Alert } from 'react-native';
 
-export interface MobileNotebookCollection {
-  id: string;
-  name: string;
-  description: string | null;
-  document_count: number;
-}
+/**
+ * The fields the Wissen tab renders. Derived from the contract's collection
+ * shape rather than re-declared, so a field that changes on the wire changes
+ * here too — a hand-written parallel interface is what let mobile keep polling
+ * for a `'error'` status the server has never sent.
+ */
+export type MobileNotebookCollection = Pick<
+  TransformedCollection,
+  'id' | 'name' | 'description' | 'document_count' | 'documents' | 'indexing_state'
+>;
 
 interface CreateCollectionParams {
   name: string;
@@ -17,19 +22,23 @@ interface CreateCollectionParams {
 }
 
 const QUERY_KEY = ['notebook-collections'] as const;
-const POLL_INTERVAL = 3000;
-const TERMINAL_STATUSES = ['completed', 'error', 'failed'];
+
+/** Matches the web notebook list — see useProfileData's `refetchInterval`. */
+const INDEXING_POLL_MS = 5000;
 
 /** Stable empty identity, so an errored fetch never churns consumers. */
 const EMPTY: MobileNotebookCollection[] = [];
 
+/** Readiness as the server derived it, or derived here for an older backend. */
+export function collectionIndexingState(collection: MobileNotebookCollection) {
+  return collection.indexing_state ?? deriveIndexingState(collection.documents);
+}
+
 async function fetchCollections(): Promise<MobileNotebookCollection[]> {
-  const client = getGlobalApiClient();
-  interface NotebookCollectionsResponse {
-    collections?: MobileNotebookCollection[];
-  }
-  const response = await client.get<NotebookCollectionsResponse>('/auth/notebook-collections');
-  return response.data.collections ?? [];
+  const client = getContractsClient();
+  const result = await client.notebookCollections.listCollections();
+  if (result.status !== 200) throw new Error(`HTTP ${result.status}`);
+  return result.body.collections;
 }
 
 /**
@@ -44,109 +53,69 @@ async function fetchCollections(): Promise<MobileNotebookCollection[]> {
  * The failure shape is kept from before — an error resolves to an empty list
  * rather than surfacing, because the section sits under five other sections that
  * are perfectly usable without it.
+ *
+ * Indexing progress is read off the list itself. There used to be a per-document
+ * poller here, hitting `/documents/:id/status` every three seconds for each
+ * notebook created in this session. It had three faults that all disappear with
+ * it: it accepted `status='completed'` without checking that any vector was
+ * produced (a document that indexed to nothing looked finished), it watched for
+ * a `'error'` status the server never sends, and its state lived in a ref that
+ * died on unmount — so a notebook still importing was indistinguishable from a
+ * finished one after a tab switch, and an import started on another device was
+ * never shown at all.
  */
 export function useNotebookCollections() {
   const queryClient = useQueryClient();
-  const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
-  const pollTimers = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map());
 
   const { data, isLoading } = useQuery({
     queryKey: QUERY_KEY,
     queryFn: () => fetchCollections().catch(() => EMPTY),
+    // Indexing finishes in the background with nothing pushing the result to the
+    // device. Stops on its own once every notebook is settled.
+    refetchInterval: (q) =>
+      (q.state.data ?? []).some((c) => collectionIndexingState(c) === 'indexing')
+        ? INDEXING_POLL_MS
+        : false,
   });
 
   const refetch = useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+    // The chat's file-mention picker caches the same list under its own prefix.
+    await queryClient.invalidateQueries({ queryKey: ['file-mention'] });
   }, [queryClient]);
-
-  // Timers outlive a single render but not the screen; clearing them on unmount
-  // is what stops a deleted notebook from being polled forever.
-  useEffect(() => {
-    const timers = pollTimers.current;
-    return () => {
-      timers.forEach((timer) => clearInterval(timer));
-      timers.clear();
-    };
-  }, []);
-
-  const startPolling = useCallback(
-    (collectionId: string, documentId: string) => {
-      if (pollTimers.current.has(collectionId)) return;
-
-      setProcessingIds((prev) => new Set([...prev, collectionId]));
-
-      const stop = (refresh: boolean) => {
-        const timer = pollTimers.current.get(collectionId);
-        if (timer) clearInterval(timer);
-        pollTimers.current.delete(collectionId);
-        setProcessingIds((prev) => {
-          const next = new Set(prev);
-          next.delete(collectionId);
-          return next;
-        });
-        if (refresh) void refetch();
-      };
-
-      const timer = setInterval(async () => {
-        try {
-          const client = getGlobalApiClient();
-          interface DocumentStatusResponse {
-            data?: { status?: string };
-          }
-          const response = await client.get<DocumentStatusResponse>(
-            `/documents/${documentId}/status`
-          );
-          const status = response.data?.data?.status ?? '';
-
-          if (TERMINAL_STATUSES.includes(status)) stop(true);
-        } catch {
-          stop(false);
-        }
-      }, POLL_INTERVAL);
-
-      pollTimers.current.set(collectionId, timer);
-    },
-    [refetch]
-  );
 
   const createCollection = useCallback(
     async (params: CreateCollectionParams): Promise<{ id: string } | null> => {
       try {
-        const client = getGlobalApiClient();
-        interface CreateCollectionResponse {
-          success: boolean;
-          collection: { id: string };
-          error?: string;
-        }
-        const response = await client.post<CreateCollectionResponse>('/auth/notebook-collections', {
-          name: params.name,
-          description: params.description,
-          selection_mode: 'documents',
-          document_ids: [params.documentId],
+        const client = getContractsClient();
+        const result = await client.notebookCollections.createCollection({
+          body: {
+            name: params.name,
+            description: params.description ?? null,
+            selection_mode: 'documents',
+            document_ids: [params.documentId],
+          },
         });
 
-        if (response.data.success) {
-          const collectionId = response.data.collection.id;
-          await refetch();
-          startPolling(collectionId, params.documentId);
-          return { id: collectionId };
-        }
+        if (result.status !== 201) throw new Error('Erstellung fehlgeschlagen');
 
-        throw new Error(response.data.error ?? 'Erstellung fehlgeschlagen');
+        await refetch();
+        return { id: result.body.collection.id };
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Fehler beim Erstellen';
         Alert.alert('Fehler', message);
         return null;
       }
     },
-    [refetch, startPolling]
+    [refetch]
   );
 
   const deleteCollection = useCallback(
     async (id: string): Promise<boolean> => {
       try {
-        const client = getGlobalApiClient();
-        await client.delete(`/auth/notebook-collections/${id}`);
+        const client = getContractsClient();
+        const result = await client.notebookCollections.deleteCollection({ params: { id } });
+        if (result.status !== 200) throw new Error(`HTTP ${result.status}`);
         await refetch();
         return true;
       } catch (err) {
@@ -161,7 +130,6 @@ export function useNotebookCollections() {
   return {
     collections: data ?? EMPTY,
     isLoading,
-    processingIds,
     refetch,
     createCollection,
     deleteCollection,
