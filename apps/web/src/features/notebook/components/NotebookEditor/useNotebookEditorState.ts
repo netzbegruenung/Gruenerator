@@ -4,6 +4,7 @@ import {
   type WolkeFolderRef,
   type WordpressSiteRef,
 } from '@gruenerator/contracts';
+import { toast } from '@gruenerator/ui';
 import { useState, useEffect, useCallback, useMemo, useRef, type DragEvent } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 
@@ -163,6 +164,20 @@ export function useNotebookEditorState({
       docIds.forEach((id) => {
         void pollDocumentStatus(id)
           .then((result) => {
+            // A give-up is not a success. Letting the spinner simply vanish is
+            // what made an unread file look indexed, so say what is known:
+            // still running, outcome unknown.
+            if (result.timedOut) {
+              setFailedDocs((prev) => {
+                const next = new Map(prev);
+                next.set(
+                  id,
+                  'Die Verarbeitung dauert ungewöhnlich lange. Das Dokument ist noch nicht durchsuchbar.'
+                );
+                return next;
+              });
+              return;
+            }
             if (result.status !== 'failed') return;
             setFailedDocs((prev) => {
               const next = new Map(prev);
@@ -486,7 +501,24 @@ export function useNotebookEditorState({
     if (onCancel) onCancel();
   }, [reset, onCancel]);
 
-  const submitForm = useCallback(() => void handleSubmit(onSubmit)(), [handleSubmit, onSubmit]);
+  /**
+   * `void handleSubmit(onSubmit)()` used to drop a rejected save on the floor as
+   * an unhandled rejection: the button simply became clickable again and the
+   * user was left guessing whether the notebook had been saved. Awaiting it and
+   * surfacing the error is the whole difference between a failed save and a
+   * silent one.
+   */
+  const submitForm = useCallback(async () => {
+    try {
+      await handleSubmit(onSubmit)();
+    } catch (err) {
+      toast.error(
+        err instanceof Error && err.message
+          ? `Speichern fehlgeschlagen: ${err.message}`
+          : 'Speichern fehlgeschlagen. Bitte versuche es erneut.'
+      );
+    }
+  }, [handleSubmit, onSubmit]);
 
   return {
     step,

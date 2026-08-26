@@ -23,6 +23,7 @@ import {
 import express, { type Router, type Response, type NextFunction, type Request } from 'express';
 import multer from 'multer';
 
+import { kickIngestWorker } from '../../services/document-services/DocumentProcessingService/documentIngestWorker.js';
 import { getDocumentProcessingService } from '../../services/document-services/DocumentProcessingService/index.js';
 import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
 import { createLogger } from '../../utils/logger.js';
@@ -175,6 +176,13 @@ router.post(
       log.debug(
         `[POST /upload-only] File saved to disk: ${file.path}, doc ID: ${documentMetadata.id}`
       );
+
+      // Start indexing now rather than when the document is attached to a
+      // notebook. Ingestion used to begin only on attach, so the upload wizard
+      // polled a process that had not started: the status sat on 'uploaded',
+      // the spinner timed out after 30s and the file looked ready while nothing
+      // had happened. Indexing now runs while the user finishes the wizard.
+      kickIngestWorker();
 
       res.json({
         success: true,

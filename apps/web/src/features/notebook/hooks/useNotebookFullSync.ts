@@ -167,15 +167,9 @@ export function useNotebookFullSync() {
           baseDocumentIds = fresh.body.collection.documents.map((d) => String(d.id));
           base = {
             name: fresh.body.collection.name,
-            ...(fresh.body.collection.description != null
-              ? { description: fresh.body.collection.description }
-              : {}),
-            ...(fresh.body.collection.custom_prompt != null
-              ? { custom_prompt: fresh.body.collection.custom_prompt }
-              : {}),
-            selection_mode:
-              (fresh.body.collection.selection_mode as NotebookCollection['selection_mode']) ??
-              collection.selection_mode,
+            description: fresh.body.collection.description,
+            custom_prompt: fresh.body.collection.custom_prompt,
+            selection_mode: fresh.body.collection.selection_mode || collection.selection_mode,
             labels: fresh.body.collection.labels ?? collection.labels,
             is_public: fresh.body.collection.is_public ?? collection.is_public,
             public_ownership: fresh.body.collection.public_ownership ?? null,
@@ -195,9 +189,9 @@ export function useNotebookFullSync() {
 
       await updateQACollection(collection.id, {
         name: base.name,
-        ...(base.description != null ? { description: base.description } : {}),
-        ...(base.custom_prompt != null ? { custom_prompt: base.custom_prompt } : {}),
-        selectionMode: base.selection_mode ?? 'documents',
+        description: base.description,
+        custom_prompt: base.custom_prompt,
+        selectionMode: base.selection_mode || 'documents',
         documents: [...finalIds],
         labels: base.labels ?? [],
         is_public: base.is_public,

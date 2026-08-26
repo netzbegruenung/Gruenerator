@@ -39,6 +39,7 @@ import { startBoardAgentWorker } from './services/boards/boardAgentWorker.js';
 import { startBoardScheduleWorker } from './services/boards/boardScheduleWorker.js';
 import { startCardDueReminderWorker } from './services/boards/cardDueReminderWorker.js';
 import { startUploadsCleanup } from './services/cleanup/uploadsCleanupService.js';
+import { startDocumentIngestWorker } from './services/document-services/DocumentProcessingService/documentIngestWorker.js';
 import { mem0HealthSnapshot } from './services/mem0/mem0Health.js';
 import { startNotificationCleanup } from './services/notifications/notificationCleanupService.js';
 import { startRecurringTaskWorker } from './services/recurringTasks/recurringTaskWorker.js';
@@ -296,6 +297,11 @@ async function startWorker(): Promise<void> {
   // EXPERIMENTAL: fires due standalone recurring tasks (recurring_tasks) → runs the
   // agent + delivers inline. Same cluster-safe claim pattern.
   startRecurringTaskWorker();
+
+  // Turns uploaded documents into vectors. Same cluster-safe claim; also
+  // reclaims rows whose processing died with a previous process, which used to
+  // strand them on 'processing' forever.
+  startDocumentIngestWorker();
 
   // TUS Upload Handler — registered before compression middleware.
   // TUS uploads are binary streams that don't benefit from compression
