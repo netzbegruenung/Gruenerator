@@ -15,6 +15,7 @@ import express, { type Router, type Response } from 'express';
 import { z } from 'zod';
 
 import { getSystemCollectionConfig } from '../../config/systemCollectionsConfig.js';
+import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { DocumentSearchService } from '../../services/document-services/DocumentSearchService/index.js';
 import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
@@ -31,6 +32,7 @@ const router: Router = express.Router();
 // Initialize services
 const postgresDocumentService = getPostgresDocumentService();
 const documentSearchService = new DocumentSearchService();
+const notebookHelper = new NotebookQdrantHelper();
 
 /**
  * GET /user - Get user documents with enrichment
@@ -369,6 +371,12 @@ router.delete(
         // Continue even if vector deletion fails - document metadata is already deleted
       }
 
+      // Notebook membership lives in Qdrant, not in the Postgres table of the
+      // same name, so no foreign key takes this out for us. Left behind, the
+      // join point keeps naming a document that no longer exists: notebooks go
+      // on listing it, and QA filters on an id that can never match.
+      await notebookHelper.removeDocumentsFromAllCollections([id]);
+
       res.json({
         success: true,
         message: 'Document deleted successfully',
@@ -445,6 +453,10 @@ router.delete(
       const vectorDeleteSuccesses = vectorDeleteResults.filter(
         (result) => result.status === 'fulfilled' && result.value.success
       ).length;
+
+      // Same reason as the single delete above: nothing else clears the notebook
+      // join points, and a stale one outlives the document it names.
+      await notebookHelper.removeDocumentsFromAllCollections(deleteResult.deletedIds);
 
       log.debug(
         `[DELETE /bulk] Bulk delete completed: ${deleteResult.deletedCount} documents deleted, ${vectorDeleteSuccesses} vector collections deleted`
