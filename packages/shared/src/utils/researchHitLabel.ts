@@ -1,6 +1,6 @@
 /**
  * Die Zeile unter einem Treffer der manuellen Recherche — eine Stelle, drei
- * Oberflächen (Web-Karte, Notizbuch-Karte auf Mobile, Recherche-Tab).
+ * Oberflächen (Web-Karte, Notebook-Karte auf Mobile, Recherche-Tab).
  */
 
 /**

@@ -96,7 +96,7 @@ export function producedContent(trace: ChatTrace): string {
  * ZWEI Drahtformen, und die zweite hat im R2-Abnahmelauf wie ein Produktfehler
  * ausgesehen: `nb-at-locale` lieferte 2.204 Zeichen Antwort mit ZEHN Zitaten im
  * `completion`-Payload und meldete trotzdem „no [N] citation markers". Das
- * Notizbuch setzt seine Marker sehr wohl — nur als `[cite:N]`.
+ * Notebook setzt seine Marker sehr wohl — nur als `[cite:N]`.
  * `validateAndInjectCitations` (SearchResultProcessor.ts) schreibt jedes
  * gültige `[N]` in genau diese Form um, und die Oberfläche rendert sie
  * (CitationTextRenderer als Chip, useNotebookChatBridge zurück nach `[N]`).

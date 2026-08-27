@@ -11,7 +11,7 @@ const Support = () => {
 
       <h2>Dokumentation</h2>
       <p>
-        Anleitungen zu allen Funktionen — von Sharepics über Notizbücher bis zu den Grüneratoren —
+        Anleitungen zu allen Funktionen — von Sharepics über Notebooks bis zu den Grüneratoren —
         stehen in der Dokumentation. Vieles lässt sich damit schneller klären als über eine Anfrage:
       </p>
       <p>

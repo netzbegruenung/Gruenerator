@@ -58,11 +58,11 @@ export const CONTENT_TABLE_NAME_MAP: Record<string, string> = {
 export const CONTENT_LABELS: Record<string, string> = {
   documents: 'ein Dokument',
   custom_generators: 'einen Grünerator',
-  notebook_collections: 'ein Notizbuch',
+  notebook_collections: 'ein Notebook',
   user_documents: 'einen Text',
   collaborative_documents: 'ein Dokument',
   database: 'einen Datenbank-Eintrag',
-  system_notebooks: 'ein Notizbuch',
+  system_notebooks: 'ein Notebook',
   system_agents: 'einen Agenten',
   user_agents: 'eine*n Agent*in',
   canvas_template: 'eine Sharepic-Vorlage',

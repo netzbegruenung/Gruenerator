@@ -835,8 +835,8 @@ export class BaseSearchService {
     const normQuery = normalizeQuery(query);
     const isShortQuery = (query || '').trim().split(/\s+/).filter(Boolean).length <= 2;
 
-    // Opt-in, weil `groupAndRankHybridResults` von Anhängen, Notizbüchern,
-    // Grundsatz- und LV-Sammlungen gemeinsam benutzt wird. Notizbuch und
+    // Opt-in, weil `groupAndRankHybridResults` von Anhängen, Notebooks,
+    // Grundsatz- und LV-Sammlungen gemeinsam benutzt wird. Notebook und
     // Recherche reranken danach ohnehin auf Dokumentebene; der Anhang-Pfad ist
     // der einzige, bei dem das nichts bringt, weil dort nur EIN Dokument steht.
     const rerankScores = options.rerankChunks

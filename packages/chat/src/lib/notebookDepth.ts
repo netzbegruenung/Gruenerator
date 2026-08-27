@@ -19,9 +19,9 @@ export interface NotebookDepthDef {
  * thorough tier (see `notebookStreamCore`). Which tier a fresh UI preselects is
  * a product choice on top of it and belongs to the UI layer that makes it.
  *
- * 'deep': seit die Tiefe im Notizbuch die einzige Qualitätswahl ist (die
+ * 'deep': seit die Tiefe im Notebook die einzige Qualitätswahl ist (die
  * Modellwahl ist dort ausgeblendet), muss der Startwert die mittlere Stufe
- * sein — 'fast' hätte jede Notizbuch-Antwort still auf eine Suche gedeckelt.
+ * sein — 'fast' hätte jede Notebook-Antwort still auf eine Suche gedeckelt.
  */
 export const DEFAULT_NOTEBOOK_DEPTH: NotebookDepth = 'deep';
 

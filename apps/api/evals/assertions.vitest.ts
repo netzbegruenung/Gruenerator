@@ -151,9 +151,9 @@ describe('runAssertions — each failure class we hit live', () => {
     expect(names(rs)['cited']).toBe(true);
   });
 
-  it('cited erkennt die Notizbuch-Drahtform [cite:N] (live 19.08.2026)', () => {
+  it('cited erkennt die Notebook-Drahtform [cite:N] (live 19.08.2026)', () => {
     // `nb-at-locale`: 2.204 Zeichen Antwort, ZEHN Zitate im completion-Payload,
-    // und die Prüfung meldete „no [N] citation markers". Das Notizbuch setzt
+    // und die Prüfung meldete „no [N] citation markers". Das Notebook setzt
     // seine Marker als `[cite:N]` — `validateAndInjectCitations` schreibt jedes
     // gültige `[N]` in diese Form um, die Oberfläche rendert sie als Chip. Die
     // Prüfung kannte nur die Chat-Form `[N]` und meldete Rot für eine richtig

@@ -71,9 +71,9 @@ export default function NotebookIndexingNotice({
 
   const message =
     state === 'empty'
-      ? 'Dieses Notizbuch hat noch keine Quellen. Füge welche hinzu, damit es Fragen beantworten kann.'
+      ? 'Dieses Notebook hat noch keine Quellen. Füge welche hinzu, damit es Fragen beantworten kann.'
       : state === 'failed'
-        ? 'Keine der Quellen konnte gelesen werden. Dieses Notizbuch kann noch nichts beantworten.'
+        ? 'Keine der Quellen konnte gelesen werden. Dieses Notebook kann noch nichts beantworten.'
         : `Einige Quellen konnten nicht gelesen werden${
             counts ? ` (${counts.failed} von ${counts.total})` : ''
           }. Antworten stützen sich nur auf die übrigen.`;

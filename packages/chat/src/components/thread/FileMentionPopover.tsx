@@ -272,10 +272,10 @@ export function FileMentionPopover({
                     </div>
                   ) : collectionsFailed ? (
                     <p className="p-3 text-sm text-destructive">
-                      Notizbücher konnten nicht geladen werden.
+                      Notebooks konnten nicht geladen werden.
                     </p>
                   ) : collections.length > 0 ? (
-                    <CommandGroup heading="Notizbücher">
+                    <CommandGroup heading="Notebooks">
                       {collections.map((collection) => (
                         <CommandItem
                           key={collection.id}

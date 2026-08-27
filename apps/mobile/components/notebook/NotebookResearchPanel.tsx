@@ -418,7 +418,7 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
           </Pressable>
         </View>
         <ScrollView style={styles.sheetScroll}>
-          {/* Nur im KI-Chat: die drei Stufen, die Web am Notizbuch-Composer
+          {/* Nur im KI-Chat: die drei Stufen, die Web am Notebook-Composer
               zeigt. Auf die manuelle Recherche wirken sie nicht. */}
           {isChat && (
             <View style={styles.filterSection}>

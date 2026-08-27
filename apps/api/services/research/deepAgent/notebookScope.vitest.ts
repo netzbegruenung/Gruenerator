@@ -17,7 +17,7 @@ describe('buildNotebookScope', () => {
     expect(ids).not.toContain('oesterreich-notebook');
   });
 
-  it('bietet österreichischen Nutzerinnen das Österreich-Notizbuch an', () => {
+  it('bietet österreichischen Nutzerinnen das Österreich-Notebook an', () => {
     const scope = buildNotebookScope({}, 'de-AT', 'user-1');
 
     expect(scope?.corpora.map((c) => c.id)).toContain('oesterreich-notebook');

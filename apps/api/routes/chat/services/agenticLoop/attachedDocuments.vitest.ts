@@ -61,11 +61,11 @@ describe('retrievableAttachedSources', () => {
   });
 
   /**
-   * Notizbücher haben im Loop eigene Werkzeuge. Nähme der Filter sie mit, zahlte
-   * JEDER Notizbuch-Turn den Vorab-Abruf ein zweites Mal — der Seed läuft
+   * Notebooks haben im Loop eigene Werkzeuge. Nähme der Filter sie mit, zahlte
+   * JEDER Notebook-Turn den Vorab-Abruf ein zweites Mal — der Seed läuft
    * unbedingt, sobald diese Liste nicht leer ist.
    */
-  it('lässt einen reinen Notizbuch-Turn leer — sonst sucht der Seed doppelt', () => {
+  it('lässt einen reinen Notebook-Turn leer — sonst sucht der Seed doppelt', () => {
     const state = stateWith({ documentSources: [src('notebook', 'berlin')] });
     expect(retrievableAttachedSources(state)).toEqual([]);
   });

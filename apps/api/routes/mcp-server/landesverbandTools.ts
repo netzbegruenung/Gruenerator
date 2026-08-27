@@ -149,7 +149,7 @@ export function registerLandesverbandTools(
   server.registerTool(
     'notebooks_search',
     {
-      title: 'Landesverbands-Notizbuch durchsuchen',
+      title: 'Landesverbands-Notebook durchsuchen',
       description:
         'Liefert die am besten passenden Textstellen aus dem Quellenbestand eines Landesverbands — ohne vorformulierte Antwort. Formuliere aus den Treffern selbst und belege sie über ihre ref. Filterwerte vorher mit notebooks_get_filters holen, nie raten.',
       inputSchema: {

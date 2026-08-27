@@ -23,7 +23,7 @@ import {
 
 import { type ResearchLocale } from './types.js';
 
-/** One corpus the model may name in `notizbuch_suche`. */
+/** One corpus the model may name in `notebook_suche`. */
 export interface NotebookCorpus {
   /** Notebook id — the value that appears in the tool schema's enum. */
   id: string;
