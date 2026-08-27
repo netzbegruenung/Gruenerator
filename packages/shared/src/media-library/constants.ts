@@ -29,8 +29,27 @@ export const DEFAULT_PAGINATION = {
   offset: 0,
 } as const;
 
+/**
+ * How many library items (finished sharepics, KI images, uploads) one account
+ * may hold. Single source of truth — the API's quota check, the `/api/media`
+ * response and every "x von y" label derive from it; do not restate the number.
+ *
+ * The cap used to be enforced by *deleting* the oldest rows and their files on
+ * every write (#2980). It now only refuses further **uploads**: creations
+ * (sharepics, canvas drafts, template clones) always go through, because
+ * failing them would break canvas autosave, and destroying months-old work to
+ * make room for a source image is never what someone asked for.
+ */
+export const MEDIA_LIBRARY_ITEM_LIMIT = 100;
+
+/**
+ * Share of the cap above which the Mediathek warns before the limit actually
+ * bites, so uploads don't fail out of nowhere.
+ */
+export const MEDIA_LIBRARY_WARN_RATIO = 0.9;
+
 export const MEDIA_LIMITS = {
-  maxItemsPerUser: 50,
+  maxItemsPerUser: MEDIA_LIBRARY_ITEM_LIMIT,
   maxFileSize: MAX_FILE_SIZE,
   maxTitleLength: 200,
   maxAltTextLength: 500,
