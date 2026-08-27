@@ -3115,7 +3115,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Landesverbände",
     "anchor": "#landesverbände",
     "category": "Wissen",
-    "text": "Die Landesverbände-Sammlung enthält 25.616 Vektoren aus 13 Quellen. Landesverband | Kürzel | Vektoren | ---------------|--------|-------:| Berlin | BE | 4.023 | Saarland | SL | 3.484 | Hessen Fraktion | HE-F | 3.232 | Bayern Fraktion | BY-F | 2.902 | Mecklenburg-Vorpommern Fraktion | MV-F | 2.441 | Berlin Fraktion | BE-F | 2.257 | Brandenburg | BB | 2.170 | Mecklenburg-Vorpommern | MV | 1.555 | Sachsen-Anhalt Fraktion | LSA-F | 1.414 | Thüringen | TH | 779 | Bayern | BY | 721 | Hessen | HE | 355 | Sachsen-Anhalt | LSA | 283 | Gesamt | | 25.616 |"
+    "text": "Die Landesverbände-Sammlung enthält 25.616 Vektoren aus 13 Quellen. Landesverband | Kürzel | Vektoren | ------------------------------- | ------ | ---------: | Berlin | BE | 4.023 | Saarland | SL | 3.484 | Hessen Fraktion | HE-F | 3.232 | Bayern Fraktion | BY-F | 2.902 | Mecklenburg-Vorpommern Fraktion | MV-F | 2.441 | Berlin Fraktion | BE-F | 2.257 | Brandenburg | BB | 2.170 | Mecklenburg-Vorpommern | MV | 1.555 | Sachsen-Anhalt Fraktion | LSA-F | 1.414 | Thüringen | TH | 779 | Bayern | BY | 721 | Hessen | HE | 355 | Sachsen-Anhalt | LSA | 283 | Gesamt | | 25.616 |"
   },
   {
     "url": "/docs/wissen/inhaltsdatenbank",
@@ -3123,7 +3123,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Sammlungen",
     "anchor": "#sammlungen",
     "category": "Wissen",
-    "text": "Sammlung | Vektoren | ----------|-------:| Landesverbände | 25.616 | Abgeordnetenwatch | 20.956 | KommunalWiki | 8.028 | Bundestag | 3.274 | Böll-Stiftung | 2.223 | gruene.at | 1.007 | Grundsatzprogramm | 968 | gruene.de | 858 | Grüne Österreich | 645 | Grünblog | 610 | Social-Media-Beispiele | 537 | Gesamt | 64.722 |"
+    "text": "Sammlung | Vektoren | ---------------------- | ---------: | Landesverbände | 25.616 | Abgeordnetenwatch | 20.956 | KommunalWiki | 8.028 | Bundestag | 3.274 | Böll-Stiftung | 2.223 | gruene.at | 1.007 | Grundsatzprogramm | 968 | gruene.de | 858 | Grüne Österreich | 645 | Grünblog | 610 | Social-Media-Beispiele | 537 | Gesamt | 64.722 |"
   },
   {
     "url": "/docs/wissen/inhaltsdatenbank",
