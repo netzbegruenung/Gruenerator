@@ -46,9 +46,9 @@ Du kannst mehrere Rollen anlegen (etwa Landesgeschäftsstelle **und** Kreisverba
 ![Das Chat-Eingabefeld mit dem Rollen-Chip „LGS“ links und der eingetippten Bitte „Schreibe eine Pressemitteilung für mehr Artenvielfalt in unserer Landeshauptstadt“.](/assets/images/landesverband-tutorial/chat-rolle-lgs.webp)
 
 :::note[Eine Ausnahme: selbst eingetippte Rollen]
-Rollen, die du selbst formuliert hast, statt sie aus der Liste zu wählen, bringen ihre eigene Beschreibung mit — und die hat dann Vorrang vor jeder Vorlage. Solange so eine Rolle im Chat aktiv ist, schlägt der Grünerator **keine** Vorlage von sich aus vor, auch nicht die allgemeine; selbst ein ausdrücklich erwähntes Rezept bleibt dann außen vor.
+Rollen, die du selbst formuliert hast, statt sie aus der Liste zu wählen, bringen ihre eigene Beschreibung mit — und die hat dann Vorrang vor der Automatik. Solange so eine Rolle im Chat aktiv ist, schlägt der Grünerator von sich aus **keine** Vorlage vor, auch nicht die allgemeine.
 
-Für Pressetexte wählst du deshalb besser eine Rolle **aus der Liste** — oder „Chat“ ganz ohne Rolle.
+Erwähnst du eine ausdrücklich (`@presse-hessen-partei`), gilt sie trotzdem. Wenn du die Automatik willst, wählst du eine Rolle **aus der Liste** — oder „Chat“ ganz ohne Rolle.
 :::
 
 Unter der fertigen Antwort steht dann, welches Rezept gewirkt hat:
