@@ -15,7 +15,7 @@ import {
   versionFromDate,
   versionFromShareRow,
 } from '../../services/media/thumbnailUrl.js';
-import { USER_VISIBLE_SHARE_STATUSES } from '../../services/sharedMediaService.js';
+import { USER_VISIBLE_SHARE_STATUSES } from '../../services/sharedMediaFilters.js';
 import { createLogger } from '../../utils/logger.js';
 import { getSharedMediaService } from '../share/shareServices.js';
 

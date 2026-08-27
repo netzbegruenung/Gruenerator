@@ -11,6 +11,7 @@ import sharp from 'sharp';
 import { type PostgresService, getPostgresInstance } from '../database/services/PostgresService.js';
 import { likeContainsPattern } from '../utils/sqlLike.js';
 
+import { LIBRARY_ITEM_CLAUSE, assetPoolWhere, creationFeedWhere } from './sharedMediaFilters.js';
 import { deriveContentOrigin } from './sharedMediaOrigin.js';
 
 import type {
@@ -37,16 +38,6 @@ const SHARED_MEDIA_PATH = path.join(__dirname, '../uploads/shared-media');
 const SHARED_MEDIA_PATH_RESOLVED = path.resolve(SHARED_MEDIA_PATH);
 const MAX_ITEMS_PER_USER = 50;
 const THUMBNAIL_SIZE = 400;
-
-/**
- * Statuses a user sees in their own creation listings (galleries, recent
- * strips). Canvas autosave writes 'draft' and only an explicit publish
- * promotes to 'ready', so user-facing lists must include drafts — a
- * ready-only filter permanently hides autosaved work. Surfaces that
- * intentionally narrow (the curated media library is ready-only) should pass
- * an explicit status instead of duplicating the policy in raw SQL.
- */
-export const USER_VISIBLE_SHARE_STATUSES = ['ready', 'draft'] as const;
 
 // Responsive grid-thumbnail widths pre-generated at upload. Must stay in sync
 // with the widths the frontend requests (`buildSharedMediaSrcSet`) and the
@@ -254,7 +245,7 @@ class SharedMediaService {
       // and evicting one silently blanks that document's gallery preview.
       // Their lifecycle is delete-on-replace in updateCanvas instead.
       const countQuery = `SELECT COUNT(*) as count FROM shared_media
-                          WHERE user_id = $1 AND COALESCE(is_library_item, TRUE) = TRUE`;
+                          WHERE user_id = $1 AND ${LIBRARY_ITEM_CLAUSE}`;
       const countResult = await this.postgres!.queryOne<{ count: string }>(countQuery, [userId]);
       const count = parseInt(countResult?.count ?? '0', 10);
 
@@ -265,7 +256,7 @@ class SharedMediaService {
                     WITH oldest AS (
                         SELECT id, share_token, file_path, thumbnail_path
                         FROM shared_media
-                        WHERE user_id = $1 AND COALESCE(is_library_item, TRUE) = TRUE
+                        WHERE user_id = $1 AND ${LIBRARY_ITEM_CLAUSE}
                         ORDER BY created_at ASC
                         LIMIT $2
                     )
@@ -677,35 +668,28 @@ class SharedMediaService {
     await this.ensureInitialized();
 
     try {
+      // Every caller of this method is a creation feed — the workplace "Zuletzt"
+      // strip, the Studio galleries, the share endpoints, the chat media list —
+      // so the policy comes from `creationFeedWhere`, not from a WHERE clause
+      // written out here. The Mediathek asks a different question and goes
+      // through `getMediaLibrary`.
+      const params: unknown[] = [userId];
       let query = `
                 SELECT id, share_token, media_type, title, thumbnail_path, file_size,
                        duration, image_type, image_metadata, status, download_count, created_at,
                        content_origin
                 FROM shared_media
                 WHERE user_id = $1
-                  AND (upload_source IS NULL OR upload_source != ALL($2))
+                  AND ${creationFeedWhere(params, status)}
             `;
-      const params: unknown[] = [userId, [...NON_LIBRARY_UPLOAD_SOURCES]];
-      let paramIndex = 3;
 
       if (mediaType) {
-        query += ` AND media_type = $${paramIndex}`;
         params.push(mediaType);
-        paramIndex++;
+        query += ` AND media_type = $${params.length}`;
       }
 
-      if (Array.isArray(status)) {
-        query += ` AND status = ANY($${paramIndex})`;
-        params.push(status);
-        paramIndex++;
-      } else if (status) {
-        query += ` AND status = $${paramIndex}`;
-        params.push(status);
-        paramIndex++;
-      }
-
-      query += ` ORDER BY created_at DESC LIMIT $${paramIndex}`;
       params.push(Math.min(Math.max(1, Math.trunc(limit)), 100));
+      query += ` ORDER BY created_at DESC LIMIT $${params.length}`;
 
       const results = await this.postgres!.query<SharedMediaRow>(query, params);
       return results;
@@ -877,8 +861,6 @@ class SharedMediaService {
     const { type = 'all', search = null, limit = 50, offset = 0, sort = 'newest' } = filters;
 
     try {
-      // Intentionally narrower than USER_VISIBLE_SHARE_STATUSES: the media
-      // library is a curated asset pool, drafts stay out until published.
       let query = `
                 SELECT id, share_token, media_type, title, thumbnail_path, file_size,
                        mime_type, duration, image_type, image_metadata, status,
@@ -886,8 +868,7 @@ class SharedMediaService {
                        original_filename, content_origin
                 FROM shared_media
                 WHERE user_id = $1
-                  AND status = 'ready'
-                  AND COALESCE(is_library_item, TRUE) = TRUE
+                  AND ${assetPoolWhere()}
             `;
       const params: unknown[] = [userId];
       let paramIndex = 2;
@@ -911,12 +892,13 @@ class SharedMediaService {
 
       const results = await this.postgres!.query<SharedMediaRow>(query, params);
 
+      // Same predicate as the page query above, by construction — a COUNT that
+      // drifts from its list promises rows the paginator never hands out.
       const countQuery = `
                 SELECT COUNT(*) as total
                 FROM shared_media
                 WHERE user_id = $1
-                  AND status = 'ready'
-                  AND COALESCE(is_library_item, TRUE) = TRUE
+                  AND ${assetPoolWhere()}
                   ${type && type !== 'all' ? 'AND media_type = $2' : ''}
             `;
       const countParams = type && type !== 'all' ? [userId, type] : [userId];

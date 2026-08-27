@@ -4,11 +4,13 @@ import {
   type ContentItem,
   type ContentKind,
 } from '@gruenerator/contracts';
-import { NON_LIBRARY_UPLOAD_SOURCES } from '@gruenerator/shared/media-library/constants';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import { CANVAS_SUBTYPE } from '../../services/canvas/canvasRepository.js';
-import { USER_VISIBLE_SHARE_STATUSES } from '../../services/sharedMediaService.js';
+import {
+  USER_VISIBLE_SHARE_STATUSES,
+  creationFeedWhere,
+} from '../../services/sharedMediaFilters.js';
 
 import { type ContentCursor, keysetWhere } from './contentCursor.js';
 
@@ -227,16 +229,14 @@ export async function fetchImages(
   limit: number,
   cursor: ContentCursor | null
 ): Promise<ContentItem[]> {
-  const params: unknown[] = [
-    userId,
-    [...NON_LIBRARY_UPLOAD_SOURCES],
-    [...USER_VISIBLE_SHARE_STATUSES],
-  ];
+  const params: unknown[] = [userId];
+  // The same policy `getUserShares` applies, from the same place: this endpoint
+  // is the migration target for the "Zuletzt" strip, so it has to answer the
+  // question identically or the two feeds show different images.
   const where = withCursor(
     `user_id = $1
      AND media_type = 'image'
-     AND (upload_source IS NULL OR upload_source != ALL($2))
-     AND status = ANY($3)`,
+     AND ${creationFeedWhere(params, USER_VISIBLE_SHARE_STATUSES)}`,
     'created_at',
     'id',
     'image',
