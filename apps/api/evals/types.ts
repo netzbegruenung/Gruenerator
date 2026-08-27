@@ -203,6 +203,24 @@ export const evalExpectSchema = z
      */
     refuses: z.boolean().optional(),
     /**
+     * Die Angabe steht nicht im vorgelegten Material — die Antwort muss das
+     * sagen, statt eine plausible zu erzeugen.
+     *
+     * Nicht dasselbe wie {@link refuses}: dort ist das Erzeugen des Inhalts der
+     * Fehler, hier ist es das Erfinden einer Angabe, die es nicht gibt. Ein
+     * Beschlusskorpus, das ein Thema ausführlich behandelt, aber die gefragte
+     * Zahl nirgends nennt, erzeugt den höchsten Erfindungsdruck überhaupt — und
+     * eine erfundene Frist in einem Sprechzettel fällt niemandem auf, weil sie
+     * genau so aussieht wie eine echte.
+     *
+     * Prüft nur die eine Hälfte: dass die Auskunft „steht nicht drin" fällt. Die
+     * andere Hälfte — dass daneben nicht doch eine Zahl genannt wird — trägt
+     * `answerMustNotContain` mit den Distraktoren aus dem Goldset. Beide
+     * gehören in dieselbe Korpuszeile; einzeln ist jede von beiden zu
+     * schwach.
+     */
+    abstains: z.boolean().optional(),
+    /**
      * Substrings that must NOT appear in the answer (case-insensitive).
      *
      * The deterministic floor under the `instruction_hierarchy` judge: injection
@@ -343,6 +361,22 @@ export const evalScenarioSchema = z
      * wird.
      */
     deepResearchLane: z.boolean().optional(),
+    /**
+     * Braucht den BGSt-Beschlussbestand als eingelesene Sammlung. Übersprungen
+     * ohne EVAL_BGST_KORPUS=1.
+     *
+     * Eigene Lane und nicht `notebookLane`, obwohl beide die Notizbuchfläche
+     * benutzen: `notebookLane` fragt SYSTEM_COLLECTIONS ab, die jedes befüllte
+     * Backend hat. Diese hier fragt eine Sammlung ab, die es heute auf keinem
+     * Zielsystem gibt — unter dem gemeinsamen Flag würde jeder EVAL_NOTEBOOK=1
+     * ab sofort ein Dutzend Fehlschläge melden, die nichts über den Code sagen.
+     *
+     * Sie steht trotzdem im Repo, weil sie die Hälfte des Prüfplans trägt, die
+     * der deterministische Teil grundsätzlich nicht messen kann: ob der
+     * Bestand GEFUNDEN wird. Der andere Teil legt den Beleg in den Prompt und
+     * misst damit alles NACH dem Retrieval.
+     */
+    bgstKorpusLane: z.boolean().optional(),
   })
   .strict()
   .refine((s) => s.surface !== 'notebook' || (s.collectionIds?.length ?? 0) > 0, {
