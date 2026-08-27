@@ -71,6 +71,13 @@ export interface GrueneDeCrawlResult {
   updated: number;
   skipped: number;
   errors: number;
+  /**
+   * Capped sample of the messages behind `errors`. Without it the nightly run
+   * reported the bare number (32, unchanged run after run) and the reason lived
+   * only in the prod log — the CI report can render `errorSamples`, it just
+   * never got any from this source. `errors` itself stays uncapped and exact.
+   */
+  errorSamples: string[];
   totalVectors: number;
   duration: number;
   skipReasons: {
@@ -85,6 +92,18 @@ export interface GrueneDeCrawlResult {
 export interface GrueneDeCrawlOptions {
   forceUpdate?: boolean;
   maxArticles?: number | null;
+}
+
+/**
+ * As in the Landesverband scraper: the messages are a sample, not a log — a
+ * total sitemap outage would otherwise push hundreds of lines through the
+ * Redis-backed job status and into the CI summary.
+ */
+const MAX_ERROR_SAMPLES = 25;
+
+function addErrorSample(target: { errorSamples: string[] }, message: string): void {
+  if (target.errorSamples.length >= MAX_ERROR_SAMPLES) return;
+  target.errorSamples.push(message);
 }
 
 const SITEMAP_URL = 'https://www.gruene.de/sitemap.xml';
@@ -371,6 +390,7 @@ export class GrueneDeScraper extends BaseScraper {
       updated: 0,
       skipped: 0,
       errors: 0,
+      errorSamples: [],
       totalVectors: 0,
       duration: 0,
       skipReasons: {
@@ -404,6 +424,7 @@ export class GrueneDeScraper extends BaseScraper {
 
         if ('error' in entry) {
           result.errors++;
+          addErrorSample(result, `Abruf ${url}: ${entry.error}`);
           result.skipReasons.fetch_error.count++;
           if (result.skipReasons.fetch_error.examples.length < 5) {
             result.skipReasons.fetch_error.examples.push(url);
@@ -460,6 +481,7 @@ export class GrueneDeScraper extends BaseScraper {
           const msg = error instanceof Error ? error.message : 'Unknown error';
           console.error(`[GrueneDe] Error processing ${url}: ${msg}`);
           result.errors++;
+          addErrorSample(result, `${url}: ${msg}`);
         }
       }
     } catch (error) {
