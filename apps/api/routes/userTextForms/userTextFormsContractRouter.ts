@@ -12,9 +12,10 @@ import {
   textFormTypeSchema,
   userTextFormsContract,
 } from '@gruenerator/contracts';
-import { SKILLS } from '@gruenerator/shared/agents';
+import { SKILLS, landesverbandIdsForRoles } from '@gruenerator/shared/agents';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
+import { loadUserRoles } from '../../services/roles/userRoles.js';
 import { analyzeTextForm, textTypeLabel } from '../../services/user/textFormAnalysisService.js';
 import {
   deleteTextForm,
@@ -27,6 +28,8 @@ import { logContractValidationError } from '../../utils/contractValidationLogger
 import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
+
+import { checkRecipeOverride } from './recipeOverrideAccess.js';
 
 import type { Application } from 'express';
 
@@ -72,7 +75,8 @@ export const userTextFormsContractRouter = s.router(userTextFormsContract, {
 
   save: async (args) => {
     try {
-      const userId = getAuthedUser(args.req).id;
+      const user = getAuthedUser(args.req);
+      const userId = user.id;
       const mention = args.params.mention;
       const body = args.body;
 
@@ -87,6 +91,16 @@ export const userTextFormsContractRouter = s.router(userTextFormsContract, {
               message: 'Preset-Textformen müssen textType == mention haben.',
             },
           };
+        }
+      } else if (body.kind === 'recipe') {
+        // Ein Stil FÜR EIN mitgeliefertes Landesverbands-Rezept — er ersetzt
+        // dessen Rumpf, also entscheidet die Zuteilung (siehe dort).
+        const verdict = checkRecipeOverride({
+          mention,
+          lvIds: landesverbandIdsForRoles(await loadUserRoles(userId), user.locale ?? 'de-DE'),
+        });
+        if (!verdict.ok) {
+          return { status: verdict.status, body: { success: false, message: verdict.message } };
         }
       } else {
         // Custom forms must be a valid slug that does not shadow a system skill

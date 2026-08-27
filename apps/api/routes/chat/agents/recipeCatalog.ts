@@ -153,8 +153,10 @@ export interface ResolvedRecipe {
 
 /**
  * Fetch a recipe body. Same precedence `buildSystemMessage` uses: a user's
- * learned form wins over the shipped prompt, and an LV variant folds onto the
- * general text form (`presse-bayern` → the user's `presse` style).
+ * learned form wins over the shipped prompt — aber nur die, die FÜR DIESE
+ * Mention angelernt wurde. Ein generischer `presse`-Stil greift nicht mehr in
+ * `presse-bayern-partei` hinein; die Faltung ist mit #2930 gefallen (siehe
+ * `nodes/textFormMention.ts`).
  *
  * Returns null when nothing is available — notably when SKILLS_INTERN_DIR was
  * never rolled out. The caller MUST surface that as a failure: on the
@@ -170,7 +172,7 @@ export async function resolveRecipe(params: {
   const skill = SKILLS.find((s) => s.mention === canonicalSkillMention(mention));
 
   if (userId) {
-    const textFormMention = deriveTextFormMention(mention, skill);
+    const textFormMention = deriveTextFormMention(mention);
     if (textFormMention) {
       const form = await getTextFormForInjection(userId, textFormMention);
       if (form) {

@@ -1851,13 +1851,16 @@ export async function buildSystemMessage(
     : undefined;
 
   // Per-user learned writing style ("Texte anlernen") takes precedence over the
-  // standard skill prompt when the user has trained one for the active mention:
-  //   - preset (Presse/Instagram/…): the learned block REPLACES the system
-  //     skill's standard prompt (komplett ersetzen);
+  // standard skill prompt when the user has trained one FOR THIS mention:
+  //   - system skill (`presse`, `presse-hessen-partei`, …): the learned block
+  //     REPLACES that skill's standard prompt (komplett ersetzen);
   //   - custom mention (no system skill, e.g. /omveinladungen): injected as its
   //     own "## AKTIVE TEXTFORM" block onto the base agent.
-  // See services/user/textFormRepository.ts (cached, no LLM on the hot path).
-  const textFormMention = deriveTextFormMention(effectiveSkillMention, activeSkill);
+  // Nachgeschlagen wird unter der Mention selbst — ein generischer `presse`-Stil
+  // greift NICHT mehr in ein Landesverbands-Rezept hinein (siehe
+  // `textFormMention.ts`). See services/user/textFormRepository.ts (cached, no
+  // LLM on the hot path).
+  const textFormMention = deriveTextFormMention(effectiveSkillMention);
   const userTextForm =
     !isNeutralTurn && agentConfig.userId && textFormMention
       ? await getTextFormForInjection(agentConfig.userId, textFormMention)
@@ -1865,9 +1868,15 @@ export async function buildSystemMessage(
 
   let skillFragment = '';
   if (userTextForm) {
+    // Eingefasst wie jede andere Nutzereingabe, die einen Systemprompt erreicht,
+    // ohne dass die Person sie in DIESEM Turn ausgewählt hat — dieselbe Grenze,
+    // die `resolveRecipe` auf dem Loop-Pfad seit jeher zieht. Roh injiziert war
+    // derselbe Text hier zwei Behandlungen unterworfen, und der ungefasste Weg
+    // war der häufigere.
+    const styleBlock = embedUntrusted('nutzer_anweisung', userTextForm.styleBlock);
     skillFragment = activeSkill
-      ? `\n\n## AKTIVE PLATTFORM: ${activeSkill.title}\n${userTextForm.styleBlock}`
-      : `\n\n## AKTIVE TEXTFORM: ${userTextForm.title}\n${userTextForm.styleBlock}`;
+      ? `\n\n## AKTIVE PLATTFORM: ${activeSkill.title}\n${styleBlock}`
+      : `\n\n## AKTIVE TEXTFORM: ${userTextForm.title}\n${styleBlock}`;
   } else if (activeSkill) {
     // The prompt body is party-internal and deliberately absent from `SKILLS`,
     // which ships in the web and mobile bundles — it is read from disk here
@@ -1951,12 +1960,21 @@ ${CONTENT_INTEGRITY_ANSWER_RULE}${INSTRUCTION_HIERARCHY_RULE}${state.injectionSu
   // present; the warning only when that material looks like it carries an
   // attack (classifier flag). Adding either unconditionally would spend context
   // on every trivial turn.
+  //
+  // Die Liste muss JEDEN `embedUntrusted`-Aufruf oben abdecken, sonst steht der
+  // `<untrusted_content>`-Marker unerklärt im Prompt — ein Kontext-Posten ohne
+  // die Regel, die ihn erst bedeutungsvoll macht. Die beiden Nutzertext-Fälle
+  // fehlten: die Profilanweisungen seit jeher, der angelernte Stil seit er
+  // ebenfalls eingefasst wird. Beide treffen genau den häufigen Turn ohne
+  // Anhang und ohne Suche, in dem sonst gar nichts Untrusted vorkommt.
   const hasUntrusted =
     threadAttachmentsContext !== '' ||
     currentDocumentContext !== '' ||
     attachmentContext !== '' ||
     searchContext !== '' ||
-    perSourceContext !== '';
+    perSourceContext !== '' ||
+    userTextForm !== null ||
+    !!state.userInstructions;
   const hierarchyRule = hasUntrusted ? INSTRUCTION_HIERARCHY_RULE : '';
   const injectionWarning = state.injectionSuspected ? INJECTION_WARNING_NOTE : '';
 

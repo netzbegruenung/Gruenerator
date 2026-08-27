@@ -13,7 +13,7 @@
  */
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -233,5 +233,51 @@ describe('Rollen-Chip', () => {
       name: `Aktionen und Modus — ${ROLE.rolle}`,
     });
     expect(trigger).toHaveAttribute('title', ROLE.rolle);
+  });
+});
+
+describe('Wechsel zurück auf „Ohne Rolle"', () => {
+  // Der Befund aus #2929: geräumt wurden Bezeichnung, Referenz und aktive
+  // Rolle — NICHT der Prompttext. Bei einer frei getippten Rolle lief der
+  // damit weiter, ohne dass noch ein Chip davon erzählte, und legte
+  // serverseitig die Rezept-Automatik stumm (#2928).
+  const FREIE_ROLLE = {
+    ebene: 'sonstige',
+    rolle: 'Klimabeirat',
+    systemPrompt: 'Du sprichst für den Klimabeirat.',
+  };
+
+  beforeEach(() => {
+    useUserProfileStore.setState({ roles: [FREIE_ROLLE], isHydrated: true });
+    useAgentStore.setState({
+      threadMode: 'eigener',
+      customRoleRef: { ebene: FREIE_ROLLE.ebene, rolle: FREIE_ROLLE.rolle },
+      customRoleName: FREIE_ROLLE.rolle,
+      customSystemPrompt: FREIE_ROLLE.systemPrompt,
+    });
+  });
+
+  it('räumt den Prompttext mit, nicht nur Name und Referenz', async () => {
+    // `pointerEventsCheck: 0`, weil Radix beim geöffneten Untermenü
+    // `pointer-events: none` auf alles darüber legt und user-event dann den
+    // Klick verweigert.
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    renderMenu();
+    // Der Auslöser trägt die aktive Rolle im Namen, `openMenu` sucht den nackten.
+    await user.click(screen.getByRole('button', { name: /^Aktionen und Modus/ }));
+    const menu = await screen.findByRole('menu');
+
+    // Untermenü: Radix öffnet es beim Überfahren, nicht beim Klick. Die Zeile
+    // darin wird mit `fireEvent` ausgelöst — user-events vollständige
+    // Zeigerfolge lässt Radix' `onSelect` im Untermenü unter jsdom nicht feuern,
+    // im Hauptmenü dagegen schon (siehe die Klicks weiter oben).
+    await user.hover(within(menu).getByRole('menuitem', { name: /Rollen/ }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: /Ohne Rolle/ }));
+    await waitFor(() => expect(useAgentStore.getState().threadMode).toBe('chat'));
+
+    const state = useAgentStore.getState();
+    expect(state.customSystemPrompt).toBeNull();
+    expect(state.customRoleName).toBeNull();
+    expect(state.customRoleRef).toBeNull();
   });
 });

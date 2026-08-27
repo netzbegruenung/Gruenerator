@@ -73,9 +73,7 @@ Alles gilt für dein Konto, also auf allen Geräten, an denen du angemeldet bist
 
 **Dein Bundesland ist nicht dabei.** Nicht jeder Landesverband hat eigene Grüneratoren, und einzelne haben sich gegen ein eigenes Notizbuch entschieden. Welche Landesverbände abgedeckt sind, steht aktuell auf der Seite [Landesverband-Grüneratoren](/docs/wissen/landesverbaende). Ist deiner nicht dabei, bleibt der Assistent stumm und verspricht nichts — die allgemeinen Rezepte (`@presse`, `@instagram`, `@facebook`, …) stehen dir wie allen anderen offen.
 
-**Du hast die Rolle gerade erst angelegt.** Das Regal erscheint, sobald die Einstellungen gespeichert sind; ein Neuladen der Seite hilft, wenn ein Tab schon länger offen stand.
-
-**Du bist in der App.** Die Zuteilung über die Rolle greift derzeit in der Web-Version. In der Mobile-App siehst du die Landesverbands-Grüneratoren weiterhin nach Region sortiert — also auch die anderer Verbände.
+**Du hast die Rolle gerade erst angelegt.** Das Regal erscheint, sobald die Einstellungen gespeichert sind; ein Neuladen der Seite hilft, wenn ein Tab schon länger offen stand. In der App genügt es, sie einmal neu zu starten.
 
 ---
 
