@@ -253,17 +253,12 @@ function useGrueneratorThreadRuntime() {
   runtimeApiClientRef.current = runtimeApiClient;
 
   const onThreadCreated = useCallback((newThreadId: string) => {
+    // Legacy-Tür der Thread-Erstellung: das Backend mintet nur, wenn der
+    // Request keine gültige Thread-UUID trug (Sentinel-Leak, Reap-Recovery).
+    // Den Normalfall — lazy `initialize()` im ThreadListAdapter — durchläuft
+    // dieselbe Mint+Promotion-Sequenz dort.
     useAgentStore.getState().mintThreadFromDraft(newThreadId);
-    const state = useAgentStore.getState();
-    if (state.threadMode === 'eigener' && (state.customSystemPrompt || state.customRoleRef)) {
-      // Ab hier gehört die Rolle dem Thread, nicht mehr der Konto-Voreinstellung
-      // — und zwar sofort, nicht erst wenn das PATCH zurückkommt: der
-      // ThreadDataSyncEffect fragt die Einstellungen des frisch angelegten
-      // Threads parallel ab, und eine 404 auf dem Weg dorthin hätte eine noch
-      // als `default` markierte Rolle wieder weggeräumt.
-      useAgentStore.setState({ roleRefSource: 'load' });
-      void state.saveThreadSettings(newThreadId, runtimeApiClientRef.current);
-    }
+    useAgentStore.getState().promoteDraftRoleToThread(newThreadId, runtimeApiClientRef.current);
   }, []);
 
   // Rollenwechsel MITTEN im Thread: `onThreadCreated` feuert nur beim ersten

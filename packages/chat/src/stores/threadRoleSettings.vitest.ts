@@ -187,3 +187,46 @@ describe('Konto-Voreinstellung gegen Thread-Einstellung', () => {
     expect(useAgentStore.getState().customSystemPrompt).toBe('Du bist Pressesprecherin.');
   });
 });
+
+describe('promoteDraftRoleToThread', () => {
+  // Der erste Send: der Entwurf wird zum Thread geminted, dessen Einstellungen
+  // es noch nicht gibt. Die 404 darauf ist KEIN „fremder Thread ohne Rolle" —
+  // die Promotion muss die Rolle vorher zum Thread erklären, sonst räumt die
+  // Eviction-Regel (Test oben) die Standardrolle beim Senden ab.
+  it('erster Send: die 404 der frischen Einstellungen räumt die Standardrolle nicht mehr ab', async () => {
+    useAgentStore.setState({ roleRefSource: 'default' });
+    const { client } = fakeClient('notfound');
+
+    useAgentStore.getState().promoteDraftRoleToThread('thread-1', client);
+    await useAgentStore.getState().loadThreadSettings('thread-1', client);
+
+    const state = useAgentStore.getState();
+    expect(state.threadMode).toBe('eigener');
+    expect(state.customRoleRef).toEqual(ROLE);
+    expect(state.roleRefSource).toBe('load');
+  });
+
+  it('schreibt die Rollen-Referenz an den frischen Thread', async () => {
+    useAgentStore.setState({ roleRefSource: 'default' });
+    const { client, patched } = fakeClient('notfound');
+
+    useAgentStore.getState().promoteDraftRoleToThread('thread-1', client);
+    await vi.waitFor(() => expect(patched).toHaveLength(1));
+
+    expect(patched[0]).toMatchObject({ roleRef: ROLE });
+  });
+
+  it('tut nichts für einen rollenlosen Entwurf', () => {
+    useAgentStore.setState({
+      threadMode: 'chat',
+      customRoleRef: null,
+      customSystemPrompt: null,
+      roleRefSource: 'load',
+    });
+    const { client, patched } = fakeClient('notfound');
+
+    useAgentStore.getState().promoteDraftRoleToThread('thread-1', client);
+
+    expect(patched).toHaveLength(0);
+  });
+});
