@@ -404,7 +404,10 @@ export const userProfileContractRouter = s.router(userProfileContract, {
       const profileService = getProfileService();
       const { locale } = args.body;
 
-      await profileService.updateProfile(user.id, { locale });
+      // `locale_source: 'user'` macht die Wahl unantastbar: `syncLocaleFromProvider`
+      // überspringt sie ab jetzt bei jedem Login. Ohne diese Markierung setzte ein
+      // Login über einen deutschen IdP die Korrektur still wieder zurück.
+      await profileService.updateProfile(user.id, { locale, locale_source: 'user' });
 
       // Write through the DB-backed locale cache the auth middleware reads from,
       // so the change is visible on the very next request across all workers.

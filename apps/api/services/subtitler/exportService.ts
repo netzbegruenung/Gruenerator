@@ -16,7 +16,7 @@ import { type VideoMetadata } from '../../routes/subtitler/types.js';
 import { toJobError } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
-import { getUserLocale } from '../localization/localeCache.js';
+import { getUserLocale, LOCALE_UNSET } from '../localization/localeCache.js';
 
 import { buildFFmpegOutputOptions, buildVideoFilters } from './ffmpegExportUtils.js';
 import { ffmpeg } from './ffmpegWrapper.js';
@@ -154,7 +154,11 @@ async function processProjectExport(
     // Re-exports used to hardcode de-DE, so an Austrian project re-rendered for
     // a share link came back with German styling and fonts — even though the
     // original export had been correct.
-    const locale = (ownerUserId ? await getUserLocale(ownerUserId) : null) ?? 'de-DE';
+    // Blatt-Konsument: hier rendert ein Hintergrund-Job Schrift und Marke, es ist
+    // niemand da, den man fragen könnte. Ohne bekanntes Land bleibt es beim
+    // neutralen deutschen Satz — 'unset' darf dabei nicht als Locale durchlaufen.
+    const lookup = ownerUserId ? await getUserLocale(ownerUserId) : null;
+    const locale = lookup != null && lookup !== LOCALE_UNSET ? lookup : 'de-DE';
 
     await redisClient.set(
       `export:${exportToken}`,

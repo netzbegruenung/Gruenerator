@@ -61,7 +61,12 @@ CREATE TABLE IF NOT EXISTS profiles (
     presseabbinder TEXT,
     custom_antrag_gliederung TEXT,
     auth_source TEXT,
-    locale TEXT DEFAULT 'de-DE' CHECK (locale IN ('de-DE', 'de-AT')),
+    -- Kein DEFAULT: NULL heißt „Land unbekannt", und die Oberfläche fragt dann
+    -- nach, statt Deutschland zu unterstellen. Woher der Wert stammt, steht in
+    -- locale_source — 'user' schützt eine selbst getroffene Wahl davor, beim
+    -- nächsten Login vom IdP überschrieben zu werden.
+    locale TEXT CHECK (locale IN ('de-DE', 'de-AT')),
+    locale_source TEXT CHECK (locale_source IN ('idp', 'user')),
     groups_enabled BOOLEAN DEFAULT FALSE,
     groups BOOLEAN DEFAULT FALSE,
     custom_generators BOOLEAN DEFAULT FALSE,

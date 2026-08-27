@@ -14,7 +14,10 @@
 export const USER_ADDITIONAL_FIELDS = {
   keycloak_id: { type: 'string', required: false },
   username: { type: 'string', required: false },
-  locale: { type: 'string', required: false, defaultValue: 'de-DE' },
+  // Kein defaultValue: ein neues Konto, dessen IdP kein Land nennt, bleibt ohne
+  // locale — die Oberfläche fragt dann nach (LocaleGate), statt Deutschland zu
+  // unterstellen. Geschrieben wird das Land an genau einer Stelle: `localeSync.ts`.
+  locale: { type: 'string', required: false },
   auth_source: { type: 'string', required: false, fieldName: 'auth_source' },
   first_name: { type: 'string', required: false },
   last_name: { type: 'string', required: false },

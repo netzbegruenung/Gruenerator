@@ -4,7 +4,6 @@ import { createAuthMiddleware } from 'better-auth/api';
 import { mcp } from 'better-auth/plugins';
 import { bearer } from 'better-auth/plugins/bearer';
 import { genericOAuth } from 'better-auth/plugins/generic-oauth';
-import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
 
@@ -12,7 +11,6 @@ import * as schema from '../database/schema/index.js';
 import { loadConfig } from '../database/services/PostgresService/config.js';
 import { mobileTokenExchange } from '../plugins/mobileTokenExchange.js';
 import { webViewHandoff } from '../plugins/webViewHandoff.js';
-import { setUserLocale } from '../services/localization/localeCache.js';
 import { createLogger } from '../utils/logger.js';
 import { captureAuthIssue } from '../utils/observability/captureAuthIssue.js';
 import { redisClient } from '../utils/redis/client.js';
@@ -20,6 +18,7 @@ import { redisClient } from '../utils/redis/client.js';
 import { USER_ADDITIONAL_FIELDS } from './betterAuthUserFields.js';
 import { ALLOWED_DOMAINS } from './domains.js';
 import { env } from './env.js';
+import { syncLocaleFromProvider } from './localeSync.js';
 import { mapKeycloakProfileToUser } from './mapKeycloakProfileToUser.js';
 import {
   MCP_CONSENT_PAGE,
@@ -38,22 +37,14 @@ const DISCOVERY_URL = `${KC_BASE}/realms/${KC_REALM}/.well-known/openid-configur
 const log = createLogger('BetterAuth');
 
 /**
- * IdP → audience locale. The Keycloak realm a user signs in through is the
- * authoritative country signal (AT users come through the gruene-at IdP). This
- * map is the SINGLE source of truth for locale: it seeds the value at account
- * creation (`mapProfileToUser`) and re-asserts it on every login
- * (`databaseHooks.account` → `syncLocaleFromProvider`). Unknown providers fall
- * back to 'de-DE'.
+ * Das Land wird hier NICHT mehr gesetzt. Es kommt aus `config/localeSync.ts`,
+ * das nur die beiden länder-autoritativen IdPs kennt und bei allen anderen
+ * nichts schreibt — siehe die Begründung dort. `mapProfileToUser` legte das Land
+ * früher bei der Kontoerstellung an und brauchte deshalb einen Fallback; jetzt
+ * füllt der `account.create.after`-Hook es unmittelbar danach, sofern der IdP
+ * überhaupt eines nennt.
  */
-const PROVIDER_LOCALE: Record<string, 'de-DE' | 'de-AT'> = {
-  'keycloak-gruene-at': 'de-AT',
-  'keycloak-netzbegruenung': 'de-DE',
-  'keycloak-gruenes-netz': 'de-DE',
-  'keycloak-gruenerator': 'de-DE',
-};
-
 function keycloakProvider(id: string, idpHint: string) {
-  const locale = PROVIDER_LOCALE[id] ?? 'de-DE';
   return {
     providerId: id,
     clientId: KC_CLIENT_ID,
@@ -62,7 +53,7 @@ function keycloakProvider(id: string, idpHint: string) {
     scopes: ['openid', 'profile', 'email', 'offline_access'],
     authorizationUrlParams: { kc_idp_hint: idpHint },
     mapProfileToUser: (profile: Record<string, unknown>) =>
-      mapKeycloakProfileToUser(profile, idpHint, locale),
+      mapKeycloakProfileToUser(profile, idpHint),
   };
 }
 
@@ -123,35 +114,6 @@ export const SESSION_COOKIE_PREFIX =
 const pgConfig = loadConfig();
 const pool = new pg.Pool(pgConfig);
 const db = drizzle(pool, { schema });
-
-/**
- * Re-assert the IdP's locale on the user's profile on login. `mapProfileToUser`
- * only sets locale when the account is first CREATED, so an existing user who
- * later signs in through the AT IdP would otherwise keep a stale `de-DE`. Runs
- * from the account create/update hooks (fire on every login). Writes only on an
- * actual change — via Drizzle, bypassing Better Auth's cookie cache; the fresh
- * login session (and the next `getSession` refresh) pick up the new value.
- */
-async function syncLocaleFromProvider(userId: string, providerId: string): Promise<void> {
-  const locale = PROVIDER_LOCALE[providerId];
-  if (!locale) return;
-  try {
-    const rows = await db
-      .select({ locale: schema.profiles.locale })
-      .from(schema.profiles)
-      .where(eq(schema.profiles.id, userId))
-      .limit(1);
-    const current = rows[0]?.locale ?? null;
-    if (current === locale) return;
-    await db.update(schema.profiles).set({ locale }).where(eq(schema.profiles.id, userId));
-    await setUserLocale(userId, locale);
-    log.info(
-      `[Auth] locale-synced user=${userId} provider=${providerId} ${current ?? 'none'} → ${locale}`
-    );
-  } catch (err) {
-    log.warn(`[Auth] locale sync failed user=${userId}: ${(err as Error).message}`);
-  }
-}
 
 // One-shot config snapshot at module load — answers "what URL did the
 // container actually pick up?" without requiring a request to fire.
@@ -487,7 +449,7 @@ export const auth = betterAuth({
           log.info(
             `[Auth] account-linked id=${account.id} provider=${account.providerId} user=${account.userId}`
           );
-          await syncLocaleFromProvider(account.userId, account.providerId);
+          await syncLocaleFromProvider(db, account.userId, account.providerId);
         },
       },
       update: {
@@ -495,7 +457,7 @@ export const auth = betterAuth({
           log.info(
             `[Auth] account-updated id=${account.id} provider=${account.providerId} user=${account.userId}`
           );
-          await syncLocaleFromProvider(account.userId, account.providerId);
+          await syncLocaleFromProvider(db, account.userId, account.providerId);
         },
       },
     },
