@@ -1,4 +1,9 @@
-import { agentsList, useHiddenSkillMentions, type AgentListItem } from '@gruenerator/chat';
+import {
+  agentsList,
+  useHiddenSkillMentions,
+  useUserLandesverbaende,
+  type AgentListItem,
+} from '@gruenerator/chat';
 import {
   SKILL_CATEGORY_LABELS,
   SKILL_CATEGORY_ORDER,
@@ -8,6 +13,7 @@ import {
   isAdminVisibleSkill,
   isAgentVisibleForPlatform,
   isLandesverbandIdentifier,
+  isLvItemVisibleForRoles,
   isSkillOfferedIn,
   landesverbandLabel,
   landesverbandRegion,
@@ -67,12 +73,23 @@ export default function AgentsScreen() {
     error: publicError,
   } = usePublicUserAgents();
 
+  // Die Landesverbands-Zuteilung: LV-Grüneratoren und -Rezepte gehören den
+  // Leuten des jeweiligen Verbands, gebunden an die Rolle „Mitarbeiter*in
+  // Landesgeschäftsstelle". Gefiltert wird an der QUELLE — beide Regale, die
+  // Kategorien und die Suche erben es damit von selbst; ein Filter nur auf den
+  // Regalen ließe die Suche finden, was die Liste verbirgt.
+  //
+  // `lvIds === null` heißt „Rollen noch nicht geladen" und lässt durch, damit
+  // die Ladephase nichts wegnimmt, was gleich wieder erscheint.
+  const { lvIds } = useUserLandesverbaende();
+
   const systemAgents = useMemo(
     () =>
-      getVisibleSystemAgentsForLocale(locale, CURRENT_INSTANCE).filter((a) =>
-        isAgentVisibleForPlatform(a, 'mobile')
+      getVisibleSystemAgentsForLocale(locale, CURRENT_INSTANCE).filter(
+        (a) =>
+          isAgentVisibleForPlatform(a, 'mobile') && isLvItemVisibleForRoles(a.identifier, lvIds)
       ),
-    [locale]
+    [locale, lvIds]
   );
   const generalSystemAgents = useMemo(
     () => systemAgents.filter((a) => !isLandesverbandIdentifier(a.identifier)),
@@ -109,10 +126,11 @@ export default function AgentsScreen() {
         if (s.audience !== undefined && s.audience !== 'all' && s.audience !== locale) return false;
         if (!isAdminVisibleSkill(s.mention, hiddenSkillMentions)) return false;
         if (!isSkillOfferedIn(s, CURRENT_INSTANCE)) return false;
+        if (!isLvItemVisibleForRoles(s.identifier, lvIds)) return false;
         const owner = getSystemAgent(s.identifier);
         return !owner || isAgentVisibleForPlatform(owner, 'mobile');
       }),
-    [locale, hiddenSkillMentions]
+    [locale, hiddenSkillMentions, lvIds]
   );
   const lvSkills = useMemo(
     () => skills.filter((s) => isLandesverbandIdentifier(s.identifier)),

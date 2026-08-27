@@ -1,4 +1,5 @@
 import {
+  setMentionLandesverbaende,
   setMentionLocale,
   syncBoards,
   syncCustomAgents,
@@ -9,6 +10,7 @@ import {
   syncUserNotebooks,
   type MentionableFetch,
 } from '@gruenerator/chat';
+import { useUserLandesverbaende } from '@gruenerator/chat';
 import { getGlobalApiClient, stripApiPrefix } from '@gruenerator/shared/api';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { useQuery } from '@tanstack/react-query';
@@ -69,6 +71,18 @@ export function useMentionablesSync(): void {
   useEffect(() => {
     if (locale) setMentionLocale(locale);
   }, [locale]);
+
+  // Dasselbe für die Landesverbands-Zuteilung, wie in webs ChatPage: LV-Rezepte
+  // und -Notizbücher stehen nur denen im Menü, die laut Profilrolle in der
+  // Landesgeschäftsstelle dieses Verbands arbeiten. Mobil setzte das nie jemand,
+  // also blieb der Modul-Default `null` („nicht bekannt") stehen und die
+  // `@`-Liste bot die Rezepte aller elf Landesverbände an (#2931). Die Auflösung
+  // bleibt unberührt — ein `@bayern` in einem alten Thread muss für alle weiter
+  // auflösen.
+  const { lvIds } = useUserLandesverbaende();
+  useEffect(() => {
+    setMentionLandesverbaende(lvIds);
+  }, [lvIds]);
 
   const common = { staleTime: STALE_TIME, retry: 1, enabled: isAuthenticated } as const;
 

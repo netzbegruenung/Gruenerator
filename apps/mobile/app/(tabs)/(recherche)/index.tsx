@@ -1,4 +1,6 @@
 import { useActionSheet } from '@expo/react-native-action-sheet';
+import { useUserLandesverbaende } from '@gruenerator/chat';
+import { isLvNotebookVisibleForRoles } from '@gruenerator/shared/agents';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { parseNotebookQuery } from '@gruenerator/shared/utils';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
@@ -84,14 +86,38 @@ export default function NotebooksScreen() {
     [toggleFavourite]
   );
 
-  const bundesebene = useMemo(() => getMobileNotebooksByCategory('bundesebene', locale), [locale]);
-  const landesebene = useMemo(() => getMobileNotebooksByCategory('landesebene', locale), [locale]);
-  const weitere = useMemo(() => getMobileNotebooksByCategory('weitere', locale), [locale]);
-  const oesterreich = useMemo(() => getMobileNotebooksByCategory('oesterreich', locale), [locale]);
+  // Das Notizbuch eines Landesverbands gehört den Leuten dieses Verbands —
+  // gebunden an die Rolle „Mitarbeiter*in Landesgeschäftsstelle", wie im Web.
+  // Über ALLE Kategorien gelegt, nicht nur über `landesebene`: welche Kachel in
+  // welchem Regal steht, ist eine Frage der Darstellung, die Zuteilung nicht.
+  // Nicht-LV-Notizbücher passieren unverändert, `lvIds === null` (Rollen noch
+  // nicht geladen) lässt alles durch.
+  const { lvIds } = useUserLandesverbaende();
+  const visible = useCallback(
+    (list: MobileNotebookEntry[]) => list.filter((nb) => isLvNotebookVisibleForRoles(nb.id, lvIds)),
+    [lvIds]
+  );
+
+  const bundesebene = useMemo(
+    () => visible(getMobileNotebooksByCategory('bundesebene', locale)),
+    [locale, visible]
+  );
+  const landesebene = useMemo(
+    () => visible(getMobileNotebooksByCategory('landesebene', locale)),
+    [locale, visible]
+  );
+  const weitere = useMemo(
+    () => visible(getMobileNotebooksByCategory('weitere', locale)),
+    [locale, visible]
+  );
+  const oesterreich = useMemo(
+    () => visible(getMobileNotebooksByCategory('oesterreich', locale)),
+    [locale, visible]
+  );
 
   const favouriteNotebooks = useMemo(
-    () => getVisibleNotebooks(locale).filter((nb) => favouriteIds.includes(nb.id)),
-    [locale, favouriteIds]
+    () => visible(getVisibleNotebooks(locale)).filter((nb) => favouriteIds.includes(nb.id)),
+    [locale, favouriteIds, visible]
   );
 
   const handleNotebookPress = useCallback(
