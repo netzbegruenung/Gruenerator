@@ -884,8 +884,18 @@ class NotebookQdrantHelper {
    *
    * `scrollDocuments` drops Qdrant's `next_page_offset`, so paging is done by
    * handing back the last point id and asking the caller to pass it as the next
-   * `after`. Qdrant treats that offset as inclusive, hence the drop of the first
-   * row on every page but the first.
+   * `after`. Qdrant treats that offset as inclusive, so the row it names comes
+   * back a second time and has to go.
+   *
+   * It is dropped by id, not by position. `slice(1)` looked equivalent and is
+   * not: it assumes the offset row is still there to be repeated. A sweep that
+   * deletes as it pages has just removed it, Qdrant then starts at the *next*
+   * id, and the cut takes a real, never-examined row instead.
+   *
+   * Measured twice on production on 2026-08-27: 584 links, page one deleted
+   * 500, page two reported 83 of the remaining 84, and exactly one link
+   * survived each sweep. For a deleting run that is the harmless direction; for
+   * the dry run it silently under-reports one link per page boundary.
    */
   async listDocumentLinksPage(
     pageSize: number,
@@ -899,7 +909,7 @@ class NotebookQdrantHelper {
       { limit: after === null ? pageSize : pageSize + 1, withPayload: true, offset: after }
     );
 
-    const page = after === null ? points : points.slice(1);
+    const page = after === null ? points : points.filter((p) => p.id !== after);
     return {
       documentIds: page.map((p) => String(p.payload.document_id)),
       last: page.length > 0 ? (page[page.length - 1]?.id ?? null) : null,
