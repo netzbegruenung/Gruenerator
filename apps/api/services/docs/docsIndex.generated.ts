@@ -2072,14 +2072,6 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   {
     "url": "/docs/konto/landesverband-einrichten",
     "pageTitle": "Für deinen Landesverband einrichten",
-    "heading": "Schritt 3: Euren Stil anlernen",
-    "anchor": "#schritt-3-euren-stil-anlernen",
-    "category": "Konto & Projekte",
-    "text": "Die LV-Rezepte bringen den Stil eures Landesverbands schon mit — solange ihr nichts anlernt, gilt er unverändert. Habt ihr darüber hinaus eigene Vorgaben — eine feste Zitat-Struktur, bestimmte Formulierungen, eine Länge —, könnt ihr sie hinterlegen: Einstellungen → Texte anlernen. Der Bereich hat dann zwei Abschnitte: oben die allgemeinen Textsorten (Pressemitteilung, Instagram, …), darunter eure LV-Rezepte, jedes einzeln anlernbar. Was du anlernst, tritt an die Stelle der mitgelieferten Vorgaben: Aufbau, Länge und Zitatstruktur von dort sind dann nicht mehr aktiv. Schreib eure Vorgaben deshalb vollständig — alles, was euch wichtig ist, muss darin stehen. Es gilt aber nur für das Rezept, das du auch anlernst. Ein Stil unter Pressemitteilungen steuert die allgemeine Vorlage; eure LV-Rezepte behalten ihre eigenen Vorgaben, bis ihr für sie selbst einen Stil hinterlegt. Wollt ihr euren Stil für die hessische Partei-PM, lernt ihr ihn bei PM Hessen (Partei) an, nicht oben."
-  },
-  {
-    "url": "/docs/konto/landesverband-einrichten",
-    "pageTitle": "Für deinen Landesverband einrichten",
     "heading": "Wenn nichts erscheint",
     "anchor": "#wenn-nichts-erscheint",
     "category": "Konto & Projekte",

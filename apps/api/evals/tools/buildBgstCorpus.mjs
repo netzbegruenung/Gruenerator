@@ -373,7 +373,7 @@ const scenarios = [
   single(
     'bgst-rechtsstand-trennung',
     'bgst-beleg',
-    'Testrunde 3, Prompt 1. Geprüft wird die Trennung „gilt" / „wird verhandelt" und die Nennung des Rechtsakts — nicht der Sachstand, der veraltet.',
+    'Testrunde 3, Prompt 1. Geprüft wird die Trennung „gilt" / „wird verhandelt", die Nennung des Rechtsakts und der ausgewiesene Stand — nicht der Sachstand selbst, der veraltet. Der einzige Fehlschlag des Kalibrierlaufs vom 27.08.2026 (#2949), behoben in #2952.',
     'Gilt das Verbrenner-Aus ab 2035 in der EU noch? Antworte in zwei getrennten ' +
       'Abschnitten: (a) was rechtlich in Kraft ist, (b) was politisch verhandelt ' +
       'wird und noch nicht gilt. Nenne für beides den Rechtsakt bzw. das ' +
@@ -385,6 +385,11 @@ const scenarios = [
         'verordnung|regulation|2019/631|2023/851',
       ],
       grounded: true,
+      // Die zweite Haelfte des Befunds aus #2949, behoben in #2952: eine
+      // erzwungene Suche macht die Antwort belegt, aber nicht datiert. Ohne
+      // Stand ist „gilt ab 2035" als Auskunft wertlos — niemand sieht ihr an,
+      // wann sie stimmte.
+      statesAsOf: true,
       minAnswerChars: 400,
       judge: ['groundedness'],
     }
