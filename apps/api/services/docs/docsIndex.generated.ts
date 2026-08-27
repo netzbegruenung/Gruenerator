@@ -203,6 +203,12 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "lead": "Die Grüne Wolke ist unser sicherer Cloud-Speicher für alle grünen Organisationen. Mit der richtigen Konfiguration kannst du deine Dateien nahtlos mit dem Grünerator teilen und automatisch Dokumente h…"
   },
   {
+    "url": "/docs/konto/landesverband-einrichten",
+    "title": "Für deinen Landesverband einrichten",
+    "category": "Konto & Projekte",
+    "lead": "Wenn du in einer Landesgeschäftsstelle arbeitest, kann der Grünerator mehr als generisch-grün schreiben: Er kennt die Pressemitteilungen, Beschlüsse und Wahlprogramme deines Landesverbands, schreibt…"
+  },
+  {
     "url": "/docs/konto/projekte",
     "title": "Projekte",
     "category": "Konto & Projekte",
@@ -2032,6 +2038,54 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "text": "Die Berechtigung „Kann bearbeiten\" ist zwingend erforderlich. Ein eigener Ordner wie „Grünerator\" hilft bei der Organisation. Der Link funktioniert auch ohne Ablaufdatum. Du kannst jederzeit die Berechtigungen ändern oder den Link deaktivieren."
   },
   {
+    "url": "/docs/konto/landesverband-einrichten",
+    "pageTitle": "Für deinen Landesverband einrichten",
+    "heading": "Für deinen Landesverband einrichten",
+    "anchor": "",
+    "category": "Konto & Projekte",
+    "text": "Wenn du in einer Landesgeschäftsstelle arbeitest, kann der Grünerator mehr als generisch-grün schreiben: Er kennt die Pressemitteilungen, Beschlüsse und Wahlprogramme deines Landesverbands, schreibt in eurem Stil und schlägt eure Vorlagen vor. Dafür musst du ihm einmal sagen, wo du arbeitest. Das dauert eine Minute und ist alles, was nötig ist — danach passiert der Rest von allein."
+  },
+  {
+    "url": "/docs/konto/landesverband-einrichten",
+    "pageTitle": "Für deinen Landesverband einrichten",
+    "heading": "Noch persönlicher",
+    "anchor": "#noch-persönlicher",
+    "category": "Konto & Projekte",
+    "text": "Drei Stellschrauben, die unabhängig vom Landesverband für dich arbeiten: Einstellungen → Personalisierung → Anweisungen — kurze Hinweise, die bei jeder Antwort mitlaufen („Duze die Leser*innen und schreibe knapp.“). Einstellungen → Erinnerungen — was sich der Grünerator aus euren Gesprächen merken darf. Einstellungen → Hintergrund und Allgemein — Aussehen und Startseite. Alles gilt für dein Konto, also auf allen Geräten, an denen du angemeldet bist. Mehr dazu unter Einstellungen."
+  },
+  {
+    "url": "/docs/konto/landesverband-einrichten",
+    "pageTitle": "Für deinen Landesverband einrichten",
+    "heading": "Schritt 1: Deine Rolle eintragen",
+    "anchor": "#schritt-1-deine-rolle-eintragen",
+    "category": "Konto & Projekte",
+    "text": "Öffne die Einstellungen — über dein Profilbild unten in der Seitenleiste oder direkt über /settings. Geh zu Personalisierung. Wenn du den Grünerator zum ersten Mal benutzt, ist das gleich der erste Schritt der Einrichtung („Was machst du bei den Grünen?“). Unter Deine Rollen auf Hinzufügen. Wähle nacheinander: Ebene: Land Bundesland: dein Landesverband Rolle: Mitarbeiter*in Landesgeschäftsstelle (in Österreich: Mitarbeiter*in Landesorganisation) Der Assistent zeigt dir zum Schluss, was diese Rolle freischaltet — zum Beispiel „3 Agenten und 3 Rezepte sowie das Notizbuch Hessen erscheinen künftig in deiner Agentur und im Chat“. Speichern, fertig. Danach steht unter deinen Rollen ein Knopf „Zu deinem Landesverband“, der dich direkt in dein neues Regal bringt. Die Inhalte eines Landesverbands hängen an der Geschäftsstellen-Rolle und nur an ihr. Landtagsfraktion, MdL-Büro, Kreisverband oder Ortsverband geben zwar auch ein Bundesland an, schalten die LV-Grüneratoren aber nicht frei — sie sind das Material eines bestimmten Landesverbands, kein allgemeiner Bestand. Umgekehrt gilt: Ohne passende Rolle siehst du die LV-Inhalte nicht. Das ist Absicht und kein Fehler — vor der Zuteilung stand…"
+  },
+  {
+    "url": "/docs/konto/landesverband-einrichten",
+    "pageTitle": "Für deinen Landesverband einrichten",
+    "heading": "Schritt 2: Was du jetzt hast",
+    "anchor": "#schritt-2-was-du-jetzt-hast",
+    "category": "Konto & Projekte",
+    "text": "Ein eigenes Regal in der Agentura. Unter Dein Landesverband stehen die drei Grüneratoren deines Verbands — Öffentlichkeitsarbeit, Bürger*innenanfragen und Wahlprüfsteine — und darunter eure Rezepte, überschrieben mit dem Namen deines Landesverbands. Eure Rezepte im Chat. Die Presse- und Instagram-Rezepte deines Landesverbands tauchen jetzt in der Rezept-Liste des Chats auf und lassen sich mit @ erwähnen, etwa @presse-hessen-partei oder @insta-hessen. Welche es je Landesverband gibt, steht unter Landesverband-Grüneratoren. Euer Notizbuch. Die Wissensdatenbank deines Landesverbands (Pressemitteilungen, Beschlüsse, Wahlprogramme) erscheint in der Auswahl und lässt sich im Chat als Quelle erwähnen. Und die Automatik: Bittest du den Chat einfach um „eine Pressemitteilung zu …“, nimmt er von selbst eure Vorlage statt der allgemeinen. Du musst dafür nichts erwähnen und nichts einstellen — die Rolle in deinem Profil genügt, unabhängig davon, welche Rolle im Chat gerade aktiv ist. Unter der fertigen Antwort steht dann, welches Rezept gewirkt hat: Wo es zwei Presse-Rezepte gibt, schreibt das eine für den Landesverband, das andere für die Landtagsfraktion. Die Automatik nimmt die…"
+  },
+  {
+    "url": "/docs/konto/landesverband-einrichten",
+    "pageTitle": "Für deinen Landesverband einrichten",
+    "heading": "Schritt 3: Euren Stil anlernen",
+    "anchor": "#schritt-3-euren-stil-anlernen",
+    "category": "Konto & Projekte",
+    "text": "Die LV-Rezepte bringen den Stil eures Landesverbands schon mit. Wenn ihr darüber hinaus eigene Vorgaben habt — eine feste Zitat-Struktur, bestimmte Formulierungen, eine Länge —, kannst du sie dem Grünerator beibringen: Einstellungen → Texte anlernen. Dort hinterlegst du je Textsorte (Pressemitteilung, Instagram, …) ein paar eigene Beispiele oder Regeln. Sobald du eine Landesverbands-Rolle hast, listet der Bereich auch eure LV-Rezepte auf und zeigt, welche angelernte Textsorte sie jeweils steuert. Ein angelernter Presse-Stil gilt für alle Presse-Rezepte — auch für @presse-hessen-partei. Es gibt bewusst keinen zweiten, getrennten Stil nur für das LV-Rezept; schreib deine Vorgaben also so, dass sie zu beidem passen."
+  },
+  {
+    "url": "/docs/konto/landesverband-einrichten",
+    "pageTitle": "Für deinen Landesverband einrichten",
+    "heading": "Wenn nichts erscheint",
+    "anchor": "#wenn-nichts-erscheint",
+    "category": "Konto & Projekte",
+    "text": "Dein Bundesland ist nicht dabei. Nicht jeder Landesverband hat eigene Grüneratoren, und einzelne haben sich gegen ein eigenes Notizbuch entschieden. Welche Landesverbände abgedeckt sind, steht aktuell auf der Seite Landesverband-Grüneratoren. Ist deiner nicht dabei, bleibt der Assistent stumm und verspricht nichts — die allgemeinen Rezepte (@presse, @instagram, @facebook, …) stehen dir wie allen anderen offen. Du hast die Rolle gerade erst angelegt. Das Regal erscheint, sobald die Einstellungen gespeichert sind; ein Neuladen der Seite hilft, wenn ein Tab schon länger offen stand. Du bist in der App. Die Zuteilung über die Rolle greift derzeit in der Web-Version. In der Mobile-App siehst du die Landesverbands-Grüneratoren weiterhin nach Region sortiert — also auch die anderer Verbände. --- Was ihr mit den drei Grüneratoren jeweils machen könnt — Pressemitteilungen, Bürger*innenanfragen, Wahlprüfsteine — steht ausführlich unter Landesverband-Grüneratoren."
+  },
+  {
     "url": "/docs/konto/projekte",
     "pageTitle": "Projekte",
     "heading": "Projekte",
@@ -3093,7 +3147,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Landesverband-Grüneratoren",
     "anchor": "",
     "category": "Wissen",
-    "text": "Der Grünerator hat für mehrere Landesverbände eigene, regional getunte Grüneratoren. Sie schreiben nicht generisch-grün, sondern im konkreten Stil des jeweiligen Landesverbands — mit den richtigen Sprecher*innen, den lokalen Themen und der typischen Tonalität. Im Hintergrund recherchieren sie automatisch in der Wissensdatenbank des Landesverbands (Pressemitteilungen, Beschlüsse, Wahlprogramme) und im Web. Es gibt drei Sorten von Landesverband-Grüneratoren: Öffentlichkeitsarbeit — schreibt Pressemitteilungen und Social-Media-Posts im Stil des Landesverbands. Bürger*innenanfragen — formuliert versandfertige, recherchebasierte Antwort-E-Mails auf Anfragen von Bürger*innen. Wahlprüfsteine — beantwortet Fragenkataloge von Verbänden und Initiativen, im Format des Katalogs und im Stil des Landesverbands."
+    "text": "Der Grünerator hat für mehrere Landesverbände eigene, regional getunte Grüneratoren. Sie schreiben nicht generisch-grün, sondern im konkreten Stil des jeweiligen Landesverbands — mit den richtigen Sprecher*innen, den lokalen Themen und der typischen Tonalität. Im Hintergrund recherchieren sie automatisch in der Wissensdatenbank des Landesverbands (Pressemitteilungen, Beschlüsse, Wahlprogramme) und im Web. Es gibt drei Sorten von Landesverband-Grüneratoren: Öffentlichkeitsarbeit — schreibt Pressemitteilungen und Social-Media-Posts im Stil des Landesverbands. Bürger*innenanfragen — formuliert versandfertige, recherchebasierte Antwort-E-Mails auf Anfragen von Bürger*innen. Wahlprüfsteine — beantwortet Fragenkataloge von Verbänden und Initiativen, im Format des Katalogs und im Stil des Landesverbands. Die Grüneratoren, Rezepte und Notizbücher eines Landesverbands sind seinen Leuten zugeteilt: Sie erscheinen, sobald du in deinem Profil die Rolle Mitarbeiter*in Landesgeschäftsstelle (Österreich: Landesorganisation) mit deinem Bundesland hinterlegt hast. Wie das geht, steht unter Für deinen Landesverband einrichten."
   },
   {
     "url": "/docs/wissen/landesverbaende",
