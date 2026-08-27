@@ -76,6 +76,12 @@ const MIN_SAMPLE_FOR_RATIO = 20;
  * Backstop for premises this file has not thought of. A sweep that wants to
  * remove more than this in one run has stopped tidying and started deleting;
  * it says so and leaves the rest to a person.
+ *
+ * Counted against the candidates found (`report.orphans`), not against what was
+ * actually unlinked: `removed` stays at zero for the whole of a dry run, so
+ * counting against it would let the report say no guard tripped while switching
+ * `apply` on would abort mid-run over the same data. A dry run has to predict
+ * the applying run, which is the only reason to have one.
  */
 const MAX_REMOVALS_PER_RUN = 100;
 
@@ -137,7 +143,7 @@ export async function sweepOrphanedNotebookLinks(apply = false): Promise<SweepRe
     if (report.blocked === null) {
       if (unique.length >= MIN_SAMPLE_FOR_RATIO && alive.size / unique.length < MIN_KNOWN_RATIO) {
         report.blocked = `Postgres kennt nur ${alive.size} von ${unique.length} Dokumenten einer Seite`;
-      } else if (report.removed + orphans.length > MAX_REMOVALS_PER_RUN) {
+      } else if (report.orphans > MAX_REMOVALS_PER_RUN) {
         report.blocked = `mehr als ${MAX_REMOVALS_PER_RUN} Entfernungen in einem Lauf`;
       }
     }
