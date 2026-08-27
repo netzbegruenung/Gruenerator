@@ -24,6 +24,7 @@
  * SSE cards, timeout, truncation and step recording are layered on by
  * wrapToolsForLoop — these factories only implement data access + confirm emit.
  */
+import { isKiImage } from '@gruenerator/shared/media-library/contentOrigin';
 import { buildNotebookSlug, buildGroupSlug, buildChatThreadSlug } from '@gruenerator/shared/utils';
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
@@ -935,10 +936,10 @@ NUTZE FÜR: eigene Gruppen auflisten (list), eine Gruppe per Name finden (find),
 export function makeMediaTool(ctx: PersonalToolCtx): Tool {
   const { state, sourceRegistry } = ctx;
   return tool({
-    description: `Zugriff auf die EIGENEN Medien der Person: Reels (untertitelte Videos) und Sharepics (Social-Grafiken).
+    description: `Zugriff auf die EIGENEN Medien der Person: Reels (untertitelte Videos), Sharepics (Social-Grafiken aus den Vorlagen) und KI-Bilder (aus dem Bild-Editor).
 
 NUTZE FÜR:
-- auflisten (list, optional type="reel"|"sharepic")
+- auflisten (list, optional type="reel"|"sharepic"|"ki"). Sharepics und KI-Bilder sind zwei verschiedene Produkte — "meine Sharepics" meint type="sharepic", "meine KI-Bilder" type="ki".
 - Reels nach INHALT suchen (search mit query) — durchsucht Titel UND das gesprochene Untertitel-Transkript, z. B. "das Reel über Windkraft"
 - das volle Transkript eines Reels holen (transcript mit ref="reel:<id>") — nötig, bevor du eine Caption, einen Social-Post oder eine Zusammenfassung zum Video schreibst
 - löschen (delete mit ref aus der Liste + confirm=true nach Zustimmung)
@@ -946,12 +947,12 @@ NUTZE FÜR:
 TYPISCHER ABLAUF für "such das Reel zu Thema X und schreib eine Caption": erst search, dann transcript für den besten Treffer, dann die Caption aus dem Transkript formulieren.`,
     inputSchema: z.object({
       action: z.enum(['list', 'search', 'transcript', 'delete']),
-      type: z.enum(['all', 'reel', 'sharepic']).default('all'),
+      type: z.enum(['all', 'reel', 'sharepic', 'ki']).default('all'),
       query: z.string().optional().describe('Suchbegriff (nur bei action="search")'),
       ref: z
         .string()
         .optional()
-        .describe('Handle aus der Liste ("reel:<id>" oder "sharepic:<token>")'),
+        .describe('Handle aus der Liste ("reel:<id>" oder "sharepic:<token>", auch für KI-Bilder)'),
       confirm: z.boolean().default(false),
       limit: z.number().int().min(1).max(30).default(15),
     }),
@@ -1025,23 +1026,40 @@ TYPISCHER ABLAUF für "such das Reel zu Thema X und schreib eine Caption": erst 
             );
           }
         }
-        if (type === 'all' || type === 'sharepic') {
+        if (type === 'all' || type === 'sharepic' || type === 'ki') {
+          // A filtered ask has to look past `limit`: someone's 15 most recent
+          // images can be Sharepics throughout while the KI-Bilder they asked
+          // for sit just below the cut. 100 is the service's own ceiling.
           const shares = await getSharedMediaService().getUserShares(
             userId,
             'image',
             USER_VISIBLE_SHARE_STATUSES,
-            limit
+            type === 'all' ? limit : 100
           );
+          let taken = 0;
           for (const s of shares) {
+            if (taken >= limit) break;
+            // Sharepics and KI-Bilder are separate products with separate
+            // sections in every gallery, so the same split has to reach the
+            // model. `isKiImage` is the classification those galleries use:
+            // `content_origin` first, falling back to the legacy `image_type`
+            // for rows written before that column existed.
+            const ki = isKiImage({ contentOrigin: s.content_origin, imageType: s.image_type });
+            if (type === 'sharepic' && ki) continue;
+            if (type === 'ki' && !ki) continue;
+            const label = ki ? 'KI-Bild' : 'Sharepic';
             results.push(
               makeRow(
-                s.title || 'Sharepic',
+                s.title || label,
                 `/share/${s.share_token}`,
-                'Sharepic',
+                label,
                 null,
+                // One handle namespace for both: the share token is what the
+                // delete path resolves, and a KI image is not a different row.
                 `sharepic:${s.share_token}`
               )
             );
+            taken++;
           }
         }
         groundRows(sourceRegistry, results);
@@ -1064,9 +1082,9 @@ TYPISCHER ABLAUF für "such das Reel zu Thema X und schreib eine Caption": erst 
       }
       if (kind === 'sharepic') {
         const ok = await getSharedMediaService().deleteShare(userId, handle);
-        if (!ok) return { error: 'Sharepic nicht gefunden oder kein Zugriff.' };
-        groundNote(sourceRegistry, 'Gelöscht', 'Sharepic wurde gelöscht.');
-        return { ok: true, note: 'Sharepic wurde gelöscht.' };
+        if (!ok) return { error: 'Bild nicht gefunden oder kein Zugriff.' };
+        groundNote(sourceRegistry, 'Gelöscht', 'Bild wurde gelöscht.');
+        return { ok: true, note: 'Bild wurde gelöscht.' };
       }
       return { error: 'Unbekannter Medien-Verweis.' };
     },
