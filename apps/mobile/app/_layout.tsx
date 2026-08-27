@@ -28,11 +28,25 @@ import { AppDrawer } from '../components/navigation';
 import { SettingsSheet } from '../components/settings';
 import { CURRENT_INSTANCE } from '../config/instance';
 import { useAppInitialization } from '../hooks/useAppInitialization';
+import { useHydrateUserProfile } from '../hooks/useHydrateUserProfile';
 import { queryClient } from '../services/queryClient';
 import { useOnboardingStore } from '../stores/onboardingStore';
 import { lightTheme, darkTheme } from '../theme';
 
 void SplashScreen.preventAutoHideAsync();
+
+/**
+ * Lädt die Profilrollen in den Profil-Store des Chat-Pakets.
+ *
+ * Eigene Komponente statt eines Aufrufs in `RootLayout`, weil der Hook React
+ * Query braucht und `RootLayout` selbst noch außerhalb des
+ * `QueryClientProvider` läuft — derselbe Grund, aus dem web dafür eine
+ * `UserProfileHydrationBridge` hat.
+ */
+function UserProfileHydrationBridge() {
+  useHydrateUserProfile();
+  return null;
+}
 
 // Local notifications only (the subtitle export tells you when it is done).
 // Without a handler iOS swallows them while the app is in the foreground.
@@ -199,6 +213,11 @@ function RootLayout() {
                     are reachable from any screen — incl. the pushed (focused)
                     conversation. Gated on `user` to avoid an unauthenticated
                     thread-list fetch during the login flow. */}
+                {/* Profilrollen in den Chat-Store spiegeln, bevor irgendeine
+                    Liste nach der Landesverbands-Zuteilung fragt. Ohne das
+                    blieb `lvIds` null und die App zeigte die Inhalte aller
+                    Landesverbände (#2931). */}
+                {user ? <UserProfileHydrationBridge /> : null}
                 {user ? <AppDrawer>{appContent}</AppDrawer> : appContent}
                 {/* Settings are a sheet, not a route, so they open over whatever
                     is on screen. Mounted here — once — because the drawer and the
