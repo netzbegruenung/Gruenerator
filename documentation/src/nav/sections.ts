@@ -116,13 +116,18 @@ export const SECTIONS: DocSection[] = [
     id: 'konto',
     label: 'Konto & Projekte',
     icon: '👤',
-    description: 'Projekte, Einstellungen und die Anbindung der Grünen Wolke.',
+    description:
+      'Projekte, Einstellungen, die Einrichtung für deinen Landesverband und die Anbindung der Grünen Wolke.',
     intro: '/docs/konto/projekte',
     sidebarId: 'kontoSidebar',
     navbar: 'more',
     topPages: [
       { label: 'Projekte', to: '/docs/konto/projekte' },
       { label: 'Einstellungen', to: '/docs/konto/einstellungen' },
+      {
+        label: 'Für deinen Landesverband einrichten',
+        to: '/docs/konto/landesverband-einrichten',
+      },
       { label: 'Grüne Wolke', to: '/docs/konto/gruene-wolke' },
     ],
   },
@@ -176,6 +181,11 @@ export const QUICK_TASKS: QuickTask[] = [
     label: 'Eine Präsentation bauen',
     description: 'Folien anlegen, gestalten und als PDF oder PPTX exportieren.',
     to: '/docs/office/praesentationen',
+  },
+  {
+    label: 'Für deinen Landesverband einrichten',
+    description: 'Einmal die Rolle hinterlegen — danach kennt der Grünerator euren Stil.',
+    to: '/docs/konto/landesverband-einrichten',
   },
   {
     label: 'Eigenes Wissen anlegen',
