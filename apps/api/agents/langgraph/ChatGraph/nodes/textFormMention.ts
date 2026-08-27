@@ -1,28 +1,35 @@
+import { canonicalSkillMention } from '@gruenerator/shared/agents';
+
 /**
- * Map an active skill mention to the lookup key for a user's learned text form
- * ("Texte anlernen").
+ * Der Schlüssel, unter dem eine angelernte Textform („Texte anlernen") für ein
+ * aktives Rezept nachgeschlagen wird.
  *
- * Preset skills fold onto their text type so any LV variant (e.g. `presse-bayern`,
- * `insta-berlin`) still resolves the user's general Presse/Instagram style; a
- * dokumente skill maps to `antrag`; everything else (custom `/omveinladungen`
- * mentions, or non-preset skills) resolves to the raw mention. Returns null when
- * no skill mention is active.
+ * **Das speziellere Rezept gewinnt** — nachgeschlagen wird unter der Mention
+ * selbst, nichts wird zusammengefaltet. Ein angelernter Stil IST ein Rezept
+ * (er ersetzt den mitgelieferten Text, siehe `respondNode`/`recipeCatalog`),
+ * also gewinnt eins von beiden, und das ist das genauere.
  *
- * Kept in its own dependency-free module so it can be unit-tested without pulling
- * in the whole respond node.
+ * Bis 08/2026 faltete diese Funktion per Präfix: `presse-hessen-partei`,
+ * `presse-saarland`, `presse-at` und siebzehn weitere landeten alle auf
+ * `presse`, sämtliche `insta-*` auf `instagram`. Weil `user_text_forms` unique
+ * auf `(user_id, mention)` ist, gibt es dafür genau EINE Zeile — ein einziger
+ * angelernter Presse-Stil schaltete damit die Vorgaben von zwanzig Rezepten ab
+ * (Aufbau, Länge, Zitatstruktur), still und ohne Weg zurück. Über Ländergrenzen
+ * hinweg noch dazu: `presse-at` trägt `audience: 'de-AT'` und fiel auf denselben
+ * Schlüssel wie das deutsche `presse` (#2930).
+ *
+ * Wer für ein Landesverbands-Rezept einen eigenen Stil will, lernt ihn seither
+ * FÜR DIESES Rezept an (`kind: 'recipe'`, siehe `userTextFormsContractRouter`).
+ * Der generische `presse`-Stil gilt weiterhin für das generische `@presse`.
+ *
+ * `canonicalSkillMention` bleibt, damit eine zurückgezogene Mention
+ * (`presse-hessen` → `presse-hessen-partei`) dieselbe Zeile trifft wie die
+ * lebende — sonst hinge dieselbe Textform an zwei Schlüsseln.
+ *
+ * Eigenes, abhängigkeitsfreies Modul, damit die Regel ohne den ganzen
+ * Antwortknoten prüfbar bleibt.
  */
-export function deriveTextFormMention(
-  mention: string | null,
-  activeSkill: { skillCategory?: string } | undefined
-): string | null {
+export function deriveTextFormMention(mention: string | null): string | null {
   if (!mention) return null;
-  if (mention.startsWith('insta')) return 'instagram';
-  if (mention.startsWith('facebook')) return 'facebook';
-  if (mention.startsWith('presse')) return 'presse';
-  // Standalone dokumente recipes with their own craft rules: folding them onto
-  // the antrag preset would let a learned Antrag style replace the recipe —
-  // since agents auto-load these as `defaultRecipeMention`, on every turn.
-  if (mention === 'wahlpruefstein' || mention === 'buergermail') return mention;
-  if (activeSkill?.skillCategory === 'dokumente') return 'antrag';
-  return mention;
+  return canonicalSkillMention(mention);
 }
