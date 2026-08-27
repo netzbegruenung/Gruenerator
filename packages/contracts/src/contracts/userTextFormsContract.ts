@@ -60,6 +60,9 @@ export const userTextFormsContract = c.router(
         200: textFormItemResponseSchema,
         400: textFormErrorResponseSchema,
         401: textFormErrorResponseSchema,
+        // `recipe`: das Rezept gehört einem Landesverband, für den die Person
+        // keine Rolle hinterlegt hat.
+        403: textFormErrorResponseSchema,
         409: textFormErrorResponseSchema,
         500: textFormErrorResponseSchema,
       },

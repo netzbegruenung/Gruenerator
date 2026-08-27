@@ -171,7 +171,14 @@ export const PlusMenu = memo(function PlusMenu({
     ? roleShortLabel(activeRole.ebene, activeRole.rolle)
     : eigenerBadgeLabel;
 
+  // Alle vier Felder, nicht drei: der Prompttext einer frei getippten Rolle
+  // blieb hier liegen und lief als Persona weiter, ohne dass noch ein Chip
+  // davon erzählte (#2929). Dass „Eigener Chat" damit ohne Rollenwahl nicht
+  // mehr anklickbar ist (`hasCustomPrompt`), ist die Auflösung einer
+  // Asymmetrie und keine neue: für Katalogrollen war der Eintrag schon immer
+  // aus, weil ihre `customRoleRef` hier seit jeher genullt wird.
   const selectChatMode = () => {
+    setCustomSystemPrompt(null);
     setCustomRoleName(null);
     setCustomRoleRef(null);
     setThreadMode('chat');

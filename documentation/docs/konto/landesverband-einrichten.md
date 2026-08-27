@@ -63,12 +63,12 @@ Wo es zwei Presse-Rezepte gibt, schreibt das eine für den **Landesverband**, da
 
 Die LV-Rezepte bringen den Stil eures Landesverbands schon mit — solange ihr nichts anlernt, gilt er unverändert.
 
-Habt ihr darüber hinaus eigene Vorgaben — eine feste Zitat-Struktur, bestimmte Formulierungen, eine Länge —, könnt ihr sie hinterlegen: **Einstellungen → Texte anlernen**, je Textsorte (Pressemitteilung, Instagram, …). Sobald du eine Landesverbands-Rolle hast, listet der Bereich auch eure LV-Rezepte auf und zeigt, welche angelernte Textsorte sie jeweils steuert.
+Habt ihr darüber hinaus eigene Vorgaben — eine feste Zitat-Struktur, bestimmte Formulierungen, eine Länge —, könnt ihr sie hinterlegen: **Einstellungen → Texte anlernen**. Der Bereich hat dann zwei Abschnitte: oben die allgemeinen Textsorten (Pressemitteilung, Instagram, …), darunter **eure LV-Rezepte, jedes einzeln anlernbar**.
 
 :::warning[Ein angelernter Stil ersetzt die Vorlage — er ergänzt sie nicht]
-Was du bei _Pressemitteilungen_ anlernst, gilt für **jede** Pressemitteilung: für `@presse-hessen-partei`, für `@presse-hessen-fraktion` und auch dann, wenn du gar kein Rezept erwähnst. Es tritt dabei **an die Stelle** der mitgelieferten Vorgaben des LV-Rezepts — Aufbau, Länge und Zitatstruktur von dort sind dann nicht mehr aktiv.
+Was du anlernst, tritt **an die Stelle** der mitgelieferten Vorgaben: Aufbau, Länge und Zitatstruktur von dort sind dann nicht mehr aktiv. Schreib eure Vorgaben deshalb vollständig — alles, was euch wichtig ist, muss darin stehen.
 
-Schreib eure Vorgaben deshalb vollständig: Alles, was euch wichtig ist, muss darin stehen — auch das, was vorher das LV-Rezept geregelt hat. Einen zweiten, getrennten Stil nur für das Landesverbands-Rezept gibt es bewusst nicht.
+**Es gilt aber nur für das Rezept, das du auch anlernst.** Ein Stil unter _Pressemitteilungen_ steuert die allgemeine Vorlage; eure LV-Rezepte behalten ihre eigenen Vorgaben, bis ihr für sie selbst einen Stil hinterlegt. Wollt ihr euren Stil für die hessische Partei-PM, lernt ihr ihn bei **PM Hessen (Partei)** an, nicht oben.
 :::
 
 ## Noch persönlicher
@@ -85,9 +85,7 @@ Alles gilt für dein Konto, also auf allen Geräten, an denen du angemeldet bist
 
 **Dein Bundesland ist nicht dabei.** Nicht jeder Landesverband hat eigene Grüneratoren, und einzelne haben sich gegen ein eigenes Notizbuch entschieden. Welche Landesverbände abgedeckt sind, steht aktuell auf der Seite [Landesverband-Grüneratoren](/docs/wissen/landesverbaende). Ist deiner nicht dabei, bleibt der Assistent stumm und verspricht nichts — die allgemeinen Rezepte (`@presse`, `@instagram`, `@facebook`, …) stehen dir wie allen anderen offen.
 
-**Du hast die Rolle gerade erst angelegt.** Das Regal erscheint, sobald die Einstellungen gespeichert sind; ein Neuladen der Seite hilft, wenn ein Tab schon länger offen stand.
-
-**Du bist in der App.** Die Zuteilung über die Rolle greift derzeit in der Web-Version. In der Mobile-App siehst du die Landesverbands-Grüneratoren weiterhin nach Region sortiert — also auch die anderer Verbände.
+**Du hast die Rolle gerade erst angelegt.** Das Regal erscheint, sobald die Einstellungen gespeichert sind; ein Neuladen der Seite hilft, wenn ein Tab schon länger offen stand. In der App genügt es, sie einmal neu zu starten.
 
 ---
 
