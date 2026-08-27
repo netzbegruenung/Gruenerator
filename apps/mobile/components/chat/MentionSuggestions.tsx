@@ -1,4 +1,10 @@
-import { filterMentionables, mentionableKey, type Mentionable } from '@gruenerator/chat';
+import {
+  filterMentionables,
+  mentionableKey,
+  splitRecipesByOrigin,
+  RECIPE_ORIGIN_SECTION_TITLES,
+  type Mentionable,
+} from '@gruenerator/chat';
 import { memo } from 'react';
 import { View, Text, Pressable, SectionList, StyleSheet } from 'react-native';
 
@@ -19,19 +25,21 @@ interface Section {
   data: Mentionable[];
 }
 
-/** One list behind '@' — recipes no longer have their own trigger. */
+/**
+ * One list behind '@' — recipes no longer have their own trigger.
+ *
+ * The recipe split comes from `splitRecipesByOrigin` rather than a local
+ * `sharedFromGroup` filter: a second copy of the rule here is exactly the seam
+ * #2876 warned about, and it drifts the moment a new origin is added on the
+ * shared side. Only the section wording stays mobile's own — the titles are one
+ * heading level, so they carry the word "Rezepte" themselves.
+ */
 function buildSections(query: string): Section[] {
   const { agents, customAgents, notebooks, tools, documents } = filterMentionables(query);
-  const sections: Section[] = [];
+  const sections: Section[] = splitRecipesByOrigin(agents, customAgents).map(
+    ({ origin, items }) => ({ title: RECIPE_ORIGIN_SECTION_TITLES[origin], data: items })
+  );
 
-  const ownRecipes = customAgents.filter((m) => !m.sharedFromGroup);
-  const sharedRecipes = customAgents.filter((m) => m.sharedFromGroup);
-
-  if (agents.length > 0) sections.push({ title: 'Rezepte', data: agents });
-  if (ownRecipes.length > 0) sections.push({ title: 'Meine Rezepte', data: ownRecipes });
-  if (sharedRecipes.length > 0) {
-    sections.push({ title: 'Rezepte aus deinen Gruppen', data: sharedRecipes });
-  }
   if (tools.length > 0) sections.push({ title: 'Werkzeuge', data: tools });
   if (documents.length > 0) sections.push({ title: 'Dateien', data: documents });
   if (notebooks.length > 0) sections.push({ title: 'Notizbücher', data: notebooks });
