@@ -286,6 +286,12 @@ export function createGrueneratorThreadListAdapter(
         threadAgentCache.set(result.id, effectiveAgentId);
         cacheThreadSlug(result.id, result.slugSuffix);
         useAgentStore.getState().mintThreadFromDraft(result.id);
+        // Der Produktionspfad der Rollen-Promotion: das Backend sendet
+        // `thread_created` (und damit `onThreadCreated`) nur für Threads, die
+        // es selbst anlegt — für die hier geminteten nie. Ohne diesen Aufruf
+        // räumte die 404 der frischen Thread-Einstellungen die Standardrolle
+        // beim ersten Senden wieder ab (siehe `promoteDraftRoleToThread`).
+        useAgentStore.getState().promoteDraftRoleToThread(result.id, apiClient);
         return { remoteId: result.id, externalId: undefined };
       })().finally(() => {
         pendingInit = null;
