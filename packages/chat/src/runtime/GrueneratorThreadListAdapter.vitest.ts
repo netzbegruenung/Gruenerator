@@ -5,7 +5,9 @@
  * backend — leaving the thread unnamed for good.
  */
 
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { useAgentStore } from '../stores/chatStore';
 
 import { createGrueneratorThreadListAdapter } from './GrueneratorThreadListAdapter';
 
@@ -92,5 +94,51 @@ describe('generateTitle', () => {
     );
 
     expect(title).toBe('Kommunaler Klimaplan');
+  });
+});
+
+describe('initialize', () => {
+  const ROLE = { ebene: 'land', rolle: 'Mitarbeiter*in Landesgeschäftsstelle' };
+
+  beforeEach(() => {
+    useAgentStore.setState({
+      currentThreadId: null,
+      selectedAgentId: null,
+      threadMode: 'eigener',
+      customRoleRef: ROLE,
+      customRoleName: ROLE.rolle,
+      customSystemPrompt: null,
+      roleRefSource: 'default',
+    });
+  });
+
+  it('befördert die Standardrolle des Entwurfs zum frisch geminteten Thread', async () => {
+    // Das Backend sendet `thread_created` nur für Threads, die es selbst
+    // anlegt — der hier geminted Thread durchläuft `onThreadCreated` nie.
+    // Ohne Promotion an dieser Stelle bekam ThreadDataSyncEffect für die
+    // frischen Einstellungen eine 404 und räumte die noch als `default`
+    // markierte Rolle beim ersten Senden wieder ab.
+    const apiClient = makeApiClient({ id: 'thread-neu', slugSuffix: 'ab12cd' });
+    const adapter = createGrueneratorThreadListAdapter(apiClient, 'chat');
+
+    await adapter.initialize('__LOCALID_1');
+
+    const state = useAgentStore.getState();
+    expect(state.currentThreadId).toBe('thread-neu');
+    expect(state.roleRefSource).toBe('load');
+    expect(apiClient.patch).toHaveBeenCalledWith(
+      '/api/chat-service/threads/thread-neu/settings',
+      expect.objectContaining({ roleRef: ROLE })
+    );
+  });
+
+  it('legt für einen rollenlosen Entwurf keine Einstellungszeile an', async () => {
+    useAgentStore.setState({ threadMode: 'chat', customRoleRef: null, roleRefSource: 'load' });
+    const apiClient = makeApiClient({ id: 'thread-ohne' });
+    const adapter = createGrueneratorThreadListAdapter(apiClient, 'chat');
+
+    await adapter.initialize('__LOCALID_2');
+
+    expect(apiClient.patch).not.toHaveBeenCalled();
   });
 });
