@@ -52,6 +52,19 @@ export interface WolkeShareFile {
   lastModified: Date | null;
 }
 
+/**
+ * macOS writes an AppleDouble sidecar (`._Foo.pdf`) next to every real file it
+ * copies onto a share. The name carries the document extension but the bytes are
+ * a resource fork, so `.pdf` passes the extension filter, goes out as
+ * `data:application/pdf`, and Mistral OCR rejects it on content sniffing
+ * (`Document type 'application/octet-stream' is not supported`, code 3310).
+ * Measured on LV SL's Wolke share: 3 such files, 3 hard errors on every nightly
+ * full crawl. They are metadata, never content — drop them at discovery.
+ */
+export function isAppleDoubleSidecar(name: string): boolean {
+  return name.startsWith('._');
+}
+
 function hasSupportedExtension(name: string): boolean {
   const lower = name.toLowerCase();
   return SUPPORTED_EXTENSIONS.some((ext) => lower.endsWith(ext));
@@ -102,7 +115,7 @@ export async function collectWolkeShareFiles(
         continue;
       }
 
-      if (!hasSupportedExtension(entry.name)) continue;
+      if (isAppleDoubleSidecar(entry.name) || !hasSupportedExtension(entry.name)) continue;
       files.push({
         url: `${shareLink}#/${rel}`,
         href: entry.href,

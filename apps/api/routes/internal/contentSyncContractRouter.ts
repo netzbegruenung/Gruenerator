@@ -64,6 +64,19 @@ interface SourceConfig {
 const sourceCache: Partial<Record<ContentSyncSource, SourceConfig>> = {};
 const runningSync = new Set<string>();
 
+/**
+ * Scrapers call their capped error sample list `errorMessages`; the contract
+ * calls it `errorSamples`. Without this bridge a source counts its errors
+ * correctly and the report still shows nothing but the number — the job
+ * summary's "Fehler im Einzelnen" section can never fire for it.
+ * `runScopedLandesverband` does the same mapping by hand.
+ */
+function withErrorSamples<T extends { errorMessages: string[] }>(
+  result: T
+): T & { errorSamples: string[] } {
+  return { ...result, errorSamples: result.errorMessages };
+}
+
 async function loadSource(sourceId: ContentSyncSource): Promise<SourceConfig> {
   const cached = sourceCache[sourceId];
   if (cached) return cached;
@@ -178,7 +191,10 @@ async function loadSource(sourceId: ContentSyncSource): Promise<SourceConfig> {
         name: 'Grundsatzprogramme (PDF)',
         timeoutMs: 30 * 60 * 1000,
         init: () => grundsatzPdfScraperService.init(),
-        run: (opts) => grundsatzPdfScraperService.fullCrawl({ forceUpdate: opts.forceUpdate }),
+        run: async (opts) =>
+          withErrorSamples(
+            await grundsatzPdfScraperService.fullCrawl({ forceUpdate: opts.forceUpdate })
+          ),
       };
       break;
     }
@@ -189,7 +205,10 @@ async function loadSource(sourceId: ContentSyncSource): Promise<SourceConfig> {
         name: 'Die Grünen Österreich – Programme (PDF)',
         timeoutMs: 30 * 60 * 1000,
         init: () => oesterreichPdfScraperService.init(),
-        run: (opts) => oesterreichPdfScraperService.fullCrawl({ forceUpdate: opts.forceUpdate }),
+        run: async (opts) =>
+          withErrorSamples(
+            await oesterreichPdfScraperService.fullCrawl({ forceUpdate: opts.forceUpdate })
+          ),
       };
       break;
     }

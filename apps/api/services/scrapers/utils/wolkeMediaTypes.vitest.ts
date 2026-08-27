@@ -11,7 +11,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { getMediaType } from '../../OcrService/validation.js';
-import { OCR_EXTENSIONS, TEXT_EXTENSIONS } from './wolkeShareHandler.js';
+import { isAppleDoubleSidecar, OCR_EXTENSIONS, TEXT_EXTENSIONS } from './wolkeShareHandler.js';
 
 describe('Wolke share extensions vs. OCR media types', () => {
   it('maps every OCR extension to a real media type', () => {
@@ -39,5 +39,20 @@ describe('Wolke share extensions vs. OCR media types', () => {
   it('still falls back to octet-stream for genuinely unknown extensions', () => {
     expect(getMediaType('.zip')).toBe('application/octet-stream');
     expect(getMediaType('')).toBe('application/octet-stream');
+  });
+});
+
+describe('AppleDouble sidecars', () => {
+  it('drops the macOS resource forks that carry a document extension', () => {
+    // The three files that failed OCR on LV SL's share every nightly run.
+    expect(isAppleDoubleSidecar('._Psychotherapeutenkammer des Saarlandes.pdf')).toBe(true);
+    expect(isAppleDoubleSidecar('._Saarländischer Hebammenverband.pdf')).toBe(true);
+    expect(isAppleDoubleSidecar('._WPS_Schmelzer_Wald.pdf')).toBe(true);
+  });
+
+  it('keeps real documents, including ones with a leading dot or an underscore', () => {
+    expect(isAppleDoubleSidecar('Psychotherapeutenkammer des Saarlandes.pdf')).toBe(false);
+    expect(isAppleDoubleSidecar('_entwurf.pdf')).toBe(false);
+    expect(isAppleDoubleSidecar('.verstecktes-protokoll.pdf')).toBe(false);
   });
 });
