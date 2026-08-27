@@ -49,6 +49,7 @@ const PopupWartung = lazy(() => import('./components/Popups/popup_wartung'));
 // Art.-9-Einwilligung vor der ersten KI-Nutzung. Lazy, weil abgemeldete
 // Besucher*innen ihn nie sehen und er nach der Zustimmung nie wieder rendert.
 const AiConsentGate = lazy(() => import('./features/auth/components/AiConsentGate'));
+const LocaleGate = lazy(() => import('./features/auth/components/LocaleGate'));
 // const CustomGrueneratorenPopup = lazy(() => import('./components/Popups/popup_custom_grueneratoren'));
 // const PopupAustriaLaunch = lazy(() => import('./components/Popups/popup_austria_launch'));
 
@@ -210,6 +211,14 @@ function App() {
               {!isEmbedded() && (
                 <SuspenseWrapper>
                   <AiConsentGate />
+                </SuspenseWrapper>
+              )}
+              {/* Steht bewusst nach dem Einwilligungs-Gate und prüft selbst, dass
+                  die Einwilligung schon vorliegt — zwei modale Dialoge zugleich
+                  wären beide nicht bedienbar. */}
+              {!isEmbedded() && (
+                <SuspenseWrapper>
+                  <LocaleGate />
                 </SuspenseWrapper>
               )}
               <SuspenseWrapper>

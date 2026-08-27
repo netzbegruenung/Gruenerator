@@ -174,10 +174,13 @@ const LoginPage = ({
       : undefined;
 
   // Same mechanism as the public start page (StartpageHero): a remembered or
-  // deep-linked provider wins, else the browser language guesses the country.
-  // Only one provider card is shown up front; "Anderer Anbieter" reveals the
-  // rest. Resolved once on mount — everything needed is available
-  // synchronously (CSR SPA).
+  // deep-linked provider wins, else the timezone decides the country. Only one
+  // provider card is shown up front; "Anderer Anbieter" reveals the rest.
+  // Resolved once on mount — everything needed is available synchronously
+  // (CSR SPA).
+  //
+  // `primaryProviderId` darf null sein, und das ist der Kern der Sache: ist das
+  // Land unklar, wird nicht geraten, sondern gefragt (siehe countryChoiceCta).
   const [{ primaryProviderId, providersInitiallyOpen }] = useState(() => {
     const params = new URLSearchParams(location.search);
     const loginParam = params.get('login');
@@ -274,21 +277,52 @@ const LoginPage = ({
     }
   };
 
-  const primaryProvider = getProviderById(primaryProviderId);
+  const primaryProvider = primaryProviderId ? getProviderById(primaryProviderId) : undefined;
 
   const standaloneLoginCta = (
     <div className="lp-cta">
-      <div className="lp-cta-row">
-        <button
-          type="button"
-          className="lp-login"
-          onClick={() => startLogin(primaryProviderId)}
-          disabled={isAuthenticating}
-          aria-label={primaryProvider ? `Anmelden mit ${primaryProvider.title}` : 'Anmelden'}
-        >
-          <LockIcon /> Anmelden
-        </button>
-      </div>
+      {/* Ohne erkanntes Land keine Vorauswahl: beide Länder stehen gleichrangig
+          nebeneinander. Ein einzelner „Anmelden"-Knopf müsste sich für eines
+          entscheiden, und diese stille Entscheidung fiel bisher immer auf
+          Deutschland — auch für österreichische Mitglieder, deren Browser
+          erwartungsgemäß Deutsch meldet. */}
+      {primaryProviderId === null ? (
+        <>
+          <p className="lp-hint" id="lp-country-question">
+            In welchem Land bist du grün aktiv?
+          </p>
+          <div className="lp-cta-row" role="group" aria-labelledby="lp-country-question">
+            <button
+              type="button"
+              className="lp-login"
+              onClick={() => startLogin('gruenes-netz')}
+              disabled={isAuthenticating}
+            >
+              <LockIcon /> Deutschland
+            </button>
+            <button
+              type="button"
+              className="lp-login"
+              onClick={() => startLogin('gruene-oesterreich')}
+              disabled={isAuthenticating}
+            >
+              <LockIcon /> Österreich
+            </button>
+          </div>
+        </>
+      ) : (
+        <div className="lp-cta-row">
+          <button
+            type="button"
+            className="lp-login"
+            onClick={() => startLogin(primaryProviderId)}
+            disabled={isAuthenticating}
+            aria-label={primaryProvider ? `Anmelden mit ${primaryProvider.title}` : 'Anmelden'}
+          >
+            <LockIcon /> Anmelden
+          </button>
+        </div>
+      )}
 
       {isAuthenticating && (
         <p className="lp-hint">

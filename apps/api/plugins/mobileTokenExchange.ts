@@ -28,8 +28,14 @@ interface KeycloakPayload {
 const KC_ISSUER = `${env.KEYCLOAK_BASE_URL}/realms/${env.KEYCLOAK_REALM}`;
 const JWKS = createRemoteJWKSet(new URL(`${KC_ISSUER}/protocol/openid-connect/certs`));
 
+// Spiegelt `PROVIDER_LOCALE` in `config/localeSync.ts`, hier auf die
+// `authSource`-Namen bezogen. `gruenerator-login` fehlt bewusst: er trägt kein
+// Ländersignal und wird derzeit nicht verwendet — für ihn bleibt das Profil
+// leer, statt Deutschland zu unterstellen.
 const LOCALE_MAP: Record<string, 'de-DE' | 'de-AT'> = {
   'gruene-oesterreich-login': 'de-AT',
+  'gruenes-netz-login': 'de-DE',
+  'netzbegruenung-login': 'de-DE',
 };
 
 export const mobileTokenExchange = () => {
@@ -84,7 +90,7 @@ export const mobileTokenExchange = () => {
             throw new Error('Token missing email claim');
           }
 
-          const locale = LOCALE_MAP[authSource || ''] || 'de-DE';
+          const locale = LOCALE_MAP[authSource || ''] ?? null;
           const name = payload.name || payload.preferred_username || email.split('@')[0];
 
           const existing = await ctx.context.internalAdapter.findUserByEmail(email);
@@ -108,7 +114,9 @@ export const mobileTokenExchange = () => {
               email,
               name,
               emailVerified: payload.email_verified ?? false,
-              locale,
+              // Weglassen statt raten: nennt der Anmeldeweg kein Land, bleibt das
+              // Feld leer und die Oberfläche fragt nach.
+              ...(locale !== null && { locale }),
               auth_source: authSource || 'mobile',
               keycloak_id: payload.sub || null,
             });
