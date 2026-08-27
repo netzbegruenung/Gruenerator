@@ -47,7 +47,7 @@ import {
 } from './artifactInventory.js';
 import { buildCitableSources, MAX_SOURCES, type CitableSource } from './citableSources.js';
 import { lastUserText } from './classifierHeuristics.js';
-import { looksLikeDocsHelpQuestion } from './classifierSignals.js';
+import { looksLikeDocsHelpQuestion, looksLikeGeltungsfrage } from './classifierSignals.js';
 import { resolveEffectiveRecipeMention } from './effectiveRecipeMention.js';
 import { deriveTextFormMention } from './textFormMention.js';
 
@@ -1139,6 +1139,38 @@ const SOURCE_HEDGING_RULE =
   'Widersprechen sich die Quellen zu einer Aussage, oder markiert eine Quelle sie selbst als ungeklärt, vermutet oder offiziell, dann übernimm diese Einschränkung in die Antwort. Gib eine strittige Angabe nie als feststehend wieder.';
 
 /**
+ * Stand-Disziplin für Geltungsfragen (#2949).
+ *
+ * Die erzwungene Suche allein repariert den Fall NICHT — das ist der Kern des
+ * Befunds. Ein Turn, der zwei Nachrichtenartikel zitiert, macht denselben
+ * Fehler: Meldungen über einen Änderungsvorschlag lesen sich wie Meldungen über
+ * geltendes Recht, und die Antwort sieht danach belegt aus. Deshalb steht hier
+ * eine Regel über die FORM der Auskunft, nicht über das Beschaffen.
+ *
+ * Warum im Basis-Prompt und nicht in `synthPrompt.ts`: das ist die einzige Naht,
+ * die alle vier Pfade erreicht. Der `AKTUALITÄT`-Absatz dort hängt am
+ * Quellenblock und fehlt damit genau dann, wenn nichts gefunden wurde — also im
+ * gemessenen Fall. Er bleibt trotzdem stehen: er handelt vom Abgleich
+ * widersprüchlicher Quellendaten, diese Regel von der Trennung Geltung/Vorhaben.
+ *
+ * Gegattert, nicht immer an: eine Begrüssung soll dafür keine Token zahlen.
+ */
+const GELTUNGSSTAND_RULE =
+  'GELTUNGSSTAND: Diese Frage zielt auf einen Rechts- oder Verfahrensstand. Trenne deshalb ausdrücklich, was HEUTE GILT, von dem, was erst vorgeschlagen, verhandelt oder beschlossen-aber-noch-nicht-in-Kraft ist. Benenne für das Geltende den Rechtsakt (Titel bzw. Nummer), für das Nicht-Geltende das Verfahrensstadium (Vorschlag, Trilog, Überprüfungsklausel, Ratifizierung). Nenne den Stand mit Datum ("Stand: März 2026"). Eine Meldung ÜBER einen Änderungsvorschlag ist keine Meldung über geltendes Recht — auch eine tagesaktuelle Quelle belegt nur, dass verhandelt wird, nicht dass sich die Rechtslage geändert hat. Hast du in diesem Turn nichts nachgeschlagen, sag ausdrücklich, dass der Stand ungeprüft ist und wann er zuletzt gesichert war.';
+
+/**
+ * Trägt dieser Turn die Stand-Disziplin? Ein Prädikat, zwei Verbraucher: dieselbe
+ * Funktion entscheidet im Klassifikator (`web.geltungsfrage`), ob gesucht werden
+ * MUSS. Getrennte Detektoren wären hier die naheliegende Drift — der Zwang
+ * feuerte, die Formregel nicht, und der Turn suchte brav, um dann doch einen
+ * Vorschlag als geltendes Recht zu referieren.
+ */
+function geltungsstandNote(state: ChatGraphState): string {
+  const text = state.lastUserTextNoMentions || lastUserText(state);
+  return looksLikeGeltungsfrage(text) ? `\n\n${GELTUNGSSTAND_RULE}` : '';
+}
+
+/**
  * The artefact-action intents (save_as_doc / modify_doc / share_doc /
  * modify_board) are single-pass: the PLATFORM performs the action — Stage 4c in
  * the router creates the document, the confirm flow applies modify/share — not
@@ -1744,6 +1776,7 @@ export async function buildSystemMessage(
   }
 
   const today = formatGermanDate();
+  const geltungsstand = geltungsstandNote(state);
 
   // User profile instructions (additive — included in all modes). When no
   // profile/roles are set, an explicit guard stops the model from inventing a
@@ -1939,7 +1972,7 @@ export async function buildSystemMessage(
     // gewählt oder über einen Katalog-Baustein (siehe `effectiveRecipeMention.ts`):
     // das Rezept bestimmt die FORM, die Rolle die Stimme.
     return `${customSystemPrompt}${skillFragment}
-Heutiges Datum: ${today}${localeContext}${platformContext}${userInstructionsFormatted}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${artifactInventory}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}${hasSources ? `\n${citationInstruction}` : ''}
+Heutiges Datum: ${today}${geltungsstand}${localeContext}${platformContext}${userInstructionsFormatted}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${artifactInventory}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}${hasSources ? `\n${citationInstruction}` : ''}
 
 ${CONTENT_INTEGRITY_ANSWER_RULE}${INSTRUCTION_HIERARCHY_RULE}${state.injectionSuspected ? INJECTION_WARNING_NOTE : ''}`;
   }
@@ -1981,7 +2014,7 @@ ${CONTENT_INTEGRITY_ANSWER_RULE}${INSTRUCTION_HIERARCHY_RULE}${state.injectionSu
   const injectionWarning = state.injectionSuspected ? INJECTION_WARNING_NOTE : '';
 
   return `${systemRole}${skillFragment}${degradationBlock}
-Heutiges Datum: ${today}${localeContext}${platformContext}${productIdentity}${productKnowledge}${docsPageMap}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${artifactInventory}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}${pipelineSourceText}
+Heutiges Datum: ${today}${geltungsstand}${localeContext}${platformContext}${productIdentity}${productKnowledge}${docsPageMap}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${artifactInventory}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}${pipelineSourceText}
 
 ## ANTWORT-REGELN
 1. ${SCOPE_RULE}

@@ -29,6 +29,41 @@ const CLAIMED_WORK_RE =
   /ich habe (recherchiert|gesucht|nachgeschlagen|die (quellen|dokumente) (durchsucht|geprüft))|(meine|die) (recherche|suche) (ergab|zeigt|hat ergeben)|laut meiner (suche|recherche)/i;
 
 /**
+ * Die Antwort weist einen STAND aus — ein Datum, auf das ihre Aussage sich
+ * bezieht.
+ *
+ * Der Prüfstein für #2949: die Antwort war dort nicht falsch, sie hatte kein
+ * Alter. „Das Verbrenner-Aus gilt ab 2035" ist als Satz nicht widerlegbar und
+ * als Auskunft wertlos, solange niemand weiss, wann er stimmte. Eine erzwungene
+ * Suche allein liefert das nicht nach — `grounded` wäre grün und der Mangel
+ * derselbe.
+ *
+ * Bewusst grosszügig in der Schreibweise: Stand-Formel, "Monat Jahr" (deckt
+ * „seit September 2025" und „15. Oktober 2026" mit ab) und TT.MM.JJJJ. Eine
+ * blosse Jahreszahl zählt NICHT — „ab 2035" ist der Gegenstand der Frage, nicht
+ * der Stand der Antwort, und ohne diese Ausnahme wäre die Zusicherung von der
+ * Frage selbst erfüllbar.
+ *
+ * Grenze, ehrlich: geprüft ist, DASS die Antwort ein Datum nennt, nicht dass es
+ * ihr eigener Bezugszeitpunkt ist — „die Verordnung wurde im März 2023
+ * erlassen" genügt der Regex. Das ist die deterministische Untergrenze; ob das
+ * Datum den Stand der AUSSAGE trägt, gehört zur Judge-Rubrik. Eine Zusicherung,
+ * die das mit Regex entscheiden wollte, würde gute Antworten rot melden.
+ */
+const MONTH =
+  '(januar|februar|märz|maerz|april|mai|juni|juli|august|september|oktober|november|dezember)';
+const STATES_AS_OF_RE = new RegExp(
+  [
+    // „Stand: März 2026", „Stand 03/2026" — die Formel plus ein Jahr in Reichweite.
+    '\\bstand\\b[^.\\n]{0,24}?(19|20)\\d\\d',
+    '\\bstand\\b[^.\\n]{0,12}?heute\\b',
+    `${MONTH}\\s+(19|20)\\d\\d`,
+    '\\b\\d{1,2}\\.\\s*\\d{1,2}\\.\\s*(19|20)\\d\\d\\b',
+  ].join('|'),
+  'i'
+);
+
+/**
  * Everything the turn WROTE outside the answer stream, as one blob.
  *
  * Exported because the judge needs the same view: a `content_policy` verdict
@@ -378,6 +413,21 @@ export function runAssertions(
         ? ok('grounded', `${trace.sources} citations`)
         : fail('grounded', 'no citations and no successful search')
     );
+  }
+
+  if (expect.statesAsOf != null) {
+    const m = trace.fullText.match(STATES_AS_OF_RE);
+    if (expect.statesAsOf) {
+      results.push(
+        m
+          ? ok('statesAsOf', `as-of marker: "${m[0].trim()}"`)
+          : fail('statesAsOf', 'the answer names no date its statement is anchored to')
+      );
+    } else {
+      results.push(
+        m ? fail('statesAsOf', `unexpected as-of marker "${m[0].trim()}"`) : ok('statesAsOf')
+      );
+    }
   }
 
   if (expect.noCapabilityRefusal) {
