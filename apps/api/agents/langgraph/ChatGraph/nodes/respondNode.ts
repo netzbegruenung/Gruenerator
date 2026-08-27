@@ -1960,12 +1960,21 @@ ${CONTENT_INTEGRITY_ANSWER_RULE}${INSTRUCTION_HIERARCHY_RULE}${state.injectionSu
   // present; the warning only when that material looks like it carries an
   // attack (classifier flag). Adding either unconditionally would spend context
   // on every trivial turn.
+  //
+  // Die Liste muss JEDEN `embedUntrusted`-Aufruf oben abdecken, sonst steht der
+  // `<untrusted_content>`-Marker unerklärt im Prompt — ein Kontext-Posten ohne
+  // die Regel, die ihn erst bedeutungsvoll macht. Die beiden Nutzertext-Fälle
+  // fehlten: die Profilanweisungen seit jeher, der angelernte Stil seit er
+  // ebenfalls eingefasst wird. Beide treffen genau den häufigen Turn ohne
+  // Anhang und ohne Suche, in dem sonst gar nichts Untrusted vorkommt.
   const hasUntrusted =
     threadAttachmentsContext !== '' ||
     currentDocumentContext !== '' ||
     attachmentContext !== '' ||
     searchContext !== '' ||
-    perSourceContext !== '';
+    perSourceContext !== '' ||
+    userTextForm !== null ||
+    !!state.userInstructions;
   const hierarchyRule = hasUntrusted ? INSTRUCTION_HIERARCHY_RULE : '';
   const injectionWarning = state.injectionSuspected ? INJECTION_WARNING_NOTE : '';
 

@@ -143,4 +143,42 @@ describe('angelernter Stil — er ist Nutzertext', () => {
 
     expect(prompt).toContain('untrusted_content');
   });
+
+  it('bringt die Regel mit, die den Marker erklärt', async () => {
+    // Sonst stünde `<untrusted_content>` unerklärt im Prompt — ein
+    // Kontext-Posten ohne die Regel, die ihn erst bedeutungsvoll macht.
+    // `hasUntrusted` hing vorher ausschließlich an Anhang, Dokument und Suche;
+    // dieser Turn hat nichts davon, und genau der ist der häufige.
+    getTextFormForInjection.mockResolvedValue({
+      kind: 'preset',
+      textType: 'presse',
+      title: 'Pressemitteilungen',
+      styleBlock: STIL,
+    });
+
+    const prompt = await buildSystemMessage(state({ activeSkillMention: 'presse' }));
+
+    expect(prompt).toContain('REGELHIERARCHIE');
+  });
+
+  it('spart die Regel, wenn gar kein Nutzertext im Prompt steht', async () => {
+    // Kein angelernter Stil (Standard-Mock: null), keine Profilanweisungen,
+    // kein Anhang — dann gibt es keinen Marker zu erklären, und die ~1,5k
+    // Zeichen der Regel wären verschenkt.
+    const prompt = await buildSystemMessage(state({ activeSkillMention: 'presse' }));
+
+    expect(prompt).not.toContain('untrusted_content');
+    expect(prompt).not.toContain('REGELHIERARCHIE');
+  });
+
+  it('bringt die Regel auch für bloße Profilanweisungen mit', async () => {
+    // Dieselbe Lücke, nur älter: `embedUntrusted` fasst die Profilanweisungen
+    // seit jeher ein, `hasUntrusted` zählte sie nie mit.
+    const prompt = await buildSystemMessage(
+      state({ activeSkillMention: null, userInstructions: 'Duze die Leser*innen.' })
+    );
+
+    expect(prompt).toContain('untrusted_content');
+    expect(prompt).toContain('REGELHIERARCHIE');
+  });
 });
