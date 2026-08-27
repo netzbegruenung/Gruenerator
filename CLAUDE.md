@@ -109,9 +109,15 @@ Mistral AI (primary, EU), self-hosted GPT-OSS/Gemma via LiteLLM/verdigado, Seewe
 - **PR merges require admin.** `gh pr merge` fails — ask user to merge via GitHub UI.
 - **Worktree weg, sobald alles gepusht ist** — nicht erst nach dem Merge. Ein offener PR braucht kein lokales Verzeichnis, er lebt auf `origin`. Kriterium: `git status --porcelain` **und** `git log @{u}..` beide leer → `git worktree remove <pfad>` (Branch bleibt stehen). Nach dem Merge zusätzlich `git branch -d <br> && git worktree prune`. Nie `--force`, nie fremde Worktrees — andere Agenten arbeiten parallel.
 
+### Sprache auf GitHub: Englisch
+
+**Alles, was auf GitHub landet, wird auf Englisch geschrieben** — PR-Titel und -Beschreibung, PR- und Review-Kommentare, Issues (Titel, Body, Kommentare), Commit-Subject und -Body, Branch-Namen. Auch dann, wenn das Gespräch hier auf Deutsch läuft: deutsche Log-, Code- oder UI-Zitate bleiben im Original, die Prosa drumherum ist Englisch.
+
+Nicht betroffen und weiterhin deutsch: dieser Chat, die Doku im Repo (`CLAUDE.md`, `docs/`, `documentation/`) und alles, was Nutzer*innen im Produkt sehen.
+
 ### Nebenbefunde werden Issues, nicht Prosa
 
-**Ein Fehler, der bei anderer Arbeit auffällt, wird als GitHub-Issue abgelegt** — nicht nur im Chat erwähnt, nicht nur als Kommentar im Code, nicht in `/docs/` (gitignored). Der Chat ist weg, sobald das Fenster zu ist; ein Issue überlebt den Kontext und ist der Ort, an dem andere Agenten und Menschen danach suchen.
+**Ein Fehler, der bei anderer Arbeit auffällt, wird als GitHub-Issue abgelegt** (auf Englisch, siehe oben) — nicht nur im Chat erwähnt, nicht nur als Kommentar im Code, nicht in `/docs/` (gitignored). Der Chat ist weg, sobald das Fenster zu ist; ein Issue überlebt den Kontext und ist der Ort, an dem andere Agenten und Menschen danach suchen.
 
 Gilt für alles, was ohne Zutun auffällt: ein 404 in einem mitgelesenen Log, ein `ContextCap`-Deckel, der mehr wegschneidet als gedacht, eine Zahl in der Antwort, die nicht zur Quelle passt.
 
@@ -197,7 +203,7 @@ Auch die generierten LV-Agenten (`lvPrAgents.ts` / `lvBuergerAgents.ts` / `lvWah
 
 ### Commits
 
-Conventional Commits (`feat:`, `fix:`, `chore:`, `refactor:`, `docs:`). Atomic: one logical change per commit.
+Conventional Commits (`feat:`, `fix:`, `chore:`, `refactor:`, `docs:`), **auf Englisch** (siehe *Sprache auf GitHub*). Atomic: one logical change per commit.
 
 **Subject nach dem Doppelpunkt klein schreiben** — commitlint (`subject-case`) bricht sonst ab. lint-staged hat dann schon formatiert und re-staged: Commit einfach neu absetzen, es geht nichts verloren.
 
