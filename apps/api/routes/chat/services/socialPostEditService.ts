@@ -15,7 +15,10 @@ import { SOCIAL_PLATFORM_INFO, type SocialPostToolResult } from '@gruenerator/co
 // Dasselbe Handwerk wie beim Erzeugen — sonst überarbeitet der Edit-Turn den
 // Post gegen eine ANDERE Formvorgabe als die, nach der er entstanden ist. Die
 // gewählte Textform steht hier nicht zur Verfügung (der Edit-Turn kennt nur den
-// persistierten Post), die erkannte Plattform genügt.
+// persistierten Post), die erkannte Plattform genügt. Die `userId` geht mit,
+// damit ein angelernter Stil auch beim Überarbeiten gilt und nicht nur beim
+// Erzeugen — sonst schriebe der Edit-Turn den Post auf das mitgelieferte Rezept
+// zurück.
 import { craftGuidanceForPlatform } from '../../../agents/langgraph/ChatGraph/nodes/socialMediaComposerNode.js';
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { aiText } from '../../../services/ai/generate.js';
@@ -188,9 +191,15 @@ export async function handleSocialPostTextEdit(args: HandleSocialPostEditArgs): 
       status: 'in_progress',
     });
 
+    const craftGuidance = await craftGuidanceForPlatform(
+      platform === 'generic' ? null : platform,
+      null,
+      args.userId
+    );
+
     const systemPrompt = `Du überarbeitest einen bestehenden Social-Media-Post der Grünen nach einer Nutzer-Anweisung.
 
-${craftGuidanceForPlatform(platform === 'generic' ? null : platform)}
+${craftGuidance}
 
 ## ZEICHENBUDGET
 Ziel: ~${info.recommendedChars} Zeichen. Hartes Maximum: ${info.maxChars} Zeichen (inklusive Hashtags).

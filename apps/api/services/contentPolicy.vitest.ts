@@ -40,8 +40,8 @@ describe('content policy reaches every generator of publishable text', () => {
     expect(SHAREPIC_SAFETY_RULES).toContain('LAYOUT (niemals ein Ablehnungsgrund)');
   });
 
-  it('the social-post composer states them (it used to mention only quotes)', () => {
-    const prompt = buildSocialMediaSystemPrompt({
+  it('the social-post composer states them (it used to mention only quotes)', async () => {
+    const prompt = await buildSocialMediaSystemPrompt({
       agentConfig: { systemRole: 'Du bist ein Testagent.' },
       messages: [],
     } as unknown as ChatGraphState);

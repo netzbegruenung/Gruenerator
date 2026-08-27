@@ -21,6 +21,13 @@ export interface MediaItem {
   shareToken: string;
   mediaType: MediaType;
   title: string | null;
+  /**
+   * Full-resolution source URL, despite the name: `/api/share/<token>/preview`
+   * with no `w`, which the API answers with the original bytes. Use it where
+   * the real upload is wanted (placing an image on a canvas); for anything
+   * rendered in an `<img>`, build a sized URL from {@link shareToken} with
+   * `buildSharedMediaSrcSet` instead.
+   */
   thumbnailUrl: string | null;
   mediaUrl?: string;
   fileSize: number;

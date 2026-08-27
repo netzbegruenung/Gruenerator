@@ -5,13 +5,18 @@
  */
 
 import {
+  buildSharedMediaSrcSet,
   useMediaLibrary,
   useMediaUpload,
   useMediaPickerStore,
   type MediaItem,
 } from '@gruenerator/shared/media-library';
 import { cn } from '@gruenerator/shared/utils';
+import { PreviewImage } from '@gruenerator/ui';
 import { useEffect, useRef, useState } from 'react';
+
+// Tiles are 140px wide, 100px below 600px viewport width.
+const TILE_SIZES = '(max-width: 600px) 100px, 140px';
 
 export function SiteMediaPicker() {
   const { isOpen, selectedItems, mediaTypeFilter, closePicker, selectItem, confirmSelection } =
@@ -76,11 +81,12 @@ export function SiteMediaPicker() {
 
   const isSelected = (item: MediaItem) => selectedItems.some((i) => i.id === item.id);
 
-  const getMediaUrl = (item: MediaItem) => {
-    if (item.thumbnailUrl) return item.thumbnailUrl;
-    if (item.mediaUrl) return item.mediaUrl;
-    return `/api/share/${item.shareToken}/preview`;
-  };
+  // Videos have no image variants — `?w=` is ignored on `/preview` and the mp4
+  // is streamed — so they keep the old URL. Images must not: `thumbnailUrl` is
+  // `/preview` *without* a width, which the API answers with the unresized
+  // original, i.e. a multi-megabyte upload inside a 140px tile.
+  const getVideoPosterUrl = (item: MediaItem) =>
+    item.thumbnailUrl ?? item.mediaUrl ?? `/api/share/${item.shareToken}/preview`;
 
   if (!isOpen) return null;
 
@@ -164,12 +170,22 @@ export function SiteMediaPicker() {
                   )}
                   onClick={() => selectItem(item)}
                 >
-                  <img
-                    src={getMediaUrl(item)}
-                    alt={item.altText || item.title || 'Media'}
-                    loading="lazy"
-                    className="w-full h-full object-cover"
-                  />
+                  {item.mediaType === 'image' ? (
+                    <PreviewImage
+                      {...buildSharedMediaSrcSet(item.shareToken)}
+                      alt={item.altText || item.title || 'Media'}
+                      blurhash={item.imageMetadata?.blurhash}
+                      sizes={TILE_SIZES}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <img
+                      src={getVideoPosterUrl(item)}
+                      alt={item.altText || item.title || 'Media'}
+                      loading="lazy"
+                      className="w-full h-full object-cover"
+                    />
+                  )}
                   {isSelected(item) && (
                     <div className="absolute top-2 right-2 w-6 h-6 bg-primary-500 text-white rounded-full flex items-center justify-center text-sm font-semibold shadow-sm">
                       ✓
