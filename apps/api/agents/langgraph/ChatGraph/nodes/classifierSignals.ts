@@ -418,6 +418,67 @@ export function looksLikeDocsHelpQuestion(text: string): boolean {
 }
 
 /**
+ * Eine GELTUNGSFRAGE: Gilt eine Norm, Frist oder Regelung JETZT noch?
+ *
+ * Die Klasse ist nicht „Rechtsfrage", und der Unterschied ist der ganze Punkt.
+ * „Was steht in § 184k StGB?" ist eine Rechtsfrage und braucht keine Suche — der
+ * Normtext ist stabil. „Gilt das Verbrenner-Aus ab 2035 noch?" fragt nach einem
+ * JETZT-Zustand, und dessen richtige Antwort veraltet in Wochen. Der Code kennt
+ * die Klasse längst und zählt sie in `synthPrompt.ts` selbst auf („Amt, Mandat,
+ * Mitgliedschaft, Preis, Stand eines Verfahrens"); es fehlte nur der Detektor.
+ *
+ * Zweifaktorig wie `search.party_position`: die FRAGEFORM allein trifft zu viel
+ * („Gilt das auch für mein Dokument?"), der GEGENSTAND allein trifft jede
+ * Gesetzesnennung. Erst beides zusammen beschreibt den Fall.
+ *
+ * Warum ein Erstellungsauftrag ausgeschlossen ist: die Regel, die dieses
+ * Prädikat im Heuristik-Tisch bedient, steht VOR den Erstellungsregeln und würde
+ * sie sonst verdecken — „Schreibe eine PM zum Gesetz, das 2026 in Kraft tritt"
+ * ist ein Schreibauftrag, keine Frage nach dem Stand.
+ */
+const VALIDITY_FORM_RE =
+  /\b(gilt|gelten|gälte|galt|gültig|gueltig)\b[^.?!]{0,60}?\bnoch\b|\bnoch\b[^.?!]{0,60}?\b(gilt|gelten|gültig|gueltig|in\s+kraft)\b|\b(außer|ausser)\s+kraft\b|\bin\s+kraft\b|\brechts(stand|lage|akt)\w*\b|\bgesetzeslage\b|\bverfahrensstadium\b|\b(schon|bereits)\s+(beschlossen|verabschiedet|in\s+kraft)\b|\bbeschlossen\s+oder\b|\b(gekippt|aufgehoben|abgeschafft|zurückgenommen|zurueckgenommen)\b|\bstand\s+(des|der)\s+(verfahrens?|gesetzgebung|beratung|verhandlung\w*)\b/i;
+
+/**
+ * Der Gegenstand, dessen Geltung gefragt sein kann — eine Norm, eine Frist, ein
+ * Verfahren, oder schlicht eine Jahreszahl. Ohne ihn ist „gilt … noch" eine
+ * Rückfrage zum Gespräch und keine Recherche.
+ *
+ * OHNE führende Wortgrenze, mit `\w*`-Schwanz: deutsche Normen stehen fast immer
+ * im Kompositum. `\bgesetz` fand „das Gesetz" und verfehlte
+ * „Lieferkettengesetz", „Klimaschutzgesetz" und „Heizungsgesetz" — also gerade
+ * die Fälle, nach denen wirklich gefragt wird. Dieselbe Begründung steht an
+ * `parliamentaryKeywords` weiter unten.
+ */
+const NORM_SUBJECT_RE =
+  /(gesetz|verordnung|richtlinie|beschluss|beschlüsse|regelung|vorschrift|verbot|frist|verfahren|novelle|reform|statut|satzung|paragra(f|ph)|abkommen|moratorium)\w*/i;
+
+/** Eine Jahreszahl trägt den Gegenstand allein — „gilt das ab 2035 noch". */
+const YEAR_OR_ARTICLE_RE = /§|\bartikel\s*\d+|\b(19|20)\d\d\b/i;
+
+/** Ein Schreibauftrag ist keine Frage nach dem Stand. */
+const CREATIVE_ORDER_RE = /\b(schreib|erstell|formulier|verfass|entwirf|entwerfe)\w*/i;
+
+/** Fragen ohne Fragezeichen — der Satz beginnt mit dem Frageverb. */
+const QUESTION_OPENER_RE =
+  /^(gilt|gelten|ist|sind|hat|haben|wurde|wurden|was|wie|welche[rsnm]?|wann|steht|stimmt)\b/i;
+
+/**
+ * Gate für die Geltungsfrage. Hohe Präzision, bewusst niedrige Trefferquote:
+ * was durchfällt, verhält sich exakt wie heute. Was greift, kostet einen
+ * erzwungenen Abruf — und der ist bei einer falsch-positiven Frage nur langsam,
+ * während eine falsch-negative eine plausibel aussehende, veraltete Auskunft
+ * durchlässt, der niemand ansieht, wann sie stimmte.
+ */
+export function looksLikeGeltungsfrage(raw: string): boolean {
+  const t = (raw ?? '').trim();
+  if (!t) return false;
+  if (CREATIVE_ORDER_RE.test(t)) return false;
+  if (!t.includes('?') && !QUESTION_OPENER_RE.test(t)) return false;
+  return VALIDITY_FORM_RE.test(t) && (NORM_SUBJECT_RE.test(t) || YEAR_OR_ARTICLE_RE.test(t));
+}
+
+/**
  * Explicit requests for depth. The umlaut-free spellings are not padding: users
  * type `ausfuehrlich` routinely, and without them an explicit request for detail
  * was silently downgraded — the user asked for more and the answer rule stayed

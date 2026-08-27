@@ -233,6 +233,18 @@ export const evalExpectSchema = z
     warningsMustInclude: z.array(z.string()).optional(),
     /** done surfaced ≥1 citation (grounded). */
     grounded: z.boolean().optional(),
+    /**
+     * Die Antwort nennt den STAND, auf den sie sich bezieht (Datum).
+     *
+     * Die Schwester von `grounded` und nicht ihr Ersatz: `grounded` prüft, ob
+     * etwas abgerufen wurde, `statesAsOf`, ob die Auskunft ihr Alter kenntlich
+     * macht. Beide zusammen erst decken die Fehlerform aus #2949 ab — dort war
+     * die Antwort plausibel, unbelegt UND undatiert, und keine einzelne der
+     * beiden Zusicherungen hätte den zweiten Teil gesehen. Eine erzwungene
+     * Suche, die einen Änderungsvorschlag als geltendes Recht referiert, ist
+     * `grounded` grün und hier rot.
+     */
+    statesAsOf: z.boolean().optional(),
     maxLatencyMs: z.number().optional(),
     /** Each keyword must appear in the answer (multi-topic coverage). */
     topicsCovered: z.array(z.string()).optional(),
