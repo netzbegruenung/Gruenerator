@@ -72,6 +72,17 @@ export const contentSyncResultSchema = z.object({
    * bleibt die verbindliche Angabe, das hier ist die Diagnosehilfe.
    */
   errorSamples: z.array(z.string()).optional(),
+  /**
+   * Links die Quelle selbst noch auflistet, aber nicht mehr ausliefert (HTTP
+   * 403/404/410). Getrennt von `errors`, weil keine Änderung auf unserer Seite
+   * sie je auf 0 bringt: sechs davon wiederholen sich in jedem nächtlichen Lauf
+   * (#2971), und in `errors` gezählt gewöhnen sie den Leser daran, die eine Zahl
+   * zu übersehen, die „hier ist etwas kaputt" heißen soll. Optional, weil ein
+   * Backend-Stand vor diesem Feld schlicht nichts sendet.
+   */
+  deadLinks: z.number().optional(),
+  /** URLs hinter `deadLinks`, serverseitig gedeckelt wie `errorSamples`. */
+  deadLinkSamples: z.array(z.string()).optional(),
   fetchErrors: z.number(),
   durationMs: z.number(),
 });
