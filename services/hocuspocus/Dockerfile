@@ -4,7 +4,7 @@
 # =============================================================================
 # Stage 1: Builder - Install deps and compile TypeScript
 # =============================================================================
-FROM node:20-slim AS builder
+FROM node:22-slim AS builder
 
 RUN corepack enable && corepack prepare pnpm@10 --activate
 
@@ -53,7 +53,7 @@ RUN pnpm exec tsc --project tsconfig.build.json
 # =============================================================================
 # Stage 2: Production - Fresh install with production deps only
 # =============================================================================
-FROM node:20-alpine AS production
+FROM node:22-alpine AS production
 
 LABEL org.opencontainers.image.title="Gruenerator Hocuspocus"
 LABEL org.opencontainers.image.description="Real-time collaborative editing WebSocket server"
