@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 
 import { createToolLoopGuards } from './loopGuards.js';
+import { createToolActivity } from './toolActivity.js';
 import { type PersistedStep } from './types.js';
 import { wrapToolsForLoop, type WrapToolsContext } from './wrapTools.js';
 
@@ -178,6 +179,34 @@ describe('wrapToolsForLoop', () => {
     expect((await run(tools, 'web_search', {})) as { error: string }).toMatchObject({
       error: expect.stringMatching(/Zeitüberschreitung/) as unknown as string,
     });
+  });
+
+  it('zählt laufende Aufrufe — auch wenn der Aufruf in die Zeitüberschreitung läuft', async () => {
+    // Die Stillstands-Uhr der Werkzeugphase (loopEngine) liest diesen Zähler:
+    // ein laufender Aufruf blockiert den Stream legitim. Bliebe er nach einer
+    // Zeitüberschreitung stehen, wäre die Uhr für den Rest des Zuges taub.
+    const activity = createToolActivity();
+    const seen: number[] = [];
+    const { ctx } = makeCtx({ perCallTimeoutMs: 20, toolActivity: activity });
+    const tools = wrapToolsForLoop(
+      {
+        schnell: {
+          execute: async () => {
+            seen.push(activity.inFlight());
+            return 'ok';
+          },
+        },
+        haengt: { execute: () => new Promise(() => {}) },
+      } as unknown as ToolSet,
+      ctx
+    );
+
+    await run(tools, 'schnell', {});
+    expect(seen).toEqual([1]);
+    expect(activity.inFlight()).toBe(0);
+
+    await run(tools, 'haengt', {}, 'call_2');
+    expect(activity.inFlight()).toBe(0);
   });
 
   it('short-circuits when the per-tool failure cap is already reached', async () => {

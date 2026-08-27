@@ -34,6 +34,7 @@ vi.mock('../../../../utils/logger.js', () => ({
 
 import { streamAgenticResponse, type AgenticRespondDeps } from './agenticRespondService.js';
 import { assembleToolCatalog, wrapAssembledTools, type CatalogDeps } from './catalogAssembly.js';
+import { createToolActivity, type ToolActivity } from './toolActivity.js';
 import { createAnswerValidator } from './synthVerdicts.js';
 import {
   SYNTH_CUTOFF_RETRY_SUFFIX,
@@ -307,7 +308,12 @@ describe('wrapAssembledTools — Zeitgrenze der Erstellungs-Werkzeuge', () => {
   const wrapOne = (toolName: string, execute: () => Promise<unknown>) => {
     const { sse } = fakeSse();
     const steps: PersistedStep[] = [];
-    return wrapAssembledTools({ [toolName]: { execute } } as unknown as ToolSet, {
+    // Echter Zähler statt Attrappe: an ihm hängt die Stillstands-Uhr der
+    // Werkzeugphase, und genau dieser Aufruf läuft über die generische Grenze
+    // hinaus — der Fall, in dem ein stehengebliebener Zähler die Uhr taub
+    // machen würde.
+    const toolActivity = createToolActivity();
+    const tools = wrapAssembledTools({ [toolName]: { execute } } as unknown as ToolSet, {
       sse,
       guards: createToolLoopGuards({
         searchToolNames: new Set(),
@@ -315,10 +321,12 @@ describe('wrapAssembledTools — Zeitgrenze der Erstellungs-Werkzeuge', () => {
       }),
       recordStep: (s) => steps.push(s),
       perCallTimeoutMs: 20_000,
+      toolActivity,
       toolLabels: new Map(),
       getTextOffset: () => null,
       takeNarration: () => null,
     });
+    return Object.assign(tools, { __activity: toolActivity });
   };
 
   it('gibt create_* die eigene, höhere Grenze statt der generischen', async () => {
@@ -334,10 +342,15 @@ describe('wrapAssembledTools — Zeitgrenze der Erstellungs-Werkzeuge', () => {
       // sie nie einhalten konnte. Eine abgelaufene Grenze wird von wrapTools
       // zu `{ error: … }`, also ist das Fehlen dieses Feldes die Aussage.
       await vi.advanceTimersByTimeAsync(25_000);
+      // Läuft noch — und der Zähler sagt das auch, sonst wertet die
+      // Stillstands-Uhr diese 25 s als Schweigen der Lane.
+      const activity = (wrapped as unknown as { __activity: ToolActivity }).__activity;
+      expect(activity.inFlight()).toBe(1);
       settle({ seiten: 3 });
       const result = (await call) as Record<string, unknown>;
       expect(result['error']).toBeUndefined();
       expect(result['seiten']).toBe(3);
+      expect(activity.inFlight()).toBe(0);
     } finally {
       vi.useRealTimers();
     }
