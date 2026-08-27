@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, it, expect } from 'vitest';
 
-import { buildRubricPrompt } from './rubrics.js';
+import { buildRubricPrompt, rubricsForTurn } from './rubrics.js';
 
 import type { CaseResult, TurnResult } from '../types.js';
 
@@ -42,6 +42,39 @@ describe('buildRubricPrompt', () => {
     expect(prompt!.user).toContain('edit_document → ok');
     expect(prompt!.user).toContain('Editor-Operationen wurden angewendet');
     expect(prompt!.user).toContain('leider nicht ändern');
+  });
+
+  /**
+   * #2953: `groundedness` überspringt genau den Fall, für den sie gebaut ist —
+   * null Quellen. Das Gatter ist für SIE richtig; die Lücke schliesst die
+   * Gegenprobe, nicht ein gelockertes Gatter. Die beiden Rubriken müssen sich
+   * ausschliessen, sonst läuft auf jedem belegten Turn eine Rubrik mit, die
+   * über eine Frage urteilt, die er gar nicht stellt.
+   */
+  it('unsourced_confidence springt genau dort an, wo groundedness aussetzt', () => {
+    const { turn: withSources } = loadFixtureTurn('class6-ungrounded-keine-treffer.json');
+    const { turn: without } = loadFixtureTurn('class11-edit-denied.json');
+
+    expect(buildRubricPrompt('unsourced_confidence', withSources, {})).toBeNull();
+    const prompt = buildRubricPrompt('unsourced_confidence', without, {});
+    expect(prompt).not.toBeNull();
+    expect(prompt!.user).toContain('leider nicht ändern');
+    expect(prompt!.system).toContain('"pass"');
+  });
+
+  it('koppelt die Gegenprobe an groundedness, statt jede Korpuszeile zu ändern', () => {
+    const { turn: withSources } = loadFixtureTurn('class6-ungrounded-keine-treffer.json');
+    const { turn: without } = loadFixtureTurn('class11-edit-denied.json');
+
+    expect(rubricsForTurn({ ...without, judge: ['groundedness'] })).toContain(
+      'unsourced_confidence'
+    );
+    // Belegter Turn: groundedness ist zuständig, die Gegenprobe bleibt weg.
+    expect(rubricsForTurn({ ...withSources, judge: ['groundedness'] })).not.toContain(
+      'unsourced_confidence'
+    );
+    // Ohne angeforderte groundedness bleibt es beim Bisherigen.
+    expect(rubricsForTurn({ ...without, judge: [] })).not.toContain('unsourced_confidence');
   });
 
   it('known_answer requires facts, parity requires a comparison turn', () => {
