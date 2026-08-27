@@ -25,7 +25,11 @@ import {
   type AnalyzedMessage,
   type ClassifierRule,
 } from './analyzedMessage.js';
-import { CLASSIFIER_CONTEXT_MESSAGES, CLASSIFIER_CONTEXT_MAX_CHARS } from './classifierSignals.js';
+import {
+  CLASSIFIER_CONTEXT_MESSAGES,
+  CLASSIFIER_CONTEXT_MAX_CHARS,
+  looksLikeGeltungsfrage,
+} from './classifierSignals.js';
 import {
   creationOrderPattern,
   dictatesInlineTableColumns,
@@ -1550,6 +1554,35 @@ const HEURISTIC_RULES: ReadonlyArray<ClassifierRule<HeuristicResult>> = [
       intent: 'web',
       searchQuery: m.raw,
       reasoning: 'Current events query',
+      confidence: 0.8,
+    }),
+  },
+  // Geltungsfragen: „gilt X noch", „ist X in Kraft", „wurde X gekippt".
+  //
+  // Steht hinter `web.current_events`, weil beide dieselbe Sorte Turn bedienen —
+  // eine Auskunft, deren richtige Antwort altert. `CURRENT_EVENTS_PATTERN` sieht
+  // sie nur, wenn das Wort „aktuell" fällt; eine Geltungsfrage kommt ohne aus.
+  //
+  // `web` und nicht `agentic`: das Verdikt steht in `DEMOTABLE_HEURISTIC_INTENTS`,
+  // Tier 3.5 setzt daraufhin `loopDemotedFromRetrieval`, und erst DAS lässt
+  // `shouldForceFirstToolCall` (Weg 4) einen Abruf abverlangen. Ohne den Umweg
+  // bliebe das Verdikt `direct`, der Turn liefe als gewöhnlicher agentischer
+  // Turn, und der Planer dürfte weiterhin gar nichts rufen — genau der Zustand
+  // aus #2949: zwei Läufe, `tools=[]`, sechs Sekunden, Antwort aus dem
+  // Modellwissen.
+  //
+  // Liest `stripped`: eine zitierte Passage ist fremde Rede. „Er schrieb: ‚Gilt
+  // das Gesetz noch?'" fragt nicht nach dem Stand, sondern handelt von einem
+  // fremden Satz.
+  {
+    id: 'web.geltungsfrage',
+    longPaste: 'allow',
+    guard: 'none',
+    match: (m) => looksLikeGeltungsfrage(m.stripped),
+    result: (m) => ({
+      intent: 'web',
+      searchQuery: m.raw,
+      reasoning: 'Legal/procedural validity question — the answer is a NOW-state',
       confidence: 0.8,
     }),
   },

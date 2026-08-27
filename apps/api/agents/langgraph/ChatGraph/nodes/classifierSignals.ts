@@ -418,6 +418,102 @@ export function looksLikeDocsHelpQuestion(text: string): boolean {
 }
 
 /**
+ * Eine GELTUNGSFRAGE: Gilt eine Norm, Frist oder Regelung JETZT noch?
+ *
+ * Die Klasse ist nicht „Rechtsfrage", und der Unterschied ist der ganze Punkt.
+ * „Was steht in § 184k StGB?" ist eine Rechtsfrage und braucht keine Suche — der
+ * Normtext ist stabil. „Gilt das Verbrenner-Aus ab 2035 noch?" fragt nach einem
+ * JETZT-Zustand, und dessen richtige Antwort veraltet in Wochen. Der Code kennt
+ * die Klasse längst und zählt sie in `synthPrompt.ts` selbst auf („Amt, Mandat,
+ * Mitgliedschaft, Preis, Stand eines Verfahrens"); es fehlte nur der Detektor.
+ *
+ * Zweifaktorig wie `search.party_position`: die FRAGEFORM allein trifft zu viel
+ * („Gilt das auch für mein Dokument?"), der GEGENSTAND allein trifft jede
+ * Gesetzesnennung. Erst beides zusammen beschreibt den Fall.
+ *
+ * Das Fenster zwischen „gilt" und „noch" ist mit 160 Zeichen weit, aber durch
+ * `[^.?!]` auf EINEN Satz begrenzt. 60 waren zu wenig: „Gilt das
+ * Klimaschutzgesetz, das im Sommer nach monatelangen Verhandlungen verabschiedet
+ * wurde, eigentlich noch?" reisst die Klammer mit über 100 Zeichen auf, ohne den
+ * Satz zu verlassen — und ein Relativsatz zwischen Norm und Frage ist im
+ * Rechtsregister der Normalfall, nicht die Ausnahme. Die Weite ist billig, weil
+ * der Gegenstand (Faktor B) ohnehin danebenstehen muss.
+ *
+ * Warum ein Erstellungsauftrag ausgeschlossen ist: die Regel, die dieses
+ * Prädikat im Heuristik-Tisch bedient, steht VOR den Erstellungsregeln und würde
+ * sie sonst verdecken — „Schreibe eine PM zum Gesetz, das 2026 in Kraft tritt"
+ * ist ein Schreibauftrag, keine Frage nach dem Stand.
+ */
+const VALIDITY_FORM_RE =
+  /\b(gilt|gelten|gälte|galt|gültig|gueltig)\b[^.?!]{0,160}?\bnoch\b|\bnoch\b[^.?!]{0,160}?\b(gilt|gelten|gültig|gueltig|in\s+kraft)\b|\b(außer|ausser)\s+kraft\b|\bin\s+kraft\b|\brechts(stand|lage|akt)\w*\b|\bgesetzeslage\b|\bverfahrensstadium\b|\b(schon|bereits)\s+(beschlossen|verabschiedet|in\s+kraft)\b|\bbeschlossen\s+oder\b|\b(gekippt|aufgehoben|abgeschafft|zurückgenommen|zurueckgenommen)\b|\bstand\s+(des|der)\s+(verfahrens?|gesetzgebung|beratung|verhandlung\w*)\b/i;
+
+/**
+ * Der Gegenstand, dessen Geltung gefragt sein kann — eine Norm, eine Frist, ein
+ * Verfahren, oder schlicht eine Jahreszahl. Ohne ihn ist „gilt … noch" eine
+ * Rückfrage zum Gespräch und keine Recherche.
+ *
+ * Der Stamm muss an einer KOMPOSITUM-NAHT sitzen — am Wortanfang oder am
+ * Wortende, nicht irgendwo in der Mitte.
+ *
+ * Beide Hälften sind gemessen. Nur eine führende Wortgrenze (`\bgesetz`) fand
+ * „das Gesetz" und verfehlte „Lieferkettengesetz", „Klimaschutzgesetz",
+ * „Heizungsgesetz" — also gerade die Normen, nach denen wirklich gefragt wird;
+ * dieselbe Begründung steht an `parliamentaryKeywords` weiter unten. Gar keine
+ * Grenze traf dafür mitten hinein: `gesetz` in „vorausge**setz**t", `frist` in
+ * „be**frist**et", `verbot` in „un**verbot**ene". Die Naht-Regel nimmt das
+ * Kompositum und lässt die Wortmitte liegen.
+ *
+ * Der Zusatz `(?!t\b)` an `gesetz` fängt den einen Rest, den die Naht nicht
+ * fängt: das blosse Partizip „gesetzt" beginnt mit einer echten Wortgrenze.
+ *
+ * Bewusst NICHT gelöst: „sich verfahren" und die literarische „Novelle" tragen
+ * denselben Stamm wie Verwaltungsverfahren und Gesetzesnovelle. Lexikalisch ist
+ * das nicht trennbar; der Preis eines Treffers ist ein überflüssiger Abruf, und
+ * Faktor A muss zusätzlich passen.
+ */
+const NORM_STEMS =
+  'gesetz(?!t\\b)|verordnung|richtlinie|beschluss|beschlüsse|regelung|vorschrift|verbot|frist|verfahren|novelle|reform|statut|satzung|paragra(?:f|ph)|abkommen|moratorium';
+const NORM_SUBJECT_RE = new RegExp(`\\b(?:${NORM_STEMS})|(?:${NORM_STEMS})\\b`, 'i');
+
+/** Eine Jahreszahl trägt den Gegenstand allein — „gilt das ab 2035 noch". */
+const YEAR_OR_ARTICLE_RE = /§|\bartikel\s*\d+|\b(19|20)\d\d\b/i;
+
+/**
+ * Ein Schreibauftrag ist keine Frage nach dem Stand — aber nur ein ECHTER.
+ *
+ * Unverankert war dieser Wächter der gefährlichste Teil des Detektors, weil er
+ * ihn abschaltet, bevor irgendetwas anderes geprüft wird: `verfass\w*` trifft
+ * „Verfassung", „Verfassungsänderung", „verfasst"; `formulier\w*` trifft
+ * „Formulierung"; `erstell\w*` trifft „Erstellung". „Ist die Verordnung, die
+ * 2019 verfasst wurde, noch gültig?" fiel damit still durch — dieselbe
+ * Fehlerform wie #2949, nur durch die Reparatur selbst erzeugt.
+ *
+ * Ein Auftrag steht am Anfang der Nachricht, höchstens hinter einer Höflichkeit.
+ * Genau das prüft der Anker.
+ */
+const CREATIVE_ORDER_RE =
+  /^(?:bitte\s+|kannst\s+du\s+(?:bitte\s+)?|könntest\s+du\s+(?:bitte\s+)?|kannst\s+du\s+mir\s+(?:bitte\s+)?)?(?:schreib|erstell|formulier|verfass|entwirf|entwerfe)\w*/i;
+
+/** Fragen ohne Fragezeichen — der Satz beginnt mit dem Frageverb. */
+const QUESTION_OPENER_RE =
+  /^(gilt|gelten|ist|sind|hat|haben|wurde|wurden|was|wie|welche[rsnm]?|wann|steht|stimmt)\b/i;
+
+/**
+ * Gate für die Geltungsfrage. Hohe Präzision, bewusst niedrige Trefferquote:
+ * was durchfällt, verhält sich exakt wie heute. Was greift, kostet einen
+ * erzwungenen Abruf — und der ist bei einer falsch-positiven Frage nur langsam,
+ * während eine falsch-negative eine plausibel aussehende, veraltete Auskunft
+ * durchlässt, der niemand ansieht, wann sie stimmte.
+ */
+export function looksLikeGeltungsfrage(raw: string): boolean {
+  const t = (raw ?? '').trim();
+  if (!t) return false;
+  if (CREATIVE_ORDER_RE.test(t)) return false;
+  if (!t.includes('?') && !QUESTION_OPENER_RE.test(t)) return false;
+  return VALIDITY_FORM_RE.test(t) && (NORM_SUBJECT_RE.test(t) || YEAR_OR_ARTICLE_RE.test(t));
+}
+
+/**
  * Explicit requests for depth. The umlaut-free spellings are not padding: users
  * type `ausfuehrlich` routinely, and without them an explicit request for detail
  * was silently downgraded — the user asked for more and the answer rule stayed
