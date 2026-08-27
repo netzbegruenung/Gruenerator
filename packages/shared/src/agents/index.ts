@@ -99,9 +99,11 @@ export {
 export { isSkillOfferedIn, skillPolicyOffers, type SkillInstanceView } from './skillInstances.js';
 
 export {
+  AGENT_ICON_KEYS,
   DEFAULT_AGENT_ICON,
   SUGGESTED_AGENT_ICONS,
   isSuggestedAgentIcon,
+  type AgentIconKey,
   type SuggestedAgentIcon,
 } from './agentIcons.js';
 

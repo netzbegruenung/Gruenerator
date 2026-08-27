@@ -160,8 +160,17 @@ export interface Agent {
    */
   skillMentions?: readonly string[];
   /**
-   * Frontend icon registry key. Maps to a `react-icons` component in
-   * `apps/web/src/components/layout/Sidebar/sidebarAgentConfig.ts::ICON_REGISTRY`.
+   * Platform-neutral icon concept, kebab-case. For system agents the closed set
+   * is `AGENT_ICON_KEYS` (./agentIcons.js); the codegen validates every *.md
+   * against it (`build-agents.ts::detectUnknownIconKeys`), and the three
+   * platform registries map it to their icon system:
+   * `packages/chat/src/lib/agentIcons.ts`,
+   * `apps/web/…/Sidebar/sidebarAgentConfig.ts` (both react-icons/pi) and
+   * `apps/mobile/components/chat/sidebarIcons.ts` (Ionicons).
+   *
+   * Stays `string` here because user-created agents share this type and carry a
+   * Phosphor component name instead (`PiSparkle`, see `SUGGESTED_AGENT_ICONS`).
+   *
    * Per-LV `gruenerator-oeffentlichkeitsarbeit-*` agents inherit the megaphone
    * via prefix special-case, so they need no `iconKey` of their own.
    */
