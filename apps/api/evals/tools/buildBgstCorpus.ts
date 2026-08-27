@@ -6,7 +6,7 @@
  * aber mehrzeilige Belegpassagen, und die als `\n`-Ketten von Hand zu pflegen
  * ist der sichere Weg in einen Tippfehler, den niemand sieht.
  *
- * Lauf: `node evals/tools/buildBgstCorpus.mjs` aus apps/api.
+ * Lauf: `pnpm eval:bgst:build` aus apps/api.
  */
 import { writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';

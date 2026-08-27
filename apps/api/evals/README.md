@@ -204,7 +204,7 @@ Lane B ist ohne `EVAL_BGST_KORPUS=1` übersprungen (`bgstKorpusLane`), weil die
 Sammlung `bgst-beschluesse` heute auf keinem Zielsystem eingelesen ist.
 
 Beide Korpora sind **generiert** — `pnpm --filter @gruenerator/api eval:bgst:build`
-aus `evals/tools/buildBgst*.mjs`. Die Prompts tragen mehrzeilige Belegpassagen;
+aus `evals/tools/buildBgst*.ts`. Die Prompts tragen mehrzeilige Belegpassagen;
 die als `\n`-Ketten in JSONL von Hand zu pflegen ist der sichere Weg in einen
 Tippfehler, den niemand sieht. Änderungen gehören in die Generatoren, nicht in
 die `.jsonl`.

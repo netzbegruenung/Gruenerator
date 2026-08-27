@@ -19,10 +19,10 @@
  * ergänzt sie in einer lokalen Korpusdatei.
  *
  * Verbotene Werte sind auf das Antwortfeld verankert (`Antwort: ` bzw. `(a) `)
- * — siehe die Begruendung im Kopf von `buildBgstCorpus.mjs`; unverankert
+ * — siehe die Begruendung im Kopf von `buildBgstCorpus.ts`; unverankert
  * meldet die Pruefung Rot, sobald ein Modell seinen Beleg zurueckzitiert.
  *
- * Lauf: `node evals/tools/buildBgstKorpusCorpus.mjs` aus apps/api.
+ * Lauf: `pnpm eval:bgst:build` aus apps/api (erzeugt beide Korpora).
  */
 import { writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
