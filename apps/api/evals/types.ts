@@ -130,7 +130,7 @@ export const evalNotebookModeSchema = notebookDepthSchema;
  * Belegtes, ohne einen Beleg zu haben?" und ist nur ohne Quellen sinnvoll. Eine
  * Zeile, die `groundedness` verlangt, bekommt die zweite deshalb automatisch,
  * wenn der Turn null Quellen hatte — siehe `rubricsForTurn` in
- * `judge/runJudge.ts`. Ohne diese Kopplung fiele genau der gefährlichste
+ * `judge/rubrics.ts`. Ohne diese Kopplung fiele genau der gefährlichste
  * Zustand durch: die Antwort kam vollständig aus dem Modellwissen, sah plausibel
  * aus, und die angeforderte Rubrik hat sie nie angesehen.
  */
