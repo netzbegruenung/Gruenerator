@@ -1,6 +1,26 @@
-import { type NotebookIndexingState } from '@gruenerator/contracts';
+import { deriveIndexingState, type NotebookIndexingState } from '@gruenerator/contracts';
 import { HiExclamationTriangle } from 'react-icons/hi2';
 import { Link } from 'react-router-dom';
+
+/**
+ * The readiness to display, preferring the server's verdict over our own.
+ *
+ * "Leer" is the harshest thing this notice says — it tells people their sources
+ * are gone. The client-side fallback cannot actually tell an empty notebook
+ * apart from one whose documents did not arrive (a backend predating
+ * `indexing_state`, an errored lookup), and both hand us the same empty array.
+ * So `empty` is only ever repeated, never derived: unless the server states it,
+ * an empty document list yields null and the notice stays silent. The other
+ * states need real document rows as evidence and may be derived.
+ */
+export function resolveIndexingState(collection: {
+  indexing_state?: NotebookIndexingState | null;
+  documents?: ReadonlyArray<{ status?: string | null }> | null;
+}): NotebookIndexingState | null {
+  if (collection.indexing_state) return collection.indexing_state;
+  const derived = deriveIndexingState(collection.documents ?? []);
+  return derived === 'empty' ? null : derived;
+}
 
 export interface NotebookIndexingNoticeProps {
   state: NotebookIndexingState | null | undefined;
