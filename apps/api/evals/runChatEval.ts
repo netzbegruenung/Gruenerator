@@ -121,6 +121,7 @@ function selectedCorpus(): EvalScenario[] {
     notebook: process.env.EVAL_NOTEBOOK === '1',
     systemMcp: process.env.EVAL_SYSTEM_MCP === '1',
     deepResearch: process.env.EVAL_DEEP_RESEARCH === '1',
+    bgstKorpus: process.env.EVAL_BGST_KORPUS === '1',
   });
 }
 
