@@ -33,7 +33,10 @@ export function deriveContentOrigin(
 
 /**
  * `content_origin` values that mark a row as a *source image* rather than a finished
- * creation: Mediathek uploads, canvas background/asset images, stock, camera.
+ * creation. Today that is exactly one value, `'upload'` — `uploadMediaFile` assigns it to
+ * everything that is not `ai_generated`, so a Mediathek upload, a canvas background and a
+ * stock or camera image all land on it regardless of their `upload_source`. The set is a
+ * set because the question is "which origins are sources", not "is it 'upload'".
  *
  * Erstellungs-Feeds schliessen sie aus — „Zuletzt", die Studio-Galerie, `/api/content`
  * und die Chat-Medienliste zeigen, was jemand gemacht hat, nicht womit. Die Mediathek
