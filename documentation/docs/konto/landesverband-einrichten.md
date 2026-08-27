@@ -41,9 +41,15 @@ Du kannst mehrere Rollen anlegen (etwa Landesgeschäftsstelle **und** Kreisverba
 
 **Euer Notizbuch.** Die Wissensdatenbank deines Landesverbands (Pressemitteilungen, Beschlüsse, Wahlprogramme) erscheint in der Auswahl und lässt sich im Chat als Quelle erwähnen.
 
-**Und die Automatik:** Bittest du den Chat einfach um „eine Pressemitteilung zu …“, nimmt er von selbst **eure** Vorlage statt der allgemeinen. Du musst dafür nichts erwähnen und nichts einstellen — die Rolle in deinem Profil genügt, unabhängig davon, welche Rolle im Chat gerade aktiv ist.
+**Und die Automatik:** Bittest du den Chat einfach um „eine Pressemitteilung zu …“, nimmt er von selbst **eure** Vorlage statt der allgemeinen. Du musst dafür nichts erwähnen und nichts einstellen — die Rolle in deinem Profil genügt. Das gilt im normalen Chat genauso wie dann, wenn du gerade in einer Rolle aus der Auswahlliste schreibst.
 
 ![Das Chat-Eingabefeld mit dem Rollen-Chip „LGS“ links und der eingetippten Bitte „Schreibe eine Pressemitteilung für mehr Artenvielfalt in unserer Landeshauptstadt“.](/assets/images/landesverband-tutorial/chat-rolle-lgs.webp)
+
+:::note[Eine Ausnahme: selbst eingetippte Rollen]
+Rollen, die du selbst formuliert hast, statt sie aus der Liste zu wählen, bringen ihre eigene Beschreibung mit — und die hat dann Vorrang vor jeder Vorlage. Solange so eine Rolle im Chat aktiv ist, schlägt der Grünerator **keine** Vorlage von sich aus vor, auch nicht die allgemeine; selbst ein ausdrücklich erwähntes Rezept bleibt dann außen vor.
+
+Für Pressetexte wählst du deshalb besser eine Rolle **aus der Liste** — oder „Chat“ ganz ohne Rolle.
+:::
 
 Unter der fertigen Antwort steht dann, welches Rezept gewirkt hat:
 
@@ -55,12 +61,14 @@ Wo es zwei Presse-Rezepte gibt, schreibt das eine für den **Landesverband**, da
 
 ## Schritt 3: Euren Stil anlernen
 
-Die LV-Rezepte bringen den Stil eures Landesverbands schon mit. Wenn ihr darüber hinaus eigene Vorgaben habt — eine feste Zitat-Struktur, bestimmte Formulierungen, eine Länge —, kannst du sie dem Grünerator beibringen:
+Die LV-Rezepte bringen den Stil eures Landesverbands schon mit — solange ihr nichts anlernt, gilt er unverändert.
 
-**Einstellungen → Texte anlernen.** Dort hinterlegst du je Textsorte (Pressemitteilung, Instagram, …) ein paar eigene Beispiele oder Regeln. Sobald du eine Landesverbands-Rolle hast, listet der Bereich auch eure LV-Rezepte auf und zeigt, welche angelernte Textsorte sie jeweils steuert.
+Habt ihr darüber hinaus eigene Vorgaben — eine feste Zitat-Struktur, bestimmte Formulierungen, eine Länge —, könnt ihr sie hinterlegen: **Einstellungen → Texte anlernen**, je Textsorte (Pressemitteilung, Instagram, …). Sobald du eine Landesverbands-Rolle hast, listet der Bereich auch eure LV-Rezepte auf und zeigt, welche angelernte Textsorte sie jeweils steuert.
 
-:::note[Ein Stil je Textsorte]
-Ein angelernter Presse-Stil gilt für **alle** Presse-Rezepte — auch für `@presse-hessen-partei`. Es gibt bewusst keinen zweiten, getrennten Stil nur für das LV-Rezept; schreib deine Vorgaben also so, dass sie zu beidem passen.
+:::warning[Ein angelernter Stil ersetzt die Vorlage — er ergänzt sie nicht]
+Was du bei _Pressemitteilungen_ anlernst, gilt für **jede** Pressemitteilung: für `@presse-hessen-partei`, für `@presse-hessen-fraktion` und auch dann, wenn du gar kein Rezept erwähnst. Es tritt dabei **an die Stelle** der mitgelieferten Vorgaben des LV-Rezepts — Aufbau, Länge und Zitatstruktur von dort sind dann nicht mehr aktiv.
+
+Schreib eure Vorgaben deshalb vollständig: Alles, was euch wichtig ist, muss darin stehen — auch das, was vorher das LV-Rezept geregelt hat. Einen zweiten, getrennten Stil nur für das Landesverbands-Rezept gibt es bewusst nicht.
 :::
 
 ## Noch persönlicher
