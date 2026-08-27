@@ -4,10 +4,13 @@ import { FaCheck } from 'react-icons/fa';
 import { HiAdjustments } from 'react-icons/hi';
 import { HiMagnifyingGlass, HiPhoto, HiXMark } from 'react-icons/hi2';
 
+import { shareThumbnailPreviewUrl } from '@gruenerator/shared/media-library';
+
 import UnsplashAttribution from '../../common/UnsplashAttribution';
 import { useUnsplashSearch } from '../../hooks/useUnsplashSearch';
 import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import { persistImageSelection } from '../persistImageSelection';
+import { MediaThumb } from '../components/MediaThumb';
 import { SidebarSlider } from '../components/SidebarSlider';
 import { SIDEBAR_SECTION } from '../sidebarStyles';
 import { SubsectionTabBar, type Subsection } from '../SubsectionTabBar';
@@ -224,9 +227,11 @@ function SearchContent({
                 title="Aktuelles Hintergrundbild"
               >
                 <img
-                  src={currentImageSrc}
+                  src={shareThumbnailPreviewUrl(currentImageSrc, 400)}
                   alt="Aktuelles Hintergrundbild"
                   className="w-full h-auto"
+                  loading="lazy"
+                  decoding="async"
                   draggable={false}
                 />
                 <div className="absolute top-1 left-1 bg-primary-600 rounded-full size-5 flex items-center justify-center">
@@ -254,12 +259,7 @@ function SearchContent({
                   title={item.title ?? item.originalFilename ?? ''}
                 >
                   {item.thumbnailUrl ? (
-                    <img
-                      src={item.thumbnailUrl}
-                      alt={item.altText ?? item.title ?? ''}
-                      className="w-full h-auto"
-                      draggable={false}
-                    />
+                    <MediaThumb item={item} alt={item.altText ?? item.title ?? ''} />
                   ) : (
                     <div className="aspect-square flex items-center justify-center text-foreground-muted">
                       <HiPhoto size={20} />

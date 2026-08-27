@@ -216,11 +216,14 @@ export const freeformFullConfig: FullCanvasConfig<FreeformState, FreeformActions
 
   // 'ai' tab kept registered but hidden — Chat tab now drives canvas-AI suggestions.
   // 'background' tab kept registered but hidden — opened via getAutoSwitchTab when
-  // the canvas background is clicked.
+  // the background image is clicked.
   getVisibleTabs: () => ['text', 'elements', 'tools', 'uploads', 'chat'],
 
   getAutoSwitchTab: (selectedElement) => {
-    if (selectedElement === 'background') return 'background';
+    // `background-image` is the clickable one. The `background` element is the
+    // colour plane, which CanvasBackground renders with `listening={false}`.
+    if (selectedElement === 'background-image' || selectedElement === 'background')
+      return 'background';
     if (selectedElement?.startsWith('chart-')) return 'chart-settings';
     if (selectedElement?.startsWith('frame-')) return 'frame-settings';
     return null;
