@@ -87,7 +87,7 @@ export class MistralEmbeddingClient {
 
     // If batch is small enough, process directly — aber ebenfalls unter der
     // Prozessgrenze. Ohne den Scheduler hier wäre die Grenze löchrig: gerade
-    // die vielen kleinen Aufrufe (Notizbuch-Aufnahme, OCR-Nachlauf) liefen
+    // die vielen kleinen Aufrufe (Notebook-Aufnahme, OCR-Nachlauf) liefen
     // ungezählt daran vorbei.
     if (texts.length <= MAX_BATCH_SIZE && this.estimateTotalTokens(texts) <= MAX_TOKENS_PER_BATCH) {
       return await scheduleEmbedding('bulk', () => this.processSingleBatch(texts));

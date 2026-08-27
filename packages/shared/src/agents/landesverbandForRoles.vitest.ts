@@ -123,7 +123,7 @@ describe('isLvItemVisibleForRoles', () => {
 });
 
 describe('isLvNotebookVisibleForRoles', () => {
-  it('filtert LV-Notizbücher, andere nie', () => {
+  it('filtert LV-Notebooks, andere nie', () => {
     expect(isLvNotebookVisibleForRoles('hessen-notebook', ['hessen'])).toBe(true);
     expect(isLvNotebookVisibleForRoles('bayern-notebook', ['hessen'])).toBe(false);
     expect(isLvNotebookVisibleForRoles('kommunalwiki-notebook', ['hessen'])).toBe(true);
@@ -172,7 +172,7 @@ describe('landesverbandOfferForBundesland', () => {
 });
 
 describe('DE_BUNDESLAENDER', () => {
-  it('nennt genau die Notizbücher, die es auch gibt', () => {
+  it('nennt genau die Notebooks, die es auch gibt', () => {
     const byLabel = new Map(DE_BUNDESLAENDER.map((bl) => [bl.label, bl.notebookId]));
     expect(byLabel.get('Hessen')).toBe('hessen-notebook');
     expect(byLabel.get('Saarland')).toBe('saarland-notebook');

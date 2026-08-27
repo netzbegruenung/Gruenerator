@@ -8,13 +8,13 @@ import { LV_HUBS, hasLandesverbandContentIn } from './landesverbandHubs.js';
  * dann — auf einer Instanz ohne LV gäbe es dort niemanden zu verwalten.
  */
 describe('hasLandesverbandContentIn', () => {
-  it('bejaht es, wo die Landesverbands-Notizbücher angeboten werden', () => {
+  it('bejaht es, wo die Landesverbands-Notebooks angeboten werden', () => {
     expect(hasLandesverbandContentIn('production')).toBe(true);
     expect(hasLandesverbandContentIn('beta')).toBe(true);
   });
 
   // bgst blendet `notebookCategories: ['landesebene', 'oesterreich']` aus —
-  // damit fällt jedes LV-Notizbuch und mit ihm jeder Hub.
+  // damit fällt jedes LV-Notebook und mit ihm jeder Hub.
   it('verneint es, wo die Instanz beide Kategorien ausblendet', () => {
     expect(hasLandesverbandContentIn('bgst')).toBe(false);
   });

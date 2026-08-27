@@ -198,7 +198,7 @@ EVAL_FILTER=bgst-k3 pnpm --filter @gruenerator/api eval:chat   # einzelne Items
 
 Die Aufteilung ist nicht kosmetisch. **Lane A legt den Beleg IN den Prompt** und
 misst damit ausschliesslich, was NACH dem Retrieval passiert — Entnahme,
-Distraktor-Widerstand, Abstinenz. Sie braucht kein Notizbuch und kein
+Distraktor-Widerstand, Abstinenz. Sie braucht kein Notebook und kein
 eingelesenes Material, ihr Ergebnis ist eine Aussage über das Modell statt über
 die Umgebung. **Lane B fragt denselben Sachverhalt gegen den echten Bestand** und
 misst damit das Retrieval. Erst der Vergleich beider sagt, wo ein Fehlschlag

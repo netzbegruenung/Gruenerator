@@ -195,7 +195,7 @@ export interface GenerationIntent extends IntentBase, Mentionable {
  * Seite eine Erwähnung stumm ins Leere laufen lässt.
  *
  * Hier statt in `@gruenerator/contracts`: das Token reist im offenen
- * `forcedTools`-Array mit, das auch `mcp:<serverId>` und Notizbuch-IDs trägt und
+ * `forcedTools`-Array mit, das auch `mcp:<serverId>` und Notebook-IDs trägt und
  * deshalb kein `z.enum` sein KANN. Ein Contract-Enum wäre also ein sechster
  * Schreiber, der nichts validiert. Diese Datei ist dagegen schon die Heimat
  * jedes anderen Erwähnungs-Tokens und wird von beiden Seiten importiert.

@@ -108,7 +108,7 @@ Fünf Wellen. Jede ist einzeln mergebar und liefert einen Wert, auch wenn die n�
 Ohne Ausgangswert ist jeder spätere Fortschritt eine Behauptung.
 
 1. `@axe-core/playwright` **nur lokal** installieren, Wegwerf-Spec über ~15 Kernrouten laufen lassen:
-   `/` · `/chat` · `/login` · `/einstellungen` · `/dokumente` · `/notizbuecher` · `/gruen-o-mat` · `/sharepic` · `/boards` · `/agentura` · `/wissen` · `/office` · `/reisekosten` · `/bilder` · `/transkription`
+   `/` · `/chat` · `/login` · `/einstellungen` · `/dokumente` · `/notebooks` · `/gruen-o-mat` · `/sharepic` · `/boards` · `/agentura` · `/wissen` · `/office` · `/reisekosten` · `/bilder` · `/transkription`
 2. Ergebnis nach `docs/a11y-baseline-2026-08.json` + eine Tabelle (Route × Regel × impact).
 3. Dasselbe für Dark Mode **und** `forced-colors: active` — Kontrastfehler verstecken sich fast immer in genau einem der drei Modi.
 4. **Akzeptanz:** Eine Zahl steht fest („X Verstöße, davon Y critical/serious, über Z Routen"). Diese Zahl ist der Nenner für alles Weitere.

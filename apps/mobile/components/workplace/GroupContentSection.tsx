@@ -33,7 +33,7 @@ const SECTIONS: SectionConfig[] = [
   { key: 'docs', label: 'Dokumente', icon: 'document-text-outline' },
   { key: 'boards', label: 'Boards', icon: 'grid-outline' },
   { key: 'generators', label: 'Grüneratoren', icon: 'sparkles-outline' },
-  { key: 'notebooks', label: 'Notizbücher', icon: 'book-outline' },
+  { key: 'notebooks', label: 'Notebooks', icon: 'book-outline' },
   { key: 'agents', label: 'Agent*innen', icon: 'chatbubbles-outline' },
   { key: 'texts', label: 'Texte', icon: 'reader-outline' },
   { key: 'templates', label: 'Vorlagen', icon: 'albums-outline' },
@@ -167,7 +167,7 @@ export const GroupContentSection = memo(function GroupContentSection({
         <View style={[styles.emptyRow, { borderColor: theme.cardBorder }]}>
           <Ionicons name="folder-open-outline" size={22} color={theme.textSecondary} />
           <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
-            Noch keine Inhalte geteilt. Teile Dokumente, Boards oder Notizbücher auf dem Web.
+            Noch keine Inhalte geteilt. Teile Dokumente, Boards oder Notebooks auf dem Web.
           </Text>
         </View>
       </View>

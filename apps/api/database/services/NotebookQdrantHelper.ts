@@ -1015,7 +1015,7 @@ class NotebookQdrantHelper {
       }
 
       logger.error(
-        `Verknüpfungs-Scroll für ${collectionIds.length} Notizbücher nach ${pages} Seiten ` +
+        `Verknüpfungs-Scroll für ${collectionIds.length} Notebooks nach ${pages} Seiten ` +
           `(${COLLECTION_LINK_PAGE_SIZE * pages} Verknüpfungen) abgebrochen — ` +
           `weitere Quellen fehlen in dieser Antwort.`
       );
@@ -1032,7 +1032,7 @@ class NotebookQdrantHelper {
    *
    * Swallowing the error and answering `[]` suits callers that only iterate the
    * result, but it lies to anyone who reads the emptiness as a fact about the
-   * notebook: a Qdrant hiccup came out as a confident "dieses Notizbuch hat
+   * notebook: a Qdrant hiccup came out as a confident "dieses Notebook hat
    * noch keine Quellen". `rethrow` lets those callers tell "looked, found none"
    * apart from "could not look".
    */

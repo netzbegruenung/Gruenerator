@@ -4,7 +4,7 @@ import type { Agent } from './types.js';
 
 // ─── Per-LV "Bürger*innenanfragen"-Agents ───
 // Schwester-Generator zu LV_PR_AGENTS, aber für Bürger*innen-Service statt
-// Pressearbeit: Der Agent recherchiert (gruenerator_search im LV-Notizbuch und
+// Pressearbeit: Der Agent recherchiert (gruenerator_search im LV-Notebook und
 // den Partei-Korpora, KEINE Websuche → die
 // Treffer erscheinen als Recherche-Karten im Chat) und formuliert eine
 // versandfertige Antwort-E-Mail (Anrede → Dank → Antwort → weiterführende
@@ -59,7 +59,7 @@ export const LV_BUERGER_AGENTS: Agent[] = LV_BUERGER_SPECS.map((spec) => {
     openingQuestions: buildLvBuergerOpeningQuestions(spec),
     locale: isAT ? 'de-AT' : 'de-DE',
     author: 'Grünerator',
-    // Kein 'web'/'scrape': der Agent antwortet aus dem Landesverbands-Notizbuch
+    // Kein 'web'/'scrape': der Agent antwortet aus dem Landesverbands-Notebook
     // und den Partei-Korpora, nicht aus dem offenen Netz. Das ist jetzt ein
     // echtes Gate (agentAllowsWebSearch in searchTools.ts), keine reine
     // Deklaration — vorher war die Liste hier wirkungslos und der Agent

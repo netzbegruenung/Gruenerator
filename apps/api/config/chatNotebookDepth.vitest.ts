@@ -1,5 +1,5 @@
 /**
- * Die Zahlen eines notizbuch-gebundenen Chat-Turns müssen zueinander passen.
+ * Die Zahlen eines notebook-gebundenen Chat-Turns müssen zueinander passen.
  *
  * Sie stehen in vier Dateien — Stufenprofil, `searchNode`, `directSearchExecutors`,
  * `rerankNode` —, und jede einzelne sieht für sich plausibel aus. Kaputt gehen
@@ -23,10 +23,10 @@ import { CHAT_NOTEBOOK_DEPTH, getChatNotebookProfile } from './notebookDepthProf
  *  der Wert gehört dorthin, die Zusicherung hierher. */
 const OVERFETCH_CEILING = 80;
 
-describe('Chat-Turn an einem gebundenen Notizbuch', () => {
+describe('Chat-Turn an einem gebundenen Notebook', () => {
   const profile = getChatNotebookProfile();
 
-  it('läuft auf der Stufe, die die Notizbuch-Fläche voreinstellt', () => {
+  it('läuft auf der Stufe, die die Notebook-Fläche voreinstellt', () => {
     // `deep` ist dort „Mittel" und der Startwert (DEFAULT_NOTEBOOK_DEPTH).
     // Der Chat hat keinen Regler; Gleichstand mit der Voreinstellung ist die
     // Zusage, nicht „Chat ist die gründlichste Fläche" (das wäre `ultra`, und

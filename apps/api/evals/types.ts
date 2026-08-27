@@ -388,7 +388,7 @@ export const evalScenarioSchema = z
      * Braucht den BGSt-Beschlussbestand als eingelesene Sammlung. Übersprungen
      * ohne EVAL_BGST_KORPUS=1.
      *
-     * Eigene Lane und nicht `notebookLane`, obwohl beide die Notizbuchfläche
+     * Eigene Lane und nicht `notebookLane`, obwohl beide die Notebook-Fläche
      * benutzen: `notebookLane` fragt SYSTEM_COLLECTIONS ab, die jedes befüllte
      * Backend hat. Diese hier fragt eine Sammlung ab, die es heute auf keinem
      * Zielsystem gibt — unter dem gemeinsamen Flag würde jeder EVAL_NOTEBOOK=1

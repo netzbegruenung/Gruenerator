@@ -95,7 +95,7 @@ export const ATTACHED_DOC_SNIPPET_CHARS = 6_000;
  * Bewusst enger als `retrievableDocSources` in `searchNode`: dort gehören
  * `notebook`, `wolke` und `connect` dazu, weil der Einzelpfad sie über denselben
  * Fan-out bedient. Im Loop haben die drei ihre eigenen Werkzeuge — sie hier
- * mitzunehmen hieße, jeden Notizbuch-Turn ungefragt eine zweite Suche zahlen zu
+ * mitzunehmen hieße, jeden Notebook-Turn ungefragt eine zweite Suche zahlen zu
  * lassen.
  */
 export function retrievableAttachedSources(state: ChatGraphState): DocumentSource[] {
@@ -129,7 +129,7 @@ export async function retrieveAttachedDocuments(
   if (sources.length === 0 || !query) return [];
 
   // Der einzige Abrufweg im Chat, bei dem nach der Gruppierung keine zweite
-  // Rerank-Stufe mehr kommt: der Einzelpfad fährt `rerankNode`, Notizbuch und
+  // Rerank-Stufe mehr kommt: der Einzelpfad fährt `rerankNode`, Notebook und
   // Recherche reranken auf Dokumentebene — hier steht danach EIN Treffer, und
   // `rerankPipeline` überspringt bei ≤2 Items. Ohne das hier hat der Anhang-Pfad
   // nie einen Cross-Encoder gesehen.

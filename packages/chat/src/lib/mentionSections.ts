@@ -128,7 +128,7 @@ export function buildMentionSections(query: string): MentionSection[] {
     { kind: 'flat', label: 'Canva', items: canva },
     { kind: 'flat', label: 'Vorlagen', items: vorlagen },
     ...(notebookGroups.length > 0
-      ? [{ kind: 'grouped' as const, label: 'Notizbücher', groups: notebookGroups }]
+      ? [{ kind: 'grouped' as const, label: 'Notebooks', groups: notebookGroups }]
       : []),
   ];
 

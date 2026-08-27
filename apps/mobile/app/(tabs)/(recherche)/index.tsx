@@ -86,11 +86,11 @@ export default function NotebooksScreen() {
     [toggleFavourite]
   );
 
-  // Das Notizbuch eines Landesverbands gehört den Leuten dieses Verbands —
+  // Das Notebook eines Landesverbands gehört den Leuten dieses Verbands —
   // gebunden an die Rolle „Mitarbeiter*in Landesgeschäftsstelle", wie im Web.
   // Über ALLE Kategorien gelegt, nicht nur über `landesebene`: welche Kachel in
   // welchem Regal steht, ist eine Frage der Darstellung, die Zuteilung nicht.
-  // Nicht-LV-Notizbücher passieren unverändert, `lvIds === null` (Rollen noch
+  // Nicht-LV-Notebooks passieren unverändert, `lvIds === null` (Rollen noch
   // nicht geladen) lässt alles durch.
   const { lvIds } = useUserLandesverbaende();
   const visible = useCallback(

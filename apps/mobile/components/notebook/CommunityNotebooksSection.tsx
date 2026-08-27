@@ -91,7 +91,7 @@ export function CommunityNotebooksSection({
                     hitSlop={8}
                     style={styles.likeButton}
                     accessibilityRole="checkbox"
-                    accessibilityLabel="Notizbuch favorisieren"
+                    accessibilityLabel="Notebook favorisieren"
                     accessibilityState={{ checked: liked }}
                   >
                     <Ionicons

@@ -97,7 +97,7 @@ const documentSearchService = new DocumentSearchService();
  * einem PRÄFIX des gespeicherten Titels ('Grundsatzprogramm 2020' gegen
  * 'Grundsatzprogramm 2020 – Veränderung schafft Halt'). Am 19.08.2026 live
  * gegen Qdrant nachgezählt: alle drei Muster trafen 0 von 968 Punkten, jede
- * programm-namentliche Notizbuch-Frage bekam eine Geisterantwort — während
+ * programm-namentliche Notebook-Frage bekam eine Geisterantwort — während
  * dieselbe Sammlung der Chat-Oberfläche ungefiltert 90 Treffer lieferte.
  *
  * `primary_category` ist in `systemCollectionsConfig` als filterbar deklariert,
@@ -1083,7 +1083,7 @@ export class NotebookQAService {
       collections_queried: collectionIds,
       document_scope_detected: documentScope.detectedPhrase || null,
       // Der Drahtname bleibt `document_title_filter` — er steht im
-      // Notizbuch-Contract und ist damit extern eingefroren. Der Wert ist seit
+      // Notebook-Contract und ist damit extern eingefroren. Der Wert ist seit
       // der Reparatur die `primary_category` des gemeinten Programms; die
       // Diagnose („auf welches Dokument wurde eingegrenzt") ist dieselbe.
       document_title_filter: documentScope.documentCategoryFilter || null,

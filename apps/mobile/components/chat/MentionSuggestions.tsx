@@ -42,7 +42,7 @@ function buildSections(query: string): Section[] {
 
   if (tools.length > 0) sections.push({ title: 'Werkzeuge', data: tools });
   if (documents.length > 0) sections.push({ title: 'Dateien', data: documents });
-  if (notebooks.length > 0) sections.push({ title: 'Notizbücher', data: notebooks });
+  if (notebooks.length > 0) sections.push({ title: 'Notebooks', data: notebooks });
 
   return sections;
 }

@@ -54,7 +54,7 @@ describe('agentVisibilityContract.list', () => {
   });
 
   // Die Spezialisten fallen mit ihrem Landesverband; einzeln geschaltet stünden
-  // sie quer zu der Kaskade, die Notizbuch, Agent und Rezepte gemeinsam führt.
+  // sie quer zu der Kaskade, die Notebook, Agent und Rezepte gemeinsam führt.
   it('lässt die Landesverbands-Spezialisten weg', async () => {
     const router = await loadRouterOn('production');
     const res = await router.list({ req } as never);

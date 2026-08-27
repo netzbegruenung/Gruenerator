@@ -3,7 +3,7 @@
  *
  * Warum ein Gate und keine Zeile in den Einstellungen: Das Land ist keine
  * Anzeigevorliebe, es entscheidet, was der Grünerator überhaupt liefert —
- * Parteiname, Ansprache, Notizbuch-Sammlungen, welche Werkzeuge angeboten
+ * Parteiname, Ansprache, Notebook-Sammlungen, welche Werkzeuge angeboten
  * werden (Bundestag und Abgeordnetenwatch gibt es für Österreich nicht) und den
  * LÄNDERKONTEXT im Systemprompt. Ein falscher Wert fällt dabei nicht auf: die
  * deutsche Ausprägung ist die unmarkierte, sie liefert einfach plausible
@@ -60,7 +60,7 @@ export default function LocaleGate() {
   // Vergangenheit (AT-Reels mit deutschem Untertitelsatz).
   //
   // Die Kette ist am Code nachgelesen; welche Konsumenten (Chat,
-  // Notizbuch-Agenten) in diesem Fenster tatsächlich abweichen, ist NICHT
+  // Notebook-Agenten) in diesem Fenster tatsächlich abweichen, ist NICHT
   // gemessen. Deshalb hier nur der Vermerk und keine Reparatur: das Fenster
   // schließt sich mit der Antwort auf diesen Dialog.
   //

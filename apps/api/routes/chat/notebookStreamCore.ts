@@ -140,7 +140,7 @@ export async function handleNotebookStream(
     }
 
     if (!collectionId && (!collectionIds || collectionIds.length === 0)) {
-      sse.send('error', { error: 'Es wurde kein Notizbuch angegeben.', code: 'invalid_request' });
+      sse.send('error', { error: 'Es wurde kein Notebook angegeben.', code: 'invalid_request' });
       if (options.closeStream !== false) sse.end();
       return null;
     }

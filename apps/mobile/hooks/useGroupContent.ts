@@ -178,7 +178,7 @@ export function useGroupContent(groupId: string | null | undefined) {
         grouped.notebooks.push({
           id: row.id,
           kind: 'notebook',
-          title: row.name || 'Notizbuch',
+          title: row.name || 'Notebook',
           ...(row.description ? { subtitle: row.description } : {}),
           updatedAt: row.updated_at,
           ...(row.shared_at ? { sharedAt: row.shared_at } : {}),

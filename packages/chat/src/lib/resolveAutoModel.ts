@@ -30,7 +30,7 @@ export interface AutoResolverContext {
 }
 
 export function resolveAutoModel(ctx: AutoResolverContext): TextModelId {
-  // Ultra ist die Notizbuch-Vorgabe; außerhalb bleibt es bei den bisherigen
+  // Ultra ist die Notebook-Vorgabe; außerhalb bleibt es bei den bisherigen
   // Zuordnungen (Mittel allgemein/kreativ, Ultra für anweisungslastige Agenten
   // wie den Agenten-Ersteller).
   if (ctx.threadMode === 'notebook') return 'gruenerator-ultra';
