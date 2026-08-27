@@ -109,7 +109,9 @@ const toContentMessages = (
 /**
  * Assemble the mode-aware request body for the chat backend. Each mode
  * (search / notebook / eigener / chat) ships a different field set; the shared
- * chat/eigener payload differs only in agentId + customSystemPrompt/roleName.
+ * chat/eigener payload differs only in `agentId` plus dem Rollen-Dreiklang
+ * `customSystemPrompt`/`roleName`/`roleRef`, der ausschliesslich im
+ * `eigener`-Zweig steht.
  */
 /**
  * assistant-ui reports its INTERNAL thread ids through `unstable_threadId`:
@@ -272,7 +274,6 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
     })(),
     platform: useChatConfigStore.getState().platform,
     defaultNotebookId: config.selectedNotebookId || undefined,
-    customSystemPrompt: config.customSystemPrompt || undefined,
     initialAssistantMessage: seededInitialAssistantMessage,
     // Typed mention first: the store's value is ambient (set on popover select,
     // may still carry an earlier turn's choice) — what the user wrote in THIS
@@ -282,10 +283,23 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
   };
 
   if (effectiveMode === 'eigener') {
-    // Eigener Chat mode: like chat but with custom prompt, no stale agentId
+    // Eigener Chat mode: like chat but with custom prompt, no stale agentId.
+    //
+    // `customSystemPrompt` steht hier und NICHT im gemeinsamen Rumpf, obwohl es
+    // ein Feld wie jedes andere ist: nur so heißt „Modus chat" auch auf der
+    // Leitung „keine Persona". Im Rumpf reiste der Prompttext einer frei
+    // getippten Rolle nach dem Wechsel zurück auf „Chat" weiter mit —
+    // `roleRef` blieb dabei zurück, weil es schon immer hier stand. Diese
+    // Kombination (Prompt ohne Referenz) lässt serverseitig
+    // `roleBausteinActive` auf false und legte damit die Rezept-Automatik
+    // still (#2929 zusammen mit #2928). Ein Feld, das nur in einem Modus gilt,
+    // gehört in dessen Zweig — dann kann der Zustand daneben gar nicht mehr
+    // auseinanderlaufen, und bestehende Threads mit gespeichertem Rest heilen
+    // ohne Migration.
     return {
       ...sharedChatBody,
       agentId: null,
+      customSystemPrompt: config.customSystemPrompt || undefined,
       roleName: config.customRoleName || undefined,
       roleRef: config.customRoleRef || undefined,
     };
