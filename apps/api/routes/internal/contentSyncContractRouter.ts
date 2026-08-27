@@ -35,6 +35,8 @@ import { toError, toUserFacingMessage } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { getCachedJson, setCachedJson } from '../../utils/redis/jsonCache.js';
 
+import { dryRunCapableSources, supportsDryRun } from './contentSyncDryRun.js';
+
 import type { Application } from 'express';
 
 const log = createLogger('content-sync-internal');
@@ -506,6 +508,20 @@ export const contentSyncContractRouter = s.router(contentSyncContract, {
       runUrl,
       fallbackEmail,
     } = body ?? {};
+
+    // Refuse before the lock: a dry run the source cannot honour would store
+    // for real under a report headed "Dry Run" (#2970). Answering 400 makes the
+    // dispatch that asked for it red, which is the point.
+    if (dryRun && !supportsDryRun(sourceId)) {
+      return {
+        status: 400 as const,
+        body: {
+          error:
+            `Source '${sourceId}' has no dry-run branch — running it with dryRun would store ` +
+            `for real. Dry runs are available for: ${dryRunCapableSources().join(', ')}.`,
+        },
+      };
+    }
 
     // Concurrent per-LV runs (GH Actions' 8-way matrix) must not lock each
     // other out — only collide on the same LV or the same bulk source.

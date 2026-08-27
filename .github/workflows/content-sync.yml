@@ -15,7 +15,11 @@ on:
         required: false
         type: string
       dry_run:
-        description: 'Preview without storing'
+        # Only 'landesverbaende' and 'abgeordnetenwatch' have a dry-run branch.
+        # Every other source answers HTTP 400 rather than storing for real under
+        # a report headed "Dry Run" (#2970) — so a dry run over the full matrix
+        # is expected to fail those jobs.
+        description: 'Preview without storing (landesverbaende + abgeordnetenwatch only)'
         type: boolean
         default: false
       force:

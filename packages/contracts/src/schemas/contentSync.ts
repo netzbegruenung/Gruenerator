@@ -128,6 +128,16 @@ export const contentSyncJobNotFoundSchema = z.object({
   error: z.string(),
 });
 
+/**
+ * 400 — the request asks for something this source cannot do. Currently only
+ * `dryRun: true` against a source with no dry-run branch: forwarding the flag
+ * there would store for real while the report says "Dry Run" (#2970), so the
+ * call is refused instead of quietly lying about what it did.
+ */
+export const contentSyncBadRequestSchema = z.object({
+  error: z.string(),
+});
+
 /** 409 — a sync for this source is already running. */
 export const contentSyncBusyResponseSchema = z.object({
   error: z.string(),
