@@ -15,7 +15,11 @@
  * fetched, so a caller can also render it.
  */
 
-import { type CustomPrompt, type TextForm } from '@gruenerator/contracts';
+import {
+  type CustomPrompt,
+  type MentionableUserAgent,
+  type TextForm,
+} from '@gruenerator/contracts';
 import { hasSystemRecipe } from '@gruenerator/shared/agents';
 import { isUnauthorizedError } from '@gruenerator/shared/api';
 
@@ -26,9 +30,11 @@ import {
   setMcpServerMentionables,
   setSheetMentionables,
   setTextforms,
+  setUserAgentMentionables,
   setUserNotebookMentionables,
   type CustomAgentMentionable,
   type TextformMentionable,
+  type UserAgentMentionable,
 } from './mentionables';
 
 /** Performs an authenticated GET and resolves the parsed body. */
@@ -137,6 +143,39 @@ export async function syncCustomAgents(get: MentionableFetch): Promise<CustomAge
   }
   setCustomAgents(merged);
   return merged;
+}
+
+/**
+ * Grünerator-Agenten aus `user_agents` → mentionbare Einträge im Rezept-Menü.
+ *
+ * The third source of that section, beside the bundled recipes and the custom
+ * prompts — and the only one that can carry a GROUP origin. `custom_prompts`
+ * know a public directory and a bookmark, not group shares (#2909); agents are
+ * shared through `group_content_shares`, and the endpoint returns the user's
+ * own plus everything shared into a group they belong to.
+ *
+ * Discovery only. The backend already resolved these identifiers before this
+ * existed (`getAgentForUser`: own row → group share), so a mention that reaches
+ * the server was always going to work — it just could not be found in the
+ * picker. Anonymous users / no agents resolve to an empty list.
+ */
+export async function syncUserAgents(get: MentionableFetch): Promise<UserAgentMentionable[]> {
+  const res = await get<{ agents?: MentionableUserAgent[] }>('/api/user-agents/mentionable').catch(
+    () => ({ agents: [] })
+  );
+  const list: UserAgentMentionable[] = Array.isArray(res?.agents)
+    ? res.agents.map((a) => ({
+        identifier: a.identifier,
+        title: a.title,
+        description: a.description,
+        avatar: a.avatar,
+        backgroundColor: a.backgroundColor,
+        ...(a.iconKey ? { iconKey: a.iconKey } : {}),
+        sharedFromGroup: a.sharedFromGroup,
+      }))
+    : [];
+  setUserAgentMentionables(list);
+  return list;
 }
 
 /**
