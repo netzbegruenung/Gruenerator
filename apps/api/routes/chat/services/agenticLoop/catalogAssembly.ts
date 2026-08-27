@@ -584,8 +584,16 @@ export function wrapAssembledTools(
     /** Beobachtungspunkt um die Werkzeugausführung — heute die Kostenrechnung
      *  des Turns. Nicht gesetzt ⇒ Verhalten unverändert. */
     hooks?: ToolHooks;
-    /** Geteilt mit dem Loop-Motor: dessen Stillstands-Uhr der Werkzeugphase
-     *  liest hier ab, ob gerade ein Aufruf läuft. */
+    /**
+     * Geteilt mit dem Loop-Motor: dessen Stillstands-Uhr der Werkzeugphase
+     * liest hier ab, ob gerade ein Aufruf läuft.
+     *
+     * PFLICHT, obwohl `WrapToolsContext.toolActivity` optional ist — die
+     * Asymmetrie ist Absicht. Unten optional, weil ein Umschlag auch ohne Uhr
+     * brauchbar bleibt; hier Pflicht, weil dies der Weg des Chats ist und ein
+     * Weglassen die Uhr still auf das weitere Rückfall-Fenster stellen würde
+     * (`mountedToolCeilingMs`, in der Praxis 105 s statt 45 s).
+     */
     toolActivity: ToolActivity;
   }
 ): ToolSet {
