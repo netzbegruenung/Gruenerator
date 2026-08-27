@@ -45,10 +45,8 @@ import {
 } from '../../../services/boards/BoardService.js';
 import { getGroupByToken } from '../../../services/groups/groupMutations.js';
 import { findGroups, listUserGroups } from '../../../services/groups/groupQueries.js';
-import {
-  getSharedMediaService,
-  USER_VISIBLE_SHARE_STATUSES,
-} from '../../../services/sharedMediaService.js';
+import { USER_VISIBLE_SHARE_STATUSES } from '../../../services/sharedMediaFilters.js';
+import { getSharedMediaService } from '../../../services/sharedMediaService.js';
 import { getSubtitlerProjectService } from '../../../services/subtitler/ProjectService.js';
 import { getReelTranscript, reelUrl, searchReels } from '../../../services/subtitler/reelSearch.js';
 import { toUserFacingMessage } from '../../../utils/errors/index.js';

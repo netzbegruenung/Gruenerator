@@ -87,7 +87,6 @@ vi.mock('../../../services/sharedMediaService.js', () => ({
     getUserShares: (...a: unknown[]) => getUserShares(...a),
     deleteShare: (...a: unknown[]) => deleteShare(...a),
   }),
-  USER_VISIBLE_SHARE_STATUSES: ['ready', 'draft'],
 }));
 vi.mock('../../../services/subtitler/ProjectService.js', () => ({
   getSubtitlerProjectService: () => ({
