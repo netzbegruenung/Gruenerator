@@ -19,6 +19,11 @@ Every bug we found by hand is now a permanent, automated check.
    can't score: groundedness ([N] actually supported), narration honesty (text
    vs executed actions), known-answer contradiction, German/AT quality,
    long-thread parity. Model: `verdigado-pro` (free, LiteLLM proxy), temp 0, JSON verdicts.
+   `groundedness` und `unsourced_confidence` sind ein Paar: die erste setzt bei
+   null Quellen aus (ihre Frage ist dann leer), die zweite läuft dann an ihrer
+   Stelle und fragt, ob der Text Belegtes im Indikativ behauptet, ohne seine
+   Grundlage kenntlich zu machen. Eine Korpuszeile mit `judge: ["groundedness"]`
+   bekommt die Gegenprobe automatisch — sie muss nicht angefasst werden (#2953).
 3. **Long threads** (`eval:longthread`) — `padTurns` breadth probes + golden
    15–25-turn scenarios (`"slow": true`, only with `EVAL_SLOW=1`). To make
    compaction fire fast locally, start the backend with
