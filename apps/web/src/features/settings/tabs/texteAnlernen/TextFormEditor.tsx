@@ -2,6 +2,7 @@ import {
   MAX_TEXT_FORM_EXAMPLES,
   MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS,
   type TextForm,
+  type TextFormKind,
   type TextFormType,
 } from '@gruenerator/contracts';
 import { useUserGroups } from '@gruenerator/shared/groups';
@@ -24,9 +25,15 @@ const TEXTAREA_CLASS =
   'w-full resize-y rounded-md border border-grey-300 bg-input-bg p-sm text-sm text-foreground placeholder:text-grey-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-grey-600';
 
 interface TextFormEditorProps {
-  kind: 'preset' | 'custom';
-  /** Preset only: fixed text type (also the mention). */
-  fixedTextType?: TextFormType;
+  kind: TextFormKind;
+  /**
+   * Vorgegebene Mention — bei einem Preset ist das der Textyp selbst
+   * (`presse`), bei einem Landesverbands-Rezept dessen eigene Mention
+   * (`presse-hessen-partei`). Nur `custom` lässt die Person sie selbst wählen.
+   */
+  fixedMention?: string;
+  /** Der Textyp, unter dem die Stilanalyse beschriftet wird ("Pressemitteilungen"). */
+  textType?: TextFormType;
   /** Existing saved form, if any. */
   initialForm?: TextForm;
   /** Display title for presets; default for a new custom form. */
@@ -45,7 +52,8 @@ const NUM = (n: number) => n.toLocaleString('de-DE');
 
 const TextFormEditor = ({
   kind,
-  fixedTextType,
+  fixedMention,
+  textType,
   initialForm,
   defaultTitle,
   hint,
@@ -72,10 +80,10 @@ const TextFormEditor = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const effectiveMention = useMemo(() => {
-    if (fixedTextType) return fixedTextType;
+    if (fixedMention) return fixedMention;
     if (initialForm) return initialForm.mention;
     return mentionTouched ? mention : slugifyName(title, 'textform');
-  }, [fixedTextType, initialForm, mention, mentionTouched, title]);
+  }, [fixedMention, initialForm, mention, mentionTouched, title]);
 
   const split = useMemo(() => splitExamples(rawExamples), [rawExamples]);
   const filledExamples = split.examples;
@@ -154,7 +162,7 @@ const TextFormEditor = ({
     }
     try {
       const block = await api.analyze.mutateAsync({
-        ...(fixedTextType ? { textType: fixedTextType } : { title: title.trim() }),
+        ...(textType ? { textType } : { title: title.trim() }),
         examples: filledExamples.map((content) => ({ content })),
       });
       setStyleBlock(block);
@@ -182,7 +190,7 @@ const TextFormEditor = ({
         mention: effectiveMention,
         body: {
           kind,
-          ...(fixedTextType ? { textType: fixedTextType } : {}),
+          ...(textType ? { textType } : {}),
           title: title.trim() || defaultTitle,
           examples: filledExamples.map((content) => ({ content })),
           styleBlock: styleBlock.trim(),
