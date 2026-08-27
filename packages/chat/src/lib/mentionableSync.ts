@@ -15,7 +15,7 @@
  * fetched, so a caller can also render it.
  */
 
-import { type TextForm } from '@gruenerator/contracts';
+import { type CustomPrompt, type TextForm } from '@gruenerator/contracts';
 import { isUnauthorizedError } from '@gruenerator/shared/api';
 
 import {
@@ -58,6 +58,17 @@ export interface UserNotebookListItem {
  */
 export type TextFormListItem = Pick<TextForm, 'kind' | 'mention' | 'title' | 'sharedFromGroup'>;
 
+/**
+ * The slice of `/api/auth/custom_prompts` and `/api/auth/saved_prompts` this
+ * module reads, derived from `customPromptSchema` for the same reason as
+ * `TextFormListItem`: the owner fields exist only on the saved-prompt rows, and
+ * a hand-written transport type is exactly what hid them before (#2876).
+ */
+export type CustomPromptListItem = Pick<
+  CustomPrompt,
+  'id' | 'name' | 'slug' | 'description' | 'owner_first_name' | 'owner_last_name'
+>;
+
 export interface McpServerListItem {
   id: string;
   name: string;
@@ -81,18 +92,46 @@ export function slugifyMention(value: string): string {
     .replace(/^-|-$/g, '');
 }
 
-/** The user's own plus saved custom agents, deduplicated by id (own wins). */
+/** `first_name last_name` from the saved-prompt join, `null` if it found none. */
+function ownerName(p: CustomPromptListItem): string | null {
+  const name = [p.owner_first_name, p.owner_last_name].filter(Boolean).join(' ').trim();
+  return name || null;
+}
+
+/**
+ * The user's own plus saved custom agents, deduplicated by id (own wins).
+ *
+ * Which endpoint an entry came from IS its origin: `/saved_prompts` lists
+ * prompts the user bookmarked from someone else's public prompt, so those get
+ * `savedFromOwner` and the picker stops filing them under "eigene". Own-wins
+ * dedup keeps a user's own public prompt out of that bucket even when they
+ * saved it themselves — it arrives from both endpoints and the first wins.
+ *
+ * A group origin is a different question and has no answer here: `custom_prompts`
+ * know a public directory and a bookmark, not group shares (#2909).
+ */
 export async function syncCustomAgents(get: MentionableFetch): Promise<CustomAgentMentionable[]> {
   const [ownPrompts, savedPrompts] = await Promise.all([
-    get<{ prompts?: CustomAgentMentionable[] }>('/api/auth/custom_prompts'),
-    get<{ prompts?: CustomAgentMentionable[] }>('/api/auth/saved_prompts'),
+    get<{ prompts?: CustomPromptListItem[] }>('/api/auth/custom_prompts'),
+    get<{ prompts?: CustomPromptListItem[] }>('/api/auth/saved_prompts'),
   ]);
   const seenIds = new Set<string>();
   const merged: CustomAgentMentionable[] = [];
-  for (const p of [...(ownPrompts?.prompts ?? []), ...(savedPrompts?.prompts ?? [])]) {
-    if (!seenIds.has(p.id)) {
+  const sources: Array<{ prompts: CustomPromptListItem[]; saved: boolean }> = [
+    { prompts: ownPrompts?.prompts ?? [], saved: false },
+    { prompts: savedPrompts?.prompts ?? [], saved: true },
+  ];
+  for (const source of sources) {
+    for (const p of source.prompts) {
+      if (seenIds.has(p.id)) continue;
       seenIds.add(p.id);
-      merged.push(p);
+      merged.push({
+        id: p.id,
+        name: p.name,
+        slug: p.slug,
+        ...(p.description ? { description: p.description } : {}),
+        ...(source.saved ? { savedFromOwner: ownerName(p) } : {}),
+      });
     }
   }
   setCustomAgents(merged);

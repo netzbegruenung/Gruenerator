@@ -395,6 +395,12 @@ export {
   syncUserNotebooks,
   type MentionableFetch,
 } from './lib/mentionableSync';
+export {
+  splitRecipesByOrigin,
+  RECIPE_ORIGIN_SUBLABELS,
+  RECIPE_ORIGIN_SECTION_TITLES,
+  type RecipeOrigin,
+} from './lib/mentionSections';
 export { INTENT_TO_TOOL, DEEP_TOOL_MAP } from './lib/toolMappings';
 
 // Thread History Adapter (shared between drawer + provider on mobile)
