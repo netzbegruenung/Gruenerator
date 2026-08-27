@@ -23,6 +23,7 @@ import {
 } from './catalogAssembly.js';
 import { createToolLoopGuards } from './loopGuards.js';
 import { createSourceRegistry } from './sourceRegistry.js';
+import { createToolActivity } from './toolActivity.js';
 import { type PersistedStep } from './types.js';
 
 import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/types.js';
@@ -337,6 +338,7 @@ describe('wrapAssembledTools — Labels der Verbindungs-Werkzeuge', () => {
         guards: createToolLoopGuards({ searchToolNames: new Set(), getSourceCount: () => 0 }),
         recordStep: (s) => steps.push(s),
         perCallTimeoutMs: 20_000,
+        toolActivity: createToolActivity(),
         toolLabels,
         getTextOffset: () => null,
         takeNarration: () => null,

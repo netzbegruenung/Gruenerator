@@ -25,6 +25,7 @@ import { truncateResultForModel } from './truncate.js';
 import { readMcpResult, type PersistedStep } from './types.js';
 
 import type { ToolLoopGuards } from './loopGuards.js';
+import type { ToolActivity } from './toolActivity.js';
 import type { SSEWriter } from '../sseHelpers.js';
 import type { ToolSet } from 'ai';
 
@@ -111,6 +112,10 @@ export interface WrapToolsContext {
   recordStep: (step: PersistedStep) => void;
   /** Per tool-call execution timeout (ms). */
   perCallTimeoutMs: number;
+  /** Zähler der laufenden Aufrufe. Der Motor hängt seine Stillstands-Uhr daran:
+   *  ein laufendes Werkzeug blockiert den Stream legitim und darf nicht als
+   *  hängende Lane gelten. Ohne diesen Haken bleibt die Uhr einfach stumm. */
+  toolActivity?: ToolActivity;
   /** Per-tool overrides for tools whose honest runtime exceeds the generic
    *  budget — see TOOL_TIMEOUT_OVERRIDES_MS. */
   perCallTimeoutOverridesMs?: Record<string, number>;
@@ -402,6 +407,11 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
       if (usedMock) {
         output = mock.result;
       } else {
+        // Umschliesst NUR die Ausfuehrung, und im `finally`, damit auch der
+        // Zeitueberschreitungs-Pfad herunterzaehlt: bliebe der Zaehler stehen,
+        // waere die Stillstands-Uhr der Werkzeugphase fuer den Rest des Zuges
+        // taub.
+        ctx.toolActivity?.begin();
         try {
           const timeoutMs = ctx.perCallTimeoutOverridesMs?.[toolName] ?? ctx.perCallTimeoutMs;
           output = await withTimeout(
@@ -413,6 +423,8 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
           const message = err instanceof Error ? err.message : String(err);
           thrown = { error: message, timedOut: err instanceof ToolTimeoutError };
           output = { error: message };
+        } finally {
+          ctx.toolActivity?.end();
         }
       }
       const durationMs = Date.now() - startedAt;

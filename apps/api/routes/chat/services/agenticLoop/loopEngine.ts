@@ -31,7 +31,7 @@ import { createLogger } from '../../../../utils/logger.js';
 import { reportBackgroundError } from '../../../../utils/reportBackgroundError.js';
 import { createControlTokenFilter, stripToolControlTokens } from '../outputSanity.js';
 import { isWholesaleRefusal, refusalLanguage } from '../refusalDetection.js';
-import { createIdleDeadline } from '../streamIdleDeadline.js';
+import { createIdleDeadline, type IdleDeadline } from '../streamIdleDeadline.js';
 
 import {
   createDegenerationGuard,
@@ -50,11 +50,11 @@ const log = createLogger('AgenticLoopEngine');
  * Matches the single-pass reasoning lane's window, since it guards the same
  * thing: a lane that accepted the request and then produced nothing.
  *
- * Only the synth phase is guarded. In the tool phases a legitimate tool call
- * blocks the iterator for as long as it runs (a deep research call was measured
- * at 16.5s), so silence there does not mean "hung" and would need its own,
- * larger budget — separate work. Synthesis runs WITHOUT tools, so any silence
- * is the model thinking or stalling, and reasoning deltas keep it alive.
+ * Das engste der drei Fenster, und es darf das sein: Synthese läuft OHNE
+ * Werkzeuge, jede Stille ist also Denken oder Sterben, und Reasoning-Deltas
+ * halten sie am Leben. Die Werkzeugphasen haben ihr eigenes, weiteres Fenster
+ * (TOOL_PHASE_IDLE_DEADLINE_MS / mountedToolCeilingMs) — dort blockiert ein
+ * laufender Aufruf den Iterator legitim.
  */
 const SYNTH_IDLE_DEADLINE_MS = 20_000;
 
@@ -76,38 +76,65 @@ export function isSynthStall(err: unknown): err is SynthStallError {
  * Headroom on top of the longest tool a turn could legitimately be waiting on:
  * the model still has to receive the tool result and decide the next step.
  */
-const GATHER_IDLE_SLACK_MS = 15_000;
+const TOOL_PHASE_IDLE_SLACK_MS = 15_000;
 
 /**
- * How long the GATHER stream may be silent before we call it hung.
+ * Fenster der Werkzeugphase, wenn NIEMAND mitzählt, welche Aufrufe laufen.
  *
- * The note on SYNTH_IDLE_DEADLINE_MS explains why this phase went unguarded:
- * a running tool blocks the iterator, so silence is not evidence of a hang and
- * a flat 20s would kill legitimate work. That reasoning is right — the fix is
- * not "no guard" but a budget derived from what can actually block us. The
- * longest per-call timeout among the tools MOUNTED THIS TURN is exactly that
- * bound (`create_pdf` may take 90s, `web_search` 20s), so a turn without
- * generation tools gets a tight window and a turn with them gets a wide one.
+ * Die Phase war lange unbewacht, weil ein laufendes Werkzeug den Iterator
+ * blockiert: Stille ist dort kein Beleg für einen Hänger, und flache 20 s
+ * hätten legitime Arbeit erschlagen. Das stimmt — die Antwort darauf ist aber
+ * nicht „keine Uhr", sondern ein Budget aus dem, was uns überhaupt blockieren
+ * kann: das längste Aufruf-Timeout unter den DIESEN ZUG gemounteten Werkzeugen
+ * (`create_pdf` 90 s, `web_search` 20 s). Ein Zug ohne Erzeugungswerkzeuge
+ * bekommt so ein enges Fenster, einer mit ihnen ein weites.
  *
- * Without any guard the effective deadline was GreenPT's own 120s fetch
- * timeout: on 20.08.2026 a turn sat silent for exactly 120s after its last
- * tool returned, and finished in 139.7s.
+ * Ohne jede Uhr war die wirksame Frist GreenPTs eigenes 120-s-Fetch-Timeout:
+ * am 20.08.2026 sass ein Zug nach seinem letzten Werkzeug exakt 120 s stumm da
+ * und endete nach 139,7 s.
  */
-function gatherIdleDeadlineMs(tools: ToolSet): number {
+function mountedToolCeilingMs(tools: ToolSet): number {
   const longestTool = Object.keys(tools).reduce(
     (max, name) =>
       Math.max(max, TOOL_TIMEOUT_OVERRIDES_MS[name] ?? DEFAULT_LOOP_BUDGET.perCallTimeoutMs),
     DEFAULT_LOOP_BUDGET.perCallTimeoutMs
   );
-  return longestTool + GATHER_IDLE_SLACK_MS;
+  return longestTool + TOOL_PHASE_IDLE_SLACK_MS;
 }
 
-/** The planner accepted the request and then went silent. */
-export class GatherStallError extends Error {
+/**
+ * Fenster, wenn `toolActivity` mitzählt.
+ *
+ * Der Deckel oben beschränkt die Stille auf das, was blockieren KÖNNTE; der
+ * Zähler weiss, was blockiert. Da die Erzeugungswerkzeuge auf fast jedem Zug
+ * gemountet sind, hiesse „könnte" in der Praxis 105 s — auch für eine Frage,
+ * die nie ein Werkzeug anfasst. Läuft ein Aufruf, gilt das über `isBusy` als
+ * Lebenszeichen, und übrig bleibt nur die Stille, die keiner erklärt: die Zeit
+ * bis zum ersten Token einer neuen Provider-Anfrage. 45 s liegt weit darüber
+ * (der Median eines ganzen Zuges lag im gemessenen Lauf bei 19 s).
+ */
+const TOOL_PHASE_IDLE_DEADLINE_MS = 45_000;
+
+/** Die Werkzeugphase — planner (split) oder das eine Modell (unified) — hat die
+ *  Anfrage angenommen und dann geschwiegen. */
+export class ToolPhaseStallError extends Error {
   constructor(idleMs: number) {
-    super(`Gather stream idle for ${idleMs}ms`);
+    super(`Tool phase stream idle for ${idleMs}ms`);
     this.name = 'TimeoutError';
   }
+}
+
+/** Die Uhr der Werkzeugphase, für beide Modi identisch gestellt. */
+function createToolPhaseIdle(p: LoopEngineParams): { idle: IdleDeadline; idleMs: number } {
+  const idleMs = p.toolActivity ? TOOL_PHASE_IDLE_DEADLINE_MS : mountedToolCeilingMs(p.tools);
+  return {
+    idle: createIdleDeadline(
+      idleMs,
+      () => new ToolPhaseStallError(idleMs),
+      () => (p.toolActivity?.inFlight() ?? 0) > 0
+    ),
+    idleMs,
+  };
 }
 
 /** Which lane stalled — the whole point of reporting it. `LanguageModel` is
@@ -351,6 +378,13 @@ export interface LoopEngineParams {
   synthFallbackModel?: LanguageModel;
   /** Already wrapped by wrapToolsForLoop. */
   tools: ToolSet;
+  /**
+   * Zähler der gerade LAUFENDEN Werkzeugaufrufe, gefüllt von demselben
+   * Umschlag. Fehlt er, fällt die Stillstands-Uhr auf den weiteren Deckel aus
+   * den gemounteten Werkzeugen zurück (`mountedToolCeilingMs`) — sonst hielte
+   * sie einen legitimen 90-Sekunden-Aufruf für einen Hänger.
+   */
+  toolActivity?: { inFlight: () => number };
   /** System for the tool phase: base + tool-usage block (+ mcp note). */
   toolSystem: string;
   /** Builds the synthesizer system from the gathered numbered sources block. */
@@ -503,6 +537,7 @@ async function streamWithTools(
   model: LanguageModel,
   deps: LoopDeps
 ): Promise<LoopResult> {
+  const { idle, idleMs } = createToolPhaseIdle(p);
   const result = deps.streamText({
     model,
     system: p.toolSystem,
@@ -512,7 +547,9 @@ async function streamWithTools(
     temperature: p.temperature,
     ...(p.maxOutputTokens != null && { maxOutputTokens: p.maxOutputTokens }),
     ...(p.providerOptions != null && { providerOptions: p.providerOptions }),
-    abortSignal: p.abortSignal,
+    // Kombiniert, damit eine verstummte Lane wirklich abgebaut wird statt nur
+    // verlassen — dieselbe Form wie in gather und synth.
+    abortSignal: AbortSignal.any([p.abortSignal, idle.signal]),
     prepareStep: buildPrepareStep(
       p.toolSystem,
       FORCE_FINISH_SYSTEM_SUFFIX,
@@ -536,9 +573,31 @@ async function streamWithTools(
     const clean = unifiedFilter.push(delta);
     if (clean.length > 0) p.onText(clean);
   };
-  const { text, finishReason } = await drain(result, emitFiltered, p.onReasoning);
+  const { text, finishReason, stalled } = await drain(
+    result,
+    emitFiltered,
+    p.onReasoning,
+    idle,
+    'stop'
+  );
   const tail = unifiedFilter.flush();
   if (tail.length > 0) p.onText(tail);
+  if (stalled) {
+    log.warn(
+      `[Engine] unified stream silent for ${idleMs}ms after ${text.length} chars (finishReason=${finishReason ?? 'none'}) — tearing it down`
+    );
+    reportBackgroundError(new ToolPhaseStallError(idleMs), {
+      job: 'agentic-unified-stall',
+      model: modelLabel(model),
+      idleMs,
+    });
+    // Ein `finish`-Part heisst: die Generierung war fertig, nur der Stream ging
+    // nicht zu. Dann ist die Antwort vollständig und darf NICHT die
+    // Abbruch-Fussnote des Aufrufers bekommen — genau diese Lüge produzierte
+    // #2948, wo alle sechs Deckel-Züge inhaltlich richtig geantwortet hatten.
+    // Ohne `finish` steht der Text mitten im Satz: als Abbruch melden.
+    if (finishReason == null) throw new ToolPhaseStallError(idleMs);
+  }
   if (finishReason === DEGENERATE_FINISH_REASON) {
     // Unified streams live, so the spam is already on the wire — drain has
     // trimmed the returned text back to the healthy prefix, and the caller's
@@ -555,8 +614,7 @@ async function streamWithTools(
  *  The stream is consumed in EVERY case (even without onNarration): the AI SDK's
  *  tool loop only advances as the stream is drained. */
 async function gather(p: LoopEngineParams, deps: LoopDeps): Promise<void> {
-  const idleMs = gatherIdleDeadlineMs(p.tools);
-  const idle = createIdleDeadline(idleMs, () => new GatherStallError(idleMs));
+  const { idle, idleMs } = createToolPhaseIdle(p);
   try {
     const gatherSystem = `${p.toolSystem}${GATHER_SUFFIX}`;
     const result: Drainable = deps.streamText({
@@ -620,7 +678,7 @@ async function gather(p: LoopEngineParams, deps: LoopDeps): Promise<void> {
     // …but degrading silently is how a systematic planner outage stays
     // invisible. A stall is a health signal about the lane, not a property of
     // this one turn, so it goes to Glitchtip with the model that produced it.
-    if (err instanceof GatherStallError) {
+    if (err instanceof ToolPhaseStallError) {
       reportBackgroundError(err, {
         job: 'agentic-gather-stall',
         model: modelLabel(p.plannerModel),
@@ -1022,8 +1080,10 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<LoopResu
   return { text: retry.text };
 }
 
+type StreamPart = { type: string; text?: string; error?: unknown; finishReason?: string };
+
 interface Drainable {
-  stream: AsyncIterable<{ type: string; text?: string; error?: unknown; finishReason?: string }>;
+  stream: AsyncIterable<StreamPart>;
 }
 
 async function drain(
@@ -1032,19 +1092,41 @@ async function drain(
   onReasoning: (d: string) => void,
   /** Optional stall guard. Every chunk — text OR reasoning — counts as liveness,
    *  so a thinking model is never mistaken for a hung one. */
-  idle?: { deadline: Promise<never>; clear: () => void; touch: () => void }
-): Promise<{ text: string; finishReason: string | null }> {
+  idle?: { deadline: Promise<never>; clear: () => void; touch: () => void },
+  /**
+   * Was ein Stillstand bedeutet. `throw` (Standard) für die Synth-Phase, die
+   * darauf ihre Geschwister-Lane startet. `stop` für die Werkzeugphase: dort
+   * ist das bereits Geschriebene weiter brauchbar, also endet nur das Auslesen
+   * und der Aufrufer entscheidet — deshalb kommt `stalled` mit zurück statt
+   * eines Fehlers, der den Text mitnähme.
+   */
+  onStall: 'throw' | 'stop' = 'throw'
+): Promise<{ text: string; finishReason: string | null; stalled: boolean }> {
   let text = '';
   let finishReason: string | null = null;
+  let stalled = false;
   const degeneration = createDegenerationGuard();
   const iterator = result.stream[Symbol.asyncIterator]();
   try {
     while (true) {
       // Racing the deadline is what makes a stall observable: awaiting `next()`
       // alone parks here until the turn's wall clock fires two minutes later.
-      const next = idle
-        ? await Promise.race([iterator.next(), idle.deadline])
-        : await iterator.next();
+      let next: IteratorResult<StreamPart>;
+      if (idle) {
+        try {
+          next = await Promise.race([iterator.next(), idle.deadline]);
+        } catch (err) {
+          // Nur der eigene Stillstands-Fehler wird hier abgefangen; ein echter
+          // Stream-Fehler aus `next()` muss durchgereicht werden.
+          if (onStall === 'throw' || !(err instanceof ToolPhaseStallError)) throw err;
+          stalled = true;
+          // swallow-ok: Abbau eines bereits verlassenen, verstummten Streams
+          void Promise.resolve(iterator.return?.()).catch(() => {});
+          break;
+        }
+      } else {
+        next = await iterator.next();
+      }
       if (next.done) break;
       idle?.touch();
       const part = next.value;
@@ -1109,5 +1191,5 @@ async function drain(
       `[Engine] stream ended with finishReason=${finishReason} after ${text.length} chars — the answer is likely truncated`
     );
   }
-  return { text, finishReason };
+  return { text, finishReason, stalled };
 }
