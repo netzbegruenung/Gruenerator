@@ -9,11 +9,13 @@
  * So the cases worth holding: every retired mention points at a recipe that
  * actually exists, and live mentions pass through untouched.
  */
+import { textFormTypeSchema } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
 import {
   SKILLS,
   canonicalSkillMention,
+  hasSystemRecipe,
   lvEbeneForSkillMention,
   resolveSkillMention,
 } from './index.js';
@@ -99,5 +101,51 @@ describe('the Partei/Fraktion split', () => {
 
   it('führt eine zurückgezogene Kennung auf dieselbe Ebene wie ihren Nachfolger', () => {
     expect(lvEbeneForSkillMention('presse-hessen')).toBe('partei');
+  });
+});
+
+/**
+ * `hasSystemRecipe` beantwortet für eine angelernte Textform die Frage, ob sie
+ * ein mitgeliefertes Rezept überschreibt oder für sich allein steht. Beide
+ * Filter, die daran hängen — der Rezeptkatalog des Modells und das
+ * Mention-Menü — filterten vorher hart auf `kind === 'custom'`, mit der
+ * Begründung, ein Preset reite ohnehin auf der Mention seines Systemrezepts.
+ * Für `antrag` stimmt das nicht: `textFormTypeSchema` kennt vier Presets,
+ * `SKILLS` führt drei davon. Die vierte Zeile war auf keinem Pfad erreichbar
+ * (#2937).
+ */
+describe('hasSystemRecipe', () => {
+  it('bejaht die Presets, die es als Rezept gibt', () => {
+    expect(hasSystemRecipe('presse')).toBe(true);
+    expect(hasSystemRecipe('instagram')).toBe(true);
+    expect(hasSystemRecipe('facebook')).toBe(true);
+  });
+
+  it('verneint „antrag" — ein Preset ohne mitgeliefertes Rezept', () => {
+    expect(SKILLS.map((s) => s.mention)).not.toContain('antrag');
+    expect(hasSystemRecipe('antrag')).toBe(false);
+  });
+
+  it('verneint eine selbst vergebene Mention', () => {
+    expect(hasSystemRecipe('omveinladungen')).toBe(false);
+  });
+
+  it('bejaht eine zurückgezogene Mention über ihren Nachfolger', () => {
+    // Sonst zählte `presse-hessen` aus einem alten Thread als eigenständig und
+    // bekäme im Menü einen zweiten Eintrag neben dem lebenden Rezept.
+    expect(hasSystemRecipe('presse-hessen')).toBe(true);
+  });
+
+  /**
+   * Der Drift-Wächter: jeder Textyp gehört in genau einen der beiden Töpfe, und
+   * welcher, steht hier. Kommt ein Preset dazu, dessen Rezept noch fehlt,
+   * fällt das hier auf statt still in der Oberfläche.
+   */
+  it('ordnet jeden Preset-Textyp einem der beiden Töpfe zu', () => {
+    const withRecipe = textFormTypeSchema.options.filter(hasSystemRecipe);
+    const standalone = textFormTypeSchema.options.filter((t) => !hasSystemRecipe(t));
+
+    expect(withRecipe).toEqual(['instagram', 'facebook', 'presse']);
+    expect(standalone).toEqual(['antrag']);
   });
 });

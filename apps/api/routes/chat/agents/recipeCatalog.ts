@@ -21,6 +21,7 @@ import {
   SKILLS,
   type RoleLandesverbandInput,
   type Skill,
+  hasSystemRecipe,
   isLvItemVisibleForRoles,
   isSkillOfferedIn,
   landesverbandIdsForRoles,
@@ -112,7 +113,13 @@ export async function buildRecipeCatalog(params: {
       // Presets override a system recipe's body; they are not separate menu
       // entries. Custom and group-shared forms are the ones the model cannot
       // otherwise know about.
-      .filter((f) => f.kind === 'custom')
+      //
+      // …ausser das Systemrezept existiert gar nicht. `antrag` ist ein Preset
+      // ohne Eintrag in `SKILLS`, also überschreibt es nichts und stand mangels
+      // eigener Zeile auch nirgends — die angelernte Zeile war auf keinem Pfad
+      // erreichbar (#2937). Ein Preset ohne mitgeliefertes Rezept trägt sich
+      // deshalb selbst in den Katalog ein, genau wie eine eigene Textform.
+      .filter((f) => f.kind === 'custom' || !hasSystemRecipe(f.mention))
       .map((f) => ({
         mention: f.mention,
         title: f.title,
