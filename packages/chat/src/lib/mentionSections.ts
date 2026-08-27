@@ -5,6 +5,72 @@ export interface MentionSubgroup {
   items: Mentionable[];
 }
 
+/**
+ * Where a recipe in the picker came from. Everything in the recipe section is
+ * usable right away, but it must never claim an origin it does not have — a
+ * colleague's recipe listed as one of your own is what #2876 was about.
+ *
+ * `'own'` is the fallback, so a source that carries no origin at all stays in
+ * the user's own bucket rather than inventing one.
+ */
+export type RecipeOrigin = 'bundled' | 'own' | 'group' | 'saved';
+
+/** Reading order of the recipe subgroups. */
+const RECIPE_ORIGIN_ORDER: readonly RecipeOrigin[] = ['bundled', 'own', 'group', 'saved'];
+
+/** Sublabels inside the popover's single "Rezepte" section (web/desktop). */
+export const RECIPE_ORIGIN_SUBLABELS: Record<RecipeOrigin, string> = {
+  bundled: 'mitgeliefert',
+  own: 'eigene',
+  group: 'aus deinen Gruppen',
+  saved: 'von anderen',
+};
+
+/**
+ * Standalone section titles for platforms whose list has only one heading level
+ * (mobile's `SectionList`). Kept beside the sublabels on purpose: the wording
+ * differs per platform, the *split* must not — `Record<RecipeOrigin, string>`
+ * makes a new origin fail to compile until both are filled in.
+ */
+export const RECIPE_ORIGIN_SECTION_TITLES: Record<RecipeOrigin, string> = {
+  bundled: 'Rezepte',
+  own: 'Meine Rezepte',
+  group: 'Rezepte aus deinen Gruppen',
+  saved: 'Rezepte von anderen',
+};
+
+/** The origin a recipe mentionable carries, `'own'` when it carries none. */
+export function recipeOriginOf(m: Mentionable): Exclude<RecipeOrigin, 'bundled'> {
+  if (m.sharedFromGroup) return 'group';
+  if (m.savedFromOwner !== undefined) return 'saved';
+  return 'own';
+}
+
+/**
+ * The one split of the recipe list, in reading order, empty buckets dropped.
+ *
+ * Both the popover and mobile's `SectionList` call this instead of filtering on
+ * `sharedFromGroup` themselves. A second hand-kept copy of the rule is how the
+ * picker drifted before (#2874), and #2876 warned that repairing one half while
+ * mobile rebuilt the split would tear the same seam open again.
+ */
+export function splitRecipesByOrigin(
+  bundled: Mentionable[],
+  userRecipes: Mentionable[]
+): Array<{ origin: RecipeOrigin; items: Mentionable[] }> {
+  const byOrigin = new Map<RecipeOrigin, Mentionable[]>([['bundled', bundled]]);
+  for (const m of userRecipes) {
+    const origin = recipeOriginOf(m);
+    const bucket = byOrigin.get(origin);
+    if (bucket) bucket.push(m);
+    else byOrigin.set(origin, [m]);
+  }
+  return RECIPE_ORIGIN_ORDER.map((origin) => ({
+    origin,
+    items: byOrigin.get(origin) ?? [],
+  })).filter((g) => g.items.length > 0);
+}
+
 export type MentionSection =
   | { kind: 'flat'; label: string; items: Mentionable[] }
   | { kind: 'grouped'; label: string; groups: MentionSubgroup[] };
@@ -35,17 +101,11 @@ export function buildMentionSections(query: string): MentionSection[] {
     vorlagen,
   } = filterMentionables(query);
 
-  // Recipes lost their own '/' trigger, so they lead the combined list.
-  // "Aus deinen Gruppen" stays a separate sublabel: a shared recipe is
-  // usable right away, but it should never look like one of your own.
-  const recipeGroups: MentionSubgroup[] = [];
-  const ownRecipes = customAgents.filter((m) => !m.sharedFromGroup);
-  const sharedRecipes = customAgents.filter((m) => m.sharedFromGroup);
-  if (agents.length > 0) recipeGroups.push({ sublabel: 'mitgeliefert', items: agents });
-  if (ownRecipes.length > 0) recipeGroups.push({ sublabel: 'eigene', items: ownRecipes });
-  if (sharedRecipes.length > 0) {
-    recipeGroups.push({ sublabel: 'aus deinen Gruppen', items: sharedRecipes });
-  }
+  // Recipes lost their own '/' trigger, so they lead the combined list. The
+  // origin split lives in `splitRecipesByOrigin` so mobile can use the same one.
+  const recipeGroups: MentionSubgroup[] = splitRecipesByOrigin(agents, customAgents).map(
+    ({ origin, items }) => ({ sublabel: RECIPE_ORIGIN_SUBLABELS[origin], items })
+  );
 
   const notebookGroups: MentionSubgroup[] = [];
   if (userNotebooks.length > 0) {

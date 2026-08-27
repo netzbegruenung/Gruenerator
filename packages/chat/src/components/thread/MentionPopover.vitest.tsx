@@ -162,3 +162,63 @@ describe('recipes shared from a group', () => {
     expect(renderedRows()).toEqual(getFilteredMentionables('pressemitteilung').map(rowKey));
   });
 });
+
+/**
+ * The other half of the same claim: a prompt saved from someone else's public
+ * one is not the user's own either. `custom_prompts` have no group origin at all
+ * (#2909), but the owner behind a saved one is on the wire — so "eigene" has to
+ * stop covering it (#2876).
+ */
+describe('recipes saved from another user', () => {
+  const renderPopover = (query: string) =>
+    render(
+      <MentionPopover
+        query={query}
+        visible
+        onSelect={vi.fn()}
+        onDismiss={vi.fn()}
+        selectedIndex={0}
+        anchorRect={anchorRect}
+      />
+    );
+
+  it('lists a saved recipe apart from the user’s own', () => {
+    setCustomAgents([
+      { id: 'own-1', name: 'Eigene Rede', slug: 'eigene-rede' },
+      { id: 'saved-1', name: 'Fremde Rede', slug: 'fremde-rede', savedFromOwner: 'Alex Grün' },
+    ]);
+    renderPopover('rede');
+
+    expect(rowTitlesUnder('eigene')).toEqual(['Eigene Rede']);
+    expect(rowTitlesUnder('von anderen')).toEqual(['Fremde Rede']);
+  });
+
+  it('keeps a saved recipe out of “eigene” even without an owner name', () => {
+    setCustomAgents([
+      { id: 'own-1', name: 'Eigene Rede', slug: 'eigene-rede' },
+      { id: 'saved-1', name: 'Fremde Rede', slug: 'fremde-rede', savedFromOwner: null },
+    ]);
+    renderPopover('rede');
+
+    expect(rowTitlesUnder('eigene')).toEqual(['Eigene Rede']);
+    expect(rowTitlesUnder('von anderen')).toEqual(['Fremde Rede']);
+  });
+
+  it('keeps the section away when nothing was saved', () => {
+    setCustomAgents([{ id: 'own-1', name: 'Eigene Rede', slug: 'eigene-rede' }]);
+    renderPopover('rede');
+
+    expect(rowTitlesUnder('eigene')).toEqual(['Eigene Rede']);
+    expect(screen.queryByText('von anderen')).toBeNull();
+  });
+
+  it('keeps the split consistent with the keyboard list', () => {
+    setCustomAgents([
+      { id: 'own-1', name: 'Eigene Rede', slug: 'eigene-rede' },
+      { id: 'saved-1', name: 'Fremde Rede', slug: 'fremde-rede', savedFromOwner: 'Alex Grün' },
+    ]);
+    renderPopover('rede');
+
+    expect(renderedRows()).toEqual(getFilteredMentionables('rede').map(rowKey));
+  });
+});
