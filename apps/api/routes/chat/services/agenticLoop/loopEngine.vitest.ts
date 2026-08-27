@@ -310,7 +310,7 @@ describe('runAgenticLoop — split (planner/executor)', () => {
    *
    * Silence is only a hang once nothing could legitimately still be running, so
    * the window is derived from the longest per-call timeout among the tools
-   * MOUNTED THIS TURN (see `gatherIdleDeadlineMs`).
+   * MOUNTED THIS TURN (see `mountedToolCeilingMs`).
    */
   describe('gather stall guard', () => {
     it('gives up on a silent planner and still answers from what was gathered', async () => {

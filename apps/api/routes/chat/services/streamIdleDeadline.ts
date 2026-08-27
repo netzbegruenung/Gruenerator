@@ -18,6 +18,12 @@
  * The caller supplies `makeError` so each path keeps its own typed failure
  * (the single-pass path's must stay a `StreamFailure` to drive its fallback)
  * without this module having to know about either.
+ *
+ * `isBusy` covers the second reason a healthy stream can go quiet: the agentic
+ * tool phase parks the iterator for as long as a tool call runs (up to 90s for
+ * a generation tool). That silence is the tool working, not the lane dying, so
+ * the window is re-armed instead of fired while the predicate says busy. The
+ * tool's own per-call timeout stays the bound there.
  */
 
 export interface IdleDeadline {
@@ -33,7 +39,13 @@ export interface IdleDeadline {
   touch: () => void;
 }
 
-export function createIdleDeadline(deadlineMs: number, makeError: () => Error): IdleDeadline {
+export function createIdleDeadline(
+  deadlineMs: number,
+  makeError: () => Error,
+  /** Optional: while this returns true, silence is expected and the window is
+   *  re-armed rather than fired. */
+  isBusy?: () => boolean
+): IdleDeadline {
   const controller = new AbortController();
   let timeoutHandle: NodeJS.Timeout | undefined;
   let lastActivity = Date.now();
@@ -42,6 +54,12 @@ export function createIdleDeadline(deadlineMs: number, makeError: () => Error): 
   const deadline = new Promise<never>((_, reject) => {
     const arm = (ms: number): void => {
       timeoutHandle = setTimeout(() => {
+        if (isBusy?.() === true) {
+          // Work is in flight — treat it as liveness and start the window over.
+          lastActivity = Date.now();
+          arm(deadlineMs);
+          return;
+        }
         const idleFor = Date.now() - lastActivity;
         if (idleFor >= deadlineMs) {
           settled = true;
