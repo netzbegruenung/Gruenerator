@@ -17,6 +17,14 @@
  * Postgres row is already gone by the time they run and failing the request
  * afterwards would report a deletion that did happen as an error.
  *
+ * Reports, does not delete. The scheduled run calls this with `apply` at its
+ * default of false: it walks every link, compares against Postgres and writes
+ * down what it would have unlinked, and touches nothing. Switching it back on
+ * is one word at the call site below — a code change someone signs off on, not
+ * a setting that can quietly stand differently on one host than another. That
+ * is the posture a destructive housekeeping job earns after it has been wrong
+ * once; see the note on `MIN_KNOWN_RATIO`.
+ *
  * Deliberately conservative:
  *   - It only ever deletes a link whose `document_id` Postgres does NOT know.
  *     Documents themselves are never touched.
@@ -40,6 +48,37 @@ const PAGE_SIZE = 500;
 /** ~50k links per run at PAGE_SIZE, drained further on the next tick. */
 const MAX_PAGES = 100;
 
+/**
+ * A page whose documents Postgres almost entirely does not know is not a page of
+ * orphans — it is the wrong database being asked.
+ *
+ * That is not hypothetical. On 2026-08-27 this sweep ran on `gruenerator-test`,
+ * which points `QDRANT_URL` at the production Qdrant but carries its own
+ * 56-document Postgres. It asked the test database about production document ids,
+ * was told none of them exist, and unlinked 589 production links in two pages
+ * (`500 verwaiste …`, `89 verwaiste …`). The `catch` below covers a lookup that
+ * throws; it cannot cover one that answers correctly out of a store that does not
+ * belong to the Qdrant being swept.
+ *
+ * Real orphan rates are a rounding error — a document is deleted, its handful of
+ * links go stale. Half a page of them means the premise is broken, not the data.
+ */
+const MIN_KNOWN_RATIO = 0.5;
+
+/**
+ * Below this many documents a ratio says nothing, so the check stays out of the
+ * way: a two-link page with both documents deleted is 0 % known and perfectly
+ * ordinary. The incident pages held 500.
+ */
+const MIN_SAMPLE_FOR_RATIO = 20;
+
+/**
+ * Backstop for premises this file has not thought of. A sweep that wants to
+ * remove more than this in one run has stopped tidying and started deleting;
+ * it says so and leaves the rest to a person.
+ */
+const MAX_REMOVALS_PER_RUN = 100;
+
 const notebookHelper = new NotebookQdrantHelper();
 
 /** Which of these ids Postgres still has a document row for. */
@@ -50,11 +89,29 @@ async function existingDocumentIds(ids: string[]): Promise<Set<string>> {
   return new Set(rows.map((r) => r.id));
 }
 
-/** Returns how many orphaned document ids were unlinked. */
-export async function sweepOrphanedNotebookLinks(): Promise<number> {
+/** What a sweep saw, and what it did about it. */
+export interface SweepReport {
+  /** Distinct documents behind the links, across all pages. */
+  scanned: number;
+  /** How many of those Postgres still has a row for. */
+  known: number;
+  /** How many have no Postgres row — the removal candidates. */
+  orphans: number;
+  /** How many links were actually unlinked. Zero unless `apply`. */
+  removed: number;
+  /** Why the run stopped short of acting, if it did. */
+  blocked: string | null;
+}
+
+/**
+ * Compare every link against Postgres and report. Removes nothing unless
+ * `apply` is passed — a dry run still walks every page, so the report is
+ * complete even when a guard has already decided that acting would be wrong.
+ */
+export async function sweepOrphanedNotebookLinks(apply = false): Promise<SweepReport> {
+  const report: SweepReport = { scanned: 0, known: 0, orphans: 0, removed: 0, blocked: null };
   let after: string | number | null = null;
   let pages = 0;
-  let removed = 0;
 
   while (pages < MAX_PAGES) {
     const page = await notebookHelper.listDocumentLinksPage(PAGE_SIZE, after);
@@ -73,12 +130,26 @@ export async function sweepOrphanedNotebookLinks(): Promise<number> {
     }
 
     const orphans = unique.filter((id) => !alive.has(id));
-    if (orphans.length === 0) continue;
+    report.scanned += unique.length;
+    report.known += alive.size;
+    report.orphans += orphans.length;
 
-    await notebookHelper.removeDocumentsFromAllCollections(orphans);
-    removed += orphans.length;
-    log.info(`${orphans.length} verwaiste Notizbuch-Verknüpfung(en) entfernt`);
+    if (report.blocked === null) {
+      if (unique.length >= MIN_SAMPLE_FOR_RATIO && alive.size / unique.length < MIN_KNOWN_RATIO) {
+        report.blocked = `Postgres kennt nur ${alive.size} von ${unique.length} Dokumenten einer Seite`;
+      } else if (report.removed + orphans.length > MAX_REMOVALS_PER_RUN) {
+        report.blocked = `mehr als ${MAX_REMOVALS_PER_RUN} Entfernungen in einem Lauf`;
+      }
+    }
 
+    if (apply && report.blocked === null && orphans.length > 0) {
+      await notebookHelper.removeDocumentsFromAllCollections(orphans);
+      report.removed += orphans.length;
+    }
+
+    // A dry run keeps counting so the report covers everything; an applying run
+    // has nothing left to do once a guard has spoken.
+    if (apply && report.blocked !== null) break;
     if (page.last === null) break;
   }
 
@@ -86,7 +157,16 @@ export async function sweepOrphanedNotebookLinks(): Promise<number> {
     // Say what was left rather than looking like a completed sweep.
     log.info(`Seitenlimit (${MAX_PAGES}) erreicht — Rest folgt beim nächsten Lauf`);
   }
-  return removed;
+
+  log.info(
+    `[${apply ? 'ANGEWENDET' : 'PROBELAUF'}] ${report.scanned} Dokumente geprüft, ` +
+      `${report.known} in Postgres bekannt, ${report.orphans} ohne Postgres-Zeile, ` +
+      `${report.removed} entfernt`
+  );
+  if (report.blocked !== null) {
+    log.error(`Sweep hat nicht gelöscht: ${report.blocked}`);
+  }
+  return report;
 }
 
 const worker = createIntervalWorker({
