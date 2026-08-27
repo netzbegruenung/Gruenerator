@@ -167,7 +167,7 @@ function AgentDetailPage() {
           type="button"
           className={ICON_BTN}
           aria-label={isFavorite ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
-          onClick={() => toggleAgentFavorite(agent.identifier)}
+          onClick={() => toggleAgentFavorite(agent.identifier, agent.title)}
         >
           {isFavorite ? (
             <PiStarFill className="h-[18px] w-[18px] text-secondary-600" />
@@ -287,7 +287,7 @@ function AgentDetailPage() {
                 navigate(`/agentura/agent/${encodeURIComponent(getAgentSlug(a.identifier))}`)
               }
               isFavorite={agentFavorites.includes(other.identifier)}
-              onToggleFavorite={(a) => toggleAgentFavorite(a.identifier)}
+              onToggleFavorite={(a) => toggleAgentFavorite(a.identifier, a.title)}
             />
           ))}
         </CardGrid>
