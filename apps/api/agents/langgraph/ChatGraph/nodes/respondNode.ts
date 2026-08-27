@@ -48,6 +48,7 @@ import {
 import { buildCitableSources, MAX_SOURCES, type CitableSource } from './citableSources.js';
 import { lastUserText } from './classifierHeuristics.js';
 import { looksLikeDocsHelpQuestion } from './classifierSignals.js';
+import { resolveEffectiveRecipeMention } from './effectiveRecipeMention.js';
 import { deriveTextFormMention } from './textFormMention.js';
 
 import type { ChatGraphState, DocumentSource, SearchResult, ThreadAttachment } from '../types.js';
@@ -1822,12 +1823,13 @@ export async function buildSystemMessage(
   // already special-case them above.
   //
   // VOR dem `customSystemPrompt`-Zweig berechnet, weil auch der ein Fragment
-  // bekommen kann: ein server-eigener Rollen-Baustein (Katalogrolle) ist keine
-  // Nutzer-Persona — eine gewählte oder implizit erkannte Mention
-  // (routingStage) gehört dort hinein, sonst schreibt die aktivierte Rolle
-  // jede Textsorte formlos. Das ist dieselbe Ausnahme, die `catalogAssembly`
-  // für `rezept_laden` im Loop macht. Frei getippte Personas bleiben ohne
-  // Fragment, und der Agent-Default gilt in beiden Custom-Fällen nie.
+  // bekommen kann: eine ausdrücklich gewählte Mention gilt in JEDEM Rollen-Chat,
+  // egal ob die Persona ein server-eigener Baustein oder frei getippt ist —
+  // sonst schreibt die aktivierte Rolle jede bestellte Textsorte formlos. Der
+  // Agent-Default dagegen gilt in beiden Custom-Fällen nie: eine Persona sagt
+  // bereits, wie geschrieben wird, ein ungefragtes Rezept wäre dort ein zweiter
+  // Formatgeber. Dieselbe Trennung macht `catalogAssembly` für `rezept_laden`
+  // im Loop. Regeln und Herleitung in `effectiveRecipeMention.ts`.
   const isWriteEligibleTurn =
     !opts.retrievalExpected &&
     !isNeutralTurn &&
@@ -1835,17 +1837,16 @@ export async function buildSystemMessage(
     !looksLikeChitchatTurn(userQuestion) &&
     !isProductMetaQuestion(userQuestion) &&
     !docsPageMap;
-  const effectiveSkillMention = state.customSystemPrompt
-    ? state.roleBausteinActive
-      ? (state.activeSkillMention ?? null)
-      : null
-    : (state.activeSkillMention ??
-      (isWriteEligibleTurn
-        ? roleAwareDefaultRecipeMention(agentConfig, {
-            userRoles: state.userRoles,
-            userLocale: state.userLocale,
-          })
-        : null));
+  const effectiveSkillMention = resolveEffectiveRecipeMention({
+    activeSkillMention: state.activeSkillMention,
+    customSystemPrompt: state.customSystemPrompt,
+    isWriteEligibleTurn,
+    agentDefault: () =>
+      roleAwareDefaultRecipeMention(agentConfig, {
+        userRoles: state.userRoles,
+        userLocale: state.userLocale,
+      }),
+  });
   const activeSkill = effectiveSkillMention
     ? SKILLS.find((s) => s.mention === canonicalSkillMention(effectiveSkillMention))
     : undefined;
@@ -1934,8 +1935,9 @@ export async function buildSystemMessage(
       state.customSystemPrompt,
       (state.userLocale as Locale) || 'de-DE'
     );
-    // `skillFragment` ist hier nur bei aktiver Katalogrolle gefüllt (siehe
-    // Berechnung oben): das Rezept bestimmt die FORM, der Baustein die Rolle.
+    // `skillFragment` ist hier gefüllt, sobald eine Mention wirkt — ausdrücklich
+    // gewählt oder über einen Katalog-Baustein (siehe `effectiveRecipeMention.ts`):
+    // das Rezept bestimmt die FORM, die Rolle die Stimme.
     return `${customSystemPrompt}${skillFragment}
 Heutiges Datum: ${today}${localeContext}${platformContext}${userInstructionsFormatted}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${artifactInventory}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}${hasSources ? `\n${citationInstruction}` : ''}
 
