@@ -28,10 +28,21 @@ import { writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { type EvalExpect, type EvalScenario } from '../types.js';
+
+/** Die Tiefe-Werte des Szenario-Schemas selbst — keine zweite Liste daneben. */
+type NotebookMode = NonNullable<EvalScenario['notebookMode']>;
+
 const OUT = resolve(dirname(fileURLToPath(import.meta.url)), '../corpus/bgst-korpus.jsonl');
 const COLLECTION = 'bgst-beschluesse';
 
-const nb = (id, note, prompt, expect, notebookMode = 'deep') => ({
+const nb = (
+  id: string,
+  note: string,
+  prompt: string,
+  expect: EvalExpect,
+  notebookMode: NotebookMode = 'deep'
+): EvalScenario => ({
   id,
   category: 'bgst-korpus',
   note,
@@ -52,7 +63,7 @@ const PRAESENZ =
   'Antworte ausschließlich mit JA oder NEIN, gefolgt von Gremium und ' +
   'Beschlussdatum, falls JA.\n\nTitel: ';
 
-const scenarios = [
+const scenarios: EvalScenario[] = [
   // ——— Typ 3: Nadel. Findet die Suche einen Einzelfakt im Bestand? ———
   nb(
     'bgst-nadel-inkrafttreten',

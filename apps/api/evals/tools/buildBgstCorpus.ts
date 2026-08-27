@@ -12,6 +12,8 @@ import { writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { type EvalCase, type EvalExpect } from '../types.js';
+
 const OUT = resolve(dirname(fileURLToPath(import.meta.url)), '../corpus/bgst-beleg.jsonl');
 
 /** Die Schlussformel, mit der jeder Prompt der Testrunden 8 und 9 endet. */
@@ -43,9 +45,15 @@ const FORMAT =
  * gesucht haben, haben trotzdem richtig geantwortet. Der Werkzeugaufruf ist
  * keine Fehlfunktion — die erfundene Angabe ist es, und die prüft `abstains`.
  */
-const single = (id, category, note, prompt, expect) => ({ id, category, note, prompt, expect });
+const single = (
+  id: string,
+  category: string,
+  note: string,
+  prompt: string,
+  expect: EvalExpect
+): EvalCase => ({ id, category, note, prompt, expect });
 
-const scenarios = [
+const scenarios: EvalCase[] = [
   // ————————————————————————————————————————————————————————————————
   // Ceiling-Test, Stufe K3: der Beleg steht IM Prompt.
   //
