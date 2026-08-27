@@ -76,6 +76,24 @@ describe('Geltungsstand-Regel', () => {
     expect(prompt).toContain(MARKER);
   });
 
+  /**
+   * Dieselbe Funktion genügt nicht — sie muss dieselbe SICHT bekommen.
+   *
+   * Der Klassifikator gibt dem Prädikat `m.stripped`, also den Text ohne
+   * zitierte Spannen. Roher Text hier hiesse: kein erzwungener Abruf, aber die
+   * Rechtsstand-Regel trotzdem im Prompt — die Drift aus dem Kommentar an
+   * `geltungsstandNote`, nur über die Eingabe statt über einen zweiten
+   * Detektor. Gefunden im Review von #2952.
+   */
+  it('ignoriert eine ZITIERTE Geltungsfrage — wie der Klassifikator auch', async () => {
+    const prompt = await buildSystemMessage(
+      state(
+        'Ein Kollege fragte mich: "Gilt das Verbrenner-Aus 2035 noch?" Hilf mir bei etwas anderem.'
+      )
+    );
+    expect(prompt).not.toContain(MARKER);
+  });
+
   // Die vier Aussagen der Regel, einzeln festgehalten: jede trägt einen eigenen
   // Fehler aus dem Befund, und eine gekürzte Fassung sähe sonst grün aus.
   it.each([

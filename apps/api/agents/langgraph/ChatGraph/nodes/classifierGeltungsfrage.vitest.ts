@@ -74,6 +74,59 @@ describe('looksLikeGeltungsfrage', () => {
     expect(looksLikeGeltungsfrage(q)).toBe(false);
   });
 
+  /**
+   * Die Fälle aus dem Review von #2952 — jeder war ein echter Fehltreffer der
+   * ersten Fassung.
+   *
+   * Die drei Klassen darin sind lehrreich, weil sie verschiedene Fehler sind:
+   * ein Ausschluss-Wächter, der zu viel ausschliesst (und damit den ganzen
+   * Detektor abschaltet), ein zu enges Zeichenfenster, und ein Stamm, der
+   * mitten in ein fremdes Wort trifft.
+   */
+  describe('Rückfälle aus dem Review', () => {
+    // Der gefährlichste: `verfass\w*` traf „Verfassung"/„verfasst",
+    // `formulier\w*` traf „Formulierung" — und schaltete den Detektor ab,
+    // BEVOR irgendetwas anderes geprüft wurde. Dieselbe Fehlerform wie #2949,
+    // erzeugt durch die Reparatur.
+    it.each([
+      ['Ist die Verordnung, die 2019 verfasst wurde, noch gültig?'],
+      ['Ist die Formulierung des Paragraphen noch gültig?'],
+      ['Gilt die Verfassungsänderung von 2019 noch?'],
+      ['Ist die Erstellung der Satzung 2024 noch in Kraft?'],
+    ])('der Ausschluss-Wächter greift nicht mehr mitten im Wort: %s', (q) => {
+      expect(looksLikeGeltungsfrage(q)).toBe(true);
+    });
+
+    // Ein Relativsatz zwischen Norm und Frage ist im Rechtsregister der
+    // Normalfall. 60 Zeichen waren zu wenig.
+    it('überbrückt einen Relativsatz zwischen Verb und „noch"', () => {
+      expect(
+        looksLikeGeltungsfrage(
+          'Gilt das Klimaschutzgesetz, das im Sommer nach monatelangen zähen ' +
+            'Verhandlungen im Bundestag und im Bundesrat schließlich verabschiedet ' +
+            'wurde, eigentlich noch?'
+        )
+      ).toBe(true);
+    });
+
+    // Die Gegenrichtung: der Stamm mitten im fremden Wort.
+    it.each([
+      ['Bin ich raus, vorausgesetzt das gilt noch?'],
+      ['Gilt der Vertrag noch, vorausgesetzt es gab keine Kündigung?'],
+      ['Ist die Zusage noch gültig, oder ist sie befristet gewesen?'],
+    ])('trifft den Normstamm in der Wortmitte NICHT: %s', (q) => {
+      expect(looksLikeGeltungsfrage(q)).toBe(false);
+    });
+
+    // Das blosse Partizip beginnt mit einer echten Wortgrenze — die Naht-Regel
+    // allein fängt es nicht, deshalb der Zusatz an `gesetz`. OHNE Jahreszahl
+    // geprüft: eine Jahreszahl trägt Faktor B ohnehin allein, und dann sagt der
+    // Fall nichts mehr über den Stamm aus.
+    it('trifft das blosse Partizip „gesetzt" NICHT', () => {
+      expect(looksLikeGeltungsfrage('Gilt das Ziel noch, das damals gesetzt wurde?')).toBe(false);
+    });
+  });
+
   // Ein Verbot trägt sein Objekt — siehe `forbidsNewResearch`. Hier ist das
   // unkritisch, weil `shouldForceFirstToolCall` unter `researchBanned` als
   // Erstes abbricht; der Fall steht trotzdem fest, damit eine spätere Änderung
