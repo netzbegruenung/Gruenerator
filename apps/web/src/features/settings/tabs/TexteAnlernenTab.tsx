@@ -9,10 +9,8 @@ import {
 import { type QueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { FiArrowLeft, FiChevronRight, FiPlus } from 'react-icons/fi';
-import { useNavigate } from 'react-router-dom';
 
 import { SettingsCardsSkeleton } from '../components/SettingsSkeleton';
-import { useSettingsDialogStore } from '../settingsDialogStore';
 
 import TextFormEditor from './texteAnlernen/TextFormEditor';
 import { textFormsQuery, useTextForms } from './texteAnlernen/useTextForms';
@@ -41,6 +39,9 @@ const PRESETS: { textType: TextFormType; label: string; hint: string }[] = [
  */
 type EditorTarget =
   | { kind: 'preset'; textType: TextFormType; label: string; hint: string }
+  // Ein Stil FÜR EIN Landesverbands-Rezept. Eigene Zeile in `user_text_forms`
+  // unter dessen Mention — der Textyp reist nur als Beschriftung der Analyse mit.
+  | { kind: 'recipe'; mention: string; label: string; textType: TextFormType; hint: string }
   | { kind: 'custom'; form: TextForm }
   | { kind: 'shared'; form: TextForm }
   | { kind: 'new' };
@@ -87,20 +88,18 @@ const TexteAnlernenTab = () => {
   const api = useTextForms(!!user);
   const [target, setTarget] = useState<EditorTarget | null>(null);
   const { lvIds } = useUserLandesverbaende();
-  const navigate = useNavigate();
-  const closeSettings = useSettingsDialogStore((s) => s.close);
 
   // Die Landesverbands-Rezepte, die diese Person laut Profilrolle hat — jedes
-  // mit dem Preset, dessen Stil es übernimmt. Ohne diesen Abschnitt sieht der
-  // Tab für eine Landesgeschäftsstelle genauso aus wie für alle anderen,
-  // obwohl ein angelernter Presse-Stil dort auch @presse-bayern steuert.
+  // mit einem eigenen Stil anlernbar. Das Preset daneben liefert nur noch die
+  // Beschriftung für die Stilanalyse („Pressemitteilungen"), nicht mehr den
+  // Schlüssel: seit #2930 schlägt das Backend unter der Mention SELBST nach
+  // (`deriveTextFormMention`), jedes Rezept bekommt also seine eigene Zeile in
+  // `user_text_forms` (unique auf `(user_id, mention)`).
   //
-  // Die Zuordnung spiegelt `deriveTextFormMention` im Backend: `presse-*` fällt
-  // auf `presse`, `insta-*` auf `instagram`. Genau deshalb sind das KEINE
-  // eigenen Presets: sie schrieben alle in dieselbe Zeile von
-  // `user_text_forms` (unique auf `(user_id, mention)`). Die Einträge führen
-  // deshalb auf die Rezeptseite — dorthin, wo das Rezept steht — statt in
-  // einen Editor, der eine Trennung vortäuschte, die es nicht gibt.
+  // Vorher faltete das Backend `presse-*` auf `presse` und `insta-*` auf
+  // `instagram`. Ein einziger angelernter Presse-Stil schaltete damit die
+  // Vorgaben aller LV-Rezepte ab, und diese Einträge führten nur auf die
+  // Rezeptseite, weil ein eigener Stil je Rezept gar nicht speicherbar war.
   const lvRecipes = useMemo(() => {
     if (lvIds === null || lvIds.length === 0) return [];
     return SKILLS.flatMap((skill) => {
@@ -129,7 +128,7 @@ const TexteAnlernenTab = () => {
 
   if (target) {
     const heading =
-      target.kind === 'preset'
+      target.kind === 'preset' || target.kind === 'recipe'
         ? target.label
         : target.kind === 'custom' || target.kind === 'shared'
           ? target.form.title
@@ -161,8 +160,21 @@ const TexteAnlernenTab = () => {
         ) : target.kind === 'preset' ? (
           <TextFormEditor
             kind="preset"
-            fixedTextType={target.textType}
+            fixedMention={target.textType}
+            textType={target.textType}
             initialForm={byMention(target.textType)}
+            defaultTitle={target.label}
+            hint={target.hint}
+            api={api}
+            onCreated={backToList}
+            onDeleted={backToList}
+          />
+        ) : target.kind === 'recipe' ? (
+          <TextFormEditor
+            kind="recipe"
+            fixedMention={target.mention}
+            textType={target.textType}
+            initialForm={byMention(target.mention)}
             defaultTitle={target.label}
             hint={target.hint}
             api={api}
@@ -220,20 +232,26 @@ const TexteAnlernenTab = () => {
           <div>
             <h3 className="m-0 text-sm font-semibold text-foreground-heading">{lvHeading}</h3>
             <p className="m-0 text-xs text-grey-500 dark:text-grey-400">
-              Über deine Rolle zugeteilt. Diese Rezepte haben keinen eigenen Stil zum Anlernen — sie
-              übernehmen den, den du oben hinterlegst.
+              Über deine Rolle zugeteilt. Diese Rezepte bringen eigene Vorgaben mit — ein oben
+              hinterlegter Stil greift bei ihnen nicht. Lernst du hier einen an, ersetzt er die
+              Vorgaben dieses einen Rezepts.
             </p>
           </div>
           {lvRecipes.map((recipe) => (
             <FormRow
               key={recipe.mention}
               label={recipe.title}
-              meta={`@${recipe.mention} · nutzt deinen Stil für ${recipe.preset.hint}`}
-              status={formatLearned(byMention(recipe.preset.textType))}
-              onClick={() => {
-                closeSettings();
-                void navigate(`/agentura/rezept/${encodeURIComponent(recipe.mention)}`);
-              }}
+              meta={`Ersetzt das mitgelieferte Rezept @${recipe.mention}`}
+              status={formatLearned(byMention(recipe.mention))}
+              onClick={() =>
+                setTarget({
+                  kind: 'recipe',
+                  mention: recipe.mention,
+                  label: recipe.title,
+                  textType: recipe.preset.textType,
+                  hint: recipe.preset.hint,
+                })
+              }
             />
           ))}
         </section>

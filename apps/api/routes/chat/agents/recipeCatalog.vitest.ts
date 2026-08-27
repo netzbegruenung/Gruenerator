@@ -147,6 +147,33 @@ describe('buildRecipeCatalog', () => {
     expect(entries.filter((e) => e.mention === 'presse')).toHaveLength(1);
   });
 
+  // Dasselbe für einen Stil, der FÜR ein LV-Rezept angelernt wurde. Die Zeile
+  // muss `kind === 'custom'` verfehlen, sonst verdrängt der eigene Titel den
+  // des Rezepts im Menü (`userMentions`-Filter weiter unten in der Funktion) —
+  // genau der Grund, warum es dafür einen dritten `kind` gibt und nicht
+  // `custom` wiederverwendet wird.
+  it('behandelt einen Rezept-Stil als Überschreibung, nicht als zweiten Eintrag', async () => {
+    listTextForms.mockResolvedValue([
+      {
+        mention: 'presse-bayern-partei',
+        title: 'Unser Stil',
+        kind: 'recipe',
+        sharedFromGroup: null,
+      },
+    ]);
+    const entries = await buildRecipeCatalog({
+      userLocale: 'de-DE',
+      userId: 'u1',
+      roles: [
+        { ebene: 'land', rolle: 'Mitarbeiter*in Landesgeschäftsstelle', bundesland: 'Bayern' },
+      ],
+    });
+    const bayern = entries.filter((e) => e.mention === 'presse-bayern-partei');
+    expect(bayern).toHaveLength(1);
+    expect(bayern[0]?.source).toBe('system');
+    expect(bayern[0]?.title).not.toBe('Unser Stil');
+  });
+
   it('degrades to system recipes when the text-form lookup fails', async () => {
     listTextForms.mockRejectedValue(new Error('db weg'));
     const entries = await buildRecipeCatalog({ userLocale: 'de-DE', userId: 'u1', roles: null });
@@ -199,10 +226,19 @@ describe('resolveRecipe', () => {
     expect(r?.body).toContain('untrusted_content');
   });
 
-  it('folds an LV variant onto the general text form (presse-bayern → presse)', async () => {
+  // Umgedreht mit #2930: ein LV-Rezept wird unter SEINEM Namen nachgeschlagen.
+  // Vorher fiel es auf `presse`, und ein generischer angelernter Presse-Stil
+  // schaltete damit die Vorgaben aller zwanzig LV-Rezepte ab.
+  it('schlägt ein LV-Rezept unter seiner eigenen Mention nach', async () => {
+    getTextFormForInjection.mockResolvedValue(null);
+    await resolveRecipe({ mention: 'presse-bayern-partei', userId: 'u1' });
+    expect(getTextFormForInjection).toHaveBeenCalledWith('u1', 'presse-bayern-partei');
+  });
+
+  it('führt eine zurückgezogene Mention auf die lebende Zeile', async () => {
     getTextFormForInjection.mockResolvedValue(null);
     await resolveRecipe({ mention: 'presse-bayern', userId: 'u1' });
-    expect(getTextFormForInjection).toHaveBeenCalledWith('u1', 'presse');
+    expect(getTextFormForInjection).toHaveBeenCalledWith('u1', 'presse-bayern-partei');
   });
 
   it('falls back to the shipped prompt when the user trained nothing', async () => {
