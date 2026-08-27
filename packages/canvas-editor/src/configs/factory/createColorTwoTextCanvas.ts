@@ -329,11 +329,14 @@ export function createColorTwoTextCanvas<
     ],
 
     // 'background' tab kept registered but hidden — opened via getAutoSwitchTab when
-    // the canvas background is clicked.
+    // the background image is clicked.
     getVisibleTabs: () => ['text', 'assets', 'tools', 'uploads', 'chat', 'share'],
 
     getAutoSwitchTab: (selectedElement) => {
-      if (selectedElement === 'background') return 'background';
+      // `background-image` is the clickable one. The `background` element is the
+      // colour plane, which CanvasBackground renders with `listening={false}`.
+      if (selectedElement === 'background-image' || selectedElement === 'background')
+        return 'background';
       if (selectedElement?.startsWith('chart-')) return 'chart-settings';
       if (selectedElement?.startsWith('frame-')) return 'frame-settings';
       return null;

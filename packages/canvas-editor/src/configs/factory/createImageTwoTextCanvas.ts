@@ -365,12 +365,17 @@ export function createImageTwoTextCanvas<
 
     getVisibleTabs: () => ['image', 'text', 'assets', 'tools', 'uploads', 'chat', 'share'],
 
+    // Clicking the background image opens the tab that replaces it. The
+    // element id is `background-image`; `background` is the (unclickable) colour
+    // plane, so matching on that would never fire.
     getAutoSwitchTab: (selectedElement) =>
-      selectedElement?.startsWith('chart-')
-        ? 'chart-settings'
-        : selectedElement?.startsWith('frame-')
-          ? 'frame-settings'
-          : null,
+      selectedElement === 'background-image'
+        ? 'image'
+        : selectedElement?.startsWith('chart-')
+          ? 'chart-settings'
+          : selectedElement?.startsWith('frame-')
+            ? 'frame-settings'
+            : null,
 
     sections: {
       image: section({

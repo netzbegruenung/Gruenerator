@@ -279,6 +279,8 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
   },
 
   getAutoSwitchTab: (selectedElement) => {
+    // Clicking the background image opens the tab that replaces it.
+    if (selectedElement === 'background-image') return 'image-background';
     if (selectedElement?.includes('balken')) return 'settings';
     if (selectedElement?.startsWith('chart-')) return 'chart-settings';
     if (selectedElement?.startsWith('frame-')) return 'frame-settings';
