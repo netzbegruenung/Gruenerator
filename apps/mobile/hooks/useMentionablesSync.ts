@@ -8,9 +8,9 @@ import {
   syncSheets,
   syncTextforms,
   syncUserNotebooks,
+  useUserLandesverbaende,
   type MentionableFetch,
 } from '@gruenerator/chat';
-import { useUserLandesverbaende } from '@gruenerator/chat';
 import { getGlobalApiClient, stripApiPrefix } from '@gruenerator/shared/api';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { useQuery } from '@tanstack/react-query';
