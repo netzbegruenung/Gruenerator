@@ -40,6 +40,7 @@ export {
   SKILLS,
   resolveSkillMention,
   canonicalSkillMention,
+  hasSystemRecipe,
   lvEbeneForSkillMention,
 } from './skills/index.js';
 

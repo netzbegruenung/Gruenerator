@@ -10,19 +10,28 @@
  * callers and is gone, so the node went with it — but the two prompt helpers
  * below are very much live: `socialPostService` uses
  * `buildSocialMediaSystemPrompt`, `socialPostEditService` uses
- * `craftGuidanceForPlatform` (das intern erst bei fehlendem Rezept auf
- * `rubricForPlatform` zurückfällt).
+ * `craftGuidanceForPlatform` (das intern erst den angelernten Stil sucht und
+ * bei fehlendem Rezept auf `rubricForPlatform` zurückfällt).
  */
 
 import { SKILLS } from '@gruenerator/shared/agents';
 
+import {
+  embedUntrusted,
+  INSTRUCTION_HIERARCHY_RULE,
+} from '../../../../routes/chat/services/untrustedContent.js';
 import { CONTENT_INTEGRITY_RULES } from '../../../../services/contentPolicy.js';
 import { getInternalSkillPrompt } from '../../../../services/skills/internalPrompts.js';
+import { getTextFormForInjection } from '../../../../services/user/textFormRepository.js';
+import { createLogger } from '../../../../utils/logger.js';
 import { formatGermanDate } from '../../../../utils/stringUtils.js';
 
 import { detectSocialPlatform } from './classifierHeuristics.js';
+import { deriveTextFormMention } from './textFormMention.js';
 
 import type { ChatGraphState, SocialExampleItem, SocialTextPlatform } from '../types.js';
+
+const log = createLogger('ChatGraph:SocialComposer');
 
 const INSTAGRAM_RUBRIC = `## INSTAGRAM-HANDWERK
 
@@ -120,7 +129,20 @@ const SOCIAL_SKILL_MENTIONS: ReadonlySet<string> = new Set(
 );
 
 /**
- * Das Handwerk für diesen Turn: REZEPT vor eingebauter Rubrik.
+ * Dieselbe Vokabel wie `respondNode` (`[Rezept] Prompt-Fragment … quelle=…`),
+ * damit im Log überhaupt entscheidbar wird, welcher Knoten einen Turn
+ * geschrieben hat. Dieser hier schwieg bis 08/2026 vollständig: eine Meldung
+ * „mein angelernter Stil wirkt nicht" liess sich am Log nicht von „der
+ * Klassifikator ging woandershin" trennen, weil BEIDE Fälle keine Zeile
+ * erzeugten (#2938).
+ */
+function logChoice(mention: string | null, quelle: 'nutzer' | 'system' | 'rubrik'): void {
+  log.info(`[Rezept] Social-Handwerk mention=${mention ?? 'keine'} quelle=${quelle}`);
+}
+
+/**
+ * Das Handwerk für diesen Turn: ANGELERNTER STIL vor REZEPT vor eingebauter
+ * Rubrik.
  *
  * Zwei Wege hinein, und der erste war bis hierher eine stille Fallgrube: wer im
  * Composer `/instagram` wählt, setzt `activeSkillMention` — aber der
@@ -136,17 +158,54 @@ const SOCIAL_SKILL_MENTIONS: ReadonlySet<string> = new Set(
  * Textform aus einer anderen Familie (`/presse`) darf einen Social-Turn nicht
  * umwidmen. Die LV-Varianten (`insta-berlin` …) stehen bewusst mit drin — sie
  * sind dieselbe Textsorte, nur enger.
+ *
+ * Der angelernte Stil („Texte anlernen") kam hier bis 08/2026 gar nicht vor —
+ * das war der dritte, abweichende Weg für dieselbe Einstellung (#2938). Auf den
+ * beiden anderen (`respondNode.buildSystemMessage`, `recipeCatalog.resolveRecipe`)
+ * ERSETZT er den mitgelieferten Rezepttext vollständig; hier ersetzte er nichts,
+ * und ob eine hinterlegte Instagram-Form wirkte, hing daran, welchen Knoten der
+ * Klassifikator gewählt hatte — eine Unterscheidung, die es in der Oberfläche
+ * nicht gibt.
+ *
+ * Nachgeschlagen wird unter der Mention, die die Weiche oben ERGEBEN hat, nicht
+ * unter `activeSkillMention` oder `platform` für sich. Sonst entstünde genau das
+ * dritte Verhalten wieder: `/facebook` auf einem erkannten Instagram-Turn nimmt
+ * das Facebook-Rezept, müsste aber den Instagram-Stil ziehen. Die Reihenfolge
+ * ist damit dieselbe wie in `respondNode` — erst die wirksame Mention bestimmen,
+ * dann `deriveTextFormMention` darauf (seit #2935 die EXAKTE Mention, kein
+ * Präfix-Falten).
+ *
+ * Async, weil der Nachschlag in die Datenbank geht (gecacht, 1 h). Beide
+ * Aufrufer waren es ohnehin schon.
  */
-export function craftGuidanceForPlatform(
+export async function craftGuidanceForPlatform(
   platform: SocialTextPlatform | null,
-  activeSkillMention?: string | null
-): string {
+  activeSkillMention?: string | null,
+  userId?: string | null
+): Promise<string> {
   const mention =
     activeSkillMention && SOCIAL_SKILL_MENTIONS.has(activeSkillMention)
       ? activeSkillMention
       : (platform ?? null);
+
+  const textFormMention = mention ? deriveTextFormMention(mention) : null;
+  const userTextForm =
+    userId && textFormMention ? await getTextFormForInjection(userId, textFormMention) : null;
+  if (userTextForm) {
+    // Eingefasst wie auf den beiden anderen Wegen: Nutzertext, der einen
+    // Systemprompt erreicht, ohne dass die Person ihn in DIESEM Turn ausgewählt
+    // hat. Die Regelhierarchie kommt mit, sonst steht hier eine
+    // `<untrusted_content>`-Markierung, die der Prompt nirgends erklärt.
+    logChoice(mention, 'nutzer');
+    return `## PLATTFORM-HANDWERK\n\n${embedUntrusted('nutzer_anweisung', userTextForm.styleBlock)}${INSTRUCTION_HIERARCHY_RULE}`;
+  }
+
   const recipe = mention ? getInternalSkillPrompt(mention) : null;
-  if (recipe) return `## PLATTFORM-HANDWERK\n\n${recipe}`;
+  if (recipe) {
+    logChoice(mention, 'system');
+    return `## PLATTFORM-HANDWERK\n\n${recipe}`;
+  }
+  logChoice(mention, 'rubrik');
   // Der Auffang nimmt die Familie der gewählten Textform mit — und zwar in
   // DERSELBEN Reihenfolge wie oben, sonst kehrt ausgerechnet der Fallback die
   // Priorität um: wer `/facebook` gewählt hat und „Insta-Post" schreibt, bekäme
@@ -179,7 +238,7 @@ function formatExample(ex: SocialExampleItem, idx: number): string {
  * Pulls from `state.examplesResult.social` (populated by searchNode with full
  * bodies when fullBody=true was passed to searchExamples).
  */
-export function buildSocialMediaSystemPrompt(state: ChatGraphState): string {
+export async function buildSocialMediaSystemPrompt(state: ChatGraphState): Promise<string> {
   const { agentConfig, examplesResult, platform, activeSkillMention } = state;
   const examples = (examplesResult?.social ?? []).slice(0, 6);
 
@@ -194,11 +253,17 @@ export function buildSocialMediaSystemPrompt(state: ChatGraphState): string {
       ? '\n\n*(Keine Vorlagen verfügbar — schreibe eigenständig nach dem Handwerks-Standard.)*'
       : `\n\n## VORLAGEN\n\nFolgende echte Posts aus den Grünen-Kanälen dienen als Vorlage. Mimik ihren Hook, ihre Tonalität, ihre Hashtag-Setzung und ihre Absatzrhythmik — schreibe NICHT generisch.\n\n${examples.map(formatExample).join('\n\n---\n\n')}`;
 
+  const craftGuidance = await craftGuidanceForPlatform(
+    platform,
+    activeSkillMention,
+    agentConfig.userId
+  );
+
   return `${agentConfig.systemRole}
 
 Heutiges Datum: ${today}${platformNote}
 
-${craftGuidanceForPlatform(platform, activeSkillMention)}${examplesBlock}
+${craftGuidance}${examplesBlock}
 
 ## SCHREIBAUFTRAG
 
