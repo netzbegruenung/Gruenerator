@@ -112,7 +112,7 @@ describe('rerankNode', () => {
   // Das Fenster ist die eigentliche Aussage dieses Knotens: es entscheidet,
   // wie viele Kandidaten der Cross-Encoder überhaupt zu Gesicht bekommt. Vorher
   // war es an `MAX_SOURCES` (20) geknüpft — die Prompt-Decke — und damit auf
-  // einem notizbuch-gebundenen Turn immer so groß wie das Ergebnis selbst.
+  // einem notebook-gebundenen Turn immer so groß wie das Ergebnis selbst.
   describe('Fenster', () => {
     const windowOf = () => {
       const call = rerankPipelineMock.mock.calls[0]?.[0] as {
@@ -134,15 +134,15 @@ describe('rerankNode', () => {
       });
     });
 
-    it('nimmt für ein @erwähntes Notizbuch die Zahlen der Stufe, nicht MAX_SOURCES', async () => {
+    it('nimmt für ein @erwähntes Notebook die Zahlen der Stufe, nicht MAX_SOURCES', async () => {
       await rerankNode(makeState({ notebookCollectionIds: ['hessen'] }));
 
       expect(windowOf()).toEqual({ inputLimit: 40, outputLimit: 18 });
     });
 
     // Der Fall, für den das hier gebaut wurde: ein LV-Agent bindet sein
-    // Notizbuch über `defaultNotebookIds`, ohne dass jemand es erwähnt hat.
-    it('gilt genauso für einen an ein Notizbuch gebundenen Agenten', async () => {
+    // Notebook über `defaultNotebookIds`, ohne dass jemand es erwähnt hat.
+    it('gilt genauso für einen an ein Notebook gebundenen Agenten', async () => {
       await rerankNode(makeState({ defaultNotebookCollectionIds: ['hessen'] }));
 
       expect(windowOf()).toEqual({ inputLimit: 40, outputLimit: 18 });
@@ -159,7 +159,7 @@ describe('rerankNode', () => {
       expect(windowOf().outputLimit).toBeLessThanOrEqual(MAX_SOURCES);
     });
 
-    it('lässt Turns ohne Notizbuch-Bezug unverändert', async () => {
+    it('lässt Turns ohne Notebook-Bezug unverändert', async () => {
       await rerankNode(makeState({ searchResults: makeResults(6) }));
 
       expect(windowOf()).toEqual({ inputLimit: 16, outputLimit: 8 });

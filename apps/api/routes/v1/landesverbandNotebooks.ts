@@ -1,5 +1,5 @@
 /**
- * Die Landesverbands-Notizbücher haben ab jetzt zwei Türen: die REST-API
+ * Die Landesverbands-Notebooks haben ab jetzt zwei Türen: die REST-API
  * `/api/v1/notebooks*` für Partner-Integrationen und die MCP-Werkzeuge
  * `notebooks_*` für Modell-Clients. Beide entscheiden dieselben drei Fragen —
  * darf dieser Schlüssel diesen Landesverband, welche Sammlung ist gemeint,

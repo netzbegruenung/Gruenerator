@@ -12,7 +12,7 @@ import {
   connectorId,
   COMPOSER_TOOLS,
   resolveMentionable,
-  // notebookMentionables — Notizbuchmodus vorerst nicht weiterverfolgt (08/2026).
+  // notebookMentionables — Notebook-Modus vorerst nicht weiterverfolgt (08/2026).
   useSkillFavoritesStore,
   type ComposerIconKey,
   type ComposerToolIconKey,
@@ -212,10 +212,10 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
         />
       ));
     }
-    // NOTIZBUCHMODUS — vorerst nicht weiterverfolgt (08/2026), siehe
+    // NOTEBOOK-MODUS — vorerst nicht weiterverfolgt (08/2026), siehe
     // `COMPOSER_MODES` in `packages/chat/src/lib/composerControls.ts`. Die
     // Auswahl ist stillgelegt, der Transportweg nicht: der Einstieg aus einem
-    // Notizbuch (`chat-conversation.tsx`) setzt den Modus weiterhin selbst.
+    // Notebook (`chat-conversation.tsx`) setzt den Modus weiterhin selbst.
     // if (detail === 'notebook') {
     //   return notebookMentionables.map((notebook, i) => (
     //     <ListRow
@@ -380,7 +380,7 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
                 value={activeMode.label}
                 onPress={() => setDetail('mode')}
               />
-              {/* NOTIZBUCHMODUS — vorerst nicht weiterverfolgt (08/2026).
+              {/* NOTEBOOK-MODUS — vorerst nicht weiterverfolgt (08/2026).
                   Siehe `COMPOSER_MODES`. */}
               {/* {threadMode === 'notebook' && (
                 <ListRow

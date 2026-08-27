@@ -101,7 +101,7 @@ Für den **Dokument-Upload außerhalb des Chats** erledigt durch #2830:
 (umsonst, ~440 ms), aber die geometrie-basierte Zusammensetzung liefert dort
 jetzt ebenfalls 16/16. **Rückwirkend repariert das nichts** — was vor #2830 in
 Qdrant indiziert wurde, liegt dort in der zerlegten Fassung; erst eine
-Neu-Indizierung der betroffenen Dokumente ändert bestehende Notizbücher.
+Neu-Indizierung der betroffenen Dokumente ändert bestehende Notebooks.
 
 Ein Reranker hilft in keinem der Fälle — was in der Extraktion zerfällt, stellt
 keine Rangfolge wieder her.

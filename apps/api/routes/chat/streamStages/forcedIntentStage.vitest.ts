@@ -24,7 +24,7 @@ function run(
 ): Promise<{ state: ChatGraphState; forcedTool: boolean }> {
   const classifiedState = makeState(opts.state);
   const params = {
-    // isCompound bleibt false (keine Notizbücher), also sendet die Stage nichts.
+    // isCompound bleibt false (keine Notebooks), also sendet die Stage nichts.
     sse: { send: () => undefined },
     classifiedState,
     initialState: { userLocale: opts.userLocale ?? 'de-DE' },

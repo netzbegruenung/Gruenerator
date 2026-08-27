@@ -54,7 +54,7 @@ import {
 import {
   buildCollectionCatalog,
   buildMethodDocument,
-  buildNotizbuchPrompt,
+  buildNotebookPrompt,
   buildRecherchePrompt,
 } from './methodPrompts.js';
 
@@ -105,8 +105,8 @@ function notebookHelper(): NotebookQdrantHelper {
  * instead of the bridge's generic "prüfe die übergebenen IDs".
  */
 const NOTEBOOK_QA_ERRORS: Record<string, string> = {
-  'Collection not found or access denied': 'Notizbuch nicht gefunden oder kein Zugriff.',
-  'No documents found in this collection': 'Dieses Notizbuch enthält noch keine Dokumente.',
+  'Collection not found or access denied': 'Notebook nicht gefunden oder kein Zugriff.',
+  'No documents found in this collection': 'Dieses Notebook enthält noch keine Dokumente.',
 };
 
 /**
@@ -129,9 +129,9 @@ export function renderNotebookAnswer(result: QAResponse, notebookName: string): 
   return `${result.answer}\n\nQuellen (${notebookName}):\n${lines.join('\n')}`;
 }
 
-const INSTRUCTIONS = `Grünerator MCP (angemeldet): Zugriff auf die eigenen Grünerator-Inhalte der angemeldeten Person (Dokumente, Boards/Aufgaben, Notizbücher, Gruppen, Medien) plus die Programm- und Beschlusssuche von Bündnis 90/Die Grünen (DE) und den Grünen (AT).
+const INSTRUCTIONS = `Grünerator MCP (angemeldet): Zugriff auf die eigenen Grünerator-Inhalte der angemeldeten Person (Dokumente, Boards/Aufgaben, Notebooks, Gruppen, Medien) plus die Programm- und Beschlusssuche von Bündnis 90/Die Grünen (DE) und den Grünen (AT).
 
-Für belegte Antworten aus mehreren Quellen gilt ein festes Vorgehen: die Resource gruenerator://methode beschreibt Ablauf und Zitierprotokoll, gruenerator://sammlungen listet die durchsuchbaren Sammlungen. Die Prompts "recherche" und "notizbuch-antwort" bringen beides fertig mit.
+Für belegte Antworten aus mehreren Quellen gilt ein festes Vorgehen: die Resource gruenerator://methode beschreibt Ablauf und Zitierprotokoll, gruenerator://sammlungen listet die durchsuchbaren Sammlungen. Die Prompts "recherche" und "notebook-antwort" bringen beides fertig mit.
 
 Regeln:
 - Kein Tool schreibt dir den Text der Recherche — die Synthese aus den Treffern ist deine Aufgabe. Ausnahme: notebooks mit action="search" liefert bereits eine belegte Antwort.
@@ -257,19 +257,40 @@ function registerMethod(server: McpServer): void {
   );
 
   server.registerPrompt(
-    'notizbuch-antwort',
+    'notebook-antwort',
     {
-      title: 'Antwort aus einem eigenen Notizbuch',
+      title: 'Antwort aus einem eigenen Notebook',
       description:
         'Befragt den eigenen Quellenbestand und fasst die Treffer mit Quellenangaben zusammen.',
       argsSchema: {
         frage: z.string().describe('Die inhaltliche Frage'),
-        notizbuch: z.string().optional().describe('Name des Notizbuchs, falls bekannt'),
+        notebook: z.string().optional().describe('Name des Notebooks, falls bekannt'),
+      },
+    },
+    ({ frage, notebook }) => ({
+      description: 'Notebook-Antwort mit Quellen',
+      messages: buildNotebookPrompt(frage, notebook),
+    })
+  );
+
+  // Deprecated alias for `notebook-antwort`, retired 27.08.2027. MCP prompt
+  // names are frozen the moment a client references one, so the rename
+  // Notizbuch → Notebook (27.08.2026) had to be additive: same handler, old
+  // name, old argument name. Drop this block once no client asks for it.
+  server.registerPrompt(
+    'notizbuch-antwort',
+    {
+      title: 'Antwort aus einem eigenen Notebook (veraltet: notizbuch-antwort)',
+      description:
+        'Veraltet — nutze `notebook-antwort`. Befragt den eigenen Quellenbestand und fasst die Treffer mit Quellenangaben zusammen.',
+      argsSchema: {
+        frage: z.string().describe('Die inhaltliche Frage'),
+        notizbuch: z.string().optional().describe('Name des Notebooks, falls bekannt'),
       },
     },
     ({ frage, notizbuch }) => ({
-      description: 'Notizbuch-Antwort mit Quellen',
-      messages: buildNotizbuchPrompt(frage, notizbuch),
+      description: 'Notebook-Antwort mit Quellen',
+      messages: buildNotebookPrompt(frage, notizbuch),
     })
   );
 
@@ -279,7 +300,7 @@ function registerMethod(server: McpServer): void {
     {
       title: 'Methode: belegt aus mehreren Quellen antworten',
       description:
-        'Ablauf und Zitierprotokoll für Antworten aus den Grünen-Sammlungen und aus eigenen Notizbüchern.',
+        'Ablauf und Zitierprotokoll für Antworten aus den Grünen-Sammlungen und aus eigenen Notebooks.',
       mimeType: 'text/markdown',
     },
     () => ({
@@ -596,8 +617,8 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
 
     registerAiTool(server, 'notebooks', makeNotebooksTool(ctx), {
       description: contentWrite
-        ? `Zugriff auf die EIGENEN Notizbücher (Quellensammlungen): auflisten (list), inhaltlich befragen (search mit id + query), umbenennen (rename), löschen (delete mit confirm-Protokoll). search liefert eine belegte Antwort mit [n]-Markern und der dazugehörigen Quellenliste — gib die Marker und Quellen in deiner Antwort weiter.`
-        : `Die EIGENEN Notizbücher auflisten (list) oder inhaltlich befragen (search mit id + query). search liefert eine belegte Antwort mit [n]-Markern und der dazugehörigen Quellenliste — gib die Marker und Quellen in deiner Antwort weiter.`,
+        ? `Zugriff auf die EIGENEN Notebooks (Quellensammlungen): auflisten (list), inhaltlich befragen (search mit id + query), umbenennen (rename), löschen (delete mit confirm-Protokoll). search liefert eine belegte Antwort mit [n]-Markern und der dazugehörigen Quellenliste — gib die Marker und Quellen in deiner Antwort weiter.`
+        : `Die EIGENEN Notebooks auflisten (list) oder inhaltlich befragen (search mit id + query). search liefert eine belegte Antwort mit [n]-Markern und der dazugehörigen Quellenliste — gib die Marker und Quellen in deiner Antwort weiter.`,
       actions: contentWrite ? ['list', 'search', 'rename', 'delete'] : ['list', 'search'],
       extraShape: {
         query: z.string().optional().describe('Suchfrage (nur bei action="search")'),
@@ -608,7 +629,7 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
           const query = typeof args.query === 'string' ? args.query.trim() : '';
           if (!id || !query) return { error: 'search braucht id (aus list) und query.' };
           const collection = await notebookHelper().getNotebookCollection(id);
-          if (!collection) return { error: 'Notizbuch nicht gefunden oder kein Zugriff.' };
+          if (!collection) return { error: 'Notebook nicht gefunden oder kein Zugriff.' };
           try {
             const result = await notebookQAService.askSingleCollection({
               collectionId: id,

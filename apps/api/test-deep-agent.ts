@@ -8,14 +8,14 @@
  * Usage:
  *   npx tsx apps/api/test-deep-agent.ts --query "Wie ambitioniert ist Wiens Klimaziel 2040?"
  *   npx tsx apps/api/test-deep-agent.ts --query "..." --locale de-AT
- *   npx tsx apps/api/test-deep-agent.ts --query "..." --ohne-notizbuecher
+ *   npx tsx apps/api/test-deep-agent.ts --query "..." --ohne-notebooks
  *   npx tsx apps/api/test-deep-agent.ts --query "..." --write   # writes a real document
  *
  * The corpora are in reach by default, exactly as in the chat. That matters for
  * more than the search results: `programm-recherche` is only registered when
- * `notizbuch_suche` exists, so a harness without a scope quietly runs a
+ * `notebook_suche` exists, so a harness without a scope quietly runs a
  * one-subagent agent and can say nothing about the specialisation.
- * `--ohne-notizbuecher` is the other half of that test — the web-only shape.
+ * `--ohne-notebooks` is the other half of that test — the web-only shape.
  *
  * Without `--write` nothing touches the database — the markdown goes to stdout.
  * Requires SCALEWAY_API_KEY and LINKUP_API_KEY (GREENPT_API_KEY optional but
@@ -43,7 +43,7 @@ async function main(): Promise<void> {
   const write = flag('write');
   // Same call the chat makes, minus the mentions a real turn may carry: the
   // corpora come from the locale and the instance gate, not from the state.
-  const notebookScope = flag('ohne-notizbuecher')
+  const notebookScope = flag('ohne-notebooks')
     ? null
     : buildNotebookScope({}, locale, arg('user') ?? 'harness');
 

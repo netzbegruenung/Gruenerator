@@ -401,7 +401,7 @@ describe('Pin und Streamer stellen dieselbe Frage', () => {
 // ─── Ausgabedecke ───────────────────────────────────────────────────────────
 
 describe('clampToModelOutputLimit', () => {
-  /** Ein Zug, der die Decke des Modells überschreitet — die Notizbuch-Stufen
+  /** Ein Zug, der die Decke des Modells überschreitet — die Notebook-Stufen
    *  `deep`/`ultra` fordern 40.000, Mistral Medium 3.5 nimmt 16.384. */
   function runWithMaxTokens(resolution: ReturnType<typeof makeResolution>, maxTokens: number) {
     return streamForResolution({

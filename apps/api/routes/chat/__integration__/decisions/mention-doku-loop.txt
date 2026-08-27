@@ -3,7 +3,7 @@
 # A green diff proves the BRANCHES ran as scripted. It proves nothing
 # about what a real model would have done.
 
-## turn 0: "Ich komme mit den Notizbuechern nicht weiter."
+## turn 0: "Ich komme mit den Notebooks nicht weiter."
 router.run_agentic               = loop                           forcedLoop=true forcedTool=true gateOpen=true hasImageAttachments=false hasManagedSources=false hasOwnMaterial=false hasSelectedNotebook=false inLoopSet=true intent=hilfe isCompound=false isPdfFillRequest=false loopEnabled=true mustLoop=true secondaryAllowed=true selfContained=false unsourcedWriting=false
 router.intent_override           = (not reached)
 router.implicit_recipe           = (not reached)

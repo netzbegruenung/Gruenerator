@@ -70,14 +70,14 @@ describe('ensureSources', () => {
    */
   it('names the origin of a source that has no URL', () => {
     const out = ensureSources('# T\n\nText', [
-      { url: '', title: 'Beschluss 2026', origin: 'Notizbuch: Berlin' },
+      { url: '', title: 'Beschluss 2026', origin: 'Notebook: Berlin' },
     ]);
-    expect(out).toContain('1. Beschluss 2026 — Notizbuch: Berlin');
+    expect(out).toContain('1. Beschluss 2026 — Notebook: Berlin');
   });
 
   it('falls back to a neutral origin when even that is missing', () => {
     const out = ensureSources('# T\n\nText', [{ url: '', title: 'Notiz' }]);
-    expect(out).toContain('1. Notiz — Grünerator-Notizbuch');
+    expect(out).toContain('1. Notiz — Grünerator-Notebook');
   });
 });
 

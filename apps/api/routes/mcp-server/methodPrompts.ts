@@ -91,11 +91,11 @@ export function buildRecherchePrompt(frage: string, land: 'DE' | 'AT'): PromptMe
   return asPromptMessages(`${buildCorpusMethodText()}\n\n${landHint}`, frage);
 }
 
-export function buildNotizbuchPrompt(frage: string, notizbuch?: string): PromptMessage[] {
-  const name = notizbuch?.trim() || 'das gewählte Notizbuch';
-  const hint = notizbuch?.trim()
-    ? `Gefragt ist das Notizbuch „${notizbuch.trim()}". Finde seine ID über \`notebooks\` mit \`action="list"\`.`
-    : 'Frage die Person, welches Notizbuch gemeint ist, falls `notebooks` mit `action="list"` mehrere zurückgibt.';
+export function buildNotebookPrompt(frage: string, notebook?: string): PromptMessage[] {
+  const name = notebook?.trim() || 'das gewählte Notebook';
+  const hint = notebook?.trim()
+    ? `Gefragt ist das Notebook „${notebook.trim()}". Finde seine ID über \`notebooks\` mit \`action="list"\`.`
+    : 'Frage die Person, welches Notebook gemeint ist, falls `notebooks` mit `action="list"` mehrere zurückgibt.';
   return asPromptMessages(`${buildNotebookMethodText(name)}\n\n${hint}`, frage);
 }
 
@@ -145,9 +145,9 @@ export function buildMethodDocument(): string {
     '',
     '---',
     '',
-    '## B) Eigener Quellenbestand (Notizbücher)',
+    '## B) Eigener Quellenbestand (Notebooks)',
     '',
-    buildNotebookMethodText('das gewählte Notizbuch'),
+    buildNotebookMethodText('das gewählte Notebook'),
     '',
     '---',
     '',

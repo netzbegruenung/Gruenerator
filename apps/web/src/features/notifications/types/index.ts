@@ -122,11 +122,11 @@ export const NOTIFICATION_TYPES: Record<string, NotificationTypeConfig> = {
   },
 
   notebook_liked: {
-    label: 'Notizbuch-Likes',
-    description: 'Wenn andere dein öffentliches Notizbuch mögen',
+    label: 'Notebook-Likes',
+    description: 'Wenn andere dein öffentliches Notebook mögen',
     icon: Heart,
     group: 'system',
-    actions: (ctx) => [openLinkAction('Notizbuch öffnen')(ctx)],
+    actions: (ctx) => [openLinkAction('Notebook öffnen')(ctx)],
   },
   template_liked: {
     label: 'Vorlagen-Likes',
@@ -145,10 +145,10 @@ export const NOTIFICATION_TYPES: Record<string, NotificationTypeConfig> = {
   },
   wolke_new_files: {
     label: 'Neue Wolke-Dateien',
-    description: 'Wenn in den Wolke-Ordnern deiner Notizbücher neue Dateien gefunden werden',
+    description: 'Wenn in den Wolke-Ordnern deiner Notebooks neue Dateien gefunden werden',
     icon: CloudDownload,
     group: 'system',
-    actions: (ctx) => [openLinkAction('Notizbuch öffnen')(ctx)],
+    actions: (ctx) => [openLinkAction('Notebook öffnen')(ctx)],
   },
   new_avatars: {
     label: 'Neue Avatare',

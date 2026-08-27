@@ -26,10 +26,10 @@ const log = createLogger('ChatGraph:Rerank');
 const RERANK_EXCERPT_CHARS = 1200;
 
 /**
- * Obergrenze für Überlebende — nur noch im Zweig OHNE Notizbuch-Bezug.
+ * Obergrenze für Überlebende — nur noch im Zweig OHNE Notebook-Bezug.
  *
- * War einmal die hartcodierte Zahl des Notizbuch-Pfads und galt nach dessen
- * Vereinheitlichung für beide Zweige. Seit notizbuch-gebundene Turns ihre
+ * War einmal die hartcodierte Zahl des Notebook-Pfads und galt nach dessen
+ * Vereinheitlichung für beide Zweige. Seit notebook-gebundene Turns ihre
  * Zahlen aus dem Stufenprofil nehmen (`getChatNotebookProfile`), ist sie das
  * nicht mehr: dort sind es 18, also mehr als hier steht.
  */
@@ -70,7 +70,7 @@ export async function rerankNode(state: ChatGraphState): Promise<Partial<ChatGra
   // from `searchResults.length` makes that impossible by construction and needs
   // no `tier` field on ChatGraphState.
   //
-  // Für notizbuch-gebundene Turns kommen beide Zahlen aus dem Stufenprofil
+  // Für notebook-gebundene Turns kommen beide Zahlen aus dem Stufenprofil
   // (`CHAT_NOTEBOOK_DEPTH`), dieselbe Quelle, aus der `searchNode` seine
   // Kandidatenzahl nimmt. Das ist die Entkopplung, die dieser Zweig gebraucht
   // hat: `MAX_SOURCES` beantwortet die Frage „wie viele Quellen passen in den
@@ -85,11 +85,11 @@ export async function rerankNode(state: ChatGraphState): Promise<Partial<ChatGra
     : Math.min(MAX_SOURCES, Math.max(rerankCfg.inputLimit, searchResults.length));
   // Zwei Zweige, zwei Obergrenzen — und die des einen gilt ausdrücklich nicht
   // für den anderen:
-  //  - notizbuch-gebunden: `profile.rerankOutput` (18). Liegt ÜBER
+  //  - notebook-gebunden: `profile.rerankOutput` (18). Liegt ÜBER
   //    RERANK_OUTPUT_CEILING und soll das auch; die Grenze nach oben ist hier
   //    `MAX_SOURCES`, siehe chatNotebookDepth.vitest.ts.
   //  - sonst: die Ausgabe skaliert mit dem Eingang, nie unter dem
-  //    konfigurierten Wert und nie über die 12, die der Notizbuch-Pfad trug,
+  //    konfigurierten Wert und nie über die 12, die der Notebook-Pfad trug,
   //    bevor er auf das Stufenprofil umgezogen ist.
   const outputLimit = profile
     ? profile.rerankOutput

@@ -97,7 +97,7 @@ export const LV_PR_AGENTS: Agent[] = LV_PR_SPECS.map((spec) => ({
   locale: 'de-DE',
   author: 'Grünerator',
   // Kein 'web'/'scrape' — siehe lvBuergerAgents: die LV-Agenten arbeiten aus
-  // dem Landesverbands-Notizbuch und den Partei-Korpora, nicht aus dem Netz.
+  // dem Landesverbands-Notebook und den Partei-Korpora, nicht aus dem Netz.
   enabledTools: [
     'search',
     'examples',
