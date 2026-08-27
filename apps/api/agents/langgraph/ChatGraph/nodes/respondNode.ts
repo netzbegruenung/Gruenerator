@@ -1938,8 +1938,17 @@ export async function buildSystemMessage(
   // sich der Ausfall vom 20.08.2026 nicht am Log entscheiden.
   // Was das Modell wirklich vor sich hat — leer, wenn kein Rezepttext gefunden
   // wurde. Die Formatregel unten hängt daran, nicht an der blossen Absicht.
+  //
+  // Reihenfolge WIE IM PROMPT-KOPF oben: gibt es ein Systemrezept, steht dessen
+  // Titel in der Überschrift („## AKTIVE PLATTFORM: PM Hessen (Partei)"), auch
+  // wenn der Rumpf ein angelernter Stil ist — der Stil ersetzt den Rezepttext,
+  // nicht das Rezept. Nur die freie Mention ohne Systemrezept wird unter dem
+  // Titel der Textform ausgewiesen, und genau so heisst sie dann auch oben.
+  // Umgekehrt sortiert wies die Abzeichenzeile „Pressemitteilungen" aus,
+  // während das Modell „PM Hessen (Partei)" vor sich hatte (#2939). Der
+  // Loop-Pfad sortiert seit jeher so (`recipeCatalog.resolveRecipe`).
   const activeTextFormTitle = skillFragment
-    ? (userTextForm?.title ?? activeSkill?.title ?? effectiveSkillMention)
+    ? (activeSkill?.title ?? userTextForm?.title ?? effectiveSkillMention)
     : null;
 
   if (effectiveSkillMention) {
