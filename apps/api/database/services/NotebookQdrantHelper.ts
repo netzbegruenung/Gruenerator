@@ -1017,7 +1017,19 @@ class NotebookQdrantHelper {
     }
   }
 
-  async getCollectionDocuments(collectionId: string): Promise<CollectionDocument[]> {
+  /**
+   * The documents linked to one notebook.
+   *
+   * Swallowing the error and answering `[]` suits callers that only iterate the
+   * result, but it lies to anyone who reads the emptiness as a fact about the
+   * notebook: a Qdrant hiccup came out as a confident "dieses Notizbuch hat
+   * noch keine Quellen". `rethrow` lets those callers tell "looked, found none"
+   * apart from "could not look".
+   */
+  async getCollectionDocuments(
+    collectionId: string,
+    options: { rethrow?: boolean } = {}
+  ): Promise<CollectionDocument[]> {
     await this.ensureInitialized();
 
     try {
@@ -1039,6 +1051,7 @@ class NotebookQdrantHelper {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       logger.error(`Error getting collection documents: ${message}`);
+      if (options.rethrow) throw error;
       return [];
     }
   }
