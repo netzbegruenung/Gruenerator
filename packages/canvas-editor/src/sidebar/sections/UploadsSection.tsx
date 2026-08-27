@@ -1,12 +1,12 @@
 import { MasonryGrid, MasonryItem } from '@gruenerator/ui';
-import { buildSharedMediaSrcSet } from '@gruenerator/shared/media-library';
-import { memo, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { FaTrash } from 'react-icons/fa';
 import { HiArrowUpTray, HiMagnifyingGlass } from 'react-icons/hi2';
 
 import { cn } from '../../utils/cn';
 import { buildPlacementUrl } from '../../utils/mediaPlacement';
 import { downscaleImageForUpload } from '../../utils/userImageUtils';
+import { MediaThumb } from '../components/MediaThumb';
 import { SidebarHint } from '../components/SidebarHint';
 import { SIDEBAR_SECTION } from '../sidebarStyles';
 import { useUserUploads } from '../UserUploadsProvider';
@@ -189,10 +189,7 @@ export function UploadsSection({
                 title={item.title ?? item.originalFilename ?? ''}
               >
                 {item.shareToken ? (
-                  <ResponsiveThumb
-                    shareToken={item.shareToken}
-                    alt={item.altText ?? item.title ?? ''}
-                  />
+                  <MediaThumb item={item} alt={item.altText ?? item.title ?? ''} />
                 ) : item.thumbnailUrl ? (
                   <img
                     src={item.thumbnailUrl}
@@ -234,26 +231,3 @@ export function UploadsSection({
     </div>
   );
 }
-
-/**
- * Gallery thumbnail served from the backend's responsive `/preview` variants
- * (200/400/800px AVIF+WebP) instead of the full-resolution original, so the
- * 2-column grid stays light. The browser picks the smallest variant that fits.
- */
-const ResponsiveThumb = memo(function ResponsiveThumb({
-  shareToken,
-  alt,
-}: {
-  shareToken: string;
-  alt: string;
-}) {
-  const { sources, src } = buildSharedMediaSrcSet(shareToken);
-  return (
-    <picture>
-      {sources.map((source) => (
-        <source key={source.type} srcSet={source.srcSet} type={source.type} sizes="200px" />
-      ))}
-      <img src={src} alt={alt} className="w-full h-auto" draggable={false} loading="lazy" />
-    </picture>
-  );
-});
