@@ -674,9 +674,14 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         }
       }
 
-      // Update store
+      // Update store. `user.locale` muss mitziehen: es ist der rohe Profilwert,
+      // an dem das LocaleGate erkennt, ob das Land bekannt ist — bliebe er leer,
+      // stünde der Dialog nach der Wahl sofort wieder da.
       setApiLocale(newLocale);
-      set({ locale: newLocale });
+      set((state) => ({
+        locale: newLocale,
+        ...(state.user && { user: { ...state.user, locale: newLocale } }),
+      }));
 
       return true;
     } catch (error: unknown) {

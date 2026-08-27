@@ -14,7 +14,7 @@ import { auth, SESSION_COOKIE_PREFIX, type BetterAuthUser } from '../config/bett
 import { env } from '../config/env.js';
 import { ba_sessions } from '../database/schema/auth.js';
 import { getDrizzleInstance } from '../database/services/DrizzleService.js';
-import { getUserLocale } from '../services/localization/localeCache.js';
+import { getUserLocale, LOCALE_UNSET } from '../services/localization/localeCache.js';
 import { isAdminByEmail } from '../utils/adminEmails.js';
 import { BRAND } from '../utils/domainUtils.js';
 import { createLogger } from '../utils/logger.js';
@@ -310,8 +310,13 @@ async function tryResolveUser(req: Request): Promise<ResolveResult> {
       // lag the DB. Overlay with the DB-backed, short-TTL cached value so every
       // downstream reader gets the current locale. Best-effort: keep the session
       // value if the lookup fails.
+      // LOCALE_UNSET heißt: das Profil trägt kein Land. Dann muss auch das Feld
+      // leer bleiben — ein Session-Schnappschuss aus der Zeit vor dem Reset
+      // würde sonst weiter 'de-DE' behaupten, und das Nachfrage-Gate im Web
+      // sähe nie einen Grund zu erscheinen.
       const freshLocale = await getUserLocale(user.id);
-      if (freshLocale) user.locale = freshLocale;
+      if (freshLocale === LOCALE_UNSET) delete user.locale;
+      else if (freshLocale) user.locale = freshLocale;
       return { kind: 'user', user };
     }
     const path = req.originalUrl.split('?')[0] ?? req.originalUrl;

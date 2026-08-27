@@ -33,7 +33,10 @@ export const profiles = pgTable(
     presseabbinder: text('presseabbinder'),
     custom_antrag_gliederung: text('custom_antrag_gliederung'),
     auth_source: text('auth_source'),
-    locale: text('locale').notNull().default('de-DE'),
+    // Nullable: NULL heißt „Land unbekannt". Wer hier einen Default setzt,
+    // schreibt wieder Deutschland in Profile, über die nichts bekannt ist.
+    locale: text('locale'),
+    locale_source: text('locale_source').$type<'idp' | 'user'>(),
     groups_enabled: boolean('groups_enabled').notNull().default(false),
     groups: boolean('groups').notNull().default(false),
     custom_generators: boolean('custom_generators').notNull().default(false),
