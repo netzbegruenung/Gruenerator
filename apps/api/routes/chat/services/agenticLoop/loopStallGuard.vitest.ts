@@ -167,3 +167,94 @@ describe('synth stall guard', () => {
     expect(onSynthStart).toHaveBeenCalledOnce();
   });
 });
+
+/**
+ * Der UNIFIED-Pfad hatte die Uhr nie bekommen. Der gather-Stream ist seit dem
+ * 20.08.2026 bewacht, der synth seit Längerem — der eine Stream, der Werkzeuge
+ * hält UND die Antwort schreibt, lief weiter nur gegen die absolute Decke
+ * (`hardCapMs`, 300 s).
+ *
+ * Gemessen in #2948: je drei von vierzehn trivialen Zügen endeten auf
+ * 300.0–300.5 s, jedes Mal bei anderen Items, zwei ohne einen einzigen
+ * Werkzeugaufruf — und alle mit inhaltlich richtiger Antwort, weil der Text im
+ * unified-Modus längst auf der Leitung war, bevor der Stream hängen blieb.
+ */
+describe('tool phase stall guard (unified)', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  const unified = (over: Partial<LoopEngineParams> = {}): LoopEngineParams =>
+    params({ mode: 'unified', ...over });
+
+  /** Ohne `toolActivity` gilt der Deckel aus den gemounteten Werkzeugen: ohne
+   *  Werkzeuge sind das 20 s Aufruf-Timeout + 15 s Vorlauf = 35 s. */
+  const CEILING_MS = 35_000;
+
+  it('gibt eine FERTIGE Antwort zurück, wenn nur der Stream nicht zugeht', async () => {
+    const { deps } = depsFor({
+      synth: () =>
+        ({
+          stream: (async function* () {
+            yield { type: 'text-delta', text: 'Paragraf 263 StGB' };
+            yield { type: 'finish', finishReason: 'stop' };
+            await new Promise(() => {});
+          })(),
+        }) as unknown as ReturnType<LoopDeps['streamText']>,
+    });
+    const onText = vi.fn();
+
+    const running = runAgenticLoop(unified({ onText }), deps);
+    await vi.advanceTimersByTimeAsync(CEILING_MS + 1_000);
+    const out = await running;
+
+    // Kein Wurf: `finish` sagt, die Generierung war fertig. Sonst hängt der
+    // Aufrufer die Abbruch-Fussnote an eine vollständige Antwort.
+    expect(out.text).toBe('Paragraf 263 StGB');
+    expect(onText.mock.calls.flat().join('')).toBe('Paragraf 263 StGB');
+  });
+
+  it('meldet einen Abbruch, wenn die Stille MITTEN in der Antwort steht', async () => {
+    const { deps } = depsFor({
+      synth: () =>
+        ({
+          stream: (async function* () {
+            yield { type: 'text-delta', text: 'Halber Satz' };
+            await new Promise(() => {});
+          })(),
+        }) as unknown as ReturnType<LoopDeps['streamText']>,
+    });
+
+    const running = runAgenticLoop(unified({}), deps).catch((e: unknown) => e);
+    await vi.advanceTimersByTimeAsync(CEILING_MS + 1_000);
+    const err = await running;
+
+    // Ohne `finish` ist der Text ein Stumpf — als TimeoutError melden, damit
+    // die Abbruch-Fussnote des Aufrufers greift.
+    expect((err as Error).name).toBe('TimeoutError');
+  });
+
+  it('wertet einen LAUFENDEN Werkzeugaufruf als Lebenszeichen', async () => {
+    // Ein Erzeugungswerkzeug darf 90 s blockieren (TOOL_TIMEOUT_OVERRIDES_MS) —
+    // weit über dem engen Fenster, das der Zähler erlaubt.
+    let inFlight = 0;
+    const { deps } = depsFor({
+      synth: () =>
+        ({
+          stream: (async function* () {
+            yield { type: 'text-delta', text: 'Ich erstelle das PDF. ' };
+            inFlight += 1;
+            await sleep(90_000);
+            inFlight -= 1;
+            yield { type: 'text-delta', text: 'Fertig.' };
+            yield { type: 'finish', finishReason: 'stop' };
+          })(),
+        }) as unknown as ReturnType<LoopDeps['streamText']>,
+    });
+
+    const running = runAgenticLoop(unified({ toolActivity: { inFlight: () => inFlight } }), deps);
+    await vi.advanceTimersByTimeAsync(91_000);
+    const out = await running;
+
+    expect(out.text).toBe('Ich erstelle das PDF. Fertig.');
+  });
+});

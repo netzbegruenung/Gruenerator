@@ -49,6 +49,7 @@ import {
 } from './types.js';
 import { wrapToolsForLoop, type ToolHooks } from './wrapTools.js';
 
+import type { ToolActivity } from './toolActivity.js';
 import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/types.js';
 import type { ModelMessage, ToolSet } from 'ai';
 import type { Request } from 'express';
@@ -583,6 +584,9 @@ export function wrapAssembledTools(
     /** Beobachtungspunkt um die Werkzeugausführung — heute die Kostenrechnung
      *  des Turns. Nicht gesetzt ⇒ Verhalten unverändert. */
     hooks?: ToolHooks;
+    /** Geteilt mit dem Loop-Motor: dessen Stillstands-Uhr der Werkzeugphase
+     *  liest hier ab, ob gerade ein Aufruf läuft. */
+    toolActivity: ToolActivity;
   }
 ): ToolSet {
   return wrapToolsForLoop(tools, {
@@ -590,6 +594,7 @@ export function wrapAssembledTools(
     guards: ctx.guards,
     recordStep: ctx.recordStep,
     perCallTimeoutMs: ctx.perCallTimeoutMs,
+    toolActivity: ctx.toolActivity,
     perCallTimeoutOverridesMs: TOOL_TIMEOUT_OVERRIDES_MS,
     nearDuplicateExemptTools: NEAR_DUPLICATE_EXEMPT_TOOLS,
     getTextOffset: ctx.getTextOffset,
