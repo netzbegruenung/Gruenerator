@@ -65,6 +65,10 @@ interface MediaCardProps {
 // browser picks the right responsive variant.
 const GRID_SIZES = '(max-width: 768px) 150px, 200px';
 
+// The edit modal is capped at 500px wide, so the 800px variant covers it even
+// on a 2x display — never the unresized original.
+const MODAL_SIZES = '(max-width: 540px) 100vw, 500px';
+
 const MediaCard: React.FC<MediaCardProps> = ({
   item,
   onDelete,
@@ -238,11 +242,25 @@ const EditModal: React.FC<EditModalProps> = ({ item, onSave, onClose }) => {
       >
         <h2 className="m-0 mb-md text-foreground">Medium bearbeiten</h2>
         <div className="mb-md rounded-lg overflow-hidden aspect-video bg-grey-100 dark:bg-grey-800">
-          <img
-            src={`${baseURL}/share/${item.shareToken}/preview`}
-            alt=""
-            className="w-full h-full object-contain"
-          />
+          {item.mediaType === 'video' ? (
+            <video
+              src={`${baseURL}/share/${item.shareToken}/preview`}
+              muted
+              playsInline
+              preload="metadata"
+              className="w-full h-full object-contain"
+            />
+          ) : (
+            <SharedMediaImage
+              shareToken={item.shareToken}
+              alt=""
+              blurhash={item.imageMetadata?.blurhash}
+              priority
+              sizes={MODAL_SIZES}
+              fallbackWidth={800}
+              className="w-full h-full object-contain"
+            />
+          )}
         </div>
         <div className="flex flex-col gap-md">
           <label className="flex flex-col gap-xs">
