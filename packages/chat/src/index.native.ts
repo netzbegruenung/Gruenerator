@@ -165,6 +165,12 @@ export { useFileMentionData } from './hooks/useFileMentionData';
 // Admin-curated Rezepte visibility — see index.ts for the full comment.
 export { useHiddenSkillMentions } from './hooks/useMentionablesQuery';
 
+// Die Landesverbands-Zuteilung aus den Profilrollen. RN-sicher: liest nur den
+// zustand-Store, kein Netz, kein DOM. Mobil erst nutzbar, seit die App den
+// Profil-Store überhaupt hydratisiert (#2931) — vorher lieferte der Hook
+// unverändert `null` und alle Filter ließen alles durch.
+export { useUserLandesverbaende, type UserLandesverbaende } from './hooks/useUserLandesverbaende';
+
 // Group-level thread sharing. RN-safe: react-query plus `notify`, which imports
 // sonner dynamically and falls back to the console line in hosts that do not
 // ship it (mobile).
