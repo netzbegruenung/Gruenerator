@@ -3,7 +3,11 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-import { NON_LIBRARY_UPLOAD_SOURCES } from '@gruenerator/shared/media-library/constants';
+import {
+  MEDIA_LIBRARY_ITEM_LIMIT,
+  MEDIA_LIBRARY_WARN_RATIO,
+  NON_LIBRARY_UPLOAD_SOURCES,
+} from '@gruenerator/shared/media-library/constants';
 import { stripDataUrlPrefix } from '@gruenerator/shared/utils';
 import { encode as encodeBlurhash } from 'blurhash';
 import sharp from 'sharp';
@@ -35,8 +39,41 @@ const __dirname = path.dirname(__filename);
 
 const SHARED_MEDIA_PATH = path.join(__dirname, '../uploads/shared-media');
 const SHARED_MEDIA_PATH_RESOLVED = path.resolve(SHARED_MEDIA_PATH);
-const MAX_ITEMS_PER_USER = 50;
 const THUMBNAIL_SIZE = 400;
+
+/** Snapshot of how full one account's Mediathek is. */
+export interface MediaLibraryUsage {
+  count: number;
+  limit: number;
+  isFull: boolean;
+  isNearlyFull: boolean;
+}
+
+/**
+ * Thrown by `uploadMediaFile` when the account is at
+ * `MEDIA_LIBRARY_ITEM_LIMIT`. Nothing has been written when this surfaces —
+ * neither a row nor a file. Callers turn it into an HTTP 409 so the user is
+ * told to free space instead of silently losing their oldest media.
+ */
+export class MediaQuotaExceededError extends Error {
+  readonly code = 'media_quota_exceeded' as const;
+
+  /**
+   * The sentence the user reads. Authored here rather than taken from
+   * `.message` at the route, so it is visibly not the raw text of some thrown
+   * tooling error (which must never reach a response body).
+   */
+  readonly userMessage: string;
+
+  constructor(readonly usage: MediaLibraryUsage) {
+    const userMessage =
+      `Deine Mediathek ist voll (${usage.count} von ${usage.limit} Medien). ` +
+      'Lösche nicht mehr benötigte Medien, um wieder hochladen zu können.';
+    super(userMessage);
+    this.name = 'MediaQuotaExceededError';
+    this.userMessage = userMessage;
+  }
+}
 
 /**
  * Statuses a user sees in their own creation listings (galleries, recent
@@ -244,55 +281,46 @@ class SharedMediaService {
     return true;
   }
 
-  async enforceUserLimit(userId: string): Promise<number> {
+  /**
+   * How full the user's Mediathek is. Read-only — nothing is ever deleted here.
+   *
+   * Internal artifacts (canvas/chat thumbnails, template previews —
+   * is_library_item = FALSE) are excluded: they are referenced by
+   * canvas_documents.thumbnail_url and have their own delete-on-replace
+   * lifecycle in updateCanvas, so counting them would charge the user for rows
+   * they never see.
+   */
+  async getLibraryUsage(userId: string): Promise<MediaLibraryUsage> {
     await this.ensureInitialized();
 
-    try {
-      // Internal artifacts (canvas/chat thumbnails, template previews —
-      // is_library_item = FALSE) neither count against the user's quota nor
-      // get evicted: they are referenced by canvas_documents.thumbnail_url,
-      // and evicting one silently blanks that document's gallery preview.
-      // Their lifecycle is delete-on-replace in updateCanvas instead.
-      const countQuery = `SELECT COUNT(*) as count FROM shared_media
-                          WHERE user_id = $1 AND COALESCE(is_library_item, TRUE) = TRUE`;
-      const countResult = await this.postgres!.queryOne<{ count: string }>(countQuery, [userId]);
-      const count = parseInt(countResult?.count ?? '0', 10);
+    const countQuery = `SELECT COUNT(*) as count FROM shared_media
+                        WHERE user_id = $1 AND COALESCE(is_library_item, TRUE) = TRUE`;
+    const countResult = await this.postgres!.queryOne<{ count: string }>(countQuery, [userId]);
+    const count = parseInt(countResult?.count ?? '0', 10);
 
-      if (count >= MAX_ITEMS_PER_USER) {
-        const excessCount = count - MAX_ITEMS_PER_USER + 1;
+    return {
+      count,
+      limit: MEDIA_LIBRARY_ITEM_LIMIT,
+      isFull: count >= MEDIA_LIBRARY_ITEM_LIMIT,
+      isNearlyFull: count >= Math.floor(MEDIA_LIBRARY_ITEM_LIMIT * MEDIA_LIBRARY_WARN_RATIO),
+    };
+  }
 
-        const deleteQuery = `
-                    WITH oldest AS (
-                        SELECT id, share_token, file_path, thumbnail_path
-                        FROM shared_media
-                        WHERE user_id = $1 AND COALESCE(is_library_item, TRUE) = TRUE
-                        ORDER BY created_at ASC
-                        LIMIT $2
-                    )
-                    DELETE FROM shared_media
-                    WHERE id IN (SELECT id FROM oldest)
-                    RETURNING share_token
-                `;
-
-        const deleted = await this.postgres!.query<{ share_token: string }>(deleteQuery, [
-          userId,
-          excessCount,
-        ]);
-
-        for (const item of deleted) {
-          await this.cleanupShareFiles(item.share_token);
-        }
-
-        console.log(
-          `[SharedMediaService] Deleted ${deleted.length} oldest items for user ${userId} (limit enforcement)`
-        );
-        return deleted.length;
-      }
-
-      return 0;
-    } catch (error) {
-      console.error('[SharedMediaService] Failed to enforce user limit:', error);
-      return 0;
+  /**
+   * Refuse a new **upload** once the library is full.
+   *
+   * Only uploads are gated. Creations (sharepics, canvas drafts, template
+   * clones) are let through deliberately: canvas autosave writes continuously
+   * and a hard failure there would lose the user's work mid-edit. Until this
+   * was fixed (#2980), the cap was instead enforced by deleting the oldest
+   * rows *and their files* on every write path — so uploading a source image
+   * could destroy a sharepic made months earlier, with no warning and nothing
+   * to recover from.
+   */
+  async assertLibraryCapacity(userId: string): Promise<void> {
+    const usage = await this.getLibraryUsage(userId);
+    if (usage.isFull) {
+      throw new MediaQuotaExceededError(usage);
     }
   }
 
@@ -309,16 +337,8 @@ class SharedMediaService {
     }
   }
 
-  async getUserShareCount(userId: string): Promise<number> {
-    await this.ensureInitialized();
-    const query = `SELECT COUNT(*) as count FROM shared_media WHERE user_id = $1`;
-    const result = await this.postgres!.queryOne<{ count: string }>(query, [userId]);
-    return parseInt(result?.count ?? '0', 10);
-  }
-
   async createVideoShare(userId: string, params: CreateVideoShareParams): Promise<ShareResult> {
     await this.ensureInitialized();
-    await this.enforceUserLimit(userId);
 
     const { videoPath, title, thumbnailPath, duration, projectId } = params;
     const shareToken = this.generateShareToken();
@@ -392,7 +412,6 @@ class SharedMediaService {
 
   async createImageShare(userId: string, params: CreateImageShareParams): Promise<ShareResult> {
     await this.ensureInitialized();
-    await this.enforceUserLimit(userId);
 
     const {
       imageBase64,
@@ -537,7 +556,6 @@ class SharedMediaService {
     params: CreatePendingVideoShareParams
   ): Promise<ShareResult> {
     await this.ensureInitialized();
-    await this.enforceUserLimit(userId);
 
     const { title, thumbnailPath, duration, projectId } = params;
     const shareToken = this.generateShareToken();
@@ -1009,7 +1027,6 @@ class SharedMediaService {
 
   async uploadMediaFile(userId: string, params: UploadMediaFileParams): Promise<ShareResult> {
     await this.ensureInitialized();
-    await this.enforceUserLimit(userId);
 
     const {
       fileBuffer,
@@ -1019,6 +1036,18 @@ class SharedMediaService {
       altText,
       uploadSource = 'upload',
     } = params;
+
+    // Non-library sources (gallery thumbnails, canvas-element tool output) are
+    // internal artifacts — keep them out of the Mediathek (getMediaLibrary
+    // filters on is_library_item) and out of the quota.
+    const isLibraryItem = !(NON_LIBRARY_UPLOAD_SOURCES as readonly string[]).includes(uploadSource);
+
+    // Checked before the directory is created, so a refused upload leaves
+    // neither a row nor a stray file behind. Throws MediaQuotaExceededError.
+    if (isLibraryItem) {
+      await this.assertLibraryCapacity(userId);
+    }
+
     const shareToken = this.generateShareToken();
     const shareDir = getSafeShareDir(shareToken);
 
@@ -1048,13 +1077,6 @@ class SharedMediaService {
           console.warn('[SharedMediaService] Could not read upload dimensions:', metaError);
         }
       }
-
-      // Non-library sources (gallery thumbnails, canvas-element tool output) are
-      // internal artifacts — keep them out of the Mediathek (getMediaLibrary
-      // filters on is_library_item).
-      const isLibraryItem = !(NON_LIBRARY_UPLOAD_SOURCES as readonly string[]).includes(
-        uploadSource
-      );
 
       // Everything arriving here is a source image, not a finished creation —
       // including the canvas editor's background/asset uploads. `ai_generated` is
@@ -1298,7 +1320,6 @@ class SharedMediaService {
     _userDisplayName: string
   ): Promise<ShareResult> {
     await this.ensureInitialized();
-    await this.enforceUserLimit(userId);
 
     try {
       // 1. Fetch template

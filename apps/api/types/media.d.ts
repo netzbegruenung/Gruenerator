@@ -253,12 +253,3 @@ export interface AuthenticatedRequest {
   params: Record<string, string>;
   query: Record<string, string | undefined>;
 }
-
-/**
- * Constants for media library
- */
-export interface MediaConstants {
-  readonly MAX_ITEMS_PER_USER: 50;
-  readonly THUMBNAIL_SIZE: 400;
-  readonly MAX_FILE_SIZE: number;
-}
