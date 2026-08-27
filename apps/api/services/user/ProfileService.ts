@@ -102,7 +102,10 @@ class ProfileService {
         chat_color: profileData.chat_color,
         beta_features: profileData.beta_features ?? {},
         user_defaults: profileData.user_defaults ?? {},
-        locale: profileData.locale ?? 'de-DE',
+        // Kein 'de-DE'-Ersatz: ein Profil ohne bekanntes Land bleibt leer, und
+        // die Oberfläche fragt einmalig nach. Geschrieben wird es sonst nur von
+        // `config/localeSync.ts` (IdP) und `PUT /auth/locale` (eigene Wahl).
+        ...(profileData.locale != null && { locale: profileData.locale }),
         last_login: profileData.last_login ? new Date(profileData.last_login) : null,
         groups_enabled: profileData.groups_enabled ?? false,
         custom_generators: profileData.custom_generators ?? false,
@@ -189,6 +192,7 @@ class ProfileService {
 
       const knownTextColumns = [
         'locale',
+        'locale_source',
         'chat_background',
         'custom_prompt',
         'presseabbinder',
@@ -249,7 +253,7 @@ class ProfileService {
         chat_color: data.chat_color,
         beta_features: data.beta_features ?? {},
         user_defaults: data.user_defaults ?? {},
-        locale: data.locale ?? 'de-DE',
+        ...(data.locale != null && { locale: data.locale }),
         last_login: data.last_login ? new Date(data.last_login) : null,
         groups_enabled: data.groups_enabled ?? false,
         custom_generators: data.custom_generators ?? false,
@@ -275,7 +279,10 @@ class ProfileService {
             chat_color: sql`EXCLUDED.chat_color`,
             beta_features: sql`EXCLUDED.beta_features`,
             user_defaults: sql`EXCLUDED.user_defaults`,
-            locale: sql`EXCLUDED.locale`,
+            // COALESCE, nicht EXCLUDED: seit `locale` leer sein darf, würde ein
+            // Upsert ohne Land ein bereits bekanntes überschreiben — ein Login
+            // über einen länderneutralen IdP löschte sonst die Wahl der Person.
+            locale: sql`COALESCE(EXCLUDED.locale, ${profiles.locale})`,
             last_login: sql`EXCLUDED.last_login`,
             groups_enabled: sql`EXCLUDED.groups_enabled`,
             custom_generators: sql`EXCLUDED.custom_generators`,
