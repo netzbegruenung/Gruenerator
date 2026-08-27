@@ -160,8 +160,15 @@ export async function syncCustomAgents(get: MentionableFetch): Promise<CustomAge
  * picker. Anonymous users / no agents resolve to an empty list.
  */
 export async function syncUserAgents(get: MentionableFetch): Promise<UserAgentMentionable[]> {
+  // Only a 401 resolves to an empty list, as in `syncUserNotebooks`: web does
+  // not gate this query on auth, so anonymous users must stay quiet — but a
+  // blanket catch would swallow a wrong path or a 500 forever AND make the
+  // query's `retry` dead code, since a rejected promise is what triggers it.
   const res = await get<{ agents?: MentionableUserAgent[] }>('/api/user-agents/mentionable').catch(
-    () => ({ agents: [] })
+    (err: unknown) => {
+      if (isUnauthorizedError(err)) return { agents: [] };
+      throw err;
+    }
   );
   const list: UserAgentMentionable[] = Array.isArray(res?.agents)
     ? res.agents.map((a) => ({

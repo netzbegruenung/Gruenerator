@@ -217,3 +217,23 @@ describe('syncUserAgents origin', () => {
     expect(paths).toEqual(['/api/user-agents/mentionable']);
   });
 });
+
+describe('syncUserAgents failure handling', () => {
+  it('resolves to an empty list on 401 — anonymous users stay quiet', async () => {
+    const get = vi
+      .fn()
+      .mockRejectedValue(
+        Object.assign(new Error('Unauthorized'), { name: 'UnauthorizedError', status: 401 })
+      ) as unknown as MentionableFetch;
+    await expect(syncUserAgents(get)).resolves.toEqual([]);
+  });
+
+  it('rethrows anything else, so a wrong path cannot pass for an empty account', async () => {
+    const get = vi
+      .fn()
+      .mockRejectedValue(
+        Object.assign(new Error('Not Found'), { name: 'ApiError', status: 404 })
+      ) as unknown as MentionableFetch;
+    await expect(syncUserAgents(get)).rejects.toThrow('Not Found');
+  });
+});
