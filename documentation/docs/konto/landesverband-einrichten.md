@@ -59,18 +59,6 @@ Unter der fertigen Antwort steht dann, welches Rezept gewirkt hat:
 Wo es zwei Presse-Rezepte gibt, schreibt das eine für den **Landesverband**, das andere für die **Landtagsfraktion**. Die Automatik nimmt die Partei-Variante. Willst du den Fraktionsstil, erwähne das Rezept ausdrücklich (`@presse-hessen-fraktion`) — eine ausdrückliche Wahl wird nie übersteuert.
 :::
 
-## Schritt 3: Euren Stil anlernen
-
-Die LV-Rezepte bringen den Stil eures Landesverbands schon mit — solange ihr nichts anlernt, gilt er unverändert.
-
-Habt ihr darüber hinaus eigene Vorgaben — eine feste Zitat-Struktur, bestimmte Formulierungen, eine Länge —, könnt ihr sie hinterlegen: **Einstellungen → Texte anlernen**, je Textsorte (Pressemitteilung, Instagram, …). Sobald du eine Landesverbands-Rolle hast, listet der Bereich auch eure LV-Rezepte auf und zeigt, welche angelernte Textsorte sie jeweils steuert.
-
-:::warning[Ein angelernter Stil ersetzt die Vorlage — er ergänzt sie nicht]
-Was du bei _Pressemitteilungen_ anlernst, gilt für **jede** Pressemitteilung: für `@presse-hessen-partei`, für `@presse-hessen-fraktion` und auch dann, wenn du gar kein Rezept erwähnst. Es tritt dabei **an die Stelle** der mitgelieferten Vorgaben des LV-Rezepts — Aufbau, Länge und Zitatstruktur von dort sind dann nicht mehr aktiv.
-
-Schreib eure Vorgaben deshalb vollständig: Alles, was euch wichtig ist, muss darin stehen — auch das, was vorher das LV-Rezept geregelt hat. Einen zweiten, getrennten Stil nur für das Landesverbands-Rezept gibt es bewusst nicht.
-:::
-
 ## Noch persönlicher
 
 Drei Stellschrauben, die unabhängig vom Landesverband für dich arbeiten:
