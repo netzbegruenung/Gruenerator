@@ -536,3 +536,36 @@ describe('Tier 3.5 — wrapper interactions (URL, edge cases)', () => {
     expect(result.intent).not.toBe('agentic');
   });
 });
+
+/**
+ * Geltungsfrage (#2949) — die ganze Kette an EINER Stelle geprüft.
+ *
+ * Die beiden Glieder einzeln stehen in `classifierGeltungsfrage.vitest.ts`. Was
+ * dort nicht sichtbar ist, ist das Ergebnis der Verkettung: das Verdikt `web`
+ * wird von Tier 3.5 zu `agentic` demotiert — und genau dabei muss
+ * `loopDemotedFromRetrieval` HÄNGENBLEIBEN. Diese Flagge ist der einzige Träger
+ * des Zwangs (`shouldForceFirstToolCall`, Weg 4); ohne sie sähe der Turn nach
+ * der Demotion exakt aus wie vor dem Fix, und der Planer dürfte wieder nichts
+ * rufen.
+ */
+describe('Tier 3.5 — die Geltungsfrage behält ihr Abruf-Verdikt', () => {
+  it('demotiert nach agentic UND merkt sich die Recherche-Herkunft', async () => {
+    const result = await classifierNode(
+      buildState({
+        userMessage:
+          'Gilt das Verbrenner-Aus ab 2035 in der EU noch? Antworte in zwei getrennten ' +
+          'Abschnitten: (a) was rechtlich in Kraft ist, (b) was politisch verhandelt wird ' +
+          'und noch nicht gilt. Nenne für beides den Rechtsakt bzw. das Verfahrensstadium.',
+      })
+    );
+    expect(result.intent).toBe('agentic');
+    expect(result.loopDemotedFromRetrieval).toBe(true);
+  });
+
+  it('die Nachbarfrage nach dem Grund behält ihr offenes Gitter', async () => {
+    const result = await classifierNode(
+      buildState({ userMessage: 'Warum haben die Grünen das Verbrenner-Aus ab 2035 abgelehnt?' })
+    );
+    expect(result.loopDemotedFromRetrieval).toBeFalsy();
+  });
+});

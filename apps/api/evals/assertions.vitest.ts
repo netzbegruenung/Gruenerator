@@ -30,6 +30,74 @@ describe('runAssertions — each failure class we hit live', () => {
     expect(rs[0]).toMatchObject({ name: 'streamCompleted', pass: false });
   });
 
+  /**
+   * `statesAsOf` — die Schwester von `grounded` aus #2949.
+   *
+   * Die beiden zusammen beschreiben den Fehler, den keiner von beiden allein
+   * sieht: dort war die Antwort unbelegt UND undatiert. Eine erzwungene Suche
+   * repariert nur die erste Hälfte — deshalb der Fall unten, in dem ein
+   * erfolgreicher Suchlauf `grounded` grün und `statesAsOf` rot meldet.
+   */
+  describe('statesAsOf', () => {
+    it.each([
+      ['die Stand-Formel', 'Stand: März 2026 gilt die Verordnung unverändert.'],
+      ['Monat + Jahr', 'Seit September 2025 gilt die geänderte Fassung.'],
+      ['ein ausgeschriebenes Datum', 'Die Novelle trat am 15. Oktober 2026 in Kraft.'],
+      ['ein numerisches Datum', 'Beschlossen am 28.06.2026, in Kraft seit dem Folgemonat.'],
+    ])('akzeptiert %s', (_n, fullText) => {
+      expect(names(runAssertions(trace({ fullText }), { statesAsOf: true }))['statesAsOf']).toBe(
+        true
+      );
+    });
+
+    // Die Jahreszahl der FRAGE ist nicht der Stand der ANTWORT. Ohne diese
+    // Ausnahme wäre die Zusicherung von ihrem eigenen Gegenstand erfüllbar.
+    it('nimmt eine blosse Jahreszahl nicht als Stand', () => {
+      const rs = runAssertions(
+        trace({ fullText: 'Das Verbrenner-Aus gilt ab 2035 für neue Pkw.' }),
+        { statesAsOf: true }
+      );
+      expect(names(rs)['statesAsOf']).toBe(false);
+    });
+
+    // „stand" ist auch das Präteritum von stehen. Ohne die Formel-Bindung
+    // erfüllte ein beliebiger Satz mit Jahreszahl die Zusicherung. Aus dem
+    // Review von #2952.
+    it('nimmt das Verb „stand" nicht als Stand', () => {
+      const rs = runAssertions(
+        trace({ fullText: 'Der Kanzler stand 1998 kurz vor dem Rücktritt.' }),
+        { statesAsOf: true }
+      );
+      expect(names(rs)['statesAsOf']).toBe(false);
+    });
+
+    it('nimmt das Wort Stand im Kompositum nicht als Stand', () => {
+      const rs = runAssertions(trace({ fullText: 'Der Verhandlungsstand ist offen.' }), {
+        statesAsOf: true,
+      });
+      expect(names(rs)['statesAsOf']).toBe(false);
+    });
+
+    // Der Fall, der das Issue trägt: gesucht wurde, datiert wurde nicht.
+    it('meldet rot, wo grounded grün meldet', () => {
+      const rs = runAssertions(
+        trace({
+          toolCalls: [{ toolName: 'web_search', ok: true, args: {} }],
+          sources: 4,
+          fullText: 'Die EU verhandelt derzeit über eine Revision; das Aus gilt ab 2035.',
+        }),
+        { grounded: true, statesAsOf: true }
+      );
+      expect(names(rs)['grounded']).toBe(true);
+      expect(names(rs)['statesAsOf']).toBe(false);
+    });
+
+    it('kehrt sich um, wenn statesAsOf: false verlangt ist', () => {
+      const rs = runAssertions(trace({ fullText: 'Stand: März 2026.' }), { statesAsOf: false });
+      expect(names(rs)['statesAsOf']).toBe(false);
+    });
+  });
+
   it('internalOnly fails when web is used despite internal hits (the over-search bug)', () => {
     const rs = runAssertions(
       trace({

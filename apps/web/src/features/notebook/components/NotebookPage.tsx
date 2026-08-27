@@ -16,7 +16,6 @@ import {
   type ExtraAction,
   type NotebookMessageMetadata,
 } from '@gruenerator/chat';
-import { deriveIndexingState } from '@gruenerator/contracts';
 import React, { useState, useCallback, useEffect, useMemo, type ReactNode } from 'react';
 import { FaFileWord } from 'react-icons/fa';
 import { useLocation, useParams, useSearchParams } from 'react-router-dom';
@@ -33,7 +32,7 @@ import { useNotebookCollection } from '../hooks/useNotebookCollection';
 import useNotebookStore from '../stores/notebookStore';
 
 import { NotebookAccessError } from './NotebookAccessError';
-import NotebookIndexingNotice from './NotebookIndexingNotice';
+import NotebookIndexingNotice, { resolveIndexingState } from './NotebookIndexingNotice';
 import { NotebookStartpage } from './NotebookStartpage';
 import { PendingQuestionSender } from './PendingQuestionSender';
 
@@ -506,8 +505,7 @@ export const DynamicNotebookPage = ({ id: idProp }: DynamicNotebookPageProps = {
     persistMessages: true,
   };
 
-  const indexingState =
-    collection.indexing_state ?? deriveIndexingState(collection.documents ?? []);
+  const indexingState = resolveIndexingState(collection);
 
   return (
     <>
