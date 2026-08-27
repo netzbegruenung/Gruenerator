@@ -38,8 +38,10 @@ const CLAIMED_WORK_RE =
  * Suche allein liefert das nicht nach — `grounded` wäre grün und der Mangel
  * derselbe.
  *
- * Bewusst grosszügig in der Schreibweise: Stand-Formel, "Monat Jahr" (deckt
- * „seit September 2025" und „15. Oktober 2026" mit ab) und TT.MM.JJJJ. Eine
+ * Bewusst grosszügig in der Schreibweise: Stand-FORMEL („Stand:", „Stand vom",
+ * „(Stand …)"), "Monat Jahr" (deckt „seit September 2025" und „15. Oktober 2026"
+ * mit ab) und TT.MM.JJJJ. Die Formel und nicht das blosse Wort — „stand" ist im
+ * Deutschen auch das Präteritum von stehen. Eine
  * blosse Jahreszahl zählt NICHT — „ab 2035" ist der Gegenstand der Frage, nicht
  * der Stand der Antwort, und ohne diese Ausnahme wäre die Zusicherung von der
  * Frage selbst erfüllbar.
@@ -54,9 +56,12 @@ const MONTH =
   '(januar|februar|märz|maerz|april|mai|juni|juli|august|september|oktober|november|dezember)';
 const STATES_AS_OF_RE = new RegExp(
   [
-    // „Stand: März 2026", „Stand 03/2026" — die Formel plus ein Jahr in Reichweite.
-    '\\bstand\\b[^.\\n]{0,24}?(19|20)\\d\\d',
-    '\\bstand\\b[^.\\n]{0,12}?heute\\b',
+    // Die Stand-FORMEL, nicht das Wort: „Stand:", „Stand vom", „(Stand …)".
+    // `\bstand\b` allein trifft auch das Verb — „der Kanzler stand 1998 kurz vor
+    // dem Rücktritt" hätte die Zusicherung erfüllt, ohne einen Stand zu nennen.
+    '\\bstand\\s*:',
+    '\\bstand\\s+(?:vom?|per)\\s',
+    '\\(\\s*stand\\b',
     `${MONTH}\\s+(19|20)\\d\\d`,
     '\\b\\d{1,2}\\.\\s*\\d{1,2}\\.\\s*(19|20)\\d\\d\\b',
   ].join('|'),

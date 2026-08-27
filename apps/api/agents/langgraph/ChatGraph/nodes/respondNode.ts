@@ -49,6 +49,7 @@ import { buildCitableSources, MAX_SOURCES, type CitableSource } from './citableS
 import { lastUserText } from './classifierHeuristics.js';
 import { looksLikeDocsHelpQuestion, looksLikeGeltungsfrage } from './classifierSignals.js';
 import { resolveEffectiveRecipeMention } from './effectiveRecipeMention.js';
+import { stripQuotedSpans } from './fastPathGuards.js';
 import { deriveTextFormMention } from './textFormMention.js';
 
 import type { ChatGraphState, DocumentSource, SearchResult, ThreadAttachment } from '../types.js';
@@ -1164,10 +1165,17 @@ const GELTUNGSSTAND_RULE =
  * MUSS. Getrennte Detektoren wären hier die naheliegende Drift — der Zwang
  * feuerte, die Formregel nicht, und der Turn suchte brav, um dann doch einen
  * Vorschlag als geltendes Recht zu referieren.
+ *
+ * Dieselbe Funktion genügt dafür NICHT — sie muss auch dieselbe SICHT bekommen.
+ * Der Klassifikator gibt ihr `m.stripped`, also den Text ohne zitierte Spannen
+ * („eine zitierte Passage ist fremde Rede"). Roher Text hier hiesse: „Ein
+ * Kollege fragte: ‚Gilt das Gesetz noch?'" erzwingt keinen Abruf, bekommt aber
+ * die Rechtsstand-Regel ins Prompt — die Drift, vor der der Absatz darüber
+ * warnt, nur über die Eingabe statt über einen zweiten Detektor.
  */
 function geltungsstandNote(state: ChatGraphState): string {
   const text = state.lastUserTextNoMentions || lastUserText(state);
-  return looksLikeGeltungsfrage(text) ? `\n\n${GELTUNGSSTAND_RULE}` : '';
+  return looksLikeGeltungsfrage(stripQuotedSpans(text)) ? `\n\n${GELTUNGSSTAND_RULE}` : '';
 }
 
 /**

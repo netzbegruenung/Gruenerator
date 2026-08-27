@@ -60,6 +60,17 @@ describe('runAssertions — each failure class we hit live', () => {
       expect(names(rs)['statesAsOf']).toBe(false);
     });
 
+    // „stand" ist auch das Präteritum von stehen. Ohne die Formel-Bindung
+    // erfüllte ein beliebiger Satz mit Jahreszahl die Zusicherung. Aus dem
+    // Review von #2952.
+    it('nimmt das Verb „stand" nicht als Stand', () => {
+      const rs = runAssertions(
+        trace({ fullText: 'Der Kanzler stand 1998 kurz vor dem Rücktritt.' }),
+        { statesAsOf: true }
+      );
+      expect(names(rs)['statesAsOf']).toBe(false);
+    });
+
     it('nimmt das Wort Stand im Kompositum nicht als Stand', () => {
       const rs = runAssertions(trace({ fullText: 'Der Verhandlungsstand ist offen.' }), {
         statesAsOf: true,
