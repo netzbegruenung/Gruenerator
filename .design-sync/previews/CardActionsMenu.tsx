@@ -11,7 +11,7 @@ import {
 // mounts its dropdown surface after a click (no `open`/`defaultOpen` prop), so
 // statically it renders the trigger button. Shown here in its real context:
 // the action affordance in the corner of a content card.
-export function NotizbuchKarte() {
+export function NotebookKarte() {
   return (
     <Card style={{ maxWidth: 420 }}>
       <CardHeader>
@@ -25,7 +25,7 @@ export function NotizbuchKarte() {
         >
           <div style={{ minWidth: 0 }}>
             <CardTitle>Wahlprogramm 2026</CardTitle>
-            <CardDescription>Notizbuch · zuletzt bearbeitet vor 2 Std.</CardDescription>
+            <CardDescription>Notebook · zuletzt bearbeitet vor 2 Std.</CardDescription>
           </div>
           <CardActionsMenu
             onShare={() => {}}

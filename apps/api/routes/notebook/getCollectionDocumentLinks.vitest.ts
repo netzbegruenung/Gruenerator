@@ -2,7 +2,7 @@
  * Regression test for `getCollection`'s source readiness.
  *
  * A freshly created notebook with fully indexed sources greeted its owner with
- * "Dieses Notizbuch hat noch keine Quellen". Root cause: only the LIST getters
+ * "Dieses Notebook hat noch keine Quellen". Root cause: only the LIST getters
  * attach `notebook_collection_documents` to a collection; `getNotebookCollection`
  * hands back the bare Qdrant payload, where the field is absent. The enricher
  * read that absence as "no documents", so every single-notebook response

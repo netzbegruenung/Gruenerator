@@ -49,9 +49,9 @@ export const RESEARCHER_RESPONSE_SCHEMA = {
             type: 'string',
             description: 'Vollständige URL. Weglassen, wenn die Quelle keine hat.',
           },
-          notizbuch: {
+          notebook: {
             type: 'string',
-            description: 'Name des Notizbuchs, wenn die Quelle aus einem Korpus stammt.',
+            description: 'Name des Notebooks, wenn die Quelle aus einem Korpus stammt.',
           },
         },
         required: ['titel'],

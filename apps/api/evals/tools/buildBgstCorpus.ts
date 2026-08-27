@@ -59,7 +59,7 @@ const scenarios: EvalCase[] = [
   //
   // K3 misst, was nach dem Retrieval kommt — Entnahme und Widerstand gegen die
   // naheliegende falsche Zahl. Genau deshalb taugt diese Stufe fürs Nightly:
-  // sie braucht kein Notizbuch, keine Ingestion und keinen Korpus auf dem
+  // sie braucht kein Notebook, keine Ingestion und keinen Korpus auf dem
   // Zielsystem, und ihr Ergebnis ist eine Aussage über das Modell statt über
   // die Umgebung. Die Stufen K0–K2 derselben Sachverhalte liegen in
   // `bgst-korpus.jsonl` und brauchen den echten Bestand.

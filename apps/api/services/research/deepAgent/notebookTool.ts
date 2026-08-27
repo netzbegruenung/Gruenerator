@@ -1,5 +1,5 @@
 /**
- * `notizbuch_suche` — the Grünerator's own corpora, and the personal notebooks
+ * `notebook_suche` — the Grünerator's own corpora, and the personal notebooks
  * this turn already had in hand.
  *
  * Same two rules as the web tools: it never throws (a thrown error ends the
@@ -61,11 +61,11 @@ function trim(text: string): string {
  */
 function formatNotebookHits(hits: NotebookHit[]): string {
   if (hits.length === 0) {
-    return 'Keine Treffer in den Notizbüchern. Nutze web_suche für diese Teilfrage.';
+    return 'Keine Treffer in den Notebooks. Nutze web_suche für diese Teilfrage.';
   }
   return hits
     .map((h, i) => {
-      const address = h.url ? `URL: ${h.url}` : 'Keine URL — zitiere über Titel und Notizbuch';
+      const address = h.url ? `URL: ${h.url}` : 'Keine URL — zitiere über Titel und Notebook';
       return `${i + 1}. ${h.title}\n   ${h.origin} — ${address}\n   ${h.excerpt}`;
     })
     .join('\n');
@@ -86,7 +86,7 @@ async function searchCollections(
       });
       for (const r of result.results) {
         const url = r.url ?? '';
-        const key = url || `notizbuch:${r.documentId ?? `${collection}:${r.rank}`}`;
+        const key = url || `notebook:${r.documentId ?? `${collection}:${r.rank}`}`;
         hits.push({
           title: r.source,
           url,
@@ -98,7 +98,7 @@ async function searchCollections(
     } catch (error) {
       // One dead collection must not cost the whole call — the others may still
       // carry the answer.
-      log.warn(`[notizbuch_suche] Sammlung ${collection} fehlgeschlagen: ${String(error)}`);
+      log.warn(`[notebook_suche] Sammlung ${collection} fehlgeschlagen: ${String(error)}`);
     }
   }
   return hits;
@@ -119,9 +119,9 @@ async function searchPersonalDocuments(
   return (response.results ?? []).map((r) => ({
     title: r.title || 'Dokument',
     url: r.source_url ?? '',
-    origin: 'Eigenes Notizbuch',
+    origin: 'Eigenes Notebook',
     excerpt: trim(r.relevant_content ?? ''),
-    key: r.source_url || `notizbuch:${r.document_id ?? r.title}`,
+    key: r.source_url || `notebook:${r.document_id ?? r.title}`,
   }));
 }
 
@@ -133,7 +133,7 @@ export function createNotebookTool(ctx: ToolContext, scope: NotebookScope) {
     }
   }
   const originOf = (collection: string): string =>
-    `Notizbuch: ${titleOf.get(collection) ?? collection}`;
+    `Notebook: ${titleOf.get(collection) ?? collection}`;
 
   const byId = new Map<string, NotebookCorpus>(scope.corpora.map((c) => [c.id, c]));
   const examples = scope.corpora
@@ -143,20 +143,20 @@ export function createNotebookTool(ctx: ToolContext, scope: NotebookScope) {
 
   return tool(
     async (input: unknown): Promise<string> => {
-      const { frage, notizbuch } = input as { frage: string; notizbuch?: string };
+      const { frage, notebook } = input as { frage: string; notebook?: string };
       const stop = budgetSpent(ctx);
       if (stop) return stop;
       if (ctx.budget.notebookSearchesLeft <= 0) {
-        return 'Budget für Notizbuchsuchen aufgebraucht. Arbeite mit dem vorhandenen Material weiter.';
+        return 'Budget für Notebook-Suchen aufgebraucht. Arbeite mit dem vorhandenen Material weiter.';
       }
 
       // An invented name never gets this far: the schema's `enum` is enforced
       // before the handler runs. Without corpora there is no enum, and then a
-      // stray `notizbuch` simply falls back to the turn's own selection.
-      const chosen = notizbuch ? byId.get(notizbuch) : null;
+      // stray `notebook` simply falls back to the turn's own selection.
+      const chosen = notebook ? byId.get(notebook) : null;
 
       ctx.budget.notebookSearchesLeft -= 1;
-      const label = `Notizbuch: ${chosen?.title ?? 'Grüne Quellen'} — ${frage}`;
+      const label = `Notebook: ${chosen?.title ?? 'Grüne Quellen'} — ${frage}`;
       ctx.onStep(label, 'running');
 
       // Same precedence as an ordinary chat turn: an explicit pick beats the
@@ -176,7 +176,7 @@ export function createNotebookTool(ctx: ToolContext, scope: NotebookScope) {
         try {
           hits.push(...(await searchPersonalDocuments(scope, frage)));
         } catch (error) {
-          log.warn(`[notizbuch_suche] Eigene Dokumente fehlgeschlagen: ${String(error)}`);
+          log.warn(`[notebook_suche] Eigene Dokumente fehlgeschlagen: ${String(error)}`);
         }
       }
 
@@ -197,15 +197,15 @@ export function createNotebookTool(ctx: ToolContext, scope: NotebookScope) {
       return formatNotebookHits(hits);
     },
     {
-      name: 'notizbuch_suche',
-      description: `Durchsucht die Notizbücher des Grünerators — Programme, Beschlüsse, Positionen und Pressemitteilungen der Grünen${examples ? ` (u. a. ${examples})` : ''}. Nutze es für alles, was grüne Haltung, Beschlusslage oder Programmatik betrifft, bevor du ins Web gehst. Ohne Angabe eines Notizbuchs wird die passende Auswahl automatisch durchsucht.`,
+      name: 'notebook_suche',
+      description: `Durchsucht die Notebooks des Grünerators — Programme, Beschlüsse, Positionen und Pressemitteilungen der Grünen${examples ? ` (u. a. ${examples})` : ''}. Nutze es für alles, was grüne Haltung, Beschlusslage oder Programmatik betrifft, bevor du ins Web gehst. Ohne Angabe eines Notebooks wird die passende Auswahl automatisch durchsucht.`,
       schema: {
         type: 'object',
         properties: {
           frage: { type: 'string', description: 'Die Teilfrage, ausformuliert' },
-          notizbuch: {
+          notebook: {
             type: 'string',
-            description: 'Ein bestimmtes Notizbuch. Weglassen, wenn die Standardauswahl passt.',
+            description: 'Ein bestimmtes Notebook. Weglassen, wenn die Standardauswahl passt.',
             // Omitted rather than left empty when no corpus is in reach — an
             // empty enum admits no value at all and would break the schema.
             ...(byId.size > 0 ? { enum: [...byId.keys()] } : {}),

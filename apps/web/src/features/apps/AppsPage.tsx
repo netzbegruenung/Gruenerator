@@ -285,7 +285,7 @@ const McpSection = () => {
       </h2>
       <p className="mb-4 text-sm text-grey-600 dark:text-grey-400">
         Nutze die Grünerator-Tools direkt in deinem KI-Client — inklusive deiner eigenen Dokumente,
-        Boards und Notizbücher. Beim Verbinden meldest du dich mit deinem Grünerator-Konto an und
+        Boards und Notebooks. Beim Verbinden meldest du dich mit deinem Grünerator-Konto an und
         entscheidest, worauf der Client zugreifen darf.
       </p>
 

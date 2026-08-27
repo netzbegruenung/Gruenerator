@@ -129,7 +129,7 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
   boards_tasks: { label: 'Boards & Aufgaben', iconKey: 'file' },
   groups: { label: 'Gruppen', iconKey: 'user' },
   media: { label: 'Medien', iconKey: 'image' },
-  notebooks: { label: 'Notizbücher', iconKey: 'book' },
+  notebooks: { label: 'Notebooks', iconKey: 'book' },
   read_pdf_form: { label: 'Formularfelder', iconKey: 'file' },
   fill_pdf_form: { label: 'Formular ausfüllen', iconKey: 'file' },
 };

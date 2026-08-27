@@ -16,7 +16,7 @@ import {
   buildCorpusMethodText,
   buildMethodDocument,
   buildNotebookMethodText,
-  buildNotizbuchPrompt,
+  buildNotebookPrompt,
   buildRecherchePrompt,
 } from './methodPrompts.js';
 
@@ -68,8 +68,8 @@ describe('method texts', () => {
   });
 
   it('derives the notebook method from the general draft prompt', () => {
-    const text = buildNotebookMethodText('Mein Notizbuch');
-    expect(text.startsWith(buildDraftPromptGeneral('Mein Notizbuch', 'mcp').system)).toBe(true);
+    const text = buildNotebookMethodText('Mein Notebook');
+    expect(text.startsWith(buildDraftPromptGeneral('Mein Notebook', 'mcp').system)).toBe(true);
     expect(text).toContain('action="list"');
     expect(text).toContain('action="search"');
   });
@@ -123,7 +123,7 @@ describe('prompt exchanges', () => {
   });
 
   it('asks which notebook is meant when none was named', () => {
-    expect(buildNotizbuchPrompt('Frage')[0].content.text).toContain('Frage die Person');
-    expect(buildNotizbuchPrompt('Frage', 'Verkehr')[0].content.text).toContain('„Verkehr"');
+    expect(buildNotebookPrompt('Frage')[0].content.text).toContain('Frage die Person');
+    expect(buildNotebookPrompt('Frage', 'Verkehr')[0].content.text).toContain('„Verkehr"');
   });
 });

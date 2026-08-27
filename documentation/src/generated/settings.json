@@ -391,8 +391,8 @@
       },
       {
         "key": "notebook_liked",
-        "label": "Notizbuch-Likes",
-        "description": "Wenn jemand dein öffentliches Notizbuch mag",
+        "label": "Notebook-Likes",
+        "description": "Wenn jemand dein öffentliches Notebook mag",
         "group": "system"
       },
       {
@@ -416,7 +416,7 @@
       {
         "key": "wolke_new_files",
         "label": "Neue Wolke-Dateien",
-        "description": "Neue Dateien in den Wolke-Ordnern deiner Notizbücher",
+        "description": "Neue Dateien in den Wolke-Ordnern deiner Notebooks",
         "group": "system"
       },
       {

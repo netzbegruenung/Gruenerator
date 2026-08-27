@@ -76,8 +76,12 @@ const CHITCHAT_RE = /^(wer bist du|was (kannst|bist) du|wie geht|wie heißt du|h
 // personal-content noun ("meine Boards") slips both the question-word and
 // verb-first nets. Route them into the loop so the personal-data resource tools
 // (find_content/documents/boards_tasks/notebooks) are reachable.
+//
+// `notizb[üu]cher` stays next to `notebooks?`: the product word is Notebook
+// since 27.08.2026, but this net reads what people TYPE, and they kept typing
+// the old German one. Detectors over user input are not part of the rename.
 const PERSONAL_DATA_RE =
-  /\b(mein|meine|meiner|meinen)\b[\s\wäöüß]*\b(dokumente?|boards?|aufgaben?|tasks?|notizb[üu]cher|sammlung\w*|reels?|sharepics?|gruppen?|inhalte?)\b/i;
+  /\b(mein|meine|meiner|meinen)\b[\s\wäöüß]*\b(dokumente?|boards?|aufgaben?|tasks?|notebooks?|notizb[üu]cher|sammlung\w*|reels?|sharepics?|gruppen?|inhalte?)\b/i;
 
 /**
  * The whole turn (after stripping a leading greeting) is assistant-directed
@@ -691,7 +695,7 @@ export interface AgenticDecisionInput {
    * `executeIntentPipeline` hat für ihn keinen Zweig (`mcp` plus
    * `SYSTEM_TOOL_INTENTS`). Ein Turn, den ein Notausschalter draussen hielte,
    * hätte niemanden, der ihn ausführt; deshalb öffnet dieses Flag das Gate
-   * bedingungslos und hebt auch die Notizbuch-Sperre auf.
+   * bedingungslos und hebt auch die Notebook-Sperre auf.
    */
   mustLoop: boolean;
   /**
@@ -703,7 +707,7 @@ export interface AgenticDecisionInput {
    * Einzeldurchlauf-Executor (er bleibt der Weg für Prosa-Turns mit
    * ausgeschalteter Schleife), aber eine @-Erwähnung ist dort schlechter
    * bedient. Zusammengelegt bekäme so ein Intent still auch das
-   * bedingungslose Gate und die Notizbuch-Ausnahme — und eine gewählte
+   * bedingungslose Gate und die Notebook-Ausnahme — und eine gewählte
    * Wissenssammlung bliebe ungelesen.
    */
   forcedLoop: boolean;
@@ -821,12 +825,12 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
   // intentExecutionService hat keinen Zweig für `mcp`, `umfragen` oder
   // `hilfe`. Einen davon draussen zu halten liesse ihn ohne Ausführenden. Eine
   // ungelesene Wissenssammlung ist der kleinere Verlust gegen einen Turn, der
-  // gar nichts tut — deshalb hebt dieses Flag auch die Notizbuch-Sperre auf.
+  // gar nichts tut — deshalb hebt dieses Flag auch die Notebook-Sperre auf.
   //
   // `forcedLoop`: die Person hat den Intent per Erwähnung gesetzt, und für
   // diesen Intent heisst das „lauf im Loop" statt „hefte ein deterministisches
   // Einzelwerkzeug an". Es hebt NUR den forcedTool-Notausschalter auf; das
-  // Gate und die Notizbuch-Sperre bleiben, weil ein Intent mit eigenem
+  // Gate und die Notebook-Sperre bleiben, weil ein Intent mit eigenem
   // Executor beides nicht braucht.
   const runAgentic =
     gateOpen &&

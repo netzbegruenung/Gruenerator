@@ -320,7 +320,7 @@ export { useFileMentionData } from './hooks/useFileMentionData';
 export { useHiddenAgentIdentifiers, useHiddenSkillMentions } from './hooks/useMentionablesQuery';
 
 // Landesverbands-Zuteilung aus den Profilrollen. Steuert, welche LV-Agenten,
-// -Rezepte und -Notizbücher eine Person überhaupt angeboten bekommt.
+// -Rezepte und -Notebooks eine Person überhaupt angeboten bekommt.
 export { useUserLandesverbaende, type UserLandesverbaende } from './hooks/useUserLandesverbaende';
 
 // Typed-mention attachments (Wolke / Connect / web page) and the Canva draft

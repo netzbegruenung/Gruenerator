@@ -143,7 +143,7 @@ export function getVisibleSystemAgentsForLocale(
  * und über die Instanz-Registry kuratiert (`hide.notebookCategories`), nicht
  * einzeln: 36 Zeilen für zwölf Landesverbände wären Kleinteiligkeit, die
  * niemand braucht, und ein einzeln versteckter Spezialist stünde quer zu der
- * Kaskade, die seine Rezepte und sein Notizbuch gemeinsam schaltet.
+ * Kaskade, die seine Rezepte und sein Notebook gemeinsam schaltet.
  */
 export function getCuratableSystemAgents(
   instanceId: InstanceId = DEFAULT_INSTANCE_ID

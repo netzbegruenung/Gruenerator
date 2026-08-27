@@ -55,7 +55,7 @@ export interface RunBudget {
 export interface SourceRef {
   url: string;
   title: string;
-  /** Where it came from when there is no URL, e.g. `Notizbuch: Berlin`. */
+  /** Where it came from when there is no URL, e.g. `Notebook: Berlin`. */
   origin?: string;
 }
 

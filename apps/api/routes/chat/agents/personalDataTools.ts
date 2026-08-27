@@ -210,7 +210,7 @@ function notebookHelper(): NotebookQdrantHelper {
 export function makeFindContentTool(ctx: PersonalToolCtx): Tool {
   const { state, sourceRegistry } = ctx;
   return tool({
-    description: `Durchsucht die EIGENEN Inhalte der angemeldeten Person (Dokumente, Boards, Tabellen, Präsentationen, Notizbücher sowie Reels/untertitelte Videos) oder listet die zuletzt bearbeiteten. Reels werden dabei auch nach ihrem gesprochenen Untertitel-Inhalt durchsucht.
+    description: `Durchsucht die EIGENEN Inhalte der angemeldeten Person (Dokumente, Boards, Tabellen, Präsentationen, Notebooks sowie Reels/untertitelte Videos) oder listet die zuletzt bearbeiteten. Reels werden dabei auch nach ihrem gesprochenen Untertitel-Inhalt durchsucht.
 
 NUTZE WENN nach eigenen Inhalten gefragt wird ("zeig mir meine Dokumente", "finde mein Klima-Board", "woran habe ich zuletzt gearbeitet"). Für Detailfragen zu EINEM Board/Dokument nutze 'documents' oder 'boards_tasks'. Für das VOLLE Transkript eines Reels (z. B. um eine Caption zu schreiben) nutze 'media' mit action="transcript".`,
     inputSchema: z.object({
@@ -1082,12 +1082,12 @@ TYPISCHER ABLAUF für "such das Reel zu Thema X und schreib eine Caption": erst 
 export function makeNotebooksTool(ctx: PersonalToolCtx): Tool {
   const { state, sourceRegistry } = ctx;
   return tool({
-    description: `Zugriff auf die EIGENEN Notizbücher (Sammlungen von Quellen/Dokumenten).
+    description: `Zugriff auf die EIGENEN Notebooks (Sammlungen von Quellen/Dokumenten).
 
-NUTZE FÜR: Notizbücher auflisten (list), umbenennen (rename), löschen (delete mit confirm=true nach Zustimmung).`,
+NUTZE FÜR: Notebooks auflisten (list), umbenennen (rename), löschen (delete mit confirm=true nach Zustimmung).`,
     inputSchema: z.object({
       action: z.enum(['list', 'rename', 'delete']),
-      id: z.string().optional().describe('Notizbuch-ID (rename/delete)'),
+      id: z.string().optional().describe('Notebook-ID (rename/delete)'),
       name: z.string().optional().describe('Neuer Name (nur bei action="rename")'),
       confirm: z.boolean().default(false),
       limit: z.number().int().min(1).max(30).default(15),
@@ -1103,7 +1103,7 @@ NUTZE FÜR: Notizbücher auflisten (list), umbenennen (rename), löschen (delete
           makeRow(
             c.name,
             `/notebooks/${c.slug_suffix ? buildNotebookSlug(c.name, c.slug_suffix) : c.id}`,
-            'Notizbuch',
+            'Notebook',
             c.description || `${c.document_count} Dokument(e)`
           )
         );
@@ -1111,28 +1111,28 @@ NUTZE FÜR: Notizbücher auflisten (list), umbenennen (rename), löschen (delete
         return { resultCount: results.length, results };
       }
 
-      if (!id) return { error: `${action} braucht eine Notizbuch-ID.` };
+      if (!id) return { error: `${action} braucht eine Notebook-ID.` };
       const collection = await helper.getNotebookCollection(id);
       if (!collection || collection.user_id !== userId) {
-        return { error: 'Notizbuch nicht gefunden oder kein Zugriff.' };
+        return { error: 'Notebook nicht gefunden oder kein Zugriff.' };
       }
 
       if (action === 'rename') {
         if (!name?.trim()) return { error: 'rename braucht name.' };
         await helper.updateNotebookCollection(id, { name: name.trim() });
-        const note = `Notizbuch in „${name.trim()}" umbenannt.`;
+        const note = `Notebook in „${name.trim()}" umbenannt.`;
         groundNote(sourceRegistry, 'Umbenannt', note);
         return { ok: true, note };
       }
 
       // delete
       if (!confirm) {
-        const ask = `Soll das Notizbuch „${collection.name}" wirklich gelöscht werden? Frage die Person und rufe delete erst mit confirm=true erneut auf.`;
+        const ask = `Soll das Notebook „${collection.name}" wirklich gelöscht werden? Frage die Person und rufe delete erst mit confirm=true erneut auf.`;
         groundNote(sourceRegistry, 'Bestätigung nötig', ask);
         return { needsConfirmation: true, note: ask };
       }
       await helper.deleteNotebookCollection(id);
-      const note = `Notizbuch „${collection.name}" wurde gelöscht.`;
+      const note = `Notebook „${collection.name}" wurde gelöscht.`;
       groundNote(sourceRegistry, 'Gelöscht', note);
       return { ok: true, note };
     },

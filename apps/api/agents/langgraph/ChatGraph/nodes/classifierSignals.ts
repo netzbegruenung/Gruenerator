@@ -398,6 +398,10 @@ export const HELP_ANCHOR =
  * Grünerator-specific feature nouns. Required alongside a how-question so
  * generic instructional asks ("wie kann ich die Energiewende erklären") stay
  * out of the docs intent — that is a content question, not a product question.
+ *
+ * `notizb[üu]ch\w*` sits next to `notebooks?` on purpose: the product word is
+ * Notebook since 27.08.2026, but this net reads what people TYPE. Detectors
+ * over user input keep the old spelling.
  */
 export const GRUENERATOR_FEATURE_NOUN =
   /\b(gr[üu]nerator\w*|agentura|gr[üu]n[- ]?o[- ]?mat|sharepics?|reels?|untertitel|notebooks?|notizb[üu]ch\w*|wolke|nextcloud|konnektor\w*|mcp[- ]?server\w*|wissenssammlung\w*|monitor|sonntagsfrage|sharepic[- ]studio|composer|grüneratoren)\b/i;

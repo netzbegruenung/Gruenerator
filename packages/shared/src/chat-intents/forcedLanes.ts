@@ -50,7 +50,7 @@ export type ForcedLane =
  * `mcp`/`hilfe` war das immer schon — `executeIntentPipeline` hat für sie gar
  * keinen Zweig, ein Einzeldurchlauf liesse den Turn ohne Ausführenden. Diese
  * Tatsache heisst im Entscheider `mustLoop` und trägt dort mehr als diese Achse
- * (bedingungsloses Gate, Notizbuch-Ausnahme). `umfragen` stand hier als dritter
+ * (bedingungsloses Gate, Notebook-Ausnahme). `umfragen` stand hier als dritter
  * und ist stillgelegt — sein Turn kommt über den Werkzeug-Pin in die Schleife,
  * nicht über diese Karte.
  *

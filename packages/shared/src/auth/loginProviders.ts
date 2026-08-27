@@ -26,7 +26,7 @@ export const LOGIN_PROVIDERS: LoginProvider[] = [
     title: 'Grünes Netz Login',
     // Das Land gehört sichtbar ins Label: die Anbieternamen allein sagen niemandem,
     // welcher Knopf der österreichische ist, und die Wahl legt hinterher Ansprache,
-    // Notizbuch-Sammlungen und Parteinamen fest.
+    // Notebook-Sammlungen und Parteinamen fest.
     description: 'Für Deutschland — mit deinem Grünes-Netz-Account anmelden',
     className: 'gruenes-netz',
     logoPath: '/images/Sonnenblume_RGB_gelb.png',

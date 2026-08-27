@@ -233,7 +233,7 @@ export const PlusMenu = memo(function PlusMenu({
     <DropdownMenuItem onClick={onOpenFileBrowser}>
       <Paperclip className="h-3.5 w-3.5" />
       <span className="flex-1">Datei hinzufügen</span>
-      <Hint>Hochladen, Dokumente, Notizbücher</Hint>
+      <Hint>Hochladen, Dokumente, Notebooks</Hint>
     </DropdownMenuItem>
   );
 

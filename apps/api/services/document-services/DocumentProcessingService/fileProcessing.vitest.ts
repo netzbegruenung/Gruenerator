@@ -68,7 +68,7 @@ describe('processFileUpload — knownText', () => {
   });
 
   it('extrahiert weiterhin selbst, wo kein Text mitkommt', async () => {
-    // Der Notizbuch-Upload und die Skripte reichen nichts durch — für sie darf
+    // Der Notebook-Upload und die Skripte reichen nichts durch — für sie darf
     // sich nichts ändern.
     const { pg, qdrant } = services();
     extractTextFromFile.mockResolvedValue('aus der Datei gelesen');

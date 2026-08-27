@@ -1171,7 +1171,7 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         createNotification({
           userId: collection.user_id,
           type: 'notebook_liked',
-          title: `${likerName} mag dein Notizbuch`,
+          title: `${likerName} mag dein Notebook`,
           body: collection.name ?? null,
           metadata: {
             notebookId: collectionId,

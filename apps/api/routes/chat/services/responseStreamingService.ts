@@ -199,7 +199,7 @@ export function mistralReasoningOption(setting: ReasoningSetting): 'high' | null
  * Ob dieser Zug auf DIESER Lane wirklich denkt.
  *
  * Die EINE Lesart von `reasoningEffort`, weil es vorher zwei gab und sie sich
- * widersprachen. `low` — was die Auto-Policy jeder einfachen Notizbuch-Frage
+ * widersprachen. `low` — was die Auto-Policy jeder einfachen Notebook-Frage
  * gibt (autoPolicy, surface `notebook`, complexity `simple`) — hieß:
  *
  *   - für den Streamer „an": `reasoningEffort !== 'off'`, also lief der
