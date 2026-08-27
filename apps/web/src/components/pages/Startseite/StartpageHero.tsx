@@ -14,8 +14,13 @@ import './startpage-hero.css';
 const HEADLINE = 'KI, die die Welt nicht brennen sehen will.';
 
 interface HeroInit {
-  /** Provider the Login button goes to: a remembered choice, else the browser language. */
-  primary: LoginProviderId;
+  /**
+   * Provider the Login button goes to: a remembered choice, else the timezone.
+   * `null` heißt „Land unklar" — dann tritt an die Stelle des einen
+   * Login-Knopfes die ausdrückliche Länderwahl, statt still Deutschland zu
+   * nehmen.
+   */
+  primary: LoginProviderId | null;
   /** Expand the provider list on load (only the ?login=<id> deep link). */
   openOnLoad: boolean;
 }
@@ -78,7 +83,7 @@ const StartpageHero = memo(({ onScrollToContent }: StartpageHeroProps) => {
     });
   }, []);
 
-  const primaryProvider = getProviderById(primary);
+  const primaryProvider = primary ? getProviderById(primary) : undefined;
 
   // Mirrors LoginPage's requiredEnabledProviders: a deep-linked/remembered
   // provider outside the default set (e.g. ?login=gruenerator) must still
@@ -119,21 +124,50 @@ const StartpageHero = memo(({ onScrollToContent }: StartpageHeroProps) => {
               aria-hidden={providersOpen}
               inert={providersOpen}
             >
-              <div className="sp-cta-row">
-                <button
-                  type="button"
-                  className="sp-login"
-                  onClick={() => startLogin(primary)}
-                  aria-label={
-                    primaryProvider ? `Anmelden mit ${primaryProvider.title}` : 'Anmelden'
-                  }
+              {/* Ist das Land unklar, wird gefragt statt geraten — beide Länder
+                  gleichrangig. Der eine „Login"-Knopf fiel sonst immer auf
+                  Deutschland, auch für österreichische Mitglieder. */}
+              {primary === null ? (
+                <div
+                  className="sp-cta-row"
+                  role="group"
+                  aria-label="In welchem Land bist du grün aktiv?"
                 >
-                  <LockIcon /> Login
-                </button>
-                <button type="button" className="sp-more" onClick={onScrollToContent}>
-                  Mehr erfahren
-                </button>
-              </div>
+                  <button
+                    type="button"
+                    className="sp-login"
+                    onClick={() => startLogin('gruenes-netz')}
+                  >
+                    <LockIcon /> Deutschland
+                  </button>
+                  <button
+                    type="button"
+                    className="sp-login"
+                    onClick={() => startLogin('gruene-oesterreich')}
+                  >
+                    <LockIcon /> Österreich
+                  </button>
+                  <button type="button" className="sp-more" onClick={onScrollToContent}>
+                    Mehr erfahren
+                  </button>
+                </div>
+              ) : (
+                <div className="sp-cta-row">
+                  <button
+                    type="button"
+                    className="sp-login"
+                    onClick={() => startLogin(primary)}
+                    aria-label={
+                      primaryProvider ? `Anmelden mit ${primaryProvider.title}` : 'Anmelden'
+                    }
+                  >
+                    <LockIcon /> Login
+                  </button>
+                  <button type="button" className="sp-more" onClick={onScrollToContent}>
+                    Mehr erfahren
+                  </button>
+                </div>
+              )}
             </div>
 
             <button

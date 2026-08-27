@@ -99,6 +99,14 @@ async function gotoAuthenticated(page: Page, route: string): Promise<void> {
 }
 
 test.describe('Accessibility-Tree bleibt stabil', () => {
+  // Zeitzone festnageln, weil `/login` seit 08/2026 daran hängt: die
+  // Ländererkennung liest `Intl…timeZone`, und ohne erkennbares Land rendert die
+  // Seite bewusst zwei gleichrangige Länderknöpfe statt eines „Anmelden".
+  // Ein Runner in UTC (CI-Voreinstellung) bekäme also einen anderen Baum als ein
+  // Laptop in Berlin — der Snapshot maße die Uhrzeitzone statt der Struktur.
+  // Die Verzweigung selbst ist in `localeCountry.spec.ts` geprüft.
+  test.use({ timezoneId: 'Europe/Berlin' });
+
   test.beforeAll(() => {
     test.skip(!BYPASS_AKTIV, 'VITE_E2E_AUTH_BYPASS ist nicht gesetzt.');
   });

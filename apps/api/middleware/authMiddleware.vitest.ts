@@ -36,8 +36,13 @@ vi.mock('../config/betterAuth.js', () => ({
 }));
 
 // The locale overlay would otherwise hit Redis/Postgres and hang the test.
+// `LOCALE_UNSET` muss mit: fehlt ein benannter Export in der Attrappe, wirft
+// schon der Import — und der Fehler landet im catch von `tryResolveUser`, wo er
+// wie „keine Session" aussieht statt wie ein kaputter Testdoppel.
+const getUserLocaleMock = vi.fn().mockResolvedValue(null);
 vi.mock('../services/localization/localeCache.js', () => ({
-  getUserLocale: vi.fn().mockResolvedValue(null),
+  getUserLocale: getUserLocaleMock,
+  LOCALE_UNSET: 'unset',
 }));
 
 // Default env — individual tests override via `envMock.*` assignment.
@@ -427,6 +432,65 @@ describe('optionalAuth', () => {
 
     expect(next).toHaveBeenCalledTimes(1);
     expect(req.user?.id).toBe('user-2');
+  });
+
+  // Der Session-Schnappschuss von Better Auth lebt bis zu 300 s in einem Cookie
+  // und kann ein Land behaupten, das im Profil gar nicht (mehr) steht. Sagt der
+  // Cache UNSET, muss das Feld leer werden — sonst zöge das Web weiter die alte
+  // Vermutung heran und das Nachfrage-Gate erschiene nie.
+  it('clears a stale session locale when the profile has none', async () => {
+    getUserLocaleMock.mockResolvedValueOnce('unset');
+    getSessionMock.mockResolvedValue({
+      session: { id: 'sess-3', userId: 'user-3' },
+      user: {
+        id: 'user-3',
+        email: 'franz@example.at',
+        name: 'Franz',
+        emailVerified: true,
+        image: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        avatar_robot_id: 1,
+        beta_features: {},
+        user_defaults: {},
+        locale: 'de-DE',
+      },
+    });
+    const req = mockReq({ headers: { cookie: 'better-auth.session=xyz' } });
+    const { res } = mockRes();
+    const next = vi.fn() as NextFunction;
+
+    await optionalAuth(req, res, next);
+
+    expect(req.user?.id).toBe('user-3');
+    expect(req.user?.locale).toBeUndefined();
+  });
+
+  it('overlays the profile locale over a stale session snapshot', async () => {
+    getUserLocaleMock.mockResolvedValueOnce('de-AT');
+    getSessionMock.mockResolvedValue({
+      session: { id: 'sess-4', userId: 'user-4' },
+      user: {
+        id: 'user-4',
+        email: 'franz@example.at',
+        name: 'Franz',
+        emailVerified: true,
+        image: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        avatar_robot_id: 1,
+        beta_features: {},
+        user_defaults: {},
+        locale: 'de-DE',
+      },
+    });
+    const req = mockReq({ headers: { cookie: 'better-auth.session=xyz' } });
+    const { res } = mockRes();
+    const next = vi.fn() as NextFunction;
+
+    await optionalAuth(req, res, next);
+
+    expect(req.user?.locale).toBe('de-AT');
   });
 
   it('never 401s — calls next() even when session resolution fails', async () => {
