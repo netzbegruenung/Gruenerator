@@ -45,6 +45,9 @@ interface SyncResult {
   skipped: number;
   errors: number;
   errorSamples?: string[];
+  /** Links upstream still lists but no longer serves — see the contract schema. */
+  deadLinks?: number;
+  deadLinkSamples?: string[];
   fetchErrors?: number;
 }
 
@@ -77,6 +80,23 @@ function withErrorSamples<T extends { errorMessages: string[] }>(
   return { ...result, errorSamples: result.errorMessages };
 }
 
+/**
+ * Same bridge for the bulk `landesverbaende` run, which additionally carries a
+ * dead-link bucket. This path is the one CI does *not* take (the matrix scopes
+ * every run to one LV via `runScopedLandesverband`), which is why it went so
+ * long dropping `errorMessages` unnoticed: `SyncResult.errorSamples` is
+ * optional, so returning a result without it type-checks silently.
+ */
+function withLandesverbandSamples<
+  T extends { errorMessages: string[]; deadLinkMessages: string[] },
+>(result: T): T & { errorSamples: string[]; deadLinkSamples: string[] } {
+  return {
+    ...result,
+    errorSamples: result.errorMessages,
+    deadLinkSamples: result.deadLinkMessages,
+  };
+}
+
 async function loadSource(sourceId: ContentSyncSource): Promise<SourceConfig> {
   const cached = sourceCache[sourceId];
   if (cached) return cached;
@@ -91,11 +111,13 @@ async function loadSource(sourceId: ContentSyncSource): Promise<SourceConfig> {
         name: 'Landesverbaende',
         timeoutMs: 30 * 60 * 1000,
         init: () => landesverbandScraperService.init(),
-        run: (opts) =>
-          landesverbandScraperService.scrapeAllSources({
-            forceUpdate: opts.forceUpdate,
-            dryRun: opts.dryRun,
-          }),
+        run: async (opts) =>
+          withLandesverbandSamples(
+            await landesverbandScraperService.scrapeAllSources({
+              forceUpdate: opts.forceUpdate,
+              dryRun: opts.dryRun,
+            })
+          ),
       };
       break;
     }
@@ -351,6 +373,8 @@ async function runScopedLandesverband(
     fetchErrors: 0,
     errors: result.errors,
     errorSamples: result.errorMessages,
+    deadLinks: result.deadLinks,
+    deadLinkSamples: result.deadLinkMessages,
   };
 }
 
@@ -431,6 +455,9 @@ async function executeSyncRun(
     if (result.errorSamples?.length) {
       log.warn(`Content sync errors: ${lockKey} — ${result.errorSamples.join(' | ')}`);
     }
+    if (result.deadLinkSamples?.length) {
+      log.info(`Content sync dead links: ${lockKey} — ${result.deadLinkSamples.join(' | ')}`);
+    }
 
     return {
       status: 200,
@@ -443,6 +470,8 @@ async function executeSyncRun(
         skipped: result.skipped,
         errors: result.errors,
         ...(result.errorSamples?.length ? { errorSamples: result.errorSamples } : {}),
+        ...(result.deadLinks ? { deadLinks: result.deadLinks } : {}),
+        ...(result.deadLinkSamples?.length ? { deadLinkSamples: result.deadLinkSamples } : {}),
         fetchErrors: result.fetchErrors ?? 0,
         durationMs,
       },
