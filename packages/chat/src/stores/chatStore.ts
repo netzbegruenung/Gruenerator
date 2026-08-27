@@ -198,6 +198,14 @@ interface AgentState {
   resetChatContext: () => void;
   loadThreadSettings: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
   saveThreadSettings: (threadId: string, apiClient: ChatApiClient) => Promise<boolean>;
+  /** Der Entwurf wurde gerade zu diesem Thread — seine Rolle gehört ab jetzt
+   *  dem Thread, nicht mehr der Konto-Voreinstellung. Muss an JEDER Mint-Stelle
+   *  laufen (lazy `initialize()` im ThreadListAdapter ist der Produktionspfad,
+   *  `onThreadCreated` der Legacy-Pfad für Backend-geminte Threads): ohne die
+   *  Promotion fragt `ThreadDataSyncEffect` die Settings des frischen Threads
+   *  ab, bekommt 404 und räumt eine noch als `default` markierte Rolle wieder
+   *  weg — die Standardrolle verschwand beim ersten Senden. */
+  promoteDraftRoleToThread: (threadId: string, apiClient: ChatApiClient) => void;
 }
 
 const DEFAULT_ENABLED_TOOLS: Record<ToolKey, boolean> = {
@@ -503,6 +511,19 @@ export const useAgentStore = create<AgentState>()(
           );
           return false;
         }
+      },
+
+      promoteDraftRoleToThread: (threadId: string, apiClient: ChatApiClient) => {
+        const state = useAgentStore.getState();
+        if (state.threadMode !== 'eigener' || (!state.customSystemPrompt && !state.customRoleRef)) {
+          return;
+        }
+        // Sofort `load`, nicht erst wenn das PATCH zurückkommt: der
+        // ThreadDataSyncEffect fragt die Einstellungen des frisch angelegten
+        // Threads parallel ab, und eine 404 auf dem Weg dorthin hätte eine noch
+        // als `default` markierte Rolle wieder weggeräumt.
+        set({ roleRefSource: 'load' });
+        void useAgentStore.getState().saveThreadSettings(threadId, apiClient);
       },
     }),
     {
