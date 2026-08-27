@@ -18,6 +18,7 @@ import {
   syncMcpServers,
   syncSheets,
   syncTextforms,
+  syncUserAgents,
   syncUserNotebooks,
   type MentionableFetch,
 } from './mentionableSync';
@@ -31,6 +32,7 @@ function recordingFetch(paths: string[]): MentionableFetch {
       forms: [],
       collections: [],
       servers: [],
+      agents: [],
     } as unknown as T);
   };
 }
@@ -38,6 +40,7 @@ function recordingFetch(paths: string[]): MentionableFetch {
 const SYNCS: [string, (get: MentionableFetch) => Promise<unknown>][] = [
   ['syncCustomAgents', syncCustomAgents],
   ['syncTextforms', syncTextforms],
+  ['syncUserAgents', syncUserAgents],
   ['syncBoards', syncBoards],
   ['syncDocs', syncDocs],
   ['syncSheets', syncSheets],
@@ -172,5 +175,45 @@ describe('syncTextforms — welche Formen zu Erwähnungen werden', () => {
       fetchForms([{ kind: 'preset', mention: 'antrag', title: 'Anträge', sharedFromGroup: null }])
     );
     expect(list).toEqual([{ mention: 'antrag', title: 'Anträge', sharedFromGroup: null }]);
+  });
+});
+
+/**
+ * Grünerator-Agenten sind die einzige Quelle des Rezept-Menüs, die eine
+ * GRUPPENherkunft tragen kann: `custom_prompts` kennen nur öffentlich und
+ * gespeichert (#2909). Fällt `sharedFromGroup` hier weg, steht der Grünerator
+ * einer Kollegin unter „eigene" — genau der Fehler aus #2876.
+ */
+describe('syncUserAgents origin', () => {
+  const fetchAgents =
+    (agents: unknown[]): MentionableFetch =>
+    <T>(): Promise<T> =>
+      Promise.resolve({ agents } as unknown as T);
+
+  const base = {
+    title: 'Klima-Grünerator',
+    description: 'Antworten zur Klimapolitik',
+    avatar: '🌱',
+    backgroundColor: '#316049',
+  };
+
+  it('trägt die Gruppe geteilter Agenten und lässt eigene ohne Herkunft', async () => {
+    const list = await syncUserAgents(
+      fetchAgents([
+        { ...base, identifier: 'mein-agent', sharedFromGroup: null },
+        { ...base, identifier: 'kv-agent', iconKey: 'PiLeaf', sharedFromGroup: 'KV Köln' },
+      ])
+    );
+
+    expect(list).toEqual([
+      { ...base, identifier: 'mein-agent', sharedFromGroup: null },
+      { ...base, identifier: 'kv-agent', iconKey: 'PiLeaf', sharedFromGroup: 'KV Köln' },
+    ]);
+  });
+
+  it('fragt den Endpunkt, den die API auch mountet', async () => {
+    const paths: string[] = [];
+    await syncUserAgents(recordingFetch(paths));
+    expect(paths).toEqual(['/api/user-agents/mentionable']);
   });
 });
