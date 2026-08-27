@@ -314,11 +314,17 @@ async function runScopedLandesverband(
 
   const extraction = drainAndLogExtraction(`LV ${landesverband}`);
 
+  // Tote Links stehen bewusst NICHT in dieser Bedingung. Nichts auf unserer
+  // Seite bringt sie je auf 0 (#2971), also hiesse "tote Links lösen eine Mail
+  // aus" für LV Berlin: jede Nacht dieselben vier URLs an einen echten
+  // Posteingang — genau das Rauschen, gegen das die Trennung antritt. Geht
+  // ohnehin eine Mail raus, stehen sie drin; siehe ContentSyncSourceResult.
   const hasChanges = result.stored + result.updated + result.errors > 0;
   if (!opts.dryRun) {
     if (!hasChanges) {
       log.info(
-        `Per-LV run ${landesverband}: no new/updated docs and no hard errors — skipping email`
+        `Per-LV run ${landesverband}: no new/updated docs and no hard errors — skipping email` +
+          (result.deadLinks > 0 ? ` (${result.deadLinks} dead link(s), not a reason to write)` : '')
       );
     } else {
       const { env } = await import('../../config/env.js');
@@ -338,6 +344,10 @@ async function runScopedLandesverband(
                 skipped: result.skipped,
                 errors: result.errors,
                 ...(result.errorMessages.length ? { errorSamples: result.errorMessages } : {}),
+                ...(result.deadLinks ? { deadLinks: result.deadLinks } : {}),
+                ...(result.deadLinkMessages.length
+                  ? { deadLinkSamples: result.deadLinkMessages }
+                  : {}),
                 duration: result.duration,
               },
             ],
