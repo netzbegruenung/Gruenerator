@@ -67,7 +67,8 @@ const callGetCollection = () =>
       body: {
         collection?: {
           document_count: number;
-          indexing_state: string;
+          indexing_state: string | null;
+          indexing_counts: unknown;
           documents: Array<{ id: string }>;
         };
       };
@@ -113,7 +114,7 @@ describe('getCollection — document links are resolved, not assumed absent', ()
     const res = await callGetCollection();
 
     expect(res.status).toBe(200);
-    expect(mockHelper.getCollectionDocuments).toHaveBeenCalledWith(NOTEBOOK_ID);
+    expect(mockHelper.getCollectionDocuments).toHaveBeenCalledWith(NOTEBOOK_ID, { rethrow: true });
     expect(res.body.collection?.document_count).toBe(1);
     expect(res.body.collection?.indexing_state).toBe('ready');
   });
@@ -126,6 +127,19 @@ describe('getCollection — document links are resolved, not assumed absent', ()
     expect(res.status).toBe(200);
     expect(res.body.collection?.document_count).toBe(0);
     expect(res.body.collection?.indexing_state).toBe('empty');
+  });
+
+  // The helper's own catch answers `[]`, which is indistinguishable from a
+  // notebook that really has no sources — a Qdrant outage would tell every
+  // owner their sources were gone. Unknown has to stay sayable.
+  it('says nothing rather than `empty` when the lookup itself fails', async () => {
+    mockHelper.getCollectionDocuments.mockRejectedValue(new Error('Qdrant unreachable'));
+
+    const res = await callGetCollection();
+
+    expect(res.status).toBe(200);
+    expect(res.body.collection?.indexing_state).toBeNull();
+    expect(res.body.collection?.indexing_counts).toBeNull();
   });
 });
 

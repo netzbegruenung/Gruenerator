@@ -169,13 +169,24 @@ type NotebookCollectionFromQdrantRaw = {
  * gets the field for free from `getUserNotebookCollections`;
  * listPublicCollections pre-loads it; only the single-notebook getCollection
  * actually lands in the lookup below.
+ *
+ * `null` is the third answer: the lookup itself failed. The helper's own
+ * fallback is an empty array, which downstream reads as a notebook that HAS no
+ * sources — the same false "hat noch keine Quellen" the fix above removed, just
+ * triggered by a Qdrant outage instead of a missing field. Callers must not
+ * fold it back into `[]`.
  */
 async function resolveCollectionDocumentLinks(collection: {
   id: string;
   notebook_collection_documents?: Array<{ document_id: string }>;
-}): Promise<Array<{ document_id: string }>> {
+}): Promise<Array<{ document_id: string }> | null> {
   if (collection.notebook_collection_documents) return collection.notebook_collection_documents;
-  return notebookHelper.getCollectionDocuments(collection.id);
+  try {
+    return await notebookHelper.getCollectionDocuments(collection.id, { rethrow: true });
+  } catch {
+    // Already logged by the helper.
+    return null;
+  }
 }
 
 /**
@@ -191,9 +202,8 @@ async function enrichNotebookCollection(
   accessSource: 'owned' | 'shared' | 'authenticated'
 ) {
   const postgres = getPostgresInstance();
-  const documentIds = (await resolveCollectionDocumentLinks(collection)).map(
-    (qcd) => qcd.document_id
-  );
+  const links = await resolveCollectionDocumentLinks(collection);
+  const documentIds = (links ?? []).map((qcd) => qcd.document_id);
 
   let documents: DocumentRecord[] = [];
   let vectorCounts = new Map<string, number | null>();
@@ -249,21 +259,28 @@ async function enrichNotebookCollection(
   // Readiness is derived, never stored: a persisted field would have to travel
   // through updateNotebookCollection's read-modify-write and would drift the
   // way document_count did. The rows are already loaded, so this costs nothing.
-  const readiness = summarizeDocumentRows(
-    documents.map((doc) => ({
-      id: doc.id,
-      title: doc.title ?? null,
-      status: doc.status ?? 'completed',
-      vector_count: vectorCounts.get(doc.id) ?? null,
-    }))
-  );
+  //
+  // A failed link lookup (`links === null`) yields null rather than a readiness
+  // computed over zero rows: the contract marks the field nullish precisely so
+  // "unknown" is sayable, and the client stays quiet instead of telling people
+  // their sources are gone.
+  const readiness = links
+    ? summarizeDocumentRows(
+        documents.map((doc) => ({
+          id: doc.id,
+          title: doc.title ?? null,
+          status: doc.status ?? 'completed',
+          vector_count: vectorCounts.get(doc.id) ?? null,
+        }))
+      )
+    : null;
 
   return {
     ...collection,
     documents,
     document_count: documents.length,
-    indexing_state: readiness.state,
-    indexing_counts: readiness.counts,
+    indexing_state: readiness?.state ?? null,
+    indexing_counts: readiness?.counts ?? null,
     selection_mode: collection.selection_mode || 'documents',
     wolke_share_links,
     has_wolke_sources: wolke_share_links.length > 0,
@@ -442,14 +459,16 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
 
       const transformedData = await Promise.all(
         collections.map(async (collection) => {
+          // The bulk pre-load always supplies an array here, so the lookup
+          // branch — and with it the null answer — is unreachable on this path.
           const documentIds = (
-            await resolveCollectionDocumentLinks({
+            (await resolveCollectionDocumentLinks({
               ...collection,
               notebook_collection_documents:
                 collection.notebook_collection_documents ??
                 linksByCollection.get(collection.id) ??
                 [],
-            })
+            })) ?? []
           ).map((qcd) => qcd.document_id);
 
           let documents: DocumentRecord[] = [];
