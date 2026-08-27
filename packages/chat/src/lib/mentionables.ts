@@ -96,6 +96,16 @@ export interface Mentionable {
    */
   sharedFromGroup?: string;
   /**
+   * Set on a recipe the user saved from someone else's public prompt: the
+   * owner's display name, or `null` when the profile join found none. The KEY's
+   * presence is the marker, not its value — `undefined` means "the user's own".
+   *
+   * A second origin beside `sharedFromGroup` rather than a reuse of it: a saved
+   * prompt comes from a person, not from a group, and claiming a group would be
+   * as wrong as the "eigene" it used to claim (#2876).
+   */
+  savedFromOwner?: string | null;
+  /**
    * Extra mention strings that resolve to this same mentionable but are NOT
    * shown as separate picker entries. Used for back-compat after merging tools
    * (e.g. the merged "Recherche" tool keeps `websearch` resolving so old
@@ -119,13 +129,19 @@ export interface Mentionable {
  * A user-authored or saved custom prompt. No `sharedFromGroup`: `custom_prompts`
  * / `saved_prompts` know a public directory and a bookmark, not group shares —
  * the wire (`customPromptSchema`) carries no group name at all. Group-shared
- * agents live in the separate `user_agents` table and do not reach this list.
+ * agents live in the separate `user_agents` table and do not reach this list
+ * (#2909).
+ *
+ * What the wire DOES carry is the owner of a saved prompt, so `savedFromOwner`
+ * marks the ones that are not the user's own. Set by `syncCustomAgents` from
+ * which endpoint an entry came, `undefined` for the user's own.
  */
 export interface CustomAgentMentionable {
   id: string;
   name: string;
   slug: string;
   description?: string;
+  savedFromOwner?: string | null;
 }
 
 // Per-LV icon overrides for the Öffentlichkeitsarbeit-<lv> agents and their
@@ -174,16 +190,23 @@ export function agentToMentionable(agent: AgentListItem): Mentionable {
 }
 
 export function customAgentToMentionable(agent: CustomAgentMentionable): Mentionable {
+  const saved = agent.savedFromOwner !== undefined;
+  const fallbackDescription = saved
+    ? agent.savedFromOwner
+      ? `Rezept von ${agent.savedFromOwner}`
+      : 'Gespeichertes Rezept'
+    : '';
   return {
     type: 'agent',
     category: 'skill',
     trigger: '@',
     identifier: agent.id,
     title: agent.name,
-    description: agent.description || '',
+    description: agent.description || fallbackDescription,
     avatar: '🤖',
     backgroundColor: '#316049',
     mention: agent.slug,
+    ...(saved ? { savedFromOwner: agent.savedFromOwner ?? null } : {}),
   };
 }
 

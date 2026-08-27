@@ -68,6 +68,61 @@ describe('mentionableSync endpoints', () => {
   });
 });
 
+/**
+ * Which endpoint an entry came from is the only origin `custom_prompts` have:
+ * `/saved_prompts` lists prompts saved from someone ELSE's public prompt, so
+ * they must not end up under "eigene" in the picker (#2876). Group shares do
+ * not exist for this table at all (#2909).
+ */
+describe('syncCustomAgents origin', () => {
+  const fetchWith =
+    (own: unknown[], saved: unknown[]): MentionableFetch =>
+    <T>(path: string): Promise<T> =>
+      Promise.resolve({
+        prompts: path === '/api/auth/saved_prompts' ? saved : own,
+      } as unknown as T);
+
+  it('marks saved prompts with their owner and leaves own ones unmarked', async () => {
+    const merged = await syncCustomAgents(
+      fetchWith(
+        [{ id: 'own-1', name: 'Eigene Rede', slug: 'eigene-rede', description: null }],
+        [
+          {
+            id: 'saved-1',
+            name: 'Fremde Rede',
+            slug: 'fremde-rede',
+            description: null,
+            owner_first_name: 'Alex',
+            owner_last_name: 'Grün',
+          },
+        ]
+      )
+    );
+
+    expect(merged).toEqual([
+      { id: 'own-1', name: 'Eigene Rede', slug: 'eigene-rede' },
+      { id: 'saved-1', name: 'Fremde Rede', slug: 'fremde-rede', savedFromOwner: 'Alex Grün' },
+    ]);
+  });
+
+  it('still marks a saved prompt whose profile join found no name', async () => {
+    const merged = await syncCustomAgents(
+      fetchWith([], [{ id: 'saved-1', name: 'Fremde Rede', slug: 'fremde-rede' }])
+    );
+    expect(merged).toEqual([
+      { id: 'saved-1', name: 'Fremde Rede', slug: 'fremde-rede', savedFromOwner: null },
+    ]);
+  });
+
+  it('keeps a prompt the user owns AND saved on the own side', async () => {
+    const row = { id: 'both-1', name: 'Eigene Rede', slug: 'eigene-rede' };
+    const merged = await syncCustomAgents(
+      fetchWith([row], [{ ...row, owner_first_name: 'Alex', owner_last_name: 'Grün' }])
+    );
+    expect(merged).toEqual([row]);
+  });
+});
+
 describe('syncUserNotebooks failure handling', () => {
   it('resolves to an empty list on 401 — anonymous users stay quiet', async () => {
     const get = vi
