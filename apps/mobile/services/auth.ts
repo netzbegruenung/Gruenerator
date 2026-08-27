@@ -1,3 +1,4 @@
+import { useUserProfileStore } from '@gruenerator/chat/stores';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { useAuthStore, setAuthStoreConfig } from '@gruenerator/shared/stores';
 import { isAxiosError } from 'axios';
@@ -8,6 +9,7 @@ import { getErrorMessage } from '../utils/errors';
 
 import { getGlobalApiClient, API_ENDPOINTS } from './api';
 import { type AuthSource } from './loginProviders';
+import { queryClient } from './queryClient';
 import { secureStorage } from './storage';
 
 import type { ProfileUpdateBody } from '@gruenerator/contracts';
@@ -43,6 +45,17 @@ export function configureAuthStore(): void {
   setAuthStoreConfig({
     onClearAuth: async () => {
       await secureStorage.clearAll();
+      // Das Profil der abgemeldeten Person mit abräumen — sonst hielte der
+      // Store ihre Rollen weiter, `isHydrated` bliebe true, und das nächste
+      // Konto sähe bis zum Eintreffen seiner eigenen Antwort die
+      // Landesverbands-Zuteilung des vorigen. Also genau der Fehler, gegen den
+      // die Zuteilung überhaupt da ist, nur mit vertauschten Konten.
+      //
+      // Beide Speicher, nicht einer: der Query-Cache hält dieselbe Antwort
+      // unter einem kontounabhängigen Schlüssel und würde den Store beim
+      // nächsten Mount sofort wieder damit füllen.
+      queryClient.clear();
+      useUserProfileStore.getState().reset();
     },
 
     // Both go through the contracts client rather than raw axios. Two things

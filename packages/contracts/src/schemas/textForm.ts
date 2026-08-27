@@ -2,10 +2,12 @@
  * Zod schemas for per-user learned writing styles ("angelernte Textformen").
  *
  * Source of truth for the /api/text-forms request/response shapes. A text form is
- * either a PRESET (Instagram/Facebook/Presse/Antrag — maps onto a system skill and
- * replaces its standard prompt when active) or a CUSTOM form (a user-defined slash
- * mention like "/omveinladungen", injected additively). `mention` is the runtime
- * lookup key; `styleBlock` is the edited markdown that gets injected verbatim.
+ * a PRESET (Instagram/Facebook/Presse/Antrag — maps onto a system skill and
+ * replaces its standard prompt when active), a RECIPE override (the same, for one
+ * Landesverbands-Rezept) or a CUSTOM form (a user-defined slash mention like
+ * "/omveinladungen", injected additively). `mention` is the runtime lookup key —
+ * exakt, nichts wird gefaltet; `styleBlock` is the edited markdown that gets
+ * injected.
  */
 import { z } from 'zod';
 
@@ -16,7 +18,27 @@ import { z } from 'zod';
 export const textFormTypeSchema = z.enum(['instagram', 'facebook', 'presse', 'antrag']);
 export type TextFormType = z.infer<typeof textFormTypeSchema>;
 
-export const textFormKindSchema = z.enum(['preset', 'custom']);
+/**
+ * Woher die Mention einer angelernten Textform stammt — und damit, ob sie ein
+ * mitgeliefertes Rezept überschreibt oder ein eigenes anlegt.
+ *
+ *  - `preset`  — einer der vier Textyp-Schlüssel (`presse`, `instagram`, …).
+ *                Die Mention IST der Textyp; die Form ersetzt den Rumpf des
+ *                gleichnamigen Systemrezepts.
+ *  - `recipe`  — die Mention eines Landesverbands-Rezepts (`presse-hessen-partei`).
+ *                Ersetzt ebenfalls dessen Rumpf, taucht aber wie ein Preset NICHT
+ *                als eigene Zeile im Rezept-Menü auf: das Rezept steht dort schon.
+ *  - `custom`  — eine selbst vergebene Mention (`/omveinladungen`). Die einzige
+ *                Art, die dem Modell als zusätzlicher Katalogeintrag angeboten
+ *                wird (`buildRecipeCatalog`).
+ *
+ * `recipe` kam 08/2026 dazu (#2930): davor faltete das Backend jedes LV-Rezept
+ * auf seinen Textyp, ein generischer Presse-Stil ersetzte damit die Vorgaben
+ * von zwanzig Rezepten, und ein eigener Stil je Rezept war gar nicht speicherbar.
+ * Additiv — die Spalte ist `text` mit Default `'custom'`, ältere Zeilen bleiben
+ * gültig.
+ */
+export const textFormKindSchema = z.enum(['preset', 'custom', 'recipe']);
 export type TextFormKind = z.infer<typeof textFormKindSchema>;
 
 /** Slash-mention slug for custom forms — same rule as the skill frontmatter
@@ -112,8 +134,9 @@ export const analyzeTextFormBodySchema = z.object({
 export type AnalyzeTextFormBody = z.infer<typeof analyzeTextFormBodySchema>;
 
 /**
- * PUT /api/text-forms/:mention — upsert a form. `kind` selects preset vs custom;
- * presets carry `textType`. `styleBlock` is the edited text to inject.
+ * PUT /api/text-forms/:mention — upsert a form. `kind` selects preset, recipe or
+ * custom; presets carry `textType` (und `recipe` trägt ihn als Beschriftung für
+ * die Analyse). `styleBlock` is the edited text to inject.
  */
 export const saveTextFormBodySchema = z.object({
   kind: textFormKindSchema,
