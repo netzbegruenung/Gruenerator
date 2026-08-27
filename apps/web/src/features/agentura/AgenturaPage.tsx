@@ -25,7 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@gruenerator/ui';
-import { useMemo, type ReactNode } from 'react';
+import { useEffect, useMemo, type ReactNode } from 'react';
 import {
   PiArrowsDownUp,
   PiFileText,
@@ -192,6 +192,7 @@ function AgenturaPage() {
   const userLocale = useAuthStore((s) => s.locale) ?? 'de-DE';
   const agentFavorites = useAgentFavoritesStore((s) => s.favoriteIdentifiers);
   const toggleAgentFavorite = useAgentFavoritesStore((s) => s.toggle);
+  const recordFavoriteTitles = useAgentFavoritesStore((s) => s.recordTitles);
   const { data: agentUsage = {} } = useItemUsage('agent');
   const { data: recurringTasks = [] } = useRecurringTasks();
 
@@ -317,6 +318,15 @@ function AgenturaPage() {
     [allAgentEntries, agentFavorites]
   );
 
+  // The Agentura is the one place that sees every kind of agent at once, so it
+  // is where the sidebar's title snapshots get refreshed — this also backfills
+  // favourites starred before the store carried titles.
+  useEffect(() => {
+    recordFavoriteTitles(
+      Object.fromEntries(favoriteAgents.map((e) => [e.agent.identifier, e.agent.title]))
+    );
+  }, [favoriteAgents, recordFavoriteTitles]);
+
   const handleSelectSkill = (skill: AgentListItem) => {
     void navigate(`/agentura/rezept/${encodeURIComponent(skill.mention)}`);
   };
@@ -341,7 +351,7 @@ function AgenturaPage() {
       description={entry.agent.description}
       onSelect={() => handleSelectAgent(entry.agent)}
       isFavorite={isAgentFav(entry.agent)}
-      onToggleFavorite={() => toggleAgentFavorite(entry.agent.identifier)}
+      onToggleFavorite={() => toggleAgentFavorite(entry.agent.identifier, entry.agent.title)}
       footer={<CapabilityTags agent={entry.agent} />}
       onEdit={entry.editable ? () => handleEditAgent(entry.agent) : undefined}
       onDelete={entry.editable ? () => handleDeleteAgent(entry.agent) : undefined}
