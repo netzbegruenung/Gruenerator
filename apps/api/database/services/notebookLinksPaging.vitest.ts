@@ -28,8 +28,7 @@ vi.mock('./QdrantService/operations/index.js', () => ({
 const { NotebookQdrantHelper } = await import('./NotebookQdrantHelper.js');
 
 /** Qdrant-Antwort: Punkte mit fortlaufender ID. */
-const rows = (ids: number[]) =>
-  ids.map((id) => ({ id, payload: { document_id: `doc-${id}` } }));
+const rows = (ids: number[]) => ids.map((id) => ({ id, payload: { document_id: `doc-${id}` } }));
 
 beforeEach(() => scrollDocuments.mockReset());
 
