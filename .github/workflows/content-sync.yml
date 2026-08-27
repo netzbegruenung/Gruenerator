@@ -412,6 +412,23 @@ jobs:
           curl -sfS -H "x-admin-token: $ADMIN_TOKEN" \
             "$CONTENT_SYNC_API_URL/api/internal/content-sync/stats" \
             | jq -r '.markdown' > documentation/docs/wissen/inhaltsdatenbank.md
+
+          # Jetzt formatieren, nicht erst beim Commit. Das `pnpm install` dieses
+          # Jobs setzt über `prepare: husky` den core.hooksPath, also löst der
+          # `git commit` in peter-evans/create-pull-request lint-staged aus, und
+          # dessen `prettier --write` richtet die Tabellen dieser .md aus. Läuft
+          # das erst dort, ist die Reihenfolge falsch: der Index unten entsteht
+          # dann aus dem UNformatierten Markdown und trägt dessen Trennzeilen,
+          # während die .md formatiert danebenliegt — zwei Dateien in einem
+          # Commit, die sich widersprechen. `docsIndex.generated.ts` steht in
+          # .prettierignore und wird byteweise verglichen, also repariert der
+          # Hook das nicht mit; `docs:index:check` färbt danach master und jeden
+          # fremden PR rot, und weil der Commit `[skip ci]` trägt, merkt es der
+          # eigene Lauf nie. Belegt am 27.08.2026 in b738946877 (Lauf
+          # 33084619987: create-pull-request 15:00:55, `prettier --write`
+          # 15:00:56). Prettier ist idempotent — der Hook findet danach nichts
+          # mehr zu ändern.
+          pnpm exec prettier --write documentation/docs/wissen/inhaltsdatenbank.md
         env:
           ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
           CONTENT_SYNC_API_URL: ${{ vars.NOTEBOOK_API_URL || 'https://gruenerator.eu' }}
@@ -540,6 +557,23 @@ jobs:
           curl -sfS -H "x-admin-token: $ADMIN_TOKEN" \
             "$CONTENT_SYNC_API_URL/api/internal/content-sync/stats" \
             | jq -r '.markdown' > documentation/docs/wissen/inhaltsdatenbank.md
+
+          # Jetzt formatieren, nicht erst beim Commit. Das `pnpm install` dieses
+          # Jobs setzt über `prepare: husky` den core.hooksPath, also löst der
+          # `git commit` in peter-evans/create-pull-request lint-staged aus, und
+          # dessen `prettier --write` richtet die Tabellen dieser .md aus. Läuft
+          # das erst dort, ist die Reihenfolge falsch: der Index unten entsteht
+          # dann aus dem UNformatierten Markdown und trägt dessen Trennzeilen,
+          # während die .md formatiert danebenliegt — zwei Dateien in einem
+          # Commit, die sich widersprechen. `docsIndex.generated.ts` steht in
+          # .prettierignore und wird byteweise verglichen, also repariert der
+          # Hook das nicht mit; `docs:index:check` färbt danach master und jeden
+          # fremden PR rot, und weil der Commit `[skip ci]` trägt, merkt es der
+          # eigene Lauf nie. Belegt am 27.08.2026 in b738946877 (Lauf
+          # 33084619987: create-pull-request 15:00:55, `prettier --write`
+          # 15:00:56). Prettier ist idempotent — der Hook findet danach nichts
+          # mehr zu ändern.
+          pnpm exec prettier --write documentation/docs/wissen/inhaltsdatenbank.md
         env:
           ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
           CONTENT_SYNC_API_URL: ${{ vars.NOTEBOOK_API_URL || 'https://gruenerator.eu' }}
