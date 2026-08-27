@@ -26,6 +26,8 @@ import { agentFrontmatterSchema, type AgentFrontmatter } from '@gruenerator/cont
 import chokidar from 'chokidar';
 import matter from 'gray-matter';
 
+import { AGENT_ICON_KEYS, isAgentIconKey } from '../src/agents/agentIcons.js';
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DEFINITIONS_DIR = resolve(__dirname, '../src/agents/definitions');
 const SKILLS_DIR = resolve(__dirname, '../src/agents/skills');
@@ -118,6 +120,34 @@ function detectUnknownRecipeMentions(agents: readonly ParsedAgent[]): void {
   );
 }
 
+/**
+ * `iconKey` must name a concept from `AGENT_ICON_KEYS`. The three platform
+ * registries map that closed set as `Record<AgentIconKey, …>`, so an unknown key
+ * here is the one failure the compiler cannot see — it would just resolve to
+ * nothing and render the generic sparkle, on every platform, silently. That is
+ * exactly how #2951 happened: `gruenerator-presentations-editor` carried the
+ * react-icons component name `PiProjectorScreenChart` instead of kebab-case, and
+ * nothing said a word.
+ *
+ * Lives here rather than in `agentFrontmatterSchema` (a `z.enum` would be the
+ * obvious home) because `@gruenerator/contracts` cannot import shared, and the
+ * registry belongs next to the agents — `packages/shared/src/agents/` is
+ * deliberately free of foreign packages.
+ */
+function detectUnknownIconKeys(agents: readonly ParsedAgent[]): void {
+  const offenders = agents.filter(
+    (a) => a.frontmatter.iconKey && !isAgentIconKey(a.frontmatter.iconKey)
+  );
+  if (offenders.length === 0) return;
+  throw new Error(
+    `[build-agents] Unknown iconKey in ${offenders.length} agent file(s):\n` +
+      offenders.map((a) => `  · ${a.filename}: "${a.frontmatter.iconKey}"`).join('\n') +
+      `\n\nKnown icon concepts: ${AGENT_ICON_KEYS.join(', ')}` +
+      `\nAdd a new one to AGENT_ICON_KEYS (packages/shared/src/agents/agentIcons.ts);` +
+      ` the compiler will then ask for its mapping in the three platform registries.`
+  );
+}
+
 function sortAgents(agents: readonly ParsedAgent[]): ParsedAgent[] {
   return [...agents].sort((a, b) => {
     const ao = a.frontmatter.order ?? Number.POSITIVE_INFINITY;
@@ -159,6 +189,7 @@ function build(): void {
   detectDuplicates(parsed);
   detectPromptBodies(parsed);
   detectUnknownRecipeMentions(parsed);
+  detectUnknownIconKeys(parsed);
   const sorted = sortAgents(parsed);
   writeFileSync(OUT_PATH, emit(sorted));
   console.log(`[build-agents] wrote ${sorted.length} agents → ${OUT_PATH}`);
