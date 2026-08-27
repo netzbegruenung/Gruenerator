@@ -2072,14 +2072,6 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   {
     "url": "/docs/konto/landesverband-einrichten",
     "pageTitle": "Für deinen Landesverband einrichten",
-    "heading": "Schritt 3: Euren Stil anlernen",
-    "anchor": "#schritt-3-euren-stil-anlernen",
-    "category": "Konto & Projekte",
-    "text": "Die LV-Rezepte bringen den Stil eures Landesverbands schon mit — solange ihr nichts anlernt, gilt er unverändert. Habt ihr darüber hinaus eigene Vorgaben — eine feste Zitat-Struktur, bestimmte Formulierungen, eine Länge —, könnt ihr sie hinterlegen: Einstellungen → Texte anlernen, je Textsorte (Pressemitteilung, Instagram, …). Sobald du eine Landesverbands-Rolle hast, listet der Bereich auch eure LV-Rezepte auf und zeigt, welche angelernte Textsorte sie jeweils steuert. Was du bei Pressemitteilungen anlernst, gilt für jede Pressemitteilung: für @presse-hessen-partei, für @presse-hessen-fraktion und auch dann, wenn du gar kein Rezept erwähnst. Es tritt dabei an die Stelle der mitgelieferten Vorgaben des LV-Rezepts — Aufbau, Länge und Zitatstruktur von dort sind dann nicht mehr aktiv. Schreib eure Vorgaben deshalb vollständig: Alles, was euch wichtig ist, muss darin stehen — auch das, was vorher das LV-Rezept geregelt hat. Einen zweiten, getrennten Stil nur für das Landesverbands-Rezept gibt es bewusst nicht."
-  },
-  {
-    "url": "/docs/konto/landesverband-einrichten",
-    "pageTitle": "Für deinen Landesverband einrichten",
     "heading": "Wenn nichts erscheint",
     "anchor": "#wenn-nichts-erscheint",
     "category": "Konto & Projekte",
