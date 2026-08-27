@@ -1926,8 +1926,9 @@ export async function buildSystemMessage(
       state.customSystemPrompt,
       (state.userLocale as Locale) || 'de-DE'
     );
-    // `skillFragment` ist hier nur bei aktiver Katalogrolle gefüllt (siehe
-    // Berechnung oben): das Rezept bestimmt die FORM, der Baustein die Rolle.
+    // `skillFragment` ist hier gefüllt, sobald eine Mention wirkt — ausdrücklich
+    // gewählt oder über einen Katalog-Baustein (siehe `effectiveRecipeMention.ts`):
+    // das Rezept bestimmt die FORM, die Rolle die Stimme.
     return `${customSystemPrompt}${skillFragment}
 Heutiges Datum: ${today}${localeContext}${platformContext}${userInstructionsFormatted}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${artifactInventory}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}${hasSources ? `\n${citationInstruction}` : ''}
 
