@@ -82,3 +82,26 @@ describe('TexteAnlernenTab — Landesverbands-Rezepte', () => {
     expect(screen.queryByText(/^Rezepte aus /)).not.toBeInTheDocument();
   });
 });
+
+/**
+ * Drei der vier Presets ersetzen den Rumpf eines mitgelieferten Rezepts,
+ * `antrag` hat keines. Die Zeile behauptete das trotzdem — und der angelernte
+ * Stil wurde auf keinem Pfad nachgeschlagen (#2937).
+ */
+describe('TexteAnlernenTab — was ein Preset verspricht', () => {
+  beforeEach(() => {
+    useUserProfileStore.getState().hydrate({ roles: [], locale: 'de-DE', isHydrated: true });
+  });
+
+  it('nennt Presets mit mitgeliefertem Rezept eine Überschreibung', () => {
+    renderTab();
+    expect(screen.getByText('Ersetzt das mitgelieferte Rezept @presse')).toBeInTheDocument();
+    expect(screen.getByText('Ersetzt das mitgelieferte Rezept @instagram')).toBeInTheDocument();
+  });
+
+  it('nennt „Anträge" ein eigenständiges Rezept', () => {
+    renderTab();
+    expect(screen.queryByText('Ersetzt das mitgelieferte Rezept @antrag')).not.toBeInTheDocument();
+    expect(screen.getByText(/Eigenständiges Rezept .* @antrag/)).toBeInTheDocument();
+  });
+});

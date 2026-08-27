@@ -12,6 +12,7 @@ import { FiArrowLeft, FiChevronRight, FiPlus } from 'react-icons/fi';
 
 import { SettingsCardsSkeleton } from '../components/SettingsSkeleton';
 
+import { recipeMetaLine } from './texteAnlernen/recipeMeta';
 import TextFormEditor from './texteAnlernen/TextFormEditor';
 import { textFormsQuery, useTextForms } from './texteAnlernen/useTextForms';
 
@@ -220,7 +221,7 @@ const TexteAnlernenTab = () => {
           <FormRow
             key={preset.textType}
             label={preset.label}
-            meta={`Ersetzt das mitgelieferte Rezept @${preset.textType}`}
+            meta={recipeMetaLine(preset.textType)}
             status={formatLearned(byMention(preset.textType))}
             onClick={() => setTarget({ kind: 'preset', ...preset })}
           />
@@ -241,7 +242,7 @@ const TexteAnlernenTab = () => {
             <FormRow
               key={recipe.mention}
               label={recipe.title}
-              meta={`Ersetzt das mitgelieferte Rezept @${recipe.mention}`}
+              meta={recipeMetaLine(recipe.mention)}
               status={formatLearned(byMention(recipe.mention))}
               onClick={() =>
                 setTarget({
