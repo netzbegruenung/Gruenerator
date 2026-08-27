@@ -14,6 +14,10 @@ Es gibt drei Sorten von Landesverband-Grüneratoren:
 - **Bürger\*innenanfragen** — formuliert versandfertige, recherchebasierte Antwort-E-Mails auf Anfragen von Bürger\*innen.
 - **Wahlprüfsteine** — beantwortet Fragenkataloge von Verbänden und Initiativen, im Format des Katalogs und im Stil des Landesverbands.
 
+:::info[Sichtbar mit der Rolle deiner Landesgeschäftsstelle]
+Die Grüneratoren, Rezepte und Notizbücher eines Landesverbands sind seinen Leuten zugeteilt: Sie erscheinen, sobald du in deinem Profil die Rolle _Mitarbeiter\*in Landesgeschäftsstelle_ (Österreich: _Landesorganisation_) mit deinem Bundesland hinterlegt hast. Wie das geht, steht unter [Für deinen Landesverband einrichten](/docs/konto/landesverband-einrichten).
+:::
+
 ## Abgedeckte Landesverbände
 
 <AgentTiles />
