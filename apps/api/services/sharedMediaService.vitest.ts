@@ -32,8 +32,11 @@ vi.mock('../database/services/PostgresService.js', () => ({
   }),
 }));
 
-const { default: SharedMediaService, MediaQuotaExceededError } =
-  await import('./sharedMediaService.js');
+const {
+  default: SharedMediaService,
+  MediaQuotaExceededError,
+  USER_VISIBLE_SHARE_STATUSES,
+} = await import('./sharedMediaService.js');
 const { MEDIA_LIBRARY_ITEM_LIMIT } = await import('@gruenerator/shared/media-library/constants');
 
 /** Every `SELECT COUNT(*)` answers with this many library items. */
@@ -82,6 +85,21 @@ describe('getLibraryUsage', () => {
   it('never deletes — reading the quota issues no write', async () => {
     await withLibraryCount(MEDIA_LIBRARY_ITEM_LIMIT + 20).getLibraryUsage('user-1');
     expect(query).not.toHaveBeenCalled();
+  });
+
+  it('charges only for rows the user can see and delete', async () => {
+    // A failed or stuck video share shows up in no listing and no UI can remove
+    // it. Counting those would let a handful of failed renders lock the account
+    // out of uploading with no way back — the LRU eviction this replaces was
+    // the only thing that ever cleared them.
+    await withLibraryCount(1).getLibraryUsage('user-1');
+
+    const [sql, params] = queryOne.mock.calls[0] as [string, [string, string[]]];
+    expect(sql).toContain('COALESCE(is_library_item, TRUE) = TRUE');
+    expect(sql).toContain('status = ANY($2::text[])');
+    expect(params[1]).toEqual([...USER_VISIBLE_SHARE_STATUSES]);
+    expect(params[1]).not.toContain('failed');
+    expect(params[1]).not.toContain('processing');
   });
 });
 

@@ -284,18 +284,31 @@ class SharedMediaService {
   /**
    * How full the user's Mediathek is. Read-only — nothing is ever deleted here.
    *
-   * Internal artifacts (canvas/chat thumbnails, template previews —
-   * is_library_item = FALSE) are excluded: they are referenced by
-   * canvas_documents.thumbnail_url and have their own delete-on-replace
-   * lifecycle in updateCanvas, so counting them would charge the user for rows
-   * they never see.
+   * Counts only what the user can actually see and delete, on two axes:
+   *
+   * - Internal artifacts (canvas/chat thumbnails, template previews —
+   *   is_library_item = FALSE) are excluded: they are referenced by
+   *   canvas_documents.thumbnail_url and have their own delete-on-replace
+   *   lifecycle in updateCanvas.
+   * - So are rows outside USER_VISIBLE_SHARE_STATUSES. A video share that
+   *   failed to render, or one stuck in 'processing', appears in no listing
+   *   (getMediaLibrary is ready-only, the share galleries are ready/draft) and
+   *   no UI can remove it. Charging quota for those would be a trap with no way
+   *   out: the LRU eviction this replaces was the only thing that ever cleaned
+   *   them up, so counting them would let a few failed renders lock an account
+   *   out of uploading for good.
    */
   async getLibraryUsage(userId: string): Promise<MediaLibraryUsage> {
     await this.ensureInitialized();
 
     const countQuery = `SELECT COUNT(*) as count FROM shared_media
-                        WHERE user_id = $1 AND COALESCE(is_library_item, TRUE) = TRUE`;
-    const countResult = await this.postgres!.queryOne<{ count: string }>(countQuery, [userId]);
+                        WHERE user_id = $1
+                          AND COALESCE(is_library_item, TRUE) = TRUE
+                          AND status = ANY($2::text[])`;
+    const countResult = await this.postgres!.queryOne<{ count: string }>(countQuery, [
+      userId,
+      [...USER_VISIBLE_SHARE_STATUSES],
+    ]);
     const count = parseInt(countResult?.count ?? '0', 10);
 
     return {
