@@ -13,6 +13,7 @@ import { FiShare2, FiTrash2, FiUpload } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 
 import { EXAMPLE_FILE_ACCEPT, extractExampleText } from './extractExampleText';
+import { recipeMetaLine } from './recipeMeta';
 import {
   EXAMPLE_SEPARATOR,
   joinExamples,
@@ -253,9 +254,7 @@ const TextFormEditor = ({
           <div>
             <p className="m-0 text-sm font-semibold text-foreground">{title}</p>
             <p className="m-0 text-xs text-grey-500 dark:text-grey-400">
-              {kind === 'custom'
-                ? `@${effectiveMention}`
-                : `Ersetzt das mitgelieferte Rezept @${effectiveMention}`}
+              {kind === 'custom' ? `@${effectiveMention}` : recipeMetaLine(effectiveMention)}
             </p>
           </div>
           {initialForm && (
