@@ -49,11 +49,14 @@ export const GrueneratorenSidebarSection = memo(function GrueneratorenSidebarSec
   const [open, setOpen] = useState(false);
 
   const favoriteIdentifiers = useAgentFavoritesStore((s) => s.favoriteIdentifiers);
+  const favoriteTitles = useAgentFavoritesStore((s) => s.favoriteTitles);
   const { data: userAgents = [] } = useUserAgents();
   const { data: agentUsage = {} } = useItemUsage('agent');
 
-  // Favourites (system + user agents) first, then remaining own agents;
-  // most-recently/most-used float to the top, never-used keep their add order.
+  // Favourites first, then remaining own agents; most-recently/most-used float
+  // to the top, never-used keep their add order. A favourite that is neither a
+  // system agent nor one of the user's own — someone else's agent shared into a
+  // project — falls back to the title snapshotted when the star was set.
   const agents = useMemo(() => {
     const rows: { identifier: string; title: string; Icon: IconType }[] = [];
     const seen = new Set<string>();
@@ -65,8 +68,9 @@ export const GrueneratorenSidebarSection = memo(function GrueneratorenSidebarSec
         continue;
       }
       const ua = userAgents.find((a) => a.identifier === identifier);
-      if (ua) {
-        rows.push({ identifier, title: ua.title, Icon: PiSparkle });
+      const title = ua?.title ?? favoriteTitles[identifier];
+      if (title) {
+        rows.push({ identifier, title, Icon: PiSparkle });
         seen.add(identifier);
       }
     }
@@ -76,7 +80,7 @@ export const GrueneratorenSidebarSection = memo(function GrueneratorenSidebarSec
       }
     }
     return sortByUsage(rows, (r) => r.identifier, agentUsage).slice(0, MAX_QUICK_ITEMS);
-  }, [favoriteIdentifiers, userAgents, agentUsage]);
+  }, [favoriteIdentifiers, favoriteTitles, userAgents, agentUsage]);
 
   const handleOpenChange = useCallback(
     (isOpen: boolean) => {
