@@ -142,3 +142,35 @@ describe('syncUserNotebooks failure handling', () => {
     await expect(syncUserNotebooks(get)).rejects.toThrow('Not Found');
   });
 });
+
+/**
+ * Ein Preset reitet auf der Mention seines Systemrezepts und braucht deshalb
+ * keinen eigenen Eintrag — ausser es hat keines. `antrag` steht in
+ * `textFormTypeSchema`, aber in keiner `SKILLS`-Zeile; ohne eigene Erwähnung war
+ * der angelernte Antrags-Stil im Chat gar nicht auswählbar (#2937).
+ */
+describe('syncTextforms — welche Formen zu Erwähnungen werden', () => {
+  const fetchForms =
+    (forms: unknown[]): MentionableFetch =>
+    <T>(): Promise<T> =>
+      Promise.resolve({ forms } as unknown as T);
+
+  it('lässt Presets mit mitgeliefertem Rezept weg und nimmt eigene Formen auf', async () => {
+    const list = await syncTextforms(
+      fetchForms([
+        { kind: 'preset', mention: 'presse', title: 'Presse', sharedFromGroup: null },
+        { kind: 'preset', mention: 'instagram', title: 'Instagram', sharedFromGroup: null },
+        { kind: 'recipe', mention: 'presse-bayern-partei', title: 'Bayern', sharedFromGroup: null },
+        { kind: 'custom', mention: 'omveinladungen', title: 'OMV', sharedFromGroup: null },
+      ])
+    );
+    expect(list.map((f) => f.mention)).toEqual(['omveinladungen']);
+  });
+
+  it('nimmt ein Preset ohne mitgeliefertes Rezept auf', async () => {
+    const list = await syncTextforms(
+      fetchForms([{ kind: 'preset', mention: 'antrag', title: 'Anträge', sharedFromGroup: null }])
+    );
+    expect(list).toEqual([{ mention: 'antrag', title: 'Anträge', sharedFromGroup: null }]);
+  });
+});
