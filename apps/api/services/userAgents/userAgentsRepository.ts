@@ -276,6 +276,12 @@ export async function listUserAgentsByIds(ids: string[]): Promise<Array<Agent & 
  * Postgres accessor; the matched row is mapped through the same `rowToAgent`
  * boundary as the owner-scoped lookups. `content_id` is TEXT, so the UUID is
  * cast to text for the comparison.
+ *
+ * `identifier` is unique per OWNER, not globally, so two people in the same
+ * group may both have shared a `klima-gruenerator` and the `LIMIT 1` has to
+ * pick one. It orders by creation to pick the same one every time —
+ * `listMentionableUserAgents` repeats this order so the picker offers the agent
+ * this function will load, not another one under the same name.
  */
 export async function getGroupSharedUserAgent(
   identifier: string,
@@ -295,6 +301,7 @@ export async function getGroupSharedUserAgent(
              AND gm.user_id = $2
              AND gm.is_active = true
         )
+      ORDER BY ua.created_at, ua.id
       LIMIT 1`,
     [identifier, requestingUserId],
     { table: 'user_agents' }
@@ -373,6 +380,13 @@ export async function listMentionableUserAgents(
   // `group_content_shares` has no Drizzle table, so the join uses the raw
   // accessor — same boundary as `getGroupSharedUserAgent` above. `content_id`
   // is TEXT, hence the cast on the UUID.
+  //
+  // The ORDER BY is load-bearing twice over, and both halves are silent when
+  // wrong. `ua.created_at, ua.id` is verbatim the resolver's tie-break, so a
+  // colliding identifier resolves to the same agent here and there; `g.name`
+  // decides which group an agent shared into SEVERAL of the caller's groups is
+  // credited to. Without it Postgres is free to return either, and the sublabel
+  // would flip between page loads.
   const pg = getPostgresInstance();
   const sharedRows = (await pg.query(
     `SELECT ua.identifier, ua.title, ua.description, ua.avatar, ua.icon_key,
@@ -383,7 +397,8 @@ export async function listMentionableUserAgents(
        INNER JOIN groups g ON g.id = gcs.group_id
        INNER JOIN group_memberships gm
                ON gm.group_id = gcs.group_id AND gm.user_id = $1::uuid AND gm.is_active = true
-      WHERE ua.user_id <> $1::uuid`,
+      WHERE ua.user_id <> $1::uuid
+      ORDER BY ua.created_at, ua.id, g.name`,
     [userId],
     { table: 'user_agents' }
   )) as unknown as Array<MentionableColumns & { group_name: string }>;
@@ -398,8 +413,9 @@ export async function listMentionableUserAgents(
  * Own agents first, then the group-shared ones an identifier does not already
  * cover. Extracted because the ORDER is the claim: `getAgentForUser` resolves
  * an owned row before it looks at any share, and among shares it takes the
- * first — a picker that offered a different agent under the same name would
- * hand the chat something else than it showed.
+ * oldest — a picker that offered a different agent under the same name would
+ * hand the chat something else than it showed. Which share is "first" is the
+ * caller's ORDER BY, not this function's; it only keeps the two lists apart.
  */
 export function mergeMentionableAgents(
   own: MentionableUserAgentRow[],
