@@ -199,10 +199,19 @@ describe('resolveRecipe', () => {
     expect(r?.body).toContain('untrusted_content');
   });
 
-  it('folds an LV variant onto the general text form (presse-bayern → presse)', async () => {
+  // Umgedreht mit #2930: ein LV-Rezept wird unter SEINEM Namen nachgeschlagen.
+  // Vorher fiel es auf `presse`, und ein generischer angelernter Presse-Stil
+  // schaltete damit die Vorgaben aller zwanzig LV-Rezepte ab.
+  it('schlägt ein LV-Rezept unter seiner eigenen Mention nach', async () => {
+    getTextFormForInjection.mockResolvedValue(null);
+    await resolveRecipe({ mention: 'presse-bayern-partei', userId: 'u1' });
+    expect(getTextFormForInjection).toHaveBeenCalledWith('u1', 'presse-bayern-partei');
+  });
+
+  it('führt eine zurückgezogene Mention auf die lebende Zeile', async () => {
     getTextFormForInjection.mockResolvedValue(null);
     await resolveRecipe({ mention: 'presse-bayern', userId: 'u1' });
-    expect(getTextFormForInjection).toHaveBeenCalledWith('u1', 'presse');
+    expect(getTextFormForInjection).toHaveBeenCalledWith('u1', 'presse-bayern-partei');
   });
 
   it('falls back to the shipped prompt when the user trained nothing', async () => {
