@@ -4,6 +4,7 @@ import { HiArrowUpTray, HiPhoto, HiXMark } from 'react-icons/hi2';
 
 import { cn } from '../../../utils/cn';
 import { mediaItemToFile } from '../../../utils/mediaItemToFile';
+import { MediaThumb } from '../../components/MediaThumb';
 import { useUserUploads } from '../../UserUploadsProvider';
 
 import type { MediaItem } from '@gruenerator/shared/media-library';
@@ -127,12 +128,7 @@ export function ImageInputPicker({
                   title={item.title ?? item.originalFilename ?? ''}
                 >
                   {item.thumbnailUrl ? (
-                    <img
-                      src={item.thumbnailUrl}
-                      alt={item.altText ?? item.title ?? ''}
-                      className="w-full h-auto"
-                      draggable={false}
-                    />
+                    <MediaThumb item={item} alt={item.altText ?? item.title ?? ''} />
                   ) : null}
                 </button>
               </MasonryItem>

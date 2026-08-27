@@ -77,42 +77,13 @@ export const getVisitorDevice = (): VisitorDevice => {
   return null;
 };
 
-const SHARE_DOWNLOAD_RE = /^\/api\/share\/([^/?#]+)\/download$/;
-const THUMBS_RE = /^\/api\/thumbs\//;
-
 /**
- * A canvas thumbnail URL is the full-resolution render (a multi-MB PNG at
- * pixelRatio 2) — that is what the mobile viewer downloads into the gallery.
- * Card-sized `<img>`s ask for a resized variant instead, served webp from the
- * server's disk cache. Other URLs pass through unchanged.
- *
- * Two URL shapes because the field is mid-migration: `/api/thumbs/...` (signed,
- * takes `&w=&fmt=`) is what the API emits now; `/api/share/<token>/download` is
- * still what the column stores and what older responses carried.
+ * Re-exported from `@gruenerator/shared/media-library`, where it lives so the
+ * canvas editor's sidebar grids can use the same rewrite instead of carrying a
+ * second copy. Kept exported here because the web app's call sites import it
+ * from this module.
  */
-export function shareThumbnailPreviewUrl(url: string, width?: 200 | 400 | 800): string;
-export function shareThumbnailPreviewUrl(
-  url: string | undefined,
-  width?: 200 | 400 | 800
-): string | undefined;
-export function shareThumbnailPreviewUrl(
-  url: string | undefined,
-  width: 200 | 400 | 800 = 400
-): string | undefined {
-  if (!url) return url;
-  if (THUMBS_RE.test(url)) {
-    // set, not append: the API already mints these with a default w/fmt, and a
-    // second pair would make `req.query.w` an array server-side — which parses
-    // as NaN and answers 400, i.e. a broken tile.
-    const [path, query] = url.split('?');
-    const params = new URLSearchParams(query);
-    params.set('w', String(width));
-    params.set('fmt', 'webp');
-    return `${path}?${params.toString()}`;
-  }
-  const match = SHARE_DOWNLOAD_RE.exec(url);
-  return match ? `/api/share/${match[1]}/preview?w=${width}&fmt=webp` : url;
-}
+export { shareThumbnailPreviewUrl } from '@gruenerator/shared/media-library';
 
 /**
  * Resolve a (possibly root-relative) API/media URL to one usable by plain
