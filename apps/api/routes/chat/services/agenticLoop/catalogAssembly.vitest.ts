@@ -254,6 +254,20 @@ describe('assembleToolCatalog — Rezept-Werkzeug', () => {
     expect(rolle.tools.rezept_laden).toBeDefined();
   });
 
+  // Gegenprobe zu #2928: dort geht die ausdrückliche Wahl im Prompt-Zweig
+  // wieder auf (`resolveEffectiveRecipeMention`) — HIER bleibt sie zu, und das
+  // ist richtig. Das Werkzeug lädt ein ZWEITES Rezept; die Wahl steckt längst
+  // im Systemprompt. Beide Klauseln greifen, jede für sich.
+  it('schweigt bei gewähltem Rezept UND eigenem Thread-Prompt', async () => {
+    const buildRecipeCatalog = vi.fn(async () => catalog);
+    const assembled = await assemble(
+      fakeState({ customSystemPrompt: 'Ich bin …', activeSkillMention: 'presse-hessen-partei' }),
+      withRecipes({ buildRecipeCatalog })
+    );
+    expect(buildRecipeCatalog).not.toHaveBeenCalled();
+    expect(assembled.tools.rezept_laden).toBeUndefined();
+  });
+
   it('respektiert das ausgeschaltete Werkzeug', async () => {
     const assembled = await assemble(
       fakeState({ enabledTools: { rezept_laden: false } }),
