@@ -43,8 +43,26 @@ export default function LocaleGate() {
   const [saving, setSaving] = useState<SupportedLocale | null>(null);
 
   // `user.locale` ist der rohe Profilwert und darf leer sein; `state.locale` ist
-  // die koerzierte Anzeigefassung (Browser-Vermutung als Rückfall) und taugt
-  // hier nicht — sie wäre nie leer.
+  // die koerzierte Anzeigefassung und taugt hier nicht — sie wäre nie leer.
+  //
+  // Und dieser Rückfall ist ein offener Punkt, kein Detail: `effectiveLocale()`
+  // (stores/authStore.ts:134) endet bei unbekanntem Profil-Land auf
+  // `detectBrowserLocale()` — also auf der Browsersprache, genau der Heuristik,
+  // die dieser Stand für den Login-Bildschirm durch die zeitzonenbasierte
+  // `detectCountry()` ersetzt hat. Der Pfad wurde nicht mitgezogen und wirkt
+  // weiter, solange das Gate unbeantwortet ist: `setApiLocale()` schickt die
+  // Vermutung als `X-User-Locale` mit jeder Anfrage
+  // (packages/shared/src/api/locale.ts), und weil `req.user.locale` für genau
+  // diese Konten jetzt FEHLT, entscheidet im Backend nicht mehr Stufe 1, sondern
+  // dieser Header (services/localization/LocalizationService.ts:105-127). Für
+  // österreichische Konten ist das dieselbe falsche Antwort wie zuvor — der
+  // Kopfkommentar in `api/locale.ts` beschreibt denselben Fehlertyp aus der
+  // Vergangenheit (AT-Reels mit deutschem Untertitelsatz).
+  //
+  // Die Kette ist am Code nachgelesen; welche Konsumenten (Chat,
+  // Notizbuch-Agenten) in diesem Fenster tatsächlich abweichen, ist NICHT
+  // gemessen. Deshalb hier nur der Vermerk und keine Reparatur: das Fenster
+  // schließt sich mit der Antwort auf diesen Dialog.
   //
   // Das Einwilligungs-Gate hat Vorrang: zwei modale Dialoge übereinander wären
   // beide nicht bedienbar, und die Einwilligung steht rechtlich vor allem
