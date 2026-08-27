@@ -192,3 +192,41 @@ describe('Probelauf ist der Standard', () => {
     expect(removeDocumentsFromAllCollections).not.toHaveBeenCalled();
   });
 });
+
+describe('Die Obergrenze zählt über Seiten hinweg', () => {
+  /**
+   * Zwei Seiten mit je 60 Verwaisten: einzeln unter der Grenze, zusammen darüber.
+   * 140 von 200 bekannt sind 70 % — gesund genug, dass der Ratio-Wächter nicht
+   * dazwischenfunkt und wirklich die Obergrenze geprüft wird.
+   */
+  function twoPagesOfSixtyOrphans() {
+    const page = (p: string) => Array.from({ length: 200 }, (_, i) => `${p}-${i}`);
+    listDocumentLinksPage
+      .mockResolvedValueOnce({ documentIds: page('a'), last: 'p-1' })
+      .mockResolvedValueOnce({ documentIds: page('b'), last: 'p-2' })
+      .mockResolvedValue({ documentIds: [], last: null });
+    pgQuery.mockImplementation((_sql: unknown, params: unknown) => {
+      const ids = (params as string[][])[0];
+      return Promise.resolve(ids.slice(0, 140).map((id) => ({ id })));
+    });
+  }
+
+  it('meldet die Grenze auch im Probelauf, obwohl dort nie entfernt wird', async () => {
+    twoPagesOfSixtyOrphans();
+
+    const report = await sweepOrphanedNotebookLinks(false);
+
+    expect(report.removed).toBe(0);
+    expect(report.orphans).toBe(120);
+    expect(report.blocked).toMatch(/mehr als 100/);
+  });
+
+  it('sagt damit dasselbe voraus, was ein scharfer Lauf tut', async () => {
+    twoPagesOfSixtyOrphans();
+
+    const scharf = await sweepOrphanedNotebookLinks(true);
+
+    expect(scharf.blocked).toMatch(/mehr als 100/);
+    expect(scharf.removed).toBe(60);
+  });
+});
