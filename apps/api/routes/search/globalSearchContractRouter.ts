@@ -18,6 +18,7 @@ import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { searchCanvases } from '../../services/canvas/canvasRepository.js';
+import { buildThumbnailUrl, versionFromShareRow } from '../../services/media/thumbnailUrl.js';
 import { getSharedMediaService } from '../../services/sharedMediaService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
@@ -89,6 +90,31 @@ async function findCanvases(userId: string, q: string, limit: number): Promise<G
   }));
 }
 
+/**
+ * The palette renders this in a 36px chip, so it asks for the smallest signed
+ * variant rather than `/api/share/<token>/preview`, which — with no `w` — the
+ * route answers with the original bytes, unresized
+ * (`services/media/thumbnailCache.ts`). That meant up to five multi-megabyte
+ * uploads per debounced keystroke. The signed `/api/thumbs` shape is what the
+ * other list endpoints already mint (`recentActivityController`); it also
+ * resolves a video share to its poster frame instead of streaming the mp4.
+ *
+ * Null when signing is unconfigured — the row then shows its placeholder chip,
+ * which is the intended fallback (an unsigned URL would 403).
+ */
+function mediaThumbnailUrl(item: {
+  share_token: string;
+  thumbnail_path?: string | null;
+  created_at?: Date | string | null;
+  image_metadata?: unknown;
+}): string | null {
+  if (!item.thumbnail_path) return null;
+  return buildThumbnailUrl(
+    { kind: 'media', id: item.share_token, v: versionFromShareRow(item) },
+    { w: 200, fmt: 'webp' }
+  );
+}
+
 async function findMedia(userId: string, q: string, limit: number): Promise<GlobalSearchItem[]> {
   const { items } = await getSharedMediaService().getMediaLibrary(userId, { search: q, limit });
   return items.map((item) => ({
@@ -97,7 +123,7 @@ async function findMedia(userId: string, q: string, limit: number): Promise<Glob
     title: item.title ?? item.original_filename ?? 'Unbenanntes Medium',
     subtitle: item.alt_text ?? item.media_type ?? null,
     url: `/share/${item.share_token}`,
-    thumbnailUrl: item.thumbnail_path ? `/api/share/${item.share_token}/preview` : null,
+    thumbnailUrl: mediaThumbnailUrl(item),
     updatedAt: toIsoOrNull(item.created_at),
   }));
 }
