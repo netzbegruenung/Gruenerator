@@ -30,3 +30,18 @@ export function deriveContentOrigin(
   }
   return classifyLegacyImageType(imageType);
 }
+
+/**
+ * `content_origin` values that mark a row as a *source image* rather than a finished
+ * creation: Mediathek uploads, canvas background/asset images, stock, camera.
+ *
+ * Erstellungs-Feeds schliessen sie aus — „Zuletzt", die Studio-Galerie, `/api/content`
+ * und die Chat-Medienliste zeigen, was jemand gemacht hat, nicht womit. Die Mediathek
+ * (`getMediaLibrary`) und der Canvas-„Uploads"-Tab sind der Asset-Pool und zeigen sie
+ * weiterhin; das ist die einzige Stelle, an der ein Upload hingehört.
+ *
+ * Bewusst NICHT `'unknown'`: das sind Alt-Zeilen, die der Backfill in
+ * `20260727_shared_media_content_origin.sql` nicht sicher zuordnen konnte. Sie stehen seit
+ * jeher bei den Sharepics, und ein Verdacht ist kein Grund, sie verschwinden zu lassen.
+ */
+export const SOURCE_CONTENT_ORIGINS: readonly ContentOrigin[] = ['upload'];
