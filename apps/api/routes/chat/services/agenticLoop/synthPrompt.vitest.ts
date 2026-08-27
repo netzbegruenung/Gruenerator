@@ -83,6 +83,18 @@ describe('buildSynthSystem — Quellenblock', () => {
     expect(prompt).not.toContain('hast du NICHTS recherchiert');
   });
 
+  /**
+   * #2954: der AKTUALITÄT-Absatz liess sich ersatzlos löschen, ohne dass ein
+   * Test rot wurde — obwohl er die einzige Anweisung im Chat ist, die etwas
+   * über das Veröffentlichungsdatum einer Quelle sagt. Hier hängt er am
+   * Schreiber des split-Modus, in `toolUsageBlock.vitest.ts` am unified-Modell.
+   */
+  it('stellt dem Schreiber die Datumsregel zu, sobald Quellen da sind', () => {
+    const prompt = buildSynthSystem('[1] Antrag — https://example.org/a', ctx());
+    expect(prompt).toContain('AKTUALITÄT:');
+    expect(prompt).toContain('dann gilt die NEUESTE');
+  });
+
   it('lässt bei leerem Block kein Zitiergebot stehen und sagt es ehrlich', () => {
     const prompt = buildSynthSystem('   ', ctx());
     expect(prompt).not.toContain('GESAMMELTE QUELLEN');
