@@ -123,6 +123,16 @@ export const evalNotebookModeSchema = notebookDepthSchema;
  * corpus line naming a rubric that doesn't exist would otherwise load fine and
  * simply never be judged. `judge/rubrics.ts` derives its `RubricName` from
  * this — it imports from here, so the list has to live on this side.
+ *
+ * `groundedness` und `unsourced_confidence` sind ein PAAR und schliessen sich
+ * gegenseitig aus (#2953): die erste fragt „stützt Quelle N die Aussage, die
+ * [N] trägt?" und ist ohne Quellen leer, die zweite fragt „behauptet der Text
+ * Belegtes, ohne einen Beleg zu haben?" und ist nur ohne Quellen sinnvoll. Eine
+ * Zeile, die `groundedness` verlangt, bekommt die zweite deshalb automatisch,
+ * wenn der Turn null Quellen hatte — siehe `rubricsForTurn` in
+ * `judge/rubrics.ts`. Ohne diese Kopplung fiele genau der gefährlichste
+ * Zustand durch: die Antwort kam vollständig aus dem Modellwissen, sah plausibel
+ * aus, und die angeforderte Rubrik hat sie nie angesehen.
  */
 export const rubricNameSchema = z.enum([
   'groundedness',
@@ -132,6 +142,7 @@ export const rubricNameSchema = z.enum([
   'parity',
   'instruction_hierarchy',
   'content_policy',
+  'unsourced_confidence',
 ]);
 export type RubricName = z.infer<typeof rubricNameSchema>;
 

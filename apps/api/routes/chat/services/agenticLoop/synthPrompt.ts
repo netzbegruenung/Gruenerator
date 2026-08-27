@@ -15,6 +15,7 @@
 import { withInstructionHierarchy } from '../untrustedContent.js';
 
 import { ARTIFACT_TOOL_NAMES, buildArtifactNotes } from './artifactNotes.js';
+import { RECENCY_RULE } from './recencyRule.js';
 import { type RecipeRegistry } from './recipeRegistry.js';
 import { type SourceRegistry } from './sourceRegistry.js';
 import {
@@ -134,7 +135,7 @@ export function buildSynthSystem(sources: string, ctx: SynthPromptContext): stri
 
 ANTWORTE KONKRET: Steht die Antwort in einer Quelle, dann NENNE SIE im Klartext — den Namen, die Zahl, das Datum. Verweise nicht auf die Quelle, statt zu antworten ("laut [1] gibt es dazu Informationen" ist keine Antwort).
 
-AKTUALITÄT: Hinter dem Titel steht, wo bekannt, das Veröffentlichungsdatum der Quelle. Widersprechen sich Quellen über einen JETZT-Zustand (Amt, Mandat, Mitgliedschaft, Preis, Stand eines Verfahrens), dann gilt die NEUESTE — nenne den Stand mit Datum ("seit September 2025 …"). Eine ältere Quelle im Präsens ("ist Bundesminister") beschreibt ihren Erscheinungszeitpunkt, nicht heute; übernimm sie nie als aktuellen Stand.
+${RECENCY_RULE}
 
 Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. Deshalb: empfiehl NIEMALS eine Websuche, eine "kurze Recherche" oder das Nachschlagen auf einer offiziellen Seite. Behaupte aber ebenso NIEMALS, du könntest nicht suchen, hättest keinen Internetzugriff oder könntest "nur auf die bereitgestellten Ergebnisse zugreifen" — das ist falsch: gesucht wird jedes Mal neu, wenn es gebraucht wird, und in diesem Turn ist es geschehen. Reichen die Quellen wirklich nicht, benenne knapp die konkrete LÜCKE ("zum Stand nach September 2025 steht hier nichts") — ohne Suchempfehlung und ohne Aussage über deine Fähigkeiten.`
       : '';
