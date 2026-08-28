@@ -17,7 +17,7 @@ import { type ModelMessage } from 'ai';
 import { knownArtifactRefs } from '../../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
 import { isSummaryAsk } from '../../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { forbidsNewResearch } from '../../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
-import { recordSlowVerdict } from '../../../../services/ai/modelHealth.js';
+import { isModelSlow, recordSlowVerdict } from '../../../../services/ai/modelHealth.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { type McpCatalog } from '../../agents/mcpCatalog.js';
 import {
@@ -539,14 +539,25 @@ export async function streamAgenticResponse(
       // Der Stillstand der WERKZEUG-Phase. Hier gibt es nichts umzuschalten —
       // der Zug antwortet aus dem, was schon gesammelt war —, aber die Lane
       // gehört vermerkt: sonst ist sie im nächsten Zug wieder erste Wahl und
-      // kostet dieselbe Frist noch einmal. `loopPlannerLane()` liefert Anbieter
-      // UND Modell, weil derselbe Modellname auf zwei Hosts liegt.
+      // kostet dieselbe Frist noch einmal. `resolveLoopPlannerLane()` liefert
+      // Anbieter UND Modell, weil derselbe Modellname auf zwei Hosts liegt.
+      //
+      // Gemeldet wird, was danach TATSÄCHLICH gilt, nicht was der Vermerk
+      // bezweckt: der Breaker öffnet erst beim zweiten Verdikt (siehe
+      // `plannerStageUsable`), ein einzelner Stillstand schaltet die Stufe also
+      // noch nicht ab. Eine Zeile, die pauschal „nächster Zug weicht aus" sagt,
+      // liesse den nächsten 45-s-Zug wie einen Fehler der Reparatur aussehen.
       onToolPhaseStall: () => {
         if (!plannerLane) return;
-        log.warn(
-          `[Agentic] planner ${plannerLane.provider}/${plannerLane.model} lieferte nichts — Lane vermerkt, nächster Zug weicht aus`
-        );
         recordSlowVerdict(plannerLane.provider, plannerLane.model, 'gather_stall');
+        const gesperrt = isModelSlow(plannerLane.provider, plannerLane.model);
+        log.warn(
+          `[Agentic] planner ${plannerLane.provider}/${plannerLane.model} lieferte nichts — ${
+            gesperrt
+              ? 'Lane für 5 min übersprungen'
+              : 'Verdikt vermerkt, erst das zweite schaltet die Lane ab'
+          }`
+        );
       },
       onSynthFallback: () => {
         // Stillstand ist das Verdikt, das die Messung nicht liefert: es kam
