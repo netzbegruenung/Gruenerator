@@ -4,7 +4,10 @@ import multer, { type FileFilterCallback } from 'multer';
 import { z } from 'zod';
 
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
-import { getSharedMediaService } from '../../services/sharedMediaService.js';
+import {
+  MediaQuotaExceededError,
+  getSharedMediaService,
+} from '../../services/sharedMediaService.js';
 
 import type { AllowedMimeType, SharedMediaRow } from '../../types/media.js';
 
@@ -129,7 +132,10 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
     };
 
     const mediaService = getSharedMediaService();
-    const result = await mediaService.getMediaLibrary(userId, filters);
+    const [result, quota] = await Promise.all([
+      mediaService.getMediaLibrary(userId, filters),
+      mediaService.getLibraryUsage(userId),
+    ]);
 
     res.json({
       success: true,
@@ -140,6 +146,9 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
         offset: result.offset,
         hasMore: result.offset + result.items.length < result.total,
       },
+      // Unfiltered account total, so the "x von y" label and the full-library
+      // warning don't shrink when a type filter or a search is active.
+      quota,
     });
   } catch (error) {
     console.error('[MediaController] GET /media error:', error);
@@ -274,6 +283,18 @@ router.post(
         },
       });
     } catch (error) {
+      // The library is full. Nothing was written, so this is a refusal the user
+      // can act on (delete something), not a server fault — say so instead of
+      // silently evicting their oldest media to make room (#2980).
+      if (error instanceof MediaQuotaExceededError) {
+        res.status(409).json({
+          success: false,
+          error: error.userMessage,
+          code: error.code,
+          quota: error.usage,
+        });
+        return;
+      }
       console.error('[MediaController] POST /media/upload error:', error);
       res.status(500).json({ error: (error as Error).message || 'Failed to upload media' });
     }
