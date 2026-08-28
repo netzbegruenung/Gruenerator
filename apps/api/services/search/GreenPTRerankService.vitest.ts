@@ -118,7 +118,30 @@ describe('GreenPTRerankService', () => {
     expect(greenptRerankService.isAvailable()).toBe(false);
   });
 
-  it('leaves the circuit closed on an error that is not a capacity signal', async () => {
+  it('opens the circuit after two timeouts — the one failure Regolo cannot pick up', async () => {
+    const timeout = new Error('aborted');
+    timeout.name = 'TimeoutError';
+    fetchMock.mockRejectedValue(timeout);
+
+    await greenptRerankService.rerank(REQUEST).catch(() => {});
+    await greenptRerankService.rerank(REQUEST).catch(() => {});
+
+    // A timeout is not retried on Regolo (see rerankPipeline), so every
+    // uncounted one costs 4s AND the ranking. Opening the circuit is what makes
+    // the next call skip straight to Regolo and keep its ranking.
+    expect(greenptRerankService.isAvailable()).toBe(false);
+  });
+
+  it('opens the circuit after two network errors', async () => {
+    fetchMock.mockRejectedValue(new Error('ECONNREFUSED'));
+
+    await greenptRerankService.rerank(REQUEST).catch(() => {});
+    await greenptRerankService.rerank(REQUEST).catch(() => {});
+
+    expect(greenptRerankService.isAvailable()).toBe(false);
+  });
+
+  it('leaves the circuit closed on a 4xx that is our own bug, so it stays loud', async () => {
     fetchMock.mockResolvedValue({ ok: false, status: 400, text: async () => 'bad request' });
 
     await greenptRerankService.rerank(REQUEST).catch(() => {});

@@ -71,9 +71,20 @@
  * search plus one per crawled page via `PassageDistiller`. So this client must
  * never be the reason a chat turn's planner call gets a 429.
  *
- * Hence the circuit breaker: two consecutive 429/503s and this host is skipped
+ * Hence the circuit breaker: two consecutive failures and this host is skipped
  * for five minutes, with Regolo carrying reranking in the meantime. The
  * measurement is the thing we give up under load, not the ranking.
+ *
+ * "Failure" deliberately includes TIMEOUTS and network errors, not only the
+ * 429/503 that motivated the breaker — a hang is the more expensive outage of
+ * the two. A 429 fails in milliseconds and `rerankPipeline` retries it on
+ * Regolo; a timeout burns the full `RERANK_TIMEOUT_MS` AND is deliberately not
+ * retried there, so that request degrades to input order. Left uncounted, a
+ * hanging host would cost exactly that on EVERY rerank for as long as it
+ * lasts. Counted, the second one opens the circuit and every later call skips
+ * straight to Regolo — here the breaker RESTORES the ranking rather than
+ * giving it up. What stays uncounted is a 4xx other than 429: that is our own
+ * bug, and it should stay loud rather than be muffled by an open circuit.
  */
 
 import { env } from '../../config/env.js';
@@ -170,6 +181,9 @@ class GreenPTRerankService {
       });
     } catch (error: unknown) {
       const timedOut = error instanceof Error && error.name === 'TimeoutError';
+      // Counted, unlike a 4xx — see the header. This is the outage that costs
+      // the most and the only one the pipeline cannot retry on Regolo.
+      this.breaker.recordFailure();
       throw new GreenPTRerankError(
         timedOut
           ? `GreenPT rerank timed out after ${RERANK_TIMEOUT_MS}ms`
@@ -179,8 +193,8 @@ class GreenPTRerankService {
     }
 
     if (!response.ok) {
-      // 429 (account-wide budget) and 503 (model at capacity) are the two the
-      // breaker exists for — both mean "come back later", not "this is broken".
+      // 429 (account-wide budget) and 503 (model at capacity) mean "come back
+      // later" and count. Any other 4xx is our own bug and must not.
       if (response.status === 429 || response.status === 503) this.breaker.recordFailure();
       const errorText = await response.text().catch(() => '');
       throw new GreenPTRerankError(
