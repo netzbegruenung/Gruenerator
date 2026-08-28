@@ -2,8 +2,8 @@
  * Shared Rerank Pipeline
  *
  * Unified reranking logic used by both ChatGraph (rerankNode) and Notebook
- * (rerankNotebookResults). Calls Regolo's cross-encoder, filters by relevance,
- * and optionally applies MMR diversity reranking.
+ * (rerankNotebookResults). Calls a Qwen3-Reranker-4B cross-encoder, filters by
+ * relevance, and optionally applies MMR diversity reranking.
  *
  * Returns ranked indices (not items) so callers can map back to their own types.
  */
@@ -12,7 +12,10 @@ import { vectorConfig } from '../../config/vectorConfig.js';
 import { createLogger } from '../../utils/logger.js';
 
 import { applyMMR } from './DiversityReranker.js';
+import { greenptRerankService, GreenPTRerankError } from './GreenPTRerankService.js';
 import { regoloRerankService } from './RegoloRerankService.js';
+
+import type { RerankRequest, RerankResultItem } from './RegoloRerankService.js';
 
 const log = createLogger('RerankPipeline');
 
@@ -45,6 +48,32 @@ export interface RerankPipelineResult {
   failed?: boolean;
   /** Error message captured when failed=true; undefined on success. */
   error?: string;
+}
+
+/**
+ * GreenPT first, Regolo behind it. Both serve the same Qwen3-Reranker-4B
+ * weights and return the same scores (measured, see GreenPTRerankService), so
+ * which one answers changes nothing about the ranking — only whether the call's
+ * energy cost gets measured or stays invisible.
+ *
+ * The one case we do NOT fall back on is a GreenPT TIMEOUT. Falling back there
+ * would stack 4s onto Regolo's own 8s ceiling and hand a 12s rerank to a chat
+ * turn; degrading to input order, which is what the caller does with a thrown
+ * error, is the cheaper failure. Fast failures (429, 503, auth) cost no time
+ * worth protecting and are retried on Regolo.
+ */
+async function rerankOnce(request: RerankRequest): Promise<RerankResultItem[]> {
+  if (!greenptRerankService.isAvailable()) return regoloRerankService.rerank(request);
+
+  try {
+    return await greenptRerankService.rerank(request);
+  } catch (error: unknown) {
+    if (error instanceof GreenPTRerankError && error.timedOut) throw error;
+    log.warn(
+      `GreenPT rerank unavailable, falling back to Regolo: ${error instanceof Error ? error.message : String(error)}`
+    );
+    return regoloRerankService.rerank(request);
+  }
 }
 
 const SKIP_THRESHOLD = 2;
@@ -87,7 +116,7 @@ export async function rerankPipeline(
       return `${tag}${item.title}\n${item.content}`;
     });
 
-    const rerankResults = await regoloRerankService.rerank({
+    const rerankResults = await rerankOnce({
       query,
       documents,
       topN: inputLimit,

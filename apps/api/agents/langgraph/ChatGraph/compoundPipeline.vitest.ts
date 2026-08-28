@@ -52,6 +52,17 @@ vi.mock('../../../services/search/RegoloRerankService.js', () => ({
   regoloRerankService: { rerank: (...args: any[]) => mockRerank(...args) },
 }));
 
+// Seit dem Umzug auf GreenPT fragt `rerankPipeline` DIESEN Dienst zuerst. Ohne
+// das Mock entscheidet `GREENPT_API_KEY` in der Umgebung, ob der Test ins Netz
+// geht — mit `isAvailable: false` fällt er deterministisch auf das Regolo-Mock
+// oben durch, das die Zusicherungen hier prüfen.
+vi.mock('../../../services/search/GreenPTRerankService.js', () => ({
+  greenptRerankService: { isAvailable: () => false, rerank: vi.fn() },
+  GreenPTRerankError: class extends Error {
+    timedOut = false;
+  },
+}));
+
 vi.mock('../../../utils/logger.js', () => ({
   createLogger: () => ({
     info: vi.fn(),

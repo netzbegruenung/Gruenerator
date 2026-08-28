@@ -1,12 +1,15 @@
 /**
  * Tests for rerankPipeline (shared rerank logic)
  *
- * Mocks RegoloRerankService to test the pipeline orchestration:
- * filtering, MMR routing, index mapping, and error handling.
+ * Mocks the Regolo cross-encoder to test the pipeline orchestration:
+ * filtering, MMR routing, index mapping, and error handling. GreenPT is the
+ * primary host in production; here it is forced unavailable so the mock below
+ * is what answers, regardless of whether GREENPT_API_KEY is in the environment.
  *
  * Run with: npx tsx apps/api/services/search/__manual_tests__/rerankPipeline.test.ts
  */
 
+import { greenptRerankService } from '../GreenPTRerankService.js';
 import { regoloRerankService } from '../RegoloRerankService.js';
 import { rerankPipeline, type RerankableItem } from '../rerankPipeline.js';
 
@@ -16,6 +19,9 @@ let passed = 0;
 let failed = 0;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let mockRerankFn: ((req: any) => Promise<any>) | null = null;
+
+// Keep the pipeline on the mocked Regolo path — see the header.
+greenptRerankService.isAvailable = () => false;
 
 // Mock the rerank service
 const originalRerank = regoloRerankService.rerank.bind(regoloRerankService);
