@@ -80,25 +80,47 @@ describe('MentionPopover ↔ keyboard list', () => {
     expect(renderedRows()).toEqual(flat.map(rowKey));
   });
 
-  it('highlights the row Enter would insert, at every index', () => {
+  /**
+   * Zwei Änderungen, und die erste allein hätte es nicht getan.
+   *
+   * `rerender` statt Montage und Abbau je Index: ein Mount, N Aktualisierungen.
+   * Als Schleife voller Vollmontagen war dieser Fall der mit Abstand teuerste
+   * der Datei — gemessen 131/134/136 ms gegen 4–15 ms für jeden anderen; mit
+   * `rerender` sind es 84–89 ms. Geprüft wird dasselbe, nur näher am echten
+   * Ablauf: EIN Popover, dessen `selectedIndex` wandert, wie beim Druck auf die
+   * Pfeiltaste.
+   *
+   * **Das erklärt den Ausfall aber nicht.** Der Deckel liegt bei 5 s, der Fall
+   * bei 134 ms — er ist in der CI nicht an seinen eigenen Kosten gescheitert,
+   * sondern an Faktor 37 unter Last (`pnpm test` fährt 24 Pakete gleichzeitig).
+   * 35 % billiger heisst nur, dass er später als erster umfällt; verhindert ist
+   * damit nichts. Deshalb steht die Frist ausdrücklich hier: ein Fall, der N
+   * Renders macht, ist keiner, für den der Vorgabewert gedacht war. Wer sie
+   * wieder streichen will, misst vorher unter Last, nicht auf einer leeren
+   * Maschine.
+   */
+  it('highlights the row Enter would insert, at every index', { timeout: 20_000 }, () => {
     const flat = getFilteredMentionables('notiz');
     expect(flat.length).toBeGreaterThan(1);
 
+    const popover = (index: number) => (
+      <MentionPopover
+        query="notiz"
+        visible
+        onSelect={vi.fn()}
+        onDismiss={vi.fn()}
+        selectedIndex={index}
+        anchorRect={anchorRect}
+      />
+    );
+
+    const { rerender } = render(popover(0));
+
     for (let i = 0; i < flat.length; i++) {
-      const { unmount } = render(
-        <MentionPopover
-          query="notiz"
-          visible
-          onSelect={vi.fn()}
-          onDismiss={vi.fn()}
-          selectedIndex={i}
-          anchorRect={anchorRect}
-        />
-      );
+      rerender(popover(i));
       const selected = screen.getAllByRole('option').filter((el) => el.dataset.selected === 'true');
       expect(selected).toHaveLength(1);
       expect(selected[0].querySelector('p')?.textContent).toBe(flat[i].title);
-      unmount();
     }
   });
 
