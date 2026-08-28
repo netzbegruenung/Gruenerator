@@ -1,4 +1,4 @@
-import { type InferSelectModel } from 'drizzle-orm';
+import { type InferSelectModel, sql } from 'drizzle-orm';
 import {
   bigint,
   boolean,
@@ -127,6 +127,12 @@ export const sharedMedia = pgTable(
       t.image_type,
       t.created_at
     ),
+    // Partial, for the orphan reaper (#2989) — it only ever asks for rows in a
+    // status no listing shows. Keep the predicate in step with
+    // ORPHANED_SHARE_STATUSES and the migration of the same name.
+    index('idx_shared_media_orphan_status')
+      .on(t.created_at)
+      .where(sql`status IN ('processing', 'failed')`),
   ]
 );
 

@@ -18,6 +18,7 @@ import { likeContainsPattern } from '../utils/sqlLike.js';
 
 import {
   LIBRARY_ITEM_CLAUSE,
+  ORPHANED_SHARE_STATUSES,
   USER_VISIBLE_SHARE_STATUSES,
   assetPoolWhere,
   creationFeedWhere,
@@ -47,6 +48,16 @@ const __dirname = path.dirname(__filename);
 const SHARED_MEDIA_PATH = path.join(__dirname, '../uploads/shared-media');
 const SHARED_MEDIA_PATH_RESOLVED = path.resolve(SHARED_MEDIA_PATH);
 const THUMBNAIL_SIZE = 400;
+
+/** One row removed by {@link SharedMediaService.reapOrphanedShares}. */
+export interface ReapedShare {
+  shareToken: string;
+  status: string;
+  /** `file_size` at deletion time, `0` when the row never got one (a render that
+   * never produced a file). Only an estimate of the bytes freed — variants and
+   * thumbnails in the same directory are not counted in that column. */
+  fileSize: number;
+}
 
 /** Snapshot of how full one account's Mediathek is. */
 export interface MediaLibraryUsage {
@@ -345,6 +356,64 @@ class SharedMediaService {
         (error as Error).message
       );
     }
+  }
+
+  /**
+   * Delete `shared_media` rows stuck in {@link ORPHANED_SHARE_STATUSES} past
+   * `olderThanHours`, together with their files on disk.
+   *
+   * These rows are unreachable from every user-facing surface: `getMediaLibrary`
+   * is ready-only, the galleries are `USER_VISIBLE_SHARE_STATUSES`, and the
+   * public share page can only report "failed" to whoever already holds the
+   * link. Nothing offered a delete button, and since #2980 removed the LRU
+   * eviction that used to sweep them along with everything else, nothing removed
+   * them at all — the row and its directory under `uploads/shared-media/<token>/`
+   * stayed forever (#2989).
+   *
+   * The DELETE is the easy half; the bytes are the point. Files go through
+   * {@link cleanupShareFiles} per token, after the row is gone rather than
+   * before: if the process dies in between, the directory is left with no row
+   * behind it and `cleanOrphanedSharedMedia` in the uploads cleaner — which
+   * deletes exactly that — picks it up on the next cycle. The other order would
+   * strand a row pointing at files that are no longer there.
+   *
+   * Returns what it removed so the caller can log it; an empty array means
+   * there was nothing to do.
+   */
+  async reapOrphanedShares(olderThanHours: number): Promise<ReapedShare[]> {
+    await this.ensureInitialized();
+
+    // `make_interval` rather than string concatenation: the age is a number, and
+    // `$2 || ' hours'` would need a cast on every call site to typecheck in PG.
+    const rows = await this.postgres!.query<{
+      share_token: string;
+      status: string;
+      file_size: string | number | null;
+    }>(
+      `DELETE FROM shared_media
+        WHERE status = ANY($1::text[])
+          AND created_at < NOW() - make_interval(hours => $2::int)
+        RETURNING share_token, status, file_size`,
+      [[...ORPHANED_SHARE_STATUSES], Math.max(0, Math.trunc(olderThanHours))]
+    );
+
+    const reaped: ReapedShare[] = [];
+    for (const row of rows) {
+      await this.cleanupShareFiles(row.share_token);
+      reaped.push({
+        shareToken: row.share_token,
+        status: row.status,
+        fileSize: Number(row.file_size ?? 0),
+      });
+    }
+
+    if (reaped.length > 0) {
+      console.log(
+        `[SharedMediaService] Reaped ${reaped.length} orphaned share(s) older than ${olderThanHours}h`
+      );
+    }
+
+    return reaped;
   }
 
   async createVideoShare(userId: string, params: CreateVideoShareParams): Promise<ShareResult> {

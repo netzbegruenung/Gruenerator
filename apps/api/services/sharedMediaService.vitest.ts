@@ -1,3 +1,5 @@
+import { readFileSync } from 'fs';
+
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
@@ -35,9 +37,12 @@ vi.mock('../database/services/PostgresService.js', () => ({
 
 const { default: SharedMediaService, MediaQuotaExceededError } =
   await import('./sharedMediaService.js');
-const { LIBRARY_ITEM_CLAUSE, USER_VISIBLE_SHARE_STATUSES } =
+const { LIBRARY_ITEM_CLAUSE, ORPHANED_SHARE_STATUSES, USER_VISIBLE_SHARE_STATUSES } =
   await import('./sharedMediaFilters.js');
 const { MEDIA_LIBRARY_ITEM_LIMIT } = await import('@gruenerator/shared/media-library/constants');
+
+/** The `fs.rm` from the module mock above — the reaper's file half runs through it. */
+const rm = vi.mocked((await import('fs/promises')).default.rm);
 
 /** The `content_origin` predicate, whitespace-insensitive. */
 const ORIGIN_CLAUSE = /content_origin\s+IS\s+NULL\s+OR\s+content_origin\s*!=\s*ALL/i;
@@ -268,5 +273,107 @@ describe('creations at the cap', () => {
     expect(share.shareToken).toBe('tok');
     const statements = [...queryOne.mock.calls, ...query.mock.calls].map(([sql]) => sql);
     expect(statements.some((sql) => sql.includes('DELETE'))).toBe(false);
+  });
+});
+
+/**
+ * The reaper is the one path in this service that deletes a user's row without
+ * the user asking, so the tests are mostly about what it must NOT reach: rows a
+ * listing shows, and rows too young to be provably stuck. The files matter as
+ * much as the row — a DELETE that leaves the bytes behind is the opposite of
+ * the point (#2989).
+ */
+describe('reapOrphanedShares', () => {
+  /** Every DELETE ... RETURNING answers with these rows. */
+  function withReapedRows(
+    rows: Array<{ share_token: string; status: string; file_size: number | null }>
+  ): InstanceType<typeof SharedMediaService> {
+    query.mockImplementation((sql: string) =>
+      Promise.resolve(sql.includes('DELETE FROM shared_media') ? rows : [])
+    );
+    return new SharedMediaService();
+  }
+
+  beforeEach(() => {
+    rm.mockClear();
+  });
+
+  it('only ever names the orphaned statuses — never one a listing shows', async () => {
+    const service = withReapedRows([]);
+    await service.reapOrphanedShares(24);
+
+    const { sql, params } = lastCall();
+    expect(sql).toContain('DELETE FROM shared_media');
+    expect(params[0]).toEqual([...ORPHANED_SHARE_STATUSES]);
+    for (const visible of USER_VISIBLE_SHARE_STATUSES) {
+      expect(params[0]).not.toContain(visible);
+    }
+  });
+
+  it('bounds the delete by age, so a render still in flight survives', async () => {
+    const service = withReapedRows([]);
+    await service.reapOrphanedShares(24);
+
+    const { sql, params } = lastCall();
+    expect(sql).toMatch(/created_at\s*<\s*NOW\(\)\s*-\s*make_interval/i);
+    expect(params[1]).toBe(24);
+  });
+
+  it('removes the files of every row it deleted, not just the row', async () => {
+    const service = withReapedRows([
+      { share_token: 'tok-a', status: 'failed', file_size: 1024 },
+      { share_token: 'tok-b', status: 'processing', file_size: null },
+    ]);
+
+    const reaped = await service.reapOrphanedShares(24);
+
+    expect(reaped).toEqual([
+      { shareToken: 'tok-a', status: 'failed', fileSize: 1024 },
+      { shareToken: 'tok-b', status: 'processing', fileSize: 0 },
+    ]);
+    const removed = rm.mock.calls.map(([dir]) => String(dir));
+    expect(removed.some((d) => d.endsWith('/tok-a'))).toBe(true);
+    expect(removed.some((d) => d.endsWith('/tok-b'))).toBe(true);
+  });
+
+  it('touches no disk when there is nothing to reap', async () => {
+    const service = withReapedRows([]);
+
+    expect(await service.reapOrphanedShares(24)).toEqual([]);
+    expect(rm).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * The two status sets have to stay complementary: anything that is neither
+ * user-visible nor orphaned is a row no surface shows and no job removes —
+ * exactly the state #2989 was filed about.
+ */
+describe('share status policy', () => {
+  it('never classifies the same status as both visible and orphaned', () => {
+    const overlap = ORPHANED_SHARE_STATUSES.filter((s) =>
+      (USER_VISIBLE_SHARE_STATUSES as readonly string[]).includes(s)
+    );
+    expect(overlap).toEqual([]);
+  });
+
+  it('covers every status the service writes', () => {
+    // The literals `createImageShare`, `createPendingVideoShare`,
+    // `finalizeVideoShare` and `markShareFailed` write, read off the source so
+    // a fifth one cannot be added without this failing.
+    const source = readFileSync(new URL('./sharedMediaService.ts', import.meta.url), 'utf8');
+    const written = new Set(
+      [...source.matchAll(/status\s*(?::|=)\s*'([a-z_]+)'/g)].map((m) => m[1])
+    );
+    // Without this the test passes when the regex stops matching anything —
+    // a guard that guards nothing looks exactly like a guard that holds.
+    expect(written.has('processing')).toBe(true);
+    expect(written.has('failed')).toBe(true);
+
+    const classified = new Set<string>([
+      ...USER_VISIBLE_SHARE_STATUSES,
+      ...ORPHANED_SHARE_STATUSES,
+    ]);
+    expect([...written].filter((s) => !classified.has(s))).toEqual([]);
   });
 });
