@@ -19,15 +19,33 @@ export const contentOriginSchema = z.enum(['ki', 'sharepic']);
 export const storedContentOriginSchema = z.enum(['ki', 'sharepic', 'upload', 'unknown']);
 
 /**
- * The two kinds of media a share can hold — `shared_media.media_type`.
+ * What the share endpoints *create* and hand back: `ShareResult.mediaType`.
  *
- * Named here rather than restated per consumer because the value crosses the
- * wire in both directions: in as `?type=` on the share list endpoints, out as
- * `mediaType` on every share row. `ShareMediaType` in `@gruenerator/shared`
- * derives from this.
+ * Narrower than the column — see {@link storedMediaTypeSchema}. `ShareMediaType`
+ * in `@gruenerator/shared` derives from this one, because that is the type its
+ * callers use to say what they are making.
  */
 export const shareMediaTypeSchema = z.enum(['image', 'video']);
 export type ShareMediaType = z.infer<typeof shareMediaTypeSchema>;
+
+/**
+ * The full stored set — `shared_media.media_type`, whose CHECK constraint names
+ * exactly these three (`schema.sql`).
+ *
+ * `'transfer'` is the one that is easy to miss: `transferService.createTransfer`
+ * writes file transfers into this same table, and it sets neither
+ * `upload_source` nor `content_origin`, both of which `creationFeedWhere`
+ * tolerates as NULL. Transfer rows therefore *do* come back from
+ * `GET /api/share/my`, and `?type=transfer` was a working filter before the
+ * query schema had an enum at all — so the filter is typed against this set,
+ * not against {@link shareMediaTypeSchema}, or tightening the schema would have
+ * turned a live request into a 400.
+ *
+ * Same narrow-vs-stored split as {@link contentOriginSchema} /
+ * {@link storedContentOriginSchema} above, for the same reason.
+ */
+export const storedMediaTypeSchema = z.enum(['image', 'video', 'transfer']);
+export type StoredMediaType = z.infer<typeof storedMediaTypeSchema>;
 
 /**
  * The lifecycle of a share row — `shared_media.status`.
@@ -97,7 +115,12 @@ export const shareResultSchema = z.object({
   createdAt: z.union([z.string(), z.date()]),
   mediaType: shareMediaTypeSchema,
   hasOriginalImage: z.boolean().optional(),
-  status: z.string().optional(),
+  // Set on exactly one path (`createPendingVideoShare` → 'processing') and
+  // otherwise omitted; the routers that build this body write 'ready' and
+  // 'processing' as literals. Never a raw column read, so closing it cannot
+  // trip over a legacy row — unlike `shareListItemSchema.mediaType`, which is
+  // `row.media_type` and can be 'transfer'.
+  status: shareStatusSchema.optional(),
 });
 
 // ── Response schemas ────────────────────────────────────────────────────────
@@ -142,7 +165,7 @@ export const saveAsTemplateResponseSchema = z.object({
  * `null` in the handler exactly as `undefined` does.
  */
 export const mySharesQuerySchema = z.object({
-  type: shareMediaTypeSchema.or(z.literal('')).optional(),
+  type: storedMediaTypeSchema.or(z.literal('')).optional(),
   status: shareStatusSchema.or(z.literal('')).optional(),
 });
 

@@ -124,13 +124,25 @@ describe('recentShares', () => {
  * empty-string carve-out that keeps `?type=` a no-op rather than a 400.
  */
 describe('mySharesQuerySchema', () => {
-  it('accepts the two media types and the four statuses', () => {
-    for (const type of ['image', 'video'] as const) {
+  it('accepts every value the column can hold', () => {
+    // Both sets are the CHECK constraints in schema.sql, not a guess.
+    for (const type of ['image', 'video', 'transfer'] as const) {
       expect(mySharesQuerySchema.safeParse({ type }).success).toBe(true);
     }
     for (const status of ['processing', 'ready', 'failed', 'draft'] as const) {
       expect(mySharesQuerySchema.safeParse({ status }).success).toBe(true);
     }
+  });
+
+  /**
+   * `'transfer'` is a live third media type — `transferService.createTransfer`
+   * writes into `shared_media` and sets neither provenance column, so those
+   * rows survive `creationFeedWhere` and `?type=transfer` selected them. Typing
+   * the filter against the two-value `shareMediaTypeSchema` (what a *created*
+   * share is) would have made that request a 400.
+   */
+  it('does not mistake the creation type for the stored one', () => {
+    expect(mySharesQuerySchema.safeParse({ type: 'transfer' }).success).toBe(true);
   });
 
   it('rejects a value outside the set instead of querying for it', () => {

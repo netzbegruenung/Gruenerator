@@ -8,7 +8,7 @@
 
 import type { ReapedShare } from '../../services/sharedMediaService.js';
 import type { SharedMediaRow, ShareResult } from '../../types/media.js';
-import type { ShareMediaType, ShareStatus } from '@gruenerator/contracts';
+import type { ShareStatus, StoredMediaType } from '@gruenerator/contracts';
 
 export interface CreateImageShareParams {
   imageBase64: string;
@@ -49,14 +49,15 @@ export interface SharedMediaService {
     userId: string,
     params: CreatePendingVideoShareParams
   ): Promise<ShareResult>;
-  // Both unions are the ones the class already declares. They were `string`
-  // here, and the `as unknown as SharedMediaService` cast below meant nothing
-  // objected — so `listMyShares` could hand the raw `?type=` string straight
-  // through and still compile, which is what made the missing `z.enum` on the
-  // query schema invisible (#3008).
+  // `StoredMediaType`, not `ShareMediaType`: this reads the column, which also
+  // holds 'transfer'. Both were `string` here, and the
+  // `as unknown as SharedMediaService` cast below meant nothing objected — so
+  // `listMyShares` could hand the raw `?type=` string straight through and
+  // still compile, which is what made the missing `z.enum` on the query schema
+  // invisible (#3008).
   getUserShares(
     userId: string,
-    type: ShareMediaType | null,
+    type: StoredMediaType | null,
     status?: ShareStatus | readonly ShareStatus[] | null,
     limit?: number
   ): Promise<SharedMediaRow[]>;
