@@ -156,10 +156,28 @@ export const shareListItemSchema = z.object({
 
 export type ShareListItem = z.infer<typeof shareListItemSchema>;
 
+/**
+ * `GET /api/share/my` and `GET /api/share/recent`.
+ *
+ * `count` and `limit` describe **this response**, nothing wider: `count` is how
+ * many rows `shares` holds, `limit` the ceiling that produced it. Neither is a
+ * quota. Since no endpoint in this family takes an offset, `count === limit` is
+ * the only signal a caller gets that the list was truncated.
+ *
+ * The narrowness is the point (#2986). `count` has twice been an account-wide
+ * number sitting next to a list filtered by `type`, by `status` and by both
+ * provenance columns — first every row in `shared_media` including internal
+ * artifacts, then the Mediathek quota. Both over-reported, and the gap grew
+ * with the account: canvas documents write one non-library thumbnail row each.
+ * Account-wide usage belongs on `GET /api/media`, which carries a `quota` block
+ * and is not also a filtered list.
+ */
 export const shareListResponseSchema = z.object({
   success: z.literal(true),
   shares: z.array(shareListItemSchema),
+  /** Rows in `shares`. Equal to `shares.length`, by construction. */
   count: z.number(),
+  /** Max rows this response could have carried. */
   limit: z.number(),
 });
 
