@@ -54,9 +54,11 @@ import {
 } from '../services/agenticLoop/attachedDocuments.js';
 import { isEditorSurface } from '../services/agenticLoop/routing.js';
 import { artifactKind, type ArtifactKindId } from '../services/artifactKindRegistry.js';
+import { mentionsCloudStorage } from '../services/cloudConnectionContext.js';
 import { hasReachableForm } from '../services/pdfFormAvailability.js';
 import { withImageProxy } from '../services/searchImagePayload.js';
 
+import { makeCloudFilesTool } from './cloudFileTools.js';
 import {
   makeAbgeordnetenwatchTool,
   makeBundestagTool,
@@ -824,6 +826,28 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
     }
     if (state.enabledTools?.['notebooks'] !== false) {
       tools.notebooks = makeNotebooksTool(personalCtx);
+    }
+
+    // Die verbundene Wolke. Zwei Tore, in dieser Reihenfolge:
+    //
+    // 1. Der Verbindungszähler (`buildStreamContext`, 60-s-Cache). Wer eine
+    //    Wolke hat, bekommt das Werkzeug IMMER — „Welche Ordner gibt es?" nennt
+    //    die Wolke nicht, und eine erfundene Fehlanzeige („du hast keine
+    //    Dateien") ist die teuerste Ausfallform, weil sie wie eine geprüfte
+    //    Antwort aussieht.
+    // 2. Das Vokabular, nur für Konten OHNE Verbindung — sonst könnte niemand
+    //    per Chat eine anlegen. Ein Konto ohne Wolke zahlt für dieses Werkzeug
+    //    also nur, wenn es selbst davon anfängt.
+    //
+    // Ein Wolke-Anhang in diesem Turn zählt wie das Vokabular: die Person hat
+    // die Datei über den Picker gewählt, der Text sagt darüber nichts.
+    if (
+      state.enabledTools?.['cloud_files'] !== false &&
+      ((state.cloudConnectionCount ?? 0) > 0 ||
+        (state.wolkeFiles?.length ?? 0) > 0 ||
+        mentionsCloudStorage(state.lastUserTextNoMentions ?? lastUserText(state)))
+    ) {
+      tools.cloud_files = makeCloudFilesTool(personalCtx);
     }
 
     // PDF form tools. `hasReachableForm` carries the `isFillablePdf` verdict
