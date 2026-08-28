@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
 
 import {
   attachedDocsQuery,
@@ -151,6 +151,17 @@ describe('retrieveAttachedDocuments', () => {
 });
 
 describe('readAttachedDocumentSlice', () => {
+  // `readAttachedDocumentSlice` reaches the document service through a lazy
+  // `await import()`, so whichever test calls it first pays for loading that
+  // whole module graph — measured at ~4.9 s on CI, against a 5 s test budget.
+  // It tipped over often enough to keep master red, and it did not fail alone:
+  // aborting the first test mid-import left the next one resolving the real
+  // module instead of the mock below, which then threw "Qdrant not available".
+  // Warming the import here buys the cost once, outside anyone's timeout.
+  beforeAll(async () => {
+    await import('../../../../services/document-services/DocumentSearchService/index.js');
+  });
+
   beforeEach(() => fullText.mockReset());
 
   const sources = [src('document_chat', 'doc-1', 'Beschlusspapier.pdf')];
