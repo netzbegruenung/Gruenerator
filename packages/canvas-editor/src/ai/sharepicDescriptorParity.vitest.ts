@@ -111,6 +111,38 @@ describe('sharepic template descriptor parity', () => {
     }
   });
 
+  /**
+   * `set-background-image` only puts a picture there. Moving, zooming or fading
+   * it afterwards is `update-element` against the `hintergrundbild` descriptor,
+   * and `validateSharepicOp` resolves that by id: no element, and every
+   * follow-up is rejected with 'Unbekanntes Element "hintergrundbild"'. The
+   * user gets a photo they cannot then adjust, and only through the chat —
+   * the sidebar sliders work fine, so nothing looks broken.
+   *
+   * The pairing above does not see this: it asks whether the state key exists,
+   * not whether anything can address it. zitat-pure had exactly that shape
+   * while its three siblings did not.
+   */
+  it('lets the chat adjust a photo it is allowed to set', () => {
+    for (const type of SHAREPIC_EDITABLE_TEMPLATES) {
+      const d = getSharepicTemplateDescriptor(type)!;
+      if (!d.backgroundImage) continue;
+
+      const adjustable = d.elements.find(
+        (el) => el.presenceStateKey === d.backgroundImage!.stateKey
+      );
+      expect(
+        adjustable,
+        `${type}: can set a background photo but has no element gated on '${d.backgroundImage.stateKey}' to move or scale it`
+      ).toBeDefined();
+      expect(
+        adjustable?.positionStateKey,
+        `${type}: the photo element cannot be moved`
+      ).toBeTruthy();
+      expect(adjustable?.scale, `${type}: the photo element cannot be scaled`).toBeTruthy();
+    }
+  });
+
   it('all chat-editable templates have descriptors', () => {
     for (const type of ['dreizeilen', 'zitat-pure', 'info']) {
       expect(getSharepicTemplateDescriptor(type), type).not.toBeNull();
