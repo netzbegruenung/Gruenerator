@@ -4,7 +4,7 @@
  *
  * NOTE: POST /api/scanner/extract is a multer multipart upload, so it is NOT
  * modelled as a ts-rest router (repo convention: ts-rest doesn't cleanly model
- * multipart — see voiceContract/transferContract). These schemas are the shared
+ * multipart — see voiceContract). These schemas are the shared
  * source of truth for the query, response, and OCR-provider set instead: the
  * backend validates the request against them and the frontend derives its types
  * via `z.infer` rather than hand-duplicating the shape.

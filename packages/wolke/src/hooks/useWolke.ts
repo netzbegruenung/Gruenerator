@@ -13,7 +13,6 @@ import {
   syncFolder,
   testConnection,
   unshareLinkFromGroup,
-  uploadToWolke,
 } from '../api/wolkeApiClient';
 import { type LinkGroupShare, type SharedWithMeLink, type WolkeScope } from '../types';
 
@@ -97,22 +96,6 @@ export function useDeleteShareLink(scope?: WolkeScope, scopeId?: string | null) 
 export function useTestConnection(scope?: WolkeScope, scopeId?: string | null) {
   return useMutation({
     mutationFn: (shareLinkUrl: string) => testConnection(shareLinkUrl, scope, scopeId),
-  });
-}
-
-export function useUploadToWolke() {
-  return useMutation({
-    mutationFn: ({
-      shareLinkId,
-      content,
-      filename,
-      folderPath,
-    }: {
-      shareLinkId: string;
-      content: string;
-      filename: string;
-      folderPath?: string;
-    }) => uploadToWolke(shareLinkId, content, filename, folderPath),
   });
 }
 

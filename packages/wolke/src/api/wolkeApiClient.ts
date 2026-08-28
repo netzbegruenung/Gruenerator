@@ -71,34 +71,6 @@ export async function testConnection(
   return response.data;
 }
 
-export interface UploadToWolkeOptions {
-  folderPath?: string;
-  documentId?: string;
-  enableLiveSync?: boolean;
-}
-
-export async function uploadToWolke(
-  shareLinkId: string,
-  content: string,
-  filename: string,
-  folderPathOrOptions?: string | UploadToWolkeOptions
-): Promise<ConnectionTestResult> {
-  const apiClient = getGlobalApiClient();
-  const opts: UploadToWolkeOptions =
-    typeof folderPathOrOptions === 'string'
-      ? { folderPath: folderPathOrOptions }
-      : (folderPathOrOptions ?? {});
-  const response = await apiClient.post('/nextcloud/upload', {
-    shareLinkId,
-    content,
-    filename,
-    ...(opts.folderPath && { folderPath: opts.folderPath }),
-    ...(opts.documentId && { documentId: opts.documentId }),
-    ...(opts.enableLiveSync !== undefined && { enableLiveSync: opts.enableLiveSync }),
-  });
-  return response.data;
-}
-
 export async function browseFolder(shareLinkId: string, path?: string): Promise<WolkeFileItem[]> {
   const apiClient = getGlobalApiClient();
   const url = path

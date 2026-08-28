@@ -18,7 +18,6 @@ export {
   addShareLink,
   deleteShareLink,
   testConnection,
-  uploadToWolke,
   browseFolder,
   fetchSyncStatuses,
   syncFolder,
@@ -48,7 +47,6 @@ export {
   useAddShareLink,
   useDeleteShareLink,
   useTestConnection,
-  useUploadToWolke,
   useSyncFolder,
   useSetAutoSync,
   useSharedWithMeLinks,
@@ -59,15 +57,9 @@ export {
 
 // Zustand store
 export { default as useWolkePreferencesStore } from './stores/wolkePreferencesStore';
-export type {
-  WolkeFavouriteFolder,
-  WolkeAutoBackupConfig,
-  WolkeTransferFolderConfig,
-  BackupInterval,
-} from './stores/wolkePreferencesStore';
+export type { WolkeFavouriteFolder } from './stores/wolkePreferencesStore';
 
 // UI Components
 export { default as WolkeFolderBrowser } from './components/WolkeFolderBrowser';
 export { default as WolkeTreeBrowser } from './components/WolkeTreeBrowser';
 export { default as FolderStarButton } from './components/FolderStarButton';
-export { WolkeSaveModal } from './components/WolkeSaveModal';
