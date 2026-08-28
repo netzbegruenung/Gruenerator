@@ -57,14 +57,44 @@ export function assertNoPathEscape(path: string | null | undefined): void {
     throw new CloudPathError(`Pfad muss relativ zur Verbindung sein, nicht „${raw}".`);
   }
 
+  assertSegmentsSafe(raw, raw, DECODE_DEPTH);
+}
+
+/** Wie oft eine Segmentform noch aufgelöst wird, bevor Schluss ist. */
+const DECODE_DEPTH = 3;
+
+/**
+ * Segmente prüfen — und zwar auf JEDER Kodierungsebene.
+ *
+ * Die naive Fassung (einmal roh trennen, dann jedes Segment einzeln
+ * dekodieren) hat ein Loch, das genau in unserem Pfad liegt: ein kodierter
+ * TRENNER hält die Punkt-Segmente zusammen. `..%2f..%2fremote.php` ist roh
+ * getrennt EIN Segment, es dekodiert zu `../../remote.php`, und das ist nicht
+ * gleich `..` — die Prüfung feuert nie. Deshalb wird nach dem Dekodieren neu
+ * getrennt, nicht nur verglichen.
+ *
+ * Dekodiert wird pro Segment und nicht über den ganzen Pfad: ein einzelnes
+ * kaputtes Escape (`100%betreuung`) ließe `decodeURIComponent` über den
+ * Gesamtstring werfen und nähme damit allen anderen Segmenten die Prüfung ab.
+ *
+ * Mehrere Ebenen, weil `%252e%252e` erst nach zweimaligem Auflösen `..` ist.
+ * Die Grenze ist gesetzt, damit hier keine unbegrenzte Schleife an einem
+ * Eingabewert hängt.
+ */
+function assertSegmentsSafe(value: string, raw: string, depth: number): void {
   // Rückwärtsschrägstriche mitzählen: sie sind auf keinem WebDAV-Server ein
   // Trennzeichen, aber ein `..\` soll auch nicht als Segmentname durchgehen.
-  for (const segment of raw.split(/[/\\]/)) {
-    // Die kodierte Form ist derselbe Angriff: `downloadFile` reicht einen Pfad,
-    // der schon mit dem WebDAV-Präfix beginnt, unverändert weiter — dort
-    // überlebt ein `%2e%2e` bis auf die Leitung.
-    if (segment === '..' || decodedOnce(segment) === '..') {
+  for (const segment of value.split(/[/\\]/)) {
+    if (segment === '..') {
       throw new CloudPathError(`Pfad darf nicht aus der Freigabe herausführen: „${raw}".`);
+    }
+    if (depth <= 0) continue;
+
+    // Nur weitergraben, wenn das Dekodieren überhaupt etwas geändert hat —
+    // sonst liefe die Rekursion auf jedem gewöhnlichen Dateinamen mit.
+    const decoded = decodedOnce(segment);
+    if (decoded !== segment) {
+      assertSegmentsSafe(decoded, raw, depth - 1);
     }
   }
 }
