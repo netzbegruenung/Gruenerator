@@ -67,6 +67,7 @@ export {
   modelPreferencesContract,
   imageModelPreferenceContract,
   mcpServersContract,
+  chatToolApprovalsContract,
   imageEditContract,
   adminVorlagenContract,
   userTemplatesContract,
@@ -150,6 +151,7 @@ export * from './schemas/feedback.js';
 export * from './schemas/modelPreferences.js';
 export * from './schemas/imageModelPreference.js';
 export * from './schemas/mcpServers.js';
+export * from './schemas/chatToolApprovals.js';
 export * from './schemas/imageEdit.js';
 export * from './schemas/adminVorlagen.js';
 export * from './schemas/userTemplates.js';

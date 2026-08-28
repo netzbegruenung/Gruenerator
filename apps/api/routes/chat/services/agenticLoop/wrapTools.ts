@@ -26,6 +26,7 @@ import { readMcpResult, type PersistedStep } from './types.js';
 
 import type { ToolLoopGuards } from './loopGuards.js';
 import type { ToolActivity } from './toolActivity.js';
+import type { ToolApprovalGate } from './toolApprovalGate.js';
 import type { SSEWriter } from '../sseHelpers.js';
 import type { ToolSet } from 'ai';
 
@@ -143,6 +144,8 @@ export interface WrapToolsContext {
   /** Optional. Nicht gesetzt ⇒ Verhalten unverändert (es wird nichts
    *  zusätzlich awaitet). */
   hooks?: ToolHooks;
+  /** Freigabe-Gate. Nicht gesetzt ⇒ jeder Aufruf läuft wie bisher durch. */
+  approvalGate?: Pick<ToolApprovalGate, 'hold'>;
 }
 
 function isErrorResult(value: unknown): boolean {
@@ -323,6 +326,16 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
           inputs: { toolName },
         });
         return { error: block.modelMessage };
+      }
+
+      // Freigabe-Gate an derselben Stelle und mit derselben Begründung wie ein
+      // Guard-Block: der Aufruf hat nicht stattgefunden, also keine Karte, kein
+      // Schritt, kein `noteCall`, und die Narration bleibt für den Aufruf
+      // stehen, der wirklich läuft. Der Rückgabewert erreicht das Modell in der
+      // Regel nicht mehr (das Gate bricht den Zug ab); er ist die harmlose
+      // Antwort für ein Geschwister, das den Abbruch noch überholt.
+      if (ctx.approvalGate?.hold({ toolName, stepId, args })) {
+        return { error: 'Warte auf die Freigabe durch die Nutzer*in.' };
       }
 
       // Captured at tool START (before execution) — the semantics of textOffset.

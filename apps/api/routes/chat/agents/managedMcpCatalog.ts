@@ -50,6 +50,7 @@ import {
 import { UserMCPClient, type McpToolDescriptor } from '../../../services/mcp/UserMCPClient.js';
 import { createLogger } from '../../../utils/logger.js';
 import { type SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
+import { type ToolLabel } from '../services/agenticLoop/types.js';
 import { type SSEWriter } from '../services/sseHelpers.js';
 
 import {
@@ -353,7 +354,7 @@ export async function loadManagedMcpCatalog(params: {
 
   const connections: LazyConnection[] = [];
   const tools: ToolSet = {};
-  const labels = new Map<string, { serverName: string; toolName: string }>();
+  const labels = new Map<string, ToolLabel>();
   const mountedKeys = new Set<string>();
   // Keyed by source.key for stable ordering (Promise.all resolves out of order).
   const catalogByServer = new Map<string, string>();
@@ -373,7 +374,11 @@ export async function loadManagedMcpCatalog(params: {
         for (const t of allowed) {
           const providerName = `${source.key}__${sanitizeToolName(t.name)}`.slice(0, 64);
           if (tools[providerName]) continue;
-          labels.set(providerName, { serverName: source.name, toolName: t.name });
+          labels.set(providerName, {
+            serverName: source.name,
+            toolName: t.name,
+            origin: { kind: 'managed', serverId: source.key, remoteToolName: t.name },
+          });
           const sanitized = sanitizeMcpSchema(t.inputSchema);
           const required = requiredParams(sanitized);
           toolEntries.push(`${t.name} ${requiredParamsAnnotation(required)}`);

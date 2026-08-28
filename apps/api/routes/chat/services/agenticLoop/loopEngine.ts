@@ -475,6 +475,22 @@ export interface LoopEngineParams {
    * `content-filter`, …) triggers the same retry without this hook.
    */
   validateAnswer?: (text: string) => string | null;
+  /**
+   * Wahr, sobald ein Werkzeugaufruf auf eine Freigabe wartet. Wird NACH der
+   * Werkzeugphase und VOR `afterGather`/Synthese geprüft: `gather()` fängt jeden
+   * Fehler und würde sonst trotzdem eine Antwort schreiben — und die
+   * Artefakt-Garantien würden Artefakte erzeugen, während die Person noch
+   * entscheidet.
+   */
+  suspended?: () => boolean;
+}
+
+/** Der Zug endet, weil eine Freigabe aussteht — kein Fehler, sondern eine Pause. */
+export class TurnSuspendedError extends Error {
+  constructor() {
+    super('Zug wartet auf eine Werkzeug-Freigabe');
+    this.name = 'TurnSuspendedError';
+  }
 }
 
 /**
@@ -519,6 +535,7 @@ export async function runAgenticLoop(
 ): Promise<LoopResult> {
   if (p.mode === 'unified') {
     const result = await streamWithTools(p, p.synthModel, deps);
+    if (p.suspended?.()) throw new TurnSuspendedError();
     // Unified mode has no separate synth phase, so the artifact/edit guarantees
     // run AFTER the stream (idempotent — the hooks no-op when the model already
     // created/edited). Without this, a Mistral turn that only searched left the
@@ -527,6 +544,7 @@ export async function runAgenticLoop(
     return result;
   }
   await gather(p, deps);
+  if (p.suspended?.()) throw new TurnSuspendedError();
   if (p.afterGather) await p.afterGather();
   return synthesize(p, deps);
 }

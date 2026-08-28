@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 
 import { parseSSEStream } from './parseSSEStream';
 
-import type { GrueneratorAdapterCallbacks, ToolCallPart } from './types';
+import type { GrueneratorAdapterCallbacks, StreamOutcome, ToolCallPart } from './types';
 
 /**
  * Stufe 2 (Interleaving): text_delta and tool_step_* cards must render in true
@@ -424,5 +424,44 @@ describe('parseSSEStream progress steps', () => {
     expect(progress.steps.filter((s) => s.status === 'in-progress').map((s) => s.label)).toEqual([
       'Prüfung läuft',
     ]);
+  });
+});
+
+describe('parseSSEStream tool approval', () => {
+  it('baut aus dem Interrupt eine entscheidbare Karte MIT Dienst-Angabe', async () => {
+    const outcome: StreamOutcome = { interrupted: false, indexedDocumentIds: [] };
+    let last: { content: ContentPart[] } | undefined;
+    const events = [
+      {
+        event: 'interrupt',
+        data: {
+          interruptType: 'tool_approval',
+          approvalTurnId: 'turn-1',
+          calls: [
+            {
+              toolCallId: 'c1',
+              toolName: 'ma1b2c3d__send_message',
+              args: { channel: '#allgemein', text: 'Hallo' },
+              title: 'Slack · send_message',
+              serverName: 'Slack',
+            },
+          ],
+        },
+      },
+    ];
+    for await (const result of parseSSEStream(sseResponse(events), callbacks, outcome)) {
+      last = result as unknown as typeof last;
+    }
+    const card = (last?.content ?? []).filter(isCard)[0];
+    expect(card?.approval?.id).toBe('c1');
+    expect(card?.approval?.options?.length).toBeGreaterThan(0);
+    // Der Grund für die Rückfrage: die Karte muss den Dienst nennen können.
+    // Ohne diese beiden Felder zeigt sie nur `ma1b2c3d__send_message`.
+    expect(card?.title).toBe('Slack · send_message');
+    expect(card?.serverName).toBe('Slack');
+    // Die vollen Übergabewerte, nicht nur `query` — wer freigibt, muss sehen,
+    // was übergeben wird.
+    expect(card?.args).toEqual({ channel: '#allgemein', text: 'Hallo' });
+    expect(outcome.toolApprovalPending?.approvalTurnId).toBe('turn-1');
   });
 });

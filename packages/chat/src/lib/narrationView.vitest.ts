@@ -1,6 +1,40 @@
 import { describe, it, expect } from 'vitest';
 
-import { selectNarration, computeToolGroupView, type PartLike } from './narrationView';
+import {
+  selectNarration,
+  selectApprovalLabels,
+  computeToolGroupView,
+  type PartLike,
+} from './narrationView';
+
+describe('selectApprovalLabels', () => {
+  const parts: PartLike[] = [
+    { type: 'text' },
+    {
+      type: 'tool-call',
+      toolCallId: 't1',
+      toolName: 'ma1b2c3d__send_message',
+      title: 'Slack · send_message',
+      serverName: 'Slack',
+    },
+    { type: 'tool-call', toolCallId: 't2', toolName: 'gruenerator_search' },
+  ];
+
+  it('liest Anzeigename und Dienst vom passenden Part', () => {
+    expect(selectApprovalLabels(parts, 't1')).toEqual({
+      title: 'Slack · send_message',
+      serverName: 'Slack',
+    });
+  });
+
+  it('liefert für einen Part ohne die Felder undefined statt zu raten', () => {
+    expect(selectApprovalLabels(parts, 't2')).toEqual({ title: undefined, serverName: undefined });
+    expect(selectApprovalLabels(parts, 'gibt-es-nicht')).toEqual({
+      title: undefined,
+      serverName: undefined,
+    });
+  });
+});
 
 describe('selectNarration', () => {
   const parts: PartLike[] = [

@@ -33,6 +33,7 @@ import {
 import { createLogger } from '../../../utils/logger.js';
 import { getContextWindow } from '../agents/providers.js';
 
+import { runToolApprovalResume } from './agenticLoop/approvalResume.js';
 import {
   ARTIFACT_CONFIRMATION_TEXTS,
   buildPostWithSharepicsConfirmation,
@@ -120,6 +121,28 @@ export async function runChatGraphResume({
     const resumeInput = resolveResumeInput(body);
     if (!resumeInput) {
       return sseFail(sse, 'Ungültige Resume-Anfrage.', { code: 'invalid_request' });
+    }
+    // Werkzeug-Freigabe: eigener Zustand, eigene Fortsetzung. Steht VOR allem
+    // anderen, weil dieser Zweig weder den Klärungs-Zustand noch die
+    // Einzeldurchlauf-Pipeline berührt.
+    if (resumeInput.kind === 'tool_approval') {
+      const approvalUser = getUser(req);
+      if (!approvalUser?.id) {
+        return sseFail(sse, PROGRESS_MESSAGES.unauthorized, { code: 'unauthorized' });
+      }
+      const result = await runToolApprovalResume({
+        req,
+        sse,
+        threadId,
+        userId: approvalUser.id,
+        ...(resumeInput.approvalTurnId != null && { approvalTurnId: resumeInput.approvalTurnId }),
+        decisions: resumeInput.decisions,
+        fail: (message, code) => ({
+          handled: true as const,
+          ...sseFail(sse, message, { code }),
+        }),
+      });
+      return { status: result.status, body: result.body };
     }
     if (resumeInput.kind === 'client_tool' && resumeInput.toolName !== 'run_python') {
       return sseFail(sse, 'Dieser Tool-Typ wird noch nicht unterstützt.', {
