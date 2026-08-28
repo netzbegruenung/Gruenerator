@@ -42,10 +42,12 @@ import { createToolLoopGuards } from './loopGuards.js';
 import { buildToolObservationReplay } from './mcpReplay.js';
 import { createRecipeRegistry, type RecipeRegistry } from './recipeRegistry.js';
 import { type SourceRegistry } from './sourceRegistry.js';
+import { type ToolApprovalGate } from './toolApprovalGate.js';
 import {
   NEAR_DUPLICATE_EXEMPT_TOOLS,
   TOOL_TIMEOUT_OVERRIDES_MS,
   type PersistedStep,
+  type ToolLabel,
 } from './types.js';
 import { wrapToolsForLoop, type ToolHooks } from './wrapTools.js';
 
@@ -136,7 +138,7 @@ export interface AssembledCatalog {
   recipeCatalog: RecipeCatalogEntry[];
   recipeRegistry: RecipeRegistry;
   /** Tool-card labels for BOTH catalogs (user connectors + system sources). */
-  toolLabels: Map<string, { serverName: string; toolName: string }>;
+  toolLabels: Map<string, ToolLabel>;
   /** How long the (un-budgeted) MCP mount took, so a slow connector shows up in
    *  the end-of-turn line instead of looking like an unexplained hang. */
   mcpMountMs: number;
@@ -574,7 +576,9 @@ export function wrapAssembledTools(
     guards: ReturnType<typeof createToolLoopGuards>;
     recordStep: (step: PersistedStep) => void;
     perCallTimeoutMs: number;
-    toolLabels: Map<string, { serverName: string; toolName: string }>;
+    toolLabels: Map<string, ToolLabel>;
+    /** Freigabe-Gate. Nicht gesetzt ⇒ es wird nie gefragt. */
+    approvalGate?: Pick<ToolApprovalGate, 'hold'>;
     /** Only unified mode streams answer text WHILE tools run, so its `text`
      *  length is a meaningful per-tool offset. In split mode the answer stays
      *  empty through the whole gather phase → return null so no (all-0) offsets
@@ -608,6 +612,7 @@ export function wrapAssembledTools(
     getTextOffset: ctx.getTextOffset,
     takeNarration: ctx.takeNarration,
     ...(ctx.hooks ? { hooks: ctx.hooks } : {}),
+    ...(ctx.approvalGate ? { approvalGate: ctx.approvalGate } : {}),
     ...(ctx.toolLabels.size > 0
       ? {
           titleFor: (name: string) => {

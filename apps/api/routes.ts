@@ -40,6 +40,7 @@ import { mountCanvasAiContractRouter } from './routes/canvas/aiSuggestRoute.js';
 import { mountCanvasContractRouter } from './routes/canvas/canvasContractRouter.js';
 import { mountChatGraphContractRouter } from './routes/chat/chatGraphContractRouter.js';
 import { mountThreadsContractRouter } from './routes/chat/threadsContractRouter.js';
+import { mountToolApprovalsContractRouter } from './routes/chat/toolApprovalsContractRouter.js';
 import { mountContentContractRouter } from './routes/content/contentContractRouter.js';
 import { mountDocsContractRouter } from './routes/docs/docsContractRouter.js';
 import { mountDocumentsContractRouter } from './routes/documents/documentsContractRouter.js';
@@ -880,6 +881,9 @@ export async function setupRoutes(app: Application): Promise<void> {
   // prefix — every route is user-scoped and handles user-entered credentials.
   app.use('/api/mcp/servers', requireAuth);
   mountMcpServersContractRouter(app);
+  // Dauerhafte Werkzeug-Freigaben im Chat („immer erlauben").
+  app.use('/api/chat/tool-approvals', requireAuth);
+  mountToolApprovalsContractRouter(app);
   // OAuth callback is public (identity comes from the one-time Redis state, not
   // a cookie — the cross-site provider redirect can't carry our session).
   mountMcpOAuthCallbackRouter(app);

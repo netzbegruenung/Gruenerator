@@ -586,3 +586,55 @@ describe('wrapToolsForLoop', () => {
     expect(events.map((e) => e.event)).toEqual(['tool_step_start', 'tool_step_result']);
   });
 });
+
+// Ein zurückgehaltener Aufruf hat NICHT stattgefunden: keine Karte, kein
+// persistierter Schritt, keine Ausführung — dieselbe Regel wie beim Guard-Block.
+// Eine Karte hier hiesse dem Verlauf gegenüber zu behaupten, das Werkzeug sei
+// gelaufen, während die Person noch entscheidet.
+describe('wrapToolsForLoop — Freigabe-Gate', () => {
+  it('führt nicht aus und zeichnet nichts auf, wenn das Gate hält', async () => {
+    const { ctx, events, steps } = makeCtx({
+      approvalGate: { hold: () => true },
+    });
+    const execute = vi.fn(async () => ({ ok: true }));
+    const tools = wrapToolsForLoop({ mcp__x: { execute } } as unknown as ToolSet, ctx);
+
+    const out = (await run(tools, 'mcp__x', { a: 1 })) as { error?: string };
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(events).toHaveLength(0);
+    expect(steps).toHaveLength(0);
+    expect(out.error).toContain('Freigabe');
+  });
+
+  it('reicht Werkzeugname, Aufruf-ID und Argumente ans Gate', async () => {
+    const seen: Array<{ toolName: string; stepId: string; args: Record<string, unknown> }> = [];
+    const { ctx } = makeCtx({
+      approvalGate: {
+        hold: (call) => {
+          seen.push(call);
+          return true;
+        },
+      },
+    });
+    const tools = wrapToolsForLoop(
+      { mcp__x: { execute: async () => ({}) } } as unknown as ToolSet,
+      ctx
+    );
+    await run(tools, 'mcp__x', { query: 'berlin' }, 'call_42');
+
+    expect(seen).toEqual([{ toolName: 'mcp__x', stepId: 'call_42', args: { query: 'berlin' } }]);
+  });
+
+  it('lässt einen freigegebenen Aufruf ganz normal laufen', async () => {
+    const { ctx, events, steps } = makeCtx({ approvalGate: { hold: () => false } });
+    const execute = vi.fn(async () => ({ results: [] }));
+    const tools = wrapToolsForLoop({ mcp__x: { execute } } as unknown as ToolSet, ctx);
+
+    await run(tools, 'mcp__x', {});
+
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(events.map((e) => e.event)).toEqual(['tool_step_start', 'tool_step_result']);
+    expect(steps).toHaveLength(1);
+  });
+});
