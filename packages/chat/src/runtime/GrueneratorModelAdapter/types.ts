@@ -17,7 +17,7 @@ import type {
   ReelPickerData,
   ReelProcessingData,
 } from '../../types/messageMetadata';
-import type { ChatModelRunResult } from '@assistant-ui/react';
+import type { ChatModelRunResult, ToolCallMessagePart } from '@assistant-ui/react';
 import type { RoleRef, BahnPayload, NotebookDepth } from '@gruenerator/contracts';
 
 export type GrueneratorMessageMetadata = {
@@ -108,6 +108,10 @@ export interface ToolCallPart {
    *  mode). Rendered as muted text above the card and persisted with the turn;
    *  the durable form of the live `gather_narration` status line. */
   narration?: string;
+  /** Freigabe-Gate von assistant-ui: solange `approved` undefiniert und keine
+   *  `resolution` gesetzt ist, hält die Laufzeit den Zug an und die Karte zeigt
+   *  ihre Knöpfe. */
+  approval?: ToolCallMessagePart['approval'];
 }
 
 export interface SourcePart {
@@ -133,4 +137,8 @@ export interface StreamOutcome {
    *  carried from the interrupt event because brand-new threads have no
    *  config.threadId yet. */
   clientToolInterrupt?: { toolName: string; args: Record<string, unknown>; threadId?: string };
+  /** Werkzeug-Freigabe: der Zug pausiert, bis die Person entschieden hat. Die
+   *  Karten stehen als `approval` an den Tool-Parts; hier steht nur, zu welcher
+   *  Pause die Antwort gehört. */
+  toolApprovalPending?: { approvalTurnId: string };
 }

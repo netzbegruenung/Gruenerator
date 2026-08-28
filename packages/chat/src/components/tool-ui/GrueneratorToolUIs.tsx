@@ -12,6 +12,7 @@ import { McpToolUI } from './McpToolUI';
 import { PressemitteilungExamplesToolRender } from './PressemitteilungExamplesToolRender';
 import { ResearchToolRender } from './ResearchToolRender';
 import { RunPythonToolUI } from './RunPythonToolUI';
+import { ToolApprovalCard, type ToolApprovalState } from './ToolApprovalCard';
 
 import type { Toolkit } from '@assistant-ui/react';
 
@@ -26,10 +27,28 @@ function withNarration(render: (props: ToolRenderProps) => ReactNode): ToolRende
   const Wrapped: ComponentType<ToolRenderProps> = (props) => (
     <>
       <ToolNarration toolCallId={props.toolCallId} />
-      {render(props)}
+      {renderApproval(props) ?? render(props)}
     </>
   );
   return Wrapped;
+}
+
+/**
+ * Trägt der Part ein Freigabe-Gate, ersetzt die Karte den normalen Render:
+ * solange nichts entschieden ist, gibt es kein Ergebnis zu zeigen, und nach der
+ * Entscheidung erzählt die Pille, was passiert ist.
+ */
+function renderApproval(props: ToolRenderProps): ReactNode {
+  const approval = (props as { approval?: ToolApprovalState }).approval;
+  if (!approval) return null;
+  return (
+    <ToolApprovalCard
+      toolName={props.toolName}
+      args={(props.args ?? {}) as Record<string, unknown>}
+      approval={approval}
+      respondToApproval={props.respondToApproval}
+    />
+  );
 }
 
 function createToolRender(toolName: string) {
@@ -74,3 +93,17 @@ export const grueneratorToolkit: Toolkit = Object.fromEntries(
     },
   ])
 );
+
+/**
+ * Für Werkzeuge, deren Namen erst zur Laufzeit entstehen — die Konnektor-Werkzeuge
+ * heissen `m<serverKey>__<tool>` und stehen in keiner Registry. Ohne diesen
+ * Eintrag rendert assistant-ui sie gar nicht: weder Karte noch Freigabe.
+ */
+export const GrueneratorToolFallback: ToolRender = withNarration((props) => (
+  <ToolCallUI
+    toolName={props.toolName}
+    args={props.args ?? {}}
+    state={props.result ? 'result' : 'call'}
+    result={props.result}
+  />
+));

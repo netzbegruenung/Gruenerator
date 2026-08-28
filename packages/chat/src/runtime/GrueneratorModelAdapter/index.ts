@@ -269,6 +269,75 @@ export function createGrueneratorModelAdapter(
       // Resume detection via unstable_getMessage() — the canonical way to read addResult() answers.
       // assistant-ui writes the result onto the current assistant message, NOT into messages[].
       if (currentAssistant) {
+        // Werkzeug-Freigabe VOR ask_human: assistant-ui ruft `run()` erst
+        // wieder auf, wenn ALLE Freigaben entschieden sind, und schreibt bei
+        // einer Ablehnung selbst ein `result: { error }` an den Part — das darf
+        // nicht als „schon beantwortet" durchgehen.
+        const approvalParts = (currentAssistant.content ?? []).filter(
+          (p): p is Extract<typeof p, { type: 'tool-call' }> =>
+            p.type === 'tool-call' && 'approval' in p && p.approval != null
+        );
+        const undecided = approvalParts.some(
+          (p) => p.approval?.approved === undefined && p.approval?.resolution === undefined
+        );
+        const decided = approvalParts.filter((p) => p.approval?.approved !== undefined);
+        if (decided.length > 0 && !undecided) {
+          interruptedThreadId = null;
+          const { fetch: configFetch, endpoints } = useChatConfigStore.getState();
+          const resumeResponse = await configFetch(endpoints.chatResume, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              threadId: config.threadId,
+              toolApprovals: decided.map((p) => ({
+                toolCallId: p.toolCallId,
+                approved: p.approval?.approved === true,
+                ...(p.approval?.optionId != null && { optionId: p.approval.optionId }),
+                ...(p.approval?.reason != null && { reason: p.approval.reason }),
+              })),
+            }),
+            signal: abortSignal,
+          });
+
+          if (!resumeResponse.ok) {
+            const consentRequired = await routeUnauthorized(resumeResponse);
+            if (consentRequired) throw new ChatStreamError(AI_CONSENT_REQUIRED_MESSAGE);
+            const errorData = await resumeResponse.json().catch(() => ({}));
+            throw new Error(
+              (errorData as { error?: string }).error || `HTTP error ${resumeResponse.status}`
+            );
+          }
+
+          // Die schon gezeigten Karten (auch die entschiedenen Freigaben) werden
+          // mitgeführt, sonst verschwinden sie beim ersten Ergebnis der
+          // Fortsetzung aus der Blase.
+          const priorToolCalls = approvalParts.map((p) => ({
+            type: 'tool-call' as const,
+            toolCallId: p.toolCallId,
+            toolName: p.toolName,
+            args: (p.args ?? {}) as Record<string, string | number | boolean | null>,
+            argsText: JSON.stringify(p.args ?? {}),
+            ...(p.approval != null && { approval: p.approval }),
+            ...('result' in p && p.result !== undefined ? { result: p.result } : {}),
+          }));
+          const resumeOutcome: StreamOutcome = { interrupted: false, indexedDocumentIds: [] };
+          yield* parseSSEStream(
+            resumeResponse,
+            callbacks,
+            resumeOutcome,
+            config.agentId ? { agentId: config.agentId } : undefined,
+            { toolCalls: priorToolCalls }
+          );
+          if (resumeOutcome.interrupted) {
+            interruptedThreadId = config.threadId;
+          }
+          return;
+        }
+        if (undecided) {
+          console.warn('[ModelAdapter] BLOCKED — Werkzeug-Freigabe steht noch aus');
+          throw new DOMException('Aborted', 'AbortError');
+        }
+
         const askHumanResult = currentAssistant.content?.find(
           (p) =>
             p.type === 'tool-call' &&
