@@ -3,6 +3,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+import { type ShareStatus, type StoredMediaType } from '@gruenerator/contracts';
 import {
   MEDIA_LIBRARY_ITEM_LIMIT,
   MEDIA_LIBRARY_WARN_RATIO,
@@ -810,8 +811,8 @@ class SharedMediaService {
 
   async getUserShares(
     userId: string,
-    mediaType: 'image' | 'video' | null = null,
-    status: string | readonly string[] | null = null,
+    mediaType: StoredMediaType | null = null,
+    status: ShareStatus | readonly ShareStatus[] | null = null,
     limit: number = USER_SHARES_MAX_LIMIT
   ): Promise<SharedMediaRow[]> {
     await this.ensureInitialized();

@@ -14,6 +14,7 @@
  * against a service that returns *fewer* rows than the account holds, which is
  * exactly the situation both old implementations got wrong.
  */
+import { mySharesQuerySchema } from '@gruenerator/contracts';
 import { describe, expect, it, vi } from 'vitest';
 
 import { USER_SHARES_MAX_LIMIT } from '../../services/sharedMediaFilters.js';
@@ -109,5 +110,56 @@ describe('recentShares', () => {
     expect(body.shares).toHaveLength(5);
     expect(body.count).toBe(5);
     expect(body.limit).toBe(5);
+  });
+});
+
+/**
+ * The request side of the same endpoint (#3008).
+ *
+ * `type` and `status` were `z.string().optional()`, so `?status=bogus` reached
+ * Postgres as a literal and came back as an empty list — a closed set stated in
+ * four places and enforced in none. Query validation is live on this router
+ * (`createExpressEndpoints(..., { requestValidationErrorHandler })`), so the
+ * schema is what rejects it; these tests pin both halves of that, including the
+ * empty-string carve-out that keeps `?type=` a no-op rather than a 400.
+ */
+describe('mySharesQuerySchema', () => {
+  it('accepts every value the column can hold', () => {
+    // Both sets are the CHECK constraints in schema.sql, not a guess.
+    for (const type of ['image', 'video', 'transfer'] as const) {
+      expect(mySharesQuerySchema.safeParse({ type }).success).toBe(true);
+    }
+    for (const status of ['processing', 'ready', 'failed', 'draft'] as const) {
+      expect(mySharesQuerySchema.safeParse({ status }).success).toBe(true);
+    }
+  });
+
+  /**
+   * `'transfer'` is a live third media type — `transferService.createTransfer`
+   * writes into `shared_media` and sets neither provenance column, so those
+   * rows survive `creationFeedWhere` and `?type=transfer` selected them. Typing
+   * the filter against the two-value `shareMediaTypeSchema` (what a *created*
+   * share is) would have made that request a 400.
+   */
+  it('does not mistake the creation type for the stored one', () => {
+    expect(mySharesQuerySchema.safeParse({ type: 'transfer' }).success).toBe(true);
+  });
+
+  it('rejects a value outside the set instead of querying for it', () => {
+    expect(mySharesQuerySchema.safeParse({ type: 'gif' }).success).toBe(false);
+    expect(mySharesQuerySchema.safeParse({ status: 'bogus' }).success).toBe(false);
+  });
+
+  it('still treats an empty param as no filter', () => {
+    const parsed = mySharesQuerySchema.safeParse({ type: '', status: '' });
+
+    expect(parsed.success).toBe(true);
+    // The handler's `query.type || null` collapses '' exactly like undefined.
+    expect(parsed.success && (parsed.data.type || null)).toBeNull();
+    expect(parsed.success && (parsed.data.status || null)).toBeNull();
+  });
+
+  it('leaves both filters optional', () => {
+    expect(mySharesQuerySchema.safeParse({}).success).toBe(true);
   });
 });
