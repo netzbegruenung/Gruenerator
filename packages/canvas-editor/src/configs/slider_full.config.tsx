@@ -20,7 +20,13 @@ import {
   FrameSettingsSection,
 } from '../sidebar/sections';
 import { createPillBadgeInstance, getPillBadgeColorsForScheme } from '../utils/pillBadgeUtils';
-import { SLIDER_CONFIG, calculateSliderLayout, getSliderColors } from '../utils/sliderLayout';
+import {
+  DEFAULT_SLIDER_COLOR_SCHEME,
+  SLIDER_CONFIG,
+  calculateSliderLayout,
+  getSliderColors,
+  isSliderColorScheme,
+} from '../utils/sliderLayout';
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
 import { createBaseActions } from './factory/actionFactories';
@@ -602,7 +608,12 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
   calculateLayout,
 
   createInitialState: (props: Record<string, unknown>): SliderState => {
-    const colorScheme = (props.colorScheme as SliderColorScheme) || 'sand-tanne';
+    // Membership check, not a truthiness default: a minted canvas seeds this
+    // from the studio store, whose `colorScheme` is a `{background}[]`
+    // palette — truthy, and no scheme id at all.
+    const colorScheme = isSliderColorScheme(props.colorScheme)
+      ? props.colorScheme
+      : DEFAULT_SLIDER_COLOR_SCHEME;
     const colors = getSliderColors(colorScheme);
     const variant = (props.slideVariant as 'cover' | 'content' | 'last') || 'cover';
     const includeArrow = variant !== 'last';
