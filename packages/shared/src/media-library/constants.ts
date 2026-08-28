@@ -29,8 +29,27 @@ export const DEFAULT_PAGINATION = {
   offset: 0,
 } as const;
 
+/**
+ * How many library items (finished sharepics, KI images, uploads) one account
+ * may hold. Single source of truth — the API's quota check, the `/api/media`
+ * response and every "x von y" label derive from it; do not restate the number.
+ *
+ * The cap used to be enforced by *deleting* the oldest rows and their files on
+ * every write (#2980). It now only refuses further **uploads**: creations
+ * (sharepics, canvas drafts, template clones) always go through, because
+ * failing them would break canvas autosave, and destroying months-old work to
+ * make room for a source image is never what someone asked for.
+ */
+export const MEDIA_LIBRARY_ITEM_LIMIT = 100;
+
+/**
+ * Share of the cap above which the Mediathek warns before the limit actually
+ * bites, so uploads don't fail out of nowhere.
+ */
+export const MEDIA_LIBRARY_WARN_RATIO = 0.9;
+
 export const MEDIA_LIMITS = {
-  maxItemsPerUser: 50,
+  maxItemsPerUser: MEDIA_LIBRARY_ITEM_LIMIT,
   maxFileSize: MAX_FILE_SIZE,
   maxTitleLength: 200,
   maxAltTextLength: 500,
@@ -74,6 +93,26 @@ export const NON_LIBRARY_UPLOAD_SOURCES = [
   'gruenerator-vorlage',
   'canvas-element',
 ] as const;
+
+/**
+ * Upload sources that represent someone deliberately putting a file into their
+ * Mediathek. **Only these are refused when the library is full** — an
+ * allowlist, so a canvas-ish source added later cannot be gated by accident.
+ *
+ * Everything else reaching the upload endpoint is a substep of making
+ * something: the canvas mint's background photo (`canvas-mint`), an asset
+ * dropped onto a canvas mid-edit (`canvas-editor`), a template's image. Those
+ * still become library items and still count toward the quota afterwards —
+ * they just cannot be the thing that gets rejected. Refusing them is the same
+ * harm as failing canvas autosave: work lost mid-flow, for a reason that has
+ * nothing to do with what the person was doing.
+ */
+export const QUOTA_GATED_UPLOAD_SOURCES = [
+  'upload',
+  'ai_generated',
+  'stock',
+  'camera',
+] as const satisfies readonly (typeof UPLOAD_SOURCES)[number][];
 
 export const UPLOAD_SOURCE_LABELS: Record<string, string> = {
   upload: 'Hochgeladen',

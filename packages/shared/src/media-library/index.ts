@@ -26,6 +26,7 @@ export type {
   MediaUploadResponse,
   MediaUpdateResponse,
   MediaDeleteResponse,
+  MediaLibraryQuota,
 } from './types.js';
 
 // Constants
@@ -37,6 +38,9 @@ export {
   MAX_FILE_SIZE,
   DEFAULT_PAGINATION,
   MEDIA_LIMITS,
+  MEDIA_LIBRARY_ITEM_LIMIT,
+  MEDIA_LIBRARY_WARN_RATIO,
+  QUOTA_GATED_UPLOAD_SOURCES,
   UPLOAD_SOURCE_LABELS,
   MEDIA_TYPE_LABELS,
 } from './constants.js';
