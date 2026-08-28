@@ -14,7 +14,7 @@ vi.mock('../execution/index.js', () => ({
   executeProvider: (...args: unknown[]) => executeProvider(...args),
 }));
 
-const { aiText, aiTools, NoAnswerError } = await import('../generate.js');
+const { aiText, aiObject, aiTools, NoAnswerError } = await import('../generate.js');
 
 /** What the fake was asked to run: provider and the request envelope. */
 function callAt(i: number) {
@@ -172,14 +172,55 @@ describe('the wall clock', () => {
 
   it('covers the whole chain, not one attempt', async () => {
     // A per-attempt budget would let a three-provider chain run three times as
-    // long as the caller allowed.
+    // long as the caller allowed. Der Versuchsdeckel unten teilt das Budget
+    // INNERHALB dieser Decke auf; überschreiten darf die Kette sie nicht.
     executeProvider.mockRejectedValueOnce(new Error('503')).mockImplementation(hang);
 
     const failed = aiText({ lane: 'antrag', prompt: 'x' }).catch((e: unknown) => e as Error);
     await vi.advanceTimersByTimeAsync(120_000);
 
-    expect((await failed).message).toContain('Request timeout');
+    expect((await failed).message).toContain('timeout');
+  });
+
+  it('does not let a hung primary eat the whole budget', async () => {
+    // Der Fehler vom 28.08.2026, in einem Test: `doc_generation` liegt auf
+    // GreenPT, dessen eigene Frist (greenptThinkingFetch.ts) mit der Wanduhr
+    // hier identisch ist. Vorher lief deshalb GENAU EIN Anbieter, die
+    // Ausweichkette war tote Zeile, und der Aufruf endete nach 120 s mit 500.
+    executeProvider.mockImplementation(hang);
+
+    const failed = aiObject({
+      lane: 'doc_generation',
+      prompt: 'x',
+      toolName: 'create_document',
+      toolDescription: 'x',
+      schema: {},
+      validate: () => ({ ok: true, value: 1 }),
+      attempts: 1,
+    }).catch((e: unknown) => e as Error);
+
+    // 75 s: der Primär bekommt alles ausser der Reserve (120 − 45).
+    await vi.advanceTimersByTimeAsync(74_999);
+    expect(executeProvider).toHaveBeenCalledTimes(1);
+
+    // Und die Reserve geht an den ersten Ausweichanbieter — Cortecs, den
+    // einzigen Host desselben Gemma 4 in dieser Kette.
+    await vi.advanceTimersByTimeAsync(2);
     expect(executeProvider).toHaveBeenCalledTimes(2);
+    expect(callAt(1).provider).toBe('cortecs');
+
+    await vi.advanceTimersByTimeAsync(45_000);
+    await failed;
+  });
+
+  it('hands each attempt its own budget as the provider abort signal', async () => {
+    // `execute.ts` macht daraus `AbortSignal.timeout` — ohne dieses Feld läuft
+    // der aufgegebene Aufruf beim Anbieter weiter und wird zu Ende bezahlt.
+    executeProvider.mockResolvedValue(answered('Antwort'));
+
+    await aiText({ lane: 'qa_draft', prompt: 'x' });
+
+    expect(callAt(0).data.timeoutMs).toBe(75_000);
   });
 
   it('lets a caller name its own budget', async () => {
@@ -251,7 +292,7 @@ describe('pinned targets', () => {
     await aiText({ lane: 'chat_quality_gate', pinned: 'standard', prompt: 'x' });
 
     expect(callAt(0).provider).toBe('regolo');
-    expect(callAt(1).provider).toBe('litellm');
+    expect(callAt(1).provider).toBe('cortecs');
     expect(callAt(1).data.options).not.toHaveProperty('model');
   });
 });
