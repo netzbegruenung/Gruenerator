@@ -263,8 +263,9 @@ export async function fetchRecentImages(
   userId: string,
   limit: number
 ): Promise<RecentActivityItem[]> {
-  // Status policy lives in the service (USER_VISIBLE_SHARE_STATUSES) — this
-  // surface shows everything the user's own galleries show, drafts included.
+  // Status policy lives in sharedMediaFilters (USER_VISIBLE_SHARE_STATUSES) —
+  // this surface shows everything the user's own galleries show, drafts
+  // included.
   // Errors here degrade to a missing strip via the `safe()` wrapper in
   // aggregateRecentActivity, so no local try/catch is needed.
   const service = await getSharedMediaService();
