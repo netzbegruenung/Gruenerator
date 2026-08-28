@@ -840,10 +840,27 @@ export function prefersUnifiedLoop(provider: string, _modelName: string): boolea
  * Der zweite Teil ist neu und der Grund für diesen Zweig überhaupt: die Kette
  * fragte bis zum 28.08.2026 nur nach der Konfiguration. Eine Lane, die die
  * Anfrage annimmt und dann schweigt, ist aber konfiguriert — sie blieb also
- * erste Wahl, und JEDER folgende Zug wartete die volle Werkzeugfrist noch
- * einmal ab (gemessen: 45 s Leerlauf in einem Zug von 47,9 s). `modelHealth`
- * hält den Vermerk 5 Minuten und stellt die Stufe danach auf Probe; die Wahl
- * fällt pro Zug neu, das Ausweichen endet also von selbst.
+ * erste Wahl, ohne jede Obergrenze dafür, wie oft ein Zug die volle
+ * Werkzeugfrist absitzt (gemessen: 45 s Leerlauf in einem Zug von 47,9 s).
+ *
+ * WAS DAS KOSTET, GENAU: der Breaker in `modelHealth` öffnet bei ZWEI
+ * Verdikten, nicht bei einem (`modelHealth.vitest.ts`, „ein ausdrückliches
+ * Verdikt zählt wie eine zähe Probe"). Nach einem einzelnen Stillstand zahlt
+ * der nächste Zug die Frist also noch einmal; erst der zweite schaltet die
+ * Stufe für 5 Minuten ab. Aus unbegrenzt oft wird damit zweimal — nicht
+ * keinmal.
+ *
+ * Und das ist Absicht, kein übersehener Rest. Ein einzelner Stillstand kann
+ * ein Netz-Schluckauf sein, und die Stufe, die hier ausfällt, ist die
+ * energetisch mit Abstand günstigste (siehe LOOP_PLANNER_PRIMARY: Faktor 48
+ * gegenüber der Referenz, überwiegend über das Stromnetz des Standorts). Sie
+ * wegen eines Ausreissers fünf Minuten zu meiden, wäre der teurere Fehler.
+ * Wer die Schwelle doch senken will, senkt sie nicht hier: `recordSlowVerdict`
+ * teilt den Breaker mit den Durchsatz-Proben und mit `synth_stall`, dessen
+ * Pfad im selben Zug schon eine Geschwister-Lane hat.
+ *
+ * `modelHealth` hält den Vermerk 5 Minuten und stellt die Stufe danach auf
+ * Probe; die Wahl fällt pro Zug neu, das Ausweichen endet also von selbst.
  */
 function plannerStageUsable(stage: { provider: Provider; model: string }): boolean {
   if (!isProviderConfigured(stage.provider)) return false;
