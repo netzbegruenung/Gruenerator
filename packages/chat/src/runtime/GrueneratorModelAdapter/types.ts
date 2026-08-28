@@ -86,6 +86,15 @@ export interface GrueneratorAdapterConfig {
 export interface GrueneratorAdapterCallbacks {
   onThreadCreated?: (threadId: string) => void;
   onComplete?: (metadata: StreamMetadata) => void;
+  /** The turn ended on a clarification the user has to answer, so the adapter
+   *  will now refuse every further run on this thread until the answer arrives.
+   *  Fired from the same statement that arms that refusal, which is why it is
+   *  the signal a message queue can trust: anything it sends next would be
+   *  appended to the thread and then aborted. Independent of
+   *  `unstable_humanToolNames` — the runtime only parks a message at
+   *  `requires-action` for surfaces that declare the tool, the adapter refuses
+   *  either way. */
+  onInterrupt?: () => void;
 }
 
 export interface ToolCallPart {
