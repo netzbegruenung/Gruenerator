@@ -2,8 +2,7 @@
  * ts-rest contract router for /api/share read + management endpoints.
  *
  * Covers the auth-guarded read/management routes migrated from the legacy
- * shareController: publish, my/recent/my-images/my-videos, templates
- * (clone/list/get), devices, delete.
+ * shareController: publish, my/recent/my-images/my-videos, devices, delete.
  *
  * Public + streaming routes (GET /:shareToken info, thumbnail, original,
  * preview, download) remain in shareFileRouter.ts. Auth is enforced per handler
@@ -67,11 +66,6 @@ function toShareListItem(row: SharedMediaRow): ShareListItem {
   };
 }
 
-function getUserName(req: Request): string {
-  const user = req.user as UserProfile | undefined;
-  return user?.display_name || user?.email || 'Anonymous';
-}
-
 const s = initServer();
 
 export const shareReadContractRouter = s.router(sharesReadContract, {
@@ -122,94 +116,6 @@ export const shareReadContractRouter = s.router(sharesReadContract, {
       return {
         status: 500 as const,
         body: { success: false as const, error: 'Share konnte nicht veröffentlicht werden' },
-      };
-    }
-  },
-
-  cloneTemplate: async ({ req, params }) => {
-    const userId = getUserId(req);
-    if (!userId) return UNAUTHORIZED;
-    try {
-      const userName = getUserName(req);
-      const { shareToken } = params;
-
-      const service = await getSharedMediaService();
-      const clonedShare = await service.cloneTemplate(shareToken, userId, userName);
-
-      log.info(`Template ${shareToken} cloned to ${clonedShare.shareToken} by user ${userId}`);
-
-      return {
-        status: 200 as const,
-        body: {
-          success: true as const,
-          share: clonedShare,
-          message: 'Template successfully cloned',
-        },
-      };
-    } catch (error) {
-      log.error('Failed to clone template:', error);
-      const errorMessage = (error as Error).message;
-      if (errorMessage.includes('not found')) {
-        return {
-          status: 404 as const,
-          body: { success: false as const, error: 'Template not found' },
-        };
-      }
-      if (errorMessage.includes('not accessible') || errorMessage.includes('private')) {
-        return {
-          status: 403 as const,
-          body: { success: false as const, error: 'Template not accessible' },
-        };
-      }
-      return {
-        status: 500 as const,
-        body: { success: false as const, error: 'Failed to clone template' },
-      };
-    }
-  },
-
-  listTemplates: async ({ req, query }) => {
-    const userId = getUserId(req);
-    if (!userId) return UNAUTHORIZED;
-    try {
-      const service = await getSharedMediaService();
-      const templates = await service.getTemplates(userId, query.visibility as string);
-      return { status: 200 as const, body: { success: true as const, templates } };
-    } catch (error) {
-      log.error('Failed to get templates:', error);
-      return {
-        status: 500 as const,
-        body: { success: false as const, error: 'Failed to retrieve templates' },
-      };
-    }
-  },
-
-  getTemplate: async ({ req, params }) => {
-    // Optional auth — public templates resolve without a session.
-    const userId = getUserId(req);
-    try {
-      const { shareToken } = params;
-      const service = await getSharedMediaService();
-      const template = await service.getTemplateByToken(shareToken, userId);
-      return { status: 200 as const, body: { success: true as const, template } };
-    } catch (error) {
-      log.error('Failed to get template by token:', error);
-      const errorMessage = (error as Error).message;
-      if (errorMessage.includes('not found')) {
-        return {
-          status: 404 as const,
-          body: { success: false as const, error: 'Template not found' },
-        };
-      }
-      if (errorMessage.includes('not accessible') || errorMessage.includes('private')) {
-        return {
-          status: 403 as const,
-          body: { success: false as const, error: 'Template not accessible' },
-        };
-      }
-      return {
-        status: 500 as const,
-        body: { success: false as const, error: 'Failed to retrieve template' },
       };
     }
   },
