@@ -201,6 +201,30 @@ describe('uploadMediaFile at the cap', () => {
     expect(error.userMessage).toContain(String(MEDIA_LIBRARY_ITEM_LIMIT));
   });
 
+  it.each([
+    ['canvas-mint', 'the background photo a freshly minted canvas is built from'],
+    ['canvas-editor', 'an asset dropped onto a canvas mid-edit'],
+  ])('lets %s through — %s is a creation, not a library upload', async (uploadSource) => {
+    const service = withLibraryCount(MEDIA_LIBRARY_ITEM_LIMIT + 5);
+    queryOne.mockImplementation((sql: string) => {
+      if (sql.includes('COUNT(*)')) {
+        return Promise.resolve({ count: String(MEDIA_LIBRARY_ITEM_LIMIT + 5) });
+      }
+      return Promise.resolve({ id: 'row-1', share_token: 'tok', created_at: new Date() });
+    });
+
+    const result = await service.uploadMediaFile('user-1', {
+      fileBuffer: PNG_1PX,
+      originalFilename: 'hintergrund.png',
+      mimeType: 'image/png',
+      title: null,
+      altText: null,
+      uploadSource: uploadSource as 'canvas-mint',
+    });
+
+    expect(result.shareToken).toBe('tok');
+  });
+
   it('lets internal artifacts through — they never counted against the quota', async () => {
     const service = withLibraryCount(MEDIA_LIBRARY_ITEM_LIMIT);
     queryOne.mockImplementation((sql: string) => {

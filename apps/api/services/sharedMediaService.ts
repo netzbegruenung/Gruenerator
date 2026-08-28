@@ -7,6 +7,7 @@ import {
   MEDIA_LIBRARY_ITEM_LIMIT,
   MEDIA_LIBRARY_WARN_RATIO,
   NON_LIBRARY_UPLOAD_SOURCES,
+  QUOTA_GATED_UPLOAD_SOURCES,
 } from '@gruenerator/shared/media-library/constants';
 import { stripDataUrlPrefix } from '@gruenerator/shared/utils';
 import { encode as encodeBlurhash } from 'blurhash';
@@ -1067,9 +1068,13 @@ class SharedMediaService {
     // filters on is_library_item) and out of the quota.
     const isLibraryItem = !(NON_LIBRARY_UPLOAD_SOURCES as readonly string[]).includes(uploadSource);
 
+    // Only a deliberate "put this file in my Mediathek" is refused. Uploads
+    // that are a substep of making something (canvas-mint's background photo,
+    // an asset dropped mid-edit) are creations wearing an upload's clothes, and
+    // failing them mid-flow is the harm this whole change set out to remove.
     // Checked before the directory is created, so a refused upload leaves
     // neither a row nor a stray file behind. Throws MediaQuotaExceededError.
-    if (isLibraryItem) {
+    if ((QUOTA_GATED_UPLOAD_SOURCES as readonly string[]).includes(uploadSource)) {
       await this.assertLibraryCapacity(userId);
     }
 

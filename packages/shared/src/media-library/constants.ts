@@ -94,6 +94,26 @@ export const NON_LIBRARY_UPLOAD_SOURCES = [
   'canvas-element',
 ] as const;
 
+/**
+ * Upload sources that represent someone deliberately putting a file into their
+ * Mediathek. **Only these are refused when the library is full** — an
+ * allowlist, so a canvas-ish source added later cannot be gated by accident.
+ *
+ * Everything else reaching the upload endpoint is a substep of making
+ * something: the canvas mint's background photo (`canvas-mint`), an asset
+ * dropped onto a canvas mid-edit (`canvas-editor`), a template's image. Those
+ * still become library items and still count toward the quota afterwards —
+ * they just cannot be the thing that gets rejected. Refusing them is the same
+ * harm as failing canvas autosave: work lost mid-flow, for a reason that has
+ * nothing to do with what the person was doing.
+ */
+export const QUOTA_GATED_UPLOAD_SOURCES = [
+  'upload',
+  'ai_generated',
+  'stock',
+  'camera',
+] as const satisfies readonly (typeof UPLOAD_SOURCES)[number][];
+
 export const UPLOAD_SOURCE_LABELS: Record<string, string> = {
   upload: 'Hochgeladen',
   ai_generated: 'KI-generiert',
