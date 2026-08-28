@@ -234,6 +234,11 @@ router.get('/', async (req, res) => {
             ...(Array.isArray(meta.searchImages)
               ? { searchImages: rehydrateSearchImages(meta.searchImages) }
               : {}),
+            // Offene Werkzeug-Freigaben: ohne sie ist die Karte nach einem
+            // Reload weg und der pausierte Zug nicht mehr entscheidbar.
+            ...(meta.pendingApproval && typeof meta.pendingApproval === 'object'
+              ? { pendingApproval: meta.pendingApproval as Record<string, unknown> }
+              : {}),
           };
           if (Array.isArray(meta.toolCalls)) {
             embeddedToolCalls = meta.toolCalls as EmbeddedToolCall[];

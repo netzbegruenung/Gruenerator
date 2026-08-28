@@ -21,7 +21,7 @@ import { McpServerRegistry } from '../../../services/mcp/McpServerRegistry.js';
 import { describeDrift, evaluateToolDrift } from '../../../services/mcp/mcpToolDrift.js';
 import { UserMCPClient } from '../../../services/mcp/UserMCPClient.js';
 import { createLogger } from '../../../utils/logger.js';
-import { type McpToolResult } from '../services/agenticLoop/types.js';
+import { type McpToolResult, type ToolLabel } from '../services/agenticLoop/types.js';
 
 import { sanitizeMcpSchema } from './mcpSchemaSanitizer.js';
 
@@ -63,7 +63,7 @@ export interface McpCatalog {
   /** dynamicTool per namespaced MCP tool, to merge into the loop catalog. */
   tools: ToolSet;
   /** namespaced name → display label ("Server · tool") for wrapTools titleFor. */
-  labels: Map<string, { serverName: string; toolName: string }>;
+  labels: Map<string, ToolLabel>;
   /** Per-turn planner catalog: one line per connected server listing each tool
    *  and its required params, so the planner can survey siblings (e.g. a
    *  param-free "letzte/liste" tool) instead of giving up on a missing param. */
@@ -130,7 +130,7 @@ export async function loadMcpCatalog(params: {
 
   const clients: UserMCPClient[] = [];
   const tools: ToolSet = {};
-  const labels = new Map<string, { serverName: string; toolName: string }>();
+  const labels = new Map<string, ToolLabel>();
   const seen = new Set<string>();
   // Keyed by config.id so the summary is emitted in stable configs order below
   // (Promise.all resolves the servers in a nondeterministic order).
@@ -179,12 +179,22 @@ export async function loadMcpCatalog(params: {
         // tool-by-tool as before would mean a rug-pulled description is already
         // in the catalog by the time we notice.
         const serverTools: ToolSet = {};
-        const serverLabels = new Map<string, { serverName: string; toolName: string }>();
+        const serverLabels = new Map<string, ToolLabel>();
         for (const t of listed) {
           if (Object.keys(serverTools).length >= MAX_TOOLS) break;
           const providerName = `m${serverKey}__${sanitizeToolName(t.name)}`.slice(0, 64);
           if (seen.has(providerName) || serverTools[providerName]) continue;
-          serverLabels.set(providerName, { serverName: config.name, toolName: t.name });
+          serverLabels.set(providerName, {
+            serverName: config.name,
+            toolName: t.name,
+            // Der Freigabe-Schlüssel hängt an der Server-ID, nicht am
+            // Namensraum-Präfix: letzteres ist auf 8 Zeichen gekürzt.
+            origin: {
+              kind: config.managed ? 'managed' : 'mcp',
+              serverId: config.id,
+              remoteToolName: t.name,
+            },
+          });
 
           const sanitized = sanitizeMcpSchema(t.inputSchema);
           const required = requiredParams(sanitized);

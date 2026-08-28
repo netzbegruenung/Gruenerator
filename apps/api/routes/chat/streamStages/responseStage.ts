@@ -27,7 +27,7 @@ import { type RoutingStageResult } from './routingStage.js';
 import { type CleanupPending, type MaybeHandled, type StreamBody } from './types.js';
 
 import type { ChatGraphState, CreatedDocument } from '../../../agents/langgraph/ChatGraph/types.js';
-import type { PersistedStep } from '../services/agenticLoop/types.js';
+import type { PendingToolCall, PersistedStep } from '../services/agenticLoop/types.js';
 import type { StreamContext } from '../services/streamContext.js';
 import type { Request } from 'express';
 
@@ -76,6 +76,8 @@ export interface ResponseStageOutput {
   createdBoard: ChatGraphState['createdBoard'];
   agenticSteps: PersistedStep[] | undefined;
   langfuseTraceId: string | undefined;
+  /** Gesetzt ⇒ der Zug pausiert; der Router suspendiert statt zu persistieren. */
+  pendingApproval?: PendingToolCall[];
 }
 
 export async function runResponseStage({
@@ -112,6 +114,7 @@ export async function runResponseStage({
   let socialPost: PipelineResult['socialPost'];
   let fullText: string | null;
   let agenticSteps: PersistedStep[] | undefined;
+  let pendingApproval: PendingToolCall[] | undefined;
   // Presentation/sheet created by a compound loop tool — lifted from the
   // shared state and persisted as message-level `createdDocument` metadata
   // (the single-pass handlers persist it directly; the loop path lifts it).
@@ -177,6 +180,24 @@ export async function runResponseStage({
       createdBoard,
       langfuseTraceId,
     } = agentic);
+    pendingApproval = agentic.pendingApproval;
+    // Ein pausierter Zug hat keine fertige Antwort: die Nachschritte (Artefakt-
+    // Auslöser, Pipeline-Agenten, Persistenz) laufen erst nach der Freigabe.
+    if (pendingApproval && pendingApproval.length > 0) {
+      return {
+        handled: false,
+        finalState,
+        fullText: fullText ?? '',
+        generatedImage,
+        sharepicVariants,
+        socialPost,
+        createdDocument,
+        createdBoard,
+        agenticSteps,
+        langfuseTraceId,
+        pendingApproval,
+      };
+    }
   } else {
     const singlePass = await runSinglePassAnswer({
       sse,
