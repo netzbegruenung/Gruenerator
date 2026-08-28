@@ -169,6 +169,14 @@ export async function execute(
       // provider-fallback chain (services/ai/generate.ts) faster, while still
       // covering genuinely transient failures.
       maxRetries: provider === 'greenpt' ? 1 : 2,
+      // Die Frist, die `generate.ts` diesem Anbieter zugeteilt hat, als echtes
+      // Abbruchsignal. `AIRequestData.timeoutMs` war bis zum 28.08.2026 ein
+      // totes Feld — deklariert, dokumentiert, von niemandem gelesen —, und
+      // genau das kostete: lief die Kette weiter, blieb der aufgegebene Aufruf
+      // offen und rechnete auf Kosten des Kontos zu Ende. Im Protokoll steht
+      // das als `[greenpt …] Request failed after retries` MINUTEN nach der
+      // Antwort an den Client.
+      ...(data.timeoutMs != null && { abortSignal: AbortSignal.timeout(data.timeoutMs) }),
       ...(tools != null && { tools }),
       ...(toolChoice != null && { toolChoice }),
     });
