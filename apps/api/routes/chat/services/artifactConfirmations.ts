@@ -34,22 +34,6 @@ export function buildSharepicConfirmation(variantCount: number, deckSlides?: num
   );
 }
 
-/** Post + graphic both succeeded. */
-export function buildPostWithSharepicsConfirmation(variantCount: number): string {
-  return (
-    `Hier ist dein Post mit ${variantCount} passenden Sharepic-${variantWord(variantCount)}. ` +
-    `Sag mir, was ich am Text oder an der Grafik anpassen soll.`
-  );
-}
-
-/** Graphic succeeded, post text did not. */
-export function buildSharepicsWithoutPostConfirmation(variantCount: number): string {
-  return (
-    `Ich habe dir ${variantCount} Sharepic-${variantWord(variantCount)} erstellt. ` +
-    `Der Post-Text hat leider nicht geklappt — magst du es noch einmal versuchen?`
-  );
-}
-
 /**
  * The branches that need no interpolation. Kept as constants rather than one
  * builder so the routers keep their own condition trees — only the wording
@@ -60,21 +44,6 @@ export const ARTIFACT_CONFIRMATION_TEXTS = {
     `Die Sharepic-Erstellung hat leider nicht geklappt. Magst du es mit einem ` +
     `anderen Thema noch einmal versuchen?`,
   genericFailed: `Das hat leider nicht geklappt. Magst du es mit einem anderen Thema noch einmal versuchen?`,
-  postRefusedPolicy:
-    `Diese Anfrage kann ich nicht umsetzen: Dabei entstünde ein erfundenes Zitat oder eine ` +
-    `irreführende Aussage im Namen der Partei. Wenn du mir ein echtes Zitat mit Quelle gibst, ` +
-    `gestalte ich dir daraus gern einen Post.`,
-  postRefusedGeneric:
-    `Daraus konnte ich keinen Post erzeugen. Sag mir bitte konkret, worum es gehen soll — ` +
-    `oder, wenn du dich auf einen vorhandenen Post beziehst, was ich damit machen soll.`,
-  /** Resume path only: a post came back, no graphic was part of the turn. */
-  postWithoutSharepic: `Hier ist dein Post. Sag mir, was ich am Text oder an der Grafik anpassen soll.`,
-  postTextOnly:
-    `Hier ist dein Post. Sag mir, was ich am Text anpassen soll — oder ob ich ` +
-    `dir ein Sharepic dazu gestalten soll.`,
-  postSharepicFailed:
-    `Hier ist dein Post. Die Sharepic-Erstellung hat leider nicht geklappt — ` +
-    `sag mir, was ich am Text anpassen soll, oder versuch es für die Grafik noch einmal.`,
 } as const;
 
 /**

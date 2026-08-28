@@ -46,7 +46,6 @@ export interface AgenticAnswer {
   finalState: ChatGraphState;
   generatedImage: ChatGraphState['generatedImage'] | null;
   sharepicVariants: SharepicVariant[];
-  socialPost: null;
   fullText: string | null;
   agenticSteps: PersistedStep[] | undefined;
   createdDocument: CreatedDocument | null;
@@ -157,7 +156,6 @@ export async function runAgenticAnswer({
     // Same lift for the presentation/sheet fat tools (compound turns).
     createdDocument: finalState.createdDocument ?? null,
     createdBoard: finalState.createdBoard ?? null,
-    socialPost: null,
     fullText: outcome.fullText,
     agenticSteps: outcome.steps,
     langfuseTraceId,

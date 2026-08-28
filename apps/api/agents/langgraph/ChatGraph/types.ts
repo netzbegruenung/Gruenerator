@@ -902,11 +902,14 @@ export interface ChatGraphState {
    */
   webImageResults?: WebImageResult[];
 
-  // Platform hint for the `examples` / `social_post` intents. Set by the
-  // classifier when the user prompt names a platform; null otherwise. Consumed
-  // by searchNode to filter social examples (instagram/facebook only — the
-  // Qdrant collection has no other platforms) and by socialMediaComposerNode
-  // to pick the platform-specific rubric.
+  // Platform hint for the `examples` intent. Set by the classifier when the
+  // user prompt names a platform; null otherwise. Consumed by searchNode to
+  // filter social examples (instagram/facebook only — the Qdrant collection has
+  // no other platforms).
+  //
+  // Der zweite Verbraucher war `social_post`, das daraus seine Rubrik wählte.
+  // Verdikt und Rubrik sind 08/2026 gefallen; die Plattform wählt heute das
+  // REZEPT (`deriveImplicitRecipeMention`), nicht dieses Feld.
   platform: SocialTextPlatform | null;
 
   // Clarification (HITL interrupt)
@@ -1087,12 +1090,6 @@ export interface ChatGraphState {
    *  if the "corrected" code then fails, the turn falls back to this instead
    *  of ending with no computation at all. */
   pandasComputeFallback?: ComputeData | undefined;
-
-  // Combined social post (EXPERIMENTAL): text half of the `social_post`
-  // intent. Set by generateSocialPostText in the execution stage; persisted
-  // into the `social_post` tool-call result. The sharepic half travels via
-  // the existing sharepic variant machinery.
-  socialPostResult: SocialPostPayload | null;
 
   // Chart generation
   chartData: ChartData | null;

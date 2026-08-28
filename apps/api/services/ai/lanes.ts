@@ -104,11 +104,6 @@ export const AI_LANES = {
   wahlprogramm: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
   buergeranfragen: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
   social: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
-  social_post_generation: {
-    provider: GEMMA_31B_PRIMARY.provider,
-    model: GEMMA_4,
-    structuredMode: 'tool',
-  },
   social_post_edit: {
     provider: GEMMA_31B_PRIMARY.provider,
     model: GEMMA_4,

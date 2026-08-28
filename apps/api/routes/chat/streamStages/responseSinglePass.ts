@@ -19,9 +19,7 @@ import { stripOutOfRangeCitations } from '../services/agenticLoop/citationStrip.
 import { MAX_SOURCES } from '../services/agenticLoop/loopGuards.js';
 import {
   ARTIFACT_CONFIRMATION_TEXTS,
-  buildPostWithSharepicsConfirmation,
   buildSharepicConfirmation,
-  buildSharepicsWithoutPostConfirmation,
 } from '../services/artifactConfirmations.js';
 import { injectImageAttachments } from '../services/attachmentProcessingService.js';
 import { applyCompaction, pruneMessages } from '../services/contextPruningService.js';
@@ -73,9 +71,6 @@ export interface SinglePassAnswerParams {
   lastUserText: string;
   forcedTool: boolean;
   sharepicRefinement: SharepicRefinement | undefined;
-  /** Whether the turn was allowed to make a sharepic — a post without a
-   *  licence is text-only, not a failed sharepic. */
-  sharepicLicensed: boolean;
   buildTurnTrace: BuildTurnTrace;
   /** Turn-Decke aus turnDeadline.ts — dieselbe Frist, die auch der agentische
    *  Pfad bekommt. Komponiert unten in die Turn-Uhr des Einzeldurchlaufs. */
@@ -86,7 +81,6 @@ export interface SinglePassAnswer {
   finalState: PipelineResult['finalState'];
   generatedImage: PipelineResult['generatedImage'];
   sharepicVariants: PipelineResult['sharepicVariants'];
-  socialPost: PipelineResult['socialPost'];
   fullText: string | null;
   langfuseTraceId: string | undefined;
 }
@@ -107,7 +101,6 @@ export async function runSinglePassAnswer({
   lastUserText,
   forcedTool,
   sharepicRefinement,
-  sharepicLicensed,
   buildTurnTrace,
   turnSignal,
 }: SinglePassAnswerParams): Promise<MaybeHandled<SinglePassAnswer>> {
@@ -118,14 +111,7 @@ export async function runSinglePassAnswer({
   let langfuseTraceId: string | undefined;
 
   // === Stage 2: Search or Image Generation ===
-  const {
-    finalState,
-    generatedImage,
-    sharepicVariants,
-    socialPost,
-    socialPostRefused,
-    socialPostRefusalIsPolicy,
-  } = await executeIntentPipeline({
+  const { finalState, generatedImage, sharepicVariants } = await executeIntentPipeline({
     classifiedState,
     sse,
     forcedTool,
@@ -137,40 +123,7 @@ export async function runSinglePassAnswer({
   });
 
   // === Stage 3: Response generation ===
-  if (finalState.intent === 'social_post') {
-    // Combined post (EXPERIMENTAL): both halves were already produced +
-    // streamed in Stage 2 (social_post_complete / sharepic_complete).
-    // Fixed confirmation like the sharepic branch — no extra LLM call.
-    const hasText = socialPost != null;
-    const n = sharepicVariants.length;
-    fullText = socialPostRefused
-      ? // The text model refused, so both halves were discarded. Say so
-        // plainly — the old copy promised "dein Post mit N Varianten"
-        // because it only checked that SOME text came back.
-        //
-        // Only name the POLICY reason when the sharepic half declined on
-        // the same request; otherwise all we know is that no usable post
-        // came back, and asserting the fabricated-quote reason accused
-        // the user of something they never asked for (live: a plain
-        // request for an English version of their own post).
-        socialPostRefusalIsPolicy
-        ? ARTIFACT_CONFIRMATION_TEXTS.postRefusedPolicy
-        : ARTIFACT_CONFIRMATION_TEXTS.postRefusedGeneric
-      : hasText && n > 0
-        ? buildPostWithSharepicsConfirmation(n)
-        : // A post is text-only unless the user named a sharepic. Without
-          // this split, every ordinary post reported a FAILED sharepic
-          // that was never requested.
-          hasText && !sharepicLicensed
-          ? ARTIFACT_CONFIRMATION_TEXTS.postTextOnly
-          : hasText
-            ? ARTIFACT_CONFIRMATION_TEXTS.postSharepicFailed
-            : n > 0
-              ? buildSharepicsWithoutPostConfirmation(n)
-              : ARTIFACT_CONFIRMATION_TEXTS.genericFailed;
-    sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
-    sse.send('text_delta', { text: fullText });
-  } else if (finalState.intent === 'sharepic') {
+  if (finalState.intent === 'sharepic') {
     // Sharepic variants were already produced + streamed in Stage 2 (sharepic_complete).
     // Skip the LLM — with the still-vague topic it asks clarifying questions over the
     // already-finished sharepic. Emit a fixed confirmation instead so the user sees the
@@ -382,7 +335,6 @@ export async function runSinglePassAnswer({
     finalState,
     generatedImage,
     sharepicVariants,
-    socialPost,
     fullText,
     langfuseTraceId,
   };
