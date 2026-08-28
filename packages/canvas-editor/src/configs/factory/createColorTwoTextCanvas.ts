@@ -15,9 +15,9 @@ import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi'
 
 import {
   AssetsSection,
-  BackgroundSection,
   CombinedTextSection,
   FrameSettingsSection,
+  ImageBackgroundSection,
 } from '../../sidebar/sections';
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from '../commonSections';
 import { injectFeatureProps } from '../featureInjector';
@@ -29,6 +29,7 @@ import { carryInstanceState } from './carryInstanceState';
 import { makeSectionDefiner } from './defineSection';
 
 import type { CanvasFeatures, CanvasDimensions, IconState } from './baseTypes';
+import type { StockImageAttribution } from '../../common/imageSourceTypes';
 import type { BackgroundColorOption } from '../../sidebar/types';
 import type { BalkenInstance, BalkenMode } from '../../utils/balkenUtils';
 import type { AssetInstance } from '../../utils/canvasAssets';
@@ -57,6 +58,16 @@ export interface ColorTwoTextStateBase {
 
   // Color background
   backgroundColor: string;
+
+  // Photo background. Optional throughout: these templates start on colour and
+  // most stay there. A set `currentImageSrc` covers the colour plane whole.
+  currentImageSrc?: string;
+  backgroundImageFile?: File | Blob | null;
+  imageOffset?: { x: number; y: number };
+  imageScale?: number;
+  isBackgroundLocked?: boolean;
+  backgroundImageOpacity?: number;
+  imageAttribution?: StockImageAttribution | null;
 
   // Text styling
   customPrimaryFontSize: number | null;
@@ -105,6 +116,12 @@ export interface ColorTwoTextActions {
 
   // Color background
   setBackgroundColor: (color: string) => void;
+
+  // Photo background
+  setCurrentImageSrc: (file: File | null, objectUrl?: string) => void;
+  setImageScale: (scale: number) => void;
+  toggleBackgroundLock: () => void;
+  setImageAttribution: (attribution: StockImageAttribution | null) => void;
 
   // Base actions
   addAsset: (assetId: string) => void;
@@ -175,6 +192,13 @@ export interface ColorTwoTextOptions<
   /** Map background color to text color */
   textColorMap: Record<string, string>;
 
+  /**
+   * Optional: opacity of the dark scrim drawn over a chosen photo. Defaults to
+   * the same 0.5 the DE quote uses. Only ever visible with a photo — see the
+   * `gradient-overlay` element.
+   */
+  photoGradientOpacity?: number;
+
   /** Optional: Custom elements to add to the canvas */
   elements?: CanvasElementConfig<ColorTwoTextState<TPrimary | TSecondary>>[];
 
@@ -234,6 +258,7 @@ export function createColorTwoTextCanvas<
     backgroundColors,
     defaultBackgroundColor,
     textColorMap,
+    photoGradientOpacity = 0.5,
     elements = [],
     features = { icons: true, shapes: true, illustrations: true },
     maxPages = 10,
@@ -241,19 +266,70 @@ export function createColorTwoTextCanvas<
     passthroughStateKeys = [],
   } = options;
 
-  // The solid colour plane, under everything. Non-interactive by construction:
-  // CanvasBackground draws it with `listening={false}`, which is load-bearing —
-  // a full-bleed listening rect would swallow every click on empty canvas and
-  // useCanvasInteractions would stop deselecting.
+  // The background stack, bottom to top: the solid colour plane, the optional
+  // photo over it, and a scrim that appears with the photo.
+  //
+  // The colour plane is non-interactive by construction: CanvasBackground draws
+  // it with `listening={false}`, which is load-bearing — a full-bleed listening
+  // rect would swallow every click on empty canvas and useCanvasInteractions
+  // would stop deselecting.
+  //
+  // The photo needs no mode flag to hide the colour: `CanvasImage` returns null
+  // while `currentImageSrc` is empty, and `coverFit` fills the frame once it is
+  // set. All three carry explicit negative orders so a template's own elements
+  // (which start at 1) stay above them.
   const baseElements: CanvasElementConfig<State>[] = [
     {
       id: 'background',
       type: 'background',
+      order: -2,
       x: 0,
       y: 0,
       width: canvas.width,
       height: canvas.height,
       colorKey: 'backgroundColor',
+    },
+    {
+      id: 'background-image',
+      type: 'image',
+      order: -1,
+      x: 0,
+      y: 0,
+      width: canvas.width,
+      height: canvas.height,
+      srcKey: 'currentImageSrc',
+      offsetKey: 'imageOffset',
+      scaleKey: 'imageScale',
+      draggable: true,
+      lockedKey: 'isBackgroundLocked',
+      opacityStateKey: 'backgroundImageOpacity',
+      coverFit: true,
+    },
+    {
+      // Contrast scrim. These templates derive their font colour from the
+      // background colour and land on dark text for the light options
+      // (zitat-pure puts #005437 on Hellgrün) — over a photograph that is
+      // unreadable. `calculateLayout` below forces white while a photo is set;
+      // this gradient is the other half of that pair, and like the font switch
+      // it comes and goes with the photo.
+      id: 'gradient-overlay',
+      type: 'rect',
+      order: -0.5,
+      x: 0,
+      y: 0,
+      width: canvas.width,
+      height: canvas.height,
+      fill: `rgba(0, 0, 0, ${photoGradientOpacity})`,
+      fillLinearGradientStartPoint: { x: 0, y: 0 },
+      fillLinearGradientEndPoint: { x: 0, y: canvas.height },
+      fillLinearGradientColorStops: [
+        0,
+        'rgba(0, 0, 0, 0)',
+        1,
+        `rgba(0, 0, 0, ${photoGradientOpacity})`,
+      ],
+      listening: false,
+      visible: (state: State) => !!state.currentImageSrc,
     },
   ];
 
@@ -330,11 +406,27 @@ export function createColorTwoTextCanvas<
 
     sections: {
       background: section({
-        component: BackgroundSection,
+        // ImageBackgroundSection, not BackgroundSection: it carries the better
+        // picker (own uploads + Unsplash, masonry) and since PR A the zoom and
+        // lock controls. The colour swatches ride along as its "Farbe" tab.
+        component: ImageBackgroundSection,
         propsFactory: (state, actions) => ({
-          currentColor: state.backgroundColor,
-          colors: backgroundColors,
-          onColorChange: actions.setBackgroundColor,
+          backgroundColor: state.backgroundColor,
+          backgroundColors,
+          onBackgroundColorChange: actions.setBackgroundColor,
+          currentImageSrc: state.currentImageSrc,
+          onImageChange: (
+            file: File | null,
+            objectUrl?: string,
+            attribution?: StockImageAttribution | null
+          ) => {
+            actions.setCurrentImageSrc(file, objectUrl);
+            if (attribution !== undefined) actions.setImageAttribution(attribution);
+          },
+          scale: state.imageScale ?? 1,
+          onScaleChange: actions.setImageScale,
+          isLocked: state.isBackgroundLocked ?? false,
+          onToggleLock: actions.toggleBackgroundLock,
         }),
       }),
       text: section({
@@ -383,8 +475,13 @@ export function createColorTwoTextCanvas<
 
     calculateLayout: (state) => {
       const baseLayout = calculateLayout(state);
-      // Inject font color from textColorMap into layout meta
-      const fontColor = textColorMap[state.backgroundColor] || Object.values(textColorMap)[0];
+      // Font colour follows the background colour — EXCEPT over a photo, where
+      // the derived colour is meaningless and often dark (zitat-pure derives
+      // #005437 from Hellgrün). White plus the gradient scrim is the only pair
+      // that holds against an arbitrary photograph.
+      const fontColor = state.currentImageSrc
+        ? '#FFFFFF'
+        : textColorMap[state.backgroundColor] || Object.values(textColorMap)[0];
       return {
         ...baseLayout,
         _meta: {
@@ -411,6 +508,17 @@ export function createColorTwoTextCanvas<
         // Background color
         backgroundColor: (props.backgroundColor as string) || defaultBackgroundColor,
 
+        // Photo background. Carried, never hard-reset: card renders and
+        // remote-sync re-seeds run through here, and this whitelist drops
+        // whatever it does not name.
+        currentImageSrc: (props.currentImageSrc as string) || '',
+        imageOffset: (props.imageOffset as { x: number; y: number } | undefined) ?? { x: 0, y: 0 },
+        imageScale: (props.imageScale as number | undefined) ?? 1,
+        isBackgroundLocked: (props.isBackgroundLocked as boolean | undefined) ?? false,
+        backgroundImageOpacity: (props.backgroundImageOpacity as number | undefined) ?? 1,
+        imageAttribution:
+          (props.imageAttribution as StockImageAttribution | null | undefined) ?? null,
+
         // Toolbar-written text styling. Rides along for the same reason as
         // the font sizes above: card renders and remote-sync re-seeds run
         // through here, and a key that is neither carried nor listed in
@@ -433,8 +541,12 @@ export function createColorTwoTextCanvas<
 
     createActions: (getState, setState, saveToHistory, debouncedSaveToHistory, callbacks) => {
       // Get font color for additional text actions
+      // Same rule as calculateLayout: a text the user adds over a photo has to
+      // be white, or it inherits the dark colour derived from the (invisible)
+      // background colour.
       const getFontColor = () => {
         const state = getState();
+        if (state.currentImageSrc) return '#FFFFFF';
         return textColorMap[state.backgroundColor] || Object.values(textColorMap)[0];
       };
 
@@ -481,6 +593,24 @@ export function createColorTwoTextCanvas<
         setBackgroundColor: (color: string) => {
           setState({ backgroundColor: color } as Partial<State>);
           saveToHistory(getState());
+        },
+
+        // Photo background
+        setCurrentImageSrc: (file: File | null, objectUrl?: string) => {
+          setState({
+            currentImageSrc: objectUrl || '',
+            backgroundImageFile: file,
+          } as Partial<State>);
+          saveToHistory(getState());
+        },
+        setImageScale: (scale: number) => {
+          setState({ imageScale: scale } as Partial<State>);
+        },
+        toggleBackgroundLock: () => {
+          setState((prev) => ({ ...prev, isBackgroundLocked: !prev.isBackgroundLocked }));
+        },
+        setImageAttribution: (attribution: StockImageAttribution | null) => {
+          setState({ imageAttribution: attribution } as Partial<State>);
         },
       };
     },

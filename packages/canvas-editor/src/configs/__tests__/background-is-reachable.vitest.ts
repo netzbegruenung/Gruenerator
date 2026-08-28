@@ -76,10 +76,23 @@ const BACKGROUND_ELEMENT_PROBES = [
  */
 const NO_BACKGROUND_SURFACE_YET: readonly CanvasConfigType[] = ['veranstaltung'];
 
+/**
+ * Templates whose plane colour is DERIVED rather than chosen. The slider's
+ * `backgroundColor` follows `colorScheme` — its picker maps a swatch to a
+ * scheme and the scheme decides the plane, the pill and the arrow together —
+ * so writing the key directly is legitimately not honoured. Idempotence still
+ * has to hold; only "the exact value comes back" does not apply.
+ */
+const DERIVED_BACKGROUND_COLOR: readonly CanvasConfigType[] = ['slider'];
+
 interface ElementLike {
   id: string;
   type: string;
   listening?: boolean;
+}
+
+interface PlaneLike extends ElementLike {
+  colorKey?: string;
 }
 
 /**
@@ -162,6 +175,42 @@ describe.each(TEMPLATES)('%s: the background is reachable', (type) => {
       `${type}: auto-switch lands off the background panel: ${wrong.join(', ')}`
     ).toEqual([]);
   });
+
+  /**
+   * Every template now draws a solid plane, and a plane whose colour key is
+   * unset renders `CanvasBackground`'s white default — a white sharepic in
+   * brand-green templates. `createInitialState` is a whitelist, so writing the
+   * key is not enough: it has to be written THERE, or a card render and a
+   * remote re-seed drop it. Round-trip, because that is the shape a re-seed
+   * actually takes (`handleRemotePageState` pushes the previous state back
+   * through this function).
+   */
+  it.skipIf(NO_BACKGROUND_SURFACE_YET.includes(type))(
+    'starts on a real colour and keeps a chosen one through a re-seed',
+    () => {
+      const plane = (config.elements as PlaneLike[]).find(
+        (el) => el.type === 'background' && typeof el.colorKey === 'string'
+      );
+      if (!plane?.colorKey) return; // photo-only templates have no colour plane
+
+      const key = plane.colorKey;
+      const initial = config.createInitialState({}) as Record<string, unknown>;
+      expect(initial[key], `${type}: '${key}' is unset, the plane falls back to white`).toMatch(
+        /^#[0-9a-fA-F]{6}$/
+      );
+
+      const once = config.createInitialState({ [key]: '#123456' }) as Record<string, unknown>;
+      const twice = config.createInitialState(once) as Record<string, unknown>;
+
+      // Idempotence holds everywhere: whatever the first pass settled on, the
+      // second must not lose. This is the shape a re-seed actually takes.
+      expect(twice[key], `${type}: '${key}' changes on a second re-seed`).toBe(once[key]);
+
+      if (!DERIVED_BACKGROUND_COLOR.includes(type)) {
+        expect(once[key], `${type}: '${key}' does not survive createInitialState`).toBe('#123456');
+      }
+    }
+  );
 
   it('only makes tabs visible that are actually registered', () => {
     const registered = config.tabs.map((t) => t.id);
