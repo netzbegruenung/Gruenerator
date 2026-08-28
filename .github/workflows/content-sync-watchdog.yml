@@ -65,17 +65,63 @@ jobs:
           # How far back to look for the last full run before giving up. Each
           # candidate costs one jobs API call; 25 covers well over a day of runs.
           MAX_RUNS_INSPECTED: 25
+          # Attempts per API call before giving up on it. The jobs endpoint
+          # answers 502 often enough to hit a single watchdog tick: measured on
+          # 2026-08-28, run 33128795542 returned `HTTP 502` on the first call
+          # and its job list on each of the three retries.
+          API_ATTEMPTS: 3
         run: |
           set -euo pipefail
 
           NOW=$(date -u +%s)
 
+          # Every API answer this workflow acts on goes through here. A watchdog
+          # that reports GitHub's hiccups as findings is worse than none: it
+          # opens tracking issues for nothing, and an alarm nobody believes is
+          # an alarm nobody reads.
+          #
+          # Prints the result on success and stays silent on failure, so callers
+          # distinguish the two by exit status rather than by empty output —
+          # `.jobs[].name` on a run legitimately prints nothing too.
+          api_with_retry() {
+            local endpoint=$1 jq_filter=$2 attempt=1 out err_file err
+            err_file=$(mktemp)
+            while :; do
+              if out=$(gh api "$endpoint" --jq "$jq_filter" 2>"$err_file"); then
+                rm -f "$err_file"
+                printf '%s' "$out"
+                return 0
+              fi
+              if [ "$attempt" -ge "$API_ATTEMPTS" ]; then
+                # gh's own text is the only thing that separates a 502 from an
+                # expired token, a missing scope or a secondary rate limit, and
+                # during an incident that difference decides whether anyone
+                # needs to act. Discarding it left the log with nothing but
+                # "did not answer", which has to be reproduced by hand.
+                #
+                # Flattened to one line because an annotation is one line, and
+                # capped in bash rather than through `head -c`: this script runs
+                # under `pipefail`, where a `head` that exits early SIGPIPEs its
+                # producer and the pipeline reports 141.
+                err=$(tr '\n' ' ' < "$err_file")
+                rm -f "$err_file"
+                echo "::warning::GitHub API did not answer $endpoint after $API_ATTEMPTS attempts. Last error: ${err:0:300}" >&2
+                return 1
+              fi
+              sleep $(( attempt * 2 ))
+              attempt=$((attempt + 1))
+            done
+          }
+
           # status=success only: a failed run is already reported by
           # ci-failure-issue.yml, and counting it here would mask a collapse
           # behind runs that produced nothing.
-          RUNS=$(gh api \
+          if ! RUNS=$(api_with_retry \
             "/repos/$REPO/actions/workflows/content-sync.yml/runs?status=success&per_page=100" \
-            --jq '[.workflow_runs[] | {id: .id, created_at: .created_at, url: .html_url}]')
+            '[.workflow_runs[] | {id: .id, created_at: .created_at, url: .html_url}]'); then
+            echo "::error::Could not read the Content Sync run list from the GitHub API. This says nothing about the schedule — the watchdog could not look."
+            exit 1
+          fi
 
           RUNS_24H=$(printf '%s' "$RUNS" | jq --argjson now "$NOW" '
             [.[] | select((.created_at | fromdateiso8601) > ($now - 86400))] | length')
@@ -84,9 +130,19 @@ jobs:
           # not report which cron fired it. The distinguishing mark is that the
           # non-LV matrix ran, so look for one of its jobs. Checked newest-first
           # and stopped at the first hit, so the usual case costs one call.
+          #
+          # UNREADABLE counts candidates whose job list never arrived. It is not
+          # bookkeeping: because the walk goes newest-first and breaks at the
+          # first hit, every unreadable candidate is by construction NEWER than
+          # whatever this loop settles on. So a non-zero count means the age
+          # below is an upper bound, and the only check it feeds compares
+          # against a ceiling — an upper bound can push it over the limit but
+          # never under it. Guessing there yields exactly one kind of mistake:
+          # a fresh run reported stale.
           HOURS_SINCE_FULL=""
           FULL_RUN_URL=""
           INSPECTED=0
+          UNREADABLE=0
           for ROW in $(printf '%s' "$RUNS" | jq -r '.[] | "\(.id)|\(.created_at)|\(.url)"'); do
             if [ "$INSPECTED" -ge "$MAX_RUNS_INSPECTED" ]; then break; fi
             INSPECTED=$((INSPECTED + 1))
@@ -99,8 +155,17 @@ jobs:
             # tidier and be wrong: grep exits at the first match, gh dies of
             # SIGPIPE, and under `pipefail` the pipeline reports 141 — so a run
             # that *did* match would be read as no match.
-            JOB_NAMES=$(gh api "/repos/$REPO/actions/runs/$RUN_ID/jobs?per_page=100" \
-              --jq '.jobs[].name' || true)
+            #
+            # The failing call is kept apart from the empty answer. `|| true`
+            # collapsed them, which read as "this run had no Sync gruene-de job"
+            # — i.e. "this was not a full run" — whenever GitHub simply did not
+            # answer. That is a claim the watchdog never verified, and it is the
+            # claim its entire output rests on.
+            if ! JOB_NAMES=$(api_with_retry "/repos/$REPO/actions/runs/$RUN_ID/jobs?per_page=100" \
+              '.jobs[].name'); then
+              UNREADABLE=$((UNREADABLE + 1))
+              continue
+            fi
             if [[ $'\n'"$JOB_NAMES"$'\n' == *$'\nSync gruene-de\n'* ]]; then
               CREATED_EPOCH=$(date -u -d "$CREATED" +%s)
               HOURS_SINCE_FULL=$(( (NOW - CREATED_EPOCH) / 3600 ))
@@ -120,18 +185,37 @@ jobs:
             else
               echo "| Hours since last full run | none in $INSPECTED runs | ≤ $MAX_HOURS_SINCE_FULL |"
             fi
+            if [ "$UNREADABLE" -gt 0 ]; then
+              echo "| Runs the API would not show | $UNREADABLE | 0 |"
+            fi
             echo ""
             if [ -n "$FULL_RUN_URL" ]; then echo "Last full run: $FULL_RUN_URL"; fi
+            if [ "$UNREADABLE" -gt 0 ]; then
+              echo ""
+              echo "⚠️ $UNREADABLE newer run(s) could not be read, so the age above is an upper"
+              echo "bound and the staleness check is skipped this tick. The next one re-evaluates"
+              echo "the whole window, so nothing is lost by waiting."
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
 
           FAILED=0
 
+          # Independent of the jobs API, so it keeps working when the walk does
+          # not — and a real collapse shows up here first anyway: fewer runs is
+          # what a dropped schedule *is*.
           if [ "$RUNS_24H" -lt "$MIN_RUNS_24H" ]; then
             echo "::error::Only $RUNS_24H successful Content Sync runs in the last 24 h (expected 18, floor $MIN_RUNS_24H). GitHub is dropping the schedule — see #2972."
             FAILED=1
           fi
 
-          if [ -z "$HOURS_SINCE_FULL" ]; then
+          # Only claim staleness from a walk that actually read every run newer
+          # than the one it settled on. Otherwise the number is an upper bound
+          # (see UNREADABLE above) and firing on it means reporting a fresh sync
+          # as missing — which costs a tracking issue and, repeated, the
+          # credibility this workflow exists to have.
+          if [ "$UNREADABLE" -gt 0 ]; then
+            echo "::warning::Staleness check skipped: $UNREADABLE run(s) newer than the last confirmed full run could not be read from the GitHub API, so their age is unknown. Re-checked on the next tick."
+          elif [ -z "$HOURS_SINCE_FULL" ]; then
             echo "::error::No full Content Sync run found in the last $INSPECTED successful runs. The nine non-LV sources have not synced — see #2972."
             FAILED=1
           elif [ "$HOURS_SINCE_FULL" -gt "$MAX_HOURS_SINCE_FULL" ]; then
