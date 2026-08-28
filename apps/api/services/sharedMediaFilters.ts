@@ -1,5 +1,7 @@
 import { NON_LIBRARY_UPLOAD_SOURCES } from '@gruenerator/shared/media-library/constants';
 
+import { SOURCE_CONTENT_ORIGINS } from './sharedMediaOrigin.js';
+
 /**
  * The filter policies over `shared_media`, in one place.
  *
@@ -25,9 +27,9 @@ import { NON_LIBRARY_UPLOAD_SOURCES } from '@gruenerator/shared/media-library/co
  * here, `upload_source` there. Those agree only because `is_library_item` is
  * derived from `upload_source` at insert time (`uploadMediaFile`), and nothing
  * enforced that they keep agreeing: `createImageShare` omits `is_library_item`
- * entirely and rides the column default. A predicate that grows a new axis —
- * `content_origin` is the next one — has to grow it once, here, or the feeds
- * drift apart again.
+ * entirely and rides the column default. `content_origin` then arrived as a
+ * third axis and had to be written into two of those places by hand; here it is
+ * one line, and the next axis will be one line too.
  */
 
 /**
@@ -55,6 +57,12 @@ export const LIBRARY_ITEM_CLAUSE = 'COALESCE(is_library_item, TRUE) = TRUE';
  * `params.length`, so callers keep building their own query around it — the
  * same push-and-count idiom `withCursor`/`keysetWhere` already use.
  *
+ * The two provenance filters answer different questions. `upload_source` keeps
+ * internal artifacts out — thumbnails, canvas-element output. `content_origin`
+ * keeps *source images* out: a background image someone dropped into the canvas
+ * editor is not something they created. Both belong to every creation feed, so
+ * neither is optional here.
+ *
  * `status` is a parameter rather than a constant because the share galleries
  * legitimately ask for a single status (or, passing `null`, for none at all —
  * `/api/share/my-shares` reports every row it has). Everything else should pass
@@ -70,6 +78,11 @@ export function creationFeedWhere(
   // creations. `IS NULL` because the column post-dates the oldest rows.
   params.push([...NON_LIBRARY_UPLOAD_SOURCES]);
   clauses.push(`(upload_source IS NULL OR upload_source != ALL($${params.length}))`);
+
+  // Source images are what someone built *with*, not what they made. Same
+  // `IS NULL` tolerance, same reason.
+  params.push([...SOURCE_CONTENT_ORIGINS]);
+  clauses.push(`(content_origin IS NULL OR content_origin != ALL($${params.length}))`);
 
   // `typeof` rather than `Array.isArray`: the latter narrows a
   // `readonly string[]` to `any[]`, and the spread that follows then trips
@@ -93,8 +106,8 @@ export function creationFeedWhere(
  * promises rows it will never hand out.
  *
  * Deliberately narrower on status than {@link USER_VISIBLE_SHARE_STATUSES} and
- * deliberately silent about `upload_source`: this is the one surface where an
- * upload belongs.
+ * deliberately silent about both provenance columns: this is the one surface
+ * where an upload belongs.
  */
 export function assetPoolWhere(): string {
   return `status = 'ready' AND ${LIBRARY_ITEM_CLAUSE}`;

@@ -670,9 +670,9 @@ class SharedMediaService {
     try {
       // Every caller of this method is a creation feed — the workplace "Zuletzt"
       // strip, the Studio galleries, the share endpoints, the chat media list —
-      // so the policy comes from `creationFeedWhere`, not from a WHERE clause
-      // written out here. The Mediathek asks a different question and goes
-      // through `getMediaLibrary`.
+      // so both provenance filters come from `creationFeedWhere`, not from a
+      // WHERE clause written out here. The Mediathek asks a different question
+      // and goes through `getMediaLibrary`.
       const params: unknown[] = [userId];
       let query = `
                 SELECT id, share_token, media_type, title, thumbnail_path, file_size,
