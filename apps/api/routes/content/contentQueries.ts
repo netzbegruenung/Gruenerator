@@ -232,7 +232,7 @@ export async function fetchImages(
   const params: unknown[] = [userId];
   // The same policy `getUserShares` applies, from the same place: this endpoint
   // is the migration target for the "Zuletzt" strip, so it has to answer the
-  // question identically or the two feeds show different images.
+  // question identically or the uploads come back the day that migration lands.
   const where = withCursor(
     `user_id = $1
      AND media_type = 'image'
