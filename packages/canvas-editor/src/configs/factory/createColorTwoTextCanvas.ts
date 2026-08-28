@@ -187,9 +187,6 @@ export interface ColorTwoTextOptions<
   /** Optional: Function to get text for sharing */
   getCanvasText?: (state: ColorTwoTextState<TPrimary | TSecondary>) => string;
 
-  /** Optional: Background image that changes with color */
-  backgroundImageMap?: Record<string, string>;
-
   /**
    * Optional: template-specific state keys that must survive
    * createInitialState (e.g. zitat-pure's `namePosition`). Without this the
@@ -241,27 +238,15 @@ export function createColorTwoTextCanvas<
     features = { icons: true, shapes: true, illustrations: true },
     maxPages = 10,
     getCanvasText,
-    backgroundImageMap,
     passthroughStateKeys = [],
   } = options;
 
-  // Build base elements
-  const baseElements: CanvasElementConfig<State>[] = [];
-
-  // Add background element - either image mapped or solid color
-  if (backgroundImageMap) {
-    baseElements.push({
-      id: 'background-image',
-      type: 'image',
-      x: 0,
-      y: 0,
-      width: canvas.width,
-      height: canvas.height,
-      src: (state) =>
-        backgroundImageMap[state.backgroundColor] || Object.values(backgroundImageMap)[0],
-    });
-  } else {
-    baseElements.push({
+  // The solid colour plane, under everything. Non-interactive by construction:
+  // CanvasBackground draws it with `listening={false}`, which is load-bearing —
+  // a full-bleed listening rect would swallow every click on empty canvas and
+  // useCanvasInteractions would stop deselecting.
+  const baseElements: CanvasElementConfig<State>[] = [
+    {
       id: 'background',
       type: 'background',
       x: 0,
@@ -269,8 +254,8 @@ export function createColorTwoTextCanvas<
       width: canvas.width,
       height: canvas.height,
       colorKey: 'backgroundColor',
-    });
-  }
+    },
+  ];
 
   // Default getCanvasText if not provided
   const defaultGetCanvasText = (state: State) => {
@@ -328,15 +313,16 @@ export function createColorTwoTextCanvas<
       chatTab,
     ],
 
-    // 'background' tab kept registered but hidden — opened via getAutoSwitchTab when
-    // the background image is clicked.
-    getVisibleTabs: () => ['text', 'assets', 'tools', 'uploads', 'chat', 'share'],
+    // 'background' was kept out of this list and left to getAutoSwitchTab, on the
+    // assumption that clicking the background opens it. It cannot: the only
+    // background these templates draw is the colour plane, and CanvasBackground
+    // renders that with `listening={false}`, so it never becomes the selection.
+    // The colour picker was unreachable by any route — the tab strip is the only
+    // way in, and it is also the better affordance.
+    // 'share' is not in `tabs`, so listing it here filtered to nothing.
+    getVisibleTabs: () => ['background', 'text', 'assets', 'tools', 'uploads', 'chat'],
 
     getAutoSwitchTab: (selectedElement) => {
-      // `background-image` is the clickable one. The `background` element is the
-      // colour plane, which CanvasBackground renders with `listening={false}`.
-      if (selectedElement === 'background-image' || selectedElement === 'background')
-        return 'background';
       if (selectedElement?.startsWith('chart-')) return 'chart-settings';
       if (selectedElement?.startsWith('frame-')) return 'frame-settings';
       return null;

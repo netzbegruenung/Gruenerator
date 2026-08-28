@@ -363,7 +363,8 @@ export function createImageTwoTextCanvas<
       chatTab,
     ],
 
-    getVisibleTabs: () => ['image', 'text', 'assets', 'tools', 'uploads', 'chat', 'share'],
+    // 'share' is not in `tabs`, so listing it here filtered to nothing.
+    getVisibleTabs: () => ['image', 'text', 'assets', 'tools', 'uploads', 'chat'],
 
     // Clicking the background image opens the tab that replaces it. The
     // element id is `background-image`; `background` is the (unclickable) colour
@@ -463,7 +464,9 @@ export function createImageTwoTextCanvas<
         currentImageSrc: (props.currentImageSrc as string) || (props.imageSrc as string) || '',
         imageOffset: (props.imageOffset as { x: number; y: number } | undefined) ?? { x: 0, y: 0 },
         imageScale: (props.imageScale as number | undefined) ?? 1,
-        isBackgroundLocked: false,
+        // Carried, not hard-reset: card renders and remote-sync re-seeds run
+        // through here, so a hard `false` threw the lock away on the next render.
+        isBackgroundLocked: (props.isBackgroundLocked as boolean | undefined) ?? false,
         backgroundImageOpacity: (props.backgroundImageOpacity as number | undefined) ?? 1,
         imageAttribution:
           (props.imageAttribution as StockImageAttribution | null | undefined) ?? null,

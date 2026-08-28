@@ -522,12 +522,12 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
   ],
 
   // 'ai' tab kept registered but hidden — Chat tab now drives canvas-AI suggestions.
-  // 'background' tab kept registered but hidden — opened via getAutoSwitchTab when
-  // the canvas background is clicked.
-  getVisibleTabs: () => ['text', 'assets', 'tools', 'uploads', 'chat'],
+  // 'background' was hidden here and left to getAutoSwitchTab below, which
+  // matched the id `background` — the colour plane, drawn `listening={false}`,
+  // so it never becomes the selection and the tab never opened.
+  getVisibleTabs: () => ['background', 'text', 'assets', 'tools', 'uploads', 'chat'],
 
   getAutoSwitchTab: (selectedElement) => {
-    if (selectedElement === 'background') return 'background';
     if (selectedElement?.startsWith('chart-')) return 'chart-settings';
     if (selectedElement?.startsWith('frame-')) return 'frame-settings';
     return null;
