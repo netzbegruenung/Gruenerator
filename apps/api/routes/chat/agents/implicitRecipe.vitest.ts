@@ -105,6 +105,41 @@ describe('deriveImplicitRecipeMention', () => {
     );
   });
 
+  // ── Der plattformlose Auffang ────────────────────────────────────────────
+  // Bis 08/2026 fing der Intent `social_post` diese Formulierung mit einer
+  // eigenen Rubrik ab. Der ist stillgelegt; ohne Auffang bekäme ausgerechnet
+  // die häufigste Bestellung als einzige gar keine Formvorgabe.
+  it('nimmt instagram, wenn ein Social-Post ohne Plattform bestellt wird', () => {
+    expect(
+      deriveImplicitRecipeMention('Schreibe einen Social-Media-Post für mehr Artenschutz', 'de-DE')
+    ).toBe('instagram');
+    expect(deriveImplicitRecipeMention('Mach mir einen Social Post dazu', 'de-DE')).toBe(
+      'instagram'
+    );
+  });
+
+  it('eine genannte Plattform schlägt den Auffang', () => {
+    expect(
+      deriveImplicitRecipeMention('Schreib einen Social-Media-Post für Facebook', 'de-DE')
+    ).toBe('facebook');
+  });
+
+  it('zwei Plattformen bleiben mehrdeutig — der Auffang springt nicht ein', () => {
+    expect(
+      deriveImplicitRecipeMention(
+        'Schreib einen Social-Media-Post für Instagram und Facebook',
+        'de-DE'
+      )
+    ).toBe(null);
+  });
+
+  it('greift nicht ohne Schreibverb und nicht bei Verneinung', () => {
+    expect(deriveImplicitRecipeMention('Wie funktioniert Social Media?', 'de-DE')).toBe(null);
+    expect(
+      deriveImplicitRecipeMention('Schreib einen Text, aber keinen Social-Media-Post', 'de-DE')
+    ).toBe(null);
+  });
+
   it('ignores platform words inside quotes', () => {
     expect(
       deriveImplicitRecipeMention(

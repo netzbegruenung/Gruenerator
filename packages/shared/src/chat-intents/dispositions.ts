@@ -65,6 +65,10 @@ import { type ChatIntentId } from './index.js';
  *                Dokumente, darüber per_doc_bullets) und eigene Degradierung
  *                auf `search` bei ≤1 Doc-Quelle
  *   examples     @beispiele · Ziel der App-Herabstufung von social_post
+ *   social_post  STILLGELEGT (08/2026): die Textsorte liegt im Rezept
+ *                (`instagram`/`facebook`/`twitter`/`linkedin`/`reel`), das der
+ *                Einzeldurchlauf über `deriveImplicitRecipeMention` lädt —
+ *                der einzige, der ersatzlos fällt statt umzuziehen
  *   pressemitteilung_examples  STILLGELEGT (Phase L): die Karte hängt am
  *                Werkzeug, nicht am Verdikt; @pressemitteilungen/@pm zurrt
  *                Werkzeug UND Rezept `presse` fest
@@ -147,6 +151,13 @@ export const DISPOSITION_BY_INTENT: Record<ChatIntentId, Disposition> = {
   // Grund, warum der Intent nichts mehr trug: das Werkzeug hing im Katalog, die
   // Textsorte im Rezept, und übrig blieb `kinds.push('press')` plus eine Karte.
   pressemitteilung_examples: 'retired',
+  // Und ein drittes Mal, diesmal ganz ohne Werkzeug: `social_post` war als
+  // `artifact` geführt, weil es eine Karte erzeugte und eine Generierung
+  // kostete. Beides beschrieb die Verpackung, nicht die Frage — die Frage war
+  // „nach welcher Textsorte wird hier geschrieben", und die beantwortet ein
+  // Rezept auf dem Einzeldurchlauf. Kein Verdikt nötig, kein Urteil VOR der
+  // Antwort. Zensus 3/167 vor der Stilllegung.
+  social_post: 'retired',
   /** Der Auffangwert selbst. Seit #2269 der Residualwert der LLM-Stufe. */
   agentic: 'loop',
 
@@ -155,7 +166,6 @@ export const DISPOSITION_BY_INTENT: Record<ChatIntentId, Disposition> = {
   image: 'artifact',
   image_edit: 'artifact',
   sharepic: 'artifact',
-  social_post: 'artifact',
   chart: 'artifact',
   artifact: 'artifact',
   save_as_doc: 'artifact',

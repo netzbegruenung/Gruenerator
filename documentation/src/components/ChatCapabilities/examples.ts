@@ -81,13 +81,15 @@ export const GROUPS: CapabilityGroup[] = [
  */
 export const INTERNAL_INTENTS: Record<string, string> = {
   produktion:
-    'Schreiben, dessen Inhalt du selbst mitlieferst: eingefügter Text, Stichpunkte, ein Anhang — oder das Überarbeiten von vorhandenem Text.',
+    'Schreiben, dessen Inhalt du selbst mitlieferst: eingefügter Text, Stichpunkte, ein Anhang — oder das Überarbeiten von vorhandenem Text. Auch Social-Media-Beiträge und Pressemitteilungen entstehen hier, geschrieben nach dem passenden Rezept.',
   direct:
     'Historischer Standardfall, wird seit 07/2026 nicht mehr neu vergeben. Alte Chats zeigen ihn weiterhin.',
   greeting:
     'Begrüßung, Dank oder kurzer Small Talk. Wird ohne KI-Modell erkannt und daher sofort beantwortet.',
   agentic:
     'Auffangwert: Ist unklar, welches Werkzeug passt, entscheidet das antwortende Modell selbst, ob es sucht.',
+  social_post:
+    'Stillgelegt (08/2026). Ein Social-Media-Beitrag ist eine Textsorte und wird nach dem Rezept „Instagram", „Facebook", „X/Twitter" oder „LinkedIn" geschrieben — als normale Antwort im Verlauf, nicht mehr als eigene Karte. Beiträge aus der Zeit davor bleiben in ihren Chats sichtbar und bearbeitbar.',
 };
 
 export const EXAMPLES: CapabilityExample[] = [
@@ -255,16 +257,6 @@ export const EXAMPLES: CapabilityExample[] = [
     questions: [
       'Mach ein Sharepic mit der Aussage „Wärmepumpe statt Gasheizung".',
       'Erstelle ein Sharepic zum Ausbau der Kinderbetreuung.',
-    ],
-  },
-  {
-    intent: 'social_post',
-    group: 'erstellen',
-    label: 'Post mit passendem Sharepic',
-    hint: 'Text und Grafik in einem Schritt — der Grünerator schreibt den Beitrag und gestaltet das passende Bild dazu.',
-    questions: [
-      'Schreib einen Instagram-Post mit Sharepic zur Verkehrswende.',
-      'Mach mir einen Beitrag samt Grafik zum Tag der Artenvielfalt.',
     ],
   },
   {

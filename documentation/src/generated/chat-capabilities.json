@@ -32,15 +32,13 @@
     "search",
     "share_doc",
     "sharepic",
-    "social_post",
     "summary",
     "umfragen",
     "web"
   ],
   "experimentalIntents": [
     "create_recurring_task",
-    "mcp",
-    "social_post"
+    "mcp"
   ],
   "mentionables": {
     "abgeordnetenwatch": {
@@ -159,11 +157,6 @@
       "title": "Tabelle erstellen",
       "description": "Erstellt eine Tabelle (Spreadsheet) aus dem Chatverlauf",
       "mention": "@tabelle-erstellen"
-    },
-    "social_post": {
-      "title": "Social Post",
-      "description": "Post-Text mit passendem Sharepic in einem Zug",
-      "mention": "@social"
     },
     "summary": {
       "title": "Zusammenfassung",

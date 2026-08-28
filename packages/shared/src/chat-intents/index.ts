@@ -608,20 +608,37 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
       backgroundColor: '#46962b',
     },
   },
+  /**
+   * Stillgelegt (08/2026). Ein Social-Media-Post ist eine TEXTSORTE, keine
+   * Artefaktart — und Textsorten trägt hier das Rezept: `instagram`,
+   * `facebook`, `twitter`, `linkedin`, `reel` liegen als Rezepte in
+   * `agents/skills` und schreiben korpusgestützt, mit AT-Gabelung und mit dem
+   * angelernten Stil der Person. Der Intent legte dieselbe Textsorte ein
+   * zweites Mal an, mit eigener Karte und eigener Rubrik, und die beiden
+   * widersprachen sich messbar (Instagram: Rubrik 800–1500 Zeichen gegen
+   * Rezept 350–750). Wer welchen Text bekam, hing daran, ob der Turn als
+   * `social_post` oder als `produktion` klassifiziert wurde — für die*den
+   * Nutzer*in ununterscheidbar. Jetzt schreibt ihn immer das Rezept, und die
+   * Antwort steht als Prosa im Verlauf statt in einer Werkzeugkarte.
+   *
+   * Die Erwähnung fällt ersatzlos weg — anders als bei `@umfragen` oder
+   * `@pressemitteilungen` gibt es kein Werkzeug festzuzurren, und das Rezept
+   * hat mit `/instagram` & Co. bereits eigene, genauere Einträge im Composer.
+   * Der TOKEN bleibt (F0: er steht in persistierten Threads und in
+   * ausgelieferten Composern) und landet über `forcedIntentStage` auf dem
+   * Einzeldurchlauf, wo `deriveImplicitRecipeMention` das Rezept wählt.
+   *
+   * `persistTool` bleibt ebenfalls: die Karten ALTER Threads werden weiter
+   * gelesen und bearbeitet (`socialPostEditService`), nur neu erzeugt wird
+   * keine mehr.
+   */
   social_post: {
     id: 'social_post',
     category: 'generation',
     audience: 'all',
     localeSourced: true,
     persistTool: 'social_post',
-    mention: {
-      slug: 'social',
-      aliases: ['socialpost'],
-      title: 'Social Post',
-      description: 'Post-Text mit passendem Sharepic in einem Zug',
-      avatar: '📣',
-      backgroundColor: '#7C3AED',
-    },
+    availability: 'retired',
   },
   chart: {
     id: 'chart',

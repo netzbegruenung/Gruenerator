@@ -144,7 +144,16 @@ const PIN_ROUTES: readonly PinRoute[] = [
     group: 'simple',
   },
   { intent: 'chat_history', group: 'simple' },
-  { intent: 'social_post', group: 'simple' },
+  /**
+   * `@social` — die Erwähnung ist weg, der Token bleibt (F0: er steht in
+   * persistierten Threads und in ausgelieferten Composern). Anders als
+   * `@umfragen` und `@pressemitteilungen` zeigt er auf gar kein Werkzeug: ein
+   * Social-Post ist eine Textsorte. Er landet deshalb auf `produktion`, wo
+   * `deriveImplicitRecipeMention` in `routingStage` aus demselben Nutzertext
+   * das Rezept wählt — die Zeile setzt es NICHT selbst, sonst hätte der Pin
+   * eine zweite, gröbere Rezeptwahl neben der einen echten.
+   */
+  { token: 'social_post', intent: 'produktion', localeIntent: 'social_post', group: 'simple' },
   { intent: 'chart', group: 'simple' },
   { intent: 'compute', group: 'simple' },
 ];
