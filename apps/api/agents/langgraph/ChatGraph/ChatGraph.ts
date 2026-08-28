@@ -232,7 +232,6 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
     clarificationQuestion: null,
     clarificationOptions: null,
     detectedFilters: null,
-    platform: null,
 
     // Research brief (will be set by briefGenerator node for complex research)
     researchBrief: null,

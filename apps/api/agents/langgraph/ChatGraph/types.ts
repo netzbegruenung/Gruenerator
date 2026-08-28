@@ -902,16 +902,6 @@ export interface ChatGraphState {
    */
   webImageResults?: WebImageResult[];
 
-  // Platform hint for the `examples` intent. Set by the classifier when the
-  // user prompt names a platform; null otherwise. Consumed by searchNode to
-  // filter social examples (instagram/facebook only — the Qdrant collection has
-  // no other platforms).
-  //
-  // Der zweite Verbraucher war `social_post`, das daraus seine Rubrik wählte.
-  // Verdikt und Rubrik sind 08/2026 gefallen; die Plattform wählt heute das
-  // REZEPT (`deriveImplicitRecipeMention`), nicht dieses Feld.
-  platform: SocialTextPlatform | null;
-
   // Clarification (HITL interrupt)
   needsClarification: boolean;
   clarificationQuestion: string | null;
