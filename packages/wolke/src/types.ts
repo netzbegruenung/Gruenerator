@@ -1,5 +1,3 @@
-export type WolkeScope = 'personal' | 'group';
-
 export interface ShareLink {
   id: string;
   share_link?: string;
@@ -25,18 +23,6 @@ export interface WolkeFileItem {
   isSupported: boolean;
   sizeFormatted: string;
   lastModifiedFormatted?: string;
-}
-
-export interface SyncStatus {
-  share_link_id: string;
-  folder_path: string;
-  auto_sync_enabled: boolean;
-  sync_status: 'idle' | 'syncing' | 'completed' | 'failed';
-  last_sync_at: string | null;
-  files_processed: number;
-  files_failed: number;
-  created_at?: string;
-  updated_at?: string;
 }
 
 export type ConnectionErrorCode = 'invalid_link' | 'not_found' | 'forbidden' | 'unknown';

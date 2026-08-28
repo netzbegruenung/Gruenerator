@@ -580,27 +580,6 @@ export class WolkeSyncService {
   }
 
   /**
-   * Get sync status for user
-   */
-  async getUserSyncStatus(userId: string): Promise<WolkeSyncRow[]> {
-    try {
-      await this.ensureInitialized();
-      const db = getDrizzleInstance();
-
-      const syncStatuses = await db
-        .select()
-        .from(wolkeSyncStatus)
-        .where(eq(wolkeSyncStatus.userId, userId))
-        .orderBy(wolkeSyncStatus.lastSyncAt);
-
-      return syncStatuses;
-    } catch (error: unknown) {
-      console.error('[WolkeSyncService] Error getting user sync status:', error);
-      throw error;
-    }
-  }
-
-  /**
    * Enable/disable auto-sync for a folder
    */
   async setAutoSync(
