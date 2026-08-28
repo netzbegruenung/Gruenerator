@@ -9,6 +9,15 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { makeCloudFilesTool } from './cloudFileTools.js';
 
+// `emitToolConfirmAction` legt die Karte in Redis ab. Ohne erreichbares Redis
+// wirft der Client nicht, er antwortet nie — der Test lief auf der CI darum in
+// den 5-s-Timeout, während er lokal (Redis läuft) grün war. Gemockt wird nur
+// der Speicher: `emitToolConfirmAction` selbst bleibt echt, damit die
+// Karte samt `CONFIRM_ACTION_CONFIG`-Eintrag weiter geprüft wird.
+vi.mock('../services/pendingActionStore.js', () => ({
+  pendingActionStore: { store: async () => {} },
+}));
+
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { CloudFileProvider, CloudListing, CloudRoot } from '../../../services/files/index.js';
 import type { SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
@@ -53,7 +62,11 @@ function entry(name: string, over: Partial<CloudListing['entries'][number]> = {}
 
 function makeCtx(
   provider: Partial<CloudFileProvider>,
-  opts: { roots?: CloudRoot[]; userId?: string | null } = {}
+  opts: {
+    roots?: CloudRoot[];
+    userId?: string | null;
+    attachedWebpageUrls?: string[];
+  } = {}
 ) {
   const notes: Array<[string, string]> = [];
   const registered: unknown[] = [];
@@ -70,6 +83,7 @@ function makeCtx(
   } as unknown as SSEWriter;
   const state = {
     agentConfig: { userId: opts.userId === undefined ? 'user-1' : opts.userId },
+    attachedWebpageUrls: opts.attachedWebpageUrls ?? [],
   } as unknown as ChatGraphState;
 
   const tool = makeCloudFilesTool({
@@ -85,7 +99,7 @@ function makeCtx(
       { recursive: false, ...args },
       {}
     )) ?? {};
-  return { run, notes, registered, sseEvents };
+  return { run, notes, registered, sseEvents, tool };
 }
 
 describe('list_connections', () => {
@@ -233,6 +247,22 @@ describe('test_connection', () => {
     expect(test).toHaveBeenCalledWith(ROOT);
     expect(result.ok).toBe(false);
   });
+
+  // `connectionId` meint eine gespeicherte Verbindung — ein angehängter Link
+  // darf da nicht dazwischenfahren, sonst prüft das Werkzeug etwas anderes,
+  // als das Modell benannt hat.
+  it('keeps a named connection even when a link is attached', async () => {
+    const test = vi.fn(async () => ({ ok: true, entryCount: 1 }));
+    const { run } = makeCtx(
+      { test },
+      {
+        roots: [ROOT, SECOND_ROOT],
+        attachedWebpageUrls: ['https://wolke.netzbegruenung.de/s/Angehaengt'],
+      }
+    );
+    await run({ action: 'test_connection', connectionId: 'link-2' });
+    expect(test).toHaveBeenCalledWith(SECOND_ROOT);
+  });
 });
 
 describe('add_connection', () => {
@@ -259,6 +289,31 @@ describe('add_connection', () => {
       value: '7 Einträge im Wurzelordner',
     });
     expect(card.metadata).toContainEqual({ key: 'Zugriff', value: 'nur lesend' });
+  });
+
+  // Über `@link` angehängte Links stehen NICHT im Nachrichtentext — ohne diese
+  // beiden Stücke (Beschreibung + Rückfall) wäre ein so angehängter
+  // Freigabe-Link seit dem `scrape_url`-Ausschluss ein stiller Blindgänger.
+  it('takes an @link-attached share link when the model names none', async () => {
+    const test = vi.fn(async () => ({ ok: true, entryCount: 3 }));
+    const { run, tool, sseEvents } = makeCtx(
+      { test },
+      { attachedWebpageUrls: ['https://wolke.netzbegruenung.de/s/Angehaengt'] }
+    );
+
+    expect(tool.description).toContain('https://wolke.netzbegruenung.de/s/Angehaengt');
+
+    const result = await run({ action: 'add_connection' });
+    expect(test).toHaveBeenCalledWith({
+      link: 'https://wolke.netzbegruenung.de/s/Angehaengt',
+    });
+    expect(result.needsConfirmation).toBe(true);
+    expect(sseEvents[0][0]).toBe('confirm_action');
+  });
+
+  it('does not mention an attachment that is not a share link', async () => {
+    const { tool } = makeCtx({}, { attachedWebpageUrls: ['https://gruene.de/programm'] });
+    expect(tool.description).not.toContain('gruene.de');
   });
 
   it('does not ask when the link does not work', async () => {
