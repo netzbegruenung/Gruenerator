@@ -33,9 +33,9 @@ vi.mock('../../../routes/chat/agents/directSearch.js', () => ({
   executeDirectExamplesSearch: (...args: any[]) => mockExecuteDirectExamplesSearch(...args),
 }));
 
-const mockSelectAndCrawlTopUrls = vi.fn();
+const mockCrawlAndDistill = vi.fn();
 vi.mock('../../../services/search/CrawlingService.js', () => ({
-  selectAndCrawlTopUrls: (...args: any[]) => mockSelectAndCrawlTopUrls(...args),
+  crawlAndDistill: (...args: any[]) => mockCrawlAndDistill(...args),
 }));
 
 const mockExpandQuery = vi.fn();
@@ -50,6 +50,17 @@ vi.mock('../../../services/search/QueryExpansionService.js', () => ({
 const mockRerank = vi.fn();
 vi.mock('../../../services/search/RegoloRerankService.js', () => ({
   regoloRerankService: { rerank: (...args: any[]) => mockRerank(...args) },
+}));
+
+// Seit dem Umzug auf GreenPT fragt `rerankPipeline` DIESEN Dienst zuerst. Ohne
+// das Mock entscheidet `GREENPT_API_KEY` in der Umgebung, ob der Test ins Netz
+// geht — mit `isAvailable: false` fällt er deterministisch auf das Regolo-Mock
+// oben durch, das die Zusicherungen hier prüfen.
+vi.mock('../../../services/search/GreenPTRerankService.js', () => ({
+  greenptRerankService: { isAvailable: () => false, rerank: vi.fn() },
+  GreenPTRerankError: class extends Error {
+    timedOut = false;
+  },
 }));
 
 vi.mock('../../../utils/logger.js', () => ({
@@ -230,7 +241,7 @@ describe('Compound Pipeline: @notebook + @skill', () => {
     mockRerank.mockImplementation(async ({ documents }: { documents: string[] }) =>
       documents.map((_, i) => ({ originalIndex: i, relevanceScore: 0.9 - i * 0.1 }))
     );
-    mockSelectAndCrawlTopUrls.mockImplementation(async (results: any[]) =>
+    mockCrawlAndDistill.mockImplementation(async (results: any[]) =>
       results.map((r: any) => ({ ...r, crawled: false }))
     );
     // Der Verfeinerer ist auf diesen Pfaden die einzige Modell-Frage.

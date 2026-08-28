@@ -63,8 +63,6 @@ const { DocumentSearchService } =
 const { rerankPipeline } = await import('../../services/search/rerankPipeline.js');
 const { selectRelevantExcerpt } = await import('../../services/search/relevantExcerpt.js');
 const { vectorConfig } = await import('../../config/vectorConfig.js');
-const { RERANK_FOCUS_MIN_RATIO } =
-  await import('../../agents/langgraph/ChatGraph/nodes/rerankNode.js');
 const { rankManualSearchResults } = await import('../../services/search/manualSearchRanking.js');
 
 const { RETRIEVAL_CASES } = await import('./cases.js');
@@ -84,19 +82,33 @@ const MRR_K = 10;
  */
 const RERANK_WINDOW = vectorConfig.get('content').maxExcerptLength;
 
-type ExcerptArm = 'off' | 'head' | 'passages' | 'contiguous' | 'node';
+/**
+ * `node` ist der Arm, der den ausgelieferten Zustand nachbildet — und der ist
+ * seit #2998 **kein Schnitt**, also identisch mit `off`. Er bleibt als eigener
+ * Name stehen, damit ein Lauf ohne `EVAL_RERANK_EXCERPT` misst, was wirklich
+ * läuft.
+ *
+ * `gated` ist der Zustand VOR #2998 (anfragebezogener Auszug im Fenster, aber
+ * nur für Kandidaten ab dem Doppelten der Fenstergrösse). Er bleibt
+ * reproduzierbar, weil die Zeile, gegen die dieser Umbau antritt, sonst nicht
+ * mehr nachzumessen wäre.
+ */
+type ExcerptArm = 'off' | 'head' | 'passages' | 'contiguous' | 'gated' | 'node';
 
-/** Fenstergrösse, die der Knoten benutzt; per EVAL_RERANK_WINDOW verstellbar. */
+/** Fenstergrösse der ehemaligen Schnitte; per EVAL_RERANK_WINDOW verstellbar. */
 const evalWindow = Number(process.env.EVAL_RERANK_WINDOW || RERANK_WINDOW);
+
+/** Tor des `gated`-Arms: ab welchem Vielfachen des Fensters ausgewählt wurde. */
+const GATED_FOCUS_MIN_RATIO = 2;
 
 /** Was der Cross-Encoder in diesem Lauf zu lesen bekommt. */
 function excerptFor(content: string, query: string, arm: ExcerptArm): string {
-  if (arm === 'off') return content;
+  if (arm === 'off' || arm === 'node') return content;
   const head = content.slice(0, evalWindow);
   if (arm === 'head') return head;
-  if (arm === 'node' && content.length < evalWindow * RERANK_FOCUS_MIN_RATIO) return head;
+  if (arm === 'gated' && content.length < evalWindow * GATED_FOCUS_MIN_RATIO) return head;
   const mode = arm === 'passages' ? 'passages' : 'contiguous';
-  // Derselbe Rückfall wie im Knoten: ohne Signal bleibt es beim Kopfschnitt.
+  // Derselbe Rückfall wie damals im Knoten: ohne Signal bleibt es beim Kopfschnitt.
   return selectRelevantExcerpt(content, query, evalWindow, mode)?.text ?? head;
 }
 const HIT_KS = [1, 3, 5] as const;

@@ -148,3 +148,20 @@ export function creationFeedWhere(
 export function assetPoolWhere(): string {
   return `status = 'ready' AND ${LIBRARY_ITEM_CLAUSE}`;
 }
+
+/**
+ * Row ceiling for `getUserShares`, and the `limit` the share list endpoints
+ * report back.
+ *
+ * A query policy, not the Mediathek quota — `MEDIA_LIBRARY_ITEM_LIMIT` happens
+ * to be the same number today and answers a different question ("how much of
+ * your account is used", account-wide, unfiltered). This one bounds a single
+ * response. Nothing in the share list family takes an offset, so `count` can
+ * only ever describe the page that was returned, and `count === limit` is the
+ * one signal a caller has that there was more (#2986).
+ *
+ * Lives here rather than in `sharedMediaService` so the routers can read it
+ * without importing that module — it is deliberately lazy-loaded through
+ * `shareServices.getSharedMediaService`.
+ */
+export const USER_SHARES_MAX_LIMIT = 100;
