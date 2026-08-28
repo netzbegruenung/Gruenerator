@@ -233,6 +233,16 @@ function EditorAssistantReadyHost({
     [adapter.attachments]
   );
 
+  // No message queue here, deliberately. This surface shares
+  // `createGrueneratorModelAdapter` with the main chat, so it inherits the
+  // interrupt guard that refuses a re-invocation on a thread the backend
+  // interrupted (`interruptedThreadId`) — closure state fed by the `interrupt`
+  // SSE event alone, with nothing to do with `unstable_humanToolNames`. A queue
+  // on top of that strands turns: the next one is appended and then aborted.
+  // `useQueueInterruptGuard` cannot cover it, because without
+  // `unstable_humanToolNames` the runtime never parks the message at
+  // `requires-action`, which is the shape the guard watches for. Enabling it
+  // here needs the guard to observe the adapter's interrupt instead.
   const runtime = useLocalRuntime(modelAdapter, {
     initialMessages: initialMessages ?? [],
     ...(attachmentAdapter ? { adapters: { attachments: attachmentAdapter } } : {}),
