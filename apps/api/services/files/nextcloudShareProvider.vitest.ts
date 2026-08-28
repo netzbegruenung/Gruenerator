@@ -252,3 +252,47 @@ describe('read-only guarantee', () => {
     }
   });
 });
+
+describe('path guard', () => {
+  // Der Pfad kommt bei `cloud_files` aus einer MODELLANTWORT und ist damit
+  // indirekt über Prompt-Injektion erreichbar. `encodeURIComponent('..')` ist
+  // `'..'` — Punkte sind nicht reserviert —, und der HTTP-Client löst die
+  // Punkt-Segmente beim Bau der URL auf: die Anfrage läge dann außerhalb von
+  // `/public.php/webdav/`, bei unverändertem `origin`. Genau deshalb greift die
+  // vorhandene Prüfung in `downloadFile` nicht, sie vergleicht ja den Host.
+  const escapes = [
+    '../../secrets',
+    'A/../../secrets',
+    '/public.php/webdav/../../remote.php/dav',
+    '%2e%2e/secrets',
+    'A\\..\\..\\secrets',
+    'https://evil.example/x',
+    '//evil.example/x',
+  ];
+
+  for (const bad of escapes) {
+    it(`refuses "${bad}" — and sends nothing`, async () => {
+      const calls: string[] = [];
+      const provider = makeProvider(fakeClient({}, calls));
+      await expect(provider.list(root, bad)).rejects.toThrow();
+      await expect(provider.read(root, bad)).rejects.toThrow();
+      // Der Punkt ist nicht die Ausnahme, sondern dass gar keine Anfrage
+      // hinausgeht — ein Fehler NACH dem Abruf wäre keine Absicherung.
+      expect(calls).toEqual([]);
+    });
+  }
+
+  it('keeps an ordinary path, WebDAV prefix and stray slashes and all', async () => {
+    const calls: string[] = [];
+    const provider = makeProvider(fakeClient({ 'A/B': [] }, calls));
+    await provider.list(root, `${PREFIX}/A/B`);
+    await provider.list(root, '/A/B/');
+    expect(calls).toEqual(['PROPFIND A/B', 'PROPFIND A/B']);
+  });
+
+  it('reads an empty path as the root, not as an error', async () => {
+    const provider = makeProvider(fakeClient({ '': [file('x.pdf')] }));
+    const listing = await provider.list(root, '');
+    expect(listing.entries).toHaveLength(1);
+  });
+});
