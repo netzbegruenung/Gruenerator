@@ -19,7 +19,11 @@ import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { createGrueneratorModelAdapter } from './index';
 
 import type { GrueneratorAdapterConfig } from './types';
-import type { ChatModelRunOptions } from '@assistant-ui/react';
+import type {
+  ChatModelAdapter,
+  ChatModelRunOptions,
+  ChatModelRunResult,
+} from '@assistant-ui/react';
 
 const THREAD_ID = 'e4d1c0aa-0000-4000-8000-000000000042';
 
@@ -42,16 +46,25 @@ const config: GrueneratorAdapterConfig = {
   threadId: THREAD_ID,
 };
 
-async function runTurn(onInterrupt: () => void) {
-  const adapter = createGrueneratorModelAdapter(() => config, { onInterrupt });
-  const options = {
-    messages: [{ role: 'user', content: [{ type: 'text', text: 'Erstell ein Sharepic' }] }],
-    abortSignal: new AbortController().signal,
-  } as unknown as ChatModelRunOptions;
+const options = {
+  messages: [{ role: 'user', content: [{ type: 'text', text: 'Erstell ein Sharepic' }] }],
+  abortSignal: new AbortController().signal,
+} as unknown as ChatModelRunOptions;
 
-  for await (const _ of adapter.run(options)) {
-    // Drain: the adapter yields partial results, the assertion is on the callback.
+/**
+ * Runs one turn to the end. `ChatModelAdapter['run']` is declared as generator
+ * OR promise; ours is always the generator, and only the generator form can be
+ * drained — hence the cast at this one boundary.
+ */
+async function runTurn(adapter: ChatModelAdapter): Promise<void> {
+  const stream = adapter.run(options) as AsyncGenerator<ChatModelRunResult, void>;
+  for await (const _ of stream) {
+    // The adapter yields partial results; the assertion is on the callback.
   }
+}
+
+function adapterWith(onInterrupt: () => void): ChatModelAdapter {
+  return createGrueneratorModelAdapter(() => config, { onInterrupt });
 }
 
 describe('adapter interrupt callback', () => {
@@ -66,7 +79,7 @@ describe('adapter interrupt callback', () => {
     ]);
     const onInterrupt = vi.fn();
 
-    await runTurn(onInterrupt);
+    await runTurn(adapterWith(onInterrupt));
 
     expect(onInterrupt).toHaveBeenCalledTimes(1);
   });
@@ -78,7 +91,7 @@ describe('adapter interrupt callback', () => {
     ]);
     const onInterrupt = vi.fn();
 
-    await runTurn(onInterrupt);
+    await runTurn(adapterWith(onInterrupt));
 
     expect(onInterrupt).not.toHaveBeenCalled();
   });
@@ -92,21 +105,12 @@ describe('adapter interrupt callback', () => {
       { event: 'done', data: { citations: [] } },
     ]);
     const onInterrupt = vi.fn();
-    const adapter = createGrueneratorModelAdapter(() => config, { onInterrupt });
-    const options = {
-      messages: [{ role: 'user', content: [{ type: 'text', text: 'Erstell ein Sharepic' }] }],
-      abortSignal: new AbortController().signal,
-    } as unknown as ChatModelRunOptions;
+    const adapter = adapterWith(onInterrupt);
 
-    for await (const _ of adapter.run(options)) {
-      /* first turn */
-    }
+    await runTurn(adapter);
     expect(onInterrupt).toHaveBeenCalledTimes(1);
 
-    await expect(async () => {
-      for await (const _ of adapter.run(options)) {
-        /* the turn a queue would have sent */
-      }
-    }).rejects.toThrow(/abort/i);
+    // The turn a queue would have sent next.
+    await expect(runTurn(adapter)).rejects.toThrow(/abort/i);
   });
 });
