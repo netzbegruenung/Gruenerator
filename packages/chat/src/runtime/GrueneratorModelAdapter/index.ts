@@ -404,6 +404,7 @@ export function createGrueneratorModelAdapter(
           if (resumeOutcome.interrupted) {
             interruptedThreadId = config.threadId;
             lastInterruptedResult = resumeOutcome.lastResult ?? null;
+            callbacks.onInterrupt?.();
           }
           return;
         }
@@ -956,6 +957,10 @@ export function createGrueneratorModelAdapter(
       if (streamOutcome.interrupted) {
         interruptedThreadId = config.threadId;
         lastInterruptedResult = streamOutcome.lastResult ?? null;
+        // Still inside run(): the queue only advances a microtask after the
+        // runtime sees this generator finish, so a listener that empties it
+        // here is always ahead of the turn that would be stranded.
+        callbacks.onInterrupt?.();
       }
       pendingApprovalTurnId = streamOutcome.toolApprovalPending?.approvalTurnId ?? null;
     },
