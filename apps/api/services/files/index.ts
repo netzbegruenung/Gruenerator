@@ -28,8 +28,6 @@ export async function listAllCloudRoots(userId: string): Promise<CloudRoot[]> {
   return perProvider.flat();
 }
 
-export { CloudPathError, assertRootRelativePath } from './paths.js';
-
 export {
   CLOUD_BROWSE_MAX_DEPTH,
   CLOUD_BROWSE_MAX_FILES,

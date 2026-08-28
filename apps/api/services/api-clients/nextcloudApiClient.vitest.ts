@@ -4,7 +4,9 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import { isWebdavSelfEntry } from './nextcloudApiClient.js';
+import { CloudPathError } from '../../utils/validation/cloudPaths.js';
+
+import NextcloudApiClient, { isWebdavSelfEntry } from './nextcloudApiClient.js';
 
 const PREFIX = '/public.php/webdav';
 
@@ -61,5 +63,32 @@ describe('isWebdavSelfEntry', () => {
 
   it('does not throw on a malformed escape and keeps the entry', () => {
     expect(isWebdavSelfEntry(`${PREFIX}/100%/`, `${PREFIX}/Stadtrat`)).toBe(false);
+  });
+});
+
+/**
+ * #3043: der Pfad-Wächter sitzt an der Transportschicht, weil es NEUN Aufrufer
+ * gibt und vier davon einen Pfad annehmen, den jemand anderes geschrieben hat.
+ * Der Konstruktor genügt hier — `create()` würde eine DNS-Auflösung auslösen,
+ * und der Wächter greift bewusst davor, es geht ohnehin nichts hinaus.
+ */
+describe('path guard', () => {
+  const client = new NextcloudApiClient('https://wolke.example/s/AbCdEf');
+  const escapes = ['../../secrets', `${PREFIX}/../../remote.php/dav`, '%2e%2e/secrets'];
+
+  for (const bad of escapes) {
+    it(`refuses to list "${bad}"`, async () => {
+      await expect(client.listFolder(bad)).rejects.toThrow(CloudPathError);
+    });
+
+    it(`refuses to download "${bad}"`, async () => {
+      await expect(client.downloadFile(bad)).rejects.toThrow(CloudPathError);
+    });
+  }
+
+  it('reports the refusal as itself, not as a generic listing failure', async () => {
+    // Der Wächter steht VOR dem try. Stünde er darin, käme er als
+    // „Failed to list folder" heraus und jeder Aufrufer müsste raten.
+    await expect(client.listFolder('../x')).rejects.toThrow(/nicht aus der Freigabe/);
   });
 });

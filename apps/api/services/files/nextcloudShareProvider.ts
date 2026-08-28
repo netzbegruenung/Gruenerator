@@ -12,11 +12,11 @@
 
 import { NextcloudShareManager } from '../../utils/integrations/nextcloud/shareManager.js';
 import { createLogger } from '../../utils/logger.js';
+import { CloudPathError, assertRootRelativePath } from '../../utils/validation/cloudPaths.js';
 import NextcloudApiClient from '../api-clients/nextcloudApiClient.js';
 import { folderPathFromHref, walkWolkeFolder } from '../sync/folderWalk.js';
 import { isSupportedWolkeFile } from '../sync/supportedFileTypes.js';
 
-import { CloudPathError, assertRootRelativePath } from './paths.js';
 import {
   type CloudConnectionTest,
   type CloudDownload,
