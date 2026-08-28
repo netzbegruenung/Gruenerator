@@ -40,7 +40,7 @@ import { resolveAbortOutcome } from '../turnAbortOutcome.js';
 import { turnMaterialChars } from '../turnMaterial.js';
 import { withInstructionHierarchy } from '../untrustedContent.js';
 
-import { isToolApprovalEnabled } from './approvalPolicy.js';
+import { toolApprovalMode } from './approvalPolicy.js';
 import { ATTACHED_DOCS_TOOL, retrievableAttachedSources } from './attachedDocuments.js';
 import {
   assembleToolCatalog,
@@ -75,7 +75,11 @@ import { createSourceRegistry } from './sourceRegistry.js';
 import { buildConnectorNotes, buildSynthSystem, type SynthPromptContext } from './synthPrompt.js';
 import { createAnswerValidator, finalizeAnswerText, pdfProblemNote } from './synthVerdicts.js';
 import { createToolActivity } from './toolActivity.js';
-import { createToolApprovalGate, type ToolApprovalGate } from './toolApprovalGate.js';
+import {
+  createToolApprovalGate,
+  DENIED_RETRY_MESSAGE,
+  type ToolApprovalGate,
+} from './toolApprovalGate.js';
 import { loadAllowlist } from './toolApprovalRepo.js';
 import { createToolCostLedger } from './toolCostLedger.js';
 import { buildToolUsageBlock } from './toolUsageBlock.js';
@@ -156,6 +160,9 @@ export async function streamAgenticResponse(
     /** Fortsetzung nach einer Freigabe: `scopeKey` → wie oft er das Gate noch
      *  passieren darf. Genau die Einmal-Freigaben dieser Entscheidung. */
     grantedOnce?: ReadonlyMap<string, number>;
+    /** Fortsetzung nach einer Freigabe: was abgelehnt wurde. Gilt für den Rest
+     *  des Zuges, damit eine Ablehnung nicht in eine erneute Rückfrage läuft. */
+    deniedScopeKeys?: ReadonlySet<string>;
     /** Fortsetzung nach einer Freigabe: was vorher lief und was jetzt zu tun ist. */
     resumeApproval?: {
       priorSteps: PersistedStep[];
@@ -177,6 +184,7 @@ export async function streamAgenticResponse(
     threadId,
     toolHistory,
     grantedOnce,
+    deniedScopeKeys,
     resumeApproval,
   } = params;
   const budget = resolveBudget();
@@ -296,12 +304,14 @@ export async function streamAgenticResponse(
     const toolActivity = createToolActivity();
     // Einmal pro Zug gelesen; ein Ausfall liefert die leere Menge, also „fragen".
     const approvalUserId = agentConfig.userId ?? null;
-    const approvalEnabled = isToolApprovalEnabled() && approvalUserId != null;
+    // Im Schattenbetrieb wird dieselbe Entscheidung berechnet und nur
+    // protokolliert — die Allowlist gehört deshalb auch dort geladen, sonst
+    // zählt die Messung Aufrufe mit, die scharf gar nicht fragen würden.
+    const approvalMode = approvalUserId != null ? toolApprovalMode() : 'off';
     approvalGate = createToolApprovalGate({
-      enabled: approvalEnabled,
-      allowlist: approvalEnabled
-        ? await loadAllowlist(approvalUserId as string)
-        : new Set<string>(),
+      mode: approvalMode,
+      allowlist:
+        approvalMode !== 'off' ? await loadAllowlist(approvalUserId as string) : new Set<string>(),
       originFor: (name) => toolLabels.get(name)?.origin ?? null,
       titleFor: (name) => {
         const label = toolLabels.get(name);
@@ -309,6 +319,7 @@ export async function streamAgenticResponse(
       },
       serverNameFor: (name) => toolLabels.get(name)?.serverName,
       ...(grantedOnce ? { grantedOnce } : {}),
+      ...(deniedScopeKeys ? { deniedScopeKeys } : {}),
     });
     const wrapped = wrapAssembledTools(tools, {
       sse,
@@ -344,9 +355,12 @@ export async function streamAgenticResponse(
         }
       }
       for (const { call, reason } of resumeApproval.denied) {
+        // Der Hinweis, nicht erneut zu versuchen, gehört an den Fehler selbst:
+        // das Modell liest hier denselben Kanal wie bei einem Guard-Block, und
+        // der bedeutet sonst „korrigiere dich und ruf nochmal".
         const error = reason?.trim()
-          ? `Vom Nutzer abgelehnt: ${reason.trim()}`
-          : 'Vom Nutzer abgelehnt.';
+          ? `Vom Nutzer abgelehnt: ${reason.trim()} ${DENIED_RETRY_MESSAGE}`
+          : `Vom Nutzer abgelehnt. ${DENIED_RETRY_MESSAGE}`;
         steps.push({
           toolCallId: call.toolCallId,
           toolName: call.toolName,

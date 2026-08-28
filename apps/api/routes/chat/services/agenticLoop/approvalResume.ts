@@ -117,6 +117,10 @@ export async function runToolApprovalResume(params: {
       req,
       threadId,
       grantedOnce,
+      // Eine Ablehnung bindet den Rest des Zuges: das Modell bekommt den
+      // Fehler zu lesen, und das Gate lässt denselben `scopeKey` nicht noch
+      // einmal in eine Rückfrage laufen.
+      deniedScopeKeys: new Set(denied.map((d) => d.call.scopeKey)),
       resumeApproval: { priorSteps: stored.priorSteps, approved, denied },
     });
 

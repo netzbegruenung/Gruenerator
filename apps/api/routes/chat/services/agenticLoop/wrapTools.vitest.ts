@@ -594,7 +594,7 @@ describe('wrapToolsForLoop', () => {
 describe('wrapToolsForLoop — Freigabe-Gate', () => {
   it('führt nicht aus und zeichnet nichts auf, wenn das Gate hält', async () => {
     const { ctx, events, steps } = makeCtx({
-      approvalGate: { hold: () => true },
+      approvalGate: { decide: () => ({ kind: 'hold' as const }) },
     });
     const execute = vi.fn(async () => ({ ok: true }));
     const tools = wrapToolsForLoop({ mcp__x: { execute } } as unknown as ToolSet, ctx);
@@ -611,9 +611,9 @@ describe('wrapToolsForLoop — Freigabe-Gate', () => {
     const seen: Array<{ toolName: string; stepId: string; args: Record<string, unknown> }> = [];
     const { ctx } = makeCtx({
       approvalGate: {
-        hold: (call) => {
+        decide: (call) => {
           seen.push(call);
-          return true;
+          return { kind: 'hold' as const };
         },
       },
     });
@@ -626,8 +626,29 @@ describe('wrapToolsForLoop — Freigabe-Gate', () => {
     expect(seen).toEqual([{ toolName: 'mcp__x', stepId: 'call_42', args: { query: 'berlin' } }]);
   });
 
+  it('verweigert ohne Karte und ohne Schritt, wenn das Gate schon abgelehnt hat', async () => {
+    // Wie beim Halten: der Aufruf hat nicht stattgefunden. Der Unterschied ist,
+    // dass das Modell hier eine Endgültigkeit zu lesen bekommt statt zu warten.
+    const { ctx, events, steps } = makeCtx({
+      approvalGate: {
+        decide: () => ({ kind: 'refuse' as const, modelMessage: 'abgelehnt, nicht erneut' }),
+      },
+    });
+    const execute = vi.fn(async () => ({ ok: true }));
+    const tools = wrapToolsForLoop({ mcp__x: { execute } } as unknown as ToolSet, ctx);
+
+    const out = (await run(tools, 'mcp__x', {})) as { error?: string };
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(events).toHaveLength(0);
+    expect(steps).toHaveLength(0);
+    expect(out.error).toBe('abgelehnt, nicht erneut');
+  });
+
   it('lässt einen freigegebenen Aufruf ganz normal laufen', async () => {
-    const { ctx, events, steps } = makeCtx({ approvalGate: { hold: () => false } });
+    const { ctx, events, steps } = makeCtx({
+      approvalGate: { decide: () => ({ kind: 'allow' as const }) },
+    });
     const execute = vi.fn(async () => ({ results: [] }));
     const tools = wrapToolsForLoop({ mcp__x: { execute } } as unknown as ToolSet, ctx);
 
