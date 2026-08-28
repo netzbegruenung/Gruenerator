@@ -29,6 +29,7 @@ import { makeSectionDefiner } from './defineSection';
 
 import type { CanvasFeatures, CanvasDimensions, IconState } from './baseTypes';
 import type { StockImageAttribution } from '../../common/imageSourceTypes';
+import type { BackgroundColorOption } from '../../sidebar/types';
 import type { BalkenInstance, BalkenMode } from '../../utils/balkenUtils';
 import type { AssetInstance } from '../../utils/canvasAssets';
 import type { CircleBadgeInstance } from '../../utils/circleBadgeUtils';
@@ -58,6 +59,13 @@ import type { FullCanvasConfig, LayoutResult, CanvasElementConfig, AdditionalTex
  */
 export interface ImageTwoTextStateBase {
   [key: string]: unknown;
+
+  /**
+   * Solid plane under the photo. Optional because a template only carries it
+   * when the factory was given a `backgroundColors` palette — see the element
+   * comment in the factory body for why no `backgroundMode` flag accompanies it.
+   */
+  backgroundColor?: string;
 
   // Image background
   currentImageSrc: string;
@@ -124,6 +132,9 @@ export interface ImageTwoTextActions {
   toggleBackgroundLock: () => void;
   setImageAttribution?: (attribution: StockImageAttribution | null) => void;
 
+  /** No-op on templates the factory was not given a palette for. */
+  setBackgroundColor: (color: string) => void;
+
   // Base actions
   addAsset: (assetId: string) => void;
   updateAsset: (id: string, partial: Partial<AssetInstance>) => void;
@@ -183,6 +194,18 @@ export interface ImageTwoTextOptions<
 
   /** Layout calculator */
   calculateLayout: (state: ImageTwoTextState<TPrimary | TSecondary>) => LayoutResult;
+
+  /**
+   * Optional: solid background palette offered underneath the photo. Supplying
+   * it adds the `background-color` plane, the `setBackgroundColor` action and
+   * the "Farbe" subsection; omitting it leaves the template photo-only.
+   * Source the list from `configs/backgroundPalettes.ts` — every colour there
+   * carries the white text these templates bake in.
+   */
+  backgroundColors?: readonly BackgroundColorOption[];
+
+  /** Required alongside `backgroundColors`: the colour a fresh canvas starts on. */
+  defaultBackgroundColor?: string;
 
   /** Optional: Custom elements to add to the canvas */
   elements?: CanvasElementConfig<ImageTwoTextState<TPrimary | TSecondary>>[];
@@ -260,8 +283,12 @@ export function createImageTwoTextCanvas<
     gradientOpacity,
     gradientColor = '0, 0, 0',
     gradientCurve,
+    backgroundColors,
+    defaultBackgroundColor,
     passthroughStateKeys = [],
   } = options;
+
+  const hasColorPlane = !!backgroundColors?.length;
 
   // Build base elements
   const baseElements: CanvasElementConfig<State>[] = [
@@ -282,6 +309,31 @@ export function createImageTwoTextCanvas<
       coverFit: true,
     },
   ];
+
+  /**
+   * The solid plane under the photo. It needs no `backgroundMode` discriminator
+   * and no `visible` predicate: `CanvasImage` returns null while `currentImageSrc`
+   * is empty, so the plane simply shows through, and a photo covers it whole
+   * (`coverFit`). One state key, one truth.
+   *
+   * `order: -1` because the photo above declares no order and therefore sorts as
+   * 0 (`canvasLayerManager.ts`). The id is `background-color`, deliberately NOT
+   * `background`: sibling configs persist `layerOrder` as an id array, and that
+   * array outranks `order` — a deck mixing templates would reshuffle if two
+   * different planes shared one id.
+   */
+  if (hasColorPlane) {
+    baseElements.unshift({
+      id: 'background-color',
+      type: 'background',
+      order: -1,
+      x: 0,
+      y: 0,
+      width: canvas.width,
+      height: canvas.height,
+      colorKey: 'backgroundColor',
+    });
+  }
 
   // Add gradient overlay if specified. Ein echter Verlauf von oben transparent
   // nach unten deckend — nicht ein flacher Schleier über dem ganzen Bild, den
@@ -308,6 +360,13 @@ export function createImageTwoTextCanvas<
         `rgba(${gradientColor}, ${s.opacity})`,
       ]),
       listening: false,
+      // The gradient exists to hold white text against a photograph. Over the
+      // solid plane it is noise — a dark brand colour carries white text on its
+      // own — so it appears with the photo and leaves with it. This keeps the
+      // editor identical to the napi route in every case that route can produce:
+      // `_IMAGE_REQUIRED_TYPES` in sharepicGenerationService rejects a photoless
+      // request, so server-side there is always an image under the gradient.
+      visible: (state: State) => !!state.currentImageSrc,
     });
   }
 
@@ -339,7 +398,15 @@ export function createImageTwoTextCanvas<
     },
 
     tabs: [
-      { id: 'image', icon: HiPhotograph, label: 'Bild', ariaLabel: 'Bild anpassen' },
+      {
+        id: 'image',
+        // Tab id stays `image` — it is persisted nowhere, but 14 configs, the
+        // mobile bridge and four test files name it, and renaming buys the user
+        // nothing. The LABEL is what they read, and it now covers both halves.
+        icon: HiPhotograph,
+        label: hasColorPlane ? 'Hintergrund' : 'Bild',
+        ariaLabel: hasColorPlane ? 'Hintergrund wählen' : 'Bild anpassen',
+      },
       {
         id: 'text',
         icon: PiTextAa,
@@ -395,6 +462,13 @@ export function createImageTwoTextCanvas<
           onScaleChange: actions.setImageScale,
           isLocked: state.isBackgroundLocked,
           onToggleLock: actions.toggleBackgroundLock,
+          ...(hasColorPlane
+            ? {
+                backgroundColor: state.backgroundColor,
+                backgroundColors,
+                onBackgroundColorChange: actions.setBackgroundColor,
+              }
+            : {}),
         }),
       }),
       text: section({
@@ -459,6 +533,14 @@ export function createImageTwoTextCanvas<
         customPrimaryFontSize: (props.customPrimaryFontSize as number | null | undefined) ?? null,
         customSecondaryFontSize:
           (props.customSecondaryFontSize as number | null | undefined) ?? null,
+
+        // Solid plane under the photo. Written explicitly rather than routed
+        // through `passthroughStateKeys`, because that list only carries keys
+        // the props already hold — a fresh mint would land with no colour at
+        // all and the plane would fall back to CanvasBackground's white.
+        ...(hasColorPlane
+          ? { backgroundColor: (props.backgroundColor as string) || defaultBackgroundColor }
+          : {}),
 
         // Image background
         currentImageSrc: (props.currentImageSrc as string) || (props.imageSrc as string) || '',
@@ -549,6 +631,11 @@ export function createImageTwoTextCanvas<
         },
         setImageAttribution: (attribution: StockImageAttribution | null) => {
           setState({ imageAttribution: attribution } as Partial<State>);
+        },
+        setBackgroundColor: (color: string) => {
+          if (!hasColorPlane) return;
+          setState({ backgroundColor: color } as Partial<State>);
+          saveToHistory(getState());
         },
       };
     },

@@ -13,6 +13,7 @@
 import { getBrandTheme } from '../brand/theme';
 import { ZITAT_AT_CONFIG, calculateZitatAtLayout } from '../utils/zitatAtLayout';
 
+import { DEFAULT_PHOTO_BACKGROUND_AT, PHOTO_BACKGROUND_COLORS_AT } from './backgroundPalettes';
 import {
   createAiCapabilities,
   createImageTwoTextCanvas,
@@ -131,6 +132,8 @@ const baseZitatAtConfig = createImageTwoTextCanvas({
   passthroughStateKeys: ['quoteMarkOffset', 'quoteMarkOpacity', 'logoOpacity', 'logoOffset'],
   elements: [quoteMarkElement, quoteTextElement, nameTextElement, logoElement],
   features: { icons: true, shapes: true, illustrations: true },
+  backgroundColors: PHOTO_BACKGROUND_COLORS_AT,
+  defaultBackgroundColor: DEFAULT_PHOTO_BACKGROUND_AT,
   // Anders als beim deutschen Zitat kein schwarzer Verlauf für Textkontrast,
   // sondern nur ein leichter grauer Schleier — die österreichische CI kennt
   // keinen grünen oder schwarzen Verlauf.
@@ -160,6 +163,7 @@ const zitatAtAiCapabilities = createAiCapabilities<ZitatAtState, ImageTwoTextAct
       setter: (a) => a.setSecondary,
     },
   ],
+  background: { read: (s) => (s.backgroundColor ?? DEFAULT_PHOTO_BACKGROUND_AT) as `#${string}` },
 });
 
 export const zitatAtFullConfig = wrapWithAi(baseZitatAtConfig, 'zitat-at', zitatAtAiCapabilities);
