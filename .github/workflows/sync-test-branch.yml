@@ -78,8 +78,18 @@ jobs:
           # code conflict and still needs a human.
           conflicts=$(git diff --name-only --diff-filter=U)
           if [ "$conflicts" != "pnpm-lock.yaml" ]; then
+            behind=$(git rev-list --count HEAD..origin/master)
             git merge --abort || true
             echo "conflict=true" >> "$GITHUB_OUTPUT"
+            # Hand the paths to the issue step. Without them the issue says only
+            # "conflict" and every reader has to open the run log to learn which
+            # three files it was — the one fact the report exists to carry.
+            {
+              echo "conflicts<<CONFLICTS_EOF"
+              echo "$conflicts"
+              echo "CONFLICTS_EOF"
+              echo "behind=$behind"
+            } >> "$GITHUB_OUTPUT"
             echo "::error::Merge conflict merging master into test-branch — manual resolution required. Conflicts: $(echo "$conflicts" | tr '\n' ' ')"
             exit 1
           fi
@@ -102,16 +112,33 @@ jobs:
           # build-images.yml detects which images the merge touched.
           gh workflow run build-images.yml --ref test-branch
 
+      # Every later push to master re-runs this sync, hits the SAME conflict and
+      # said so again: #1756 collected 99 identical comments, #2143 53, #2960 21.
+      # The repeat carries no new fact — only a different trigger SHA — so it is
+      # posted only when the conflicting path set actually changes. The failed
+      # run itself stays visible either way.
       - name: Open issue on conflict
         if: failure() && steps.merge.outputs.conflict == 'true'
+        env:
+          CONFLICTS: ${{ steps.merge.outputs.conflicts }}
+          BEHIND: ${{ steps.merge.outputs.behind }}
         run: |
           title="Sync failed: merge conflict master → test-branch"
-          body=$(printf '`master` could not be auto-merged into `test-branch` (conflict).\n\nResolve manually:\n```\ngit fetch origin\ngit switch test-branch\ngit merge origin/master   # resolve conflicts\ngit push origin test-branch\n```\n\nTriggered by %s. [Workflow run](%s/%s/actions/runs/%s).' \
-            "$GITHUB_SHA" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID")
+          fingerprint=$(printf '%s' "$CONFLICTS" | LC_ALL=C sort | sha256sum | cut -c1-12)
+          marker="<!-- sync-conflict:$fingerprint -->"
+          body=$(printf '%s\n`master` could not be auto-merged into `test-branch` (conflict).\n\n`test-branch` is %s commits behind `master`. Conflicting paths:\n\n```\n%s\n```\n\nResolve manually:\n```\ngit fetch origin\ngit switch test-branch\ngit merge origin/master   # resolve conflicts\ngit push origin test-branch\n```\n\nTriggered by %s. [Workflow run](%s/%s/actions/runs/%s).' \
+            "$marker" "$BEHIND" "$CONFLICTS" "$GITHUB_SHA" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID")
           existing=$(gh issue list --state open --search "$title in:title" --json number --jq '.[0].number' 2>/dev/null || true)
-          if [ -n "$existing" ]; then
-            gh issue comment "$existing" --body "$body"
-          else
+          if [ -z "$existing" ]; then
             gh issue create --title "$title" --body "$body" --label "ci" 2>/dev/null \
               || gh issue create --title "$title" --body "$body"
+            exit 0
           fi
+          # Marker anywhere in the thread means this exact path set is already
+          # reported and still unresolved.
+          if gh issue view "$existing" --json body,comments \
+               --jq '.body, .comments[].body' | grep -qF "$marker"; then
+            echo "Same conflict set already reported on #$existing — not commenting again."
+            exit 0
+          fi
+          gh issue comment "$existing" --body "$body"
