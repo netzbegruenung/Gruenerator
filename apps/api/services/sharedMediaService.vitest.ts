@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
@@ -268,5 +270,73 @@ describe('creations at the cap', () => {
     expect(share.shareToken).toBe('tok');
     const statements = [...queryOne.mock.calls, ...query.mock.calls].map(([sql]) => sql);
     expect(statements.some((sql) => sql.includes('DELETE'))).toBe(false);
+  });
+});
+
+/**
+ * #3009: `cloneTemplate` was a second writer of `status = 'processing'` on a path
+ * with nothing asynchronous behind it, and no transition ever promoted the row.
+ * Canvas autosave then took the update branch — `updateImageShare` writes
+ * `file_path` but never `status` — so a template clone the user edited and saved
+ * held a finished sharepic in a status hidden from the Mediathek, the
+ * recent-activity strip, `/api/content` and chat media, with `/preview` answering
+ * 202. The clone flow is gone; these two guards are what stop it coming back.
+ *
+ * They also carry the proof the backfill migration relies on
+ * (`zz_20260828_shared_media_promote_stuck_template_clones.sql`): if `'processing'`
+ * is only ever minted alongside a NULL `file_path`, and only `finalizeVideoShare`
+ * clears it — writing `file_path` and `status` in one statement — then
+ * `status='processing' AND file_path IS NOT NULL` selects exactly the stranded
+ * rows and nothing mid-flight. Source-reading rather than behavioural, because the
+ * claim is about which code paths exist, which no amount of fixture setup can show.
+ */
+// Comments are blanked rather than deleted so every offset still points at the
+// same place. Without this the doc comment on getLibraryUsage — which discusses
+// rows "stuck in 'processing'" — counts as a writer, and the guard passes or
+// fails on prose.
+const SERVICE_SOURCE = readFileSync(
+  new URL('./sharedMediaService.ts', import.meta.url),
+  'utf8'
+).replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, (m) => m.replace(/[^\n]/g, ' '));
+
+/** The class method a given source offset sits inside. */
+function enclosingMethod(source: string, offset: number): string {
+  const heads = [...source.slice(0, offset).matchAll(/\n {2}(?:async )?([A-Za-z_]\w*)\(/g)];
+  const last = heads.at(-1);
+  if (!last) throw new Error(`no enclosing method for offset ${offset}`);
+  return last[1];
+}
+
+describe("the 'processing' status", () => {
+  it('is minted only by createPendingVideoShare, which leaves file_path NULL', () => {
+    const writers = [...SERVICE_SOURCE.matchAll(/'processing'/g)].map((m) =>
+      enclosingMethod(SERVICE_SOURCE, m.index ?? 0)
+    );
+
+    // Non-vacuity: the video render path must still be there, or this test would
+    // pass for the wrong reason after an unrelated refactor.
+    expect(writers).toContain('createPendingVideoShare');
+    expect(new Set(writers)).toEqual(new Set(['createPendingVideoShare']));
+  });
+
+  it('is cleared only by finalizeVideoShare, which sets file_path in the same statement', () => {
+    // SQL status writes only — the destructuring default in createImageShare
+    // (`status = 'ready'` in a parameter list) is not one.
+    const promoters = [...SERVICE_SOURCE.matchAll(/SET[^`]*?\bstatus\s*=/gs)].map((m) =>
+      enclosingMethod(SERVICE_SOURCE, m.index ?? 0)
+    );
+
+    expect(new Set(promoters)).toEqual(new Set(['finalizeVideoShare', 'markShareFailed']));
+
+    // updateImageShare is the write the canvas autosave makes on an existing
+    // token. It must stay off this list: a row it touches keeps whatever status
+    // it already had, which is how a 'processing' row survived being finished.
+    expect(promoters).not.toContain('updateImageShare');
+
+    const finalize = SERVICE_SOURCE.slice(
+      SERVICE_SOURCE.indexOf('async finalizeVideoShare('),
+      SERVICE_SOURCE.indexOf('async markShareFailed(')
+    );
+    expect(finalize).toMatch(/SET file_path = \$1[^`]*status = 'ready'/);
   });
 });
