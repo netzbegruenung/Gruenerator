@@ -15,6 +15,7 @@ import { coerceSharepicVariants } from '../../hooks/useChatGraphStream';
 import { notifyError, notifyWarning } from '../../lib/notify';
 import { pickStageLabels } from '../../lib/progressLabels';
 import { parseSSELine } from '../../lib/sseParser';
+import { TOOL_APPROVAL_OPTIONS } from '../../lib/toolApproval';
 import {
   ARTIFACT_STAGE_INTENTS,
   ARTIFACT_TOOL_NAMES,
@@ -1180,10 +1181,18 @@ export async function* parseSSEStream(
 
         case 'interrupt': {
           const payload = data as {
-            interruptType?: 'clarification' | 'client_tool';
+            interruptType?: 'clarification' | 'client_tool' | 'tool_approval';
             toolName?: string;
             args?: Record<string, unknown>;
             threadId?: string;
+            approvalTurnId?: string;
+            calls?: Array<{
+              toolCallId: string;
+              toolName: string;
+              args?: Record<string, unknown>;
+              title?: string;
+              serverName?: string;
+            }>;
           };
           if (payload.interruptType === 'client_tool' && payload.toolName) {
             clientToolPending = true;
@@ -1192,6 +1201,37 @@ export async function* parseSSEStream(
               args: payload.args ?? {},
               ...(payload.threadId != null && { threadId: payload.threadId }),
             };
+          } else if (payload.interruptType === 'tool_approval' && payload.calls?.length) {
+            // Jeder zurückgehaltene Aufruf wird eine Karte mit Freigabe-Gate.
+            // Das Gate selbst hält den Zug an (assistant-ui: eine unentschiedene
+            // Freigabe blockiert die Fortsetzung), `interruptPending` sorgt für
+            // den `requires-action`-Status, den die Laufzeit dafür verlangt.
+            for (const call of payload.calls) {
+              const args = { ...(call.args ?? {}) };
+              const part: ToolCallPart = {
+                type: 'tool-call',
+                toolCallId: call.toolCallId,
+                toolName: call.toolName,
+                args: args as Record<string, string | number | boolean | null>,
+                argsText: JSON.stringify(args),
+                approval: {
+                  id: call.toolCallId,
+                  options: TOOL_APPROVAL_OPTIONS,
+                },
+                // Ohne die beiden nennt die Karte nur den Katalognamen — und
+                // genau die Auskunft, welcher Dienst da angesprochen wird, ist
+                // der Grund für die Rückfrage.
+                ...(call.title != null && { title: call.title }),
+                ...(call.serverName != null && { serverName: call.serverName }),
+              };
+              toolStepsById.set(call.toolCallId, part);
+              allToolCalls.push(part);
+              orderPushCard(part);
+            }
+            if (payload.approvalTurnId != null) {
+              outcome.toolApprovalPending = { approvalTurnId: payload.approvalTurnId };
+            }
+            interruptPending = true;
           } else {
             interruptPending = true;
           }

@@ -32,6 +32,39 @@ export interface PersistedStep {
   narration?: string;
 }
 
+/** Herkunft eines Konnektor-Werkzeugs, soweit die Freigabe sie unterscheidet. */
+export interface ToolOrigin {
+  /** `mcp` = von der Nutzer*in verbunden, `managed` = von uns betrieben. */
+  kind: 'mcp' | 'managed';
+  /** `mcp_servers.id` bzw. der Systemschlüssel des betriebenen Servers. */
+  serverId: string;
+  /** Der Werkzeugname am Server — nicht der Katalogschlüssel `m<key>__<tool>`. */
+  remoteToolName: string;
+}
+
+/** Anzeigename eines Konnektor-Werkzeugs plus seine Herkunft. */
+export interface ToolLabel {
+  serverName: string;
+  toolName: string;
+  origin?: ToolOrigin;
+}
+
+/**
+ * Ein Werkzeugaufruf, der auf die Freigabe der Nutzer*in wartet. Trägt alles,
+ * was die Karte zeigt und was die Fortsetzung braucht — beim Entscheiden ist
+ * der Zug beendet, es steht also nichts mehr im Speicher.
+ */
+export interface PendingToolCall {
+  toolCallId: string;
+  /** Katalogschlüssel, bei MCP also der Namensraum-Name `m<key>__<tool>`. */
+  toolName: string;
+  args: Record<string, unknown>;
+  /** Schlüssel der dauerhaften Freigabe — siehe `approvalPolicy.ts`. */
+  scopeKey: string;
+  title?: string;
+  serverName?: string;
+}
+
 /**
  * What an MCP connector tool call yields: EITHER text content OR an error
  * string — never both. `mcpCatalog.ts`'s `dynamicTool` returns exactly this

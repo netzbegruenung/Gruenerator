@@ -52,6 +52,7 @@ import {
   modelPreferencesContract,
   imageModelPreferenceContract,
   mcpServersContract,
+  chatToolApprovalsContract,
   imageEditContract,
   sharepicTextContract,
   adminVorlagenContract,
@@ -283,6 +284,7 @@ const _feedbackClient = () => initClient(feedbackContract, CLIENT_OPTS);
 const _modelPreferencesClient = () => initClient(modelPreferencesContract, CLIENT_OPTS);
 const _imageModelPreferenceClient = () => initClient(imageModelPreferenceContract, CLIENT_OPTS);
 const _mcpServersClient = () => initClient(mcpServersContract, CLIENT_OPTS);
+const _chatToolApprovalsClient = () => initClient(chatToolApprovalsContract, CLIENT_OPTS);
 const _imageEditClient = () => initClient(imageEditContract, CLIENT_OPTS);
 const _sharepicTextClient = () => initClient(sharepicTextContract, CLIENT_OPTS);
 const _adminVorlagenClient = () => initClient(adminVorlagenContract, CLIENT_OPTS);
@@ -353,6 +355,7 @@ export interface ContractsClient {
   modelPreferences: ReturnType<typeof _modelPreferencesClient>;
   imageModelPreference: ReturnType<typeof _imageModelPreferenceClient>;
   mcpServers: ReturnType<typeof _mcpServersClient>;
+  chatToolApprovals: ReturnType<typeof _chatToolApprovalsClient>;
   imageEdit: ReturnType<typeof _imageEditClient>;
   sharepicText: ReturnType<typeof _sharepicTextClient>;
   adminVorlagen: ReturnType<typeof _adminVorlagenClient>;
@@ -437,6 +440,7 @@ export function getContractsClient(): ContractsClient {
     modelPreferences: _modelPreferencesClient(),
     imageModelPreference: _imageModelPreferenceClient(),
     mcpServers: _mcpServersClient(),
+    chatToolApprovals: _chatToolApprovalsClient(),
     imageEdit: _imageEditClient(),
     sharepicText: _sharepicTextClient(),
     adminVorlagen: _adminVorlagenClient(),

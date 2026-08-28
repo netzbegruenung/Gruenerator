@@ -279,13 +279,23 @@ export interface SSEEventPayloads {
     // 'clarification' = ask_human (a human answers via UI). 'client_tool' = a
     // client-executed tool (e.g. run_python) whose result the browser produces
     // automatically and posts back to resume the same turn.
-    interruptType: 'clarification' | 'client_tool';
+    // 'tool_approval' = ein Werkzeugaufruf wartet auf die Freigabe der Person.
+    interruptType: 'clarification' | 'client_tool' | 'tool_approval';
     question?: string;
     options?: string[];
     // client_tool only: which tool the client must run + its arguments.
     toolName?: string;
     args?: Record<string, unknown>;
     threadId?: string;
+    // tool_approval only: die zurückgehaltenen Aufrufe dieses Model-Steps.
+    approvalTurnId?: string;
+    calls?: Array<{
+      toolCallId: string;
+      toolName: string;
+      args: Record<string, unknown>;
+      title?: string;
+      serverName?: string;
+    }>;
   };
   confirm_action: ConfirmActionEvent;
   memory_context: {

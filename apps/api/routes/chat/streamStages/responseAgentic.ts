@@ -14,7 +14,7 @@ import { applyCompaction, pruneMessages } from '../services/contextPruningServic
 import { resolveLaneContextFloor } from '../services/laneContextFloor.js';
 
 import type { ChatGraphState, CreatedDocument } from '../../../agents/langgraph/ChatGraph/types.js';
-import type { PersistedStep } from '../services/agenticLoop/types.js';
+import type { PendingToolCall, PersistedStep } from '../services/agenticLoop/types.js';
 import type { SharepicVariant } from '../services/sharepicVariantHelpers.js';
 import type { SSEWriter } from '../services/sseHelpers.js';
 import type { StreamBody, StreamContext } from '../services/streamContext.js';
@@ -52,6 +52,8 @@ export interface AgenticAnswer {
   createdDocument: CreatedDocument | null;
   createdBoard: ChatGraphState['createdBoard'];
   langfuseTraceId: string | undefined;
+  /** Gesetzt ⇒ der Zug pausiert und wartet auf eine Werkzeug-Freigabe. */
+  pendingApproval?: PendingToolCall[];
 }
 
 export async function runAgenticAnswer({
@@ -159,5 +161,6 @@ export async function runAgenticAnswer({
     fullText: outcome.fullText,
     agenticSteps: outcome.steps,
     langfuseTraceId,
+    ...(outcome.pendingApproval != null && { pendingApproval: outcome.pendingApproval }),
   };
 }
