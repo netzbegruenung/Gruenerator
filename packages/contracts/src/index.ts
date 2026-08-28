@@ -59,7 +59,6 @@ export {
   videoContract,
   sharepicContract,
   sharepicTextContract,
-  transferContract,
   unsplashContract,
   notificationsContract,
   emailContract,
@@ -143,7 +142,6 @@ export * from './schemas/imagePicker.js';
 export * from './schemas/video.js';
 export * from './schemas/sharepic.js';
 export * from './schemas/sharepicText.js';
-export * from './schemas/transfer.js';
 export * from './schemas/unsplash.js';
 export * from './schemas/notifications.js';
 export * from './schemas/email.js';

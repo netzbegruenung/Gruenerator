@@ -61,8 +61,8 @@ const WolkeAddForm = ({ scope, scopeId, onSuccess, onError }: WolkeAddFormProps)
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-md">
       <p className="text-base text-grey-600 dark:text-grey-300 m-0">
-        Erstelle in deiner Wolke einen Link mit der Berechtigung „Kann bearbeiten" und füge ihn hier
-        ein.{' '}
+        Erstelle in deiner Wolke einen öffentlichen Freigabe-Link („Nur anzeigen" genügt) und füge
+        ihn hier ein.{' '}
         <a
           href="https://doku.services.moritz-waechter.de/docs/konto/gruene-wolke"
           target="_blank"

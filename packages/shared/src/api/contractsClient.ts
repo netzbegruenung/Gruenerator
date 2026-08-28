@@ -45,7 +45,6 @@ import {
   userWebsitesContract,
   letterheadsContract,
   notebookSharingContract,
-  transferContract,
   notificationsContract,
   emailContract,
   feedbackContract,
@@ -277,7 +276,6 @@ const _notebookWordpressClient = () => initClient(notebookWordpressContract, CLI
 const _userWebsitesClient = () => initClient(userWebsitesContract, CLIENT_OPTS);
 const _letterheadsClient = () => initClient(letterheadsContract, CLIENT_OPTS);
 const _notebookSharingClient = () => initClient(notebookSharingContract, CLIENT_OPTS);
-const _transferClient = () => initClient(transferContract, CLIENT_OPTS);
 const _notificationsClient = () => initClient(notificationsContract, CLIENT_OPTS);
 const _emailClient = () => initClient(emailContract, CLIENT_OPTS);
 const _feedbackClient = () => initClient(feedbackContract, CLIENT_OPTS);
@@ -348,7 +346,6 @@ export interface ContractsClient {
   userWebsites: ReturnType<typeof _userWebsitesClient>;
   letterheads: ReturnType<typeof _letterheadsClient>;
   notebookSharing: ReturnType<typeof _notebookSharingClient>;
-  transfer: ReturnType<typeof _transferClient>;
   notifications: ReturnType<typeof _notificationsClient>;
   email: ReturnType<typeof _emailClient>;
   feedback: ReturnType<typeof _feedbackClient>;
@@ -433,7 +430,6 @@ export function getContractsClient(): ContractsClient {
     userWebsites: _userWebsitesClient(),
     letterheads: _letterheadsClient(),
     notebookSharing: _notebookSharingClient(),
-    transfer: _transferClient(),
     notifications: _notificationsClient(),
     email: _emailClient(),
     feedback: _feedbackClient(),

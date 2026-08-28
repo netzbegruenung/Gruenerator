@@ -39,8 +39,7 @@ export interface SyncStatus {
   updated_at?: string;
 }
 
-export type ConnectionErrorCode =
-  'invalid_link' | 'not_found' | 'forbidden' | 'read_only' | 'storage_full' | 'unknown';
+export type ConnectionErrorCode = 'invalid_link' | 'not_found' | 'forbidden' | 'unknown';
 
 export interface ConnectionTestResult {
   success: boolean;

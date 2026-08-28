@@ -135,8 +135,8 @@ describe('mySharesQuerySchema', () => {
   });
 
   /**
-   * `'transfer'` is a live third media type — `transferService.createTransfer`
-   * writes into `shared_media` and sets neither provenance column, so those
+   * `'transfer'` is a live third media type — the removed transfer feature
+   * wrote into `shared_media` and set neither provenance column, so those
    * rows survive `creationFeedWhere` and `?type=transfer` selected them. Typing
    * the filter against the two-value `shareMediaTypeSchema` (what a *created*
    * share is) would have made that request a 400.

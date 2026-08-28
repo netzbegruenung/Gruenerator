@@ -40,6 +40,10 @@ const createRedirect = (to: string): FC<Record<string, unknown>> => {
 // Redirects for /image-studio/* routes to /studio/*
 const ImageStudioRedirect = lazy(() => Promise.resolve({ default: createRedirect('/studio') }));
 
+// /transfer wurde entfernt (Wolke ist nur noch lesend); alte Links landen auf
+// der Startseite. Verschickte Download-Links (/share/:token) sind nicht betroffen.
+const TransferRedirect = lazy(() => Promise.resolve({ default: createRedirect('/') }));
+
 // Redirect /notebook/:id → /notebooks/:id preserving the param. Search, hash
 // and state come along: an old link to a notebook conversation carries the
 // thread id in `?thread=`, and dropping it here opened the notebook's start
@@ -238,7 +242,6 @@ const MobileRenderPage = lazy(() => import('../pages/MobileRenderPage'));
 const ScannerPage = lazy(() => import('../features/scanner/ScannerPage'));
 const ZeichenzaehlerPage = lazy(() => import('../features/zeichenzaehler/ZeichenzaehlerPage'));
 const TranskriptionPage = lazy(() => import('../features/transkription/TranskriptionPage'));
-const TransferPage = lazy(() => import('../features/transfer/TransferPage'));
 const RecurringTasksPage = lazy(() => import('../features/recurring-tasks/RecurringTasksPage'));
 const WorkplacePage = lazy(() => import('../features/workplace/WorkplacePage'));
 const ProjektePage = lazy(() => import('../features/groups/pages/ProjektePage'));
@@ -303,7 +306,6 @@ export const GrueneratorenBundle = {
   MobileRender: MobileRenderPage,
   Scanner: ScannerPage,
   Transkription: TranskriptionPage,
-  Transfer: TransferPage,
 } as const;
 
 // Route Konfigurationen
@@ -599,7 +601,7 @@ const standardRoutes: RouteConfig[] = [
   { path: '/reel/studio', component: SubStudioPage },
   { path: '/scanner', component: GrueneratorenBundle.Scanner },
   { path: '/zeichenzaehler', component: ZeichenzaehlerPage },
-  { path: '/transfer', component: GrueneratorenBundle.Transfer, channel: 'internal' },
+  { path: '/transfer', component: TransferRedirect, channel: 'internal' },
   { path: '/transkription', component: GrueneratorenBundle.Transkription },
   {
     path: '/subtitler/share/:shareToken',
