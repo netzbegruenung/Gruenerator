@@ -74,3 +74,52 @@ describe('renderContentSyncTemplate — Auslese-Block', () => {
     expect(text).toContain('Neue Dokumente: +2');
   });
 });
+
+/**
+ * Tote Links sind kein Fehler und sollen auch nicht wie einer aussehen — aber
+ * wer die Seite betreibt, ist die einzige Person, die sie reparieren kann, und
+ * genau diese Person bekommt die per-LV-Mail. Sie lösen deshalb keine Mail aus
+ * (das entscheidet `hasChanges` im Router), stehen aber drin, wenn ohnehin eine
+ * rausgeht.
+ */
+const WITH_DEAD_LINKS = {
+  ...BASE,
+  sources: [
+    {
+      ...BASE.sources[0],
+      name: 'Landesverband BE',
+      deadLinks: 4,
+      deadLinkSamples: [
+        'https://gruene-fraktion.berlin/pressemitteilungen/a/: HTTP 403',
+        'https://gruene-fraktion.berlin/pressemitteilungen/b/: HTTP 403',
+      ],
+    },
+  ],
+};
+
+describe('renderContentSyncTemplate — tote Links', () => {
+  it('lists them in HTML, named as upstream links rather than as errors', () => {
+    const { html } = renderContentSyncTemplate(WITH_DEAD_LINKS);
+
+    expect(html).toContain('2 von 4 toten Links');
+    expect(html).toContain('https://gruene-fraktion.berlin/pressemitteilungen/a/: HTTP 403');
+    // Nicht im Fehler-Rot: die Zeile soll informieren, nicht alarmieren.
+    expect(html).not.toContain('color:#c00;font-size:12px;">2 von 4 toten Links');
+  });
+
+  it('repeats them in the plain-text part', () => {
+    const { text } = renderContentSyncTemplate(WITH_DEAD_LINKS);
+
+    expect(text).toContain('2 von 4 toten Links');
+    expect(text).toContain(
+      '      - https://gruene-fraktion.berlin/pressemitteilungen/b/: HTTP 403'
+    );
+  });
+
+  it('says nothing at all when there are none', () => {
+    const { html, text } = renderContentSyncTemplate(BASE);
+
+    expect(html).not.toContain('toten Links');
+    expect(text).not.toContain('Tote Links');
+  });
+});

@@ -17,6 +17,7 @@ import { z } from 'zod';
 import {
   contentStatsResponseSchema,
   contentSyncAcceptedSchema,
+  contentSyncBadRequestSchema,
   contentSyncBusyResponseSchema,
   contentSyncFailureSchema,
   contentSyncJobNotFoundSchema,
@@ -41,6 +42,7 @@ export const contentSyncContract = c.router(
       responses: {
         200: contentSyncResultSchema,
         202: contentSyncAcceptedSchema,
+        400: contentSyncBadRequestSchema,
         409: contentSyncBusyResponseSchema,
         500: contentSyncFailureSchema,
       },
