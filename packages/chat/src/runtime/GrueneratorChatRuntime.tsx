@@ -492,7 +492,11 @@ export function GrueneratorChatRuntimeProvider({
     adapter: threadListAdapter,
   });
 
-  // Only the main chat runs ask_human, so only it needs the guard.
+  // Paired with `unstable_enableMessageQueue` above: this runtime declares
+  // ask_human as a human tool, so an interrupt parks the message at
+  // `requires-action` — the one shape the guard can recognise. A surface that
+  // enables the queue without that needs its own answer first; see the note in
+  // EditorAssistantProvider.
   useQueueInterruptGuard(runtime);
 
   // MCP-Apps widget host (SYSTEM MCP tools only): renders any tool part carrying
