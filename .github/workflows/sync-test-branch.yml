@@ -84,10 +84,19 @@ jobs:
             # Hand the paths to the issue step. Without them the issue says only
             # "conflict" and every reader has to open the run log to learn which
             # three files it was — the one fact the report exists to carry.
+            #
+            # Randomised delimiter, per GitHub's own guidance for multiline
+            # outputs: the value is repository content (conflicting paths), and
+            # a path that were literally the delimiter would close the block
+            # early, leaving the rest to be parsed as further keys — corrupting
+            # `behind` and letting anything after it set outputs of its own.
+            # Reaching that needs a file of exactly this name on master or
+            # test-branch, so this is defence in depth, not a live hole.
+            delim="CONFLICTS_EOF_$(openssl rand -hex 8)"
             {
-              echo "conflicts<<CONFLICTS_EOF"
+              echo "conflicts<<$delim"
               echo "$conflicts"
-              echo "CONFLICTS_EOF"
+              echo "$delim"
               echo "behind=$behind"
             } >> "$GITHUB_OUTPUT"
             echo "::error::Merge conflict merging master into test-branch — manual resolution required. Conflicts: $(echo "$conflicts" | tr '\n' ' ')"
