@@ -1,54 +1,32 @@
 /**
  * The guard that empties the queue when the assistant stops to ask something.
  *
- * Without it the queue treats `requires-action` as "run over", advances, and
- * feeds the next turn into the adapter's re-invocation guard — which appends
- * the message and then aborts it, stranding a user turn behind an unanswered
- * question. It then does the same to every remaining entry.
+ * Without it the queue treats a clarification interrupt as "run over",
+ * advances, and feeds the next turn into the adapter's re-invocation guard —
+ * which appends the message and then aborts it, stranding a user turn behind an
+ * unanswered question. It then does the same to every remaining entry.
  *
- * What is pinned here is the predicate and the clearing. That the runtime
- * publishes `requires-action` before the queue advances is upstream's
- * ordering, exercised by the real chat rather than asserted here.
+ * The signal is the adapter's, not the message status: `requires-action` only
+ * appears on surfaces that declare `unstable_humanToolNames`, while the adapter
+ * refuses the next run either way. That is the whole reason the editor sidebar
+ * can have a queue (#3020), so the tests here drive the signal directly.
  */
 import { render } from '@testing-library/react';
 import { act } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { useQueueInterruptGuard } from './useQueueInterruptGuard';
+import { useInterruptSignal, useQueueInterruptGuard } from './useQueueInterruptGuard';
 
 import type { AssistantRuntime } from '@assistant-ui/react';
 
 const notifyWarning = vi.hoisted(() => vi.fn());
 vi.mock('../lib/notify', () => ({ notifyWarning }));
 
-function askHuman({ answered }: { answered: boolean }) {
-  return {
-    role: 'assistant',
-    status: { type: 'requires-action', reason: 'tool-calls' },
-    content: [
-      {
-        type: 'tool-call',
-        toolCallId: 'call-1',
-        toolName: 'ask_human',
-        args: { question: 'Welches Format?' },
-        ...(answered ? { result: 'PDF' } : {}),
-      },
-    ],
-  };
-}
-
 function fakeRuntime(queued: string[]) {
-  const listeners = new Set<() => void>();
-  const queue = queued.map((id) => ({ id, prompt: id, parts: [] }));
-  const messages: unknown[] = [];
+  const queue = queued.map((id) => ({ id, parts: [{ type: 'text', text: id }] }));
 
   const runtime = {
     thread: {
-      subscribe(listener: () => void) {
-        listeners.add(listener);
-        return () => listeners.delete(listener);
-      },
-      getState: () => ({ messages }),
       composer: {
         getState: () => ({ queue }),
         removeQueueItem(id: string) {
@@ -59,25 +37,26 @@ function fakeRuntime(queued: string[]) {
     },
   } as unknown as AssistantRuntime;
 
-  return {
-    runtime,
-    queue,
-    /** Put `message` at the tail and wake the subscribers, as the store would. */
-    publish(message: unknown) {
-      messages.push(message);
-      act(() => {
-        for (const listener of listeners) listener();
-      });
-    },
-  };
+  return { runtime, queue };
 }
 
+/** Mounts the guard and hands back the adapter side of the signal. */
 function mount(runtime: AssistantRuntime) {
+  let notify: () => void = () => {};
+
   function Harness() {
-    useQueueInterruptGuard(runtime);
+    const signal = useInterruptSignal();
+    notify = signal.notify;
+    useQueueInterruptGuard(runtime, signal);
     return null;
   }
-  render(<Harness />);
+
+  const view = render(<Harness />);
+  return {
+    /** What `createGrueneratorModelAdapter` calls as `onInterrupt`. */
+    interrupt: () => act(() => notify()),
+    unmount: () => view.unmount(),
+  };
 }
 
 describe('useQueueInterruptGuard', () => {
@@ -85,11 +64,11 @@ describe('useQueueInterruptGuard', () => {
     notifyWarning.mockClear();
   });
 
-  it('empties the queue when the assistant is waiting on an answer', () => {
+  it('empties the queue when the adapter reports an interrupt', () => {
     const h = fakeRuntime(['a', 'b']);
-    mount(h.runtime);
+    const guard = mount(h.runtime);
 
-    h.publish(askHuman({ answered: false }));
+    guard.interrupt();
 
     expect(h.queue).toHaveLength(0);
     expect(notifyWarning).toHaveBeenCalledTimes(1);
@@ -98,32 +77,16 @@ describe('useQueueInterruptGuard', () => {
   it('clears every waiting turn, not every second one', () => {
     // Removal mutates the queue; walking the live array would skip entries.
     const h = fakeRuntime(['a', 'b', 'c', 'd', 'e']);
-    mount(h.runtime);
+    const guard = mount(h.runtime);
 
-    h.publish(askHuman({ answered: false }));
+    guard.interrupt();
 
     expect(h.queue).toHaveLength(0);
   });
 
-  it('leaves the queue alone once the question has an answer', () => {
+  it('leaves the queue alone until an interrupt arrives', () => {
     const h = fakeRuntime(['a']);
     mount(h.runtime);
-
-    h.publish(askHuman({ answered: true }));
-
-    expect(h.queue).toHaveLength(1);
-    expect(notifyWarning).not.toHaveBeenCalled();
-  });
-
-  it('leaves the queue alone for an ordinary finished turn', () => {
-    const h = fakeRuntime(['a']);
-    mount(h.runtime);
-
-    h.publish({
-      role: 'assistant',
-      status: { type: 'complete', reason: 'stop' },
-      content: [{ type: 'text', text: 'Fertig' }],
-    });
 
     expect(h.queue).toHaveLength(1);
     expect(notifyWarning).not.toHaveBeenCalled();
@@ -131,10 +94,37 @@ describe('useQueueInterruptGuard', () => {
 
   it('stays quiet when nothing is waiting', () => {
     const h = fakeRuntime([]);
-    mount(h.runtime);
+    const guard = mount(h.runtime);
 
-    h.publish(askHuman({ answered: false }));
+    guard.interrupt();
 
     expect(notifyWarning).not.toHaveBeenCalled();
+  });
+
+  it('stops listening once the surface unmounts', () => {
+    const h = fakeRuntime(['a']);
+    const guard = mount(h.runtime);
+
+    guard.unmount();
+    guard.interrupt();
+
+    expect(h.queue).toHaveLength(1);
+  });
+});
+
+describe('useInterruptSignal', () => {
+  it('keeps one signal across re-renders, so the adapter memo is not rebuilt', () => {
+    const seen: unknown[] = [];
+
+    function Harness() {
+      seen.push(useInterruptSignal());
+      return null;
+    }
+
+    const view = render(<Harness />);
+    view.rerender(<Harness />);
+
+    expect(seen).toHaveLength(2);
+    expect(seen[0]).toBe(seen[1]);
   });
 });

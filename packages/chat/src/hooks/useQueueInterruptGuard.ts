@@ -1,57 +1,88 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 
 import { notifyWarning } from '../lib/notify';
 
 import type { AssistantRuntime } from '@assistant-ui/react';
 
 /**
+ * The adapter's "this thread is now waiting on an answer" signal.
+ *
+ * Two things need to meet that cannot see each other: the model adapter, built
+ * before the runtime exists, and the queue, which only exists once the runtime
+ * does. Create the signal first, hand `notify` to the adapter as `onInterrupt`,
+ * then hand the whole thing to `useQueueInterruptGuard` with the runtime.
+ */
+export interface InterruptSignal {
+  notify: () => void;
+  subscribe: (listener: () => void) => () => void;
+}
+
+/** Stable for the lifetime of the component — one per thread runtime. */
+export function useInterruptSignal(): InterruptSignal {
+  return useMemo(() => {
+    const listeners = new Set<() => void>();
+    return {
+      notify: () => {
+        // Copy: a listener that unsubscribes itself would otherwise mutate the
+        // set mid-iteration.
+        for (const listener of [...listeners]) listener();
+      },
+      subscribe: (listener) => {
+        listeners.add(listener);
+        return () => {
+          listeners.delete(listener);
+        };
+      },
+    };
+  }, []);
+}
+
+/**
  * Drops waiting turns when the assistant stops to ask the user something.
  *
- * An `ask_human` interrupt parks the run at `requires-action`, which ends the
- * run as far as the queue is concerned: it advances and sends the next turn.
- * That turn is genuinely appended to the thread and only then refused by the
- * adapter's re-invocation guard, which throws `AbortError`. The result is a
- * user message stranded behind an unanswered question with an empty assistant
- * turn under it — and the queue does it again for every remaining entry.
+ * A clarification interrupt ends the run as far as the queue is concerned: it
+ * advances and sends the next turn. That turn is genuinely appended to the
+ * thread and only then refused by the adapter's re-invocation guard, which
+ * throws `AbortError`. The result is a user message stranded behind an
+ * unanswered question with an empty assistant turn under it — and the queue
+ * does it again for every remaining entry.
+ *
+ * The signal comes from the adapter rather than from the message status. Both
+ * describe the same event — the backend sends the `ask_human` tool call and the
+ * `interrupt` that suspends the turn together, from one `suspendTurn` call —
+ * but only the adapter's version reaches every surface. `requires-action` is
+ * set by the runtime for tools named in `unstable_humanToolNames`, which only
+ * the main chat declares, while the adapter arms its refusal regardless. Reading
+ * the status instead would have looked like cover for the editor sidebar and
+ * been none.
  *
  * Clearing is safe against the alternative reading (hold them until the
  * question is answered) because the answer is what the question is waiting
  * for; a queued turn written before the question existed was not a reply to
  * it. Better to hand it back than to spend it on a run that cannot happen.
  *
- * The subscriber wins the race by construction: `requires-action` is published
- * synchronously through the store notification, while the queue only advances
- * on a microtask after `runEnd`.
+ * Call it next to the `useLocalRuntime` whose adapter feeds the signal, so the
+ * composer being emptied belongs to the thread that was interrupted. On the
+ * main chat that is inside the per-thread runtime hook, not around the thread
+ * list: an interrupt on a thread the user has since left must not take the
+ * queue of the one they are looking at.
  */
-export function useQueueInterruptGuard(runtime: AssistantRuntime): void {
-  useEffect(() => {
-    const unsubscribe = runtime.thread.subscribe(() => {
-      const composer = runtime.thread.composer;
-      const queued = composer.getState().queue;
-      if (queued.length === 0) return;
+export function useQueueInterruptGuard(runtime: AssistantRuntime, signal: InterruptSignal): void {
+  useEffect(
+    () =>
+      signal.subscribe(() => {
+        const composer = runtime.thread.composer;
+        const queued = composer.getState().queue;
+        if (queued.length === 0) return;
 
-      const last = runtime.thread.getState().messages.at(-1);
-      const awaitingAnswer =
-        last?.role === 'assistant' &&
-        last.status.type === 'requires-action' &&
-        last.content.some(
-          (part) =>
-            part.type === 'tool-call' &&
-            part.toolName === 'ask_human' &&
-            !('result' in part && part.result)
+        // Ids first: removing an item mutates the queue, and walking the live
+        // array while it shrinks would skip every second entry.
+        for (const id of queued.map((item) => item.id)) composer.removeQueueItem(id);
+        notifyWarning(
+          queued.length === 1 ? 'Wartende Nachricht entfernt' : 'Wartende Nachrichten entfernt',
+          'Bitte zuerst die Rückfrage beantworten.'
         );
-      if (!awaitingAnswer) return;
-
-      // Ids first: removing an item mutates the queue, and walking the live
-      // array while it shrinks would skip every second entry.
-      for (const id of queued.map((item) => item.id)) composer.removeQueueItem(id);
-      notifyWarning(
-        queued.length === 1 ? 'Wartende Nachricht entfernt' : 'Wartende Nachrichten entfernt',
-        'Bitte zuerst die Rückfrage beantworten.'
-      );
-    });
-    return () => {
-      unsubscribe();
-    };
-  }, [runtime]);
+      }),
+    [runtime, signal]
+  );
 }
