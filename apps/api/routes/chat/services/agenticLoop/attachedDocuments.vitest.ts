@@ -21,13 +21,29 @@ vi.mock('../../../../agents/langgraph/ChatGraph/nodes/searchNode.js', () => ({
 }));
 
 const fullText = vi.hoisted(() => vi.fn<(...a: unknown[]) => Promise<unknown>>());
-vi.mock(
-  '../../../../services/document-services/DocumentSearchService/index.js',
-  async (importOriginal) => ({
-    ...(await importOriginal<Record<string, unknown>>()),
-    getQdrantDocumentService: () => ({ getMultipleDocumentsFullText: fullText }),
-  })
-);
+/**
+ * Reine Attrappe, KEIN `importOriginal` — `readAttachedDocumentSlice` erreicht
+ * dieses Modul erst über ein `await import()` mitten im Aufruf. Eine Fabrik, die
+ * das echte Modul lädt, läuft damit nicht beim Import der Testdatei, sondern auf
+ * der Uhr des ERSTEN Tests, der sie auslöst. Der ganze DocumentSearchService-Graph
+ * ist auf einem langsamen Runner mehr als die 5 s `testTimeout` wert — und
+ * während die Fabrik noch fliegt, liefert vite-node dem nächsten Aufruf desselben
+ * Pfads das ECHTE Modul zurück. Genau so war master am 28.08.2026 rot: erster
+ * Test „Test timed out in 5000ms", zweiter „Qdrant not available" aus dem
+ * leibhaftigen `DocumentSearchService` (#3013).
+ *
+ * Der Unterschied zu `toolCatalog.vitest.ts`, das dasselbe Modul MIT
+ * `importOriginal` mockt und grün bleibt: dort zieht eine statische Kette
+ * (`directSearch` → `exampleSearchService`) das Modul schon beim Import der
+ * Datei herein. Hier ist `searchNode` komplett attrappiert, und damit ist das
+ * `await import()` der einzige Weg dorthin. Wer hier `importOriginal` nachrüstet,
+ * baut die Bombe wieder ein — und `toolCatalog` umgekehrt auf eine reine
+ * Attrappe umzustellen bricht sofort (`DocumentSearchService is not a
+ * constructor`).
+ */
+vi.mock('../../../../services/document-services/DocumentSearchService/index.js', () => ({
+  getQdrantDocumentService: () => ({ getMultipleDocumentsFullText: fullText }),
+}));
 
 const src = (kind: DocumentSource['kind'], id: string, label = id): DocumentSource => ({
   kind,
