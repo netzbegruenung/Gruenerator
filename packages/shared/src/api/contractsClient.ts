@@ -231,7 +231,7 @@ const CLIENT_OPTS = {
  * process-wide singletons, so switching them on validates every caller of the
  * three contracts — `canvas` also serves the collab canvas editor, chat sharepic
  * minting and the template gallery; `subtitler` serves the whole web subtitler
- * pipeline; `sharesRead` also serves template cloning and share renaming. Those
+ * pipeline; `sharesRead` also serves share renaming. Those
  * response builders serialize their dates through the same `toIso` pattern, so
  * none of them throws today, but none was audited or covered by a test here
  * either. A drift in one of them now fails loudly instead of silently — which is

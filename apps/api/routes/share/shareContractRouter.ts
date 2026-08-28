@@ -1,12 +1,11 @@
 /**
  * ts-rest contract router for /api/share (write endpoints only)
  *
- * Covers the six validateBody-guarded routes from shareController.ts:
+ * Covers the validateBody-guarded write routes from shareController.ts:
  *   POST /api/share/image
  *   POST /api/share/video
  *   POST /api/share/video/from-project
  *   PUT  /api/share/:shareToken/image
- *   POST /api/share/:shareToken/save-as-template
  *
  * File-streaming routes (preview, download, thumbnail, original) and
  * read-only GET routes are left in the legacy Express router.
@@ -50,15 +49,6 @@ function getUserId(req: Request): string | undefined {
   return (req.user as UserProfile | undefined)?.id;
 }
 
-function getUserInfo(req: Request): { id: string; displayName: string } | undefined {
-  const user = req.user as UserProfile | undefined;
-  if (!user) return undefined;
-  return {
-    id: user.id,
-    displayName: user.display_name || user.email || 'Anonymous',
-  };
-}
-
 // ── Lazy-loaded services ────────────────────────────────────────────────────
 
 interface ExportData {
@@ -91,13 +81,6 @@ interface SharedMediaService {
     shareToken: string,
     params: UpdateImageShareParams
   ): Promise<ShareResult>;
-  markAsTemplate(
-    userId: string,
-    shareToken: string,
-    title: string,
-    visibility: string,
-    userName: string
-  ): Promise<void>;
   getThumbnailPath?(relativePath: string): string;
   getSubtitledVideoPath?(relativePath: string): string;
   updateSubtitledVideoPath?(userId: string, projectId: string, relativePath: string): Promise<void>;
@@ -587,64 +570,6 @@ export const shareContractRouter = s.router(sharesContract, {
       return {
         status: 500 as const,
         body: { success: false as const, error: 'Bild konnte nicht aktualisiert werden' },
-      };
-    }
-  },
-
-  /**
-   * @deprecated Legacy `shared_media` template flow. Saving a sharepic as a
-   * Vorlage now goes through `userTemplates.fromCanvas`, which snapshots the
-   * canvas instead of flagging a rendered share — this endpoint has had no
-   * frontend caller since. Kept alive because existing `shared_media`
-   * templates are still readable via `GET /share/templates/:token` and the
-   * `/studio?template=` clone path; remove once those are migrated.
-   */
-  saveAsTemplate: async (args) => {
-    try {
-      const { shareToken } = args.params;
-      const userInfo = getUserInfo(args.req);
-      if (!userInfo) return UNAUTHORIZED;
-      const { id: userId, displayName: userName } = userInfo;
-      const { title, visibility = 'private' } = args.body;
-
-      const service = await getSharedMediaService();
-      await service.markAsTemplate(userId, shareToken, title || 'Template', visibility, userName);
-
-      const templateUrl = `/studio?template=${shareToken}`;
-
-      log.info(
-        `Share ${shareToken} marked as template with visibility: ${visibility} by user ${userId}`
-      );
-
-      return {
-        status: 200 as const,
-        body: {
-          success: true as const,
-          templateUrl,
-          shareToken,
-          visibility,
-        },
-      };
-    } catch (error) {
-      log.error('Failed to save as template:', error);
-      const errorMessage = (error as Error).message;
-      if (errorMessage.includes('not found')) {
-        return {
-          status: 404 as const,
-          body: { success: false as const, error: 'Share not found' },
-        };
-      } else if (errorMessage.includes('Not authorized')) {
-        return {
-          status: 403 as const,
-          body: {
-            success: false as const,
-            error: 'Not authorized to mark this as template',
-          },
-        };
-      }
-      return {
-        status: 500 as const,
-        body: { success: false as const, error: 'Failed to save as template' },
       };
     }
   },
