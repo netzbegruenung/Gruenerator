@@ -18,6 +18,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   setCustomAgents,
   setTextforms,
+  setUserAgentMentionables,
   setUserNotebookMentionables,
   type Mentionable,
 } from '../../lib/mentionables';
@@ -55,6 +56,7 @@ beforeEach(() => {
     { id: 'nb-2', title: 'Ortsverband', slug: 'ortsverband' },
   ]);
   setTextforms([]);
+  setUserAgentMentionables([]);
 });
 
 describe('MentionPopover ↔ keyboard list', () => {
@@ -160,6 +162,66 @@ describe('recipes shared from a group', () => {
     renderPopover('pressemitteilung');
 
     expect(renderedRows()).toEqual(getFilteredMentionables('pressemitteilung').map(rowKey));
+  });
+});
+
+/**
+ * Grünerator-Agenten sind die dritte Quelle des Rezept-Menüs — und die einzige,
+ * die eine Gruppenherkunft überhaupt haben kann (#2909). Ein Grünerator aus der
+ * Gruppe darf deshalb nicht unter „eigene" stehen.
+ */
+describe('Grüneratoren aus einer Gruppe', () => {
+  const agent = (identifier: string, title: string, sharedFromGroup: string | null) => ({
+    identifier,
+    title,
+    description: 'Ein Grünerator',
+    avatar: '🤖',
+    backgroundColor: '#316049',
+    sharedFromGroup,
+  });
+
+  const renderPopover = (query: string) =>
+    render(
+      <MentionPopover
+        query={query}
+        visible
+        onSelect={vi.fn()}
+        onDismiss={vi.fn()}
+        selectedIndex={0}
+        anchorRect={anchorRect}
+      />
+    );
+
+  it('trennt geteilte Grüneratoren von den eigenen', () => {
+    setCustomAgents([]);
+    setUserAgentMentionables([
+      agent('mein-klima-gruenerator', 'Mein Klima-Grünerator', null),
+      agent('kv-klima-gruenerator', 'KV Klima-Grünerator', 'KV Köln'),
+    ]);
+    renderPopover('klima');
+
+    expect(rowTitlesUnder('eigene')).toEqual(['Mein Klima-Grünerator']);
+    expect(rowTitlesUnder('aus deinen Gruppen')).toEqual(['KV Klima-Grünerator']);
+  });
+
+  it('zeigt keine Gruppen-Untergruppe, wenn nichts geteilt ist', () => {
+    setCustomAgents([]);
+    setUserAgentMentionables([agent('mein-klima-gruenerator', 'Mein Klima-Grünerator', null)]);
+    renderPopover('klima');
+
+    expect(rowTitlesUnder('eigene')).toEqual(['Mein Klima-Grünerator']);
+    expect(screen.queryByText('aus deinen Gruppen')).toBeNull();
+  });
+
+  it('hält die Aufteilung deckungsgleich mit der Tastaturliste', () => {
+    setCustomAgents([]);
+    setUserAgentMentionables([
+      agent('mein-klima-gruenerator', 'Mein Klima-Grünerator', null),
+      agent('kv-klima-gruenerator', 'KV Klima-Grünerator', 'KV Köln'),
+    ]);
+    renderPopover('klima');
+
+    expect(renderedRows()).toEqual(getFilteredMentionables('klima').map(rowKey));
   });
 });
 
