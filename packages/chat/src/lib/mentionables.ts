@@ -33,7 +33,6 @@ import {
   PiNewspaper,
   PiClockCounterClockwise,
   PiCloudSun,
-  PiShareNetwork,
   PiChartLine,
   PiCalculator,
 } from '@gruenerator/shared/icons';
@@ -499,7 +498,6 @@ const TOOL_MENTION_ICONS: Record<string, React.ComponentType<{ className?: strin
   pressemitteilungen: PiNewspaper,
   verlauf: PiClockCounterClockwise,
   wetter: PiCloudSun,
-  social: PiShareNetwork,
   diagramm: PiChartLine,
   rechnen: PiCalculator,
 };
@@ -525,7 +523,6 @@ const TOOL_MENTION_ORDER: readonly string[] = [
   'stadtbegruenen',
   'bildbearbeiten',
   'sharepic',
-  'social',
   'diagramm',
   'rechnen',
   'beispiele',

@@ -22,13 +22,9 @@ const mentions = (list: { mention: string }[]) => list.map((m) => m.mention);
 describe('creationMentionables', () => {
   it('offers the generation intents', () => {
     const got = mentions(creationMentionables());
-    for (const slug of [
-      'bildgenerieren',
-      'social',
-      'diagramm',
-      'pdf-erstellen',
-      'zusammenfassung',
-    ]) {
+    // `@social` stand hier, bis `social_post` 08/2026 stillgelegt wurde: ein
+    // Social-Post ist eine Textsorte und wird über die Rezepte gewählt.
+    for (const slug of ['bildgenerieren', 'diagramm', 'pdf-erstellen', 'zusammenfassung']) {
       expect(got).toContain(slug);
     }
   });
