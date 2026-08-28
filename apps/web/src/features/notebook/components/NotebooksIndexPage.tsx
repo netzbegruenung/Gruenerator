@@ -490,6 +490,10 @@ function useWissenTileIntel(locale: 'de' | 'at') {
         return top ? `Jetzt im Trend: ${top}` : null;
       }
       if (id === 'monitor-feed') {
+        // Der Feed-Strom ist rein deutsch (getWhatHappened engt per locale
+        // nichts ein) — unter `at` zeigt /feed ihn gar nicht, also darf die
+        // Kachel auch keine deutsche LV-Schlagzeile als AT-Untertext führen.
+        if (locale === 'at') return null;
         const newest = feed?.days?.[0]?.articles?.[0]?.title;
         return newest ?? null;
       }
@@ -501,7 +505,7 @@ function useWissenTileIntel(locale: 'de' | 'at') {
       }
       return null;
     },
-    [snapshot, polls, feed]
+    [snapshot, polls, feed, locale]
   );
 }
 
