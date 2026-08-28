@@ -1,10 +1,9 @@
 /**
- * ts-rest contract router for /api/documents (Qdrant, retrieval, Wolke sync).
+ * ts-rest contract router for /api/documents (Qdrant, retrieval).
  *
  * Wraps the same service calls as the legacy controllers:
  *   - qdrantController.ts    → GET /system-full-text
  *   - retrievalController.ts → GET /stats
- *   - wolkeController.ts     → GET /sync-status
  *
  * Mount BEFORE the legacy documentsRouter in routes.ts so ts-rest matches
  * its own routes first; unmatched paths fall through to the legacy router.
@@ -29,7 +28,6 @@ import { applyDefaultFilter } from '../../config/systemCollectionsConfig.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { DocumentSearchService } from '../../services/document-services/DocumentSearchService/index.js';
 import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
-import { getWolkeSyncService } from '../../services/sync/index.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -41,7 +39,6 @@ const log = createLogger('documentsContractRouter');
 // Services (mirrors the singleton pattern in the legacy controllers)
 const documentSearchService = new DocumentSearchService();
 const postgresDocumentService = getPostgresDocumentService();
-const wolkeSyncService = getWolkeSyncService();
 
 /**
  * Extract the authenticated user id.
@@ -191,26 +188,6 @@ export const documentsContractRouter = s.router(documentsContract, {
         body: {
           success: false,
           message: (error as Error).message || 'Failed to get document statistics',
-        },
-      };
-    }
-  },
-
-  getSyncStatus: async (args) => {
-    try {
-      const userId = getUserId(args.req);
-      log.debug(`[documentsContract.getSyncStatus] Getting sync status for user: ${userId}`);
-
-      const syncStatuses = await wolkeSyncService.getUserSyncStatus(userId);
-
-      return { status: 200 as const, body: { success: true, syncStatuses } };
-    } catch (error) {
-      log.error('[documentsContract.getSyncStatus] Error:', error);
-      return {
-        status: 500 as const,
-        body: {
-          success: false,
-          message: (error as Error).message || 'Failed to get sync status',
         },
       };
     }

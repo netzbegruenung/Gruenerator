@@ -126,7 +126,6 @@ import subtitlerShareRouter from './routes/subtitler/shareController.js';
 import { mountSubtitlerContractRouter } from './routes/subtitler/subtitlerContractRouter.js';
 import { universalRouter, textAdjustmentRouter } from './routes/texte/index.js';
 import { mountTexteContractRouter } from './routes/texte/texteContractRouter.js';
-import { mountTransferContractRouter } from './routes/transfer/transferContractRouter.js';
 import { mountTransparencyContractRouter } from './routes/transparency/transparencyContractRouter.js';
 import { mountUnsplashContractRouter } from './routes/unsplash/unsplashContractRouter.js';
 import { mountItemUsageContractRouter } from './routes/usage/itemUsageContractRouter.js';
@@ -340,7 +339,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: mem0Router } = await import('./routes/mem0/mem0Controller.js');
   const { default: emailRouter } = await import('./routes/email/emailController.js');
   const { default: videoRouter } = await import('./routes/video/index.js');
-  const { default: transferRouter } = await import('./routes/transfer/transferController.js');
   const { default: visionRouter } = await import('./routes/vision/visionController.js');
 
   // Auth routes — authLimiter applied inside authCore.ts to login/callback only
@@ -771,7 +769,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   mountRecurringTasksContractRouter(app);
   // Auth + rate-limiting must run before the contract mount — createExpressEndpoints
   // registers handlers directly on the app, bypassing the legacy prefix middleware.
-  // Same pattern as /api/transfer below.
   //   - share routes: optionalAuth populates req.user so write handlers can
   //     check it, without rejecting the public getShare/thumbnail/preview reads
   //   - everything else requires auth. The reel UI is auth-gated on every
@@ -829,11 +826,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   // checked access. Adding auth here breaks every preview in the mobile app —
   // routes.mountGuard.vitest.ts asserts it stays open.
   app.use('/api/thumbs', publicReadLimiter, thumbnailRouter);
-  // ts-rest contract router — mount before legacy transferRouter (GET /list and DELETE /:token)
-  // POST /upload (multer file upload) falls through to the legacy router.
-  app.use('/api/transfer', requireAuth);
-  mountTransferContractRouter(app);
-  app.use('/api/transfer', standardMutationLimiter, transferRouter);
+  // /api/transfer wurde entfernt (Wolke ist nur noch lesend); bestehende
+  // Transfer-Links laufen weiter über den öffentlichen Download in /api/share.
   app.use('/api/mem0', requireAuth, standardMutationLimiter, mem0Router);
   // ts-rest contract router for /api/email — mounts BEFORE legacy emailRouter
   // so the typed /test endpoint matches first; /send-content stays on legacy.

@@ -36,6 +36,9 @@ export const collaborative_documents = pgTable('collaborative_documents', {
   last_edited_at: timestamp('last_edited_at', { withTimezone: true }).defaultNow(),
   wolke_share_link_id: text('wolke_share_link_id'),
   wolke_file_path: text('wolke_file_path'),
+  // Deprecated seit 08/2026 (Wolke ist nur noch lesend): wolke_etag und
+  // wolke_live_sync werden nicht mehr beschrieben, die Spalten bleiben für
+  // Bestandszeilen stehen (F0, nur additiv ändern).
   wolke_etag: text('wolke_etag'),
   wolke_live_sync: boolean('wolke_live_sync').default(false),
   last_synced_at: timestamp('last_synced_at', { withTimezone: true }),

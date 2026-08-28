@@ -11,7 +11,6 @@ import type {
   ShareLinkDeletionResult,
   DeactivationResult,
   UsageStats,
-  DatabaseStateCheck,
   ShareLinkUpdates,
   SharedWithUserLink,
 } from './types.js';
@@ -609,52 +608,6 @@ export class NextcloudShareManager {
       groupName: r.group_name,
       sharedAt: r.shared_at,
     }));
-  }
-
-  /**
-   * Check database state for debugging - shows current nextcloud_share_links for a user
-   */
-  static async checkDatabaseState(userId: string): Promise<DatabaseStateCheck> {
-    try {
-      console.log('[NextcloudShareManager] Checking database state for user', { userId });
-
-      if (!userId) {
-        throw new Error('User ID is required');
-      }
-
-      const postgres = await this.getPostgres();
-
-      const profile = await postgres.queryOne(
-        'SELECT id, nextcloud_share_links FROM profiles WHERE id = $1',
-        [userId],
-        { table: 'profiles' }
-      );
-
-      if (!profile) {
-        console.log(`[NextcloudShareManager] No profile found for user ${userId}`);
-        return {
-          profileExists: false,
-          userId,
-          nextcloud_share_links: null,
-        };
-      }
-
-      console.log(`[NextcloudShareManager] Database state for user ${userId}:`, {
-        profileExists: true,
-        nextcloud_share_links: profile.nextcloud_share_links || [],
-      });
-
-      return {
-        profileExists: true,
-        userId,
-        nextcloud_share_links: (profile.nextcloud_share_links as NextcloudShareLink[]) || [],
-      };
-    } catch (error) {
-      console.error('[NextcloudShareManager] Error checking database state', {
-        error: (error as Error).message,
-      });
-      throw error;
-    }
   }
 }
 
