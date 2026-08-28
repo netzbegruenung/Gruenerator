@@ -11,6 +11,8 @@ import React, { memo, useCallback, useMemo } from 'react';
 import { Group, Rect, Circle, Text } from 'react-konva';
 import useImage from 'use-image';
 
+import { shareCanvasPreviewUrl } from '@gruenerator/shared/media-library';
+
 import { type GeometryReporter } from '../hooks/useGeometryReporter';
 import { imageRenderInputsAreEqual } from '../utils/imageElementComparison';
 import { CanvasText, CanvasImage, CanvasBackground } from '../primitives';
@@ -269,7 +271,11 @@ const MemoizedImageElement = memo(function MemoizedImageElement<
     imageSrc = typeof config.src === 'function' ? config.src(state) : config.src;
   }
 
-  const [image] = useImage(imageSrc || '', 'anonymous');
+  // Render the server's working-size WebP variant instead of the raw original:
+  // the original is kept on disk for the gallery, but loading multi-MB
+  // full-resolution bytes for a 1080x1350 scene made background swaps feel
+  // endless. blob:/remote URLs pass through unchanged.
+  const [image] = useImage(shareCanvasPreviewUrl(imageSrc) ?? '', 'anonymous');
 
   const offset = config.offsetKey ? assertAsPosition(state[config.offsetKey]) : { x: 0, y: 0 };
   const scale = config.scaleKey ? assertAsScale(state[config.scaleKey]) : 1;

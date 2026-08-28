@@ -102,3 +102,28 @@ export function shareThumbnailPreviewUrl(
   const match = SHARE_DOWNLOAD_RE.exec(url);
   return match ? `/api/share/${match[1]}/preview?w=${width}&fmt=webp` : url;
 }
+
+/**
+ * The canvas editor's working tier. The scene is 1080x1350 and exports at
+ * container x 2, so a 2160px source is export-quality for every realistic
+ * panel size. Must stay a member of the API's `THUMBNAIL_WIDTHS`.
+ */
+export const CANVAS_PREVIEW_WIDTH = 2160;
+
+/**
+ * Rewrite a durable media URL to the working-size variant the canvas renders
+ * live — Canva-style: edit on a small WebP preview, keep the original on disk.
+ *
+ * Only the `/api/share/<token>/download` shape is rewritten — that is exactly
+ * what the collab doc stores as `currentImageSrc` — while `blob:` previews,
+ * remote stock URLs and anything else pass through unchanged, so this is safe
+ * to apply unconditionally at the render edge.
+ */
+export function shareCanvasPreviewUrl(
+  url: string | undefined,
+  width: number = CANVAS_PREVIEW_WIDTH
+): string | undefined {
+  if (!url) return url;
+  const match = SHARE_DOWNLOAD_RE.exec(url);
+  return match ? `/api/share/${match[1]}/preview?w=${width}&fmt=webp` : url;
+}
