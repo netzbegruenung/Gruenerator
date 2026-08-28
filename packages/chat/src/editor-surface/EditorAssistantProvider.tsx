@@ -27,6 +27,7 @@ import {
   createGrueneratorModelAdapter,
   type GrueneratorAdapterConfig,
 } from '../runtime/GrueneratorModelAdapter';
+import { MESSAGE_QUEUE_ENABLED } from '../runtime/messageQueueFlag';
 import { convertToThreadMessageLike } from '../runtime/threadMessageConversion';
 import { useChatConfigStore } from '../stores/chatConfigStore';
 
@@ -235,6 +236,7 @@ function EditorAssistantReadyHost({
 
   const runtime = useLocalRuntime(modelAdapter, {
     initialMessages: initialMessages ?? [],
+    unstable_enableMessageQueue: MESSAGE_QUEUE_ENABLED,
     ...(attachmentAdapter ? { adapters: { attachments: attachmentAdapter } } : {}),
   });
 

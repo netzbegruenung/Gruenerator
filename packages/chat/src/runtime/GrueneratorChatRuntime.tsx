@@ -35,6 +35,7 @@ import { ChatNavigationProvider } from '../context/ChatNavigationContext';
 import { ChatRuntimeReadyProvider } from '../context/ChatRuntimeReadyContext';
 import { ExternalThreadProvider } from '../context/ExternalThreadContext';
 import { useChatCollaboration } from '../hooks/useChatCollaboration';
+import { useQueueInterruptGuard } from '../hooks/useQueueInterruptGuard';
 import { adoptRejection } from '../lib/adoptRejection';
 import { getDefaultAgent } from '../lib/agents';
 import { handleDictationError } from '../lib/dictationErrorHandler';
@@ -54,6 +55,7 @@ import {
   createGrueneratorThreadListAdapter,
   type ExternalThreadEntry,
 } from './GrueneratorThreadListAdapter';
+import { MESSAGE_QUEUE_ENABLED } from './messageQueueFlag';
 import { ThreadDataSyncEffect } from './ThreadDataSyncEffect';
 import { convertToThreadMessageLike, type LoadedMessage } from './threadMessageConversion';
 
@@ -352,6 +354,7 @@ function useGrueneratorThreadRuntime() {
 
   return useLocalRuntime(modelAdapter, {
     unstable_humanToolNames: ['ask_human'],
+    unstable_enableMessageQueue: MESSAGE_QUEUE_ENABLED,
     adapters: { dictation: dictationAdapter, voice: voiceAdapter, feedback: feedbackAdapter },
   });
 }
@@ -488,6 +491,9 @@ export function GrueneratorChatRuntimeProvider({
     runtimeHook: useGrueneratorThreadRuntime,
     adapter: threadListAdapter,
   });
+
+  // Only the main chat runs ask_human, so only it needs the guard.
+  useQueueInterruptGuard(runtime);
 
   // MCP-Apps widget host (SYSTEM MCP tools only): renders any tool part carrying
   // a `ui://` mcp.app pointer as a sandboxed widget iframe, driven through the
