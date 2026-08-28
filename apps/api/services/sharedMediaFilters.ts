@@ -1,3 +1,4 @@
+import { type ShareStatus } from '@gruenerator/contracts';
 import { NON_LIBRARY_UPLOAD_SOURCES } from '@gruenerator/shared/media-library/constants';
 
 import { SOURCE_CONTENT_ORIGINS } from './sharedMediaOrigin.js';
@@ -45,7 +46,10 @@ import { SOURCE_CONTENT_ORIGINS } from './sharedMediaOrigin.js';
  * intentionally narrow (the Mediathek is ready-only) go through
  * {@link assetPoolWhere} instead of passing a hand-written status here.
  */
-export const USER_VISIBLE_SHARE_STATUSES = ['ready', 'draft'] as const;
+export const USER_VISIBLE_SHARE_STATUSES = [
+  'ready',
+  'draft',
+] as const satisfies readonly ShareStatus[];
 
 /**
  * The other half of the status space: rows that will never become anything.
@@ -70,7 +74,10 @@ export const USER_VISIBLE_SHARE_STATUSES = ['ready', 'draft'] as const;
  * added later should be invisible to it until someone decides otherwise, not
  * swept up by a predicate that was never told about it.
  */
-export const ORPHANED_SHARE_STATUSES = ['processing', 'failed'] as const;
+export const ORPHANED_SHARE_STATUSES = [
+  'processing',
+  'failed',
+] as const satisfies readonly ShareStatus[];
 
 /**
  * Rows that are the user's own assets rather than internal machinery.
@@ -106,7 +113,7 @@ export const LIBRARY_ITEM_CLAUSE = 'COALESCE(is_library_item, TRUE) = TRUE';
  */
 export function creationFeedWhere(
   params: unknown[],
-  status: string | readonly string[] | null
+  status: ShareStatus | readonly ShareStatus[] | null
 ): string {
   const clauses: string[] = [];
 

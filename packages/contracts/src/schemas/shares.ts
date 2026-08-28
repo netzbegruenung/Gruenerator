@@ -18,6 +18,30 @@ export const contentOriginSchema = z.enum(['ki', 'sharepic']);
  */
 export const storedContentOriginSchema = z.enum(['ki', 'sharepic', 'upload', 'unknown']);
 
+/**
+ * The two kinds of media a share can hold — `shared_media.media_type`.
+ *
+ * Named here rather than restated per consumer because the value crosses the
+ * wire in both directions: in as `?type=` on the share list endpoints, out as
+ * `mediaType` on every share row. `ShareMediaType` in `@gruenerator/shared`
+ * derives from this.
+ */
+export const shareMediaTypeSchema = z.enum(['image', 'video']);
+export type ShareMediaType = z.infer<typeof shareMediaTypeSchema>;
+
+/**
+ * The lifecycle of a share row — `shared_media.status`.
+ *
+ * The set is split two ways in `apps/api/services/sharedMediaFilters.ts`:
+ * `USER_VISIBLE_SHARE_STATUSES` (`ready`, `draft`) is what a creation feed
+ * shows, `ORPHANED_SHARE_STATUSES` (`processing`, `failed`) is what the reaper
+ * may delete, and together they must exhaust this enum. Adding a value here
+ * means deciding which half it belongs to — the reaper deliberately does not
+ * say `NOT IN (ready, draft)`.
+ */
+export const shareStatusSchema = z.enum(['processing', 'ready', 'failed', 'draft']);
+export type ShareStatus = z.infer<typeof shareStatusSchema>;
+
 // ── Request bodies ──────────────────────────────────────────────────────────
 
 export const createImageShareBodySchema = z.object({
@@ -37,7 +61,9 @@ export const createImageShareBodySchema = z.object({
   contentOrigin: contentOriginSchema.optional(),
   metadata: z.record(z.unknown()).optional(),
   originalImage: z.string().optional(),
-  status: z.enum(['ready', 'draft']).optional(),
+  // Only the two statuses a client may declare: 'processing' and 'failed' are
+  // written by the server as a render succeeds or fails.
+  status: shareStatusSchema.extract(['ready', 'draft']).optional(),
 });
 
 export const createVideoShareBodySchema = z.object({
@@ -69,7 +95,7 @@ export const shareResultSchema = z.object({
   shareToken: z.string(),
   shareUrl: z.string(),
   createdAt: z.union([z.string(), z.date()]),
-  mediaType: z.enum(['image', 'video']),
+  mediaType: shareMediaTypeSchema,
   hasOriginalImage: z.boolean().optional(),
   status: z.string().optional(),
 });
@@ -101,11 +127,23 @@ export const saveAsTemplateResponseSchema = z.object({
 
 // ── Read / management endpoints ─────────────────────────────────────────────
 
-// Query schemas — kept as raw strings; handlers parse exactly like the legacy
-// router did (parseInt fallbacks etc.) to preserve behavior.
+// Query schemas. Numeric ones stay raw strings; handlers parse exactly like the
+// legacy router did (parseInt fallbacks etc.) to preserve behavior.
+
+/**
+ * `GET /api/share/my`. Both filters are closed sets, and query validation is
+ * live on this router, so `?type=garbage` is a 400 rather than a silently empty
+ * list.
+ *
+ * `''` is accepted alongside the enum values on purpose. The handler reads
+ * `query.type || null`, i.e. an empty param has always meant "no filter", and
+ * a bare `.optional()` would turn `?type=` from a harmless no-op into an error
+ * for clients built before this schema existed. The empty string collapses to
+ * `null` in the handler exactly as `undefined` does.
+ */
 export const mySharesQuerySchema = z.object({
-  type: z.string().optional(),
-  status: z.string().optional(),
+  type: shareMediaTypeSchema.or(z.literal('')).optional(),
+  status: shareStatusSchema.or(z.literal('')).optional(),
 });
 
 export const recentSharesQuerySchema = z.object({
