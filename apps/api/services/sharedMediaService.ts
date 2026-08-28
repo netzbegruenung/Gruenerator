@@ -15,7 +15,7 @@ import sharp from 'sharp';
 import { type PostgresService, getPostgresInstance } from '../database/services/PostgresService.js';
 import { likeContainsPattern } from '../utils/sqlLike.js';
 
-import { deriveContentOrigin } from './sharedMediaOrigin.js';
+import { deriveContentOrigin, SOURCE_CONTENT_ORIGINS } from './sharedMediaOrigin.js';
 
 import type {
   SharedMediaRow,
@@ -708,6 +708,13 @@ class SharedMediaService {
     await this.ensureInitialized();
 
     try {
+      // Two provenance filters, two different questions. `upload_source` keeps internal
+      // artifacts out (thumbnails, canvas-element output). `content_origin` keeps *source
+      // images* out: every caller of this method is a creation feed — the workplace
+      // "Zuletzt" strip, the Studio gallery on web and mobile, the chat media list — and a
+      // background image someone dropped into the canvas editor is not something they
+      // created. The Mediathek asks a different question and goes through
+      // `getMediaLibrary`, which deliberately does not filter on origin.
       let query = `
                 SELECT id, share_token, media_type, title, thumbnail_path, file_size,
                        duration, image_type, image_metadata, status, download_count, created_at,
@@ -715,9 +722,14 @@ class SharedMediaService {
                 FROM shared_media
                 WHERE user_id = $1
                   AND (upload_source IS NULL OR upload_source != ALL($2))
+                  AND (content_origin IS NULL OR content_origin != ALL($3))
             `;
-      const params: unknown[] = [userId, [...NON_LIBRARY_UPLOAD_SOURCES]];
-      let paramIndex = 3;
+      const params: unknown[] = [
+        userId,
+        [...NON_LIBRARY_UPLOAD_SOURCES],
+        [...SOURCE_CONTENT_ORIGINS],
+      ];
+      let paramIndex = 4;
 
       if (mediaType) {
         query += ` AND media_type = $${paramIndex}`;

@@ -8,6 +8,7 @@ import { NON_LIBRARY_UPLOAD_SOURCES } from '@gruenerator/shared/media-library/co
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import { CANVAS_SUBTYPE } from '../../services/canvas/canvasRepository.js';
+import { SOURCE_CONTENT_ORIGINS } from '../../services/sharedMediaOrigin.js';
 import { USER_VISIBLE_SHARE_STATUSES } from '../../services/sharedMediaService.js';
 
 import { type ContentCursor, keysetWhere } from './contentCursor.js';
@@ -231,12 +232,17 @@ export async function fetchImages(
     userId,
     [...NON_LIBRARY_UPLOAD_SOURCES],
     [...USER_VISIBLE_SHARE_STATUSES],
+    [...SOURCE_CONTENT_ORIGINS],
   ];
+  // Same two provenance filters as `getUserShares` — see the comment there. This endpoint
+  // is the migration target for the "Zuletzt" strip, so it has to answer the question the
+  // same way or the uploads come back the day that migration lands.
   const where = withCursor(
     `user_id = $1
      AND media_type = 'image'
      AND (upload_source IS NULL OR upload_source != ALL($2))
-     AND status = ANY($3)`,
+     AND status = ANY($3)
+     AND (content_origin IS NULL OR content_origin != ALL($4))`,
     'created_at',
     'id',
     'image',
