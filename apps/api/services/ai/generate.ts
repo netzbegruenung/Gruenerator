@@ -218,33 +218,59 @@ function toEnvelope(
 }
 
 /**
- * Die Frist, die KEIN Versuch aufbrauchen darf, solange noch ein Anbieter
- * hinter ihm steht.
+ * Die kleinste Frist, mit der ein Versuch noch etwas werden kann.
  *
- * Ohne sie ist die Ausweichkette tote Zeile, und zwar genau dann, wenn man sie
- * braucht. Die Wanduhr unten deckt die GANZE Kette (120 s, `env.REQUEST_TIMEOUT`);
- * GreenPT bringt in `greenptThinkingFetch.ts` seine EIGENE Frist von ebenfalls
- * 120 s mit. Zwei gleiche Zahlen, und der Primär verschluckt das gesamte Budget:
- * die äussere Uhr feuert im selben Moment, in dem der Anbieter aufgäbe, also
- * kam nie ein zweiter an die Reihe. Live am 28.08.2026 auf `doc_generation`:
- * zwei `aiObject`-Versuche à 120 s, vier Minuten Warten, HTTP 500 — und in
- * keinem der beiden lief ein einziger Ausweichanbieter.
- *
- * 45 s, nicht die Hälfte: der Primär soll den Löwenanteil behalten (bei 120 s
- * also 75 s, deutlich über jeder gemessenen echten Generierung), und garantiert
- * werden muss nur, dass ÜBERHAUPT noch einer drankommt. Der bekommt die
- * restlichen 45 s — auf Cortecs mit 210,7 tok/s reichlich für eine ganze
- * Antwort (`gemmaHosts.ts`).
+ * Sie ist die Recheneinheit der Aufteilung unten, in beide Richtungen: so viel
+ * wird jedem Anbieter HINTER dem laufenden zurückgelegt, und so viel behält der
+ * laufende mindestens. 20 s ist an der schnellsten Adresse der Kette gemessen —
+ * Cortecs schreibt mit 210,7 tok/s (`gemmaHosts.ts`) in dieser Zeit rund 4000
+ * Tokens, also ein ganzes Dokument. Weniger zurückzulegen hiesse, einen Aufruf
+ * aufzumachen, der nicht fertig werden kann; mehr hiesse, die vorderen
+ * Anbieter zu verhungern, die die eigentliche Antwort liefern sollen.
  */
-const FALLBACK_RESERVE_MS = 45_000;
+const MIN_VIABLE_ATTEMPT_MS = 20_000;
 
 /**
- * Was dieser Versuch höchstens verbrauchen darf. Der letzte der Kette bekommt
- * den Rest — hinter ihm ist nichts mehr zu reservieren.
+ * Was DIESER Versuch höchstens verbrauchen darf.
+ *
+ * Ohne diese Aufteilung ist die Ausweichkette tote Zeile, und zwar genau dann,
+ * wenn man sie braucht. Die Wanduhr unten deckt die GANZE Kette (120 s,
+ * `env.REQUEST_TIMEOUT`); GreenPT bringt in `greenptThinkingFetch.ts` seine
+ * EIGENE Frist von ebenfalls 120 s mit. Zwei gleiche Zahlen, und der Primär
+ * verschluckt das gesamte Budget: die äussere Uhr feuert im selben Moment, in
+ * dem der Anbieter aufgäbe, also kam nie ein zweiter an die Reihe. Live am
+ * 28.08.2026 auf `doc_generation`: zwei `aiObject`-Versuche à 120 s, vier
+ * Minuten Warten, HTTP 500 — und in keinem der beiden lief ein einziger
+ * Ausweichanbieter.
+ *
+ * ZURÜCKGELEGT WIRD FÜR DIE GANZE KETTE, nicht für den nächsten allein. Eine
+ * feste Reserve für „einen weiteren" sieht aus wie eine Lösung und ist bei
+ * einer Kette ab drei Anbietern keine: sie garantiert immer genau einen Zug,
+ * egal wie viele dahinter stehen. Mit 45 s fest bekam `doc_generation`
+ * (fünf Anbieter) `greenpt`=75 s, `cortecs`=45 s — und litellm, regolo und
+ * mistral liefen NIE, auch nicht, wenn noch Zeit gewesen wäre. Die
+ * vier-tiefen Ketten aller anderen Lanes verloren ebenso ihre letzten zwei.
+ *
+ * Mit der Skalierung bekommt jeder Anbieter einen Zug, und die kürzere Kette
+ * den grosszügigeren Primär — was richtig herum ist, denn der Primär ist das
+ * für diese Lane GEWÄHLTE Modell und beantwortet den Normalfall:
+ *
+ *   5 Anbieter, 120 s   greenpt 40 s │ cortecs 20 │ litellm 20 │ regolo 20 │ mistral 20
+ *   4 Anbieter, 120 s   cortecs 60 s │ litellm 20 │ regolo  20 │ mistral 20
+ *   3 Anbieter, 120 s   mistral 80 s │ cortecs 20 │ litellm 20
+ *   5 Anbieter, 240 s   greenpt 160 s │ … je 20
+ *
+ * Reicht die Frist des Aufrufers nicht für alle, verhungert der Schwanz
+ * weiterhin — daran ist nichts zu rechnen, 45 s tragen keine fünf Anbieter.
+ * Ungesagt bleibt es nicht: `runChain` protokolliert, wer nicht mehr drankam.
  */
-function attemptBudget(remainingMs: number, isLast: boolean): number {
-  if (isLast) return remainingMs;
-  return Math.max(remainingMs - FALLBACK_RESERVE_MS, Math.min(remainingMs, FALLBACK_RESERVE_MS));
+function attemptBudget(remainingMs: number, providersLeft: number): number {
+  if (providersLeft <= 1) return remainingMs;
+  const reserved = Math.min(
+    MIN_VIABLE_ATTEMPT_MS * (providersLeft - 1),
+    Math.max(remainingMs - MIN_VIABLE_ATTEMPT_MS, 0)
+  );
+  return Math.max(remainingMs - reserved, MIN_VIABLE_ATTEMPT_MS);
 }
 
 /**
@@ -291,9 +317,16 @@ async function runChain(
   for (const [index, provider] of chain.entries()) {
     const remaining = deadline - Date.now();
     // Einen Aufruf noch aufzumachen, dessen Frist schon abgelaufen ist, kostet
-    // Tokens und kann nichts mehr liefern.
-    if (remaining <= 0) break;
-    const budget = attemptBudget(remaining, index === chain.length - 1);
+    // Tokens und kann nichts mehr liefern. Keine stille Kürzung: wer nicht mehr
+    // drankam, steht im Protokoll — sonst liest sich ein erschöpftes Budget
+    // hinterher wie eine Kette, die alles versucht hat.
+    if (remaining <= 0) {
+      log.warn(
+        `[${String(call.lane)}] budget spent after ${index} provider(s) — never tried: ${chain.slice(index).join(', ')}`
+      );
+      break;
+    }
+    const budget = attemptBudget(remaining, chain.length - index);
 
     // The primary answers on the target's model; every fallback answers on its
     // OWN default — the rule `providerFallback.getFallbackModelForProvider`
