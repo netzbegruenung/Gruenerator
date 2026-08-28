@@ -132,6 +132,37 @@ describe.each(TEMPLATES)('%s: the background is reachable', (type) => {
     expect(dead, `${type}: auto-switch names unclickable/absent ${dead.join(', ')}`).toEqual([]);
   });
 
+  /**
+   * The deleted `backgroundAutoSwitch.vitest.ts` pinned the literal target id
+   * per template (`background-image` -> `image` for simple, -> `image-background`
+   * for dreizeilen). Pinning the id is brittle and says nothing useful; the
+   * property that actually matters is that clicking a background element lands
+   * on a background panel that exists. A redirect to a different but registered
+   * tab would otherwise slip through every other assertion here.
+   */
+  it('auto-switches background elements onto a real background tab', () => {
+    if (!config.getAutoSwitchTab) return;
+    const registered: string[] = config.tabs.map((t) => t.id);
+
+    const wrong = BACKGROUND_ELEMENT_PROBES.map((probe) => ({
+      probe,
+      target: config.getAutoSwitchTab?.(probe) as string | null | undefined,
+    }))
+      .filter((hit): hit is { probe: string; target: string } => Boolean(hit.target))
+      .filter(
+        (hit) =>
+          !BACKGROUND_TAB_IDS.includes(hit.target) ||
+          !registered.includes(hit.target) ||
+          !(hit.target in config.sections)
+      )
+      .map((hit) => `${hit.probe} -> ${hit.target}`);
+
+    expect(
+      wrong,
+      `${type}: auto-switch lands off the background panel: ${wrong.join(', ')}`
+    ).toEqual([]);
+  });
+
   it('only makes tabs visible that are actually registered', () => {
     const registered = config.tabs.map((t) => t.id);
     const phantom = visibleIds().filter((id) => !registered.includes(id));
