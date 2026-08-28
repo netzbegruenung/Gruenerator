@@ -50,18 +50,21 @@ export const USER_VISIBLE_SHARE_STATUSES = ['ready', 'draft'] as const;
 /**
  * The other half of the status space: rows that will never become anything.
  *
- * `'failed'` is written by `markShareFailed`. `'processing'` has three writers,
- * and only one of them is a render: `createPendingVideoShare` (cleared by
- * `finalizeVideoShare`), and `cloneTemplate`, which inserts it on a synchronous
- * path with nothing to wait for. The Mediathek is ready-only, so neither status
- * reaches it, and #2980 removed the LRU eviction that used to sweep such rows
- * along with everything else — so nothing cleaned them up at all (#2989). They
- * are reaped by age instead; see `reapOrphanedShares`.
+ * `'failed'` is written by `markShareFailed`. `'processing'` is written only by
+ * `createPendingVideoShare` and cleared by `finalizeVideoShare` — a render in
+ * flight, and nothing else. That was briefly untrue: `cloneTemplate` inserted it
+ * on a synchronous path with nothing to wait for, which is how #3009 happened.
+ * The Mediathek is ready-only, so neither status reaches it, and #2980 removed
+ * the LRU eviction that used to sweep such rows along with everything else — so
+ * nothing cleaned them up at all (#2989). They are reaped by age instead; see
+ * `reapOrphanedShares`.
  *
  * Membership here means "may be deleted unasked", which is why the reaper adds
- * `file_path IS NULL` on top: a cloned template that was edited and saved keeps
- * `'processing'` (nothing in `updateImageShare` clears it) while holding a real
- * sharepic. Status alone is not enough to tell the two apart.
+ * `file_path IS NULL` on top. Status alone was not enough to tell a stranded
+ * sharepic from an orphan, because `updateImageShare` writes `file_path` without
+ * touching `status`. The single-writer claim above is pinned by
+ * `sharedMediaService.vitest.ts`; the interlock is what holds if it ever breaks
+ * again.
  *
  * Together with {@link USER_VISIBLE_SHARE_STATUSES} this must exhaust the
  * statuses the service writes (`ShareStatus` in `@gruenerator/shared/share`).

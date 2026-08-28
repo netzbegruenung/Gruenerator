@@ -299,10 +299,11 @@ async function cleanStuckShareRows(): Promise<CleanupStats> {
     }
 
     // Rows the interlock held back. Each one is a finished sharepic wearing a
-    // dead status — almost certainly a template clone that was edited and saved
-    // without an explicit publish, since `updateImageShare` never clears
-    // `'processing'`. They must not be deleted, but they should not be silent
-    // either: the count is the only place this shows up.
+    // dead status. The known producer — the template clone flow behind #3009 —
+    // is retired and its rows were promoted, so this should now read zero
+    // forever; a nonzero count means a new writer of `'processing'` has appeared
+    // on a path that finishes synchronously. They must not be deleted, but they
+    // should not be silent either: the count is the only place this shows up.
     const withFiles = await service.countFileBearingOrphans();
     if (withFiles > 0) {
       log.warn(

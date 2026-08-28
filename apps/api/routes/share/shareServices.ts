@@ -91,19 +91,6 @@ export interface SharedMediaService {
   getMediaFilePath(relativePath: string | null): string | null;
   getOriginalImagePath(shareToken: string, filename: string): string | null;
   clearOriginalImageMetadata(shareToken: string): Promise<void>;
-  markAsTemplate(
-    userId: string,
-    shareToken: string,
-    title: string,
-    visibility: string,
-    userName: string
-  ): Promise<void>;
-  cloneTemplate(templateToken: string, userId: string, userName: string): Promise<ShareResult>;
-  getTemplates(userId: string | null, visibility: string): Promise<SharedMediaRow[]>;
-  getTemplateByToken(
-    templateToken: string,
-    requestingUserId?: string
-  ): Promise<SharedMediaRow | null>;
 }
 
 // Lazy-loaded service
