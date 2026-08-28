@@ -115,6 +115,27 @@ describe('rerankPipeline — Budget', () => {
     expect(result.rankedIndices[0]).toBe(2);
   });
 
+  it('rechnet die Herkunftsmarke mit — sie steht mit im Dokument', async () => {
+    const items = Array.from({ length: 8 }, (_, i) => item(`Dok ${i}`, 30_000));
+
+    await rerankPipeline({
+      query: 'Klimageld',
+      items,
+      inputLimit: 8,
+      minRelevance: 0,
+      maxCharsPerItem: 2000,
+      // Die längste Marke, die `getSourceTag` vergibt.
+      sourceTagFn: () => 'Parlamentsdokument',
+    });
+
+    // Ohne Mitzählen der Marke läge jedes Dokument um `[Parlamentsdokument] `
+    // (21 Zeichen) über der Decke.
+    for (const doc of docsFromLastCall()) {
+      expect(doc.startsWith('[Parlamentsdokument] ')).toBe(true);
+      expect(doc.length).toBeLessThanOrEqual(2000);
+    }
+  });
+
   it('respektiert ausdrücklich übergebene Grenzen', async () => {
     const items = Array.from({ length: 4 }, (_, i) => item(`Dok ${i}`, 4000));
 
