@@ -1,4 +1,4 @@
-import { type InferSelectModel } from 'drizzle-orm';
+import { type InferSelectModel, sql } from 'drizzle-orm';
 import {
   bigint,
   boolean,
@@ -31,21 +31,6 @@ export const userSharepics = pgTable(
 );
 
 export type UserSharepic = InferSelectModel<typeof userSharepics>;
-
-export const userUploads = pgTable('user_uploads', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  user_id: uuid('user_id'),
-  file_name: text('file_name').notNull(),
-  file_url: text('file_url'),
-  file_path: text('file_path'),
-  file_size: bigint('file_size', { mode: 'number' }),
-  mime_type: text('mime_type'),
-  upload_status: text('upload_status').notNull().default('pending'),
-  created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  metadata: jsonb('metadata').$type<Record<string, unknown>>().notNull().default({}),
-});
-
-export type UserUpload = InferSelectModel<typeof userUploads>;
 
 /**
  * Entry stored in the transfer_files JSONB array
@@ -127,6 +112,12 @@ export const sharedMedia = pgTable(
       t.image_type,
       t.created_at
     ),
+    // Partial, for the orphan reaper (#2989) — it only ever asks for rows in a
+    // status no listing shows. Keep the predicate in step with
+    // ORPHANED_SHARE_STATUSES and the migration of the same name.
+    index('idx_shared_media_orphan_status')
+      .on(t.created_at)
+      .where(sql`status IN ('processing', 'failed')`),
   ]
 );
 
