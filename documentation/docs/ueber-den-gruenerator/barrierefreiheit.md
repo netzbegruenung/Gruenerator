@@ -36,7 +36,7 @@ Behoben und nachgemessen sind unter anderem:
 
 ## Einstellungen, die du selbst setzen kannst
 
-Unter **Einstellungen → Barrierefreiheit**:
+Unter **Einstellungen → Datenschutz & Barrierefreiheit**, im unteren Abschnitt _Barrierefreiheit_:
 
 | Einstellung                          | Wirkung                                     |
 | ------------------------------------ | ------------------------------------------- |
