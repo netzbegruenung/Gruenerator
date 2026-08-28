@@ -102,6 +102,42 @@ describe('truncateDocument', () => {
   });
 });
 
+describe('truncateDocument — mit Anfrage (#2824)', () => {
+  /** Antwort weit hinten: genau der Fall, den 60/40 wegschneidet. */
+  const filler = Array.from(
+    { length: 40 },
+    (_, i) =>
+      `## Abschnitt ${i}\n\nAllgemeine Ausführungen zu Zuständigkeiten und Zeitplänen im Haus.`
+  ).join('\n\n');
+  const doc = `${filler}\n\n## Löschfristen\n\nDie Löschfristen betragen sechs Monate.\n\n${filler}`;
+
+  it('behält die Passage zur Frage, wo der 60/40-Schnitt sie verlöre', () => {
+    const positional = truncateDocument(doc, 1200);
+    expect(positional).not.toContain('Die Löschfristen betragen');
+
+    const focused = truncateDocument(doc, 1200, 'Wie lang sind die Löschfristen?');
+    expect(focused).toContain('Die Löschfristen betragen');
+    expect(focused.length).toBeLessThanOrEqual(1200);
+  });
+
+  it('fällt ohne verwertbares Signal auf den alten Schnitt zurück', () => {
+    // Byte-gleich: das ist die Zusicherung, die alle Aufrufer ohne Anfrage tragen.
+    expect(truncateDocument(doc, 1200, '')).toBe(truncateDocument(doc, 1200));
+    expect(truncateDocument(doc, 1200, 'und was ist mit dem')).toBe(truncateDocument(doc, 1200));
+  });
+
+  it('fällt zurück, wenn der Begriff überall gleich oft steht', () => {
+    // „fasse das Dokument zusammen" darf keine beliebige Auswahl auslösen.
+    const flat = Array.from(
+      { length: 60 },
+      (_, i) => `## Teil ${i}\n\nDieses Dokument beschreibt das Dokument und seine Teile.`
+    ).join('\n\n');
+    expect(truncateDocument(flat, 1200, 'fasse das Dokument zusammen')).toBe(
+      truncateDocument(flat, 1200)
+    );
+  });
+});
+
 describe('limitAttachmentContext — fair per-document split (M1/M3)', () => {
   function doc(name: string, chars: number): string {
     return `### ${name}\n\n${'A'.repeat(chars)}`;
