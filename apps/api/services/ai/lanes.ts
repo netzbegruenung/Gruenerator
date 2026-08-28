@@ -261,23 +261,38 @@ export function providerForModel(modelName = ''): ProviderName {
 }
 
 /**
- * Failover order for everything that is not a sharepic — the chain
- * `providerFallback.tryFallbackProviders` runs by default. Exported because a
+ * Failover order for everything that is not a sharepic. Exported because a
  * PINNED call has no lane row to derive it from (see `AiCall.pinned` in
  * `generate.ts`) and must not be routed through `resolveLane` to get one.
+ *
+ * Cortecs führt seit dem 28.08.2026 — es ist der Host des dichten Gemma 4 31B
+ * (`gemmaHosts.ts`), also desselben Modells, das schon Primär von 15 Textlanes
+ * ist, und mit 210,7 tok/s der schnellste gemessene. Für die Lanes, die es
+ * bereits als Primär führen, ändert das nichts: `laneFallback` filtert den
+ * eigenen Primär heraus. Es ändert die Kette genau für die anderen — allen
+ * voran `doc_generation` auf GreenPT, dessen Ausweichkette bis dahin keinen
+ * einzigen Host derselben Modellfamilie enthielt.
+ *
+ * Der Preis steht in `gemmaHosts.ts`: Cortecs ist VORAUSBEZAHLT, ein leeres
+ * Guthaben antwortet mit 401. Das ist ein schneller Fehlschlag, und die drei
+ * bisherigen Anbieter stehen unverändert dahinter.
  */
-export const GENERIC_FALLBACK: readonly ProviderName[] = ['litellm', 'regolo', 'mistral'];
+export const GENERIC_FALLBACK: readonly ProviderName[] = [
+  'cortecs',
+  'litellm',
+  'regolo',
+  'mistral',
+];
 
 /**
- * Failover order after the primary. Two chains, matching what
- * `providerFallback` runs today: sharepics lead with Mistral because short
- * creative German is what it is best at, everything else leads with the
- * cheapest capable lane.
+ * Failover order after the primary. Two chains: sharepics lead with Mistral
+ * because short creative German is what it is best at, everything else leads
+ * with the fastest capable lane.
  */
 export function laneFallback(lane: LaneId): readonly ProviderName[] {
   const primary = AI_LANES[lane].provider;
   const chain = lane.startsWith('sharepic_')
-    ? (['mistral', 'litellm', 'regolo'] as const)
+    ? (['mistral', 'cortecs', 'litellm', 'regolo'] as const)
     : GENERIC_FALLBACK;
   return chain.filter((p) => p !== primary);
 }

@@ -87,11 +87,11 @@ describe('laneFallback', () => {
   });
 
   it('drops the primary from the chain and keeps the rest in order', () => {
-    // Matches the two chains `providerFallback` runs today: short creative
-    // German is what Mistral is best at, so sharepics try it first.
-    expect(laneFallback('sharepic_zitat')[0]).toBe('litellm'); // mistral is primary, so dropped
-    expect(laneFallback('default')[0]).toBe('litellm'); // mistral is primary, so dropped
-    expect(laneFallback('image_picker')[0]).toBe('litellm'); // regolo is primary, so dropped
+    // Short creative German is what Mistral is best at, so sharepics try it
+    // first; everything else leads with Cortecs (the fastest Gemma 4 host).
+    expect(laneFallback('sharepic_zitat')[0]).toBe('cortecs'); // mistral is primary, so dropped
+    expect(laneFallback('default')[0]).toBe('cortecs'); // mistral is primary, so dropped
+    expect(laneFallback('image_picker')[0]).toBe('cortecs'); // regolo is primary, so dropped
   });
 
   it('makes GPT-OSS the fallback for both creation families, not the primary', () => {
@@ -106,10 +106,18 @@ describe('laneFallback', () => {
     // derselben Gewichte. Vorher hatten diese Lanes nach GPT-OSS nur noch
     // Mistral; jetzt liegt dazwischen dasselbe Modell bei einem anderen
     // Vertragspartner.
+    //
+    // Cortecs steht seit dem 28.08.2026 in der Kette, taucht hier aber NICHT
+    // auf: es ist der Primär dieser Lanes, und `laneFallback` filtert den.
     expect(laneFallback('antrag')).toEqual(['litellm', 'regolo', 'mistral']);
     expect(laneFallback('social')).toEqual(['litellm', 'regolo', 'mistral']);
+  });
+
+  it('gives the GreenPT artefact lane a host of its own model family', () => {
     // `doc_generation` liegt auf GreenPT, das in keiner der beiden Ketten
-    // steht — also bleiben alle drei übrig, Mistral als letzte Instanz.
-    expect(laneFallback('doc_generation')).toEqual(['litellm', 'regolo', 'mistral']);
+    // steht — also bleiben alle übrig. Cortecs vorn ist hier der Punkt: bis
+    // zum 28.08.2026 enthielt die Ausweichkette dieser Lane keinen einzigen
+    // Host desselben Gemma 4, auf dem ihr Primär läuft.
+    expect(laneFallback('doc_generation')).toEqual(['cortecs', 'litellm', 'regolo', 'mistral']);
   });
 });
