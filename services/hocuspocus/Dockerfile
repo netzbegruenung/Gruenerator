@@ -20,8 +20,15 @@ COPY packages/contracts/package.json ./packages/contracts/
 COPY services/hocuspocus/package.json ./services/hocuspocus/
 
 # Install dependencies (trailing ... pulls workspace deps: @gruenerator/shared, @gruenerator/contracts)
+# --node-linker overrides .npmrc's node-linker=hoisted (kept because Metro/RN in
+# apps/mobile needs it). The hoisted linker materializes the ENTIRE lockfile
+# regardless of --filter — 4799 packages / 4.5 GB for every scope, which is what
+# made a cold image build take ~1 h. --shamefully-hoist keeps the flat
+# node_modules layout the workspace relies on, built only from the filtered
+# closure. See #2924.
 RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile --ignore-scripts --filter @gruenerator/hocuspocus...
+    pnpm install --frozen-lockfile --ignore-scripts --node-linker=isolated --shamefully-hoist \
+        --filter @gruenerator/hocuspocus...
 
 # Copy source and compile
 COPY packages/shared ./packages/shared
