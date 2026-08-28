@@ -50,13 +50,18 @@ export const USER_VISIBLE_SHARE_STATUSES = ['ready', 'draft'] as const;
 /**
  * The other half of the status space: rows that will never become anything.
  *
- * `'processing'` is written by `createPendingVideoShare` and only
- * `finalizeVideoShare` clears it; `'failed'` is written by `markShareFailed`.
- * Both are invisible everywhere a user could act on them — the Mediathek is
- * ready-only, the galleries are {@link USER_VISIBLE_SHARE_STATUSES} — so no
- * button deletes them and, since #2980 removed the LRU eviction that used to
- * sweep them along with everything else, nothing did (#2989). They are reaped
- * by age instead; see `reapOrphanedShares`.
+ * `'failed'` is written by `markShareFailed`. `'processing'` has three writers,
+ * and only one of them is a render: `createPendingVideoShare` (cleared by
+ * `finalizeVideoShare`), and `cloneTemplate`, which inserts it on a synchronous
+ * path with nothing to wait for. The Mediathek is ready-only, so neither status
+ * reaches it, and #2980 removed the LRU eviction that used to sweep such rows
+ * along with everything else — so nothing cleaned them up at all (#2989). They
+ * are reaped by age instead; see `reapOrphanedShares`.
+ *
+ * Membership here means "may be deleted unasked", which is why the reaper adds
+ * `file_path IS NULL` on top: a cloned template that was edited and saved keeps
+ * `'processing'` (nothing in `updateImageShare` clears it) while holding a real
+ * sharepic. Status alone is not enough to tell the two apart.
  *
  * Together with {@link USER_VISIBLE_SHARE_STATUSES} this must exhaust the
  * statuses the service writes (`ShareStatus` in `@gruenerator/shared/share`).

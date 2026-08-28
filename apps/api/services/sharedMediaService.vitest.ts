@@ -336,6 +336,16 @@ describe('reapOrphanedShares', () => {
     expect(removed.some((d) => d.endsWith('/tok-b'))).toBe(true);
   });
 
+  it('never deletes a row that carries a file, whatever its status says', async () => {
+    const service = withReapedRows([]);
+    await service.reapOrphanedShares(24);
+
+    // `cloneTemplate` writes 'processing' with no render behind it, and
+    // `updateImageShare` gives that row a file_path without ever clearing the
+    // status. Dropping this clause deletes finished sharepics.
+    expect(lastCall().sql).toMatch(/file_path\s+IS\s+NULL/i);
+  });
+
   it('touches no disk when there is nothing to reap', async () => {
     const service = withReapedRows([]);
 
@@ -343,6 +353,47 @@ describe('reapOrphanedShares', () => {
     expect(rm).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * Every status literal `sharedMediaService.ts` writes, across the three shapes
+ * it uses to write one:
+ *
+ *   `status: 'ready'`                     — an object property or a default
+ *   `SET status = 'failed'`               — an UPDATE
+ *   `(…, status, …) VALUES (…, 'x', …)`   — an INSERT, positionally
+ *
+ * The third is the one that matters and the one a naive regex misses:
+ * `cloneTemplate` puts `'processing'` in a VALUES tuple, so the literal never
+ * appears next to the word `status` at all. It is recovered by matching the
+ * column's index in the column list against the same index in the tuple.
+ *
+ * `'draft'` is deliberately absent from the result: the service only ever
+ * receives it as a parameter (`createImageShare`'s `status` argument), never
+ * writes it as a literal.
+ */
+function statusLiteralsIn(source: string): Set<string> {
+  const found = new Set<string>();
+
+  for (const m of source.matchAll(/status\s*(?::|=)\s*'([a-z_]+)'/g)) {
+    found.add(m[1]);
+  }
+
+  // INSERT … (cols) VALUES (vals): find `status` in the column list, read the
+  // literal sitting at the same position in the tuple.
+  const inserts = source.matchAll(
+    /INSERT\s+INTO\s+shared_media\s*\(([^)]*)\)\s*VALUES\s*\(([^)]*)\)/gis
+  );
+  for (const insert of inserts) {
+    const columns = insert[1].split(',').map((c) => c.trim());
+    const values = insert[2].split(',').map((v) => v.trim());
+    const at = columns.indexOf('status');
+    if (at === -1) continue;
+    const literal = /^'([a-z_]+)'$/.exec(values[at] ?? '');
+    if (literal) found.add(literal[1]);
+  }
+
+  return found;
+}
 
 /**
  * The two status sets have to stay complementary: anything that is neither
@@ -358,17 +409,15 @@ describe('share status policy', () => {
   });
 
   it('covers every status the service writes', () => {
-    // The literals `createImageShare`, `createPendingVideoShare`,
-    // `finalizeVideoShare` and `markShareFailed` write, read off the source so
-    // a fifth one cannot be added without this failing.
     const source = readFileSync(new URL('./sharedMediaService.ts', import.meta.url), 'utf8');
-    const written = new Set(
-      [...source.matchAll(/status\s*(?::|=)\s*'([a-z_]+)'/g)].map((m) => m[1])
-    );
-    // Without this the test passes when the regex stops matching anything —
-    // a guard that guards nothing looks exactly like a guard that holds.
-    expect(written.has('processing')).toBe(true);
-    expect(written.has('failed')).toBe(true);
+    const written = statusLiteralsIn(source);
+
+    // Non-vacuity, and specifically the two forms this scan has to handle: the
+    // first version of this test only understood `status: 'x'` / `status = 'x'`
+    // and so never saw `cloneTemplate`, which names `status` in an INSERT column
+    // list and puts the literal in the VALUES tuple. A guard that guards nothing
+    // looks exactly like a guard that holds.
+    expect([...written].sort()).toEqual(['failed', 'processing', 'ready']);
 
     const classified = new Set<string>([
       ...USER_VISIBLE_SHARE_STATUSES,
