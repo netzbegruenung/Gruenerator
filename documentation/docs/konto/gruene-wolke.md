@@ -42,6 +42,14 @@ Falls die Verbindung nicht klappt, prüfe, ob der Link über „Öffentlichen Li
 Öffne die [Grüne Wolke](https://wolke.netzbegruenung.de/) und folge der Anleitung Schritt für Schritt.
 :::
 
+## Im Chat
+
+Sobald eine Verbindung steht, kann der Chat damit arbeiten, ohne dass du erst eine Datei aussuchst. Frag einfach: „Welche Wolke-Ordner habe ich?", „Was liegt in _Anträge_?", „Such mir die Datei mit _Parteitag_ im Namen" oder „Lies mir _rede.pdf_ vor" — Zitate aus der Datei erscheinen wie bei jeder anderen Quelle.
+
+Du kannst auch eine neue Verbindung direkt im Chat anlegen: füge den Freigabe-Link in eine Nachricht ein. Der Grünerator prüft ihn zuerst und fragt dich dann, ob er ihn hinzufügen soll — gespeichert wird nichts, bevor du zustimmst. Über `@wolke` bleibt daneben die Dateiauswahl im Eingabefeld, wenn du genau eine bestimmte Datei anhängen willst.
+
+Auch hier gilt der Zugriff von oben: Der Chat liest, listet und sucht — er legt nichts an, ändert nichts und löscht nichts in deiner Wolke. Und er sieht ausschließlich das, was in den freigegebenen Ordnern liegt; deine übrige Wolke bleibt unsichtbar.
+
 ## Weitere Tipps für die Nutzung
 
 Organisiere deine Dateien in thematischen Ordnern und nutze aussagekräftige Namen — etwa "Anträge", "Pressemitteilungen" oder "Reden". So findet der Grünerator (und du) die richtigen Dokumente schneller, zum Beispiel beim Import in ein Notebook oder beim Erwähnen einer Datei im Chat.

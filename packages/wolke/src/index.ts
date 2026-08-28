@@ -36,7 +36,6 @@ export { getFileIcon, buildNextcloudFileUrl, sortFoldersFirst } from './lib/file
 export {
   wolkeKeys,
   useShareLinks,
-  useWolkeFiles,
   useWolkeBrowse,
   useAddShareLink,
   useDeleteShareLink,
