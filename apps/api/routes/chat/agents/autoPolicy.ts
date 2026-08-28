@@ -34,7 +34,7 @@
 import { getSystemAgent } from '@gruenerator/shared/agents';
 import { type ChatIntentId, intentsWithDisposition } from '@gruenerator/shared/chat-intents';
 
-import { GEMMA_31B_PRIMARY } from '../../../services/ai/gemmaHosts.js';
+import { GEMMA_31B_PRIMARY, GEMMA_31B_ON_CORTECS } from '../../../services/ai/gemmaHosts.js';
 
 import { getPipelineAgent } from './pipelines/index.js';
 
@@ -517,6 +517,41 @@ export function resolveAutoSelection(input: AutoSelectionInput): AutoSelection {
 export const LOOP_PLANNER_PRIMARY = {
   provider: 'greenpt' as const,
   model: 'mistral-small-3.2-24b-instruct-2506',
+};
+/**
+ * Erste Ausweichstufe, wenn der Primär als zäh vermerkt ist.
+ *
+ * Cortecs, weil es die Lane ist, deren Gesundheit wir gerade am besten belegen
+ * können: sie bedient bereits die SYNTH-Phase jedes Split-Zuges, ist in
+ * `gemmaHosts.ts` als schnellster Endpunkt der Messreihe notiert (1122 ms bis
+ * zum ersten Token) und lieferte im Vorfall vom 28.08.2026 die Antwort in 3 s,
+ * während der Planer 45 s schwieg.
+ *
+ * Host und Modellname kommen aus `gemmaHosts.ts`, nicht als eigene Zeichen-
+ * kette — dieselbe Regel wie bei LOOP_SYNTH_PRIMARY. Bewusst
+ * `GEMMA_31B_ON_CORTECS` und nicht `GEMMA_31B_PRIMARY`: gemeint ist hier der
+ * HOST Cortecs, nicht „wer gerade Gemma bedient". Zeigte der Wechselpunkt auf
+ * Regolo, hätte diese Stufe sonst still den Anbieter gewechselt.
+ *
+ * ZWEI EHRLICHE EINSCHRÄNKUNGEN, beide bewusst in Kauf genommen:
+ *
+ * 1. Ob Gemma 4 so zuverlässig Werkzeuge ruft wie die Mistral-Gewichte der
+ *    anderen Stufen, ist NICHT gemessen. Die Planer-Rolle lebt vom
+ *    Werkzeugaufruf, und `isAgenticToolCapable` lässt bis heute nur Mistral zu
+ *    (dort allerdings für die Nutzer-Auswahl im unified-Modus, nicht für diesen
+ *    Slot). `afterGather` in agenticRespondService ist der Backstop, der ein
+ *    „steps=0 gather" abfängt — genau die Regression, an der eine frühere
+ *    Regolo-Vorgabe scheiterte. Wenn diese Stufe auffällig oft leer
+ *    zurückkommt, ist das der erste Ort zum Nachsehen.
+ * 2. Sie teilt Host UND Modell mit der Synth-Phase. Ein Cortecs-Ausfall nimmt
+ *    dann beide Hälften des Zuges — der Grundsatz „der Ausweich ist ein anderer
+ *    Vertragspartner" (siehe LOOP_SYNTH_*) gilt hier also nicht. Vertretbar,
+ *    weil diese Stufe nur greift, wenn der Primär bereits nachweislich steht,
+ *    und die dritte/vierte Stufe darunter andere Anbieter sind.
+ */
+export const LOOP_PLANNER_HEALTHY_ALT = {
+  provider: GEMMA_31B_ON_CORTECS.provider,
+  model: GEMMA_31B_ON_CORTECS.model,
 };
 export const LOOP_PLANNER_SELFHOSTED = {
   provider: 'regolo' as const,
