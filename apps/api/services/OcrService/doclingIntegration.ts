@@ -1,7 +1,11 @@
 /**
- * Docling-Serve integration
- * Calls the self-hosted docling-serve sidecar container for document-to-markdown conversion.
- * See: https://github.com/docling-project/docling-serve
+ * Docling document conversion via GreenPT's hosted Documents API.
+ *
+ * Same engine as before (Docling), different host: the self-hosted
+ * `docling-serve` sidecar was replaced by `api.greenpt.ai/v1/tools/documents`.
+ * That removes the 8 GB OCR container from every deployment and the async
+ * submit → long-poll → fetch-result dance with it — GreenPT answers the
+ * conversion synchronously on one request.
  *
  * Two entry points:
  * - extractTextWithDocling(filePath) — reads file from disk
@@ -20,63 +24,7 @@ import type { ExtractionResult } from './types.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const DOCLING_BASE_URL = env.DOCLING_URL ?? 'http://ocr:5001';
-
-// Long-poll window per status request. Docling-serve blocks server-side up to this
-// long and returns early on terminal state, so short jobs don't pay polling latency
-// and long jobs cost ~1 HTTP round-trip per POLL_WAIT_SECONDS.
-const POLL_WAIT_SECONDS = 5;
-
-// Minimum delay between poll iterations. Defends against docling-serve returning
-// immediately (not honoring `wait`) which would otherwise busy-loop the event
-// loop and inflate listener counts on the shared deadline AbortSignal.
-const MIN_POLL_INTERVAL_MS = 1000;
-
-/**
- * Run `fn` with a fresh child AbortSignal that aborts when `parent` aborts.
- *
- * Why: undici's fetch attaches an abort listener to the signal it's given and is
- * supposed to remove it on settle, but when a single AbortSignal is reused
- * across many fetches the listener count grows unbounded (observed: 25k+
- * listeners on the shared deadline signal during long stuck polls). Giving each
- * fetch its own short-lived signal — derived from the parent via one
- * once-listener that's explicitly removed in `finally` — keeps the parent at
- * exactly one outstanding listener per in-flight request.
- */
-async function withChildSignal<T>(
-  parent: AbortSignal,
-  fn: (signal: AbortSignal) => Promise<T>
-): Promise<T> {
-  if (parent.aborted) {
-    throw new Error('Operation aborted');
-  }
-  const controller = new AbortController();
-  const onAbort = (): void => controller.abort();
-  parent.addEventListener('abort', onAbort, { once: true });
-  try {
-    return await fn(controller.signal);
-  } finally {
-    parent.removeEventListener('abort', onAbort);
-  }
-}
-
-function sleep(ms: number, signal: AbortSignal): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (signal.aborted) {
-      reject(new Error('Operation aborted'));
-      return;
-    }
-    const timer = setTimeout(() => {
-      signal.removeEventListener('abort', onAbort);
-      resolve();
-    }, ms);
-    const onAbort = (): void => {
-      clearTimeout(timer);
-      reject(new Error('Operation aborted'));
-    };
-    signal.addEventListener('abort', onAbort, { once: true });
-  });
-}
+export const GREENPT_DOCUMENTS_URL = 'https://api.greenpt.ai/v1/tools/documents/convert/file';
 
 interface DoclingDoc {
   md_content?: string;
@@ -91,6 +39,7 @@ interface DoclingResponse {
   document?: DoclingDoc;
   documents?: DoclingDoc[];
   status?: string;
+  errors?: unknown[];
   processing_time?: number;
   md_content?: string;
   markdown?: string;
@@ -100,92 +49,9 @@ interface DoclingResponse {
   page_count?: number;
 }
 
-type TaskStatus = 'pending' | 'started' | 'success' | 'failure';
-
-interface TaskStatusResponse {
-  task_id?: string;
-  task_status?: TaskStatus;
-}
-
-interface AsyncSubmitResponse {
-  task_id?: string;
-  task_status?: TaskStatus;
-}
-
 /**
- * Submit an async conversion job. Returns the task_id assigned by docling-serve.
- */
-async function submitAsyncJob(formData: FormData, signal: AbortSignal): Promise<string> {
-  const res = await withChildSignal(signal, (s) =>
-    fetch(`${DOCLING_BASE_URL}/v1/convert/file/async`, {
-      method: 'POST',
-      body: formData,
-      signal: s,
-    })
-  );
-  if (!res.ok) {
-    const errorText = await res.text().catch(() => 'unknown');
-    throw new Error(`Docling async submit returned ${res.status}: ${errorText}`);
-  }
-  const body = (await res.json()) as AsyncSubmitResponse;
-  if (!body.task_id) {
-    throw new Error('Docling async submit response missing task_id');
-  }
-  return body.task_id;
-}
-
-/**
- * Long-poll the task status until terminal, then fetch and return the conversion result.
- * The parent AbortSignal lets the outer deadline cancel an in-flight long-poll
- * immediately; each fetch runs under a fresh child signal (see withChildSignal).
- * A small backoff guards against servers that ignore the `wait` parameter.
- */
-async function pollUntilDone(
-  taskId: string,
-  deadlineMs: number,
-  signal: AbortSignal,
-  logPrefix: string
-): Promise<DoclingResponse> {
-  while (Date.now() < deadlineMs) {
-    const iterStart = Date.now();
-    const statusRes = await withChildSignal(signal, (s) =>
-      fetch(`${DOCLING_BASE_URL}/v1/status/poll/${taskId}?wait=${POLL_WAIT_SECONDS}`, {
-        signal: s,
-      })
-    );
-    if (!statusRes.ok) {
-      const errorText = await statusRes.text().catch(() => 'unknown');
-      throw new Error(`Docling status poll returned ${statusRes.status}: ${errorText}`);
-    }
-    const status = (await statusRes.json()) as TaskStatusResponse;
-
-    if (status.task_status === 'success') {
-      const resultRes = await withChildSignal(signal, (s) =>
-        fetch(`${DOCLING_BASE_URL}/v1/result/${taskId}`, { signal: s })
-      );
-      if (!resultRes.ok) {
-        const errorText = await resultRes.text().catch(() => 'unknown');
-        throw new Error(`Docling result fetch returned ${resultRes.status}: ${errorText}`);
-      }
-      return (await resultRes.json()) as DoclingResponse;
-    }
-    if (status.task_status === 'failure') {
-      throw new Error(`Docling task ${taskId} reported failure`);
-    }
-    console.log(`${logPrefix} task=${taskId} status=${status.task_status ?? 'unknown'}, polling`);
-
-    const elapsed = Date.now() - iterStart;
-    const backoff = MIN_POLL_INTERVAL_MS - elapsed;
-    if (backoff > 0 && Date.now() + backoff < deadlineMs) {
-      await sleep(backoff, signal);
-    }
-  }
-  throw new Error(`Docling task ${taskId} exceeded client deadline`);
-}
-
-/**
- * Shared core: submit a buffer to Docling-Serve via the async API, poll until the
- * conversion finishes, then parse the markdown response. Bounded by DOCLING_MAX_WAIT_MS.
+ * Shared core: POST a buffer to the GreenPT Documents API and parse the
+ * markdown response. Bounded by DOCLING_MAX_WAIT_MS.
  */
 async function sendBufferToDocling(
   fileBuffer: Buffer,
@@ -194,32 +60,44 @@ async function sendBufferToDocling(
 ): Promise<ExtractionResult> {
   const startTime = Date.now();
   const maxWaitMs = env.DOCLING_MAX_WAIT_MS;
-  const deadlineMs = startTime + maxWaitMs;
-  const abort = new AbortController();
-  const deadlineTimer = setTimeout(() => abort.abort(), maxWaitMs);
+
+  // process.env at call time, so tests that unset the key take effect against
+  // the import-time-cached `env` module.
+  const apiKey = process.env.GREENPT_API_KEY;
+  if (!apiKey) {
+    throw new Error('Docling extraction failed: GREENPT_API_KEY is not configured');
+  }
 
   try {
     const formData = new FormData();
     formData.append('files', new Blob([new Uint8Array(fileBuffer)]), fileName);
-
-    const optionsPayload = JSON.stringify({
-      to_formats: ['md'],
-      image_export_mode: 'placeholder',
-      do_ocr: true,
-      force_ocr: false,
-    });
-    formData.append('parameters', new Blob([optionsPayload], { type: 'application/json' }));
+    // Flat form fields, not a `parameters` JSON blob — the GreenPT endpoint
+    // reads each option as its own multipart field.
+    formData.append('to_formats', 'md');
+    formData.append('image_export_mode', 'placeholder');
+    formData.append('do_ocr', 'true');
+    formData.append('force_ocr', 'false');
+    formData.append('do_table_structure', 'true');
+    formData.append('table_mode', 'accurate');
 
     console.log(
-      `${logPrefix} Submitting async job to ${DOCLING_BASE_URL}/v1/convert/file/async (${fileBuffer.length} bytes, deadline=${maxWaitMs}ms)`
+      `${logPrefix} Converting via ${GREENPT_DOCUMENTS_URL} (${fileBuffer.length} bytes, deadline=${maxWaitMs}ms)`
     );
 
-    const taskId = await submitAsyncJob(formData, abort.signal);
-    console.log(`${logPrefix} task=${taskId} submitted, polling`);
+    const res = await fetch(GREENPT_DOCUMENTS_URL, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}` },
+      body: formData,
+      signal: AbortSignal.timeout(maxWaitMs),
+    });
 
-    const result = await pollUntilDone(taskId, deadlineMs, abort.signal, logPrefix);
+    if (!res.ok) {
+      const errorText = await res.text().catch(() => 'unknown');
+      throw new Error(`GreenPT documents API returned ${res.status}: ${errorText.slice(0, 500)}`);
+    }
 
-    // docling-serve returns { document: { md_content, filename, ... }, status, processing_time }
+    const result = (await res.json()) as DoclingResponse;
+
     const documents = result?.document ?? result?.documents ?? [result];
     const markdownParts: string[] = [];
     let totalPages = 0;
@@ -235,7 +113,12 @@ async function sendBufferToDocling(
     const allText = markdownParts.join('\n\n---\n\n');
 
     if (!allText.trim()) {
-      throw new Error('Docling returned no text content');
+      // The API reports per-document failures in `errors` while still answering
+      // 200 — without this they would surface as an empty document.
+      const errors = Array.isArray(result?.errors) ? JSON.stringify(result.errors) : '';
+      throw new Error(
+        `Docling returned no text content (status=${result?.status ?? 'unknown'})${errors ? `: ${errors.slice(0, 500)}` : ''}`
+      );
     }
 
     const processingTimeMs = Date.now() - startTime;
@@ -252,7 +135,7 @@ async function sendBufferToDocling(
         pages: totalPages,
         successfulPages: totalPages,
         processingTimeMs,
-        method: 'docling-serve',
+        method: 'greenpt-docling',
       },
     };
   } catch (error: unknown) {
@@ -264,13 +147,11 @@ async function sendBufferToDocling(
       fileName,
     });
     throw new Error(`Docling extraction failed: ${errMsg}`);
-  } finally {
-    clearTimeout(deadlineTimer);
   }
 }
 
 /**
- * Extract text from a file on disk using Docling-Serve.
+ * Extract text from a file on disk using Docling.
  */
 export async function extractTextWithDocling(filePath: string): Promise<ExtractionResult> {
   const allowedBases = [
@@ -297,7 +178,7 @@ export async function extractTextWithDocling(filePath: string): Promise<Extracti
 }
 
 /**
- * Extract text from a base64-encoded document using Docling-Serve.
+ * Extract text from a base64-encoded document using Docling.
  * Used by the chat attachment pipeline where files arrive as base64.
  */
 export async function extractBase64WithDocling(
@@ -311,15 +192,13 @@ export async function extractBase64WithDocling(
 }
 
 /**
- * Check if the Docling-Serve sidecar is healthy and reachable.
+ * Whether Docling extraction can be attempted at all.
+ *
+ * A key check, not a network probe: the old sidecar needed one because a
+ * container can be up-but-unhealthy, whereas the only local precondition for
+ * the hosted API is the credential. A probe request would cost a round-trip
+ * before every conversion and still not predict the real one.
  */
 export async function isDoclingAvailable(): Promise<boolean> {
-  try {
-    const response = await fetch(`${DOCLING_BASE_URL}/health`, {
-      signal: AbortSignal.timeout(5000),
-    });
-    return response.ok;
-  } catch {
-    return false;
-  }
+  return Boolean(process.env.GREENPT_API_KEY);
 }
