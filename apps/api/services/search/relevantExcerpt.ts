@@ -209,7 +209,6 @@ export function selectRelevantExcerpt(
         // The single best passage overflows on its own. Its head is the right
         // head: we are inside the text the query pointed at.
         kept.push({ ...cand, chunk: { ...cand.chunk, text: cand.chunk.text.slice(0, maxChars) } });
-        used = maxChars;
         break;
       }
       kept.push(cand);
