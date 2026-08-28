@@ -1,7 +1,7 @@
 /**
- * Der Sweep löscht Notizbuch-Zugehörigkeiten. Der teure Fehler wäre nicht, zu
+ * Der Sweep löscht Notebook-Zugehörigkeiten. Der teure Fehler wäre nicht, zu
  * wenig aufzuräumen, sondern zu viel: hält er einen Postgres-Ausfall für „diese
- * Dokumente gibt es nicht mehr", leert er jedes Notizbuch der Installation.
+ * Dokumente gibt es nicht mehr", leert er jedes Notebook der Installation.
  * Diese Tests prüfen deshalb vor allem, wann er die Finger stillhält. Sie
  * geben `apply` ausdrücklich mit: ohne das Flag löscht der Sweep gar nichts,
  * er berichtet nur — das prüft der letzte Block.
@@ -55,7 +55,7 @@ describe('Verwaiste Verknüpfungen', () => {
     expect(removed).toBe(1);
   });
 
-  it('fasst ein Dokument, das in mehreren Notizbüchern hängt, als eines an', async () => {
+  it('fasst ein Dokument, das in mehreren Notebooks hängt, als eines an', async () => {
     onePageOfLinks(['tot', 'tot', 'tot']);
     postgresKnows([]);
 

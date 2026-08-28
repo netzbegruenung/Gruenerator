@@ -248,7 +248,7 @@ describe('decideRunAgentic', () => {
   // Die beiden Flags waren dasselbe Literal und beantworten verschiedene Fragen.
   // Der Unterschied ist erst sichtbar, seit ein Intent MIT eigenem Executor
   // `forcedLane: 'loop'` tragen kann: seine Erwähnung darf in die Schleife, aber
-  // das Gate und die Notizbuch-Sperre gelten weiter.
+  // das Gate und die Notebook-Sperre gelten weiter.
   it('forcedLoop hebt nur den Werkzeug-Notausschalter auf, nicht das Gate', () => {
     const forcedBundestag = { intent: 'bundestag', forcedTool: true, forcedLoop: true };
     expect(decide(forcedBundestag)).toBe(true);
@@ -279,7 +279,7 @@ describe('decideRunAgentic', () => {
     expect(
       decide({
         intent: 'direct',
-        lastUserText: 'Was steht dazu im Notizbuch?',
+        lastUserText: 'Was steht dazu im Notebook?',
         hasSelectedNotebook: true,
       })
     ).toBe(false);

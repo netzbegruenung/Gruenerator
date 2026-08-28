@@ -137,6 +137,24 @@ function stringProp(obj, name) {
   return undefined;
 }
 
+/** Dieselbe Lesart für ein Array von Zeichenketten (`instances: ['bgst']`). */
+function stringArrayProp(obj, name) {
+  for (const p of obj.properties) {
+    if (
+      ts.isPropertyAssignment(p) &&
+      p.name &&
+      ts.isIdentifier(p.name) &&
+      p.name.text === name &&
+      ts.isArrayLiteralExpression(p.initializer)
+    ) {
+      return p.initializer.elements
+        .filter((e) => ts.isStringLiteral(e) || ts.isNoSubstitutionTemplateLiteral(e))
+        .map((e) => e.text);
+    }
+  }
+  return undefined;
+}
+
 /**
  * Wie {@link stringProp}, aber für `<constName>.key` — aufgelöst über eine
  * mitgegebene Tabelle. Der NAME der Konstante wird mitgeprüft: sonst löst jedes
@@ -518,6 +536,15 @@ function extractSkills(disabledAgentIds) {
     if (!title || !mention) continue;
     const identifier = stringProp(obj, 'identifier');
     if (identifier && disabledAgentIds.has(identifier)) continue;
+    // Ein Rezept, das seine Instanzen nennt, gibt es nur dort (`instances` in
+    // packages/shared/src/agents/skillInstances.ts). Die Doku beschreibt das
+    // Produkt, das unter gruenerator.eu läuft — ein Eintrag für ein Rezept, das
+    // dort niemand aufrufen kann, ist eine Zusage, die die Oberfläche nicht
+    // einlöst. Das statische Gegenstück zu `isSkillOfferedIn(skill,
+    // 'production')`; die Regel gilt genauso, wenn irgendwann eine andere
+    // Instanz eigene Rezepte bekommt.
+    const instances = stringArrayProp(obj, 'instances');
+    if (instances && !instances.includes('production')) continue;
     const entry = {
       // `@`, nicht `/`: Rezepte hatten früher einen eigenen Auslöser, der ist
       // beim Zusammenlegen der beiden Listen weggefallen (Kopfkommentar in

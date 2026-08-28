@@ -220,7 +220,7 @@ function ChatPage() {
     setMentionLocale(userLocale);
   }, [userLocale]);
   // Dasselbe für die Landesverbands-Zuteilung: der Picker bietet LV-Rezepte und
-  // -Notizbücher nur denen an, die laut Profilrolle in der Landesgeschäftsstelle
+  // -Notebooks nur denen an, die laut Profilrolle in der Landesgeschäftsstelle
   // dieses Landesverbands arbeiten. Ohne diese Rolle sind sie nicht im Menü;
   // solange die Rollen nicht geladen sind (`lvIds === null`) wird nicht
   // gefiltert. Auflösung bleibt davon unberührt — ein `@bayern` in einem alten

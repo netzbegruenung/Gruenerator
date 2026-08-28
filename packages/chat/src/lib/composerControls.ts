@@ -27,19 +27,19 @@ export interface ComposerModeDef {
  */
 export const COMPOSER_MODES: ComposerModeDef[] = [
   { mode: 'chat', label: 'Chat', icon: 'chat' },
-  // NOTIZBUCHMODUS — vorerst nicht weiterverfolgt (08/2026).
+  // NOTEBOOK-MODUS — vorerst nicht weiterverfolgt (08/2026).
   //
   // Als WÄHLBARER Modus stillgelegt: er stand im Plusmenü gleichrangig neben
   // Chat und Rolle, obwohl er etwas anderes tut als beide — er schickt den Turn
   // an einen anderen Endpunkt (`/notebook/stream`, siehe
-  // `buildRequestBody`/`GrueneratorModelAdapter`). Ein Notizbuch als QUELLE
+  // `buildRequestBody`/`GrueneratorModelAdapter`). Ein Notebook als QUELLE
   // erreicht man weiterhin per `@mention`; die läuft über `notebookIds` durch
   // den normalen Chat-Endpunkt und ist von dieser Zeile nicht betroffen.
   //
   // `ThreadMode` behält `'notebook'` und der Transportweg bleibt vollständig
   // intakt: `apps/mobile/app/(focused)/chat-conversation.tsx` setzt den Modus
-  // beim Einstieg aus einem Notizbuch selbst — Mobile hat, anders als Web
-  // (`NotebookModelAdapter`), keine eigene Notizbuch-Oberfläche. Diese Zeile
+  // beim Einstieg aus einem Notebook selbst — Mobile hat, anders als Web
+  // (`NotebookModelAdapter`), keine eigene Notebook-Oberfläche. Diese Zeile
   // wieder einkommentieren stellt die Auswahl her, mehr braucht es nicht.
   // { mode: 'notebook', label: 'Notebook', icon: 'notebook' },
   { mode: 'eigener', label: 'Eigener Chat', icon: 'custom' },
@@ -109,7 +109,7 @@ export const COMPOSER_TOOLS: ComposerToolDef[] = [
     kind: 'toggle',
     key: 'search',
     label: 'Dokumentensuche',
-    description: 'Deine Dateien & Notizbücher',
+    description: 'Deine Dateien & Notebooks',
     icon: 'document',
   },
 ];

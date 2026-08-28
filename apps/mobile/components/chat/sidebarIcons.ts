@@ -1,10 +1,14 @@
+import { type AgentIconKey } from '@gruenerator/shared/agents';
 import { type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 
 // Ghost (outline) Ionicons in eucalyptus, mirroring the web sidebar's icon
-// language. Agents resolve by `iconKey` — the same keys the web ICON_REGISTRY
-// uses.
-
-const AGENT_ICONS: Record<string, IoniconsIconName> = {
+// language. System agents resolve by `iconKey`, whose closed set is
+// AGENT_ICON_KEYS (packages/shared/src/agents/agentIcons.ts) —
+// `Record<AgentIconKey, …>` is what keeps this copy from drifting against the
+// two Phosphor ones (packages/chat/src/lib/agentIcons.ts,
+// apps/web/…/sidebarAgentConfig.ts). Ionicons is a different set, so each
+// concept needs its own nearest match here — never the Phosphor name.
+const AGENT_ICONS: Record<AgentIconKey, IoniconsIconName> = {
   sparkle: 'sparkles-outline',
   megaphone: 'megaphone-outline',
   buildings: 'business-outline',
@@ -15,6 +19,14 @@ const AGENT_ICONS: Record<string, IoniconsIconName> = {
   'hand-heart': 'heart-outline',
   'file-text': 'document-text-outline',
   bird: 'leaf-outline',
+  image: 'image-outline',
+  'image-square': 'images-outline',
+  'layout-grid': 'albums-outline',
+  // Ionicons has no table glyph; the spreadsheet grid is the closest read.
+  table: 'grid-outline',
+  'projector-screen-chart': 'easel-outline',
+  scales: 'scale-outline',
+  bank: 'library-outline',
 };
 
 // User-created agents store a react-icons Phosphor component name (e.g.
@@ -47,5 +59,10 @@ const PHOSPHOR_AGENT_ICONS: Record<string, IoniconsIconName> = {
   PiRocketLaunch: 'rocket-outline',
 };
 
+// Lookup views — `iconKey` is a free string on the agent (system agents carry a
+// concept key, user-created ones a Phosphor component name).
+const conceptIcons: Readonly<Partial<Record<string, IoniconsIconName>>> = AGENT_ICONS;
+const phosphorIcons: Readonly<Partial<Record<string, IoniconsIconName>>> = PHOSPHOR_AGENT_ICONS;
+
 export const agentIcon = (iconKey: string | undefined): IoniconsIconName =>
-  (iconKey && (AGENT_ICONS[iconKey] || PHOSPHOR_AGENT_ICONS[iconKey])) || 'sparkles-outline';
+  (iconKey && (conceptIcons[iconKey] || phosphorIcons[iconKey])) || 'sparkles-outline';

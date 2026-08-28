@@ -185,7 +185,7 @@ function collapseAliasDuplicates(results: DocumentResult[]): DocumentResult[] {
  * Opfer. Die Decke begrenzt, was ein einzelner Aufruf kosten darf.
  *
  * Sie stand auf 30 und wurde damit bindend, sobald ein Aufrufer mehr als 15
- * Treffer wollte: der notizbuch-gebundene Chat-Turn fordert seit dem Umstieg
+ * Treffer wollte: der notebook-gebundene Chat-Turn fordert seit dem Umstieg
  * auf das Stufenprofil 40 und hätte stumm 30 bekommen — also weniger, als er
  * gleich darauf an den Reranker weiterreicht.
  *

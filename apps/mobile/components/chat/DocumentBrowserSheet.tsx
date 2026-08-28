@@ -322,9 +322,7 @@ function RootLevel({
 
           {collections.length > 0 && (
             <>
-              <Text style={[styles.sectionHeader, { color: theme.textSecondary }]}>
-                Notizbücher
-              </Text>
+              <Text style={[styles.sectionHeader, { color: theme.textSecondary }]}>Notebooks</Text>
               {collections.map((c) => (
                 <Pressable
                   key={c.id}

@@ -15,7 +15,7 @@ import { queryIntentService } from './index.js';
  * 'Grundsatzprogramm 2020', gespeichert ist
  * 'Grundsatzprogramm 2020 – Veränderung schafft Halt'. Live gegen Qdrant
  * nachgemessen: 0 von 968 Punkten getroffen, für alle drei Muster — jede
- * programm-namentliche Notizbuch-Frage lief in eine Geisterantwort.
+ * programm-namentliche Notebook-Frage lief in eine Geisterantwort.
  *
  * Deshalb prüft dieser Test den Filterwert NICHT gegen ein Literal, sondern
  * gegen die Werte, die der Scraper wirklich schreibt.

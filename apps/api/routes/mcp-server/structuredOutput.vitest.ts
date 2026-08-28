@@ -266,7 +266,7 @@ describe('renderNotebookAnswer', () => {
           { index: '1', document_title: 'Papier', source_url: '/docs/a', document_id: 'doc-a' },
         ],
       } as never,
-      'Mein Notizbuch'
+      'Mein Notebook'
     );
     expect(out).toMatch(/\[1\] Papier — \S+\/docs\/a \[ref: [a-z0-9]+\]/);
   });

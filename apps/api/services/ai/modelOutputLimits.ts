@@ -53,7 +53,7 @@ export function getMaxOutputTokens(modelName: string | null | undefined): number
 /**
  * Die Warnung feuert einmal je (Modell, angeforderte Zahl) und Prozess. Sie
  * meldet einen Konfigurationsfehler, und der ändert sich zwischen zwei Zügen
- * nicht: ungedrosselt stünde sie unter JEDER Notizbuch-Deep-Antwort und wäre
+ * nicht: ungedrosselt stünde sie unter JEDER Notebook-Deep-Antwort und wäre
  * binnen einer Stunde unlesbar — genau das Rauschen, in dem der nächste echte
  * Befund untergeht.
  */

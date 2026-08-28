@@ -208,7 +208,7 @@ describe('decideTurnPlan — die Kippfälle', () => {
     ).toBe(false);
   });
 
-  it('ein gewähltes Notizbuch hält den Turn einzeln — nur searchNode liest Notizbücher', () => {
+  it('ein gewähltes Notebook hält den Turn einzeln — nur searchNode liest Notebooks', () => {
     expect(plan({ intent: 'search', hasSelectedNotebook: true }).runAgentic).toBe(false);
   });
 

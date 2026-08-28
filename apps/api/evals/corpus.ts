@@ -90,6 +90,8 @@ export interface CorpusFilter {
   systemMcp: boolean;
   /** Szenarien, die einen echten `@deepresearch`-Lauf starten. */
   deepResearch: boolean;
+  /** Szenarien, die den BGSt-Beschlussbestand als Sammlung brauchen. */
+  bgstKorpus: boolean;
 }
 
 /** Glob evals/corpus/*.jsonl plus the legacy single-file corpus, then filter. */
@@ -122,6 +124,7 @@ export function loadCorpus(here: string, opts: CorpusFilter): EvalScenario[] {
     if (s.systemMcpLane && !opts.systemMcp) return false;
     if (s.notebookLane && !opts.notebook) return false;
     if (s.deepResearchLane && !opts.deepResearch) return false;
+    if (s.bgstKorpusLane && !opts.bgstKorpus) return false;
     if (!opts.filter) return true;
     return opts.filter
       .split(',')

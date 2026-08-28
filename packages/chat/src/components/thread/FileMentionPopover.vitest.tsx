@@ -84,9 +84,7 @@ describe('FileMentionPopover error states', () => {
     mentionData.contentFailed = true;
     renderPopover();
 
-    expect(
-      await screen.findByText('Notizbücher konnten nicht geladen werden.')
-    ).toBeInTheDocument();
+    expect(await screen.findByText('Notebooks konnten nicht geladen werden.')).toBeInTheDocument();
     expect(screen.getByText('Dokumente konnten nicht geladen werden.')).toBeInTheDocument();
   });
 
@@ -95,7 +93,7 @@ describe('FileMentionPopover error states', () => {
     renderPopover();
 
     expect(await screen.findAllByText('Dokumente konnten nicht geladen werden.')).toHaveLength(1);
-    expect(screen.queryByText('Notizbücher konnten nicht geladen werden.')).toBeNull();
+    expect(screen.queryByText('Notebooks konnten nicht geladen werden.')).toBeNull();
   });
 
   it('says nothing about errors when both queries succeeded', async () => {
@@ -103,6 +101,6 @@ describe('FileMentionPopover error states', () => {
 
     expect(await screen.findByPlaceholderText('Suchen...')).toBeInTheDocument();
     expect(screen.queryByText('Dokumente konnten nicht geladen werden.')).toBeNull();
-    expect(screen.queryByText('Notizbücher konnten nicht geladen werden.')).toBeNull();
+    expect(screen.queryByText('Notebooks konnten nicht geladen werden.')).toBeNull();
   });
 });

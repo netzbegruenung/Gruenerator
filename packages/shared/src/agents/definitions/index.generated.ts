@@ -1141,7 +1141,7 @@ export const SYSTEM_AGENT_DEFINITIONS = [
       },
     ],
     hiddenFromInventory: true,
-    iconKey: 'PiProjectorScreenChart',
+    iconKey: 'projector-screen-chart',
     localized: {
       'de-AT': {
         openingQuestions: [

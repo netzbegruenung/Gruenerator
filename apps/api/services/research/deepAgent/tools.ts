@@ -1,5 +1,5 @@
 /**
- * The agent's retrieval tools: three into the web, plus `notizbuch_suche` into
+ * The agent's retrieval tools: three into the web, plus `notebook_suche` into
  * the Grünerator's own corpora when anything is in reach (see notebookTool.ts).
  *
  * Thin LangChain wrappers over the services the chat already uses — no second
@@ -110,7 +110,7 @@ export const LEAD_ONLY_TOOLS = new Set(['tiefen_suche']);
  * What each subagent gets — the tool half of its specialisation.
  *
  * The prompt half used to carry this alone ("touches green positions? ask
- * `notizbuch_suche` first"), which is an instruction a model may skip. Splitting
+ * `notebook_suche` first"), which is an instruction a model may skip. Splitting
  * by TOOLS makes the same distinction structural: a web researcher cannot reach
  * into the corpora by accident, and a programme researcher cannot answer a
  * question about the party's own resolutions out of a newspaper.
@@ -126,7 +126,7 @@ export const LEAD_ONLY_TOOLS = new Set(['tiefen_suche']);
  */
 export const SUBAGENT_TOOLSETS = {
   'web-recherche': ['web_suche', 'seite_lesen'],
-  'programm-recherche': ['notizbuch_suche', 'seite_lesen'],
+  'programm-recherche': ['notebook_suche', 'seite_lesen'],
 } as const;
 
 export type SubagentName = keyof typeof SUBAGENT_TOOLSETS;

@@ -35,6 +35,8 @@ import { toError, toUserFacingMessage } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { getCachedJson, setCachedJson } from '../../utils/redis/jsonCache.js';
 
+import { dryRunCapableSources, supportsDryRun } from './contentSyncDryRun.js';
+
 import type { Application } from 'express';
 
 const log = createLogger('content-sync-internal');
@@ -45,6 +47,9 @@ interface SyncResult {
   skipped: number;
   errors: number;
   errorSamples?: string[];
+  /** Links upstream still lists but no longer serves — see the contract schema. */
+  deadLinks?: number;
+  deadLinkSamples?: string[];
   fetchErrors?: number;
 }
 
@@ -64,6 +69,36 @@ interface SourceConfig {
 const sourceCache: Partial<Record<ContentSyncSource, SourceConfig>> = {};
 const runningSync = new Set<string>();
 
+/**
+ * Scrapers call their capped error sample list `errorMessages`; the contract
+ * calls it `errorSamples`. Without this bridge a source counts its errors
+ * correctly and the report still shows nothing but the number — the job
+ * summary's "Fehler im Einzelnen" section can never fire for it.
+ * `runScopedLandesverband` does the same mapping by hand.
+ */
+function withErrorSamples<T extends { errorMessages: string[] }>(
+  result: T
+): T & { errorSamples: string[] } {
+  return { ...result, errorSamples: result.errorMessages };
+}
+
+/**
+ * Same bridge for the bulk `landesverbaende` run, which additionally carries a
+ * dead-link bucket. This path is the one CI does *not* take (the matrix scopes
+ * every run to one LV via `runScopedLandesverband`), which is why it went so
+ * long dropping `errorMessages` unnoticed: `SyncResult.errorSamples` is
+ * optional, so returning a result without it type-checks silently.
+ */
+function withLandesverbandSamples<
+  T extends { errorMessages: string[]; deadLinkMessages: string[] },
+>(result: T): T & { errorSamples: string[]; deadLinkSamples: string[] } {
+  return {
+    ...result,
+    errorSamples: result.errorMessages,
+    deadLinkSamples: result.deadLinkMessages,
+  };
+}
+
 async function loadSource(sourceId: ContentSyncSource): Promise<SourceConfig> {
   const cached = sourceCache[sourceId];
   if (cached) return cached;
@@ -78,11 +113,13 @@ async function loadSource(sourceId: ContentSyncSource): Promise<SourceConfig> {
         name: 'Landesverbaende',
         timeoutMs: 30 * 60 * 1000,
         init: () => landesverbandScraperService.init(),
-        run: (opts) =>
-          landesverbandScraperService.scrapeAllSources({
-            forceUpdate: opts.forceUpdate,
-            dryRun: opts.dryRun,
-          }),
+        run: async (opts) =>
+          withLandesverbandSamples(
+            await landesverbandScraperService.scrapeAllSources({
+              forceUpdate: opts.forceUpdate,
+              dryRun: opts.dryRun,
+            })
+          ),
       };
       break;
     }
@@ -178,7 +215,10 @@ async function loadSource(sourceId: ContentSyncSource): Promise<SourceConfig> {
         name: 'Grundsatzprogramme (PDF)',
         timeoutMs: 30 * 60 * 1000,
         init: () => grundsatzPdfScraperService.init(),
-        run: (opts) => grundsatzPdfScraperService.fullCrawl({ forceUpdate: opts.forceUpdate }),
+        run: async (opts) =>
+          withErrorSamples(
+            await grundsatzPdfScraperService.fullCrawl({ forceUpdate: opts.forceUpdate })
+          ),
       };
       break;
     }
@@ -189,7 +229,10 @@ async function loadSource(sourceId: ContentSyncSource): Promise<SourceConfig> {
         name: 'Die Grünen Österreich – Programme (PDF)',
         timeoutMs: 30 * 60 * 1000,
         init: () => oesterreichPdfScraperService.init(),
-        run: (opts) => oesterreichPdfScraperService.fullCrawl({ forceUpdate: opts.forceUpdate }),
+        run: async (opts) =>
+          withErrorSamples(
+            await oesterreichPdfScraperService.fullCrawl({ forceUpdate: opts.forceUpdate })
+          ),
       };
       break;
     }
@@ -271,11 +314,17 @@ async function runScopedLandesverband(
 
   const extraction = drainAndLogExtraction(`LV ${landesverband}`);
 
+  // Tote Links stehen bewusst NICHT in dieser Bedingung. Nichts auf unserer
+  // Seite bringt sie je auf 0 (#2971), also hiesse "tote Links lösen eine Mail
+  // aus" für LV Berlin: jede Nacht dieselben vier URLs an einen echten
+  // Posteingang — genau das Rauschen, gegen das die Trennung antritt. Geht
+  // ohnehin eine Mail raus, stehen sie drin; siehe ContentSyncSourceResult.
   const hasChanges = result.stored + result.updated + result.errors > 0;
   if (!opts.dryRun) {
     if (!hasChanges) {
       log.info(
-        `Per-LV run ${landesverband}: no new/updated docs and no hard errors — skipping email`
+        `Per-LV run ${landesverband}: no new/updated docs and no hard errors — skipping email` +
+          (result.deadLinks > 0 ? ` (${result.deadLinks} dead link(s), not a reason to write)` : '')
       );
     } else {
       const { env } = await import('../../config/env.js');
@@ -295,6 +344,10 @@ async function runScopedLandesverband(
                 skipped: result.skipped,
                 errors: result.errors,
                 ...(result.errorMessages.length ? { errorSamples: result.errorMessages } : {}),
+                ...(result.deadLinks ? { deadLinks: result.deadLinks } : {}),
+                ...(result.deadLinkMessages.length
+                  ? { deadLinkSamples: result.deadLinkMessages }
+                  : {}),
                 duration: result.duration,
               },
             ],
@@ -332,6 +385,8 @@ async function runScopedLandesverband(
     fetchErrors: 0,
     errors: result.errors,
     errorSamples: result.errorMessages,
+    deadLinks: result.deadLinks,
+    deadLinkSamples: result.deadLinkMessages,
   };
 }
 
@@ -412,6 +467,9 @@ async function executeSyncRun(
     if (result.errorSamples?.length) {
       log.warn(`Content sync errors: ${lockKey} — ${result.errorSamples.join(' | ')}`);
     }
+    if (result.deadLinkSamples?.length) {
+      log.info(`Content sync dead links: ${lockKey} — ${result.deadLinkSamples.join(' | ')}`);
+    }
 
     return {
       status: 200,
@@ -424,6 +482,8 @@ async function executeSyncRun(
         skipped: result.skipped,
         errors: result.errors,
         ...(result.errorSamples?.length ? { errorSamples: result.errorSamples } : {}),
+        ...(result.deadLinks ? { deadLinks: result.deadLinks } : {}),
+        ...(result.deadLinkSamples?.length ? { deadLinkSamples: result.deadLinkSamples } : {}),
         fetchErrors: result.fetchErrors ?? 0,
         durationMs,
       },
@@ -458,6 +518,20 @@ export const contentSyncContractRouter = s.router(contentSyncContract, {
       runUrl,
       fallbackEmail,
     } = body ?? {};
+
+    // Refuse before the lock: a dry run the source cannot honour would store
+    // for real under a report headed "Dry Run" (#2970). Answering 400 makes the
+    // dispatch that asked for it red, which is the point.
+    if (dryRun && !supportsDryRun(sourceId)) {
+      return {
+        status: 400 as const,
+        body: {
+          error:
+            `Source '${sourceId}' has no dry-run branch — running it with dryRun would store ` +
+            `for real. Dry runs are available for: ${dryRunCapableSources().join(', ')}.`,
+        },
+      };
+    }
 
     // Concurrent per-LV runs (GH Actions' 8-way matrix) must not lock each
     // other out — only collide on the same LV or the same bulk source.

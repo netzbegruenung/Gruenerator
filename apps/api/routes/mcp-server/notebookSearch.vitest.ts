@@ -77,7 +77,7 @@ function notebooksTool(): { handler: Handler } {
   return { handler };
 }
 
-const COLLECTION = { id: 'nb-1', name: 'Mein Notizbuch', user_id: 'user-1' };
+const COLLECTION = { id: 'nb-1', name: 'Mein Notebook', user_id: 'user-1' };
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -125,7 +125,7 @@ describe('notebooks.search over MCP', () => {
     expect(text).toContain('Die Quellen nennen Radwege.[1]');
     expect(text).toContain('[1] Verkehrskonzept — https://example.org/a');
     expect(text).toContain('[2] Beschluss —');
-    expect(text).toContain('Mein Notizbuch');
+    expect(text).toContain('Mein Notebook');
     expect(res.isError).toBeUndefined();
   });
 
@@ -145,7 +145,7 @@ describe('notebooks.search over MCP', () => {
     askSingleCollection.mockRejectedValue(new Error('Collection not found or access denied'));
 
     const res = await notebooksTool().handler({ action: 'search', id: 'nb-1', query: 'Klima' });
-    expect(res.content[0].text).toBe('Notizbuch nicht gefunden oder kein Zugriff.');
+    expect(res.content[0].text).toBe('Notebook nicht gefunden oder kein Zugriff.');
     expect(res.isError).toBe(true);
   });
 
@@ -153,7 +153,7 @@ describe('notebooks.search over MCP', () => {
     askSingleCollection.mockRejectedValue(new Error('No documents found in this collection'));
 
     const res = await notebooksTool().handler({ action: 'search', id: 'nb-1', query: 'Klima' });
-    expect(res.content[0].text).toBe('Dieses Notizbuch enthält noch keine Dokumente.');
+    expect(res.content[0].text).toBe('Dieses Notebook enthält noch keine Dokumente.');
   });
 
   it('leaves the access decision to the service rather than an owner-only check', async () => {
@@ -172,7 +172,7 @@ describe('notebooks.search over MCP', () => {
     getNotebookCollection.mockResolvedValue(null);
 
     const res = await notebooksTool().handler({ action: 'search', id: 'nope', query: 'Klima' });
-    expect(res.content[0].text).toBe('Notizbuch nicht gefunden oder kein Zugriff.');
+    expect(res.content[0].text).toBe('Notebook nicht gefunden oder kein Zugriff.');
     expect(askSingleCollection).not.toHaveBeenCalled();
   });
 

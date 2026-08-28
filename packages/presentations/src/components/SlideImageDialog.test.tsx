@@ -29,7 +29,10 @@ const items = [
 const setFilters = vi.fn();
 const upload = vi.fn();
 
-vi.mock('@gruenerator/shared/media-library', () => ({
+// Only the two data hooks are stubbed — `buildSharedMediaSrcSet` stays real, so
+// the "tiles never request the original" assertion below tests the actual URLs.
+vi.mock('@gruenerator/shared/media-library', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@gruenerator/shared/media-library')>()),
   useMediaLibrary: () => ({ items, isLoading: false, error: null, setFilters }),
   useMediaUpload: () => ({ upload, isUploading: false, error: null }),
 }));
@@ -93,6 +96,28 @@ describe('SlideImageDialog', () => {
       src: `${window.location.origin}/api/share/tok2/preview`,
       alt: 'Ohne Alt',
     });
+  });
+
+  // `thumbnailUrl` is `/preview` with no `w`, which the API answers with the
+  // unresized original — a multi-megabyte upload in a 120px tile. The grid must
+  // therefore ask for a variant, while the *inserted* image stays full-size.
+  it('requests sized variants for the grid tiles, never the original', () => {
+    open();
+    const tile = screen.getByAltText('Ein Windrad im Feld');
+
+    expect(tile.getAttribute('src')).toBe('/api/share/tok1/preview?w=400&fmt=webp');
+
+    const srcSets = Array.from(
+      tile.closest('picture')?.querySelectorAll('source') ?? [],
+      (source) => source.getAttribute('srcSet') ?? ''
+    );
+    expect(srcSets).toHaveLength(2);
+    for (const srcSet of srcSets) {
+      expect(srcSet).toMatch(/[?&]w=200&/);
+      for (const entry of srcSet.split(',')) {
+        expect(entry).toContain('w=');
+      }
+    }
   });
 
   it('has no accessibility violations', async () => {

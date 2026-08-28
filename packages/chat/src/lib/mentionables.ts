@@ -657,7 +657,7 @@ export const docToolMentionables: Mentionable[] = [
     trigger: '@',
     identifier: 'docs-picker-trigger',
     title: 'Dokument einfügen',
-    description: 'Dokumente, Dateien & Notizbuch-Inhalte als Kontext hinzufügen',
+    description: 'Dokumente, Dateien & Notebook-Inhalte als Kontext hinzufügen',
     avatar: '📄',
     icon: PiFileText,
     backgroundColor: '#0891B2',
@@ -709,7 +709,7 @@ export function setUserNotebookMentionables(notebooks: UserNotebookMentionable[]
     trigger: '@' as const,
     identifier: n.id,
     title: n.title,
-    description: `Mein Notizbuch: ${n.title}`,
+    description: `Mein Notebook: ${n.title}`,
     avatar: '📓',
     icon: PiNotePencil,
     backgroundColor: '#316049',
@@ -1139,8 +1139,8 @@ export function filterMentionables(query: string): {
   const isNotebookCategoryQuery =
     'notebook'.startsWith(q) ||
     q.startsWith('notebook') ||
-    'notizbuch'.startsWith(q) ||
-    q.startsWith('notizbuch') ||
+    // `notiz` keeps the pre-27.08.2026 German word reachable: typing
+    // @notizbuch still opens the notebook category.
     'notiz'.startsWith(q) ||
     q.startsWith('notiz');
 

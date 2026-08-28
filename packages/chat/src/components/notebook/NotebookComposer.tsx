@@ -311,7 +311,7 @@ export function NotebookComposer({
       showPlusMenu={false}
       showToolToggles={false}
       // Zwei Regler mit denselben Namen (Klein/Mittel/Ultra) standen
-      // nebeneinander und meinten Verschiedenes. Im Notizbuch löst 'Automatisch'
+      // nebeneinander und meinten Verschiedenes. Im Notebook löst 'Automatisch'
       // ohnehin immer auf Ultra auf — die Suchtiefe ist hier die Qualitätswahl.
       showModelPicker={false}
       slots={{

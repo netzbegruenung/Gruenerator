@@ -19,6 +19,11 @@ Every bug we found by hand is now a permanent, automated check.
    can't score: groundedness ([N] actually supported), narration honesty (text
    vs executed actions), known-answer contradiction, German/AT quality,
    long-thread parity. Model: `verdigado-pro` (free, LiteLLM proxy), temp 0, JSON verdicts.
+   `groundedness` und `unsourced_confidence` sind ein Paar: die erste setzt bei
+   null Quellen aus (ihre Frage ist dann leer), die zweite läuft dann an ihrer
+   Stelle und fragt, ob der Text Belegtes im Indikativ behauptet, ohne seine
+   Grundlage kenntlich zu machen. Eine Korpuszeile mit `judge: ["groundedness"]`
+   bekommt die Gegenprobe automatisch — sie muss nicht angefasst werden (#2953).
 3. **Long threads** (`eval:longthread`) — `padTurns` breadth probes + golden
    15–25-turn scenarios (`"slow": true`, only with `EVAL_SLOW=1`). To make
    compaction fire fast locally, start the backend with
@@ -177,6 +182,55 @@ live map is **one sample, not a baseline** — the same prompt can classify
 differently on the next run, so a diff between two live maps is evidence to read,
 never an assertion to fail on. The committed, diffable maps live in the simulated
 lane (`routes/chat/__integration__/decisions/`).
+
+## BGSt-Belegdisziplin (`bgst-beleg`, `bgst-korpus`)
+
+Zwei Korpora aus dem Prüfplan der Bundesgeschäftsstelle. Sie messen eine Sache,
+die der Rest des Korpus nicht misst: ob eine Auskunft **belegt und ehrlich** ist —
+also ob die richtige Zahl kommt, ob sie aus dem richtigen Dokument kommt, und ob
+eine Lücke im Material als Lücke gemeldet wird statt plausibel gefüllt zu werden.
+
+```bash
+pnpm --filter @gruenerator/api eval:bgst          # Lane A, laeuft ueberall
+pnpm --filter @gruenerator/api eval:bgst:korpus   # Lane B, braucht den Bestand
+EVAL_FILTER=bgst-k3 pnpm --filter @gruenerator/api eval:chat   # einzelne Items
+```
+
+Die Aufteilung ist nicht kosmetisch. **Lane A legt den Beleg IN den Prompt** und
+misst damit ausschliesslich, was NACH dem Retrieval passiert — Entnahme,
+Distraktor-Widerstand, Abstinenz. Sie braucht kein Notebook und kein
+eingelesenes Material, ihr Ergebnis ist eine Aussage über das Modell statt über
+die Umgebung. **Lane B fragt denselben Sachverhalt gegen den echten Bestand** und
+misst damit das Retrieval. Erst der Vergleich beider sagt, wo ein Fehlschlag
+sitzt: fällt Lane B und Lane A besteht, ist die Suche die Ursache und kein Prompt
+repariert das.
+
+Lane B ist ohne `EVAL_BGST_KORPUS=1` übersprungen (`bgstKorpusLane`), weil die
+Sammlung `bgst-beschluesse` heute auf keinem Zielsystem eingelesen ist.
+
+Beide Korpora sind **generiert** — `pnpm --filter @gruenerator/api eval:bgst:build`
+aus `evals/tools/buildBgst*.ts`. Die Prompts tragen mehrzeilige Belegpassagen;
+die als `\n`-Ketten in JSONL von Hand zu pflegen ist der sichere Weg in einen
+Tippfehler, den niemand sieht. Änderungen gehören in die Generatoren, nicht in
+die `.jsonl`.
+
+Zwei Fallen, beide im Kalibrierlauf vom 27.08.2026 gemessen — der erste Lauf
+meldete 4/14, davon waren **neun Fehlschläge Fehler des Korpus und nicht des
+Produkts**:
+
+- **Verbotene Werte gehören auf das Antwortfeld verankert** (`(a) 106.451`, nicht
+  `106.451`). Das Antwortformat verlangt in `(b)` die Fundstelle, und die trägt
+  im Datums-Item genau den Distraktor; ein Modell, das seinen Beleg
+  zurückzitiert, schreibt ihn ohnehin in den Text, ohne ihn zu verwenden. Beides
+  ist gutes Verhalten.
+- **`abstains: false` funktioniert hier nicht.** Jeder Prompt endet mit „antworte
+  ausschliesslich: NICHT ENTHALTEN", und die Modelle schreiben zurück, dass das
+  hier nicht zutrifft. Die Regex sieht die Verneinung nicht. Die Gegenrichtung
+  trägt `topicsCovered`: wer abstinent antwortet, nennt den verlangten Wert nicht.
+
+Ebenfalls aus dem Lauf: `maxToolCalls: 0` ist für diese Items falsch. Vier der
+fünf Läufe, die trotz Beleg im Prompt gesucht haben, haben richtig geantwortet.
+Der Werkzeugaufruf ist keine Fehlfunktion — die erfundene Angabe ist es.
 
 ## Corpus
 

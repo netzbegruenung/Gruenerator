@@ -385,7 +385,7 @@ export const RETRIEVAL_CASES: RetrievalCase[] = [
     expect: [{ titlePattern: 'Frauen|Gewalt' }, { urlPattern: 'frauen|gewalt' }],
   },
 
-  // ── Manuelle Recherche: Stichwortsuche im Notizbuch-Suchfeld ──
+  // ── Manuelle Recherche: Stichwortsuche im Notebook-Suchfeld ──
   //
   // Gold labels were read off the live index (scroll on `chunk_text`), so each
   // one is a fact about the corpus, not a guess: either the term occurs in

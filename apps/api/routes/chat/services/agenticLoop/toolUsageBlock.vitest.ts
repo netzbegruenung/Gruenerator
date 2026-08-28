@@ -139,6 +139,41 @@ describe('buildToolUsageBlock — gated on the mounted toolset', () => {
   });
 });
 
+/**
+ * #2954: die Regel stand nur im Quellenblock von `buildSynthSystem` — dem
+ * Prompt der split-Schreibphase. Unified hat keine solche Phase und bekam die
+ * Datumsangaben ohne jede Anweisung dazu. Die Gatter der beiden Orte müssen
+ * sich ausschliessen: doppelt ausgegeben wäre der Befund nur umgedreht.
+ */
+describe('buildToolUsageBlock — die Datumsregel (AKTUALITÄT)', () => {
+  const SEARCHLESS = ['expand_attachment', 'summarize'];
+  const WITH_SEARCH = [...SEARCHLESS, 'web_search'];
+
+  it('stellt sie dem unified-Modell zu, das die Antwort selbst schreibt', () => {
+    expect(buildToolUsageBlock(6, false, true, WITH_SEARCH)).toMatch(/AKTUALITÄT:/);
+  });
+
+  it('hält sie aus der Sammelphase des split-Modus heraus', () => {
+    // Dieser Block IST dort das gather-Prompt; der Schreiber bekommt die Regel
+    // über `buildSynthSystem`. Beides zusammen wäre sie zweimal im Turn.
+    expect(buildToolUsageBlock(6, false, false, WITH_SEARCH)).not.toMatch(/AKTUALITÄT:/);
+  });
+
+  it('gilt auch ohne Suchwerkzeug, sobald mitgeführte Quellen da sind', () => {
+    // Der material-heavy Turn: Anhang plus Quellen aus früheren Turns, null
+    // Werkzeuge — genau dort steht eine alte Quelle ohne Regel daneben.
+    expect(buildToolUsageBlock(6, false, true, SEARCHLESS)).not.toMatch(/AKTUALITÄT:/);
+    expect(buildToolUsageBlock(6, false, true, SEARCHLESS, true)).toMatch(/AKTUALITÄT:/);
+  });
+
+  it('gilt erst recht unter dem Recherche-Bann', () => {
+    // Nichts wird nachgeschlagen — es zählt nur noch, wie ALTE Quellen gelesen
+    // werden.
+    expect(buildToolUsageBlock(6, true, true)).toMatch(/AKTUALITÄT:/);
+    expect(buildToolUsageBlock(6, true, false)).not.toMatch(/AKTUALITÄT:/);
+  });
+});
+
 describe('materialDominatesTurn — when the writer gives up the tool catalog', () => {
   // The live system prompt of 13.08.2026, 22:12 measured 3.164 chars before
   // the tool block was appended.

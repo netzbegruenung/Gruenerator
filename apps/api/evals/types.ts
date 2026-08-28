@@ -123,6 +123,16 @@ export const evalNotebookModeSchema = notebookDepthSchema;
  * corpus line naming a rubric that doesn't exist would otherwise load fine and
  * simply never be judged. `judge/rubrics.ts` derives its `RubricName` from
  * this — it imports from here, so the list has to live on this side.
+ *
+ * `groundedness` und `unsourced_confidence` sind ein PAAR und schliessen sich
+ * gegenseitig aus (#2953): die erste fragt „stützt Quelle N die Aussage, die
+ * [N] trägt?" und ist ohne Quellen leer, die zweite fragt „behauptet der Text
+ * Belegtes, ohne einen Beleg zu haben?" und ist nur ohne Quellen sinnvoll. Eine
+ * Zeile, die `groundedness` verlangt, bekommt die zweite deshalb automatisch,
+ * wenn der Turn null Quellen hatte — siehe `rubricsForTurn` in
+ * `judge/rubrics.ts`. Ohne diese Kopplung fiele genau der gefährlichste
+ * Zustand durch: die Antwort kam vollständig aus dem Modellwissen, sah plausibel
+ * aus, und die angeforderte Rubrik hat sie nie angesehen.
  */
 export const rubricNameSchema = z.enum([
   'groundedness',
@@ -132,6 +142,7 @@ export const rubricNameSchema = z.enum([
   'parity',
   'instruction_hierarchy',
   'content_policy',
+  'unsourced_confidence',
 ]);
 export type RubricName = z.infer<typeof rubricNameSchema>;
 
@@ -202,6 +213,24 @@ export const evalExpectSchema = z
      * work.
      */
     refuses: z.boolean().optional(),
+    /**
+     * Die Angabe steht nicht im vorgelegten Material — die Antwort muss das
+     * sagen, statt eine plausible zu erzeugen.
+     *
+     * Nicht dasselbe wie {@link refuses}: dort ist das Erzeugen des Inhalts der
+     * Fehler, hier ist es das Erfinden einer Angabe, die es nicht gibt. Ein
+     * Beschlusskorpus, das ein Thema ausführlich behandelt, aber die gefragte
+     * Zahl nirgends nennt, erzeugt den höchsten Erfindungsdruck überhaupt — und
+     * eine erfundene Frist in einem Sprechzettel fällt niemandem auf, weil sie
+     * genau so aussieht wie eine echte.
+     *
+     * Prüft nur die eine Hälfte: dass die Auskunft „steht nicht drin" fällt. Die
+     * andere Hälfte — dass daneben nicht doch eine Zahl genannt wird — trägt
+     * `answerMustNotContain` mit den Distraktoren aus dem Goldset. Beide
+     * gehören in dieselbe Korpuszeile; einzeln ist jede von beiden zu
+     * schwach.
+     */
+    abstains: z.boolean().optional(),
     /**
      * Substrings that must NOT appear in the answer (case-insensitive).
      *
@@ -355,6 +384,22 @@ export const evalScenarioSchema = z
      * wird.
      */
     deepResearchLane: z.boolean().optional(),
+    /**
+     * Braucht den BGSt-Beschlussbestand als eingelesene Sammlung. Übersprungen
+     * ohne EVAL_BGST_KORPUS=1.
+     *
+     * Eigene Lane und nicht `notebookLane`, obwohl beide die Notebook-Fläche
+     * benutzen: `notebookLane` fragt SYSTEM_COLLECTIONS ab, die jedes befüllte
+     * Backend hat. Diese hier fragt eine Sammlung ab, die es heute auf keinem
+     * Zielsystem gibt — unter dem gemeinsamen Flag würde jeder EVAL_NOTEBOOK=1
+     * ab sofort ein Dutzend Fehlschläge melden, die nichts über den Code sagen.
+     *
+     * Sie steht trotzdem im Repo, weil sie die Hälfte des Prüfplans trägt, die
+     * der deterministische Teil grundsätzlich nicht messen kann: ob der
+     * Bestand GEFUNDEN wird. Der andere Teil legt den Beleg in den Prompt und
+     * misst damit alles NACH dem Retrieval.
+     */
+    bgstKorpusLane: z.boolean().optional(),
   })
   .strict()
   .refine((s) => s.surface !== 'notebook' || (s.collectionIds?.length ?? 0) > 0, {

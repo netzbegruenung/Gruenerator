@@ -68,6 +68,28 @@ export function resolveSkillMention(alias: string): string | null {
   return mentionMap.get(canonicalSkillMention(alias).toLowerCase()) ?? null;
 }
 
+/**
+ * Gibt es zu dieser Mention ein MITGELIEFERTES Rezept?
+ *
+ * Der Unterschied entscheidet, ob eine angelernte Textform den Rumpf eines
+ * vorhandenen Rezepts ersetzt oder für sich allein steht — und damit, ob sie im
+ * Mention-Menü und im Rezeptkatalog des Modells auftauchen muss.
+ *
+ * Nötig, weil `textFormTypeSchema` VIER Presets kennt, `SKILLS` aber nur drei
+ * davon als Rezept führt: `instagram`, `facebook` und `presse` gibt es, `antrag`
+ * nicht (und nie gegeben). Beide Listen filterten trotzdem hart auf
+ * `kind === 'custom'`, mit derselben Begründung — Presets reiten auf der Mention
+ * ihres Systemrezepts. Für `antrag` stimmt der Satz nicht: die Oberfläche nahm
+ * Beispiele entgegen, analysierte, speicherte — und die Zeile wurde auf keinem
+ * Pfad je nachgeschlagen (#2937).
+ *
+ * Strukturell formuliert statt auf `'antrag'` verdrahtet: kommt ein Preset dazu,
+ * dessen Rezept noch fehlt, trägt dieselbe Regel.
+ */
+export function hasSystemRecipe(mention: string): boolean {
+  return resolveSkillMention(mention) !== null;
+}
+
 const ebeneMap = new Map<string, LvEbene>(
   (SKILLS as readonly SystemSkill[]).flatMap((skill) =>
     skill.lvEbene ? [[skill.mention.toLowerCase(), skill.lvEbene] as const] : []

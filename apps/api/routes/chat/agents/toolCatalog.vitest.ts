@@ -957,7 +957,7 @@ describe('toolCatalog dokumente_lesen', () => {
     expect(catalogWithDocs([]).toolNames).not.toContain('dokumente_lesen');
   });
 
-  it('fehlt, wenn nur ein Notizbuch im Spiel ist', () => {
+  it('fehlt, wenn nur ein Notebook im Spiel ist', () => {
     const { toolNames } = catalogWithDocs([{ kind: 'notebook', id: 'berlin', label: 'Berlin' }]);
     expect(toolNames).not.toContain('dokumente_lesen');
   });

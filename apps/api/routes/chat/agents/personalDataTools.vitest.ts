@@ -87,7 +87,6 @@ vi.mock('../../../services/sharedMediaService.js', () => ({
     getUserShares: (...a: unknown[]) => getUserShares(...a),
     deleteShare: (...a: unknown[]) => deleteShare(...a),
   }),
-  USER_VISIBLE_SHARE_STATUSES: ['ready', 'draft'],
 }));
 vi.mock('../../../services/subtitler/ProjectService.js', () => ({
   getSubtitlerProjectService: () => ({
@@ -552,6 +551,78 @@ describe('media', () => {
     const refs = out.results.map((r) => r.ref);
     expect(refs).toContain('reel:p1');
     expect(refs).toContain('sharepic:tok');
+  });
+
+  // Sharepics and KI-Bilder are separate products with separate sections in
+  // every gallery. Before this split the tool called every image a "Sharepic",
+  // so asking the chat for "meine Sharepics" answered with KI images too and
+  // the model had nothing to tell them apart by.
+  const images = [
+    { share_token: 'pic', title: 'Dreizeiler', media_type: 'image', content_origin: 'sharepic' },
+    { share_token: 'ki', title: 'Windrad', media_type: 'image', content_origin: 'ki' },
+    // Written before `content_origin` existed: classified off `image_type`,
+    // exactly as the galleries do for those rows.
+    { share_token: 'alt', title: 'Alt', media_type: 'image', image_type: 'pure-create' },
+  ];
+
+  it('labels images by what made them instead of calling them all Sharepics', async () => {
+    getUserProjects.mockResolvedValue([]);
+    getUserShares.mockResolvedValue(images);
+    const out = (await exec(makeMediaTool(ctx('u1')), {
+      action: 'list',
+      type: 'all',
+      limit: 15,
+    })) as { results: Array<{ type: string; ref?: string }> };
+
+    expect(out.results.map((r) => [r.ref, r.type])).toEqual([
+      ['sharepic:pic', 'Sharepic'],
+      ['sharepic:ki', 'KI-Bild'],
+      ['sharepic:alt', 'KI-Bild'],
+    ]);
+  });
+
+  it('type filters instead of describing: "sharepic" and "ki" each return only their own', async () => {
+    getUserProjects.mockResolvedValue([]);
+    getUserShares.mockResolvedValue(images);
+
+    const sharepics = (await exec(makeMediaTool(ctx('u1')), {
+      action: 'list',
+      type: 'sharepic',
+      limit: 15,
+    })) as { results: Array<{ ref?: string }> };
+    expect(sharepics.results.map((r) => r.ref)).toEqual(['sharepic:pic']);
+
+    getUserShares.mockResolvedValue(images);
+    const ki = (await exec(makeMediaTool(ctx('u1')), {
+      action: 'list',
+      type: 'ki',
+      limit: 15,
+    })) as { results: Array<{ ref?: string }> };
+    expect(ki.results.map((r) => r.ref)).toEqual(['sharepic:ki', 'sharepic:alt']);
+
+    // Reels stay out of both image buckets.
+    expect(getUserProjects).not.toHaveBeenCalled();
+    // A filtered ask reads a wider window than `limit`, or the KI images sitting
+    // below the 15 most recent Sharepics would never be reachable at all.
+    expect(getUserShares).toHaveBeenLastCalledWith('u1', 'image', ['ready', 'draft'], 100);
+  });
+
+  it('still honours limit after filtering', async () => {
+    getUserProjects.mockResolvedValue([]);
+    getUserShares.mockResolvedValue(
+      Array.from({ length: 8 }, (_, i) => ({
+        share_token: `k${i}`,
+        title: `KI ${i}`,
+        media_type: 'image',
+        content_origin: 'ki',
+      }))
+    );
+    const out = (await exec(makeMediaTool(ctx('u1')), {
+      action: 'list',
+      type: 'ki',
+      limit: 3,
+    })) as { resultCount: number };
+    expect(out.resultCount).toBe(3);
   });
 
   it('delete without confirm asks first; with confirm routes to the right service', async () => {

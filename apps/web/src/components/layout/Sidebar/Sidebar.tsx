@@ -537,11 +537,15 @@ const SidebarFavourites = memo(function SidebarFavourites({
   const configItems = getFavouriteItemsById(favouriteIds);
 
   const favoriteIdentifiers = useAgentFavoritesStore((s) => s.favoriteIdentifiers);
+  const favoriteTitles = useAgentFavoritesStore((s) => s.favoriteTitles);
   const toggleAgentFav = useAgentFavoritesStore((s) => s.toggle);
   const { data: userAgents = [] } = useUserAgents();
   const { data: agentUsage = {} } = useItemUsage('agent');
 
-  // Agent favourites live in the normal favourites list (system + user agents).
+  // Agent favourites live in the normal favourites list. System agents resolve
+  // from the static registry, the user's own from useUserAgents(); an agent
+  // someone else built and shared via a project is in neither, so it falls back
+  // to the title the store snapshotted when the star was set.
   // Within the user's manual favourites, float the most-recently/most-used to
   // the top; never-used keep their add order.
   const agentItems = useMemo(() => {
@@ -558,17 +562,18 @@ const SidebarFavourites = memo(function SidebarFavourites({
         continue;
       }
       const ua = userAgents.find((a) => a.identifier === identifier);
-      if (ua) {
+      const title = ua?.title ?? favoriteTitles[identifier];
+      if (title) {
         rows.push({
           identifier,
-          title: ua.title,
+          title,
           Icon: PiSparkle,
           path: `/agents/${getAgentSlug(identifier)}`,
         });
       }
     }
     return sortByUsage(rows, (r) => r.identifier, agentUsage);
-  }, [favoriteIdentifiers, userAgents, agentUsage]);
+  }, [favoriteIdentifiers, favoriteTitles, userAgents, agentUsage]);
 
   const expanded = isOpen || forceExpanded;
 

@@ -51,7 +51,7 @@ beforeEach(() => {
     { id: 'own-2', name: 'Zweites Rezept', slug: 'zweites-rezept' },
   ]);
   setUserNotebookMentionables([
-    { id: 'nb-1', title: 'Mein Notizbuch', slug: 'mein-notizbuch' },
+    { id: 'nb-1', title: 'Mein Notebook', slug: 'mein-notebook' },
     { id: 'nb-2', title: 'Ortsverband', slug: 'ortsverband' },
   ]);
   setTextforms([]);
@@ -102,7 +102,7 @@ describe('MentionPopover ↔ keyboard list', () => {
 
   it('offers the user’s own notebooks — they were display-only before', () => {
     const mentions = getFilteredMentionables('notiz').map((m) => m.mention);
-    expect(mentions).toContain('mein-notizbuch');
+    expect(mentions).toContain('mein-notebook');
     expect(mentions).toContain('ortsverband');
   });
 });

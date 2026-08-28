@@ -351,7 +351,7 @@ export function NotebookManualSearch({
         loading={isLoading}
         value={query}
         onChange={setQuery}
-        placeholder="Im Notizbuch suchen..."
+        placeholder="Im Notebook suchen..."
         hideDisclaimer
         variant="composer"
         submitPlacement="tray"
@@ -402,7 +402,7 @@ export function NotebookManualSearch({
           <div className="flex flex-col items-center justify-center py-2xl text-center">
             <IoSearch className="mb-sm size-12 text-grey-300 dark:text-grey-600" />
             <p className="text-sm text-grey-500 dark:text-grey-400">
-              Gib einen Suchbegriff ein, um in diesem Notizbuch zu suchen.
+              Gib einen Suchbegriff ein, um in diesem Notebook zu suchen.
             </p>
           </div>
         ))}

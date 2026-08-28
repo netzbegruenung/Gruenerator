@@ -118,7 +118,7 @@ describe('searchNode — Web-Fallback bei 0 internen Treffern', () => {
     executeDirectWebSearch.mockResolvedValue(webHit);
 
     const result = await searchNode(
-      buildState({ notebookCollectionIds: ['mein-notizbuch'] } as Partial<ChatGraphState>)
+      buildState({ notebookCollectionIds: ['mein-notebook'] } as Partial<ChatGraphState>)
     );
 
     expect(executeDirectWebSearch).not.toHaveBeenCalled();

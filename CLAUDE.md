@@ -51,7 +51,7 @@ Single workspace: `pnpm --filter @gruenerator/api test:auth`, `pnpm --filter @gr
 - **`services/hocuspocus`** — Hocuspocus WebSocket server for Yjs collab. Zero cross-package deps (inline utils).
 - **`services/mcp`** — MCP server (`https://mcp.gruenerator.eu`). See `docs/CLAUDE-mcp.md`.
 - **`services/comfyui`** — ComfyUI workflows for local GPU image gen.
-- **`services/nlp`** — FastAPI + spaCy (`de_core_news_lg`): Themen, Schlagwörter, Emotionen und Personen für Monitor und Notizbücher. Python, **außerhalb des pnpm-Workspace** — `pnpm test` erfasst es nicht, die Tests laufen mit `pytest` (eigener CI-Job „NLP Service (Python)"). Sie brauchen **kein** Modell: die spaCy-Docs werden von Hand gebaut, damit die Zusicherungen deterministisch bleiben. Siehe `services/nlp/README.md`.
+- **`services/nlp`** — FastAPI + spaCy (`de_core_news_lg`): Themen, Schlagwörter, Emotionen und Personen für Monitor und Notebooks. Python, **außerhalb des pnpm-Workspace** — `pnpm test` erfasst es nicht, die Tests laufen mit `pytest` (eigener CI-Job „NLP Service (Python)"). Sie brauchen **kein** Modell: die spaCy-Docs werden von Hand gebaut, damit die Zusicherungen deterministisch bleiben. Siehe `services/nlp/README.md`.
 
 ### Page Layout Modes
 
@@ -75,7 +75,7 @@ Scrapers in `apps/api/services/scrapers/`. Automated via GitHub Actions (`conten
 
 **PDFs werden pro Datei nur einmal ausgelesen.** Die Dedup-Kette hing lange am Hash des *extrahierten Texts* — der liegt aber erst nach Download, PDF.js-Parse und (bei Scans) einem seitenweise abgerechneten Mistral-OCR-Lauf vor, sodass jedes unveränderte PDF in jedem nächtlichen Lauf voll bezahlt und erst danach als „unchanged" verworfen wurde. Davor stehen jetzt zwei Gatter aus `services/scrapers/utils/binaryFingerprint.ts`: ein bedingter GET (`If-None-Match`/`If-Modified-Since` → 304 spart schon den Download) und ein SHA-256 über die rohen Bytes gegen den gespeicherten `file_hash`. **Wer ein drittes Gatter baut, muss das Nachtragen mitbauen:** ein PDF mit unverändertem Text schreibt keine Punkte, also persistiert nur der `unchanged`-Zweig (`DocumentProcessor.#refreshExtraPayload` bzw. `ProgramPdfScraper.#persistFingerprint`) den Fingerprint — ohne ihn bliebe jeder Punkt für immer ohne `file_hash` und das Gatter griffe nie. Aus demselben Grund gilt ein Punkt **ohne** gespeicherten `file_hash` als unbekannt, nicht als unverändert: er wird genau einmal ausgelesen und trägt danach seinen Hash.
 
-**Ob die Gatter greifen, steht im Sync-Bericht, nicht in `stored/updated/skipped`.** Dort zählt ein vor der Extraktion übersprungenes Dokument wie ein danach übersprungenes — kosten tun sie sehr verschieden. `services/scrapers/extractionRecorder.ts` zählt deshalb getrennt: was ausgelesen wurde (mit Seitenzahl und OCR-Anteil), was *umsonst* ausgelesen wurde (Text danach unverändert — die Zahl, die gegen 0 gehen soll), und was welches Gatter abgefangen hat. Gezählt wird an den Scraper-Aufrufstellen, **nicht** in `OcrService`: derselbe Dienst bedient Chat-Uploads und Notizbuch-Ingest, die im langlebigen API-Prozess sonst als Sync-Arbeit mitzählten. Der Puffer muss gedrained werden (wie bei `syncEventRecorder`), sonst trägt ein Lauf seine Zahlen in den Bericht des nächsten.
+**Ob die Gatter greifen, steht im Sync-Bericht, nicht in `stored/updated/skipped`.** Dort zählt ein vor der Extraktion übersprungenes Dokument wie ein danach übersprungenes — kosten tun sie sehr verschieden. `services/scrapers/extractionRecorder.ts` zählt deshalb getrennt: was ausgelesen wurde (mit Seitenzahl und OCR-Anteil), was *umsonst* ausgelesen wurde (Text danach unverändert — die Zahl, die gegen 0 gehen soll), und was welches Gatter abgefangen hat. Gezählt wird an den Scraper-Aufrufstellen, **nicht** in `OcrService`: derselbe Dienst bedient Chat-Uploads und Notebook-Ingest, die im langlebigen API-Prozess sonst als Sync-Arbeit mitzählten. Der Puffer muss gedrained werden (wie bei `syncEventRecorder`), sonst trägt ein Lauf seine Zahlen in den Bericht des nächsten.
 
 ### Authentication
 
@@ -109,9 +109,15 @@ Mistral AI (primary, EU), self-hosted GPT-OSS/Gemma via LiteLLM/verdigado, Seewe
 - **PR merges require admin.** `gh pr merge` fails — ask user to merge via GitHub UI.
 - **Worktree weg, sobald alles gepusht ist** — nicht erst nach dem Merge. Ein offener PR braucht kein lokales Verzeichnis, er lebt auf `origin`. Kriterium: `git status --porcelain` **und** `git log @{u}..` beide leer → `git worktree remove <pfad>` (Branch bleibt stehen). Nach dem Merge zusätzlich `git branch -d <br> && git worktree prune`. Nie `--force`, nie fremde Worktrees — andere Agenten arbeiten parallel.
 
+### Sprache auf GitHub: Englisch
+
+**Alles, was auf GitHub landet, wird auf Englisch geschrieben** — PR-Titel und -Beschreibung, PR- und Review-Kommentare, Issues (Titel, Body, Kommentare), Commit-Subject und -Body, Branch-Namen. Auch dann, wenn das Gespräch hier auf Deutsch läuft: deutsche Log-, Code- oder UI-Zitate bleiben im Original, die Prosa drumherum ist Englisch.
+
+Nicht betroffen und weiterhin deutsch: dieser Chat, die Doku im Repo (`CLAUDE.md`, `docs/`, `documentation/`) und alles, was Nutzer*innen im Produkt sehen.
+
 ### Nebenbefunde werden Issues, nicht Prosa
 
-**Ein Fehler, der bei anderer Arbeit auffällt, wird als GitHub-Issue abgelegt** — nicht nur im Chat erwähnt, nicht nur als Kommentar im Code, nicht in `/docs/` (gitignored). Der Chat ist weg, sobald das Fenster zu ist; ein Issue überlebt den Kontext und ist der Ort, an dem andere Agenten und Menschen danach suchen.
+**Ein Fehler, der bei anderer Arbeit auffällt, wird als GitHub-Issue abgelegt** (auf Englisch, siehe oben) — nicht nur im Chat erwähnt, nicht nur als Kommentar im Code, nicht in `/docs/` (gitignored). Der Chat ist weg, sobald das Fenster zu ist; ein Issue überlebt den Kontext und ist der Ort, an dem andere Agenten und Menschen danach suchen.
 
 Gilt für alles, was ohne Zutun auffällt: ein 404 in einem mitgelesenen Log, ein `ContextCap`-Deckel, der mehr wegschneidet als gedacht, eine Zahl in der Antwort, die nicht zur Quelle passt.
 
@@ -183,7 +189,14 @@ Zustand (global state). TanStack Query v5 (server state/fetching) with axios.
 
 **Persist-Konvention:** Jeder zustand-persist-Store wird mit `version` + `migrate` angelegt. DB-Umbauten mit ID-Semantik: expand → backfill/dual-write → contract; bei Spalten-Änderungen alle Queries greppen.
 
-**Sprachregelungen (Produkt-Wording):** Plural **„Grüneratoren"**, Singular **„Grünerator-Agent"** (nie „Agent" allein — „der Grünerator" meint das Produkt); **„Rezepte"** (nicht „Skills"); **„Projekte"** (nicht „Gruppen"/„Spaces"). Neue Produktnamen hier eintragen, bevor das Feature gebaut wird.
+**Sprachregelungen (Produkt-Wording):** Plural **„Grüneratoren"**, Singular **„Grünerator-Agent"** (nie „Agent" allein — „der Grünerator" meint das Produkt); **„Rezepte"** (nicht „Skills"); **„Projekte"** (nicht „Gruppen"/„Spaces"); **„Notebook"/„Notebooks"** (nie „Notizbuch"/„Notizbücher"). Neue Produktnamen hier eintragen, bevor das Feature gebaut wird.
+
+**„Notizbuch" ist verboten — mit genau zwei Ausnahmen.** Das Wort ist am 27.08.2026 aus Code, UI und Doku entfernt worden; es lebt nur noch da weiter, wo es NICHT für uns steht:
+
+- **Detektoren über Nutzereingaben.** `GRUENERATOR_FEATURE_NOUN` (`classifierSignals.ts`) und `PERSONAL_DATA_RE` (`agenticLoop/routing.ts`) lesen, was Leute TIPPEN, und die tippen das alte Wort weiter. Dort steht `notizb[üu]ch\w*` **neben** `notebooks?`, nicht statt dessen — dasselbe gilt für den `notiz`-Präfix in `filterMentionables`, über den `@notizbuch` weiterhin die Notebook-Kategorie öffnet. Wer die alten Zweige „aufräumt", senkt still den Recall.
+- **Der eingefrorene MCP-Prompt `notizbuch-antwort`** (`mcp-server/serverFactory.ts`), Alias auf `notebook-antwort` mit eigenem Argumentnamen `notizbuch`. MCP-Prompt-Namen sind F0: ausgelieferte Clients fragen den alten Namen weiter. Abzuräumen ab 27.08.2027; `serverFactory.vitest.ts` bewacht ihn bis dahin.
+
+Ein Grep, der beide Ausnahmen mitzählt, meldet nichts Reparierbares. Alles andere ist Drift und gehört umbenannt — inklusive der Komposita, die dabei einen Bindestrich brauchen (**„Notebook-Fläche"**, nicht „Notebookfläche").
 
 ### Parteiinterne Inhalte gehören nicht in dieses Repo
 
@@ -197,7 +210,7 @@ Auch die generierten LV-Agenten (`lvPrAgents.ts` / `lvBuergerAgents.ts` / `lvWah
 
 ### Commits
 
-Conventional Commits (`feat:`, `fix:`, `chore:`, `refactor:`, `docs:`). Atomic: one logical change per commit.
+Conventional Commits (`feat:`, `fix:`, `chore:`, `refactor:`, `docs:`), **auf Englisch** (siehe *Sprache auf GitHub*). Atomic: one logical change per commit.
 
 **Subject nach dem Doppelpunkt klein schreiben** — commitlint (`subject-case`) bricht sonst ab. lint-staged hat dann schon formatiert und re-staged: Commit einfach neu absetzen, es geht nichts verloren.
 

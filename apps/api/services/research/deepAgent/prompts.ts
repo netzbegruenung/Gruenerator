@@ -81,7 +81,7 @@ ${locale === 'de-AT' ? LAENDERKONTEXT_AT : ''}
    du zeitlich nicht, und ein Lauf, der sie beginnt, endet als Teilbericht. Auch diese Runde
    vergibst du im Block. Fehlt darüber hinaus etwas
    Wesentliches, recherchiere selbst nach (\`web_suche\`, \`tiefen_suche\`,
-   \`seite_lesen\`${options.hasNotebooks ? ', \\`notizbuch_suche\\`' : ''}). Melden Werkzeuge, dass ein Budget erschöpft oder die Zeit
+   \`seite_lesen\`${options.hasNotebooks ? ', \\`notebook_suche\\`' : ''}). Melden Werkzeuge, dass ein Budget erschöpft oder die Zeit
    abgelaufen ist, hörst du sofort auf zu recherchieren und schreibst den Bericht.
 5. **Bericht schreiben.** Schreibe den fertigen Bericht mit \`write_file\` nach \`/bericht.md\`.
 6. **Antworten.** Antworte zum Schluss mit zwei bis drei Sätzen: was du herausgefunden hast.
@@ -95,7 +95,7 @@ ${locale === 'de-AT' ? LAENDERKONTEXT_AT : ''}
 - Danach \`##\`-Abschnitte entlang der Teilfragen, in Fließtext. Keine Stichwortlisten,
   wo ein Absatz die Sache besser erklärt.
 - Ein Abschnitt \`## Quellen\` am Ende: nummerierte Liste im Format \`1. Titel — URL\`.
-  Quellen aus einem Notizbuch haben oft keine URL; dann \`1. Titel — Notizbuch: Name\`.
+  Quellen aus einem Notebook haben oft keine URL; dann \`1. Titel — Notebook: Name\`.
   Erfinde für sie **keine** Adresse.
 - Belege im Text mit \`[1]\`, \`[2]\` … passend zu dieser Liste.
 
@@ -129,8 +129,8 @@ Gib dein Ergebnis strukturiert zurück, nicht als freien Text und nicht als Date
 
 - \`ergebnis\`: der Fließtext, 150 bis 400 Wörter. KEINE Quellenliste darin — die steht
   in \`quellen\`.
-- \`quellen\`: nur die Quellen, die du tatsächlich genutzt hast. Notizbuchtreffer ohne
-  Adresse bekommen \`notizbuch\` statt \`url\`, niemals eine erfundene Adresse.
+- \`quellen\`: nur die Quellen, die du tatsächlich genutzt hast. Notebook-Treffer ohne
+  Adresse bekommen \`notebook\` statt \`url\`, niemals eine erfundene Adresse.
 - \`luecken\`: was offen blieb, je Eintrag ein ausformulierter Satz. Der Hauptagent macht
   daraus die nächste Teilfrage — schreib sie so, dass jemand ohne deinen Kontext sie
   bearbeiten kann. Nichts offen: leere Liste.
@@ -169,7 +169,7 @@ ${locale === 'de-AT' ? LAENDERKONTEXT_AT : ''}
 
 ## Ablauf
 
-1. Frage \`notizbuch_suche\` mit der ausformulierten Teilfrage. Stelle zwei bis drei
+1. Frage \`notebook_suche\` mit der ausformulierten Teilfrage. Stelle zwei bis drei
    Anfragen mit verschiedenen Formulierungen — Beschlusstexte benennen dieselbe Sache
    oft anders als die Frage.
 2. Trägt ein Treffer eine URL und reicht der Auszug nicht, lies ihn mit \`seite_lesen\` nach.

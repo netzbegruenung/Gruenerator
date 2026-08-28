@@ -73,7 +73,7 @@ export function useMentionablesSync(): void {
   }, [locale]);
 
   // Dasselbe für die Landesverbands-Zuteilung, wie in webs ChatPage: LV-Rezepte
-  // und -Notizbücher stehen nur denen im Menü, die laut Profilrolle in der
+  // und -Notebooks stehen nur denen im Menü, die laut Profilrolle in der
   // Landesgeschäftsstelle dieses Verbands arbeiten. Mobil setzte das nie jemand,
   // also blieb der Modul-Default `null` („nicht bekannt") stehen und die
   // `@`-Liste bot die Rezepte aller elf Landesverbände an (#2931). Die Auflösung

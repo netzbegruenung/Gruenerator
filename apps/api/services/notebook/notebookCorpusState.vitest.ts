@@ -4,7 +4,7 @@
  * `documents.vector_count` hält fest, was die Indexierung einmal gemeldet hat;
  * verschwinden die Punkte später aus Qdrant, bleibt die Spalte stehen. Die
  * Korpus-Prüfung glaubte ihr — ein ausgeräumter Index sah deshalb aus wie ein
- * gesundes Notizbuch, in dem die Frage eben nicht vorkommt. Diese Tests halten
+ * gesundes Notebook, in dem die Frage eben nicht vorkommt. Diese Tests halten
  * fest, dass Qdrant selbst gefragt wird, und dass ein Ausfall der Probe nicht
  * als fehlende Daten durchgereicht wird.
  */
@@ -50,7 +50,7 @@ const emptyMessage = (corpus: CorpusInspection | null): string =>
     notebookQAService as unknown as {
       _buildEmptyResultMessage(name: string, corpus: CorpusInspection | null): string;
     }
-  )._buildEmptyResultMessage('Notizbuch für Kassierer*innen', corpus);
+  )._buildEmptyResultMessage('Notebook für Kassierer*innen', corpus);
 
 /** Eine Postgres-Zeile, wie sie die Inspektion liest. */
 function row(id: string, over: Partial<Record<string, unknown>> = {}) {
@@ -90,7 +90,7 @@ describe('Korpus-Prüfung fragt Qdrant statt vector_count', () => {
     expect(corpus.stale).toHaveLength(0);
   });
 
-  it('trennt vorhandene von fehlenden Punkten im selben Notizbuch', async () => {
+  it('trennt vorhandene von fehlenden Punkten im selben Notebook', async () => {
     pgQuery.mockResolvedValue([row('a'), row('b')]);
     countVectorsByDocument.mockResolvedValue(
       new Map([
@@ -139,13 +139,13 @@ describe('Korpus-Prüfung fragt Qdrant statt vector_count', () => {
   });
 });
 
-describe('Abgeleiteter Notizbuch-Zustand für die Liste', () => {
-  // Die Liste darf Qdrant nicht befragen (ein Aufruf pro Notizbuch wäre das
+describe('Abgeleiteter Notebook-Zustand für die Liste', () => {
+  // Die Liste darf Qdrant nicht befragen (ein Aufruf pro Notebook wäre das
   // nächste N+1) — sie klassifiziert allein aus den Postgres-Zeilen.
   const state = (rows: Array<Record<string, unknown>>) =>
     summarizeDocumentRows(rows as Parameters<typeof summarizeDocumentRows>[0]).state;
 
-  it('nennt ein Notizbuch ohne Dokumente leer', () => {
+  it('nennt ein Notebook ohne Dokumente leer', () => {
     expect(state([])).toBe('empty');
   });
 

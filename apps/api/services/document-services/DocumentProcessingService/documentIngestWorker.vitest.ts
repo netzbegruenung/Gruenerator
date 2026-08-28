@@ -1,6 +1,6 @@
 /**
  * Der Worker ist die Reparatur zweier Zustände, aus denen es vorher keinen
- * Rückweg gab: ein Upload, der nie an ein Notizbuch gehängt wurde (blieb ewig
+ * Rückweg gab: ein Upload, der nie an ein Notebook gehängt wurde (blieb ewig
  * 'uploaded'), und eine Verarbeitung, deren Prozess mitten im Lauf starb (blieb
  * ewig 'processing'). Beides hängt am Claim — deshalb prüfen diese Tests die
  * Auswahlbedingung selbst, nicht nur, dass irgendetwas verarbeitet wird.

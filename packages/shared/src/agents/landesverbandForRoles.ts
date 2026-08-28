@@ -165,7 +165,7 @@ export function isLvItemVisibleForRoles(
 /**
  * Soll dieses Notebook in einem Picker angeboten werden? Gleiche Semantik wie
  * {@link isLvItemVisibleForRoles}: Nicht-LV-Notebooks und der noch unbekannte
- * Fall passieren immer, die geprüft-rollenlose Person sieht keine LV-Notizbücher.
+ * Fall passieren immer, die geprüft-rollenlose Person sieht keine LV-Notebooks.
  */
 export function isLvNotebookVisibleForRoles(
   notebookId: string,
@@ -211,7 +211,7 @@ export interface LandesverbandOffer {
   agents: number;
   /** Rezepte, die einem dieser Agenten gehören. */
   skills: number;
-  /** Das LV-Notizbuch. Immer gesetzt: ein LV mit abgeschaltetem Notebook hat
+  /** Das LV-Notebook. Immer gesetzt: ein LV mit abgeschaltetem Notebook hat
    *  keine auffindbaren Agenten und kommt hier gar nicht erst an. */
   notebookId: string;
 }

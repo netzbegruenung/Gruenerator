@@ -55,7 +55,7 @@ describe('the schema', () => {
     const source = RESEARCHER_RESPONSE_SCHEMA.properties.quellen.items;
 
     expect(source.required).toEqual(['titel']);
-    expect(Object.keys(source.properties)).toContain('notizbuch');
+    expect(Object.keys(source.properties)).toContain('notebook');
   });
 
   it('demands gaps as a field rather than a sentence', () => {

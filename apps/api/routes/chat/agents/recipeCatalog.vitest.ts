@@ -147,6 +147,34 @@ describe('buildRecipeCatalog', () => {
     expect(entries.filter((e) => e.mention === 'presse')).toHaveLength(1);
   });
 
+  // `antrag` ist der Sonderfall unter den Presets: `textFormTypeSchema` kennt es,
+  // `SKILLS` nicht. Es überschreibt also nichts und muss sich selbst eintragen,
+  // sonst kann das Modell den angelernten Antrags-Stil nie laden (#2937).
+  it('trägt ein Preset ohne mitgeliefertes Rezept als eigenen Eintrag ein', async () => {
+    listTextForms.mockResolvedValue([
+      { mention: 'antrag', title: 'Anträge', kind: 'preset', sharedFromGroup: null },
+    ]);
+    const entries = await buildRecipeCatalog({ userLocale: 'de-DE', userId: 'u1', roles: null });
+    const antrag = entries.filter((e) => e.mention === 'antrag');
+    expect(antrag).toHaveLength(1);
+    expect(antrag[0]?.source).toBe('user');
+    expect(antrag[0]?.title).toBe('Anträge');
+  });
+
+  it('lädt den angelernten Antrags-Stil, obwohl es kein Systemrezept gibt', async () => {
+    getTextFormForInjection.mockResolvedValue({
+      kind: 'preset',
+      textType: 'antrag',
+      title: 'Anträge',
+      styleBlock: 'Kurze Begründung, dann Beschlusstext.',
+    });
+    const resolved = await resolveRecipe({ mention: 'antrag', userId: 'u1' });
+    expect(getTextFormForInjection).toHaveBeenCalledWith('u1', 'antrag');
+    expect(resolved?.source).toBe('user');
+    expect(resolved?.title).toBe('Anträge');
+    expect(resolved?.body).toContain('Kurze Begründung');
+  });
+
   // Dasselbe für einen Stil, der FÜR ein LV-Rezept angelernt wurde. Die Zeile
   // muss `kind === 'custom'` verfehlen, sonst verdrängt der eigene Titel den
   // des Rezepts im Menü (`userMentions`-Filter weiter unten in der Funktion) —

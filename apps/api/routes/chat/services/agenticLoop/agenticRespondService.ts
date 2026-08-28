@@ -68,6 +68,7 @@ import { rewritesSuppliedText } from './routing.js';
 import { createSourceRegistry } from './sourceRegistry.js';
 import { buildConnectorNotes, buildSynthSystem, type SynthPromptContext } from './synthPrompt.js';
 import { createAnswerValidator, finalizeAnswerText, pdfProblemNote } from './synthVerdicts.js';
+import { createToolActivity } from './toolActivity.js';
 import { createToolCostLedger } from './toolCostLedger.js';
 import { buildToolUsageBlock } from './toolUsageBlock.js';
 import { logTurnSummary } from './turnSummary.js';
@@ -256,12 +257,17 @@ export async function streamAgenticResponse(
     });
     toolReplayMessages = [...toolReplayMessages, ...seeded.replay];
 
+    // Gemeinsam für Umschlag und Motor: der Umschlag zählt laufende Aufrufe,
+    // die Stillstands-Uhr der Werkzeugphase liest sie. Ohne diese eine Instanz
+    // müsste das Stille-Fenster über dem längsten Aufruf-Timeout (90 s) liegen.
+    const toolActivity = createToolActivity();
     const wrapped = wrapAssembledTools(tools, {
       sse,
       hooks: costLedger.hooks,
       guards,
       recordStep: (step) => steps.push(step),
       perCallTimeoutMs: budget.perCallTimeoutMs,
+      toolActivity,
       toolLabels,
       // Reads `mode` lazily: it's finalized further down, before the loop runs.
       getTextOffset: () => (mode === 'unified' ? emitter.text.length : null),
@@ -305,7 +311,8 @@ export async function streamAgenticResponse(
       budget.maxSteps,
       researchBanned,
       mode === 'unified',
-      Object.keys(wrapped)
+      Object.keys(wrapped),
+      sourceRegistry.carriedSize > 0
     );
     const recipeCatalogBlock = renderRecipeCatalog(recipeCatalog);
     const toolSystem = withInstructionHierarchy(
@@ -456,6 +463,7 @@ export async function streamAgenticResponse(
         });
       },
       tools: wrapped,
+      toolActivity,
       toolSystem,
       forceFirstToolCall,
       firstToolName,

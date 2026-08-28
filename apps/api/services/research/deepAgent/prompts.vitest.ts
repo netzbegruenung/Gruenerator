@@ -75,7 +75,7 @@ describe('webResearcherPrompt', () => {
     // A prompt naming either teaches the worker to call something absent,
     // which costs a step and reads to the model like a broken tool.
     expect(prompt).not.toContain('tiefen_suche');
-    expect(prompt).not.toContain('notizbuch_suche');
+    expect(prompt).not.toContain('notebook_suche');
     expect(leadPrompt('de-DE')).toContain('tiefen_suche');
   });
 
@@ -95,7 +95,7 @@ describe('programmeResearcherPrompt', () => {
   const prompt = programmeResearcherPrompt('de-DE');
 
   it('searches the corpora and nothing else', () => {
-    expect(prompt).toContain('notizbuch_suche');
+    expect(prompt).toContain('notebook_suche');
     expect(prompt).not.toContain('web_suche');
   });
 
@@ -139,12 +139,12 @@ describe('delegation rules', () => {
   });
 
   it('never names a subagent that was not registered', () => {
-    // `programm-recherche` only exists when `notizbuch_suche` does. Naming it
+    // `programm-recherche` only exists when `notebook_suche` does. Naming it
     // anyway costs the lead a failed `task` call and a repair step.
     const prompt = leadPrompt('de-DE', { hasNotebooks: false });
 
     expect(prompt).not.toContain('programm-recherche');
-    expect(prompt).not.toContain('notizbuch_suche');
+    expect(prompt).not.toContain('notebook_suche');
     expect(prompt).toContain('web-recherche');
   });
 });

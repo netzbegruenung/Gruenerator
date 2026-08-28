@@ -314,7 +314,7 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "url": "/docs/wissen/inhaltsdatenbank",
     "title": "Inhaltsdatenbank",
     "category": "Wissen",
-    "lead": "Der Grünerator durchsucht und indexiert Inhalte aus verschiedenen Quellen der Grünen Partei. Insgesamt sind 33.713 Vektoren in der Datenbank gespeichert."
+    "lead": "Der Grünerator durchsucht und indexiert Inhalte aus verschiedenen Quellen der Grünen Partei. Insgesamt sind 64.722 Vektoren in der Datenbank gespeichert."
   },
   {
     "url": "/docs/wissen/landesverbaende",
@@ -803,7 +803,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Dateien im Chat",
     "anchor": "#dateien-im-chat",
     "category": "Chat",
-    "text": "Du kannst PDFs und Bilder direkt im Chat hochladen, um sie als Kontext für deine Frage zu verwenden. Öffne dazu das „+\"-Menü im Eingabefeld und wähle Datei hinzufügen. Das Panel, das sich öffnet, führt oben Fotos & Dateien hochladen und darunter deine Dokumente, Notizbücher und gespeicherten Texte. Eine Webseite gibst du am schnellsten mit, indem du ihre URL direkt ins Eingabefeld einfügst. Mehr Details zu unterstützten Dateitypen und Einschränkungen findest du unter Dateien hinzufügen."
+    "text": "Du kannst PDFs und Bilder direkt im Chat hochladen, um sie als Kontext für deine Frage zu verwenden. Öffne dazu das „+\"-Menü im Eingabefeld und wähle Datei hinzufügen. Das Panel, das sich öffnet, führt oben Fotos & Dateien hochladen und darunter deine Dokumente, Notebooks und gespeicherten Texte. Eine Webseite gibst du am schnellsten mit, indem du ihre URL direkt ins Eingabefeld einfügst. Mehr Details zu unterstützten Dateitypen und Einschränkungen findest du unter Dateien hinzufügen."
   },
   {
     "url": "/docs/chat/ki-chat",
@@ -955,7 +955,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Favoriten",
     "anchor": "#favoriten",
     "category": "Grüneratoren",
-    "text": "Mit dem Stern auf einer Karte oder Detailseite markierst du einen Grünerator-Agenten oder ein Rezept als Favorit. Eigene, System- und Landesverbands-Grüneratoren werden dadurch an deine Seitenleiste angeheftet, sodass du sie mit einem Klick im Chat öffnen kannst. Grüneratoren, die jemand anderes gebaut und über ein Projekt mit dir geteilt hat, bleiben als Favorit in der Agentura — in der Seitenleiste erscheinen sie derzeit nicht."
+    "text": "Mit dem Stern auf einer Karte oder Detailseite markierst du einen Grünerator-Agenten oder ein Rezept als Favorit. Was danach passiert, ist für beide unterschiedlich. Grüneratoren heftest du damit an deine Seitenleiste an und öffnest sie von dort mit einem Klick im Chat. Das gilt für alle: eigene, System- und Landesverbands-Grüneratoren ebenso wie solche, die jemand anderes gebaut und über ein Projekt oder öffentlich mit dir geteilt hat. Rezepte werden nicht an die Seitenleiste geheftet. Sie sammeln sich im Favoriten-Regal oben in der Agentura — und im Chat stehen sie danach direkt im Plus-Menü neben dem Eingabefeld, ohne dass du sie erst suchen musst. Das gilt am Rechner wie in der App."
   },
   {
     "url": "/docs/grueneratoren/agentura",
@@ -1635,7 +1635,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Grünerator in ChatGPT & Co nutzen",
     "anchor": "",
     "category": "Integrationen",
-    "text": "Du kannst den Grünerator direkt in ChatGPT, Claude, Mistral Le Chat oder OpenWebUI verwenden — ohne gruenerator.eu öffnen zu müssen. Dein KI-Assistent durchsucht dann grüne Parteiprogramme, findet Positionen zu Themen und greift auf deine eigenen Grünerator-Inhalte zu: Dokumente, Boards, Notizbücher, Projekte. MCP (Model Context Protocol) ist ein offener Standard, über den KI-Chatbots auf externe Datenquellen zugreifen können — hier sorgt es dafür, dass dein Chat-Assistent den Grünerator nutzen kann."
+    "text": "Du kannst den Grünerator direkt in ChatGPT, Claude, Mistral Le Chat oder OpenWebUI verwenden — ohne gruenerator.eu öffnen zu müssen. Dein KI-Assistent durchsucht dann grüne Parteiprogramme, findet Positionen zu Themen und greift auf deine eigenen Grünerator-Inhalte zu: Dokumente, Boards, Notebooks, Projekte. MCP (Model Context Protocol) ist ein offener Standard, über den KI-Chatbots auf externe Datenquellen zugreifen können — hier sorgt es dafür, dass dein Chat-Assistent den Grünerator nutzen kann."
   },
   {
     "url": "/docs/integrationen/ki-chat-einrichten",
@@ -1811,7 +1811,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Deine eigenen Inhalte",
     "anchor": "#deine-eigenen-inhalte",
     "category": "Integrationen",
-    "text": "Weil die Verbindung an deinem Konto hängt, erreicht dein Assistent auch das, was im Grünerator dir gehört: Dokumente, Tabellen und Präsentationen, Boards und Aufgaben, Notizbücher, Projekte und Medien — je nachdem, wozu du beim Verbinden zugestimmt hast. „Liste meine Notizbücher auf\" „Was steht in meinem Wahlkampf-Notizbuch zur Verkehrswende?\" „Welche Aufgaben sind bei mir noch offen?\" „Leg mir ein Dokument mit einer Rede zum Thema X an\" Beim Notizbuch bekommst du eine belegte Antwort samt Quellenliste zurück. Die Suche im Parteikorpus liefert dagegen die gefundenen Textstellen und keine fertig formulierte Antwort — die schreibt dein KI-Assistent selbst daraus. Das ist der Unterschied zum Grünerator-Chat, der die Synthese übernimmt. Aktionen, die etwas löschen oder nach außen sichtbar machen, fragen immer zuerst nach. Erst nach deinem Ja werden sie ausgeführt."
+    "text": "Weil die Verbindung an deinem Konto hängt, erreicht dein Assistent auch das, was im Grünerator dir gehört: Dokumente, Tabellen und Präsentationen, Boards und Aufgaben, Notebooks, Projekte und Medien — je nachdem, wozu du beim Verbinden zugestimmt hast. „Liste meine Notebooks auf\" „Was steht in meinem Wahlkampf-Notebook zur Verkehrswende?\" „Welche Aufgaben sind bei mir noch offen?\" „Leg mir ein Dokument mit einer Rede zum Thema X an\" Beim Notebook bekommst du eine belegte Antwort samt Quellenliste zurück. Die Suche im Parteikorpus liefert dagegen die gefundenen Textstellen und keine fertig formulierte Antwort — die schreibt dein KI-Assistent selbst daraus. Das ist der Unterschied zum Grünerator-Chat, der die Synthese übernimmt. Aktionen, die etwas löschen oder nach außen sichtbar machen, fragen immer zuerst nach. Erst nach deinem Ja werden sie ausgeführt."
   },
   {
     "url": "/docs/integrationen/mcp-was-kann-ich-fragen",
@@ -2059,7 +2059,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Schritt 1: Deine Rolle eintragen",
     "anchor": "#schritt-1-deine-rolle-eintragen",
     "category": "Konto & Projekte",
-    "text": "Öffne die Einstellungen — über dein Profilbild unten in der Seitenleiste oder direkt über /settings. Geh zu Personalisierung. Wenn du den Grünerator zum ersten Mal benutzt, ist das gleich der erste Schritt der Einrichtung („Was machst du bei den Grünen?“). Unter Deine Rollen auf Hinzufügen. Wähle nacheinander: Ebene: Land Bundesland: dein Landesverband Rolle: Mitarbeiter*in Landesgeschäftsstelle (in Österreich: Mitarbeiter*in Landesorganisation) Der Assistent zeigt dir zum Schluss, was diese Rolle freischaltet — zum Beispiel „3 Agenten und 3 Rezepte sowie das Notizbuch Hessen erscheinen künftig in deiner Agentur und im Chat“. Speichern, fertig. Danach steht unter deinen Rollen ein Knopf „Zu deinem Landesverband“, der dich direkt in dein neues Regal bringt. Die Inhalte eines Landesverbands hängen an der Geschäftsstellen-Rolle und nur an ihr. Landtagsfraktion, MdL-Büro, Kreisverband oder Ortsverband geben zwar auch ein Bundesland an, schalten die LV-Grüneratoren aber nicht frei — sie sind das Material eines bestimmten Landesverbands, kein allgemeiner Bestand. Umgekehrt gilt: Ohne passende Rolle siehst du die LV-Inhalte nicht. Das ist Absicht und kein Fehler — vor der Zuteilung stand…"
+    "text": "Öffne die Einstellungen — über dein Profilbild unten in der Seitenleiste oder direkt über /settings. Geh zu Personalisierung. Wenn du den Grünerator zum ersten Mal benutzt, ist das gleich der erste Schritt der Einrichtung („Was machst du bei den Grünen?“). Unter Deine Rollen auf Hinzufügen. Wähle nacheinander: Ebene: Land Bundesland: dein Landesverband Rolle: Mitarbeiter*in Landesgeschäftsstelle (in Österreich: Mitarbeiter*in Landesorganisation) Der Assistent zeigt dir zum Schluss, was diese Rolle freischaltet — zum Beispiel „3 Agenten und 3 Rezepte sowie das Notebook Hessen erscheinen künftig in deiner Agentur und im Chat“. Speichern, fertig. Danach steht unter deinen Rollen ein Knopf „Zu deinem Landesverband“, der dich direkt in dein neues Regal bringt. Die Inhalte eines Landesverbands hängen an der Geschäftsstellen-Rolle und nur an ihr. Landtagsfraktion, MdL-Büro, Kreisverband oder Ortsverband geben zwar auch ein Bundesland an, schalten die LV-Grüneratoren aber nicht frei — sie sind das Material eines bestimmten Landesverbands, kein allgemeiner Bestand. Umgekehrt gilt: Ohne passende Rolle siehst du die LV-Inhalte nicht. Das ist Absicht und kein Fehler — vor der Zuteilung stand…"
   },
   {
     "url": "/docs/konto/landesverband-einrichten",
@@ -2067,7 +2067,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Schritt 2: Was du jetzt hast",
     "anchor": "#schritt-2-was-du-jetzt-hast",
     "category": "Konto & Projekte",
-    "text": "Ein eigenes Regal in der Agentura. Unter Dein Landesverband stehen die drei Grüneratoren deines Verbands — Öffentlichkeitsarbeit, Bürger*innenanfragen und Wahlprüfsteine — und darunter eure Rezepte, überschrieben mit dem Namen deines Landesverbands. Eure Rezepte im Chat. Die Presse- und Instagram-Rezepte deines Landesverbands tauchen jetzt in der Rezept-Liste des Chats auf und lassen sich mit @ erwähnen, etwa @presse-hessen-partei oder @insta-hessen. Welche es je Landesverband gibt, steht unter Landesverband-Grüneratoren. Euer Notizbuch. Die Wissensdatenbank deines Landesverbands (Pressemitteilungen, Beschlüsse, Wahlprogramme) erscheint in der Auswahl und lässt sich im Chat als Quelle erwähnen. Und die Automatik: Bittest du den Chat einfach um „eine Pressemitteilung zu …“, nimmt er von selbst eure Vorlage statt der allgemeinen. Du musst dafür nichts erwähnen und nichts einstellen — die Rolle in deinem Profil genügt. Das gilt im normalen Chat genauso wie dann, wenn du gerade in einer Rolle aus der Auswahlliste schreibst. Rollen, die du selbst formuliert hast, statt sie aus der Liste zu wählen, bringen ihre eigene Beschreibung mit — und die hat dann Vorrang vor der Automatik.…"
+    "text": "Ein eigenes Regal in der Agentura. Unter Dein Landesverband stehen die drei Grüneratoren deines Verbands — Öffentlichkeitsarbeit, Bürger*innenanfragen und Wahlprüfsteine — und darunter eure Rezepte, überschrieben mit dem Namen deines Landesverbands. Eure Rezepte im Chat. Die Presse- und Instagram-Rezepte deines Landesverbands tauchen jetzt in der Rezept-Liste des Chats auf und lassen sich mit @ erwähnen, etwa @presse-hessen-partei oder @insta-hessen. Welche es je Landesverband gibt, steht unter Landesverband-Grüneratoren. Euer Notebook. Die Wissensdatenbank deines Landesverbands (Pressemitteilungen, Beschlüsse, Wahlprogramme) erscheint in der Auswahl und lässt sich im Chat als Quelle erwähnen. Und die Automatik: Bittest du den Chat einfach um „eine Pressemitteilung zu …“, nimmt er von selbst eure Vorlage statt der allgemeinen. Du musst dafür nichts erwähnen und nichts einstellen — die Rolle in deinem Profil genügt. Das gilt im normalen Chat genauso wie dann, wenn du gerade in einer Rolle aus der Auswahlliste schreibst. Rollen, die du selbst formuliert hast, statt sie aus der Liste zu wählen, bringen ihre eigene Beschreibung mit — und die hat dann Vorrang vor der Automatik. Solange…"
   },
   {
     "url": "/docs/konto/landesverband-einrichten",
@@ -2075,7 +2075,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Wenn nichts erscheint",
     "anchor": "#wenn-nichts-erscheint",
     "category": "Konto & Projekte",
-    "text": "Dein Bundesland ist nicht dabei. Nicht jeder Landesverband hat eigene Grüneratoren, und einzelne haben sich gegen ein eigenes Notizbuch entschieden. Welche Landesverbände abgedeckt sind, steht aktuell auf der Seite Landesverband-Grüneratoren. Ist deiner nicht dabei, bleibt der Assistent stumm und verspricht nichts — die allgemeinen Rezepte (@presse, @instagram, @facebook, …) stehen dir wie allen anderen offen. Du hast die Rolle gerade erst angelegt. Das Regal erscheint, sobald die Einstellungen gespeichert sind; ein Neuladen der Seite hilft, wenn ein Tab schon länger offen stand. In der App genügt es, sie einmal neu zu starten. --- Was ihr mit den drei Grüneratoren jeweils machen könnt — Pressemitteilungen, Bürger*innenanfragen, Wahlprüfsteine — steht ausführlich unter Landesverband-Grüneratoren."
+    "text": "Dein Bundesland ist nicht dabei. Nicht jeder Landesverband hat eigene Grüneratoren, und einzelne haben sich gegen ein eigenes Notebook entschieden. Welche Landesverbände abgedeckt sind, steht aktuell auf der Seite Landesverband-Grüneratoren. Ist deiner nicht dabei, bleibt der Assistent stumm und verspricht nichts — die allgemeinen Rezepte (@presse, @instagram, @facebook, …) stehen dir wie allen anderen offen. Du hast die Rolle gerade erst angelegt. Das Regal erscheint, sobald die Einstellungen gespeichert sind; ein Neuladen der Seite hilft, wenn ein Tab schon länger offen stand. In der App genügt es, sie einmal neu zu starten. --- Was ihr mit den drei Grüneratoren jeweils machen könnt — Pressemitteilungen, Bürger*innenanfragen, Wahlprüfsteine — steht ausführlich unter Landesverband-Grüneratoren."
   },
   {
     "url": "/docs/konto/projekte",
@@ -2835,7 +2835,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Wenn du etwas nicht findest",
     "anchor": "#wenn-du-etwas-nicht-findest",
     "category": "Über den Grünerator",
-    "text": "Such nach dem Namen. Die Suche im Grünerator kennt auch die gängigen Bezeichnungen — „Untertitel\" findet die Reels, „OCR\" den Scanner. Manches gibt es nur im Web. Einige Werkzeuge brauchen eine große Oberfläche. In der App siehst du die Inhalte dann, kannst sie aber nicht überall bearbeiten. Bei jedem Werkzeug oben steht, wo es läuft. Namen, Beschreibungen und Pfade stammen direkt aus dem Programmcode des Grünerators. Kommt ein Werkzeug dazu oder wird eines umbenannt, meldet sich die Doku-Prüfung automatisch, bis die Seite nachgezogen ist — sie kann also nicht stillschweigend veralten. Es gibt mehrere Grünerator-Instanzen — neben dem allgemeinen etwa eine Testumgebung und eine für die Bundesgeschäftsstelle. Einzelne Instanzen können abweichen: nicht jede bietet alle hier beschriebenen Werkzeuge, Notizbücher und Grüneratoren an. Was deine Instanz anbietet, siehst du immer in ihrer eigenen Oberfläche."
+    "text": "Such nach dem Namen. Die Suche im Grünerator kennt auch die gängigen Bezeichnungen — „Untertitel\" findet die Reels, „OCR\" den Scanner. Manches gibt es nur im Web. Einige Werkzeuge brauchen eine große Oberfläche. In der App siehst du die Inhalte dann, kannst sie aber nicht überall bearbeiten. Bei jedem Werkzeug oben steht, wo es läuft. Namen, Beschreibungen und Pfade stammen direkt aus dem Programmcode des Grünerators. Kommt ein Werkzeug dazu oder wird eines umbenannt, meldet sich die Doku-Prüfung automatisch, bis die Seite nachgezogen ist — sie kann also nicht stillschweigend veralten. Es gibt mehrere Grünerator-Instanzen — neben dem allgemeinen etwa eine Testumgebung und eine für die Bundesgeschäftsstelle. Einzelne Instanzen können abweichen: nicht jede bietet alle hier beschriebenen Werkzeuge, Notebooks und Grüneratoren an. Was deine Instanz anbietet, siehst du immer in ihrer eigenen Oberfläche."
   },
   {
     "url": "/docs/ueber-den-gruenerator/wie-diese-doku-entsteht",
@@ -3115,7 +3115,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Landesverbände",
     "anchor": "#landesverbände",
     "category": "Wissen",
-    "text": "Die Landesverbände-Sammlung enthält 13.279 Vektoren aus 9 Quellen. Landesverband | Kürzel | Vektoren | ------------------------------- | ------ | ---------: | Mecklenburg-Vorpommern Fraktion | MV-F | 2.435 | Berlin Fraktion | BE-F | 2.258 | Brandenburg | BB | 2.170 | Berlin | BE | 1.829 | Mecklenburg-Vorpommern | MV | 1.417 | Sachsen-Anhalt Fraktion | LSA-F | 1.394 | Thüringen | TH | 773 | Bayern | BY | 721 | Sachsen-Anhalt | LSA | 282 | Gesamt | | 13.279 |"
+    "text": "Die Landesverbände-Sammlung enthält 25.616 Vektoren aus 13 Quellen. Landesverband | Kürzel | Vektoren | ------------------------------- | ------ | ---------: | Berlin | BE | 4.023 | Saarland | SL | 3.484 | Hessen Fraktion | HE-F | 3.232 | Bayern Fraktion | BY-F | 2.902 | Mecklenburg-Vorpommern Fraktion | MV-F | 2.441 | Berlin Fraktion | BE-F | 2.257 | Brandenburg | BB | 2.170 | Mecklenburg-Vorpommern | MV | 1.555 | Sachsen-Anhalt Fraktion | LSA-F | 1.414 | Thüringen | TH | 779 | Bayern | BY | 721 | Hessen | HE | 355 | Sachsen-Anhalt | LSA | 283 | Gesamt | | 25.616 |"
   },
   {
     "url": "/docs/wissen/inhaltsdatenbank",
@@ -3123,7 +3123,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Sammlungen",
     "anchor": "#sammlungen",
     "category": "Wissen",
-    "text": "Sammlung | Vektoren | -------------- | ---------: | Landesverbände | 19.717 | KommunalWiki | 6.889 | Bundestag | 3.305 | Böll-Stiftung | 2.219 | gruene.at | 1.007 | Grünblog | 576 | Gesamt | 33.713 |"
+    "text": "Sammlung | Vektoren | ---------------------- | ---------: | Landesverbände | 25.616 | Abgeordnetenwatch | 20.956 | KommunalWiki | 8.028 | Bundestag | 3.274 | Böll-Stiftung | 2.223 | gruene.at | 1.007 | Grundsatzprogramm | 968 | gruene.de | 858 | Grüne Österreich | 645 | Grünblog | 610 | Social-Media-Beispiele | 537 | Gesamt | 64.722 |"
   },
   {
     "url": "/docs/wissen/inhaltsdatenbank",
@@ -3131,7 +3131,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Übersicht",
     "anchor": "#übersicht",
     "category": "Wissen",
-    "text": "Der Grünerator durchsucht und indexiert Inhalte aus verschiedenen Quellen der Grünen Partei. Insgesamt sind 33.713 Vektoren in der Datenbank gespeichert."
+    "text": "Der Grünerator durchsucht und indexiert Inhalte aus verschiedenen Quellen der Grünen Partei. Insgesamt sind 64.722 Vektoren in der Datenbank gespeichert."
   },
   {
     "url": "/docs/wissen/landesverbaende",
@@ -3139,7 +3139,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Landesverband-Grüneratoren",
     "anchor": "",
     "category": "Wissen",
-    "text": "Der Grünerator hat für mehrere Landesverbände eigene, regional getunte Grüneratoren. Sie schreiben nicht generisch-grün, sondern im konkreten Stil des jeweiligen Landesverbands — mit den richtigen Sprecher*innen, den lokalen Themen und der typischen Tonalität. Im Hintergrund recherchieren sie automatisch in der Wissensdatenbank des Landesverbands (Pressemitteilungen, Beschlüsse, Wahlprogramme) und im Web. Es gibt drei Sorten von Landesverband-Grüneratoren: Öffentlichkeitsarbeit — schreibt Pressemitteilungen und Social-Media-Posts im Stil des Landesverbands. Bürger*innenanfragen — formuliert versandfertige, recherchebasierte Antwort-E-Mails auf Anfragen von Bürger*innen. Wahlprüfsteine — beantwortet Fragenkataloge von Verbänden und Initiativen, im Format des Katalogs und im Stil des Landesverbands. Die Grüneratoren, Rezepte und Notizbücher eines Landesverbands sind seinen Leuten zugeteilt: Sie erscheinen, sobald du in deinem Profil die Rolle Mitarbeiter*in Landesgeschäftsstelle (Österreich: Landesorganisation) mit deinem Bundesland hinterlegt hast. Wie das geht, steht unter Für deinen Landesverband einrichten."
+    "text": "Der Grünerator hat für mehrere Landesverbände eigene, regional getunte Grüneratoren. Sie schreiben nicht generisch-grün, sondern im konkreten Stil des jeweiligen Landesverbands — mit den richtigen Sprecher*innen, den lokalen Themen und der typischen Tonalität. Im Hintergrund recherchieren sie automatisch in der Wissensdatenbank des Landesverbands (Pressemitteilungen, Beschlüsse, Wahlprogramme) und im Web. Es gibt drei Sorten von Landesverband-Grüneratoren: Öffentlichkeitsarbeit — schreibt Pressemitteilungen und Social-Media-Posts im Stil des Landesverbands. Bürger*innenanfragen — formuliert versandfertige, recherchebasierte Antwort-E-Mails auf Anfragen von Bürger*innen. Wahlprüfsteine — beantwortet Fragenkataloge von Verbänden und Initiativen, im Format des Katalogs und im Stil des Landesverbands. Die Grüneratoren, Rezepte und Notebooks eines Landesverbands sind seinen Leuten zugeteilt: Sie erscheinen, sobald du in deinem Profil die Rolle Mitarbeiter*in Landesgeschäftsstelle (Österreich: Landesorganisation) mit deinem Bundesland hinterlegt hast. Wie das geht, steht unter Für deinen Landesverband einrichten."
   },
   {
     "url": "/docs/wissen/landesverbaende",

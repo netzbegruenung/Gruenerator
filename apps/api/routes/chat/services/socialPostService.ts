@@ -124,7 +124,7 @@ export async function generateSocialPostText(opts: {
       ? `\nDie*der Nutzer*in hat ausdrücklich ${userLimits.join(' und ')} verlangt. Das ist BINDEND und geht dem Plattform-Budget vor — zähle nach, bevor du antwortest.`
       : '';
 
-  const systemPrompt = `${buildSocialMediaSystemPrompt(state)}${urlBlock}
+  const systemPrompt = `${await buildSocialMediaSystemPrompt(state)}${urlBlock}
 
 ## ZEICHENBUDGET
 Ziel: ~${target} Zeichen. Hartes Maximum: ${hardMax} Zeichen (inklusive Hashtags).${userLimitBlock}
