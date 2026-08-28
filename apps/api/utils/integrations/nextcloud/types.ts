@@ -35,14 +35,6 @@ export interface ShareLinkDeletionResult {
 }
 
 /**
- * Deactivation result
- */
-export interface DeactivationResult {
-  success: boolean;
-  deactivatedCount: number;
-}
-
-/**
  * Usage statistics
  */
 export interface UsageStats {

@@ -11,7 +11,6 @@ import type {
   NextcloudShareLink,
   ShareLinkValidation,
   ShareLinkDeletionResult,
-  DeactivationResult,
   UsageStats,
   ShareLinkUpdates,
   SharedWithUserLink,
@@ -353,68 +352,6 @@ export class NextcloudShareManager {
       no_share_token: 'Invalid Nextcloud share link format',
     };
     return { isValid: false, error: errors[check.problem] };
-  }
-
-  /**
-   * Deactivate all share links for a user (useful for security)
-   */
-  static async deactivateAllShareLinks(userId: string): Promise<DeactivationResult> {
-    try {
-      console.log('[NextcloudShareManager] Deactivating all share links for user', { userId });
-
-      if (!userId) {
-        throw new Error('User ID is required');
-      }
-
-      const postgres = await this.getPostgres();
-
-      // Get current profile
-      const profile = await postgres.queryOne(
-        'SELECT nextcloud_share_links FROM profiles WHERE id = $1',
-        [userId],
-        { table: 'profiles' }
-      );
-
-      const rawCurrentLinksDeactivate: unknown = profile?.nextcloud_share_links;
-      const currentLinks: NextcloudShareLink[] = Array.isArray(rawCurrentLinksDeactivate)
-        ? (rawCurrentLinksDeactivate as NextcloudShareLink[])
-        : [];
-
-      // Deactivate all links
-      const updatedLinks = currentLinks.map((link: NextcloudShareLink) => ({
-        ...link,
-        is_active: false,
-        updated_at: new Date().toISOString(),
-      }));
-
-      // Update the profile if there were any links to deactivate
-      if (currentLinks.length > 0) {
-        const result = await postgres.update(
-          'profiles',
-          { nextcloud_share_links: JSON.stringify(updatedLinks) },
-          { id: userId }
-        );
-
-        if (!result) {
-          throw new Error('Failed to deactivate share links - profile not found');
-        }
-      }
-
-      console.log('[NextcloudShareManager] Share links deactivated', {
-        userId,
-        count: currentLinks.length,
-      });
-
-      return {
-        success: true,
-        deactivatedCount: currentLinks.length,
-      };
-    } catch (error) {
-      console.error('[NextcloudShareManager] Error in deactivateAllShareLinks', {
-        error: (error as Error).message,
-      });
-      throw error;
-    }
   }
 
   /**

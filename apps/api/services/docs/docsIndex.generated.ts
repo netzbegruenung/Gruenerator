@@ -1984,6 +1984,14 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   {
     "url": "/docs/konto/gruene-wolke",
     "pageTitle": "Wolke einbinden",
+    "heading": "Im Chat",
+    "anchor": "#im-chat",
+    "category": "Konto & Projekte",
+    "text": "Sobald eine Verbindung steht, kann der Chat damit arbeiten, ohne dass du erst eine Datei aussuchst. Frag einfach: „Welche Wolke-Ordner habe ich?\", „Was liegt in Anträge?\", „Such mir die Datei mit Parteitag im Namen\" oder „Lies mir rede.pdf vor\" — Zitate aus der Datei erscheinen wie bei jeder anderen Quelle. Du kannst auch eine neue Verbindung direkt im Chat anlegen: füge den Freigabe-Link in eine Nachricht ein. Der Grünerator prüft ihn zuerst und fragt dich dann, ob er ihn hinzufügen soll — gespeichert wird nichts, bevor du zustimmst. Über @wolke bleibt daneben die Dateiauswahl im Eingabefeld, wenn du genau eine bestimmte Datei anhängen willst. Auch hier gilt der Zugriff von oben: Der Chat liest, listet und sucht — er legt nichts an, ändert nichts und löscht nichts in deiner Wolke. Und er sieht ausschließlich das, was in den freigegebenen Ordnern liegt; deine übrige Wolke bleibt unsichtbar."
+  },
+  {
+    "url": "/docs/konto/gruene-wolke",
+    "pageTitle": "Wolke einbinden",
     "heading": "Schritt 1: Ordner auswählen",
     "anchor": "#schritt-1-ordner-auswählen",
     "category": "Konto & Projekte",
