@@ -2,7 +2,6 @@
  * Wolke Controller - Wolke integration for document sync and import
  *
  * Handles:
- * - GET /sync-status - Get user's sync status
  * - POST /sync - Start folder sync
  * - POST /auto-sync - Set auto-sync for folder
  * - GET /browse/:shareLinkId - Browse files in Wolke share
@@ -60,32 +59,6 @@ const wolkeFileInfoSchema = z.object({
 const wolkeImportSchema = z.object({
   shareLinkId: z.string().min(1),
   files: z.array(wolkeFileInfoSchema).min(1),
-});
-
-/**
- * GET /sync-status - Get user's sync status
- */
-router.get('/sync-status', async (req: DocumentRequest, res: Response): Promise<void> => {
-  try {
-    const userId = req.user?.id;
-    if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
-
-    const syncStatuses = await wolkeSyncService.getUserSyncStatus(userId);
-
-    res.json({
-      success: true,
-      syncStatuses,
-    });
-  } catch (error) {
-    log.error('[GET /sync-status] Error:', error);
-    res.status(500).json({
-      success: false,
-      message: (error as Error).message || 'Failed to get sync status',
-    });
-  }
 });
 
 /**

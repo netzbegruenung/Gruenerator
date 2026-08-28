@@ -4,7 +4,6 @@ import {
   useTestConnection,
   validateShareLink,
   type ConnectionErrorCode,
-  type WolkeScope,
 } from '@gruenerator/wolke';
 import { AnimatePresence, motion } from 'motion/react';
 import { memo, useState } from 'react';
@@ -24,8 +23,6 @@ interface WolkeSetupWizardProps {
   onSuccess?: (message: string) => void;
   onError?: (message: string) => void;
   onCancel?: () => void;
-  scope?: WolkeScope;
-  scopeId?: string | null;
 }
 
 const TOTAL_STEPS = 4;
@@ -96,21 +93,15 @@ const StepImage = memo(({ src, alt }: { src: string; alt: string }) => {
 });
 StepImage.displayName = 'StepImage';
 
-const WolkeSetupWizard = ({
-  onSuccess,
-  onError,
-  onCancel,
-  scope,
-  scopeId,
-}: WolkeSetupWizardProps) => {
+const WolkeSetupWizard = ({ onSuccess, onError, onCancel }: WolkeSetupWizardProps) => {
   const [step, setStep] = useState(0);
   const [shareLink, setShareLink] = useState('');
   const [label, setLabel] = useState('');
   const [isTesting, setIsTesting] = useState(false);
   const [errorCode, setErrorCode] = useState<ConnectionErrorCode | null>(null);
 
-  const addMutation = useAddShareLink(scope, scopeId);
-  const testMutation = useTestConnection(scope, scopeId);
+  const addMutation = useAddShareLink();
+  const testMutation = useTestConnection();
 
   const isValidLink = shareLink.trim().length > 0 && validateShareLink(shareLink).isValid;
 

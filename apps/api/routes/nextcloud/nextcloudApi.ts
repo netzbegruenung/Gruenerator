@@ -509,35 +509,4 @@ router.put(
   }
 );
 
-/**
- * Debug route to check database state
- * GET /api/nextcloud/debug/database-state
- */
-router.get('/debug/database-state', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const userId = req.user?.id;
-    if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
-
-    log.debug('[NextcloudApi] Debug: Checking database state', { userId });
-
-    const dbState = await NextcloudShareManager.checkDatabaseState(userId);
-
-    res.json({
-      success: true,
-      debug: true,
-      ...dbState,
-    });
-  } catch (error) {
-    const err = error as Error;
-    log.error('[NextcloudApi] Error checking database state', { error: err.message });
-    res.status(500).json({
-      error: 'Failed to check database state',
-      message: toUserFacingMessage(err),
-    });
-  }
-});
-
 export default router;

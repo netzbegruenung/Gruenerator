@@ -1,12 +1,10 @@
 import { Button } from '@gruenerator/ui';
-import { useAddShareLink, validateShareLink, type WolkeScope } from '@gruenerator/wolke';
+import { useAddShareLink, validateShareLink } from '@gruenerator/wolke';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 
 import { cn } from '@/utils/cn';
 
 interface WolkeAddFormProps {
-  scope?: WolkeScope;
-  scopeId?: string | null;
   onSuccess?: (message: string) => void;
   onError?: (message: string) => void;
 }
@@ -14,12 +12,12 @@ interface WolkeAddFormProps {
 const INPUT_CLASS =
   'w-full rounded-lg border border-grey-200 dark:border-grey-700 bg-background px-md py-md text-base focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 disabled:opacity-50';
 
-const WolkeAddForm = ({ scope, scopeId, onSuccess, onError }: WolkeAddFormProps) => {
+const WolkeAddForm = ({ onSuccess, onError }: WolkeAddFormProps) => {
   const [url, setUrl] = useState('');
   const [label, setLabel] = useState('');
   const [validationError, setValidationError] = useState('');
 
-  const addMutation = useAddShareLink(scope, scopeId);
+  const addMutation = useAddShareLink();
   const labelRef = useRef<HTMLInputElement>(null);
 
   const isValidLink = validateShareLink(url).isValid;
