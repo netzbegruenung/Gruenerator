@@ -49,11 +49,6 @@
     "subtitle": "Recherche im Netz",
     "path": "/suche"
   },
-  "catalog.tool-transfer": {
-    "title": "Transfer",
-    "subtitle": "Dateien sicher übertragen",
-    "path": "/transfer"
-  },
   "catalog.tool-transkription": {
     "title": "Transkription",
     "subtitle": "Audio mit KI verschriftlichen",
