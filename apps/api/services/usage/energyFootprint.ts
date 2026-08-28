@@ -5,8 +5,11 @@
  * confused:
  *
  *  1. MEASURED — GreenPT returns an `impact` object (energy in Wms, emissions
- *     in ugCO2e) on every chat and embeddings response. Those values are stored
- *     verbatim in `user_usage_daily`. See `greenptImpact.ts` for the capture.
+ *     in ugCO2e) on every chat, embeddings and rerank response. Those values are
+ *     stored verbatim in `user_usage_daily`. See `greenptImpact.ts` for the
+ *     capture, and `search/GreenPTRerankService.ts` for the rerank one — the
+ *     rerank rows carry energy with zero tokens and zero requests, which is why
+ *     the measured branch below must not gate on either.
  *  2. ESTIMATED — every other provider reports nothing. For those we multiply
  *     the token counts we already record by the coefficients below.
  *
