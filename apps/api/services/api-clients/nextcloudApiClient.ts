@@ -1,3 +1,4 @@
+import { parseCloudShareLink } from '@gruenerator/shared/utils';
 import axios, { type AxiosInstance, type AxiosError } from 'axios';
 
 import { toUserFacingMessage } from '../../utils/errors/index.js';
@@ -8,6 +9,23 @@ export interface ParsedShareLink {
   baseUrl: string;
   shareToken: string;
   fullPath: string;
+}
+
+/**
+ * Der WebDAV-Etag kommt aus dem Regex-Parser HTML-entity-escapt heraus
+ * (`&quot;…&quot;`), weil der Anführungszeichen-Strip nur echte Zeichen kennt.
+ * Normalisiert wurde das bisher NUR im Scraper-Pfad (`wolkeShareHandler`) — der
+ * Sync-Pfad speicherte den escapten Wert, und `WolkeSyncService.hasFileChanged`
+ * verglich ihn danach gegen einen sauberen. Die Normalisierung gehört an die
+ * Quelle, damit jeder Verbraucher denselben Wert sieht.
+ */
+export function normalizeWebdavEtag(etag: string | null | undefined): string | null {
+  if (!etag) return null;
+  const cleaned = etag
+    .replace(/&quot;/g, '')
+    .replace(/^["']|["']$/g, '')
+    .trim();
+  return cleaned || null;
 }
 
 export type ConnectionErrorCode = 'invalid_link' | 'not_found' | 'forbidden' | 'unknown';
@@ -150,27 +168,7 @@ class NextcloudApiClient {
    * Parse Nextcloud share link to extract components
    */
   private parseShareLink(shareLink: string): ParsedShareLink | null {
-    try {
-      const urlObj = new URL(shareLink);
-      const pathMatch = urlObj.pathname.match(/\/s\/([A-Za-z0-9]+)/);
-
-      if (!pathMatch) {
-        return null;
-      }
-
-      return {
-        baseUrl: `${urlObj.protocol}//${urlObj.host}`,
-        shareToken: pathMatch[1],
-        fullPath: urlObj.pathname + urlObj.search,
-      };
-    } catch (error) {
-      const err = error as Error;
-      console.error('[NextcloudApiClient] Error parsing share link', {
-        shareLink,
-        error: err.message,
-      });
-      return null;
-    }
+    return parseCloudShareLink(shareLink);
   }
 
   /**
@@ -379,11 +377,7 @@ class NextcloudApiClient {
               return;
             }
 
-            // Clean up etag value - remove quotes if present
-            let etag: string | null = null;
-            if (etagMatch && etagMatch[1]) {
-              etag = etagMatch[1].trim().replace(/^["']|["']$/g, '');
-            }
+            const etag = normalizeWebdavEtag(etagMatch?.[1]);
 
             // For directories, extract name from href (trailing slash)
             let name = displayNameMatch ? displayNameMatch[1].trim() : '';

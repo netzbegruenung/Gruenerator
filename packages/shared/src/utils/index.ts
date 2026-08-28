@@ -47,6 +47,16 @@ export {
   extractSlugSuffix,
 } from './slug.js';
 
+// Nextcloud share links — one parser for API, web and the chat classifier
+export {
+  parseCloudShareLink,
+  checkCloudShareLink,
+  isCloudShareUrl,
+  type ParsedCloudShareLink,
+  type CloudShareLinkCheck,
+  type CloudShareLinkProblem,
+} from './cloudShareLink.js';
+
 // Usage-based ranking (favourites-first ordering for notebooks & agents)
 export { compareUsageStats, sortByUsage } from './usageRanking.js';
 export type { UsageStat, UsageMap } from './usageRanking.js';
