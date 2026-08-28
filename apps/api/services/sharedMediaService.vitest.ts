@@ -33,11 +33,10 @@ vi.mock('../database/services/PostgresService.js', () => ({
   }),
 }));
 
-const {
-  default: SharedMediaService,
-  MediaQuotaExceededError,
-  USER_VISIBLE_SHARE_STATUSES,
-} = await import('./sharedMediaService.js');
+const { default: SharedMediaService, MediaQuotaExceededError } =
+  await import('./sharedMediaService.js');
+const { LIBRARY_ITEM_CLAUSE, USER_VISIBLE_SHARE_STATUSES } =
+  await import('./sharedMediaFilters.js');
 const { MEDIA_LIBRARY_ITEM_LIMIT } = await import('@gruenerator/shared/media-library/constants');
 
 /** The `content_origin` predicate, whitespace-insensitive. */
@@ -154,7 +153,7 @@ describe('getLibraryUsage', () => {
 
     const call = queryOne.mock.calls[0]!;
     const statuses = call[1][1] as string[];
-    expect(call[0]).toContain('COALESCE(is_library_item, TRUE) = TRUE');
+    expect(call[0]).toContain(LIBRARY_ITEM_CLAUSE);
     expect(call[0]).toContain('status = ANY($2::text[])');
     expect(statuses).toEqual([...USER_VISIBLE_SHARE_STATUSES]);
     expect(statuses).not.toContain('failed');
