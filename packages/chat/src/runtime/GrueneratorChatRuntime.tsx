@@ -35,7 +35,7 @@ import { ChatNavigationProvider } from '../context/ChatNavigationContext';
 import { ChatRuntimeReadyProvider } from '../context/ChatRuntimeReadyContext';
 import { ExternalThreadProvider } from '../context/ExternalThreadContext';
 import { useChatCollaboration } from '../hooks/useChatCollaboration';
-import { useQueueInterruptGuard } from '../hooks/useQueueInterruptGuard';
+import { useInterruptSignal, useQueueInterruptGuard } from '../hooks/useQueueInterruptGuard';
 import { adoptRejection } from '../lib/adoptRejection';
 import { getDefaultAgent } from '../lib/agents';
 import { handleDictationError } from '../lib/dictationErrorHandler';
@@ -298,9 +298,15 @@ function useGrueneratorThreadRuntime() {
     [incrementMessageCount, triggerCompaction, runtimeApiClient]
   );
 
+  const interruptSignal = useInterruptSignal();
   const modelAdapter = useMemo(
-    () => createGrueneratorModelAdapter(getConfig, { onThreadCreated, onComplete }),
-    [getConfig, onThreadCreated, onComplete]
+    () =>
+      createGrueneratorModelAdapter(getConfig, {
+        onThreadCreated,
+        onComplete,
+        onInterrupt: interruptSignal.notify,
+      }),
+    [getConfig, onThreadCreated, onComplete, interruptSignal]
   );
 
   const dictationAdapter = useMemo(
@@ -352,11 +358,19 @@ function useGrueneratorThreadRuntime() {
     []
   );
 
-  return useLocalRuntime(modelAdapter, {
+  const runtime = useLocalRuntime(modelAdapter, {
     unstable_humanToolNames: ['ask_human'],
     unstable_enableMessageQueue: MESSAGE_QUEUE_ENABLED,
     adapters: { dictation: dictationAdapter, voice: voiceAdapter, feedback: feedbackAdapter },
   });
+
+  // Per thread, not around the thread list: this hook runs once per thread
+  // runtime, so `modelAdapter`, `runtime` and the queue being emptied all belong
+  // to the same thread. An interrupt on a thread the user has since left leaves
+  // the visible thread's queue alone.
+  useQueueInterruptGuard(runtime, interruptSignal);
+
+  return runtime;
 }
 
 /**
@@ -491,13 +505,6 @@ export function GrueneratorChatRuntimeProvider({
     runtimeHook: useGrueneratorThreadRuntime,
     adapter: threadListAdapter,
   });
-
-  // Paired with `unstable_enableMessageQueue` above: this runtime declares
-  // ask_human as a human tool, so an interrupt parks the message at
-  // `requires-action` — the one shape the guard can recognise. A surface that
-  // enables the queue without that needs its own answer first; see the note in
-  // EditorAssistantProvider.
-  useQueueInterruptGuard(runtime);
 
   // MCP-Apps widget host (SYSTEM MCP tools only): renders any tool part carrying
   // a `ui://` mcp.app pointer as a sandboxed widget iframe, driven through the
