@@ -25,14 +25,28 @@
  * That gap is ONE case out of 52 — noise, not an improvement. The claim it
  * supports is only the negative one: switching host costs no retrieval quality.
  *
- * One thing that eval does NOT cover: it runs with `minRelevance: 0`, so it
- * scores ordering and never exercises the threshold. GreenPT's scores sit
- * consistently ~0.02-0.05 BELOW Regolo's on the same input (0.427/0.472,
- * 0.685/0.706, 0.453/0.475), and against a fixed `RERANK_MIN_RELEVANCE` of 0.2
- * that can drop a borderline candidate the other host would have kept — seen
- * once in a five-document probe. Small, one-directional, and unmeasured on the
- * production corpus. If reranked result counts ever look thinner than expected,
- * this is the first place to look.
+ * That eval runs with `minRelevance: 0`, so it scores ordering and never
+ * touches the threshold — the one place a lower score distribution could bite.
+ * Measured separately and PAIRED: the same 48 production candidate sets, both
+ * hosts scoring the IDENTICAL document list, 1046 document pairs.
+ *
+ *     score delta (GreenPT - Regolo)   median -0.010, range -0.164 … +0.140
+ *     kept above 0.2                   GreenPT 783, Regolo 804  (-21, -2.6 %)
+ *     threshold crossings              30 down, 9 up — all inside 0.149-0.200
+ *     top-ranked document differs      3 of 48 cases
+ *
+ * So the offset is real, but half of what a three-document probe suggested,
+ * and not one-directional — nine documents crossed upward. Of the 30 dropped
+ * documents 5 are gold; in four of those cases another gold document survives,
+ * and ONE case loses its only one (`grundsatz-btw25-wirtschaft`, 3 candidates,
+ * gold at 0.1982 against Regolo's 0.2122).
+ *
+ * That case is covered wherever the caller passes `minKeep: 5`
+ * (`rerankNotebookResults`, the research router): re-scored with production's
+ * minKeep, ZERO cases lose their gold document. `rerankNode` and
+ * `pastChatRecallService` pass no minKeep and keep the exposure — one case in
+ * 48, at the threshold's own edge. If reranked result counts ever look thinner
+ * than expected, the 0.15-0.20 band is where to look.
  *
  * WHY SWITCH AT ALL: GreenPT returns an `impact` object and Regolo returns
  * nothing. Reranking was a blind spot in the footprint the "Nutzung" tab shows
