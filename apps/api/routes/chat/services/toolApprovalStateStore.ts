@@ -2,6 +2,7 @@ import { createLogger } from '../../../utils/logger.js';
 import { parseJSON } from '../../../utils/parseJSON.js';
 import redisClient from '../../../utils/redis/client.js';
 
+import { DEFAULT_LOOP_BUDGET } from './agenticLoop/types.js';
 import { type StoredRequestContext } from './pipelineStateStore.js';
 
 import type { PendingToolCall, PersistedStep } from './agenticLoop/types.js';
@@ -14,7 +15,16 @@ const log = createLogger('ToolApprovalStateStore');
 const TTL_SECONDS = 24 * 60 * 60;
 const REDIS_PREFIX = 'tool_approval_state:';
 const CLAIM_PREFIX = 'tool_approval_claim:';
-const CLAIM_TTL_SECONDS = 120;
+/**
+ * Muss den Zug überdauern, den er schützt — sonst läuft der Anspruch mitten in
+ * der Fortsetzung ab und ein zweiter Tab (oder ein Wiederholungsversuch nach
+ * einer scheinbaren Zeitüberschreitung) führt denselben freigegebenen Aufruf
+ * ein zweites Mal aus. Obergrenze eines Zuges ist `DEFAULT_LOOP_BUDGET.hardCapMs`
+ * plus die freigegebenen Aufrufe davor (bis zu 90 s je Werkzeug, nacheinander).
+ * Der Puffer deckt die; der Anspruch wird ohnehin bei Fehlschlag und erneuter
+ * Pause ausdrücklich zurückgegeben, die Frist ist nur das Netz darunter.
+ */
+const CLAIM_TTL_SECONDS = DEFAULT_LOOP_BUDGET.hardCapMs / 1000 + 600;
 
 export interface StoredApprovalState {
   approvalTurnId: string;
