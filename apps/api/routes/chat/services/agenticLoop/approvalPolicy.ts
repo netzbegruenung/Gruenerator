@@ -63,6 +63,17 @@ export function evaluateApproval(params: {
   return { required: true, scopeKey };
 }
 
-export function isToolApprovalEnabled(): boolean {
-  return process.env.CHAT_TOOL_APPROVAL === 'true';
+/**
+ * `shadow` berechnet jedes Verdikt wie `enforce`, hält aber nichts zurück: der
+ * Zug läuft durch, und im Log steht, wobei gefragt worden wäre. Damit lässt
+ * sich vor dem Scharfschalten an echtem Verkehr messen, wie oft das Gate feuern
+ * würde und für welche Werkzeuge — die Zahl, an der die Ausnahme für lesende
+ * Konnektor-Werkzeuge (#3018) hängt.
+ */
+export type ToolApprovalMode = 'off' | 'shadow' | 'enforce';
+
+export function toolApprovalMode(): ToolApprovalMode {
+  const raw = process.env.CHAT_TOOL_APPROVAL?.trim().toLowerCase();
+  if (raw === 'shadow') return 'shadow';
+  return raw === 'true' ? 'enforce' : 'off';
 }

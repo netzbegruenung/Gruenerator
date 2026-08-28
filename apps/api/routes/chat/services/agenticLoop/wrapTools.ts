@@ -145,7 +145,7 @@ export interface WrapToolsContext {
    *  zusätzlich awaitet). */
   hooks?: ToolHooks;
   /** Freigabe-Gate. Nicht gesetzt ⇒ jeder Aufruf läuft wie bisher durch. */
-  approvalGate?: Pick<ToolApprovalGate, 'hold'>;
+  approvalGate?: Pick<ToolApprovalGate, 'decide'>;
 }
 
 function isErrorResult(value: unknown): boolean {
@@ -334,7 +334,15 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
       // stehen, der wirklich läuft. Der Rückgabewert erreicht das Modell in der
       // Regel nicht mehr (das Gate bricht den Zug ab); er ist die harmlose
       // Antwort für ein Geschwister, das den Abbruch noch überholt.
-      if (ctx.approvalGate?.hold({ toolName, stepId, args })) {
+      const approval = ctx.approvalGate?.decide({ toolName, stepId, args });
+      if (approval?.kind === 'refuse') {
+        // Schon abgelehnt: weder ausführen noch ein zweites Mal fragen. Ohne
+        // diesen Zweig endet eine Ablehnung in einer Schleife — das Modell liest
+        // den Fehler als Korrekturaufforderung, ruft umformuliert erneut, und
+        // das Gate pausiert den Zug ein weiteres Mal.
+        return { error: approval.modelMessage };
+      }
+      if (approval?.kind === 'hold') {
         return { error: 'Warte auf die Freigabe durch die Nutzer*in.' };
       }
 

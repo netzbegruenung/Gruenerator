@@ -578,7 +578,7 @@ export function wrapAssembledTools(
     perCallTimeoutMs: number;
     toolLabels: Map<string, ToolLabel>;
     /** Freigabe-Gate. Nicht gesetzt ⇒ es wird nie gefragt. */
-    approvalGate?: Pick<ToolApprovalGate, 'hold'>;
+    approvalGate?: Pick<ToolApprovalGate, 'decide'>;
     /** Only unified mode streams answer text WHILE tools run, so its `text`
      *  length is a meaningful per-tool offset. In split mode the answer stays
      *  empty through the whole gather phase → return null so no (all-0) offsets
