@@ -267,9 +267,6 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
     summaryContext: null,
     summaryTimeMs: 0,
 
-    // Combined social post (set by the execution stage for social_post)
-    socialPostResult: null,
-
     // Chart generation (will be set by chart node)
     chartData: null,
 

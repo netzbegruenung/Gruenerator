@@ -111,7 +111,6 @@ describe('selectProviderAndModel — provider and model agree', () => {
       'wahlprogramm',
       'buergeranfragen',
       'social',
-      'social_post_generation',
       'social_post_edit',
       'subtitler_social',
     ];

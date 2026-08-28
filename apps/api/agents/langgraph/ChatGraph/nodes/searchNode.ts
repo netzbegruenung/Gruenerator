@@ -1752,7 +1752,6 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         break;
       }
 
-      case 'social_post': // combined post grounds its text half on social examples
       case 'examples': {
         // Nur noch `social`. Die zweite Sorte, `press`, war der ganze
         // Executor-Anteil des stillgelegten `pressemitteilung_examples` — sie
