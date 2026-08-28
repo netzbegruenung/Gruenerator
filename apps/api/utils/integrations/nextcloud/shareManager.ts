@@ -3,6 +3,8 @@
  * Manages Nextcloud share links for users
  */
 
+import { checkCloudShareLink } from '@gruenerator/shared/utils';
+
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 
 import type {
@@ -334,58 +336,23 @@ export class NextcloudShareManager {
    * Validate share link format
    */
   static validateShareLink(shareLink: string): ShareLinkValidation {
-    try {
-      if (!shareLink || typeof shareLink !== 'string') {
-        return {
-          isValid: false,
-          error: 'Share link is required and must be a string',
-        };
-      }
-
-      // Check if it's a valid URL
-      let urlObj: URL;
-      try {
-        urlObj = new URL(shareLink);
-      } catch {
-        return {
-          isValid: false,
-          error: 'Invalid URL format',
-        };
-      }
-
-      // Check if it matches Nextcloud share pattern
-      const sharePattern = /\/s\/[A-Za-z0-9]+/;
-      if (!sharePattern.test(urlObj.pathname)) {
-        return {
-          isValid: false,
-          error: 'Invalid Nextcloud share link format',
-        };
-      }
-
-      // Extract share token
-      const tokenMatch = urlObj.pathname.match(/\/s\/([A-Za-z0-9]+)/);
-      if (!tokenMatch) {
-        return {
-          isValid: false,
-          error: 'Could not extract share token',
-        };
-      }
-
+    const check = checkCloudShareLink(shareLink);
+    if (check.ok) {
       return {
         isValid: true,
-        shareToken: tokenMatch[1],
-        baseUrl: `${urlObj.protocol}//${urlObj.host}`,
+        shareToken: check.parsed.shareToken,
+        baseUrl: check.parsed.baseUrl,
         error: null,
       };
-    } catch (error) {
-      console.error('[NextcloudShareManager] Error validating share link', {
-        error: (error as Error).message,
-      });
-      return {
-        isValid: false,
-        error: 'Validation error: ' + (error as Error).message,
-      };
     }
+    // The parse lives in @gruenerator/shared; the wording stays here, because
+    // this surface answers in English and the web one in German.
+    const errors: Record<typeof check.problem, string> = {
+      empty: 'Share link is required and must be a string',
+      not_a_url: 'Invalid URL format',
+      no_share_token: 'Invalid Nextcloud share link format',
+    };
+    return { isValid: false, error: errors[check.problem] };
   }
 
   /**
