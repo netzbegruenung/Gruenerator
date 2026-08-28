@@ -373,6 +373,9 @@ export {
   setCustomAgents,
   getCustomAgentMentionables,
   customAgentToMentionable,
+  setUserAgentMentionables,
+  getUserAgentMentionables,
+  userAgentToMentionable,
   setBoardMentionables,
   getBoardMentionables,
   boardToolMentionables,
@@ -387,6 +390,7 @@ export {
   type MentionableType,
   type MentionableCategory,
   type CustomAgentMentionable,
+  type UserAgentMentionable,
   type BoardMentionable,
   type DocMentionable,
 } from './lib/mentionables';
@@ -398,6 +402,7 @@ export {
   syncMcpServers,
   syncSheets,
   syncTextforms,
+  syncUserAgents,
   syncUserNotebooks,
   type MentionableFetch,
 } from './lib/mentionableSync';
