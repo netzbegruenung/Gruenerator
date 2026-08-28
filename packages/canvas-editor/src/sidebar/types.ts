@@ -72,8 +72,9 @@ export interface TextSectionProps {
 }
 
 export interface BackgroundSectionProps {
-  // Color props
-  colors: BackgroundColorOption[];
+  // Color props. `readonly` because the palettes in configs/backgroundPalettes.ts
+  // are `as const` — a section only ever reads the list.
+  colors: readonly BackgroundColorOption[];
   currentColor: string;
   onColorChange: (color: string) => void;
   gradientOpacity?: number;
