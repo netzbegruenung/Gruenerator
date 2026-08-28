@@ -6,6 +6,7 @@
 import { create } from 'zustand';
 
 import { shareApi } from '../api/shareApi.js';
+import { SHARE_LIMITS } from '../constants.js';
 
 import type {
   Share,
@@ -26,7 +27,7 @@ const initialState: ShareStoreState = {
   error: null,
   errorCode: null,
   count: 0,
-  limit: 50,
+  limit: SHARE_LIMITS.MAX_ITEMS_PER_USER,
 };
 
 /**
@@ -198,7 +199,7 @@ export const useShareStore = create<ShareStoreState & ShareStoreActions>((set, g
           isLoading: false,
           shares: response.shares,
           count: response.count || response.shares.length,
-          limit: response.limit || 50,
+          limit: response.limit || SHARE_LIMITS.MAX_ITEMS_PER_USER,
         });
         return response.shares;
       } else {

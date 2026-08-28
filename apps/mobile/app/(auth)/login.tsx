@@ -1,6 +1,6 @@
 import { Image as BrandImage } from 'expo-image';
 import { router } from 'expo-router';
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   AccessibilityInfo,
   Pressable,
@@ -52,10 +52,42 @@ function Sunrise({ isDark }: { isDark: boolean }) {
   );
 }
 
+/**
+ * Freischalt-Griff für den Grünerator-Login (siehe `GATED_PROVIDERS` in
+ * `services/loginProviders.ts`).
+ *
+ * Fünf Tipper auf die Sonnenblume, jeder höchstens {@link TAP_WINDOW_MS} nach
+ * dem vorigen. Das Zeitfenster ist der eigentliche Schutz: fünf Tipper ohne
+ * Frist sammeln sich irgendwann von allein an, fünf Tipper in vier Sekunden
+ * nicht.
+ *
+ * Der Griff steht in den App-Review-Notes bei Apple — eine Funktion, die nur
+ * wir kennen, verstößt gegen deren Guideline 2.3.1. Er sitzt hier und nicht in
+ * `LoginPanel`, weil das Logo hier lebt; die Anmeldefläche auf der letzten
+ * Onboarding-Folie trägt ihn deshalb nicht, und das ist gewollt: ein Weg, den
+ * man beschreiben kann, ist einer.
+ */
+const TAPS_TO_REVEAL = 5;
+const TAP_WINDOW_MS = 4000;
+
 export default function LoginScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const theme = isDark ? darkTheme : lightTheme;
+
+  const [gatedRevealed, setGatedRevealed] = useState(false);
+  const taps = useRef(0);
+  const lastTapAt = useRef(0);
+
+  const onLogoPress = () => {
+    if (gatedRevealed) return;
+    const now = Date.now();
+    taps.current = now - lastTapAt.current > TAP_WINDOW_MS ? 1 : taps.current + 1;
+    lastTapAt.current = now;
+    if (taps.current < TAPS_TO_REVEAL) return;
+    setGatedRevealed(true);
+    AccessibilityInfo.announceForAccessibility('Weitere Anmeldeanbieter freigeschaltet.');
+  };
 
   // Play-once entrance (respecting reduce-motion).
   const enter = useSharedValue(0);
@@ -85,11 +117,16 @@ export default function LoginScreen() {
 
       <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
         <Animated.View style={[styles.hero, contentStyle]}>
-          <BrandImage source={BRAND_LOGO} style={styles.logo} contentFit="contain" />
+          {/* `accessible={false}`: der Griff ist eine Zeigegeste, kein
+              Bedienelement. Ein Knopf ohne Beschriftung im Bedienbaum wäre ein
+              echter Mangel; das Logo bleibt schmückend, wie es war. */}
+          <Pressable onPress={onLogoPress} accessible={false} testID="login-logo">
+            <BrandImage source={BRAND_LOGO} style={styles.logo} contentFit="contain" />
+          </Pressable>
 
           <Text style={[styles.headline, { color: theme.text }]}>{HEADLINE}</Text>
 
-          <LoginPanel />
+          <LoginPanel showGatedProviders={gatedRevealed} />
         </Animated.View>
 
         <View style={styles.footer}>

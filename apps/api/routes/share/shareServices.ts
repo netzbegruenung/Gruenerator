@@ -53,7 +53,12 @@ export interface SharedMediaService {
     status?: string | readonly string[] | null,
     limit?: number
   ): Promise<SharedMediaRow[]>;
-  getUserShareCount(userId: string): Promise<number>;
+  getLibraryUsage(userId: string): Promise<{
+    count: number;
+    limit: number;
+    isFull: boolean;
+    isNearlyFull: boolean;
+  }>;
   getShareByToken(shareToken: string): Promise<SharedMediaRow | null>;
   recordView(shareToken: string): Promise<void>;
   recordDownload(
