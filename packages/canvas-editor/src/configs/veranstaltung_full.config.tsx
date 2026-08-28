@@ -60,6 +60,7 @@ export interface VeranstaltungFullState {
   backgroundImageFile?: File | Blob | null;
   imageOffset: { x: number; y: number };
   imageScale: number;
+  backgroundImageOpacity?: number;
   isBackgroundLocked: boolean;
   customEventTitleFontSize: number | null;
   customBeschreibungFontSize: number | null;
@@ -489,8 +490,10 @@ export const veranstaltungFullConfig: FullCanvasConfig<
   // standard elements.
   elements: [
     // Photo band at the top (40% of the canvas). coverFit center-crops to 2:1 to
-    // match the backend reference (veranstaltung_canvas.ts); order 0 keeps it
-    // behind the green section so a zoomed band never covers it.
+    // match the backend reference (veranstaltung_canvas.ts). Fixed slot, not
+    // draggable: CanvasImage clamps against the full 1350px stage, so a
+    // partial-height band could otherwise be dragged down and hidden behind the
+    // green section. order 0 keeps it behind the green section regardless.
     {
       id: 'background-image',
       type: 'image',
@@ -502,8 +505,9 @@ export const veranstaltungFullConfig: FullCanvasConfig<
       srcKey: 'currentImageSrc',
       offsetKey: 'imageOffset',
       scaleKey: 'imageScale',
-      draggable: true,
+      draggable: false,
       lockedKey: 'isBackgroundLocked',
+      opacityStateKey: 'backgroundImageOpacity',
       coverFit: true,
     },
     // Green section background
@@ -613,6 +617,7 @@ export const veranstaltungFullConfig: FullCanvasConfig<
       backgroundImageFile: (props.backgroundImageFile as File | Blob | null | undefined) ?? null,
       imageOffset: (props.imageOffset as { x: number; y: number } | undefined) ?? { x: 0, y: 0 },
       imageScale: (props.imageScale as number | undefined) ?? 1,
+      backgroundImageOpacity: (props.backgroundImageOpacity as number | undefined) ?? 1,
       // Carried, not hard-reset — see createImageTwoTextCanvas.
       isBackgroundLocked: (props.isBackgroundLocked as boolean | undefined) ?? false,
       // Carried over from props for the same reason as the two-text factories:
