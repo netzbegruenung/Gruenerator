@@ -255,7 +255,13 @@ const ZITAT_PURE_DESCRIPTOR: SharepicTemplateDescriptor = {
   id: 'zitat-pure',
   label: 'Zitat',
   canvas: { width: 1080, height: 1350 },
-  supportedOperations: ['set-text', 'set-font-size', 'set-background-color', 'update-element'],
+  supportedOperations: [
+    'set-text',
+    'set-font-size',
+    'set-background-color',
+    'set-background-image',
+    'update-element',
+  ],
   textFields: [
     {
       field: 'quote',
@@ -301,6 +307,9 @@ const ZITAT_PURE_DESCRIPTOR: SharepicTemplateDescriptor = {
     },
   ],
   layoutResets: [{ onFields: ['quote'], clearStateKey: 'namePosition' }],
+  // The photo the colour templates gained: it covers the solid plane whole, and
+  // the editor forces white text plus a contrast scrim while one is set.
+  backgroundImage: { stateKey: 'currentImageSrc' },
   defaultState: { backgroundColor: '#6CCD87' },
 };
 
@@ -308,7 +317,13 @@ const INFO_DESCRIPTOR: SharepicTemplateDescriptor = {
   id: 'info',
   label: 'Info',
   canvas: { width: 1080, height: 1350 },
-  supportedOperations: ['set-text', 'set-font-size', 'set-background-color', 'update-element'],
+  supportedOperations: [
+    'set-text',
+    'set-font-size',
+    'set-background-color',
+    'set-background-image',
+    'update-element',
+  ],
   textFields: [
     {
       field: 'header',
@@ -339,7 +354,11 @@ const INFO_DESCRIPTOR: SharepicTemplateDescriptor = {
       kind: 'asset',
       opacity: { stateKey: 'arrowOpacity', min: 0, max: 1 },
     },
+    backgroundPhotoElement(),
   ],
+  // The photo the colour templates gained: it covers the solid plane whole, and
+  // the editor forces white text plus a contrast scrim while one is set.
+  backgroundImage: { stateKey: 'currentImageSrc' },
   defaultState: { backgroundColor: '#005538' },
 };
 
@@ -428,6 +447,35 @@ function atBackgroundColors(): NonNullable<SharepicTemplateDescriptor['backgroun
 }
 
 /**
+ * Background palettes for the PHOTO-backed templates, which draw a solid plane
+ * under the picture. Deliberately different from `atBackgroundColors()` above:
+ * a photo template bakes its text colour in as white, so only colours that
+ * carry white text may appear here. Mirrors
+ * `packages/canvas-editor/src/configs/backgroundPalettes.ts`, and
+ * `sharepicDescriptorParity.vitest.ts` holds the two together.
+ */
+function photoBackgroundColorsDe(): NonNullable<SharepicTemplateDescriptor['backgroundColors']> {
+  return {
+    stateKey: 'backgroundColor',
+    options: [
+      { id: 'tanne', label: 'Tanne', color: '#005538' },
+      { id: 'klee', label: 'Klee', color: '#008939' },
+      { id: 'schwarz', label: 'Schwarz', color: '#000000' },
+    ],
+  };
+}
+
+function photoBackgroundColorsAt(): NonNullable<SharepicTemplateDescriptor['backgroundColors']> {
+  return {
+    stateKey: 'backgroundColor',
+    options: [
+      { id: 'dunkelgruen', label: 'Dunkelgrün', color: '#257639' },
+      { id: 'schwarz', label: 'Schwarz', color: '#000000' },
+    ],
+  };
+}
+
+/**
  * Background photo pan/zoom/opacity for the `createImageTwoTextCanvas`
  * templates. They all share the factory's state keys and the 1080×1350 frame,
  * so the bounds are identical — only veranstaltung, which brings its own state,
@@ -487,27 +535,39 @@ const ZITAT_DESCRIPTOR: SharepicTemplateDescriptor = {
   id: 'zitat',
   label: 'Zitat',
   canvas: { width: 1080, height: 1350 },
-  supportedOperations: ['set-text', 'set-font-size', 'update-element'],
+  // `set-background-image` stays absent on purpose: on this sujet the photo IS
+  // the quoted person, and no search query the model invents is the right one.
+  // The COLOUR under it is a different matter — that is a design choice with a
+  // closed palette, so the chat can make it.
+  supportedOperations: ['set-text', 'set-font-size', 'set-background-color', 'update-element'],
   textFields: quoteTextFields(),
+  backgroundColors: photoBackgroundColorsDe(),
   elements: [quoteMarkElement(), backgroundPhotoElement()],
-  defaultState: {},
+  defaultState: { backgroundColor: '#005538' },
 };
 
 const ZITAT_AT_DESCRIPTOR: SharepicTemplateDescriptor = {
   id: 'zitat-at',
   label: 'Zitat',
   canvas: { width: 1080, height: 1350 },
-  supportedOperations: ['set-text', 'set-font-size', 'update-element'],
+  supportedOperations: ['set-text', 'set-font-size', 'set-background-color', 'update-element'],
   textFields: quoteTextFields(),
+  backgroundColors: photoBackgroundColorsAt(),
   elements: [quoteMarkElement(), backgroundPhotoElement()],
-  defaultState: {},
+  defaultState: { backgroundColor: '#257639' },
 };
 
 const ZITAT_PURE_AT_DESCRIPTOR: SharepicTemplateDescriptor = {
   id: 'zitat-pure-at',
   label: 'Zitat',
   canvas: { width: 1080, height: 1350 },
-  supportedOperations: ['set-text', 'set-font-size', 'set-background-color', 'update-element'],
+  supportedOperations: [
+    'set-text',
+    'set-font-size',
+    'set-background-color',
+    'set-background-image',
+    'update-element',
+  ],
   textFields: quoteTextFields(),
   backgroundColors: atBackgroundColors(),
   elements: [
@@ -521,8 +581,12 @@ const ZITAT_PURE_AT_DESCRIPTOR: SharepicTemplateDescriptor = {
       bounds: { minX: 115, maxX: 500, minY: 120, maxY: 1250 },
     },
     quoteMarkElement(),
+    backgroundPhotoElement(),
   ],
   layoutResets: [{ onFields: ['quote'], clearStateKey: 'namePosition' }],
+  // The photo the colour templates gained: it covers the solid plane whole, and
+  // the editor forces white text plus a contrast scrim while one is set.
+  backgroundImage: { stateKey: 'currentImageSrc' },
   defaultState: { backgroundColor: '#257639' },
 };
 
@@ -530,7 +594,13 @@ const INFO_AT_DESCRIPTOR: SharepicTemplateDescriptor = {
   id: 'info-at',
   label: 'Info',
   canvas: { width: 1080, height: 1350 },
-  supportedOperations: ['set-text', 'set-font-size', 'set-background-color'],
+  supportedOperations: [
+    'set-text',
+    'set-font-size',
+    'set-background-color',
+    'set-background-image',
+    'update-element',
+  ],
   textFields: [
     {
       field: 'introline',
@@ -554,7 +624,10 @@ const INFO_AT_DESCRIPTOR: SharepicTemplateDescriptor = {
     },
   ],
   backgroundColors: atBackgroundColors(),
-  elements: [],
+  elements: [backgroundPhotoElement()],
+  // The photo the colour templates gained: it covers the solid plane whole, and
+  // the editor forces white text plus a contrast scrim while one is set.
+  backgroundImage: { stateKey: 'currentImageSrc' },
   defaultState: { backgroundColor: '#257639' },
 };
 
@@ -562,10 +635,19 @@ const DREIZEILEN_OVERLAY_AT_DESCRIPTOR: SharepicTemplateDescriptor = {
   id: 'dreizeilen-overlay-at',
   label: 'Dreizeiler',
   canvas: { width: 1080, height: 1350 },
-  // No set-background-color: `boxColor` is writable and rides along via
-  // passthroughStateKeys, but the sujet is specified for Dunkelgrün only — the
-  // Hellgrün of the AT palette would be off-brand on this box.
-  supportedOperations: ['set-text', 'set-font-size', 'update-element', 'set-background-image'],
+  // `set-background-color` addresses `backgroundColor` — the canvas plane BEHIND
+  // the photo, visible while no picture is chosen. It does NOT address
+  // `boxColor`, the green square the headline sits on: that key is writable and
+  // rides along via passthroughStateKeys, but the sujet is specified for
+  // Dunkelgrün only, and the Hellgrün of the AT palette would be off-brand
+  // there. Hence the photo palette here, not `atBackgroundColors()`.
+  supportedOperations: [
+    'set-text',
+    'set-font-size',
+    'update-element',
+    'set-background-image',
+    'set-background-color',
+  ],
   textFields: [
     // Only the subline carries an effective font-size override. calculateLayout
     // takes line1 / accent / line3 straight from calculateOverlayAtLayout and
@@ -582,15 +664,22 @@ const DREIZEILEN_OVERLAY_AT_DESCRIPTOR: SharepicTemplateDescriptor = {
     },
   ],
   backgroundImage: { stateKey: 'currentImageSrc' },
+  backgroundColors: photoBackgroundColorsAt(),
   elements: [backgroundPhotoElement()],
-  defaultState: {},
+  defaultState: { backgroundColor: '#257639' },
 };
 
 const SIMPLE_DESCRIPTOR: SharepicTemplateDescriptor = {
   id: 'simple',
   label: 'Sharepic',
   canvas: { width: 1080, height: 1350 },
-  supportedOperations: ['set-text', 'set-font-size', 'update-element', 'set-background-image'],
+  supportedOperations: [
+    'set-text',
+    'set-font-size',
+    'update-element',
+    'set-background-image',
+    'set-background-color',
+  ],
   textFields: [
     {
       field: 'headline',
@@ -606,8 +695,9 @@ const SIMPLE_DESCRIPTOR: SharepicTemplateDescriptor = {
     },
   ],
   backgroundImage: { stateKey: 'currentImageSrc' },
+  backgroundColors: photoBackgroundColorsDe(),
   elements: [backgroundPhotoElement()],
-  defaultState: {},
+  defaultState: { backgroundColor: '#005538' },
 };
 
 /**
