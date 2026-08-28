@@ -261,7 +261,8 @@ const MIN_VIABLE_ATTEMPT_MS = 20_000;
  *   5 Anbieter, 240 s   greenpt 160 s │ … je 20
  *
  * Reicht die Frist des Aufrufers nicht für alle, verhungert der Schwanz
- * weiterhin — daran ist nichts zu rechnen, 45 s tragen keine fünf Anbieter.
+ * weiterhin — daran ist nichts zu rechnen: fünf Anbieter brauchen 5 × 20 s,
+ * und wer weniger mitgibt, bekommt weniger Anbieter.
  * Ungesagt bleibt es nicht: `runChain` protokolliert, wer nicht mehr drankam.
  */
 function attemptBudget(remainingMs: number, providersLeft: number): number {
@@ -270,7 +271,14 @@ function attemptBudget(remainingMs: number, providersLeft: number): number {
     MIN_VIABLE_ATTEMPT_MS * (providersLeft - 1),
     Math.max(remainingMs - MIN_VIABLE_ATTEMPT_MS, 0)
   );
-  return Math.max(remainingMs - reserved, MIN_VIABLE_ATTEMPT_MS);
+  // Der Boden ist auf die Restfrist geklemmt. Ohne `Math.min` gibt er mehr aus,
+  // als überhaupt noch da ist — bei 5 s Rest volle 20 s —, und dann ist die
+  // Frist dieses Versuchs grösser als die der ganzen Kette. Die äussere Uhr
+  // fängt das zwar auf, aber `abortSignal` und Fehlertext lögen beide über die
+  // Zeit, die der Anbieter wirklich hatte. Erreichbar nur über ein knappes
+  // `AiCall.timeoutMs` (heute setzt das niemand unter 240 s), also latent —
+  // die Vorgängerformel hatte die Klemme, diese hatte sie verloren.
+  return Math.max(remainingMs - reserved, Math.min(remainingMs, MIN_VIABLE_ATTEMPT_MS));
 }
 
 /**

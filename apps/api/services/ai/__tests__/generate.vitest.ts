@@ -237,6 +237,28 @@ describe('the wall clock', () => {
     ]);
   });
 
+  it('never hands an attempt more time than the chain has left', async () => {
+    // Latent, heute nicht erreichbar — nur ein knappes `AiCall.timeoutMs`
+    // kommt dorthin, und der einzige konkrete Wert im Repo ist 240_000. Ohne
+    // die Klemme im Boden von `attemptBudget` bekäme der dritte Versuch volle
+    // 20 s, obwohl die ganze Kette nur noch 5 s hat: `abortSignal` und
+    // Fehlertext lögen dann beide über die Zeit, die der Anbieter hatte.
+    executeProvider.mockImplementation(hang);
+
+    const failed = aiText({ lane: 'doc_generation', prompt: 'x', timeoutMs: 45_000 }).catch(
+      (e: unknown) => e as Error
+    );
+    await vi.advanceTimersByTimeAsync(45_000);
+    await failed;
+
+    const budgets = executeProvider.mock.calls.map(
+      (c) => (c[2] as { timeoutMs: number }).timeoutMs
+    );
+    // Der letzte bekommt den Rest, nicht den Boden — und die Summe bleibt 45 s.
+    expect(budgets).toEqual([20_000, 20_000, 5_000]);
+    expect(budgets.reduce((a, b) => a + b, 0)).toBe(45_000);
+  });
+
   it('gives a shorter chain a more generous primary', async () => {
     // Richtig herum: der Primär ist das für die Lane GEWÄHLTE Modell und
     // beantwortet den Normalfall. `qa_draft` liegt auf Mistral, die Kette ist
