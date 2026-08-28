@@ -58,11 +58,6 @@ export const updateImageShareBodySchema = z.object({
   originalImage: z.string().optional(),
 });
 
-export const saveAsTemplateBodySchema = z.object({
-  title: z.string().optional(),
-  visibility: z.enum(['private', 'unlisted', 'public']).optional(),
-});
-
 // ── Response sub-schemas ────────────────────────────────────────────────────
 
 export const shareResultSchema = z.object({
@@ -92,13 +87,6 @@ export const updateImageShareResponseSchema = z.object({
   share: shareResultSchema,
 });
 
-export const saveAsTemplateResponseSchema = z.object({
-  success: z.literal(true),
-  templateUrl: z.string(),
-  shareToken: z.string(),
-  visibility: z.string(),
-});
-
 // ── Read / management endpoints ─────────────────────────────────────────────
 
 // Query schemas — kept as raw strings; handlers parse exactly like the legacy
@@ -110,10 +98,6 @@ export const mySharesQuerySchema = z.object({
 
 export const recentSharesQuerySchema = z.object({
   limit: z.string().optional(),
-});
-
-export const templatesQuerySchema = z.object({
-  visibility: z.string().optional(),
 });
 
 /**
@@ -201,30 +185,4 @@ export const deleteShareResponseSchema = z.object({
 /** Body for PATCH /api/share/:shareToken — title-only rename of a share. */
 export const renameShareBodySchema = z.object({
   title: z.string().min(1).max(300),
-});
-
-export const clonedShareSchema = z.object({
-  id: z.string(),
-  shareToken: z.string(),
-  shareUrl: z.string(),
-  createdAt: z.union([z.string(), z.date()]),
-  mediaType: z.enum(['image', 'video']),
-  hasOriginalImage: z.boolean().optional(),
-  status: z.string().optional(),
-});
-
-export const cloneTemplateResponseSchema = z.object({
-  success: z.literal(true),
-  share: clonedShareSchema,
-  message: z.string(),
-});
-
-export const listTemplatesResponseSchema = z.object({
-  success: z.literal(true),
-  templates: z.array(z.unknown()),
-});
-
-export const getTemplateResponseSchema = z.object({
-  success: z.literal(true),
-  template: z.unknown(),
 });
