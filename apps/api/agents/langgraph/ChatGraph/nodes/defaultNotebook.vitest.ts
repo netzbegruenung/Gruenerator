@@ -21,9 +21,9 @@ vi.mock('../../../../routes/chat/agents/directSearch.js', () => ({
   executeDirectExamplesSearch: (...args: any[]) => mockExecuteDirectExamplesSearch(...args),
 }));
 
-const mockSelectAndCrawlTopUrls = vi.fn();
+const mockCrawlAndDistill = vi.fn();
 vi.mock('../../../../services/search/CrawlingService.js', () => ({
-  selectAndCrawlTopUrls: (...args: any[]) => mockSelectAndCrawlTopUrls(...args),
+  crawlAndDistill: (...args: any[]) => mockCrawlAndDistill(...args),
 }));
 
 const mockExpandQuery = vi.fn();
@@ -495,7 +495,7 @@ describe('searchNode – multi-source with defaultNotebookCollectionIds', () => 
     });
 
     mockExpandQuery.mockResolvedValue({ alternatives: [] });
-    mockSelectAndCrawlTopUrls.mockImplementation(async (results: any[]) =>
+    mockCrawlAndDistill.mockImplementation(async (results: any[]) =>
       results.map((r: any) => ({ ...r, crawled: false }))
     );
   });
@@ -564,7 +564,7 @@ describe('searchNode – web intent', () => {
     });
 
     mockExpandQuery.mockResolvedValue({ alternatives: ['Klimapolitik aktuell'] });
-    mockSelectAndCrawlTopUrls.mockImplementation(async (results: any[]) =>
+    mockCrawlAndDistill.mockImplementation(async (results: any[]) =>
       results.map((r: any) => ({ ...r, crawled: false }))
     );
   });
