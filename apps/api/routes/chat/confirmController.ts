@@ -203,6 +203,24 @@ async function executeAction(action: PendingAction): Promise<{ message: string; 
       };
     }
 
+    case 'add_cloud_connection': {
+      const { NextcloudShareManager } =
+        await import('../../utils/integrations/nextcloud/shareManager.js');
+      const { shareLink, label } = action.payload;
+      // Derselbe Weg wie die Einstellungsseite (POST /api/nextcloud/share-links):
+      // `saveShareLink` validiert erneut und weist einen Doppeleintrag ab. Die
+      // Prüfung im Werkzeug ist die Vorschau, nicht die Berechtigung.
+      const saved = await NextcloudShareManager.saveShareLink(
+        action.userId,
+        shareLink,
+        label ?? ''
+      );
+      return {
+        message: `Wolke-Verbindung **„${saved.label || action.payload.host}"** wurde hinzugefügt. Der Grünerator liest daraus, schreibt aber nichts.`,
+        url: '/settings/wolke',
+      };
+    }
+
     default: {
       const _exhaustive: never = action;
       throw new Error(`Unknown action type: ${(action as PendingAction).type}`);

@@ -13,7 +13,7 @@
  * exportiert.
  */
 
-import { findBestMatch } from '@gruenerator/shared/utils';
+import { findBestMatch, isCloudShareUrl } from '@gruenerator/shared/utils';
 
 import { escapeRegExp } from '../../../../services/BaseSearchService/textUtils.js';
 import { createLogger } from '../../../../utils/logger.js';
@@ -627,6 +627,20 @@ export function extractUrls(text: string): string[] {
     if (cleaned) seen.add(cleaned);
   }
   return [...seen];
+}
+
+/**
+ * URLs, die zum Crawlen taugen.
+ *
+ * Ein Nextcloud-Freigabe-Link (`…/s/<token>`) taugt NICHT: dahinter liegt eine
+ * Single-Page-App, ein GET auf die Adresse liefert deren Hülle und keinen
+ * Ordnerinhalt — der Inhalt kommt nur über WebDAV. Bis hierher landete genau
+ * der Satz „füge diesen Wolke-Link hinzu: https://…/s/…" auf `scrape_url` und
+ * bekam Markup statt Dateien. Das Werkzeug `cloud_files` ist dafür zuständig;
+ * es liest den Link aus dem Nachrichtentext, der unverändert im Kontext steht.
+ */
+export function crawlableUrls(text: string): string[] {
+  return extractUrls(text).filter((url) => !isCloudShareUrl(url));
 }
 
 /** Domains to include/exclude when the caller wires them into Linkup's

@@ -1,6 +1,8 @@
+import { parseCloudShareLink } from '@gruenerator/shared/utils';
 import axios, { type AxiosInstance, type AxiosError } from 'axios';
 
 import { toUserFacingMessage } from '../../utils/errors/index.js';
+import { assertNoPathEscape } from '../../utils/validation/cloudPaths.js';
 import { validateUrlSync, validateUrlForFetch } from '../../utils/validation/urlSecurity.js';
 
 // Type Definitions
@@ -8,6 +10,23 @@ export interface ParsedShareLink {
   baseUrl: string;
   shareToken: string;
   fullPath: string;
+}
+
+/**
+ * Der WebDAV-Etag kommt aus dem Regex-Parser HTML-entity-escapt heraus
+ * (`&quot;…&quot;`), weil der Anführungszeichen-Strip nur echte Zeichen kennt.
+ * Normalisiert wurde das bisher NUR im Scraper-Pfad (`wolkeShareHandler`) — der
+ * Sync-Pfad speicherte den escapten Wert, und `WolkeSyncService.hasFileChanged`
+ * verglich ihn danach gegen einen sauberen. Die Normalisierung gehört an die
+ * Quelle, damit jeder Verbraucher denselben Wert sieht.
+ */
+export function normalizeWebdavEtag(etag: string | null | undefined): string | null {
+  if (!etag) return null;
+  const cleaned = etag
+    .replace(/&quot;/g, '')
+    .replace(/^["']|["']$/g, '')
+    .trim();
+  return cleaned || null;
 }
 
 export type ConnectionErrorCode = 'invalid_link' | 'not_found' | 'forbidden' | 'unknown';
@@ -62,6 +81,116 @@ export function isWebdavSelfEntry(href: string, requestPath: string): boolean {
     return decoded.split('/').filter(Boolean).join('/');
   };
   return normalize(href) === normalize(requestPath);
+}
+
+/**
+ * Die Antwort war kein verstandenes WebDAV-Dokument.
+ *
+ * Der Unterschied, um den es geht: „der Ordner ist leer" und „ich habe die
+ * Antwort nicht gelesen" sahen bis #3038 identisch aus — beides eine leere
+ * Liste. Ein Server, dessen Namensraum-Präfix wir nicht kannten, lieferte
+ * dadurch stumm null Dateien: leerer Datei-Browser, leerer Notebook-Import,
+ * und im Chat die freundliche Auskunft, in dem Ordner liege nichts.
+ */
+export class WebdavParseError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'WebdavParseError';
+  }
+}
+
+/**
+ * In XML ist das Namensraum-PRÄFIX beliebig. `DAV:` darf an `d:`, `D:`, `dav:`
+ * gebunden sein oder als Standard-Namensraum ganz ohne Präfix stehen — vier
+ * Schreibweisen desselben Dokuments. Nextclouds sabre/dav schickt heute `d:`,
+ * weshalb der auf `d:` festgenagelte Parser bisher trug.
+ *
+ * `(?![\w.-])` ist nicht Zierde: ohne die Grenze fängt `response` auch
+ * `responsedescription`, und der träge Bereich bis zum nächsten
+ * `</…:response>` verschlänge dann den halben Rest des Dokuments.
+ */
+function webdavTag(name: string, flags: string): RegExp {
+  return new RegExp(
+    `<(?:[A-Za-z][\\w.-]*:)?${name}(?![\\w.-])[^>]*>(.*?)</(?:[A-Za-z][\\w.-]*:)?${name}>`,
+    flags
+  );
+}
+
+const RESPONSE_RE = webdavTag('response', 'gs');
+const HREF_RE = webdavTag('href', 's');
+const DISPLAYNAME_RE = webdavTag('displayname', 's');
+const CONTENT_LENGTH_RE = webdavTag('getcontentlength', 's');
+const LAST_MODIFIED_RE = webdavTag('getlastmodified', 's');
+const ETAG_RE = webdavTag('getetag', 's');
+const COLLECTION_RE = /<(?:[A-Za-z][\w.-]*:)?collection(?![\w.-])\s*\/?>/;
+const MULTISTATUS_RE = /<(?:[A-Za-z][\w.-]*:)?multistatus(?![\w.-])/;
+
+/**
+ * PROPFIND-Antwort → Dateiliste. Regex statt XML-Parser, bewusst: die Antwort
+ * ist flach, und ein echter Parser zöge drei Aufrufer hinter sich her
+ * (`isWebdavSelfEntry`, `normalizeWebdavEtag`, die Form von `NextcloudFile`).
+ *
+ * Wirft, wenn das Dokument keine `multistatus`-Hülle trägt — siehe
+ * `WebdavParseError`. Innerhalb einer erkannten Hülle bleibt es tolerant:
+ * ein kaputter einzelner Eintrag kostet diesen Eintrag, nicht die Liste.
+ */
+export function parseWebDAVResponse(xmlData: string, requestPath?: string): NextcloudFile[] {
+  const responseMatches = xmlData.match(RESPONSE_RE);
+
+  if (!responseMatches) {
+    // Keine Einträge UND keine Hülle: das war kein Multistatus, sondern eine
+    // Fehlerseite, ein leerer Body oder ein Format, das wir nicht kennen.
+    if (!MULTISTATUS_RE.test(xmlData)) {
+      throw new WebdavParseError(
+        'WebDAV-Antwort nicht lesbar: kein <multistatus>-Element gefunden.'
+      );
+    }
+    return [];
+  }
+
+  const files: NextcloudFile[] = [];
+
+  for (const responseXml of responseMatches) {
+    try {
+      const hrefMatch = responseXml.match(HREF_RE);
+      if (!hrefMatch?.[1]) continue;
+
+      const href = hrefMatch[1].trim();
+
+      // Skip the listed folder itself — the share root always, any other
+      // requested folder once we know which one was asked for.
+      if (href.endsWith('/webdav/') || href.endsWith('/webdav')) continue;
+      if (requestPath && isWebdavSelfEntry(href, requestPath)) continue;
+
+      const displayNameMatch = responseXml.match(DISPLAYNAME_RE);
+      const contentLengthMatch = responseXml.match(CONTENT_LENGTH_RE);
+      const lastModifiedMatch = responseXml.match(LAST_MODIFIED_RE);
+      const etagMatch = responseXml.match(ETAG_RE);
+
+      // For directories, extract name from href (trailing slash)
+      let name = displayNameMatch ? displayNameMatch[1].trim() : '';
+      if (!name) {
+        const segments = href.replace(/\/$/, '').split('/');
+        name = decodeURIComponent(segments.pop() || '');
+      }
+
+      files.push({
+        href,
+        name,
+        size: contentLengthMatch ? parseInt(contentLengthMatch[1]) : null,
+        lastModified: lastModifiedMatch ? new Date(lastModifiedMatch[1]) : null,
+        etag: normalizeWebdavEtag(etagMatch?.[1]),
+        isDirectory: COLLECTION_RE.test(responseXml),
+      });
+    } catch (error) {
+      const err = error as Error;
+      console.error('[NextcloudApiClient] Skipping unreadable WebDAV entry', {
+        error: err.message,
+      });
+    }
+  }
+
+  return files;
 }
 
 /**
@@ -150,27 +279,7 @@ class NextcloudApiClient {
    * Parse Nextcloud share link to extract components
    */
   private parseShareLink(shareLink: string): ParsedShareLink | null {
-    try {
-      const urlObj = new URL(shareLink);
-      const pathMatch = urlObj.pathname.match(/\/s\/([A-Za-z0-9]+)/);
-
-      if (!pathMatch) {
-        return null;
-      }
-
-      return {
-        baseUrl: `${urlObj.protocol}//${urlObj.host}`,
-        shareToken: pathMatch[1],
-        fullPath: urlObj.pathname + urlObj.search,
-      };
-    } catch (error) {
-      const err = error as Error;
-      console.error('[NextcloudApiClient] Error parsing share link', {
-        shareLink,
-        error: err.message,
-      });
-      return null;
-    }
+    return parseCloudShareLink(shareLink);
   }
 
   /**
@@ -248,6 +357,11 @@ class NextcloudApiClient {
    * List files and folders at a given path within the share
    */
   async listFolder(folderPath?: string): Promise<NextcloudFile[]> {
+    // VOR dem try: der Wächter soll den Pfad abweisen, bevor eine URL gebaut
+    // wird — und `CloudPathError` soll den Aufrufer als solcher erreichen. Im
+    // catch unten würde er zu einem nackten „Failed to list folder".
+    assertNoPathEscape(folderPath);
+
     try {
       let propfindUrl = this.webdavUrl;
       if (folderPath) {
@@ -281,7 +395,7 @@ class NextcloudApiClient {
       });
 
       if (response.status === 207) {
-        return this.parseWebDAVResponse(response.data, new URL(propfindUrl).pathname);
+        return parseWebDAVResponse(response.data, new URL(propfindUrl).pathname);
       }
 
       return [];
@@ -291,6 +405,10 @@ class NextcloudApiClient {
         folderPath,
         error: err.message,
       });
+      // Unverpackt weiterreichen: „ich habe die Antwort nicht gelesen" ist
+      // eine andere Auskunft als „das Auflisten ist fehlgeschlagen", und der
+      // ganze Sinn von #3038 ist, dass ein Aufrufer sie unterscheiden kann.
+      if (err instanceof WebdavParseError) throw err;
       throw new Error(err.message || 'Failed to list folder');
     }
   }
@@ -323,7 +441,7 @@ class NextcloudApiClient {
 
       if (response.status === 207) {
         // Parse WebDAV XML response (simplified)
-        const files = this.parseWebDAVResponse(response.data);
+        const files = parseWebDAVResponse(response.data);
 
         return {
           success: true,
@@ -344,79 +462,16 @@ class NextcloudApiClient {
   }
 
   /**
-   * Parse WebDAV XML response (simplified parser)
-   */
-  private parseWebDAVResponse(xmlData: string, requestPath?: string): NextcloudFile[] {
-    // This is a simplified parser - in production you might want to use a proper XML parser
-    const files: NextcloudFile[] = [];
-
-    try {
-      // Extract file information from XML (basic regex parsing)
-      const responseMatches = xmlData.match(/<d:response[^>]*>(.*?)<\/d:response>/gs);
-
-      if (responseMatches) {
-        responseMatches.forEach((responseXml) => {
-          const hrefMatch = responseXml.match(/<d:href[^>]*>(.*?)<\/d:href>/);
-          const displayNameMatch = responseXml.match(/<d:displayname[^>]*>(.*?)<\/d:displayname>/);
-          const contentLengthMatch = responseXml.match(
-            /<d:getcontentlength[^>]*>(.*?)<\/d:getcontentlength>/
-          );
-          const lastModifiedMatch = responseXml.match(
-            /<d:getlastmodified[^>]*>(.*?)<\/d:getlastmodified>/
-          );
-          const etagMatch = responseXml.match(/<d:getetag[^>]*>(.*?)<\/d:getetag>/);
-          const isDirectory = /<d:collection\s*\/?>/.test(responseXml);
-
-          if (hrefMatch && hrefMatch[1]) {
-            const href = hrefMatch[1].trim();
-
-            // Skip the listed folder itself — the share root always, any other
-            // requested folder once we know which one was asked for.
-            if (href.endsWith('/webdav/') || href.endsWith('/webdav')) {
-              return;
-            }
-            if (requestPath && isWebdavSelfEntry(href, requestPath)) {
-              return;
-            }
-
-            // Clean up etag value - remove quotes if present
-            let etag: string | null = null;
-            if (etagMatch && etagMatch[1]) {
-              etag = etagMatch[1].trim().replace(/^["']|["']$/g, '');
-            }
-
-            // For directories, extract name from href (trailing slash)
-            let name = displayNameMatch ? displayNameMatch[1].trim() : '';
-            if (!name) {
-              const segments = href.replace(/\/$/, '').split('/');
-              name = decodeURIComponent(segments.pop() || '');
-            }
-
-            files.push({
-              href: href,
-              name,
-              size: contentLengthMatch ? parseInt(contentLengthMatch[1]) : null,
-              lastModified: lastModifiedMatch ? new Date(lastModifiedMatch[1]) : null,
-              etag: etag,
-              isDirectory,
-            });
-          }
-        });
-      }
-    } catch (error) {
-      const err = error as Error;
-      console.error('[NextcloudApiClient] Error parsing WebDAV response', { error: err.message });
-    }
-
-    return files;
-  }
-
-  /**
    * Download file content from Nextcloud share
    * @param filePath - File path from WebDAV response (e.g., "/public.php/webdav/filename.pdf")
    * @returns File content as buffer
    */
   async downloadFile(filePath: string): Promise<DownloadFileResult> {
+    // Siehe `listFolder`. Hier wiegt es schwerer: der Zweig unten reicht einen
+    // Pfad, der schon mit dem WebDAV-Präfix beginnt, ROH weiter — dort
+    // überlebt auch die prozent-kodierte Form (`%2e%2e`) bis auf die Leitung.
+    assertNoPathEscape(filePath);
+
     try {
       console.log(`[NextcloudApiClient] Downloading file: ${filePath}`);
 

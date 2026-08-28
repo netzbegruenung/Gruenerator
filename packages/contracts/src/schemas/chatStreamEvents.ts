@@ -317,6 +317,9 @@ export const confirmActionTypeSchema = z.enum([
   'share_doc',
   'create_group',
   'join_group',
+  // Additiv (F0): ausgelieferte Clients kennen den Wert nicht und rendern die
+  // Karte über ihren Fallback — sie fällt nicht aus, sie sieht nur generisch aus.
+  'add_cloud_connection',
 ]);
 export type ConfirmActionType = z.infer<typeof confirmActionTypeSchema>;
 

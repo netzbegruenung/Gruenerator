@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 
 import {
   extractUrls,
+  crawlableUrls,
   isTabularComputeQuestion,
   isSheetFillRequest,
   detectSocialPlatform,
@@ -66,6 +67,35 @@ describe('extractSearchTopic', () => {
 });
 
 // ─── extractUrls (scrape_url detection) ───────────────────────────────────
+
+describe('crawlableUrls', () => {
+  // Ein Nextcloud-Freigabe-Link ist keine Webseite: ein GET darauf liefert die
+  // SPA-Hülle, nicht den Ordner. Er gehört zu `cloud_files`, nicht zu scrape_url.
+  it('keeps a pasted Wolke share link out of the crawl list', () => {
+    expect(
+      crawlableUrls('füge diesen hinzu: https://wolke.netzbegruenung.de/s/AbCdEfGhIj')
+    ).toEqual([]);
+  });
+
+  it('does the same for any other Nextcloud instance', () => {
+    expect(crawlableUrls('https://teamtools.example.org/s/Xy12Ab')).toEqual([]);
+  });
+
+  it('still crawls ordinary pages, including ones on the same host', () => {
+    expect(crawlableUrls('Lies https://gruene.de/programm')).toEqual([
+      'https://gruene.de/programm',
+    ]);
+    expect(crawlableUrls('https://wolke.netzbegruenung.de/apps/files/')).toEqual([
+      'https://wolke.netzbegruenung.de/apps/files/',
+    ]);
+  });
+
+  it('drops only the share link when both appear in one message', () => {
+    expect(
+      crawlableUrls('https://gruene.de/x und https://wolke.netzbegruenung.de/s/Tok123')
+    ).toEqual(['https://gruene.de/x']);
+  });
+});
 
 describe('extractUrls', () => {
   it('returns [] when no URL present', () => {
