@@ -824,6 +824,14 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   {
     "url": "/docs/chat/ki-chat",
     "pageTitle": "KI-Chat",
+    "heading": "Grüneratoren aufrufen",
+    "anchor": "#grüneratoren-aufrufen",
+    "category": "Chat",
+    "text": "Für Anträge, Reden, Wahlprogramme und Bürger*innenanfragen gibt es eigene Grüneratoren — du findest sie unter dem Menüpunkt in der Seitenleiste und kannst sie direkt im Chat öffnen. Sie stehen außerdem in derselben @-Liste wie die Rezepte: deine eigenen unter eigene. Hat jemand aus einem deiner Projekte einen Grünerator mit dem Projekt geteilt, steht er dort unter aus deinen Gruppen, mit dem Namen der Gruppe, aus der er kommt. Ein @-Aufruf wechselt für diese eine Nachricht auf diesen Grünerator; ein Rezept, das du vorher gewählt hast, bleibt dabei aktiv."
+  },
+  {
+    "url": "/docs/chat/ki-chat",
+    "pageTitle": "KI-Chat",
     "heading": "Quellen durchsuchen",
     "anchor": "#quellen-durchsuchen",
     "category": "Chat",
@@ -963,7 +971,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Grüneratoren und Rezepte",
     "anchor": "#grüneratoren-und-rezepte",
     "category": "Grüneratoren",
-    "text": "In der Agentura leben zwei Arten von Helfern: Grüneratoren sind spezialisierte KI-Persönlichkeiten mit eigenem Ton, eigenem Wissen und eigenen Werkzeugen. Du öffnest sie direkt im Chat und arbeitest dort mit ihnen. Rezepte sind kurze Schnellbefehle für eine konkrete Aufgabe (z. B. eine Pressemitteilung im Stil deines Landesverbands). Du rufst sie im Chat mit @ auf. Eine Faustregel: Ein Grünerator-Agent ist ein eigenständiges Gegenüber für ein ganzes Themenfeld. Ein Rezept ist eine einzelne Vorlage, die du auf jeden beliebigen Grünerator-Agenten anwenden kannst. In der Mehrzahl heißen sie Grüneratoren. In der Einzahl sagen wir Grünerator-Agent — „der Grünerator\" ohne Zusatz meint das Produkt als Ganzes."
+    "text": "In der Agentura leben zwei Arten von Helfern: Grüneratoren sind spezialisierte KI-Persönlichkeiten mit eigenem Ton, eigenem Wissen und eigenen Werkzeugen. Du öffnest sie direkt im Chat und arbeitest dort mit ihnen — oder rufst sie mitten im Gespräch mit @ auf, so wie ein Rezept. Rezepte sind kurze Schnellbefehle für eine konkrete Aufgabe (z. B. eine Pressemitteilung im Stil deines Landesverbands). Du rufst sie im Chat mit @ auf. Eine Faustregel: Ein Grünerator-Agent ist ein eigenständiges Gegenüber für ein ganzes Themenfeld. Ein Rezept ist eine einzelne Vorlage, die du auf jeden beliebigen Grünerator-Agenten anwenden kannst. In der Mehrzahl heißen sie Grüneratoren. In der Einzahl sagen wir Grünerator-Agent — „der Grünerator\" ohne Zusatz meint das Produkt als Ganzes."
   },
   {
     "url": "/docs/grueneratoren/agentura",
@@ -3115,7 +3123,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Landesverbände",
     "anchor": "#landesverbände",
     "category": "Wissen",
-    "text": "Die Landesverbände-Sammlung enthält 25.616 Vektoren aus 13 Quellen. Landesverband | Kürzel | Vektoren | ---------------|--------|-------:| Berlin | BE | 4.023 | Saarland | SL | 3.484 | Hessen Fraktion | HE-F | 3.232 | Bayern Fraktion | BY-F | 2.902 | Mecklenburg-Vorpommern Fraktion | MV-F | 2.441 | Berlin Fraktion | BE-F | 2.257 | Brandenburg | BB | 2.170 | Mecklenburg-Vorpommern | MV | 1.555 | Sachsen-Anhalt Fraktion | LSA-F | 1.414 | Thüringen | TH | 779 | Bayern | BY | 721 | Hessen | HE | 355 | Sachsen-Anhalt | LSA | 283 | Gesamt | | 25.616 |"
+    "text": "Die Landesverbände-Sammlung enthält 25.616 Vektoren aus 13 Quellen. Landesverband | Kürzel | Vektoren | ------------------------------- | ------ | ---------: | Berlin | BE | 4.023 | Saarland | SL | 3.484 | Hessen Fraktion | HE-F | 3.232 | Bayern Fraktion | BY-F | 2.902 | Mecklenburg-Vorpommern Fraktion | MV-F | 2.441 | Berlin Fraktion | BE-F | 2.257 | Brandenburg | BB | 2.170 | Mecklenburg-Vorpommern | MV | 1.555 | Sachsen-Anhalt Fraktion | LSA-F | 1.414 | Thüringen | TH | 779 | Bayern | BY | 721 | Hessen | HE | 355 | Sachsen-Anhalt | LSA | 283 | Gesamt | | 25.616 |"
   },
   {
     "url": "/docs/wissen/inhaltsdatenbank",
@@ -3123,7 +3131,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Sammlungen",
     "anchor": "#sammlungen",
     "category": "Wissen",
-    "text": "Sammlung | Vektoren | ----------|-------:| Landesverbände | 25.616 | Abgeordnetenwatch | 20.956 | KommunalWiki | 8.028 | Bundestag | 3.274 | Böll-Stiftung | 2.223 | gruene.at | 1.007 | Grundsatzprogramm | 968 | gruene.de | 858 | Grüne Österreich | 645 | Grünblog | 610 | Social-Media-Beispiele | 537 | Gesamt | 64.722 |"
+    "text": "Sammlung | Vektoren | ---------------------- | ---------: | Landesverbände | 25.616 | Abgeordnetenwatch | 20.956 | KommunalWiki | 8.028 | Bundestag | 3.274 | Böll-Stiftung | 2.223 | gruene.at | 1.007 | Grundsatzprogramm | 968 | gruene.de | 858 | Grüne Österreich | 645 | Grünblog | 610 | Social-Media-Beispiele | 537 | Gesamt | 64.722 |"
   },
   {
     "url": "/docs/wissen/inhaltsdatenbank",
