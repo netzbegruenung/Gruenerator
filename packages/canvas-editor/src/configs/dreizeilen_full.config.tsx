@@ -275,7 +275,8 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
     // 'ai' tab kept registered but hidden — Chat tab now drives canvas-AI suggestions.
     // 'settings' tab kept registered but hidden — opened via getAutoSwitchTab on balken
     // selection so the icon strip doesn't shift when a balken is clicked.
-    return ['image-background', 'text', 'assets', 'tools', 'uploads', 'chat', 'share'];
+    // 'share' is not in `tabs`, so listing it here filtered to nothing.
+    return ['image-background', 'text', 'assets', 'tools', 'uploads', 'chat'];
   },
 
   getAutoSwitchTab: (selectedElement) => {

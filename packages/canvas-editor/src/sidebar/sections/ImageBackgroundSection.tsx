@@ -1,4 +1,4 @@
-import { MasonryGrid, MasonryItem } from '@gruenerator/ui';
+import { MasonryGrid, MasonryItem, Switch } from '@gruenerator/ui';
 import { useState, useEffect, useCallback } from 'react';
 import { FaCheck } from 'react-icons/fa';
 import { HiAdjustments } from 'react-icons/hi';
@@ -35,7 +35,8 @@ export interface ImageBackgroundSectionProps {
     attribution?: StockImageAttribution | null
   ) => void;
 
-  // Optional legacy scale controls (will be deprecated)
+  // The background photo is draggable but not transformable — it has no
+  // on-canvas handles — so this slider is the only way to zoom it.
   scale?: number;
   onScaleChange?: (scale: number) => void;
 
@@ -362,19 +363,43 @@ function SearchContent({
 }
 
 /**
- * Adjustment Controls Content - scale, gradient, etc.
+ * Adjustment Controls Content - zoom, lock, gradient.
+ *
+ * All three used to be accepted as props and none but the gradient was drawn,
+ * so every template that passed `scale` (all of them) opened this panel on an
+ * empty box. The bounds below match `backgroundPhotoElement()` in the sharepic
+ * descriptor, so the slider and the chat edit agree on what a zoom is.
  */
 function AdjustmentsContent({
   scale,
   onScaleChange,
   gradientOpacity,
   onGradientOpacityChange,
+  isLocked,
+  onToggleLock,
 }: Pick<
   ImageBackgroundSectionProps,
-  'scale' | 'onScaleChange' | 'gradientOpacity' | 'onGradientOpacityChange'
+  | 'scale'
+  | 'onScaleChange'
+  | 'gradientOpacity'
+  | 'onGradientOpacityChange'
+  | 'isLocked'
+  | 'onToggleLock'
 >) {
   return (
     <div className={cn(SIDEBAR_SECTION, 'gap-4 px-3 pb-4')}>
+      {scale !== undefined && onScaleChange !== undefined && (
+        <SidebarSlider
+          label="Zoom"
+          value={scale}
+          onValueChange={onScaleChange}
+          min={0.5}
+          max={3}
+          step={0.01}
+          unit="%"
+        />
+      )}
+
       {gradientOpacity !== undefined && onGradientOpacityChange !== undefined && (
         <SidebarSlider
           label="Overlay"
@@ -385,6 +410,13 @@ function AdjustmentsContent({
           step={0.01}
           unit="%"
         />
+      )}
+
+      {onToggleLock !== undefined && (
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-foreground">Hintergrund fixieren</span>
+          <Switch checked={!!isLocked} onCheckedChange={onToggleLock} />
+        </div>
       )}
     </div>
   );
@@ -402,7 +434,8 @@ export function ImageBackgroundSection({
 }: ImageBackgroundSectionProps) {
   const hasAdjustments =
     (scale !== undefined && onScaleChange !== undefined) ||
-    (gradientOpacity !== undefined && onGradientOpacityChange !== undefined);
+    (gradientOpacity !== undefined && onGradientOpacityChange !== undefined) ||
+    onToggleLock !== undefined;
 
   const subsections: Subsection[] = [
     {
@@ -424,6 +457,8 @@ export function ImageBackgroundSection({
           onScaleChange={onScaleChange}
           gradientOpacity={gradientOpacity}
           onGradientOpacityChange={onGradientOpacityChange}
+          isLocked={isLocked}
+          onToggleLock={onToggleLock}
         />
       ),
     });
