@@ -196,10 +196,13 @@ export const useShareStore = create<ShareStoreState & ShareStoreActions>((set, g
 
       if (response.success) {
         set({
+          // `count`/`limit` describe the fetched page, not the account (#2986):
+          // the server counts the rows it just sent and reports the ceiling that
+          // bounded them. Mediathek usage comes from `GET /api/media` instead.
           isLoading: false,
           shares: response.shares,
-          count: response.count || response.shares.length,
-          limit: response.limit || SHARE_LIMITS.MAX_ITEMS_PER_USER,
+          count: response.count ?? response.shares.length,
+          limit: response.limit ?? SHARE_LIMITS.MAX_ITEMS_PER_USER,
         });
         return response.shares;
       } else {
