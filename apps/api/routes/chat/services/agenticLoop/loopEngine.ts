@@ -137,10 +137,22 @@ function createToolPhaseIdle(p: LoopEngineParams): { idle: IdleDeadline; idleMs:
   };
 }
 
-/** Which lane stalled — the whole point of reporting it. `LanguageModel` is
- *  either the id itself or a provider instance carrying one. */
+/**
+ * Which lane stalled — the whole point of reporting it. `LanguageModel` is
+ * either the id itself or a provider instance carrying one.
+ *
+ * Der HOST gehört dazu, nicht nur der Modellname. Am 28.08.2026 meldete der
+ * Stall `mistral-small-3.2-24b-instruct-2506` — ein Name, den die Mistral-API
+ * genauso trägt, während die Planer-Lane in Wahrheit auf GreenPT läuft
+ * (`LOOP_PLANNER_PRIMARY`). Wer den Befund liest, sucht dann am falschen Host,
+ * und in Glitchtip fallen zwei verschiedene Anbieter unter denselben Namen.
+ * Die Instanz weiss es: `provider` steht in der Anbieter-Spezifikation
+ * ausdrücklich „for logging purposes".
+ */
 function modelLabel(model: LanguageModel): string {
-  return typeof model === 'string' ? model : (model.modelId ?? 'unknown');
+  if (typeof model === 'string') return model;
+  const id = model.modelId ?? 'unknown';
+  return model.provider ? `${model.provider}/${id}` : id;
 }
 
 /**
@@ -456,6 +468,11 @@ export interface LoopEngineParams {
   /** Fires when the synth stalled and the sibling lane takes over, so the
    *  client can surface the switch the same way the single-pass path does. */
   onSynthFallback?: () => void;
+  /** Fires when the TOOL phase stalled — the planner (split) or the one model
+   *  (unified) accepted the request and then sent nothing until the deadline.
+   *  Separate from `onSynthFallback` because there is nothing to fall back to
+   *  here: the caller uses it to remember the lane, not to switch mid-turn. */
+  onToolPhaseStall?: () => void;
   /** Split-gather only: the planner's inter-tool prose, delivered ONE sentence
    *  at a time (via createSentenceChunker) so the client can show "Ich suche
    *  jetzt …" narration. Never fires in unified mode. */
@@ -702,6 +719,12 @@ async function gather(p: LoopEngineParams, deps: LoopDeps): Promise<void> {
         model: modelLabel(p.plannerModel),
         idleMs,
       });
+      // …und in das Register, das sich Lanes merkt. Ohne diese Zeile blieb der
+      // Befund eine Einzelmeldung: `modelHealth` sah den Stillstand nie, also
+      // galt die Lane weiter als gesund und der nächste Zug wartete dieselben
+      // 45 s noch einmal ab. Genau der Preis, den das Register nicht zweimal
+      // zahlen will (siehe seinen Kopfkommentar).
+      p.onToolPhaseStall?.();
     }
   } finally {
     idle.clear();
