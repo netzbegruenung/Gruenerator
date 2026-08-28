@@ -75,11 +75,16 @@ export function useQueueInterruptGuard(runtime: AssistantRuntime, signal: Interr
         const queued = composer.getState().queue;
         if (queued.length === 0) return;
 
-        // Ids first: removing an item mutates the queue, and walking the live
-        // array while it shrinks would skip every second entry.
+        // Ids first, and the count before the loop. `remove` in core's message
+        // queue rebuilds both lanes with `filter`, so this snapshot keeps all
+        // its entries and neither would be wrong today — but the queue API is
+        // still `unstable_`, and an upstream switch to in-place removal would
+        // otherwise silently turn this into a half-emptied queue and a plural
+        // toast for one turn.
+        const count = queued.length;
         for (const id of queued.map((item) => item.id)) composer.removeQueueItem(id);
         notifyWarning(
-          queued.length === 1 ? 'Wartende Nachricht entfernt' : 'Wartende Nachrichten entfernt',
+          count === 1 ? 'Wartende Nachricht entfernt' : 'Wartende Nachrichten entfernt',
           'Bitte zuerst die Rückfrage beantworten.'
         );
       }),

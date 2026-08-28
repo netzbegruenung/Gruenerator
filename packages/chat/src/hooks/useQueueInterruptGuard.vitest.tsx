@@ -22,22 +22,27 @@ import type { AssistantRuntime } from '@assistant-ui/react';
 const notifyWarning = vi.hoisted(() => vi.fn());
 vi.mock('../lib/notify', () => ({ notifyWarning }));
 
+/**
+ * Models core's own removal: `remove` in `runtime/queue/message-queue.js`
+ * rebuilds the lane with `filter`, so a snapshot taken before the loop keeps
+ * every entry rather than shrinking under the caller. A fake that spliced in
+ * place would exercise semantics the runtime does not have.
+ */
 function fakeRuntime(queued: string[]) {
-  const queue = queued.map((id) => ({ id, parts: [{ type: 'text', text: id }] }));
+  let queue = queued.map((id) => ({ id, parts: [{ type: 'text', text: id }] }));
 
   const runtime = {
     thread: {
       composer: {
         getState: () => ({ queue }),
         removeQueueItem(id: string) {
-          const at = queue.findIndex((item) => item.id === id);
-          if (at >= 0) queue.splice(at, 1);
+          queue = queue.filter((item) => item.id !== id);
         },
       },
     },
   } as unknown as AssistantRuntime;
 
-  return { runtime, queue };
+  return { runtime, remaining: () => queue };
 }
 
 /** Mounts the guard and hands back the adapter side of the signal. */
@@ -70,25 +75,41 @@ describe('useQueueInterruptGuard', () => {
 
     guard.interrupt();
 
-    expect(h.queue).toHaveLength(0);
-    expect(notifyWarning).toHaveBeenCalledTimes(1);
+    expect(h.remaining()).toHaveLength(0);
+    expect(notifyWarning).toHaveBeenCalledWith(
+      'Wartende Nachrichten entfernt',
+      expect.stringContaining('Rückfrage')
+    );
   });
 
-  it('clears every waiting turn, not every second one', () => {
-    // Removal mutates the queue; walking the live array would skip entries.
+  it('hands back every waiting turn, not just the first', () => {
     const h = fakeRuntime(['a', 'b', 'c', 'd', 'e']);
     const guard = mount(h.runtime);
 
     guard.interrupt();
 
-    expect(h.queue).toHaveLength(0);
+    expect(h.remaining()).toHaveLength(0);
+  });
+
+  it('says it in the singular for a single waiting turn', () => {
+    // The count has to be read before the removals — see the note there.
+    const h = fakeRuntime(['a']);
+    const guard = mount(h.runtime);
+
+    guard.interrupt();
+
+    expect(h.remaining()).toHaveLength(0);
+    expect(notifyWarning).toHaveBeenCalledWith(
+      'Wartende Nachricht entfernt',
+      expect.stringContaining('Rückfrage')
+    );
   });
 
   it('leaves the queue alone until an interrupt arrives', () => {
     const h = fakeRuntime(['a']);
     mount(h.runtime);
 
-    expect(h.queue).toHaveLength(1);
+    expect(h.remaining()).toHaveLength(1);
     expect(notifyWarning).not.toHaveBeenCalled();
   });
 
@@ -108,7 +129,7 @@ describe('useQueueInterruptGuard', () => {
     guard.unmount();
     guard.interrupt();
 
-    expect(h.queue).toHaveLength(1);
+    expect(h.remaining()).toHaveLength(1);
   });
 });
 
