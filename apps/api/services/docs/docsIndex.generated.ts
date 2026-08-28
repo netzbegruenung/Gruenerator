@@ -2443,7 +2443,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Einstellungen, die du selbst setzen kannst",
     "anchor": "#einstellungen-die-du-selbst-setzen-kannst",
     "category": "Über den Grünerator",
-    "text": "Unter Einstellungen → Barrierefreiheit: Einstellung | Wirkung | ------------------------------------ | ------------------------------------------- | Animationen reduzieren | Bewegung und Übergänge werden abgeschaltet. | Transparenz und Unschärfe reduzieren | Durchscheinende Flächen werden deckend. | Hellen und dunklen Modus stellst du unter Einstellungen → Allgemein ein; der Grünerator folgt sonst der Einstellung deines Systems."
+    "text": "Unter Einstellungen → Datenschutz & Barrierefreiheit, im unteren Abschnitt Barrierefreiheit: Einstellung | Wirkung | ------------------------------------ | ------------------------------------------- | Animationen reduzieren | Bewegung und Übergänge werden abgeschaltet. | Transparenz und Unschärfe reduzieren | Durchscheinende Flächen werden deckend. | Hellen und dunklen Modus stellst du unter Einstellungen → Allgemein ein; der Grünerator folgt sonst der Einstellung deines Systems."
   },
   {
     "url": "/docs/ueber-den-gruenerator/barrierefreiheit",

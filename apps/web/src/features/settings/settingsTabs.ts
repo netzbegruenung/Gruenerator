@@ -40,13 +40,19 @@ const LOADERS: Record<SettingsTab, () => Promise<SettingsTabModule>> = {
   konnektoren: () => import('./tabs/ConnectorsTab'),
   wolke: () => import('./tabs/WolkeTab'),
   websites: () => import('./tabs/WebsitesTab'),
-  barrierefreiheit: () => import('./tabs/AccessibilityTab'),
-  datenschutz: () => import('./tabs/PrivacyTab'),
+  datenschutz: () => import('./tabs/PrivacyAccessibilityTab'),
   nutzung: () => import('./tabs/UsageTab'),
   support: () => import('./tabs/SupportTab'),
 };
 
-const SETTINGS_TABS = Object.keys(LOADERS) as SettingsTab[];
+/**
+ * Every canonical tab key, derived from the loader table so it cannot go stale.
+ *
+ * `LOADERS` is a `Record<SettingsTab, …>`, so the compiler forces a new tab to
+ * appear here — which is what lets SettingsRedirect resolve `/settings/:tab`
+ * without a hand-maintained second list of the same names.
+ */
+export const SETTINGS_TABS = Object.keys(LOADERS) as SettingsTab[];
 
 const pendingModules = new Map<SettingsTab, Promise<SettingsTabModule>>();
 const loadedTabs = new Map<SettingsTab, ComponentType>();
