@@ -342,6 +342,8 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMes
         readonly parentId?: string;
         readonly narration?: string;
         readonly approval?: ToolCallMessagePart['approval'];
+        readonly title?: string;
+        readonly serverName?: string;
       };
 
       const contentParts: Array<{ type: 'text'; text: string } | ToolCallLike> = [];
@@ -442,6 +444,10 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMes
               options: TOOL_APPROVAL_OPTIONS,
               ...(pending.resolved === 'expired' ? { resolution: 'expired' as const } : {}),
             },
+            // Wie im Live-Pfad: die Karte nennt den Dienst, nicht den
+            // Katalognamen.
+            ...(call.title != null && { title: call.title }),
+            ...(call.serverName != null && { serverName: call.serverName }),
           });
         }
       }

@@ -1218,6 +1218,11 @@ export async function* parseSSEStream(
                   id: call.toolCallId,
                   options: TOOL_APPROVAL_OPTIONS,
                 },
+                // Ohne die beiden nennt die Karte nur den Katalognamen — und
+                // genau die Auskunft, welcher Dienst da angesprochen wird, ist
+                // der Grund für die Rückfrage.
+                ...(call.title != null && { title: call.title }),
+                ...(call.serverName != null && { serverName: call.serverName }),
               };
               toolStepsById.set(call.toolCallId, part);
               allToolCalls.push(part);

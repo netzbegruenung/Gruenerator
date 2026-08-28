@@ -112,6 +112,12 @@ export interface ToolCallPart {
    *  `resolution` gesetzt ist, hält die Laufzeit den Zug an und die Karte zeigt
    *  ihre Knöpfe. */
   approval?: ToolCallMessagePart['approval'];
+  /** Anzeigename des Werkzeugs und Name des verbundenen Dienstes — nur an
+   *  Freigabe-Karten gesetzt. Wer freigibt, muss lesen können, wohin der Aufruf
+   *  geht; der Katalogname `m<key>__<tool>` sagt das nicht. Reisen wie
+   *  `narration` auf `message.parts` mit (siehe ToolNarration). */
+  title?: string;
+  serverName?: string;
 }
 
 export interface SourcePart {
