@@ -1,17 +1,18 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 /**
- * The quota is the whole point of these tests: until #2980 the cap was enforced
- * by *deleting* the user's oldest library rows and their files on every write
- * path, so uploading a source image could destroy a sharepic made months
- * earlier. The assertions therefore check two things that no longer happen
- * (any DELETE, any silent eviction) as much as the ones that do.
+ * The two listing queries over `shared_media` answer different questions, and the whole
+ * point of this pair of tests is the contrast: creation feeds hide source images, the
+ * Mediathek shows them. Asserting only the first would be a tautology — it would still
+ * pass if the filter had leaked into `getMediaLibrary` and emptied the Mediathek.
+ *
+ * The service is exercised against a fake Postgres so the assertions are about the SQL and
+ * its parameters, which is where the policy actually lives.
  */
+const query = vi.fn<(sql: string, params: unknown[]) => Promise<unknown[]>>();
+const queryOne = vi.fn<(sql: string, params: unknown[]) => Promise<unknown>>();
 
-import { describe, expect, it, vi, beforeEach } from 'vitest';
-
-const queryOne = vi.fn();
-const query = vi.fn();
-
-// The paths under test must not touch the repo's uploads/ directory — the
+// The upload/create paths must not touch the repo's uploads/ directory — the
 // success cases would otherwise leave untracked share folders behind.
 vi.mock('fs/promises', () => ({
   default: {
@@ -26,9 +27,9 @@ vi.mock('fs/promises', () => ({
 
 vi.mock('../database/services/PostgresService.js', () => ({
   getPostgresInstance: () => ({
-    ensureInitialized: () => Promise.resolve(),
-    queryOne,
+    ensureInitialized: vi.fn().mockResolvedValue(undefined),
     query,
+    queryOne,
   }),
 }));
 
@@ -38,6 +39,69 @@ const {
   USER_VISIBLE_SHARE_STATUSES,
 } = await import('./sharedMediaService.js');
 const { MEDIA_LIBRARY_ITEM_LIMIT } = await import('@gruenerator/shared/media-library/constants');
+
+/** The `content_origin` predicate, whitespace-insensitive. */
+const ORIGIN_CLAUSE = /content_origin\s+IS\s+NULL\s+OR\s+content_origin\s*!=\s*ALL/i;
+
+function lastCall(): { sql: string; params: unknown[] } {
+  const call = query.mock.calls.at(-1);
+  if (!call) throw new Error('no query was issued');
+  return { sql: call[0], params: call[1] };
+}
+
+beforeEach(() => {
+  query.mockReset().mockResolvedValue([]);
+  queryOne.mockReset().mockResolvedValue({ total: '0' });
+});
+
+describe('getUserShares', () => {
+  it('excludes source uploads, so creation feeds only show creations', async () => {
+    const service = new SharedMediaService();
+    await service.getUserShares('user-1', 'image', ['ready', 'draft'], 30);
+
+    const { sql, params } = lastCall();
+    expect(sql).toMatch(ORIGIN_CLAUSE);
+    expect(params).toContainEqual(['upload']);
+  });
+
+  it("keeps 'unknown' visible — the backfill could not classify those rows", async () => {
+    const service = new SharedMediaService();
+    await service.getUserShares('user-1', 'image');
+
+    const { sql, params } = lastCall();
+    expect(sql).toMatch(ORIGIN_CLAUSE);
+    const excluded = params.find((p): p is string[] => Array.isArray(p) && p.includes('upload'));
+    expect(excluded).toEqual(['upload']);
+    expect(excluded).not.toContain('unknown');
+  });
+
+  it('numbers its placeholders consecutively with the origin filter in place', async () => {
+    const service = new SharedMediaService();
+    await service.getUserShares('user-1', 'image', ['ready'], 5);
+
+    const { sql, params } = lastCall();
+    const used = [...sql.matchAll(/\$(\d+)/g)].map((m) => Number(m[1]));
+    expect(new Set(used)).toEqual(new Set(params.map((_, i) => i + 1)));
+  });
+});
+
+describe('getMediaLibrary', () => {
+  it('does NOT exclude uploads — the Mediathek is where they belong', async () => {
+    const service = new SharedMediaService();
+    await service.getMediaLibrary('user-1', { type: 'image' });
+
+    expect(lastCall().sql).not.toMatch(ORIGIN_CLAUSE);
+  });
+});
+
+/**
+ * The quota is the second thing this file guards, and for the same reason as the
+ * first: the policy lives in the SQL. Until #2980 the cap was enforced by
+ * *deleting* the user's oldest library rows and their files on every write path,
+ * so uploading a source image could destroy a sharepic made months earlier. The
+ * assertions below check what no longer happens (any DELETE, any silent
+ * eviction) as much as what does.
+ */
 
 /** Every `SELECT COUNT(*)` answers with this many library items. */
 function withLibraryCount(count: number): InstanceType<typeof SharedMediaService> {
@@ -52,12 +116,6 @@ const PNG_1PX = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
   'base64'
 );
-
-beforeEach(() => {
-  queryOne.mockReset();
-  query.mockReset();
-  query.mockResolvedValue([]);
-});
 
 describe('getLibraryUsage', () => {
   it('reports the cap from the shared constant, not a copy of the number', async () => {
@@ -94,12 +152,13 @@ describe('getLibraryUsage', () => {
     // the only thing that ever cleared them.
     await withLibraryCount(1).getLibraryUsage('user-1');
 
-    const [sql, params] = queryOne.mock.calls[0] as [string, [string, string[]]];
-    expect(sql).toContain('COALESCE(is_library_item, TRUE) = TRUE');
-    expect(sql).toContain('status = ANY($2::text[])');
-    expect(params[1]).toEqual([...USER_VISIBLE_SHARE_STATUSES]);
-    expect(params[1]).not.toContain('failed');
-    expect(params[1]).not.toContain('processing');
+    const call = queryOne.mock.calls[0]!;
+    const statuses = call[1][1] as string[];
+    expect(call[0]).toContain('COALESCE(is_library_item, TRUE) = TRUE');
+    expect(call[0]).toContain('status = ANY($2::text[])');
+    expect(statuses).toEqual([...USER_VISIBLE_SHARE_STATUSES]);
+    expect(statuses).not.toContain('failed');
+    expect(statuses).not.toContain('processing');
   });
 });
 
@@ -120,9 +179,7 @@ describe('uploadMediaFile at the cap', () => {
 
     // No DELETE, no INSERT: the refusal happens before anything is written.
     expect(query).not.toHaveBeenCalled();
-    expect(queryOne.mock.calls.filter(([sql]) => !String(sql).includes('COUNT(*)'))).toHaveLength(
-      0
-    );
+    expect(queryOne.mock.calls.filter(([sql]) => !sql.includes('COUNT(*)'))).toHaveLength(0);
   });
 
   it('carries the numbers the user needs to act on', async () => {
@@ -186,7 +243,7 @@ describe('creations at the cap', () => {
     });
 
     expect(share.shareToken).toBe('tok');
-    const statements = [...queryOne.mock.calls, ...query.mock.calls].map(([sql]) => String(sql));
+    const statements = [...queryOne.mock.calls, ...query.mock.calls].map(([sql]) => sql);
     expect(statements.some((sql) => sql.includes('DELETE'))).toBe(false);
   });
 });
