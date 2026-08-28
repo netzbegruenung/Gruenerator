@@ -8,6 +8,52 @@ import { generateContentHash } from '../../../utils/validation/index.js';
 import type { ScraperConfig, ScraperResult } from '../types.js';
 
 /**
+ * Fetch failure that carries the HTTP status alongside the message. The message
+ * stays `HTTP <status>` — that string is what the error samples in the sync
+ * report have always shown, and the report is read by people, not parsers. The
+ * status is what lets a caller tell a page that is gone from a host that is
+ * down; before this, both arrived as an untyped Error and every failure had to
+ * be treated as the worse of the two.
+ */
+export class HttpStatusError extends Error {
+  readonly status: number;
+
+  constructor(status: number) {
+    super(`HTTP ${status}`);
+    this.name = 'HttpStatusError';
+    this.status = status;
+  }
+}
+
+/**
+ * 403, 404 and 410 on a link the upstream itself still publishes: the page is
+ * gone, our fetch is not broken. Kept deliberately narrow — a 401 means we are
+ * missing a credential and a 5xx means the host is failing, both of which are
+ * our problem to report, not upstream's to have tidied up.
+ */
+export function isGoneStatus(status: number): boolean {
+  return status === 403 || status === 404 || status === 410;
+}
+
+/**
+ * A 4xx answer means the request was understood and refused; repeating it
+ * verbatim three times changes nothing but the bill. Measured on LV Berlin,
+ * whose four permanently-403 press releases cost 16 requests and ~24 s of
+ * backoff on every nightly walk (issue #2971).
+ *
+ * Two exceptions stay retryable because they name a *timing* problem, which is
+ * exactly what a retry addresses: 408 (request timeout) and 429 (rate limit).
+ * So does everything that is not an HTTP status at all — DNS, TLS, a reset
+ * socket, our own AbortController firing — which is why the default is `true`:
+ * an unrecognised failure must not silently lose its retries.
+ */
+export function isRetryableFetchError(error: unknown): boolean {
+  if (!(error instanceof HttpStatusError)) return true;
+  if (error.status === 408 || error.status === 429) return true;
+  return error.status < 400 || error.status >= 500;
+}
+
+/**
  * Abstract base class for all scrapers
  * Subclasses must implement the scrape() method
  */
@@ -219,13 +265,13 @@ export abstract class BaseScraper {
         clearTimeout(timeoutId);
 
         if (!response.ok && !acceptStatus.includes(response.status)) {
-          throw new Error(`HTTP ${response.status}`);
+          throw new HttpStatusError(response.status);
         }
 
         return response;
       } catch (error) {
         clearTimeout(timeoutId);
-        if (retries < maxRetries) {
+        if (retries < maxRetries && isRetryableFetchError(error)) {
           await this.delay(1000 * (retries + 1));
           return fetchAttempt(retries + 1);
         }

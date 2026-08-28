@@ -490,6 +490,16 @@ export interface ContentSyncSourceResult {
    * Zeile das ausdrücklich, damit die Liste nicht als vollständig gelesen wird.
    */
   errorSamples?: string[];
+  /**
+   * Links, die die Quelle selbst noch auflistet, aber nicht mehr ausliefert
+   * (403/404/410). Sie stehen bewusst neben den Fehlern und lösen **keine**
+   * Mail aus: nichts auf unserer Seite bringt sie je auf 0, eine nächtliche
+   * Mail über dieselben vier toten Links wäre genau das Rauschen, gegen das
+   * die Trennung antritt. Wer die Seite betreibt, kann sie aber als Einziger
+   * reparieren — also stehen sie drin, wenn ohnehin eine Mail rausgeht.
+   */
+  deadLinks?: number;
+  deadLinkSamples?: string[];
   duration: number;
   error?: string;
 }
@@ -562,6 +572,16 @@ export function renderContentSyncTemplate(params: ContentSyncTemplateParams): {
                 ? `${s.errorSamples.length} von ${s.errors} Fehlern:`
                 : 'Fehler:'
             }<ul style="margin:4px 0 0 0;padding-left:18px;">${s.errorSamples
+              .map((m) => `<li style="margin:2px 0;">${escapeHtml(m)}</li>`)
+              .join('')}</ul></td></tr>`
+          : ''
+      }${
+        s.deadLinkSamples?.length
+          ? `<tr><td colspan="6" style="padding:4px 12px;border:1px solid #e5e5e5;color:#666666;font-size:12px;">${
+              s.deadLinkSamples.length < (s.deadLinks ?? 0)
+                ? `${s.deadLinkSamples.length} von ${s.deadLinks} toten Links (von der Quelle verlinkt, aber nicht mehr abrufbar):`
+                : 'Tote Links (von der Quelle verlinkt, aber nicht mehr abrufbar):'
+            }<ul style="margin:4px 0 0 0;padding-left:18px;">${s.deadLinkSamples
               .map((m) => `<li style="margin:2px 0;">${escapeHtml(m)}</li>`)
               .join('')}</ul></td></tr>`
           : ''
@@ -685,6 +705,14 @@ export function renderContentSyncTemplate(params: ContentSyncTemplateParams): {
             ? `    ${s.errorSamples.length} von ${s.errors} Fehlern:`
             : '    Fehler:',
           ...s.errorSamples.map((m) => `      - ${m}`)
+        );
+      }
+      if (s.deadLinkSamples?.length) {
+        parts.push(
+          s.deadLinkSamples.length < (s.deadLinks ?? 0)
+            ? `    ${s.deadLinkSamples.length} von ${s.deadLinks} toten Links (von der Quelle verlinkt, aber nicht mehr abrufbar):`
+            : '    Tote Links (von der Quelle verlinkt, aber nicht mehr abrufbar):',
+          ...s.deadLinkSamples.map((m) => `      - ${m}`)
         );
       }
       return parts.join('\n');
