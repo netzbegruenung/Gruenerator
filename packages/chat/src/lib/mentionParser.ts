@@ -229,7 +229,13 @@ export function parseAllMentions(text: string): ParsedMentions {
       // If /alias resolves to any other type, ignore it (/ is only for skills)
     } else {
       // @alias → route by type
-      if (mentionable.type === 'agent') {
+      if (mentionable.type === 'useragent') {
+        // A Grünerator replaces the acting agent and carries no recipe —
+        // setting skillMention here would make the backend announce a text
+        // form by that identifier (#2909).
+        agentId = mentionable.identifier;
+        agentMention = mentionable.mention;
+      } else if (mentionable.type === 'agent') {
         // Every agent-type mentionable is a skill or custom agent — the popover
         // select sets activeSkillMention for both, so the typed form does too.
         agentId = mentionable.identifier;
@@ -272,7 +278,10 @@ export function parseAllMentions(text: string): ParsedMentions {
     // '/' never routed them, so it must not start emitting their tokens either.
     const triggerIndex = match.index + match[0].indexOf(trigger);
     const token =
-      trigger === '@' || mentionable.type === 'agent' || mentionable.type === 'textform'
+      trigger === '@' ||
+      mentionable.type === 'agent' ||
+      mentionable.type === 'useragent' ||
+      mentionable.type === 'textform'
         ? mentionTokenFor(mentionable)
         : undefined;
     mentionSpans.push([triggerIndex, triggerIndex + alias.length + 1, token]); // +1 for trigger char
@@ -356,6 +365,11 @@ export function mentionTokenFor(m: {
     case 'agent':
     case 'textform':
       return TOKEN_ID_SAFE.test(m.mention) ? build('skill', m.mention) : undefined;
+    // `agent:` and not `skill:` — the backend deliberately ignores agent tokens
+    // (the body's agentId stays authoritative) whereas a `skill:` token would be
+    // re-derived as a recipe mention on edit-resubmit.
+    case 'useragent':
+      return TOKEN_ID_SAFE.test(m.identifier) ? build('agent', m.identifier) : undefined;
     default:
       return undefined;
   }
@@ -521,7 +535,9 @@ export function extractMentionPreviews(text: string): MentionPreview[] {
 
     const kind: MentionPreviewKind =
       // Text forms render like skills — they carry the same recipe semantics.
-      mentionable.type === 'agent' || mentionable.type === 'textform'
+      mentionable.type === 'agent' ||
+      mentionable.type === 'useragent' ||
+      mentionable.type === 'textform'
         ? 'agent'
         : mentionable.type === 'tool'
           ? 'tool'

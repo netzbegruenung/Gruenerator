@@ -51,6 +51,7 @@ import { getMentionInstance } from './instanceState';
 
 export type MentionableType =
   | 'agent'
+  | 'useragent'
   | 'textform'
   | 'notebook'
   | 'tool'
@@ -128,9 +129,9 @@ export interface Mentionable {
 /**
  * A user-authored or saved custom prompt. No `sharedFromGroup`: `custom_prompts`
  * / `saved_prompts` know a public directory and a bookmark, not group shares —
- * the wire (`customPromptSchema`) carries no group name at all. Group-shared
- * agents live in the separate `user_agents` table and do not reach this list
- * (#2909).
+ * the wire (`customPromptSchema`) carries no group name at all. Group shares for
+ * agents live in the separate `user_agents` table and arrive through
+ * `UserAgentMentionable` below, which is where that origin comes from (#2909).
  *
  * What the wire DOES carry is the owner of a saved prompt, so `savedFromOwner`
  * marks the ones that are not the user's own. Set by `syncCustomAgents` from
@@ -383,6 +384,69 @@ export function setTextforms(forms: TextformMentionable[]): void {
 
 export function getTextformMentionables(): Mentionable[] {
   return textformMentionables;
+}
+
+/**
+ * A Grünerator-Agent from the `user_agents` table — the caller's own, or one
+ * shared into a group they belong to.
+ *
+ * Its own type rather than a reuse of `CustomAgentMentionable`, because the two
+ * route differently: a custom prompt is a RECIPE (it rides `activeSkillMention`
+ * as a per-turn prompt fragment), while a Grünerator REPLACES the acting agent.
+ * Writing its identifier into `activeSkillMention` would make the backend look
+ * up a recipe by that name and announce a text form nobody chose.
+ *
+ * `mention` IS the identifier: `user_agents.identifier` is already a slug and
+ * is the key `getAgentForUser` resolves against, so deriving a second string
+ * here would just be a second spelling that can drift.
+ */
+export interface UserAgentMentionable {
+  identifier: string;
+  title: string;
+  description: string;
+  avatar: string;
+  iconKey?: string;
+  backgroundColor: string;
+  /**
+   * Name of the group this agent was shared from, `null` for the user's own.
+   * The picker splits the recipe section on it — a teammate's Grünerator listed
+   * as one of your own is what #2876/#2909 were about.
+   */
+  sharedFromGroup?: string | null;
+}
+
+export function userAgentToMentionable(a: UserAgentMentionable): Mentionable {
+  return {
+    type: 'useragent',
+    // 'function', not 'skill': the composer activates a per-turn recipe for
+    // every 'skill' it inserts, and a Grünerator is not one (see above). The
+    // empty promptTemplate keeps the insertion identical to a skill's.
+    category: 'function',
+    trigger: '@',
+    identifier: a.identifier,
+    title: a.title,
+    description: a.sharedFromGroup ? `Grünerator aus ${a.sharedFromGroup}` : a.description,
+    avatar: a.avatar,
+    backgroundColor: a.backgroundColor,
+    mention: a.identifier,
+    promptTemplate: '',
+    // `iconKey` only, no resolved component: this module is shared with the
+    // mobile bundle, and the Phosphor resolver pulls a web-only icon pack into
+    // its graph. The web popover resolves the key where it renders.
+    ...(a.iconKey ? { iconKey: a.iconKey } : {}),
+    ...(a.sharedFromGroup ? { sharedFromGroup: a.sharedFromGroup } : {}),
+  };
+}
+
+let userAgentMentionables: Mentionable[] = [];
+
+export function setUserAgentMentionables(agents: UserAgentMentionable[]): void {
+  userAgentMentionables = agents.map(userAgentToMentionable);
+  rebuildMentionableMap();
+}
+
+export function getUserAgentMentionables(): Mentionable[] {
+  return userAgentMentionables;
 }
 
 // Derived from the shared notebook registry so the @-mention picker always matches the
@@ -1012,6 +1076,7 @@ export interface VorlageToken {
 export function getAllMentionables(): Mentionable[] {
   return [
     ...getAgentMentionables(),
+    ...userAgentMentionables,
     ...customAgentMentionables,
     ...textformMentionables,
     ...dynamicUserNotebookMentionables,
@@ -1040,6 +1105,7 @@ function rebuildMentionableMap(): void {
   mentionableMap.clear();
   const orderedSources = [
     agentMentionables,
+    userAgentMentionables,
     customAgentMentionables,
     textformMentionables,
     dynamicUserNotebookMentionables,
@@ -1111,7 +1177,7 @@ export function filterMentionables(query: string): {
   if (!query) {
     return {
       agents: getAgentMentionables(),
-      customAgents: [...customAgentMentionables, ...textformMentionables],
+      customAgents: [...userAgentMentionables, ...customAgentMentionables, ...textformMentionables],
       notebooks: visibleNotebookMentionables(),
       userNotebooks: dynamicUserNotebookMentionables,
       tools: [
@@ -1146,7 +1212,11 @@ export function filterMentionables(query: string): {
 
   return {
     agents: getAgentMentionables().filter(matchFn),
-    customAgents: [...customAgentMentionables, ...textformMentionables].filter(matchFn),
+    customAgents: [
+      ...userAgentMentionables,
+      ...customAgentMentionables,
+      ...textformMentionables,
+    ].filter(matchFn),
     notebooks: isNotebookCategoryQuery
       ? visibleNotebookMentionables()
       : visibleNotebookMentionables().filter(matchFn),
