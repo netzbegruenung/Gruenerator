@@ -16,6 +16,7 @@ import NextcloudApiClient from '../api-clients/nextcloudApiClient.js';
 import { folderPathFromHref, walkWolkeFolder } from '../sync/folderWalk.js';
 import { isSupportedWolkeFile } from '../sync/supportedFileTypes.js';
 
+import { CloudPathError, assertRootRelativePath } from './paths.js';
 import {
   type CloudConnectionTest,
   type CloudDownload,
@@ -64,6 +65,22 @@ export function hrefToRootRelativePath(href: string): string {
       }
     })
     .join('/');
+}
+
+/**
+ * Ein Pfad, der den WebDAV-Präfix noch mitträgt, meint dieselbe Datei:
+ * `hrefToRootRelativePath` liefert ihn ohne, ein href aus einer PROPFIND-Antwort
+ * mit. Erst abschneiden, dann prüfen — sonst hinge die Prüfung an der Form und
+ * nicht am Inhalt, und `../` hinter dem Präfix käme ungesehen durch.
+ */
+function stripWebdavPrefix(path: string): string {
+  const idx = path.indexOf(WEBDAV_PREFIX);
+  return idx >= 0 ? path.slice(idx + WEBDAV_PREFIX.length) : path;
+}
+
+/** Der eine Weg, auf dem ein Pfad in diesen Anbieter hineingelangt. */
+function safePath(path: string | null | undefined): string {
+  return assertRootRelativePath(stripWebdavPrefix((path ?? '').trim()));
 }
 
 function toEntry(file: NextcloudFile): CloudEntry {
@@ -151,11 +168,12 @@ export class NextcloudShareProvider implements CloudFileProvider {
   }
 
   async list(root: CloudRoot, path: string, options: CloudListOptions = {}): Promise<CloudListing> {
+    const folder = safePath(path);
     const client = await this.deps.createClient(root.secret);
-    const listFolder = (folder: string) => client.listFolder(folder || undefined);
+    const listFolder = (target: string) => client.listFolder(target || undefined);
 
     if (!options.recursive) {
-      const entries = (await listFolder(path)).map(toEntry);
+      const entries = (await listFolder(folder)).map(toEntry);
       return {
         entries: sortEntries(entries),
         folderCount: entries.filter((e) => e.isDirectory).length,
@@ -164,7 +182,7 @@ export class NextcloudShareProvider implements CloudFileProvider {
       };
     }
 
-    const walk = await walkWolkeFolder(listFolder, path, {
+    const walk = await walkWolkeFolder(listFolder, folder, {
       maxDepth: options.maxDepth ?? CLOUD_BROWSE_MAX_DEPTH,
       maxFiles: options.maxFiles ?? CLOUD_BROWSE_MAX_FILES,
     });
@@ -197,8 +215,10 @@ export class NextcloudShareProvider implements CloudFileProvider {
   }
 
   async read(root: CloudRoot, path: string): Promise<CloudDownload> {
+    const file = safePath(path);
+    if (!file) throw new CloudPathError('read braucht einen Dateipfad.');
     const client = await this.deps.createClient(root.secret);
-    return client.downloadFile(path);
+    return client.downloadFile(file);
   }
 
   async test(target: CloudRoot | { link: string }): Promise<CloudConnectionTest> {
