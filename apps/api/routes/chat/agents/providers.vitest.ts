@@ -5,7 +5,7 @@ import {
   getContextWindow,
   loopSynthChoice,
   getModelConfig,
-  getLoopPlannerModel,
+  resolveLoopPlannerLane,
   loopPlannerModelName,
   prefersUnifiedLoop,
   resolveModelTuple,
@@ -49,12 +49,15 @@ describe('prefersUnifiedLoop (unified vs planner/executor split)', () => {
 
 describe('split-mode model policy (getLoopSynthModel / loopPlannerModelName)', () => {
   it('planner is a verified NON-Chinese tool-caller', () => {
-    // The three declared tiers (autoPolicy.ts): GreenPT's Mistral Small first,
-    // then self-hosted regolo, then litellm/verdigado-pro. Tool calls were
-    // verified live on all three on 13.08.2026.
+    // Die deklarierten Stufen (autoPolicy.ts): GreenPTs Mistral Small zuerst,
+    // dann Cortecs, dann das selbstgehostete Regolo, dann litellm/verdigado-pro.
+    // Werkzeugaufrufe wurden auf den drei Mistral-/gpt-oss-Stufen am 13.08.2026
+    // live geprüft; für die Cortecs-Stufe steht diese Prüfung aus (siehe
+    // LOOP_PLANNER_HEALTHY_ALT).
     const planner = loopPlannerModelName();
     expect([
       'mistral-small-3.2-24b-instruct-2506',
+      GEMMA_31B_ON_CORTECS.model,
       'mistral-small-4-119b',
       'verdigado-pro',
     ]).toContain(planner);
@@ -81,7 +84,7 @@ describe('split-mode model policy (getLoopSynthModel / loopPlannerModelName)', (
     // This assertion holds in both worlds: with a key the primary builds, and
     // in a keyless CI the litellm tier does (default base URL, empty key
     // tolerated). What it forbids is the throw.
-    expect(() => getLoopPlannerModel()).not.toThrow();
+    expect(() => resolveLoopPlannerLane()).not.toThrow();
   });
 
   it('auto selection writes with the best writer, NEVER a think model', () => {

@@ -17,14 +17,13 @@ import { type ModelMessage } from 'ai';
 import { knownArtifactRefs } from '../../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
 import { isSummaryAsk } from '../../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { forbidsNewResearch } from '../../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
-import { recordSlowVerdict } from '../../../../services/ai/modelHealth.js';
+import { isModelSlow, recordSlowVerdict } from '../../../../services/ai/modelHealth.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { type McpCatalog } from '../../agents/mcpCatalog.js';
 import {
-  getLoopPlannerModel,
   getLoopSynthFallbackModel,
+  resolveLoopPlannerLane,
   getLoopSynthModel,
-  loopPlannerModelName,
 } from '../../agents/providers.js';
 import { renderRecipeCatalog } from '../../agents/recipeCatalog.js';
 import { imageDeliveryNote } from '../../agents/searchImageHarvest.js';
@@ -214,6 +213,17 @@ export async function streamAgenticResponse(
   // (precise + reasoning on) and, further down, whether the writer gives up the
   // tool catalog. Two computations could disagree — see turnMaterial.ts.
   const carriedMaterialChars = turnMaterialChars(finalState);
+
+  /**
+   * Die Planer-Lane dieses Zuges, EINMAL aufgelöst.
+   *
+   * Die Bindung steht vor dem `try`, weil die Turn-Zusammenfassung unten
+   * dahinter liegt und dieselbe Lane nennen muss — nicht das Ergebnis einer
+   * zweiten Auflösung. Zugewiesen wird erst dort, wo der Loop startet: der Wert
+   * ist zeitabhängig (`isModelSlow`), und gemeint ist die Lane, mit der dieser
+   * Zug tatsächlich losfuhr.
+   */
+  let plannerLane: ReturnType<typeof resolveLoopPlannerLane> | null = null;
 
   try {
     resolution = await deps.resolveModel(
@@ -514,14 +524,40 @@ export async function streamAgenticResponse(
     // whole turn down: no text, no error, no heartbeat, for the full 120s wall
     // clock — users read that as "it just aborts".
     const synthFallback = mode === 'split' ? getLoopSynthFallbackModel(synth.name) : null;
+    // EINMAL aufgelöst: derselbe Wert speist das Modell, den Vermerk beim
+    // Stillstand und die Turn-Zusammenfassung — siehe `resolveLoopPlannerLane`.
+    plannerLane = mode === 'split' ? resolveLoopPlannerLane() : null;
 
     const loopResult = await deps.runAgenticLoop({
       mode,
-      plannerModel: mode === 'split' ? getLoopPlannerModel() : resolution.model,
+      plannerModel: plannerLane ? plannerLane.languageModel : resolution.model,
       synthModel: synth.model,
       ...(synthFallback && { synthFallbackModel: synthFallback.model }),
       onSynthStart: () => {
         emitter.startSynthHeartbeat();
+      },
+      // Der Stillstand der WERKZEUG-Phase. Hier gibt es nichts umzuschalten —
+      // der Zug antwortet aus dem, was schon gesammelt war —, aber die Lane
+      // gehört vermerkt: sonst ist sie im nächsten Zug wieder erste Wahl und
+      // kostet dieselbe Frist noch einmal. `resolveLoopPlannerLane()` liefert
+      // Anbieter UND Modell, weil derselbe Modellname auf zwei Hosts liegt.
+      //
+      // Gemeldet wird, was danach TATSÄCHLICH gilt, nicht was der Vermerk
+      // bezweckt: der Breaker öffnet erst beim zweiten Verdikt (siehe
+      // `plannerStageUsable`), ein einzelner Stillstand schaltet die Stufe also
+      // noch nicht ab. Eine Zeile, die pauschal „nächster Zug weicht aus" sagt,
+      // liesse den nächsten 45-s-Zug wie einen Fehler der Reparatur aussehen.
+      onToolPhaseStall: () => {
+        if (!plannerLane) return;
+        recordSlowVerdict(plannerLane.provider, plannerLane.model, 'gather_stall');
+        const gesperrt = isModelSlow(plannerLane.provider, plannerLane.model);
+        log.warn(
+          `[Agentic] planner ${plannerLane.provider}/${plannerLane.model} lieferte nichts — ${
+            gesperrt
+              ? 'Lane für 5 min übersprungen'
+              : 'Verdikt vermerkt, erst das zweite schaltet die Lane ab'
+          }`
+        );
       },
       onSynthFallback: () => {
         // Stillstand ist das Verdikt, das die Messung nicht liefert: es kam
@@ -748,7 +784,14 @@ export async function streamAgenticResponse(
   logTurnSummary({
     modelName: resolution?.modelName ?? agentConfig.model,
     mode,
-    plannerName: mode === 'split' ? loopPlannerModelName() : null,
+    // DIESELBE Auflösung wie oben, nicht `loopPlannerModelName()`. Ein zweiter
+    // Aufruf würde `loopPlannerChoice()` neu ausführen — und wenn der Zug
+    // gerade selbst einen Stillstand vermerkt hat (`onToolPhaseStall`), nennt
+    // die Zusammenfassung dann die AUSWEICHSTUFE statt der Lane, die lief und
+    // stehen blieb. Also genau die Verwechslung von Host und Modellname, gegen
+    // die dieser Zug angetreten ist. Der Anbieter steht mit dabei, aus dem
+    // gleichen Grund wie in `modelLabel`.
+    plannerName: plannerLane ? `${plannerLane.provider}/${plannerLane.model}` : null,
     synthName,
     intent: finalState.intent,
     steps,
