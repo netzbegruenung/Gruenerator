@@ -156,7 +156,16 @@ describe('parseWebDAVResponse', () => {
  */
 describe('path guard', () => {
   const client = new NextcloudApiClient('https://wolke.example/s/AbCdEf');
-  const escapes = ['../../secrets', `${PREFIX}/../../remote.php/dav`, '%2e%2e/secrets'];
+  const escapes = [
+    '../../secrets',
+    `${PREFIX}/../../remote.php/dav`,
+    '%2e%2e/secrets',
+    // Der Zweig, auf den es hier ankommt: ein Pfad MIT WebDAV-Präfix wird von
+    // `downloadFile` roh durchgereicht, Prozent-Kodierung überlebt also bis auf
+    // die Leitung — und ein kodierter Trenner hielt die Punkt-Segmente
+    // zusammen, bis der Wächter nach dem Dekodieren neu trennte.
+    `${PREFIX}/..%2f..%2fremote.php/dav`,
+  ];
 
   for (const bad of escapes) {
     it(`refuses to list "${bad}"`, async () => {

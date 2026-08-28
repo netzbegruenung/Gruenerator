@@ -262,9 +262,12 @@ router.post(
       }
 
       // Ein `filePath`, der die Freigabe verlässt, ist eine schlechte Anfrage
-      // und keine Panne auf unserer Seite (#3043).
+      // und keine Panne auf unserer Seite (#3043). Der abgewiesene Pfad steht
+      // im Log, nicht in der Antwort: er käme zwar von der aufrufenden Seite
+      // selbst zurück, aber `no-raw-error-to-client` unterscheidet das nicht —
+      // und soll es nicht, sonst wird die Regel zur Ermessensfrage.
       if (error instanceof CloudPathError) {
-        return res.status(400).json({ error: error.message });
+        return res.status(400).json({ error: 'Ungültiger Dateipfad in der Wolke-Freigabe.' });
       }
 
       return res.status(500).json({

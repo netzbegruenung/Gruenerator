@@ -21,6 +21,18 @@ describe('assertNoPathEscape', () => {
     // einen Pfad mit WebDAV-Präfix unverändert weiter.
     '%2e%2e/secrets',
     `${PREFIX}/%2e%2e/%2e%2e/remote.php/dav`,
+    // Ein kodierter TRENNER hielt die Punkt-Segmente zusammen: roh getrennt ist
+    // `..%2f..%2fremote.php` EIN Segment, das zu `../../remote.php` dekodiert
+    // und damit nicht gleich `..` ist. Erreichbar über POST /api/docs/from-wolke,
+    // dessen `filePath` roh in den WebDAV-Präfix-Zweig von `downloadFile` geht,
+    // wo Prozent-Kodierung bis auf die Leitung überlebt.
+    `${PREFIX}/..%2f..%2fremote.php/dav`,
+    '..%2f..%2fsecrets',
+    '..%5c..%5csecrets',
+    '%2e%2e%2f%2e%2e%2fsecrets',
+    'A/..%2F..%2Fsecrets',
+    // Zweifach kodiert — erst nach zweimaligem Auflösen steht `..` da.
+    '%252e%252e/secrets',
     'A\\..\\..\\secrets',
     '..',
     'https://evil.example/x',
@@ -43,6 +55,13 @@ describe('assertNoPathEscape', () => {
     'Bericht..2026.pdf',
     'A/.hidden/x.md',
     './A/B',
+    // Ein kaputtes Escape darf keine gewöhnliche Datei kosten — und es darf
+    // auch nicht die Prüfung der ÜBRIGEN Segmente abwürgen, weshalb pro
+    // Segment dekodiert wird und nicht über den ganzen Pfad.
+    '100%betreuung/rede.pdf',
+    'Antr%C3%A4ge/rede.pdf',
+    // Ein kodierter Trenner ohne Punkt-Segment ist harmlos.
+    'Sitzung%2F2026.pdf',
   ];
 
   for (const good of fine) {
