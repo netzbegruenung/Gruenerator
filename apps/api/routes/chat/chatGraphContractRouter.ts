@@ -247,7 +247,6 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         actualThreadId,
       });
       if (gate.handled) return gate.result;
-      const { sharepicLicensed } = gate;
 
       sse.send('progress_step', {
         stepId: classifyStepId,
@@ -367,7 +366,6 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         lastUserText,
         forcedTool,
         sharepicRefinement,
-        sharepicLicensed,
         turnSignal: turnDeadline.signal,
       });
       if (response.handled) return response.result;
@@ -376,7 +374,6 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         fullText,
         generatedImage,
         sharepicVariants,
-        socialPost,
         createdDocument,
         createdBoard,
         agenticSteps,
@@ -447,7 +444,6 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         memoryRetrieveTimeMs,
         generatedImage,
         sharepicVariants,
-        socialPost,
         createdDocument,
         createdBoard,
         agenticSteps,

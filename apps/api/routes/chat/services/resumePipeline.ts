@@ -34,11 +34,7 @@ import { createLogger } from '../../../utils/logger.js';
 import { getContextWindow } from '../agents/providers.js';
 
 import { runToolApprovalResume } from './agenticLoop/approvalResume.js';
-import {
-  ARTIFACT_CONFIRMATION_TEXTS,
-  buildPostWithSharepicsConfirmation,
-  buildSharepicConfirmation,
-} from './artifactConfirmations.js';
+import { ARTIFACT_CONFIRMATION_TEXTS, buildSharepicConfirmation } from './artifactConfirmations.js';
 import { persistComputeAssets } from './computeAssetStorage.js';
 import { hasBrokenComputeValues } from './computeResultSanity.js';
 import { pruneMessages } from './contextPruningService.js';
@@ -373,8 +369,8 @@ export async function runChatGraphResume({
       );
     }
 
-    // === Sharepic / social_post resume: the answer is the topic — regenerate and finish ===
-    if (classifiedState.intent === 'sharepic' || classifiedState.intent === 'social_post') {
+    // === Sharepic resume: the answer is the topic — regenerate and finish ===
+    if (classifiedState.intent === 'sharepic') {
       const resumedIntent = classifiedState.intent;
       // Combine the original (topic-less) request with the answer so any variant
       // hint ("zitat sharepic") survives and the answer supplies the subject.
@@ -389,11 +385,7 @@ export async function runChatGraphResume({
         reasoning: `Resumed: ${userAnswer}`,
       });
 
-      const {
-        finalState: resumedFinalState,
-        sharepicVariants,
-        socialPost,
-      } = await executeIntentPipeline({
+      const { finalState: resumedFinalState, sharepicVariants } = await executeIntentPipeline({
         classifiedState,
         sse,
         forcedTool: requestContext.forcedTool,
@@ -404,21 +396,12 @@ export async function runChatGraphResume({
 
       const n = sharepicVariants.length;
       const fullText =
-        resumedIntent === 'social_post'
-          ? socialPost != null || n > 0
-            ? n > 0
-              ? buildPostWithSharepicsConfirmation(n)
-              : ARTIFACT_CONFIRMATION_TEXTS.postWithoutSharepic
-            : ARTIFACT_CONFIRMATION_TEXTS.genericFailed
-          : n > 0
-            ? buildSharepicConfirmation(n)
-            : ARTIFACT_CONFIRMATION_TEXTS.sharepicFailed;
+        n > 0 ? buildSharepicConfirmation(n) : ARTIFACT_CONFIRMATION_TEXTS.sharepicFailed;
       sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
       sse.send('text_delta', { text: fullText });
 
-      // Persist the artifacts too — without the sharepic/social_post tool
-      // calls the card can't rehydrate on reload and later text edits would
-      // fall through to the sharepic edit branch.
+      // Persist the artifacts too — without the sharepic tool call the card
+      // can't rehydrate on reload.
       const artifactPersist = await persistResumedResponse({
         threadId: requestContext.actualThreadId!,
         fullText,
@@ -428,7 +411,6 @@ export async function runChatGraphResume({
         processedMeta: requestContext.processedMeta,
         userMessageId: requestContext.userMessageId ?? null,
         sharepicVariants,
-        socialPost,
       });
       if (artifactPersist.discarded) sendChatWarning(sse, 'turn_discarded');
       else if (!artifactPersist.ok) sendChatWarning(sse, 'persist_failed');

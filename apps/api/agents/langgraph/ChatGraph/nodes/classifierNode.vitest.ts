@@ -832,13 +832,18 @@ describe('heuristicClassify: doc/board action intents', () => {
   });
 });
 
-describe('heuristicClassify: social_post intent (EXPERIMENTAL combined post)', () => {
-  it('routes creation requests to social_post', () => {
+describe('heuristicClassify: Social-Post-Auftrag ist ein Schreibauftrag', () => {
+  // Das Verdikt hiess bis 08/2026 `social_post` und war ein Artefakt-Verdikt
+  // mit eigener Karte. Es ist stillgelegt: ein Social-Post ist eine Textsorte,
+  // die das Rezept schreibt, und `produktion` ist der Pfad dorthin. Was die
+  // Regel WEITERHIN leistet, prüfen die Fälle darunter — sie hält den
+  // Schreibauftrag von der Beispiel-Stöberei und von der Sharepic-Route fern.
+  it('routes creation requests to produktion', () => {
     // 0.8 sits below HEURISTIC_CONFIDENCE_THRESHOLD by design: the primary
     // route is the classifier's dedicated Tier-2.5 branch; this heuristic is
     // the same-confidence successor of the old examples creation rule.
     const result = heuristicClassify('Erstelle einen Instagram-Post zu Tempo 30');
-    expect(result.intent).toBe('social_post');
+    expect(result.intent).toBe('produktion');
     expect(result.confidence).toBeGreaterThanOrEqual(0.8);
   });
 
@@ -852,18 +857,17 @@ describe('heuristicClassify: social_post intent (EXPERIMENTAL combined post)', (
     expect(result.intent).toBe('examples');
   });
 
-  // The "nur Text" / "ohne Text" escape hatches are gone with the combined
-  // post: text-only IS what social_post produces now, so there is nothing left
-  // to escape from, and "ohne Text" no longer buys a sharepic — only the word
-  // does.
-  it('"nur den Text" needs no escape hatch any more — social_post IS the text', () => {
+  // Die alten Notausgänge „nur Text" / „ohne Text" sind gegenstandslos: ein
+  // Post-Auftrag IST jetzt ein Textauftrag, und ein Sharepic gibt es nur auf
+  // das Wort.
+  it('"nur den Text" braucht keinen Notausgang — der Post IST der Text', () => {
     const result = heuristicClassify('Schreib mir nur den Text für einen Insta-Post zu Tempo 30');
-    expect(result.intent).toBe('social_post');
+    expect(result.intent).toBe('produktion');
   });
 
   it('"ohne Text" no longer conjures a sharepic', () => {
     const result = heuristicClassify('Erstelle einen Instagram-Post ohne Text zu Tempo 30');
-    expect(result.intent).toBe('social_post');
+    expect(result.intent).toBe('produktion');
   });
 
   it('explicit sharepic wording keeps the shipped sharepic flow (0.93 rule wins)', () => {
@@ -875,14 +879,14 @@ describe('heuristicClassify: social_post intent (EXPERIMENTAL combined post)', (
   // A sharepic is only produced when the user said so. These four cases are the
   // rule itself; if one of them flips, the rule is broken.
   it('a plain post ask does NOT become a sharepic', () => {
-    expect(heuristicClassify('Schreib einen Instagram-Post zu Tempo 30').intent).toBe(
-      'social_post'
-    );
+    expect(heuristicClassify('Schreib einen Instagram-Post zu Tempo 30').intent).toBe('produktion');
   });
 
-  it('naming a sharepic in a post ask keeps social_post (which carries the half)', () => {
+  it('ein Post-Nomen behält den Schreibauftrag, auch wenn ein Sharepic mitgenannt ist', () => {
+    // Die Grafik ist damit NICHT bestellt — sie ist ein eigener Auftrag
+    // ("Sharepic zu …"). Der Text hat Vorfahrt, weil er benannt ist.
     expect(heuristicClassify('Schreib einen Instagram-Post mit Sharepic zu Tempo 30').intent).toBe(
-      'social_post'
+      'produktion'
     );
   });
 
@@ -899,11 +903,11 @@ describe('heuristicClassify: social_post intent (EXPERIMENTAL combined post)', (
     expect(heuristicClassify('Mach mir einen Dreizeiler zum Radverkehr').intent).toBe('sharepic');
   });
 
-  it('"Post MIT Sharepic" is the explicit combined ask — stays social_post', () => {
+  it('"Post MIT Sharepic" bleibt der Textauftrag, nicht die Sharepic-Route', () => {
     const result = heuristicClassify('Erstelle einen Insta-Post mit Sharepic zu Tempo 30');
-    expect(result.intent).toBe('social_post');
+    expect(result.intent).toBe('produktion');
     expect(heuristicClassify('Schreib einen Post inkl. Sharepic zur Verkehrswende').intent).toBe(
-      'social_post'
+      'produktion'
     );
   });
 });
@@ -1056,7 +1060,7 @@ describe('heuristicClassify: greeting rule needs a word boundary', () => {
       'Hier der Text für morgen, mach daraus bitte einen Instagram-Post'
     );
     expect(hier.reasoning).not.toBe('Greeting detected');
-    expect(hier.intent).toBe('social_post');
+    expect(hier.intent).toBe('produktion');
     const hilfe = heuristicClassify(
       'Hilfe, wie erstelle ich ein Sharepic für unseren Ortsverband?'
     );
@@ -1097,7 +1101,7 @@ describe('heuristicClassify: unit conversion needs a target unit', () => {
     const result = heuristicClassify(
       'Erstelle einen Post zu Tempo 30 in der Innenstadt als Beitrag für unsere Kampagne'
     );
-    expect(result.intent).toBe('social_post');
+    expect(result.intent).toBe('produktion');
   });
 
   it('"35 °C in Berlin" is not a conversion', () => {

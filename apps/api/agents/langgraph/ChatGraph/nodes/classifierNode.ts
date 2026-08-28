@@ -59,7 +59,6 @@ import {
   BOARD_MODIFY_PATTERN,
   DOC_MODIFY_PATTERN,
   HEURISTIC_CONFIDENCE_THRESHOLD,
-  detectSocialPlatform,
   nounNearCreateVerb,
   NOUN_TRIGGER_MAX_LENGTH,
   SOCIAL_BARE_NOUN_PATTERN,
@@ -977,20 +976,26 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // eine Tweet-Sammlung zu suchen.
     if (agentWantsExamples && userContent.length > 0) {
       if (SOCIAL_NOUN_PATTERN.test(userContent)) {
-        // Platform hint for the social composer/generator. Null when
-        // unspecified → generic rubric.
-        const platform = detectSocialPlatform(userContent);
+        // Das Verdikt hiess `social_post` und ist mit ihm gefallen. Was der
+        // Block WOLLTE, steht in seinem eigenen Namen: `alwaysSearchesExamples`
+        // — der Turn soll auf echten Posts der Kanäle gegründet sein, und
+        // genau das tut `examples`. Die Kombischeibe (Karte, Sharepic-Hälfte,
+        // eigene Rubrik) war nie das, wonach das Flag fragte.
+        //
+        // Die Textsorte trägt jetzt das Rezept: `examples` ist ein
+        // Einzeldurchlauf, und `deriveImplicitRecipeMention` wählt darauf
+        // `instagram`/`facebook`/… aus demselben Nutzertext, aus dem hier
+        // vorher `platform` gelesen wurde.
         log.info(
-          `[Classifier] Content-creation agent (${state.agentConfig.identifier}) → social_post${platform ? `, platform=${platform}` : ''}`
+          `[Classifier] Content-creation agent (${state.agentConfig.identifier}) → examples (Social-Auftrag)`
         );
         return {
-          intent: 'social_post',
+          intent: 'examples',
           secondaryIntent: null,
-          platform,
           searchSources: [],
           searchQuery: extractSearchTopic(userContent) || userContent,
           detectedFilters: null,
-          reasoning: `Agent ${state.agentConfig.identifier} requires social_post grounding for content creation`,
+          reasoning: `Agent ${state.agentConfig.identifier} requires example grounding for content creation`,
           hasTemporal: temporal.hasTemporal,
           complexity,
           classificationTimeMs: Date.now() - startTime,
@@ -1112,21 +1117,34 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     if (looksLikeSocialCreation && userContent.length >= 10) {
       if (hasExplicitSharepicWord(userContent) && !POST_NOUN_PATTERN.test(userContent)) {
         // "Sharepic für Instagram" — a sharepic ask that merely names a
-        // platform. Defer to the sharepic route. Naming both ("Post mit
-        // Sharepic") stays here: social_post carries the sharepic half itself.
+        // platform. Defer to the sharepic route.
+        //
+        // Der zweite Halbsatz von früher („Post mit Sharepic" bleibt hier, weil
+        // social_post die Sharepic-Hälfte selbst trägt) ist mit dem Verdikt weg:
+        // ein Post-Auftrag ist jetzt ein Schreibauftrag, kein Artefakt-Auftrag.
+        // „Post MIT Sharepic" nennt das Post-Nomen und fällt deshalb weiter in
+        // den Zweig darunter — es wird zum Text, und das Sharepic bestellt man
+        // im nächsten Turn (oder direkt mit „Sharepic zu …").
         log.info('[Classifier] Sharepic-only ask with a platform hint — deferring');
       } else {
-        const platform = detectSocialPlatform(userContent);
-        log.info(
-          `[Classifier] Social post creation → social_post${platform ? ` (platform=${platform})` : ''}`
-        );
+        // Das Gitter bleibt, das Verdikt wechselt. Ein Social-Post ist eine
+        // TEXTSORTE, keine Artefaktart: `produktion` ist der Einzeldurchlauf,
+        // auf dem `deriveImplicitRecipeMention` das Rezept (`instagram`,
+        // `facebook`, `twitter`, `linkedin`, `reel`) setzt — korpusgestützt,
+        // mit AT-Gabelung, mit angelerntem Stil und mit LV-Vorzug. Die
+        // eingebaute Rubrik des alten Zweigs widersprach den Rezepten messbar.
+        //
+        // Warum der Block überhaupt stehenbleibt, statt die Heuristik machen zu
+        // lassen: er ist der Grund, warum ein Schreibauftrag nicht als
+        // Beispiel-Stöberei (`examples`, deren Verbliste `schreib` enthält) und
+        // nicht als Schleifen-Turn endet. Nur das Etikett war falsch.
+        log.info('[Classifier] Social post creation → produktion (Rezept schreibt)');
         return {
-          intent: 'social_post',
-          platform,
+          intent: 'produktion',
           searchSources: [],
           searchQuery: extractSearchTopic(userContent) || userContent,
           detectedFilters: null,
-          reasoning: 'Social post creation',
+          reasoning: 'Social post creation — Rezept auf dem Einzeldurchlauf',
           hasTemporal: temporal.hasTemporal,
           complexity,
           classificationTimeMs: Date.now() - startTime,
@@ -1757,10 +1775,6 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
 
     return {
       intent: residualIntent,
-      // Recovered here rather than carried: `social_post` is reachable as a
-      // low-confidence heuristic verdict, and the composer rubric is
-      // platform-specific.
-      platform: residualIntent === 'social_post' ? detectSocialPlatform(userContent) : null,
       searchSources: detectSearchSources(userContent, residualIntent),
       searchQuery: (heuristic.searchQuery ?? extractSearchTopic(userContent) ?? userContent).slice(
         0,

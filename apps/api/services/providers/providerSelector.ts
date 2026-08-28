@@ -149,7 +149,6 @@ const TEXT_TYPES: ReadonlySet<string> = new Set([
   'buergeranfragen',
   // Social
   'social',
-  'social_post_generation',
   'social_post_edit',
   'subtitler_social',
 ]);

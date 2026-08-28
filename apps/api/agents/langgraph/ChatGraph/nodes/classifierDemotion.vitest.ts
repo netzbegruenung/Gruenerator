@@ -298,12 +298,16 @@ describe('Tier 3.5 — demoted band (agentic, LLM skipped)', () => {
 });
 
 describe('Tier 3.5 — NOT demoted (gates preserved)', () => {
-  it('social_post (platform-gated) is never demoted — fast path wins before tier 3.5', async () => {
+  it('ein Social-Post-Auftrag wird nicht herabgestuft — das Gitter greift vor Tier 3.5', async () => {
+    // Das Verdikt hiess `social_post`, bis es 08/2026 stillgelegt wurde; der
+    // Schreibauftrag landet jetzt auf `produktion` und das Rezept schreibt ihn.
+    // Was der Fall festhält, ist unverändert: das Gitter fällt VOR der
+    // Loop-Herabstufung, der Turn wird nie `agentic`.
     const state = buildState({
       userMessage: 'Schreib mir einen Instagram-Post zur Wärmewende in unserer Stadt',
     });
     const result = await classifierNode(state);
-    expect(result.intent).toBe('social_post');
+    expect(result.intent).toBe('produktion');
   });
 
   it('creative writing is never demoted (confident heuristic or LLM, either way not agentic)', async () => {
