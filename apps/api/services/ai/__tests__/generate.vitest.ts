@@ -199,18 +199,57 @@ describe('the wall clock', () => {
       attempts: 1,
     }).catch((e: unknown) => e as Error);
 
-    // 75 s: der Primär bekommt alles ausser der Reserve (120 − 45).
-    await vi.advanceTimersByTimeAsync(74_999);
+    // 40 s: fünf Anbieter, also legt `attemptBudget` den vier hinter dem
+    // Primär je 20 s zurück.
+    await vi.advanceTimersByTimeAsync(39_999);
     expect(executeProvider).toHaveBeenCalledTimes(1);
 
-    // Und die Reserve geht an den ersten Ausweichanbieter — Cortecs, den
-    // einzigen Host desselben Gemma 4 in dieser Kette.
+    // Als nächstes Cortecs, der einzige Host desselben Gemma 4 in dieser Kette.
     await vi.advanceTimersByTimeAsync(2);
     expect(executeProvider).toHaveBeenCalledTimes(2);
     expect(callAt(1).provider).toBe('cortecs');
 
-    await vi.advanceTimersByTimeAsync(45_000);
+    // Die Kette zu Ende laufen lassen, sonst wartet `failed` auf die drei
+    // Anbieter dahinter.
+    await vi.advanceTimersByTimeAsync(80_000);
     await failed;
+  });
+
+  it('gives every provider in a five-deep chain a turn, not just the next one', async () => {
+    // Der Befund aus dem Review: eine FESTE Reserve garantiert immer genau
+    // einen weiteren Zug, egal wie viele dahinter stehen. Mit 45 s fest lief
+    // hier greenpt 75 s, cortecs 45 s — und litellm, regolo und mistral nie.
+    executeProvider.mockImplementation(hang);
+
+    const failed = aiText({ lane: 'doc_generation', prompt: 'x' }).catch(
+      (e: unknown) => e as Error
+    );
+    await vi.advanceTimersByTimeAsync(120_000);
+    await failed;
+
+    expect(executeProvider).toHaveBeenCalledTimes(5);
+    expect([0, 1, 2, 3, 4].map((i) => callAt(i).provider)).toEqual([
+      'greenpt',
+      'cortecs',
+      'litellm',
+      'regolo',
+      'mistral',
+    ]);
+  });
+
+  it('gives a shorter chain a more generous primary', async () => {
+    // Richtig herum: der Primär ist das für die Lane GEWÄHLTE Modell und
+    // beantwortet den Normalfall. `qa_draft` liegt auf Mistral, die Kette ist
+    // vier tief — 120 − 3×20 = 60 s.
+    executeProvider.mockImplementation(hang);
+
+    const failed = aiText({ lane: 'qa_draft', prompt: 'x' }).catch((e: unknown) => e as Error);
+    await vi.advanceTimersByTimeAsync(59_999);
+    expect(executeProvider).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(60_001);
+    await failed;
+    expect(executeProvider).toHaveBeenCalledTimes(4);
   });
 
   it('hands each attempt its own budget as the provider abort signal', async () => {
@@ -220,7 +259,8 @@ describe('the wall clock', () => {
 
     await aiText({ lane: 'qa_draft', prompt: 'x' });
 
-    expect(callAt(0).data.timeoutMs).toBe(75_000);
+    // Vier Anbieter: 120 − 3×20.
+    expect(callAt(0).data.timeoutMs).toBe(60_000);
   });
 
   it('lets a caller name its own budget', async () => {
