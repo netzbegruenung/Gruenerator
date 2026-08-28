@@ -6,6 +6,7 @@
  * activity feed and the canvas repository.
  */
 
+import type { ReapedShare } from '../../services/sharedMediaService.js';
 import type { SharedMediaRow, ShareResult } from '../../types/media.js';
 
 export interface CreateImageShareParams {
@@ -71,6 +72,12 @@ export interface SharedMediaService {
   renameShare(userId: string, shareToken: string, title: string): Promise<boolean>;
   finalizeVideoShare(shareToken: string, videoPath: string): Promise<void>;
   markShareFailed(shareToken: string): Promise<void>;
+  /** Rows and files for shares stuck in processing/failed. Called by the
+   * uploads cleaner, not by a route — nothing user-facing can reach them. */
+  reapOrphanedShares(olderThanHours: number): Promise<ReapedShare[]>;
+  /** Rows in a dead status that carry a file — user media the reaper refuses
+   * to touch. Reported, never deleted. */
+  countFileBearingOrphans(): Promise<number>;
   updateImageShare(
     userId: string,
     shareToken: string,
