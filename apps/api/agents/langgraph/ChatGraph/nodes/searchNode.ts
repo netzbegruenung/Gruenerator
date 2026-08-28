@@ -41,7 +41,6 @@ import {
 } from '../../../../services/examples/exampleSearchService.js';
 import {
   crawlAndDistill,
-  selectAndCrawlTopUrls,
   type CrawlableResult,
 } from '../../../../services/search/CrawlingService.js';
 import { LOW_VALUE_DOMAINS } from '../../../../services/search/domainFilters.js';
@@ -108,6 +107,24 @@ const FANIN_CANDIDATE_LIMIT = 24;
  * from the headline.
  */
 const SCRAPE_URL_TARGET_CHARS = 12_000;
+
+/**
+ * Char budget per page for a web result we crawled ourselves.
+ *
+ * Kleiner als `SCRAPE_URL_TARGET_CHARS`, weil diese Seiten niemand benannt hat
+ * — sie stammen aus der Trefferliste, und mehrere davon teilen sich einen Turn.
+ * Entspricht `CRAWL_DISTILL_TARGET_CHARS` im Werkzeugkatalog, der denselben
+ * Fall bedient.
+ *
+ * **Dass hier überhaupt ein Budget steht, ist der Punkt.** Die beiden
+ * Crawl-Stellen unten riefen `selectAndCrawlTopUrls` und schrieben das rohe
+ * `fullContent` nach `content` — als einzige im Baum. `UrlCrawler` deckelt den
+ * extrahierten Text nicht, also erreichte von hier aus ein unbegrenzter
+ * Kandidat den Cross-Encoder, und genau dagegen stand dessen eigenes Fenster
+ * (#2998). Das Fenster ist weg; die Schranke sitzt jetzt hier, wo die Seite
+ * hereinkommt, und gilt damit für alles dahinter statt nur für den Reranker.
+ */
+const WEB_CRAWL_TARGET_CHARS = 8_000;
 
 // ── Abgeordnetenwatch → SearchResult mapping ──────────────────────────────────
 const AW_VOTE_LABELS: Record<string, string> = {
@@ -721,14 +738,25 @@ export async function executeWebSearch(
 
   if (options.crawlTopUrls && allWebResults.length > 0) {
     try {
-      const crawled = await selectAndCrawlTopUrls(
+      // `query-focused`, nicht `faithful`: die Anfrage auf diesem Pfad ist eine
+      // Suchanfrage, keine Schreibanweisung wie bei `scrape_url` — hier gibt es
+      // also etwas, wonach ausgewählt werden kann.
+      const crawled = await crawlAndDistill(
         allWebResults.filter((r) => r.url) as CrawlableResult[],
         query,
-        { maxUrls: options.crawlTopUrls, timeout: options.crawlTimeoutMs ?? 3000 }
+        {
+          maxUrls: options.crawlTopUrls,
+          timeout: options.crawlTimeoutMs ?? 3000,
+          mode: 'query-focused',
+          targetChars: WEB_CRAWL_TARGET_CHARS,
+        }
       );
+      // `crawlAndDistill` setzt `content` selbst — das ist der Unterschied zum
+      // rohen Crawler und der Grund, warum es die Funktion gibt. `fullContent`
+      // bleibt daneben stehen, wer es liest, merkt nichts.
       allWebResults = crawled.map((r) => ({
         ...r,
-        content: r.fullContent || r.content || '',
+        content: r.content || r.fullContent || '',
         source: (r.source as string) || 'web',
         title: r.title || '',
       }));
@@ -1286,16 +1314,18 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       const webResults = results.filter((r) => r.source === 'web' && r.url);
       if (webResults.length > 0) {
         try {
-          const crawled = await selectAndCrawlTopUrls(webResults as CrawlableResult[], query, {
+          const crawled = await crawlAndDistill(webResults as CrawlableResult[], query, {
             maxUrls: 2,
             timeout: 3000,
+            mode: 'query-focused',
+            targetChars: WEB_CRAWL_TARGET_CHARS,
           });
           const crawledMap = new Map(
             crawled.filter((r) => r.crawled && r.url).map((r) => [r.url, r])
           );
           results = results.map((r) => {
             const c = r.url ? crawledMap.get(r.url) : undefined;
-            return c ? { ...r, content: c.fullContent || r.content } : r;
+            return c ? { ...r, content: c.content || c.fullContent || r.content } : r;
           });
           const crawledCount = crawled.filter((r) => r.crawled).length;
           if (crawledCount > 0) {
