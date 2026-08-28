@@ -305,6 +305,7 @@ const ZITAT_PURE_DESCRIPTOR: SharepicTemplateDescriptor = {
       bounds: { minX: -400, maxX: 400, minY: -400, maxY: 400 },
       opacity: { stateKey: 'quoteMarkOpacity', min: 0, max: 1 },
     },
+    backgroundPhotoElement(),
   ],
   layoutResets: [{ onFields: ['quote'], clearStateKey: 'namePosition' }],
   // The photo the colour templates gained: it covers the solid plane whole, and
