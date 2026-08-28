@@ -32,21 +32,6 @@ export const userSharepics = pgTable(
 
 export type UserSharepic = InferSelectModel<typeof userSharepics>;
 
-export const userUploads = pgTable('user_uploads', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  user_id: uuid('user_id'),
-  file_name: text('file_name').notNull(),
-  file_url: text('file_url'),
-  file_path: text('file_path'),
-  file_size: bigint('file_size', { mode: 'number' }),
-  mime_type: text('mime_type'),
-  upload_status: text('upload_status').notNull().default('pending'),
-  created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  metadata: jsonb('metadata').$type<Record<string, unknown>>().notNull().default({}),
-});
-
-export type UserUpload = InferSelectModel<typeof userUploads>;
-
 /**
  * Entry stored in the transfer_files JSONB array
  */
