@@ -10,6 +10,7 @@
 
 import { getChatNotebookProfile } from '../../../../config/notebookDepthProfiles.js';
 import { vectorConfig } from '../../../../config/vectorConfig.js';
+import { selectRelevantExcerpt } from '../../../../services/search/relevantExcerpt.js';
 import {
   DEFAULT_RELEVANCE,
   rerankPipeline,
@@ -22,8 +23,57 @@ import { MAX_SOURCES } from './citableSources.js';
 
 const log = createLogger('ChatGraph:Rerank');
 
-/** Excerpt per candidate handed to the cross-encoder. */
-const RERANK_EXCERPT_CHARS = 1200;
+/**
+ * Excerpt per candidate handed to the cross-encoder.
+ *
+ * Folgt dem Auszugsmass der Suche (`CONTENT_MAX_EXCERPT_LENGTH`, 1500) statt
+ * einer eigenen Zahl — die private 1200 lag darunter und schnitt damit noch
+ * einmal, was die Suchschicht schon zugeschnitten hatte.
+ *
+ * **Was hier wirklich geschnitten wird, ist kein Chunk.** `r.content` ist
+ * `relevant_content`, und das ist der mit `\n\n---\n\n` verkettete Auszug von
+ * bis zu `CONTENT_MAX_CHUNKS_PER_DOC` (10) Chunks eines Dokuments
+ * (`BaseSearchService`, ~Zeile 472). Ein Kopfschnitt auf 1200 zeigte dem
+ * Encoder also grob den ERSTEN von zehn Chunks — ausgewählt von nichts als der
+ * Reihenfolge.
+ *
+ * Gemessen am 28.08.2026 über `evals/retrieval` (52 Fälle, EVAL_RERANK=1,
+ * dieselben Kandidaten in derselben Reihenfolge, Werte nach Rerank):
+ *
+ *   Fenster  Auswahl        Hit@1   Hit@3   MRR@10   Encoder (Median)
+ *   1200     Kopf (bisher)  34,6 %  76,9 %  0,554     854 ms
+ *   1500     Kopf           26,9 %  63,5 %  0,481    1051 ms
+ *   1500     anfragebezogen 40,4 %  71,2 %  0,580    1021 ms  ← jetzt
+ *   3000     Kopf           38,5 %  63,5 %  0,552    1433 ms
+ *   3000     anfragebezogen 34,6 %  65,4 %  0,539    1397 ms
+ *   ohne Fenster (ganz)     48,1 %  73,1 %  0,622    1906 ms
+ *
+ * **Die Grenzen dieser Messung gehören dazu.** n=52, ein Fall sind 1,9
+ * Prozentpunkte, und die beiden Kopf-Zeilen 1200/1500 unterscheiden sich um
+ * 7,7 Punkte in die falsche Richtung — Unterschiede unterhalb von rund acht
+ * Punkten löst diese Vorrichtung nicht auf. Belastbar ist nur, was über alle
+ * Läufe gleich blieb: **gar nicht schneiden ist am besten** (48,1 % / 0,622,
+ * zweimal identisch gemessen), und das ist die Zeile, die zählt — der Preis
+ * des Fensters ist grösser als die Wahl des Schnitts. Ein grösseres Fenster
+ * kostet Wanduhr (854 → 1906 ms gegen Loop-Turns von 7,9 s / 9,4 s) und ist
+ * bei gecrawlten Kandidaten nicht beliebig zu haben; siehe den Nachtrag an
+ * #2824.
+ */
+function rerankExcerptChars(): number {
+  return vectorConfig.get('content').maxExcerptLength;
+}
+
+/**
+ * Ab welchem Vielfachen des Fensters ein Kandidat als „viel länger als das
+ * Fenster" gilt und sein Auszug nach Anfrage statt nach Position gewählt wird.
+ *
+ * Das Tor ist da, weil ein Kandidat, der ungefähr fenstergross ist, nichts zu
+ * wählen übrig lässt: die Auswahl wäre dann Rauschen auf einem Text, der
+ * ohnehin fast ganz durchgeht. Die Belege FÜR die Auswahl stammen aus dem
+ * anderen Regime — vielchunkige Aggregate, gecrawlte Seiten und angehängte
+ * PDFs, wo `firstRelevantOffset` bei 3219/9966/8673 lag (#2289).
+ */
+export const RERANK_FOCUS_MIN_RATIO = 2;
 
 /**
  * Obergrenze für Überlebende — nur noch im Zweig OHNE Notebook-Bezug.
@@ -101,6 +151,7 @@ export async function rerankNode(state: ChatGraphState): Promise<Partial<ChatGra
   }
 
   const candidates = searchResults.slice(0, inputLimit);
+  const excerptChars = rerankExcerptChars();
 
   log.info(
     `[Rerank] Reranking ${candidates.length} results for query: "${searchQuery?.slice(0, 50)}..."`
@@ -113,14 +164,40 @@ export async function rerankNode(state: ChatGraphState): Promise<Partial<ChatGra
 
   const queryStr = researchBrief ? `${searchQuery}\n${researchBrief}` : searchQuery || '';
 
+  // Wie oft das Fenster wirklich query-bezogen gefüllt wurde, und wie weit
+  // hinten die beste Passage lag. Der zweite Wert ist `firstRelevantOffset` aus
+  // #2289: liegt er über excerptChars, hätte der Kopfschnitt an dieser
+  // Stelle den falschen Text bewertet. Das ist die Messung, die #2824 für
+  // diesen Schnitt verlangt — sie steht in jedem Turn-Log, nicht in einer
+  // einmaligen Erhebung.
+  let focused = 0;
+  let beyondWindow = 0;
+  let maxOffset = 0;
+
   const items: RerankableItem[] = candidates.map((r) => {
+    // The cross-encoder scores THIS text, so the excerpt decides which sources
+    // survive. At 300 chars a crawled page whose relevant passage sits further
+    // in was judged on its boilerplate header — a selection loss that then
+    // propagates into everything downstream. Raising the window to 1200 moved
+    // the boundary; it did not remove it. `selectRelevantExcerpt` fills the
+    // window with the passages the query points at and falls back to exactly
+    // this head cut whenever the query gives it nothing to go on.
+    // Nur für Kandidaten, die das Fenster deutlich überschreiten — siehe
+    // RERANK_FOCUS_MIN_RATIO. `contiguous`, weil der Encoder zusammenhängenden
+    // Text bewertet; die zusammengesetzte Form urteilte messbar schlechter.
+    const excerpt =
+      r.content.length >= excerptChars * RERANK_FOCUS_MIN_RATIO
+        ? selectRelevantExcerpt(r.content, queryStr, excerptChars, 'contiguous')
+        : null;
+    if (excerpt) {
+      focused++;
+      maxOffset = Math.max(maxOffset, excerpt.firstRelevantOffset);
+      if (excerpt.firstRelevantOffset >= excerptChars) beyondWindow++;
+    }
+
     const item: RerankableItem = {
       title: r.title,
-      // The cross-encoder scores THIS text, so the excerpt decides which sources
-      // survive. At 300 chars a crawled page whose relevant passage sits further
-      // in was judged on its boilerplate header — a selection loss that then
-      // propagates into everything downstream.
-      content: r.content.slice(0, RERANK_EXCERPT_CHARS),
+      content: excerpt?.text ?? r.content.slice(0, excerptChars),
       source: r.source,
     };
     if (r.relevance != null) {
@@ -128,6 +205,14 @@ export async function rerankNode(state: ChatGraphState): Promise<Partial<ChatGra
     }
     return item;
   });
+
+  if (focused > 0) {
+    log.info(
+      `[Rerank] Excerpt: ${focused}/${candidates.length} query-focused, ` +
+        `${beyondWindow} with the best passage beyond the ${excerptChars}-char window ` +
+        `(max firstRelevantOffset ${maxOffset})`
+    );
+  }
 
   const pipelineResult = await rerankPipeline({
     query: queryStr,
