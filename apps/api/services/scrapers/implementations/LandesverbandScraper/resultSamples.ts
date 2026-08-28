@@ -44,6 +44,14 @@ export function addDeadLinkSamples(
  * So the split only survives a source that stored, updated or skipped at least
  * one document. Otherwise every dead link is folded back into `errors`, which
  * is what turns the run red and sends the email.
+ *
+ * Folds the `SourceResult` only, not the per-content-type buckets in
+ * `contentTypes`, which keep their unfolded counts. Nothing reads those today
+ * (the report and the emails all go through the source-level numbers), and the
+ * source-level verdict would be wrong for them anyway: a single content path
+ * can legitimately produce nothing while the source as a whole worked. If a
+ * consumer for `contentTypes` ever appears, it needs its own decision here
+ * rather than inheriting this one.
  */
 export function foldDeadLinksIfNothingWorked(
   result: SourceResult,
