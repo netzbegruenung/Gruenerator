@@ -193,7 +193,10 @@ function fallbackFor(call: AiCall): readonly ProviderName[] {
 function toEnvelope(
   call: AiCall,
   model: string | null,
-  extra: Partial<AIRequestOptions> = {}
+  extra: Partial<AIRequestOptions> = {},
+  /** Die Frist DIESES Versuchs (`attemptBudget`), nicht die des Aufrufers.
+   *  `execute.ts` macht daraus das Abbruchsignal des Anbieters. */
+  timeoutMs?: number
 ): AIRequestData {
   const options: AIRequestOptions = {
     ...extra,
@@ -209,11 +212,73 @@ function toEnvelope(
     ...(call.system != null && { systemPrompt: call.system }),
     messages: call.messages ?? [{ role: 'user' as const, content: call.prompt ?? '' }],
     options,
+    ...(timeoutMs != null && { timeoutMs }),
     ...(call.platforms != null && { metadata: { platforms: [...call.platforms] } }),
   };
 }
 
-async function runChain(call: AiCall, extra: Partial<AIRequestOptions>): Promise<AiResult> {
+/**
+ * Die Frist, die KEIN Versuch aufbrauchen darf, solange noch ein Anbieter
+ * hinter ihm steht.
+ *
+ * Ohne sie ist die Ausweichkette tote Zeile, und zwar genau dann, wenn man sie
+ * braucht. Die Wanduhr unten deckt die GANZE Kette (120 s, `env.REQUEST_TIMEOUT`);
+ * GreenPT bringt in `greenptThinkingFetch.ts` seine EIGENE Frist von ebenfalls
+ * 120 s mit. Zwei gleiche Zahlen, und der Primär verschluckt das gesamte Budget:
+ * die äussere Uhr feuert im selben Moment, in dem der Anbieter aufgäbe, also
+ * kam nie ein zweiter an die Reihe. Live am 28.08.2026 auf `doc_generation`:
+ * zwei `aiObject`-Versuche à 120 s, vier Minuten Warten, HTTP 500 — und in
+ * keinem der beiden lief ein einziger Ausweichanbieter.
+ *
+ * 45 s, nicht die Hälfte: der Primär soll den Löwenanteil behalten (bei 120 s
+ * also 75 s, deutlich über jeder gemessenen echten Generierung), und garantiert
+ * werden muss nur, dass ÜBERHAUPT noch einer drankommt. Der bekommt die
+ * restlichen 45 s — auf Cortecs mit 210,7 tok/s reichlich für eine ganze
+ * Antwort (`gemmaHosts.ts`).
+ */
+const FALLBACK_RESERVE_MS = 45_000;
+
+/**
+ * Was dieser Versuch höchstens verbrauchen darf. Der letzte der Kette bekommt
+ * den Rest — hinter ihm ist nichts mehr zu reservieren.
+ */
+function attemptBudget(remainingMs: number, isLast: boolean): number {
+  if (isLast) return remainingMs;
+  return Math.max(remainingMs - FALLBACK_RESERVE_MS, Math.min(remainingMs, FALLBACK_RESERVE_MS));
+}
+
+/**
+ * Die HARTE Zusicherung neben dem Abbruchsignal.
+ *
+ * `execute.ts` reicht dieselbe Frist als `abortSignal` an den Anbieter durch,
+ * was den aufgegebenen Aufruf tatsächlich beendet statt ihn weiterlaufen zu
+ * lassen. Das Rennen hier bleibt trotzdem stehen: die Bauart des Fehlers, den
+ * dieser Code behebt, ist ein Anbieter, der seine eigene Frist nicht einhält.
+ * Sich darauf zu verlassen, dass er die nächste einhält, wäre derselbe Fehler
+ * noch einmal.
+ */
+async function withBudget<T>(work: Promise<T>, ms: number, provider: ProviderName): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    return await Promise.race([
+      work,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error(`${provider} did not answer within ${ms}ms`)),
+          ms
+        );
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+async function runChain(
+  call: AiCall,
+  extra: Partial<AIRequestOptions>,
+  deadline: number
+): Promise<AiResult> {
   const target = targetFor(call);
   const chain: ProviderName[] = [
     target.provider,
@@ -224,6 +289,12 @@ async function runChain(call: AiCall, extra: Partial<AIRequestOptions>): Promise
   let lastError: Error | undefined;
 
   for (const [index, provider] of chain.entries()) {
+    const remaining = deadline - Date.now();
+    // Einen Aufruf noch aufzumachen, dessen Frist schon abgelaufen ist, kostet
+    // Tokens und kann nichts mehr liefern.
+    if (remaining <= 0) break;
+    const budget = attemptBudget(remaining, index === chain.length - 1);
+
     // The primary answers on the target's model; every fallback answers on its
     // OWN default — the rule `providerFallback.getFallbackModelForProvider`
     // applies. Carrying the primary's model down the chain instead would post
@@ -232,11 +303,24 @@ async function runChain(call: AiCall, extra: Partial<AIRequestOptions>): Promise
     // never once catch anything.
     const model = index === 0 ? target.model : null;
     try {
-      const result = await executeProvider(provider, requestId, toEnvelope(call, model, extra));
+      const result = await withBudget(
+        executeProvider(provider, requestId, toEnvelope(call, model, extra, budget)),
+        budget,
+        provider
+      );
       if (result.content || result.stop_reason === 'tool_use') return result;
       lastError = new Error(`Empty response from ${provider}`);
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
+    }
+    // Ohne diese Zeile ist ein Wechsel in der Kette unsichtbar: das Protokoll
+    // des 28.08.2026 zeigte den Fehlschlag und die 500, aber nirgends, dass
+    // niemand hinter GreenPT drangekommen war.
+    const next = chain[index + 1];
+    if (next) {
+      log.warn(
+        `[${String(call.lane)}] ${provider} failed after ${budget}ms budget (${lastError.message}) — trying ${next}`
+      );
     }
   }
 
@@ -260,8 +344,14 @@ async function runChain(call: AiCall, extra: Partial<AIRequestOptions>): Promise
  * .REQUEST_TIMEOUT`) is the only thing standing between a hung provider and a
  * turn that never ends — a facade without it would drop that ceiling silently.
  *
- * Like there, the timer does NOT cancel the provider request: `generateText`
- * gets no signal, so the HTTP call keeps running after this rejects.
+ * Diese Decke ist die einzige Uhr geblieben, und das war zu wenig: sie sagt,
+ * wann die Kette ENDET, aber nichts darüber, wie sie das Budget verteilt. Ein
+ * Primär mit eigener 120-s-Frist bekam es deshalb ganz. Seit dem 28.08.2026
+ * teilt `attemptBudget` es auf, INNERHALB dieser Decke — die Zusicherung hier
+ * ändert sich nicht, sie bekommt nur eine zweite unter sich.
+ *
+ * Der Zeitgeber bricht den Anbieteraufruf weiterhin nicht ab; das tut jetzt
+ * das Abbruchsignal, das `execute.ts` aus der Versuchsfrist baut.
  */
 async function runWithFallback(call: AiCall, extra: Partial<AIRequestOptions> = {}) {
   const timeoutMs = call.timeoutMs ?? env.REQUEST_TIMEOUT;
@@ -269,7 +359,7 @@ async function runWithFallback(call: AiCall, extra: Partial<AIRequestOptions> = 
 
   try {
     return await Promise.race([
-      runChain(call, extra),
+      runChain(call, extra, Date.now() + timeoutMs),
       new Promise<never>((_, reject) => {
         timer = setTimeout(
           () =>
