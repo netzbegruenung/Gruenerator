@@ -15,7 +15,11 @@ on:
         required: false
         type: string
       dry_run:
-        description: 'Preview without storing'
+        # Only 'landesverbaende' and 'abgeordnetenwatch' have a dry-run branch.
+        # Every other source answers HTTP 400 rather than storing for real under
+        # a report headed "Dry Run" (#2970) — so a dry run over the full matrix
+        # is expected to fail those jobs.
+        description: 'Preview without storing (landesverbaende + abgeordnetenwatch only)'
         type: boolean
         default: false
       force:
@@ -363,10 +367,10 @@ jobs:
 
             echo "### Per Source"
             echo ""
-            echo "| Source | Status | New | Updated | Skipped | Unreachable | Errors | Duration |"
-            echo "|--------|--------|----:|--------:|--------:|------------:|-------:|---------:|"
+            echo "| Source | Status | New | Updated | Skipped | Unreachable | Dead links | Errors | Duration |"
+            echo "|--------|--------|----:|--------:|--------:|------------:|-----------:|-------:|---------:|"
 
-            jq -r '.sources[] | "| \(.name) | \(if .status == "success" then "✅" else "❌" end) | \(.stored) | \(.updated) | \(.skipped) | \(.fetchErrors // 0) | \(.errors) | \(.duration)s |"' "$SUMMARY_FILE"
+            jq -r '.sources[] | "| \(.name) | \(if .status == "success" then "✅" else "❌" end) | \(.stored) | \(.updated) | \(.skipped) | \(.fetchErrors // 0) | \(.deadLinks // 0) | \(.errors) | \(.duration)s |"' "$SUMMARY_FILE"
 
             echo ""
 
@@ -394,6 +398,25 @@ jobs:
               echo "### ⚠️ Fehler im Einzelnen"
               echo ""
               echo "$ERROR_DETAILS"
+              echo ""
+            fi
+
+            # Getrennt von den Fehlern, weil hier nichts zu reparieren ist:
+            # Seiten, die die Quelle selbst noch verlinkt, aber mit 403/404/410
+            # beantwortet. In `errors` gezählt wiederholten sie sich Nacht für
+            # Nacht (#2971) und machten die Zahl bedeutungslos, die eigentlich
+            # „hier ist etwas kaputt" heißen soll.
+            DEAD_LINK_DETAILS=$(jq -r '
+              .sources[] | select((.deadLinkSamples // []) | length > 0)
+              | "- **\(.name)** (\(.deadLinks) tote Links"
+                + (if (.deadLinkSamples | length) < .deadLinks then ", \(.deadLinkSamples | length) davon gezeigt" else "" end)
+                + "):\n"
+                + ([.deadLinkSamples[] | "  - `" + . + "`"] | join("\n"))
+            ' "$SUMMARY_FILE")
+            if [ -n "$DEAD_LINK_DETAILS" ]; then
+              echo "### 🔗 Tote Links (Upstream)"
+              echo ""
+              echo "$DEAD_LINK_DETAILS"
               echo ""
             fi
 
@@ -536,6 +559,7 @@ jobs:
           DRY_RUN=$(jq -r '.dryRun' "$SUMMARY_FILE")
           STORED=$(jq -r '.totals.stored' "$SUMMARY_FILE")
           ERRORS=$(jq -r '.totals.errors' "$SUMMARY_FILE")
+          DEAD_LINKS=$(jq -r '[.sources[].deadLinks // 0] | add // 0' "$SUMMARY_FILE")
           DURATION=$(jq -r '.totalDuration' "$SUMMARY_FILE")
 
           if [ "$ERRORS" -gt 0 ]; then STATUS_ICON="⚠️"; else STATUS_ICON="✅"; fi
@@ -546,6 +570,11 @@ jobs:
             echo ""
             echo "**Date:** $(date -d "$TIMESTAMP" '+%d.%m.%Y %H:%M UTC' 2>/dev/null || echo "$TIMESTAMP")"
             echo "**Duration:** ${DURATION}s | **New:** +${STORED} | **Errors:** ${ERRORS}"
+            if [ "$DEAD_LINKS" -gt 0 ]; then
+              echo ""
+              jq -r '.sources[] | select((.deadLinkSamples // []) | length > 0)
+                | "Tote Links (Upstream, \(.deadLinks)):\n" + ([.deadLinkSamples[] | "- `" + . + "`"] | join("\n"))' "$SUMMARY_FILE"
+            fi
             if [ "$(jq -r 'has("extraction")' "$SUMMARY_FILE")" = "true" ]; then
               jq -r '.extraction | "**Read:** \(.documents) docs / \(.pages) pages (OCR: \(.ocrDocuments)/\(.ocrPages)) | **For nothing:** \(.redundant) | **Gated:** \(.skipped.not_modified + .skipped.same_bytes + .skipped.freshly_indexed)"' "$SUMMARY_FILE"
             fi
