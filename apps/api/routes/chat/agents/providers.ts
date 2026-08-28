@@ -898,7 +898,18 @@ function loopSynthWriterChoice(): { provider: Provider; model: string } {
  */
 const synthTargetAllowed = mayWriteAnswer;
 
-/** Human-readable planner model name (for the [Agentic] log line). */
+/**
+ * Nur der Modellname der Planer-Lane.
+ *
+ * NICHT im Ablauf eines Zuges verwenden — dafür ist `resolveLoopPlannerLane()`
+ * da. Diese Tür löst die Lane neu auf, und seit die Wahl an `isModelSlow`
+ * hängt, kann das mitten im Zug etwas anderes liefern als das, was lief: die
+ * Turn-Zusammenfassung nannte so nach einem Stillstand die Ausweichstufe statt
+ * der stehengebliebenen Lane. Sie bleibt für Prüfungen, die nur die POLICY
+ * lesen wollen (welche Stufe wählt die Kette gerade) und dabei keine
+ * Provider-Instanz bauen dürfen — `resolveLoopPlannerLane` ruft `getModel` und
+ * bräuchte dafür Schlüssel, die eine CI nicht hat.
+ */
 export function loopPlannerModelName(): string {
   return loopPlannerChoice().model;
 }

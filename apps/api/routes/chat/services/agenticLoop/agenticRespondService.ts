@@ -24,7 +24,6 @@ import {
   getLoopSynthFallbackModel,
   resolveLoopPlannerLane,
   getLoopSynthModel,
-  loopPlannerModelName,
 } from '../../agents/providers.js';
 import { renderRecipeCatalog } from '../../agents/recipeCatalog.js';
 import { imageDeliveryNote } from '../../agents/searchImageHarvest.js';
@@ -214,6 +213,17 @@ export async function streamAgenticResponse(
   // (precise + reasoning on) and, further down, whether the writer gives up the
   // tool catalog. Two computations could disagree — see turnMaterial.ts.
   const carriedMaterialChars = turnMaterialChars(finalState);
+
+  /**
+   * Die Planer-Lane dieses Zuges, EINMAL aufgelöst.
+   *
+   * Die Bindung steht vor dem `try`, weil die Turn-Zusammenfassung unten
+   * dahinter liegt und dieselbe Lane nennen muss — nicht das Ergebnis einer
+   * zweiten Auflösung. Zugewiesen wird erst dort, wo der Loop startet: der Wert
+   * ist zeitabhängig (`isModelSlow`), und gemeint ist die Lane, mit der dieser
+   * Zug tatsächlich losfuhr.
+   */
+  let plannerLane: ReturnType<typeof resolveLoopPlannerLane> | null = null;
 
   try {
     resolution = await deps.resolveModel(
@@ -514,9 +524,9 @@ export async function streamAgenticResponse(
     // whole turn down: no text, no error, no heartbeat, for the full 120s wall
     // clock — users read that as "it just aborts".
     const synthFallback = mode === 'split' ? getLoopSynthFallbackModel(synth.name) : null;
-    // EINMAL aufgelöst: derselbe Wert speist das Modell und den Vermerk beim
-    // Stillstand — siehe `resolveLoopPlannerLane`.
-    const plannerLane = mode === 'split' ? resolveLoopPlannerLane() : null;
+    // EINMAL aufgelöst: derselbe Wert speist das Modell, den Vermerk beim
+    // Stillstand und die Turn-Zusammenfassung — siehe `resolveLoopPlannerLane`.
+    plannerLane = mode === 'split' ? resolveLoopPlannerLane() : null;
 
     const loopResult = await deps.runAgenticLoop({
       mode,
@@ -763,7 +773,14 @@ export async function streamAgenticResponse(
   logTurnSummary({
     modelName: resolution?.modelName ?? agentConfig.model,
     mode,
-    plannerName: mode === 'split' ? loopPlannerModelName() : null,
+    // DIESELBE Auflösung wie oben, nicht `loopPlannerModelName()`. Ein zweiter
+    // Aufruf würde `loopPlannerChoice()` neu ausführen — und wenn der Zug
+    // gerade selbst einen Stillstand vermerkt hat (`onToolPhaseStall`), nennt
+    // die Zusammenfassung dann die AUSWEICHSTUFE statt der Lane, die lief und
+    // stehen blieb. Also genau die Verwechslung von Host und Modellname, gegen
+    // die dieser Zug angetreten ist. Der Anbieter steht mit dabei, aus dem
+    // gleichen Grund wie in `modelLabel`.
+    plannerName: plannerLane ? `${plannerLane.provider}/${plannerLane.model}` : null,
     synthName,
     intent: finalState.intent,
     steps,
