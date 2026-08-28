@@ -74,15 +74,39 @@ export function deviceCountryProvider(): CountryProviderId {
 }
 
 /**
+ * Anbieter, die erst nach dem Freischalt-Griff erscheinen (siehe
+ * `app/(auth)/login.tsx`).
+ *
+ * Nur `gruenerator` steht hier, nicht die zwei, die Web hinter `?provider=`
+ * versteckt: Netzbegrünung bleibt sichtbar, weil ein Telefon keine Adresszeile
+ * hat und diese Konten sonst gar nicht mehr in die App kämen. Der
+ * Grünerator-Login ist der einzige Weg auf ein Keycloak-Formular mit
+ * Benutzername und Passwort — brauchbar für die App-Review, verwirrend für die
+ * Mitglieder, die so ein Konto nicht haben.
+ *
+ * Sollte der Anbieter je wieder regulär in Betrieb gehen (er gilt laut
+ * `apps/api/config/localeSync.ts` als derzeit ungenutzt), gehört er hier
+ * heraus — nicht ein zweiter Griff daneben.
+ */
+export const GATED_PROVIDERS: readonly LoginProviderId[] = ['gruenerator'];
+
+/**
  * The provider list as the sheet shows it: the detected one first, the rest
  * behind it in registry order.
  *
- * All four, not web's default set. On the web the two hidden providers
- * (Netzbegrünung, Grünerator) stay reachable through `?provider=` — a phone has
- * no address bar to type that into, so hiding them here would lock those
- * accounts out of the app entirely. They are one disclosure deeper instead.
+ * Nicht web's Default-Menge: Netzbegrünung bleibt drin (Begründung an
+ * {@link GATED_PROVIDERS}), nur die dort genannten fallen weg, bis
+ * `showGated` sie hereinholt.
+ *
+ * Ein gesperrter `primary` würde die Liste um genau diesen Eintrag kürzen —
+ * kann heute nicht vorkommen, weil `deviceCountryProvider` ausschließlich
+ * Länder-Anbieter liefert, und ist als Verhalten das richtige: die Sperre
+ * wiegt schwerer als die Vorauswahl.
  */
-export function orderedProviders(primary: LoginProviderId): LoginProvider[] {
-  const first = LOGIN_PROVIDERS.filter((p) => p.id === primary);
-  return [...first, ...LOGIN_PROVIDERS.filter((p) => p.id !== primary)];
+export function orderedProviders(primary: LoginProviderId, showGated = false): LoginProvider[] {
+  const visible = showGated
+    ? LOGIN_PROVIDERS
+    : LOGIN_PROVIDERS.filter((p) => !GATED_PROVIDERS.includes(p.id));
+  const first = visible.filter((p) => p.id === primary);
+  return [...first, ...visible.filter((p) => p.id !== primary)];
 }
