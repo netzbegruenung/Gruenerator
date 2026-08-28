@@ -105,6 +105,19 @@ describe('buildMentionPrefix', () => {
       ])
     ).toBe('@presse @gruesse');
   });
+
+  it('keeps the plain form for a Grünerator — the agent token is never derived', () => {
+    expect(
+      buildMentionPrefix([
+        mentionable({
+          type: 'useragent',
+          identifier: 'kv-klima-gruenerator',
+          title: 'KV Klima-Grünerator',
+          mention: 'kv-klima-gruenerator',
+        }),
+      ])
+    ).toBe('@kv-klima-gruenerator');
+  });
 });
 
 describe('computeMentionInsertion', () => {
