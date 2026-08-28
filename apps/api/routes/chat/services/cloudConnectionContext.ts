@@ -92,3 +92,16 @@ export function findCloudShareUrls(text: string | null | undefined): string[] {
 /** Dieselbe Form wie `extractUrls` im Klassifikator — bewusst dupliziert
  *  gehalten wäre falsch, aber ein Import von dort erzeugte einen Zyklus. */
 const URL_IN_TEXT = /https?:\/\/[^\s<>"']+/gi;
+
+/**
+ * Die über `@link` ANGEHÄNGTEN Freigabe-Links dieses Turns.
+ *
+ * Sie stehen nirgends im Nachrichtentext: die Chip trägt die URL nur in den
+ * Anhangsdaten (`webpageUrls` → `state.attachedWebpageUrls`), ihr Etikett ist
+ * bloß der Hostname. `mentionsCloudStorage` liest den Text und sieht sie
+ * deshalb nie — und seit Freigabe-Links aus `scrape_url` herausgenommen sind,
+ * hätte ein so angehängter Link sonst gar keinen Abnehmer mehr.
+ */
+export function attachedCloudShareLinks(urls: readonly string[] | null | undefined): string[] {
+  return [...new Set((urls ?? []).filter(isCloudShareUrl))];
+}

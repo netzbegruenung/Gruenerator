@@ -1105,6 +1105,7 @@ describe('cloud_files mounting gate', () => {
     userText?: string;
     wolkeFiles?: number;
     enabled?: boolean;
+    attachedWebpageUrls?: string[];
   }) {
     const sourceRegistry = createSourceRegistry();
     const sse = { send: () => {} } as unknown as NonNullable<
@@ -1118,6 +1119,7 @@ describe('cloud_files mounting gate', () => {
         ? { wolkeFiles: Array.from({ length: opts.wolkeFiles }, () => ({ shareLinkId: 'l1' })) }
         : {}),
       ...(opts.userText ? { messages: [{ role: 'user', content: opts.userText }] } : {}),
+      ...(opts.attachedWebpageUrls ? { attachedWebpageUrls: opts.attachedWebpageUrls } : {}),
     } as unknown as ChatGraphState;
     return buildChatToolCatalog({
       agentConfig,
@@ -1157,6 +1159,25 @@ describe('cloud_files mounting gate', () => {
   it('mounts when a Wolke file rides along without being named in the text', () => {
     const { toolNames } = catalogWithCloud({ wolkeFiles: 1, userText: 'Fasse das zusammen' });
     expect(toolNames).toContain('cloud_files');
+  });
+
+  // Ein über `@link` angehängter Freigabe-Link steht nur in den Anhangsdaten,
+  // nie im Text — das Vokabular-Tor sieht ihn also nicht. Ohne diesen Zweig
+  // wäre er seit dem `scrape_url`-Ausschluss ein stiller Blindgänger.
+  it('mounts on an @link-attached share link that the text never names', () => {
+    const { toolNames } = catalogWithCloud({
+      userText: 'Kannst du das hinzufügen?',
+      attachedWebpageUrls: ['https://wolke.netzbegruenung.de/s/AbCdEf'],
+    });
+    expect(toolNames).toContain('cloud_files');
+  });
+
+  it('stays out for an ordinary attached web page', () => {
+    const { toolNames } = catalogWithCloud({
+      userText: 'Fasse das zusammen',
+      attachedWebpageUrls: ['https://gruene.de/programm'],
+    });
+    expect(toolNames).not.toContain('cloud_files');
   });
 
   it('respects an agent that switched the tool off', () => {

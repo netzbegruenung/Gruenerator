@@ -54,7 +54,10 @@ import {
 } from '../services/agenticLoop/attachedDocuments.js';
 import { isEditorSurface } from '../services/agenticLoop/routing.js';
 import { artifactKind, type ArtifactKindId } from '../services/artifactKindRegistry.js';
-import { mentionsCloudStorage } from '../services/cloudConnectionContext.js';
+import {
+  attachedCloudShareLinks,
+  mentionsCloudStorage,
+} from '../services/cloudConnectionContext.js';
 import { hasReachableForm } from '../services/pdfFormAvailability.js';
 import { withImageProxy } from '../services/searchImagePayload.js';
 
@@ -840,11 +843,14 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
     //    also nur, wenn es selbst davon anfängt.
     //
     // Ein Wolke-Anhang in diesem Turn zählt wie das Vokabular: die Person hat
-    // die Datei über den Picker gewählt, der Text sagt darüber nichts.
+    // die Datei über den Picker gewählt, der Text sagt darüber nichts. Aus
+    // demselben Grund zählt ein über `@link` angehängter Freigabe-Link —
+    // dessen URL steht ebenfalls nur in den Anhangsdaten.
     if (
       state.enabledTools?.['cloud_files'] !== false &&
       ((state.cloudConnectionCount ?? 0) > 0 ||
         (state.wolkeFiles?.length ?? 0) > 0 ||
+        attachedCloudShareLinks(state.attachedWebpageUrls).length > 0 ||
         mentionsCloudStorage(state.lastUserTextNoMentions ?? lastUserText(state)))
     ) {
       tools.cloud_files = makeCloudFilesTool(personalCtx);

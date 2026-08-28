@@ -20,6 +20,7 @@ import { z } from 'zod';
 import { extractTextFromFile } from '../../../services/document-services/DocumentProcessingService/textExtraction.js';
 import { listAllCloudRoots, nextcloudShareProvider } from '../../../services/files/index.js';
 import { createLogger } from '../../../utils/logger.js';
+import { attachedCloudShareLinks } from '../services/cloudConnectionContext.js';
 import { emitToolConfirmAction, newActionId } from '../services/confirmActionService.js';
 
 import type {
@@ -163,6 +164,15 @@ export function makeCloudFilesTool(ctx: CloudToolCtx): Tool {
   const provider = ctx.provider ?? nextcloudShareProvider;
   const rootsOf = ctx.listRoots ?? listAllCloudRoots;
 
+  // Über `@link` angehängte Freigabe-Links stehen nicht im Nachrichtentext —
+  // ohne diese Zeile weiß das Modell nichts von ihnen und könnte
+  // `add_connection` gar nicht mit ihnen aufrufen.
+  const attachedLinks = attachedCloudShareLinks(state.attachedWebpageUrls);
+  const attachedNote =
+    attachedLinks.length > 0
+      ? `\n\nIn dieser Nachricht ist ein Freigabe-Link ANGEHÄNGT: ${attachedLinks.join(', ')}. Bei add_connection und test_connection darf 'link' dann entfallen — der angehängte wird genommen.`
+      : '';
+
   return tool({
     description: `Zugriff auf die verbundene WOLKE der Person (Nextcloud-Freigaben) — Ordner durchsehen, Dateien finden und lesen.
 
@@ -170,7 +180,7 @@ NUTZE FÜR: welche Wolke-Verbindungen es gibt (list_connections), was in einem O
 
 NICHT für: Dateien, die in DIESER Nachricht angehängt sind (dafür 'dokumente_lesen'), eigene Grünerator-Dokumente und Tabellen (dafür 'documents'), Notebooks (dafür 'notebooks') oder das Web (dafür 'web_search').
 
-Der Zugriff ist ausschließlich lesend — Schreiben, Umbenennen und Löschen in der Wolke gibt es nicht. Pfade sind immer relativ zur Verbindung; nimm sie aus einer vorherigen Antwort, rate sie nie.`,
+Der Zugriff ist ausschließlich lesend — Schreiben, Umbenennen und Löschen in der Wolke gibt es nicht. Pfade sind immer relativ zur Verbindung; nimm sie aus einer vorherigen Antwort, rate sie nie.${attachedNote}`,
     inputSchema: z.object({
       action: z.enum([
         'list_connections',
@@ -207,14 +217,30 @@ Der Zugriff ist ausschließlich lesend — Schreiben, Umbenennen und Löschen in
       const userId = requireUserId(state);
       if (!userId) return { error: NO_SESSION };
 
+      // Ein angehängter Link ist der Rückfall, nicht der Vorrang: nennt das
+      // Modell einen, gilt der genannte — und ein `connectionId` meint eine
+      // GESPEICHERTE Verbindung, da darf der Anhang nicht dazwischenfahren.
+      const resolvedLink =
+        link?.trim() ||
+        (action === 'add_connection' || !connectionId ? attachedLinks[0] : undefined) ||
+        undefined;
+
       if (action === 'add_connection') {
-        return addConnection({ userId, link, label, provider, sse, threadId, sourceRegistry });
+        return addConnection({
+          userId,
+          link: resolvedLink,
+          label,
+          provider,
+          sse,
+          threadId,
+          sourceRegistry,
+        });
       }
 
-      if (action === 'test_connection' && link) {
+      if (action === 'test_connection' && resolvedLink) {
         // Ein noch nicht gespeicherter Link — genau der Fall, den die
         // Einrichtung in den Einstellungen abdeckt.
-        const result = await provider.test({ link });
+        const result = await provider.test({ link: resolvedLink });
         const note = result.ok
           ? `Der Link funktioniert${result.entryCount != null ? ` und enthält ${result.entryCount} Einträge` : ''}.`
           : `Der Link ist nicht nutzbar (${result.errorCode ?? 'unknown'}).`;
