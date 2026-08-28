@@ -94,10 +94,6 @@ const MAX_CHARS_PER_CALL = 150_000;
  */
 const MIN_CHARS_PER_ITEM = 500;
 
-function itemChars(item: RerankableItem): number {
-  return item.title.length + item.content.length + 1;
-}
-
 /**
  * Kürzt Kandidaten auf das Budget — die grössten zuerst.
  *
@@ -115,8 +111,19 @@ function trimToBudget(
   candidates: RerankableItem[],
   query: string,
   maxCharsPerItem: number,
-  maxCharsPerCall: number
+  maxCharsPerCall: number,
+  sourceTagFn?: (item: RerankableItem) => string
 ): RerankableItem[] {
+  // Muss zu der Zeile passen, die `documents` weiter unten baut:
+  // `[Marke] Titel\nInhalt`. Marke und Titel gehen mit ins Dokument, zählen
+  // also gegen dasselbe Budget — sie hier auszulassen hiesse, eine Decke zu
+  // ziehen und danebenzumessen. Die Marke ist kurz („[Parlamentsdokument] "
+  // ist die längste), aber die Rechnung stimmt nur, wenn sie mitkommt.
+  const tagChars = (item: RerankableItem): number =>
+    sourceTagFn ? sourceTagFn(item).length + '[] '.length : 0;
+  const itemChars = (item: RerankableItem): number =>
+    tagChars(item) + item.title.length + 1 + item.content.length;
+
   const total = candidates.reduce((sum, item) => sum + itemChars(item), 0);
   const anyItemOver = candidates.some((item) => itemChars(item) > maxCharsPerItem);
   if (total <= maxCharsPerCall && !anyItemOver) return candidates;
@@ -143,9 +150,9 @@ function trimToBudget(
   const trimmed = candidates.map((item, index) => {
     const cap = caps.get(index);
     if (cap === undefined) return item;
-    // Der Titel geht mit ins Dokument, also muss er vom Budget abgehen —
+    // Marke und Titel sind schon vergeben, bevor der Inhalt drankommt —
     // sonst reisst ein langer Titel die Decke, die gerade gezogen wurde.
-    const contentCap = Math.max(MIN_CHARS_PER_ITEM, cap - item.title.length - 1);
+    const contentCap = Math.max(MIN_CHARS_PER_ITEM, cap - tagChars(item) - item.title.length - 1);
     const excerpt = selectRelevantExcerpt(item.content, query, contentCap, 'contiguous');
     return { ...item, content: excerpt?.text ?? item.content.slice(0, contentCap) };
   });
@@ -197,7 +204,8 @@ export async function rerankPipeline(
     items.slice(0, inputLimit),
     query,
     maxCharsPerItem,
-    maxCharsPerCall
+    maxCharsPerCall,
+    sourceTagFn
   );
 
   try {
