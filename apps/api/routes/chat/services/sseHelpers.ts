@@ -61,7 +61,6 @@ export type SSEEventType =
   | 'sharepic_minted'
   | 'sharepic_updated'
   | 'sharepic_edit_error'
-  | 'social_post_complete'
   | 'social_post_updated'
   | 'social_post_edit_error'
   | 'reel_processing'
@@ -207,14 +206,10 @@ export interface SSEEventPayloads {
     summary: string;
   };
   sharepic_edit_error: { variantId?: string; error: string };
-  // Combined social post (EXPERIMENTAL): text half. Sharepic variants keep
-  // travelling via sharepic_complete so the whole variant machinery
-  // (mint/edit/live store) stays untouched.
-  social_post_complete: {
-    message: string;
-    post?: SocialPostPayload;
-    error?: string;
-  };
+  // Die Bearbeitung eines Posts aus der Zeit VOR der Stilllegung von
+  // `social_post` (08/2026). `social_post_complete` stand hier als drittes
+  // Ereignis und ist mit dem Erzeuger gefallen; die beiden hier sendet
+  // `socialPostEditService`, der weiterläuft.
   social_post_updated: {
     postId: string;
     post: SocialPostPayload;
@@ -395,7 +390,8 @@ export const INTENT_MESSAGE_POOLS: Record<SearchIntent, string[]> = {
   image: ['Generiere...', 'Male...', 'Zeichne...'],
   image_edit: ['Bearbeite...', 'Pinsele...', 'Retuschiere...'],
   sharepic: ['Gestalte...', 'Baue...', 'Erstelle...'],
-  social_post: ['Texte und gestalte...', 'Baue deinen Post...', 'Schreibe und gestalte...'],
+  // Stillgelegt (08/2026) — total über `SearchIntent`, wie bahn/umfragen.
+  social_post: ['Texte deinen Post...', 'Schreibe...', 'Formuliere...'],
   summary: ['Fasse zusammen...', 'Verdichte...', 'Bündele...'],
   chart: ['Zeichne...', 'Plotte...', 'Erstelle...'],
   artifact: ['Baue...', 'Gestalte...', 'Erstelle...'],

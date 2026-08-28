@@ -232,7 +232,6 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
     clarificationQuestion: null,
     clarificationOptions: null,
     detectedFilters: null,
-    platform: null,
 
     // Research brief (will be set by briefGenerator node for complex research)
     researchBrief: null,
@@ -266,9 +265,6 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
     // Document summarization (will be set by summarizeNode)
     summaryContext: null,
     summaryTimeMs: 0,
-
-    // Combined social post (set by the execution stage for social_post)
-    socialPostResult: null,
 
     // Chart generation (will be set by chart node)
     chartData: null,

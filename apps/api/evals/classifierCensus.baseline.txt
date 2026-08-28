@@ -14,10 +14,10 @@
 ## Dispositionen — was der Klassifikator entschieden hat
 disposition                       n   anteil  davon mit Modell
 anchor                            0    0.0 %     0
-artifact                         29   14.1 %     0
+artifact                         24   11.7 %     0
 gated                             7    3.4 %     0
 loop                            149   72.7 %     0
-prose                            20    9.8 %    12
+prose                            25   12.2 %    12
 (unbekannt)                       0    0.0 %     0
 
 ## Entscheidungspunkte — wie entschieden wurde (Zweighäufigkeit)
@@ -56,7 +56,7 @@ news                              0  retired
 image                             2  artifact
 image_edit                        1  artifact
 sharepic                         18  artifact
-social_post                       5  artifact
+social_post                       0  retired
 summary                           4  gated
 chart                             0  artifact
 compute                           2  gated
@@ -74,7 +74,7 @@ create_pdf                        0  artifact
 create_recurring_task             0  gated
 chat_history                      1  gated
 mcp                               0  gated
-produktion                       19  prose
+produktion                       24  prose
 direct                            0  prose
 greeting                          1  prose
 agentic                         141  loop
