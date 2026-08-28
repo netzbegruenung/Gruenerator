@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useMemo, useState, useRef, lazy, Suspense } from 'react';
+import React, { useEffect, useCallback, useMemo, useState, lazy, Suspense } from 'react';
 import { HiArrowLeft } from 'react-icons/hi';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 
@@ -18,7 +18,6 @@ import ImageStudioTypeSelector from './components/ImageStudioTypeSelector';
 // image studio.
 const TemplateStudioFlow = lazy(() => import('./flows/TemplateStudioFlow'));
 import { useImageGeneration } from './hooks/useImageGeneration';
-import { useTemplateClone } from './hooks/useTemplateClone';
 import {
   persistGalleryEditSession,
   restoreGalleryEditSession,
@@ -42,15 +41,6 @@ interface GalleryEditLocationState {
   styling?: Record<string, unknown>;
   originalImageUrl?: string;
   title?: string;
-}
-
-interface TemplateLocationState {
-  templateMode?: boolean;
-  shareToken?: string;
-  content?: Record<string, unknown> & { sharepicType?: string };
-  styling?: Record<string, unknown>;
-  sharepicType?: string;
-  templateCreator?: string;
 }
 
 interface ImagineHandoffLocationState {
@@ -111,19 +101,17 @@ const ImageStudioPageContent: React.FC = () => {
 
   const { generateText, generateImage } = useImageGeneration();
   const { refetch: refetchImageLimit } = useImageGenerationLimit();
-  const { cloneTemplate, isCloning, error: cloneError } = useTemplateClone();
 
   const [_formErrors, setFormErrors] = useState<FormErrors>({});
-  const cloneInitiatedRef = useRef(false);
 
-  // When opening a saved sharepic (gallery edit) or a cloned template, the
-  // store's currentStep is INPUT until loadGalleryEditData() resolves and
-  // flips it to CANVAS_EDIT. Without a gate, the InputStep paints for one
-  // frame before being replaced by the canvas — a visible flash. The lazy
-  // initializer ensures the spinner is rendered in the very first commit.
+  // When opening a saved sharepic (gallery edit), the store's currentStep is
+  // INPUT until loadGalleryEditData() resolves and flips it to CANVAS_EDIT.
+  // Without a gate, the InputStep paints for one frame before being replaced
+  // by the canvas — a visible flash. The lazy initializer ensures the spinner
+  // is rendered in the very first commit.
   const [isHydratingExisting, setIsHydratingExisting] = useState<boolean>(() => {
-    const state = location.state as (GalleryEditLocationState & TemplateLocationState) | null;
-    if (state?.galleryEditMode || state?.templateMode) return true;
+    const state = location.state as GalleryEditLocationState | null;
+    if (state?.galleryEditMode) return true;
     // Reload of an active edit session: the token is restored from
     // sessionStorage below — gate rendering the same way as location.state.
     return hasRestorableGalleryEditSession(location.pathname);
@@ -214,11 +202,11 @@ const ImageStudioPageContent: React.FC = () => {
   // would create a duplicate draft. restoreGalleryEditSession re-fetches the
   // share so the content reflects everything autosave persisted meanwhile.
   useEffect(() => {
-    const state = location.state as (GalleryEditLocationState & TemplateLocationState) | null;
+    const state = location.state as GalleryEditLocationState | null;
     // Whoever declines to restore must release the hydration gate — an early
     // return that leaves the spinner up would hang the page (reachable under
     // StrictMode's double-invoked effects once the module flag is set).
-    if (state?.galleryEditMode || state?.templateMode) return;
+    if (state?.galleryEditMode) return;
     if (!hasRestorableGalleryEditSession(location.pathname)) {
       // Mount-only gate release: no session to restore, so drop the spinner.
       // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -246,39 +234,6 @@ const ImageStudioPageContent: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Handle template cloning result from location.state (after navigation from useTemplateClone)
-  useEffect(() => {
-    const loadTemplateData = async () => {
-      const state = location.state as TemplateLocationState | null;
-      if (!state?.templateMode) return;
-
-      const editData = {
-        shareToken: state.shareToken ?? '',
-        content: {
-          ...state.content,
-          sharepicType: state.sharepicType ?? state.content?.sharepicType ?? urlType,
-        },
-        styling: state.styling,
-      };
-
-      try {
-        await loadGalleryEditData(editData);
-        if (editData.shareToken) persistGalleryEditSession(editData.shareToken);
-
-        // Store templateCreator for display in canvas editor
-        if (state.templateCreator) {
-          updateFormData({ templateCreator: state.templateCreator });
-        }
-
-        window.history.replaceState({}, document.title);
-      } finally {
-        setIsHydratingExisting(false);
-      }
-    };
-
-    void loadTemplateData();
-  }, [location.state, loadGalleryEditData, urlType, updateFormData]);
-
   // Handle Imagine → Studio handoff (image generated in workplace, opened in AI Editor)
   useEffect(() => {
     const state = location.state as ImagineHandoffLocationState | null;
@@ -295,15 +250,6 @@ const ImageStudioPageContent: React.FC = () => {
 
     window.history.replaceState({}, document.title);
   }, [location.state, setType, updateFormData, commitAiGeneration, setCurrentStep]);
-
-  // Handle template cloning from URL query parameter
-  useEffect(() => {
-    const templateToken = searchParams.get('template');
-    if (templateToken && !cloneInitiatedRef.current) {
-      cloneInitiatedRef.current = true;
-      void cloneTemplate(templateToken);
-    }
-  }, [searchParams, cloneTemplate]);
 
   // Handle editSession from URL (from PresseSocialGenerator or other sources)
   useEffect(() => {
@@ -593,29 +539,9 @@ const ImageStudioPageContent: React.FC = () => {
 
   // Type selector and form fields are handled by sub-components
 
-  // Show loading state while cloning template
-  if (isCloning) {
-    return (
-      <div
-        className="container"
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          alignItems: 'center',
-          minHeight: '50vh',
-          gap: 'var(--spacing-medium)',
-        }}
-      >
-        <Spinner size="medium" />
-        <p>Vorlage wird geladen...</p>
-      </div>
-    );
-  }
-
-  // Show loading state while hydrating an existing sharepic (gallery edit
-  // or template clone). Without this guard, InputStep paints for one frame
-  // before loadGalleryEditData() flips currentStep to CANVAS_EDIT.
+  // Show loading state while hydrating an existing sharepic (gallery edit).
+  // Without this guard, InputStep paints for one frame before
+  // loadGalleryEditData() flips currentStep to CANVAS_EDIT.
   if (isHydratingExisting) {
     return (
       <div
@@ -630,21 +556,6 @@ const ImageStudioPageContent: React.FC = () => {
         }}
       >
         <Spinner size="medium" />
-      </div>
-    );
-  }
-
-  // Show error if template cloning failed (only when there's actually a template param)
-  const hasTemplateParam = searchParams.get('template');
-  if (cloneError && hasTemplateParam) {
-    console.error('[ImageStudioPage] Clone error display:', cloneError);
-    return (
-      <div className="container" role="main" aria-label="Image Studio">
-        <div className="bg-background-alt border border-grey-200 dark:border-grey-700 rounded-md p-lg shadow-card-elevated overflow-hidden transition-all">
-          <h2>Fehler beim Laden der Vorlage</h2>
-          <p>{cloneError}</p>
-          <Button onClick={() => navigate('/workplace')} text="Zurück" icon={<HiArrowLeft />} />
-        </div>
       </div>
     );
   }

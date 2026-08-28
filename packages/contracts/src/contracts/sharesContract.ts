@@ -13,21 +13,15 @@ import {
   createVideoShareBodySchema,
   createVideoFromProjectBodySchema,
   updateImageShareBodySchema,
-  saveAsTemplateBodySchema,
   createShareResponseSchema,
   updateImageShareResponseSchema,
-  saveAsTemplateResponseSchema,
   shareErrorResponseSchema,
   mySharesQuerySchema,
   recentSharesQuerySchema,
-  templatesQuerySchema,
   shareListResponseSchema,
   shareListSimpleResponseSchema,
   deleteShareResponseSchema,
   renameShareBodySchema,
-  cloneTemplateResponseSchema,
-  listTemplatesResponseSchema,
-  getTemplateResponseSchema,
 } from '../schemas/shares.js';
 
 const c = initContract();
@@ -105,25 +99,6 @@ export const sharesContract = c.router(
       },
       summary: 'Update an image share',
     },
-
-    /**
-     * POST /api/share/:shareToken/save-as-template
-     * Promote an existing share to a template.
-     */
-    saveAsTemplate: {
-      method: 'POST',
-      path: '/api/share/:shareToken/save-as-template',
-      pathParams: z.object({ shareToken: z.string() }),
-      body: saveAsTemplateBodySchema,
-      responses: {
-        200: saveAsTemplateResponseSchema,
-        401: shareErrorResponseSchema,
-        403: shareErrorResponseSchema,
-        404: shareErrorResponseSchema,
-        500: shareErrorResponseSchema,
-      },
-      summary: 'Save a share as a template',
-    },
   },
   { pathPrefix: '' }
 );
@@ -153,49 +128,6 @@ export const sharesReadContract = c.router(
         500: shareErrorResponseSchema,
       },
       summary: 'Publish a draft share',
-    },
-
-    /** POST /api/share/templates/:shareToken/clone — clone a template. */
-    cloneTemplate: {
-      method: 'POST',
-      path: '/api/share/templates/:shareToken/clone',
-      pathParams: z.object({ shareToken: z.string() }),
-      body: z.object({}).passthrough(),
-      responses: {
-        200: cloneTemplateResponseSchema,
-        401: shareErrorResponseSchema,
-        403: shareErrorResponseSchema,
-        404: shareErrorResponseSchema,
-        500: shareErrorResponseSchema,
-      },
-      summary: 'Clone a template into the gallery',
-    },
-
-    /** GET /api/share/templates — list available templates. */
-    listTemplates: {
-      method: 'GET',
-      path: '/api/share/templates',
-      query: templatesQuerySchema,
-      responses: {
-        200: listTemplatesResponseSchema,
-        401: shareErrorResponseSchema,
-        500: shareErrorResponseSchema,
-      },
-      summary: 'List templates',
-    },
-
-    /** GET /api/share/templates/:shareToken — template details. */
-    getTemplate: {
-      method: 'GET',
-      path: '/api/share/templates/:shareToken',
-      pathParams: z.object({ shareToken: z.string() }),
-      responses: {
-        200: getTemplateResponseSchema,
-        403: shareErrorResponseSchema,
-        404: shareErrorResponseSchema,
-        500: shareErrorResponseSchema,
-      },
-      summary: 'Get template details',
     },
 
     /** GET /api/share/my — list the user's shares. */

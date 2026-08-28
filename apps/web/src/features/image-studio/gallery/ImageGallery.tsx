@@ -1,16 +1,7 @@
 import { useShareStore, getShareUrl } from '@gruenerator/shared';
 import { Button, InteractiveCard, interactiveCardControl } from '@gruenerator/ui';
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-  FaImage,
-  FaTrash,
-  FaShareAlt,
-  FaDownload,
-  FaPlus,
-  FaClock,
-  FaEdit,
-  FaSave,
-} from 'react-icons/fa';
+import { FaImage, FaTrash, FaShareAlt, FaDownload, FaPlus, FaClock, FaEdit } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 
 import { SharedMediaImage } from '../../../components/common/SharedMediaImage';
@@ -20,7 +11,6 @@ import { SHOW_SHAREPIC_STUDIO } from '../../../config/featureFlags';
 import { useAuthStore } from '../../../stores/authStore';
 import { cn } from '../../../utils/cn';
 import { buildStudioQuickStarts, QuickStartTiles } from '../components/QuickStartTiles';
-import { useTemplateClone } from '../hooks/useTemplateClone';
 import { getSharepicRoute } from '../utils/sharepicRoutes';
 
 import type { Share } from '@gruenerator/shared';
@@ -42,9 +32,6 @@ interface GalleryImageMetadata {
   sharepicType?: SharepicTypeKey;
   content?: Record<string, unknown>;
   styling?: Record<string, unknown>;
-  is_template?: boolean;
-  template_visibility?: string;
-  template_creator_name?: string;
   [key: string]: unknown;
 }
 
@@ -63,7 +50,6 @@ interface ImageGalleryCardProps {
   onDownload: (image: GalleryImage) => Promise<void>;
   onEdit: (image: GalleryImage) => void;
   onClick: (image: GalleryImage) => void;
-  onUseTemplate?: (shareToken: string) => void;
 }
 
 const formatDate = (dateString: string) => {
@@ -109,7 +95,6 @@ const ImageGalleryCard: React.FC<ImageGalleryCardProps> = ({
   onDownload,
   onEdit,
   onClick,
-  onUseTemplate,
 }) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -119,8 +104,6 @@ const ImageGalleryCard: React.FC<ImageGalleryCardProps> = ({
     image.imageMetadata?.sharepicType &&
     (image.imageMetadata?.hasOriginalImage ||
       (image.imageMetadata?.content && Object.keys(image.imageMetadata.content).length > 0));
-
-  const isTemplate = image.imageMetadata?.is_template === true;
 
   const handleDelete = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
@@ -157,13 +140,6 @@ const ImageGalleryCard: React.FC<ImageGalleryCardProps> = ({
     e.stopPropagation();
     if (isEditable) {
       onEdit(image);
-    }
-  };
-
-  const handleUseTemplate = (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.stopPropagation();
-    if (onUseTemplate && image.shareToken) {
-      onUseTemplate(image.shareToken);
     }
   };
 
@@ -206,28 +182,11 @@ const ImageGalleryCard: React.FC<ImageGalleryCardProps> = ({
             Entwurf
           </span>
         )}
-        {isTemplate && (
-          <span className="pointer-events-none absolute bottom-sm left-sm z-[2] flex items-center gap-1 rounded-[8px] bg-overlay-md px-2 py-1 text-xs font-medium tracking-[0.02em] text-white backdrop-blur-[8px]">
-            <FaSave /> Vorlage
-          </span>
-        )}
       </div>
 
       <div className="absolute right-sm top-sm z-[3] flex gap-xs">
-        {/* Edit / "use template" route into the canvas flow — gated on the
-            sharepic studio research preview so they aren't dead links when off. */}
-        {SHOW_SHAREPIC_STUDIO && isTemplate && (
-          <button
-            className={cn(
-              interactiveCardControl,
-              'flex size-9 cursor-pointer items-center justify-center rounded-full border-none bg-overlay-md text-white opacity-0 -translate-y-1 backdrop-blur-[8px] transition-[opacity,transform,background-color] duration-200 ease-linear hover:bg-primary-600 group-hover:translate-y-0 group-hover:opacity-100 focus-visible:translate-y-0 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white max-[768px]:size-8 max-[768px]:translate-y-0 max-[768px]:opacity-100 motion-reduce:transition-none [&_svg]:text-[0.9rem]'
-            )}
-            onClick={handleUseTemplate}
-            title="Vorlage verwenden"
-          >
-            <FaSave />
-          </button>
-        )}
+        {/* Edit routes into the canvas flow — gated on the sharepic studio
+            research preview so it isn't a dead link when off. */}
         {SHOW_SHAREPIC_STUDIO && isEditable && (
           <button
             className={cn(
@@ -322,7 +281,6 @@ const ImageGallery = () => {
 
   const [selectedImage, setSelectedImage] = useState<GalleryImage | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
-  const { cloneTemplate } = useTemplateClone();
 
   useEffect(() => {
     void fetchUserShares('image');
@@ -396,13 +354,6 @@ const ImageGallery = () => {
       });
     },
     [navigate]
-  );
-
-  const handleUseTemplate = useCallback(
-    (shareToken: string) => {
-      void cloneTemplate(shareToken);
-    },
-    [cloneTemplate]
   );
 
   const handleNewImage = () => {
@@ -520,7 +471,6 @@ const ImageGallery = () => {
             onDownload={handleDownload}
             onEdit={handleEdit}
             onClick={handleImageClick}
-            onUseTemplate={handleUseTemplate}
           />
         ))}
       </div>
