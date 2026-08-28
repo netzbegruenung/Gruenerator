@@ -96,6 +96,11 @@ export const sharedMedia = pgTable(
     is_library_item: boolean('is_library_item').notNull().default(true),
     alt_text: text('alt_text'),
     upload_source: text('upload_source').notNull().default('upload'),
+    // Which product made this image ('ki' | 'sharepic' | 'upload' | 'unknown'), set
+    // server-side at insert time. Answers a different question than `upload_source`:
+    // that one says how the bytes arrived and drives library curation, this one says
+    // what the row *is* and keeps source images out of the creation feeds.
+    content_origin: text('content_origin').notNull().default('unknown'),
     original_filename: text('original_filename'),
     is_template: boolean('is_template').notNull().default(false),
     template_visibility: text('template_visibility').notNull().default('private'),
