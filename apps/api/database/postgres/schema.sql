@@ -864,6 +864,9 @@ CREATE INDEX IF NOT EXISTS idx_shared_media_templates
 CREATE INDEX IF NOT EXISTS idx_shared_media_public_templates
     ON shared_media(is_template, template_visibility, image_type, created_at DESC)
     WHERE is_template = TRUE AND template_visibility = 'public';
+-- Feeds the orphan reaper in uploadsCleanupService (#2989): partial, so it only
+-- ever holds the rows stuck in a non-user-visible status.
+CREATE INDEX IF NOT EXISTS idx_shared_media_orphan_status ON shared_media(created_at) WHERE status IN ('processing', 'failed');
 CREATE INDEX IF NOT EXISTS idx_shared_media_downloads_media ON shared_media_downloads(shared_media_id);
 
 -- Feature tables indexes
