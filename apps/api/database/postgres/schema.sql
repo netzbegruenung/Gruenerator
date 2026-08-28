@@ -634,7 +634,12 @@ ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS template_visibility TEXT DEFAU
     CHECK (template_visibility IN ('private', 'unlisted', 'public'));
 ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS template_use_count INTEGER DEFAULT 0;
 ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS template_creator_name TEXT;
-ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS original_template_id UUID REFERENCES shared_media(id);
+-- Retired: the shared_media template flow was removed in favour of
+-- user_templates + a frozen snapshot canvas. Columns kept (F0) so the rows that
+-- recorded a publish are not destroyed. ON DELETE SET NULL, not the original
+-- NO ACTION: without it, deleting a share another row points at 500s.
+ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS original_template_id UUID
+    REFERENCES shared_media(id) ON DELETE SET NULL;
 ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS wolke_share_link_id TEXT;
 ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS wolke_file_path TEXT;
 ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ;
