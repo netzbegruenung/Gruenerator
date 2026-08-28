@@ -23,7 +23,6 @@ import {
   FiShield,
   FiSliders,
 } from 'react-icons/fi';
-import { IoAccessibilityOutline } from 'react-icons/io5';
 import {
   PiBrain,
   PiEnvelopeSimple,
@@ -81,8 +80,11 @@ const NAV: {
   { value: 'konnektoren', label: 'Konnektoren', icon: FiServer, hideHeading: true },
   { value: 'wolke', label: 'Wolke', icon: FiCloud },
   { value: 'websites', label: 'Meine Websites', icon: FiGlobe },
-  { value: 'barrierefreiheit', label: 'Barrierefreiheit', icon: IoAccessibilityOutline },
-  { value: 'datenschutz', label: 'Datenschutz', icon: FiShield },
+  {
+    value: 'datenschutz',
+    label: 'Datenschutz & Barrierefreiheit',
+    icon: FiShield,
+  },
   { value: 'nutzung', label: 'Nutzung', icon: FiBarChart2 },
   { value: 'support', label: 'Support', icon: FiHelpCircle },
 ];
