@@ -84,14 +84,28 @@ jobs:
           # distinguish the two by exit status rather than by empty output —
           # `.jobs[].name` on a run legitimately prints nothing too.
           api_with_retry() {
-            local endpoint=$1 jq_filter=$2 attempt=1 out
+            local endpoint=$1 jq_filter=$2 attempt=1 out err_file err
+            err_file=$(mktemp)
             while :; do
-              if out=$(gh api "$endpoint" --jq "$jq_filter" 2>/dev/null); then
+              if out=$(gh api "$endpoint" --jq "$jq_filter" 2>"$err_file"); then
+                rm -f "$err_file"
                 printf '%s' "$out"
                 return 0
               fi
               if [ "$attempt" -ge "$API_ATTEMPTS" ]; then
-                echo "::warning::GitHub API did not answer $endpoint after $API_ATTEMPTS attempts" >&2
+                # gh's own text is the only thing that separates a 502 from an
+                # expired token, a missing scope or a secondary rate limit, and
+                # during an incident that difference decides whether anyone
+                # needs to act. Discarding it left the log with nothing but
+                # "did not answer", which has to be reproduced by hand.
+                #
+                # Flattened to one line because an annotation is one line, and
+                # capped in bash rather than through `head -c`: this script runs
+                # under `pipefail`, where a `head` that exits early SIGPIPEs its
+                # producer and the pipeline reports 141.
+                err=$(tr '\n' ' ' < "$err_file")
+                rm -f "$err_file"
+                echo "::warning::GitHub API did not answer $endpoint after $API_ATTEMPTS attempts. Last error: ${err:0:300}" >&2
                 return 1
               fi
               sleep $(( attempt * 2 ))
