@@ -424,7 +424,7 @@ export const PROGRESS_MESSAGES = {
   compoundStart: (stages: number) => `Mehrstufige Anfrage erkannt (${stages} Quellen)...`,
   compoundGather: (source: string) =>
     source === 'notebook-search'
-      ? 'Recherchiere in Notizbüchern...'
+      ? 'Recherchiere in Notebooks...'
       : source === 'web-search'
         ? 'Suche im Web...'
         : 'Führe Recherche durch...',

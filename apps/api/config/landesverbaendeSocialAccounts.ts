@@ -204,7 +204,7 @@ export const LV_SOCIAL_ACCOUNTS: readonly LvSocialAccount[] = [
   },
 
   // ─── Sachsen (SN) ─────────────────────────────────────────────────────
-  // Handles verifiziert, Notizbuch aber `enabled: false` — kein Rezept, das
+  // Handles verifiziert, Notebook aber `enabled: false` — kein Rezept, das
   // den Korpus bräuchte. Steht hier, damit ein Wiedereinschalten nichts
   // nachzuholen hat.
   {

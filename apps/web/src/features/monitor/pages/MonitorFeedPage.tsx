@@ -10,7 +10,7 @@ import { useMonitorLocaleParam } from '../hooks/useMonitorLocaleParam';
 
 /**
  * /feed — die beiden Beitragsströme an einem Ort: die Posts des grünen
- * Bluesky-Accounts und die neuen Beiträge aus den Landesverbands-Notizbüchern
+ * Bluesky-Accounts und die neuen Beiträge aus den Landesverbands-Notebooks
  * (`landesverbaende_documents`, nach Erscheinungstag gruppiert).
  */
 function MonitorFeedPage() {
@@ -40,7 +40,7 @@ function MonitorFeedPage() {
           Aus den Landesverbänden
         </h2>
         <p className={cn('m-0 mb-5 text-[0.9rem]', MONITOR_MUTED)}>
-          Neu veröffentlichte Beiträge aus den Landesverbands-Notizbüchern, nach Tag gruppiert.
+          Neu veröffentlichte Beiträge aus den Landesverbands-Notebooks, nach Tag gruppiert.
         </p>
         <WhatHappenedView locale={locale} />
       </section>

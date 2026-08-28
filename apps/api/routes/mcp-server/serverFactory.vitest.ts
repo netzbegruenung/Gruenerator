@@ -114,6 +114,8 @@ describe('method discovery', () => {
     const built = build([]);
     const prompts = [...built.prompts.keys()];
     expect(prompts).toContain('recherche');
+    expect(prompts).toContain('notebook-antwort');
+    // Frozen alias: clients that bookmarked the pre-rename name keep working.
     expect(prompts).toContain('notizbuch-antwort');
     expect(built.resources.get('methode')).toBe('gruenerator://methode');
     expect(built.resources.get('sammlungen')).toBe('gruenerator://sammlungen');

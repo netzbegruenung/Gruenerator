@@ -123,10 +123,10 @@ describe('Sammlungswahl', () => {
     expect(searched).toEqual(['oesterreich', 'gruene-at']);
   });
 
-  it('folgt einem ausdrücklich genannten Notizbuch', async () => {
+  it('folgt einem ausdrücklich genannten Notebook', async () => {
     const { tool } = setup();
 
-    await tool.invoke({ frage: 'Mietpreisbremse', notizbuch: 'berlin-notebook' });
+    await tool.invoke({ frage: 'Mietpreisbremse', notebook: 'berlin-notebook' });
 
     expect(executeDirectSearch).toHaveBeenCalledOnce();
     expect((executeDirectSearch.mock.calls[0][0] as { collection: string }).collection).toBe(
@@ -150,10 +150,10 @@ describe('Sammlungswahl', () => {
    * erreicht den Handler gar nicht erst. Das ist der Grund, warum die Liste im
    * Schema steht und nicht im Prompt.
    */
-  it('lässt ein erfundenes Notizbuch nicht bis zur Suche durch', async () => {
+  it('lässt ein erfundenes Notebook nicht bis zur Suche durch', async () => {
     const { ctx, tool } = setup();
 
-    await expect(tool.invoke({ frage: 'x', notizbuch: 'atlantis-notebook' })).rejects.toThrow();
+    await expect(tool.invoke({ frage: 'x', notebook: 'atlantis-notebook' })).rejects.toThrow();
 
     expect(executeDirectSearch).not.toHaveBeenCalled();
     expect(ctx.budget.notebookSearchesLeft).toBe(DEFAULT_BUDGET.notebookSearches);
@@ -170,7 +170,7 @@ describe('Budget', () => {
     expect(ctx.budget.searchesLeft).toBe(DEFAULT_BUDGET.searches);
   });
 
-  it('verweigert, wenn das Notizbuchbudget aufgebraucht ist', async () => {
+  it('verweigert, wenn das Notebook-Budget aufgebraucht ist', async () => {
     const { tool } = setup({}, { notebookSearchesLeft: 0 });
 
     const out = await tool.invoke({ frage: 'Mietpreisbremse' });
@@ -211,7 +211,7 @@ describe('Ausfälle', () => {
   });
 });
 
-describe('eigene Notizbücher', () => {
+describe('eigene Notebooks', () => {
   it('bleibt aus, solange keine Dokumente im Zugriff sind', async () => {
     const { tool } = setup();
 
@@ -252,7 +252,7 @@ describe('eigene Notizbücher', () => {
     const titles = [...ctx.sources.values()].map((s) => s.title);
     expect(titles).toContain('Notiz A');
     expect(titles).toContain('Notiz B');
-    expect(ctx.sources.get('notizbuch:d1')?.origin).toBe('Eigenes Notizbuch');
+    expect(ctx.sources.get('notebook:d1')?.origin).toBe('Eigenes Notebook');
   });
 
   it('weist die Herkunft aus, wenn ein Treffer keine Adresse hat', async () => {
@@ -265,9 +265,9 @@ describe('eigene Notizbücher', () => {
     });
     const { ctx, tool } = setup();
 
-    const out = await tool.invoke({ frage: 'x', notizbuch: 'berlin-notebook' });
+    const out = await tool.invoke({ frage: 'x', notebook: 'berlin-notebook' });
 
-    expect(out).toContain('Notizbuch: Berlin');
-    expect(ctx.sources.get('notizbuch:b1')?.origin).toBe('Notizbuch: Berlin');
+    expect(out).toContain('Notebook: Berlin');
+    expect(ctx.sources.get('notebook:b1')?.origin).toBe('Notebook: Berlin');
   });
 });

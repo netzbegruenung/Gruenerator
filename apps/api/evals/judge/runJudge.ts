@@ -22,9 +22,9 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { buildRubricPrompt, type RubricName } from './rubrics.js';
+import { buildRubricPrompt, rubricsForTurn, type RubricName } from './rubrics.js';
 
-import type { CaseResult, TurnResult } from '../types.js';
+import type { CaseResult } from '../types.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const RUN_FILE = process.env.EVAL_RUN_FILE ?? join(HERE, '..', 'last-run.json');
@@ -97,21 +97,6 @@ async function callJudge(
     }
   }
   return null;
-}
-
-/** narration_consistency auto-runs where the historical bug shapes live. */
-function autoRubrics(turn: TurnResult): RubricName[] {
-  const wantsAuto =
-    turn.editorOps ||
-    turn.sharepicUpdated ||
-    turn.imageGenerated ||
-    (turn.toolCalls.length === 0 && turn.fullText.length > 200);
-  return wantsAuto ? ['narration_consistency'] : [];
-}
-
-function rubricsForTurn(turn: TurnResult): RubricName[] {
-  const requested = (turn.judge ?? []) as RubricName[];
-  return [...new Set([...requested, ...autoRubrics(turn)])];
 }
 
 async function main(): Promise<void> {

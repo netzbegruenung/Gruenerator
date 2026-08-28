@@ -201,7 +201,7 @@ describe('notebook mode', () => {
     // Stillgelegt (08/2026). The notebook submenu used to sit here and set
     // `threadMode = 'notebook'`, which dispatches to a different endpoint.
     expect(within(menu).queryByText('Notebooks')).toBeNull();
-    expect(within(menu).queryByText('Notizbücher')).toBeNull();
+    expect(within(menu).queryByText('Notebooks')).toBeNull();
   });
 });
 

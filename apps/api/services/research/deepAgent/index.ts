@@ -129,7 +129,7 @@ export async function runDeepAgentResearch(
   // something is actually in reach (`buildNotebookScope`), and both things that
   // depend on it — the second subagent and the lead's prompt — must follow that
   // one fact instead of re-deriving it.
-  const hasNotebooks = tools.some((t) => t.name === 'notizbuch_suche');
+  const hasNotebooks = tools.some((t) => t.name === 'notebook_suche');
   // Null when Postgres is out of reach — the run is then exactly as durable as
   // it was before, which is to say not at all. See checkpointer.ts.
   const checkpointer = await getCheckpointer();
@@ -189,7 +189,7 @@ export async function runDeepAgentResearch(
         // same lane — so the repair has to be attached here too.
         middleware: [sanitizeToolCallsMiddleware] as never,
       },
-      // Only when a corpus is actually in reach: without `notizbuch_suche` this
+      // Only when a corpus is actually in reach: without `notebook_suche` this
       // subagent has nothing to search, and an empty specialist is worse than
       // none — the lead would delegate programme questions into a dead end.
       ...(hasNotebooks

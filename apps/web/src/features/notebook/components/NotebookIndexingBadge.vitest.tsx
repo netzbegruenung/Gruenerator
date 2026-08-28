@@ -1,8 +1,8 @@
 /**
- * Ein Notizbuch, dessen Quellen noch verarbeitet werden, sah in der Übersicht
+ * Ein Notebook, dessen Quellen noch verarbeitet werden, sah in der Übersicht
  * exakt aus wie ein fertiges — man öffnete es und bekam auf jede Frage "nichts
  * gefunden". Diese Tests halten fest, dass der Unterschied sichtbar ist, und
- * dass ein fertiges Notizbuch dabei kein Rauschen bekommt.
+ * dass ein fertiges Notebook dabei kein Rauschen bekommt.
  */
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
@@ -27,7 +27,7 @@ describe('NotebookIndexingBadge', () => {
     expect(screen.getByText('Nicht durchsuchbar')).toBeInTheDocument();
   });
 
-  it('bleibt bei fertigen und leeren Notizbüchern stumm', () => {
+  it('bleibt bei fertigen und leeren Notebooks stumm', () => {
     // `empty` sagt die Meta-Zeile der Karte bereits ("0 Quellen"); ein zweites
     // Abzeichen dafür wäre Doppelung.
     const { container, unmount } = render(<NotebookIndexingBadge state="ready" />);

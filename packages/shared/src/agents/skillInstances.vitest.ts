@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { type InstancePolicyView } from '../instances/index.js';
 
+import { SKILLS } from './skills/index.generated.js';
 import { isSkillOfferedIn, skillPolicyOffers, type SkillInstanceView } from './skillInstances.js';
 
 const generic = (over: Partial<SkillInstanceView> = {}): SkillInstanceView => ({
@@ -94,5 +95,49 @@ describe('skillPolicyOffers — beide Stufen', () => {
     expect(skillPolicyOffers(generic(), view({ block: { skillCategories: ['social'] } }))).toBe(
       true
     );
+  });
+});
+
+/**
+ * Die eingetragenen BGSt-Rezepte gegen die echte Registry — nicht gegen
+ * synthetische Views wie oben.
+ *
+ * Grund: `instances` im Frontmatter ist eine freie Zeichenkette, die der Codegen
+ * nur gegen die Instanz-Ids prüft. Ein Rezept mit `instances: ['bgts']` fällt
+ * dort auf; eines, bei dem das Feld schlicht FEHLT, nicht — es wäre dann auf
+ * jeder Instanz sichtbar, und das fällt niemandem auf, weil Sichtbarkeit sich
+ * nicht von selbst meldet.
+ */
+describe('die BGSt-Rezepte in der Registry', () => {
+  const BGST_MENTIONS = [
+    'beschlusslage',
+    'presse-beschluss',
+    'sprechzettel',
+    'leitantrag',
+    'rechtsstand',
+  ];
+
+  it('bietet sie auf bgst an', () => {
+    for (const mention of BGST_MENTIONS) {
+      const skill = SKILLS.find((s) => s.mention === mention);
+      expect(skill, `${mention} fehlt in SKILLS — build:skills gelaufen?`).toBeDefined();
+      expect(isSkillOfferedIn(skill!, 'bgst'), mention).toBe(true);
+    }
+  });
+
+  it('hält sie von production und beta fern', () => {
+    for (const mention of BGST_MENTIONS) {
+      const skill = SKILLS.find((s) => s.mention === mention)!;
+      expect(isSkillOfferedIn(skill, 'production'), mention).toBe(false);
+      expect(isSkillOfferedIn(skill, 'beta'), mention).toBe(false);
+    }
+  });
+
+  // Das versteckte Reel-Rezept ist die Gegenprobe für die zweite Regel: es
+  // trägt keine `instances`, fällt auf bgst also nur über `hide`.
+  it('lässt das ausgeblendete reel-Rezept auf bgst fallen, anderswo nicht', () => {
+    const reel = SKILLS.find((s) => s.mention === 'reel')!;
+    expect(isSkillOfferedIn(reel, 'bgst')).toBe(false);
+    expect(isSkillOfferedIn(reel, 'production')).toBe(true);
   });
 });

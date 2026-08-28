@@ -266,7 +266,7 @@ export default function RolesSection() {
 
     return {
       title: offer.title,
-      beschreibung: `${aufzaehlung} sowie das Notizbuch ${offer.title} erscheinen künftig in deiner Agentur und im Chat.`,
+      beschreibung: `${aufzaehlung} sowie das Notebook ${offer.title} erscheinen künftig in deiner Agentur und im Chat.`,
     };
   }, [wizEbene, wizBundesland, wizRolle, isAustrian]);
 

@@ -1,0 +1,142 @@
+name: Content Sync Watchdog
+
+# Makes a *missing* content sync visible.
+#
+# A cron that never fires produces no run, so the workflow history of Content
+# Sync looks uniformly green whether it ran 18 times or twice. It has been both:
+# on 2026-08-26 three of 17 hourly slots were lost and the rest drifted up to
+# +88 min; on 2026-08-27 the daily full sync fired 10 h 16 min late and 14 of 15
+# hourly slots never fired at all (#2972). Nothing turned red, no digest was
+# missing in a way anyone could see, and the whole non-LV corpus was a day stale
+# unannounced.
+#
+# This workflow does not make the scheduler reliable — nothing here can. It
+# turns the silence into a red run, which `ci-failure-issue.yml` then turns into
+# one tracking issue.
+#
+# It is itself a cron and can itself be dropped. That is tolerable in a way the
+# sync is not: every tick evaluates the whole trailing window, so a lost tick is
+# fully covered by the next one. A lost sync slot is simply gone.
+
+on:
+  schedule:
+    # Hours written out, not '*/6'. A step in the hour field counts from the
+    # field's minimum, so '47 */6 * * *' fires at 00:47/06:47/12:47/18:47 — not
+    # the times intended here. That is not cosmetic: the first check after the
+    # 02:17 full run would land at 06:47, still inside the 30 h staleness limit,
+    # so a missing nightly would only surface at 12:47. At 08:47 it surfaces on
+    # the morning it happened. Minute 47 keeps this off the busy top of the hour.
+    - cron: '47 2,8,14,20 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: content-sync-watchdog
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Check that Content Sync is still firing
+    runs-on: ubuntu-latest
+    steps:
+      - name: Measure how much of the schedule actually ran
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          # 17 hourly slots (04-20 UTC) + 1 daily = 18 expected in 24 h. The
+          # floor is deliberately well below that: individual drops are normal
+          # and not worth an issue, a collapse is. On 2026-08-27 the count was 2.
+          MIN_RUNS_24H: 12
+          # The daily 02:17 run is the only one that walks every archive fully
+          # and the only one that syncs the nine non-LV sources at all, so its
+          # absence is the expensive one.
+          #
+          # 28 is picked against the check times above, not rounded to a nice
+          # number. With last night's run missing, the 02:47 check sees 24 h and
+          # stays quiet — being late is normal and it may still land — while the
+          # 08:47 check sees 30 h and fires. Note the age is integer hours,
+          # truncated: at 08:47 the true gap is 30 h 30 min but the comparison
+          # gets 30, so a limit of 30 would let exactly that check pass and
+          # delay the alarm to 14:47.
+          MAX_HOURS_SINCE_FULL: 28
+          # How far back to look for the last full run before giving up. Each
+          # candidate costs one jobs API call; 25 covers well over a day of runs.
+          MAX_RUNS_INSPECTED: 25
+        run: |
+          set -euo pipefail
+
+          NOW=$(date -u +%s)
+
+          # status=success only: a failed run is already reported by
+          # ci-failure-issue.yml, and counting it here would mask a collapse
+          # behind runs that produced nothing.
+          RUNS=$(gh api \
+            "/repos/$REPO/actions/workflows/content-sync.yml/runs?status=success&per_page=100" \
+            --jq '[.workflow_runs[] | {id: .id, created_at: .created_at, url: .html_url}]')
+
+          RUNS_24H=$(printf '%s' "$RUNS" | jq --argjson now "$NOW" '
+            [.[] | select((.created_at | fromdateiso8601) > ($now - 86400))] | length')
+
+          # Which run was a *full* one is not in the run object — the API does
+          # not report which cron fired it. The distinguishing mark is that the
+          # non-LV matrix ran, so look for one of its jobs. Checked newest-first
+          # and stopped at the first hit, so the usual case costs one call.
+          HOURS_SINCE_FULL=""
+          FULL_RUN_URL=""
+          INSPECTED=0
+          for ROW in $(printf '%s' "$RUNS" | jq -r '.[] | "\(.id)|\(.created_at)|\(.url)"'); do
+            if [ "$INSPECTED" -ge "$MAX_RUNS_INSPECTED" ]; then break; fi
+            INSPECTED=$((INSPECTED + 1))
+            RUN_ID=${ROW%%|*}
+            REST=${ROW#*|}
+            CREATED=${REST%%|*}
+            RUN_URL=${REST#*|}
+
+            # Fetch first, match after. `gh api ... | grep -q` would look
+            # tidier and be wrong: grep exits at the first match, gh dies of
+            # SIGPIPE, and under `pipefail` the pipeline reports 141 — so a run
+            # that *did* match would be read as no match.
+            JOB_NAMES=$(gh api "/repos/$REPO/actions/runs/$RUN_ID/jobs?per_page=100" \
+              --jq '.jobs[].name' || true)
+            if [[ $'\n'"$JOB_NAMES"$'\n' == *$'\nSync gruene-de\n'* ]]; then
+              CREATED_EPOCH=$(date -u -d "$CREATED" +%s)
+              HOURS_SINCE_FULL=$(( (NOW - CREATED_EPOCH) / 3600 ))
+              FULL_RUN_URL=$RUN_URL
+              break
+            fi
+          done
+
+          {
+            echo "## Content Sync Watchdog"
+            echo ""
+            echo "| Check | Value | Threshold |"
+            echo "|-------|------:|----------:|"
+            echo "| Successful runs, last 24 h | $RUNS_24H | ≥ $MIN_RUNS_24H |"
+            if [ -n "$HOURS_SINCE_FULL" ]; then
+              echo "| Hours since last full run | $HOURS_SINCE_FULL | ≤ $MAX_HOURS_SINCE_FULL |"
+            else
+              echo "| Hours since last full run | none in $INSPECTED runs | ≤ $MAX_HOURS_SINCE_FULL |"
+            fi
+            echo ""
+            if [ -n "$FULL_RUN_URL" ]; then echo "Last full run: $FULL_RUN_URL"; fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          FAILED=0
+
+          if [ "$RUNS_24H" -lt "$MIN_RUNS_24H" ]; then
+            echo "::error::Only $RUNS_24H successful Content Sync runs in the last 24 h (expected 18, floor $MIN_RUNS_24H). GitHub is dropping the schedule — see #2972."
+            FAILED=1
+          fi
+
+          if [ -z "$HOURS_SINCE_FULL" ]; then
+            echo "::error::No full Content Sync run found in the last $INSPECTED successful runs. The nine non-LV sources have not synced — see #2972."
+            FAILED=1
+          elif [ "$HOURS_SINCE_FULL" -gt "$MAX_HOURS_SINCE_FULL" ]; then
+            echo "::error::Last full Content Sync run was ${HOURS_SINCE_FULL}h ago (limit ${MAX_HOURS_SINCE_FULL}h): $FULL_RUN_URL. The nine non-LV sources are stale — see #2972."
+            FAILED=1
+          fi
+
+          exit "$FAILED"

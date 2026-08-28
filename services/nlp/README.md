@@ -1,7 +1,7 @@
 # NLP-Service
 
 FastAPI-Dienst mit spaCy (`de_core_news_lg`), der für den Monitor und für
-Notizbuch-Dokumente Themen (`themes`, `primary_topic`), Schlagwörter, Emotionen
+Notebook-Dokumente Themen (`themes`, `primary_topic`), Schlagwörter, Emotionen
 und Personen (`persons`) bestimmt. Konsumiert wird er über HTTP von
 `apps/api/services/nlp/nlpClient.ts`; die Ergebnisse landen in Qdrant-Payloads
 und in `notebook_keyword_snapshots`.

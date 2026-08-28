@@ -411,7 +411,7 @@ const envSchema = z.object({
    * 1500 deckt einen ganzen Chunk — für kürzere Chunks ist die Kappung damit
    * wirkungslos, sie schneidet nur noch, was wirklich zu lang ist. Die
    * Anzeige-Pfade haben eigene, engere Deckel und wachsen NICHT mit
-   * (`highlightSnippet` 400, Notizbuch-Sammlungen 200, Recherche 500,
+   * (`highlightSnippet` 400, Notebook-Sammlungen 200, Recherche 500,
    * `line-clamp-3` in der Dokumentübersicht).
    */
   CONTENT_MAX_EXCERPT_LENGTH: numStr(1500),

@@ -522,7 +522,7 @@ describe('subagent toolsets', () => {
     sources: new Map(),
     onStep: vi.fn(),
     notebooks: {
-      corpora: [{ id: 'nb', title: 'Notizbuch', description: 'Beschlüsse', collections: ['nb'] }],
+      corpora: [{ id: 'nb', title: 'Notebook', description: 'Beschlüsse', collections: ['nb'] }],
       mentionedCollections: [],
       documentIds: [],
       userId: 'u1',
@@ -541,7 +541,7 @@ describe('subagent toolsets', () => {
     // cannot be answered out of a newspaper by accident.
     const names = toolsFor(leadTools, 'programm-recherche').map((t) => t.name);
 
-    expect(names).toContain('notizbuch_suche');
+    expect(names).toContain('notebook_suche');
     expect(names).not.toContain('web_suche');
   });
 

@@ -12,7 +12,7 @@ import { captureImpact, modelFromRequestBody } from './greenptImpact.js';
  * sat here for exactly 120s, finishing in 139.7s.
  *
  * Deliberately NOT lowered to fix that: the loop grew its own idle guard
- * (`gatherIdleDeadlineMs` in loopEngine.ts), which now trips first — around 35s
+ * (`mountedToolCeilingMs` in loopEngine.ts), which now trips first — around 35s
  * on a turn without generation tools — and can still answer from what was
  * gathered. Cutting this value instead would also cap every legitimate
  * long-streaming GreenPT answer, which is a different and worse failure.

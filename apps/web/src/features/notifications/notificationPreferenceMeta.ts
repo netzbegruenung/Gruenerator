@@ -194,8 +194,8 @@ export const RAW_TYPE_META: Record<NotificationType, RawTypeMeta> = {
     group: 'system',
   },
   notebook_liked: {
-    label: 'Notizbuch-Likes',
-    description: 'Wenn jemand dein öffentliches Notizbuch mag',
+    label: 'Notebook-Likes',
+    description: 'Wenn jemand dein öffentliches Notebook mag',
     icon: Heart,
     group: 'system',
   },
@@ -219,7 +219,7 @@ export const RAW_TYPE_META: Record<NotificationType, RawTypeMeta> = {
   },
   wolke_new_files: {
     label: 'Neue Wolke-Dateien',
-    description: 'Neue Dateien in den Wolke-Ordnern deiner Notizbücher',
+    description: 'Neue Dateien in den Wolke-Ordnern deiner Notebooks',
     icon: CloudDownload,
     group: 'system',
   },

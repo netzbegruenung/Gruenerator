@@ -13,7 +13,7 @@ const SOURCE_KIND_LABELS: Record<string, string> = {
   wolke: 'Wolke-Datei',
   connect: 'verbundene Datei',
   doc_mention: 'verlinktes Dokument',
-  notebook: 'Notizbuch',
+  notebook: 'Notebook',
 };
 
 function labelForSource(source: string): string {

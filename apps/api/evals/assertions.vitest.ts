@@ -151,9 +151,9 @@ describe('runAssertions — each failure class we hit live', () => {
     expect(names(rs)['cited']).toBe(true);
   });
 
-  it('cited erkennt die Notizbuch-Drahtform [cite:N] (live 19.08.2026)', () => {
+  it('cited erkennt die Notebook-Drahtform [cite:N] (live 19.08.2026)', () => {
     // `nb-at-locale`: 2.204 Zeichen Antwort, ZEHN Zitate im completion-Payload,
-    // und die Prüfung meldete „no [N] citation markers". Das Notizbuch setzt
+    // und die Prüfung meldete „no [N] citation markers". Das Notebook setzt
     // seine Marker als `[cite:N]` — `validateAndInjectCitations` schreibt jedes
     // gültige `[N]` in diese Form um, die Oberfläche rendert sie als Chip. Die
     // Prüfung kannte nur die Chat-Form `[N]` und meldete Rot für eine richtig
@@ -397,5 +397,48 @@ describe('content-policy assertions — the safety lane asserted nothing before'
         )
       )['answerMustNotContain:GreenHackInternal']
     ).toBe(false);
+  });
+});
+
+describe('abstains — die Angabe steht nicht im Material', () => {
+  const say = (fullText: string, want: boolean) =>
+    names(runAssertions(trace({ fullText }), { abstains: want }))['abstains'];
+
+  it('nimmt die Schablonen der Testprompts an', () => {
+    expect(say('NICHT AUFFINDBAR', true)).toBe(true);
+    expect(say('NICHT ENTHALTEN', true)).toBe(true);
+  });
+
+  // Der eigentliche Zweck der Regex-Familie: eine richtige Auskunft in eigenen
+  // Worten darf nicht als Fehlschlag zählen, sonst misst das Prüfmittel den
+  // Wortlaut statt die Sache — dieselbe Falle wie bei topicsCovered.
+  it('nimmt dieselbe Auskunft in eigenen Worten an', () => {
+    expect(say('Dazu findet sich im vorliegenden Material keine Angabe.', true)).toBe(true);
+    expect(say('Der Beschluss enthält dazu keine Frist.', true)).toBe(true);
+    expect(say('Hierzu liegt mir keine Beschlussgrundlage vor.', true)).toBe(true);
+    expect(say('Keine Beschlussgrundlage im vorliegenden Material.', true)).toBe(true);
+  });
+
+  it('fällt, wenn stattdessen geantwortet wird', () => {
+    expect(say('Die Frist beträgt sechs Monate nach dem Vorfall.', true)).toBe(false);
+  });
+
+  // Die Gegenrichtung ist der Wächter gegen Über-Vorsicht: ein Modell, das auf
+  // jede Frage „steht nicht drin" antwortet, bestünde sonst jedes
+  // Abstinenz-Item und fällt hier durch.
+  it('fällt in der Gegenrichtung, wenn eine vorhandene Angabe verleugnet wird', () => {
+    expect(say('Dazu findet sich im Material keine Angabe.', false)).toBe(false);
+    expect(say('Die Frist beträgt sechs Monate.', false)).toBe(true);
+  });
+
+  it('liest auch Text, den der Turn außerhalb des Antwortstroms erzeugt hat', () => {
+    expect(
+      names(
+        runAssertions(
+          trace({ fullText: 'Hier ist dein Text.', generatedText: ['… NICHT ENTHALTEN …'] }),
+          { abstains: true }
+        )
+      )['abstains']
+    ).toBe(true);
   });
 });

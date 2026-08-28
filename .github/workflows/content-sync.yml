@@ -2,8 +2,16 @@ name: Content Sync
 
 on:
   schedule:
-    - cron: '0 4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20 * * *' # Hourly 06-22 CET → landesverbände only
-    - cron: '0 2 * * *' # Daily 03:00 CET → all sources
+    # Minute 23/17, not 0. GitHub deprioritises `schedule` events under load and
+    # drops them rather than queueing when the delay outgrows the next
+    # occurrence: on 2026-08-26 the hourly runs drifted from +30 to +88 min and
+    # ~3 slots were lost; on 2026-08-27 the daily fired 10 h 16 min late and 14
+    # of 15 hourly slots never fired at all (#2972). The top of the hour is the
+    # busiest moment in that queue. Unproven as a remedy — nothing here can make
+    # the scheduler reliable, which is why the watchdog in
+    # content-sync-watchdog.yml exists to make a dropped run visible.
+    - cron: '23 4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20 * * *' # Hourly 06-22 CET → landesverbände only
+    - cron: '17 2 * * *' # Daily 03:00 CET → all sources
   workflow_dispatch:
     inputs:
       source:
@@ -15,7 +23,11 @@ on:
         required: false
         type: string
       dry_run:
-        description: 'Preview without storing'
+        # Only 'landesverbaende' and 'abgeordnetenwatch' have a dry-run branch.
+        # Every other source answers HTTP 400 rather than storing for real under
+        # a report headed "Dry Run" (#2970) — so a dry run over the full matrix
+        # is expected to fail those jobs.
+        description: 'Preview without storing (landesverbaende + abgeordnetenwatch only)'
         type: boolean
         default: false
       force:
@@ -39,6 +51,13 @@ jobs:
     outputs:
       lv_matrix: ${{ steps.set.outputs.lv_matrix }}
       source_matrix: ${{ steps.set.outputs.source_matrix }}
+      # The single answer to "is this the full nightly run?". Three jobs need
+      # it — the source matrix here, the LV jobs' `recent` flag, the aggregate
+      # digest's --no-email — and each used to re-derive it by comparing the
+      # cron string to a literal. Three copies of one decision is how a
+      # schedule edit silently demotes the nightly run in two of the three
+      # places and nothing turns red. Decided once, read everywhere.
+      is_full_run: ${{ steps.set.outputs.is_full_run }}
       single_kind: ${{ steps.set.outputs.single_kind }}
       single_value: ${{ steps.set.outputs.single_value }}
     steps:
@@ -48,6 +67,32 @@ jobs:
           INPUT_SOURCE: ${{ inputs.source }}
           INPUT_LV: ${{ inputs.landesverband }}
         run: |
+          # Which run is the full one is decided HERE and nowhere else, and by
+          # the HOUR field rather than the whole cron string.
+          #
+          # Both halves of that were bugs waiting on a schedule edit. Three
+          # jobs each compared `github.event.schedule` to the literal
+          # '0 2 * * *': this one, the LV matrix's `recent` flag, and the
+          # aggregate digest's --no-email. Changing the minute above would have
+          # left all three unmatched — the nightly run demoted to an LV-only
+          # incremental crawl, the nine non-LV sources not synced, no admin
+          # digest sent, and nothing red anywhere. Exactly the silence #2972 is
+          # about, introduced by the fix for it.
+          #
+          # The hourly cron covers hours 04-20, so hour 2 is unambiguous, and
+          # the old '0 2 * * *' still resolves to it for any event already in
+          # flight when this lands.
+          SCHEDULE_HOUR=$(printf '%s' "$SCHEDULE" | awk '{print $2}')
+          FULL_RUN_HOUR=2
+
+          # Empty SCHEDULE = manual dispatch, which has always meant a full run.
+          if [ "$SCHEDULE_HOUR" = "$FULL_RUN_HOUR" ] || [ -z "$SCHEDULE" ]; then
+            IS_FULL_RUN=true
+          else
+            IS_FULL_RUN=false
+          fi
+          echo "is_full_run=$IS_FULL_RUN" >> "$GITHUB_OUTPUT"
+
           ALL_LVS='["BB","BE","BY","HE","HH","LSA","MV","SL","TH"]'
           ALL_SOURCES='["gruenblog","gruene-at","kommunalwiki","boell-stiftung","bundestag","abgeordnetenwatch","grundsatz","gruene-de","oesterreich"]'
           EMPTY='[]'
@@ -67,7 +112,7 @@ jobs:
             echo "single_value=$INPUT_SOURCE" >> "$GITHUB_OUTPUT"
             echo "lv_matrix=$EMPTY" >> "$GITHUB_OUTPUT"
             echo "source_matrix=$EMPTY" >> "$GITHUB_OUTPUT"
-          elif [ "$SCHEDULE" = "0 2 * * *" ] || [ -z "$SCHEDULE" ]; then
+          elif [ "$IS_FULL_RUN" = "true" ]; then
             # Daily 3 AM CET or manual dispatch (no input) → both matrices
             echo "single_kind=" >> "$GITHUB_OUTPUT"
             echo "single_value=" >> "$GITHUB_OUTPUT"
@@ -105,11 +150,10 @@ jobs:
         id: sync
         continue-on-error: true
         run: |
-          # Hourly schedule (any cron other than the daily '0 2 * * *') → only crawl
-          # the newest items; the nightly run does the full per-URL walk. Empty
-          # SCHEDULE = manual dispatch → keep the full run.
+          # Anything but the full run crawls only the newest items; the full
+          # run does the per-URL walk. Decided in `setup`, not re-derived here.
           RECENT=false
-          if [ -n "$SCHEDULE" ] && [ "$SCHEDULE" != "0 2 * * *" ]; then RECENT=true; fi
+          if [ "${{ needs.setup.outputs.is_full_run }}" != "true" ]; then RECENT=true; fi
           FORCE=false
           if [ "${{ inputs.force }}" = "true" ]; then FORCE=true; fi
           DRY_RUN=false
@@ -141,7 +185,6 @@ jobs:
             exit 1
           fi
         env:
-          SCHEDULE: ${{ github.event.schedule }}
           ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
           CONTENT_SYNC_API_URL: ${{ vars.NOTEBOOK_API_URL || 'https://gruenerator.eu' }}
           CONTENT_SYNC_EMAIL: ${{ vars.CONTENT_SYNC_EMAIL }}
@@ -265,7 +308,6 @@ jobs:
         # Hourly runs are LV-only and the per-LV jobs send their own mails, so
         # suppress the admin digest there to avoid hourly inbox spam.
         env:
-          SCHEDULE: ${{ github.event.schedule }}
           BREVO_SMTP_HOST: ${{ secrets.BREVO_SMTP_HOST }}
           BREVO_SMTP_PORT: ${{ secrets.BREVO_SMTP_PORT }}
           BREVO_SMTP_USER: ${{ secrets.BREVO_SMTP_USER }}
@@ -275,9 +317,9 @@ jobs:
           SYNC_SUMMARY_PATH: ${{ github.workspace }}/sync-summary.json
         run: |
           ARGS="--dir ${{ github.workspace }}/summaries/"
-          # Hourly schedule = any cron other than the daily '0 2 * * *'.
-          # Empty SCHEDULE means manual dispatch → keep the digest.
-          if [ -n "$SCHEDULE" ] && [ "$SCHEDULE" != "0 2 * * *" ]; then
+          # Digest on the full run only (and on manual dispatch). Hourly runs
+          # are LV-only and those jobs send their own mails. Decided in `setup`.
+          if [ "${{ needs.setup.outputs.is_full_run }}" != "true" ]; then
             ARGS="$ARGS --no-email"
           fi
           echo "Running: pnpm --filter @gruenerator/api run sync:aggregate -- $ARGS"
@@ -363,10 +405,10 @@ jobs:
 
             echo "### Per Source"
             echo ""
-            echo "| Source | Status | New | Updated | Skipped | Unreachable | Errors | Duration |"
-            echo "|--------|--------|----:|--------:|--------:|------------:|-------:|---------:|"
+            echo "| Source | Status | New | Updated | Skipped | Unreachable | Dead links | Errors | Duration |"
+            echo "|--------|--------|----:|--------:|--------:|------------:|-----------:|-------:|---------:|"
 
-            jq -r '.sources[] | "| \(.name) | \(if .status == "success" then "✅" else "❌" end) | \(.stored) | \(.updated) | \(.skipped) | \(.fetchErrors // 0) | \(.errors) | \(.duration)s |"' "$SUMMARY_FILE"
+            jq -r '.sources[] | "| \(.name) | \(if .status == "success" then "✅" else "❌" end) | \(.stored) | \(.updated) | \(.skipped) | \(.fetchErrors // 0) | \(.deadLinks // 0) | \(.errors) | \(.duration)s |"' "$SUMMARY_FILE"
 
             echo ""
 
@@ -397,6 +439,25 @@ jobs:
               echo ""
             fi
 
+            # Getrennt von den Fehlern, weil hier nichts zu reparieren ist:
+            # Seiten, die die Quelle selbst noch verlinkt, aber mit 403/404/410
+            # beantwortet. In `errors` gezählt wiederholten sie sich Nacht für
+            # Nacht (#2971) und machten die Zahl bedeutungslos, die eigentlich
+            # „hier ist etwas kaputt" heißen soll.
+            DEAD_LINK_DETAILS=$(jq -r '
+              .sources[] | select((.deadLinkSamples // []) | length > 0)
+              | "- **\(.name)** (\(.deadLinks) tote Links"
+                + (if (.deadLinkSamples | length) < .deadLinks then ", \(.deadLinkSamples | length) davon gezeigt" else "" end)
+                + "):\n"
+                + ([.deadLinkSamples[] | "  - `" + . + "`"] | join("\n"))
+            ' "$SUMMARY_FILE")
+            if [ -n "$DEAD_LINK_DETAILS" ]; then
+              echo "### 🔗 Tote Links (Upstream)"
+              echo ""
+              echo "$DEAD_LINK_DETAILS"
+              echo ""
+            fi
+
             NEW_CONTENT=$(jq -r '.sources[] | select(.stored > 0) | "- **\(.name):** +\(.stored) new documents"' "$SUMMARY_FILE")
             if [ -n "$NEW_CONTENT" ]; then
               echo "### 📥 New Content"
@@ -412,6 +473,23 @@ jobs:
           curl -sfS -H "x-admin-token: $ADMIN_TOKEN" \
             "$CONTENT_SYNC_API_URL/api/internal/content-sync/stats" \
             | jq -r '.markdown' > documentation/docs/wissen/inhaltsdatenbank.md
+
+          # Jetzt formatieren, nicht erst beim Commit. Das `pnpm install` dieses
+          # Jobs setzt über `prepare: husky` den core.hooksPath, also löst der
+          # `git commit` in peter-evans/create-pull-request lint-staged aus, und
+          # dessen `prettier --write` richtet die Tabellen dieser .md aus. Läuft
+          # das erst dort, ist die Reihenfolge falsch: der Index unten entsteht
+          # dann aus dem UNformatierten Markdown und trägt dessen Trennzeilen,
+          # während die .md formatiert danebenliegt — zwei Dateien in einem
+          # Commit, die sich widersprechen. `docsIndex.generated.ts` steht in
+          # .prettierignore und wird byteweise verglichen, also repariert der
+          # Hook das nicht mit; `docs:index:check` färbt danach master und jeden
+          # fremden PR rot, und weil der Commit `[skip ci]` trägt, merkt es der
+          # eigene Lauf nie. Belegt am 27.08.2026 in b738946877 (Lauf
+          # 33084619987: create-pull-request 15:00:55, `prettier --write`
+          # 15:00:56). Prettier ist idempotent — der Hook findet danach nichts
+          # mehr zu ändern.
+          pnpm exec prettier --write documentation/docs/wissen/inhaltsdatenbank.md
         env:
           ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
           CONTENT_SYNC_API_URL: ${{ vars.NOTEBOOK_API_URL || 'https://gruenerator.eu' }}
@@ -519,6 +597,7 @@ jobs:
           DRY_RUN=$(jq -r '.dryRun' "$SUMMARY_FILE")
           STORED=$(jq -r '.totals.stored' "$SUMMARY_FILE")
           ERRORS=$(jq -r '.totals.errors' "$SUMMARY_FILE")
+          DEAD_LINKS=$(jq -r '[.sources[].deadLinks // 0] | add // 0' "$SUMMARY_FILE")
           DURATION=$(jq -r '.totalDuration' "$SUMMARY_FILE")
 
           if [ "$ERRORS" -gt 0 ]; then STATUS_ICON="⚠️"; else STATUS_ICON="✅"; fi
@@ -529,6 +608,11 @@ jobs:
             echo ""
             echo "**Date:** $(date -d "$TIMESTAMP" '+%d.%m.%Y %H:%M UTC' 2>/dev/null || echo "$TIMESTAMP")"
             echo "**Duration:** ${DURATION}s | **New:** +${STORED} | **Errors:** ${ERRORS}"
+            if [ "$DEAD_LINKS" -gt 0 ]; then
+              echo ""
+              jq -r '.sources[] | select((.deadLinkSamples // []) | length > 0)
+                | "Tote Links (Upstream, \(.deadLinks)):\n" + ([.deadLinkSamples[] | "- `" + . + "`"] | join("\n"))' "$SUMMARY_FILE"
+            fi
             if [ "$(jq -r 'has("extraction")' "$SUMMARY_FILE")" = "true" ]; then
               jq -r '.extraction | "**Read:** \(.documents) docs / \(.pages) pages (OCR: \(.ocrDocuments)/\(.ocrPages)) | **For nothing:** \(.redundant) | **Gated:** \(.skipped.not_modified + .skipped.same_bytes + .skipped.freshly_indexed)"' "$SUMMARY_FILE"
             fi
@@ -540,6 +624,23 @@ jobs:
           curl -sfS -H "x-admin-token: $ADMIN_TOKEN" \
             "$CONTENT_SYNC_API_URL/api/internal/content-sync/stats" \
             | jq -r '.markdown' > documentation/docs/wissen/inhaltsdatenbank.md
+
+          # Jetzt formatieren, nicht erst beim Commit. Das `pnpm install` dieses
+          # Jobs setzt über `prepare: husky` den core.hooksPath, also löst der
+          # `git commit` in peter-evans/create-pull-request lint-staged aus, und
+          # dessen `prettier --write` richtet die Tabellen dieser .md aus. Läuft
+          # das erst dort, ist die Reihenfolge falsch: der Index unten entsteht
+          # dann aus dem UNformatierten Markdown und trägt dessen Trennzeilen,
+          # während die .md formatiert danebenliegt — zwei Dateien in einem
+          # Commit, die sich widersprechen. `docsIndex.generated.ts` steht in
+          # .prettierignore und wird byteweise verglichen, also repariert der
+          # Hook das nicht mit; `docs:index:check` färbt danach master und jeden
+          # fremden PR rot, und weil der Commit `[skip ci]` trägt, merkt es der
+          # eigene Lauf nie. Belegt am 27.08.2026 in b738946877 (Lauf
+          # 33084619987: create-pull-request 15:00:55, `prettier --write`
+          # 15:00:56). Prettier ist idempotent — der Hook findet danach nichts
+          # mehr zu ändern.
+          pnpm exec prettier --write documentation/docs/wissen/inhaltsdatenbank.md
         env:
           ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
           CONTENT_SYNC_API_URL: ${{ vars.NOTEBOOK_API_URL || 'https://gruenerator.eu' }}

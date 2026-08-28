@@ -3,6 +3,7 @@ import {
   getHubMemberAgentIds,
   getVisibleSystemAgentsForLocale,
   type Agent,
+  type AgentIconKey,
 } from '@gruenerator/shared/agents';
 import {
   PiSparkle,
@@ -15,7 +16,11 @@ import {
   PiHandHeart,
   PiFileText,
   PiBird,
+  PiImage,
   PiImagesSquare,
+  PiSquaresFour,
+  PiTable,
+  PiProjectorScreenChart,
   PiScales,
   PiBank,
 } from 'react-icons/pi';
@@ -25,11 +30,14 @@ import { CURRENT_INSTANCE } from '../../../config/instance';
 import type { IconType } from 'react-icons';
 
 /**
- * String key → react-icons component. Agents reference icons by `iconKey`
- * (in their `SYSTEM_AGENTS` entry); this registry is the platform-side mapping.
- * Adding a new agent icon = add one line here AND set `iconKey` on the agent.
+ * Concept key → react-icons component. The key set is owned by
+ * `AGENT_ICON_KEYS` (packages/shared/src/agents/agentIcons.ts), against which
+ * the agent codegen validates every `iconKey`; `Record<AgentIconKey, …>` makes
+ * a missing mapping a compile error rather than a silent fallback to the
+ * sparkle. Sibling copies: `packages/chat/src/lib/agentIcons.ts` (same Phosphor
+ * set) and `apps/mobile/components/chat/sidebarIcons.ts` (Ionicons).
  */
-const ICON_REGISTRY: Record<string, IconType> = {
+const ICON_REGISTRY: Record<AgentIconKey, IconType> = {
   sparkle: PiSparkle,
   megaphone: PiMegaphone,
   buildings: PiBuildings,
@@ -40,10 +48,17 @@ const ICON_REGISTRY: Record<string, IconType> = {
   'hand-heart': PiHandHeart,
   'file-text': PiFileText,
   bird: PiBird,
+  image: PiImage,
   'image-square': PiImagesSquare,
+  'layout-grid': PiSquaresFour,
+  table: PiTable,
+  'projector-screen-chart': PiProjectorScreenChart,
   scales: PiScales,
   bank: PiBank,
 };
+
+/** Lookup view — `Agent.iconKey` is a free string (user agents carry Phosphor names). */
+const iconByKey: Readonly<Partial<Record<string, IconType>>> = ICON_REGISTRY;
 
 const FALLBACK_ICON: IconType = PiSparkle;
 
@@ -55,7 +70,7 @@ const FALLBACK_ICON: IconType = PiSparkle;
 export function getAgentIcon(identifier: string): IconType {
   if (identifier.startsWith('gruenerator-oeffentlichkeitsarbeit')) return PiMegaphone;
   const agent = ALL_VISIBLE_SYSTEM_AGENTS.find((a) => a.identifier === identifier);
-  if (agent?.iconKey) return ICON_REGISTRY[agent.iconKey] ?? FALLBACK_ICON;
+  if (agent?.iconKey) return iconByKey[agent.iconKey] ?? FALLBACK_ICON;
   return FALLBACK_ICON;
 }
 

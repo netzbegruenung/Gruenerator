@@ -16,6 +16,7 @@
  */
 
 import { type CustomPrompt, type TextForm } from '@gruenerator/contracts';
+import { hasSystemRecipe } from '@gruenerator/shared/agents';
 import { isUnauthorizedError } from '@gruenerator/shared/api';
 
 import {
@@ -143,6 +144,12 @@ export async function syncCustomAgents(get: MentionableFetch): Promise<CustomAge
  * Presets ride the existing system-skill mentions, so only custom forms surface
  * here. Anonymous users / no forms resolve to an empty list.
  *
+ * Ausnahme ist das Preset, dessen Systemrezept es nicht gibt: `antrag` steht in
+ * `textFormTypeSchema`, aber in keiner `SKILLS`-Zeile. Es reitet also auf nichts,
+ * und ohne eigenen Eintrag war der angelernte Antrags-Stil im Chat gar nicht
+ * auswählbar — auf keinem Pfad (#2937). `hasSystemRecipe` entscheidet das
+ * strukturell, damit Backend-Katalog und Mention-Menü dieselbe Regel fahren.
+ *
  * `sharedFromGroup` rides along: `/api/text-forms` returns the user's own forms
  * plus every form shared into one of their groups, and both arrive with the
  * owner's `kind: 'custom'`. Without the field the picker cannot tell them apart
@@ -154,7 +161,7 @@ export async function syncTextforms(get: MentionableFetch): Promise<TextformMent
   }));
   const list = Array.isArray(res?.forms)
     ? res.forms
-        .filter((f) => f.kind === 'custom')
+        .filter((f) => f.kind === 'custom' || !hasSystemRecipe(f.mention))
         .map((f) => ({
           mention: f.mention,
           title: f.title,

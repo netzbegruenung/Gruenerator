@@ -2,7 +2,7 @@
   - heading "Connect" [level=1]
   - paragraph: Verbinde deine KI-Clients direkt mit dem Grünerator MCP-Server.
   - heading "Mit dem MCP-Server verbinden" [level=2]
-  - paragraph: Nutze die Grünerator-Tools direkt in deinem KI-Client — inklusive deiner eigenen Dokumente, Boards und Notizbücher. Beim Verbinden meldest du dich mit deinem Grünerator-Konto an und entscheidest, worauf der Client zugreifen darf.
+  - paragraph: Nutze die Grünerator-Tools direkt in deinem KI-Client — inklusive deiner eigenen Dokumente, Boards und Notebooks. Beim Verbinden meldest du dich mit deinem Grünerator-Konto an und entscheidest, worauf der Client zugreifen darf.
   - text: Server-URL
   - code: https://mcp.gruenerator.eu
   - text: Anmeldung mit Grünerator-Konto

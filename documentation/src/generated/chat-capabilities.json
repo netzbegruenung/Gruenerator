@@ -92,7 +92,7 @@
     },
     "docs-picker-trigger": {
       "title": "Dokument einfügen",
-      "description": "Dokumente, Dateien & Notizbuch-Inhalte als Kontext hinzufügen",
+      "description": "Dokumente, Dateien & Notebook-Inhalte als Kontext hinzufügen",
       "mention": "@docs"
     },
     "dokument-erstellen": {

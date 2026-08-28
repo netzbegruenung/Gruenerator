@@ -464,6 +464,8 @@ Contributions are welcome! Please read our [Contributing Guidelines](.github/CON
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
+Write everything that lands on GitHub in **English** — commit messages, branch names, pull request titles and descriptions, issues and comments.
+
 ### Development Guidelines
 
 - Use **pnpm** for all commands (not npm or yarn)

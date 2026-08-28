@@ -1,8 +1,8 @@
 /**
- * "Dieses Notizbuch hat noch keine Quellen" ist die härteste Aussage dieses
+ * "Dieses Notebook hat noch keine Quellen" ist die härteste Aussage dieses
  * Hinweises — sie sagt Leuten, ihre Quellen seien weg. Sie erschien in vollen
- * Notizbüchern, weil eine leere Dokumentliste am Client aussieht wie ein leeres
- * Notizbuch, egal warum sie leer ankam.
+ * Notebooks, weil eine leere Dokumentliste am Client aussieht wie ein leeres
+ * Notebook, egal warum sie leer ankam.
  */
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -45,7 +45,7 @@ describe('NotebookIndexingNotice', () => {
       </MemoryRouter>
     );
 
-  it('zeigt die Leer-Meldung, wenn der Server das Notizbuch als leer meldet', () => {
+  it('zeigt die Leer-Meldung, wenn der Server das Notebook als leer meldet', () => {
     renderNotice('empty');
 
     expect(screen.getByText(LEER_MELDUNG)).toBeInTheDocument();

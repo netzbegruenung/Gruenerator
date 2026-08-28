@@ -17,7 +17,7 @@ Dafür musst du ihm einmal sagen, wo du arbeitest. Das dauert eine Minute und is
    - **Ebene:** Land
    - **Bundesland:** dein Landesverband
    - **Rolle:** _Mitarbeiter\*in Landesgeschäftsstelle_ (in Österreich: _Mitarbeiter\*in Landesorganisation_)
-5. Der Assistent zeigt dir zum Schluss, was diese Rolle freischaltet — zum Beispiel „3 Agenten und 3 Rezepte sowie das Notizbuch Hessen erscheinen künftig in deiner Agentur und im Chat“. Speichern, fertig.
+5. Der Assistent zeigt dir zum Schluss, was diese Rolle freischaltet — zum Beispiel „3 Agenten und 3 Rezepte sowie das Notebook Hessen erscheinen künftig in deiner Agentur und im Chat“. Speichern, fertig.
 
 ![Die Einstellungen, Bereich Personalisierung: oben das Feld „Anweisungen“, darunter der Kasten „Deine Rollen“ mit der Rolle „Mitarbeiter\*in Landesgeschäftsstelle, Hessen“, dem Hinweis „Über deine Rolle sind dir die Inhalte von Grüne Hessen zugeteilt“ und dem Knopf „Zu deinem Landesverband“.](/assets/images/landesverband-tutorial/rolle-anlegen.webp)
 
@@ -39,7 +39,7 @@ Du kannst mehrere Rollen anlegen (etwa Landesgeschäftsstelle **und** Kreisverba
 
 **Eure Rezepte im Chat.** Die Presse- und Instagram-Rezepte deines Landesverbands tauchen jetzt in der Rezept-Liste des Chats auf und lassen sich mit `@` erwähnen, etwa `@presse-hessen-partei` oder `@insta-hessen`. Welche es je Landesverband gibt, steht unter [Landesverband-Grüneratoren](/docs/wissen/landesverbaende).
 
-**Euer Notizbuch.** Die Wissensdatenbank deines Landesverbands (Pressemitteilungen, Beschlüsse, Wahlprogramme) erscheint in der Auswahl und lässt sich im Chat als Quelle erwähnen.
+**Euer Notebook.** Die Wissensdatenbank deines Landesverbands (Pressemitteilungen, Beschlüsse, Wahlprogramme) erscheint in der Auswahl und lässt sich im Chat als Quelle erwähnen.
 
 **Und die Automatik:** Bittest du den Chat einfach um „eine Pressemitteilung zu …“, nimmt er von selbst **eure** Vorlage statt der allgemeinen. Du musst dafür nichts erwähnen und nichts einstellen — die Rolle in deinem Profil genügt. Das gilt im normalen Chat genauso wie dann, wenn du gerade in einer Rolle aus der Auswahlliste schreibst.
 
@@ -71,7 +71,7 @@ Alles gilt für dein Konto, also auf allen Geräten, an denen du angemeldet bist
 
 ## Wenn nichts erscheint
 
-**Dein Bundesland ist nicht dabei.** Nicht jeder Landesverband hat eigene Grüneratoren, und einzelne haben sich gegen ein eigenes Notizbuch entschieden. Welche Landesverbände abgedeckt sind, steht aktuell auf der Seite [Landesverband-Grüneratoren](/docs/wissen/landesverbaende). Ist deiner nicht dabei, bleibt der Assistent stumm und verspricht nichts — die allgemeinen Rezepte (`@presse`, `@instagram`, `@facebook`, …) stehen dir wie allen anderen offen.
+**Dein Bundesland ist nicht dabei.** Nicht jeder Landesverband hat eigene Grüneratoren, und einzelne haben sich gegen ein eigenes Notebook entschieden. Welche Landesverbände abgedeckt sind, steht aktuell auf der Seite [Landesverband-Grüneratoren](/docs/wissen/landesverbaende). Ist deiner nicht dabei, bleibt der Assistent stumm und verspricht nichts — die allgemeinen Rezepte (`@presse`, `@instagram`, `@facebook`, …) stehen dir wie allen anderen offen.
 
 **Du hast die Rolle gerade erst angelegt.** Das Regal erscheint, sobald die Einstellungen gespeichert sind; ein Neuladen der Seite hilft, wenn ein Tab schon länger offen stand. In der App genügt es, sie einmal neu zu starten.
 

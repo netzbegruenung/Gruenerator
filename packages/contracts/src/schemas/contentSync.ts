@@ -72,6 +72,17 @@ export const contentSyncResultSchema = z.object({
    * bleibt die verbindliche Angabe, das hier ist die Diagnosehilfe.
    */
   errorSamples: z.array(z.string()).optional(),
+  /**
+   * Links die Quelle selbst noch auflistet, aber nicht mehr ausliefert (HTTP
+   * 403/404/410). Getrennt von `errors`, weil keine Änderung auf unserer Seite
+   * sie je auf 0 bringt: sechs davon wiederholen sich in jedem nächtlichen Lauf
+   * (#2971), und in `errors` gezählt gewöhnen sie den Leser daran, die eine Zahl
+   * zu übersehen, die „hier ist etwas kaputt" heißen soll. Optional, weil ein
+   * Backend-Stand vor diesem Feld schlicht nichts sendet.
+   */
+  deadLinks: z.number().optional(),
+  /** URLs hinter `deadLinks`, serverseitig gedeckelt wie `errorSamples`. */
+  deadLinkSamples: z.array(z.string()).optional(),
   fetchErrors: z.number(),
   durationMs: z.number(),
 });
@@ -114,6 +125,16 @@ export type ContentSyncJobStatus = z.infer<typeof contentSyncJobStatusSchema>;
 
 /** 404 — unknown or expired (TTL'd out of Redis) job id. */
 export const contentSyncJobNotFoundSchema = z.object({
+  error: z.string(),
+});
+
+/**
+ * 400 — the request asks for something this source cannot do. Currently only
+ * `dryRun: true` against a source with no dry-run branch: forwarding the flag
+ * there would store for real while the report says "Dry Run" (#2970), so the
+ * call is refused instead of quietly lying about what it did.
+ */
+export const contentSyncBadRequestSchema = z.object({
   error: z.string(),
 });
 

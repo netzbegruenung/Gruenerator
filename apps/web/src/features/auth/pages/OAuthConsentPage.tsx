@@ -10,7 +10,7 @@ import { authClient } from '../../../lib/authClient';
 
 const SCOPE_LABELS: Record<string, string> = {
   search: 'Programme, Beschlüsse und Umfragen durchsuchen',
-  'content:read': 'Eigene Inhalte lesen (Dokumente, Boards, Notizbücher, Chats-Metadaten)',
+  'content:read': 'Eigene Inhalte lesen (Dokumente, Boards, Notebooks, Chats-Metadaten)',
   'content:write': 'Eigene Inhalte erstellen, bearbeiten und löschen',
   'groups:read': 'Eigene Gruppen sehen',
   'groups:write': 'Gruppen erstellen und beitreten',

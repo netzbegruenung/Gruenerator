@@ -182,3 +182,62 @@ describe('angelernter Stil — er ist Nutzertext', () => {
     expect(prompt).toContain('REGELHIERARCHIE');
   });
 });
+
+describe('angelernter Stil — Prompt-Titel und Ausweis sind derselbe', () => {
+  // #2939: die Überschrift nahm den Rezept-Titel, `usedRecipes` den der
+  // Textform. Wer prüfte, ob das hessische Rezept gewirkt hat, las in der
+  // Abzeichenzeile „Pressemitteilungen" — auch wenn es gewirkt hatte.
+  // Geprüft wird deshalb an BEIDEN Stellen im selben Aufruf; eine allein
+  // kann nicht zeigen, dass sie übereinstimmen.
+  it('weist bei einem Systemrezept dessen Titel aus, nicht den der angelernten Form', async () => {
+    getTextFormForInjection.mockImplementation((_userId: string, mention: string) =>
+      Promise.resolve(
+        mention === 'presse-hessen-partei'
+          ? {
+              kind: 'recipe',
+              textType: 'presse',
+              title: 'Mein Hessen-Stil',
+              styleBlock: STIL,
+            }
+          : null
+      )
+    );
+
+    const s = state({ activeSkillMention: 'presse-hessen-partei' });
+    const prompt = await buildSystemMessage(s);
+
+    expect(prompt).toContain('## AKTIVE PLATTFORM: PM Hessen (Partei)');
+    expect(s.usedRecipes).toEqual([
+      { mention: 'presse-hessen-partei', title: 'PM Hessen (Partei)', source: 'user' },
+    ]);
+  });
+
+  it('weist bei einer freien Mention den Titel der Textform aus — wie in der Überschrift', async () => {
+    // Ohne Systemrezept gibt es keinen zweiten Titel; hier MUSS die Textform
+    // gewinnen, sonst stünde die Kennung statt eines Namens im Abzeichen.
+    getTextFormForInjection.mockResolvedValue({
+      kind: 'custom',
+      textType: null,
+      title: 'OMV-Einladungen',
+      styleBlock: STIL,
+    });
+
+    const s = state({ activeSkillMention: 'omveinladungen' });
+    const prompt = await buildSystemMessage(s);
+
+    expect(prompt).toContain('## AKTIVE TEXTFORM: OMV-Einladungen');
+    expect(s.usedRecipes).toEqual([
+      { mention: 'omveinladungen', title: 'OMV-Einladungen', source: 'user' },
+    ]);
+  });
+
+  it('weist ohne angelernten Stil den Rezept-Titel aus', async () => {
+    const s = state({ activeSkillMention: 'presse-hessen-partei' });
+    const prompt = await buildSystemMessage(s);
+
+    expect(prompt).toContain('## AKTIVE PLATTFORM: PM Hessen (Partei)');
+    expect(s.usedRecipes).toEqual([
+      { mention: 'presse-hessen-partei', title: 'PM Hessen (Partei)', source: 'system' },
+    ]);
+  });
+});

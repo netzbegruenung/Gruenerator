@@ -2,7 +2,7 @@
  * Die Grünerator-Agenten als MCP-Prompts.
  *
  * Ein Prompt ist reiner Text und gibt nichts frei — deshalb hängen sie an
- * keinem Scope, genauso wie `recherche` und `notizbuch-antwort`.
+ * keinem Scope, genauso wie `recherche` und `notebook-antwort`.
  *
  * Gegenüber dem alten Server entfällt der Codegen: der las
  * `packages/shared/src/agents/mcpProjection.ts` und schrieb eine 167-KB-Datei

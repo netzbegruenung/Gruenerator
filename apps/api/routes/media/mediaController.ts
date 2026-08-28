@@ -67,7 +67,19 @@ const upload = multer({
 });
 
 /**
- * Transform database row to API response format
+ * Transform database row to API response format.
+ *
+ * `thumbnailUrl` is `/preview` *without* a `w` parameter, and that is on
+ * purpose: the route reads a missing width as "the original bytes, unresized"
+ * (`services/media/thumbnailCache.ts`), which is what the canvas placement path
+ * needs — `canvas-editor/utils/mediaPlacement.ts` and `mediaItemToFile.ts` both
+ * fall back to this field to get the real upload. Appending a width here would
+ * silently turn every placed background into a 400px re-encode.
+ *
+ * Which means the field is *not* a thumbnail: rendering it in an `<img>` pulls
+ * a multi-megabyte upload into a tile. Preview surfaces build their own sized
+ * URLs from `shareToken` via `buildSharedMediaSrcSet`
+ * (`packages/shared/src/media-library/srcset.ts`).
  */
 function transformMediaItem(item: SharedMediaRow) {
   return {
