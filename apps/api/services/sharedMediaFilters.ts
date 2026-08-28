@@ -5,7 +5,7 @@ import { SOURCE_CONTENT_ORIGINS } from './sharedMediaOrigin.js';
 /**
  * The filter policies over `shared_media`, in one place.
  *
- * Three query families read this table, and each needs a different answer to
+ * Four query families read this table, and each needs a different answer to
  * "what should this person see here":
  *
  *  - **Creation feeds** — the workplace "Zuletzt" strip, the Studio galleries on
@@ -17,6 +17,9 @@ import { SOURCE_CONTENT_ORIGINS } from './sharedMediaOrigin.js';
  *  - **The asset pool** — the Mediathek (`getMediaLibrary`). A curated shelf of
  *    things to build *with*, so uploads belong here and drafts do not. Built by
  *    {@link assetPoolWhere}.
+ *  - **Orphan reaping** — `reapOrphanedShares`. The complement of the other
+ *    three: {@link ORPHANED_SHARE_STATUSES}, the rows no listing shows and no
+ *    UI deletes.
  *  - **Quota** — `getLibraryUsage`. The library-item half of the asset pool
  *    ({@link LIBRARY_ITEM_CLAUSE}) intersected with
  *    {@link USER_VISIBLE_SHARE_STATUSES}: you are charged for what you can see
@@ -43,6 +46,31 @@ import { SOURCE_CONTENT_ORIGINS } from './sharedMediaOrigin.js';
  * {@link assetPoolWhere} instead of passing a hand-written status here.
  */
 export const USER_VISIBLE_SHARE_STATUSES = ['ready', 'draft'] as const;
+
+/**
+ * The other half of the status space: rows that will never become anything.
+ *
+ * `'failed'` is written by `markShareFailed`. `'processing'` has three writers,
+ * and only one of them is a render: `createPendingVideoShare` (cleared by
+ * `finalizeVideoShare`), and `cloneTemplate`, which inserts it on a synchronous
+ * path with nothing to wait for. The Mediathek is ready-only, so neither status
+ * reaches it, and #2980 removed the LRU eviction that used to sweep such rows
+ * along with everything else — so nothing cleaned them up at all (#2989). They
+ * are reaped by age instead; see `reapOrphanedShares`.
+ *
+ * Membership here means "may be deleted unasked", which is why the reaper adds
+ * `file_path IS NULL` on top: a cloned template that was edited and saved keeps
+ * `'processing'` (nothing in `updateImageShare` clears it) while holding a real
+ * sharepic. Status alone is not enough to tell the two apart.
+ *
+ * Together with {@link USER_VISIBLE_SHARE_STATUSES} this must exhaust the
+ * statuses the service writes (`ShareStatus` in `@gruenerator/shared/share`).
+ * The reaper deletes rows *and their files*, so it names its statuses from
+ * this allowlist rather than saying `NOT IN (ready, draft)`: a fifth status
+ * added later should be invisible to it until someone decides otherwise, not
+ * swept up by a predicate that was never told about it.
+ */
+export const ORPHANED_SHARE_STATUSES = ['processing', 'failed'] as const;
 
 /**
  * Rows that are the user's own assets rather than internal machinery.
