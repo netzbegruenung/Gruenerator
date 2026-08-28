@@ -19,6 +19,7 @@ import { likeContainsPattern } from '../utils/sqlLike.js';
 import {
   LIBRARY_ITEM_CLAUSE,
   ORPHANED_SHARE_STATUSES,
+  USER_SHARES_MAX_LIMIT,
   USER_VISIBLE_SHARE_STATUSES,
   assetPoolWhere,
   creationFeedWhere,
@@ -804,7 +805,7 @@ class SharedMediaService {
     userId: string,
     mediaType: 'image' | 'video' | null = null,
     status: string | readonly string[] | null = null,
-    limit: number = 100
+    limit: number = USER_SHARES_MAX_LIMIT
   ): Promise<SharedMediaRow[]> {
     await this.ensureInitialized();
 
@@ -829,7 +830,7 @@ class SharedMediaService {
         query += ` AND media_type = $${params.length}`;
       }
 
-      params.push(Math.min(Math.max(1, Math.trunc(limit)), 100));
+      params.push(Math.min(Math.max(1, Math.trunc(limit)), USER_SHARES_MAX_LIMIT));
       query += ` ORDER BY created_at DESC LIMIT $${params.length}`;
 
       const results = await this.postgres!.query<SharedMediaRow>(query, params);

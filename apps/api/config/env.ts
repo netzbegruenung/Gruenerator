@@ -217,6 +217,13 @@ const envSchema = z.object({
   // The throttle it has to contain is documented in GreenPTSearchService.ts.
   GREENPT_SEARCH_ENABLED: boolFlag(false),
 
+  // Reranking on GreenPT (`green-rerank`) instead of Regolo. ON by default,
+  // unlike the search flag above: this one is a host swap for identical weights
+  // (both serve Qwen3-Reranker-4B), so there is no quality trade to opt into —
+  // only the `impact` measurement to gain. The flag exists as a rollback lever
+  // that needs no code change, and as the two arms of the retrieval eval.
+  GREENPT_RERANK_ENABLED: boolFlag(true),
+
   // No DEEP_AGENT_* switches. Which lane the subagent runs on and whether the
   // lead delegates in parallel are RESEARCH decisions with measurements behind
   // them, not deployment settings — they live in
@@ -295,9 +302,9 @@ const envSchema = z.object({
 
   // ── OCR ────────────────────────────────────────────────────────────────
   OCR_PROVIDER: z.string().optional(),
-  DOCLING_URL: z.string().optional(),
-  // Outer client deadline for the async Docling conversion flow (submit → poll → result).
-  // 50 MB / 1000 pages is the validation ceiling; 10 min covers worst-case scan-heavy PDFs.
+  // Client deadline for one Docling conversion request against GreenPT's
+  // Documents API. 50 MB / 1000 pages is the validation ceiling; 10 min covers
+  // worst-case scan-heavy PDFs.
   DOCLING_MAX_WAIT_MS: numStr(600_000),
   REMBG_URL: z.string().optional(),
 
