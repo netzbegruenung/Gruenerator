@@ -417,7 +417,9 @@ export const veranstaltungFullConfig: FullCanvasConfig<
       ? 'chart-settings'
       : selectedElement?.startsWith('frame-')
         ? 'frame-settings'
-        : null,
+        : selectedElement === 'background-image'
+          ? 'image'
+          : null,
 
   sections: {
     image: section({
@@ -482,9 +484,28 @@ export const veranstaltungFullConfig: FullCanvasConfig<
     ai: createAiSectionRegistration('veranstaltung', veranstaltungAiCapabilities),
   },
 
-  // Veranstaltung has complex elements (circle with rotated text, clipped photo)
-  // that don't fit the generic element model well. Using simplified elements.
+  // The date circle (rotated text) doesn't fit the generic element model and is
+  // rendered via circleBadgeInstances; the photo band, title and description are
+  // standard elements.
   elements: [
+    // Photo band at the top (40% of the canvas). coverFit center-crops to 2:1 to
+    // match the backend reference (veranstaltung_canvas.ts); order 0 keeps it
+    // behind the green section so a zoomed band never covers it.
+    {
+      id: 'background-image',
+      type: 'image',
+      x: 0,
+      y: 0,
+      order: 0,
+      width: VERANSTALTUNG_CONFIG.canvas.width,
+      height: VERANSTALTUNG_CONFIG.photo.height,
+      srcKey: 'currentImageSrc',
+      offsetKey: 'imageOffset',
+      scaleKey: 'imageScale',
+      draggable: true,
+      lockedKey: 'isBackgroundLocked',
+      coverFit: true,
+    },
     // Green section background
     {
       id: 'green-section',
