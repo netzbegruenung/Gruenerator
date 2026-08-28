@@ -15,6 +15,7 @@ import { MarkdownStreamingProvider } from '../context/MarkdownStreamingContext';
 import { handleDictationError } from '../lib/dictationErrorHandler';
 
 import { GrueneratorAttachmentAdapter } from './GrueneratorAttachmentAdapter';
+import { MESSAGE_QUEUE_ENABLED } from './messageQueueFlag';
 import {
   createNotebookModelAdapter,
   type NotebookAdapterConfig,
@@ -194,6 +195,7 @@ function NotebookChatProviderInner({
 
   const runtime = useLocalRuntime(adapter, {
     initialMessages,
+    unstable_enableMessageQueue: MESSAGE_QUEUE_ENABLED,
     adapters: {
       dictation: dictationAdapter,
       attachments: attachmentAdapter,
