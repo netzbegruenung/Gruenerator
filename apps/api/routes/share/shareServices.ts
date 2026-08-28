@@ -75,6 +75,9 @@ export interface SharedMediaService {
   /** Rows and files for shares stuck in processing/failed. Called by the
    * uploads cleaner, not by a route — nothing user-facing can reach them. */
   reapOrphanedShares(olderThanHours: number): Promise<ReapedShare[]>;
+  /** Rows in a dead status that carry a file — user media the reaper refuses
+   * to touch. Reported, never deleted. */
+  countFileBearingOrphans(): Promise<number>;
   updateImageShare(
     userId: string,
     shareToken: string,

@@ -362,6 +362,20 @@ class SharedMediaService {
    * Delete `shared_media` rows stuck in {@link ORPHANED_SHARE_STATUSES} past
    * `olderThanHours`, together with their files on disk.
    *
+   * **`file_path IS NULL` is a safety interlock, not an optimisation.** A row in
+   * one of these statuses is not supposed to have a file: `finalizeVideoShare`
+   * sets `file_path` and `status = 'ready'` in one UPDATE, so a render that got
+   * as far as producing bytes is never left `processing`. But `cloneTemplate`
+   * also inserts `'processing'`, on a path with no render at all, and
+   * `updateImageShare` — which the canvas editor's autosave calls on that very
+   * token — writes `file_path` and never touches `status`. A cloned template
+   * that someone edited and saved without explicitly publishing therefore sits
+   * at `'processing'` holding a finished sharepic. Without this clause the
+   * reaper would delete it, files and all, a day after the clone. A file-bearing
+   * row in a dead status is a contradiction, and the safe reading of a
+   * contradiction is to leave it alone; `countFileBearingOrphans` reports how
+   * many were skipped so the situation stays visible.
+   *
    * These rows are unreachable from every user-facing surface: `getMediaLibrary`
    * is ready-only, the galleries are `USER_VISIBLE_SHARE_STATUSES`, and the
    * public share page can only report "failed" to whoever already holds the
@@ -392,6 +406,7 @@ class SharedMediaService {
     }>(
       `DELETE FROM shared_media
         WHERE status = ANY($1::text[])
+          AND file_path IS NULL
           AND created_at < NOW() - make_interval(hours => $2::int)
         RETURNING share_token, status, file_size`,
       [[...ORPHANED_SHARE_STATUSES], Math.max(0, Math.trunc(olderThanHours))]
@@ -414,6 +429,26 @@ class SharedMediaService {
     }
 
     return reaped;
+  }
+
+  /**
+   * How many rows the `file_path IS NULL` interlock in {@link reapOrphanedShares}
+   * is holding back — rows in a dead status that nonetheless carry a file.
+   *
+   * Read-only. Every one of these is a real sharepic wearing the wrong status
+   * (see the interlock's rationale), so the number is a bug counter, not a
+   * cleanup backlog: it should be reported, and it must never be reaped.
+   */
+  async countFileBearingOrphans(): Promise<number> {
+    await this.ensureInitialized();
+
+    const result = await this.postgres!.queryOne<{ count: string }>(
+      `SELECT COUNT(*) as count FROM shared_media
+        WHERE status = ANY($1::text[])
+          AND file_path IS NOT NULL`,
+      [[...ORPHANED_SHARE_STATUSES]]
+    );
+    return parseInt(result?.count ?? '0', 10);
   }
 
   async createVideoShare(userId: string, params: CreateVideoShareParams): Promise<ShareResult> {

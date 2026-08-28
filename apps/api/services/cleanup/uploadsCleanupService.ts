@@ -297,6 +297,19 @@ async function cleanStuckShareRows(): Promise<CleanupStats> {
     for (const row of reaped) {
       log.debug(`Reaped stuck share: ${row.shareToken} (${row.status})`);
     }
+
+    // Rows the interlock held back. Each one is a finished sharepic wearing a
+    // dead status — almost certainly a template clone that was edited and saved
+    // without an explicit publish, since `updateImageShare` never clears
+    // `'processing'`. They must not be deleted, but they should not be silent
+    // either: the count is the only place this shows up.
+    const withFiles = await service.countFileBearingOrphans();
+    if (withFiles > 0) {
+      log.warn(
+        `${withFiles} share(s) sit in processing/failed but carry a file — NOT reaped. ` +
+          `These are user media with the wrong status, not orphans.`
+      );
+    }
   } catch (err: unknown) {
     stats.errors++;
     log.error(
