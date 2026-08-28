@@ -7,16 +7,12 @@
  */
 
 import { createLogger } from '../../utils/logger.js';
-import { selectRelevantExcerpt } from '../search/relevantExcerpt.js';
 import { rerankPipeline } from '../search/rerankPipeline.js';
 import { sourceTextForPrompt } from '../search/SearchResultProcessor.js';
 
 import type { ExpandedChunkResult, ReferencesMap } from '../search/types.js';
 
 const log = createLogger('NotebookRerank');
-
-/** What the cross-encoder gets to read per candidate. */
-const RERANK_INPUT_MAX_CHARS = 1200;
 
 export interface RerankOptions {
   results: ExpandedChunkResult[];
@@ -58,15 +54,14 @@ export async function rerankNotebookResults({
   // chunk's opening 300 characters and not the passage that matched — it was
   // ranking sources by their first sentences. Give it the chunk.
   //
-  // Und wo der Chunk über das Fenster hinausgeht, entscheidet die Frage, welcher
-  // Teil davon bewertet wird — derselbe Kopfschnitt wie in `rerankNode`, nur im
-  // Notizbuch-Pfad. Ohne verwertbares Signal bleibt es beim `slice`.
+  // Und zwar den GANZEN: das 1200er-Fenster, das hier stand, kostete dieselben
+  // Punkte wie das in `rerankNode` und fiel mit ihm (#2998). Ein Chunk ist rund
+  // 1500 Zeichen und durch den Indexer begrenzt — hier gab es nie etwas
+  // Unbegrenztes abzuwehren. Die Decke pro Aufruf zieht `rerankPipeline`.
   const items = candidates.map((r) => {
-    const text = r.chunk_text || r.snippet;
-    const excerpt = selectRelevantExcerpt(text, question, RERANK_INPUT_MAX_CHARS, 'contiguous');
     return {
       title: r.title,
-      content: excerpt?.text ?? text.slice(0, RERANK_INPUT_MAX_CHARS),
+      content: r.chunk_text || r.snippet,
       relevance: r.similarity,
     };
   });
