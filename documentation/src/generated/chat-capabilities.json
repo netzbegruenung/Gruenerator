@@ -192,6 +192,10 @@
     }
   },
   "userTools": {
+    "cloud_files": {
+      "label": "Wolke",
+      "description": "Durchsucht die verbundenen Wolke-Ordner, listet Dateien auf und liest sie — ausschließlich lesend."
+    },
     "examples": {
       "label": "Social-Media-Beispiele",
       "description": "Findet passende Beispiel-Posts aus dem Grünerator-Fundus."
