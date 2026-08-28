@@ -1479,9 +1479,6 @@ importers:
       shiki:
         specifier: ^4.4.3
         version: 4.4.3
-      sonner:
-        specifier: ^2.0.8
-        version: 2.0.8(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       tailwindcss:
         specifier: '4'
         version: 4.3.3
