@@ -78,18 +78,25 @@ export const GROUPS: CapabilityGroup[] = [
  * Intents that exist in code but are never something a user "asks for": routing
  * dispositions of the classifier. Listed here so the drift check stays complete
  * without inventing example questions for them.
+ *
+ * A RETIRED intent does not belong here, even to note that it retired. The
+ * drift audit reads this object as "documented" and the manifest drops retired
+ * intents that kept no mention, so an entry here would report itself as
+ * "dokumentiert, aber im Code nicht mehr vorhanden" on every run, forever. The
+ * five managed connectors set the precedent: they simply left the article. Where
+ * a retired capability still EXISTS under another name, say so in the surviving
+ * intent's line — `produktion` carries the social posts and press releases that
+ * `social_post` and `pressemitteilung_examples` used to.
  */
 export const INTERNAL_INTENTS: Record<string, string> = {
   produktion:
-    'Schreiben, dessen Inhalt du selbst mitlieferst: eingefügter Text, Stichpunkte, ein Anhang — oder das Überarbeiten von vorhandenem Text. Auch Social-Media-Beiträge und Pressemitteilungen entstehen hier, geschrieben nach dem passenden Rezept.',
+    'Schreiben, dessen Inhalt du selbst mitlieferst: eingefügter Text, Stichpunkte, ein Anhang — oder das Überarbeiten von vorhandenem Text. Hier entstehen auch Social-Media-Beiträge und Pressemitteilungen: sie werden nach dem passenden Rezept („Instagram", „Facebook", „X/Twitter", „LinkedIn", „Presse") geschrieben und stehen als normale Antwort im Verlauf.',
   direct:
     'Historischer Standardfall, wird seit 07/2026 nicht mehr neu vergeben. Alte Chats zeigen ihn weiterhin.',
   greeting:
     'Begrüßung, Dank oder kurzer Small Talk. Wird ohne KI-Modell erkannt und daher sofort beantwortet.',
   agentic:
     'Auffangwert: Ist unklar, welches Werkzeug passt, entscheidet das antwortende Modell selbst, ob es sucht.',
-  social_post:
-    'Stillgelegt (08/2026). Ein Social-Media-Beitrag ist eine Textsorte und wird nach dem Rezept „Instagram", „Facebook", „X/Twitter" oder „LinkedIn" geschrieben — als normale Antwort im Verlauf, nicht mehr als eigene Karte. Beiträge aus der Zeit davor bleiben in ihren Chats sichtbar und bearbeitbar.',
 };
 
 export const EXAMPLES: CapabilityExample[] = [
