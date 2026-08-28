@@ -15,6 +15,7 @@
 import { sharesReadContract, type ShareListItem } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
+import { USER_SHARES_MAX_LIMIT } from '../../services/sharedMediaFilters.js';
 import { toCamelCase } from '../../utils/case.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
@@ -219,17 +220,24 @@ export const shareReadContractRouter = s.router(sharesReadContract, {
     try {
       const service = await getSharedMediaService();
       const shares = await service.getUserShares(userId, query.type || null, query.status || null);
-      // Both numbers come from the same source as the quota that gates uploads
-      // — `count` used to include internal artifacts the cap never applied to,
-      // and `limit` was a literal that drifted from the actual cap.
-      const usage = await service.getLibraryUsage(userId);
+      // `count` describes THIS list and nothing else (#2986). It used to be an
+      // account-wide number — first every row in the table including internal
+      // artifacts, then the Mediathek quota — sitting next to a list filtered by
+      // `type`, by `status`, and by both provenance columns. Any consumer
+      // pairing the two got a mismatch that grew with the account: one
+      // non-library thumbnail row per canvas document.
+      //
+      // The endpoint has no offset, so there is no total worth reporting
+      // separately: `count === limit` is how a caller learns it was truncated.
+      // The quota lives on `GET /api/media`, which is where the Mediathek reads
+      // it and where it is not next to a filtered list.
       return {
         status: 200 as const,
         body: {
           success: true as const,
           shares: shares.map(toShareListItem),
-          count: usage.count,
-          limit: usage.limit,
+          count: shares.length,
+          limit: USER_SHARES_MAX_LIMIT,
         },
       };
     } catch (error) {
@@ -259,6 +267,8 @@ export const shareReadContractRouter = s.router(sharesReadContract, {
 
       const allShares = await service.getUserShares(userId, 'image');
       const recentShares = allShares.slice(0, limit);
+      // Same contract as listMyShares: `count` is this page, `limit` the cap
+      // that produced it.
       return {
         status: 200 as const,
         body: {
