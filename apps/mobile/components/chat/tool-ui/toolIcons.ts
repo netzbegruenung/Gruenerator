@@ -13,6 +13,7 @@ const TOOL_IONICON: Record<ToolIconKey, IoniconsIconName> = {
   image: 'image-outline',
   'external-link': 'open-outline',
   'message-circle': 'chatbubble-outline',
+  cloud: 'cloud-outline',
   file: 'document-text-outline',
 };
 

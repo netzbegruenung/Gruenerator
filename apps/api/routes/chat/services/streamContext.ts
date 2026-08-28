@@ -51,6 +51,7 @@ import {
   isTabularAttachment,
   processAttachments,
 } from './attachmentProcessingService.js';
+import { countCloudConnections } from './cloudConnectionContext.js';
 import { enrichContext } from './contextEnrichmentService.js';
 import { backfillEmptyUserMessages } from './historyBackfill.js';
 import {
@@ -333,6 +334,11 @@ export async function buildStreamContext({
       });
     }
   }
+
+  // Tor für `cloud_files`: der Katalog wird synchron gebaut und kann diese Frage
+  // nicht selbst stellen. Gecacht (60 s) und fehlertolerant — ein Ausfall macht
+  // aus dem Zähler eine 0, und das Vokabular-Tor trägt den Turn weiter.
+  const cloudConnectionCount = await countCloudConnections(userId);
 
   // @connect file refs need no per-ref ownership pre-check: the Nango
   // connection (resolved per-file at retrieval time via
@@ -809,6 +815,7 @@ export async function buildStreamContext({
     boardIds: mergedBoardIds.length ? mergedBoardIds : undefined,
     sheetIds: mergedSheetIds.length ? mergedSheetIds : undefined,
     wolkeFiles,
+    cloudConnectionCount,
     connectFiles,
     attachedWebpageUrls: rawWebpageUrls?.length ? rawWebpageUrls : undefined,
     // When the docs editor sends a currentDocument, also surface its id as a

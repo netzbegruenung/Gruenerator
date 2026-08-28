@@ -17,6 +17,7 @@
  */
 
 import { type ChatIntentId, degradeTargetForLocale } from '@gruenerator/shared/chat-intents';
+import { isCloudShareUrl } from '@gruenerator/shared/utils';
 
 import { isAgenticLoopEnabled } from '../../../../routes/chat/services/agenticLoop/flags.js';
 import {
@@ -47,7 +48,7 @@ import {
   heuristicClassify,
   extractSearchTopic,
   extractMessageText,
-  extractUrls,
+  crawlableUrls,
   extractDomainScope,
   wantsImageResults,
   formatConversationHistory,
@@ -241,9 +242,13 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
   const scrapeEnabled = agentAllowsScrape && state.enabledTools?.['scrape'] !== false;
   // @link-attached URLs are explicit user intent — union them with auto-detected
   // ones (deduped, attached first so they rank highest in scrape_url).
-  const attachedUrls = scrapeEnabled ? (state.attachedWebpageUrls ?? []) : [];
+  // Auch die ausdrücklich angehängten: ein Wolke-Freigabe-Link liefert beim
+  // Crawlen die SPA-Hülle, egal ob er getippt oder über @link angehängt wurde.
+  const attachedUrls = scrapeEnabled
+    ? (state.attachedWebpageUrls ?? []).filter((url) => !isCloudShareUrl(url))
+    : [];
   const detectedUrls = scrapeEnabled
-    ? [...new Set([...attachedUrls, ...extractUrls(userText)])]
+    ? [...new Set([...attachedUrls, ...crawlableUrls(userText)])]
     : [];
 
   // `summary` is not a wording, it is a STATE: material is already here, so skip

@@ -32,15 +32,6 @@ export function useShareLinks(options?: { enabled?: boolean }) {
   });
 }
 
-export function useWolkeFiles(shareLinkId: string | null) {
-  return useQuery({
-    queryKey: wolkeKeys.files(shareLinkId!),
-    queryFn: () => browseFolder(shareLinkId!),
-    staleTime: 3 * 60 * 1000,
-    enabled: !!shareLinkId,
-  });
-}
-
 export function useWolkeBrowse(shareLinkId: string | null, path: string) {
   return useQuery({
     queryKey: wolkeKeys.browse(shareLinkId!, path),

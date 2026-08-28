@@ -19,6 +19,7 @@ import {
   wolkeFileExtension,
 } from '../../services/sync/supportedFileTypes.js';
 import { createLogger } from '../../utils/logger.js';
+import { CloudPathError } from '../../utils/validation/cloudPaths.js';
 
 import { formatFileSize } from './helpers.js';
 
@@ -146,7 +147,10 @@ router.get(
     } catch (error) {
       log.error('[GET /browse/:shareLinkId] Error:', error);
       const message = (error as Error).message || 'Failed to browse Wolke files';
-      const status = message === 'Share link not found' ? 404 : 500;
+      // Ein `?path=` mit `..` ist eine schlechte Anfrage, kein Serverfehler —
+      // und ausdrücklich kein still zurechtgebogener Ordner (#3043).
+      const status =
+        error instanceof CloudPathError ? 400 : message === 'Share link not found' ? 404 : 500;
       res.status(status).json({ success: false, message });
     }
   }
