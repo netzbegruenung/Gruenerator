@@ -1,7 +1,7 @@
 import { MasonryGrid, MasonryItem, Switch } from '@gruenerator/ui';
 import { useState, useEffect, useCallback } from 'react';
 import { FaCheck } from 'react-icons/fa';
-import { HiAdjustments } from 'react-icons/hi';
+import { HiAdjustments, HiColorSwatch } from 'react-icons/hi';
 import { HiMagnifyingGlass, HiPhoto, HiXMark } from 'react-icons/hi2';
 
 import { shareThumbnailPreviewUrl } from '@gruenerator/shared/media-library';
@@ -10,6 +10,7 @@ import UnsplashAttribution from '../../common/UnsplashAttribution';
 import { useUnsplashSearch } from '../../hooks/useUnsplashSearch';
 import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import { persistImageSelection } from '../persistImageSelection';
+import { ColorSwatchGrid } from '../components/ColorSwatchGrid';
 import { MediaThumb } from '../components/MediaThumb';
 import { SidebarSlider } from '../components/SidebarSlider';
 import { SIDEBAR_SECTION } from '../sidebarStyles';
@@ -17,6 +18,7 @@ import { SubsectionTabBar, type Subsection } from '../SubsectionTabBar';
 import { useUserUploads } from '../UserUploadsProvider';
 
 import type { StockImage, StockImageAttribution } from '../../common/imageSourceTypes';
+import type { BackgroundColorOption } from '../types';
 import type { MediaItem } from '@gruenerator/shared/media-library';
 
 import { cn } from '../../utils/cn';
@@ -47,6 +49,14 @@ export interface ImageBackgroundSectionProps {
   // New Modular Lock Controls
   isLocked?: boolean;
   onToggleLock?: () => void;
+
+  // Solid colour under the photo. Present on the photo-backed templates, which
+  // draw a `background-color` plane at order -1: with no picture chosen the
+  // plane is what the user sees, with one it is fully covered. Passing all
+  // three adds the "Farbe" subsection.
+  backgroundColor?: string;
+  backgroundColors?: readonly BackgroundColorOption[];
+  onBackgroundColorChange?: (color: string) => void;
 }
 
 /**
@@ -431,11 +441,19 @@ export function ImageBackgroundSection({
   onGradientOpacityChange,
   isLocked,
   onToggleLock,
+  backgroundColor,
+  backgroundColors,
+  onBackgroundColorChange,
 }: ImageBackgroundSectionProps) {
   const hasAdjustments =
     (scale !== undefined && onScaleChange !== undefined) ||
     (gradientOpacity !== undefined && onGradientOpacityChange !== undefined) ||
     onToggleLock !== undefined;
+
+  const hasColor =
+    backgroundColors !== undefined &&
+    backgroundColors.length > 0 &&
+    onBackgroundColorChange !== undefined;
 
   const subsections: Subsection[] = [
     {
@@ -445,6 +463,28 @@ export function ImageBackgroundSection({
       content: <SearchContent currentImageSrc={currentImageSrc} onImageChange={onImageChange} />,
     },
   ];
+
+  if (hasColor) {
+    subsections.push({
+      id: 'background-color',
+      icon: HiColorSwatch,
+      label: 'Farbe',
+      content: (
+        <div className={cn(SIDEBAR_SECTION, 'w-full gap-3 px-3 pb-4')}>
+          <ColorSwatchGrid
+            colors={backgroundColors}
+            currentColor={backgroundColor ?? ''}
+            onColorChange={onBackgroundColorChange}
+          />
+          {currentImageSrc ? (
+            <p className="m-0 text-xs text-foreground-muted">
+              Das Bild liegt über der Farbe. Entferne es unter „Bilder", um die Farbe zu sehen.
+            </p>
+          ) : null}
+        </div>
+      ),
+    });
+  }
 
   if (hasAdjustments) {
     subsections.push({
