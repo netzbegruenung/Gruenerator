@@ -2,8 +2,16 @@ name: Content Sync
 
 on:
   schedule:
-    - cron: '0 4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20 * * *' # Hourly 06-22 CET → landesverbände only
-    - cron: '0 2 * * *' # Daily 03:00 CET → all sources
+    # Minute 23/17, not 0. GitHub deprioritises `schedule` events under load and
+    # drops them rather than queueing when the delay outgrows the next
+    # occurrence: on 2026-08-26 the hourly runs drifted from +30 to +88 min and
+    # ~3 slots were lost; on 2026-08-27 the daily fired 10 h 16 min late and 14
+    # of 15 hourly slots never fired at all (#2972). The top of the hour is the
+    # busiest moment in that queue. Unproven as a remedy — nothing here can make
+    # the scheduler reliable, which is why the watchdog in
+    # content-sync-watchdog.yml exists to make a dropped run visible.
+    - cron: '23 4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20 * * *' # Hourly 06-22 CET → landesverbände only
+    - cron: '17 2 * * *' # Daily 03:00 CET → all sources
   workflow_dispatch:
     inputs:
       source:
@@ -43,6 +51,13 @@ jobs:
     outputs:
       lv_matrix: ${{ steps.set.outputs.lv_matrix }}
       source_matrix: ${{ steps.set.outputs.source_matrix }}
+      # The single answer to "is this the full nightly run?". Three jobs need
+      # it — the source matrix here, the LV jobs' `recent` flag, the aggregate
+      # digest's --no-email — and each used to re-derive it by comparing the
+      # cron string to a literal. Three copies of one decision is how a
+      # schedule edit silently demotes the nightly run in two of the three
+      # places and nothing turns red. Decided once, read everywhere.
+      is_full_run: ${{ steps.set.outputs.is_full_run }}
       single_kind: ${{ steps.set.outputs.single_kind }}
       single_value: ${{ steps.set.outputs.single_value }}
     steps:
@@ -52,6 +67,32 @@ jobs:
           INPUT_SOURCE: ${{ inputs.source }}
           INPUT_LV: ${{ inputs.landesverband }}
         run: |
+          # Which run is the full one is decided HERE and nowhere else, and by
+          # the HOUR field rather than the whole cron string.
+          #
+          # Both halves of that were bugs waiting on a schedule edit. Three
+          # jobs each compared `github.event.schedule` to the literal
+          # '0 2 * * *': this one, the LV matrix's `recent` flag, and the
+          # aggregate digest's --no-email. Changing the minute above would have
+          # left all three unmatched — the nightly run demoted to an LV-only
+          # incremental crawl, the nine non-LV sources not synced, no admin
+          # digest sent, and nothing red anywhere. Exactly the silence #2972 is
+          # about, introduced by the fix for it.
+          #
+          # The hourly cron covers hours 04-20, so hour 2 is unambiguous, and
+          # the old '0 2 * * *' still resolves to it for any event already in
+          # flight when this lands.
+          SCHEDULE_HOUR=$(printf '%s' "$SCHEDULE" | awk '{print $2}')
+          FULL_RUN_HOUR=2
+
+          # Empty SCHEDULE = manual dispatch, which has always meant a full run.
+          if [ "$SCHEDULE_HOUR" = "$FULL_RUN_HOUR" ] || [ -z "$SCHEDULE" ]; then
+            IS_FULL_RUN=true
+          else
+            IS_FULL_RUN=false
+          fi
+          echo "is_full_run=$IS_FULL_RUN" >> "$GITHUB_OUTPUT"
+
           ALL_LVS='["BB","BE","BY","HE","HH","LSA","MV","SL","TH"]'
           ALL_SOURCES='["gruenblog","gruene-at","kommunalwiki","boell-stiftung","bundestag","abgeordnetenwatch","grundsatz","gruene-de","oesterreich"]'
           EMPTY='[]'
@@ -71,7 +112,7 @@ jobs:
             echo "single_value=$INPUT_SOURCE" >> "$GITHUB_OUTPUT"
             echo "lv_matrix=$EMPTY" >> "$GITHUB_OUTPUT"
             echo "source_matrix=$EMPTY" >> "$GITHUB_OUTPUT"
-          elif [ "$SCHEDULE" = "0 2 * * *" ] || [ -z "$SCHEDULE" ]; then
+          elif [ "$IS_FULL_RUN" = "true" ]; then
             # Daily 3 AM CET or manual dispatch (no input) → both matrices
             echo "single_kind=" >> "$GITHUB_OUTPUT"
             echo "single_value=" >> "$GITHUB_OUTPUT"
@@ -109,11 +150,10 @@ jobs:
         id: sync
         continue-on-error: true
         run: |
-          # Hourly schedule (any cron other than the daily '0 2 * * *') → only crawl
-          # the newest items; the nightly run does the full per-URL walk. Empty
-          # SCHEDULE = manual dispatch → keep the full run.
+          # Anything but the full run crawls only the newest items; the full
+          # run does the per-URL walk. Decided in `setup`, not re-derived here.
           RECENT=false
-          if [ -n "$SCHEDULE" ] && [ "$SCHEDULE" != "0 2 * * *" ]; then RECENT=true; fi
+          if [ "${{ needs.setup.outputs.is_full_run }}" != "true" ]; then RECENT=true; fi
           FORCE=false
           if [ "${{ inputs.force }}" = "true" ]; then FORCE=true; fi
           DRY_RUN=false
@@ -145,7 +185,6 @@ jobs:
             exit 1
           fi
         env:
-          SCHEDULE: ${{ github.event.schedule }}
           ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
           CONTENT_SYNC_API_URL: ${{ vars.NOTEBOOK_API_URL || 'https://gruenerator.eu' }}
           CONTENT_SYNC_EMAIL: ${{ vars.CONTENT_SYNC_EMAIL }}
@@ -269,7 +308,6 @@ jobs:
         # Hourly runs are LV-only and the per-LV jobs send their own mails, so
         # suppress the admin digest there to avoid hourly inbox spam.
         env:
-          SCHEDULE: ${{ github.event.schedule }}
           BREVO_SMTP_HOST: ${{ secrets.BREVO_SMTP_HOST }}
           BREVO_SMTP_PORT: ${{ secrets.BREVO_SMTP_PORT }}
           BREVO_SMTP_USER: ${{ secrets.BREVO_SMTP_USER }}
@@ -279,9 +317,9 @@ jobs:
           SYNC_SUMMARY_PATH: ${{ github.workspace }}/sync-summary.json
         run: |
           ARGS="--dir ${{ github.workspace }}/summaries/"
-          # Hourly schedule = any cron other than the daily '0 2 * * *'.
-          # Empty SCHEDULE means manual dispatch → keep the digest.
-          if [ -n "$SCHEDULE" ] && [ "$SCHEDULE" != "0 2 * * *" ]; then
+          # Digest on the full run only (and on manual dispatch). Hourly runs
+          # are LV-only and those jobs send their own mails. Decided in `setup`.
+          if [ "${{ needs.setup.outputs.is_full_run }}" != "true" ]; then
             ARGS="$ARGS --no-email"
           fi
           echo "Running: pnpm --filter @gruenerator/api run sync:aggregate -- $ARGS"
