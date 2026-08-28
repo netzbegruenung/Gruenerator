@@ -11,6 +11,25 @@
  *   EVAL_FILTER      only run cases whose id contains this substring
  *   EVAL_DEPTH       depth profile: fast | deep | ultra (default fast), qa only
  *   EVAL_RERANK=1    additionally score the post-rerank ranking (Regolo), qa only
+ *   EVAL_RERANK_EXCERPT  what the cross-encoder gets to read. Needs EVAL_RERANK=1.
+ *                      off (default) — `relevant_content` whole, up to
+ *                        CONTENT_MAX_EXCERPT_LENGTH. NOT what `rerankNode`
+ *                        does; it is the "no window at all" reference.
+ *                      head — the first RERANK_EXCERPT_CHARS, i.e. the
+ *                        positional cut #2824 is about.
+ *                      passages | contiguous — the query-focused excerpt,
+ *                        applied to EVERY candidate (mechanism isolation).
+ *                      node — what `rerankNode` actually does: query-focused
+ *                        only for candidates far longer than the window, head
+ *                        cut otherwise. Measure this against `head` with
+ *                        CONTENT_MAX_EXCERPT_LENGTH raised (e.g. 4000), or no
+ *                        candidate is long enough for the gate to fire and the
+ *                        two arms are the same run.
+ *                    The comparison that decides anything is head vs
+ *                    contiguous: both hand over the same number of characters
+ *                    and differ only in WHICH ones. Measuring either against
+ *                    `off` measures window size instead, which is a different
+ *                    question (and has a different answer — see #2824).
  *   EVAL_CASE_KIND   run another kind's cases through the chosen pipeline
  *   EVAL_VERBOSE=1   print top-5 titles for every miss (gold-label curation)
  *   EVAL_OUT         write per-case results as JSON to this path
@@ -42,6 +61,10 @@ const { getSearchParams, getSystemCollectionConfig, applyDefaultFilter } =
 const { DocumentSearchService } =
   await import('../../services/document-services/DocumentSearchService/index.js');
 const { rerankPipeline } = await import('../../services/search/rerankPipeline.js');
+const { selectRelevantExcerpt } = await import('../../services/search/relevantExcerpt.js');
+const { vectorConfig } = await import('../../config/vectorConfig.js');
+const { RERANK_FOCUS_MIN_RATIO } =
+  await import('../../agents/langgraph/ChatGraph/nodes/rerankNode.js');
 const { rankManualSearchResults } = await import('../../services/search/manualSearchRanking.js');
 
 const { RETRIEVAL_CASES } = await import('./cases.js');
@@ -54,6 +77,28 @@ import type { NotebookDepth } from '@gruenerator/contracts';
 type DocumentSearchService = InstanceType<typeof DocumentSearchService>;
 
 const MRR_K = 10;
+/**
+ * The window the excerpt fills. Same source as `rerankNode`'s
+ * (`CONTENT_MAX_EXCERPT_LENGTH`), so an eval run cannot silently measure a
+ * window the node does not use. EVAL_RERANK_WINDOW overrides it for sweeps.
+ */
+const RERANK_WINDOW = vectorConfig.get('content').maxExcerptLength;
+
+type ExcerptArm = 'off' | 'head' | 'passages' | 'contiguous' | 'node';
+
+/** Fenstergrösse, die der Knoten benutzt; per EVAL_RERANK_WINDOW verstellbar. */
+const evalWindow = Number(process.env.EVAL_RERANK_WINDOW || RERANK_WINDOW);
+
+/** Was der Cross-Encoder in diesem Lauf zu lesen bekommt. */
+function excerptFor(content: string, query: string, arm: ExcerptArm): string {
+  if (arm === 'off') return content;
+  const head = content.slice(0, evalWindow);
+  if (arm === 'head') return head;
+  if (arm === 'node' && content.length < evalWindow * RERANK_FOCUS_MIN_RATIO) return head;
+  const mode = arm === 'passages' ? 'passages' : 'contiguous';
+  // Derselbe Rückfall wie im Knoten: ohne Signal bleibt es beim Kopfschnitt.
+  return selectRelevantExcerpt(content, query, evalWindow, mode)?.text ?? head;
+}
 const HIT_KS = [1, 3, 5] as const;
 
 // Request defaults of the manual search field, as the web client sends them.
@@ -68,6 +113,10 @@ interface CaseOutcome {
   query: string;
   rank: number | null;
   rerankRank?: number | null;
+  /** Wanduhr des Cross-Encoder-Aufrufs. Nur gesetzt, wenn er wirklich lief. */
+  rerankTimeMs?: number;
+  /** Wie viele Kandidaten er dafür bewerten musste. */
+  rerankBatch?: number;
   topTitles: string[];
   error?: string;
 }
@@ -90,7 +139,8 @@ async function runCase(
   searchService: DocumentSearchService,
   evalCase: RetrievalCase,
   depth: NotebookDepth,
-  withRerank: boolean
+  withRerank: boolean,
+  excerptMode: ExcerptArm
 ): Promise<CaseOutcome> {
   const config = getSystemCollectionConfig(evalCase.collection);
   if (!config) {
@@ -150,7 +200,7 @@ async function runCase(
         query: evalCase.query,
         items: results.map((r) => ({
           title: r.title || '',
-          content: r.relevant_content || '',
+          content: excerptFor(r.relevant_content || '', evalCase.query, excerptMode),
         })),
         inputLimit: results.length,
         outputLimit: MRR_K,
@@ -160,6 +210,12 @@ async function runCase(
         const reranked = rerank.rankedIndices.map((i) => results[i]);
         outcome.rerankRank = firstMatchRank(reranked, evalCase);
       }
+      // #2824 wollte diese Zahl gegen die Turn-Latenz gehalten haben (Loop-Turns
+      // lagen am 24.08.2026 bei 7,9 s und 9,4 s). Sie fiel hier schon an und
+      // wurde weggeworfen; ein Fehlschlag zählt mit, denn ein Timeout kostet
+      // Wanduhr genauso.
+      outcome.rerankTimeMs = rerank.rerankTimeMs;
+      outcome.rerankBatch = results.length;
     }
 
     return outcome;
@@ -260,6 +316,7 @@ async function main() {
   const pipeline = process.env.EVAL_PIPELINE === 'manual' ? 'manual' : 'qa';
   const depth = (process.env.EVAL_DEPTH || 'fast') as NotebookDepth;
   const withRerank = process.env.EVAL_RERANK === '1';
+  const excerptMode = (process.env.EVAL_RERANK_EXCERPT ?? 'off') as ExcerptArm;
   const verbose = process.env.EVAL_VERBOSE === '1';
   const collectionFilter = process.env.EVAL_COLLECTION;
   const idFilter = process.env.EVAL_FILTER;
@@ -280,7 +337,9 @@ async function main() {
   }
 
   const modeLabel =
-    pipeline === 'manual' ? 'manual search' : `depth=${depth}${withRerank ? ', +rerank' : ''}`;
+    pipeline === 'manual'
+      ? 'manual search'
+      : `depth=${depth}${withRerank ? `, +rerank(${excerptMode})` : ''}`;
   console.log(
     `Running ${cases.length} retrieval cases (${modeLabel}) against ${process.env.QDRANT_URL || 'QDRANT_URL unset!'}`
   );
@@ -291,7 +350,7 @@ async function main() {
     const outcome =
       pipeline === 'manual'
         ? await runManualCase(searchService, evalCase)
-        : await runCase(searchService, evalCase, depth, withRerank);
+        : await runCase(searchService, evalCase, depth, withRerank, excerptMode);
     outcomes.push(outcome);
     const rankLabel = outcome.error
       ? `ERROR ${outcome.error}`
@@ -330,6 +389,23 @@ async function main() {
     console.log(
       `${'GESAMT'.padEnd(28)} n=${String(outcomes.length).padStart(2)}  ${computeMetrics(outcomes, (o) => o.rerankRank ?? o.rank).line}`
     );
+
+    const timings = outcomes
+      .map((o) => o.rerankTimeMs)
+      .filter((t): t is number => typeof t === 'number')
+      .sort((a, b) => a - b);
+    if (timings.length > 0) {
+      const batches = outcomes
+        .map((o) => o.rerankBatch)
+        .filter((n): n is number => typeof n === 'number');
+      const at = (q: number): number =>
+        timings[Math.min(timings.length - 1, Math.floor((timings.length - 1) * q))] ?? 0;
+      console.log('\n── Latenz des Cross-Encoder-Aufrufs ──');
+      console.log(
+        `n=${timings.length}  Median ${at(0.5)} ms  p90 ${at(0.9)} ms  max ${timings[timings.length - 1]} ms  ` +
+          `(Kandidaten je Aufruf: ${Math.min(...batches)}–${Math.max(...batches)})`
+      );
+    }
   }
 
   const errors = outcomes.filter((o) => o.error);
