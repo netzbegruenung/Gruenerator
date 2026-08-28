@@ -17,9 +17,14 @@ import { SOURCE_CONTENT_ORIGINS } from './sharedMediaOrigin.js';
  *  - **The asset pool** — the Mediathek (`getMediaLibrary`). A curated shelf of
  *    things to build *with*, so uploads belong here and drafts do not. Built by
  *    {@link assetPoolWhere}.
- *  - **Quota** — `enforceUserLimit`. Shares the library-item half of the asset
- *    pool and nothing else: a pending or failed row still occupies a slot.
- *    Uses {@link LIBRARY_ITEM_CLAUSE} directly.
+ *  - **Quota** — `getLibraryUsage`. The library-item half of the asset pool
+ *    ({@link LIBRARY_ITEM_CLAUSE}) intersected with
+ *    {@link USER_VISIBLE_SHARE_STATUSES}: you are charged for what you can see
+ *    and delete, and for nothing else. A `'failed'` or stuck `'processing'`
+ *    row therefore does *not* occupy a slot — it appears in no listing and no
+ *    UI can remove it, so counting it would pin an account at the cap with no
+ *    way back (#2980). Note this is the one family that keeps drafts *and*
+ *    uploads, so it matches neither helper and builds its own WHERE.
  *
  * Why this module exists: the first two were raw SQL strings in three places
  * that had to be kept in step by hand, and they expressed the *same* intent
@@ -44,9 +49,12 @@ export const USER_VISIBLE_SHARE_STATUSES = ['ready', 'draft'] as const;
  *
  * `is_library_item = FALSE` marks canvas/chat thumbnails and template previews.
  * They are referenced by `canvas_documents.thumbnail_url`, so they must neither
- * show up as content nor be evictable — their lifecycle is delete-on-replace in
- * `updateCanvas`. `COALESCE` because rows written before the column existed
- * carry NULL and are ordinary assets.
+ * show up as content nor count against the quota — their lifecycle is
+ * delete-on-replace in `updateCanvas`. `COALESCE` because rows written before
+ * the column existed carry NULL and are ordinary assets.
+ *
+ * ("nor be evictable" until #2980: the quota used to enforce itself by deleting
+ * the oldest rows and their files on every write. Nothing evicts anything now.)
  */
 export const LIBRARY_ITEM_CLAUSE = 'COALESCE(is_library_item, TRUE) = TRUE';
 

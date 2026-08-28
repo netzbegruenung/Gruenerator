@@ -219,14 +219,17 @@ export const shareReadContractRouter = s.router(sharesReadContract, {
     try {
       const service = await getSharedMediaService();
       const shares = await service.getUserShares(userId, query.type || null, query.status || null);
-      const count = await service.getUserShareCount(userId);
+      // Both numbers come from the same source as the quota that gates uploads
+      // — `count` used to include internal artifacts the cap never applied to,
+      // and `limit` was a literal that drifted from the actual cap.
+      const usage = await service.getLibraryUsage(userId);
       return {
         status: 200 as const,
         body: {
           success: true as const,
           shares: shares.map(toShareListItem),
-          count,
-          limit: 50,
+          count: usage.count,
+          limit: usage.limit,
         },
       };
     } catch (error) {
