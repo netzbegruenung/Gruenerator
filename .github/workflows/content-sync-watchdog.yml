@@ -20,7 +20,13 @@ name: Content Sync Watchdog
 
 on:
   schedule:
-    - cron: '47 */6 * * *' # 02:47, 08:47, 14:47, 20:47 UTC — off the busy top of the hour
+    # Hours written out, not '*/6'. A step in the hour field counts from the
+    # field's minimum, so '47 */6 * * *' fires at 00:47/06:47/12:47/18:47 — not
+    # the times intended here. That is not cosmetic: the first check after the
+    # 02:17 full run would land at 06:47, still inside the 30 h staleness limit,
+    # so a missing nightly would only surface at 12:47. At 08:47 it surfaces on
+    # the morning it happened. Minute 47 keeps this off the busy top of the hour.
+    - cron: '47 2,8,14,20 * * *'
   workflow_dispatch:
 
 permissions:
@@ -46,9 +52,16 @@ jobs:
           MIN_RUNS_24H: 12
           # The daily 02:17 run is the only one that walks every archive fully
           # and the only one that syncs the nine non-LV sources at all, so its
-          # absence is the expensive one. 30 h allows one late firing before it
-          # counts as missing.
-          MAX_HOURS_SINCE_FULL: 30
+          # absence is the expensive one.
+          #
+          # 28 is picked against the check times above, not rounded to a nice
+          # number. With last night's run missing, the 02:47 check sees 24 h and
+          # stays quiet — being late is normal and it may still land — while the
+          # 08:47 check sees 30 h and fires. Note the age is integer hours,
+          # truncated: at 08:47 the true gap is 30 h 30 min but the comparison
+          # gets 30, so a limit of 30 would let exactly that check pass and
+          # delay the alarm to 14:47.
+          MAX_HOURS_SINCE_FULL: 28
           # How far back to look for the last full run before giving up. Each
           # candidate costs one jobs API call; 25 covers well over a day of runs.
           MAX_RUNS_INSPECTED: 25
