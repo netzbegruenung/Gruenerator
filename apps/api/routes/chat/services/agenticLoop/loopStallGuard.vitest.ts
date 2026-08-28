@@ -287,6 +287,30 @@ describe('tool phase stall guard (unified)', () => {
     expect((err as Error).name).toBe('TimeoutError');
   });
 
+  it('meldet NICHT an das Gesundheitsregister — das ist die Nutzer-Lane', async () => {
+    // Absicht, keine Lücke: der unified-Stream fährt das GEWÄHLTE Modell, dessen
+    // Gesundheit `responseStreamingService` bereits bucht. Und ein Stillstand
+    // hier kann einer vollständigen Antwort folgen (Test oben) — ein Zäh-Vermerk
+    // gegen eine Lane, die gerade sauber geantwortet hat, wäre schlicht falsch.
+    // Der Vermerk gilt nur der festen Planer-Lane des Split.
+    const { deps } = depsFor({
+      synth: () =>
+        ({
+          stream: (async function* () {
+            yield { type: 'text-delta', text: 'Halber Satz' };
+            await new Promise(() => {});
+          })(),
+        }) as unknown as ReturnType<LoopDeps['streamText']>,
+    });
+    const onToolPhaseStall = vi.fn();
+
+    const running = runAgenticLoop(unified({ onToolPhaseStall }), deps).catch((e: unknown) => e);
+    await vi.advanceTimersByTimeAsync(CEILING_MS + 1_000);
+    await running;
+
+    expect(onToolPhaseStall).not.toHaveBeenCalled();
+  });
+
   it('wertet einen LAUFENDEN Werkzeugaufruf als Lebenszeichen', async () => {
     // Ein Erzeugungswerkzeug darf 90 s blockieren (TOOL_TIMEOUT_OVERRIDES_MS) —
     // weit über dem engen Fenster, das der Zähler erlaubt.

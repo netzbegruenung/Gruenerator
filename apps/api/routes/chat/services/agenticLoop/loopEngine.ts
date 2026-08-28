@@ -468,10 +468,21 @@ export interface LoopEngineParams {
   /** Fires when the synth stalled and the sibling lane takes over, so the
    *  client can surface the switch the same way the single-pass path does. */
   onSynthFallback?: () => void;
-  /** Fires when the TOOL phase stalled — the planner (split) or the one model
-   *  (unified) accepted the request and then sent nothing until the deadline.
-   *  Separate from `onSynthFallback` because there is nothing to fall back to
-   *  here: the caller uses it to remember the lane, not to switch mid-turn. */
+  /**
+   * SPLIT ONLY: fires when the planner accepted the request and then sent
+   * nothing until the tool-phase deadline. Separate from `onSynthFallback`
+   * because there is nothing to fall back to here — the caller uses it to
+   * remember the lane, not to switch mid-turn.
+   *
+   * The unified path deliberately does NOT fire it, and that is a scoping
+   * decision rather than a gap to fill in later. Two reasons: its stream is the
+   * USER's selected lane, whose health `responseStreamingService` already
+   * records, so firing here would double-count one lane while the split's fixed
+   * planner is recorded nowhere else; and a unified stall can follow a COMPLETE
+   * answer (a `finish` part arrived, only the stream stayed open — see the
+   * branch at the bottom of `streamWithTools`), where a slow verdict against a
+   * lane that just answered in full would simply be wrong.
+   */
   onToolPhaseStall?: () => void;
   /** Split-gather only: the planner's inter-tool prose, delivered ONE sentence
    *  at a time (via createSentenceChunker) so the client can show "Ich suche
