@@ -2,6 +2,7 @@ import { parseCloudShareLink } from '@gruenerator/shared/utils';
 import axios, { type AxiosInstance, type AxiosError } from 'axios';
 
 import { toUserFacingMessage } from '../../utils/errors/index.js';
+import { assertNoPathEscape } from '../../utils/validation/cloudPaths.js';
 import { validateUrlSync, validateUrlForFetch } from '../../utils/validation/urlSecurity.js';
 
 // Type Definitions
@@ -246,6 +247,11 @@ class NextcloudApiClient {
    * List files and folders at a given path within the share
    */
   async listFolder(folderPath?: string): Promise<NextcloudFile[]> {
+    // VOR dem try: der Wächter soll den Pfad abweisen, bevor eine URL gebaut
+    // wird — und `CloudPathError` soll den Aufrufer als solcher erreichen. Im
+    // catch unten würde er zu einem nackten „Failed to list folder".
+    assertNoPathEscape(folderPath);
+
     try {
       let propfindUrl = this.webdavUrl;
       if (folderPath) {
@@ -411,6 +417,11 @@ class NextcloudApiClient {
    * @returns File content as buffer
    */
   async downloadFile(filePath: string): Promise<DownloadFileResult> {
+    // Siehe `listFolder`. Hier wiegt es schwerer: der Zweig unten reicht einen
+    // Pfad, der schon mit dem WebDAV-Präfix beginnt, ROH weiter — dort
+    // überlebt auch die prozent-kodierte Form (`%2e%2e`) bis auf die Leitung.
+    assertNoPathEscape(filePath);
+
     try {
       console.log(`[NextcloudApiClient] Downloading file: ${filePath}`);
 

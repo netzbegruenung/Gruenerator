@@ -12,6 +12,7 @@ import { ocrService } from '../../services/OcrService/index.js';
 import { getWolkeSyncService } from '../../services/sync/index.js';
 import { extractTitleFromHtml } from '../../services/tiptap/contentConverter.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
+import { CloudPathError } from '../../utils/validation/cloudPaths.js';
 
 const router = Router();
 const db = getPostgresInstance();
@@ -258,6 +259,12 @@ router.post(
 
       if (error instanceof OcrImportError) {
         return res.status(error.status).json({ error: toUserFacingMessage(error) });
+      }
+
+      // Ein `filePath`, der die Freigabe verlässt, ist eine schlechte Anfrage
+      // und keine Panne auf unserer Seite (#3043).
+      if (error instanceof CloudPathError) {
+        return res.status(400).json({ error: error.message });
       }
 
       return res.status(500).json({
