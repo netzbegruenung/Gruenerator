@@ -592,7 +592,8 @@ export const veranstaltungFullConfig: FullCanvasConfig<
       backgroundImageFile: (props.backgroundImageFile as File | Blob | null | undefined) ?? null,
       imageOffset: (props.imageOffset as { x: number; y: number } | undefined) ?? { x: 0, y: 0 },
       imageScale: (props.imageScale as number | undefined) ?? 1,
-      isBackgroundLocked: false,
+      // Carried, not hard-reset — see createImageTwoTextCanvas.
+      isBackgroundLocked: (props.isBackgroundLocked as boolean | undefined) ?? false,
       // Carried over from props for the same reason as the two-text factories:
       // card renders and remote-sync re-seeds run through here, so hard-nulling
       // silently reverted a chat "Schrift größer" edit on the next render.
