@@ -7,6 +7,7 @@
  */
 
 import { createLogger } from '../../utils/logger.js';
+import { selectRelevantExcerpt } from '../search/relevantExcerpt.js';
 import { rerankPipeline } from '../search/rerankPipeline.js';
 import { sourceTextForPrompt } from '../search/SearchResultProcessor.js';
 
@@ -56,11 +57,19 @@ export async function rerankNotebookResults({
   // The cross-encoder used to judge `snippet`, which on a semantic hit is the
   // chunk's opening 300 characters and not the passage that matched — it was
   // ranking sources by their first sentences. Give it the chunk.
-  const items = candidates.map((r) => ({
-    title: r.title,
-    content: (r.chunk_text || r.snippet).slice(0, RERANK_INPUT_MAX_CHARS),
-    relevance: r.similarity,
-  }));
+  //
+  // Und wo der Chunk über das Fenster hinausgeht, entscheidet die Frage, welcher
+  // Teil davon bewertet wird — derselbe Kopfschnitt wie in `rerankNode`, nur im
+  // Notizbuch-Pfad. Ohne verwertbares Signal bleibt es beim `slice`.
+  const items = candidates.map((r) => {
+    const text = r.chunk_text || r.snippet;
+    const excerpt = selectRelevantExcerpt(text, question, RERANK_INPUT_MAX_CHARS, 'contiguous');
+    return {
+      title: r.title,
+      content: excerpt?.text ?? text.slice(0, RERANK_INPUT_MAX_CHARS),
+      relevance: r.similarity,
+    };
+  });
 
   // Pipeline handles errors internally with graceful degradation
   const { rankedIndices, rerankTimeMs } = await rerankPipeline({
