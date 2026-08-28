@@ -59,7 +59,6 @@ import {
   BOARD_MODIFY_PATTERN,
   DOC_MODIFY_PATTERN,
   HEURISTIC_CONFIDENCE_THRESHOLD,
-  detectSocialPlatform,
   nounNearCreateVerb,
   NOUN_TRIGGER_MAX_LENGTH,
   SOCIAL_BARE_NOUN_PATTERN,
@@ -1776,11 +1775,6 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
 
     return {
       intent: residualIntent,
-      // Stand hier, solange `social_post` als niedrig-konfidentes
-      // Heuristik-Verdikt durchkam und seine Rubrik plattformabhängig war.
-      // Beides ist weg: das Verdikt ist stillgelegt, und die Plattform wählt
-      // heute das Rezept (`deriveImplicitRecipeMention`), nicht dieses Feld.
-      platform: null,
       searchSources: detectSearchSources(userContent, residualIntent),
       searchQuery: (heuristic.searchQuery ?? extractSearchTopic(userContent) ?? userContent).slice(
         0,
