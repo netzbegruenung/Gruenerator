@@ -169,6 +169,60 @@ describe('synth stall guard', () => {
 });
 
 /**
+ * Der Planer schweigt — und der Zug soll das ÜBERLEBEN und es MELDEN.
+ *
+ * Am 28.08.2026 nahm die Planer-Lane (GreenPT) die Anfrage an und schickte
+ * nichts: 45 s Leerlauf in einem Zug von 47,9 s, danach eine korrekte Antwort
+ * aus den mitgeführten Quellen. Das Degradieren funktionierte also; was fehlte,
+ * war das Gedächtnis. Ohne Vermerk blieb dieselbe Lane erste Wahl, und der
+ * nächste Zug hätte die Frist erneut abgesessen.
+ */
+describe('gather stall — degradieren UND vermerken', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  /** Der Planer stellt sich tot, der Synth antwortet normal. */
+  const stalledPlanner = (): { deps: LoopDeps; seen: string[] } =>
+    depsFor({
+      planner: stallingStream,
+      synth: () => streamOf([{ type: 'text-delta', text: 'ANTWORT_AUS_QUELLEN' }]),
+    });
+
+  it('meldet die Werkzeugphase EINMAL, damit der Aufrufer die Lane vermerken kann', async () => {
+    const { deps } = stalledPlanner();
+    const onToolPhaseStall = vi.fn();
+
+    const running = runAgenticLoop(params({ onToolPhaseStall }), deps);
+    await vi.advanceTimersByTimeAsync(60_000);
+    await running;
+
+    expect(onToolPhaseStall).toHaveBeenCalledOnce();
+  });
+
+  it('antwortet trotzdem — der Stillstand kostet den Zug nicht', async () => {
+    const { deps } = stalledPlanner();
+
+    const running = runAgenticLoop(params({ onToolPhaseStall: vi.fn() }), deps);
+    await vi.advanceTimersByTimeAsync(60_000);
+    const out = await running;
+
+    expect(out.text).toBe('ANTWORT_AUS_QUELLEN');
+  });
+
+  it('meldet NICHT, wenn der Planer normal liefert', async () => {
+    const { deps } = depsFor({
+      planner: () => streamOf([{ type: 'text-delta', text: 'ich suche' }]),
+      synth: () => streamOf([{ type: 'text-delta', text: 'ANTWORT' }]),
+    });
+    const onToolPhaseStall = vi.fn();
+
+    await runAgenticLoop(params({ onToolPhaseStall }), deps);
+
+    expect(onToolPhaseStall).not.toHaveBeenCalled();
+  });
+});
+
+/**
  * Der UNIFIED-Pfad hatte die Uhr nie bekommen. Der gather-Stream ist seit dem
  * 20.08.2026 bewacht, der synth seit Längerem — der eine Stream, der Werkzeuge
  * hält UND die Antwort schreibt, lief weiter nur gegen die absolute Decke

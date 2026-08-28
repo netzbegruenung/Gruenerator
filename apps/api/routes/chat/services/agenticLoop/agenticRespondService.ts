@@ -21,8 +21,8 @@ import { recordSlowVerdict } from '../../../../services/ai/modelHealth.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { type McpCatalog } from '../../agents/mcpCatalog.js';
 import {
-  getLoopPlannerModel,
   getLoopSynthFallbackModel,
+  resolveLoopPlannerLane,
   getLoopSynthModel,
   loopPlannerModelName,
 } from '../../agents/providers.js';
@@ -514,14 +514,29 @@ export async function streamAgenticResponse(
     // whole turn down: no text, no error, no heartbeat, for the full 120s wall
     // clock — users read that as "it just aborts".
     const synthFallback = mode === 'split' ? getLoopSynthFallbackModel(synth.name) : null;
+    // EINMAL aufgelöst: derselbe Wert speist das Modell und den Vermerk beim
+    // Stillstand — siehe `resolveLoopPlannerLane`.
+    const plannerLane = mode === 'split' ? resolveLoopPlannerLane() : null;
 
     const loopResult = await deps.runAgenticLoop({
       mode,
-      plannerModel: mode === 'split' ? getLoopPlannerModel() : resolution.model,
+      plannerModel: plannerLane ? plannerLane.languageModel : resolution.model,
       synthModel: synth.model,
       ...(synthFallback && { synthFallbackModel: synthFallback.model }),
       onSynthStart: () => {
         emitter.startSynthHeartbeat();
+      },
+      // Der Stillstand der WERKZEUG-Phase. Hier gibt es nichts umzuschalten —
+      // der Zug antwortet aus dem, was schon gesammelt war —, aber die Lane
+      // gehört vermerkt: sonst ist sie im nächsten Zug wieder erste Wahl und
+      // kostet dieselbe Frist noch einmal. `loopPlannerLane()` liefert Anbieter
+      // UND Modell, weil derselbe Modellname auf zwei Hosts liegt.
+      onToolPhaseStall: () => {
+        if (!plannerLane) return;
+        log.warn(
+          `[Agentic] planner ${plannerLane.provider}/${plannerLane.model} lieferte nichts — Lane vermerkt, nächster Zug weicht aus`
+        );
+        recordSlowVerdict(plannerLane.provider, plannerLane.model, 'gather_stall');
       },
       onSynthFallback: () => {
         // Stillstand ist das Verdikt, das die Messung nicht liefert: es kam

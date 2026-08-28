@@ -11,6 +11,7 @@ import {
   GEMMA_31B_PRIMARY,
 } from '../../../services/ai/gemmaHosts.js';
 import { isVisionCapable } from '../../../services/ai/modelDiscovery.js';
+import { isModelSlow } from '../../../services/ai/modelHealth.js';
 import { pickHealthyTarget } from '../../../services/ai/modelSiblings.js';
 import {
   getGreenPTProvider,
@@ -36,6 +37,7 @@ import {
   AVOID_AS_SYNTH,
   mayWriteAnswer,
   LOOP_PLANNER_PRIMARY,
+  LOOP_PLANNER_HEALTHY_ALT,
   LOOP_PLANNER_SELFHOSTED,
   LOOP_PLANNER_FALLBACK,
   LOOP_SYNTH_PRIMARY,
@@ -831,10 +833,45 @@ export function prefersUnifiedLoop(provider: string, _modelName: string): boolea
  * LanguageModel instances (it owns env + getModel).
  */
 
+/**
+ * Eine Planer-Stufe ist wählbar, wenn ihr Anbieter konfiguriert ist UND sie
+ * nicht gerade als zäh vermerkt ist.
+ *
+ * Der zweite Teil ist neu und der Grund für diesen Zweig überhaupt: die Kette
+ * fragte bis zum 28.08.2026 nur nach der Konfiguration. Eine Lane, die die
+ * Anfrage annimmt und dann schweigt, ist aber konfiguriert — sie blieb also
+ * erste Wahl, und JEDER folgende Zug wartete die volle Werkzeugfrist noch
+ * einmal ab (gemessen: 45 s Leerlauf in einem Zug von 47,9 s). `modelHealth`
+ * hält den Vermerk 5 Minuten und stellt die Stufe danach auf Probe; die Wahl
+ * fällt pro Zug neu, das Ausweichen endet also von selbst.
+ */
+function plannerStageUsable(stage: { provider: Provider; model: string }): boolean {
+  if (!isProviderConfigured(stage.provider)) return false;
+  if (isModelSlow(stage.provider, stage.model)) {
+    log.warn(`[LoopPlanner] ${stage.provider}/${stage.model} gilt als zäh — nächste Stufe`);
+    return false;
+  }
+  return true;
+}
+
 function loopPlannerChoice(): { provider: Provider; model: string } {
   // GreenPT first — see LOOP_PLANNER_PRIMARY in autoPolicy.ts for why. Regolo
   // stays the self-hosted option, litellm/verdigado-pro the last resort.
+  //
+  // Zum Ausweichen auf regolo: `LOOP_PLANNER_PRIMARY` warnt davor, den Anbieter
+  // DAUERHAFT zurückzudrehen (eine frühere regolo-Vorgabe fiel durch eine
+  // „steps=0 gather"-Regression auf). Das gilt für die Vorgabe, nicht für ein
+  // 5-Minuten-Ausweichen nach einem bewiesenen Stillstand: die stillstehende
+  // Lane liefert steps=0 garantiert, die Ausweichstufe nur vielleicht — und
+  // `afterGather` in agenticRespondService fängt genau diesen Fall ab.
+  if (plannerStageUsable(LOOP_PLANNER_PRIMARY)) return LOOP_PLANNER_PRIMARY;
+  // Cortecs vor der selbstgehosteten Stufe: siehe LOOP_PLANNER_HEALTHY_ALT.
+  if (plannerStageUsable(LOOP_PLANNER_HEALTHY_ALT)) return LOOP_PLANNER_HEALTHY_ALT;
+  if (plannerStageUsable(LOOP_PLANNER_SELFHOSTED)) return LOOP_PLANNER_SELFHOSTED;
+  // Ab hier zählt nur noch die Konfiguration: eine Stufe wird auch dann
+  // genommen, wenn sie als zäh gilt — ein zäher Planer ist besser als keiner.
   if (isProviderConfigured('greenpt')) return LOOP_PLANNER_PRIMARY;
+  if (isProviderConfigured('cortecs')) return LOOP_PLANNER_HEALTHY_ALT;
   if (isProviderConfigured('regolo')) return LOOP_PLANNER_SELFHOSTED;
   // Last resort when NOTHING is configured, and it has to be litellm: its
   // provider has a default base URL and tolerates an empty key, while greenpt
@@ -866,9 +903,24 @@ export function loopPlannerModelName(): string {
   return loopPlannerChoice().model;
 }
 
-export function getLoopPlannerModel(): LanguageModel {
+/**
+ * Die Planer-Lane dieses Zuges — Anbieter, Modellname und Instanz in EINER
+ * Auflösung.
+ *
+ * Warum zusammen und nicht zwei Aufrufe: `loopPlannerChoice` entscheidet nun
+ * anhand von `isModelSlow`, und dieser Zustand ändert sich im laufenden
+ * Prozess. Wer das Modell hier und den Namen später separat holt, kann bei
+ * einem Vermerk dazwischen zwei VERSCHIEDENE Lanes in der Hand haben — und
+ * würde beim Stillstand die Stufe vermerken, die gar nicht lief. Das ist der
+ * Weg, auf dem eine Ausweichkette sich selbst leerräumt.
+ */
+export function resolveLoopPlannerLane(): {
+  provider: Provider;
+  model: string;
+  languageModel: LanguageModel;
+} {
   const p = loopPlannerChoice();
-  return getModel(p.provider, p.model);
+  return { provider: p.provider, model: p.model, languageModel: getModel(p.provider, p.model) };
 }
 
 /**
