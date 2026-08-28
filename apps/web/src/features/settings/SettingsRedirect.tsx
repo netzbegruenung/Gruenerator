@@ -2,31 +2,38 @@ import { useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { useSettingsDialogStore, type SettingsTab } from './settingsDialogStore';
+import { SETTINGS_TABS } from './settingsTabs';
 
-// Legacy /profile/* tab names and the canonical /settings/:tab values both
-// resolve here; unknown tabs fall back to Allgemein. Namen, die es mal gab,
-// bleiben als Alias stehen — geteilte Links sollen nicht ins Leere laufen.
-const TAB_MAP: Record<string, SettingsTab> = {
-  // Führt ins Leere, sobald die Einrichtung erledigt ist — der Dialog fällt dann
-  // auf Allgemein zurück, wo die Zeile steht, die sie zurückholt.
-  onboarding: 'onboarding',
-  allgemein: 'allgemein',
+/**
+ * Namen, die es mal gab — geteilte Links sollen nicht ins Leere laufen.
+ *
+ * Nur die *Aliasse* stehen hier. Die kanonischen Schlüssel kommen aus
+ * `SETTINGS_TABS`, das der Compiler über `Record<SettingsTab, …>` vollständig
+ * hält: eine von Hand gepflegte Zweitliste driftete sonst beim nächsten neuen
+ * Reiter wieder ab — `/settings/datenschutz`, `/settings/websites` und
+ * `/settings/barrierefreiheit` landeten so auf Allgemein.
+ */
+const TAB_ALIASES: Record<string, SettingsTab> = {
   profil: 'allgemein',
   konto: 'allgemein',
-  hintergrund: 'hintergrund',
-  friends: 'friends',
-  personalisierung: 'personalisierung',
-  briefe: 'briefe',
   briefkoepfe: 'briefe',
-  'texte-anlernen': 'texte-anlernen',
-  erinnerungen: 'erinnerungen',
-  benachrichtigungen: 'benachrichtigungen',
   verbindungen: 'wolke',
-  wolke: 'wolke',
-  konnektoren: 'konnektoren',
   mcp: 'konnektoren',
-  nutzung: 'nutzung',
-  support: 'support',
+  // Bis zum 28.08.2026 ein eigener Bereich, jetzt die untere Hälfte von
+  // „Datenschutz & Barrierefreiheit".
+  barrierefreiheit: 'datenschutz',
+};
+
+/**
+ * `/settings/:tab` → Bereich. Unbekannte Namen fallen auf Allgemein zurück.
+ *
+ * `onboarding` steht darin, obwohl es aus der Seitenleiste verschwindet, sobald
+ * die Einrichtung erledigt ist — der Dialog fällt dann selbst auf Allgemein
+ * zurück, wo die Zeile steht, die sie zurückholt.
+ */
+export const SETTINGS_TAB_MAP: Record<string, SettingsTab> = {
+  ...Object.fromEntries(SETTINGS_TABS.map((tab) => [tab, tab])),
+  ...TAB_ALIASES,
 };
 
 // Old profile sub-pages that were never settings — keep their redirects alive.
@@ -48,7 +55,7 @@ const SettingsRedirect = () => {
       // Einrichtung geht vor. Ein Pfad MIT Bereich meint genau den.
       useSettingsDialogStore
         .getState()
-        .openSettings(tab ? (TAB_MAP[tab] ?? 'allgemein') : undefined);
+        .openSettings(tab ? (SETTINGS_TAB_MAP[tab] ?? 'allgemein') : undefined);
     }
     void navigate(pageRedirect ?? '/start', { replace: true });
   }, [tab, navigate]);
