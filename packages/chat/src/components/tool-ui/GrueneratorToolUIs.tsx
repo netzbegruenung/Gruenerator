@@ -1,7 +1,10 @@
 'use client';
 
+import { useAuiState } from '@assistant-ui/react';
 import { type ComponentProps, type ComponentType, type ReactNode } from 'react';
+import { useShallow } from 'zustand/shallow';
 
+import { selectApprovalLabels, type PartLike } from '../../lib/narrationView';
 import { UI_TOOL_NAMES, type UiToolName } from '../../lib/toolRegistry';
 import { isSearchProgressTool } from '../../lib/toolStatusLine';
 import { ToolNarration } from '../message-parts/ToolNarration';
@@ -41,12 +44,30 @@ function withNarration(render: (props: ToolRenderProps) => ReactNode): ToolRende
 function renderApproval(props: ToolRenderProps): ReactNode {
   const approval = (props as { approval?: ToolApprovalState }).approval;
   if (!approval) return null;
+  return <ApprovalGate {...props} approval={approval} />;
+}
+
+/**
+ * Holt Anzeigename und Dienst vom rohen Part — derselbe Kanal wie bei
+ * `ToolNarration`: assistant-uis typisierte Render-Props führen die beiden
+ * Felder nicht, auf `message.parts` überleben sie live wie nach dem Reload.
+ * Ohne sie zeigt die Karte nur den Katalognamen `m<key>__<tool>` und
+ * verschweigt, welcher verbundene Dienst angesprochen wird.
+ */
+function ApprovalGate(props: ToolRenderProps & { approval: ToolApprovalState }): ReactNode {
+  const labels = useAuiState(
+    useShallow((s) =>
+      selectApprovalLabels((s.message?.parts ?? []) as ReadonlyArray<PartLike>, props.toolCallId)
+    )
+  );
   return (
     <ToolApprovalCard
       toolName={props.toolName}
       args={(props.args ?? {}) as Record<string, unknown>}
-      approval={approval}
+      approval={props.approval}
       respondToApproval={props.respondToApproval}
+      {...(labels.title != null && { title: labels.title })}
+      {...(labels.serverName != null && { serverName: labels.serverName })}
     />
   );
 }

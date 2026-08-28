@@ -230,6 +230,10 @@ export function createGrueneratorModelAdapter(
   // Tracks which thread has a pending HITL interrupt — persists across run() calls
   let interruptedThreadId: string | null = null;
   let lastInterruptedResult: ChatModelRunResult | null = null;
+  // Der Zug, zu dem die offenen Freigaben gehören. Wird mit der Entscheidung
+  // zurückgeschickt, damit das Backend eine späte Antwort auf einen längst
+  // abgelösten Zug als solche erkennt statt sie auf den neuen anzuwenden.
+  let pendingApprovalTurnId: string | null = null;
 
   return {
     async *run(options: ChatModelRunOptions): AsyncGenerator<ChatModelRunResult, void> {
@@ -283,12 +287,17 @@ export function createGrueneratorModelAdapter(
         const decided = approvalParts.filter((p) => p.approval?.approved !== undefined);
         if (decided.length > 0 && !undecided) {
           interruptedThreadId = null;
+          const approvalTurnId = pendingApprovalTurnId;
+          pendingApprovalTurnId = null;
           const { fetch: configFetch, endpoints } = useChatConfigStore.getState();
           const resumeResponse = await configFetch(endpoints.chatResume, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               threadId: config.threadId,
+              // Nach einem Reload ist der Zug hier nicht bekannt — dann bleibt
+              // das Feld weg und das Backend prüft wie bisher nur die IDs.
+              ...(approvalTurnId != null && { approvalTurnId }),
               toolApprovals: decided.map((p) => ({
                 toolCallId: p.toolCallId,
                 approved: p.approval?.approved === true,
@@ -308,18 +317,22 @@ export function createGrueneratorModelAdapter(
             );
           }
 
-          // Die schon gezeigten Karten (auch die entschiedenen Freigaben) werden
-          // mitgeführt, sonst verschwinden sie beim ersten Ergebnis der
-          // Fortsetzung aus der Blase.
-          const priorToolCalls = approvalParts.map((p) => ({
-            type: 'tool-call' as const,
-            toolCallId: p.toolCallId,
-            toolName: p.toolName,
-            args: (p.args ?? {}) as Record<string, string | number | boolean | null>,
-            argsText: JSON.stringify(p.args ?? {}),
-            ...(p.approval != null && { approval: p.approval }),
-            ...('result' in p && p.result !== undefined ? { result: p.result } : {}),
-          }));
+          // Die schon gezeigten Karten werden mitgeführt, sonst verschwinden sie
+          // beim ersten Ergebnis der Fortsetzung aus der Blase. ALLE, nicht nur
+          // die Freigabe-Karten: vor dem Gate kann im selben Zug längst eine
+          // Suche gelaufen sein, und die soll nicht mit der Entscheidung
+          // verschwinden.
+          const priorToolCalls = (currentAssistant.content ?? [])
+            .filter((p): p is Extract<typeof p, { type: 'tool-call' }> => p.type === 'tool-call')
+            .map((p) => ({
+              type: 'tool-call' as const,
+              toolCallId: p.toolCallId,
+              toolName: p.toolName,
+              args: (p.args ?? {}) as Record<string, string | number | boolean | null>,
+              argsText: JSON.stringify(p.args ?? {}),
+              ...('approval' in p && p.approval != null && { approval: p.approval }),
+              ...('result' in p && p.result !== undefined ? { result: p.result } : {}),
+            }));
           const resumeOutcome: StreamOutcome = { interrupted: false, indexedDocumentIds: [] };
           yield* parseSSEStream(
             resumeResponse,
@@ -331,6 +344,8 @@ export function createGrueneratorModelAdapter(
           if (resumeOutcome.interrupted) {
             interruptedThreadId = config.threadId;
           }
+          // Die Fortsetzung ist selbst wieder auf ein Gate gelaufen.
+          pendingApprovalTurnId = resumeOutcome.toolApprovalPending?.approvalTurnId ?? null;
           return;
         }
         if (undecided) {
@@ -942,6 +957,7 @@ export function createGrueneratorModelAdapter(
         interruptedThreadId = config.threadId;
         lastInterruptedResult = streamOutcome.lastResult ?? null;
       }
+      pendingApprovalTurnId = streamOutcome.toolApprovalPending?.approvalTurnId ?? null;
     },
   };
 }
