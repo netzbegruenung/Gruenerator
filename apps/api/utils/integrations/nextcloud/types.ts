@@ -54,15 +54,6 @@ export interface UsageStats {
 }
 
 /**
- * Database state check result
- */
-export interface DatabaseStateCheck {
-  profileExists: boolean;
-  userId: string;
-  nextcloud_share_links: NextcloudShareLink[] | null;
-}
-
-/**
  * A share link surfaced to a user because it was shared into one of their groups.
  * The link itself belongs to a different user (sharedByUserId).
  */

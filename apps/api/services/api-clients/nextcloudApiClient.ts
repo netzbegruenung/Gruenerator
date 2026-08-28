@@ -1,10 +1,6 @@
-import * as os from 'os';
-import * as path from 'path';
-
 import axios, { type AxiosInstance, type AxiosError } from 'axios';
 
 import { toUserFacingMessage } from '../../utils/errors/index.js';
-import { sanitizeFilename } from '../../utils/validation/index.js';
 import { validateUrlSync, validateUrlForFetch } from '../../utils/validation/urlSecurity.js';
 
 // Type Definitions
@@ -14,22 +10,12 @@ export interface ParsedShareLink {
   fullPath: string;
 }
 
-export type ConnectionErrorCode =
-  'invalid_link' | 'not_found' | 'forbidden' | 'read_only' | 'storage_full' | 'unknown';
+export type ConnectionErrorCode = 'invalid_link' | 'not_found' | 'forbidden' | 'unknown';
 
 export interface ConnectionTestResult {
   success: boolean;
   message: string;
-  writable?: boolean;
   errorCode?: ConnectionErrorCode;
-}
-
-export interface UploadFileResult {
-  success: boolean;
-  message: string;
-  filename?: string;
-  url?: string;
-  etag?: string;
 }
 
 export interface NextcloudFile {
@@ -78,6 +64,11 @@ export function isWebdavSelfEntry(href: string, requestPath: string): boolean {
   return normalize(href) === normalize(requestPath);
 }
 
+/**
+ * Read-only WebDAV client for public Nextcloud shares. Deliberately issues
+ * only PROPFIND and GET — WebDAV write verbs must not be reintroduced; the
+ * guard test in nextcloudApiClient.vitest.ts enforces this.
+ */
 class NextcloudApiClient {
   private shareLink: string;
   private parsedLink: ParsedShareLink | null;
@@ -183,13 +174,13 @@ class NextcloudApiClient {
   }
 
   /**
-   * Test connection to the Nextcloud share
+   * Test connection to the Nextcloud share. Read-only by design: a PROPFIND
+   * proves the link is valid and accessible — no write probe.
    */
   async testConnection(): Promise<ConnectionTestResult> {
     try {
       console.log('[NextcloudApiClient] Testing Nextcloud connection');
 
-      // Phase 1: PROPFIND to verify the link is valid and accessible
       const response = await this.axiosInstance.request({
         method: 'PROPFIND',
         url: this.webdavUrl,
@@ -216,60 +207,10 @@ class NextcloudApiClient {
         };
       }
 
-      // Phase 2: Write probe — upload a tiny test file to verify write access
-      const probeFilename = '.gruenerator-test';
-      const probeUrl = `${this.webdavUrl}/${probeFilename}`;
-      const probeContent = 'test';
-
-      try {
-        const putResponse = await this.axiosInstance.put(probeUrl, probeContent, {
-          headers: { 'Content-Type': 'text/plain' },
-        });
-
-        if (putResponse.status === 201 || putResponse.status === 204) {
-          // Clean up probe file
-          try {
-            await this.axiosInstance.delete(probeUrl);
-          } catch {
-            // Cleanup failure is non-critical
-          }
-
-          console.log('[NextcloudApiClient] Connection test successful (read + write)');
-          return {
-            success: true,
-            message: 'Connection successful',
-            writable: true,
-          };
-        }
-      } catch (putError) {
-        const putErr = putError as AxiosError;
-
-        if (putErr.response?.status === 403) {
-          console.log('[NextcloudApiClient] Share is read-only (PROPFIND ok, PUT 403)');
-          return {
-            success: false,
-            message: 'Share is read-only - change permission to "Kann bearbeiten"',
-            writable: false,
-            errorCode: 'read_only',
-          };
-        }
-
-        if (putErr.response?.status === 507) {
-          return {
-            success: false,
-            message: 'Insufficient storage space in Nextcloud',
-            writable: false,
-            errorCode: 'storage_full',
-          };
-        }
-      }
-
-      // PROPFIND succeeded but write probe had unexpected result — report as read-only
+      console.log('[NextcloudApiClient] Connection test successful (read)');
       return {
-        success: false,
-        message: 'Could not verify write access',
-        writable: false,
-        errorCode: 'read_only',
+        success: true,
+        message: 'Connection successful',
       };
     } catch (error) {
       const err = error as AxiosError;
@@ -300,233 +241,6 @@ class NextcloudApiClient {
         message: toUserFacingMessage(err) || 'Connection test failed',
         errorCode: 'unknown',
       };
-    }
-  }
-
-  /**
-   * Upload a file to the Nextcloud share
-   */
-  async uploadFileStream(
-    filePath: string,
-    filename: string,
-    folderPath?: string
-  ): Promise<UploadFileResult> {
-    const fs = await import('fs');
-    try {
-      const safeFilename = this.sanitizeFilename(filename);
-      let uploadUrl = this.webdavUrl;
-      if (folderPath) {
-        const encodedPath = folderPath
-          .split('/')
-          .filter(Boolean)
-          .map((segment) => encodeURIComponent(segment))
-          .join('/');
-        uploadUrl = `${this.webdavUrl}/${encodedPath}`;
-      }
-      uploadUrl = `${uploadUrl}/${encodeURIComponent(safeFilename)}`;
-
-      const expectedDir = path.resolve(os.tmpdir(), 'gruenerator-transfer');
-      const resolvedPath = path.resolve(filePath);
-      if (!resolvedPath.startsWith(expectedDir + path.sep) && resolvedPath !== expectedDir) {
-        throw new Error('File path outside allowed directory');
-      }
-
-      const stat = fs.statSync(filePath);
-      const stream = fs.createReadStream(filePath);
-
-      const response = await fetch(uploadUrl, {
-        method: 'PUT',
-        headers: {
-          Authorization: `Basic ${Buffer.from(`${this.shareToken}:`).toString('base64')}`,
-          'Content-Type': 'application/octet-stream',
-          'Content-Length': String(stat.size),
-        },
-
-        body: stream as unknown as BodyInit,
-        // @ts-expect-error -- Node fetch supports duplex streaming
-        duplex: 'half',
-      });
-
-      if (response.ok || response.status === 201 || response.status === 204) {
-        return { success: true, message: 'File uploaded successfully via stream' };
-      }
-
-      const errorText = await response.text();
-      console.error('[NextcloudApiClient] Stream upload failed', {
-        status: response.status,
-        errorText: errorText.substring(0, 200),
-      });
-      return { success: false, message: `Upload failed: ${response.status}` };
-    } catch (error) {
-      const err = error as Error;
-      console.error('[NextcloudApiClient] Stream upload error', { error: err.message });
-      return { success: false, message: toUserFacingMessage(err) };
-    }
-  }
-
-  async uploadFile(
-    content: string | Buffer,
-    filename: string,
-    folderPath?: string
-  ): Promise<UploadFileResult> {
-    try {
-      console.log('[NextcloudApiClient] Uploading file to Nextcloud', {
-        filename,
-        folderPath,
-        contentLength: content.length,
-      });
-
-      // Ensure filename is safe
-      const safeFilename = this.sanitizeFilename(filename);
-
-      // Build upload URL with optional folder path
-      let uploadUrl = this.webdavUrl;
-      if (folderPath) {
-        const encodedPath = folderPath
-          .split('/')
-          .filter(Boolean)
-          .map((segment) => encodeURIComponent(segment))
-          .join('/');
-        uploadUrl = `${this.webdavUrl}/${encodedPath}`;
-      }
-      uploadUrl = `${uploadUrl}/${encodeURIComponent(safeFilename)}`;
-
-      // Detect and handle base64-encoded content
-      let uploadContent: string | Buffer = content;
-      let contentType = 'text/plain';
-      let contentLength = Buffer.byteLength(content as string, 'utf8');
-
-      // Check if content is base64-encoded (common pattern for binary files)
-      const base64Pattern = /^[A-Za-z0-9+/]+=*$/;
-      const isBase64 =
-        typeof content === 'string' &&
-        content.length > 100 && // Reasonable minimum for base64 files
-        content.length % 4 === 0 && // Base64 strings are multiples of 4
-        base64Pattern.test(content);
-
-      if (isBase64) {
-        try {
-          // Decode base64 to binary buffer
-          uploadContent = Buffer.from(content, 'base64');
-          contentLength = uploadContent.length;
-
-          // Set appropriate content type based on file extension
-          if (safeFilename.toLowerCase().endsWith('.docx')) {
-            contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-          } else if (safeFilename.toLowerCase().endsWith('.pdf')) {
-            contentType = 'application/pdf';
-          } else if (safeFilename.toLowerCase().endsWith('.xlsx')) {
-            contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-          } else {
-            contentType = 'application/octet-stream';
-          }
-
-          console.log('[NextcloudApiClient] Detected base64 content, decoded for upload', {
-            originalLength: content.length,
-            decodedLength: uploadContent.length,
-            contentType,
-          });
-        } catch (decodeError) {
-          const err = decodeError as Error;
-          console.warn('[NextcloudApiClient] Base64 decode failed, uploading as text', {
-            error: err.message,
-          });
-          // Fall back to original content if base64 decoding fails
-        }
-      }
-
-      const response = await this.axiosInstance.put(uploadUrl, uploadContent, {
-        headers: {
-          'Content-Type': contentType,
-          'Content-Length': contentLength.toString(),
-        },
-      });
-
-      if (response.status === 201 || response.status === 204) {
-        const rawEtag: unknown = response.headers?.etag ?? response.headers?.ETag;
-        const etag = typeof rawEtag === 'string' ? rawEtag.replace(/^"|"$/g, '') : undefined;
-
-        console.log('[NextcloudApiClient] File uploaded successfully', {
-          filename: safeFilename,
-          status: response.status,
-          etag,
-        });
-
-        return {
-          success: true,
-          message: 'File uploaded successfully',
-          filename: safeFilename,
-          url: this.generateFileUrl(safeFilename),
-          ...(etag ? { etag } : {}),
-        };
-      }
-
-      return {
-        success: false,
-        message: `Upload failed with status: ${response.status}`,
-      };
-    } catch (error) {
-      const err = error as AxiosError;
-      console.error('[NextcloudApiClient] File upload failed', {
-        filename,
-        error: err.message,
-        status: err.response?.status,
-      });
-
-      if (err.response?.status === 401) {
-        throw new Error('Authentication failed - invalid share token');
-      } else if (err.response?.status === 403) {
-        throw new Error('Upload forbidden - share is not writable');
-      } else if (err.response?.status === 404) {
-        throw new Error('Share not found - check the share link');
-      } else if (err.response?.status === 507) {
-        throw new Error('Insufficient storage space in Nextcloud');
-      }
-
-      throw new Error(err.message || 'File upload failed');
-    }
-  }
-
-  /**
-   * Ensure a folder exists in the share, creating it via MKCOL if needed.
-   * Returns true if the folder exists (created or already existed).
-   */
-  async ensureFolder(folderPath: string): Promise<boolean> {
-    const encodedPath = folderPath
-      .split('/')
-      .filter(Boolean)
-      .map((segment) => encodeURIComponent(segment))
-      .join('/');
-    const folderUrl = `${this.webdavUrl}/${encodedPath}`;
-
-    try {
-      // Check if it exists (PROPFIND)
-      await this.axiosInstance.request({
-        method: 'PROPFIND',
-        url: folderUrl,
-        headers: { Depth: '0' },
-      });
-      return true;
-    } catch {
-      // Doesn't exist, try to create
-    }
-
-    try {
-      await this.axiosInstance.request({
-        method: 'MKCOL',
-        url: folderUrl,
-      });
-      console.log('[NextcloudApiClient] Created folder', { folderPath });
-      return true;
-    } catch (error) {
-      const err = error as AxiosError;
-      // 405 = already exists (race condition), treat as success
-      if (err.response?.status === 405) return true;
-      console.error('[NextcloudApiClient] Failed to create folder', {
-        folderPath,
-        status: err.response?.status,
-      });
-      return false;
     }
   }
 
@@ -627,22 +341,6 @@ class NextcloudApiClient {
       console.error('[NextcloudApiClient] Failed to get share info', { error: err.message });
       throw new Error(err.message || 'Failed to get share information');
     }
-  }
-
-  /**
-   * Sanitize filename for safe upload
-   * Uses centralized security utility to ensure consistent sanitization
-   */
-  private sanitizeFilename(filename: string): string {
-    return sanitizeFilename(filename);
-  }
-
-  /**
-   * Generate public URL for uploaded file
-   */
-  private generateFileUrl(filename: string): string {
-    const encodedFilename = encodeURIComponent(filename);
-    return `${this.baseURL}/s/${this.shareToken}/download?path=%2F&files=${encodedFilename}`;
   }
 
   /**

@@ -136,12 +136,11 @@ export const docsContractRouter = s.router(docsContract, {
     try {
       const userId = getUserId(args.req);
       const { id } = args.params;
-      const { title, folder_id, content, wolke_live_sync } = args.body;
+      const { title, folder_id, content } = args.body;
       const result = await updateCollaborativeDocument(runQuery, id, userId, DOCS_ONLY_SUBTYPES, {
         title,
         folder_id,
         content,
-        wolke_live_sync,
       });
       if (result.status === 'not_found') {
         return { status: 404 as const, body: { error: 'Document not found' } };

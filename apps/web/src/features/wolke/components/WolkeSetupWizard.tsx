@@ -4,7 +4,6 @@ import {
   useTestConnection,
   validateShareLink,
   type ConnectionErrorCode,
-  type WolkeScope,
 } from '@gruenerator/wolke';
 import { AnimatePresence, motion } from 'motion/react';
 import { memo, useState } from 'react';
@@ -12,7 +11,6 @@ import {
   FiAlertTriangle,
   FiCheck,
   FiChevronDown,
-  FiCopy,
   FiExternalLink,
   FiFolder,
   FiImage,
@@ -25,11 +23,9 @@ interface WolkeSetupWizardProps {
   onSuccess?: (message: string) => void;
   onError?: (message: string) => void;
   onCancel?: () => void;
-  scope?: WolkeScope;
-  scopeId?: string | null;
 }
 
-const TOTAL_STEPS = 5;
+const TOTAL_STEPS = 4;
 
 const StepIcon = ({
   icon: Icon,
@@ -97,21 +93,15 @@ const StepImage = memo(({ src, alt }: { src: string; alt: string }) => {
 });
 StepImage.displayName = 'StepImage';
 
-const WolkeSetupWizard = ({
-  onSuccess,
-  onError,
-  onCancel,
-  scope,
-  scopeId,
-}: WolkeSetupWizardProps) => {
+const WolkeSetupWizard = ({ onSuccess, onError, onCancel }: WolkeSetupWizardProps) => {
   const [step, setStep] = useState(0);
   const [shareLink, setShareLink] = useState('');
   const [label, setLabel] = useState('');
   const [isTesting, setIsTesting] = useState(false);
   const [errorCode, setErrorCode] = useState<ConnectionErrorCode | null>(null);
 
-  const addMutation = useAddShareLink(scope, scopeId);
-  const testMutation = useTestConnection(scope, scopeId);
+  const addMutation = useAddShareLink();
+  const testMutation = useTestConnection();
 
   const isValidLink = shareLink.trim().length > 0 && validateShareLink(shareLink).isValid;
 
@@ -128,13 +118,13 @@ const WolkeSetupWizard = ({
       if (!result.success) {
         setErrorCode(result.errorCode ?? 'unknown');
         setIsTesting(false);
-        setStep(4);
+        setStep(3);
         return;
       }
     } catch {
       setErrorCode('unknown');
       setIsTesting(false);
-      setStep(4);
+      setStep(3);
       return;
     }
 
@@ -197,7 +187,11 @@ const WolkeSetupWizard = ({
                 <StepIcon icon={FiShare2} />
                 <p className="text-sm text-foreground leading-relaxed m-0">
                   Wähle den Ordner aus und klicke rechts auf <strong>„Teilen"</strong>. Klicke dann
-                  unten auf <strong>„Öffentlichen Link erstellen"</strong>.
+                  unten auf <strong>„Öffentlichen Link erstellen"</strong> und kopiere den Link.
+                </p>
+                <p className="text-xs text-grey-400 m-0">
+                  Die Standard-Berechtigung „Nur anzeigen" genügt — der Grünerator liest deine Wolke
+                  nur.
                 </p>
                 <StepImage
                   src="/images/wolke-tutorial/step5.png"
@@ -207,26 +201,7 @@ const WolkeSetupWizard = ({
               </div>
             </MultiStepForm.Step>
 
-            {/* Step 2: Set permissions + Copy link */}
-            <MultiStepForm.Step>
-              <div className="flex flex-col gap-md">
-                <StepIcon icon={FiCopy} />
-                <p className="text-sm text-foreground leading-relaxed m-0">
-                  Ändere die Berechtigung auf <strong>„Kann bearbeiten"</strong> und kopiere
-                  anschließend den Link.
-                </p>
-                <p className="text-xs text-amber-600 dark:text-amber-400 m-0">
-                  Sonst kann der Grünerator keine Dateien in deiner Wolke speichern.
-                </p>
-                <StepImage
-                  src="/images/wolke-tutorial/permissions.png"
-                  alt="Link teilen: Kann bearbeiten auswählen"
-                />
-                <StepFooter onNext={handleNext} onCancel={onCancel} />
-              </div>
-            </MultiStepForm.Step>
-
-            {/* Step 3: Paste link & connect */}
+            {/* Step 2: Paste link & connect */}
             <MultiStepForm.Step>
               <div className="flex flex-col gap-md">
                 <p className="text-sm text-foreground leading-relaxed m-0">
@@ -313,24 +288,10 @@ const WolkeSetupWizard = ({
               </div>
             </MultiStepForm.Step>
 
-            {/* Step 4: Troubleshooting (shown when test fails) */}
+            {/* Step 3: Troubleshooting (shown when test fails) */}
             <MultiStepForm.Step>
               <div className="flex flex-col gap-md">
                 <StepIcon icon={FiAlertTriangle} color="text-amber-600 dark:text-amber-400" />
-
-                {errorCode === 'read_only' && (
-                  <>
-                    <p className="text-sm text-foreground leading-relaxed m-0">
-                      Der Link funktioniert, aber du kannst damit nur lesen. Stelle in der Wolke auf{' '}
-                      <strong>„Kann bearbeiten"</strong> um, damit Dateien gespeichert werden
-                      können.
-                    </p>
-                    <StepImage
-                      src="/images/wolke-tutorial/permissions.png"
-                      alt="Kann bearbeiten auswählen"
-                    />
-                  </>
-                )}
 
                 {errorCode === 'invalid_link' && (
                   <p className="text-sm text-foreground leading-relaxed m-0">
@@ -346,29 +307,16 @@ const WolkeSetupWizard = ({
                   </p>
                 )}
 
-                {errorCode === 'storage_full' && (
-                  <p className="text-sm text-foreground leading-relaxed m-0">
-                    Deine Wolke ist voll. Lösche nicht mehr benötigte Dateien oder kontaktiere
-                    deine*n Administrator*in.
-                  </p>
-                )}
-
                 {(errorCode === 'forbidden' || errorCode === 'unknown' || !errorCode) && (
                   <>
                     <p className="text-sm text-foreground leading-relaxed m-0">
                       Die Verbindung hat nicht geklappt. Prüfe folgende Punkte:
                     </p>
                     <ul className="flex flex-col gap-sm text-sm text-foreground m-0 pl-md">
-                      <li>
-                        Berechtigung steht auf <strong>„Kann bearbeiten"</strong>
-                      </li>
                       <li>Der Link wurde über „Öffentlichen Link erstellen" erzeugt</li>
                       <li>Der Ordner existiert noch</li>
+                      <li>Der Link ist nicht passwortgeschützt</li>
                     </ul>
-                    <StepImage
-                      src="/images/wolke-tutorial/permissions.png"
-                      alt="Kann bearbeiten auswählen"
-                    />
                   </>
                 )}
 
@@ -381,7 +329,7 @@ const WolkeSetupWizard = ({
                   <Button
                     size="sm"
                     onClick={() =>
-                      setStep(errorCode === 'invalid_link' || errorCode === 'not_found' ? 3 : 2)
+                      setStep(errorCode === 'invalid_link' || errorCode === 'not_found' ? 2 : 1)
                     }
                   >
                     Nochmal versuchen

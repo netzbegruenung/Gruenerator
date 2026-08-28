@@ -341,17 +341,6 @@ const TOOLS = [
       keywords: ['chat', 'assistent', 'ki', 'gpt', 'frage'],
     },
   },
-  {
-    id: 'tool-transfer',
-    title: 'Transfer',
-    path: '/transfer',
-    icon: { actions: 'upload' },
-    search: {
-      subtitle: 'Dateien sicher übertragen',
-      keywords: ['transfer', 'datei', 'upload', 'senden', 'teilen'],
-      channel: 'internal',
-    },
-  },
 ] as const satisfies readonly ToolDefinition[];
 
 export { TOOLS };
@@ -482,7 +471,6 @@ const SEARCH_ORDER = [
   'tool-suche',
   'tool-agentura',
   'tool-projekte',
-  'tool-transfer',
 ] as const satisfies readonly ToolSearchId[];
 
 export function resolveToolIcon(ref: ToolIconRef): IconType {
