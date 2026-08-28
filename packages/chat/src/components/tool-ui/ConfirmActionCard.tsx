@@ -5,6 +5,7 @@ import {
   Share2,
   Users,
   UserPlus,
+  Cloud,
   Check,
   X,
   ArrowRight,
@@ -25,6 +26,7 @@ const ICON_MAP: Record<ConfirmActionType, typeof FileText> = {
   share_doc: Share2,
   create_group: Users,
   join_group: UserPlus,
+  add_cloud_connection: Cloud,
 };
 
 const GROUP_ACTION_TYPES: ReadonlySet<ConfirmActionType> = new Set(['create_group', 'join_group']);

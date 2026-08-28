@@ -1098,3 +1098,69 @@ describe('toolCatalog dokumente_lesen', () => {
     expect(out.error).toContain('Antrag.docx');
   });
 });
+
+describe('cloud_files mounting gate', () => {
+  function catalogWithCloud(opts: {
+    connections?: number;
+    userText?: string;
+    wolkeFiles?: number;
+    enabled?: boolean;
+  }) {
+    const sourceRegistry = createSourceRegistry();
+    const sse = { send: () => {} } as unknown as NonNullable<
+      Parameters<typeof buildChatToolCatalog>[0]['loop']
+    >['sse'];
+    const state = {
+      intent: 'agentic',
+      enabledTools: opts.enabled === false ? { cloud_files: false } : {},
+      cloudConnectionCount: opts.connections ?? 0,
+      ...(opts.wolkeFiles
+        ? { wolkeFiles: Array.from({ length: opts.wolkeFiles }, () => ({ shareLinkId: 'l1' })) }
+        : {}),
+      ...(opts.userText ? { messages: [{ role: 'user', content: opts.userText }] } : {}),
+    } as unknown as ChatGraphState;
+    return buildChatToolCatalog({
+      agentConfig,
+      sourceRegistry,
+      loop: { sse, state, threadId: 't1' },
+    });
+  }
+
+  // Das primäre Tor. Wer eine Wolke hat, bekommt das Werkzeug auf JEDEM Turn —
+  // "Welche Ordner gibt es?" nennt die Wolke nicht, und eine erfundene
+  // Fehlanzeige sieht aus wie eine geprüfte Antwort.
+  it('mounts whenever the account has a connection, whatever the text says', () => {
+    const { toolNames } = catalogWithCloud({ connections: 1, userText: 'Was steht dazu an?' });
+    expect(toolNames).toContain('cloud_files');
+  });
+
+  // Ein Konto ohne Wolke zahlt nur, wenn es selbst davon anfängt.
+  it('stays out of the catalog for an account without a connection', () => {
+    const { toolNames } = catalogWithCloud({ userText: 'Schreib mir eine Pressemitteilung' });
+    expect(toolNames).not.toContain('cloud_files');
+  });
+
+  it('mounts on cloud vocabulary so a first connection can be added by chat', () => {
+    const { toolNames } = catalogWithCloud({
+      userText: 'Kannst du diesen Wolke-Link hinzufügen?',
+    });
+    expect(toolNames).toContain('cloud_files');
+  });
+
+  it('matches the vocabulary at the start of a sentence, umlauts and all', () => {
+    // `\b(Öffne)` scheitert am Satzanfang — deshalb Lookarounds. Hier zählt,
+    // dass ein Treffer am Wortanfang nach einem Umlaut-Wort noch greift.
+    const { toolNames } = catalogWithCloud({ userText: 'Öffne bitte die Nextcloud-Freigabe' });
+    expect(toolNames).toContain('cloud_files');
+  });
+
+  it('mounts when a Wolke file rides along without being named in the text', () => {
+    const { toolNames } = catalogWithCloud({ wolkeFiles: 1, userText: 'Fasse das zusammen' });
+    expect(toolNames).toContain('cloud_files');
+  });
+
+  it('respects an agent that switched the tool off', () => {
+    const { toolNames } = catalogWithCloud({ connections: 2, enabled: false });
+    expect(toolNames).not.toContain('cloud_files');
+  });
+});

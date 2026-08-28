@@ -57,6 +57,7 @@ export const UI_TOOL_NAMES = z.enum([
   'notebooks',
   'read_pdf_form',
   'fill_pdf_form',
+  'cloud_files',
 ]);
 export type UiToolName = z.infer<typeof UI_TOOL_NAMES>;
 
@@ -230,6 +231,63 @@ function parseEditDocumentVM(_args: unknown, result: unknown): ToolResultVM {
   return { kind: 'text-note', text: summary ? `${head} · ${summary}` : head };
 }
 
+// cloud_files hat vier Ergebnisformen: eine Ordner-/Trefferliste (`entries`),
+// eine Verbindungsliste (`connections`), ein gelesenes Dokument (nur
+// `resultCount`/`sources` — die Zitate laufen über die Quellen-Registry, nicht
+// über die Karte) und Status-/Fehlerzeilen. Ein Parser deckt alle vier ab.
+//
+// Die Kürzungs-Notiz wird bewusst MITGERENDERT: eine abgeschnittene Liste, die
+// wie eine vollständige aussieht, ist genau die Ausfallform, gegen die das
+// Werkzeug seine `note` schreibt.
+function parseCloudFilesVM(args: unknown, result: unknown): ToolResultVM {
+  const error = getString(result, 'error');
+  if (error) return { kind: 'text-note', text: error };
+
+  const entries = getArray(result, 'entries');
+  if (entries) {
+    const rows: KeyValueEntry[] = entries.map((raw) => {
+      const name = getString(raw, 'name') ?? getString(raw, 'path') ?? '—';
+      const isDirectory = getBoolean(raw, 'isDirectory');
+      return { label: isDirectory ? `${name}/` : name, value: getString(raw, 'info') ?? '' };
+    });
+    const note = getString(result, 'note');
+    if (note) rows.push({ label: 'Hinweis', value: note });
+    if (rows.length === 0) {
+      return { kind: 'text-note', text: 'Der Ordner ist leer.' };
+    }
+    return { kind: 'key-value', entries: rows, citations: [], markdown: null, imageUrl: null };
+  }
+
+  const connections = getArray(result, 'connections');
+  if (connections) {
+    if (connections.length === 0) {
+      return { kind: 'text-note', text: getString(result, 'note') ?? 'Keine Wolke verbunden.' };
+    }
+    return {
+      kind: 'key-value',
+      entries: connections.map((raw) => ({
+        label: getString(raw, 'label') ?? '—',
+        value: getString(raw, 'host') ?? '',
+      })),
+      citations: [],
+      markdown: null,
+      imageUrl: null,
+    };
+  }
+
+  const file = getString(result, 'file');
+  if (file) {
+    const count = getNumber(result, 'resultCount');
+    const note = getString(result, 'note');
+    const head = count != null ? `${file} gelesen (${count} Abschnitte)` : `${file} gelesen`;
+    return { kind: 'text-note', text: note ? `${head} · ${note}` : head };
+  }
+
+  const note = getString(result, 'note');
+  if (note) return { kind: 'text-note', text: note };
+  return parseGenericFallback(args, result);
+}
+
 function entry(name: UiToolName, kind: ToolViewKind, parse: ToolRegistryEntry['parse']) {
   return { meta: getToolMeta(name), kind, parse };
 }
@@ -301,6 +359,7 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   // The filled file itself renders in the compute card (fileAssets); the tool
   // card only reports what happened.
   fill_pdf_form: entry('fill_pdf_form', 'text-note', parsePdfFormFillVM),
+  cloud_files: entry('cloud_files', 'key-value', parseCloudFilesVM),
 };
 
 /** Lookup that degrades gracefully for unregistered tool names. */

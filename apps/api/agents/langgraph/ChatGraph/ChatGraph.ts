@@ -130,6 +130,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
     imageAttachments: input.imageAttachments || [],
     threadAttachments: input.threadAttachments || [],
     hasTabularAttachment: input.hasTabularAttachment ?? false,
+    cloudConnectionCount: input.cloudConnectionCount ?? 0,
     pdfFormAttachments: input.pdfFormAttachments || [],
     clientCanRunPython: input.clientCanRunPython ?? false,
 

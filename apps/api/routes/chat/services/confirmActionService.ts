@@ -78,6 +78,12 @@ export const CONFIRM_ACTION_CONFIG: Record<
     icon: 'user-plus',
     confirmLabel: 'Beitreten',
   },
+  add_cloud_connection: {
+    title: 'Wolke-Verbindung hinzufügen',
+    description: 'Der Freigabe-Link wird deinem Konto hinzugefügt — lesend.',
+    icon: 'cloud',
+    confirmLabel: 'Verbinden',
+  },
 };
 
 /**

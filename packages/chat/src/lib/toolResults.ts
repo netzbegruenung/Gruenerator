@@ -95,6 +95,7 @@ export type ToolIconKey =
   | 'image'
   | 'external-link'
   | 'message-circle'
+  | 'cloud'
   | 'file';
 
 export interface ToolMeta {
@@ -132,6 +133,7 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
   notebooks: { label: 'Notebooks', iconKey: 'book' },
   read_pdf_form: { label: 'Formularfelder', iconKey: 'file' },
   fill_pdf_form: { label: 'Formular ausfüllen', iconKey: 'file' },
+  cloud_files: { label: 'Wolke', iconKey: 'cloud' },
 };
 
 export function getToolMeta(toolName: string): ToolMeta {

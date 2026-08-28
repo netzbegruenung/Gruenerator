@@ -92,6 +92,12 @@ export const USER_SELECTABLE_TOOLS: readonly UserSelectableTool[] = [
     description:
       'Liest die Felder eines angehängten PDF-Formulars und füllt sie aus; die fertige Datei steht zum Download bereit.',
   },
+  {
+    key: 'cloud_files',
+    label: 'Wolke',
+    description:
+      'Durchsucht die verbundenen Wolke-Ordner, listet Dateien auf und liest sie — ausschließlich lesend.',
+  },
 ] as const;
 
 /**
