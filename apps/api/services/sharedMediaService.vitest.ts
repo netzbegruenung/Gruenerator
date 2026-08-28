@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync } from 'fs';
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -37,9 +37,12 @@ vi.mock('../database/services/PostgresService.js', () => ({
 
 const { default: SharedMediaService, MediaQuotaExceededError } =
   await import('./sharedMediaService.js');
-const { LIBRARY_ITEM_CLAUSE, USER_VISIBLE_SHARE_STATUSES } =
+const { LIBRARY_ITEM_CLAUSE, ORPHANED_SHARE_STATUSES, USER_VISIBLE_SHARE_STATUSES } =
   await import('./sharedMediaFilters.js');
 const { MEDIA_LIBRARY_ITEM_LIMIT } = await import('@gruenerator/shared/media-library/constants');
+
+/** The `fs.rm` from the module mock above — the reaper's file half runs through it. */
+const rm = vi.mocked((await import('fs/promises')).default.rm);
 
 /** The `content_origin` predicate, whitespace-insensitive. */
 const ORIGIN_CLAUSE = /content_origin\s+IS\s+NULL\s+OR\s+content_origin\s*!=\s*ALL/i;
@@ -338,5 +341,160 @@ describe("the 'processing' status", () => {
       SERVICE_SOURCE.indexOf('async markShareFailed(')
     );
     expect(finalize).toMatch(/SET file_path = \$1[^`]*status = 'ready'/);
+  });
+});
+
+/**
+ * The reaper is the one path in this service that deletes a user's row without
+ * the user asking, so the tests are mostly about what it must NOT reach: rows a
+ * listing shows, and rows too young to be provably stuck. The files matter as
+ * much as the row — a DELETE that leaves the bytes behind is the opposite of
+ * the point (#2989).
+ */
+describe('reapOrphanedShares', () => {
+  /** Every DELETE ... RETURNING answers with these rows. */
+  function withReapedRows(
+    rows: Array<{ share_token: string; status: string; file_size: number | null }>
+  ): InstanceType<typeof SharedMediaService> {
+    query.mockImplementation((sql: string) =>
+      Promise.resolve(sql.includes('DELETE FROM shared_media') ? rows : [])
+    );
+    return new SharedMediaService();
+  }
+
+  beforeEach(() => {
+    rm.mockClear();
+  });
+
+  it('only ever names the orphaned statuses — never one a listing shows', async () => {
+    const service = withReapedRows([]);
+    await service.reapOrphanedShares(24);
+
+    const { sql, params } = lastCall();
+    expect(sql).toContain('DELETE FROM shared_media');
+    expect(params[0]).toEqual([...ORPHANED_SHARE_STATUSES]);
+    for (const visible of USER_VISIBLE_SHARE_STATUSES) {
+      expect(params[0]).not.toContain(visible);
+    }
+  });
+
+  it('bounds the delete by age, so a render still in flight survives', async () => {
+    const service = withReapedRows([]);
+    await service.reapOrphanedShares(24);
+
+    const { sql, params } = lastCall();
+    expect(sql).toMatch(/created_at\s*<\s*NOW\(\)\s*-\s*make_interval/i);
+    expect(params[1]).toBe(24);
+  });
+
+  it('removes the files of every row it deleted, not just the row', async () => {
+    const service = withReapedRows([
+      { share_token: 'tok-a', status: 'failed', file_size: 1024 },
+      { share_token: 'tok-b', status: 'processing', file_size: null },
+    ]);
+
+    const reaped = await service.reapOrphanedShares(24);
+
+    expect(reaped).toEqual([
+      { shareToken: 'tok-a', status: 'failed', fileSize: 1024 },
+      { shareToken: 'tok-b', status: 'processing', fileSize: 0 },
+    ]);
+    const removed = rm.mock.calls.map(([dir]) => String(dir));
+    expect(removed.some((d) => d.endsWith('/tok-a'))).toBe(true);
+    expect(removed.some((d) => d.endsWith('/tok-b'))).toBe(true);
+  });
+
+  it('never deletes a row that carries a file, whatever its status says', async () => {
+    const service = withReapedRows([]);
+    await service.reapOrphanedShares(24);
+
+    // `cloneTemplate` used to write 'processing' with no render behind it while
+    // `updateImageShare` gave that row a file_path without ever clearing the
+    // status (#3009). That producer is retired, but `updateImageShare` still
+    // writes file_path and never status, so the contradiction remains
+    // reachable. Dropping this clause deletes finished sharepics.
+    expect(lastCall().sql).toMatch(/file_path\s+IS\s+NULL/i);
+  });
+
+  it('touches no disk when there is nothing to reap', async () => {
+    const service = withReapedRows([]);
+
+    expect(await service.reapOrphanedShares(24)).toEqual([]);
+    expect(rm).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Every status literal `sharedMediaService.ts` writes, across the three shapes
+ * it uses to write one:
+ *
+ *   `status: 'ready'`                     — an object property or a default
+ *   `SET status = 'failed'`               — an UPDATE
+ *   `(…, status, …) VALUES (…, 'x', …)`   — an INSERT, positionally
+ *
+ * The third is the one that matters and the one a naive regex misses:
+ * `createPendingVideoShare` puts `'processing'` in a VALUES tuple, so the
+ * literal never appears next to the word `status` at all. It is recovered by
+ * matching the column's index in the column list against the same index in the
+ * tuple. (The form was introduced by `cloneTemplate`, which has since been
+ * retired; the surviving insert exercises the same shape.)
+ *
+ * `'draft'` is deliberately absent from the result: the service only ever
+ * receives it as a parameter (`createImageShare`'s `status` argument), never
+ * writes it as a literal.
+ */
+function statusLiteralsIn(source: string): Set<string> {
+  const found = new Set<string>();
+
+  for (const m of source.matchAll(/status\s*(?::|=)\s*'([a-z_]+)'/g)) {
+    found.add(m[1]);
+  }
+
+  // INSERT … (cols) VALUES (vals): find `status` in the column list, read the
+  // literal sitting at the same position in the tuple.
+  const inserts = source.matchAll(
+    /INSERT\s+INTO\s+shared_media\s*\(([^)]*)\)\s*VALUES\s*\(([^)]*)\)/gis
+  );
+  for (const insert of inserts) {
+    const columns = insert[1].split(',').map((c) => c.trim());
+    const values = insert[2].split(',').map((v) => v.trim());
+    const at = columns.indexOf('status');
+    if (at === -1) continue;
+    const literal = /^'([a-z_]+)'$/.exec(values[at] ?? '');
+    if (literal) found.add(literal[1]);
+  }
+
+  return found;
+}
+
+/**
+ * The two status sets have to stay complementary: anything that is neither
+ * user-visible nor orphaned is a row no surface shows and no job removes —
+ * exactly the state #2989 was filed about.
+ */
+describe('share status policy', () => {
+  it('never classifies the same status as both visible and orphaned', () => {
+    const overlap = ORPHANED_SHARE_STATUSES.filter((s) =>
+      (USER_VISIBLE_SHARE_STATUSES as readonly string[]).includes(s)
+    );
+    expect(overlap).toEqual([]);
+  });
+
+  it('covers every status the service writes', () => {
+    const source = readFileSync(new URL('./sharedMediaService.ts', import.meta.url), 'utf8');
+    const written = statusLiteralsIn(source);
+
+    // Non-vacuity, and specifically the two forms this scan has to handle: the
+    // first version of this test only understood `status: 'x'` / `status = 'x'`
+    // and so never saw an insert that names `status` in the column list and puts
+    // the literal in the VALUES tuple. A guard that guards nothing looks exactly
+    // like a guard that holds.
+    expect([...written].sort()).toEqual(['failed', 'processing', 'ready']);
+
+    const classified = new Set<string>([
+      ...USER_VISIBLE_SHARE_STATUSES,
+      ...ORPHANED_SHARE_STATUSES,
+    ]);
+    expect([...written].filter((s) => !classified.has(s))).toEqual([]);
   });
 });

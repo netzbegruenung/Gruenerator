@@ -499,7 +499,7 @@ CREATE TABLE IF NOT EXISTS template_likes (
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- SECTION 9: MEDIA & SHARING
--- Unified media sharing, sharepics, and user uploads
+-- Unified media sharing and sharepics
 -- ════════════════════════════════════════════════════════════════════════════
 
 CREATE TABLE IF NOT EXISTS user_sharepics (
@@ -512,18 +512,9 @@ CREATE TABLE IF NOT EXISTS user_sharepics (
     metadata JSONB DEFAULT '{}'
 );
 
-CREATE TABLE IF NOT EXISTS user_uploads (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
-    file_name TEXT NOT NULL,
-    file_url TEXT,
-    file_path TEXT,
-    file_size BIGINT,
-    mime_type TEXT,
-    upload_status TEXT DEFAULT 'pending',
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    metadata JSONB DEFAULT '{}'
-);
+-- (user_uploads lived here. Dropped in
+-- migrations/zz_20260828_drop_dead_user_uploads.sql — it never had a writer;
+-- uploads go to shared_media. See #2982.)
 
 
 -- ════════════════════════════════════════════════════════════════════════════
@@ -855,9 +846,6 @@ CREATE INDEX IF NOT EXISTS idx_template_likes_popularity ON template_likes(templ
 -- Media indexes
 CREATE INDEX IF NOT EXISTS idx_user_sharepics_user_id ON user_sharepics(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_sharepics_created_at ON user_sharepics(created_at);
-CREATE INDEX IF NOT EXISTS idx_user_uploads_user_id ON user_uploads(user_id);
-CREATE INDEX IF NOT EXISTS idx_user_uploads_status ON user_uploads(upload_status);
-CREATE INDEX IF NOT EXISTS idx_user_uploads_created_at ON user_uploads(created_at);
 CREATE INDEX IF NOT EXISTS idx_shared_media_token ON shared_media(share_token);
 CREATE INDEX IF NOT EXISTS idx_shared_media_user ON shared_media(user_id);
 CREATE INDEX IF NOT EXISTS idx_shared_media_user_type ON shared_media(user_id, media_type);
@@ -869,6 +857,9 @@ CREATE INDEX IF NOT EXISTS idx_shared_media_templates
 CREATE INDEX IF NOT EXISTS idx_shared_media_public_templates
     ON shared_media(is_template, template_visibility, image_type, created_at DESC)
     WHERE is_template = TRUE AND template_visibility = 'public';
+-- Feeds the orphan reaper in uploadsCleanupService (#2989): partial, so it only
+-- ever holds the rows stuck in a non-user-visible status.
+CREATE INDEX IF NOT EXISTS idx_shared_media_orphan_status ON shared_media(created_at) WHERE status IN ('processing', 'failed');
 CREATE INDEX IF NOT EXISTS idx_shared_media_downloads_media ON shared_media_downloads(shared_media_id);
 
 -- Feature tables indexes
