@@ -26,6 +26,8 @@ import { createLogger } from '../../utils/logger.js';
 import { parseJSON } from '../../utils/parseJSON.js';
 import { redisClient } from '../../utils/redis/index.js';
 
+import { getSharedMediaService, type UpdateImageShareParams } from './shareServices.js';
+
 import type { UserProfile } from '../../services/user/types.js';
 import type { Application, Request } from 'express';
 
@@ -57,81 +59,6 @@ interface ExportData {
   duration?: number;
 }
 
-interface ShareResult {
-  id: string;
-  shareToken: string;
-  shareUrl: string;
-  createdAt: Date | string;
-  mediaType: 'image' | 'video';
-  hasOriginalImage?: boolean;
-  status?: string;
-}
-
-interface SharedMediaService {
-  ensureInitialized(): Promise<void>;
-  createImageShare(userId: string, params: CreateImageShareParams): Promise<ShareResult>;
-  createVideoShare(userId: string, params: CreateVideoShareParams): Promise<ShareResult>;
-  createPendingVideoShare(
-    userId: string,
-    params: CreatePendingVideoShareParams
-  ): Promise<ShareResult>;
-  getShareByToken(shareToken: string): Promise<SharedMediaRow | null>;
-  updateImageShare(
-    userId: string,
-    shareToken: string,
-    params: UpdateImageShareParams
-  ): Promise<ShareResult>;
-  getThumbnailPath?(relativePath: string): string;
-  getSubtitledVideoPath?(relativePath: string): string;
-  updateSubtitledVideoPath?(userId: string, projectId: string, relativePath: string): Promise<void>;
-  finalizeVideoShare?(shareToken: string, videoPath: string): Promise<void>;
-  markShareFailed?(shareToken: string): Promise<void>;
-}
-
-interface SharedMediaRow {
-  id: string;
-  user_id: string;
-  share_token: string;
-  media_type: string;
-  title: string | null;
-  file_path: string | null;
-  thumbnail_path: string | null;
-  status: string | null;
-  created_at: Date;
-  [key: string]: unknown;
-}
-
-interface CreateImageShareParams {
-  imageBase64: string;
-  title: string;
-  imageType: string | null;
-  metadata: Record<string, unknown>;
-  originalImage: string | null;
-  status?: 'ready' | 'draft';
-}
-
-interface CreateVideoShareParams {
-  videoPath: string;
-  title: string;
-  thumbnailPath: string | null;
-  duration: number | null;
-  projectId: string | null;
-}
-
-interface CreatePendingVideoShareParams {
-  title: string;
-  thumbnailPath: string | null;
-  duration: number | null;
-  projectId: string;
-}
-
-interface UpdateImageShareParams {
-  imageBase64: string;
-  title?: string;
-  metadata: Record<string, unknown>;
-  originalImage?: string | null;
-}
-
 interface ProjectService {
   ensureInitialized(): Promise<void>;
   getProject(userId: string, projectId: string): Promise<Project>;
@@ -153,18 +80,7 @@ interface Project {
   height_preference?: string;
 }
 
-let sharedMediaServiceInstance: SharedMediaService | null = null;
 let projectServiceInstance: ProjectService | null = null;
-
-async function getSharedMediaService(): Promise<SharedMediaService> {
-  if (!sharedMediaServiceInstance) {
-    const { getSharedMediaService: getService } =
-      await import('../../services/sharedMediaService.js');
-    sharedMediaServiceInstance = getService() as unknown as SharedMediaService;
-    await sharedMediaServiceInstance.ensureInitialized();
-  }
-  return sharedMediaServiceInstance;
-}
 
 async function getProjectService(): Promise<ProjectService> {
   if (!projectServiceInstance) {
@@ -210,7 +126,7 @@ async function triggerBackgroundRender(
     await projService.updateSubtitledVideoPath(userId, projectId, subtitledVideoRelativePath);
 
     const service = await getSharedMediaService();
-    await service.finalizeVideoShare!(shareToken, subtitledVideoFullPath);
+    await service.finalizeVideoShare(shareToken, subtitledVideoFullPath);
 
     try {
       await fsPromises.unlink(result.outputPath);
@@ -222,7 +138,7 @@ async function triggerBackgroundRender(
   } catch (error) {
     log.error(`Background render failed for ${shareToken}:`, error);
     const service = await getSharedMediaService();
-    await service.markShareFailed!(shareToken);
+    await service.markShareFailed(shareToken);
   }
 }
 

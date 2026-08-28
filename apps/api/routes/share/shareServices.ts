@@ -2,8 +2,13 @@
  * Shared service access for the /api/share routers.
  *
  * Lazy-loads SharedMediaService (a heavy module pulled in on first use).
- * Consumed by the file router, the read contract router, the workplace
+ * Consumed by both share contract routers, the file router, the workplace
  * activity feed and the canvas repository.
+ *
+ * This file is the single place the routers describe the service. The write
+ * router used to keep its own parallel copy of these interfaces; a hand-written
+ * second copy behind a `as unknown as` cast can drift from the real service
+ * without the compiler noticing, so there is one copy now.
  */
 
 import type { ReapedShare } from '../../services/sharedMediaService.js';
@@ -14,6 +19,9 @@ export interface CreateImageShareParams {
   imageBase64: string;
   title: string;
   imageType: string | null;
+  /** Which product made this image. Omitted by clients too old to send it —
+   * the service then derives it (`deriveContentOrigin`). */
+  contentOrigin?: 'ki' | 'sharepic';
   metadata: Record<string, unknown>;
   originalImage: string | null;
   status?: Extract<ShareStatus, 'ready' | 'draft'>;
