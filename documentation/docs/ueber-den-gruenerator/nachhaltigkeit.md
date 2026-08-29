@@ -84,7 +84,7 @@ Die Zahlen unten erklären trotzdem beides — die Ersparnis im Nutzung-Tab und 
 
 ### Warum keine Nachkommastellen
 
-Keine dieser Zahlen trägt eine Nachkommastelle. Der Fußabdruck ruht auf Modellkoeffizienten aus einer Messreihe und, wo die fehlt, auf einer bewussten Obergrenze — ein Zehntelgramm ist eine Auflösung, die diese Rechnung nicht hergibt. „154 g" sagt dasselbe wie „154,1 g", nur ohne eine Genauigkeit zu behaupten, die es nicht gibt. Die Einheit wechselt erst bei 10 kg von Gramm auf Kilogramm, weil „1 kg" für 1400 g ein Drittel wegrunden würde, um einen Dezimalpunkt zu vermeiden.
+Keine dieser Zahlen trägt eine Nachkommastelle. Der Fußabdruck ruht auf Modellkoeffizienten aus einer Messreihe und, wo die fehlt, auf der Mitte zwischen zwei gemessenen Modellen — ein Zehntelgramm ist eine Auflösung, die diese Rechnung nicht hergibt. „154 g" sagt dasselbe wie „154,1 g", nur ohne eine Genauigkeit zu behaupten, die es nicht gibt. Die Einheit wechselt erst bei 10 kg von Gramm auf Kilogramm, weil „1 kg" für 1400 g ein Drittel wegrunden würde, um einen Dezimalpunkt zu vermeiden.
 
 ### Woher die Messwerte kommen
 
@@ -189,7 +189,7 @@ Wo Berichte konkret werden, rechnen wir es zusätzlich an: Seewebs PUE unter 1,2
 
 Sobald Seeweb oder Hetzner eine standortbasierte Scope-2-Bilanz veröffentlichen, nehmen wir sie auf — bei Scaleway ist genau das schon passiert. Für Hetzner ist die EMAS-Umwelterklärung der wahrscheinlichste Ort dafür.
 
-### Modelle ohne Messwert: Obergrenze statt Schätzung
+### Modelle ohne Messwert: die Mitte einer gemessenen Klammer
 
 Für einige Lanes betreibt GreenPT kein Gegenstück — Mistral Small 4 (119 Mrd.) und Pixtral Large. Sie einfach wegzulassen wäre die bequemste Lösung und die falscheste: Bei realer Nutzung läuft ein Großteil des Volumens genau dort.
 
@@ -231,7 +231,7 @@ Wir setzen deshalb den **deutschen Netzmix** an. Unter den Azure-Regionen in Eur
 
 Eine der Lanes ist damit richtig gut abgedeckt: **Qwen-Image bei Regolo ist exakt das vermessene Modell — und zwar in exakt unserer Konfiguration.** Regolo bietet 256×256, 512×512 und 1024×1024 an, aber jedes unserer Bildformate hat eine Kante von mindestens 1024 Pixeln, und Anfragen ohne Maßangabe nutzen ohnehin den Standardwert. In der Praxis läuft damit **jedes** Bild bei 1024×1024 — genau der gemessenen Zelle. Die Schrittzahl geben wir nicht vor, und Qwen-Image nutzt standardmäßig 50 Schritte mit CFG, was ebenfalls passt. Unsicher bleibt hier nur noch unser eigener Faktor 2 und die Frage, wie sehr Regolos Hardware von einer A100 abweicht.
 
-Bei den Flux-Werten gilt das nicht: Dorthin gehen die echten Bildmaße durch, und unser Instagram-Format hat rund 1,4-mal so viele Pixel wie die vermessene Zelle. Ein solches Bild kostet also mehr, als unsere Zahl sagt. Wir korrigieren das derzeit nicht, weil die Nutzungsdaten nur zählen, wie viele Bilder erzeugt wurden, nicht in welcher Größe. Bei **Black Forest Labs** liegt FLUX.2 vor, vermessen wurde FLUX.1; die drei Varianten skalieren wir über den von BFL selbst veröffentlichten Kostenfaktor (Klein 0,5×, Pro 1×, Max 2×). Alle Bildwerte gelten daher als **Obergrenze**, nicht als Messung.
+Bei den Flux-Werten gilt das nicht: Dorthin gehen die echten Bildmaße durch, und unser Instagram-Format hat rund 1,4-mal so viele Pixel wie die vermessene Zelle. Ein solches Bild kostet also mehr, als unsere Zahl sagt. Wir korrigieren das derzeit nicht, weil die Nutzungsdaten nur zählen, wie viele Bilder erzeugt wurden, nicht in welcher Größe. Bei **Black Forest Labs** liegt FLUX.2 vor, vermessen wurde FLUX.1; die drei Varianten skalieren wir über den von BFL selbst veröffentlichten Kostenfaktor (Klein 0,5×, Pro 1×, Max 2×). Alle Bildwerte gelten daher als **hergeleitet**, nicht als Messung — mit ihrer Spanne daneben.
 
 Zur Einordnung von außen: Scope3 veranschlagt für ein hochwertiges GPT-4o-Bild rund 5,6 g CO₂e, das entspricht am US-Netz etwa 14,7 Wh. Unser Flux-Pro-Wert landet bei rund 10,7 Wh — gleiche Größenordnung aus völlig anderer Methode.
 
@@ -271,7 +271,7 @@ Die **[Transparenz-Seite](https://gruenerator.eu/transparenz)** zeigt die Summe 
 
 Drei Entscheidungen dahinter sind erklärungsbedürftig, weil sie die Zahlen kleiner oder unschärfer machen, als sie sein könnten.
 
-**Es ist eine Spanne, keine Zahl.** Wo ein Modell vermessen ist, fallen beide Enden zusammen. Wo wir nur eine Obergrenze haben, zeigt die Spanne das obere und das untere Ende derselben gemessenen Bandbreite. Ihre Breite ist damit ein direktes Maß dafür, wie viel wir noch nicht wissen — und sie wird schmaler, sobald eine Lane vermessen wird, nicht durch besseres Formulieren.
+**Es ist eine Spanne, keine Zahl.** Wo ein Modell vermessen ist und das Land des Anbieters feststeht, fallen alle Enden zusammen. Wo nicht, zeigt die Skala beide Enden der gemessenen Klammer und die angezeigte Zahl sitzt dazwischen. Ihre Breite ist damit ein direktes Maß dafür, wie viel wir noch nicht wissen — und sie wird schmaler, sobald eine Lane vermessen wird, nicht durch besseres Formulieren.
 
 **Tage mit sehr wenigen Aktiven fallen ganz heraus.** Unterschreitet ein Tag fünf verschiedene Nutzer:innen, wird er nicht nur aus dem Verlauf ausgeblendet, sondern auch aus allen Summen entfernt. Nur auszublenden würde nichts nützen: Wer zwei Zeiträume abfragt, die sich um einen Tag unterscheiden, könnte ihn durch Subtraktion zurückrechnen. Die Zahl der zurückgehaltenen Tage steht mit dabei, damit eine Lücke als Lücke erkennbar ist und nicht als Ruhetag.
 

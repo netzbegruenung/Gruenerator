@@ -54,7 +54,10 @@ export const transparencyFootprintSchema = z.object({
   emissions_g_high: z.number(),
   /** 0..1 — share of the counted energy that was metered by the provider. */
   measured_share: z.number(),
-  /** 0..1 — share resting on a conservative upper bound for want of a meter. */
+  /** 0..1 — share of the energy whose MODEL was never metered anywhere, so it
+   *  is valued from the bracket between two models that were. Costed at the
+   *  centre of that bracket since the mid-estimate change; it used to be its
+   *  ceiling, which is what the name still remembers. */
   bounded_share: z.number(),
   /** 0..1 — share of GENERATED tokens a footprint covers. Output-weighted. */
   covered_share: z.number(),
