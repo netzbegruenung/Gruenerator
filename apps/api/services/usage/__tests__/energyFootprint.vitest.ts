@@ -6,6 +6,7 @@ import {
   estimateFootprint,
   estimateImageFootprint,
   gridIntensityFor,
+  hasGridSpan,
   hasEnergyCoefficients,
   isPueEstimated,
   pueFor,
@@ -41,13 +42,32 @@ describe('gridIntensityFor', () => {
     // The recorded provider is the upstream, so Scaleway-routed Mistral Medium
     // must not inherit the German mix.
     expect(gridIntensityFor('scaleway')).toBe(24);
-    expect(gridIntensityFor('mistral')).toBe(22);
-    expect(gridIntensityFor('litellm')).toBe(363);
+    expect(gridIntensityFor('litellm')).toBe(344); // Germany 2025, UBA
   });
 
-  it('falls back to the German mix for an unknown provider', () => {
-    // Erring high is the safe direction for a footprint claim.
-    expect(gridIntensityFor('some-future-provider')).toBe(350);
+  it('gives a provider whose country is unproven a span, not a point', () => {
+    // Mistral's DPA promises the EEA, not France; its announced datacenters are
+    // in France and Sweden. So the lane carries both ends and sits in between —
+    // it does NOT get to keep France's 19.6 as if the location were settled.
+    expect(gridIntensityFor('mistral', 'low')).toBe(19.6); // France, RTE 2025
+    expect(gridIntensityFor('mistral', 'high')).toBe(45); // Sweden, Ember
+    expect(gridIntensityFor('mistral')).toBe(30);
+    expect(hasGridSpan('mistral')).toBe(true);
+  });
+
+  it('keeps a known country as one number at all three ends', () => {
+    // A span has to mean "we do not know which grid", not "grids are fuzzy".
+    for (const bound of ['low', 'mid', 'high'] as const) {
+      expect(gridIntensityFor('litellm', bound)).toBe(344);
+    }
+    expect(hasGridSpan('litellm')).toBe(false);
+  });
+
+  it('falls back to the EU average for an unknown provider', () => {
+    // Was 350, chosen as a pessimistic default. Every provider that can reach
+    // this line is EEA-bound by contract, so the EU average is the central
+    // estimate over exactly the grids that remain possible.
+    expect(gridIntensityFor('some-future-provider')).toBe(213); // Ember 2025
   });
 });
 
@@ -265,8 +285,12 @@ describe('estimateImageFootprint', () => {
     // prompts = 3.583 Wh GPU-only. Doubled for the boundary correction, times
     // Seeweb's 1.20 PUE. If someone edits a coefficient, this says whether the
     // published anchor still shows through.
+    // Uplift is the geometric mean of the derived bracket (1.92 .. 2.70), not
+    // the old round 2. Written as the product so a changed anchor, uplift or
+    // PUE each show up here as themselves.
+    const uplift = Math.sqrt(1.92 * 2.7);
     const one = estimateImageFootprint({ provider: 'regolo', model: 'Qwen-Image', images: 1 });
-    expect((one?.energyWms ?? 0) / 3_600_000).toBeCloseTo(3.583 * 2 * 1.2, 1);
+    expect((one?.energyWms ?? 0) / 3_600_000).toBeCloseTo(3.583 * uplift * 1.2, 1);
   });
 
   it('orders the Flux variants the way BFL prices them', () => {
@@ -356,11 +380,63 @@ describe('the low end of the band', () => {
     expect(estimateFootprint(args)?.basis).toBe('bound');
   });
 
-  it('strips exactly the boundary uplift from an image, nothing else', () => {
+  it('brackets an image by the boundary uplift and centres it geometrically', () => {
     const args = { provider: 'regolo', model: 'Qwen-Image', images: 4 };
-    const high = estimateImageFootprint(args)?.energyWms ?? 0;
+    const mid = estimateImageFootprint(args)?.energyWms ?? 0;
     const low = estimateImageFootprint({ ...args, bound: 'low' })?.energyWms ?? 0;
-    expect(high).toBe(low * 2);
+    const high = estimateImageFootprint({ ...args, bound: 'high' })?.energyWms ?? 0;
+    // Only the uplift moves, so the ratios ARE the uplift bracket: 1.92 .. 2.70
+    // with its geometric mean in between.
+    expect(high / low).toBeCloseTo(2.7 / 1.92, 5);
+    expect(mid / low).toBeCloseTo(Math.sqrt(1.92 * 2.7) / 1.92, 5);
+    expect(mid).toBeGreaterThan(low);
+    expect(mid).toBeLessThan(high);
+  });
+
+  it('centres an unmetered text lane between two metered anchors', () => {
+    // THE CHANGE THIS PINS: an unmetered lane used to be quoted at the CEILING
+    // (mistral-medium, 4.519 mWh/token). It now sits at the geometric mean of
+    // the two GreenPT measurements that bracket its size class — gpt-oss-120b
+    // at the bottom, mistral-medium at the top — with both ends still
+    // published. The middle must be strictly inside, and strictly below where
+    // the old default was.
+    const args = {
+      provider: 'greenpt',
+      model: 'pixtral-large-latest',
+      inputTokens: 600,
+      outputTokens: 400,
+      requests: 1,
+    };
+    const low = estimateFootprint({ ...args, bound: 'low' })?.energyWms ?? 0;
+    const mid = estimateFootprint(args)?.energyWms ?? 0;
+    const high = estimateFootprint({ ...args, bound: 'high' })?.energyWms ?? 0;
+    expect(low).toBeGreaterThan(0);
+    expect(mid).toBeGreaterThan(low);
+    expect(mid).toBeLessThan(high);
+    // The ceiling is still exactly Mistral Medium's metered cost — the bracket
+    // borrows measurements, it does not invent a worst case.
+    const ceiling = estimateFootprint({ ...args, model: 'mistral-medium-2604' })?.energyWms ?? 0;
+    expect(high).toBe(ceiling);
+    // ...and the floor is exactly gpt-oss-120b's.
+    const floor = estimateFootprint({ ...args, model: 'gpt-oss-120b' })?.energyWms ?? 0;
+    expect(low).toBe(floor);
+  });
+
+  it('leaves a metered lane identical at all three ends', () => {
+    // The width of the scale is the uncertainty we actually have. A measured
+    // coefficient has none, so it must not acquire any.
+    const args = {
+      provider: 'greenpt',
+      model: 'gemma4-31b',
+      inputTokens: 600,
+      outputTokens: 400,
+      requests: 1,
+    };
+    const low = estimateFootprint({ ...args, bound: 'low' })?.energyWms;
+    const mid = estimateFootprint(args)?.energyWms;
+    const high = estimateFootprint({ ...args, bound: 'high' })?.energyWms;
+    expect(low).toBe(mid);
+    expect(high).toBe(mid);
   });
 });
 

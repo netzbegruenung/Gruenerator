@@ -170,6 +170,71 @@ export function RangeSwitcher({
 /* ── Hero ─────────────────────────────────────────────────────────────────── */
 
 /** Output tokens per day — the quantity the footprint actually scales with. */
+/**
+ * A published figure and the width of what we do not know about it.
+ *
+ * The number a reader carries away is the middle; the track under it is the
+ * span the middle sits in. Drawn rather than written out because the two are a
+ * pair — a point estimate printed alone reads as certainty we do not have, and
+ * a bare "x to y" reads as if every value in between were equally likely.
+ *
+ * The track is linear between the two ends, so the marker's position IS the
+ * middle's position in its own span; a middle near the left edge says the
+ * uncertainty runs mostly upward. Where low and high coincide (a metered lane
+ * in a known country) there is nothing to draw and the caller shows the number
+ * alone — an empty scale would imply a precision claim of its own.
+ */
+function Scale({
+  low,
+  mid,
+  high,
+  format,
+  lowLabel = 'mindestens',
+  highLabel = 'höchstens',
+}: {
+  low: number;
+  mid: number;
+  high: number;
+  format: (v: number) => string;
+  lowLabel?: string;
+  highLabel?: string;
+}) {
+  const span = high - low;
+  const pct = span > 0 ? Math.min(100, Math.max(0, ((mid - low) / span) * 100)) : 50;
+
+  return (
+    <div className="mt-4 max-w-[26rem]">
+      <div
+        className="relative h-2 rounded-full bg-[#e4ebe7] dark:bg-grey-800"
+        role="img"
+        aria-label={`Spanne von ${format(low)} bis ${format(high)}, Schätzwert ${format(mid)}`}
+      >
+        <div
+          className="absolute inset-y-0 rounded-full bg-[#a8cbbb] dark:bg-[#3d6455]"
+          style={{ left: 0, right: 0 }}
+        />
+        <div
+          className="absolute top-1/2 h-3.5 w-[3px] -translate-x-1/2 -translate-y-1/2 rounded-sm bg-[#316049] dark:bg-[#6fae90]"
+          style={{ left: `${pct}%` }}
+        />
+      </div>
+      <div className={cn('mt-1.5 flex justify-between text-[0.75rem]', MONITOR_FAINT)}>
+        <span>
+          {lowLabel} {format(low)}
+        </span>
+        <span>
+          {highLabel} {format(high)}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/** True when the two ends are far enough apart to be worth drawing. */
+function hasSpan(low: number, high: number): boolean {
+  return high - low > Math.max(0.5, high * 0.005);
+}
+
 function HeroSparkline({ points }: { points: TransparencyDayEntryDto[] }) {
   const series = points.slice(-12).map((p) => p.output_tokens);
   if (series.length < 2) return null;
@@ -234,12 +299,11 @@ function FootprintHero({
   daily: TransparencyDayEntryDto[];
   days: number;
 }) {
-  const isBand = footprint.emissions_g - footprint.emissions_g_low > 0.5;
+  const co2Span = hasSpan(footprint.emissions_g_low, footprint.emissions_g_high);
+  const energySpan = hasSpan(footprint.energy_wh_low, footprint.energy_wh_high);
 
   return (
-    <div
-      className={cn('mb-10 flex flex-wrap items-center justify-between gap-8 p-8', MONITOR_CARD)}
-    >
+    <div className={cn('mb-10 flex flex-wrap items-start justify-between gap-8 p-8', MONITOR_CARD)}>
       <div>
         <p className={cn('m-0 mb-1', MONITOR_EYEBROW)}>CO₂ der letzten {days} Tage</p>
         <div className="flex flex-wrap items-baseline gap-3.5">
@@ -249,21 +313,33 @@ function FootprintHero({
               MONITOR_HEADING
             )}
           >
-            {isBand
-              ? `${formatGrams(footprint.emissions_g_low)} – ${formatGrams(footprint.emissions_g)}`
-              : `≈ ${formatGrams(footprint.emissions_g)}`}
+            ≈ {formatGrams(footprint.emissions_g)}
           </span>
           <span className={cn('text-[1.1rem] font-bold', MONITOR_ACCENT)}>CO₂e</span>
         </div>
-        <p className={cn('m-0 mt-2.5 text-[0.9rem]', MONITOR_MUTED)}>
-          {isBand
-            ? `${formatEnergy(footprint.energy_wh_low)} – ${formatEnergy(footprint.energy_wh)} Strom`
-            : `${formatEnergy(footprint.energy_wh)} Strom`}{' '}
-          · so viel wie {carComparison(footprint.emissions_g)}
+        {co2Span && (
+          <Scale
+            low={footprint.emissions_g_low}
+            mid={footprint.emissions_g}
+            high={footprint.emissions_g_high}
+            format={formatGrams}
+          />
+        )}
+        <p className={cn('m-0 mt-4 text-[0.9rem]', MONITOR_MUTED)}>
+          {formatEnergy(footprint.energy_wh)} Strom · so viel wie{' '}
+          {carComparison(footprint.emissions_g)}
           {footprint.image_emissions_g > 0 && (
             <> · davon {formatGrams(footprint.image_emissions_g)} aus erzeugten Bildern</>
           )}
         </p>
+        {energySpan && (
+          <Scale
+            low={footprint.energy_wh_low}
+            mid={footprint.energy_wh}
+            high={footprint.energy_wh_high}
+            format={formatEnergy}
+          />
+        )}
       </div>
       <HeroSparkline points={daily} />
     </div>
@@ -675,6 +751,18 @@ function ReferencePanel({ footprint }: { footprint: TransparencyFootprintDto }) 
           <p className={cn('m-0 mt-2 text-[0.85rem]', MONITOR_MUTED)}>
             {formatCorridor(comparison.worst, comparison.best)}
           </p>
+          {comparison.best - comparison.worst > 0.5 && (
+            <Scale
+              low={comparison.worst}
+              // The signed difference, which is what the two ends bracket. The
+              // headline above shows its magnitude with a word for the sign.
+              mid={co2Saved ? comparison.magnitude : -comparison.magnitude}
+              high={comparison.best}
+              format={(v) => formatGrams(Math.abs(v))}
+              lowLabel="ungünstigste Lesart"
+              highLabel="günstigste"
+            />
+          )}
         </div>
         <div>
           <p className={cn('m-0 mb-1', MONITOR_EYEBROW)}>Energie bei ChatGPT</p>
@@ -815,10 +903,33 @@ function SimpleView({ data }: { data: GetTransparencyStatsResponseDto }) {
           </span>
           <span className={cn('text-[1.1rem] font-bold', MONITOR_ACCENT)}>CO₂</span>
         </div>
-        <p className={cn('m-0 mt-2.5 max-w-[38rem] text-[0.9rem] leading-relaxed', MONITOR_MUTED)}>
-          Das entspricht ungefähr {carComparison(footprint.emissions_g)}. Wo wir schätzen müssen,
-          runden wir auf — die tatsächliche Zahl liegt eher darunter.
+        {hasSpan(footprint.emissions_g_low, footprint.emissions_g_high) && (
+          <Scale
+            low={footprint.emissions_g_low}
+            mid={footprint.emissions_g}
+            high={footprint.emissions_g_high}
+            format={formatGrams}
+          />
+        )}
+        <p className={cn('m-0 mt-4 max-w-[38rem] text-[0.9rem] leading-relaxed', MONITOR_MUTED)}>
+          Das entspricht ungefähr {carComparison(footprint.emissions_g)}. Ein Teil davon ist
+          gemessen, ein Teil geschätzt — der Balken zeigt, wie weit die Schätzung reicht. Die
+          angezeigte Zahl liegt in der Mitte, nicht am günstigen Rand.
         </p>
+        <div className="mt-6 border-t border-[#eef2ef] pt-5 dark:border-grey-700/60">
+          <p className={cn('m-0 mb-1', MONITOR_EYEBROW)}>Verbrauchter Strom</p>
+          <span className={cn('text-[1.6rem] font-semibold leading-none', MONITOR_HEADING)}>
+            ≈ {formatEnergy(footprint.energy_wh)}
+          </span>
+          {hasSpan(footprint.energy_wh_low, footprint.energy_wh_high) && (
+            <Scale
+              low={footprint.energy_wh_low}
+              mid={footprint.energy_wh}
+              high={footprint.energy_wh_high}
+              format={formatEnergy}
+            />
+          )}
+        </div>
       </div>
 
       {ranked.length > 0 && (

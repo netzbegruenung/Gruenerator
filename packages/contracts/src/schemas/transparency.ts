@@ -37,12 +37,17 @@ import {
  * ever rendered, it should be the one that cannot flatter us.
  */
 export const transparencyFootprintSchema = z.object({
-  /** Watt-hours, upper end of the band. */
+  /** Watt-hours, CENTRAL estimate — the figure every headline shows. */
   energy_wh: z.number(),
+  /** The two ends of the published scale. Both equal `energy_wh` wherever the
+   *  lane is metered and the provider's country is known, so the width of the
+   *  scale is exactly the uncertainty we actually have. */
   energy_wh_low: z.number(),
-  /** Grams CO2e, location-based accounting, upper end of the band. */
+  energy_wh_high: z.number(),
+  /** Grams CO2e, location-based accounting, central estimate. */
   emissions_g: z.number(),
   emissions_g_low: z.number(),
+  emissions_g_high: z.number(),
   /** 0..1 — share of the counted energy that was metered by the provider. */
   measured_share: z.number(),
   /** 0..1 — share resting on a conservative upper bound for want of a meter. */
