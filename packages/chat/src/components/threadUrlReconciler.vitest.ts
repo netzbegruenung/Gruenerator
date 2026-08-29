@@ -127,6 +127,43 @@ describe('reconcileThreadUrl', () => {
   // (/agents/:slug, ?mode=…), für die sie einmal allein gedacht war: dort warf
   // der Rückschreiber die Person aus dem eben geöffneten Agenten in ihre letzte
   // Unterhaltung.
+  // Legacy links carry the bare remoteId instead of a slug (Projekt chat rows
+  // still build these for threads predating the backfill). `extractSlugSuffix`
+  // returns null for them just as it does for bare /chat — so a guard keyed on
+  // `suffix` reads them as "the URL names no thread" and stops canonicalising
+  // them for good, against the F0 rule that an old path keeps resolving.
+  describe('a legacy /chat/<uuid> link', () => {
+    const UUID = '2cfd460f-1289-40ec-b921-3063473b2c81';
+
+    it('canonicalises to the slug once its thread is main', () => {
+      expect(
+        reconcileThreadUrl(
+          state({
+            mainRemoteId: UUID,
+            mainSuffix: 'wTQqqi',
+            mainTitle: 'Alter Chat',
+            threadSlug: UUID,
+            prevRemoteId: 'ein-anderer',
+          })
+        )
+      ).toEqual({ type: 'replace', slug: 'alter-chat-wTQqqi' });
+    });
+
+    it('stays silent while the switch to it is still in flight', () => {
+      expect(
+        reconcileThreadUrl(
+          state({
+            mainRemoteId: 'a',
+            mainSuffix: 'aaaaaa',
+            mainTitle: 'Thread A',
+            threadSlug: UUID,
+            prevRemoteId: 'a',
+          })
+        )
+      ).toEqual({ type: 'none' });
+    });
+  });
+
   it('stays silent on bare /chat while the runtime is still parking on a draft', () => {
     expect(
       reconcileThreadUrl(
