@@ -413,13 +413,18 @@ const GREENPT_PUE = 1.25;
  * Uptime Institute Global Data Center Survey 2025, European region: 1.50 across
  * 134 datacenters. Used where no operator figure exists.
  *
- * EUROPE, not the world average of 1.56 — and the difference is not rounding
- * noise, it is the difference between a guess and an inference. Every provider
- * that lands here is contractually bound to the EEA (Mistral's and Infercom's
- * DPAs, Berget's own statement, BFL's `api.eu.bfl.ai`), so the continent is the
- * one thing we actually know. A world average would fold in regions we have
- * ruled out — Africa and the Middle East sit above 1.7 — and pad our own
- * footprint with datacenters nobody could be running on.
+ * EUROPE, not the global average of the same survey (1.54, n=681) — and the
+ * difference is not rounding noise, it is the difference between a guess and an
+ * inference. Every provider that lands here is contractually bound to the EEA
+ * (Mistral's and Infercom's DPAs, Berget's own statement, BFL's
+ * `api.eu.bfl.ai`), so the continent is the one thing we actually know. A
+ * global average folds in regions we have ruled out — Middle East and Africa
+ * report 1.68 — and pads our own footprint with datacenters nobody could be
+ * running on.
+ *
+ * Both numbers come from the SAME survey year on purpose. The value here used
+ * to be 1.56, which is the 2024 global average; pairing that with a 2025
+ * regional figure compares two vintages and overstates the gap.
  *
  * Erring high stops where it stops being true.
  */
