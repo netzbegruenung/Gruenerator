@@ -3,12 +3,13 @@ import { describe, expect, it } from 'vitest';
 import { canvasImageSourceUrl } from './canvasImageSource';
 
 describe('canvasImageSourceUrl', () => {
-  it('renders the 2160px working tier while the box fits the export budget', () => {
+  it('renders the 3240px working tier while the box fits the export budget', () => {
+    // 1080 x 3 = 3240: sharp at the UI's max export scale.
     expect(canvasImageSourceUrl('/api/share/abc123/download', 1080)).toBe(
-      '/api/share/abc123/preview?w=2160&fmt=webp'
+      '/api/share/abc123/preview?w=3240&fmt=webp'
     );
     expect(canvasImageSourceUrl('/api/share/abc123/download', 540)).toBe(
-      '/api/share/abc123/preview?w=2160&fmt=webp'
+      '/api/share/abc123/preview?w=3240&fmt=webp'
     );
   });
 

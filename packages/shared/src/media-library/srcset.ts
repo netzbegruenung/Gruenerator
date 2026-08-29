@@ -112,13 +112,14 @@ export function shareThumbnailPreviewUrl(
 }
 
 /**
- * The canvas editor's working tier. The scene is 1080x1350 and exports at
- * container x 2, so a 2160px source is export-quality while an element draws
- * at most 1080px wide (half the tier); wider — zoomed or resized — elements
- * render the stored original instead. Must stay a member of the API's
- * `THUMBNAIL_WIDTHS`.
+ * The canvas editor's working tier. The scene is 1080x1350 and the download
+ * UI offers 1x/2x/3x export (TopBar/DownloadSection.tsx), so a 3240px source
+ * (1080 x 3) is export-quality at the max scale while an element draws at
+ * most 1080px wide (a third of the tier); wider — zoomed or resized —
+ * elements render the stored original instead. Must stay a member of the
+ * API's `THUMBNAIL_WIDTHS`.
  */
-export const CANVAS_PREVIEW_WIDTH = 2160;
+export const CANVAS_PREVIEW_WIDTH = 3240;
 
 /**
  * Rewrite a durable media URL to the working-size variant the canvas renders

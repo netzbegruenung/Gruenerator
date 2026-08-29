@@ -25,11 +25,12 @@ import {
  * 200/400/800 match the variants pre-generated at upload
  * (`sharedMediaService.VARIANT_WIDTHS`) so those requests never render anything;
  * 1200 exists for full-bleed mobile views and is always rendered on demand;
- * 2160 is the canvas editor's working tier — the scene is 1080x1350 and
- * exports at container x 2, so this width is export-quality — and is rendered
- * on demand like 1200.
+ * 3240 is the canvas editor's working tier — the scene is 1080x1350 and the
+ * download UI offers up to 3x export, so 1080 x 3 is export-quality at the
+ * max scale — and is rendered on demand like 1200. 2160 was the earlier tier
+ * and stays accepted so previously minted URLs keep resolving.
  */
-export const THUMBNAIL_WIDTHS = [200, 400, 800, 1200, 2160] as const;
+export const THUMBNAIL_WIDTHS = [200, 400, 800, 1200, 2160, 3240] as const;
 export type ThumbnailWidth = (typeof THUMBNAIL_WIDTHS)[number];
 
 export const THUMBNAIL_FORMATS = ['webp', 'avif'] as const;
