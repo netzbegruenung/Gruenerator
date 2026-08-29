@@ -477,9 +477,9 @@ function CoveragePanel({ footprint }: { footprint: TransparencyFootprintDto }) {
           hint="Vom Anbieter mitgelieferte Messwerte statt eigener Hochrechnung."
         />
         <Meter
-          label="Obergrenze"
+          label="Ohne eigene Messung"
           share={footprint.bounded_share}
-          hint="Kein messbares Gegenstück vorhanden — bewusst mit dem oberen Ende der gemessenen Spanne gerechnet."
+          hint="Für dieses Modell existiert nirgends ein Messwert. Gerechnet wird mit der Mitte zwischen zwei Modellen, die wir gemessen haben — beide Enden stehen in der Spanne oben."
         />
         <Meter
           label="Abgedeckt"
