@@ -12,6 +12,7 @@ import { Group, Rect, Circle, Text } from 'react-konva';
 import useImage from 'use-image';
 
 import { type GeometryReporter } from '../hooks/useGeometryReporter';
+import { canvasImageSourceUrl } from '../utils/canvasImageSource';
 import { imageRenderInputsAreEqual } from '../utils/imageElementComparison';
 import { CanvasText, CanvasImage, CanvasBackground } from '../primitives';
 import { useIsElementSelected } from '../stores/CanvasStoreProvider';
@@ -269,10 +270,25 @@ const MemoizedImageElement = memo(function MemoizedImageElement<
     imageSrc = typeof config.src === 'function' ? config.src(state) : config.src;
   }
 
-  const [image] = useImage(imageSrc || '', 'anonymous');
-
   const offset = config.offsetKey ? assertAsPosition(state[config.offsetKey]) : { x: 0, y: 0 };
   const scale = config.scaleKey ? assertAsScale(state[config.scaleKey]) : 1;
+
+  // `sizeStateKey` wurde bisher nur geschrieben (handleImageTransformEnd) und
+  // nie gelesen — Groessenaenderungen an Profilbild und Sonnenblume fielen
+  // beim naechsten Neuzeichnen zurueck.
+  const rawCustomSize = config.sizeStateKey ? state[config.sizeStateKey] : null;
+  const storedSize = rawCustomSize != null ? assertAsSize(rawCustomSize) : null;
+  // assertAsSize faellt auf {0,0} zurueck — das waere ein unsichtbares Bild.
+  const customSize = storedSize && storedSize.w > 0 && storedSize.h > 0 ? storedSize : null;
+  const width = customSize?.w ?? resolveValue(config.width, state, layout) * scale;
+
+  // Render the server's working-size WebP variant instead of the raw original:
+  // the original is kept on disk for the gallery, but loading multi-MB
+  // full-resolution bytes made background swaps feel endless. The variant is
+  // only export-quality while the element draws narrow enough; wider (zoomed
+  // or resized) elements load the stored original instead.
+  const [image] = useImage(canvasImageSourceUrl(imageSrc, width) ?? '', 'anonymous');
+
   const isLocked = config.lockedKey ? assertAsBoolean(state[config.lockedKey]) : false;
   const customOpacity = getOptionalStateValue<number>(state, config.opacityStateKey);
   const opacity = assertAsOpacity(
@@ -290,15 +306,6 @@ const MemoizedImageElement = memo(function MemoizedImageElement<
   const x = customPosition?.x ?? resolveValue(config.x, state, layout) + offset.x;
   const y = customPosition?.y ?? resolveValue(config.y, state, layout) + offset.y;
 
-  // `sizeStateKey` wurde bisher nur geschrieben (handleImageTransformEnd) und
-  // nie gelesen — Groessenaenderungen an Profilbild und Sonnenblume fielen
-  // beim naechsten Neuzeichnen zurueck.
-  const rawCustomSize = config.sizeStateKey ? state[config.sizeStateKey] : null;
-  const storedSize = rawCustomSize != null ? assertAsSize(rawCustomSize) : null;
-  // assertAsSize faellt auf {0,0} zurueck — das waere ein unsichtbares Bild.
-  const customSize = storedSize && storedSize.w > 0 && storedSize.h > 0 ? storedSize : null;
-
-  const width = customSize?.w ?? resolveValue(config.width, state, layout) * scale;
   const height = customSize?.h ?? resolveValue(config.height, state, layout) * scale;
 
   const handleSelect = useCallback(() => onSelect(config.id), [onSelect, config.id]);
