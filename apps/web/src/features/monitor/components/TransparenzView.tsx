@@ -285,10 +285,12 @@ function HeroSparkline({ points }: { points: TransparencyDayEntryDto[] }) {
 }
 
 /**
- * The headline figure, as a range.
+ * The headline figure: the central estimate, with its scale drawn under it.
  *
- * The upper end is what a single-number reading falls back to, deliberately:
- * of the two ends, it is the one that cannot flatter us.
+ * It used to be the upper end, on the reasoning that a lone number should be
+ * the one that cannot flatter us. That reasoning produced a number reliably
+ * wrong in one direction and hid how wide the real uncertainty was. The ends
+ * are now drawn beside the middle instead of standing in for it — see `Scale`.
  */
 function FootprintHero({
   footprint,
@@ -854,9 +856,12 @@ function MethodNote({ data }: { data: GetTransparencyStatsResponseDto }) {
  * datacenter ran it. Tokens, PUE, grid intensity, bands and coverage shares
  * all stay in the expert view.
  *
- * The single number is the UPPER end of the band, with the rounding direction
- * said in words ("eher darunter") — the honest reading of a range for someone
- * who was never going to read a range.
+ * The single number is the same central estimate the expert view shows, and
+ * since 29.08.2026 it carries the same two scales — CO2 and electricity — in
+ * plain words ("mindestens"/"höchstens") rather than none at all. Dropping the
+ * vocabulary is the point of this view; dropping the uncertainty was never
+ * meant to be, and the earlier copy ("die tatsächliche Zahl liegt eher
+ * darunter") described a rounding direction that no longer exists.
  */
 const SIMPLE_GROUPS: Record<UsageFeature, string> = {
   chat: 'Chat',
