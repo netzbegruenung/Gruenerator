@@ -752,12 +752,13 @@ NICHT für eine Zusammenfassung des ganzen Dokuments — dafür gibt es \`summar
     // Block berechnet, weil es dort einen zweiten Verbraucher hat: der Wolke-
     // Verweis im Tool-Ergebnis darf nie auf ein Werkzeug zeigen, das dieser
     // Turn gar nicht trägt. Die Tore selbst sind am Mount weiter unten erklärt.
+    const wolkeInText = mentionsCloudStorage(state.lastUserTextNoMentions ?? lastUserText(state));
     const cloudFilesMounted =
       state.enabledTools?.['cloud_files'] !== false &&
       ((state.cloudConnectionCount ?? 0) > 0 ||
         (state.wolkeFiles?.length ?? 0) > 0 ||
         attachedCloudShareLinks(state.attachedWebpageUrls).length > 0 ||
-        mentionsCloudStorage(state.lastUserTextNoMentions ?? lastUserText(state)));
+        wolkeInText);
     // Product self-knowledge: what Grünerator itself offers (Grüneratoren,
     // Werkzeuge, MCP-Server, Wissenssammlungen). Same builder respondNode
     // injects when the meta regex matches — the loop inherits that system
@@ -787,11 +788,15 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
           // Zweites Netz zum Beschreibungs-Steering: greift der Planer trotzdem
           // zuerst hierher (Live-Ausfall 29.08.2026, „welche wolke links sind
           // verbunden“), trägt das Ergebnis den Verweis, und der nächste
-          // Schritt kann sich fangen.
+          // Schritt kann sich fangen. Nur wenn der Turn die Wolke selbst
+          // nennt: ein Konto MIT Verbindung montiert cloud_files auf JEDEM
+          // Turn, und eine fachfremde Produktantwort darf keinen
+          // Wolke-Fußnotensatz bekommen (Review-Befund auf #3062).
           return {
-            knowledge: cloudFilesMounted
-              ? `${knowledge}\n\nHinweis: Welche Wolke-/Nextcloud-Freigaben die Person verbunden hat, steht hier nicht — das beantwortet das Werkzeug cloud_files (action "list_connections").`
-              : knowledge,
+            knowledge:
+              cloudFilesMounted && wolkeInText
+                ? `${knowledge}\n\nHinweis: Welche Wolke-/Nextcloud-Freigaben die Person verbunden hat, steht hier nicht — das beantwortet das Werkzeug cloud_files (action "list_connections").`
+                : knowledge,
           };
         },
       });
