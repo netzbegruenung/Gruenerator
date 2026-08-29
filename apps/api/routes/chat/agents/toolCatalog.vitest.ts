@@ -1210,6 +1210,21 @@ describe('cloud_files mounting gate', () => {
     expect(out.knowledge).toContain('list_connections');
   });
 
+  // Ein Konto MIT Wolke montiert cloud_files auf jedem Turn — der Verweis
+  // darf trotzdem nur auf Turns reiten, die die Wolke selbst nennen, sonst
+  // trägt jede Produktantwort dieser Konten einen fachfremden Fußnotensatz.
+  it('keeps the redirect off product answers that never name the Wolke', async () => {
+    const { tools, toolNames } = catalogWithCloud({
+      connections: 1,
+      userText: 'erzähl mir etwas über die notebooks funktion',
+    });
+    expect(toolNames).toContain('cloud_files');
+    const out = (await execOf(tools.product_knowledge)({ topic: '' }, { toolCallId: 'c1' })) as {
+      knowledge: string;
+    };
+    expect(out.knowledge).not.toContain('cloud_files');
+  });
+
   // …aber nie auf ein Werkzeug, das dieser Turn gar nicht trägt.
   it('keeps the redirect out when cloud_files is not mounted', async () => {
     const { tools, toolNames } = catalogWithCloud({
