@@ -398,7 +398,6 @@ function ChatPage() {
       {!hub && (
         <ChatThreadRouting
           threadSlug={threadSlug ?? null}
-          landing={!threadSlug && (!!agentParam || !!modeParam)}
           onNavigateToThread={handleNavigateToThread}
           onThreadGone={handleThreadGone}
           onLeaveThread={handleLeaveThread}
