@@ -136,6 +136,30 @@ describe('INTERMEDIATE_LANES fallback chains', () => {
     expect(new Set(providers).size).toBe(providers.length);
   });
 
+  it('never puts regolo first on any stage', () => {
+    // Festgehalten am 29.08.2026, nachdem Regolo als Primär von `trivial` und
+    // `standard` mit HTTP 402 (`trial_expired`) abwies und die Stufen ohne
+    // Antwort dastanden. Regolo bleibt als letztes Kettenglied nützlich —
+    // vorne steht es nicht mehr.
+    for (const [name, config] of lanes) {
+      expect(config.provider, `${name} must not lead with regolo`).not.toBe('regolo');
+    }
+  });
+
+  it('keeps the small stages on one model across three hosts', () => {
+    // Ein Hostwechsel darf die Antwortqualität nicht mit umschalten. Die ersten
+    // drei Glieder tragen deshalb dieselben Gewichte; erst das vierte wechselt
+    // das Modell.
+    for (const lane of ['trivial', 'standard'] as const) {
+      const config = INTERMEDIATE_LANES[lane];
+      const models = [config.model, ...config.fallback.map((t) => t.model)];
+      expect(models.slice(0, 2)).toEqual([
+        'mistral-small-3.2-24b-instruct-2506',
+        'mistral-small-3.2-24b-instruct-2506',
+      ]);
+    }
+  });
+
   it('keeps the reasoning lane out of the small-budget stages', () => {
     // gpt-oss über litellm/verdigado-pro liefert bei maxOutputTokens 16–40
     // leeren content — siehe die Messreihe im Kopf von intermediateLanes.ts.
