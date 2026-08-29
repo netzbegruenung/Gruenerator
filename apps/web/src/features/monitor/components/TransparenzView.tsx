@@ -677,7 +677,7 @@ function ReferencePanel({ footprint }: { footprint: TransparencyFootprintDto }) 
           </p>
         </div>
         <div>
-          <p className={cn('m-0 mb-1', MONITOR_EYEBROW)}>Energie</p>
+          <p className={cn('m-0 mb-1', MONITOR_EYEBROW)}>Energie bei ChatGPT</p>
           <span
             className={cn(
               'text-[2.2rem] font-semibold leading-none tracking-[-0.02em]',
@@ -687,13 +687,17 @@ function ReferencePanel({ footprint }: { footprint: TransparencyFootprintDto }) 
             ≈ {formatEnergy(footprint.reference_energy_wh)}
           </span>
           <p className={cn('m-0 mt-2 text-[0.85rem]', MONITOR_MUTED)}>
-            statt {formatEnergy(textEnergy)}
+            unser Verbrauch: {formatEnergy(textEnergy)}
             {energyFactor > 0 && (
               <>
                 {' — '}
+                {/* Das Vielfache haengt IMMER an der groesseren Seite, damit
+                    das „x" nie „x weniger" heissen muss: „1,5x weniger" ist
+                    keine Aussage, die jemand richtig liest, und hier stand sie
+                    ausgerechnet dort, wo WIR die schlechtere Seite sind. */}
                 {energyFactor >= 1
-                  ? `${oneDecimal.format(energyFactor)}× so viel`
-                  : `${oneDecimal.format(1 / energyFactor)}× weniger als bei uns`}
+                  ? `ChatGPT hätte ${oneDecimal.format(energyFactor)}× so viel gebraucht`
+                  : `${oneDecimal.format(1 / energyFactor)}× so viel wie ChatGPT`}
               </>
             )}
           </p>
