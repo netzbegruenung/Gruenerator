@@ -273,6 +273,16 @@ const MemoizedImageElement = memo(function MemoizedImageElement<
 
   const offset = config.offsetKey ? assertAsPosition(state[config.offsetKey]) : { x: 0, y: 0 };
   const scale = config.scaleKey ? assertAsScale(state[config.scaleKey]) : 1;
+  // centerZoom re-anchors the scaled box on the slot's centre instead of the
+  // top-left origin: at scale 1 the box sits exactly on the slot, at scale > 1
+  // it overflows symmetrically and at scale < 1 it shrinks toward the centre,
+  // so a fixed (non-draggable) slot zooms without drifting into a corner.
+  const baseWidth = resolveValue(config.width, state, layout);
+  const baseHeight = resolveValue(config.height, state, layout);
+  const baseX = resolveValue(config.x, state, layout);
+  const baseY = resolveValue(config.y, state, layout);
+  const anchorX = config.centerZoom ? (baseWidth * (1 - scale)) / 2 : 0;
+  const anchorY = config.centerZoom ? (baseHeight * (1 - scale)) / 2 : 0;
   const isLocked = config.lockedKey ? assertAsBoolean(state[config.lockedKey]) : false;
   const customOpacity = getOptionalStateValue<number>(state, config.opacityStateKey);
   const opacity = assertAsOpacity(
@@ -287,8 +297,8 @@ const MemoizedImageElement = memo(function MemoizedImageElement<
   const rawCustomPosition = config.positionStateKey ? state[config.positionStateKey] : null;
   const customPosition = rawCustomPosition != null ? assertAsPosition(rawCustomPosition) : null;
 
-  const x = customPosition?.x ?? resolveValue(config.x, state, layout) + offset.x;
-  const y = customPosition?.y ?? resolveValue(config.y, state, layout) + offset.y;
+  const x = customPosition?.x ?? baseX + anchorX + offset.x;
+  const y = customPosition?.y ?? baseY + anchorY + offset.y;
 
   // `sizeStateKey` wurde bisher nur geschrieben (handleImageTransformEnd) und
   // nie gelesen — Groessenaenderungen an Profilbild und Sonnenblume fielen
@@ -298,8 +308,8 @@ const MemoizedImageElement = memo(function MemoizedImageElement<
   // assertAsSize faellt auf {0,0} zurueck — das waere ein unsichtbares Bild.
   const customSize = storedSize && storedSize.w > 0 && storedSize.h > 0 ? storedSize : null;
 
-  const width = customSize?.w ?? resolveValue(config.width, state, layout) * scale;
-  const height = customSize?.h ?? resolveValue(config.height, state, layout) * scale;
+  const width = customSize?.w ?? baseWidth * scale;
+  const height = customSize?.h ?? baseHeight * scale;
 
   const handleSelect = useCallback(() => onSelect(config.id), [onSelect, config.id]);
   const handleDragEnd = useCallback(
