@@ -317,8 +317,10 @@ describe('pinned targets', () => {
   it('takes provider and model from the named intermediate stage', async () => {
     await aiText({ lane: 'chat_intent_classification', pinned: 'standard', prompt: 'x' });
 
-    expect(callAt(0).provider).toBe('regolo');
-    expect(callAt(0).data.options.model).toBe('mistral-small-4-119b');
+    // Seit 29.08.2026 GreenPT statt Regolo — siehe „Warum Regolo nirgends mehr
+    // vorne steht" im Kopf von intermediateLanes.ts.
+    expect(callAt(0).provider).toBe('greenpt');
+    expect(callAt(0).data.options.model).toBe('mistral-small-3.2-24b-instruct-2506');
   });
 
   it('takes a literal pair for the call sites that name one', async () => {
@@ -353,7 +355,11 @@ describe('pinned targets', () => {
 
     await aiText({ lane: 'chat_quality_gate', pinned: 'standard', prompt: 'x' });
 
-    expect(callAt(0).provider).toBe('regolo');
+    // Die Fassaden-Kette ist GENERIC_FALLBACK ohne den Primär — mit GreenPT
+    // vorne bleibt Cortecs der zweite Halt. Diese Kette ist NICHT die
+    // `fallback`-Kette der Stufe: die greift auf dem direkten Weg
+    // (`getIntermediateModel`), diese hier auf dem Fassaden-Weg.
+    expect(callAt(0).provider).toBe('greenpt');
     expect(callAt(1).provider).toBe('cortecs');
     expect(callAt(1).data.options).not.toHaveProperty('model');
   });
