@@ -58,7 +58,24 @@ import type { LanguageModel } from 'ai';
  * services/ai/modelDiscovery.ts) will; the rest are listed in the PR that
  * introduced this member.
  */
-export type ProviderName = 'mistral' | 'litellm' | 'regolo' | 'greenpt' | 'scaleway' | 'cortecs';
+export const PROVIDER_NAMES = [
+  'mistral',
+  'litellm',
+  'regolo',
+  'greenpt',
+  'scaleway',
+  'cortecs',
+] as const;
+
+/**
+ * Abgeleitet von `PROVIDER_NAMES`, damit sich die Anbietermenge nie zweimal
+ * pflegen lässt: `ToolHandler.formatToolsForProvider` (Issue #3044) gateet
+ * auf genau diesem Array. Bis zum 28.08.2026 führte ToolHandler eine eigene
+ * Liste `['litellm', 'mistral']`, und genau diese Zweitliste stufte
+ * greenpt/cortecs/scaleway/regolo als "Unknown provider" ab und ließ
+ * Claude-shaped Tools unverändert durch.
+ */
+export type ProviderName = (typeof PROVIDER_NAMES)[number];
 
 // Default models per provider
 const PROVIDER_DEFAULTS = {

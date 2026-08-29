@@ -12,6 +12,7 @@ import { Group, Rect, Circle, Text } from 'react-konva';
 import useImage from 'use-image';
 
 import { type GeometryReporter } from '../hooks/useGeometryReporter';
+import { canvasImageSourceUrl } from '../utils/canvasImageSource';
 import { imageRenderInputsAreEqual } from '../utils/imageElementComparison';
 import { CanvasText, CanvasImage, CanvasBackground } from '../primitives';
 import { useIsElementSelected } from '../stores/CanvasStoreProvider';
@@ -269,20 +270,27 @@ const MemoizedImageElement = memo(function MemoizedImageElement<
     imageSrc = typeof config.src === 'function' ? config.src(state) : config.src;
   }
 
-  const [image] = useImage(imageSrc || '', 'anonymous');
-
   const offset = config.offsetKey ? assertAsPosition(state[config.offsetKey]) : { x: 0, y: 0 };
   const scale = config.scaleKey ? assertAsScale(state[config.scaleKey]) : 1;
-  // centerZoom re-anchors the scaled box on the slot's centre instead of the
-  // top-left origin: at scale 1 the box sits exactly on the slot, at scale > 1
-  // it overflows symmetrically and at scale < 1 it shrinks toward the centre,
-  // so a fixed (non-draggable) slot zooms without drifting into a corner.
   const baseWidth = resolveValue(config.width, state, layout);
   const baseHeight = resolveValue(config.height, state, layout);
-  const baseX = resolveValue(config.x, state, layout);
-  const baseY = resolveValue(config.y, state, layout);
-  const anchorX = config.centerZoom ? (baseWidth * (1 - scale)) / 2 : 0;
-  const anchorY = config.centerZoom ? (baseHeight * (1 - scale)) / 2 : 0;
+
+  // `sizeStateKey` wurde bisher nur geschrieben (handleImageTransformEnd) und
+  // nie gelesen — Groessenaenderungen an Profilbild und Sonnenblume fielen
+  // beim naechsten Neuzeichnen zurueck.
+  const rawCustomSize = config.sizeStateKey ? state[config.sizeStateKey] : null;
+  const storedSize = rawCustomSize != null ? assertAsSize(rawCustomSize) : null;
+  // assertAsSize faellt auf {0,0} zurueck — das waere ein unsichtbares Bild.
+  const customSize = storedSize && storedSize.w > 0 && storedSize.h > 0 ? storedSize : null;
+  const width = customSize?.w ?? baseWidth * scale;
+
+  // Render the server's working-size WebP variant instead of the raw original:
+  // the original is kept on disk for the gallery, but loading multi-MB
+  // full-resolution bytes made background swaps feel endless. The variant is
+  // only export-quality while the element draws narrow enough; wider (zoomed
+  // or resized) elements load the stored original instead.
+  const [image] = useImage(canvasImageSourceUrl(imageSrc, width) ?? '', 'anonymous');
+
   const isLocked = config.lockedKey ? assertAsBoolean(state[config.lockedKey]) : false;
   const customOpacity = getOptionalStateValue<number>(state, config.opacityStateKey);
   const opacity = assertAsOpacity(
@@ -297,18 +305,18 @@ const MemoizedImageElement = memo(function MemoizedImageElement<
   const rawCustomPosition = config.positionStateKey ? state[config.positionStateKey] : null;
   const customPosition = rawCustomPosition != null ? assertAsPosition(rawCustomPosition) : null;
 
+  const baseX = resolveValue(config.x, state, layout);
+  const baseY = resolveValue(config.y, state, layout);
+  // centerZoom re-anchors the scaled box on the slot's centre instead of the
+  // top-left origin: at scale 1 the box sits exactly on the slot, at scale > 1
+  // it overflows symmetrically and at scale < 1 it shrinks toward the centre,
+  // so a fixed (non-draggable) slot zooms without drifting into a corner.
+  const anchorX = config.centerZoom ? (baseWidth * (1 - scale)) / 2 : 0;
+  const anchorY = config.centerZoom ? (baseHeight * (1 - scale)) / 2 : 0;
+
   const x = customPosition?.x ?? baseX + anchorX + offset.x;
   const y = customPosition?.y ?? baseY + anchorY + offset.y;
 
-  // `sizeStateKey` wurde bisher nur geschrieben (handleImageTransformEnd) und
-  // nie gelesen — Groessenaenderungen an Profilbild und Sonnenblume fielen
-  // beim naechsten Neuzeichnen zurueck.
-  const rawCustomSize = config.sizeStateKey ? state[config.sizeStateKey] : null;
-  const storedSize = rawCustomSize != null ? assertAsSize(rawCustomSize) : null;
-  // assertAsSize faellt auf {0,0} zurueck — das waere ein unsichtbares Bild.
-  const customSize = storedSize && storedSize.w > 0 && storedSize.h > 0 ? storedSize : null;
-
-  const width = customSize?.w ?? baseWidth * scale;
   const height = customSize?.h ?? baseHeight * scale;
 
   const handleSelect = useCallback(() => onSelect(config.id), [onSelect, config.id]);

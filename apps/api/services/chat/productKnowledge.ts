@@ -84,6 +84,7 @@ const STATIC_TOOL_LINES = [
   '- Sharepics: Social-Media-Grafiken im Studio, Vorlagen im Grünen-Design',
   '- Reels: automatische Video-Untertitel',
   '- Notebooks & Recherche: eigene Wissenssammlungen plus grüne Inhaltsdatenbank',
+  '- Grüne Wolke: eigene Nextcloud-Freigaben verbinden — Dateien lassen sich im Chat durchsuchen und lesen',
   '- Agentura: spezialisierte Grüneratoren nutzen und eigene Agent*innen erstellen',
   '- Gruppen/Spaces: gemeinsame Arbeitsbereiche im Team',
   '- Scanner, Transkription, Zeichenzähler: Dokumente digitalisieren, Audio verschriftlichen, Textlängen prüfen',
