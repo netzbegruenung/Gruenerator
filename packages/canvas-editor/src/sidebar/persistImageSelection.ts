@@ -1,3 +1,5 @@
+import { downscaleImageForUpload } from '../utils/userImageUtils';
+
 import type { StockImageAttribution } from '../common/imageSourceTypes';
 
 type ImageChange = (
@@ -38,22 +40,29 @@ export async function persistImageSelection(
   onImageChange: ImageChange,
   uploadImage?: UploadImage
 ): Promise<PersistImageResult> {
-  const blobUrl = URL.createObjectURL(file);
+  // Unsplash `regular` originals and phone photos reach 4-8k px / several MB,
+  // yet the canvas only renders them at ~1080px (export is container x 2).
+  // Downscale once here so the blob preview, the upload and every later
+  // canvas load of the durable URL stay small. `downscaleImageForUpload`
+  // returns the original file unchanged on any failure or when it is already
+  // small enough.
+  const workingFile = await downscaleImageForUpload(file);
+  const blobUrl = URL.createObjectURL(workingFile);
   // Optimistic preview — instant, unchanged UX.
-  onImageChange(file, blobUrl, attribution);
+  onImageChange(workingFile, blobUrl, attribution);
 
   if (!uploadImage) {
     return { url: blobUrl, persisted: false };
   }
 
-  const persistentUrl = await uploadImage(file, { filename: file.name });
+  const persistentUrl = await uploadImage(workingFile, { filename: workingFile.name });
   if (!persistentUrl) {
     // Soft failure — keep the preview but report it isn't durable.
     return { url: blobUrl, persisted: false };
   }
 
   // Swap the persisted reference to the durable URL, then free the blob.
-  onImageChange(file, persistentUrl, attribution);
+  onImageChange(workingFile, persistentUrl, attribution);
   URL.revokeObjectURL(blobUrl);
   return { url: persistentUrl, persisted: true };
 }
