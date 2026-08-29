@@ -170,6 +170,71 @@ export function RangeSwitcher({
 /* ── Hero ─────────────────────────────────────────────────────────────────── */
 
 /** Output tokens per day — the quantity the footprint actually scales with. */
+/**
+ * A published figure and the width of what we do not know about it.
+ *
+ * The number a reader carries away is the middle; the track under it is the
+ * span the middle sits in. Drawn rather than written out because the two are a
+ * pair — a point estimate printed alone reads as certainty we do not have, and
+ * a bare "x to y" reads as if every value in between were equally likely.
+ *
+ * The track is linear between the two ends, so the marker's position IS the
+ * middle's position in its own span; a middle near the left edge says the
+ * uncertainty runs mostly upward. Where low and high coincide (a metered lane
+ * in a known country) there is nothing to draw and the caller shows the number
+ * alone — an empty scale would imply a precision claim of its own.
+ */
+function Scale({
+  low,
+  mid,
+  high,
+  format,
+  lowLabel = 'mindestens',
+  highLabel = 'höchstens',
+}: {
+  low: number;
+  mid: number;
+  high: number;
+  format: (v: number) => string;
+  lowLabel?: string;
+  highLabel?: string;
+}) {
+  const span = high - low;
+  const pct = span > 0 ? Math.min(100, Math.max(0, ((mid - low) / span) * 100)) : 50;
+
+  return (
+    <div className="mt-4 max-w-[26rem]">
+      <div
+        className="relative h-2 rounded-full bg-[#e4ebe7] dark:bg-grey-800"
+        role="img"
+        aria-label={`Spanne von ${format(low)} bis ${format(high)}, Schätzwert ${format(mid)}`}
+      >
+        <div
+          className="absolute inset-y-0 rounded-full bg-[#a8cbbb] dark:bg-[#3d6455]"
+          style={{ left: 0, right: 0 }}
+        />
+        <div
+          className="absolute top-1/2 h-3.5 w-[3px] -translate-x-1/2 -translate-y-1/2 rounded-sm bg-[#316049] dark:bg-[#6fae90]"
+          style={{ left: `${pct}%` }}
+        />
+      </div>
+      <div className={cn('mt-1.5 flex justify-between text-[0.75rem]', MONITOR_FAINT)}>
+        <span>
+          {lowLabel} {format(low)}
+        </span>
+        <span>
+          {highLabel} {format(high)}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/** True when the two ends are far enough apart to be worth drawing. */
+function hasSpan(low: number, high: number): boolean {
+  return high - low > Math.max(0.5, high * 0.005);
+}
+
 function HeroSparkline({ points }: { points: TransparencyDayEntryDto[] }) {
   const series = points.slice(-12).map((p) => p.output_tokens);
   if (series.length < 2) return null;
@@ -220,10 +285,12 @@ function HeroSparkline({ points }: { points: TransparencyDayEntryDto[] }) {
 }
 
 /**
- * The headline figure, as a range.
+ * The headline figure: the central estimate, with its scale drawn under it.
  *
- * The upper end is what a single-number reading falls back to, deliberately:
- * of the two ends, it is the one that cannot flatter us.
+ * It used to be the upper end, on the reasoning that a lone number should be
+ * the one that cannot flatter us. That reasoning produced a number reliably
+ * wrong in one direction and hid how wide the real uncertainty was. The ends
+ * are now drawn beside the middle instead of standing in for it — see `Scale`.
  */
 function FootprintHero({
   footprint,
@@ -234,12 +301,11 @@ function FootprintHero({
   daily: TransparencyDayEntryDto[];
   days: number;
 }) {
-  const isBand = footprint.emissions_g - footprint.emissions_g_low > 0.5;
+  const co2Span = hasSpan(footprint.emissions_g_low, footprint.emissions_g_high);
+  const energySpan = hasSpan(footprint.energy_wh_low, footprint.energy_wh_high);
 
   return (
-    <div
-      className={cn('mb-10 flex flex-wrap items-center justify-between gap-8 p-8', MONITOR_CARD)}
-    >
+    <div className={cn('mb-10 flex flex-wrap items-start justify-between gap-8 p-8', MONITOR_CARD)}>
       <div>
         <p className={cn('m-0 mb-1', MONITOR_EYEBROW)}>CO₂ der letzten {days} Tage</p>
         <div className="flex flex-wrap items-baseline gap-3.5">
@@ -249,21 +315,33 @@ function FootprintHero({
               MONITOR_HEADING
             )}
           >
-            {isBand
-              ? `${formatGrams(footprint.emissions_g_low)} – ${formatGrams(footprint.emissions_g)}`
-              : `≈ ${formatGrams(footprint.emissions_g)}`}
+            ≈ {formatGrams(footprint.emissions_g)}
           </span>
           <span className={cn('text-[1.1rem] font-bold', MONITOR_ACCENT)}>CO₂e</span>
         </div>
-        <p className={cn('m-0 mt-2.5 text-[0.9rem]', MONITOR_MUTED)}>
-          {isBand
-            ? `${formatEnergy(footprint.energy_wh_low)} – ${formatEnergy(footprint.energy_wh)} Strom`
-            : `${formatEnergy(footprint.energy_wh)} Strom`}{' '}
-          · so viel wie {carComparison(footprint.emissions_g)}
+        {co2Span && (
+          <Scale
+            low={footprint.emissions_g_low}
+            mid={footprint.emissions_g}
+            high={footprint.emissions_g_high}
+            format={formatGrams}
+          />
+        )}
+        <p className={cn('m-0 mt-4 text-[0.9rem]', MONITOR_MUTED)}>
+          {formatEnergy(footprint.energy_wh)} Strom · so viel wie{' '}
+          {carComparison(footprint.emissions_g)}
           {footprint.image_emissions_g > 0 && (
             <> · davon {formatGrams(footprint.image_emissions_g)} aus erzeugten Bildern</>
           )}
         </p>
+        {energySpan && (
+          <Scale
+            low={footprint.energy_wh_low}
+            mid={footprint.energy_wh}
+            high={footprint.energy_wh_high}
+            format={formatEnergy}
+          />
+        )}
       </div>
       <HeroSparkline points={daily} />
     </div>
@@ -273,15 +351,22 @@ function FootprintHero({
 /* ── Anbieter ─────────────────────────────────────────────────────────────── */
 
 /**
- * Where the energy went, and with which constants it was costed.
+ * Where the emissions went, and with which constants they were costed.
  *
  * This is the part that makes the headline number checkable: grid intensity and
  * PUE are the only two inputs besides kWh, and both are printed next to the
  * share they were applied to.
+ *
+ * Ranked by CO2, not by energy, because the two orders genuinely differ: the
+ * grid factors in this table span a factor of 16, so the biggest consumer of
+ * kWh is not the biggest emitter. The page is about the footprint, so it sorts
+ * by the footprint — and the bar has to carry the same quantity as the sort,
+ * otherwise the rows read as if they were out of order.
  */
 function ProviderPanel({ providers }: { providers: TransparencyProviderEntryDto[] }) {
-  const ranked = [...providers].sort((a, b) => b.energy_wh - a.energy_wh);
-  const max = Math.max(...ranked.map((p) => p.energy_wh), 1);
+  const ranked = [...providers].sort((a, b) => b.emissions_g - a.emissions_g);
+  const max = Math.max(...ranked.map((p) => p.emissions_g), 1);
+  const estimatedPue = ranked.some((p) => p.pue_estimated);
 
   return (
     <section>
@@ -289,7 +374,7 @@ function ProviderPanel({ providers }: { providers: TransparencyProviderEntryDto[
         <h2 className={cn('m-0 text-[1.35rem] font-semibold tracking-[-0.01em]', MONITOR_HEADING)}>
           Nach Anbieter
         </h2>
-        <span className={cn('text-[0.85rem]', MONITOR_FAINT)}>Sortiert nach Energie</span>
+        <span className={cn('text-[0.85rem]', MONITOR_FAINT)}>Sortiert nach CO₂</span>
       </div>
       <div className={cn('flex flex-col gap-4 p-6', MONITOR_CARD)}>
         {ranked.map((entry) => (
@@ -299,28 +384,48 @@ function ProviderPanel({ providers }: { providers: TransparencyProviderEntryDto[
                 {providerLabel(entry.provider)}
               </span>
               <span className={cn('text-[0.95rem] font-bold tabular-nums', MONITOR_ACCENT)}>
-                {formatEnergy(entry.energy_wh)} · {formatGrams(entry.emissions_g)}
+                {formatGrams(entry.emissions_g)} · {formatEnergy(entry.energy_wh)}
               </span>
             </div>
             <div className="h-[18px] overflow-hidden rounded-md bg-[#eef2ef] dark:bg-grey-800">
               <div
                 className="h-full rounded-md bg-[#52907a] transition-[width] duration-500"
-                style={{ width: `${(entry.energy_wh / max) * 100}%` }}
+                style={{ width: `${(entry.emissions_g / max) * 100}%` }}
               />
             </div>
             <div className="flex flex-wrap gap-1.5">
               <span className={MONITOR_TAG}>
                 Netz {oneDecimal.format(entry.grid_g_per_kwh)} g/kWh
               </span>
-              <span className={MONITOR_TAG}>PUE {oneDecimal.format(entry.pue)}</span>
+              <span className={MONITOR_TAG}>
+                PUE {entry.pue_estimated ? '≈' : ''}
+                {oneDecimal.format(entry.pue)}
+              </span>
+              {entry.pue_estimated && (
+                <span className={MONITOR_TAG} title="Vom Betreiber nicht veröffentlicht">
+                  PUE geschätzt
+                </span>
+              )}
             </div>
           </div>
         ))}
         <p className={cn('m-0 mt-1 text-[0.8rem] leading-relaxed', MONITOR_FAINT)}>
           Emissionen = Energie × Netzintensität, standortbasiert. Die Netzintensität ist der
-          Jahresdurchschnitt des Landes, in dem der Anbieter rechnet — kein Zertifikatehandel. PUE
-          ist der Aufschlag des Rechenzentrums für Kühlung und Verluste; er steckt bereits in der
-          gezeigten Energie.
+          Jahresdurchschnitt des Landes, in dem der Anbieter rechnet — kein Zertifikatehandel, und
+          nur Verbrennungsemissionen: Kraftwerksbau und Brennstoffkette sind nicht enthalten, was
+          kohlenstoffarme Netze deutlich günstiger aussehen lässt. PUE ist der Aufschlag des
+          Rechenzentrums für Kühlung und Verluste; er steckt bereits in der gezeigten Energie.
+          {estimatedPue && (
+            <>
+              {' '}
+              Wo <strong>PUE geschätzt</strong> steht, veröffentlicht der Betreiber keinen Wert. Wir
+              schätzen dann über den Standort — für Deutschland mit der gesetzlichen Obergrenze des
+              Energieeffizienzgesetzes (1,5), sonst mit dem europäischen Durchschnitt (1,50).
+              Europäisch und nicht weltweit, weil alle betroffenen Anbieter vertraglich im EWR
+              rechnen. Beides liegt über dem, was ein modernes Rechenzentrum erreicht: Die Schätzung
+              soll unseren Fußabdruck eher zu groß als zu klein ausweisen.
+            </>
+          )}
         </p>
       </div>
     </section>
@@ -372,9 +477,9 @@ function CoveragePanel({ footprint }: { footprint: TransparencyFootprintDto }) {
           hint="Vom Anbieter mitgelieferte Messwerte statt eigener Hochrechnung."
         />
         <Meter
-          label="Obergrenze"
+          label="Ohne eigene Messung"
           share={footprint.bounded_share}
-          hint="Kein messbares Gegenstück vorhanden — bewusst mit dem oberen Ende der gemessenen Spanne gerechnet."
+          hint="Für dieses Modell existiert nirgends ein Messwert. Gerechnet wird mit der Mitte zwischen zwei Modellen, die wir gemessen haben — beide Enden stehen in der Spanne oben."
         />
         <Meter
           label="Abgedeckt"
@@ -648,9 +753,21 @@ function ReferencePanel({ footprint }: { footprint: TransparencyFootprintDto }) 
           <p className={cn('m-0 mt-2 text-[0.85rem]', MONITOR_MUTED)}>
             {formatCorridor(comparison.worst, comparison.best)}
           </p>
+          {comparison.best - comparison.worst > 0.5 && (
+            <Scale
+              low={comparison.worst}
+              // The signed difference, which is what the two ends bracket. The
+              // headline above shows its magnitude with a word for the sign.
+              mid={co2Saved ? comparison.magnitude : -comparison.magnitude}
+              high={comparison.best}
+              format={(v) => formatGrams(Math.abs(v))}
+              lowLabel="ungünstigste Lesart"
+              highLabel="günstigste"
+            />
+          )}
         </div>
         <div>
-          <p className={cn('m-0 mb-1', MONITOR_EYEBROW)}>Energie</p>
+          <p className={cn('m-0 mb-1', MONITOR_EYEBROW)}>Energie bei ChatGPT</p>
           <span
             className={cn(
               'text-[2.2rem] font-semibold leading-none tracking-[-0.02em]',
@@ -660,13 +777,17 @@ function ReferencePanel({ footprint }: { footprint: TransparencyFootprintDto }) 
             ≈ {formatEnergy(footprint.reference_energy_wh)}
           </span>
           <p className={cn('m-0 mt-2 text-[0.85rem]', MONITOR_MUTED)}>
-            statt {formatEnergy(textEnergy)}
+            unser Verbrauch: {formatEnergy(textEnergy)}
             {energyFactor > 0 && (
               <>
                 {' — '}
+                {/* Das Vielfache haengt IMMER an der groesseren Seite, damit
+                    das „x" nie „x weniger" heissen muss: „1,5x weniger" ist
+                    keine Aussage, die jemand richtig liest, und hier stand sie
+                    ausgerechnet dort, wo WIR die schlechtere Seite sind. */}
                 {energyFactor >= 1
-                  ? `${oneDecimal.format(energyFactor)}× so viel`
-                  : `${oneDecimal.format(1 / energyFactor)}× weniger als bei uns`}
+                  ? `ChatGPT hätte ${oneDecimal.format(energyFactor)}× so viel gebraucht`
+                  : `${oneDecimal.format(1 / energyFactor)}× so viel wie ChatGPT`}
               </>
             )}
           </p>
@@ -735,9 +856,12 @@ function MethodNote({ data }: { data: GetTransparencyStatsResponseDto }) {
  * datacenter ran it. Tokens, PUE, grid intensity, bands and coverage shares
  * all stay in the expert view.
  *
- * The single number is the UPPER end of the band, with the rounding direction
- * said in words ("eher darunter") — the honest reading of a range for someone
- * who was never going to read a range.
+ * The single number is the same central estimate the expert view shows, and
+ * since 29.08.2026 it carries the same two scales — CO2 and electricity — in
+ * plain words ("mindestens"/"höchstens") rather than none at all. Dropping the
+ * vocabulary is the point of this view; dropping the uncertainty was never
+ * meant to be, and the earlier copy ("die tatsächliche Zahl liegt eher
+ * darunter") described a rounding direction that no longer exists.
  */
 const SIMPLE_GROUPS: Record<UsageFeature, string> = {
   chat: 'Chat',
@@ -784,10 +908,33 @@ function SimpleView({ data }: { data: GetTransparencyStatsResponseDto }) {
           </span>
           <span className={cn('text-[1.1rem] font-bold', MONITOR_ACCENT)}>CO₂</span>
         </div>
-        <p className={cn('m-0 mt-2.5 max-w-[38rem] text-[0.9rem] leading-relaxed', MONITOR_MUTED)}>
-          Das entspricht ungefähr {carComparison(footprint.emissions_g)}. Wo wir schätzen müssen,
-          runden wir auf — die tatsächliche Zahl liegt eher darunter.
+        {hasSpan(footprint.emissions_g_low, footprint.emissions_g_high) && (
+          <Scale
+            low={footprint.emissions_g_low}
+            mid={footprint.emissions_g}
+            high={footprint.emissions_g_high}
+            format={formatGrams}
+          />
+        )}
+        <p className={cn('m-0 mt-4 max-w-[38rem] text-[0.9rem] leading-relaxed', MONITOR_MUTED)}>
+          Das entspricht ungefähr {carComparison(footprint.emissions_g)}. Ein Teil davon ist
+          gemessen, ein Teil geschätzt — der Balken zeigt, wie weit die Schätzung reicht. Die
+          angezeigte Zahl liegt in der Mitte, nicht am günstigen Rand.
         </p>
+        <div className="mt-6 border-t border-[#eef2ef] pt-5 dark:border-grey-700/60">
+          <p className={cn('m-0 mb-1', MONITOR_EYEBROW)}>Verbrauchter Strom</p>
+          <span className={cn('text-[1.6rem] font-semibold leading-none', MONITOR_HEADING)}>
+            ≈ {formatEnergy(footprint.energy_wh)}
+          </span>
+          {hasSpan(footprint.energy_wh_low, footprint.energy_wh_high) && (
+            <Scale
+              low={footprint.energy_wh_low}
+              mid={footprint.energy_wh}
+              high={footprint.energy_wh_high}
+              format={formatEnergy}
+            />
+          )}
+        </div>
       </div>
 
       {ranked.length > 0 && (
