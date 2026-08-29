@@ -200,7 +200,7 @@ Wir haben deshalb einen zweiten Weg geprüft: **Antwortgeschwindigkeit als Energ
 |                             | Verhältnis GPT-OSS 120B zu Gemma 4 |
 | --------------------------- | ---------------------------------- |
 | laut Geschwindigkeits-Proxy | 0,43×                              |
-| laut Messung                | 1,13×                              |
+| laut Messung                | 1,12×                              |
 
 **Der Proxy lag um 62 % daneben — und zwar in der schmeichelhaften Richtung.** Geschwindigkeit sagt vor allem, über wie viele GPUs ein Modell verteilt ist, nicht wie viel es zieht. Die daraus abgeleiteten Zahlen haben wir verworfen.
 
