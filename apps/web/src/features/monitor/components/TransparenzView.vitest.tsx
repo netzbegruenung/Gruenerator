@@ -58,8 +58,22 @@ const RESPONSE = {
   },
   footprint: FOOTPRINT,
   providers: [
-    { provider: 'mistral', grid_g_per_kwh: 22, pue: 1.25, energy_wh: 2600, emissions_g: 700 },
-    { provider: 'regolo', grid_g_per_kwh: 270, pue: 1.2, energy_wh: 1600, emissions_g: 700 },
+    {
+      provider: 'mistral',
+      grid_g_per_kwh: 22,
+      pue: 1.5,
+      pue_estimated: true,
+      energy_wh: 2600,
+      emissions_g: 700,
+    },
+    {
+      provider: 'regolo',
+      grid_g_per_kwh: 270,
+      pue: 1.2,
+      pue_estimated: false,
+      energy_wh: 1600,
+      emissions_g: 900,
+    },
   ],
   daily: [
     {
@@ -137,7 +151,14 @@ describe('TransparenzView', () => {
     serve({
       ...RESPONSE,
       providers: [
-        { provider: 'litellm', grid_g_per_kwh: 363, pue: 1.13, energy_wh: 2600, emissions_g: 700 },
+        {
+          provider: 'litellm',
+          grid_g_per_kwh: 363,
+          pue: 1.13,
+          pue_estimated: false,
+          energy_wh: 2600,
+          emissions_g: 700,
+        },
       ],
     });
     renderWithProviders(<TransparenzView days={30} expert />);
@@ -166,6 +187,32 @@ describe('TransparenzView', () => {
     expect(screen.getAllByText('Mistral AI').length).toBeGreaterThan(0);
     expect(screen.getByText('Netz 270 g/kWh')).toBeInTheDocument();
     expect(screen.getByText('PUE 1,2')).toBeInTheDocument();
+  });
+
+  it('marks an estimated PUE as estimated and says how it was derived', async () => {
+    serve(RESPONSE);
+    renderWithProviders(<TransparenzView days={30} expert />);
+
+    // Regolo publishes a PUE, Mistral does not — only the second may carry the
+    // marker, otherwise the label stops distinguishing anything.
+    // By title, not by text: the footnote below the list names the same marker,
+    // so a text match would not tell us the tag itself rendered.
+    await waitFor(() =>
+      expect(screen.getAllByTitle('Vom Betreiber nicht veröffentlicht')).toHaveLength(1)
+    );
+    expect(screen.getByText(/PUE\s*≈\s*1,5/)).toBeInTheDocument();
+    expect(screen.getByText(/Energieeffizienzgesetzes/)).toBeInTheDocument();
+  });
+
+  it('ranks providers by CO2 rather than by energy', async () => {
+    serve(RESPONSE);
+    renderWithProviders(<TransparenzView days={30} expert />);
+
+    // Mistral burns more energy (2600 Wh vs 1600) but emits less (700 g vs
+    // 900) — on a CO2 ranking Regolo has to come first.
+    await waitFor(() => expect(screen.getByText('Sortiert nach CO₂')).toBeInTheDocument());
+    const tags = screen.getAllByText(/^Netz /).map((n) => n.textContent);
+    expect(tags).toEqual(['Netz 270 g/kWh', 'Netz 22 g/kWh']);
   });
 
   it('labels the gap in the daily series as suppression, not inactivity', async () => {

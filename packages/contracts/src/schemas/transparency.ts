@@ -95,6 +95,10 @@ export const transparencyProviderEntrySchema = z.object({
   grid_g_per_kwh: z.number(),
   /** Power Usage Effectiveness of the datacenter. */
   pue: z.number(),
+  /** True when `pue` is our location-derived estimate rather than a figure the
+   *  operator publishes. The two are indistinguishable as numbers, so the
+   *  surface that prints them has to be told which one it got. */
+  pue_estimated: z.boolean(),
   energy_wh: z.number(),
   emissions_g: z.number(),
 });

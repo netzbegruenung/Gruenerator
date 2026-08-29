@@ -273,15 +273,22 @@ function FootprintHero({
 /* ── Anbieter ─────────────────────────────────────────────────────────────── */
 
 /**
- * Where the energy went, and with which constants it was costed.
+ * Where the emissions went, and with which constants they were costed.
  *
  * This is the part that makes the headline number checkable: grid intensity and
  * PUE are the only two inputs besides kWh, and both are printed next to the
  * share they were applied to.
+ *
+ * Ranked by CO2, not by energy, because the two orders genuinely differ: the
+ * grid factors in this table span a factor of 16, so the biggest consumer of
+ * kWh is not the biggest emitter. The page is about the footprint, so it sorts
+ * by the footprint — and the bar has to carry the same quantity as the sort,
+ * otherwise the rows read as if they were out of order.
  */
 function ProviderPanel({ providers }: { providers: TransparencyProviderEntryDto[] }) {
-  const ranked = [...providers].sort((a, b) => b.energy_wh - a.energy_wh);
-  const max = Math.max(...ranked.map((p) => p.energy_wh), 1);
+  const ranked = [...providers].sort((a, b) => b.emissions_g - a.emissions_g);
+  const max = Math.max(...ranked.map((p) => p.emissions_g), 1);
+  const estimatedPue = ranked.some((p) => p.pue_estimated);
 
   return (
     <section>
@@ -289,7 +296,7 @@ function ProviderPanel({ providers }: { providers: TransparencyProviderEntryDto[
         <h2 className={cn('m-0 text-[1.35rem] font-semibold tracking-[-0.01em]', MONITOR_HEADING)}>
           Nach Anbieter
         </h2>
-        <span className={cn('text-[0.85rem]', MONITOR_FAINT)}>Sortiert nach Energie</span>
+        <span className={cn('text-[0.85rem]', MONITOR_FAINT)}>Sortiert nach CO₂</span>
       </div>
       <div className={cn('flex flex-col gap-4 p-6', MONITOR_CARD)}>
         {ranked.map((entry) => (
@@ -299,28 +306,48 @@ function ProviderPanel({ providers }: { providers: TransparencyProviderEntryDto[
                 {providerLabel(entry.provider)}
               </span>
               <span className={cn('text-[0.95rem] font-bold tabular-nums', MONITOR_ACCENT)}>
-                {formatEnergy(entry.energy_wh)} · {formatGrams(entry.emissions_g)}
+                {formatGrams(entry.emissions_g)} · {formatEnergy(entry.energy_wh)}
               </span>
             </div>
             <div className="h-[18px] overflow-hidden rounded-md bg-[#eef2ef] dark:bg-grey-800">
               <div
                 className="h-full rounded-md bg-[#52907a] transition-[width] duration-500"
-                style={{ width: `${(entry.energy_wh / max) * 100}%` }}
+                style={{ width: `${(entry.emissions_g / max) * 100}%` }}
               />
             </div>
             <div className="flex flex-wrap gap-1.5">
               <span className={MONITOR_TAG}>
                 Netz {oneDecimal.format(entry.grid_g_per_kwh)} g/kWh
               </span>
-              <span className={MONITOR_TAG}>PUE {oneDecimal.format(entry.pue)}</span>
+              <span className={MONITOR_TAG}>
+                PUE {entry.pue_estimated ? '≈' : ''}
+                {oneDecimal.format(entry.pue)}
+              </span>
+              {entry.pue_estimated && (
+                <span className={MONITOR_TAG} title="Vom Betreiber nicht veröffentlicht">
+                  PUE geschätzt
+                </span>
+              )}
             </div>
           </div>
         ))}
         <p className={cn('m-0 mt-1 text-[0.8rem] leading-relaxed', MONITOR_FAINT)}>
           Emissionen = Energie × Netzintensität, standortbasiert. Die Netzintensität ist der
-          Jahresdurchschnitt des Landes, in dem der Anbieter rechnet — kein Zertifikatehandel. PUE
-          ist der Aufschlag des Rechenzentrums für Kühlung und Verluste; er steckt bereits in der
-          gezeigten Energie.
+          Jahresdurchschnitt des Landes, in dem der Anbieter rechnet — kein Zertifikatehandel, und
+          nur Verbrennungsemissionen: Kraftwerksbau und Brennstoffkette sind nicht enthalten, was
+          kohlenstoffarme Netze deutlich günstiger aussehen lässt. PUE ist der Aufschlag des
+          Rechenzentrums für Kühlung und Verluste; er steckt bereits in der gezeigten Energie.
+          {estimatedPue && (
+            <>
+              {' '}
+              Wo <strong>PUE geschätzt</strong> steht, veröffentlicht der Betreiber keinen Wert. Wir
+              schätzen dann über den Standort — für Deutschland mit der gesetzlichen Obergrenze des
+              Energieeffizienzgesetzes (1,5), sonst mit dem europäischen Durchschnitt (1,50).
+              Europäisch und nicht weltweit, weil alle betroffenen Anbieter vertraglich im EWR
+              rechnen. Beides liegt über dem, was ein modernes Rechenzentrum erreicht: Die Schätzung
+              soll unseren Fußabdruck eher zu groß als zu klein ausweisen.
+            </>
+          )}
         </p>
       </div>
     </section>
