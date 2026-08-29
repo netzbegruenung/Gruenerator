@@ -55,6 +55,15 @@
  * applying one method to one side. Every surface that renders it has to say so.
  */
 
+/**
+ * Geometric mean — the middle of a bracket whose ends differ by a large factor.
+ * Used for every central estimate in this file, because each of them sits
+ * between two anchors on a log scale rather than a linear one.
+ */
+function geoMean(a: number, b: number): number {
+  return Math.sqrt(a * b);
+}
+
 /** Wms per mWh — GreenPT reports energy in watt-milliseconds. */
 const WMS_PER_MWH = 3600;
 
@@ -68,11 +77,11 @@ export interface EnergyCoefficients {
    * How the numbers were arrived at, and therefore how much to trust them.
    *
    *  'measured' — this exact model was metered on GreenPT.
-   *  'bound'    — GreenPT serves no equivalent, so we apply the HIGHEST
-   *               coefficient plausible for the model's size class. Deliberately
-   *               an over-estimate: for a footprint claim, erring high is the
-   *               safe direction, and the figure drops as soon as someone
-   *               measures the lane for real.
+   *  'bound'    — GreenPT serves no equivalent, so the lane is valued from the
+   *               bracket between the two metered models that define its size
+   *               class, at the centre by default. The published scale carries
+   *               both ends, and it collapses as soon as someone measures the
+   *               lane for real.
    */
   basis: 'measured' | 'bound';
 }
@@ -88,7 +97,8 @@ export interface EnergyCoefficients {
  * GreenPT model named in the comment.
  *
  * Every model we actually run is listed, so nothing goes uncounted — but the
- * `basis` field says which entries are metered and which are upper bounds, and
+ * `basis` field says which entries are metered and which are valued from a
+ * bracket of two that are, and
  * the API reports both shares. A model still absent from this table (a new lane
  * nobody added here) is reported as uncovered rather than silently valued at
  * zero.
@@ -199,7 +209,7 @@ const MODEL_ENERGY: Readonly<Record<string, EnergyCoefficients>> = {
     basis: 'measured',
   },
 
-  // --- Conservative bounds: GreenPT serves no equivalent of these three. ---
+  // --- Bracketed lanes: GreenPT serves no equivalent of these. ---
   //
   // A throughput proxy was tried and REJECTED. On identical Regolo hardware the
   // decode slope said gpt-oss-120b costs 0.43x gemma4-31b, while the metered
@@ -208,10 +218,18 @@ const MODEL_ENERGY: Readonly<Record<string, EnergyCoefficients>> = {
   // Since the control failed, the derived numbers were thrown away.
   //
   // What is left is the measured span for this size class: 0.81 mWh/token
-  // (gpt-oss-120b, MoE) to 4.52 (mistral-medium-3.5-128b, dense). Picking the
-  // bottom would understate; we take the TOP, so the displayed footprint is an
-  // upper bound rather than a guess. `basis: 'bound'` propagates that to the
-  // API and the UI, and the number falls the day someone meters the lane.
+  // (gpt-oss-120b, MoE) to 4.52 (mistral-medium-3.5-128b, dense). The
+  // coefficients below are the TOP of that span and are read only at
+  // `bound: 'high'` — see BOUND_CEILING, which is these same three numbers.
+  // What gets displayed is the centre of the bracket, with both ends beside it.
+  //
+  // Until 29.08.2026 the top WAS the displayed value, on the reasoning that an
+  // upper bound beats a guess. It is not a guess either way: the bracket is two
+  // of our own measurements. Quoting only its ceiling made the figure reliably
+  // wrong in one direction and hid how wide the bracket is.
+  //
+  // `basis: 'bound'` propagates to the API and the UI, and the scale narrows
+  // the day someone meters the lane.
   'mistral-small-4-119b': {
     mWhPerOutputToken: 4.519,
     mWhPerInputToken: 0.0287,
@@ -233,18 +251,42 @@ const MODEL_ENERGY: Readonly<Record<string, EnergyCoefficients>> = {
  * handed `routeMistralModel(...).upstream`, so Scaleway-routed Mistral Medium
  * lands under 'scaleway'. That is exactly the granularity this table needs.
  *
- * Location-based annual averages, sourced 2026-07-31. Annual rather than hourly
- * because we have no hourly feed of our own — GreenPT buys that from Nodera.
- * Erring high is the safer direction for a footprint claim.
+ * Location-based annual averages. Annual rather than hourly because we have no
+ * hourly feed of our own — GreenPT buys that from Nodera.
+ *
+ * These are CENTRAL values. Where the country itself is uncertain the entry is
+ * the middle of the possible grids and the ends live in GRID_SPAN_G_PER_KWH;
+ * where the country is known there is one number and no span. Neither case
+ * carries a safety margin any more: a margin folded into the point estimate is
+ * invisible, and an invisible margin is indistinguishable from an error.
  */
+/** EU average, Ember 2025. The fallback for a provider we did not record. */
+const EU_AVERAGE_G_PER_KWH = 213;
+
 const GRID_INTENSITY_G_PER_KWH: Readonly<Record<string, number>> = {
   // All figures are 2024 annual averages, combustion emissions only (no
   // upstream/lifecycle), so the three stay comparable to each other.
-  mistral: 22, // France, RTE Bilan électrique 2024 — nuclear-dominated
+  // Mistral: 30 als MITTE einer Spanne, nicht mehr 22 als Punkt.
+  //
+  // 22 war Frankreich 2024 und setzte einen Standort voraus, den Mistral selbst
+  // nicht zusagt: der DPA nennt Frankreich als Gerichtsstand und erlaubt
+  // Verarbeitung im gesamten EWR, die oeffentliche Zusage lautet „European
+  // Union". Das angekuendigte Rechenzentrumsprogramm umfasst Frankreich UND
+  // Schweden. Die plausible Menge ist also genau diese zwei Laender, und die
+  // Spanne steht jetzt in GRID_SPAN_G_PER_KWH: 19,6 (Frankreich, RTE 2025) bis
+  // 45 (Schweden, Ember). Die Mitte ist ihr geometrisches Mittel, 29,7.
+  //
+  // Das ist die Zeile, an der die ganze Ueberpruefung angefangen hat („22 ist
+  // doch super wenig"). Sie war nicht falsch gerechnet — sie war ein Punkt, wo
+  // eine Spanne hingehoert.
+  mistral: 30,
   // Scaleway's own disclosure beats a country average: Impact Report 2025 gives
   // Scope 2 location-based 3.155 tCO2e over 132.881 MWh = 23,7 g/kWh.
   scaleway: 24,
-  litellm: 363, // Germany 2024, Umweltbundesamt (consumption-based, see caveat)
+  // Deutschland 2025, Umweltbundesamt: 344 g/kWh (verbrauchsbasiert, siehe
+  // Vorbehalt weiter unten). Vorher 363 — das war der 2024er Erstwert, den das
+  // UBA inzwischen selbst auf 353 revidiert hat.
+  litellm: 344,
   regolo: 270, // Italy 2024, Ember Yearly Electricity Data
   // Fallback only — GreenPT rows carry measured emissions. Same value as
   // Scaleway because GreenPT runs on Scaleway Paris.
@@ -268,13 +310,17 @@ const GRID_INTENSITY_G_PER_KWH: Readonly<Record<string, number>> = {
   // (10/10 Anfragen am 21.08.2026). Infercom SCS sitzt in Luxemburg und
   // verarbeitet nach der Cortecs-DPA vom 11.08.2026 in DEUTSCHLAND — daher
   // derselbe Wert wie litellm/Hetzner und nicht Scaleways 24.
-  infercom: 363, // Deutschland 2024, Umweltbundesamt
-  // berget ist der zweite Endpunkt desselben Modells und antwortet heute nicht,
-  // kann es aber jederzeit. Berget AI AB (Schweden) gibt als
-  // Verarbeitungsort EWR an, ohne ein Land zu nennen; 45 ist Schwedens Wert
-  // (Ember 2024) und damit die günstigste Lesart einer unbestimmten Angabe.
-  // Erring high wäre hier die vorsichtigere Wahl — die Zahl steht deshalb
-  // unter Vorbehalt, bis der Header sie überhaupt einmal nennt.
+  infercom: 344, // Deutschland 2025, Umweltbundesamt
+  // berget ist der zweite Endpunkt desselben Modells. Der Header NENNT es
+  // inzwischen: am 29.08.2026 mit `allowed_providers: ['berget']` erzwungen,
+  // HTTP 200, `x-cortecs-provider: berget` (Messung in services/ai/gemmaHosts.ts).
+  // Ungefragt wählt der Router weiterhin infercom, im Normalbetrieb bucht diese
+  // Zeile also nach wie vor nichts. Der Vorbehalt an der ZAHL bleibt davon
+  // unberührt: Berget AI AB (Schweden) gibt als Verarbeitungsort EWR an, ohne
+  // ein Land zu nennen; 45 ist Schwedens Wert (Ember 2024) und damit die
+  // günstigste Lesart einer unbestimmten Angabe. Erring high wäre die
+  // vorsichtigere Wahl — die Zahl steht unter Vorbehalt, bis das Land benannt
+  // ist, nicht mehr bis der Header sie nennt.
   berget: 45,
   // Black Forest Labs (image generation) — German mix, and here is the whole
   // chain of what is known and what is not.
@@ -286,13 +332,20 @@ const GRID_INTENSITY_G_PER_KWH: Readonly<Record<string, number>> = {
   // operator does not get us a region, so no Azure region factor can be applied
   // however tempting the extra precision looks.
   //
-  // Among the Azure EU regions that carry AI capacity, France and Sweden sit
-  // far BELOW the German mix and the Netherlands and Ireland near it. 363 is
-  // therefore at the unfavourable end of the plausible set and clearly above
-  // the EU average of ~230, which is the direction a footprint claim should
-  // err in. Not a proven worst case (Azure also lists Poland Central, whose
-  // grid is worse), just a defensible upper region of the range.
-  bfl: 363,
+  // 250 als MITTE, gewichtet danach, wo Azure in Europa GPU-Kapazitaet
+  // tatsaechlich betreibt: West Europe (Niederlande, ~269) traegt die reifste
+  // H100-Flotte, Irland (~234) die zweitgroesste; Sweden Central, France
+  // Central, Italy North und Poland Central kommen teilweise dazu. Der
+  // Schwerpunkt liegt damit bei den Niederlanden und Irland, nicht bei
+  // Deutschland — 250 ist deren Umgebung.
+  //
+  // Vorher stand hier 363 (deutscher Mix) als bewusst unguenstiger Vertreter.
+  // Das war innerhalb der plausiblen Menge und insofern verteidigbar, aber es
+  // war ein Punkt an einem Ende, und die Spanne — 19,6 (France Central) bis 600
+  // (Poland Central), Faktor 30 — blieb dabei unsichtbar. Genau hier ist die
+  // Standort-Unsicherheit groesser als jede Mess-Unsicherheit, und sie gehoert
+  // deshalb in die Spanne statt in einen Sicherheitszuschlag.
+  bfl: 250,
 };
 
 /**
@@ -331,6 +384,14 @@ const GRID_INTENSITY_G_PER_KWH: Readonly<Record<string, number>> = {
  *    for Gunzenhausen, Nürnberg and Falkenstein. EMAS is the strongest evidence
  *    of the three because a state-approved verifier checks the declaration;
  *    ISO 14001 and a company blog do not carry that.
+ *
+ *    BUT THAT STRENGTH IS GERMAN-ONLY. The EMAS scope covers the German sites;
+ *    the Finnish park (Tuusula) holds ISO/IEC 27001 — information security, not
+ *    environment — and the validated statement names Helsinki only in the
+ *    company portrait. Hetzner does state Finland has run on hydropower since
+ *    2018, so a Finnish lane would still HAVE an instrument; it would just be a
+ *    self-declaration on Seeweb's tier rather than an audited one. Whoever
+ *    moves this lane to Finland has to downgrade the strength with it.
  *  regolo (Seeweb) — "Attingiamo energia elettrica solo da fonti rinnovabili
  *    certificate", ISO 14001, named supplier (Enel green), Green Web Foundation
  *    and the Neutral Datacenter Pact. A self-declaration backed by a certified
@@ -350,12 +411,24 @@ const GRID_INTENSITY_G_PER_KWH: Readonly<Record<string, number>> = {
  * exactly the bug that shipped in the frontend's first cut of this feature.
  */
 const MARKET_INTENSITY_G_PER_KWH: Readonly<Record<string, number>> = {
-  mistral: 0,
   scaleway: 0,
-  // Erbt Scaleways Instrument, weil es dieselbe Erzeugung ist — siehe die
-  // Header-Messung bei GRID_INTENSITY_G_PER_KWH. Ein Router als solcher trägt
-  // kein eigenes Zertifikat; was zählt, ist wer tatsächlich rechnet.
-  cortecs: 0,
+  // KEIN Instrument für mistral: In der Belegliste im Kopf dieses Blocks kommt
+  // Mistral nicht vor, und das war kein Versehen der Doku — es gibt keinen. Die
+  // Zeile stand hier trotzdem und setzte die Emissionen des Standardmodells am
+  // günstigen Ende der Spanne auf null, also genau das „silently inheriting
+  // someone else's green power", gegen das `marketIntensityFor` unten
+  // argumentiert. Frankreichs Netz ist von sich aus kohlenstoffarm; das ist
+  // eine Aussage über das NETZ und gehört nach GRID_INTENSITY_G_PER_KWH, nicht
+  // in die Beschaffungsspalte.
+  //
+  // KEIN Instrument für cortecs: Der Schlüssel entsteht ausschliesslich dann,
+  // wenn `x-cortecs-provider` fehlte — also genau dann, wenn wir NICHT wissen,
+  // wer gerechnet hat. Er erbte Scaleways Herkunftsnachweis aus einer Messung,
+  // die inzwischen überholt ist: die Cortecs-Stufe geht heute an infercom
+  // (10/10 am 21.08.2026), und infercom steht aus gutem Grund nicht in dieser
+  // Tabelle. Ein Zertifikat an einen unbekannten Unterauftragnehmer zu vererben
+  // ist derselbe Fehler wie bei mistral, nur eine Ebene tiefer.
+  //
   // KEIN Instrument für infercom und berget: für beide ist uns keine
   // Herkunftsnachweis- oder EMAS-Erklärung bekannt. Sie fehlen hier bewusst
   // und fallen damit auf den Standortfaktor zurück — dieselbe Behandlung wie
@@ -388,12 +461,49 @@ export function marketIntensityFor(provider: string): number {
  * better PUE get the difference credited back.
  */
 const GREENPT_PUE = 1.25;
+
+/**
+ * Uptime Institute Global Data Center Survey 2025, European region: 1.50 across
+ * 134 datacenters. Used where no operator figure exists.
+ *
+ * EUROPE, not the global average of the same survey (1.54, n=681) — and the
+ * difference is not rounding noise, it is the difference between a guess and an
+ * inference. Every provider that lands here is contractually bound to the EEA
+ * (Mistral's and Infercom's DPAs, Berget's own statement, BFL's
+ * `api.eu.bfl.ai`), so the continent is the one thing we actually know. A
+ * global average folds in regions we have ruled out — Middle East and Africa
+ * report 1.68 — and pads our own footprint with datacenters nobody could be
+ * running on.
+ *
+ * Both numbers come from the SAME survey year on purpose. The value here used
+ * to be 1.56, which is the 2024 global average; pairing that with a 2025
+ * regional figure compares two vintages and overstates the gap.
+ *
+ * Erring high stops where it stops being true.
+ */
+const EUROPE_PUE = 1.5;
 const PUE_BY_PROVIDER: Readonly<Record<string, number>> = {
-  // Hetzner. 1,12 is its own published fleet average and now sits inside an
-  // EMAS-registered environmental management system (Gunzenhausen, Nürnberg,
-  // Falkenstein, since 2025), i.e. a state-approved verifier checks the
-  // declaration it comes from. Was 1,13 from a weaker source.
-  litellm: 1.12,
+  // Hetzner, aus der EMAS-Umwelterklärung 2025 (Berichtszeitraum 2022-2024):
+  // die Kennzahlentabelle führt „Durchschnittlicher PUE" mit 1,15 / 1,13 / 1,13.
+  // 1,13 ist also der geprüfte Wert für 2024.
+  //
+  // Vorher stand hier 1,12 mit Verweis auf ebendiese Erklärung — die Zahl kommt
+  // darin nicht vor (der Fliesstext nennt 1,14, die Tabelle 1,13), und die
+  // Produktdoku sagt seit jeher 1,13. Der Code war der Ausreisser.
+  //
+  // GELTUNGSBEREICH, der beim Nachlesen auffiel: „Der EMAS-Scope der Hetzner
+  // Online GmbH umfasst sämtliche DEUTSCHEN Standorte"; internationale
+  // Cloud-Standorte sind ausgenommen. Der finnische Park (Tuusula bei
+  // Helsinki) ist ISO/IEC 27001 zertifiziert — das ist Informationssicherheit,
+  // kein Umweltmanagement — und kommt in der Umwelterklärung nur im
+  // Firmenporträt vor, nicht im Geltungsbereich und ohne eigene Stromzahlen.
+  //
+  // Deshalb gilt auch DIESE 1,13 nur für die deutschen Standorte. Zöge eine
+  // Lane nachweislich nach Tuusula, wäre sie ohne geprüften PUE und fiele auf
+  // EUROPE_PUE — die Korrektur nach unten beim Netzfaktor käme also mit einer
+  // nach oben beim PUE. Eine Ausweitung von EMAS auf Finnland ist öffentlich
+  // nicht angekündigt (erster Zyklus läuft bis 2028).
+  litellm: 1.13,
   // Seeweb (Regolo's operator). Two sources agree on 1,2: the DHH Group
   // sustainability report 2024, p. 8 ("achieving a PUE below 1,20") and
   // Seeweb's own page. Read the second one carefully though — it says 1,2 is
@@ -409,9 +519,59 @@ const PUE_BY_PROVIDER: Readonly<Record<string, number>> = {
   scaleway: 1.25,
   // Derselbe Standort über den Vermittler — siehe oben.
   cortecs: 1.25,
-  // Kein PUE für infercom und berget — keiner der beiden veröffentlicht einen.
-  // Die Tabelle fällt dafür auf ihren Standardwert zurück, was ehrlicher ist
-  // als ein von einem anderen Betreiber geliehener Wert.
+  // GreenPT selbst. Steht hier als VERÖFFENTLICHTER Wert und nicht als
+  // Rückfall, obwohl beide 1,25 ergäben: die GreenPT-Zeilen sind gemessen, ihre
+  // Energie trägt genau diesen PUE bereits in sich. Ein Schätzwert an dieser
+  // Stelle würde eine Messung nachträglich hochrechnen.
+  greenpt: GREENPT_PUE,
+  // Kein Eintrag für mistral, infercom und berget — keiner der drei
+  // veröffentlicht einen PUE. Sie werden über PUE_ESTIMATE_BY_PROVIDER
+  // geschätzt und als geschätzt ausgewiesen, siehe dort.
+};
+
+/**
+ * PUE-SCHÄTZUNGEN für Anbieter, die keinen veröffentlichen — aus dem STANDORT
+ * abgeleitet und über `isPueEstimated` als Schätzung gekennzeichnet.
+ *
+ * Warum es diese Tabelle überhaupt gibt: `pueFor` fiel vorher auf GREENPT_PUE
+ * zurück, also auf Scaleway DC5. Das ist genau der geliehene Fremdwert, den der
+ * Kommentar oben auszuschliessen behauptete — und weil `pueFor` den
+ * Transparenz-Endpunkt bedient, stand er als „PUE 1,3" neben einem Anbieter, der
+ * nie einen genannt hat. Ein erfundener Kennwert ist schlimmer als ein
+ * geschätzter, denn nur der geschätzte kann sich als Schätzung zu erkennen
+ * geben.
+ *
+ * Die Richtung ist wie überall sonst: lieber zu hoch. Ein zu niedriger PUE
+ * schönt den Fussabdruck, ein zu hoher macht ihn nur unattraktiver.
+ */
+const PUE_ESTIMATE_BY_PROVIDER: Readonly<Record<string, number>> = {
+  // München. Der Standort ist belegt (SambaNova/Infercom-Partnerseite: Munich
+  // Datacenter, SambaNova SN40 RDUs, SambaRack bei ~10 kW) — das GEBÄUDE aber
+  // nicht, und ein PUE ist eine Eigenschaft des Gebäudes, nicht der Stadt.
+  //
+  // 1,5 ist deshalb keine Messung, sondern die gesetzliche Obergrenze: das
+  // Energieeffizienzgesetz (EnEfG) verlangt von Rechenzentren ab 300 kW, die vor
+  // dem 01.07.2026 in Betrieb gingen, ab dem 01.07.2027 einen PUE <= 1,5 und ab
+  // dem 01.07.2030 <= 1,3; Neubauten ab dem 01.07.2026 <= 1,2. Wir setzen die
+  // Bestandsschwelle an, weil wir das Baujahr nicht kennen. Dass sie zahlgleich
+  // mit EUROPE_PUE ist, ist Zufall — die beiden Quellen bewegen sich getrennt,
+  // deshalb steht die Zeile trotzdem hier. Ein moderner
+  // Münchner Colo liegt real eher bei 1,2-1,4 — die Schätzung ist also bewusst
+  // pessimistisch, und das ist bei einer Umweltangabe die richtige Richtung.
+  infercom: 1.5,
+  // Frankreich ist eine ANNAHME, kein Beleg. Mistrals DPA nennt Frankreich nur
+  // als Gerichtsstand und erlaubt Verarbeitung im gesamten EWR; die eigene
+  // Zusage lautet „European Union", nicht „Frankreich". Was der DPA hergibt,
+  // ist der Kontinent — und genau der ist der Anker.
+  //
+  // ACHTUNG, hier hängt mehr dran als dieser Wert: dieselbe unbelegte Annahme
+  // trägt die 22 g/kWh in GRID_INTENSITY_G_PER_KWH. Wer den Standort klärt,
+  // klärt beide Zeilen.
+  mistral: EUROPE_PUE,
+  // Berget nennt als Verarbeitungsort „EWR" ohne Land. Schwedische
+  // Rechenzentren liegen typischerweise deutlich darunter, aber eine ungenannte
+  // Angabe wird nicht zugunsten des Anbieters gelesen.
+  berget: EUROPE_PUE,
 };
 
 export interface Footprint {
@@ -504,13 +664,42 @@ interface ImageEnergy {
 const FLUX_ANCHOR_GPU_MWH = 4278;
 
 /**
- * The correction from the header, as a factor. `high` (the default everywhere)
- * multiplies by it; `low` leaves the bare GPU measurement standing. The true
- * value is above the low end — a datacenter really does pay for the idle draw
- * and the rest of the node — so the pair brackets the answer rather than
- * straddling it.
+ * The correction from the header, as a factor — now a bracket instead of one
+ * round number, and DERIVED instead of chosen.
+ *
+ * The old pair was 1 (low) and 2 (high). Both were wrong in an instructive way.
+ * 1 means "the GPU die is the whole cost", which is not a plausible end of
+ * anything: the paper subtracted the idle draw a datacenter pays regardless and
+ * measured nothing outside the die. And 2 was a round number picked to "cross
+ * the gap" rather than derived, so nobody could say whether it crossed it.
+ *
+ * Two multipliers stack, and each has a published range:
+ *
+ *   idle that was subtracted — an A100 idles at 50-70 W and draws 250-400 W
+ *   under diffusion load, so dynamic power is 200-330 W and the idle the paper
+ *   removed is 15-35% on top of what it kept.
+ *
+ *   the rest of the node — CPU, RAM, NIC, fans, PSU conversion. Accelerators
+ *   are typically 50-60% of an inference server's draw, so the node costs
+ *   1.67-2.0x the die.
+ *
+ * Multiplied out: 1.15 x 1.67 = 1.92 at the favourable end, 1.35 x 2.0 = 2.70
+ * at the unfavourable one. The middle is again the geometric mean, 2.28.
+ *
+ * Note where that leaves the old default: 2.0 sits near the BOTTOM of the
+ * plausible bracket, not above it. The figure that was described as
+ * deliberately conservative was in fact slightly optimistic, and the central
+ * estimate moves images UP.
  */
-const IMAGE_BOUNDARY_UPLIFT = 2;
+const IMAGE_UPLIFT_LOW = 1.92;
+const IMAGE_UPLIFT_HIGH = 2.7;
+const IMAGE_UPLIFT_MID = geoMean(IMAGE_UPLIFT_LOW, IMAGE_UPLIFT_HIGH);
+
+function imageUplift(bound: EnergyBound): number {
+  if (bound === 'low') return IMAGE_UPLIFT_LOW;
+  if (bound === 'high') return IMAGE_UPLIFT_HIGH;
+  return IMAGE_UPLIFT_MID;
+}
 
 const IMAGE_ENERGY: Readonly<Record<string, ImageEnergy>> = {
   // BFL's three variants scale by their PUBLISHED cost multiplier (catalog.ts:
@@ -552,8 +741,6 @@ const IMAGE_ENERGY: Readonly<Record<string, ImageEnergy>> = {
 const IMAGE_PUE_BY_PROVIDER: Readonly<Record<string, number>> = {
   regolo: 1.2, // Seeweb, DHH sustainability report 2024, p. 8
 };
-/** Uptime Institute Global Data Center Survey 2024 puts the world average at 1.56. */
-const UNKNOWN_PUE = 1.56;
 
 /**
  * Footprint of generated images. Returns null for a model absent from the
@@ -563,18 +750,23 @@ export function estimateImageFootprint(params: {
   provider: string;
   model: string;
   images: number;
-  /** See `EnergyBound`. Defaults to the conservative end. */
+  /** See `EnergyBound`. Defaults to the central estimate. */
   bound?: EnergyBound;
 }): (Footprint & { basis: ImageEnergy['basis'] }) | null {
   const c = IMAGE_ENERGY[params.model];
   if (!c) return null;
 
-  const uplift = params.bound === 'low' ? 1 : IMAGE_BOUNDARY_UPLIFT;
-  const pue = IMAGE_PUE_BY_PROVIDER[params.provider] ?? UNKNOWN_PUE;
+  const uplift = imageUplift(params.bound ?? 'mid');
+  // Über `pueFor`, damit die Zahl, mit der hier gerechnet wird, dieselbe ist,
+  // die der Transparenz-Endpunkt daneben veröffentlicht.
+  const pue = pueFor(params.provider, 'images');
   const energyWms = Math.round(c.mWhPerImageGpu * uplift * params.images * pue * WMS_PER_MWH);
   return {
     energyWms,
-    emissionsUg: emissionsFromEnergy(energyWms, gridIntensityFor(params.provider)),
+    emissionsUg: emissionsFromEnergy(
+      energyWms,
+      gridIntensityFor(params.provider, params.bound ?? 'mid')
+    ),
     // Per provider, NOT per unit: collapses onto the location figure for `bfl`
     // (no locatable region) but is zero for Regolo's Qwen-Image, which runs in
     // the same certified datacenter as its text lanes. See the table.
@@ -643,9 +835,42 @@ export function emissionsFromEnergy(energyWms: number, gramsPerKwh: number): num
   return Math.round((energyWms * gramsPerKwh) / 3600);
 }
 
-/** Grid intensity for a recorded provider, or the German mix if unknown. */
-export function gridIntensityFor(provider: string): number {
-  return GRID_INTENSITY_G_PER_KWH[provider] ?? 350;
+/**
+ * Providers whose LOCATION is uncertain, and by how much.
+ *
+ * Only two entries, and that is the point: for everybody else we know the
+ * country, so low = mid = high and the range carries no width it has not
+ * earned. A span here means we genuinely do not know which grid served the
+ * request — not that the grid figure itself is fuzzy.
+ */
+const GRID_SPAN_G_PER_KWH: Readonly<Record<string, { low: number; high: number }>> = {
+  // Frankreich (RTE 2025) bis Schweden (Ember) — die beiden Laender, in denen
+  // Mistrals angekuendigte Rechenzentren stehen.
+  mistral: { low: 19.6, high: 45 },
+  // France Central bis Poland Central: die sauberste und die schmutzigste
+  // Azure-EU-Region mit KI-Kapazitaet. Faktor 30, und deshalb steht sie da.
+  bfl: { low: 19.6, high: 600 },
+};
+
+/**
+ * Grid intensity for a recorded provider at one end of its span.
+ *
+ * The fallback for an unrecorded provider is the EU average (213 g/kWh, Ember
+ * 2025), not the 350 that stood here before. 350 was chosen as a pessimistic
+ * default, but every provider that can reach this line is EEA-bound by
+ * contract, so the EU average is the central estimate for exactly the set of
+ * grids that remain possible.
+ */
+export function gridIntensityFor(provider: string, bound: EnergyBound = 'mid'): number {
+  const span = GRID_SPAN_G_PER_KWH[provider];
+  if (span && bound === 'low') return span.low;
+  if (span && bound === 'high') return span.high;
+  return GRID_INTENSITY_G_PER_KWH[provider] ?? EU_AVERAGE_G_PER_KWH;
+}
+
+/** Whether this provider's grid figure is a span rather than a known country. */
+export function hasGridSpan(provider: string): boolean {
+  return provider in GRID_SPAN_G_PER_KWH;
 }
 
 /**
@@ -662,33 +887,63 @@ export function gridIntensityFor(provider: string): number {
  * number was never computed with.
  */
 export function pueFor(provider: string, kind: 'tokens' | 'images' = 'tokens'): number {
-  return kind === 'images'
-    ? (IMAGE_PUE_BY_PROVIDER[provider] ?? UNKNOWN_PUE)
-    : (PUE_BY_PROVIDER[provider] ?? GREENPT_PUE);
+  const published = kind === 'images' ? IMAGE_PUE_BY_PROVIDER[provider] : PUE_BY_PROVIDER[provider];
+  return published ?? PUE_ESTIMATE_BY_PROVIDER[provider] ?? EUROPE_PUE;
+}
+
+/**
+ * Whether `pueFor` returned an operator's own published figure or our estimate.
+ *
+ * Exists so the transparency surface can say which of the two it is printing.
+ * A published PUE and a guessed one look identical as a number, and the page
+ * that prints them side by side is the one place where that difference has to
+ * survive.
+ */
+export function isPueEstimated(provider: string, kind: 'tokens' | 'images' = 'tokens'): boolean {
+  const table = kind === 'images' ? IMAGE_PUE_BY_PROVIDER : PUE_BY_PROVIDER;
+  return !(provider in table);
 }
 
 /**
  * Which end of the uncertainty to report.
  *
- * `high` is the default and the only value the personal usage tab uses: where a
- * lane is not metered, we quote the top of the plausible span so the displayed
- * cost is an upper bound. `low` quotes the bottom of that same span. Neither is
- * a better estimate than the other — the pair exists so a public figure can be
- * shown as the range it actually is instead of a false point.
+ * THREE ends since 29.08.2026, and `mid` is the default. Before that the
+ * default was `high`: an unmetered lane was quoted at the TOP of its plausible
+ * span, and the personal usage tab — which computes no range at all — showed
+ * that ceiling as if it were a value. A ceiling is a fine thing to publish
+ * NEXT TO a figure; it is a bad figure.
  *
- * For lanes with metered coefficients (`basis: 'measured'`) both ends are equal,
- * which is exactly the property that makes the width of the range meaningful:
- * it narrows as measurement coverage grows.
+ * The change is not a softening. Erring high on every unknown reads as caution
+ * but behaves as a second kind of error: it makes the number wrong in a
+ * predictable direction, and it hides how wide the real uncertainty is behind a
+ * single pessimistic point. What replaces it is the honest shape — a central
+ * estimate with both ends published beside it.
+ *
+ * For lanes with metered coefficients (`basis: 'measured'`) all three ends are
+ * equal, which is exactly the property that makes the width of the range
+ * meaningful: it narrows as measurement coverage grows.
  */
-export type EnergyBound = 'high' | 'low';
+export type EnergyBound = 'high' | 'mid' | 'low';
 
 /**
- * The bottom of the span the `bound` text entries take their top from:
- * gpt-oss-120b, the thriftiest model we have metered in that size class.
+ * The span an unmetered text lane sits in, bracketed by GreenPT measurements of
+ * the two models that define its size class:
  *
- * Only ever used for the low end of a range. As a point estimate it would
- * understate by as much as the ceiling overstates, which is why nothing
- * defaults to it.
+ *   floor   gpt-oss-120b            0.811 mWh/token  (120B, mixture-of-experts)
+ *   ceiling mistral-medium-3.5-128b 4.519 mWh/token  (128B, dense)
+ *
+ * Both are metered, both are ours, and the factor of 5.6 between them is the
+ * honest width of "a large model we have not measured". Nothing here is
+ * invented: the unknown lanes borrow the bracket, not a guess.
+ *
+ * The MIDDLE is the geometric mean of the two, not the arithmetic one. The
+ * quantity ranges over a factor of 5.6, so it is distributed on a log scale;
+ * an arithmetic mean would sit at 2.67, nearer the ceiling than the floor by
+ * construction and dragged there by the single dense outlier. The geometric
+ * mean sits where "equally far from both anchors" actually is.
+ *
+ * Derived rather than typed out so the relationship survives a re-measurement:
+ * move either anchor and the middle follows.
  */
 const BOUND_FLOOR: EnergyCoefficients = {
   mWhPerOutputToken: 0.811,
@@ -696,6 +951,27 @@ const BOUND_FLOOR: EnergyCoefficients = {
   mWhFixed: 11.05,
   basis: 'bound',
 };
+
+const BOUND_CEILING: EnergyCoefficients = {
+  mWhPerOutputToken: 4.519,
+  mWhPerInputToken: 0.0287,
+  mWhFixed: 13.26,
+  basis: 'bound',
+};
+
+const BOUND_MID: EnergyCoefficients = {
+  mWhPerOutputToken: geoMean(BOUND_FLOOR.mWhPerOutputToken, BOUND_CEILING.mWhPerOutputToken),
+  mWhPerInputToken: geoMean(BOUND_FLOOR.mWhPerInputToken, BOUND_CEILING.mWhPerInputToken),
+  mWhFixed: geoMean(BOUND_FLOOR.mWhFixed, BOUND_CEILING.mWhFixed),
+  basis: 'bound',
+};
+
+/** Which of the three bracket points a `bound` text entry is costed at. */
+function boundedCoefficients(bound: EnergyBound): EnergyCoefficients {
+  if (bound === 'low') return BOUND_FLOOR;
+  if (bound === 'high') return BOUND_CEILING;
+  return BOUND_MID;
+}
 
 /** True when this model has measured coefficients behind it. */
 export function hasEnergyCoefficients(model: string): boolean {
@@ -708,7 +984,7 @@ export function hasEnergyCoefficients(model: string): boolean {
  * Returns null only for a model missing from the table entirely — a new lane
  * nobody registered. The caller reports those as uncovered rather than valuing
  * them at zero. The returned `basis` distinguishes a metered coefficient from a
- * conservative upper bound so the API can report both shares.
+ * bracketed one so the API can report both shares.
  */
 export function estimateFootprint(params: {
   provider: string;
@@ -716,15 +992,15 @@ export function estimateFootprint(params: {
   inputTokens: number;
   outputTokens: number;
   requests: number;
-  /** See `EnergyBound`. Defaults to the conservative end. */
+  /** See `EnergyBound`. Defaults to the central estimate. */
   bound?: EnergyBound;
 }): (Footprint & { basis: EnergyCoefficients['basis'] }) | null {
   const table = MODEL_ENERGY[params.model];
   if (!table) return null;
 
-  // A metered lane has no span to pick from, so the low end only moves for the
-  // entries that are an upper bound in the first place.
-  const c = params.bound === 'low' && table.basis === 'bound' ? BOUND_FLOOR : table;
+  // A metered coefficient has no ends to pick from: only the `bound` rows move
+  // across the bracket, so `basis: 'measured'` resolves to itself at all three.
+  const c = table.basis === 'bound' ? boundedCoefficients(params.bound ?? 'mid') : table;
 
   const pueRatio = pueFor(params.provider) / GREENPT_PUE;
   const mWh =
@@ -736,7 +1012,10 @@ export function estimateFootprint(params: {
   const energyWms = Math.round(mWh * WMS_PER_MWH);
   return {
     energyWms,
-    emissionsUg: emissionsFromEnergy(energyWms, gridIntensityFor(params.provider)),
+    emissionsUg: emissionsFromEnergy(
+      energyWms,
+      gridIntensityFor(params.provider, params.bound ?? 'mid')
+    ),
     marketEmissionsUg: emissionsFromEnergy(energyWms, marketIntensityFor(params.provider)),
     // The LANE's basis, not the variant's: swapping in the floor to draw a range
     // does not turn an unmetered lane into a metered one.

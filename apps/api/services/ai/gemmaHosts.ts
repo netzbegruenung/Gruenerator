@@ -34,26 +34,48 @@
  * also gewinnt der Durchsatz. Inhaltstreue war in 22 Läufen nicht
  * unterscheidbar. Die Sekunde Anlauf ist der Preis und wird bezahlt.
  *
- * ── Was die Redundanz angeht: sie liegt NICHT bei Cortecs ──
+ * ── Die Redundanz bei Cortecs: doch da, und einmal falsch abgeschrieben ──
  *
- * Cortecs führt das Modell bei genau EINEM Endpunkt (infercom).
- * `berget` stand hier bis zum 25.08.2026 als zweiter — das ist live widerlegt:
- * `GET /v1/models` nennt für `gemma-4-31b-it` nur noch `providers:
- * ['infercom']`, und berget taucht in KEINEM der 16 Katalog-Modelle mehr auf.
- * Erzwingen lässt es sich auch nicht: `allowed_providers: ['berget']` antwortet
- * `{berget: Endpoint uses quantization}`, und `allow_quantization: true` hebt
- * das nicht auf — auch nicht mit `eu_native`/`allow_zero_data_retention` auf
- * false. Einen API-Weg zu den „inference settings", auf die die Fehlermeldung
- * verweist, gibt es nicht (alle geprüften Pfade 404).
+ * Cortecs führt das Modell bei ZWEI Endpunkten: `infercom` und `berget`.
  *
- * Cortecs ist damit selbst ein Ein-Endpunkt-Host, und vorausbezahlt dazu. Die
- * Reserve dieser Lane ist deshalb ausschliesslich `GEMMA_31B_ALTERNATE` —
- * dieselben Gewichte bei Regolo, eine Ebene über dem Router. Dass es die
- * braucht, zeigte der 14.08.2026: Regolos `gemma4-31b` antwortete mit 3,7
- * tok/s statt der sonst gemessenen ~76, Regolo selbst war gesund, es war
- * dieses eine Modell dort — ein Prüfbericht, der ruhig 36 s braucht, brauchte
- * 218 s. Genau derselbe Ausfall ist auf infercom möglich, und dann trägt
- * Regolo.
+ * Hier stand vom 25.08. bis zum 29.08.2026 das Gegenteil — berget sei aus dem
+ * Katalog verschwunden und über `allowed_providers` nicht erzwingbar
+ * (`Endpoint uses quantization`). Beide Hälften sind am 29.08.2026 live
+ * widerlegt:
+ *
+ *   GET /v1/models → gemma-4-31b-it: providers ['infercom', 'berget']
+ *   (der Katalog führt 67 Modelle, nicht die hier notierten 16)
+ *
+ *   Aufruf                                   HTTP  x-cortecs-provider  Zeit
+ *   ohne Vorgabe                              200  infercom            1218 ms
+ *   allowed_providers: ['berget']             200  berget              1482 ms
+ *   allowed_providers: ['berget'] + allow_q.  200  berget              1545 ms
+ *   allowed_providers: ['infercom']           200  infercom            1140 ms
+ *
+ * Bemerkenswert daran: berget antwortet auch OHNE `allow_quantization`. Der
+ * Quantisierungs-Filter, an dem der Versuch am 25.08. scheiterte, greift heute
+ * nicht mehr.
+ *
+ * Was daraus NICHT folgt: dass sich am Verhalten dieser Datei etwas ändern
+ * müsste. Ohne Vorgabe wählt der Router weiterhin infercom, und wir geben
+ * keine vor — die Wahl bleibt seine. Was sich ändert, ist die Begründung: die
+ * Reserve dieser Lane liegt nicht mehr AUSSCHLIESSLICH bei
+ * `GEMMA_31B_ALTERNATE`, sondern zusätzlich beim Router selbst.
+ *
+ * Die Lehre, die hier bleiben soll: ein Katalogeintrag und ein
+ * Erzwingungsversuch sind Momentaufnahmen eines fremden Systems. Aus einem
+ * „geht heute nicht" wurde in dieser Datei ein „ist ein Ein-Endpunkt-Host",
+ * und das wanderte als Tatsache in drei weitere Dateien. Wer den Befund
+ * wiederholt, misst neu — der Aufruf steht oben.
+ *
+ * `GEMMA_31B_ALTERNATE` bleibt trotzdem die tragende Reserve, und zwar aus
+ * einem Grund, den kein Endpunkt-Zählen berührt: es ist ein anderer
+ * VERTRAGSPARTNER. Dass es die braucht, zeigte der 14.08.2026: Regolos
+ * `gemma4-31b` antwortete mit 3,7 tok/s statt der sonst gemessenen ~76, Regolo
+ * selbst war gesund, es war dieses eine Modell dort — ein Prüfbericht, der
+ * ruhig 36 s braucht, brauchte 218 s. Genau derselbe Ausfall ist auf infercom
+ * möglich; dass berget daneben steht, hilft nur, wenn Cortecs als Ganzes
+ * gesund ist.
  *
  * ── Was der Wechsel MITNIMMT, und was nicht ──
  *

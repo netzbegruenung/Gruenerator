@@ -152,9 +152,15 @@ describe('footprint band', () => {
 
     const stats = await computePlatformUsageStats(30);
 
-    // The uplift is exactly x2, so the band's ends stand in that ratio.
-    expect(stats.footprint.energy_wh).toBeCloseTo(stats.footprint.energy_wh_low * 2, 6);
-    expect(stats.footprint.image_energy_wh).toBeCloseTo(stats.footprint.energy_wh, 6);
+    // Only the boundary uplift moves for an image, so the scale's ends stand in
+    // its ratio (1.92 .. 2.70) and the published figure is the middle.
+    const { energy_wh, energy_wh_low, energy_wh_high, image_energy_wh } = stats.footprint;
+    expect(energy_wh_high / energy_wh_low).toBeCloseTo(2.7 / 1.92, 6);
+    expect(energy_wh).toBeCloseTo(Math.sqrt(energy_wh_low * energy_wh_high), 6);
+    expect(energy_wh_low).toBeLessThan(energy_wh);
+    expect(energy_wh).toBeLessThan(energy_wh_high);
+    // The headline is the middle, and the image half of it is the whole of it.
+    expect(image_energy_wh).toBeCloseTo(energy_wh, 6);
   });
 });
 

@@ -7,10 +7,27 @@
  * vorbeigeht, gab der Aufrufer still auf.
  */
 
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { withFallbackChain } from '../fallbackModel.js';
 import { INTERMEDIATE_LANES } from '../intermediateLanes.js';
+import { _resetModelHealthForTests, recordSlowVerdict } from '../modelHealth.js';
+import { resolveIntermediateChain } from '../providers.js';
+
+/** Nur die Konfigurationsfrage wird gestellt, alles andere bleibt echt — die
+ *  Kette soll gegen die WIRKLICHE Ausweich-Logik geprüft werden, nicht gegen
+ *  eine Attrappe davon. */
+const configured = new Set(['greenpt', 'cortecs', 'mistral', 'regolo', 'litellm']);
+vi.mock('../providerInstances.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../providerInstances.js')>()),
+  isProviderConfigured: (p: string) => configured.has(p),
+}));
+
+/** Zwei Verdikte = vermerkt (modelHealth.ts). */
+function markSlow(provider: string, model: string): void {
+  recordSlowVerdict(provider, model, 'test');
+  recordSlowVerdict(provider, model, 'test');
+}
 
 /** Abgeleitet statt importiert — `ai` exportiert `LanguageModelV4` nicht;
  *  dieselbe Begründung wie in `fallbackModel.ts`. */
@@ -161,11 +178,105 @@ describe('INTERMEDIATE_LANES fallback chains', () => {
   });
 
   it('keeps the reasoning lane out of the small-budget stages', () => {
-    // gpt-oss über litellm/verdigado-pro liefert bei maxOutputTokens 16–40
+    // gpt-oss über litellm/verdigado-pro lieferte bei maxOutputTokens 16–40
     // leeren content — siehe die Messreihe im Kopf von intermediateLanes.ts.
+    // Der Anbieter ist seit dem 29.08.2026 stillgelegt (./litellmRetired.ts);
+    // der Wächter bleibt, damit die Deklaration nicht dorthin zurückfindet.
     for (const lane of ['trivial', 'standard'] as const) {
       const models = INTERMEDIATE_LANES[lane].fallback.map((t) => t.model);
       expect(models).not.toContain('verdigado-pro');
+      expect(models).not.toContain('verdigado-think');
     }
+  });
+});
+
+/**
+ * Was passiert, wenn ein Ziel als ZÄH vermerkt ist.
+ *
+ * `getModel` fragt dann `pickHealthyTarget` und ersetzt still — und die
+ * Ersetzung kennt die Kette nicht. Ohne Veto brechen dabei genau die beiden
+ * Eigenschaften, die die statischen Wächter oben zusichern. Deshalb stehen sie
+ * hier ein zweites Mal, gegen den LAUFZEIT-Zustand statt gegen die Deklaration.
+ */
+describe('resolveIntermediateChain under a slow verdict', () => {
+  beforeEach(() => {
+    _resetModelHealthForTests();
+    configured.clear();
+    for (const p of ['greenpt', 'cortecs', 'mistral', 'regolo', 'litellm']) configured.add(p);
+  });
+
+  it('is a no-op while nothing is flagged', () => {
+    expect(resolveIntermediateChain('trivial').map((t) => t.provider)).toEqual([
+      'greenpt',
+      'cortecs',
+      'mistral',
+      'regolo',
+    ]);
+  });
+
+  it('does not collapse heavy onto one provider when cortecs is flagged', () => {
+    // cortecs/gemma-4-31b-it und regolo/gemma4-31b sind einander als
+    // Geschwister eingetragen. Ohne Veto würde Glied 1 zu Glied 2 — zwei
+    // Aufrufe an dasselbe Konto, bevor Mistral drankommt.
+    markSlow('cortecs', 'gemma-4-31b-it');
+
+    const providers = resolveIntermediateChain('heavy').map((t) => t.provider);
+    expect(new Set(providers).size).toBe(providers.length);
+    // Zäh heisst hinten, nicht weg: das Ziel antwortet langsam, nicht falsch.
+    expect(providers).toEqual(['regolo', 'mistral', 'cortecs']);
+  });
+
+  it('keeps every declared target when one is flagged — nothing is dropped', () => {
+    markSlow('greenpt', 'mistral-small-3.2-24b-instruct-2506');
+
+    const chain = resolveIntermediateChain('trivial');
+    expect(chain).toHaveLength(4);
+    expect(chain.map((t) => t.provider)).toEqual(['cortecs', 'mistral', 'regolo', 'greenpt']);
+  });
+
+  it('never splices a foreign model into a small stage', () => {
+    // Die Small-3.2-Paare haben keine Geschwister-Zeile, fallen also auf
+    // FALLBACK_CHAIN. Deren erstes Glied antwortet auf dem EIGENEN Default
+    // seines Anbieters — heute cortecs/gemma-4-31b-it, bis zum 29.08.2026
+    // litellm/verdigado-pro. Geprüft wird deshalb die Eigenschaft, nicht der
+    // Modellname des Tages: in der Kette steht nur, was die Stufe deklariert.
+    const declared = new Set(
+      [
+        { provider: INTERMEDIATE_LANES.trivial.provider, model: INTERMEDIATE_LANES.trivial.model },
+        ...INTERMEDIATE_LANES.trivial.fallback,
+      ].map((t) => `${t.provider}/${t.model}`)
+    );
+
+    for (const lane of ['trivial', 'standard'] as const) {
+      _resetModelHealthForTests();
+      markSlow('greenpt', 'mistral-small-3.2-24b-instruct-2506');
+
+      const chain = resolveIntermediateChain(lane);
+      for (const target of chain) {
+        expect(declared).toContain(`${target.provider}/${target.model}`);
+      }
+      // Der konkrete Einfallsweg von damals, als Regressionsanker behalten.
+      expect(chain.map((t) => t.model)).not.toContain('verdigado-pro');
+      expect(chain.map((t) => t.model)).not.toContain('gemma-4-31b-it');
+    }
+  });
+
+  it('drops a stage whose provider is not configured, keeping the rest in order', () => {
+    configured.delete('greenpt');
+    configured.delete('mistral');
+
+    expect(resolveIntermediateChain('standard').map((t) => t.provider)).toEqual([
+      'cortecs',
+      'regolo',
+    ]);
+  });
+
+  it('still returns the declared primary when nothing is configured at all', () => {
+    configured.clear();
+
+    // Sein Fehler ist die ehrlichere Auskunft als eine leere Kette.
+    expect(resolveIntermediateChain('trivial')).toEqual([
+      { provider: 'greenpt', model: 'mistral-small-3.2-24b-instruct-2506' },
+    ]);
   });
 });

@@ -1184,4 +1184,56 @@ describe('cloud_files mounting gate', () => {
     const { toolNames } = catalogWithCloud({ connections: 2, enabled: false });
     expect(toolNames).not.toContain('cloud_files');
   });
+
+  // Live-Ausfall 29.08.2026 (test-Instanz): „welche wolke links sind verbunden“
+  // — beide Werkzeuge montiert, der Planer griff zu product_knowledge und
+  // antwortete mit der MCP-Doku. Die Abgrenzung muss in den BESCHREIBUNGEN
+  // stehen, denn dort trifft der Planer seine Wahl.
+  it('pairs cloud_files with a product_knowledge description that defers to it', () => {
+    const { tools, toolNames } = catalogWithCloud({
+      userText: 'welche wolke links sind verbunden',
+    });
+    expect(toolNames).toContain('cloud_files');
+    expect(toolNames).toContain('product_knowledge');
+    expect(tools.product_knowledge?.description ?? '').toContain('cloud_files');
+    expect(tools.cloud_files?.description ?? '').toContain('verbunden');
+  });
+
+  // Zweites Netz: greift der Planer trotzdem zuerst zu product_knowledge,
+  // verweist das ERGEBNIS auf cloud_files, und der nächste Schritt fängt sich.
+  it('appends the cloud_files redirect to a product_knowledge answer when mounted', async () => {
+    const { tools } = catalogWithCloud({ userText: 'welche wolke links sind verbunden' });
+    const out = (await execOf(tools.product_knowledge)({ topic: '' }, { toolCallId: 'c1' })) as {
+      knowledge: string;
+    };
+    expect(out.knowledge).toContain('cloud_files');
+    expect(out.knowledge).toContain('list_connections');
+  });
+
+  // Ein Konto MIT Wolke montiert cloud_files auf jedem Turn — der Verweis
+  // darf trotzdem nur auf Turns reiten, die die Wolke selbst nennen, sonst
+  // trägt jede Produktantwort dieser Konten einen fachfremden Fußnotensatz.
+  it('keeps the redirect off product answers that never name the Wolke', async () => {
+    const { tools, toolNames } = catalogWithCloud({
+      connections: 1,
+      userText: 'erzähl mir etwas über die notebooks funktion',
+    });
+    expect(toolNames).toContain('cloud_files');
+    const out = (await execOf(tools.product_knowledge)({ topic: '' }, { toolCallId: 'c1' })) as {
+      knowledge: string;
+    };
+    expect(out.knowledge).not.toContain('cloud_files');
+  });
+
+  // …aber nie auf ein Werkzeug, das dieser Turn gar nicht trägt.
+  it('keeps the redirect out when cloud_files is not mounted', async () => {
+    const { tools, toolNames } = catalogWithCloud({
+      userText: 'erzähl mir etwas über die notebooks funktion',
+    });
+    expect(toolNames).not.toContain('cloud_files');
+    const out = (await execOf(tools.product_knowledge)({ topic: '' }, { toolCallId: 'c1' })) as {
+      knowledge: string;
+    };
+    expect(out.knowledge).not.toContain('cloud_files');
+  });
 });
