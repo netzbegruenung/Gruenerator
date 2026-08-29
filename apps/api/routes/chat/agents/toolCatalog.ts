@@ -748,6 +748,16 @@ NICHT für eine Zusammenfassung des ganzen Dokuments — dafür gibt es \`summar
     if (state.enabledTools?.['hilfe'] !== false) {
       tools.gruenerator_docs_search = makeDocsSearchTool({ sourceRegistry });
     }
+    // Ob `cloud_files` diesen Turn montiert wird — VOR dem product_knowledge-
+    // Block berechnet, weil es dort einen zweiten Verbraucher hat: der Wolke-
+    // Verweis im Tool-Ergebnis darf nie auf ein Werkzeug zeigen, das dieser
+    // Turn gar nicht trägt. Die Tore selbst sind am Mount weiter unten erklärt.
+    const cloudFilesMounted =
+      state.enabledTools?.['cloud_files'] !== false &&
+      ((state.cloudConnectionCount ?? 0) > 0 ||
+        (state.wolkeFiles?.length ?? 0) > 0 ||
+        attachedCloudShareLinks(state.attachedWebpageUrls).length > 0 ||
+        mentionsCloudStorage(state.lastUserTextNoMentions ?? lastUserText(state)));
     // Product self-knowledge: what Grünerator itself offers (Grüneratoren,
     // Werkzeuge, MCP-Server, Wissenssammlungen). Same builder respondNode
     // injects when the meta regex matches — the loop inherits that system
@@ -761,7 +771,7 @@ NICHT für eine Zusammenfassung des ganzen Dokuments — dafür gibt es \`summar
       tools.product_knowledge = tool({
         description: `Beantwortet Fragen über den Grünerator selbst: verfügbare Grüneratoren (Assistenten), Werkzeuge, MCP-Server/Anbindungen und durchsuchbare Wissenssammlungen.
 
-NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefragt wird ("was kannst du", "welche MCP-Server kennst du", "wie erstelle ich ein Sharepic"). NICHT für politische Inhalte oder Recherche.`,
+NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefragt wird ("was kannst du", "welche MCP-Server kennst du", "wie erstelle ich ein Sharepic"). NICHT für politische Inhalte oder Recherche — und NICHT für die persönlichen Wolke-/Nextcloud-Verbindungen oder -Dateien der Person: welche Wolke-Links verbunden sind, beantwortet 'cloud_files' (list_connections).`,
         inputSchema: z.object({
           topic: z
             .string()
@@ -774,7 +784,15 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
             userId: state.agentConfig?.userId ?? null,
             question: `${topic} ${lastUserText(state)}`.trim(),
           });
-          return { knowledge };
+          // Zweites Netz zum Beschreibungs-Steering: greift der Planer trotzdem
+          // zuerst hierher (Live-Ausfall 29.08.2026, „welche wolke links sind
+          // verbunden“), trägt das Ergebnis den Verweis, und der nächste
+          // Schritt kann sich fangen.
+          return {
+            knowledge: cloudFilesMounted
+              ? `${knowledge}\n\nHinweis: Welche Wolke-/Nextcloud-Freigaben die Person verbunden hat, steht hier nicht — das beantwortet das Werkzeug cloud_files (action "list_connections").`
+              : knowledge,
+          };
         },
       });
     }
@@ -846,13 +864,7 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
     // die Datei über den Picker gewählt, der Text sagt darüber nichts. Aus
     // demselben Grund zählt ein über `@link` angehängter Freigabe-Link —
     // dessen URL steht ebenfalls nur in den Anhangsdaten.
-    if (
-      state.enabledTools?.['cloud_files'] !== false &&
-      ((state.cloudConnectionCount ?? 0) > 0 ||
-        (state.wolkeFiles?.length ?? 0) > 0 ||
-        attachedCloudShareLinks(state.attachedWebpageUrls).length > 0 ||
-        mentionsCloudStorage(state.lastUserTextNoMentions ?? lastUserText(state)))
-    ) {
+    if (cloudFilesMounted) {
       tools.cloud_files = makeCloudFilesTool(personalCtx);
     }
 
