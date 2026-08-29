@@ -131,12 +131,12 @@ Drei Anbieter nennen keinen: Mistral, Infercom und Berget. Bis August 2026 fiel 
 
 Jetzt schätzen wir stattdessen über den **Standort** und weisen die Schätzung als Schätzung aus (auf der Seite als „PUE geschätzt", mit einem ≈ vor der Zahl):
 
-| Fall                              | Wert | Grundlage                                                                     |
-| --------------------------------- | ---- | ----------------------------------------------------------------------------- |
-| Rechenzentrum in Deutschland      | 1,5  | Obergrenze des Energieeffizienzgesetzes für Bestandsanlagen ab dem 01.07.2027 |
-| Standort nur als „EU/EWR" bekannt | 1,50 | Uptime Institute 2025, europäischer Durchschnitt aus 134 Rechenzentren        |
+| Fall                              | Wert | Grundlage                                                                             |
+| --------------------------------- | ---- | ------------------------------------------------------------------------------------- |
+| Rechenzentrum in Deutschland      | 1,5  | Obergrenze des Energieeffizienzgesetzes für Bestandsanlagen ab dem 01.07.2027         |
+| Standort nur als „EU/EWR" bekannt | 1,50 | Uptime Institute, Global Data Center Survey 2025 — europäischer Durchschnitt, n = 134 |
 
-Bewusst der **europäische** Durchschnitt und nicht der weltweite (1,56): Alle betroffenen Anbieter sind vertraglich auf den EWR festgelegt. Regionen mit deutlich schlechteren Werten — Afrika und der Nahe Osten liegen über 1,7 — würden unseren Fußabdruck mit Rechenzentren aufblähen, in denen niemand für uns rechnet. Vorsichtig schätzen heißt nicht, sich schlechter zu machen, als man belegen kann.
+Bewusst der **europäische** Durchschnitt und nicht der weltweite Wert derselben Erhebung (1,54 bei n = 681): Alle betroffenen Anbieter sind vertraglich auf den EWR festgelegt. Regionen mit schlechteren Werten — Naher Osten und Afrika melden 1,68 — würden unseren Fußabdruck mit Rechenzentren aufblähen, in denen niemand für uns rechnet. Vorsichtig schätzen heißt nicht, sich schlechter zu machen, als man belegen kann.
 
 Beide Werte liegen weiterhin über dem, was ein modernes Rechenzentrum erreicht. Das ist Absicht: Wo wir nichts wissen, soll die Zahl eher zu groß als zu klein sein.
 
@@ -290,7 +290,7 @@ Alle Zahlen dieser Seite sind nachprüfbar.
 - [Jegham et al., „How Hungry is AI?" (arXiv:2505.09598)](https://arxiv.org/abs/2505.09598) — Grundlage des ChatGPT-Vergleichs
 - [Iyengar et al., „Energy Scaling Laws for Diffusion Models" (arXiv:2511.17031)](https://arxiv.org/abs/2511.17031) — Grundlage der Bildwerte; Tabelle 3 (FLUX.1) und Tabelle 6 (Qwen-Image)
 - [Scope3: Sustainable AI — Image Generation](https://info.scope3.com/hubfs/Sustainable%20AI%20-%20Image%20Gen%20Report.pdf) — unabhängige Gegenprobe für Bilder
-- [Uptime Institute Global Data Center Survey](https://uptimeinstitute.com/resources/research-and-reports/uptime-institute-global-data-center-survey-results-2024) — PUE-Durchschnitt, europäische Region 1,50
+- [Uptime Institute Global Data Center Survey 2025](https://datacenter.uptimeinstitute.com/rs/711-RIA-145/images/2025.Annual.Survey.Report.pdf) — PUE-Durchschnitt: europäische Region 1,50 (n = 134), weltweit 1,54 (n = 681)
 - [Energieeffizienzgesetz (EnEfG) § 11](https://www.gesetze-im-internet.de/enefg/__11.html) — gesetzliche PUE-Obergrenzen für Rechenzentren in Deutschland
 - [Hetzner: EMAS-Umwelterklärung 2025](https://cdn.hetzner.com/assets/Uploads/downloads/Umwelterklaerung.pdf) — PUE-Kennzahl und Geltungsbereich
 - [GHG Protocol Scope 2 Guidance](https://ghgprotocol.org/scope-2-guidance) — standortbasiert vs. marktbasiert
