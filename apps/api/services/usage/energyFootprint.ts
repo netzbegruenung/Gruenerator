@@ -331,6 +331,14 @@ const GRID_INTENSITY_G_PER_KWH: Readonly<Record<string, number>> = {
  *    for Gunzenhausen, Nürnberg and Falkenstein. EMAS is the strongest evidence
  *    of the three because a state-approved verifier checks the declaration;
  *    ISO 14001 and a company blog do not carry that.
+ *
+ *    BUT THAT STRENGTH IS GERMAN-ONLY. The EMAS scope covers the German sites;
+ *    the Finnish park (Tuusula) holds ISO/IEC 27001 — information security, not
+ *    environment — and the validated statement names Helsinki only in the
+ *    company portrait. Hetzner does state Finland has run on hydropower since
+ *    2018, so a Finnish lane would still HAVE an instrument; it would just be a
+ *    self-declaration on Seeweb's tier rather than an audited one. Whoever
+ *    moves this lane to Finland has to downgrade the strength with it.
  *  regolo (Seeweb) — "Attingiamo energia elettrica solo da fonti rinnovabili
  *    certificate", ISO 14001, named supplier (Enel green), Green Web Foundation
  *    and the Neutral Datacenter Pact. A self-declaration backed by a certified
@@ -427,8 +435,16 @@ const PUE_BY_PROVIDER: Readonly<Record<string, number>> = {
   //
   // GELTUNGSBEREICH, der beim Nachlesen auffiel: „Der EMAS-Scope der Hetzner
   // Online GmbH umfasst sämtliche DEUTSCHEN Standorte"; internationale
-  // Cloud-Standorte sind ausgenommen. Helsinki traegt diesen Nachweis also
-  // nicht — relevant, sobald eine Lane nachweislich nach Finnland umzieht.
+  // Cloud-Standorte sind ausgenommen. Der finnische Park (Tuusula bei
+  // Helsinki) ist ISO/IEC 27001 zertifiziert — das ist Informationssicherheit,
+  // kein Umweltmanagement — und kommt in der Umwelterklärung nur im
+  // Firmenporträt vor, nicht im Geltungsbereich und ohne eigene Stromzahlen.
+  //
+  // Deshalb gilt auch DIESE 1,13 nur für die deutschen Standorte. Zöge eine
+  // Lane nachweislich nach Tuusula, wäre sie ohne geprüften PUE und fiele auf
+  // EUROPE_PUE — die Korrektur nach unten beim Netzfaktor käme also mit einer
+  // nach oben beim PUE. Eine Ausweitung von EMAS auf Finnland ist öffentlich
+  // nicht angekündigt (erster Zyklus läuft bis 2028).
   litellm: 1.13,
   // Seeweb (Regolo's operator). Two sources agree on 1,2: the DHH Group
   // sustainability report 2024, p. 8 ("achieving a PUE below 1,20") and
