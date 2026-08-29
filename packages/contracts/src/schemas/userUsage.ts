@@ -55,11 +55,12 @@ export const usageFootprintSchema = z.object({
   /** 0..1 — share of the counted energy that was measured rather than estimated. */
   measured_share: z.number(),
   /**
-   * 0..1 — share of the counted energy resting on a conservative UPPER BOUND
-   * rather than a metered coefficient, because no equivalent of that model
-   * exists to measure. Deliberately an over-estimate; the figure drops once the
-   * lane is metered. The remainder (1 - measured - bounded) is a metered
-   * coefficient transferred to the same model at another provider.
+   * 0..1 — share of the counted energy whose MODEL was never metered anywhere,
+   * so it is valued from the bracket between two models that were. Costed at
+   * the centre of that bracket; it used to be its ceiling, which is what the
+   * name still remembers. The figure resolves once the lane is metered. The
+   * remainder (1 - measured - bounded) is a metered coefficient transferred to
+   * the same model at another provider.
    */
   bounded_share: z.number(),
   /**

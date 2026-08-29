@@ -176,7 +176,7 @@ export function makeCloudFilesTool(ctx: CloudToolCtx): Tool {
   return tool({
     description: `Zugriff auf die verbundene WOLKE der Person (Nextcloud-Freigaben) — Ordner durchsehen, Dateien finden und lesen.
 
-NUTZE FÜR: welche Wolke-Verbindungen es gibt (list_connections), was in einem Ordner liegt (list), eine Datei über ihren Namen finden (find), den Inhalt einer Datei lesen und zitieren (read), eine Verbindung prüfen (test_connection), einen Freigabe-Link hinzufügen (add_connection — wird der Person zur Bestätigung angezeigt).
+NUTZE FÜR: welche Wolke-Links/-Verbindungen die Person verbunden hat (list_connections), was in einem Ordner liegt (list), eine Datei über ihren Namen finden (find), den Inhalt einer Datei lesen und zitieren (read), eine Verbindung prüfen (test_connection), einen Freigabe-Link hinzufügen (add_connection — wird der Person zur Bestätigung angezeigt).
 
 NICHT für: Dateien, die in DIESER Nachricht angehängt sind (dafür 'dokumente_lesen'), eigene Grünerator-Dokumente und Tabellen (dafür 'documents'), Notebooks (dafür 'notebooks') oder das Web (dafür 'web_search').
 

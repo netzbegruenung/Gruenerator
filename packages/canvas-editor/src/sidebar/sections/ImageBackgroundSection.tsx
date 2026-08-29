@@ -16,6 +16,7 @@ import { SidebarSlider } from '../components/SidebarSlider';
 import { SIDEBAR_SECTION } from '../sidebarStyles';
 import { SubsectionTabBar, type Subsection } from '../SubsectionTabBar';
 import { useUserUploads } from '../UserUploadsProvider';
+import { downscaleImageForUpload } from '../../utils/userImageUtils';
 
 import type { StockImage, StockImageAttribution } from '../../common/imageSourceTypes';
 import type { BackgroundColorOption } from '../types';
@@ -129,7 +130,10 @@ function SearchContent({
         if (!response.ok) throw new Error('Bild konnte nicht geladen werden');
         const blob = await response.blob();
         const filename = item.originalFilename ?? item.title ?? `upload-${item.id}`;
-        const file = new File([blob], filename, { type: blob.type || 'image/jpeg' });
+        const rawFile = new File([blob], filename, { type: blob.type || 'image/jpeg' });
+        // Same cap as persistImageSelection: this File backs the auto-save
+        // `originalImage`, so it should be the working size, not the raw original.
+        const file = await downscaleImageForUpload(rawFile);
         // The library URL is already durable — persist it directly instead of a
         // session-local blob: URL (which dies on reload in the collab editor).
         onImageChange(file, url, null);
