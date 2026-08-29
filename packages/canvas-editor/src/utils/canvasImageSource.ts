@@ -1,12 +1,12 @@
 import { CANVAS_PREVIEW_WIDTH, shareCanvasPreviewUrl } from '@gruenerator/shared/media-library';
 
-/** The download UI offers 1x/2x/3x export (TopBar/DownloadSection.tsx SCALE_OPTIONS). */
-const EXPORT_PIXEL_RATIO = 3;
+/** The download UI offers 1x/2x export (TopBar/DownloadSection.tsx SCALE_OPTIONS). */
+const EXPORT_PIXEL_RATIO = 2;
 
 /**
  * Pick the source an image element renders from.
  *
- * The `CANVAS_PREVIEW_WIDTH` WebP tier (1080 x 3) is export-quality at the
+ * The `CANVAS_PREVIEW_WIDTH` WebP tier (1080 x 2) is export-quality at the
  * UI's max export scale while the element draws at most
  * `CANVAS_PREVIEW_WIDTH / EXPORT_PIXEL_RATIO` (1080px): the coverFit crop is
  * stretched to the element's box, so a wider box needs more source pixels
