@@ -77,11 +77,11 @@ export interface EnergyCoefficients {
    * How the numbers were arrived at, and therefore how much to trust them.
    *
    *  'measured' — this exact model was metered on GreenPT.
-   *  'bound'    — GreenPT serves no equivalent, so we apply the HIGHEST
-   *               coefficient plausible for the model's size class. Deliberately
-   *               an over-estimate: for a footprint claim, erring high is the
-   *               safe direction, and the figure drops as soon as someone
-   *               measures the lane for real.
+   *  'bound'    — GreenPT serves no equivalent, so the lane is valued from the
+   *               bracket between the two metered models that define its size
+   *               class, at the centre by default. The published scale carries
+   *               both ends, and it collapses as soon as someone measures the
+   *               lane for real.
    */
   basis: 'measured' | 'bound';
 }
@@ -97,7 +97,8 @@ export interface EnergyCoefficients {
  * GreenPT model named in the comment.
  *
  * Every model we actually run is listed, so nothing goes uncounted — but the
- * `basis` field says which entries are metered and which are upper bounds, and
+ * `basis` field says which entries are metered and which are valued from a
+ * bracket of two that are, and
  * the API reports both shares. A model still absent from this table (a new lane
  * nobody added here) is reported as uncovered rather than silently valued at
  * zero.
@@ -208,7 +209,7 @@ const MODEL_ENERGY: Readonly<Record<string, EnergyCoefficients>> = {
     basis: 'measured',
   },
 
-  // --- Conservative bounds: GreenPT serves no equivalent of these three. ---
+  // --- Bracketed lanes: GreenPT serves no equivalent of these. ---
   //
   // A throughput proxy was tried and REJECTED. On identical Regolo hardware the
   // decode slope said gpt-oss-120b costs 0.43x gemma4-31b, while the metered
@@ -217,10 +218,18 @@ const MODEL_ENERGY: Readonly<Record<string, EnergyCoefficients>> = {
   // Since the control failed, the derived numbers were thrown away.
   //
   // What is left is the measured span for this size class: 0.81 mWh/token
-  // (gpt-oss-120b, MoE) to 4.52 (mistral-medium-3.5-128b, dense). Picking the
-  // bottom would understate; we take the TOP, so the displayed footprint is an
-  // upper bound rather than a guess. `basis: 'bound'` propagates that to the
-  // API and the UI, and the number falls the day someone meters the lane.
+  // (gpt-oss-120b, MoE) to 4.52 (mistral-medium-3.5-128b, dense). The
+  // coefficients below are the TOP of that span and are read only at
+  // `bound: 'high'` — see BOUND_CEILING, which is these same three numbers.
+  // What gets displayed is the centre of the bracket, with both ends beside it.
+  //
+  // Until 29.08.2026 the top WAS the displayed value, on the reasoning that an
+  // upper bound beats a guess. It is not a guess either way: the bracket is two
+  // of our own measurements. Quoting only its ceiling made the figure reliably
+  // wrong in one direction and hid how wide the bracket is.
+  //
+  // `basis: 'bound'` propagates to the API and the UI, and the scale narrows
+  // the day someone meters the lane.
   'mistral-small-4-119b': {
     mWhPerOutputToken: 4.519,
     mWhPerInputToken: 0.0287,
@@ -242,9 +251,14 @@ const MODEL_ENERGY: Readonly<Record<string, EnergyCoefficients>> = {
  * handed `routeMistralModel(...).upstream`, so Scaleway-routed Mistral Medium
  * lands under 'scaleway'. That is exactly the granularity this table needs.
  *
- * Location-based annual averages, sourced 2026-07-31. Annual rather than hourly
- * because we have no hourly feed of our own — GreenPT buys that from Nodera.
- * Erring high is the safer direction for a footprint claim.
+ * Location-based annual averages. Annual rather than hourly because we have no
+ * hourly feed of our own — GreenPT buys that from Nodera.
+ *
+ * These are CENTRAL values. Where the country itself is uncertain the entry is
+ * the middle of the possible grids and the ends live in GRID_SPAN_G_PER_KWH;
+ * where the country is known there is one number and no span. Neither case
+ * carries a safety margin any more: a margin folded into the point estimate is
+ * invisible, and an invisible margin is indistinguishable from an error.
  */
 /** EU average, Ember 2025. The fallback for a provider we did not record. */
 const EU_AVERAGE_G_PER_KWH = 213;
@@ -966,7 +980,7 @@ export function hasEnergyCoefficients(model: string): boolean {
  * Returns null only for a model missing from the table entirely — a new lane
  * nobody registered. The caller reports those as uncovered rather than valuing
  * them at zero. The returned `basis` distinguishes a metered coefficient from a
- * conservative upper bound so the API can report both shares.
+ * bracketed one so the API can report both shares.
  */
 export function estimateFootprint(params: {
   provider: string;
@@ -980,11 +994,8 @@ export function estimateFootprint(params: {
   const table = MODEL_ENERGY[params.model];
   if (!table) return null;
 
-  // A metered lane has no span to pick from, so the low end only moves for the
-  // entries that are an upper bound in the first place.
-  // Ein gemessener Koeffizient kennt keine Enden — nur die zwei `bound`-Zeilen
-  // werden ueber die Spanne bewegt. Deshalb faellt `basis: 'measured'` hier
-  // immer auf sich selbst zurueck, an allen drei Enden.
+  // A metered coefficient has no ends to pick from: only the `bound` rows move
+  // across the bracket, so `basis: 'measured'` resolves to itself at all three.
   const c = table.basis === 'bound' ? boundedCoefficients(params.bound ?? 'mid') : table;
 
   const pueRatio = pueFor(params.provider) / GREENPT_PUE;
