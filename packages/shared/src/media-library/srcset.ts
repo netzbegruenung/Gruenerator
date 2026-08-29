@@ -66,6 +66,15 @@ export function buildSharedMediaSrcSet(
 const SHARE_DOWNLOAD_RE = /^\/api\/share\/([^/?#]+)\/download$/;
 const THUMBS_RE = /^\/api\/thumbs\//;
 
+// The `/api/share/<token>/download` → `/preview` rewrite shared by
+// `shareThumbnailPreviewUrl` and `shareCanvasPreviewUrl` (only the width
+// default differs).
+function shareDownloadPreviewUrl(url: string | undefined, width: number): string | undefined {
+  if (!url) return url;
+  const match = SHARE_DOWNLOAD_RE.exec(url);
+  return match ? `/api/share/${match[1]}/preview?w=${width}&fmt=webp` : url;
+}
+
 /**
  * Rewrite a full-resolution media URL to a resized preview variant.
  *
@@ -99,14 +108,15 @@ export function shareThumbnailPreviewUrl(
     params.set('fmt', 'webp');
     return `${path}?${params.toString()}`;
   }
-  const match = SHARE_DOWNLOAD_RE.exec(url);
-  return match ? `/api/share/${match[1]}/preview?w=${width}&fmt=webp` : url;
+  return shareDownloadPreviewUrl(url, width);
 }
 
 /**
  * The canvas editor's working tier. The scene is 1080x1350 and exports at
- * container x 2, so a 2160px source is export-quality for every realistic
- * panel size. Must stay a member of the API's `THUMBNAIL_WIDTHS`.
+ * container x 2, so a 2160px source is export-quality while an element draws
+ * at most 1080px wide (half the tier); wider — zoomed or resized — elements
+ * render the stored original instead. Must stay a member of the API's
+ * `THUMBNAIL_WIDTHS`.
  */
 export const CANVAS_PREVIEW_WIDTH = 2160;
 
@@ -116,14 +126,11 @@ export const CANVAS_PREVIEW_WIDTH = 2160;
  *
  * Only the `/api/share/<token>/download` shape is rewritten — that is exactly
  * what the collab doc stores as `currentImageSrc` — while `blob:` previews,
- * remote stock URLs and anything else pass through unchanged, so this is safe
- * to apply unconditionally at the render edge.
+ * remote stock URLs and anything else pass through unchanged.
  */
 export function shareCanvasPreviewUrl(
   url: string | undefined,
   width: number = CANVAS_PREVIEW_WIDTH
 ): string | undefined {
-  if (!url) return url;
-  const match = SHARE_DOWNLOAD_RE.exec(url);
-  return match ? `/api/share/${match[1]}/preview?w=${width}&fmt=webp` : url;
+  return shareDownloadPreviewUrl(url, width);
 }
