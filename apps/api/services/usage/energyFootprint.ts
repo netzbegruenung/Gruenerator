@@ -350,12 +350,24 @@ const GRID_INTENSITY_G_PER_KWH: Readonly<Record<string, number>> = {
  * exactly the bug that shipped in the frontend's first cut of this feature.
  */
 const MARKET_INTENSITY_G_PER_KWH: Readonly<Record<string, number>> = {
-  mistral: 0,
   scaleway: 0,
-  // Erbt Scaleways Instrument, weil es dieselbe Erzeugung ist — siehe die
-  // Header-Messung bei GRID_INTENSITY_G_PER_KWH. Ein Router als solcher trägt
-  // kein eigenes Zertifikat; was zählt, ist wer tatsächlich rechnet.
-  cortecs: 0,
+  // KEIN Instrument für mistral: In der Belegliste im Kopf dieses Blocks kommt
+  // Mistral nicht vor, und das war kein Versehen der Doku — es gibt keinen. Die
+  // Zeile stand hier trotzdem und setzte die Emissionen des Standardmodells am
+  // günstigen Ende der Spanne auf null, also genau das „silently inheriting
+  // someone else's green power", gegen das `marketIntensityFor` unten
+  // argumentiert. Frankreichs Netz ist von sich aus kohlenstoffarm; das ist
+  // eine Aussage über das NETZ und gehört nach GRID_INTENSITY_G_PER_KWH, nicht
+  // in die Beschaffungsspalte.
+  //
+  // KEIN Instrument für cortecs: Der Schlüssel entsteht ausschliesslich dann,
+  // wenn `x-cortecs-provider` fehlte — also genau dann, wenn wir NICHT wissen,
+  // wer gerechnet hat. Er erbte Scaleways Herkunftsnachweis aus einer Messung,
+  // die inzwischen überholt ist: die Cortecs-Stufe geht heute an infercom
+  // (10/10 am 21.08.2026), und infercom steht aus gutem Grund nicht in dieser
+  // Tabelle. Ein Zertifikat an einen unbekannten Unterauftragnehmer zu vererben
+  // ist derselbe Fehler wie bei mistral, nur eine Ebene tiefer.
+  //
   // KEIN Instrument für infercom und berget: für beide ist uns keine
   // Herkunftsnachweis- oder EMAS-Erklärung bekannt. Sie fehlen hier bewusst
   // und fallen damit auf den Standortfaktor zurück — dieselbe Behandlung wie
@@ -388,12 +400,36 @@ export function marketIntensityFor(provider: string): number {
  * better PUE get the difference credited back.
  */
 const GREENPT_PUE = 1.25;
+
+/**
+ * Uptime Institute Global Data Center Survey 2025, European region: 1.50 across
+ * 134 datacenters. Used where no operator figure exists.
+ *
+ * EUROPE, not the world average of 1.56 — and the difference is not rounding
+ * noise, it is the difference between a guess and an inference. Every provider
+ * that lands here is contractually bound to the EEA (Mistral's and Infercom's
+ * DPAs, Berget's own statement, BFL's `api.eu.bfl.ai`), so the continent is the
+ * one thing we actually know. A world average would fold in regions we have
+ * ruled out — Africa and the Middle East sit above 1.7 — and pad our own
+ * footprint with datacenters nobody could be running on.
+ *
+ * Erring high stops where it stops being true.
+ */
+const EUROPE_PUE = 1.5;
 const PUE_BY_PROVIDER: Readonly<Record<string, number>> = {
-  // Hetzner. 1,12 is its own published fleet average and now sits inside an
-  // EMAS-registered environmental management system (Gunzenhausen, Nürnberg,
-  // Falkenstein, since 2025), i.e. a state-approved verifier checks the
-  // declaration it comes from. Was 1,13 from a weaker source.
-  litellm: 1.12,
+  // Hetzner, aus der EMAS-Umwelterklärung 2025 (Berichtszeitraum 2022-2024):
+  // die Kennzahlentabelle führt „Durchschnittlicher PUE" mit 1,15 / 1,13 / 1,13.
+  // 1,13 ist also der geprüfte Wert für 2024.
+  //
+  // Vorher stand hier 1,12 mit Verweis auf ebendiese Erklärung — die Zahl kommt
+  // darin nicht vor (der Fliesstext nennt 1,14, die Tabelle 1,13), und die
+  // Produktdoku sagt seit jeher 1,13. Der Code war der Ausreisser.
+  //
+  // GELTUNGSBEREICH, der beim Nachlesen auffiel: „Der EMAS-Scope der Hetzner
+  // Online GmbH umfasst sämtliche DEUTSCHEN Standorte"; internationale
+  // Cloud-Standorte sind ausgenommen. Helsinki traegt diesen Nachweis also
+  // nicht — relevant, sobald eine Lane nachweislich nach Finnland umzieht.
+  litellm: 1.13,
   // Seeweb (Regolo's operator). Two sources agree on 1,2: the DHH Group
   // sustainability report 2024, p. 8 ("achieving a PUE below 1,20") and
   // Seeweb's own page. Read the second one carefully though — it says 1,2 is
@@ -409,9 +445,59 @@ const PUE_BY_PROVIDER: Readonly<Record<string, number>> = {
   scaleway: 1.25,
   // Derselbe Standort über den Vermittler — siehe oben.
   cortecs: 1.25,
-  // Kein PUE für infercom und berget — keiner der beiden veröffentlicht einen.
-  // Die Tabelle fällt dafür auf ihren Standardwert zurück, was ehrlicher ist
-  // als ein von einem anderen Betreiber geliehener Wert.
+  // GreenPT selbst. Steht hier als VERÖFFENTLICHTER Wert und nicht als
+  // Rückfall, obwohl beide 1,25 ergäben: die GreenPT-Zeilen sind gemessen, ihre
+  // Energie trägt genau diesen PUE bereits in sich. Ein Schätzwert an dieser
+  // Stelle würde eine Messung nachträglich hochrechnen.
+  greenpt: GREENPT_PUE,
+  // Kein Eintrag für mistral, infercom und berget — keiner der drei
+  // veröffentlicht einen PUE. Sie werden über PUE_ESTIMATE_BY_PROVIDER
+  // geschätzt und als geschätzt ausgewiesen, siehe dort.
+};
+
+/**
+ * PUE-SCHÄTZUNGEN für Anbieter, die keinen veröffentlichen — aus dem STANDORT
+ * abgeleitet und über `isPueEstimated` als Schätzung gekennzeichnet.
+ *
+ * Warum es diese Tabelle überhaupt gibt: `pueFor` fiel vorher auf GREENPT_PUE
+ * zurück, also auf Scaleway DC5. Das ist genau der geliehene Fremdwert, den der
+ * Kommentar oben auszuschliessen behauptete — und weil `pueFor` den
+ * Transparenz-Endpunkt bedient, stand er als „PUE 1,3" neben einem Anbieter, der
+ * nie einen genannt hat. Ein erfundener Kennwert ist schlimmer als ein
+ * geschätzter, denn nur der geschätzte kann sich als Schätzung zu erkennen
+ * geben.
+ *
+ * Die Richtung ist wie überall sonst: lieber zu hoch. Ein zu niedriger PUE
+ * schönt den Fussabdruck, ein zu hoher macht ihn nur unattraktiver.
+ */
+const PUE_ESTIMATE_BY_PROVIDER: Readonly<Record<string, number>> = {
+  // München. Der Standort ist belegt (SambaNova/Infercom-Partnerseite: Munich
+  // Datacenter, SambaNova SN40 RDUs, SambaRack bei ~10 kW) — das GEBÄUDE aber
+  // nicht, und ein PUE ist eine Eigenschaft des Gebäudes, nicht der Stadt.
+  //
+  // 1,5 ist deshalb keine Messung, sondern die gesetzliche Obergrenze: das
+  // Energieeffizienzgesetz (EnEfG) verlangt von Rechenzentren ab 300 kW, die vor
+  // dem 01.07.2026 in Betrieb gingen, ab dem 01.07.2027 einen PUE <= 1,5 und ab
+  // dem 01.07.2030 <= 1,3; Neubauten ab dem 01.07.2026 <= 1,2. Wir setzen die
+  // Bestandsschwelle an, weil wir das Baujahr nicht kennen. Dass sie zahlgleich
+  // mit EUROPE_PUE ist, ist Zufall — die beiden Quellen bewegen sich getrennt,
+  // deshalb steht die Zeile trotzdem hier. Ein moderner
+  // Münchner Colo liegt real eher bei 1,2-1,4 — die Schätzung ist also bewusst
+  // pessimistisch, und das ist bei einer Umweltangabe die richtige Richtung.
+  infercom: 1.5,
+  // Frankreich ist eine ANNAHME, kein Beleg. Mistrals DPA nennt Frankreich nur
+  // als Gerichtsstand und erlaubt Verarbeitung im gesamten EWR; die eigene
+  // Zusage lautet „European Union", nicht „Frankreich". Was der DPA hergibt,
+  // ist der Kontinent — und genau der ist der Anker.
+  //
+  // ACHTUNG, hier hängt mehr dran als dieser Wert: dieselbe unbelegte Annahme
+  // trägt die 22 g/kWh in GRID_INTENSITY_G_PER_KWH. Wer den Standort klärt,
+  // klärt beide Zeilen.
+  mistral: EUROPE_PUE,
+  // Berget nennt als Verarbeitungsort „EWR" ohne Land. Schwedische
+  // Rechenzentren liegen typischerweise deutlich darunter, aber eine ungenannte
+  // Angabe wird nicht zugunsten des Anbieters gelesen.
+  berget: EUROPE_PUE,
 };
 
 export interface Footprint {
@@ -552,8 +638,6 @@ const IMAGE_ENERGY: Readonly<Record<string, ImageEnergy>> = {
 const IMAGE_PUE_BY_PROVIDER: Readonly<Record<string, number>> = {
   regolo: 1.2, // Seeweb, DHH sustainability report 2024, p. 8
 };
-/** Uptime Institute Global Data Center Survey 2024 puts the world average at 1.56. */
-const UNKNOWN_PUE = 1.56;
 
 /**
  * Footprint of generated images. Returns null for a model absent from the
@@ -570,7 +654,9 @@ export function estimateImageFootprint(params: {
   if (!c) return null;
 
   const uplift = params.bound === 'low' ? 1 : IMAGE_BOUNDARY_UPLIFT;
-  const pue = IMAGE_PUE_BY_PROVIDER[params.provider] ?? UNKNOWN_PUE;
+  // Über `pueFor`, damit die Zahl, mit der hier gerechnet wird, dieselbe ist,
+  // die der Transparenz-Endpunkt daneben veröffentlicht.
+  const pue = pueFor(params.provider, 'images');
   const energyWms = Math.round(c.mWhPerImageGpu * uplift * params.images * pue * WMS_PER_MWH);
   return {
     energyWms,
@@ -662,9 +748,21 @@ export function gridIntensityFor(provider: string): number {
  * number was never computed with.
  */
 export function pueFor(provider: string, kind: 'tokens' | 'images' = 'tokens'): number {
-  return kind === 'images'
-    ? (IMAGE_PUE_BY_PROVIDER[provider] ?? UNKNOWN_PUE)
-    : (PUE_BY_PROVIDER[provider] ?? GREENPT_PUE);
+  const published = kind === 'images' ? IMAGE_PUE_BY_PROVIDER[provider] : PUE_BY_PROVIDER[provider];
+  return published ?? PUE_ESTIMATE_BY_PROVIDER[provider] ?? EUROPE_PUE;
+}
+
+/**
+ * Whether `pueFor` returned an operator's own published figure or our estimate.
+ *
+ * Exists so the transparency surface can say which of the two it is printing.
+ * A published PUE and a guessed one look identical as a number, and the page
+ * that prints them side by side is the one place where that difference has to
+ * survive.
+ */
+export function isPueEstimated(provider: string, kind: 'tokens' | 'images' = 'tokens'): boolean {
+  const table = kind === 'images' ? IMAGE_PUE_BY_PROVIDER : PUE_BY_PROVIDER;
+  return !(provider in table);
 }
 
 /**

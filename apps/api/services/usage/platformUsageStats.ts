@@ -36,6 +36,7 @@ import {
   estimateFootprint,
   estimateImageFootprint,
   gridIntensityFor,
+  isPueEstimated,
   pueFor,
   emissionsFromEnergy,
   hasMarketInstrument,
@@ -110,6 +111,8 @@ interface ProviderAccumulator {
   energyWms: number;
   emissionsUg: number;
   pueWeighted: number;
+  /** True as soon as ANY contributing kind used an estimated PUE. */
+  pueEstimated: boolean;
 }
 
 function startOfWindow(days: number): string {
@@ -299,10 +302,19 @@ export async function computePlatformUsageStats(
     emissions: number,
     kind: 'tokens' | 'images'
   ): void => {
-    const entry = byProvider.get(provider) ?? { energyWms: 0, emissionsUg: 0, pueWeighted: 0 };
+    const entry = byProvider.get(provider) ?? {
+      energyWms: 0,
+      emissionsUg: 0,
+      pueWeighted: 0,
+      pueEstimated: false,
+    };
     entry.energyWms += energy;
     entry.emissionsUg += emissions;
     entry.pueWeighted += pueFor(provider, kind) * energy;
+    // OR across kinds: a provider whose token PUE is published but whose image
+    // PUE is not still carries an estimate in its weighted average, and the
+    // label has to reflect the weaker half.
+    entry.pueEstimated ||= isPueEstimated(provider, kind);
     byProvider.set(provider, entry);
   };
 
@@ -464,6 +476,7 @@ export async function computePlatformUsageStats(
         provider,
         grid_g_per_kwh: gridIntensityFor(provider),
         pue: entry.energyWms > 0 ? entry.pueWeighted / entry.energyWms : pueFor(provider),
+        pue_estimated: entry.pueEstimated,
         energy_wh: entry.energyWms / WMS_PER_WH,
         emissions_g: entry.emissionsUg / UG_PER_G,
       }))

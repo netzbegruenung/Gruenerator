@@ -7,6 +7,7 @@ import {
   estimateImageFootprint,
   gridIntensityFor,
   hasEnergyCoefficients,
+  isPueEstimated,
   pueFor,
   referenceFootprint,
 } from '../energyFootprint.js';
@@ -79,8 +80,14 @@ describe('referenceFootprint — the GPT-4o counterfactual', () => {
 describe('estimateFootprint', () => {
   it('lands within 10% of the measured energy for a typical answer', () => {
     // Measured: mistral-medium-3.5-128b at 400 output tokens drew 1.8278 Wh.
+    //
+    // Costed AT THE PUE IT WAS MEASURED AT, so this pins the COEFFICIENT and
+    // nothing else. The same call on `provider: 'mistral'` deliberately lands
+    // ~24% higher, because Mistral publishes no PUE and the estimate assumes a
+    // world-average building — that correction has its own test in `pueFor`
+    // and must not be able to hide inside this one.
     const result = estimateFootprint({
-      provider: 'mistral',
+      provider: 'greenpt',
       model: 'mistral-medium-2604',
       inputTokens: 38,
       outputTokens: 400,
@@ -90,6 +97,15 @@ describe('estimateFootprint', () => {
     const wh = (result?.energyWms ?? 0) / 3_600_000;
     expect(wh).toBeGreaterThan(1.83 * 0.9);
     expect(wh).toBeLessThan(1.83 * 1.1);
+  });
+
+  it('charges the unproven Mistral datacenter more than the measured one', () => {
+    // The direction the whole PUE-estimate change exists for: same model, same
+    // tokens, one lane metered and one guessed — the guess must cost MORE.
+    const shape = { model: 'mistral-medium-2604', inputTokens: 38, outputTokens: 400, requests: 1 };
+    const measured = estimateFootprint({ ...shape, provider: 'greenpt' });
+    const estimated = estimateFootprint({ ...shape, provider: 'mistral' });
+    expect(estimated?.energyWms).toBeGreaterThan(measured?.energyWms ?? 0);
   });
 
   it('reproduces the measured six-fold gap between Gemma 4 and Mistral Medium', () => {
@@ -147,8 +163,8 @@ describe('estimateFootprint', () => {
 
   it('credits back a better PUE than GreenPT reference', () => {
     // Same Gemma 4 weights on three hosts. Both of ours beat GreenPT's 1.25:
-    // Hetzner 1.12 (its own EMAS-registered declaration, was 1.13 from a weaker
-    // source), Seeweb 1.20 (DHH sustainability report 2024, p. 8). The numbers
+    // Hetzner 1.13 (the EMAS environmental statement's 2024 key figure),
+    // Seeweb 1.20 (DHH sustainability report 2024, p. 8). The numbers
     // below are read from PUE_BY_PROVIDER — an update there belongs here too.
     const shape = { inputTokens: 600, outputTokens: 400, requests: 1 };
     const greenpt = estimateFootprint({ ...shape, provider: 'greenpt', model: 'gemma4-31b' });
@@ -194,6 +210,9 @@ describe('estimateFootprint', () => {
     // data showed that row sitting uncovered while the table held only the
     // pre-routing spelling — the best-measured coefficient missing its own lane.
     const shape = { inputTokens: 600, outputTokens: 400, requests: 1 };
+    // Provider held constant on both sides: this test is about the MODEL ID
+    // resolving to a coefficient. Varying the provider too would let a PUE
+    // difference break it for a reason that has nothing to do with coverage.
     const routed = estimateFootprint({
       ...shape,
       provider: 'scaleway',
@@ -201,7 +220,7 @@ describe('estimateFootprint', () => {
     });
     const direct = estimateFootprint({
       ...shape,
-      provider: 'mistral',
+      provider: 'scaleway',
       model: 'mistral-medium-2604',
     });
     expect(routed).not.toBeNull();
@@ -226,13 +245,14 @@ describe('estimateFootprint', () => {
 
   it('charges embeddings on the input side only', () => {
     const result = estimateFootprint({
-      provider: 'mistral',
+      provider: 'greenpt',
       model: 'mistral-embed',
       inputTokens: 30,
       outputTokens: 0,
       requests: 1,
     });
-    // Measured: 8150 Wms for 30 tokens.
+    // Measured: 8150 Wms for 30 tokens — at the measuring datacenter's PUE, so
+    // the band stays a statement about the input/output split.
     expect(result?.energyWms).toBeGreaterThan(7000);
     expect(result?.energyWms).toBeLessThan(9500);
   });
@@ -346,16 +366,48 @@ describe('the low end of the band', () => {
 
 describe('pueFor', () => {
   it('reads the table the figure was actually computed from', () => {
-    // Token coefficients arrive from GreenPT carrying 1.25; image figures come
-    // off a bare GPU meter and fall back to the world average instead. Reading
-    // the wrong one would publish a constant no number was computed with.
-    expect(pueFor('bfl', 'tokens')).toBe(1.25);
-    expect(pueFor('bfl', 'images')).toBe(1.56);
+    // Scaleway publishes a PUE for the datacenter its TEXT lanes run in and
+    // none for images, so the same provider legitimately carries two values.
+    // Reading the wrong table would publish a constant no number was computed
+    // with.
+    expect(pueFor('scaleway', 'tokens')).toBe(1.25);
+    expect(pueFor('scaleway', 'images')).toBe(1.5);
     expect(pueFor('regolo')).toBe(1.2);
     // Hetzner's own EMAS-registered declaration. Pinned HERE and nowhere else,
     // so moving the constant fails one obvious test instead of an arithmetic
     // assertion three describes away.
-    expect(pueFor('litellm')).toBe(1.12);
+    expect(pueFor('litellm')).toBe(1.13);
+  });
+
+  it('estimates from the location instead of inheriting GreenPT-s datacenter', () => {
+    // THE REGRESSION THIS PINS: the fallback used to be GREENPT_PUE, so every
+    // provider without a published figure silently borrowed Scaleway DC5-s
+    // 1.25 — and the transparency endpoint printed it as if the operator had
+    // said so. An unknown PUE must land ABOVE the reference, never on it.
+    expect(pueFor('infercom')).toBe(1.5); // Munich, EnEfG ceiling
+    expect(pueFor('infercom')).toBeGreaterThan(pueFor('greenpt'));
+    // European average, not the world one: every provider that lands on the
+    // fallback is EEA-bound by contract, so the continent is known even where
+    // the country is not.
+    expect(pueFor('mistral')).toBe(1.5);
+    expect(pueFor('mistral')).toBeGreaterThan(pueFor('greenpt'));
+  });
+
+  it('keeps GreenPT itself a published value, because its rows are measured', () => {
+    // GreenPT-s own energy already contains 1.25. Treating it as an estimate
+    // would apply a 1.56/1.25 uplift to a METERED number.
+    expect(pueFor('greenpt')).toBe(1.25);
+    expect(isPueEstimated('greenpt')).toBe(false);
+  });
+
+  it('separates a published PUE from an estimated one', () => {
+    expect(isPueEstimated('regolo')).toBe(false);
+    expect(isPueEstimated('litellm')).toBe(false);
+    expect(isPueEstimated('infercom')).toBe(true);
+    expect(isPueEstimated('mistral')).toBe(true);
+    // Same provider, different lane: published for text, estimated for images.
+    expect(isPueEstimated('scaleway', 'tokens')).toBe(false);
+    expect(isPueEstimated('scaleway', 'images')).toBe(true);
   });
 });
 

@@ -121,9 +121,24 @@ Wir rechnen mit diesen Werten (Jahresmittel 2024, nur Verbrennungsemissionen):
 
 Bei Scaleway müssen wir nicht auf den Landesdurchschnitt ausweichen: Der Impact Report weist Scope 2 standortbasiert mit 3.155 t CO₂e bei 132.881 MWh aus — macht 23,7 g/kWh aus erster Hand.
 
-Dazu kommt die Effizienz des Rechenzentrums selbst (PUE — wie viel Strom zusätzlich für Kühlung und Infrastruktur draufgeht). GreenPTs Messwerte enthalten einen PUE von 1,25; wo unsere Anbieter besser sind, rechnen wir die Differenz gut: Hetzner gibt 1,12 an, Seeweb unter 1,20.
+Dazu kommt die Effizienz des Rechenzentrums selbst (PUE — wie viel Strom zusätzlich für Kühlung und Infrastruktur draufgeht). GreenPTs Messwerte enthalten einen PUE von 1,25; wo unsere Anbieter besser sind, rechnen wir die Differenz gut: Hetzner gibt 1,13 an, Seeweb unter 1,20. Wo ein Betreiber gar keinen PUE veröffentlicht, schätzen wir ihn — siehe unten.
 
 **Ein Glücksfall für die Genauigkeit:** GreenPT rechnet selbst bei Scaleway in Paris („Every GreenPT request runs on Scaleway's 100 % renewable-powered compute in Paris"), und Scaleway stellt sämtliche KI-Server in ein einziges Rechenzentrum — DC5, PUE 1,25. Unsere Gemma-4-Lane für lange Dokumente läuft ebenfalls dort. Für sie ist unsere Messung also **keine Übertragung auf fremde Hardware**, sondern dieselbe Maschinenklasse im selben Gebäude. Für alle anderen Lanes — unser Standardmodell Mistral Medium bei Mistral in Frankreich, GPT-OSS bei verdigado, die Regolo-Modelle in Italien — bleibt es eine Übertragung; dort ist das „≈" wörtlich zu nehmen. (Mistral Medium lief bis August 2026 ebenfalls über Scaleway; wir haben es wegen fehlerhafter Antworten dieses Anbieters wieder direkt zu Mistral gelegt.)
+
+### Wenn ein Betreiber keinen PUE veröffentlicht
+
+Drei Anbieter nennen keinen: Mistral, Infercom und Berget. Bis August 2026 fiel die Rechnung dort still auf GreenPTs 1,25 zurück — also auf den Wert eines fremden, besonders effizienten Rechenzentrums. Die Transparenz-Seite hat ihn danebengeschrieben, als hätte der Anbieter ihn genannt. Das war falsch, und zwar in die schmeichelnde Richtung.
+
+Jetzt schätzen wir stattdessen über den **Standort** und weisen die Schätzung als Schätzung aus (auf der Seite als „PUE geschätzt", mit einem ≈ vor der Zahl):
+
+| Fall                              | Wert | Grundlage                                                                     |
+| --------------------------------- | ---- | ----------------------------------------------------------------------------- |
+| Rechenzentrum in Deutschland      | 1,5  | Obergrenze des Energieeffizienzgesetzes für Bestandsanlagen ab dem 01.07.2027 |
+| Standort nur als „EU/EWR" bekannt | 1,50 | Uptime Institute 2025, europäischer Durchschnitt aus 134 Rechenzentren        |
+
+Bewusst der **europäische** Durchschnitt und nicht der weltweite (1,56): Alle betroffenen Anbieter sind vertraglich auf den EWR festgelegt. Regionen mit deutlich schlechteren Werten — Afrika und der Nahe Osten liegen über 1,7 — würden unseren Fußabdruck mit Rechenzentren aufblähen, in denen niemand für uns rechnet. Vorsichtig schätzen heißt nicht, sich schlechter zu machen, als man belegen kann.
+
+Beide Werte liegen weiterhin über dem, was ein modernes Rechenzentrum erreicht. Das ist Absicht: Wo wir nichts wissen, soll die Zahl eher zu groß als zu klein sein.
 
 Eine Unschärfe bleibt und sei benannt: Der deutsche Wert des Umweltbundesamts ist verbrauchsbasiert (Stromimporte eingerechnet), die französische und italienische Zahl sind erzeugungsbasiert. Italien importiert viel französischen Atomstrom, sein verbrauchsbasierter Wert läge also **unter** 270. Der Fehler geht damit zu Lasten Italiens, nicht zu seinen Gunsten.
 
@@ -137,12 +152,13 @@ Ihn ganz zu verschweigen wäre allerdings die andere Hälfte derselben Unehrlich
 
 Marktbasiert ist dabei nichts zu schätzen: Für Verbrauch, der durch entwertete Herkunftsnachweise gedeckt ist, gilt der Emissionsfaktor der vertraglich bezogenen Erzeugung, also null. Die einzige Frage je Anbieter ist der **Beleg**, und die Latte ist ein benanntes Instrument, kein grünes Selbstbild:
 
-| Anbieter                       | Beleg                                                                                                  | Stärke                                                     |
-| ------------------------------ | ------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------- |
-| Scaleway / GreenPT             | _Guarantee of Origin_ im Impact Report, dazu eigene standortbasierte Scope-2-Zahl                      | dokumentiert                                               |
-| Hetzner (verdigado)            | **EMAS-Registrierung** seit 2025 (Gunzenhausen, Nürnberg, Falkenstein); 100 % Erneuerbare in DE und FI | am stärksten — staatlich zugelassener Gutachter prüft nach |
-| Seeweb (Regolo)                | ISO 14001, „solo da fonti rinnovabili certificate", benannter Versorger, Green Web Foundation          | Selbstauskunft plus zertifiziertes Managementsystem        |
-| **Black Forest Labs (Bilder)** | **keiner** — läuft hinter Azure Front Door, die Region der Inferenz ist für uns unsichtbar             | kein Anspruch                                              |
+| Anbieter                       | Beleg                                                                                                                                  | Stärke                                                                                                                                                                                   |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Scaleway / GreenPT             | _Guarantee of Origin_ im Impact Report, dazu eigene standortbasierte Scope-2-Zahl                                                      | dokumentiert                                                                                                                                                                             |
+| Hetzner (verdigado)            | **EMAS-Registrierung** seit 2025 (Gunzenhausen, Nürnberg, Falkenstein); 100 % Erneuerbare in DE und FI                                 | am stärksten — staatlich zugelassener Gutachter prüft nach. Achtung: Der EMAS-Geltungsbereich umfasst ausdrücklich nur die **deutschen** Standorte; Helsinki trägt diesen Nachweis nicht |
+| Seeweb (Regolo)                | ISO 14001, „solo da fonti rinnovabili certificate", benannter Versorger, Green Web Foundation                                          | Selbstauskunft plus zertifiziertes Managementsystem                                                                                                                                      |
+| **Mistral AI**                 | **keiner** — Mistral wirbt nicht mit Ökostrom, und der französische Netzmix ist eine Aussage über das Netz, nicht über die Beschaffung | kein Anspruch                                                                                                                                                                            |
+| **Black Forest Labs (Bilder)** | **keiner** — läuft hinter Azure Front Door, die Region der Inferenz ist für uns unsichtbar                                             | kein Anspruch                                                                                                                                                                            |
 
 Entscheidend ist, dass diese Liste nach **Anbieter** geht und nicht nach Art der Aufgabe. Es ist also nicht so, dass „Bilder" pauschal herausfielen: Regolo erzeugt mit Qwen-Image ebenfalls Bilder, und die laufen im selben zertifizierten Seeweb-Rechenzentrum wie die Textmodelle — sie tragen den Nachweis also mit. Heraus fällt allein **Black Forest Labs**. Für dessen Bilder sind beide Methoden identisch, und das ist die ehrliche Antwort: Wir können nicht einmal sagen, in welchem Land die GPU steht, also können wir dort auch keinen Ökostrom anrechnen — Microsofts eigene Beschaffung ist nicht unsere.
 
@@ -153,7 +169,7 @@ Am günstigen Ende rechnen wir **unseren** Ökostrom an, lassen die GPT-4o-Vergl
 Aus demselben Grund übernehmen wir **nicht**, wie Regolo es im eigenen Playground tut: Dort steht „Saved CO₂ 0,631 g" für eine Anfrage mit 1,804 kWh — das sind 350 g/kWh, also der EU-Durchschnitt, gegen den die eigene Erzeugung gerechnet wird. Das ist keine Bilanz, sondern eine vermiedene Emission gegenüber einem Netz, an dem der Anbieter gar nicht hängt.
 :::
 
-Wo Berichte konkret werden, rechnen wir es zusätzlich an: Seewebs PUE unter 1,20 und Hetzners 1,12 senken beide Werte gegenüber unserem Referenzwert. Bei Seeweb ist dabei zu beachten, dass die 1,2 laut eigener Seite in den _neuesten_ Serverfarmen erreicht werden — für die ältere Flotte dürfte der Wert höher liegen. Das ist die eine Stelle, an der unsere Annahme eher schmeichelt als vorsichtig ist.
+Wo Berichte konkret werden, rechnen wir es zusätzlich an: Seewebs PUE unter 1,20 und Hetzners 1,13 senken beide Werte gegenüber unserem Referenzwert. Bei Seeweb ist dabei zu beachten, dass die 1,2 laut eigener Seite in den _neuesten_ Serverfarmen erreicht werden — für die ältere Flotte dürfte der Wert höher liegen. Das ist die eine Stelle, an der unsere Annahme eher schmeichelt als vorsichtig ist.
 
 Sobald Seeweb oder Hetzner eine standortbasierte Scope-2-Bilanz veröffentlichen, nehmen wir sie auf — bei Scaleway ist genau das schon passiert. Für Hetzner ist die EMAS-Umwelterklärung der wahrscheinlichste Ort dafür.
 
@@ -168,7 +184,7 @@ Wir haben deshalb einen zweiten Weg geprüft: **Antwortgeschwindigkeit als Energ
 |                             | Verhältnis GPT-OSS 120B zu Gemma 4 |
 | --------------------------- | ---------------------------------- |
 | laut Geschwindigkeits-Proxy | 0,43×                              |
-| laut Messung                | 1,12×                              |
+| laut Messung                | 1,13×                              |
 
 **Der Proxy lag um 62 % daneben — und zwar in der schmeichelhaften Richtung.** Geschwindigkeit sagt vor allem, über wie viele GPUs ein Modell verteilt ist, nicht wie viel es zieht. Die daraus abgeleiteten Zahlen haben wir verworfen.
 
@@ -185,7 +201,7 @@ Auch hier meldet kein Anbieter Messwerte, und GreenPT betreibt kein Bildmodell, 
 | Qwen-Image (läuft bei Regolo) | 3,58 Wh                   |
 | FLUX.1 [dev]                  | 4,28 Wh                   |
 
-**Zwei Korrekturen sind nötig, bevor man das übernehmen darf.** Erstens misst die Arbeit ausschließlich die GPU und zieht deren Leerlauf ab. In einem echten Rechenzentrum zahlt man beides: den Leerlauf ohnehin, dazu CPU, Arbeitsspeicher, Netzwerk, Lüfter und Verluste im Netzteil — Beschleuniger machen typischerweise nur gut die Hälfte der Serverleistung aus. Wir verdoppeln deshalb. Das ist eine runde Zahl und offen eine Setzung, deshalb steht sie hier und nicht nur im Code. Zweitens kommt die Effizienz des Rechenzentrums obendrauf; wo ein Betreiber nichts veröffentlicht, rechnen wir mit dem Weltdurchschnitt von 1,56.
+**Zwei Korrekturen sind nötig, bevor man das übernehmen darf.** Erstens misst die Arbeit ausschließlich die GPU und zieht deren Leerlauf ab. In einem echten Rechenzentrum zahlt man beides: den Leerlauf ohnehin, dazu CPU, Arbeitsspeicher, Netzwerk, Lüfter und Verluste im Netzteil — Beschleuniger machen typischerweise nur gut die Hälfte der Serverleistung aus. Wir verdoppeln deshalb. Das ist eine runde Zahl und offen eine Setzung, deshalb steht sie hier und nicht nur im Code. Zweitens kommt die Effizienz des Rechenzentrums obendrauf; wo ein Betreiber nichts veröffentlicht, schätzen wir sie über den Standort (siehe unten).
 
 Beim Strommix gilt dasselbe Prinzip. Black Forest Labs bedienen wir über den EU-Endpunkt `api.eu.bfl.ai`; der verweist auf Azure Front Door, die Bilder entstehen also in Microsofts europäischer Infrastruktur. Das nennt aber nur den Betreiber, nicht den Standort: Front Door ist der Netzwerk-Eingang, nicht der Rechner — in welcher Azure-Region das Modell läuft, ist von außen nicht erkennbar.
 
@@ -268,7 +284,9 @@ Alle Zahlen dieser Seite sind nachprüfbar.
 - [Jegham et al., „How Hungry is AI?" (arXiv:2505.09598)](https://arxiv.org/abs/2505.09598) — Grundlage des ChatGPT-Vergleichs
 - [Iyengar et al., „Energy Scaling Laws for Diffusion Models" (arXiv:2511.17031)](https://arxiv.org/abs/2511.17031) — Grundlage der Bildwerte; Tabelle 3 (FLUX.1) und Tabelle 6 (Qwen-Image)
 - [Scope3: Sustainable AI — Image Generation](https://info.scope3.com/hubfs/Sustainable%20AI%20-%20Image%20Gen%20Report.pdf) — unabhängige Gegenprobe für Bilder
-- [Uptime Institute Global Data Center Survey](https://uptimeinstitute.com/resources/research-and-reports/uptime-institute-global-data-center-survey-results-2024) — weltweiter PUE-Durchschnitt 1,56
+- [Uptime Institute Global Data Center Survey](https://uptimeinstitute.com/resources/research-and-reports/uptime-institute-global-data-center-survey-results-2024) — PUE-Durchschnitt, europäische Region 1,50
+- [Energieeffizienzgesetz (EnEfG) § 11](https://www.gesetze-im-internet.de/enefg/__11.html) — gesetzliche PUE-Obergrenzen für Rechenzentren in Deutschland
+- [Hetzner: EMAS-Umwelterklärung 2025](https://cdn.hetzner.com/assets/Uploads/downloads/Umwelterklaerung.pdf) — PUE-Kennzahl und Geltungsbereich
 - [GHG Protocol Scope 2 Guidance](https://ghgprotocol.org/scope-2-guidance) — standortbasiert vs. marktbasiert
 - Unsere eigene Messreihe ist im Code dokumentiert und wiederholbar: `apps/api/services/usage/energyFootprint.ts` und `apps/api/scripts/probeGreenptImpact.ts`
 
