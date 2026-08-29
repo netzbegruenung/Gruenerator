@@ -15,9 +15,9 @@
  *     under-reports early and quiet days. Under-reporting a public footprint is
  *     the wrong direction, so `suppressed_days` ships alongside it.
  *
- *  3. The footprint is a BAND. `energyFootprint.ts` values un-metered lanes at
- *     the top of the plausible span; here the bottom is computed as well, and
- *     both ends are published. A single number invites being quoted as fact.
+ *  3. The footprint is a SCALE. `energyFootprint.ts` values un-metered lanes at
+ *     the centre of their plausible span; here both ends are computed too and
+ *     all three are published. A single number invites being quoted as fact.
  *
  * The result is cached in redis: this is an unauthenticated endpoint, and three
  * aggregate scans per page view is a denial-of-service surface handed to anyone
@@ -276,7 +276,7 @@ export async function computePlatformUsageStats(
   >();
   const byProvider = new Map<string, ProviderAccumulator>();
 
-  // Upper end of the band, and the shares that describe how much of it rests on
+  // The central estimate, and the shares that describe how much of it rests on
   // a meter. Mirrors userUsageContractRouter — see the comment there on why
   // coverage is weighted by OUTPUT tokens rather than by all tokens.
   let energyWms = 0;
@@ -329,7 +329,7 @@ export async function computePlatformUsageStats(
     const unit = unitFallback(row.unit);
     const feature = featureFallback(row.feature);
     const tokens = row.inputTokens + row.outputTokens;
-    // This row's contribution to the platform emissions (upper end), so the
+    // This row's contribution to the platform emissions (central estimate), so the
     // per-feature breakdown can carry a CO2 figure of its own.
     let rowEmissionsUg = 0;
 
