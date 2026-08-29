@@ -145,8 +145,10 @@ function emptyStats(days: number, sinceDay: string, suppressedDays: number, acti
     footprint: {
       energy_wh: 0,
       energy_wh_low: 0,
+      energy_wh_high: 0,
       emissions_g: 0,
       emissions_g_low: 0,
+      emissions_g_high: 0,
       measured_share: 0,
       bounded_share: 0,
       covered_share: 0,
@@ -281,9 +283,14 @@ export async function computePlatformUsageStats(
   let emissionsUg = 0;
   let measuredEnergyWms = 0;
   let boundedEnergyWms = 0;
-  // Lower end. Differs only where a lane is valued by bound rather than meter.
+  // The two ends of the published scale. The figures above are the MIDDLE and
+  // are what every headline shows; these differ from it only where a lane is
+  // valued by bracket rather than by meter, or where the provider's location is
+  // a span rather than a known country.
   let energyWmsLow = 0;
   let emissionsUgLow = 0;
+  let energyWmsHigh = 0;
+  let emissionsUgHigh = 0;
   let imageEnergyWms = 0;
   let imageEmissionsUg = 0;
   let textOutputTokens = 0;
@@ -336,6 +343,8 @@ export async function computePlatformUsageStats(
         emissionsUg += row.emissionsUg;
         energyWmsLow += row.energyWms;
         emissionsUgLow += row.emissionsUg;
+        energyWmsHigh += row.energyWms;
+        emissionsUgHigh += row.emissionsUg;
         rowEmissionsUg = row.emissionsUg;
         marketEmissionsUg += emissionsFromEnergy(row.energyWms, marketIntensityFor(row.provider));
         if (hasMarketInstrument(row.provider)) marketBackedEnergyWms += row.energyWms;
@@ -350,41 +359,47 @@ export async function computePlatformUsageStats(
           outputTokens: row.outputTokens,
           requests: row.requests,
         };
-        const high = estimateFootprint(base);
-        if (high) {
+        const mid = estimateFootprint(base);
+        if (mid) {
           const low = estimateFootprint({ ...base, bound: 'low' });
-          energyWms += high.energyWms;
-          emissionsUg += high.emissionsUg;
-          energyWmsLow += low?.energyWms ?? high.energyWms;
-          emissionsUgLow += low?.emissionsUg ?? high.emissionsUg;
-          rowEmissionsUg = high.emissionsUg;
-          marketEmissionsUg += high.marketEmissionsUg;
-          if (hasMarketInstrument(row.provider)) marketBackedEnergyWms += high.energyWms;
+          const high = estimateFootprint({ ...base, bound: 'high' });
+          energyWms += mid.energyWms;
+          emissionsUg += mid.emissionsUg;
+          energyWmsLow += low?.energyWms ?? mid.energyWms;
+          emissionsUgLow += low?.emissionsUg ?? mid.emissionsUg;
+          energyWmsHigh += high?.energyWms ?? mid.energyWms;
+          emissionsUgHigh += high?.emissionsUg ?? mid.emissionsUg;
+          rowEmissionsUg = mid.emissionsUg;
+          marketEmissionsUg += mid.marketEmissionsUg;
+          if (hasMarketInstrument(row.provider)) marketBackedEnergyWms += mid.energyWms;
           coveredOutputTokens += row.outputTokens;
           coveredRequests += row.requests;
-          if (high.basis === 'bound') boundedEnergyWms += high.energyWms;
-          addProvider(row.provider, high.energyWms, high.emissionsUg, 'tokens');
+          if (mid.basis === 'bound') boundedEnergyWms += mid.energyWms;
+          addProvider(row.provider, mid.energyWms, mid.emissionsUg, 'tokens');
         }
       }
     }
 
     if (unit === 'images') {
       const base = { provider: row.provider, model: row.model, images: row.ops };
-      const high = estimateImageFootprint(base);
-      if (high) {
+      const mid = estimateImageFootprint(base);
+      if (mid) {
         const low = estimateImageFootprint({ ...base, bound: 'low' });
-        energyWms += high.energyWms;
-        emissionsUg += high.emissionsUg;
-        energyWmsLow += low?.energyWms ?? high.energyWms;
-        emissionsUgLow += low?.emissionsUg ?? high.emissionsUg;
-        imageEnergyWms += high.energyWms;
-        imageEmissionsUg += high.emissionsUg;
-        rowEmissionsUg = high.emissionsUg;
-        marketEmissionsUg += high.marketEmissionsUg;
-        imageMarketEmissionsUg += high.marketEmissionsUg;
-        if (hasMarketInstrument(row.provider)) marketBackedEnergyWms += high.energyWms;
-        if (high.basis === 'bound') boundedEnergyWms += high.energyWms;
-        addProvider(row.provider, high.energyWms, high.emissionsUg, 'images');
+        const high = estimateImageFootprint({ ...base, bound: 'high' });
+        energyWms += mid.energyWms;
+        emissionsUg += mid.emissionsUg;
+        energyWmsLow += low?.energyWms ?? mid.energyWms;
+        emissionsUgLow += low?.emissionsUg ?? mid.emissionsUg;
+        energyWmsHigh += high?.energyWms ?? mid.energyWms;
+        emissionsUgHigh += high?.emissionsUg ?? mid.emissionsUg;
+        imageEnergyWms += mid.energyWms;
+        imageEmissionsUg += mid.emissionsUg;
+        rowEmissionsUg = mid.emissionsUg;
+        marketEmissionsUg += mid.marketEmissionsUg;
+        imageMarketEmissionsUg += mid.marketEmissionsUg;
+        if (hasMarketInstrument(row.provider)) marketBackedEnergyWms += mid.energyWms;
+        if (mid.basis === 'bound') boundedEnergyWms += mid.energyWms;
+        addProvider(row.provider, mid.energyWms, mid.emissionsUg, 'images');
       }
     }
 
@@ -451,8 +466,10 @@ export async function computePlatformUsageStats(
     footprint: {
       energy_wh: energyWms / WMS_PER_WH,
       energy_wh_low: energyWmsLow / WMS_PER_WH,
+      energy_wh_high: energyWmsHigh / WMS_PER_WH,
       emissions_g: emissionsUg / UG_PER_G,
       emissions_g_low: emissionsUgLow / UG_PER_G,
+      emissions_g_high: emissionsUgHigh / UG_PER_G,
       measured_share: energyWms > 0 ? measuredEnergyWms / energyWms : 0,
       bounded_share: energyWms > 0 ? boundedEnergyWms / energyWms : 0,
       covered_share: textOutputTokens > 0 ? coveredOutputTokens / textOutputTokens : 0,

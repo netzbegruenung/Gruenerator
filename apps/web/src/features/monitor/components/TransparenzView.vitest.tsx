@@ -26,8 +26,10 @@ afterEach(() => {
 const FOOTPRINT = {
   energy_wh: 4200,
   energy_wh_low: 3100,
+  energy_wh_high: 5400,
   emissions_g: 1400,
   emissions_g_low: 900,
+  emissions_g_high: 1900,
   measured_share: 0.42,
   bounded_share: 0.18,
   covered_share: 0.93,
@@ -136,14 +138,21 @@ function serve(body: Record<string, unknown>) {
 }
 
 describe('TransparenzView', () => {
-  it('publishes the footprint as a band, not a single number', async () => {
+  it('publishes the central figure with its scale, not a bare upper bound', async () => {
     serve(RESPONSE);
     renderWithProviders(<TransparenzView days={30} expert />);
 
-    // Both ends present, and no decimals anywhere — the estimate cannot carry
-    // tenths of a gram, so it must not print them.
-    await waitFor(() => expect(screen.getByText(/900 g – 1\.400 g/)).toBeInTheDocument());
-    expect(screen.getByText(/3\.100 Wh – 4\.200 Wh Strom/)).toBeInTheDocument();
+    // The headline is the MIDDLE (1.400 g between 900 and 1.900), and the width
+    // of what we do not know is drawn under it rather than written into the
+    // number. Before this the headline was the upper end.
+    await waitFor(() => expect(screen.getByText(/≈ 1\.400 g/)).toBeInTheDocument());
+    expect(
+      screen.getByLabelText('Spanne von 900 g bis 1.900 g, Schätzwert 1.400 g')
+    ).toBeInTheDocument();
+    expect(
+      screen.getByLabelText('Spanne von 3.100 Wh bis 5.400 Wh, Schätzwert 4.200 Wh')
+    ).toBeInTheDocument();
+    // No decimals anywhere — the estimate cannot carry tenths of a gram.
     expect(screen.queryByText(/\d,\d\s*(g|kg|Wh|kWh)/)).not.toBeInTheDocument();
   });
 
@@ -276,14 +285,21 @@ describe('TransparenzView', () => {
 });
 
 describe('TransparenzView (einfache Übersicht)', () => {
-  it('shows one rounded number instead of the band, with the direction in words', async () => {
+  it('shows the same scales in the simple view, worded without jargon', async () => {
     serve(RESPONSE);
     renderWithProviders(<TransparenzView days={30} expert={false} />);
 
+    // The simple view drops the technical vocabulary, not the uncertainty: both
+    // the CO2 figure and the electricity figure carry their scale here too.
     await waitFor(() => expect(screen.getByText(/≈ 1\.400 g/)).toBeInTheDocument());
-    // The band and its low end belong to the expert view only.
-    expect(screen.queryByText(/900 g – 1\.400 g/)).not.toBeInTheDocument();
-    expect(screen.getByText(/die tatsächliche Zahl liegt eher darunter/)).toBeInTheDocument();
+    expect(
+      screen.getByLabelText('Spanne von 900 g bis 1.900 g, Schätzwert 1.400 g')
+    ).toBeInTheDocument();
+    expect(screen.getByText('Verbrauchter Strom')).toBeInTheDocument();
+    expect(
+      screen.getByLabelText('Spanne von 3.100 Wh bis 5.400 Wh, Schätzwert 4.200 Wh')
+    ).toBeInTheDocument();
+    expect(screen.getByText(/liegt in der Mitte, nicht am günstigen Rand/)).toBeInTheDocument();
   });
 
   it('groups CO₂ by what people did, not by provider, and drops the jargon', async () => {

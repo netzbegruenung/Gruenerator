@@ -55,6 +55,15 @@
  * applying one method to one side. Every surface that renders it has to say so.
  */
 
+/**
+ * Geometric mean — the middle of a bracket whose ends differ by a large factor.
+ * Used for every central estimate in this file, because each of them sits
+ * between two anchors on a log scale rather than a linear one.
+ */
+function geoMean(a: number, b: number): number {
+  return Math.sqrt(a * b);
+}
+
 /** Wms per mWh — GreenPT reports energy in watt-milliseconds. */
 const WMS_PER_MWH = 3600;
 
@@ -237,14 +246,33 @@ const MODEL_ENERGY: Readonly<Record<string, EnergyCoefficients>> = {
  * because we have no hourly feed of our own — GreenPT buys that from Nodera.
  * Erring high is the safer direction for a footprint claim.
  */
+/** EU average, Ember 2025. The fallback for a provider we did not record. */
+const EU_AVERAGE_G_PER_KWH = 213;
+
 const GRID_INTENSITY_G_PER_KWH: Readonly<Record<string, number>> = {
   // All figures are 2024 annual averages, combustion emissions only (no
   // upstream/lifecycle), so the three stay comparable to each other.
-  mistral: 22, // France, RTE Bilan électrique 2024 — nuclear-dominated
+  // Mistral: 30 als MITTE einer Spanne, nicht mehr 22 als Punkt.
+  //
+  // 22 war Frankreich 2024 und setzte einen Standort voraus, den Mistral selbst
+  // nicht zusagt: der DPA nennt Frankreich als Gerichtsstand und erlaubt
+  // Verarbeitung im gesamten EWR, die oeffentliche Zusage lautet „European
+  // Union". Das angekuendigte Rechenzentrumsprogramm umfasst Frankreich UND
+  // Schweden. Die plausible Menge ist also genau diese zwei Laender, und die
+  // Spanne steht jetzt in GRID_SPAN_G_PER_KWH: 19,6 (Frankreich, RTE 2025) bis
+  // 45 (Schweden, Ember). Die Mitte ist ihr geometrisches Mittel, 29,7.
+  //
+  // Das ist die Zeile, an der die ganze Ueberpruefung angefangen hat („22 ist
+  // doch super wenig"). Sie war nicht falsch gerechnet — sie war ein Punkt, wo
+  // eine Spanne hingehoert.
+  mistral: 30,
   // Scaleway's own disclosure beats a country average: Impact Report 2025 gives
   // Scope 2 location-based 3.155 tCO2e over 132.881 MWh = 23,7 g/kWh.
   scaleway: 24,
-  litellm: 363, // Germany 2024, Umweltbundesamt (consumption-based, see caveat)
+  // Deutschland 2025, Umweltbundesamt: 344 g/kWh (verbrauchsbasiert, siehe
+  // Vorbehalt weiter unten). Vorher 363 — das war der 2024er Erstwert, den das
+  // UBA inzwischen selbst auf 353 revidiert hat.
+  litellm: 344,
   regolo: 270, // Italy 2024, Ember Yearly Electricity Data
   // Fallback only — GreenPT rows carry measured emissions. Same value as
   // Scaleway because GreenPT runs on Scaleway Paris.
@@ -268,7 +296,7 @@ const GRID_INTENSITY_G_PER_KWH: Readonly<Record<string, number>> = {
   // (10/10 Anfragen am 21.08.2026). Infercom SCS sitzt in Luxemburg und
   // verarbeitet nach der Cortecs-DPA vom 11.08.2026 in DEUTSCHLAND — daher
   // derselbe Wert wie litellm/Hetzner und nicht Scaleways 24.
-  infercom: 363, // Deutschland 2024, Umweltbundesamt
+  infercom: 344, // Deutschland 2025, Umweltbundesamt
   // berget ist der zweite Endpunkt desselben Modells und antwortet heute nicht,
   // kann es aber jederzeit. Berget AI AB (Schweden) gibt als
   // Verarbeitungsort EWR an, ohne ein Land zu nennen; 45 ist Schwedens Wert
@@ -286,13 +314,20 @@ const GRID_INTENSITY_G_PER_KWH: Readonly<Record<string, number>> = {
   // operator does not get us a region, so no Azure region factor can be applied
   // however tempting the extra precision looks.
   //
-  // Among the Azure EU regions that carry AI capacity, France and Sweden sit
-  // far BELOW the German mix and the Netherlands and Ireland near it. 363 is
-  // therefore at the unfavourable end of the plausible set and clearly above
-  // the EU average of ~230, which is the direction a footprint claim should
-  // err in. Not a proven worst case (Azure also lists Poland Central, whose
-  // grid is worse), just a defensible upper region of the range.
-  bfl: 363,
+  // 250 als MITTE, gewichtet danach, wo Azure in Europa GPU-Kapazitaet
+  // tatsaechlich betreibt: West Europe (Niederlande, ~269) traegt die reifste
+  // H100-Flotte, Irland (~234) die zweitgroesste; Sweden Central, France
+  // Central, Italy North und Poland Central kommen teilweise dazu. Der
+  // Schwerpunkt liegt damit bei den Niederlanden und Irland, nicht bei
+  // Deutschland — 250 ist deren Umgebung.
+  //
+  // Vorher stand hier 363 (deutscher Mix) als bewusst unguenstiger Vertreter.
+  // Das war innerhalb der plausiblen Menge und insofern verteidigbar, aber es
+  // war ein Punkt an einem Ende, und die Spanne — 19,6 (France Central) bis 600
+  // (Poland Central), Faktor 30 — blieb dabei unsichtbar. Genau hier ist die
+  // Standort-Unsicherheit groesser als jede Mess-Unsicherheit, und sie gehoert
+  // deshalb in die Spanne statt in einen Sicherheitszuschlag.
+  bfl: 250,
 };
 
 /**
@@ -611,13 +646,42 @@ interface ImageEnergy {
 const FLUX_ANCHOR_GPU_MWH = 4278;
 
 /**
- * The correction from the header, as a factor. `high` (the default everywhere)
- * multiplies by it; `low` leaves the bare GPU measurement standing. The true
- * value is above the low end — a datacenter really does pay for the idle draw
- * and the rest of the node — so the pair brackets the answer rather than
- * straddling it.
+ * The correction from the header, as a factor — now a bracket instead of one
+ * round number, and DERIVED instead of chosen.
+ *
+ * The old pair was 1 (low) and 2 (high). Both were wrong in an instructive way.
+ * 1 means "the GPU die is the whole cost", which is not a plausible end of
+ * anything: the paper subtracted the idle draw a datacenter pays regardless and
+ * measured nothing outside the die. And 2 was a round number picked to "cross
+ * the gap" rather than derived, so nobody could say whether it crossed it.
+ *
+ * Two multipliers stack, and each has a published range:
+ *
+ *   idle that was subtracted — an A100 idles at 50-70 W and draws 250-400 W
+ *   under diffusion load, so dynamic power is 200-330 W and the idle the paper
+ *   removed is 15-35% on top of what it kept.
+ *
+ *   the rest of the node — CPU, RAM, NIC, fans, PSU conversion. Accelerators
+ *   are typically 50-60% of an inference server's draw, so the node costs
+ *   1.67-2.0x the die.
+ *
+ * Multiplied out: 1.15 x 1.67 = 1.92 at the favourable end, 1.35 x 2.0 = 2.70
+ * at the unfavourable one. The middle is again the geometric mean, 2.28.
+ *
+ * Note where that leaves the old default: 2.0 sits near the BOTTOM of the
+ * plausible bracket, not above it. The figure that was described as
+ * deliberately conservative was in fact slightly optimistic, and the central
+ * estimate moves images UP.
  */
-const IMAGE_BOUNDARY_UPLIFT = 2;
+const IMAGE_UPLIFT_LOW = 1.92;
+const IMAGE_UPLIFT_HIGH = 2.7;
+const IMAGE_UPLIFT_MID = geoMean(IMAGE_UPLIFT_LOW, IMAGE_UPLIFT_HIGH);
+
+function imageUplift(bound: EnergyBound): number {
+  if (bound === 'low') return IMAGE_UPLIFT_LOW;
+  if (bound === 'high') return IMAGE_UPLIFT_HIGH;
+  return IMAGE_UPLIFT_MID;
+}
 
 const IMAGE_ENERGY: Readonly<Record<string, ImageEnergy>> = {
   // BFL's three variants scale by their PUBLISHED cost multiplier (catalog.ts:
@@ -674,14 +738,17 @@ export function estimateImageFootprint(params: {
   const c = IMAGE_ENERGY[params.model];
   if (!c) return null;
 
-  const uplift = params.bound === 'low' ? 1 : IMAGE_BOUNDARY_UPLIFT;
+  const uplift = imageUplift(params.bound ?? 'mid');
   // Über `pueFor`, damit die Zahl, mit der hier gerechnet wird, dieselbe ist,
   // die der Transparenz-Endpunkt daneben veröffentlicht.
   const pue = pueFor(params.provider, 'images');
   const energyWms = Math.round(c.mWhPerImageGpu * uplift * params.images * pue * WMS_PER_MWH);
   return {
     energyWms,
-    emissionsUg: emissionsFromEnergy(energyWms, gridIntensityFor(params.provider)),
+    emissionsUg: emissionsFromEnergy(
+      energyWms,
+      gridIntensityFor(params.provider, params.bound ?? 'mid')
+    ),
     // Per provider, NOT per unit: collapses onto the location figure for `bfl`
     // (no locatable region) but is zero for Regolo's Qwen-Image, which runs in
     // the same certified datacenter as its text lanes. See the table.
@@ -750,9 +817,42 @@ export function emissionsFromEnergy(energyWms: number, gramsPerKwh: number): num
   return Math.round((energyWms * gramsPerKwh) / 3600);
 }
 
-/** Grid intensity for a recorded provider, or the German mix if unknown. */
-export function gridIntensityFor(provider: string): number {
-  return GRID_INTENSITY_G_PER_KWH[provider] ?? 350;
+/**
+ * Providers whose LOCATION is uncertain, and by how much.
+ *
+ * Only two entries, and that is the point: for everybody else we know the
+ * country, so low = mid = high and the range carries no width it has not
+ * earned. A span here means we genuinely do not know which grid served the
+ * request — not that the grid figure itself is fuzzy.
+ */
+const GRID_SPAN_G_PER_KWH: Readonly<Record<string, { low: number; high: number }>> = {
+  // Frankreich (RTE 2025) bis Schweden (Ember) — die beiden Laender, in denen
+  // Mistrals angekuendigte Rechenzentren stehen.
+  mistral: { low: 19.6, high: 45 },
+  // France Central bis Poland Central: die sauberste und die schmutzigste
+  // Azure-EU-Region mit KI-Kapazitaet. Faktor 30, und deshalb steht sie da.
+  bfl: { low: 19.6, high: 600 },
+};
+
+/**
+ * Grid intensity for a recorded provider at one end of its span.
+ *
+ * The fallback for an unrecorded provider is the EU average (213 g/kWh, Ember
+ * 2025), not the 350 that stood here before. 350 was chosen as a pessimistic
+ * default, but every provider that can reach this line is EEA-bound by
+ * contract, so the EU average is the central estimate for exactly the set of
+ * grids that remain possible.
+ */
+export function gridIntensityFor(provider: string, bound: EnergyBound = 'mid'): number {
+  const span = GRID_SPAN_G_PER_KWH[provider];
+  if (span && bound === 'low') return span.low;
+  if (span && bound === 'high') return span.high;
+  return GRID_INTENSITY_G_PER_KWH[provider] ?? EU_AVERAGE_G_PER_KWH;
+}
+
+/** Whether this provider's grid figure is a span rather than a known country. */
+export function hasGridSpan(provider: string): boolean {
+  return provider in GRID_SPAN_G_PER_KWH;
 }
 
 /**
@@ -789,25 +889,43 @@ export function isPueEstimated(provider: string, kind: 'tokens' | 'images' = 'to
 /**
  * Which end of the uncertainty to report.
  *
- * `high` is the default and the only value the personal usage tab uses: where a
- * lane is not metered, we quote the top of the plausible span so the displayed
- * cost is an upper bound. `low` quotes the bottom of that same span. Neither is
- * a better estimate than the other — the pair exists so a public figure can be
- * shown as the range it actually is instead of a false point.
+ * THREE ends since 29.08.2026, and `mid` is the default. Before that the
+ * default was `high`: an unmetered lane was quoted at the TOP of its plausible
+ * span, and the personal usage tab — which computes no range at all — showed
+ * that ceiling as if it were a value. A ceiling is a fine thing to publish
+ * NEXT TO a figure; it is a bad figure.
  *
- * For lanes with metered coefficients (`basis: 'measured'`) both ends are equal,
- * which is exactly the property that makes the width of the range meaningful:
- * it narrows as measurement coverage grows.
+ * The change is not a softening. Erring high on every unknown reads as caution
+ * but behaves as a second kind of error: it makes the number wrong in a
+ * predictable direction, and it hides how wide the real uncertainty is behind a
+ * single pessimistic point. What replaces it is the honest shape — a central
+ * estimate with both ends published beside it.
+ *
+ * For lanes with metered coefficients (`basis: 'measured'`) all three ends are
+ * equal, which is exactly the property that makes the width of the range
+ * meaningful: it narrows as measurement coverage grows.
  */
-export type EnergyBound = 'high' | 'low';
+export type EnergyBound = 'high' | 'mid' | 'low';
 
 /**
- * The bottom of the span the `bound` text entries take their top from:
- * gpt-oss-120b, the thriftiest model we have metered in that size class.
+ * The span an unmetered text lane sits in, bracketed by GreenPT measurements of
+ * the two models that define its size class:
  *
- * Only ever used for the low end of a range. As a point estimate it would
- * understate by as much as the ceiling overstates, which is why nothing
- * defaults to it.
+ *   floor   gpt-oss-120b            0.811 mWh/token  (120B, mixture-of-experts)
+ *   ceiling mistral-medium-3.5-128b 4.519 mWh/token  (128B, dense)
+ *
+ * Both are metered, both are ours, and the factor of 5.6 between them is the
+ * honest width of "a large model we have not measured". Nothing here is
+ * invented: the unknown lanes borrow the bracket, not a guess.
+ *
+ * The MIDDLE is the geometric mean of the two, not the arithmetic one. The
+ * quantity ranges over a factor of 5.6, so it is distributed on a log scale;
+ * an arithmetic mean would sit at 2.67, nearer the ceiling than the floor by
+ * construction and dragged there by the single dense outlier. The geometric
+ * mean sits where "equally far from both anchors" actually is.
+ *
+ * Derived rather than typed out so the relationship survives a re-measurement:
+ * move either anchor and the middle follows.
  */
 const BOUND_FLOOR: EnergyCoefficients = {
   mWhPerOutputToken: 0.811,
@@ -815,6 +933,27 @@ const BOUND_FLOOR: EnergyCoefficients = {
   mWhFixed: 11.05,
   basis: 'bound',
 };
+
+const BOUND_CEILING: EnergyCoefficients = {
+  mWhPerOutputToken: 4.519,
+  mWhPerInputToken: 0.0287,
+  mWhFixed: 13.26,
+  basis: 'bound',
+};
+
+const BOUND_MID: EnergyCoefficients = {
+  mWhPerOutputToken: geoMean(BOUND_FLOOR.mWhPerOutputToken, BOUND_CEILING.mWhPerOutputToken),
+  mWhPerInputToken: geoMean(BOUND_FLOOR.mWhPerInputToken, BOUND_CEILING.mWhPerInputToken),
+  mWhFixed: geoMean(BOUND_FLOOR.mWhFixed, BOUND_CEILING.mWhFixed),
+  basis: 'bound',
+};
+
+/** Which of the three bracket points a `bound` text entry is costed at. */
+function boundedCoefficients(bound: EnergyBound): EnergyCoefficients {
+  if (bound === 'low') return BOUND_FLOOR;
+  if (bound === 'high') return BOUND_CEILING;
+  return BOUND_MID;
+}
 
 /** True when this model has measured coefficients behind it. */
 export function hasEnergyCoefficients(model: string): boolean {
@@ -843,7 +982,10 @@ export function estimateFootprint(params: {
 
   // A metered lane has no span to pick from, so the low end only moves for the
   // entries that are an upper bound in the first place.
-  const c = params.bound === 'low' && table.basis === 'bound' ? BOUND_FLOOR : table;
+  // Ein gemessener Koeffizient kennt keine Enden — nur die zwei `bound`-Zeilen
+  // werden ueber die Spanne bewegt. Deshalb faellt `basis: 'measured'` hier
+  // immer auf sich selbst zurueck, an allen drei Enden.
+  const c = table.basis === 'bound' ? boundedCoefficients(params.bound ?? 'mid') : table;
 
   const pueRatio = pueFor(params.provider) / GREENPT_PUE;
   const mWh =
@@ -855,7 +997,10 @@ export function estimateFootprint(params: {
   const energyWms = Math.round(mWh * WMS_PER_MWH);
   return {
     energyWms,
-    emissionsUg: emissionsFromEnergy(energyWms, gridIntensityFor(params.provider)),
+    emissionsUg: emissionsFromEnergy(
+      energyWms,
+      gridIntensityFor(params.provider, params.bound ?? 'mid')
+    ),
     marketEmissionsUg: emissionsFromEnergy(energyWms, marketIntensityFor(params.provider)),
     // The LANE's basis, not the variant's: swapping in the floor to draw a range
     // does not turn an unmetered lane into a metered one.

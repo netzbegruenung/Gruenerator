@@ -112,18 +112,28 @@ Das ist bewusst die strengere Variante, und wir folgen damit GreenPT selbst: Der
 
 Wir rechnen mit diesen Werten (Jahresmittel 2024, nur Verbrennungsemissionen):
 
-| Standort                            | g CO₂/kWh | Quelle                                           |
-| ----------------------------------- | --------- | ------------------------------------------------ |
-| Scaleway (Paris)                    | 24        | Scaleway Impact Report 2025, eigene Scope-2-Zahl |
-| Frankreich (Mistral)                | 22        | RTE, Bilan électrique 2024                       |
-| Italien (Regolo/Seeweb)             | 270       | Ember, Yearly Electricity Data                   |
-| Deutschland (verdigado auf Hetzner) | 363       | Umweltbundesamt                                  |
+| Standort                          | g CO₂/kWh | Quelle                                           |
+| --------------------------------- | --------- | ------------------------------------------------ |
+| Scaleway (Paris)                  | 24        | Scaleway Impact Report 2025, eigene Scope-2-Zahl |
+| Frankreich … Schweden (Mistral)   | 19,6 … 45 | RTE Bilan électrique 2025 · Ember — Mitte **30** |
+| Italien (Regolo/Seeweb)           | 270       | Ember, Yearly Electricity Data                   |
+| Deutschland (verdigado, Infercom) | 344       | Umweltbundesamt 2025                             |
 
 Bei Scaleway müssen wir nicht auf den Landesdurchschnitt ausweichen: Der Impact Report weist Scope 2 standortbasiert mit 3.155 t CO₂e bei 132.881 MWh aus — macht 23,7 g/kWh aus erster Hand.
 
 Dazu kommt die Effizienz des Rechenzentrums selbst (PUE — wie viel Strom zusätzlich für Kühlung und Infrastruktur draufgeht). GreenPTs Messwerte enthalten einen PUE von 1,25; wo unsere Anbieter besser sind, rechnen wir die Differenz gut: Hetzner gibt 1,13 an, Seeweb unter 1,20. Wo ein Betreiber gar keinen PUE veröffentlicht, schätzen wir ihn — siehe unten.
 
 **Ein Glücksfall für die Genauigkeit:** GreenPT rechnet selbst bei Scaleway in Paris („Every GreenPT request runs on Scaleway's 100 % renewable-powered compute in Paris"), und Scaleway stellt sämtliche KI-Server in ein einziges Rechenzentrum — DC5, PUE 1,25. Unsere Gemma-4-Lane für lange Dokumente läuft ebenfalls dort. Für sie ist unsere Messung also **keine Übertragung auf fremde Hardware**, sondern dieselbe Maschinenklasse im selben Gebäude. Für alle anderen Lanes — unser Standardmodell Mistral Medium bei Mistral in Frankreich, GPT-OSS bei verdigado, die Regolo-Modelle in Italien — bleibt es eine Übertragung; dort ist das „≈" wörtlich zu nehmen. (Mistral Medium lief bis August 2026 ebenfalls über Scaleway; wir haben es wegen fehlerhafter Antworten dieses Anbieters wieder direkt zu Mistral gelegt.)
+
+### Mitte statt Obergrenze — und die Spanne dazu
+
+Überall, wo wir schätzen müssen, zeigen wir seit dem 29.08.2026 einen **mittleren Wert** und daneben die **Spanne**, in der er sitzt. Vorher stand an diesen Stellen die Obergrenze allein.
+
+Der Wechsel ist keine Beschönigung, sondern die Korrektur eines zweiten Fehlers. Auf jede Unsicherheit nach oben zu runden liest sich wie Vorsicht, verhält sich aber wie eine Verzerrung: Die Zahl ist dann verlässlich falsch, und zwar immer in dieselbe Richtung — und weil mehrere solcher Aufschläge sich multiplizieren, wächst der Fehler mit jeder Unsicherheit, die man ehrlich benennt. Wer vorsichtig sein will, wird dafür bestraft.
+
+Dazu kam ein Ungleichgewicht, das erst beim Nachrechnen auffiel: Die Aufschläge lagen alle auf der **Energie**-Seite, während auf der **Kohlenstoff**-Seite eine Annahme in die Gegenrichtung lief (nur Verbrennungsemissionen, siehe oben). Die Rechnung war also nicht durchgehend streng, sondern streng beim Strom und großzügig beim CO₂ — was niemand beabsichtigt hatte und was in keiner der beiden Richtungen als Vorsicht durchgeht.
+
+Was die Spanne trägt und was nicht, steht ausdrücklich dabei: Wo eine Lane gemessen und das Land des Anbieters bekannt ist, fallen beide Enden zusammen und es gibt nichts zu zeichnen. **Die Breite der Skala ist genau die Unsicherheit, die wir wirklich haben** — sie schrumpft, sobald jemand misst.
 
 ### Wenn ein Betreiber keinen PUE veröffentlicht
 
@@ -194,7 +204,11 @@ Wir haben deshalb einen zweiten Weg geprüft: **Antwortgeschwindigkeit als Energ
 
 **Der Proxy lag um 62 % daneben — und zwar in der schmeichelhaften Richtung.** Geschwindigkeit sagt vor allem, über wie viele GPUs ein Modell verteilt ist, nicht wie viel es zieht. Die daraus abgeleiteten Zahlen haben wir verworfen.
 
-Was bleibt, ist die gemessene Spanne dieser Größenklasse: 0,81 mWh je Token (GPT-OSS, Mixture-of-Experts) bis 4,52 mWh (Mistral Medium, dicht). Wir setzen für die ungemessenen Lanes das **obere Ende** an. Das ist bewusst zu hoch gegriffen — bei einer Umweltangabe ist das die richtige Fehlerrichtung, und es lässt unsere eigene Seite eher zu schlecht als zu gut dastehen. Beide Ansichten weisen getrennt aus, welcher Anteil auf einer solchen Obergrenze beruht, und dieser Anteil wird kleiner, sobald jemand die Lane wirklich misst. Nach oben korrigiert er sich nie.
+Was bleibt, ist die gemessene Spanne dieser Größenklasse: 0,81 mWh je Token (GPT-OSS, Mixture-of-Experts) bis 4,52 mWh (Mistral Medium, dicht). Beide Enden sind **unsere eigenen Messungen bei GreenPT** — die ungemessene Lane leiht sich die Klammer, nicht eine Vermutung.
+
+Bis August 2026 setzten wir dafür das **obere Ende** an. Das klang nach Vorsicht und war doch ein zweiter Fehler: Es machte die Zahl in einer vorhersagbaren Richtung falsch und versteckte gleichzeitig, wie breit die echte Unsicherheit ist — hinter einem einzelnen pessimistischen Punkt. Seit dem 29.08.2026 zeigen wir stattdessen die **Mitte mit beiden Enden daneben**.
+
+Die Mitte ist das _geometrische_ Mittel der beiden Anker, nicht das arithmetische. Die Größe erstreckt sich über den Faktor 5,6, liegt also auf einer logarithmischen Skala; das arithmetische Mittel läge bauartbedingt näher an der Decke, dorthin gezogen vom einzelnen dichten Ausreißer. Das geometrische Mittel liegt da, wo „gleich weit von beiden Ankern" tatsächlich ist.
 
 ### Erzeugte Bilder
 
@@ -207,7 +221,9 @@ Auch hier meldet kein Anbieter Messwerte, und GreenPT betreibt kein Bildmodell, 
 | Qwen-Image (läuft bei Regolo) | 3,58 Wh                   |
 | FLUX.1 [dev]                  | 4,28 Wh                   |
 
-**Zwei Korrekturen sind nötig, bevor man das übernehmen darf.** Erstens misst die Arbeit ausschließlich die GPU und zieht deren Leerlauf ab. In einem echten Rechenzentrum zahlt man beides: den Leerlauf ohnehin, dazu CPU, Arbeitsspeicher, Netzwerk, Lüfter und Verluste im Netzteil — Beschleuniger machen typischerweise nur gut die Hälfte der Serverleistung aus. Wir verdoppeln deshalb. Das ist eine runde Zahl und offen eine Setzung, deshalb steht sie hier und nicht nur im Code. Zweitens kommt die Effizienz des Rechenzentrums obendrauf; wo ein Betreiber nichts veröffentlicht, schätzen wir sie über den Standort (siehe unten).
+**Zwei Korrekturen sind nötig, bevor man das übernehmen darf.** Erstens misst die Arbeit ausschließlich die GPU und zieht deren Leerlauf ab. In einem echten Rechenzentrum zahlt man beides: den Leerlauf ohnehin, dazu CPU, Arbeitsspeicher, Netzwerk, Lüfter und Verluste im Netzteil — Beschleuniger machen typischerweise nur gut die Hälfte der Serverleistung aus. Beides lässt sich beziffern statt raten: Der abgezogene Leerlauf macht 15–35 % dessen aus, was die Arbeit übrig ließ (eine A100 ruht bei 50–70 W und zieht unter Diffusionslast 250–400 W), und der Rest des Servers kostet das 1,67- bis 2,0-Fache des Chips (Beschleuniger sind typischerweise 50–60 % der Serverleistung). Ausmultipliziert ergibt das eine Klammer von **1,92 bis 2,70**, Mitte 2,28.
+
+Bemerkenswert daran: Die frühere runde Verdopplung, die wir als bewusst vorsichtig beschrieben haben, liegt damit am **unteren** Rand des Plausiblen. Sie war nicht zu hoch gegriffen, sondern leicht zu günstig — die Bilder werden durch den Wechsel auf die Mitte teurer, nicht billiger. Zweitens kommt die Effizienz des Rechenzentrums obendrauf; wo ein Betreiber nichts veröffentlicht, schätzen wir sie über den Standort (siehe unten).
 
 Beim Strommix gilt dasselbe Prinzip. Black Forest Labs bedienen wir über den EU-Endpunkt `api.eu.bfl.ai`; der verweist auf Azure Front Door, die Bilder entstehen also in Microsofts europäischer Infrastruktur. Das nennt aber nur den Betreiber, nicht den Standort: Front Door ist der Netzwerk-Eingang, nicht der Rechner — in welcher Azure-Region das Modell läuft, ist von außen nicht erkennbar.
 
