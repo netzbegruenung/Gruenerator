@@ -352,11 +352,12 @@ export const INTERMEDIATE_LANES = {
    * Endpunkt war quantisiert und fiel durch den Standardfilter, `scaleway
    * direkt` lief zur selben Zeit einwandfrei.
    *
-   * Das dichte 31B lag zu diesem Zeitpunkt bei infercom UND berget. Das gilt
-   * seit dem 25.08.2026 nicht mehr — der Katalog führt nur noch `infercom`,
-   * und berget ist nicht erzwingbar (siehe services/ai/gemmaHosts.ts). Die
-   * Reserve dieser Stufe ist damit allein der Regolo-Hedge unten, nicht der
-   * Router. Der Preis der MoE-Ablösung ist der dokumentierte: sie antwortete
+   * Das dichte 31B lag zu diesem Zeitpunkt bei infercom UND berget — und liegt
+   * dort wieder: die Gegenbehauptung vom 25.08.2026 ist am 29.08. live
+   * widerlegt (Messung in services/ai/gemmaHosts.ts). Die tragende Reserve
+   * dieser Stufe bleibt trotzdem der Regolo-Hedge unten, weil er ein anderer
+   * VERTRAGSPARTNER ist; der zweite Cortecs-Endpunkt hilft nur, solange Cortecs
+   * als Ganzes gesund ist. Der Preis der MoE-Ablösung ist der dokumentierte: sie antwortete
    * rund doppelt so schnell. Bezahlt wird er für Verfügbarkeit.
    *
    * KEIN Denk-Pin für dieses Modell — und das ist kein Versäumnis: infercom
@@ -484,10 +485,11 @@ export const INTERMEDIATE_LANES = {
    * einem anderen Vertragspartner: der Aufrufer schaltet ihn nach einer Frist
    * PARALLEL dazu. Dass Primär und Ausweich bei verschiedenen Anbietern liegen,
    * ist die ganze Absicht — ein Einbruch nimmt sonst beide Seiten. Dass Cortecs
-   * `berget` als zweiten Endpunkt in der Hinterhand habe, stand hier bis zum
-   * 25.08.2026 und ist widerlegt (siehe services/ai/gemmaHosts.ts): BEIDE
-   * Seiten hängen an genau einem Host. Umso mehr zählt, dass es zwei
-   * Vertragspartner sind — das war der Ausfallweg vom 14.08.
+   * `berget` als zweiten Endpunkt in der Hinterhand hat, stand hier, wurde am
+   * 25.08.2026 als widerlegt gestrichen und ist seit dem 29.08.2026 wieder
+   * belegt (Messung in services/ai/gemmaHosts.ts). Es ändert an dieser Stufe
+   * nichts: was den Ausfallweg vom 14.08. trug, waren zwei
+   * VERTRAGSPARTNER, nicht zwei Endpunkte innerhalb eines Routers.
    *
    * GreenPTs `gemma4` wäre der dritte Kandidat und ist es NICHT: welche
    * Gewichte es trägt, ist unbelegt (siehe GEMMA_4_GREENPT in

@@ -145,9 +145,9 @@ function FootprintNote({ footprint }: { footprint: UsageFootprintDto }) {
       wurden.{' '}
       {boundedPct > 0 && (
         <>
-          Für {formatCount(boundedPct)} % gibt es kein messbares Gegenstück; dort rechnen wir
-          bewusst mit der <strong>Obergrenze</strong> der gemessenen Spanne, damit unsere Seite eher
-          zu schlecht als zu gut dasteht.{' '}
+          Für {formatCount(boundedPct)} % ist das Modell selbst nirgends gemessen; dort rechnen wir
+          mit der <strong>Mitte</strong> zwischen zwei Modellen, die wir gemessen haben — nicht mit
+          dem günstigen und nicht mit dem ungünstigen Rand.{' '}
         </>
       )}
       {coveredPct < 100 && (

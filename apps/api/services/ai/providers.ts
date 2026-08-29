@@ -14,6 +14,7 @@ import { withUsageTracking } from '../usage/usageModelMiddleware.js';
 import { withFallbackChain } from './fallbackModel.js';
 import { intermediateLane } from './intermediateLanes.js';
 import { RETIRED_LITELLM_DEFAULT, retireLiteLLM } from './litellmRetired.js';
+import { isModelSlow } from './modelHealth.js';
 import { pickHealthyTarget } from './modelSiblings.js';
 import {
   getGreenPTProvider,
@@ -108,9 +109,63 @@ const PROVIDER_DEFAULTS = {
  * decision, not a fallback; `services/ai/intermediateLanes.ts` holds the table
  * and the measurements behind it.
  */
-export function getIntermediateModel(lane: IntermediateLaneId): LanguageModel {
+/**
+ * Die Ziele einer Stufe, in der Reihenfolge, in der sie wirklich gefragt werden.
+ *
+ * Getrennt von `getIntermediateModel`, weil hier die ganze Entscheidung liegt
+ * und sie sonst nur über gebaute Modelle prüfbar wäre — siehe die Wächter in
+ * `__tests__/intermediateFallback.vitest.ts`.
+ *
+ * ── Warum diese Tür ihre Zäh-Behandlung selbst macht ──
+ *
+ * `getModel` fragt im Kopf `pickHealthyTarget` und ersetzt ein als zäh
+ * vermerktes Paar STILL. Diese Ersetzung kennt die Kette nicht: sie zieht ihr
+ * Ziel aus `MODEL_SIBLINGS`, sonst aus `FALLBACK_CHAIN`
+ * (cortecs → regolo → mistral). Für einen Aufrufer mit EINEM Ziel ist das
+ * richtig; für einen, der bereits eine Kette deklariert hat, bricht es genau
+ * die zwei Eigenschaften, die diese Kette zusichert:
+ *
+ * 1. **Die Kette klappt auf einen Anbieter zusammen.** `heavy` und `pruefung`
+ *    führen `cortecs/gemma-4-31b-it` vor `regolo/gemma4-31b` — und die beiden
+ *    sind einander als Geschwister eingetragen (gemmaHosts.ts). Ein zäher
+ *    Cortecs macht aus Glied 1 genau Glied 2: zwei „verschiedene
+ *    Vertragspartner" werden zu zwei Aufrufen an dasselbe Konto.
+ * 2. **Ein fremdes Modell rutscht in die kleinen Stufen.** Die
+ *    Small-3.2-Paare stehen in KEINER Geschwister-Zeile, fallen also auf
+ *    `FALLBACK_CHAIN` — und deren erstes Glied antwortet auf dem EIGENEN
+ *    Default seines Anbieters, heute `cortecs/gemma-4-31b-it`. Das ist weder
+ *    das Modell, das die Stufe gemessen und gewählt hat, noch ein neuer
+ *    Vertragspartner: Cortecs steht bereits als Glied 2 in der Kette, sie
+ *    klappt also auch hier zusammen.
+ *
+ *    Bis zum 29.08.2026 war dieses erste Glied `litellm/verdigado-pro` —
+ *    ein Denkmodell, das bei `maxOutputTokens` 8–200 leer antwortet (0 von 90
+ *    Läufen brauchbar). Diese Falle ist mit der Stilllegung von LiteLLM weg
+ *    (./litellmRetired.ts, Issue #3064); der Grund für das Veto ist es nicht,
+ *    er hat nur das Gesicht gewechselt. Wer `FALLBACK_CHAIN` wieder anfasst,
+ *    verschiebt damit auch, was hier ohne Veto hereinkäme.
+ *
+ * Dass die Ausweich-Logik in ein Verbots-Modell führen kann, ist im Repo
+ * belegt und nicht neu: `modelSiblings.vitest.ts` hält den Weg als Verhalten
+ * fest, samt des Vorfalls vom 19.08.2026. Behoben wurde er dort, wo er auch
+ * hier hingehört — mit einem Veto des Aufrufers.
+ *
+ * ── Was stattdessen passiert ──
+ *
+ * Ein zähes Ziel wird nicht ERSETZT, sondern ans Ende der eigenen Kette
+ * geschoben. Das ist die schwächere und die richtigere Bewegung: die Kette hat
+ * ihre Alternativen bereits deklariert, gemessen und begründet — sie braucht
+ * keine von aussen. Kein Ziel geht verloren (ein zähes Modell antwortet
+ * langsam, nicht falsch), kein fremdes kommt hinzu, und die Reihenfolge bleibt
+ * eine Aussage dieser Datei statt eine der Geschwister-Tabelle.
+ *
+ * Für ZÄH statt AUSFALL gibt es ausserdem den `hedge`, der parallel schaltet
+ * (siehe `runStep` in routes/chat/services/agentPipeline.ts). Diese Kette
+ * rückt nur bei Fehlschlag weiter.
+ */
+export function resolveIntermediateChain(lane: IntermediateLaneId): LaneTarget[] {
   const config = intermediateLane(lane);
-  const targets: LaneTarget[] = [
+  const declared: LaneTarget[] = [
     { provider: config.provider, model: config.model },
     ...config.fallback,
   ];
@@ -120,12 +175,23 @@ export function getIntermediateModel(lane: IntermediateLaneId): LanguageModel {
   // Zeitüberschreitung, bevor die Kette weiterrückt. Bleibt nichts übrig, geht
   // der deklarierte Primär trotzdem raus — sein Fehler ist die ehrlichere
   // Auskunft als ein stiller Ausfall an dieser Stelle.
-  const usable = targets.filter((t) => isProviderConfigured(t.provider));
-  const chain = (usable.length > 0 ? usable : targets.slice(0, 1)).map((t) =>
-    getModel(t.provider, t.model)
-  );
+  const configured = declared.filter((t) => isProviderConfigured(t.provider));
+  const candidates = configured.length > 0 ? configured : declared.slice(0, 1);
 
-  return withFallbackChain(chain[0], chain.slice(1), `intermediate:${lane}`);
+  const slow = (t: LaneTarget): boolean => isModelSlow(t.provider, t.model);
+  return [...candidates.filter((t) => !slow(t)), ...candidates.filter(slow)];
+}
+
+export function getIntermediateModel(lane: IntermediateLaneId): LanguageModel {
+  const chain = resolveIntermediateChain(lane);
+
+  // Das Veto: `getModel` fragt `pickHealthyTarget` selbst, und ohne diese Zeile
+  // könnte es die oben getroffene Reihenfolge wieder umschreiben — mit einem
+  // Ziel, das in dieser Kette nichts zu suchen hat. Die Zäh-Behandlung ist
+  // hier bereits erledigt, siehe `resolveIntermediateChain`.
+  const models = chain.map((t) => getModel(t.provider, t.model, { acceptTarget: () => false }));
+
+  return withFallbackChain(models[0], models.slice(1), `intermediate:${lane}`);
 }
 
 // Provider clients are constructed in ONE place — see ./providerInstances.ts
