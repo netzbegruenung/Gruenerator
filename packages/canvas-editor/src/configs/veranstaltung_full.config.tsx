@@ -489,11 +489,28 @@ export const veranstaltungFullConfig: FullCanvasConfig<
   // rendered via circleBadgeInstances; the photo band, title and description are
   // standard elements.
   elements: [
+    // Green plane behind the photo slot (order -1). The band is a partial-height
+    // cover image, so when it is zoomed out (scale < 1) or no photo is picked the
+    // slot is not fully covered — this plane fills the exposed area with the
+    // template green instead of a transparent hole, mirroring the color-backed
+    // photo templates.
+    {
+      id: 'band-background',
+      type: 'rect',
+      x: 0,
+      y: 0,
+      order: -1,
+      width: VERANSTALTUNG_CONFIG.canvas.width,
+      height: VERANSTALTUNG_CONFIG.photo.height,
+      fill: VERANSTALTUNG_CONFIG.greenSection.color,
+      listening: false,
+    },
     // Photo band at the top (40% of the canvas). coverFit center-crops to 2:1 to
     // match the backend reference (veranstaltung_canvas.ts). Fixed slot, not
-    // draggable: CanvasImage clamps against the full 1350px stage, so a
-    // partial-height band could otherwise be dragged down and hidden behind the
-    // green section. order 0 keeps it behind the green section regardless.
+    // draggable, and centerZoom so the shared 0.5–3 zoom magnifies about the slot
+    // centre: zoom-in is a centred crop (no top-left bias, no re-centre needed)
+    // and zoom-out shrinks toward the centre over the green plane behind it
+    // instead of leaving a corner gap. order 0 keeps it behind the green section.
     {
       id: 'background-image',
       type: 'image',
@@ -509,6 +526,7 @@ export const veranstaltungFullConfig: FullCanvasConfig<
       lockedKey: 'isBackgroundLocked',
       opacityStateKey: 'backgroundImageOpacity',
       coverFit: true,
+      centerZoom: true,
     },
     // Green section background
     {
