@@ -83,7 +83,11 @@
  *     leere Antwort ab. GreenPT steht NICHT in der Kette, wäre also selbst
  *     abgesichert, ohne je als Auffangnetz zu dienen.
  *   - über `getIntermediateModel()` + direktes `generateText`/`generateObject`
- *     → KEINE Fallback-Kette. Hier zählt nur der `try`/`catch` des Aufrufers.
+ *     → seit dem 29.08.2026 die `fallback`-Kette DIESER Datei, gelegt von
+ *     `services/ai/fallbackModel.ts` um das zurückgegebene Modell. Bis dahin
+ *     stand hier „KEINE Fallback-Kette, es zählt nur der `try`/`catch` des
+ *     Aufrufers" — und genau so verlor `ThreadTag` an jenem Tag seine Antwort,
+ *     als Regolo mit HTTP 402 (`trial_expired`) abwies.
  *
  * F1 (CLAUDE.md): Stufennamen und Modell-IDs sind interne IDs und werden nicht
  * umbenannt.
@@ -93,23 +97,82 @@ import { GEMMA_31B_ALTERNATE, GEMMA_31B_PRIMARY } from './gemmaHosts.js';
 
 import type { ProviderName } from './providers.js';
 
-export interface IntermediateLaneConfig {
+export interface LaneTarget {
   readonly provider: ProviderName;
   readonly model: string;
+}
+
+export interface IntermediateLaneConfig extends LaneTarget {
   /**
    * Wer einspringt, wenn der Primär zu lange braucht — NICHT wenn er ausfällt,
-   * dafür gibt es die Fallback-Kette. Der Aufrufer bestimmt, ab wann „zu lange"
-   * gilt, und schaltet den Sibling dann PARALLEL dazu (siehe `runStep` in
+   * dafür ist `fallback` da. Der Aufrufer bestimmt, ab wann „zu lange" gilt,
+   * und schaltet den Sibling dann PARALLEL dazu (siehe `runStep` in
    * routes/chat/services/agentPipeline.ts).
    *
    * Warum das hier steht und nicht beim Aufrufer: welches Modell für dieselbe
    * Aufgabe taugt, ist eine Messfrage, und die Messungen stehen in dieser Datei.
    */
-  readonly hedge?: { readonly provider: ProviderName; readonly model: string };
+  readonly hedge?: LaneTarget;
+  /**
+   * Wer übernimmt, wenn der Primär FEHLSCHLÄGT — der Reihe nach, nacheinander.
+   *
+   * PFLICHTFELD, und das ist der ganze Punkt: bis zum 29.08.2026 hatten diese
+   * Stufen gar keine Kette. Der Kommentar zur Ausfallsicherheit oben sagte es
+   * schon — wer sein Modell über `getIntermediateModel()` holt und direkt
+   * `generateText` ruft, umgeht die Fassade und damit `providerFallback.ts`.
+   * An diesem Tag antwortete Regolo mit HTTP 402 (`trial_expired`), und die
+   * Auto-Verschlagwortung (`trivial`) gab still auf. Ein optionales Feld hätte
+   * dieselbe Lücke gelassen, nur später; deshalb muss jede Stufe eine Kette
+   * nennen, und ein Wächter in `__tests__/intermediateFallback.vitest.ts`
+   * besteht darauf.
+   *
+   * Zwei Regeln, beide aus Messungen in dieser Datei:
+   *
+   * 1. **Jede Stufe ein anderer Vertragspartner.** Derselbe Grund wie beim
+   *    Hedge: ein Anbietereinbruch nimmt sonst die ganze Kette. Der Vorfall vom
+   *    29.08. war ein KONTO-Problem (Tageslimit), kein Modellproblem — ein
+   *    zweites Modell beim selben Anbieter hätte denselben 402 bekommen.
+   * 2. **Kein Reasoning-Modell in einer Stufe mit kleinem Ausgabebudget.**
+   *    `trivial` und `standard` rufen mit `maxOutputTokens` 16–40 auf. Bei
+   *    einem Reasoning-Modell zählen die Denk-Tokens dagegen, `content` kommt
+   *    leer zurück (Messreihe im Kopf dieser Datei, gpt-oss-120b: 0 von 90
+   *    Läufen brauchbar). `litellm/verdigado-pro` ist deshalb dort KEIN
+   *    Auffangnetz, sondern eine zweite Art zu scheitern — es steht bewusst
+   *    nicht in diesen beiden Ketten.
+   */
+  readonly fallback: readonly LaneTarget[];
 }
 
 /** Der Ausgangszustand: was `INTERMEDIATE_MODEL` für alle 36 Stellen war. */
 const REGOLO_SMALL_4 = { provider: 'regolo', model: 'mistral-small-4-119b' } as const;
+
+/**
+ * Die Auffangglieder der kleinen Stufen — dasselbe Kaliber, andere Anbieter.
+ *
+ * `greenpt/mistral-small-3.2-24b` ist NICHT neu im System: es bedient seit dem
+ * 13.08.2026 den Planer des agentischen Loops (`LOOP_PLANNER_PRIMARY`) und seit
+ * dem 19.08.2026 den Monitor. Als Auffangglied ist es hier die erste Wahl, weil
+ * die Messreihe oben es schon geprüft hat — 96,7 % gegen 95,6 % des Primärs,
+ * 0 von 30 schwankend —, es nicht denkt (also das kleine Ausgabebudget nicht im
+ * `reasoning`-Feld verbrennt) und als einziger Kandidat seinen Energieverbrauch
+ * selbst zurückmeldet.
+ *
+ * Was die Messung DAGEGEN sagt, gilt weiterhin und ist genau der Grund, warum
+ * es zweite und nicht erste Wahl ist: unter 10 gleichzeitigen Anfragen lagen
+ * 5 von 30 Antworten über 1500 ms, bei Regolo 0 von 30. Für `standard` mit
+ * seinen harten Budgets von 900–1500 ms ist das im Normalbetrieb zu langsam.
+ * Als Auffangglied ist es das nicht: die Alternative ist keine Antwort.
+ *
+ * `mistral/mistral-small-latest` ist das dritte Glied — dritter Vertragspartner,
+ * kein Reasoning-Modell, gemessener Energie-Koeffizient
+ * (services/usage/energyFootprint.ts), und im Repo bereits in Gebrauch
+ * (promptAssemblyGraph, argumentsSummarizer).
+ */
+const GREENPT_SMALL_32 = {
+  provider: 'greenpt',
+  model: 'mistral-small-3.2-24b-instruct-2506',
+} as const;
+const MISTRAL_SMALL = { provider: 'mistral', model: 'mistral-small-latest' } as const;
 
 /**
  * Das dichte Gemma 4 31B — Primär und Ausweich kommen beide aus `gemmaHosts.ts`.
@@ -139,14 +202,14 @@ export const INTERMEDIATE_LANES = {
    * wird). Die Stufe mit der grössten Stückzahl und den kleinsten Antworten —
    * also die, bei der ein Wechsel am meisten brächte und am wenigsten riskiert.
    */
-  trivial: REGOLO_SMALL_4,
+  trivial: { ...REGOLO_SMALL_4, fallback: [GREENPT_SMALL_32, MISTRAL_SMALL] },
 
   /**
    * Der Hot Path: kurze Ausgabe, aber harte Zeitbudgets (900–1500 ms) und
    * Routing-Wirkung. Klassifikator, die fünf Auflöser, Query-Expansion.
    * Verschiebt nur, wer die Latenz unter Last gemessen hat.
    */
-  standard: REGOLO_SMALL_4,
+  standard: { ...REGOLO_SMALL_4, fallback: [GREENPT_SMALL_32, MISTRAL_SMALL] },
 
   /**
    * Die Qualitätslatte: Zusammenfassungen, der Boards-Agent, die
@@ -245,7 +308,18 @@ export const INTERMEDIATE_LANES = {
    * hätte bei diesem Umzug einen Scaleway-Namen an Regolo geschickt. Es pinnt
    * jetzt explizit — siehe dort.
    */
-  heavy: { provider: GEMMA_PRIMARY.provider, model: GEMMA_PRIMARY.model },
+  heavy: {
+    provider: GEMMA_PRIMARY.provider,
+    model: GEMMA_PRIMARY.model,
+    // Erst dieselben Gewichte beim anderen Vertragspartner — das ist die Lane,
+    // die diese Stufe ohnehin kennt (GEMMA_31B_ALTERNATE). Dahinter Mistral
+    // Medium 3.5, weil `heavy` lange Prosa schreibt und ein drittes Glied
+    // dieser Güte braucht, nicht ein kleines Modell.
+    fallback: [
+      { provider: GEMMA_HEDGE.provider, model: GEMMA_HEDGE.model },
+      { provider: 'mistral', model: MISTRAL_MEDIUM },
+    ],
+  },
 
   /**
    * Rechnen. Eigene Stufe, weil hier als Einzigem ein Modellfehler als
@@ -270,7 +344,15 @@ export const INTERMEDIATE_LANES = {
    * (eigenes `CODEGEN_MODEL` mit derselben Begründung). Diese Stufe sammelt
    * die Doppelung ein.
    */
-  compute: { provider: 'mistral', model: MISTRAL_MEDIUM },
+  compute: {
+    provider: 'mistral',
+    model: MISTRAL_MEDIUM,
+    // Die Reihenfolge steht in der Tabelle oben: Gemma 4 traf 100,0 % der
+    // 17 Rechenfälle, Small 4 nur 94,1 %. Auf dieser Stufe ist ein Fehler eine
+    // FALSCHE ZAHL beim Nutzer — die Kette folgt deshalb der Trefferquote und
+    // nicht dem Energiewert.
+    fallback: [{ provider: GEMMA_PRIMARY.provider, model: GEMMA_PRIMARY.model }, REGOLO_SMALL_4],
+  },
 
   /**
    * Prüfen, was ein anderes Modell geschrieben hat — mit eigenem Kontext.
@@ -347,6 +429,14 @@ export const INTERMEDIATE_LANES = {
     provider: GEMMA_PRIMARY.provider,
     model: GEMMA_PRIMARY.model,
     hedge: { provider: GEMMA_HEDGE.provider, model: GEMMA_HEDGE.model },
+    // Dasselbe Ziel wie der Hedge, aber ein anderer Auslöser: der Hedge greift
+    // bei ZÄH (parallel, nach einer Frist), diese Kette bei FEHLSCHLAG
+    // (nacheinander). Beides ist nötig — der Vorfall vom 14.08.2026 war zäh
+    // (3,7 tok/s), der vom 29.08.2026 war ein harter 402.
+    fallback: [
+      { provider: GEMMA_HEDGE.provider, model: GEMMA_HEDGE.model },
+      { provider: 'mistral', model: MISTRAL_MEDIUM },
+    ],
   },
 } as const satisfies Record<string, IntermediateLaneConfig>;
 

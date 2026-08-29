@@ -11,6 +11,7 @@
 import { env } from '../../config/env.js';
 import { withUsageTracking } from '../usage/usageModelMiddleware.js';
 
+import { withFallbackChain } from './fallbackModel.js';
 import { intermediateLane } from './intermediateLanes.js';
 import { pickHealthyTarget } from './modelSiblings.js';
 import {
@@ -27,7 +28,7 @@ import {
 import { regoloTextDefault } from './textModelPolicy.js';
 import { withWireSafeToolCallIds } from './toolCallIds.js';
 
-import type { IntermediateLaneId } from './intermediateLanes.js';
+import type { IntermediateLaneId, LaneTarget } from './intermediateLanes.js';
 import type { RouteOptions } from './providerInstances.js';
 import type { LanguageModel } from 'ai';
 
@@ -105,8 +106,23 @@ const PROVIDER_DEFAULTS = {
  * and the measurements behind it.
  */
 export function getIntermediateModel(lane: IntermediateLaneId): LanguageModel {
-  const { provider, model } = intermediateLane(lane);
-  return getModel(provider, model);
+  const config = intermediateLane(lane);
+  const targets: LaneTarget[] = [
+    { provider: config.provider, model: config.model },
+    ...config.fallback,
+  ];
+
+  // Unkonfigurierte Anbieter fallen VOR dem Bauen heraus, nicht beim Aufruf:
+  // ein Client ohne Schlüssel scheitert sonst erst im Netz und kostet die
+  // Zeitüberschreitung, bevor die Kette weiterrückt. Bleibt nichts übrig, geht
+  // der deklarierte Primär trotzdem raus — sein Fehler ist die ehrlichere
+  // Auskunft als ein stiller Ausfall an dieser Stelle.
+  const usable = targets.filter((t) => isProviderConfigured(t.provider));
+  const chain = (usable.length > 0 ? usable : targets.slice(0, 1)).map((t) =>
+    getModel(t.provider, t.model)
+  );
+
+  return withFallbackChain(chain[0], chain.slice(1), `intermediate:${lane}`);
 }
 
 // Provider clients are constructed in ONE place — see ./providerInstances.ts
