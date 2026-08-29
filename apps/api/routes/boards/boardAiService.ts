@@ -164,7 +164,9 @@ export async function generateBoardOperations(opts: {
   const providerChain: AgentConfig['provider'][] = ['mistral', 'regolo', 'cortecs'];
   const provider = providerChain.find((p) => isProviderConfigured(p));
   if (!provider) {
-    throw new Error('No AI provider configured (tried: mistral, regolo, litellm)');
+    // Aus der Kette abgeleitet, nicht danebengeschrieben: die Liste stand hier
+    // als zweite Kopie und nannte nach der Cortecs-Umstellung noch `litellm`.
+    throw new Error(`No AI provider configured (tried: ${providerChain.join(', ')})`);
   }
 
   const modelId = BOARD_AI_MODELS[provider];
