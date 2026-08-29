@@ -27,14 +27,18 @@ import {
 /**
  * Energy and emissions for the whole platform in the window, as a band.
  *
- * `*_low` and the unsuffixed field are the two ends of the same computation,
- * differing only in which end of the measured span the un-metered lanes are
- * valued at (apps/api/services/usage/energyFootprint.ts, `EnergyBound`). Where
- * every lane is metered the two coincide — the width of the band IS the
- * remaining uncertainty, and it narrows as coverage grows.
+ * `*_low`, the unsuffixed field and `*_high` are three points of one
+ * computation, differing only in where an un-metered lane is valued inside its
+ * span and where a provider of unknown location sits between the possible grids
+ * (apps/api/services/usage/energyFootprint.ts, `EnergyBound`). Where every lane
+ * is metered and every country known, all three coincide — the width of the
+ * scale IS the remaining uncertainty, and it narrows as coverage grows.
  *
- * The unsuffixed field is the upper end, deliberately: if only one number is
- * ever rendered, it should be the one that cannot flatter us.
+ * The unsuffixed field is the MIDDLE. It used to be the upper end, on the
+ * reasoning that a lone rendered number should be the one that cannot flatter
+ * us; what that produced instead was a number reliably wrong in one direction,
+ * with the width of the real uncertainty hidden behind it. The ends are now
+ * published beside the middle rather than standing in for it.
  */
 export const transparencyFootprintSchema = z.object({
   /** Watt-hours, CENTRAL estimate — the figure every headline shows. */
@@ -92,7 +96,7 @@ export const transparencyFootprintSchema = z.object({
 /**
  * The constants a figure was computed with, per provider, so the arithmetic can
  * be checked from outside. `energy_wh`/`emissions_g` are that provider's share
- * of the platform total (upper end of the band).
+ * of the platform total, at the central estimate.
  */
 export const transparencyProviderEntrySchema = z.object({
   provider: z.string(),
@@ -124,7 +128,7 @@ export const transparencyDayEntrySchema = z.object({
 
 /**
  * The shared per-feature breakdown, plus this area's share of the platform
- * emissions (upper end of the band). 0 for areas whose operations carry no
+ * emissions, at the central estimate. 0 for areas whose operations carry no
  * footprint at all — see `unvalued_ops` for why that is a gap, not a saving.
  */
 export const transparencyFeatureEntrySchema = usageByFeatureEntrySchema.extend({

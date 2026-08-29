@@ -732,7 +732,7 @@ export function estimateImageFootprint(params: {
   provider: string;
   model: string;
   images: number;
-  /** See `EnergyBound`. Defaults to the conservative end. */
+  /** See `EnergyBound`. Defaults to the central estimate. */
   bound?: EnergyBound;
 }): (Footprint & { basis: ImageEnergy['basis'] }) | null {
   const c = IMAGE_ENERGY[params.model];
@@ -974,7 +974,7 @@ export function estimateFootprint(params: {
   inputTokens: number;
   outputTokens: number;
   requests: number;
-  /** See `EnergyBound`. Defaults to the conservative end. */
+  /** See `EnergyBound`. Defaults to the central estimate. */
   bound?: EnergyBound;
 }): (Footprint & { basis: EnergyCoefficients['basis'] }) | null {
   const table = MODEL_ENERGY[params.model];
