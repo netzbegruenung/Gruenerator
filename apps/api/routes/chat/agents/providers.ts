@@ -87,11 +87,10 @@ export { isVisionCapable };
 /**
  * Available models that can be selected by the user.
  *
- * `single` — pinned to one provider/model.
- * `overflow` — Verdigado-preferred with Regolo overflow when Verdigado's
- * single inference slot is busy. The unchosen sibling becomes the
- * first-token-timeout fallback for the chosen side.
- *
+ * Nur noch eine Bauform: `single`, auf ein Provider/Modell-Paar gepinnt. Die
+ * zweite (`overflow`) ist am 29.08.2026 mit ihrem Host gegangen — die
+ * Begründung steht bei `ModelConfigSingle` unten, damit sie nicht zweimal
+ * gepflegt werden muss.
  */
 export type Provider = 'mistral' | 'litellm' | 'regolo' | 'greenpt' | 'scaleway' | 'cortecs';
 
@@ -748,9 +747,11 @@ function instantiateModel(
  * Whether a resolved model can drive the agentic chat tool loop (native
  * function calling with multi-step tool use). Conservative on purpose: only
  * Mistral is enabled for now — it's the primary EU provider and our strongest
- * tool-caller (mistral-medium-2604). The overflow lanes (Gemma/GPT-OSS via
- * litellm/regolo) are NOT gated in yet; a non-tool-capable user selection
- * stays on the single-pass pipeline rather than being silently swapped.
+ * tool-caller (mistral-medium-2604). Die übrigen Antwort-Lanes (Gemma 4 über
+ * Cortecs, die kleinen Regolo-Modelle) sind NICHT freigeschaltet; eine
+ * Nutzerwahl ohne Werkzeugfähigkeit bleibt auf dem Single-Pass-Pfad, statt
+ * still getauscht zu werden. `litellm/GPT-OSS` stand hier bis zum 29.08.2026
+ * und ist als Ziel weg (services/ai/litellmRetired.ts).
  */
 export function isAgenticToolCapable(provider: string, _modelName: string): boolean {
   return provider === 'mistral';
