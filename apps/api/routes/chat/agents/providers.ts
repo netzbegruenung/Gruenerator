@@ -304,15 +304,16 @@ const GEMMA_4_REGOLO: ModelConfigSingle = {
  * Parameter) — anschalten lässt es sich über
  * `chat_template_kwargs.enable_thinking`, siehe regoloReasoningStream.ts.
  *
- * Die dritte Begründung, die hier bis zum 25.08.2026 stand — „es liegt bei ZWEI
- * Endpunkten (infercom, berget) statt bei einem" — ist WEG, weil sie nicht mehr
- * stimmt: der Katalog führt für dieses Modell nur noch `infercom`, und berget
- * ist über `allowed_providers` nicht erzwingbar (`Endpoint uses quantization`,
- * auch mit `allow_quantization: true`). Cortecs ist für uns also ebenfalls ein
- * Ein-Endpunkt-Host; die Reserve dieser Lane ist der Regolo-Ausweich, nicht der
- * Router. Dieselben Gewichte fahren seit demselben Tag auch `heavy` und
- * `pruefung` in services/ai/intermediateLanes.ts — dort steht die Messreihe
- * (TTFT 1122 ms, 210,7 tok/s).
+ * Die dritte Begründung — „es liegt bei ZWEI Endpunkten (infercom, berget)
+ * statt bei einem" — stand hier, wurde am 25.08.2026 gestrichen und gilt seit
+ * dem 29.08.2026 wieder: berget ist im Katalog und über `allowed_providers`
+ * erzwingbar, auch ohne `allow_quantization`. Die Messung steht in
+ * services/ai/gemmaHosts.ts, zusammen mit der Lehre daraus. Die Reserve dieser
+ * Lane bleibt der Regolo-Ausweich — nicht weil Cortecs nur einen Endpunkt
+ * hätte, sondern weil Regolo ein anderer VERTRAGSPARTNER ist. Dieselben
+ * Gewichte fahren seit dem 25.08.2026 auch `heavy` und `pruefung` in
+ * services/ai/intermediateLanes.ts — dort steht die Messreihe (TTFT 1122 ms,
+ * 210,7 tok/s).
  *
  * KEIN Denk-Pin für dieses Modell — aber nicht aus dem Grund, der hier bis zum
  * 25.08.2026 stand. Live nachgemessen nimmt infercom `reasoning_effort` in den
