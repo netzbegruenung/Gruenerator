@@ -80,8 +80,11 @@ const CHITCHAT_RE = /^(wer bist du|was (kannst|bist) du|wie geht|wie heißt du|h
 // `notizb[üu]cher` stays next to `notebooks?`: the product word is Notebook
 // since 27.08.2026, but this net reads what people TYPE, and they kept typing
 // the old German one. Detectors over user input are not part of the rename.
+//
+// `wolke` came in with the cloud_files tool: „meine Wolke-Dateien“ carries
+// neither a question word nor a leading verb and must still reach the loop.
 const PERSONAL_DATA_RE =
-  /\b(mein|meine|meiner|meinen)\b[\s\wäöüß]*\b(dokumente?|boards?|aufgaben?|tasks?|notebooks?|notizb[üu]cher|sammlung\w*|reels?|sharepics?|gruppen?|inhalte?)\b/i;
+  /\b(mein|meine|meiner|meinen)\b[\s\wäöüß]*\b(dokumente?|boards?|aufgaben?|tasks?|notebooks?|notizb[üu]cher|sammlung\w*|reels?|sharepics?|gruppen?|inhalte?|wolke)\b/i;
 
 /**
  * The whole turn (after stripping a leading greeting) is assistant-directed
