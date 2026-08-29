@@ -5,12 +5,12 @@ import { CANVAS_PREVIEW_WIDTH, shareCanvasPreviewUrl, shareThumbnailPreviewUrl }
 describe('shareCanvasPreviewUrl', () => {
   it('übersetzt die ladbare Download-URL in die Canvas-Preview', () => {
     expect(shareCanvasPreviewUrl('/api/share/abc123/download')).toBe(
-      '/api/share/abc123/preview?w=3240&fmt=webp'
+      '/api/share/abc123/preview?w=2160&fmt=webp'
     );
   });
 
-  it('benutzt 3240 als Canvas-Working-Tier, nimmt aber eine andere Breite an', () => {
-    expect(CANVAS_PREVIEW_WIDTH).toBe(3240);
+  it('benutzt 2160 als Canvas-Working-Tier, nimmt aber eine andere Breite an', () => {
+    expect(CANVAS_PREVIEW_WIDTH).toBe(2160);
     expect(shareCanvasPreviewUrl('/api/share/abc123/download', 800)).toBe(
       '/api/share/abc123/preview?w=800&fmt=webp'
     );
