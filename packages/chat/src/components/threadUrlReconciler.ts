@@ -14,12 +14,6 @@ export interface ThreadUrlState {
   prevRemoteId: string | null;
   /** Whether `suffix` still resolves to a known thread (false ⇒ deleted). */
   slugStillResolves: boolean;
-  /**
-   * The URL names a context of its own (an agent, a mode) rather than a thread.
-   * A missing thread suffix then does NOT mean "no thread yet" — it means the
-   * user is on a landing page that must keep its own URL.
-   */
-  landing: boolean;
 }
 
 export type ThreadUrlAction =
@@ -41,17 +35,22 @@ export type ThreadUrlAction =
  * exactly the ping-pong this replaced.
  */
 export function reconcileThreadUrl(state: ThreadUrlState): ThreadUrlAction {
-  const { mainRemoteId, mainSuffix, mainTitle, threadSlug, suffix, prevRemoteId, landing } = state;
+  const { mainRemoteId, mainSuffix, mainTitle, threadSlug, suffix, prevRemoteId } = state;
 
   if (mainRemoteId) {
     // Legacy row without a suffix: nothing sensible to write, leave the URL.
     if (!mainSuffix) return { type: 'none' };
-    // On a landing (/agents/:slug, ?mode=…) only a thread minted right here may
-    // claim the URL — that is the transition from a draft, so main was empty on
-    // the previous run. A thread that was ALREADY open when the landing mounted
-    // is leftover state, and writing its slug would throw the user out of the
-    // agent they just opened and into their last conversation.
-    if (landing && suffix === null && prevRemoteId !== null) return { type: 'none' };
+    // A URL that names no thread may only be claimed by a thread minted right
+    // here — that is the transition from a draft, so main was empty on the
+    // previous run. A thread that was ALREADY open is leftover state the
+    // URL→thread effect is at this moment swapping for a draft (asynchronously,
+    // see `lib/auiAsync.ts`), so main still names it here. Writing its slug back
+    // is what oscillated: the draft landed a tick later, read as "left the
+    // thread", and bounced the URL back to /chat, 60+ times a second until
+    // Safari's replaceState limit turned it into a SecurityError. On a landing
+    // (/agents/:slug, ?mode=…) the same write threw the user out of the agent
+    // they had just opened and into their last conversation.
+    if (suffix === null && prevRemoteId !== null) return { type: 'none' };
     // Only canonicalise for the thread the URL already points at (a title
     // arrived) or when it points at no thread yet (a draft just minted). While
     // a switch is in flight the URL names the TARGET and main is still the OLD
