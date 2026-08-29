@@ -40,22 +40,30 @@ export function reconcileThreadUrl(state: ThreadUrlState): ThreadUrlAction {
   if (mainRemoteId) {
     // Legacy row without a suffix: nothing sensible to write, leave the URL.
     if (!mainSuffix) return { type: 'none' };
-    // A URL that names no thread may only be claimed by a thread minted right
-    // here — that is the transition from a draft, so main was empty on the
-    // previous run. A thread that was ALREADY open is leftover state the
-    // URL→thread effect is at this moment swapping for a draft (asynchronously,
-    // see `lib/auiAsync.ts`), so main still names it here. Writing its slug back
-    // is what oscillated: the draft landed a tick later, read as "left the
-    // thread", and bounced the URL back to /chat, 60+ times a second until
-    // Safari's replaceState limit turned it into a SecurityError. On a landing
-    // (/agents/:slug, ?mode=…) the same write threw the user out of the agent
-    // they had just opened and into their last conversation.
-    if (suffix === null && prevRemoteId !== null) return { type: 'none' };
-    // Only canonicalise for the thread the URL already points at (a title
-    // arrived) or when it points at no thread yet (a draft just minted). While
-    // a switch is in flight the URL names the TARGET and main is still the OLD
-    // thread — writing then would drag the URL back and re-trigger the switch.
-    if (suffix !== null && suffix !== mainSuffix) return { type: 'none' };
+    // Both guards below used to key on `suffix`, which is null for a bare /chat
+    // AND for a legacy link carrying the raw remoteId (`/chat/<uuid>`). That
+    // conflation made each of them answer the other's case wrongly, so they key
+    // on `threadSlug` — what the URL actually names — instead.
+    if (threadSlug === null) {
+      // No thread named: only a thread minted right here may claim the URL —
+      // that is the transition from a draft, so main was empty on the previous
+      // run. A thread that was ALREADY open is leftover state the URL→thread
+      // effect is at this moment swapping for a draft (asynchronously, see
+      // `lib/auiAsync.ts`), so main still names it here. Writing its slug back
+      // is what oscillated: the draft landed a tick later, read as "left the
+      // thread", and bounced the URL back to /chat, 60+ times a second until
+      // Safari's replaceState limit turned it into a SecurityError. On a landing
+      // (/agents/:slug, ?mode=…) the same write threw the user out of the agent
+      // they had just opened and into their last conversation.
+      if (prevRemoteId !== null) return { type: 'none' };
+    } else if (suffix !== null ? suffix !== mainSuffix : threadSlug !== mainRemoteId) {
+      // A switch the URL itself started is still in flight: the URL names the
+      // TARGET while main is still the OLD thread. Writing now would drag the
+      // URL back and re-trigger the switch. A legacy link is compared by
+      // remoteId because that is what it carries; comparing its (absent) suffix
+      // skipped this guard entirely and let the old thread claim the URL.
+      return { type: 'none' };
+    }
     const slug = buildChatThreadSlug(mainTitle, mainSuffix);
     return slug === threadSlug ? { type: 'none' } : { type: 'replace', slug };
   }
