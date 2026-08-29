@@ -24,7 +24,6 @@ import {
 import { injectImageAttachments } from '../services/attachmentProcessingService.js';
 import { applyCompaction, pruneMessages } from '../services/contextPruningService.js';
 import { executeIntentPipeline } from '../services/intentExecutionService.js';
-import { estimateRequestTokens } from '../services/messageHelpers.js';
 import {
   stripFabricatedArtifactDelivery,
   stripFabricatedSystemClaims,
@@ -177,7 +176,6 @@ export async function runSinglePassAnswer({
       // Measured BEFORE pruning on purpose: the question is "does this
       // turn need a bigger lane", and pruning is exactly the loss we
       // want to avoid by answering it.
-      estimatedInputTokens: estimateRequestTokens(systemMessage, validMessages),
       ...(finalState.complexity != null && { complexity: finalState.complexity }),
     });
     if (resolution.unknownModelId) {
@@ -230,46 +228,42 @@ export async function runSinglePassAnswer({
     // AI SDK 7 telemetry has no metadata field.
     const respondTelemetry = buildAiTelemetry('chat-graph.respond');
 
-    try {
-      // One Langfuse trace per chat turn: the respond generation (and any
-      // sibling-fallback retry) nest under this `chat-turn` root span, and
-      // `traceId` is captured for the client feedback score.
-      fullText = await withLangfuseTrace(
-        buildTurnTrace(finalState.intent ?? 'unknown'),
-        async (trace) => {
-          langfuseTraceId = trace.traceId;
-          const text = await streamWithFallback({
-            primary: resolution,
-            sse,
-            logPrefix: '[ChatGraph]',
-            buildStream: async (r) =>
-              // No output cap (OpenWebUI-style): the provider/model window is
-              // the backstop; agentConfig.params.max_tokens is deliberately
-              // ignored here so answers are never cut mid-sentence.
-              streamForResolution({
-                resolution: r,
-                messages: messagesForAI as Parameters<typeof streamForResolution>[0]['messages'],
-                temperature: finalState.agentConfig.params.temperature,
-                sse,
-                logPrefix: '[ChatGraph]',
-                turnSignal,
-                ...(respondTelemetry && { telemetry: respondTelemetry }),
-              }),
-          });
-          // streamWithFallback swallows a dead primary AND a dead sibling
-          // into `null` instead of throwing, so without this the failed
-          // turn would sit in Langfuse as a successful one.
-          trace.update(
-            text === null
-              ? { input: lastUserText, level: 'ERROR', statusMessage: BOTH_LANES_FAILED }
-              : { input: lastUserText, output: text }
-          );
-          return text;
-        }
-      );
-    } finally {
-      if (resolution.releaseSlot) await resolution.releaseSlot();
-    }
+    // One Langfuse trace per chat turn: the respond generation (and any
+    // sibling-fallback retry) nest under this `chat-turn` root span, and
+    // `traceId` is captured for the client feedback score.
+    fullText = await withLangfuseTrace(
+      buildTurnTrace(finalState.intent ?? 'unknown'),
+      async (trace) => {
+        langfuseTraceId = trace.traceId;
+        const text = await streamWithFallback({
+          primary: resolution,
+          sse,
+          logPrefix: '[ChatGraph]',
+          buildStream: async (r) =>
+            // No output cap (OpenWebUI-style): the provider/model window is
+            // the backstop; agentConfig.params.max_tokens is deliberately
+            // ignored here so answers are never cut mid-sentence.
+            streamForResolution({
+              resolution: r,
+              messages: messagesForAI as Parameters<typeof streamForResolution>[0]['messages'],
+              temperature: finalState.agentConfig.params.temperature,
+              sse,
+              logPrefix: '[ChatGraph]',
+              turnSignal,
+              ...(respondTelemetry && { telemetry: respondTelemetry }),
+            }),
+        });
+        // streamWithFallback swallows a dead primary AND a dead sibling
+        // into `null` instead of throwing, so without this the failed
+        // turn would sit in Langfuse as a successful one.
+        trace.update(
+          text === null
+            ? { input: lastUserText, level: 'ERROR', statusMessage: BOTH_LANES_FAILED }
+            : { input: lastUserText, output: text }
+        );
+        return text;
+      }
+    );
 
     if (fullText === null) {
       // Generation failed, but the retrieval that preceded it was real and

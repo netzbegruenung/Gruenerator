@@ -374,7 +374,7 @@ describe('runAgentPipeline — Sibling bei Langsamkeit', () => {
       // Genau darin liegt übrigens der verbliebene Wert des Hedges: die Kette
       // fragt Regolo mit dessen Standardmodell, der Hedge mit `gemma4-31b`,
       // dem Modell, für das diese Stufe ausgewählt wurde.
-      const PRIMAER_UND_KETTE = 4; // cortecs → litellm → regolo → mistral
+      const PRIMAER_UND_KETTE = 3; // cortecs → regolo → mistral
       let rueckAufrufe = 0;
       const { calls } = poolNachProvider(async (_provider, type) => {
         if (type !== RUECK_TYPE) return null;
@@ -389,9 +389,9 @@ describe('runAgentPipeline — Sibling bei Langsamkeit', () => {
       const rueck = calls.filter((c) => c.type === RUECK_TYPE);
       expect(rueck.map((c) => c.provider)).toEqual([
         'cortecs',
-        'litellm',
         'regolo',
         'mistral',
+        // Der Hedge: derselbe Prüfer beim anderen Vertragspartner.
         'regolo',
       ]);
       expect(await promise).toContain('Vom Sibling.');

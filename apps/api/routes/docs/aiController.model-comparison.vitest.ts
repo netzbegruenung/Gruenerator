@@ -147,11 +147,11 @@ interface ModelConfig {
   skip?: () => boolean;
 }
 
-function litellmProvider() {
+function cortecsProvider() {
   return createOpenAI({
-    baseURL: `${process.env.LITELLM_BASE_URL}/v1`,
-    apiKey: process.env.LITELLM_API_KEY || '',
-    name: 'litellm',
+    baseURL: process.env.CORTECS_BASE_URL || 'https://api.cortecs.ai/v1',
+    apiKey: process.env.CORTECS_API_KEY || '',
+    name: 'cortecs',
   });
 }
 
@@ -169,10 +169,12 @@ function mistralProvider() {
 
 const MODELS: ModelConfig[] = [
   {
-    name: 'GPT-OSS 120B (LiteLLM)',
-    provider: litellmProvider,
-    modelId: 'verdigado-pro',
-    skip: () => !process.env.LITELLM_BASE_URL || !process.env.LITELLM_API_KEY,
+    // War `verdigado-pro` (GPT-OSS 120B) am LiteLLM-Proxy, bis der am
+    // 29.08.2026 stillgelegt wurde — services/ai/litellmRetired.ts.
+    name: 'Mistral Small 3.2 24B (Cortecs)',
+    provider: cortecsProvider,
+    modelId: 'mistral-small-3.2-24b-instruct-2506',
+    skip: () => !process.env.CORTECS_API_KEY,
   },
   {
     name: 'Gemma 4 31B (Regolo)',

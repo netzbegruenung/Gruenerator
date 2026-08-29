@@ -43,6 +43,7 @@ import { AiProviderError, classifyProviderError } from '../providers/providerErr
 import { executeProvider } from './execution/index.js';
 import { intermediateLane } from './intermediateLanes.js';
 import { GENERIC_FALLBACK, laneFallback, laneTarget, resolveLane } from './lanes.js';
+import { retireLiteLLM } from './litellmRetired.js';
 import { jsonCandidatesFromText } from './structuredParsing.js';
 
 import type { IntermediateLaneId } from './intermediateLanes.js';
@@ -164,10 +165,26 @@ export class NoAnswerError extends AiProviderError {
  * über den Adapter, sodass der Pin den Adapter behielt und das Modell nicht.
  */
 function targetFor(call: AiCall): { provider: ProviderName; model: string | null } {
-  if (call.pinned == null) return laneTarget(resolveLane(call.lane));
+  const chosen =
+    call.pinned == null
+      ? laneTarget(resolveLane(call.lane))
+      : (() => {
+          const pin = typeof call.pinned === 'string' ? intermediateLane(call.pinned) : call.pinned;
+          return {
+            provider: pin.provider,
+            model: process.env.MAIN_LLM_OVERRIDE || pin.model,
+          };
+        })();
 
-  const pin = typeof call.pinned === 'string' ? intermediateLane(call.pinned) : call.pinned;
-  return { provider: pin.provider, model: process.env.MAIN_LLM_OVERRIDE || pin.model };
+  // Ein stillgelegtes Ziel wird HIER umgebogen und nicht erst in `getModel`.
+  // Der Unterschied ist nicht kosmetisch: `execute.ts` prüft
+  // `isProviderConfigured(provider)` und WIRFT, bevor `getModel` überhaupt
+  // drankäme — ein Pin auf litellm wäre ohne Schlüssel ein harter Fehler statt
+  // einer Antwort. Ausserdem schreibt der Adapter den Provider- und Modellnamen
+  // ins Protokoll; genau diese Zeile hat in #3064 den falschen Eindruck erweckt,
+  // eine Lane habe gpt-oss ANGEFRAGT. Siehe ./litellmRetired.ts.
+  const live = retireLiteLLM(chosen.provider, chosen.model);
+  return { provider: live.provider as ProviderName, model: live.model };
 }
 
 /**

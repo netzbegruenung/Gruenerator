@@ -18,29 +18,6 @@ import type {
 const LANE = intermediateLane('standard');
 
 /**
- * Check if a model name is compatible with LiteLLM
- */
-export function isLiteLLMCompatibleModel(modelName: string = ''): boolean {
-  const name = String(modelName || '').toLowerCase();
-  // LiteLLM models are the official verdigado-* aliases, gpt-oss prefixes,
-  // or mistral/mixtral variants. Exclude Mistral API models (mistral-medium-2604, etc.)
-  if (name.includes('verdigado')) {
-    return true;
-  }
-  if (name.includes('gpt-oss') || name.includes('gpt-4') || name.includes('gpt-3')) {
-    return true;
-  }
-  if (name.includes('mixtral') && !name.includes('-latest')) {
-    return true;
-  }
-  // Mistral API models are NOT litellm compatible
-  if (name.includes('mistral-')) {
-    return false;
-  }
-  return false;
-}
-
-/**
  * Infer provider from model name patterns
  */
 export function determineProviderFromModel(modelName: string = ''): ProviderName {
@@ -53,13 +30,14 @@ export function determineProviderFromModel(modelName: string = ''): ProviderName
   ) {
     return 'mistral';
   }
-  // OpenAI-compatible models via LiteLLM
+  // Cortecs seit dem 29.08.2026 — spiegelt `providerForModel` in
+  // services/ai/lanes.ts, das der lebende Pfad ist. Stand bis dahin auf
+  // `litellm`, dessen Ziele stillgelegt sind (services/ai/litellmRetired.ts).
   if (name.includes('gpt-') || name.includes('openai')) {
-    return 'litellm';
+    return 'cortecs';
   }
-  // Mixtral models via LiteLLM
   if (name.includes('mistral') || name.includes('mixtral')) {
-    return 'litellm';
+    return 'cortecs';
   }
   // Llama models via Regolo (hosts Llama-3.3-70B-Instruct)
   if (name.includes('llama') || name.includes('meta-llama')) {
@@ -280,11 +258,10 @@ export function selectProviderAndModel({
   // Respect explicit provider at top-level if present (routes may set data.provider)
   if (options.explicitProvider) {
     provider = options.explicitProvider;
-    // When explicitly using litellm, ensure model is litellm-compatible
-    if (provider === 'litellm' && !isLiteLLMCompatibleModel(model)) {
-      // Use explicitly provided litellm model or default
-      model = isLiteLLMCompatibleModel(options.model) ? options.model! : 'verdigado-pro';
-    }
+    // `litellm` wird als Name noch gelesen (F0) und von `getModel` auf Cortecs
+    // umgebogen — services/ai/litellmRetired.ts. Ein Modellname wird hier
+    // deshalb nicht mehr eingesetzt: die Stilllegung wählt ihn, und ein
+    // verdigado-Alias, der bis dorthin durchkäme, wäre bei Cortecs ein 404.
   }
 
   // MAIN_LLM_OVERRIDE environment variable

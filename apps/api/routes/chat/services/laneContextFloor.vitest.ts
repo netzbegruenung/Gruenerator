@@ -14,13 +14,13 @@ import { AVAILABLE_MODELS, getModelConfig } from '../agents/providers.js';
 
 import { resolveLaneContextFloor } from './laneContextFloor.js';
 
-/** Every window a request on this lane could run against. */
+/** Every window a request on this lane could run against. Bis zum 29.08.2026
+ *  konnten das ZWEI sein (Verdigado-Primär, Regolo-Überlauf); die Bauform ist
+ *  mit dem Host weg — siehe services/ai/litellmRetired.ts. */
 function reachableWindows(modelId: string): number[] {
   const config = getModelConfig(modelId);
   if (!config) return [];
-  return config.kind === 'overflow'
-    ? [config.contextWindow, config.overflowContextWindow]
-    : [config.contextWindow];
+  return [config.contextWindow];
 }
 
 describe('resolveLaneContextFloor', () => {
@@ -30,17 +30,6 @@ describe('resolveLaneContextFloor', () => {
       expect(floor, modelId).not.toBeNull();
       expect(floor, modelId).toBeLessThanOrEqual(Math.min(...reachableWindows(modelId)));
     }
-  });
-
-  it('folgt dem Overflow-Geschwister auf die kleinere Seite', () => {
-    // GPT-OSS: Verdigado-Primary (Ollama, kürzt still) mit Regolo-Overflow.
-    // Der Primary bindet, obwohl der Overflow das volle Fenster hätte.
-    const config = getModelConfig('gpt-oss');
-    expect(config?.kind).toBe('overflow');
-    if (config?.kind !== 'overflow') return;
-    expect(resolveLaneContextFloor('gpt-oss')).toBe(
-      Math.min(config.contextWindow, config.overflowContextWindow)
-    );
   });
 
   it('nimmt für auto den Boden über alle Lanes', () => {

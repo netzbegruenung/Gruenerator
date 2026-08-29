@@ -13,10 +13,10 @@ import { withUsageTracking } from '../usage/usageModelMiddleware.js';
 
 import { withFallbackChain } from './fallbackModel.js';
 import { intermediateLane } from './intermediateLanes.js';
+import { RETIRED_LITELLM_DEFAULT, retireLiteLLM } from './litellmRetired.js';
 import { pickHealthyTarget } from './modelSiblings.js';
 import {
   getGreenPTProvider,
-  getLiteLLMProvider,
   getMistralProvider,
   getCortecsProvider,
   getRegoloProvider,
@@ -81,7 +81,10 @@ export type ProviderName = (typeof PROVIDER_NAMES)[number];
 // Default models per provider
 const PROVIDER_DEFAULTS = {
   mistral: 'mistral-medium-2604',
-  litellm: 'verdigado-pro',
+  // Stillgelegt: jede litellm-Anfrage geht an Cortecs, siehe ./litellmRetired.ts.
+  // Der Eintrag bleibt, weil `getDefaultModel` ein `ProviderName` bedienen muss,
+  // den gespeicherte Agenten-Konfigurationen weiterhin nennen dürfen (F0).
+  litellm: RETIRED_LITELLM_DEFAULT.model,
   regolo: regoloTextDefault(),
   greenpt: env.GREENPT_DEFAULT_MODEL ?? 'mistral-medium-3.5-128b',
   // Gemma 4 26B-A4B. Named rather than inherited: Scaleway also serves
@@ -173,14 +176,19 @@ export function getModel(
   modelId?: string,
   options: RouteOptions = {}
 ): LanguageModel {
+  // Stillgelegte Ziele werden umgebogen, BEVOR irgendetwas anderes sie ansieht:
+  // sonst vermerkte `modelSiblings` die Zähigkeit eines Hosts, den wir gar nicht
+  // mehr anrufen, und `withUsageTracking` schriebe den Verbrauch auf ihn.
+  const live = retireLiteLLM(provider, modelId);
+
   // Ein zäh vermerktes Paar wird übersprungen statt abgewartet — siehe
   // services/ai/modelSiblings.ts. Ohne Vermerk ändert sich hier nichts.
   const healthy = pickHealthyTarget(
-    provider,
-    modelId || getDefaultModel(provider),
+    live.provider,
+    live.model || getDefaultModel(live.provider),
     options.acceptTarget
   );
-  const lane = healthy ?? { provider, model: modelId };
+  const lane = healthy ?? { provider: live.provider, model: live.model ?? undefined };
 
   // Usage is attributed to the upstream that actually serves the request, not
   // to the lane name: with Mistral Medium 3.5 on Scaleway, billing the tokens
@@ -216,9 +224,13 @@ function instantiateModel(
       const mistral = getMistralProvider();
       return mistral(routed.model);
     }
+    // Stillgelegt (./litellmRetired.ts). `getModel` biegt den Namen davor um,
+    // dieser Zweig ist also der Auffang für einen künftigen dritten Aufrufer —
+    // ein `throw` hier wäre eine Regression gegenüber dem tolerant gelesenen
+    // F0-Namen, und ein Weiterreichen an den echten Proxy der Rückschritt.
     case 'litellm': {
-      const litellm = getLiteLLMProvider();
-      return litellm.chat(modelId || PROVIDER_DEFAULTS.litellm);
+      const retired = retireLiteLLM('litellm', modelId);
+      return getCortecsProvider().chat(retired.model ?? PROVIDER_DEFAULTS.cortecs);
     }
     case 'regolo': {
       const regolo = getRegoloProvider();
@@ -280,7 +292,9 @@ export function getProviderDisplayName(provider: ProviderName | string): string 
     case 'mistral':
       return 'Mistral AI';
     case 'litellm':
-      return 'LiteLLM (GPT-OSS)';
+      // Der Name wird noch gelesen (F0), bedient aber Cortecs — siehe
+      // ./litellmRetired.ts. Die Anzeige sagt, was tatsächlich antwortet.
+      return 'Cortecs (ehem. LiteLLM)';
     case 'regolo':
       return 'Regolo AI';
     case 'greenpt':
