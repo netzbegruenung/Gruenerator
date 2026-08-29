@@ -3,6 +3,8 @@
  * Manages tool validation, processing, and provider-specific formatting
  */
 
+import { PROVIDER_NAMES } from '../ai/providers.js';
+
 import type {
   AIProvider,
   ClaudeTool,
@@ -79,32 +81,39 @@ export class ToolHandler {
     }
 
     const targetProvider = provider.toLowerCase() as AIProvider;
-    // All current providers use OpenAI-compatible tool format
-    const isOpenAIProvider: boolean = ['litellm', 'mistral'].includes(targetProvider);
+    // The gate is the provider catalogue, not a hand-picked subset: every
+    // lane speaks the OpenAI wire format (see providerInstances.ts), so every
+    // known provider gets the nested `function` shape. Until 28.08.2026 the
+    // list here was `['litellm', 'mistral']` — stale since cortecs landed —
+    // and every greenpt/cortecs/scaleway/regolo tool call logged "Unknown
+    // provider" and shipped Claude-shaped tools as-is (Issue #3044).
+    const isKnownProvider: boolean = PROVIDER_NAMES.includes(targetProvider);
+
+    if (!isKnownProvider) {
+      // A name outside the catalogue is not a provider lane, so there is no
+      // target shape to convert to: pass through unchanged and warn once per
+      // call (the pre-#3044 code warned once per tool).
+      console.warn(`[ToolHandler] Unknown provider: ${provider}, returning tools as-is`);
+      return tools;
+    }
 
     return tools.map((tool) => {
       const isOpenAIFormat = 'type' in tool && tool.type === 'function' && 'function' in tool;
 
-      if (isOpenAIProvider) {
-        // All current providers use OpenAI-compatible format
-        if (isOpenAIFormat) {
-          return tool;
-        } else {
-          // Convert Claude format to OpenAI format
-          const claudeTool = tool as ClaudeTool;
-          return {
-            type: 'function',
-            function: {
-              name: claudeTool.name,
-              description: claudeTool.description,
-              parameters: claudeTool.input_schema,
-            },
-          } as OpenAITool;
-        }
-      } else {
-        console.warn(`[ToolHandler] Unknown provider: ${provider}, returning tools as-is`);
+      if (isOpenAIFormat) {
         return tool;
       }
+
+      // Convert Claude format to OpenAI format
+      const claudeTool = tool as ClaudeTool;
+      return {
+        type: 'function',
+        function: {
+          name: claudeTool.name,
+          description: claudeTool.description,
+          parameters: claudeTool.input_schema,
+        },
+      } as OpenAITool;
     });
   }
 
