@@ -349,17 +349,20 @@ const MemoizedImageElement = memo(function MemoizedImageElement<
       onSnapLinesChange={onSnapLinesChange}
       listening={config.listening}
       constrainToBounds={config.constrainToBounds ?? true}
-      transformConfig={
-        config.transformable
-          ? {
-              enabledAnchors: isLocked
-                ? []
-                : ['top-left', 'top-right', 'bottom-left', 'bottom-right'],
-              rotateEnabled: false,
-              keepRatio: true,
-            }
-          : undefined
-      }
+      transformConfig={{
+        // A non-transformable (or locked) image shows no resize handles. Without
+        // this, CanvasImage falls back to DEFAULT_IMAGE_ANCHORS, so a selectable
+        // but non-transformable slot (e.g. the veranstaltung photo band,
+        // draggable: false) would still expose all four corner handles and let a
+        // user resize/move it via the Transformer — writing an unbounded
+        // offset/scale straight past the centerZoom/coverFit assumptions.
+        enabledAnchors:
+          config.transformable && !isLocked
+            ? ['top-left', 'top-right', 'bottom-left', 'bottom-right']
+            : [],
+        rotateEnabled: false,
+        keepRatio: true,
+      }}
     />
   );
 }, imageRenderInputsAreEqual);
