@@ -15,8 +15,21 @@ import { z } from 'zod';
 
 // ── Closed sets ──────────────────────────────────────────────────────────────
 
+/**
+ * ADDITIV am 29.08.2026 um `cortecs` erweitert, `litellm` bleibt stehen: der
+ * Name steht in gespeicherten Agenten-Konfigurationen und in ausgelieferten
+ * Mobile-Bundles (F0, siehe CLAUDE.md). Er wird weiter gelesen und in
+ * `getModel` auf Cortecs umgebogen — apps/api/services/ai/litellmRetired.ts.
+ */
 /** Matches `AgentProvider` in @gruenerator/shared/agents. */
-export const agentProviderSchema = z.enum(['mistral', 'anthropic', 'litellm', 'regolo', 'greenpt']);
+export const agentProviderSchema = z.enum([
+  'mistral',
+  'anthropic',
+  'litellm',
+  'regolo',
+  'greenpt',
+  'cortecs',
+]);
 
 // ── Shared shapes ──────────────────────────────────────────────────────────────
 

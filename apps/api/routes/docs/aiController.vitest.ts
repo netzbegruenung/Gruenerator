@@ -128,7 +128,7 @@ function createMockReadableStream(chunks: string[] = ['data: test\n\n']) {
 function setupHappyPath() {
   mockCheckDocumentWriteAccess.mockResolvedValue(true);
   mockIsProviderConfigured.mockReturnValue(true);
-  mockGetModel.mockReturnValue({ modelId: 'verdigado-pro' });
+  mockGetModel.mockReturnValue({ modelId: 'gemma-4-31b-it' });
   mockInjectDocumentStateMessages.mockImplementation((msgs: unknown[]) => [...msgs]);
   mockToolDefinitionsToToolSet.mockReturnValue({ applyDocumentOperations: {} });
   mockConvertToModelMessages.mockResolvedValue([{ role: 'user', content: 'test' }]);
@@ -275,11 +275,11 @@ describe('aiController – POST /api/docs/ai', () => {
       await handleAiRequest(req, res);
 
       expect(mockLogError).toHaveBeenCalledWith(
-        '[DocsAI] No AI provider configured (tried: mistral, regolo, litellm)'
+        '[DocsAI] No AI provider configured (tried: mistral, regolo, cortecs)'
       );
     });
 
-    it('tries providers in order: mistral → regolo → litellm', async () => {
+    it('tries providers in order: mistral → regolo → cortecs', async () => {
       mockIsProviderConfigured.mockReturnValue(false);
       const { res } = createMockRes();
       const req = createMockReq({
@@ -289,7 +289,7 @@ describe('aiController – POST /api/docs/ai', () => {
 
       await handleAiRequest(req, res);
 
-      expect(mockIsProviderConfigured).toHaveBeenCalledWith('litellm');
+      expect(mockIsProviderConfigured).toHaveBeenCalledWith('cortecs');
       expect(mockIsProviderConfigured).toHaveBeenCalledWith('regolo');
       expect(mockIsProviderConfigured).toHaveBeenCalledWith('mistral');
     });
@@ -322,9 +322,9 @@ describe('aiController – POST /api/docs/ai', () => {
       expect(mockGetModel).toHaveBeenCalledWith('regolo', 'mistral-small-4-119b');
     });
 
-    it('falls back to litellm when mistral and regolo are not configured', async () => {
+    it('falls back to cortecs when mistral and regolo are not configured', async () => {
       setupHappyPath();
-      mockIsProviderConfigured.mockImplementation((p: string) => p === 'litellm');
+      mockIsProviderConfigured.mockImplementation((p: string) => p === 'cortecs');
       const { res } = createMockRes();
       const req = createMockReq({
         messages: sampleMessages,
@@ -333,7 +333,7 @@ describe('aiController – POST /api/docs/ai', () => {
 
       await handleAiRequest(req, res);
 
-      expect(mockGetModel).toHaveBeenCalledWith('litellm', 'verdigado-pro');
+      expect(mockGetModel).toHaveBeenCalledWith('cortecs', 'gemma-4-31b-it');
     });
   });
 
@@ -393,7 +393,7 @@ describe('aiController – POST /api/docs/ai', () => {
 
       expect(mockStreamText).toHaveBeenCalledOnce();
       const opts = mockStreamText.mock.calls[0][0];
-      expect(opts.model).toEqual({ modelId: 'verdigado-pro' });
+      expect(opts.model).toEqual({ modelId: 'gemma-4-31b-it' });
       expect(opts.system).toContain('You are a document editor.');
       expect(opts.system).toContain('VALID SHAPES');
       expect(opts.toolChoice).toBe('auto');

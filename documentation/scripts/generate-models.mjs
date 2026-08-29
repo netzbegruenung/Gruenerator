@@ -86,6 +86,9 @@ const MODEL_LABELS = {
   'gemma-4-26b-a4b-it': 'Gemma 4 (26 Mrd., MoE)',
   gemma4: 'Gemma 4',
   'gpt-oss-120b': 'GPT-OSS 120B',
+  // Verdigado-Alias, seit dem 29.08.2026 stillgelegt (litellmRetired.ts). Das
+  // Label bleibt, damit eine noch irgendwo notierte Kennung nicht als
+  // unbeschriftet durchfaellt.
   'verdigado-pro': 'GPT-OSS 120B',
   'voxtral-mini-latest': 'Voxtral Mini',
   'green-s-pro': 'Green S Pro',
@@ -103,7 +106,10 @@ const MODEL_LABELS = {
 const PROVIDER_HOSTS = {
   mistral: { host: 'Mistral AI', flag: '🇫🇷' },
   regolo: { host: 'Regolo', flag: '🇮🇹' },
-  litellm: { host: 'verdigado', flag: '🇩🇪' },
+  // Stillgelegt am 29.08.2026 — der Name wird nur noch gelesen und bedient
+  // Cortecs (apps/api/services/ai/litellmRetired.ts). Der Eintrag bleibt, damit
+  // eine Alt-Kennung nicht ohne Standort in der Tabelle landet.
+  litellm: { host: 'Cortecs', flag: '🇱🇺' },
   greenpt: { host: 'GreenPT', flag: '🇪🇺' },
   scaleway: { host: 'Scaleway', flag: '🇫🇷' },
   cortecs: { host: 'Cortecs', flag: '🇱🇺' },
@@ -234,11 +240,40 @@ function readLane(sf, node, relFile, what) {
   if (!obj || !ts.isObjectLiteralExpression(obj)) {
     fail(relFile, what, 'an object literal with `provider` and `model`');
   }
-  const props = objectEntries(obj);
+  const props = spreadEntries(sf, obj);
   const provider = resolveString(sf, props.get('provider'));
   const model = resolveString(sf, props.get('model'));
   if (!provider || !model) fail(relFile, what, 'literal `provider` and `model` properties');
   return { provider, model };
+}
+
+/**
+ * `objectEntries`, aber Spread-Elemente werden aufgeloest.
+ *
+ * Noetig seit `INTERMEDIATE_LANES` seine Stufen als
+ * `{ ...GREENPT_SMALL_32, fallback: SMALL_CHAIN }` schreibt: der Lane-Name
+ * steht dann in einer anderen Konstante, und `objectEntries` sieht nur
+ * `fallback`. Ohne diese Aufloesung bricht `models:check` mit "expected literal
+ * `provider` and `model` properties" ab - der Generator liest den Quelltext per
+ * AST, also ist ein Spread fuer ihn kein Detail, sondern eine Sackgasse.
+ *
+ * Spaetere Eintraege gewinnen, wie in JavaScript: erst die Spreads in ihrer
+ * Reihenfolge, dann die eigenen Felder.
+ */
+function spreadEntries(sf, obj) {
+  const out = new Map();
+  for (const p of obj.properties) {
+    if (ts.isSpreadAssignment(p)) {
+      const src = resolveObjectLiteral(sf, p.expression);
+      if (!src) continue;
+      for (const [k, v] of spreadEntries(sf, src)) out.set(k, v);
+      continue;
+    }
+    if (!ts.isPropertyAssignment(p)) continue;
+    const key = ts.isIdentifier(p.name) || ts.isStringLiteral(p.name) ? p.name.text : undefined;
+    if (key) out.set(key, unwrap(p.initializer));
+  }
+  return out;
 }
 
 /** The initializer of `const <name> = …`, resolved to a string. */
@@ -361,6 +396,10 @@ function generate() {
   // Namen zu, die in dieser Datei stehen.
   crossFileSources.length = 0;
   crossFileSources.push(parse(SRC.gemmaHosts));
+  // `intermediateLanes` seit dem 29.08.2026 auch: die kleine Antwortlane
+  // (`gruenerator-small`) zieht ihren Modellnamen aus `CORTECS_SMALL_32` dort,
+  // statt ihn ein zweites Mal zu behaupten.
+  crossFileSources.push(parse(SRC.intermediate));
 
   const chat = parse(SRC.chatProviders);
   const policy = parse(SRC.autoPolicy);

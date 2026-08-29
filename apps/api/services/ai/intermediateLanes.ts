@@ -206,7 +206,10 @@ const GREENPT_SMALL_32 = {
   provider: 'greenpt',
   model: 'mistral-small-3.2-24b-instruct-2506',
 } as const;
-const CORTECS_SMALL_32 = {
+/** Exportiert, weil `litellmRetired.ts` dasselbe Ziel braucht: der stillgelegte
+ *  Verdigado-Alias `verdigado-pro` landet genau hier. Ein zweiter, handnotierter
+ *  Modellname dort wäre die Art Doppelung, die diese Datei einsammelt. */
+export const CORTECS_SMALL_32 = {
   provider: 'cortecs',
   model: 'mistral-small-3.2-24b-instruct-2506',
 } as const;

@@ -53,22 +53,22 @@
       "task": "Schnelle Antworten",
       "models": [
         {
-          "model": "verdigado-pro",
-          "code": "verdigado-pro",
-          "label": "GPT-OSS 120B",
-          "provider": "litellm",
-          "host": "verdigado",
-          "flag": "🇩🇪",
+          "model": "mistral-small-3.2-24b-instruct-2506",
+          "code": "mistral-small-3.2-24b-instruct-2506",
+          "label": "Mistral Small 3.2",
+          "provider": "cortecs",
+          "host": "Cortecs",
+          "flag": "🇱🇺",
           "role": "primary"
         },
         {
-          "model": "gpt-oss-120b",
-          "code": "gpt-oss-120b",
-          "label": "GPT-OSS 120B",
+          "model": "mistral-small-4-119b",
+          "code": "mistral-small-4-119b",
+          "label": "Mistral Small 4",
           "provider": "regolo",
           "host": "Regolo",
           "flag": "🇮🇹",
-          "role": "overflow"
+          "role": "fallback"
         }
       ]
     },
@@ -92,12 +92,12 @@
       "task": "Anfragen einordnen, Zwischenschritte",
       "models": [
         {
-          "model": "mistral-small-4-119b",
-          "code": "mistral-small-4-119b",
-          "label": "Mistral Small 4",
-          "provider": "regolo",
-          "host": "Regolo",
-          "flag": "🇮🇹",
+          "model": "mistral-small-3.2-24b-instruct-2506",
+          "code": "mistral-small-3.2-24b-instruct-2506",
+          "label": "Mistral Small 3.2",
+          "provider": "greenpt",
+          "host": "GreenPT",
+          "flag": "🇪🇺",
           "role": "primary"
         }
       ]
@@ -234,7 +234,6 @@
     "Cortecs 🇱🇺",
     "GreenPT 🇪🇺",
     "Mistral AI 🇫🇷",
-    "Regolo 🇮🇹",
-    "verdigado 🇩🇪"
+    "Regolo 🇮🇹"
   ]
 }
