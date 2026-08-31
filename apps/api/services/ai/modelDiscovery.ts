@@ -120,7 +120,7 @@ const EXCLUDE_IDS = new Set(['gemma']);
 
 const CATEGORY_NAMES: Record<ProviderName, string> = {
   mistral: 'Mistral',
-  litellm: 'LiteLLM',
+  litellm: 'Cortecs (ehem. LiteLLM)',
   regolo: 'Regolo',
   greenpt: 'GreenPT',
   scaleway: 'Scaleway',
@@ -258,13 +258,16 @@ function fetchModelsForProvider(provider: ProviderName): Promise<PlaygroundModel
   return fetchProviderModels(provider, endpoint.url(), endpoint.getApiKey());
 }
 
+/** Notliste, wenn ALLE Anbieter-APIs schweigen. Sie führt genau die Anbieter,
+ *  die `discoverModels` unten befragt — ein `verdigado-pro` stand hier bis zum
+ *  29.08.2026 und hätte nach der Stilllegung ein Modell angeboten, das der
+ *  Aufruf danach still umbiegt. */
 const FALLBACK_MODELS: PlaygroundModel[] = ['mistral-medium-2604', 'mistral-small-latest']
   .map((id) => enrichModel(id, 'mistral'))
   .concat(
     ['mistral-small-4-119b', 'Llama-3.3-70B-Instruct', 'gpt-oss-120b', 'mistral-small3.2'].map(
       (id) => enrichModel(id, 'regolo')
-    ),
-    [enrichModel('verdigado-pro', 'litellm')]
+    )
   );
 
 async function discoverModels(): Promise<PlaygroundModel[]> {
@@ -273,7 +276,11 @@ async function discoverModels(): Promise<PlaygroundModel[]> {
   // reine Backend-Lanes (cortecs bedient seit 21.08.2026 die `heavy`-Stufe,
   // vorher scaleway). Ihr PROVIDER_ENDPOINTS-Eintrag bleibt, damit das
   // Aufnehmen ein Ein-Wort-Eingriff ist.
-  const providers: ProviderName[] = ['mistral', 'litellm', 'regolo'];
+  // `litellm` ist am 29.08.2026 aus dieser Liste geflogen: sein Katalog führte
+  // für uns nur zwei Denkmodelle, und beide sind stillgelegt
+  // (./litellmRetired.ts). Ein Modell im Playground anzubieten, das der
+  // Aufruf danach umbiegt, wäre eine Lüge in der Auswahl.
+  const providers: ProviderName[] = ['mistral', 'regolo'];
   const results = await Promise.allSettled(
     providers.filter((p) => isProviderConfigured(p)).map((p) => fetchModelsForProvider(p))
   );

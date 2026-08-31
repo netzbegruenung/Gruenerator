@@ -34,11 +34,15 @@ Künstliche Intelligenz kostet Strom, Wasser und Hardware — das lässt sich ni
 
 Der Grünerator selbst — Web-Oberfläche, Datenbanken, Suche — läuft bei **[Hetzner](https://docs.hetzner.com/de/general/company-and-policy/sustainability-at-hetzner/)** in Deutschland. Hetzner betreibt seine deutschen Standorte nach eigenen Angaben mit **100 % Wasserkraft**, ist EMAS- und ISO-14001-zertifiziert und erreicht mit einem durchschnittlichen PUE-Wert von **1,13** eine überdurchschnittliche Energieeffizienz (je näher an 1,0, desto weniger Strom geht für Kühlung und Infrastruktur verloren). Gegenüber dem deutschen Durchschnitts-Strommix spart das laut Hetzner rund **77.000 Tonnen CO₂ pro Jahr**.
 
-Auch die **selbst gehosteten Open-Source-Modelle**, die netzbegrünung e.V. und die verdigado eG für den Grünerator betreiben, laufen auf dieser Wasserkraft-Infrastruktur — heute vor allem GPT-OSS 120B.
+Die **selbst gehosteten Open-Source-Modelle**, die netzbegrünung e.V. und die verdigado eG betreiben, liefen ebenfalls auf dieser Wasserkraft-Infrastruktur. Seit dem **29.08.2026 bedienen sie keine Anfrage des Grünerators mehr** — die Infrastruktur, Datenbank und Suche laufen unverändert dort weiter.
 
-Gemma 4 lief dort ebenfalls, wird aber seit dem 31.07.2026 bei Regolo in Italien bedient. Der Grund war Tempo: Die selbst gehostete Variante denkt vor jeder Antwort nach, und kein Schalter stellte das ab — rund zwei Drittel ihrer Ausgabe gingen in einen Denkblock, den niemand angefordert hatte. Dieselben Gewichte antworten bei Regolo neunmal schneller.
+Der Rückzug ging in drei Schritten, und alle drei hatten denselben Grund: Die selbst gehostete Instanz denkt vor jeder Antwort nach, und kein Schalter stellte das ab — rund zwei Drittel der Ausgabe gingen in einen Denkblock, den niemand angefordert hatte.
 
-Als Ausweichweg diente die verdigado-Instanz noch bis zum 19.08.2026. Seitdem nicht mehr: Sie hat einen einzigen Inferenz-Platz, den sie sich mit den GPT-OSS-Lanes teilte — als Regolo an diesem Tag hustete, war der Ausweg belegt und beide Wege standen still. Der Ausweichweg ist heute das kleinere Gemma 4 mit 26 Mrd. Parametern bei **Scaleway in Paris**, das nicht an derselben Engstelle hängt.
+1. **31.07.2026 — Gemma 4 zog zu Regolo nach Italien.** Dieselben Gewichte antworten dort neunmal schneller, weil sie den Denkblock nicht schreiben.
+2. **19.08.2026 — der Ausweichweg fiel weg.** Die Instanz hat einen einzigen Inferenz-Platz, den sie sich mit den übrigen Lanes teilte: als Regolo an diesem Tag hustete, war der Ausweg belegt und beide Wege standen still.
+3. **29.08.2026 — die letzte Lane, GPT-OSS 120B, zog ab.** Auch sie schrieb ihr Denken gegen das Antwortbudget. Bei einer Chat-Überschrift mit einem Budget von 64 Tokens war das Budget aufgebraucht, bevor die Überschrift anfing. Diese Aufgaben laufen jetzt auf **Mistral Small 3.2** über **Cortecs**; derselbe Aufruf braucht dort 8 statt 64 Tokens.
+
+Die Rechnung geht damit in beide Richtungen: Der Strom war grüner als fast überall sonst, aber ein Denkblock, den niemand liest, ist verbrauchte Energie ohne Gegenwert.
 
 ## Sparsame Modelle statt Größenwahn
 
@@ -90,7 +94,7 @@ Keine dieser Zahlen trägt eine Nachkommastelle. Der Fußabdruck ruht auf Modell
 
 Von unseren Anbietern liefert nur **GreenPT** die Umweltkosten einer Anfrage mit: Jede Antwort trägt ein `impact`-Objekt mit Energieverbrauch und Emissionen. Diese Werte übernehmen wir unverändert.
 
-Für alle anderen rechnen wir hoch — mit Werten, die an **genau denselben Modellen** gemessen wurden. GreenPT betreibt Gemma 4, GPT-OSS 120B und Mistral Medium 3.5 ebenfalls, also verrät eine Messung dort, was dasselbe Modell bei Regolo oder verdigado kostet. Gemessen am 31.07.2026 über 35 Läufe mit unterschiedlich langen Antworten:
+Für alle anderen rechnen wir hoch — mit Werten, die an **genau denselben Modellen** gemessen wurden. GreenPT betreibt Gemma 4, GPT-OSS 120B und Mistral Medium 3.5 ebenfalls, also verrät eine Messung dort, was dasselbe Modell bei Regolo oder Cortecs kostet. Gemessen am 31.07.2026 über 35 Läufe mit unterschiedlich langen Antworten:
 
 | Modell                        | Energie je erzeugtem Token | typische Antwort (400 Token) |
 | ----------------------------- | -------------------------- | ---------------------------- |
@@ -112,18 +116,18 @@ Das ist bewusst die strengere Variante, und wir folgen damit GreenPT selbst: Der
 
 Wir rechnen mit diesen Werten (Jahresmittel 2024, nur Verbrennungsemissionen):
 
-| Standort                          | g CO₂/kWh | Quelle                                           |
-| --------------------------------- | --------- | ------------------------------------------------ |
-| Scaleway (Paris)                  | 24        | Scaleway Impact Report 2025, eigene Scope-2-Zahl |
-| Frankreich … Schweden (Mistral)   | 19,6 … 45 | RTE Bilan électrique 2025 · Ember — Mitte **30** |
-| Italien (Regolo/Seeweb)           | 270       | Ember, Yearly Electricity Data                   |
-| Deutschland (verdigado, Infercom) | 344       | Umweltbundesamt 2025                             |
+| Standort                          | g CO₂/kWh | Quelle                                             |
+| --------------------------------- | --------- | -------------------------------------------------- |
+| Scaleway (Paris)                  | 24        | Scaleway Impact Report 2025, eigene Scope-2-Zahl   |
+| Frankreich … Schweden (Mistral)   | 19,6 … 45 | RTE Bilan électrique 2025 · Ember — Mitte **30**   |
+| Italien (Regolo/Seeweb)           | 270       | Ember, Yearly Electricity Data                     |
+| Luxemburg / Deutschland (Cortecs) | 344       | Umweltbundesamt 2025 (Verarbeitung in Deutschland) |
 
 Bei Scaleway müssen wir nicht auf den Landesdurchschnitt ausweichen: Der Impact Report weist Scope 2 standortbasiert mit 3.155 t CO₂e bei 132.881 MWh aus — macht 23,7 g/kWh aus erster Hand.
 
 Dazu kommt die Effizienz des Rechenzentrums selbst (PUE — wie viel Strom zusätzlich für Kühlung und Infrastruktur draufgeht). GreenPTs Messwerte enthalten einen PUE von 1,25; wo unsere Anbieter besser sind, rechnen wir die Differenz gut: Hetzner gibt 1,13 an, Seeweb unter 1,20. Wo ein Betreiber gar keinen PUE veröffentlicht, schätzen wir ihn — siehe unten.
 
-**Ein Glücksfall für die Genauigkeit:** GreenPT rechnet selbst bei Scaleway in Paris („Every GreenPT request runs on Scaleway's 100 % renewable-powered compute in Paris"), und Scaleway stellt sämtliche KI-Server in ein einziges Rechenzentrum — DC5, PUE 1,25. Unsere Gemma-4-Lane für lange Dokumente läuft ebenfalls dort. Für sie ist unsere Messung also **keine Übertragung auf fremde Hardware**, sondern dieselbe Maschinenklasse im selben Gebäude. Für alle anderen Lanes — unser Standardmodell Mistral Medium bei Mistral in Frankreich, GPT-OSS bei verdigado, die Regolo-Modelle in Italien — bleibt es eine Übertragung; dort ist das „≈" wörtlich zu nehmen. (Mistral Medium lief bis August 2026 ebenfalls über Scaleway; wir haben es wegen fehlerhafter Antworten dieses Anbieters wieder direkt zu Mistral gelegt.)
+**Ein Glücksfall für die Genauigkeit:** GreenPT rechnet selbst bei Scaleway in Paris („Every GreenPT request runs on Scaleway's 100 % renewable-powered compute in Paris"), und Scaleway stellt sämtliche KI-Server in ein einziges Rechenzentrum — DC5, PUE 1,25. Unsere Gemma-4-Lane für lange Dokumente läuft ebenfalls dort. Für sie ist unsere Messung also **keine Übertragung auf fremde Hardware**, sondern dieselbe Maschinenklasse im selben Gebäude. Für alle anderen Lanes — unser Standardmodell Mistral Medium bei Mistral in Frankreich, Gemma 4 und Mistral Small über Cortecs, die Regolo-Modelle in Italien — bleibt es eine Übertragung; dort ist das „≈" wörtlich zu nehmen. (Mistral Medium lief bis August 2026 ebenfalls über Scaleway; wir haben es wegen fehlerhafter Antworten dieses Anbieters wieder direkt zu Mistral gelegt.)
 
 ### Mitte statt Obergrenze — und die Spanne dazu
 
@@ -165,7 +169,7 @@ Marktbasiert ist dabei nichts zu schätzen: Für Verbrauch, der durch entwertete
 | Anbieter                       | Beleg                                                                                                                                  | Stärke                                                                                                 |
 | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
 | Scaleway / GreenPT             | _Guarantee of Origin_ im Impact Report, dazu eigene standortbasierte Scope-2-Zahl                                                      | dokumentiert                                                                                           |
-| Hetzner (verdigado)            | **EMAS-Registrierung** seit 2025 (Gunzenhausen, Nürnberg, Falkenstein); 100 % Erneuerbare in DE und FI                                 | am stärksten — staatlich zugelassener Gutachter prüft nach, aber **nur für Deutschland** (siehe unten) |
+| Hetzner (Grünerator-Hosting)   | **EMAS-Registrierung** seit 2025 (Gunzenhausen, Nürnberg, Falkenstein); 100 % Erneuerbare in DE und FI                                 | am stärksten — staatlich zugelassener Gutachter prüft nach, aber **nur für Deutschland** (siehe unten) |
 | Seeweb (Regolo)                | ISO 14001, „solo da fonti rinnovabili certificate", benannter Versorger, Green Web Foundation                                          | Selbstauskunft plus zertifiziertes Managementsystem                                                    |
 | **Mistral AI**                 | **keiner** — Mistral wirbt nicht mit Ökostrom, und der französische Netzmix ist eine Aussage über das Netz, nicht über die Beschaffung | kein Anspruch                                                                                          |
 | **Black Forest Labs (Bilder)** | **keiner** — läuft hinter Azure Front Door, die Region der Inferenz ist für uns unsichtbar                                             | kein Anspruch                                                                                          |
@@ -255,7 +259,6 @@ Für eine Kurzanfrage (100 Token rein, 300 raus) nennt die Arbeit 0,42 Wh und da
 | ---------------------------- | ------- | ------ |
 | Gemma 4 bei Regolo           | 0,21 Wh | 56 mg  |
 | GPT-OSS 120B bei Regolo      | 0,24 Wh | 66 mg  |
-| Gemma 4 bei verdigado        | 0,20 Wh | 71 mg  |
 | Mistral Medium in Frankreich | 1,37 Wh | 30 mg  |
 | **GPT-4o (Jegham et al.)**   | 0,42 Wh | 147 mg |
 

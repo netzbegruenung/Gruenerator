@@ -1,0 +1,282 @@
+/**
+ * Dass jede Zwischenstufe ein Netz HAT, und dass das Netz trägt.
+ *
+ * Der Anlass steht in `intermediateLanes.ts`: am 29.08.2026 wies Regolo die
+ * Auto-Verschlagwortung mit HTTP 402 (`trial_expired`) ab, und weil
+ * `getIntermediateModel()` an der Fassade und damit an `providerFallback.ts`
+ * vorbeigeht, gab der Aufrufer still auf.
+ */
+
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { withFallbackChain } from '../fallbackModel.js';
+import { INTERMEDIATE_LANES } from '../intermediateLanes.js';
+import { _resetModelHealthForTests, recordSlowVerdict } from '../modelHealth.js';
+import { resolveIntermediateChain } from '../providers.js';
+
+/** Nur die Konfigurationsfrage wird gestellt, alles andere bleibt echt — die
+ *  Kette soll gegen die WIRKLICHE Ausweich-Logik geprüft werden, nicht gegen
+ *  eine Attrappe davon. */
+const configured = new Set(['greenpt', 'cortecs', 'mistral', 'regolo', 'litellm']);
+vi.mock('../providerInstances.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../providerInstances.js')>()),
+  isProviderConfigured: (p: string) => configured.has(p),
+}));
+
+/** Zwei Verdikte = vermerkt (modelHealth.ts). */
+function markSlow(provider: string, model: string): void {
+  recordSlowVerdict(provider, model, 'test');
+  recordSlowVerdict(provider, model, 'test');
+}
+
+/** Abgeleitet statt importiert — `ai` exportiert `LanguageModelV4` nicht;
+ *  dieselbe Begründung wie in `fallbackModel.ts`. */
+type LaneModel = Exclude<Parameters<typeof withFallbackChain>[0], string>;
+type Callable = {
+  doGenerate: (params: unknown) => Promise<{ content: unknown }>;
+  doStream: (params: unknown) => Promise<unknown>;
+};
+
+type Outcome = { kind: 'text'; text: string } | { kind: 'empty' } | { kind: 'throw'; error: Error };
+
+/** Ein Modell, das genau das tut, was der Test ihm sagt — und mitzählt. */
+function fakeModel(id: string, outcome: Outcome) {
+  const calls = { generate: 0, stream: 0 };
+  const answer = () => {
+    calls.generate += 1;
+    if (outcome.kind === 'throw') return Promise.reject(outcome.error);
+    return Promise.resolve({
+      content: outcome.kind === 'text' ? [{ type: 'text', text: outcome.text }] : [],
+      finishReason: outcome.kind === 'text' ? 'stop' : 'length',
+      usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
+      warnings: [],
+    });
+  };
+
+  const model = {
+    specificationVersion: 'v3',
+    provider: 'fake',
+    modelId: id,
+    supportedUrls: {},
+    doGenerate: answer,
+    doStream: () => {
+      calls.stream += 1;
+      if (outcome.kind === 'throw') return Promise.reject(outcome.error);
+      return Promise.resolve({ stream: new ReadableStream(), request: {}, response: {} });
+    },
+  } as unknown as LaneModel;
+
+  return { model, calls };
+}
+
+async function generate(model: ReturnType<typeof withFallbackChain>) {
+  return (model as unknown as Callable).doGenerate({ prompt: [] });
+}
+
+describe('withFallbackChain', () => {
+  it('lets the primary answer and never touches the chain', async () => {
+    const primary = fakeModel('primary', { kind: 'text', text: 'ok' });
+    const backup = fakeModel('backup', { kind: 'text', text: 'unused' });
+
+    const result = await generate(withFallbackChain(primary.model, [backup.model], 'test'));
+
+    expect(result.content).toEqual([{ type: 'text', text: 'ok' }]);
+    expect(backup.calls.generate).toBe(0);
+  });
+
+  it('moves on when the primary throws — the 402 that started this', async () => {
+    const err = Object.assign(new Error('Daily token limit exceeded or trial expired.'), {
+      statusCode: 402,
+    });
+    const primary = fakeModel('regolo', { kind: 'throw', error: err });
+    const backup = fakeModel('greenpt', { kind: 'text', text: '["klimaschutz"]' });
+
+    const result = await generate(withFallbackChain(primary.model, [backup.model], 'test'));
+
+    expect(result.content).toEqual([{ type: 'text', text: '["klimaschutz"]' }]);
+    expect(backup.calls.generate).toBe(1);
+  });
+
+  it('moves on when the primary succeeds with empty content', async () => {
+    // Die Ausfallart, die eine reine Ausnahmebehandlung nicht sieht: ein
+    // Reasoning-Modell verbrennt das kleine Ausgabebudget im `reasoning`-Feld
+    // und liefert content: [] bei finishReason 'length'.
+    const primary = fakeModel('gpt-oss', { kind: 'empty' });
+    const backup = fakeModel('greenpt', { kind: 'text', text: 'echte antwort' });
+
+    const result = await generate(withFallbackChain(primary.model, [backup.model], 'test'));
+
+    expect(result.content).toEqual([{ type: 'text', text: 'echte antwort' }]);
+  });
+
+  it('walks the whole chain and rethrows the LAST provider error', async () => {
+    const first = fakeModel('a', { kind: 'throw', error: new Error('first down') });
+    const second = fakeModel('b', { kind: 'throw', error: new Error('second down') });
+    const third = fakeModel('c', { kind: 'throw', error: new Error('third down') });
+
+    // Der letzte echte Fehler, nicht eine zusammengefasste Prosa: NoAnswerError
+    // läuft die cause-Kette entlang und braucht den Statuscode.
+    await expect(
+      generate(withFallbackChain(first.model, [second.model, third.model], 'test'))
+    ).rejects.toThrow('third down');
+    expect(second.calls.generate).toBe(1);
+    expect(third.calls.generate).toBe(1);
+  });
+
+  it('returns the primary untouched when there is nothing to fall back to', () => {
+    const primary = fakeModel('solo', { kind: 'text', text: 'ok' });
+    expect(withFallbackChain(primary.model, [], 'test')).toBe(primary.model);
+  });
+
+  it('falls back on a stream that never starts', async () => {
+    const primary = fakeModel('a', { kind: 'throw', error: new Error('down') });
+    const backup = fakeModel('b', { kind: 'text', text: 'ok' });
+
+    const model = withFallbackChain(primary.model, [backup.model], 'test');
+    await (model as unknown as Callable).doStream({ prompt: [] });
+
+    expect(backup.calls.stream).toBe(1);
+  });
+});
+
+describe('INTERMEDIATE_LANES fallback chains', () => {
+  const lanes = Object.entries(INTERMEDIATE_LANES);
+
+  it.each(lanes)('%s declares a non-empty chain', (_name, config) => {
+    expect(config.fallback.length).toBeGreaterThan(0);
+  });
+
+  it.each(lanes)('%s never repeats a provider within its chain', (_name, config) => {
+    const providers = [config.provider, ...config.fallback.map((t) => t.provider)];
+    // Ein zweites Modell beim selben Anbieter ist kein Netz: der Vorfall vom
+    // 29.08.2026 war ein KONTO-Limit und hätte beide Ziele gleich getroffen.
+    expect(new Set(providers).size).toBe(providers.length);
+  });
+
+  it('never puts regolo first on any stage', () => {
+    // Festgehalten am 29.08.2026, nachdem Regolo als Primär von `trivial` und
+    // `standard` mit HTTP 402 (`trial_expired`) abwies und die Stufen ohne
+    // Antwort dastanden. Regolo bleibt als letztes Kettenglied nützlich —
+    // vorne steht es nicht mehr.
+    for (const [name, config] of lanes) {
+      expect(config.provider, `${name} must not lead with regolo`).not.toBe('regolo');
+    }
+  });
+
+  it('keeps the small stages on one model across three hosts', () => {
+    // Ein Hostwechsel darf die Antwortqualität nicht mit umschalten. Die ersten
+    // drei Glieder tragen deshalb dieselben Gewichte; erst das vierte wechselt
+    // das Modell.
+    for (const lane of ['trivial', 'standard'] as const) {
+      const config = INTERMEDIATE_LANES[lane];
+      const models = [config.model, ...config.fallback.map((t) => t.model)];
+      expect(models.slice(0, 2)).toEqual([
+        'mistral-small-3.2-24b-instruct-2506',
+        'mistral-small-3.2-24b-instruct-2506',
+      ]);
+    }
+  });
+
+  it('keeps the reasoning lane out of the small-budget stages', () => {
+    // gpt-oss über litellm/verdigado-pro lieferte bei maxOutputTokens 16–40
+    // leeren content — siehe die Messreihe im Kopf von intermediateLanes.ts.
+    // Der Anbieter ist seit dem 29.08.2026 stillgelegt (./litellmRetired.ts);
+    // der Wächter bleibt, damit die Deklaration nicht dorthin zurückfindet.
+    for (const lane of ['trivial', 'standard'] as const) {
+      const models = INTERMEDIATE_LANES[lane].fallback.map((t) => t.model);
+      expect(models).not.toContain('verdigado-pro');
+      expect(models).not.toContain('verdigado-think');
+    }
+  });
+});
+
+/**
+ * Was passiert, wenn ein Ziel als ZÄH vermerkt ist.
+ *
+ * `getModel` fragt dann `pickHealthyTarget` und ersetzt still — und die
+ * Ersetzung kennt die Kette nicht. Ohne Veto brechen dabei genau die beiden
+ * Eigenschaften, die die statischen Wächter oben zusichern. Deshalb stehen sie
+ * hier ein zweites Mal, gegen den LAUFZEIT-Zustand statt gegen die Deklaration.
+ */
+describe('resolveIntermediateChain under a slow verdict', () => {
+  beforeEach(() => {
+    _resetModelHealthForTests();
+    configured.clear();
+    for (const p of ['greenpt', 'cortecs', 'mistral', 'regolo', 'litellm']) configured.add(p);
+  });
+
+  it('is a no-op while nothing is flagged', () => {
+    expect(resolveIntermediateChain('trivial').map((t) => t.provider)).toEqual([
+      'greenpt',
+      'cortecs',
+      'mistral',
+      'regolo',
+    ]);
+  });
+
+  it('does not collapse heavy onto one provider when cortecs is flagged', () => {
+    // cortecs/gemma-4-31b-it und regolo/gemma4-31b sind einander als
+    // Geschwister eingetragen. Ohne Veto würde Glied 1 zu Glied 2 — zwei
+    // Aufrufe an dasselbe Konto, bevor Mistral drankommt.
+    markSlow('cortecs', 'gemma-4-31b-it');
+
+    const providers = resolveIntermediateChain('heavy').map((t) => t.provider);
+    expect(new Set(providers).size).toBe(providers.length);
+    // Zäh heisst hinten, nicht weg: das Ziel antwortet langsam, nicht falsch.
+    expect(providers).toEqual(['regolo', 'mistral', 'cortecs']);
+  });
+
+  it('keeps every declared target when one is flagged — nothing is dropped', () => {
+    markSlow('greenpt', 'mistral-small-3.2-24b-instruct-2506');
+
+    const chain = resolveIntermediateChain('trivial');
+    expect(chain).toHaveLength(4);
+    expect(chain.map((t) => t.provider)).toEqual(['cortecs', 'mistral', 'regolo', 'greenpt']);
+  });
+
+  it('never splices a foreign model into a small stage', () => {
+    // Die Small-3.2-Paare haben keine Geschwister-Zeile, fallen also auf
+    // FALLBACK_CHAIN. Deren erstes Glied antwortet auf dem EIGENEN Default
+    // seines Anbieters — heute cortecs/gemma-4-31b-it, bis zum 29.08.2026
+    // litellm/verdigado-pro. Geprüft wird deshalb die Eigenschaft, nicht der
+    // Modellname des Tages: in der Kette steht nur, was die Stufe deklariert.
+    const declared = new Set(
+      [
+        { provider: INTERMEDIATE_LANES.trivial.provider, model: INTERMEDIATE_LANES.trivial.model },
+        ...INTERMEDIATE_LANES.trivial.fallback,
+      ].map((t) => `${t.provider}/${t.model}`)
+    );
+
+    for (const lane of ['trivial', 'standard'] as const) {
+      _resetModelHealthForTests();
+      markSlow('greenpt', 'mistral-small-3.2-24b-instruct-2506');
+
+      const chain = resolveIntermediateChain(lane);
+      for (const target of chain) {
+        expect(declared).toContain(`${target.provider}/${target.model}`);
+      }
+      // Der konkrete Einfallsweg von damals, als Regressionsanker behalten.
+      expect(chain.map((t) => t.model)).not.toContain('verdigado-pro');
+      expect(chain.map((t) => t.model)).not.toContain('gemma-4-31b-it');
+    }
+  });
+
+  it('drops a stage whose provider is not configured, keeping the rest in order', () => {
+    configured.delete('greenpt');
+    configured.delete('mistral');
+
+    expect(resolveIntermediateChain('standard').map((t) => t.provider)).toEqual([
+      'cortecs',
+      'regolo',
+    ]);
+  });
+
+  it('still returns the declared primary when nothing is configured at all', () => {
+    configured.clear();
+
+    // Sein Fehler ist die ehrlichere Auskunft als eine leere Kette.
+    expect(resolveIntermediateChain('trivial')).toEqual([
+      { provider: 'greenpt', model: 'mistral-small-3.2-24b-instruct-2506' },
+    ]);
+  });
+});

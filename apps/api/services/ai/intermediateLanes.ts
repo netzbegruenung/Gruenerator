@@ -11,18 +11,37 @@
  * Konsument deklariert, wie schwer seine Aufgabe ist; die Stufe entscheidet
  * Provider und Modell.
  *
- * ── Vier Stufen, drei Modelle ──
+ * ── Die Stufen, Stand 29.08.2026 ──
  *
- *   trivial   regolo/mistral-small-4-119b   unverändert (Messung unten)
- *   standard  regolo/mistral-small-4-119b   unverändert (Messung unten)
- *   heavy     regolo/gemma4-31b             besser + benanntes Modell antwortet
- *   compute   mistral-medium-2604 → Paris   einzige Stufe, wo ein Fehler eine
- *                                           falsche ZAHL ist
+ *   trivial   greenpt/mistral-small-3.2-24b  Hintergrund, kein Zeitbudget
+ *   standard  greenpt/mistral-small-3.2-24b  heisser Pfad, 900–2500 ms Sperren
+ *   heavy     cortecs/gemma-4-31b-it         Qualitätslatte, lange Prosa
+ *   pruefung  cortecs/gemma-4-31b-it         prüft, was ein Modell schrieb
+ *   compute   mistral-medium-2604 → Paris    einzige Stufe, wo ein Fehler eine
+ *                                            falsche ZAHL ist
  *
- * `trivial` und `standard` zeigen weiterhin auf dasselbe Modell wie vorher —
- * das ist Messergebnis, nicht halbe Arbeit. Was dort geprüft und verworfen
- * wurde, steht unten, damit niemand dieselben Kandidaten noch einmal
- * durchprobiert.
+ * ── Warum Regolo nirgends mehr vorne steht ──
+ *
+ * `trivial` und `standard` liefen bis zum 29.08.2026 auf
+ * `regolo/mistral-small-4-119b`, und die Messreihe von 31.07.2026 weiter unten
+ * trug diese Wahl: 95,6 % gegen 96,7 %, aber 185/359 ms gegen 761/1760 ms, und
+ * die Stufe `standard` hat Sperren ab 900 ms.
+ *
+ * Was die Messreihe nicht messen konnte, ist die Ausfallart, die dann eintrat:
+ * an diesem Tag antwortete Regolo mit HTTP 402 (`trial_expired`) — ein
+ * KONTO-Limit, kein Modellproblem. Ein zu langsames Modell liefert eine
+ * schlechtere Antwort; ein abgewiesenes Konto liefert keine. Regolo steht
+ * seither auf keiner Stufe mehr vorne und trägt als letztes Kettenglied
+ * weiterhin bei, wo es hilft.
+ *
+ * Der Latenz-Einwand ist damit NICHT erledigt, sondern verschoben, und das
+ * gehört hierhin: gemessen am 29.08.2026 gegen die lebenden Endpunkte, ruhig
+ * und nacheinander, `max_tokens: 16`, beide mit korrekter Antwort in 2 Tokens —
+ * GreenPT 389/427/458/550/557 ms, Cortecs 338/404/463 ms. Beide liegen damit
+ * unter der 900-ms-Sperre von `editTargetResolver`. Das widerlegt den Befund
+ * von 31.07. NICHT: der betraf 10 GLEICHZEITIGE Anfragen (5 von 30 über
+ * 1500 ms), und diese Probe war sequenziell. Wer die Aufrufer-Sperren reissen
+ * sieht, misst genau das nach, bevor er an der Kette dreht.
  *
  * ── Warum überhaupt: Energie ──
  *
@@ -83,7 +102,11 @@
  *     leere Antwort ab. GreenPT steht NICHT in der Kette, wäre also selbst
  *     abgesichert, ohne je als Auffangnetz zu dienen.
  *   - über `getIntermediateModel()` + direktes `generateText`/`generateObject`
- *     → KEINE Fallback-Kette. Hier zählt nur der `try`/`catch` des Aufrufers.
+ *     → seit dem 29.08.2026 die `fallback`-Kette DIESER Datei, gelegt von
+ *     `services/ai/fallbackModel.ts` um das zurückgegebene Modell. Bis dahin
+ *     stand hier „KEINE Fallback-Kette, es zählt nur der `try`/`catch` des
+ *     Aufrufers" — und genau so verlor `ThreadTag` an jenem Tag seine Antwort,
+ *     als Regolo mit HTTP 402 (`trial_expired`) abwies.
  *
  * F1 (CLAUDE.md): Stufennamen und Modell-IDs sind interne IDs und werden nicht
  * umbenannt.
@@ -93,23 +116,109 @@ import { GEMMA_31B_ALTERNATE, GEMMA_31B_PRIMARY } from './gemmaHosts.js';
 
 import type { ProviderName } from './providers.js';
 
-export interface IntermediateLaneConfig {
+export interface LaneTarget {
   readonly provider: ProviderName;
   readonly model: string;
+}
+
+export interface IntermediateLaneConfig extends LaneTarget {
   /**
    * Wer einspringt, wenn der Primär zu lange braucht — NICHT wenn er ausfällt,
-   * dafür gibt es die Fallback-Kette. Der Aufrufer bestimmt, ab wann „zu lange"
-   * gilt, und schaltet den Sibling dann PARALLEL dazu (siehe `runStep` in
+   * dafür ist `fallback` da. Der Aufrufer bestimmt, ab wann „zu lange" gilt,
+   * und schaltet den Sibling dann PARALLEL dazu (siehe `runStep` in
    * routes/chat/services/agentPipeline.ts).
    *
    * Warum das hier steht und nicht beim Aufrufer: welches Modell für dieselbe
    * Aufgabe taugt, ist eine Messfrage, und die Messungen stehen in dieser Datei.
    */
-  readonly hedge?: { readonly provider: ProviderName; readonly model: string };
+  readonly hedge?: LaneTarget;
+  /**
+   * Wer übernimmt, wenn der Primär FEHLSCHLÄGT — der Reihe nach, nacheinander.
+   *
+   * PFLICHTFELD, und das ist der ganze Punkt: bis zum 29.08.2026 hatten diese
+   * Stufen gar keine Kette. Der Kommentar zur Ausfallsicherheit oben sagte es
+   * schon — wer sein Modell über `getIntermediateModel()` holt und direkt
+   * `generateText` ruft, umgeht die Fassade und damit `providerFallback.ts`.
+   * An diesem Tag antwortete Regolo mit HTTP 402 (`trial_expired`), und die
+   * Auto-Verschlagwortung (`trivial`) gab still auf. Ein optionales Feld hätte
+   * dieselbe Lücke gelassen, nur später; deshalb muss jede Stufe eine Kette
+   * nennen, und ein Wächter in `__tests__/intermediateFallback.vitest.ts`
+   * besteht darauf.
+   *
+   * Zwei Regeln, beide aus Messungen in dieser Datei:
+   *
+   * 1. **Jede Stufe ein anderer Vertragspartner.** Derselbe Grund wie beim
+   *    Hedge: ein Anbietereinbruch nimmt sonst die ganze Kette. Der Vorfall vom
+   *    29.08. war ein KONTO-Problem (Tageslimit), kein Modellproblem — ein
+   *    zweites Modell beim selben Anbieter hätte denselben 402 bekommen.
+   * 2. **Kein Reasoning-Modell in einer Stufe mit kleinem Ausgabebudget.**
+   *    `trivial` und `standard` rufen mit `maxOutputTokens` 16–40 auf. Bei
+   *    einem Reasoning-Modell zählen die Denk-Tokens dagegen, `content` kommt
+   *    leer zurück (Messreihe im Kopf dieser Datei, gpt-oss-120b: 0 von 90
+   *    Läufen brauchbar). `litellm/verdigado-pro` ist deshalb dort KEIN
+   *    Auffangnetz, sondern eine zweite Art zu scheitern — es steht bewusst
+   *    nicht in diesen beiden Ketten.
+   */
+  readonly fallback: readonly LaneTarget[];
 }
 
 /** Der Ausgangszustand: was `INTERMEDIATE_MODEL` für alle 36 Stellen war. */
 const REGOLO_SMALL_4 = { provider: 'regolo', model: 'mistral-small-4-119b' } as const;
+
+/**
+ * Die vier Glieder der kleinen Stufen: DREIMAL dasselbe Modell auf drei Hosts,
+ * dann ein viertes als Rest.
+ *
+ * `mistral-small-3.2-24b-instruct-2506` liegt bei GreenPT, bei Cortecs (über
+ * `ovh`/`scaleway`/`berget`) und in verwandter Form bei Mistral selbst. Dass
+ * die ersten drei Glieder dieselben Gewichte tragen, ist die Absicht: ein
+ * Hostwechsel darf die Antwortqualität nicht mit umschalten, sonst ist der
+ * Fallback ein stiller Modellwechsel. Erst das vierte Glied wechselt das
+ * Modell.
+ *
+ * `greenpt/mistral-small-3.2-24b` ist NICHT neu im System: es bedient seit dem
+ * 13.08.2026 den Planer des agentischen Loops (`LOOP_PLANNER_PRIMARY`) und seit
+ * dem 19.08.2026 den Monitor. Es denkt nicht (verbrennt das kleine
+ * Ausgabebudget also nicht im `reasoning`-Feld), ruft nachweislich Werkzeuge
+ * auf (genau das ist die Planer-Rolle) und meldet als einziges Glied seinen
+ * Energieverbrauch selbst zurück — womit die grösste Lane im System zum ersten
+ * Mal beziffert in der CO₂-Übersicht auftaucht statt als „nicht abgedeckt".
+ *
+ * `cortecs/mistral-small-3.2-24b-instruct-2506` ist das zweite Glied und
+ * bewusst DASSELBE Modell: gemessen am 29.08.2026 gegen den lebenden Endpunkt,
+ * 3 Läufe, `max_tokens: 16` — HTTP 200, `content: 'ja'`, `finish_reason: stop`,
+ * 338/404/463 ms, Upstream `ovh`. Der Katalog ist hier nicht die Quelle (er
+ * hat bei `gemma-4-31b-it` schon Bildfähigkeit versprochen, die mit HTTP 500
+ * antwortete); geprüft wurde der Endpunkt.
+ *
+ * `mistral/mistral-small-latest` ist das dritte Glied — dritter
+ * Vertragspartner, kein Reasoning-Modell, gemessener Energie-Koeffizient
+ * (services/usage/energyFootprint.ts), im Repo bereits in Gebrauch
+ * (promptAssemblyGraph, argumentsSummarizer).
+ *
+ * `regolo/mistral-small-4-119b` steht als LETZTES. Es war bis zum 29.08.2026
+ * der Primär dieser beiden Stufen; an diesem Tag wies das Konto mit HTTP 402
+ * (`trial_expired`) ab, und weil es primär war, hatte die Auto-Verschlagwortung
+ * nichts dahinter. Es bleibt in der Kette, weil ein vierter Vertragspartner
+ * mehr wert ist als eine kurze Kette — aber nicht mehr vorn.
+ */
+const GREENPT_SMALL_32 = {
+  provider: 'greenpt',
+  model: 'mistral-small-3.2-24b-instruct-2506',
+} as const;
+/** Exportiert, weil `litellmRetired.ts` dasselbe Ziel braucht: der stillgelegte
+ *  Verdigado-Alias `verdigado-pro` landet genau hier. Ein zweiter, handnotierter
+ *  Modellname dort wäre die Art Doppelung, die diese Datei einsammelt. */
+export const CORTECS_SMALL_32 = {
+  provider: 'cortecs',
+  model: 'mistral-small-3.2-24b-instruct-2506',
+} as const;
+const MISTRAL_SMALL = { provider: 'mistral', model: 'mistral-small-latest' } as const;
+
+/** Die eine Kette der beiden kleinen Stufen. Sie teilen sie, weil sie dieselbe
+ *  Arbeit in verschiedenem Tempo tun — die Stufen unterscheiden sich im
+ *  Zeitbudget des Aufrufers, nicht in der Frage, wer einspringt. */
+const SMALL_CHAIN = [CORTECS_SMALL_32, MISTRAL_SMALL, REGOLO_SMALL_4] as const;
 
 /**
  * Das dichte Gemma 4 31B — Primär und Ausweich kommen beide aus `gemmaHosts.ts`.
@@ -139,14 +248,37 @@ export const INTERMEDIATE_LANES = {
    * wird). Die Stufe mit der grössten Stückzahl und den kleinsten Antworten —
    * also die, bei der ein Wechsel am meisten brächte und am wenigsten riskiert.
    */
-  trivial: REGOLO_SMALL_4,
+  trivial: { ...GREENPT_SMALL_32, fallback: SMALL_CHAIN },
 
   /**
-   * Der Hot Path: kurze Ausgabe, aber harte Zeitbudgets (900–1500 ms) und
-   * Routing-Wirkung. Klassifikator, die fünf Auflöser, Query-Expansion.
+   * Der Hot Path: kurze Ausgabe, harte Zeitsperren, Routing-Wirkung.
    * Verschiebt nur, wer die Latenz unter Last gemessen hat.
+   *
+   * Die Aufrufer und ihre Sperren, weil genau die den Spielraum dieser Stufe
+   * bestimmen (Stand 29.08.2026, alle über `pinned: 'standard'` an der
+   * Fassade — der einzige direkte ist `researchOrchestrator`):
+   *
+   *   editTargetResolver        8 Tokens    900 ms   ← engste Sperre
+   *   generationResolver       16 Tokens   1500 ms
+   *   docsIntentTiebreak       16 Tokens   1500 ms
+   *   queryRefineResolver     200 Tokens   2500 ms
+   *   PassageDistiller           —         3500 ms
+   *   qualityGateNode          80 Tokens     —
+   *   briefGeneratorNode      200 Tokens     —
+   *   QueryExpansionService      —            —
+   *
+   * Dazu ZWEI Konstanten, die die Stufe weiterreichen und beim Zählen leicht
+   * übersehen werden: `LANE` in `services/ai/lanes.ts` (bedient `image_picker`,
+   * `antrag_question_generation`, `antrag_qa_summary`, `gruenerator_ask`,
+   * `gruenerator_ask_grundsatz`) und `LANE` in
+   * `services/providers/providerSelector.ts` als Durchfall-Default.
+   *
+   * Eine gerissene Sperre liefert `null`, der Turn fällt auf Tier 4 durch und
+   * zahlt den 27k-Zeichen-Prompt — die Quote, die die Dispositions-Serie
+   * (#2272–#2279) von 18,1 % auf 3,0 % gedrückt hat. Das ist der Preis, den
+   * eine zu langsame Wahl hier kostet, und er steht nicht in den Latenzzahlen.
    */
-  standard: REGOLO_SMALL_4,
+  standard: { ...GREENPT_SMALL_32, fallback: SMALL_CHAIN },
 
   /**
    * Die Qualitätslatte: Zusammenfassungen, der Boards-Agent, die
@@ -220,11 +352,12 @@ export const INTERMEDIATE_LANES = {
    * Endpunkt war quantisiert und fiel durch den Standardfilter, `scaleway
    * direkt` lief zur selben Zeit einwandfrei.
    *
-   * Das dichte 31B lag zu diesem Zeitpunkt bei infercom UND berget. Das gilt
-   * seit dem 25.08.2026 nicht mehr — der Katalog führt nur noch `infercom`,
-   * und berget ist nicht erzwingbar (siehe services/ai/gemmaHosts.ts). Die
-   * Reserve dieser Stufe ist damit allein der Regolo-Hedge unten, nicht der
-   * Router. Der Preis der MoE-Ablösung ist der dokumentierte: sie antwortete
+   * Das dichte 31B lag zu diesem Zeitpunkt bei infercom UND berget — und liegt
+   * dort wieder: die Gegenbehauptung vom 25.08.2026 ist am 29.08. live
+   * widerlegt (Messung in services/ai/gemmaHosts.ts). Die tragende Reserve
+   * dieser Stufe bleibt trotzdem der Regolo-Hedge unten, weil er ein anderer
+   * VERTRAGSPARTNER ist; der zweite Cortecs-Endpunkt hilft nur, solange Cortecs
+   * als Ganzes gesund ist. Der Preis der MoE-Ablösung ist der dokumentierte: sie antwortete
    * rund doppelt so schnell. Bezahlt wird er für Verfügbarkeit.
    *
    * KEIN Denk-Pin für dieses Modell — und das ist kein Versäumnis: infercom
@@ -245,7 +378,18 @@ export const INTERMEDIATE_LANES = {
    * hätte bei diesem Umzug einen Scaleway-Namen an Regolo geschickt. Es pinnt
    * jetzt explizit — siehe dort.
    */
-  heavy: { provider: GEMMA_PRIMARY.provider, model: GEMMA_PRIMARY.model },
+  heavy: {
+    provider: GEMMA_PRIMARY.provider,
+    model: GEMMA_PRIMARY.model,
+    // Erst dieselben Gewichte beim anderen Vertragspartner — das ist die Lane,
+    // die diese Stufe ohnehin kennt (GEMMA_31B_ALTERNATE). Dahinter Mistral
+    // Medium 3.5, weil `heavy` lange Prosa schreibt und ein drittes Glied
+    // dieser Güte braucht, nicht ein kleines Modell.
+    fallback: [
+      { provider: GEMMA_HEDGE.provider, model: GEMMA_HEDGE.model },
+      { provider: 'mistral', model: MISTRAL_MEDIUM },
+    ],
+  },
 
   /**
    * Rechnen. Eigene Stufe, weil hier als Einzigem ein Modellfehler als
@@ -270,7 +414,15 @@ export const INTERMEDIATE_LANES = {
    * (eigenes `CODEGEN_MODEL` mit derselben Begründung). Diese Stufe sammelt
    * die Doppelung ein.
    */
-  compute: { provider: 'mistral', model: MISTRAL_MEDIUM },
+  compute: {
+    provider: 'mistral',
+    model: MISTRAL_MEDIUM,
+    // Die Reihenfolge steht in der Tabelle oben: Gemma 4 traf 100,0 % der
+    // 17 Rechenfälle, Small 4 nur 94,1 %. Auf dieser Stufe ist ein Fehler eine
+    // FALSCHE ZAHL beim Nutzer — die Kette folgt deshalb der Trefferquote und
+    // nicht dem Energiewert.
+    fallback: [{ provider: GEMMA_PRIMARY.provider, model: GEMMA_PRIMARY.model }, REGOLO_SMALL_4],
+  },
 
   /**
    * Prüfen, was ein anderes Modell geschrieben hat — mit eigenem Kontext.
@@ -333,10 +485,11 @@ export const INTERMEDIATE_LANES = {
    * einem anderen Vertragspartner: der Aufrufer schaltet ihn nach einer Frist
    * PARALLEL dazu. Dass Primär und Ausweich bei verschiedenen Anbietern liegen,
    * ist die ganze Absicht — ein Einbruch nimmt sonst beide Seiten. Dass Cortecs
-   * `berget` als zweiten Endpunkt in der Hinterhand habe, stand hier bis zum
-   * 25.08.2026 und ist widerlegt (siehe services/ai/gemmaHosts.ts): BEIDE
-   * Seiten hängen an genau einem Host. Umso mehr zählt, dass es zwei
-   * Vertragspartner sind — das war der Ausfallweg vom 14.08.
+   * `berget` als zweiten Endpunkt in der Hinterhand hat, stand hier, wurde am
+   * 25.08.2026 als widerlegt gestrichen und ist seit dem 29.08.2026 wieder
+   * belegt (Messung in services/ai/gemmaHosts.ts). Es ändert an dieser Stufe
+   * nichts: was den Ausfallweg vom 14.08. trug, waren zwei
+   * VERTRAGSPARTNER, nicht zwei Endpunkte innerhalb eines Routers.
    *
    * GreenPTs `gemma4` wäre der dritte Kandidat und ist es NICHT: welche
    * Gewichte es trägt, ist unbelegt (siehe GEMMA_4_GREENPT in
@@ -347,6 +500,14 @@ export const INTERMEDIATE_LANES = {
     provider: GEMMA_PRIMARY.provider,
     model: GEMMA_PRIMARY.model,
     hedge: { provider: GEMMA_HEDGE.provider, model: GEMMA_HEDGE.model },
+    // Dasselbe Ziel wie der Hedge, aber ein anderer Auslöser: der Hedge greift
+    // bei ZÄH (parallel, nach einer Frist), diese Kette bei FEHLSCHLAG
+    // (nacheinander). Beides ist nötig — der Vorfall vom 14.08.2026 war zäh
+    // (3,7 tok/s), der vom 29.08.2026 war ein harter 402.
+    fallback: [
+      { provider: GEMMA_HEDGE.provider, model: GEMMA_HEDGE.model },
+      { provider: 'mistral', model: MISTRAL_MEDIUM },
+    ],
   },
 } as const satisfies Record<string, IntermediateLaneConfig>;
 

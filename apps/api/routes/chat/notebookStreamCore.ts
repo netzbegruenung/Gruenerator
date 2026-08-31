@@ -366,9 +366,6 @@ export async function handleNotebookStream(
     });
 
     if (!isProviderConfigured(primaryResolution.provider)) {
-      // If we acquired the Verdigado slot but can't actually use the resolution,
-      // release it so the next request isn't blocked.
-      if (primaryResolution.releaseSlot) await primaryResolution.releaseSlot();
       sse.send('error', {
         error: PROGRESS_MESSAGES.aiUnavailable,
         code: 'provider_unavailable',
@@ -421,50 +418,43 @@ export async function handleNotebookStream(
 
     sse.send('response_start', { message: 'Generiere Antwort...' });
 
-    let fullText: string | null;
-    try {
-      const notebookTelemetry = buildAiTelemetry('notebook-chat.respond');
-      // Wrap in a trace so propagateAttributes sets trace-level user/session —
-      // AI SDK telemetry carries no metadata of its own, so without this
-      // notebook traces would show empty User/Session.
-      fullText = await withLangfuseTrace(
-        {
-          name: 'notebook-turn',
-          ...(userId && { userId }),
-          ...(collectionId && { sessionId: collectionId }),
-        },
-        async (trace) => {
-          const text = await streamWithFallback({
-            primary: primaryResolution,
-            sse,
-            logPrefix: '[Notebook]',
-            buildStream: async (resolution) => {
-              return streamForResolution({
-                resolution,
-                messages: aiMessages,
-                maxTokens: baseMaxOutput,
-                temperature: 0.2,
-                sse,
-                signal: abortController.signal,
-                logPrefix: '[Notebook]',
-                ...(notebookTelemetry && { telemetry: notebookTelemetry }),
-              });
-            },
-          });
-          // Both lanes dead → null, not a throw; the span has to say so itself.
-          trace.update(
-            text === null
-              ? { input: userContent, level: 'ERROR', statusMessage: BOTH_LANES_FAILED }
-              : { input: userContent, output: text }
-          );
-          return text;
-        }
-      );
-    } finally {
-      if (primaryResolution.releaseSlot) {
-        await primaryResolution.releaseSlot();
+    const notebookTelemetry = buildAiTelemetry('notebook-chat.respond');
+    // Wrap in a trace so propagateAttributes sets trace-level user/session —
+    // AI SDK telemetry carries no metadata of its own, so without this
+    // notebook traces would show empty User/Session.
+    const fullText: string | null = await withLangfuseTrace(
+      {
+        name: 'notebook-turn',
+        ...(userId && { userId }),
+        ...(collectionId && { sessionId: collectionId }),
+      },
+      async (trace) => {
+        const text = await streamWithFallback({
+          primary: primaryResolution,
+          sse,
+          logPrefix: '[Notebook]',
+          buildStream: async (resolution) => {
+            return streamForResolution({
+              resolution,
+              messages: aiMessages,
+              maxTokens: baseMaxOutput,
+              temperature: 0.2,
+              sse,
+              signal: abortController.signal,
+              logPrefix: '[Notebook]',
+              ...(notebookTelemetry && { telemetry: notebookTelemetry }),
+            });
+          },
+        });
+        // Both lanes dead → null, not a throw; the span has to say so itself.
+        trace.update(
+          text === null
+            ? { input: userContent, level: 'ERROR', statusMessage: BOTH_LANES_FAILED }
+            : { input: userContent, output: text }
+        );
+        return text;
       }
-    }
+    );
 
     if (fullText === null) {
       log.debug(`⏱ Total (stream failed): ${Date.now() - t0}ms`);

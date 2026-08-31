@@ -721,7 +721,6 @@ export async function streamAgenticResponse(
     emitter.endSynthHeartbeat();
     if (mcpCatalog) await mcpCatalog.close();
     if (systemCatalog) await systemCatalog.close();
-    if (resolution?.releaseSlot) await resolution.releaseSlot();
   }
 
   // Vor jeder Nachbearbeitung: ein pausierter Zug hat keine fertige Antwort, an

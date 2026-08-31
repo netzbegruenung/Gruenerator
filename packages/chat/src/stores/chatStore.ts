@@ -16,11 +16,11 @@ import { AUTO_MODEL_ID, type AutoModelId, type SelectedModel } from '../lib/reso
 
 import { useArtifactLiveStore } from './artifactLiveStore';
 import { useComputeExportStore } from './computeExportStore';
+import { draftRoleState } from './draftRole';
 import { useLastComputeStore } from './lastComputeStore';
 import { usePythonFileStore } from './pythonFileStore';
 import { useReelLiveStore } from './reelLiveStore';
 import { useSharepicLiveStore } from './sharepicLiveStore';
-import { draftRoleState } from './draftRole';
 import { useUserProfileStore } from './userProfileStore';
 
 import type { ChatApiClient } from '../context/ChatContext';
@@ -90,10 +90,14 @@ export const PROVIDER_OPTIONS: ProviderOption[] = [
     model: 'mistral',
   },
   {
+    // F0: die Kennung steckt in gespeicherten Zuständen und wird tolerant
+    // weitergelesen. Was dahinter antwortet, ist seit dem 29.08.2026 nicht mehr
+    // GPT-OSS auf Verdigado, sondern Cortecs — siehe
+    // apps/api/services/ai/litellmRetired.ts.
     id: 'litellm',
-    name: 'GPT-OSS',
-    description: 'Selbst gehostet',
-    model: 'verdigado-pro',
+    name: 'Klein',
+    description: 'Schnell, für kurze Aufgaben',
+    model: 'gruenerator-small',
   },
 ];
 

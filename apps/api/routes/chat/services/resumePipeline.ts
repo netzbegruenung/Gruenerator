@@ -593,50 +593,45 @@ export async function runChatGraphResume({
     const lastUserMsg = [...validMessages].reverse().find((m) => m.role === 'user');
     const traceInput = lastUserMsg ? extractTextContent(lastUserMsg.content) : '';
 
-    let fullText: string | null;
     let resumeTraceId: string | undefined;
     const resumeTelemetry = buildAiTelemetry('chat-graph.resume');
-    try {
-      // One trace per resumed turn — propagateAttributes sets trace-level
-      // user/session (AI SDK telemetry carries no metadata of its own) and the
-      // traceId feeds the feedback button.
-      fullText = await withLangfuseTrace(
-        {
-          name: 'chat-turn',
-          ...(requestContext.userId && { userId: requestContext.userId }),
-          ...(requestContext.actualThreadId && { sessionId: requestContext.actualThreadId }),
-          metadata: { requestId: resumeRequestId, intent: finalState.intent },
-        },
-        async (trace) => {
-          resumeTraceId = trace.traceId;
-          const text = await streamWithFallback({
-            primary: resolution2,
-            sse,
-            logPrefix: '[ChatGraph:Resume]',
-            buildStream: async (r) =>
-              // No output cap (OpenWebUI-style) — see chatGraphContractRouter.
-              streamForResolution({
-                resolution: r,
-                messages: messagesForAI,
-                temperature: finalState.agentConfig.params.temperature,
-                sse,
-                logPrefix: '[ChatGraph:Resume]',
-                ...(resumeTelemetry && { telemetry: resumeTelemetry }),
-              }),
-          });
-          // Both lanes dead → null, not a throw. Mark it, or the failed resume
-          // reads as a successful turn.
-          trace.update(
-            text === null
-              ? { input: traceInput, level: 'ERROR', statusMessage: BOTH_LANES_FAILED }
-              : { input: traceInput, output: text }
-          );
-          return text;
-        }
-      );
-    } finally {
-      if (resolution2.releaseSlot) await resolution2.releaseSlot();
-    }
+    // One trace per resumed turn — propagateAttributes sets trace-level
+    // user/session (AI SDK telemetry carries no metadata of its own) and the
+    // traceId feeds the feedback button.
+    const fullText: string | null = await withLangfuseTrace(
+      {
+        name: 'chat-turn',
+        ...(requestContext.userId && { userId: requestContext.userId }),
+        ...(requestContext.actualThreadId && { sessionId: requestContext.actualThreadId }),
+        metadata: { requestId: resumeRequestId, intent: finalState.intent },
+      },
+      async (trace) => {
+        resumeTraceId = trace.traceId;
+        const text = await streamWithFallback({
+          primary: resolution2,
+          sse,
+          logPrefix: '[ChatGraph:Resume]',
+          buildStream: async (r) =>
+            // No output cap (OpenWebUI-style) — see chatGraphContractRouter.
+            streamForResolution({
+              resolution: r,
+              messages: messagesForAI,
+              temperature: finalState.agentConfig.params.temperature,
+              sse,
+              logPrefix: '[ChatGraph:Resume]',
+              ...(resumeTelemetry && { telemetry: resumeTelemetry }),
+            }),
+        });
+        // Both lanes dead → null, not a throw. Mark it, or the failed resume
+        // reads as a successful turn.
+        trace.update(
+          text === null
+            ? { input: traceInput, level: 'ERROR', statusMessage: BOTH_LANES_FAILED }
+            : { input: traceInput, output: text }
+        );
+        return text;
+      }
+    );
 
     if (fullText === null) {
       await cleanupPending(true);

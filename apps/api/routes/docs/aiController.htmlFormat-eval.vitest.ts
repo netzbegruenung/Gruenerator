@@ -159,16 +159,18 @@ const MODELS: ModelConfig[] = [
     skip: () => !process.env.MISTRAL_API_KEY,
   },
   {
-    name: 'verdigado-pro (LiteLLM)',
-    shortName: 'gpt-oss',
+    // War `verdigado-pro` (GPT-OSS 120B) am LiteLLM-Proxy, bis der am
+    // 29.08.2026 stillgelegt wurde — services/ai/litellmRetired.ts.
+    name: 'gemma-4-31b-it (Cortecs)',
+    shortName: 'gemma-cortecs',
     provider: () =>
       createOpenAI({
-        baseURL: `${process.env.LITELLM_BASE_URL}/v1`,
-        apiKey: process.env.LITELLM_API_KEY ?? '',
-        name: 'litellm',
+        baseURL: process.env.CORTECS_BASE_URL ?? 'https://api.cortecs.ai/v1',
+        apiKey: process.env.CORTECS_API_KEY ?? '',
+        name: 'cortecs',
       }),
-    modelId: 'verdigado-pro',
-    skip: () => !process.env.LITELLM_BASE_URL || !process.env.LITELLM_API_KEY,
+    modelId: 'gemma-4-31b-it',
+    skip: () => !process.env.CORTECS_API_KEY,
   },
 ];
 

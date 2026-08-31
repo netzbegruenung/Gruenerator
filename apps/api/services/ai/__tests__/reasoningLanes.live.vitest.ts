@@ -5,14 +5,17 @@
  * following the convention in services/ai/execution/__tests__/regolo.vitest.ts and
  * services/vision/__tests__/vision.vitest.ts.
  *
- *   REGOLO_API_KEY=…  LITELLM_BASE_URL=… LITELLM_API_KEY=…  MISTRAL_API_KEY=… \
+ *   REGOLO_API_KEY=…  MISTRAL_API_KEY=… \
  *     pnpm --filter @gruenerator/api test reasoningLanes
  *
  * What it verifies, per lane:
  *   1. reasoning ON  → the lane actually emits reasoning deltas, and text too.
  *   2. reasoning OFF → NO reasoning is emitted (this is the whole point of the
- *      `direct` speed path: verdigado-pro and the Regolo family think by
- *      DEFAULT, so "off" is a real behavioural switch, not a no-op).
+ *      `direct` speed path: the Regolo family thinks by DEFAULT, so "off" is a
+ *      real behavioural switch, not a no-op).
+ *
+ * Der Verdigado-Block stand hier bis zum 29.08.2026 und ist mit dem Host weg —
+ * siehe services/ai/litellmRetired.ts.
  *
  * Point 2 is the regression that matters most: it is the difference between a
  * fast greeting and one that stalls behind a thinking block.
@@ -27,7 +30,6 @@ import { isReasoningStreamModel, streamWithReasoning } from '../regoloReasoningS
 import type { ModelMessage } from 'ai';
 
 const HAS_REGOLO = !!process.env.REGOLO_API_KEY;
-const HAS_LITELLM = !!process.env.LITELLM_BASE_URL && !!process.env.LITELLM_API_KEY;
 const HAS_MISTRAL = !!process.env.MISTRAL_API_KEY;
 
 const TIMEOUT_MS = 90_000;
@@ -142,41 +144,6 @@ describe.skipIf(!HAS_REGOLO)('reasoning lanes — Regolo', () => {
 });
 
 // ─── LiteLLM / Verdigado lanes ──────────────────────────────────────────────
-
-describe.skipIf(!HAS_LITELLM)('reasoning lanes — Verdigado (LiteLLM)', () => {
-  it(
-    'verdigado-think emits reasoning',
-    async () => {
-      const run = await runReasoningLane('litellm', 'verdigado-think');
-      expect(run.text.length).toBeGreaterThan(0);
-      expect(run.reasoning.length).toBeGreaterThan(0);
-    },
-    TIMEOUT_MS
-  );
-
-  it(
-    'verdigado-pro emits reasoning with an explicit effort',
-    async () => {
-      const run = await runReasoningLane('litellm', 'verdigado-pro', 'low');
-      expect(run.text.length).toBeGreaterThan(0);
-      expect(run.reasoning.length).toBeGreaterThan(0);
-    },
-    TIMEOUT_MS
-  );
-
-  it(
-    'verdigado-pro on the SDK path does NOT think — this is the `direct` speed path',
-    async () => {
-      // The most important assertion in this file: `direct` routes GPT-OSS
-      // around the reasoning streamer so a greeting never waits on a thinking
-      // block. litellmFetchWithThinkingDisabled sets think:false here.
-      const text = await runSdkLane('litellm', 'verdigado-pro');
-      expect(text.length).toBeGreaterThan(0);
-      expect(looksLikeLeakedThinking(text), `leaked: ${text.slice(0, 200)}`).toBe(false);
-    },
-    TIMEOUT_MS
-  );
-});
 
 // ─── Mistral lane ───────────────────────────────────────────────────────────
 

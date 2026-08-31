@@ -85,11 +85,10 @@ Beziehe den Gesprächskontext ein. Antworte NUR mit der reformulierten Anfrage, 
 Gesprächsverlauf:
 ${context}`,
       prompt: `Aktuelle Anfrage: "${rawQuery}"`,
-      // What this has always run on: the litellm adapter used to ignore
-      // `model` outright and substitute the verdigado default. `mistral-small`
-      // is not a verdigado alias — it appears nowhere else in the repo — so
-      // naming it here only ever described a request that was never sent.
-      pinned: { provider: 'litellm', model: 'verdigado-pro' },
+      // Der Hot Path einer Suche: 80 Tokens Ausgabe, der Mensch wartet. Lief
+      // bis zum 29.08.2026 auf `litellm/verdigado-pro` — einem Denkmodell, das
+      // 80 Tokens allein für seinen Denkblock ausgibt.
+      pinned: 'standard',
       maxOutputTokens: 80,
       temperature: 0.0,
     });
