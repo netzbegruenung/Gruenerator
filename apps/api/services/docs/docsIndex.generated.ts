@@ -1969,7 +1969,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "So geht's",
     "anchor": "#so-gehts",
     "category": "Guides",
-    "text": "Chat starten. Nutze einfach das Eingabefeld auf der Startseite unter /start, direkt unter der Begrüßung. Für komplexere Anträge mit längerem Verlauf empfiehlt sich der Menüpunkt . Präzisen Auftrag schreiben. Die Qualität des Entwurfs hängt von deinen Angaben ab. Definiere klar: Wer soll was tun, bis wann, woher kommt das Geld und was ist der konkrete Anlass? Gib zudem die gewünschten Abschnitte an. Wichtig: Vage Formulierungen wie „Wir wollen was zu Trinkwasser\" führen zu unpräzisen Ergebnissen. Nur wenn Zieljahr, Menge und Zuständigkeit im Auftrag stehen, landen sie auch im Beschlussvorschlag — und genau über den wird abgestimmt. Beschlussvorschlag prüfen. Dies ist der einzige Teil, über den tatsächlich abgestimmt wird. Er muss in sich geschlossen und ohne den Rest des Dokuments verständlich sein: eine Handlung, eine Zuständigkeit, eine Frist. Alle Erklärungen gehören stattdessen in den Sachverhalt oder die Begründung. Ergebnis verfeinern. Nutze den Chat, um Details nachzuschärfen. Zum Beispiel: „Formuliere den Beschlussvorschlag präziser\", „Ergänze einen Prüfauftrag zur Barrierefreiheit\" oder „Wandle den Antrag in eine Kleine Anfrage um\"."
+    "text": "Chat starten. Nutze einfach das Eingabefeld auf der Startseite unter /start, direkt unter der Begrüßung. Für komplexere Anträge mit längerem Verlauf empfiehlt sich der Menüpunkt . Präzisen Auftrag schreiben. Die Qualität des Entwurfs hängt von deinen Angaben ab. Definiere klar: Wer soll was tun, bis wann, woher kommt das Geld und was ist der konkrete Anlass? Gib zudem die gewünschten Abschnitte an. Wichtig: Vage Formulierungen wie „Wir wollen was zu Trinkwasser\" führen zu unpräzisen Ergebnissen. Nur wenn Zieljahr, Menge und Zuständigkeit im Auftrag stehen, landen sie auch im Beschlussvorschlag — und genau über den wird abgestimmt. Verwende die Begriffe, die euer Gremium verwendet. In Österreich heißt das Gremium Gemeinderat und der Haushalt Budget oder Voranschlag. Nenne beides im Auftrag beim Namen. Beschlussvorschlag prüfen. Dies ist der einzige Teil, über den tatsächlich abgestimmt wird. Er muss in sich geschlossen und ohne den Rest des Dokuments verständlich sein: eine Handlung, eine Zuständigkeit, eine Frist. Alle Erklärungen gehören stattdessen in den Sachverhalt oder die Begründung. Ergebnis verfeinern. Nutze den Chat, um Details nachzuschärfen. Zum Beispiel: „Formuliere…"
   },
   {
     "url": "/docs/guides/einsteigerinnen/antrag-stadtrat",
@@ -2001,7 +2001,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Weiterlesen",
     "anchor": "#weiterlesen",
     "category": "Guides",
-    "text": "Notebooks — Quellarten, Teilen, Verwaltung, häufige Fragen Wolke einbinden — Voraussetzung, um Wolke-Ordner anzuhängen"
+    "text": "Notebooks — Quellarten, Teilen, Verwaltung, häufige Fragen Wolke einbinden — Voraussetzung, um Wolke-Ordner anzuhängen Landesverband-Grüneratoren — Österreich: vorgefertigte Wissensdatenbank der Grünen Österreich"
   },
   {
     "url": "/docs/guides/einsteigerinnen/social-media-beitrag",
