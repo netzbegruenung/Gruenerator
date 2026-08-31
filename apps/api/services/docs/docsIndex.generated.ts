@@ -218,19 +218,19 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "url": "/docs/guides/einsteigerinnen/antrag-stadtrat",
     "title": "Wie erstelle ich einen Antrag für meinen Stadt- oder Gemeinderat?",
     "category": "Guides",
-    "lead": "Am Ende hast du einen Antragsentwurf in der Form, die dein Gremium erwartet: Beschlussvorschlag, Sachverhalt, Begründung, finanzielle Auswirkungen. Du brauchst dafür etwa zehn Minuten."
+    "lead": "In etwa zehn Minuten erstellst du einen fertigen Antragsentwurf, der genau die Struktur erfüllt, die dein Gremium erwartet: Beschlussvorschlag, Sachverhalt, Begründung und finanzielle Auswirkungen."
   },
   {
     "url": "/docs/guides/einsteigerinnen/eigenes-notebook-erstellen",
     "title": "Eigenes Notebook erstellen",
     "category": "Guides",
-    "lead": "Am Ende hast du ein Notebook, das eure Dokumente bündelt und ihren Inhalt im Grünerator durchsuchbar macht — für Anträge, Beschlüsse, Programme oder Pressemitteilungen. Du brauchst dafür etwa zehn Mi…"
+    "lead": "In etwa zehn Minuten erstellst du ein Notebook, das eure Dokumente bündelt und ihren Inhalt im Grünerator durchsuchbar macht — für Anträge, Beschlüsse, Programme oder Pressemitteilungen. Du brauchst…"
   },
   {
     "url": "/docs/guides/einsteigerinnen/social-media-beitrag",
     "title": "Wie schreibe ich einen Social Media Beitrag?",
     "category": "Guides",
-    "lead": "Am Ende hast du einen fertigen Post für Instagram, Facebook, LinkedIn, X oder ein Reel — im Ton der Plattform, in der passenden Länge, auf Wunsch mit Sharepic. Du brauchst dafür etwa fünf Minuten."
+    "lead": "In etwa fünf Minuten erstellst du einen fertigen Post für Instagram, Facebook, LinkedIn, X oder ein Reel — im Ton der Plattform, in der passenden Länge, auf Wunsch mit Sharepic."
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-agentinnen-erstellen",
@@ -1953,15 +1953,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Wie erstelle ich einen Antrag für meinen Stadt- oder Gemeinderat?",
     "anchor": "",
     "category": "Guides",
-    "text": "Am Ende hast du einen Antragsentwurf in der Form, die dein Gremium erwartet: Beschlussvorschlag, Sachverhalt, Begründung, finanzielle Auswirkungen. Du brauchst dafür etwa zehn Minuten."
+    "text": "In etwa zehn Minuten erstellst du einen fertigen Antragsentwurf, der genau die Struktur erfüllt, die dein Gremium erwartet: Beschlussvorschlag, Sachverhalt, Begründung und finanzielle Auswirkungen."
   },
   {
     "url": "/docs/guides/einsteigerinnen/antrag-stadtrat",
     "pageTitle": "Wie erstelle ich einen Antrag für meinen Stadt- oder Gemeinderat?",
-    "heading": "Damit er im Gremium besteht",
-    "anchor": "#damit-er-im-gremium-besteht",
+    "heading": "Fehlersuche & Qualitätssicherung",
+    "anchor": "#fehlersuche--qualitätssicherung",
     "category": "Guides",
-    "text": "Nimm das KommunalWiki als Quelle. Tippe @ und wähle KommunalWiki — das Fachwissen der Heinrich-Böll-Stiftung zur Kommunalpolitik. Für die politische Linie kommen die Grünen Grundsatzprogramme dazu. Für alles Kommunale gibt es einen eigenen Grünerator. „Kommunalpolitik\" steht in der Agentura; mitten im Gespräch holst du ihn mit @ dazu. Er hat das KommunalWiki fest eingestellt und bewertet auf Wunsch auch Haushaltsentwürfe und Verwaltungsvorlagen — ein guter Ausgangspunkt für einen Änderungsantrag. Andere Textsorten aus demselben Gespräch: Kleine und Große Anfrage, Haushaltsantrag, Resolution, Redebeitrag — sag einfach, was du brauchst. Beim Haushaltsantrag nennst du zusätzlich Haushaltsstelle, Änderungsbetrag und Deckungsvorschlag. In Österreich heißt das Gremium Gemeinderat und der Haushalt Budget oder Voranschlag. Nenne beides im Auftrag beim Namen."
+    "text": "Zu allgemeine Formulierungen? Wenn der Antrag zu vage bleibt, fehlten im Auftrag Details. Zurück zu Schritt 2: Frist, Menge, Zuständigkeit, Deckung. Fakten-Check. Paragrafen und Zahlen musst du zwingend selbst prüfen — Gemeindeordnungen unterscheiden sich je Bundesland und je Land stark, einen zitierten Paragrafen nie ungeprüft einreichen (Risiken & Gefahren). Interne Beschlusslagen. Eure eigenen lokalen Vereinbarungen kennt der Grünerator nicht. Hinterlege sie in einem Notebook, dann kann der Antrag darauf aufbauen."
   },
   {
     "url": "/docs/guides/einsteigerinnen/antrag-stadtrat",
@@ -1969,7 +1969,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "So geht's",
     "anchor": "#so-gehts",
     "category": "Guides",
-    "text": "Eingabefeld suchen — es ist schon da. Auf der Startseite unter /start steht das Chat-Feld direkt unter der Begrüßung. Für längere Gespräche mit Verlauf gehst du in den Menüpunkt . Schreib den Auftrag mit allem, was im Antrag stehen soll. Das ist der Schritt, an dem alles hängt: Wer soll was tun, bis wann, woher kommt das Geld, was ist der Anlass — und welche Abschnitte du brauchst. „Wir wollen was zu Trinkwasser\" reicht nicht: Zieljahr, Anzahl und Zuständigkeit stehen sonst nicht im Beschlussvorschlag — und genau über den wird abgestimmt. Den Beschlussvorschlag gegenlesen. Er ist der einzige Abschnitt, über den wirklich abgestimmt wird, und er muss ohne den Rest des Papiers verständlich sein: eine Handlung, eine Zuständigkeit, eine Frist. Alles Erklärende gehört in Sachverhalt und Begründung. Im Gespräch nachschärfen. „schärfer im Beschlussvorschlag\", „ergänze einen Prüfauftrag zur Barrierefreiheit\", „mach daraus eine Kleine Anfrage\"."
+    "text": "Chat starten. Nutze einfach das Eingabefeld auf der Startseite unter /start, direkt unter der Begrüßung. Für komplexere Anträge mit längerem Verlauf empfiehlt sich der Menüpunkt . Präzisen Auftrag schreiben. Die Qualität des Entwurfs hängt von deinen Angaben ab. Definiere klar: Wer soll was tun, bis wann, woher kommt das Geld und was ist der konkrete Anlass? Gib zudem die gewünschten Abschnitte an. Wichtig: Vage Formulierungen wie „Wir wollen was zu Trinkwasser\" führen zu unpräzisen Ergebnissen. Nur wenn Zieljahr, Menge und Zuständigkeit im Auftrag stehen, landen sie auch im Beschlussvorschlag — und genau über den wird abgestimmt. Beschlussvorschlag prüfen. Dies ist der einzige Teil, über den tatsächlich abgestimmt wird. Er muss in sich geschlossen und ohne den Rest des Dokuments verständlich sein: eine Handlung, eine Zuständigkeit, eine Frist. Alle Erklärungen gehören stattdessen in den Sachverhalt oder die Begründung. Ergebnis verfeinern. Nutze den Chat, um Details nachzuschärfen. Zum Beispiel: „Formuliere den Beschlussvorschlag präziser\", „Ergänze einen Prüfauftrag zur Barrierefreiheit\" oder „Wandle den Antrag in eine Kleine Anfrage um\"."
   },
   {
     "url": "/docs/guides/einsteigerinnen/antrag-stadtrat",
@@ -1980,28 +1980,12 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "text": "KI-Chat — alle Rezepte, Quellen und Werkzeuge im Überblick Was kann ich fragen? — Musterfragen zu jeder Fähigkeit"
   },
   {
-    "url": "/docs/guides/einsteigerinnen/antrag-stadtrat",
-    "pageTitle": "Wie erstelle ich einen Antrag für meinen Stadt- oder Gemeinderat?",
-    "heading": "Wenn es nicht passt",
-    "anchor": "#wenn-es-nicht-passt",
-    "category": "Guides",
-    "text": "Der Antrag bleibt allgemein? Dann fehlten Angaben. Zurück zu Schritt 2: Frist, Menge, Zuständigkeit, Deckung. Paragrafen und Zahlen prüfst du selbst. Gemeindeordnungen unterscheiden sich je Bundesland und je Land — einen zitierten Paragrafen nie ungeprüft einreichen (Risiken & Gefahren). Eure eigene Beschlusslage kennt der Grünerator nicht. Halte sie in einem Notebook fest, dann kannst du im Antrag darauf aufbauen."
-  },
-  {
     "url": "/docs/guides/einsteigerinnen/eigenes-notebook-erstellen",
     "pageTitle": "Eigenes Notebook erstellen",
     "heading": "Eigenes Notebook erstellen",
     "anchor": "",
     "category": "Guides",
-    "text": "Am Ende hast du ein Notebook, das eure Dokumente bündelt und ihren Inhalt im Grünerator durchsuchbar macht — für Anträge, Beschlüsse, Programme oder Pressemitteilungen. Du brauchst dafür etwa zehn Minuten und ein paar Dateien."
-  },
-  {
-    "url": "/docs/guides/einsteigerinnen/eigenes-notebook-erstellen",
-    "pageTitle": "Eigenes Notebook erstellen",
-    "heading": "Damit es etwas taugt",
-    "anchor": "#damit-es-etwas-taugt",
-    "category": "Guides",
-    "text": "Ein Thema pro Notebook. Ein Notebook mit allem darin liefert schlechtere Treffer als drei mit klarem Zuschnitt. Prüfe, was rot ist. Ein Dokument, aus dem sich kein Text gewinnen ließ — etwa ein gescanntes PDF ohne Texterkennung —, steht als „Nicht durchsuchbar\" in der Liste und taucht in keiner Antwort auf. Der Grund steht daneben. Im Chat nutzen: Tippe @ und wähle dein Notebook, dann antwortet der Grünerator daraus — mit Belegen. Ein eigener Grünerator-Agent kann es sogar dauerhaft durchsuchen, siehe Eigene Grüneratoren erstellen. Beim Erstellen gehört das Notebook nur dir. Ob und für wen es sichtbar wird, entscheidest du danach im „Teilen\"-Menü — beschrieben unter Notebooks."
+    "text": "In etwa zehn Minuten erstellst du ein Notebook, das eure Dokumente bündelt und ihren Inhalt im Grünerator durchsuchbar macht — für Anträge, Beschlüsse, Programme oder Pressemitteilungen. Du brauchst dafür ein paar Dateien."
   },
   {
     "url": "/docs/guides/einsteigerinnen/eigenes-notebook-erstellen",
@@ -2009,7 +1993,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "So geht's",
     "anchor": "#so-gehts",
     "category": "Guides",
-    "text": "Zur Wissen-Seite. Öffne Wissen (/wissen) — dort liegen alle Notebooks an einem Ort. Hast du noch keins, steht in der Notebook-Leiste die Karte „Neues erstellen\"; ein Klick öffnet den Editor. Sobald du eins besitzt, heißt die Karte „Eigene Notebooks\" und klappt den Abschnitt „Eigene\" mit dem Button „Notebook erstellen\" auf. Dateien hochladen. Der Editor führt dich durch drei Schritte: Quellen → Details → Überprüfen. Im ersten wählst du die Kachel Dateien hochladen und ziehst deine Dokumente ins Fenster oder suchst sie im Dateibrowser. Sie sammeln sich als Vorschau „Bereit zum Hochladen\" — dort kannst du einzelne wieder entfernen, dann startest du mit „Hochladen\". Angenommen werden PDF, DOCX, PPTX, TXT, MD, CSV und Bilder (PNG, JPG, AVIF), bis 50 MB pro Datei. Ältere Formate wie .doc oder .odt speicherst du vorher einmal als PDF. Neben dem Upload gibt es drei weitere Quellarten — Wolke, Docs und WordPress-Websites —, die auf der Seite Notebooks beschrieben sind. Name, Beschreibung, Labels. Den Namen schlägt der Editor aus deiner ersten Datei vor; du kannst ihn überschreiben. Die Beschreibung ist optional, hilft aber später beim Wiederfinden — genau wie die bis zu zehn frei wählbaren…"
+    "text": "Zur Wissen-Seite. Öffne Wissen (/wissen) — dort liegen alle Notebooks an einem Ort. Hast du noch keins, steht in der Notebook-Leiste die Karte „Neues erstellen\"; ein Klick öffnet den Editor. Sobald du eins besitzt, heißt die Karte „Eigene Notebooks\" und klappt den Abschnitt „Eigene\" mit dem Button „Notebook erstellen\" auf. Dateien hochladen. Der Editor führt dich durch drei Schritte: Quellen → Details → Überprüfen. Im ersten wählst du die Kachel Dateien hochladen und ziehst deine Dokumente ins Fenster oder suchst sie im Dateibrowser. Sie sammeln sich als Vorschau „Bereit zum Hochladen\", wo du einzelne wieder entfernen kannst, dann startest du mit „Hochladen\". Angenommen werden PDF, DOCX, PPTX, TXT, MD, CSV und Bilder (PNG, JPG, AVIF), bis 50 MB pro Datei. Ältere Formate wie .doc oder .odt speicherst du vorher einmal als PDF. Neben dem Upload gibt es drei weitere Quellarten — Wolke, Docs und WordPress-Websites —, die auf der Seite Notebooks beschrieben sind. Name, Beschreibung, Labels. Den Namen schlägt der Editor aus deiner ersten Datei vor; du kannst ihn überschreiben. Die Beschreibung ist optional, hilft aber später beim Wiederfinden — genau wie die bis zu zehn frei wählbaren…"
   },
   {
     "url": "/docs/guides/einsteigerinnen/eigenes-notebook-erstellen",
@@ -2025,15 +2009,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Wie schreibe ich einen Social Media Beitrag?",
     "anchor": "",
     "category": "Guides",
-    "text": "Am Ende hast du einen fertigen Post für Instagram, Facebook, LinkedIn, X oder ein Reel — im Ton der Plattform, in der passenden Länge, auf Wunsch mit Sharepic. Du brauchst dafür etwa fünf Minuten."
+    "text": "In etwa fünf Minuten erstellst du einen fertigen Post für Instagram, Facebook, LinkedIn, X oder ein Reel — im Ton der Plattform, in der passenden Länge, auf Wunsch mit Sharepic."
   },
   {
     "url": "/docs/guides/einsteigerinnen/social-media-beitrag",
     "pageTitle": "Wie schreibe ich einen Social Media Beitrag?",
-    "heading": "Damit er nach euch klingt",
-    "anchor": "#damit-er-nach-euch-klingt",
+    "heading": "Fehlersuche & Qualitätssicherung",
+    "anchor": "#fehlersuche--qualitätssicherung",
     "category": "Guides",
-    "text": "Plattform gezielt setzen. Brauchst du dieselbe Ankündigung für mehrere Kanäle, stell das Rezept voran: @instagram, @facebook, @linkedin, @twitter oder @reel — jedes kennt Aufbau, Ton und Länge seiner Plattform. Gib eine Quelle mit. Bei politischen Themen: Tippe @ und wähle z. B. Grüne Grundsatzprogramme — dann argumentiert der Post entlang eurer Beschlusslage. Schau dir echte Posts an. @beispiele zeigt tatsächlich veröffentlichte Beiträge als Vorlage. Hinterlege deinen Landesverband einmalig in den Einstellungen — danach kennen die Rezepte euren Stil."
+    "text": "Der Post klingt beliebig? Dann fehlten Angaben. Zurück zu Schritt 2: konkreter Anlass, Ort, Datum, Namen. Zahlen, Zitate und Namen prüfst du selbst — siehe Risiken & Gefahren. Kennzeichnung nicht vergessen, wenn der Beitrag KI-generiert ist: Kennzeichnungs-Guide. In Gesprächen von vor August 2026 steht ein Social-Media-Post in einer eigenen Karte mit dem Kennzeichen Experimentell. Diese Karten kannst du weiterhin im Chat überarbeiten. Neu geschriebene Posts kommen als normaler Text — den Weg über die Karte gibt es nicht mehr."
   },
   {
     "url": "/docs/guides/einsteigerinnen/social-media-beitrag",
@@ -2041,7 +2025,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "So geht's",
     "anchor": "#so-gehts",
     "category": "Guides",
-    "text": "Eingabefeld suchen — es ist schon da. Auf der Startseite unter /start steht das Chat-Feld direkt unter der Begrüßung. Für längere Gespräche mit Verlauf gehst du in den Menüpunkt . Schreib den Auftrag mit allem, was drinstehen soll. Das ist der Schritt, an dem alles hängt: Der Post kann nur so konkret werden wie deine Angaben. Nenne Anlass, Ort, Uhrzeit, wer kommt, was es gibt — und für wen du schreibst. Dass „Instagram-Beitrag\" im Satz steht, genügt — die Plattform musst du nicht extra auswählen. „Schreib was zum Stadtfest\" dagegen liefert Floskeln: Uhrzeit, Adresse und Namen erfindet der Grünerator nicht. Im Gespräch nachschärfen. „kürzer\", „weniger Emojis\", „anderer Einstieg\". Die Angaben musst du nicht wiederholen. Bild dazuholen. „Mach ein Sharepic daraus\" oder @sharepic. Zum Feinschliff öffnet sich der Editor, der Text bleibt erhalten."
+    "text": "Chat starten. Nutze einfach das Eingabefeld auf der Startseite unter /start, direkt unter der Begrüßung. Für längere Gespräche mit Verlauf empfiehlt sich der Menüpunkt . Präzisen Auftrag schreiben. Der Post kann nur so konkret werden wie deine Angaben. Nenne Anlass, Ort, Uhrzeit, wer kommt, was es gibt — und für wen du schreibst. Wichtig: Dass „Instagram-Beitrag\" im Auftrag steht, genügt — die Plattform musst du nicht extra auswählen. „Schreib was zum Stadtfest\" liefert dagegen Floskeln: Uhrzeit, Adresse und Namen erfindet der Grünerator nicht. Ergebnis verfeinern. „Kürzer\", „weniger Emojis\", „anderer Einstieg\" — die Angaben musst du dabei nicht wiederholen. Bild dazuholen. „Mach ein Sharepic daraus\" oder @sharepic. Zum Feinschliff öffnet sich der Editor, der Text bleibt erhalten."
   },
   {
     "url": "/docs/guides/einsteigerinnen/social-media-beitrag",
@@ -2050,14 +2034,6 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#weiterlesen",
     "category": "Guides",
     "text": "KI-Chat — alle Rezepte, Quellen und Werkzeuge im Überblick Was kann ich fragen? — Musterfragen zu jeder Fähigkeit"
-  },
-  {
-    "url": "/docs/guides/einsteigerinnen/social-media-beitrag",
-    "pageTitle": "Wie schreibe ich einen Social Media Beitrag?",
-    "heading": "Wenn es nicht passt",
-    "anchor": "#wenn-es-nicht-passt",
-    "category": "Guides",
-    "text": "Der Post klingt beliebig? Dann fehlten Angaben. Zurück zu Schritt 2: konkreter Anlass, Ort, Datum, Namen. Zahlen, Zitate und Namen prüfst du selbst — siehe Risiken & Gefahren. Kennzeichnung nicht vergessen, wenn der Beitrag KI-generiert ist: Kennzeichnungs-Guide. In Gesprächen von vor August 2026 steht ein Social-Media-Post in einer eigenen Karte mit dem Kennzeichen Experimentell. Diese Karten kannst du weiterhin im Chat überarbeiten. Neu geschriebene Posts kommen als normaler Text — den Weg über die Karte gibt es nicht mehr."
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-agentinnen-erstellen",
