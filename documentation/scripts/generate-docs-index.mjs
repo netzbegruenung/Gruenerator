@@ -39,6 +39,7 @@ const EXCLUDED_TOP_FOLDERS = new Set(['intern', 'experimente']);
 /** Human labels per top-level folder — becomes the page-map grouping. */
 const CATEGORY_LABELS = {
   'ueber-den-gruenerator': 'Über den Grünerator',
+  guides: 'Guides',
   chat: 'Chat',
   office: 'Office',
   wissen: 'Wissen',

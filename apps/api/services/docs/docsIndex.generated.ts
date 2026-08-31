@@ -167,6 +167,18 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "lead": "Ein großes Sprachmodell, wie zum Beispiel ChatGPT , ist ein KI-Modell, das darauf trainiert ist, menschenähnlichen Text zu verstehen und zu erzeugen. Es ist im Kern eine hochentwickelte Anwendung von…"
   },
   {
+    "url": "/docs/guides/einsteigerinnen/social-media-beitrag",
+    "title": "Wie schreibe ich einen Social Media Beitrag?",
+    "category": "Guides",
+    "lead": "Am Ende hast du einen fertigen Post für Instagram, Facebook, LinkedIn, X oder ein Reel — im Ton der Plattform, in der passenden Länge, auf Wunsch mit Sharepic. Du brauchst dafür etwa fünf Minuten."
+  },
+  {
+    "url": "/docs/guides/intro",
+    "title": "Guides",
+    "category": "Guides",
+    "lead": "Guides sind kurze Anleitungen für eine konkrete Aufgabe: „Wie schreibe ich einen Social Media Beitrag?\", „Wie lege ich ein Notebook an?\". Jeder Guide führt dich in wenigen Schritten zum Ergebnis und…"
+  },
+  {
     "url": "/docs/integrationen/chrome-erweiterung",
     "title": "Grünerator für Chrome",
     "category": "Integrationen",
@@ -1508,6 +1520,62 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#wie-ein-llm-eine-antwort-generiert",
     "category": "Grundlagen",
     "text": "Nehmen wir an, wir stellen chatgpt diese Frage: „Wie können wir die Luftqualität in unserer Kommune nachhaltig verbessern?\" Wie würde ChatGPT diese Frage beantworten?"
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/social-media-beitrag",
+    "pageTitle": "Wie schreibe ich einen Social Media Beitrag?",
+    "heading": "Wie schreibe ich einen Social Media Beitrag?",
+    "anchor": "",
+    "category": "Guides",
+    "text": "Am Ende hast du einen fertigen Post für Instagram, Facebook, LinkedIn, X oder ein Reel — im Ton der Plattform, in der passenden Länge, auf Wunsch mit Sharepic. Du brauchst dafür etwa fünf Minuten."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/social-media-beitrag",
+    "pageTitle": "Wie schreibe ich einen Social Media Beitrag?",
+    "heading": "Damit er nach euch klingt",
+    "anchor": "#damit-er-nach-euch-klingt",
+    "category": "Guides",
+    "text": "Plattform gezielt setzen. Brauchst du dieselbe Ankündigung für mehrere Kanäle, stell das Rezept voran: @instagram, @facebook, @linkedin, @twitter oder @reel. Jedes kennt Aufbau, Ton und Längenvorgabe seiner Plattform. Gib eine Quelle mit. Bei politischen Themen: Tippe @ und wähle z. B. Grüne Grundsatzprogramme — dann argumentiert der Post entlang eurer Beschlusslage. Schau dir echte Posts an. @beispiele zeigt tatsächlich veröffentlichte Beiträge als Vorlage. Hinterlege deinen Landesverband einmalig in den Einstellungen. Danach schlagen die Rezepte deines Landesverbands vor, wie ihr dort schreibt."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/social-media-beitrag",
+    "pageTitle": "Wie schreibe ich einen Social Media Beitrag?",
+    "heading": "So geht's",
+    "anchor": "#so-gehts",
+    "category": "Guides",
+    "text": "Eingabefeld suchen — es ist schon da. Auf der Startseite unter /start steht das Chat-Feld direkt unter der Begrüßung. Für längere Gespräche mit Verlauf und Seitenleiste gehst du in den Menüpunkt . Schreib den Auftrag mit allem, was drinstehen soll. Das ist der Schritt, an dem alles hängt: Der Post kann nur so konkret werden wie deine Angaben. Nenne Anlass, Ort, Uhrzeit, wer kommt, was es gibt — und für wen du schreibst. Dass „Instagram-Beitrag\" im Satz steht, genügt — die Plattform musst du nicht extra auswählen. „Schreib was zum Stadtfest\" dagegen liefert Floskeln: Uhrzeit, Adresse und Namen erfindet der Grünerator nicht. Im Gespräch nachschärfen. „kürzer\", „weniger Emojis\", „ein Hinweis auf Barrierefreiheit\", „anderer Einstieg\". Der Zusammenhang bleibt erhalten — du musst die Angaben nicht wiederholen. Bild dazuholen. „Mach ein Sharepic daraus\" oder @sharepic. Zum Feinschliff öffnet sich der Editor, der Text bleibt erhalten."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/social-media-beitrag",
+    "pageTitle": "Wie schreibe ich einen Social Media Beitrag?",
+    "heading": "Weiterlesen",
+    "anchor": "#weiterlesen",
+    "category": "Guides",
+    "text": "KI-Chat — alle Rezepte, Quellen und Werkzeuge im Überblick Was kann ich fragen? — Musterfragen zu jeder Fähigkeit"
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/social-media-beitrag",
+    "pageTitle": "Wie schreibe ich einen Social Media Beitrag?",
+    "heading": "Wenn es nicht passt",
+    "anchor": "#wenn-es-nicht-passt",
+    "category": "Guides",
+    "text": "Der Post klingt beliebig? Dann fehlten Angaben. Zurück zu Schritt 2: konkreter Anlass, Ort, Datum, Namen. Zahlen, Zitate und Namen prüfst du selbst, bevor der Post rausgeht — siehe Risiken & Gefahren. Kennzeichnung nicht vergessen, wenn der Beitrag KI-generiert ist: Kennzeichnungs-Guide. In Gesprächen von vor August 2026 steht ein Social-Media-Post in einer eigenen Karte mit dem Kennzeichen Experimentell. Diese Karten kannst du weiterhin im Chat überarbeiten. Neu geschriebene Posts kommen als normaler Text — den Weg über die Karte gibt es nicht mehr."
+  },
+  {
+    "url": "/docs/guides/intro",
+    "pageTitle": "Guides",
+    "heading": "Guides",
+    "anchor": "",
+    "category": "Guides",
+    "text": "Guides sind kurze Anleitungen für eine konkrete Aufgabe: „Wie schreibe ich einen Social Media Beitrag?\", „Wie lege ich ein Notebook an?\". Jeder Guide führt dich in wenigen Schritten zum Ergebnis und ist in ein paar Minuten durchgearbeitet. Der Unterschied zum Rest der Doku: Die Bereiche Chat, Office oder Wissen beschreiben, was es gibt — alle Rezepte, alle Werkzeuge, alle Schalter. Ein Guide beschreibt, was du tust, und lässt alles weg, was du dafür nicht brauchst. Am Ende jedes Guides stehen die Verweise für alles Weitere."
+  },
+  {
+    "url": "/docs/guides/intro",
+    "pageTitle": "Guides",
+    "heading": "Wie die Guides sortiert sind",
+    "anchor": "#wie-die-guides-sortiert-sind",
+    "category": "Guides",
+    "text": "Nach Erfahrungsstand — das ist die Ordnerstruktur in der Seitenleiste: Einsteiger*innen — die ersten Aufgaben, ohne Vorwissen. Weitere Stufen kommen dazu, sobald es Guides dafür gibt. Nach Aufgabenfeld — das sind die Schlagwörter unter jeder Überschrift (kommunikation, gremienarbeit, wissen, verwaltung). Ein Klick darauf zeigt alle Guides zu diesem Feld, quer über alle Erfahrungsstufen. Der Grünerator kennt seine eigene Doku. Tippe @doku im Chat und stell deine Frage — er antwortet mit Verweis auf die passende Stelle."
   },
   {
     "url": "/docs/integrationen/chrome-erweiterung",
