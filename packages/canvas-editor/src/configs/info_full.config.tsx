@@ -174,6 +174,9 @@ const arrowElement: ImageElementConfig<InfoState> = {
   height: INFO_CONFIG.arrow.size,
   src: INFO_CONFIG.arrow.src,
   draggable: true,
+  // Der Pfeil hat keinen Groessenregler in der Seitenleiste — die Ecken des
+  // Transformers sind sein einziger Weg, `arrowSize` zu schreiben.
+  transformable: true,
   opacityStateKey: 'arrowOpacity',
   // Solange niemand den Pfeil anfasst, folgt er ueber `fromLayout` der Hoehe
   // der Ueberschrift. Ein Zug schreibt eine absolute Position, die von da an
