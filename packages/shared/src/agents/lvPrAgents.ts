@@ -105,7 +105,6 @@ export const LV_PR_AGENTS: Agent[] = LV_PR_SPECS.map((spec) => ({
     'image',
     'memory',
     'memory_save',
-    'self_review',
   ],
   defaultNotebookIds: [spec.notebook],
   toolRestrictions: {

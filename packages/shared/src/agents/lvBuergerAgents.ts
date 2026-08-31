@@ -64,7 +64,7 @@ export const LV_BUERGER_AGENTS: Agent[] = LV_BUERGER_SPECS.map((spec) => {
     // echtes Gate (agentAllowsWebSearch in searchTools.ts), keine reine
     // Deklaration — vorher war die Liste hier wirkungslos und der Agent
     // recherchierte trotzdem im Web.
-    enabledTools: ['search', 'memory', 'self_review'],
+    enabledTools: ['search', 'memory'],
     // Versandfertige E-Mail: konkrete Artikel-URLs müssen inline im Text stehen
     // (Quellen-Karten reisen nicht mit dem kopierten Text mit). Schaltet die
     // URL-Injektion in den Modell-Kontext frei (respondNode).

@@ -58,7 +58,7 @@ export const LV_WPS_AGENTS: Agent[] = LV_WPS_SPECS.map((spec) => {
     author: 'Grünerator',
     // Kein 'web'/'scrape' — siehe lvBuergerAgents: Wahlprüfsteine werden aus
     // dem Landesverbands-Notebook und den Partei-Korpora beantwortet.
-    enabledTools: ['search', 'memory', 'self_review'],
+    enabledTools: ['search', 'memory'],
     defaultNotebookIds: [spec.notebook],
     // AT-Korpus liegt in einer eigenen Collection ohne `landesverband`-Feld —
     // ein defaultFilter darauf liefe ins Leere. Daher nur für DE-LVs pinnen.
