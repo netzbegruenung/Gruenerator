@@ -1,5 +1,6 @@
 ---
 sidebar_position: 3
+description: 'Wolke-Dateien über einen Freigabe-Link lesbar machen: Ordner durchstöbern, in Notebooks importieren, im Chat erwähnen.'
 ---
 
 # Wolke einbinden

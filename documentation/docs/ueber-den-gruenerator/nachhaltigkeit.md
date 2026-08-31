@@ -1,6 +1,7 @@
 ---
 sidebar_position: 4
 title: Wie nachhaltig ist der Grünerator?
+description: 'Wie viel Strom und CO₂ eine Anfrage kostet, wie wir das rechnen und wie der Vergleich mit ChatGPT zustande kommt.'
 ---
 
 import { ModelTable } from '@site/src/components/ModelTable';

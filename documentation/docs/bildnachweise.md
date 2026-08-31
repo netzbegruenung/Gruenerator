@@ -1,5 +1,6 @@
 ---
 sidebar_position: 99
+description: 'Die Icon- und Illustrations-Sammlungen im Sharepic- und Canvas-Editor, mit Quelle und Lizenz jedes Sets.'
 ---
 
 # Bildnachweise & Lizenzen

@@ -1,5 +1,6 @@
 ---
 sidebar_position: 9
+description: 'Regional getunte Grüneratoren, die im Stil ihres Landesverbands schreiben und in dessen Pressemitteilungen, Beschlüssen und Programmen recherchieren.'
 ---
 
 import AgentTiles from '@site/src/components/AgentTiles';
