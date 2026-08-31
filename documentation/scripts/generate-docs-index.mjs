@@ -41,12 +41,11 @@ const CATEGORY_LABELS = {
   'ueber-den-gruenerator': 'Über den Grünerator',
   guides: 'Guides',
   chat: 'Chat',
-  office: 'Office',
-  wissen: 'Wissen',
-  grueneratoren: 'Grüneratoren',
+  features: 'Features',
   konto: 'Konto & Projekte',
   integrationen: 'Integrationen',
   grundlagen: 'Grundlagen',
+  sonstiges: 'Sonstiges',
   archiv: 'Archiv',
 };
 

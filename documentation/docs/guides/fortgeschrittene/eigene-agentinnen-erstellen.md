@@ -1,5 +1,5 @@
 ---
-sidebar_position: 2
+sidebar_position: 1
 ---
 
 # Eigene Grüneratoren erstellen
@@ -16,7 +16,7 @@ In der Mehrzahl heißen sie **Grüneratoren**. In der Einzahl sagen wir **Grüne
 
 ## Schritt 1: Den Creator öffnen
 
-Öffne die [Agentura](./agentura), scrolle zum Abschnitt **Meine Grüneratoren** und klicke oben rechts auf **Neuer Grünerator**. Alternativ rufst du den Creator direkt unter `/agents/new` auf.
+Öffne die [Agentura](../../features/agentura.mdx), scrolle zum Abschnitt **Meine Grüneratoren** und klicke oben rechts auf **Neuer Grünerator**. Alternativ rufst du den Creator direkt unter `/agents/new` auf.
 
 ## Schritt 2: Agent beschreiben (empfohlen)
 
@@ -66,7 +66,7 @@ Darunter im selben Tab:
 - **Erweiterte Einstellungen** — **Region** (Deutschland `de-DE` / Österreich `de-AT`), **Tags** (kommagetrennt) und das **Modell**.
 
 :::tip[Erst das Wissen, dann der Agent]
-Lege dir vorher unter [Notebooks](../wissen/eigenes-notebook-erstellen) ein eigenes Notebook an und lade eure Dokumente hoch. Im Editor kannst du es dann unter **Wissen → Meine Notebooks** auswählen — und dein Agent antwortet ausschließlich aus euren Quellen, mit nachprüfbaren Quellenangaben.
+Lege dir vorher unter [Notebooks](../einsteigerinnen/eigenes-notebook-erstellen.md) ein eigenes Notebook an und lade eure Dokumente hoch. Im Editor kannst du es dann unter **Wissen → Meine Notebooks** auswählen — und dein Agent antwortet ausschließlich aus euren Quellen, mit nachprüfbaren Quellenangaben.
 :::
 
 :::info[Wiederkehrende Aufgaben]

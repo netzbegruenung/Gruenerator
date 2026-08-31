@@ -1,5 +1,5 @@
 ---
-sidebar_position: 99
+sidebar_position: 1
 title: Inhaltsdatenbank
 description: Aktuelle Statistiken über die indexierten Inhalte im Grünerator
 ---
