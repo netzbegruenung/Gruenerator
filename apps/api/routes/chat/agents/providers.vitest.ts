@@ -168,10 +168,12 @@ describe('getContextWindow', () => {
     // Ollamas gemessene Kürzungsschwelle auf Verdigado — dorthin routet diese
     // Lane nicht mehr (services/ai/litellmRetired.ts).
     expect(getContextWindow('gpt-oss')).toBe(131_000);
-    // Gemma 4 meldet seit dem 25.08.2026 die 128k des Cortecs-Endpunkts, nicht
-    // die 262k der Gewichte: `GET /v1/models` gibt für `gemma-4-31b-it`
-    // `context_size: 128000` an. Was der Endpunkt annimmt, zählt — eine zu
-    // grosse Zahl hier ist keine Fehlermeldung, sondern eine stille Kürzung.
+    // Gemma 4 trägt die 128k des Cortecs-Endpunkts, nicht die 262k der
+    // Gewichte. Die Begründung steht an EINER Stelle und wird hier bewusst
+    // nicht wiederholt: `GEMMA_31B_ON_CORTECS` in services/ai/gemmaHosts.ts.
+    // Kurz: der Katalog meldet inzwischen 262000, aber er ist für diese Zahl
+    // keine Quelle, und eine zu grosse Zahl ist keine Fehlermeldung, sondern
+    // eine stille Kürzung. Bewegen darf den Wert nur eine Nadelprobe (#3067).
     // Die 64k-Decke davor war Ollamas Kürzungs-Schutz auf Verdigado; dorthin
     // routet diese Lane nicht mehr.
     expect(getContextWindow('gemma-4')).toBe(128_000);
