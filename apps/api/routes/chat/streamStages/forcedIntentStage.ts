@@ -364,7 +364,20 @@ export async function runForcedIntentStage({
       // Wie beim @deepresearch-Zweig: die Such-/Bild-/Sharepic-Familie
       // überschreibt den Intent, also ist ein Werkzeug-Pin von oben überholt.
       // `@umfragen @recherche` heisst Recherche, nicht PolitPro.
-      classifiedState.mentionPinnedTool = null;
+      //
+      // Seit dem Lane-Flip (Phase R3) LÖSCHT diese Zeile nicht mehr nur, sie
+      // setzt auch: die Suchfamilie läuft in der Schleife, und dort ist der
+      // Erwähnungstext für das Modell entfernt — ohne Pin griffe es zur
+      // generischen Suche statt zu der Quelle, die die Person gewählt hat. Was
+      // gepinnt wird, steht an der Erwähnung (`IntentMention.pinsTool`), nicht
+      // hier. Für jeden anderen Token der Prioritätenliste (sharepic, image,
+      // summary …) liefert die Registry `null`, die Zeile löscht dort also
+      // weiterhin genau wie vorher.
+      //
+      // Ein Token `web` (nur noch aus alten Threads — die Erwähnung dafür gibt
+      // es nicht) bleibt ohne Pin: die Registry führt für ihn keine Erwähnung.
+      // Der Turn geht trotzdem in die Schleife, dort wählt der Planer.
+      classifiedState.mentionPinnedTool = pinnedToolForMention(forced);
       forcedTool = true;
       log.info(
         `[ChatGraph] Intent forced via @tool mention: forced="${forced}", resolved="${classifiedState.intent}"`

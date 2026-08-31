@@ -68,12 +68,23 @@ Do run the suite **once with `CHAT_AGENT_LOOP=false`** when you touch the
 single-pass path (source carry, respondNode gating, searchNode fallbacks) — the
 path-independent assertions (`grounded`, `cited`, `retainsPriorSources`) are the
 ones that hold in both configurations, and that lane is otherwise never
-exercised. `EVAL_FILTER=search-singlepass` is the named subset for that run: the
-`@recherche`/`@dokumente` scenarios take the single-pass path in BOTH flag
-states (`FORCED_LANE_BY_INTENT` maps both intents to `single-pass`), so they are
-the ones whose result is comparable across the two runs. The scenario cannot
-carry the flag itself — `CHAT_AGENT_LOOP` is read by the backend at request
-time, and the harness only posts to a backend somebody else started.
+exercised. `EVAL_FILTER=search-mention` is the named subset for that run: the
+`@recherche`/`@dokumente` scenarios are the only ones that deliberately exercise
+the single-pass SEARCH path, and they carry an `expectWhenLoopOff` for exactly
+that state.
+
+They no longer take the single-pass path in both flag states — that was true
+until the R3 lane flip, when `FORCED_LANE_BY_INTENT` mapped both intents to
+`single-pass`; the old category name `search-singlepass` said so. Now the
+mention carries the turn into the LOOP (with its tool pinned) whenever the loop
+is on, and only `CHAT_AGENT_LOOP=false` puts it back on the single-pass path.
+That makes the pair the before/after anchor of the flip rather than a
+flag-independent constant: with the loop on they assert `demoted: true` plus the
+pinned tool, with it off they assert the effect (`grounded`).
+
+The scenario cannot carry the flag itself — `CHAT_AGENT_LOOP` is read by the
+backend at request time, and the harness only posts to a backend somebody else
+started.
 
 **Set `EVAL_LOOP_OFF=1` on that run.** It is the operator telling the harness
 what the backend was started with; nothing detects it. Turns that carry an
@@ -84,7 +95,7 @@ citations held — the single-pass path searches **in the graph** rather than as
 tool call, and `toolsMustInclude` only ever sees tool calls (R2 acceptance
 report §5(b)). Weakening `expect` would have given up the loop guard as well,
 so the effect assertion (`grounded`/`cited`) lives beside it instead. Note this
-does **not** put `search-web` into `EVAL_FILTER=search-singlepass` — that subset
+does **not** put `search-web` into `EVAL_FILTER=search-mention` — that subset
 stays the two mention scenarios. Run **both lanes** — the sharepic-in-split bug was invisible on
 Mistral (unified); use `EVAL_MODEL_ID=mistral` and a split lane (e.g. `gemma-4`).
 `.github/workflows/chat-eval-live.yml` ("Chat Eval (Live)") does exactly this

@@ -455,7 +455,7 @@ describe('die Registry entscheidet, welche Erwähnung ein Werkzeug pinnt', () =>
   // Der Pin ersetzt die frühere Regel „das Werkzeug heisst wie der Intent". Der
   // Test hängt deshalb an der Registry und nicht an einer zweiten Liste hier:
   // wer `pinsTool` setzt oder wegnimmt, ändert eine Aussage über den Loop.
-  it('fünf Erwähnungen pinnen ein Werkzeug — und nur die', () => {
+  it('sieben Erwähnungen pinnen ein Werkzeug — und nur die', () => {
     const pinned = allIntentMentions()
       .filter(({ mention }) => mention.pinsTool != null)
       .map(({ mention }) => mention.pinsTool)
@@ -463,9 +463,14 @@ describe('die Registry entscheidet, welche Erwähnung ein Werkzeug pinnt', () =>
     expect(pinned).toEqual([
       'abgeordnetenwatch',
       'bundestag',
+      // Die beiden Zugänge aus Phase R3: seit die Suchfamilie die Loop-Achse
+      // trägt, ist der Pin das, was der Erwähnung ihre QUELLE erhält — im Loop
+      // sieht das Modell den Erwähnungstext nicht mehr.
       'gruenerator_docs_search',
       'gruenerator_pressemitteilung_examples',
+      'gruenerator_search',
       'umfragen',
+      'web_search',
     ]);
   });
 
@@ -476,11 +481,20 @@ describe('die Registry entscheidet, welche Erwähnung ein Werkzeug pinnt', () =>
 
   // `@doku` stand hier, bis gemessen war, dass der Intent nur die Schleife trug
   // und den Aufruf niemand benannte — der Doku-Index ist ohnehin breit montiert.
-  // `@dokumente` ist die Dokumentensuche des Einzeldurchlaufs, `@notion` ein
-  // ganzer Server: die meinen wirklich kein EINZELNES Werkzeug.
+  // `@dokumente` stand hier ebenfalls, mit der Begründung „ist die
+  // Dokumentensuche des EINZELDURCHLAUFS": seit Phase R3 ist sie das nicht mehr,
+  // die Erwähnung läuft in der Schleife und braucht ihren Pin. `@notion` ist
+  // weiterhin ein ganzer Server und meint wirklich kein EINZELNES Werkzeug.
   it('schweigt, wo eine Erwähnung kein einzelnes Werkzeug meint', () => {
-    expect(pinnedToolForMention('search')).toBe(null);
     expect(pinnedToolForMention('examples')).toBe(null);
+    expect(pinnedToolForMention('chat_history')).toBe(null);
+  });
+
+  // Die Variante erbt den Pin des Elternteils NICHT: `@deepresearch` ersetzt den
+  // ganzen Turn und hat gar kein Loop-Werkzeug.
+  it('gibt der Tiefenrecherche-Variante keinen Pin', () => {
+    expect(pinnedToolForMention('research')).toBe('web_search');
+    expect(pinnedToolForMention('deepresearch')).toBe(null);
   });
 
   it('`@doku` pinnt den Doku-Index', () => {

@@ -111,6 +111,10 @@ export function runRoutingStage({
     lastUserText,
     forcedTool: !!forcedTool,
     mentionPinnedTool: classifiedState.mentionPinnedTool ?? null,
+    // Nur `@deepresearch` setzt das (forcedIntentStage). Der Entscheider
+    // braucht es, seit `research` die Loop-Achse trägt — sonst risse der Flip
+    // den Dossier-Weg mit.
+    deepResearchRequested: classifiedState.deepResearchRequested === true,
     mentionPinnedArtifactKind: classifiedState.mentionPinnedArtifactKind ?? null,
     isCompound,
     // A chosen notebook keeps the turn single-pass, on EVERY agent — only
