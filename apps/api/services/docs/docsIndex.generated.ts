@@ -161,6 +161,12 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "lead": "Der Grünerator hat für mehrere Landesverbände eigene, regional getunte Grüneratoren. Sie schreiben nicht generisch-grün, sondern im konkreten Stil des jeweiligen Landesverbands — mit den richtigen Sp…"
   },
   {
+    "url": "/docs/features/notebooks",
+    "title": "Notebooks",
+    "category": "Features",
+    "lead": "Ein Notebook bündelt Dokumente zu einem Thema und macht ihren Inhalt im Grünerator durchsuchbar. Wie du dein erstes anlegst, steht im Guide Eigenes Notebook erstellen. Diese Seite beschreibt alles, w…"
+  },
+  {
     "url": "/docs/features/office",
     "title": "Office: Dokumente, Tabellen, Folien und Boards",
     "category": "Features",
@@ -218,7 +224,7 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "url": "/docs/guides/einsteigerinnen/eigenes-notebook-erstellen",
     "title": "Eigenes Notebook erstellen",
     "category": "Guides",
-    "lead": "Ein Notebook bündelt Dokumente zu einem Thema und macht ihren Inhalt im Grünerator durchsuchbar — etwa für Anträge, Beschlüsse, Programme oder Pressemitteilungen. Diese Anleitung führt dich Schritt f…"
+    "lead": "Am Ende hast du ein Notebook, das eure Dokumente bündelt und ihren Inhalt im Grünerator durchsuchbar macht — für Anträge, Beschlüsse, Programme oder Pressemitteilungen. Du brauchst dafür etwa zehn Mi…"
   },
   {
     "url": "/docs/guides/einsteigerinnen/social-media-beitrag",
@@ -1003,7 +1009,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Im Marktplatz stöbern",
     "anchor": "#im-marktplatz-stöbern",
     "category": "Features",
-    "text": "Die Agentura ist wie ein Marktladen aufgebaut. Es gibt Regale, angezeigt als Reihe farbiger Pillen-Buttons oberhalb der Karten — auf schmalen Bildschirmen umbricht die Reihe automatisch in mehrere Zeilen. Regale ohne Inhalt werden ausgeblendet, du siehst also nur, was bei dir tatsächlich etwas enthält — mit zwei Ausnahmen: Meine Grüneratoren und Von der Basis bleiben immer stehen und laden dich stattdessen zum Anlegen ein. Im offiziellen Regal sind die Rezepte zusätzlich nach Rubriken sortiert: . Über das Suchfeld findest du Grüneratoren und Rezepte nach Name oder Beschreibung; sortieren kannst du nach . Auf den Karten der Grüneratoren siehst du außerdem Fähigkeits-Hinweise: welche Werkzeuge sie nutzen, ob sie auf ein Wissens-Notebook zugreifen und für welche Region sie gedacht sind. Suche, Sortierung und die gewählte Kategorie werden in der Adresse (URL) gespeichert. Du kannst eine bestimmte Ansicht also einfach als Link weitergeben oder mit dem Zurück-Knopf zur vorherigen Auswahl springen."
+    "text": "Die Agentura ist wie ein Marktladen aufgebaut. Es gibt Regale, angezeigt als Reihe farbiger Pillen-Buttons oberhalb der Karten — auf schmalen Bildschirmen umbricht die Reihe automatisch in mehrere Zeilen. Regale ohne Inhalt werden ausgeblendet, du siehst also nur, was bei dir tatsächlich etwas enthält — mit zwei Ausnahmen: Meine Grüneratoren und Von der Basis bleiben immer stehen und laden dich stattdessen zum Anlegen ein. Im offiziellen Regal sind die Rezepte zusätzlich nach Rubriken sortiert: . Über das Suchfeld findest du Grüneratoren und Rezepte nach Name oder Beschreibung; sortieren kannst du nach . Ein Grünerator-Agent kann auch nach Zeitplan laufen — etwa „jeden Montag eine Presseschau\". Angelegt wird er über den Link Neue wiederkehrende Aufgabe im Regal Meine Grüneratoren, Unterabschnitt Wiederkehrende Aufgaben (ein eigenes Regal gibt es dafür nicht). Im Editor erscheint dann ein zusätzlicher Zeitplan-Tab; denselben Tab siehst du, wenn du später einen Agenten mit Zeitplan bearbeitest. Auf den Karten der Grüneratoren siehst du außerdem Fähigkeits-Hinweise: welche Werkzeuge sie nutzen, ob sie auf ein Wissens-Notebook zugreifen und für welche Region sie gedacht sind. Suche,…"
   },
   {
     "url": "/docs/features/agentura",
@@ -1131,7 +1137,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Features",
     "anchor": "",
     "category": "Features",
-    "text": "Neben dem Chat gibt es im Grünerator drei größere Flächen. Diese Seiten beschreiben, was es dort gibt — jede Funktion, jeden Schalter. Wenn du stattdessen eine bestimmte Aufgabe erledigen willst, sind die Guides der kürzere Weg. Office — Dokumente, Tabellen, Präsentationen und Boards, gemeinsam bearbeitbar und mit KI-Unterstützung direkt im Editor. Agentura — der Marktplatz für Grüneratoren und Rezepte: fertige nutzen, eigene bauen. Landesverbände — welche Inhalte der Landesverbände im Grünerator stecken und was ihre Grüneratoren können."
+    "text": "Neben dem Chat gibt es im Grünerator drei größere Flächen. Diese Seiten beschreiben, was es dort gibt — jede Funktion, jeden Schalter. Wenn du stattdessen eine bestimmte Aufgabe erledigen willst, sind die Guides der kürzere Weg. Office — Dokumente, Tabellen, Präsentationen und Boards, gemeinsam bearbeitbar und mit KI-Unterstützung direkt im Editor. Agentura — der Marktplatz für Grüneratoren und Rezepte: fertige nutzen, eigene bauen. Notebooks — eigenes Wissen bündeln und durchsuchbar machen: Quellarten, Teilen, Verwaltung. Landesverbände — welche Inhalte der Landesverbände im Grünerator stecken und was ihre Grüneratoren können."
   },
   {
     "url": "/docs/features/ki-im-editor",
@@ -1220,6 +1226,94 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#wahlprüfsteine-beantworten",
     "category": "Features",
     "text": "Die Wahlprüfstein-Grüneratoren beantworten Fragenkataloge von Verbänden und Initiativen (Wahlprüfsteine): Du fügst den Katalog ein, der Grünerator-Agent recherchiert die Positionen des Landesverbands und antwortet im Format des Katalogs und im Stil des Landesverbands. Auch sie erreichst du über die Landesverband-Seite — dort wählst du Wahlprüfsteine."
+  },
+  {
+    "url": "/docs/features/notebooks",
+    "pageTitle": "Notebooks",
+    "heading": "Notebooks",
+    "anchor": "",
+    "category": "Features",
+    "text": "Ein Notebook bündelt Dokumente zu einem Thema und macht ihren Inhalt im Grünerator durchsuchbar. Wie du dein erstes anlegst, steht im Guide Eigenes Notebook erstellen. Diese Seite beschreibt alles, was danach kommt: die weiteren Quellarten, das Teilen und Veröffentlichen, die Verwaltung."
+  },
+  {
+    "url": "/docs/features/notebooks",
+    "pageTitle": "Notebooks",
+    "heading": "Auf „Von der Basis\" listen",
+    "anchor": "#auf-von-der-basis-listen",
+    "category": "Features",
+    "text": "Im Modus „Mit Anmeldung\" kannst du zusätzlich den Schalter „Auf ‚Von der Basis' listen\" aktivieren. Dann erscheint dein Notebook für andere auf der Wissen-Seite: in der Notebook-Reihe gibt es die Kachel „Von der Basis\", die alle so gelisteten Notebooks aufklappt. Zusätzlich taucht es in der Suche der Wissen-Seite auf, die System-Notebooks, eigene und öffentliche Notebooks gemeinsam durchsucht. Sobald du den Schalter aktivierst, musst du eine der beiden Aussagen bestätigen: „Ich besitze die Daten\" — … oder habe die Rechte zur Veröffentlichung; z.&nbsp;B. eigene Texte, Beschlüsse deines Verbands, Material, das du selbst veröffentlichen darfst. „Daten sind öffentlich verfügbar\" — z.&nbsp;B. offizielle Dokumente, Pressemitteilungen, frei zugängliche Veröffentlichungen. Ohne diese Bestätigung lässt sich das Notebook nicht listen. Hintergrund: Damit stellen wir sicher, dass nur Inhalte mit klarer Rechtelage veröffentlicht werden. Wenn du dir bei den Rechten unsicher bist, lass das Notebook privat — du kannst die Sichtbarkeit jederzeit später ändern."
+  },
+  {
+    "url": "/docs/features/notebooks",
+    "pageTitle": "Notebooks",
+    "heading": "Docs importieren",
+    "anchor": "#docs-importieren",
+    "category": "Features",
+    "text": "Über die Kachel „Aus Docs importieren\" verknüpfst du eigene Docs als Quelle — sie werden beim Import in durchsuchbaren Text umgewandelt und lassen sich später per Sync aktualisieren."
+  },
+  {
+    "url": "/docs/features/notebooks",
+    "pageTitle": "Notebooks",
+    "heading": "Eine Website einlesen",
+    "anchor": "#eine-website-einlesen",
+    "category": "Features",
+    "text": "Über die Kachel „Von einer Website\" bindest du die Inhalte einer WordPress-Website ein — etwa die Seite deines Kreis- oder Landesverbands. Du gibst die Adresse ein, der Grünerator sieht nach, welche Beiträge und Seiten es dort gibt, und du wählst aus, was ins Notebook soll. Rubriken lassen sich dabei gezielt an- und abwählen, statt alles auf einmal zu übernehmen. Der Import setzt voraus, dass die Website mit WordPress läuft und ihre Inhalte maschinenlesbar bereitstellt. Bei anderen Systemen bleibt der Weg über heruntergeladene Dateien. Websites, die du einmal hinterlegt hast, merkt sich dein Konto — du kannst sie später für weitere Notebooks wiederverwenden, ohne die Adresse erneut einzutragen."
+  },
+  {
+    "url": "/docs/features/notebooks",
+    "pageTitle": "Notebooks",
+    "heading": "Häufige Fragen",
+    "anchor": "#häufige-fragen",
+    "category": "Features",
+    "text": "Wo schalte ich ein Notebook öffentlich? Nicht mehr in der Erstellung. Öffne das Notebook über Bearbeiten und klicke oben rechts auf „Teilen\". Wähle im Dialog die Sichtbarkeit „Mit Anmeldung\" und aktiviere „Auf ‚Von der Basis' listen\", damit es auf der Wissen-Seite unter der Kachel „Von der Basis\" und in der Suche auffindbar wird. Was passiert mit Dokumenten, wenn ich ein Notebook lösche? Die Dokumente bleiben in deiner persönlichen Dokumenten-Bibliothek erhalten — nur die Sammlung wird gelöscht. Kann ich dasselbe Dokument in mehrere Notebooks aufnehmen? Ja. Beim Bearbeiten eines Notebooks kannst du beliebige Dokumente aus deiner Bibliothek auswählen. Wie lange dauert die Indexierung? Bei Text-PDFs und reinen Textdateien meist nur Sekunden. Eingescannte PDFs (mit OCR) und sehr große Dateien können einige Minuten brauchen. Das Notebook ist trotzdem sofort nutzbar — neue Dokumente erscheinen in den Antworten, sobald die Indexierung abgeschlossen ist. Mein Dokument wird nicht akzeptiert. Prüfe die Dateiendung (PDF, DOCX, PPTX, TXT, MD, CSV, PNG, JPG, AVIF) und die Dateigröße (max. 50 MB). Andere Formate — darunter .doc, .odt und .rtf — musst du vorher als PDF oder DOCX speichern. Ein…"
+  },
+  {
+    "url": "/docs/features/notebooks",
+    "pageTitle": "Notebooks",
+    "heading": "Quellen jenseits des Uploads",
+    "anchor": "#quellen-jenseits-des-uploads",
+    "category": "Features",
+    "text": "Neben hochgeladenen Dateien kennt der Editor drei weitere Quellarten. Alle drei tragen ein „Experimentell\"-Badge: sie funktionieren, aber die Sync-Logik kann sich noch ändern."
+  },
+  {
+    "url": "/docs/features/notebooks",
+    "pageTitle": "Notebooks",
+    "heading": "Teilen und veröffentlichen",
+    "anchor": "#teilen-und-veröffentlichen",
+    "category": "Features",
+    "text": "Sichtbarkeit und Veröffentlichung sind aus der Erstellung herausgelöst. Der Einstieg ist der „Teilen\"-Button: Öffne dein Notebook über Bearbeiten, dann findest du oben rechts — neben „Alle Quellen aktualisieren\" — den Button „Teilen\". Er ist nur für die Eigentümer*in sichtbar und öffnet den Dialog „Notebook teilen\", in dem du die gesamte Sichtbarkeit steuerst. (Das „Teilen\"-Untermenü im Drei-Punkte-Menü der Notebook-Übersicht ist davon getrennt: Es bietet nur „Link kopieren\" und das direkte Teilen mit einer Gruppe, aber nicht die Sichtbarkeits- und Veröffentlichungseinstellungen.) Im Dialog „Notebook teilen\" stellst du die Sichtbarkeit ein: „Privat — nur ich\" — Standard. Nur du siehst das Notebook. „Mit Gruppen geteilt\" — sichtbar für ausgewählte Gruppen. Du fügst Gruppen hinzu und legst unter „Wer darf bearbeiten?\" fest, wer Änderungen vornehmen darf (nur ich / Gruppen-Admins / alle Mitglieder). „Mit Anmeldung — alle eingeloggten Nutzer*innen\" — sichtbar für alle eingeloggten Nutzer*innen aus deinem Land."
+  },
+  {
+    "url": "/docs/features/notebooks",
+    "pageTitle": "Notebooks",
+    "heading": "Verwalten",
+    "anchor": "#verwalten",
+    "category": "Features",
+    "text": "Hinter der Karte „Eigene Notebooks\" auf der Wissen-Seite erscheint jedes deiner Notebooks als Karte im Abschnitt „Eigene\". Ein Klick auf die Karte öffnet die Notebook-Detailseite, von der aus du chatten und durchsuchen kannst. Über das Drei-Punkte-Menü der Karte erreichst du weitere Aktionen: Bearbeiten — öffnet wieder den Editor (Quellen, Details, Labels, Wolke, Docs). Auf der Bearbeiten-Seite kannst du Name und Beschreibung auch direkt im Kopfbereich ändern und alle Quellen per „Alle Quellen aktualisieren\" neu synchronisieren. Teilen — Untermenü mit „Link kopieren\" und — falls du in Gruppen bist — Optionen zum direkten Teilen mit einer Gruppe. Die volle Sichtbarkeitssteuerung liegt dagegen im „Teilen\"-Button auf der Bearbeiten-Seite (siehe oben). Löschen — entfernt das Notebook unwiderruflich. Wichtig: Die enthaltenen Dokumente bleiben in deiner persönlichen Bibliothek erhalten und können in andere Notebooks aufgenommen werden."
+  },
+  {
+    "url": "/docs/features/notebooks",
+    "pageTitle": "Notebooks",
+    "heading": "Verwandte Themen",
+    "anchor": "#verwandte-themen",
+    "category": "Features",
+    "text": "Wolke einbinden — Voraussetzung, um Wolke-Ordner an Notebooks zu hängen. Deine Daten im Grünerator — Hintergrund zu Notebooks für Landesverbände und Abgeordnetenbüros."
+  },
+  {
+    "url": "/docs/features/notebooks",
+    "pageTitle": "Notebooks",
+    "heading": "Welche Dateien hineinpassen",
+    "anchor": "#welche-dateien-hineinpassen",
+    "category": "Features",
+    "text": "Unterstützt werden PDF, DOCX, PPTX, TXT, MD, CSV sowie Bilder (PNG, JPG, AVIF, die per Texterkennung gelesen werden) — bis zu 1.000 Dokumente pro Notebook und maximal 50 MB pro Datei. Ältere Office-Formate — .doc, .odt und .rtf — kann der Grünerator nicht lesen und nimmt sie deshalb gar nicht erst an. Öffne solche Dateien einmal in Word oder LibreOffice und speichere sie als PDF oder DOCX. Dateien in einem nicht unterstützten Format oder über 50 MB kommen gar nicht erst in die Vorschau — egal ob du sie über den Dateidialog auswählst oder per Drag & Drop ablegst. Unter der Kachel steht dann, welche Datei aus welchem Grund nicht übernommen wurde. Scheitert ein Dokument später doch noch bei der Verarbeitung — etwa ein PDF ohne erkennbaren Text —, bleibt es in der Dokumentenliste stehen und ist rot als „Nicht durchsuchbar\" markiert, mit dem Grund daneben. Über den Hinweis oberhalb der Liste entfernst du alle betroffenen Dokumente auf einmal."
+  },
+  {
+    "url": "/docs/features/notebooks",
+    "pageTitle": "Notebooks",
+    "heading": "Wolke-Ordner anbinden",
+    "anchor": "#wolke-ordner-anbinden",
+    "category": "Features",
+    "text": "Wenn du bereits einen Freigabe-Link aus der Grünen Wolke eingerichtet hast, hängst du über die Kachel „Aus der Wolke verbinden\" einen Cloud-Ordner an dein Notebook. Dokumente daraus werden automatisch importiert und mit der Wolke synchronisiert. Nach der Auswahl einer Verbindung öffnet sich ein Ordner-Browser: Du hängst entweder die ganze Freigabe an oder gezielt einen Unterordner daraus — praktisch, wenn nur ein Teil der Freigabe ins Notebook gehört. Mehrere Ordner derselben Freigabe lassen sich nebeneinander anbinden. Jede Ordner-Karte hat außerdem einen Schalter „Unterordner einbeziehen\": standardmäßig aus, dann wird nur die oberste Ebene importiert; eingeschaltet zieht der Sync auch alles aus den Unterordnern mit. Schlägt beim Sync eine Datei fehl, wird sie samt Grund benannt statt stillschweigend übersprungen. Mehr zur Einrichtung des Wolke-Links: → Wolke einbinden."
   },
   {
     "url": "/docs/features/office",
@@ -1867,7 +1961,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Damit er im Gremium besteht",
     "anchor": "#damit-er-im-gremium-besteht",
     "category": "Guides",
-    "text": "Nimm das KommunalWiki als Quelle. Tippe @ und wähle KommunalWiki — das Fachwissen der Heinrich-Böll-Stiftung zur Kommunalpolitik. Für die politische Linie kommen die Grünen Grundsatzprogramme dazu. Für alles Kommunale gibt es einen eigenen Grünerator. „Kommunalpolitik\" findest du im Menüpunkt und in der Agentura; mitten im Gespräch holst du ihn mit @ dazu. Er hat das KommunalWiki fest eingestellt und kann außerdem Haushaltsentwürfe und Verwaltungsvorlagen bewerten — Stärken, Schwächen, fehlende Akzente. Ein guter Ausgangspunkt für einen Änderungsantrag. Andere Textsorten aus demselben Gespräch: Kleine und Große Anfrage, Haushaltsantrag, Resolution, kurzer Redebeitrag. Sag einfach, was du brauchst. Beim Haushaltsantrag nennst du im Auftrag zusätzlich Haushaltsstelle, Änderungsbetrag und Deckungsvorschlag. In Österreich heißt das Gremium Gemeinderat und der Haushalt Budget oder Voranschlag. Nenne beides im Auftrag beim Namen."
+    "text": "Nimm das KommunalWiki als Quelle. Tippe @ und wähle KommunalWiki — das Fachwissen der Heinrich-Böll-Stiftung zur Kommunalpolitik. Für die politische Linie kommen die Grünen Grundsatzprogramme dazu. Für alles Kommunale gibt es einen eigenen Grünerator. „Kommunalpolitik\" steht in der Agentura; mitten im Gespräch holst du ihn mit @ dazu. Er hat das KommunalWiki fest eingestellt und bewertet auf Wunsch auch Haushaltsentwürfe und Verwaltungsvorlagen — ein guter Ausgangspunkt für einen Änderungsantrag. Andere Textsorten aus demselben Gespräch: Kleine und Große Anfrage, Haushaltsantrag, Resolution, Redebeitrag — sag einfach, was du brauchst. Beim Haushaltsantrag nennst du zusätzlich Haushaltsstelle, Änderungsbetrag und Deckungsvorschlag. In Österreich heißt das Gremium Gemeinderat und der Haushalt Budget oder Voranschlag. Nenne beides im Auftrag beim Namen."
   },
   {
     "url": "/docs/guides/einsteigerinnen/antrag-stadtrat",
@@ -1875,7 +1969,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "So geht's",
     "anchor": "#so-gehts",
     "category": "Guides",
-    "text": "Eingabefeld suchen — es ist schon da. Auf der Startseite unter /start steht das Chat-Feld direkt unter der Begrüßung. Für längere Gespräche mit Verlauf und Seitenleiste gehst du in den Menüpunkt . Schreib den Auftrag mit allem, was im Antrag stehen soll. Das ist der Schritt, an dem alles hängt: Wer soll was tun, bis wann, woher kommt das Geld, was ist der Anlass — und welche Abschnitte du brauchst. „Wir wollen was zu Trinkwasser\" reicht nicht: Zieljahr, Anzahl und Zuständigkeit stehen sonst nicht im Beschlussvorschlag — und genau über den wird abgestimmt. Den Beschlussvorschlag gegenlesen. Er ist der einzige Abschnitt, über den wirklich abgestimmt wird, und er muss ohne den Rest des Papiers verständlich sein: eine Handlung, eine Zuständigkeit, eine Frist. Alles Erklärende gehört in Sachverhalt und Begründung. Im Gespräch nachschärfen. „schärfer im Beschlussvorschlag\", „ergänze einen Prüfauftrag zur Barrierefreiheit\", „mach daraus eine Kleine Anfrage\"."
+    "text": "Eingabefeld suchen — es ist schon da. Auf der Startseite unter /start steht das Chat-Feld direkt unter der Begrüßung. Für längere Gespräche mit Verlauf gehst du in den Menüpunkt . Schreib den Auftrag mit allem, was im Antrag stehen soll. Das ist der Schritt, an dem alles hängt: Wer soll was tun, bis wann, woher kommt das Geld, was ist der Anlass — und welche Abschnitte du brauchst. „Wir wollen was zu Trinkwasser\" reicht nicht: Zieljahr, Anzahl und Zuständigkeit stehen sonst nicht im Beschlussvorschlag — und genau über den wird abgestimmt. Den Beschlussvorschlag gegenlesen. Er ist der einzige Abschnitt, über den wirklich abgestimmt wird, und er muss ohne den Rest des Papiers verständlich sein: eine Handlung, eine Zuständigkeit, eine Frist. Alles Erklärende gehört in Sachverhalt und Begründung. Im Gespräch nachschärfen. „schärfer im Beschlussvorschlag\", „ergänze einen Prüfauftrag zur Barrierefreiheit\", „mach daraus eine Kleine Anfrage\"."
   },
   {
     "url": "/docs/guides/einsteigerinnen/antrag-stadtrat",
@@ -1891,7 +1985,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Wenn es nicht passt",
     "anchor": "#wenn-es-nicht-passt",
     "category": "Guides",
-    "text": "Der Antrag bleibt allgemein? Dann fehlten Angaben. Zurück zu Schritt 2: Frist, Menge, Zuständigkeit, Deckung. Paragrafen und Zahlen prüfst du selbst. Gemeindeordnungen unterscheiden sich je Bundesland und je Land — einen zitierten Paragrafen nie ungeprüft einreichen. Siehe Risiken & Gefahren. Eure eigene Beschlusslage kennt der Grünerator nicht. Halte sie in einem Notebook fest, dann kannst du im Antrag darauf aufbauen."
+    "text": "Der Antrag bleibt allgemein? Dann fehlten Angaben. Zurück zu Schritt 2: Frist, Menge, Zuständigkeit, Deckung. Paragrafen und Zahlen prüfst du selbst. Gemeindeordnungen unterscheiden sich je Bundesland und je Land — einen zitierten Paragrafen nie ungeprüft einreichen (Risiken & Gefahren). Eure eigene Beschlusslage kennt der Grünerator nicht. Halte sie in einem Notebook fest, dann kannst du im Antrag darauf aufbauen."
   },
   {
     "url": "/docs/guides/einsteigerinnen/eigenes-notebook-erstellen",
@@ -1899,95 +1993,31 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Eigenes Notebook erstellen",
     "anchor": "",
     "category": "Guides",
-    "text": "Ein Notebook bündelt Dokumente zu einem Thema und macht ihren Inhalt im Grünerator durchsuchbar — etwa für Anträge, Beschlüsse, Programme oder Pressemitteilungen. Diese Anleitung führt dich Schritt für Schritt durch die Erstellung deines ersten eigenen Notebooks."
+    "text": "Am Ende hast du ein Notebook, das eure Dokumente bündelt und ihren Inhalt im Grünerator durchsuchbar macht — für Anträge, Beschlüsse, Programme oder Pressemitteilungen. Du brauchst dafür etwa zehn Minuten und ein paar Dateien."
   },
   {
     "url": "/docs/guides/einsteigerinnen/eigenes-notebook-erstellen",
     "pageTitle": "Eigenes Notebook erstellen",
-    "heading": "Auf „Von der Basis\" listen",
-    "anchor": "#auf-von-der-basis-listen",
+    "heading": "Damit es etwas taugt",
+    "anchor": "#damit-es-etwas-taugt",
     "category": "Guides",
-    "text": "Im Modus „Mit Anmeldung\" kannst du zusätzlich den Schalter „Auf ‚Von der Basis' listen\" aktivieren. Dann erscheint dein Notebook für andere auf der Wissen-Seite: in der Notebook-Reihe gibt es die Kachel „Von der Basis\", die alle so gelisteten Notebooks aufklappt. Zusätzlich taucht es in der Suche der Wissen-Seite auf, die System-Notebooks, eigene und öffentliche Notebooks gemeinsam durchsucht. Sobald du den Schalter aktivierst, musst du eine der beiden Aussagen bestätigen: „Ich besitze die Daten\" — … oder habe die Rechte zur Veröffentlichung; z.&nbsp;B. eigene Texte, Beschlüsse deines Verbands, Material, das du selbst veröffentlichen darfst. „Daten sind öffentlich verfügbar\" — z.&nbsp;B. offizielle Dokumente, Pressemitteilungen, frei zugängliche Veröffentlichungen. Ohne diese Bestätigung lässt sich das Notebook nicht listen. Hintergrund: Damit stellen wir sicher, dass nur Inhalte mit klarer Rechtelage veröffentlicht werden. Wenn du dir bei den Rechten unsicher bist, lass das Notebook privat — du kannst die Sichtbarkeit jederzeit später ändern."
+    "text": "Ein Thema pro Notebook. Ein Notebook mit allem darin liefert schlechtere Treffer als drei mit klarem Zuschnitt. Prüfe, was rot ist. Ein Dokument, aus dem sich kein Text gewinnen ließ — etwa ein gescanntes PDF ohne Texterkennung —, steht als „Nicht durchsuchbar\" in der Liste und taucht in keiner Antwort auf. Der Grund steht daneben. Im Chat nutzen: Tippe @ und wähle dein Notebook, dann antwortet der Grünerator daraus — mit Belegen. Ein eigener Grünerator-Agent kann es sogar dauerhaft durchsuchen, siehe Eigene Grüneratoren erstellen. Beim Erstellen gehört das Notebook nur dir. Ob und für wen es sichtbar wird, entscheidest du danach im „Teilen\"-Menü — beschrieben unter Notebooks."
   },
   {
     "url": "/docs/guides/einsteigerinnen/eigenes-notebook-erstellen",
     "pageTitle": "Eigenes Notebook erstellen",
-    "heading": "Dein Notebook nach der Erstellung",
-    "anchor": "#dein-notebook-nach-der-erstellung",
+    "heading": "So geht's",
+    "anchor": "#so-gehts",
     "category": "Guides",
-    "text": "Hinter der Karte „Eigene Notebooks\" auf der Wissen-Seite erscheint jedes deiner Notebooks als Karte im Abschnitt „Eigene\". Ein Klick auf die Karte öffnet die Notebook-Detailseite, von der aus du chatten und durchsuchen kannst. Über das Drei-Punkte-Menü der Karte erreichst du weitere Aktionen: Bearbeiten — öffnet wieder den Editor (Quellen, Details, Labels, Wolke, Docs). Auf der Bearbeiten-Seite kannst du Name und Beschreibung auch direkt im Kopfbereich ändern und alle Quellen per „Alle Quellen aktualisieren\" neu synchronisieren. Teilen — Untermenü mit „Link kopieren\" (kopiert die URL des Notebooks) und — falls du in Gruppen bist — Optionen zum direkten Teilen mit einer Gruppe. Die volle Sichtbarkeits- und Veröffentlichungssteuerung liegt dagegen im „Teilen\"-Button auf der Bearbeiten-Seite (siehe Notebook teilen). Löschen — entfernt das Notebook unwiderruflich. Wichtig: Die enthaltenen Dokumente bleiben in deiner persönlichen Bibliothek erhalten und können in andere Notebooks aufgenommen werden."
+    "text": "Zur Wissen-Seite. Öffne Wissen (/wissen) — dort liegen alle Notebooks an einem Ort. Hast du noch keins, steht in der Notebook-Leiste die Karte „Neues erstellen\"; ein Klick öffnet den Editor. Sobald du eins besitzt, heißt die Karte „Eigene Notebooks\" und klappt den Abschnitt „Eigene\" mit dem Button „Notebook erstellen\" auf. Dateien hochladen. Der Editor führt dich durch drei Schritte: Quellen → Details → Überprüfen. Im ersten wählst du die Kachel Dateien hochladen und ziehst deine Dokumente ins Fenster oder suchst sie im Dateibrowser. Sie sammeln sich als Vorschau „Bereit zum Hochladen\" — dort kannst du einzelne wieder entfernen, dann startest du mit „Hochladen\". Angenommen werden PDF, DOCX, PPTX, TXT, MD, CSV und Bilder (PNG, JPG, AVIF), bis 50 MB pro Datei. Ältere Formate wie .doc oder .odt speicherst du vorher einmal als PDF. Neben dem Upload gibt es drei weitere Quellarten — Wolke, Docs und WordPress-Websites —, die auf der Seite Notebooks beschrieben sind. Name, Beschreibung, Labels. Den Namen schlägt der Editor aus deiner ersten Datei vor; du kannst ihn überschreiben. Die Beschreibung ist optional, hilft aber später beim Wiederfinden — genau wie die bis zu zehn frei wählbaren…"
   },
   {
     "url": "/docs/guides/einsteigerinnen/eigenes-notebook-erstellen",
     "pageTitle": "Eigenes Notebook erstellen",
-    "heading": "Dein Notebook teilen und veröffentlichen",
-    "anchor": "#dein-notebook-teilen-und-veröffentlichen",
+    "heading": "Weiterlesen",
+    "anchor": "#weiterlesen",
     "category": "Guides",
-    "text": "Sichtbarkeit und Veröffentlichung sind aus der Erstellung herausgelöst. Der Einstieg ist der „Teilen\"-Button: Öffne dein Notebook über Bearbeiten, dann findest du oben rechts — neben „Alle Quellen aktualisieren\" — den Button „Teilen\". Er ist nur für die Eigentümer*in sichtbar und öffnet den Dialog „Notebook teilen\", in dem du die gesamte Sichtbarkeit steuerst. (Das „Teilen\"-Untermenü im Drei-Punkte-Menü der Notebook-Übersicht ist davon getrennt: Es bietet nur „Link kopieren\" und das direkte Teilen mit einer Gruppe, aber nicht die Sichtbarkeits- und Veröffentlichungseinstellungen.) Im Dialog „Notebook teilen\" stellst du die Sichtbarkeit ein: „Privat — nur ich\" — Standard. Nur du siehst das Notebook. „Mit Gruppen geteilt\" — sichtbar für ausgewählte Gruppen. Du fügst Gruppen hinzu und legst unter „Wer darf bearbeiten?\" fest, wer Änderungen vornehmen darf (nur ich / Gruppen-Admins / alle Mitglieder). „Mit Anmeldung — alle eingeloggten Nutzer*innen\" — sichtbar für alle eingeloggten Nutzer*innen aus deinem Land."
-  },
-  {
-    "url": "/docs/guides/einsteigerinnen/eigenes-notebook-erstellen",
-    "pageTitle": "Eigenes Notebook erstellen",
-    "heading": "Häufige Fragen",
-    "anchor": "#häufige-fragen",
-    "category": "Guides",
-    "text": "Wo schalte ich ein Notebook öffentlich? Nicht mehr in der Erstellung. Öffne das Notebook über Bearbeiten und klicke oben rechts auf „Teilen\". Wähle im Dialog die Sichtbarkeit „Mit Anmeldung\" und aktiviere „Auf ‚Von der Basis' listen\", damit es auf der Wissen-Seite unter der Kachel „Von der Basis\" und in der Suche auffindbar wird. Was passiert mit Dokumenten, wenn ich ein Notebook lösche? Die Dokumente bleiben in deiner persönlichen Dokumenten-Bibliothek erhalten — nur die Sammlung wird gelöscht. Kann ich dasselbe Dokument in mehrere Notebooks aufnehmen? Ja. Beim Bearbeiten eines Notebooks kannst du beliebige Dokumente aus deiner Bibliothek auswählen. Wie lange dauert die Indexierung? Bei Text-PDFs und reinen Textdateien meist nur Sekunden. Eingescannte PDFs (mit OCR) und sehr große Dateien können einige Minuten brauchen. Das Notebook ist trotzdem sofort nutzbar — neue Dokumente erscheinen in den Antworten, sobald die Indexierung abgeschlossen ist. Mein Dokument wird nicht akzeptiert. Prüfe die Dateiendung (PDF, DOCX, PPTX, TXT, MD, CSV, PNG, JPG, AVIF) und die Dateigröße (max. 50 MB). Andere Formate — darunter .doc, .odt und .rtf — musst du vorher als PDF oder DOCX speichern. Ein…"
-  },
-  {
-    "url": "/docs/guides/einsteigerinnen/eigenes-notebook-erstellen",
-    "pageTitle": "Eigenes Notebook erstellen",
-    "heading": "Schritt 1: Zur Notebook-Übersicht",
-    "anchor": "#schritt-1-zur-notebook-übersicht",
-    "category": "Guides",
-    "text": "Öffne in der Navigation Wissen (/wissen). Auf dieser Seite sind alle Notebooks an einem Ort gebündelt. Solange du noch kein eigenes Notebook hast, liegt in der Notebook-Leiste oben eine Karte „Neues erstellen\" — ein Klick darauf öffnet direkt den Editor. Sobald du mindestens ein eigenes Notebook besitzt, tritt an ihre Stelle die Karte „Eigene Notebooks\": Sie klappt den Abschnitt „Eigene\" auf, in dem neben der Überschrift der Button „Notebook erstellen\" sitzt."
-  },
-  {
-    "url": "/docs/guides/einsteigerinnen/eigenes-notebook-erstellen",
-    "pageTitle": "Eigenes Notebook erstellen",
-    "heading": "Schritt 2: Quellen wählen",
-    "anchor": "#schritt-2-quellen-wählen",
-    "category": "Guides",
-    "text": "Im ersten Schritt des Editors („Quellen — Woher kommen deine Dokumente?\") stehen vier Kacheln zur Auswahl: Dateien hochladen — Dateien aus dem Dateibrowser auswählen (Mehrfachauswahl möglich) oder per Drag &amp; Drop auf das Fenster ziehen. Aus der Wolke verbinden — einen Ordner aus der Grünen Wolke als Quelle nutzen (siehe Schritt 3). Aus Docs importieren — eigene Docs als Quelle einbinden (siehe Schritt 3). Von einer Website — Beiträge und Seiten einer WordPress-Website importieren (siehe Schritt 3). Beim Hochladen werden die gewählten Dateien zunächst als Vorschau „Bereit zum Hochladen\" gesammelt. Dort kannst du einzelne Dateien wieder entfernen und startest den Upload dann mit „Hochladen\". Überschüssige Uploads jenseits der 1.000 werden mit einem Hinweis abgelehnt. Dateien in einem nicht unterstützten Format oder über 50 MB kommen gar nicht erst in die Vorschau — egal ob du sie über den Dateidialog auswählst oder per Drag & Drop ablegst. Unter der Kachel steht dann, welche Datei aus welchem Grund nicht übernommen wurde. Scheitert ein Dokument später doch noch bei der Verarbeitung — etwa ein PDF ohne erkennbaren Text —, bleibt es in der Dokumentenliste stehen und ist rot als…"
-  },
-  {
-    "url": "/docs/guides/einsteigerinnen/eigenes-notebook-erstellen",
-    "pageTitle": "Eigenes Notebook erstellen",
-    "heading": "Schritt 3: Name, Beschreibung und Labels",
-    "anchor": "#schritt-3-name-beschreibung-und-labels",
-    "category": "Guides",
-    "text": "Im zweiten Schritt („Details — Wie soll dein Notebook heißen?\") passt du den vorgeschlagenen Namen an (max. 100 Zeichen). Darunter kannst du eine optionale Beschreibung hinzufügen (max. 500 Zeichen) — sie hilft dir und anderen, später schnell zu erkennen, worum es im Notebook geht. Über das Label-Feld vergibst du bis zu 10 Labels (max. 30 Zeichen pro Label). Labels sind freie Schlagworte und helfen beim Sortieren und Filtern in der Notebook-Übersicht."
-  },
-  {
-    "url": "/docs/guides/einsteigerinnen/eigenes-notebook-erstellen",
-    "pageTitle": "Eigenes Notebook erstellen",
-    "heading": "Schritt 4: Überprüfen und erstellen",
-    "anchor": "#schritt-4-überprüfen-und-erstellen",
-    "category": "Guides",
-    "text": "Im dritten Schritt („Überprüfen — Alles bereit zum Erstellen?\") siehst du eine Zusammenfassung: Name, Beschreibung, die Anzahl der Dokumente (eigene, aus der Wolke, aus Docs) und deine Labels. Klicke unten rechts auf „Notebook erstellen\". Der Button bleibt deaktiviert, solange noch kein Name eingetragen oder kein Dokument hochgeladen ist. Nach dem Speichern siehst du eine Erfolgsmeldung und landest direkt im Bearbeiten-Bereich deines neuen Notebooks — dort kannst du sofort weitere Dokumente ergänzen oder das Teilen einstellen. Beim Erstellen ist dein Notebook privat. Ob und für wen es sichtbar wird, legst du danach im „Teilen\"-Menü fest — siehe unten."
-  },
-  {
-    "url": "/docs/guides/einsteigerinnen/eigenes-notebook-erstellen",
-    "pageTitle": "Eigenes Notebook erstellen",
-    "heading": "Schritt-für-Schritt",
-    "anchor": "#schritt-für-schritt",
-    "category": "Guides",
-    "text": "Der Editor führt dich durch drei Schritte: Quellen → Details → Überprüfen. Das Veröffentlichen ist bewusst kein Teil der Erstellung — es passiert später über das „Teilen\"-Menü (siehe Notebook teilen)."
-  },
-  {
-    "url": "/docs/guides/einsteigerinnen/eigenes-notebook-erstellen",
-    "pageTitle": "Eigenes Notebook erstellen",
-    "heading": "Verwandte Themen",
-    "anchor": "#verwandte-themen",
-    "category": "Guides",
-    "text": "Wolke einbinden — Voraussetzung, um Wolke-Ordner an Notebooks zu hängen. Deine Daten im Grünerator — Hintergrund zu Notebooks für Landesverbände und Abgeordnetenbüros."
-  },
-  {
-    "url": "/docs/guides/einsteigerinnen/eigenes-notebook-erstellen",
-    "pageTitle": "Eigenes Notebook erstellen",
-    "heading": "Was du benötigst",
-    "anchor": "#was-du-benötigst",
-    "category": "Guides",
-    "text": "Ein angemeldetes Grünerator-Konto und ein paar Dokumente, die du zusammenfassen, durchsuchen oder als Wissensbasis nutzen möchtest. Unterstützt werden PDF, DOCX, PPTX, TXT, MD, CSV sowie Bilder (PNG, JPG, AVIF, die per Texterkennung gelesen werden) — bis zu 1.000 Dokumente pro Notebook und maximal 50 MB pro Datei. Ältere Office-Formate — .doc, .odt und .rtf — kann der Grünerator nicht lesen und nimmt sie deshalb gar nicht erst an. Öffne solche Dateien einmal in Word oder LibreOffice und speichere sie als PDF oder DOCX."
+    "text": "Notebooks — Quellarten, Teilen, Verwaltung, häufige Fragen Wolke einbinden — Voraussetzung, um Wolke-Ordner anzuhängen"
   },
   {
     "url": "/docs/guides/einsteigerinnen/social-media-beitrag",
@@ -2003,7 +2033,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Damit er nach euch klingt",
     "anchor": "#damit-er-nach-euch-klingt",
     "category": "Guides",
-    "text": "Plattform gezielt setzen. Brauchst du dieselbe Ankündigung für mehrere Kanäle, stell das Rezept voran: @instagram, @facebook, @linkedin, @twitter oder @reel. Jedes kennt Aufbau, Ton und Längenvorgabe seiner Plattform. Gib eine Quelle mit. Bei politischen Themen: Tippe @ und wähle z. B. Grüne Grundsatzprogramme — dann argumentiert der Post entlang eurer Beschlusslage. Schau dir echte Posts an. @beispiele zeigt tatsächlich veröffentlichte Beiträge als Vorlage. Hinterlege deinen Landesverband einmalig in den Einstellungen. Danach schlagen die Rezepte deines Landesverbands vor, wie ihr dort schreibt."
+    "text": "Plattform gezielt setzen. Brauchst du dieselbe Ankündigung für mehrere Kanäle, stell das Rezept voran: @instagram, @facebook, @linkedin, @twitter oder @reel — jedes kennt Aufbau, Ton und Länge seiner Plattform. Gib eine Quelle mit. Bei politischen Themen: Tippe @ und wähle z. B. Grüne Grundsatzprogramme — dann argumentiert der Post entlang eurer Beschlusslage. Schau dir echte Posts an. @beispiele zeigt tatsächlich veröffentlichte Beiträge als Vorlage. Hinterlege deinen Landesverband einmalig in den Einstellungen — danach kennen die Rezepte euren Stil."
   },
   {
     "url": "/docs/guides/einsteigerinnen/social-media-beitrag",
@@ -2011,7 +2041,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "So geht's",
     "anchor": "#so-gehts",
     "category": "Guides",
-    "text": "Eingabefeld suchen — es ist schon da. Auf der Startseite unter /start steht das Chat-Feld direkt unter der Begrüßung. Für längere Gespräche mit Verlauf und Seitenleiste gehst du in den Menüpunkt . Schreib den Auftrag mit allem, was drinstehen soll. Das ist der Schritt, an dem alles hängt: Der Post kann nur so konkret werden wie deine Angaben. Nenne Anlass, Ort, Uhrzeit, wer kommt, was es gibt — und für wen du schreibst. Dass „Instagram-Beitrag\" im Satz steht, genügt — die Plattform musst du nicht extra auswählen. „Schreib was zum Stadtfest\" dagegen liefert Floskeln: Uhrzeit, Adresse und Namen erfindet der Grünerator nicht. Im Gespräch nachschärfen. „kürzer\", „weniger Emojis\", „ein Hinweis auf Barrierefreiheit\", „anderer Einstieg\". Der Zusammenhang bleibt erhalten — du musst die Angaben nicht wiederholen. Bild dazuholen. „Mach ein Sharepic daraus\" oder @sharepic. Zum Feinschliff öffnet sich der Editor, der Text bleibt erhalten."
+    "text": "Eingabefeld suchen — es ist schon da. Auf der Startseite unter /start steht das Chat-Feld direkt unter der Begrüßung. Für längere Gespräche mit Verlauf gehst du in den Menüpunkt . Schreib den Auftrag mit allem, was drinstehen soll. Das ist der Schritt, an dem alles hängt: Der Post kann nur so konkret werden wie deine Angaben. Nenne Anlass, Ort, Uhrzeit, wer kommt, was es gibt — und für wen du schreibst. Dass „Instagram-Beitrag\" im Satz steht, genügt — die Plattform musst du nicht extra auswählen. „Schreib was zum Stadtfest\" dagegen liefert Floskeln: Uhrzeit, Adresse und Namen erfindet der Grünerator nicht. Im Gespräch nachschärfen. „kürzer\", „weniger Emojis\", „anderer Einstieg\". Die Angaben musst du nicht wiederholen. Bild dazuholen. „Mach ein Sharepic daraus\" oder @sharepic. Zum Feinschliff öffnet sich der Editor, der Text bleibt erhalten."
   },
   {
     "url": "/docs/guides/einsteigerinnen/social-media-beitrag",
@@ -2027,7 +2057,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Wenn es nicht passt",
     "anchor": "#wenn-es-nicht-passt",
     "category": "Guides",
-    "text": "Der Post klingt beliebig? Dann fehlten Angaben. Zurück zu Schritt 2: konkreter Anlass, Ort, Datum, Namen. Zahlen, Zitate und Namen prüfst du selbst, bevor der Post rausgeht — siehe Risiken & Gefahren. Kennzeichnung nicht vergessen, wenn der Beitrag KI-generiert ist: Kennzeichnungs-Guide. In Gesprächen von vor August 2026 steht ein Social-Media-Post in einer eigenen Karte mit dem Kennzeichen Experimentell. Diese Karten kannst du weiterhin im Chat überarbeiten. Neu geschriebene Posts kommen als normaler Text — den Weg über die Karte gibt es nicht mehr."
+    "text": "Der Post klingt beliebig? Dann fehlten Angaben. Zurück zu Schritt 2: konkreter Anlass, Ort, Datum, Namen. Zahlen, Zitate und Namen prüfst du selbst — siehe Risiken & Gefahren. Kennzeichnung nicht vergessen, wenn der Beitrag KI-generiert ist: Kennzeichnungs-Guide. In Gesprächen von vor August 2026 steht ein Social-Media-Post in einer eigenen Karte mit dem Kennzeichen Experimentell. Diese Karten kannst du weiterhin im Chat überarbeiten. Neu geschriebene Posts kommen als normaler Text — den Weg über die Karte gibt es nicht mehr."
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-agentinnen-erstellen",
@@ -2035,7 +2065,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Eigene Grüneratoren erstellen",
     "anchor": "",
     "category": "Guides",
-    "text": "Du kannst dir im Grünerator deine eigenen Grüneratoren bauen — ganz ohne technische Vorkenntnisse. Es gibt zwei Wege: per Beschreibung (die KI erstellt einen Entwurf) oder manuell über das Formular. Eigene Grüneratoren sind noch in der Erprobung. Verhalten und Funktionen können sich ändern, und nicht alles funktioniert schon zuverlässig. Beim Bauen siehst du oben einen entsprechenden Hinweis-Banner. Bitte melde Probleme dem Team. In der Mehrzahl heißen sie Grüneratoren. In der Einzahl sagen wir Grünerator-Agent — „der Grünerator\" ohne Zusatz meint das Produkt als Ganzes."
+    "text": "Du kannst dir im Grünerator deine eigenen Grüneratoren bauen — ganz ohne technische Vorkenntnisse. Es gibt zwei Wege: per Beschreibung (die KI erstellt einen Entwurf) oder manuell über das Formular. Noch in der Erprobung: Verhalten und Funktionen können sich ändern. Melde Probleme gern dem Team."
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-agentinnen-erstellen",
@@ -2051,7 +2081,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Schritt 2: Agent beschreiben (empfohlen)",
     "anchor": "#schritt-2-agent-beschreiben-empfohlen",
     "category": "Guides",
-    "text": "Du landest auf der Seite „Was für einen Grünerator-Agenten möchtest du bauen?\". Beschreibe im Eingabefeld (Platzhalter „Beschreibe deinen neuen Grünerator-Agenten…\") in eigenen Worten, was er können soll – Zweck, Ton und Fähigkeiten. Zum Einstieg kannst du auch eines der Beispiele anklicken: 📰 Pressestelle, 🚲 Recherche-Bot oder 📣 Social Media. Drücke anschließend den Senden-Pfeil (oder Enter). Der Grünerator erstellt daraus einen Entwurf und öffnet direkt den Editor mit vorausgefüllten Feldern. Klicke auf „Lieber manuell anlegen?\", um den Editor mit leerem Formular zu öffnen (entspricht der Adresse /agents/new/manual)."
+    "text": "Beschreibe in eigenen Worten, was er können soll — Zweck, Ton, Fähigkeiten. Zum Einstieg kannst du eines der Beispiele anklicken: 📰 Pressestelle, 🚲 Recherche-Bot oder 📣 Social Media. Mit Enter baut der Grünerator daraus einen Entwurf und öffnet den Editor mit vorausgefüllten Feldern. Klicke auf „Lieber manuell anlegen?\", um den Editor mit leerem Formular zu öffnen (entspricht der Adresse /agents/new/manual)."
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-agentinnen-erstellen",
@@ -2059,7 +2089,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Schritt 3: Im Editor anpassen",
     "anchor": "#schritt-3-im-editor-anpassen",
     "category": "Guides",
-    "text": "Der Editor zeigt links das Formular und rechts eine Live-Vorschau. Die Felder sind in Tabs gegliedert: Grundlagen, Werkzeuge und Wissen (bei wiederkehrenden Aufgaben zusätzlich Zeitplan). Pflichtfelder (Tab Grundlagen): Name — der Anzeigename deines Agenten. Daneben wählst du über den Icon-Picker ein Symbol. Beschreibung — ein kurzer Satz, was der Agent macht. Anleitung — die eigentliche Anweisung an die KI (das „System-Prompt\"), z.B. beginnend mit „Du bist ein*e …\". Mindestens 10 Zeichen. Tab Werkzeuge — wähle per Checkbox, was dein Agent können soll. Standardmäßig sind Grünerator-Wissen und Recherche aktiv. Zur Auswahl stehen: Werkzeug | Funktion | -------------------------- | ---------------------------------------------------------------------------------------------------------------- | Grünerator-Wissen | Durchsucht die Grünerator-Wissensdatenbank (Programme, Beschlüsse, Kommunalwiki). | Recherche | Sucht im Web — die Suchtiefe (schnelle Suche bis mehrstufige Recherche) passt sich automatisch an. | Social-Media-Beispiele | Findet passende Beispiel-Posts aus dem Grünerator-Fundus. | Bildgenerierung | Erstellt Bilder aus einer Beschreibung. | Bildbearbeitung | Bearbeitet ein…"
+    "text": "Links das Formular, rechts eine Live-Vorschau. Die Felder liegen in drei Tabs. Grundlagen — die drei Pflichtfelder: Name (samt Symbol aus dem Icon-Picker), Beschreibung (ein Satz, was er macht) und Anleitung — die eigentliche Anweisung an die KI, z. B. beginnend mit „Du bist ein*e …\", mindestens 10 Zeichen. Werkzeuge — was er können soll: Ein markiert die beiden, die ab Werk aktiv sind. Darunter steht Quell-Links direkt im Antworttext — für versandfertige E-Mails und Briefe: Artikel-URLs aus der Recherche erscheinen dann inline statt nur als Quellen-Karten. Wissen — welche Notebooks er automatisch durchsucht, Mehrfachauswahl möglich: Grünerator-Notebooks und, sobald du eigene hast, Meine Notebooks. Optional aufklappbar: Begrüßung & Startfragen (Begrüßungstext und Beispielfragen, eine pro Zeile) sowie Erweiterte Einstellungen (Region de-DE/de-AT, Tags, Modell). Richte vorher ein Notebook mit euren Dokumenten ein. Wählst du es unter Wissen aus, antwortet dein Agent ausschließlich aus euren Quellen — mit nachprüfbaren Belegen."
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-agentinnen-erstellen",
@@ -2067,7 +2097,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Schritt 4: Speichern und nutzen",
     "anchor": "#schritt-4-speichern-und-nutzen",
     "category": "Guides",
-    "text": "Klicke oben rechts auf Speichern. Der Knopf ist erst aktiv, wenn Name, Beschreibung und Anleitung ausgefüllt sind. Beim ersten Speichern wird der Agent angelegt und du landest direkt auf seiner Bearbeitungsseite. Bei jedem weiteren Speichern dort erscheint oben rechts „Gespeichert ✓\". Von dort öffnest du ihn über Im Chat öffnen und kannst sofort mit ihm arbeiten. Spätere Änderungen nimmst du jederzeit über das Stift-Symbol (Bearbeiten) auf der Karte oder Detailseite vor. Mit Abbrechen verwirfst du nicht gespeicherte Änderungen."
+    "text": "Speichern oben rechts wird aktiv, sobald die drei Pflichtfelder stehen. Danach landest du auf der Bearbeitungsseite und öffnest ihn von dort über Im Chat öffnen. Ändern kannst du ihn jederzeit über das Stift-Symbol auf seiner Karte."
   },
   {
     "url": "/docs/guides/intro",
