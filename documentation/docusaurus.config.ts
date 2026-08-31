@@ -108,15 +108,20 @@ const config: Config = {
           { from: '/docs/gruenerieren/was-kann-ich-fragen', to: '/docs/chat/was-kann-ich-fragen' },
           { from: '/docs/gruenerieren/dateien-hinzufuegen', to: '/docs/chat/dateien-hinzufuegen' },
           { from: '/docs/gruenerieren/ki-modelle', to: '/docs/chat/ki-modelle' },
-          // social-media-post.mdx was removed — its topic now lives in
-          // "Was kann ich fragen?". Both spellings keep resolving: the URL was
-          // cited to users in chat and is compiled into shipped mobile
-          // binaries (SOCIAL_POST_DOC_URL), which no deploy can update.
+          // social-media-post.mdx was removed; its successor is the guide
+          // "Wie schreibe ich einen Social Media Beitrag?". Both spellings keep
+          // resolving: /docs/chat/social-media-post was compiled into a shipped
+          // mobile binary as SOCIAL_POST_DOC_URL (commit daa4fff59, 07/2026),
+          // which no deploy can update, and the .de spelling was cited to users
+          // in chat. Retargeting them is safe — only the destination moves.
           {
             from: '/docs/gruenerieren/social-media-post',
-            to: '/docs/chat/was-kann-ich-fragen',
+            to: '/docs/guides/einsteigerinnen/social-media-beitrag',
           },
-          { from: '/docs/chat/social-media-post', to: '/docs/chat/was-kann-ich-fragen' },
+          {
+            from: '/docs/chat/social-media-post',
+            to: '/docs/guides/einsteigerinnen/social-media-beitrag',
+          },
           // websuche.md was removed — its topic now lives in "Was kann ich fragen?".
           { from: '/docs/gruenerieren/websuche', to: '/docs/chat/was-kann-ich-fragen' },
           // agents/* → grueneratoren/*
