@@ -103,6 +103,7 @@ export const SECTIONS: DocSection[] = [
       { label: 'Überblick', to: '/docs/features/intro' },
       { label: 'Office', to: '/docs/features/office' },
       { label: 'Agentura', to: '/docs/features/agentura' },
+      { label: 'Notebooks', to: '/docs/features/notebooks' },
       { label: 'Landesverbände', to: '/docs/features/landesverbaende' },
     ],
   },

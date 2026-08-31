@@ -25,7 +25,7 @@ Diese Dokumentation wurde mit [Docusaurus](https://docusaurus.io/) erstellt und 
 - `## Damit …` — 2 bis 4 Stellschrauben, mit denen das Ergebnis besser wird.
 - `## Wenn …` — die zwei, drei häufigsten Stolpersteine, inklusive der Sorgfaltspflichten (Zahlen prüfen, Kennzeichnung).
 - `## Weiterlesen` — Verweise in die Bereichs-Doku.
-- Zielmarke: **300 bis 400 Wörter**, eine Bildschirmseite. Wird es länger, ist es zwei Guides oder gehört in die Referenz.
+- Zielmarke: **350 bis 450 Wörter** inklusive Auszeichnung, eine Bildschirmseite. Wird es länger, ist es zwei Guides oder gehört in die Referenz — so ist aus der langen Notebook-Anleitung ein Guide plus `features/notebooks.md` geworden.
 
 **Handwerk:** Du-Form. UI-Namen über `<UiLabel id="…" />`, nie abtippen — ein umbenannter Menüpunkt soll den Build brechen, nicht die Doku still veralten. Nach neuen Seiten `pnpm docs:index` laufen lassen, sonst schlägt der Pflicht-Check in der CI fehl.
 
