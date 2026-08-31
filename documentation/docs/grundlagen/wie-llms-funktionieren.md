@@ -1,5 +1,6 @@
 ---
 sidebar_position: 1
+description: 'Neuronale Netze, Training und Tokens — verständlich erklärt, ohne Mathematik und ohne Vorwissen.'
 ---
 
 # Grundlagen

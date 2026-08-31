@@ -1,5 +1,6 @@
 ---
 sidebar_position: 4
+description: 'Einmal sagen, wo du arbeitest — danach kennt der Grünerator die Pressemitteilungen, Beschlüsse und Vorlagen deines Landesverbands.'
 ---
 
 # Für deinen Landesverband einrichten

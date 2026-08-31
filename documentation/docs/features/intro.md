@@ -1,5 +1,6 @@
 ---
 sidebar_position: 1
+description: 'Die drei großen Flächen neben dem Chat — Office, Agentura und die Inhalte der Landesverbände — mit Verweis auf jede Einzelseite.'
 ---
 
 # Features

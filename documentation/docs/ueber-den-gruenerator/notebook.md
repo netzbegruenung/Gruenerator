@@ -1,6 +1,7 @@
 ---
 title: Deine Daten im Grünerator
 sidebar_position: 20
+description: 'Für Landesverbände und Abgeordnetenbüros: eigene Daten einpflegen und damit die kostenfreie Nutzung für die Basis finanzieren.'
 ---
 
 # Deine Daten im Grünerator

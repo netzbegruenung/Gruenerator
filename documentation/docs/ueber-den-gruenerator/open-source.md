@@ -1,6 +1,7 @@
 ---
 sidebar_position: 5
 title: Worauf der Grünerator aufbaut
+description: 'Die freien Projekte, auf denen der Grünerator steht — was jedes davon hier tut und was technisch dahintersteckt.'
 ---
 
 # Worauf der Grünerator aufbaut
