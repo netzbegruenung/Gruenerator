@@ -34,6 +34,25 @@ const log = createLogger('Mem0Service');
 const MEMORY_SCORE_THRESHOLD = 0.3;
 
 /**
+ * Ist dieser Fehler „das Extraktionsmodell hat unlesbar geantwortet"?
+ *
+ * mem0ai verpackt JEDEN Wurf aus dem LLM in einen `LLMError` und haengt das
+ * Original als `cause` an (`addToVectorStore`). Ein Transportausfall — Regolos
+ * HTTP 402 aus #3065 etwa — traegt darunter seinen eigenen Fehler und faellt
+ * deshalb weiter in den lauten `error`-Zweig; nur der Parse-Ausfall traegt den
+ * `SyntaxError`, den `Mem0ExtractionLlm` wirft. Beide zaehlen als Ausfall, aber
+ * ein Modell, das schlecht formatiert, ist keine Stoerung derselben Lautstaerke
+ * wie ein Host, der gar nicht antwortet.
+ */
+function isExtractionParseFailure(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  if (error.name === 'ZodError' || error.name === 'SyntaxError') return true;
+  if (error.name !== 'LLMError') return false;
+  const cause = error.cause;
+  return cause instanceof Error && (cause.name === 'ZodError' || cause.name === 'SyntaxError');
+}
+
+/**
  * Singleton instance of the Mem0 service.
  */
 let mem0Instance: Mem0Service | null = null;
@@ -140,8 +159,7 @@ export class Mem0Service {
           metadata: metadata as Record<string, unknown>,
         });
       } catch (addError: unknown) {
-        const errName = addError instanceof Error ? addError.name : '';
-        if (errName === 'ZodError' || errName === 'SyntaxError') {
+        if (isExtractionParseFailure(addError)) {
           // Non-fatal, but a real silent-extraction failure: the SDK couldn't
           // parse the LLM output, so 0 memories were saved. Surface at warn (not
           // debug) so an unhealthy extraction model is visible in normal logs.
@@ -152,7 +170,7 @@ export class Mem0Service {
           // gegen die mem0Health.ts geschrieben ist.
           recordMem0Failure('add');
           log.warn(
-            `[Mem0] ${errName} from mem0ai SDK — extraction parse failed, 0 memories saved for user ${userId}`
+            `[Mem0] extraction parse failed, 0 memories saved for user ${userId}: ${getErrorMessage(addError)}`
           );
           return [];
         }
@@ -178,13 +196,18 @@ export class Mem0Service {
         }
       }
 
-      // Distinguish "nothing memorable" from a silent failure: a clean empty
-      // result and a dropped-extraction both used to log identically as
-      // "Added 0 memories", making it impossible to tell if extraction worked.
+      // Null Erinnerungen ist der HAEUFIGE, gesunde Ausgang — der Gatekeeper
+      // ueberspringt bewusst mehr, als er extrahiert —, deshalb zaehlt diese
+      // Zeile einen Erfolg. Sie darf das erst, seit der Parse-Ausfall des
+      // Extraktionsmodells oben abbiegt (`isExtractionParseFailure`), statt als
+      // leere Gestalt hier durchzulaufen (#3073).
+      //
+      // Eine Luecke bleibt, und sie liegt nicht bei uns: liefert das Modell
+      // lesbares JSON in der FALSCHEN Gestalt, schluckt mem0ai das selbst
+      // (`addToVectorStore` faengt seinen eigenen Schema-Parse und setzt
+      // `extractedMemories = []`) — von hier aus wieder ununterscheidbar.
       if (addedMemories.length === 0) {
-        log.info(
-          `[Mem0] Extraction returned 0 memories for user ${userId} (nothing memorable, or LLM output fell back to empty)`
-        );
+        log.info(`[Mem0] Extraction returned 0 memories for user ${userId} (nothing memorable)`);
       } else {
         log.info(`[Mem0] Added ${addedMemories.length} memories for user ${userId}`);
       }
