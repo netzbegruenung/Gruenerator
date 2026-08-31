@@ -69,6 +69,10 @@ export const SECTIONS: DocSection[] = [
         label: 'Wie schreibe ich einen Social Media Beitrag?',
         to: '/docs/guides/einsteigerinnen/social-media-beitrag',
       },
+      {
+        label: 'Wie erstelle ich einen Antrag?',
+        to: '/docs/guides/einsteigerinnen/antrag-stadtrat',
+      },
     ],
   },
   {

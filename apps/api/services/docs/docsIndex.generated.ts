@@ -167,6 +167,12 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "lead": "Ein großes Sprachmodell, wie zum Beispiel ChatGPT , ist ein KI-Modell, das darauf trainiert ist, menschenähnlichen Text zu verstehen und zu erzeugen. Es ist im Kern eine hochentwickelte Anwendung von…"
   },
   {
+    "url": "/docs/guides/einsteigerinnen/antrag-stadtrat",
+    "title": "Wie erstelle ich einen Antrag für meinen Stadt- oder Gemeinderat?",
+    "category": "Guides",
+    "lead": "Am Ende hast du einen Antragsentwurf in der Form, die dein Gremium erwartet: Beschlussvorschlag, Sachverhalt, Begründung, finanzielle Auswirkungen. Rechne mit zehn Minuten."
+  },
+  {
     "url": "/docs/guides/einsteigerinnen/social-media-beitrag",
     "title": "Wie schreibe ich einen Social Media Beitrag?",
     "category": "Guides",
@@ -1520,6 +1526,46 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#wie-ein-llm-eine-antwort-generiert",
     "category": "Grundlagen",
     "text": "Nehmen wir an, wir stellen chatgpt diese Frage: „Wie können wir die Luftqualität in unserer Kommune nachhaltig verbessern?\" Wie würde ChatGPT diese Frage beantworten?"
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/antrag-stadtrat",
+    "pageTitle": "Wie erstelle ich einen Antrag für meinen Stadt- oder Gemeinderat?",
+    "heading": "Wie erstelle ich einen Antrag für meinen Stadt- oder Gemeinderat?",
+    "anchor": "",
+    "category": "Guides",
+    "text": "Am Ende hast du einen Antragsentwurf in der Form, die dein Gremium erwartet: Beschlussvorschlag, Sachverhalt, Begründung, finanzielle Auswirkungen. Rechne mit zehn Minuten."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/antrag-stadtrat",
+    "pageTitle": "Wie erstelle ich einen Antrag für meinen Stadt- oder Gemeinderat?",
+    "heading": "Damit er im Gremium besteht",
+    "anchor": "#damit-er-im-gremium-besteht",
+    "category": "Guides",
+    "text": "Erst bewerten, dann beantragen. Füge einen Haushaltsentwurf oder eine Verwaltungsvorlage ein und lass sie aus grüner Sicht einschätzen — Stärken, Schwächen, fehlende Akzente. Das ist der beste Ausgangspunkt für einen Änderungsantrag. Andere Textsorten aus demselben Gespräch: Kleine und Große Anfrage, Haushaltsantrag, Resolution, kurzer Redebeitrag. Sag einfach, was du brauchst. Verfahrensfragen kannst du direkt stellen — „welche Hebel hat eine Kommune im Haushalt für mehr Klimaschutz?\" wird mit Quellen beantwortet, nicht als Entwurf. In Österreich heißt das Gremium Gemeinderat und der Haushalt Budget oder Voranschlag; steht dein Konto auf Österreich, schlägt der Grünerator dir passende Einstiege vor. Nenne dein Gremium im Auftrag trotzdem beim Namen."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/antrag-stadtrat",
+    "pageTitle": "Wie erstelle ich einen Antrag für meinen Stadt- oder Gemeinderat?",
+    "heading": "So geht's",
+    "anchor": "#so-gehts",
+    "category": "Guides",
+    "text": "Den Grünerator „Kommunalpolitik\" öffnen. Du findest ihn im Menüpunkt und in der Agentura; mitten in einem laufenden Gespräch holst du ihn mit @ dazu. Er arbeitet auf dem KommunalWiki der Heinrich-Böll-Stiftung und den grünen Programmen — ein normaler Chat greift nicht bevorzugt auf diese Quellen zu. Schreib dein Anliegen mit den Fakten, die im Antrag stehen sollen. Wer soll was tun, bis wann, woher kommt das Geld, und was ist der Anlass: „Wir wollen was zu Trinkwasser\" reicht nicht: Zieljahr, Anzahl und Zuständigkeit stehen sonst nicht im Beschlussvorschlag — und genau über den wird abgestimmt. Die Abschnitte gegenlesen. Der Entwurf trennt Beschlussvorschlag (der Text, über den abgestimmt wird), Sachverhalt, Begründung und finanzielle Auswirkungen. Bei einem Haushaltsantrag kommen Haushaltsstelle, Änderungsbetrag und Deckungsvorschlag dazu. Gleich mit prüfen: ob eure Geschäftsordnung dieselben Abschnitte verlangt. Im Gespräch nachschärfen. „schärfer im Beschlussvorschlag\", „ergänze einen Prüfauftrag zur Barrierefreiheit\", „mach daraus eine Kleine Anfrage\"."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/antrag-stadtrat",
+    "pageTitle": "Wie erstelle ich einen Antrag für meinen Stadt- oder Gemeinderat?",
+    "heading": "Weiterlesen",
+    "anchor": "#weiterlesen",
+    "category": "Guides",
+    "text": "Agentura — alle Grüneratoren und Rezepte Was kann ich fragen? — Musterfragen zu jeder Fähigkeit"
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/antrag-stadtrat",
+    "pageTitle": "Wie erstelle ich einen Antrag für meinen Stadt- oder Gemeinderat?",
+    "heading": "Wenn es nicht passt",
+    "anchor": "#wenn-es-nicht-passt",
+    "category": "Guides",
+    "text": "Der Antrag bleibt allgemein? Dann fehlten Angaben. Zurück zu Schritt 2: Frist, Menge, Zuständigkeit, Deckung. Paragrafen und Zahlen prüfst du selbst. Gemeindeordnungen unterscheiden sich je Bundesland und je Land — einen zitierten Paragrafen nie ungeprüft einreichen. Siehe Risiken & Gefahren. Eure eigene Beschlusslage kennt er nicht. Lege sie als Notebook an, dann kannst du im Antrag darauf aufbauen."
   },
   {
     "url": "/docs/guides/einsteigerinnen/social-media-beitrag",
