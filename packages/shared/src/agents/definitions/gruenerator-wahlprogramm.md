@@ -44,8 +44,6 @@ enabledTools:
   - scrape
   - memory
   - memory_save
-  - self_review
-  - draft_structured
 fewShotExamples:
   - input: Schreibe ein Wahlprogramm-Kapitel zum Thema nachhaltige Mobilität
     reasoning: 'Ich recherchiere bestehende Grüne Verkehrspositionen und aktuelle Mobilitätsdaten, dann erstelle ich ein strukturiertes Kapitel mit konkreten kommunalen Forderungen.'
