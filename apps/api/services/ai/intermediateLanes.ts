@@ -373,10 +373,13 @@ export const INTERMEDIATE_LANES = {
    * Inhalt ist für die Fassade kein Fehler, sondern startet die Fallback-Kette;
    * `classifyDeliverable` mit seinen 20 Token stirbt zuerst.
    *
-   * mem0 folgt dieser Stufe NICHT mehr: `services/mem0/config.ts` band
-   * `REGOLO_BASE_URL` + `REGOLO_API_KEY` fest an den Modellnamen von hier und
-   * hätte bei diesem Umzug einen Scaleway-Namen an Regolo geschickt. Es pinnt
-   * jetzt explizit — siehe dort.
+   * mem0s Extraktion folgt dieser Stufe wieder (seit 31.08.2026, #3065). Sie tat
+   * es zwischendurch nicht: `services/mem0/config.ts` band `REGOLO_BASE_URL` +
+   * `REGOLO_API_KEY` fest an den Modellnamen VON HIER und hätte bei einem Umzug
+   * dieser Stufe einen fremden Namen an Regolos Basis-URL geschickt. Der Pin
+   * war die Antwort darauf, die falsche: die Stelle nimmt jetzt das aufgelöste
+   * MODELL statt seines Namens, und mit ihm den Transport — ein Umzug hier
+   * erreicht sie also von selbst und richtig. Siehe den Kopf jener Datei.
    */
   heavy: {
     provider: GEMMA_PRIMARY.provider,
