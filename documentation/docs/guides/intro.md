@@ -1,5 +1,6 @@
 ---
 sidebar_position: 1
+description: 'Was ein Guide ist, wie er sich vom Rest der Doku unterscheidet und wie die Anleitungen nach Erfahrungsstand sortiert sind.'
 ---
 
 # Guides

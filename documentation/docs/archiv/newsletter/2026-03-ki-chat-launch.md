@@ -1,6 +1,7 @@
 ---
 sidebar_position: 3
 title: 'März 2026: Grünerator Chat'
+description: 'Der Grünerator Chat geht live: was ihm vorausging, was er kann und welche Fehler dabei verschwunden sind.'
 ---
 
 # Grünerator Chat

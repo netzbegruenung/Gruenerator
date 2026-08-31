@@ -1,5 +1,6 @@
 ---
 sidebar_position: 2
+description: 'Wann du kennzeichnen musst, dass ein Text von KI stammt — und wann nicht. Mit Formulierungen zum Übernehmen.'
 ---
 
 # Wie kennzeichne ich meine grünerierten Inhalte?
