@@ -86,6 +86,21 @@ function cacheThreadSlug(remoteId: string, suffix: string | null | undefined): v
   slugToThreadCache.set(suffix, remoteId);
 }
 
+/**
+ * Drop every routing cache entry for a thread. Called from `delete()` so a
+ * deleted thread's slug cannot be re-resolved by the routing effect: that
+ * would start a switch to a slot the delete's optimistic update just hid.
+ */
+function forgetThreadCaches(remoteId: string): void {
+  const suffix = threadSlugCache.get(remoteId);
+  if (suffix && slugToThreadCache.get(suffix) === remoteId) slugToThreadCache.delete(suffix);
+  threadSlugCache.delete(remoteId);
+  threadTypeCache.delete(remoteId);
+  notebookCollectionCache.delete(remoteId);
+  threadAgentCache.delete(remoteId);
+  threadTagsCache.delete(remoteId);
+}
+
 const EMPTY_TAGS: readonly string[] = [];
 
 export function getThreadTags(remoteId: string): string[] {
@@ -322,6 +337,7 @@ export function createGrueneratorThreadListAdapter(
 
     async delete(remoteId: string) {
       if (isExternal(remoteId)) return;
+      forgetThreadCaches(remoteId);
       callbacks?.onDelete?.(remoteId);
       await apiClient.delete(`/api/chat-service/threads?threadId=${remoteId}`);
     },

@@ -5,6 +5,8 @@ import { createContext, useContext } from 'react';
 export interface ChatNavigationContextValue {
   /** Navigate the host app to an in-app path. */
   navigate: (path: string, opts?: { replace?: boolean }) => void;
+  /** Current in-app pathname (host's `location.pathname`), if the host provides one. */
+  activePath?: string;
 }
 
 const ChatNavigationContext = createContext<ChatNavigationContextValue | null>(null);
