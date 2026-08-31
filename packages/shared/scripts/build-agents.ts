@@ -27,6 +27,7 @@ import chokidar from 'chokidar';
 import matter from 'gray-matter';
 
 import { AGENT_ICON_KEYS, isAgentIconKey } from '../src/agents/agentIcons.js';
+import { AGENT_TOOL_KEYS, isAgentToolKey } from '../src/agents/agentToolKeys.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DEFINITIONS_DIR = resolve(__dirname, '../src/agents/definitions');
@@ -148,6 +149,27 @@ function detectUnknownIconKeys(agents: readonly ParsedAgent[]): void {
   );
 }
 
+/**
+ * `enabledTools` keys must name real capabilities — see agentToolKeys.ts for
+ * the closed set and why. This is the validation seam system agents have been
+ * missing: user agents are checked server-side (agentDraftService.ts), but a
+ * typo'd or invented key in this frontmatter previously shipped silently —
+ * `draft_structured` and `self_review` sat in 19 definitions unnoticed (#3078).
+ */
+function detectUnknownToolKeys(agents: readonly ParsedAgent[]): void {
+  const offenders = agents.flatMap((a) =>
+    (a.frontmatter.enabledTools ?? [])
+      .filter((key) => !isAgentToolKey(key))
+      .map((key) => `${a.filename}: "${key}"`)
+  );
+  if (offenders.length === 0) return;
+  throw new Error(
+    `[build-agents] Unknown enabledTools key in ${offenders.length} entr${offenders.length === 1 ? 'y' : 'ies'}:\n` +
+      offenders.map((o) => `  · ${o}`).join('\n') +
+      `\n\nKnown keys: ${AGENT_TOOL_KEYS.join(', ')}`
+  );
+}
+
 function sortAgents(agents: readonly ParsedAgent[]): ParsedAgent[] {
   return [...agents].sort((a, b) => {
     const ao = a.frontmatter.order ?? Number.POSITIVE_INFINITY;
@@ -190,6 +212,7 @@ function build(): void {
   detectPromptBodies(parsed);
   detectUnknownRecipeMentions(parsed);
   detectUnknownIconKeys(parsed);
+  detectUnknownToolKeys(parsed);
   const sorted = sortAgents(parsed);
   writeFileSync(OUT_PATH, emit(sorted));
   console.log(`[build-agents] wrote ${sorted.length} agents → ${OUT_PATH}`);
