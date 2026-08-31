@@ -70,7 +70,9 @@ describe('providerForModel', () => {
   it.each([
     ['mistral-medium-2604', 'mistral'],
     ['mistral-large-latest', 'mistral'],
-    ['gpt-oss-120b', 'litellm'],
+    // `litellm` bis zum 29.08.2026 — der Host ist stillgelegt
+    // (services/ai/litellmRetired.ts), MAIN_LLM_OVERRIDE zeigt jetzt auf Cortecs.
+    ['gpt-oss-120b', 'cortecs'],
     ['Llama-3.3-70B-Instruct', 'regolo'],
     ['regolo/qwen3.5-122b', 'regolo'],
     ['', 'mistral'],
@@ -94,23 +96,19 @@ describe('laneFallback', () => {
     expect(laneFallback('image_picker')[0]).toBe('cortecs'); // regolo is primary, so dropped
   });
 
-  it('makes GPT-OSS the fallback for both creation families, not the primary', () => {
-    // Finished texts run on Gemma 4, structured creation on Mistral. Either
-    // way litellm/GPT-OSS is now the first fallback rather than where these
-    // lanes started.
+  it('leaves the creation families the second Gemma host, then Mistral', () => {
+    // Finished texts run on Gemma 4, structured creation on Mistral.
     //
     // `regolo` steht seit dem 25.08.2026 MIT in der Kette der Textlanes, und
     // das ist ein Gewinn, kein Nebeneffekt: der Gemma-Primär liegt jetzt auf
     // Cortecs (services/ai/gemmaHosts.ts), also filtert `laneFallback` Regolo
     // nicht mehr als eigenen Primär heraus — und Regolo ist der ZWEITE Host
-    // derselben Gewichte. Vorher hatten diese Lanes nach GPT-OSS nur noch
-    // Mistral; jetzt liegt dazwischen dasselbe Modell bei einem anderen
-    // Vertragspartner.
+    // derselben Gewichte.
     //
     // Cortecs steht seit dem 28.08.2026 in der Kette, taucht hier aber NICHT
     // auf: es ist der Primär dieser Lanes, und `laneFallback` filtert den.
-    expect(laneFallback('antrag')).toEqual(['litellm', 'regolo', 'mistral']);
-    expect(laneFallback('social')).toEqual(['litellm', 'regolo', 'mistral']);
+    expect(laneFallback('antrag')).toEqual(['regolo', 'mistral']);
+    expect(laneFallback('social')).toEqual(['regolo', 'mistral']);
   });
 
   it('gives the GreenPT artefact lane a host of its own model family', () => {
@@ -118,6 +116,20 @@ describe('laneFallback', () => {
     // steht — also bleiben alle übrig. Cortecs vorn ist hier der Punkt: bis
     // zum 28.08.2026 enthielt die Ausweichkette dieser Lane keinen einzigen
     // Host desselben Gemma 4, auf dem ihr Primär läuft.
-    expect(laneFallback('doc_generation')).toEqual(['cortecs', 'litellm', 'regolo', 'mistral']);
+    expect(laneFallback('doc_generation')).toEqual(['cortecs', 'regolo', 'mistral']);
+  });
+
+  /**
+   * #3064: ein Ausweichglied antwortet auf dem EIGENEN Standardmodell seines
+   * Anbieters, nicht auf dem des Primärs (`runChain` in ../generate.ts). Für
+   * `litellm` war das `verdigado-pro` = gpt-oss, ein Denkmodell — jede Lane mit
+   * kleinem Ausgabebudget, die bis dorthin durchfiel, bekam eine Vorrede statt
+   * einer Antwort. Kein Ausweichort darf ein Modell sein, das die Anfrage nicht
+   * beantworten kann.
+   */
+  it('lists no retired host in any chain', () => {
+    for (const lane of LANE_IDS) {
+      expect(laneFallback(lane), lane).not.toContain('litellm');
+    }
   });
 });

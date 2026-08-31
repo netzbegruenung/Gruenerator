@@ -41,9 +41,8 @@ export async function suggestFollowUpsNode(
       lane: 'text_adjustment',
       system: SUGGEST_SYSTEM_PROMPT,
       prompt: `Suchanfrage: "${state.searchQuery}"\nGefundene Themen: ${topTitles}`,
-      // See queryPlannerNode: `mistral-small` was never sent — the adapter
-      // substituted the verdigado default. This names what actually runs.
-      pinned: { provider: 'litellm', model: 'verdigado-pro' },
+      // Wie queryPlannerNode: die benannte Zwischenstufe statt eines Hosts.
+      pinned: 'standard',
       maxOutputTokens: 150,
       temperature: 0.5,
     });

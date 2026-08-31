@@ -311,12 +311,16 @@ const GRID_INTENSITY_G_PER_KWH: Readonly<Record<string, number>> = {
   // verarbeitet nach der Cortecs-DPA vom 11.08.2026 in DEUTSCHLAND — daher
   // derselbe Wert wie litellm/Hetzner und nicht Scaleways 24.
   infercom: 344, // Deutschland 2025, Umweltbundesamt
-  // berget ist der zweite Endpunkt desselben Modells und antwortet heute nicht,
-  // kann es aber jederzeit. Berget AI AB (Schweden) gibt als
-  // Verarbeitungsort EWR an, ohne ein Land zu nennen; 45 ist Schwedens Wert
-  // (Ember 2024) und damit die günstigste Lesart einer unbestimmten Angabe.
-  // Erring high wäre hier die vorsichtigere Wahl — die Zahl steht deshalb
-  // unter Vorbehalt, bis der Header sie überhaupt einmal nennt.
+  // berget ist der zweite Endpunkt desselben Modells. Der Header NENNT es
+  // inzwischen: am 29.08.2026 mit `allowed_providers: ['berget']` erzwungen,
+  // HTTP 200, `x-cortecs-provider: berget` (Messung in services/ai/gemmaHosts.ts).
+  // Ungefragt wählt der Router weiterhin infercom, im Normalbetrieb bucht diese
+  // Zeile also nach wie vor nichts. Der Vorbehalt an der ZAHL bleibt davon
+  // unberührt: Berget AI AB (Schweden) gibt als Verarbeitungsort EWR an, ohne
+  // ein Land zu nennen; 45 ist Schwedens Wert (Ember 2024) und damit die
+  // günstigste Lesart einer unbestimmten Angabe. Erring high wäre die
+  // vorsichtigere Wahl — die Zahl steht unter Vorbehalt, bis das Land benannt
+  // ist, nicht mehr bis der Header sie nennt.
   berget: 45,
   // Black Forest Labs (image generation) — German mix, and here is the whole
   // chain of what is known and what is not.

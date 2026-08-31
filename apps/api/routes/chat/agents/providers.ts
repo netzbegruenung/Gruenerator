@@ -10,12 +10,13 @@ import {
   GEMMA_31B_ON_REGOLO,
   GEMMA_31B_PRIMARY,
 } from '../../../services/ai/gemmaHosts.js';
+import { CORTECS_SMALL_32 } from '../../../services/ai/intermediateLanes.js';
+import { retireLiteLLM } from '../../../services/ai/litellmRetired.js';
 import { isVisionCapable } from '../../../services/ai/modelDiscovery.js';
 import { isModelSlow } from '../../../services/ai/modelHealth.js';
 import { pickHealthyTarget } from '../../../services/ai/modelSiblings.js';
 import {
   getGreenPTProvider,
-  getLiteLLMProvider,
   getMistralProvider,
   getRegoloProvider,
   getCortecsProvider,
@@ -26,10 +27,6 @@ import {
 } from '../../../services/ai/providerInstances.js';
 import { regoloTextDefault } from '../../../services/ai/textModelPolicy.js';
 import { withWireSafeToolCallIds } from '../../../services/ai/toolCallIds.js';
-import {
-  tryAcquireVerdigadoSlot,
-  releaseVerdigadoSlot,
-} from '../../../services/providers/verdigadoSlot.js';
 import { withUsageTracking } from '../../../services/usage/usageModelMiddleware.js';
 import { createLogger } from '../../../utils/logger.js';
 
@@ -50,8 +47,6 @@ import type { ProviderName } from '../../../services/ai/providers.js';
 import type { LanguageModel } from 'ai';
 
 const log = createLogger('chatProviders');
-
-const LITELLM_DEFAULT_MODEL = 'verdigado-pro';
 
 /**
  * Wohin ein Zug mit Bildern geht, wenn die gewählte Lane keine Bilder kann.
@@ -92,11 +87,10 @@ export { isVisionCapable };
 /**
  * Available models that can be selected by the user.
  *
- * `single` — pinned to one provider/model.
- * `overflow` — Verdigado-preferred with Regolo overflow when Verdigado's
- * single inference slot is busy. The unchosen sibling becomes the
- * first-token-timeout fallback for the chosen side.
- *
+ * Nur noch eine Bauform: `single`, auf ein Provider/Modell-Paar gepinnt. Die
+ * zweite (`overflow`) ist am 29.08.2026 mit ihrem Host gegangen — die
+ * Begründung steht bei `ModelConfigSingle` unten, damit sie nicht zweimal
+ * gepflegt werden muss.
  */
 export type Provider = 'mistral' | 'litellm' | 'regolo' | 'greenpt' | 'scaleway' | 'cortecs';
 
@@ -115,20 +109,15 @@ export interface ModelConfigSingle {
   fallback?: string;
 }
 
-export interface ModelConfigOverflow {
-  kind: 'overflow';
-  primary: { provider: 'litellm'; model: string };
-  overflow: { provider: 'regolo'; model: string };
-  /** Window of the PRIMARY (Verdigado) side — the conservative one. */
-  contextWindow: number;
-  /** Window of the OVERFLOW (Regolo) side, which is hosted and serves the full
-   *  model context. Kept separate because one config drives two very differently
-   *  sized backends: reporting the primary's window while actually running on
-   *  Regolo would prune away context the request could have carried. */
-  overflowContextWindow: number;
-}
-
-export type ModelConfig = ModelConfigSingle | ModelConfigOverflow;
+/**
+ * Es gab bis zum 29.08.2026 eine zweite Bauform, `ModelConfigOverflow`: ein
+ * Verdigado-Primär mit einem Regolo-Überlauf, dazwischen der Verdigado-Slot
+ * (`services/providers/verdigadoSlot.ts`), weil dieser eine Host genau EINEN
+ * Inferenz-Slot hatte. Sie ist mit dem Host weg — `kind` bleibt trotzdem
+ * stehen, damit die Unterscheidung wieder auftauchen kann, ohne dass jede
+ * Konfiguration umgeschrieben werden muss.
+ */
+export type ModelConfig = ModelConfigSingle;
 
 /**
  * Context windows below are MEASURED, not copied from datasheets (2026-07-26).
@@ -143,46 +132,38 @@ export type ModelConfig = ModelConfigSingle | ModelConfigOverflow;
  */
 const CTX_FULL = 262_144;
 /**
- * Ceiling for the Ollama-backed Verdigado lanes.
+ * „Klein" — die kleine Antwort-Lane.
  *
- * The failure mode above this line is SILENT truncation: HTTP 200, but
- * `prompt_tokens` collapses to ~64Ki and the answer is written over a fragment.
- * Nothing in the response says so. That is why this number is measured rather
- * than taken from the model tag.
+ * Sie war bis zum 29.08.2026 eine ÜBERLAUF-Lane: `litellm/verdigado-pro` als
+ * Primär, `regolo/gpt-oss-120b` als Überlauf, dazwischen der Verdigado-Slot.
+ * Beide Seiten waren dasselbe Modell — gpt-oss 120B —, und das ist genau das
+ * Modell, das `AVOID_AS_SYNTH` vom Antwortschreiben ausschliesst. Die Lane, die
+ * der Modellwähler als „Klein · Schnell, für kurze Aufgaben" anbietet, lief
+ * also auf einem Denkmodell, dessen Denk-Tokens gegen `max_tokens` zählen
+ * (#3064: 64 Text-Tokens für einen 23-Zeichen-Titel).
  *
- * History. It sat at 64k because the only observed truncation point was
- * `prompt_tokens: 65538` — exactly 64Ki + 2, the signature of a runtime
- * `num_ctx` of 65536 — and one data point does not locate a cliff. Re-measured
- * 2026-07-31 with a needle at the very start of the prompt:
+ * Jetzt ist es das kleine Modell der Zwischenstufen, auf Cortecs — dieselben
+ * Gewichte, die `intermediateLanes.ts` für `trivial`/`standard` fährt, damit
+ * „Klein" und die Hintergrundarbeit nicht zwei verschiedene Antworten auf
+ * dieselbe Frage sind. Am 29.08.2026 mit dem ECHTEN Thread-Titel-Prompt aus
+ * #3064 gemessen, `max_tokens: 64`, dreimal: HTTP 200, `finish_reason: stop`,
+ * **8** Ausgabe-Tokens, 358/579/597 ms, Unteranbieter `ovh`. Derselbe Aufruf
+ * auf `verdigado-pro` verbrauchte alle 64 und endete auf `length`.
  *
- *   ~130k sent -> prompt_tokens 122,956, needle found
- *   ~155k sent -> prompt_tokens  65,539, needle gone
+ * Kontextfenster: 131.000 — was der ENDPUNKT annimmt, aus Cortecs'
+ * `GET /v1/models` am 29.08.2026 (`context_size: 131000`), nicht aus dem
+ * Modellsteckbrief. Kein Ollama mehr: die stille Kürzung, für die
+ * `CTX_VERDIGADO` als gemessene Decke existierte, ist mit dem Host weg.
  *
- * So the fallback is real, but it sits far above 64k. 120k stays under the
- * highest verified value with room to spare. The tag's 128k would sit in the
- * unmeasured stretch just before the cliff, and being wrong there is invisible.
- *
- * KNOWN GAP, read before raising further: the needle test ran against
- * `verdigado-think`, but since Gemma 4 moved to Regolo the main consumer of
- * this constant is `verdigado-pro` (GPT-OSS 120B) via GPT_OSS_OVERFLOW. Both
- * are Ollama behind the same LiteLLM, so the 64Ki fallback signature is
- * expected to be identical — but that is an inference, not a measurement. The
- * value is chosen conservatively enough that the inference does not have to
- * hold exactly.
- *
- * Raise only alongside a fresh needle test AND an overflow probe on the lane,
- * and measure the lane you are raising.
+ * Der Ausweich bleibt in der Modellfamilie und wechselt den Vertragspartner —
+ * dieselbe Regel wie bei den Zwischenstufen.
  */
-const CTX_VERDIGADO = 120_000;
-
-const GPT_OSS_OVERFLOW: ModelConfigOverflow = {
-  kind: 'overflow',
-  primary: { provider: 'litellm', model: 'verdigado-pro' },
-  overflow: { provider: 'regolo', model: 'gpt-oss-120b' },
-  // Bounded by the Verdigado PRIMARY, not the Regolo overflow: one config
-  // serves both, and the primary truncates silently.
-  contextWindow: CTX_VERDIGADO,
-  overflowContextWindow: CTX_FULL,
+const SMALL_ANSWER_LANE: ModelConfigSingle = {
+  kind: 'single',
+  provider: 'cortecs',
+  model: CORTECS_SMALL_32.model,
+  contextWindow: 131_000,
+  fallback: 'mistral-small-4',
 };
 
 /**
@@ -206,14 +187,10 @@ const GPT_OSS_OVERFLOW: ModelConfigOverflow = {
  * providerSelector's comment) rather than changing it. This is the change
  * those workarounds were compensating for.
  *
- * WHY NOT SIMPLY SWAP THE TWO SIDES: `resolveModelTuple` gates the PRIMARY on
- * `tryAcquireVerdigadoSlot`. Swapped, Regolo would hold a slot it does not
- * need, and Verdigado would serve precisely when that slot was busy — i.e.
- * exactly when it must not run. The slot exists because Verdigado has a single
- * inference slot. A plain single lane sidesteps that inversion.
- *
  * Verdigado serves no part of this lane any more — not as primary, and since
- * 19.08.2026 not as failover either (see the fallback note below).
+ * 19.08.2026 not as failover either (see the fallback note below). Seit dem
+ * 29.08.2026 bedient es überhaupt keine Lane mehr, und die Überlauf-Bauform
+ * samt Slot, gegen die dieser Absatz argumentierte, gibt es nicht mehr.
  */
 const GEMMA_4_REGOLO: ModelConfigSingle = {
   kind: 'single',
@@ -304,15 +281,16 @@ const GEMMA_4_REGOLO: ModelConfigSingle = {
  * Parameter) — anschalten lässt es sich über
  * `chat_template_kwargs.enable_thinking`, siehe regoloReasoningStream.ts.
  *
- * Die dritte Begründung, die hier bis zum 25.08.2026 stand — „es liegt bei ZWEI
- * Endpunkten (infercom, berget) statt bei einem" — ist WEG, weil sie nicht mehr
- * stimmt: der Katalog führt für dieses Modell nur noch `infercom`, und berget
- * ist über `allowed_providers` nicht erzwingbar (`Endpoint uses quantization`,
- * auch mit `allow_quantization: true`). Cortecs ist für uns also ebenfalls ein
- * Ein-Endpunkt-Host; die Reserve dieser Lane ist der Regolo-Ausweich, nicht der
- * Router. Dieselben Gewichte fahren seit demselben Tag auch `heavy` und
- * `pruefung` in services/ai/intermediateLanes.ts — dort steht die Messreihe
- * (TTFT 1122 ms, 210,7 tok/s).
+ * Die dritte Begründung — „es liegt bei ZWEI Endpunkten (infercom, berget)
+ * statt bei einem" — stand hier, wurde am 25.08.2026 gestrichen und gilt seit
+ * dem 29.08.2026 wieder: berget ist im Katalog und über `allowed_providers`
+ * erzwingbar, auch ohne `allow_quantization`. Die Messung steht in
+ * services/ai/gemmaHosts.ts, zusammen mit der Lehre daraus. Die Reserve dieser
+ * Lane bleibt der Regolo-Ausweich — nicht weil Cortecs nur einen Endpunkt
+ * hätte, sondern weil Regolo ein anderer VERTRAGSPARTNER ist. Dieselben
+ * Gewichte fahren seit dem 25.08.2026 auch `heavy` und `pruefung` in
+ * services/ai/intermediateLanes.ts — dort steht die Messreihe (TTFT 1122 ms,
+ * 210,7 tok/s).
  *
  * KEIN Denk-Pin für dieses Modell — aber nicht aus dem Grund, der hier bis zum
  * 25.08.2026 stand. Live nachgemessen nimmt infercom `reasoning_effort` in den
@@ -457,8 +435,10 @@ export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
     contextWindow: CTX_FULL,
   },
 
-  // Overflow lanes — Verdigado primary, Regolo on overflow when slot is busy.
-  'gpt-oss': GPT_OSS_OVERFLOW,
+  // F0: der Name steckt in persistierten Thread-Zuständen und in gespeicherten
+  // Modell-Einstellungen. gpt-oss selbst bedient ihn seit dem 29.08.2026 NICHT
+  // mehr — siehe SMALL_ANSWER_LANE.
+  'gpt-oss': SMALL_ANSWER_LANE,
   'gemma-4': GEMMA_ANSWER_LANE,
   // Der Name lügt seit 21.08.2026 und bleibt trotzdem: F0/F1 — er steckt in
   // persistierten Thread-Zuständen. Dahinter liegt das DICHTE 31B über Cortecs,
@@ -482,26 +462,28 @@ export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
  *
  * Geteilt ist der NAME, nicht der Upstream: dort geht `gruenerator-medium`
  * direkt an Scaleways Gemma 26B, hier an die Konfiguration, die der Chat-Stack
- * für dieselbe Größe schon fährt — mit Fallback-Kette, Verdigado-Slot und
- * Reasoning. Genau dafür gibt es einen Lane-Namen: er lässt sich je Oberfläche
- * umhängen, ohne dass ein ausgeliefertes Bundle davon weiß.
+ * für dieselbe Größe schon fährt — mit Fallback-Kette und Reasoning. Genau
+ * dafür gibt es einen Lane-Namen: er lässt sich je Oberfläche umhängen, ohne
+ * dass ein ausgeliefertes Bundle davon weiß.
  */
-AVAILABLE_MODELS['gruenerator-small'] = GPT_OSS_OVERFLOW;
+AVAILABLE_MODELS['gruenerator-small'] = SMALL_ANSWER_LANE;
 AVAILABLE_MODELS['gruenerator-medium'] = GEMMA_ANSWER_LANE;
 AVAILABLE_MODELS['gruenerator-ultra'] = AVAILABLE_MODELS['mistral-medium-3.5'];
 
-// Legacy IDs from persisted client state and DB. All point to the new overflow
-// lanes so existing users get LB behavior automatically. Drop after one
-// release cycle once chatStore migration v8 has propagated.
-AVAILABLE_MODELS['litellm'] = GPT_OSS_OVERFLOW;
-AVAILABLE_MODELS['gpt-oss-regolo'] = GPT_OSS_OVERFLOW;
+// Legacy IDs from persisted client state and DB. F0 — sie werden tolerant
+// weitergelesen, nicht mehr angeboten. `litellm` und `gpt-oss-regolo` zeigten
+// beide auf die Verdigado-Überlauflane; sie zeigen jetzt dorthin, wo „Klein"
+// hinzeigt.
+AVAILABLE_MODELS['litellm'] = SMALL_ANSWER_LANE;
+AVAILABLE_MODELS['gpt-oss-regolo'] = SMALL_ANSWER_LANE;
 AVAILABLE_MODELS['gemma-litellm'] = GEMMA_ANSWER_LANE;
 AVAILABLE_MODELS['gemma-regolo'] = GEMMA_4_REGOLO;
 // `gemma-4-verdigado` gab es hier bis 19.08.2026 als reines Failover-Ziel der
 // Gemma-Lane. Es stand nie im User-Katalog, war nie ein Auto-Policy-Ziel und
 // wurde nie persistiert (`streamWithFallback` behält die modelId des
 // Primaries) — mit dem Ausweichwechsel auf `gemma-4-26b` hatte es keinen
-// Aufrufer mehr. Verdigado bleibt über die GPT-OSS-Lanes erreichbar.
+// Aufrufer mehr. Seit dem 29.08.2026 bedient Verdigado gar keine Lane mehr:
+// jedes Ziel dort ist stillgelegt, siehe services/ai/litellmRetired.ts.
 
 /**
  * Get model configuration by user-facing model ID.
@@ -512,9 +494,11 @@ export function getModelConfig(modelId: string): ModelConfig | null {
 }
 
 /**
- * Resolved tuple ready to feed into getModel() + streaming. For overflow
- * configs the chosen side depends on whether the Verdigado slot was free at
- * resolution time; the unchosen sibling is exposed for single-step fallback.
+ * Resolved tuple ready to feed into getModel() + streaming.
+ *
+ * `releaseSlot` stand hier bis zum 29.08.2026 und war der Griff, mit dem ein
+ * Aufrufer den EINEN Verdigado-Inferenz-Slot wieder freigab. Mit dem Host ist
+ * auch der Slot weg; jede Lane ist jetzt einseitig.
  */
 export interface ResolvedModelTuple {
   provider: Provider;
@@ -522,76 +506,35 @@ export interface ResolvedModelTuple {
   contextWindow: number;
   /** Single-step first-token-timeout fallback target. */
   sibling?: { provider: Provider; model: string };
-  /** Set when this resolution acquired the Verdigado slot. MUST be invoked
-   *  after the stream finishes (success, failure, or abort). Idempotent. */
-  releaseSlot?: () => Promise<void>;
 }
 
 /**
- * Resolve a user-facing modelId to a concrete provider/model tuple, acquiring
- * the Verdigado slot for overflow lanes when free.
+ * Resolve a user-facing modelId to a concrete provider/model tuple.
+ *
+ * `requestId` wird nicht mehr gelesen — er identifizierte den Halter des
+ * Verdigado-Slots. Der Parameter bleibt, weil ihn acht Aufrufer mitgeben und
+ * eine Signaturänderung nichts verbessert.
  */
+// Bleibt `async`, obwohl nichts mehr wartet: acht Aufrufer schreiben `await`,
+// und die Slot-Reservierung, die das Warten nötig machte, ist weg.
 export async function resolveModelTuple(
   modelId: string,
-  requestId: string,
-  opts?: {
-    /** Skip the Verdigado slot and go straight to the hosted Regolo side.
-     *  Set for turns whose input is too large for the primary's window — see
-     *  {@link VERDIGADO_INPUT_LIMIT}. Without this the request would be pruned
-     *  down to the small lane's budget even though a bigger lane was free. */
-    preferOverflow?: boolean;
-  }
+  _requestId: string
 ): Promise<ResolvedModelTuple | null> {
   const config = AVAILABLE_MODELS[modelId];
   if (!config) return null;
 
-  if (config.kind === 'single') {
-    const result: ResolvedModelTuple = {
-      provider: config.provider,
-      model: config.model,
-      contextWindow: config.contextWindow,
-    };
-    // Honor configured fallback (e.g. mistral-medium-3.5 → gemma-4). For
-    // overflow-lane fallbacks we deterministically use the overflow (Regolo)
-    // side — we don't acquire the Verdigado slot from a fallback path,
-    // since the slot would have to be held across the primary's failure
-    // window and that risks deadlock on slot release ordering.
-    if (config.fallback) {
-      const sib = AVAILABLE_MODELS[config.fallback];
-      if (sib?.kind === 'single') {
-        result.sibling = { provider: sib.provider, model: sib.model };
-      } else if (sib?.kind === 'overflow') {
-        result.sibling = { provider: sib.overflow.provider, model: sib.overflow.model };
-      }
-    }
-    return result;
-  }
-
-  if (opts?.preferOverflow) {
-    return {
-      provider: config.overflow.provider,
-      model: config.overflow.model,
-      contextWindow: config.overflowContextWindow,
-      sibling: { provider: config.primary.provider, model: config.primary.model },
-    };
-  }
-
-  const acquired = await tryAcquireVerdigadoSlot(requestId);
-  if (acquired) {
-    return {
-      provider: config.primary.provider,
-      model: config.primary.model,
-      contextWindow: config.contextWindow,
-      sibling: { provider: config.overflow.provider, model: config.overflow.model },
-      releaseSlot: () => releaseVerdigadoSlot(requestId),
-    };
-  }
-  return {
-    provider: config.overflow.provider,
-    model: config.overflow.model,
-    contextWindow: config.overflowContextWindow,
-    sibling: { provider: config.primary.provider, model: config.primary.model },
+  const result: ResolvedModelTuple = {
+    provider: config.provider,
+    model: config.model,
+    contextWindow: config.contextWindow,
   };
+  // Honor configured fallback (e.g. mistral-medium-3.5 → gemma-4).
+  if (config.fallback) {
+    const sib = AVAILABLE_MODELS[config.fallback];
+    if (sib) result.sibling = { provider: sib.provider, model: sib.model };
+  }
+  return result;
 }
 
 /**
@@ -617,9 +560,10 @@ export function getContextWindow(
 
   // Provider-level defaults for agent configs that use 'auto' or unnamed models
   if (provider === 'mistral') return CTX_FULL;
-  // Verdigado is Ollama-backed and truncates silently past its window, so its
-  // default stays at the end-to-end verified size rather than the nominal one.
-  if (provider === 'litellm') return CTX_VERDIGADO;
+  // `litellm` wird nur noch als Name gelesen und bedient Cortecs
+  // (services/ai/litellmRetired.ts) — es bekommt deshalb Cortecs' Fenster und
+  // nicht mehr die gemessene Ollama-Decke, die es hier bis 29.08.2026 hatte.
+  if (provider === 'litellm') return SMALL_ANSWER_LANE.contextWindow;
   if (provider === 'regolo') return CTX_FULL;
   if (provider === 'greenpt') return CTX_FULL;
   // Gemma 4 26B-A4B carries 262k on Scaleway's H100 instances (model card).
@@ -666,8 +610,11 @@ export function getModel(
   // `litellm/verdigado-pro` (= gpt-oss am Proxy) — der Fix hätte nichts
   // bewirkt, und ein Test, der bloss das übergebene Options-Objekt prüft,
   // hätte es nicht gemerkt.
-  const healthy = pickHealthyTarget(provider, modelId, options.acceptTarget);
-  const lane = healthy ?? { provider, model: modelId };
+  // Dieselbe Stilllegung wie an der anderen Tür und aus demselben Grund vor
+  // allem anderen: services/ai/litellmRetired.ts.
+  const live = retireLiteLLM(provider, modelId);
+  const healthy = pickHealthyTarget(live.provider, live.model ?? modelId, options.acceptTarget);
+  const lane = healthy ?? { provider: live.provider, model: live.model ?? modelId };
 
   // Attribute usage to the upstream that actually served it — the Mistral lane
   // runs on Scaleway. `takeProviderFallback` is deliberately NOT set for that:
@@ -736,8 +683,10 @@ function instantiateModel(
         ? getScalewayProvider().chat(routed.model)
         : getMistralProvider()(routed.model);
     }
+    // Stillgelegt — `getModel` oben biegt den Namen bereits um; dieser Zweig
+    // fängt nur einen direkten Aufruf ab. Siehe services/ai/litellmRetired.ts.
     case 'litellm':
-      return getLiteLLMProvider().chat(modelId || LITELLM_DEFAULT_MODEL);
+      return getCortecsProvider().chat(retireLiteLLM('litellm', modelId).model ?? '');
     case 'regolo': {
       if (!env.REGOLO_API_KEY) {
         log.warn(
@@ -798,9 +747,11 @@ function instantiateModel(
  * Whether a resolved model can drive the agentic chat tool loop (native
  * function calling with multi-step tool use). Conservative on purpose: only
  * Mistral is enabled for now — it's the primary EU provider and our strongest
- * tool-caller (mistral-medium-2604). The overflow lanes (Gemma/GPT-OSS via
- * litellm/regolo) are NOT gated in yet; a non-tool-capable user selection
- * stays on the single-pass pipeline rather than being silently swapped.
+ * tool-caller (mistral-medium-2604). Die übrigen Antwort-Lanes (Gemma 4 über
+ * Cortecs, die kleinen Regolo-Modelle) sind NICHT freigeschaltet; eine
+ * Nutzerwahl ohne Werkzeugfähigkeit bleibt auf dem Single-Pass-Pfad, statt
+ * still getauscht zu werden. `litellm/GPT-OSS` stand hier bis zum 29.08.2026
+ * und ist als Ziel weg (services/ai/litellmRetired.ts).
  */
 export function isAgenticToolCapable(provider: string, _modelName: string): boolean {
   return provider === 'mistral';
@@ -1021,16 +972,13 @@ export function getLoopSynthModel(
 /**
  * Cheap, slot-free check of whether the model that WILL be used (user selection
  * or agent default) can drive the agentic loop. Mistral lanes never acquire an
- * overflow slot, so this can decide the agentic branch before the heavier
- * `instantiateModel` runs — without double-acquiring a Verdigado slot.
+ * `instantiateModel` runs.
  */
 export function selectionIsToolCapable(agentProvider: string, modelId?: string): boolean {
   if (modelId && modelId !== 'mistral' && modelId !== 'auto') {
     const cfg = AVAILABLE_MODELS[modelId];
     if (cfg) {
-      const provider = cfg.kind === 'single' ? cfg.provider : cfg.primary.provider;
-      const model = cfg.kind === 'single' ? cfg.model : cfg.primary.model;
-      return isAgenticToolCapable(provider, model);
+      return isAgenticToolCapable(cfg.provider, cfg.model);
     }
     // Unknown id → agent default is used, fall through.
   }

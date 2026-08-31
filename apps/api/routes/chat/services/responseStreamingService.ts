@@ -23,7 +23,6 @@ import { createLogger } from '../../../utils/logger.js';
 import {
   mayWriteAnswer,
   resolveAutoSelection,
-  VERDIGADO_INPUT_LIMIT,
   type Complexity,
   type ReasoningSetting,
   type TaskShape,
@@ -155,12 +154,8 @@ interface ModelResolution {
   modelName: string;
   /** User-facing model ID (key in AVAILABLE_MODELS), if set by the user. */
   modelId?: string;
-  /** Single-step first-token-timeout fallback target. For overflow lanes,
-   *  this is the unchosen sibling (Verdigado↔Regolo). */
+  /** Single-step first-token-timeout fallback target. */
   sibling?: { provider: string; model: string };
-  /** Set when this resolution acquired the Verdigado overflow slot. MUST be
-   *  invoked after the stream completes (success, failure, abort). */
-  releaseSlot?: () => Promise<void>;
   /** Set when the user requested a modelId the registry doesn't know and the
    *  agent default was used instead — callers surface this to the client so
    *  the selection isn't ignored silently. */
@@ -269,16 +264,11 @@ export async function resolveModel(
     agentId?: string | null;
     /** For surfaces without a classifier (notebook) — see resolveAutoSelection. */
     surface?: 'notebook';
-    /** Rough size of this request (see estimateRequestTokens). Above
-     *  VERDIGADO_INPUT_LIMIT an overflow lane runs on its hosted side so the
-     *  request isn't pruned down to the small lane's budget. */
-    estimatedInputTokens?: number;
   }
 ): Promise<ModelResolution> {
   let modelProvider = agentConfig.provider;
   let modelName = agentConfig.model;
   let sibling: { provider: string; model: string } | undefined;
-  let releaseSlot: (() => Promise<void>) | undefined;
   let resolvedId: string | undefined;
   let unknownModelId: string | undefined;
   let reasoningEffort: ReasoningSetting = EXPLICIT_SELECTION_REASONING;
@@ -287,24 +277,14 @@ export async function resolveModel(
 
   const isAuto = !modelId || modelId === 'mistral' || modelId === 'auto';
 
-  const oversized = (options?.estimatedInputTokens ?? 0) > VERDIGADO_INPUT_LIMIT;
-  const preferOverflow = oversized ? { preferOverflow: true } : {};
-  if (oversized) {
-    log.info(
-      `[ChatGraph] input ~${Math.round((options?.estimatedInputTokens ?? 0) / 1000)}k tokens > ` +
-        `${VERDIGADO_INPUT_LIMIT / 1000}k — overflow lanes run hosted (full window, no pruning)`
-    );
-  }
-
   if (!isAuto) {
-    const tuple = await resolveModelTuple(modelId, requestId, preferOverflow);
+    const tuple = await resolveModelTuple(modelId, requestId);
     if (tuple) {
       modelProvider = tuple.provider;
       modelName = tuple.model;
       resolvedId = modelId;
       contextWindow = tuple.contextWindow;
       if (tuple.sibling) sibling = tuple.sibling;
-      if (tuple.releaseSlot) releaseSlot = tuple.releaseSlot;
       log.info(`[ChatGraph] Using user-selected model: ${modelId} → ${modelProvider}/${modelName}`);
     } else {
       log.warn(`[ChatGraph] Unknown model ID "${modelId}", using agent default`);
@@ -322,7 +302,7 @@ export async function resolveModel(
       ...(options?.surface != null && { surface: options.surface }),
     });
     reasoningEffort = selection.reasoning;
-    const tuple = await resolveModelTuple(selection.modelId, requestId, preferOverflow);
+    const tuple = await resolveModelTuple(selection.modelId, requestId);
     if (tuple) {
       modelProvider = tuple.provider;
       modelName = tuple.model;
@@ -330,7 +310,6 @@ export async function resolveModel(
       contextWindow = tuple.contextWindow;
       fromAutoPolicy = true;
       if (tuple.sibling) sibling = tuple.sibling;
-      if (tuple.releaseSlot) releaseSlot = tuple.releaseSlot;
       log.info(
         `[ChatGraph] auto → ${selection.modelId} (${modelProvider}/${modelName}) ` +
           `intent=${options?.intent ?? 'none'} complexity=${options?.complexity ?? 'simple'} ` +
@@ -359,20 +338,14 @@ export async function resolveModel(
   }
 
   // Vision override: only fire when the chosen primary AND its sibling both
-  // lack vision support. Overflow lanes where both candidates are vision-
-  // capable (e.g. Gemma 4: Verdigado/gemma + Regolo/gemma4-31b) skip the
-  // override entirely so alternation isn't collapsed to a single provider.
+  // lack vision support. A lane whose sibling can see swaps within the lane
+  // instead, so the override does not collapse it onto a single provider.
   if (options?.hasImages && !isVisionCapable(modelName) && options.intent !== 'image_edit') {
     const siblingVisionOk = sibling ? isVisionCapable(sibling.model) : false;
     if (!siblingVisionOk) {
       log.info(
         `[ChatGraph] Images present but "${modelName}" lacks vision — switching to ${VISION_MODEL.provider}/${VISION_MODEL.model}`
       );
-      // Releasing here: we're overriding away from a slot we just acquired.
-      if (releaseSlot) {
-        await releaseSlot();
-        releaseSlot = undefined;
-      }
       modelProvider = VISION_MODEL.provider;
       modelName = VISION_MODEL.model;
       sibling = undefined;
@@ -381,11 +354,7 @@ export async function resolveModel(
       log.info(
         `[ChatGraph] Images present and "${modelName}" lacks vision but sibling "${sibling.model}" supports it — swapping within lane`
       );
-      // Swap to the vision-capable sibling. Release the old slot if any.
-      if (releaseSlot) {
-        await releaseSlot();
-        releaseSlot = undefined;
-      }
+      // Swap to the vision-capable sibling.
       const newPrimary = sibling;
       sibling = { provider: modelProvider, model: modelName };
       modelProvider = newPrimary.provider;
@@ -421,7 +390,6 @@ export async function resolveModel(
   };
   if (resolvedId) result.modelId = resolvedId;
   if (sibling) result.sibling = sibling;
-  if (releaseSlot) result.releaseSlot = releaseSlot;
   if (unknownModelId) result.unknownModelId = unknownModelId;
   if (contextWindow != null) result.contextWindow = contextWindow;
   return result;
