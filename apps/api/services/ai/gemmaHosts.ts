@@ -186,7 +186,7 @@ export const GEMMA_31B_ON_REGOLO: GemmaHost = {
  *       der Router pro Anfrage selbst.
  *
  *  `scripts/probeCortecs.ts` ist die Vorlage — es ruft roh gegen
- *  `/v1/chat/completions` und reicht `usage.prompt_tokens` schon durch. */
+ *  `/v1/chat/completions` und gibt `usage.prompt_tokens` als `in=…tok` aus. */
 export const GEMMA_31B_ON_CORTECS: GemmaHost = {
   provider: 'cortecs',
   model: 'gemma-4-31b-it',
