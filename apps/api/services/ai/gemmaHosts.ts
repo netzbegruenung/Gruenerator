@@ -148,13 +148,45 @@ export const GEMMA_31B_ON_REGOLO: GemmaHost = {
   laneId: 'gemma-regolo',
 };
 
-/** Dieselben Gewichte über Cortecs, vermittelt an infercom (Luxemburg,
- *  Verarbeitung Deutschland) — seit dem 25.08.2026 der einzige Endpunkt, den
- *  der Katalog für dieses Modell führt.
+/** Dieselben Gewichte über Cortecs, ohne Vorgabe an infercom vermittelt
+ *  (Luxemburg, Verarbeitung Deutschland); `berget` steht daneben, siehe die
+ *  Messung im Kopf dieser Datei.
  *
- *  128k statt Regolos 262k: `GET /v1/models` meldet für `gemma-4-31b-it`
- *  `context_size: 128000`. Die Gewichte tragen mehr, der Endpunkt nimmt es
- *  nicht an. */
+ *  ── 128k, und warum die Zahl NICHT dem Katalog folgt ──
+ *
+ *  Hier stand bis zum 31.08.2026 als Begründung: „`GET /v1/models` meldet für
+ *  `gemma-4-31b-it` `context_size: 128000`". Das war am 25.08.2026 richtig und
+ *  ist es nicht geblieben — am 31.08.2026 meldet derselbe Endpunkt für dasselbe
+ *  Modell **262000**, also genau das, was die Gewichte tragen und was Regolos
+ *  Seite der Lane führt.
+ *
+ *  Die Zahl bleibt trotzdem bei 128.000, und zwar nicht aus Trägheit: **der
+ *  Katalog ist hier keine Quelle.** Diese Datei führt den Beleg dafür selbst —
+ *  derselbe Katalog versprach für dieses Modell Bildfähigkeit, und ein echter
+ *  Bild-Turn antwortete mit HTTP 500. Ein zu grosses Fenster ist ausserdem
+ *  keine Fehlermeldung, sondern eine STILLE Kürzung: der Aufruf gelingt, das
+ *  Modell antwortet über ein Fragment, und nichts sagt es. Ein zu kleines
+ *  kostet nur Kontext, den man laut nachrechnen kann. Die Richtung der
+ *  Unsicherheit entscheidet also, welcher Wert hier stehen darf: der zuletzt
+ *  ENDE-ZU-ENDE bestätigte, nicht der zuletzt behauptete.
+ *
+ *  Was den Wert bewegen darf, ist eine Nadelprobe (Issue #3067). Sie stand als
+ *  Beispiel an `CTX_VERDIGADO` und ist mit dessen Stilllegung aus dem Baum
+ *  verschwunden; hier ist sie in vier Schritten:
+ *
+ *    1. Eine Markierung an den ANFANG des Prompts, dann Füllung bis zur
+ *       Zielgrösse, dann die Bitte, die Markierung zu wiederholen.
+ *    2. `usage.prompt_tokens` aus der Antwort zurücklesen. Bricht der Wert weit
+ *       unter das Gesendete ein, hat der Endpunkt still gekürzt — das ist das
+ *       Signal, nicht der HTTP-Status.
+ *    3. Einklammern: eine Grösse unter und eine über der vermuteten Decke. Ein
+ *       einzelner Punkt lokalisiert keine Kante.
+ *    4. BEIDE Unteranbieter messen (`allowed_providers: ['infercom']` bzw.
+ *       `['berget']`). Das Fenster hängt am Endpunkt, und ohne Vorgabe wählt
+ *       der Router pro Anfrage selbst.
+ *
+ *  `scripts/probeCortecs.ts` ist die Vorlage — es ruft roh gegen
+ *  `/v1/chat/completions` und reicht `usage.prompt_tokens` schon durch. */
 export const GEMMA_31B_ON_CORTECS: GemmaHost = {
   provider: 'cortecs',
   model: 'gemma-4-31b-it',
