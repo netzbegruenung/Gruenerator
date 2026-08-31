@@ -91,47 +91,19 @@ export const SECTIONS: DocSection[] = [
     ],
   },
   {
-    id: 'office',
-    label: 'Office',
+    id: 'features',
+    label: 'Features',
     icon: '📄',
-    description: 'Dokumente, Tabellen, Präsentationen und Boards — gemeinsam schreiben und planen.',
-    intro: '/docs/office/intro',
-    sidebarId: 'officeSidebar',
+    description:
+      'Office, die Agentura und die Inhalte der Landesverbände — was der Grünerator neben dem Chat kann.',
+    intro: '/docs/features/intro',
+    sidebarId: 'featuresSidebar',
     navbar: 'direct',
     topPages: [
-      { label: 'Überblick', to: '/docs/office/intro' },
-      { label: 'Tabellen', to: '/docs/office/tabellen' },
-      { label: 'Boards', to: '/docs/office/boards' },
-    ],
-  },
-  {
-    id: 'wissen',
-    label: 'Wissen',
-    icon: '📚',
-    description: 'Eigene Notebooks anlegen und die Inhalte der Landesverbände nutzen.',
-    intro: '/docs/wissen/eigenes-notebook-erstellen',
-    sidebarId: 'wissenSidebar',
-    navbar: 'direct',
-    topPages: [
-      { label: 'Eigenes Notebook erstellen', to: '/docs/wissen/eigenes-notebook-erstellen' },
-      { label: 'Landesverbände', to: '/docs/wissen/landesverbaende' },
-      { label: 'Inhaltsdatenbank', to: '/docs/wissen/inhaltsdatenbank' },
-    ],
-  },
-  {
-    id: 'grueneratoren',
-    label: 'Grüneratoren',
-    icon: '🕵️',
-    description: 'Die Agentura: fertige Grüneratoren nutzen und eigene bauen.',
-    intro: '/docs/grueneratoren/agentura',
-    sidebarId: 'grueneratorenSidebar',
-    navbar: 'direct',
-    topPages: [
-      { label: 'Agentura', to: '/docs/grueneratoren/agentura' },
-      {
-        label: 'Eigene Grüneratoren erstellen',
-        to: '/docs/grueneratoren/eigene-agentinnen-erstellen',
-      },
+      { label: 'Überblick', to: '/docs/features/intro' },
+      { label: 'Office', to: '/docs/features/office' },
+      { label: 'Agentura', to: '/docs/features/agentura' },
+      { label: 'Landesverbände', to: '/docs/features/landesverbaende' },
     ],
   },
   {
@@ -169,6 +141,16 @@ export const SECTIONS: DocSection[] = [
     ],
   },
   {
+    id: 'sonstiges',
+    label: 'Sonstiges',
+    icon: '🗃️',
+    description: 'Was in keinen der anderen Bereiche gehört.',
+    intro: '/docs/sonstiges/inhaltsdatenbank',
+    sidebarId: 'sonstigesSidebar',
+    navbar: 'more',
+    topPages: [{ label: 'Inhaltsdatenbank', to: '/docs/sonstiges/inhaltsdatenbank' }],
+  },
+  {
     id: 'grundlagen',
     label: 'Grundlagen',
     icon: '🧠',
@@ -197,12 +179,12 @@ export const QUICK_TASKS: QuickTask[] = [
   {
     label: 'Gemeinsam an einem Dokument arbeiten',
     description: 'Texte in Echtzeit zu mehreren schreiben, teilen und versionieren.',
-    to: '/docs/office/dokumente',
+    to: '/docs/features/dokumente',
   },
   {
     label: 'Eine Präsentation bauen',
     description: 'Folien anlegen, gestalten und als PDF oder PPTX exportieren.',
-    to: '/docs/office/praesentationen',
+    to: '/docs/features/praesentationen',
   },
   {
     label: 'Für deinen Landesverband einrichten',
@@ -212,7 +194,7 @@ export const QUICK_TASKS: QuickTask[] = [
   {
     label: 'Eigenes Wissen anlegen',
     description: 'Ein Notebook mit euren Dokumenten und Webseiten füttern.',
-    to: '/docs/wissen/eigenes-notebook-erstellen',
+    to: '/docs/guides/einsteigerinnen/eigenes-notebook-erstellen',
   },
   {
     label: 'Mit anderen Tools verbinden',
