@@ -65,16 +65,12 @@ const BACKGROUND_ELEMENT_PROBES = [
 ];
 
 /**
- * Templates that knowingly draw no background surface. `veranstaltung` offers a
- * `Bild` tab and carries `currentImageSrc`, but its `elements` array holds only
- * the green band and two texts — the config says so at its `elements:` comment
- * ("complex elements (circle with rotated text, clipped photo) that don't fit
- * the generic element model well. Using simplified elements."). The picked
- * photo is therefore never drawn. Reproducing the clipped geometry is design
- * work, not a rename, so it stays out of this pass; the exception is listed
- * here rather than dropped from the guard so the gap is visible in code.
+ * Templates that knowingly draw no background surface. Currently none — every
+ * template in TEMPLATES draws a reachable background (photo band or colour
+ * plane). The list is kept so a future gap stays visible in code and the two
+ * `skipIf` guards below keep working.
  */
-const NO_BACKGROUND_SURFACE_YET: readonly CanvasConfigType[] = ['veranstaltung'];
+const NO_BACKGROUND_SURFACE_YET: readonly CanvasConfigType[] = [];
 
 /**
  * Templates whose plane colour is DERIVED rather than chosen. The slider's

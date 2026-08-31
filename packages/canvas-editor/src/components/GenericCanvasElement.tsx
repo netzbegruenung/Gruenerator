@@ -272,6 +272,8 @@ const MemoizedImageElement = memo(function MemoizedImageElement<
 
   const offset = config.offsetKey ? assertAsPosition(state[config.offsetKey]) : { x: 0, y: 0 };
   const scale = config.scaleKey ? assertAsScale(state[config.scaleKey]) : 1;
+  const baseWidth = resolveValue(config.width, state, layout);
+  const baseHeight = resolveValue(config.height, state, layout);
 
   // `sizeStateKey` wurde bisher nur geschrieben (handleImageTransformEnd) und
   // nie gelesen — Groessenaenderungen an Profilbild und Sonnenblume fielen
@@ -280,7 +282,7 @@ const MemoizedImageElement = memo(function MemoizedImageElement<
   const storedSize = rawCustomSize != null ? assertAsSize(rawCustomSize) : null;
   // assertAsSize faellt auf {0,0} zurueck — das waere ein unsichtbares Bild.
   const customSize = storedSize && storedSize.w > 0 && storedSize.h > 0 ? storedSize : null;
-  const width = customSize?.w ?? resolveValue(config.width, state, layout) * scale;
+  const width = customSize?.w ?? baseWidth * scale;
 
   // Render the server's working-size WebP variant instead of the raw original:
   // the original is kept on disk for the gallery, but loading multi-MB
@@ -303,10 +305,19 @@ const MemoizedImageElement = memo(function MemoizedImageElement<
   const rawCustomPosition = config.positionStateKey ? state[config.positionStateKey] : null;
   const customPosition = rawCustomPosition != null ? assertAsPosition(rawCustomPosition) : null;
 
-  const x = customPosition?.x ?? resolveValue(config.x, state, layout) + offset.x;
-  const y = customPosition?.y ?? resolveValue(config.y, state, layout) + offset.y;
+  const baseX = resolveValue(config.x, state, layout);
+  const baseY = resolveValue(config.y, state, layout);
+  // centerZoom re-anchors the scaled box on the slot's centre instead of the
+  // top-left origin: at scale 1 the box sits exactly on the slot, at scale > 1
+  // it overflows symmetrically and at scale < 1 it shrinks toward the centre,
+  // so a fixed (non-draggable) slot zooms without drifting into a corner.
+  const anchorX = config.centerZoom ? (baseWidth * (1 - scale)) / 2 : 0;
+  const anchorY = config.centerZoom ? (baseHeight * (1 - scale)) / 2 : 0;
 
-  const height = customSize?.h ?? resolveValue(config.height, state, layout) * scale;
+  const x = customPosition?.x ?? baseX + anchorX + offset.x;
+  const y = customPosition?.y ?? baseY + anchorY + offset.y;
+
+  const height = customSize?.h ?? baseHeight * scale;
 
   const handleSelect = useCallback(() => onSelect(config.id), [onSelect, config.id]);
   const handleDragEnd = useCallback(
@@ -346,17 +357,20 @@ const MemoizedImageElement = memo(function MemoizedImageElement<
       onSnapLinesChange={onSnapLinesChange}
       listening={config.listening}
       constrainToBounds={config.constrainToBounds ?? true}
-      transformConfig={
-        config.transformable
-          ? {
-              enabledAnchors: isLocked
-                ? []
-                : ['top-left', 'top-right', 'bottom-left', 'bottom-right'],
-              rotateEnabled: false,
-              keepRatio: true,
-            }
-          : undefined
-      }
+      transformConfig={{
+        // A non-transformable (or locked) image shows no resize handles. Without
+        // this, CanvasImage falls back to DEFAULT_IMAGE_ANCHORS, so a selectable
+        // but non-transformable slot (e.g. the veranstaltung photo band,
+        // draggable: false) would still expose all four corner handles and let a
+        // user resize/move it via the Transformer — writing an unbounded
+        // offset/scale straight past the centerZoom/coverFit assumptions.
+        enabledAnchors:
+          config.transformable && !isLocked
+            ? ['top-left', 'top-right', 'bottom-left', 'bottom-right']
+            : [],
+        rotateEnabled: false,
+        keepRatio: true,
+      }}
     />
   );
 }, imageRenderInputsAreEqual);
