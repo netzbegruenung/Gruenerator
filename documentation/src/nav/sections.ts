@@ -54,6 +54,24 @@ export const SECTIONS: DocSection[] = [
     ],
   },
   {
+    id: 'guides',
+    label: 'Guides',
+    icon: '🧭',
+    description:
+      'Kurze Schritt-für-Schritt-Anleitungen für einzelne Aufgaben, sortiert nach Erfahrungsstand.',
+    intro: '/docs/guides/intro',
+    sidebarId: 'guidesSidebar',
+    navbar: 'direct',
+    navbarOrder: 2,
+    topPages: [
+      { label: 'Was Guides sind', to: '/docs/guides/intro' },
+      {
+        label: 'Wie schreibe ich einen Social Media Beitrag?',
+        to: '/docs/guides/einsteigerinnen/social-media-beitrag',
+      },
+    ],
+  },
+  {
     id: 'chat',
     label: 'Chat',
     icon: '✨',
