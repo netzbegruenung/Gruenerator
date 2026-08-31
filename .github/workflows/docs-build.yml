@@ -10,8 +10,9 @@ name: Docs Build
 #      stale vs. documentation/docs (a page added, renamed or restructured
 #      without regenerating), which would make the chat cite dead deep links or
 #      miss the page entirely.
-#   4. tools:check / office:check fail if the tool-overview or Office manifests
-#      are stale vs. the configs and contracts they derive from.
+#   4. tools:check / office:check / agent-tools:check fail if the tool-overview,
+#      Office or agent-builder manifests are stale vs. the configs, contracts
+#      and catalogs they derive from.
 # Triggers on doc changes and on the catalog source files the manifests derive
 # from. Blocking on purpose — all of these are real drift the author must fix.
 #
@@ -43,6 +44,9 @@ on:
       - 'packages/sheets/src/ai/applySheetOperations.ts'
       - 'apps/web/src/features/docs/docTypeMeta.tsx'
       - 'apps/web/src/features/sheets/SheetImportDialog.tsx'
+      # agent-tools manifest source — the catalog behind the builder's
+      # checkboxes; a new tool there and the guide's table is a row short.
+      - 'packages/shared/src/agents/userTools.ts'
       # reference manifest sources
       - 'packages/chat/src/lib/fileUtils.ts'
       - 'apps/api/config/systemCollectionsConfig.ts'
@@ -87,6 +91,12 @@ jobs:
       # Upload limits, MCP collections and the connector directory — plain facts
       # the articles used to restate in prose. No audit either: nothing to pair
       # them with, so staleness is the only failure mode.
+      # Same shape as agentura.json: the catalog carries the German label and
+      # description the picker itself shows, so staleness is the only failure
+      # mode and there is nothing to audit.
+      - name: Check agent-tools.json is in sync with the builder's tool catalog
+        run: pnpm --filter @gruenerator/documentation agent-tools:check
+
       - name: Check reference.json is in sync with its sources
         run: pnpm --filter @gruenerator/documentation reference:check
 
