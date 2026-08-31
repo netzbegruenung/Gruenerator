@@ -6,15 +6,15 @@ description: 'In zehn Minuten eure Dokumente zu einem durchsuchbaren Notebook b�
 
 # Eigenes Notebook erstellen
 
-Am Ende hast du ein Notebook, das eure Dokumente bündelt und ihren Inhalt im Grünerator durchsuchbar macht — für Anträge, Beschlüsse, Programme oder Pressemitteilungen. Du brauchst dafür etwa zehn Minuten und ein paar Dateien.
+In etwa zehn Minuten erstellst du ein Notebook, das eure Dokumente bündelt und ihren Inhalt im Grünerator durchsuchbar macht — für Anträge, Beschlüsse, Programme oder Pressemitteilungen. Du brauchst dafür ein paar Dateien.
 
 ## So geht's
 
 1. **Zur Wissen-Seite.** Öffne **Wissen** (`/wissen`) — dort liegen alle Notebooks an einem Ort. Hast du noch keins, steht in der Notebook-Leiste die Karte **„Neues erstellen"**; ein Klick öffnet den Editor. Sobald du eins besitzt, heißt die Karte **„Eigene Notebooks"** und klappt den Abschnitt **„Eigene"** mit dem Button **„Notebook erstellen"** auf.
 
-   ![Die Notebook-Leiste auf der Wissen-Seite mit der Karte „Neues erstellen“ in der Mitte](/img/guides/wissen-notebook-leiste.webp)
+   ![Die Notebook-Leiste auf der Wissen-Seite mit der Karte „Neues erstellen" in der Mitte](/img/guides/wissen-notebook-leiste.webp)
 
-2. **Dateien hochladen.** Der Editor führt dich durch drei Schritte: **Quellen → Details → Überprüfen**. Im ersten wählst du die Kachel **Dateien hochladen** und ziehst deine Dokumente ins Fenster oder suchst sie im Dateibrowser. Sie sammeln sich als Vorschau **„Bereit zum Hochladen"** — dort kannst du einzelne wieder entfernen, dann startest du mit **„Hochladen"**.
+2. **Dateien hochladen.** Der Editor führt dich durch drei Schritte: **Quellen → Details → Überprüfen**. Im ersten wählst du die Kachel **Dateien hochladen** und ziehst deine Dokumente ins Fenster oder suchst sie im Dateibrowser. Sie sammeln sich als Vorschau **„Bereit zum Hochladen"**, wo du einzelne wieder entfernen kannst, dann startest du mit **„Hochladen"**.
 
    ![Der erste Schritt des Notebook-Editors mit den vier Quell-Kacheln: Dateien hochladen, Aus der Wolke verbinden, Aus Docs importieren, Von einer Website](/img/guides/notebook-quellen-schritt.webp)
 
@@ -27,12 +27,6 @@ Am Ende hast du ein Notebook, das eure Dokumente bündelt und ihren Inhalt im Gr
 :::tip[Hochladen dauert Sekunden, Indexieren länger]
 Das Hochladen ist sofort durch; damit der Inhalt durchsuchbar wird, läuft die **Indexierung** im Hintergrund weiter (erkennbar am Hinweis „Wird verarbeitet…"). Du kannst das Notebook trotzdem schon erstellen und benutzen — neue Dokumente tauchen in den Antworten auf, sobald sie fertig sind.
 :::
-
-## Damit es etwas taugt
-
-- **Ein Thema pro Notebook.** Ein Notebook mit allem darin liefert schlechtere Treffer als drei mit klarem Zuschnitt.
-- **Prüfe, was rot ist.** Ein Dokument, aus dem sich kein Text gewinnen ließ — etwa ein gescanntes PDF ohne Texterkennung —, steht als **„Nicht durchsuchbar"** in der Liste und taucht in keiner Antwort auf. Der Grund steht daneben.
-- **Im Chat nutzen:** Tippe `@` und wähle dein Notebook, dann antwortet der Grünerator daraus — mit Belegen. Ein eigener Grünerator-Agent kann es sogar dauerhaft durchsuchen, siehe [Eigene Grüneratoren erstellen](../fortgeschrittene/eigene-agentinnen-erstellen.mdx).
 
 :::note[Privat ist die Voreinstellung]
 Beim Erstellen gehört das Notebook nur dir. Ob und für wen es sichtbar wird, entscheidest du danach im **„Teilen"**-Menü — beschrieben unter [Notebooks](../../features/notebooks.md#teilen-und-veröffentlichen).
