@@ -1,56 +1,82 @@
 /**
  * Mem0 Configuration Builder
  *
- * Builds mem0 configuration using existing environment variables.
- * Reuses LiteLLM for LLM, existing MistralEmbeddingService for embeddings,
- * and the existing Qdrant client (with proper basic auth) for vector storage.
+ * Builds mem0 configuration from existing infrastructure: the `heavy`
+ * intermediate lane for the extraction LLM, the existing MistralEmbeddingService
+ * for embeddings, and the existing Qdrant client (with proper basic auth) for
+ * vector storage.
  */
 
-import OpenAI from 'openai';
+import { generateText } from 'ai';
 
 import { env } from '../../config/env.js';
 import { createQdrantClient } from '../../database/services/QdrantService/connection.js';
 import { extractJsonObject, extractLastJsonObject } from '../../utils/jsonParser.js';
 import { createLogger } from '../../utils/logger.js';
-import { REGOLO_BASE_URL } from '../ai/providers.js';
-import { regoloFetchWithThinkingDisabled } from '../ai/regoloThinkingFetch.js';
+import {
+  getIntermediateModel,
+  isProviderConfigured,
+  resolveIntermediateChain,
+} from '../ai/providers.js';
 import { MistralEmbeddingService } from '../mistral/MistralEmbeddingService/MistralEmbeddingService.js';
 
 import { withRemovedSearchCompat } from './qdrantSearchCompat.js';
 
+import type { ModelMessage } from 'ai';
 import type { MemoryConfig } from 'mem0ai/oss';
 
 /**
- * Explizit gepinnt — folgt NICHT mehr `intermediateLane('heavy')`.
+ * Die Extraktion nimmt das MODELL der Stufe `heavy` — nicht bloss dessen Namen.
  *
- * Der Adapter unten baut seinen Client aus `REGOLO_BASE_URL` + `REGOLO_API_KEY`
- * und nahm bis 01.08.2026 nur den MODELLNAMEN aus der heavy-Stufe. Das hielt,
- * solange heavy auf Regolo lag, und wurde in dem Moment falsch, in dem die
- * Stufe nach Scaleway zog: mem0 hätte einen Scaleway-Modellnamen an Regolos
- * Basis-URL geschickt. Die Stufe hatte diese Falle selbst dokumentiert.
+ * Bis zum 31.08.2026 stand hier ein von Hand gebauter Transport: `REGOLO_BASE_URL`
+ * + `REGOLO_API_KEY` + `regoloFetchWithThinkingDisabled` + der Modellname
+ * `gemma4-31b`. Der Grund dafür war gut und ist trotzdem nicht mehr der richtige.
  *
- * Ein Konsument, der Host UND Schlüssel fest verdrahtet, kann einer Lane nicht
- * folgen — also folgt er ihr nicht mehr. Wer das Modell hier wechselt, wechselt
- * es bewusst und prüft die JSON-Extraktion (der defensive Parser unten existiert,
- * weil Reasoning-Modelle das JSON in Chain-of-Thought wickeln).
+ * ── Die Falle, die den Pin erzwang, und warum sie jetzt zu ist ──
  *
- * ── 25.08.2026: warum das hier NICHT mit auf Cortecs gezogen ist ──
+ * Am 01.08.2026 hörte diese Stelle auf, `intermediateLane('heavy')` zu folgen,
+ * weil sie nur den MODELLNAMEN aus der Stufe nahm: zog die Stufe den Host um,
+ * ging ein fremder Modellname an Regolos Basis-URL — ein 404. Der Schluss daraus
+ * war der Pin. Der andere Schluss ist dieser hier: nicht den NAMEN nehmen,
+ * sondern das aufgelöste MODELL. `getModel()` baut Basis-URL, Schlüssel und den
+ * Host-eigenen `fetch`-Wrapper GEMEINSAM (services/ai/providerInstances.ts, die
+ * eine Konstruktionsstelle). Ein Name kann sich von seinem Transport lösen, ein
+ * Modellobjekt nicht — die Falle ist damit bauartbedingt weg, nicht umgangen.
  *
- * Alle übrigen Gemma-Primäre liegen seit diesem Tag auf Cortecs
- * (services/ai/gemmaHosts.ts). Diese Stelle bleibt, und zwar aus demselben
- * Grund, aus dem sie 2026-08-01 aufhörte, einer Lane zu folgen: der Adapter
- * baut seinen Client aus `REGOLO_BASE_URL` + `REGOLO_API_KEY` +
- * `regoloFetchWithThinkingDisabled`. Ein Umzug ist deshalb ein
- * TRANSPORT-Wechsel (andere Basis-URL, anderer Schlüssel, und statt der
- * Denk-Abschaltung die Souveränitäts-Weisung aus cortecsRequestPolicy.ts),
- * nicht das Umhängen eines Modellnamens.
+ * ── Was der Pin gekostet hat ──
  *
- * Der Preis eines unbedachten Umzugs steht direkt darunter: scheitert die
- * JSON-Extraktion, liefert der Adapter still `{"facts": [], "memory": []}`.
- * Das Gedächtnis hörte dann auf zu arbeiten, ohne dass irgendwo ein Fehler
- * erscheint. Erst messen, dann ziehen.
+ * Wer Host UND Schlüssel fest verdrahtet, hängt an EINEM Vertragspartner. Am
+ * 29.08.2026 antwortete Regolos Konto auf jedes Modell mit HTTP 402
+ * (`trial_expired`), und die Extraktion war für die Dauer des Ausfalls
+ * vollständig aus — während der Gatekeeper (`gatekeeperService.ts`) und die
+ * Persona (`personaService.ts`) DERSELBEN Funktion auf `heavy` weiterliefen.
+ * Ein Feature, zwei Hosts, einer davon tot (#3065).
+ *
+ * `getIntermediateModel('heavy')` liefert seit #3061 eine Kette über DREI
+ * Vertragspartner (cortecs → regolo → mistral, siehe `intermediateLanes.ts`).
+ * Ein Konto-402 ist damit ein Weiterrücken statt eines Ausfalls.
+ *
+ * ── Was der Umzug MITBRINGT, statt es zu verlieren ──
+ *
+ *  - Die Denk-Abschaltung für Regolo hängt am SDK-Client
+ *    (`providerInstances.ts:122`), dieses Glied behält sie also. Cortecs'
+ *    `gemma-4-31b-it` steht bewusst NICHT in `REASONING_OFF_MODELS`
+ *    (`cortecsRequestPolicy.ts`): es denkt von sich aus nicht und weist
+ *    `reasoning_effort: 'none'` mit HTTP 400 ab.
+ *  - Die Souveränitäts-Weisung (`eu_native`, `allowed_providers`, die
+ *    Nachprüfung über `x-cortecs-provider`) kommt mit `cortecsFetchWithPolicy`
+ *    von selbst — genau das, was der alte Kommentar hier von einem Umzug
+ *    verlangte.
+ *
+ * Der defensive Parser unten BLEIBT. Er ist der Grund, warum die Extraktion ein
+ * Modell überlebt, das sein JSON in Chain-of-Thought wickelt, und über drei
+ * Hosts ist er billiger als die Wette, dass keiner davon es je tut. Was er
+ * kostet, wenn er greift, steht an ihm selbst: er liefert still
+ * `{"facts": [], "memory": []}`.
+ *
+ * Ein Hostwechsel passiert ab hier in `gemmaHosts.ts` bzw. `intermediateLanes.ts`.
+ * In dieser Datei ist dafür nichts mehr zu tun.
  */
-const LANE = { provider: 'regolo' as const, model: 'gemma4-31b' };
 
 const log = createLogger('Mem0Config');
 
@@ -88,34 +114,65 @@ class MistralEmbeddingsAdapter {
 }
 
 /**
- * LangChain-compatible LLM adapter for LiteLLM.
- * Handles JSON mode via prompting instead of response_format (which Ollama doesn't support properly).
+ * Was `invoke()` hereinbekommt.
+ *
+ * mem0ai reicht LangChain-Nachrichten durch (`SystemMessage`/`HumanMessage`/
+ * `AIMessage`, siehe `convertToLangchainMessages` in mem0ai/dist/oss), und die
+ * tragen KEIN `role`-Feld — die Sorte steht in `_getType()`. Bis zum 31.08.2026
+ * las diese Datei `m.role` und bekam überall `undefined`: jede Nachricht ging
+ * ohne Rolle hinaus, und der JSON-Zweig unten fand nie den System-Prompt, den er
+ * ergänzen wollte, sondern stellte ihm einen zweiten voran. Das AI SDK ist an
+ * dieser Stelle strenger als der rohe OpenAI-Client — `ModelMessage` verlangt
+ * eine Rolle —, deshalb fällt es beim Umbau auf.
+ *
+ * `role` bleibt trotzdem gelesen: `generateChat()` in mem0ai ruft dieselbe
+ * Methode, und ein einfaches Objekt soll nicht daran scheitern.
  */
-class LiteLLMAdapter {
-  private client: OpenAI;
-  public model: string;
-  public modelId: string;
+interface IncomingMessage {
+  readonly content: unknown;
+  readonly role?: string;
+  readonly _getType?: () => string;
+}
 
-  constructor(baseURL: string, apiKey: string, model: string, fetchImpl?: typeof fetch) {
-    this.client = new OpenAI({ baseURL, apiKey, ...(fetchImpl ? { fetch: fetchImpl } : {}) });
-    this.model = model;
-    this.modelId = model;
-  }
+function roleOf(message: IncomingMessage): 'system' | 'user' | 'assistant' {
+  const kind = typeof message._getType === 'function' ? message._getType() : message.role;
+  if (kind === 'system') return 'system';
+  if (kind === 'ai' || kind === 'assistant') return 'assistant';
+  return 'user';
+}
 
-  /**
-   * LangChain-compatible invoke method.
-   * Handles JSON mode by adding system prompt instructions instead of response_format.
-   */
+/** Kein `as`-Cast: die Rolle ist erst hier eng genug, um `ModelMessage` zu
+ *  treffen, und ein Cast würde genau die Verengung überspringen. */
+function toModelMessage(role: 'system' | 'user' | 'assistant', content: string): ModelMessage {
+  if (role === 'system') return { role: 'system', content };
+  if (role === 'assistant') return { role: 'assistant', content };
+  return { role: 'user', content };
+}
+
+/**
+ * Das LLM, das mem0ai für Extraktion und Synthese ruft — in der Gestalt, die
+ * sein `langchain`-Provider erwartet (`invoke`, `modelId`).
+ *
+ * JSON-Modus per Prompt statt `response_format`: hinter `heavy` stehen drei
+ * Hosts, und der Modus ist nicht auf allen gleich verlässlich. Die Anweisung im
+ * System-Prompt ist die kleinste Fassung, die überall gilt.
+ */
+class Mem0ExtractionLlm {
+  /** Nur ein Name: mem0ai liest ihn fürs Protokoll
+   *  (`this.llmInstance.modelId || … || 'langchain-model'`). Welches Modell
+   *  wirklich antwortet, entscheidet die Kette pro Aufruf. */
+  public model = 'intermediate:heavy';
+  public modelId = 'intermediate:heavy';
+
   async invoke(
-    messages: Array<{ role: string; content: string }>,
+    messages: IncomingMessage[],
     options?: { response_format?: { type: string } }
   ): Promise<{ content: string }> {
     const wantsJson = options?.response_format?.type === 'json_object';
 
-    // If JSON mode is requested, add instruction to system prompt
     let processedMessages = messages.map((m) => ({
-      role: m.role as 'system' | 'user' | 'assistant',
-      content: m.content,
+      role: roleOf(m),
+      content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
     }));
 
     if (wantsJson) {
@@ -135,13 +192,17 @@ class LiteLLMAdapter {
       }
     }
 
-    const response = await this.client.chat.completions.create({
-      model: this.model,
-      messages: processedMessages,
-      max_tokens: 4096,
+    // Das Modell PRO AUFRUF holen, nicht im Konstruktor: `getIntermediateModel`
+    // lässt unkonfigurierte Anbieter heraus und schiebt als zäh vermerkte ans
+    // Ende der Kette. Eingefroren im Konstruktor wäre das die Lage beim Start
+    // des Prozesses, nicht die beim Aufruf.
+    const result = await generateText({
+      model: getIntermediateModel('heavy'),
+      messages: processedMessages.map((m) => toModelMessage(m.role, m.content)),
+      maxOutputTokens: 4096,
     });
 
-    const raw = response.choices[0]?.message?.content || '';
+    const raw = result.text;
 
     // Defensive parse: reasoning models can still wrap JSON in chain-of-thought
     // (sometimes with literal `...` ellipsis tokens in arrays) despite thinking
@@ -153,7 +214,7 @@ class LiteLLMAdapter {
     if (!parsed) {
       parsed = extractLastJsonObject(raw);
       if (parsed) {
-        log.debug('[LiteLLMAdapter] Recovered JSON from last block in chain-of-thought response');
+        log.debug('[Mem0Extraction] Recovered JSON from last block in chain-of-thought response');
       }
     }
 
@@ -165,7 +226,7 @@ class LiteLLMAdapter {
 
     if (!parsed) {
       log.warn(
-        `[LiteLLMAdapter] LLM returned non-JSON response (${raw.length} chars); using empty fallback`
+        `[Mem0Extraction] LLM returned non-JSON response (${raw.length} chars); using empty fallback`
       );
     }
 
@@ -262,20 +323,14 @@ Antworte auf Deutsch. Formuliere Erinnerungen als kurze Fakten-Aussagen (max. 1-
   return {
     customInstructions,
 
-    // LLM for memory extraction and synthesis.
-    // Regolo's mistral-small (the same model the gatekeeper uses via
-    // the `heavy` stage) with thinking disabled — it returns clean JSON,
-    // unlike gpt-oss:120b via Verdigado which emitted chain-of-thought preamble
-    // and routinely failed the JSON parse, dropping all extracted memories.
+    // LLM für Extraktion und Synthese: die Stufe `heavy` samt ihrer
+    // Ausweichkette — dieselbe, auf der auch Gatekeeper und Persona laufen.
+    // WELCHES Modell das ist, steht in `intermediateLanes.ts`, nicht hier;
+    // siehe den Kopf dieser Datei, warum das keine Zeile mehr kostet.
     llm: {
       provider: 'langchain',
       config: {
-        model: new LiteLLMAdapter(
-          REGOLO_BASE_URL,
-          env.REGOLO_API_KEY || '',
-          LANE.model,
-          regoloFetchWithThinkingDisabled
-        ),
+        model: new Mem0ExtractionLlm(),
       },
     },
 
@@ -312,13 +367,17 @@ Antworte auf Deutsch. Formuliere Erinnerungen als kurze Fakten-Aussagen (max. 1-
 export function validateMem0Environment(): string[] {
   const missing: string[] = [];
 
-  // Gate on the keys mem0 actually uses: Regolo for the extraction LLM
-  // (buildMem0Config) and the gatekeeper (`heavy` stage → regolo),
-  // Mistral for embeddings, and Qdrant for the vector store. LiteLLM is NOT
-  // part of the mem0 stack, so requiring LITELLM_API_KEY here previously made
-  // the feature report "available" while every extraction LLM call failed
-  // (or report "unavailable" in envs that only have REGOLO_API_KEY).
-  if (!env.REGOLO_API_KEY) missing.push('REGOLO_API_KEY');
+  // Gate on what mem0 actually uses. Der LLM-Teil nennt keinen Anbieter mehr
+  // beim Namen: Extraktion, Gatekeeper und Persona haengen alle an der Stufe
+  // `heavy`, und die fuehrt eine Kette. Hier stand bis zum 31.08.2026
+  // `REGOLO_API_KEY` — nach dem Umzug wäre das weder nötig (ein Konto mit
+  // Cortecs-Schlüssel meldete das Feature fälschlich als nicht verfuegbar)
+  // noch hinreichend (ein Regolo-Schlüssel allein sagt nichts über den
+  // Primär). Gefragt wird deshalb die Kette selbst.
+  const heavyChain = resolveIntermediateChain('heavy');
+  if (!heavyChain.some((target) => isProviderConfigured(target.provider))) {
+    missing.push(`API key for one of: ${heavyChain.map((t) => t.provider).join('/')} (heavy lane)`);
+  }
   if (!env.MISTRAL_API_KEY) missing.push('MISTRAL_API_KEY');
   if (!env.QDRANT_URL) missing.push('QDRANT_URL');
 
