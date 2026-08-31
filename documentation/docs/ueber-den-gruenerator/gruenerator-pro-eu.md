@@ -1,5 +1,6 @@
 ---
 sidebar_position: 3
+description: 'Warum politische Kommunikation nicht über US-Server laufen sollte und welche europäische Infrastruktur den Grünerator trägt.'
 ---
 
 # Grünerator Pro-EU

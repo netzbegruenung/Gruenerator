@@ -1,5 +1,6 @@
 ---
 sidebar_position: 4
+description: 'Wo Sprachmodelle an ihre Grenzen stoßen: fehlender Menschenverstand, Verzerrungen, Falschauskünfte und was daraus folgt.'
 ---
 
 # Risiken und Gefahren
