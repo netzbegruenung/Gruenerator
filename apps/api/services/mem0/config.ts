@@ -70,9 +70,9 @@ import type { MemoryConfig } from 'mem0ai/oss';
  *
  * Der defensive Parser unten BLEIBT. Er ist der Grund, warum die Extraktion ein
  * Modell überlebt, das sein JSON in Chain-of-Thought wickelt, und über drei
- * Hosts ist er billiger als die Wette, dass keiner davon es je tut. Was er
- * kostet, wenn er greift, steht an ihm selbst: er liefert still
- * `{"facts": [], "memory": []}`.
+ * Hosts ist er billiger als die Wette, dass keiner davon es je tut. Wenn auch er
+ * nichts findet, wirft er — leise scheitern darf diese Stelle nicht, siehe den
+ * Kommentar an ihm selbst.
  *
  * Ein Hostwechsel passiert ab hier in `gemmaHosts.ts` bzw. `intermediateLanes.ts`.
  * In dieser Datei ist dafür nichts mehr zu tun.
@@ -208,7 +208,7 @@ class Mem0ExtractionLlm {
     // (sometimes with literal `...` ellipsis tokens in arrays) despite thinking
     // being disabled. extractLastJsonObject tries all JSON blocks last-to-first
     // with ellipsis repair. Pass silent:true so parse failures don't emit ERROR
-    // logs — mem0ai gets a safe fallback below.
+    // logs — a total failure leaves this method as a throw below.
     let parsed = extractJsonObject(raw, { silent: true });
 
     if (!parsed) {
@@ -218,19 +218,26 @@ class Mem0ExtractionLlm {
       }
     }
 
-    // On total parse failure, return a neutral shape containing BOTH keys mem0ai looks for:
-    //   facts: []  → mem0ai's fact-extraction path ends cleanly with zero memories
-    //   memory: [] → mem0ai's memory-action path ends cleanly with zero actions
-    // This prevents mem0ai's console.error dumps of the full raw LLM response.
-    const content = parsed ? JSON.stringify(parsed) : '{"facts": [], "memory": []}';
-
+    // Kein lesbares JSON heißt AUSFALL, nicht „leeres Ergebnis“ — und der
+    // Unterschied ist NUR hier bekannt. Bis zum 31.08.2026 ging an dieser Stelle
+    // eine neutrale Gestalt zurück (`{"facts": [], "memory": []}`): mem0ai lief
+    // damit sauber durch, `Mem0Service` sah null Erinnerungen und zählte
+    // `recordMem0Success('add')`. Ein dauerhaft unlesbares Modell meldete sich
+    // damit über `mem0Health` als gesund (#3073). Nach der Rückgabe lässt sich
+    // „die Person hat nichts Merkenswertes gesagt“ nicht mehr von „das Modell
+    // hat Unsinn geliefert“ trennen, also verlässt der Befund diese Stelle als
+    // Wurf und nicht als Wert.
+    //
+    // Was die neutrale Gestalt eigentlich verhindern sollte, bleibt gedeckt:
+    // mem0ai protokolliert den gefangenen Fehler (`console.error("LLM extraction
+    // failed:", e)`), nicht die rohe Antwort — die steht hier nur als Länge.
     if (!parsed) {
-      log.warn(
-        `[Mem0Extraction] LLM returned non-JSON response (${raw.length} chars); using empty fallback`
+      throw new SyntaxError(
+        `[Mem0Extraction] LLM returned non-JSON response (${raw.length} chars)`
       );
     }
 
-    return { content };
+    return { content: JSON.stringify(parsed) };
   }
 }
 

@@ -8,6 +8,10 @@
  * Extraktion aus, während Gatekeeper und Persona derselben Funktion auf ihrer
  * Kette weiterliefen.
  *
+ * Der dritte Wächter gilt dem Scheitern: findet der defensive Parser nichts,
+ * wirft diese Stelle. Gibt sie stattdessen wieder eine leere Gestalt zurück,
+ * zählt `Mem0Service` den Ausfall als Erfolg (#3073).
+ *
  * Der zweite Wächter gilt der Rolle: mem0ai reicht LangChain-Nachrichten herein,
  * die kein `role`-Feld tragen. Wer hier wieder `m.role` liest, schickt jede
  * Nachricht ohne Rolle hinaus — und der JSON-Zweig findet den System-Prompt
@@ -142,12 +146,15 @@ describe('mem0 extraction LLM', () => {
     expect(JSON.parse(result.content)).toEqual({ facts: ['wohnt in Freiburg'] });
   });
 
-  it('falls back to the neutral shape when nothing parses, without throwing', async () => {
+  it('throws when nothing parses, instead of handing back an empty shape (#3073)', async () => {
     mockGenerateText.mockResolvedValue({ text: 'überhaupt kein JSON' });
 
-    const result = await extractionLlm().invoke([langchainMessage('human', 'x')]);
-
-    expect(JSON.parse(result.content)).toEqual({ facts: [], memory: [] });
+    // `{"facts": [], "memory": []}` wäre für mem0ai ein sauberer Durchlauf
+    // gewesen — und `Mem0Service` hätte den Ausfall als geglückte Ablage
+    // gezählt. Der Unterschied ist nur hier bekannt, also muss er hier heraus.
+    await expect(extractionLlm().invoke([langchainMessage('human', 'x')])).rejects.toThrow(
+      SyntaxError
+    );
   });
 });
 
