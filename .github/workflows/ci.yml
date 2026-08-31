@@ -224,6 +224,10 @@ jobs:
           # deliberately non-blocking in docs-capabilities.yml) — it is the
           # staleness check, which existed in package.json but had no caller.
           pnpm --filter @gruenerator/documentation capabilities:check
+          # Lives in packages/shared, so a PR that never touches
+          # documentation/ can add a tool and leave the guide's table a
+          # row short — exactly the cross-branch drift this block is for.
+          pnpm --filter @gruenerator/documentation agent-tools:check
 
   # No `needs:` on test/build. Gating them behind the quality job bought
   # nothing — Actions minutes are free on a public repo, wall-clock is the
