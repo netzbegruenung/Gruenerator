@@ -35,6 +35,7 @@ import { tool, type Tool, type ToolSet } from 'ai';
 import { z } from 'zod';
 
 import { lastUserText } from '../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
+import { looksLikeRecurringOrder } from '../../../agents/langgraph/ChatGraph/nodes/classifierSignals.js';
 import { forbidsNewResearch } from '../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
 import {
   buildProductKnowledgeBlock,
@@ -53,6 +54,7 @@ import {
   SLICE_REGISTER_CHARS,
 } from '../services/agenticLoop/attachedDocuments.js';
 import { isEditorSurface } from '../services/agenticLoop/routing.js';
+import { mentionsRecurringTasks } from '../services/agenturaContext.js';
 import { artifactKind, type ArtifactKindId } from '../services/artifactKindRegistry.js';
 import {
   attachedCloudShareLinks,
@@ -87,6 +89,7 @@ import {
   makeMediaTool,
   type PersonalToolCtx,
 } from './personalDataTools.js';
+import { makeRecurringTasksTool } from './recurringTaskTools.js';
 import { harvestSearchImages, imageDeliveryNote } from './searchImageHarvest.js';
 import { agentAllowsWebSearch, createSearchTools } from './searchTools.js';
 
@@ -852,6 +855,27 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
     }
     if (state.enabledTools?.['notebooks'] !== false) {
       tools.notebooks = makeNotebooksTool(personalCtx);
+    }
+    // Wiederkehrende Aufgaben (Agentura). Nicht breit montiert — das Schema
+    // trägt den ganzen Takt-Block und kostet auf jedem Turn. Drei Tore:
+    //
+    // 1. Der Pin. Tier 3.4 des Klassifikators erkennt den Dauerauftrag
+    //    („erinnere mich jeden Montag …") und setzt `mentionPinnedTool`; der
+    //    Pin zwingt den Turn in die Schleife und benennt den ersten Aufruf —
+    //    aber `pinnedFirstTool` prüft die Montage, ein Pin auf ein fehlendes
+    //    Werkzeug wäre still wirkungslos.
+    // 2. Derselbe Detektor noch einmal, für den Fall, dass der Turn auf einem
+    //    anderen Weg in die Schleife kam (Erwähnung, Verbund).
+    // 3. Das Vokabular fürs Verwalten: „pausier die Erinnerung", „welche
+    //    Aufgaben laufen bei mir".
+    const recurringText = state.lastUserTextNoMentions ?? lastUserText(state);
+    if (
+      state.enabledTools?.['recurring_tasks'] !== false &&
+      (state.mentionPinnedTool === 'recurring_tasks' ||
+        looksLikeRecurringOrder(recurringText) ||
+        mentionsRecurringTasks(recurringText))
+    ) {
+      tools.recurring_tasks = makeRecurringTasksTool(personalCtx);
     }
 
     // Die verbundene Wolke. Zwei Tore, in dieser Reihenfolge:

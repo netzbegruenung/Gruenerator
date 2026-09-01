@@ -8,6 +8,7 @@ import {
   Cloud,
   FolderInput,
   Eye,
+  Repeat,
   Check,
   X,
   ArrowRight,
@@ -33,6 +34,7 @@ const ICON_MAP: Record<ConfirmActionType, typeof FileText> = {
   set_notebook_visibility: Eye,
   share_notebook: Share2,
   set_group_visibility: Eye,
+  create_recurring_task: Repeat,
 };
 
 const GROUP_ACTION_TYPES: ReadonlySet<ConfirmActionType> = new Set([
@@ -92,11 +94,13 @@ export const ConfirmActionCard = memo(function ConfirmActionCard({
               >
                 {action.type === 'modify_board'
                   ? 'Board öffnen'
-                  : GROUP_ACTION_TYPES.has(action.type)
-                    ? 'Gruppe öffnen'
-                    : NOTEBOOK_ACTION_TYPES.has(action.type)
-                      ? 'Notebook öffnen'
-                      : 'Dokument öffnen'}
+                  : action.type === 'create_recurring_task'
+                    ? 'Aufgaben öffnen'
+                    : GROUP_ACTION_TYPES.has(action.type)
+                      ? 'Gruppe öffnen'
+                      : NOTEBOOK_ACTION_TYPES.has(action.type)
+                        ? 'Notebook öffnen'
+                        : 'Dokument öffnen'}
                 <ArrowRight className="h-3 w-3" />
               </a>
             </>

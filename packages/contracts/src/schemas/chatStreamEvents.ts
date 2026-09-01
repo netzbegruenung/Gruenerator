@@ -326,6 +326,10 @@ export const confirmActionTypeSchema = z.enum([
   'share_notebook',
   // Projekt-Karte des `groups`-Werkzeugs (09/2026), additiv.
   'set_group_visibility',
+  // Karte des `recurring_tasks`-Werkzeugs (09/2026), additiv. Gleichnamig mit
+  // dem stillgelegten Intent, bewusst: es ist dieselbe Handlung, nur mit
+  // Bestätigung statt stillem Schreiben.
+  'create_recurring_task',
 ]);
 export type ConfirmActionType = z.infer<typeof confirmActionTypeSchema>;
 

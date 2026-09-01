@@ -356,6 +356,19 @@ describe('shouldForceFirstToolCall', () => {
       expect(force({ intent: 'agentic', pinnedTool: null })).toBe(false);
     });
 
+    it('auch ohne Erwähnung: der Pin aus Tier 3.4 auf `recurring_tasks` trägt', () => {
+      // Kein `@`-Token setzt diesen Pin — der Klassifikator tut es, wenn er
+      // einen Dauerauftrag erkennt. Ohne den Zwang erklärte der Planer am
+      // Ende, das Produkt könne keine Erinnerungen setzen.
+      expect(
+        force({
+          intent: 'agentic',
+          pinnedTool: 'recurring_tasks',
+          lastUserText: 'Erinnere mich jeden Montag um 9 an den Wochenbericht',
+        })
+      ).toBe(true);
+    });
+
     it('sticht auch eigenes Material — der Pin ist eine ausdrückliche Wahl', () => {
       expect(force({ intent: 'agentic', pinnedTool: 'umfragen', materialHeavy: true })).toBe(true);
     });
@@ -376,6 +389,12 @@ describe('pinnedFirstTool', () => {
 
   it('nennt das Werkzeug, das die Erwähnung festgezurrt hat', () => {
     expect(pinnedFirstTool({ pinnedTool: 'umfragen', isMounted })).toBe('umfragen');
+    expect(
+      pinnedFirstTool({
+        pinnedTool: 'recurring_tasks',
+        isMounted: (name) => name === 'recurring_tasks',
+      })
+    ).toBe('recurring_tasks');
   });
 
   it('schweigt ohne Erwähnung — ein Klassifikator-Verdikt ist keine Wahl', () => {

@@ -180,6 +180,9 @@ describe('DEMOTABLE_HEURISTIC_INTENTS — loop MINUS drei, und jede Ausnahme sag
     expect(sorted(notDemotable)).toEqual(['agentic', 'research']);
     expect(dispositionOf('umfragen')).toBe('retired');
     expect(SYSTEM_TOOL_INTENTS.has('umfragen')).toBe(true);
+    // Derselbe Weg für den Dauerauftrag (09/2026): das Werkzeug heißt
+    // `recurring_tasks`, der Pin kommt aus Tier 3.4 statt aus einer Erwähnung.
+    expect(dispositionOf('create_recurring_task')).toBe('retired');
     expect(NAMED_RETRIEVAL_INTENTS.has('research')).toBe(true);
   });
 });

@@ -29,6 +29,7 @@ import {
   makeFindContentTool,
   makeMediaTool,
 } from '../chat/agents/personalDataTools.js';
+import { makeRecurringTasksTool } from '../chat/agents/recurringTaskTools.js';
 import { runBoardGeneration, runDocGeneration } from '../chat/services/intentExecutionService.js';
 import {
   computeMergedFilters,
@@ -49,6 +50,7 @@ import {
   addWolkeFolderMcp,
   createGroupDirect,
   createNotebookMcp,
+  createRecurringTaskMcp,
   joinGroupDirect,
   setGroupVisibilityMcp,
   setNotebookVisibilityMcp,
@@ -642,6 +644,21 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
           : {}),
       },
       ...(contentWrite ? {} : { readOnly: true }),
+    });
+  }
+
+  // ── recurring_tasks (content-Scope: die Aufgabe erzeugt Inhalte im Konto) ──
+  if (contentRead) {
+    registerAiTool(server, 'recurring_tasks', makeRecurringTasksTool(ctx), {
+      description: contentWrite
+        ? `Zugriff auf die wiederkehrenden Aufgaben der Person (ein Grünerator-Agent läuft von selbst im Takt): auflisten (list — die id steht im ref), Details samt letzten Läufen (get), einrichten (create mit title, instruction, recurrence {frequency, hour, minute, byweekday?, bymonthday?}; optional delivery, agentIdentifier, emailNotify, timezone), ändern (update), pausieren (pause), fortsetzen (resume), einmal sofort laufen lassen (run_now), löschen (delete). create und delete verlangen das zweistufige confirm-Protokoll.`
+        : `Die wiederkehrenden Aufgaben der Person auflisten (list — die id steht im ref) oder Details samt letzten Läufen ansehen (get).`,
+      actions: contentWrite
+        ? ['list', 'get', 'create', 'update', 'pause', 'resume', 'run_now', 'delete']
+        : ['list', 'get'],
+      ...(contentWrite
+        ? { overrides: { create: (args) => createRecurringTaskMcp(userId, args) } }
+        : { readOnly: true }),
     });
   }
 

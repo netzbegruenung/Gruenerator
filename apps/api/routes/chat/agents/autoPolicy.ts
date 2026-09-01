@@ -223,6 +223,8 @@ export const POLICY: Record<Exclude<SearchIntent, ExemptIntent>, AutoEntry> = {
   edit_current_board: { modelId: MEDIUM, reasoning: graded('medium', 'high', 'high') },
   create_sheet: { modelId: MEDIUM, reasoning: graded('medium', 'high', 'high') },
   create_presentation: { modelId: MEDIUM, reasoning: graded('medium', 'high', 'high') },
+  // Stillgelegt (09/2026) — total über `SearchIntent`; der Dauerauftrag läuft
+  // als `agentic` mit Pin auf das Werkzeug `recurring_tasks`.
   create_recurring_task: { modelId: MEDIUM, reasoning: 'medium' },
   // Same family as its three siblings above: generate structured content AND
   // narrate a platform action the model cannot see in its context. It was the

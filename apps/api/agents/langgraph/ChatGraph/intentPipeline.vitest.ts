@@ -315,8 +315,10 @@ describe('every create intent declares a failure policy', () => {
     create_sheet: 'typed',
     create_presentation: 'typed',
     create_pdf: 'typed',
-    // EXPERIMENTAL + flag-gated: an unparseable schedule is a normal chat turn
-    // ("jeden zweiten Dienstag?"), not a failed artifact.
+    // Retired (09/2026): nothing produces the verdict any more — a recurring
+    // order is `agentic` with the `recurring_tasks` tool pinned. The row stays
+    // because the enum value stays; a stale verdict from an old thread has no
+    // handler and simply hands the turn back.
     create_recurring_task: 'fallthrough',
   };
 

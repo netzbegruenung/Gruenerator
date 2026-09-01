@@ -446,6 +446,53 @@ describe('loop-catalog tool parsers', () => {
     if (vm.kind === 'citations') expect(vm.citations[0].title).toBe('Protokoll');
   });
 
+  // recurring_tasks: `get` liefert `{task, runs}` mit fertigen Etiketten
+  // (recurringTaskTools.ts); `list` bleibt Zeilen → Zitatliste.
+  it('recurring_tasks get renders the detail rows with the server-side labels', () => {
+    const vm = resolveToolEntry('recurring_tasks').parse(
+      { action: 'get', taskId: 't1' },
+      {
+        task: {
+          id: 't1',
+          title: 'Wochenbericht',
+          recurrenceLabel: 'wöchentlich (Montag) um 09:00 Uhr',
+          deliveryLabel: 'als Dokument',
+          agentIdentifier: 'presse-agent',
+          agentTitle: 'Presse-Agent',
+          enabled: false,
+          url: '/wiederkehrend',
+        },
+        runs: [{ statusLabel: 'erledigt' }, { statusLabel: 'fehlgeschlagen' }],
+      }
+    );
+    expect(vm.kind).toBe('key-value');
+    if (vm.kind === 'key-value') {
+      expect(vm.entries).toEqual([
+        { label: 'Aufgabe', value: 'Wochenbericht' },
+        { label: 'Takt', value: 'wöchentlich (Montag) um 09:00 Uhr' },
+        { label: 'Zustellung', value: 'als Dokument' },
+        { label: 'Agent', value: 'Presse-Agent' },
+        { label: 'Status', value: 'Pausiert' },
+        { label: 'Letzte Läufe', value: 'erledigt, fehlgeschlagen' },
+      ]);
+    }
+  });
+
+  it('recurring_tasks list lifts the rows into citations', () => {
+    const vm = resolveToolEntry('recurring_tasks').parse(
+      { action: 'list' },
+      {
+        resultCount: 1,
+        results: [
+          { title: 'Wochenbericht', url: '/wiederkehrend', type: 'Wiederkehrende Aufgabe' },
+        ],
+      }
+    );
+    expect(vm.kind).toBe('citations');
+    if (vm.kind === 'citations') expect(vm.citations[0].title).toBe('Wochenbericht');
+    expect(resolveToolEntry('recurring_tasks').meta.label).toBe('Wiederkehrende Aufgaben');
+  });
+
   it('every formerly-unregistered tool now resolves to a real label', () => {
     const previouslyBroken = [
       'rezept_laden',

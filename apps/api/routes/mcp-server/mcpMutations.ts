@@ -4,6 +4,7 @@
  * the in-band two-step `confirm=true` protocol, the rest execute directly
  * against the same service layer the confirm executor calls.
  */
+import { createRecurringTaskBodySchema } from '@gruenerator/contracts';
 import { buildGroupSlug } from '@gruenerator/shared/utils';
 
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
@@ -23,9 +24,17 @@ import {
   attachWolkeFolderToNotebook,
   previewWolkeFolder,
 } from '../../services/notebook/notebookWolkeAttach.js';
+import {
+  DELIVERY_LABELS_DE,
+  describeRecurrence,
+  formatNextRun,
+} from '../../services/recurringTasks/recurringTaskLabels.js';
+import { createRecurringTask } from '../../services/recurringTasks/recurringTasksRepository.js';
 import { getProfileService } from '../../services/user/ProfileService.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
+import { getAgentForUser } from '../chat/agents/agentLoader.js';
 import { createNotebookDirect, notebookUrl } from '../chat/agents/notebookTools.js';
+import { RECURRING_TASKS_URL } from '../chat/agents/recurringTaskTools.js';
 import { hasWriteAccess } from '../chat/confirmController.js';
 import { checkNotebookAccess } from '../notebook/notebookAccess.js';
 
@@ -438,4 +447,63 @@ export async function shareNotebookMcp(
   });
   if (!outcome.success) return { error: outcome.message };
   return { ok: true, note: `Notebook „${collection.name}" wurde mit „${group.name}" geteilt.` };
+}
+
+/**
+ * `recurring_tasks` create als zweistufiges confirm-Protokoll — im Chat ist
+ * das eine Karte, weil die Aufgabe danach selbstständig handelt und je Lauf
+ * kostet. Dieselbe Validierung wie im Werkzeug: Contract-Schema plus
+ * `getAgentForUser`, damit kein erfundener Identifier still als Standard-Agent
+ * läuft.
+ */
+export async function createRecurringTaskMcp(
+  userId: string,
+  args: Record<string, unknown>
+): Promise<ToolResult> {
+  const profile = await getProfileService().getProfileById(userId);
+  const locale = profile?.locale === 'de-AT' ? 'de-AT' : 'de-DE';
+  const agentIdentifier =
+    typeof args.agentIdentifier === 'string' && args.agentIdentifier.trim()
+      ? args.agentIdentifier.trim()
+      : null;
+  let agentTitle: string | null = null;
+  if (agentIdentifier) {
+    const agent = await getAgentForUser(agentIdentifier, userId);
+    if (!agent) return { error: `Grünerator-Agent „${agentIdentifier}" nicht gefunden.` };
+    agentTitle = agent.title;
+  }
+  const validated = createRecurringTaskBodySchema.safeParse({
+    title: args.title,
+    instruction: args.instruction,
+    recurrence: args.recurrence,
+    ...(args.delivery !== undefined ? { delivery: args.delivery } : {}),
+    ...(args.emailNotify !== undefined ? { emailNotify: args.emailNotify } : {}),
+    agentIdentifier,
+    timezone:
+      typeof args.timezone === 'string' && args.timezone.trim()
+        ? args.timezone.trim()
+        : locale === 'de-AT'
+          ? 'Europe/Vienna'
+          : 'Europe/Berlin',
+    locale,
+  });
+  if (!validated.success) {
+    return {
+      error: `create braucht title, instruction und recurrence — ${validated.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ')}`,
+    };
+  }
+  const body = validated.data;
+  const takt = describeRecurrence(body.recurrence);
+  const zustellung = DELIVERY_LABELS_DE[body.delivery];
+  if (args.confirm !== true) {
+    return {
+      needsConfirmation: true,
+      note: `Wiederkehrende Aufgabe „${body.title}" einrichten — ${takt}, ${zustellung}, Agent: ${agentTitle ?? 'Grünerator (Standard)'}? Sie läuft danach von selbst. Frage die Person und rufe create erst mit confirm=true erneut auf.`,
+    };
+  }
+  const task = await createRecurringTask(userId, body);
+  return {
+    ok: true,
+    note: `Wiederkehrende Aufgabe „${task.title}" eingerichtet — läuft ${takt}, ${zustellung}. Nächste Ausführung: ${formatNextRun(task.nextRunAt, locale)} (${absolutizeUrl(RECURRING_TASKS_URL)}).`,
+  };
 }

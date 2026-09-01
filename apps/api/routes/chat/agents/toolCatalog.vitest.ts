@@ -314,6 +314,67 @@ describe('toolCatalog domain tool mounting', () => {
   });
 });
 
+describe('toolCatalog recurring_tasks — drei Tore, sonst nicht montiert', () => {
+  function catalogFor(state: Record<string, unknown>) {
+    const sourceRegistry = createSourceRegistry();
+    const sse = { send: () => {} } as unknown as NonNullable<
+      Parameters<typeof buildChatToolCatalog>[0]['loop']
+    >['sse'];
+    return buildChatToolCatalog({
+      agentConfig,
+      sourceRegistry,
+      loop: {
+        sse,
+        state: { intent: 'agentic', enabledTools: {}, ...state } as unknown as ChatGraphState,
+      },
+    }).toolNames;
+  }
+  const withText = (text: string, over: Record<string, unknown> = {}) =>
+    catalogFor({ messages: [{ role: 'user', content: text }], ...over });
+
+  it('bleibt bei einem gewöhnlichen Turn weg — das Schema kostet auf jedem Turn', () => {
+    expect(withText('Was sagt das Wahlprogramm zum Tempolimit?')).not.toContain('recurring_tasks');
+    expect(withText('Leg eine Aufgabe auf dem Board an')).not.toContain('recurring_tasks');
+  });
+
+  it('montiert auf den Pin aus Tier 3.4, auch ohne ein Wort aus dem Vokabular', () => {
+    expect(withText('mach das bitte', { mentionPinnedTool: 'recurring_tasks' })).toContain(
+      'recurring_tasks'
+    );
+  });
+
+  it('montiert auf den Dauerauftrag selbst (zweiter Weg in die Schleife)', () => {
+    expect(withText('Erinnere mich jeden Montag um 9 an den Wochenbericht')).toContain(
+      'recurring_tasks'
+    );
+  });
+
+  it('montiert auf das Verwaltungs-Vokabular', () => {
+    expect(withText('Pausier meine Erinnerung für den Newsletter')).toContain('recurring_tasks');
+    expect(withText('Welche wiederkehrenden Aufgaben laufen bei mir?')).toContain(
+      'recurring_tasks'
+    );
+  });
+
+  it('liest den Text ohne Erwähnungen, wenn der Router ihn liefert', () => {
+    expect(
+      catalogFor({
+        messages: [{ role: 'user', content: '@irgendwas' }],
+        lastUserTextNoMentions: 'pausier die Erinnerung',
+      })
+    ).toContain('recurring_tasks');
+  });
+
+  it('respektiert das Opt-out des Agenten — auch gegen den Pin', () => {
+    expect(
+      withText('Erinnere mich jeden Montag an den Bericht', {
+        enabledTools: { recurring_tasks: false },
+        mentionPinnedTool: 'recurring_tasks',
+      })
+    ).not.toContain('recurring_tasks');
+  });
+});
+
 describe('toolCatalog scrape_url', () => {
   beforeEach(() => {
     validateUrlForFetch.mockReset();

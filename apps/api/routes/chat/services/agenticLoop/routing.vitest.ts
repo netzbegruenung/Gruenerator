@@ -50,6 +50,8 @@ describe('looksLikeToolableQuestion', () => {
     // Produktwort für Gruppen ist „Projekt" — ohne den Eintrag blieb „meine
     // Projekte" beim Klassifikator hängen, während „meine Gruppen" den Loop traf.
     ['personal projekte', 'zeig meine projekte'],
+    // Wiederkehrende Aufgaben heißen im Alltag „Erinnerungen".
+    ['personal erinnerungen', 'meine erinnerungen bitte'],
   ];
   it.each(toolable)('routes a real question into the loop: %s', (_label, q) => {
     expect(looksLikeToolableQuestion(q)).toBe(true);

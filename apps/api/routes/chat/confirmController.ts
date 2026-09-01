@@ -335,6 +335,28 @@ async function executeAction(action: PendingAction): Promise<{ message: string; 
       };
     }
 
+    case 'create_recurring_task': {
+      const { createRecurringTask } =
+        await import('../../services/recurringTasks/recurringTasksRepository.js');
+      const { describeRecurrence, DELIVERY_LABELS_DE, formatNextRun } =
+        await import('../../services/recurringTasks/recurringTaskLabels.js');
+      const { agentTitle: _agentTitle, ...body } = action.payload;
+      const task = await createRecurringTask(action.userId, body);
+      // Takt und nächster Lauf gehören in die Zeile: bei einer Beschwerde („die
+      // Erinnerung kommt zur falschen Zeit") muss nachvollziehbar sein, ob der
+      // Planer oder der Scheduler danebenlag.
+      log.info(
+        `[ConfirmController] Recurring task created: "${task.title}" (${task.id}) — ` +
+          `${describeRecurrence(task.recurrence)}, next=${new Date(task.nextRunAt).toISOString()}`
+      );
+      return {
+        message:
+          `Wiederkehrende Aufgabe **„${task.title}"** eingerichtet — läuft ${describeRecurrence(task.recurrence)}, ` +
+          `${DELIVERY_LABELS_DE[task.delivery]}. Nächste Ausführung: ${formatNextRun(task.nextRunAt, task.locale)}.`,
+        url: '/wiederkehrend',
+      };
+    }
+
     default: {
       const _exhaustive: never = action;
       throw new Error(`Unknown action type: ${(action as PendingAction).type}`);

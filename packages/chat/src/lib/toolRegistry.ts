@@ -58,6 +58,7 @@ export const UI_TOOL_NAMES = z.enum([
   'read_pdf_form',
   'fill_pdf_form',
   'cloud_files',
+  'recurring_tasks',
   // --- Loop-catalog tools that had no UI entry until now. Every string here is
   // copied verbatim from its API mount site; toolCatalogUiCoverage.vitest.ts in
   // apps/api enforces exactly that. F0: additive only, never renamed.
@@ -416,6 +417,35 @@ function parseGroupsVM(args: unknown, result: unknown): ToolResultVM {
   return parsePersonalDataVM(args, result);
 }
 
+// recurring_tasks: `get` liefert ein `{task}`-Detailobjekt mit fertigen
+// Etiketten (recurringTaskTools.ts) — der Takt wird serverseitig beschrieben,
+// damit die Wochentagsliste nicht ein drittes Mal existiert. Listen und
+// Vorgänge gehen weiter über `parsePersonalDataVM`.
+function parseRecurringTasksVM(args: unknown, result: unknown): ToolResultVM {
+  const task = getObject(result, 'task');
+  if (task) {
+    const entries: KeyValueEntry[] = [];
+    const title = getString(task, 'title');
+    if (title) entries.push({ label: 'Aufgabe', value: title });
+    const takt = getString(task, 'recurrenceLabel');
+    if (takt) entries.push({ label: 'Takt', value: takt });
+    const delivery = getString(task, 'deliveryLabel');
+    if (delivery) entries.push({ label: 'Zustellung', value: delivery });
+    const agent = getString(task, 'agentTitle') ?? getString(task, 'agentIdentifier');
+    entries.push({ label: 'Agent', value: agent ?? 'Grünerator (Standard)' });
+    entries.push({ label: 'Status', value: getBoolean(task, 'enabled') ? 'Aktiv' : 'Pausiert' });
+    const runs = getArray(result, 'runs') ?? [];
+    if (runs.length) {
+      entries.push({
+        label: 'Letzte Läufe',
+        value: runs.map((r) => getString(r, 'statusLabel') ?? '—').join(', '),
+      });
+    }
+    return { kind: 'key-value', entries, citations: [], markdown: null, imageUrl: null };
+  }
+  return parsePersonalDataVM(args, result);
+}
+
 // edit_document (agentic editor edit): the loop step that plans + applies typed
 // ops to the open sheet/presentation/board. Result is lean — {ok, operationCount,
 // opSummary} | {ok, operationCount:0, note} | {error} — so a compact text-note
@@ -562,6 +592,7 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   // card only reports what happened.
   fill_pdf_form: entry('fill_pdf_form', 'text-note', parsePdfFormFillVM),
   cloud_files: entry('cloud_files', 'key-value', parseCloudFilesVM),
+  recurring_tasks: entry('recurring_tasks', 'citations', parseRecurringTasksVM),
 
   // --- Loop-catalog tools, previously falling through to the raw-name pill ---
   rezept_laden: entry('rezept_laden', 'text-note', parseRecipeVM),
