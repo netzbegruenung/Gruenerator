@@ -57,10 +57,29 @@
  * nicht mehr.
  *
  * Was daraus NICHT folgt: dass sich am Verhalten dieser Datei etwas ändern
- * müsste. Ohne Vorgabe wählt der Router weiterhin infercom, und wir geben
- * keine vor — die Wahl bleibt seine. Was sich ändert, ist die Begründung: die
- * Reserve dieser Lane liegt nicht mehr AUSSCHLIESSLICH bei
+ * müsste. Die Wahl bleibt die des Routers. Was sich ändert, ist die
+ * Begründung: die Reserve dieser Lane liegt nicht mehr AUSSCHLIESSLICH bei
  * `GEMMA_31B_ALTERNATE`, sondern zusätzlich beim Router selbst.
+ *
+ * Zwei Halbsätze standen an dieser Stelle bis zum 01.09.2026 falsch, und beide
+ * sind an dem Tag nachgemessen:
+ *
+ *  - „Ohne Vorgabe wählt der Router weiterhin infercom." Von 46 Läufen ohne
+ *    Pinning gingen 46 an **berget**. Eine Stunde später gingen drei von drei
+ *    an infercom. Die Wahl ist also nicht fest, sondern wandert — was der
+ *    Absatz oben ohnehin sagt, nur zog der Satz die gegenteilige Folgerung.
+ *  - „und wir geben keine vor." Doch: `cortecsFetchWithPolicy` hängt an JEDE
+ *    Anfrage `allowed_providers` (die elf souveränen Namen), `eu_native` und
+ *    `allow_zero_data_retention`. Die Liste ist weit genug, dass beide
+ *    Gemma-Upstreams darin stehen — am Verhalten ändert das nichts, an der
+ *    Begründung alles.
+ *
+ * Was der Router NICHT tut: innerhalb einer Anfrage umschalten. Er wählt
+ * einmal, und wenn dieser Upstream schweigt, schweigt die Anfrage — ein an
+ * einen zähen Upstream gepinnter Zug lief am 01.09.2026 gemessen 301 s ohne
+ * Fehler und ohne Wechsel. Die zwei Endpunkte sind Kapazität und ein zweiter
+ * Vertrag, kein Failover pro Anfrage; das bleibt die Aufgabe von
+ * `GEMMA_31B_ALTERNATE` und der Sibling-Kette in responseStreamingService.ts.
  *
  * Die Lehre, die hier bleiben soll: ein Katalogeintrag und ein
  * Erzwingungsversuch sind Momentaufnahmen eines fremden Systems. Aus einem
