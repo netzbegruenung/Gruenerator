@@ -441,6 +441,57 @@ describe('toolCatalog user_agents — Vokabular oder User-Agent-Thread, sonst ni
   });
 });
 
+describe('toolCatalog recipes — nur Vokabular, sonst nicht montiert', () => {
+  function catalogFor(state: Record<string, unknown>) {
+    const sourceRegistry = createSourceRegistry();
+    const sse = { send: () => {} } as unknown as NonNullable<
+      Parameters<typeof buildChatToolCatalog>[0]['loop']
+    >['sse'];
+    return buildChatToolCatalog({
+      agentConfig,
+      sourceRegistry,
+      loop: {
+        sse,
+        state: {
+          intent: 'agentic',
+          enabledTools: {},
+          agentConfig,
+          ...state,
+        } as unknown as ChatGraphState,
+      },
+    }).toolNames;
+  }
+  const withText = (text: string, over: Record<string, unknown> = {}) =>
+    catalogFor({ messages: [{ role: 'user', content: text }], ...over });
+
+  it('bleibt bei einem gewöhnlichen Turn weg — auch bei einem Schreibauftrag „im Stil von"', () => {
+    expect(withText('Was sagt das Wahlprogramm zum Tempolimit?')).not.toContain('recipes');
+    expect(withText('Schreib eine PM im Stil der Grünen Hessen')).not.toContain('recipes');
+    expect(withText('Das Medikament ist rezeptfrei')).not.toContain('recipes');
+  });
+
+  it('montiert auf das Vokabular', () => {
+    expect(withText('Welche Rezepte gibt es?')).toContain('recipes');
+    expect(withText('Lern meinen Schreibstil aus diesen drei Texten')).toContain('recipes');
+    expect(withText('Lösch meine Textform für Einladungen')).toContain('recipes');
+  });
+
+  it('liest den Text ohne Erwähnungen, wenn der Router ihn liefert', () => {
+    expect(
+      catalogFor({
+        messages: [{ role: 'user', content: '@irgendwas' }],
+        lastUserTextNoMentions: 'zeig meine Textformen',
+      })
+    ).toContain('recipes');
+  });
+
+  it('respektiert das Opt-out des Agenten', () => {
+    expect(withText('Welche Rezepte gibt es?', { enabledTools: { recipes: false } })).not.toContain(
+      'recipes'
+    );
+  });
+});
+
 describe('toolCatalog scrape_url', () => {
   beforeEach(() => {
     validateUrlForFetch.mockReset();

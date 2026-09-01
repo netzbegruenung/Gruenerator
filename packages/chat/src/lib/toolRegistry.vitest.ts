@@ -578,6 +578,110 @@ describe('loop-catalog tool parsers', () => {
     expect(resolveToolEntry('user_agents').meta.label).toBe('Grünerator-Agenten');
   });
 
+  // recipes: `get` liefert `{recipe}` (textFormTools.ts) — eigene Textform mit
+  // Stilblock, mitgeliefertes Rezept ohne Rumpf; `list` bleibt Zeilen →
+  // Zitatliste; create/add_examples/delete sind eine Notiz.
+  it('recipes get renders an own text form with kind, type, examples and style', () => {
+    const vm = resolveToolEntry('recipes').parse(
+      { action: 'get', mention: 'omveinladungen' },
+      {
+        recipe: {
+          mention: 'omveinladungen',
+          title: 'OV-Einladungen',
+          source: 'user',
+          kind: 'custom',
+          kindLabel: 'Eigene Textform',
+          textType: null,
+          textTypeLabel: null,
+          overridesSystemRecipe: false,
+          exampleCount: 2,
+          examples: ['Liebe Mitglieder …'],
+          styleBlock: '## STIL: Einladungen …',
+          styleTruncated: true,
+          analyzedAt: '2026-08-30T10:00:00.000Z',
+          sharedFromGroup: null,
+          readOnly: false,
+          url: '/settings/texte-anlernen',
+        },
+      }
+    );
+    expect(vm.kind).toBe('key-value');
+    if (vm.kind === 'key-value') {
+      expect(vm.entries).toEqual([
+        { label: 'Name', value: 'OV-Einladungen' },
+        { label: 'Mention', value: '@omveinladungen' },
+        { label: 'Art', value: 'Eigene Textform' },
+        { label: 'Beispiele', value: '2' },
+        { label: 'Stil (gekürzt)', value: '## STIL: Einladungen …' },
+      ]);
+    }
+  });
+
+  it('recipes get on a system recipe shows title and description and stops there', () => {
+    const vm = resolveToolEntry('recipes').parse(
+      { action: 'get', mention: 'presse' },
+      {
+        recipe: {
+          mention: 'presse',
+          title: 'Pressemitteilung',
+          description: 'PM im Grünen-Stil',
+          source: 'system',
+          readOnly: true,
+          note: 'Das ist ein mitgeliefertes Rezept …',
+          url: '/agentura/rezept/presse',
+        },
+      }
+    );
+    expect(vm.kind).toBe('key-value');
+    if (vm.kind === 'key-value') {
+      expect(vm.entries).toEqual([
+        { label: 'Name', value: 'Pressemitteilung' },
+        { label: 'Mention', value: '@presse' },
+        { label: 'Beschreibung', value: 'PM im Grünen-Stil' },
+        { label: 'Art', value: 'Mitgeliefertes Rezept' },
+      ]);
+    }
+  });
+
+  it('recipes list lifts the rows into citations; create/delete are a note', () => {
+    const list = resolveToolEntry('recipes').parse(
+      { action: 'list' },
+      {
+        resultCount: 2,
+        results: [
+          { title: 'Pressemitteilung', url: '/agentura/rezept/presse', type: 'Rezept' },
+          { title: 'OV-Einladungen', url: '/settings/texte-anlernen', type: 'Eigene Textform' },
+        ],
+      }
+    );
+    expect(list.kind).toBe('citations');
+    if (list.kind === 'citations') expect(list.citations[0].title).toBe('Pressemitteilung');
+
+    // create liefert note UND recipe — die Notiz gewinnt, sie sagt, was passiert ist.
+    const created = resolveToolEntry('recipes').parse(
+      { action: 'create', title: 'x' },
+      {
+        ok: true,
+        note: 'Textform „X" aus 2 Beispielen angelernt.',
+        recipe: { mention: 'x', title: 'X', source: 'user', exampleCount: 2 },
+      }
+    );
+    expect(created).toEqual({
+      kind: 'text-note',
+      text: 'Textform „X" aus 2 Beispielen angelernt.',
+    });
+
+    const ask = resolveToolEntry('recipes').parse(
+      { action: 'delete', mention: 'x' },
+      { needsConfirmation: true, note: 'Soll die Textform „X" wirklich gelöscht werden?' }
+    );
+    expect(ask).toEqual({
+      kind: 'text-note',
+      text: 'Soll die Textform „X" wirklich gelöscht werden?',
+    });
+    expect(resolveToolEntry('recipes').meta.label).toBe('Rezepte & Textformen');
+  });
+
   it('every formerly-unregistered tool now resolves to a real label', () => {
     const previouslyBroken = [
       'rezept_laden',

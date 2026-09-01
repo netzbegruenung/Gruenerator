@@ -210,4 +210,6 @@ export const NEAR_DUPLICATE_EXEMPT_TOOLS: ReadonlySet<string> = new Set([
   'recurring_tasks',
   // get → update → share_to_group auf denselben identifier: nur die action unterscheidet sie.
   'user_agents',
+  // get → add_examples → delete auf dieselbe mention: nur die action unterscheidet sie.
+  'recipes',
 ]);

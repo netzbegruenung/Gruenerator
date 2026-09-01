@@ -54,7 +54,11 @@ import {
   SLICE_REGISTER_CHARS,
 } from '../services/agenticLoop/attachedDocuments.js';
 import { isEditorSurface } from '../services/agenticLoop/routing.js';
-import { mentionsRecurringTasks, mentionsUserAgents } from '../services/agenturaContext.js';
+import {
+  mentionsRecipes,
+  mentionsRecurringTasks,
+  mentionsUserAgents,
+} from '../services/agenturaContext.js';
 import { artifactKind, type ArtifactKindId } from '../services/artifactKindRegistry.js';
 import {
   attachedCloudShareLinks,
@@ -92,6 +96,7 @@ import {
 import { makeRecurringTasksTool } from './recurringTaskTools.js';
 import { harvestSearchImages, imageDeliveryNote } from './searchImageHarvest.js';
 import { agentAllowsWebSearch, createSearchTools } from './searchTools.js';
+import { makeRecipesTool } from './textFormTools.js';
 import { makeUserAgentsTool } from './userAgentTools.js';
 
 import type { AgentConfig } from './types.js';
@@ -889,6 +894,13 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
       (state.agentConfig?.isUserAgent === true || mentionsUserAgents(agenturaText))
     ) {
       tools.user_agents = makeUserAgentsTool(personalCtx);
+    }
+    // Rezepte und eigene Textformen („Texte anlernen"). Nur das Vokabular:
+    // ein aktives Rezept heißt „anwenden", das macht `rezept_laden` (immer
+    // montiert, sobald der Katalog nicht leer ist); verwalten will, wer es
+    // sagt — „welche Rezepte gibt es", „lern meinen Stil", „lösch die Textform".
+    if (state.enabledTools?.['recipes'] !== false && mentionsRecipes(agenturaText)) {
+      tools.recipes = makeRecipesTool(personalCtx);
     }
 
     // Die verbundene Wolke. Zwei Tore, in dieser Reihenfolge:

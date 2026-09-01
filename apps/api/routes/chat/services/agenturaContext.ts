@@ -2,7 +2,8 @@
  * Die Vokabular-Tore der Agentura-Werkzeuge: „Redet dieser Turn über
  * wiederkehrende Aufgaben?" entscheidet, ob `recurring_tasks` im
  * Werkzeugkatalog dieses Turns steht; „… über eigene Grünerator-Agenten?"
- * dasselbe für `user_agents` (unten).
+ * dasselbe für `user_agents`, „… über Rezepte und eigene Textformen?" für
+ * `recipes` (beide unten).
  *
  * Ein reines Vokabular-Tor, anders als bei `cloud_files` ohne Zähler: wer eine
  * Aufgabe hat, redet über sie, wenn er sie meint — „pausier die Erinnerung",
@@ -84,4 +85,45 @@ const USER_AGENT_VOCABULARY = new RegExp(
 export function mentionsUserAgents(text: string | null | undefined): boolean {
   if (!text) return false;
   return USER_AGENT_VOCABULARY.test(text);
+}
+
+/**
+ * „Redet dieser Turn über Rezepte oder eigene Textformen?" — das Tor für
+ * `recipes`. Anders als bei `user_agents` gibt es keinen zweiten Weg über den
+ * Thread: ein aktives Rezept (`activeSkillMention`) heißt „anwenden", und das
+ * macht `rezept_laden`; verwalten will, wer es sagt.
+ *
+ * „Stil" allein zählt NICHT („im Stil der Grünen", „im Stil von Habeck" —
+ * Schreibaufträge, keine Verwaltung). Es zählt als Produktwort (Rezept,
+ * Textform, Schreibstil, Texte anlernen) oder als Lernauftrag: „lern meinen
+ * Stil", „Beispiele einlesen", „so schreibe ich". Die Lookarounds halten
+ * „Rezeptfrei" und „Rezeption" draußen; „Kochrezept" scheitert schon am
+ * Lookbehind, ein nacktes „Rezept für Kürbissuppe" trifft und ist der
+ * hingenommene Fehlalarm.
+ */
+const RECIPE_VOCABULARY = new RegExp(
+  [
+    '(?<![\\wäöüß])(?:',
+    [
+      'rezept(?:e|es|en)?',
+      'textform(?:en)?',
+      'schreibstil\\w*',
+      'texte?\\s+anlernen',
+      'angelernt\\w*',
+      // Lernauftrag: „lern meinen Stil", „speicher unseren Stil", „meinen Stil lernen".
+      '(?:lern\\w*|speicher\\w*|merk\\w*)\\s+(?:(?:dir|mir|bitte)\\s+){0,2}(?:meinen|unseren|den)\\s+(?:schreib)?stil',
+      '(?:meinen|unseren|den)\\s+(?:schreib)?stil\\s+(?:lernen|speichern|anlernen|merken|übernehmen)',
+      // „Beispiele lernen/einlesen", „aus diesen Beispielen lernen".
+      'beispiele?\\s+(?:lernen|einlesen|anlernen)',
+      '(?:aus|von)\\s+(?:diesen|den|meinen|unseren)\\s+beispielen\\s+(?:lernen|einlesen)',
+      'so\\s+schreib(?:e|en)\\s+(?:ich|wir)',
+    ].join('|'),
+    ')(?![\\wäöüß])',
+  ].join(''),
+  'i'
+);
+
+export function mentionsRecipes(text: string | null | undefined): boolean {
+  if (!text) return false;
+  return RECIPE_VOCABULARY.test(text);
 }
