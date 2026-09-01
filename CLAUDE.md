@@ -173,7 +173,7 @@ See `docs/CLAUDE-styling.md` for Tailwind v4, theme/dark mode, CSS variables, sh
 
 ### Barrierefreiheit
 
-Zielstandard WCAG 2.2 AA im Rahmen von EN 301 549. **Vor Farb-, Karten-, Fokus- oder ARIA-Änderungen `docs/CLAUDE-a11y.md` lesen** — dort stehen die Prüfmittel je Ebene, die Farbregeln (ein Token kann nicht `bg-` und `text-` in beiden Modi bedienen; `opacity` frisst den Kontrast von allem darin) und das Messrezept, ohne das jede Nachmessung zwanzigmal die Loginseite prüft und grün meldet. Öffentliche Selbstauskunft: `documentation/docs/ueber-den-gruenerator/barrierefreiheit.md` — bei behobenen oder neuen Mängeln dort das Stand-Datum und die Liste nachziehen.
+Zielstandard WCAG 2.2 AA im Rahmen von EN 301 549. **Vor Farb-, Karten-, Fokus- oder ARIA-Änderungen `docs/CLAUDE-a11y.md` lesen** — dort stehen die Prüfmittel je Ebene, die Farbregeln (ein Token kann nicht `bg-` und `text-` in beiden Modi bedienen; `opacity` frisst den Kontrast von allem darin) und das Messrezept, ohne das jede Nachmessung zwanzigmal die Loginseite prüft und grün meldet. Öffentliche Selbstauskunft: `documentation/docs/basics/barrierefreiheit.md` — bei behobenen oder neuen Mängeln dort das Stand-Datum und die Liste nachziehen.
 
 ### State Management
 
