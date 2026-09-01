@@ -7,25 +7,27 @@
  * carries every instruction and the matching facts, numbered — `update` and
  * `forget` address those numbers, so there is no search action and no listing.
  *
+ * Results carry the row `id` next to the turn-local `nr`, so a chat card can
+ * offer "vergessen" without a round trip through the settings tab.
+ *
  * The result is grounded through `sourceRegistry.note`, not `register`: in
  * split mode the writer model never sees tool return values, only the rendered
  * source block, and a "Gemerkt" line is an outcome to report, not research
  * material (personalDataTools.ts explains the difference).
  */
+import { MEMORY_TEXT_MAX_CHARS, memoryKindSchema } from '@gruenerator/contracts';
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
-
-import { MEMORY_TEXT_MAX_CHARS, memoryKindSchema } from '@gruenerator/contracts';
 
 import {
   memoryService,
   MemoryRejectedError,
   type MemoryService,
+  type RenderedMemory,
 } from '../../../services/memory/index.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
-import type { RenderedMemory } from '../../../services/memory/index.js';
 import type { SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 
 const log = createLogger('memoryTools');
@@ -116,6 +118,7 @@ Betrifft eine Korrektur eine bestehende Anweisung („statt X lieber Y"): update
           return {
             gespeichert: true,
             nr,
+            id: row.id,
             kind: row.kind,
             text: row.text,
             ...(duplicate ? { hinweis: 'War schon gespeichert — nichts doppelt angelegt.' } : {}),
@@ -138,7 +141,7 @@ Betrifft eine Korrektur eine bestehende Anweisung („statt X lieber Y"): update
           target.text = row.text;
           log.info(`[Memory] updated nr=${input.nr}`);
           sourceRegistry.note('Erinnerung aktualisiert', row.text);
-          return { aktualisiert: true, nr: input.nr, text: row.text };
+          return { aktualisiert: true, nr: input.nr, id: row.id, text: row.text };
         }
 
         const row = await service.remove(userId, target.id);
@@ -146,7 +149,7 @@ Betrifft eine Korrektur eine bestehende Anweisung („statt X lieber Y"): update
         known.splice(known.indexOf(target), 1);
         log.info(`[Memory] forgot nr=${input.nr}`);
         sourceRegistry.note('Vergessen', row.text);
-        return { vergessen: true, nr: input.nr, text: row.text };
+        return { vergessen: true, nr: input.nr, id: row.id, text: row.text };
       } catch (err) {
         if (err instanceof MemoryRejectedError) return { error: err.userMessage };
         // Anything else is infrastructure. The wrapper logs and cards it; the

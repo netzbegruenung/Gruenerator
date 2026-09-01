@@ -133,6 +133,30 @@ describe('memoryService.create', () => {
   });
 });
 
+describe('memoryService.update budget', () => {
+  it('rejects an edit that would push the total past the cap, but allows shrinking or same-size edits', async () => {
+    const db = fakeDb();
+    const svc = createMemoryService({ db, vectors: fakeVectors() });
+    // 25 rows × 320 chars = exactly the cap. One row growing to 400 chars
+    // would exceed it — legal per row, illegal in aggregate.
+    const rowText = (i: number) => `${'x'.repeat(318)}${i.toString().padStart(2, '0')}`;
+    const created: string[] = [];
+    for (let i = 0; i < MAX_TOTAL_CHARS / 320; i++) {
+      created.push((await svc.create(input(rowText(i)))).row.id);
+    }
+    await expect(svc.update('u1', created[0], 'y'.repeat(400))).rejects.toMatchObject({
+      reason: 'full',
+    });
+    // Same length passes: the row's OLD length must not be counted on top of
+    // the new one. Shorter passes too.
+    const sameLength = 'z'.repeat(320);
+    await expect(svc.update('u1', created[0], sameLength)).resolves.toMatchObject({
+      text: sameLength,
+    });
+    await expect(svc.update('u1', created[0], 'kurz.')).resolves.toMatchObject({ text: 'kurz.' });
+  });
+});
+
 describe('memoryService ownership', () => {
   it('update/remove return null for another person’s row and touch no vector', async () => {
     const db = fakeDb();

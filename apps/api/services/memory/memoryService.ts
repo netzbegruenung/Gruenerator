@@ -77,6 +77,23 @@ function cleanText(text: string): string {
   return cleaned;
 }
 
+const full = (): MemoryRejectedError =>
+  new MemoryRejectedError(
+    'full',
+    `Das Gedächtnis ist voll (höchstens ${MAX_MEMORIES_PER_USER} Einträge / ${MAX_TOTAL_CHARS} Zeichen). Lösche oder aktualisiere zuerst eine bestehende Erinnerung.`
+  );
+
+/** The characters every prompt will carry after this write — the row being
+ *  replaced (if any) counted at its NEW length, not twice. */
+function assertWithinBudget(
+  rows: readonly UserMemoryRow[],
+  incomingChars: number,
+  replacingId: string | null
+): void {
+  const others = rows.reduce((n, r) => (r.id === replacingId ? n : n + r.text.length), 0);
+  if (others + incomingChars > MAX_TOTAL_CHARS) throw full();
+}
+
 export function createMemoryService(deps: { db: MemoryDb; vectors: MemoryVectors }): MemoryService {
   const { db, vectors } = deps;
 
@@ -98,13 +115,8 @@ export function createMemoryService(deps: { db: MemoryDb; vectors: MemoryVectors
       if (existing) return { row: existing, duplicate: true };
 
       const rows = await db.list(input.userId);
-      const totalChars = rows.reduce((n, r) => n + r.text.length, 0);
-      if (rows.length >= MAX_MEMORIES_PER_USER || totalChars + text.length > MAX_TOTAL_CHARS) {
-        throw new MemoryRejectedError(
-          'full',
-          `Das Gedächtnis ist voll (höchstens ${MAX_MEMORIES_PER_USER} Einträge / ${MAX_TOTAL_CHARS} Zeichen). Lösche oder aktualisiere zuerst eine bestehende Erinnerung.`
-        );
-      }
+      if (rows.length >= MAX_MEMORIES_PER_USER) throw full();
+      assertWithinBudget(rows, text.length, null);
 
       const row = await db.insert({ ...input, text });
       if (row.kind === 'fakt') await mirror(() => vectors.upsert(row), 'upsert');
@@ -113,6 +125,9 @@ export function createMemoryService(deps: { db: MemoryDb; vectors: MemoryVectors
 
     async update(userId, id, rawText) {
       const text = cleanText(rawText);
+      // Same aggregate budget as `create`: the block is in every prompt, and
+      // repeated edits must not grow it past the cap a fresh save respects.
+      assertWithinBudget(await db.list(userId), text.length, id);
       const row = await db.update(userId, id, text);
       if (!row) return null;
       if (row.kind === 'fakt') await mirror(() => vectors.upsert(row), 'upsert');
