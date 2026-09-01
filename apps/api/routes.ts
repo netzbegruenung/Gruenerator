@@ -76,6 +76,7 @@ import { mountNotebookWordpressContractRouter } from './routes/notebook/notebook
 import { mountWolkePendingContractRouter } from './routes/notebook/wolkePendingContractRouter.js';
 import notificationsRouter from './routes/notifications/index.js';
 import { mountNotificationsContractRouter } from './routes/notifications/notificationsContractRouter.js';
+import notificationStreamRouter from './routes/notifications/stream.js';
 import presentationExportRouter from './routes/presentations/presentationExportController.js';
 import { mountPresentationsContractRouter } from './routes/presentations/presentationsContractRouter.js';
 import protokollRouter from './routes/protokoll/index.js';
@@ -851,8 +852,12 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/content', requireAuth, publicReadLimiter);
   mountContentContractRouter(app);
   // ts-rest contract router for notifications — mounts BEFORE the legacy router
-  // so contract-modeled routes match first; /stream SSE falls through to legacy.
+  // so contract-modeled routes match first.
   // requireAuth applied at prefix; notification-preferences also handled here.
+  // The SSE channel resolves the session itself and reports a refusal inside
+  // the stream (an EventSource client cannot read status codes), so it must
+  // NOT sit behind the requireAuth prefix below — see stream.ts.
+  app.use('/api/notifications/stream', publicReadLimiter, notificationStreamRouter);
   app.use('/api/notifications', requireAuth);
   app.use('/api/auth/profile', requireAuth);
   mountNotificationsContractRouter(app);
