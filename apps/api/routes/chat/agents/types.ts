@@ -60,6 +60,14 @@ export interface AgentConfig {
   fewShotExamples?: FewShotExample[] | undefined;
   /** Runtime-only: set by controller, not by agent YAML files */
   userId?: string | undefined;
+  /**
+   * Runtime-only, gesetzt in `agentLoader.getAgentForUser`: der Agent kommt
+   * aus `user_agents` (eigener oder in ein Projekt geteilter), nicht aus der
+   * Registry. Das Werkzeug `user_agents` montiert darauf — ein Thread mit
+   * einem eigenen Agenten soll „ändere deine Rolle" ohne Stichwort verstehen.
+   * Kein anderes Feld unterscheidet die beiden: `userId` trägt jede Config.
+   */
+  isUserAgent?: boolean | undefined;
   /** Backend dispatch target. 'search' routes turns to /api/search-graph/stream. */
   routeTo?: 'chat' | 'search' | undefined;
   /** Server-side default filter merged into tool calls (e.g. LV scoping). */

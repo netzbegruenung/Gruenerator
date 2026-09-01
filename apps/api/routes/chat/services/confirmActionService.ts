@@ -118,6 +118,20 @@ export const CONFIRM_ACTION_CONFIG: Record<
     icon: 'repeat',
     confirmLabel: 'Einrichten',
   },
+  create_user_agent: {
+    title: 'Grünerator-Agent anlegen',
+    description:
+      'Der Agent wird mit der entworfenen Rolle angelegt und ist danach unter „Meine Agenten" in der Agentura nutzbar. Rolle, Werkzeuge und Notebooks lassen sich jederzeit dort oder im Chat ändern.',
+    icon: 'bot',
+    confirmLabel: 'Anlegen',
+  },
+  share_user_agent: {
+    title: 'Grünerator-Agent teilen',
+    description:
+      'Der Agent wird mit dem Projekt geteilt — die Mitglieder können ihn im Chat benutzen, aber nicht bearbeiten.',
+    icon: 'share-2',
+    confirmLabel: 'Teilen',
+  },
 };
 
 /**

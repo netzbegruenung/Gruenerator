@@ -208,4 +208,6 @@ export const NEAR_DUPLICATE_EXEMPT_TOOLS: ReadonlySet<string> = new Set([
   'groups',
   // get → pause → run_now auf dieselbe taskId: nur die action unterscheidet sie.
   'recurring_tasks',
+  // get → update → share_to_group auf denselben identifier: nur die action unterscheidet sie.
+  'user_agents',
 ]);

@@ -340,6 +340,12 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
     iconKey: 'sparkles',
     accent: 'personal',
   },
+  user_agents: {
+    label: 'Grünerator-Agenten',
+    activeLabel: 'Sehe bei den Grünerator-Agenten nach',
+    iconKey: 'user',
+    accent: 'personal',
+  },
 
   // --- Creation ------------------------------------------------------------
   generate_image: {

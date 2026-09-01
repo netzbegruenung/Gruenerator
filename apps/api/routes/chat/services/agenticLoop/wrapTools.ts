@@ -204,6 +204,15 @@ function summarize(result: unknown): string | undefined {
         : `Aufgabe „${t.title}"`;
     }
   }
+  // `user_agents`: get liefert ein Detailobjekt — sonst hieße es nur „ok".
+  if (r.agent && typeof r.agent === 'object') {
+    const a = r.agent as { title?: unknown; sharedFromGroup?: unknown };
+    if (typeof a.title === 'string') {
+      return typeof a.sharedFromGroup === 'string'
+        ? `Grünerator-Agent „${a.title}" (aus „${a.sharedFromGroup}")`
+        : `Grünerator-Agent „${a.title}"`;
+    }
+  }
   // rezept_laden: the card names the recipe; the prompt body stays server-side.
   if (typeof r.titel === 'string' && r.geladen === true) return `Rezept: ${r.titel}`;
   if (r.geladen === false) return 'Rezept nicht verfügbar';

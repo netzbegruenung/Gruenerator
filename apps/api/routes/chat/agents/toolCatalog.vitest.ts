@@ -375,6 +375,72 @@ describe('toolCatalog recurring_tasks — drei Tore, sonst nicht montiert', () =
   });
 });
 
+describe('toolCatalog user_agents — Vokabular oder User-Agent-Thread, sonst nicht montiert', () => {
+  function catalogFor(state: Record<string, unknown>, agent: AgentConfig = agentConfig) {
+    const sourceRegistry = createSourceRegistry();
+    const sse = { send: () => {} } as unknown as NonNullable<
+      Parameters<typeof buildChatToolCatalog>[0]['loop']
+    >['sse'];
+    return buildChatToolCatalog({
+      agentConfig: agent,
+      sourceRegistry,
+      loop: {
+        sse,
+        state: {
+          intent: 'agentic',
+          enabledTools: {},
+          agentConfig: agent,
+          ...state,
+        } as unknown as ChatGraphState,
+      },
+    }).toolNames;
+  }
+  const withText = (text: string, over: Record<string, unknown> = {}, agent?: AgentConfig) =>
+    catalogFor({ messages: [{ role: 'user', content: text }], ...over }, agent);
+
+  it('bleibt bei einem gewöhnlichen Turn weg', () => {
+    expect(withText('Was sagt das Wahlprogramm zum Tempolimit?')).not.toContain('user_agents');
+    expect(withText('Schreib eine PM zur Agentur für Arbeit')).not.toContain('user_agents');
+  });
+
+  it('montiert auf das Vokabular', () => {
+    expect(withText('Bau mir einen Agenten, der Pressemitteilungen schreibt')).toContain(
+      'user_agents'
+    );
+    expect(withText('Welche Grünerator-Agenten habe ich?')).toContain('user_agents');
+    expect(withText('Ändere die Systemrolle meines Agenten')).toContain('user_agents');
+  });
+
+  it('montiert, wenn der Thread mit einem User-Agent läuft — ohne Stichwort', () => {
+    const userAgent = {
+      identifier: 'presse-kv-ab12cd',
+      isUserAgent: true,
+    } as unknown as AgentConfig;
+    expect(withText('Antworte ab jetzt kürzer', {}, userAgent)).toContain('user_agents');
+    // Ein Registry-Agent montiert nicht — er ist im Werkzeug ohnehin tabu.
+    expect(withText('Antworte ab jetzt kürzer')).not.toContain('user_agents');
+  });
+
+  it('liest den Text ohne Erwähnungen, wenn der Router ihn liefert', () => {
+    expect(
+      catalogFor({
+        messages: [{ role: 'user', content: '@irgendwas' }],
+        lastUserTextNoMentions: 'zeig meine Agenten',
+      })
+    ).toContain('user_agents');
+  });
+
+  it('respektiert das Opt-out des Agenten — auch im User-Agent-Thread', () => {
+    const userAgent = {
+      identifier: 'presse-kv-ab12cd',
+      isUserAgent: true,
+    } as unknown as AgentConfig;
+    expect(
+      withText('Bau mir einen Agenten', { enabledTools: { user_agents: false } }, userAgent)
+    ).not.toContain('user_agents');
+  });
+});
+
 describe('toolCatalog scrape_url', () => {
   beforeEach(() => {
     validateUrlForFetch.mockReset();

@@ -59,6 +59,7 @@ export const UI_TOOL_NAMES = z.enum([
   'fill_pdf_form',
   'cloud_files',
   'recurring_tasks',
+  'user_agents',
   // --- Loop-catalog tools that had no UI entry until now. Every string here is
   // copied verbatim from its API mount site; toolCatalogUiCoverage.vitest.ts in
   // apps/api enforces exactly that. F0: additive only, never renamed.
@@ -446,6 +447,49 @@ function parseRecurringTasksVM(args: unknown, result: unknown): ToolResultVM {
   return parsePersonalDataVM(args, result);
 }
 
+// user_agents: `get` liefert ein `{agent}`-Detailobjekt mit fertigen Etiketten
+// (userAgentTools.ts); Listen gehen über `parsePersonalDataVM`, die Karten-
+// Aktionen und Fehler als Notiz — sonst zeigte der generische Fallback
+// `ok`/`needsConfirmation` als Tabellenzeilen.
+function parseUserAgentsVM(args: unknown, result: unknown): ToolResultVM {
+  const error = getString(result, 'error');
+  if (error) return { kind: 'text-note', text: error };
+  const agent = getObject(result, 'agent');
+  if (agent) {
+    const entries: KeyValueEntry[] = [];
+    const title = getString(agent, 'title');
+    if (title) entries.push({ label: 'Name', value: title });
+    const description = getString(agent, 'description');
+    if (description) entries.push({ label: 'Beschreibung', value: description });
+    const shared = getString(agent, 'sharedFromGroup');
+    if (shared) {
+      entries.push({ label: 'Geteilt aus', value: shared });
+      return { kind: 'key-value', entries, citations: [], markdown: null, imageUrl: null };
+    }
+    const tools = getString(agent, 'toolLabels');
+    if (tools) entries.push({ label: 'Werkzeuge', value: tools });
+    const recipes = getArray(agent, 'skillMentions') ?? [];
+    if (recipes.length) {
+      entries.push({ label: 'Rezepte', value: recipes.map((r) => String(r)).join(', ') });
+    }
+    const notebooks = getArray(agent, 'notebooks') ?? [];
+    if (notebooks.length) {
+      entries.push({
+        label: 'Notebooks',
+        value: notebooks.map((n) => getString(n, 'name') ?? '—').join(', '),
+      });
+    }
+    const visibility = getString(agent, 'shareModeLabel');
+    if (visibility) entries.push({ label: 'Sichtbarkeit', value: visibility });
+    return { kind: 'key-value', entries, citations: [], markdown: null, imageUrl: null };
+  }
+  const items = getArray(result, 'results');
+  if (items && items.length) return parsePersonalDataVM(args, result);
+  const note = getString(result, 'note');
+  if (note) return { kind: 'text-note', text: note };
+  return parseGenericFallback(args, result);
+}
+
 // edit_document (agentic editor edit): the loop step that plans + applies typed
 // ops to the open sheet/presentation/board. Result is lean — {ok, operationCount,
 // opSummary} | {ok, operationCount:0, note} | {error} — so a compact text-note
@@ -593,6 +637,7 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   fill_pdf_form: entry('fill_pdf_form', 'text-note', parsePdfFormFillVM),
   cloud_files: entry('cloud_files', 'key-value', parseCloudFilesVM),
   recurring_tasks: entry('recurring_tasks', 'citations', parseRecurringTasksVM),
+  user_agents: entry('user_agents', 'citations', parseUserAgentsVM),
 
   // --- Loop-catalog tools, previously falling through to the raw-name pill ---
   rezept_laden: entry('rezept_laden', 'text-note', parseRecipeVM),

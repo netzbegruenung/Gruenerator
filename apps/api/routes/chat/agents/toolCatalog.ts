@@ -54,7 +54,7 @@ import {
   SLICE_REGISTER_CHARS,
 } from '../services/agenticLoop/attachedDocuments.js';
 import { isEditorSurface } from '../services/agenticLoop/routing.js';
-import { mentionsRecurringTasks } from '../services/agenturaContext.js';
+import { mentionsRecurringTasks, mentionsUserAgents } from '../services/agenturaContext.js';
 import { artifactKind, type ArtifactKindId } from '../services/artifactKindRegistry.js';
 import {
   attachedCloudShareLinks,
@@ -92,6 +92,7 @@ import {
 import { makeRecurringTasksTool } from './recurringTaskTools.js';
 import { harvestSearchImages, imageDeliveryNote } from './searchImageHarvest.js';
 import { agentAllowsWebSearch, createSearchTools } from './searchTools.js';
+import { makeUserAgentsTool } from './userAgentTools.js';
 
 import type { AgentConfig } from './types.js';
 import type { ChatGraphState, SearchResult } from '../../../agents/langgraph/ChatGraph/types.js';
@@ -868,14 +869,26 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
     //    anderen Weg in die Schleife kam (Erwähnung, Verbund).
     // 3. Das Vokabular fürs Verwalten: „pausier die Erinnerung", „welche
     //    Aufgaben laufen bei mir".
-    const recurringText = state.lastUserTextNoMentions ?? lastUserText(state);
+    const agenturaText = state.lastUserTextNoMentions ?? lastUserText(state);
     if (
       state.enabledTools?.['recurring_tasks'] !== false &&
       (state.mentionPinnedTool === 'recurring_tasks' ||
-        looksLikeRecurringOrder(recurringText) ||
-        mentionsRecurringTasks(recurringText))
+        looksLikeRecurringOrder(agenturaText) ||
+        mentionsRecurringTasks(agenturaText))
     ) {
       tools.recurring_tasks = makeRecurringTasksTool(personalCtx);
+    }
+    // Eigene Grünerator-Agenten (Agentura). Zwei Tore: das Vokabular („bau mir
+    // einen Agenten", „meine Agenten", Persona, Systemrolle) — oder der Thread
+    // läuft selbst mit einem User-Agent (`agentConfig.isUserAgent`, gesetzt in
+    // `agentLoader.getAgentForUser`): dort soll „ändere deine Rolle" ohne
+    // Stichwort treffen. Ein Registry-Agent montiert es nicht, er ist hier
+    // ohnehin unantastbar.
+    if (
+      state.enabledTools?.['user_agents'] !== false &&
+      (state.agentConfig?.isUserAgent === true || mentionsUserAgents(agenturaText))
+    ) {
+      tools.user_agents = makeUserAgentsTool(personalCtx);
     }
 
     // Die verbundene Wolke. Zwei Tore, in dieser Reihenfolge:
