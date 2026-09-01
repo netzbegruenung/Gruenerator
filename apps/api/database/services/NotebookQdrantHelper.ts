@@ -678,6 +678,44 @@ class NotebookQdrantHelper {
   }
 
   /**
+   * Die Notebooks einer Person OHNE die Dokument-Zuordnung.
+   *
+   * `getUserNotebookCollections` holt zu jedem Notebook zusätzlich dessen
+   * Dokumente — also einen Scroll je Notebook. Für einen Chat-Werkzeugaufruf,
+   * der nur `settings.wolke_folders` braucht, wäre das ein N+1 mitten im
+   * Antwortpfad. Deshalb derselbe Zuschnitt wie bei
+   * `getNotebookCollectionsByAutoSync` (das das Fan-out aus demselben Grund
+   * überspringt), nur nach `user_id` gefiltert; `document_count` bleibt der
+   * gespeicherte Payload-Wert.
+   */
+  async getUserNotebookCollectionsLight(
+    userId: string,
+    options: GetCollectionsOptions = {}
+  ): Promise<NotebookCollection[]> {
+    await this.ensureInitialized();
+
+    try {
+      const { limit = 200, offset = 0 } = options;
+
+      const filter: QdrantFilter = {
+        must: [{ key: 'user_id', match: { value: userId } }],
+      };
+
+      const results = await this.qdrantOps!.scrollDocuments(
+        this.qdrant.collections.notebook_collections,
+        filter,
+        { limit, offset, withPayload: true }
+      );
+
+      return results.map((result: ScrollPoint) => this.formatCollectionFromPayload(result.payload));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error(`Error getting user Notebook collections (light): ${message}`);
+      throw new Error(`Failed to get user Notebook collections: ${message}`);
+    }
+  }
+
+  /**
    * Update Notebook collection
    */
   async updateNotebookCollection(
