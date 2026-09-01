@@ -58,6 +58,9 @@ export const UI_TOOL_NAMES = z.enum([
   'read_pdf_form',
   'fill_pdf_form',
   'cloud_files',
+  'recurring_tasks',
+  'user_agents',
+  'recipes',
   // --- Loop-catalog tools that had no UI entry until now. Every string here is
   // copied verbatim from its API mount site; toolCatalogUiCoverage.vitest.ts in
   // apps/api enforces exactly that. F0: additive only, never renamed.
@@ -336,6 +339,203 @@ function parsePersonalDataVM(args: unknown, result: unknown): ToolResultVM {
   return parseGenericFallback(args, result);
 }
 
+// notebooks hat neben den Listen zwei eigene Formen: `search` liefert
+// `{answer, citations[]}` — die Antwort als Markdown, die Zitate als Liste —
+// und `get` ein `{notebook}`-Detailobjekt. Beide fielen sonst in den
+// generischen <dl>-Dump; alles andere (list, Vorgänge) geht weiter über
+// `parsePersonalDataVM`.
+function parseNotebooksVM(args: unknown, result: unknown): ToolResultVM {
+  const answer = getString(result, 'answer');
+  if (answer) {
+    const citations = (getArray(result, 'citations') ?? [])
+      .slice(0, 5)
+      .map((c, i) => toSerializableCitation(c, i, 'document'));
+    const notebook = getString(result, 'notebook');
+    return {
+      kind: 'key-value',
+      entries: notebook ? [{ label: 'Notebook', value: notebook }] : [],
+      citations,
+      markdown: answer,
+      imageUrl: null,
+    };
+  }
+  const notebook = getObject(result, 'notebook');
+  if (notebook) {
+    const entries: KeyValueEntry[] = [];
+    const name = getString(notebook, 'name');
+    if (name) entries.push({ label: 'Notebook', value: name });
+    const count = getNumber(notebook, 'documentCount');
+    if (count != null) entries.push({ label: 'Dokumente', value: String(count) });
+    const pending = getNumber(notebook, 'pendingCount');
+    if (pending) entries.push({ label: 'Neue Dateien', value: String(pending) });
+    const folders = getArray(notebook, 'wolkeFolders') ?? [];
+    if (folders.length) {
+      entries.push({
+        label: 'Wolke-Ordner',
+        value: folders.map((f) => getString(f, 'folderName') ?? '—').join(', '),
+      });
+    }
+    const groups = getArray(notebook, 'sharedGroups') ?? [];
+    if (groups.length) {
+      entries.push({
+        label: 'Geteilt mit',
+        value: groups.map((g) => getString(g, 'name') ?? '—').join(', '),
+      });
+    }
+    // Ein frisch angelegtes Notebook (`create`) hat nur name + url.
+    if (entries.length === 1 && getString(notebook, 'url')) {
+      return { kind: 'text-note', text: `Notebook „${name}" angelegt.` };
+    }
+    return { kind: 'key-value', entries, citations: [], markdown: null, imageUrl: null };
+  }
+  return parsePersonalDataVM(args, result);
+}
+
+// groups: `get` liefert ein `{group}`-Detailobjekt (groupTools.ts) — ohne Zweig
+// fiel es in den generischen <dl>-Dump mit englischen Schlüsseln. Listen
+// (list/find/content) und Vorgänge gehen weiter über `parsePersonalDataVM`.
+function parseGroupsVM(args: unknown, result: unknown): ToolResultVM {
+  const group = getObject(result, 'group');
+  if (group) {
+    const entries: KeyValueEntry[] = [];
+    const name = getString(group, 'name');
+    if (name) entries.push({ label: 'Projekt', value: name });
+    const description = getString(group, 'description');
+    if (description) entries.push({ label: 'Beschreibung', value: description });
+    entries.push({
+      label: 'Rolle',
+      value: getBoolean(group, 'isAdmin') ? 'Admin' : 'Mitglied',
+    });
+    const members = getNumber(group, 'memberCount');
+    if (members != null) entries.push({ label: 'Mitglieder', value: String(members) });
+    entries.push({
+      label: 'Sichtbarkeit',
+      value: getBoolean(group, 'isPublic') ? 'Öffentlich gelistet' : 'Privat',
+    });
+    const content = getNumber(group, 'contentCount');
+    if (content != null) entries.push({ label: 'Geteilte Inhalte', value: String(content) });
+    return { kind: 'key-value', entries, citations: [], markdown: null, imageUrl: null };
+  }
+  return parsePersonalDataVM(args, result);
+}
+
+// recurring_tasks: `get` liefert ein `{task}`-Detailobjekt mit fertigen
+// Etiketten (recurringTaskTools.ts) — der Takt wird serverseitig beschrieben,
+// damit die Wochentagsliste nicht ein drittes Mal existiert. Listen und
+// Vorgänge gehen weiter über `parsePersonalDataVM`.
+function parseRecurringTasksVM(args: unknown, result: unknown): ToolResultVM {
+  const task = getObject(result, 'task');
+  if (task) {
+    const entries: KeyValueEntry[] = [];
+    const title = getString(task, 'title');
+    if (title) entries.push({ label: 'Aufgabe', value: title });
+    const takt = getString(task, 'recurrenceLabel');
+    if (takt) entries.push({ label: 'Takt', value: takt });
+    const delivery = getString(task, 'deliveryLabel');
+    if (delivery) entries.push({ label: 'Zustellung', value: delivery });
+    const agent = getString(task, 'agentTitle') ?? getString(task, 'agentIdentifier');
+    entries.push({ label: 'Agent', value: agent ?? 'Grünerator (Standard)' });
+    entries.push({ label: 'Status', value: getBoolean(task, 'enabled') ? 'Aktiv' : 'Pausiert' });
+    const runs = getArray(result, 'runs') ?? [];
+    if (runs.length) {
+      entries.push({
+        label: 'Letzte Läufe',
+        value: runs.map((r) => getString(r, 'statusLabel') ?? '—').join(', '),
+      });
+    }
+    return { kind: 'key-value', entries, citations: [], markdown: null, imageUrl: null };
+  }
+  return parsePersonalDataVM(args, result);
+}
+
+// user_agents: `get` liefert ein `{agent}`-Detailobjekt mit fertigen Etiketten
+// (userAgentTools.ts); Listen gehen über `parsePersonalDataVM`, die Karten-
+// Aktionen und Fehler als Notiz — sonst zeigte der generische Fallback
+// `ok`/`needsConfirmation` als Tabellenzeilen.
+function parseUserAgentsVM(args: unknown, result: unknown): ToolResultVM {
+  const error = getString(result, 'error');
+  if (error) return { kind: 'text-note', text: error };
+  const agent = getObject(result, 'agent');
+  if (agent) {
+    const entries: KeyValueEntry[] = [];
+    const title = getString(agent, 'title');
+    if (title) entries.push({ label: 'Name', value: title });
+    const description = getString(agent, 'description');
+    if (description) entries.push({ label: 'Beschreibung', value: description });
+    const shared = getString(agent, 'sharedFromGroup');
+    if (shared) {
+      entries.push({ label: 'Geteilt aus', value: shared });
+      return { kind: 'key-value', entries, citations: [], markdown: null, imageUrl: null };
+    }
+    const tools = getString(agent, 'toolLabels');
+    if (tools) entries.push({ label: 'Werkzeuge', value: tools });
+    const recipes = getArray(agent, 'skillMentions') ?? [];
+    if (recipes.length) {
+      entries.push({ label: 'Rezepte', value: recipes.map((r) => String(r)).join(', ') });
+    }
+    const notebooks = getArray(agent, 'notebooks') ?? [];
+    if (notebooks.length) {
+      entries.push({
+        label: 'Notebooks',
+        value: notebooks.map((n) => getString(n, 'name') ?? '—').join(', '),
+      });
+    }
+    const visibility = getString(agent, 'shareModeLabel');
+    if (visibility) entries.push({ label: 'Sichtbarkeit', value: visibility });
+    return { kind: 'key-value', entries, citations: [], markdown: null, imageUrl: null };
+  }
+  const items = getArray(result, 'results');
+  if (items && items.length) return parsePersonalDataVM(args, result);
+  const note = getString(result, 'note');
+  if (note) return { kind: 'text-note', text: note };
+  return parseGenericFallback(args, result);
+}
+
+// recipes: `get` liefert `{recipe}` — für eine eigene Textform mit Art,
+// Textsorte, Beispielzahl und Stilblock, für ein mitgeliefertes Rezept nur
+// Titel, Beschreibung und den Hinweis (der Rumpf bleibt serverseitig).
+// Listen gehen über `parsePersonalDataVM`, create/add_examples/delete und
+// Fehler als Notiz.
+function parseRecipesVM(args: unknown, result: unknown): ToolResultVM {
+  const error = getString(result, 'error');
+  if (error) return { kind: 'text-note', text: error };
+  const note = getString(result, 'note');
+  if (note) return { kind: 'text-note', text: note };
+  const recipe = getObject(result, 'recipe');
+  if (recipe) {
+    const entries: KeyValueEntry[] = [];
+    const title = getString(recipe, 'title');
+    if (title) entries.push({ label: 'Name', value: title });
+    const mention = getString(recipe, 'mention');
+    if (mention) entries.push({ label: 'Mention', value: `@${mention}` });
+    if (getString(recipe, 'source') === 'system') {
+      const description = getString(recipe, 'description');
+      if (description) entries.push({ label: 'Beschreibung', value: description });
+      entries.push({ label: 'Art', value: 'Mitgeliefertes Rezept' });
+      return { kind: 'key-value', entries, citations: [], markdown: null, imageUrl: null };
+    }
+    const kind = getString(recipe, 'kindLabel');
+    if (kind) entries.push({ label: 'Art', value: kind });
+    const textType = getString(recipe, 'textTypeLabel');
+    if (textType) entries.push({ label: 'Textsorte', value: textType });
+    const count = getNumber(recipe, 'exampleCount');
+    if (count != null) entries.push({ label: 'Beispiele', value: String(count) });
+    const shared = getString(recipe, 'sharedFromGroup');
+    if (shared) entries.push({ label: 'Geteilt aus', value: shared });
+    const style = getString(recipe, 'styleBlock');
+    if (style) {
+      entries.push({
+        label: getBoolean(recipe, 'styleTruncated') ? 'Stil (gekürzt)' : 'Stil',
+        value: style,
+      });
+    }
+    return { kind: 'key-value', entries, citations: [], markdown: null, imageUrl: null };
+  }
+  const items = getArray(result, 'results');
+  if (items && items.length) return parsePersonalDataVM(args, result);
+  return parseGenericFallback(args, result);
+}
+
 // edit_document (agentic editor edit): the loop step that plans + applies typed
 // ops to the open sheet/presentation/board. Result is lean — {ok, operationCount,
 // opSummary} | {ok, operationCount:0, note} | {error} — so a compact text-note
@@ -474,14 +674,17 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   find_content: entry('find_content', 'citations', parsePersonalDataVM),
   documents: entry('documents', 'citations', parsePersonalDataVM),
   boards_tasks: entry('boards_tasks', 'citations', parsePersonalDataVM),
-  groups: entry('groups', 'citations', parsePersonalDataVM),
+  groups: entry('groups', 'citations', parseGroupsVM),
   media: entry('media', 'citations', parsePersonalDataVM),
-  notebooks: entry('notebooks', 'citations', parsePersonalDataVM),
+  notebooks: entry('notebooks', 'citations', parseNotebooksVM),
   read_pdf_form: entry('read_pdf_form', 'key-value', parsePdfFormReadVM),
   // The filled file itself renders in the compute card (fileAssets); the tool
   // card only reports what happened.
   fill_pdf_form: entry('fill_pdf_form', 'text-note', parsePdfFormFillVM),
   cloud_files: entry('cloud_files', 'key-value', parseCloudFilesVM),
+  recurring_tasks: entry('recurring_tasks', 'citations', parseRecurringTasksVM),
+  user_agents: entry('user_agents', 'citations', parseUserAgentsVM),
+  recipes: entry('recipes', 'citations', parseRecipesVM),
 
   // --- Loop-catalog tools, previously falling through to the raw-name pill ---
   rezept_laden: entry('rezept_laden', 'text-note', parseRecipeVM),

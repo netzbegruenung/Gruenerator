@@ -696,12 +696,20 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
       forcedTool: 'pdf-erstellen',
     },
   },
-  // EXPERIMENTAL. Unlike its four siblings it has no `createRoutes` entry and no
-  // mention — the router reaches it through a dedicated intent branch only.
+  // STILLGELEGT (09/2026): die Fähigkeit lebt als Loop-Werkzeug
+  // `recurring_tasks` weiter. Tier 3.4 des Klassifikators erkennt den
+  // Dauerauftrag weiterhin, liefert aber `agentic` mit
+  // `mentionPinnedTool: 'recurring_tasks'` — der Pin zwingt in die Schleife und
+  // benennt den ersten Aufruf, und das Anlegen geht dort über eine Karte statt
+  // ohne Bestätigung in die Datenbank. Keine Erwähnung, also nichts zu pinnen;
+  // `category: 'artifact'` bleibt, weil `forcedTool: null` genau das sagt: es
+  // gab nie eine Erstellroute. Enum-Wert bleibt (Wire-Vertrag, persistierte
+  // Threads).
   create_recurring_task: {
     id: 'create_recurring_task',
     category: 'artifact',
     audience: 'all',
+    availability: 'retired',
     forcedTool: null,
     skipOnAgentic: true,
   },
