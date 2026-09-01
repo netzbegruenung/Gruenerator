@@ -182,6 +182,7 @@ interface StreamCompletionData {
   sources: Source[];
   allSources: unknown[];
   sourcesByCollection?: Record<string, unknown>;
+  metadata?: { traceId?: string };
 }
 
 export interface NotebookAdapterCallbacks {
@@ -351,6 +352,13 @@ export function createNotebookModelAdapter(
         if (linkConfigAccum) custom.linkConfig = linkConfigAccum;
         if (resultIdAccum) custom.resultId = resultIdAccum;
         if (sourcesByCollectionAccum) custom.sourcesByCollection = sourcesByCollectionAccum;
+        if (completionData?.metadata?.traceId) {
+          custom.streamMetadata = {
+            intent: 'direct',
+            searchCount: 0,
+            traceId: completionData.metadata.traceId,
+          };
+        }
         custom.question = question;
         custom.answerText = accumulatedText;
 

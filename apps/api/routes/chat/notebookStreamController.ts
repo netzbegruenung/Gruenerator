@@ -179,6 +179,7 @@ router.post(
                   type: 'notebook',
                   citations: result.citations,
                   sources: result.sources,
+                  ...(result.traceId && { traceId: result.traceId }),
                 },
                 user.id
               ),

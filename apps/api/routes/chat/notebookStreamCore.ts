@@ -93,6 +93,8 @@ export interface NotebookStreamResult {
   citations: unknown[];
   sources: unknown[];
   question: string;
+  /** Langfuse trace of the turn; null when Langfuse is disabled. Target for thumbs feedback. */
+  traceId: string | null;
 }
 
 export async function handleNotebookStream(
@@ -417,6 +419,7 @@ export async function handleNotebookStream(
     sse.send('response_start', { message: 'Generiere Antwort...' });
 
     const notebookTelemetry = buildAiTelemetry('notebook-chat.respond');
+    let traceId: string | null = null;
     // Wrap in a trace so propagateAttributes sets trace-level user/session —
     // AI SDK telemetry carries no metadata of its own, so without this
     // notebook traces would show empty User/Session.
@@ -427,6 +430,7 @@ export async function handleNotebookStream(
         ...(collectionId && { sessionId: collectionId }),
       },
       async (trace) => {
+        traceId = trace.traceId ?? null;
         const text = await streamWithFallback({
           primary: primaryResolution,
           sse,
@@ -484,7 +488,7 @@ export async function handleNotebookStream(
       // Return the fallback instead of null: the controller only persists when
       // a result comes back, so returning null left the user's message in the
       // thread without any assistant reply after reload.
-      return { answer: fallback, citations: [], sources: [], question };
+      return { answer: fallback, citations: [], sources: [], question, traceId: null };
     }
 
     const { renumberedDraft, newReferencesMap } = renumberCitationsInOrder(
@@ -536,6 +540,7 @@ export async function handleNotebookStream(
         citationsCount: citations.length,
         depth,
         queryCount: queries.length,
+        ...(traceId ? { traceId } : {}),
       },
     });
 
@@ -545,7 +550,7 @@ export async function handleNotebookStream(
     );
     if (options.closeStream !== false) sse.end();
 
-    return { answer: cleanDraft, citations, sources, question };
+    return { answer: cleanDraft, citations, sources, question, traceId };
   } catch (error: unknown) {
     log.error('Notebook stream error:', error);
     sse.send('error', {
