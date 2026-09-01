@@ -10,7 +10,6 @@
     "compute",
     "create_pdf",
     "create_presentation",
-    "create_recurring_task",
     "create_sheet",
     "direct",
     "edit_current_board",
@@ -37,7 +36,6 @@
     "web"
   ],
   "experimentalIntents": [
-    "create_recurring_task",
     "mcp"
   ],
   "mentionables": {
