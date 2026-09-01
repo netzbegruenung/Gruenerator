@@ -5,7 +5,7 @@
  * ── Why this exists ─────────────────────────────────────────────────────────
  *
  * The "Sparsame Modelle statt Größenwahn" table in
- * `docs/ueber-den-gruenerator/nachhaltigkeit.md` was hand-typed from eight
+ * `docs/basics/nachhaltigkeit.md` was hand-typed from eight
  * source files, and it drifted every time a lane moved host — which happens
  * every few weeks (Gemma 4 alone moved verdigado → Regolo → Scaleway inside
  * two months). A table that is wrong about where data is processed is worse

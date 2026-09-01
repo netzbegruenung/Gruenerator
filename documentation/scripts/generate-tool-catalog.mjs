@@ -257,7 +257,7 @@ function audit(manifest, manifestStale) {
 
   const lines = [ISSUE_MARKER, ''];
   lines.push(
-    'Die Werkzeuge im Code und der Artikel [`tools.mdx`](documentation/docs/ueber-den-gruenerator/tools.mdx) laufen auseinander.',
+    'Die Werkzeuge im Code und der Artikel [`tools.mdx`](documentation/docs/basics/tools.mdx) laufen auseinander.',
     ''
   );
   if (undocumented.length > 0) {

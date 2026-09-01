@@ -412,7 +412,7 @@ pnpm run build:documentation   # Build documentation site
 ```
 documentation/
 ├── docs/           # Main documentation pages
-│   ├── grundlagen/        # Basics and guides
+│   ├── basics/            # What the Grünerator is, how LLMs work
 │   ├── konto/             # Profile and cloud features
 │   ├── chat/              # Content generation features
 │   ├── grueneratoren/     # Specialized generators
@@ -420,8 +420,7 @@ documentation/
 │   ├── office/            # Docs, boards, sheets, presentations
 │   ├── integrationen/     # MCP and third-party connectors
 │   ├── experimente/       # Monitor and other experimental features
-│   ├── archiv/            # Newsletter and Signal message archive
-│   └── ueber-den-gruenerator/  # About Grünerator
+│   └── archiv/            # Newsletter and Signal message archive
 ├── blog/           # News and updates
 ├── src/            # Custom pages and components
 └── static/         # Images and assets
