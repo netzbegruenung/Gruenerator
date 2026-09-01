@@ -465,17 +465,11 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
         const detail = server ? describeMcpContent(output) : outcomeDetail;
         log.info(`[Tool] ${toolName}${serverTag} ok — ${detail}`);
       } else {
+        // Die Karte ist der einzige Weg zur Person: `sendResult(ok=false)` unten,
+        // dazu `ok: false` im Schritt, damit der Fehlschlag den Reload ueberlebt.
+        // Ein zusaetzliches `mcp_tool_error` fuer Konnektor-Aufrufe stand hier bis
+        // 01.09.2026 und hat nie ein Client gelesen (#3095).
         log.warn(`[Tool] ${toolName}${serverTag} FEHLER — ${outcomeDetail}`);
-        // MCP/connector failures also get a first-class, user-facing error
-        // event (the generic tool card only carries ok:false); internal tools
-        // keep their own error channels.
-        if (server) {
-          ctx.sse.send('mcp_tool_error', {
-            toolName,
-            serverName: server,
-            error: outcomeDetail,
-          });
-        }
       }
 
       ctx.recordStep({
