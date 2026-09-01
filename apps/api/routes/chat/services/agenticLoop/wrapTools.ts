@@ -172,6 +172,58 @@ function summarize(result: unknown): string | undefined {
     return `${r.connectionCount} Verbindung${r.connectionCount === 1 ? '' : 'en'}`;
   }
   if (typeof r.entryCount === 'number') return `${r.entryCount} Einträge`;
+  // `notebooks`: search liefert Antwort + Zitate, get ein Detailobjekt, die
+  // Karten-Aktionen eine Bestätigungsanfrage — alle drei sagten sonst nur „ok".
+  if (typeof r.answer === 'string' && typeof r.resultCount === 'number') {
+    return `Antwort mit ${r.resultCount} Zitat${r.resultCount === 1 ? '' : 'en'}`;
+  }
+  if (r.needsConfirmation === true) return 'Bestätigung angefordert';
+  if (r.notebook && typeof r.notebook === 'object') {
+    const nb = r.notebook as { name?: unknown; documentCount?: unknown };
+    if (typeof nb.name === 'string') {
+      return typeof nb.documentCount === 'number'
+        ? `Notebook „${nb.name}" (${nb.documentCount} Dokumente)`
+        : `Notebook „${nb.name}"`;
+    }
+  }
+  // `groups`: get liefert ein Detailobjekt — sonst hieße es nur „ok".
+  if (r.group && typeof r.group === 'object') {
+    const g = r.group as { name?: unknown; contentCount?: unknown };
+    if (typeof g.name === 'string') {
+      return typeof g.contentCount === 'number'
+        ? `Projekt „${g.name}" (${g.contentCount} Inhalte)`
+        : `Projekt „${g.name}"`;
+    }
+  }
+  // `recurring_tasks`: get liefert ein Detailobjekt — sonst hieße es nur „ok".
+  if (r.task && typeof r.task === 'object') {
+    const t = r.task as { title?: unknown; recurrenceLabel?: unknown };
+    if (typeof t.title === 'string') {
+      return typeof t.recurrenceLabel === 'string'
+        ? `Aufgabe „${t.title}" (${t.recurrenceLabel})`
+        : `Aufgabe „${t.title}"`;
+    }
+  }
+  // `user_agents`: get liefert ein Detailobjekt — sonst hieße es nur „ok".
+  if (r.agent && typeof r.agent === 'object') {
+    const a = r.agent as { title?: unknown; sharedFromGroup?: unknown };
+    if (typeof a.title === 'string') {
+      return typeof a.sharedFromGroup === 'string'
+        ? `Grünerator-Agent „${a.title}" (aus „${a.sharedFromGroup}")`
+        : `Grünerator-Agent „${a.title}"`;
+    }
+  }
+  // `recipes`: get liefert ein Detailobjekt, create/add_examples eines mit
+  // Beispielzahl — sonst hieße es nur „ok".
+  if (r.recipe && typeof r.recipe === 'object') {
+    const t = r.recipe as { title?: unknown; source?: unknown; exampleCount?: unknown };
+    if (typeof t.title === 'string') {
+      if (t.source === 'system') return `Rezept „${t.title}"`;
+      return typeof t.exampleCount === 'number'
+        ? `Textform „${t.title}" (${t.exampleCount} Beispiele)`
+        : `Textform „${t.title}"`;
+    }
+  }
   // rezept_laden: the card names the recipe; the prompt body stays server-side.
   if (typeof r.titel === 'string' && r.geladen === true) return `Rezept: ${r.titel}`;
   if (r.geladen === false) return 'Rezept nicht verfügbar';

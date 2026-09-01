@@ -280,13 +280,15 @@ export const CHAT_HISTORY_DIRECT =
  * Deliberately an AND of two independent signals — a cadence AND a delivery
  * verb. Either alone is far too common to route on: "jeden Tag" appears in
  * ordinary prose about anything, and "erinnere mich" without a cadence is a
- * one-off. Requiring both is what makes this affordable as a direct route to
- * `create_recurring_task`, an intent the heuristic table never had at all (it
- * was LLM-only, so every recurring order paid for the 27k prompt).
+ * one-off. Requiring both is what makes this affordable as a direct route —
+ * since 09/2026 into the loop with the `recurring_tasks` tool pinned (before
+ * that onto the `create_recurring_task` intent, which was LLM-only, so every
+ * recurring order paid for the 27k prompt).
  *
- * The dispatcher still extracts the actual schedule with its own LLM call, so
- * this pattern only has to answer "is a recurrence being asked for", not "what
- * recurrence" — which is why it can stay a regex.
+ * The loop planner fills the actual schedule from the tool schema, so this
+ * pattern only has to answer "is a recurrence being asked for", not "what
+ * recurrence" — which is why it can stay a regex. The same predicate also
+ * mounts the tool (`toolCatalog.ts`).
  */
 // `\p{L}*` hinter den Adverbien, nicht bloss das nackte Wort: „eine WÖCHENTLICHE
 // Aufgabe" ist die natürliche Formulierung, und die flektierte Form scheiterte am
@@ -301,9 +303,10 @@ const RECURRENCE_CADENCE =
  * Die erste Fassung prüfte nur auf ein Zustellwort irgendwo im Satz, und das
  * war zu wenig: „Was steht täglich im Newsletter-Update?" und „Ich lese jeden
  * Tag den Bericht" erfüllten Takt + Zustellung und legten eine tägliche Aufgabe
- * an, statt die Frage zu beantworten. `create_recurring_task` ist nicht in
- * `AGENTIC_INTENTS`, der Dispatcher legt also OHNE Rückfrage an — ein Fehlalarm
- * hier schreibt in die Datenbank.
+ * an, statt die Frage zu beantworten — damals schrieb der Intent OHNE
+ * Rückfrage in die Datenbank. Seit 09/2026 legt das Werkzeug nur noch über eine
+ * Karte an; ein Fehlalarm kostet jetzt einen Umweg über die Schleife und eine
+ * überflüssige Karte, keine Zeile mehr.
  *
  * Deshalb steht das Verb jetzt zusammen mit seinem Objekt: „erinnere MICH",
  * „schick MIR", „melde DICH". Ein blosses „Update" oder „Bericht" genügt nicht.
