@@ -116,6 +116,7 @@ export {
   resolveThreadBySlugSuffix,
   type ExternalThreadEntry,
 } from './runtime/GrueneratorThreadListAdapter';
+export { buildThreadPath } from './lib/threadPath';
 
 // External Thread Context
 export { ExternalThreadProvider, useExternalThread } from './context/ExternalThreadContext';
