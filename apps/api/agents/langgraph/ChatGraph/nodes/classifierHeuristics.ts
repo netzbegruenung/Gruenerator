@@ -184,7 +184,9 @@ export const INTENT_KEYWORDS: Record<
     | 'edit_sheet'
     | 'create_presentation'
     | 'create_pdf'
-    // create_recurring_task is LLM-classified (needs a schedule); no keyword heuristic.
+    // create_recurring_task is retired (09/2026): Tier 3.4 answers a recurring
+    // order with `agentic` + pin on the `recurring_tasks` tool. Kept in the
+    // union only because the enum value stays.
     | 'create_recurring_task'
     | 'modify_doc'
     | 'edit_current_doc'

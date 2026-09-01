@@ -47,6 +47,17 @@ describe('looksLikeToolableQuestion', () => {
     // Bare possessive + Wolke — kein Fragewort, kein führendes Verb; ohne den
     // `wolke`-Eintrag in PERSONAL_DATA_RE erreichte das den Loop nie.
     ['personal wolke', 'meine wolke dateien bitte'],
+    // Produktwort für Gruppen ist „Projekt" — ohne den Eintrag blieb „meine
+    // Projekte" beim Klassifikator hängen, während „meine Gruppen" den Loop traf.
+    ['personal projekte', 'zeig meine projekte'],
+    // Wiederkehrende Aufgaben heißen im Alltag „Erinnerungen".
+    ['personal erinnerungen', 'meine erinnerungen bitte'],
+    // Eigene Grünerator-Agenten.
+    ['personal agenten', 'zeig meine agenten'],
+    ['personal grünerator-agenten', 'zeig mir meine grünerator-agenten'],
+    // Eigene Textformen und Rezepte.
+    ['personal textformen', 'zeig meine textformen'],
+    ['personal rezepte', 'meine rezepte bitte'],
   ];
   it.each(toolable)('routes a real question into the loop: %s', (_label, q) => {
     expect(looksLikeToolableQuestion(q)).toBe(true);
@@ -71,6 +82,8 @@ describe('looksLikeToolableQuestion', () => {
     ['creative "erstelle"', 'Erstelle einen Antrag zur Radwege-Förderung'],
     ['creative "schreib"', 'Schreib eine Pressemitteilung zur Wärmewende'],
     ['empty', '   '],
+    // „Agentur" ist kein Agent — die Wortgrenze hinter `agent(en)?` hält es draußen.
+    ['agentur, not agent', 'meine Agentur für Arbeit'],
   ];
   it.each(fastPath)('keeps a fast-path turn out of the loop: %s', (_label, q) => {
     expect(looksLikeToolableQuestion(q)).toBe(false);
