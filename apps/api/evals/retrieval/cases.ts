@@ -9,6 +9,15 @@
  * The gold labels are best-effort until calibrated against the live index:
  * run with EVAL_VERBOSE=1, inspect the printed top-5 titles for misses, and
  * tighten patterns where the corpus names things differently.
+ *
+ * `notebook` cases run the notebook Q&A scope through
+ * `NotebookQAService.getSearchContext` (default depth `deep`) instead of the
+ * flat document search: `notebook.collectionId` / `notebook.collectionIds`
+ * select the scope, `notebook.user` stubs a synthetic user notebook (the two
+ * table PDFs no real notebook collection holds), `notebook.history` feeds
+ * conversation turns into the query construction — only effective when the
+ * depth profile allows history (deep does not, at baseline), which is exactly
+ * the gap the follow-up cases measure.
  */
 
 export interface RetrievalExpectation {
@@ -22,7 +31,21 @@ export interface RetrievalExpectation {
  * field — a different retrieval problem, because the winning document is the
  * one that literally carries the term, not the one that is topically nearest.
  */
-export type RetrievalCaseKind = 'qa' | 'manual';
+export type RetrievalCaseKind = 'qa' | 'manual' | 'notebook';
+
+/** Search scope + context of a notebook case (see `notebookStreamCore`). */
+export interface NotebookCaseMeta {
+  collectionId?: string;
+  collectionIds?: string[];
+  /**
+   * Synthetic user notebook: the runner stubs `getCollectionFn` /
+   * `getDocumentIdsFn` with this (no DB access, `user_id: 'SYSTEM'` bypasses
+   * the access check).
+   */
+  user?: { collectionId: string; name: string; documentIds: string[] };
+  /** Conversation turns preceding the query (user/assistant alternation). */
+  history?: Array<{ role: 'user' | 'assistant'; content: string }>;
+}
 
 export interface RetrievalCase {
   id: string;
@@ -31,6 +54,7 @@ export interface RetrievalCase {
   expect: RetrievalExpectation[];
   /** Defaults to `qa`. */
   kind?: RetrievalCaseKind;
+  notebook?: NotebookCaseMeta;
 }
 
 export const RETRIEVAL_CASES: RetrievalCase[] = [
@@ -490,5 +514,140 @@ export const RETRIEVAL_CASES: RetrievalCase[] = [
     // Occurs in exactly one document.
     expect: [{ titlePattern: 'Nationalratswahl|Wahlprogramm' }],
     kind: 'manual',
+  },
+
+  // ── notebook scope: NotebookQAService.getSearchContext (EVAL_PIPELINE=notebook) ──
+  // Gold labels reuse the calibrated manual golds above (same corpus, same
+  // documents). The user-notebook cases scope a synthetic collection around
+  // two public municipal table PDFs (audit report + budget plan); neither is
+  // part of any real notebook collection, so the document list is the case's
+  // own. Both notebooks carry both documents, so each case is a genuine
+  // two-document discrimination.
+  {
+    id: 'notebook-berlin-hitzeschutz',
+    collection: 'berlin-system',
+    query: 'Was gilt in Berlin zum Hitzeschutz, etwa an Schulen oder für Hitzeempfindliche?',
+    expect: [{ titlePattern: 'Hitzeschutz' }],
+    kind: 'notebook',
+    notebook: { collectionId: 'berlin-system' },
+  },
+  {
+    id: 'notebook-berlin-milieuschutz',
+    collection: 'berlin-system',
+    query: 'Wie will Berlin mit Milieuschutzgebieten die Mietenentwicklung bremsen?',
+    expect: [{ titlePattern: 'Wohnungspolitik|Milieuschutz|Mieten' }],
+    kind: 'notebook',
+    notebook: { collectionId: 'berlin-system' },
+  },
+  {
+    id: 'notebook-bayern-moorschutz',
+    collection: 'bayern-system',
+    query: 'Welche Ziele und Maßnahmen verfolgt der Moorschutz in Bayern?',
+    expect: [{ titlePattern: 'Moorschutz' }],
+    kind: 'notebook',
+    notebook: { collectionId: 'bayern-system' },
+  },
+  {
+    id: 'notebook-at-klimaticket',
+    collection: 'oesterreich-gruene-system',
+    query: 'Wie ist das Klimaticket in Österreich finanziert, und was kostet es?',
+    expect: [{ titlePattern: 'Nationalratswahl|Wahlprogramm' }],
+    kind: 'notebook',
+    notebook: { collectionId: 'oesterreich-gruene-system' },
+  },
+  {
+    id: 'notebook-user-ausschreibungen',
+    collection: 'user',
+    query:
+      'Welche Direktvergabe an ein Architekturbüro hat das Rechnungsprüfungsamt beanstandet, und wie hoch war der Betrag?',
+    expect: [{ titlePattern: 'Schlussbericht|Rechnungspruefung' }],
+    kind: 'notebook',
+    notebook: {
+      user: {
+        collectionId: '00000000-0000-4000-8000-0000000000a1',
+        name: 'Prüfungsbericht Notebook',
+        // RPA Schlussbericht Stadt Neustadt a. d. Rübenberge (Direktvergabe
+        // 149.614,99 € an ein Architekturbüro) + Eutin Haushaltsplan als Noise.
+        documentIds: [
+          'bb3c2541-9cf4-4dd9-9b33-88720d7ac5c8',
+          '8899154c-04c7-49da-8296-f5d1b8ee6d62',
+        ],
+      },
+    },
+  },
+  {
+    id: 'notebook-user-haushaltsplan',
+    collection: 'user',
+    query: 'Wie hoch sind die Einzahlungen aus laufender Verwaltungstätigkeit laut Finanzplan?',
+    expect: [{ titlePattern: '3152_3711' }],
+    kind: 'notebook',
+    notebook: {
+      user: {
+        collectionId: '00000000-0000-4000-8000-0000000000a2',
+        name: 'Haushaltsplan Notebook',
+        documentIds: [
+          'bb3c2541-9cf4-4dd9-9b33-88720d7ac5c8',
+          '8899154c-04c7-49da-8296-f5d1b8ee6d62',
+        ],
+      },
+    },
+  },
+  // Follow-up questions across the Berlin+Bayern multi-collection scope.
+  // Only the rewritten standalone query ("Moorschutz in Bayern", …) can hit
+  // the gold document; at the deep baseline (history disabled, no rewrite)
+  // these are expected misses — the gap the rewrite step exists to close.
+  {
+    id: 'notebook-history-moorschutz',
+    collection: 'multi',
+    query: 'Und in Bayern?',
+    expect: [{ titlePattern: 'Moorschutz' }],
+    kind: 'notebook',
+    notebook: {
+      collectionIds: ['berlin-system', 'bayern-system'],
+      history: [
+        { role: 'user', content: 'Was tut Berlin für den Moorschutz?' },
+        {
+          role: 'assistant',
+          content:
+            'Berlin engagiert sich für den Schutz von Mooren und deren Wiedervernässung sowie für den Hochwasserschutz im Umland.',
+        },
+      ],
+    },
+  },
+  {
+    id: 'notebook-history-flaechenfrass',
+    collection: 'multi',
+    query: 'Und in Bayern?',
+    expect: [{ titlePattern: 'Fläche|Boden' }],
+    kind: 'notebook',
+    notebook: {
+      collectionIds: ['berlin-system', 'bayern-system'],
+      history: [
+        { role: 'user', content: 'Wie will Berlin den Flächenfraß begrenzen?' },
+        {
+          role: 'assistant',
+          content:
+            'Berlin will den Flächenverbrauch durch Bebauung auf braunen und grauen Flächen sowie durch Verdichtung begrenzen.',
+        },
+      ],
+    },
+  },
+  {
+    id: 'notebook-history-artenvielfalt',
+    collection: 'multi',
+    query: 'Und in Bayern?',
+    expect: [{ titlePattern: 'Arten|Bienen|Volksbegehren' }],
+    kind: 'notebook',
+    notebook: {
+      collectionIds: ['berlin-system', 'bayern-system'],
+      history: [
+        { role: 'user', content: 'Was plant Berlin für die Artenvielfalt?' },
+        {
+          role: 'assistant',
+          content:
+            'Berlin setzt unter anderem auf die Renaturierung von Grünflächen und den Schutz von Bienen und Insekten.',
+        },
+      ],
+    },
   },
 ];
