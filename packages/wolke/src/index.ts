@@ -1,9 +1,7 @@
 // Types
 export type {
-  WolkeScope,
   ShareLink,
   WolkeFileItem,
-  SyncStatus,
   ConnectionTestResult,
   ConnectionErrorCode,
   ShareLinkValidationResult,
@@ -18,11 +16,7 @@ export {
   addShareLink,
   deleteShareLink,
   testConnection,
-  uploadToWolke,
   browseFolder,
-  fetchSyncStatuses,
-  syncFolder,
-  setAutoSync,
   fetchSharedWithMe,
   fetchLinkGroupShares,
   shareLinkWithGroup,
@@ -42,15 +36,10 @@ export { getFileIcon, buildNextcloudFileUrl, sortFoldersFirst } from './lib/file
 export {
   wolkeKeys,
   useShareLinks,
-  useSyncStatuses,
-  useWolkeFiles,
   useWolkeBrowse,
   useAddShareLink,
   useDeleteShareLink,
   useTestConnection,
-  useUploadToWolke,
-  useSyncFolder,
-  useSetAutoSync,
   useSharedWithMeLinks,
   useLinkGroupShares,
   useShareLinkWithGroup,
@@ -59,15 +48,9 @@ export {
 
 // Zustand store
 export { default as useWolkePreferencesStore } from './stores/wolkePreferencesStore';
-export type {
-  WolkeFavouriteFolder,
-  WolkeAutoBackupConfig,
-  WolkeTransferFolderConfig,
-  BackupInterval,
-} from './stores/wolkePreferencesStore';
+export type { WolkeFavouriteFolder } from './stores/wolkePreferencesStore';
 
 // UI Components
 export { default as WolkeFolderBrowser } from './components/WolkeFolderBrowser';
 export { default as WolkeTreeBrowser } from './components/WolkeTreeBrowser';
 export { default as FolderStarButton } from './components/FolderStarButton';
-export { WolkeSaveModal } from './components/WolkeSaveModal';

@@ -7,9 +7,15 @@
  *   pnpm --filter @gruenerator/api eval:judge
  *
  * Env:
- *   LITELLM_BASE_URL      required (verdigado LiteLLM proxy, no /v1 suffix)
- *   LITELLM_API_KEY       required
- *   EVAL_JUDGE_MODEL      default verdigado-pro (free; avoid verdigado-think — slow)
+ *   CORTECS_API_KEY       required (CORTECS_BASE_URL optional, default api.cortecs.ai/v1)
+ *   EVAL_JUDGE_MODEL      default gemma-4-31b-it
+ *
+ * Lief bis zum 29.08.2026 auf `verdigado-pro` am LiteLLM-Proxy („free"). Der
+ * Proxy ist stillgelegt (services/ai/litellmRetired.ts), und das Modell dahinter
+ * war gpt-oss — ein Denkmodell als RICHTER über JSON-Verdikte, dessen Denken
+ * gegen das Token-Budget zählt. Jetzt dasselbe dichte Gemma 4 31B, das die
+ * `pruefung`-Stufe fährt, also der Prüfer, den das System ohnehin für „bewerte,
+ * was ein anderes Modell geschrieben hat" gewählt hat.
  *   EVAL_JUDGE_BLOCKING=1 fail the process on judge failures (default: report-only)
  *   EVAL_RUN_FILE         input path (default ./evals/last-run.json)
  *
@@ -28,9 +34,9 @@ import type { CaseResult } from '../types.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const RUN_FILE = process.env.EVAL_RUN_FILE ?? join(HERE, '..', 'last-run.json');
-const MODEL = process.env.EVAL_JUDGE_MODEL ?? 'verdigado-pro';
-const BASE_URL = (process.env.LITELLM_BASE_URL ?? '').replace(/\/$/, '');
-const API_KEY = process.env.LITELLM_API_KEY ?? '';
+const MODEL = process.env.EVAL_JUDGE_MODEL ?? 'gemma-4-31b-it';
+const BASE_URL = (process.env.CORTECS_BASE_URL ?? 'https://api.cortecs.ai/v1').replace(/\/$/, '');
+const API_KEY = process.env.CORTECS_API_KEY ?? '';
 const BLOCKING = process.env.EVAL_JUDGE_BLOCKING === '1';
 
 export interface JudgeVerdict {
@@ -65,7 +71,7 @@ async function callJudge(
 ): Promise<{ pass: boolean; reason: string } | null> {
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const res = await fetch(`${BASE_URL}/v1/chat/completions`, {
+      const res = await fetch(`${BASE_URL}/chat/completions`, {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -101,7 +107,7 @@ async function callJudge(
 
 async function main(): Promise<void> {
   if (!BASE_URL || !API_KEY) {
-    console.error('LITELLM_BASE_URL / LITELLM_API_KEY not set — judge cannot run.');
+    console.error('CORTECS_API_KEY not set — judge cannot run.');
     process.exit(1);
   }
   if (!existsSync(RUN_FILE)) {

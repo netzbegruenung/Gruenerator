@@ -83,15 +83,7 @@ export const SYSTEM_AGENT_DEFINITIONS = [
       ],
       defaultCollection: 'kommunalwiki',
     },
-    enabledTools: [
-      'search',
-      'web',
-      'scrape',
-      'memory',
-      'memory_save',
-      'self_review',
-      'draft_structured',
-    ],
+    enabledTools: ['search', 'web', 'scrape', 'memory', 'memory_save'],
     fewShotExamples: [
       {
         input: 'Antrag: Die Stadt soll mehr öffentliche Trinkwasserbrunnen aufstellen',
@@ -113,14 +105,14 @@ export const SYSTEM_AGENT_DEFINITIONS = [
         output:
           '# Änderungsantrag zum Haushalt 2026: Mittel für Radwegeausbau erhöhen\n\n## Beschlussvorschlag\nDer Rat möge beschließen, die Mittel für den Radwegeausbau im Haushalt 2026 um 200.000 € zu erhöhen. Die Deckung erfolgt durch eine entsprechende Reduzierung des Ansatzes im Investitionstitel Straßenneubau.\n\n## Haushaltsstelle\nProdukt 54.01.01 — Radverkehrsförderung, Investitionsauszahlungen (Konto 7831)\n\n## Änderungsbetrag\n+ 200.000 €\n\n## Deckungsvorschlag\nReduzierung von Produkt 54.01.02 — Straßenneubau, Investitionsauszahlungen (Konto 7831) um 200.000 €.\n\n## Begründung\nDer Anteil des Radverkehrs am Modal Split unserer Kommune liegt unter dem Bundesdurchschnitt. Der bestehende Haushaltsansatz reicht nicht aus, um das im Klimaschutzkonzept beschlossene Radwegenetz im notwendigen Tempo umzusetzen. Eine Umschichtung aus dem Straßenneubau ist sachgerecht: der Investitionstitel ist im Vorjahr nicht vollständig abgeflossen, gleichzeitig steigt der Bedarf an sicherer Radinfrastruktur (siehe Beschwerdelage Verkehrsausschuss 2025). Andere Kommunen vergleichbarer Größe investieren je Einwohner*in deutlich mehr in den Radverkehr.',
         reasoning:
-          'Das ist ein Haushaltsantrag (Modus C). Ich rufe draft_structured mit dokumenttyp="haushaltsantrag" auf — Haushaltsstelle, Änderungsbetrag und Deckungsvorschlag sind die Pflichtangaben.',
+          'Das ist ein Haushaltsantrag (Modus C). Ich erstelle den strukturierten Haushaltsantrag — Haushaltsstelle, Änderungsbetrag und Deckungsvorschlag sind die Pflichtangaben.',
       },
       {
         input: 'Hier ist der Entwurf unseres Haushalts 2026 [Text folgt]. Was fällt euch dazu auf?',
         output:
           '## Gesamteinschätzung\nDer Entwurf zeigt eine solide Ausgabenplanung im Pflichtbereich, lässt jedoch im Klima- und Sozialbereich klare grüne Akzente vermissen. Mehrere Punkte sollten in der Beratung nachgeschärft werden.\n\n## Stärken\n- Die Investitionen in den Kita-Ausbau (Produkt 36.x) entsprechen dem beschlossenen Bedarfsplan.\n- Der ÖPNV-Zuschuss steigt erstmals real.\n\n## Schwächen aus grüner Sicht\n- **Klimaanpassung unterfinanziert:** kein eigener Titel für Hitzeschutz oder Entsiegelung.\n- **Radverkehr stagniert** trotz beschlossenem Klimaschutzkonzept.\n- **Bürger*innenbeteiligung am Haushalt** taucht nicht als eigenständiger Posten auf.\n\n## Fehlende Akzente\n- Förderprogramm für PV auf kommunalen Dächern\n- Mittel für eine kommunale Wärmeplanung gemäß WPG\n- Aufstockung der Sozialarbeit an Schulen\n\n## Vergleichswerte\nKommunen vergleichbarer Größe (laut KommunalWiki-Maßstäben) wenden zwischen 8 und 12 €/Einwohner*in pro Jahr für aktive Klimaanpassung auf — der vorliegende Entwurf liegt unter 2 €/Einwohner*in.\n\n## Konkrete Verbesserungsvorschläge\n1. Neuer Titel „Klimaanpassung & Hitzeschutz" mit min. 250.000 €\n2. Erhöhung Radverkehr um 200.000 € (Änderungsantrag s.u.)\n3. Eigene Position „Bürger*innenhaushalt" mit 50.000 € für Beteiligungsformate\n4. Wärmeplanungsmittel sichern, ggf. mit Landesmitteln kofinanziert',
         reasoning:
-          'Das ist Modus A — Bewertung. Ich antworte mit strukturiertem Freitext (Gesamteinschätzung, Stärken, Schwächen, fehlende Akzente, Vergleichswerte, Verbesserungsvorschläge). Kein draft_structured.',
+          'Das ist Modus A — Bewertung. Ich antworte mit strukturiertem Freitext (Gesamteinschätzung, Stärken, Schwächen, fehlende Akzente, Vergleichswerte, Verbesserungsvorschläge).',
       },
     ],
     iconKey: 'buildings',
@@ -207,7 +199,6 @@ export const SYSTEM_AGENT_DEFINITIONS = [
       'image',
       'memory',
       'memory_save',
-      'self_review',
     ],
     fewShotExamples: [
       {
@@ -309,7 +300,6 @@ export const SYSTEM_AGENT_DEFINITIONS = [
       'image',
       'memory',
       'memory_save',
-      'self_review',
     ],
     defaultFilter: { landesverband: ['BE', 'BE-F'] },
     defaultNotebookIds: ['berlin-notebook'],
@@ -351,7 +341,6 @@ export const SYSTEM_AGENT_DEFINITIONS = [
       'image',
       'memory',
       'memory_save',
-      'self_review',
     ],
     defaultFilter: { landesverband: 'HH' },
     defaultNotebookIds: ['hamburg-notebook'],
@@ -393,7 +382,6 @@ export const SYSTEM_AGENT_DEFINITIONS = [
       'image',
       'memory',
       'memory_save',
-      'self_review',
     ],
     defaultFilter: { landesverband: ['MV', 'MV-F'] },
     defaultNotebookIds: ['mecklenburg-vorpommern-notebook'],
@@ -435,7 +423,6 @@ export const SYSTEM_AGENT_DEFINITIONS = [
       'image',
       'memory',
       'memory_save',
-      'self_review',
     ],
     defaultFilter: { landesverband: ['TH', 'TH-F'] },
     defaultNotebookIds: ['thueringen-notebook'],
@@ -477,7 +464,6 @@ export const SYSTEM_AGENT_DEFINITIONS = [
       'image',
       'memory',
       'memory_save',
-      'self_review',
     ],
     defaultFilter: { landesverband: 'BB' },
     defaultNotebookIds: ['brandenburg-notebook'],
@@ -519,7 +505,6 @@ export const SYSTEM_AGENT_DEFINITIONS = [
       'image',
       'memory',
       'memory_save',
-      'self_review',
     ],
     defaultFilter: { landesverband: ['BY', 'BY-F'] },
     defaultNotebookIds: ['bayern-notebook'],
@@ -561,7 +546,6 @@ export const SYSTEM_AGENT_DEFINITIONS = [
       'image',
       'memory',
       'memory_save',
-      'self_review',
     ],
     defaultFilter: { landesverband: ['LSA', 'LSA-F'] },
     defaultNotebookIds: ['sachsen-anhalt-notebook'],
@@ -603,7 +587,6 @@ export const SYSTEM_AGENT_DEFINITIONS = [
       'image',
       'memory',
       'memory_save',
-      'self_review',
     ],
     defaultFilter: { landesverband: ['HE', 'HE-F'] },
     defaultNotebookIds: ['hessen-notebook'],
@@ -647,7 +630,6 @@ export const SYSTEM_AGENT_DEFINITIONS = [
       'image',
       'memory',
       'memory_save',
-      'self_review',
     ],
     defaultNotebookIds: ['oesterreich-notebook'],
     autoRoutingHint: 'creative',
@@ -758,15 +740,7 @@ export const SYSTEM_AGENT_DEFINITIONS = [
     ],
     locale: 'de-DE',
     author: 'Grünerator',
-    enabledTools: [
-      'search',
-      'web',
-      'scrape',
-      'memory',
-      'memory_save',
-      'self_review',
-      'draft_structured',
-    ],
+    enabledTools: ['search', 'web', 'scrape', 'memory', 'memory_save'],
     fewShotExamples: [
       {
         input:
@@ -814,15 +788,7 @@ export const SYSTEM_AGENT_DEFINITIONS = [
     ],
     locale: 'de-DE',
     author: 'Grünerator',
-    enabledTools: [
-      'search',
-      'web',
-      'scrape',
-      'memory',
-      'memory_save',
-      'self_review',
-      'draft_structured',
-    ],
+    enabledTools: ['search', 'web', 'scrape', 'memory', 'memory_save'],
     fewShotExamples: [
       {
         input: 'Schreibe ein Wahlprogramm-Kapitel zum Thema nachhaltige Mobilität',
@@ -869,7 +835,7 @@ export const SYSTEM_AGENT_DEFINITIONS = [
     ],
     locale: 'de-DE',
     author: 'Grünerator',
-    enabledTools: ['memory', 'memory_save', 'self_review'],
+    enabledTools: ['memory', 'memory_save'],
     fewShotExamples: [
       {
         input:
@@ -929,8 +895,6 @@ export const SYSTEM_AGENT_DEFINITIONS = [
       'edit_image',
       'analyze_image',
       'scrape_url',
-      'draft_structured',
-      'self_review',
       'find_content',
       'recall_memory',
       'save_memory',

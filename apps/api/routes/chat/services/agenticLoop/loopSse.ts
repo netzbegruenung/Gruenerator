@@ -18,7 +18,7 @@
  *
  * Pro Turn EINE Instanz. Kein Modul-Zustand — Turns laufen parallel.
  */
-import { PROGRESS_MESSAGES, startResponseHeartbeat, type SSEWriter } from '../sseHelpers.js';
+import { PROGRESS_MESSAGES, type SSEWriter } from '../sseHelpers.js';
 
 import { createOpeningDedupe } from './openingDedupe.js';
 
@@ -51,8 +51,6 @@ export interface AnswerEmitter {
   takeNarration(): string | null;
   /** The forced-generation path is "a tool actually runs" too. */
   emitOpeningBeforeTool(): void;
-  startSynthHeartbeat(): void;
-  endSynthHeartbeat(): void;
 }
 
 export function createAnswerEmitter(sse: SSEWriter): AnswerEmitter {
@@ -73,13 +71,6 @@ export function createAnswerEmitter(sse: SSEWriter): AnswerEmitter {
   let openingSentence: string | null = null;
   let openingEmitted = false;
   let responseStarted = false;
-  // Held so every exit path can disarm it.
-  let stopSynthHeartbeat: (() => void) | null = null;
-
-  const endSynthHeartbeat = (): void => {
-    stopSynthHeartbeat?.();
-    stopSynthHeartbeat = null;
-  };
 
   const startResponse = (): void => {
     if (responseStarted) return;
@@ -90,15 +81,12 @@ export function createAnswerEmitter(sse: SSEWriter): AnswerEmitter {
   const emitOpeningBeforeTool = (): void => {
     if (openingSentence == null || openingEmitted) return;
     openingEmitted = true;
-    endSynthHeartbeat();
     startResponse();
     text += `${openingSentence} `;
     sse.send('text_delta', { text: `${openingSentence} ` });
   };
 
   const emitAnswerDelta = (delta: string): void => {
-    // Real content replaces the heartbeat as the UI's proof of progress.
-    endSynthHeartbeat();
     startResponse();
     text += delta;
     sse.send('text_delta', { text: delta });
@@ -165,9 +153,5 @@ export function createAnswerEmitter(sse: SSEWriter): AnswerEmitter {
       return joined || null;
     },
     emitOpeningBeforeTool,
-    startSynthHeartbeat: () => {
-      stopSynthHeartbeat = startResponseHeartbeat(sse);
-    },
-    endSynthHeartbeat,
   };
 }

@@ -35,14 +35,6 @@ export interface ShareLinkDeletionResult {
 }
 
 /**
- * Deactivation result
- */
-export interface DeactivationResult {
-  success: boolean;
-  deactivatedCount: number;
-}
-
-/**
  * Usage statistics
  */
 export interface UsageStats {
@@ -51,15 +43,6 @@ export interface UsageStats {
   inactiveLinks: number;
   oldestLink: Date | null;
   newestLink: Date | null;
-}
-
-/**
- * Database state check result
- */
-export interface DatabaseStateCheck {
-  profileExists: boolean;
-  userId: string;
-  nextcloud_share_links: NextcloudShareLink[] | null;
 }
 
 /**

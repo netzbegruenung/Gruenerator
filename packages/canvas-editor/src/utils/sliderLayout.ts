@@ -402,9 +402,36 @@ export function calculateSliderLayout(
   };
 }
 
+export const DEFAULT_SLIDER_COLOR_SCHEME: SliderColorScheme = 'sand-tanne';
+
 /**
- * Get colors for a given color scheme
+ * Narrow an unknown value to a known scheme id.
+ *
+ * Persisted `initial_state` is not a typed channel: the studio store carries a
+ * `colorScheme` of an entirely different shape (a `{background}[]` palette for
+ * the legacy sharepic generator), and older documents may carry ids we no
+ * longer ship. Both are truthy, so a `?? 'sand-tanne'` default does NOT catch
+ * them — only membership does.
+ */
+export function isSliderColorScheme(value: unknown): value is SliderColorScheme {
+  // `hasOwn`, not `in`: `'toString' in colorSchemes` is true via the prototype
+  // chain and would resolve to a function, whose `.arrowFill` is undefined —
+  // the same silent-undefined footgun one level down.
+  return typeof value === 'string' && Object.hasOwn(SLIDER_CONFIG.colorSchemes, value);
+}
+
+/**
+ * Get colors for a given color scheme.
+ *
+ * Total by construction: an unknown scheme falls back to the default instead of
+ * returning `undefined`. Every call site reads a field straight off the result
+ * (`.arrowFill`, `.headlineText`, …), so a partial lookup here surfaces as a
+ * `Cannot read properties of undefined` at the *caller* — which is how a
+ * palette-shaped `colorScheme` in a minted canvas took down the whole slider
+ * render instead of just picking the wrong colours.
  */
 export function getSliderColors(scheme: SliderColorScheme) {
-  return SLIDER_CONFIG.colorSchemes[scheme];
+  return SLIDER_CONFIG.colorSchemes[
+    isSliderColorScheme(scheme) ? scheme : DEFAULT_SLIDER_COLOR_SCHEME
+  ];
 }

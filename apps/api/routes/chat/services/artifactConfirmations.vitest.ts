@@ -2,9 +2,7 @@ import { describe, it, expect } from 'vitest';
 
 import {
   ARTIFACT_CONFIRMATION_TEXTS,
-  buildPostWithSharepicsConfirmation,
   buildSharepicConfirmation,
-  buildSharepicsWithoutPostConfirmation,
   isArtifactConfirmation,
 } from './artifactConfirmations.js';
 
@@ -17,9 +15,6 @@ describe('isArtifactConfirmation', () => {
       buildSharepicConfirmation(1),
       buildSharepicConfirmation(3),
       buildSharepicConfirmation(1, 5),
-      buildPostWithSharepicsConfirmation(1),
-      buildPostWithSharepicsConfirmation(2),
-      buildSharepicsWithoutPostConfirmation(2),
     ];
     for (const text of texts) {
       expect(isArtifactConfirmation(text), text).toBe(true);
@@ -54,7 +49,6 @@ describe('confirmation builders', () => {
   it('pluralises the variant count', () => {
     expect(buildSharepicConfirmation(1)).toContain('1 Sharepic-Variante');
     expect(buildSharepicConfirmation(3)).toContain('3 Sharepic-Varianten');
-    expect(buildPostWithSharepicsConfirmation(1)).toContain('1 passenden Sharepic-Variante');
   });
 
   it('reports a deck only when it has slides', () => {

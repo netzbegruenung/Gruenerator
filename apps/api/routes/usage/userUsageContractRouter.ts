@@ -120,9 +120,9 @@ export const userUsageContractRouter = s.router(userUsageContract, {
       let energyWms = 0;
       let emissionsUg = 0;
       let measuredEnergyWms = 0;
-      // Energy that rests on a conservative upper bound rather than a metered
-      // coefficient. Reported separately so the headline number is never taken
-      // for more than it is.
+      // Energy whose model was never metered anywhere, so it is valued from the
+      // bracket between two models that were. Reported separately so the
+      // headline number is never taken for more than it is.
       let boundedEnergyWms = 0;
       let textOutputTokens = 0;
       // Doubles as the base of the GPT-4o counterfactual, so both sides of the

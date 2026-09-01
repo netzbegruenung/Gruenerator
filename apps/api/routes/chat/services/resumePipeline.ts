@@ -33,11 +33,8 @@ import {
 import { createLogger } from '../../../utils/logger.js';
 import { getContextWindow } from '../agents/providers.js';
 
-import {
-  ARTIFACT_CONFIRMATION_TEXTS,
-  buildPostWithSharepicsConfirmation,
-  buildSharepicConfirmation,
-} from './artifactConfirmations.js';
+import { runToolApprovalResume } from './agenticLoop/approvalResume.js';
+import { ARTIFACT_CONFIRMATION_TEXTS, buildSharepicConfirmation } from './artifactConfirmations.js';
 import { persistComputeAssets } from './computeAssetStorage.js';
 import { hasBrokenComputeValues } from './computeResultSanity.js';
 import { pruneMessages } from './contextPruningService.js';
@@ -120,6 +117,28 @@ export async function runChatGraphResume({
     const resumeInput = resolveResumeInput(body);
     if (!resumeInput) {
       return sseFail(sse, 'Ungültige Resume-Anfrage.', { code: 'invalid_request' });
+    }
+    // Werkzeug-Freigabe: eigener Zustand, eigene Fortsetzung. Steht VOR allem
+    // anderen, weil dieser Zweig weder den Klärungs-Zustand noch die
+    // Einzeldurchlauf-Pipeline berührt.
+    if (resumeInput.kind === 'tool_approval') {
+      const approvalUser = getUser(req);
+      if (!approvalUser?.id) {
+        return sseFail(sse, PROGRESS_MESSAGES.unauthorized, { code: 'unauthorized' });
+      }
+      const result = await runToolApprovalResume({
+        req,
+        sse,
+        threadId,
+        userId: approvalUser.id,
+        ...(resumeInput.approvalTurnId != null && { approvalTurnId: resumeInput.approvalTurnId }),
+        decisions: resumeInput.decisions,
+        fail: (message, code) => ({
+          handled: true as const,
+          ...sseFail(sse, message, { code }),
+        }),
+      });
+      return { status: result.status, body: result.body };
     }
     if (resumeInput.kind === 'client_tool' && resumeInput.toolName !== 'run_python') {
       return sseFail(sse, 'Dieser Tool-Typ wird noch nicht unterstützt.', {
@@ -350,8 +369,8 @@ export async function runChatGraphResume({
       );
     }
 
-    // === Sharepic / social_post resume: the answer is the topic — regenerate and finish ===
-    if (classifiedState.intent === 'sharepic' || classifiedState.intent === 'social_post') {
+    // === Sharepic resume: the answer is the topic — regenerate and finish ===
+    if (classifiedState.intent === 'sharepic') {
       const resumedIntent = classifiedState.intent;
       // Combine the original (topic-less) request with the answer so any variant
       // hint ("zitat sharepic") survives and the answer supplies the subject.
@@ -366,11 +385,7 @@ export async function runChatGraphResume({
         reasoning: `Resumed: ${userAnswer}`,
       });
 
-      const {
-        finalState: resumedFinalState,
-        sharepicVariants,
-        socialPost,
-      } = await executeIntentPipeline({
+      const { finalState: resumedFinalState, sharepicVariants } = await executeIntentPipeline({
         classifiedState,
         sse,
         forcedTool: requestContext.forcedTool,
@@ -381,21 +396,12 @@ export async function runChatGraphResume({
 
       const n = sharepicVariants.length;
       const fullText =
-        resumedIntent === 'social_post'
-          ? socialPost != null || n > 0
-            ? n > 0
-              ? buildPostWithSharepicsConfirmation(n)
-              : ARTIFACT_CONFIRMATION_TEXTS.postWithoutSharepic
-            : ARTIFACT_CONFIRMATION_TEXTS.genericFailed
-          : n > 0
-            ? buildSharepicConfirmation(n)
-            : ARTIFACT_CONFIRMATION_TEXTS.sharepicFailed;
+        n > 0 ? buildSharepicConfirmation(n) : ARTIFACT_CONFIRMATION_TEXTS.sharepicFailed;
       sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
       sse.send('text_delta', { text: fullText });
 
-      // Persist the artifacts too — without the sharepic/social_post tool
-      // calls the card can't rehydrate on reload and later text edits would
-      // fall through to the sharepic edit branch.
+      // Persist the artifacts too — without the sharepic tool call the card
+      // can't rehydrate on reload.
       const artifactPersist = await persistResumedResponse({
         threadId: requestContext.actualThreadId!,
         fullText,
@@ -405,7 +411,6 @@ export async function runChatGraphResume({
         processedMeta: requestContext.processedMeta,
         userMessageId: requestContext.userMessageId ?? null,
         sharepicVariants,
-        socialPost,
       });
       if (artifactPersist.discarded) sendChatWarning(sse, 'turn_discarded');
       else if (!artifactPersist.ok) sendChatWarning(sse, 'persist_failed');
@@ -588,50 +593,45 @@ export async function runChatGraphResume({
     const lastUserMsg = [...validMessages].reverse().find((m) => m.role === 'user');
     const traceInput = lastUserMsg ? extractTextContent(lastUserMsg.content) : '';
 
-    let fullText: string | null;
     let resumeTraceId: string | undefined;
     const resumeTelemetry = buildAiTelemetry('chat-graph.resume');
-    try {
-      // One trace per resumed turn — propagateAttributes sets trace-level
-      // user/session (AI SDK telemetry carries no metadata of its own) and the
-      // traceId feeds the feedback button.
-      fullText = await withLangfuseTrace(
-        {
-          name: 'chat-turn',
-          ...(requestContext.userId && { userId: requestContext.userId }),
-          ...(requestContext.actualThreadId && { sessionId: requestContext.actualThreadId }),
-          metadata: { requestId: resumeRequestId, intent: finalState.intent },
-        },
-        async (trace) => {
-          resumeTraceId = trace.traceId;
-          const text = await streamWithFallback({
-            primary: resolution2,
-            sse,
-            logPrefix: '[ChatGraph:Resume]',
-            buildStream: async (r) =>
-              // No output cap (OpenWebUI-style) — see chatGraphContractRouter.
-              streamForResolution({
-                resolution: r,
-                messages: messagesForAI,
-                temperature: finalState.agentConfig.params.temperature,
-                sse,
-                logPrefix: '[ChatGraph:Resume]',
-                ...(resumeTelemetry && { telemetry: resumeTelemetry }),
-              }),
-          });
-          // Both lanes dead → null, not a throw. Mark it, or the failed resume
-          // reads as a successful turn.
-          trace.update(
-            text === null
-              ? { input: traceInput, level: 'ERROR', statusMessage: BOTH_LANES_FAILED }
-              : { input: traceInput, output: text }
-          );
-          return text;
-        }
-      );
-    } finally {
-      if (resolution2.releaseSlot) await resolution2.releaseSlot();
-    }
+    // One trace per resumed turn — propagateAttributes sets trace-level
+    // user/session (AI SDK telemetry carries no metadata of its own) and the
+    // traceId feeds the feedback button.
+    const fullText: string | null = await withLangfuseTrace(
+      {
+        name: 'chat-turn',
+        ...(requestContext.userId && { userId: requestContext.userId }),
+        ...(requestContext.actualThreadId && { sessionId: requestContext.actualThreadId }),
+        metadata: { requestId: resumeRequestId, intent: finalState.intent },
+      },
+      async (trace) => {
+        resumeTraceId = trace.traceId;
+        const text = await streamWithFallback({
+          primary: resolution2,
+          sse,
+          logPrefix: '[ChatGraph:Resume]',
+          buildStream: async (r) =>
+            // No output cap (OpenWebUI-style) — see chatGraphContractRouter.
+            streamForResolution({
+              resolution: r,
+              messages: messagesForAI,
+              temperature: finalState.agentConfig.params.temperature,
+              sse,
+              logPrefix: '[ChatGraph:Resume]',
+              ...(resumeTelemetry && { telemetry: resumeTelemetry }),
+            }),
+        });
+        // Both lanes dead → null, not a throw. Mark it, or the failed resume
+        // reads as a successful turn.
+        trace.update(
+          text === null
+            ? { input: traceInput, level: 'ERROR', statusMessage: BOTH_LANES_FAILED }
+            : { input: traceInput, output: text }
+        );
+        return text;
+      }
+    );
 
     if (fullText === null) {
       await cleanupPending(true);

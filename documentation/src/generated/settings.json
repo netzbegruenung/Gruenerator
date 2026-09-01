@@ -49,12 +49,8 @@
       "label": "Meine Websites"
     },
     {
-      "value": "barrierefreiheit",
-      "label": "Barrierefreiheit"
-    },
-    {
       "value": "datenschutz",
-      "label": "Datenschutz"
+      "label": "Datenschutz & Barrierefreiheit"
     },
     {
       "value": "nutzung",
@@ -107,17 +103,17 @@
       "description": "Ausdrückliche Einwilligung nach Art. 9 DSGVO, weil sich aus deinen Eingaben politische Meinungen ergeben können"
     },
     "barrierefreiheit.animationen": {
-      "tab": "barrierefreiheit",
+      "tab": "datenschutz",
       "title": "Animationen reduzieren",
       "description": "Schaltet dekorative Animationen und Übergänge ab — folgt sonst automatisch der Einstellung deines Betriebssystems"
     },
     "barrierefreiheit.transparenz": {
-      "tab": "barrierefreiheit",
+      "tab": "datenschutz",
       "title": "Transparenz reduzieren",
       "description": "Entfernt durchscheinende Flächen und Unschärfe-Effekte — folgt sonst automatisch der Einstellung deines Betriebssystems"
     },
     "barrierefreiheit.leistung": {
-      "tab": "barrierefreiheit",
+      "tab": "datenschutz",
       "title": "Leistungsmodus",
       "description": "Schaltet den Blur hinter der Tab-Leiste ab. Hilft auf älteren Geräten, gilt nur auf diesem"
     },

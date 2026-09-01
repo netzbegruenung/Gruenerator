@@ -5,7 +5,7 @@
 // dragging the assistant-ui runtime chunk back onto the initial load. The heavy
 // runtime lives in GrueneratorChatRuntime.tsx and is loaded lazily.
 
-import { type ThreadMessageLike } from '@assistant-ui/react';
+import { type ThreadMessageLike, type ToolCallMessagePart } from '@assistant-ui/react';
 import { socialPostPayloadSchema, bahnPayloadSchema } from '@gruenerator/contracts';
 
 import {
@@ -19,6 +19,7 @@ import {
 import { ATTACHMENT_META_PART_NAME, type AttachmentMetaData } from '../lib/attachmentMeta';
 import { mapRawCitationsToChat } from '../lib/citationUtils';
 import { isPastedTextAttachment, PASTED_TEXT_PREVIEW_PART_NAME } from '../lib/pastedText';
+import { TOOL_APPROVAL_OPTIONS } from '../lib/toolApproval';
 import { INTENT_TO_TOOL } from '../lib/toolMappings';
 import { type DocumentCreatedData } from '../types/messageMetadata';
 
@@ -80,6 +81,20 @@ export interface LoadedMessage {
     interrupted?: boolean;
     /** Rezept-Attribution des Turns (siehe `StreamMetadata.recipesUsed`). */
     recipesUsed?: { mention: string; title: string; source?: 'system' | 'user' }[];
+    /** Werkzeugaufrufe, die auf eine Freigabe warten (oder gewartet haben).
+     *  Solange `resolved` falsch ist, zeigt der Thread nach einem Reload wieder
+     *  die Karte und kann entschieden werden. */
+    pendingApproval?: {
+      approvalTurnId: string;
+      calls: Array<{
+        toolCallId: string;
+        toolName: string;
+        args?: Record<string, unknown>;
+        title?: string;
+        serverName?: string;
+      }>;
+      resolved?: boolean | 'expired';
+    };
   };
 }
 
@@ -322,10 +337,13 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMes
         readonly type: 'tool-call';
         readonly toolCallId: string;
         readonly toolName: string;
-        readonly args: Record<string, string>;
+        readonly args: ToolCallMessagePart['args'];
         readonly result?: unknown;
         readonly parentId?: string;
         readonly narration?: string;
+        readonly approval?: ToolCallMessagePart['approval'];
+        readonly title?: string;
+        readonly serverName?: string;
       };
 
       const contentParts: Array<{ type: 'text'; text: string } | ToolCallLike> = [];
@@ -406,6 +424,34 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMes
         contentParts.push({ type: 'text' as const, text: textContent });
       }
 
+      // Offene Werkzeug-Freigaben überleben den Reload: die Karte kommt zurück
+      // und bleibt entscheidbar. Die vollen Übergabewerte bleiben hier stehen —
+      // wer freigibt, muss sehen, was übergeben wird (die normalen Karten oben
+      // führen bewusst nur `query`).
+      const pending = m.metadata?.pendingApproval;
+      const pendingUnresolved = pending && pending.resolved !== true;
+      if (pendingUnresolved) {
+        for (const call of pending.calls) {
+          contentParts.push({
+            type: 'tool-call' as const,
+            toolCallId: call.toolCallId,
+            toolName: call.toolName,
+            // Aus der Datenbank gelesenes JSON — die Form ist JSON-tauglich,
+            // der Typ der gespeicherten Metadaten ist nur weiter gefasst.
+            args: (call.args ?? {}) as ToolCallMessagePart['args'],
+            approval: {
+              id: call.toolCallId,
+              options: TOOL_APPROVAL_OPTIONS,
+              ...(pending.resolved === 'expired' ? { resolution: 'expired' as const } : {}),
+            },
+            // Wie im Live-Pfad: die Karte nennt den Dienst, nicht den
+            // Katalognamen.
+            ...(call.title != null && { title: call.title }),
+            ...(call.serverName != null && { serverName: call.serverName }),
+          });
+        }
+      }
+
       const custom = buildCustomMetadata(m.metadata);
       // All persisted attachments come back as display-only history data — the
       // model adapter ignores data parts, while the backend re-injects
@@ -456,6 +502,11 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMes
         role: m.role as 'user' | 'assistant',
         content: contentParts,
         id: m.id,
+        // Ohne `requires-action` verweigert assistant-ui die Antwort auf eine
+        // Freigabe — die Karte wäre nach einem Reload nur noch Dekoration.
+        ...(pendingUnresolved && pending?.resolved !== 'expired'
+          ? { status: { type: 'requires-action' as const, reason: 'tool-calls' as const } }
+          : {}),
         ...(createdAt && !Number.isNaN(createdAt.getTime()) ? { createdAt } : {}),
         ...(attachments.length > 0 ? { attachments } : {}),
         metadata: Object.keys(custom).length > 0 ? { custom } : undefined,

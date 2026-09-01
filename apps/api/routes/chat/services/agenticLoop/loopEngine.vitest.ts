@@ -13,6 +13,7 @@ import {
   SYNTH_CUTOFF_RETRY_SUFFIX,
   SYNTH_INVALID_JSON_RETRY_SUFFIX,
   SYNTH_DEGENERATE_RETRY_SUFFIX,
+  TurnSuspendedError,
   type LoopDeps,
   type LoopEngineParams,
 } from './loopEngine.js';
@@ -1208,63 +1209,42 @@ describe('runAgenticLoop — reasoning reaches the writing phases', () => {
   });
 });
 
-describe('runAgenticLoop — reasoning reaches the writing phases', () => {
-  // The auto policy grades a reasoning strength for every turn and
-  // `resolveModel` pins a thinking turn to the Mistral API for it. Until
-  // 13.08.2026 no phase then sent the option that switches thinking on — the
-  // lane moved, the reasoning did not.
-  const REASONING = { mistral: { reasoningEffort: 'high' } };
+// Eine Freigabe-Pause muss den Zug WIRKLICH beenden. Der Nachweis ist nötig,
+// weil `gather()` jeden Fehler fängt und danach zur Synthese degradiert: ohne
+// die ausdrückliche Prüfung schriebe der Zug eine Antwort, während die Person
+// noch entscheidet — und `afterGather` erzeugte dabei Artefakte.
+describe('runAgenticLoop — Werkzeug-Freigabe pausiert den Zug', () => {
+  const deps: LoopDeps = {
+    streamText: (() =>
+      streamOf([
+        { type: 'text-delta', text: 'SOLLTE_NICHT_ERSCHEINEN' },
+      ])) as unknown as LoopDeps['streamText'],
+    generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+  };
 
-  type OptsWithProvider = StreamOpts & { providerOptions?: Record<string, unknown> };
-
-  it('forwards it to the unified pass', async () => {
-    const seen: (Record<string, unknown> | undefined)[] = [];
-    const deps: LoopDeps = {
-      streamText: ((o: OptsWithProvider) => {
-        seen.push(o.providerOptions);
-        return streamOf([{ type: 'text-delta', text: 'ok' }]);
-      }) as unknown as LoopDeps['streamText'],
-      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
-    };
-
-    await runAgenticLoop(baseParams({ mode: 'unified', providerOptions: REASONING }), deps);
-
-    expect(seen).toEqual([REASONING]);
+  it('bricht im geteilten Modus vor Synthese und Artefakt-Garantie ab', async () => {
+    const afterGather = vi.fn(async () => {});
+    await expect(
+      runAgenticLoop(baseParams({ mode: 'split', afterGather, suspended: () => true }), deps)
+    ).rejects.toThrow(TurnSuspendedError);
+    expect(afterGather).not.toHaveBeenCalled();
   });
 
-  it('forwards it to the synth pass but NOT to the planner', async () => {
-    // The planner is a fixed lane reached through an OpenAI-compat client — a
-    // `mistral` block would be dropped there in silence, and the planner has no
-    // prose to think about anyway.
-    const seen: { model: string; providerOptions?: Record<string, unknown> }[] = [];
-    const deps: LoopDeps = {
-      streamText: ((o: OptsWithProvider) => {
-        seen.push({
-          model: o.model.id,
-          ...(o.providerOptions && { providerOptions: o.providerOptions }),
-        });
-        return streamOf([{ type: 'text-delta', text: 'ok' }]);
-      }) as unknown as LoopDeps['streamText'],
-      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
-    };
-
-    await runAgenticLoop(baseParams({ mode: 'split', providerOptions: REASONING }), deps);
-
-    expect(seen).toEqual([{ model: 'planner' }, { model: 'synth', providerOptions: REASONING }]);
+  it('bricht im vereinten Modus vor der Artefakt-Garantie ab', async () => {
+    const afterGather = vi.fn(async () => {});
+    await expect(
+      runAgenticLoop(baseParams({ mode: 'unified', afterGather, suspended: () => true }), deps)
+    ).rejects.toThrow(TurnSuspendedError);
+    expect(afterGather).not.toHaveBeenCalled();
   });
 
-  it('sends nothing when the turn does not think', async () => {
-    const seen: (Record<string, unknown> | undefined)[] = [];
-    const deps: LoopDeps = {
-      streamText: ((o: OptsWithProvider) => {
-        seen.push(o.providerOptions);
-        return streamOf([{ type: 'text-delta', text: 'ok' }]);
-      }) as unknown as LoopDeps['streamText'],
-      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
-    };
-
-    await runAgenticLoop(baseParams({ mode: 'unified' }), deps);
-
-    expect(seen).toEqual([undefined]);
+  it('lässt einen Zug ohne Pause unverändert laufen', async () => {
+    const afterGather = vi.fn(async () => {});
+    const out = await runAgenticLoop(
+      baseParams({ mode: 'unified', afterGather, suspended: () => false }),
+      deps
+    );
+    expect(out.text).toBe('SOLLTE_NICHT_ERSCHEINEN');
+    expect(afterGather).toHaveBeenCalledTimes(1);
   });
 });

@@ -23,7 +23,6 @@ import { createLogger } from '../../../utils/logger.js';
 import {
   mayWriteAnswer,
   resolveAutoSelection,
-  VERDIGADO_INPUT_LIMIT,
   type Complexity,
   type ReasoningSetting,
   type TaskShape,
@@ -37,12 +36,7 @@ import {
 } from '../agents/providers.js';
 
 import { sanitizeContentPartsForModel, stripEmptyAssistantMessages } from './messageHelpers.js';
-import {
-  PROGRESS_MESSAGES,
-  startResponseHeartbeat,
-  type FallbackReason,
-  type SSEWriter,
-} from './sseHelpers.js';
+import { PROGRESS_MESSAGES, type FallbackReason, type SSEWriter } from './sseHelpers.js';
 import { createIdleDeadline, type IdleDeadline } from './streamIdleDeadline.js';
 import { resolveAbortOutcome } from './turnAbortOutcome.js';
 import { TURN_CEILING_MS } from './turnDeadline.js';
@@ -115,12 +109,10 @@ const REASONING_PHASE_BUDGET_MS = (() => {
   const n = Number.parseInt(process.env.CHAT_REASONING_PHASE_BUDGET_MS ?? '', 10);
   return Number.isInteger(n) && n > 0 ? n : 120_000;
 })();
-/** LiteLLM overflow lane can queue behind its single Verdigado slot. */
-const LITELLM_FIRST_TOKEN_DEADLINE_MS = 30_000;
 /**
- * Reasoning models (Regolo vLLM, Verdigado/LiteLLM Gemma) hold back answer text
- * until thinking completes, so the wait for the first TEXT token is legitimately
- * longer than on a plain lane.
+ * Reasoning models (Regolo vLLM) hold back answer text until thinking
+ * completes, so the wait for the first TEXT token is legitimately longer than
+ * on a plain lane.
  *
  * This is an IDLE window, not a total budget: reasoning deltas rearm it (see
  * createFirstTokenDeadline), so a genuine 60s thinking phase runs to completion
@@ -128,6 +120,11 @@ const LITELLM_FIRST_TOKEN_DEADLINE_MS = 30_000;
  * what "hung" actually means. Before that fix the same 20s was a hard ceiling
  * on thinking, and a research turn died on verdigado-think at exactly 20s, then
  * on its regolo/gemma4-31b sibling at exactly 20s again.
+ *
+ * Dass die Zahl der oben gleicht, ist ein MESSERGEBNIS und keine Definition:
+ * beide Fristen messen Schweigen, und 20 s hat sich für beide Arten von
+ * Schweigen bewährt. Sie stehen deshalb getrennt — wer eine bewegt, soll nicht
+ * ungefragt die andere mitbewegen.
  */
 const REASONING_FIRST_TOKEN_DEADLINE_MS = 20_000;
 
@@ -136,6 +133,32 @@ const REASONING_FIRST_TOKEN_DEADLINE_MS = 20_000;
  * behaviour. When the auto policy turned reasoning OFF for a lane that would
  * normally think, there is no thinking phase to wait through — it should be
  * held to the ordinary deadline, not the generous reasoning one.
+ *
+ * ── Warum hier KEIN Zweig pro Anbieter mehr steht ──
+ *
+ * Bis zum 01.09.2026 stand hier `if (provider === 'litellm') return 30_000`,
+ * begründet mit „LiteLLM overflow lane can queue behind its single Verdigado
+ * slot". Der Zweig war zuletzt UNERREICHBAR: `resolution.provider` kommt
+ * unverändert aus `AVAILABLE_MODELS` (`resolveModelTuple`), und seit dem
+ * Umzug der Gemma-Lane auf Cortecs am 21.08.2026 deklariert keine Lane mehr
+ * `provider: 'litellm'` — der Lane-NAME `gemma-litellm` blieb als F0 stehen,
+ * der Host darunter ist Cortecs. `retireLiteLLM` biegt einen gespeicherten
+ * litellm-Zeiger zwar um, aber erst später in `getModel` und ohne
+ * `resolution.provider` anzufassen. Die Frist dieser Lane fiel damit still von
+ * 30 s auf 20 s, ohne Fehler und ohne Warnung.
+ *
+ * Wiederhergestellt wird sie NICHT, und das ist gemessen statt vermutet
+ * (01.09.2026, live gegen api.cortecs.ai, `gemma-4-31b-it`, gestreamt):
+ *
+ *   ohne Vorgabe, 46 Läufe          TTFT  298–1517 ms
+ *   1/2/4/8 gleichzeitig, 15 Läufe  TTFT  max 1517 ms, kein Fehlschlag
+ *   Prefill: 234 tok → 435 ms, 13 508 → 1894 ms, 53 828 → 7651 ms (~7100 tok/s)
+ *
+ * Die Warteschlange, für die die Ausnahme geschrieben wurde, gibt es auf
+ * diesem Host nicht — ein einzelner Slot war die Eigenheit des Verdigado-
+ * Proxys. 20 s bleibt trotzdem nicht knapp bemessen: derselbe Messtag zeigte
+ * einen Zug über infercom, der für 234 Eingabe-Tokens 13,2 s bis zum ersten
+ * Token brauchte. Die Frist fängt den Stillstand, nicht den langsamen Zug.
  */
 export function getFirstTokenDeadlineMs(
   provider: string,
@@ -145,7 +168,6 @@ export function getFirstTokenDeadlineMs(
   if (thinking && isReasoningStreamModel(provider, modelName)) {
     return REASONING_FIRST_TOKEN_DEADLINE_MS;
   }
-  if (provider === 'litellm') return LITELLM_FIRST_TOKEN_DEADLINE_MS;
   return FIRST_TOKEN_DEADLINE_MS;
 }
 
@@ -155,12 +177,8 @@ interface ModelResolution {
   modelName: string;
   /** User-facing model ID (key in AVAILABLE_MODELS), if set by the user. */
   modelId?: string;
-  /** Single-step first-token-timeout fallback target. For overflow lanes,
-   *  this is the unchosen sibling (Verdigado↔Regolo). */
+  /** Single-step first-token-timeout fallback target. */
   sibling?: { provider: string; model: string };
-  /** Set when this resolution acquired the Verdigado overflow slot. MUST be
-   *  invoked after the stream completes (success, failure, abort). */
-  releaseSlot?: () => Promise<void>;
   /** Set when the user requested a modelId the registry doesn't know and the
    *  agent default was used instead — callers surface this to the client so
    *  the selection isn't ignored silently. */
@@ -269,16 +287,11 @@ export async function resolveModel(
     agentId?: string | null;
     /** For surfaces without a classifier (notebook) — see resolveAutoSelection. */
     surface?: 'notebook';
-    /** Rough size of this request (see estimateRequestTokens). Above
-     *  VERDIGADO_INPUT_LIMIT an overflow lane runs on its hosted side so the
-     *  request isn't pruned down to the small lane's budget. */
-    estimatedInputTokens?: number;
   }
 ): Promise<ModelResolution> {
   let modelProvider = agentConfig.provider;
   let modelName = agentConfig.model;
   let sibling: { provider: string; model: string } | undefined;
-  let releaseSlot: (() => Promise<void>) | undefined;
   let resolvedId: string | undefined;
   let unknownModelId: string | undefined;
   let reasoningEffort: ReasoningSetting = EXPLICIT_SELECTION_REASONING;
@@ -287,24 +300,14 @@ export async function resolveModel(
 
   const isAuto = !modelId || modelId === 'mistral' || modelId === 'auto';
 
-  const oversized = (options?.estimatedInputTokens ?? 0) > VERDIGADO_INPUT_LIMIT;
-  const preferOverflow = oversized ? { preferOverflow: true } : {};
-  if (oversized) {
-    log.info(
-      `[ChatGraph] input ~${Math.round((options?.estimatedInputTokens ?? 0) / 1000)}k tokens > ` +
-        `${VERDIGADO_INPUT_LIMIT / 1000}k — overflow lanes run hosted (full window, no pruning)`
-    );
-  }
-
   if (!isAuto) {
-    const tuple = await resolveModelTuple(modelId, requestId, preferOverflow);
+    const tuple = await resolveModelTuple(modelId, requestId);
     if (tuple) {
       modelProvider = tuple.provider;
       modelName = tuple.model;
       resolvedId = modelId;
       contextWindow = tuple.contextWindow;
       if (tuple.sibling) sibling = tuple.sibling;
-      if (tuple.releaseSlot) releaseSlot = tuple.releaseSlot;
       log.info(`[ChatGraph] Using user-selected model: ${modelId} → ${modelProvider}/${modelName}`);
     } else {
       log.warn(`[ChatGraph] Unknown model ID "${modelId}", using agent default`);
@@ -322,7 +325,7 @@ export async function resolveModel(
       ...(options?.surface != null && { surface: options.surface }),
     });
     reasoningEffort = selection.reasoning;
-    const tuple = await resolveModelTuple(selection.modelId, requestId, preferOverflow);
+    const tuple = await resolveModelTuple(selection.modelId, requestId);
     if (tuple) {
       modelProvider = tuple.provider;
       modelName = tuple.model;
@@ -330,7 +333,6 @@ export async function resolveModel(
       contextWindow = tuple.contextWindow;
       fromAutoPolicy = true;
       if (tuple.sibling) sibling = tuple.sibling;
-      if (tuple.releaseSlot) releaseSlot = tuple.releaseSlot;
       log.info(
         `[ChatGraph] auto → ${selection.modelId} (${modelProvider}/${modelName}) ` +
           `intent=${options?.intent ?? 'none'} complexity=${options?.complexity ?? 'simple'} ` +
@@ -359,20 +361,14 @@ export async function resolveModel(
   }
 
   // Vision override: only fire when the chosen primary AND its sibling both
-  // lack vision support. Overflow lanes where both candidates are vision-
-  // capable (e.g. Gemma 4: Verdigado/gemma + Regolo/gemma4-31b) skip the
-  // override entirely so alternation isn't collapsed to a single provider.
+  // lack vision support. A lane whose sibling can see swaps within the lane
+  // instead, so the override does not collapse it onto a single provider.
   if (options?.hasImages && !isVisionCapable(modelName) && options.intent !== 'image_edit') {
     const siblingVisionOk = sibling ? isVisionCapable(sibling.model) : false;
     if (!siblingVisionOk) {
       log.info(
         `[ChatGraph] Images present but "${modelName}" lacks vision — switching to ${VISION_MODEL.provider}/${VISION_MODEL.model}`
       );
-      // Releasing here: we're overriding away from a slot we just acquired.
-      if (releaseSlot) {
-        await releaseSlot();
-        releaseSlot = undefined;
-      }
       modelProvider = VISION_MODEL.provider;
       modelName = VISION_MODEL.model;
       sibling = undefined;
@@ -381,11 +377,7 @@ export async function resolveModel(
       log.info(
         `[ChatGraph] Images present and "${modelName}" lacks vision but sibling "${sibling.model}" supports it — swapping within lane`
       );
-      // Swap to the vision-capable sibling. Release the old slot if any.
-      if (releaseSlot) {
-        await releaseSlot();
-        releaseSlot = undefined;
-      }
+      // Swap to the vision-capable sibling.
       const newPrimary = sibling;
       sibling = { provider: modelProvider, model: modelName };
       modelProvider = newPrimary.provider;
@@ -421,7 +413,6 @@ export async function resolveModel(
   };
   if (resolvedId) result.modelId = resolvedId;
   if (sibling) result.sibling = sibling;
-  if (releaseSlot) result.releaseSlot = releaseSlot;
   if (unknownModelId) result.unknownModelId = unknownModelId;
   if (contextWindow != null) result.contextWindow = contextWindow;
   return result;
@@ -762,7 +753,6 @@ async function streamAndAccumulateOrThrow(params: {
   const iterator = result.stream[Symbol.asyncIterator]();
   let fullText = '';
   let textStarted = false;
-  const stopHeartbeat = startResponseHeartbeat(sse);
 
   // Phase 1 — race the shared deadline until the first visible text delta.
   // Some providers emit empty/structural parts (start, text-start, …) and a
@@ -779,15 +769,13 @@ async function streamAndAccumulateOrThrow(params: {
       if (part.type === 'error') throw part.error;
       if (part.type === 'abort') throw abortErrorForPhase1();
       if (part.type === 'reasoning-delta' && part.text.length > 0) {
-        // Alive, but not answering yet: rearm the idle window and let the real
-        // reasoning deltas replace the heartbeat as the UI's proof of progress.
+        // Alive, but not answering yet: rearm the idle window — the reasoning
+        // deltas are the UI's proof of progress.
         touch();
-        stopHeartbeat();
         sse.send('reasoning_delta', { text: part.text });
       } else if (part.type === 'text-delta' && part.text.length > 0) {
         clear();
         reasoningBudget?.clear();
-        stopHeartbeat();
         fullText += part.text;
         sse.send('text_delta', { text: part.text });
         textStarted = true;
@@ -797,7 +785,6 @@ async function streamAndAccumulateOrThrow(params: {
     clear();
     wall.clear();
     reasoningBudget?.clear();
-    stopHeartbeat();
     // Ein Upstream-Fehler VOR dem ersten Token ist der eine Fall, in dem der
     // Sibling noch etwas ausrichten kann — beim Nutzer steht noch nichts.
     throw phase1UpstreamError(err, causeOf());
@@ -938,7 +925,6 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
 
   const iterator = streamWithReasoning(streamParams)[Symbol.asyncIterator]();
   let fullText = '';
-  const stopHeartbeat = startResponseHeartbeat(sse);
 
   // Phase 1 — race against the deadline until the first TEXT chunk. Reasoning
   // chunks pass through as reasoning_delta but don't satisfy the deadline:
@@ -951,7 +937,6 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
       if (chunk.type === 'text') {
         clear();
         reasoningBudget.clear();
-        stopHeartbeat();
         fullText += chunk.delta;
         sse.send('text_delta', { text: chunk.delta });
         break;
@@ -964,7 +949,6 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
     clear();
     wall.clear();
     reasoningBudget.clear();
-    stopHeartbeat();
     // Der Roh-Fetch wirft den Abbruch (anders als das SDK, das einen `abort`-
     // Part schickt) — die Frage „wer war es" ist dieselbe. Ohne sie flog eine
     // nackte DOMException bis in den Router und wurde dort zu `code:'internal'`.
@@ -1071,6 +1055,28 @@ export async function streamWithFallback(params: {
   const { primary, buildStream, sse, logPrefix = '[ChatGraph]', salvage } = params;
   const primaryLabel = primary.modelId ?? primary.modelName;
 
+  /**
+   * Was in die Fehlerzeile gehört: der Lane-Name UND der Host darunter.
+   *
+   * Der Lane-Name allein — und nur er stand hier bis zum 01.09.2026 —
+   * benennt bei den F0-Altlasten den falschen Anbieter: `gemma-litellm` wird
+   * seit dem 21.08.2026 von Cortecs bedient, die Zeile
+   * `gemma-litellm failed (first_token_timeout)` schickt jede Nachforschung
+   * also zuerst zu einem Proxy, der damit nichts zu tun hat.
+   *
+   * Was hier bewusst NICHT steht, ist der Unterauftragnehmer von Cortecs. Er
+   * ist auf diesem Pfad nicht bekannt und auch nicht beschaffbar: Cortecs
+   * hält die Antwort-Header zurück, bis der Upstream sein erstes Token
+   * liefert (gemessen 01.09.2026, Vorlauf 0–1 ms bei 200, 16 000 und 64 000
+   * Eingabe-Tokens, also auch über 6 s Prefill hinweg). Reisst die Frist, gab
+   * es keine Header — `x-cortecs-provider` wird nicht verworfen, er kommt nie
+   * an. Wer einen Stillstand einem der beiden Upstreams zuordnen will, kommt
+   * um ein `allowed_providers`-Pinning nicht herum; siehe
+   * services/ai/cortecsRequestPolicy.ts.
+   */
+  const hostLabel = `${primary.provider}/${primary.modelName}`;
+  const failedLabel = primaryLabel === hostLabel ? primaryLabel : `${primaryLabel} (${hostLabel})`;
+
   /** Emit the salvaged answer on the normal text channel so the caller's
    *  persistence, citation clamp and reload path all treat it as a real turn. */
   const salvageOrFail = (kind: StreamFailure['kind']): string | null => {
@@ -1093,12 +1099,14 @@ export async function streamWithFallback(params: {
 
     const sibling = primary.sibling;
     if (!sibling) {
-      log.warn(`${logPrefix} ${primaryLabel} failed (${err.kind}) — no sibling configured`);
+      log.warn(
+        `${logPrefix} ${failedLabel} failed (${err.kind}: ${err.message}) — no sibling configured`
+      );
       return salvageOrFail(err.kind);
     }
 
     log.warn(
-      `${logPrefix} ${primaryLabel} failed (${err.kind}) → falling back to ${sibling.provider}/${sibling.model}`
+      `${logPrefix} ${failedLabel} failed (${err.kind}: ${err.message}) → falling back to ${sibling.provider}/${sibling.model}`
     );
 
     // Client receives only IDs. Display names are resolved client-side.

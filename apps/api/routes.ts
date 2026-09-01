@@ -40,6 +40,7 @@ import { mountCanvasAiContractRouter } from './routes/canvas/aiSuggestRoute.js';
 import { mountCanvasContractRouter } from './routes/canvas/canvasContractRouter.js';
 import { mountChatGraphContractRouter } from './routes/chat/chatGraphContractRouter.js';
 import { mountThreadsContractRouter } from './routes/chat/threadsContractRouter.js';
+import { mountToolApprovalsContractRouter } from './routes/chat/toolApprovalsContractRouter.js';
 import { mountContentContractRouter } from './routes/content/contentContractRouter.js';
 import { mountDocsContractRouter } from './routes/docs/docsContractRouter.js';
 import { mountDocumentsContractRouter } from './routes/documents/documentsContractRouter.js';
@@ -75,6 +76,7 @@ import { mountNotebookWordpressContractRouter } from './routes/notebook/notebook
 import { mountWolkePendingContractRouter } from './routes/notebook/wolkePendingContractRouter.js';
 import notificationsRouter from './routes/notifications/index.js';
 import { mountNotificationsContractRouter } from './routes/notifications/notificationsContractRouter.js';
+import notificationStreamRouter from './routes/notifications/stream.js';
 import presentationExportRouter from './routes/presentations/presentationExportController.js';
 import { mountPresentationsContractRouter } from './routes/presentations/presentationsContractRouter.js';
 import protokollRouter from './routes/protokoll/index.js';
@@ -125,7 +127,6 @@ import subtitlerShareRouter from './routes/subtitler/shareController.js';
 import { mountSubtitlerContractRouter } from './routes/subtitler/subtitlerContractRouter.js';
 import { universalRouter, textAdjustmentRouter } from './routes/texte/index.js';
 import { mountTexteContractRouter } from './routes/texte/texteContractRouter.js';
-import { mountTransferContractRouter } from './routes/transfer/transferContractRouter.js';
 import { mountTransparencyContractRouter } from './routes/transparency/transparencyContractRouter.js';
 import { mountUnsplashContractRouter } from './routes/unsplash/unsplashContractRouter.js';
 import { mountItemUsageContractRouter } from './routes/usage/itemUsageContractRouter.js';
@@ -339,7 +340,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: mem0Router } = await import('./routes/mem0/mem0Controller.js');
   const { default: emailRouter } = await import('./routes/email/emailController.js');
   const { default: videoRouter } = await import('./routes/video/index.js');
-  const { default: transferRouter } = await import('./routes/transfer/transferController.js');
   const { default: visionRouter } = await import('./routes/vision/visionController.js');
 
   // Auth routes — authLimiter applied inside authCore.ts to login/callback only
@@ -770,7 +770,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   mountRecurringTasksContractRouter(app);
   // Auth + rate-limiting must run before the contract mount — createExpressEndpoints
   // registers handlers directly on the app, bypassing the legacy prefix middleware.
-  // Same pattern as /api/transfer below.
   //   - share routes: optionalAuth populates req.user so write handlers can
   //     check it, without rejecting the public getShare/thumbnail/preview reads
   //   - everything else requires auth. The reel UI is auth-gated on every
@@ -828,11 +827,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   // checked access. Adding auth here breaks every preview in the mobile app —
   // routes.mountGuard.vitest.ts asserts it stays open.
   app.use('/api/thumbs', publicReadLimiter, thumbnailRouter);
-  // ts-rest contract router — mount before legacy transferRouter (GET /list and DELETE /:token)
-  // POST /upload (multer file upload) falls through to the legacy router.
-  app.use('/api/transfer', requireAuth);
-  mountTransferContractRouter(app);
-  app.use('/api/transfer', standardMutationLimiter, transferRouter);
+  // /api/transfer wurde entfernt (Wolke ist nur noch lesend); bestehende
+  // Transfer-Links laufen weiter über den öffentlichen Download in /api/share.
   app.use('/api/mem0', requireAuth, standardMutationLimiter, mem0Router);
   // ts-rest contract router for /api/email — mounts BEFORE legacy emailRouter
   // so the typed /test endpoint matches first; /send-content stays on legacy.
@@ -856,8 +852,12 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/content', requireAuth, publicReadLimiter);
   mountContentContractRouter(app);
   // ts-rest contract router for notifications — mounts BEFORE the legacy router
-  // so contract-modeled routes match first; /stream SSE falls through to legacy.
+  // so contract-modeled routes match first.
   // requireAuth applied at prefix; notification-preferences also handled here.
+  // The SSE channel resolves the session itself and reports a refusal inside
+  // the stream (an EventSource client cannot read status codes), so it must
+  // NOT sit behind the requireAuth prefix below — see stream.ts.
+  app.use('/api/notifications/stream', publicReadLimiter, notificationStreamRouter);
   app.use('/api/notifications', requireAuth);
   app.use('/api/auth/profile', requireAuth);
   mountNotificationsContractRouter(app);
@@ -880,6 +880,9 @@ export async function setupRoutes(app: Application): Promise<void> {
   // prefix — every route is user-scoped and handles user-entered credentials.
   app.use('/api/mcp/servers', requireAuth);
   mountMcpServersContractRouter(app);
+  // Dauerhafte Werkzeug-Freigaben im Chat („immer erlauben").
+  app.use('/api/chat/tool-approvals', requireAuth);
+  mountToolApprovalsContractRouter(app);
   // OAuth callback is public (identity comes from the one-time Redis state, not
   // a cookie — the cross-site provider redirect can't carry our session).
   mountMcpOAuthCallbackRouter(app);

@@ -12,6 +12,8 @@ export interface PartLike {
   toolName?: string;
   parentId?: string;
   narration?: string;
+  title?: string;
+  serverName?: string;
 }
 
 /** Narration persisted on the tool-call part with this id, or null. */
@@ -19,6 +21,19 @@ export function selectNarration(parts: ReadonlyArray<PartLike>, toolCallId: stri
   const part = parts.find((p) => p.type === 'tool-call' && p.toolCallId === toolCallId);
   const narration = part?.narration;
   return typeof narration === 'string' && narration.length > 0 ? narration : null;
+}
+
+/**
+ * Anzeigename und Dienst einer Freigabe-Karte. Wie `narration` reisen die
+ * beiden auf dem Part mit, nicht in den typisierten Render-Props — die Karte
+ * holt sie daher über denselben Kanal.
+ */
+export function selectApprovalLabels(
+  parts: ReadonlyArray<PartLike>,
+  toolCallId: string
+): { title: string | undefined; serverName: string | undefined } {
+  const part = parts.find((p) => p.type === 'tool-call' && p.toolCallId === toolCallId);
+  return { title: part?.title, serverName: part?.serverName };
 }
 
 export type ToolGroupMode =

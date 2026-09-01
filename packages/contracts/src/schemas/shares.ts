@@ -32,9 +32,10 @@ export type ShareMediaType = z.infer<typeof shareMediaTypeSchema>;
  * The full stored set — `shared_media.media_type`, whose CHECK constraint names
  * exactly these three (`schema.sql`).
  *
- * `'transfer'` is the one that is easy to miss: `transferService.createTransfer`
- * writes file transfers into this same table, and it sets neither
- * `upload_source` nor `content_origin`, both of which `creationFeedWhere`
+ * `'transfer'` is the one that is easy to miss: the removed transfer feature
+ * wrote file transfers into this same table (rows persist and stay
+ * downloadable), and it set neither `upload_source` nor `content_origin`,
+ * both of which `creationFeedWhere`
  * tolerates as NULL. Transfer rows therefore *do* come back from
  * `GET /api/share/my`, and `?type=transfer` was a working filter before the
  * query schema had an enum at all — so the filter is typed against this set,

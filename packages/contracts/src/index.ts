@@ -59,7 +59,6 @@ export {
   videoContract,
   sharepicContract,
   sharepicTextContract,
-  transferContract,
   unsplashContract,
   notificationsContract,
   emailContract,
@@ -67,6 +66,7 @@ export {
   modelPreferencesContract,
   imageModelPreferenceContract,
   mcpServersContract,
+  chatToolApprovalsContract,
   imageEditContract,
   adminVorlagenContract,
   userTemplatesContract,
@@ -142,7 +142,6 @@ export * from './schemas/imagePicker.js';
 export * from './schemas/video.js';
 export * from './schemas/sharepic.js';
 export * from './schemas/sharepicText.js';
-export * from './schemas/transfer.js';
 export * from './schemas/unsplash.js';
 export * from './schemas/notifications.js';
 export * from './schemas/email.js';
@@ -150,6 +149,7 @@ export * from './schemas/feedback.js';
 export * from './schemas/modelPreferences.js';
 export * from './schemas/imageModelPreference.js';
 export * from './schemas/mcpServers.js';
+export * from './schemas/chatToolApprovals.js';
 export * from './schemas/imageEdit.js';
 export * from './schemas/adminVorlagen.js';
 export * from './schemas/userTemplates.js';

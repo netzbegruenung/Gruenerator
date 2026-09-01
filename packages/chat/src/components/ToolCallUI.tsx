@@ -9,15 +9,13 @@ import {
   BookOpen,
   Sparkles,
   MessageCircle,
+  Cloud,
   FileText,
 } from 'lucide-react';
 import { Fragment, useState, memo, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { CitationList } from './tool-ui/citation';
-import { ShimmerText } from './message-parts/ShimmerText';
-import { LinkPreview } from './tool-ui/link-preview';
-import { PressemitteilungExamplesCard } from './PressemitteilungExamplesCard';
+
 import { makeCitationComponents } from '../lib/citationMarkdownComponents';
 import { escapeCitationMarkers } from '../lib/citationProcessing';
 import { resolveToolEntry } from '../lib/toolRegistry';
@@ -33,6 +31,11 @@ import {
   CONFIDENCE_LABELS,
   type ToolIconKey,
 } from '../lib/toolResults';
+
+import { ShimmerText } from './message-parts/ShimmerText';
+import { PressemitteilungExamplesCard } from './PressemitteilungExamplesCard';
+import { CitationList } from './tool-ui/citation';
+import { LinkPreview } from './tool-ui/link-preview';
 
 import type {
   ExampleSnippet,
@@ -60,6 +63,7 @@ const ICON_BY_KEY: Record<ToolIconKey, typeof Search> = {
   image: Image,
   'external-link': ExternalLink,
   'message-circle': MessageCircle,
+  cloud: Cloud,
   file: FileText,
 };
 

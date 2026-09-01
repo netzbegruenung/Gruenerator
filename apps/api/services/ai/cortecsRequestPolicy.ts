@@ -137,6 +137,28 @@ const ALLOWED = new Set(SOVEREIGN_ZDR_PROVIDERS);
 export const CORTECS_UPSTREAM_HEADER = 'x-cortecs-provider';
 
 /**
+ * WANN er kommt — und warum das die Fehlersuche begrenzt.
+ *
+ * Hier stand bis zum 01.09.2026 „beim Streaming vor dem ersten `data:`-Chunk",
+ * was als „vorher, also auch ohne Antwort verfügbar" gelesen werden kann. So
+ * ist es nicht. Gemessen am 01.09.2026 gegen `gemma-4-31b-it`, gestreamt, bei
+ * 200 / 16 000 / 64 000 Eingabe-Tokens (Prefill 0,4 s / 1,8 s / 6,1 s):
+ *
+ *   Header @13201 ms   erstes Token @13202 ms   Vorlauf 1 ms
+ *   Header @ 1751 ms   erstes Token @ 1751 ms   Vorlauf 0 ms
+ *   Header @ 6091 ms   erstes Token @ 6091 ms   Vorlauf 0 ms
+ *
+ * Cortecs hält die Antwort-Header also zurück, bis der Upstream tatsächlich
+ * etwas produziert — auch über sechs Sekunden Prefill hinweg. Für die
+ * Buchhaltung genügt das (sie läuft ohnehin nur bei einer Antwort). Für die
+ * Fehlersuche heisst es: **bei einem First-Token-Timeout gibt es keinen
+ * Header.** Welcher der beiden Unterauftragnehmer stillstand, ist aus einem
+ * gescheiterten Zug nicht rekonstruierbar, und kein Logging ändert daran
+ * etwas; wer es wissen muss, misst mit `allowed_providers: ['infercom']` bzw.
+ * `['berget']` gegen den Endpunkt.
+ */
+
+/**
  * Wer eine Cortecs-Anfrage tatsächlich bedient hat, für die Nutzungserfassung.
  *
  * Die Buchhaltung führt den UPSTREAM, nicht den Lane-Namen — dasselbe Muster,

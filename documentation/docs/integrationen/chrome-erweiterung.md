@@ -1,6 +1,7 @@
 ---
 sidebar_position: 4
 title: Grünerator für Chrome
+description: 'Die Browser-Erweiterung erledigt Aufgaben im geöffneten Tab: suchen, blättern, klicken, Formulare ausfüllen, Inhalte heraussuchen.'
 ---
 
 # Grünerator für Chrome — Erste Schritte

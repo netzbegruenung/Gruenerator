@@ -11,7 +11,7 @@ export const dreizeilenTypeConfig: TemplateTypeConfig = {
   id: IMAGE_STUDIO_TYPES.DREIZEILEN,
   category: IMAGE_STUDIO_CATEGORIES.TEMPLATES,
   label: 'Standard-Sharepic',
-  description: 'Drei Textzeilen mit Hintergrundbild',
+  description: 'Drei Textzeilen auf Foto oder Farbfläche',
   icon: PiTextT,
   previewImage: '/imagine/previews/dreizeilen-preview.webp',
   previewImageFallback: '/imagine/previews/dreizeilen-preview.png',

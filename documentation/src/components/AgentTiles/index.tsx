@@ -108,7 +108,7 @@ if (unclaimed.length > 0) {
   throw new Error(
     `AgentTiles: no tile claims the recipe(s) ${unclaimed.join(', ')}. ` +
       `Add the Landesverband (or its recipeSlug) to TILES, and keep the table in ` +
-      `documentation/docs/wissen/landesverbaende.md in step.`
+      `documentation/docs/features/landesverbaende.md in step.`
   );
 }
 

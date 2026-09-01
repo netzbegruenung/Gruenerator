@@ -1,4 +1,4 @@
-export type TextProvider = 'mistral' | 'litellm' | 'regolo' | 'greenpt';
+export type TextProvider = 'mistral' | 'litellm' | 'regolo' | 'greenpt' | 'cortecs';
 export type ImageBackend = 'hosted' | 'regolo';
 
 export type Provider = TextProvider;
@@ -87,8 +87,13 @@ export const MODEL_OPTIONS: ModelOption[] = [
     id: 'gruenerator-small',
     name: 'Klein',
     description: 'Schnell, für kurze Aufgaben',
-    model: 'verdigado-pro',
-    provider: 'litellm',
+    // Bis zum 29.08.2026 `litellm/verdigado-pro` — am Proxy gemessen
+    // `gpt-oss:120b-ctx128k`, ein Denkmodell, dessen Denk-Tokens gegen
+    // `max_tokens` zählen. Für eine Lane, die „schnell, für kurze Aufgaben"
+    // verspricht, war das die falsche Wahl (#3064). Jetzt dasselbe kleine
+    // Modell, das die Zwischenstufen fahren.
+    model: 'mistral-small-3.2-24b-instruct-2506',
+    provider: 'cortecs',
     icon: 'zap',
     region: 'self-hosted',
   },

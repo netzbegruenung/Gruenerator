@@ -144,7 +144,9 @@ describe('cortecs text lane', () => {
     // Qualität, sondern weil das MoE über Cortecs an einen einzigen
     // Unterauftragnehmer gebunden war und der binnen einer Stunde aus dem
     // Katalog verschwand. Siehe den Doc-Block bei `heavy`.
-    expect(intermediateLane('heavy')).toEqual({
+    // `toMatchObject` wie bei der Prüf-Stufe darunter: geprüft wird, WORAUF die
+    // Stufe zeigt, nicht welche Felder eine Lane-Config sonst noch trägt.
+    expect(intermediateLane('heavy')).toMatchObject({
       provider: 'cortecs',
       model: 'gemma-4-31b-it',
     });

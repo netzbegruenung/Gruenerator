@@ -53,7 +53,7 @@ import type {
   SearchSource,
   ThreadToolContext,
 } from '../../../agents/langgraph/ChatGraph/types.js';
-import type { SocialPostPayload, SocialPostToolResult } from '@gruenerator/contracts';
+import type { SocialPostToolResult } from '@gruenerator/contracts';
 import type { ModelMessage } from 'ai';
 
 const log = createLogger('PostResponse');
@@ -65,7 +65,7 @@ const log = createLogger('PostResponse');
  * from — the two cannot drift any more.
  *
  * This map is a superset of the client's on purpose: artefact intents
- * (`image`, `sharepic`, `social_post`, …) persist a tool call, but the live
+ * (`image`, `sharepic`, …) persist a tool call, but the live
  * client renders them from their own SSE events (`sharepic_complete`,
  * `image_complete`, …) and has no use for the mapping. The registry expresses
  * that as a `persistTool` without a `uiTool`.
@@ -179,49 +179,10 @@ function buildToolCalls(
   classifiedState: ChatGraphState,
   finalState: ChatGraphState,
   generatedImage: GeneratedImageResult | null,
-  sharepicVariants: SharepicVariant[],
-  socialPost: SocialPostPayload | null = null
+  sharepicVariants: SharepicVariant[]
 ): PersistedToolCall[] | undefined {
   const toolName = INTENT_TO_TOOL[finalState.intent];
   if (!toolName) return undefined;
-
-  // Combined post (EXPERIMENTAL): TWO tool calls. The plain `sharepic` call
-  // keeps threadMessageConversion rehydration and sharepicEditService target
-  // resolution working unchanged; the `social_post` call carries the text
-  // head + version history for the SocialPostCard.
-  if (toolName === 'social_post') {
-    const calls: PersistedToolCall[] = [];
-    const query = classifiedState.searchQuery || '';
-    if (sharepicVariants.length > 0) {
-      calls.push({
-        toolCallId: `tc_${Date.now()}_sharepic`,
-        toolName: 'sharepic',
-        args: { query },
-        result: { variants: sharepicVariants },
-      });
-    }
-    if (socialPost) {
-      calls.push({
-        toolCallId: `tc_${Date.now()}_social_post`,
-        toolName: 'social_post',
-        args: { query },
-        result: {
-          ...socialPost,
-          versions: [
-            {
-              text: socialPost.text,
-              hashtags: socialPost.hashtags,
-              charCount: socialPost.charCount,
-              version: socialPost.version,
-              summary: 'Erstellt',
-              createdAt: new Date().toISOString(),
-            },
-          ],
-        },
-      });
-    }
-    return calls.length > 0 ? calls : undefined;
-  }
 
   // scrape_url renders a link-preview card per crawled page. The frontend parser
   // reads `args.url` + `result.content`, so emit one tool call per result rather
@@ -279,8 +240,6 @@ export interface PersistParams {
   classifiedState: ChatGraphState;
   generatedImage: GeneratedImageResult | null;
   sharepicVariants: SharepicVariant[];
-  /** Text half of the EXPERIMENTAL social_post intent; null otherwise. */
-  socialPost?: SocialPostPayload | null;
   /** Presentation/sheet created by a compound loop turn — persisted as message
    *  metadata so the document card rehydrates on reload. */
   createdDocument?: CreatedDocument | null;
@@ -400,7 +359,6 @@ export async function persistAssistantResponse(params: PersistParams): Promise<P
     classifiedState,
     generatedImage,
     sharepicVariants,
-    socialPost,
     createdDocument,
     isNewThread,
     lastUserMessage,
@@ -436,13 +394,7 @@ export async function persistAssistantResponse(params: PersistParams): Promise<P
     const toolCalls =
       agenticSteps && agenticSteps.length > 0
         ? agenticSteps
-        : buildToolCalls(
-            classifiedState,
-            finalState,
-            generatedImage,
-            sharepicVariants,
-            socialPost ?? null
-          );
+        : buildToolCalls(classifiedState, finalState, generatedImage, sharepicVariants);
     const metadata: Record<string, unknown> = {
       intent: finalState.intent,
       searchCount: finalState.searchCount,
@@ -755,10 +707,8 @@ export async function persistResumedResponse(params: {
   classifiedState: ChatGraphState;
   userId?: string;
   processedMeta?: ProcessedAttachmentMeta[];
-  /** Sharepic variants generated on the resumed turn (sharepic/social_post). */
+  /** Sharepic variants generated on the resumed turn. */
   sharepicVariants?: SharepicVariant[];
-  /** Text half of a resumed social_post turn. */
-  socialPost?: SocialPostPayload | null;
   /** Langfuse trace id — persisted so the thumbs feedback button survives reload. */
   traceId?: string;
   /** Artifact created on the resumed turn. Without it the DocumentCreatedCard
@@ -798,8 +748,7 @@ export async function persistResumedResponse(params: {
       classifiedState,
       finalState,
       null,
-      params.sharepicVariants ?? [],
-      params.socialPost ?? null
+      params.sharepicVariants ?? []
     );
     const metadata: Record<string, unknown> = {
       intent: finalState.intent,

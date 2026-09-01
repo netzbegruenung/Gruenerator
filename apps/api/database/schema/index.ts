@@ -27,6 +27,7 @@ export * from './sites.js';
 export * from './apiKeys.js';
 export * from './mcpServers.js';
 export * from './mcpSystemPrefs.js';
+export * from './chatToolApprovals.js';
 export * from './userAgents.js';
 export * from './textForms.js';
 export * from './userItemUsage.js';

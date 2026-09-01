@@ -49,9 +49,6 @@ export interface PersistStageParams {
   memoryRetrieveTimeMs: number;
   generatedImage: PersistParams['generatedImage'];
   sharepicVariants: PersistParams['sharepicVariants'];
-  /** Optional on the persist call, but the response stage always decides it
-   *  — so require it here and let the router hand over what it resolved. */
-  socialPost: Exclude<PersistParams['socialPost'], undefined>;
   createdDocument: CreatedDocument | null;
   createdBoard: ChatGraphState['createdBoard'];
   agenticSteps: PersistedStep[] | undefined;
@@ -83,7 +80,6 @@ export async function runPersistStage({
   memoryRetrieveTimeMs,
   generatedImage,
   sharepicVariants,
-  socialPost,
   createdDocument,
   createdBoard,
   agenticSteps,
@@ -109,7 +105,6 @@ export async function runPersistStage({
     classifiedState,
     generatedImage,
     sharepicVariants,
-    socialPost,
     createdDocument,
     isNewThread,
     lastUserMessage: lastUserMessage as ModelMessage,

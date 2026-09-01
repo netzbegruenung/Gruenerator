@@ -1,7 +1,9 @@
 /**
- * WolkeSyncService - Handles Nextcloud/Wolke folder synchronization
+ * WolkeSyncService - Processes files from Nextcloud/Wolke shares
  *
- * Syncs folders, processes files, and stores vectors in Qdrant
+ * Lists supported files, downloads and extracts them, and stores vectors in
+ * Qdrant. Callers: the manual import path (wolkeController POST /import), the
+ * notebook auto-sync watcher (WolkeWatchService) and wolkePendingContractRouter.
  */
 
 import fs from 'fs/promises';
@@ -10,7 +12,7 @@ import path from 'path';
 
 import { eq, and } from 'drizzle-orm';
 
-import { wolkeSyncStatus, documents } from '../../database/schema/index.js';
+import { documents } from '../../database/schema/index.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { NextcloudShareManager } from '../../utils/integrations/nextcloud/index.js';
@@ -31,10 +33,8 @@ import {
   wolkeFileExtension,
 } from './supportedFileTypes.js';
 
-import type { NextcloudFile, FileProcessResult, SyncResult } from './types.js';
+import type { NextcloudFile, FileProcessResult } from './types.js';
 import type { NextcloudShareLink } from '../../utils/integrations/nextcloud/types.js';
-
-type WolkeSyncRow = typeof wolkeSyncStatus.$inferSelect;
 
 export class WolkeSyncService {
   private postgres: ReturnType<typeof getPostgresInstance>;
@@ -53,103 +53,6 @@ export class WolkeSyncService {
   async ensureInitialized(): Promise<void> {
     await this.postgres.ensureInitialized();
     await this.qdrantService.ensureInitialized();
-  }
-
-  /**
-   * Get or create sync status record
-   */
-  async getOrCreateSyncStatus(
-    userId: string,
-    shareLinkId: string,
-    folderPath: string = ''
-  ): Promise<WolkeSyncRow> {
-    try {
-      await this.ensureInitialized();
-      const db = getDrizzleInstance();
-
-      const existing = await db
-        .select()
-        .from(wolkeSyncStatus)
-        .where(
-          and(
-            eq(wolkeSyncStatus.userId, userId),
-            eq(wolkeSyncStatus.shareLinkId, shareLinkId),
-            eq(wolkeSyncStatus.folderPath, folderPath)
-          )
-        )
-        .limit(1);
-
-      if (existing.length > 0) {
-        return existing[0];
-      }
-
-      // Create new sync status
-      const created = await db
-        .insert(wolkeSyncStatus)
-        .values({
-          userId,
-          shareLinkId,
-          folderPath,
-          syncStatus: 'idle',
-          filesProcessed: 0,
-          filesFailed: 0,
-          autoSyncEnabled: false,
-        })
-        .returning();
-
-      console.log(`[WolkeSyncService] Created sync status record: ${created[0].id}`);
-      return created[0];
-    } catch (error: unknown) {
-      console.error('[WolkeSyncService] Error getting/creating sync status:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Update sync status
-   */
-  async updateSyncStatus(
-    syncStatusId: string,
-    updates: Partial<{
-      lastSyncAt: Date;
-      syncStatus: 'idle' | 'syncing' | 'completed' | 'failed';
-      filesProcessed: number;
-      filesFailed: number;
-      auto_sync_enabled: boolean;
-    }>
-  ): Promise<WolkeSyncRow> {
-    try {
-      await this.ensureInitialized();
-      const db = getDrizzleInstance();
-
-      const updateValues: Partial<typeof wolkeSyncStatus.$inferInsert> = {};
-      if (updates.lastSyncAt !== undefined) {
-        updateValues.lastSyncAt = updates.lastSyncAt;
-      }
-      if (updates.syncStatus !== undefined) {
-        updateValues.syncStatus = updates.syncStatus;
-      }
-      if (updates.filesProcessed !== undefined) {
-        updateValues.filesProcessed = updates.filesProcessed;
-      }
-      if (updates.filesFailed !== undefined) {
-        updateValues.filesFailed = updates.filesFailed;
-      }
-      if (updates.auto_sync_enabled !== undefined) {
-        updateValues.autoSyncEnabled = updates.auto_sync_enabled;
-      }
-
-      const result = await db
-        .update(wolkeSyncStatus)
-        .set(updateValues)
-        .where(eq(wolkeSyncStatus.id, syncStatusId))
-        .returning();
-
-      return result[0];
-    } catch (error: unknown) {
-      console.error('[WolkeSyncService] Error updating sync status:', error);
-      throw error;
-    }
   }
 
   /**
@@ -487,215 +390,6 @@ export class WolkeSyncService {
       };
     } catch (error: unknown) {
       console.error(`[WolkeSyncService] Error processing file ${file.name}:`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * Sync a folder from Wolke
-   */
-  async syncFolder(
-    userId: string,
-    shareLinkId: string,
-    folderPath: string = '',
-    options: { includeSubfolders?: boolean } = {}
-  ): Promise<SyncResult> {
-    try {
-      await this.ensureInitialized();
-
-      console.log(
-        `[WolkeSyncService] Starting sync for user ${userId}, share ${shareLinkId}, folder: ${folderPath}, subfolders: ${options.includeSubfolders === true}`
-      );
-
-      // Get or create sync status
-      const syncStatus = await this.getOrCreateSyncStatus(userId, shareLinkId, folderPath);
-
-      // Update status to syncing
-      await this.updateSyncStatus(syncStatus.id, {
-        syncStatus: 'syncing',
-        lastSyncAt: new Date(),
-      });
-
-      try {
-        const shareLink = await this.getShareLink(userId, shareLinkId);
-        const files = await this.listSupportedFilesInFolder(shareLink, folderPath, options);
-
-        let processedCount = 0;
-        let failedCount = 0;
-        const results: FileProcessResult[] = [];
-
-        // Process each file
-        for (const file of files) {
-          try {
-            const result = await this.processFile(userId, shareLinkId, file, shareLink);
-            results.push(result);
-
-            if (result.skipped) {
-              console.log(`[WolkeSyncService] Skipped file: ${file.name} (${result.reason})`);
-            } else if (result.success) {
-              processedCount++;
-              console.log(`[WolkeSyncService] Processed file: ${file.name}`);
-            }
-          } catch (error: unknown) {
-            failedCount++;
-            console.error(`[WolkeSyncService] Failed to process file ${file.name}:`, error);
-            results.push({
-              filename: file.name,
-              error: error instanceof Error ? error.message : String(error),
-              success: false,
-            });
-          }
-        }
-
-        // Update sync status to completed
-        await this.updateSyncStatus(syncStatus.id, {
-          syncStatus: 'completed',
-          filesProcessed: processedCount,
-          filesFailed: failedCount,
-        });
-
-        console.log(
-          `[WolkeSyncService] Sync completed: ${processedCount} processed, ${failedCount} failed`
-        );
-
-        return {
-          success: true,
-          syncStatusId: syncStatus.id,
-          totalFiles: files.length,
-          processedFiles: processedCount,
-          failedFiles: failedCount,
-          results,
-        };
-      } catch (error) {
-        // Update sync status to failed
-        await this.updateSyncStatus(syncStatus.id, {
-          syncStatus: 'failed',
-        });
-        throw error;
-      }
-    } catch (error: unknown) {
-      console.error('[WolkeSyncService] Error syncing folder:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get sync status for user
-   */
-  async getUserSyncStatus(userId: string): Promise<WolkeSyncRow[]> {
-    try {
-      await this.ensureInitialized();
-      const db = getDrizzleInstance();
-
-      const syncStatuses = await db
-        .select()
-        .from(wolkeSyncStatus)
-        .where(eq(wolkeSyncStatus.userId, userId))
-        .orderBy(wolkeSyncStatus.lastSyncAt);
-
-      return syncStatuses;
-    } catch (error: unknown) {
-      console.error('[WolkeSyncService] Error getting user sync status:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Enable/disable auto-sync for a folder
-   */
-  async setAutoSync(
-    userId: string,
-    shareLinkId: string,
-    folderPath: string,
-    enabled: boolean
-  ): Promise<{ success: boolean; autoSyncEnabled: boolean }> {
-    try {
-      await this.ensureInitialized();
-
-      const syncStatus = await this.getOrCreateSyncStatus(userId, shareLinkId, folderPath);
-
-      await this.updateSyncStatus(syncStatus.id, {
-        auto_sync_enabled: enabled,
-      });
-
-      console.log(
-        `[WolkeSyncService] Auto-sync ${enabled ? 'enabled' : 'disabled'} for sync ${syncStatus.id}`
-      );
-
-      return { success: true, autoSyncEnabled: enabled };
-    } catch (error: unknown) {
-      console.error('[WolkeSyncService] Error setting auto-sync:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Delete sync status and associated documents
-   */
-  async deleteSyncFolder(
-    userId: string,
-    shareLinkId: string,
-    folderPath: string
-  ): Promise<{
-    success: boolean;
-    deletedDocuments: number;
-    syncStatusId: string;
-  }> {
-    try {
-      await this.ensureInitialized();
-      const db = getDrizzleInstance();
-
-      // Get sync status
-      const syncStatusRows = await db
-        .select()
-        .from(wolkeSyncStatus)
-        .where(
-          and(
-            eq(wolkeSyncStatus.userId, userId),
-            eq(wolkeSyncStatus.shareLinkId, shareLinkId),
-            eq(wolkeSyncStatus.folderPath, folderPath)
-          )
-        )
-        .limit(1);
-
-      if (syncStatusRows.length === 0) {
-        throw new Error('Sync folder not found');
-      }
-
-      const syncStatusId = syncStatusRows[0].id;
-
-      // Get all documents from this sync folder
-      const syncDocuments = await db
-        .select({ id: documents.id })
-        .from(documents)
-        .where(and(eq(documents.user_id, userId), eq(documents.wolke_share_link_id, shareLinkId)));
-
-      // Delete vectors from Qdrant
-      if (syncDocuments.length > 0) {
-        for (const doc of syncDocuments) {
-          await this.qdrantService.deleteDocumentVectors(doc.id, userId);
-        }
-      }
-
-      // Delete document metadata
-      await db
-        .delete(documents)
-        .where(and(eq(documents.user_id, userId), eq(documents.wolke_share_link_id, shareLinkId)));
-
-      // Delete sync status
-      await db.delete(wolkeSyncStatus).where(eq(wolkeSyncStatus.id, syncStatusId));
-
-      console.log(
-        `[WolkeSyncService] Deleted sync folder and ${syncDocuments.length} associated documents`
-      );
-
-      return {
-        success: true,
-        deletedDocuments: syncDocuments.length,
-        syncStatusId,
-      };
-    } catch (error: unknown) {
-      console.error('[WolkeSyncService] Error deleting sync folder:', error);
       throw error;
     }
   }

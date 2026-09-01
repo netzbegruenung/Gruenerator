@@ -1,10 +1,7 @@
 /**
- * Wolke Controller - Wolke integration for document sync and import
+ * Wolke Controller - Wolke integration for document browse and import
  *
  * Handles:
- * - GET /sync-status - Get user's sync status
- * - POST /sync - Start folder sync
- * - POST /auto-sync - Set auto-sync for folder
  * - GET /browse/:shareLinkId - Browse files in Wolke share
  * - POST /import - Import selected files from Wolke
  */
@@ -22,6 +19,7 @@ import {
   wolkeFileExtension,
 } from '../../services/sync/supportedFileTypes.js';
 import { createLogger } from '../../utils/logger.js';
+import { CloudPathError } from '../../utils/validation/cloudPaths.js';
 
 import { formatFileSize } from './helpers.js';
 
@@ -38,18 +36,6 @@ const router: Router = express.Router();
 const wolkeSyncService = getWolkeSyncService();
 const postgresDocumentService = getPostgresDocumentService();
 
-const wolkeSyncSchema = z.object({
-  shareLinkId: z.string().min(1),
-  folderPath: z.string().optional(),
-  includeSubfolders: z.boolean().optional(),
-});
-
-const wolkeAutoSyncSchema = z.object({
-  shareLinkId: z.string().min(1),
-  folderPath: z.string().optional(),
-  enabled: z.boolean(),
-});
-
 const wolkeFileInfoSchema = z.object({
   name: z.string(),
   href: z.string(),
@@ -61,104 +47,6 @@ const wolkeImportSchema = z.object({
   shareLinkId: z.string().min(1),
   files: z.array(wolkeFileInfoSchema).min(1),
 });
-
-/**
- * GET /sync-status - Get user's sync status
- */
-router.get('/sync-status', async (req: DocumentRequest, res: Response): Promise<void> => {
-  try {
-    const userId = req.user?.id;
-    if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
-
-    const syncStatuses = await wolkeSyncService.getUserSyncStatus(userId);
-
-    res.json({
-      success: true,
-      syncStatuses,
-    });
-  } catch (error) {
-    log.error('[GET /sync-status] Error:', error);
-    res.status(500).json({
-      success: false,
-      message: (error as Error).message || 'Failed to get sync status',
-    });
-  }
-});
-
-/**
- * POST /sync - Start folder sync (background operation)
- */
-router.post(
-  '/sync',
-  validateBody(wolkeSyncSchema),
-  async (req: TypedRequest<z.infer<typeof wolkeSyncSchema>>, res: Response): Promise<void> => {
-    try {
-      const { shareLinkId, folderPath = '', includeSubfolders = false } = req.body;
-      const userId = req.user?.id;
-      if (!userId) {
-        res.status(401).json({ error: 'Unauthorized' });
-        return;
-      }
-
-      // Start sync in background (fire and forget)
-      wolkeSyncService
-        .syncFolder(userId, shareLinkId, folderPath, { includeSubfolders })
-        .then((result) => {
-          log.debug(`[POST /sync] Sync completed:`, result);
-        })
-        .catch((error) => {
-          log.error(`[POST /sync] Sync failed:`, error);
-        });
-
-      res.json({
-        success: true,
-        message: 'Folder sync started',
-        shareLinkId,
-        folderPath,
-      });
-    } catch (error) {
-      log.error('[POST /sync] Error:', error);
-      res.status(500).json({
-        success: false,
-        message: (error as Error).message || 'Failed to start folder sync',
-      });
-    }
-  }
-);
-
-/**
- * POST /auto-sync - Set auto-sync for a folder
- */
-router.post(
-  '/auto-sync',
-  validateBody(wolkeAutoSyncSchema),
-  async (req: TypedRequest<z.infer<typeof wolkeAutoSyncSchema>>, res: Response): Promise<void> => {
-    try {
-      const { shareLinkId, folderPath = '', enabled } = req.body;
-      const userId = req.user?.id;
-      if (!userId) {
-        res.status(401).json({ error: 'Unauthorized' });
-        return;
-      }
-
-      const result = await wolkeSyncService.setAutoSync(userId, shareLinkId, folderPath, enabled);
-
-      res.json({
-        ...result,
-        success: true,
-      });
-    } catch (error) {
-      log.error('[POST /auto-sync] Error:', error);
-      res.status(500).json({
-        success: false,
-        message: (error as Error).message || 'Failed to set auto-sync',
-      });
-    }
-  }
-);
 
 /**
  * GET /browse/:shareLinkId - Browse files in a Wolke share without syncing
@@ -259,7 +147,10 @@ router.get(
     } catch (error) {
       log.error('[GET /browse/:shareLinkId] Error:', error);
       const message = (error as Error).message || 'Failed to browse Wolke files';
-      const status = message === 'Share link not found' ? 404 : 500;
+      // Ein `?path=` mit `..` ist eine schlechte Anfrage, kein Serverfehler —
+      // und ausdrücklich kein still zurechtgebogener Ordner (#3043).
+      const status =
+        error instanceof CloudPathError ? 400 : message === 'Share link not found' ? 404 : 500;
       res.status(status).json({ success: false, message });
     }
   }

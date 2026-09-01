@@ -40,6 +40,7 @@ import { StreamingStatusLine } from '../message-parts/StreamingStatusLine';
 import { ToolCallGroup } from '../message-parts/ToolCallGroup';
 import { ConfirmActionCard } from '../tool-ui/ConfirmActionCard';
 import { DocumentCreatedCard } from '../tool-ui/DocumentCreatedCard';
+import { GrueneratorToolFallback } from '../tool-ui/GrueneratorToolUIs';
 import { ReelPickerCard } from '../tool-ui/ReelPickerCard';
 import { ReelProcessingCard } from '../tool-ui/ReelProcessingCard';
 
@@ -74,6 +75,10 @@ const partComponents = {
   Reasoning: HiddenReasoning,
   ReasoningGroup: HiddenReasoningGroup,
   ToolGroup: ToolCallGroup,
+  // Konnektor-Werkzeuge tragen erst zur Laufzeit gebildete Namen und stehen
+  // deshalb in keiner Toolkit-Registry. Ohne Fallback rendern sie nichts —
+  // auch keine Freigabe-Karte.
+  tools: { Fallback: GrueneratorToolFallback },
 };
 
 export const AssistantMessage = memo(function AssistantMessage() {
