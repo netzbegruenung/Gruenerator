@@ -68,6 +68,7 @@ function makeReqRes() {
   const sse = {
     send: (event: string, data: Record<string, unknown>) => sent.push({ event, data }),
     end: vi.fn(),
+    isEnded: () => false,
   } as unknown as Parameters<typeof handleNotebookStream>[0]['sse'];
   return { req, res, sse, sent };
 }
@@ -314,5 +315,43 @@ describe('handleNotebookStream — conversation history (ultra only)', () => {
     await run('ultra');
     const [, opts] = expandQuery.mock.calls[0] as [string, { historyContext?: string }];
     expect(opts.historyContext).toBeUndefined();
+  });
+});
+
+describe('citation validation', () => {
+  it('warns when the model cites an id that is not in the reference map', async () => {
+    vi.clearAllMocks();
+    setupMocks();
+    getSearchContext.mockResolvedValue({
+      ...searchContextWith(4),
+      referencesMap: {
+        '1': {
+          title: 'Doc 1',
+          snippets: [['Text 1']],
+          description: null,
+          date: null,
+          source: 's',
+          document_id: 'd1',
+          source_url: null,
+          filename: null,
+          similarity_score: 0.9,
+          chunk_index: 0,
+          page_number: null,
+        },
+      },
+    });
+    rerankNotebookResults.mockImplementation(async ({ results, referencesMap }) => ({
+      results,
+      referencesMap,
+      contextSummary: 'x',
+      rerankTimeMs: 1,
+    }));
+    streamWithFallback.mockResolvedValue('Aussage.[1] Andere Aussage.[9]');
+    const sent = await run('deep');
+    const warning = sent.find((e) => e.event === 'warning');
+    expect(warning?.data.code).toBe('citation_invalid');
+    const completion = sent.find((e) => e.event === 'completion');
+    expect(completion?.data.answer).toContain('[cite:1]');
+    expect(completion?.data.answer).toContain('[9]');
   });
 });
