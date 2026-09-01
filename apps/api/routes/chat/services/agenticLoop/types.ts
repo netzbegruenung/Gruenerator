@@ -40,6 +40,13 @@ export interface ToolOrigin {
   serverId: string;
   /** Der Werkzeugname am Server — nicht der Katalogschlüssel `m<key>__<tool>`. */
   remoteToolName: string;
+  /**
+   * `annotations.readOnlyHint`, so wie der Server ihn geschickt hat — eine
+   * BEHAUPTUNG, keine Tatsache. Wird hier ungefiltert durchgereicht; ob sie
+   * zählt, entscheidet allein `approvalPolicy.ts` (und dort nur für
+   * `kind: 'managed'`). Fehlt = der Server hat nichts gesagt, nicht `false`.
+   */
+  readOnlyHint?: boolean;
 }
 
 /** Anzeigename eines Konnektor-Werkzeugs plus seine Herkunft. */
