@@ -35,6 +35,7 @@ import { tool, type Tool, type ToolSet } from 'ai';
 import { z } from 'zod';
 
 import { lastUserText } from '../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
+import { looksLikeRecurringOrder } from '../../../agents/langgraph/ChatGraph/nodes/classifierSignals.js';
 import { forbidsNewResearch } from '../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
 import {
   buildProductKnowledgeBlock,
@@ -53,6 +54,11 @@ import {
   SLICE_REGISTER_CHARS,
 } from '../services/agenticLoop/attachedDocuments.js';
 import { isEditorSurface } from '../services/agenticLoop/routing.js';
+import {
+  mentionsRecipes,
+  mentionsRecurringTasks,
+  mentionsUserAgents,
+} from '../services/agenturaContext.js';
 import { artifactKind, type ArtifactKindId } from '../services/artifactKindRegistry.js';
 import {
   attachedCloudShareLinks,
@@ -76,6 +82,8 @@ import {
   makeUmfragenTool,
 } from './domainTools.js';
 import { makeEditArtifactTool } from './editorTools.js';
+import { makeGroupsTool } from './groupTools.js';
+import { makeNotebooksTool } from './notebookTools.js';
 import { makeReadPdfFormTool, makeFillPdfFormTool } from './pdfFormTools.js';
 import {
   makeBoardsTasksTool,
@@ -83,13 +91,14 @@ import {
   makeReadArtifactTool,
   makeFindContentTool,
   makeSearchThreadsTool,
-  makeGroupsTool,
   makeMediaTool,
-  makeNotebooksTool,
   type PersonalToolCtx,
 } from './personalDataTools.js';
+import { makeRecurringTasksTool } from './recurringTaskTools.js';
 import { harvestSearchImages, imageDeliveryNote } from './searchImageHarvest.js';
 import { agentAllowsWebSearch, createSearchTools } from './searchTools.js';
+import { makeRecipesTool } from './textFormTools.js';
+import { makeUserAgentsTool } from './userAgentTools.js';
 
 import type { AgentConfig } from './types.js';
 import type { ChatGraphState, SearchResult } from '../../../agents/langgraph/ChatGraph/types.js';
@@ -859,6 +868,46 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
     // save into a store nobody reads would be a lie in the other direction.
     if (state.memoryEnabled && state.enabledTools?.['memory'] !== false) {
       tools.memory = makeMemoryTool(personalCtx);
+    }
+    // Wiederkehrende Aufgaben (Agentura). Nicht breit montiert — das Schema
+    // trägt den ganzen Takt-Block und kostet auf jedem Turn. Drei Tore:
+    //
+    // 1. Der Pin. Tier 3.4 des Klassifikators erkennt den Dauerauftrag
+    //    („erinnere mich jeden Montag …") und setzt `mentionPinnedTool`; der
+    //    Pin zwingt den Turn in die Schleife und benennt den ersten Aufruf —
+    //    aber `pinnedFirstTool` prüft die Montage, ein Pin auf ein fehlendes
+    //    Werkzeug wäre still wirkungslos.
+    // 2. Derselbe Detektor noch einmal, für den Fall, dass der Turn auf einem
+    //    anderen Weg in die Schleife kam (Erwähnung, Verbund).
+    // 3. Das Vokabular fürs Verwalten: „pausier die Erinnerung", „welche
+    //    Aufgaben laufen bei mir".
+    const agenturaText = state.lastUserTextNoMentions ?? lastUserText(state);
+    if (
+      state.enabledTools?.['recurring_tasks'] !== false &&
+      (state.mentionPinnedTool === 'recurring_tasks' ||
+        looksLikeRecurringOrder(agenturaText) ||
+        mentionsRecurringTasks(agenturaText))
+    ) {
+      tools.recurring_tasks = makeRecurringTasksTool(personalCtx);
+    }
+    // Eigene Grünerator-Agenten (Agentura). Zwei Tore: das Vokabular („bau mir
+    // einen Agenten", „meine Agenten", Persona, Systemrolle) — oder der Thread
+    // läuft selbst mit einem User-Agent (`agentConfig.isUserAgent`, gesetzt in
+    // `agentLoader.getAgentForUser`): dort soll „ändere deine Rolle" ohne
+    // Stichwort treffen. Ein Registry-Agent montiert es nicht, er ist hier
+    // ohnehin unantastbar.
+    if (
+      state.enabledTools?.['user_agents'] !== false &&
+      (state.agentConfig?.isUserAgent === true || mentionsUserAgents(agenturaText))
+    ) {
+      tools.user_agents = makeUserAgentsTool(personalCtx);
+    }
+    // Rezepte und eigene Textformen („Texte anlernen"). Nur das Vokabular:
+    // ein aktives Rezept heißt „anwenden", das macht `rezept_laden` (immer
+    // montiert, sobald der Katalog nicht leer ist); verwalten will, wer es
+    // sagt — „welche Rezepte gibt es", „lern meinen Stil", „lösch die Textform".
+    if (state.enabledTools?.['recipes'] !== false && mentionsRecipes(agenturaText)) {
+      tools.recipes = makeRecipesTool(personalCtx);
     }
 
     // Die verbundene Wolke. Zwei Tore, in dieser Reihenfolge:

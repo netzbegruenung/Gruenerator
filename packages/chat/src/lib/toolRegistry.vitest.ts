@@ -361,6 +361,358 @@ describe('loop-catalog tool parsers', () => {
     }
   });
 
+  // notebooks: `search` und `get` haben eigene Formen (notebookTools.ts) — ohne
+  // Zweig landeten beide im <dl>-Dump, die Antwort als abgeschnittene Zeile.
+  it('notebooks search renders the answer as markdown with the citations', () => {
+    const vm = resolveToolEntry('notebooks').parse(
+      { action: 'search', id: 'n1', query: 'Radweg?' },
+      {
+        notebook: 'Kreisverband',
+        answer: 'Der Radweg wird 2027 gebaut [1].',
+        resultCount: 1,
+        citations: [{ index: '1', title: 'Antrag Radweg', snippet: 'Der Bau beginnt 2027.' }],
+        sources: '[1] Antrag Radweg',
+      }
+    );
+    expect(vm.kind).toBe('key-value');
+    if (vm.kind === 'key-value') {
+      expect(vm.markdown).toContain('2027');
+      expect(vm.entries).toEqual([{ label: 'Notebook', value: 'Kreisverband' }]);
+      expect(vm.citations).toHaveLength(1);
+      expect(vm.citations[0].title).toBe('Antrag Radweg');
+    }
+  });
+
+  it('notebooks get renders the detail rows, not the raw object', () => {
+    const vm = resolveToolEntry('notebooks').parse(
+      { action: 'get', id: 'n1' },
+      {
+        notebook: {
+          id: 'n1',
+          name: 'Kreisverband',
+          url: '/notebooks/kreisverband-Ab3xK9',
+          documentCount: 12,
+          pendingCount: 3,
+          wolkeFolders: [{ folderName: '2026', folderPath: 'Anträge/2026' }],
+          sharedGroups: [{ id: 'g1', name: 'Fraktion' }],
+          documents: [{ id: 'd1', title: 'Antrag Radweg' }],
+        },
+      }
+    );
+    expect(vm.kind).toBe('key-value');
+    if (vm.kind === 'key-value') {
+      expect(vm.entries).toEqual([
+        { label: 'Notebook', value: 'Kreisverband' },
+        { label: 'Dokumente', value: '12' },
+        { label: 'Neue Dateien', value: '3' },
+        { label: 'Wolke-Ordner', value: '2026' },
+        { label: 'Geteilt mit', value: 'Fraktion' },
+      ]);
+    }
+  });
+
+  it('notebooks create names the new notebook', () => {
+    const vm = resolveToolEntry('notebooks').parse(
+      { action: 'create', name: 'Wahlkampf' },
+      { ok: true, notebook: { id: 'n2', name: 'Wahlkampf', url: '/notebooks/wahlkampf-Zz9yX1' } }
+    );
+    expect(vm.kind).toBe('text-note');
+    if (vm.kind === 'text-note') expect(vm.text).toContain('Wahlkampf');
+  });
+
+  it('notebooks list still lifts the rows into citations', () => {
+    const vm = resolveToolEntry('notebooks').parse(
+      { action: 'list' },
+      {
+        resultCount: 1,
+        results: [{ title: 'Kreisverband', url: '/notebooks/x', type: 'Notebook' }],
+      }
+    );
+    expect(vm.kind).toBe('citations');
+  });
+
+  // groups: `get` liefert ein `{group}`-Detailobjekt (groupTools.ts); `content`
+  // und `list` bleiben Zeilen → Zitatliste.
+  it('groups get renders the detail rows, not the raw object', () => {
+    const vm = resolveToolEntry('groups').parse(
+      { action: 'get', groupId: 'g1' },
+      {
+        group: {
+          id: 'g1',
+          name: 'Klima-AG',
+          description: 'Für den Klimaschutz',
+          url: '/gruppen/klima-ag-ab12cd',
+          role: 'admin',
+          isAdmin: true,
+          memberCount: 7,
+          isPublic: true,
+          audience: 'de-DE',
+          contentCount: 3,
+        },
+      }
+    );
+    expect(vm.kind).toBe('key-value');
+    if (vm.kind === 'key-value') {
+      expect(vm.entries).toEqual([
+        { label: 'Projekt', value: 'Klima-AG' },
+        { label: 'Beschreibung', value: 'Für den Klimaschutz' },
+        { label: 'Rolle', value: 'Admin' },
+        { label: 'Mitglieder', value: '7' },
+        { label: 'Sichtbarkeit', value: 'Öffentlich gelistet' },
+        { label: 'Geteilte Inhalte', value: '3' },
+      ]);
+    }
+  });
+
+  it('groups content lifts the rows into citations', () => {
+    const vm = resolveToolEntry('groups').parse(
+      { action: 'content', groupId: 'g1' },
+      {
+        project: 'Klima-AG',
+        resultCount: 1,
+        results: [{ title: 'Protokoll', url: '/office/d1', type: 'Dokument' }],
+      }
+    );
+    expect(vm.kind).toBe('citations');
+    if (vm.kind === 'citations') expect(vm.citations[0].title).toBe('Protokoll');
+  });
+
+  // recurring_tasks: `get` liefert `{task, runs}` mit fertigen Etiketten
+  // (recurringTaskTools.ts); `list` bleibt Zeilen → Zitatliste.
+  it('recurring_tasks get renders the detail rows with the server-side labels', () => {
+    const vm = resolveToolEntry('recurring_tasks').parse(
+      { action: 'get', taskId: 't1' },
+      {
+        task: {
+          id: 't1',
+          title: 'Wochenbericht',
+          recurrenceLabel: 'wöchentlich (Montag) um 09:00 Uhr',
+          deliveryLabel: 'als Dokument',
+          agentIdentifier: 'presse-agent',
+          agentTitle: 'Presse-Agent',
+          enabled: false,
+          url: '/wiederkehrend',
+        },
+        runs: [{ statusLabel: 'erledigt' }, { statusLabel: 'fehlgeschlagen' }],
+      }
+    );
+    expect(vm.kind).toBe('key-value');
+    if (vm.kind === 'key-value') {
+      expect(vm.entries).toEqual([
+        { label: 'Aufgabe', value: 'Wochenbericht' },
+        { label: 'Takt', value: 'wöchentlich (Montag) um 09:00 Uhr' },
+        { label: 'Zustellung', value: 'als Dokument' },
+        { label: 'Agent', value: 'Presse-Agent' },
+        { label: 'Status', value: 'Pausiert' },
+        { label: 'Letzte Läufe', value: 'erledigt, fehlgeschlagen' },
+      ]);
+    }
+  });
+
+  it('recurring_tasks list lifts the rows into citations', () => {
+    const vm = resolveToolEntry('recurring_tasks').parse(
+      { action: 'list' },
+      {
+        resultCount: 1,
+        results: [
+          { title: 'Wochenbericht', url: '/wiederkehrend', type: 'Wiederkehrende Aufgabe' },
+        ],
+      }
+    );
+    expect(vm.kind).toBe('citations');
+    if (vm.kind === 'citations') expect(vm.citations[0].title).toBe('Wochenbericht');
+    expect(resolveToolEntry('recurring_tasks').meta.label).toBe('Wiederkehrende Aufgaben');
+  });
+
+  // user_agents: `get` liefert `{agent}` mit fertigen Etiketten (userAgentTools.ts);
+  // `list` bleibt Zeilen → Zitatliste; Karten-Aktionen sind eine Notiz.
+  it('user_agents get renders the detail rows with the server-side labels', () => {
+    const vm = resolveToolEntry('user_agents').parse(
+      { action: 'get', identifier: 'presse-kv-ab12cd' },
+      {
+        agent: {
+          identifier: 'presse-kv-ab12cd',
+          title: 'Presse KV',
+          description: 'Schreibt Pressemitteilungen.',
+          role: 'Du bist die Pressestelle …',
+          toolLabels: 'Grünerator-Wissen, Recherche',
+          skillMentions: ['presse'],
+          notebooks: [{ id: 'nb-1', name: 'Kommunalpolitik' }],
+          shareModeLabel: 'Privat',
+          sharedFromGroup: null,
+          url: '/agents/presse-kv-ab12cd',
+        },
+      }
+    );
+    expect(vm.kind).toBe('key-value');
+    if (vm.kind === 'key-value') {
+      expect(vm.entries).toEqual([
+        { label: 'Name', value: 'Presse KV' },
+        { label: 'Beschreibung', value: 'Schreibt Pressemitteilungen.' },
+        { label: 'Werkzeuge', value: 'Grünerator-Wissen, Recherche' },
+        { label: 'Rezepte', value: 'presse' },
+        { label: 'Notebooks', value: 'Kommunalpolitik' },
+        { label: 'Sichtbarkeit', value: 'Privat' },
+      ]);
+    }
+  });
+
+  it('user_agents get on a shared agent shows the group and stops there', () => {
+    const vm = resolveToolEntry('user_agents').parse(
+      { action: 'get', identifier: 'wahlkampf-xy' },
+      {
+        agent: {
+          identifier: 'wahlkampf-xy',
+          title: 'Wahlkampf',
+          description: 'Hilft im Wahlkampf.',
+          sharedFromGroup: 'Klima-AG',
+          readOnly: true,
+          url: '/agents/wahlkampf-xy',
+        },
+      }
+    );
+    expect(vm.kind).toBe('key-value');
+    if (vm.kind === 'key-value') {
+      expect(vm.entries).toEqual([
+        { label: 'Name', value: 'Wahlkampf' },
+        { label: 'Beschreibung', value: 'Hilft im Wahlkampf.' },
+        { label: 'Geteilt aus', value: 'Klima-AG' },
+      ]);
+    }
+  });
+
+  it('user_agents list lifts the rows into citations; create/share are a note', () => {
+    const list = resolveToolEntry('user_agents').parse(
+      { action: 'list' },
+      {
+        resultCount: 1,
+        results: [
+          { title: 'Presse KV', url: '/agents/presse-kv-ab12cd', type: 'Grünerator-Agent' },
+        ],
+      }
+    );
+    expect(list.kind).toBe('citations');
+    if (list.kind === 'citations') expect(list.citations[0].title).toBe('Presse KV');
+
+    const card = resolveToolEntry('user_agents').parse(
+      { action: 'create', brief: 'x' },
+      {
+        ok: true,
+        needsConfirmation: true,
+        note: 'Bestätigung angefordert: Grünerator-Agent „X" anlegen.',
+      }
+    );
+    expect(card).toEqual({
+      kind: 'text-note',
+      text: 'Bestätigung angefordert: Grünerator-Agent „X" anlegen.',
+    });
+    expect(resolveToolEntry('user_agents').meta.label).toBe('Grünerator-Agenten');
+  });
+
+  // recipes: `get` liefert `{recipe}` (textFormTools.ts) — eigene Textform mit
+  // Stilblock, mitgeliefertes Rezept ohne Rumpf; `list` bleibt Zeilen →
+  // Zitatliste; create/add_examples/delete sind eine Notiz.
+  it('recipes get renders an own text form with kind, type, examples and style', () => {
+    const vm = resolveToolEntry('recipes').parse(
+      { action: 'get', mention: 'omveinladungen' },
+      {
+        recipe: {
+          mention: 'omveinladungen',
+          title: 'OV-Einladungen',
+          source: 'user',
+          kind: 'custom',
+          kindLabel: 'Eigene Textform',
+          textType: null,
+          textTypeLabel: null,
+          overridesSystemRecipe: false,
+          exampleCount: 2,
+          examples: ['Liebe Mitglieder …'],
+          styleBlock: '## STIL: Einladungen …',
+          styleTruncated: true,
+          analyzedAt: '2026-08-30T10:00:00.000Z',
+          sharedFromGroup: null,
+          readOnly: false,
+          url: '/settings/texte-anlernen',
+        },
+      }
+    );
+    expect(vm.kind).toBe('key-value');
+    if (vm.kind === 'key-value') {
+      expect(vm.entries).toEqual([
+        { label: 'Name', value: 'OV-Einladungen' },
+        { label: 'Mention', value: '@omveinladungen' },
+        { label: 'Art', value: 'Eigene Textform' },
+        { label: 'Beispiele', value: '2' },
+        { label: 'Stil (gekürzt)', value: '## STIL: Einladungen …' },
+      ]);
+    }
+  });
+
+  it('recipes get on a system recipe shows title and description and stops there', () => {
+    const vm = resolveToolEntry('recipes').parse(
+      { action: 'get', mention: 'presse' },
+      {
+        recipe: {
+          mention: 'presse',
+          title: 'Pressemitteilung',
+          description: 'PM im Grünen-Stil',
+          source: 'system',
+          readOnly: true,
+          note: 'Das ist ein mitgeliefertes Rezept …',
+          url: '/agentura/rezept/presse',
+        },
+      }
+    );
+    expect(vm.kind).toBe('key-value');
+    if (vm.kind === 'key-value') {
+      expect(vm.entries).toEqual([
+        { label: 'Name', value: 'Pressemitteilung' },
+        { label: 'Mention', value: '@presse' },
+        { label: 'Beschreibung', value: 'PM im Grünen-Stil' },
+        { label: 'Art', value: 'Mitgeliefertes Rezept' },
+      ]);
+    }
+  });
+
+  it('recipes list lifts the rows into citations; create/delete are a note', () => {
+    const list = resolveToolEntry('recipes').parse(
+      { action: 'list' },
+      {
+        resultCount: 2,
+        results: [
+          { title: 'Pressemitteilung', url: '/agentura/rezept/presse', type: 'Rezept' },
+          { title: 'OV-Einladungen', url: '/settings/texte-anlernen', type: 'Eigene Textform' },
+        ],
+      }
+    );
+    expect(list.kind).toBe('citations');
+    if (list.kind === 'citations') expect(list.citations[0].title).toBe('Pressemitteilung');
+
+    // create liefert note UND recipe — die Notiz gewinnt, sie sagt, was passiert ist.
+    const created = resolveToolEntry('recipes').parse(
+      { action: 'create', title: 'x' },
+      {
+        ok: true,
+        note: 'Textform „X" aus 2 Beispielen angelernt.',
+        recipe: { mention: 'x', title: 'X', source: 'user', exampleCount: 2 },
+      }
+    );
+    expect(created).toEqual({
+      kind: 'text-note',
+      text: 'Textform „X" aus 2 Beispielen angelernt.',
+    });
+
+    const ask = resolveToolEntry('recipes').parse(
+      { action: 'delete', mention: 'x' },
+      { needsConfirmation: true, note: 'Soll die Textform „X" wirklich gelöscht werden?' }
+    );
+    expect(ask).toEqual({
+      kind: 'text-note',
+      text: 'Soll die Textform „X" wirklich gelöscht werden?',
+    });
+    expect(resolveToolEntry('recipes').meta.label).toBe('Rezepte & Textformen');
+  });
+
   it('every formerly-unregistered tool now resolves to a real label', () => {
     const previouslyBroken = [
       'rezept_laden',

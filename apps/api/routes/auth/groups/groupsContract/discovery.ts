@@ -8,6 +8,7 @@
 import { groupsContract } from '@gruenerator/contracts';
 
 import { getPostgresInstance } from '../../../../database/services/PostgresService.js';
+import { setGroupVisibility } from '../../../../services/groups/groupMutations.js';
 import {
   createNotification,
   notifyGroupAdmins,
@@ -83,15 +84,7 @@ export const discoveryRoutes = {
     const { is_public, audience } = args.body;
     try {
       const userId = getUserId(args.req);
-      const { postgres } = await getPostgresAndCheckMembership(groupId, userId, true);
-
-      const updated = (await postgres.queryOne(
-        `UPDATE groups SET is_public = $1, audience = $2, updated_at = CURRENT_TIMESTAMP
-           WHERE id = $3
-         RETURNING is_public, audience`,
-        [is_public, audience, groupId],
-        { table: 'groups' }
-      )) as { is_public: boolean; audience: 'de-DE' | 'de-AT' | 'all' } | null;
+      const updated = await setGroupVisibility(groupId, userId, { is_public, audience });
 
       if (!updated) {
         return {

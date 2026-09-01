@@ -13,7 +13,7 @@ import { type ChatIntentId } from './index.js';
  *
  * Die Disposition ist NICHT aus `category` ableitbar und deshalb eine eigene
  * Achse: `category: 'artifact'` enthält `save_as_doc` (artifact) neben
- * `share_doc` und `create_recurring_task` (beide gated), `category: 'internal'`
+ * `share_doc` (gated) und `create_recurring_task` (retired), `category: 'internal'`
  * enthält `agentic` (loop) neben `direct` (prose).
  *
  * Der Umbau auf Dispositionen behauptet, dass der Klassifikator heute eine
@@ -158,6 +158,12 @@ export const DISPOSITION_BY_INTENT: Record<ChatIntentId, Disposition> = {
   // Rezept auf dem Einzeldurchlauf. Kein Verdikt nötig, kein Urteil VOR der
   // Antwort. Zensus 3/167 vor der Stilllegung.
   social_post: 'retired',
+  // Und ein viertes Mal, wieder als Loop-Werkzeug: `create_recurring_task`
+  // trug einen Einzeldurchlauf mit eigenem Extraktions-LLM-Aufruf und schrieb
+  // OHNE Bestätigung. Jetzt liefert Tier 3.4 `agentic` mit dem Pin auf
+  // `recurring_tasks`, der Loop-Planer füllt das Contract-Schema selbst, und das
+  // Anlegen ist eine Karte. Zensus 0/205 vor der Stilllegung.
+  create_recurring_task: 'retired',
   /** Der Auffangwert selbst. Seit #2269 der Residualwert der LLM-Stufe. */
   agentic: 'loop',
 
@@ -186,7 +192,6 @@ export const DISPOSITION_BY_INTENT: Record<ChatIntentId, Disposition> = {
   share_doc: 'gated',
   chat_history: 'gated',
   hilfe: 'gated',
-  create_recurring_task: 'gated',
   summary: 'gated',
   compute: 'gated',
   mcp: 'gated',

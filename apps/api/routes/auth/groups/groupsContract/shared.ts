@@ -13,7 +13,6 @@ import { fileURLToPath } from 'url';
 
 import { initServer } from '@ts-rest/express';
 
-import { NotebookQdrantHelper } from '../../../../database/services/NotebookQdrantHelper.js';
 import { createLogger } from '../../../../utils/logger.js';
 
 import type { UserProfile } from '../../../../services/user/types.js';
@@ -26,48 +25,6 @@ export const log = createLogger('groupsContractRouter');
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 export const AVATAR_UPLOAD_DIR = path.join(__dirname, '../../../../uploads/group-avatars');
-
-export const notebookHelper = new NotebookQdrantHelper();
-
-// ── Content-sharing module state (ported from groupContent.ts) ────────────────
-
-export interface ShareRecord {
-  content_type: string;
-  content_id: string;
-  shared_at: string;
-  permissions: string | Record<string, unknown>;
-  shared_by_user_id: string;
-  first_name: string | null;
-  display_name: string | null;
-}
-
-export interface ContentItem {
-  id: string;
-  [key: string]: unknown;
-}
-
-export const CONTENT_TABLE_NAME_MAP: Record<string, string> = {
-  database: 'user_templates',
-  template: 'user_templates',
-  user_templates: 'user_templates',
-  instructions: 'user_instructions',
-  user_instructions: 'user_instructions',
-  canvas_template: 'collaborative_documents',
-};
-
-export const CONTENT_LABELS: Record<string, string> = {
-  documents: 'ein Dokument',
-  custom_generators: 'einen Grünerator',
-  notebook_collections: 'ein Notebook',
-  user_documents: 'einen Text',
-  collaborative_documents: 'ein Dokument',
-  database: 'einen Datenbank-Eintrag',
-  system_notebooks: 'ein Notebook',
-  system_agents: 'einen Agenten',
-  user_agents: 'eine*n Agent*in',
-  canvas_template: 'eine Sharepic-Vorlage',
-  nextcloud_share_link: 'eine Wolke-Verbindung',
-};
 
 export interface StoredGroupLink {
   id: string;
