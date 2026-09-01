@@ -111,6 +111,13 @@ export const CONFIRM_ACTION_CONFIG: Record<
     icon: 'eye',
     confirmLabel: 'Ändern',
   },
+  create_recurring_task: {
+    title: 'Wiederkehrende Aufgabe einrichten',
+    description:
+      'Die Aufgabe läuft danach von selbst im angegebenen Takt und liefert dir jedes Mal ein Ergebnis. Bearbeiten und löschen geht jederzeit unter „Wiederkehrende Aufgaben".',
+    icon: 'repeat',
+    confirmLabel: 'Einrichten',
+  },
 };
 
 /**

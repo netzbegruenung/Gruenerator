@@ -71,6 +71,7 @@ const TOOL_COUNT_LABELS: Record<string, readonly [singular: string, plural: stri
   umfragen: ['Umfrage', 'Umfragen'],
   notebooks: ['Notebook-Zugriff', 'Notebook-Zugriffe'],
   groups: ['Projekt-Zugriff', 'Projekt-Zugriffe'],
+  recurring_tasks: ['Aufgaben-Zugriff', 'Aufgaben-Zugriffe'],
 };
 
 /**

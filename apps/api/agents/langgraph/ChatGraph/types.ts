@@ -33,6 +33,7 @@ import type {
   SharepicVariant,
   PublicOwnership,
   GroupAudience,
+  CreateRecurringTaskBody,
 } from '@gruenerator/contracts';
 import type { RoleLandesverbandInput } from '@gruenerator/shared/agents';
 import type { ArtifactCreateKind } from '@gruenerator/shared/chat-intents';
@@ -1319,6 +1320,14 @@ export interface SetGroupVisibilityPayload {
 }
 
 /**
+ * Eine wiederkehrende Aufgabe einrichten — der Body geht unverändert an
+ * `createRecurringTask`. Eine Karte, weil die Aufgabe danach selbstständig
+ * handelt und je Lauf kostet; `agentTitle` ist nur für die Vorschau und die
+ * Bestätigungsmeldung (der Identifier allein sagt der Person nichts).
+ */
+export type CreateRecurringTaskPayload = CreateRecurringTaskBody & { agentTitle: string | null };
+
+/**
  * Pending action stored in Redis while awaiting user confirmation.
  * Discriminated union ensures type-safe payload access per action type.
  */
@@ -1341,6 +1350,7 @@ export type PendingAction = {
   | { type: 'set_notebook_visibility'; payload: SetNotebookVisibilityPayload }
   | { type: 'share_notebook'; payload: ShareNotebookPayload }
   | { type: 'set_group_visibility'; payload: SetGroupVisibilityPayload }
+  | { type: 'create_recurring_task'; payload: CreateRecurringTaskPayload }
 );
 
 /**

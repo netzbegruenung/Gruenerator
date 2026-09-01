@@ -195,6 +195,15 @@ function summarize(result: unknown): string | undefined {
         : `Projekt „${g.name}"`;
     }
   }
+  // `recurring_tasks`: get liefert ein Detailobjekt — sonst hieße es nur „ok".
+  if (r.task && typeof r.task === 'object') {
+    const t = r.task as { title?: unknown; recurrenceLabel?: unknown };
+    if (typeof t.title === 'string') {
+      return typeof t.recurrenceLabel === 'string'
+        ? `Aufgabe „${t.title}" (${t.recurrenceLabel})`
+        : `Aufgabe „${t.title}"`;
+    }
+  }
   // rezept_laden: the card names the recipe; the prompt body stays server-side.
   if (typeof r.titel === 'string' && r.geladen === true) return `Rezept: ${r.titel}`;
   if (r.geladen === false) return 'Rezept nicht verfügbar';

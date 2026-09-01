@@ -28,6 +28,7 @@ const ICON_MAP: Record<ConfirmActionData['type'], IoniconsIconName> = {
   set_notebook_visibility: 'eye-outline',
   share_notebook: 'share-social-outline',
   set_group_visibility: 'eye-outline',
+  create_recurring_task: 'repeat-outline',
 };
 
 const GROUP_ACTION_TYPES: ReadonlySet<ConfirmActionData['type']> = new Set([

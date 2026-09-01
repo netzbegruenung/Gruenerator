@@ -334,6 +334,12 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
     iconKey: 'cloud',
     accent: 'personal',
   },
+  recurring_tasks: {
+    label: 'Wiederkehrende Aufgaben',
+    activeLabel: 'Sehe bei den Aufgaben nach',
+    iconKey: 'sparkles',
+    accent: 'personal',
+  },
 
   // --- Creation ------------------------------------------------------------
   generate_image: {
