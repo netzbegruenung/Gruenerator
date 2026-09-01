@@ -116,7 +116,6 @@ export {
   resolveThreadBySlugSuffix,
   type ExternalThreadEntry,
 } from './runtime/GrueneratorThreadListAdapter';
-export { buildThreadPath } from './lib/threadPath';
 
 // External Thread Context
 export { ExternalThreadProvider, useExternalThread } from './context/ExternalThreadContext';
@@ -461,7 +460,10 @@ export {
   parsePressemitteilungExamples,
   pressemitteilungLvLabel,
   formatGermanDate,
+  getToolResultCount,
+  toolResultSummary,
   type ToolIconKey,
+  type ToolAccent,
   type ToolMeta,
   type ResearchCitation,
   type ResearchConfidence,

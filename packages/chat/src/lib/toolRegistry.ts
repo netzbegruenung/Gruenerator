@@ -58,6 +58,24 @@ export const UI_TOOL_NAMES = z.enum([
   'read_pdf_form',
   'fill_pdf_form',
   'cloud_files',
+  // --- Loop-catalog tools that had no UI entry until now. Every string here is
+  // copied verbatim from its API mount site; toolCatalogUiCoverage.vitest.ts in
+  // apps/api enforces exactly that. F0: additive only, never renamed.
+  'rezept_laden',
+  'sharepic',
+  'create_document',
+  'create_presentation',
+  'create_sheet',
+  'create_pdf',
+  'create_board',
+  'umfragen',
+  'abgeordnetenwatch',
+  'summarize',
+  'product_knowledge',
+  'expand_attachment',
+  'dokumente_lesen',
+  'search_threads',
+  'read_artifact',
 ]);
 export type UiToolName = z.infer<typeof UI_TOOL_NAMES>;
 
@@ -182,9 +200,102 @@ function parseTextNoteVM(args: unknown, result: unknown): ToolResultVM {
       ? result
       : (getString(result, 'summary') ??
         getString(result, 'memory') ??
-        getString(result, 'message'));
+        getString(result, 'message') ??
+        // product_knowledge returns instruction prose, umfragen a poll digest.
+        getString(result, 'knowledge') ??
+        getString(result, 'umfragen'));
   if (!text) return parseGenericFallback(args, result);
   return { kind: 'text-note', text };
+}
+
+// rezept_laden is a SWITCH, not a search: it registers a writing recipe for the
+// rest of the turn and returns a tiny acknowledgement. Show the recipe TITLE —
+// never the mention id (`presse`) and never `hinweis`, which is an instruction
+// addressed to the model, not to the reader.
+function parseRecipeVM(args: unknown, result: unknown): ToolResultVM {
+  const error = getString(result, 'error');
+  if (error) return { kind: 'text-note', text: error };
+  if (!getBoolean(result, 'geladen')) {
+    const grund = getString(result, 'grund');
+    return { kind: 'text-note', text: grund ?? 'Rezept konnte nicht geladen werden.' };
+  }
+  const titel = getString(result, 'titel') ?? getString(result, 'rezept');
+  if (!titel) return parseGenericFallback(args, result);
+  return { kind: 'text-note', text: `Rezept „${titel}" geladen.` };
+}
+
+// The doc family already renders a rich DocumentCreatedCard off the `done`
+// metadata, so this card stays deliberately slim — two cards for one artifact
+// would double-represent it.
+function parseArtifactCreatedVM(args: unknown, result: unknown): ToolResultVM {
+  const error = getString(result, 'error');
+  if (error) return { kind: 'text-note', text: error };
+  const title = getString(getObject(result, 'document'), 'title');
+  if (title) return { kind: 'text-note', text: `„${title}" erstellt.` };
+  const note = getString(result, 'note');
+  return note ? { kind: 'text-note', text: note } : parseGenericFallback(args, result);
+}
+
+// create_pdf carries a self-check the user can see NOWHERE else: `probleme` is
+// dropped entirely by the generic fallback's 8-entry <dl>. One row per problem.
+function parsePdfCreatedVM(args: unknown, result: unknown): ToolResultVM {
+  const error = getString(result, 'error');
+  if (error) return { kind: 'text-note', text: error };
+  const title = getString(getObject(result, 'document'), 'title');
+  if (!title) return parseGenericFallback(args, result);
+
+  const entries: KeyValueEntry[] = [{ label: 'Datei', value: title }];
+  const fields = getArray(result, 'felder');
+  if (fields?.length) entries.push({ label: 'Felder', value: String(fields.length) });
+  for (const [i, problem] of (getArray(result, 'probleme') ?? []).entries()) {
+    const text = typeof problem === 'string' ? problem : getString(problem, 'hinweis');
+    if (text) entries.push({ label: i === 0 ? 'Prüfung' : ' ', value: text });
+  }
+  return { kind: 'key-value', entries, citations: [], markdown: null, imageUrl: null };
+}
+
+// Boards emit no document_created event — this card is the ONLY place a created
+// board is ever named, which is why it carries the title rather than staying slim.
+function parseBoardCreatedVM(args: unknown, result: unknown): ToolResultVM {
+  const error = getString(result, 'error');
+  if (error) return { kind: 'text-note', text: error };
+  const title = getString(getObject(result, 'board'), 'title');
+  if (title) return { kind: 'text-note', text: `Board „${title}" erstellt.` };
+  const note = getString(result, 'note');
+  return note ? { kind: 'text-note', text: note } : parseGenericFallback(args, result);
+}
+
+// The variants themselves render in SharepicVariantStack; the card only reports.
+function parseSharepicVM(args: unknown, result: unknown): ToolResultVM {
+  const error = getString(result, 'error');
+  if (error) return { kind: 'text-note', text: error };
+  const note = getString(result, 'note');
+  return note ? { kind: 'text-note', text: note } : parseGenericFallback(args, result);
+}
+
+// read_artifact has an ambiguous-match branch (`candidates`) that the generic
+// fallback loses completely — it is exactly the branch the reader must act on.
+function parseReadArtifactVM(args: unknown, result: unknown): ToolResultVM {
+  const error = getString(result, 'error');
+  if (error) return { kind: 'text-note', text: error };
+
+  const candidates = getArray(result, 'candidates');
+  if (candidates?.length) {
+    const entries: KeyValueEntry[] = candidates.flatMap((c) => {
+      const title = getString(c, 'title');
+      return title ? [{ label: title, value: getString(c, 'id') ?? '' }] : [];
+    });
+    if (entries.length) {
+      return { kind: 'key-value', entries, citations: [], markdown: null, imageUrl: null };
+    }
+  }
+
+  const title = getString(result, 'title') ?? getString(getObject(result, 'document'), 'title');
+  if (title) {
+    const truncated = getBoolean(result, 'truncated') ? ' (gekürzt)' : '';
+    return { kind: 'text-note', text: `${title}${truncated}` };
+  }
+  return parseGenericFallback(args, result);
 }
 
 function parseLinkPreviewVM(args: unknown, result: unknown): ToolResultVM {
@@ -360,6 +471,35 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   // card only reports what happened.
   fill_pdf_form: entry('fill_pdf_form', 'text-note', parsePdfFormFillVM),
   cloud_files: entry('cloud_files', 'key-value', parseCloudFilesVM),
+
+  // --- Loop-catalog tools, previously falling through to the raw-name pill ---
+  rezept_laden: entry('rezept_laden', 'text-note', parseRecipeVM),
+  sharepic: entry('sharepic', 'text-note', parseSharepicVM),
+  create_document: entry('create_document', 'text-note', parseArtifactCreatedVM),
+  create_presentation: entry('create_presentation', 'text-note', parseArtifactCreatedVM),
+  create_sheet: entry('create_sheet', 'text-note', parseArtifactCreatedVM),
+  create_pdf: entry('create_pdf', 'key-value', parsePdfCreatedVM),
+  create_board: entry('create_board', 'text-note', parseBoardCreatedVM),
+  read_artifact: entry('read_artifact', 'text-note', parseReadArtifactVM),
+  search_threads: entry('search_threads', 'citations', parsePersonalDataVM),
+  umfragen: entry('umfragen', 'text-note', parseTextNoteVM),
+  product_knowledge: entry('product_knowledge', 'text-note', parseTextNoteVM),
+  summarize: entry('summarize', 'text-note', parseTextNoteVM),
+  // The three below report through the status line and draw no card at all
+  // (SEARCH_PROGRESS_TOOLS); the entries exist so a reload still resolves a
+  // label, and so the drift guard stays total.
+  abgeordnetenwatch: entry('abgeordnetenwatch', 'citations', (_a, r) => ({
+    kind: 'citations',
+    citations: parseSearchCitations(r),
+  })),
+  dokumente_lesen: entry('dokumente_lesen', 'citations', (_a, r) => ({
+    kind: 'citations',
+    citations: parseSearchCitations(r),
+  })),
+  expand_attachment: entry('expand_attachment', 'citations', (_a, r) => ({
+    kind: 'citations',
+    citations: parseSearchCitations(r),
+  })),
 };
 
 /** Lookup that degrades gracefully for unregistered tool names. */

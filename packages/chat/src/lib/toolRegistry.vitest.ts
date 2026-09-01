@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { INTENT_TO_TOOL, DEEP_TOOL_MAP } from './toolMappings';
+import { getToolQuery, toolResultSummary } from './toolResults';
 import {
   parseGenericFallback,
   resolveToolEntry,
@@ -237,5 +238,159 @@ describe('parseGenericFallback', () => {
     const entry = resolveToolEntry('future_tool');
     expect(entry.kind).toBe('key-value');
     expect(entry.parse({}, { error: 'nope', status: 'failed' }).kind).toBe('key-value');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The loop-catalog tools that used to fall through to the raw-name pill.
+// Payload shapes are copied from their API implementations (recipeTools.ts,
+// domainTools.ts, personalDataTools.ts) — if a backend shape changes, these
+// fail rather than the card silently degrading to a <dl> dump again.
+// ---------------------------------------------------------------------------
+
+describe('loop-catalog tool parsers', () => {
+  it('rezept_laden shows the recipe TITLE, never the mention id or the model hint', () => {
+    const vm = resolveToolEntry('rezept_laden').parse(
+      { rezept: 'presse' },
+      {
+        geladen: true,
+        rezept: 'presse',
+        titel: 'Pressemitteilung',
+        hinweis: 'Die Schreibvorgaben stehen dir ab jetzt zur Verfügung.',
+      }
+    );
+    expect(vm.kind).toBe('text-note');
+    if (vm.kind === 'text-note') {
+      expect(vm.text).toContain('Pressemitteilung');
+      // The instruction is addressed to the model, not to the reader.
+      expect(vm.text).not.toContain('Schreibvorgaben stehen dir');
+      expect(vm.text).not.toBe('presse');
+    }
+  });
+
+  it('rezept_laden failure reports the reason, not a success line', () => {
+    const vm = resolveToolEntry('rezept_laden').parse(
+      { rezept: 'presse' },
+      { geladen: false, rezept: 'presse', grund: 'Für dieses Rezept liegen keine Vorgaben vor.' }
+    );
+    expect(vm.kind).toBe('text-note');
+    if (vm.kind === 'text-note') expect(vm.text).toContain('keine Vorgaben');
+  });
+
+  it('create_pdf surfaces every self-check problem as its own row', () => {
+    const vm = resolveToolEntry('create_pdf').parse(
+      {},
+      {
+        document: { title: 'Antrag.pdf' },
+        geprueft: true,
+        felder: ['name', 'datum'],
+        probleme: ['Feld „datum" blieb leer', 'Schriftgröße unter 9pt'],
+      }
+    );
+    expect(vm.kind).toBe('key-value');
+    if (vm.kind === 'key-value') {
+      const values = vm.entries.map((e) => e.value).join(' | ');
+      expect(values).toContain('Antrag.pdf');
+      expect(values).toContain('datum');
+      expect(values).toContain('Schriftgröße');
+    }
+  });
+
+  it('create_board names the board — it has no second surface', () => {
+    const vm = resolveToolEntry('create_board').parse(
+      {},
+      { board: { boardId: 'b-1', title: 'Wahlkampf 2026' }, note: 'Board angelegt.' }
+    );
+    expect(vm.kind).toBe('text-note');
+    if (vm.kind === 'text-note') expect(vm.text).toContain('Wahlkampf 2026');
+  });
+
+  it('create_document stays slim — DocumentCreatedCard renders the rich card', () => {
+    const vm = resolveToolEntry('create_document').parse(
+      {},
+      { document: { title: 'Rede zum Haushalt' }, note: 'Dokument erstellt.' }
+    );
+    expect(vm.kind).toBe('text-note');
+    if (vm.kind === 'text-note') expect(vm.text).toContain('Rede zum Haushalt');
+  });
+
+  it('read_artifact keeps the ambiguous-match candidates the fallback dropped', () => {
+    const vm = resolveToolEntry('read_artifact').parse(
+      {},
+      {
+        candidates: [
+          { id: 'a-1', title: 'Entwurf A' },
+          { id: 'a-2', title: 'Entwurf B' },
+        ],
+      }
+    );
+    expect(vm.kind).toBe('key-value');
+    if (vm.kind === 'key-value') {
+      expect(vm.entries.map((e) => e.label)).toEqual(['Entwurf A', 'Entwurf B']);
+    }
+  });
+
+  it('every formerly-unregistered tool now resolves to a real label', () => {
+    const previouslyBroken = [
+      'rezept_laden',
+      'sharepic',
+      'create_document',
+      'create_presentation',
+      'create_sheet',
+      'create_pdf',
+      'create_board',
+      'umfragen',
+      'abgeordnetenwatch',
+      'summarize',
+      'product_knowledge',
+      'expand_attachment',
+      'dokumente_lesen',
+      'search_threads',
+      'read_artifact',
+    ];
+    for (const name of previouslyBroken) {
+      const { meta } = resolveToolEntry(name);
+      // The old symptom was the label BEING the wire name.
+      expect(meta.label, `${name} still renders its raw wire name`).not.toBe(name);
+      expect(meta.label.length).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe('toolResultSummary precedence', () => {
+  it('an error never reads as success', () => {
+    expect(toolResultSummary('create_pdf', {}, { error: 'Konvertierung fehlgeschlagen' })).toBe(
+      'Konvertierung fehlgeschlagen'
+    );
+  });
+
+  it('per-tool summarize wins over the backend line for the create_* family', () => {
+    // wrapTools' own summariser returns nothing for create_*, which is exactly
+    // why meta.summarize must sit ahead of result.summary.
+    expect(
+      toolResultSummary('create_board', {}, { board: { boardId: 'b', title: 'Klimaplan' } })
+    ).toBe('Klimaplan');
+  });
+
+  it('falls back to the backend summary, then to a count, then to null', () => {
+    expect(toolResultSummary('web_search', {}, { summary: '5 Ergebnisse' })).toBe('5 Ergebnisse');
+    expect(toolResultSummary('web_search', {}, { resultCount: 3 })).toBe('3 Suchen');
+    expect(toolResultSummary('web_search', {}, {})).toBeNull();
+  });
+
+  it('a throwing summarize downgrades the line instead of breaking the card', () => {
+    // Defensive: a backend shape change must not throw through the render.
+    expect(() => toolResultSummary('create_pdf', {}, { document: null })).not.toThrow();
+  });
+});
+
+describe('getToolQuery with per-tool keys', () => {
+  it('reads rezept_laden’s subject from its own arg name', () => {
+    expect(getToolQuery({ rezept: 'presse' }, 'rezept_laden')).toBe('presse');
+  });
+
+  it('keeps the old single-argument behaviour', () => {
+    expect(getToolQuery({ query: 'Klimageld' })).toBe('Klimageld');
+    expect(getToolQuery({ rezept: 'presse' })).toBeNull();
   });
 });
