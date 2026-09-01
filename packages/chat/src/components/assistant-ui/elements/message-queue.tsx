@@ -5,8 +5,10 @@
  * TWO deviations. Keep them when re-syncing, and add none without a reason —
  * every one is a hand edit somebody owes on the next sync:
  *   1. `cn` comes from ./_adapter; packages/chat has no "@/" alias at build time.
- *   2. the four user-facing strings are German, and the count needs a singular
- *      ("1 wartet") that upstream's "{n} queued" does not.
+ *   2. the four user-facing strings are German; the count needs a singular
+ *      ("1 wartet") that upstream's "{n} queued" does not; and the remove
+ *      button's name carries the row number as well as the text, because
+ *      upstream's text-only name repeats when the same turn is queued twice.
  *
  * Everything else is upstream's, including the running row, the row numbering
  * and the enter animation. `max-w-sm` needs no deviation: className merges
@@ -81,7 +83,7 @@ export function MessageQueue({
             <ArrowUpIcon className="text-foreground/25 size-3 shrink-0" />
             <button
               type="button"
-              aria-label={`Wartende Nachricht "${message.text}" entfernen`}
+              aria-label={`Wartende Nachricht ${index + 1} entfernen: "${message.text}"`}
               onClick={() => onCancel?.(message.id)}
               className={cn(ghostButton, 'size-6 shrink-0')}
             >

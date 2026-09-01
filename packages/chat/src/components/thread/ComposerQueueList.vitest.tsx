@@ -34,15 +34,18 @@ const h = vi.hoisted(() => {
     },
     remove,
     queueItem: vi.fn((_selector: { id: string }) => ({ remove })),
+    selectors: [] as ((s: unknown) => unknown)[],
   };
 });
 
 vi.mock('@assistant-ui/react', () => ({
-  useAuiState: (selector: (s: unknown) => unknown) =>
-    selector({
+  useAuiState: (selector: (s: unknown) => unknown) => {
+    h.selectors.push(selector);
+    return selector({
       composer: { queue: h.state.queue },
       thread: { messages: h.state.messages },
-    }),
+    });
+  },
   useAui: () => ({ composer: { queueItem: h.queueItem } }),
 }));
 
@@ -65,6 +68,7 @@ describe('ComposerQueueList', () => {
     h.state.messages = [];
     h.remove.mockClear();
     h.queueItem.mockClear();
+    h.selectors.length = 0;
   });
 
   it('renders nothing while nothing is waiting', () => {
@@ -134,10 +138,42 @@ describe('ComposerQueueList', () => {
     const user = userEvent.setup();
     renderQueue([queued('a', 'Erste'), queued('b', 'Zweite'), queued('c', 'Dritte')]);
 
-    await user.click(screen.getByRole('button', { name: 'Wartende Nachricht "Zweite" entfernen' }));
+    await user.click(
+      screen.getByRole('button', { name: 'Wartende Nachricht 2 entfernen: "Zweite"' })
+    );
 
     expect(h.queueItem).toHaveBeenCalledExactlyOnceWith({ id: 'b' });
     expect(h.remove).toHaveBeenCalledOnce();
+  });
+
+  it('keeps the remove buttons distinct when two waiting turns say the same thing', async () => {
+    const user = userEvent.setup();
+    renderQueue([queued('a', 'Nochmal'), queued('b', 'Nochmal')]);
+
+    // Upstream names the button from the text alone, which collides here.
+    await user.click(
+      screen.getByRole('button', { name: 'Wartende Nachricht 2 entfernen: "Nochmal"' })
+    );
+
+    expect(h.queueItem).toHaveBeenCalledExactlyOnceWith({ id: 'b' });
+  });
+
+  it('selects only referentially stable slices, so a streamed token cannot re-render the list', () => {
+    // useAuiState compares with Object.is. A selector that builds an array or
+    // object returns a fresh reference every time it runs, which re-renders on
+    // every store update — while a turn is queued, that is every token of the
+    // answer it is waiting behind.
+    renderQueue([queued('a', 'Erste'), queued('b', 'Zweite')]);
+
+    const state = {
+      composer: { queue: h.state.queue },
+      thread: { messages: h.state.messages },
+    };
+
+    expect(h.selectors).not.toHaveLength(0);
+    for (const select of h.selectors) {
+      expect(Object.is(select(state), select(state))).toBe(true);
+    }
   });
 
   it('has no accessibility violations', async () => {

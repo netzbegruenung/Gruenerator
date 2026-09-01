@@ -20,27 +20,30 @@ interface ComposerQueueListProps {
 export function ComposerQueueList({ className }: ComposerQueueListProps) {
   const composer = useAui().composer;
 
-  const queued = useAuiState((s) =>
-    // `prompt` is deprecated upstream (removal after 2026-11-05); the text
-    // parts are the durable shape. A turn carrying only files has no text of
-    // its own, so it falls back to the file names rather than a blank row.
-    s.composer.queue.map((item): QueuedMessage => {
-      const text = item.parts
-        .map((part) => (part.type === 'text' ? part.text : ''))
-        .join('')
-        .trim();
+  // Selected raw, mapped below. `useAuiState` compares with Object.is, so a
+  // selector that builds an array re-renders on EVERY store update — which
+  // while a turn is queued means every streamed token.
+  const queue = useAuiState((s) => s.composer.queue);
 
-      return {
-        id: item.id,
-        text:
-          text ||
-          item.parts
-            .map((part) => (part.type === 'file' ? (part.filename ?? '') : ''))
-            .filter(Boolean)
-            .join(', '),
-      };
-    })
-  );
+  // `prompt` is deprecated upstream (removal after 2026-11-05); the text parts
+  // are the durable shape. A turn carrying only files has no text of its own,
+  // so it falls back to the file names rather than a blank row.
+  const queued = queue.map((item): QueuedMessage => {
+    const text = item.parts
+      .map((part) => (part.type === 'text' ? part.text : ''))
+      .join('')
+      .trim();
+
+    return {
+      id: item.id,
+      text:
+        text ||
+        item.parts
+          .map((part) => (part.type === 'file' ? (part.filename ?? '') : ''))
+          .filter(Boolean)
+          .join(', '),
+    };
+  });
 
   // The turn the queue is waiting behind. There is no runtime field for it, so
   // it comes off the last user message. The selector returns a string, which
