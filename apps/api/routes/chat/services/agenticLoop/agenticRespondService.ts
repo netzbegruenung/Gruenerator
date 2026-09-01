@@ -533,9 +533,6 @@ export async function streamAgenticResponse(
       plannerModel: plannerLane ? plannerLane.languageModel : resolution.model,
       synthModel: synth.model,
       ...(synthFallback && { synthFallbackModel: synthFallback.model }),
-      onSynthStart: () => {
-        emitter.startSynthHeartbeat();
-      },
       // Der Stillstand der WERKZEUG-Phase. Hier gibt es nichts umzuschalten —
       // der Zug antwortet aus dem, was schon gesammelt war —, aber die Lane
       // gehört vermerkt: sonst ist sie im nächsten Zug wieder erste Wahl und
@@ -718,7 +715,6 @@ export async function streamAgenticResponse(
       }
     }
   } finally {
-    emitter.endSynthHeartbeat();
     if (mcpCatalog) await mcpCatalog.close();
     if (systemCatalog) await systemCatalog.close();
   }

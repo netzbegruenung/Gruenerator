@@ -639,39 +639,21 @@ export function sseFail(
 }
 
 /**
- * Heartbeat for a window where the server is working but emits nothing: the
- * wait for a model's first content token. Some lanes spend many seconds there
- * (cold reasoning starts, overflow lanes); without a ping the UI shows
- * `response_start` and then nothing, which is indistinguishable from a hang.
+ * Heartbeat interval shared by the step heartbeat below.
  *
- * Shared by both answer paths — the single-pass streamer and the agentic loop's
- * synth phase, which is silent from the last tool result until the answer
- * begins. Returns the disarm function; call it on the first delta, on abort and
- * on error.
+ * There is deliberately NO heartbeat for the wait on a model's first content
+ * token. One existed (`startResponseHeartbeat`, 27.07.2026) and re-sent a
+ * `thinking_step` named `generating` every 3s — but `thinking_step` is the
+ * TOOL channel: the client's parser turns every one of them into a tool-call
+ * card (`parseSSEStream`, case 'thinking_step'), and this one never got a
+ * matching `completed`, so a plain `direct` turn with a slow first token left a
+ * card „generating — Formuliere Antwort…" spinning for the rest of the turn.
+ * The window needs no event anyway: `response_start` already puts the
+ * `generating` step in the list, and the status line shimmers on its own from
+ * there. Anything that really must narrate this window uses `progress_step`
+ * (see the note on that case in the parser), never `thinking_step`.
  */
 const HEARTBEAT_INTERVAL_MS = 3_000;
-
-export function startResponseHeartbeat(sse: SSEWriter): () => void {
-  const stepId = `generating_${Date.now()}`;
-  const handle = setInterval(() => {
-    if (sse.isEnded()) return;
-    sse.send('thinking_step', {
-      stepId,
-      toolName: 'generating',
-      title: 'Formuliere Antwort…',
-      status: 'in_progress',
-    });
-  }, HEARTBEAT_INTERVAL_MS);
-  // Don't keep the event loop alive solely on this timer if the response is
-  // aborted at the socket layer.
-  if (typeof handle.unref === 'function') handle.unref();
-  let cleared = false;
-  return () => {
-    if (cleared) return;
-    cleared = true;
-    clearInterval(handle);
-  };
-}
 
 /**
  * Derselbe Dienst für ein viel längeres Fenster: die Nachschritte eines

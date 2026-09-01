@@ -157,15 +157,6 @@ describe('synth stall guard', () => {
     expect(onReasoning).toHaveBeenCalledWith('denke nach');
     expect(seen).not.toContain('fallback');
   });
-
-  it('announces the synth phase so the caller can show progress in the silence', async () => {
-    const { deps } = depsFor({ synth: () => streamOf([{ type: 'text-delta', text: 'OK' }]) });
-    const onSynthStart = vi.fn();
-
-    await runAgenticLoop(params({ onSynthStart }), deps);
-
-    expect(onSynthStart).toHaveBeenCalledOnce();
-  });
 });
 
 /**
