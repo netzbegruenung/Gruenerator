@@ -307,8 +307,10 @@ export const profileApiService = {
       username?: string;
       email?: string;
       custom_prompt?: string;
+      memory_enabled?: boolean;
     } = {};
     if (profileData.display_name !== undefined) body.display_name = profileData.display_name;
+    if (profileData.memory_enabled !== undefined) body.memory_enabled = profileData.memory_enabled;
     if (profileData.username !== undefined) body.username = profileData.username ?? '';
     if (profileData.email !== undefined) body.email = profileData.email ?? '';
     if (profileData.custom_prompt !== undefined)
