@@ -48,7 +48,7 @@ import {
   streamForResolution,
   streamWithFallback,
 } from './services/responseStreamingService.js';
-import { PROGRESS_MESSAGES, SSEWriter } from './services/sseHelpers.js';
+import { PROGRESS_MESSAGES, SSEWriter, sendChatWarning } from './services/sseHelpers.js';
 
 import type { SearchContext } from '../../services/notebook/types.js';
 import type { CollectionConfig, SourcesByCollection } from '../../services/search/types.js';
@@ -491,10 +491,14 @@ export async function handleNotebookStream(
       fullText,
       searchContext.referencesMap
     );
-    const { cleanDraft, citations, sources } = validateAndInjectCitations(
+    const { cleanDraft, citations, sources, errors } = validateAndInjectCitations(
       renumberedDraft,
       newReferencesMap
     );
+    if (errors && errors.length > 0) {
+      log.warn(`[Notebook] ${errors.length} invalid citation marker(s): ${errors.join(', ')}`);
+      sendChatWarning(sse, 'citation_invalid');
+    }
 
     const allSources = searchContext.sortedResults
       .filter((_, i) => !citations.some((c) => c.index === String(i + 1)))
