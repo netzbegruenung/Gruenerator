@@ -20,7 +20,6 @@ import React, { useState, useCallback, useEffect, useMemo, type ReactNode } from
 import { FaFileWord } from 'react-icons/fa';
 import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 
-import { CitationModal } from '../../../components/common/Citation';
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import { useAuthStore } from '../../../stores/authStore';
@@ -421,12 +420,7 @@ export const NotebookPageContent = ({
     </NotebookChatProvider>
   );
 
-  return (
-    <ErrorBoundary>
-      <CitationModal />
-      {chatContent}
-    </ErrorBoundary>
-  );
+  return <ErrorBoundary>{chatContent}</ErrorBoundary>;
 };
 
 const NotebookPage = ({ configId }: NotebookPageProps): React.ReactElement => {
