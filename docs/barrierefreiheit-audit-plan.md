@@ -223,7 +223,7 @@ Getrennte Welle, weil die Prüfmittel andere sind und niemand darauf warten muss
 
 ### Welle 5 — Erklärung, Doku, Dauerbetrieb (≈ 2 Tage)
 
-1. **Öffentliche Doku-Seite „Barrierefreiheit"** → `documentation/docs/ueber-den-gruenerator/barrierefreiheit.md`, verlinkt in [sections.ts](documentation/src/nav/sections.ts) unter `topPages` von *Über den Grünerator*. Gliederung:
+1. **Öffentliche Doku-Seite „Barrierefreiheit"** → `documentation/docs/basics/barrierefreiheit.md`, verlinkt in [sections.ts](documentation/src/nav/sections.ts) unter `topPages` von *Basics*. Gliederung:
    - Was wir zusagen (Zielstandard WCAG 2.2 AA / EN 301 549) und **was aktuell noch nicht erfüllt ist** — eine ehrliche Liste ist normkonform, eine geschönte nicht.
    - Welche Einstellungen es gibt (Animationen, Transparenz, Sprung-Link, Schriftgröße) und wo sie liegen.
    - Tastaturbedienung: die tatsächlichen Kürzel.
