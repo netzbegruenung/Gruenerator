@@ -22,8 +22,8 @@ import { QdrantOperations } from '../../database/services/QdrantService/operatio
 import { createLogger } from '../../utils/logger.js';
 import { mistralEmbeddingService } from '../mistral/index.js';
 
-import type { MemoryKind, MemorySource } from '@gruenerator/contracts';
 import type { QdrantFilter } from '../../database/services/QdrantService/types.js';
+import type { MemoryKind, MemorySource } from '@gruenerator/contracts';
 
 const log = createLogger('MemoryStore');
 
