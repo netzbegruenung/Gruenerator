@@ -11,10 +11,9 @@ import {
   getCanonicalByKey,
   getMcpExposedCollections,
 } from '../../config/systemCollectionsConfig.js';
-import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { Sentry } from '../../lib/sentry.js';
 import { lookupUmfragen } from '../../services/monitor/UmfragenService.js';
-import { notebookQAService } from '../../services/notebook/NotebookQAService.js';
+import { runNotebookSearch } from '../../services/notebook/notebookToolSearch.js';
 import { getProfileService } from '../../services/user/ProfileService.js';
 import { createLogger } from '../../utils/logger.js';
 import {
@@ -22,13 +21,13 @@ import {
   executeDirectPressemitteilungExamples,
   executeDirectSearch,
 } from '../chat/agents/directSearchExecutors.js';
+import { makeNotebooksTool } from '../chat/agents/notebookTools.js';
 import {
   makeBoardsTasksTool,
   makeDocumentsTool,
   makeFindContentTool,
   makeGroupsTool,
   makeMediaTool,
-  makeNotebooksTool,
 } from '../chat/agents/personalDataTools.js';
 import { runBoardGeneration, runDocGeneration } from '../chat/services/intentExecutionService.js';
 import {
@@ -47,9 +46,13 @@ import {
 import { hasLandesverbandAccess, registerLandesverbandTools } from './landesverbandTools.js';
 import {
   addCardDirect,
+  addWolkeFolderMcp,
   createGroupDirect,
+  createNotebookMcp,
   joinGroupDirect,
+  setNotebookVisibilityMcp,
   shareDocToGroupMcp,
+  shareNotebookMcp,
 } from './mcpMutations.js';
 import {
   buildCollectionCatalog,
@@ -92,22 +95,6 @@ const SEARCH_COLLECTIONS = getMcpExposedCollections()
   .map((c) => c.key)
   .filter((key) => key !== 'examples')
   .sort() as [string, ...string[]];
-
-let notebookHelperSingleton: NotebookQdrantHelper | null = null;
-function notebookHelper(): NotebookQdrantHelper {
-  notebookHelperSingleton ??= new NotebookQdrantHelper();
-  return notebookHelperSingleton;
-}
-
-/**
- * `askSingleCollection` signals these two states by throwing. They are ordinary
- * outcomes for a tool call, not failures, so they get their own German text
- * instead of the bridge's generic "prüfe die übergebenen IDs".
- */
-const NOTEBOOK_QA_ERRORS: Record<string, string> = {
-  'Collection not found or access denied': 'Notebook nicht gefunden oder kein Zugriff.',
-  'No documents found in this collection': 'Dieses Notebook enthält noch keine Dokumente.',
-};
 
 /**
  * The cited answer IS this tool's payload, so it leaves as markdown text:
@@ -617,40 +604,41 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
 
     registerAiTool(server, 'notebooks', makeNotebooksTool(ctx), {
       description: contentWrite
-        ? `Zugriff auf die EIGENEN Notebooks (Quellensammlungen): auflisten (list), inhaltlich befragen (search mit id + query), umbenennen (rename), löschen (delete mit confirm-Protokoll). search liefert eine belegte Antwort mit [n]-Markern und der dazugehörigen Quellenliste — gib die Marker und Quellen in deiner Antwort weiter.`
-        : `Die EIGENEN Notebooks auflisten (list) oder inhaltlich befragen (search mit id + query). search liefert eine belegte Antwort mit [n]-Markern und der dazugehörigen Quellenliste — gib die Marker und Quellen in deiner Antwort weiter.`,
-      actions: contentWrite ? ['list', 'search', 'rename', 'delete'] : ['list', 'search'],
-      extraShape: {
-        query: z.string().optional().describe('Suchfrage (nur bei action="search")'),
-      },
+        ? `Zugriff auf die Notebooks der Person (Wissenssammlungen): auflisten (list — die id steht im ref), Details mit Dokumenten, Wolke-Ordnern und Freigaben (get), inhaltlich befragen (search mit id + query), anlegen (create; mit wolkeFolder {connectionId, path} wird der Ordner importiert), Wolke-Ordner anhängen (add_wolke_folder), Dokumente hinzufügen (add_documents), umbenennen (rename), Sichtbarkeit ändern (set_visibility), mit einem Projekt teilen (share_to_group), löschen (delete). create mit wolkeFolder, add_wolke_folder, set_visibility, share_to_group und delete verlangen das zweistufige confirm-Protokoll. search liefert eine belegte Antwort mit [n]-Markern und der dazugehörigen Quellenliste — gib die Marker und Quellen in deiner Antwort weiter.`
+        : `Die Notebooks der Person auflisten (list — die id steht im ref), Details ansehen (get) oder inhaltlich befragen (search mit id + query). search liefert eine belegte Antwort mit [n]-Markern und der dazugehörigen Quellenliste — gib die Marker und Quellen in deiner Antwort weiter.`,
+      actions: contentWrite
+        ? [
+            'list',
+            'get',
+            'search',
+            'create',
+            'add_wolke_folder',
+            'add_documents',
+            'rename',
+            'set_visibility',
+            'share_to_group',
+            'delete',
+          ]
+        : ['list', 'get', 'search'],
       overrides: {
+        // Die belegte Antwort IST das Ergebnis — als Markdown, nicht als
+        // Registry-Eintrag wie im Chat.
         search: async (args) => {
-          const id = typeof args.id === 'string' ? args.id : null;
-          const query = typeof args.query === 'string' ? args.query.trim() : '';
-          if (!id || !query) return { error: 'search braucht id (aus list) und query.' };
-          const collection = await notebookHelper().getNotebookCollection(id);
-          if (!collection) return { error: 'Notebook nicht gefunden oder kein Zugriff.' };
-          try {
-            const result = await notebookQAService.askSingleCollection({
-              collectionId: id,
-              question: query,
-              userId,
-              // Both are REQUIRED for user collections — the service throws
-              // without them. Passing the already-fetched row mirrors
-              // notebookContractRouter and hands the access decision to
-              // `checkNotebookAccess` inside the service, which is the
-              // canonical predicate (owner / share_mode / group membership).
-              getCollectionFn: async () => collection,
-              getDocumentIdsFn: async (cid) =>
-                (await notebookHelper().getCollectionDocuments(cid)).map((d) => d.document_id),
-            });
-            return renderNotebookAnswer(result, collection.name);
-          } catch (err) {
-            const mapped = NOTEBOOK_QA_ERRORS[(err as Error).message];
-            if (mapped) return { error: mapped };
-            throw err;
-          }
+          const id = typeof args.id === 'string' ? args.id : '';
+          const query = typeof args.query === 'string' ? args.query : '';
+          const outcome = await runNotebookSearch({ collectionId: id, query, userId });
+          if (!outcome.ok) return { error: outcome.error };
+          return renderNotebookAnswer(outcome.result, outcome.notebookName);
         },
+        // Die Karten des Chats als zweistufiges confirm-Protokoll.
+        ...(contentWrite
+          ? {
+              create: (args) => createNotebookMcp(userId, args),
+              add_wolke_folder: (args) => addWolkeFolderMcp(userId, args),
+              set_visibility: (args) => setNotebookVisibilityMcp(userId, args),
+              share_to_group: (args) => shareNotebookMcp(userId, args),
+            }
+          : {}),
       },
       ...(contentWrite ? {} : { readOnly: true }),
     });

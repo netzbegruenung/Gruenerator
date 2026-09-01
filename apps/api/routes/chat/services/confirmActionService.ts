@@ -84,6 +84,26 @@ export const CONFIRM_ACTION_CONFIG: Record<
     icon: 'cloud',
     confirmLabel: 'Verbinden',
   },
+  attach_wolke_folder: {
+    title: 'Wolke-Ordner ins Notebook übernehmen',
+    description:
+      'Der Ordner wird ans Notebook gehängt; die ersten Dateien werden sofort ausgelesen (OCR), der Rest erscheint im Notebook unter „Neue Dateien".',
+    icon: 'folder-input',
+    confirmLabel: 'Übernehmen',
+  },
+  set_notebook_visibility: {
+    title: 'Sichtbarkeit des Notebooks ändern',
+    description:
+      'Wer das Notebook lesen und bearbeiten darf. „Mit Anmeldung" heißt: alle angemeldeten Personen dieser Instanz.',
+    icon: 'eye',
+    confirmLabel: 'Ändern',
+  },
+  share_notebook: {
+    title: 'Notebook teilen',
+    description: 'Das Notebook wird mit dem Projekt geteilt — die Mitglieder können es lesen.',
+    icon: 'share-2',
+    confirmLabel: 'Teilen',
+  },
 };
 
 /**

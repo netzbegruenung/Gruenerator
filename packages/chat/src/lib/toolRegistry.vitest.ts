@@ -330,6 +330,76 @@ describe('loop-catalog tool parsers', () => {
     }
   });
 
+  // notebooks: `search` und `get` haben eigene Formen (notebookTools.ts) — ohne
+  // Zweig landeten beide im <dl>-Dump, die Antwort als abgeschnittene Zeile.
+  it('notebooks search renders the answer as markdown with the citations', () => {
+    const vm = resolveToolEntry('notebooks').parse(
+      { action: 'search', id: 'n1', query: 'Radweg?' },
+      {
+        notebook: 'Kreisverband',
+        answer: 'Der Radweg wird 2027 gebaut [1].',
+        resultCount: 1,
+        citations: [{ index: '1', title: 'Antrag Radweg', snippet: 'Der Bau beginnt 2027.' }],
+        sources: '[1] Antrag Radweg',
+      }
+    );
+    expect(vm.kind).toBe('key-value');
+    if (vm.kind === 'key-value') {
+      expect(vm.markdown).toContain('2027');
+      expect(vm.entries).toEqual([{ label: 'Notebook', value: 'Kreisverband' }]);
+      expect(vm.citations).toHaveLength(1);
+      expect(vm.citations[0].title).toBe('Antrag Radweg');
+    }
+  });
+
+  it('notebooks get renders the detail rows, not the raw object', () => {
+    const vm = resolveToolEntry('notebooks').parse(
+      { action: 'get', id: 'n1' },
+      {
+        notebook: {
+          id: 'n1',
+          name: 'Kreisverband',
+          url: '/notebooks/kreisverband-Ab3xK9',
+          documentCount: 12,
+          pendingCount: 3,
+          wolkeFolders: [{ folderName: '2026', folderPath: 'Anträge/2026' }],
+          sharedGroups: [{ id: 'g1', name: 'Fraktion' }],
+          documents: [{ id: 'd1', title: 'Antrag Radweg' }],
+        },
+      }
+    );
+    expect(vm.kind).toBe('key-value');
+    if (vm.kind === 'key-value') {
+      expect(vm.entries).toEqual([
+        { label: 'Notebook', value: 'Kreisverband' },
+        { label: 'Dokumente', value: '12' },
+        { label: 'Neue Dateien', value: '3' },
+        { label: 'Wolke-Ordner', value: '2026' },
+        { label: 'Geteilt mit', value: 'Fraktion' },
+      ]);
+    }
+  });
+
+  it('notebooks create names the new notebook', () => {
+    const vm = resolveToolEntry('notebooks').parse(
+      { action: 'create', name: 'Wahlkampf' },
+      { ok: true, notebook: { id: 'n2', name: 'Wahlkampf', url: '/notebooks/wahlkampf-Zz9yX1' } }
+    );
+    expect(vm.kind).toBe('text-note');
+    if (vm.kind === 'text-note') expect(vm.text).toContain('Wahlkampf');
+  });
+
+  it('notebooks list still lifts the rows into citations', () => {
+    const vm = resolveToolEntry('notebooks').parse(
+      { action: 'list' },
+      {
+        resultCount: 1,
+        results: [{ title: 'Kreisverband', url: '/notebooks/x', type: 'Notebook' }],
+      }
+    );
+    expect(vm.kind).toBe('citations');
+  });
+
   it('every formerly-unregistered tool now resolves to a real label', () => {
     const previouslyBroken = [
       'rezept_laden',

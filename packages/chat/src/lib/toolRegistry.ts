@@ -336,6 +336,58 @@ function parsePersonalDataVM(args: unknown, result: unknown): ToolResultVM {
   return parseGenericFallback(args, result);
 }
 
+// notebooks hat neben den Listen zwei eigene Formen: `search` liefert
+// `{answer, citations[]}` — die Antwort als Markdown, die Zitate als Liste —
+// und `get` ein `{notebook}`-Detailobjekt. Beide fielen sonst in den
+// generischen <dl>-Dump; alles andere (list, Vorgänge) geht weiter über
+// `parsePersonalDataVM`.
+function parseNotebooksVM(args: unknown, result: unknown): ToolResultVM {
+  const answer = getString(result, 'answer');
+  if (answer) {
+    const citations = (getArray(result, 'citations') ?? [])
+      .slice(0, 5)
+      .map((c, i) => toSerializableCitation(c, i, 'document'));
+    const notebook = getString(result, 'notebook');
+    return {
+      kind: 'key-value',
+      entries: notebook ? [{ label: 'Notebook', value: notebook }] : [],
+      citations,
+      markdown: answer,
+      imageUrl: null,
+    };
+  }
+  const notebook = getObject(result, 'notebook');
+  if (notebook) {
+    const entries: KeyValueEntry[] = [];
+    const name = getString(notebook, 'name');
+    if (name) entries.push({ label: 'Notebook', value: name });
+    const count = getNumber(notebook, 'documentCount');
+    if (count != null) entries.push({ label: 'Dokumente', value: String(count) });
+    const pending = getNumber(notebook, 'pendingCount');
+    if (pending) entries.push({ label: 'Neue Dateien', value: String(pending) });
+    const folders = getArray(notebook, 'wolkeFolders') ?? [];
+    if (folders.length) {
+      entries.push({
+        label: 'Wolke-Ordner',
+        value: folders.map((f) => getString(f, 'folderName') ?? '—').join(', '),
+      });
+    }
+    const groups = getArray(notebook, 'sharedGroups') ?? [];
+    if (groups.length) {
+      entries.push({
+        label: 'Geteilt mit',
+        value: groups.map((g) => getString(g, 'name') ?? '—').join(', '),
+      });
+    }
+    // Ein frisch angelegtes Notebook (`create`) hat nur name + url.
+    if (entries.length === 1 && getString(notebook, 'url')) {
+      return { kind: 'text-note', text: `Notebook „${name}" angelegt.` };
+    }
+    return { kind: 'key-value', entries, citations: [], markdown: null, imageUrl: null };
+  }
+  return parsePersonalDataVM(args, result);
+}
+
 // edit_document (agentic editor edit): the loop step that plans + applies typed
 // ops to the open sheet/presentation/board. Result is lean — {ok, operationCount,
 // opSummary} | {ok, operationCount:0, note} | {error} — so a compact text-note
@@ -476,7 +528,7 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   boards_tasks: entry('boards_tasks', 'citations', parsePersonalDataVM),
   groups: entry('groups', 'citations', parsePersonalDataVM),
   media: entry('media', 'citations', parsePersonalDataVM),
-  notebooks: entry('notebooks', 'citations', parsePersonalDataVM),
+  notebooks: entry('notebooks', 'citations', parseNotebooksVM),
   read_pdf_form: entry('read_pdf_form', 'key-value', parsePdfFormReadVM),
   // The filled file itself renders in the compute card (fileAssets); the tool
   // card only reports what happened.

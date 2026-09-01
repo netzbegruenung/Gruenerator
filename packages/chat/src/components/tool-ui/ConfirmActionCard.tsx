@@ -6,6 +6,8 @@ import {
   Users,
   UserPlus,
   Cloud,
+  FolderInput,
+  Eye,
   Check,
   X,
   ArrowRight,
@@ -27,9 +29,21 @@ const ICON_MAP: Record<ConfirmActionType, typeof FileText> = {
   create_group: Users,
   join_group: UserPlus,
   add_cloud_connection: Cloud,
+  attach_wolke_folder: FolderInput,
+  set_notebook_visibility: Eye,
+  share_notebook: Share2,
 };
 
-const GROUP_ACTION_TYPES: ReadonlySet<ConfirmActionType> = new Set(['create_group', 'join_group']);
+const GROUP_ACTION_TYPES: ReadonlySet<ConfirmActionType> = new Set([
+  'create_group',
+  'join_group',
+  // Die Karte verlinkt danach das Projekt, nicht das Notebook.
+  'share_notebook',
+]);
+const NOTEBOOK_ACTION_TYPES: ReadonlySet<ConfirmActionType> = new Set([
+  'attach_wolke_folder',
+  'set_notebook_visibility',
+]);
 
 export const ConfirmActionCard = memo(function ConfirmActionCard({
   action,
@@ -78,7 +92,9 @@ export const ConfirmActionCard = memo(function ConfirmActionCard({
                   ? 'Board öffnen'
                   : GROUP_ACTION_TYPES.has(action.type)
                     ? 'Gruppe öffnen'
-                    : 'Dokument öffnen'}
+                    : NOTEBOOK_ACTION_TYPES.has(action.type)
+                      ? 'Notebook öffnen'
+                      : 'Dokument öffnen'}
                 <ArrowRight className="h-3 w-3" />
               </a>
             </>

@@ -6,10 +6,8 @@
 
 import { groupsContract, type GroupContentResponse } from '@gruenerator/contracts';
 
-import { normalizeSharePermissions } from '../../../../services/groups/groupSharePermissions.js';
-import { notifyGroupMembers } from '../../../../services/notifications/index.js';
+import { shareContentToGroup } from '../../../../services/groups/groupContent.js';
 import { listUserAgentsByIds } from '../../../../services/userAgents/userAgentsRepository.js';
-import { NextcloudShareManager } from '../../../../utils/integrations/nextcloud/index.js';
 import { getPostgresAndCheckMembership } from '../groupCore.js';
 
 import {
@@ -17,8 +15,6 @@ import {
   getUserId,
   groupErrorResponse,
   notebookHelper,
-  CONTENT_TABLE_NAME_MAP,
-  CONTENT_LABELS,
   type ShareRecord,
   type ContentItem,
 } from './shared.js';
@@ -31,133 +27,36 @@ export const contentRoutes = {
     const { contentType, contentId, permissions } = args.body;
     try {
       const userId = getUserId(args.req);
-      const { postgres } = await getPostgresAndCheckMembership(groupId, userId, false);
-
-      if (contentType === 'nextcloud_share_link') {
-        try {
-          await NextcloudShareManager.getShareLinkById(userId, contentId);
-        } catch {
+      const outcome = await shareContentToGroup({
+        userId,
+        contentType,
+        contentId,
+        groupId,
+        permissions,
+        sharerName: (args.req.user as UserProfile | undefined)?.display_name || 'Jemand',
+      });
+      switch (outcome.status) {
+        case 200:
           return {
-            status: 404 as const,
-            body: { success: false as const, message: 'Wolke-Verbindung nicht gefunden.' },
+            status: 200 as const,
+            body: { success: true as const, message: outcome.message },
           };
-        }
-      }
-
-      if (contentType === 'notebook_collections') {
-        const collection = await notebookHelper.getNotebookCollection(contentId);
-        if (!collection) {
+        case 400:
           return {
-            status: 404 as const,
-            body: { success: false as const, message: 'Inhalt nicht gefunden.' },
+            status: 400 as const,
+            body: { success: false as const, message: outcome.message },
           };
-        }
-        if (collection.user_id !== userId) {
+        case 403:
           return {
             status: 403 as const,
-            body: { success: false as const, message: 'Du bist nicht Besitzer*in dieses Inhalts.' },
+            body: { success: false as const, message: outcome.message },
           };
-        }
-        // checkNotebookAccess gates group reads on share_mode='groups' AND a
-        // group_content_shares row. This generic share path only writes the
-        // row, so a private notebook shared here stays unreadable to members
-        // ("Kein Zugriff"). Promote it to 'groups' here, mirroring the notebook
-        // share modal (setShareMode → addGroupShare). Leave 'authenticated'
-        // alone (members already have read access; demoting would narrow the
-        // owner's chosen visibility) and 'groups' alone (already correct).
-        // Runs before the existing-share guard below so it also heals notebooks
-        // that were shared via this path before the fix.
-        if (collection.share_mode !== 'groups' && collection.share_mode !== 'authenticated') {
-          await notebookHelper.updateNotebookCollection(contentId, { share_mode: 'groups' });
-        }
-      }
-
-      if (
-        contentType !== 'system_notebooks' &&
-        contentType !== 'system_agents' &&
-        contentType !== 'nextcloud_share_link' &&
-        contentType !== 'notebook_collections'
-      ) {
-        const tableName = CONTENT_TABLE_NAME_MAP[contentType] || contentType;
-        const ownerColumn =
-          contentType === 'collaborative_documents' || contentType === 'canvas_template'
-            ? 'created_by'
-            : 'user_id';
-
-        let ownershipSQL = `SELECT ${ownerColumn} FROM ${tableName} WHERE id = $1`;
-        const ownershipParams: string[] = [contentId];
-        if (tableName === 'user_templates') {
-          ownershipSQL += ` AND type = $2`;
-          ownershipParams.push('template');
-        }
-        if (contentType === 'collaborative_documents') {
-          ownershipSQL += ` AND is_deleted = false`;
-        }
-        if (contentType === 'canvas_template') {
-          ownershipSQL += ` AND is_deleted = false AND document_subtype = 'canvas'`;
-        }
-
-        const contentOwnership = await postgres.queryOne<{ [key: string]: string }>(
-          ownershipSQL,
-          ownershipParams,
-          { table: tableName }
-        );
-
-        if (!contentOwnership) {
+        case 404:
           return {
             status: 404 as const,
-            body: { success: false as const, message: 'Inhalt nicht gefunden.' },
+            body: { success: false as const, message: outcome.message },
           };
-        }
-        if (contentOwnership[ownerColumn] !== userId) {
-          return {
-            status: 403 as const,
-            body: { success: false as const, message: 'Du bist nicht Besitzer*in dieses Inhalts.' },
-          };
-        }
       }
-
-      const existingShare = await postgres.queryOne<{ id: string }>(
-        'SELECT id FROM group_content_shares WHERE content_type = $1 AND content_id = $2 AND group_id = $3',
-        [contentType, contentId, groupId],
-        { table: 'group_content_shares' }
-      );
-      if (existingShare) {
-        return {
-          status: 400 as const,
-          body: {
-            success: false as const,
-            message: 'Inhalt ist bereits mit dieser Gruppe geteilt.',
-          },
-        };
-      }
-
-      const sharePermissions = normalizeSharePermissions(permissions);
-      await postgres.exec(
-        'INSERT INTO group_content_shares (content_type, content_id, group_id, shared_by_user_id, permissions) VALUES ($1, $2, $3, $4, $5)',
-        [contentType, contentId, groupId, userId, JSON.stringify(sharePermissions)]
-      );
-
-      const sharerName = (args.req.user as UserProfile | undefined)?.display_name || 'Jemand';
-      void postgres
-        .queryOne('SELECT name FROM groups WHERE id = $1', [groupId], { table: 'groups' })
-        .then((g) =>
-          notifyGroupMembers({
-            groupId,
-            excludeUserId: userId,
-            type: 'group_content_shared',
-            title: 'Neuer Inhalt',
-            body: `${sharerName} hat ${CONTENT_LABELS[contentType] || 'etwas'} in „${(g as { name?: string } | null)?.name || 'deiner Gruppe'}" geteilt`,
-            actionUrl: `/gruppen/${groupId}`,
-            metadata: { contentType, contentId },
-          })
-        )
-        .catch(() => {});
-
-      return {
-        status: 200 as const,
-        body: { success: true as const, message: 'Inhalt erfolgreich mit der Gruppe geteilt.' },
-      };
     } catch (error) {
       return groupErrorResponse('shareContent', 'Fehler beim Teilen des Inhalts.', error);
     }

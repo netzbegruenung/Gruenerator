@@ -12,6 +12,10 @@
 
 import type { ForbiddableArtifact } from './nodes/fastPathGuards.js';
 import type { SubcategoryFilters } from '../../../config/systemCollectionsConfig.js';
+import type {
+  NotebookEditPolicy,
+  NotebookShareMode,
+} from '../../../database/services/NotebookQdrantHelper.js';
 import type { AgentConfig } from '../../../routes/chat/agents/types.js';
 import type { ArtifactKindId } from '../../../routes/chat/services/artifactKindRegistry.js';
 import type { SystemMcpKey } from '../../../services/mcp/systemMcpServers.js';
@@ -27,6 +31,7 @@ import type {
   SearchIntent,
   ClientPlatform,
   SharepicVariant,
+  PublicOwnership,
 } from '@gruenerator/contracts';
 import type { RoleLandesverbandInput } from '@gruenerator/shared/agents';
 import type { ArtifactCreateKind } from '@gruenerator/shared/chat-intents';
@@ -1263,6 +1268,44 @@ export interface AddCloudConnectionPayload {
 }
 
 /**
+ * Einen Wolke-Ordner an ein Notebook hängen und die erste Charge importieren.
+ * `collectionId === null` heißt: das Notebook wird beim Bestätigen erst
+ * angelegt (`create` mit `wolkeFolder`). `audience` kommt aus der Sitzung des
+ * Werkzeugs, weil `executeAction` keinen Request mit Profil-Locale hat.
+ */
+export interface AttachWolkeFolderPayload {
+  collectionId: string | null;
+  notebookName: string;
+  description: string | null;
+  audience: UserLocale;
+  shareLinkId: string;
+  shareLabel: string;
+  folderPath: string;
+  folderName: string;
+  includeSubfolders: boolean;
+  /** Stand der Vorschau — die Karte zeigt sie, der Import zählt selbst neu. */
+  fileCount: number;
+  alreadyImported: number;
+}
+
+/** Der Patch geht unverändert an `applyNotebookVisibility`. */
+export interface SetNotebookVisibilityPayload {
+  collectionId: string;
+  notebookName: string;
+  share_mode?: NotebookShareMode;
+  edit_policy?: NotebookEditPolicy;
+  is_public?: boolean;
+  public_ownership?: PublicOwnership | null;
+}
+
+export interface ShareNotebookPayload {
+  collectionId: string;
+  notebookName: string;
+  groupId: string;
+  groupName: string;
+}
+
+/**
  * Pending action stored in Redis while awaiting user confirmation.
  * Discriminated union ensures type-safe payload access per action type.
  */
@@ -1281,6 +1324,9 @@ export type PendingAction = {
   | { type: 'create_group'; payload: CreateGroupPayload }
   | { type: 'join_group'; payload: JoinGroupPayload }
   | { type: 'add_cloud_connection'; payload: AddCloudConnectionPayload }
+  | { type: 'attach_wolke_folder'; payload: AttachWolkeFolderPayload }
+  | { type: 'set_notebook_visibility'; payload: SetNotebookVisibilityPayload }
+  | { type: 'share_notebook'; payload: ShareNotebookPayload }
 );
 
 /**

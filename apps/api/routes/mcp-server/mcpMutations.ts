@@ -6,19 +6,31 @@
  */
 import { buildGroupSlug } from '@gruenerator/shared/utils';
 
+import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { addRowsToBoard } from '../../services/boards/BoardService.js';
 import { shareDocumentToGroup } from '../../services/docs/shareDocumentToGroup.js';
+import { shareContentToGroup } from '../../services/groups/groupContent.js';
 import {
   createGroupForUser,
   getGroupByToken,
   joinGroupByToken,
 } from '../../services/groups/groupMutations.js';
 import { findGroups } from '../../services/groups/groupQueries.js';
+import { applyNotebookVisibility } from '../../services/notebook/notebookVisibility.js';
+import {
+  attachWolkeFolderToNotebook,
+  previewWolkeFolder,
+} from '../../services/notebook/notebookWolkeAttach.js';
+import { getProfileService } from '../../services/user/ProfileService.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
+import { createNotebookDirect, notebookUrl } from '../chat/agents/notebookTools.js';
 import { hasWriteAccess } from '../chat/confirmController.js';
+import { checkNotebookAccess } from '../notebook/notebookAccess.js';
 
 import { absolutizeUrl } from './chatToolBridge.js';
+
+import type { AttachWolkeFolderResult } from '../../services/notebook/notebookWolkeAttach.js';
 
 async function findLiveDocument(id: string): Promise<{ title: string; created_by: string } | null> {
   const rows = (await getPostgresInstance().query(
@@ -149,4 +161,238 @@ export async function shareDocToGroupMcp(
   } catch (err) {
     return { error: toUserFacingMessage(err, 'Teilen fehlgeschlagen.') };
   }
+}
+
+// ---------------------------------------------------------------------------
+// notebooks — die Karten-Aktionen des Chats als zweistufiges confirm-Protokoll
+// ---------------------------------------------------------------------------
+
+let notebookHelperSingleton: NotebookQdrantHelper | null = null;
+function notebookHelper(): NotebookQdrantHelper {
+  notebookHelperSingleton ??= new NotebookQdrantHelper();
+  return notebookHelperSingleton;
+}
+
+interface WolkeFolderArg {
+  connectionId: string | undefined;
+  path: string;
+  includeSubfolders: boolean;
+}
+
+/** Das Werkzeugschema hat den Wert schon geprüft — hier nur die Form lesen. */
+function readWolkeFolder(raw: unknown): WolkeFolderArg | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const o = raw as Record<string, unknown>;
+  if (typeof o.path !== 'string') return null;
+  return {
+    connectionId: typeof o.connectionId === 'string' ? o.connectionId : undefined,
+    path: o.path,
+    includeSubfolders: o.includeSubfolders === true,
+  };
+}
+
+function describeAttach(r: AttachWolkeFolderResult, notebookName: string, url: string): string {
+  const parts = [`${r.importedNow} sofort ausgelesen`];
+  if (r.alreadyImported > 0) parts.push(`${r.alreadyImported} bereits vorhanden`);
+  if (r.queued > 0) parts.push(`${r.queued} warten unter „Neue Dateien"`);
+  if (r.failed > 0) parts.push(`${r.failed} fehlgeschlagen (ebenfalls dort)`);
+  return `Ordner „${r.folderName}" hängt am Notebook „${notebookName}" — ${r.total} Datei${r.total === 1 ? '' : 'en'}: ${parts.join(', ')} (${absolutizeUrl(url)}).`;
+}
+
+async function previewOrError(
+  userId: string,
+  folder: WolkeFolderArg
+): Promise<Awaited<ReturnType<typeof previewWolkeFolder>>> {
+  try {
+    return await previewWolkeFolder({
+      userId,
+      connectionId: folder.connectionId,
+      folderPath: folder.path,
+      includeSubfolders: folder.includeSubfolders,
+    });
+  } catch (err) {
+    return { error: toUserFacingMessage(err, 'Der Wolke-Ordner ließ sich nicht lesen.') };
+  }
+}
+
+export async function createNotebookMcp(
+  userId: string,
+  args: Record<string, unknown>
+): Promise<ToolResult> {
+  const name = typeof args.name === 'string' ? args.name.trim() : '';
+  if (!name) return { error: 'create braucht einen name.' };
+  const description = typeof args.description === 'string' ? args.description.trim() || null : null;
+  const profile = await getProfileService().getProfileById(userId);
+  const audience = profile?.locale === 'de-AT' ? 'de-AT' : 'de-DE';
+  const folder = readWolkeFolder(args.wolkeFolder);
+
+  if (!folder) {
+    const created = await createNotebookDirect(notebookHelper(), {
+      userId,
+      name,
+      description,
+      audience,
+    });
+    return {
+      ok: true,
+      note: `Notebook „${name}" wurde angelegt (leer, privat): ${absolutizeUrl(created.url)}`,
+    };
+  }
+
+  // Ein Import kostet (OCR seitenweise) → zweistufig, wie die Karte im Chat.
+  const preview = await previewOrError(userId, folder);
+  if ('error' in preview) return { error: preview.error };
+  if (args.confirm !== true) {
+    return {
+      needsConfirmation: true,
+      note: `Notebook „${name}" aus dem Wolke-Ordner „${preview.folderName}" (${preview.fileCount} Dateien, ${preview.alreadyImported} schon importiert) anlegen? Die ersten Dateien werden sofort ausgelesen, der Rest wartet im Notebook unter „Neue Dateien". Frage die Person und rufe create erst mit confirm=true erneut auf.`,
+    };
+  }
+  const created = await createNotebookDirect(notebookHelper(), {
+    userId,
+    name,
+    description,
+    audience,
+  });
+  try {
+    const r = await attachWolkeFolderToNotebook({
+      userId,
+      collectionId: created.id,
+      shareLinkId: preview.root.connectionId,
+      folderPath: folder.path,
+      includeSubfolders: folder.includeSubfolders,
+    });
+    return { ok: true, note: describeAttach(r, name, created.url) };
+  } catch (err) {
+    return {
+      error: toUserFacingMessage(
+        err,
+        `Notebook „${name}" wurde angelegt, der Import ist fehlgeschlagen — im Notebook „Synchronisieren" wählen (${absolutizeUrl(created.url)}).`
+      ),
+    };
+  }
+}
+
+async function ownedNotebook(
+  userId: string,
+  id: string | null
+): Promise<
+  | { collection: NonNullable<Awaited<ReturnType<NotebookQdrantHelper['getNotebookCollection']>>> }
+  | { error: string }
+> {
+  if (!id) return { error: 'Diese Aktion braucht eine Notebook-id (aus list).' };
+  const access = await checkNotebookAccess(id, userId);
+  if (!access.exists || !access.canRead)
+    return { error: 'Notebook nicht gefunden oder kein Zugriff.' };
+  if (!access.isOwner) return { error: 'Das kann nur die Eigentümer*in des Notebooks.' };
+  const collection = await notebookHelper().getNotebookCollection(id);
+  if (!collection) return { error: 'Notebook nicht gefunden oder kein Zugriff.' };
+  return { collection };
+}
+
+export async function addWolkeFolderMcp(
+  userId: string,
+  args: Record<string, unknown>
+): Promise<ToolResult> {
+  const owned = await ownedNotebook(userId, typeof args.id === 'string' ? args.id : null);
+  if ('error' in owned) return owned;
+  const folder = readWolkeFolder(args.wolkeFolder);
+  if (!folder) return { error: 'add_wolke_folder braucht wolkeFolder {connectionId?, path}.' };
+  const preview = await previewOrError(userId, folder);
+  if ('error' in preview) return { error: preview.error };
+  const { collection } = owned;
+  if (args.confirm !== true) {
+    return {
+      needsConfirmation: true,
+      note: `Ordner „${preview.folderName}" (${preview.fileCount} Dateien, ${preview.alreadyImported} schon importiert) ans Notebook „${collection.name}" hängen? Frage die Person und rufe add_wolke_folder erst mit confirm=true erneut auf.`,
+    };
+  }
+  try {
+    const r = await attachWolkeFolderToNotebook({
+      userId,
+      collectionId: collection.id,
+      shareLinkId: preview.root.connectionId,
+      folderPath: folder.path,
+      includeSubfolders: folder.includeSubfolders,
+    });
+    return { ok: true, note: describeAttach(r, collection.name, notebookUrl(collection)) };
+  } catch (err) {
+    return {
+      error: toUserFacingMessage(
+        err,
+        'Der Ordner hängt am Notebook, der Import ist fehlgeschlagen — im Notebook „Synchronisieren" wählen.'
+      ),
+    };
+  }
+}
+
+export async function setNotebookVisibilityMcp(
+  userId: string,
+  args: Record<string, unknown>
+): Promise<ToolResult> {
+  const owned = await ownedNotebook(userId, typeof args.id === 'string' ? args.id : null);
+  if ('error' in owned) return owned;
+  const patch = {
+    ...(typeof args.shareMode === 'string'
+      ? { share_mode: args.shareMode as 'private' | 'groups' | 'authenticated' }
+      : {}),
+    ...(typeof args.editPolicy === 'string'
+      ? { edit_policy: args.editPolicy as 'owner_only' | 'group_admins' | 'all_members' }
+      : {}),
+    ...(typeof args.isPublic === 'boolean' ? { is_public: args.isPublic } : {}),
+    ...(typeof args.publicOwnership === 'string'
+      ? { public_ownership: args.publicOwnership as 'owner' | 'public_data' }
+      : {}),
+  };
+  if (Object.keys(patch).length === 0) {
+    return { error: 'set_visibility braucht shareMode, editPolicy oder isPublic.' };
+  }
+  const { collection } = owned;
+  if (args.confirm !== true) {
+    const target =
+      patch.share_mode === 'authenticated'
+        ? ' „Mit Anmeldung" heißt: alle angemeldeten Personen dieser Instanz.'
+        : '';
+    return {
+      needsConfirmation: true,
+      note: `Sichtbarkeit von „${collection.name}" ändern (${JSON.stringify(patch)})?${target} Frage die Person und rufe set_visibility erst mit confirm=true erneut auf.`,
+    };
+  }
+  const applied = await applyNotebookVisibility(collection.id, userId, patch);
+  if (!applied.ok) return { error: applied.error };
+  return { ok: true, note: `Sichtbarkeit von „${collection.name}" wurde geändert.` };
+}
+
+export async function shareNotebookMcp(
+  userId: string,
+  args: Record<string, unknown>
+): Promise<ToolResult> {
+  const owned = await ownedNotebook(userId, typeof args.id === 'string' ? args.id : null);
+  if ('error' in owned) return owned;
+  const groupName = typeof args.groupName === 'string' ? args.groupName.trim() : '';
+  if (!groupName) return { error: 'share_to_group braucht groupName.' };
+  const groups = await findGroups(userId, groupName, 5);
+  const group = groups.find((g) => g.role);
+  if (!group) return { error: `Kein Projekt „${groupName}" gefunden, dem du angehörst.` };
+  const { collection } = owned;
+  if (args.confirm !== true) {
+    return {
+      needsConfirmation: true,
+      note: `Notebook „${collection.name}" mit dem Projekt „${group.name}" teilen (nur lesen)? Frage die Person und rufe share_to_group erst mit confirm=true erneut auf.`,
+    };
+  }
+  const rows = (await getPostgresInstance().query(
+    'SELECT display_name FROM profiles WHERE id = $1',
+    [userId]
+  )) as { display_name: string | null }[];
+  const outcome = await shareContentToGroup({
+    userId,
+    contentType: 'notebook_collections',
+    contentId: collection.id,
+    groupId: group.id,
+    permissions: { read: true, write: false },
+    sharerName: rows[0]?.display_name || 'Jemand',
+  });
+  if (!outcome.success) return { error: outcome.message };
+  return { ok: true, note: `Notebook „${collection.name}" wurde mit „${group.name}" geteilt.` };
 }
