@@ -127,7 +127,7 @@ __pycache__/
 SECURITY-ALERTS.md
 
 # Documentation (local development, root-level only)
-/docs/
+/docs/*
 !packages/docs/
 !documentation/docs/
 
