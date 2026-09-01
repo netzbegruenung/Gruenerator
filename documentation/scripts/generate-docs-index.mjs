@@ -36,15 +36,20 @@ const OUT_FILE = path.join(REPO_ROOT, 'apps', 'api', 'services', 'docs', 'docsIn
  */
 const EXCLUDED_TOP_FOLDERS = new Set(['intern', 'experimente']);
 
+/**
+ * Individual pages temporarily out of the docs (docs.exclude in
+ * documentation/docusaurus.config.ts) — same reason as EXCLUDED_TOP_FOLDERS.
+ */
+const EXCLUDED_FILES = new Set(['basics/finetuning', 'basics/welches-ki-tool-wofuer']);
+
 /** Human labels per top-level folder — becomes the page-map grouping. */
 const CATEGORY_LABELS = {
-  'ueber-den-gruenerator': 'Über den Grünerator',
+  basics: 'Basics',
   guides: 'Guides',
   chat: 'Chat',
   features: 'Features',
   konto: 'Konto & Projekte',
   integrationen: 'Integrationen',
-  grundlagen: 'Grundlagen',
   sonstiges: 'Sonstiges',
   archiv: 'Archiv',
 };
@@ -64,6 +69,7 @@ function walk(dir, relBase = '') {
       if (!relBase && EXCLUDED_TOP_FOLDERS.has(name)) continue;
       out.push(...walk(abs, rel));
     } else if (name.endsWith('.md') || name.endsWith('.mdx')) {
+      if (EXCLUDED_FILES.has(rel.replace(/\.mdx?$/, ''))) continue;
       out.push(rel);
     }
   }
