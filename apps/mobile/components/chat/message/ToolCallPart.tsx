@@ -200,7 +200,11 @@ function AssistantToolCallPart(props: ToolCallProps) {
   // on screen as "generating". `getToolMeta` is the shared source web reads and
   // never yields an internal name.
   if (result === undefined) {
-    return <ShimmerStatusLine label={getToolMeta(toolName).label} theme={theme} />;
+    // Verb pair: the present-tense label while it runs ("Lade Schreibvorgaben"),
+    // falling back to the resting label for tools that declare no activeLabel.
+    // Same shared metadata web reads — the two platforms say the same words.
+    const meta = getToolMeta(toolName);
+    return <ShimmerStatusLine label={meta.activeLabel ?? meta.label} theme={theme} />;
   }
   // Completed — the shared registry parses the result to a platform-neutral
   // view-model; this switch only maps its kind to the native component.
