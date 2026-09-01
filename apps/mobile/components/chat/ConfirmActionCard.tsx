@@ -24,11 +24,21 @@ const ICON_MAP: Record<ConfirmActionData['type'], IoniconsIconName> = {
   create_group: 'people-outline',
   join_group: 'person-add-outline',
   add_cloud_connection: 'cloud-outline',
+  attach_wolke_folder: 'folder-open-outline',
+  set_notebook_visibility: 'eye-outline',
+  share_notebook: 'share-social-outline',
+  set_group_visibility: 'eye-outline',
+  create_recurring_task: 'repeat-outline',
+  create_user_agent: 'sparkles-outline',
+  share_user_agent: 'share-social-outline',
 };
 
 const GROUP_ACTION_TYPES: ReadonlySet<ConfirmActionData['type']> = new Set([
   'create_group',
   'join_group',
+  'share_notebook',
+  'set_group_visibility',
+  'share_user_agent',
 ]);
 
 export function ConfirmActionCard({ action, theme }: { action: ConfirmActionData; theme: Theme }) {

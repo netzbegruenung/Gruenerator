@@ -116,12 +116,12 @@ export async function getAgentForUser(
 
   try {
     const userAgent = await getUserAgentRow(userId, identifier);
-    if (userAgent) return userAgent as AgentConfig;
+    if (userAgent) return { ...userAgent, isUserAgent: true } as AgentConfig;
 
     // Not the owner — fall back to an agent shared into one of the user's
     // groups (dedicated agent-share flow, keyed by the agent's UUID).
     const sharedAgent = await getGroupSharedUserAgent(identifier, userId);
-    if (sharedAgent) return sharedAgent as AgentConfig;
+    if (sharedAgent) return { ...sharedAgent, isUserAgent: true } as AgentConfig;
   } catch (error) {
     log.error('[AgentLoader] Error looking up user agent:', error);
   }

@@ -325,7 +325,6 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         lastUserMessage,
         forcedTools,
         runAgentic: plan.runAgentic,
-        agentId,
         rawDocMentionIds,
         rawDocumentChatIds,
       });

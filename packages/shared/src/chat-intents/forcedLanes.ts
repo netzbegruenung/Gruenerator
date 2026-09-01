@@ -113,7 +113,6 @@ export const FORCED_LANE_BY_INTENT: Record<ChatIntentId, ForcedLane> = {
   web: 'single-pass',
   scrape_url: 'single-pass',
   artifact: 'single-pass',
-  create_recurring_task: 'single-pass',
   modify_doc: 'single-pass',
   edit_current_doc: 'single-pass',
   edit_current_board: 'single-pass',
@@ -138,6 +137,9 @@ export const FORCED_LANE_BY_INTENT: Record<ChatIntentId, ForcedLane> = {
   // Dasselbe für `@pressemitteilungen`: der Pin zwingt den Turn in die
   // Schleife, nicht diese Zeile.
   pressemitteilung_examples: 'single-pass',
+  // `create_recurring_task` hat gar keine Erwähnung; der Pin kommt aus Tier 3.4
+  // des Klassifikators. Auch hier zwingt der Pin, nicht die Zeile.
+  create_recurring_task: 'single-pass',
   bahn: 'single-pass',
   reise: 'single-pass',
   hotel: 'single-pass',

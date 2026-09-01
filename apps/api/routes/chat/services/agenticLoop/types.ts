@@ -205,4 +205,12 @@ export const NEAR_DUPLICATE_EXEMPT_TOOLS: ReadonlySet<string> = new Set([
   'read_artifact',
   'notebooks',
   'memory',
+  // get → content auf dasselbe Projekt teilen sich bis auf die action jedes Token.
+  'groups',
+  // get → pause → run_now auf dieselbe taskId: nur die action unterscheidet sie.
+  'recurring_tasks',
+  // get → update → share_to_group auf denselben identifier: nur die action unterscheidet sie.
+  'user_agents',
+  // get → add_examples → delete auf dieselbe mention: nur die action unterscheidet sie.
+  'recipes',
 ]);
