@@ -38,9 +38,9 @@ vi.mock('./agents/providers.js', () => ({
 vi.mock('../../services/telemetry/langfuseTelemetry.js', () => ({
   BOTH_LANES_FAILED: 'generation failed on both model lanes',
   buildAiTelemetry: () => undefined,
-  // Mirrors the disabled-mode handle: no trace id, update() swallowed.
+  // Mirrors the enabled-mode handle: a real trace id, update() swallowed.
   withLangfuseTrace: async (_o: unknown, fn: (t: unknown) => Promise<unknown>) =>
-    fn({ traceId: undefined, update: () => {} }),
+    fn({ traceId: 'a'.repeat(32), update: () => {} }),
 }));
 vi.mock('../../database/services/NotebookQdrantHelper.js', () => ({
   NotebookQdrantHelper: class {
@@ -353,5 +353,15 @@ describe('citation validation', () => {
     const completion = sent.find((e) => e.event === 'completion');
     expect(completion?.data.answer).toContain('[cite:1]');
     expect(completion?.data.answer).toContain('[9]');
+  });
+});
+
+describe('trace id', () => {
+  it('puts the langfuse trace id into the completion metadata and the result', async () => {
+    vi.clearAllMocks();
+    setupMocks();
+    const sent = await run('deep');
+    const completion = sent.find((e) => e.event === 'completion');
+    expect((completion?.data.metadata as { traceId?: string }).traceId).toBe('a'.repeat(32));
   });
 });
