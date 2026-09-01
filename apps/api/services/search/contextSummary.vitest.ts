@@ -22,10 +22,10 @@ const ref = (over: Partial<ReferencesMap[string]>): ReferencesMap[string] => ({
 describe('buildContextSummary', () => {
   it('leads with today and tags each dated source', () => {
     const map: ReferencesMap = {
-      '1': ref({ date: '2025-03-01', collection_name: 'Grundsatz' }),
+      '1': ref({ date: '2025-03-15', collection_name: 'Grundsatz' }),
       '2': ref({ title: 'Antrag', date: null }),
     };
-    const out = buildContextSummary(map, new Date('2026-09-02T00:00:00Z'));
+    const out = buildContextSummary(map, new Date('2026-09-02T12:00:00Z'));
     expect(out.startsWith('Heutiges Datum: 2. September 2026\n\n')).toBe(true);
     expect(out).toContain(
       '1. [Grundsatz] (Datum: März 2025) Wahlprogramm — "Windkraft massiv ausbauen"'
