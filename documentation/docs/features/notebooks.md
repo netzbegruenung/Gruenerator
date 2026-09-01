@@ -104,4 +104,4 @@ Dann ließ sich beim Verarbeiten kein Text daraus gewinnen; der Grund steht in d
 ## Verwandte Themen
 
 - [Wolke einbinden](/docs/guides/fortgeschrittene/gruene-wolke-einbinden) — Voraussetzung, um Wolke-Ordner an Notebooks zu hängen.
-- [Deine Daten im Grünerator](/docs/ueber-den-gruenerator/notebook) — Hintergrund zu Notebooks für Landesverbände und Abgeordnetenbüros.
+- [Deine Daten im Grünerator](/docs/basics/notebook) — Hintergrund zu Notebooks für Landesverbände und Abgeordnetenbüros.

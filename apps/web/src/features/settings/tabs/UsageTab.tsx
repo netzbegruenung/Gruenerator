@@ -115,7 +115,7 @@ function ReferenceComparison({ footprint }: { footprint: UsageFootprintDto }) {
           </>
         )}
         <a
-          href={`${getDocsUrl()}/docs/ueber-den-gruenerator/nachhaltigkeit`}
+          href={`${getDocsUrl()}/docs/basics/nachhaltigkeit`}
           target="_blank"
           rel="noreferrer"
           className="underline hover:text-foreground"
@@ -163,7 +163,7 @@ function FootprintNote({ footprint }: { footprint: UsageFootprintDto }) {
       )}
       Transkription und Web-Recherche fehlen, weil dafür keine Messwerte vorliegen.{' '}
       <a
-        href={`${getDocsUrl()}/docs/ueber-den-gruenerator/nachhaltigkeit`}
+        href={`${getDocsUrl()}/docs/basics/nachhaltigkeit`}
         target="_blank"
         rel="noreferrer"
         className="underline hover:text-foreground"
