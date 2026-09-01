@@ -19,6 +19,7 @@ import type {
 import type { AgentConfig } from '../../../routes/chat/agents/types.js';
 import type { ArtifactKindId } from '../../../routes/chat/services/artifactKindRegistry.js';
 import type { SystemMcpKey } from '../../../services/mcp/systemMcpServers.js';
+import type { UserAgentInput } from '../../../services/userAgents/userAgentsRepository.js';
 import type {
   WolkeFileRef,
   ConnectFileRef,
@@ -1328,6 +1329,29 @@ export interface SetGroupVisibilityPayload {
 export type CreateRecurringTaskPayload = CreateRecurringTaskBody & { agentTitle: string | null };
 
 /**
+ * Einen eigenen Grünerator-Agent anlegen — `input` geht unverändert an
+ * `createUserAgent`. Eine Karte, weil die Rolle ein LLM-Entwurf ist, den die
+ * Person vor dem Speichern sehen soll, und der Agent danach in jedem Chat mit
+ * dieser Rolle handelt.
+ */
+export interface CreateUserAgentPayload {
+  input: UserAgentInput;
+}
+
+/**
+ * Einen eigenen Grünerator-Agent mit einem Projekt teilen. `agentId` ist die
+ * UUID (der Schlüssel in `group_content_shares`), `identifier` und
+ * `agentTitle` sind für Meldung und Link.
+ */
+export interface ShareUserAgentPayload {
+  identifier: string;
+  agentTitle: string;
+  agentId: string;
+  groupId: string;
+  groupName: string;
+}
+
+/**
  * Pending action stored in Redis while awaiting user confirmation.
  * Discriminated union ensures type-safe payload access per action type.
  */
@@ -1351,6 +1375,8 @@ export type PendingAction = {
   | { type: 'share_notebook'; payload: ShareNotebookPayload }
   | { type: 'set_group_visibility'; payload: SetGroupVisibilityPayload }
   | { type: 'create_recurring_task'; payload: CreateRecurringTaskPayload }
+  | { type: 'create_user_agent'; payload: CreateUserAgentPayload }
+  | { type: 'share_user_agent'; payload: ShareUserAgentPayload }
 );
 
 /**

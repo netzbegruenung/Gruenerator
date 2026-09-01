@@ -1,12 +1,12 @@
 /**
- * Das Vokabular-Tor für `recurring_tasks` — was es montiert und was nicht.
+ * Die Vokabular-Tore für `recurring_tasks` und `user_agents` — was sie montieren und was nicht.
  *
  * Die Negativfälle sind der Punkt: „Aufgabe" gehört auch den Board-Karten,
  * und jeder Treffer hier kostet das Schema im Katalog.
  */
 import { describe, expect, it } from 'vitest';
 
-import { mentionsRecurringTasks } from './agenturaContext.js';
+import { mentionsRecurringTasks, mentionsUserAgents } from './agenturaContext.js';
 
 describe('mentionsRecurringTasks — trifft', () => {
   it.each([
@@ -46,5 +46,40 @@ describe('mentionsRecurringTasks — trifft NICHT', () => {
   it('ignores null and undefined', () => {
     expect(mentionsRecurringTasks(null)).toBe(false);
     expect(mentionsRecurringTasks(undefined)).toBe(false);
+  });
+});
+
+describe('mentionsUserAgents — trifft', () => {
+  it.each([
+    'Leg mir einen Agenten an, der Pressemitteilungen für den KV schreibt',
+    'Welche Grünerator-Agenten habe ich?',
+    'Zeig mir meine Agenten',
+    'Ändere die Systemrolle meines Agenten',
+    'Bau einen KI-Agenten für den Newsletter',
+    'Teil den Agenten mit dem Projekt Klima-AG',
+    'Meine Agent*innen bitte',
+    'Was steht in der Agentura?',
+    'Gib der Persona einen lockereren Ton',
+    'Den Agenten löschen, bitte',
+  ])('%s', (text) => {
+    expect(mentionsUserAgents(text)).toBe(true);
+  });
+});
+
+describe('mentionsUserAgents — trifft NICHT', () => {
+  it.each([
+    'Schreib eine PM zur neuen Agentur für Arbeit',
+    'Was steht auf der Agenda der Sitzung?',
+    'Die Agenten des BND wurden enttarnt', // Nachricht, kein Produktwort
+    'Was ist die Position der Grünen zum Tempolimit?',
+    'Pausier meine Erinnerung für den Newsletter', // recurring_tasks
+    '',
+  ])('%s', (text) => {
+    expect(mentionsUserAgents(text)).toBe(false);
+  });
+
+  it('ignores null and undefined', () => {
+    expect(mentionsUserAgents(null)).toBe(false);
+    expect(mentionsUserAgents(undefined)).toBe(false);
   });
 });

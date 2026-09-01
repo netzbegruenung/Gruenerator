@@ -30,6 +30,7 @@ import {
   makeMediaTool,
 } from '../chat/agents/personalDataTools.js';
 import { makeRecurringTasksTool } from '../chat/agents/recurringTaskTools.js';
+import { makeUserAgentsTool } from '../chat/agents/userAgentTools.js';
 import { runBoardGeneration, runDocGeneration } from '../chat/services/intentExecutionService.js';
 import {
   computeMergedFilters,
@@ -51,11 +52,13 @@ import {
   createGroupDirect,
   createNotebookMcp,
   createRecurringTaskMcp,
+  createUserAgentMcp,
   joinGroupDirect,
   setGroupVisibilityMcp,
   setNotebookVisibilityMcp,
   shareDocToGroupMcp,
   shareNotebookMcp,
+  shareUserAgentMcp,
 } from './mcpMutations.js';
 import {
   buildCollectionCatalog,
@@ -658,6 +661,26 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
         : ['list', 'get'],
       ...(contentWrite
         ? { overrides: { create: (args) => createRecurringTaskMcp(userId, args) } }
+        : { readOnly: true }),
+    });
+  }
+
+  // ── user_agents (content-Scope: der Agent ist Inhalt des Kontos) ──────────
+  if (contentRead) {
+    registerAiTool(server, 'user_agents', makeUserAgentsTool(ctx), {
+      description: contentWrite
+        ? `Zugriff auf die eigenen Grünerator-Agenten der Person (Agentura): auflisten (list — der identifier steht im ref, geteilte Agenten sind markiert), Details mit Rolle, Werkzeugen, Rezepten, Notebooks und Sichtbarkeit (get), aus einer Beschreibung neu anlegen (create mit brief; optional title, systemRole, enabledTools, skillMentions, defaultNotebookIds — die Rolle wird entworfen), ändern (update), mit einem Projekt teilen (share_to_group mit groupName), löschen (delete). create, share_to_group und delete verlangen das zweistufige confirm-Protokoll. System-Grüneratoren (gruenerator-…) sind hier nicht erreichbar.`
+        : `Die eigenen und die aus Projekten geteilten Grünerator-Agenten der Person auflisten (list — der identifier steht im ref) oder Details ansehen (get).`,
+      actions: contentWrite
+        ? ['list', 'get', 'create', 'update', 'share_to_group', 'delete']
+        : ['list', 'get'],
+      ...(contentWrite
+        ? {
+            overrides: {
+              create: (args) => createUserAgentMcp(userId, args),
+              share_to_group: (args) => shareUserAgentMcp(userId, args),
+            },
+          }
         : { readOnly: true }),
     });
   }

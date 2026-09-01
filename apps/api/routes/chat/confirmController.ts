@@ -357,6 +357,45 @@ async function executeAction(action: PendingAction): Promise<{ message: string; 
       };
     }
 
+    case 'create_user_agent': {
+      const { createUserAgentSafely, userAgentUrl } = await import('./agents/userAgentTools.js');
+      const agent = await createUserAgentSafely(action.userId, action.payload.input);
+      log.info(
+        `[ConfirmController] User agent created: "${agent.title}" (${agent.identifier}) — ` +
+          `tools=[${(agent.enabledTools ?? []).join(',')}] notebooks=${agent.defaultNotebookIds?.length ?? 0}`
+      );
+      return {
+        message: `Grünerator-Agent **„${agent.title}"** angelegt — die Rolle lässt sich jederzeit in den Einstellungen des Agenten oder im Chat verfeinern.`,
+        url: userAgentUrl(agent.identifier),
+      };
+    }
+
+    case 'share_user_agent': {
+      const { shareContentToGroup } = await import('../../services/groups/groupContent.js');
+      const { getPostgresInstance } = await import('../../database/services/PostgresService.js');
+      const { agentTitle, agentId, groupId, groupName } = action.payload;
+      const rows = (await getPostgresInstance().query(
+        'SELECT display_name FROM profiles WHERE id = $1',
+        [action.userId]
+      )) as { display_name: string | null }[];
+      // Derselbe Pfad wie `userAgentsSharingContractRouter.addGroupShare`:
+      // Besitzprüfung über `user_agents.user_id`, Doppel-Check, Insert mit
+      // {read, !write} — plus die Benachrichtigung, die der Router nicht schickt.
+      const outcome = await shareContentToGroup({
+        userId: action.userId,
+        contentType: 'user_agents',
+        contentId: agentId,
+        groupId,
+        permissions: { read: true, write: false },
+        sharerName: rows[0]?.display_name || 'Jemand',
+      });
+      if (!outcome.success) throw new ConfirmActionRefusal(outcome.message);
+      return {
+        message: `Grünerator-Agent **„${agentTitle}"** wurde mit **„${groupName}"** geteilt.`,
+        url: `/gruppen/${groupId}`,
+      };
+    }
+
     default: {
       const _exhaustive: never = action;
       throw new Error(`Unknown action type: ${(action as PendingAction).type}`);

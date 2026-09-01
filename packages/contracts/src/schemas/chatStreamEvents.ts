@@ -330,6 +330,9 @@ export const confirmActionTypeSchema = z.enum([
   // dem stillgelegten Intent, bewusst: es ist dieselbe Handlung, nur mit
   // Bestätigung statt stillem Schreiben.
   'create_recurring_task',
+  // Karten des `user_agents`-Werkzeugs (09/2026), additiv.
+  'create_user_agent',
+  'share_user_agent',
 ]);
 export type ConfirmActionType = z.infer<typeof confirmActionTypeSchema>;
 

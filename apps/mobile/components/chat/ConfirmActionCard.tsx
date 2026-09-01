@@ -29,6 +29,8 @@ const ICON_MAP: Record<ConfirmActionData['type'], IoniconsIconName> = {
   share_notebook: 'share-social-outline',
   set_group_visibility: 'eye-outline',
   create_recurring_task: 'repeat-outline',
+  create_user_agent: 'sparkles-outline',
+  share_user_agent: 'share-social-outline',
 };
 
 const GROUP_ACTION_TYPES: ReadonlySet<ConfirmActionData['type']> = new Set([
@@ -36,6 +38,7 @@ const GROUP_ACTION_TYPES: ReadonlySet<ConfirmActionData['type']> = new Set([
   'join_group',
   'share_notebook',
   'set_group_visibility',
+  'share_user_agent',
 ]);
 
 export function ConfirmActionCard({ action, theme }: { action: ConfirmActionData; theme: Theme }) {

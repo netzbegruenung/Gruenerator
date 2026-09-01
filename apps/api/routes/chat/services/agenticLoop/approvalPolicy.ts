@@ -37,6 +37,9 @@ export const CONFIRM_ACTION_GATED_TOOLS: ReadonlySet<string> = new Set([
   // `create` ist eine Karte, `delete` der `confirm=true`-Zweischritt; der Rest
   // ist privat und umkehrbar.
   'recurring_tasks',
+  // `create` und `share_to_group` sind Karten, `delete` der Zweischritt;
+  // `update` ist privat und umkehrbar.
+  'user_agents',
 ]);
 
 export function approvalScopeKey(toolName: string, origin?: ToolOrigin | null): string {

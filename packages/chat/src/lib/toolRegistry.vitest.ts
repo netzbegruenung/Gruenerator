@@ -493,6 +493,91 @@ describe('loop-catalog tool parsers', () => {
     expect(resolveToolEntry('recurring_tasks').meta.label).toBe('Wiederkehrende Aufgaben');
   });
 
+  // user_agents: `get` liefert `{agent}` mit fertigen Etiketten (userAgentTools.ts);
+  // `list` bleibt Zeilen → Zitatliste; Karten-Aktionen sind eine Notiz.
+  it('user_agents get renders the detail rows with the server-side labels', () => {
+    const vm = resolveToolEntry('user_agents').parse(
+      { action: 'get', identifier: 'presse-kv-ab12cd' },
+      {
+        agent: {
+          identifier: 'presse-kv-ab12cd',
+          title: 'Presse KV',
+          description: 'Schreibt Pressemitteilungen.',
+          role: 'Du bist die Pressestelle …',
+          toolLabels: 'Grünerator-Wissen, Recherche',
+          skillMentions: ['presse'],
+          notebooks: [{ id: 'nb-1', name: 'Kommunalpolitik' }],
+          shareModeLabel: 'Privat',
+          sharedFromGroup: null,
+          url: '/agents/presse-kv-ab12cd',
+        },
+      }
+    );
+    expect(vm.kind).toBe('key-value');
+    if (vm.kind === 'key-value') {
+      expect(vm.entries).toEqual([
+        { label: 'Name', value: 'Presse KV' },
+        { label: 'Beschreibung', value: 'Schreibt Pressemitteilungen.' },
+        { label: 'Werkzeuge', value: 'Grünerator-Wissen, Recherche' },
+        { label: 'Rezepte', value: 'presse' },
+        { label: 'Notebooks', value: 'Kommunalpolitik' },
+        { label: 'Sichtbarkeit', value: 'Privat' },
+      ]);
+    }
+  });
+
+  it('user_agents get on a shared agent shows the group and stops there', () => {
+    const vm = resolveToolEntry('user_agents').parse(
+      { action: 'get', identifier: 'wahlkampf-xy' },
+      {
+        agent: {
+          identifier: 'wahlkampf-xy',
+          title: 'Wahlkampf',
+          description: 'Hilft im Wahlkampf.',
+          sharedFromGroup: 'Klima-AG',
+          readOnly: true,
+          url: '/agents/wahlkampf-xy',
+        },
+      }
+    );
+    expect(vm.kind).toBe('key-value');
+    if (vm.kind === 'key-value') {
+      expect(vm.entries).toEqual([
+        { label: 'Name', value: 'Wahlkampf' },
+        { label: 'Beschreibung', value: 'Hilft im Wahlkampf.' },
+        { label: 'Geteilt aus', value: 'Klima-AG' },
+      ]);
+    }
+  });
+
+  it('user_agents list lifts the rows into citations; create/share are a note', () => {
+    const list = resolveToolEntry('user_agents').parse(
+      { action: 'list' },
+      {
+        resultCount: 1,
+        results: [
+          { title: 'Presse KV', url: '/agents/presse-kv-ab12cd', type: 'Grünerator-Agent' },
+        ],
+      }
+    );
+    expect(list.kind).toBe('citations');
+    if (list.kind === 'citations') expect(list.citations[0].title).toBe('Presse KV');
+
+    const card = resolveToolEntry('user_agents').parse(
+      { action: 'create', brief: 'x' },
+      {
+        ok: true,
+        needsConfirmation: true,
+        note: 'Bestätigung angefordert: Grünerator-Agent „X" anlegen.',
+      }
+    );
+    expect(card).toEqual({
+      kind: 'text-note',
+      text: 'Bestätigung angefordert: Grünerator-Agent „X" anlegen.',
+    });
+    expect(resolveToolEntry('user_agents').meta.label).toBe('Grünerator-Agenten');
+  });
+
   it('every formerly-unregistered tool now resolves to a real label', () => {
     const previouslyBroken = [
       'rezept_laden',

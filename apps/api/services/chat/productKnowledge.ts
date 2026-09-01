@@ -85,7 +85,7 @@ const STATIC_TOOL_LINES = [
   '- Reels: automatische Video-Untertitel',
   '- Notebooks & Recherche: eigene Wissenssammlungen plus grüne Inhaltsdatenbank — im Chat lassen sich Notebooks inhaltlich befragen, anlegen, aus einem Wolke-Ordner befüllen, mit Dokumenten ergänzen, in der Sichtbarkeit ändern und mit einem Projekt teilen',
   '- Grüne Wolke: eigene Nextcloud-Freigaben verbinden — Dateien lassen sich im Chat durchsuchen und lesen',
-  '- Agentura: spezialisierte Grüneratoren nutzen und eigene Agent*innen erstellen',
+  '- Agentura: spezialisierte Grüneratoren nutzen und eigene Grünerator-Agenten bauen — im Chat lassen sich die eigenen und die aus Projekten geteilten Agenten auflisten, ansehen, aus einer Beschreibung neu anlegen (die Rolle wird entworfen und als Karte bestätigt), ändern, mit einem Projekt teilen und löschen; die System-Grüneratoren selbst sind nicht änderbar',
   '- Wiederkehrende Aufgaben (Agentura): ein Grünerator-Agent läuft von selbst täglich, wöchentlich oder monatlich und liefert das Ergebnis als Dokument, Chat oder Benachrichtigung — im Chat lassen sie sich einrichten (mit Bestätigung), auflisten, ändern, pausieren, sofort ausführen und löschen',
   '- Projekte (Gruppen/Spaces): gemeinsame Arbeitsbereiche im Team — im Chat lassen sich Projekte auflisten, ansehen, ihre geteilten Inhalte durchsehen, anlegen, per Einladungslink beitreten, in Name und Beschreibung ändern und öffentlich listen; Mitglieder verwalten geht nur auf der Projektseite',
   '- Scanner, Transkription, Zeichenzähler: Dokumente digitalisieren, Audio verschriftlichen, Textlängen prüfen',

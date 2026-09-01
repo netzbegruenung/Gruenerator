@@ -31,10 +31,17 @@ import {
 } from '../../services/recurringTasks/recurringTaskLabels.js';
 import { createRecurringTask } from '../../services/recurringTasks/recurringTasksRepository.js';
 import { getProfileService } from '../../services/user/ProfileService.js';
+import { getAgentSharing, getUserAgent } from '../../services/userAgents/userAgentsRepository.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { getAgentForUser } from '../chat/agents/agentLoader.js';
 import { createNotebookDirect, notebookUrl } from '../chat/agents/notebookTools.js';
 import { RECURRING_TASKS_URL } from '../chat/agents/recurringTaskTools.js';
+import {
+  createUserAgentSafely,
+  prepareUserAgentInput,
+  resolveUserAgentDeps,
+  userAgentUrl,
+} from '../chat/agents/userAgentTools.js';
 import { hasWriteAccess } from '../chat/confirmController.js';
 import { checkNotebookAccess } from '../notebook/notebookAccess.js';
 
@@ -505,5 +512,94 @@ export async function createRecurringTaskMcp(
   return {
     ok: true,
     note: `Wiederkehrende Aufgabe „${task.title}" eingerichtet — läuft ${takt}, ${zustellung}. Nächste Ausführung: ${formatNextRun(task.nextRunAt, locale)} (${absolutizeUrl(RECURRING_TASKS_URL)}).`,
+  };
+}
+
+/**
+ * `user_agents` create als zweistufiges confirm-Protokoll — im Chat ist das
+ * eine Karte, weil die Rolle ein LLM-Entwurf ist, den die Person vor dem
+ * Speichern sehen soll. Der Entwurf wird bei JEDEM Aufruf neu gemacht, auch
+ * beim zweiten mit confirm=true: der Rückfragetext ist keine Reservierung,
+ * und zwischen den Aufrufen gibt es keinen Speicher. Wer die gezeigte Rolle
+ * exakt will, gibt sie als systemRole mit.
+ */
+export async function createUserAgentMcp(
+  userId: string,
+  args: Record<string, unknown>
+): Promise<ToolResult> {
+  const profile = await getProfileService().getProfileById(userId);
+  const userLocale = profile?.locale === 'de-AT' ? 'de-AT' : 'de-DE';
+  const strings = (key: string): string[] | undefined =>
+    Array.isArray(args[key]) ? (args[key] as unknown[]).map(String) : undefined;
+  const prepared = await prepareUserAgentInput({
+    userId,
+    userLocale,
+    // MCP kennt die Profilrollen nicht — ungefiltert heißt: alle Rezepte gelten.
+    roles: null,
+    brief: typeof args.brief === 'string' ? args.brief : '',
+    ...(typeof args.title === 'string' ? { title: args.title } : {}),
+    ...(typeof args.systemRole === 'string' ? { systemRole: args.systemRole } : {}),
+    fields: {
+      ...(strings('enabledTools') ? { enabledTools: strings('enabledTools') } : {}),
+      ...(strings('skillMentions') ? { skillMentions: strings('skillMentions') } : {}),
+      ...(strings('defaultNotebookIds')
+        ? { defaultNotebookIds: strings('defaultNotebookIds') }
+        : {}),
+    },
+    deps: resolveUserAgentDeps(undefined),
+  });
+  if ('error' in prepared) return prepared;
+  const { input, preview } = prepared;
+  if (args.confirm !== true) {
+    return {
+      needsConfirmation: true,
+      note: `Grünerator-Agent anlegen? ${preview.map((p) => `${p.key}: ${p.value}`).join(' · ')}. Frage die Person und rufe create erst mit confirm=true erneut auf (gern mit systemRole, wenn die Rolle genau so bleiben soll).`,
+    };
+  }
+  const agent = await createUserAgentSafely(userId, input);
+  return {
+    ok: true,
+    note: `Grünerator-Agent „${agent.title}" angelegt (${absolutizeUrl(userAgentUrl(agent.identifier))}).`,
+  };
+}
+
+export async function shareUserAgentMcp(
+  userId: string,
+  args: Record<string, unknown>
+): Promise<ToolResult> {
+  const identifier = typeof args.identifier === 'string' ? args.identifier.trim() : '';
+  if (!identifier) return { error: 'share_to_group braucht identifier.' };
+  const agent = await getUserAgent(userId, identifier);
+  const sharing = agent ? await getAgentSharing(userId, identifier) : undefined;
+  if (!agent || !sharing) {
+    return { error: 'Grünerator-Agent nicht gefunden, oder er gehört dir nicht.' };
+  }
+  const groupName = typeof args.groupName === 'string' ? args.groupName.trim() : '';
+  if (!groupName) return { error: 'share_to_group braucht groupName.' };
+  const groups = await findGroups(userId, groupName, 5);
+  const group = groups.find((g) => g.role);
+  if (!group) return { error: `Kein Projekt „${groupName}" gefunden, dem du angehörst.` };
+  if (args.confirm !== true) {
+    return {
+      needsConfirmation: true,
+      note: `Grünerator-Agent „${agent.title}" mit dem Projekt „${group.name}" teilen (benutzen, nicht bearbeiten)? Frage die Person und rufe share_to_group erst mit confirm=true erneut auf.`,
+    };
+  }
+  const rows = (await getPostgresInstance().query(
+    'SELECT display_name FROM profiles WHERE id = $1',
+    [userId]
+  )) as { display_name: string | null }[];
+  const outcome = await shareContentToGroup({
+    userId,
+    contentType: 'user_agents',
+    contentId: sharing.id,
+    groupId: group.id,
+    permissions: { read: true, write: false },
+    sharerName: rows[0]?.display_name || 'Jemand',
+  });
+  if (!outcome.success) return { error: outcome.message };
+  return {
+    ok: true,
+    note: `Grünerator-Agent „${agent.title}" wurde mit „${group.name}" geteilt.`,
   };
 }
