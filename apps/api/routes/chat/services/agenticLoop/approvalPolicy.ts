@@ -34,6 +34,15 @@ export const CONFIRM_ACTION_GATED_TOOLS: ReadonlySet<string> = new Set([
   // `cloud_files` liest nur; seine einzige wirksame Aktion (`add_connection`)
   // emittiert selbst eine `confirm_action`-Karte.
   'cloud_files',
+  // `create` ist eine Karte, `delete` der `confirm=true`-Zweischritt; der Rest
+  // ist privat und umkehrbar.
+  'recurring_tasks',
+  // `create` und `share_to_group` sind Karten, `delete` der Zweischritt;
+  // `update` ist privat und umkehrbar.
+  'user_agents',
+  // `delete` ist der `confirm=true`-Zweischritt; `create` und `add_examples`
+  // sind privat und umkehrbar (delete), sie zeigen keine Karte.
+  'recipes',
 ]);
 
 export function approvalScopeKey(toolName: string, origin?: ToolOrigin | null): string {
