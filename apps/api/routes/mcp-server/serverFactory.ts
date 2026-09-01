@@ -30,6 +30,7 @@ import {
   makeMediaTool,
 } from '../chat/agents/personalDataTools.js';
 import { makeRecurringTasksTool } from '../chat/agents/recurringTaskTools.js';
+import { makeRecipesTool } from '../chat/agents/textFormTools.js';
 import { makeUserAgentsTool } from '../chat/agents/userAgentTools.js';
 import { runBoardGeneration, runDocGeneration } from '../chat/services/intentExecutionService.js';
 import {
@@ -682,6 +683,20 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
             },
           }
         : { readOnly: true }),
+    });
+  }
+
+  // ── recipes (content-Scope: die Textform ist Inhalt des Kontos) ───────────
+  // Keine Overrides nötig: create und add_examples laufen direkt, delete
+  // fragt selbst über confirm=true. Die Rümpfe der Systemrezepte gibt das
+  // Werkzeug auch hier nicht heraus (parteiinterne Grenze).
+  if (contentRead) {
+    registerAiTool(server, 'recipes', makeRecipesTool(ctx), {
+      description: contentWrite
+        ? `Rezepte und eigene Textformen der Person („Texte anlernen"): alle Rezepte und eigenen Textformen auflisten (list — die mention steht im ref), Details ansehen (get — bei eigenen Textformen mit Beispielen und Stilblock, bei mitgelieferten Rezepten nur Titel und Beschreibung), aus Beispieltexten eine eigene Textform anlernen (create mit title, examples; optional mention, textType — die Mention eines mitgelieferten Rezepts ersetzt dessen Stilvorgaben), Beispiele ergänzen (add_examples), löschen (delete, zweistufiges confirm-Protokoll). Anwenden eines Rezepts ist Sache des Chats, nicht dieses Werkzeugs.`
+        : `Die Rezepte und eigenen Textformen der Person auflisten (list — die mention steht im ref) oder Details ansehen (get).`,
+      actions: contentWrite ? ['list', 'get', 'create', 'add_examples', 'delete'] : ['list', 'get'],
+      ...(contentWrite ? {} : { readOnly: true }),
     });
   }
 

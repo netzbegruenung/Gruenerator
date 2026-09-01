@@ -213,6 +213,17 @@ function summarize(result: unknown): string | undefined {
         : `Grünerator-Agent „${a.title}"`;
     }
   }
+  // `recipes`: get liefert ein Detailobjekt, create/add_examples eines mit
+  // Beispielzahl — sonst hieße es nur „ok".
+  if (r.recipe && typeof r.recipe === 'object') {
+    const t = r.recipe as { title?: unknown; source?: unknown; exampleCount?: unknown };
+    if (typeof t.title === 'string') {
+      if (t.source === 'system') return `Rezept „${t.title}"`;
+      return typeof t.exampleCount === 'number'
+        ? `Textform „${t.title}" (${t.exampleCount} Beispiele)`
+        : `Textform „${t.title}"`;
+    }
+  }
   // rezept_laden: the card names the recipe; the prompt body stays server-side.
   if (typeof r.titel === 'string' && r.geladen === true) return `Rezept: ${r.titel}`;
   if (r.geladen === false) return 'Rezept nicht verfügbar';

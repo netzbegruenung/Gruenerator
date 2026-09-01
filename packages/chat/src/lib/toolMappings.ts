@@ -73,6 +73,7 @@ const TOOL_COUNT_LABELS: Record<string, readonly [singular: string, plural: stri
   groups: ['Projekt-Zugriff', 'Projekt-Zugriffe'],
   recurring_tasks: ['Aufgaben-Zugriff', 'Aufgaben-Zugriffe'],
   user_agents: ['Agenten-Zugriff', 'Agenten-Zugriffe'],
+  recipes: ['Rezept-Zugriff', 'Rezept-Zugriffe'],
 };
 
 /**

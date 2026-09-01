@@ -1,12 +1,12 @@
 /**
- * Die Vokabular-Tore für `recurring_tasks` und `user_agents` — was sie montieren und was nicht.
+ * Die Vokabular-Tore für `recurring_tasks`, `user_agents` und `recipes` — was sie montieren und was nicht.
  *
  * Die Negativfälle sind der Punkt: „Aufgabe" gehört auch den Board-Karten,
  * und jeder Treffer hier kostet das Schema im Katalog.
  */
 import { describe, expect, it } from 'vitest';
 
-import { mentionsRecurringTasks, mentionsUserAgents } from './agenturaContext.js';
+import { mentionsRecipes, mentionsRecurringTasks, mentionsUserAgents } from './agenturaContext.js';
 
 describe('mentionsRecurringTasks — trifft', () => {
   it.each([
@@ -81,5 +81,46 @@ describe('mentionsUserAgents — trifft NICHT', () => {
   it('ignores null and undefined', () => {
     expect(mentionsUserAgents(null)).toBe(false);
     expect(mentionsUserAgents(undefined)).toBe(false);
+  });
+});
+
+describe('mentionsRecipes — trifft', () => {
+  it.each([
+    'Welche Rezepte gibt es?',
+    'Zeig mir meine Textformen',
+    'Lern meinen Schreibstil aus diesen Texten',
+    'Lern dir bitte meinen Stil',
+    'Kannst du meinen Stil speichern?',
+    'Lies die Beispiele ein und merk dir den Stil',
+    'Aus diesen Beispielen lernen, bitte',
+    'So schreibe ich meine Newsletter — merk dir das',
+    'Was habe ich unter Texte anlernen hinterlegt?',
+    'Lösch die angelernte Textform für Instagram',
+    'Welches Rezept nutzt du für Pressemitteilungen?',
+  ])('%s', (text) => {
+    expect(mentionsRecipes(text)).toBe(true);
+  });
+});
+
+describe('mentionsRecipes — trifft NICHT', () => {
+  it.each([
+    // Wortgrenzen: kein Rezept.
+    'Das Medikament ist rezeptfrei erhältlich',
+    'An der Rezeption des Hotels nachfragen',
+    'Mein Kochrezept für Kürbissuppe',
+    // „Stil" als Schreibauftrag, nicht als Verwaltung.
+    'Schreib eine PM im Stil der Grünen Hessen',
+    'Formuliere das im Stil von Robert Habeck',
+    'Gib mir drei Beispiele für gute Hooks',
+    'Was ist die Position der Grünen zum Tempolimit?',
+    'Bau mir einen Agenten für den Newsletter', // user_agents
+    '',
+  ])('%s', (text) => {
+    expect(mentionsRecipes(text)).toBe(false);
+  });
+
+  it('ignores null and undefined', () => {
+    expect(mentionsRecipes(null)).toBe(false);
+    expect(mentionsRecipes(undefined)).toBe(false);
   });
 });

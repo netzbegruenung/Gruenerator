@@ -55,6 +55,9 @@ describe('looksLikeToolableQuestion', () => {
     // Eigene Grünerator-Agenten.
     ['personal agenten', 'zeig meine agenten'],
     ['personal grünerator-agenten', 'zeig mir meine grünerator-agenten'],
+    // Eigene Textformen und Rezepte.
+    ['personal textformen', 'zeig meine textformen'],
+    ['personal rezepte', 'meine rezepte bitte'],
   ];
   it.each(toolable)('routes a real question into the loop: %s', (_label, q) => {
     expect(looksLikeToolableQuestion(q)).toBe(true);

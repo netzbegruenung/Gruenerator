@@ -60,6 +60,7 @@ export const UI_TOOL_NAMES = z.enum([
   'cloud_files',
   'recurring_tasks',
   'user_agents',
+  'recipes',
   // --- Loop-catalog tools that had no UI entry until now. Every string here is
   // copied verbatim from its API mount site; toolCatalogUiCoverage.vitest.ts in
   // apps/api enforces exactly that. F0: additive only, never renamed.
@@ -490,6 +491,51 @@ function parseUserAgentsVM(args: unknown, result: unknown): ToolResultVM {
   return parseGenericFallback(args, result);
 }
 
+// recipes: `get` liefert `{recipe}` — für eine eigene Textform mit Art,
+// Textsorte, Beispielzahl und Stilblock, für ein mitgeliefertes Rezept nur
+// Titel, Beschreibung und den Hinweis (der Rumpf bleibt serverseitig).
+// Listen gehen über `parsePersonalDataVM`, create/add_examples/delete und
+// Fehler als Notiz.
+function parseRecipesVM(args: unknown, result: unknown): ToolResultVM {
+  const error = getString(result, 'error');
+  if (error) return { kind: 'text-note', text: error };
+  const note = getString(result, 'note');
+  if (note) return { kind: 'text-note', text: note };
+  const recipe = getObject(result, 'recipe');
+  if (recipe) {
+    const entries: KeyValueEntry[] = [];
+    const title = getString(recipe, 'title');
+    if (title) entries.push({ label: 'Name', value: title });
+    const mention = getString(recipe, 'mention');
+    if (mention) entries.push({ label: 'Mention', value: `@${mention}` });
+    if (getString(recipe, 'source') === 'system') {
+      const description = getString(recipe, 'description');
+      if (description) entries.push({ label: 'Beschreibung', value: description });
+      entries.push({ label: 'Art', value: 'Mitgeliefertes Rezept' });
+      return { kind: 'key-value', entries, citations: [], markdown: null, imageUrl: null };
+    }
+    const kind = getString(recipe, 'kindLabel');
+    if (kind) entries.push({ label: 'Art', value: kind });
+    const textType = getString(recipe, 'textTypeLabel');
+    if (textType) entries.push({ label: 'Textsorte', value: textType });
+    const count = getNumber(recipe, 'exampleCount');
+    if (count != null) entries.push({ label: 'Beispiele', value: String(count) });
+    const shared = getString(recipe, 'sharedFromGroup');
+    if (shared) entries.push({ label: 'Geteilt aus', value: shared });
+    const style = getString(recipe, 'styleBlock');
+    if (style) {
+      entries.push({
+        label: getBoolean(recipe, 'styleTruncated') ? 'Stil (gekürzt)' : 'Stil',
+        value: style,
+      });
+    }
+    return { kind: 'key-value', entries, citations: [], markdown: null, imageUrl: null };
+  }
+  const items = getArray(result, 'results');
+  if (items && items.length) return parsePersonalDataVM(args, result);
+  return parseGenericFallback(args, result);
+}
+
 // edit_document (agentic editor edit): the loop step that plans + applies typed
 // ops to the open sheet/presentation/board. Result is lean — {ok, operationCount,
 // opSummary} | {ok, operationCount:0, note} | {error} — so a compact text-note
@@ -638,6 +684,7 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   cloud_files: entry('cloud_files', 'key-value', parseCloudFilesVM),
   recurring_tasks: entry('recurring_tasks', 'citations', parseRecurringTasksVM),
   user_agents: entry('user_agents', 'citations', parseUserAgentsVM),
+  recipes: entry('recipes', 'citations', parseRecipesVM),
 
   // --- Loop-catalog tools, previously falling through to the raw-name pill ---
   rezept_laden: entry('rezept_laden', 'text-note', parseRecipeVM),

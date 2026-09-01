@@ -346,6 +346,12 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
     iconKey: 'user',
     accent: 'personal',
   },
+  recipes: {
+    label: 'Rezepte & Textformen',
+    activeLabel: 'Sehe bei den Rezepten nach',
+    iconKey: 'sparkles',
+    accent: 'personal',
+  },
 
   // --- Creation ------------------------------------------------------------
   generate_image: {

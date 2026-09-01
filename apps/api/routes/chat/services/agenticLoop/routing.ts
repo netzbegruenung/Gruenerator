@@ -85,9 +85,10 @@ const CHITCHAT_RE = /^(wer bist du|was (kannst|bist) du|wie geht|wie heißt du|h
 // neither a question word nor a leading verb and must still reach the loop.
 // `erinnerung(en)` likewise with recurring_tasks: „meine Erinnerungen bitte“.
 // `agent(en)` with user_agents: „meine Agenten“, „meine Grünerator-Agenten“ —
-// the trailing `\b` keeps „meine Agentur“ out.
+// the trailing `\b` keeps „meine Agentur“ out. `rezepte`/`textformen` with
+// the recipes tool: „meine Textformen“, „meine Rezepte“.
 const PERSONAL_DATA_RE =
-  /\b(mein|meine|meiner|meinen)\b[\s\wäöüß]*\b(dokumente?|boards?|aufgaben?|tasks?|notebooks?|notizb[üu]cher|sammlung\w*|reels?|sharepics?|gruppen?|projekte?|inhalte?|wolke|erinnerung(?:en)?|(?:gr[üu]nerator-)?agent(?:en|innen|in)?)\b/i;
+  /\b(mein|meine|meiner|meinen)\b[\s\wäöüß]*\b(dokumente?|boards?|aufgaben?|tasks?|notebooks?|notizb[üu]cher|sammlung\w*|reels?|sharepics?|gruppen?|projekte?|inhalte?|wolke|erinnerung(?:en)?|(?:gr[üu]nerator-)?agent(?:en|innen|in)?|rezepte?|textform(?:en)?)\b/i;
 
 /**
  * The whole turn (after stripping a leading greeting) is assistant-directed
