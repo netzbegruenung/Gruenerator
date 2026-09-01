@@ -283,7 +283,7 @@ export async function recallPastChats(
   if (threadIds && threadIds.length === 0) return [];
 
   // Best-effort like the semantic half below: `searchChatHistory` throws now
-  // (so the /chat/search ENDPOINT can answer 500 instead of "no hits"), but
+  // (so the thread-search ENDPOINT can answer 500 instead of "no hits"), but
   // inside a chat turn a transient DB error must degrade recall, not abort the
   // whole answer. The empty result then reads as "nothing recalled", which the
   // router surfaces via recall_degraded.

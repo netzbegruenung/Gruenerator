@@ -19,7 +19,6 @@ import feedbackRouter from './feedbackController.js';
 import messagesRouter from './messagesController.js';
 import notebookStreamRouter from './notebookStreamController.js';
 import promptGeneratorRouter from './promptGeneratorController.js';
-import searchRouter from './searchController.js';
 import summarizeRouter from './summarizeController.js';
 
 const router = express.Router();
@@ -34,7 +33,6 @@ router.use('/generate-system-prompt', promptGeneratorRouter);
 router.use('/confirm', confirmRouter);
 router.use('/compute-assets', computeAssetsRouter);
 router.use('/feedback', feedbackRouter);
-router.use('/search', searchRouter);
 
 router.get('/agents', async (req: Request, res: Response): Promise<void> => {
   try {

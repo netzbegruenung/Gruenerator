@@ -88,3 +88,31 @@ export const officeSearchResponseSchema = z.object({
 });
 
 export type OfficeSearchResponse = z.infer<typeof officeSearchResponseSchema>;
+
+/**
+ * Thread search — the caller's own chat conversations, matching message content
+ * OR thread title. Powers the search field above the sidebar thread list, which
+ * has to find a conversation by something that was *said* in it, not only by its
+ * title. Kept separate from the multi-category `globalSearch` for the same
+ * reason `officeSearch` is: one focused query per keystroke, and a list-sized
+ * result count instead of the palette's five.
+ */
+export const threadSearchItemSchema = z.object({
+  /** chat_threads.id — the client builds the path from it via buildThreadPath. */
+  threadId: z.string(),
+  title: z.string(),
+  /** ±100 chars around the match; the title when the match was title-only. */
+  snippet: z.string(),
+  messageRole: z.enum(['user', 'assistant']),
+  /** ISO timestamp of the matched message. Drives the date grouping. */
+  matchedAt: z.string(),
+});
+
+export type ThreadSearchItem = z.infer<typeof threadSearchItemSchema>;
+
+export const threadSearchResponseSchema = z.object({
+  query: z.string(),
+  items: z.array(threadSearchItemSchema),
+});
+
+export type ThreadSearchResponse = z.infer<typeof threadSearchResponseSchema>;
