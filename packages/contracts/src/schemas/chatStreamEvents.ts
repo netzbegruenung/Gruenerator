@@ -324,6 +324,8 @@ export const confirmActionTypeSchema = z.enum([
   'attach_wolke_folder',
   'set_notebook_visibility',
   'share_notebook',
+  // Projekt-Karte des `groups`-Werkzeugs (09/2026), additiv.
+  'set_group_visibility',
 ]);
 export type ConfirmActionType = z.infer<typeof confirmActionTypeSchema>;
 

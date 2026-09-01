@@ -104,6 +104,13 @@ export const CONFIRM_ACTION_CONFIG: Record<
     icon: 'share-2',
     confirmLabel: 'Teilen',
   },
+  set_group_visibility: {
+    title: 'Sichtbarkeit des Projekts ändern',
+    description:
+      'Öffentlich heißt: das Projekt erscheint unter „Projekte entdecken" und andere können um Aufnahme bitten. Privat heißt: Beitritt nur per Einladungslink.',
+    icon: 'eye',
+    confirmLabel: 'Ändern',
+  },
 };
 
 /**

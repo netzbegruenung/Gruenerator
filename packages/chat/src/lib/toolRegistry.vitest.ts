@@ -400,6 +400,52 @@ describe('loop-catalog tool parsers', () => {
     expect(vm.kind).toBe('citations');
   });
 
+  // groups: `get` liefert ein `{group}`-Detailobjekt (groupTools.ts); `content`
+  // und `list` bleiben Zeilen → Zitatliste.
+  it('groups get renders the detail rows, not the raw object', () => {
+    const vm = resolveToolEntry('groups').parse(
+      { action: 'get', groupId: 'g1' },
+      {
+        group: {
+          id: 'g1',
+          name: 'Klima-AG',
+          description: 'Für den Klimaschutz',
+          url: '/gruppen/klima-ag-ab12cd',
+          role: 'admin',
+          isAdmin: true,
+          memberCount: 7,
+          isPublic: true,
+          audience: 'de-DE',
+          contentCount: 3,
+        },
+      }
+    );
+    expect(vm.kind).toBe('key-value');
+    if (vm.kind === 'key-value') {
+      expect(vm.entries).toEqual([
+        { label: 'Projekt', value: 'Klima-AG' },
+        { label: 'Beschreibung', value: 'Für den Klimaschutz' },
+        { label: 'Rolle', value: 'Admin' },
+        { label: 'Mitglieder', value: '7' },
+        { label: 'Sichtbarkeit', value: 'Öffentlich gelistet' },
+        { label: 'Geteilte Inhalte', value: '3' },
+      ]);
+    }
+  });
+
+  it('groups content lifts the rows into citations', () => {
+    const vm = resolveToolEntry('groups').parse(
+      { action: 'content', groupId: 'g1' },
+      {
+        project: 'Klima-AG',
+        resultCount: 1,
+        results: [{ title: 'Protokoll', url: '/office/d1', type: 'Dokument' }],
+      }
+    );
+    expect(vm.kind).toBe('citations');
+    if (vm.kind === 'citations') expect(vm.citations[0].title).toBe('Protokoll');
+  });
+
   it('every formerly-unregistered tool now resolves to a real label', () => {
     const previouslyBroken = [
       'rezept_laden',

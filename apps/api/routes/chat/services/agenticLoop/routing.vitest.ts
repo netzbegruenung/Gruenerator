@@ -47,6 +47,9 @@ describe('looksLikeToolableQuestion', () => {
     // Bare possessive + Wolke — kein Fragewort, kein führendes Verb; ohne den
     // `wolke`-Eintrag in PERSONAL_DATA_RE erreichte das den Loop nie.
     ['personal wolke', 'meine wolke dateien bitte'],
+    // Produktwort für Gruppen ist „Projekt" — ohne den Eintrag blieb „meine
+    // Projekte" beim Klassifikator hängen, während „meine Gruppen" den Loop traf.
+    ['personal projekte', 'zeig meine projekte'],
   ];
   it.each(toolable)('routes a real question into the loop: %s', (_label, q) => {
     expect(looksLikeToolableQuestion(q)).toBe(true);

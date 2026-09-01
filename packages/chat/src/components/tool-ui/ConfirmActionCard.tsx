@@ -32,6 +32,7 @@ const ICON_MAP: Record<ConfirmActionType, typeof FileText> = {
   attach_wolke_folder: FolderInput,
   set_notebook_visibility: Eye,
   share_notebook: Share2,
+  set_group_visibility: Eye,
 };
 
 const GROUP_ACTION_TYPES: ReadonlySet<ConfirmActionType> = new Set([
@@ -39,6 +40,7 @@ const GROUP_ACTION_TYPES: ReadonlySet<ConfirmActionType> = new Set([
   'join_group',
   // Die Karte verlinkt danach das Projekt, nicht das Notebook.
   'share_notebook',
+  'set_group_visibility',
 ]);
 const NOTEBOOK_ACTION_TYPES: ReadonlySet<ConfirmActionType> = new Set([
   'attach_wolke_folder',

@@ -70,6 +70,7 @@ const TOOL_COUNT_LABELS: Record<string, readonly [singular: string, plural: stri
   create_board: ['Board', 'Boards'],
   umfragen: ['Umfrage', 'Umfragen'],
   notebooks: ['Notebook-Zugriff', 'Notebook-Zugriffe'],
+  groups: ['Projekt-Zugriff', 'Projekt-Zugriffe'],
 };
 
 /**

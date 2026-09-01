@@ -15,8 +15,9 @@ import {
   createGroupForUser,
   getGroupByToken,
   joinGroupByToken,
+  setGroupVisibility,
 } from '../../services/groups/groupMutations.js';
-import { findGroups } from '../../services/groups/groupQueries.js';
+import { findGroups, getGroupForMember } from '../../services/groups/groupQueries.js';
 import { applyNotebookVisibility } from '../../services/notebook/notebookVisibility.js';
 import {
   attachWolkeFolderToNotebook,
@@ -118,6 +119,48 @@ export async function joinGroupDirect(
     note: outcome.alreadyMember
       ? `Du bist bereits Mitglied von „${outcome.group.name}".`
       : `Du bist der Gruppe „${outcome.group.name}" beigetreten.`,
+  };
+}
+
+/**
+ * `groups` set_visibility als zweistufiges confirm-Protokoll — im Chat ist
+ * das eine Karte, weil ein öffentlich gelistetes Projekt Fremde erreicht.
+ * Projekt über groupId oder groupName (nur eigene Mitgliedschaften).
+ */
+export async function setGroupVisibilityMcp(
+  userId: string,
+  args: Record<string, unknown>
+): Promise<ToolResult> {
+  const groupId = typeof args.groupId === 'string' ? args.groupId.trim() : '';
+  const groupName = typeof args.groupName === 'string' ? args.groupName.trim() : '';
+  let group = groupId ? await getGroupForMember(groupId, userId) : null;
+  if (!group && groupName) {
+    const match = (await findGroups(userId, groupName, 5)).find((g) => g.role);
+    group = match ? await getGroupForMember(match.id, userId) : null;
+  }
+  if (!group) return { error: 'Projekt nicht gefunden, oder du bist kein Mitglied.' };
+  if (!group.isAdmin) return { error: 'Das kann nur ein Admin des Projekts.' };
+  if (typeof args.isPublic !== 'boolean') {
+    return { error: 'set_visibility braucht isPublic (true/false).' };
+  }
+  const isPublic = args.isPublic;
+  const audience =
+    args.audience === 'de-DE' || args.audience === 'de-AT' || args.audience === 'all'
+      ? args.audience
+      : group.audience;
+  if (args.confirm !== true) {
+    return {
+      needsConfirmation: true,
+      note: `Projekt „${group.name}" ${isPublic ? `öffentlich listen (Zielgruppe ${audience})? Andere sehen es dann unter „Projekte entdecken" und können um Aufnahme bitten.` : 'privat stellen? Beitritt dann nur per Einladungslink.'} Frage die Person und rufe set_visibility erst mit confirm=true erneut auf.`,
+    };
+  }
+  const updated = await setGroupVisibility(group.id, userId, { is_public: isPublic, audience });
+  if (!updated) return { error: 'Projekt nicht gefunden.' };
+  return {
+    ok: true,
+    note: updated.is_public
+      ? `Projekt „${group.name}" ist jetzt öffentlich gelistet.`
+      : `Projekt „${group.name}" ist jetzt privat.`,
   };
 }
 

@@ -1,22 +1,29 @@
 /**
- * Inhalte mit einer Gruppe teilen — aus dem ts-rest-Handler
- * `groupsContract/content.ts` herausgezogen, aus demselben Grund wie
- * `groupMutations.ts`: die HTTP-Route und die Bestätigungskarte des Chats
- * (`share_notebook` in `confirmController.executeAction`) sollen EINEN Pfad
- * teilen — Besitzprüfung je Typ, Hochstufung eines Notebooks auf
- * share_mode='groups', Doppel-Check, Insert, Benachrichtigung. Der Handler
- * übersetzt nur noch in seinen Contract.
+ * Geteilte Inhalte einer Gruppe — teilen und auflisten — aus dem ts-rest-
+ * Handler `groupsContract/content.ts` herausgezogen, aus demselben Grund wie
+ * `groupMutations.ts`: die HTTP-Route, die Bestätigungskarte des Chats
+ * (`share_notebook` in `confirmController.executeAction`) und das `groups`-
+ * Werkzeug (`content`) sollen EINEN Pfad teilen. Der Handler übersetzt nur
+ * noch in seinen Contract.
  *
- * Die Mitgliedsprüfung wirft (wie `getPostgresAndCheckMembership`), alles
- * andere kommt als Statuscode zurück — so verhielt sich der Handler, und die
+ * `shareContentToGroup`: Besitzprüfung je Typ, Hochstufung eines Notebooks auf
+ * share_mode='groups', Doppel-Check, Insert, Benachrichtigung. Die
+ * Mitgliedsprüfung wirft (wie `getPostgresAndCheckMembership`), alles andere
+ * kommt als Statuscode zurück — so verhielt sich der Handler, und die
  * Antworten sollen sich durch den Umzug nicht ändern.
+ *
+ * `hydrateGroupContent`: die `group_content_shares`-Zeilen je Typ zu den
+ * Datensätzen auflösen, die die Gruppenseite zeigt. Prüft KEINE Mitgliedschaft
+ * — beide Aufrufer tun das davor (der Handler über
+ * `getPostgresAndCheckMembership`, das Werkzeug über `getGroupForMember`).
  */
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
-import { getPostgresAndCheckMembership } from '../../routes/auth/groups/groupCore.js';
 import { NextcloudShareManager } from '../../utils/integrations/nextcloud/index.js';
 import { notifyGroupMembers } from '../notifications/index.js';
+import { listUserAgentsByIds } from '../userAgents/userAgentsRepository.js';
 
+import { getPostgresAndCheckMembership } from './groupMembership.js';
 import { normalizeSharePermissions } from './groupSharePermissions.js';
 
 import type { PostgresService } from '../../database/services/PostgresService.js';
@@ -204,4 +211,333 @@ export async function shareContentToGroup(
     .catch(() => {});
 
   return { status: 200, success: true, message: 'Inhalt erfolgreich mit der Gruppe geteilt.' };
+}
+
+// ---------------------------------------------------------------------------
+// hydrateGroupContent — aus `listGroupContent` in `groupsContract/content.ts`
+// ---------------------------------------------------------------------------
+
+interface ShareRecord {
+  content_type: string;
+  content_id: string;
+  shared_at: string;
+  permissions: string | Record<string, unknown>;
+  shared_by_user_id: string;
+  first_name: string | null;
+  display_name: string | null;
+}
+
+interface ContentItem {
+  id: string;
+  [key: string]: unknown;
+}
+
+/** Die Buckets der Gruppenseite; Schlüssel wie in `GroupContentResponse['content']`. */
+export interface GroupContentBuckets {
+  documents: Record<string, unknown>[];
+  generators: Record<string, unknown>[];
+  notebooks: Record<string, unknown>[];
+  texts: Record<string, unknown>[];
+  templates: Record<string, unknown>[];
+  collaborative_documents: Record<string, unknown>[];
+  system_notebooks: Record<string, unknown>[];
+  system_agents: Record<string, unknown>[];
+  user_agents: Record<string, unknown>[];
+  canvas_templates: Record<string, unknown>[];
+}
+
+/** Injizierbar, damit der Test ohne Postgres, Qdrant und Drizzle läuft. */
+export interface HydrateGroupContentDeps {
+  postgres: Pick<PostgresService, 'query'>;
+  getNotebookCollectionsByIds: NotebookQdrantHelper['getNotebookCollectionsByIds'];
+  listUserAgentsByIds: typeof listUserAgentsByIds;
+}
+
+function defaultHydrateDeps(): HydrateGroupContentDeps {
+  const helper = (notebookHelperSingleton ??= new NotebookQdrantHelper());
+  return {
+    postgres: getPostgresInstance(),
+    getNotebookCollectionsByIds: (ids) => helper.getNotebookCollectionsByIds(ids),
+    listUserAgentsByIds,
+  };
+}
+
+/**
+ * Alle mit `groupId` geteilten Inhalte, je Typ zu ihren Datensätzen
+ * aufgelöst und um `contentType`, `shared_at`, `group_permissions` und
+ * `shared_by_name` ergänzt. Wolke-Verbindungen (`nextcloud_share_link`)
+ * haben hier keinen Bucket — sie waren es im Handler nie und tragen den
+ * Freigabe-Link, der das Zugangsmittel ist.
+ */
+export async function hydrateGroupContent(
+  groupId: string,
+  deps: HydrateGroupContentDeps = defaultHydrateDeps()
+): Promise<GroupContentBuckets> {
+  const { postgres } = deps;
+  const sharedContent =
+    ((await postgres.query(
+      `SELECT gcs.content_type, gcs.content_id, gcs.shared_at, gcs.permissions,
+              gcs.shared_by_user_id, p.first_name, p.display_name
+         FROM group_content_shares gcs
+         LEFT JOIN profiles p ON p.id = gcs.shared_by_user_id
+        WHERE gcs.group_id = $1
+        ORDER BY gcs.shared_at DESC`,
+      [groupId],
+      { table: 'group_content_shares' }
+    )) as ShareRecord[]) || [];
+
+  const contentByType: Record<string, ShareRecord[]> = {
+    documents: [],
+    custom_generators: [],
+    notebook_collections: [],
+    user_documents: [],
+    database: [],
+    collaborative_documents: [],
+    system_notebooks: [],
+    system_agents: [],
+    user_agents: [],
+    canvas_template: [],
+  };
+  sharedContent.forEach((share) => {
+    if (contentByType[share.content_type]) contentByType[share.content_type].push(share);
+  });
+
+  type ContentResult = {
+    type: string;
+    result: { data: Array<Record<string, unknown>> };
+    shares: ShareRecord[];
+  };
+  const fetchPromises: Promise<ContentResult | null>[] = [];
+
+  if (contentByType.documents.length > 0) {
+    const ids = contentByType.documents.map((s) => s.content_id);
+    fetchPromises.push(
+      postgres
+        .query(
+          'SELECT id, title, filename, file_size, status, created_at, updated_at, user_id FROM documents WHERE id = ANY($1)',
+          [ids],
+          { table: 'documents' }
+        )
+        .then((data) => ({
+          type: 'documents',
+          result: { data: data || [] },
+          shares: contentByType.documents,
+        }))
+    );
+  }
+  if (contentByType.custom_generators.length > 0) {
+    const ids = contentByType.custom_generators.map((s) => s.content_id);
+    fetchPromises.push(
+      postgres
+        .query(
+          'SELECT id, name, title, description, created_at, updated_at, user_id FROM custom_generators WHERE id = ANY($1)',
+          [ids],
+          { table: 'custom_generators' }
+        )
+        .then((data) => ({
+          type: 'custom_generators',
+          result: { data: data || [] },
+          shares: contentByType.custom_generators,
+        }))
+    );
+  }
+  if (contentByType.notebook_collections.length > 0) {
+    const ids = contentByType.notebook_collections.map((s) => s.content_id);
+    fetchPromises.push(
+      deps.getNotebookCollectionsByIds(ids).then((collections) => ({
+        type: 'notebook_collections',
+        result: {
+          data: collections.map((c) => ({
+            id: c.id,
+            name: c.name,
+            description: c.description,
+            // Additiv für das `groups`-Werkzeug: die Notebook-URL ist der Slug,
+            // nicht die ID. Der Bucket ist ein Passthrough-Record.
+            slug_suffix: c.slug_suffix,
+            created_at: c.created_at,
+            updated_at: c.updated_at,
+            user_id: c.user_id,
+          })),
+        },
+        shares: contentByType.notebook_collections,
+      }))
+    );
+  }
+  if (contentByType.system_notebooks.length > 0) {
+    fetchPromises.push(
+      Promise.resolve({
+        type: 'system_notebooks',
+        result: {
+          data: contentByType.system_notebooks.map((s) => ({ id: s.content_id, system: true })),
+        },
+        shares: contentByType.system_notebooks,
+      })
+    );
+  }
+  if (contentByType.system_agents.length > 0) {
+    fetchPromises.push(
+      Promise.resolve({
+        type: 'system_agents',
+        result: {
+          data: contentByType.system_agents.map((s) => ({ id: s.content_id, system: true })),
+        },
+        shares: contentByType.system_agents,
+      })
+    );
+  }
+  if (contentByType.user_agents.length > 0) {
+    const ids = contentByType.user_agents.map((s) => s.content_id);
+    fetchPromises.push(
+      deps.listUserAgentsByIds(ids).then((agents) => ({
+        type: 'user_agents',
+        // Full Agent shape (+ UUID `id` for share-matching). Unlike system
+        // agents there is no static registry to resolve against, so the
+        // bucket carries the whole agent.
+        result: { data: agents as unknown as Array<Record<string, unknown>> },
+        shares: contentByType.user_agents,
+      }))
+    );
+  }
+  if (contentByType.user_documents.length > 0) {
+    const ids = contentByType.user_documents.map((s) => s.content_id);
+    fetchPromises.push(
+      postgres
+        .query(
+          'SELECT id, title, document_type, content, created_at, updated_at, user_id FROM user_documents WHERE id = ANY($1)',
+          [ids],
+          { table: 'user_documents' }
+        )
+        .then((rawData) => {
+          const textsData = ((rawData || []) as Array<ContentItem & { content?: string }>).map(
+            (item) => {
+              let plainText = item.content || '';
+              let prev = '';
+              while (prev !== plainText) {
+                prev = plainText;
+                plainText = plainText.replace(/<[^>]*>/g, '');
+              }
+              plainText = plainText.trim();
+              const wordCount = plainText.split(/\s+/).filter((w) => w.length > 0).length;
+              return { ...item, word_count: wordCount, character_count: plainText.length };
+            }
+          );
+          return {
+            type: 'user_documents',
+            result: { data: textsData },
+            shares: contentByType.user_documents,
+          };
+        })
+    );
+  }
+  if (contentByType.database.length > 0) {
+    const ids = contentByType.database.map((s) => s.content_id);
+    fetchPromises.push(
+      postgres
+        .query(
+          "SELECT id, title, description, external_url, thumbnail_url, metadata, created_at, updated_at, user_id FROM user_templates WHERE id = ANY($1) AND type = 'template'",
+          [ids],
+          { table: 'user_templates' }
+        )
+        .then((data) => ({
+          type: 'database',
+          result: { data: data || [] },
+          shares: contentByType.database,
+        }))
+    );
+  }
+  if (contentByType.collaborative_documents.length > 0) {
+    const ids = contentByType.collaborative_documents.map((s) => s.content_id);
+    fetchPromises.push(
+      postgres
+        .query(
+          'SELECT id, title, document_subtype, created_by, created_at, updated_at FROM collaborative_documents WHERE id = ANY($1::uuid[]) AND is_deleted = false',
+          [ids],
+          { table: 'collaborative_documents' }
+        )
+        .then((data) => ({
+          type: 'collaborative_documents',
+          result: { data: data || [] },
+          shares: contentByType.collaborative_documents,
+        }))
+    );
+  }
+  if (contentByType.canvas_template.length > 0) {
+    const ids = contentByType.canvas_template.map((s) => s.content_id);
+    fetchPromises.push(
+      postgres
+        .query(
+          `SELECT cd.id, cd.title, cd.created_by, cd.created_at, cd.updated_at,
+                  cdoc.template_type, cdoc.thumbnail_url, cdoc.format
+             FROM collaborative_documents cd
+             INNER JOIN canvas_documents cdoc ON cdoc.document_id = cd.id
+            WHERE cd.id = ANY($1::uuid[]) AND cd.is_deleted = false AND cd.document_subtype = 'canvas'`,
+          [ids],
+          { table: 'collaborative_documents' }
+        )
+        .then((data) => ({
+          type: 'canvas_template',
+          result: { data: data || [] },
+          shares: contentByType.canvas_template,
+        }))
+    );
+  }
+
+  const contentResults = (await Promise.all(fetchPromises)).filter(Boolean) as ContentResult[];
+
+  const groupContent: GroupContentBuckets = {
+    documents: [],
+    generators: [],
+    notebooks: [],
+    texts: [],
+    templates: [],
+    collaborative_documents: [],
+    system_notebooks: [],
+    system_agents: [],
+    user_agents: [],
+    canvas_templates: [],
+  };
+
+  const keyMap: Record<string, keyof GroupContentBuckets> = {
+    documents: 'documents',
+    custom_generators: 'generators',
+    notebook_collections: 'notebooks',
+    user_documents: 'texts',
+    database: 'templates',
+    collaborative_documents: 'collaborative_documents',
+    system_notebooks: 'system_notebooks',
+    system_agents: 'system_agents',
+    user_agents: 'user_agents',
+    canvas_template: 'canvas_templates',
+  };
+
+  contentResults.forEach(({ type, result, shares }) => {
+    const items = (result.data || []).map((item) => {
+      const shareInfo = shares.find((s) => s.content_id === item.id);
+      const parsedPermissions: Record<string, unknown> =
+        typeof shareInfo?.permissions === 'string'
+          ? (JSON.parse(shareInfo.permissions) as Record<string, unknown>)
+          : ((shareInfo?.permissions as Record<string, unknown> | null) ?? {});
+      const parsedMetadata: Record<string, unknown> =
+        type === 'database' && item.metadata != null
+          ? typeof item.metadata === 'string'
+            ? (JSON.parse(item.metadata) as Record<string, unknown>)
+            : (item.metadata as Record<string, unknown>)
+          : {};
+      return {
+        ...item,
+        contentType: type,
+        shared_at: shareInfo?.shared_at,
+        group_permissions: parsedPermissions,
+        shared_by_name: shareInfo?.display_name || shareInfo?.first_name || 'Unknown User',
+        ...(type === 'database' && {
+          template_type: (parsedMetadata.template_type as string) || 'template',
+          external_url: item.external_url,
+        }),
+      };
+    });
+    const key = keyMap[type];
+    if (key) groupContent[key] = items;
+  });
+
+  return groupContent;
 }

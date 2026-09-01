@@ -27,12 +27,14 @@ const ICON_MAP: Record<ConfirmActionData['type'], IoniconsIconName> = {
   attach_wolke_folder: 'folder-open-outline',
   set_notebook_visibility: 'eye-outline',
   share_notebook: 'share-social-outline',
+  set_group_visibility: 'eye-outline',
 };
 
 const GROUP_ACTION_TYPES: ReadonlySet<ConfirmActionData['type']> = new Set([
   'create_group',
   'join_group',
   'share_notebook',
+  'set_group_visibility',
 ]);
 
 export function ConfirmActionCard({ action, theme }: { action: ConfirmActionData; theme: Theme }) {

@@ -86,7 +86,7 @@ const STATIC_TOOL_LINES = [
   '- Notebooks & Recherche: eigene Wissenssammlungen plus grüne Inhaltsdatenbank — im Chat lassen sich Notebooks inhaltlich befragen, anlegen, aus einem Wolke-Ordner befüllen, mit Dokumenten ergänzen, in der Sichtbarkeit ändern und mit einem Projekt teilen',
   '- Grüne Wolke: eigene Nextcloud-Freigaben verbinden — Dateien lassen sich im Chat durchsuchen und lesen',
   '- Agentura: spezialisierte Grüneratoren nutzen und eigene Agent*innen erstellen',
-  '- Gruppen/Spaces: gemeinsame Arbeitsbereiche im Team',
+  '- Projekte (Gruppen/Spaces): gemeinsame Arbeitsbereiche im Team — im Chat lassen sich Projekte auflisten, ansehen, ihre geteilten Inhalte durchsehen, anlegen, per Einladungslink beitreten, in Name und Beschreibung ändern und öffentlich listen; Mitglieder verwalten geht nur auf der Projektseite',
   '- Scanner, Transkription, Zeichenzähler: Dokumente digitalisieren, Audio verschriftlichen, Textlängen prüfen',
   '- Monitor: Wahlumfragen, Themen und Stimmungsbilder beobachten',
 ];

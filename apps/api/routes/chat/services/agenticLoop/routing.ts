@@ -84,7 +84,7 @@ const CHITCHAT_RE = /^(wer bist du|was (kannst|bist) du|wie geht|wie heißt du|h
 // `wolke` came in with the cloud_files tool: „meine Wolke-Dateien“ carries
 // neither a question word nor a leading verb and must still reach the loop.
 const PERSONAL_DATA_RE =
-  /\b(mein|meine|meiner|meinen)\b[\s\wäöüß]*\b(dokumente?|boards?|aufgaben?|tasks?|notebooks?|notizb[üu]cher|sammlung\w*|reels?|sharepics?|gruppen?|inhalte?|wolke)\b/i;
+  /\b(mein|meine|meiner|meinen)\b[\s\wäöüß]*\b(dokumente?|boards?|aufgaben?|tasks?|notebooks?|notizb[üu]cher|sammlung\w*|reels?|sharepics?|gruppen?|projekte?|inhalte?|wolke)\b/i;
 
 /**
  * The whole turn (after stripping a leading greeting) is assistant-directed

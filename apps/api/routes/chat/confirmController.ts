@@ -315,6 +315,26 @@ async function executeAction(action: PendingAction): Promise<{ message: string; 
       };
     }
 
+    case 'set_group_visibility': {
+      const { setGroupVisibility } = await import('../../services/groups/groupMutations.js');
+      const { groupId, groupName, is_public, audience } = action.payload;
+      // Wirft bei fehlender Admin-Rolle — der Rollenwechsel zwischen Karte und
+      // Klick ist selten, aber die Meldung soll dann die des Dienstes sein.
+      let updated: Awaited<ReturnType<typeof setGroupVisibility>>;
+      try {
+        updated = await setGroupVisibility(groupId, action.userId, { is_public, audience });
+      } catch (err) {
+        throw new ConfirmActionRefusal(err instanceof Error ? err.message : String(err));
+      }
+      if (!updated) throw new ConfirmActionRefusal('Gruppe nicht gefunden.');
+      return {
+        message: updated.is_public
+          ? `Projekt **„${groupName}"** ist jetzt öffentlich gelistet.`
+          : `Projekt **„${groupName}"** ist jetzt privat.`,
+        url: `/gruppen/${groupId}`,
+      };
+    }
+
     default: {
       const _exhaustive: never = action;
       throw new Error(`Unknown action type: ${(action as PendingAction).type}`);
