@@ -261,6 +261,24 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
   },
 
   // --- Memory / personal content -------------------------------------------
+  memory: {
+    label: 'Gedächtnis',
+    activeLabel: 'Merke mir',
+    iconKey: 'message-circle',
+    accent: 'personal',
+    queryKeys: ['text'],
+    // Reload path: the live turn already got this line from wrapTools.ts.
+    summarize: (_args, result) => {
+      const text = getString(result, 'text');
+      if (!text) return getString(result, 'error');
+      if (getBoolean(result, 'gespeichert')) {
+        return `${getString(result, 'hinweis') != null ? 'Bereits gemerkt' : 'Gemerkt'}: ${text}`;
+      }
+      if (getBoolean(result, 'aktualisiert')) return `Aktualisiert: ${text}`;
+      if (getBoolean(result, 'vergessen')) return `Vergessen: ${text}`;
+      return null;
+    },
+  },
   recall_memory: {
     label: 'Erinnerung',
     activeLabel: 'Erinnere mich',

@@ -154,7 +154,7 @@ export interface DocumentResponse {
 }
 
 // === MEMORY TYPES ===
-export type MemoryCategory = 'identity' | 'activity' | 'context' | 'experience' | 'preference';
+export type MemoryCategory = 'anweisung' | 'fakt';
 export type MemoryConfidence = 'high' | 'medium' | 'low';
 export type MemorySource = 'manual' | 'extracted' | 'explicit';
 

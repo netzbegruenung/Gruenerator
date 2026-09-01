@@ -204,4 +204,5 @@ export const NEAR_DUPLICATE_EXEMPT_TOOLS: ReadonlySet<string> = new Set([
   'documents',
   'read_artifact',
   'notebooks',
+  'memory',
 ]);
