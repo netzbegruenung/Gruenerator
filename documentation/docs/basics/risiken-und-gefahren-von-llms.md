@@ -1,5 +1,5 @@
 ---
-sidebar_position: 4
+sidebar_position: 8
 description: 'Wo Sprachmodelle an ihre Grenzen stoßen: fehlender Menschenverstand, Verzerrungen, Falschauskünfte und was daraus folgt.'
 ---
 

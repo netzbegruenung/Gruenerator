@@ -2,7 +2,7 @@
 
 Zielstandard **WCAG 2.2 AA im Rahmen von EN 301 549** — die einzige Norm, unter
 der auch die Expo-App prüfbar ist. Öffentliche Selbstauskunft:
-`documentation/docs/ueber-den-gruenerator/barrierefreiheit.md` (Stand-Datum
+`documentation/docs/basics/barrierefreiheit.md` (Stand-Datum
 pflegen!). Gesamtplan und Messwerte: `docs/barrierefreiheit-audit-plan.md`,
 `docs/barrierefreiheit-followup-audit.md` — beide unter `/docs/`, also
 gitignored, `git add -f` nötig.

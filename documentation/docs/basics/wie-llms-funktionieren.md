@@ -1,9 +1,9 @@
 ---
-sidebar_position: 1
+sidebar_position: 7
 description: 'Neuronale Netze, Training und Tokens — verständlich erklärt, ohne Mathematik und ohne Vorwissen.'
 ---
 
-# Grundlagen
+# Wie LLMs funktionieren
 
 Ein großes Sprachmodell, wie zum Beispiel ChatGPT , ist ein KI-Modell, das darauf trainiert ist, menschenähnlichen Text zu verstehen und zu erzeugen. Es ist im Kern eine hochentwickelte Anwendung von **Sprachverarbeitung (NLP), maschinellem Lernen und Deep Learning**.
 
