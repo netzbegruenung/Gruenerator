@@ -1554,15 +1554,22 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       };
     }
 
+    // Ein Dauerauftrag geht in die Schleife, nicht auf einen Intent: der Pin
+    // auf `recurring_tasks` zwingt den Turn hinein (`turnPlan`) und benennt den
+    // ersten Werkzeugaufruf (`pinnedFirstTool`), so wie `@umfragen` es über die
+    // Erwähnung tut — nur dass hier der Detektor pinnt. Der Loop-Planer füllt
+    // Takt und Zustellung selbst, und das Anlegen ist eine Karte; bis 09/2026
+    // schrieb der Intent `create_recurring_task` ohne Bestätigung in die DB.
     if (looksLikeRecurringOrder(userContent)) {
-      log.info('[Classifier] Recurring order (direct route, LLM skipped)');
+      log.info('[Classifier] Recurring order → loop with recurring_tasks pinned (LLM skipped)');
       recordDecision('classifier.tier', 'tier3.4_recurring_order', {});
       return {
-        intent: 'create_recurring_task',
+        intent: 'agentic',
+        mentionPinnedTool: 'recurring_tasks',
         searchSources: [],
         searchQuery: userContent.slice(0, 500),
         detectedFilters: null,
-        reasoning: 'Wiederkehrender Auftrag (Takt + Zustellung erkannt)',
+        reasoning: 'Wiederkehrender Auftrag (Takt + Zustellung erkannt) → Werkzeug recurring_tasks',
         hasTemporal: temporal.hasTemporal,
         complexity,
         classificationTimeMs: Date.now() - startTime,
