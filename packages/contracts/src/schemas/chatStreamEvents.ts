@@ -320,6 +320,19 @@ export const confirmActionTypeSchema = z.enum([
   // Additiv (F0): ausgelieferte Clients kennen den Wert nicht und rendern die
   // Karte über ihren Fallback — sie fällt nicht aus, sie sieht nur generisch aus.
   'add_cloud_connection',
+  // Notebook-Karten des `notebooks`-Werkzeugs (09/2026), ebenfalls additiv.
+  'attach_wolke_folder',
+  'set_notebook_visibility',
+  'share_notebook',
+  // Projekt-Karte des `groups`-Werkzeugs (09/2026), additiv.
+  'set_group_visibility',
+  // Karte des `recurring_tasks`-Werkzeugs (09/2026), additiv. Gleichnamig mit
+  // dem stillgelegten Intent, bewusst: es ist dieselbe Handlung, nur mit
+  // Bestätigung statt stillem Schreiben.
+  'create_recurring_task',
+  // Karten des `user_agents`-Werkzeugs (09/2026), additiv.
+  'create_user_agent',
+  'share_user_agent',
 ]);
 export type ConfirmActionType = z.infer<typeof confirmActionTypeSchema>;
 

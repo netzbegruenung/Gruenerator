@@ -74,7 +74,7 @@ export const INTENT_HANDLER_PATHS: Record<SearchIntent, string> = {
   create_pdf:
     'handled via handlePdfCreation — generates a tagged, CI-styled PDF (document/letter/form), verifies the finished bytes, stores it as a compute asset and emits document_created SSE (subtype pdf); owns the turn on failure (templated error, never falls through)',
   create_recurring_task:
-    'handled via handleRecurringTaskCreation — parses the schedule, persists a recurring_tasks row, emits confirm SSE (flag-gated EXPERIMENTAL)',
+    'RETIRED as a verdict (09/2026) — a recurring order is classified `agentic` with `mentionPinnedTool: recurring_tasks`; the loop tool fills the schedule and creates via confirm card',
   modify_doc: 'routes to respond, then confirm_action SSE + pendingActionStore',
   edit_current_doc:
     'routes to respond, controller emits trigger_doc_edit SSE for BlockNote AI live edit',

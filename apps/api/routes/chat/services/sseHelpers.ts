@@ -395,6 +395,7 @@ export const INTENT_MESSAGE_POOLS: Record<SearchIntent, string[]> = {
   edit_sheet: ['Bearbeite Tabelle...', 'Passe Zellen an...'],
   create_pdf: ['Baue das PDF...', 'Setze das Dokument...', 'Gestalte die Seiten...'],
   create_presentation: ['Erstelle Präsentation...', 'Baue Folien...', 'Gestalte Slides...'],
+  // Stillgelegt (09/2026) — total über `SearchIntent`, wie social_post.
   create_recurring_task: [
     'Richte wiederkehrende Aufgabe ein...',
     'Plane den Rhythmus...',

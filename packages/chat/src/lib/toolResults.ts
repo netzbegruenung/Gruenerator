@@ -309,7 +309,12 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
     iconKey: 'file',
     accent: 'personal',
   },
-  groups: { label: 'Gruppen', activeLabel: 'Suche Gruppen', iconKey: 'user', accent: 'personal' },
+  groups: {
+    label: 'Projekte',
+    activeLabel: 'Sehe im Projekt nach',
+    iconKey: 'user',
+    accent: 'personal',
+  },
   media: { label: 'Medien', activeLabel: 'Suche Medien', iconKey: 'image', accent: 'personal' },
   notebooks: {
     label: 'Notebooks',
@@ -327,6 +332,24 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
     label: 'Wolke',
     activeLabel: 'Sehe in der Wolke nach',
     iconKey: 'cloud',
+    accent: 'personal',
+  },
+  recurring_tasks: {
+    label: 'Wiederkehrende Aufgaben',
+    activeLabel: 'Sehe bei den Aufgaben nach',
+    iconKey: 'sparkles',
+    accent: 'personal',
+  },
+  user_agents: {
+    label: 'Grünerator-Agenten',
+    activeLabel: 'Sehe bei den Grünerator-Agenten nach',
+    iconKey: 'user',
+    accent: 'personal',
+  },
+  recipes: {
+    label: 'Rezepte & Textformen',
+    activeLabel: 'Sehe bei den Rezepten nach',
+    iconKey: 'sparkles',
     accent: 'personal',
   },
 
