@@ -1,5 +1,5 @@
 ---
-sidebar_position: 3
+sidebar_position: 2
 description: 'Wolke-Dateien über einen Freigabe-Link lesbar machen: Ordner durchstöbern, in Notebooks importieren, im Chat erwähnen.'
 ---
 
