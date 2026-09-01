@@ -272,7 +272,6 @@ export function createNotebookModelAdapter(
           ? { collectionIds: config.collectionIds }
           : { collectionId: config.collectionId || config.collectionIds?.[0] }),
         ...(config.filters && { filters: config.filters }),
-        locale: config.locale,
         ...(config.mode && { mode: config.mode }),
         ...(config.documentIds?.length && { documentIds: config.documentIds }),
         ...(config.threadId && { threadId: config.threadId }),

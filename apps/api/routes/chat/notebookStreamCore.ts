@@ -67,7 +67,6 @@ export interface NotebookStreamOptions {
   collectionId?: string;
   collectionIds?: string[];
   filters?: Record<string, unknown>;
-  provider?: string;
   model?: string;
   mode?: NotebookDepth;
   userId?: string;
@@ -106,7 +105,6 @@ export async function handleNotebookStream(
     collectionId,
     collectionIds,
     filters,
-    provider: _provider,
     model,
     mode,
     userId,
