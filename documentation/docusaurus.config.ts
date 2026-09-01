@@ -166,7 +166,14 @@ const config: Config = {
           // projekte + Profil → konto/*
           { from: '/docs/projekte/intro', to: '/docs/konto/projekte' },
           { from: '/docs/Profil/einstellungen', to: '/docs/konto/einstellungen' },
-          { from: '/docs/Profil/gruene-wolke-tutorial', to: '/docs/konto/gruene-wolke' },
+          {
+            from: '/docs/Profil/gruene-wolke-tutorial',
+            to: '/docs/guides/fortgeschrittene/gruene-wolke-einbinden',
+          },
+          {
+            from: '/docs/konto/gruene-wolke',
+            to: '/docs/guides/fortgeschrittene/gruene-wolke-einbinden',
+          },
           // llm-basics → grundlagen/*
           //
           // The two pages that merely changed case (/docs/Grundlagen/* →

@@ -73,6 +73,10 @@ export const SECTIONS: DocSection[] = [
         label: 'Wie erstelle ich einen Antrag?',
         to: '/docs/guides/einsteigerinnen/antrag-stadtrat',
       },
+      {
+        label: 'Wie binde ich die Grüne Wolke ein?',
+        to: '/docs/guides/fortgeschrittene/gruene-wolke-einbinden',
+      },
     ],
   },
   {
@@ -111,8 +115,7 @@ export const SECTIONS: DocSection[] = [
     id: 'konto',
     label: 'Konto & Projekte',
     icon: '👤',
-    description:
-      'Projekte, Einstellungen, die Einrichtung für deinen Landesverband und die Anbindung der Grünen Wolke.',
+    description: 'Projekte, Einstellungen und die Einrichtung für deinen Landesverband.',
     intro: '/docs/konto/projekte',
     sidebarId: 'kontoSidebar',
     navbar: 'more',
@@ -123,7 +126,6 @@ export const SECTIONS: DocSection[] = [
         label: 'Für deinen Landesverband einrichten',
         to: '/docs/konto/landesverband-einrichten',
       },
-      { label: 'Grüne Wolke', to: '/docs/konto/gruene-wolke' },
     ],
   },
   {
