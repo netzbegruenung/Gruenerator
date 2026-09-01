@@ -440,7 +440,6 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         lastUserMessage,
         processedMeta,
         isNewThread,
-        memoryEnabled,
         memoryRetrieveTimeMs,
         generatedImage,
         sharepicVariants,

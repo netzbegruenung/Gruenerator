@@ -17,6 +17,8 @@ const CATEGORY_LABEL: Record<string, string> = {
   context: 'Kontext',
   experience: 'Erfahrung',
   preference: 'Präferenz',
+  anweisung: 'Anweisung',
+  fakt: 'Fakt',
 };
 
 /**

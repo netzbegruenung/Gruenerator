@@ -62,6 +62,7 @@ import { hasReachableForm } from '../services/pdfFormAvailability.js';
 import { withImageProxy } from '../services/searchImagePayload.js';
 
 import { makeCloudFilesTool } from './cloudFileTools.js';
+import { makeMemoryTool } from './memoryTools.js';
 import {
   makeAbgeordnetenwatchTool,
   makeBundestagTool,
@@ -852,6 +853,12 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
     }
     if (state.enabledTools?.['notebooks'] !== false) {
       tools.notebooks = makeNotebooksTool(personalCtx);
+    }
+    // The person's explicit memory. Only with the profile switch on: with it
+    // off the prompt carries no GEDÄCHTNIS block either, and a tool that can
+    // save into a store nobody reads would be a lie in the other direction.
+    if (state.memoryEnabled && state.enabledTools?.['memory'] !== false) {
+      tools.memory = makeMemoryTool(personalCtx);
     }
 
     // Die verbundene Wolke. Zwei Tore, in dieser Reihenfolge:

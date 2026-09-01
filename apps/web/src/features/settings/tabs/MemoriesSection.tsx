@@ -53,15 +53,11 @@ const CATEGORY_LABEL: Record<string, string> = {
   context: 'Kontext',
   experience: 'Erfahrung',
   preference: 'Präferenz',
+  anweisung: 'Anweisung',
+  fakt: 'Fakt',
 };
 
-const CATEGORIES: MemoryCategory[] = [
-  'identity',
-  'activity',
-  'context',
-  'experience',
-  'preference',
-];
+const CATEGORIES: MemoryCategory[] = ['anweisung', 'fakt'];
 
 const CATEGORY_OPTIONS = [
   { value: '' as const, label: 'Alle Kategorien' },

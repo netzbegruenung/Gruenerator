@@ -175,6 +175,12 @@ function summarize(result: unknown): string | undefined {
   // rezept_laden: the card names the recipe; the prompt body stays server-side.
   if (typeof r.titel === 'string' && r.geladen === true) return `Rezept: ${r.titel}`;
   if (r.geladen === false) return 'Rezept nicht verfügbar';
+  // memory: the card is the only place the person sees what was kept.
+  if (typeof r.text === 'string') {
+    if (r.gespeichert === true) return `${r.hinweis ? 'Bereits gemerkt' : 'Gemerkt'}: ${r.text}`;
+    if (r.aktualisiert === true) return `Aktualisiert: ${r.text}`;
+    if (r.vergessen === true) return `Vergessen: ${r.text}`;
+  }
   return undefined;
 }
 

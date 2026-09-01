@@ -1,42 +1,50 @@
+/**
+ * REST surface of the person's explicit memory, on the legacy `/api/mem0`
+ * paths the settings tab still calls. Interim: the follow-up PR moves this to
+ * a ts-rest contract under `/api/memory` and rewrites `MemoriesSection.tsx`
+ * against it. Until then the response shape stays what the tab expects
+ * (`category` carries the memory kind, `source` is `chat` | `manual`).
+ */
 import express, { type Router, type Response } from 'express';
 
-import { getMem0Instance, normalizeCategory } from '../../services/mem0/index.js';
-import { invalidatePersona } from '../../services/mem0/personaService.js';
+import { memoryKindSchema, type MemoryKind } from '@gruenerator/contracts';
+
+import { memoryService, MemoryRejectedError } from '../../services/memory/index.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { setContentDisposition } from '../../utils/http/contentDisposition.js';
 import { createLogger } from '../../utils/logger.js';
+import { toIsoString } from '../../utils/toIsoString.js';
 
-import type { MemoryCategory } from '../../services/mem0/categories.js';
-import type { Mem0Memory, MemoryConfidence, MemorySource } from '../../services/mem0/types.js';
+import type { UserMemoryRow } from '../../database/schema/index.js';
 import type { AuthRequest } from '../auth/types.js';
 
-const log = createLogger('mem0Controller');
+const log = createLogger('memoryController');
 
 const router: Router = express.Router();
 
-interface FrontendMemory {
-  id: string;
-  content: string;
-  topic?: string;
-  category: MemoryCategory | null;
-  confidence: MemoryConfidence;
-  source: MemorySource;
-  created_at?: string;
-  updated_at?: string;
+function toFrontendMemory(m: UserMemoryRow) {
+  return {
+    id: m.id,
+    content: m.text,
+    topic: m.kind,
+    category: m.kind,
+    confidence: 'high' as const,
+    source: m.source,
+    created_at: toIsoString(m.created_at),
+    updated_at: toIsoString(m.updated_at),
+  };
 }
 
-function toFrontendMemory(m: Mem0Memory): FrontendMemory {
-  const result: FrontendMemory = {
-    id: m.id,
-    content: m.memory,
-    category: normalizeCategory(m.metadata?.memoryType),
-    confidence: (m.metadata?.confidence as MemoryConfidence) ?? 'medium',
-    source: (m.metadata?.source as MemorySource) ?? 'extracted',
-  };
-  if (m.metadata?.memoryType != null) result.topic = m.metadata.memoryType;
-  if (m.created_at != null) result.created_at = m.created_at;
-  if (m.updated_at != null) result.updated_at = m.updated_at;
-  return result;
+function fail(res: Response, err: unknown, fallback: string, where: string): void {
+  if (err instanceof MemoryRejectedError) {
+    res.status(400).json({ success: false, message: err.userMessage });
+    return;
+  }
+  log.error(`[memory ${where}] Error:`, err);
+  res.status(500).json({
+    success: false,
+    message: toUserFacingMessage(err as Error) || fallback,
+  });
 }
 
 // GET /api/mem0/user/:userId — list all memories for the authenticated user
@@ -45,238 +53,103 @@ router.get(
   async (req: AuthRequest<{ userId: string }>, res: Response): Promise<void> => {
     try {
       const { userId } = req.params;
-
       if (req.user!.id !== userId) {
         res.status(403).json({ success: false, message: 'Zugriff verweigert.' });
         return;
       }
-
-      const mem0 = getMem0Instance();
-      if (!mem0) {
-        res.json({ success: true, memories: [] });
-        return;
-      }
-
-      const memories = await mem0.getAllMemories(userId);
-      res.json({ success: true, memories: memories.map(toFrontendMemory) });
+      const rows = await memoryService.list(userId);
+      res.json({ success: true, memories: rows.map(toFrontendMemory) });
     } catch (error) {
-      const err = error as Error;
-      log.error('[mem0 GET /user/:userId] Error:', err);
-      res.status(500).json({
-        success: false,
-        message: toUserFacingMessage(err) || 'Fehler beim Laden der Erinnerungen.',
-      });
+      fail(res, error, 'Fehler beim Laden der Erinnerungen.', 'GET /user/:userId');
     }
   }
 );
 
-// POST /api/mem0/add-text — add a text memory for the authenticated user
+// POST /api/mem0/add-text — add a memory typed into the settings tab
 router.post('/add-text', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { text, topic } = req.body as { text?: string; topic?: string };
-
     if (!text || !text.trim()) {
       res.status(400).json({ success: false, message: 'Text ist erforderlich.' });
       return;
     }
-
-    const mem0 = getMem0Instance();
-    if (!mem0) {
-      res.status(503).json({ success: false, message: 'Memory-Service nicht verfügbar.' });
-      return;
-    }
-
-    const userId = req.user!.id;
-    const normalized = normalizeCategory(topic);
-    const metadata = normalized
-      ? { memoryType: normalized, source: 'manual' as const, confidence: 'high' as const }
-      : { source: 'manual' as const, confidence: 'high' as const };
-
-    const added = await mem0.addMemories(
-      [{ role: 'user', content: text.trim() }],
-      userId,
-      metadata
-    );
-
-    res.json({ success: true, memories: added.map(toFrontendMemory) });
-  } catch (error) {
-    const err = error as Error;
-    log.error('[mem0 POST /add-text] Error:', err);
-    res.status(500).json({
-      success: false,
-      message: toUserFacingMessage(err) || 'Fehler beim Speichern der Erinnerung.',
+    const parsedKind = memoryKindSchema.safeParse(topic);
+    const kind: MemoryKind = parsedKind.success ? parsedKind.data : 'fakt';
+    const { row } = await memoryService.create({
+      userId: req.user!.id,
+      kind,
+      text,
+      source: 'manual',
+      threadId: null,
     });
+    res.json({ success: true, memories: [toFrontendMemory(row)] });
+  } catch (error) {
+    fail(res, error, 'Fehler beim Speichern der Erinnerung.', 'POST /add-text');
   }
 });
 
-// PUT /api/mem0/:memoryId — update a memory's content
+// PUT /api/mem0/:memoryId — update a memory's text
 router.put(
   '/:memoryId',
   async (req: AuthRequest<{ memoryId: string }>, res: Response): Promise<void> => {
     try {
-      const { memoryId } = req.params;
       const { content } = req.body as { content?: string };
-      const userId = req.user!.id;
-
       if (!content?.trim()) {
         res.status(400).json({ success: false, message: 'Inhalt ist erforderlich.' });
         return;
       }
-
-      const mem0 = getMem0Instance();
-      if (!mem0) {
-        res.status(503).json({ success: false, message: 'Memory-Service nicht verfügbar.' });
-        return;
-      }
-
-      const updated = await mem0.updateMemory(memoryId, userId, content.trim());
+      const updated = await memoryService.update(req.user!.id, req.params.memoryId, content);
       if (!updated) {
         res.status(404).json({ success: false, message: 'Erinnerung nicht gefunden.' });
         return;
       }
-
-      // Invalidate persona cache since memory content changed
-      invalidatePersona(userId).catch((e) =>
-        log.warn('[mem0 PUT] Persona invalidation failed:', e)
-      );
-
       res.json({ success: true, memory: toFrontendMemory(updated) });
     } catch (error) {
-      const err = error as Error;
-      log.error('[mem0 PUT /:memoryId] Error:', err);
-      res.status(500).json({
-        success: false,
-        message: toUserFacingMessage(err) || 'Fehler beim Aktualisieren.',
-      });
+      fail(res, error, 'Fehler beim Aktualisieren.', 'PUT /:memoryId');
     }
   }
 );
-
-// POST /api/mem0/search — semantic search across user memories
-router.post('/search', async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const { query, category, limit } = req.body as {
-      query?: string;
-      category?: string;
-      limit?: number;
-    };
-
-    if (!query?.trim()) {
-      res.status(400).json({ success: false, message: 'Suchbegriff ist erforderlich.' });
-      return;
-    }
-
-    const mem0 = getMem0Instance();
-    if (!mem0) {
-      res.status(503).json({ success: false, message: 'Memory-Service nicht verfügbar.' });
-      return;
-    }
-
-    const userId = req.user!.id;
-    let memories = await mem0.searchMemories(query.trim(), userId, limit ?? 10);
-
-    // Optional category filter
-    if (category) {
-      const normalized = normalizeCategory(category);
-      if (normalized) {
-        memories = memories.filter((m) => normalizeCategory(m.metadata?.memoryType) === normalized);
-      }
-    }
-
-    res.json({
-      success: true,
-      memories: memories.map((m) => ({ ...toFrontendMemory(m), score: m.score })),
-    });
-  } catch (error) {
-    const err = error as Error;
-    log.error('[mem0 POST /search] Error:', err);
-    res
-      .status(500)
-      .json({ success: false, message: toUserFacingMessage(err) || 'Fehler bei der Suche.' });
-  }
-});
 
 // DELETE /api/mem0/:memoryId — delete a single memory
 router.delete(
   '/:memoryId',
   async (req: AuthRequest<{ memoryId: string }>, res: Response): Promise<void> => {
     try {
-      const { memoryId } = req.params;
-      const userId = req.user!.id;
-
-      const mem0 = getMem0Instance();
-      if (!mem0) {
-        res.status(503).json({ success: false, message: 'Memory-Service nicht verfügbar.' });
-        return;
-      }
-
-      const deleted = await mem0.deleteMemory(memoryId, userId);
-      if (!deleted) {
+      const removed = await memoryService.remove(req.user!.id, req.params.memoryId);
+      if (!removed) {
         res.status(404).json({ success: false, message: 'Erinnerung nicht gefunden.' });
         return;
       }
-
-      invalidatePersona(userId).catch((e) =>
-        log.warn('[mem0 DELETE] Persona invalidation failed:', e)
-      );
       res.json({ success: true });
     } catch (error) {
-      const err = error as Error;
-      log.error('[mem0 DELETE /:memoryId] Error:', err);
-      res.status(500).json({
-        success: false,
-        message: toUserFacingMessage(err) || 'Fehler beim Löschen der Erinnerung.',
-      });
+      fail(res, error, 'Fehler beim Löschen der Erinnerung.', 'DELETE /:memoryId');
     }
   }
 );
 
-// GET /api/mem0/user/:userId/export — export all memories as JSON (GDPR data portability)
+// GET /api/mem0/user/:userId/export — all memories as JSON (GDPR data portability)
 router.get(
   '/user/:userId/export',
   async (req: AuthRequest<{ userId: string }>, res: Response): Promise<void> => {
     try {
       const { userId } = req.params;
-
       if (req.user!.id !== userId) {
         res.status(403).json({ success: false, message: 'Zugriff verweigert.' });
         return;
       }
-
-      const mem0 = getMem0Instance();
-      if (!mem0) {
-        res.status(503).json({ success: false, message: 'Memory-Service nicht verfügbar.' });
-        return;
-      }
-
-      const [memories, history] = await Promise.all([
-        mem0.getAllMemories(userId),
-        mem0.getMemoryHistory(userId),
-      ]);
-
+      const rows = await memoryService.list(userId);
       const exportData = {
         exportedAt: new Date().toISOString(),
         userId,
-        memoryCount: memories.length,
-        memories: memories.map(toFrontendMemory),
-        auditHistory: history.map((h) => ({
-          operation: h.operation,
-          memoryText: h.memoryText,
-          createdAt: h.createdAt,
-          threadId: h.threadId,
-        })),
+        memoryCount: rows.length,
+        memories: rows.map(toFrontendMemory),
       };
-
       const filename = `gruenerator-erinnerungen-${new Date().toISOString().slice(0, 10)}.json`;
       res.setHeader('Content-Type', 'application/json');
       setContentDisposition(res, filename);
       res.json(exportData);
     } catch (error) {
-      const err = error as Error;
-      log.error('[mem0 GET /user/:userId/export] Error:', err);
-      res
-        .status(500)
-        .json({ success: false, message: toUserFacingMessage(err) || 'Fehler beim Export.' });
+      fail(res, error, 'Fehler beim Export.', 'GET /user/:userId/export');
     }
   }
 );
@@ -287,37 +160,14 @@ router.delete(
   async (req: AuthRequest<{ userId: string }>, res: Response): Promise<void> => {
     try {
       const { userId } = req.params;
-
       if (req.user!.id !== userId) {
         res.status(403).json({ success: false, message: 'Zugriff verweigert.' });
         return;
       }
-
-      const mem0 = getMem0Instance();
-      if (!mem0) {
-        res.status(503).json({ success: false, message: 'Memory-Service nicht verfügbar.' });
-        return;
-      }
-
-      const deleted = await mem0.deleteAllUserMemories(userId);
-      if (!deleted) {
-        res
-          .status(500)
-          .json({ success: false, message: 'Fehler beim Löschen aller Erinnerungen.' });
-        return;
-      }
-
-      invalidatePersona(userId).catch((e) =>
-        log.warn('[mem0 DELETE ALL] Persona invalidation failed:', e)
-      );
+      await memoryService.removeAll(userId);
       res.json({ success: true });
     } catch (error) {
-      const err = error as Error;
-      log.error('[mem0 DELETE /user/:userId/all] Error:', err);
-      res.status(500).json({
-        success: false,
-        message: toUserFacingMessage(err) || 'Fehler beim Löschen aller Erinnerungen.',
-      });
+      fail(res, error, 'Fehler beim Löschen aller Erinnerungen.', 'DELETE /user/:userId/all');
     }
   }
 );

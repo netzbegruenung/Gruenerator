@@ -1237,3 +1237,28 @@ describe('cloud_files mounting gate', () => {
     expect(out.knowledge).not.toContain('cloud_files');
   });
 });
+
+describe('toolCatalog memory tool mounting', () => {
+  function catalogWith(state: Partial<ChatGraphState>) {
+    const sourceRegistry = createSourceRegistry();
+    const sse = { send: () => {} } as unknown as NonNullable<
+      Parameters<typeof buildChatToolCatalog>[0]['loop']
+    >['sse'];
+    const full = { intent: 'search', enabledTools: {}, ...state } as unknown as ChatGraphState;
+    return buildChatToolCatalog({ agentConfig, sourceRegistry, loop: { sse, state: full } });
+  }
+
+  it('mounts `memory` only when the profile switch is on', () => {
+    // Off: the prompt carries no GEDÄCHTNIS block, so a tool that could save
+    // into a store nobody reads would be the same lie in the other direction.
+    expect(catalogWith({ memoryEnabled: false }).toolNames).not.toContain('memory');
+    expect(catalogWith({}).toolNames).not.toContain('memory');
+    expect(catalogWith({ memoryEnabled: true }).toolNames).toContain('memory');
+  });
+
+  it('honours an agent opting out via enabledTools', () => {
+    expect(
+      catalogWith({ memoryEnabled: true, enabledTools: { memory: false } }).toolNames
+    ).not.toContain('memory');
+  });
+});
