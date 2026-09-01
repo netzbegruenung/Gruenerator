@@ -90,6 +90,22 @@ describe('MemoriesSection', () => {
     );
   });
 
+  it('persists the switch through the profile update', async () => {
+    server.use(http.get(LIST, () => HttpResponse.json({ memories: [] })));
+    let sent: unknown = null;
+    server.use(
+      http.put(PROFILE, async ({ request }) => {
+        sent = await request.json();
+        return HttpResponse.json({ success: true, profile: { id: 'u1', memory_enabled: false } });
+      })
+    );
+    const { user } = renderWithProviders(<MemoriesSection />);
+    const toggle = await screen.findByRole('switch', { name: 'Gedächtnis einschalten' });
+    await waitFor(() => expect(toggle).toBeEnabled());
+    await user.click(toggle);
+    await waitFor(() => expect(sent).toEqual({ memory_enabled: false }));
+  });
+
   it('filters by kind client-side', async () => {
     server.use(http.get(LIST, () => HttpResponse.json({ memories: ROWS })));
     const { user } = renderWithProviders(<MemoriesSection />);
