@@ -41,6 +41,7 @@ import { getEnrichedPersonSearchService } from '../bundestag/index.js';
 import { DocumentSearchService } from '../document-services/index.js';
 import { queryIntentService } from '../QueryIntentService/QueryIntentService.js';
 import { type QdrantFilter } from '../QueryIntentService/types.js';
+import { buildContextSummary } from '../search/contextSummary.js';
 import {
   expandResultsToChunks,
   deduplicateResults,
@@ -809,22 +810,7 @@ export class NotebookQAService {
     referencesMap: ReferencesMap,
     isSystemCollection: boolean
   ): { systemPrompt: string; contextSummary: string } {
-    const today = new Date().toLocaleDateString('de-DE', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    });
-    const sourceLines = Object.keys(referencesMap)
-      .map((id) => {
-        const ref = referencesMap[id];
-        const text = sourceTextForPrompt(ref);
-        const collectionTag = ref.collection_name ? `[${ref.collection_name}] ` : '';
-        const dateLabel = formatDe(ref.date);
-        const datePart = dateLabel ? `(Datum: ${dateLabel}) ` : '';
-        return `${id}. ${collectionTag}${datePart}${ref.title} — "${text}"`;
-      })
-      .join('\n');
-    const contextSummary = `Heutiges Datum: ${today}\n\n${sourceLines}`;
+    const contextSummary = buildContextSummary(referencesMap);
 
     const { system: systemPrompt } = isSystemCollection
       ? buildDraftPromptGrundsatz('Grüne Dokumente')
