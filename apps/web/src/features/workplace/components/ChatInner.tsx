@@ -1,5 +1,10 @@
 import { ThreadPrimitive, useAui, useAuiState, useVoiceState } from '@assistant-ui/react';
-import { GrueneratorComposer, useAgentStore, useChatRuntimeReady } from '@gruenerator/chat';
+import {
+  buildThreadPath,
+  GrueneratorComposer,
+  useAgentStore,
+  useChatRuntimeReady,
+} from '@gruenerator/chat';
 import React, { memo, useCallback, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -9,9 +14,10 @@ import { WORKPLACE_PRESETS } from './workplacePresets';
 
 import { cn } from '@/utils/cn';
 
-function NavigateToChatOnSend() {
+export function NavigateToChatOnSend() {
   const navigate = useNavigate();
   const location = useLocation();
+  const aui = useAui();
   const isRunning = useAuiState((s) => s.optional.thread?.isRunning ?? false);
   const voiceState = useVoiceState();
   const hasNavigated = useRef(false);
@@ -19,6 +25,22 @@ function NavigateToChatOnSend() {
   // and ChatThreadRouting upgrades the URL); navigating again would push a
   // duplicate history entry.
   const onChat = location.pathname.startsWith('/chat');
+
+  const goToThread = useCallback(() => {
+    useAgentStore.getState().setChatViewMode('thread');
+    if (onChat) return;
+    // Address the thread we just started, never bare /chat. assistant-ui awaits
+    // the mint in `_runAppend` before `startRun`, so by the time `isRunning`
+    // flips the main thread already carries its remoteId. Bare /chat means "no
+    // thread" to ChatThreadRouting, which would answer it by parking the
+    // runtime on a fresh draft — dropping the conversation the user just sent
+    // and leaving them on an empty page. The fallback is for the voice session
+    // alone: transcripts bypass the model adapter, so nothing has minted yet —
+    // but then main is a draft and parking on one is a no-op.
+    const { threadItems, mainThreadId } = aui.threads.getState();
+    const main = threadItems.find((t) => t.id === mainThreadId);
+    void navigate(main?.remoteId ? buildThreadPath(main.remoteId, main.title ?? null) : '/chat');
+  }, [aui, navigate, onChat]);
 
   // Voice sessions don't flip `threadRuntime.isRunning` because transcripts
   // bypass the model adapter. Without this hop, voice messages would be
@@ -28,21 +50,19 @@ function NavigateToChatOnSend() {
   useEffect(() => {
     if (voiceActive && !hasNavigated.current) {
       hasNavigated.current = true;
-      useAgentStore.getState().setChatViewMode('thread');
-      if (!onChat) void navigate('/chat');
+      goToThread();
     }
-  }, [voiceActive, navigate, onChat]);
+  }, [voiceActive, goToThread]);
 
   useEffect(() => {
     if (isRunning && !hasNavigated.current) {
       hasNavigated.current = true;
-      useAgentStore.getState().setChatViewMode('thread');
-      if (!onChat) void navigate('/chat');
+      goToThread();
     }
     if (!isRunning && !voiceActive) {
       hasNavigated.current = false;
     }
-  }, [isRunning, navigate, voiceActive, onChat]);
+  }, [isRunning, voiceActive, goToThread]);
 
   return null;
 }
