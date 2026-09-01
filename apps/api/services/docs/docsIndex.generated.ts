@@ -239,6 +239,12 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "lead": "Du kannst dir im Grünerator deine eigenen Grüneratoren bauen — ganz ohne technische Vorkenntnisse. Es gibt zwei Wege: per Beschreibung (die KI erstellt einen Entwurf) oder manuell über das Formular."
   },
   {
+    "url": "/docs/guides/fortgeschrittene/gruene-wolke-einbinden",
+    "title": "Wolke einbinden",
+    "category": "Guides",
+    "lead": "Die Grüne Wolke ist unser sicherer Cloud-Speicher für alle grünen Organisationen. Über einen öffentlichen Freigabe-Link kann der Grünerator deine Wolke-Dateien lesen: Du kannst Ordner durchstöbern, D…"
+  },
+  {
     "url": "/docs/guides/intro",
     "title": "Guides",
     "category": "Guides",
@@ -273,12 +279,6 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "title": "Einstellungen",
     "category": "Konto & Projekte",
     "lead": "Alles, was du am Grünerator für dich einstellen kannst, liegt in einem Fenster: Einstellungen. Du öffnest es über dein Profilbild unten in der Seitenleiste oder direkt über die Adresse /settings. Es…"
-  },
-  {
-    "url": "/docs/konto/gruene-wolke",
-    "title": "Wolke einbinden",
-    "category": "Konto & Projekte",
-    "lead": "Die Grüne Wolke ist unser sicherer Cloud-Speicher für alle grünen Organisationen. Über einen öffentlichen Freigabe-Link kann der Grünerator deine Wolke-Dateien lesen: Du kannst Ordner durchstöbern, D…"
   },
   {
     "url": "/docs/konto/landesverband-einrichten",
@@ -2076,6 +2076,78 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "text": "Speichern oben rechts wird aktiv, sobald die drei Pflichtfelder stehen. Danach landest du auf der Bearbeitungsseite und öffnest ihn von dort über Im Chat öffnen. Ändern kannst du ihn jederzeit über das Stift-Symbol auf seiner Karte."
   },
   {
+    "url": "/docs/guides/fortgeschrittene/gruene-wolke-einbinden",
+    "pageTitle": "Wolke einbinden",
+    "heading": "Wolke einbinden",
+    "anchor": "",
+    "category": "Guides",
+    "text": "Die Grüne Wolke ist unser sicherer Cloud-Speicher für alle grünen Organisationen. Über einen öffentlichen Freigabe-Link kann der Grünerator deine Wolke-Dateien lesen: Du kannst Ordner durchstöbern, Dateien in Notebooks importieren, Dokumente aus der Wolke in den Docs-Editor holen und Dateien im Chat erwähnen. Der Zugriff ist ausschließlich lesend — der Grünerator schreibt, ändert und löscht nichts in deiner Wolke."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/gruene-wolke-einbinden",
+    "pageTitle": "Wolke einbinden",
+    "heading": "Häufige Probleme und Lösungen",
+    "anchor": "#häufige-probleme-und-lösungen",
+    "category": "Guides",
+    "text": "Falls die Verbindung nicht klappt, prüfe, ob der Link über „Öffentlichen Link erstellen\" erzeugt wurde, ob der Ordner noch existiert und ob der Link passwortgeschützt ist — passwortgeschützte Links kann der Grünerator nicht öffnen. Öffne die Grüne Wolke und folge der Anleitung Schritt für Schritt."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/gruene-wolke-einbinden",
+    "pageTitle": "Wolke einbinden",
+    "heading": "Im Chat",
+    "anchor": "#im-chat",
+    "category": "Guides",
+    "text": "Sobald eine Verbindung steht, kann der Chat damit arbeiten, ohne dass du erst eine Datei aussuchst. Frag einfach: „Welche Wolke-Ordner habe ich?\", „Was liegt in Anträge?\", „Such mir die Datei mit Parteitag im Namen\" oder „Lies mir rede.pdf vor\" — Zitate aus der Datei erscheinen wie bei jeder anderen Quelle. Du kannst auch eine neue Verbindung direkt im Chat anlegen: füge den Freigabe-Link in eine Nachricht ein — oder häng ihn über @link an. Der Grünerator prüft ihn zuerst und fragt dich dann, ob er ihn hinzufügen soll — gespeichert wird nichts, bevor du zustimmst. Über @wolke bleibt daneben die Dateiauswahl im Eingabefeld, wenn du genau eine bestimmte Datei anhängen willst. Auch hier gilt der Zugriff von oben: Der Chat liest, listet und sucht — er legt nichts an, ändert nichts und löscht nichts in deiner Wolke. Und er sieht ausschließlich das, was in den freigegebenen Ordnern liegt; deine übrige Wolke bleibt unsichtbar."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/gruene-wolke-einbinden",
+    "pageTitle": "Wolke einbinden",
+    "heading": "Schritt 1: Ordner auswählen",
+    "anchor": "#schritt-1-ordner-auswählen",
+    "category": "Guides",
+    "text": "Öffne die Grüne Wolke in einem neuen Tab, melde dich an und wähle den Ordner aus, dessen Inhalte du im Grünerator nutzen möchtest. Ein eigener Ordner wie \"Grünerator\" oder \"Teilen\" hilft dabei, den Zugriff überschaubar zu halten — der Grünerator sieht nur, was in dem freigegebenen Ordner liegt."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/gruene-wolke-einbinden",
+    "pageTitle": "Wolke einbinden",
+    "heading": "Schritt 2: Öffentlichen Link erstellen",
+    "anchor": "#schritt-2-öffentlichen-link-erstellen",
+    "category": "Guides",
+    "text": "Wähle den Ordner aus und klicke rechts auf „Teilen\". Klicke dann unten auf „Öffentlichen Link erstellen\", um einen Freigabe-Link zu generieren. Die Standard-Berechtigung „Nur anzeigen\" genügt — mehr Rechte braucht der Grünerator nicht."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/gruene-wolke-einbinden",
+    "pageTitle": "Wolke einbinden",
+    "heading": "Schritt 3: Link kopieren und verwenden",
+    "anchor": "#schritt-3-link-kopieren-und-verwenden",
+    "category": "Guides",
+    "text": "Der öffentliche Link wurde erstellt! Im Grünerator führt dich unter Einstellungen → Wolke (erreichbar über das Konto-Menü am unteren Rand der Seitenleiste) ein Einrichtungs-Assistent Schritt für Schritt durch die Verbindung: Link einfügen, optional benennen — der Grünerator testet die Verbindung dann automatisch und zeigt dir bei Problemen konkrete Lösungshinweise. Der Link sollte etwa so aussehen: https://wolke.netzbegruenung.de/s/AbCdEfGhIj"
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/gruene-wolke-einbinden",
+    "pageTitle": "Wolke einbinden",
+    "heading": "Was du benötigst",
+    "anchor": "#was-du-benötigst",
+    "category": "Guides",
+    "text": "Für die Einrichtung brauchst du Zugang zur Grünen Wolke unter wolke.netzbegruenung.de, einen Ordner mit den Dateien, die der Grünerator sehen soll, und etwa 5 Minuten Zeit."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/gruene-wolke-einbinden",
+    "pageTitle": "Wolke einbinden",
+    "heading": "Weitere Tipps für die Nutzung",
+    "anchor": "#weitere-tipps-für-die-nutzung",
+    "category": "Guides",
+    "text": "Organisiere deine Dateien in thematischen Ordnern und nutze aussagekräftige Namen — etwa \"Anträge\", \"Pressemitteilungen\" oder \"Reden\". So findet der Grünerator (und du) die richtigen Dokumente schneller, zum Beispiel beim Import in ein Notebook oder beim Erwähnen einer Datei im Chat."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/gruene-wolke-einbinden",
+    "pageTitle": "Wolke einbinden",
+    "heading": "Wichtige Hinweise",
+    "anchor": "#wichtige-hinweise",
+    "category": "Guides",
+    "text": "Der Grünerator greift nur lesend auf deine Wolke zu. Ein Link mit der Berechtigung „Nur anzeigen\" reicht deshalb aus; bestehende Verbindungen mit „Kann bearbeiten\" funktionieren weiter, du kannst die Berechtigung in der Wolke aber bedenkenlos auf „Nur anzeigen\" zurückstellen. Der Link darf nicht passwortgeschützt sein. Er funktioniert auch ohne Ablaufdatum, und du kannst ihn in der Wolke jederzeit deaktivieren — damit endet auch der Zugriff des Grünerators. Beachte: Ein öffentlicher Freigabe-Link ist für alle nutzbar, die ihn kennen. Teile ihn nur dort, wo das in Ordnung ist, und gib nur Ordner frei, deren Inhalte dafür geeignet sind."
+  },
+  {
     "url": "/docs/guides/intro",
     "pageTitle": "Guides",
     "heading": "Guides",
@@ -2546,78 +2618,6 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#wenn-etwas-fehlt",
     "category": "Konto & Projekte",
     "text": "Manche Bereiche brauchen eine Verbindung. Wolke, Websites und Konnektoren zeigen erst etwas, wenn du dort einen Dienst verbunden hast — vorher stehen sie leer da, das ist kein Fehler. Name und E-Mail lassen sich hier nicht ändern. Sie stammen aus deinem Grünen Login. Änderst du sie dort, sind sie nach der nächsten Anmeldung auch hier aktuell. Nicht jede Umgebung zeigt alle Bereiche. Einzelne Funktionen werden schrittweise freigegeben; fehlt ein Bereich bei dir, ist er für deinen Zugang noch nicht aktiv. --- Die Bereiche, Beschriftungen und Auswahlmöglichkeiten auf dieser Seite stammen direkt aus dem Programmcode des Grünerators. Kommt eine Einstellung dazu oder ändert sich ihre Bezeichnung, meldet sich die Doku-Prüfung von selbst — die Seite kann also nicht stillschweigend veralten."
-  },
-  {
-    "url": "/docs/konto/gruene-wolke",
-    "pageTitle": "Wolke einbinden",
-    "heading": "Wolke einbinden",
-    "anchor": "",
-    "category": "Konto & Projekte",
-    "text": "Die Grüne Wolke ist unser sicherer Cloud-Speicher für alle grünen Organisationen. Über einen öffentlichen Freigabe-Link kann der Grünerator deine Wolke-Dateien lesen: Du kannst Ordner durchstöbern, Dateien in Notebooks importieren, Dokumente aus der Wolke in den Docs-Editor holen und Dateien im Chat erwähnen. Der Zugriff ist ausschließlich lesend — der Grünerator schreibt, ändert und löscht nichts in deiner Wolke."
-  },
-  {
-    "url": "/docs/konto/gruene-wolke",
-    "pageTitle": "Wolke einbinden",
-    "heading": "Häufige Probleme und Lösungen",
-    "anchor": "#häufige-probleme-und-lösungen",
-    "category": "Konto & Projekte",
-    "text": "Falls die Verbindung nicht klappt, prüfe, ob der Link über „Öffentlichen Link erstellen\" erzeugt wurde, ob der Ordner noch existiert und ob der Link passwortgeschützt ist — passwortgeschützte Links kann der Grünerator nicht öffnen. Öffne die Grüne Wolke und folge der Anleitung Schritt für Schritt."
-  },
-  {
-    "url": "/docs/konto/gruene-wolke",
-    "pageTitle": "Wolke einbinden",
-    "heading": "Im Chat",
-    "anchor": "#im-chat",
-    "category": "Konto & Projekte",
-    "text": "Sobald eine Verbindung steht, kann der Chat damit arbeiten, ohne dass du erst eine Datei aussuchst. Frag einfach: „Welche Wolke-Ordner habe ich?\", „Was liegt in Anträge?\", „Such mir die Datei mit Parteitag im Namen\" oder „Lies mir rede.pdf vor\" — Zitate aus der Datei erscheinen wie bei jeder anderen Quelle. Du kannst auch eine neue Verbindung direkt im Chat anlegen: füge den Freigabe-Link in eine Nachricht ein — oder häng ihn über @link an. Der Grünerator prüft ihn zuerst und fragt dich dann, ob er ihn hinzufügen soll — gespeichert wird nichts, bevor du zustimmst. Über @wolke bleibt daneben die Dateiauswahl im Eingabefeld, wenn du genau eine bestimmte Datei anhängen willst. Auch hier gilt der Zugriff von oben: Der Chat liest, listet und sucht — er legt nichts an, ändert nichts und löscht nichts in deiner Wolke. Und er sieht ausschließlich das, was in den freigegebenen Ordnern liegt; deine übrige Wolke bleibt unsichtbar."
-  },
-  {
-    "url": "/docs/konto/gruene-wolke",
-    "pageTitle": "Wolke einbinden",
-    "heading": "Schritt 1: Ordner auswählen",
-    "anchor": "#schritt-1-ordner-auswählen",
-    "category": "Konto & Projekte",
-    "text": "Öffne die Grüne Wolke in einem neuen Tab, melde dich an und wähle den Ordner aus, dessen Inhalte du im Grünerator nutzen möchtest. Ein eigener Ordner wie \"Grünerator\" oder \"Teilen\" hilft dabei, den Zugriff überschaubar zu halten — der Grünerator sieht nur, was in dem freigegebenen Ordner liegt."
-  },
-  {
-    "url": "/docs/konto/gruene-wolke",
-    "pageTitle": "Wolke einbinden",
-    "heading": "Schritt 2: Öffentlichen Link erstellen",
-    "anchor": "#schritt-2-öffentlichen-link-erstellen",
-    "category": "Konto & Projekte",
-    "text": "Wähle den Ordner aus und klicke rechts auf „Teilen\". Klicke dann unten auf „Öffentlichen Link erstellen\", um einen Freigabe-Link zu generieren. Die Standard-Berechtigung „Nur anzeigen\" genügt — mehr Rechte braucht der Grünerator nicht."
-  },
-  {
-    "url": "/docs/konto/gruene-wolke",
-    "pageTitle": "Wolke einbinden",
-    "heading": "Schritt 3: Link kopieren und verwenden",
-    "anchor": "#schritt-3-link-kopieren-und-verwenden",
-    "category": "Konto & Projekte",
-    "text": "Der öffentliche Link wurde erstellt! Im Grünerator führt dich unter Einstellungen → Wolke (erreichbar über das Konto-Menü am unteren Rand der Seitenleiste) ein Einrichtungs-Assistent Schritt für Schritt durch die Verbindung: Link einfügen, optional benennen — der Grünerator testet die Verbindung dann automatisch und zeigt dir bei Problemen konkrete Lösungshinweise. Der Link sollte etwa so aussehen: https://wolke.netzbegruenung.de/s/AbCdEfGhIj"
-  },
-  {
-    "url": "/docs/konto/gruene-wolke",
-    "pageTitle": "Wolke einbinden",
-    "heading": "Was du benötigst",
-    "anchor": "#was-du-benötigst",
-    "category": "Konto & Projekte",
-    "text": "Für die Einrichtung brauchst du Zugang zur Grünen Wolke unter wolke.netzbegruenung.de, einen Ordner mit den Dateien, die der Grünerator sehen soll, und etwa 5 Minuten Zeit."
-  },
-  {
-    "url": "/docs/konto/gruene-wolke",
-    "pageTitle": "Wolke einbinden",
-    "heading": "Weitere Tipps für die Nutzung",
-    "anchor": "#weitere-tipps-für-die-nutzung",
-    "category": "Konto & Projekte",
-    "text": "Organisiere deine Dateien in thematischen Ordnern und nutze aussagekräftige Namen — etwa \"Anträge\", \"Pressemitteilungen\" oder \"Reden\". So findet der Grünerator (und du) die richtigen Dokumente schneller, zum Beispiel beim Import in ein Notebook oder beim Erwähnen einer Datei im Chat."
-  },
-  {
-    "url": "/docs/konto/gruene-wolke",
-    "pageTitle": "Wolke einbinden",
-    "heading": "Wichtige Hinweise",
-    "anchor": "#wichtige-hinweise",
-    "category": "Konto & Projekte",
-    "text": "Der Grünerator greift nur lesend auf deine Wolke zu. Ein Link mit der Berechtigung „Nur anzeigen\" reicht deshalb aus; bestehende Verbindungen mit „Kann bearbeiten\" funktionieren weiter, du kannst die Berechtigung in der Wolke aber bedenkenlos auf „Nur anzeigen\" zurückstellen. Der Link darf nicht passwortgeschützt sein. Er funktioniert auch ohne Ablaufdatum, und du kannst ihn in der Wolke jederzeit deaktivieren — damit endet auch der Zugriff des Grünerators. Beachte: Ein öffentlicher Freigabe-Link ist für alle nutzbar, die ihn kennen. Teile ihn nur dort, wo das in Ordnung ist, und gib nur Ordner frei, deren Inhalte dafür geeignet sind."
   },
   {
     "url": "/docs/konto/landesverband-einrichten",
