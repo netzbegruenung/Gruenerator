@@ -4,9 +4,13 @@ import {
   isSearchProgressTool,
   parseGenericFallback,
   resolveToolEntry,
+  selectApprovalLabels,
   selectNarration,
   selectToolRun,
+  toolErrorMessage,
+  toolOutcome,
   type PartLike,
+  type ToolApprovalState,
 } from '@gruenerator/chat';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { Pressable, Text, StyleSheet, View } from 'react-native';
@@ -25,6 +29,8 @@ import { PressemitteilungExamplesCard } from '../tool-ui/PressemitteilungExample
 import { ResearchArtifactCard } from '../tool-ui/ResearchArtifactCard';
 import { RunPythonCard } from '../tool-ui/RunPythonCard';
 import { ScrapeUrlCard } from '../tool-ui/ScrapeUrlCard';
+import { ToolApprovalCard } from '../tool-ui/ToolApprovalCard';
+import { ToolErrorCard } from '../tool-ui/ToolErrorCard';
 import { ToolResultCard } from '../tool-ui/ToolResultCard';
 
 import { useToolGroupExpanded } from './toolGroupContext';
@@ -37,6 +43,8 @@ interface ToolCallProps {
   args: Record<string, unknown>;
   result?: unknown;
   addResult: (result: string) => void;
+  approval?: ToolApprovalState;
+  respondToApproval?: (response: { approved: boolean; optionId?: string; reason?: string }) => void;
 }
 
 // Persistent planner narration above the tool row (split-gather mode). Reads
@@ -98,7 +106,7 @@ export function AssistantToolCallPartWithNarration(props: ToolCallProps) {
   const card = (
     <>
       <ToolNarration toolCallId={toolCallId} />
-      <AssistantToolCallPart {...props} />
+      <ApprovalOrPart {...props} />
     </>
   );
 
@@ -172,6 +180,33 @@ function CollapsedRunRow({
   );
 }
 
+/**
+ * Trägt der Part ein Freigabe-Gate, ersetzt die Karte den normalen Render —
+ * dieselbe Regel wie webs `renderApproval`: solange nichts entschieden ist,
+ * gibt es kein Ergebnis zu zeigen. Ohne das blieb auf Mobile ein Shimmer
+ * stehen, der nie auflöste.
+ */
+function ApprovalOrPart(props: ToolCallProps) {
+  const theme = useTheme();
+  const { approval, respondToApproval, toolName, toolCallId } = props;
+  const labels = useAuiState(
+    useShallow((s) =>
+      selectApprovalLabels((s.message?.parts ?? []) as ReadonlyArray<PartLike>, toolCallId)
+    )
+  );
+  if (!approval || !respondToApproval) return <AssistantToolCallPart {...props} />;
+  return (
+    <ToolApprovalCard
+      toolName={toolName}
+      approval={approval}
+      respondToApproval={respondToApproval}
+      theme={theme}
+      {...(labels.title != null && { title: labels.title })}
+      {...(labels.serverName != null && { serverName: labels.serverName })}
+    />
+  );
+}
+
 function AssistantToolCallPart(props: ToolCallProps) {
   const theme = useTheme();
   const { toolName, args, result, addResult } = props;
@@ -200,7 +235,24 @@ function AssistantToolCallPart(props: ToolCallProps) {
   // on screen as "generating". `getToolMeta` is the shared source web reads and
   // never yields an internal name.
   if (result === undefined) {
-    return <ShimmerStatusLine label={getToolMeta(toolName).label} theme={theme} />;
+    // Verb pair: the present-tense label while it runs ("Lade Schreibvorgaben"),
+    // falling back to the resting label for tools that declare no activeLabel.
+    // Same shared metadata web reads — the two platforms say the same words.
+    const meta = getToolMeta(toolName);
+    return <ShimmerStatusLine label={meta.activeLabel ?? meta.label} theme={theme} />;
+  }
+  // Fehlgeschlagen: eigene Karte statt der Erfolgs-Karte mit grauer Notiz.
+  // `toolOutcome` prüft beide Kanäle (`ok:false` live, `error` nach Reload),
+  // damit Livestream und neu geladener Thread dasselbe sagen.
+  if (toolOutcome(result, 'result') === 'error') {
+    return (
+      <ToolErrorCard
+        toolName={toolName}
+        args={args}
+        message={toolErrorMessage(result) ?? 'Das Werkzeug ist fehlgeschlagen.'}
+        theme={theme}
+      />
+    );
   }
   // Completed — the shared registry parses the result to a platform-neutral
   // view-model; this switch only maps its kind to the native component.

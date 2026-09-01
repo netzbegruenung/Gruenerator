@@ -233,7 +233,7 @@ export { useFetchFullText, type FetchFullTextFn } from './context/CitationContex
 export { parseSSELine, type SSECurrentEvent, type SSEParseResult } from './lib/sseParser';
 
 // Narration view-logic + label pacing (shared web + mobile)
-export { selectNarration, type PartLike } from './lib/narrationView';
+export { selectNarration, selectApprovalLabels, type PartLike } from './lib/narrationView';
 export { usePacedLabel } from './hooks/usePacedLabel';
 
 // The streaming status line's two decisions — which element, which sentence.
@@ -291,7 +291,13 @@ export {
   parsePressemitteilungExamples,
   pressemitteilungLvLabel,
   formatGermanDate,
+  getToolResultCount,
+  toolResultSummary,
+  toolOutcome,
+  toolErrorMessage,
   type ToolIconKey,
+  type ToolAccent,
+  type ToolOutcome,
   type ToolMeta,
   type ResearchCitation,
   type ResearchConfidence,
@@ -303,6 +309,17 @@ export {
   type PressemitteilungExample,
   type ParsedPressemitteilungExamples,
 } from './lib/toolResults';
+
+// Werkzeug-Freigabe: die plattformneutrale Hälfte. Web rendert sie als Karte,
+// Native als Karte im eigenen Idiom — beide lesen dieselben Optionen und
+// dieselben Beschriftungen, damit die Entscheidung überall gleich heisst.
+export {
+  TOOL_APPROVAL_OPTIONS,
+  approvalDecidedLabel,
+  isApprovalDecided,
+  type ToolApprovalOptionId,
+  type ToolApprovalState,
+} from './lib/toolApproval';
 
 // Tool view-models & registry (platform-neutral; each platform maps kind → component)
 export {
@@ -412,7 +429,13 @@ export {
   RECIPE_ORIGIN_SECTION_TITLES,
   type RecipeOrigin,
 } from './lib/mentionSections';
-export { INTENT_TO_TOOL, DEEP_TOOL_MAP } from './lib/toolMappings';
+export {
+  INTENT_TO_TOOL,
+  DEEP_TOOL_MAP,
+  // Benennt Konnektor-Werkzeuge (`m<key>__<tool>`) lesbar; die
+  // Freigabe-Karten beider Plattformen brauchen denselben Namen.
+  formatNamespacedToolLabel,
+} from './lib/toolMappings';
 
 // Thread History Adapter (shared between drawer + provider on mobile)
 export {
