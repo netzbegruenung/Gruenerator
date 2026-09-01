@@ -165,6 +165,13 @@ function summarize(result: unknown): string | undefined {
   if (Array.isArray(r.results)) return `${r.results.length} Ergebnisse`;
   if (typeof r.resultCount === 'number') return `${r.resultCount} Ergebnisse`;
   if (Array.isArray(r.examples)) return `${r.examples.length} Beispiele`;
+  // `cloud_files`: ohne diese beiden Zeilen meldete jede Wolke-Auflistung nur
+  // „ok" — die Logzeile verschwieg also genau das, was man wissen muss, wenn
+  // eine Antwort danach behauptet, es liege nichts vor.
+  if (typeof r.connectionCount === 'number') {
+    return `${r.connectionCount} Verbindung${r.connectionCount === 1 ? '' : 'en'}`;
+  }
+  if (typeof r.entryCount === 'number') return `${r.entryCount} Einträge`;
   // rezept_laden: the card names the recipe; the prompt body stays server-side.
   if (typeof r.titel === 'string' && r.geladen === true) return `Rezept: ${r.titel}`;
   if (r.geladen === false) return 'Rezept nicht verfügbar';
