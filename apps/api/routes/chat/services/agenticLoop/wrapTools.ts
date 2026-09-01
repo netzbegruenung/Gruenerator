@@ -483,6 +483,8 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
         toolName,
         args,
         result: asRecord(output),
+        // Only the failure is written; absence means ok (see PersistedStep.ok).
+        ...(ok ? {} : { ok: false as const }),
         ...serverMeta,
         ...(textOffset != null && { textOffset }),
         ...(narration ? { narration } : {}),

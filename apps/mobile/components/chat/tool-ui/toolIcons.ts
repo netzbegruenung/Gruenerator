@@ -15,6 +15,10 @@ const TOOL_IONICON: Record<ToolIconKey, IoniconsIconName> = {
   'message-circle': 'chatbubble-outline',
   cloud: 'cloud-outline',
   file: 'document-text-outline',
+  presentation: 'easel-outline',
+  table: 'grid-outline',
+  board: 'albums-outline',
+  chart: 'bar-chart-outline',
 };
 
 export function toolIonicon(iconKey: ToolIconKey): IoniconsIconName {
