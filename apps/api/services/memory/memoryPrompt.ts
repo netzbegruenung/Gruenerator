@@ -8,8 +8,8 @@
  * shape the citation system owns. Pure module — no IO — so the prompt shape is
  * pinned by a test rather than by a live turn.
  */
-import type { UserMemoryRow } from '../../database/schema/index.js';
 import type { TurnMemories } from './memoryRetrieval.js';
+import type { UserMemoryRow } from '../../database/schema/index.js';
 import type { MemoryKind } from '@gruenerator/contracts';
 
 export interface RenderedMemory {

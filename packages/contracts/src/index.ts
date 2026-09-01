@@ -61,6 +61,7 @@ export {
   sharepicTextContract,
   unsplashContract,
   notificationsContract,
+  memoryContract,
   emailContract,
   feedbackContract,
   modelPreferencesContract,

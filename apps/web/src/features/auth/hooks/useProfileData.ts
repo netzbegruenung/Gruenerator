@@ -15,7 +15,6 @@ import {
   type AnweisungenWissen,
   type BundleOptions,
   type Document,
-  type Memory,
   type Profile,
   type ProfileBundle,
   type SavedText,
@@ -47,7 +46,6 @@ export const QUERY_KEYS = {
   userTexts: (userId: string | undefined) => ['userTexts', userId] as const,
   userTemplates: (userId: string | undefined) => ['userTemplates', userId] as const,
   availableDocuments: (userId: string | undefined) => ['availableDocuments', userId] as const,
-  memories: (userId: string | undefined) => ['memories', userId] as const,
 };
 
 // === PROFILE DATA ===
@@ -97,7 +95,6 @@ export const useBundledProfileData = (options: BundleOptions = {}) => {
     includeCustomGenerators: true,
     includeUserTexts: false,
     includeUserTemplates: false,
-    includeMemories: false,
   };
 
   const mergedOptions: Required<BundleOptions> = { ...defaultOptions, ...options };
@@ -402,46 +399,6 @@ export const useAvailableDocuments = ({ enabled = true }: EnabledOnlyOptions = {
   });
 
   return query;
-};
-
-// === MEMORY (MEM0RY) ===
-export const useMemories = ({ isActive, enabled = true }: TabHookOptions = {}) => {
-  const user = useAuthStore((s) => s.user);
-  const queryClient = useQueryClient();
-
-  const query = useQuery<Memory[], Error>({
-    queryKey: QUERY_KEYS.memories(user?.id),
-    queryFn: () => profileApiService.getMemories(user!.id),
-    enabled: enabled && !!user?.id && isActive,
-    staleTime: 15 * 60 * 1000, // Increased from 5 to 15 minutes
-    gcTime: 30 * 60 * 1000, // Increased from 15 to 30 minutes
-    refetchOnWindowFocus: false,
-  });
-
-  const addMemoryMutation = useMutation({
-    mutationFn: ({ text, topic }: { text: string; topic: string }) =>
-      profileApiService.addMemory(text, topic),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.memories(user?.id) });
-    },
-  });
-
-  const deleteMemoryMutation = useMutation({
-    mutationFn: profileApiService.deleteMemory,
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.memories(user?.id) });
-    },
-  });
-
-  return {
-    query,
-    addMemory: (text: string, topic: string = '') => addMemoryMutation.mutateAsync({ text, topic }),
-    deleteMemory: deleteMemoryMutation.mutateAsync,
-    isAddingMemory: addMemoryMutation.isPending,
-    isDeletingMemory: deleteMemoryMutation.isPending,
-    addError: addMemoryMutation.error,
-    deleteError: deleteMemoryMutation.error,
-  };
 };
 
 // === LEGACY COMPATIBILITY ===

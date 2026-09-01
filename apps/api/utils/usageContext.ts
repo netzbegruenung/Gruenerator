@@ -66,7 +66,7 @@ const FEATURE_BY_PREFIX: ReadonlyArray<readonly [string, UsageFeature]> = (
     ['/api/chat-service', 'chat'],
     ['/api/chat-graph', 'chat'],
     ['/api/threads', 'chat'],
-    ['/api/mem0', 'chat'],
+    ['/api/memory', 'chat'],
 
     ['/api/docs', 'docs'],
     ['/api/documents', 'docs'],

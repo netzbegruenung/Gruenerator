@@ -31,3 +31,36 @@ export const userMemorySchema = z.object({
   updated_at: z.string(),
 });
 export type UserMemory = z.infer<typeof userMemorySchema>;
+
+// ── HTTP shapes (memoryContract) ─────────────────────────────────────────────
+
+export const memoryListResponseSchema = z.object({
+  memories: z.array(userMemorySchema),
+});
+export type MemoryListResponse = z.infer<typeof memoryListResponseSchema>;
+
+export const createMemoryBodySchema = z.object({
+  kind: memoryKindSchema,
+  text: z.string().min(1).max(MEMORY_TEXT_MAX_CHARS),
+});
+export type CreateMemoryBody = z.infer<typeof createMemoryBodySchema>;
+
+export const updateMemoryBodySchema = z.object({
+  text: z.string().min(1).max(MEMORY_TEXT_MAX_CHARS),
+});
+export type UpdateMemoryBody = z.infer<typeof updateMemoryBodySchema>;
+
+export const memoryItemResponseSchema = z.object({
+  memory: userMemorySchema,
+  /** True when an identical memory already existed and was returned instead. */
+  duplicate: z.boolean(),
+});
+
+export const memoryExportResponseSchema = z.object({
+  exportedAt: z.string(),
+  memoryCount: z.number().int(),
+  memories: z.array(userMemorySchema),
+});
+
+export const memoryOkResponseSchema = z.object({ success: z.literal(true) });
+export const memoryErrorResponseSchema = z.object({ message: z.string() });
