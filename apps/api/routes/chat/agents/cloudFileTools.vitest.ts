@@ -7,7 +7,9 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 
-import { makeCloudFilesTool } from './cloudFileTools.js';
+import { createSourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
+
+import { makeCloudFilesTool, type AttachedNotebookFolder } from './cloudFileTools.js';
 
 // `emitToolConfirmAction` legt die Karte in Redis ab. Ohne erreichbares Redis
 // wirft der Client nicht, er antwortet nie — der Test lief auf der CI darum in
@@ -24,6 +26,12 @@ import type { SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 import type { SSEWriter } from '../services/sseHelpers.js';
 
 type ToolResult = Record<string, unknown>;
+
+/** Der Text, den der Schreiber im Quellenblock sieht. */
+function sourceText(registered: unknown[], index = 0): string {
+  const results = registered[index] as Array<{ content: string }>;
+  return results.map((r) => r.content).join('\n');
+}
 
 const ROOT: CloudRoot = {
   connectionId: 'link-1',
@@ -66,15 +74,19 @@ function makeCtx(
     roots?: CloudRoot[];
     userId?: string | null;
     attachedWebpageUrls?: string[];
+    folders?: AttachedNotebookFolder[];
+    foldersThrow?: boolean;
   } = {}
 ) {
   const notes: Array<[string, string]> = [];
   const registered: unknown[] = [];
+  const registerOpts: unknown[] = [];
   const sseEvents: Array<[string, unknown]> = [];
   const sourceRegistry = {
     note: (title: string, content: string) => notes.push([title, content]),
-    register: (results: unknown) => {
+    register: (results: unknown, o?: unknown) => {
       registered.push(results);
+      registerOpts.push(o);
       return '[1] Auszug';
     },
   } as unknown as SourceRegistry;
@@ -93,18 +105,22 @@ function makeCtx(
     sourceRegistry,
     provider: { id: 'nextcloud-share', ...provider } as CloudFileProvider,
     listRoots: async () => opts.roots ?? [ROOT],
+    listNotebookFolders: async () => {
+      if (opts.foldersThrow) throw new Error('qdrant weg');
+      return opts.folders ?? [];
+    },
   });
   const run = async (args: Record<string, unknown>): Promise<ToolResult> =>
     (await (tool.execute as (a: unknown, o: unknown) => Promise<ToolResult>)(
       { recursive: false, ...args },
       {}
     )) ?? {};
-  return { run, notes, registered, sseEvents, tool };
+  return { run, notes, registered, registerOpts, sseEvents, tool };
 }
 
 describe('list_connections', () => {
   it('names the connections and their host', async () => {
-    const { run, notes } = makeCtx({}, { roots: [ROOT, SECOND_ROOT] });
+    const { run } = makeCtx({}, { roots: [ROOT, SECOND_ROOT] });
     const result = await run({ action: 'list_connections' });
     expect(result.connectionCount).toBe(2);
     expect(result.connections).toEqual([
@@ -113,24 +129,87 @@ describe('list_connections', () => {
         label: 'Anträge',
         host: 'wolke.netzbegruenung.de',
         origin: 'own',
+        folders: [],
       },
       {
         connectionId: 'link-2',
         label: 'Presse',
         host: 'wolke.netzbegruenung.de',
         origin: 'own',
+        folders: [],
       },
     ]);
-    expect(notes[0][0]).toBe('Wolke-Verbindungen');
+  });
+
+  /**
+   * Der Kern der Reparatur (live 01.09.2026).
+   *
+   * Ging die Verbindungsliste über `note()`, landete sie im Prompt unter
+   * „VORGÄNGE IN DIESEM TURN (… KEINE Quellen)" — und weil damit `freshSize` 0
+   * blieb, bekam der Schreiber zusätzlich die Anweisung, er habe nicht
+   * recherchiert und solle sagen, er müsse nachschlagen. Genau das tat er.
+   */
+  it('registers the connections as a source instead of a process note', async () => {
+    const { run, notes, registered, registerOpts } = makeCtx({}, { roots: [ROOT] });
+    await run({ action: 'list_connections' });
+    expect(notes).toHaveLength(0);
+    expect(registered).toHaveLength(1);
+    expect(sourceText(registered)).toContain('Anträge');
+    expect(sourceText(registered)).toContain('wolke.netzbegruenung.de');
+    // Ohne angehobenes Mass schneidet die Registry bei 1500 Zeichen still ab.
+    expect(registerOpts[0]).toEqual({ snippetChars: 4000 });
+  });
+
+  it('names the notebooks a folder is attached to, under the right connection', async () => {
+    const { run, registered } = makeCtx(
+      {},
+      {
+        roots: [ROOT, SECOND_ROOT],
+        folders: [
+          {
+            shareLinkId: 'link-1',
+            folderPath: 'Anträge/2026',
+            folderName: '2026',
+            notebook: 'Kreisverband',
+            includeSubfolders: true,
+          },
+        ],
+      }
+    );
+    const result = await run({ action: 'list_connections' });
+    const connections = result.connections as Array<Record<string, unknown>>;
+    expect(connections[0].folders).toEqual([
+      {
+        folderPath: 'Anträge/2026',
+        folderName: '2026',
+        notebook: 'Kreisverband',
+        includeSubfolders: true,
+      },
+    ]);
+    expect(connections[1].folders).toEqual([]);
+    expect(sourceText(registered)).toContain('Kreisverband');
+  });
+
+  // Verbindungen liegen in Postgres, die Ordner in Qdrant. Fällt der eine
+  // Speicher aus, bleibt „diese Verbindungen hast du" die richtige Antwort.
+  it('still answers the connections when the notebook lookup fails', async () => {
+    const { run, registered } = makeCtx({}, { roots: [ROOT], foldersThrow: true });
+    const result = await run({ action: 'list_connections' });
+    expect(result.connectionCount).toBe(1);
+    expect(String(result.note)).toContain('nicht laden');
+    expect(sourceText(registered)).toContain('Anträge');
   });
 
   // Die teuerste Ausfallform wäre eine erfundene Fehlanzeige. Ohne Verbindung
   // muss die Antwort sagen, dass keine da ist — und wie eine entsteht.
   it('says there is no connection instead of returning an empty list silently', async () => {
-    const { run } = makeCtx({}, { roots: [] });
+    const { run, registered } = makeCtx({}, { roots: [] });
     const result = await run({ action: 'list_connections' });
     expect(result.connectionCount).toBe(0);
     expect(String(result.note)).toContain('keine Wolke verbunden');
+    // Eine Fehlanzeige ist kein Material: als Quelle eingetragen würde sie als
+    // Recherche dieses Turns persistiert (siehe `sourceRegistry.note`).
+    expect(registered).toHaveLength(0);
   });
 
   it('refuses without a signed-in person', async () => {
@@ -165,6 +244,39 @@ describe('list', () => {
     expect(note).toContain('Unterordner');
   });
 
+  // Der Pfad muss mit in die Quelle: ohne ihn kann der Schreiber den Ordner
+  // benennen, aber nichts daraus zitieren und keinen Folgeaufruf vorbereiten.
+  it('registers the entries with their paths as a source', async () => {
+    const { run, notes, registered } = makeCtx({
+      list: async () =>
+        listing({
+          entries: [entry('Reden', { isDirectory: true, isSupported: false }), entry('a.pdf')],
+          folderCount: 1,
+        }),
+    });
+    await run({ action: 'list', path: '' });
+    expect(notes).toHaveLength(0);
+    expect(sourceText(registered)).toContain('Reden/');
+    expect(sourceText(registered)).toContain('a.pdf — a.pdf (2 KB)');
+  });
+
+  // Eine stumm abgeschnittene Liste sieht aus wie eine vollständige — deshalb
+  // muss die Kürzungs-Notiz auch den Schreiber erreichen, nicht nur die Karte.
+  it('carries the truncation note into the registered source', async () => {
+    const { run, registered } = makeCtx({
+      list: async () => listing({ entries: [entry('a.pdf')], truncated: true, depthLimited: true }),
+    });
+    await run({ action: 'list', recursive: true });
+    expect(sourceText(registered)).toContain('unvollständig');
+  });
+
+  it('reports an empty folder as a note, not as a source', async () => {
+    const { run, notes, registered } = makeCtx({ list: async () => listing() });
+    await run({ action: 'list', path: 'Leer' });
+    expect(registered).toHaveLength(0);
+    expect(String(notes[0][1])).toContain('leer');
+  });
+
   it('asks for a connectionId when there is more than one connection', async () => {
     const { run } = makeCtx({ list: async () => listing() }, { roots: [ROOT, SECOND_ROOT] });
     const result = await run({ action: 'list' });
@@ -189,6 +301,18 @@ describe('find', () => {
     const result = await run({ action: 'find', name: 'x', extensions: ['pdf'] });
     expect(find).toHaveBeenCalledWith(ROOT, { name: 'x', extensions: ['pdf'] });
     expect(result.entryCount).toBe(1);
+  });
+
+  it('registers the hits and reports a miss as a note', async () => {
+    const hit = makeCtx({ find: async () => listing({ entries: [entry('Reden/x.pdf')] }) });
+    await hit.run({ action: 'find', name: 'x' });
+    expect(hit.notes).toHaveLength(0);
+    expect(sourceText(hit.registered)).toContain('Reden/x.pdf');
+
+    const miss = makeCtx({ find: async () => listing() });
+    await miss.run({ action: 'find', name: 'x' });
+    expect(miss.registered).toHaveLength(0);
+    expect(String(miss.notes[0][1])).toContain('kein Treffer');
   });
 
   it('needs something to search for', async () => {
@@ -332,5 +456,59 @@ describe('add_connection', () => {
       'URL'
     );
     expect(test).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Gegen die ECHTE Registry, nicht gegen die Attrappe oben.
+ *
+ * Das ist die eigentliche Behauptung der Reparatur, und sie hängt an zwei
+ * Dingen, die eine Attrappe bauartbedingt nicht zeigt: wo `renderAll()` den
+ * Text hinschreibt, und was `freshSize` danach sagt. Beides entscheidet in
+ * `buildSynthSystem`, ob der Schreiber die Anweisung bekommt, er habe nicht
+ * recherchiert und solle sagen, er müsse nachschlagen (`carriedOnly`).
+ */
+describe('was der Schreiber im split-Modus wirklich sieht', () => {
+  const withRealRegistry = (roots: CloudRoot[]) => {
+    const sourceRegistry = createSourceRegistry();
+    const tool = makeCloudFilesTool({
+      state: {
+        agentConfig: { userId: 'user-1' },
+        attachedWebpageUrls: [],
+      } as unknown as ChatGraphState,
+      sse: { send: () => {} } as unknown as SSEWriter,
+      threadId: 'thread-1',
+      sourceRegistry,
+      provider: { id: 'nextcloud-share' } as CloudFileProvider,
+      listRoots: async () => roots,
+      listNotebookFolders: async () => [],
+    });
+    const run = async (args: Record<string, unknown>) =>
+      (tool.execute as (a: unknown, o: unknown) => Promise<ToolResult>)(
+        { recursive: false, ...args },
+        {}
+      );
+    return { run, sourceRegistry };
+  };
+
+  it('puts a connection into the citable sources, not into the VORGÄNGE block', async () => {
+    const { run, sourceRegistry } = withRealRegistry([ROOT]);
+    await run({ action: 'list_connections' });
+
+    // freshSize > 0 ist der Schalter: er nimmt `carriedOnly` in
+    // `synthPrompt.ts` die Grundlage — also die Anweisung, sich für unwissend
+    // zu erklären, die die Live-Antwort vom 01.09.2026 wörtlich befolgt hat.
+    expect(sourceRegistry.freshSize).toBe(1);
+    const block = sourceRegistry.renderAll();
+    expect(block).toContain('Anträge');
+    expect(block).not.toContain('VORGÄNGE IN DIESEM TURN');
+  });
+
+  it('keeps a missing connection in the VORGÄNGE block and out of the sources', async () => {
+    const { run, sourceRegistry } = withRealRegistry([]);
+    await run({ action: 'list_connections' });
+
+    expect(sourceRegistry.freshSize).toBe(0);
+    expect(sourceRegistry.renderAll()).toContain('VORGÄNGE IN DIESEM TURN');
   });
 });
