@@ -32,6 +32,7 @@ import type {
   ClientPlatform,
   SharepicVariant,
   PublicOwnership,
+  GroupAudience,
 } from '@gruenerator/contracts';
 import type { RoleLandesverbandInput } from '@gruenerator/shared/agents';
 import type { ArtifactCreateKind } from '@gruenerator/shared/chat-intents';
@@ -1306,6 +1307,18 @@ export interface ShareNotebookPayload {
 }
 
 /**
+ * Ein Projekt öffentlich listen oder wieder privat stellen — geht unverändert
+ * an `setGroupVisibility`. Öffentlich heißt: in „Projekte entdecken" sichtbar
+ * und Beitrittsanfragen möglich, deshalb eine Karte.
+ */
+export interface SetGroupVisibilityPayload {
+  groupId: string;
+  groupName: string;
+  is_public: boolean;
+  audience: GroupAudience;
+}
+
+/**
  * Pending action stored in Redis while awaiting user confirmation.
  * Discriminated union ensures type-safe payload access per action type.
  */
@@ -1327,6 +1340,7 @@ export type PendingAction = {
   | { type: 'attach_wolke_folder'; payload: AttachWolkeFolderPayload }
   | { type: 'set_notebook_visibility'; payload: SetNotebookVisibilityPayload }
   | { type: 'share_notebook'; payload: ShareNotebookPayload }
+  | { type: 'set_group_visibility'; payload: SetGroupVisibilityPayload }
 );
 
 /**

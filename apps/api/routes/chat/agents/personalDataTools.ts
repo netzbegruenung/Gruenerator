@@ -20,16 +20,16 @@
  *     write-access check; deletes use a two-step confirm (the model must re-call
  *     with confirm=true only after the person agrees).
  *
- * The `notebooks` tool moved to `notebookTools.ts` (09/2026) when it grew
- * from list/rename/delete to the full Wolke-import + sharing set; it reuses the
- * exported helpers below (`ground*`, `makeRow`, `refuseForbiddenAction`).
+ * The `notebooks` tool moved to `notebookTools.ts` and `groups` to
+ * `groupTools.ts` (09/2026) when they grew past list/rename/delete; both reuse
+ * the exported helpers below (`ground*`, `makeRow`, `refuseForbiddenAction`).
  *
  * userId comes off the shared `state.agentConfig?.userId` (set in streamContext).
  * SSE cards, timeout, truncation and step recording are layered on by
  * wrapToolsForLoop — these factories only implement data access + confirm emit.
  */
 import { isKiImage } from '@gruenerator/shared/media-library/contentOrigin';
-import { buildGroupSlug, buildChatThreadSlug } from '@gruenerator/shared/utils';
+import { buildChatThreadSlug } from '@gruenerator/shared/utils';
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
@@ -47,8 +47,7 @@ import {
   resolveCardDisplay,
   type BoardState,
 } from '../../../services/boards/BoardService.js';
-import { getGroupByToken } from '../../../services/groups/groupMutations.js';
-import { findGroups, listUserGroups } from '../../../services/groups/groupQueries.js';
+import { findGroups } from '../../../services/groups/groupQueries.js';
 import { USER_VISIBLE_SHARE_STATUSES } from '../../../services/sharedMediaFilters.js';
 import { getSharedMediaService } from '../../../services/sharedMediaService.js';
 import { getSubtitlerProjectService } from '../../../services/subtitler/ProjectService.js';
@@ -819,108 +818,6 @@ NUTZE FÜR: Boards auflisten (list_boards), Karten eines Boards lesen (get_cards
           error: toUserFacingMessage(err, 'Karte konnte nicht bearbeitet werden.'),
         };
       }
-    },
-  });
-}
-
-// ---------------------------------------------------------------------------
-// groups — list / find (read)
-// ---------------------------------------------------------------------------
-
-export function makeGroupsTool(ctx: PersonalToolCtx): Tool {
-  const { state, sse, threadId, sourceRegistry } = ctx;
-  return tool({
-    description: `Zugriff auf die Gruppen der Person.
-
-NUTZE FÜR: eigene Gruppen auflisten (list), eine Gruppe per Name finden (find), eine neue Gruppe anlegen (create, braucht name), einer Gruppe per Einladungslink/-token beitreten (join, braucht joinToken). Erstellen und Beitreten werden der Person zur Bestätigung angezeigt. Zum Teilen von Inhalten mit einer Gruppe nutze 'documents' action="share_to_group".`,
-    inputSchema: z.object({
-      action: z.enum(['list', 'find', 'create', 'join']),
-      query: z.string().optional().describe('Gruppenname (nur bei action="find")'),
-      name: z.string().optional().describe('Name der neuen Gruppe (nur bei action="create")'),
-      description: z
-        .string()
-        .optional()
-        .describe('Optionale Beschreibung der neuen Gruppe (nur bei action="create")'),
-      joinToken: z
-        .string()
-        .optional()
-        .describe('Einladungs-Token/-Link der Gruppe (nur bei action="join")'),
-      limit: z.number().int().min(1).max(30).default(15),
-    }),
-    execute: async ({ action, query, name, description, joinToken, limit }) => {
-      const userId = requireUserId(state);
-      if (!userId) return { error: NO_SESSION };
-      const groupUrl = (g: { name: string; slug_suffix: string | null; id: string }) =>
-        `/gruppen/${g.slug_suffix ? buildGroupSlug(g.name, g.slug_suffix) : g.id}`;
-
-      if (action === 'create') {
-        // No artifact noun to bind to — only an action-level prohibition
-        // ("nichts speichern", "keine Aktion") can rule a group out.
-        const forbidden = refuseForbiddenAction(state);
-        if (forbidden) return forbidden;
-        const groupName = name?.trim();
-        if (!groupName) return { error: 'create braucht einen name.' };
-        if (!threadId) return { error: 'Erstellen ist in diesem Kontext nicht möglich.' };
-        const pending: PendingAction = {
-          actionId: newActionId(),
-          threadId,
-          userId,
-          title: 'Gruppe erstellen',
-          preview: `„${groupName}" anlegen`,
-          createdAt: Date.now(),
-          type: 'create_group',
-          payload: { name: groupName, description: description?.trim() || null },
-        };
-        await emitToolConfirmAction(sse, pending, [{ key: 'Gruppe', value: groupName }]);
-        const note = `Bestätigung zum Erstellen der Gruppe „${groupName}" angefordert.`;
-        groundNote(sourceRegistry, 'Gruppe erstellen', note);
-        return { ok: true, note };
-      }
-
-      if (action === 'join') {
-        const token = joinToken?.trim();
-        if (!token) return { error: 'join braucht einen joinToken.' };
-        if (!threadId) return { error: 'Beitreten ist in diesem Kontext nicht möglich.' };
-        const group = await getGroupByToken(token);
-        if (!group) return { error: 'Ungültiger oder abgelaufener Einladungslink.' };
-        const pending: PendingAction = {
-          actionId: newActionId(),
-          threadId,
-          userId,
-          title: 'Gruppe beitreten',
-          preview: `„${group.name}" beitreten`,
-          createdAt: Date.now(),
-          type: 'join_group',
-          payload: { joinToken: token, groupName: group.name },
-        };
-        await emitToolConfirmAction(sse, pending, [{ key: 'Gruppe', value: group.name }]);
-        const note = `Bestätigung zum Beitritt zur Gruppe „${group.name}" angefordert.`;
-        groundNote(sourceRegistry, 'Gruppe beitreten', note);
-        return { ok: true, note };
-      }
-
-      if (action === 'find') {
-        const q = (query ?? '').trim();
-        if (!q) return { error: 'find braucht einen Suchbegriff.' };
-        const groups = await findGroups(userId, q, limit);
-        const results = groups.map((g) =>
-          makeRow(g.name, groupUrl(g), 'Gruppe', `${g.member_count} Mitglieder`)
-        );
-        groundRows(sourceRegistry, results);
-        return { resultCount: results.length, results };
-      }
-
-      const groups = await listUserGroups(userId, limit);
-      const results = groups.map((g) =>
-        makeRow(
-          g.name,
-          groupUrl(g),
-          'Gruppe',
-          `${g.role || 'Mitglied'} · ${g.member_count} Mitglieder`
-        )
-      );
-      groundRows(sourceRegistry, results);
-      return { resultCount: results.length, results };
     },
   });
 }

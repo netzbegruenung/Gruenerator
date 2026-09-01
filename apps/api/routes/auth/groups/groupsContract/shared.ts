@@ -13,7 +13,6 @@ import { fileURLToPath } from 'url';
 
 import { initServer } from '@ts-rest/express';
 
-import { NotebookQdrantHelper } from '../../../../database/services/NotebookQdrantHelper.js';
 import { createLogger } from '../../../../utils/logger.js';
 
 import type { UserProfile } from '../../../../services/user/types.js';
@@ -26,25 +25,6 @@ export const log = createLogger('groupsContractRouter');
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 export const AVATAR_UPLOAD_DIR = path.join(__dirname, '../../../../uploads/group-avatars');
-
-export const notebookHelper = new NotebookQdrantHelper();
-
-// ── Content-sharing module state (ported from groupContent.ts) ────────────────
-
-export interface ShareRecord {
-  content_type: string;
-  content_id: string;
-  shared_at: string;
-  permissions: string | Record<string, unknown>;
-  shared_by_user_id: string;
-  first_name: string | null;
-  display_name: string | null;
-}
-
-export interface ContentItem {
-  id: string;
-  [key: string]: unknown;
-}
 
 export interface StoredGroupLink {
   id: string;

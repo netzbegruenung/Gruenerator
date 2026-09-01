@@ -75,6 +75,7 @@ import {
   makeUmfragenTool,
 } from './domainTools.js';
 import { makeEditArtifactTool } from './editorTools.js';
+import { makeGroupsTool } from './groupTools.js';
 import { makeNotebooksTool } from './notebookTools.js';
 import { makeReadPdfFormTool, makeFillPdfFormTool } from './pdfFormTools.js';
 import {
@@ -83,7 +84,6 @@ import {
   makeReadArtifactTool,
   makeFindContentTool,
   makeSearchThreadsTool,
-  makeGroupsTool,
   makeMediaTool,
   type PersonalToolCtx,
 } from './personalDataTools.js';

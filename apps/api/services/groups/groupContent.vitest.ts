@@ -6,7 +6,12 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 
-import { shareContentToGroup, type ShareContentDeps } from './groupContent.js';
+import {
+  hydrateGroupContent,
+  shareContentToGroup,
+  type HydrateGroupContentDeps,
+  type ShareContentDeps,
+} from './groupContent.js';
 
 interface FakeDbOptions {
   /** Antwort auf die Besitzabfrage (Tabelle → Zeile). */
@@ -168,5 +173,127 @@ describe('shareContentToGroup', () => {
         body: 'Moritz hat ein Dokument in „Kreisverband" geteilt',
       })
     );
+  });
+});
+
+/**
+ * `hydrateGroupContent` gegen eine Fake-Datenbank: welche Tabellen für welche
+ * `content_type`-Zeilen gelesen werden, wie die Share-Metadaten an die
+ * Datensätze kommen — und dass eine Wolke-Verbindung keinen Bucket hat.
+ */
+describe('hydrateGroupContent', () => {
+  const shares = [
+    {
+      content_type: 'collaborative_documents',
+      content_id: 'd1',
+      shared_at: '2026-09-01T10:00:00Z',
+      permissions: '{"read":true,"write":false}',
+      shared_by_user_id: 'u2',
+      first_name: 'Anna',
+      display_name: null,
+    },
+    {
+      content_type: 'notebook_collections',
+      content_id: 'n1',
+      shared_at: '2026-09-01T09:00:00Z',
+      permissions: { read: true },
+      shared_by_user_id: 'u1',
+      first_name: null,
+      display_name: 'Moritz',
+    },
+    {
+      content_type: 'nextcloud_share_link',
+      content_id: 'link-1',
+      shared_at: '2026-09-01T08:00:00Z',
+      permissions: {},
+      shared_by_user_id: 'u1',
+      first_name: null,
+      display_name: 'Moritz',
+    },
+  ];
+
+  function fakeHydrateDeps() {
+    const query = vi.fn(async (sql: string) => {
+      if (sql.includes('FROM group_content_shares')) return shares;
+      if (sql.includes('FROM collaborative_documents')) {
+        return [{ id: 'd1', title: 'Protokoll', document_subtype: 'docs', created_by: 'u2' }];
+      }
+      return [];
+    });
+    const deps: HydrateGroupContentDeps = {
+      postgres: { query } as unknown as HydrateGroupContentDeps['postgres'],
+      getNotebookCollectionsByIds: vi.fn(async () => [
+        {
+          id: 'n1',
+          name: 'Kreisverband',
+          description: 'Anträge',
+          slug_suffix: 'Ab3xK9',
+          created_at: 'x',
+          updated_at: 'y',
+          user_id: 'u1',
+        },
+      ]) as never,
+      listUserAgentsByIds: vi.fn(async () => []),
+    };
+    return { deps, query };
+  }
+
+  it('resolves each share to its record and attaches the share metadata', async () => {
+    const { deps } = fakeHydrateDeps();
+    const out = await hydrateGroupContent('g1', deps);
+    expect(out.collaborative_documents).toEqual([
+      expect.objectContaining({
+        id: 'd1',
+        title: 'Protokoll',
+        contentType: 'collaborative_documents',
+        shared_at: '2026-09-01T10:00:00Z',
+        group_permissions: { read: true, write: false },
+        shared_by_name: 'Anna',
+      }),
+    ]);
+    expect(out.notebooks).toEqual([
+      expect.objectContaining({
+        id: 'n1',
+        name: 'Kreisverband',
+        slug_suffix: 'Ab3xK9',
+        shared_by_name: 'Moritz',
+      }),
+    ]);
+  });
+
+  it('reads only the tables that have shares, and never a share-link table', async () => {
+    const { deps, query } = fakeHydrateDeps();
+    await hydrateGroupContent('g1', deps);
+    const tables = query.mock.calls.map(([sql]) => sql as string);
+    expect(tables.some((sql) => sql.includes('FROM collaborative_documents'))).toBe(true);
+    expect(tables.some((sql) => sql.includes('FROM documents'))).toBe(false);
+    expect(tables.some((sql) => sql.includes('nextcloud'))).toBe(false);
+    expect(deps.listUserAgentsByIds).not.toHaveBeenCalled();
+  });
+
+  it('has no bucket for a wolke connection — the link is the access secret', async () => {
+    const { deps } = fakeHydrateDeps();
+    const out = await hydrateGroupContent('g1', deps);
+    expect(JSON.stringify(out)).not.toContain('link-1');
+    expect(Object.keys(out).sort()).toEqual([
+      'canvas_templates',
+      'collaborative_documents',
+      'documents',
+      'generators',
+      'notebooks',
+      'system_agents',
+      'system_notebooks',
+      'templates',
+      'texts',
+      'user_agents',
+    ]);
+  });
+
+  it('returns empty buckets for a project with nothing shared', async () => {
+    const { deps, query } = fakeHydrateDeps();
+    query.mockResolvedValue([]);
+    const out = await hydrateGroupContent('g1', deps);
+    expect(Object.values(out).every((b: unknown[]) => b.length === 0)).toBe(true);
+    expect(query).toHaveBeenCalledTimes(1);
   });
 });

@@ -7,7 +7,6 @@ import {
   makeDocumentsTool,
   makeReadArtifactTool,
   makeFindContentTool,
-  makeGroupsTool,
   makeMediaTool,
   makeSearchThreadsTool,
   type PersonalToolCtx,
@@ -23,9 +22,7 @@ const listUserBoards = vi.fn();
 const loadBoardState = vi.fn();
 const resolveCardDisplay = vi.fn();
 const updateCard = vi.fn();
-const listUserGroups = vi.fn();
 const findGroups = vi.fn();
-const getGroupByToken = vi.fn();
 const hasWriteAccess = vi.fn();
 const emitToolConfirmAction = vi.fn();
 const dbQuery = vi.fn();
@@ -58,11 +55,7 @@ vi.mock('../../../services/boards/boardCardWriteService.js', () => ({
   updateCard: (...a: unknown[]) => updateCard(...a),
 }));
 vi.mock('../../../services/groups/groupQueries.js', () => ({
-  listUserGroups: (...a: unknown[]) => listUserGroups(...a),
   findGroups: (...a: unknown[]) => findGroups(...a),
-}));
-vi.mock('../../../services/groups/groupMutations.js', () => ({
-  getGroupByToken: (...a: unknown[]) => getGroupByToken(...a),
 }));
 vi.mock('../../workplace/recentActivityController.js', () => ({
   aggregateRecentActivity: (...a: unknown[]) => aggregateRecentActivity(...a),
@@ -454,72 +447,6 @@ describe('boards_tasks', () => {
     })) as { ok?: boolean };
     expect(out.ok).toBe(true);
     expect(updateCard).toHaveBeenCalledWith('b1', 'r1', { status: 'Erledigt' });
-  });
-});
-
-// --- groups ------------------------------------------------------------------
-describe('groups', () => {
-  it('list maps memberships to rows', async () => {
-    listUserGroups.mockResolvedValue([
-      { id: 'g1', name: 'Klima', slug_suffix: 'ab12', role: 'admin', member_count: 7 },
-    ]);
-    const out = (await exec(makeGroupsTool(ctx('u1')), { action: 'list', limit: 15 })) as {
-      results: Array<{ title: string; url: string }>;
-    };
-    expect(out.results[0].title).toBe('Klima');
-    expect(out.results[0].url).toContain('/gruppen/');
-  });
-
-  it('create without a name → error, no confirm', async () => {
-    const out = (await exec(makeGroupsTool(ctx('u1')), { action: 'create', limit: 15 })) as {
-      error?: string;
-    };
-    expect(out.error).toMatch(/name/);
-    expect(emitToolConfirmAction).not.toHaveBeenCalled();
-  });
-
-  it('create emits a create_group confirm with name + description', async () => {
-    const out = (await exec(makeGroupsTool(ctx('u1')), {
-      action: 'create',
-      name: 'Klima-AG',
-      description: 'Für den Klimaschutz',
-      limit: 15,
-    })) as { ok?: boolean };
-    expect(out.ok).toBe(true);
-    const [, action] = emitToolConfirmAction.mock.calls[0] as [
-      unknown,
-      { type: string; payload: unknown },
-    ];
-    expect(action.type).toBe('create_group');
-    expect(action.payload).toMatchObject({ name: 'Klima-AG', description: 'Für den Klimaschutz' });
-  });
-
-  it('join with an unknown token → error, no confirm', async () => {
-    getGroupByToken.mockResolvedValue(null);
-    const out = (await exec(makeGroupsTool(ctx('u1')), {
-      action: 'join',
-      joinToken: 'deadbeef',
-      limit: 15,
-    })) as { error?: string };
-    expect(out.error).toMatch(/Einladungslink/);
-    expect(emitToolConfirmAction).not.toHaveBeenCalled();
-  });
-
-  it('join emits a join_group confirm naming the resolved group', async () => {
-    getGroupByToken.mockResolvedValue({ id: 'g1', name: 'Klima' });
-    const out = (await exec(makeGroupsTool(ctx('u1')), {
-      action: 'join',
-      joinToken: 'tok123',
-      limit: 15,
-    })) as { ok?: boolean };
-    expect(out.ok).toBe(true);
-    expect(getGroupByToken).toHaveBeenCalledWith('tok123');
-    const [, action] = emitToolConfirmAction.mock.calls[0] as [
-      unknown,
-      { type: string; payload: unknown },
-    ];
-    expect(action.type).toBe('join_group');
-    expect(action.payload).toMatchObject({ joinToken: 'tok123', groupName: 'Klima' });
   });
 });
 

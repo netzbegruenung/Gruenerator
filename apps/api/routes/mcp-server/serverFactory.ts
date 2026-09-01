@@ -21,12 +21,12 @@ import {
   executeDirectPressemitteilungExamples,
   executeDirectSearch,
 } from '../chat/agents/directSearchExecutors.js';
+import { makeGroupsTool } from '../chat/agents/groupTools.js';
 import { makeNotebooksTool } from '../chat/agents/notebookTools.js';
 import {
   makeBoardsTasksTool,
   makeDocumentsTool,
   makeFindContentTool,
-  makeGroupsTool,
   makeMediaTool,
 } from '../chat/agents/personalDataTools.js';
 import { runBoardGeneration, runDocGeneration } from '../chat/services/intentExecutionService.js';
@@ -50,6 +50,7 @@ import {
   createGroupDirect,
   createNotebookMcp,
   joinGroupDirect,
+  setGroupVisibilityMcp,
   setNotebookVisibilityMcp,
   shareDocToGroupMcp,
   shareNotebookMcp,
@@ -700,20 +701,25 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
     const groupsWrite = has('groups:write');
     registerAiTool(server, 'groups', makeGroupsTool(ctx), {
       description: groupsWrite
-        ? `Zugriff auf die Gruppen der Person: auflisten (list), per Name finden (find), neue Gruppe anlegen (create), per Einladungstoken beitreten (join). join verlangt das zweistufige confirm-Protokoll (Mitglieder werden benachrichtigt).`
-        : `Die Gruppen der Person auflisten (list) oder per Name finden (find).`,
-      actions: groupsWrite ? ['list', 'find', 'create', 'join'] : ['list', 'find'],
+        ? `Zugriff auf die Projekte (Gruppen) der Person: auflisten (list — die id steht im ref), per Name finden (find), Details ansehen (get), die geteilten Inhalte mit Links auflisten (content), neues Projekt anlegen (create), per Einladungstoken beitreten (join), Name/Beschreibung ändern (update, nur Admins), öffentlich listen oder privat stellen (set_visibility mit isPublic, nur Admins). join und set_visibility verlangen das zweistufige confirm-Protokoll. Mitglieder verwalten ist hier nicht möglich.`
+        : `Die Projekte (Gruppen) der Person auflisten (list — die id steht im ref), per Name finden (find), Details ansehen (get) oder die geteilten Inhalte mit Links auflisten (content).`,
+      actions: groupsWrite
+        ? ['list', 'find', 'get', 'content', 'create', 'join', 'update', 'set_visibility']
+        : ['list', 'find', 'get', 'content'],
       ...(groupsWrite
         ? {
             extraShape: {
               confirm: z
                 .boolean()
                 .default(false)
-                .describe('Nur bei join: erst true setzen, nachdem die Person zugestimmt hat.'),
+                .describe(
+                  'Nur bei join und set_visibility: erst true setzen, nachdem die Person zugestimmt hat.'
+                ),
             },
             overrides: {
               create: (args) => createGroupDirect(userId, args),
               join: (args) => joinGroupDirect(userId, args),
+              set_visibility: (args) => setGroupVisibilityMcp(userId, args),
             },
           }
         : { readOnly: true }),

@@ -388,6 +388,34 @@ function parseNotebooksVM(args: unknown, result: unknown): ToolResultVM {
   return parsePersonalDataVM(args, result);
 }
 
+// groups: `get` liefert ein `{group}`-Detailobjekt (groupTools.ts) — ohne Zweig
+// fiel es in den generischen <dl>-Dump mit englischen Schlüsseln. Listen
+// (list/find/content) und Vorgänge gehen weiter über `parsePersonalDataVM`.
+function parseGroupsVM(args: unknown, result: unknown): ToolResultVM {
+  const group = getObject(result, 'group');
+  if (group) {
+    const entries: KeyValueEntry[] = [];
+    const name = getString(group, 'name');
+    if (name) entries.push({ label: 'Projekt', value: name });
+    const description = getString(group, 'description');
+    if (description) entries.push({ label: 'Beschreibung', value: description });
+    entries.push({
+      label: 'Rolle',
+      value: getBoolean(group, 'isAdmin') ? 'Admin' : 'Mitglied',
+    });
+    const members = getNumber(group, 'memberCount');
+    if (members != null) entries.push({ label: 'Mitglieder', value: String(members) });
+    entries.push({
+      label: 'Sichtbarkeit',
+      value: getBoolean(group, 'isPublic') ? 'Öffentlich gelistet' : 'Privat',
+    });
+    const content = getNumber(group, 'contentCount');
+    if (content != null) entries.push({ label: 'Geteilte Inhalte', value: String(content) });
+    return { kind: 'key-value', entries, citations: [], markdown: null, imageUrl: null };
+  }
+  return parsePersonalDataVM(args, result);
+}
+
 // edit_document (agentic editor edit): the loop step that plans + applies typed
 // ops to the open sheet/presentation/board. Result is lean — {ok, operationCount,
 // opSummary} | {ok, operationCount:0, note} | {error} — so a compact text-note
@@ -526,7 +554,7 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   find_content: entry('find_content', 'citations', parsePersonalDataVM),
   documents: entry('documents', 'citations', parsePersonalDataVM),
   boards_tasks: entry('boards_tasks', 'citations', parsePersonalDataVM),
-  groups: entry('groups', 'citations', parsePersonalDataVM),
+  groups: entry('groups', 'citations', parseGroupsVM),
   media: entry('media', 'citations', parsePersonalDataVM),
   notebooks: entry('notebooks', 'citations', parseNotebooksVM),
   read_pdf_form: entry('read_pdf_form', 'key-value', parsePdfFormReadVM),

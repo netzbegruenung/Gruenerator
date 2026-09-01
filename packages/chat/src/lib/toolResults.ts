@@ -309,7 +309,12 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
     iconKey: 'file',
     accent: 'personal',
   },
-  groups: { label: 'Gruppen', activeLabel: 'Suche Gruppen', iconKey: 'user', accent: 'personal' },
+  groups: {
+    label: 'Projekte',
+    activeLabel: 'Sehe im Projekt nach',
+    iconKey: 'user',
+    accent: 'personal',
+  },
   media: { label: 'Medien', activeLabel: 'Suche Medien', iconKey: 'image', accent: 'personal' },
   notebooks: {
     label: 'Notebooks',
