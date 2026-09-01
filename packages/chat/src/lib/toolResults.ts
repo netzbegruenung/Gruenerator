@@ -478,6 +478,38 @@ export function getToolResultCount(result: unknown): number {
   return 0;
 }
 
+/** How a settled tool call should present itself. */
+export type ToolOutcome = 'running' | 'ok' | 'error';
+
+/**
+ * The failure message of a call, or null.
+ *
+ * `result.error` is the channel that SURVIVES a thread reload: wrapTools turns
+ * every throw into `{ error }` before the result leaves the backend, and the
+ * whole `result` object is what gets persisted.
+ */
+export function toolErrorMessage(result: unknown): string | null {
+  return getString(result, 'error');
+}
+
+/**
+ * Did this call fail? Two channels carry that one fact and neither is
+ * sufficient alone:
+ *   - `result.ok === false` — folded in by parseSSEStream from the live
+ *     `tool_step_result` event. It is NOT persisted, so it is gone on reload;
+ *   - `result.error`        — lives inside `result`, so it does survive.
+ * Reading only `ok` is why a failed connector call came back GREEN after a
+ * reload; reading only `error` misses the tools that fail via the flag alone.
+ */
+export function toolOutcome(result: unknown, state: 'call' | 'result'): ToolOutcome {
+  if (state !== 'result' || result == null) return 'running';
+  if (toolErrorMessage(result)) return 'error';
+  // Explicit `false` only. `getBoolean` must NOT be used here: it reports a
+  // MISSING key as false, which is precisely the post-reload shape.
+  const ok = typeof result === 'object' ? (result as Record<string, unknown>).ok : undefined;
+  return ok === false ? 'error' : 'ok';
+}
+
 /**
  * The collapsed card's one-line outcome, or null when there is nothing worth
  * saying. Precedence, and each step is load-bearing:

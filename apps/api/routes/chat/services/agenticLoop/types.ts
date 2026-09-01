@@ -16,6 +16,11 @@ export interface PersistedStep {
   toolName: string;
   args: Record<string, unknown>;
   result: Record<string, unknown>;
+  /** Set ONLY on failure. The live card learns the outcome from the
+   *  `tool_step_result` event's `ok` flag, which was never persisted — so a
+   *  failed connector call came back GREEN after a thread reload. Absent means
+   *  "succeeded", which keeps every pre-existing thread reading correctly. */
+  ok?: false;
   /** MCP connector server title (e.g. "Notion"). Present only for MCP tool
    *  steps; lets a later turn identify + replay which server was used, since
    *  the `m<serverKey>__` tool name alone isn't human-readable. */

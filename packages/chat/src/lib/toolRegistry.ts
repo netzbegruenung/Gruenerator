@@ -92,7 +92,18 @@ export interface ToolRegistryEntry {
 // ---------------------------------------------------------------------------
 
 const MARKDOWNISH_KEYS = ['answer', 'markdown', 'content', 'text', 'summary'];
-const LIFTED_KEYS = new Set([...MARKDOWNISH_KEYS, 'results', 'citations', 'image', 'imageUrl']);
+const LIFTED_KEYS = new Set([
+  ...MARKDOWNISH_KEYS,
+  'results',
+  'citations',
+  'image',
+  'imageUrl',
+  // Lifted so an unregistered failing tool does not show its failure as a
+  // key/value row literally labelled "error"; the card renders it as an error.
+  'error',
+  // Live-only success flag (parseSSEStream folds it in); never a data row.
+  'ok',
+]);
 
 function liftCitations(result: unknown): SerializableCitation[] {
   const items =

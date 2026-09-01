@@ -23,11 +23,12 @@ import { makeCitationComponents } from '../lib/citationMarkdownComponents';
 import { escapeCitationMarkers } from '../lib/citationProcessing';
 import { resolveToolEntry } from '../lib/toolRegistry';
 import {
-  getString,
   getToolMeta,
   getToolQuery,
   getToolResultCount,
   toolResultSummary,
+  toolOutcome,
+  toolErrorMessage,
   researchCitationToSerializable,
   parseResearchResult,
   CONFIDENCE_LABELS,
@@ -36,6 +37,7 @@ import {
 } from '../lib/toolResults';
 
 import { ToolCall } from './assistant-ui/elements/tool-call';
+import { ToolError } from './assistant-ui/elements/tool-error';
 import { PressemitteilungExamplesCard } from './PressemitteilungExamplesCard';
 import { CitationList } from './tool-ui/citation';
 import { LinkPreview } from './tool-ui/link-preview';
@@ -93,9 +95,11 @@ export const ToolCallUI = memo(function ToolCallUI({
   result,
 }: ToolCallUIProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const isLoading = state === 'call' || state === 'partial-call';
   const done = state === 'result';
   const meta = getToolMeta(toolName);
+  // One source for "did this fail" — checked on BOTH channels, so the live
+  // stream and a reloaded thread agree (see toolOutcome).
+  const outcome = toolOutcome(result, done ? 'result' : 'call');
   const Icon = ICON_BY_KEY[meta.iconKey];
 
   // `toolName` now participates: tools whose subject is not called `query`
@@ -131,7 +135,11 @@ export const ToolCallUI = memo(function ToolCallUI({
         </span>
       )}
       {summary ? (
-        <span className="text-foreground-muted max-w-[12rem] truncate text-[11px] sm:max-w-[20rem]">
+        <span
+          className={`max-w-[12rem] truncate text-[11px] sm:max-w-[20rem] ${
+            outcome === 'error' ? 'text-destructive' : 'text-foreground-muted'
+          }`}
+        >
           {summary}
         </span>
       ) : (
@@ -151,7 +159,7 @@ export const ToolCallUI = memo(function ToolCallUI({
         // which is exactly the pre-change behaviour.
         activeLabel={meta.activeLabel ?? meta.label}
         query={query}
-        running={isLoading}
+        outcome={outcome}
         status={status}
         open={isExpanded && done}
         // A running card must not open — but unlike the old `disabled` button it
@@ -194,9 +202,15 @@ const ToolResultRenderer = memo(function ToolResultRenderer({
     return <p className="text-xs text-foreground-muted">Keine Ergebnisse</p>;
   }
 
-  const error = getString(result, 'error');
+  const error = toolErrorMessage(result);
   if (error) {
-    return <p className="text-xs text-destructive">{error}</p>;
+    return (
+      <ToolError
+        name={getToolMeta(toolName).label}
+        target={getToolQuery(args, toolName)}
+        message={error}
+      />
+    );
   }
 
   const vm = resolveToolEntry(toolName).parse(args, result);

@@ -129,3 +129,74 @@ describe('ToolCallUI — disclosure behaviour', () => {
     expect(screen.getByText(/Board „Wahlkampf 2026" erstellt/)).toBeInTheDocument();
   });
 });
+
+/**
+ * The green tick was unconditional: `{!running && <CheckIcon …/>}`. A tool that
+ * failed therefore rendered a success glyph, with the failure text beside it in
+ * the same muted grey used for "3 Suchen". Both halves are asserted here.
+ */
+describe('ToolCallUI — a failed call must not look successful', () => {
+  const failed = { error: 'Für dieses Rezept liegen keine Schreibvorgaben vor.' };
+
+  it('shows no success tick when the call failed', () => {
+    const { container } = render(
+      <ToolCallUI
+        toolName="rezept_laden"
+        args={{ rezept: 'presse' }}
+        state="result"
+        result={failed}
+      />
+    );
+    expect(container.querySelector('.text-emerald-500')).toBeNull();
+  });
+
+  it('still shows the success tick when the call succeeded', () => {
+    const { container } = render(
+      <ToolCallUI
+        toolName="rezept_laden"
+        args={{ rezept: 'presse' }}
+        state="result"
+        result={{ geladen: true, titel: 'Pressemitteilung' }}
+      />
+    );
+    expect(container.querySelector('.text-emerald-500')).not.toBeNull();
+  });
+
+  it('recognises the live-only ok:false channel, which carries no error string', () => {
+    const { container } = render(
+      <ToolCallUI toolName="rezept_laden" args={{}} state="result" result={{ ok: false }} />
+    );
+    expect(container.querySelector('.text-emerald-500')).toBeNull();
+  });
+
+  it('colours the collapsed one-liner as an error, not as neutral status', () => {
+    const { container } = render(
+      <ToolCallUI
+        toolName="rezept_laden"
+        args={{ rezept: 'presse' }}
+        state="result"
+        result={failed}
+      />
+    );
+    // The summary line doubles as the failure text; it must not read as the
+    // same muted grey used for "3 Suchen".
+    const line = container.querySelector('.text-destructive');
+    expect(line).not.toBeNull();
+    expect(line?.textContent).toMatch(/keine Schreibvorgaben vor/);
+  });
+
+  it('opens to a real error card, not a bare paragraph', async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <ToolCallUI
+        toolName="rezept_laden"
+        args={{ rezept: 'presse' }}
+        state="result"
+        result={failed}
+      />
+    );
+    expect(container.querySelector('[data-slot="tool-error"]')).toBeNull();
+    await user.click(screen.getByRole('button'));
+    expect(container.querySelector('[data-slot="tool-error"]')).not.toBeNull();
+  });
+});
