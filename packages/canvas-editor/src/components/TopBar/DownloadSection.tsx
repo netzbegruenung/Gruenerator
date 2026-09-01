@@ -22,8 +22,8 @@ export interface DownloadSectionProps {
   exportProgress?: { current: number; total: number };
 }
 
-const DEFAULT_RASTER_PIXEL_RATIO = 2;
-const SCALE_OPTIONS = [1, 2, 3] as const;
+const DEFAULT_RASTER_PIXEL_RATIO = 1;
+const SCALE_OPTIONS = [1, 2] as const;
 
 export function DownloadSection({
   onDownload,

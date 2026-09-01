@@ -43,6 +43,7 @@ import { AiProviderError, classifyProviderError } from '../providers/providerErr
 import { executeProvider } from './execution/index.js';
 import { intermediateLane } from './intermediateLanes.js';
 import { GENERIC_FALLBACK, laneFallback, laneTarget, resolveLane } from './lanes.js';
+import { retireLiteLLM } from './litellmRetired.js';
 import { jsonCandidatesFromText } from './structuredParsing.js';
 
 import type { IntermediateLaneId } from './intermediateLanes.js';
@@ -164,10 +165,26 @@ export class NoAnswerError extends AiProviderError {
  * über den Adapter, sodass der Pin den Adapter behielt und das Modell nicht.
  */
 function targetFor(call: AiCall): { provider: ProviderName; model: string | null } {
-  if (call.pinned == null) return laneTarget(resolveLane(call.lane));
+  const chosen =
+    call.pinned == null
+      ? laneTarget(resolveLane(call.lane))
+      : (() => {
+          const pin = typeof call.pinned === 'string' ? intermediateLane(call.pinned) : call.pinned;
+          return {
+            provider: pin.provider,
+            model: process.env.MAIN_LLM_OVERRIDE || pin.model,
+          };
+        })();
 
-  const pin = typeof call.pinned === 'string' ? intermediateLane(call.pinned) : call.pinned;
-  return { provider: pin.provider, model: process.env.MAIN_LLM_OVERRIDE || pin.model };
+  // Ein stillgelegtes Ziel wird HIER umgebogen und nicht erst in `getModel`.
+  // Der Unterschied ist nicht kosmetisch: `execute.ts` prüft
+  // `isProviderConfigured(provider)` und WIRFT, bevor `getModel` überhaupt
+  // drankäme — ein Pin auf litellm wäre ohne Schlüssel ein harter Fehler statt
+  // einer Antwort. Ausserdem schreibt der Adapter den Provider- und Modellnamen
+  // ins Protokoll; genau diese Zeile hat in #3064 den falschen Eindruck erweckt,
+  // eine Lane habe gpt-oss ANGEFRAGT. Siehe ./litellmRetired.ts.
+  const live = retireLiteLLM(chosen.provider, chosen.model);
+  return { provider: live.provider as ProviderName, model: live.model };
 }
 
 /**
@@ -193,7 +210,10 @@ function fallbackFor(call: AiCall): readonly ProviderName[] {
 function toEnvelope(
   call: AiCall,
   model: string | null,
-  extra: Partial<AIRequestOptions> = {}
+  extra: Partial<AIRequestOptions> = {},
+  /** Die Frist DIESES Versuchs (`attemptBudget`), nicht die des Aufrufers.
+   *  `execute.ts` macht daraus das Abbruchsignal des Anbieters. */
+  timeoutMs?: number
 ): AIRequestData {
   const options: AIRequestOptions = {
     ...extra,
@@ -209,11 +229,107 @@ function toEnvelope(
     ...(call.system != null && { systemPrompt: call.system }),
     messages: call.messages ?? [{ role: 'user' as const, content: call.prompt ?? '' }],
     options,
+    ...(timeoutMs != null && { timeoutMs }),
     ...(call.platforms != null && { metadata: { platforms: [...call.platforms] } }),
   };
 }
 
-async function runChain(call: AiCall, extra: Partial<AIRequestOptions>): Promise<AiResult> {
+/**
+ * Die kleinste Frist, mit der ein Versuch noch etwas werden kann.
+ *
+ * Sie ist die Recheneinheit der Aufteilung unten, in beide Richtungen: so viel
+ * wird jedem Anbieter HINTER dem laufenden zurückgelegt, und so viel behält der
+ * laufende mindestens. 20 s ist an der schnellsten Adresse der Kette gemessen —
+ * Cortecs schreibt mit 210,7 tok/s (`gemmaHosts.ts`) in dieser Zeit rund 4000
+ * Tokens, also ein ganzes Dokument. Weniger zurückzulegen hiesse, einen Aufruf
+ * aufzumachen, der nicht fertig werden kann; mehr hiesse, die vorderen
+ * Anbieter zu verhungern, die die eigentliche Antwort liefern sollen.
+ */
+const MIN_VIABLE_ATTEMPT_MS = 20_000;
+
+/**
+ * Was DIESER Versuch höchstens verbrauchen darf.
+ *
+ * Ohne diese Aufteilung ist die Ausweichkette tote Zeile, und zwar genau dann,
+ * wenn man sie braucht. Die Wanduhr unten deckt die GANZE Kette (120 s,
+ * `env.REQUEST_TIMEOUT`); GreenPT bringt in `greenptThinkingFetch.ts` seine
+ * EIGENE Frist von ebenfalls 120 s mit. Zwei gleiche Zahlen, und der Primär
+ * verschluckt das gesamte Budget: die äussere Uhr feuert im selben Moment, in
+ * dem der Anbieter aufgäbe, also kam nie ein zweiter an die Reihe. Live am
+ * 28.08.2026 auf `doc_generation`: zwei `aiObject`-Versuche à 120 s, vier
+ * Minuten Warten, HTTP 500 — und in keinem der beiden lief ein einziger
+ * Ausweichanbieter.
+ *
+ * ZURÜCKGELEGT WIRD FÜR DIE GANZE KETTE, nicht für den nächsten allein. Eine
+ * feste Reserve für „einen weiteren" sieht aus wie eine Lösung und ist bei
+ * einer Kette ab drei Anbietern keine: sie garantiert immer genau einen Zug,
+ * egal wie viele dahinter stehen. Mit 45 s fest bekam `doc_generation`
+ * (fünf Anbieter) `greenpt`=75 s, `cortecs`=45 s — und litellm, regolo und
+ * mistral liefen NIE, auch nicht, wenn noch Zeit gewesen wäre. Die
+ * vier-tiefen Ketten aller anderen Lanes verloren ebenso ihre letzten zwei.
+ *
+ * Mit der Skalierung bekommt jeder Anbieter einen Zug, und die kürzere Kette
+ * den grosszügigeren Primär — was richtig herum ist, denn der Primär ist das
+ * für diese Lane GEWÄHLTE Modell und beantwortet den Normalfall:
+ *
+ *   5 Anbieter, 120 s   greenpt 40 s │ cortecs 20 │ litellm 20 │ regolo 20 │ mistral 20
+ *   4 Anbieter, 120 s   cortecs 60 s │ litellm 20 │ regolo  20 │ mistral 20
+ *   3 Anbieter, 120 s   mistral 80 s │ cortecs 20 │ litellm 20
+ *   5 Anbieter, 240 s   greenpt 160 s │ … je 20
+ *
+ * Reicht die Frist des Aufrufers nicht für alle, verhungert der Schwanz
+ * weiterhin — daran ist nichts zu rechnen: fünf Anbieter brauchen 5 × 20 s,
+ * und wer weniger mitgibt, bekommt weniger Anbieter.
+ * Ungesagt bleibt es nicht: `runChain` protokolliert, wer nicht mehr drankam.
+ */
+function attemptBudget(remainingMs: number, providersLeft: number): number {
+  if (providersLeft <= 1) return remainingMs;
+  const reserved = Math.min(
+    MIN_VIABLE_ATTEMPT_MS * (providersLeft - 1),
+    Math.max(remainingMs - MIN_VIABLE_ATTEMPT_MS, 0)
+  );
+  // Der Boden ist auf die Restfrist geklemmt. Ohne `Math.min` gibt er mehr aus,
+  // als überhaupt noch da ist — bei 5 s Rest volle 20 s —, und dann ist die
+  // Frist dieses Versuchs grösser als die der ganzen Kette. Die äussere Uhr
+  // fängt das zwar auf, aber `abortSignal` und Fehlertext lögen beide über die
+  // Zeit, die der Anbieter wirklich hatte. Erreichbar nur über ein knappes
+  // `AiCall.timeoutMs` (heute setzt das niemand unter 240 s), also latent —
+  // die Vorgängerformel hatte die Klemme, diese hatte sie verloren.
+  return Math.max(remainingMs - reserved, Math.min(remainingMs, MIN_VIABLE_ATTEMPT_MS));
+}
+
+/**
+ * Die HARTE Zusicherung neben dem Abbruchsignal.
+ *
+ * `execute.ts` reicht dieselbe Frist als `abortSignal` an den Anbieter durch,
+ * was den aufgegebenen Aufruf tatsächlich beendet statt ihn weiterlaufen zu
+ * lassen. Das Rennen hier bleibt trotzdem stehen: die Bauart des Fehlers, den
+ * dieser Code behebt, ist ein Anbieter, der seine eigene Frist nicht einhält.
+ * Sich darauf zu verlassen, dass er die nächste einhält, wäre derselbe Fehler
+ * noch einmal.
+ */
+async function withBudget<T>(work: Promise<T>, ms: number, provider: ProviderName): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    return await Promise.race([
+      work,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error(`${provider} did not answer within ${ms}ms`)),
+          ms
+        );
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+async function runChain(
+  call: AiCall,
+  extra: Partial<AIRequestOptions>,
+  deadline: number
+): Promise<AiResult> {
   const target = targetFor(call);
   const chain: ProviderName[] = [
     target.provider,
@@ -224,6 +340,19 @@ async function runChain(call: AiCall, extra: Partial<AIRequestOptions>): Promise
   let lastError: Error | undefined;
 
   for (const [index, provider] of chain.entries()) {
+    const remaining = deadline - Date.now();
+    // Einen Aufruf noch aufzumachen, dessen Frist schon abgelaufen ist, kostet
+    // Tokens und kann nichts mehr liefern. Keine stille Kürzung: wer nicht mehr
+    // drankam, steht im Protokoll — sonst liest sich ein erschöpftes Budget
+    // hinterher wie eine Kette, die alles versucht hat.
+    if (remaining <= 0) {
+      log.warn(
+        `[${String(call.lane)}] budget spent after ${index} provider(s) — never tried: ${chain.slice(index).join(', ')}`
+      );
+      break;
+    }
+    const budget = attemptBudget(remaining, chain.length - index);
+
     // The primary answers on the target's model; every fallback answers on its
     // OWN default — the rule `providerFallback.getFallbackModelForProvider`
     // applies. Carrying the primary's model down the chain instead would post
@@ -232,11 +361,24 @@ async function runChain(call: AiCall, extra: Partial<AIRequestOptions>): Promise
     // never once catch anything.
     const model = index === 0 ? target.model : null;
     try {
-      const result = await executeProvider(provider, requestId, toEnvelope(call, model, extra));
+      const result = await withBudget(
+        executeProvider(provider, requestId, toEnvelope(call, model, extra, budget)),
+        budget,
+        provider
+      );
       if (result.content || result.stop_reason === 'tool_use') return result;
       lastError = new Error(`Empty response from ${provider}`);
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
+    }
+    // Ohne diese Zeile ist ein Wechsel in der Kette unsichtbar: das Protokoll
+    // des 28.08.2026 zeigte den Fehlschlag und die 500, aber nirgends, dass
+    // niemand hinter GreenPT drangekommen war.
+    const next = chain[index + 1];
+    if (next) {
+      log.warn(
+        `[${String(call.lane)}] ${provider} failed after ${budget}ms budget (${lastError.message}) — trying ${next}`
+      );
     }
   }
 
@@ -260,8 +402,14 @@ async function runChain(call: AiCall, extra: Partial<AIRequestOptions>): Promise
  * .REQUEST_TIMEOUT`) is the only thing standing between a hung provider and a
  * turn that never ends — a facade without it would drop that ceiling silently.
  *
- * Like there, the timer does NOT cancel the provider request: `generateText`
- * gets no signal, so the HTTP call keeps running after this rejects.
+ * Diese Decke ist die einzige Uhr geblieben, und das war zu wenig: sie sagt,
+ * wann die Kette ENDET, aber nichts darüber, wie sie das Budget verteilt. Ein
+ * Primär mit eigener 120-s-Frist bekam es deshalb ganz. Seit dem 28.08.2026
+ * teilt `attemptBudget` es auf, INNERHALB dieser Decke — die Zusicherung hier
+ * ändert sich nicht, sie bekommt nur eine zweite unter sich.
+ *
+ * Der Zeitgeber bricht den Anbieteraufruf weiterhin nicht ab; das tut jetzt
+ * das Abbruchsignal, das `execute.ts` aus der Versuchsfrist baut.
  */
 async function runWithFallback(call: AiCall, extra: Partial<AIRequestOptions> = {}) {
   const timeoutMs = call.timeoutMs ?? env.REQUEST_TIMEOUT;
@@ -269,7 +417,7 @@ async function runWithFallback(call: AiCall, extra: Partial<AIRequestOptions> = 
 
   try {
     return await Promise.race([
-      runChain(call, extra),
+      runChain(call, extra, Date.now() + timeoutMs),
       new Promise<never>((_, reject) => {
         timer = setTimeout(
           () =>

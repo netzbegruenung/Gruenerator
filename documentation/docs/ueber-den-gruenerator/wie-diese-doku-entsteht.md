@@ -1,6 +1,7 @@
 ---
 sidebar_position: 8
 title: Wie diese Doku entsteht
+description: 'Diese Doku entsteht größtenteils am Quellcode: welcher Teil maschinell ausgelesen ist, welcher von einer KI geschrieben wurde.'
 ---
 
 # Wie diese Doku entsteht
@@ -34,9 +35,9 @@ Für die Teile, die reine Aufzählung sind, gibt es keine abgetippte Kopie in de
 | Werkzeuge und ihre Gruppen                        | Die Kachel- und Katalog-Konfiguration der Weboberfläche                       | [Alle Werkzeuge](/docs/ueber-den-gruenerator/tools)                                                  |
 | Chat-Fähigkeiten                                  | Die Liste der Absichten, die der Chat erkennen kann, plus die @-Erwähnungen   | [Was kann ich fragen?](/docs/chat/was-kann-ich-fragen)                                               |
 | Einstellungen                                     | Der Aufbau des Einstellungen-Dialogs und alle Schalter darin                  | [Einstellungen](/docs/konto/einstellungen)                                                           |
-| Office-Funktionen                                 | Die Verträge zwischen App und KI — und was der Editor davon wirklich ausführt | [Office-Überblick](/docs/office/intro)                                                               |
+| Office-Funktionen                                 | Die Verträge zwischen App und KI — und was der Editor davon wirklich ausführt | [Office-Überblick](/docs/features/office)                                                            |
 | Dateilimits, Sammlungen, Konnektoren              | Die Upload-Prüfung und die Konnektor-Registry                                 | [Dateien hinzufügen](/docs/chat/dateien-hinzufuegen), [Konnektoren](/docs/integrationen/konnektoren) |
-| Regale der Agentura                               | Der Kategorien-Katalog des Marktplatzes                                       | [Agentura](/docs/grueneratoren/agentura)                                                             |
+| Regale der Agentura                               | Der Kategorien-Katalog des Marktplatzes                                       | [Agentura](/docs/features/agentura)                                                                  |
 | Namen von Werkzeugen und Menüpunkten im Fließtext | Dieselben Konfigurationen                                                     | überall dort, wo ein Name genannt wird                                                               |
 
 Zwei Eigenschaften dieses Verfahrens sind entscheidend:

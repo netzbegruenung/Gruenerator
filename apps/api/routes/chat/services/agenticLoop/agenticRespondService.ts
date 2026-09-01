@@ -17,14 +17,13 @@ import { type ModelMessage } from 'ai';
 import { knownArtifactRefs } from '../../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
 import { isSummaryAsk } from '../../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { forbidsNewResearch } from '../../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
-import { recordSlowVerdict } from '../../../../services/ai/modelHealth.js';
+import { isModelSlow, recordSlowVerdict } from '../../../../services/ai/modelHealth.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { type McpCatalog } from '../../agents/mcpCatalog.js';
 import {
-  getLoopPlannerModel,
   getLoopSynthFallbackModel,
+  resolveLoopPlannerLane,
   getLoopSynthModel,
-  loopPlannerModelName,
 } from '../../agents/providers.js';
 import { renderRecipeCatalog } from '../../agents/recipeCatalog.js';
 import { imageDeliveryNote } from '../../agents/searchImageHarvest.js';
@@ -40,6 +39,7 @@ import { resolveAbortOutcome } from '../turnAbortOutcome.js';
 import { turnMaterialChars } from '../turnMaterial.js';
 import { withInstructionHierarchy } from '../untrustedContent.js';
 
+import { isToolApprovalEnabled } from './approvalPolicy.js';
 import { ATTACHED_DOCS_TOOL, retrievableAttachedSources } from './attachedDocuments.js';
 import {
   assembleToolCatalog,
@@ -56,12 +56,17 @@ import {
   shouldForceFirstToolCall,
 } from './forceFirstToolCall.js';
 import { createTurnClocks, resolveBudget } from './loopBudget.js';
-import { runAgenticLoop, type AnswerReplacement, type LoopMode } from './loopEngine.js';
+import {
+  runAgenticLoop,
+  TurnSuspendedError,
+  type AnswerReplacement,
+  type LoopMode,
+} from './loopEngine.js';
 import { createAfterGather } from './loopGuarantees.js';
 import { MAX_SOURCES } from './loopGuards.js';
 import { materialDominatesTurn, resolveLoopMode } from './loopMode.js';
 import { createAnswerEmitter } from './loopSse.js';
-import { spliceToolReplay } from './mcpReplay.js';
+import { buildToolObservationReplay, spliceToolReplay } from './mcpReplay.js';
 import { stripDuplicatedOpening } from './openingDedupe.js';
 import { type RecipeRegistry } from './recipeRegistry.js';
 import { rewritesSuppliedText } from './routing.js';
@@ -69,10 +74,12 @@ import { createSourceRegistry } from './sourceRegistry.js';
 import { buildConnectorNotes, buildSynthSystem, type SynthPromptContext } from './synthPrompt.js';
 import { createAnswerValidator, finalizeAnswerText, pdfProblemNote } from './synthVerdicts.js';
 import { createToolActivity } from './toolActivity.js';
+import { createToolApprovalGate, type ToolApprovalGate } from './toolApprovalGate.js';
+import { loadAllowlist } from './toolApprovalRepo.js';
 import { createToolCostLedger } from './toolCostLedger.js';
 import { buildToolUsageBlock } from './toolUsageBlock.js';
 import { logTurnSummary } from './turnSummary.js';
-import { type PersistedStep } from './types.js';
+import { type PendingToolCall, type PersistedStep } from './types.js';
 
 import type {
   ChatGraphState,
@@ -107,12 +114,19 @@ export interface AgenticRespondDeps {
 
 const defaultDeps: AgenticRespondDeps = { resolveModel, assembleToolCatalog, runAgenticLoop };
 
+type ToolExecute = (
+  input: unknown,
+  options: { toolCallId: string; abortSignal?: AbortSignal }
+) => Promise<unknown>;
+
 export interface AgenticResponseOutcome {
   fullText: string;
   steps: PersistedStep[];
   citations: Citation[];
   sources: SearchResult[];
   modelName: string;
+  /** Gesetzt ⇒ der Zug pausiert und wartet auf eine Werkzeug-Freigabe. */
+  pendingApproval?: PendingToolCall[];
 }
 
 /**
@@ -138,6 +152,15 @@ export async function streamAgenticResponse(
      *  Null (absent, or the shared read failed) falls back to reading here, which
      *  keeps each failure as narrow as it was before. */
     toolHistory?: ThreadToolHistory | null;
+    /** Fortsetzung nach einer Freigabe: `scopeKey` → wie oft er das Gate noch
+     *  passieren darf. Genau die Einmal-Freigaben dieser Entscheidung. */
+    grantedOnce?: ReadonlyMap<string, number>;
+    /** Fortsetzung nach einer Freigabe: was vorher lief und was jetzt zu tun ist. */
+    resumeApproval?: {
+      priorSteps: PersistedStep[];
+      approved: PendingToolCall[];
+      denied: Array<{ call: PendingToolCall; reason?: string }>;
+    };
   },
   deps: AgenticRespondDeps = defaultDeps
 ): Promise<AgenticResponseOutcome> {
@@ -152,13 +175,17 @@ export async function streamAgenticResponse(
     req,
     threadId,
     toolHistory,
+    grantedOnce,
+    resumeApproval,
   } = params;
   const budget = resolveBudget();
   const agentConfig = finalState.agentConfig;
 
   const sourceRegistry = createSourceRegistry();
   const guards = createLoopGuards(sourceRegistry);
-  const steps: PersistedStep[] = [];
+  // Die Schritte des pausierten Zuges zuerst: dieselbe Nachricht wird
+  // fortgeschrieben, also muss die Reihenfolge über die Pause hinweg stimmen.
+  const steps: PersistedStep[] = [...(params.resumeApproval?.priorSteps ?? [])];
   // Hängt an der Werkzeug-Naht (`ToolHooks`) und wird am Turn-Ende einmal
   // protokolliert — reine Buchführung, kein Budget.
   const costLedger = createToolCostLedger({ onInfo: (m) => log.info(m) });
@@ -179,11 +206,24 @@ export async function streamAgenticResponse(
   // Außerhalb des try, weil die Zusammenfassung unten läuft — auch nach einem
   // Abbruch. `loopResult` selbst lebt nur im try.
   let answerReplaced: AnswerReplacement | null = null;
+  // Außerhalb des try, weil der Abbruchpfad die zurückgehaltenen Aufrufe liest.
+  let approvalGate: ToolApprovalGate | null = null;
 
   // Computed BEFORE the model is resolved: the same number decides the lane
   // (precise + reasoning on) and, further down, whether the writer gives up the
   // tool catalog. Two computations could disagree — see turnMaterial.ts.
   const carriedMaterialChars = turnMaterialChars(finalState);
+
+  /**
+   * Die Planer-Lane dieses Zuges, EINMAL aufgelöst.
+   *
+   * Die Bindung steht vor dem `try`, weil die Turn-Zusammenfassung unten
+   * dahinter liegt und dieselbe Lane nennen muss — nicht das Ergebnis einer
+   * zweiten Auflösung. Zugewiesen wird erst dort, wo der Loop startet: der Wert
+   * ist zeitabhängig (`isModelSlow`), und gemeint ist die Lane, mit der dieser
+   * Zug tatsächlich losfuhr.
+   */
+  let plannerLane: ReturnType<typeof resolveLoopPlannerLane> | null = null;
 
   try {
     resolution = await deps.resolveModel(
@@ -217,7 +257,10 @@ export async function streamAgenticResponse(
     mcpMountMs = assembled.mcpMountMs;
     const managedKeys = finalState.managedSourceKeys ?? [];
 
-    if (threadId) {
+    // Bei einer Fortsetzung NICHT aus der Historie lesen: die Schritte des
+    // pausierten Zuges stehen schon in `steps`, und ein zweiter Replay derselben
+    // toolCallIds brächte doppelte Aufruf-IDs in den Modellkontext.
+    if (threadId && !resumeApproval) {
       toolReplayMessages = await buildToolReplay({
         threadId,
         tools,
@@ -261,6 +304,22 @@ export async function streamAgenticResponse(
     // die Stillstands-Uhr der Werkzeugphase liest sie. Ohne diese eine Instanz
     // müsste das Stille-Fenster über dem längsten Aufruf-Timeout (90 s) liegen.
     const toolActivity = createToolActivity();
+    // Einmal pro Zug gelesen; ein Ausfall liefert die leere Menge, also „fragen".
+    const approvalUserId = agentConfig.userId ?? null;
+    const approvalEnabled = isToolApprovalEnabled() && approvalUserId != null;
+    approvalGate = createToolApprovalGate({
+      enabled: approvalEnabled,
+      allowlist: approvalEnabled
+        ? await loadAllowlist(approvalUserId as string)
+        : new Set<string>(),
+      originFor: (name) => toolLabels.get(name)?.origin ?? null,
+      titleFor: (name) => {
+        const label = toolLabels.get(name);
+        return label ? `${label.serverName} · ${label.toolName}` : undefined;
+      },
+      serverNameFor: (name) => toolLabels.get(name)?.serverName,
+      ...(grantedOnce ? { grantedOnce } : {}),
+    });
     const wrapped = wrapAssembledTools(tools, {
       sse,
       hooks: costLedger.hooks,
@@ -269,10 +328,62 @@ export async function streamAgenticResponse(
       perCallTimeoutMs: budget.perCallTimeoutMs,
       toolActivity,
       toolLabels,
+      approvalGate,
       // Reads `mode` lazily: it's finalized further down, before the loop runs.
       getTextOffset: () => (mode === 'unified' ? emitter.text.length : null),
       takeNarration: () => emitter.takeNarration(),
     });
+
+    // Fortsetzung nach der Entscheidung: die freigegebenen Aufrufe laufen DURCH
+    // DEN UMSCHLAG, damit Karte, Zeitgrenze, Kürzung und Persistenz identisch
+    // sind — ihr Einmal-Recht steht als `grantedOnce` im Gate. Abgelehnte
+    // Aufrufe werden nicht ausgeführt, sondern als Fehlerergebnis eingespeist:
+    // derselbe Vertrag, über den sich das Modell auch nach einem Guard-Block
+    // selbst korrigiert.
+    if (resumeApproval) {
+      for (const call of resumeApproval.approved) {
+        const tool = wrapped[call.toolName] as { execute?: ToolExecute } | undefined;
+        if (typeof tool?.execute !== 'function') {
+          log.warn(`[Freigabe] ${call.toolName} nicht mehr im Katalog — übersprungen`);
+          continue;
+        }
+        try {
+          await tool.execute(call.args, { toolCallId: call.toolCallId });
+        } catch (err) {
+          log.warn(`[Freigabe] ${call.toolName} nach Freigabe gescheitert: ${String(err)}`);
+        }
+      }
+      for (const { call, reason } of resumeApproval.denied) {
+        const error = reason?.trim()
+          ? `Vom Nutzer abgelehnt: ${reason.trim()}`
+          : 'Vom Nutzer abgelehnt.';
+        steps.push({
+          toolCallId: call.toolCallId,
+          toolName: call.toolName,
+          args: call.args,
+          result: { error },
+          ...(call.serverName ? { serverName: call.serverName } : {}),
+        });
+        sse.send('tool_step_start', {
+          stepId: call.toolCallId,
+          toolName: call.toolName,
+          args: call.args,
+          ...(call.title ? { title: call.title } : {}),
+          ...(call.serverName ? { serverName: call.serverName } : {}),
+        });
+        sse.send('tool_step_result', {
+          stepId: call.toolCallId,
+          toolName: call.toolName,
+          ok: false,
+          summary: error,
+          result: { error },
+        });
+      }
+      toolReplayMessages = [
+        ...toolReplayMessages,
+        ...buildToolObservationReplay(steps, new Set(Object.keys(wrapped))),
+      ];
+    }
 
     // WS-5: "was kann @sally" must be grounded in the server's REAL tools, not
     // the model's imagination — and it also gates WS-4 forcing off (a capability
@@ -341,7 +452,8 @@ export async function streamAgenticResponse(
     );
     const { abortSignal, writeAbortSignal, toolBudgetDeadline } = createTurnClocks(
       budget,
-      reqSignal
+      reqSignal,
+      approvalGate.signal
     );
 
     // Der Zustand, den die frühere Closure einfach SAH, steht jetzt als
@@ -441,14 +553,37 @@ export async function streamAgenticResponse(
     // whole turn down: no text, no error, no heartbeat, for the full 120s wall
     // clock — users read that as "it just aborts".
     const synthFallback = mode === 'split' ? getLoopSynthFallbackModel(synth.name) : null;
+    // EINMAL aufgelöst: derselbe Wert speist das Modell, den Vermerk beim
+    // Stillstand und die Turn-Zusammenfassung — siehe `resolveLoopPlannerLane`.
+    plannerLane = mode === 'split' ? resolveLoopPlannerLane() : null;
 
     const loopResult = await deps.runAgenticLoop({
       mode,
-      plannerModel: mode === 'split' ? getLoopPlannerModel() : resolution.model,
+      plannerModel: plannerLane ? plannerLane.languageModel : resolution.model,
       synthModel: synth.model,
       ...(synthFallback && { synthFallbackModel: synthFallback.model }),
-      onSynthStart: () => {
-        emitter.startSynthHeartbeat();
+      // Der Stillstand der WERKZEUG-Phase. Hier gibt es nichts umzuschalten —
+      // der Zug antwortet aus dem, was schon gesammelt war —, aber die Lane
+      // gehört vermerkt: sonst ist sie im nächsten Zug wieder erste Wahl und
+      // kostet dieselbe Frist noch einmal. `resolveLoopPlannerLane()` liefert
+      // Anbieter UND Modell, weil derselbe Modellname auf zwei Hosts liegt.
+      //
+      // Gemeldet wird, was danach TATSÄCHLICH gilt, nicht was der Vermerk
+      // bezweckt: der Breaker öffnet erst beim zweiten Verdikt (siehe
+      // `plannerStageUsable`), ein einzelner Stillstand schaltet die Stufe also
+      // noch nicht ab. Eine Zeile, die pauschal „nächster Zug weicht aus" sagt,
+      // liesse den nächsten 45-s-Zug wie einen Fehler der Reparatur aussehen.
+      onToolPhaseStall: () => {
+        if (!plannerLane) return;
+        recordSlowVerdict(plannerLane.provider, plannerLane.model, 'gather_stall');
+        const gesperrt = isModelSlow(plannerLane.provider, plannerLane.model);
+        log.warn(
+          `[Agentic] planner ${plannerLane.provider}/${plannerLane.model} lieferte nichts — ${
+            gesperrt
+              ? 'Lane für 5 min übersprungen'
+              : 'Verdikt vermerkt, erst das zweite schaltet die Lane ab'
+          }`
+        );
       },
       onSynthFallback: () => {
         // Stillstand ist das Verdikt, das die Messung nicht liefert: es kam
@@ -549,6 +684,7 @@ export async function streamAgenticResponse(
       // tool card already carries.
       onNarration: (s) => emitter.handleNarration(s),
       validateAnswer: createAnswerValidator(),
+      suspended: () => approvalGate?.hasPending() ?? false,
     });
     emitter.flush();
     answerReplaced = loopResult.replacement ?? null;
@@ -590,22 +726,41 @@ export async function streamAgenticResponse(
     const msg = err instanceof Error ? err.message : String(err);
     const aborted =
       err instanceof Error && (err.name === 'AbortError' || err.name === 'TimeoutError');
-    log.warn(`[Agentic] loop ${aborted ? 'stopped (budget/abort)' : 'failed'}: ${msg}`);
-    const outcome = resolveAbortOutcome({ text: emitter.text, aborted });
-    if (outcome?.mode === 'replace') {
-      for (const s of steps) delete s.textOffset;
-      emitter.replaceAndStream(outcome.delta);
-    } else if (outcome?.mode === 'append') {
-      // The half answer stays — it is real work and dropping it helps nobody —
-      // but it must not PASS as a finished one. APPEND, never replace: recorded
-      // textOffsets index into the prefix and stay valid this way.
-      emitter.appendAndStream(outcome.delta);
+    // Eine Pause ist kein Abbruch: weder Entschuldigungstext noch „abgebrochen"-
+    // Zusatz. Der Teiltext bleibt, wie er ist, und wird unten mitgegeben.
+    if (err instanceof TurnSuspendedError || approvalGate?.hasPending()) {
+      log.info(`[Agentic] Zug pausiert — ${approvalGate?.pending().length ?? 0} Freigabe(n) offen`);
+    } else {
+      log.warn(`[Agentic] loop ${aborted ? 'stopped (budget/abort)' : 'failed'}: ${msg}`);
+      const outcome = resolveAbortOutcome({ text: emitter.text, aborted });
+      if (outcome?.mode === 'replace') {
+        for (const s of steps) delete s.textOffset;
+        emitter.replaceAndStream(outcome.delta);
+      } else if (outcome?.mode === 'append') {
+        // The half answer stays — it is real work and dropping it helps nobody —
+        // but it must not PASS as a finished one. APPEND, never replace: recorded
+        // textOffsets index into the prefix and stay valid this way.
+        emitter.appendAndStream(outcome.delta);
+      }
     }
   } finally {
-    emitter.endSynthHeartbeat();
     if (mcpCatalog) await mcpCatalog.close();
     if (systemCatalog) await systemCatalog.close();
-    if (resolution?.releaseSlot) await resolution.releaseSlot();
+  }
+
+  // Vor jeder Nachbearbeitung: ein pausierter Zug hat keine fertige Antwort, an
+  // der eine Zitat-Klammer, eine PDF-Notiz oder der „keine Antwort"-Rückfall
+  // etwas zu korrigieren hätten. Die Teilantwort geht unverändert weiter.
+  if (approvalGate?.hasPending()) {
+    costLedger.log();
+    return {
+      fullText: emitter.text,
+      steps,
+      citations: sourceRegistry.getCitations(),
+      sources: sourceRegistry.getResults(MAX_SOURCES),
+      modelName: resolution?.modelName ?? agentConfig.model,
+      pendingApproval: approvalGate.pending(),
+    };
   }
 
   // Accessibility findings the answer swallowed. Appended, never substituted:
@@ -653,7 +808,14 @@ export async function streamAgenticResponse(
   logTurnSummary({
     modelName: resolution?.modelName ?? agentConfig.model,
     mode,
-    plannerName: mode === 'split' ? loopPlannerModelName() : null,
+    // DIESELBE Auflösung wie oben, nicht `loopPlannerModelName()`. Ein zweiter
+    // Aufruf würde `loopPlannerChoice()` neu ausführen — und wenn der Zug
+    // gerade selbst einen Stillstand vermerkt hat (`onToolPhaseStall`), nennt
+    // die Zusammenfassung dann die AUSWEICHSTUFE statt der Lane, die lief und
+    // stehen blieb. Also genau die Verwechslung von Host und Modellname, gegen
+    // die dieser Zug angetreten ist. Der Anbieter steht mit dabei, aus dem
+    // gleichen Grund wie in `modelLabel`.
+    plannerName: plannerLane ? `${plannerLane.provider}/${plannerLane.model}` : null,
     synthName,
     intent: finalState.intent,
     steps,

@@ -14,7 +14,7 @@ vi.mock('../execution/index.js', () => ({
   executeProvider: (...args: unknown[]) => executeProvider(...args),
 }));
 
-const { aiText, aiTools, NoAnswerError } = await import('../generate.js');
+const { aiText, aiObject, aiTools, NoAnswerError } = await import('../generate.js');
 
 /** What the fake was asked to run: provider and the request envelope. */
 function callAt(i: number) {
@@ -99,9 +99,10 @@ describe('aiText', () => {
     await expect(aiText({ lane: 'antrag', prompt: 'x' })).resolves.toBe('Vom Fallback');
     // `antrag` writes a finished text, so Gemma 4 is primary — auf welchem
     // Host, entscheidet services/ai/gemmaHosts.ts; die generische Kette
-    // (litellm → regolo → mistral) führt danach mit litellm.
+    // (cortecs → regolo → mistral) führt danach mit dem übrig gebliebenen
+    // zweiten Gemma-Host.
     expect(callAt(0).provider).toBe(GEMMA_31B_PRIMARY.provider);
-    expect(callAt(1).provider).toBe('litellm');
+    expect(callAt(1).provider).toBe('regolo');
   });
 
   it('lets each fallback answer on its own default model', async () => {
@@ -172,14 +173,116 @@ describe('the wall clock', () => {
 
   it('covers the whole chain, not one attempt', async () => {
     // A per-attempt budget would let a three-provider chain run three times as
-    // long as the caller allowed.
+    // long as the caller allowed. Der Versuchsdeckel unten teilt das Budget
+    // INNERHALB dieser Decke auf; überschreiten darf die Kette sie nicht.
     executeProvider.mockRejectedValueOnce(new Error('503')).mockImplementation(hang);
 
     const failed = aiText({ lane: 'antrag', prompt: 'x' }).catch((e: unknown) => e as Error);
     await vi.advanceTimersByTimeAsync(120_000);
 
-    expect((await failed).message).toContain('Request timeout');
+    expect((await failed).message).toContain('timeout');
+  });
+
+  it('does not let a hung primary eat the whole budget', async () => {
+    // Der Fehler vom 28.08.2026, in einem Test: `doc_generation` liegt auf
+    // GreenPT, dessen eigene Frist (greenptThinkingFetch.ts) mit der Wanduhr
+    // hier identisch ist. Vorher lief deshalb GENAU EIN Anbieter, die
+    // Ausweichkette war tote Zeile, und der Aufruf endete nach 120 s mit 500.
+    executeProvider.mockImplementation(hang);
+
+    const failed = aiObject({
+      lane: 'doc_generation',
+      prompt: 'x',
+      toolName: 'create_document',
+      toolDescription: 'x',
+      schema: {},
+      validate: () => ({ ok: true, value: 1 }),
+      attempts: 1,
+    }).catch((e: unknown) => e as Error);
+
+    // 60 s: vier Anbieter, also legt `attemptBudget` den drei hinter dem
+    // Primär je 20 s zurück.
+    await vi.advanceTimersByTimeAsync(59_999);
+    expect(executeProvider).toHaveBeenCalledTimes(1);
+
+    // Als nächstes Cortecs, der einzige Host desselben Gemma 4 in dieser Kette.
+    await vi.advanceTimersByTimeAsync(2);
     expect(executeProvider).toHaveBeenCalledTimes(2);
+    expect(callAt(1).provider).toBe('cortecs');
+
+    // Die Kette zu Ende laufen lassen, sonst wartet `failed` auf die zwei
+    // Anbieter dahinter.
+    await vi.advanceTimersByTimeAsync(80_000);
+    await failed;
+  });
+
+  it('gives every provider in the chain a turn, not just the next one', async () => {
+    // Der Befund aus dem Review: eine FESTE Reserve garantiert immer genau
+    // einen weiteren Zug, egal wie viele dahinter stehen. Mit 45 s fest lief
+    // hier greenpt 75 s, cortecs 45 s — und der Rest nie.
+    executeProvider.mockImplementation(hang);
+
+    const failed = aiText({ lane: 'doc_generation', prompt: 'x' }).catch(
+      (e: unknown) => e as Error
+    );
+    await vi.advanceTimersByTimeAsync(120_000);
+    await failed;
+
+    expect(executeProvider).toHaveBeenCalledTimes(4);
+    expect([0, 1, 2, 3].map((i) => callAt(i).provider)).toEqual([
+      'greenpt',
+      'cortecs',
+      'regolo',
+      'mistral',
+    ]);
+  });
+
+  it('never hands an attempt more time than the chain has left', async () => {
+    // Latent, heute nicht erreichbar — nur ein knappes `AiCall.timeoutMs`
+    // kommt dorthin, und der einzige konkrete Wert im Repo ist 240_000. Ohne
+    // die Klemme im Boden von `attemptBudget` bekäme der dritte Versuch volle
+    // 20 s, obwohl die ganze Kette nur noch 5 s hat: `abortSignal` und
+    // Fehlertext lögen dann beide über die Zeit, die der Anbieter hatte.
+    executeProvider.mockImplementation(hang);
+
+    const failed = aiText({ lane: 'doc_generation', prompt: 'x', timeoutMs: 45_000 }).catch(
+      (e: unknown) => e as Error
+    );
+    await vi.advanceTimersByTimeAsync(45_000);
+    await failed;
+
+    const budgets = executeProvider.mock.calls.map(
+      (c) => (c[2] as { timeoutMs: number }).timeoutMs
+    );
+    // Der letzte bekommt den Rest, nicht den Boden — und die Summe bleibt 45 s.
+    expect(budgets).toEqual([20_000, 20_000, 5_000]);
+    expect(budgets.reduce((a, b) => a + b, 0)).toBe(45_000);
+  });
+
+  it('gives a shorter chain a more generous primary', async () => {
+    // Richtig herum: der Primär ist das für die Lane GEWÄHLTE Modell und
+    // beantwortet den Normalfall. `qa_draft` liegt auf Mistral, die Kette ist
+    // drei tief — 120 − 2×20 = 80 s.
+    executeProvider.mockImplementation(hang);
+
+    const failed = aiText({ lane: 'qa_draft', prompt: 'x' }).catch((e: unknown) => e as Error);
+    await vi.advanceTimersByTimeAsync(79_999);
+    expect(executeProvider).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(60_001);
+    await failed;
+    expect(executeProvider).toHaveBeenCalledTimes(3);
+  });
+
+  it('hands each attempt its own budget as the provider abort signal', async () => {
+    // `execute.ts` macht daraus `AbortSignal.timeout` — ohne dieses Feld läuft
+    // der aufgegebene Aufruf beim Anbieter weiter und wird zu Ende bezahlt.
+    executeProvider.mockResolvedValue(answered('Antwort'));
+
+    await aiText({ lane: 'qa_draft', prompt: 'x' });
+
+    // Drei Anbieter: 120 − 2×20.
+    expect(callAt(0).data.timeoutMs).toBe(80_000);
   });
 
   it('lets a caller name its own budget', async () => {
@@ -214,19 +317,42 @@ describe('pinned targets', () => {
   it('takes provider and model from the named intermediate stage', async () => {
     await aiText({ lane: 'chat_intent_classification', pinned: 'standard', prompt: 'x' });
 
-    expect(callAt(0).provider).toBe('regolo');
-    expect(callAt(0).data.options.model).toBe('mistral-small-4-119b');
+    // Seit 29.08.2026 GreenPT statt Regolo — siehe „Warum Regolo nirgends mehr
+    // vorne steht" im Kopf von intermediateLanes.ts.
+    expect(callAt(0).provider).toBe('greenpt');
+    expect(callAt(0).data.options.model).toBe('mistral-small-3.2-24b-instruct-2506');
   });
 
   it('takes a literal pair for the call sites that name one', async () => {
+    await aiText({
+      lane: 'text_adjustment',
+      pinned: { provider: 'regolo', model: 'gemma4-31b' },
+      prompt: 'x',
+    });
+
+    expect(callAt(0).provider).toBe('regolo');
+    expect(callAt(0).data.options.model).toBe('gemma4-31b');
+  });
+
+  /**
+   * #3064: ein Pin auf den stillgelegten Host wird umgebogen, BEVOR der
+   * Umschlag gebaut wird — nicht erst in `getModel`.
+   *
+   * Der Unterschied ist zweifach sichtbar: `execute.ts` prüft
+   * `isProviderConfigured(provider)` und WIRFT ohne LiteLLM-Schlüssel, und der
+   * Adapter schreibt Provider und Modell ins Protokoll. Genau diese Logzeile
+   * („model=verdigado-pro") liess in #3064 aussehen, als habe die Thread-Titel-
+   * Lane gpt-oss angefragt — angefragt hatte sie `trivial`.
+   */
+  it('rewrites a pin that still names the retired host', async () => {
     await aiText({
       lane: 'text_adjustment',
       pinned: { provider: 'litellm', model: 'verdigado-pro' },
       prompt: 'x',
     });
 
-    expect(callAt(0).provider).toBe('litellm');
-    expect(callAt(0).data.options.model).toBe('verdigado-pro');
+    expect(callAt(0).provider).toBe('cortecs');
+    expect(callAt(0).data.options.model).toBe('mistral-small-3.2-24b-instruct-2506');
   });
 
   it('does not report an unrouted type as an oversight', async () => {
@@ -250,8 +376,12 @@ describe('pinned targets', () => {
 
     await aiText({ lane: 'chat_quality_gate', pinned: 'standard', prompt: 'x' });
 
-    expect(callAt(0).provider).toBe('regolo');
-    expect(callAt(1).provider).toBe('litellm');
+    // Die Fassaden-Kette ist GENERIC_FALLBACK ohne den Primär — mit GreenPT
+    // vorne bleibt Cortecs der zweite Halt. Diese Kette ist NICHT die
+    // `fallback`-Kette der Stufe: die greift auf dem direkten Weg
+    // (`getIntermediateModel`), diese hier auf dem Fassaden-Weg.
+    expect(callAt(0).provider).toBe('greenpt');
+    expect(callAt(1).provider).toBe('cortecs');
     expect(callAt(1).data.options).not.toHaveProperty('model');
   });
 });

@@ -24,6 +24,7 @@ import {
   DREIZEILEN_CONFIG,
 } from '../utils/dreizeilenLayout';
 
+import { DEFAULT_PHOTO_BACKGROUND_DE, PHOTO_BACKGROUND_COLORS_DE } from './backgroundPalettes';
 import { ADDITIONAL_TEXT_DEFAULTS } from './dreizeilen.constants';
 import {
   createAssetActions,
@@ -275,7 +276,8 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
     // 'ai' tab kept registered but hidden — Chat tab now drives canvas-AI suggestions.
     // 'settings' tab kept registered but hidden — opened via getAutoSwitchTab on balken
     // selection so the icon strip doesn't shift when a balken is clicked.
-    return ['image-background', 'text', 'assets', 'tools', 'uploads', 'chat', 'share'];
+    // 'share' is not in `tabs`, so listing it here filtered to nothing.
+    return ['image-background', 'text', 'assets', 'tools', 'uploads', 'chat'];
   },
 
   getAutoSwitchTab: (selectedElement) => {
@@ -335,6 +337,9 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
         },
         scale: state.imageScale,
         onScaleChange: actions.setImageScale,
+        backgroundColor: state.backgroundColor,
+        backgroundColors: PHOTO_BACKGROUND_COLORS_DE,
+        onBackgroundColorChange: actions.setBackgroundColor,
       }),
     }),
 
@@ -372,6 +377,22 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
   },
 
   elements: [
+    // Solid plane under the photo. Without it a photo-less Dreizeiler exported
+    // a transparent PNG — the bars floated on nothing. `order: -1` puts it
+    // below the photo (order 0); the photo's `coverFit` hides it completely
+    // once one is chosen, so no mode flag is needed. Not named `background`:
+    // `layerOrder` is persisted as an id array and outranks `order`.
+    {
+      id: 'background-color',
+      type: 'background',
+      order: -1,
+      x: 0,
+      y: 0,
+      width: CANVAS_WIDTH,
+      height: CANVAS_HEIGHT,
+      colorKey: 'backgroundColor',
+    },
+
     // Background Image
     {
       id: 'background-image',
@@ -468,6 +489,11 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
     sunflowerVisible: (props.sunflowerVisible as boolean | undefined) ?? true,
     sunflowerOpacity:
       (props.sunflowerOpacity as number | undefined) ?? SUNFLOWER_CONFIG.defaultOpacity,
+
+    // Background Colour — the plane under the photo. Written explicitly (not
+    // via a passthrough) so a fresh mint lands on Tanne instead of
+    // CanvasBackground's white fallback.
+    backgroundColor: (props.backgroundColor as string | undefined) ?? DEFAULT_PHOTO_BACKGROUND_DE,
 
     // Background Image
     currentImageSrc: props.currentImageSrc as string | undefined,
@@ -680,6 +706,11 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
           return { ...newState, balkenInstances: updateBalkenInstances(newState) };
         });
         callbacks.onColorSchemeChange?.(id);
+        saveToHistory(getState());
+      },
+
+      setBackgroundColor: (color: string) => {
+        setState((prev) => ({ ...prev, backgroundColor: color }));
         saveToHistory(getState());
       },
 

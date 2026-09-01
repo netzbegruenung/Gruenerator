@@ -317,6 +317,9 @@ export const confirmActionTypeSchema = z.enum([
   'share_doc',
   'create_group',
   'join_group',
+  // Additiv (F0): ausgelieferte Clients kennen den Wert nicht und rendern die
+  // Karte über ihren Fallback — sie fällt nicht aus, sie sieht nur generisch aus.
+  'add_cloud_connection',
 ]);
 export type ConfirmActionType = z.infer<typeof confirmActionTypeSchema>;
 
@@ -745,12 +748,24 @@ export const chatStreamEventSchemas: Record<string, z.ZodTypeAny> = {
   warning: z.object({ code: z.string(), message: z.string() }).passthrough(),
   interrupt: z
     .object({
-      interruptType: z.enum(['clarification', 'client_tool']),
+      interruptType: z.enum(['clarification', 'client_tool', 'tool_approval']),
       question: z.string().optional(),
       options: z.array(z.string()).optional(),
       toolName: z.string().optional(),
       args: flexibleRecord.optional(),
       threadId: z.string().optional(),
+      approvalTurnId: z.string().optional(),
+      calls: z
+        .array(
+          z.object({
+            toolCallId: z.string(),
+            toolName: z.string(),
+            args: flexibleRecord,
+            title: z.string().optional(),
+            serverName: z.string().optional(),
+          })
+        )
+        .optional(),
     })
     .passthrough(),
   done: z

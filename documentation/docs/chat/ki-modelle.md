@@ -1,5 +1,6 @@
 ---
 sidebar_position: 4
+description: 'Welches KI-Modell deine Texte schreibt: was der Modus „Automatisch" entscheidet und wann sich eine eigene Wahl lohnt.'
 ---
 
 # KI-Modelle

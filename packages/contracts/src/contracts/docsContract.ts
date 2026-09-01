@@ -60,7 +60,7 @@ export const docsContract = c.router(
     /**
      * PUT /api/docs/:id
      * Update a collaborative document's metadata (title/folder) or editor state
-     * (content/wolke_live_sync). Requires edit access (owner / direct editor /
+     * (content). Requires edit access (owner / direct editor /
      * group-write). Scoped server-side to document subtypes (NOT boards/canvas).
      */
     updateDocument: {

@@ -75,7 +75,9 @@ export {
 // Responsive thumbnail URL builder
 export {
   buildSharedMediaSrcSet,
+  shareCanvasPreviewUrl,
   shareThumbnailPreviewUrl,
+  CANVAS_PREVIEW_WIDTH,
   DEFAULT_THUMBNAIL_WIDTHS,
   type SharedMediaSrcSet,
   type SharedMediaSrcSetOptions,

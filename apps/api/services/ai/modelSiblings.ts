@@ -85,8 +85,13 @@ const MODEL_SIBLINGS: Readonly<Record<string, ModelTarget>> = {
   // Primär auf einen 404 aus.
 };
 
-/** Dieselbe Reihenfolge wie `tryFallbackProviders` in providerFallback.ts. */
-const FALLBACK_CHAIN: readonly ProviderName[] = ['litellm', 'regolo', 'mistral'];
+/** Dieselbe Reihenfolge wie `tryFallbackProviders` in providerFallback.ts.
+ *  `litellm` stand hier bis zum 29.08.2026 an erster Stelle — und weil dieser
+ *  Zweig `getDefaultModel(candidate)` nimmt, war das Ausweichziel eines zäh
+ *  vermerkten Modells `verdigado-pro`, also gpt-oss. Genau der Weg, den das
+ *  Veto weiter unten schon einmal zuschütten musste. Siehe
+ *  ./litellmRetired.ts. */
+const FALLBACK_CHAIN: readonly ProviderName[] = ['cortecs', 'regolo', 'mistral'];
 
 function usable(target: ModelTarget): boolean {
   return isProviderConfigured(target.provider) && !isModelSlow(target.provider, target.model);

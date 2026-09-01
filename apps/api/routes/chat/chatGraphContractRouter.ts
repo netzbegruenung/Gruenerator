@@ -49,6 +49,7 @@ import { runRecallStage } from './streamStages/recallStage.js';
 import { runResponseStage } from './streamStages/responseStage.js';
 import { runRoutingStage } from './streamStages/routingStage.js';
 import { runSharepicTopicStage } from './streamStages/sharepicTopicStage.js';
+import { suspendForToolApproval } from './streamStages/toolApprovalSuspend.js';
 import { type FixedTextBase, type SuspendTurnBase } from './streamStages/turnEnd.js';
 
 import type { Application } from 'express';
@@ -246,7 +247,6 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         actualThreadId,
       });
       if (gate.handled) return gate.result;
-      const { sharepicLicensed } = gate;
 
       sse.send('progress_step', {
         stepId: classifyStepId,
@@ -366,7 +366,6 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         lastUserText,
         forcedTool,
         sharepicRefinement,
-        sharepicLicensed,
         turnSignal: turnDeadline.signal,
       });
       if (response.handled) return response.result;
@@ -375,12 +374,42 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         fullText,
         generatedImage,
         sharepicVariants,
-        socialPost,
         createdDocument,
         createdBoard,
         agenticSteps,
         langfuseTraceId,
       } = response;
+
+      // Ein Werkzeug wartet auf die Freigabe: der Zug endet hier, der Rest
+      // (Artefakt-Auslöser, Persistenz) läuft erst in der Fortsetzung.
+      if (response.pendingApproval && response.pendingApproval.length > 0 && actualThreadId) {
+        return await suspendForToolApproval({
+          sse,
+          threadId: actualThreadId,
+          classifiedState,
+          requestContext: {
+            userId,
+            agentId: agentId ?? 'gruenerator-universal',
+            enabledTools: enabledTools ?? {},
+            ...(modelId != null && { modelId }),
+            actualThreadId,
+            isNewThread,
+            processedMeta,
+            userMessageId,
+            imageAttachments,
+            memoryContext,
+            memoryRetrieveTimeMs,
+            validMessages,
+            forcedTool,
+            ...(rawDocumentIds != null && { rawDocumentIds }),
+          },
+          pendingApproval: response.pendingApproval,
+          partialText: fullText,
+          priorSteps: agenticSteps ?? [],
+          pendingId,
+          startTime: initialState.startTime,
+        });
+      }
 
       // === Stages 3b–3d: chart / artifact / editor-surface triggers ===
       runArtifactEmitStage({
@@ -415,7 +444,6 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         memoryRetrieveTimeMs,
         generatedImage,
         sharepicVariants,
-        socialPost,
         createdDocument,
         createdBoard,
         agenticSteps,

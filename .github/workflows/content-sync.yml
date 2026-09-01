@@ -472,7 +472,7 @@ jobs:
         run: |
           curl -sfS -H "x-admin-token: $ADMIN_TOKEN" \
             "$CONTENT_SYNC_API_URL/api/internal/content-sync/stats" \
-            | jq -r '.markdown' > documentation/docs/wissen/inhaltsdatenbank.md
+            | jq -r '.markdown' > documentation/docs/sonstiges/inhaltsdatenbank.md
 
           # Jetzt formatieren, nicht erst beim Commit. Das `pnpm install` dieses
           # Jobs setzt über `prepare: husky` den core.hooksPath, also löst der
@@ -489,7 +489,7 @@ jobs:
           # 33084619987: create-pull-request 15:00:55, `prettier --write`
           # 15:00:56). Prettier ist idempotent — der Hook findet danach nichts
           # mehr zu ändern.
-          pnpm exec prettier --write documentation/docs/wissen/inhaltsdatenbank.md
+          pnpm exec prettier --write documentation/docs/sonstiges/inhaltsdatenbank.md
         env:
           ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
           CONTENT_SYNC_API_URL: ${{ vars.NOTEBOOK_API_URL || 'https://gruenerator.eu' }}
@@ -514,7 +514,7 @@ jobs:
           body: 'Automated content stats update from Content Sync workflow.'
           branch: automated/content-stats-update
           add-paths: |
-            documentation/docs/wissen/inhaltsdatenbank.md
+            documentation/docs/sonstiges/inhaltsdatenbank.md
             apps/api/services/docs/docsIndex.generated.ts
           delete-branch: true
           labels: automated
@@ -623,7 +623,7 @@ jobs:
         run: |
           curl -sfS -H "x-admin-token: $ADMIN_TOKEN" \
             "$CONTENT_SYNC_API_URL/api/internal/content-sync/stats" \
-            | jq -r '.markdown' > documentation/docs/wissen/inhaltsdatenbank.md
+            | jq -r '.markdown' > documentation/docs/sonstiges/inhaltsdatenbank.md
 
           # Jetzt formatieren, nicht erst beim Commit. Das `pnpm install` dieses
           # Jobs setzt über `prepare: husky` den core.hooksPath, also löst der
@@ -640,7 +640,7 @@ jobs:
           # 33084619987: create-pull-request 15:00:55, `prettier --write`
           # 15:00:56). Prettier ist idempotent — der Hook findet danach nichts
           # mehr zu ändern.
-          pnpm exec prettier --write documentation/docs/wissen/inhaltsdatenbank.md
+          pnpm exec prettier --write documentation/docs/sonstiges/inhaltsdatenbank.md
         env:
           ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
           CONTENT_SYNC_API_URL: ${{ vars.NOTEBOOK_API_URL || 'https://gruenerator.eu' }}
@@ -665,7 +665,7 @@ jobs:
           body: 'Automated content stats update from Content Sync workflow.'
           branch: automated/content-stats-update
           add-paths: |
-            documentation/docs/wissen/inhaltsdatenbank.md
+            documentation/docs/sonstiges/inhaltsdatenbank.md
             apps/api/services/docs/docsIndex.generated.ts
           delete-branch: true
           labels: automated

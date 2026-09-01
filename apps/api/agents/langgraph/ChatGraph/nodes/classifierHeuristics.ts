@@ -13,7 +13,7 @@
  * exportiert.
  */
 
-import { findBestMatch } from '@gruenerator/shared/utils';
+import { findBestMatch, isCloudShareUrl } from '@gruenerator/shared/utils';
 
 import { escapeRegExp } from '../../../../services/BaseSearchService/textUtils.js';
 import { createLogger } from '../../../../utils/logger.js';
@@ -53,14 +53,17 @@ const GENERATION_FUZZY_INTENTS: ReadonlySet<SearchIntent> = new Set([
 
 const log = createLogger('ChatGraph:Classifier');
 
-// ── Combined social post (EXPERIMENTAL) ─────────────────────────────────────
+// ── Social-Post-Vokabular ───────────────────────────────────────────────────
 // Shared by the heuristic fast-path and the classifier's dedicated branches so
 // escape hatches and platform detection can't drift between tiers.
 
 /**
- * A combined ask names BOTH a sharepic and a post noun ("Post mit Sharepic").
- * Such a turn belongs to `social_post`, which now carries the sharepic half
- * itself — the sharepic-only fast path must stand down for it.
+ * Der Auftrag nennt ein POST-Nomen und nicht nur ein Sharepic ("Post mit
+ * Sharepic"). Er gehört damit dem Schreibzweig, nicht der Sharepic-Route.
+ *
+ * Bis 08/2026 hiess die Begründung „`social_post` trägt die Sharepic-Hälfte
+ * selbst" — das Verdikt ist stillgelegt, die Vorfahrt bleibt: der Text ist
+ * bestellt, die Grafik ist ein eigener Auftrag.
  */
 export const POST_NOUN_PATTERN = /\b(post(ing)?|beitrag|tweet|caption)\b/i;
 
@@ -196,7 +199,8 @@ export const INTENT_KEYWORDS: Record<
     | 'compute'
     // agentic is a router disposition (loop demotion), never keyword-matched.
     | 'agentic'
-    // social_post is detected by the dedicated creation-verb + social-noun rule, not keywords.
+    // Stillgelegt (08/2026): ein Social-Post ist eine Textsorte, kein Verdikt.
+    // Die Regel, die einmal hierher zeigte, liefert heute `produktion`.
     | 'social_post'
     // chat_history is detected by the dedicated past-conversation regex, not keywords.
     | 'chat_history'
@@ -623,6 +627,20 @@ export function extractUrls(text: string): string[] {
     if (cleaned) seen.add(cleaned);
   }
   return [...seen];
+}
+
+/**
+ * URLs, die zum Crawlen taugen.
+ *
+ * Ein Nextcloud-Freigabe-Link (`…/s/<token>`) taugt NICHT: dahinter liegt eine
+ * Single-Page-App, ein GET auf die Adresse liefert deren Hülle und keinen
+ * Ordnerinhalt — der Inhalt kommt nur über WebDAV. Bis hierher landete genau
+ * der Satz „füge diesen Wolke-Link hinzu: https://…/s/…" auf `scrape_url` und
+ * bekam Markup statt Dateien. Das Werkzeug `cloud_files` ist dafür zuständig;
+ * es liest den Link aus dem Nachrichtentext, der unverändert im Kontext steht.
+ */
+export function crawlableUrls(text: string): string[] {
+  return extractUrls(text).filter((url) => !isCloudShareUrl(url));
 }
 
 /** Domains to include/exclude when the caller wires them into Linkup's
@@ -1314,10 +1332,10 @@ const HEURISTIC_RULES: ReadonlyArray<ClassifierRule<HeuristicResult>> = [
     }),
   },
   // Sharepic — eine gebrandete Vorlage mit Text, KEIN freies KI-Bild. Vor der
-  // Bildregel, die es sonst schluckt. "Post MIT Sharepic" ist ein kombinierter
-  // Auftrag und gehört der social_post-Regel, die die Sharepic-Hälfte selbst
-  // trägt. Eigener Wächter: `hasExplicitSharepicWord` prüft Zitat, Negation und
-  // Meta-Frage bereits selbst (und satzweise, nicht über die ganze Nachricht).
+  // Bildregel, die es sonst schluckt. "Post MIT Sharepic" nennt ein Post-Nomen
+  // und gehört deshalb der Schreibregel darunter. Eigener Wächter:
+  // `hasExplicitSharepicWord` prüft Zitat, Negation und Meta-Frage bereits
+  // selbst (und satzweise, nicht über die ganze Nachricht).
   {
     id: 'sharepic',
     longPaste: 'skip',
@@ -1603,6 +1621,13 @@ const HEURISTIC_RULES: ReadonlyArray<ClassifierRule<HeuristicResult>> = [
   // Verb und Nomen müssen nah beieinander stehen — "schreibe eine
   // Produktvorstellung … [Paste erwähnt Instagram]" ist kein Post-Auftrag.
   // Browse-Verben gehören der examples-Regel darunter.
+  //
+  // Das Verdikt hiess bis 08/2026 `social_post` und ist mit ihm auf
+  // `produktion` gewechselt: die Textsorte trägt das Rezept, nicht der Intent.
+  // Die REGEL bleibt trotzdem stehen, und zwar wegen der Regel direkt darunter:
+  // `examples` zählt `schreib`/`erstell`/`mach` zu ihren Aktionsverben, würde
+  // einen Schreibauftrag also als Stöberei nehmen. Der Vorrang hier ist das,
+  // was die beiden auseinanderhält.
   {
     id: 'social_post',
     longPaste: 'skip',
@@ -1612,7 +1637,7 @@ const HEURISTIC_RULES: ReadonlyArray<ClassifierRule<HeuristicResult>> = [
       nounNearCreateVerb(m.stripped, SOCIAL_TRIGGER_NOUN_PATTERN) &&
       !EXAMPLE_NOUN_PATTERN.test(m.stripped),
     result: (m) => ({
-      intent: 'social_post',
+      intent: 'produktion',
       searchQuery: m.raw,
       reasoning: 'Social media post creation',
       confidence: 0.8,

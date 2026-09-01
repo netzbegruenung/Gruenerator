@@ -108,37 +108,72 @@ const config: Config = {
           { from: '/docs/gruenerieren/was-kann-ich-fragen', to: '/docs/chat/was-kann-ich-fragen' },
           { from: '/docs/gruenerieren/dateien-hinzufuegen', to: '/docs/chat/dateien-hinzufuegen' },
           { from: '/docs/gruenerieren/ki-modelle', to: '/docs/chat/ki-modelle' },
-          // social-media-post.mdx was removed — its topic now lives in
-          // "Was kann ich fragen?". Both spellings keep resolving: the URL was
-          // cited to users in chat and is compiled into shipped mobile
-          // binaries (SOCIAL_POST_DOC_URL), which no deploy can update.
+          // social-media-post.mdx was removed; its successor is the guide
+          // "Wie schreibe ich einen Social Media Beitrag?". Both spellings keep
+          // resolving: /docs/chat/social-media-post was compiled into a shipped
+          // mobile binary as SOCIAL_POST_DOC_URL (commit daa4fff59, 07/2026),
+          // which no deploy can update, and the .de spelling was cited to users
+          // in chat. Retargeting them is safe — only the destination moves.
           {
             from: '/docs/gruenerieren/social-media-post',
-            to: '/docs/chat/was-kann-ich-fragen',
+            to: '/docs/guides/einsteigerinnen/social-media-beitrag',
           },
-          { from: '/docs/chat/social-media-post', to: '/docs/chat/was-kann-ich-fragen' },
+          {
+            from: '/docs/chat/social-media-post',
+            to: '/docs/guides/einsteigerinnen/social-media-beitrag',
+          },
           // websuche.md was removed — its topic now lives in "Was kann ich fragen?".
           { from: '/docs/gruenerieren/websuche', to: '/docs/chat/was-kann-ich-fragen' },
+          // Structure rebuild 08/2026: office/, wissen/ and grueneratoren/ were
+          // merged into features/, the two how-to pages moved into guides/ and
+          // the Inhaltsdatenbank into sonstiges/. Same rule as every move
+          // before: the old address keeps resolving forever. These URLs sit in
+          // the chat's own citations and in the docs index the chat searches,
+          // so a dead one is a dead link inside an answer.
+          { from: '/docs/office/intro', to: '/docs/features/office' },
+          { from: '/docs/office/dokumente', to: '/docs/features/dokumente' },
+          { from: '/docs/office/tabellen', to: '/docs/features/tabellen' },
+          { from: '/docs/office/praesentationen', to: '/docs/features/praesentationen' },
+          { from: '/docs/office/boards', to: '/docs/features/boards' },
+          { from: '/docs/office/ki-im-editor', to: '/docs/features/ki-im-editor' },
+          { from: '/docs/grueneratoren/agentura', to: '/docs/features/agentura' },
+          { from: '/docs/wissen/landesverbaende', to: '/docs/features/landesverbaende' },
+          {
+            from: '/docs/grueneratoren/eigene-agentinnen-erstellen',
+            to: '/docs/guides/fortgeschrittene/eigene-agentinnen-erstellen',
+          },
+          {
+            from: '/docs/wissen/eigenes-notebook-erstellen',
+            to: '/docs/guides/einsteigerinnen/eigenes-notebook-erstellen',
+          },
+          { from: '/docs/wissen/inhaltsdatenbank', to: '/docs/sonstiges/inhaltsdatenbank' },
           // agents/* → grueneratoren/*
-          { from: '/docs/agents/agentura', to: '/docs/grueneratoren/agentura' },
+          { from: '/docs/agents/agentura', to: '/docs/features/agentura' },
           {
             from: '/docs/agents/eigene-agentinnen-erstellen',
-            to: '/docs/grueneratoren/eigene-agentinnen-erstellen',
+            to: '/docs/guides/fortgeschrittene/eigene-agentinnen-erstellen',
           },
           // notebooks + landesverbaende + inhaltsdatenbank → wissen/*
           {
             from: '/docs/notebooks/eigenes-notebook-erstellen',
-            to: '/docs/wissen/eigenes-notebook-erstellen',
+            to: '/docs/guides/einsteigerinnen/eigenes-notebook-erstellen',
           },
-          { from: '/docs/landesverbaende', to: '/docs/wissen/landesverbaende' },
+          { from: '/docs/landesverbaende', to: '/docs/features/landesverbaende' },
           {
             from: '/docs/ueber-den-gruenerator/inhaltsdatenbank',
-            to: '/docs/wissen/inhaltsdatenbank',
+            to: '/docs/sonstiges/inhaltsdatenbank',
           },
           // projekte + Profil → konto/*
           { from: '/docs/projekte/intro', to: '/docs/konto/projekte' },
           { from: '/docs/Profil/einstellungen', to: '/docs/konto/einstellungen' },
-          { from: '/docs/Profil/gruene-wolke-tutorial', to: '/docs/konto/gruene-wolke' },
+          {
+            from: '/docs/Profil/gruene-wolke-tutorial',
+            to: '/docs/guides/fortgeschrittene/gruene-wolke-einbinden',
+          },
+          {
+            from: '/docs/konto/gruene-wolke',
+            to: '/docs/guides/fortgeschrittene/gruene-wolke-einbinden',
+          },
           // llm-basics → grundlagen/*
           //
           // The two pages that merely changed case (/docs/Grundlagen/* →
@@ -167,9 +202,9 @@ const config: Config = {
             to: section('ueber-den-gruenerator').intro,
           },
           { from: '/docs/category/chat', to: section('chat').intro },
-          { from: '/docs/category/office', to: section('office').intro },
-          { from: '/docs/category/wissen', to: section('wissen').intro },
-          { from: '/docs/category/grüneratoren', to: section('grueneratoren').intro },
+          { from: '/docs/category/office', to: section('features').intro },
+          { from: '/docs/category/wissen', to: section('features').intro },
+          { from: '/docs/category/grüneratoren', to: section('features').intro },
           { from: '/docs/category/konto--projekte', to: section('konto').intro },
           { from: '/docs/category/integrationen', to: section('integrationen').intro },
           { from: '/docs/category/grundlagen', to: section('grundlagen').intro },

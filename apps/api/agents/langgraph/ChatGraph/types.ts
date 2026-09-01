@@ -483,6 +483,13 @@ export interface ChatGraphInput {
    * pandas interpreter (`df`) instead of doing arithmetic in its head.
    */
   hasTabularAttachment?: boolean | undefined;
+  /**
+   * Anzahl der aktiven eigenen Wolke-Verbindungen. Das primäre Tor für
+   * `cloud_files` im Werkzeugkatalog — er wird synchron gebaut und kann die
+   * Frage nicht selbst stellen. Gesetzt in `buildStreamContext` aus einem
+   * 60-Sekunden-Cache; `undefined` heißt „nicht ermittelt", nicht „keine".
+   */
+  cloudConnectionCount?: number | undefined;
   /** THIS turn's fillable-PDF attachments (name + base64), for the PDF form
    *  tools. Needed separately from `threadAttachments`, which carries no bytes
    *  and is only written after the turn completes — on the very first turn
@@ -647,6 +654,8 @@ export interface ChatGraphState {
   imageAttachments: ImageAttachment[];
   threadAttachments: ThreadAttachment[];
   hasTabularAttachment: boolean;
+  /** See the input-side field: the tool-catalog gate for `cloud_files`. */
+  cloudConnectionCount: number;
   /** See the input-side field: this turn's fillable PDFs, name + base64. */
   pdfFormAttachments: Array<{ name: string; data: string }>;
   clientCanRunPython: boolean;
@@ -902,13 +911,6 @@ export interface ChatGraphState {
    */
   webImageResults?: WebImageResult[];
 
-  // Platform hint for the `examples` / `social_post` intents. Set by the
-  // classifier when the user prompt names a platform; null otherwise. Consumed
-  // by searchNode to filter social examples (instagram/facebook only — the
-  // Qdrant collection has no other platforms) and by socialMediaComposerNode
-  // to pick the platform-specific rubric.
-  platform: SocialTextPlatform | null;
-
   // Clarification (HITL interrupt)
   needsClarification: boolean;
   clarificationQuestion: string | null;
@@ -1088,12 +1090,6 @@ export interface ChatGraphState {
    *  of ending with no computation at all. */
   pandasComputeFallback?: ComputeData | undefined;
 
-  // Combined social post (EXPERIMENTAL): text half of the `social_post`
-  // intent. Set by generateSocialPostText in the execution stage; persisted
-  // into the `social_post` tool-call result. The sharepic half travels via
-  // the existing sharepic variant machinery.
-  socialPostResult: SocialPostPayload | null;
-
   // Chart generation
   chartData: ChartData | null;
 
@@ -1254,6 +1250,19 @@ export interface JoinGroupPayload {
 }
 
 /**
+ * Eine Wolke-Verbindung anlegen. Der Link IST das Zugangsmittel, deshalb liegt
+ * er bis zur Zustimmung nur im Redis-Pending-Eintrag und nie in einer
+ * Modellantwort.
+ */
+export interface AddCloudConnectionPayload {
+  shareLink: string;
+  label: string | null;
+  host: string;
+  /** Einträge in der Wurzel zum Zeitpunkt der Prüfung — die Karte zeigt sie. */
+  entryCount: number | null;
+}
+
+/**
  * Pending action stored in Redis while awaiting user confirmation.
  * Discriminated union ensures type-safe payload access per action type.
  */
@@ -1271,6 +1280,7 @@ export type PendingAction = {
   | { type: 'share_doc'; payload: ShareDocPayload }
   | { type: 'create_group'; payload: CreateGroupPayload }
   | { type: 'join_group'; payload: JoinGroupPayload }
+  | { type: 'add_cloud_connection'; payload: AddCloudConnectionPayload }
 );
 
 /**

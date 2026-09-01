@@ -65,8 +65,6 @@ vi.mock('./messageHelpers.js', () => ({
 
 vi.mock('./sseHelpers.js', () => ({
   PROGRESS_MESSAGES: { streamInterrupted: 'stream interrupted' },
-  // Real timers would keep pinging under the fake clock these tests drive.
-  startResponseHeartbeat: () => () => {},
 }));
 
 vi.mock('../../../utils/logger.js', () => ({
@@ -233,12 +231,19 @@ describe('getFirstTokenDeadlineMs', () => {
     expect(getFirstTokenDeadlineMs('litellm', 'verdigado-pro')).toBe(20_000);
   });
 
-  it('gives the non-reasoning litellm overflow lane queue headroom', () => {
-    expect(getFirstTokenDeadlineMs('litellm', 'gemma')).toBe(30_000);
-  });
-
   it('defaults to 20s', () => {
     expect(getFirstTokenDeadlineMs('mistral', 'mistral-medium-2604')).toBe(20_000);
+  });
+
+  // Bis zum 01.09.2026 stand hier `('litellm', 'gemma') → 30_000` und war
+  // grün, weil der Test den Zweig selbst aufrief. Erreichbar war er nicht:
+  // keine Lane in AVAILABLE_MODELS deklariert noch `provider: 'litellm'`, seit
+  // die Gemma-Lane am 21.08.2026 auf Cortecs zog. Ein Prüfmittel, das seinen
+  // Zweig selbst am Leben hält, bewacht nichts — es verdeckt.
+  it('holds the Gemma answer lane to the ordinary deadline — its host is Cortecs, not LiteLLM', () => {
+    expect(getFirstTokenDeadlineMs('cortecs', 'gemma-4-31b-it', false)).toBe(20_000);
+    // Auch der F0-Altname darf keine Sonderfrist zurückbringen.
+    expect(getFirstTokenDeadlineMs('litellm', 'gemma')).toBe(20_000);
   });
 });
 
@@ -560,7 +565,13 @@ describe('streamWithFallback', () => {
     expect(sse.events.some((e) => e.event === 'error')).toBe(true);
   });
 
-  it('does not time out before the provider-specific deadline (litellm 30s)', async () => {
+  // Vorher: „does not time out before the provider-specific deadline (litellm
+  // 30s)" — die Sonderfrist gibt es seit dem 01.09.2026 nicht mehr, und ihr
+  // Zweig war zuletzt unerreichbar (keine Lane deklariert `provider:
+  // 'litellm'`). Erhalten bleibt die Hälfte, die etwas aussagt: die Frist wird
+  // ABGEWARTET und nicht vorzeitig gerissen — nur eben die gewöhnliche, auf
+  // dem Host, der die Lane wirklich bedient.
+  it('waits out the full 20s deadline on the Gemma answer lane before switching', async () => {
     vi.useFakeTimers();
     mockStreamText
       .mockReturnValueOnce(hungStream())
@@ -568,15 +579,15 @@ describe('streamWithFallback', () => {
     const sse = makeSse();
     const resultPromise = runStream(
       makeResolution({
-        provider: 'litellm',
-        modelName: 'gemma',
+        provider: 'cortecs',
+        modelName: 'gemma-4-31b-it',
         sibling: { provider: 'mistral', model: 'mistral-medium-2604' },
       }),
       sse
     );
-    await vi.advanceTimersByTimeAsync(25_000);
+    await vi.advanceTimersByTimeAsync(19_000);
     expect(sse.events.some((e) => e.event === 'fallback')).toBe(false);
-    await vi.advanceTimersByTimeAsync(5_000);
+    await vi.advanceTimersByTimeAsync(2_000);
     await resultPromise;
     expect(sse.events.some((e) => e.event === 'fallback')).toBe(true);
   });

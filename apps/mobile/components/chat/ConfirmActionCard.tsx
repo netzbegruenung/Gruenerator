@@ -23,6 +23,7 @@ const ICON_MAP: Record<ConfirmActionData['type'], IoniconsIconName> = {
   share_doc: 'share-social-outline',
   create_group: 'people-outline',
   join_group: 'person-add-outline',
+  add_cloud_connection: 'cloud-outline',
 };
 
 const GROUP_ACTION_TYPES: ReadonlySet<ConfirmActionData['type']> = new Set([

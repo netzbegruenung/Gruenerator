@@ -27,7 +27,7 @@ import { type RoutingStageResult } from './routingStage.js';
 import { type CleanupPending, type MaybeHandled, type StreamBody } from './types.js';
 
 import type { ChatGraphState, CreatedDocument } from '../../../agents/langgraph/ChatGraph/types.js';
-import type { PersistedStep } from '../services/agenticLoop/types.js';
+import type { PendingToolCall, PersistedStep } from '../services/agenticLoop/types.js';
 import type { StreamContext } from '../services/streamContext.js';
 import type { Request } from 'express';
 
@@ -57,9 +57,6 @@ export interface ResponseStageParams {
   lastUserText: string;
   forcedTool: boolean;
   sharepicRefinement: SharepicRefinement | undefined;
-  /** Whether the turn was allowed to make a sharepic — a post without a
-   *  licence is text-only, not a failed sharepic. */
-  sharepicLicensed: boolean;
   /** Die Decke über dem ganzen Zug (turnDeadline.ts). Beide Antwortpfade
    *  hängen daran, damit der Zug EINE Frist hat und nicht je Phase eine. */
   turnSignal: AbortSignal;
@@ -71,11 +68,12 @@ export interface ResponseStageOutput {
   fullText: string;
   generatedImage: ChatGraphState['generatedImage'] | null;
   sharepicVariants: Awaited<ReturnType<typeof executeIntentPipeline>>['sharepicVariants'];
-  socialPost: Awaited<ReturnType<typeof executeIntentPipeline>>['socialPost'];
   createdDocument: CreatedDocument | null;
   createdBoard: ChatGraphState['createdBoard'];
   agenticSteps: PersistedStep[] | undefined;
   langfuseTraceId: string | undefined;
+  /** Gesetzt ⇒ der Zug pausiert; der Router suspendiert statt zu persistieren. */
+  pendingApproval?: PendingToolCall[];
 }
 
 export async function runResponseStage({
@@ -101,7 +99,6 @@ export async function runResponseStage({
   lastUserText,
   forcedTool,
   sharepicRefinement,
-  sharepicLicensed,
   turnSignal,
 }: ResponseStageParams): Promise<MaybeHandled<ResponseStageOutput>> {
   // === Stage 2 + 3: Response generation ===
@@ -109,9 +106,9 @@ export async function runResponseStage({
   let finalState: PipelineResult['finalState'];
   let generatedImage: PipelineResult['generatedImage'];
   let sharepicVariants: PipelineResult['sharepicVariants'];
-  let socialPost: PipelineResult['socialPost'];
   let fullText: string | null;
   let agenticSteps: PersistedStep[] | undefined;
+  let pendingApproval: PendingToolCall[] | undefined;
   // Presentation/sheet created by a compound loop tool — lifted from the
   // shared state and persisted as message-level `createdDocument` metadata
   // (the single-pass handlers persist it directly; the loop path lifts it).
@@ -170,13 +167,29 @@ export async function runResponseStage({
       finalState,
       generatedImage,
       sharepicVariants,
-      socialPost,
       fullText,
       agenticSteps,
       createdDocument,
       createdBoard,
       langfuseTraceId,
     } = agentic);
+    pendingApproval = agentic.pendingApproval;
+    // Ein pausierter Zug hat keine fertige Antwort: die Nachschritte (Artefakt-
+    // Auslöser, Pipeline-Agenten, Persistenz) laufen erst nach der Freigabe.
+    if (pendingApproval && pendingApproval.length > 0) {
+      return {
+        handled: false,
+        finalState,
+        fullText: fullText ?? '',
+        generatedImage,
+        sharepicVariants,
+        createdDocument,
+        createdBoard,
+        agenticSteps,
+        langfuseTraceId,
+        pendingApproval,
+      };
+    }
   } else {
     const singlePass = await runSinglePassAnswer({
       sse,
@@ -194,13 +207,11 @@ export async function runResponseStage({
       lastUserText,
       forcedTool,
       sharepicRefinement,
-      sharepicLicensed,
       buildTurnTrace,
       turnSignal,
     });
     if (singlePass.handled) return singlePass;
-    ({ finalState, generatedImage, sharepicVariants, socialPost, fullText, langfuseTraceId } =
-      singlePass);
+    ({ finalState, generatedImage, sharepicVariants, fullText, langfuseTraceId } = singlePass);
   }
 
   // Narrow fullText for the extraction/persist stages: the agentic path
@@ -231,7 +242,6 @@ export async function runResponseStage({
     fullText,
     generatedImage,
     sharepicVariants,
-    socialPost,
     createdDocument,
     createdBoard,
     agenticSteps,

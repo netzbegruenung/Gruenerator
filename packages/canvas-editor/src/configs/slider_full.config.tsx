@@ -20,7 +20,13 @@ import {
   FrameSettingsSection,
 } from '../sidebar/sections';
 import { createPillBadgeInstance, getPillBadgeColorsForScheme } from '../utils/pillBadgeUtils';
-import { SLIDER_CONFIG, calculateSliderLayout, getSliderColors } from '../utils/sliderLayout';
+import {
+  DEFAULT_SLIDER_COLOR_SCHEME,
+  SLIDER_CONFIG,
+  calculateSliderLayout,
+  getSliderColors,
+  isSliderColorScheme,
+} from '../utils/sliderLayout';
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
 import { createBaseActions } from './factory/actionFactories';
@@ -522,12 +528,12 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
   ],
 
   // 'ai' tab kept registered but hidden — Chat tab now drives canvas-AI suggestions.
-  // 'background' tab kept registered but hidden — opened via getAutoSwitchTab when
-  // the canvas background is clicked.
-  getVisibleTabs: () => ['text', 'assets', 'tools', 'uploads', 'chat'],
+  // 'background' was hidden here and left to getAutoSwitchTab below, which
+  // matched the id `background` — the colour plane, drawn `listening={false}`,
+  // so it never becomes the selection and the tab never opened.
+  getVisibleTabs: () => ['background', 'text', 'assets', 'tools', 'uploads', 'chat'],
 
   getAutoSwitchTab: (selectedElement) => {
-    if (selectedElement === 'background') return 'background';
     if (selectedElement?.startsWith('chart-')) return 'chart-settings';
     if (selectedElement?.startsWith('frame-')) return 'frame-settings';
     return null;
@@ -602,7 +608,12 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
   calculateLayout,
 
   createInitialState: (props: Record<string, unknown>): SliderState => {
-    const colorScheme = (props.colorScheme as SliderColorScheme) || 'sand-tanne';
+    // Membership check, not a truthiness default: a minted canvas seeds this
+    // from the studio store, whose `colorScheme` is a `{background}[]`
+    // palette — truthy, and no scheme id at all.
+    const colorScheme = isSliderColorScheme(props.colorScheme)
+      ? props.colorScheme
+      : DEFAULT_SLIDER_COLOR_SCHEME;
     const colors = getSliderColors(colorScheme);
     const variant = (props.slideVariant as 'cover' | 'content' | 'last') || 'cover';
     const includeArrow = variant !== 'last';

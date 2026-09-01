@@ -7,22 +7,15 @@ import {
   fetchLinkGroupShares,
   fetchShareLinks,
   fetchSharedWithMe,
-  fetchSyncStatuses,
-  setAutoSync,
   shareLinkWithGroup,
-  syncFolder,
   testConnection,
   unshareLinkFromGroup,
-  uploadToWolke,
 } from '../api/wolkeApiClient';
-import { type LinkGroupShare, type SharedWithMeLink, type WolkeScope } from '../types';
+import { type LinkGroupShare, type SharedWithMeLink } from '../types';
 
 export const wolkeKeys = {
   all: ['wolke'] as const,
-  shareLinks: (scope?: WolkeScope, scopeId?: string | null) =>
-    ['wolke', 'share-links', scope ?? 'personal', scopeId ?? null] as const,
-  syncStatuses: (scope?: WolkeScope, scopeId?: string | null) =>
-    ['wolke', 'sync-statuses', scope ?? 'personal', scopeId ?? null] as const,
+  shareLinks: () => ['wolke', 'share-links'] as const,
   files: (shareLinkId: string) => ['wolke', 'files', shareLinkId] as const,
   browse: (shareLinkId: string, path: string) => ['wolke', 'browse', shareLinkId, path] as const,
   sharedWithMe: () => ['wolke', 'share-links', 'shared-with-me'] as const,
@@ -30,33 +23,12 @@ export const wolkeKeys = {
     ['wolke', 'share-links', shareLinkId, 'groups'] as const,
 };
 
-export function useShareLinks(
-  scope?: WolkeScope,
-  scopeId?: string | null,
-  options?: { enabled?: boolean }
-) {
+export function useShareLinks(options?: { enabled?: boolean }) {
   return useQuery({
-    queryKey: wolkeKeys.shareLinks(scope, scopeId),
-    queryFn: () => fetchShareLinks(scope, scopeId),
+    queryKey: wolkeKeys.shareLinks(),
+    queryFn: () => fetchShareLinks(),
     staleTime: 30_000,
     enabled: options?.enabled,
-  });
-}
-
-export function useSyncStatuses(scope?: WolkeScope, scopeId?: string | null) {
-  return useQuery({
-    queryKey: wolkeKeys.syncStatuses(scope, scopeId),
-    queryFn: () => fetchSyncStatuses(scope, scopeId),
-    staleTime: 10_000,
-  });
-}
-
-export function useWolkeFiles(shareLinkId: string | null) {
-  return useQuery({
-    queryKey: wolkeKeys.files(shareLinkId!),
-    queryFn: () => browseFolder(shareLinkId!),
-    staleTime: 3 * 60 * 1000,
-    enabled: !!shareLinkId,
   });
 }
 
@@ -69,63 +41,33 @@ export function useWolkeBrowse(shareLinkId: string | null, path: string) {
   });
 }
 
-export function useAddShareLink(scope?: WolkeScope, scopeId?: string | null) {
+export function useAddShareLink() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ url, label }: { url: string; label?: string }) =>
-      addShareLink(url, label, scope, scopeId),
+    mutationFn: ({ url, label }: { url: string; label?: string }) => addShareLink(url, label),
     onSuccess: () => {
       void queryClient.invalidateQueries({
-        queryKey: wolkeKeys.shareLinks(scope, scopeId),
+        queryKey: wolkeKeys.shareLinks(),
       });
     },
   });
 }
 
-export function useDeleteShareLink(scope?: WolkeScope, scopeId?: string | null) {
+export function useDeleteShareLink() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => deleteShareLink(id, scope, scopeId),
+    mutationFn: (id: string) => deleteShareLink(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({
-        queryKey: wolkeKeys.shareLinks(scope, scopeId),
+        queryKey: wolkeKeys.shareLinks(),
       });
     },
   });
 }
 
-export function useTestConnection(scope?: WolkeScope, scopeId?: string | null) {
+export function useTestConnection() {
   return useMutation({
-    mutationFn: (shareLinkUrl: string) => testConnection(shareLinkUrl, scope, scopeId),
-  });
-}
-
-export function useUploadToWolke() {
-  return useMutation({
-    mutationFn: ({
-      shareLinkId,
-      content,
-      filename,
-      folderPath,
-    }: {
-      shareLinkId: string;
-      content: string;
-      filename: string;
-      folderPath?: string;
-    }) => uploadToWolke(shareLinkId, content, filename, folderPath),
-  });
-}
-
-export function useSyncFolder(scope?: WolkeScope, scopeId?: string | null) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ shareLinkId, folderPath }: { shareLinkId: string; folderPath?: string }) =>
-      syncFolder(shareLinkId, folderPath, scope, scopeId),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: wolkeKeys.syncStatuses(scope, scopeId),
-      });
-    },
+    mutationFn: (shareLinkUrl: string) => testConnection(shareLinkUrl),
   });
 }
 
@@ -168,26 +110,6 @@ export function useUnshareLinkFromGroup(shareLinkId: string) {
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: wolkeKeys.linkGroupShares(shareLinkId),
-      });
-    },
-  });
-}
-
-export function useSetAutoSync(scope?: WolkeScope, scopeId?: string | null) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({
-      shareLinkId,
-      folderPath,
-      enabled,
-    }: {
-      shareLinkId: string;
-      folderPath?: string;
-      enabled: boolean;
-    }) => setAutoSync(shareLinkId, folderPath, enabled, scope, scopeId),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: wolkeKeys.syncStatuses(scope, scopeId),
       });
     },
   });

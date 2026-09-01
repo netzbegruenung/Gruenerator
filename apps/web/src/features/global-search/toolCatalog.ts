@@ -197,15 +197,6 @@ export const CATALOG: ToolCatalogEntry[] = [
       'zusammenarbeit',
     ],
   },
-  {
-    id: 'tool-transfer',
-    title: 'Transfer',
-    subtitle: 'Dateien sicher übertragen',
-    path: '/transfer',
-    icon: getIcon('actions', 'upload') ?? null,
-    keywords: ['transfer', 'datei', 'upload', 'senden', 'teilen'],
-    channel: 'internal',
-  },
 ] satisfies RegisteredEntry[];
 
 export function getToolCatalog(): ToolCatalogEntry[] {

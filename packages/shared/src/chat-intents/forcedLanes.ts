@@ -98,10 +98,14 @@ export const FORCED_LANE_BY_INTENT: Record<ChatIntentId, ForcedLane> = {
   image: 'single-pass',
   image_edit: 'single-pass',
   sharepic: 'single-pass',
-  social_post: 'single-pass',
   chart: 'single-pass',
   summary: 'single-pass',
   compute: 'single-pass',
+  // Stillgelegt, aber der Token lebt: `@social` ist als Erwähnung weg, steht
+  // aber in persistierten Threads und in ausgelieferten Composern (F0). Er
+  // landet über `forcedIntentStage` auf `produktion` — die Zeile hier sagt nur,
+  // dass ein solcher Zwang den Einzeldurchlauf nähme, nie die Schleife.
+  social_post: 'single-pass',
   // Nicht erwähnbar. Der Eintrag sagt, wo ein Zwang LANDEN würde — und für
   // `sharepic` oben ist das keine Hypothese: die Verfeinerungs-Heuristik in
   // `earlyHandlerStage` setzt `forcedTool` ohne jede Erwähnung.

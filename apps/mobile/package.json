@@ -33,7 +33,7 @@
     "build:android:preview": "EAS_NO_VCS=1 eas build -p android --profile preview"
   },
   "dependencies": {
-    "@assistant-ui/react-native": "0.1.33",
+    "@assistant-ui/react-native": "0.1.39",
     "@expo-google-fonts/raleway": "^0.4.2",
     "@expo/dom-webview": "~56.0.5",
     "@expo/metro-runtime": "~57.0.7",

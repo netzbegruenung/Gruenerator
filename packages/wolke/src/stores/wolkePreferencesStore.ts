@@ -7,25 +7,8 @@ export interface WolkeFavouriteFolder {
   folderName: string;
 }
 
-export type BackupInterval = 'hourly' | 'daily';
-
-export interface WolkeAutoBackupConfig {
-  enabled: boolean;
-  shareLinkId: string | null;
-  folderPath: string | null;
-  folderName: string | null;
-  interval: BackupInterval;
-}
-
-export interface WolkeTransferFolderConfig {
-  shareLinkId: string | null;
-  folderPath: string;
-}
-
 interface WolkePreferencesState {
   favourites: WolkeFavouriteFolder[];
-  autoBackup: WolkeAutoBackupConfig;
-  transferFolder: WolkeTransferFolderConfig;
 }
 
 interface WolkePreferencesActions {
@@ -34,35 +17,14 @@ interface WolkePreferencesActions {
   toggleFavourite: (folder: WolkeFavouriteFolder) => void;
   isFavourite: (shareLinkId: string, folderPath: string) => boolean;
   getFavouritesForShareLink: (shareLinkId: string) => WolkeFavouriteFolder[];
-  setAutoBackupEnabled: (enabled: boolean) => void;
-  setAutoBackupTarget: (shareLinkId: string, folderPath: string, folderName: string) => void;
-  clearAutoBackupTarget: () => void;
-  setAutoBackupInterval: (interval: BackupInterval) => void;
-  setTransferFolder: (shareLinkId: string, folderPath: string) => void;
-  resetTransferFolder: () => void;
 }
 
 type WolkePreferencesStore = WolkePreferencesState & WolkePreferencesActions;
-
-const DEFAULT_AUTO_BACKUP: WolkeAutoBackupConfig = {
-  enabled: false,
-  shareLinkId: null,
-  folderPath: null,
-  folderName: null,
-  interval: 'daily',
-};
-
-const DEFAULT_TRANSFER_FOLDER: WolkeTransferFolderConfig = {
-  shareLinkId: null,
-  folderPath: 'Gruenerator-Transfer',
-};
 
 const useWolkePreferencesStore = create<WolkePreferencesStore>()(
   persist(
     (set, get) => ({
       favourites: [],
-      autoBackup: DEFAULT_AUTO_BACKUP,
-      transferFolder: DEFAULT_TRANSFER_FOLDER,
 
       addFavourite: (folder) => {
         const { favourites } = get();
@@ -74,23 +36,11 @@ const useWolkePreferencesStore = create<WolkePreferencesStore>()(
       },
 
       removeFavourite: (shareLinkId, folderPath) => {
-        const state = get();
-        const newFavourites = state.favourites.filter(
-          (f) => !(f.shareLinkId === shareLinkId && f.folderPath === folderPath)
-        );
-        const updates: Partial<WolkePreferencesState> = { favourites: newFavourites };
-        if (
-          state.autoBackup.shareLinkId === shareLinkId &&
-          state.autoBackup.folderPath === folderPath
-        ) {
-          updates.autoBackup = {
-            ...state.autoBackup,
-            shareLinkId: null,
-            folderPath: null,
-            folderName: null,
-          };
-        }
-        set(updates);
+        set({
+          favourites: get().favourites.filter(
+            (f) => !(f.shareLinkId === shareLinkId && f.folderPath === folderPath)
+          ),
+        });
       },
 
       toggleFavourite: (folder) => {
@@ -107,43 +57,17 @@ const useWolkePreferencesStore = create<WolkePreferencesStore>()(
 
       getFavouritesForShareLink: (shareLinkId) =>
         get().favourites.filter((f) => f.shareLinkId === shareLinkId),
-
-      setAutoBackupEnabled: (enabled) => {
-        set({ autoBackup: { ...get().autoBackup, enabled } });
-      },
-
-      setAutoBackupTarget: (shareLinkId, folderPath, folderName) => {
-        set({
-          autoBackup: { ...get().autoBackup, shareLinkId, folderPath, folderName },
-        });
-      },
-
-      clearAutoBackupTarget: () => {
-        set({
-          autoBackup: {
-            ...get().autoBackup,
-            shareLinkId: null,
-            folderPath: null,
-            folderName: null,
-          },
-        });
-      },
-
-      setAutoBackupInterval: (interval) => {
-        set({ autoBackup: { ...get().autoBackup, interval } });
-      },
-
-      setTransferFolder: (shareLinkId, folderPath) => {
-        set({ transferFolder: { shareLinkId, folderPath } });
-      },
-
-      resetTransferFolder: () => {
-        set({ transferFolder: DEFAULT_TRANSFER_FOLDER });
-      },
     }),
     {
       name: 'wolke-preferences',
       storage: createJSONStorage(() => localStorage),
+      // v2 verwirft die toten autoBackup/transferFolder-Keys (Wolke ist nur
+      // noch lesend; Auto-Backup und Transfer sind entfernt).
+      version: 2,
+      migrate: (persisted) => {
+        const state = persisted as Partial<WolkePreferencesState> & Record<string, unknown>;
+        return { favourites: state.favourites ?? [] };
+      },
     }
   )
 );

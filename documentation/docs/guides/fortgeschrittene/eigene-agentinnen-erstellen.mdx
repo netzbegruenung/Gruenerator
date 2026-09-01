@@ -1,0 +1,54 @@
+---
+sidebar_position: 1
+description: 'Einen eigenen Grünerator bauen, ohne technische Vorkenntnisse — per Beschreibung von der KI entwerfen lassen oder manuell im Formular.'
+---
+
+import AgentTools from '@site/src/components/AgentTools';
+
+# Eigene Grüneratoren erstellen
+
+Du kannst dir im Grünerator deine **eigenen Grüneratoren bauen** — ganz ohne technische Vorkenntnisse. Es gibt zwei Wege: per **Beschreibung** (die KI erstellt einen Entwurf) oder **manuell** über das Formular.
+
+:::caution[Experimentell]
+Noch in der Erprobung: Verhalten und Funktionen können sich ändern. Melde Probleme gern dem Team.
+:::
+
+## Schritt 1: Den Creator öffnen
+
+Öffne die [Agentura](../../features/agentura.mdx), scrolle zum Abschnitt **Meine Grüneratoren** und klicke oben rechts auf **Neuer Grünerator**. Alternativ rufst du den Creator direkt unter `/agents/new` auf.
+
+## Schritt 2: Agent beschreiben (empfohlen)
+
+Beschreibe in eigenen Worten, was er können soll — Zweck, Ton, Fähigkeiten. Zum Einstieg kannst du eines der Beispiele anklicken: **📰 Pressestelle**, **🚲 Recherche-Bot** oder **📣 Social Media**. Mit `Enter` baut der Grünerator daraus einen Entwurf und öffnet den Editor mit vorausgefüllten Feldern.
+
+![Die Startseite des Creators mit dem Eingabefeld und den drei Beispiel-Chips Pressestelle, Recherche-Bot und Social Media](/img/guides/agent-creator-start.webp)
+
+:::tip[Lieber selbst ausfüllen?]
+Klicke auf **„Lieber manuell anlegen?"**, um den Editor mit leerem Formular zu öffnen (entspricht der Adresse `/agents/new/manual`).
+:::
+
+## Schritt 3: Im Editor anpassen
+
+Links das Formular, rechts eine Live-**Vorschau**. Die Felder liegen in drei Tabs.
+
+**Grundlagen** — die drei Pflichtfelder: **Name** (samt Symbol aus dem Icon-Picker), **Beschreibung** (ein Satz, was er macht) und **Anleitung** — die eigentliche Anweisung an die KI, z. B. beginnend mit _„Du bist ein\*e …"_, mindestens 10 Zeichen.
+
+**Werkzeuge** — was er können soll:
+
+<AgentTools />
+
+Ein `*` markiert die beiden, die ab Werk aktiv sind.
+
+Darunter steht **Quell-Links direkt im Antworttext** — für versandfertige E-Mails und Briefe: Artikel-URLs aus der Recherche erscheinen dann inline statt nur als Quellen-Karten.
+
+**Wissen** — welche Notebooks er automatisch durchsucht, Mehrfachauswahl möglich: **Grünerator-Notebooks** und, sobald du eigene hast, **Meine Notebooks**.
+
+Optional aufklappbar: **Begrüßung & Startfragen** (Begrüßungstext und Beispielfragen, eine pro Zeile) sowie **Erweiterte Einstellungen** (Region `de-DE`/`de-AT`, Tags, Modell).
+
+:::tip[Erst das Wissen, dann der Agent]
+Richte vorher ein [Notebook](../einsteigerinnen/eigenes-notebook-erstellen.md) mit euren Dokumenten ein. Wählst du es unter **Wissen** aus, antwortet dein Agent ausschließlich aus euren Quellen — mit nachprüfbaren Belegen.
+:::
+
+## Schritt 4: Speichern und nutzen
+
+**Speichern** oben rechts wird aktiv, sobald die drei Pflichtfelder stehen. Danach landest du auf der Bearbeitungsseite und öffnest ihn von dort über **Im Chat öffnen**. Ändern kannst du ihn jederzeit über das Stift-Symbol auf seiner Karte.

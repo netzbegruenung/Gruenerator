@@ -27,11 +27,15 @@ const log = createLogger('BoardAI');
 // Mirror docs/aiController DOCS_AI_MODELS — these IDs are confirmed to return
 // finish_reason:tool_calls on their respective providers.
 const BOARD_AI_MODELS: Record<AgentConfig['provider'], string> = {
-  litellm: 'verdigado-pro',
+  // Der Name wird noch gelesen (Agenten-Konfigurationen sind F0), bedient aber
+  // Cortecs — services/ai/litellmRetired.ts biegt ihn in `getModel` um. Der
+  // Eintrag nennt deshalb das Modell, das dort tatsächlich antwortet.
+  litellm: 'gemma-4-31b-it',
   regolo: 'mistral-small-4-119b',
   mistral: 'mistral-medium-2604',
   anthropic: 'mistral-medium-2604',
   greenpt: 'mistral-medium-3.5-128b',
+  cortecs: 'gemma-4-31b-it',
 };
 
 const FIELD_IDS = {
@@ -157,10 +161,12 @@ export async function generateBoardOperations(opts: {
 }): Promise<BoardOperation[]> {
   const { userPrompt, board, referenceContent, today } = opts;
 
-  const providerChain: AgentConfig['provider'][] = ['mistral', 'regolo', 'litellm'];
+  const providerChain: AgentConfig['provider'][] = ['mistral', 'regolo', 'cortecs'];
   const provider = providerChain.find((p) => isProviderConfigured(p));
   if (!provider) {
-    throw new Error('No AI provider configured (tried: mistral, regolo, litellm)');
+    // Aus der Kette abgeleitet, nicht danebengeschrieben: die Liste stand hier
+    // als zweite Kopie und nannte nach der Cortecs-Umstellung noch `litellm`.
+    throw new Error(`No AI provider configured (tried: ${providerChain.join(', ')})`);
   }
 
   const modelId = BOARD_AI_MODELS[provider];

@@ -91,7 +91,7 @@ overrides:
   '@assistant-ui/react': ^0.15.17
   '@assistant-ui/tap': ^0.9.15
   '@assistant-ui/react-markdown': ^0.14.13
-  '@assistant-ui/react-native': 0.1.33
+  '@assistant-ui/react-native': 0.1.39
   '@tiptap/core': ^3.29.2
   '@tiptap/extension-bold': ^3.29.2
   '@tiptap/extension-code': ^3.29.2
@@ -572,8 +572,8 @@ importers:
   apps/mobile:
     dependencies:
       '@assistant-ui/react-native':
-        specifier: 0.1.33
-        version: 0.1.33(@types/react@19.2.18)(assistant-cloud@0.1.42(ioredis@5.11.1)(redis@5.12.1(@opentelemetry/api@1.9.1)))(immer@11.1.18)(ioredis@5.11.1)(react-native@0.86.0(@babel/core@7.29.7)(@react-native/jest-preset@0.86.1(@babel/core@7.29.7)(react@19.2.3))(@react-native/metro-config@0.84.1(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)(redis@5.12.1(@opentelemetry/api@1.9.1))(use-sync-external-store@1.6.0(react@19.2.3))
+        specifier: 0.1.39
+        version: 0.1.39(@types/react@19.2.18)(assistant-cloud@0.1.42(ioredis@5.11.1)(redis@5.12.1(@opentelemetry/api@1.9.1)))(immer@11.1.18)(ioredis@5.11.1)(react-native@0.86.0(@babel/core@7.29.7)(@react-native/jest-preset@0.86.1(@babel/core@7.29.7)(react@19.2.3))(@react-native/metro-config@0.84.1(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)(redis@5.12.1(@opentelemetry/api@1.9.1))(use-sync-external-store@1.6.0(react@19.2.3))
       '@expo-google-fonts/raleway':
         specifier: ^0.4.2
         version: 0.4.2
@@ -2603,8 +2603,8 @@ packages:
       '@types/react':
         optional: true
 
-  '@assistant-ui/react-native@0.1.33':
-    resolution: {integrity: sha512-oa3yvpSsyVtWXGhewtrFcjY+iuKPY7QxqGvbhyLrRhtIpvB2O53kaKvnH9DE78ESbf62diHwsSCXja4G6FSn3g==}
+  '@assistant-ui/react-native@0.1.39':
+    resolution: {integrity: sha512-dwvxzlM1AuCGGezW4qmlg/S36XWRj+eVr7pztddF/zh9g+XmlmMhm1NxvcIs7Dt3NMYUpJ/evIAOdCT96KSjwA==}
     peerDependencies:
       '@types/react': 19.2.18
       react: ^18 || ^19
@@ -12686,17 +12686,6 @@ packages:
 
   assistant-cloud@0.1.42:
     resolution: {integrity: sha512-w76ACM0705SNmWgz3Zl0SwX95rukju30PUPNzeEFEXhLi/NRQyWshYF8izdaHeoy9h4dgSuJtnS5v1Qh6IMClA==}
-
-  assistant-stream@0.3.31:
-    resolution: {integrity: sha512-3qkTkttgTLe1jNMHIIiYk7dC4VoJk9MyDA7aNYF08g1rme1DaZAyecUYH/0eywI6naRwu8EAICw9WTn0sahyPw==}
-    peerDependencies:
-      ioredis: ^5.10.1
-      redis: ^5.12.1
-    peerDependenciesMeta:
-      ioredis:
-        optional: true
-      redis:
-        optional: true
 
   assistant-stream@0.3.40:
     resolution: {integrity: sha512-gAQZC80N6jfTH5eIbCmAM94DKpEgmnLnIZmk3UtmrpogePGuCFX73u5brASvDYnekZK/71Ed9mwvCzFWIyzdZg==}
@@ -24001,12 +23990,12 @@ snapshots:
       - react-dom
       - supports-color
 
-  '@assistant-ui/react-native@0.1.33(@types/react@19.2.18)(assistant-cloud@0.1.42(ioredis@5.11.1)(redis@5.12.1(@opentelemetry/api@1.9.1)))(immer@11.1.18)(ioredis@5.11.1)(react-native@0.86.0(@babel/core@7.29.7)(@react-native/jest-preset@0.86.1(@babel/core@7.29.7)(react@19.2.3))(@react-native/metro-config@0.84.1(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)(redis@5.12.1(@opentelemetry/api@1.9.1))(use-sync-external-store@1.6.0(react@19.2.3))':
+  '@assistant-ui/react-native@0.1.39(@types/react@19.2.18)(assistant-cloud@0.1.42(ioredis@5.11.1)(redis@5.12.1(@opentelemetry/api@1.9.1)))(immer@11.1.18)(ioredis@5.11.1)(react-native@0.86.0(@babel/core@7.29.7)(@react-native/jest-preset@0.86.1(@babel/core@7.29.7)(react@19.2.3))(@react-native/metro-config@0.84.1(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)(redis@5.12.1(@opentelemetry/api@1.9.1))(use-sync-external-store@1.6.0(react@19.2.3))':
     dependencies:
       '@assistant-ui/core': 0.3.16(@assistant-ui/store@0.3.11(@assistant-ui/tap@0.9.15(@types/react@19.2.18)(react@19.2.3))(@types/react@19.2.18)(react@19.2.3))(@assistant-ui/tap@0.9.15(@types/react@19.2.18)(react@19.2.3))(@types/react@19.2.18)(assistant-cloud@0.1.42(ioredis@5.11.1)(redis@5.12.1(@opentelemetry/api@1.9.1)))(ioredis@5.11.1)(react@19.2.3)(redis@5.12.1(@opentelemetry/api@1.9.1))(zustand@5.0.15(@types/react@19.2.18)(immer@11.1.18)(react@19.2.3)(use-sync-external-store@1.6.0(react@19.2.3)))
       '@assistant-ui/store': 0.3.11(@assistant-ui/tap@0.9.15(@types/react@19.2.18)(react@19.2.3))(@types/react@19.2.18)(react@19.2.3)
       '@assistant-ui/tap': 0.9.15(@types/react@19.2.18)(react@19.2.3)
-      assistant-stream: 0.3.31(ioredis@5.11.1)(redis@5.12.1(@opentelemetry/api@1.9.1))
+      assistant-stream: 0.3.40(ioredis@5.11.1)(redis@5.12.1(@opentelemetry/api@1.9.1))
       react: 19.2.3
       react-native: 0.86.0(@babel/core@7.29.7)(@react-native/jest-preset@0.86.1(@babel/core@7.29.7)(react@19.2.3))(@react-native/metro-config@0.84.1(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3)
       zustand: 5.0.15(@types/react@19.2.18)(immer@11.1.18)(react@19.2.3)(use-sync-external-store@1.6.0(react@19.2.3))
@@ -37876,15 +37865,6 @@ snapshots:
     transitivePeerDependencies:
       - ioredis
       - redis
-
-  assistant-stream@0.3.31(ioredis@5.11.1)(redis@5.12.1(@opentelemetry/api@1.9.1)):
-    dependencies:
-      '@standard-schema/spec': 1.1.0
-      nanoid: 6.0.1
-      secure-json-parse: 4.1.0
-    optionalDependencies:
-      ioredis: 5.11.1
-      redis: 5.12.1(@opentelemetry/api@1.9.1)
 
   assistant-stream@0.3.40(ioredis@5.11.1)(redis@5.12.1(@opentelemetry/api@1.9.1)):
     dependencies:

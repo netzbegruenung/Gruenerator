@@ -1752,7 +1752,6 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         break;
       }
 
-      case 'social_post': // combined post grounds its text half on social examples
       case 'examples': {
         // Nur noch `social`. Die zweite Sorte, `press`, war der ganze
         // Executor-Anteil des stillgelegten `pressemitteilung_examples` — sie
@@ -1808,19 +1807,28 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
 
         // Composer paths want full bodies: PM bodies are reconstructed from
         // chunks inside searchExamples, social bodies skip the 500-char cut.
-        // Pass platform hint when set so social fetches filter to Insta/FB.
         // lvScope (per-LV PR agents) constrains press to one LV substrate;
         // social currently logs but does not filter (Apify follow-up).
+        //
+        // Hier stand ein Plattform-Filter (`state.platform` → nur Instagram und
+        // Facebook, die einzigen beiden in `social_media_examples`). Sein
+        // einziger Schreiber war das Verdikt `social_post`, das diesen Zweig per
+        // fallthrough mitbenutzte; mit der Stilllegung 08/2026 wurde das Feld
+        // nirgends mehr gesetzt und die Bedingung konnte nicht mehr wahr werden.
+        //
+        // **Wer ihn zurückholt, muss `examplesCollection` mitdenken.** Der
+        // einzige lebende Erzeuger dieses Zweigs mit erzwungener Beispielsuche
+        // ist `gruenerator-ricarda-lang` (`alwaysSearchesExamples: true`), und
+        // der pinnt `ricarda_lang_tweets` — eine reine Twitter-Sammlung. Ein aus
+        // dem Prompt gelesenes „Instagram-Post" würde dort auf Instagram filtern
+        // und NULL Vorlagen liefern, ausgerechnet auf dem Agenten, dessen ganzer
+        // Zweck „such immer Beispiele" ist. Der Filter braucht also erst eine
+        // Bedingung gegen die gepinnte Sammlung, dann einen Schreiber.
         const unified = await searchExamples({
           query: searchQuery || '',
           kinds,
           ...(country && { country }),
           ...(lvScope !== undefined && { lvScope }),
-          // Qdrant's social_media_examples has only these two platforms —
-          // twitter/linkedin prompts get unfiltered examples instead.
-          ...((state.platform === 'instagram' || state.platform === 'facebook') && {
-            platform: state.platform,
-          }),
           ...(agentConfig.toolRestrictions?.examplesCollection != null && {
             examplesCollection: agentConfig.toolRestrictions.examplesCollection,
           }),

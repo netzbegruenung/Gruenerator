@@ -34,7 +34,7 @@
 import { getSystemAgent } from '@gruenerator/shared/agents';
 import { type ChatIntentId, intentsWithDisposition } from '@gruenerator/shared/chat-intents';
 
-import { GEMMA_31B_PRIMARY } from '../../../services/ai/gemmaHosts.js';
+import { GEMMA_31B_PRIMARY, GEMMA_31B_ON_CORTECS } from '../../../services/ai/gemmaHosts.js';
 
 import { getPipelineAgent } from './pipelines/index.js';
 
@@ -55,22 +55,6 @@ import type { SearchIntent } from '@gruenerator/contracts';
 export type ReasoningSetting = 'off' | 'low' | 'medium' | 'high';
 
 export type Complexity = 'simple' | 'moderate' | 'complex';
-
-/**
- * Input size (tokens) above which an overflow lane must run on its HOSTED
- * (Regolo) side instead of self-hosted Verdigado.
- *
- * Verdigado is declared at 64k (CTX_VERDIGADO — deliberately below the point
- * where Ollama was observed to truncate silently), so its pruning budget is
- * `0.7 * 64k - 3000` ≈ 41.8k. A larger request does not fail there, it gets
- * *pruned down* to fit while a lane with a 262k window sat available. That is
- * the silent context loss this threshold exists to prevent.
- *
- * Kept as a literal (not derived from providers.ts) because this module is
- * deliberately import-free so `providers.ts` can depend on it without a cycle.
- * Change it together with CTX_VERDIGADO there.
- */
-export const VERDIGADO_INPUT_LIMIT = 40_000;
 
 /** A scalar applies to every complexity; the record grades by it. */
 type ReasoningRule = ReasoningSetting | Record<Complexity, ReasoningSetting>;
@@ -102,10 +86,13 @@ const graded = (
  * without GPT-OSS's known weakness — it answers a forced tool call with prose,
  * which is what put a production PDF generation on the floor (see the artefact
  * note in services/ai/lanes.ts). `gemma-4-26b` and `litellm` stay registered in
- * providers.ts (persisted ids, intermediate stages) but are no longer an
- * auto-policy target. Failover changed with the fold too: when Regolo is down,
- * former Lane-A intents now degrade to verdigado-think (~20 s to first token,
- * 120k ctx) — a materially slower degraded path, accepted deliberately.
+ * providers.ts (persisted ids) but are no longer an auto-policy target.
+ *
+ * Der hier notierte degradierte Pfad („wenn Regolo ausfällt, landen Lane-A-
+ * Intents auf verdigado-think, ~20 s bis zum ersten Token") gilt seit dem
+ * 29.08.2026 nicht mehr: Verdigado bedient keine Lane mehr, und der Ausweich
+ * ist der andere Gemma-Host (services/ai/gemmaHosts.ts). Dieselben Gewichte,
+ * 1122 ms bis zum ersten Token statt 20 s.
  */
 const GEMMA: AutoLaneId = 'gemma-litellm';
 /** Mistral Medium 3.5. Where the model calls tools ITSELF and the unified loop
@@ -512,17 +499,68 @@ export function resolveAutoSelection(input: AutoSelectionInput): AutoSelection {
  * planner's fixed tool-usage prefix is re-billed every turn — same as before.
  *
  * The two lower tiers keep the loop alive when GreenPT is not configured:
- * regolo stays the self-hosted option, litellm/verdigado-pro the last resort.
+ * regolo stays the self-hosted option, Mistral the last resort.
  */
 export const LOOP_PLANNER_PRIMARY = {
   provider: 'greenpt' as const,
   model: 'mistral-small-3.2-24b-instruct-2506',
 };
+/**
+ * Erste Ausweichstufe, wenn der Primär als zäh vermerkt ist.
+ *
+ * Cortecs, weil es die Lane ist, deren Gesundheit wir gerade am besten belegen
+ * können: sie bedient bereits die SYNTH-Phase jedes Split-Zuges, ist in
+ * `gemmaHosts.ts` als schnellster Endpunkt der Messreihe notiert (1122 ms bis
+ * zum ersten Token) und lieferte im Vorfall vom 28.08.2026 die Antwort in 3 s,
+ * während der Planer 45 s schwieg.
+ *
+ * Host und Modellname kommen aus `gemmaHosts.ts`, nicht als eigene Zeichen-
+ * kette — dieselbe Regel wie bei LOOP_SYNTH_PRIMARY. Bewusst
+ * `GEMMA_31B_ON_CORTECS` und nicht `GEMMA_31B_PRIMARY`: gemeint ist hier der
+ * HOST Cortecs, nicht „wer gerade Gemma bedient". Zeigte der Wechselpunkt auf
+ * Regolo, hätte diese Stufe sonst still den Anbieter gewechselt.
+ *
+ * ZWEI EHRLICHE EINSCHRÄNKUNGEN, beide bewusst in Kauf genommen:
+ *
+ * 1. Ob Gemma 4 so zuverlässig Werkzeuge ruft wie die Mistral-Gewichte der
+ *    anderen Stufen, ist NICHT gemessen. Die Planer-Rolle lebt vom
+ *    Werkzeugaufruf, und `isAgenticToolCapable` lässt bis heute nur Mistral zu
+ *    (dort allerdings für die Nutzer-Auswahl im unified-Modus, nicht für diesen
+ *    Slot). `afterGather` in agenticRespondService ist der Backstop, der ein
+ *    „steps=0 gather" abfängt — genau die Regression, an der eine frühere
+ *    Regolo-Vorgabe scheiterte. Wenn diese Stufe auffällig oft leer
+ *    zurückkommt, ist das der erste Ort zum Nachsehen.
+ * 2. Sie teilt Host UND Modell mit der Synth-Phase. Ein Cortecs-Ausfall nimmt
+ *    dann beide Hälften des Zuges — der Grundsatz „der Ausweich ist ein anderer
+ *    Vertragspartner" (siehe LOOP_SYNTH_*) gilt hier also nicht. Vertretbar,
+ *    weil diese Stufe nur greift, wenn der Primär bereits nachweislich steht,
+ *    und die dritte/vierte Stufe darunter andere Anbieter sind.
+ */
+export const LOOP_PLANNER_HEALTHY_ALT = {
+  provider: GEMMA_31B_ON_CORTECS.provider,
+  model: GEMMA_31B_ON_CORTECS.model,
+};
 export const LOOP_PLANNER_SELFHOSTED = {
   provider: 'regolo' as const,
   model: 'mistral-small-4-119b',
 };
-export const LOOP_PLANNER_FALLBACK = { provider: 'litellm' as const, model: 'verdigado-pro' };
+/**
+ * Die letzte Stufe. Stand bis zum 29.08.2026 auf `litellm/verdigado-pro` und
+ * war damit zweimal falsch: der Alias IST gpt-oss (am Proxy gemessen
+ * 19.08.2026), also genau das Modell, das `AVOID_AS_SYNTH` ausschliesst — und
+ * die Planer-Rolle lebt vom Werkzeugaufruf, den gpt-oss über diesen Adapter
+ * nachweislich mit Prosa beantwortet (siehe die Artefakt-Notiz in
+ * services/ai/lanes.ts).
+ *
+ * Mistral und NICHT Cortecs, obwohl Cortecs sonst überall an Verdigados Stelle
+ * tritt: Cortecs ist bereits Stufe 2 (LOOP_PLANNER_HEALTHY_ALT). Eine letzte
+ * Stufe, die denselben Vertragspartner nennt wie die zweite, ist keine Stufe.
+ * `isAgenticToolCapable` lässt ohnehin nur Mistral zu.
+ */
+export const LOOP_PLANNER_FALLBACK = {
+  provider: 'mistral' as const,
+  model: 'mistral-medium-2604',
+};
 
 /** SYNTH: best German writer, and never a reasoning lane (latency).
  *
@@ -552,17 +590,14 @@ export const LOOP_SYNTH_FALLBACK = { provider: 'mistral' as const, model: 'mistr
  *  bleibt als zweite Sicherung neben `isExcludedTextModel`, weil
  *  REGOLO_DEFAULT_MODEL aus der Umgebung kommt und dort wieder eine stehen
  *  könnte. Any of these in the synth slot is rewritten to the
- *  best-writer lane. Stays active even when the policy chose the model, so a
- *  policy pointing at gemma-litellm (→ verdigado-think) still lands on the
- *  fast gemma4-31b host.
+ *  best-writer lane. Stays active even when the policy chose the model.
  *
- *  `verdigado-pro` steht seit 19.08.2026 mit drin, und das ist der Punkt, an
- *  dem eine Namensprüfung fast versagt hätte: der Name verrät das Modell
- *  nicht. Am LiteLLM-Proxy nachgemessen antwortet der Alias mit
- *  `model: "gpt-oss:120b-ctx128k"`, und die Probe zeigt zugleich den
- *  Ausfallgrund — `content: ""` bei gefülltem `reasoning`, das Denken frisst
- *  das Token-Budget und der Antwortkanal bleibt leer. Wer den Alias am Proxy
- *  umhängt, gehört hierher zurück: diese Liste prüft Namen, nicht Modelle. */
+ *  DIE VERDIGADO-NAMEN BLEIBEN DRIN, obwohl der Host seit dem 29.08.2026 keine
+ *  Lane mehr bedient (services/ai/litellmRetired.ts). Sie stehen in
+ *  persistierten Thread-Zuständen und in gespeicherten Modell-Einstellungen;
+ *  diese Liste prüft NAMEN, nicht Modelle, und ein alter Name, der hier
+ *  durchfiele, wäre wieder ein Denkmodell im Synth-Slot. `gpt-oss` bleibt aus
+ *  demselben Grund: Regolo serviert es weiterhin unter eigenem Namen. */
 export const AVOID_AS_SYNTH = /verdigado-think|verdigado-pro|qwen|gpt-oss/i;
 
 /**

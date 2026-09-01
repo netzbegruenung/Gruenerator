@@ -28,7 +28,7 @@ export const INTENT_HANDLER_PATHS: Record<SearchIntent, string> = {
   image_edit: 'handled via image_edit branch in controller',
   sharepic: 'handled via sharepic branch in controller (image generation variant)',
   social_post:
-    'handled via social_post branch in executeIntentPipeline — parallel sharepic generation + examples-grounded text (EXPERIMENTAL combined post), fixed Stage-3 confirmation',
+    'STILLGELEGT (08/2026) — nichts erzeugt dieses Verdikt mehr; ein Social-Post ist eine Textsorte und wird vom Rezept geschrieben (respondNode bzw. rezept_laden). Die Karten alter Threads werden weiter gelesen und über socialPostEditService bearbeitet.',
   produktion:
     'falls through to response generation — the substance is already in the message (pasted material, an attachment, an open document, existing text to rework, or pure wordcraft). May inherit the thread’s earlier sources via carryThreadSourcesIfNeeded',
   direct:
