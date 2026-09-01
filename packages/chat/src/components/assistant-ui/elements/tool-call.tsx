@@ -6,12 +6,18 @@
  *   3. `request: string` / `result: string` are REPLACED by `children` +
  *      `status`. Upstream renders raw JSON; we render typed view-models
  *      (ToolResultRenderer). Taking upstream verbatim would be a regression.
- *   4. an `icon` slot was added; upstream has none.
+ *   4. an `icon` slot was added; upstream has none;
+ *   5. `running: boolean` is replaced by `outcome: ToolOutcome`. Upstream shows
+ *      a green CheckIcon whenever the call is not running, so a FAILED tool got
+ *      a success tick. The two props are not independent — `running` is derived
+ *      from `outcome`, so "running and failed" cannot be expressed.
  */
 'use client';
 
-import { CheckIcon, ChevronRightIcon } from 'lucide-react';
+import { AlertCircleIcon, CheckIcon, ChevronRightIcon } from 'lucide-react';
 import { type ReactNode } from 'react';
+
+import { type ToolOutcome } from '../../../lib/toolResults';
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger, cn } from './_adapter';
 import { collapsePanel, field, mono, ShimmerLabel, SwapLabel } from './surfaces';
@@ -29,7 +35,8 @@ export interface ToolCallProps {
   activeLabel: string;
   /** The call's subject, shown as a chip. Omitted when the tool has none. */
   query?: string | null;
-  running: boolean;
+  /** Running, settled-ok, or failed. Drives the shimmer AND the trailing glyph. */
+  outcome: ToolOutcome;
   /** Trailing chips: result count, confidence, the one-line outcome. */
   status?: ReactNode;
   open: boolean;
@@ -49,13 +56,14 @@ export function ToolCall({
   label,
   activeLabel,
   query,
-  running,
+  outcome,
   status,
   open,
   onOpenChange,
   children,
   className,
 }: ToolCallProps) {
+  const running = outcome === 'running';
   return (
     <Collapsible
       data-slot="tool-call"
@@ -84,8 +92,11 @@ export function ToolCall({
         )}
         {status && <span className="flex items-center gap-1.5">{status}</span>}
         <span className="ms-auto flex w-4 items-center justify-end">
-          {!running && (
+          {outcome === 'ok' && (
             <CheckIcon className="fade-in zoom-in-90 animate-in size-3.5 text-emerald-500 duration-200" />
+          )}
+          {outcome === 'error' && (
+            <AlertCircleIcon className="fade-in zoom-in-90 animate-in text-destructive size-3.5 duration-200" />
           )}
         </span>
       </CollapsibleTrigger>
