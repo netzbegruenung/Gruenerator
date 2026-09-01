@@ -28,6 +28,8 @@ interface PersistedToolCall {
   toolName: string;
   args: Record<string, unknown>;
   result?: unknown;
+  /** Present (and false) only when the call failed — see PersistedStep.ok. */
+  ok?: false;
   /** Character index into the final answer text at this tool call's start —
    *  present only for unified-mode turns. When at least one tool call carries a
    *  numeric offset, reload interleaves text segments and cards in live order;
@@ -353,7 +355,13 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMes
         toolCallId: tc.toolCallId || `tc_${m.id}`,
         toolName: tc.toolName,
         args: { query: String((tc.args as Record<string, unknown>)?.query ?? '') },
-        result: tc.result,
+        // Live, parseSSEStream folds `ok` into `result`; do the same here so a
+        // reloaded card reaches the identical shape and reports the identical
+        // outcome. Without this a failed call reloads as a green tick.
+        result:
+          tc.ok === false && tc.result && typeof tc.result === 'object'
+            ? { ...(tc.result as Record<string, unknown>), ok: false }
+            : tc.result,
         parentId,
         ...(tc.narration ? { narration: tc.narration } : {}),
       });
