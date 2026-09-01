@@ -75,6 +75,7 @@ import {
   makeUmfragenTool,
 } from './domainTools.js';
 import { makeEditArtifactTool } from './editorTools.js';
+import { makeNotebooksTool } from './notebookTools.js';
 import { makeReadPdfFormTool, makeFillPdfFormTool } from './pdfFormTools.js';
 import {
   makeBoardsTasksTool,
@@ -84,7 +85,6 @@ import {
   makeSearchThreadsTool,
   makeGroupsTool,
   makeMediaTool,
-  makeNotebooksTool,
   type PersonalToolCtx,
 } from './personalDataTools.js';
 import { harvestSearchImages, imageDeliveryNote } from './searchImageHarvest.js';

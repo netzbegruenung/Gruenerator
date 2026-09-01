@@ -172,6 +172,20 @@ function summarize(result: unknown): string | undefined {
     return `${r.connectionCount} Verbindung${r.connectionCount === 1 ? '' : 'en'}`;
   }
   if (typeof r.entryCount === 'number') return `${r.entryCount} Einträge`;
+  // `notebooks`: search liefert Antwort + Zitate, get ein Detailobjekt, die
+  // Karten-Aktionen eine Bestätigungsanfrage — alle drei sagten sonst nur „ok".
+  if (typeof r.answer === 'string' && typeof r.resultCount === 'number') {
+    return `Antwort mit ${r.resultCount} Zitat${r.resultCount === 1 ? '' : 'en'}`;
+  }
+  if (r.needsConfirmation === true) return 'Bestätigung angefordert';
+  if (r.notebook && typeof r.notebook === 'object') {
+    const nb = r.notebook as { name?: unknown; documentCount?: unknown };
+    if (typeof nb.name === 'string') {
+      return typeof nb.documentCount === 'number'
+        ? `Notebook „${nb.name}" (${nb.documentCount} Dokumente)`
+        : `Notebook „${nb.name}"`;
+    }
+  }
   // rezept_laden: the card names the recipe; the prompt body stays server-side.
   if (typeof r.titel === 'string' && r.geladen === true) return `Rezept: ${r.titel}`;
   if (r.geladen === false) return 'Rezept nicht verfügbar';

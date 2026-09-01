@@ -9,7 +9,6 @@ import {
   makeFindContentTool,
   makeGroupsTool,
   makeMediaTool,
-  makeNotebooksTool,
   makeSearchThreadsTool,
   type PersonalToolCtx,
 } from './personalDataTools.js';
@@ -36,10 +35,6 @@ const searchReels = vi.fn().mockResolvedValue([]);
 const getReelTranscript = vi.fn().mockResolvedValue(null);
 const getUserShares = vi.fn();
 const deleteShare = vi.fn();
-const nbGetUserCollections = vi.fn();
-const nbGetCollection = vi.fn();
-const nbUpdate = vi.fn();
-const nbDelete = vi.fn();
 const readArtifactContent = vi.fn();
 const recallPastChats = vi.fn();
 const listRecentThreads = vi.fn();
@@ -108,14 +103,6 @@ vi.mock('../services/pastChatRecallService.js', () => ({
   listRecentThreads: (...a: unknown[]) => listRecentThreads(...a),
   getThreadRecallContext: (...a: unknown[]) => getThreadRecallContext(...a),
   resolveSpaceThreadIds: (...a: unknown[]) => resolveSpaceThreadIds(...a),
-}));
-vi.mock('../../../database/services/NotebookQdrantHelper.js', () => ({
-  NotebookQdrantHelper: class {
-    getUserNotebookCollections = (...a: unknown[]) => nbGetUserCollections(...a);
-    getNotebookCollection = (...a: unknown[]) => nbGetCollection(...a);
-    updateNotebookCollection = (...a: unknown[]) => nbUpdate(...a);
-    deleteNotebookCollection = (...a: unknown[]) => nbDelete(...a);
-  },
 }));
 
 // --- helpers -----------------------------------------------------------------
@@ -738,47 +725,6 @@ describe('media', () => {
 });
 
 // --- notebooks ---------------------------------------------------------------
-describe('notebooks', () => {
-  it('rename is refused when the collection belongs to someone else', async () => {
-    nbGetCollection.mockResolvedValue({ id: 'n1', name: 'Fremd', user_id: 'other' });
-    const out = (await exec(makeNotebooksTool(ctx('u1')), {
-      action: 'rename',
-      id: 'n1',
-      name: 'Neu',
-      confirm: false,
-      limit: 15,
-    })) as { error?: string };
-    expect(out.error).toMatch(/kein Zugriff/);
-    expect(nbUpdate).not.toHaveBeenCalled();
-  });
-
-  it('rename updates an owned collection', async () => {
-    nbGetCollection.mockResolvedValue({ id: 'n1', name: 'Alt', user_id: 'u1' });
-    nbUpdate.mockResolvedValue({ success: true });
-    const out = (await exec(makeNotebooksTool(ctx('u1')), {
-      action: 'rename',
-      id: 'n1',
-      name: 'Neu',
-      confirm: false,
-      limit: 15,
-    })) as { ok?: boolean };
-    expect(out.ok).toBe(true);
-    expect(nbUpdate).toHaveBeenCalledWith('n1', { name: 'Neu' });
-  });
-
-  it('delete needs a two-step confirm', async () => {
-    nbGetCollection.mockResolvedValue({ id: 'n1', name: 'Alt', user_id: 'u1' });
-    const out = (await exec(makeNotebooksTool(ctx('u1')), {
-      action: 'delete',
-      id: 'n1',
-      confirm: false,
-      limit: 15,
-    })) as { needsConfirmation?: boolean };
-    expect(out.needsConfirmation).toBe(true);
-    expect(nbDelete).not.toHaveBeenCalled();
-  });
-});
-
 // --- read_artifact -----------------------------------------------------------
 
 /**
