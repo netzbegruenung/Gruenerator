@@ -1037,12 +1037,16 @@ export async function* parseSSEStream(
           const mappedToolName = DEEP_TOOL_MAP[toolName] || toolName;
 
           if (status === 'in_progress') {
-            // The backend heartbeat (responseStreamingService.startResponseHeartbeat)
-            // re-emits the SAME stepId every 3s. If it matches the current
-            // activeToolCall, or is already in allToolCalls, skip the
+            // A re-sent stepId must not become a SECOND card: if it matches the
+            // current activeToolCall, or is already in allToolCalls, skip the
             // archive-and-replace below — otherwise we'd render two tool-call
             // parts with the same toolCallId and trip assistant-ui's
             // `tapResources` with "Duplicate key toolCallId-…".
+            //
+            // Note this only dedupes; it does not make a repeat HARMLESS. Every
+            // `thinking_step` opens a card that stays on screen until a matching
+            // `completed` closes it, so this event is for real tools only —
+            // internal stages narrate through `progress_step` (see below).
             const isDuplicateStepId =
               (activeToolCall !== null && activeToolCall.toolCallId === stepId) ||
               allToolCalls.some((tc) => tc.toolCallId === stepId);

@@ -36,12 +36,7 @@ import {
 } from '../agents/providers.js';
 
 import { sanitizeContentPartsForModel, stripEmptyAssistantMessages } from './messageHelpers.js';
-import {
-  PROGRESS_MESSAGES,
-  startResponseHeartbeat,
-  type FallbackReason,
-  type SSEWriter,
-} from './sseHelpers.js';
+import { PROGRESS_MESSAGES, type FallbackReason, type SSEWriter } from './sseHelpers.js';
 import { createIdleDeadline, type IdleDeadline } from './streamIdleDeadline.js';
 import { resolveAbortOutcome } from './turnAbortOutcome.js';
 import { TURN_CEILING_MS } from './turnDeadline.js';
@@ -730,7 +725,6 @@ async function streamAndAccumulateOrThrow(params: {
   const iterator = result.stream[Symbol.asyncIterator]();
   let fullText = '';
   let textStarted = false;
-  const stopHeartbeat = startResponseHeartbeat(sse);
 
   // Phase 1 — race the shared deadline until the first visible text delta.
   // Some providers emit empty/structural parts (start, text-start, …) and a
@@ -747,15 +741,13 @@ async function streamAndAccumulateOrThrow(params: {
       if (part.type === 'error') throw part.error;
       if (part.type === 'abort') throw abortErrorForPhase1();
       if (part.type === 'reasoning-delta' && part.text.length > 0) {
-        // Alive, but not answering yet: rearm the idle window and let the real
-        // reasoning deltas replace the heartbeat as the UI's proof of progress.
+        // Alive, but not answering yet: rearm the idle window — the reasoning
+        // deltas are the UI's proof of progress.
         touch();
-        stopHeartbeat();
         sse.send('reasoning_delta', { text: part.text });
       } else if (part.type === 'text-delta' && part.text.length > 0) {
         clear();
         reasoningBudget?.clear();
-        stopHeartbeat();
         fullText += part.text;
         sse.send('text_delta', { text: part.text });
         textStarted = true;
@@ -765,7 +757,6 @@ async function streamAndAccumulateOrThrow(params: {
     clear();
     wall.clear();
     reasoningBudget?.clear();
-    stopHeartbeat();
     // Ein Upstream-Fehler VOR dem ersten Token ist der eine Fall, in dem der
     // Sibling noch etwas ausrichten kann — beim Nutzer steht noch nichts.
     throw phase1UpstreamError(err, causeOf());
@@ -906,7 +897,6 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
 
   const iterator = streamWithReasoning(streamParams)[Symbol.asyncIterator]();
   let fullText = '';
-  const stopHeartbeat = startResponseHeartbeat(sse);
 
   // Phase 1 — race against the deadline until the first TEXT chunk. Reasoning
   // chunks pass through as reasoning_delta but don't satisfy the deadline:
@@ -919,7 +909,6 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
       if (chunk.type === 'text') {
         clear();
         reasoningBudget.clear();
-        stopHeartbeat();
         fullText += chunk.delta;
         sse.send('text_delta', { text: chunk.delta });
         break;
@@ -932,7 +921,6 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
     clear();
     wall.clear();
     reasoningBudget.clear();
-    stopHeartbeat();
     // Der Roh-Fetch wirft den Abbruch (anders als das SDK, das einen `abort`-
     // Part schickt) — die Frage „wer war es" ist dieselbe. Ohne sie flog eine
     // nackte DOMException bis in den Router und wurde dort zu `code:'internal'`.
