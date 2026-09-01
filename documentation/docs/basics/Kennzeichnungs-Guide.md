@@ -1,9 +1,9 @@
 ---
-sidebar_position: 2
+sidebar_position: 9
 description: 'Wann du kennzeichnen musst, dass ein Text von KI stammt — und wann nicht. Mit Formulierungen zum Übernehmen.'
 ---
 
-# Wie kennzeichne ich meine grünerierten Inhalte?
+# Kennzeichnung grünerierter Inhalte
 
 Bei der Nutzung des Grünerators stellen sich viele von euch Fragen der Transparenz: **Wann muss ich kennzeichnen, dass ein Text von KI erstellt wurde und wann nicht?**
 

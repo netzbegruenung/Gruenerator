@@ -49,6 +49,51 @@ describe('evaluateApproval', () => {
     }
   });
 
+  it('erlässt die Frage bei einem betriebenen Werkzeug, das nur liest', () => {
+    const verdict = evaluateApproval({
+      toolName: 'bahn__timetable',
+      origin: { ...managedOrigin, readOnlyHint: true },
+      allowlist: empty,
+      flagEnabled: true,
+    });
+    expect(verdict).toEqual({ required: false, reason: 'managed_read_only' });
+  });
+
+  it('glaubt denselben Hinweis einem fremden Server nicht', () => {
+    // Der Kern der Sache: ein per URL eingefügter Server darf sich sein eigenes
+    // Gatter nicht abschalten können, egal was er annotiert.
+    const verdict = evaluateApproval({
+      toolName: 'm11111111__create_page',
+      origin: { ...mcpOrigin, readOnlyHint: true },
+      allowlist: empty,
+      flagEnabled: true,
+    });
+    expect(verdict.required).toBe(true);
+  });
+
+  it('fragt weiter, wenn der Hinweis fehlt oder false ist', () => {
+    // Fehlend heisst „nichts gesagt", nicht „nein" — beides bleibt beim Status quo.
+    for (const readOnlyHint of [undefined, false]) {
+      const verdict = evaluateApproval({
+        toolName: 'bahn__timetable',
+        origin: { ...managedOrigin, ...(readOnlyHint != null ? { readOnlyHint } : {}) },
+        allowlist: empty,
+        flagEnabled: true,
+      });
+      expect(verdict.required).toBe(true);
+    }
+  });
+
+  it('lässt den Schalter über allem stehen', () => {
+    const verdict = evaluateApproval({
+      toolName: 'bahn__timetable',
+      origin: { ...managedOrigin, readOnlyHint: true },
+      allowlist: empty,
+      flagEnabled: false,
+    });
+    expect(verdict).toEqual({ required: false, reason: 'flag_off' });
+  });
+
   it('lässt interne Werkzeuge durch', () => {
     const verdict = evaluateApproval({
       toolName: 'web_search',

@@ -32,7 +32,7 @@ Für die Teile, die reine Aufzählung sind, gibt es keine abgetippte Kopie in de
 
 | Was                                               | Woraus                                                                        | Wo du es siehst                                                                                      |
 | ------------------------------------------------- | ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| Werkzeuge und ihre Gruppen                        | Die Kachel- und Katalog-Konfiguration der Weboberfläche                       | [Alle Werkzeuge](/docs/ueber-den-gruenerator/tools)                                                  |
+| Werkzeuge und ihre Gruppen                        | Die Kachel- und Katalog-Konfiguration der Weboberfläche                       | [Alle Werkzeuge](/docs/basics/tools)                                                                 |
 | Chat-Fähigkeiten                                  | Die Liste der Absichten, die der Chat erkennen kann, plus die @-Erwähnungen   | [Was kann ich fragen?](/docs/chat/was-kann-ich-fragen)                                               |
 | Einstellungen                                     | Der Aufbau des Einstellungen-Dialogs und alle Schalter darin                  | [Einstellungen](/docs/konto/einstellungen)                                                           |
 | Office-Funktionen                                 | Die Verträge zwischen App und KI — und was der Editor davon wirklich ausführt | [Office-Überblick](/docs/features/office)                                                            |
@@ -89,4 +89,4 @@ Wenn dir etwas auffällt, das nicht mehr stimmt: [melde es auf GitHub](https://g
 
 Der gesamte Grünerator ist quelloffen, dieses Verfahren also auch. Die Skripte, die den Code auslesen, liegen unter [`documentation/scripts/`](https://github.com/netzbegruenung/Gruenerator/tree/master/documentation/scripts), die Prüfung unter [`apps/api/check-docs-freshness.ts`](https://github.com/netzbegruenung/Gruenerator/blob/master/apps/api/check-docs-freshness.ts), die zugehörigen Abläufe in [`.github/workflows/`](https://github.com/netzbegruenung/Gruenerator/tree/master/.github/workflows) (alle Dateien, die mit `docs-` beginnen).
 
-Diese Seite ist die Kennzeichnung, die wir selbst für richtig halten: offenlegen, wo KI im Spiel war, statt es zu verschweigen. Wie das für deine eigenen Texte aussieht, steht im [Kennzeichnungs-Guide](/docs/grundlagen/Kennzeichnungs-Guide).
+Diese Seite ist die Kennzeichnung, die wir selbst für richtig halten: offenlegen, wo KI im Spiel war, statt es zu verschweigen. Wie das für deine eigenen Texte aussieht, steht im [Kennzeichnungs-Guide](/docs/basics/Kennzeichnungs-Guide).

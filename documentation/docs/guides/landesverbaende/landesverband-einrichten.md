@@ -1,5 +1,5 @@
 ---
-sidebar_position: 4
+sidebar_position: 1
 description: 'Einmal sagen, wo du arbeitest — danach kennt der Grünerator die Pressemitteilungen, Beschlüsse und Vorlagen deines Landesverbands.'
 ---
 
@@ -68,7 +68,7 @@ Drei Stellschrauben, die unabhängig vom Landesverband für dich arbeiten:
 - **Einstellungen → Erinnerungen** — was sich der Grünerator aus euren Gesprächen merken darf.
 - **Einstellungen → Hintergrund** und **Allgemein** — Aussehen und Startseite.
 
-Alles gilt für dein Konto, also auf allen Geräten, an denen du angemeldet bist. Mehr dazu unter [Einstellungen](./einstellungen.mdx).
+Alles gilt für dein Konto, also auf allen Geräten, an denen du angemeldet bist. Mehr dazu unter [Einstellungen](../../konto/einstellungen.mdx).
 
 ## Wenn nichts erscheint
 

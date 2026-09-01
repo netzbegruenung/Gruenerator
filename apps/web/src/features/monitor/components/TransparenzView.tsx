@@ -63,7 +63,7 @@ import {
 const RANGES = [7, 30, 90] as const;
 export const DEFAULT_DAYS = 30;
 
-const DOCS_LINK = `${getDocsUrl()}/docs/ueber-den-gruenerator/nachhaltigkeit`;
+const DOCS_LINK = `${getDocsUrl()}/docs/basics/nachhaltigkeit`;
 
 function formatTimestamp(iso: string): string {
   const date = new Date(iso);
