@@ -14,9 +14,11 @@
  * Der Provider kommt über `ctx` herein, nicht über einen Import: so läuft der
  * Test ohne Netz und ohne Datenbank.
  */
+import { type WolkeFolderRef } from '@gruenerator/contracts';
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
+import { NotebookQdrantHelper } from '../../../database/services/NotebookQdrantHelper.js';
 import { extractTextFromFile } from '../../../services/document-services/DocumentProcessingService/textExtraction.js';
 import { listAllCloudRoots, nextcloudShareProvider } from '../../../services/files/index.js';
 import { createLogger } from '../../../utils/logger.js';
@@ -41,6 +43,56 @@ const MAX_ENTRIES_IN_ANSWER = 40;
 const READ_CHUNK_CHARS = 4000;
 const READ_MAX_CHUNKS = 6;
 
+/**
+ * Wie viel eine registrierte Auflistung im Quellenblock behalten darf.
+ *
+ * Der Standard der Registry sind 1500 Zeichen (`SNIPPET_CHARS`); 40 Einträge
+ * mit Pfad und Größe liegen darüber und wuerden still abgeschnitten - genau
+ * die Ausfallform, gegen die `renderListing` unten seine `note` schreibt.
+ */
+const LISTING_SNIPPET_CHARS = 4000;
+
+/** Ein an ein Notebook gehängter Wolke-Ordner, mit dem Notebook dazu. */
+export interface AttachedNotebookFolder {
+  shareLinkId: string;
+  folderPath: string;
+  folderName: string;
+  notebook: string;
+  includeSubfolders: boolean;
+}
+
+let notebookHelperSingleton: NotebookQdrantHelper | null = null;
+function notebookHelper(): NotebookQdrantHelper {
+  notebookHelperSingleton ??= new NotebookQdrantHelper();
+  return notebookHelperSingleton;
+}
+
+/**
+ * Die an Notebooks gehängten Wolke-Ordner der Person.
+ *
+ * Sie liegen NICHT bei der Verbindung, sondern je Notebook in
+ * `settings.wolke_folders` im Qdrant-Payload - eine Verbindung weiss also von
+ * sich aus nicht, wofür sie benutzt wird. Hier wird das umgedreht, damit
+ * `list_connections` die eigentliche Frage dahinter („verbunden wofür?") mit
+ * EINEM Aufruf mitbeantwortet.
+ */
+async function listAttachedNotebookFolders(userId: string): Promise<AttachedNotebookFolder[]> {
+  const collections = await notebookHelper().getUserNotebookCollectionsLight(userId);
+  return collections.flatMap((collection) => {
+    const raw = collection.settings?.wolke_folders;
+    if (!Array.isArray(raw)) return [];
+    return (raw as WolkeFolderRef[])
+      .filter((f) => f && typeof f.shareLinkId === 'string' && typeof f.folderPath === 'string')
+      .map((f) => ({
+        shareLinkId: f.shareLinkId,
+        folderPath: f.folderPath,
+        folderName: f.folderName || f.folderPath.split('/').filter(Boolean).pop() || '/',
+        notebook: collection.name,
+        includeSubfolders: f.includeSubfolders === true,
+      }));
+  });
+}
+
 export interface CloudToolCtx {
   state: ChatGraphState;
   sse: SSEWriter;
@@ -50,6 +102,9 @@ export interface CloudToolCtx {
   provider?: CloudFileProvider;
   /** Alle Wurzeln der Person. Injiziert aus demselben Grund. */
   listRoots?: (userId: string) => Promise<CloudRoot[]>;
+  /** Die an Notebooks gehängten Ordner. Injiziert, damit der Test ohne Qdrant
+   *  läuft. */
+  listNotebookFolders?: (userId: string) => Promise<AttachedNotebookFolder[]>;
 }
 
 const NO_SESSION = 'Keine Nutzer-Sitzung — diese Aktion braucht eine angemeldete Person.';
@@ -151,6 +206,68 @@ function errMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
+/**
+ * Eine Auflistung als QUELLE eintragen — nicht als Vorgangsnotiz.
+ *
+ * Der Schreiber im split-Modus sieht keine Werkzeugergebnisse, sondern nur den
+ * gerenderten Quellenblock. `note()` landet dort unter „VORGÄNGE IN DIESEM TURN
+ * (… KEINE Quellen)" und ist damit ausdrücklich kein Antwortmaterial. Live am
+ * 01.09.2026 hatte `list_connections` die eine Verbindung geholt, und die
+ * Antwort lautete trotzdem „mir liegen keine Informationen darüber vor" —
+ * derselbe Ausfall, den `ground()` in `personalDataTools.ts` beschreibt, und
+ * dieselbe Trennung ist die Reparatur: Listen registrieren, Vorgänge notieren.
+ *
+ * EINE Quelle je Auflistung, nicht eine je Eintrag: `checkSearchBudget` deckelt
+ * bei MAX_SOURCES (20) gegen `freshSize`, ein Ordner mit 40 Dateien würde dem
+ * Loop also vortäuschen, er habe genug recherchiert.
+ */
+function groundText(reg: SourceRegistry, title: string, content: string): void {
+  if (!content.trim()) return;
+  reg.register([{ source: 'wolke', title, content }], {
+    snippetChars: LISTING_SNIPPET_CHARS,
+  });
+}
+
+/**
+ * Eine Vorgangszeile — geprüft, verbunden, nichts gefunden.
+ *
+ * Bleibt bei `note()`: das ist kein abgerufenes Material. Als Quelle eingetragen
+ * würde es als Recherche DIESES Turns persistiert und könnte später den Inhalt
+ * eines Dokuments stellen — der Grund, den `sourceRegistry.note` nennt.
+ */
+function groundNote(reg: SourceRegistry, title: string, content: string): void {
+  reg.note(title, content);
+}
+
+/**
+ * Das Ergebnis von `renderListing` erden — als Quelle, wenn etwas drinsteht,
+ * sonst als Fehlanzeige. Der Schreiber bekommt hier dieselben Einträge wie die
+ * Karte, samt Pfad: ohne ihn kann er den Ordner benennen, aber nichts daraus
+ * zitieren und keinen Folgeaufruf vorbereiten.
+ */
+function groundListing(
+  reg: SourceRegistry,
+  title: string,
+  rendered: Record<string, unknown>,
+  emptyNote: string
+): void {
+  const entries = (rendered.entries ?? []) as Array<{
+    path: string;
+    name: string;
+    isDirectory: boolean;
+    info: string;
+  }>;
+  if (entries.length === 0) {
+    groundNote(reg, title, emptyNote);
+    return;
+  }
+  const lines = entries.map(
+    (e) => `${e.name}${e.isDirectory ? '/' : ''} — ${e.path}${e.info ? ` (${e.info})` : ''}`
+  );
+  const note = typeof rendered.note === 'string' ? rendered.note : '';
+  groundText(reg, title, [lines.join('\n'), note].filter(Boolean).join('\n\n'));
+}
+
 function chunkText(text: string): string[] {
   const chunks: string[] = [];
   for (let i = 0; i < text.length && chunks.length < READ_MAX_CHUNKS; i += READ_CHUNK_CHARS) {
@@ -163,6 +280,7 @@ export function makeCloudFilesTool(ctx: CloudToolCtx): Tool {
   const { state, sse, threadId, sourceRegistry } = ctx;
   const provider = ctx.provider ?? nextcloudShareProvider;
   const rootsOf = ctx.listRoots ?? listAllCloudRoots;
+  const foldersOf = ctx.listNotebookFolders ?? listAttachedNotebookFolders;
 
   // Über `@link` angehängte Freigabe-Links stehen nicht im Nachrichtentext —
   // ohne diese Zeile weiß das Modell nichts von ihnen und könnte
@@ -176,7 +294,7 @@ export function makeCloudFilesTool(ctx: CloudToolCtx): Tool {
   return tool({
     description: `Zugriff auf die verbundene WOLKE der Person (Nextcloud-Freigaben) — Ordner durchsehen, Dateien finden und lesen.
 
-NUTZE FÜR: welche Wolke-Links/-Verbindungen die Person verbunden hat (list_connections), was in einem Ordner liegt (list), eine Datei über ihren Namen finden (find), den Inhalt einer Datei lesen und zitieren (read), eine Verbindung prüfen (test_connection), einen Freigabe-Link hinzufügen (add_connection — wird der Person zur Bestätigung angezeigt).
+NUTZE FÜR: welche Wolke-Ordner/-Links die Person verbunden hat und an welchen Notebooks sie hängen (list_connections — beantwortet „welche Ordner sind verbunden?" vollständig, ein zweiter Aufruf ist dafür nicht nötig), was in einem Ordner liegt (list), eine Datei über ihren Namen finden (find), den Inhalt einer Datei lesen und zitieren (read), eine Verbindung prüfen (test_connection), einen Freigabe-Link hinzufügen (add_connection — wird der Person zur Bestätigung angezeigt).
 
 NICHT für: Dateien, die in DIESER Nachricht angehängt sind (dafür 'dokumente_lesen'), eigene Grünerator-Dokumente und Tabellen (dafür 'documents'), Notebooks (dafür 'notebooks') oder das Web (dafür 'web_search').
 
@@ -244,7 +362,7 @@ Der Zugriff ist ausschließlich lesend — Schreiben, Umbenennen und Löschen in
         const note = result.ok
           ? `Der Link funktioniert${result.entryCount != null ? ` und enthält ${result.entryCount} Einträge` : ''}.`
           : `Der Link ist nicht nutzbar (${result.errorCode ?? 'unknown'}).`;
-        sourceRegistry.note('Wolke-Link geprüft', note);
+        groundNote(sourceRegistry, 'Wolke-Link geprüft', note);
         return { ...result, note };
       }
 
@@ -260,21 +378,57 @@ Der Zugriff ist ausschließlich lesend — Schreiben, Umbenennen und Löschen in
         const active = roots.filter((r) => r.isActive);
         if (active.length === 0) {
           // Kein leeres Ergebnis zurückgeben: eine erfundene Fehlanzeige („du
-          // hast keine Dateien") ist teurer als ein klarer Hinweis.
-          sourceRegistry.note('Wolke', NO_CONNECTION);
+          // hast keine Dateien") ist teurer als ein klarer Hinweis. Bleibt eine
+          // Vorgangszeile — eine Fehlanzeige ist kein abgerufenes Material.
+          groundNote(sourceRegistry, 'Wolke', NO_CONNECTION);
           return { connectionCount: 0, connections: [], note: NO_CONNECTION };
+        }
+        // Die Ordner dürfen die Antwort nicht aufhalten: sie liegen in Qdrant,
+        // die Verbindungen in Postgres. Fällt Qdrant aus, ist „diese
+        // Verbindungen hast du" immer noch die richtige Antwort — nur ohne das
+        // „wofür". Eine Wolke-Frage darf nicht am Notebook-Speicher sterben.
+        let folders: AttachedNotebookFolder[] = [];
+        let folderNote: string | null = null;
+        try {
+          folders = await foldersOf(userId);
+        } catch (err) {
+          log.warn('listNotebookFolders failed', err);
+          folderNote =
+            'Welche Ordner an Notebooks hängen, ließ sich diesmal nicht laden — die Verbindungen stimmen trotzdem.';
         }
         const connections = active.map((r) => ({
           connectionId: r.connectionId,
           label: rootLabel(r),
           host: r.host,
           origin: r.origin,
+          folders: folders
+            .filter((f) => f.shareLinkId === r.connectionId)
+            .map((f) => ({
+              folderPath: f.folderPath,
+              folderName: f.folderName,
+              notebook: f.notebook,
+              includeSubfolders: f.includeSubfolders,
+            })),
         }));
-        sourceRegistry.note(
-          'Wolke-Verbindungen',
-          connections.map((c) => `${c.label} (${c.host})`).join(', ')
+        groundText(
+          sourceRegistry,
+          'Verbundene Wolke-Ordner',
+          connections
+            .map((c) => {
+              const attached = c.folders.length
+                ? c.folders
+                    .map((f) => `${f.folderName} (${f.folderPath}) → Notebook „${f.notebook}"`)
+                    .join('; ')
+                : 'an kein Notebook gehängt';
+              return `${c.label} (${c.host}) — ${attached}`;
+            })
+            .join('\n')
         );
-        return { connectionCount: connections.length, connections };
+        return {
+          connectionCount: connections.length,
+          connections,
+          ...(folderNote ? { note: folderNote } : {}),
+        };
       }
 
       const picked = pickRoot(roots, connectionId);
@@ -287,19 +441,18 @@ Der Zugriff ist ausschließlich lesend — Schreiben, Umbenennen und Löschen in
           const note = result.ok
             ? `„${rootLabel(root)}" ist erreichbar${result.entryCount != null ? ` (${result.entryCount} Einträge)` : ''}.`
             : `„${rootLabel(root)}" antwortet nicht (${result.errorCode ?? 'unknown'}).`;
-          sourceRegistry.note('Wolke-Verbindung geprüft', note);
+          groundNote(sourceRegistry, 'Wolke-Verbindung geprüft', note);
           return { ...result, note };
         }
 
         if (action === 'list') {
           const listing = await provider.list(root, path ?? '', { recursive });
           const rendered = renderListing(root, path ?? '', listing);
-          sourceRegistry.note(
+          groundListing(
+            sourceRegistry,
             `Wolke: ${rootLabel(root)}${path ? ` / ${path}` : ''}`,
-            listing.entries
-              .slice(0, MAX_ENTRIES_IN_ANSWER)
-              .map((e) => `${e.name}${e.isDirectory ? '/' : ''}`)
-              .join(', ') || 'leer'
+            rendered,
+            'Der Ordner ist leer.'
           );
           return rendered;
         }
@@ -313,14 +466,11 @@ Der Zugriff ist ausschließlich lesend — Schreiben, Umbenennen und Löschen in
             ...(extensions?.length ? { extensions } : {}),
           });
           const rendered = renderListing(root, '', listing);
-          sourceRegistry.note(
+          groundListing(
+            sourceRegistry,
             `Wolke-Suche: ${name ?? extensions?.join(', ')}`,
-            listing.entries.length
-              ? listing.entries
-                  .slice(0, MAX_ENTRIES_IN_ANSWER)
-                  .map((e) => e.path)
-                  .join(', ')
-              : 'kein Treffer'
+            rendered,
+            'kein Treffer'
           );
           return rendered;
         }
@@ -405,7 +555,7 @@ async function addConnection(args: {
       unknown: 'Der Link ließ sich nicht öffnen.',
     };
     const note = reasons[test.errorCode ?? 'unknown'] ?? reasons.unknown;
-    sourceRegistry.note('Wolke-Link nicht nutzbar', note);
+    groundNote(sourceRegistry, 'Wolke-Link nicht nutzbar', note);
     return { ok: false, errorCode: test.errorCode ?? 'unknown', note };
   }
 
@@ -433,6 +583,6 @@ async function addConnection(args: {
     { key: 'Zugriff', value: 'nur lesend' },
   ]);
   const note = `Der Link zu ${host} funktioniert. Bestätigung zum Hinzufügen angefordert.`;
-  sourceRegistry.note('Wolke verbinden', note);
+  groundNote(sourceRegistry, 'Wolke verbinden', note);
   return { ok: true, needsConfirmation: true, note };
 }
