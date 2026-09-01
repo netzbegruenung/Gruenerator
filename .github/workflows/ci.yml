@@ -3,8 +3,18 @@ name: CI
 on:
   push:
     branches: [master, main]
+  # BEWUSST OHNE `branches:`-Filter. Der Filter greift auf den BASIS-Branch, ein
+  # gestapelter PR (Basis = ein anderer Feature-Branch) fiel damit komplett aus
+  # dieser Lane heraus — bei einem Stapel also alles ausser dem untersten PR.
+  # Gemessen an #3097 (Basis ein Feature-Branch) gegen #3098 (derselbe Commit,
+  # Basis master): 7 gegen 19 Checks. #3094 wurde so in einen Feature-Branch
+  # gemergt, ohne je getypecheckt oder reviewt worden zu sein (#3100).
+  #
+  # Der Preis dafuer ist gering: von ~400 PRs waren 14 gestapelt, und keiner
+  # zielte je auf einen langlebigen Branch — `test-branch` wird per push
+  # synchronisiert (sync-test-branch.yml), nicht per PR. `push:` bleibt auf
+  # master beschraenkt.
   pull_request:
-    branches: [master, main]
   # Required for the merge queue: GitHub builds each queued PR on a temporary
   # `gh-readonly-queue/*` branch and fires `merge_group`. Without this trigger
   # the required checks never report on the queue and it hangs forever.

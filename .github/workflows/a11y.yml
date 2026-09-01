@@ -8,8 +8,9 @@ name: Barrierefreiheit
 # Zielstandard und Abarbeitungsplan: docs/barrierefreiheit-audit-plan.md
 
 on:
+  # Kein `branches:`-Filter, damit gestapelte PRs (Basis = ein anderer
+  # Feature-Branch) nicht durchfallen — Begruendung in ci.yml, Befund in #3100.
   pull_request:
-    branches: [master, main]
     paths:
       - 'apps/web/**'
       - 'packages/ui/**'
