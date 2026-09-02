@@ -283,11 +283,10 @@ const Datenschutz = () => {
         Gunzenhausen, Deutschland · netzbegrünung – Verein für grüne Netzkultur e.V., Deutschland ·
         Mistral AI, 15 rue des Halles, 75001 Paris, Frankreich · Scaleway SAS, 8 rue de la
         Ville-l&apos;Évêque, 75008 Paris, Frankreich (RCS Paris 433 115 904) · GreenPT BV,
-        Plompetorengracht 4, 3512 CC Utrecht, Niederlande (KvK 97084360) · KugelAudio GmbH, Rosenthaler
-        Str. 36, 10178 Berlin, Deutschland (Amtsgericht Charlottenburg, HRB 277989 B) · Seeweb
-        S.r.l., C.so Lazio
-        9/a, 03100 Frosinone, Italien · Linkup Technologies SAS, 28 avenue des Pépinières, 94260
-        Fresnes, Frankreich (RCS Créteil 930 910 740).
+        Plompetorengracht 4, 3512 CC Utrecht, Niederlande (KvK 97084360) · KugelAudio GmbH,
+        Rosenthaler Str. 36, 10178 Berlin, Deutschland (Amtsgericht Charlottenburg, HRB 277989 B) ·
+        Seeweb S.r.l., C.so Lazio 9/a, 03100 Frosinone, Italien · Linkup Technologies SAS, 28 avenue
+        des Pépinières, 94260 Fresnes, Frankreich (RCS Créteil 930 910 740).
       </p>
 
       <p>

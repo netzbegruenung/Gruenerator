@@ -104,6 +104,7 @@ export const userUsageContractRouter = s.router(userUsageContract, {
           images: number;
           transcriptions: number;
           searches: number;
+          speech_seconds: number;
         }
       >();
       const byModel = new Map<

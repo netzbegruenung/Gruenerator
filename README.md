@@ -50,12 +50,12 @@ Political organizations need to create compelling, consistent content across mul
 
 Grünerator is built on **100% European infrastructure** with a commitment to digital sovereignty:
 
-| Principle                 | Implementation                                                                             |
-| ------------------------- | ------------------------------------------------------------------------------------------ |
-| **100% EU Hosting**       | All servers located exclusively in the European Union                                      |
+| Principle                 | Implementation                                                                                                                     |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| **100% EU Hosting**       | All servers located exclusively in the European Union                                                                              |
 | **European AI Providers** | Mistral AI (France), Cortecs & Regolo (EU-hosted open models), Black Forest Labs (Germany), KugelAudio (Germany, speech synthesis) |
-| **Self-hosted AI**        | Green-powered inference hosted by netzbegrünung e.V. and EU partners                       |
-| **75% EU Target**         | Minimum 75% of spending with European companies                                            |
+| **Self-hosted AI**        | Green-powered inference hosted by netzbegrünung e.V. and EU partners                                                               |
+| **75% EU Target**         | Minimum 75% of spending with European companies                                                                                    |
 
 ### Key Features
 
