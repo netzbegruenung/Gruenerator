@@ -172,3 +172,23 @@ describe('executeDirectSearch — Chunk-Rerank', () => {
     expect(search.mock.calls[0]?.[0].options.limit).toBe(6);
   });
 });
+
+describe('executeDirectSearch — Degradations-Marker', () => {
+  it('trägt einen ausgefallenen Cross-Encoder ans Ergebnis', async () => {
+    search.mockResolvedValue({ ...okResponse, metadata: { rerankDegraded: true } });
+    const result = await executeDirectSearch({ query: 'Klimaschutz', rerankChunks: true });
+    expect(result.rerankDegraded).toBe(true);
+  });
+
+  it('setzt das Feld gar nicht, wenn der Encoder geliefert hat', async () => {
+    search.mockResolvedValue({ ...okResponse, metadata: { cached: false } });
+    const result = await executeDirectSearch({ query: 'Klimaschutz', rerankChunks: true });
+    expect(result).not.toHaveProperty('rerankDegraded');
+  });
+
+  it('setzt das Feld gar nicht, wenn niemand rerankt hat', async () => {
+    search.mockResolvedValue(okResponse);
+    const result = await executeDirectSearch({ query: 'Klimaschutz' });
+    expect(result).not.toHaveProperty('rerankDegraded');
+  });
+});
