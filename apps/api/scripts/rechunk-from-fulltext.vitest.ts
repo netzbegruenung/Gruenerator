@@ -229,6 +229,33 @@ describe('scrollEach', () => {
     expect(pageSizes).toEqual([2, 1, 1]);
     expect(scrollCalls).toBe(3);
   });
+
+  it('holt keine weitere Seite, sobald die Callback stop meldet', async () => {
+    const pages = [
+      { points: [{ id: 1, payload: { a: 1 } }], next_page_offset: 'p2' },
+      { points: [{ id: 2, payload: { a: 2 } }], next_page_offset: null },
+    ];
+    let scrollCalls = 0;
+    const client = {
+      scroll: async () => {
+        const page = pages[scrollCalls];
+        scrollCalls++;
+        return page;
+      },
+      delete: async () => undefined,
+    };
+
+    const seenIds: Array<string | number> = [];
+    await scrollEach(client, 'col', {}, async (points) => {
+      for (const point of points) seenIds.push(point.id);
+      return 'stop';
+    });
+
+    // `--limit` soll den Probelauf billig halten: nach dem Signal geht kein
+    // zweiter Scroll-Aufruf mehr übers Netz.
+    expect(seenIds).toEqual([1]);
+    expect(scrollCalls).toBe(1);
+  });
 });
 
 /** Ein Kopf-Payload, wie ihn `landesverbaende_documents` wirklich trägt. */
