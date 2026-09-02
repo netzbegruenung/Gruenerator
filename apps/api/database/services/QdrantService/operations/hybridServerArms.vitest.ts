@@ -21,11 +21,24 @@ import type { QdrantClient } from '@qdrant/js-client-rest';
 import type { HybridConfig, QdrantFilter } from './types.js';
 
 const state = vi.hoisted(() => ({ hybrid: {} as Record<string, unknown> }));
+const loggerState = vi.hoisted(() => ({
+  info: vi.fn(),
+  warn: vi.fn(),
+  error: vi.fn(),
+  debug: vi.fn(),
+}));
 
 vi.mock('../../../../config/vectorConfig.js', () => ({
   vectorConfig: {
     get: (section: string) => (section === 'hybrid' ? state.hybrid : {}),
   },
+}));
+
+// Spy on the coverage log line (Fix-Runde 1, finding 2): `createLogger` is
+// called once at module load, so the mock must hand back the SAME object on
+// every call for the test to observe what `hybridSearch.ts` logged.
+vi.mock('../../../../utils/logger.js', () => ({
+  createLogger: () => loggerState,
 }));
 
 /**
@@ -47,6 +60,7 @@ const DEFAULT_HYBRID: HybridConfig = {
   serverFusion: 'rrf',
   serverSparseFactor: 1.0,
   serverRrfWeightDense: 0.7,
+  serverScoreJoin: true,
 };
 
 function fakeClient() {
@@ -55,6 +69,9 @@ function fakeClient() {
       config: { params: { sparse_vectors: { bm25: { modifier: 'idf' } } } },
     }),
     query: vi.fn().mockResolvedValue({ points: [] }),
+    // Mit HYBRID_SERVER_SCORE_JOIN (Default an) geht die Fusionsabfrage als
+    // `searches[0]` eines Batch hinaus; Eintrag 2 und 3 sind die Spiegelsuchen.
+    queryBatch: vi.fn().mockResolvedValue([{ points: [] }, { points: [] }, { points: [] }]),
     scroll: vi.fn().mockResolvedValue({ points: [] }),
     search: vi.fn().mockResolvedValue([]),
   };
@@ -89,11 +106,40 @@ async function runArm(client: ReturnType<typeof fakeClient>, filter: QdrantFilte
   );
 }
 
-/** Die Gestalt, die an Qdrant ging. */
+/** Die Fusionsgestalt, die an Qdrant ging — durch welche Tür auch immer. */
 function sentBody(client: ReturnType<typeof fakeClient>): Record<string, unknown> {
+  const batch = client.queryBatch.mock.calls[0];
+  if (batch) {
+    const searches = (batch[1] as { searches: Record<string, unknown>[] }).searches;
+    const first = searches[0];
+    if (!first) throw new Error('queryBatch ging ohne einen einzigen search hinaus');
+    return first;
+  }
   const call = client.query.mock.calls[0];
-  if (!call) throw new Error('client.query wurde gar nicht gerufen');
+  if (!call) throw new Error('weder client.query noch client.queryBatch wurde gerufen');
   return call[1] as Record<string, unknown>;
+}
+
+/** Alle searches des Batch, in Reihenfolge. Wirft, wenn kein Batch hinausging. */
+function sentSearches(client: ReturnType<typeof fakeClient>): Record<string, unknown>[] {
+  const batch = client.queryBatch.mock.calls[0];
+  if (!batch) throw new Error('client.queryBatch wurde gar nicht gerufen');
+  return (batch[1] as { searches: Record<string, unknown>[] }).searches;
+}
+
+/**
+ * Antwortpunkte auf BEIDE Türen legen. Welche der Arm nimmt, entscheidet der
+ * Join-Schalter — eine Zusicherung über die Ergebnisliste soll davon nicht
+ * abhängen.
+ */
+function respondWith(
+  client: ReturnType<typeof fakeClient>,
+  points: Array<{ id: number; score: number; payload: Record<string, unknown> }>,
+  dense: Array<{ id: number; score: number }> = [],
+  sparse: Array<{ id: number; score: number }> = []
+): void {
+  client.query.mockResolvedValue({ points });
+  client.queryBatch.mockResolvedValue([{ points }, { points: dense }, { points: sparse }]);
 }
 
 const DENSE_PREFETCH = {
@@ -385,7 +431,7 @@ describe('Qualitäts-Gatter auf dem Server-Pfad', () => {
   it('filtert bei rrf — dem ausgelieferten Arm — mit eingeschaltetem Gatter', async () => {
     state.hybrid = { ...DEFAULT_HYBRID, enableQualityGate: true };
     const client = fakeClient();
-    client.query.mockResolvedValue({ points: lowScoringPoints });
+    respondWith(client, lowScoringPoints);
     const response = await runArm(client);
     expect(response.results.map((r) => r.id)).toEqual([1]);
   });
@@ -394,9 +440,154 @@ describe('Qualitäts-Gatter auf dem Server-Pfad', () => {
     for (const serverFusion of ['dbsf', 'sparse_only'] as const) {
       state.hybrid = { ...DEFAULT_HYBRID, enableQualityGate: true, serverFusion };
       const client = fakeClient();
-      client.query.mockResolvedValue({ points: lowScoringPoints });
+      respondWith(client, lowScoringPoints);
       const response = await runArm(client);
       expect(response.results.map((r) => r.id)).toEqual([1, 2]);
     }
+  });
+});
+
+describe('HYBRID_SERVER_SCORE_JOIN', () => {
+  const FUSION_POINTS = [
+    { id: 1, score: 0.9, payload: { chunk_text: 'beide Lanes' } },
+    { id: 2, score: 0.8, payload: { chunk_text: 'nur sparse' } },
+    { id: 3, score: 0.7, payload: { chunk_text: 'nur Fusion' } },
+  ];
+
+  it('schickt drei Suchen in EINEM queryBatch, kein zweites query', async () => {
+    const client = fakeClient();
+    await runArm(client);
+
+    expect(client.queryBatch).toHaveBeenCalledTimes(1);
+    expect(client.query).not.toHaveBeenCalled();
+    expect(sentSearches(client)).toHaveLength(3);
+  });
+
+  it('spiegelt die dichte Vorabholung Parameter für Parameter', async () => {
+    // Daran hängt die ganze Deckungsgrad-Aussage: nur wenn Suche 2 dieselbe
+    // Kandidatenmenge zieht wie die Vorabholung, ist ein Fusionstreffer ohne
+    // Eintrag eine Aussage und kein Messfehler.
+    const client = fakeClient();
+    await runArm(client, TEST_FILTER);
+
+    const [fusion, dense] = sentSearches(client);
+    const densePrefetch = (fusion as { prefetch: Record<string, unknown>[] }).prefetch[0];
+
+    expect(dense).toEqual({ ...densePrefetch, with_payload: false });
+    expect(dense).toEqual({
+      ...DENSE_PREFETCH,
+      filter: TEST_FILTER,
+      with_payload: false,
+    });
+  });
+
+  it('spiegelt die sparse Vorabholung Parameter für Parameter', async () => {
+    const client = fakeClient();
+    await runArm(client, TEST_FILTER);
+
+    const [fusion, , sparse] = sentSearches(client);
+    const sparsePrefetch = (fusion as { prefetch: Record<string, unknown>[] }).prefetch[1];
+
+    expect(sparse).toEqual({ ...sparsePrefetch, with_payload: false });
+  });
+
+  it('verbindet über die Punkt-ID; wer nicht in der dichten Menge war, bekommt null', async () => {
+    const client = fakeClient();
+    respondWith(
+      client,
+      FUSION_POINTS,
+      [{ id: 1, score: 0.62 }],
+      [
+        { id: 1, score: 4.1 },
+        { id: 2, score: 3.3 },
+      ]
+    );
+    const response = await runArm(client);
+
+    const byId = new Map(response.results.map((r) => [r.id, r]));
+    expect(byId.get(1)?.originalVectorScore).toBeCloseTo(0.62, 6);
+    expect(byId.get(1)?.originalTextScore).toBeCloseTo(4.1, 6);
+    expect(byId.get(2)?.originalVectorScore).toBeNull();
+    expect(byId.get(2)?.originalTextScore).toBeCloseTo(3.3, 6);
+    expect(byId.get(3)?.originalVectorScore).toBeNull();
+    expect(byId.get(3)?.originalTextScore).toBeNull();
+  });
+
+  it('lässt bei Sparse-Faktor 0 die dritte Suche weg, statt eine leere zu schicken', async () => {
+    state.hybrid = { ...DEFAULT_HYBRID, serverSparseFactor: 0 };
+    const client = fakeClient();
+    await runArm(client);
+
+    expect(sentSearches(client)).toHaveLength(2);
+    // Kein Spiegel geht raus, also darf die Deckungszeile nicht "sparse join
+    // 0/N" lesen — das läse sich wie "kein Treffer im Join getroffen" statt
+    // "kein Join verschickt".
+    const [logLine] = loggerState.info.mock.calls[0] as [string];
+    expect(logLine).toContain('sparse join skipped');
+    expect(logLine).not.toContain('sparse join 0/');
+  });
+
+  it('ist bei false byte-gleich zum Zustand vor #3166', async () => {
+    state.hybrid = { ...DEFAULT_HYBRID, serverScoreJoin: false };
+    const client = fakeClient();
+    respondWith(client, FUSION_POINTS, [{ id: 1, score: 0.62 }], [{ id: 1, score: 4.1 }]);
+    const response = await runArm(client);
+
+    expect(client.queryBatch).not.toHaveBeenCalled();
+    expect(client.query).toHaveBeenCalledTimes(1);
+    for (const result of response.results) {
+      expect(result.originalVectorScore).toBeNull();
+      expect(result.originalTextScore).toBeNull();
+    }
+  });
+
+  it('löst bei dense_rescore keinen Batch aus und nimmt den äusseren score als Kosinus', async () => {
+    state.hybrid = { ...DEFAULT_HYBRID, serverFusion: 'dense_rescore' };
+    const client = fakeClient();
+    respondWith(client, FUSION_POINTS);
+    const response = await runArm(client);
+
+    expect(client.queryBatch).not.toHaveBeenCalled();
+    expect(response.results[0]?.originalVectorScore).toBeCloseTo(0.9, 6);
+    expect(response.results[0]?.originalTextScore).toBeNull();
+  });
+
+  it('löst bei sparse_only keinen Batch aus und nimmt den score als BM25-Wert', async () => {
+    state.hybrid = { ...DEFAULT_HYBRID, serverFusion: 'sparse_only' };
+    const client = fakeClient();
+    respondWith(client, FUSION_POINTS);
+    const response = await runArm(client);
+
+    expect(client.queryBatch).not.toHaveBeenCalled();
+    expect(response.results[0]?.originalTextScore).toBeCloseTo(0.9, 6);
+    expect(response.results[0]?.originalVectorScore).toBeNull();
+  });
+
+  it('meldet hasRealTextMatches erst, wenn die BM25-Lane wirklich getroffen hat', async () => {
+    const client = fakeClient();
+    respondWith(client, FUSION_POINTS, [{ id: 1, score: 0.62 }], []);
+    const response = await runArm(client);
+
+    expect(response.metadata.hasRealTextMatches).toBe(false);
+    // Welcher Matcher in der Lane läuft, ist eine Eigenschaft der Lane und
+    // ändert sich nicht dadurch, dass sie diesmal nichts gefunden hat.
+    expect(response.metadata.textMatchTypes).toEqual(['bm25']);
+  });
+
+  it('meldet hasRealTextMatches, sobald ein sparse Treffer dabei ist', async () => {
+    const client = fakeClient();
+    respondWith(client, FUSION_POINTS, [], [{ id: 2, score: 3.3 }]);
+    const response = await runArm(client);
+
+    expect(response.metadata.hasRealTextMatches).toBe(true);
+  });
+
+  it('bleibt ohne Join bei "Lane vorhanden" — mehr weiss der Pfad dort nicht', async () => {
+    state.hybrid = { ...DEFAULT_HYBRID, serverScoreJoin: false };
+    const client = fakeClient();
+    respondWith(client, FUSION_POINTS);
+    const response = await runArm(client);
+
+    expect(response.metadata.hasRealTextMatches).toBe(true);
   });
 });

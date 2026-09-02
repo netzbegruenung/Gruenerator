@@ -293,7 +293,36 @@ async function hybridSearchServerSide(
           ? { prefetch: prefetches, query: { rrf: { weights } }, limit: recall, with_payload: true }
           : { prefetch: prefetches, query: { fusion }, limit: recall, with_payload: true };
 
-  const response = await client.query(collection, request);
+  // Der Join spiegelt die beiden Vorabholungen als eigene Suchen im SELBEN
+  // `queryBatch` (#3166): ein HTTP-Rundlauf, drei Abfragen
+  // (qdrant-client.d.ts:895-899). Nur auf den fusionierenden Armen — bei
+  // `dense_rescore` ist der äussere `score` schon der Kosinus, bei
+  // `sparse_only` der BM25-Wert, dort wäre ein Batch ein Rundlauf für nichts.
+  const joinOn = hybridCfg.serverScoreJoin;
+  const useBatch = joinOn && (fusion === 'rrf' || fusion === 'rrf_weighted' || fusion === 'dbsf');
+
+  const denseById = new Map<string | number, number>();
+  const textById = new Map<string | number, number>();
+  let points: Schemas['ScoredPoint'][];
+
+  if (useBatch) {
+    // Aus den Vorabholungen SELBST gebaut, nicht daneben getippt: nur so kann
+    // die Spiegelsuche nicht von der Vorabholung wegdriften — und nur dann ist
+    // ein Fusionstreffer ohne Eintrag eine Aussage ("war nicht in der dichten
+    // Kandidatenmenge") statt eines Messfehlers.
+    const searches: Schemas['QueryRequest'][] = [
+      request,
+      { ...densePrefetch, with_payload: false },
+    ];
+    if (useSparse) searches.push({ ...sparsePrefetch, with_payload: false });
+
+    const responses = await client.queryBatch(collection, { searches });
+    points = responses[0]?.points ?? [];
+    for (const point of responses[1]?.points ?? []) denseById.set(point.id, point.score);
+    for (const point of responses[2]?.points ?? []) textById.set(point.id, point.score);
+  } else {
+    points = (await client.query(collection, request)).points;
+  }
 
   // Qdrant's server-side RRF scores are HIGHER than the legacy client-side
   // 1/(60+rank) domain (measured: rank 1 in both lists ≈ 1.0), so the quality
@@ -302,27 +331,42 @@ async function hybridSearchServerSide(
   // normalises each prefetch's distribution and bottoms out near 0, and
   // `sparse_only` returns raw BM25 scores, a different domain again. Both can
   // be cut where `rrf` is not — this gate has not been shown safe for them.
-  let results: HybridSearchResult[] = response.points.map((point) => ({
+  const denseFromScore = joinOn && fusion === 'dense_rescore';
+  const textFromScore = joinOn && fusion === 'sparse_only';
+
+  let results: HybridSearchResult[] = points.map((point) => ({
     id: point.id,
     score: point.score,
     payload: (point.payload as Record<string, unknown>) || {},
     searchMethod: 'hybrid' as const,
-    originalVectorScore: null,
-    originalTextScore: null,
+    originalVectorScore: denseFromScore ? point.score : (denseById.get(point.id) ?? null),
+    originalTextScore: textFromScore ? point.score : (textById.get(point.id) ?? null),
   }));
 
-  // Until #3166 gives the gate a score-domain-aware cut, it runs only on the
-  // arms whose domain it was measured against: the rank-based rrf family and
+  // Until the gate has a score-domain-aware cut, it runs only on the arms whose
+  // domain it was measured against: the rank-based rrf family and
   // dense_rescore, whose outer query returns the dense cosine. dbsf and
-  // sparse_only would be cut in a domain nobody has measured.
+  // sparse_only would be cut in a domain nobody has measured. Der Join ändert
+  // daran nichts: applyQualityGate prüft `result.score`, den Fusionswert.
   const gateMeasuredForArm = fusion !== 'dbsf' && fusion !== 'sparse_only';
   if (hybridCfg.enableQualityGate && gateMeasuredForArm) {
     results = applyQualityGate(results, true, hybridCfg);
   }
   results = results.slice(0, limit);
 
+  // Der Deckungsgrad ist die Zahl, die dieser Entwurf schuldet: wie viele
+  // Fusionstreffer bekommen überhaupt einen Kosinus? Vermutet werden darf sie
+  // nicht — sie steht in jeder Anfrage im Log und im PR.
+  const sparseCoverage = useSparse
+    ? `, sparse join ${points.filter((p) => textById.has(p.id)).length}/${points.length}`
+    : ', sparse join skipped';
+  const joinCoverage = useBatch
+    ? `, dense join ${points.filter((p) => denseById.has(p.id)).length}/${points.length}` +
+      sparseCoverage
+    : '';
+
   logger.info(
-    `Server-side hybrid (${fusion}): ${results.length}/${response.points.length} results for "${query}"`
+    `Server-side hybrid (${fusion}): ${results.length}/${points.length} results${joinCoverage} for "${query}"`
   );
 
   return {
@@ -339,7 +383,13 @@ async function hybridSearchServerSide(
       autoSwitchedFromRRF: false,
       // Factor 0 drops the sparse prefetch entirely (`useSparse`, :243) — a
       // dense-only request has no BM25 lane, so these must not claim one.
-      hasRealTextMatches: useSparse,
+      //
+      // Mit dem Sparse-Join (#3166) ist die ehrliche Antwort schärfer: nicht
+      // "Lane vorhanden", sondern "Lane hat getroffen". Ohne Join bleibt es
+      // bei der Lane — mehr weiss der Pfad dort nicht. `textMatchTypes` folgt
+      // bewusst NICHT: welcher Matcher in der Lane läuft, ist eine Eigenschaft
+      // der Lane und keine Aussage über diesen einen Treffer.
+      hasRealTextMatches: useBatch ? textById.size > 0 : useSparse,
       textMatchTypes: useSparse ? ['bm25'] : [],
     },
   };

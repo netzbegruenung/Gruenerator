@@ -432,15 +432,25 @@ const envSchema = z.object({
    * MRR@10 0,813 gegen `rrf` 50 % / 0,642): auf dem Notebook-Pfad, der die
    * 0,35-Schwelle in `NotebookQAService` läuft, kehrt sich das um (`dbsf`
    * 30 % / 0,361 gegen `rrf` 50 % / 0,567), weil die Schwelle für Kosinus-
-   * werte geschrieben ist. Umschalten erst, wenn die Schwelle den Wertebereich
-   * der Fusion kennt — Issue #3166.
+   * werte geschrieben ist.
+   *
+   * Die Schwelle kennt den Wertebereich inzwischen (#3166: `filterAndSortResults`
+   * schneidet auf `dense_similarity ?? similarity`) — `dbsf` blieb trotzdem
+   * draussen, weil es mit Join auf dem Notebook-Pfad weiterhin zwei Fälle
+   * gegen den ausgelieferten Zustand verliert (Hit@1 50 % → 30 %) und dabei
+   * sogar hinter seine eigene #3169-Referenz zurückfällt (MRR@10
+   * 0,361 → 0,350). Die Zahlen stehen in
+   * `evals/retrieval/hybrid-dense-join-2026-09-02.md`.
    *
    * Die ganze Messreihe lief mit `HYBRID_ENABLE_QUALITY_GATE=false`; `dbsf`
    * mit eingeschaltetem Gatter ist nie gemessen (siehe hybridSearch.ts, das
    * Gatter ist nur für `rrf` als unschädlich belegt). Die qa-Arme liefen mit
    * Tiefe `fast`, die Notebook-Arme mit `deep` (der Produktionsstufe des Chats);
    * ohne Verlauf schreibt `deep` nicht um, die Zahlen sind also vergleichbar,
-   * aber nicht dieselbe Stufe.
+   * aber nicht dieselbe Stufe. Ein Gatter-Arm ist inzwischen gemessen
+   * (`tune-join-rrf-gate.json`, 02.09.2026): identisch zum Nicht-Gatter-Lauf
+   * (53,8 % / 0,665 GESAMT, `kommunalwiki-system` unverändert 60 % / 0,692) —
+   * das Gatter läuft auf `rrf` und entfernt dort nichts.
    */
   HYBRID_SERVER_FUSION: z.enum(HYBRID_SERVER_FUSIONS).default('rrf'),
 
@@ -453,6 +463,27 @@ const envSchema = z.object({
 
   /** Gewicht der dichten Vorabholung bei `rrf_weighted`; sparse bekommt 1 − dies. */
   HYBRID_SERVER_RRF_WEIGHT_DENSE: z.coerce.number().min(0).max(1).default(0.7),
+
+  /**
+   * Holt je Treffer den dichten Kosinus und den BM25-Wert über einen zweiten
+   * und dritten Eintrag desselben `queryBatch` zurück (#3166). `false` ist
+   * exakt der Zustand vor diesem PR — der Rückwärtsgang ohne Deploy und der
+   * Referenzarm der Messung.
+   *
+   * Die Batch geht nur auf den fusionierenden Armen raus (`rrf`,
+   * `rrf_weighted`, `dbsf`): bei `dense_rescore` IST der äussere `score`
+   * schon der Kosinus, bei `sparse_only` der BM25-Wert — dort kostet ein
+   * Join einen Rundlauf für nichts und wird nicht gebaut. `false` blendet
+   * trotzdem auf ALLEN fünf Armen aus: `joinOn` gated auch
+   * `denseFromScore`/`textFromScore` (`hybridSearch.ts:334–335`), also leert
+   * es auch `originalVectorScore` auf `dense_rescore` und `originalTextScore`
+   * auf `sparse_only`.
+   *
+   * Der Default steht auf `true`, WEIL die Messung ihn setzt (Regel R1 in der
+   * Spec). Bleibt der Join hinter dem ausgelieferten Zustand zurück, geht er
+   * als `false` in den Merge und der Code bleibt inert stehen.
+   */
+  HYBRID_SERVER_SCORE_JOIN: boolFlag(true),
 
   // ── Scoring ────────────────────────────────────────────────────────────
   SCORING_MAX_SIMILARITY_WEIGHT: z.coerce.number().default(0.6),

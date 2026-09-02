@@ -12,8 +12,11 @@ import { describe, expect, it } from 'vitest';
 import {
   buildReferencesMap,
   expandResultsToChunks,
+  filterAndSortResults,
   sourceTextForPrompt,
 } from './SearchResultProcessor.js';
+
+import type { ExpandedChunkResult } from './types.js';
 
 describe('expandResultsToChunks', () => {
   it('reicht chunk_type eines neuen Chunks durch', () => {
@@ -181,5 +184,108 @@ describe('sourceTextForPrompt', () => {
       ref({ chunk_text: '| A |\n\n| --- |\n\n| 1 |', chunk_type: 'table' })
     );
     expect(out.split('\n')).toHaveLength(3);
+  });
+});
+
+/**
+ * #3166: Auf einer server-seitig fusionierten Sammlung ist `similarity` ein
+ * Fusionswert und kein Kosinus — die 0,35 in `filterAndSortResults` ist aber
+ * als Kosinus geschrieben (dieselbe Zahl steht in den Tiefenprofilen und in
+ * NotebookQAService). Geschnitten wird deshalb auf dem gemessenen dichten
+ * Kosinus, wo einer vorliegt, und sonst wie bisher.
+ */
+const cut = (
+  doc: string,
+  similarity: number,
+  denseSimilarity?: number | null
+): ExpandedChunkResult => ({
+  document_id: doc,
+  source_url: null,
+  title: doc,
+  snippet: doc,
+  filename: null,
+  similarity,
+  chunk_index: 0,
+  page_number: null,
+  ...(denseSimilarity !== undefined && { dense_similarity: denseSimilarity }),
+});
+
+describe('filterAndSortResults schneidet auf dem dichten Kosinus', () => {
+  it('wirft einen hohen Fusionswert mit zu kleinem Kosinus weg', () => {
+    // Genau die Naht aus #3166: RRF liefert auf Rang 1 ≈ 1,0, der Chunk ist
+    // aber nur zu 0,21 ähnlich. Vor der Reparatur überlebte er die Schwelle.
+    const results = filterAndSortResults([cut('a', 0.98, 0.21)], { threshold: 0.35 });
+    expect(results).toHaveLength(0);
+  });
+
+  it('behält einen niedrigen Fusionswert mit ausreichendem Kosinus', () => {
+    // Und die Gegenrichtung: DBSF läuft nahe 0 aus, der Chunk ist trotzdem nah.
+    const results = filterAndSortResults([cut('b', 0.04, 0.62)], { threshold: 0.35 });
+    expect(results.map((r) => r.document_id)).toEqual(['b']);
+  });
+
+  it('fällt ohne dichten Kosinus auf similarity zurück', () => {
+    // Der Alt-Pfad und jedes Dokument, dessen Chunks alle aus der BM25-Lane
+    // stammen. Beide Formen der Abwesenheit müssen gleich behandelt werden.
+    const results = filterAndSortResults(
+      [cut('kein-feld', 0.4), cut('null-feld', 0.4, null), cut('zu-klein', 0.2)],
+      { threshold: 0.35 }
+    );
+    expect(results.map((r) => r.document_id)).toEqual(['kein-feld', 'null-feld']);
+  });
+
+  it('behandelt einen Kosinus von exakt 0 als Messwert, nicht als Abwesenheit', () => {
+    const results = filterAndSortResults([cut('c', 0.9, 0)], { threshold: 0.35 });
+    expect(results).toHaveLength(0);
+  });
+
+  it('sortiert weiter auf similarity, nicht auf dem Kosinus', () => {
+    // Der Fusionswert bleibt das Ranking-Signal — sonst wäre der auf dem
+    // qa-Pfad gemessene dbsf-Vorsprung weg. Neu ist nur, WORAUF geschnitten
+    // wird.
+    const results = filterAndSortResults(
+      [cut('niedriger-fusionswert', 0.5, 0.95), cut('hoeherer-fusionswert', 0.9, 0.5)],
+      { threshold: 0.35 }
+    );
+    expect(results.map((r) => r.document_id)).toEqual([
+      'hoeherer-fusionswert',
+      'niedriger-fusionswert',
+    ]);
+  });
+});
+
+describe('expandResultsToChunks reicht den dichten Kosinus durch', () => {
+  it('trägt dense_similarity_score in dense_similarity, im Zweig mit top_chunks', () => {
+    const [expanded] = expandResultsToChunks([
+      {
+        document_id: 'doc-1',
+        title: 'Wahlprogramm',
+        similarity_score: 0.98,
+        dense_similarity_score: 0.42,
+        top_chunks: [{ chunk_index: 0, preview: 'Vorschau', text: 'Fließtext.' }],
+      },
+    ]);
+    expect(expanded?.similarity).toBe(0.98);
+    expect(expanded?.dense_similarity).toBe(0.42);
+  });
+
+  it('trägt ihn auch im Zweig ohne top_chunks', () => {
+    const [expanded] = expandResultsToChunks([
+      {
+        document_id: 'doc-2',
+        title: 'Ohne Chunks',
+        chunk_text: 'Text.',
+        similarity_score: 0.5,
+        dense_similarity_score: 0.31,
+      },
+    ]);
+    expect(expanded?.dense_similarity).toBe(0.31);
+  });
+
+  it('lässt das Feld weg, wo die Suchschicht keinen Kosinus geliefert hat', () => {
+    const [expanded] = expandResultsToChunks([
+      { document_id: 'doc-3', title: 'Alt-Pfad', chunk_text: 'Text.', similarity_score: 0.5 },
+    ]);
+    expect(expanded).not.toHaveProperty('dense_similarity');
   });
 });

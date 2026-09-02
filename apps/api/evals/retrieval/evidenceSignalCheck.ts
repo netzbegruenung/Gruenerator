@@ -206,7 +206,14 @@ async function runCase(spec: CaseSpec): Promise<CaseResult> {
       return { ...base, error: 'search returned no results' };
     }
 
-    const denseSorted = ctx.sortedResults.map((r) => r.similarity).sort((a, b) => b - a);
+    // Derselbe Rückfall wie im Schnitt (#3166): auf einer fusionierten
+    // Sammlung ist `similarity` kein Kosinus, und `denseTop` ist als
+    // absoluter Kosinuswert kalibriert (PR #3156, Schwelle ≈ 0,929). Ohne
+    // diese Zeile misst die Kalibrierung auf kommunalwiki etwas anderes als
+    // die Produktion.
+    const denseSorted = ctx.sortedResults
+      .map((r) => r.dense_similarity ?? r.similarity)
+      .sort((a, b) => b - a);
     const denseTop = denseSorted[0] ?? 0;
     const denseMedian = median(denseSorted);
 
