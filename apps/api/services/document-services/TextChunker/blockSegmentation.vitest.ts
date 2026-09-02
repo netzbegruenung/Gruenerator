@@ -12,10 +12,12 @@ import { describe, expect, it } from 'vitest';
 import {
   LONG_TABLE_FIXTURE,
   PROSE_FIXTURE,
+  SHORT_SECTIONS_FIXTURE,
   STRUCTURED_FIXTURE,
   TABLE_ONLY_FIXTURE,
 } from './chunkFixtures.js';
 import {
+  mergeSiblingTextBlocks,
   parseHeading,
   segmentBlocks,
   splitTableBlock,
@@ -245,6 +247,59 @@ describe('segmentBlocks', () => {
   });
 });
 
+describe('mergeSiblingTextBlocks', () => {
+  it('macht aus fünf kurzen Abschnitten einen einzigen Block', () => {
+    const blocks = segmentBlocks(SHORT_SECTIONS_FIXTURE);
+    expect(blocks.length).toBe(6);
+
+    const merged = mergeSiblingTextBlocks(blocks);
+    expect(merged).toHaveLength(1);
+    // Pfad und Abschnittsnummer stammen vom ERSTEN Block.
+    expect(merged[0].headingPath).toEqual(['Kommunalwahlprogramm']);
+    expect(merged[0].sectionIndex).toBe(1);
+    // Keine Überschriftenzeile geht dabei verloren.
+    for (const zeile of ['## 1 Verkehr', '## 3 Bildung', '## 5 Verwaltung']) {
+      expect(merged[0].text).toContain(zeile);
+    }
+  });
+
+  it('fasst über dem strukturierten Fixture nur zusammen, was zusammengehört', () => {
+    const merged = mergeSiblingTextBlocks(segmentBlocks(STRUCTURED_FIXTURE));
+
+    // Der Vorspann unter „Kapitel 3" nimmt „3.1 Förderprogramme" auf (eine
+    // Ebene tiefer, Vorgänger unter 800 Zeichen) — danach steht die Tabelle.
+    expect(merged.map((b) => b.kind)).toEqual(['text', 'table', 'text', 'text']);
+    expect(merged[0].headingPath).toEqual(['Kapitel 3: Wärmewende']);
+    expect(merged[0].text).toContain('## 3.1 Förderprogramme');
+    // 3.2 ist ein Geschwisterabschnitt von 3.1.1 — kein Zusammenfassen.
+    expect(merged[3].headingPath).toEqual(['Kapitel 3: Wärmewende', '3.2 Wärmenetze']);
+  });
+
+  it('fasst eine Tabelle nie mit ihrem Nachbarn zusammen', () => {
+    const blocks = segmentBlocks(
+      ['# A', '', 'Kurz.', '', '| x | y |', '| 1 | 2 |', '', '## A.1', '', 'Auch kurz.'].join('\n')
+    );
+    const merged = mergeSiblingTextBlocks(blocks);
+
+    expect(merged.map((b) => b.kind)).toEqual(['text', 'table', 'text']);
+  });
+
+  it('fasst einen langen Block nicht mit dem nächsten zusammen', () => {
+    const lang = 'Ein langer Satz mit Inhalt. '.repeat(40);
+    const blocks = segmentBlocks(['# A', '', lang, '', '## A.1', '', 'Kurz.'].join('\n'));
+    expect(blocks[0].text.length).toBeGreaterThan(800);
+
+    expect(mergeSiblingTextBlocks(blocks)).toHaveLength(2);
+  });
+
+  it('lässt die Eingabeblöcke unangetastet', () => {
+    const blocks = segmentBlocks(SHORT_SECTIONS_FIXTURE);
+    const vorher = blocks.map((b) => b.text);
+    mergeSiblingTextBlocks(blocks);
+    expect(blocks.map((b) => b.text)).toEqual(vorher);
+  });
+});
+
 describe('splitTableBlock', () => {
   it('lässt eine kurze Tabelle ein Stück', () => {
     const [block] = segmentBlocks(TABLE_ONLY_FIXTURE);
@@ -416,6 +471,12 @@ describe('smartChunkDocument über einem strukturierten Dokument', () => {
     expect(tabellen).toHaveLength(1);
     expect(tabellen[0].text).toContain('| Heizungstausch | Eigentum | 30 Prozent |');
     expect(tabellen[0].text).toContain('| Effizienzbonus | Wärmepumpe | 5 Prozent |');
+  });
+
+  it('erzeugt aus fünf kurzen Abschnitten keine fünf Kleinstchunks', async () => {
+    const chunks = await smartChunkDocument(SHORT_SECTIONS_FIXTURE);
+    expect(chunks).toHaveLength(1);
+    expect(chunks[0].metadata.headingPath).toEqual(['Kommunalwahlprogramm']);
   });
 
   it('setzt auf reinem Fließtext keine Strukturfelder', async () => {
