@@ -21,6 +21,7 @@ const FULL_PAYLOAD: QdrantResultPayload = {
   quality_score: 0.8,
   content_type: 'paragraph',
   page_number: 7,
+  chunk_type: 'table',
   created_at: '2024-01-01T00:00:00Z',
   title: 'A Title',
   filename: 'file.pdf',
@@ -40,6 +41,7 @@ const REQUIRED_KEYS = [
   'quality_score',
   'content_type',
   'page_number',
+  'chunk_type',
   'created_at',
   'published_at',
   'source_id',
@@ -53,6 +55,7 @@ describe('buildChunkPayloadFields', () => {
     expect(out.quality_score).toBe(0.8);
     expect(out.page_number).toBe(7);
     expect(out.content_type).toBe('paragraph');
+    expect(out.chunk_type).toBe('table');
     expect(out.source_id).toBe('src-9');
     expect(out.published_at).toBe('2024-03-01T00:00:00Z');
     expect(out.url).toBe('https://example.org/x');
@@ -88,6 +91,7 @@ describe('buildChunkPayloadFields', () => {
     expect(out.document_id).toBe('');
     expect(out.quality_score).toBeNull();
     expect(out.page_number).toBeNull();
+    expect(out.chunk_type).toBeNull();
     expect(out.published_at).toBeNull();
     expect(out.documents.title).toBe('Untitled');
   });
