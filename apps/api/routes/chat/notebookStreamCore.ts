@@ -495,7 +495,8 @@ export async function handleNotebookStream(
     );
     const { cleanDraft, citations, sources } = validateAndInjectCitations(
       renumberedDraft,
-      newReferencesMap
+      newReferencesMap,
+      { question }
     );
 
     const allSources = searchContext.sortedResults
