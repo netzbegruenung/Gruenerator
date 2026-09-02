@@ -236,9 +236,12 @@ export function validateAndInjectCitations(
       options.question && ref.chunk_text
         ? selectRelevantExcerpt(ref.chunk_text, options.question, citedTextMaxChars, 'contiguous')
         : null;
-    // `null` heisst: der Chunk passt unter die Decke (oder die Frage trägt kein
-    // Signal) — dann ist der ganze Chunk der Beleg, nicht sein Kopf.
-    const citedText = excerpt?.text ?? (options.question && ref.chunk_text ? ref.chunk_text : head);
+    // `null` heisst: der Chunk passt unter die Decke, oder die Frage trägt kein
+    // Signal — im zweiten Fall bleibt der Fallback unter der Decke gekappt,
+    // statt den ganzen (womöglich mehrere-KB-langen) Chunk zu zitieren.
+    const citedText =
+      excerpt?.text ??
+      (options.question && ref.chunk_text ? ref.chunk_text.slice(0, citedTextMaxChars) : head);
     return {
       index: id,
       cited_text: citedText,
