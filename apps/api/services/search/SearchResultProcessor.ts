@@ -190,8 +190,12 @@ export function sourceTextForPrompt(
 
     // Ein Schnitt bei `maxChars` landet mitten in einer Zeile. Eine halbe
     // Tabellenzeile ordnet keine Zelle mehr einer Spalte zu — sie fällt weg,
-    // statt dem Modell eine abgeschnittene Zahl als ganze anzubieten.
-    if (text.length > maxChars && lines.length > 1 && !lines[lines.length - 1].endsWith('|')) {
+    // statt dem Modell eine abgeschnittene Zahl als ganze anzubieten. Ob die
+    // Zeile ganz ist, sagt nur die Schnittstelle selbst: ein Schnitt hinter
+    // einem inneren `|` hinterlässt eine Zeile, die sauber auf `|` endet und
+    // trotzdem Spalten verloren hat.
+    const cutOnLineBoundary = clipped.endsWith('\n') || text.charAt(maxChars) === '\n';
+    if (text.length > maxChars && lines.length > 1 && !cutOnLineBoundary) {
       lines.pop();
     }
 
