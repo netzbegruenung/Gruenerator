@@ -18,7 +18,6 @@
 import { buildSourceRef } from '@gruenerator/shared/utils';
 import { z } from 'zod';
 
-import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { Sentry } from '../../lib/sentry.js';
 import { createLogger } from '../../utils/logger.js';
 import {
@@ -37,12 +36,6 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 const log = createLogger('McpLandesverbandTools');
 
 const READONLY = { readOnlyHint: true, destructiveHint: false, openWorldHint: false };
-
-let helperSingleton: NotebookQdrantHelper | null = null;
-function notebookHelper(): NotebookQdrantHelper {
-  helperSingleton ??= new NotebookQdrantHelper();
-  return helperSingleton;
-}
 
 function text(value: string, isError = false): CallToolResult {
   return {
@@ -107,8 +100,6 @@ const FILTERS_OUTPUT_SCHEMA = {
 export interface LandesverbandToolOptions {
   userId: string;
   landesverbaende: LandesverbandScope;
-  /** Für die Nutzungsprotokollierung — die Abrechnung der Partner hängt daran. */
-  apiKeyId: string;
 }
 
 /** Trägt dieser Schlüssel überhaupt einen Landesverband? */
@@ -120,7 +111,7 @@ export function registerLandesverbandTools(
   server: McpServer,
   opts: LandesverbandToolOptions
 ): void {
-  const { userId, landesverbaende, apiKeyId } = opts;
+  const { userId, landesverbaende } = opts;
   const allowed = listAllowedLandesverbaende(landesverbaende);
   const codes = allowed.map((lv) => lv.code);
   // Ein Enum statt eines freien Strings: der erlaubte Kreis steht schon fest,
@@ -165,7 +156,6 @@ export function registerLandesverbandTools(
       annotations: READONLY,
     },
     guarded('notebooks_search', async ({ query, landesverband, filters, limit }) => {
-      const startTime = Date.now();
       const resolved = resolveLandesverband(landesverbaende, landesverband);
       if (!resolved.ok) return text(resolved.reason, true);
 
@@ -188,16 +178,6 @@ export function registerLandesverbandTools(
         relevance: `${Math.round(c.similarity * 100)}%`,
         date: c.date,
       }));
-
-      // Die Abrechnung der Partner hängt an diesem Eintrag — v1 hat ihn über die
-      // REST-Route mitgeschrieben, und ohne ihn verschwände der MCP-Weg still
-      // aus der Nutzungsstatistik.
-      notebookHelper()
-        .logNotebookUsage(resolved.collectionId, userId, query, 0, Date.now() - startTime, {
-          apiKeyId,
-          landesverband,
-        })
-        .catch((e) => log.warn('[notebooks_search] usage log failed:', e));
 
       const payload = { landesverband, query, resultsCount: results.length, results };
       if (results.length === 0) return structured('Keine Treffer.', payload);

@@ -320,15 +320,6 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
       { field: 'document_id', type: 'keyword' },
     ],
   },
-  notebook_usage_logs: {
-    name: 'notebook_usage_logs',
-    optimizer: 'small',
-    hnsw: null,
-    indexes: [
-      { field: 'collection_id', type: 'keyword' },
-      { field: 'user_id', type: 'keyword' },
-    ],
-  },
   notebook_public_access: {
     name: 'notebook_public_access',
     optimizer: 'minimal',

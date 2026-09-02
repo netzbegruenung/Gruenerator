@@ -195,6 +195,9 @@ export async function* parseSSEStream(
   let receivedBahnData: BahnPayload | null = null;
   let receivedFollowUpSuggestions: string[] = [];
   let receivedMetadata: StreamMetadata | null = null;
+  // Notebook turns end on `completion`, never on `done`, so their trace id
+  // arrives outside the metadata envelope the chat paths use.
+  let receivedTraceId: string | null = null;
   let receivedConfirmAction: ConfirmActionData | null = null;
   let receivedCreatedDocument: DocumentCreatedData | null = null;
   let receivedReelProcessing: ReelProcessingData | null = null;
@@ -324,6 +327,13 @@ export async function* parseSSEStream(
     if (receivedComputeData) custom.computeData = receivedComputeData;
     if (receivedBahnData) custom.bahnData = receivedBahnData;
     if (receivedMetadata) custom.streamMetadata = receivedMetadata;
+    else if (receivedTraceId)
+      custom.streamMetadata = {
+        intent: 'direct',
+        searchCount: 0,
+        totalTimeMs: 0,
+        traceId: receivedTraceId,
+      };
     if (receivedFollowUpSuggestions.length > 0)
       custom.followUpSuggestions = receivedFollowUpSuggestions;
     if (receivedConfirmAction) custom.confirmAction = receivedConfirmAction;
@@ -1493,7 +1503,11 @@ export async function* parseSSEStream(
           const completionData = data as {
             text?: string;
             citations?: Array<NotebookWireCitation | Citation>;
+            metadata?: { traceId?: string };
           };
+          if (typeof completionData.metadata?.traceId === 'string') {
+            receivedTraceId = completionData.metadata.traceId;
+          }
           const isNotebookCitation = (
             c: NotebookWireCitation | Citation
           ): c is NotebookWireCitation => typeof (c as NotebookWireCitation).index === 'string';

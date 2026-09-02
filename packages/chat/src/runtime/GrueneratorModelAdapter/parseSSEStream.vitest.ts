@@ -465,3 +465,35 @@ describe('parseSSEStream tool approval', () => {
     expect(outcome.toolApprovalPending?.approvalTurnId).toBe('turn-1');
   });
 });
+
+/**
+ * The notebook stream (`/notebook/stream`, reachable from /chat with a notebook
+ * selected) ends on `completion`, never on `done` — so the trace id it carries
+ * there is the only one this parser ever sees on that path. Without it the
+ * thumbs feedback buttons stay hidden on notebook answers in the chat surface.
+ */
+describe('parseSSEStream notebook completion metadata', () => {
+  const traceId = 'a'.repeat(32);
+
+  async function lastMetadata(events: Array<{ event: string; data: unknown }>) {
+    const outcome = { interrupted: false, indexedDocumentIds: [] as string[] };
+    let last: { metadata?: { custom?: Record<string, unknown> } } | undefined;
+    for await (const result of parseSSEStream(sseResponse(events), callbacks, outcome)) {
+      last = result as typeof last;
+    }
+    return last?.metadata?.custom ?? {};
+  }
+
+  it('carries the completion trace id onto custom.streamMetadata', async () => {
+    const custom = await lastMetadata([
+      { event: 'text_delta', data: { text: 'Antwort' } },
+      { event: 'completion', data: { text: 'Antwort', metadata: { traceId } } },
+    ]);
+    expect((custom.streamMetadata as { traceId?: string } | undefined)?.traceId).toBe(traceId);
+  });
+
+  it('leaves streamMetadata off a completion without a trace id', async () => {
+    const custom = await lastMetadata([{ event: 'completion', data: { text: 'Antwort' } }]);
+    expect(custom.streamMetadata).toBeUndefined();
+  });
+});
