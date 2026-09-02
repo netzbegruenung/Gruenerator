@@ -418,8 +418,15 @@ const envSchema = z.object({
    */
   HYBRID_SERVER_SIDE_ENABLED: boolFlag(true),
 
-  /** Welche Fusion der Server-Pfad benutzt. Siehe HYBRID_SERVER_FUSIONS. */
-  HYBRID_SERVER_FUSION: z.enum(HYBRID_SERVER_FUSIONS).default('rrf'),
+  /**
+   * Welche Fusion der Server-Pfad benutzt. Siehe HYBRID_SERVER_FUSIONS.
+   * `dbsf` seit der Messreihe in #3118 (Task 8, 2026-09-02): auf den 10
+   * kommunalwiki-Fällen roh Hit@1 80 % / Hit@3 80 % / MRR@10 0,813 gegen
+   * `rrf` mit 50 % / 70 % / 0,642 und die Alt-Fusion (`legacy`) mit
+   * 60 % / 80 % / 0,720 — schlägt beide auf allen drei Metriken oder liegt
+   * gleichauf, bei unveränderten 42 Kontrollfällen.
+   */
+  HYBRID_SERVER_FUSION: z.enum(HYBRID_SERVER_FUSIONS).default('dbsf'),
 
   /**
    * Limit der Sparse-Vorabholung als Vielfaches der dichten. 0 lässt die
