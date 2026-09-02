@@ -10,6 +10,7 @@ import { describe, expect, it } from 'vitest';
 import {
   carComparison,
   formatCorridor,
+  formatDuration,
   formatEnergy,
   formatGrams,
   referenceComparison,
@@ -184,5 +185,34 @@ describe('referenceComparison', () => {
       market_backed_share: 0,
     });
     expect(r.hasComparison).toBe(false);
+  });
+});
+
+describe('formatDuration', () => {
+  it('keeps sub-minute durations in seconds', () => {
+    // A single short read-aloud must not collapse to "0 Min.".
+    expect(formatDuration(0)).toBe('0 Sek.');
+    expect(formatDuration(45)).toBe('45 Sek.');
+    expect(formatDuration(59)).toBe('59 Sek.');
+  });
+
+  it('switches to minutes at the seam', () => {
+    expect(formatDuration(60)).toBe('1 Min.');
+    expect(formatDuration(90)).toBe('2 Min.');
+    expect(formatDuration(3540)).toBe('59 Min.');
+  });
+
+  // The rounded remainder used to be able to reach 60: the minutes were
+  // rounded independently of the hours, so 1 h 59 m 50 s read "1 Std. 60 Min.".
+  it('carries a rounded-up remainder into the hour instead of printing 60 Min.', () => {
+    expect(formatDuration(7190)).toBe('2 Std.');
+    expect(formatDuration(3590)).toBe('1 Std.');
+    expect(formatDuration(3599)).toBe('1 Std.');
+  });
+
+  it('prints hours with the leftover minutes', () => {
+    expect(formatDuration(3600)).toBe('1 Std.');
+    expect(formatDuration(3660)).toBe('1 Std. 1 Min.');
+    expect(formatDuration(9000)).toBe('2 Std. 30 Min.');
   });
 });

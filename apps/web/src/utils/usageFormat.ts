@@ -121,12 +121,17 @@ export function formatCount(value: number): string {
  * count of something — which is exactly the misreading the unit name avoids.
  */
 export function formatDuration(seconds: number): string {
-  if (seconds >= 3600) {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.round((seconds % 3600) / 60);
+  // Round to whole minutes FIRST, then split. Rounding the remainder on its own
+  // lets it reach 60 — 7190 s came out as "1 Std. 60 Min." rather than "2 Std.".
+  const totalMinutes = Math.round(seconds / 60);
+
+  if (totalMinutes >= 60) {
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
     return minutes > 0 ? `${hours} Std. ${minutes} Min.` : `${hours} Std.`;
   }
-  if (seconds >= 60) return `${numberFormat.format(Math.round(seconds / 60))} Min.`;
+  // Below a minute stays in seconds, so a short read-aloud is not "0 Min.".
+  if (seconds >= 60) return `${numberFormat.format(totalMinutes)} Min.`;
   return `${numberFormat.format(seconds)} Sek.`;
 }
 
