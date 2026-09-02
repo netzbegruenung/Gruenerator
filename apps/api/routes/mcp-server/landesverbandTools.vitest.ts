@@ -10,7 +10,6 @@ import { z } from 'zod';
 
 const searchLandesverbandChunks = vi.fn();
 const loadLandesverbandFilters = vi.fn();
-const logNotebookUsage = vi.fn().mockResolvedValue({ success: true });
 
 vi.mock('../v1/landesverbandNotebooks.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../v1/landesverbandNotebooks.js')>()),
@@ -26,12 +25,6 @@ vi.mock('../v1/landesverbandMap.js', () => ({
     { code: 'BY', collectionId: 'bayern-system', name: 'Bayern' },
     { code: 'BE', collectionId: 'berlin-system', name: 'Berlin' },
   ],
-}));
-
-vi.mock('../../database/services/NotebookQdrantHelper.js', () => ({
-  NotebookQdrantHelper: class {
-    logNotebookUsage = (...a: unknown[]) => logNotebookUsage(...a);
-  },
 }));
 
 const { registerLandesverbandTools, hasLandesverbandAccess } =
@@ -53,7 +46,6 @@ function buildTools(landesverbaende: string[] | '*' | undefined) {
   registerLandesverbandTools(server as never, {
     userId: 'user-1',
     landesverbaende,
-    apiKeyId: 'key-1',
   });
   return tools;
 }
@@ -81,7 +73,6 @@ async function callAndValidate(
 beforeEach(() => {
   searchLandesverbandChunks.mockReset();
   loadLandesverbandFilters.mockReset();
-  logNotebookUsage.mockClear();
 });
 
 describe('hasLandesverbandAccess', () => {
@@ -149,23 +140,6 @@ describe('notebooks_search', () => {
     const result = await entry!.handler({ query: 'Verkehr', landesverband: 'BY', limit: 8 });
     expect(result.isError).toBe(true);
     expect(searchLandesverbandChunks).not.toHaveBeenCalled();
-  });
-
-  it('schreibt die Nutzung mit Schlüssel-Id und Landesverband fort', async () => {
-    searchLandesverbandChunks.mockResolvedValue([chunk]);
-    await callAndValidate(['HH'], 'notebooks_search', {
-      query: 'Verkehr',
-      landesverband: 'HH',
-      limit: 8,
-    });
-    expect(logNotebookUsage).toHaveBeenCalledWith(
-      'hamburg-system',
-      'user-1',
-      'Verkehr',
-      expect.any(Number),
-      expect.any(Number),
-      { apiKeyId: 'key-1', landesverband: 'HH' }
-    );
   });
 
   it('reicht limit und filters an den Abruf durch', async () => {

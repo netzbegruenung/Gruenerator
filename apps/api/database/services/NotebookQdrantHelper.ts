@@ -152,13 +152,6 @@ interface PublicAccessData {
   last_accessed_at: string | null;
 }
 
-interface UsageLogMetadata {
-  ip_address?: string | null;
-  user_agent?: string | null;
-  apiKeyId?: string | null;
-  landesverband?: string | null;
-}
-
 interface BulkDeleteResult {
   deleted: string[];
   failed: Array<{ id: string; error: string }>;
@@ -1149,53 +1142,6 @@ class NotebookQdrantHelper {
   }
 
   /**
-   * Log Notebook usage
-   */
-  async logNotebookUsage(
-    collectionId: string,
-    userId: string | null,
-    question: string,
-    answerLength: number,
-    responseTime: number,
-    metadata: UsageLogMetadata = {}
-  ): Promise<{ success: boolean; error?: string }> {
-    await this.ensureInitialized();
-
-    try {
-      // Generate embedding for the question for analytics
-      await mistralEmbeddingService.init();
-      const questionEmbedding = await mistralEmbeddingService.generateEmbedding(question);
-
-      const point: QdrantPoint = {
-        id: this.generateNumericId(uuidv4()),
-        vector: questionEmbedding,
-        payload: {
-          collection_id: collectionId,
-          user_id: userId,
-          question: question,
-          answer_length: answerLength,
-          response_time_ms: responseTime,
-          created_at: new Date().toISOString(),
-          ip_address: metadata.ip_address || null,
-          user_agent: metadata.user_agent || null,
-          api_key_id: metadata.apiKeyId || null,
-          landesverband: metadata.landesverband || null,
-        },
-      };
-
-      await this.qdrantOps!.batchUpsert(this.qdrant.collections.notebook_usage_logs, [point]);
-
-      logger.info(`Logged Notebook usage for collection: ${collectionId}`);
-      return { success: true };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      logger.error(`Error logging Notebook usage: ${message}`);
-      // Don't throw error for logging failures
-      return { success: false, error: message };
-    }
-  }
-
-  /**
    * Format collection data from Qdrant payload
    */
   formatCollectionFromPayload(payload: Record<string, unknown>): NotebookCollection {
@@ -1429,7 +1375,6 @@ export type {
   NotebookCollection,
   CollectionDocument,
   PublicAccessData,
-  UsageLogMetadata,
   BulkDeleteResult,
   GetCollectionsOptions,
 };
