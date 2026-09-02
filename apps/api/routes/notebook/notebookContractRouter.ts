@@ -239,7 +239,6 @@ export const notebookContractRouter = s.router(notebookContract, {
   },
 
   askSingle: async (args) => {
-    const startTime = Date.now();
     try {
       const auth = requireAuthUser(args.req);
       if (!auth.ok) return auth.response;
@@ -270,18 +269,6 @@ export const notebookContractRouter = s.router(notebookContract, {
         },
         fastMode,
       });
-
-      try {
-        await notebookHelper.logNotebookUsage(
-          collectionId,
-          userId,
-          question.trim(),
-          (result.answer || '').length,
-          Date.now() - startTime
-        );
-      } catch (logError) {
-        log.error('[notebookContract.askSingle] Error logging usage:', logError);
-      }
 
       // Track usage for "favourites first" ordering (fire-and-forget).
       recordItemUsageSafe(userId, 'notebook', collectionId as string);
@@ -522,7 +509,6 @@ export const notebookContractRouter = s.router(notebookContract, {
   },
 
   askPublic: async (args) => {
-    const startTime = Date.now();
     try {
       const accessToken = args.params.token;
       const question = args.body.question;
@@ -569,18 +555,6 @@ export const notebookContractRouter = s.router(notebookContract, {
         },
         fastMode,
       });
-
-      try {
-        await notebookHelper.logNotebookUsage(
-          collection.id,
-          null,
-          question.trim(),
-          (result.answer || '').length,
-          Date.now() - startTime
-        );
-      } catch (logError) {
-        log.error('[notebookContract.askPublic] Error logging usage:', logError);
-      }
 
       return {
         status: 200 as const,

@@ -374,19 +374,6 @@ CREATE TABLE IF NOT EXISTS notebook_collection_documents (
     UNIQUE(collection_id, document_id)
 );
 
-CREATE TABLE IF NOT EXISTS notebook_usage_logs (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    collection_id UUID REFERENCES notebook_collections(id) ON DELETE CASCADE,
-    user_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
-    question TEXT NOT NULL,
-    answer_length INTEGER,
-    response_time_ms INTEGER,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    ip_address INET,
-    user_agent TEXT
-);
-
-
 -- ════════════════════════════════════════════════════════════════════════════
 -- SECTION 7: GENERATORS & PROMPTS
 -- Custom generators, custom prompts, and saved items
