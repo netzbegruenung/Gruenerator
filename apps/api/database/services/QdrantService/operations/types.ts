@@ -137,6 +137,7 @@ export interface HybridConfig {
   serverFusion: ServerFusion;
   serverSparseFactor: number;
   serverRrfWeightDense: number;
+  serverScoreJoin: boolean;
 }
 
 // Quality config interface

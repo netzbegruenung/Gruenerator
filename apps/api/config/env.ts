@@ -454,6 +454,23 @@ const envSchema = z.object({
   /** Gewicht der dichten Vorabholung bei `rrf_weighted`; sparse bekommt 1 − dies. */
   HYBRID_SERVER_RRF_WEIGHT_DENSE: z.coerce.number().min(0).max(1).default(0.7),
 
+  /**
+   * Holt je Treffer den dichten Kosinus und den BM25-Wert über einen zweiten
+   * und dritten Eintrag desselben `queryBatch` zurück (#3166). `false` ist
+   * exakt der Zustand vor diesem PR — der Rückwärtsgang ohne Deploy und der
+   * Referenzarm der Messung.
+   *
+   * Wirkt nur auf den fusionierenden Armen (`rrf`, `rrf_weighted`, `dbsf`):
+   * bei `dense_rescore` IST der äussere `score` schon der Kosinus, bei
+   * `sparse_only` der BM25-Wert — dort kostet ein Join einen Rundlauf für
+   * nichts und wird nicht gebaut.
+   *
+   * Der Default steht auf `true`, WEIL die Messung ihn setzt (Regel R1 in der
+   * Spec). Bleibt der Join hinter dem ausgelieferten Zustand zurück, geht er
+   * als `false` in den Merge und der Code bleibt inert stehen.
+   */
+  HYBRID_SERVER_SCORE_JOIN: boolFlag(true),
+
   // ── Scoring ────────────────────────────────────────────────────────────
   SCORING_MAX_SIMILARITY_WEIGHT: z.coerce.number().default(0.6),
   SCORING_AVG_SIMILARITY_WEIGHT: z.coerce.number().default(0.4),
