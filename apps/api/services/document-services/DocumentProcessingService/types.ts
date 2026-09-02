@@ -9,8 +9,6 @@ import type { Chunk } from '../TextChunker/types.js';
  * Chunking options
  */
 export interface ChunkingOptions {
-  maxTokens?: number | undefined;
-  overlapTokens?: number | undefined;
   preserveSentences?: boolean | undefined;
   /** Document title, prepended to each chunk's embedding input (not stored) */
   title?: string | null;
