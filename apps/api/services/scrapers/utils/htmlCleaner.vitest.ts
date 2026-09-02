@@ -69,6 +69,10 @@ describe('htmlToStructuredText', () => {
 
     expect(out).toBe('1) Eins\n2) Zwei');
   });
+
+  it('lässt eine leere Überschrift keine nackte ##-Zeile hinterlassen', () => {
+    expect(htmlToStructuredText('<h2></h2><p>Text.</p>')).toBe('Text.');
+  });
 });
 
 /**
