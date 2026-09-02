@@ -142,3 +142,81 @@ describe('ChunkInspectorView', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 });
+
+const SEARCH_ENDPOINT = 'http://localhost/api/auth/admin/chunk-inspector/doc-1/search';
+
+describe('ChunkInspectorView — Suchfeld', () => {
+  it('markiert die Treffer dieses Dokuments mit ihrem Wert', async () => {
+    respondWith({
+      success: true,
+      header: header(),
+      chunks: [chunk(0), chunk(1)],
+      nextOffset: null,
+    });
+    server.use(
+      http.get(SEARCH_ENDPOINT, () =>
+        HttpResponse.json({
+          success: true,
+          hits: [{ index: 1, similarity: 0.83 }],
+          totalResults: 5,
+          scoped: false,
+        })
+      )
+    );
+    const { user } = renderWithProviders(
+      <ChunkInspectorView documentId="doc-1" collection="grundsatz-system" />
+    );
+    await screen.findByText(/Chunk 0 Text/);
+
+    await user.type(screen.getByLabelText('Suche in diesem Dokument'), 'Klimageld{Enter}');
+
+    expect(await screen.findByText('Treffer · 0,83')).toBeInTheDocument();
+  });
+
+  it('beschriftet eine sammlungsweite Suche ehrlich', async () => {
+    respondWith({ success: true, header: header(), chunks: [chunk(0)], nextOffset: null });
+    server.use(
+      http.get(SEARCH_ENDPOINT, () =>
+        HttpResponse.json({ success: true, hits: [], totalResults: 5, scoped: false })
+      )
+    );
+    const { user } = renderWithProviders(
+      <ChunkInspectorView documentId="doc-1" collection="grundsatz-system" />
+    );
+    await screen.findByText(/Chunk 0 Text/);
+
+    await user.type(screen.getByLabelText('Suche in diesem Dokument'), 'Klimageld{Enter}');
+
+    expect(
+      await screen.findByText('Suche über die ganze Sammlung; Treffer dieses Dokuments markiert')
+    ).toBeInTheDocument();
+    expect(screen.getByText('0 von 5 Treffern stammen aus diesem Dokument.')).toBeInTheDocument();
+  });
+
+  it('beschriftet eine eingeschränkte Suche als solche', async () => {
+    respondWith({
+      success: true,
+      header: header({ isSystemCollection: false }),
+      chunks: [chunk(0)],
+      nextOffset: null,
+    });
+    server.use(
+      http.get(SEARCH_ENDPOINT, () =>
+        HttpResponse.json({
+          success: true,
+          hits: [{ index: 0, similarity: 0.5 }],
+          totalResults: 1,
+          scoped: true,
+        })
+      )
+    );
+    const { user } = renderWithProviders(
+      <ChunkInspectorView documentId="doc-1" collection="nb-1" />
+    );
+    await screen.findByText(/Chunk 0 Text/);
+
+    await user.type(screen.getByLabelText('Suche in diesem Dokument'), 'Hitzeschutz{Enter}');
+
+    expect(await screen.findByText('Suche auf dieses Dokument eingeschränkt')).toBeInTheDocument();
+  });
+});
