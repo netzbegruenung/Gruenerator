@@ -142,6 +142,25 @@ export function pointIdRecipeFor(collection: string): PointIdRecipe | null {
         idKey: 'source_url',
         id: (key, index) => stringToNumericHash(`lv_${key}_${index}`),
       };
+    case 'bundestag_content':
+      // indexing.ts:198 — chunkToNumericId(url, index), OHNE Präfix. Der
+      // Schlüssel ist source_url; die Sammlung führt gar kein document_id.
+      return {
+        idKey: 'source_url',
+        id: (key, index) => stringToNumericHash(`${key}_${index}`),
+      };
+    case 'boell_stiftung_documents':
+      // BoellStiftungScraper.ts:637.
+      return {
+        idKey: 'source_url',
+        id: (key, index) => generatePointId('boell', key, index),
+      };
+    case 'gruene_at_documents':
+      // GrueneAtScraper.ts:451.
+      return {
+        idKey: 'source_url',
+        id: (key, index) => generatePointId('gruene_at', key, index),
+      };
     default:
       return null;
   }

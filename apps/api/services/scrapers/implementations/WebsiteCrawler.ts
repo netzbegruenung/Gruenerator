@@ -12,9 +12,10 @@ import { BRAND } from '../../../utils/domainUtils.js';
 import { createLogger } from '../../../utils/logger.js';
 import { safeFetch } from '../../../utils/validation/urlSecurity.js';
 import { BaseScraper } from '../base/BaseScraper.js';
+import { cleanText, htmlToStructuredText } from '../utils/htmlCleaner.js';
 
 import type { ScraperResult } from '../types.js';
-import type { Element, AnyNode } from 'domhandler';
+import type { AnyNode } from 'domhandler';
 
 const log = createLogger('WebsiteCrawler');
 
@@ -362,20 +363,23 @@ export class WebsiteCrawler extends BaseScraper {
       contentElement = $('body');
     }
 
-    // Clean text
-    const text = this.#cleanText(contentElement.text());
+    // Blockgrenzen erhalten: `text` geht als `full_text` in den Index und als
+    // Eingabe an den Chunker. Ein `\s+`-Kollaps hier macht den Struktur-Pfad
+    // per Konstruktion unerreichbar (#3163).
+    const text = htmlToStructuredText(contentElement.html() ?? '');
 
-    // Convert to markdown (simple version)
-    const markdown = this.#htmlToMarkdown(contentElement.html() || '');
+    // `markdown` hat keinen Leser (BundestagScraper benutzt nur `page.text`);
+    // das Feld bleibt am Vertrag `CrawledPage` und trägt denselben Text.
+    const markdown = text;
 
     // Extract publication date
     const publishedAt = this.#extractPublishedDate($);
 
     return {
-      title: this.#cleanText(title),
+      title: cleanText(title),
       text,
       markdown,
-      description: this.#cleanText(description),
+      description: cleanText(description),
       publishedAt,
     };
   }
@@ -493,63 +497,6 @@ export class WebsiteCrawler extends BaseScraper {
     }
 
     return null;
-  }
-
-  /**
-   * Clean extracted text
-   */
-  #cleanText(text: string): string {
-    if (!text) return '';
-
-    return text
-      .replace(/\s+/g, ' ') // Collapse whitespace
-      .replace(/\n\s*\n/g, '\n\n') // Normalize line breaks
-      .replace(/^\s+|\s+$/g, '') // Trim
-      .trim();
-  }
-
-  /**
-   * Simple HTML to Markdown conversion
-   */
-  #htmlToMarkdown(html: string): string {
-    if (!html) return '';
-
-    const $ = cheerio.load(html);
-
-    // Convert headings
-    $('h1, h2, h3, h4, h5, h6').each((_, el) => {
-      const level = parseInt((el as Element).tagName.charAt(1));
-      const prefix = '#'.repeat(level) + ' ';
-      $(el).replaceWith(prefix + $(el).text() + '\n\n');
-    });
-
-    // Convert paragraphs
-    $('p').each((_, el) => {
-      $(el).replaceWith($(el).text() + '\n\n');
-    });
-
-    // Convert lists
-    $('ul, ol').each((_, el) => {
-      $(el)
-        .find('li')
-        .each((i, li) => {
-          const isOrdered = (el as Element).tagName.toLowerCase() === 'ol';
-          const prefix = isOrdered ? `${i + 1}. ` : '- ';
-          $(li).replaceWith(prefix + $(li).text() + '\n');
-        });
-    });
-
-    // Convert bold/strong
-    $('strong, b').each((_, el) => {
-      $(el).replaceWith('**' + $(el).text() + '**');
-    });
-
-    // Convert italic/em
-    $('em, i').each((_, el) => {
-      $(el).replaceWith('*' + $(el).text() + '*');
-    });
-
-    return this.#cleanText($.text());
   }
 
   /**
