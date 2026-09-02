@@ -17,6 +17,9 @@ import type {
   FirstChunksResult,
   QdrantFilter,
   QdrantDocument,
+  InspectedChunkRow,
+  InspectedPayloadSummary,
+  InspectDocumentChunksResult,
 } from './types.js';
 import type { QdrantOperations } from '../../../database/services/QdrantOperations.js';
 
@@ -144,6 +147,166 @@ export async function getDocumentChunks(
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('[DocumentRetrieval] Error getting document chunks:', error);
     return { success: false, chunks: [], chunkCount: 0, error: errorMessage };
+  }
+}
+
+/** Eine Scroll-Seite; klein genug für Qdrant, gross genug für wenige Runden. */
+const INSPECT_SCROLL_PAGE_SIZE = 256;
+/** Deckel gegen ein Dokument mit absurd vielen Punkten (256 * 40 = 10 240). */
+const INSPECT_MAX_SCROLL_PAGES = 40;
+
+function readVectorPresence(raw: unknown): {
+  embeddingPresent: boolean;
+  sparsePresent: boolean;
+} {
+  // `scrollDocuments` castet auf `number[]` (batchOperations.ts:217). Bei
+  // benannten Vektoren ist der Laufzeitwert aber `{ '': [...], bm25: {...} }`
+  // (withBm25Vector, batchOperations.ts:78-81) — deshalb hier über `unknown`
+  // lesen statt dem deklarierten Typ zu glauben.
+  if (Array.isArray(raw)) return { embeddingPresent: raw.length > 0, sparsePresent: false };
+  if (raw !== null && typeof raw === 'object') {
+    const named = raw as Record<string, unknown>;
+    const dense = named[''];
+    return {
+      embeddingPresent: Array.isArray(dense) && dense.length > 0,
+      sparsePresent: Object.keys(named).some((key) => key !== '' && named[key] != null),
+    };
+  }
+  return { embeddingPresent: false, sparsePresent: false };
+}
+
+/** Zwei Zeilen mit je zwei oder mehr `|` — die Signatur einer Markdown-Tabelle. */
+function detectTable(text: string): boolean {
+  let rows = 0;
+  for (const line of text.split('\n')) {
+    if ((line.match(/\|/g)?.length ?? 0) >= 2) {
+      rows += 1;
+      if (rows >= 2) return true;
+    }
+  }
+  return false;
+}
+
+function toInspectedChunk(point: {
+  payload: Record<string, unknown>;
+  vector?: number[] | null | undefined;
+}): InspectedChunkRow {
+  const payload = point.payload;
+  const text = typeof payload.chunk_text === 'string' ? payload.chunk_text : '';
+  const { embeddingPresent, sparsePresent } = readVectorPresence(point.vector as unknown);
+  return {
+    index: typeof payload.chunk_index === 'number' ? payload.chunk_index : 0,
+    page: typeof payload.page_number === 'number' ? payload.page_number : null,
+    text,
+    charCount: text.length,
+    tokenCount: typeof payload.token_count === 'number' ? payload.token_count : null,
+    // Kein Rückfall auf 1.0 wie in searchWithQuality (vectorSearch.ts:144):
+    // dort ist es eine Ranking-Entscheidung, hier wäre es eine Lüge.
+    qualityScore: typeof payload.quality_score === 'number' ? payload.quality_score : null,
+    hasTable: detectTable(text),
+    embeddingPresent,
+    sparsePresent,
+  };
+}
+
+function str(value: unknown): string | null {
+  return typeof value === 'string' && value.length > 0 ? value : null;
+}
+
+/**
+ * Die Chunks eines Dokuments, wie sie im Punkt liegen — für den Admin-Inspektor.
+ *
+ * Unterschiede zu `getDocumentChunks` (jeder mit Grund, siehe Plan Task 2):
+ * kein `user_id`-Filter, `withVector: true`, seitenweise statt `limit: 1000`,
+ * und `hasTable` wird am Text erkannt statt aus der Nutzlast gelesen.
+ */
+export async function inspectDocumentChunks(
+  qdrantOps: QdrantOperations,
+  documentId: string,
+  qdrantCollection: string,
+  options: { offset: number; limit: number }
+): Promise<InspectDocumentChunksResult> {
+  try {
+    const filter: QdrantFilter = {
+      must: [{ key: 'document_id', match: { value: documentId } }],
+    };
+
+    const points: Array<{
+      id: string | number;
+      payload: Record<string, unknown>;
+      vector?: number[] | null | undefined;
+    }> = [];
+    let cursor: string | number | null = null;
+
+    for (let page = 0; page < INSPECT_MAX_SCROLL_PAGES; page++) {
+      const batch = await qdrantOps.scrollDocuments(qdrantCollection, filter, {
+        limit: INSPECT_SCROLL_PAGE_SIZE,
+        withPayload: true,
+        withVector: true,
+        offset: cursor,
+      });
+      // Qdrants Scroll-Offset ist eine Punkt-ID und inklusiv: der Cursor-Punkt
+      // kommt als erstes Element der nächsten Seite noch einmal.
+      // Gleiche Behandlung wie NotebookQdrantHelper.ts:615-617.
+      const fresh = cursor === null ? batch : batch.filter((p) => p.id !== cursor);
+      points.push(...fresh);
+      if (batch.length < INSPECT_SCROLL_PAGE_SIZE) break;
+      cursor = batch[batch.length - 1].id;
+    }
+
+    if (points.length === 0) {
+      return {
+        success: false,
+        chunks: [],
+        chunkCount: 0,
+        nextOffset: null,
+        payload: null,
+        error: 'No chunks found',
+      };
+    }
+
+    // `chunk_index` ist nirgends indiziert (qdrantCollectionsSchema.ts:205-208),
+    // ein range-Filter wäre ein Nutzlast-Scan. Deshalb im Speicher sortieren —
+    // genau wie getDocumentChunks es schon tut.
+    const all = points.map(toInspectedChunk).sort((a, b) => a.index - b.index);
+
+    const first = points.find((p) => (p.payload.chunk_index ?? 0) === all[0].index) ?? points[0];
+    const maxPage = all.reduce<number | null>(
+      (acc, chunk) => (chunk.page === null ? acc : Math.max(acc ?? chunk.page, chunk.page)),
+      null
+    );
+    const payload: InspectedPayloadSummary = {
+      title: str(first.payload.title),
+      filename: str(first.payload.filename),
+      sourceUrl: str(first.payload.source_url),
+      sourceType: str(first.payload.source_type),
+      extractionMethod: str(first.payload.extraction_method),
+      createdAt: str(first.payload.created_at),
+      maxPage,
+    };
+
+    const slice = all.slice(options.offset, options.offset + options.limit);
+    const next = options.offset + options.limit;
+
+    return {
+      success: true,
+      chunks: slice,
+      chunkCount: all.length,
+      nextOffset: next < all.length ? next : null,
+      payload,
+      error: null,
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('[DocumentRetrieval] Error inspecting document chunks:', error);
+    return {
+      success: false,
+      chunks: [],
+      chunkCount: 0,
+      nextOffset: null,
+      payload: null,
+      error: errorMessage,
+    };
   }
 }
 
