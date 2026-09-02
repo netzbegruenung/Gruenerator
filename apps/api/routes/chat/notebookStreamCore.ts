@@ -48,7 +48,7 @@ import {
   streamForResolution,
   streamWithFallback,
 } from './services/responseStreamingService.js';
-import { PROGRESS_MESSAGES, SSEWriter } from './services/sseHelpers.js';
+import { PROGRESS_MESSAGES, SSEWriter, sendChatWarning } from './services/sseHelpers.js';
 
 import type { SearchContext } from '../../services/notebook/types.js';
 import type { CollectionConfig, SourcesByCollection } from '../../services/search/types.js';
@@ -67,7 +67,6 @@ export interface NotebookStreamOptions {
   collectionId?: string;
   collectionIds?: string[];
   filters?: Record<string, unknown>;
-  provider?: string;
   model?: string;
   mode?: NotebookDepth;
   userId?: string;
@@ -94,6 +93,8 @@ export interface NotebookStreamResult {
   citations: unknown[];
   sources: unknown[];
   question: string;
+  /** Langfuse trace of the turn; null when Langfuse is disabled. Target for thumbs feedback. */
+  traceId: string | null;
 }
 
 export async function handleNotebookStream(
@@ -106,7 +107,6 @@ export async function handleNotebookStream(
     collectionId,
     collectionIds,
     filters,
-    provider: _provider,
     model,
     mode,
     userId,
@@ -158,30 +158,43 @@ export async function handleNotebookStream(
     const question = lastUserMessage.content;
     const t0 = Date.now();
 
-    // Conversation history is an ultra-only capability (profile.history).
-    // Other tiers drop incoming history EXPLICITLY — the chat-mode client has
-    // always sent the full unpruned thread to this endpoint, and before this
-    // gate it was spread into the model messages unbudgeted.
     const lastUserIdx = messages.lastIndexOf(lastUserMessage);
-    let history = profile.history ? normalizeNotebookHistory(messages.slice(0, lastUserIdx)) : [];
-    if (!profile.history && messages.length > 1) {
-      log.debug(`[Notebook] Dropping ${messages.length - 1} history messages (tier ${depth})`);
+    const incomingHistory = normalizeNotebookHistory(messages.slice(0, lastUserIdx));
+    // Prompt-Verlauf ist eine Ultra-Fähigkeit (profile.history). Die Stufen
+    // darunter verwerfen ihn für den Prompt AUSDRÜCKLICH — der Chat-Client hat
+    // immer den vollen Thread geschickt, und ohne dieses Gitter landete er
+    // unbudgetiert in den Modellnachrichten.
+    let history = profile.history ? incomingHistory : [];
+    if (!profile.history && incomingHistory.length > 0) {
+      log.debug(
+        `[Notebook] Dropping ${incomingHistory.length} history messages from the prompt (tier ${depth})`
+      );
     }
 
     sse.send('search_start', { message: 'Suche in Dokumenten...' });
 
-    // Tiers above one variant search several formulations of the question and
-    // union the hits. expandQuery degrades to zero alternatives on failure, so
-    // the worst case is the single-query behaviour of the tiers below. With
-    // history present, the same call also resolves the follow-up into a
-    // standalone query ("und in Bayern?" carries no topic for vector search).
+    // Die Suchanfrage: umgeschrieben gegen den Verlauf, wenn die Stufe es
+    // erlaubt und Verlauf da ist („und in Bayern?" trägt kein Thema); dazu
+    // Paraphrasen, wenn die Stufe mehr als eine Formulierung sucht. Beides ist
+    // EIN expandQuery-Aufruf; ohne Verlauf und mit einer Variante gibt es keinen.
     let queries = [question];
-    if (profile.queryVariants > 1) {
+    const wantsRewrite = profile.queryRewrite && incomingHistory.length > 0;
+    if (wantsRewrite || profile.queryVariants > 1) {
       const expanded = await expandQuery(
         question,
-        history.length > 0 ? { historyContext: buildRewriteTranscript(history) } : {}
+        wantsRewrite
+          ? {
+              historyContext: buildRewriteTranscript(incomingHistory),
+              // `deep` rewrites but keeps a single query — asking for
+              // alternatives it would immediately slice away is wasted spend.
+              ...(profile.queryVariants <= 1 && { variants: 0 }),
+            }
+          : {}
       );
-      queries = [expanded.primary, ...expanded.alternatives].slice(0, profile.queryVariants);
+      queries = [expanded.primary, ...expanded.alternatives].slice(
+        0,
+        Math.max(1, profile.queryVariants)
+      );
       if (queries.length > 1) {
         sse.send('progress_step', {
           stepId: 'notebook-query-expansion',
@@ -192,6 +205,13 @@ export async function handleNotebookStream(
         });
       }
     }
+
+    // The reranker's cross-encoder must read the same query the candidates
+    // were retrieved with. `queries[0]` is the rewritten standalone question
+    // when the rewrite ran, and equals `question` unchanged when it was
+    // skipped or failed — so the un-rewritten follow-up never reaches it.
+    // `queries` is seeded with `question`, so it is never empty.
+    const rerankQuery = queries[0];
 
     let searchContext: SearchContext | null;
     try {
@@ -259,7 +279,7 @@ export async function handleNotebookStream(
       const reranked = await rerankNotebookResults({
         results: searchContext.sortedResults,
         referencesMap: searchContext.referencesMap,
-        question,
+        question: rerankQuery,
         limit: profile.rerankOutput,
         inputLimit: profile.rerankInput,
       });
@@ -419,6 +439,7 @@ export async function handleNotebookStream(
     sse.send('response_start', { message: 'Generiere Antwort...' });
 
     const notebookTelemetry = buildAiTelemetry('notebook-chat.respond');
+    let traceId: string | null = null;
     // Wrap in a trace so propagateAttributes sets trace-level user/session —
     // AI SDK telemetry carries no metadata of its own, so without this
     // notebook traces would show empty User/Session.
@@ -429,6 +450,7 @@ export async function handleNotebookStream(
         ...(collectionId && { sessionId: collectionId }),
       },
       async (trace) => {
+        traceId = trace.traceId ?? null;
         const text = await streamWithFallback({
           primary: primaryResolution,
           sse,
@@ -486,18 +508,22 @@ export async function handleNotebookStream(
       // Return the fallback instead of null: the controller only persists when
       // a result comes back, so returning null left the user's message in the
       // thread without any assistant reply after reload.
-      return { answer: fallback, citations: [], sources: [], question };
+      return { answer: fallback, citations: [], sources: [], question, traceId: null };
     }
 
     const { renumberedDraft, newReferencesMap } = renumberCitationsInOrder(
       fullText,
       searchContext.referencesMap
     );
-    const { cleanDraft, citations, sources } = validateAndInjectCitations(
+    const { cleanDraft, citations, sources, errors } = validateAndInjectCitations(
       renumberedDraft,
       newReferencesMap,
       { question }
     );
+    if (errors && errors.length > 0) {
+      log.warn(`[Notebook] ${errors.length} invalid citation marker(s): ${errors.join(', ')}`);
+      sendChatWarning(sse, 'citation_invalid');
+    }
 
     const allSources = searchContext.sortedResults
       .filter((_, i) => !citations.some((c) => c.index === String(i + 1)))
@@ -535,6 +561,7 @@ export async function handleNotebookStream(
         citationsCount: citations.length,
         depth,
         queryCount: queries.length,
+        ...(traceId ? { traceId } : {}),
       },
     });
 
@@ -544,7 +571,7 @@ export async function handleNotebookStream(
     );
     if (options.closeStream !== false) sse.end();
 
-    return { answer: cleanDraft, citations, sources, question };
+    return { answer: cleanDraft, citations, sources, question, traceId };
   } catch (error: unknown) {
     log.error('Notebook stream error:', error);
     sse.send('error', {

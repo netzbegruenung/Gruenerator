@@ -12,6 +12,7 @@ import authMiddleware from './middleware/authMiddleware.js';
 import { deprecatedRoute } from './middleware/deprecatedRoute.js';
 import { rateLimitMiddleware } from './middleware/rateLimitMiddleware.js';
 import { requireAiConsent } from './middleware/requireAiConsent.js';
+import { mountChunkInspectorContractRouter } from './routes/admin/chunkInspectorContractRouter.js';
 import { mountInstanceAdminOverviewContractRouter } from './routes/admin/instanceAdminOverviewContractRouter.js';
 import { mountLandesverbandAdminContractRouter } from './routes/admin/landesverbandAdminContractRouter.js';
 import { mountLvAdminAssignmentContractRouter } from './routes/admin/lvAdminAssignmentContractRouter.js';
@@ -879,6 +880,11 @@ export async function setupRoutes(app: Application): Promise<void> {
   // abgesichert), ein einziger Mount-Aufruf.
   app.use('/api/agents', requireAuth);
   mountAgentVisibilityContractRouter(app);
+  // Chunk-Inspektor (#3123): admin-gesicherter Blick auf das, was der Abruf zu
+  // einem Dokument gespeichert hat. requireAuth am Präfix, requireInstanceAdmin
+  // pro Handler — dieselbe Bauform wie die Admin-Router oben.
+  app.use('/api/auth/admin/chunk-inspector', requireAuth);
+  mountChunkInspectorContractRouter(app);
   // Per-user external MCP server registry (EXPERIMENTAL). requireAuth at the
   // prefix — every route is user-scoped and handles user-entered credentials.
   app.use('/api/mcp/servers', requireAuth);

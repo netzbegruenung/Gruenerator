@@ -716,6 +716,25 @@ describe('convertNotebookLoadedMessages', () => {
     expect(custom.question).toBe('');
   });
 
+  // Thumbs feedback targets the Langfuse trace of the turn, and the buttons
+  // only appear when `custom.streamMetadata.traceId` is there. The live path
+  // builds that in NotebookModelAdapter; reload has to rebuild the same shape
+  // or the thumbs vanish the moment the conversation is reopened.
+  it('rebuilds streamMetadata from the persisted traceId', () => {
+    const traceId = 'a'.repeat(32);
+    const [answer] = convertNotebookLoadedMessages([
+      { id: 'a1', role: 'assistant', content: 'Antwort.', metadata: { traceId } },
+    ]);
+    const custom = answer?.metadata?.custom as Record<string, unknown>;
+    expect(custom.streamMetadata).toEqual({ intent: 'direct', searchCount: 0, traceId });
+  });
+
+  it('leaves streamMetadata off an answer that has no traceId', () => {
+    const [, answer] = convertNotebookLoadedMessages(rows);
+    const custom = answer?.metadata?.custom as Record<string, unknown>;
+    expect(custom.streamMetadata).toBeUndefined();
+  });
+
   it('reads an answer without citations as an empty list, not a crash', () => {
     const [answer] = convertNotebookLoadedMessages([
       { id: 'a1', role: 'assistant', content: 'Dazu finde ich nichts.' },
