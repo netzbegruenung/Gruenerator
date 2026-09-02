@@ -29,11 +29,11 @@ afterEach(() => {
 });
 
 describe('NOTEBOOK_EVIDENCE_WEAK_* — ausgelieferter Zustand', () => {
-  it('liefert dunkel aus: Schwelle 0,89, Ereignis abgeschaltet', async () => {
+  it('liefert dunkel aus: Schwelle 0,9356, Ereignis abgeschaltet', async () => {
     for (const key of KEYS) delete process.env[key];
     vi.resetModules();
     const { env } = await import('./env.js');
-    expect(env.NOTEBOOK_EVIDENCE_WEAK_THRESHOLD).toBe(0.89);
+    expect(env.NOTEBOOK_EVIDENCE_WEAK_THRESHOLD).toBe(0.9356);
     expect(env.NOTEBOOK_EVIDENCE_WEAK_ENABLED).toBe(false);
   });
 });
