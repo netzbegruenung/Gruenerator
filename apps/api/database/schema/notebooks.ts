@@ -1,5 +1,5 @@
 import { type InferSelectModel } from 'drizzle-orm';
-import { boolean, inet, integer, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { boolean, integer, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 export const notebook_collections = pgTable('notebook_collections', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -22,18 +22,5 @@ export const notebook_collection_documents = pgTable('notebook_collection_docume
   added_by: uuid('added_by'),
 });
 
-export const notebook_usage_logs = pgTable('notebook_usage_logs', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  collection_id: uuid('collection_id'),
-  user_id: uuid('user_id'),
-  question: text('question').notNull(),
-  answer_length: integer('answer_length'),
-  response_time_ms: integer('response_time_ms'),
-  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
-  ip_address: inet('ip_address'),
-  user_agent: text('user_agent'),
-});
-
 export type NotebookCollection = InferSelectModel<typeof notebook_collections>;
 export type NotebookCollectionDocument = InferSelectModel<typeof notebook_collection_documents>;
-export type NotebookUsageLog = InferSelectModel<typeof notebook_usage_logs>;
