@@ -186,6 +186,24 @@ describe('segmentBlocks', () => {
     expect(blocks[0].text).toBe('# Kapitel 3\n## 3.1 Unterkapitel\nEin Satz Text.');
     expect(blocks[0].headingPath).toEqual(['Kapitel 3', '3.1 Unterkapitel']);
   });
+
+  it('hängt eine Überschrift am Dokumentende NICHT an eine Tabelle, sondern bildet einen eigenen Block', () => {
+    const blocks = segmentBlocks(['| a | b |', '| c | d |', '', '# Fazit'].join('\n'));
+
+    expect(blocks).toHaveLength(2);
+    expect(blocks[0].kind).toBe('table');
+    expect(blocks[0].text).toBe('| a | b |\n| c | d |');
+    expect(blocks[1].kind).toBe('text');
+    expect(blocks[1].text).toBe('# Fazit');
+  });
+
+  it('überspringt keine Ebene, sondern hängt direkt an — headingPath bleibt lückenlos', () => {
+    const blocks = segmentBlocks(['# H1', '', '### H3', '', 'Ein Satz Text.'].join('\n'));
+
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0].headingPath).toEqual(['H1', 'H3']);
+    expect(blocks[0].headingPath.every(Boolean)).toBe(true);
+  });
 });
 
 describe('splitTableBlock', () => {

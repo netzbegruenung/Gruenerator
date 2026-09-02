@@ -15,6 +15,12 @@
  * Zeile in den Block, der auf sie folgt. Sonst verlöre `chunk_text` die
  * Überschriftentexte — und damit den lexikalischen Treffer, den BM25 daraus
  * zieht.
+ *
+ * Ausnahme: eine Überschrift am Dokumentende, der kein Inhalt mehr folgt. Sie
+ * hängt sich als letzte Zeile an den vorigen text-Block (dessen `headingPath`
+ * unverändert bleibt) — oder bildet, wenn der vorige Block eine Tabelle ist
+ * oder es gar keinen vorigen Block gibt, ausnahmsweise doch einen eigenen
+ * text-Block.
  */
 
 export type BlockKind = 'text' | 'table';
@@ -120,7 +126,12 @@ export function segmentBlocks(text: string): DocumentBlock[] {
     if (heading) {
       flushText();
       blankBuffer = [];
-      stack.length = Math.max(0, heading.level - 1);
+      // NIE wachsen: eine Ebene überspringende Überschrift (z. B. `# H1` direkt
+      // gefolgt von `### H3`) darf keine Lücke (`undefined`) in den Stapel
+      // reissen. `Math.min` kürzt nur, `stack.push` unten hängt die neue
+      // Überschrift direkt an — `headingPath` wird dadurch `['H1', 'H3']`,
+      // nicht `['H1', undefined, 'H3']`.
+      stack.length = Math.min(stack.length, heading.level - 1);
       // Eine Geschwister- oder Vorfahren-Überschrift ersetzt die alte(n) Zeile(n)
       // auf derselben oder einer höheren Ebene im Carry — sonst reitet die
       // längst überholte Zeile mit in den nächsten Block. Eine tiefere
@@ -162,11 +173,14 @@ export function segmentBlocks(text: string): DocumentBlock[] {
 
   // Eine Überschrift ohne folgenden Inhalt (Dokumentende) bekommt keinen
   // eigenen, inhaltslosen Block — sie hängt sich als letzte Zeile an den
-  // vorigen Block, dessen `headingPath` unverändert bleibt. Gibt es keinen
-  // vorigen Block, bleibt es beim bisherigen Verhalten: ein einzelner
+  // vorigen Block, dessen `headingPath` unverändert bleibt. Das gilt NUR,
+  // wenn der vorige Block ein text-Block ist: an eine Tabelle angehängt wäre
+  // die letzte Zeile keine Pipe-Zeile mehr, und `splitTableBlock` bekäme eine
+  // kaputte Tabelle. Ist der vorige Block eine Tabelle, oder gibt es gar
+  // keinen vorigen Block, bleibt es bei der Ausnahme: ein einzelner
   // text-Block, der nur aus der Überschrift besteht.
-  if (pending.length === 0 && carry.length > 0 && blocks.length > 0) {
-    const last = blocks[blocks.length - 1];
+  const last = blocks.length > 0 ? blocks[blocks.length - 1] : undefined;
+  if (pending.length === 0 && carry.length > 0 && last?.kind === 'text') {
     last.text = [last.text, ...carry].join('\n');
   } else {
     openText();
