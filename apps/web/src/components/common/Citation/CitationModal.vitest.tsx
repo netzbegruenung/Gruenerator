@@ -72,7 +72,7 @@ describe('CitationModal — Dialog-Semantik (#3133)', () => {
 
     const region = await screen.findByRole('region', { name: 'Zitat im Zusammenhang' });
     await waitFor(() => expect(region).toHaveFocus());
-    expect(screen.getByRole('button', { name: /Close/i })).not.toHaveFocus();
+    expect(screen.getByRole('button', { name: /Schließen/i })).not.toHaveFocus();
   });
 
   it('schliesst per Escape und gibt den Fokus an das auslösende Element zurück', async () => {

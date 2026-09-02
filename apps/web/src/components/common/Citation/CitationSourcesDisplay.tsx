@@ -1,4 +1,4 @@
-import { type JSX, useCallback, type KeyboardEvent } from 'react';
+import { type JSX, useCallback } from 'react';
 
 import useCitationStore, { type LinkConfig } from '../../../stores/citationStore';
 import { cn } from '../../../utils/cn';
@@ -74,16 +74,6 @@ const CitationSourcesDisplay = ({
       }
     },
     [fetchChunkContext, linkConfig]
-  );
-
-  const handleCitationKeyDown = useCallback(
-    (e: KeyboardEvent<HTMLDivElement>, citation: Citation) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        handleCitationClick(citation);
-      }
-    },
-    [handleCitationClick]
   );
 
   // Create document groups that merge sources and citations
@@ -245,17 +235,15 @@ const CitationSourcesDisplay = ({
                     </>
                   );
                   return isClickable ? (
-                    <div
+                    <button
+                      type="button"
                       key={idx}
-                      className="flex gap-sm p-xxs ml-xs max-sm:block max-sm:p-xs max-sm:ml-0 cursor-pointer transition-all duration-200 rounded-sm hover:bg-background-alt focus:outline-2 focus:outline-accent focus:outline-offset-2 active:scale-[0.99]"
+                      className="flex w-full gap-sm p-xxs ml-xs max-sm:block max-sm:p-xs max-sm:ml-0 cursor-pointer border-none bg-transparent text-left transition-all duration-200 rounded-sm hover:bg-background-alt focus:outline-2 focus:outline-accent focus:outline-offset-2 active:scale-[0.99]"
                       onClick={() => handleCitationClick(citation)}
-                      onKeyDown={(e) => handleCitationKeyDown(e, citation)}
-                      tabIndex={0}
-                      role="button"
                       title="Im Kontext anzeigen"
                     >
                       {citationContent}
-                    </div>
+                    </button>
                   ) : (
                     <div
                       key={idx}

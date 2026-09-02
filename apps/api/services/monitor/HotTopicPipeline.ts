@@ -279,12 +279,15 @@ ${positionsText ? `\nGRÜNE POSITIONEN (nutze diese für fundierte Tweets):\n${p
 
 // ─── Citation helpers ────────────────────────────────────────────────
 
-function mapCitations(citations: ResearchCitation[]): MonitorCitation[] {
+export function mapCitations(citations: ResearchCitation[]): MonitorCitation[] {
   return citations.map((c) => ({
     id: String(c.id),
     title: c.title,
     url: c.url,
     snippet: c.snippet || '',
+    ...(c.documentId && c.chunkIndex != null
+      ? { documentId: c.documentId, chunkIndex: c.chunkIndex }
+      : {}),
   }));
 }
 
