@@ -450,7 +450,7 @@ const envSchema = z.object({
    * aber nicht dieselbe Stufe. Ein Gatter-Arm ist inzwischen gemessen
    * (`tune-join-rrf-gate.json`, 02.09.2026): identisch zum Nicht-Gatter-Lauf
    * (53,8 % / 0,665 GESAMT, `kommunalwiki-system` unverändert 60 % / 0,692) —
-   * `gateMeasuredForArm` lässt den Gewinner `rrf` unverändert durch.
+   * das Gatter läuft auf `rrf` und entfernt dort nichts.
    */
   HYBRID_SERVER_FUSION: z.enum(HYBRID_SERVER_FUSIONS).default('rrf'),
 
