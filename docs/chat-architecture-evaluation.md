@@ -6,6 +6,8 @@ Dieses Papier hält das Ergebnis von fünf Audit-Runden fest: Bewertung von Lang
 
 Jede Architekturaussage ist mit `datei:zeile` belegt und wurde gegen den oben genannten Commit geprüft. Wo eine Aussage nicht verifiziert werden konnte, steht das ausdrücklich dabei.
 
+> **Lies §11 zuerst.** Die §§1–10 sind eine Bestandsaufnahme vom **29.07.2026** und beschreiben den Zustand **vor** dem Sanierungsprogramm — sie stehen bewusst im Präsens und lesen sich deshalb wie eine Beschreibung von heute. Das sind sie nicht: Das Programm ist abgearbeitet, und was stattdessen gilt, hält [§11](#11-endstand-des-sanierungsprogramms) fest. Wer §2.1 („Zwei Wege, ein LLM aufzurufen", `AIWorkerPool`) für den aktuellen Stand hält, plant gegen eine Architektur, die es nicht mehr gibt — heute führt genau **ein** Weg zum Modell (`services/ai/generate.ts`). Der Hinweis steht hier oben, weil eine Aussage, die man erst 280 Zeilen später zurückgenommen findet, vorher schon jemand geglaubt hat.
+
 ---
 
 ## 1. Zusammenfassung
