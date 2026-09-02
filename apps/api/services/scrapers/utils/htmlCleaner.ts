@@ -123,7 +123,9 @@ export function htmlToStructuredText(html: string): string {
           .get()
           .flatMap((inner) => {
             const rendered = renderList(inner as Element);
-            $(inner).remove();
+            // Ein Leerzeichen statt `.remove()`: sonst rücken die Textknoten
+            // links und rechts der Unterliste aneinander ("A<ul>…</ul>B" → "AB").
+            $(inner).replaceWith(' ');
             return rendered;
           });
         // `1) ` statt `1. `: `NUMBERED_HEADING` (blockSegmentation.ts) liest ein

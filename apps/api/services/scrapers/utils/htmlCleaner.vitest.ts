@@ -98,6 +98,14 @@ describe('htmlToStructuredText', () => {
 
     expect(htmlToStructuredText(html)).toBe('- Zwei\n- A\n- B\n- Drei');
   });
+
+  it('trennt eigenen Text links und rechts einer Unterliste (Review-Thread auf #3174)', () => {
+    // Ohne Leerzeichen im Quell-HTML rückten "A" und "B" nach dem Herauslösen
+    // der Unterliste zu "AB" zusammen.
+    const html = '<ul><li>A<ul><li>x</li></ul>B</li><li>C</li></ul>';
+
+    expect(htmlToStructuredText(html)).toBe('- A B\n- x\n- C');
+  });
 });
 
 /**
