@@ -380,7 +380,13 @@ async function hybridSearchServerSide(
       autoSwitchedFromRRF: false,
       // Factor 0 drops the sparse prefetch entirely (`useSparse`, :243) — a
       // dense-only request has no BM25 lane, so these must not claim one.
-      hasRealTextMatches: useSparse,
+      //
+      // Mit dem Sparse-Join (#3166) ist die ehrliche Antwort schärfer: nicht
+      // "Lane vorhanden", sondern "Lane hat getroffen". Ohne Join bleibt es
+      // bei der Lane — mehr weiss der Pfad dort nicht. `textMatchTypes` folgt
+      // bewusst NICHT: welcher Matcher in der Lane läuft, ist eine Eigenschaft
+      // der Lane und keine Aussage über diesen einen Treffer.
+      hasRealTextMatches: useBatch ? textById.size > 0 : useSparse,
       textMatchTypes: useSparse ? ['bm25'] : [],
     },
   };
