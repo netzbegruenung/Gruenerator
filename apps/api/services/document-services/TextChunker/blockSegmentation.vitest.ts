@@ -144,6 +144,48 @@ describe('segmentBlocks', () => {
     expect(blocks[0].kind).toBe('text');
     expect(blocks[0].text.startsWith('# Förderübersicht')).toBe(true);
   });
+
+  it('hängt eine Überschrift am Dokumentende an den vorigen Block, statt einen eigenen zu bilden', () => {
+    const blocks = segmentBlocks(['Ein Satz Text.', '', '# Letztes Kapitel'].join('\n'));
+
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0].kind).toBe('text');
+    expect(blocks[0].text).toBe('Ein Satz Text.\n# Letztes Kapitel');
+    // headingPath des vorigen Blocks bleibt unverändert — die Überschrift
+    // eröffnet keinen neuen, echten Abschnitt, da nichts mehr folgt.
+    expect(blocks[0].headingPath).toEqual([]);
+  });
+
+  it('bleibt ein einziger text-Block, wenn das Dokument nur aus einer Überschrift besteht', () => {
+    const blocks = segmentBlocks('# Nur Überschrift');
+
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0].kind).toBe('text');
+    expect(blocks[0].text).toBe('# Nur Überschrift');
+  });
+
+  it('lässt eine Geschwister-Überschrift die vorige aus dem Carry verdrängen', () => {
+    const blocks = segmentBlocks(['# Kapitel 3', '# Kapitel 4', 'Ein Satz Text.'].join('\n'));
+
+    expect(blocks).toHaveLength(1);
+    // "Kapitel 3" ist von "Kapitel 4" auf derselben Ebene ersetzt worden —
+    // seine Zeile darf nicht mehr im Text auftauchen.
+    expect(blocks[0].text).toBe('# Kapitel 4\nEin Satz Text.');
+    expect(blocks[0].headingPath).toEqual(['Kapitel 4']);
+  });
+
+  it('behält die Elternzeile im Carry, wenn eine tiefere Überschrift direkt folgt', () => {
+    const blocks = segmentBlocks(
+      ['# Kapitel 3', '## 3.1 Unterkapitel', 'Ein Satz Text.'].join('\n')
+    );
+
+    expect(blocks).toHaveLength(1);
+    // Beide Überschriften sind noch unverbraucht und auf dem Pfad — beide
+    // Zeilen reiten mit, wie es headingPath (['Kapitel 3', '3.1 Unterkapitel'])
+    // auch abbildet.
+    expect(blocks[0].text).toBe('# Kapitel 3\n## 3.1 Unterkapitel\nEin Satz Text.');
+    expect(blocks[0].headingPath).toEqual(['Kapitel 3', '3.1 Unterkapitel']);
+  });
 });
 
 describe('splitTableBlock', () => {
@@ -177,13 +219,51 @@ describe('splitTableBlock', () => {
     }
   });
 
-  it('verliert keine Datenzeile', () => {
+  it('verliert keine Datenzeile und dupliziert keine — Reihenfolge und Einmaligkeit', () => {
     const block = segmentBlocks(LONG_TABLE_FIXTURE).find((b) => b.kind === 'table');
     const teile = splitTableBlock(block!.text);
-    const alleZeilen = new Set(teile.flatMap((t) => t.split('\n')));
-    for (const zeile of block!.text.split('\n')) {
-      expect(alleZeilen.has(zeile)).toBe(true);
+
+    // Kopf = alle Zeilen bis einschliesslich der Trennzeile, exakt wie in splitTableBlock selbst.
+    const zeilenOriginal = block!.text.split('\n');
+    const separatorIndex = zeilenOriginal.findIndex((z) => /^\s*\|[\s:|-]+\|\s*$/.test(z));
+    const headerLength = separatorIndex + 1;
+    const datenzeilenOriginal = zeilenOriginal.slice(headerLength);
+
+    // Kopf aus jedem Teil abschneiden und der Reihe nach wieder aneinanderhängen.
+    const datenzeilenWiederhergestellt = teile.flatMap((teil) =>
+      teil.split('\n').slice(headerLength)
+    );
+
+    expect(datenzeilenWiederhergestellt).toEqual(datenzeilenOriginal);
+  });
+
+  it('wiederholt bei einer Tabelle ohne Trennzeile keinen Kopf — jedes Teilstück ist eine reine Zeilengruppe', () => {
+    // 60 Datenzeilen, keine Trennzeile — segmentBlocks verlangt für einen
+    // table-Block nur zwei aufeinanderfolgende Pipe-Zeilen, keine Trennzeile.
+    const zeilen = Array.from({ length: 60 }, (_, i) => `| Zeile ${i + 1} | Wert ${i + 1} |`);
+    const tabelle = zeilen.join('\n');
+    const teile = splitTableBlock(tabelle, 200);
+
+    expect(teile.length).toBeGreaterThan(1);
+
+    // Keine Zeile taucht in mehr als einem Teilstück auf.
+    const gesehen = new Set<string>();
+    for (const teil of teile) {
+      for (const zeile of teil.split('\n')) {
+        expect(gesehen.has(zeile)).toBe(false);
+        gesehen.add(zeile);
+      }
     }
+
+    // Die erste Zeile von Teil 2 ist die Zeile, die auf die letzte Zeile von Teil 1 folgte.
+    const zeilenTeil1 = teile[0].split('\n');
+    const letzteVonTeil1 = zeilenTeil1[zeilenTeil1.length - 1];
+    const indexInOriginal = zeilen.indexOf(letzteVonTeil1);
+    expect(indexInOriginal).toBeGreaterThanOrEqual(0);
+    expect(teile[1].split('\n')[0]).toBe(zeilen[indexInOriginal + 1]);
+
+    // Insgesamt bleiben alle 60 Zeilen erhalten, in Reihenfolge, ohne Kopf-Wiederholung.
+    expect(teile.flatMap((t) => t.split('\n'))).toEqual(zeilen);
   });
 
   it('lässt eine einzelne übergroße Zeile ganz, statt sie zu zerschneiden', () => {
