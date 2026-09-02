@@ -460,10 +460,14 @@ const envSchema = z.object({
    * exakt der Zustand vor diesem PR — der Rückwärtsgang ohne Deploy und der
    * Referenzarm der Messung.
    *
-   * Wirkt nur auf den fusionierenden Armen (`rrf`, `rrf_weighted`, `dbsf`):
-   * bei `dense_rescore` IST der äussere `score` schon der Kosinus, bei
-   * `sparse_only` der BM25-Wert — dort kostet ein Join einen Rundlauf für
-   * nichts und wird nicht gebaut.
+   * Die Batch geht nur auf den fusionierenden Armen raus (`rrf`,
+   * `rrf_weighted`, `dbsf`): bei `dense_rescore` IST der äussere `score`
+   * schon der Kosinus, bei `sparse_only` der BM25-Wert — dort kostet ein
+   * Join einen Rundlauf für nichts und wird nicht gebaut. `false` blendet
+   * trotzdem auf ALLEN fünf Armen aus: `joinOn` gated auch
+   * `denseFromScore`/`textFromScore` (`hybridSearch.ts:334–335`), also leert
+   * es auch `originalVectorScore` auf `dense_rescore` und `originalTextScore`
+   * auf `sparse_only`.
    *
    * Der Default steht auf `true`, WEIL die Messung ihn setzt (Regel R1 in der
    * Spec). Bleibt der Join hinter dem ausgelieferten Zustand zurück, geht er

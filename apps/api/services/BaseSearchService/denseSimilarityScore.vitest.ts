@@ -69,10 +69,14 @@ describe('dense_similarity_score gilt nur für den server-seitigen Score-Join', 
     // gemessene dichte Kosinus aus dem Join liegt weit darunter bei 0.21 —
     // dieselbe Naht wie im Aufgabenbrief (Task 3, "wirft einen hohen
     // Fusionswert mit zu kleinem Kosinus weg").
+    // originalVectorScore und denseSimilarityScore bewusst UNGLEICH: die
+    // Vorfix-Implementierung (Math.max(...vectorScores)) hätte hier 0.77
+    // zurückgegeben, nicht 0.21 — nur ein Feld, das den Server-Join wirklich
+    // gesondert trägt, besteht diesen Test.
     const [doc] = await svc().groupAndRankHybridResults(
       [
         chunk('server-doc', 'Text ohne Bezug zur Anfrage.', 0.98, {
-          originalVectorScore: 0.21,
+          originalVectorScore: 0.77,
           denseSimilarityScore: 0.21,
         }),
       ],

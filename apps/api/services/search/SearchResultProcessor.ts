@@ -435,10 +435,11 @@ export function renumberCitationsInOrder<T>(
  * Schnitt gegen den unboosteten Kosinus dort würde die 42 Alt-Kontrollfälle
  * verschieben, die dieser Umbau explizit unverändert lassen soll.
  *
- * The `threshold` gate is on raw `similarity` (recency only re-orders sources
- * that already qualify — it never rescues a weak source). The boost is additive
- * and small (see recency.ts), so content quality stays decisive; dateless
- * sources get boost 0 and keep pure-similarity behaviour.
+ * The gate runs on `dense_similarity ?? similarity`, never on the
+ * recency-boosted `effective()` — recency only re-orders sources that already
+ * qualify, it never rescues a weak source. The boost is additive and small
+ * (see recency.ts), so content quality stays decisive; dateless sources get
+ * boost 0 and keep pure-similarity behaviour.
  */
 export function filterAndSortResults(
   results: ExpandedChunkResult[],

@@ -21,11 +21,24 @@ import type { QdrantClient } from '@qdrant/js-client-rest';
 import type { HybridConfig, QdrantFilter } from './types.js';
 
 const state = vi.hoisted(() => ({ hybrid: {} as Record<string, unknown> }));
+const loggerState = vi.hoisted(() => ({
+  info: vi.fn(),
+  warn: vi.fn(),
+  error: vi.fn(),
+  debug: vi.fn(),
+}));
 
 vi.mock('../../../../config/vectorConfig.js', () => ({
   vectorConfig: {
     get: (section: string) => (section === 'hybrid' ? state.hybrid : {}),
   },
+}));
+
+// Spy on the coverage log line (Fix-Runde 1, finding 2): `createLogger` is
+// called once at module load, so the mock must hand back the SAME object on
+// every call for the test to observe what `hybridSearch.ts` logged.
+vi.mock('../../../../utils/logger.js', () => ({
+  createLogger: () => loggerState,
 }));
 
 /**
@@ -506,6 +519,12 @@ describe('HYBRID_SERVER_SCORE_JOIN', () => {
     await runArm(client);
 
     expect(sentSearches(client)).toHaveLength(2);
+    // Kein Spiegel geht raus, also darf die Deckungszeile nicht "sparse join
+    // 0/N" lesen — das läse sich wie "kein Treffer im Join getroffen" statt
+    // "kein Join verschickt".
+    const [logLine] = loggerState.info.mock.calls[0] as [string];
+    expect(logLine).toContain('sparse join skipped');
+    expect(logLine).not.toContain('sparse join 0/');
   });
 
   it('ist bei false byte-gleich zum Zustand vor #3166', async () => {
