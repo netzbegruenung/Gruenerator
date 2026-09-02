@@ -84,8 +84,8 @@ export const transparencyFootprintSchema = z.object({
    *
    * Present as its own field rather than left to be inferred from `totals`: a
    * dashboard that renders a CO2 figure beside an activity count implies the
-   * activity is included. For these two it is not, and the number that says so
-   * has to be as easy to reach as the number it qualifies.
+   * activity is included. For these it is not, and the number that says so has
+   * to be as easy to reach as the number it qualifies.
    */
   unvalued_ops: z.object({
     /** No provider reports impact for speech-to-text, and the table records no
@@ -93,6 +93,17 @@ export const transparencyFootprintSchema = z.object({
     transcriptions: z.number(),
     /** The energy sits in the search provider's crawl and index, not with us. */
     searches: z.number(),
+    /**
+     * Seconds of synthesised speech. KugelAudio reports no consumption, and no
+     * published text-to-speech measurement shares the system boundary every
+     * figure in energyFootprint.ts is calibrated against — so there is no
+     * coefficient to value these with.
+     *
+     * Unlike `transcriptions` the DURATION is recorded here, which is the
+     * quantity the energy would scale with. Once a defensible coefficient
+     * exists, the whole period can be revalued without a backfill.
+     */
+    speech_seconds: z.number(),
   }),
 });
 

@@ -52,8 +52,10 @@ export const GREENPT_BASE_URL = 'https://api.greenpt.ai/v1';
  *   vectors to global — no Qdrant re-index needed), /v1/ocr and
  *   /v1/audio/{transcriptions,speech} all work.
  *   404 "no Route matched" on EU: /v1/files, /v1/conversations (Agents) and
- *   /v1/audio/voices. Those three keep using `MISTRAL_GLOBAL_API_URL` — see
- *   `mistralGlobalClient` in `services/ai/mistralClient.ts` for who and why.
+ *   /v1/audio/voices. The first two keep using `MISTRAL_GLOBAL_API_URL`.
+ *   /v1/audio/voices no longer matters: the speech synthesis moved to
+ *   KugelAudio (`services/voice/ttsService.ts`) and the global client it was
+ *   the sole reason for is gone.
  */
 export const MISTRAL_GLOBAL_API_URL = 'https://api.mistral.ai/v1';
 export const MISTRAL_EU_API_URL = 'https://api.eu.mistral.ai/v1';
