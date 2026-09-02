@@ -577,6 +577,8 @@ const chatCitationBase = z.object({
   documentId: z.string().optional(),
   chunkIndex: z.number().optional(),
   similarityScore: z.number().optional(),
+  /** Seite im Ursprungsdokument, wenn der Chunk eine trägt (PDF-Ingest). */
+  pageNumber: z.number().nullable().optional(),
   collectionId: z.string().optional(),
   /** Set on fan-out per-document retrieval, so the UI can group source cards
    *  by the document they answer for. */
