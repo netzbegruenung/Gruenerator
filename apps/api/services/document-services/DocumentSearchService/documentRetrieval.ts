@@ -22,6 +22,7 @@ import type {
   InspectDocumentChunksResult,
 } from './types.js';
 import type { QdrantOperations } from '../../../database/services/QdrantOperations.js';
+import type { ScrollPoint } from '../../../database/services/QdrantService/operations/types.js';
 
 /**
  * Get full document text from Qdrant vectors
@@ -187,10 +188,7 @@ function detectTable(text: string): boolean {
   return false;
 }
 
-function toInspectedChunk(point: {
-  payload: Record<string, unknown>;
-  vector?: number[] | null | undefined;
-}): InspectedChunkRow {
+function toInspectedChunk(point: ScrollPoint): InspectedChunkRow {
   const payload = point.payload;
   const text = typeof payload.chunk_text === 'string' ? payload.chunk_text : '';
   const { embeddingPresent, sparsePresent } = readVectorPresence(point.vector as unknown);
@@ -231,11 +229,7 @@ export async function inspectDocumentChunks(
       must: [{ key: 'document_id', match: { value: documentId } }],
     };
 
-    const points: Array<{
-      id: string | number;
-      payload: Record<string, unknown>;
-      vector?: number[] | null | undefined;
-    }> = [];
+    const points: ScrollPoint[] = [];
     let cursor: string | number | null = null;
 
     for (let page = 0; page < INSPECT_MAX_SCROLL_PAGES; page++) {
