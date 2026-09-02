@@ -46,6 +46,7 @@ import {
   letterheadsContract,
   notebookSharingContract,
   notificationsContract,
+  memoryContract,
   emailContract,
   feedbackContract,
   modelPreferencesContract,
@@ -277,6 +278,7 @@ const _userWebsitesClient = () => initClient(userWebsitesContract, CLIENT_OPTS);
 const _letterheadsClient = () => initClient(letterheadsContract, CLIENT_OPTS);
 const _notebookSharingClient = () => initClient(notebookSharingContract, CLIENT_OPTS);
 const _notificationsClient = () => initClient(notificationsContract, CLIENT_OPTS);
+const _memoryClient = () => initClient(memoryContract, CLIENT_OPTS);
 const _emailClient = () => initClient(emailContract, CLIENT_OPTS);
 const _feedbackClient = () => initClient(feedbackContract, CLIENT_OPTS);
 const _modelPreferencesClient = () => initClient(modelPreferencesContract, CLIENT_OPTS);
@@ -347,6 +349,7 @@ export interface ContractsClient {
   letterheads: ReturnType<typeof _letterheadsClient>;
   notebookSharing: ReturnType<typeof _notebookSharingClient>;
   notifications: ReturnType<typeof _notificationsClient>;
+  memory: ReturnType<typeof _memoryClient>;
   email: ReturnType<typeof _emailClient>;
   feedback: ReturnType<typeof _feedbackClient>;
   modelPreferences: ReturnType<typeof _modelPreferencesClient>;
@@ -431,6 +434,7 @@ export function getContractsClient(): ContractsClient {
     letterheads: _letterheadsClient(),
     notebookSharing: _notebookSharingClient(),
     notifications: _notificationsClient(),
+    memory: _memoryClient(),
     email: _emailClient(),
     feedback: _feedbackClient(),
     modelPreferences: _modelPreferencesClient(),

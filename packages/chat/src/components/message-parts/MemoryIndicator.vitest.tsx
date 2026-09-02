@@ -9,7 +9,7 @@ import type { MemoryContextInfo } from '../../hooks/useChatGraphStream';
 function memoryContext(over: Partial<MemoryContextInfo> = {}): MemoryContextInfo {
   return {
     memoryCount: 1,
-    memories: [{ content: 'Mag Fahrrad', category: 'preference' }],
+    memories: [{ content: 'Mag Fahrrad', category: 'anweisung' }],
     isPersona: false,
     ...over,
   };
@@ -54,7 +54,7 @@ describe('MemoryIndicator', () => {
     expect(screen.queryByText('Mag Fahrrad')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button'));
     expect(screen.getByText('Mag Fahrrad')).toBeInTheDocument();
-    expect(screen.getByText('Präferenz')).toBeInTheDocument();
+    expect(screen.getByText('Anweisung')).toBeInTheDocument();
   });
 
   it('falls back to the raw category string for an unknown category', async () => {

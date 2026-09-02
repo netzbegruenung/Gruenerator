@@ -70,6 +70,7 @@ import { buildToolObservationReplay, spliceToolReplay } from './mcpReplay.js';
 import { stripDuplicatedOpening } from './openingDedupe.js';
 import { type RecipeRegistry } from './recipeRegistry.js';
 import { rewritesSuppliedText } from './routing.js';
+import { looksLikeMemoryRequest } from '../../../../services/memory/memoryRequest.js';
 import { createSourceRegistry } from './sourceRegistry.js';
 import { buildConnectorNotes, buildSynthSystem, type SynthPromptContext } from './synthPrompt.js';
 import { createAnswerValidator, finalizeAnswerText, pdfProblemNote } from './synthVerdicts.js';
@@ -513,6 +514,21 @@ export async function streamAgenticResponse(
     const hasAttachedDocuments = retrievableAttachedSources(finalState).length > 0;
     const summaryAsk = isSummaryAsk(lastUserText);
 
+    // Ein Merk-Auftrag benennt sein Werkzeug so eindeutig wie eine
+    // @-Erwähnung. Ohne Zwang liess der kleine Planer ein montiertes Werkzeug
+    // in 2 von 5 Fällen liegen (toolScope-Rundlauf) — und eine Speicherung, die
+    // die Antwort bestätigt, aber nie stattfand, ist die teuerste Ausfallform.
+    // Nur pinnen, wenn das Werkzeug wirklich montiert ist: ein benanntes
+    // Werkzeug, das nicht in `activeTools` steht, verlangt einen Aufruf, dessen
+    // Definition nie mitgeschickt wird.
+    const memoryPin =
+      finalState.mentionPinnedTool == null &&
+      'memory' in wrapped &&
+      looksLikeMemoryRequest(lastUserText)
+        ? 'memory'
+        : null;
+    const pinnedTool = finalState.mentionPinnedTool ?? memoryPin;
+
     // Die acht Wege dahinter stehen in `shouldForceFirstToolCall` — samt der
     // Live-Ausfälle, die jeden einzelnen erzwungen haben.
     const forceFirstToolCall = shouldForceFirstToolCall({
@@ -526,7 +542,7 @@ export async function streamAgenticResponse(
       priorTurnRetrieved: priorTurnRetrieved(toolHistory),
       classifierContradictedResearch: finalState.classifierContradictedResearch === true,
       materialHeavy,
-      pinnedTool: finalState.mentionPinnedTool ?? null,
+      pinnedTool,
       hasAttachedDocuments,
       summaryAsk,
       attachedSeedDelivered: seeded.delivered,
@@ -538,7 +554,7 @@ export async function streamAgenticResponse(
     // Modell kann die Wahl also gar nicht mehr sehen.
     const firstToolName = forceFirstToolCall
       ? pinnedFirstTool({
-          pinnedTool: finalState.mentionPinnedTool ?? null,
+          pinnedTool,
           hasAttachedDocuments,
           summaryAsk,
           isMounted: (name) => name in wrapped,

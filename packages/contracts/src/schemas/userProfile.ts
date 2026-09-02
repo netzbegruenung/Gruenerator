@@ -75,6 +75,8 @@ export const profileUpdateBodySchema = z.object({
   reduce_motion: z.boolean().optional(),
   reduce_transparency: z.boolean().optional(),
   show_skip_link: z.boolean().optional(),
+  /** The Gedächtnis switch in the Erinnerungen tab (profiles.memory_enabled). */
+  memory_enabled: z.boolean().optional(),
   /**
    * Ausdrückliche Einwilligung nach Art. 9 Abs. 2 lit. a DSGVO. Der Client
    * schreibt nur „erteilt/widerrufen" — den Zeitstempel setzt der Server, damit
