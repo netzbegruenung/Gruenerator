@@ -9,6 +9,7 @@
  */
 
 import { chunkToNumericId } from '../../../database/services/QdrantService/utils.js';
+import { structurePayload } from '../structurePayload.js';
 
 import type {
   ChunkWithMetadata,
@@ -59,6 +60,7 @@ export async function storeDocumentVectors(
       document_id: documentId,
       chunk_index: index,
       chunk_text: chunk.text,
+      ...structurePayload(chunk),
       token_count: chunk.tokens || 0,
       source_type: metadata.sourceType || 'manual',
       wolke_share_link_id: metadata.wolkeShareLinkId || null,

@@ -29,7 +29,11 @@ import {
 import { BRAND } from '../../../utils/domainUtils.js';
 import { generatePointId } from '../../../utils/validation/index.js';
 import { chunkQualityService } from '../../ChunkQualityService/index.js';
-import { smartChunkDocument, buildEmbeddingTexts } from '../../document-services/index.js';
+import {
+  smartChunkDocument,
+  buildEmbeddingTexts,
+  structurePayload,
+} from '../../document-services/index.js';
 import { mistralEmbeddingService } from '../../mistral/index.js';
 import { BaseScraper } from '../base/BaseScraper.js';
 import {
@@ -374,6 +378,7 @@ export class ProgramPdfScraper extends BaseScraper {
           ...download.fingerprint,
           chunk_index: index,
           chunk_text: chunkTexts[index],
+          ...structurePayload(chunk),
           quality_score: chunkQualityService.calculateQualityScore(chunkTexts[index]),
           document_type: 'programm',
           content_type: doc.primaryCategory.toLowerCase(),
