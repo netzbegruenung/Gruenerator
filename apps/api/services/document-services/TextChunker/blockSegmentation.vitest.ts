@@ -109,4 +109,29 @@ describe('segmentBlocks', () => {
     expect(indizes[0]).toBe(1);
     expect(Math.max(...indizes)).toBe(4);
   });
+
+  it('lässt die Überschrift über eine Leerzeile hinweg in die Tabelle reiten', () => {
+    const text = [
+      '# Förderübersicht',
+      '',
+      '| Jahr | Anteil |',
+      '| --- | --- |',
+      '| 2026 | 18 Prozent |',
+    ].join('\n');
+    const blocks = segmentBlocks(text);
+
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0].kind).toBe('table');
+    expect(blocks[0].text.startsWith('# Förderübersicht')).toBe(true);
+    expect(blocks[0].headingPath).toEqual(['Förderübersicht']);
+  });
+
+  it('lässt die Überschrift über eine Leerzeile hinweg in den Absatz reiten', () => {
+    const text = ['# Förderübersicht', '', 'Die Förderung startet im kommenden Jahr.'].join('\n');
+    const blocks = segmentBlocks(text);
+
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0].kind).toBe('text');
+    expect(blocks[0].text.startsWith('# Förderübersicht')).toBe(true);
+  });
 });
