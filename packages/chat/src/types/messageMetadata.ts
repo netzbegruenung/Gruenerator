@@ -89,6 +89,15 @@ export type ChatMessageMetadata = {
   /** Turn was interrupted mid-stream (row still status='streaming' on reload);
    *  the partial text renders normally plus a subtle marker. */
   interrupted?: boolean;
+  /**
+   * Das Notebook hat zur Frage wenig Passendes gefunden (`evidence_weak`).
+   * Trägt den SERVER-Text, keinen booleschen Schalter: der Satz lebt in
+   * `CHAT_WARNINGS.evidence_weak.message` und soll genau eine Quelle behalten.
+   *
+   * Bewusst NICHT in PASSTHROUGH_METADATA_FIELDS — der Hinweis ist
+   * zugscheibenlokal, siehe threadMessageConversion.ts.
+   */
+  evidenceWeak?: string;
   // Notebook specific
   rawCitations?: RawCitation[];
   sources?: Source[];

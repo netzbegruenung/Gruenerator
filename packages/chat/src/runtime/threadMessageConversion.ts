@@ -159,6 +159,13 @@ function extractContent(content: unknown): string {
  * The regression test in `threadMessageConversion.vitest.ts` iterates this list
  * (and the tool-derived fields) and fails if a rich field is dropped on reload —
  * this is the guard that would have caught charts / createdDocument / agentId.
+ *
+ * ── Eine bewusste Ausnahme ──────────────────────────────────────────────────
+ * `custom.evidenceWeak` (#3140) steht NICHT in dieser Liste und überlebt einen
+ * Reload nicht. Das bricht die Invariante mit Absicht: persistieren hiesse,
+ * eine PROVISORISCHE Schwelle in die Datenbank zu schreiben, und der Schalter
+ * `NOTEBOOK_EVIDENCE_WEAK_ENABLED` ist noch aus. Nicht „reparieren", ohne die
+ * offene Frage 1 der Spec entschieden zu haben.
  */
 export const PASSTHROUGH_METADATA_FIELDS = [
   'citations',

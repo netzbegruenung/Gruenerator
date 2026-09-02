@@ -341,6 +341,7 @@ export function createNotebookModelAdapter(
       let sourcesByCollectionAccum: Record<string, unknown> | undefined;
       let resultIdAccum: string | undefined;
       let linkConfigAccum: LinkConfig | undefined;
+      let evidenceWeakAccum: string | undefined;
 
       function buildResult(): ChatModelRunResult {
         const custom: Record<string, unknown> = {};
@@ -360,6 +361,7 @@ export function createNotebookModelAdapter(
             traceId: completionData.metadata.traceId,
           };
         }
+        if (evidenceWeakAccum) custom.evidenceWeak = evidenceWeakAccum;
         custom.question = question;
         custom.answerText = accumulatedText;
 
@@ -492,7 +494,14 @@ export function createNotebookModelAdapter(
                 // Non-fatal degradation the backend wants the user to know
                 // about. Without this case the event fell into `default:` and
                 // was dropped on every notebook surface.
-                const { message } = data as { code: string; message: string };
+                const { code, message } = data as { code: string; message: string };
+                // `evidence_weak` ist keine Störung, sondern eine Aussage über
+                // GENAU DIESE Antwort. Ein Toast steht über der Seite und
+                // gehört zu keiner Nachricht; der Satz gehört unter den Text.
+                if (code === 'evidence_weak') {
+                  if (message) evidenceWeakAccum = message;
+                  break;
+                }
                 if (message) notifyWarning(message);
                 break;
               }
