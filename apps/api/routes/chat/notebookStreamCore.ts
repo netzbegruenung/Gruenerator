@@ -158,30 +158,36 @@ export async function handleNotebookStream(
     const question = lastUserMessage.content;
     const t0 = Date.now();
 
-    // Conversation history is an ultra-only capability (profile.history).
-    // Other tiers drop incoming history EXPLICITLY — the chat-mode client has
-    // always sent the full unpruned thread to this endpoint, and before this
-    // gate it was spread into the model messages unbudgeted.
     const lastUserIdx = messages.lastIndexOf(lastUserMessage);
-    let history = profile.history ? normalizeNotebookHistory(messages.slice(0, lastUserIdx)) : [];
-    if (!profile.history && messages.length > 1) {
-      log.debug(`[Notebook] Dropping ${messages.length - 1} history messages (tier ${depth})`);
+    const incomingHistory = normalizeNotebookHistory(messages.slice(0, lastUserIdx));
+    // Prompt-Verlauf ist eine Ultra-Fähigkeit (profile.history). Die Stufen
+    // darunter verwerfen ihn für den Prompt AUSDRÜCKLICH — der Chat-Client hat
+    // immer den vollen Thread geschickt, und ohne dieses Gitter landete er
+    // unbudgetiert in den Modellnachrichten.
+    let history = profile.history ? incomingHistory : [];
+    if (!profile.history && incomingHistory.length > 0) {
+      log.debug(
+        `[Notebook] Dropping ${incomingHistory.length} history messages from the prompt (tier ${depth})`
+      );
     }
 
     sse.send('search_start', { message: 'Suche in Dokumenten...' });
 
-    // Tiers above one variant search several formulations of the question and
-    // union the hits. expandQuery degrades to zero alternatives on failure, so
-    // the worst case is the single-query behaviour of the tiers below. With
-    // history present, the same call also resolves the follow-up into a
-    // standalone query ("und in Bayern?" carries no topic for vector search).
+    // Die Suchanfrage: umgeschrieben gegen den Verlauf, wenn die Stufe es
+    // erlaubt und Verlauf da ist („und in Bayern?" trägt kein Thema); dazu
+    // Paraphrasen, wenn die Stufe mehr als eine Formulierung sucht. Beides ist
+    // EIN expandQuery-Aufruf; ohne Verlauf und mit einer Variante gibt es keinen.
     let queries = [question];
-    if (profile.queryVariants > 1) {
+    const wantsRewrite = profile.queryRewrite && incomingHistory.length > 0;
+    if (wantsRewrite || profile.queryVariants > 1) {
       const expanded = await expandQuery(
         question,
-        history.length > 0 ? { historyContext: buildRewriteTranscript(history) } : {}
+        wantsRewrite ? { historyContext: buildRewriteTranscript(incomingHistory) } : {}
       );
-      queries = [expanded.primary, ...expanded.alternatives].slice(0, profile.queryVariants);
+      queries = [expanded.primary, ...expanded.alternatives].slice(
+        0,
+        Math.max(1, profile.queryVariants)
+      );
       if (queries.length > 1) {
         sse.send('progress_step', {
           stepId: 'notebook-query-expansion',
