@@ -121,6 +121,12 @@ export function segmentBlocks(text: string): DocumentBlock[] {
       flushText();
       blankBuffer = [];
       stack.length = Math.max(0, heading.level - 1);
+      // Eine Geschwister- oder Vorfahren-Überschrift ersetzt die alte(n) Zeile(n)
+      // auf derselben oder einer höheren Ebene im Carry — sonst reitet die
+      // längst überholte Zeile mit in den nächsten Block. Eine tiefere
+      // Überschrift unter einem noch nicht verbrauchten Elternteil behält
+      // dessen Zeile, exakt wie `headingPath` den Elternteil auch behält.
+      carry.length = Math.min(carry.length, stack.length);
       stack.push(heading.title);
       sectionIndex += 1;
       carry.push(lines[i].trim());
@@ -154,8 +160,18 @@ export function segmentBlocks(text: string): DocumentBlock[] {
     i += 1;
   }
 
-  openText();
-  flushText();
+  // Eine Überschrift ohne folgenden Inhalt (Dokumentende) bekommt keinen
+  // eigenen, inhaltslosen Block — sie hängt sich als letzte Zeile an den
+  // vorigen Block, dessen `headingPath` unverändert bleibt. Gibt es keinen
+  // vorigen Block, bleibt es beim bisherigen Verhalten: ein einzelner
+  // text-Block, der nur aus der Überschrift besteht.
+  if (pending.length === 0 && carry.length > 0 && blocks.length > 0) {
+    const last = blocks[blocks.length - 1];
+    last.text = [last.text, ...carry].join('\n');
+  } else {
+    openText();
+    flushText();
+  }
   return blocks;
 }
 
@@ -176,6 +192,11 @@ const TABLE_SEPARATOR = /^\s*\|[\s:|-]+\|\s*$/;
  * Überschriftenzeilen, die der Block trägt. Ohne diese Wiederholung ist jedes
  * Teilstück ab dem zweiten eine Zahlenkolonne ohne Spaltennamen.
  *
+ * Fehlt die Trennzeile (der Block hat KEINEN Header — `segmentBlocks` verlangt
+ * ja nur zwei aufeinanderfolgende Pipe-Zeilen, keine Trennzeile), gibt es
+ * nichts zu wiederholen: jede Zeile ist eine Datenzeile, jedes Teilstück eine
+ * reine Zeilengruppe ohne Kopf.
+ *
  * Eine EINZELNE Zeile über `maxChars` bleibt ganz und reißt den Deckel: eine
  * halbe Tabellenzeile ist wertlos, und die Anbietergrenze liegt bei 20480
  * Zeichen je Text (MistralEmbeddingClient), also weit darüber.
@@ -185,23 +206,24 @@ export function splitTableBlock(text: string, maxChars: number = TABLE_CHUNK_MAX
 
   const lines = text.split('\n');
   const separatorAt = lines.findIndex((line) => TABLE_SEPARATOR.test(line));
-  const headerEnd = separatorAt >= 0 ? separatorAt : 0;
-  const header = lines.slice(0, headerEnd + 1).join('\n');
-  const body = lines.slice(headerEnd + 1);
+  const header = separatorAt >= 0 ? lines.slice(0, separatorAt + 1) : [];
+  const body = separatorAt >= 0 ? lines.slice(separatorAt + 1) : lines;
+
+  const assemble = (rows: string[]): string => [...header, ...rows].join('\n');
 
   const parts: string[] = [];
   let buffer: string[] = [];
 
   for (const row of body) {
-    const candidate = [header, ...buffer, row].join('\n');
+    const candidate = assemble([...buffer, row]);
     if (buffer.length > 0 && candidate.length > maxChars) {
-      parts.push([header, ...buffer].join('\n'));
+      parts.push(assemble(buffer));
       buffer = [row];
     } else {
       buffer.push(row);
     }
   }
-  if (buffer.length > 0) parts.push([header, ...buffer].join('\n'));
+  if (buffer.length > 0) parts.push(assemble(buffer));
 
   return parts.length > 0 ? parts : [text];
 }
