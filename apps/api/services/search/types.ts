@@ -151,10 +151,14 @@ export interface ExpandedChunkResult {
   filename: string | null;
   similarity: number;
   /**
-   * Der dichte Kosinus hinter `similarity`, wo die Suchschicht ihn gemessen
-   * hat. Fehlt auf dem Alt-Pfad und bei Dokumenten, deren Chunks nur aus der
-   * BM25-Lane kamen — Leser brauchen deshalb IMMER den Rückfall
-   * `dense_similarity ?? similarity` (#3166).
+   * Der dichte Kosinus hinter `similarity`, aus dem server-seitigen
+   * Score-Join (#3166 Task 2) — NICHT einfach "wo die Suchschicht einen
+   * gemessen hat": der Alt-Pfad misst pro Chunk ebenfalls einen Kosinus,
+   * dieses Feld bleibt dort aber (Fix-Runde 1) bewusst leer, weil `similarity`
+   * dort bereits Begriffstreffer-/Diversitäts-/Hybrid-Boni auf den Kosinus
+   * addiert, die dieses Feld nicht kennt. Fehlt also auf dem Alt-Pfad UND bei
+   * Dokumenten, deren Chunks nur aus der BM25-Lane kamen — Leser brauchen
+   * deshalb IMMER den Rückfall `dense_similarity ?? similarity`.
    */
   dense_similarity?: number | null | undefined;
   chunk_index: number;

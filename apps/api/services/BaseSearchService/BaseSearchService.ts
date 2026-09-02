@@ -887,6 +887,7 @@ export class BaseSearchService {
             searchMethods: new Set<string>(),
             vectorScores: [],
             textScores: [],
+            denseJoinScores: [],
           },
         });
       }
@@ -922,6 +923,12 @@ export class BaseSearchService {
         (chunk as TransformedChunk & { originalVectorScore?: number }).originalVectorScore ?? null;
       chunkData.originalTextScore =
         (chunk as TransformedChunk & { originalTextScore?: number }).originalTextScore ?? null;
+      // #3166 Fix-Runde 1: NUR aus dem server-seitigen Score-Join, siehe
+      // `ChunkData.denseSimilarityScore`. Nicht mit `originalVectorScore`
+      // verwechseln — das trägt auf JEDEM Pfad einen echten Kosinus.
+      chunkData.denseSimilarityScore =
+        (chunk as TransformedChunk & { denseSimilarityScore?: number | null })
+          .denseSimilarityScore ?? null;
 
       docData.chunks.push(chunkData);
 
@@ -939,6 +946,9 @@ export class BaseSearchService {
         if (chunkData.originalTextScore !== null) {
           docData.hybridMetadata.hasTextMatch = true;
           docData.hybridMetadata.textScores.push(chunkData.originalTextScore);
+        }
+        if (chunkData.denseSimilarityScore != null) {
+          docData.hybridMetadata.denseJoinScores.push(chunkData.denseSimilarityScore);
         }
       }
     }
@@ -979,6 +989,7 @@ export class BaseSearchService {
           searchMethods: new Set<string>(),
           vectorScores: [],
           textScores: [],
+          denseJoinScores: [],
         }
       );
 
@@ -1025,9 +1036,14 @@ export class BaseSearchService {
           0,
           enhancedScore.finalScore - noTermMatchPenalty - titleTieBreak
         ),
+        // #3166 Fix-Runde 1: `denseJoinScores`, nicht `vectorScores` — die
+        // beiden Arrays sehen ähnlich aus, aber `vectorScores` füllt sich auf
+        // JEDEM Pfad (Alt-Fusion trägt einen echten Kosinus pro Chunk), nur
+        // `denseJoinScores` bleibt auf dem Alt-Pfad leer. Siehe
+        // `HybridMetadata.denseJoinScores` und `DocumentResult.dense_similarity_score`.
         dense_similarity_score:
-          doc.hybridMetadata && doc.hybridMetadata.vectorScores.length > 0
-            ? Math.max(...doc.hybridMetadata.vectorScores)
+          doc.hybridMetadata && doc.hybridMetadata.denseJoinScores.length > 0
+            ? Math.max(...doc.hybridMetadata.denseJoinScores)
             : null,
         max_similarity: enhancedScore.maxSimilarity,
         avg_similarity: enhancedScore.avgSimilarity,

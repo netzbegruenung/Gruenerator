@@ -425,9 +425,15 @@ export function renumberCitationsInOrder<T>(
  * die Konstante 0,35 ist als Kosinus geschrieben — RRF liegt auf Rang 1 bei
  * ≈ 1,0, DBSF läuft nahe 0 aus, dieselbe Zahl schneidet je Arm einen anderen
  * Anteil weg. SORTIERT wird weiter auf `similarity`: der Fusionswert bleibt
- * das Ranking-Signal, neu ist ausschliesslich, worauf geschnitten wird. Der
- * Rückfall ist Pflicht, nicht Vorsicht — auf dem Alt-Pfad und bei rein
- * lexikalischen Treffern gibt es keinen Kosinus.
+ * das Ranking-Signal, neu ist ausschliesslich, worauf geschnitten wird.
+ *
+ * Der Rückfall ist Pflicht, nicht Vorsicht — aber NICHT weil dem Alt-Pfad ein
+ * Kosinus fehlt (er hat einen pro Chunk). `dense_similarity` wird
+ * absichtlich NUR aus dem server-seitigen Score-Join befüllt (Fix-Runde 1):
+ * auf dem Alt-Pfad trägt `similarity` bereits Begriffstreffer-, Diversitäts-
+ * und Hybrid-Boni oben auf dem Kosinus, die dieses Feld nicht kennt — ein
+ * Schnitt gegen den unboosteten Kosinus dort würde die 42 Alt-Kontrollfälle
+ * verschieben, die dieser Umbau explizit unverändert lassen soll.
  *
  * The `threshold` gate is on raw `similarity` (recency only re-orders sources
  * that already qualify — it never rescues a weak source). The boost is additive
