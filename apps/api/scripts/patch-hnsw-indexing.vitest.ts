@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { type CollectionIndexInfo, planHnswPatch } from './patch-hnsw-indexing.js';
+import {
+  type CollectionIndexInfo,
+  parseCliArgs,
+  planHnswPatch,
+  selectTargets,
+} from './patch-hnsw-indexing.js';
 
 // landesverbaende_documents' live (working) config — 10000 against 20000, per
 // the schema comment in qdrantCollectionsSchema.ts.
@@ -80,5 +85,44 @@ describe('planHnswPatch', () => {
     expect(plan.target).toBe(8000);
     expect(plan.reason).toContain('stalled optimizer');
     expect(plan.reason).toContain('grey');
+  });
+});
+
+describe('parseCliArgs', () => {
+  it('rejects --collection together with --all', () => {
+    const parsed = parseCliArgs(['--collection', 'documents', '--all']);
+    expect('error' in parsed).toBe(true);
+  });
+
+  it('rejects a missing target and an unknown flag', () => {
+    expect('error' in parseCliArgs(['--dry-run'])).toBe(true);
+    expect('error' in parseCliArgs(['--collection', 'documents', '--verbose'])).toBe(true);
+  });
+
+  it('accepts either form on its own', () => {
+    expect(parseCliArgs(['--collection', 'documents', '--dry-run'])).toEqual({
+      args: { collection: 'documents', all: false, dryRun: true },
+    });
+    expect(parseCliArgs(['--all'])).toEqual({
+      args: { collection: null, all: true, dryRun: false },
+    });
+  });
+});
+
+describe('selectTargets', () => {
+  const exists = async (name: string) => name !== 'not_created_yet';
+
+  it('skips schema-declared collections the instance has not created under --all', async () => {
+    await expect(selectTargets(['documents', 'not_created_yet'], true, exists)).resolves.toEqual({
+      run: ['documents'],
+      skipped: ['not_created_yet'],
+    });
+  });
+
+  it('never skips an explicitly named collection', async () => {
+    await expect(selectTargets(['not_created_yet'], false, exists)).resolves.toEqual({
+      run: ['not_created_yet'],
+      skipped: [],
+    });
   });
 });
