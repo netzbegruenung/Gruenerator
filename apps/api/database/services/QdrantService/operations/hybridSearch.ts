@@ -189,8 +189,14 @@ export async function hybridSearch(
 
 /**
  * Server-side hybrid search: one Query API round trip with a dense and a BM25
- * sparse prefetch, fused via RRF in Qdrant. Replaces the client-side
- * scroll+TF-heuristic fusion for collections that declare the sparse vector.
+ * sparse prefetch, fused in Qdrant. Replaces the client-side scroll+TF-heuristic
+ * fusion for collections that declare the sparse vector.
+ *
+ * Which fusion runs is HYBRID_SERVER_FUSION (#3118). `rrf` is the shipped
+ * state; `rrf_weighted` mirrors the legacy path (dense dominates, the keyword
+ * lane only lifts) without mixing two incomparable score ranges; `dbsf`
+ * normalizes each prefetch's distribution instead of only its ranks.
+ *
  * Returns null when the query yields no sparse terms (stopwords only) so the
  * caller can fall back to the legacy path.
  */
@@ -211,29 +217,38 @@ async function hybridSearchServerSide(
   const hasFilter = Boolean(filter.must?.length || filter.should?.length || filter.must_not);
   const prefetchFilter = hasFilter ? (filter as Schemas['Filter']) : undefined;
 
-  const prefetch: Schemas['Prefetch'][] = [
-    {
-      query: queryVector,
-      using: '',
-      limit: recall,
-      score_threshold: threshold,
-      params: { hnsw_ef: Math.max(100, recall * 2) },
-      ...(prefetchFilter && { filter: prefetchFilter }),
-    },
-    {
-      query: { indices: sparseQuery.indices, values: sparseQuery.values },
-      using: BM25_SPARSE_VECTOR_NAME,
-      limit: recall,
-      ...(prefetchFilter && { filter: prefetchFilter }),
-    },
-  ];
-
-  const response = await client.query(collection, {
-    prefetch,
-    query: { fusion: 'rrf' },
+  const densePrefetch: Schemas['Prefetch'] = {
+    query: queryVector,
+    using: '',
     limit: recall,
-    with_payload: true,
-  });
+    score_threshold: threshold,
+    params: { hnsw_ef: Math.max(100, recall * 2) },
+    ...(prefetchFilter && { filter: prefetchFilter }),
+  };
+
+  const sparsePrefetch: Schemas['Prefetch'] = {
+    query: { indices: sparseQuery.indices, values: sparseQuery.values },
+    using: BM25_SPARSE_VECTOR_NAME,
+    limit: recall,
+    ...(prefetchFilter && { filter: prefetchFilter }),
+  };
+
+  const fusion = hybridCfg.serverFusion;
+
+  // Vorabholungen und Gewichte entstehen PAARWEISE: der Client verlangt „the
+  // number of weights should match the number of prefetches"
+  // (generated_schema.d.ts:3652), und eine zweite Liste danebenzulegen wäre
+  // genau die Stelle, an der ein weggefallener Prefetch die Gewichte
+  // verschiebt, ohne dass irgendwo ein Fehler entsteht.
+  const prefetches: Schemas['Prefetch'][] = [densePrefetch, sparsePrefetch];
+  const weights: number[] = [hybridCfg.serverRrfWeightDense, 1 - hybridCfg.serverRrfWeightDense];
+
+  const request: Schemas['QueryRequest'] =
+    fusion === 'rrf_weighted'
+      ? { prefetch: prefetches, query: { rrf: { weights } }, limit: recall, with_payload: true }
+      : { prefetch: prefetches, query: { fusion }, limit: recall, with_payload: true };
+
+  const response = await client.query(collection, request);
 
   // Qdrant's server-side RRF scores are HIGHER than the legacy client-side
   // 1/(60+rank) domain (measured: rank 1 in both lists ≈ 1.0). The quality
@@ -254,7 +269,7 @@ async function hybridSearchServerSide(
   results = results.slice(0, limit);
 
   logger.info(
-    `Server-side hybrid (rrf): ${results.length}/${response.points.length} results for "${query}"`
+    `Server-side hybrid (${fusion}): ${results.length}/${response.points.length} results for "${query}"`
   );
 
   return {
@@ -263,9 +278,9 @@ async function hybridSearchServerSide(
     metadata: {
       vectorResults: -1,
       textResults: -1,
-      fusionMethod: 'rrf-server',
-      vectorWeight: 0.5,
-      textWeight: 0.5,
+      fusionMethod: `${fusion}-server`,
+      vectorWeight: fusion === 'rrf_weighted' ? hybridCfg.serverRrfWeightDense : 0.5,
+      textWeight: fusion === 'rrf_weighted' ? 1 - hybridCfg.serverRrfWeightDense : 0.5,
       dynamicThreshold: threshold,
       qualityFiltered: hybridCfg.enableQualityGate,
       autoSwitchedFromRRF: false,
