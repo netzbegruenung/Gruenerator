@@ -53,6 +53,7 @@ import {
   SLICE_DEFAULT_CHARS,
   SLICE_REGISTER_CHARS,
 } from '../services/agenticLoop/attachedDocuments.js';
+import { isLoopRerankEnabled } from '../services/agenticLoop/flags.js';
 import { isEditorSurface } from '../services/agenticLoop/routing.js';
 import {
   mentionsRecipes,
@@ -376,6 +377,10 @@ export function buildChatToolCatalog(params: {
       loop?.state.activeSkillMention,
       ...(recipeRegistry?.mentions ?? []),
     ],
+    // Chunk-Rerank vor der Gruppierung. Nur im Loop — der Einzelpfad rerankt
+    // danach in `rerankNode`, der Board-Agent gar nicht — und nur mit
+    // gesetztem Schalter: Default AUS bis zum Doppelmesslauf (#3120).
+    ...(loop != null && isLoopRerankEnabled() && { rerankSearchChunks: true }),
   });
 
   // Agents bound to their own corpus (the Landesverband agents and their
