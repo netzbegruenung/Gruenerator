@@ -23,8 +23,9 @@ const here = path.dirname(fileURLToPath(import.meta.url));
  * `.replace(/\s+/g, '-')` (`:475`) ist ein Slug-Bauer und soll bleiben.
  */
 const EXTRACTION_SOURCES = [
-  'implementations/WebsiteCrawler.ts',
+  'implementations/BundestagScraper/BundestagScraper.ts',
   'implementations/GrueneAtScraper.ts',
+  'implementations/WebsiteCrawler.ts',
   'utils/contentExtractor.ts',
 ];
 
