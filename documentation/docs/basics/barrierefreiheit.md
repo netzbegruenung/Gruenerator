@@ -19,7 +19,7 @@ Zielstandard ist **WCAG 2.2, Konformitätsstufe AA**, im Rahmen der europäische
 Behoben und nachgemessen sind unter anderem:
 
 - **Die eingeklappte Hauptnavigation.** Sie war mit Screenreader unbenutzbar — die Beschriftungen der Knöpfe waren nicht nur unsichtbar, sondern vollständig aus der Vorlesereihenfolge entfernt. Das war mit Abstand die schwerste Barriere.
-- **Die Tastaturfalle im Untertitel-Werkzeug.** Die Tabulatortaste kam aus der Segmentliste nicht mehr heraus. Jetzt wechseln die Pfeiltasten das Segment, und Tab bleibt Tab.
+- **Die Tastaturfalle im Untertitel-Werkzeug.** Die Tabulatortaste kam aus der Segmentliste nicht mehr heraus. Jedes Segment ist jetzt einzeln per Tab erreichbar, sodass du mit der Tastatur wieder herauskommst.
 - **Aufgabenkarten auf Boards** haben einen echten Ziehgriff, der per Tastatur bedienbar ist. Ziehen mit der Maus funktioniert weiter auf der ganzen Karte.
 - **Weißer Text auf den Markenfarben** erreichte den geforderten Kontrast nicht. Das betraf den Marken-Button und alle Abzeichen in Eukalyptus-Grün.
 - **Graue Textstufen** erreichen jetzt in hellem wie dunklem Modus die geforderten 4,5:1.
@@ -50,7 +50,7 @@ Hellen und dunklen Modus stellst du unter **Einstellungen → Allgemein** ein; d
 
 Der Grünerator ist mit der Tastatur bedienbar. Mit **Tab** wanderst du vorwärts durch die Bedienelemente, mit **Umschalt+Tab** zurück, **Enter** und **Leertaste** lösen aus, **Escape** schließt Dialoge.
 
-In Listen mit vielen gleichartigen Einträgen — etwa den Segmenten im Untertitel-Werkzeug — wechseln die **Pfeiltasten** innerhalb der Liste; Tab führt aus der Liste heraus.
+In Listen mit vielen gleichartigen Einträgen — etwa den Segmenten im Untertitel-Werkzeug — ist jeder Eintrag einzeln per **Tab** erreichbar; eine Pfeiltasten-Navigation innerhalb der Liste gibt es (noch) nicht. Die **Pfeiltasten** sind dort für etwas anderes belegt: Am Ziehgriff des Untertitel-Vorschaubilds verschieben sie die Position der Einblendung im Video.
 
 ## Screenreader
 
