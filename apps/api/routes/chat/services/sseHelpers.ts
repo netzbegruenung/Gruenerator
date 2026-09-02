@@ -884,6 +884,11 @@ export const CHAT_WARNINGS = {
     severity: 'warning',
     attribution: 'system',
   },
+  evidence_weak: {
+    message: 'Die gefundenen Quellen passen nur schwach zur Frage — die Antwort bitte prüfen.',
+    severity: 'warning',
+    attribution: 'system',
+  },
 } satisfies Record<ChatWarningCode, ChatWarningSpec>;
 
 /**

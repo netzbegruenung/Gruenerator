@@ -379,6 +379,36 @@ describe('citation validation', () => {
   });
 });
 
+describe('weak evidence warning', () => {
+  it('warns when the best reranker score is under the threshold', async () => {
+    vi.clearAllMocks();
+    setupMocks();
+    rerankNotebookResults.mockImplementation(async ({ results }) => ({
+      results,
+      referencesMap: {},
+      contextSummary: 'x',
+      rerankTimeMs: 1,
+      topRelevance: 0.04,
+    }));
+    const sent = await run('deep');
+    expect(sent.find((e) => e.event === 'warning')?.data.code).toBe('evidence_weak');
+  });
+
+  it('stays quiet when rerank was skipped', async () => {
+    vi.clearAllMocks();
+    setupMocks();
+    rerankNotebookResults.mockImplementation(async ({ results }) => ({
+      results,
+      referencesMap: {},
+      contextSummary: 'x',
+      rerankTimeMs: 1,
+      topRelevance: null,
+    }));
+    const sent = await run('deep');
+    expect(sent.some((e) => e.event === 'warning' && e.data.code === 'evidence_weak')).toBe(false);
+  });
+});
+
 describe('trace id', () => {
   it('puts the langfuse trace id into the completion metadata and the result', async () => {
     vi.clearAllMocks();

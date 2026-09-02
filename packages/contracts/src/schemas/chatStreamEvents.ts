@@ -82,6 +82,7 @@ export const chatWarningCodeSchema = z.enum([
   'source_unavailable',
   'rerank_degraded',
   'citation_invalid',
+  'evidence_weak',
   'research_plan_failed',
   // `@deepresearch` was asked for but not served: the daily quota is spent or the
   // call failed. Distinct from `research_plan_failed` — the turn did NOT degrade

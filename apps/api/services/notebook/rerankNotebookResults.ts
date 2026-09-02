@@ -27,6 +27,7 @@ export interface RerankResult {
   referencesMap: ReferencesMap;
   contextSummary: string;
   rerankTimeMs: number;
+  topRelevance: number | null;
 }
 
 export async function rerankNotebookResults({
@@ -45,6 +46,7 @@ export async function rerankNotebookResults({
       referencesMap,
       contextSummary: buildContextSummary(referencesMap),
       rerankTimeMs: Date.now() - startTime,
+      topRelevance: null,
     };
   }
 
@@ -67,7 +69,7 @@ export async function rerankNotebookResults({
   });
 
   // Pipeline handles errors internally with graceful degradation
-  const { rankedIndices, rerankTimeMs } = await rerankPipeline({
+  const { rankedIndices, rerankTimeMs, scores, failed } = await rerankPipeline({
     query: question,
     items,
     inputLimit,
@@ -76,6 +78,7 @@ export async function rerankNotebookResults({
     minKeep: Math.min(5, candidates.length),
     applyDiversity: true,
   });
+  const topRelevance = failed || scores.size === 0 ? null : Math.max(...scores.values());
 
   const rerankedResults = rankedIndices.map((i) => candidates[i]);
 
@@ -103,5 +106,6 @@ export async function rerankNotebookResults({
     referencesMap: renumberedMap,
     contextSummary: buildContextSummary(renumberedMap),
     rerankTimeMs,
+    topRelevance,
   };
 }
