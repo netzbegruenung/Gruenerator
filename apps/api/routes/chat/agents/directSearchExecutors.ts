@@ -69,6 +69,13 @@ export interface DirectSearchResult {
     collectionId?: string;
   }>;
   cached?: boolean;
+  /**
+   * Der Cross-Encoder war für diesen Aufruf bestellt und ist ausgefallen. Kein
+   * Fehler: die Reihenfolge ist die ohne Reranker. Gelesen wird das Feld vom
+   * Hook in `agenticLoop/rerankWarning.ts`; das MODELL sieht es nicht — der
+   * Umschlag entfernt es vor der Rückgabe (`wrapTools.ts`).
+   */
+  rerankDegraded?: boolean;
   error?: boolean;
   message?: string;
 }
@@ -429,12 +436,17 @@ export async function executeDirectSearch(params: {
 
     log.info(`[Direct Search] Found ${formattedResults.length} results for "${query}"`);
 
+    // Der Marker hängt an der Antwort, die WIRKLICH gelaufen ist — auch wenn
+    // das der Rückfall-Aufruf war (`response` ist dann überschrieben).
+    const rerankDegraded = response.metadata?.rerankDegraded === true;
+
     return {
       collection,
       query,
       searchMode,
       resultsCount: formattedResults.length,
       results: formattedResults,
+      ...(rerankDegraded ? { rerankDegraded: true } : {}),
     };
   } catch (error: unknown) {
     const errMsg = error instanceof Error ? error.message : String(error);

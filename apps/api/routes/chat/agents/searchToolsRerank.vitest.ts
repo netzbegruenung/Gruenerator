@@ -89,3 +89,39 @@ describe('createSearchTools — rerankSearchChunks', () => {
     }
   });
 });
+
+describe('Bündel — Weitergabe des Degradations-Markers', () => {
+  it('meldet das Bündel als degradiert, sobald EIN Mitglied es ist', async () => {
+    let call = 0;
+    executeDirectSearch.mockImplementation((p: { collection: string }) => {
+      call += 1;
+      return Promise.resolve(
+        call === 1 ? { ...reply(p.collection), rerankDegraded: true } : reply(p.collection)
+      );
+    });
+
+    const tools = createSearchTools(AGENT, { userLocale: 'de-AT', rerankSearchChunks: true });
+    const search = tools.gruenerator_search as {
+      execute: (a: unknown, o: unknown) => Promise<{ rerankDegraded?: boolean }>;
+    };
+    const out = await search.execute(
+      { query: 'Klima', collection: 'oesterreich' },
+      { toolCallId: 'c1' }
+    );
+
+    expect(out.rerankDegraded).toBe(true);
+  });
+
+  it('setzt nichts, wenn kein Mitglied degradiert war', async () => {
+    const tools = createSearchTools(AGENT, { userLocale: 'de-AT', rerankSearchChunks: true });
+    const search = tools.gruenerator_search as {
+      execute: (a: unknown, o: unknown) => Promise<Record<string, unknown>>;
+    };
+    const out = await search.execute(
+      { query: 'Klima', collection: 'oesterreich' },
+      { toolCallId: 'c1' }
+    );
+
+    expect(out).not.toHaveProperty('rerankDegraded');
+  });
+});

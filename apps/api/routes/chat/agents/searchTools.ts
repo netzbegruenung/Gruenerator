@@ -353,6 +353,10 @@ async function searchCollectionOrBundle(params: {
     searchMode: parts[0]?.searchMode ?? 'hybrid',
     resultsCount: merged.length,
     results: merged,
+    // Umgekehrter Quantor zur Zeile darunter, mit Absicht: ein Bündel ist
+    // degradiert, sobald EIN Mitglied es war (dann ist die halbe Liste
+    // kosinus-sortiert) — es ist aber erst gescheitert, wenn ALLE scheiterten.
+    ...(parts.some((p) => p.rerankDegraded) ? { rerankDegraded: true } : {}),
     // A bundle fails only when EVERY member failed; one dead corpus next to a
     // live one is a partial result, not an error.
     ...(parts.every((p) => p.error) ? { error: true } : {}),
