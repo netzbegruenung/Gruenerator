@@ -19,6 +19,7 @@ import { getSystemCollectionConfig } from '../../config/systemCollectionsConfig.
 import { vectorConfig } from '../../config/vectorConfig.js';
 import { documents } from '../../database/schema/index.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
+import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { DocumentSearchService } from '../../services/document-services/DocumentSearchService/index.js';
 import { buildEmbeddingText } from '../../services/document-services/embeddingText.js';
 import { notebookQAService } from '../../services/notebook/index.js';
@@ -33,6 +34,7 @@ import type { Application } from 'express';
 const log = createLogger('chunkInspectorContractRouter');
 
 const documentSearchService = new DocumentSearchService();
+const notebookHelper = new NotebookQdrantHelper();
 
 const FORBIDDEN = {
   status: 403 as const,
@@ -193,9 +195,39 @@ export const chunkInspectorContractRouter = s.router(chunkInspectorContract, {
         };
       }
 
+      // Nutzer-Notebook: hier IST die Einschränkung möglich —
+      // `getDocumentIdsFn` wird zum documentIds-Filter (NotebookQAService.ts:704).
+      const notebook = await notebookHelper.getNotebookCollection(collection);
+      if (!notebook) {
+        return {
+          status: 404 as const,
+          body: { success: false, message: 'Sammlung nicht gefunden.' },
+        };
+      }
+
+      const context = await notebookQAService.getSearchContext({
+        question: query,
+        collectionId: collection,
+        // Mit der Kennung der EIGENTÜMERIN, nicht der des Admins: derselbe Zweig
+        // ruft `checkNotebookAccess` (NotebookQAService.ts:701-706), und ein
+        // Instanz-Admin ist darin kein Mitglied. Der Inspektor misst damit
+        // exakt den Pfad, den die Eigentümerin misst; die Zugriffsentscheidung
+        // ist oben mit `requireInstanceAdmin` bereits gefallen.
+        userId: notebook.user_id,
+        getCollectionFn: async () => notebook,
+        getDocumentIdsFn: async () => [documentId],
+      });
+      const scopedResults = context?.sortedResults ?? [];
       return {
-        status: 404 as const,
-        body: { success: false, message: 'Sammlung nicht gefunden.' },
+        status: 200 as const,
+        body: {
+          success: true,
+          hits: scopedResults
+            .filter((r) => r.document_id === documentId)
+            .map((r) => ({ index: r.chunk_index, similarity: r.similarity })),
+          totalResults: scopedResults.length,
+          scoped: true,
+        },
       };
     } catch (error) {
       log.error('[chunkInspector.inspectSearch] Error:', error);
