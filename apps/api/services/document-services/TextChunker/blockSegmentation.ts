@@ -158,3 +158,50 @@ export function segmentBlocks(text: string): DocumentBlock[] {
   flushText();
   return blocks;
 }
+
+/**
+ * Deckel für einen Tabellen-Chunk. Dieselbe Zahl wie `mergeSmallChunks`'
+ * `maxMergedChars` (`langchainIntegration.ts:100`), damit eine Tabelle nicht
+ * größer wird als das, was der Fließtext-Pfad zusammenfassen darf.
+ */
+export const TABLE_CHUNK_MAX_CHARS = 2400;
+
+/** Eine Markdown-Trennzeile: `| --- | :---: |`. */
+const TABLE_SEPARATOR = /^\s*\|[\s:|-]+\|\s*$/;
+
+/**
+ * Teilt einen Tabellenblock zeilenweise, mit Kopf über jedem Teil.
+ *
+ * Der Kopf sind alle Zeilen bis einschliesslich der Trennzeile — also auch die
+ * Überschriftenzeilen, die der Block trägt. Ohne diese Wiederholung ist jedes
+ * Teilstück ab dem zweiten eine Zahlenkolonne ohne Spaltennamen.
+ *
+ * Eine EINZELNE Zeile über `maxChars` bleibt ganz und reißt den Deckel: eine
+ * halbe Tabellenzeile ist wertlos, und die Anbietergrenze liegt bei 20480
+ * Zeichen je Text (MistralEmbeddingClient), also weit darüber.
+ */
+export function splitTableBlock(text: string, maxChars: number = TABLE_CHUNK_MAX_CHARS): string[] {
+  if (text.length <= maxChars) return [text];
+
+  const lines = text.split('\n');
+  const separatorAt = lines.findIndex((line) => TABLE_SEPARATOR.test(line));
+  const headerEnd = separatorAt >= 0 ? separatorAt : 0;
+  const header = lines.slice(0, headerEnd + 1).join('\n');
+  const body = lines.slice(headerEnd + 1);
+
+  const parts: string[] = [];
+  let buffer: string[] = [];
+
+  for (const row of body) {
+    const candidate = [header, ...buffer, row].join('\n');
+    if (buffer.length > 0 && candidate.length > maxChars) {
+      parts.push([header, ...buffer].join('\n'));
+      buffer = [row];
+    } else {
+      buffer.push(row);
+    }
+  }
+  if (buffer.length > 0) parts.push([header, ...buffer].join('\n'));
+
+  return parts.length > 0 ? parts : [text];
+}
