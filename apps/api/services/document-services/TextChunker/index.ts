@@ -8,9 +8,6 @@
 // Main chunking functions
 export { smartChunkDocument, smartChunkDocumentAsync } from './TextChunker.js';
 
-// LangChain integration
-export { LangChainChunker, langChainChunker } from './langchainIntegration.js';
-
 // Structure-aware chunking
 export { hierarchicalChunkDocument } from './structureAwareChunking.js';
 
@@ -50,7 +47,7 @@ export type {
   Chunk,
   ChunkMetadata,
   ChunkingOptions,
-  LangChainChunkerOptions,
+  ParagraphChunkerOptions,
   SentenceSegment,
   TextWindow,
   PageMarker,

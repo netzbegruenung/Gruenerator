@@ -1,88 +1,39 @@
 /**
- * LangChain integration for text chunking
- * Handles RecursiveCharacterTextSplitter with fallback strategies
+ * Absatzweiser Splitter für den Fließtext-Pfad des Chunkers.
+ *
+ * Hiess bis 02.09.2026 `langchainIntegration.ts` und probierte drei
+ * LangChain-Modulpfade durch (`getSplitter`). `@langchain/textsplitters` stand
+ * in keinem Manifest, der Zweig war unerreichbar, und das Etikett
+ * `chunkingMethod` behauptete trotzdem LangChain (#3135). Gelaufen ist immer
+ * `fallbackSplit` — der steht jetzt allein da, unverändert.
  */
 
-import { vectorConfig } from '../../../config/vectorConfig.js';
 import { cleanTextForEmbedding } from '../../text/index.js';
 
-import { GERMAN_SEPARATORS } from './germanLanguageRules.js';
 import { estimateTokens } from './validation.js';
 
-import type { Chunk, LangChainChunkerOptions } from './types.js';
+import type { Chunk, ParagraphChunkerOptions } from './types.js';
 
 /**
- * LangChain-based chunker implementation
- * Provides intelligent text splitting with German language support
+ * Absatzweiser Chunker mit deutscher Satzbehandlung.
  */
-export class LangChainChunker {
+export class ParagraphChunker {
   private chunkSize: number;
   private chunkOverlap: number;
 
-  constructor(options: LangChainChunkerOptions = {}) {
-    const _chunking = vectorConfig.get('chunking');
+  constructor(options: ParagraphChunkerOptions = {}) {
     this.chunkSize = options.chunkSize || 1600;
     this.chunkOverlap = options.chunkOverlap || 400;
   }
 
   /**
-   * Get LangChain text splitter with fallback strategies
-   */
-  private async getSplitter(): Promise<{ splitText(text: string): Promise<string[]> } | null> {
-    const opts = {
-      chunkSize: this.chunkSize,
-      chunkOverlap: this.chunkOverlap,
-      separators: GERMAN_SEPARATORS,
-    };
-
-    // LangChain text_splitter moved across packages over its 0.x → 0.3 history
-    // (`langchain/text_splitter` → `@langchain/core/text_splitter` →
-    // `@langchain/textsplitters`). The first two paths no longer exist in any
-    // installed version, but we keep the probe so a future `pnpm add` of the
-    // current package starts working without code changes. The paths are
-    // assembled at runtime via String(...) so vite's static-import analysis
-    // can't try to resolve them at test-collection time and crash on
-    // unresolvable specifiers.
-    const dynImport = (spec: string): Promise<unknown> => import(/* @vite-ignore */ String(spec));
-    const candidates = [
-      'langchain/text_splitter',
-      '@langchain/core/text_splitter',
-      '@langchain/textsplitters',
-    ];
-    for (const spec of candidates) {
-      try {
-        const mod = (await dynImport(spec)) as {
-          RecursiveCharacterTextSplitter: new (o: unknown) => {
-            splitText(text: string): Promise<string[]>;
-          };
-        };
-        return new mod.RecursiveCharacterTextSplitter(opts);
-      } catch {
-        // try next candidate
-      }
-    }
-    if (vectorConfig.isVerboseMode()) {
-      console.warn('[LangChainChunker] LangChain not available; using fallback');
-    }
-    return null;
-  }
-
-  /**
-   * Chunk document using LangChain or fallback
+   * Chunk document
    */
   async chunkDocument(text: string, baseMetadata: Record<string, unknown> = {}): Promise<Chunk[]> {
     if (!text || typeof text !== 'string') return [];
 
     const input = cleanTextForEmbedding(text);
-
-    const splitter = await this.getSplitter();
-    let rawChunks: string[];
-
-    if (splitter && typeof splitter.splitText === 'function') {
-      rawChunks = await splitter.splitText(input);
-    } else {
-      rawChunks = this.fallbackSplit(input);
-    }
+    const rawChunks = this.fallbackSplit(input);
 
     let chunks = rawChunks
       .map((t, i) => ({
@@ -90,7 +41,7 @@ export class LangChainChunker {
         index: i,
         tokens: estimateTokens(t),
         metadata: {
-          chunkingMethod: splitter ? 'langchain' : 'fallback-paragraph',
+          chunkingMethod: 'paragraphs',
           ...baseMetadata,
         },
       }))
@@ -171,8 +122,3 @@ export class LangChainChunker {
     return merged.map((c, idx) => ({ ...c, index: idx }));
   }
 }
-
-/**
- * Create singleton instance
- */
-export const langChainChunker = new LangChainChunker();
