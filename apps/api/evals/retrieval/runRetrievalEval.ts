@@ -6,7 +6,7 @@
  *   pnpm --filter @gruenerator/api eval:retrieval
  *
  * Env:
- *   EVAL_PIPELINE    qa (default) | manual | notebook — see below
+ *   EVAL_PIPELINE    qa (default) | manual | notebook | chat-notebook — see below
  *   EVAL_COLLECTION  only run cases for this collection id (substring match)
  *   EVAL_FILTER      only run cases whose id contains this substring
  *   EVAL_DEPTH       depth profile: fast | deep | ultra (default fast;
@@ -55,6 +55,15 @@
  *   EVAL_CASE_KIND   run another kind's cases through the chosen pipeline
  *   EVAL_VERBOSE=1   print top-5 titles for every miss (gold-label curation)
  *   EVAL_OUT         write per-case results as JSON to this path
+ *   EVAL_CHAT_EXPAND=1  nur für EVAL_PIPELINE=chat-notebook: hängt EINE
+ *                    Paraphrase aus `expandQuery` an die Anfrage an — der Pfad,
+ *                    den `searchNode` seit #3121 für notebook-gebundene Turns
+ *                    fährt. Ohne die Variable läuft der Arm mit einer
+ *                    Formulierung, also dem Zustand davor. Beide Arme kommen so
+ *                    aus EINEM Baum; gepaart verglichen ist die Differenz der
+ *                    Effekt der zweiten Formulierung und sonst nichts.
+ *                    Die Zahl der Alternativen (1) steht hier UND in
+ *                    `searchNode.ts` — wer eine ändert, ändert beide.
  *
  * Three pipelines, because the product has three: `qa` is the notebook Q&A
  * search (depth profile + optional rerank), `manual` is the notebook search
@@ -67,6 +76,10 @@
  * — if that changes (e.g. the history-aware rewrite of the verbesserungsplan),
  * the mirror below must follow. Each pipeline defaults to its own `kind`
  * cases.
+ * `chat-notebook` is the fourth: the notebook-bound branch of `searchNode`
+ * (`executeDirectSearch` per collection × query, URL dedup, relevance-label
+ * sort, `sortLimit` cap) — NOT the notebook surface. It mirrors that code line
+ * for line; keep this copy in sync when `searchNode` changes.
  *
  * A case scores at rank r when the first matching result appears at position
  * r (1-based). Metrics: Hit@1 / Hit@3 / Hit@5, MRR@10 — per collection and
@@ -82,14 +95,22 @@ import dotenv from 'dotenv';
 // search service would silently degrade to zero results.
 dotenv.config();
 
-const { getNotebookDepthProfile, applyDepthProfile } =
+const { getNotebookDepthProfile, applyDepthProfile, getChatNotebookProfile } =
   await import('../../config/notebookDepthProfiles.js');
+const { resolveNotebookCollections } = await import('../../config/notebookCollectionMap.js');
 const { getSearchParams, getSystemCollectionConfig, applyDefaultFilter } =
   await import('../../config/systemCollectionsConfig.js');
 const { DocumentSearchService } =
   await import('../../services/document-services/DocumentSearchService/index.js');
-const { RERANK_LIMIT_CLAMP, OVERFETCH_CEILING } =
+const { RERANK_LIMIT_CLAMP, OVERFETCH_CEILING, executeDirectSearch } =
   await import('../../routes/chat/agents/directSearchExecutors.js');
+const { relevanceLabelToScore } = await import('../../routes/chat/agents/searchFormatting.js');
+const { deriveCitationTitle } =
+  await import('../../agents/langgraph/ChatGraph/nodes/citationUtils.js');
+const { refineSearchQuery } =
+  await import('../../agents/langgraph/ChatGraph/nodes/queryRefineResolver.js');
+const { formatConversationHistory } =
+  await import('../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js');
 const { rerankPipeline } = await import('../../services/search/rerankPipeline.js');
 const { selectRelevantExcerpt } = await import('../../services/search/relevantExcerpt.js');
 const { vectorConfig } = await import('../../config/vectorConfig.js');
@@ -105,6 +126,7 @@ import { type RetrievalCase } from './cases.js';
 
 import type { DocumentResult } from '../../services/BaseSearchService/types.js';
 import type { NotebookDepth } from '@gruenerator/contracts';
+import type { ModelMessage } from 'ai';
 
 type DocumentSearchService = InstanceType<typeof DocumentSearchService>;
 
@@ -177,6 +199,12 @@ interface CaseOutcome {
   rerankBatch?: number;
   /** Wanduhr des Suchaufrufs. Gepaart über zwei Läufe = Kosten des Encoders. */
   searchTimeMs?: number;
+  /**
+   * Qdrant-Aufrufe dieses Falls (`Sammlungen × Formulierungen`). Die Zahl, an
+   * der die Abnahmebedingung „höchstens verdoppelt" nachprüfbar wird — ohne sie
+   * wäre sie nur behauptet.
+   */
+  qdrantCalls?: number;
   topTitles: string[];
   error?: string;
 }
@@ -447,6 +475,160 @@ async function runNotebookCase(
   }
 }
 
+/**
+ * Der notebook-gebundene Zweig von `searchNode` — Zeile für Zeile nachgebaut
+ * (`searchNode.ts:1507-1609`), NICHT die Notebook-Fläche: andere Suchfunktion,
+ * andere Schwellen, andere Fusion, andere Kappen. Keep this copy in sync if
+ * `searchNode` changes; `selectAcrossQueryGroups` läuft hier bewusst nicht, weil
+ * es dort auch nicht läuft.
+ *
+ * Der Auflöser (`refineSearchQuery`) läuft nur für Fälle MIT Verlauf. Das ist
+ * eine bewusste Vereinfachung: die Produktion schickt jeden Mention-Turn durch
+ * ihn, aber ohne Verlauf ist die Fallanfrage bereits das Thema, und ein
+ * Modellaufruf mehr macht jeden Lauf um so viel unschärfer, wie er ihn
+ * realistischer macht. Für einen paarweisen Vergleich zweier Arme ist die
+ * schärfere Messung die brauchbarere.
+ */
+async function runChatNotebookCase(
+  evalCase: RetrievalCase,
+  withExpansion: boolean,
+  withRerank: boolean
+): Promise<CaseOutcome> {
+  const base: CaseOutcome = {
+    id: evalCase.id,
+    collection: evalCase.collection,
+    query: evalCase.query,
+    rank: null,
+    topTitles: [],
+  };
+  const meta = evalCase.chatNotebook;
+  if (!meta) {
+    return { ...base, error: `chat-notebook case without chatNotebook meta: ${evalCase.id}` };
+  }
+
+  const collections = resolveNotebookCollections(meta.notebookIds);
+  if (collections.length === 0) {
+    return { ...base, error: `no collections for notebooks: ${meta.notebookIds.join(', ')}` };
+  }
+
+  const profile = getChatNotebookProfile();
+  const startedAt = Date.now();
+
+  try {
+    // 1. Die Anfrage. Auf dem Mention-Pfad löst `classifyWithForcedSearch` eine
+    //    Folgefrage gegen den Verlauf auf, BEVOR `searchNode` sie sieht
+    //    (classifierNode.ts:842-852 → refineSearchQuery). `formatConversationHistory`
+    //    schneidet die letzte Nachricht SELBST ab (classifierHeuristics.ts:888),
+    //    deshalb geht die aktuelle Frage mit hinein.
+    let primary = evalCase.query;
+    if (meta.history && meta.history.length > 0) {
+      const messages = [...meta.history, { role: 'user' as const, content: evalCase.query }];
+      const refined = await refineSearchQuery({
+        userContent: evalCase.query,
+        conversationContext: formatConversationHistory(messages as unknown as ModelMessage[]),
+        topicalContext: null,
+      });
+      primary = refined?.query || evalCase.query;
+    }
+
+    // 2. Die Paraphrase. EINE, nicht zwei — dieselbe Zahl wie in
+    //    `searchNode.ts`. Kein `historyContext`: der Auflöser oben hat die
+    //    Folgefrage schon aufgelöst, und `variants` wirkt ohne Verlauf gar nicht
+    //    (QueryExpansionService.ts:91, :107-112).
+    const queries = [primary];
+    if (withExpansion) {
+      try {
+        const expanded = await expandQuery(primary);
+        queries.push(...expanded.alternatives.slice(0, 1));
+      } catch {
+        // Best effort, wie im Knoten: der Ausfall ist der Zustand von vorher.
+      }
+    }
+
+    // 3. Sammlungs-aussen, anfragen-innen — die Reihenfolge IST die
+    //    Tie-Break-Regel, weil `sort` stabil ist (searchNode.ts:1541-1542).
+    const searchResults = await Promise.all(
+      collections.flatMap((collection) =>
+        queries.map((q) =>
+          executeDirectSearch({ query: q, collection, limit: profile.searchLimit }).catch(
+            () => null
+          )
+        )
+      )
+    );
+
+    // 4. Flachklopfen in Aufrufreihenfolge + URL-Dedup (searchNode.ts:1576-1594).
+    //    `source_url` und nicht `url`: `firstMatchRank` liest genau dieses Feld.
+    const items: Array<{ title: string; source_url: string; relevance: number; content: string }> =
+      [];
+    const seenUrls = new Set<string>();
+    for (const searchResult of searchResults) {
+      if (!searchResult?.results) continue;
+      for (const r of searchResult.results) {
+        if (r.url && seenUrls.has(r.url)) continue;
+        if (r.url) seenUrls.add(r.url);
+        items.push({
+          title: deriveCitationTitle(r.source, r.url, searchResult.collection),
+          source_url: r.url || '',
+          relevance: relevanceLabelToScore(r.relevance),
+          content: r.excerpt || '',
+        });
+      }
+    }
+
+    // 5. Sortieren und kappen (searchNode.ts:1603-1609). Der Schlüssel ist grob
+    //    (drei Eimer, searchFormatting.ts:46-50) — das ist das benannte Risiko
+    //    dieses Umbaus, nicht ein Fehler dieser Kopie.
+    items.sort((a, b) => b.relevance - a.relevance);
+    const capped = items.slice(
+      0,
+      collections.length > 1 ? profile.sortLimit.multi : profile.sortLimit.single
+    );
+
+    const outcome: CaseOutcome = {
+      ...base,
+      rank: firstMatchRank(capped, evalCase),
+      topTitles: capped.slice(0, 5).map((r) => r.title || r.source_url || '?'),
+      qdrantCalls: collections.length * queries.length,
+      // Wanduhr des ganzen Suchschritts inklusive Auflöser und Paraphrase — das
+      // ist die Zahl, gegen die das Latenzbudget von +800 ms p50 gehalten wird.
+      searchTimeMs: Date.now() - startedAt,
+    };
+
+    // Wie `rerankNode.ts:174-180`: OHNE `minRelevance` und OHNE `minKeep` (also
+    // 0,2 und 0 aus vectorConfig), und mit `queries[0]` als Anfrage — die
+    // Paraphrase erreicht den Cross-Encoder in der Produktion nie. Wer hier
+    // Grenzen mitgibt, misst eine Auswahl, die die Produktion nicht trifft.
+    if (withRerank && capped.length > 2) {
+      const rerank = await rerankPipeline({
+        query: queries[0],
+        items: capped.map((r) => ({ title: r.title, content: r.content })),
+        inputLimit: profile.rerankInput,
+        outputLimit: profile.rerankOutput,
+        instruct:
+          'Given a search query, retrieve relevant passages that answer the query.' +
+          ' Prefer official party documents and verified sources over web snippets.',
+        // Jeder Kandidat hier ist ein `gruenerator:`-Treffer, also vergibt
+        // `getSourceTag` (rerankNode.ts:81-93, modul-privat) für alle dieselbe
+        // Marke. Die Konstante ist exakt dasselbe Ergebnis, nicht eine Abkürzung.
+        sourceTagFn: () => 'Parteidokument',
+      });
+      if (!rerank.failed) {
+        outcome.rerankRank = firstMatchRank(
+          rerank.rankedIndices.map((i) => capped[i]),
+          evalCase
+        );
+      }
+      outcome.rerankTimeMs = rerank.rerankTimeMs;
+      outcome.rerankBatch = capped.length;
+    }
+
+    return outcome;
+  } catch (error) {
+    return { ...base, error: (error as Error).message };
+  }
+}
+
 function computeMetrics(outcomes: CaseOutcome[], rankOf: (o: CaseOutcome) => number | null) {
   const n = outcomes.length;
   const hits = Object.fromEntries(HIT_KS.map((k) => [k, 0])) as Record<number, number>;
@@ -467,10 +649,14 @@ function computeMetrics(outcomes: CaseOutcome[], rankOf: (o: CaseOutcome) => num
 
 async function main() {
   const pipelineEnv = process.env.EVAL_PIPELINE;
-  const pipeline = pipelineEnv === 'manual' || pipelineEnv === 'notebook' ? pipelineEnv : 'qa';
+  const pipeline =
+    pipelineEnv === 'manual' || pipelineEnv === 'notebook' || pipelineEnv === 'chat-notebook'
+      ? pipelineEnv
+      : 'qa';
   const depth = (process.env.EVAL_DEPTH ||
-    (pipeline === 'notebook' ? 'deep' : 'fast')) as NotebookDepth;
+    (pipeline === 'notebook' || pipeline === 'chat-notebook' ? 'deep' : 'fast')) as NotebookDepth;
   const withRerank = process.env.EVAL_RERANK === '1';
+  const withChatExpand = process.env.EVAL_CHAT_EXPAND === '1';
   // Three-valued: unset keeps today's run byte-identical to the historical
   // baseline; '0' and '1' both run the loop-shaped limit (see
   // `loopShapedLimit`) and differ only in whether rerankChunks fires.
@@ -506,9 +692,13 @@ async function main() {
       ? 'manual search'
       : pipeline === 'notebook'
         ? `notebook getSearchContext depth=${depth}`
-        : `depth=${depth}${withRerank ? `, +rerank(${excerptMode})` : ''}${
-            loopShaped ? `, loopLimit=${loopLimit}` : ''
-          }${withChunkRerank ? ', +chunkRerank' : ''}`;
+        : pipeline === 'chat-notebook'
+          ? `searchNode notebook scope, ${withChatExpand ? 2 : 1} Formulierung(en)${
+              withRerank ? ', +rerank' : ''
+            }`
+          : `depth=${depth}${withRerank ? `, +rerank(${excerptMode})` : ''}${
+              loopShaped ? `, loopLimit=${loopLimit}` : ''
+            }${withChunkRerank ? ', +chunkRerank' : ''}`;
   console.log(
     `Running ${cases.length} retrieval cases (${modeLabel}) against ${process.env.QDRANT_URL || 'QDRANT_URL unset!'}`
   );
@@ -521,15 +711,17 @@ async function main() {
         ? await runManualCase(searchService, evalCase)
         : pipeline === 'notebook'
           ? await runNotebookCase(evalCase, depth)
-          : await runCase(
-              searchService,
-              evalCase,
-              depth,
-              withRerank,
-              excerptMode,
-              loopShaped,
-              withChunkRerank
-            );
+          : pipeline === 'chat-notebook'
+            ? await runChatNotebookCase(evalCase, withChatExpand, withRerank)
+            : await runCase(
+                searchService,
+                evalCase,
+                depth,
+                withRerank,
+                excerptMode,
+                loopShaped,
+                withChunkRerank
+              );
     outcomes.push(outcome);
     const rankLabel = outcome.error
       ? `ERROR ${outcome.error}`
@@ -577,6 +769,15 @@ async function main() {
     );
   }
 
+  const callCounts = outcomes
+    .map((o) => o.qdrantCalls)
+    .filter((n): n is number => typeof n === 'number');
+  if (callCounts.length > 0) {
+    console.log(
+      `\n── Qdrant-Aufrufe je Fall ──\nn=${callCounts.length}  Summe ${callCounts.reduce((a, b) => a + b, 0)}  max ${Math.max(...callCounts)}`
+    );
+  }
+
   if (withRerank) {
     console.log('\n── Ergebnisse (nach Rerank) ──');
     console.log(
@@ -615,6 +816,7 @@ async function main() {
           depth,
           withRerank,
           ...(pipeline === 'qa' && loopShaped && { withChunkRerank, loopLimit }),
+          ...(pipeline === 'chat-notebook' && { withChatExpand }),
           outcomes,
         },
         null,
