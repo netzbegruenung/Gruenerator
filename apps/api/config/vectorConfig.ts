@@ -40,6 +40,8 @@ interface HybridConfig {
   serverSparseFactor: number;
   /** Gewicht der dichten Vorabholung bei `rrf_weighted`. */
   serverRrfWeightDense: number;
+  /** Dichten Kosinus und BM25-Wert je Treffer über denselben `queryBatch` zurückholen (#3166). */
+  serverScoreJoin: boolean;
 }
 
 interface ScoringConfig {
@@ -230,6 +232,7 @@ class VectorConfig {
         serverFusion: env.HYBRID_SERVER_FUSION,
         serverSparseFactor: env.HYBRID_SERVER_SPARSE_FACTOR,
         serverRrfWeightDense: env.HYBRID_SERVER_RRF_WEIGHT_DENSE,
+        serverScoreJoin: env.HYBRID_SERVER_SCORE_JOIN,
       },
 
       scoring: {
