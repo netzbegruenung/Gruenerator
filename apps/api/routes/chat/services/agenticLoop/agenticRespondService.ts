@@ -18,6 +18,7 @@ import { knownArtifactRefs } from '../../../../agents/langgraph/ChatGraph/nodes/
 import { isSummaryAsk } from '../../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { forbidsNewResearch } from '../../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
 import { isModelSlow, recordSlowVerdict } from '../../../../services/ai/modelHealth.js';
+import { looksLikeMemoryRequest } from '../../../../services/memory/memoryRequest.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { type McpCatalog } from '../../agents/mcpCatalog.js';
 import {
@@ -69,8 +70,8 @@ import { createAnswerEmitter } from './loopSse.js';
 import { buildToolObservationReplay, spliceToolReplay } from './mcpReplay.js';
 import { stripDuplicatedOpening } from './openingDedupe.js';
 import { type RecipeRegistry } from './recipeRegistry.js';
+import { createRerankDegradedHook } from './rerankWarning.js';
 import { rewritesSuppliedText } from './routing.js';
-import { looksLikeMemoryRequest } from '../../../../services/memory/memoryRequest.js';
 import { createSourceRegistry } from './sourceRegistry.js';
 import { buildConnectorNotes, buildSynthSystem, type SynthPromptContext } from './synthPrompt.js';
 import { createAnswerValidator, finalizeAnswerText, pdfProblemNote } from './synthVerdicts.js';
@@ -81,6 +82,7 @@ import { createToolCostLedger } from './toolCostLedger.js';
 import { buildToolUsageBlock } from './toolUsageBlock.js';
 import { logTurnSummary } from './turnSummary.js';
 import { type PendingToolCall, type PersistedStep } from './types.js';
+import { composeToolHooks } from './wrapTools.js';
 
 import type {
   ChatGraphState,
@@ -321,9 +323,14 @@ export async function streamAgenticResponse(
       serverNameFor: (name) => toolLabels.get(name)?.serverName,
       ...(grantedOnce ? { grantedOnce } : {}),
     });
+    // Zwei Beobachter am selben Haken: die Kostenrechnung zählt JEDEN Aufruf,
+    // die Rerank-Warnung feuert höchstens einmal je Turn. `composeToolHooks`
+    // isoliert dabei jeden Beobachter einzeln — ein werfender Kostenzähler
+    // reißt die Warnung nicht mit, und umgekehrt.
+    const rerankWarning = createRerankDegradedHook(sse);
     const wrapped = wrapAssembledTools(tools, {
       sse,
-      hooks: costLedger.hooks,
+      hooks: composeToolHooks(costLedger.hooks, rerankWarning),
       guards,
       recordStep: (step) => steps.push(step),
       perCallTimeoutMs: budget.perCallTimeoutMs,

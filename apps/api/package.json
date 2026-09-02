@@ -20,6 +20,7 @@
     "eval:bgst:korpus": "cross-env EVAL_FILTER=bgst-korpus EVAL_BGST_KORPUS=1 NODE_OPTIONS=--conditions=development npx tsx evals/runChatEval.ts",
     "eval:bgst:build": "cross-env NODE_OPTIONS=--conditions=development npx tsx evals/tools/buildBgstCorpus.ts && cross-env NODE_OPTIONS=--conditions=development npx tsx evals/tools/buildBgstKorpusCorpus.ts",
     "eval:retrieval": "cross-env NODE_OPTIONS=--conditions=development npx tsx evals/retrieval/runRetrievalEval.ts",
+    "eval:retrieval:compare": "cross-env NODE_OPTIONS=--conditions=development npx tsx evals/retrieval/compareOutcomes.ts",
     "eval:retrieval:ann": "cross-env NODE_OPTIONS=--conditions=development npx tsx evals/retrieval/annRecallCheck.ts",
     "eval:manual:stages": "cross-env NODE_OPTIONS=--conditions=development npx tsx evals/retrieval/inspectManualStages.ts",
     "eval:manual:mentions": "cross-env NODE_OPTIONS=--conditions=development npx tsx evals/retrieval/mentionCountCheck.ts",
