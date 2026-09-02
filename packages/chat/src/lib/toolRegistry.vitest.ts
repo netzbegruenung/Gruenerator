@@ -268,6 +268,37 @@ describe('loop-catalog tool parsers', () => {
     }
   });
 
+  it('memory cards show what was kept, changed or dropped — never the model hint', () => {
+    const saved = resolveToolEntry('memory').parse(
+      { action: 'save', kind: 'fakt', text: 'Aus Köln.' },
+      { gespeichert: true, nr: 3, kind: 'fakt', text: 'Schreibt für den KV Köln.' }
+    );
+    expect(saved).toEqual({ kind: 'text-note', text: 'Gemerkt: Schreibt für den KV Köln.' });
+
+    const dup = resolveToolEntry('memory').parse(
+      {},
+      { gespeichert: true, nr: 1, text: 'Aus Köln.', hinweis: 'War schon gespeichert.' }
+    );
+    expect(dup).toEqual({ kind: 'text-note', text: 'Bereits gemerkt: Aus Köln.' });
+
+    expect(
+      resolveToolEntry('memory').parse({}, { aktualisiert: true, nr: 1, text: 'Immer Sie-Form.' })
+    ).toEqual({
+      kind: 'text-note',
+      text: 'Aktualisiert: Immer Sie-Form.',
+    });
+    expect(
+      resolveToolEntry('memory').parse({}, { vergessen: true, nr: 2, text: 'Aus Köln.' })
+    ).toEqual({
+      kind: 'text-note',
+      text: 'Vergessen: Aus Köln.',
+    });
+    expect(resolveToolEntry('memory').parse({}, { error: 'Das Gedächtnis ist voll.' })).toEqual({
+      kind: 'text-note',
+      text: 'Das Gedächtnis ist voll.',
+    });
+  });
+
   it('rezept_laden failure reports the reason, not a success line', () => {
     const vm = resolveToolEntry('rezept_laden').parse(
       { rezept: 'presse' },

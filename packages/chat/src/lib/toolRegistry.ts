@@ -79,6 +79,7 @@ export const UI_TOOL_NAMES = z.enum([
   'dokumente_lesen',
   'search_threads',
   'read_artifact',
+  'memory',
 ]);
 export type UiToolName = z.infer<typeof UI_TOOL_NAMES>;
 
@@ -220,6 +221,23 @@ function parseTextNoteVM(args: unknown, result: unknown): ToolResultVM {
         getString(result, 'umfragen'));
   if (!text) return parseGenericFallback(args, result);
   return { kind: 'text-note', text };
+}
+
+// memory: the card is the only place the person sees what was kept, changed
+// or dropped — so it shows the text, never the model-facing `hinweis`.
+function parseMemoryVM(args: unknown, result: unknown): ToolResultVM {
+  const error = getString(result, 'error');
+  if (error) return { kind: 'text-note', text: error };
+  const text = getString(result, 'text');
+  if (!text) return parseGenericFallback(args, result);
+  if (getBoolean(result, 'gespeichert')) {
+    const already = getString(result, 'hinweis') != null;
+    return { kind: 'text-note', text: `${already ? 'Bereits gemerkt' : 'Gemerkt'}: ${text}` };
+  }
+  if (getBoolean(result, 'aktualisiert'))
+    return { kind: 'text-note', text: `Aktualisiert: ${text}` };
+  if (getBoolean(result, 'vergessen')) return { kind: 'text-note', text: `Vergessen: ${text}` };
+  return parseGenericFallback(args, result);
 }
 
 // rezept_laden is a SWITCH, not a search: it registers a writing recipe for the
@@ -663,6 +681,7 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   generate_image: entry('generate_image', 'image', parseImageVM),
   recall_memory: entry('recall_memory', 'text-note', parseTextNoteVM),
   save_memory: entry('save_memory', 'text-note', parseTextNoteVM),
+  memory: entry('memory', 'text-note', parseMemoryVM),
   search_chat_history: entry('search_chat_history', 'citations', (_a, r) => ({
     kind: 'citations',
     citations: parseSearchCitations(r),

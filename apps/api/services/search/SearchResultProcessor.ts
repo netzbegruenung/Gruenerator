@@ -7,9 +7,11 @@
  * - Source grouping by collection
  */
 
+import { vectorConfig } from '../../config/vectorConfig.js';
 import { PROMPT_SOURCE_MAX_CHARS } from '../document-services/TextChunker/chunkBudget.js';
 
 import { recencyBoost, resolveSourceDate } from './recency.js';
+import { selectRelevantExcerpt } from './relevantExcerpt.js';
 
 import type {
   SearchResultInput,
@@ -217,7 +219,8 @@ export function toClientSource(result: ExpandedChunkResult): ExpandedChunkResult
  */
 export function validateAndInjectCitations(
   draft: string,
-  referencesMap: ReferencesMap
+  referencesMap: ReferencesMap,
+  options: { question?: string } = {}
 ): ValidationResult {
   const validIds = new Set(Object.keys(referencesMap));
   const errors: string[] = [];
@@ -252,11 +255,27 @@ export function validateAndInjectCitations(
     content = content.replace(re, `[cite:${id}]`);
   }
 
+  // Dieselbe Decke wie die Suchvorschau (`CONTENT_MAX_EXCERPT_LENGTH`, 1500):
+  // der Ausschnitt wird VERSCHOBEN, nicht gekürzt. Ein engerer Deckel hier
+  // kostet zweimal — einmal in der Karte und einmal im nächsten Zug, denn
+  // `notebookHistoryService` trägt `cited_text` als `chunk_text` weiter.
+  const citedTextMaxChars = vectorConfig.get('content').maxExcerptLength;
   const citations: Citation[] = [...usedIds].map((id) => {
     const ref = referencesMap[id];
+    const head = ref.snippets[0]?.[0] || '';
+    const excerpt =
+      options.question && ref.chunk_text
+        ? selectRelevantExcerpt(ref.chunk_text, options.question, citedTextMaxChars, 'contiguous')
+        : null;
+    // `null` heisst: der Chunk passt unter die Decke, oder die Frage trägt kein
+    // Signal — im zweiten Fall bleibt der Fallback unter der Decke gekappt,
+    // statt den ganzen (womöglich mehrere-KB-langen) Chunk zu zitieren.
+    const citedText =
+      excerpt?.text ??
+      (options.question && ref.chunk_text ? ref.chunk_text.slice(0, citedTextMaxChars) : head);
     return {
       index: id,
-      cited_text: ref.snippets[0]?.[0] || '',
+      cited_text: citedText,
       document_title: ref.title,
       document_id: ref.document_id,
       source_url: ref.source_url || null,

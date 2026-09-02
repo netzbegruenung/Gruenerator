@@ -137,10 +137,13 @@ export interface ExpandedChunkResult {
   /** Short excerpt for the UI's citation list. */
   snippet: string;
   /**
-   * The retrieved chunk in full, when the search layer supplied it. `snippet`
-   * is cut to 300 chars from the chunk's start on a semantic hit, so the
-   * passage that actually matched is usually not in it — read this for the
-   * answer prompt and the reranker, `snippet` only for display.
+   * Der ganze Chunk, wenn die Suchschicht ihn mitgeliefert hat. `snippet` ist
+   * die Vorschau der Suche: bis zu `CONTENT_MAX_EXCERPT_LENGTH` Zeichen
+   * (Standard 1500), bei einem Termtreffer um den Treffer zentriert
+   * (`extractMatchedExcerpt`), sonst `extractRelevantExcerpt`. Für Antwort-
+   * Prompt und Reranker gilt trotzdem dieses Feld — es ist der ungekürzte
+   * Chunk. Das `cited_text` einer Notebook-Antwort ist wiederum der
+   * anfragebezogene Ausschnitt daraus (siehe `validateAndInjectCitations`).
    */
   chunk_text?: string | undefined;
   filename: string | null;

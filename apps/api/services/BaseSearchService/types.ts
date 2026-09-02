@@ -252,6 +252,13 @@ export interface SearchResponse {
     searchPatterns?: string[] | undefined;
     hybridMethod?: string | undefined;
     processedDocuments?: number | undefined;
+    /**
+     * Der Chunk-Reranker war bestellt und ist ausgefallen (Anbieter aus,
+     * Breaker offen, Zeitüberschreitung). KEIN Fehler: die Sortierung ist die
+     * ohne Cross-Encoder. Das Feld existiert allein, damit der agentische Loop
+     * einmal je Turn `rerank_degraded` senden kann. Es wird NICHT mitgecacht.
+     */
+    rerankDegraded?: boolean | undefined;
   };
 }
 
@@ -362,4 +369,12 @@ export interface MMROptions {
    * danach keine zweite Rerank-Stufe mehr, die es nachholen könnte.
    */
   rerankChunks?: boolean | undefined;
+  /**
+   * Ausgabe-Senke für den Fehlschlag des Cross-Encoders. Wird genau dann
+   * gerufen, wenn `rerankChunks` bestellt war und `rerankPipeline` degradiert
+   * hat. Ein Rückruf statt eines zweiten Rückgabewerts, weil
+   * `groupAndRankHybridResults` `DocumentResult[]` an ein Dutzend Aufrufer
+   * liefert und keiner davon ein Tupel erwartet.
+   */
+  onRerankDegraded?: (() => void) | undefined;
 }

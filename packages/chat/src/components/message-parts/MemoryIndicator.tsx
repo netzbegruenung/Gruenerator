@@ -4,13 +4,10 @@ import { memo, useState } from 'react';
 import type { MemoryContextInfo } from '../../hooks/useChatGraphStream';
 
 // Kept inline because packages/chat cannot import from apps/api.
-// Matches CATEGORY_LABELS in apps/api/services/mem0/categories.ts.
+// Matches `memoryKindSchema` in @gruenerator/contracts (schemas/memory.ts).
 const CATEGORY_LABEL: Record<string, string> = {
-  identity: 'Profil',
-  activity: 'Aktivität',
-  context: 'Kontext',
-  experience: 'Erfahrung',
-  preference: 'Präferenz',
+  anweisung: 'Anweisung',
+  fakt: 'Fakt',
 };
 
 interface MemoryIndicatorProps {

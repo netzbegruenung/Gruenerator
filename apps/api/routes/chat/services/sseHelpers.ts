@@ -876,6 +876,14 @@ export const CHAT_WARNINGS = {
     severity: 'warning',
     attribution: 'provider',
   },
+  // Das Modell hat eine Quellennummer genannt, die es nicht bekommen hat. Der
+  // Marker bleibt im Text (Löschen würde die Stelle verstecken); dieses Signal
+  // zählt den Fall, den der Notebook-Prompt ausdrücklich verbietet.
+  citation_invalid: {
+    message: 'Eine Quellenangabe in der Antwort verweist auf keine bereitgestellte Quelle.',
+    severity: 'warning',
+    attribution: 'system',
+  },
 } satisfies Record<ChatWarningCode, ChatWarningSpec>;
 
 /**

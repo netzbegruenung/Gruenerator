@@ -320,15 +320,6 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
       { field: 'document_id', type: 'keyword' },
     ],
   },
-  notebook_usage_logs: {
-    name: 'notebook_usage_logs',
-    optimizer: 'small',
-    hnsw: null,
-    indexes: [
-      { field: 'collection_id', type: 'keyword' },
-      { field: 'user_id', type: 'keyword' },
-    ],
-  },
   notebook_public_access: {
     name: 'notebook_public_access',
     optimizer: 'minimal',
@@ -503,16 +494,17 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
       { field: 'chunk_text', type: 'text' },
     ],
   },
-  // mem0 user memory collection for cross-thread persistent context
+  // The person's explicit memory — only `kind = 'fakt'` rows are mirrored here
+  // for retrieval; instructions live in the prompt (services/memory/memoryStore.ts).
+  // Same collection mem0 used; its old points lack `kind` and are filtered out.
   user_memories: {
     name: 'user_memories',
-    optimizer: 'medium',
+    optimizer: 'small',
     hnsw: 'standard',
     indexes: [
       { field: 'user_id', type: 'keywordTenant' },
-      { field: 'memory_type', type: 'keyword' },
-      { field: 'created_at', type: 'datetime' },
-      { field: 'memory_text', type: 'text' },
+      { field: 'kind', type: 'keyword' },
+      { field: 'memory_id', type: 'keyword' },
     ],
   },
   // One point per chat thread (title + tags + first message + compaction

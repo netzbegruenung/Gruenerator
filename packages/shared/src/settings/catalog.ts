@@ -206,6 +206,13 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
     platforms: BOTH,
   },
   {
+    id: 'erinnerungen.gedaechtnis',
+    tab: 'erinnerungen',
+    title: 'Gedächtnis',
+    description:
+      'Der Grünerator merkt sich nur, was du ihm ausdrücklich sagst („merk dir …") — und berücksichtigt es in jedem Chat. Aus: nichts wird gespeichert oder verwendet.',
+  },
+  {
     id: 'personalisierung.rollen',
     tab: 'personalisierung',
     title: 'Rollen',
