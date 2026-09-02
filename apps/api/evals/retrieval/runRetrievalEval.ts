@@ -56,14 +56,14 @@
  *   EVAL_VERBOSE=1   print top-5 titles for every miss (gold-label curation)
  *   EVAL_OUT         write per-case results as JSON to this path
  *   EVAL_CHAT_EXPAND=1  nur für EVAL_PIPELINE=chat-notebook: hängt EINE
- *                    Paraphrase aus `expandQuery` an die Anfrage an — der Pfad,
- *                    den `searchNode` seit #3121 für notebook-gebundene Turns
- *                    fährt. Ohne die Variable läuft der Arm mit einer
- *                    Formulierung, also dem Zustand davor. Beide Arme kommen so
- *                    aus EINEM Baum; gepaart verglichen ist die Differenz der
- *                    Effekt der zweiten Formulierung und sonst nichts.
- *                    Die Zahl der Alternativen (1) steht hier UND in
- *                    `searchNode.ts` — wer eine ändert, ändert beide.
+ *                    Paraphrase aus `expandQuery` an die Anfrage an. Das ist
+ *                    das für #3121 gemessene und VERWORFENE Experiment (PR
+ *                    #3159: Hit@3 60 → 60 %, MRR 0,525 → 0,525, +1,2 s je
+ *                    Turn) — `searchNode` ruft `expandQuery` für
+ *                    notebook-gebundene Turns nicht auf. Ohne die Variable
+ *                    läuft der Arm wie die Produktion. Der Schalter bleibt,
+ *                    damit der nächste Anlauf (etwa mit feinerem Sortier-
+ *                    schlüssel) gepaart gegen dieselbe Grundlinie messen kann.
  *
  * Three pipelines, because the product has three: `qa` is the notebook Q&A
  * search (depth profile + optional rerank), `manual` is the notebook search
