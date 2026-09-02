@@ -203,6 +203,16 @@ export interface DocumentResult {
   source_id?: string | null | undefined;
   relevant_content: string;
   similarity_score: number;
+  /**
+   * Höchster GEMESSENER dichter Kosinus über die Chunks dieses Dokuments,
+   * `null` wo keiner vorlag (#3166). `similarity_score` ist auf einer
+   * server-seitig fusionierten Sammlung ein Fusionswert; die Schwellen der
+   * Notebook-Ebene sind aber als Kosinus geschrieben. Auf dem Alt-Pfad bleibt
+   * das Feld bewusst leer: dort ist `similarity_score` bereits
+   * `max(Kosinus, Mischwert)`, und ein Schnitt auf dem reinen Kosinus würde
+   * die Kontrollgruppe verschieben.
+   */
+  dense_similarity_score?: number | null | undefined;
   max_similarity: number;
   avg_similarity: number;
   position_score?: number | undefined;
