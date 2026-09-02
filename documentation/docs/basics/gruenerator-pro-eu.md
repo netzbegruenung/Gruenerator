@@ -16,9 +16,11 @@ Der Grünerator ist die souveräne Alternative: **100% europäische Infrastruktu
 {/* Modell-Stand aus dem Code: apps/api/routes/chat/agents/providers.ts,
 apps/api/services/ai/providers.ts, apps/api/services/ai/gemmaHosts.ts, apps/api/services/flux/,
 apps/api/services/transcription/providerPolicy.ts,
+apps/api/services/voice/ttsService.ts,
 apps/api/services/providers/providerSelector.ts */}
 
 - **Mistral AI** (Frankreich) — Standardmodell Mistral Medium 3.5 (`mistral-medium-2604`), Bildverstehen mit Pixtral Large, Suche und Notebooks mit `mistral-embed`, Transkription mit Voxtral
+- **KugelAudio** (Berlin, Deutschland) — Sprachausgabe mit `kugel-3`: das Vorlesen von Antworten und die Stimme im Sprachdialog, ausschließlich über den EU-Endpunkt `api.eu.kugelaudio.com`. Seit September 2026 anstelle von Mistral Speech. Keine dauerhafte Speicherung der Inhalte, kein Training; jede erzeugte Audiodatei trägt ein Wasserzeichen nach Art. 50 KI-VO
 - **Black Forest Labs** (Freiburg, Deutschland) — Bilderzeugung und -bearbeitung mit FLUX 2 Pro (`flux-2-pro`), ausschließlich über den EU-Endpunkt `api.eu.bfl.ai`
 - **Cortecs** (Vermittler, EU) — vermittelt Gemma 4 (`gemma-4-31b-it`) an **Infercom SCS** (Luxemburg, Verarbeitung in Deutschland). Seit August 2026 das Modell, das die meisten Chat-Antworten und fertigen Texte schreibt sowie lange Dokumente zusammenfasst. Cortecs bekommt bei jeder Anfrage die Weisung, nur in der EU ansässige Anbieter mit Zero Data Retention einzusetzen; welcher Anbieter tatsächlich gerechnet hat, steht in jeder Antwort und wird protokolliert
 - **Regolo / Seeweb** (Italien) — Open-Source-Modelle (GPT-OSS 120B, Mistral Small 4, Gemma 4 als Ausweichweg) und das Bildmodell Qwen-Image — Zero Data Retention, 100 % erneuerbare Energie

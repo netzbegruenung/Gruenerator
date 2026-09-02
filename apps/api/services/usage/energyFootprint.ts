@@ -275,11 +275,21 @@ const EU_AVERAGE_G_PER_KWH = 213;
  * what the PUE_ESTIMATE_BY_PROVIDER note calls worse than an honest gap.
  *
  * What is recorded instead is the DURATION (`unit: 'speech_seconds'`), the
- * quantity the energy would scale with, published under `unvalued_ops`. Valuing
- * it later needs two things: a coefficient in mWh per second, and a
- * GRID_SPAN_G_PER_KWH row rather than a point — KugelAudio's sub-processors run
- * from France (~20 g/kWh) to Poland (~600 g/kWh), and it does not disclose
- * which one served a given request.
+ * quantity the energy would scale with, published under `unvalued_ops`.
+ *
+ * Valuing it later needs two things, and only one of them is hard:
+ *
+ *  - A GRID_SPAN_G_PER_KWH row rather than a point. The provider's own
+ *    sub-processor register (Trust Center, 10.08.2026) names Verda AI (FI) and
+ *    Nebius (FI/FR) for inference and Hetzner (DE) for GPU servers, so the
+ *    compute sits mostly in Finland, France and Germany. Poland enters only
+ *    through Scaleway, which is listed as generic GPU/server infrastructure —
+ *    less likely, not excluded. Roughly 20 g/kWh (FR) to 600 (PL), and the
+ *    provider does not disclose which host served a given request.
+ *  - A coefficient in mWh per second of generated audio. This is the one that
+ *    does not exist anywhere, and no grid figure is worth anything without it,
+ *    since g/kWh multiplies an energy quantity we do not have. Asking the
+ *    provider for average GPU draw plus a real-time factor would be enough.
  */
 
 const GRID_INTENSITY_G_PER_KWH: Readonly<Record<string, number>> = {

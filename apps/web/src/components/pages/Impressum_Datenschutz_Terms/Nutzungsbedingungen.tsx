@@ -4,7 +4,7 @@ const Nutzungsbedingungen = () => {
   return (
     <div className="page-container">
       <h1>Nutzungsbedingungen</h1>
-      <p>Stand: 16. Juni 2026</p>
+      <p>Stand: 2. September 2026</p>
 
       <h2>§ 1 Geltungsbereich</h2>
       <p>
@@ -56,7 +56,7 @@ const Nutzungsbedingungen = () => {
         <li>
           <strong>Echtzeit-Sprachdialog (Voice Agent):</strong> Bidirektionales, freihändiges
           Gespräch mit der KI mit kontinuierlich aktivem Mikrofon für die Dauer der Sitzung sowie
-          Sprachausgabe der Antworten (Voxtral und Mistral Speech, EU)
+          Sprachausgabe der Antworten (KugelAudio, EU)
         </li>
       </ul>
       <p>
@@ -146,6 +146,7 @@ const Nutzungsbedingungen = () => {
         <li>Mistral AI (EU-Server, Frankreich)</li>
         <li>KI-Modelle der netzbegrünung e.V. (eigene Server, EU)</li>
         <li>Seeweb/Regolo AI (EU-Server, Italien)</li>
+        <li>KugelAudio (Sprachausgabe; Sitz Berlin, Verarbeitung in der EU)</li>
       </ul>
       <p>
         (2){' '}
