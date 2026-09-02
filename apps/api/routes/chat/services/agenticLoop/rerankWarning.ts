@@ -10,8 +10,12 @@
  *
  * Der Marker kommt als `rerankDegraded` am Werkzeugergebnis an (gesetzt in
  * `directSearchExecutors.ts`, durchgereicht aus `SearchResponse.metadata`).
- * `afterToolCall` sieht das UNGEKÜRZTE Ergebnis; der Umschlag entfernt das Feld
- * danach, bevor es das Modell erreicht.
+ * `afterToolCall` sieht das UNGEKÜRZTE Ergebnis — der persistierte Schritt
+ * bleibt roh (Karte, Fehlersuche). Das Modell sieht das Feld an zwei Stellen
+ * nie: `stripInternalFields` in `wrapTools.ts` entfernt es aus der Antwort des
+ * laufenden Aufrufs, und dieselbe Funktion entfernt es erneut in `mcpReplay.ts`
+ * (`shortValue`), wenn derselbe persistierte Schritt einen Turn später
+ * repliziert wird.
  *
  * Eine Instanz je Turn — der Zähler ist eine Closure, wie die Guards daneben.
  */

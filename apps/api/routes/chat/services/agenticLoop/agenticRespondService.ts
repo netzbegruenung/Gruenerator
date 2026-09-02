@@ -81,6 +81,7 @@ import { createToolCostLedger } from './toolCostLedger.js';
 import { buildToolUsageBlock } from './toolUsageBlock.js';
 import { logTurnSummary } from './turnSummary.js';
 import { type PendingToolCall, type PersistedStep } from './types.js';
+import { composeToolHooks } from './wrapTools.js';
 
 import type {
   ChatGraphState,
@@ -322,18 +323,13 @@ export async function streamAgenticResponse(
       ...(grantedOnce ? { grantedOnce } : {}),
     });
     // Zwei Beobachter am selben Haken: die Kostenrechnung zählt JEDEN Aufruf,
-    // die Rerank-Warnung feuert höchstens einmal je Turn. Der Hook-Vertrag
-    // kennt nur einen `afterToolCall`, also wird hier von Hand komponiert.
+    // die Rerank-Warnung feuert höchstens einmal je Turn. `composeToolHooks`
+    // isoliert dabei jeden Beobachter einzeln — ein werfender Kostenzähler
+    // reißt die Warnung nicht mit, und umgekehrt.
     const rerankWarning = createRerankDegradedHook(sse);
     const wrapped = wrapAssembledTools(tools, {
       sse,
-      hooks: {
-        ...costLedger.hooks,
-        afterToolCall: (event) => {
-          costLedger.hooks.afterToolCall?.(event);
-          rerankWarning.afterToolCall(event);
-        },
-      },
+      hooks: composeToolHooks(costLedger.hooks, rerankWarning),
       guards,
       recordStep: (step) => steps.push(step),
       perCallTimeoutMs: budget.perCallTimeoutMs,
