@@ -1,0 +1,688 @@
+{
+  "depth": "deep",
+  "threshold": 0.89,
+  "results": [
+    {
+      "id": "notebook-berlin-hitzeschutz",
+      "group": "on-topic",
+      "query": "Was gilt in Berlin zum Hitzeschutz, etwa an Schulen oder für Hitzeempfindliche?",
+      "metrics": {
+        "candidates": 40,
+        "denseTop": 0.9895249084000001,
+        "denseMedian": 0.9413936556363636,
+        "denseMargin": 0.0481312527636365,
+        "rerankTop": 0.7206446528434753,
+        "rerankMedian": 0.39818723499774933,
+        "rerankMargin": 0.322457417845726,
+        "rerankTop3Mean": 0.5835497776667277,
+        "aboveThresholdShare": 1,
+        "goldRank": 1,
+        "joinPath": false
+      },
+      "error": null
+    },
+    {
+      "id": "notebook-berlin-milieuschutz",
+      "group": "on-topic",
+      "query": "Wie will Berlin mit Milieuschutzgebieten die Mietenentwicklung bremsen?",
+      "metrics": {
+        "candidates": 40,
+        "denseTop": 1,
+        "denseMedian": 1,
+        "denseMargin": 0,
+        "rerankTop": 0.8960530757904053,
+        "rerankMedian": 0.5670052170753479,
+        "rerankMargin": 0.3290478587150574,
+        "rerankTop3Mean": 0.7709293762842814,
+        "aboveThresholdShare": 1,
+        "goldRank": 2,
+        "joinPath": false
+      },
+      "error": null
+    },
+    {
+      "id": "notebook-bayern-moorschutz",
+      "group": "on-topic",
+      "query": "Welche Ziele und Maßnahmen verfolgt der Moorschutz in Bayern?",
+      "metrics": {
+        "candidates": 40,
+        "denseTop": 1,
+        "denseMedian": 0.9576877257499999,
+        "denseMargin": 0.04231227425000006,
+        "rerankTop": 0.9478484988212585,
+        "rerankMedian": 0.60823193192482,
+        "rerankMargin": 0.3396165668964386,
+        "rerankTop3Mean": 0.8044488827387491,
+        "aboveThresholdShare": 1,
+        "goldRank": 3,
+        "joinPath": false
+      },
+      "error": null
+    },
+    {
+      "id": "notebook-at-klimaticket",
+      "group": "on-topic",
+      "query": "Wie ist das Klimaticket in Österreich finanziert, und was kostet es?",
+      "metrics": {
+        "candidates": 30,
+        "denseTop": 0.9618639513548387,
+        "denseMedian": 0.9471726014482759,
+        "denseMargin": 0.014691349906562845,
+        "rerankTop": 0.5609114766120911,
+        "rerankMedian": 0.31995511054992676,
+        "rerankMargin": 0.2409563660621643,
+        "rerankTop3Mean": 0.5043821533521017,
+        "aboveThresholdShare": 1,
+        "goldRank": 1,
+        "joinPath": false
+      },
+      "error": null
+    },
+    {
+      "id": "notebook-user-ausschreibungen",
+      "group": "on-topic",
+      "query": "Welche Direktvergabe an ein Architekturbüro hat das Rechnungsprüfungsamt beanstandet, und wie hoch war der Betrag?",
+      "metrics": {
+        "candidates": 20,
+        "denseTop": 0.9803357532244898,
+        "denseMedian": 0.9447426099643575,
+        "denseMargin": 0.0355931432601323,
+        "rerankTop": 0.7798036336898804,
+        "rerankMedian": 0.19494429230690002,
+        "rerankMargin": 0.5848593413829803,
+        "rerankTop3Mean": 0.6238334973653158,
+        "aboveThresholdShare": 0.5,
+        "goldRank": 1,
+        "joinPath": false
+      },
+      "error": null
+    },
+    {
+      "id": "notebook-user-haushaltsplan",
+      "group": "on-topic",
+      "query": "Wie hoch sind die Einzahlungen aus laufender Verwaltungstätigkeit laut Finanzplan?",
+      "metrics": {
+        "candidates": 11,
+        "denseTop": 1,
+        "denseMedian": 1,
+        "denseMargin": 0,
+        "rerankTop": 0.6250783801078796,
+        "rerankMedian": 0.31106850504875183,
+        "rerankMargin": 0.3140098750591278,
+        "rerankTop3Mean": 0.6120895147323608,
+        "aboveThresholdShare": 0.9090909090909091,
+        "goldRank": 2,
+        "joinPath": false
+      },
+      "error": null
+    },
+    {
+      "id": "notebook-history-moorschutz",
+      "group": "on-topic",
+      "query": "Und in Bayern?",
+      "metrics": {
+        "candidates": 60,
+        "denseTop": 0.9861193984444444,
+        "denseMedian": 0.8964311506666666,
+        "denseMargin": 0.08968824777777784,
+        "rerankTop": 0.9475604891777039,
+        "rerankMedian": 0.6050674915313721,
+        "rerankMargin": 0.3424929976463318,
+        "rerankTop3Mean": 0.8383779525756836,
+        "aboveThresholdShare": 1,
+        "goldRank": 2,
+        "joinPath": false
+      },
+      "error": null
+    },
+    {
+      "id": "notebook-history-flaechenfrass",
+      "group": "on-topic",
+      "query": "Und in Bayern?",
+      "metrics": {
+        "candidates": 60,
+        "denseTop": 0.9957452680000001,
+        "denseMedian": 0.884264004,
+        "denseMargin": 0.11148126400000002,
+        "rerankTop": 0.7509645223617554,
+        "rerankMedian": 0.48361100256443024,
+        "rerankMargin": 0.26735351979732513,
+        "rerankTop3Mean": 0.7116671005884806,
+        "aboveThresholdShare": 1,
+        "goldRank": 1,
+        "joinPath": false
+      },
+      "error": null
+    },
+    {
+      "id": "notebook-history-artenvielfalt",
+      "group": "on-topic",
+      "query": "Und in Bayern?",
+      "metrics": {
+        "candidates": 60,
+        "denseTop": 1,
+        "denseMedian": 0.962287539,
+        "denseMargin": 0.03771246100000003,
+        "rerankTop": 0.8569032549858093,
+        "rerankMedian": 0.550315648317337,
+        "rerankMargin": 0.3065876066684723,
+        "rerankTop3Mean": 0.8203703761100769,
+        "aboveThresholdShare": 1,
+        "goldRank": 3,
+        "joinPath": false
+      },
+      "error": null
+    },
+    {
+      "id": "chat-nb-berlin-verkehr",
+      "group": "on-topic",
+      "query": "Ausbau von Radwegen und ÖPNV in Berlin",
+      "metrics": {
+        "candidates": 40,
+        "denseTop": 0.9956112542857143,
+        "denseMedian": 0.9221341209090909,
+        "denseMargin": 0.07347713337662343,
+        "rerankTop": 0.9444771409034729,
+        "rerankMedian": 0.8094500303268433,
+        "rerankMargin": 0.13502711057662964,
+        "rerankTop3Mean": 0.9243672887484232,
+        "aboveThresholdShare": 1,
+        "goldRank": 4,
+        "joinPath": false
+      },
+      "error": null
+    },
+    {
+      "id": "chat-nb-berlin-baumfaellmoratorium",
+      "group": "on-topic",
+      "query": "Was steht zum Baumfäll-Moratorium?",
+      "metrics": {
+        "candidates": 40,
+        "denseTop": 0.958095809,
+        "denseMedian": 0.9263297902857142,
+        "denseMargin": 0.03176601871428586,
+        "rerankTop": 0.8751532435417175,
+        "rerankMedian": 0.49717095494270325,
+        "rerankMargin": 0.3779822885990143,
+        "rerankTop3Mean": 0.8453179995218912,
+        "aboveThresholdShare": 1,
+        "goldRank": null,
+        "joinPath": false
+      },
+      "error": null
+    },
+    {
+      "id": "chat-nb-bayern-artenvielfalt",
+      "group": "on-topic",
+      "query": "Volksbegehren Artenvielfalt — Rettet die Bienen",
+      "metrics": {
+        "candidates": 40,
+        "denseTop": 0.9955556411428571,
+        "denseMedian": 0.9788220048,
+        "denseMargin": 0.016733636342857072,
+        "rerankTop": 0.9361913800239563,
+        "rerankMedian": 0.6026780903339386,
+        "rerankMargin": 0.3335132896900177,
+        "rerankTop3Mean": 0.8768265048662821,
+        "aboveThresholdShare": 1,
+        "goldRank": 1,
+        "joinPath": false
+      },
+      "error": null
+    },
+    {
+      "id": "chat-nb-bayern-flaechenfrass",
+      "group": "on-topic",
+      "query": "Flächenverbrauch und Flächenfraß in Bayern begrenzen",
+      "metrics": {
+        "candidates": 40,
+        "denseTop": 1,
+        "denseMedian": 0.9093747799999999,
+        "denseMargin": 0.09062522000000006,
+        "rerankTop": 0.9318424463272095,
+        "rerankMedian": 0.5772786736488342,
+        "rerankMargin": 0.35456377267837524,
+        "rerankTop3Mean": 0.8937286138534546,
+        "aboveThresholdShare": 1,
+        "goldRank": 1,
+        "joinPath": false
+      },
+      "error": null
+    },
+    {
+      "id": "offtopic-sauerteigbrot",
+      "group": "off-topic",
+      "query": "Wie backe ich Sauerteigbrot?",
+      "metrics": {
+        "candidates": 40,
+        "denseTop": 0.853524074,
+        "denseMedian": 0.848411493,
+        "denseMargin": 0.005112581000000005,
+        "rerankTop": 0.7877907156944275,
+        "rerankMedian": 0.49784591794013977,
+        "rerankMargin": 0.2899447977542877,
+        "rerankTop3Mean": 0.7611655394236246,
+        "aboveThresholdShare": 1,
+        "goldRank": null,
+        "joinPath": false
+      },
+      "error": null
+    },
+    {
+      "id": "offtopic-fussball-wm-2014",
+      "group": "off-topic",
+      "query": "Wer gewann die Fußball-WM 2014?",
+      "metrics": {
+        "candidates": 40,
+        "denseTop": 0.8684124336,
+        "denseMedian": 0.8640842462857142,
+        "denseMargin": 0.004328187314285747,
+        "rerankTop": 0.8001556992530823,
+        "rerankMedian": 0.48477010428905487,
+        "rerankMargin": 0.3153855949640274,
+        "rerankTop3Mean": 0.705984354019165,
+        "aboveThresholdShare": 1,
+        "goldRank": null,
+        "joinPath": false
+      },
+      "error": null
+    },
+    {
+      "id": "offtopic-tesla-model-3",
+      "group": "off-topic",
+      "query": "Was kostet ein Tesla Model 3?",
+      "metrics": {
+        "candidates": 40,
+        "denseTop": 0.8812706480000001,
+        "denseMedian": 0.8159330719999999,
+        "denseMargin": 0.06533757600000023,
+        "rerankTop": 0.9310391545295715,
+        "rerankMedian": 0.5997795462608337,
+        "rerankMargin": 0.3312596082687378,
+        "rerankTop3Mean": 0.7671333948771158,
+        "aboveThresholdShare": 1,
+        "goldRank": null,
+        "joinPath": false
+      },
+      "error": null
+    },
+    {
+      "id": "offtopic-mars-distance",
+      "group": "off-topic",
+      "query": "Wie weit ist der Mars entfernt?",
+      "metrics": {
+        "candidates": 40,
+        "denseTop": 0.8955126093333333,
+        "denseMedian": 0.8461945333333333,
+        "denseMargin": 0.049318076000000044,
+        "rerankTop": 0.8134561777114868,
+        "rerankMedian": 0.4926336854696274,
+        "rerankMargin": 0.32082249224185944,
+        "rerankTop3Mean": 0.6815603375434875,
+        "aboveThresholdShare": 1,
+        "goldRank": null,
+        "joinPath": false
+      },
+      "error": null
+    },
+    {
+      "id": "offtopic-carbonara",
+      "group": "off-topic",
+      "query": "Wie kocht man Spaghetti Carbonara?",
+      "metrics": {
+        "candidates": 40,
+        "denseTop": 0.84447766,
+        "denseMedian": 0.7971355710000001,
+        "denseMargin": 0.04734208899999992,
+        "rerankTop": 0.9633616209030151,
+        "rerankMedian": 0.45941489934921265,
+        "rerankMargin": 0.5039467215538025,
+        "rerankTop3Mean": 0.8940412998199463,
+        "aboveThresholdShare": 1,
+        "goldRank": null,
+        "joinPath": false
+      },
+      "error": null
+    },
+    {
+      "id": "offtopic-bitcoin-mining",
+      "group": "off-topic",
+      "query": "Wie funktioniert Bitcoin-Mining?",
+      "metrics": {
+        "candidates": 40,
+        "denseTop": 0.8488372975999999,
+        "denseMedian": 0.8142339559999999,
+        "denseMargin": 0.034603341600000004,
+        "rerankTop": 0.8522958159446716,
+        "rerankMedian": 0.5056227445602417,
+        "rerankMargin": 0.34667307138442993,
+        "rerankTop3Mean": 0.7199183305104574,
+        "aboveThresholdShare": 1,
+        "goldRank": null,
+        "joinPath": false
+      },
+      "error": null
+    },
+    {
+      "id": "offtopic-gitarre-drop-d",
+      "group": "off-topic",
+      "query": "Wie stimme ich eine Gitarre auf Drop D?",
+      "metrics": {
+        "candidates": 40,
+        "denseTop": 0.862006336,
+        "denseMedian": 0.8406586724999999,
+        "denseMargin": 0.021347663500000058,
+        "rerankTop": 0.7595461010932922,
+        "rerankMedian": 0.5157948434352875,
+        "rerankMargin": 0.24375125765800476,
+        "rerankTop3Mean": 0.721677561601003,
+        "aboveThresholdShare": 1,
+        "goldRank": null,
+        "joinPath": false
+      },
+      "error": null
+    },
+    {
+      "id": "offtopic-sternbilder-winter",
+      "group": "off-topic",
+      "query": "Welche Sternbilder sieht man am Winterhimmel?",
+      "metrics": {
+        "candidates": 40,
+        "denseTop": 0.913030232,
+        "denseMedian": 0.8561008680000001,
+        "denseMargin": 0.05692936399999993,
+        "rerankTop": 0.9496562480926514,
+        "rerankMedian": 0.5875756442546844,
+        "rerankMargin": 0.3620806038379669,
+        "rerankTop3Mean": 0.9098560015360514,
+        "aboveThresholdShare": 1,
+        "goldRank": null,
+        "joinPath": false
+      },
+      "error": null
+    },
+    {
+      "id": "offtopic-weiches-ei",
+      "group": "off-topic",
+      "query": "Wie lange kocht ein weiches Ei?",
+      "metrics": {
+        "candidates": 40,
+        "denseTop": 0.8558056626666667,
+        "denseMedian": 0.8330785749999999,
+        "denseMargin": 0.022727087666666757,
+        "rerankTop": 0.7159929871559143,
+        "rerankMedian": 0.5367149710655212,
+        "rerankMargin": 0.17927801609039307,
+        "rerankTop3Mean": 0.693574051062266,
+        "aboveThresholdShare": 1,
+        "goldRank": null,
+        "joinPath": false
+      },
+      "error": null
+    },
+    {
+      "id": "offtopic-dieselmotor",
+      "group": "off-topic",
+      "query": "Wie funktioniert ein Dieselmotor?",
+      "metrics": {
+        "candidates": 40,
+        "denseTop": 0.8697965848571428,
+        "denseMedian": 0.851012546,
+        "denseMargin": 0.01878403885714286,
+        "rerankTop": 0.8420878648757935,
+        "rerankMedian": 0.5428726077079773,
+        "rerankMargin": 0.29921525716781616,
+        "rerankTop3Mean": 0.7469069560368856,
+        "aboveThresholdShare": 1,
+        "goldRank": null,
+        "joinPath": false
+      },
+      "error": null
+    },
+    {
+      "id": "offtopic-steppenwolf-autor",
+      "group": "off-topic",
+      "query": "Wer hat den Roman „Steppenwolf\" geschrieben?",
+      "metrics": {
+        "candidates": 40,
+        "denseTop": 0.836866484,
+        "denseMedian": 0.7981669253333334,
+        "denseMargin": 0.03869955866666652,
+        "rerankTop": 0.721802294254303,
+        "rerankMedian": 0.44866466522216797,
+        "rerankMargin": 0.273137629032135,
+        "rerankTop3Mean": 0.6790024439493815,
+        "aboveThresholdShare": 1,
+        "goldRank": null,
+        "joinPath": false
+      },
+      "error": null
+    },
+    {
+      "id": "offtopic-welpe-leine",
+      "group": "off-topic",
+      "query": "Wie gewöhne ich einen Welpen an die Leine?",
+      "metrics": {
+        "candidates": 40,
+        "denseTop": 0.9123076673333333,
+        "denseMedian": 0.815866322,
+        "denseMargin": 0.09644134533333337,
+        "rerankTop": 0.9384975433349609,
+        "rerankMedian": 0.6393159031867981,
+        "rerankMargin": 0.29918164014816284,
+        "rerankTop3Mean": 0.8587131897608439,
+        "aboveThresholdShare": 1,
+        "goldRank": null,
+        "joinPath": false
+      },
+      "error": null
+    },
+    {
+      "id": "offtopic-bmi-berechnen",
+      "group": "off-topic",
+      "query": "Wie berechnet man den Body-Mass-Index?",
+      "metrics": {
+        "candidates": 25,
+        "denseTop": 0.890642666292683,
+        "denseMedian": 0.837648017189189,
+        "denseMargin": 0.05299464910349394,
+        "rerankTop": 0.7240458130836487,
+        "rerankMedian": 0.42215654253959656,
+        "rerankMargin": 0.3018892705440521,
+        "rerankTop3Mean": 0.6611156662305196,
+        "aboveThresholdShare": 1,
+        "goldRank": null,
+        "joinPath": false
+      },
+      "error": null
+    },
+    {
+      "id": "offtopic-http-https",
+      "group": "off-topic",
+      "query": "Was ist der Unterschied zwischen HTTP und HTTPS?",
+      "metrics": {
+        "candidates": 30,
+        "denseTop": 0.8872631559024391,
+        "denseMedian": 0.88686059775,
+        "denseMargin": 0.0004025581524390587,
+        "rerankTop": 0.897373616695404,
+        "rerankMedian": 0.6163211166858673,
+        "rerankMargin": 0.28105250000953674,
+        "rerankTop3Mean": 0.8095854123433431,
+        "aboveThresholdShare": 1,
+        "goldRank": null,
+        "joinPath": false
+      },
+      "error": null
+    },
+    {
+      "id": "offtopic-impfungen-thailand",
+      "group": "off-topic",
+      "query": "Welche Impfungen brauche ich für eine Thailandreise?",
+      "metrics": {
+        "candidates": 12,
+        "denseTop": 0.8789620166101696,
+        "denseMedian": 0.8789620166101696,
+        "denseMargin": 0,
+        "rerankTop": 0.6280909180641174,
+        "rerankMedian": 0.338320255279541,
+        "rerankMargin": 0.2897706627845764,
+        "rerankTop3Mean": 0.539784183104833,
+        "aboveThresholdShare": 0.75,
+        "goldRank": null,
+        "joinPath": false
+      },
+      "error": null
+    },
+    {
+      "id": "offtopic-apfelbaum-schnitt",
+      "group": "off-topic",
+      "query": "Wann schneidet man einen Apfelbaum im Winter?",
+      "metrics": {
+        "candidates": 11,
+        "denseTop": 0.8458390079663866,
+        "denseMedian": 0.8458390079663866,
+        "denseMargin": 0,
+        "rerankTop": 0.6496296525001526,
+        "rerankMedian": 0.3510887026786804,
+        "rerankMargin": 0.29854094982147217,
+        "rerankTop3Mean": 0.5427229007085165,
+        "aboveThresholdShare": 0.9,
+        "goldRank": null,
+        "joinPath": false
+      },
+      "error": null
+    },
+    {
+      "id": "offtopic-zeitumstellung",
+      "group": "off-topic",
+      "query": "Wann ist die Zeitumstellung auf Sommerzeit?",
+      "metrics": {
+        "candidates": 15,
+        "denseTop": 0.8591967338086954,
+        "denseMedian": 0.8591967338086954,
+        "denseMargin": 0,
+        "rerankTop": 0.5699145197868347,
+        "rerankMedian": 0.3265068829059601,
+        "rerankMargin": 0.24340763688087463,
+        "rerankTop3Mean": 0.5252112944920858,
+        "aboveThresholdShare": 0.9333333333333333,
+        "goldRank": null,
+        "joinPath": false
+      },
+      "error": null
+    },
+    {
+      "id": "neartopic-bvg-monatsabo",
+      "group": "near-topic",
+      "query": "Was kostet ein BVG-Monatsabo?",
+      "metrics": {
+        "candidates": 40,
+        "denseTop": 0.9219237586666665,
+        "denseMedian": 0.8811838693333334,
+        "denseMargin": 0.04073988933333317,
+        "rerankTop": 0.7369909882545471,
+        "rerankMedian": 0.45850905776023865,
+        "rerankMargin": 0.27848193049430847,
+        "rerankTop3Mean": 0.6377074718475342,
+        "aboveThresholdShare": 1,
+        "goldRank": null,
+        "joinPath": false
+      },
+      "error": null
+    },
+    {
+      "id": "neartopic-abgeordnetenhauswahl",
+      "group": "near-topic",
+      "query": "Wann ist die nächste Wahl zum Berliner Abgeordnetenhaus?",
+      "metrics": {
+        "candidates": 40,
+        "denseTop": 0.9515023033333334,
+        "denseMedian": 0.9005463333333332,
+        "denseMargin": 0.050955970000000184,
+        "rerankTop": 0.7074580788612366,
+        "rerankMedian": 0.45541588962078094,
+        "rerankMargin": 0.2520421892404556,
+        "rerankTop3Mean": 0.6732103029886881,
+        "aboveThresholdShare": 1,
+        "goldRank": null,
+        "joinPath": false
+      },
+      "error": null
+    },
+    {
+      "id": "neartopic-muenchen-einwohner",
+      "group": "near-topic",
+      "query": "Wie viele Einwohner hat München?",
+      "metrics": {
+        "candidates": 40,
+        "denseTop": 0.8825440727999999,
+        "denseMedian": 0.8433765173333334,
+        "denseMargin": 0.039167555466666504,
+        "rerankTop": 0.5855797529220581,
+        "rerankMedian": 0.3576935678720474,
+        "rerankMargin": 0.22788618505001068,
+        "rerankTop3Mean": 0.5716856519381205,
+        "aboveThresholdShare": 1,
+        "goldRank": null,
+        "joinPath": false
+      },
+      "error": null
+    },
+    {
+      "id": "neartopic-landesvorsitz-bayern",
+      "group": "near-topic",
+      "query": "Wer hat den Landesvorsitz der bayerischen Grünen?",
+      "metrics": {
+        "candidates": 40,
+        "denseTop": 0.940862028,
+        "denseMedian": 0.9168274933333336,
+        "denseMargin": 0.024034534666666385,
+        "rerankTop": 0.9507087469100952,
+        "rerankMedian": 0.5570821762084961,
+        "rerankMargin": 0.3936265707015991,
+        "rerankTop3Mean": 0.823511560757955,
+        "aboveThresholdShare": 1,
+        "goldRank": null,
+        "joinPath": false
+      },
+      "error": null
+    },
+    {
+      "id": "neartopic-moor-foerdersumme",
+      "group": "near-topic",
+      "query": "Wie hoch war die Fördersumme für Moorrenaturierung 2024?",
+      "metrics": {
+        "candidates": 40,
+        "denseTop": 0.9971021631111111,
+        "denseMedian": 0.9364341093333333,
+        "denseMargin": 0.06066805377777784,
+        "rerankTop": 0.7229712605476379,
+        "rerankMedian": 0.3228900134563446,
+        "rerankMargin": 0.40008124709129333,
+        "rerankTop3Mean": 0.6133129795392355,
+        "aboveThresholdShare": 1,
+        "goldRank": null,
+        "joinPath": false
+      },
+      "error": null
+    }
+  ],
+  "separation": [
+    "candidates: does not separate — closest margin -29.0000 (negative = overlapping ranges)",
+    "denseTop: SEPARATES (on-topic > off-topic) — margin 0.0451, threshold ≈ 0.9356 (midpoint of the boundary values)",
+    "denseMedian: does not separate — closest margin -0.0026 (negative = overlapping ranges)",
+    "denseMargin: does not separate — closest margin -0.0964 (negative = overlapping ranges)",
+    "rerankTop: does not separate — closest margin -0.3779 (negative = overlapping ranges)",
+    "rerankMedian: does not separate — closest margin -0.4444 (negative = overlapping ranges)",
+    "rerankMargin: does not separate — closest margin -0.3689 (negative = overlapping ranges)",
+    "rerankTop3Mean: does not separate — closest margin -0.3992 (negative = overlapping ranges)",
+    "aboveThresholdShare: does not separate — closest margin -0.2500 (negative = overlapping ranges)"
+  ],
+  "acceptance": [
+    "A1 (denseTop): min(on-topic) = 0.9581 (chat-nb-berlin-baumfaellmoratorium), max(off-topic) = 0.9130 (offtopic-sternbilder-winter), margin 0.0451",
+    "A1 (default 0.890): strictly between the two boundary values — NO",
+    "A3 (resolution): second-lowest on-topic 0.9619 (notebook-at-klimaticket), jump 0.0038 vs limit 0.03 — resolved",
+    "near-topic (reported only, never decides): neartopic-bvg-monatsabo 0.9219, neartopic-abgeordnetenhauswahl 0.9515, neartopic-muenchen-einwohner 0.8825, neartopic-landesvorsitz-bayern 0.9409, neartopic-moor-foerdersumme 0.9971"
+  ]
+}
