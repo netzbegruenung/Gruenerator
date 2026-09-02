@@ -69,6 +69,7 @@ import { createAnswerEmitter } from './loopSse.js';
 import { buildToolObservationReplay, spliceToolReplay } from './mcpReplay.js';
 import { stripDuplicatedOpening } from './openingDedupe.js';
 import { type RecipeRegistry } from './recipeRegistry.js';
+import { createRerankDegradedHook } from './rerankWarning.js';
 import { rewritesSuppliedText } from './routing.js';
 import { createSourceRegistry } from './sourceRegistry.js';
 import { buildConnectorNotes, buildSynthSystem, type SynthPromptContext } from './synthPrompt.js';
@@ -320,9 +321,19 @@ export async function streamAgenticResponse(
       serverNameFor: (name) => toolLabels.get(name)?.serverName,
       ...(grantedOnce ? { grantedOnce } : {}),
     });
+    // Zwei Beobachter am selben Haken: die Kostenrechnung zählt JEDEN Aufruf,
+    // die Rerank-Warnung feuert höchstens einmal je Turn. Der Hook-Vertrag
+    // kennt nur einen `afterToolCall`, also wird hier von Hand komponiert.
+    const rerankWarning = createRerankDegradedHook(sse);
     const wrapped = wrapAssembledTools(tools, {
       sse,
-      hooks: costLedger.hooks,
+      hooks: {
+        ...costLedger.hooks,
+        afterToolCall: (event) => {
+          costLedger.hooks.afterToolCall?.(event);
+          rerankWarning.afterToolCall(event);
+        },
+      },
       guards,
       recordStep: (step) => steps.push(step),
       perCallTimeoutMs: budget.perCallTimeoutMs,
