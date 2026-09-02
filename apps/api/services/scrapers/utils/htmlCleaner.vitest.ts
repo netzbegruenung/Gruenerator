@@ -90,6 +90,14 @@ describe('htmlToStructuredText', () => {
 
     expect(htmlToStructuredText(html)).toBe('1) Erst\n1) Erst-a\n2) Erst-b\n2) Zweit\n3) Dritt');
   });
+
+  it('behält das Präfix eines Punkts, der mit einer Unterliste BEGINNT (Review-Thread auf #3174)', () => {
+    // Vorher: das führende `\n` der ersetzten Unterliste blieb stehen, das
+    // Präfix wurde zu einem nackten `-` und "Zwei" hing an der Zeile darüber.
+    const html = '<ul><li><ul><li>A</li><li>B</li></ul>Zwei</li><li>Drei</li></ul>';
+
+    expect(htmlToStructuredText(html)).toBe('- Zwei\n- A\n- B\n- Drei');
+  });
 });
 
 /**

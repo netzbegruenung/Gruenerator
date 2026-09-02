@@ -103,34 +103,48 @@ export function htmlToStructuredText(html: string): string {
     $(el).replaceWith(escapeForTextNode(`${$(el).text()}\n\n`));
   });
 
-  // Innerste Listen zuerst: `.get().reverse()` dreht die Dokumentreihenfolge
-  // um, und eine verschachtelte Liste steht darin immer NACH ihrer Eltern-Liste
-  // (sie liegt ja in deren <li>). Reihenfolge umgedreht heisst also innen vor
-  // aussen. `.find('li')` (vorher) sammelte auch die Punkte verschachtelter
-  // Listen ein — `.children('li')` nimmt nur die direkten Punkte dieser Liste.
+  // Listen rekursiv von aussen nach innen: je Punkt erst die verschachtelten
+  // Listen herauslösen und für sich rendern, dann den EIGENEN Text des Punkts
+  // nehmen. So bekommt ein Punkt sein Präfix nur vor seinem eigenen Text, und
+  // ein Punkt, der mit einer Unterliste BEGINNT (`<li><ul>…</ul>Text</li>`),
+  // verliert weder sein Präfix noch trennt sein Resttext in die Zeile darüber
+  // (die frühere Variante liess das führende `\n` der ersetzten Unterliste
+  // stehen, und `normalizeStructuredText` frass dann das Leerzeichen hinter
+  // dem `-`). `.children('li')` nimmt nur die direkten Punkte dieser Liste;
+  // `.find('li')` sammelte auch die Punkte verschachtelter Listen ein.
+  const renderList = (list: Element): string[] => {
+    const isOrdered = list.tagName.toLowerCase() === 'ol';
+    const lines: string[] = [];
+    $(list)
+      .children('li')
+      .each((i, li) => {
+        const nested = $(li)
+          .children('ul, ol')
+          .get()
+          .flatMap((inner) => {
+            const rendered = renderList(inner as Element);
+            $(inner).remove();
+            return rendered;
+          });
+        // `1) ` statt `1. `: `NUMBERED_HEADING` (blockSegmentation.ts) liest ein
+        // `1. `-Präfix vor einem kurzen, grossgeschriebenen Wort als Überschrift
+        // und würde so einen echten heading_path unter einem Listenpunkt begraben.
+        const prefix = isOrdered ? `${i + 1}) ` : '- ';
+        const own = $(li).text().replace(/\s+/g, ' ').trim();
+        if (own.length > 0) {
+          lines.push(`${prefix}${own}`);
+        }
+        lines.push(...nested);
+      });
+    return lines;
+  };
+
   $('ul, ol')
-    .get()
-    .reverse()
-    .forEach((list) => {
-      const isOrdered = (list as Element).tagName.toLowerCase() === 'ol';
-      const lines: string[] = [];
-      $(list)
-        .children('li')
-        .each((i, li) => {
-          // `1) ` statt `1. `: `NUMBERED_HEADING` (blockSegmentation.ts) liest ein
-          // `1. `-Präfix vor einem kurzen, grossgeschriebenen Wort als Überschrift
-          // und würde so einen echten heading_path unter einem Listenpunkt begraben.
-          const prefix = isOrdered ? `${i + 1}) ` : '- ';
-          // Eine bereits ersetzte verschachtelte Liste hinterlässt ein
-          // trailing `\n` im Text dieses <li> — abschneiden, sonst reisst der
-          // `join` unten eine Leerzeile zwischen die Geschwister-Punkte.
-          const text = $(li).text().replace(/\n+$/, '');
-          lines.push(`${prefix}${text}`);
-        });
-      // Führendes `\n` trennt vom vorangehenden Inline-Text, wenn diese Liste
-      // selbst in einem <li> steckt (z.B. "Eins<ul>…"); abschliessendes `\n`
-      // trennt vom folgenden Geschwister-Knoten.
-      $(list).replaceWith(escapeForTextNode(`\n${lines.join('\n')}\n`));
+    .filter((_, list) => $(list).parents('ul, ol').length === 0)
+    .each((_, list) => {
+      // Führendes `\n` trennt vom vorangehenden Inline-Text, abschliessendes
+      // `\n` vom folgenden Geschwister-Knoten.
+      $(list).replaceWith(escapeForTextNode(`\n${renderList(list as Element).join('\n')}\n`));
     });
 
   return normalizeStructuredText($.text());
