@@ -170,6 +170,9 @@ export function ChunkInspectorView({
     );
   }
 
+  const markedHitCount = data.chunks.filter((chunk) => hitByIndex.has(chunk.index)).length;
+  const hasHitsOutsidePage = (search.data?.hits.length ?? 0) > markedHitCount;
+
   return (
     <div className="flex flex-col gap-lg">
       <DocumentHeader header={data.header} />
@@ -192,19 +195,22 @@ export function ChunkInspectorView({
           placeholder="Frage stellen, wie im Chat"
           className="rounded-md border border-grey-300 px-sm py-2xs text-sm dark:border-grey-700 dark:bg-grey-900"
         />
-        {search.data && (
-          <div className="text-sm text-grey-500 dark:text-grey-400" aria-live="polite">
-            <p className="m-0">
-              {search.data.scoped
-                ? 'Suche auf dieses Dokument eingeschränkt'
-                : 'Suche über die ganze Sammlung; Treffer dieses Dokuments markiert'}
-            </p>
-            <p className="m-0">
-              {search.data.hits.length} von {search.data.totalResults} Treffern stammen aus diesem
-              Dokument.
-            </p>
-          </div>
-        )}
+        <div className="text-sm text-grey-500 dark:text-grey-400" aria-live="polite">
+          {search.data && (
+            <>
+              <p className="m-0">
+                {search.data.scoped
+                  ? 'Suche auf dieses Dokument eingeschränkt'
+                  : 'Suche über die ganze Sammlung; Treffer dieses Dokuments markiert'}
+              </p>
+              <p className="m-0">
+                {search.data.hits.length} von {search.data.totalResults} Treffern stammen aus diesem
+                Dokument.
+                {hasHitsOutsidePage && ' — weitere Treffer ggf. auf anderen Seiten'}
+              </p>
+            </>
+          )}
+        </div>
         {search.isError && (
           <p className="m-0 text-sm text-red-600 dark:text-red-400">
             Die Suche ist fehlgeschlagen.
