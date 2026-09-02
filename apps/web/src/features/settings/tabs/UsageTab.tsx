@@ -393,9 +393,8 @@ export default function UsageTab() {
       )}
 
       <p className="m-0 text-xs text-grey-500">
-        Erfasst werden Anfragen an KI-Modelle sowie erzeugte Bilder, Transkriptionen,
-        Web-Recherchen und die Dauer der Sprachausgabe. Automatische Hintergrundprozesse zählen
-        nicht mit.
+        Erfasst werden Anfragen an KI-Modelle sowie erzeugte Bilder, Transkriptionen, Web-Recherchen
+        und die Dauer der Sprachausgabe. Automatische Hintergrundprozesse zählen nicht mit.
       </p>
     </div>
   );

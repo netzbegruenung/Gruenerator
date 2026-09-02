@@ -968,9 +968,7 @@ function SimpleView({ data }: { data: GetTransparencyStatsResponseDto }) {
                 share={grams / max}
               />
             ))}
-            {(totals.searches > 0 ||
-              totals.transcriptions > 0 ||
-              totals.speech_seconds > 0) && (
+            {(totals.searches > 0 || totals.transcriptions > 0 || totals.speech_seconds > 0) && (
               <p
                 className={cn(
                   'm-0 mt-1 border-t border-[#eef2ef] pt-4 text-[0.8rem] leading-relaxed dark:border-grey-700/60',
