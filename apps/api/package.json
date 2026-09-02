@@ -56,6 +56,7 @@
     "docs:check": "cross-env NODE_OPTIONS=--conditions=development npx tsx check-docs-freshness.ts",
     "update:all": "cross-env NODE_OPTIONS=--conditions=development npx tsx update-all-content.ts",
     "migrate:bm25": "cross-env NODE_OPTIONS=--conditions=development npx tsx scripts/migrate-bm25-sparse.ts",
+    "qdrant:patch-hnsw": "cross-env NODE_OPTIONS=--conditions=development npx tsx scripts/patch-hnsw-indexing.ts",
     "update:all:dry-run": "cross-env NODE_OPTIONS=--conditions=development npx tsx update-all-content.ts --dry-run",
     "sync:aggregate": "cross-env NODE_OPTIONS=--conditions=development npx tsx aggregate-sync-summaries.ts",
     "sync:wrap-result": "cross-env NODE_OPTIONS=--conditions=development npx tsx wrap-sync-result.ts",
