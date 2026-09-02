@@ -502,3 +502,231 @@ export async function processDocument(
 
   return { ...measured, written: points.length, deleted: leftovers.length };
 }
+
+// =============================================================================
+// I/O
+// =============================================================================
+
+const SCROLL_BATCH = 256;
+
+type ScrollPage = {
+  points: Array<{ id: string | number; payload?: Record<string, unknown> | null }>;
+  next_page_offset?: string | number | null;
+};
+
+type ScrollingClient = {
+  scroll(collection: string, params: Record<string, unknown>): Promise<ScrollPage>;
+  delete(collection: string, params: Record<string, unknown>): Promise<unknown>;
+};
+
+async function scrollAll(
+  client: ScrollingClient,
+  collection: string,
+  params: Record<string, unknown>
+): Promise<Array<{ id: string | number; payload: Record<string, unknown> | null }>> {
+  const all: Array<{ id: string | number; payload: Record<string, unknown> | null }> = [];
+  let offset: string | number | null | undefined = undefined;
+
+  for (;;) {
+    const page = await client.scroll(collection, {
+      ...params,
+      limit: SCROLL_BATCH,
+      with_vector: false,
+      ...(offset != null && { offset }),
+    });
+
+    for (const point of page.points) {
+      all.push({ id: point.id, payload: (point.payload as Record<string, unknown>) ?? null });
+    }
+
+    offset = page.next_page_offset ?? null;
+    if (offset == null) break;
+  }
+
+  return all;
+}
+
+function printReport(collection: string, summary: RunSummary, options: RunOptions): void {
+  console.log(`\n[${collection}]`);
+  console.log(
+    `  Dokumente: ${summary.documents} · mit full_text: ${summary.withFullText} · ` +
+      `ohne full_text: ${summary.withoutFullText} (übersprungen)`
+  );
+
+  if (summary.withFullText === 0) {
+    console.log('  Nichts zu tun.');
+    return;
+  }
+
+  if (summary.alreadyRechunked > 0) {
+    console.log(`  bereits neu geschnitten (--resume): ${summary.alreadyRechunked}`);
+  }
+  if (summary.noChunks > 0) {
+    console.log(`  ohne Chunks (leerer full_text nach Bereinigung): ${summary.noChunks}`);
+  }
+  if (summary.fastPathSkipped > 0) {
+    console.log(
+      `  Fließtext-Schnellpfad, mit --only-structured übersprungen: ${summary.fastPathSkipped}`
+    );
+  }
+
+  console.log(`  davon struktur-wirksam:       ${summary.processedStructured}`);
+  console.log(
+    `  davon Fließtext-Schnellpfad: ${summary.processed - summary.processedStructured}` +
+      '  (Chunks byteweise unverändert)'
+  );
+  console.log(
+    `  ${summary.processed} Dokumente · alt ${summary.oldChunks} → neu ${summary.newChunks} Chunks`
+  );
+  console.log(
+    `  mindestens ${summary.embeddingBatches} Einbettungsstapel (16 Texte / 8000 Token) · ` +
+      `${summary.chars.toLocaleString('de-DE')} Zeichen · ${summary.deleteCalls} Lösch-Aufrufe`
+  );
+
+  if (options.dryRun) {
+    console.log('\n  (dry-run — kein Punkt geschrieben, keine Einbettung bezahlt)');
+  }
+}
+
+async function main(): Promise<void> {
+  const args = parseArgs(process.argv.slice(2));
+
+  const recipe = pointIdRecipeFor(args.collection);
+  if (!recipe) {
+    console.error(
+      `[abort] ${args.collection}: kein nachgerechnetes ID-Rezept. Bekannt sind ` +
+        'grundsatz_documents und landesverbaende_documents. Ein fremdes Rezept zu raten ' +
+        'verdoppelt die Sammlung (siehe reprocess-pdfs.ts:303-306).'
+    );
+    process.exitCode = 1;
+    return;
+  }
+
+  const { env } = await import('../config/env.js');
+  const { createQdrantClient } = await import('../database/services/QdrantService/connection.js');
+  const { batchUpsert, collectionSupportsBm25 } =
+    await import('../database/services/QdrantService/operations/batchOperations.js');
+  const { chunkQualityService } = await import('../services/ChunkQualityService/index.js');
+  const { smartChunkDocument } = await import('../services/document-services/index.js');
+  const { mistralEmbeddingService } = await import('../services/mistral/index.js');
+
+  const client = createQdrantClient({
+    url: env.QDRANT_URL ?? 'http://localhost:6333',
+    apiKey: env.QDRANT_API_KEY ?? '',
+    ...(env.QDRANT_BASIC_AUTH_USERNAME && { basicAuthUsername: env.QDRANT_BASIC_AUTH_USERNAME }),
+    ...(env.QDRANT_BASIC_AUTH_PASSWORD && { basicAuthPassword: env.QDRANT_BASIC_AUTH_PASSWORD }),
+  });
+
+  // Vorbedingung 1: ohne den Sparse-Vektor bleibt jeder neue Punkt dicht-only,
+  // und der Lauf müsste nach der BM25-Migration ein zweites Mal bezahlt werden.
+  const hasBm25 = await collectionSupportsBm25(client, args.collection);
+  console.log(`[${args.collection}]  bm25: ${hasBm25 ? 'JA' : 'NEIN'}`);
+  if (!hasBm25) {
+    console.error(
+      `[abort] ${args.collection} deklariert den Sparse-Vektor bm25 nicht. Sonst kostet der ` +
+        'Lauf seine Einbettungen zweimal. Zuerst:\n' +
+        `  npx tsx scripts/migrate-bm25-sparse.ts --collection ${args.collection}`
+    );
+    process.exitCode = 1;
+    return;
+  }
+
+  const scrolling = client as unknown as ScrollingClient;
+
+  // Durchlauf A: jeder Punkt, aber nur mit zwei Payload-Feldern.
+  const skeleton = await scrollAll(scrolling, args.collection, {
+    with_payload: { include: [recipe.idKey, 'chunk_index'] },
+  });
+
+  // Vorbedingung 2: eine einzige Abweichung heisst, dass Upsert-zuerst
+  // Dubletten erzeugen würde statt zu überschreiben.
+  const check = checkIdRecipe(skeleton, recipe);
+  console.log(`  ID-Rezept: ${check.matched}/${check.checked} bestätigt`);
+  if (check.mismatches.length > 0) {
+    console.error(
+      `[abort] ${args.collection}: ${check.mismatches.length} Punkte folgen dem ID-Rezept nicht. ` +
+        'Upsert-zuerst würde sie verdoppeln statt zu überschreiben. Erste Abweichungen:'
+    );
+    for (const mismatch of check.mismatches.slice(0, 5)) {
+      console.error(
+        `  id=${mismatch.id} key=${mismatch.key} chunk_index=${mismatch.chunkIndex} ` +
+          `erwartet=${mismatch.expected}`
+      );
+    }
+    process.exitCode = 1;
+    return;
+  }
+
+  const idsByKey = new Map<string, Array<string | number>>();
+  for (const point of skeleton) {
+    const key = point.payload?.[recipe.idKey];
+    if (typeof key !== 'string') continue;
+    const list = idsByKey.get(key);
+    if (list) list.push(point.id);
+    else idsByKey.set(key, [point.id]);
+  }
+
+  // Durchlauf B: nur die Kopf-Punkte, dafür mit vollem Payload.
+  const heads = await scrollAll(scrolling, args.collection, {
+    filter: { must: [{ key: 'chunk_index', match: { value: 0 } }] },
+    with_payload: true,
+  });
+
+  const deps: RechunkDeps = {
+    chunk: (text, baseMetadata) => smartChunkDocument(text, { baseMetadata }),
+    embed: async (texts) => {
+      await mistralEmbeddingService.init();
+      return mistralEmbeddingService.generateBatchEmbeddings(texts);
+    },
+    quality: (text) => chunkQualityService.calculateQualityScore(text),
+    // Über batchUpsert, NICHT über client.upsert: nur dieser Weg hängt den
+    // BM25-Sparse-Vektor aus dem neuen chunk_text an (batchOperations.ts:110-111).
+    upsert: async (collection, points) => {
+      await batchUpsert(client, collection, points);
+    },
+    deletePoints: async (collection, ids) => {
+      await scrolling.delete(collection, { points: ids, wait: true });
+    },
+    now: () => new Date().toISOString(),
+  };
+
+  const options: RunOptions = {
+    dryRun: args.dryRun,
+    onlyStructured: args.onlyStructured,
+    resume: args.resume,
+  };
+
+  const outcomes: DocumentOutcome[] = [];
+  let processed = 0;
+
+  for (const head of heads) {
+    if (processed >= args.limit) break;
+    const key = head.payload?.[recipe.idKey];
+    if (typeof key !== 'string') continue;
+
+    try {
+      const outcome = await processDocument(
+        deps,
+        args.collection,
+        recipe,
+        { key, headPayload: head.payload ?? {}, pointIds: idsByKey.get(key) ?? [head.id] },
+        options
+      );
+      outcomes.push(outcome);
+      if (outcome.skipped === null) processed++;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[error] ${key}: ${message}`);
+      process.exitCode = 1;
+    }
+  }
+
+  printReport(args.collection, summarizeOutcomes(outcomes), options);
+}
+
+// Nur bei direktem Aufruf laufen — die reinen Funktionen oben sind für
+// rechunk-from-fulltext.vitest.ts exportiert, und ein Import darf keinen
+// CLI-Lauf, keinen Env-Parse und keine Qdrant-Verbindung auslösen.
+if (process.argv[1] && import.meta.url.endsWith(basename(process.argv[1]))) {
+  await main();
+}
