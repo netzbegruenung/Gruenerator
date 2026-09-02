@@ -246,8 +246,6 @@ class BundestagContentProcessor {
       // Use smartChunkDocument for intelligent chunking
       const chunks = await smartChunkDocument(text, {
         baseMetadata: metadata,
-        maxTokens: this.chunkSize,
-        overlapTokens: this.chunkOverlap,
       });
 
       if (Array.isArray(chunks) && chunks.length > 0) {
@@ -270,10 +268,7 @@ class BundestagContentProcessor {
 
     // Fallback: use hierarchical chunking
     try {
-      const chunks = hierarchicalChunkDocument(text, {
-        maxTokens: this.chunkSize,
-        overlapTokens: this.chunkOverlap,
-      });
+      const chunks = hierarchicalChunkDocument(text, {});
 
       if (Array.isArray(chunks) && chunks.length > 0) {
         return chunks.map((chunk, index: number): TextChunk => ({

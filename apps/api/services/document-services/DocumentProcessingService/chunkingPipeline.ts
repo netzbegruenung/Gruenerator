@@ -5,7 +5,6 @@
 
 import { mistralEmbeddingService } from '../../mistral/index.js';
 import { buildEmbeddingTextsForChunks } from '../embeddingText.js';
-import { DOCUMENT_CHUNK_MAX_TOKENS } from '../TextChunker/chunkBudget.js';
 import { smartChunkDocument } from '../TextChunker/index.js';
 
 import type { ChunkingOptions, ChunkAndEmbedResult } from './types.js';
@@ -17,22 +16,13 @@ export async function chunkAndEmbedText(
   text: string,
   options: ChunkingOptions = {}
 ): Promise<ChunkAndEmbedResult> {
-  const {
-    maxTokens = DOCUMENT_CHUNK_MAX_TOKENS,
-    overlapTokens = 50,
-    preserveSentences = true,
-    title = null,
-  } = options;
+  const { preserveSentences = true, title = null } = options;
 
   if (!text || text.trim().length === 0) {
     throw new Error('No text content provided');
   }
 
-  const chunks = await smartChunkDocument(text, {
-    maxTokens,
-    overlapTokens,
-    preserveSentences,
-  });
+  const chunks = await smartChunkDocument(text, { preserveSentences });
 
   if (chunks.length === 0) {
     throw new Error('Text could not be processed into chunks');

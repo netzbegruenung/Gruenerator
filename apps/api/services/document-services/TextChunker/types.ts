@@ -105,8 +105,6 @@ export interface PageWithText {
  * Chunking options
  */
 export interface ChunkingOptions {
-  maxTokens?: number | undefined;
-  overlapTokens?: number | undefined;
   chunkSize?: number | undefined;
   chunkOverlap?: number | undefined;
   preserveSentences?: boolean | undefined;
