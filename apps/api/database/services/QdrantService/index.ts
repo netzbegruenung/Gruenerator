@@ -6,7 +6,12 @@
  */
 
 // Main service class and singleton
-export { QdrantService, getQdrantInstance, default } from './QdrantService.js';
+export {
+  QdrantService,
+  getQdrantInstance,
+  useQdrantConnectOnly,
+  default,
+} from './QdrantService.js';
 
 // Types
 export type {

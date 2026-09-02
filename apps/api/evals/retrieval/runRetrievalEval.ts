@@ -104,6 +104,10 @@ import dotenv from 'dotenv';
 // search service would silently degrade to zero results.
 dotenv.config();
 
+// Read-only eval: skip collection/index reconciliation on connect (#3167).
+const { useQdrantConnectOnly } = await import('../../database/services/QdrantService/index.js');
+useQdrantConnectOnly();
+
 const { getNotebookDepthProfile, applyDepthProfile, getChatNotebookProfile } =
   await import('../../config/notebookDepthProfiles.js');
 const { resolveNotebookCollections } = await import('../../config/notebookCollectionMap.js');
