@@ -96,8 +96,9 @@ export const BM25_SPARSE_VECTOR_NAME = 'bm25';
  * from neither preset. The ratio below is that working collection's.
  *
  * Note this only shapes collections at CREATE time; `getCollectionConfig` is
- * only ever read by `createCollection`, and nothing in the codebase issues an
- * `updateCollection`. Existing collections keep whatever they were made with.
+ * only ever read by `createCollection`. Existing collections keep whatever
+ * they were made with until `scripts/patch-hnsw-indexing.ts` PATCHes their
+ * `indexing_threshold` to the preset (the only `updateCollection` caller).
  */
 export const OPTIMIZER_PRESETS: Record<OptimizerPresetKey, OptimizerConfig> = {
   large: {

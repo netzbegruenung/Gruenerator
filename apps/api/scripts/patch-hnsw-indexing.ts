@@ -60,7 +60,7 @@ function parseArgs(): CliArgs {
         process.exit(1);
     }
   }
-  if (!args.collection && !args.all) {
+  if ((!args.collection && !args.all) || (args.collection && args.all)) {
     console.error('Usage: patch-hnsw-indexing.ts --collection <name> | --all [--dry-run]');
     process.exit(1);
   }
@@ -266,6 +266,12 @@ async function main(): Promise<void> {
   const rows: ReportRow[] = [];
   for (const name of targets) {
     try {
+      // `--all` walks the schema registry, which declares collections that a
+      // given instance may not have created yet — those are skipped, not errors.
+      if (args.all && !(await client.collectionExists(name)).exists) {
+        console.log(`[skip] ${name}: not present on this instance`);
+        continue;
+      }
       const row = await processCollection(client, name, args.dryRun);
       if (row) rows.push(row);
     } catch (error) {
