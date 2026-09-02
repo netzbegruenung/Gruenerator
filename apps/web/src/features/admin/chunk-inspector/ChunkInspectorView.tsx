@@ -150,7 +150,7 @@ export function ChunkInspectorView({
   const hitByIndex = new Map(
     (search.data?.hits ?? []).map((hit) => [hit.index, hit.similarity] as const)
   );
-  const { data, isLoading, isError } = useDocumentChunks(documentId, collection, offset);
+  const { data, isLoading, isError, error } = useDocumentChunks(documentId, collection, offset);
 
   if (isLoading) {
     return (
@@ -165,7 +165,7 @@ export function ChunkInspectorView({
   if (isError || !data) {
     return (
       <p className="py-lg text-center text-sm text-grey-500 dark:text-grey-400">
-        Die Chunks konnten nicht geladen werden.
+        {error?.message ?? 'Die Chunks konnten nicht geladen werden.'}
       </p>
     );
   }

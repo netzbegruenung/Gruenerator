@@ -83,6 +83,10 @@ export const inspectSearchResponseSchema = z.object({
    * eingeschränkt. `false`: Systemsammlung — dort fragt der Abrufdienst
    * `getDocumentIdsFn` gar nicht (NotebookQAService.ts:685-708), die Suche lief
    * über die ganze Sammlung und `hits` ist der herausgefilterte Anteil.
+   *
+   * `scoped: true` heisst „per `getDocumentIdsFn` eingeschränkt", nicht „als
+   * zu diesem Notebook zugehörig verifiziert" — der Filter engt die Suche ein,
+   * er prüft keine Eigentümerschaft.
    */
   scoped: z.boolean(),
 });

@@ -125,11 +125,20 @@ describe('ChunkInspectorView', () => {
     ).toBeInTheDocument();
   });
 
-  it('meldet einen Fehler, statt still leer zu bleiben', async () => {
+  it('meldet die Server-Meldung bei 404, statt still leer zu bleiben', async () => {
     respondWith({ success: false, message: 'Keine Chunks gefunden.' }, 404);
     renderWithProviders(<ChunkInspectorView documentId="doc-1" collection="grundsatz-system" />);
 
-    expect(await screen.findByText('Die Chunks konnten nicht geladen werden.')).toBeInTheDocument();
+    expect(await screen.findByText('Keine Chunks gefunden.')).toBeInTheDocument();
+  });
+
+  it('meldet fehlenden Zugriff bei 403, statt der Server-Meldung', async () => {
+    respondWith({ success: false, message: 'Keine Admin-Berechtigung.' }, 403);
+    renderWithProviders(<ChunkInspectorView documentId="doc-1" collection="grundsatz-system" />);
+
+    expect(
+      await screen.findByText('Kein Zugriff (Instanz-Admin erforderlich)')
+    ).toBeInTheDocument();
   });
 
   it('hat keine a11y-Verstösse — die Spaltenköpfe sind von Hand gesetzt', async () => {

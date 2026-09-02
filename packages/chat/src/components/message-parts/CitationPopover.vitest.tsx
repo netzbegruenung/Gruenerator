@@ -72,4 +72,24 @@ describe('CitationBadge — Einstieg in den Chunk-Inspektor', () => {
 
     expect(screen.queryByRole('link', { name: 'Chunks ansehen' })).not.toBeInTheDocument();
   });
+
+  it('blendet den Eintrag aus, wenn die Zitation keine documentId trägt', async () => {
+    useChatConfigStore.getState().configure({ chunkInspectorHref: () => '/admin/chunks/x' });
+    const user = userEvent.setup();
+    render(<CitationBadge citationId={1} citation={citation({ documentId: undefined })} />);
+
+    await user.click(screen.getByRole('button', { name: /Quelle 1/ }));
+
+    expect(screen.queryByRole('link', { name: 'Chunks ansehen' })).not.toBeInTheDocument();
+  });
+
+  it('blendet den Eintrag aus, wenn die Zitation keinen chunkIndex trägt', async () => {
+    useChatConfigStore.getState().configure({ chunkInspectorHref: () => '/admin/chunks/x' });
+    const user = userEvent.setup();
+    render(<CitationBadge citationId={1} citation={citation({ chunkIndex: undefined })} />);
+
+    await user.click(screen.getByRole('button', { name: /Quelle 1/ }));
+
+    expect(screen.queryByRole('link', { name: 'Chunks ansehen' })).not.toBeInTheDocument();
+  });
 });
