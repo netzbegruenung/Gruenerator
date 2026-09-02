@@ -64,4 +64,19 @@ describe('cited_text', () => {
     const { citations } = validateAndInjectCitations('Aussage.[1]', map);
     expect(citations[0].cited_text).toBe(filler.slice(0, 300));
   });
+
+  /**
+   * Kein Fenster zu verschieben, weil die Frage kein lexikalisches Signal
+   * gegen den Chunk trägt (`selectRelevantExcerpt` liefert `null`) — der
+   * Fallback muss trotzdem unter der Decke bleiben, nicht den ganzen
+   * mehrere-KB-Chunk zitieren.
+   */
+  it('caps the fallback when the question carries no lexical signal against a long chunk', () => {
+    const { citations } = validateAndInjectCitations('Aussage.[1]', longMap, {
+      question: 'Wie funktioniert Photosynthese in Algen?',
+    });
+    expect(longMap['1'].chunk_text!.length).toBeGreaterThan(MAX);
+    expect(citations[0].cited_text.length).toBeLessThanOrEqual(MAX);
+    expect(citations[0].cited_text).not.toBe(longMap['1'].chunk_text);
+  });
 });
