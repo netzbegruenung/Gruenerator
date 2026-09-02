@@ -9,8 +9,18 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { PROSE_FIXTURE, STRUCTURED_FIXTURE, TABLE_ONLY_FIXTURE } from './chunkFixtures.js';
-import { parseHeading, segmentBlocks } from './blockSegmentation.js';
+import {
+  LONG_TABLE_FIXTURE,
+  PROSE_FIXTURE,
+  STRUCTURED_FIXTURE,
+  TABLE_ONLY_FIXTURE,
+} from './chunkFixtures.js';
+import {
+  parseHeading,
+  segmentBlocks,
+  splitTableBlock,
+  TABLE_CHUNK_MAX_CHARS,
+} from './blockSegmentation.js';
 
 describe('parseHeading', () => {
   it('erkennt Markdown-Überschriften mit ihrer Ebene', () => {
@@ -133,5 +143,98 @@ describe('segmentBlocks', () => {
     expect(blocks).toHaveLength(1);
     expect(blocks[0].kind).toBe('text');
     expect(blocks[0].text.startsWith('# Förderübersicht')).toBe(true);
+  });
+});
+
+describe('splitTableBlock', () => {
+  it('lässt eine kurze Tabelle ein Stück', () => {
+    const [block] = segmentBlocks(TABLE_ONLY_FIXTURE);
+    expect(splitTableBlock(block.text)).toEqual([block.text]);
+  });
+
+  it('teilt eine lange Tabelle zeilenweise und wiederholt Kopf und Trennzeile', () => {
+    const block = segmentBlocks(LONG_TABLE_FIXTURE).find((b) => b.kind === 'table');
+    expect(block).toBeDefined();
+    const teile = splitTableBlock(block!.text);
+
+    expect(teile.length).toBeGreaterThan(1);
+    for (const teil of teile) {
+      const zeilen = teil.split('\n');
+      expect(zeilen[0]).toBe('# Förderübersicht');
+      expect(zeilen[1]).toBe('| Kommune | Programm | Betrag | Laufzeit | Hinweis |');
+      expect(zeilen[2]).toBe('| --- | --- | --- | --- | --- |');
+      expect(teil.length).toBeLessThanOrEqual(TABLE_CHUNK_MAX_CHARS);
+    }
+  });
+
+  it('schneidet nie innerhalb einer Zeile', () => {
+    const block = segmentBlocks(LONG_TABLE_FIXTURE).find((b) => b.kind === 'table');
+    for (const teil of splitTableBlock(block!.text)) {
+      for (const zeile of teil.split('\n').filter((l) => l.startsWith('|'))) {
+        expect(zeile.startsWith('|')).toBe(true);
+        expect(zeile.endsWith('|')).toBe(true);
+      }
+    }
+  });
+
+  it('verliert keine Datenzeile', () => {
+    const block = segmentBlocks(LONG_TABLE_FIXTURE).find((b) => b.kind === 'table');
+    const teile = splitTableBlock(block!.text);
+    const alleZeilen = new Set(teile.flatMap((t) => t.split('\n')));
+    for (const zeile of block!.text.split('\n')) {
+      expect(alleZeilen.has(zeile)).toBe(true);
+    }
+  });
+
+  it('lässt eine einzelne übergroße Zeile ganz, statt sie zu zerschneiden', () => {
+    const monster = `| ${'x'.repeat(3000)} |`;
+    const tabelle = ['| A |', '| --- |', monster, '| B |'].join('\n');
+    const teile = splitTableBlock(tabelle);
+    expect(teile.some((t) => t.includes(monster))).toBe(true);
+    for (const teil of teile) {
+      expect(teil.split('\n').every((l) => l.startsWith('|'))).toBe(true);
+    }
+  });
+
+  it('gibt bei einer Kopfzeile, die den Deckel allein sprengt, trotzdem eine Zeile je Teil zurück', () => {
+    // Kopf (Titel + Header + Trenner) ist mit maxChars=20 schon für sich zu groß —
+    // die Schleife muss trotzdem terminieren und pro Teil mindestens eine Datenzeile liefern.
+    const tabelle = [
+      '# Ein langer Titel, der allein schon die Grenze sprengt',
+      '| Kommune | Programm | Betrag |',
+      '| --- | --- | --- |',
+      '| A | X | 1 |',
+      '| B | Y | 2 |',
+      '| C | Z | 3 |',
+    ].join('\n');
+    const teile = splitTableBlock(tabelle, 20);
+
+    expect(teile).toHaveLength(3);
+    for (const teil of teile) {
+      const datenzeilen = teil
+        .split('\n')
+        .filter((l) => l.startsWith('|'))
+        .slice(2);
+      expect(datenzeilen).toHaveLength(1);
+    }
+    // Keine Datenzeile geht verloren oder verdoppelt sich.
+    const datenzeilenGesamt = teile.flatMap((t) =>
+      t
+        .split('\n')
+        .filter((l) => l.startsWith('|'))
+        .slice(2)
+    );
+    expect(datenzeilenGesamt).toEqual(['| A | X | 1 |', '| B | Y | 2 |', '| C | Z | 3 |']);
+  });
+
+  it('teilt eine Tabelle mit genau einer Datenzeile nicht weiter auf', () => {
+    // Text liegt über dem Deckel, aber es gibt nur eine Datenzeile — sie muss
+    // ganz erhalten bleiben, in genau einem Teil.
+    const einzigeZeile = `| ${'y'.repeat(30)} |`;
+    const tabelle = ['| Kommune | Programm |', '| --- | --- |', einzigeZeile].join('\n');
+    const teile = splitTableBlock(tabelle, 20);
+
+    expect(teile).toHaveLength(1);
+    expect(teile[0]).toContain(einzigeZeile);
   });
 });
