@@ -26,7 +26,7 @@ import { generatePointId } from '../../../utils/validation/index.js';
 import { chunkQualityService } from '../../ChunkQualityService/index.js';
 import {
   smartChunkDocument,
-  buildEmbeddingTexts,
+  buildEmbeddingTextsForChunks,
   structurePayload,
 } from '../../document-services/index.js';
 import { mistralEmbeddingService } from '../../mistral/index.js';
@@ -333,7 +333,7 @@ export class GrueneDeScraper extends BaseScraper {
 
     const chunkTexts = chunks.map((c) => c.text);
     const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(
-      buildEmbeddingTexts(chunkTexts, content.title)
+      buildEmbeddingTextsForChunks(chunks, content.title)
     );
 
     const points = chunks.map((chunk, index) => ({

@@ -17,7 +17,7 @@ import {
 } from '../../../../../database/services/QdrantService/operations/batchOperations.js';
 import { chunkQualityService } from '../../../../ChunkQualityService/index.js';
 import {
-  buildEmbeddingTexts,
+  buildEmbeddingTextsForChunks,
   smartChunkDocument,
   structurePayload,
 } from '../../../../document-services/index.js';
@@ -139,7 +139,7 @@ export class DocumentProcessor {
       (c: { text?: string; chunk_text?: string }) => c.text || c.chunk_text || ''
     );
     const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(
-      buildEmbeddingTexts(chunkTexts, documentTitle)
+      buildEmbeddingTextsForChunks(chunks, documentTitle)
     );
 
     // STEP 8: Build Qdrant points (with quality scoring)
