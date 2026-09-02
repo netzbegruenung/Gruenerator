@@ -105,3 +105,33 @@ export const TABLE_ONLY_FIXTURE = [
   '| 2026 | 18 Prozent |',
   '| 2027 | 24 Prozent |',
 ].join('\n');
+
+/**
+ * Fünf kurze Abschnitte, jeder deutlich unter 800 Zeichen — die Form, an der
+ * die Blockzerlegung ohne `mergeSiblingTextBlocks` fünf Kleinstchunks erzeugt.
+ */
+export const SHORT_SECTIONS_FIXTURE = [
+  '# Kommunalwahlprogramm',
+  '',
+  'Wir treten mit fünf Schwerpunkten an. Jeder Schwerpunkt steht für sich.',
+  '',
+  '## 1 Verkehr',
+  '',
+  'Wir bauen das Radwegenetz aus. Der Busverkehr wird dichter getaktet.',
+  '',
+  '## 2 Wohnen',
+  '',
+  'Wir sichern bezahlbaren Wohnraum. Die Stadt kauft Belegungsrechte zurück.',
+  '',
+  '## 3 Bildung',
+  '',
+  'Jede Schule bekommt eine Sozialarbeitsstelle. Die Sanierung wird beschleunigt.',
+  '',
+  '## 4 Klima',
+  '',
+  'Die Wärmeplanung liegt bis zum Jahresende vor. Dächer werden für Photovoltaik geöffnet.',
+  '',
+  '## 5 Verwaltung',
+  '',
+  'Anträge laufen künftig digital. Die Bearbeitungszeit sinkt spürbar.',
+].join('\n');

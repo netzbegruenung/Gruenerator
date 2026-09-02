@@ -5,7 +5,7 @@
 
 import { cleanTextForEmbedding } from '../../text/index.js';
 
-import { segmentBlocks, splitTableBlock } from './blockSegmentation.js';
+import { mergeSiblingTextBlocks, segmentBlocks, splitTableBlock } from './blockSegmentation.js';
 import { sentenceRepack, enrichChunkWithMetadata } from './chunkPostProcessing.js';
 import { LangChainChunker } from './langchainIntegration.js';
 import { splitTextByPageMarkers, buildPageRangesFromRaw } from './pageMarkerProcessing.js';
@@ -27,7 +27,10 @@ import type { Chunk, ChunkingOptions } from './types.js';
  *    unterschiedlich). Der Schnellpfad umgeht die Frage, statt sie zu
  *    beantworten. Der Riegel dazu ist `chunkingGolden.vitest.ts`.
  * 2. Sonst je `text`-Block derselbe Weg wie bisher (1600/400 unverändert) und
- *    je `table`-Block ein Chunk.
+ *    je `table`-Block ein Chunk. Kurze, benachbarte `text`-Blöcke desselben
+ *    Abschnitts werden davor zusammengefasst (`mergeSiblingTextBlocks`) —
+ *    sonst bekäme ein überschriftendichtes Dokument einen Kleinstchunk je
+ *    Abschnitt, weil nichts über eine Blockgrenze hinweg zusammenfasst.
  */
 async function chunkStructured(
   chunker: LangChainChunker,
@@ -56,8 +59,12 @@ async function chunkStructured(
     });
   }
 
+  // Erst hier, NICHT vor der Schnellpfad-Frage: ein kurzer Vorspann ohne Pfad
+  // und der erste Abschnitt darunter fallen zusammen, das Ergebnis sähe wie
+  // reiner Fließtext aus und das ganze Dokument fiele auf den alten Pfad
+  // zurück — samt Verlust aller Strukturfelder.
   const out: Chunk[] = [];
-  for (const block of blocks) {
+  for (const block of mergeSiblingTextBlocks(blocks)) {
     const structure = {
       headingPath: block.headingPath.length > 0 ? block.headingPath : null,
       heading: block.headingPath.at(-1) ?? null,

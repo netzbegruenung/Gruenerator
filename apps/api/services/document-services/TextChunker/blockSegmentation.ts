@@ -250,6 +250,65 @@ export function segmentBlocks(text: string): DocumentBlock[] {
 }
 
 /**
+ * Ab hier gilt ein Block als lang genug, um für sich zu stehen. Dieselbe Zahl
+ * wie `mergeSmallChunks`' `minChars` (`langchainIntegration.ts`), eine Ebene
+ * höher angewandt: dort werden Chunks INNERHALB eines Blocks zusammengefasst,
+ * hier die Blöcke selbst.
+ */
+const MERGE_BLOCKS_UNDER_CHARS = 800;
+
+/**
+ * Zwei benachbarte Textblöcke gehören zusammen, wenn sie denselben Pfad tragen
+ * oder der zweite eine Ebene tiefer unter dem ersten hängt. Ein Geschwister-
+ * abschnitt (`3.1` → `3.2`) und ein Sprung nach oben (`3.1.1` → `3.2`) tun das
+ * nicht.
+ */
+function isSameSection(earlier: string[], later: string[]): boolean {
+  if (earlier.length === later.length) return earlier.every((h, i) => later[i] === h);
+  if (later.length === earlier.length + 1) return earlier.every((h, i) => later[i] === h);
+  return false;
+}
+
+/**
+ * Fasst kurze, benachbarte `text`-Blöcke desselben Abschnitts zusammen, BEVOR
+ * jeder für sich durch den Chunker geht.
+ *
+ * Ohne diesen Schritt bekommt jeder Block seinen eigenen `chunkDocument` →
+ * `mergeSmallChunks` → `sentenceRepack`-Lauf, und nichts fasst über eine
+ * Blockgrenze hinweg zusammen: ein überschriftendichtes Dokument zerfällt in
+ * einen Kleinstchunk je Abschnitt. Gemessen am 02.09.2026 an einer
+ * Wahlprüfsteinsammlung (289 127 Zeichen, 65 Blöcke): 239 Chunks auf dem alten
+ * Fließtext-Pfad gegen 264 auf dem Struktur-Pfad, davon 39 unter 800 Zeichen
+ * statt 3, der kürzeste 44 statt 385 Zeichen.
+ *
+ * Der Preis steht im Kopf des zusammengefassten Blocks: er behält den
+ * `headingPath` und den `sectionIndex` des ERSTEN Blocks, die Unterabschnitte
+ * darin verlieren also ihren eigenen Pfad im Payload. Ihre Überschriftenzeilen
+ * bleiben im Text und damit im lexikalischen Treffer. Eine Tabelle wird nie
+ * zusammengefasst — sie ist ihre eigene Einheit.
+ */
+export function mergeSiblingTextBlocks(blocks: DocumentBlock[]): DocumentBlock[] {
+  const out: DocumentBlock[] = [];
+
+  for (const block of blocks) {
+    const previous = out.at(-1);
+    if (
+      previous &&
+      previous.kind === 'text' &&
+      block.kind === 'text' &&
+      previous.text.length < MERGE_BLOCKS_UNDER_CHARS &&
+      isSameSection(previous.headingPath, block.headingPath)
+    ) {
+      previous.text = `${previous.text}\n\n${block.text}`;
+      continue;
+    }
+    out.push({ ...block, headingPath: [...block.headingPath] });
+  }
+
+  return out;
+}
+
+/**
  * Deckel für einen Tabellen-Chunk: dieselbe Zahl wie `PROMPT_SOURCE_MAX_CHARS`,
  * das Fenster, das der Antwort-Prompt je Quelle durchlässt.
  *
