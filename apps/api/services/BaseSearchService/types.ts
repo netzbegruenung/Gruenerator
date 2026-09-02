@@ -63,10 +63,12 @@ export interface RawChunk {
   published_at?: string | null | undefined;
   content_type?: string | undefined;
   page_number?: number | undefined;
+  chunk_type?: string | undefined;
   url?: string | undefined;
   metadata?: {
     content_type?: string | undefined;
     page_number?: number | undefined;
+    chunk_type?: string | undefined;
     [key: string]: unknown;
   };
   documents?: {
@@ -86,6 +88,7 @@ export interface ChunkData {
   text: string;
   content_type?: string | null | undefined;
   page_number?: number | null | undefined;
+  chunk_type?: string | null | undefined;
   similarity: number;
   similarity_adjusted?: number | undefined;
   has_term?: boolean | undefined;
@@ -172,6 +175,7 @@ export interface TopChunk {
   chunk_index: number;
   content_type?: string | null | undefined;
   page_number?: number | null | undefined;
+  chunk_type?: string | null | undefined;
   quality_score?: number | null | undefined;
   has_term?: boolean | undefined;
   /** Short excerpt for display in the UI's citation list. */

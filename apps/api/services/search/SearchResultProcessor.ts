@@ -54,6 +54,7 @@ export function expandResultsToChunks(
           similarity: r.similarity_score || 0,
           chunk_index: chunk.chunk_index,
           page_number: chunk.page_number ?? null,
+          chunk_type: chunk.chunk_type ?? null,
           published_at: publishedAt,
           ...(createdAt && { created_at: createdAt }),
           ...(collectionId && { collection_id: collectionId }),
@@ -72,6 +73,7 @@ export function expandResultsToChunks(
         similarity: typeof r.similarity_score === 'number' ? r.similarity_score : 0,
         chunk_index: r.chunk_index || 0,
         page_number: null,
+        chunk_type: null,
         published_at: publishedAt,
         ...(createdAt && { created_at: createdAt }),
         ...(collectionId && { collection_id: collectionId }),
@@ -136,6 +138,7 @@ export function buildReferencesMap(
       similarity_score: r.similarity,
       chunk_index: r.chunk_index,
       page_number: r.page_number,
+      chunk_type: r.chunk_type ?? null,
       ...(r.collection_id && { collection_id: r.collection_id }),
       ...(r.collection_name && { collection_name: r.collection_name }),
     };
