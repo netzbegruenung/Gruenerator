@@ -210,7 +210,8 @@ export async function handleNotebookStream(
     // were retrieved with. `queries[0]` is the rewritten standalone question
     // when the rewrite ran, and equals `question` unchanged when it was
     // skipped or failed — so the un-rewritten follow-up never reaches it.
-    const rerankQuery = queries[0] ?? question;
+    // `queries` is seeded with `question`, so it is never empty.
+    const rerankQuery = queries[0];
 
     let searchContext: SearchContext | null;
     try {
