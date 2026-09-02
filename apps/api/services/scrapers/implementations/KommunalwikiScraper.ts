@@ -7,7 +7,7 @@ import { getQdrantInstance, type QdrantService } from '../../../database/service
 import { chunkQualityService } from '../../ChunkQualityService/index.js';
 import {
   smartChunkDocument,
-  buildEmbeddingTexts,
+  buildEmbeddingTextsForChunks,
   structurePayload,
 } from '../../document-services/index.js';
 import { mistralEmbeddingService } from '../../mistral/index.js';
@@ -346,7 +346,7 @@ export class KommunalwikiScraper extends BaseScraper {
 
     const chunkTexts = chunks.map((c) => c.text);
     const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(
-      buildEmbeddingTexts(chunkTexts, article.title)
+      buildEmbeddingTextsForChunks(chunks, article.title)
     );
 
     const articleType = this.detectArticleType(article.title, categories);

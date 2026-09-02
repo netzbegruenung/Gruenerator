@@ -4,7 +4,7 @@
  */
 
 import { mistralEmbeddingService } from '../../mistral/index.js';
-import { buildEmbeddingTexts } from '../embeddingText.js';
+import { buildEmbeddingTextsForChunks } from '../embeddingText.js';
 import { DOCUMENT_CHUNK_MAX_TOKENS } from '../TextChunker/chunkBudget.js';
 import { smartChunkDocument } from '../TextChunker/index.js';
 
@@ -38,9 +38,8 @@ export async function chunkAndEmbedText(
     throw new Error('Text could not be processed into chunks');
   }
 
-  const texts = chunks.map((chunk) => chunk.text);
   const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(
-    buildEmbeddingTexts(texts, title),
+    buildEmbeddingTextsForChunks(chunks, title),
     'search_document'
   );
 
