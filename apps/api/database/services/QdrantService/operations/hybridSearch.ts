@@ -244,9 +244,35 @@ async function hybridSearchServerSide(
   const weights: number[] = [hybridCfg.serverRrfWeightDense, 1 - hybridCfg.serverRrfWeightDense];
 
   const request: Schemas['QueryRequest'] =
-    fusion === 'rrf_weighted'
-      ? { prefetch: prefetches, query: { rrf: { weights } }, limit: recall, with_payload: true }
-      : { prefetch: prefetches, query: { fusion }, limit: recall, with_payload: true };
+    fusion === 'sparse_only'
+      ? {
+          // Keine Fusion: die BM25-Lane allein. Diagnosearm — der score ist ein
+          // BM25-Wert und keine Kosinus-Ähnlichkeit, und alles hinter
+          // `searchOperations.ts` rechnet in Kosinus weiter.
+          query: { indices: sparseQuery.indices, values: sparseQuery.values },
+          using: BM25_SPARSE_VECTOR_NAME,
+          limit: recall,
+          with_payload: true,
+          ...(prefetchFilter && { filter: prefetchFilter }),
+        }
+      : fusion === 'dense_rescore'
+        ? {
+            // Zweistufig: innen liefern beide Lanes die Kandidaten, aussen
+            // sortiert der dichte Vektor sie — der zurückgegebene score ist
+            // damit wieder ein Kosinus. Kein `score_threshold` und keine
+            // `params` auf der äusseren Abfrage: `params` gilt laut Schema
+            // „for when there is no prefetch", und eine zweite Schwelle wäre
+            // ein neues Gatter. Die Schwelle bleibt auf der dichten
+            // Vorabholung, wo sie heute steht.
+            prefetch: [{ prefetch: prefetches, query: { fusion: 'rrf' }, limit: recall }],
+            query: queryVector,
+            using: '',
+            limit: recall,
+            with_payload: true,
+          }
+        : fusion === 'rrf_weighted'
+          ? { prefetch: prefetches, query: { rrf: { weights } }, limit: recall, with_payload: true }
+          : { prefetch: prefetches, query: { fusion }, limit: recall, with_payload: true };
 
   const response = await client.query(collection, request);
 

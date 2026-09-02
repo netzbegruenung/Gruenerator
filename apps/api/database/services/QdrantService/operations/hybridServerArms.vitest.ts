@@ -196,3 +196,55 @@ describe('rangbasierte Arme', () => {
     expect(weights[1]).toBeCloseTo(0.75, 6);
   });
 });
+
+describe('dense_rescore', () => {
+  it('verschachtelt die Fusion und sortiert aussen mit dem dichten Vektor', async () => {
+    state.hybrid = { ...DEFAULT_HYBRID, serverFusion: 'dense_rescore' };
+    const client = fakeClient();
+    const response = await runArm(client);
+
+    // BM25 stellt die Kandidaten, der dichte Vektor bestimmt die Rangfolge —
+    // und damit ist der zurückgegebene score wieder ein Kosinus, die Domäne,
+    // in der 0,35 / 0,55 / 0,12 geschrieben sind.
+    expect(sentBody(client)).toEqual({
+      prefetch: [
+        {
+          prefetch: [DENSE_PREFETCH, SPARSE_PREFETCH(20)],
+          query: { fusion: 'rrf' },
+          limit: 20,
+        },
+      ],
+      query: QUERY_VECTOR,
+      using: '',
+      limit: 20,
+      with_payload: true,
+    });
+    expect(response.metadata.fusionMethod).toBe('dense_rescore-server');
+  });
+
+  it('legt der äusseren Abfrage weder Schwelle noch params bei', async () => {
+    state.hybrid = { ...DEFAULT_HYBRID, serverFusion: 'dense_rescore' };
+    const client = fakeClient();
+    await runArm(client);
+
+    const body = sentBody(client);
+    expect(body).not.toHaveProperty('score_threshold');
+    expect(body).not.toHaveProperty('params');
+  });
+});
+
+describe('sparse_only', () => {
+  it('fragt die BM25-Lane direkt ab, ohne prefetch und ohne Fusion', async () => {
+    state.hybrid = { ...DEFAULT_HYBRID, serverFusion: 'sparse_only' };
+    const client = fakeClient();
+    const response = await runArm(client);
+
+    expect(sentBody(client)).toEqual({
+      query: { indices: expect.any(Array), values: expect.any(Array) },
+      using: 'bm25',
+      limit: 20,
+      with_payload: true,
+    });
+    expect(response.metadata.fusionMethod).toBe('sparse_only-server');
+  });
+});
