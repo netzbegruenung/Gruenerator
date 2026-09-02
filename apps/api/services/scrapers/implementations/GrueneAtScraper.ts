@@ -14,6 +14,7 @@
  */
 
 import * as cheerio from 'cheerio';
+import { type AnyNode } from 'domhandler';
 
 import { getQdrantInstance } from '../../../database/services/QdrantService/index.js';
 import {
@@ -38,7 +39,6 @@ import { htmlToStructuredText, removeUnwantedElements } from '../utils/htmlClean
 
 import type { QdrantService } from '../../../database/services/QdrantService/index.js';
 import type { ScraperResult } from '../types.js';
-import type { AnyNode } from 'domhandler';
 
 interface ExtractedContent {
   title: string;

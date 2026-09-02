@@ -88,8 +88,15 @@ export function htmlToStructuredText(html: string): string {
   });
 
   $('h1, h2, h3, h4, h5, h6').each((_, el) => {
+    const title = $(el).text().trim();
+    // Eine leere Überschrift darf keine nackte `##`-Zeile hinterlassen —
+    // `parseHeading` lehnt sie ohnehin ab, sie würde nur als Fließtext landen.
+    if (!title) {
+      $(el).replaceWith('');
+      return;
+    }
     const level = Number.parseInt((el as Element).tagName.charAt(1), 10);
-    $(el).replaceWith(escapeForTextNode(`${'#'.repeat(level)} ${$(el).text().trim()}\n\n`));
+    $(el).replaceWith(escapeForTextNode(`${'#'.repeat(level)} ${title}\n\n`));
   });
 
   $('p').each((_, el) => {
