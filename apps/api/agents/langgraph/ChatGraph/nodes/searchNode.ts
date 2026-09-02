@@ -1511,39 +1511,17 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         const query = truncateQuery(searchQuery || '');
 
         // Expand queries for broader document coverage (short timeout to avoid blocking)
-        //
-        // Notebook-gebundene Turns bekommen EINE Paraphrase, nicht zwei: die
-        // zweite Anfrage verdoppelt die Qdrant-Aufrufe, eine dritte verdreifacht
-        // sie — und die Kappe unten (`resultsCap`) schneidet damit zum ersten
-        // Mal überhaupt (bis zu 80 Treffer vor Dedup gegen sortLimit.single 40),
-        // und zwar nach einem Drei-Eimer-Schlüssel (`relevanceLabelToScore`,
-        // searchFormatting.ts:46-50). Ein Paraphrasen-Treffer in „Sehr hoch"
-        // schlägt dort einen Primärtreffer in „Hoch"; das ist die erste Stelle
-        // zum Nachsehen, wenn Hit@3 fällt.
-        //
-        // KEIN `historyContext`: auf dem Mention-Pfad hat `refineSearchQuery`
-        // die Folgefrage schon gegen den Verlauf aufgelöst (classifierNode.ts,
-        // `classifyWithForcedSearch`), und der Reranker liest ohnehin
-        // `state.searchQuery` (rerankNode.ts:157) — eine Paraphrase erreicht den
-        // Cross-Encoder nie. Ein zweiter Umschreiber hier zahlte dieselbe Arbeit
-        // doppelt und liefe der Anfrage davon, mit der gerankt wird. Ohne
-        // Verlauf greift ausserdem der Cache (QueryExpansionService.ts:94-101),
-        // eine wiederholte Frage kostet also gar nichts.
-        //
-        // `variants` wird bewusst NICHT mitgegeben: die Option wirkt nur mit
-        // `historyContext` (QueryExpansionService.ts:91, :107-112). Sie hier zu
-        // setzen sähe nach einer Wirkung aus, die es nicht gibt. Geschnitten
-        // wird an der Aufrufstelle, wo es im Diff steht.
         let expandedQueries: string[] = [];
-        try {
-          const expanded = await expandQuery(query);
-          const keepAlternatives = isNotebookScoped ? 1 : 2;
-          if (expanded.alternatives.length > 0) {
-            expandedQueries = expanded.alternatives.slice(0, keepAlternatives);
-            log.info(`[Search] Document query expanded: +${expandedQueries.length} variants`);
+        if (!isNotebookScoped) {
+          try {
+            const expanded = await expandQuery(query);
+            if (expanded.alternatives.length > 0) {
+              expandedQueries = expanded.alternatives;
+              log.info(`[Search] Document query expanded: +${expandedQueries.length} variants`);
+            }
+          } catch {
+            // Expansion is best-effort for document search
           }
-        } catch {
-          // Expansion is best-effort for document search
         }
 
         // Search all sub-queries (if decomposed) + expanded variants across all collections

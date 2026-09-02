@@ -60,17 +60,9 @@ describe('Chat-Turn an einem gebundenen Notebook', () => {
     expect(profile.rerankOutput).toBeLessThanOrEqual(MAX_SOURCES);
   });
 
-  it('lässt die STUFE bei einer Formulierung — die zweite kommt aus searchNode', () => {
-    // Hält den Preis der Stufe fest: `ultra` sucht dreimal, und diese
+  it('bleibt bei einer Formulierung, solange der Chat keinen Tiefen-Regler hat', () => {
+    // Hält den Preis an die Stufe gebunden: `ultra` sucht dreimal, und diese
     // Entscheidung darf nicht durch die Hintertür in den Chat rutschen.
-    //
-    // Seit #3121 heisst das NICHT mehr „der Chat sucht mit einer Formulierung":
-    // `searchNode` hängt für notebook-gebundene Turns EINE Paraphrase aus
-    // `expandQuery` an (searchNode.ts, `keepAlternatives`), also zwei Anfragen
-    // je Sammlung. Diese Zahl steht an der Aufrufstelle und nicht im Profil,
-    // weil sie den Chat betrifft und nicht die Notebook-Fläche — die läuft
-    // weiter mit einer. Gepinnt wird sie in
-    // `agents/langgraph/ChatGraph/nodes/searchNodeNotebookExpansion.vitest.ts`.
     expect(profile.queryVariants).toBe(1);
   });
 });
