@@ -149,6 +149,28 @@ describe('sourceTextForPrompt', () => {
     expect(zeilen[zeilen.length - 1]).toBe('| Musterstadt | 125000 Euro |');
   });
 
+  it('wirft eine Zeile weg, deren Schnitt hinter einem inneren Trenner liegt', () => {
+    // Fünf Spalten; der Deckel sitzt genau hinter dem vierten `|` der letzten
+    // Zeile. Die Zeile endet dann sauber auf `|` und hat trotzdem die Spalte E
+    // verloren — sie darf nicht als ganze Zeile durchgehen.
+    const kopf = '| A | B | C | D | E |';
+    const trenner = '| --- | --- | --- | --- | --- |';
+    const zeile = '| 1 | 2 | 3 | 4 | 5 |';
+    const text = [kopf, trenner, zeile, zeile].join('\n');
+    const maxChars = text.lastIndexOf('| 5 |') + 1;
+    expect(text.slice(0, maxChars).endsWith('| 4 |')).toBe(true);
+
+    const out = sourceTextForPrompt(ref({ chunk_text: text, chunk_type: 'table' }), maxChars);
+    expect(out.split('\n')).toEqual([kopf, trenner, zeile]);
+  });
+
+  it('behält die letzte Zeile, wenn der Schnitt genau auf einem Zeilenende liegt', () => {
+    const text = [tabelle, '| Dämmung | 20 Prozent |'].join('\n');
+    const maxChars = tabelle.length;
+    const out = sourceTextForPrompt(ref({ chunk_text: text, chunk_type: 'table' }), maxChars);
+    expect(out.split('\n')).toHaveLength(3);
+  });
+
   it('kürzt eine Tabelle, die ganz ins Fenster passt, um keine Zeile', () => {
     const out = sourceTextForPrompt(ref({ chunk_text: tabelle, chunk_type: 'table' }));
     expect(out.split('\n')).toHaveLength(3);
