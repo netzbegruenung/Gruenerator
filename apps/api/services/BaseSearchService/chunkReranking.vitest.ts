@@ -160,3 +160,28 @@ describe('Degradations-Signal des Chunk-Reranks', () => {
     expect(rerank).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * `generateCacheKey` teilt sich einen Eintrag über `limit`/`threshold`/
+ * `filters` — ohne `rerankChunks` in `keyData` wäre ein rerankstes und ein
+ * unreranktes Ergebnis für dieselbe Suche im Cache ununterscheidbar.
+ */
+describe('generateCacheKey berücksichtigt rerankChunks', () => {
+  const baseParams = {
+    query: 'Löschfristen',
+    userId: 'u1',
+    filters: {},
+    options: { limit: 10, threshold: 0.15, useCache: true },
+  };
+
+  it('liefert unterschiedliche Schlüssel für reranked und unreranked', () => {
+    const service = svc();
+    const withoutRerank = service.generateCacheKey(baseParams);
+    const withRerank = service.generateCacheKey({
+      ...baseParams,
+      options: { ...baseParams.options, rerankChunks: true },
+    });
+
+    expect(withRerank).not.toBe(withoutRerank);
+  });
+});
