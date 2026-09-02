@@ -163,7 +163,7 @@ describe('ChunkInspectorView — Suchfeld', () => {
         })
       )
     );
-    const { user } = renderWithProviders(
+    const { user, container } = renderWithProviders(
       <ChunkInspectorView documentId="doc-1" collection="grundsatz-system" />
     );
     await screen.findByText(/Chunk 0 Text/);
@@ -171,13 +171,19 @@ describe('ChunkInspectorView — Suchfeld', () => {
     await user.type(screen.getByLabelText('Suche in diesem Dokument'), 'Klimageld{Enter}');
 
     expect(await screen.findByText('Treffer · 0,83')).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
   });
 
-  it('beschriftet eine sammlungsweite Suche ehrlich', async () => {
+  it('beschriftet eine sammlungsweite Suche ehrlich und weist auf Treffer ausserhalb der Seite hin', async () => {
     respondWith({ success: true, header: header(), chunks: [chunk(0)], nextOffset: null });
     server.use(
       http.get(SEARCH_ENDPOINT, () =>
-        HttpResponse.json({ success: true, hits: [], totalResults: 5, scoped: false })
+        HttpResponse.json({
+          success: true,
+          hits: [{ index: 3, similarity: 0.4 }],
+          totalResults: 5,
+          scoped: false,
+        })
       )
     );
     const { user } = renderWithProviders(
@@ -190,7 +196,29 @@ describe('ChunkInspectorView — Suchfeld', () => {
     expect(
       await screen.findByText('Suche über die ganze Sammlung; Treffer dieses Dokuments markiert')
     ).toBeInTheDocument();
-    expect(screen.getByText('0 von 5 Treffern stammen aus diesem Dokument.')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        '1 von 5 Treffern stammen aus diesem Dokument. — weitere Treffer ggf. auf anderen Seiten'
+      )
+    ).toBeInTheDocument();
+  });
+
+  it('meldet einen fehlgeschlagenen Suchversuch, ohne die Chunk-Tabelle zu verlieren', async () => {
+    respondWith({ success: true, header: header(), chunks: [chunk(0)], nextOffset: null });
+    server.use(
+      http.get(SEARCH_ENDPOINT, () =>
+        HttpResponse.json({ success: false, message: 'Serverfehler' }, { status: 500 })
+      )
+    );
+    const { user } = renderWithProviders(
+      <ChunkInspectorView documentId="doc-1" collection="grundsatz-system" />
+    );
+    await screen.findByText(/Chunk 0 Text/);
+
+    await user.type(screen.getByLabelText('Suche in diesem Dokument'), 'Klimageld{Enter}');
+
+    expect(await screen.findByText('Die Suche ist fehlgeschlagen.')).toBeInTheDocument();
+    expect(screen.getByText(/Chunk 0 Text/)).toBeInTheDocument();
   });
 
   it('beschriftet eine eingeschränkte Suche als solche', async () => {
