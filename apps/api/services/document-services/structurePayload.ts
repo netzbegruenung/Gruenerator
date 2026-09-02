@@ -18,8 +18,10 @@ export interface ChunkStructurePayload {
   section_index: number | null;
 }
 
-export function structurePayload(chunk: { metadata?: unknown }): ChunkStructurePayload {
-  const meta = (chunk.metadata ?? {}) as ChunkMetadata;
+export function structurePayload(chunk: {
+  metadata?: ChunkMetadata | undefined;
+}): ChunkStructurePayload {
+  const meta = chunk.metadata ?? {};
 
   const path = Array.isArray(meta.headingPath)
     ? meta.headingPath.filter((h): h is string => typeof h === 'string' && h.trim().length > 0)

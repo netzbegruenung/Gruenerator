@@ -56,9 +56,13 @@ describe('structurePayload', () => {
   });
 
   it('wirft leere und nicht-string-Einträge aus dem Pfad', () => {
-    expect(
-      structurePayload({ metadata: { headingPath: ['A', '', null, 7, 'B'] } }).heading_path
-    ).toEqual(['A', 'B']);
+    // Der Typ sagt `string[]`, die Laufzeit hat schon anderes geliefert (alte
+    // Payloads, fremde Ingest-Pfade) — deshalb filtert der Helfer weiterhin.
+    const schmutzigerPfad = ['A', '', null, 7, 'B'] as unknown as string[];
+    expect(structurePayload({ metadata: { headingPath: schmutzigerPfad } }).heading_path).toEqual([
+      'A',
+      'B',
+    ]);
     expect(structurePayload({ metadata: { headingPath: [] } }).heading_path).toBeNull();
   });
 });

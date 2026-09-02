@@ -19,6 +19,7 @@ import type {
   HybridOptions,
   DocumentResult,
 } from '../../BaseSearchService/types.js';
+import type { ChunkMetadata } from '../TextChunker/types.js';
 
 // ============ Qdrant Filter Types ============
 
@@ -95,7 +96,7 @@ export interface HybridConfig {
 export interface ChunkWithMetadata {
   text: string;
   tokens?: number | undefined;
-  metadata?: unknown;
+  metadata?: ChunkMetadata | undefined;
 }
 
 /**
