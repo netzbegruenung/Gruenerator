@@ -390,3 +390,115 @@ export function summarizeOutcomes(outcomes: ReadonlyArray<DocumentOutcome>): Run
 
   return summary;
 }
+
+/**
+ * Alles, was `processDocument` von aussen braucht. Als Abhängigkeitsobjekt und
+ * nicht als direkter Client-Zugriff, damit der Test die Reihenfolge Upsert →
+ * Löschen beweisen kann, ohne eine Qdrant-Instanz zu brauchen.
+ */
+export interface RechunkDeps {
+  chunk(text: string, baseMetadata: Record<string, unknown>): Promise<Chunk[]>;
+  embed(texts: string[]): Promise<number[][]>;
+  quality(text: string): number;
+  upsert(collection: string, points: RechunkPoint[]): Promise<void>;
+  deletePoints(collection: string, ids: Array<string | number>): Promise<void>;
+  now(): string;
+}
+
+export interface DocumentGroup {
+  /** Wert des `idKey`-Payloadfelds. */
+  key: string;
+  /** Payload des Kopf-Punkts (`chunk_index = 0`) — die einzige Quelle von `full_text`. */
+  headPayload: Record<string, unknown>;
+  /** IDs ALLER heute lebenden Punkte des Dokuments, Kopf eingeschlossen. */
+  pointIds: Array<string | number>;
+}
+
+export interface RunOptions {
+  dryRun: boolean;
+  onlyStructured: boolean;
+  resume: boolean;
+}
+
+export async function processDocument(
+  deps: RechunkDeps,
+  collection: string,
+  recipe: PointIdRecipe,
+  doc: DocumentGroup,
+  options: RunOptions
+): Promise<DocumentOutcome> {
+  const base: DocumentOutcome = {
+    key: doc.key,
+    skipped: null,
+    structured: false,
+    oldChunks: doc.pointIds.length,
+    newChunks: 0,
+    chars: 0,
+    written: 0,
+    deleted: 0,
+  };
+
+  const fullText = doc.headPayload.full_text;
+  if (typeof fullText !== 'string' || fullText.trim().length === 0) {
+    // Zählen und überspringen. NIE nachholen: der Rekonstruktions-Backfill aus
+    // den chunk_text-Feldern liefert plattgedrückten Fließtext (Spec B.2) und
+    // macht aus einem ehrlichen „nichts zu tun" einen teuren Leerlauf.
+    return { ...base, skipped: 'no_full_text' };
+  }
+
+  if (options.resume && typeof doc.headPayload.rechunked_at === 'string') {
+    return { ...base, skipped: 'already_rechunked' };
+  }
+
+  const title = typeof doc.headPayload.title === 'string' ? doc.headPayload.title : '';
+  const chunks = await deps.chunk(fullText, {
+    title,
+    source: doc.headPayload.source ?? null,
+    source_url: doc.headPayload.source_url ?? null,
+  });
+
+  if (chunks.length === 0) return { ...base, skipped: 'no_chunks' };
+
+  const measured: DocumentOutcome = {
+    ...base,
+    structured: isStructured(chunks),
+    newChunks: chunks.length,
+    chars: fullText.length,
+  };
+
+  if (options.onlyStructured && !measured.structured) {
+    return { ...measured, skipped: 'fast_path' };
+  }
+  if (options.dryRun) return measured;
+
+  const embeddings = await deps.embed(buildEmbeddingTextsForChunks(chunks, title));
+  const now = deps.now();
+
+  const points: RechunkPoint[] = chunks.map((chunk, index) => ({
+    id: recipe.id(doc.key, index),
+    vector: embeddings[index],
+    payload: rebuildChunkPayload(doc.headPayload, chunk, {
+      index,
+      fullText,
+      qualityScore: deps.quality(chunk.text),
+      now,
+    }),
+  }));
+
+  // UPSERT ZUERST. Die IDs sind deterministisch, der Upsert überschreibt die
+  // alten Punkte 0 … min(n,m)-1 an Ort und Stelle; es entstehen keine Dubletten.
+  for (const batch of upsertBatches(points)) {
+    await deps.upsert(collection, batch);
+  }
+
+  // LÖSCHEN DANACH, und nur was die neue Menge nicht abdeckt.
+  const leftovers = leftoverPointIds(
+    doc.pointIds,
+    points.map((point) => point.id)
+  );
+  if (leftovers.length > 0) {
+    await deps.deletePoints(collection, leftovers);
+  }
+
+  return { ...measured, written: points.length, deleted: leftovers.length };
+}
