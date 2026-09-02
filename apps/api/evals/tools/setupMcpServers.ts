@@ -9,7 +9,7 @@
  * Only `authType: 'none'` servers (verified in McpRegistryService SEEDS) — no
  * OAuth, so it runs headless against a local or test-env backend.
  */
-import { dirname } from 'node:path';
+import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const BASE_URL = process.env.EVAL_BASE_URL ?? 'http://localhost:3001';
@@ -69,7 +69,13 @@ async function main(): Promise<void> {
   console.log('Done. Run the MCP lane with EVAL_FILTER=mcp.');
 }
 
-// Only run when invoked directly (not when imported by a test).
-if (process.argv[1] && dirname(fileURLToPath(import.meta.url))) {
+// Only run when invoked directly (not when imported by a test). Comparing the
+// resolved entry script with this module's own path is the part that actually
+// discriminates: `dirname(...)` of a real path is always a non-empty string, so
+// the previous guard reduced to `process.argv[1] &&` and ran main() on every
+// import.
+const invokedDirectly =
+  process.argv[1] !== undefined && fileURLToPath(import.meta.url) === resolve(process.argv[1]);
+if (invokedDirectly) {
   void main();
 }
