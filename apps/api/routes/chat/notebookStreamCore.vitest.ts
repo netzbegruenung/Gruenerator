@@ -339,6 +339,46 @@ describe('query rewrite in deep', () => {
     await run('deep');
     expect(expandQuery).not.toHaveBeenCalled();
   });
+
+  it('does not call the rewriter in fast, even with history (Grün-O-Mat cost guard)', async () => {
+    // `fast` has `queryRewrite: false` — history in the request must not
+    // trigger a rewrite call regardless.
+    vi.clearAllMocks();
+    setupMocks();
+    await run('fast', HISTORY_MESSAGES);
+    expect(expandQuery).not.toHaveBeenCalled();
+  });
+
+  it('reranks against the rewritten query, not the raw follow-up', async () => {
+    // Red before the fix: the reranker's cross-encoder read "Und was heißt
+    // das für Bayern?" while the 40 candidates were retrieved for the
+    // rewritten "Hitzeschutz Bayern".
+    vi.clearAllMocks();
+    setupMocks();
+    expandQuery.mockResolvedValue({ primary: 'Hitzeschutz Bayern', alternatives: [] });
+    await run('deep', HISTORY_MESSAGES);
+    const rerankCall = rerankNotebookResults.mock.calls[0][0] as { question: string };
+    expect(rerankCall.question).toBe('Hitzeschutz Bayern');
+  });
+
+  it('reranks against the raw question when there is no history to rewrite from', async () => {
+    vi.clearAllMocks();
+    setupMocks();
+    await run('deep');
+    const rerankCall = rerankNotebookResults.mock.calls[0][0] as { question: string };
+    expect(rerankCall.question).toBe('Was steht zur sozialen Sicherung drin?');
+  });
+
+  it('never asks the rewriter for alternatives it would immediately discard', async () => {
+    // deep keeps exactly one query (queryVariants: 1), so the alternatives a
+    // full condense call would produce are pure spend.
+    vi.clearAllMocks();
+    setupMocks();
+    expandQuery.mockResolvedValue({ primary: 'Hitzeschutz Bayern', alternatives: [] });
+    await run('deep', HISTORY_MESSAGES);
+    const opts = expandQuery.mock.calls[0][1] as { variants?: number };
+    expect(opts.variants).toBe(0);
+  });
 });
 
 describe('citation validation', () => {

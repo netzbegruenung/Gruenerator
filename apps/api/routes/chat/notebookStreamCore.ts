@@ -182,7 +182,14 @@ export async function handleNotebookStream(
     if (wantsRewrite || profile.queryVariants > 1) {
       const expanded = await expandQuery(
         question,
-        wantsRewrite ? { historyContext: buildRewriteTranscript(incomingHistory) } : {}
+        wantsRewrite
+          ? {
+              historyContext: buildRewriteTranscript(incomingHistory),
+              // `deep` rewrites but keeps a single query — asking for
+              // alternatives it would immediately slice away is wasted spend.
+              ...(profile.queryVariants <= 1 && { variants: 0 }),
+            }
+          : {}
       );
       queries = [expanded.primary, ...expanded.alternatives].slice(
         0,
@@ -198,6 +205,12 @@ export async function handleNotebookStream(
         });
       }
     }
+
+    // The reranker's cross-encoder must read the same query the candidates
+    // were retrieved with. `queries[0]` is the rewritten standalone question
+    // when the rewrite ran, and equals `question` unchanged when it was
+    // skipped or failed — so the un-rewritten follow-up never reaches it.
+    const rerankQuery = queries[0] ?? question;
 
     let searchContext: SearchContext | null;
     try {
@@ -265,7 +278,7 @@ export async function handleNotebookStream(
       const reranked = await rerankNotebookResults({
         results: searchContext.sortedResults,
         referencesMap: searchContext.referencesMap,
-        question,
+        question: rerankQuery,
         limit: profile.rerankOutput,
         inputLimit: profile.rerankInput,
       });

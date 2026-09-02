@@ -360,7 +360,12 @@ async function runNotebookCase(
   if (wantsRewrite || profile.queryVariants > 1) {
     const expanded = await expandQuery(
       evalCase.query,
-      wantsRewrite ? { historyContext: buildRewriteTranscript(incomingHistory) } : {}
+      wantsRewrite
+        ? {
+            historyContext: buildRewriteTranscript(incomingHistory),
+            ...(profile.queryVariants <= 1 && { variants: 0 }),
+          }
+        : {}
     );
     queries = [expanded.primary, ...expanded.alternatives].slice(
       0,
