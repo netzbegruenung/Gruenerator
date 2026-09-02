@@ -199,6 +199,22 @@ function collapseAliasDuplicates(results: DocumentResult[]): DocumentResult[] {
 const OVERFETCH_CEILING = 80;
 
 /**
+ * Grösstes `limit`, mit dem der Chunk-Reranker bestellt werden darf.
+ *
+ * Der Cross-Encoder bewertet die besten CHUNK_RERANK_POOL_MAX = 30 Chunks
+ * (`BaseSearchService.ts:90`); was darüber liegt, behält seinen Kosinus
+ * (`:889`) und konkurriert im SELBEN `sort` gegen Encoder-Werte — zwei Skalen,
+ * eine Sortierung. Abgerufen werden `round(min(limit·2, 80) · 3,0)` Chunks, bei
+ * limit 5 also genau 30. Ab 6 entstünde die Naht.
+ *
+ * Geklemmt wird deshalb das an Qdrant gereichte Limit auf dem rerankten Pfad,
+ * statt den Pool anzuheben: die 30 tragen ihre eigene Begründung
+ * (`BaseSearchService.ts:76-89`). Der `.slice(0, limit)` weiter unten bleibt
+ * unberührt — das Modell bekommt so viele Treffer, wie es angefragt hat.
+ */
+const RERANK_LIMIT_CLAMP = 5;
+
+/**
  * Execute a direct document search against Qdrant.
  * Replaces the MCP tool call for gruenerator_search.
  */
@@ -222,6 +238,14 @@ export async function executeDirectSearch(params: {
   searchMode?: 'hybrid' | 'vector' | 'text';
   /** Set false to bypass the service-level result cache for a fresh read. */
   useCache?: boolean;
+  /**
+   * Chunks VOR der Gruppierung durch den Cross-Encoder bewerten lassen.
+   * Opt-in: der Einzelpfad rerankt danach ohnehin in `rerankNode`, der
+   * MCP-Server gar nicht. Gesetzt wird es nur vom Werkzeugpfad des agentischen
+   * Loops (`toolCatalog` → `createSearchTools`), und nur mit
+   * LOOP_RERANK_ENABLED=true.
+   */
+  rerankChunks?: boolean;
 }): Promise<DirectSearchResult> {
   const {
     query,
@@ -231,7 +255,15 @@ export async function executeDirectSearch(params: {
     agentLandesverband,
     searchMode = 'hybrid',
     useCache,
+    rerankChunks,
   } = params;
+
+  // Nur auf dem rerankten Pfad geklemmt; ohne Reranker bleibt jedes Limit, wie
+  // es war — sonst würde ein ausgeschalteter Schalter die Trefferbreite ändern.
+  const qdrantLimit = Math.min(
+    (rerankChunks === true ? Math.min(limit, RERANK_LIMIT_CLAMP) : limit) * 2,
+    OVERFETCH_CEILING
+  );
 
   log.info(
     `[Direct Search] query="${query}" collection="${collection}" limit=${limit} mode=${searchMode}${filters ? ` filters=${JSON.stringify(filters)}` : ''}${agentLandesverband ? ` lv=${JSON.stringify(agentLandesverband)}` : ''}`
@@ -280,7 +312,7 @@ export async function executeDirectSearch(params: {
       query,
       userId: undefined,
       options: {
-        limit: Math.min(limit * 2, OVERFETCH_CEILING),
+        limit: qdrantLimit,
         mode: searchMode,
         vectorWeight: searchParams.vectorWeight,
         textWeight: searchParams.textWeight,
@@ -289,6 +321,7 @@ export async function executeDirectSearch(params: {
         recallLimit: searchParams.recallLimit,
         qualityMin: searchParams.qualityMin,
         additionalFilter,
+        ...(rerankChunks === true && { rerankChunks: true }),
         ...(useCache === undefined ? {} : { useCache }),
       },
     });
@@ -313,7 +346,7 @@ export async function executeDirectSearch(params: {
             query,
             userId: undefined,
             options: {
-              limit: Math.min(limit * 2, OVERFETCH_CEILING),
+              limit: qdrantLimit,
               mode: searchMode,
               vectorWeight: searchParams.vectorWeight,
               textWeight: searchParams.textWeight,
@@ -322,6 +355,11 @@ export async function executeDirectSearch(params: {
               recallLimit: searchParams.recallLimit,
               qualityMin: searchParams.qualityMin,
               additionalFilter: fallbackFilter,
+              // Auch hier, aus demselben Grund wie oben: ein Turn, dessen
+              // Filter nicht greifen, darf den Reranker nicht stillschweigend
+              // verlieren. (Zweig derzeit unerreichbar — siehe Issue aus
+              // Step 5 dieses Umbaus.)
+              ...(rerankChunks === true && { rerankChunks: true }),
             },
           });
           if (fallbackResponse.success && fallbackResponse.results?.length > 0) {
