@@ -276,10 +276,16 @@ export class BaseSearchService {
       }
 
       // Group and rank results with hybrid scoring
+      let rerankDegraded = false;
       const results = await this.groupAndRankHybridResults(chunks, options.limit ?? 10, query, {
         applyMMR: true,
         mmrLambda: 0.7,
-        ...(options.rerankChunks === true && { rerankChunks: true }),
+        ...(options.rerankChunks === true && {
+          rerankChunks: true,
+          onRerankDegraded: () => {
+            rerankDegraded = true;
+          },
+        }),
       });
 
       // Build response
@@ -309,6 +315,13 @@ export class BaseSearchService {
       }
 
       console.log(`[${this.serviceName}] Found ${results.length} hybrid results for: "${query}"`);
+      // NACH dem Cachen und auf einer Kopie: der Marker gilt für DIESEN Aufruf,
+      // nicht für die Antwort. `this.cache.set` legt oben dasselbe Objekt ab —
+      // ein späterer Cache-Treffer hat gar nicht rerankt und dürfte die Warnung
+      // kein zweites Mal auslösen.
+      if (rerankDegraded) {
+        return { ...response, metadata: { ...response.metadata, rerankDegraded: true } };
+      }
       return response;
     } catch (error) {
       const errorResponse: SearchResponse = this.errorHandler.handle(error as Error, {
@@ -778,8 +791,11 @@ export class BaseSearchService {
   protected async scoreChunksByCrossEncoder(
     chunks: TransformedChunk[],
     query: string
-  ): Promise<Map<number, number> | null> {
-    if (!query.trim() || chunks.length <= CHUNK_RERANK_MIN_POOL) return null;
+  ): Promise<{ scores: Map<number, number> | null; failed: boolean }> {
+    if (!query.trim() || chunks.length <= CHUNK_RERANK_MIN_POOL) {
+      // Nicht bestellt bzw. zu wenig Material — kein Ausfall.
+      return { scores: null, failed: false };
+    }
 
     // Grösser als der Pool ist keine Option: was nicht bewertet wird, müsste im
     // selben Sortierschritt gegen bewertete Chunks antreten, und die zwei
@@ -815,14 +831,15 @@ export class BaseSearchService {
       applyDiversity: false,
     });
 
-    if (failed || rankedIndices.length === 0) return null;
+    // Eine leere Rangfolge ist so gut wie ein Fehlschlag: bewertet wurde nichts.
+    if (failed || rankedIndices.length === 0) return { scores: null, failed: true };
 
     const byChunkIndex = new Map<number, number>();
     for (const [poolIndex, entry] of pool.entries()) {
       const score = scores.get(poolIndex);
       if (score != null) byChunkIndex.set(entry.index, score);
     }
-    return byChunkIndex.size > 0 ? byChunkIndex : null;
+    return { scores: byChunkIndex.size > 0 ? byChunkIndex : null, failed: false };
   }
 
   async groupAndRankHybridResults(
@@ -839,9 +856,12 @@ export class BaseSearchService {
     // Grundsatz- und LV-Sammlungen gemeinsam benutzt wird. Notebook und
     // Recherche reranken danach ohnehin auf Dokumentebene; der Anhang-Pfad ist
     // der einzige, bei dem das nichts bringt, weil dort nur EIN Dokument steht.
-    const rerankScores = options.rerankChunks
+    const rerankOutcome = options.rerankChunks
       ? await this.scoreChunksByCrossEncoder(chunks, query)
       : null;
+    const rerankScores = rerankOutcome?.scores ?? null;
+    // Nach oben gemeldet, nicht behandelt: `null` sortiert weiter wie bisher.
+    if (rerankOutcome?.failed) options.onRerankDegraded?.();
 
     // Group chunks by document with hybrid metadata
     for (const [poolIndex, chunk] of chunks.entries()) {
