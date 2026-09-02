@@ -63,7 +63,7 @@ export function SourceCard(props: SourceMessagePartProps) {
   if (citation?.collectionName) metaParts.push(style.label || citation.collectionName);
   if (citation?.pageNumber != null) metaParts.push(`S. ${citation.pageNumber}`);
   if (citation?.similarityScore != null)
-    metaParts.push(`${Math.round(citation.similarityScore * 100)} % Relevanz`);
+    metaParts.push(`${Math.round(citation.similarityScore * 100)}\u00a0% Relevanz`);
   const metaLine = metaParts.join(' · ');
 
   return (
