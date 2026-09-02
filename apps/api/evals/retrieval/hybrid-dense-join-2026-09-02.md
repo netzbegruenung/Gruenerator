@@ -118,10 +118,15 @@ bleibt unverändert und feuert wieder auf dem Server-Pfad.
    liegt sogar unter der eigenen `dbsf`-Referenz aus #3169
    (MRR@10 0,361 → 0,350, `kommunalwiki-laerm` rank 9 → rank 14) — die
    Umstellung auf den dichten Kosinus-Schnitt hat die Inversion von `dbsf`
-   auf dem Notebook-Pfad also NICHT aufgelöst. Die verbleibenden Verdächtigen
-   sind die Stufen hinter dem Schnitt, die weiterhin auf dem Fusionswert statt
-   auf dem Kosinus arbeiten (`selectAcrossQueryGroups`,
-   `expandResultsToChunks`) — ungeprüft.
+   auf dem Notebook-Pfad also NICHT aufgelöst. Der Grund ist beim Nachlesen
+   sichtbar: die dichte Spiegelsuche trägt dieselbe `score_threshold` wie der
+   Schnitt (`hybridSearch.ts`, Prefetch-Spread), ein `dense_similarity` liegt
+   also per Konstruktion immer über der Schwelle — der Schnitt ist dort eine
+   Tautologie und greift nur bei Treffern ohne Join-Wert (Deckungsgrad-Tabelle
+   oben, ≈ 36 % der Treffer), und dort weiter auf dem Fusionswert. Die
+   Inversion von `dbsf` sitzt damit nicht an der Schwelle, sondern in der
+   Rangfolge der ungedeckten Treffer und den Stufen dahinter
+   (`selectAcrossQueryGroups`, `expandResultsToChunks`) — Letzteres ungeprüft.
 3. 42 Kontrollfälle rangidentisch: erfüllt (Tabelle oben, Spalte
    „42 Kontrollfälle identisch?", durchgehend „ja").
 4. manual 3/3 auf Rang 1: erfüllt (`tune-join-dbsf-manual.json`, byte-identisch
