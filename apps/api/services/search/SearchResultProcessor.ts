@@ -161,13 +161,30 @@ export const PROMPT_SOURCE_MAX_CHARS = 1800;
 /**
  * The text of a source as the model should see it: the full chunk when the
  * search layer supplied one, falling back to the display snippet.
+ *
+ * Eine Tabelle IST ihre Zeilenstruktur. `\s+ → ' '` macht aus einem sauber
+ * geschnittenen Tabellen-Chunk eine Zeile, in der keine Zelle mehr einer Spalte
+ * zuzuordnen ist — die ganze Arbeit der Blockzerlegung käme so nie beim Modell
+ * an. Deshalb behalten `chunk_type: 'table'`-Referenzen ihre Zeilenumbrüche;
+ * innerhalb einer Zeile wird weiter normalisiert.
  */
 export function sourceTextForPrompt(
   ref: ReferenceData,
   maxChars: number = PROMPT_SOURCE_MAX_CHARS
 ): string {
   const text = ref.chunk_text || ref.snippets[0]?.[0] || '';
-  return text.slice(0, maxChars).replace(/\s+/g, ' ').trim();
+  const clipped = text.slice(0, maxChars);
+
+  if (ref.chunk_type === 'table') {
+    return clipped
+      .split('\n')
+      .map((line) => line.replace(/[ \t]+/g, ' ').trim())
+      .filter((line) => line.length > 0)
+      .join('\n')
+      .trim();
+  }
+
+  return clipped.replace(/\s+/g, ' ').trim();
 }
 
 /**
