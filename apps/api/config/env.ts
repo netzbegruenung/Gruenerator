@@ -20,6 +20,27 @@ const boolFlag = (defaultValue: boolean) =>
 /** Coerce a string to a number with a required default. */
 const numStr = (defaultValue: number) => z.coerce.number().default(defaultValue);
 
+/**
+ * Fusionsarme des server-seitigen Hybrid-Pfads (`HYBRID_SERVER_FUSION`, #3118).
+ * `as const`-Registry statt Inline-Liste: `z.enum` und die exportierte
+ * Literal-Union kommen aus EINER Quelle, und beide `HybridConfig`-Interfaces
+ * (`config/vectorConfig.ts`, `QdrantService/operations/types.ts`) leiten davon
+ * ab, statt die fünf Namen ein drittes und viertes Mal zu tippen.
+ *
+ * `sparse_only` ist ein Diagnosearm, kein Auslieferungskandidat: sein `score`
+ * ist ein BM25-Wert und keine Kosinus-Ähnlichkeit, und die Pipeline dahinter
+ * rechnet in Kosinus weiter.
+ */
+export const HYBRID_SERVER_FUSIONS = [
+  'rrf',
+  'rrf_weighted',
+  'dbsf',
+  'dense_rescore',
+  'sparse_only',
+] as const;
+
+export type ServerFusion = (typeof HYBRID_SERVER_FUSIONS)[number];
+
 // ---------------------------------------------------------------------------
 // Schema
 // ---------------------------------------------------------------------------
@@ -388,6 +409,50 @@ const envSchema = z.object({
   HYBRID_ENABLE_DYNAMIC_THRESHOLDS: boolFlag(true),
   HYBRID_ENABLE_CONFIDENCE_WEIGHTING: boolFlag(true),
   HYBRID_ENABLE_QUALITY_GATE: boolFlag(true),
+
+  /**
+   * Hauptschalter des server-seitigen Query-API-Pfads. `false` schickt JEDE
+   * Sammlung zurück auf die client-seitige Alt-Fusion, ohne Qdrant anzufassen:
+   * der Rückwärtsgang, der keine Migration braucht, und der Referenzarm jeder
+   * Messung aus #3118.
+   *
+   * Bleibt an, obwohl der ausgelieferte Arm `rrf` die Alt-Fusion auf dem
+   * qa-Pfad nicht erreicht (kommunalwiki roh 50 % / 0,642 gegen 60 % / 0,720):
+   * auf der manuellen Suche findet erst der Sparse-Vektor die Einwort-Anfragen
+   * (`rrf` 2 von 3 auf Rang 1, `dbsf` 3 von 3, Alt-Fusion vor der Migration
+   * 0 von 3). Abschalten hieße, kommunalwikis BM25 ganz aufzugeben. Die
+   * Alt-Fusion wurde auf dem manuellen und dem Notebook-Pfad nicht gemessen.
+   */
+  HYBRID_SERVER_SIDE_ENABLED: boolFlag(true),
+
+  /**
+   * Welche Fusion der Server-Pfad benutzt. Siehe HYBRID_SERVER_FUSIONS.
+   * Default bleibt `rrf`, obwohl die Messreihe in #3118 (2026-09-02) `dbsf`
+   * auf dem qa-Pfad vorn sieht (10 kommunalwiki-Fälle roh: Hit@1 80 % /
+   * MRR@10 0,813 gegen `rrf` 50 % / 0,642): auf dem Notebook-Pfad, der die
+   * 0,35-Schwelle in `NotebookQAService` läuft, kehrt sich das um (`dbsf`
+   * 30 % / 0,361 gegen `rrf` 50 % / 0,567), weil die Schwelle für Kosinus-
+   * werte geschrieben ist. Umschalten erst, wenn die Schwelle den Wertebereich
+   * der Fusion kennt — Issue #3166.
+   *
+   * Die ganze Messreihe lief mit `HYBRID_ENABLE_QUALITY_GATE=false`; `dbsf`
+   * mit eingeschaltetem Gatter ist nie gemessen (siehe hybridSearch.ts, das
+   * Gatter ist nur für `rrf` als unschädlich belegt). Die qa-Arme liefen mit
+   * Tiefe `fast`, die Notebook-Arme mit `deep` (der Produktionsstufe des Chats);
+   * ohne Verlauf schreibt `deep` nicht um, die Zahlen sind also vergleichbar,
+   * aber nicht dieselbe Stufe.
+   */
+  HYBRID_SERVER_FUSION: z.enum(HYBRID_SERVER_FUSIONS).default('rrf'),
+
+  /**
+   * Limit der Sparse-Vorabholung als Vielfaches der dichten. 0 lässt die
+   * Sparse-Vorabholung ganz weg — zusammen mit `dense_rescore` ist das der
+   * dicht-nur-Kontrollarm über den Query-API-Pfad.
+   */
+  HYBRID_SERVER_SPARSE_FACTOR: z.coerce.number().min(0).default(1.0),
+
+  /** Gewicht der dichten Vorabholung bei `rrf_weighted`; sparse bekommt 1 − dies. */
+  HYBRID_SERVER_RRF_WEIGHT_DENSE: z.coerce.number().min(0).max(1).default(0.7),
 
   // ── Scoring ────────────────────────────────────────────────────────────
   SCORING_MAX_SIMILARITY_WEIGHT: z.coerce.number().default(0.6),
