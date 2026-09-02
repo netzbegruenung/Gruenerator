@@ -70,17 +70,34 @@ const CitationModal = (): JSX.Element => {
 
     if (isLoadingContext) {
       return (
-        <div className="flex items-center justify-center gap-sm p-lg text-disabled text-[clamp(0.9rem,1.5vw,1rem)] min-h-[100px] max-sm:p-xl max-sm:text-base">
-          <span className="size-5 border-2 border-grey-200 dark:border-grey-700 border-t-accent rounded-full animate-spin shrink-0 max-sm:size-6 max-sm:border-[3px]" />
+        <div
+          role="status"
+          aria-live="polite"
+          className="flex items-center justify-center gap-sm p-lg text-disabled text-[clamp(0.9rem,1.5vw,1rem)] min-h-[100px] max-sm:p-xl max-sm:text-base"
+        >
+          {/* Der Ring sagt nichts, was der Text nicht schon sagt. */}
+          <span
+            aria-hidden="true"
+            className="size-5 border-2 border-grey-200 dark:border-grey-700 border-t-accent rounded-full animate-spin shrink-0 max-sm:size-6 max-sm:border-[3px]"
+          />
           <span>Kontext wird geladen...</span>
         </div>
       );
     }
 
     if (contextError) {
+      // Bis hierher rendete dieser Zweig dasselbe wie der Rückfall unten und
+      // warf `contextError` weg (gesetzt in citationStore.ts:181 und :186) —
+      // der Fehlerzustand existierte nicht. Jetzt: erst die Meldung, dann das,
+      // was man trotzdem hat.
       return (
-        <div className="text-foreground italic leading-[1.6] p-md rounded-sm bg-background-alt text-[clamp(0.9rem,1.5vw,1rem)] max-sm:p-md max-sm:text-base max-sm:leading-[1.7]">
-          &ldquo;{selectedCitation.cited_text}&rdquo;
+        <div className="flex flex-col gap-md">
+          <p role="status" className="m-0 text-[0.9rem] text-muted-foreground">
+            {contextError}
+          </p>
+          <div className="text-foreground italic leading-[1.6] p-md rounded-sm bg-background-alt text-[clamp(0.9rem,1.5vw,1rem)] max-sm:p-md max-sm:text-base max-sm:leading-[1.7]">
+            &ldquo;{selectedCitation.cited_text}&rdquo;
+          </div>
         </div>
       );
     }
@@ -92,7 +109,11 @@ const CitationModal = (): JSX.Element => {
             <span
               key={`chunk-${chunk.chunkIndex}-${idx}`}
               ref={chunk.isCenter ? highlightRef : null}
-              className={chunk.isCenter ? 'citation-highlight' : 'text-foreground opacity-70'}
+              // Kein `opacity-70`: Deckkraft wirkt auf das ganze Element und
+              // frisst den Kontrast von allem darin; axe meldet dann eine
+              // Mischfarbe, die in keiner Rampe vorkommt
+              // (docs/CLAUDE-a11y.md:48-52).
+              className={chunk.isCenter ? 'citation-highlight' : 'text-muted-foreground'}
             >
               <Markdown>{chunk.text}</Markdown>{' '}
             </span>
