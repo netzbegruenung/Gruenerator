@@ -11,6 +11,13 @@
  * Ein `400` beantwortet in Sekunden, was sonst eine 52-Fall-Runde kostet.
  * Fällt eine Gestalt aus, gehört der Arm als „vom Server abgelehnt" in die
  * Messtabelle — nicht weggelassen.
+ *
+ * Seit #3166 ist die letzte Gestalt ein `queryBatch` mit drei Suchen: die
+ * Fusionsabfrage plus die beiden Vorabholungen als eigenständige Suchen, aus
+ * denen der Score-Join den dichten Kosinus und den BM25-Wert zieht. Geprüft
+ * wird zweierlei — nimmt der Server den Batch überhaupt an, und kostet er
+ * gegenüber demselben `query` allein spürbar Zeit (beide Läufe werden hier
+ * gestoppt, damit die Latenzfrage aus R5 nicht erst in der Messreihe auffällt).
  */
 import 'dotenv/config';
 
@@ -36,6 +43,36 @@ async function shape(
   } catch (err) {
     const e = err as { message?: string; status?: number; data?: unknown };
     console.log(`✗ ${name}: ${e.message ?? String(err)}`);
+    if (e.status) console.log(`    status: ${e.status}`);
+    if (e.data) console.log(`    data:   ${JSON.stringify(e.data).slice(0, 400)}`);
+  }
+}
+
+/**
+ * Dieselben Vorabholungen wie `rrf`, aber als Batch: Eintrag 1 ist die Fusion,
+ * Eintrag 2 und 3 spiegeln die Vorabholungen mit `with_payload: false`. Genau
+ * diese Gestalt baut `hybridSearchServerSide` mit HYBRID_SERVER_SCORE_JOIN=true.
+ */
+async function batchShape(
+  name: string,
+  searches: Schemas['QueryRequest'][],
+  client: {
+    queryBatch: (
+      collection: string,
+      body: { searches: Schemas['QueryRequest'][] }
+    ) => Promise<Array<{ points: unknown[] }>>;
+  }
+): Promise<void> {
+  const started = Date.now();
+  try {
+    const responses = await client.queryBatch(COLLECTION, { searches });
+    const counts = responses.map((r) => r.points.length).join('/');
+    console.log(
+      `✓ ${name}: akzeptiert, ${responses.length} Antwort(en), Punkte ${counts}, ${Date.now() - started} ms`
+    );
+  } catch (err) {
+    const e = err as { message?: string; status?: number; data?: unknown };
+    console.log(`✗ ${name}: ${e.message ?? String(err)} (${Date.now() - started} ms)`);
     if (e.status) console.log(`    status: ${e.status}`);
     if (e.data) console.log(`    data:   ${JSON.stringify(e.data).slice(0, 400)}`);
   }
@@ -111,6 +148,31 @@ async function main(): Promise<void> {
       using: BM25_SPARSE_VECTOR_NAME,
       limit: 1,
     },
+    client
+  );
+
+  // Vergleichsmessung: dieselbe Fusionsabfrage einmal allein, einmal als
+  // erster Eintrag eines Batch mit den beiden Spiegelsuchen. Die Differenz der
+  // beiden Zeiten ist die Zahl, die R5 in der Messreihe erwartet — hier
+  // vorweg, mit einer Anfrage statt mit 52.
+  const fusionRequest: Schemas['QueryRequest'] = {
+    prefetch: [densePrefetch, sparsePrefetch],
+    query: { fusion: 'rrf' },
+    limit: 4,
+    with_payload: true,
+  };
+
+  const solo = Date.now();
+  await client.query(COLLECTION, fusionRequest);
+  console.log(`  Referenz: dieselbe rrf-Abfrage einzeln, ${Date.now() - solo} ms`);
+
+  await batchShape(
+    'queryBatch: rrf + dichte Spiegelsuche + sparse Spiegelsuche (#3166)',
+    [
+      fusionRequest,
+      { ...densePrefetch, with_payload: false },
+      { ...sparsePrefetch, with_payload: false },
+    ],
     client
   );
 
