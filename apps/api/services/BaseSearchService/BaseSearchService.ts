@@ -1025,6 +1025,10 @@ export class BaseSearchService {
           0,
           enhancedScore.finalScore - noTermMatchPenalty - titleTieBreak
         ),
+        dense_similarity_score:
+          doc.hybridMetadata && doc.hybridMetadata.vectorScores.length > 0
+            ? Math.max(...doc.hybridMetadata.vectorScores)
+            : null,
         max_similarity: enhancedScore.maxSimilarity,
         avg_similarity: enhancedScore.avgSimilarity,
         position_score: enhancedScore.positionScore,

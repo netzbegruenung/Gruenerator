@@ -117,6 +117,8 @@ export interface SearchResultInput {
   document_id?: string | undefined;
   source_id?: string | null | undefined;
   similarity_score?: number | undefined;
+  /** Höchster dichter Kosinus des Dokuments, `null` wo keiner gemessen wurde (#3166). */
+  dense_similarity_score?: number | null | undefined;
   relevant_content?: string | undefined;
   chunk_text?: string | undefined;
   // `| null` so a DocumentResult (whose chunk_index can be null) is structurally
@@ -148,6 +150,13 @@ export interface ExpandedChunkResult {
   chunk_text?: string | undefined;
   filename: string | null;
   similarity: number;
+  /**
+   * Der dichte Kosinus hinter `similarity`, wo die Suchschicht ihn gemessen
+   * hat. Fehlt auf dem Alt-Pfad und bei Dokumenten, deren Chunks nur aus der
+   * BM25-Lane kamen — Leser brauchen deshalb IMMER den Rückfall
+   * `dense_similarity ?? similarity` (#3166).
+   */
+  dense_similarity?: number | null | undefined;
   chunk_index: number;
   page_number: number | null;
   chunk_type?: string | null | undefined;

@@ -56,6 +56,9 @@ export function expandResultsToChunks(
           ...(chunk.text && { chunk_text: chunk.text }),
           filename: r.filename || null,
           similarity: r.similarity_score || 0,
+          ...(r.dense_similarity_score != null && {
+            dense_similarity: r.dense_similarity_score,
+          }),
           chunk_index: chunk.chunk_index,
           page_number: chunk.page_number ?? null,
           chunk_type: chunk.chunk_type ?? null,
@@ -75,6 +78,9 @@ export function expandResultsToChunks(
         ...(r.chunk_text && { chunk_text: r.chunk_text }),
         filename: r.filename || null,
         similarity: typeof r.similarity_score === 'number' ? r.similarity_score : 0,
+        ...(r.dense_similarity_score != null && {
+          dense_similarity: r.dense_similarity_score,
+        }),
         chunk_index: r.chunk_index || 0,
         page_number: null,
         chunk_type: null,
@@ -414,6 +420,15 @@ export function renumberCitationsInOrder<T>(
 /**
  * Sort results by similarity, with a mild recency boost as a secondary factor.
  *
+ * Der Schnitt läuft auf `dense_similarity ?? similarity` (#3166): auf einer
+ * server-seitig fusionierten Sammlung ist `similarity` ein Fusionswert, und
+ * die Konstante 0,35 ist als Kosinus geschrieben — RRF liegt auf Rang 1 bei
+ * ≈ 1,0, DBSF läuft nahe 0 aus, dieselbe Zahl schneidet je Arm einen anderen
+ * Anteil weg. SORTIERT wird weiter auf `similarity`: der Fusionswert bleibt
+ * das Ranking-Signal, neu ist ausschliesslich, worauf geschnitten wird. Der
+ * Rückfall ist Pflicht, nicht Vorsicht — auf dem Alt-Pfad und bei rein
+ * lexikalischen Treffern gibt es keinen Kosinus.
+ *
  * The `threshold` gate is on raw `similarity` (recency only re-orders sources
  * that already qualify — it never rescues a weak source). The boost is additive
  * and small (see recency.ts), so content quality stays decisive; dateless
@@ -429,7 +444,7 @@ export function filterAndSortResults(
     r.similarity + recencyBoost(resolveSourceDate(r, { allowCreatedAt }), now);
 
   return results
-    .filter((r) => r.similarity >= threshold)
+    .filter((r) => (r.dense_similarity ?? r.similarity) >= threshold)
     .sort((a, b) => effective(b) - effective(a))
     .slice(0, limit);
 }
