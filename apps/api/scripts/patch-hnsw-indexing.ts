@@ -41,13 +41,18 @@ interface CliArgs {
   dryRun: boolean;
 }
 
-function parseArgs(): CliArgs {
+const USAGE = 'Usage: patch-hnsw-indexing.ts --collection <name> | --all [--dry-run]';
+
+/**
+ * Pure argv parsing, exported for the vitest: `--collection` and `--all` are
+ * mutually exclusive, one of them is required, anything else is an error.
+ */
+export function parseCliArgs(argv: string[]): { args: CliArgs } | { error: string } {
   const args: CliArgs = { collection: null, all: false, dryRun: false };
-  const argv = process.argv.slice(2);
   for (let i = 0; i < argv.length; i++) {
     switch (argv[i]) {
       case '--collection':
-        args.collection = argv[++i];
+        args.collection = argv[++i] ?? null;
         break;
       case '--all':
         args.all = true;
@@ -56,15 +61,43 @@ function parseArgs(): CliArgs {
         args.dryRun = true;
         break;
       default:
-        console.error(`Unknown argument: ${argv[i]}`);
-        process.exit(1);
+        return { error: `Unknown argument: ${argv[i]}\n${USAGE}` };
     }
   }
   if ((!args.collection && !args.all) || (args.collection && args.all)) {
-    console.error('Usage: patch-hnsw-indexing.ts --collection <name> | --all [--dry-run]');
+    return { error: USAGE };
+  }
+  return { args };
+}
+
+function parseArgs(): CliArgs {
+  const parsed = parseCliArgs(process.argv.slice(2));
+  if ('error' in parsed) {
+    console.error(parsed.error);
     process.exit(1);
   }
-  return args;
+  return parsed.args;
+}
+
+/**
+ * `--all` walks the schema registry, which declares collections that a given
+ * instance may not have created yet — those are skipped, not errors. With
+ * `--collection` the named collection is always attempted, so a typo fails
+ * loudly. Exported for the vitest.
+ */
+export async function selectTargets(
+  targets: string[],
+  all: boolean,
+  exists: (name: string) => Promise<boolean>
+): Promise<{ run: string[]; skipped: string[] }> {
+  if (!all) return { run: targets, skipped: [] };
+  const run: string[] = [];
+  const skipped: string[] = [];
+  for (const name of targets) {
+    if (await exists(name)) run.push(name);
+    else skipped.push(name);
+  }
+  return { run, skipped };
 }
 
 // =============================================================================
@@ -263,15 +296,16 @@ async function main(): Promise<void> {
     ? Object.values(COLLECTION_SCHEMAS).map((s) => s.name)
     : [args.collection!];
 
+  const { run, skipped } = await selectTargets(
+    targets,
+    args.all,
+    async (name) => (await client.collectionExists(name)).exists
+  );
+  for (const name of skipped) console.log(`[skip] ${name}: not present on this instance`);
+
   const rows: ReportRow[] = [];
-  for (const name of targets) {
+  for (const name of run) {
     try {
-      // `--all` walks the schema registry, which declares collections that a
-      // given instance may not have created yet — those are skipped, not errors.
-      if (args.all && !(await client.collectionExists(name)).exists) {
-        console.log(`[skip] ${name}: not present on this instance`);
-        continue;
-      }
       const row = await processCollection(client, name, args.dryRun);
       if (row) rows.push(row);
     } catch (error) {
