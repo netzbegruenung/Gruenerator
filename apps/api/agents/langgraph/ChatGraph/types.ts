@@ -39,6 +39,7 @@ import type {
 import type { RoleLandesverbandInput } from '@gruenerator/shared/agents';
 import type { ArtifactCreateKind } from '@gruenerator/shared/chat-intents';
 import type { ModelMessage } from 'ai';
+import type { RenderedMemory } from '../../../services/memory/memoryPrompt.js';
 
 export type { WolkeFileRef, ConnectFileRef, CurrentBoard, SocialPostPayload };
 
@@ -775,8 +776,12 @@ export interface ChatGraphState {
   // User profile instructions (from profiles.custom_prompt, additive to all modes)
   userInstructions: string | null;
 
-  // Memory context (from mem0 cross-thread memory)
+  // The person's explicit memory for this turn (services/memory). `memoryContext`
+  // is the rendered, numbered text the prompt shows; `memories` is the same
+  // list as data, so the `memory` tool can resolve "Nr. 3" to a row id.
   memoryContext: string | null;
+  memories: RenderedMemory[] | null;
+  memoryEnabled: boolean;
   memoryRetrieveTimeMs: number;
 
   // Chat history context (from past conversation search, injected by controller)

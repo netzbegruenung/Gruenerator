@@ -45,7 +45,6 @@ export interface PersistStageParams {
   lastUserMessage: StreamContext['lastUserMessage'];
   processedMeta: StreamContext['processedMeta'];
   isNewThread: boolean;
-  memoryEnabled: boolean;
   memoryRetrieveTimeMs: number;
   generatedImage: PersistParams['generatedImage'];
   sharepicVariants: PersistParams['sharepicVariants'];
@@ -76,7 +75,6 @@ export async function runPersistStage({
   lastUserMessage,
   processedMeta,
   isNewThread,
-  memoryEnabled,
   memoryRetrieveTimeMs,
   generatedImage,
   sharepicVariants,
@@ -110,7 +108,6 @@ export async function runPersistStage({
     lastUserMessage: lastUserMessage as ModelMessage,
     processedMeta,
     requestId,
-    memoryEnabled,
     ...(agentId != null && { agentId }),
     ...(agenticSteps != null && { agenticSteps }),
     ...(langfuseTraceId != null && { traceId: langfuseTraceId }),

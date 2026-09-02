@@ -204,6 +204,7 @@ export const NEAR_DUPLICATE_EXEMPT_TOOLS: ReadonlySet<string> = new Set([
   'documents',
   'read_artifact',
   'notebooks',
+  'memory',
   // get → content auf dasselbe Projekt teilen sich bis auf die action jedes Token.
   'groups',
   // get → pause → run_now auf dieselbe taskId: nur die action unterscheidet sie.

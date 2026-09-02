@@ -28,7 +28,6 @@ export interface BundleOptions {
   includeCustomGenerators?: boolean;
   includeUserTexts?: boolean;
   includeUserTemplates?: boolean;
-  includeMemories?: boolean;
 }
 
 // === INSTRUCTION & KNOWLEDGE TYPES ===
@@ -153,31 +152,6 @@ export interface DocumentResponse {
   [key: string]: unknown;
 }
 
-// === MEMORY TYPES ===
-export type MemoryCategory = 'identity' | 'activity' | 'context' | 'experience' | 'preference';
-export type MemoryConfidence = 'high' | 'medium' | 'low';
-export type MemorySource = 'manual' | 'extracted' | 'explicit';
-
-export interface Memory {
-  id: string | number;
-  content: string;
-  topic?: string;
-  category: MemoryCategory | null;
-  confidence: MemoryConfidence;
-  source: MemorySource;
-  created_at?: string;
-  updated_at?: string;
-  score?: number;
-  [key: string]: unknown;
-}
-
-export interface MemoryResponse {
-  success: boolean;
-  message?: string;
-  memories?: Memory[];
-  [key: string]: unknown;
-}
-
 // === PROFILE BUNDLE ===
 export interface ProfileBundle {
   profile: Profile;
@@ -186,7 +160,6 @@ export interface ProfileBundle {
   customGenerators: CustomGenerator[] | null;
   userTexts: SavedText[] | null;
   userTemplates: UserTemplate[] | null;
-  memories: Memory[] | null;
 }
 
 export interface ProfileUpdateData {
@@ -194,6 +167,7 @@ export interface ProfileUpdateData {
   username?: string | null;
   email?: string | null;
   custom_prompt?: string | null;
+  memory_enabled?: boolean;
 }
 
 // === AVATAR DISPLAY TYPES ===
@@ -232,7 +206,6 @@ interface BundleResponse {
   custom_generators?: CustomGenerator[] | null;
   user_texts?: SavedText[] | null;
   user_templates?: UserTemplate[] | null;
-  memories?: Memory[] | null;
 }
 
 interface AnweisungenResponse {
@@ -256,12 +229,6 @@ interface AvailableDocumentsResponse {
   success: boolean;
   message?: string;
   data?: Document[];
-}
-
-interface MemoriesResponse {
-  success: boolean;
-  message?: string;
-  memories?: Memory[];
 }
 
 export const profileApiService = {
@@ -304,7 +271,6 @@ export const profileApiService = {
       includeCustomGenerators = true,
       includeUserTexts = false,
       includeUserTemplates = false,
-      includeMemories = false,
     } = options;
 
     const params = new URLSearchParams({
@@ -313,7 +279,6 @@ export const profileApiService = {
       custom_generators: String(includeCustomGenerators),
       user_texts: String(includeUserTexts),
       user_templates: String(includeUserTemplates),
-      memories: String(includeMemories),
     });
 
     const response = await apiClient.get<BundleResponse>(`/auth/profile/bundle?${params}`);
@@ -330,7 +295,6 @@ export const profileApiService = {
       customGenerators: data.custom_generators ?? null,
       userTexts: data.user_texts ?? null,
       userTemplates: data.user_templates ?? null,
-      memories: data.memories ?? null,
     };
   },
 
@@ -343,8 +307,10 @@ export const profileApiService = {
       username?: string;
       email?: string;
       custom_prompt?: string;
+      memory_enabled?: boolean;
     } = {};
     if (profileData.display_name !== undefined) body.display_name = profileData.display_name;
+    if (profileData.memory_enabled !== undefined) body.memory_enabled = profileData.memory_enabled;
     if (profileData.username !== undefined) body.username = profileData.username ?? '';
     if (profileData.email !== undefined) body.email = profileData.email ?? '';
     if (profileData.custom_prompt !== undefined)
@@ -703,88 +669,6 @@ export const profileApiService = {
       (doc: Document) => doc.status === 'completed'
     );
     return completedDocuments;
-  },
-
-  // === MEMORY (MEM0RY) ===
-  async getMemories(userId: string): Promise<Memory[]> {
-    const response = await apiClient.get<MemoriesResponse>(`/mem0/user/${userId}`);
-    const result = response.data;
-
-    if (!result.success) {
-      throw new Error(result.message ?? 'Failed to fetch memories');
-    }
-
-    return result.memories ?? [];
-  },
-
-  async addMemory(text: string, topic: string = ''): Promise<MemoryResponse> {
-    const response = await apiClient.post<MemoryResponse>('/mem0/add-text', { text, topic });
-    const result = response.data;
-
-    if (!result.success) {
-      throw new Error(result.message ?? 'Failed to add memory');
-    }
-
-    return result;
-  },
-
-  async deleteMemory(memoryId: string | number): Promise<MemoryResponse> {
-    const response = await apiClient.delete<MemoryResponse>(`/mem0/${memoryId}`);
-    const result = response.data;
-
-    if (!result.success) {
-      throw new Error(result.message ?? 'Failed to delete memory');
-    }
-
-    return result;
-  },
-
-  async deleteAllMemories(userId: string): Promise<MemoryResponse> {
-    const response = await apiClient.delete<MemoryResponse>(`/mem0/user/${userId}/all`);
-    const result = response.data;
-
-    if (!result.success) {
-      throw new Error(result.message ?? 'Failed to delete all memories');
-    }
-
-    return result;
-  },
-
-  async updateMemory(memoryId: string | number, content: string): Promise<MemoryResponse> {
-    const response = await apiClient.put<MemoryResponse>(`/mem0/${memoryId}`, { content });
-    const result = response.data;
-
-    if (!result.success) {
-      throw new Error(result.message ?? 'Failed to update memory');
-    }
-
-    return result;
-  },
-
-  async searchMemories(
-    query: string,
-    category?: MemoryCategory,
-    limit?: number
-  ): Promise<Memory[]> {
-    const response = await apiClient.post<MemoriesResponse>('/mem0/search', {
-      query,
-      category,
-      limit,
-    });
-    const result = response.data;
-
-    if (!result.success) {
-      throw new Error(result.message ?? 'Failed to search memories');
-    }
-
-    return result.memories ?? [];
-  },
-
-  async exportMemories(userId: string): Promise<Blob> {
-    const response = await apiClient.get<Blob>(`/mem0/user/${userId}/export`, {
-      responseType: 'blob',
-    });
-    return response.data;
   },
 
   // === PROFILE MUTATIONS (moved from profileUtils.js) ===

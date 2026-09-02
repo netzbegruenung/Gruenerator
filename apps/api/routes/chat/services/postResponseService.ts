@@ -6,7 +6,6 @@
  * - Touch thread timestamp
  * - Trigger async thread title generation for new threads
  * - Save attachment metadata
- * - Save conversation to mem0 memory
  */
 
 import { intentToolNames } from '@gruenerator/shared/chat-intents';
@@ -18,10 +17,6 @@ import {
   generateThreadTitle,
   threadNeedsTitle,
 } from '../../../services/chat/threadTitleService.js';
-import { shouldAttemptExtractionThisTurn } from '../../../services/mem0/extractionThrottle.js';
-import { shouldExtractMemories } from '../../../services/mem0/gatekeeperService.js';
-import { getMem0Instance } from '../../../services/mem0/index.js';
-import { maybeRecompilePersona } from '../../../services/mem0/personaService.js';
 import { withRetry } from '../../../services/search/searchRetryStrategy.js';
 import { createLogger } from '../../../utils/logger.js';
 import { reportBackgroundError } from '../../../utils/reportBackgroundError.js';
@@ -248,7 +243,6 @@ export interface PersistParams {
   processedMeta: ProcessedAttachmentMeta[];
   requestId: string;
   /** Whether the user has the memory beta feature enabled (profiles.memory_enabled). */
-  memoryEnabled: boolean;
   /** Effective agent that produced this response; persisted so the agent
    *  avatar/badge rehydrates on thread reload. Null/omitted for the default
    *  universal chat (no badge). */
@@ -363,8 +357,6 @@ export async function persistAssistantResponse(params: PersistParams): Promise<P
     isNewThread,
     lastUserMessage,
     processedMeta,
-    requestId,
-    memoryEnabled,
     agentId,
     agenticSteps,
     traceId,
@@ -547,60 +539,6 @@ export async function persistAssistantResponse(params: PersistParams): Promise<P
       userMessageId ?? null
     );
 
-    const mem0 = getMem0Instance();
-    if (mem0 && lastUserMessage && fullText && memoryEnabled) {
-      const userText = extractTextContent(lastUserMessage.content);
-
-      // Throttle first: mem0's extraction is purely additive (never merges),
-      // so running the gatekeeper/extraction on every turn is the main driver
-      // of unbounded memory growth. Only attempt extraction every Nth turn
-      // per thread — see extractionThrottle.ts.
-      shouldAttemptExtractionThisTurn(threadId)
-        .then((allowed) => {
-          if (!allowed) {
-            log.info(`[${requestId}] Mem0: skipping turn (extraction throttle)`);
-            return;
-          }
-
-          // Gatekeeper: check if this conversation contains memorizable info
-          return shouldExtractMemories(userText, fullText, userId).then((decision) => {
-            if (!decision.shouldExtract) {
-              log.info(
-                `[${requestId}] Gatekeeper: skipping memory extraction (${decision.durationMs}ms)`
-              );
-              return;
-            }
-
-            log.info(
-              `[${requestId}] Gatekeeper: extracting [${decision.categories.join(', ')}] (${decision.durationMs}ms)`
-            );
-
-            return mem0
-              .addMemories(
-                [
-                  { role: 'user', content: userText },
-                  { role: 'assistant', content: fullText },
-                ],
-                userId,
-                {
-                  threadId,
-                  categories: decision.categories,
-                  ...(decision.confidence ? { confidence: decision.confidence } : {}),
-                }
-              )
-              .then(() => {
-                // Async persona recompilation (fire-and-forget)
-                maybeRecompilePersona(userId).catch((e) =>
-                  log.warn(`[${requestId}] Persona recompilation failed:`, e)
-                );
-              });
-          });
-        })
-        .catch((memError) => {
-          reportBackgroundError(memError, { job: 'chat-memory-save', requestId, userId });
-        });
-    }
-
     return { ok: attachmentsOk };
   } catch (error) {
     // The turn is NOT in the database. Report it so the caller can tell the
@@ -695,7 +633,7 @@ async function saveThreadAttachmentsFromMeta(
 }
 
 /**
- * Persist a resumed response (simpler — no title gen, no mem0). Attachments
+ * Persist a resumed response (simpler — no title gen). Attachments
  * ARE saved here when the caller passes the stored request context: the
  * original turn ended in an interrupt, so this is the first (and only) chance
  * to persist the files uploaded with it.

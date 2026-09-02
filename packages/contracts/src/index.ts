@@ -61,6 +61,7 @@ export {
   sharepicTextContract,
   unsplashContract,
   notificationsContract,
+  memoryContract,
   emailContract,
   feedbackContract,
   modelPreferencesContract,
@@ -144,6 +145,7 @@ export * from './schemas/sharepic.js';
 export * from './schemas/sharepicText.js';
 export * from './schemas/unsplash.js';
 export * from './schemas/notifications.js';
+export * from './schemas/memory.js';
 export * from './schemas/email.js';
 export * from './schemas/feedback.js';
 export * from './schemas/modelPreferences.js';

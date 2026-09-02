@@ -83,6 +83,7 @@ import {
 } from './domainTools.js';
 import { makeEditArtifactTool } from './editorTools.js';
 import { makeGroupsTool } from './groupTools.js';
+import { makeMemoryTool } from './memoryTools.js';
 import { makeNotebooksTool } from './notebookTools.js';
 import { makeReadPdfFormTool, makeFillPdfFormTool } from './pdfFormTools.js';
 import {
@@ -866,6 +867,12 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
     }
     if (state.enabledTools?.['notebooks'] !== false) {
       tools.notebooks = makeNotebooksTool(personalCtx);
+    }
+    // The person's explicit memory. Only with the profile switch on: with it
+    // off the prompt carries no GEDÄCHTNIS block either, and a tool that can
+    // save into a store nobody reads would be a lie in the other direction.
+    if (state.memoryEnabled && state.enabledTools?.['memory'] !== false) {
+      tools.memory = makeMemoryTool(personalCtx);
     }
     // Wiederkehrende Aufgaben (Agentura). Nicht breit montiert — das Schema
     // trägt den ganzen Takt-Block und kostet auf jedem Turn. Drei Tore:
