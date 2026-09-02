@@ -53,6 +53,19 @@ const USAGE =
   'Usage: rechunk-from-fulltext.ts --collection <name> [--dry-run] [--only-structured] [--resume] [--limit N]';
 
 /**
+ * Liest den Wert hinter einem Flag. Ein fehlender Wert oder einer, der selbst
+ * wie ein Flag aussieht (`--collection --dry-run`), ist ein Fehler — sonst
+ * schluckt `--collection` das nächste Flag stillschweigend als Sammlungsnamen.
+ */
+function readFlagValue(argv: string[], index: number, flag: string): string {
+  const value = argv[index];
+  if (value === undefined || value.startsWith('--')) {
+    throw new Error(`${flag} braucht einen Wert.\n${USAGE}`);
+  }
+  return value;
+}
+
+/**
  * `--collection` ist Pflicht und es gibt kein `--all` und keine Vorgabe: ein
  * Werkzeug, das versehentlich 25 615 Punkte neu einbettet, gehört nicht ins
  * Repo. Ein unbekanntes Argument ist ein Fehler, kein Rauschen — ein
@@ -68,7 +81,7 @@ export function parseArgs(argv: string[]): CliArgs {
   for (let i = 0; i < argv.length; i++) {
     switch (argv[i]) {
       case '--collection':
-        collection = argv[++i] ?? null;
+        collection = readFlagValue(argv, ++i, '--collection');
         break;
       case '--dry-run':
         dryRun = true;
@@ -79,9 +92,15 @@ export function parseArgs(argv: string[]): CliArgs {
       case '--resume':
         resume = true;
         break;
-      case '--limit':
-        limit = Number.parseInt(argv[++i] ?? '', 10) || Infinity;
+      case '--limit': {
+        const raw = readFlagValue(argv, ++i, '--limit');
+        const parsed = Number.parseInt(raw, 10);
+        if (!Number.isFinite(parsed) || parsed <= 0) {
+          throw new Error(`--limit erwartet eine positive Zahl, bekam "${raw}".\n${USAGE}`);
+        }
+        limit = parsed;
         break;
+      }
       default:
         throw new Error(`Unknown argument: ${argv[i]}\n${USAGE}`);
     }
@@ -134,6 +153,9 @@ export interface IdRecipeMismatch {
   key: string;
   chunkIndex: number;
   expected: number;
+  /** `missing_key` heisst: kein Rezept konnte gerechnet werden. `id_mismatch`
+   * heisst: gerechnet, aber der lebende Punkt trägt eine andere ID. */
+  reason: 'missing_key' | 'id_mismatch';
 }
 
 export interface IdRecipeCheck {
@@ -166,6 +188,7 @@ export function checkIdRecipe(
         key: typeof key === 'string' ? key : '',
         chunkIndex,
         expected: -1,
+        reason: 'missing_key',
       });
       continue;
     }
@@ -174,7 +197,7 @@ export function checkIdRecipe(
     if (point.id === expected) {
       matched++;
     } else {
-      mismatches.push({ id: point.id, key, chunkIndex, expected });
+      mismatches.push({ id: point.id, key, chunkIndex, expected, reason: 'id_mismatch' });
     }
   }
 
@@ -239,7 +262,10 @@ export function rebuildChunkPayload(
     // Chunk-Zahl ändert.
     ...(typeof pageNumber === 'number' ? { page_number: pageNumber } : {}),
     indexed_at: ctx.now,
-    rechunked_at: ctx.now,
+    // rechunked_at NICHT hier setzen: wer zwischen Upsert und Löschen abstürzt,
+    // soll bei einem erneuten --resume-Lauf wieder gefunden werden. Der
+    // Kopf-Punkt bekommt den Stempel erst NACH dem Löschen, per setPayload
+    // (siehe processDocument) — nie im Upsert-Payload.
     chunk_method: chunk.metadata?.chunkingMethod ?? null,
     ...(ctx.index === 0 ? { full_text: ctx.fullText } : {}),
   };
@@ -291,7 +317,7 @@ export function upsertBatches<T extends { payload: Record<string, unknown> }>(po
   return batches;
 }
 
-export type SkipReason = 'no_full_text' | 'fast_path' | 'no_chunks' | 'already_rechunked';
+export type SkipReason = 'no_full_text' | 'fast_path' | 'no_chunks' | 'already_rechunked' | 'error';
 
 export interface DocumentOutcome {
   /** Wert des `idKey`-Payloadfelds — der Gruppierungsschlüssel des Dokuments. */
@@ -340,6 +366,8 @@ export interface RunSummary {
   chars: number;
   embeddingBatches: number;
   deleteCalls: number;
+  /** processDocument ist geworfen — weder verarbeitet noch übersprungen. */
+  errors: number;
 }
 
 export function summarizeOutcomes(outcomes: ReadonlyArray<DocumentOutcome>): RunSummary {
@@ -357,9 +385,14 @@ export function summarizeOutcomes(outcomes: ReadonlyArray<DocumentOutcome>): Run
     chars: 0,
     embeddingBatches: 0,
     deleteCalls: 0,
+    errors: 0,
   };
 
   for (const outcome of outcomes) {
+    if (outcome.skipped === 'error') {
+      summary.errors++;
+      continue;
+    }
     if (outcome.skipped === 'no_full_text') {
       summary.withoutFullText++;
       continue;
@@ -402,6 +435,12 @@ export interface RechunkDeps {
   quality(text: string): number;
   upsert(collection: string, points: RechunkPoint[]): Promise<void>;
   deletePoints(collection: string, ids: Array<string | number>): Promise<void>;
+  /** Stempelt NUR den Kopf-Punkt mit `{ rechunked_at }`, nach dem Löschen. */
+  setPayload(
+    collection: string,
+    pointId: string | number,
+    payload: Record<string, unknown>
+  ): Promise<void>;
   now(): string;
 }
 
@@ -472,6 +511,9 @@ export async function processDocument(
   if (options.dryRun) return measured;
 
   const embeddings = await deps.embed(buildEmbeddingTextsForChunks(chunks, title));
+  if (embeddings.length !== chunks.length) {
+    throw new Error(`embed returned ${embeddings.length} vectors for ${chunks.length} chunks`);
+  }
   const now = deps.now();
 
   const points: RechunkPoint[] = chunks.map((chunk, index) => ({
@@ -499,6 +541,11 @@ export async function processDocument(
   if (leftovers.length > 0) {
     await deps.deletePoints(collection, leftovers);
   }
+
+  // ERST NACH DEM LÖSCHEN den Kopf als „fertig" markieren. Wirft deletePoints,
+  // läuft dieser Aufruf nie — genau der Punkt: ein halbfertiges Dokument darf
+  // --resume nie als erledigt vortäuschen.
+  await deps.setPayload(collection, recipe.id(doc.key, 0), { rechunked_at: now });
 
   return { ...measured, written: points.length, deleted: leftovers.length };
 }
@@ -552,6 +599,9 @@ function printReport(collection: string, summary: RunSummary, options: RunOption
     `  Dokumente: ${summary.documents} · mit full_text: ${summary.withFullText} · ` +
       `ohne full_text: ${summary.withoutFullText} (übersprungen)`
   );
+  if (summary.errors > 0) {
+    console.log(`  Fehler (nicht verarbeitet, siehe stderr): ${summary.errors}`);
+  }
 
   if (summary.withFullText === 0) {
     console.log('  Nichts zu tun.');
@@ -631,6 +681,9 @@ async function main(): Promise<void> {
     return;
   }
 
+  // Grenzstelle: das Skript braucht vom echten Client nur `scroll` und
+  // `delete`, und der gemockte Client in den Tests implementiert genau diese
+  // zwei Methoden — deshalb dieser enge Typ statt des vollen Qdrant-Clients.
   const scrolling = client as unknown as ScrollingClient;
 
   // Durchlauf A: jeder Punkt, aber nur mit zwei Payload-Feldern.
@@ -650,7 +703,7 @@ async function main(): Promise<void> {
     for (const mismatch of check.mismatches.slice(0, 5)) {
       console.error(
         `  id=${mismatch.id} key=${mismatch.key} chunk_index=${mismatch.chunkIndex} ` +
-          `erwartet=${mismatch.expected}`
+          `erwartet=${mismatch.expected} grund=${mismatch.reason}`
       );
     }
     process.exitCode = 1;
@@ -687,6 +740,9 @@ async function main(): Promise<void> {
     deletePoints: async (collection, ids) => {
       await scrolling.delete(collection, { points: ids, wait: true });
     },
+    setPayload: async (collection, pointId, payload) => {
+      await client.setPayload(collection, { points: [pointId], payload, wait: true });
+    },
     now: () => new Date().toISOString(),
   };
 
@@ -718,6 +774,18 @@ async function main(): Promise<void> {
       const message = error instanceof Error ? error.message : String(error);
       console.error(`[error] ${key}: ${message}`);
       process.exitCode = 1;
+      // Zählen, statt stillschweigend zu verschwinden: sonst unterschätzt der
+      // Bericht seine eigene Dokumentenzahl gegenüber den gescannten Köpfen.
+      outcomes.push({
+        key,
+        skipped: 'error',
+        structured: false,
+        oldChunks: (idsByKey.get(key) ?? [head.id]).length,
+        newChunks: 0,
+        chars: 0,
+        written: 0,
+        deleted: 0,
+      });
     }
   }
 

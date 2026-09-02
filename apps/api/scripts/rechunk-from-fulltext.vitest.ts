@@ -98,6 +98,7 @@ describe('checkIdRecipe', () => {
         key: '20200125_Grundsatzprogramm',
         chunkIndex: 1,
         expected: 1461662555,
+        reason: 'id_mismatch',
       },
     ]);
   });
@@ -107,6 +108,7 @@ describe('checkIdRecipe', () => {
 
     expect(check.matched).toBe(0);
     expect(check.mismatches).toHaveLength(1);
+    expect(check.mismatches[0].reason).toBe('missing_key');
   });
 });
 
@@ -141,6 +143,22 @@ describe('parseArgs', () => {
 
   it('lehnt ein unbekanntes Argument ab, statt es zu ignorieren', () => {
     expect(() => parseArgs(['--collection', 'x', '--all'])).toThrow(/--all/);
+  });
+
+  it('lehnt --collection ohne Wert ab, statt das nächste Flag zu schlucken', () => {
+    expect(() => parseArgs(['--collection', '--dry-run'])).toThrow(/--collection/);
+  });
+
+  it('lehnt --limit 0 ab, statt unlimited daraus zu machen', () => {
+    expect(() => parseArgs(['--collection', 'x', '--limit', '0'])).toThrow(/--limit/);
+  });
+
+  it('lehnt --limit abc ab, statt unlimited daraus zu machen', () => {
+    expect(() => parseArgs(['--collection', 'x', '--limit', 'abc'])).toThrow(/--limit/);
+  });
+
+  it('lehnt ein negatives --limit ab', () => {
+    expect(() => parseArgs(['--collection', 'x', '--limit', '-5'])).toThrow(/--limit/);
   });
 });
 
@@ -209,8 +227,17 @@ describe('rebuildChunkPayload', () => {
     expect(payload.chunk_text).toBe('neuer Text');
     expect(payload.quality_score).toBe(0.9);
     expect(payload.indexed_at).toBe(NOW);
-    expect(payload.rechunked_at).toBe(NOW);
     expect(payload.chunk_method).toBe('structure-blocks');
+  });
+
+  it('setzt rechunked_at NIE im Upsert-Payload — der Kopf wird erst nach dem Löschen gestempelt', () => {
+    const payload = rebuildChunkPayload(
+      { ...HEAD_PAYLOAD, rechunked_at: '2026-08-01T00:00:00.000Z' },
+      chunkOf('neuer Text'),
+      { index: 0, fullText: 'NEUER VOLLTEXT', qualityScore: 0.9, now: NOW }
+    );
+
+    expect('rechunked_at' in payload).toBe(false);
   });
 
   it('schreibt full_text nur auf Index 0', () => {
@@ -432,6 +459,19 @@ describe('summarizeOutcomes', () => {
     expect(summary.noChunks).toBe(1);
     expect(summary.processed).toBe(0);
   });
+
+  it('zählt geworfene Dokumente als Fehler, nicht als erledigt oder übersprungen', () => {
+    const summary = summarizeOutcomes([
+      outcome({ key: 'a', skipped: 'error', oldChunks: 5 }),
+      outcome({ key: 'b', structured: true, oldChunks: 3, newChunks: 3 }),
+    ]);
+
+    expect(summary.documents).toBe(2);
+    expect(summary.errors).toBe(1);
+    expect(summary.processed).toBe(1);
+    expect(summary.withFullText).toBe(1);
+    expect(summary.withoutFullText).toBe(0);
+  });
 });
 
 interface Recorded {
@@ -439,10 +479,11 @@ interface Recorded {
   upserted: RechunkPoint[];
   deleted: Array<string | number>;
   embedded: string[];
+  payloadSet: Array<{ id: string | number; payload: Record<string, unknown> }>;
 }
 
 function fakeDeps(chunks: Chunk[]): { deps: RechunkDeps; log: Recorded } {
-  const log: Recorded = { calls: [], upserted: [], deleted: [], embedded: [] };
+  const log: Recorded = { calls: [], upserted: [], deleted: [], embedded: [], payloadSet: [] };
   const deps: RechunkDeps = {
     chunk: async () => chunks,
     embed: async (texts) => {
@@ -458,6 +499,10 @@ function fakeDeps(chunks: Chunk[]): { deps: RechunkDeps; log: Recorded } {
     deletePoints: async (_collection, ids) => {
       log.calls.push(`delete:${ids.length}`);
       log.deleted.push(...ids);
+    },
+    setPayload: async (_collection, pointId, payload) => {
+      log.calls.push(`setPayload:${pointId}`);
+      log.payloadSet.push({ id: pointId, payload });
     },
     now: () => NOW,
   };
@@ -499,11 +544,56 @@ describe('processDocument', () => {
 
     const outcome = await processDocument(deps, 'landesverbaende_documents', recipe, doc, RUN);
 
-    // Der Kopf-Punkt trägt full_text und geht allein; danach der Rest; erst dann löschen.
-    expect(log.calls).toEqual(['embed:2', 'upsert:1', 'upsert:1', 'delete:1']);
+    // Der Kopf-Punkt trägt full_text und geht allein; danach der Rest; erst
+    // dann löschen; erst DANACH der Stempel auf den Kopf.
+    const headId = recipe.id('https://www.gruene-bw.de/beschluss.pdf', 0);
+    expect(log.calls).toEqual([
+      'embed:2',
+      'upsert:1',
+      'upsert:1',
+      'delete:1',
+      `setPayload:${headId}`,
+    ]);
     expect(log.deleted).toEqual([recipe.id('https://www.gruene-bw.de/beschluss.pdf', 2)]);
+    expect(log.payloadSet).toEqual([{ id: headId, payload: { rechunked_at: NOW } }]);
     expect(outcome.written).toBe(2);
     expect(outcome.deleted).toBe(1);
+  });
+
+  it('ruft setPayload nie auf, wenn deletePoints wirft', async () => {
+    const { deps, log } = fakeDeps(structuredChunks(2));
+    const failingDeps: RechunkDeps = {
+      ...deps,
+      deletePoints: async () => {
+        throw new Error('boom');
+      },
+    };
+    const doc = lvDoc({
+      pointIds: [
+        recipe.id('https://www.gruene-bw.de/beschluss.pdf', 0),
+        recipe.id('https://www.gruene-bw.de/beschluss.pdf', 1),
+        recipe.id('https://www.gruene-bw.de/beschluss.pdf', 2),
+      ],
+    });
+
+    await expect(
+      processDocument(failingDeps, 'landesverbaende_documents', recipe, doc, RUN)
+    ).rejects.toThrow('boom');
+    expect(log.calls.some((call) => call.startsWith('setPayload'))).toBe(false);
+    expect(log.payloadSet).toEqual([]);
+  });
+
+  it('wirft, wenn embed weniger Vektoren liefert als Chunks — statt vector: undefined zu upserten', async () => {
+    const { deps, log } = fakeDeps(structuredChunks(3));
+    const shortEmbedDeps: RechunkDeps = {
+      ...deps,
+      embed: async () => [[0.1]],
+    };
+
+    await expect(
+      processDocument(shortEmbedDeps, 'landesverbaende_documents', recipe, lvDoc(), RUN)
+    ).rejects.toThrow(/embed returned 1 vectors for 3 chunks/);
+    expect(log.calls.filter((call) => call.startsWith('upsert'))).toEqual([]);
   });
 
   it('vergibt die IDs nach dem Rezept der Sammlung, nicht laufend', async () => {
@@ -526,6 +616,8 @@ describe('processDocument', () => {
 
     expect(log.calls.filter((c) => c.startsWith('delete'))).toEqual([]);
     expect(outcome.deleted).toBe(0);
+    // Ohne Leftover-Löschung stempelt processDocument den Kopf trotzdem.
+    expect(log.calls.filter((c) => c.startsWith('setPayload'))).toHaveLength(1);
   });
 
   it('bettet Titel und Überschriftenpfad vor den Chunk', async () => {
