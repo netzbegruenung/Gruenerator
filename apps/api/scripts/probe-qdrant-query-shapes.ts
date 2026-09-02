@@ -15,7 +15,10 @@
 import 'dotenv/config';
 
 import { BM25_SPARSE_VECTOR_NAME } from '../config/qdrantCollectionsSchema.js';
-import { getQdrantInstance } from '../database/services/QdrantService/index.js';
+import {
+  getQdrantInstance,
+  useQdrantConnectOnly,
+} from '../database/services/QdrantService/index.js';
 import { encodeBm25Query } from '../services/text/index.js';
 
 import type { Schemas } from '@qdrant/js-client-rest';
@@ -42,6 +45,7 @@ async function shape(
 }
 
 async function main(): Promise<void> {
+  useQdrantConnectOnly();
   const qdrant = getQdrantInstance();
   await qdrant.init();
   const client = qdrant.client;

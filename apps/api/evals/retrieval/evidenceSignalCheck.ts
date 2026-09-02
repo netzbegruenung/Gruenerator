@@ -22,6 +22,10 @@ import dotenv from 'dotenv';
 // Load .env BEFORE the app modules — see runRetrievalEval.ts for why.
 dotenv.config();
 
+// Read-only eval: skip collection/index reconciliation on connect (#3167).
+const { useQdrantConnectOnly } = await import('../../database/services/QdrantService/index.js');
+useQdrantConnectOnly();
+
 const { getNotebookDepthProfile } = await import('../../config/notebookDepthProfiles.js');
 const { notebookQAService } = await import('../../services/notebook/NotebookQAService.js');
 const { rerankNotebookResults } = await import('../../services/notebook/rerankNotebookResults.js');
