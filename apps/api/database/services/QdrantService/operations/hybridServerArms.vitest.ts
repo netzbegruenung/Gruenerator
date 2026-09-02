@@ -136,3 +136,63 @@ describe('HYBRID_SERVER_SIDE_ENABLED', () => {
     expect(['RRF', 'weighted']).toContain(response.metadata.fusionMethod);
   });
 });
+
+describe('rangbasierte Arme', () => {
+  it('rrf: dichte + sparse Vorabholung, Fusion rrf', async () => {
+    const client = fakeClient();
+    const response = await runArm(client);
+
+    expect(sentBody(client)).toEqual({
+      prefetch: [DENSE_PREFETCH, SPARSE_PREFETCH(20)],
+      query: { fusion: 'rrf' },
+      limit: 20,
+      with_payload: true,
+    });
+    expect(response.metadata.fusionMethod).toBe('rrf-server');
+  });
+
+  it('dbsf: gleiche Vorabholungen, andere Fusion', async () => {
+    state.hybrid = { ...DEFAULT_HYBRID, serverFusion: 'dbsf' };
+    const client = fakeClient();
+    const response = await runArm(client);
+
+    expect(sentBody(client)).toEqual({
+      prefetch: [DENSE_PREFETCH, SPARSE_PREFETCH(20)],
+      query: { fusion: 'dbsf' },
+      limit: 20,
+      with_payload: true,
+    });
+    expect(response.metadata.fusionMethod).toBe('dbsf-server');
+  });
+
+  it('rrf_weighted: RrfQuery mit einem Gewicht je Vorabholung, in derselben Reihenfolge', async () => {
+    state.hybrid = { ...DEFAULT_HYBRID, serverFusion: 'rrf_weighted', serverRrfWeightDense: 0.7 };
+    const client = fakeClient();
+    const response = await runArm(client);
+
+    const body = sentBody(client);
+    expect(body.prefetch).toEqual([DENSE_PREFETCH, SPARSE_PREFETCH(20)]);
+    expect(body.limit).toBe(20);
+    expect(body.with_payload).toBe(true);
+    // Kein exaktes toEqual auf die Gewichte: 1 − 0,7 ist in IEEE-754
+    // 0.30000000000000004, und diese Ziffernfolge ist keine Zusicherung wert.
+    const weights = (body.query as { rrf: { weights: number[] } }).rrf.weights;
+    expect(weights).toHaveLength(2);
+    expect(weights[0]).toBeCloseTo(0.7, 6);
+    expect(weights[1]).toBeCloseTo(0.3, 6);
+    expect(response.metadata.fusionMethod).toBe('rrf_weighted-server');
+    // Die Metadaten sollen den Arm nicht anlügen: 0,5/0,5 wäre hier falsch.
+    expect(response.metadata.vectorWeight).toBeCloseTo(0.7, 6);
+    expect(response.metadata.textWeight).toBeCloseTo(0.3, 6);
+  });
+
+  it('rrf_weighted mit umgekehrtem Gewicht dreht nur die Zahlen, nicht die Gestalt', async () => {
+    state.hybrid = { ...DEFAULT_HYBRID, serverFusion: 'rrf_weighted', serverRrfWeightDense: 0.25 };
+    const client = fakeClient();
+    await runArm(client);
+
+    const weights = (sentBody(client).query as { rrf: { weights: number[] } }).rrf.weights;
+    expect(weights[0]).toBeCloseTo(0.25, 6);
+    expect(weights[1]).toBeCloseTo(0.75, 6);
+  });
+});
