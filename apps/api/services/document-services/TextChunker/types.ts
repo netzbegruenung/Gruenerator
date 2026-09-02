@@ -14,7 +14,19 @@ export interface ChunkMetadata {
   quality_score?: number | undefined;
   chapterTitle?: string | undefined;
   sectionTitle?: string | undefined;
+  /**
+   * `'text'` oder `'table'` auf dem Struktur-Pfad. Der tote hierarchische
+   * Chunker schreibt in dasselbe Feld sechs andere Werte
+   * (`detectChunkType`, structureAwareChunking.ts:275) — deshalb bleibt der
+   * Typ breit; die Verengung auf zwei Werte passiert in `structurePayload`.
+   */
   chunkType?: string | undefined;
+  /** Überschriftenpfad des Abschnitts, z. B. `['Kapitel 3', '3.1 Förderung']`. */
+  headingPath?: string[] | null | undefined;
+  /** Letztes Element von `headingPath`, denormalisiert für Anzeige und Filter. */
+  heading?: string | null | undefined;
+  /** Laufende Nummer des Abschnitts im Dokument. */
+  sectionIndex?: number | null | undefined;
   isCompleteSentence?: boolean | undefined;
   hasOverlap?: boolean | undefined;
   prevChunkId?: string | undefined;
