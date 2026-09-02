@@ -22,6 +22,7 @@
 import { applyContextCap } from '../../../../utils/contextCap.js';
 
 import { type PersistedStep } from './types.js';
+import { stripInternalFields } from './wrapTools.js';
 
 import type { ModelMessage } from 'ai';
 
@@ -63,9 +64,13 @@ function stripReplayCitationMarkers(s: string): string {
 }
 
 function shortValue(result: Record<string, unknown>): string {
+  // The persisted step is deliberately raw (card + debugging) — internal-only
+  // fields like `rerankDegraded` are stripped HERE, at replay serialization,
+  // not before `recordStep`. See `stripInternalFields`'s doc comment.
+  const replayable = stripInternalFields(result);
   let s: string;
   try {
-    s = JSON.stringify(result);
+    s = JSON.stringify(replayable);
   } catch {
     return '[nicht serialisierbar]';
   }
