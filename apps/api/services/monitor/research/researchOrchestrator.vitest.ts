@@ -619,7 +619,7 @@ describe('executeResearch — the result', () => {
     );
     expect(docCitation).toMatchObject({ documentId: '20200125_Grundsatzprogramm', chunkIndex: 3 });
 
-    const webCitation = result.citations.find((c) => c.url.includes('example.com'));
+    const webCitation = result.citations.find((c) => c.domain === 'example.com');
     expect(webCitation?.documentId).toBeUndefined();
     expect(webCitation?.chunkIndex).toBeUndefined();
   });
