@@ -9,8 +9,7 @@
  * Only `authType: 'none'` servers (verified in McpRegistryService SEEDS) — no
  * OAuth, so it runs headless against a local or test-env backend.
  */
-import { dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { basename } from 'node:path';
 
 const BASE_URL = process.env.EVAL_BASE_URL ?? 'http://localhost:3001';
 const BYPASS = process.env.EVAL_BYPASS_TOKEN ?? '';
@@ -70,6 +69,6 @@ async function main(): Promise<void> {
 }
 
 // Only run when invoked directly (not when imported by a test).
-if (process.argv[1] && dirname(fileURLToPath(import.meta.url))) {
+if (process.argv[1] && import.meta.url.endsWith(basename(process.argv[1]))) {
   void main();
 }
