@@ -7,6 +7,7 @@
  *
  * Bauform nach routes/agents/agentVisibilityContractRouter.vitest.ts:9-43.
  */
+import { inspectDocumentResponseSchema } from '@gruenerator/contracts';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const requireInstanceAdmin = vi.fn();
@@ -14,12 +15,14 @@ const inspectDocumentChunks = vi.fn();
 const getSearchContext = vi.fn();
 const drizzleSelect = vi.fn();
 const getNotebookCollection = vi.fn();
+const isDocumentInCollection = vi.fn();
 
 vi.mock('../../utils/adminAuthz.js', () => ({ requireInstanceAdmin }));
 
 vi.mock('../../database/services/NotebookQdrantHelper.js', () => ({
   NotebookQdrantHelper: class {
     getNotebookCollection = getNotebookCollection;
+    isDocumentInCollection = isDocumentInCollection;
   },
 }));
 
@@ -70,6 +73,7 @@ beforeEach(() => {
     user_id: 'owner-9',
     name: 'Wahlkampf 2026',
   });
+  isDocumentInCollection.mockReset().mockResolvedValue(true);
   inspectDocumentChunks.mockReset().mockResolvedValue({
     success: true,
     chunks: [chunk(0), chunk(1)],
@@ -115,9 +119,43 @@ describe('chunkInspectorContract.inspectDocument', () => {
       offset: 0,
       limit: 50,
     });
-    const body = res.body as { header: { qdrantCollection: string; isSystemCollection: boolean } };
+    // Vertragskonform, nicht nur zufällig passend zum Test-Cast.
+    const body = inspectDocumentResponseSchema.parse(res.body);
     expect(body.header.qdrantCollection).toBe('grundsatz_documents');
     expect(body.header.isSystemCollection).toBe(true);
+  });
+
+  it('nennt die Herkunft aus documents.metadata, wenn eine Postgres-Zeile existiert', async () => {
+    const updatedAt = new Date('2026-08-15T09:30:00.000Z');
+    drizzleSelect.mockResolvedValue([
+      {
+        title: 'Grundsatzprogramm (Postgres)',
+        filename: 'grundsatz-v2.pdf',
+        source_url: 'https://gruene.de/grundsatz-v2.pdf',
+        source_type: 'program',
+        page_count: 42,
+        updated_at: updatedAt,
+        metadata: { extractionMethod: 'mistral-ocr' },
+      },
+    ]);
+    const router = await loadRouter();
+    const res = await router.inspectDocument({
+      req,
+      // Kein Systemsammlungs-Schlüssel: der Router überspringt die
+      // Postgres-Abfrage sonst ganz (rows = [] bei bekannter Systemsammlung).
+      params: { documentId: 'doc-1' },
+      query: { collection: 'nb-1', offset: 0, limit: 50 },
+    } as never);
+
+    const body = inspectDocumentResponseSchema.parse(res.body);
+    expect(body.header.extractionMethod).toBe('mistral-ocr');
+    expect(body.header.extractionMethodOrigin).toBe('postgres_metadata');
+    expect(body.header.title).toBe('Grundsatzprogramm (Postgres)');
+    expect(body.header.filename).toBe('grundsatz-v2.pdf');
+    expect(body.header.sourceUrl).toBe('https://gruene.de/grundsatz-v2.pdf');
+    expect(body.header.sourceType).toBe('program');
+    expect(body.header.pageCount).toBe(42);
+    expect(body.header.indexedAt).toBe(updatedAt.toISOString());
   });
 
   it('nennt die Herkunft des Extraktionsverfahrens', async () => {
@@ -275,5 +313,19 @@ describe('chunkInspectorContract.inspectSearch (Nutzer-Notebook)', () => {
 
     expect(res.status).toBe(404);
     expect(getSearchContext).not.toHaveBeenCalled();
+  });
+
+  it('antwortet 404, wenn das Dokument nicht in dieser Sammlung liegt', async () => {
+    isDocumentInCollection.mockResolvedValue(false);
+    const router = await loadRouter();
+    const res = await router.inspectSearch({
+      req,
+      params: { documentId: 'doc-fremd' },
+      query: { collection: 'nb-1', query: 'Hitzeschutz' },
+    } as never);
+
+    expect(res.status).toBe(404);
+    expect(getSearchContext).not.toHaveBeenCalled();
+    expect(isDocumentInCollection).toHaveBeenCalledWith('nb-1', 'doc-fremd');
   });
 });

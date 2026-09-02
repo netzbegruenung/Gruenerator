@@ -27,8 +27,22 @@ function point(index: number, extra: Record<string, unknown> = {}, vector: unkno
   };
 }
 
+/**
+ * `scrollDocuments` liefert die Zähl-/Sortierseite ohne Vektoren; `client.retrieve`
+ * liefert sie danach gezielt für die sichtbare Seite per Punkt-ID nach — hier
+ * aus derselben Fixture-Liste bedient, damit bestehende Tests unverändert bleiben.
+ */
 function opsReturning(points: unknown[]): QdrantOperations {
-  return { scrollDocuments: vi.fn().mockResolvedValue(points) } as unknown as QdrantOperations;
+  const byId = new Map(
+    (points as Array<{ id: number; vector: unknown }>).map((p) => [p.id, p.vector])
+  );
+  const retrieve = vi.fn(async (_collection: string, args: { ids: (string | number)[] }) =>
+    args.ids.filter((id) => byId.has(id)).map((id) => ({ id, vector: byId.get(id) }))
+  );
+  return {
+    scrollDocuments: vi.fn().mockResolvedValue(points),
+    client: { retrieve },
+  } as unknown as QdrantOperations;
 }
 
 describe('inspectDocumentChunks — Vektor-Auskunft', () => {
@@ -124,31 +138,54 @@ describe('inspectDocumentChunks — Seitenwechsel', () => {
   });
 });
 
-describe('inspectDocumentChunks — Qdrant-Scroll über mehrere Seiten', () => {
-  it('blättert über den Punkt-ID-Cursor weiter und zählt den inklusiven Wiederholer nur einmal', async () => {
-    // Volle Seite: 256 Punkte, chunk_index 0..255. `scrollDocuments` gibt bei
-    // Qdrant den Cursor-Punkt als erstes Element der Folgeseite noch einmal
-    // zurück — hier nachgebildet, indem dieselbe id in der zweiten Seite
-    // wiederkehrt.
-    const pageOne = Array.from({ length: 256 }, (_, i) => point(i));
-    const cursorId = pageOne[pageOne.length - 1]!.id;
-    const pageTwo = [point(255), point(256), point(257)];
+describe('inspectDocumentChunks — Vektor-Abruf bleibt auf die Seite beschränkt', () => {
+  it(
+    'blättert über den Punkt-ID-Cursor weiter, zählt den inklusiven Wiederholer nur einmal ' +
+      'und holt Vektoren nur für die sichtbare Seite',
+    async () => {
+      // Volle Seite: 256 Punkte, chunk_index 0..255. `scrollDocuments` gibt bei
+      // Qdrant den Cursor-Punkt als erstes Element der Folgeseite noch einmal
+      // zurück — hier nachgebildet, indem dieselbe id in der zweiten Seite
+      // wiederkehrt.
+      const pageOne = Array.from({ length: 256 }, (_, i) => point(i));
+      const cursorId = pageOne[pageOne.length - 1]!.id;
+      const pageTwo = [point(255), point(256), point(257)];
+      const allPointsById = new Map([...pageOne, ...pageTwo].map((p) => [p.id, p.vector]));
 
-    const scrollDocuments = vi.fn().mockResolvedValueOnce(pageOne).mockResolvedValueOnce(pageTwo);
-    const ops = { scrollDocuments } as unknown as QdrantOperations;
+      const scrollDocuments = vi.fn().mockResolvedValueOnce(pageOne).mockResolvedValueOnce(pageTwo);
+      const retrieve = vi.fn(async (_collection: string, args: { ids: (string | number)[] }) =>
+        args.ids.map((id) => ({ id, vector: allPointsById.get(id) }))
+      );
+      const ops = { scrollDocuments, client: { retrieve } } as unknown as QdrantOperations;
 
-    const result = await inspectDocumentChunks(ops, 'doc-1', 'documents', {
-      offset: 0,
-      limit: 300,
-    });
+      // limit 100 aus 258 Gesamt-Punkten: die sichtbare Seite ist eine echte
+      // Teilmenge, sonst bliebe unbemerkt, wenn der Vektor-Abruf doch wieder das
+      // ganze Dokument zöge.
+      const result = await inspectDocumentChunks(ops, 'doc-1', 'documents', {
+        offset: 0,
+        limit: 100,
+      });
 
-    expect(scrollDocuments).toHaveBeenCalledTimes(2);
-    // Zweiter Aufruf blättert mit der letzten id der ersten Seite als Versatz.
-    expect(scrollDocuments.mock.calls[1]?.[2]).toMatchObject({ offset: cursorId });
+      expect(scrollDocuments).toHaveBeenCalledTimes(2);
+      // Zähl-/Sortierdurchlauf ohne Vektoren — die teure Fracht kommt erst mit
+      // dem gezielten Abruf für die sichtbare Seite.
+      expect(scrollDocuments.mock.calls[0]?.[2]).toMatchObject({ withVector: false });
+      expect(scrollDocuments.mock.calls[1]?.[2]).toMatchObject({
+        withVector: false,
+        offset: cursorId,
+      });
 
-    // 256 aus Seite eins + 3 aus Seite zwei − 1 doppelter Cursor-Punkt = 258.
-    expect(result.chunkCount).toBe(258);
-    expect(result.chunks.filter((c) => c.index === 255)).toHaveLength(1);
-    expect(result.chunks.map((c) => c.index)).toEqual(Array.from({ length: 258 }, (_, i) => i));
-  });
+      // 256 aus Seite eins + 3 aus Seite zwei − 1 doppelter Cursor-Punkt = 258.
+      expect(result.chunkCount).toBe(258);
+      expect(result.nextOffset).toBe(100);
+      expect(result.chunks.map((c) => c.index)).toEqual(Array.from({ length: 100 }, (_, i) => i));
+
+      // Der gezielte Vektor-Abruf deckt genau die 100 sichtbaren Punkte ab — nicht
+      // die übrigen 158, und insbesondere nicht den Punkt mit chunk_index 255.
+      expect(retrieve).toHaveBeenCalledTimes(1);
+      const requestedIds = retrieve.mock.calls[0]?.[1]?.ids as (string | number)[];
+      expect(requestedIds).toHaveLength(100);
+      expect(requestedIds).toEqual(Array.from({ length: 100 }, (_, i) => pageOne[i]!.id));
+    }
+  );
 });
