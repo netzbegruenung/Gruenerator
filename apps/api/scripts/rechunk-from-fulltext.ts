@@ -147,6 +147,40 @@ export function pointIdRecipeFor(collection: string): PointIdRecipe | null {
   }
 }
 
+export interface Bm25PreconditionResult {
+  /** `false` heisst: `main()` muss abbrechen (`process.exitCode = 1`, `return`). */
+  proceed: boolean;
+  /** `null` heisst: bm25 ist da, nichts zu melden. */
+  log: { level: 'error' | 'warn'; message: string } | null;
+}
+
+/**
+ * Vorbedingung 1 (bm25). Ein echter Schreib-Lauf ohne bm25 bricht weiterhin ab
+ * — dicht-only geschriebene Punkte kosten die Einbettung nach der Migration
+ * ein zweites Mal. `--dry-run` schreibt nichts und bezahlt keine Einbettung:
+ * der fehlende Sparse-Vektor ist dort keine Gefahr, sondern genau die Zahl,
+ * die die Migrationsentscheidung braucht (Finding 7, 02.09.2026, gegen die
+ * echte Produktions-Qdrant beobachtet). Ohne diese Ausnahme zählt NIE eine
+ * noch nicht migrierte Sammlung — und `landesverbaende_documents`, die
+ * einzige mit nachgerechnetem Rezept UND full_text-reichen Dokumenten, hat
+ * bm25 noch nicht.
+ */
+export function checkBm25Precondition(
+  collection: string,
+  hasBm25: boolean,
+  dryRun: boolean
+): Bm25PreconditionResult {
+  if (hasBm25) return { proceed: true, log: null };
+
+  const message =
+    `${collection} deklariert den Sparse-Vektor bm25 nicht. Sonst kostet der ` +
+    'Lauf seine Einbettungen zweimal. Zuerst:\n' +
+    `  npx tsx scripts/migrate-bm25-sparse.ts --collection ${collection}`;
+
+  if (dryRun) return { proceed: true, log: { level: 'warn', message } };
+  return { proceed: false, log: { level: 'error', message } };
+}
+
 export interface IdRecipeMismatch {
   id: string | number;
   key: string;
@@ -719,12 +753,12 @@ async function main(): Promise<void> {
   // und der Lauf müsste nach der BM25-Migration ein zweites Mal bezahlt werden.
   const hasBm25 = await collectionSupportsBm25(client, args.collection);
   console.log(`[${args.collection}]  bm25: ${hasBm25 ? 'JA' : 'NEIN'}`);
-  if (!hasBm25) {
-    console.error(
-      `[abort] ${args.collection} deklariert den Sparse-Vektor bm25 nicht. Sonst kostet der ` +
-        'Lauf seine Einbettungen zweimal. Zuerst:\n' +
-        `  npx tsx scripts/migrate-bm25-sparse.ts --collection ${args.collection}`
-    );
+  const bm25 = checkBm25Precondition(args.collection, hasBm25, args.dryRun);
+  if (bm25.log) {
+    const prefix = bm25.log.level === 'error' ? '[abort]' : '[warnung]';
+    (bm25.log.level === 'error' ? console.error : console.warn)(`${prefix} ${bm25.log.message}`);
+  }
+  if (!bm25.proceed) {
     process.exitCode = 1;
     return;
   }
