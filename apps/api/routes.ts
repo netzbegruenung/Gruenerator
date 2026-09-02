@@ -68,6 +68,7 @@ import { mountMcpOAuthCallbackRouter } from './routes/mcp/mcpOAuthCallbackRouter
 import { mountMcpServersContractRouter } from './routes/mcp/mcpServersContractRouter.js';
 import { createMcpAppsRouter } from './routes/mcp-apps/mcpAppsRouter.js';
 import mcpServerRouter from './routes/mcp-server/index.js';
+import { mountMemoryContractRouter } from './routes/memory/memoryContractRouter.js';
 import { mountMonitorContractRouter } from './routes/monitor/monitorContractRouter.js';
 import { mountNotebookCollectionsContractRouter } from './routes/notebook/notebookCollectionsContractRouter.js';
 import { mountNotebookContractRouter } from './routes/notebook/notebookContractRouter.js';
@@ -337,7 +338,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   // freie provider/model-Wahl entgegen und wäre sonst ein Empfänger, den die
   // Datenschutzerklärung nicht mehr nennt.
   // const { default: playgroundRouter } = await import('./routes/texte/playground.js');
-  const { default: mem0Router } = await import('./routes/mem0/mem0Controller.js');
   const { default: emailRouter } = await import('./routes/email/emailController.js');
   const { default: videoRouter } = await import('./routes/video/index.js');
   const { default: visionRouter } = await import('./routes/vision/visionController.js');
@@ -829,7 +829,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/thumbs', publicReadLimiter, thumbnailRouter);
   // /api/transfer wurde entfernt (Wolke ist nur noch lesend); bestehende
   // Transfer-Links laufen weiter über den öffentlichen Download in /api/share.
-  app.use('/api/mem0', requireAuth, standardMutationLimiter, mem0Router);
   // ts-rest contract router for /api/email — mounts BEFORE legacy emailRouter
   // so the typed /test endpoint matches first; /send-content stays on legacy.
   app.use('/api/email', requireAuth);
@@ -861,6 +860,10 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/notifications', requireAuth);
   app.use('/api/auth/profile', requireAuth);
   mountNotificationsContractRouter(app);
+  // Explicit user memory — auth and limiter on the prefix, because
+  // createExpressEndpoints registers handlers straight on `app`.
+  app.use('/api/memory', requireAuth, standardMutationLimiter);
+  mountMemoryContractRouter(app);
   mountModelPreferencesContractRouter(app);
   mountImageModelPreferenceContractRouter(app);
   // Skill prompt bodies. requireAuth at the prefix: the recipe catalogue is

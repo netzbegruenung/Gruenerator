@@ -44,6 +44,7 @@ export { sharepicContract } from './sharepicContract.js';
 export { sharepicTextContract } from './sharepicTextContract.js';
 export { unsplashContract } from './unsplashContract.js';
 export { notificationsContract } from './notificationsContract.js';
+export { memoryContract, type MemoryContract } from './memoryContract.js';
 export { emailContract } from './emailContract.js';
 export { feedbackContract } from './feedbackContract.js';
 export { modelPreferencesContract } from './modelPreferencesContract.js';
