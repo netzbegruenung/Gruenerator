@@ -1,0 +1,15 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`smartChunkDocument — Fließtext bleibt, wie er ist > erzeugt für reinen Fließtext byteweise dieselben Chunks wie am 02.09.2026 1`] = `
+[
+  "Die Wärmewende ist die größte Aufgabe der kommenden Jahre. Wir wollen den Umstieg auf klimaneutrale Heizungen sozial gerecht gestalten. Niemand soll durch die Umstellung überfordert werden. Deshalb koppeln wir die Förderung an das Einkommen der Haushalte. Kommunen brauchen dafür verlässliche Planungsgrundlagen und eine dauerhafte Finanzierung. Die kommunale Wärmeplanung ist der Schlüssel zu bezahlbarer Wärme. Sie zeigt jedem Haushalt, welche Lösung am eigenen Standort sinnvoll ist. Wärmenetze lohnen sich in dichter Bebauung, Wärmepumpen im Bestand der Randlagen. Wir wollen, dass jede Kommune ihre Planung bis zum Ende des Jahrzehnts vorlegt. Der Bund trägt die Kosten der Erstellung, damit auch finanzschwache Kommunen mitkommen. Handwerk und Ausbildung entscheiden über das Tempo der Umstellung. Ohne Fachkräfte bleibt jede Förderung ein Versprechen auf dem Papier. Wir stärken die überbetriebliche Ausbildung und die Anerkennung ausländischer Abschlüsse. Betriebe erhalten Zuschüsse für die Weiterbildung ihrer Beschäftigten. So entsteht die Kapazität, die der Umstieg tatsächlich braucht. Mieterinnen und Mieter dürfen die Kosten nicht allein tragen. Die Modernisierungsumlage begrenzen wir und koppeln sie an den erreichten Effizienzgewinn. Vermieterinnen und Vermieter erhalten im Gegenzug eine verlässliche Förderkulisse. Wer früh saniert, soll besser gestellt sein als wer wartet. Das Ziel ist ein Umstieg, der die Warmmiete stabil hält. Die Industrie braucht grünen Wasserstoff dort, wo Strom nicht reicht. Wir konzentrieren die knappen Mengen auf Stahl, Chemie und Zement.",
+  "Vermieterinnen und Vermieter erhalten im Gegenzug eine verlässliche Förderkulisse. Wer früh saniert, soll besser gestellt sein als wer wartet. Das Ziel ist ein Umstieg, der die Warmmiete stabil hält. Die Industrie braucht grünen Wasserstoff dort, wo Strom nicht reicht. Wir konzentrieren die knappen Mengen auf Stahl, Chemie und Zement. Für die Gebäudewärme ist Wasserstoff die teuerste aller Optionen. Diese Priorisierung schreiben wir in der Förderung verbindlich fest. Nur so entsteht Planungssicherheit für die Investitionen der nächsten Jahre. Die Umstellung gelingt nur mit einer ehrlichen Debatte über die Kosten. Wir legen offen, was der Umstieg kostet und wer ihn trägt. Die Alternative ist nicht billiger, sie ist nur später fällig. Jedes Jahr Verzögerung erhöht den Preis der Anpassung. Deshalb beginnen wir jetzt und nicht in der nächsten Wahlperiode.",
+]
+`;
+
+exports[`smartChunkDocument — Fließtext bleibt, wie er ist > erzeugt für reinen Fließtext byteweise dieselben Chunks wie am 02.09.2026 2`] = `
+[
+  1588,
+  863,
+]
+`;

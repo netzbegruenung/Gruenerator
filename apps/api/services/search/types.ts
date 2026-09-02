@@ -110,6 +110,7 @@ export interface SearchResultInput {
     text?: string | undefined;
     chunk_index: number;
     page_number?: number | null | undefined;
+    chunk_type?: string | null | undefined;
   }>;
   source_url?: string | undefined;
   url?: string | undefined;
@@ -149,6 +150,7 @@ export interface ExpandedChunkResult {
   similarity: number;
   chunk_index: number;
   page_number: number | null;
+  chunk_type?: string | null | undefined;
   collection_id?: string | undefined;
   collection_name?: string | undefined;
   // Resolved real date of the source (published_at, else upload created_at),
@@ -174,6 +176,7 @@ export interface ReferenceData {
   similarity_score: number;
   chunk_index: number;
   page_number: number | null;
+  chunk_type?: string | null | undefined;
   collection_id?: string | undefined;
   collection_name?: string | undefined;
 }
