@@ -63,6 +63,56 @@ describe('htmlToStructuredText', () => {
   it('gibt für leere Eingabe eine leere Zeichenkette zurück', () => {
     expect(htmlToStructuredText('')).toBe('');
   });
+
+  it('rendert Punkte einer geordneten Liste als `1) `, nicht `1. `', () => {
+    const out = htmlToStructuredText('<ol><li>Eins</li><li>Zwei</li></ol>');
+
+    expect(out).toBe('1) Eins\n2) Zwei');
+  });
+});
+
+/**
+ * Die Reparatur zu Befund 1 (final-review.md): `1. Kurzer Punkt` liest
+ * `NUMBERED_HEADING` (blockSegmentation.ts) als Überschrift der Ebene 1 und
+ * löscht dabei den gesamten Stapel — ein echtes `<h2>` davor geht verloren,
+ * das nächste `<h2>` hängt sich unter den Listenpunkt. `1) ` bricht die Regex
+ * (sie verlangt `[.:]?` nach der Nummer, keine Klammer).
+ */
+describe('htmlToStructuredText erfindet keine Überschrift aus einem <ol>-Punkt (final-review.md, Befund 1)', () => {
+  const SEITE_MIT_LISTE = `
+    <h2>Waermeplanung</h2>
+    <p>Die Kommunen brauchen Planungssicherheit fuer die naechsten Jahre.</p>
+    <ol><li>Netze ausbauen</li><li>Foerderung sichern</li><li>Personal aufbauen</li></ol>
+    <p>Deshalb schlagen wir ein Sofortprogramm vor, das die Kommunen entlastet.</p>
+    <h2>Finanzierung</h2>
+    <p>Der Bund traegt einen Teil der Kosten fuer den Umbau der Netze.</p>
+  `;
+
+  it('behält den echten headingPath nach der Liste — nie den Listenpunkt', () => {
+    const blocks = segmentBlocks(
+      cleanTextForEmbedding(htmlToStructuredText(SEITE_MIT_LISTE), true)
+    );
+
+    for (const block of blocks) {
+      for (const heading of block.headingPath) {
+        expect(heading).not.toMatch(/^\d/);
+      }
+    }
+
+    const nachDerListe = blocks.filter((block) => block.text.includes('Sofortprogramm'));
+    expect(nachDerListe.length).toBeGreaterThan(0);
+    for (const block of nachDerListe) {
+      expect(block.headingPath).toEqual(['Waermeplanung']);
+    }
+
+    const nachDerZweitenUeberschrift = blocks.filter((block) =>
+      block.text.includes('traegt einen Teil')
+    );
+    expect(nachDerZweitenUeberschrift.length).toBeGreaterThan(0);
+    for (const block of nachDerZweitenUeberschrift) {
+      expect(block.headingPath).toEqual(['Waermeplanung', 'Finanzierung']);
+    }
+  });
 });
 
 /**
