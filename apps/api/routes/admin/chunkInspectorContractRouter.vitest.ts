@@ -13,8 +13,15 @@ const requireInstanceAdmin = vi.fn();
 const inspectDocumentChunks = vi.fn();
 const getSearchContext = vi.fn();
 const drizzleSelect = vi.fn();
+const getNotebookCollection = vi.fn();
 
 vi.mock('../../utils/adminAuthz.js', () => ({ requireInstanceAdmin }));
+
+vi.mock('../../database/services/NotebookQdrantHelper.js', () => ({
+  NotebookQdrantHelper: class {
+    getNotebookCollection = getNotebookCollection;
+  },
+}));
 
 vi.mock('../../services/document-services/DocumentSearchService/index.js', () => ({
   DocumentSearchService: class {
@@ -58,6 +65,11 @@ beforeEach(() => {
   requireInstanceAdmin.mockReset().mockResolvedValue(true);
   drizzleSelect.mockReset().mockResolvedValue([]);
   getSearchContext.mockReset().mockResolvedValue({ sortedResults: [] });
+  getNotebookCollection.mockReset().mockResolvedValue({
+    id: 'nb-1',
+    user_id: 'owner-9',
+    name: 'Wahlkampf 2026',
+  });
   inspectDocumentChunks.mockReset().mockResolvedValue({
     success: true,
     chunks: [chunk(0), chunk(1)],
@@ -214,6 +226,54 @@ describe('chunkInspectorContract.inspectSearch (Systemsammlung)', () => {
     } as never);
 
     expect(res.status).toBe(403);
+    expect(getSearchContext).not.toHaveBeenCalled();
+  });
+});
+
+describe('chunkInspectorContract.inspectSearch (Nutzer-Notebook)', () => {
+  it('schränkt über getDocumentIdsFn auf dieses Dokument ein und meldet scoped: true', async () => {
+    getSearchContext.mockResolvedValue({
+      sortedResults: [{ document_id: 'doc-1', chunk_index: 2, similarity: 0.9 }],
+    });
+    const router = await loadRouter();
+    const res = await router.inspectSearch({
+      req,
+      params: { documentId: 'doc-1' },
+      query: { collection: 'nb-1', query: 'Hitzeschutz' },
+    } as never);
+
+    expect(res.status).toBe(200);
+    const body = res.body as { scoped: boolean; hits: { index: number }[] };
+    expect(body.scoped).toBe(true);
+    expect(body.hits).toEqual([{ index: 2, similarity: 0.9 }]);
+
+    const params = getSearchContext.mock.calls[0][0];
+    await expect(params.getDocumentIdsFn('nb-1')).resolves.toEqual(['doc-1']);
+  });
+
+  it('fährt mit der Kennung der Eigentümerin — checkNotebookAccess kennt keinen Admin', async () => {
+    const router = await loadRouter();
+    await router.inspectSearch({
+      req,
+      params: { documentId: 'doc-1' },
+      query: { collection: 'nb-1', query: 'Hitzeschutz' },
+    } as never);
+
+    const params = getSearchContext.mock.calls[0][0];
+    expect(params.userId).toBe('owner-9');
+    await expect(params.getCollectionFn('nb-1')).resolves.toMatchObject({ user_id: 'owner-9' });
+  });
+
+  it('antwortet 404, wenn es das Notebook nicht gibt', async () => {
+    getNotebookCollection.mockResolvedValue(null);
+    const router = await loadRouter();
+    const res = await router.inspectSearch({
+      req,
+      params: { documentId: 'doc-1' },
+      query: { collection: 'nb-weg', query: 'Hitzeschutz' },
+    } as never);
+
+    expect(res.status).toBe(404);
     expect(getSearchContext).not.toHaveBeenCalled();
   });
 });
