@@ -22,7 +22,11 @@ const here = path.dirname(fileURLToPath(import.meta.url));
  * kommt über `utils/contentExtractor.ts`, und sein eigenes
  * `.replace(/\s+/g, '-')` (`:475`) ist ein Slug-Bauer und soll bleiben.
  */
-const EXTRACTION_SOURCES = ['implementations/WebsiteCrawler.ts', 'utils/contentExtractor.ts'];
+const EXTRACTION_SOURCES = [
+  'implementations/WebsiteCrawler.ts',
+  'implementations/GrueneAtScraper.ts',
+  'utils/contentExtractor.ts',
+];
 
 /** Genau `.replace(/\s+/g, ' ')`. Ein Slug-Bauer (`, '-'`) ist nicht gemeint. */
 const WHITESPACE_COLLAPSE = /\.replace\(\/\\s\+\/g,\s*' '\)/;
