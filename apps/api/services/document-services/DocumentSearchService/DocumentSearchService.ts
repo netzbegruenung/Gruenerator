@@ -38,6 +38,7 @@ import type {
   UserVectorStats,
   DocumentFullTextResult,
   DocumentChunksResult,
+  InspectDocumentChunksResult,
   BulkDocumentResult,
   FirstChunksResult,
   BundestagSearchOptions,
@@ -544,6 +545,24 @@ export class DocumentSearchService extends BaseSearchService {
       throw new Error('Qdrant not available');
     }
     return await docRetrieval.getDocumentChunks(this.qdrantOps, userId, documentId, options);
+  }
+
+  /** Admin-Inspektor: alle Felder aus dem Punkt, ohne Eigentümerbindung. */
+  async inspectDocumentChunks(
+    documentId: string,
+    qdrantCollection: string,
+    options: { offset: number; limit: number }
+  ): Promise<InspectDocumentChunksResult> {
+    await this.ensureInitialized();
+    if (!this.qdrantOps) {
+      throw new Error('Qdrant not available');
+    }
+    return await docRetrieval.inspectDocumentChunks(
+      this.qdrantOps,
+      documentId,
+      qdrantCollection,
+      options
+    );
   }
 
   async getMultipleDocumentsFullText(

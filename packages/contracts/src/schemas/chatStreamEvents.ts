@@ -81,6 +81,7 @@ export const chatWarningCodeSchema = z.enum([
   // Retrieval / sources
   'source_unavailable',
   'rerank_degraded',
+  'citation_invalid',
   'research_plan_failed',
   // `@deepresearch` was asked for but not served: the daily quota is spent or the
   // call failed. Distinct from `research_plan_failed` — the turn did NOT degrade
@@ -577,6 +578,8 @@ const chatCitationBase = z.object({
   documentId: z.string().optional(),
   chunkIndex: z.number().optional(),
   similarityScore: z.number().optional(),
+  /** Seite im Ursprungsdokument, wenn der Chunk eine trägt (PDF-Ingest). */
+  pageNumber: z.number().nullable().optional(),
   collectionId: z.string().optional(),
   /** Set on fan-out per-document retrieval, so the UI can group source cards
    *  by the document they answer for. */

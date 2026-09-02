@@ -786,7 +786,6 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
     registerLandesverbandTools(server, {
       userId,
       landesverbaende: apiKey.landesverbaende,
-      apiKeyId: apiKey.id,
     });
   }
 

@@ -7,8 +7,8 @@
  */
 
 import { createLogger } from '../../utils/logger.js';
+import { buildContextSummary } from '../search/contextSummary.js';
 import { rerankPipeline } from '../search/rerankPipeline.js';
-import { sourceTextForPrompt } from '../search/SearchResultProcessor.js';
 
 import type { ExpandedChunkResult, ReferencesMap } from '../search/types.js';
 
@@ -67,7 +67,7 @@ export async function rerankNotebookResults({
   });
 
   // Pipeline handles errors internally with graceful degradation
-  const { rankedIndices, rerankTimeMs } = await rerankPipeline({
+  const { rankedIndices, scores, failed, rerankTimeMs } = await rerankPipeline({
     query: question,
     items,
     inputLimit,
@@ -77,7 +77,33 @@ export async function rerankNotebookResults({
     applyDiversity: true,
   });
 
-  const rerankedResults = rankedIndices.map((i) => candidates[i]);
+  // Die Quellenkarte zeigt „x % Relevanz" — das ist `similarity_score` der
+  // Zitation, also der RETRIEVAL-Wert. Sortiert wird die Liste aber vom
+  // Cross-Encoder, und ohne Rückschreiben laufen Zahl und Reihenfolge
+  // auseinander: Platz 1 trägt dann eine kleinere Zahl als Platz 3.
+  //
+  // Nur wenn der Rerank wirklich lief: der `failed`-Zweig gibt die
+  // Eingangsreihenfolge samt Retrieval-Werten zurück, und der Sprung über den
+  // Rerank (≤ 3 Ergebnisse) kommt hier gar nicht erst an.
+  const rerankScoreOf = (index: number): number | undefined =>
+    failed ? undefined : scores.get(index);
+
+  const rerankedResults = rankedIndices.map((i) => {
+    const result = candidates[i];
+    const score = rerankScoreOf(i);
+    return score === undefined ? result : { ...result, similarity: score };
+  });
+
+  // Die Zitationen lesen NICHT aus `results`, sondern aus der referencesMap —
+  // dieselbe Chunk-Identität wie in `deduplicateResults` verbindet beide.
+  const rerankScoreByChunk = new Map<string, number>();
+  for (const i of rankedIndices) {
+    const candidate = candidates[i];
+    const score = rerankScoreOf(i);
+    if (candidate && score !== undefined) {
+      rerankScoreByChunk.set(`${candidate.document_id}:${candidate.chunk_index}`, score);
+    }
+  }
 
   const keptDocIds = new Set(rerankedResults.map((r) => r.document_id));
   const filteredReferencesMap: ReferencesMap = {};
@@ -90,7 +116,9 @@ export async function rerankNotebookResults({
   const renumberedMap: ReferencesMap = {};
   let newIndex = 1;
   for (const ref of Object.values(filteredReferencesMap)) {
-    renumberedMap[String(newIndex)] = ref;
+    const score = rerankScoreByChunk.get(`${ref.document_id}:${ref.chunk_index}`);
+    renumberedMap[String(newIndex)] =
+      score === undefined ? ref : { ...ref, similarity_score: score };
     newIndex++;
   }
 
@@ -104,14 +132,4 @@ export async function rerankNotebookResults({
     contextSummary: buildContextSummary(renumberedMap),
     rerankTimeMs,
   };
-}
-
-function buildContextSummary(referencesMap: ReferencesMap): string {
-  return Object.keys(referencesMap)
-    .map((id) => {
-      const ref = referencesMap[id];
-      const collectionTag = ref.collection_name ? `[${ref.collection_name}] ` : '';
-      return `${id}. ${collectionTag}${ref.title} — "${sourceTextForPrompt(ref)}"`;
-    })
-    .join('\n');
 }
