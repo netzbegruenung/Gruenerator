@@ -217,6 +217,12 @@ async function hybridSearchServerSide(
   const hasFilter = Boolean(filter.must?.length || filter.should?.length || filter.must_not);
   const prefetchFilter = hasFilter ? (filter as Schemas['Filter']) : undefined;
 
+  // Nur die dichte Vorabholung trägt eine Schwelle (`score_threshold`), die
+  // sparse ist immer voll besetzt. Der Faktor ist der Regler auf genau diese
+  // Asymmetrie: #3118 schlug eine grössere Sparse-Vorabholung vor, und als
+  // Regler ist der Vorschlag in JEDEM Arm messbar, nicht nur in `rrf`.
+  const sparseLimit = Math.round(recall * hybridCfg.serverSparseFactor);
+
   const densePrefetch: Schemas['Prefetch'] = {
     query: queryVector,
     using: '',
@@ -229,19 +235,29 @@ async function hybridSearchServerSide(
   const sparsePrefetch: Schemas['Prefetch'] = {
     query: { indices: sparseQuery.indices, values: sparseQuery.values },
     using: BM25_SPARSE_VECTOR_NAME,
-    limit: recall,
+    limit: sparseLimit,
     ...(prefetchFilter && { filter: prefetchFilter }),
   };
 
   const fusion = hybridCfg.serverFusion;
+  const useSparse = sparseLimit >= 1;
 
   // Vorabholungen und Gewichte entstehen PAARWEISE: der Client verlangt „the
   // number of weights should match the number of prefetches"
-  // (generated_schema.d.ts:3652), und eine zweite Liste danebenzulegen wäre
-  // genau die Stelle, an der ein weggefallener Prefetch die Gewichte
-  // verschiebt, ohne dass irgendwo ein Fehler entsteht.
-  const prefetches: Schemas['Prefetch'][] = [densePrefetch, sparsePrefetch];
-  const weights: number[] = [hybridCfg.serverRrfWeightDense, 1 - hybridCfg.serverRrfWeightDense];
+  // (generated_schema.d.ts:3652). Zwei getrennt gepflegte Listen wären genau
+  // die Stelle, an der ein weggelassener Prefetch die Gewichte verschiebt,
+  // ohne dass irgendwo ein Fehler entsteht.
+  const prefetches: Schemas['Prefetch'][] = [densePrefetch];
+  const weights: number[] = [hybridCfg.serverRrfWeightDense];
+  if (useSparse) {
+    prefetches.push(sparsePrefetch);
+    weights.push(1 - hybridCfg.serverRrfWeightDense);
+  }
+
+  // `sparse_only` ohne Sparse-Lane ist eine Abfrage ohne jede Lane. Derselbe
+  // Rückfall wie bei einer stoppwortfreien Anfrage (:200-201): der Aufrufer
+  // nimmt die Alt-Fusion, statt einen Rundlauf für nichts zu bezahlen.
+  if (fusion === 'sparse_only' && !useSparse) return null;
 
   const request: Schemas['QueryRequest'] =
     fusion === 'sparse_only'
