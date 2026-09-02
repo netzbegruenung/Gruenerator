@@ -15,6 +15,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import useCitationStore from '../../../stores/citationStore';
+import { axe } from '../../../test-utils';
 
 import CitationModal from './CitationModal';
 
@@ -98,5 +99,98 @@ describe('CitationModal — Dialog-Semantik (#3133)', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(useCitationStore.getState().selectedCitation).toBeNull();
     await waitFor(() => expect(badge).toHaveFocus());
+  });
+});
+
+const CONTEXT_DATA = {
+  documentId: 'doc-1',
+  centerChunkIndex: 4,
+  centerChunk: { text: 'Der zitierte Satz.', chunkIndex: 4 },
+  contextChunks: [
+    { text: 'Davor.', chunkIndex: 3, isCenter: false },
+    { text: 'Der zitierte Satz.', chunkIndex: 4, isCenter: true },
+    { text: 'Danach.', chunkIndex: 5, isCenter: false },
+  ],
+};
+
+describe('CitationModal — die drei Zustände', () => {
+  it('sagt den Ladezustand als Statusmeldung an', async () => {
+    render(<CitationModal />);
+    act(() => {
+      useCitationStore.setState({ selectedCitation: CITATION, isLoadingContext: true });
+    });
+
+    const status = await screen.findByRole('status');
+    expect(status).toHaveTextContent('Kontext wird geladen...');
+  });
+
+  it('zeigt die Fehlermeldung des Stores — nicht nur das Zitat', async () => {
+    // Der Kern von #3133s Nebenbefund: der Fehlerzweig rendert bisher
+    // `cited_text` und wirft `contextError` (citationStore.ts:181/:186) weg.
+    render(<CitationModal />);
+    act(() => {
+      useCitationStore.setState({
+        selectedCitation: CITATION,
+        contextError: 'Kontext konnte nicht geladen werden',
+      });
+    });
+
+    expect(await screen.findByText('Kontext konnte nicht geladen werden')).toBeInTheDocument();
+    // Was man trotzdem hat, bleibt sichtbar.
+    expect(screen.getByText(/Ein Beispielzitat aus dem Programm\./)).toBeInTheDocument();
+  });
+
+  it('markiert im Kontext den zitierten Chunk und dämpft die Nachbarn per Farbtoken', async () => {
+    render(<CitationModal />);
+    act(() => {
+      useCitationStore.setState({ selectedCitation: CITATION, contextData: CONTEXT_DATA });
+    });
+
+    const region = await screen.findByRole('region', { name: 'Zitat im Zusammenhang' });
+    expect(region).toHaveTextContent('Der zitierte Satz.');
+    expect(region.querySelector('.citation-highlight')).not.toBeNull();
+    // docs/CLAUDE-a11y.md:48-52 — Deckkraft frisst den Kontrast von allem darin.
+    expect(region.querySelector('.opacity-70')).toBeNull();
+    expect(region.querySelector('.text-muted-foreground')).not.toBeNull();
+  });
+});
+
+describe('CitationModal — axe je Zustand', () => {
+  /**
+   * Geprüft wird der DIALOG, nicht `container`: Radix portaliert Overlay und
+   * Inhalt als direkte <body>-Kinder (dialog.tsx:51-56), RTLs container ist
+   * also leer — `axe(container)` wäre grün ohne eine einzige Prüfung.
+   * `axe` kommt aus src/test-utils.tsx:15, nie direkt aus vitest-axe
+   * (apps/web/CLAUDE-testing.md:32-35).
+   */
+  async function axeOnDialog() {
+    return axe(await screen.findByRole('dialog'));
+  }
+
+  it('Laden', async () => {
+    render(<CitationModal />);
+    act(() => {
+      useCitationStore.setState({ selectedCitation: CITATION, isLoadingContext: true });
+    });
+
+    expect(await axeOnDialog()).toHaveNoViolations();
+  });
+
+  it('Fehler', async () => {
+    render(<CitationModal />);
+    act(() => {
+      useCitationStore.setState({ selectedCitation: CITATION, contextError: 'Kaputt' });
+    });
+
+    expect(await axeOnDialog()).toHaveNoViolations();
+  });
+
+  it('geladener Kontext', async () => {
+    render(<CitationModal />);
+    act(() => {
+      useCitationStore.setState({ selectedCitation: CITATION, contextData: CONTEXT_DATA });
+    });
+
+    expect(await axeOnDialog()).toHaveNoViolations();
   });
 });
