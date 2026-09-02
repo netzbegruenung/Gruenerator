@@ -1,0 +1,157 @@
+{
+  "pipeline": "manual",
+  "depth": "fast",
+  "withRerank": false,
+  "outcomes": [
+    {
+      "id": "manual-berlin-hitzeschutz",
+      "collection": "berlin-system",
+      "query": "Hitzeschutz",
+      "rank": 1,
+      "topTitles": [
+        "Hitzeschutz für alle Berliner*innen – Berlin als Vorbild für umfassende Hitzeschutzmaßnahmen: Beschluss auf dem Landesausschuss:\nDie Klimakrise...",
+        "Hitzehilfe für Obdachlose in Berlin: Beschluss auf der Landesdelegiertenkonferenz:\nBerlin...",
+        "Senat verschläft Hitzeschutz",
+        "Wer beim Klimaschutz kürzt, kann keinen Hitzeschutz versprechen",
+        "Hitzeschutz: Berlin braucht mehr Bäume statt mehr Beton"
+      ]
+    },
+    {
+      "id": "manual-berlin-baumfaellmoratorium",
+      "collection": "berlin-system",
+      "query": "Baumfäll-Moratorium",
+      "rank": 1,
+      "topTitles": [
+        "Berlin braucht ein Baumfäll-Moratorium: Anlässlich der ersten Sitzung des Wissenschaftlichen...",
+        "20210820_WPS_Bündnisgrüne Antwort_Bürgerinitiative Grüner Kiez Pankow_Nachhaltige Stadtentwicklung",
+        "11-Punkte-Plan für mehr Bäume und Baumpflege in Berlin",
+        "Ein bezahlbares Zuhause für alle Berliner*innen schaffen – Für eine soziale Wohnungspolitik, faire Mieten und eine nachhaltige Stadtentwicklung: Beschluss auf der Landesdelegiertenkonferenz:\nDie...",
+        "Die Berliner Wälder in der Klimakrise: Beschluss auf der Landesdelegiertenkonferenz:\nIn den..."
+      ]
+    },
+    {
+      "id": "manual-berlin-milieuschutz",
+      "collection": "berlin-system",
+      "query": "Milieuschutz",
+      "rank": 1,
+      "topTitles": [
+        "Beschluss \"Grüne Wohnungspolitik für ganz Berlin – Gemeinwohl statt Mietenspekulation\"",
+        "20210920_Grüne Antworten_WPS_mietenpolitisches Dossiers Initiativenforum Stadtpolitik Berlin",
+        "Ein bezahlbares Zuhause für alle Berliner*innen schaffen – Für eine soziale Wohnungspolitik, faire Mieten und eine nachhaltige Stadtentwicklung: Beschluss auf der Landesdelegiertenkonferenz:\nDie...",
+        "Das Beste für Berlin: Klimaschutz, der wirkt: Beschluss auf der Landesdelegiertenkonferenz:\nDie...",
+        "20210917_Grüne Antworten_erster Teil_WPS_mietenpolitisches Dossiers Initiativenforum Stadtpolitik Berlin"
+      ]
+    },
+    {
+      "id": "manual-bayern-moorschutz",
+      "collection": "bayern-system",
+      "query": "Moorschutz",
+      "rank": 1,
+      "topTitles": [
+        "Landtags-Grüne wollen Moorschutz und Moorwirtschaft in Bayern massiv voranbringen",
+        "Bayern kommt beim Moorschutz kaum voran",
+        "Friedl: Bayerns Moore brauchen Wasser!",
+        "Söders Moorleichen",
+        "Mehr Wasserschutzgebiete, sofortige Renaturierung ungenutzter Moorflächen und Staatswald zu Bürgerwald machen"
+      ]
+    },
+    {
+      "id": "manual-bayern-nationalpark",
+      "collection": "bayern-system",
+      "query": "Nationalpark",
+      "rank": 1,
+      "topTitles": [
+        "Nationalpark Berchtesgaden – Landtags-Grüne fordern mehr Personal und Geld gegen Klimakrise",
+        "14 in 100 – das 100-Tage-Programm der Bayerischen Grünen",
+        "Mehr Wasserschutzgebiete, sofortige Renaturierung ungenutzter Moorflächen und Staatswald zu Bürgerwald machen",
+        "„Der Erste-Hilfe-Kasten reicht beim Patienten Wald nicht mehr – eine richtige Therapie ist nötig!“",
+        "Skilift am Fellhorn – Beschwerde bei EU-Kommission zum Dritten Modernisierungsgesetz"
+      ]
+    },
+    {
+      "id": "manual-grundsatz-kindergrundsicherung",
+      "collection": "grundsatz-system",
+      "query": "Kindergrundsicherung",
+      "rank": 1,
+      "topTitles": [
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt",
+        "EU-Wahlprogramm 2024 – Was uns schützt",
+        "Regierungsprogramm 2025 – Zusammen wachsen"
+      ]
+    },
+    {
+      "id": "manual-grundsatz-schuldenbremse",
+      "collection": "grundsatz-system",
+      "query": "Schuldenbremse",
+      "rank": 1,
+      "topTitles": [
+        "Regierungsprogramm 2025 – Zusammen wachsen",
+        "Grundsatzprogramm 2020 – Veränderung schafft Halt",
+        "EU-Wahlprogramm 2024 – Was uns schützt"
+      ]
+    },
+    {
+      "id": "manual-kommunalwiki-baumschutzsatzung",
+      "collection": "kommunalwiki-system",
+      "query": "Baumschutzsatzung",
+      "rank": 1,
+      "topTitles": [
+        "Umweltschutz durch kommunales Satzungsrecht",
+        "Schottergarten",
+        "Bodenschutzklausel",
+        "Verkehrssicherungspflicht im Wald",
+        "Bundesbodenschutzgesetz"
+      ]
+    },
+    {
+      "id": "manual-kommunalwiki-quartiersmanagement",
+      "collection": "kommunalwiki-system",
+      "query": "Quartiersmanagement",
+      "rank": 1,
+      "topTitles": [
+        "Quartiersmanagement",
+        "Service Learning an Schulen für kommunale Bedarfe nutzen",
+        "Kommunale Glücksspielkonzepte",
+        "Baukulturelles Erbe in den Städten",
+        "Den Alltag im Stadtteil bewegen"
+      ]
+    },
+    {
+      "id": "manual-kommunalwiki-klimaanpassung",
+      "collection": "kommunalwiki-system",
+      "query": "Klimaanpassung",
+      "rank": 1,
+      "topTitles": [
+        "Klimaanpassungs-Check",
+        "Gemeinschaftsaufgabe Klimaschutz und Klimaanpassung in Kommunen",
+        "Anpassung an den Klimawandel",
+        "Drei-Punkte-Plan zur Anpassung an den Klimawandel",
+        "Klimaschutz als kommunale Pflichtaufgabe?"
+      ]
+    },
+    {
+      "id": "manual-gruene-de-heizungsgesetz",
+      "collection": "gruene-de-system",
+      "query": "Heizungsgesetz",
+      "rank": 1,
+      "topTitles": [
+        "Reiches Heizungsgesetz: Fossile Kostenfalle und Klimakiller",
+        "Der fatale Irrweg der schwarz-roten Energiepolitik",
+        "Schwarz-rote Koalitionsverhandlungen sind ein Frontalangriff auf den Klimaschutz",
+        "Neues Heizungsgesetz schreddert die Klimaziele.",
+        "Grüner 10-Punkte-Plan für das Update der Energiewende"
+      ]
+    },
+    {
+      "id": "manual-at-klimaticket",
+      "collection": "oesterreich-gruene-system",
+      "query": "Klimaticket",
+      "rank": 1,
+      "topTitles": [
+        "Wahlprogramm Nationalratswahl 2024 der Grünen (Österreich)",
+        "EU-Wahlprogramm 2024 der Grünen (Österreich)",
+        "Grundsatzprogramm der Grünen (Österreich)"
+      ]
+    }
+  ]
+}
