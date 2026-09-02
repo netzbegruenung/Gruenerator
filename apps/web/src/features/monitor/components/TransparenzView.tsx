@@ -989,7 +989,8 @@ function SimpleView({ data }: { data: GetTransparencyStatsResponseDto }) {
                     die uns kein Anbieter einen Verbrauch meldet
                   </>
                 )}
-                {totals.speech_seconds > 0 && totals.transcriptions > 0 && <> — und </>}
+                {totals.speech_seconds > 0 &&
+                  (totals.transcriptions > 0 || totals.searches > 0) && <> — und </>}
                 {totals.speech_seconds > 0 && (
                   <>
                     {formatDuration(totals.speech_seconds)} vorgelesene Sprachausgabe, für die es
