@@ -7,8 +7,8 @@
  */
 
 import { createLogger } from '../../utils/logger.js';
+import { buildContextSummary } from '../search/contextSummary.js';
 import { rerankPipeline } from '../search/rerankPipeline.js';
-import { sourceTextForPrompt } from '../search/SearchResultProcessor.js';
 
 import type { ExpandedChunkResult, ReferencesMap } from '../search/types.js';
 
@@ -132,14 +132,4 @@ export async function rerankNotebookResults({
     contextSummary: buildContextSummary(renumberedMap),
     rerankTimeMs,
   };
-}
-
-function buildContextSummary(referencesMap: ReferencesMap): string {
-  return Object.keys(referencesMap)
-    .map((id) => {
-      const ref = referencesMap[id];
-      const collectionTag = ref.collection_name ? `[${ref.collection_name}] ` : '';
-      return `${id}. ${collectionTag}${ref.title} — "${sourceTextForPrompt(ref)}"`;
-    })
-    .join('\n');
 }

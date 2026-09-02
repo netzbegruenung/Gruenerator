@@ -63,10 +63,10 @@ function pickHistoryCitation(c: Record<string, unknown>): Record<string, unknown
 }
 
 /**
- * Conversation history for the wire — Ultra only. Prior messages travel as
- * `{role, content, citations?}`; `rawCitations` from the message metadata
- * (present after a live turn, a localStorage resume and a thread reload) let
- * the server merge previously cited sources into the new turn.
+ * Conversation history for the wire — every tier but `fast`. Prior messages
+ * travel as `{role, content, citations?}`; `rawCitations` from the message
+ * metadata (present after a live turn, a localStorage resume and a thread
+ * reload) let the server merge previously cited sources into the new turn.
  */
 function buildWireHistory(
   messages: ChatModelRunOptions['messages'],
@@ -183,6 +183,7 @@ interface StreamCompletionData {
   sources: Source[];
   allSources: unknown[];
   sourcesByCollection?: Record<string, unknown>;
+  metadata?: { traceId?: string };
 }
 
 export interface NotebookAdapterCallbacks {
@@ -261,11 +262,11 @@ export function createNotebookModelAdapter(
         console.warn('[Notebook] getExtraParams threw:', err);
       }
 
-      // Conversation history is an Ultra-tier capability. The server's depth
-      // profile is the authority (other tiers drop history explicitly); the
-      // client just avoids shipping payload the server would ignore.
-      const wireHistory =
-        config.mode === 'ultra' ? buildWireHistory(messages, lastUserMessage) : [];
+      // The server's depth profile is the authority on what happens to
+      // history (prompt inclusion is Ultra-only, `deep` rewrites the search
+      // query against it) — the client just avoids shipping payload no tier
+      // would use. `fast` (Grün-O-Mat) stays history-free.
+      const wireHistory = config.mode !== 'fast' ? buildWireHistory(messages, lastUserMessage) : [];
 
       const payload = {
         messages: [...wireHistory, { role: 'user', content: question }],
@@ -273,7 +274,6 @@ export function createNotebookModelAdapter(
           ? { collectionIds: config.collectionIds }
           : { collectionId: config.collectionId || config.collectionIds?.[0] }),
         ...(config.filters && { filters: config.filters }),
-        locale: config.locale,
         ...(config.mode && { mode: config.mode }),
         ...(config.documentIds?.length && { documentIds: config.documentIds }),
         ...(config.threadId && { threadId: config.threadId }),
@@ -353,6 +353,13 @@ export function createNotebookModelAdapter(
         if (linkConfigAccum) custom.linkConfig = linkConfigAccum;
         if (resultIdAccum) custom.resultId = resultIdAccum;
         if (sourcesByCollectionAccum) custom.sourcesByCollection = sourcesByCollectionAccum;
+        if (completionData?.metadata?.traceId) {
+          custom.streamMetadata = {
+            intent: 'direct',
+            searchCount: 0,
+            traceId: completionData.metadata.traceId,
+          };
+        }
         custom.question = question;
         custom.answerText = accumulatedText;
 
