@@ -11,6 +11,7 @@ import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import apiClient, { handleUnauthorized } from '../components/utils/apiClient';
+import { CHUNK_PAGE_SIZE } from '../features/admin/hooks/useChunkInspector';
 import {
   ChatPdfLetterheadExportHost,
   requestPdfLetterheadExport,
@@ -66,14 +67,15 @@ interface GlobalChatProviderProps {
 export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
   const userId = useAuthStore((s) => s.user?.id);
   const userName = useAuthStore((s) => s.user?.display_name);
+  const isInstanceAdmin = useAuthStore((s) => s.user?.is_admin === true);
   const navigate = useNavigate();
   const location = useLocation();
   const qaCollectionsLength = useNotebookStore((s) => s.qaCollections.length);
   const { enabledModelIds } = useModelPreferences({ enabled: !!userId });
 
   // Rollenwahl im Composer → Konto-Voreinstellung. Über einen Ref, weil
-  // `chatConfig` bewusst einmalig gebaut wird ([] als Abhängigkeiten) und die
-  // Mutation an den QueryClient dieses Renders gebunden ist.
+  // `chatConfig` nur bei einem Wechsel von `isInstanceAdmin` neu gebaut wird
+  // und die Mutation an den QueryClient dieses Renders gebunden ist.
   const setUserDefault = useSetUserDefault<'profile', 'activeRole'>();
   const setUserDefaultRef = useRef(setUserDefault);
   useEffect(() => {
@@ -171,6 +173,24 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
         return (await handleUnauthorized('chat')) === 'retry';
       },
       wolkeConnectUrl: '/settings/wolke',
+      // Nur für Instanz-Admins: die Rolle lebt in apps/web, die Route auch.
+      // packages/chat bekommt fertig entschieden, ob es etwas anzuzeigen gibt.
+      chunkInspectorHref: isInstanceAdmin
+        ? ({
+            documentId,
+            collectionId,
+            chunkIndex,
+          }: {
+            documentId: string;
+            collectionId: string;
+            chunkIndex: number;
+          }) => {
+            // Ohne offset öffnet die Seite immer bei 0 — der Anker `#chunk-N`
+            // trifft dann nur, wenn der Chunk zufällig auf der ersten Seite liegt.
+            const offset = Math.floor(chunkIndex / CHUNK_PAGE_SIZE) * CHUNK_PAGE_SIZE;
+            return `/admin/chunks/${encodeURIComponent(documentId)}?collection=${encodeURIComponent(collectionId)}&offset=${offset}#chunk-${chunkIndex}`;
+          }
+        : undefined,
       renderSharepic: renderSharepicToImage,
       runPython,
       onEditSharepic: (variant: SharepicVariant, opts?: { threadId: string | null }) => {
@@ -362,7 +382,7 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
         }
       },
     }),
-    []
+    [isInstanceAdmin]
   );
 
   return (

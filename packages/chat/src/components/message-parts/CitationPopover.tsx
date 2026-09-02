@@ -1,11 +1,12 @@
 'use client';
 
 import { Popover, PopoverContent, PopoverTrigger } from '@gruenerator/ui';
-import { FileText } from 'lucide-react';
+import { Microscope, FileText } from 'lucide-react';
 import { memo } from 'react';
 
 import { useCitationPanel } from '../../context/CitationPanelContext';
 import { getCollectionStyle } from '../../lib/collectionStyles';
+import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { CitationPreview } from '../tool-ui/citation/CitationPreview';
 import { SourceGlyph } from '../tool-ui/citation/SourceGlyph';
 import { useHoverPopover } from '../tool-ui/citation/useHoverPopover';
@@ -23,6 +24,7 @@ export const CitationBadge = memo(function CitationBadge({
 }: CitationBadgeProps) {
   const { open, setOpen, handleMouseEnter, handleMouseLeave } = useHoverPopover();
   const citationPanel = useCitationPanel();
+  const chunkInspectorHref = useChatConfigStore((s) => s.chunkInspectorHref);
 
   if (!citation) {
     // Numberless dot during streaming — the mid-stream IDs the LLM emits don't
@@ -37,6 +39,18 @@ export const CitationBadge = memo(function CitationBadge({
   }
 
   const collectionStyle = getCollectionStyle(citation.source);
+
+  // documentId/collectionId/chunkIndex sind optionale Felder (nur bei
+  // Notebook-/Dokument-Zitationen gesetzt, siehe chatCitationBase in
+  // packages/contracts/src/schemas/chatStreamEvents.ts). Deshalb echt
+  // verengen statt behaupten; das ersetzt zugleich die `!` unten.
+  const documentId = typeof citation.documentId === 'string' ? citation.documentId : null;
+  const collectionId = typeof citation.collectionId === 'string' ? citation.collectionId : null;
+  const chunkIndex = typeof citation.chunkIndex === 'number' ? citation.chunkIndex : null;
+  const inspectorHref =
+    documentId !== null && collectionId !== null && chunkIndex !== null && chunkInspectorHref
+      ? chunkInspectorHref({ documentId, collectionId, chunkIndex })
+      : null;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -74,17 +88,17 @@ export const CitationBadge = memo(function CitationBadge({
               : undefined
           }
           action={
-            citation.documentId && citation.chunkIndex != null && citation.collectionId ? (
-              <div className="flex justify-end">
+            documentId !== null && collectionId !== null && chunkIndex !== null ? (
+              <div className="flex justify-end gap-1">
                 <button
                   className="rounded-md p-1 text-foreground-muted transition-colors hover:bg-background-alt hover:text-foreground"
                   onClick={() => {
                     setOpen(false);
                     citationPanel.open({
-                      documentId: citation.documentId!,
+                      documentId,
                       documentTitle: citation.title || 'Dokument',
-                      chunkIndex: citation.chunkIndex!,
-                      collectionId: citation.collectionId!,
+                      chunkIndex,
+                      collectionId,
                       sourceUrl: citation.url || '',
                     });
                   }}
@@ -93,6 +107,18 @@ export const CitationBadge = memo(function CitationBadge({
                 >
                   <FileText className="h-4 w-4" />
                 </button>
+                {inspectorHref && (
+                  <a
+                    href={inspectorHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-md p-1 text-foreground-muted transition-colors hover:bg-background-alt hover:text-foreground"
+                    aria-label="Chunks ansehen"
+                    title="Chunks ansehen"
+                  >
+                    <Microscope className="h-4 w-4" />
+                  </a>
+                )}
               </div>
             ) : undefined
           }

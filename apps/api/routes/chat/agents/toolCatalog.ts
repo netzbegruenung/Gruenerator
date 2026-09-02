@@ -53,6 +53,7 @@ import {
   SLICE_DEFAULT_CHARS,
   SLICE_REGISTER_CHARS,
 } from '../services/agenticLoop/attachedDocuments.js';
+import { isLoopRerankEnabled } from '../services/agenticLoop/flags.js';
 import { isEditorSurface } from '../services/agenticLoop/routing.js';
 import {
   mentionsRecipes,
@@ -82,6 +83,7 @@ import {
 } from './domainTools.js';
 import { makeEditArtifactTool } from './editorTools.js';
 import { makeGroupsTool } from './groupTools.js';
+import { makeMemoryTool } from './memoryTools.js';
 import { makeNotebooksTool } from './notebookTools.js';
 import { makeReadPdfFormTool, makeFillPdfFormTool } from './pdfFormTools.js';
 import {
@@ -376,6 +378,10 @@ export function buildChatToolCatalog(params: {
       loop?.state.activeSkillMention,
       ...(recipeRegistry?.mentions ?? []),
     ],
+    // Chunk-Rerank vor der Gruppierung. Nur im Loop — der Einzelpfad rerankt
+    // danach in `rerankNode`, der Board-Agent gar nicht — und nur mit
+    // gesetztem Schalter: Default AUS bis zum Doppelmesslauf (#3120).
+    ...(loop != null && isLoopRerankEnabled() && { rerankSearchChunks: true }),
   });
 
   // Agents bound to their own corpus (the Landesverband agents and their
@@ -861,6 +867,12 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
     }
     if (state.enabledTools?.['notebooks'] !== false) {
       tools.notebooks = makeNotebooksTool(personalCtx);
+    }
+    // The person's explicit memory. Only with the profile switch on: with it
+    // off the prompt carries no GEDÄCHTNIS block either, and a tool that can
+    // save into a store nobody reads would be a lie in the other direction.
+    if (state.memoryEnabled && state.enabledTools?.['memory'] !== false) {
+      tools.memory = makeMemoryTool(personalCtx);
     }
     // Wiederkehrende Aufgaben (Agentura). Nicht breit montiert — das Schema
     // trägt den ganzen Takt-Block und kostet auf jedem Turn. Drei Tore:

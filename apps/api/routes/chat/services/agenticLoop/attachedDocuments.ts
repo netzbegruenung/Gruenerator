@@ -18,6 +18,8 @@ import {
   type MultiDocFanoutResult,
 } from '../../../../agents/langgraph/ChatGraph/nodes/searchNode.js';
 
+import { isLoopRerankEnabled } from './flags.js';
+
 import type {
   ChatGraphState,
   DocumentSource,
@@ -130,14 +132,21 @@ export async function retrieveAttachedDocuments(
 
   // Der einzige Abrufweg im Chat, bei dem nach der Gruppierung keine zweite
   // Rerank-Stufe mehr kommt: der Einzelpfad fährt `rerankNode`, Notebook und
-  // Recherche reranken auf Dokumentebene — hier steht danach EIN Treffer, und
-  // `rerankPipeline` überspringt bei ≤2 Items. Ohne das hier hat der Anhang-Pfad
-  // nie einen Cross-Encoder gesehen.
+  // Recherche reranken auf Dokumentebene — hier steht danach nur EIN Dokument
+  // (siehe `BaseSearchService.groupAndRankHybridResults`), eine zweite Stufe
+  // brächte also nichts. Das ist NICHT dasselbe wie „kein Cross-Encoder": der
+  // hier gesetzte `rerankChunks` bewertet CHUNKS vor der Gruppierung
+  // (`scoreChunksByCrossEncoder`, bis zu 30 je Dokument) und greift, sobald der
+  // Aufruf tatsächlich ankommt. Bis 03e297cca4 kam er nicht an — der Validator
+  // (`DocumentSearchService.search`) liess `rerankChunks` in den geschachtelten
+  // Optionen stillschweigend fallen, seit #2816. Deshalb hinter demselben Flag
+  // wie der Loop-Suchpfad: sonst würde dieser Bugfix den Anhang-Pfad
+  // unbemerkt vom „nie gemessen" in den vollen Produktionsbetrieb schalten.
   const fanout: MultiDocFanoutResult = await executeMultiDocFanout(
     query,
     sources,
     state.agentConfig,
-    { rerankChunks: true }
+    { ...(isLoopRerankEnabled() && { rerankChunks: true }) }
   );
   const flat = Object.values(fanout.perSourceResults).flat();
   flat.sort((a, b) => (b.relevance || 0) - (a.relevance || 0));

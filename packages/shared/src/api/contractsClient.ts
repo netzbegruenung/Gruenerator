@@ -46,6 +46,7 @@ import {
   letterheadsContract,
   notebookSharingContract,
   notificationsContract,
+  memoryContract,
   emailContract,
   feedbackContract,
   modelPreferencesContract,
@@ -62,6 +63,7 @@ import {
   userAgentsSharingContract,
   skillPromptContract,
   agentVisibilityContract,
+  chunkInspectorContract,
   skillVisibilityContract,
   instanceAdminOverviewContract,
   lvAdminAssignmentContract,
@@ -277,6 +279,7 @@ const _userWebsitesClient = () => initClient(userWebsitesContract, CLIENT_OPTS);
 const _letterheadsClient = () => initClient(letterheadsContract, CLIENT_OPTS);
 const _notebookSharingClient = () => initClient(notebookSharingContract, CLIENT_OPTS);
 const _notificationsClient = () => initClient(notificationsContract, CLIENT_OPTS);
+const _memoryClient = () => initClient(memoryContract, CLIENT_OPTS);
 const _emailClient = () => initClient(emailContract, CLIENT_OPTS);
 const _feedbackClient = () => initClient(feedbackContract, CLIENT_OPTS);
 const _modelPreferencesClient = () => initClient(modelPreferencesContract, CLIENT_OPTS);
@@ -293,6 +296,7 @@ const _userAgentsClient = () => initClient(userAgentsContract, CLIENT_OPTS);
 const _userAgentsSharingClient = () => initClient(userAgentsSharingContract, CLIENT_OPTS);
 const _skillPromptClient = () => initClient(skillPromptContract, CLIENT_OPTS);
 const _agentVisibilityClient = () => initClient(agentVisibilityContract, CLIENT_OPTS);
+const _chunkInspectorClient = () => initClient(chunkInspectorContract, CLIENT_OPTS);
 const _skillVisibilityClient = () => initClient(skillVisibilityContract, CLIENT_OPTS);
 const _instanceAdminOverviewClient = () => initClient(instanceAdminOverviewContract, CLIENT_OPTS);
 const _lvAdminAssignmentClient = () => initClient(lvAdminAssignmentContract, CLIENT_OPTS);
@@ -347,6 +351,7 @@ export interface ContractsClient {
   letterheads: ReturnType<typeof _letterheadsClient>;
   notebookSharing: ReturnType<typeof _notebookSharingClient>;
   notifications: ReturnType<typeof _notificationsClient>;
+  memory: ReturnType<typeof _memoryClient>;
   email: ReturnType<typeof _emailClient>;
   feedback: ReturnType<typeof _feedbackClient>;
   modelPreferences: ReturnType<typeof _modelPreferencesClient>;
@@ -363,6 +368,7 @@ export interface ContractsClient {
   userAgentsSharing: ReturnType<typeof _userAgentsSharingClient>;
   skillPrompt: ReturnType<typeof _skillPromptClient>;
   agentVisibility: ReturnType<typeof _agentVisibilityClient>;
+  chunkInspector: ReturnType<typeof _chunkInspectorClient>;
   skillVisibility: ReturnType<typeof _skillVisibilityClient>;
   instanceAdminOverview: ReturnType<typeof _instanceAdminOverviewClient>;
   lvAdminAssignment: ReturnType<typeof _lvAdminAssignmentClient>;
@@ -431,6 +437,7 @@ export function getContractsClient(): ContractsClient {
     letterheads: _letterheadsClient(),
     notebookSharing: _notebookSharingClient(),
     notifications: _notificationsClient(),
+    memory: _memoryClient(),
     email: _emailClient(),
     feedback: _feedbackClient(),
     modelPreferences: _modelPreferencesClient(),
@@ -447,6 +454,7 @@ export function getContractsClient(): ContractsClient {
     userAgentsSharing: _userAgentsSharingClient(),
     skillPrompt: _skillPromptClient(),
     agentVisibility: _agentVisibilityClient(),
+    chunkInspector: _chunkInspectorClient(),
     skillVisibility: _skillVisibilityClient(),
     instanceAdminOverview: _instanceAdminOverviewClient(),
     lvAdminAssignment: _lvAdminAssignmentClient(),

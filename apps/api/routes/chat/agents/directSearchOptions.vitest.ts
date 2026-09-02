@@ -134,3 +134,61 @@ describe('executeDirectExamplesSearch', () => {
     expect(result.examples[0]).toHaveProperty('relevance', 0.5);
   });
 });
+
+describe('executeDirectSearch — Chunk-Rerank', () => {
+  it('bestellt den Cross-Encoder nicht, wenn niemand ihn verlangt', async () => {
+    search.mockResolvedValue(okResponse);
+    await executeDirectSearch({ query: 'Klimaschutz' });
+    expect(search.mock.calls[0]?.[0].options).not.toHaveProperty('rerankChunks');
+  });
+
+  it('reicht rerankChunks an den Suchdienst durch', async () => {
+    search.mockResolvedValue(okResponse);
+    await executeDirectSearch({ query: 'Klimaschutz', rerankChunks: true });
+    expect(search.mock.calls[0]?.[0].options.rerankChunks).toBe(true);
+  });
+
+  /**
+   * min(min(12, 5) · 2, 80) = 10 → round(10 · 3,0) = 30 Chunks = exakt
+   * CHUNK_RERANK_POOL_MAX. Ohne die Klemme lägen bei limit 12 rund 72 Chunks
+   * an, von denen 42 ihren Kosinus behielten und im selben `sort` gegen
+   * Encoder-Werte anträten.
+   */
+  it('klemmt das an Qdrant gereichte Limit auf dem rerankten Pfad', async () => {
+    search.mockResolvedValue(okResponse);
+    await executeDirectSearch({ query: 'Klimaschutz', limit: 12, rerankChunks: true });
+    expect(search.mock.calls[0]?.[0].options.limit).toBe(10);
+  });
+
+  it('lässt das Limit ohne Rerank unangetastet', async () => {
+    search.mockResolvedValue(okResponse);
+    await executeDirectSearch({ query: 'Klimaschutz', limit: 12 });
+    expect(search.mock.calls[0]?.[0].options.limit).toBe(24);
+  });
+
+  it('klemmt ein kleines Limit nicht nach oben', async () => {
+    search.mockResolvedValue(okResponse);
+    await executeDirectSearch({ query: 'Klimaschutz', limit: 3, rerankChunks: true });
+    expect(search.mock.calls[0]?.[0].options.limit).toBe(6);
+  });
+});
+
+describe('executeDirectSearch — Degradations-Marker', () => {
+  it('trägt einen ausgefallenen Cross-Encoder ans Ergebnis', async () => {
+    search.mockResolvedValue({ ...okResponse, metadata: { rerankDegraded: true } });
+    const result = await executeDirectSearch({ query: 'Klimaschutz', rerankChunks: true });
+    expect(result.rerankDegraded).toBe(true);
+  });
+
+  it('setzt das Feld gar nicht, wenn der Encoder geliefert hat', async () => {
+    search.mockResolvedValue({ ...okResponse, metadata: { cached: false } });
+    const result = await executeDirectSearch({ query: 'Klimaschutz', rerankChunks: true });
+    expect(result).not.toHaveProperty('rerankDegraded');
+  });
+
+  it('setzt das Feld gar nicht, wenn niemand rerankt hat', async () => {
+    search.mockResolvedValue(okResponse);
+    const result = await executeDirectSearch({ query: 'Klimaschutz' });
+    expect(result).not.toHaveProperty('rerankDegraded');
+  });
+});

@@ -638,3 +638,23 @@ describe('wrapToolsForLoop — Freigabe-Gate', () => {
     expect(steps).toHaveLength(1);
   });
 });
+
+describe('wrapToolsForLoop — interne Felder', () => {
+  it('entfernt rerankDegraded aus dem Modell-Ergebnis, meldet es aber an den Hook', async () => {
+    const seen: unknown[] = [];
+    const { ctx } = makeCtx({ hooks: { afterToolCall: (e) => seen.push(e.result) } });
+    const tools = wrapToolsForLoop(
+      {
+        gruenerator_search: {
+          execute: () => Promise.resolve({ results: [], rerankDegraded: true }),
+        },
+      } as unknown as ToolSet,
+      ctx
+    );
+
+    const out = (await run(tools, 'gruenerator_search', { query: 'x' })) as Record<string, unknown>;
+
+    expect(out).not.toHaveProperty('rerankDegraded');
+    expect(seen[0]).toMatchObject({ rerankDegraded: true });
+  });
+});

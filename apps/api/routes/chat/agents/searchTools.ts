@@ -217,6 +217,18 @@ export interface CreateSearchToolsOptions {
    * einstufigen Pfad beschränkt.
    */
   activeRecipeMentions?: () => readonly (string | null | undefined)[];
+  /**
+   * Sollen die Dokumentsuchen dieses Turns ihre Chunks VOR der Gruppierung vom
+   * Cross-Encoder bewerten lassen? Gesetzt ausschliesslich vom Werkzeugkatalog
+   * des agentischen Loops und nur bei LOOP_RERANK_ENABLED=true. Der zweite
+   * Aufrufer dieser Fabrik — der Board-Agent
+   * (`services/boards/agentFlow/generate.ts:167`) — setzt es nicht und bleibt
+   * unberührt.
+   *
+   * Der Name weicht bewusst vom durchgereichten `rerankChunks` ab: hier ist es
+   * eine Aussage über den TURN, eine Ebene tiefer über den AUFRUF.
+   */
+  rerankSearchChunks?: boolean;
 }
 
 /**
@@ -314,14 +326,18 @@ async function searchCollectionOrBundle(params: {
   query: string;
   collection: string;
   limit: number;
+  rerankChunks?: boolean;
 }): Promise<DirectSearchResult> {
-  const { query, collection, limit } = params;
+  const { query, collection, limit, rerankChunks } = params;
+  // Einmal gebaut, in BEIDE Zweige gespreizt: ein Bündel, das den Reranker
+  // verliert, sieht im Ergebnis genauso aus wie eines, das ihn hat.
+  const rerank = rerankChunks === true ? { rerankChunks: true as const } : {};
   const members = COLLECTION_BUNDLES[collection];
-  if (!members) return executeDirectSearch({ query, collection, limit });
+  if (!members) return executeDirectSearch({ query, collection, limit, ...rerank });
 
   // Each member is asked for the full limit; the merge below is what narrows.
   const parts = await Promise.all(
-    members.map((member) => executeDirectSearch({ query, collection: member, limit }))
+    members.map((member) => executeDirectSearch({ query, collection: member, limit, ...rerank }))
   );
   const merged = deduplicateByUrl(
     parts.flatMap((p) => p.results),
@@ -337,6 +353,10 @@ async function searchCollectionOrBundle(params: {
     searchMode: parts[0]?.searchMode ?? 'hybrid',
     resultsCount: merged.length,
     results: merged,
+    // Umgekehrter Quantor zur Zeile darunter, mit Absicht: ein Bündel ist
+    // degradiert, sobald EIN Mitglied es war (dann ist die halbe Liste
+    // kosinus-sortiert) — es ist aber erst gescheitert, wenn ALLE scheiterten.
+    ...(parts.some((p) => p.rerankDegraded) ? { rerankDegraded: true } : {}),
     // A bundle fails only when EVERY member failed; one dead corpus next to a
     // live one is a partial result, not an error.
     ...(parts.every((p) => p.error) ? { error: true } : {}),
@@ -478,7 +498,12 @@ NICHT FÜR: Aktuelle Nachrichten, Personen-Infos, allgemeine Web-Suche`,
             query,
           };
         }
-        return await searchCollectionOrBundle({ query, collection, limit });
+        return await searchCollectionOrBundle({
+          query,
+          collection,
+          limit,
+          ...(options.rerankSearchChunks === true && { rerankChunks: true }),
+        });
       } catch (error) {
         log.error('Direct search error:', error);
         return { error: 'Suche fehlgeschlagen', results: [], collection, query };

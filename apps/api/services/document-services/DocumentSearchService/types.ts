@@ -227,6 +227,42 @@ export interface DocumentChunkItem {
   pageNumber?: number | null | undefined;
 }
 
+/** Ein Chunk, wie der Inspektor ihn zeigt — nur, was im Punkt liegt. */
+export interface InspectedChunkRow {
+  index: number;
+  page: number | null;
+  text: string;
+  charCount: number;
+  tokenCount: number | null;
+  qualityScore: number | null;
+  hasTable: boolean;
+  embeddingPresent: boolean;
+  sparsePresent: boolean;
+}
+
+/**
+ * Was die Nutzlast über das Dokument als Ganzes sagt. Für Systemsammlungen ist
+ * das die EINZIGE Quelle: dort gibt es keine `documents`-Zeile in Postgres.
+ */
+export interface InspectedPayloadSummary {
+  title: string | null;
+  filename: string | null;
+  sourceUrl: string | null;
+  sourceType: string | null;
+  extractionMethod: string | null;
+  createdAt: string | null;
+  maxPage: number | null;
+}
+
+export interface InspectDocumentChunksResult {
+  success: boolean;
+  chunks: InspectedChunkRow[];
+  chunkCount: number;
+  nextOffset: number | null;
+  payload: InspectedPayloadSummary | null;
+  error: string | null;
+}
+
 /**
  * Result of retrieving individual chunks for a document
  */

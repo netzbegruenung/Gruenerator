@@ -6,10 +6,11 @@
  *   pnpm --filter @gruenerator/api eval:retrieval
  *
  * Env:
- *   EVAL_PIPELINE    qa (default) | manual — see below
+ *   EVAL_PIPELINE    qa (default) | manual | notebook — see below
  *   EVAL_COLLECTION  only run cases for this collection id (substring match)
  *   EVAL_FILTER      only run cases whose id contains this substring
- *   EVAL_DEPTH       depth profile: fast | deep | ultra (default fast), qa only
+ *   EVAL_DEPTH       depth profile: fast | deep | ultra (default fast;
+ *                    notebook defaults to deep, the production notebook default)
  *   EVAL_RERANK=1    additionally score the post-rerank ranking (Regolo), qa only
  *   EVAL_RERANK_EXCERPT  what the cross-encoder gets to read. Needs EVAL_RERANK=1.
  *                      off (default) — `relevant_content` whole, up to
@@ -30,15 +31,42 @@
  *                    and differ only in WHICH ones. Measuring either against
  *                    `off` measures window size instead, which is a different
  *                    question (and has a different answer — see #2824).
+ *   EVAL_LOOP_RERANK  dreiwertig, qa only. unset (default) — heutiger Lauf,
+ *                    byte-identisch zur historischen Basis. `0` — loop-förmige
+ *                    Suche OHNE Rerank: dasselbe geklemmte `limit` wie der
+ *                    agentische Loop (`executeDirectSearch`s exportiertes
+ *                    RERANK_LIMIT_CLAMP + OVERFETCH_CEILING, hier direkt
+ *                    importiert statt gespiegelt), aber ohne `rerankChunks`.
+ *                    `1` — dieselbe loop-förmige
+ *                    Suche MIT `rerankChunks: true`, also mit dem Cross-Encoder
+ *                    VOR der Gruppierung — der Pfad, den der agentische Loop
+ *                    hinter LOOP_RERANK_ENABLED fährt (#3120). `0` und `1`
+ *                    benutzen absichtlich dasselbe Limit, damit sie sich nur
+ *                    im Rerank unterscheiden und nicht auch in der Trefferbreite
+ *                    — sonst würde ein grösserer Kandidatenpool den Effekt des
+ *                    Rerankens vortäuschen oder verdecken. Orthogonal zu
+ *                    EVAL_RERANK: das ist der Dokument-Rerank NACH der
+ *                    Gruppierung. Beide zusammen wären zwei Stufen und messen
+ *                    nichts, was in der Produktion vorkommt.
+ *                    Die Encoder-Zeit ist von hier nicht direkt sichtbar (der
+ *                    Aufruf sitzt im Dienst), deshalb misst `searchTimeMs` die
+ *                    Wanduhr je Suche; die Differenz der Mediane zwischen einem
+ *                    Lauf mit und einem ohne den Arm ist die Kostenzahl.
  *   EVAL_CASE_KIND   run another kind's cases through the chosen pipeline
  *   EVAL_VERBOSE=1   print top-5 titles for every miss (gold-label curation)
  *   EVAL_OUT         write per-case results as JSON to this path
  *
- * Two pipelines, because the product has two: `qa` is the notebook Q&A path
- * (depth profile + optional rerank), `manual` is the notebook search field
- * (`/api/research/search` params, then the real `rankManualSearchResults` the
- * route runs — not a copy of it, so the eval cannot drift away from the code
- * it measures). `manual` defaults to the `kind: 'manual'` cases.
+ * Three pipelines, because the product has three: `qa` is the notebook Q&A
+ * search (depth profile + optional rerank), `manual` is the notebook search
+ * field (`/api/research/search` params, then the real `rankManualSearchResults`
+ * the route runs — not a copy of it, so the eval cannot drift away from the
+ * code it measures), `notebook` is the notebook-scope Q&A path: the real
+ * `NotebookQAService.getSearchContext` with per-case scope (system collection,
+ * multi-collection, or a synthetic user notebook stubbed via `getCollectionFn`
+ * / `getDocumentIdsFn`). Its query construction mirrors `notebookStreamCore`
+ * — if that changes (e.g. the history-aware rewrite of the verbesserungsplan),
+ * the mirror below must follow. Each pipeline defaults to its own `kind`
+ * cases.
  *
  * A case scores at rank r when the first matching result appears at position
  * r (1-based). Metrics: Hit@1 / Hit@3 / Hit@5, MRR@10 — per collection and
@@ -60,10 +88,16 @@ const { getSearchParams, getSystemCollectionConfig, applyDefaultFilter } =
   await import('../../config/systemCollectionsConfig.js');
 const { DocumentSearchService } =
   await import('../../services/document-services/DocumentSearchService/index.js');
+const { RERANK_LIMIT_CLAMP, OVERFETCH_CEILING } =
+  await import('../../routes/chat/agents/directSearchExecutors.js');
 const { rerankPipeline } = await import('../../services/search/rerankPipeline.js');
 const { selectRelevantExcerpt } = await import('../../services/search/relevantExcerpt.js');
 const { vectorConfig } = await import('../../config/vectorConfig.js');
 const { rankManualSearchResults } = await import('../../services/search/manualSearchRanking.js');
+const { notebookQAService } = await import('../../services/notebook/NotebookQAService.js');
+const { normalizeNotebookHistory, buildRewriteTranscript } =
+  await import('../../routes/chat/services/notebookHistoryService.js');
+const { expandQuery } = await import('../../services/search/QueryExpansionService.js');
 
 const { RETRIEVAL_CASES } = await import('./cases.js');
 
@@ -119,6 +153,18 @@ const MANUAL_TEXT_WEIGHT = 0.3;
 const MANUAL_RESULT_LIMIT = 30;
 const MANUAL_MIN_SCORE = 0.35;
 
+/**
+ * The limit the loop's `executeDirectSearch` would actually send to Qdrant —
+ * same `qdrantLimit` formula, against the real `RERANK_LIMIT_CLAMP` /
+ * `OVERFETCH_CEILING` imported above instead of a mirrored copy. Applied to
+ * BOTH loop-shaped arms (`EVAL_LOOP_RERANK=0` and `=1`), never only to the
+ * reranked one, so the two differ solely in the rerank flag and never in
+ * recall width.
+ */
+function loopShapedLimit(limit: number): number {
+  return Math.min(Math.min(limit, RERANK_LIMIT_CLAMP) * 2, OVERFETCH_CEILING);
+}
+
 interface CaseOutcome {
   id: string;
   collection: string;
@@ -129,11 +175,20 @@ interface CaseOutcome {
   rerankTimeMs?: number;
   /** Wie viele Kandidaten er dafür bewerten musste. */
   rerankBatch?: number;
+  /** Wanduhr des Suchaufrufs. Gepaart über zwei Läufe = Kosten des Encoders. */
+  searchTimeMs?: number;
   topTitles: string[];
   error?: string;
 }
 
-function firstMatchRank(results: DocumentResult[], evalCase: RetrievalCase): number | null {
+/** Structural minimum: `DocumentResult` and `ExpandedChunkResult` both satisfy it. */
+type ScoredResult = {
+  title?: string | null | undefined;
+  filename?: string | null | undefined;
+  source_url?: string | null | undefined;
+};
+
+function firstMatchRank(results: ScoredResult[], evalCase: RetrievalCase): number | null {
   for (let i = 0; i < results.length; i++) {
     const title = results[i].title || results[i].filename || '';
     const url = results[i].source_url || '';
@@ -152,7 +207,9 @@ async function runCase(
   evalCase: RetrievalCase,
   depth: NotebookDepth,
   withRerank: boolean,
-  excerptMode: ExcerptArm
+  excerptMode: ExcerptArm,
+  loopShaped: boolean,
+  withChunkRerank: boolean
 ): Promise<CaseOutcome> {
   const config = getSystemCollectionConfig(evalCase.collection);
   if (!config) {
@@ -169,13 +226,15 @@ async function runCase(
   const profile = getNotebookDepthProfile(depth);
   const searchParams = applyDepthProfile(getSearchParams(evalCase.collection), profile);
   const additionalFilter = applyDefaultFilter(evalCase.collection, undefined);
+  const effectiveLimit = loopShaped ? loopShapedLimit(searchParams.limit) : searchParams.limit;
 
   try {
+    const searchStartedAt = Date.now();
     const resp = await searchService.search({
       query: evalCase.query,
       userId: undefined,
       options: {
-        limit: searchParams.limit,
+        limit: effectiveLimit,
         mode: searchParams.mode,
         vectorWeight: searchParams.vectorWeight,
         textWeight: searchParams.textWeight,
@@ -184,8 +243,10 @@ async function runCase(
         recallLimit: searchParams.recallLimit,
         qualityMin: searchParams.qualityMin,
         additionalFilter,
+        ...(withChunkRerank && { rerankChunks: true }),
       },
     } as Parameters<DocumentSearchService['search']>[0]);
+    const searchTimeMs = Date.now() - searchStartedAt;
 
     if (resp.success === false) {
       return {
@@ -205,6 +266,7 @@ async function runCase(
       query: evalCase.query,
       rank: firstMatchRank(results, evalCase),
       topTitles: results.slice(0, 5).map((r) => r.title || r.filename || r.source_url || '?'),
+      searchTimeMs,
     };
 
     if (withRerank && results.length > 2) {
@@ -306,6 +368,85 @@ async function runManualCase(
   }
 }
 
+/**
+ * The notebook-scope Q&A path: `NotebookQAService.getSearchContext`, scored on
+ * `sortedResults`. Mirrors the query construction of `notebookStreamCore`
+ * (history-aware rewrite when the profile allows it and history is present,
+ * variant expansion only for multi-variant profiles) — keep this copy in sync
+ * if that code changes. It only searches, so it needs no prompt-history
+ * variable — `meta.history` feeds the rewrite regardless of `profile.history`.
+ */
+async function runNotebookCase(
+  evalCase: RetrievalCase,
+  depth: NotebookDepth
+): Promise<CaseOutcome> {
+  const base: CaseOutcome = {
+    id: evalCase.id,
+    collection: evalCase.collection,
+    query: evalCase.query,
+    rank: null,
+    topTitles: [],
+  };
+  const meta = evalCase.notebook;
+  if (!meta) {
+    return { ...base, error: `notebook case without notebook meta: ${evalCase.id}` };
+  }
+
+  const profile = getNotebookDepthProfile(depth);
+  const messages: Array<{ role: 'user' | 'assistant'; content: string }> = [
+    ...(meta.history ?? []),
+    { role: 'user', content: evalCase.query },
+  ];
+  const lastUserIdx = messages.length - 1;
+  const incomingHistory = normalizeNotebookHistory(messages.slice(0, lastUserIdx));
+  let queries = [evalCase.query];
+  const wantsRewrite = profile.queryRewrite && incomingHistory.length > 0;
+  if (wantsRewrite || profile.queryVariants > 1) {
+    const expanded = await expandQuery(
+      evalCase.query,
+      wantsRewrite
+        ? {
+            historyContext: buildRewriteTranscript(incomingHistory),
+            ...(profile.queryVariants <= 1 && { variants: 0 }),
+          }
+        : {}
+    );
+    queries = [expanded.primary, ...expanded.alternatives].slice(
+      0,
+      Math.max(1, profile.queryVariants)
+    );
+  }
+
+  const user = meta.user;
+  try {
+    const ctx = await notebookQAService.getSearchContext({
+      question: evalCase.query,
+      // A user case reaches the single-collection path through the stubbed
+      // collection id, not through a system id.
+      collectionId: meta.collectionId ?? user?.collectionId,
+      ...(meta.collectionIds && { collectionIds: meta.collectionIds }),
+      userId: 'SYSTEM',
+      depth,
+      queries,
+      ...(user && {
+        getCollectionFn: async (id: string) =>
+          id === user.collectionId ? { name: user.name, user_id: 'SYSTEM' } : null,
+        getDocumentIdsFn: async (id: string) => (id === user.collectionId ? user.documentIds : []),
+      }),
+    });
+
+    const results = ctx?.sortedResults ?? [];
+    return {
+      ...base,
+      rank: firstMatchRank(results, evalCase),
+      topTitles: results.slice(0, 5).map((r) => r.title || r.source_url || '?'),
+      ...(ctx === null && { error: 'search returned no results' }),
+    };
+  } catch (error) {
+    return { ...base, error: (error as Error).message };
+  }
+}
+
 function computeMetrics(outcomes: CaseOutcome[], rankOf: (o: CaseOutcome) => number | null) {
   const n = outcomes.length;
   const hits = Object.fromEntries(HIT_KS.map((k) => [k, 0])) as Record<number, number>;
@@ -325,9 +466,17 @@ function computeMetrics(outcomes: CaseOutcome[], rankOf: (o: CaseOutcome) => num
 }
 
 async function main() {
-  const pipeline = process.env.EVAL_PIPELINE === 'manual' ? 'manual' : 'qa';
-  const depth = (process.env.EVAL_DEPTH || 'fast') as NotebookDepth;
+  const pipelineEnv = process.env.EVAL_PIPELINE;
+  const pipeline = pipelineEnv === 'manual' || pipelineEnv === 'notebook' ? pipelineEnv : 'qa';
+  const depth = (process.env.EVAL_DEPTH ||
+    (pipeline === 'notebook' ? 'deep' : 'fast')) as NotebookDepth;
   const withRerank = process.env.EVAL_RERANK === '1';
+  // Three-valued: unset keeps today's run byte-identical to the historical
+  // baseline; '0' and '1' both run the loop-shaped limit (see
+  // `loopShapedLimit`) and differ only in whether rerankChunks fires.
+  const loopRerankEnv = process.env.EVAL_LOOP_RERANK;
+  const loopShaped = loopRerankEnv === '0' || loopRerankEnv === '1';
+  const withChunkRerank = loopRerankEnv === '1';
   const excerptMode = (process.env.EVAL_RERANK_EXCERPT ?? 'off') as ExcerptArm;
   const verbose = process.env.EVAL_VERBOSE === '1';
   const collectionFilter = process.env.EVAL_COLLECTION;
@@ -348,10 +497,18 @@ async function main() {
     process.exit(1);
   }
 
+  // Same for every qa case at this depth (`applyDepthProfile` overwrites
+  // `limit` with the depth's fixed `searchLimit` regardless of collection).
+  const loopLimit = loopShaped ? loopShapedLimit(getNotebookDepthProfile(depth).searchLimit) : null;
+
   const modeLabel =
     pipeline === 'manual'
       ? 'manual search'
-      : `depth=${depth}${withRerank ? `, +rerank(${excerptMode})` : ''}`;
+      : pipeline === 'notebook'
+        ? `notebook getSearchContext depth=${depth}`
+        : `depth=${depth}${withRerank ? `, +rerank(${excerptMode})` : ''}${
+            loopShaped ? `, loopLimit=${loopLimit}` : ''
+          }${withChunkRerank ? ', +chunkRerank' : ''}`;
   console.log(
     `Running ${cases.length} retrieval cases (${modeLabel}) against ${process.env.QDRANT_URL || 'QDRANT_URL unset!'}`
   );
@@ -362,7 +519,17 @@ async function main() {
     const outcome =
       pipeline === 'manual'
         ? await runManualCase(searchService, evalCase)
-        : await runCase(searchService, evalCase, depth, withRerank, excerptMode);
+        : pipeline === 'notebook'
+          ? await runNotebookCase(evalCase, depth)
+          : await runCase(
+              searchService,
+              evalCase,
+              depth,
+              withRerank,
+              excerptMode,
+              loopShaped,
+              withChunkRerank
+            );
     outcomes.push(outcome);
     const rankLabel = outcome.error
       ? `ERROR ${outcome.error}`
@@ -396,6 +563,20 @@ async function main() {
     `${'GESAMT'.padEnd(28)} n=${String(outcomes.length).padStart(2)}  ${computeMetrics(outcomes, (o) => o.rank).line}`
   );
 
+  const searchTimings = outcomes
+    .map((o) => o.searchTimeMs)
+    .filter((t): t is number => typeof t === 'number')
+    .sort((a, b) => a - b);
+  if (searchTimings.length > 0) {
+    const at = (q: number): number =>
+      searchTimings[
+        Math.min(searchTimings.length - 1, Math.floor((searchTimings.length - 1) * q))
+      ] ?? 0;
+    console.log(
+      `\n── Wanduhr je Suche ──\nn=${searchTimings.length}  Median ${at(0.5)} ms  p90 ${at(0.9)} ms  max ${searchTimings[searchTimings.length - 1]} ms`
+    );
+  }
+
   if (withRerank) {
     console.log('\n── Ergebnisse (nach Rerank) ──');
     console.log(
@@ -428,7 +609,17 @@ async function main() {
   if (process.env.EVAL_OUT) {
     writeFileSync(
       process.env.EVAL_OUT,
-      JSON.stringify({ pipeline, depth, withRerank, outcomes }, null, 2)
+      JSON.stringify(
+        {
+          pipeline,
+          depth,
+          withRerank,
+          ...(pipeline === 'qa' && loopShaped && { withChunkRerank, loopLimit }),
+          outcomes,
+        },
+        null,
+        2
+      )
     );
     console.log(`\nErgebnisse geschrieben: ${process.env.EVAL_OUT}`);
   }
