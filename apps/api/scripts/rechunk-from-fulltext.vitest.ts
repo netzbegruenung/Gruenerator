@@ -6,11 +6,15 @@ import {
   leftoverPointIds,
   parseArgs,
   pointIdRecipeFor,
+  processDocument,
   rebuildChunkPayload,
   summarizeOutcomes,
   upsertBatches,
+  type DocumentGroup,
   type DocumentOutcome,
+  type RechunkDeps,
   type RechunkPoint,
+  type RunOptions,
 } from './rechunk-from-fulltext.js';
 
 import { type Chunk, type ChunkMetadata } from '../services/document-services/TextChunker/types.js';
@@ -427,5 +431,165 @@ describe('summarizeOutcomes', () => {
     expect(summary.alreadyRechunked).toBe(1);
     expect(summary.noChunks).toBe(1);
     expect(summary.processed).toBe(0);
+  });
+});
+
+interface Recorded {
+  calls: string[];
+  upserted: RechunkPoint[];
+  deleted: Array<string | number>;
+  embedded: string[];
+}
+
+function fakeDeps(chunks: Chunk[]): { deps: RechunkDeps; log: Recorded } {
+  const log: Recorded = { calls: [], upserted: [], deleted: [], embedded: [] };
+  const deps: RechunkDeps = {
+    chunk: async () => chunks,
+    embed: async (texts) => {
+      log.calls.push(`embed:${texts.length}`);
+      log.embedded.push(...texts);
+      return texts.map((_, i) => [i / 10]);
+    },
+    quality: () => 0.75,
+    upsert: async (_collection, points) => {
+      log.calls.push(`upsert:${points.length}`);
+      log.upserted.push(...points);
+    },
+    deletePoints: async (_collection, ids) => {
+      log.calls.push(`delete:${ids.length}`);
+      log.deleted.push(...ids);
+    },
+    now: () => NOW,
+  };
+  return { deps, log };
+}
+
+const RUN: RunOptions = { dryRun: false, onlyStructured: false, resume: false };
+
+function lvDoc(over: Partial<DocumentGroup> = {}): DocumentGroup {
+  return {
+    key: 'https://www.gruene-bw.de/beschluss.pdf',
+    headPayload: { ...HEAD_PAYLOAD, full_text: 'NEUER VOLLTEXT' },
+    pointIds: [],
+    ...over,
+  };
+}
+
+function structuredChunks(n: number): Chunk[] {
+  return Array.from({ length: n }, (_, i) => ({
+    text: `Chunk ${i}`,
+    index: i,
+    tokens: 5,
+    metadata: { chunkingMethod: 'structure-blocks', headingPath: ['Kapitel 1'] },
+  }));
+}
+
+describe('processDocument', () => {
+  const recipe = pointIdRecipeFor('landesverbaende_documents')!;
+
+  it('schreibt zuerst und löscht erst danach', async () => {
+    const { deps, log } = fakeDeps(structuredChunks(2));
+    const doc = lvDoc({
+      pointIds: [
+        recipe.id('https://www.gruene-bw.de/beschluss.pdf', 0),
+        recipe.id('https://www.gruene-bw.de/beschluss.pdf', 1),
+        recipe.id('https://www.gruene-bw.de/beschluss.pdf', 2),
+      ],
+    });
+
+    const outcome = await processDocument(deps, 'landesverbaende_documents', recipe, doc, RUN);
+
+    // Der Kopf-Punkt trägt full_text und geht allein; danach der Rest; erst dann löschen.
+    expect(log.calls).toEqual(['embed:2', 'upsert:1', 'upsert:1', 'delete:1']);
+    expect(log.deleted).toEqual([recipe.id('https://www.gruene-bw.de/beschluss.pdf', 2)]);
+    expect(outcome.written).toBe(2);
+    expect(outcome.deleted).toBe(1);
+  });
+
+  it('vergibt die IDs nach dem Rezept der Sammlung, nicht laufend', async () => {
+    const { deps, log } = fakeDeps(structuredChunks(3));
+
+    await processDocument(deps, 'landesverbaende_documents', recipe, lvDoc(), RUN);
+
+    expect(log.upserted.map((p) => p.id)).toEqual([
+      recipe.id('https://www.gruene-bw.de/beschluss.pdf', 0),
+      recipe.id('https://www.gruene-bw.de/beschluss.pdf', 1),
+      recipe.id('https://www.gruene-bw.de/beschluss.pdf', 2),
+    ]);
+  });
+
+  it('löscht nichts, wenn die neue Menge die alte abdeckt', async () => {
+    const { deps, log } = fakeDeps(structuredChunks(3));
+    const doc = lvDoc({ pointIds: [recipe.id('https://www.gruene-bw.de/beschluss.pdf', 0)] });
+
+    const outcome = await processDocument(deps, 'landesverbaende_documents', recipe, doc, RUN);
+
+    expect(log.calls.filter((c) => c.startsWith('delete'))).toEqual([]);
+    expect(outcome.deleted).toBe(0);
+  });
+
+  it('bettet Titel und Überschriftenpfad vor den Chunk', async () => {
+    const { deps, log } = fakeDeps(structuredChunks(1));
+
+    await processDocument(deps, 'landesverbaende_documents', recipe, lvDoc(), RUN);
+
+    expect(log.embedded[0]).toContain('Beschluss Wärmewende');
+    expect(log.embedded[0]).toContain('Kapitel 1');
+    expect(log.embedded[0]).toContain('Chunk 0');
+  });
+
+  it('überspringt ein Dokument ohne full_text — zählt es und holt es nie nach', async () => {
+    const { deps, log } = fakeDeps(structuredChunks(3));
+    const doc = lvDoc({ headPayload: { ...HEAD_PAYLOAD, full_text: undefined }, pointIds: [1, 2] });
+
+    const outcome = await processDocument(deps, 'landesverbaende_documents', recipe, doc, RUN);
+
+    expect(outcome.skipped).toBe('no_full_text');
+    expect(outcome.oldChunks).toBe(2);
+    expect(log.calls).toEqual([]);
+  });
+
+  it('schreibt im Dry-Run nichts, misst aber die Chunk-Zahl', async () => {
+    const { deps, log } = fakeDeps(structuredChunks(5));
+
+    const outcome = await processDocument(deps, 'landesverbaende_documents', recipe, lvDoc(), {
+      ...RUN,
+      dryRun: true,
+    });
+
+    expect(log.calls).toEqual([]);
+    expect(outcome.newChunks).toBe(5);
+    expect(outcome.structured).toBe(true);
+    expect(outcome.written).toBe(0);
+  });
+
+  it('überspringt mit --only-structured das Dokument, das auf den Fließtext-Pfad fällt', async () => {
+    const prosa: Chunk[] = [
+      { text: 'a', index: 0, tokens: 1, metadata: { chunkingMethod: 'sentences' } },
+    ];
+    const { deps, log } = fakeDeps(prosa);
+
+    const outcome = await processDocument(deps, 'landesverbaende_documents', recipe, lvDoc(), {
+      ...RUN,
+      onlyStructured: true,
+    });
+
+    expect(outcome.skipped).toBe('fast_path');
+    expect(log.calls).toEqual([]);
+  });
+
+  it('überspringt mit --resume ein Dokument, dessen Kopf rechunked_at trägt', async () => {
+    const { deps, log } = fakeDeps(structuredChunks(2));
+    const doc = lvDoc({
+      headPayload: { ...HEAD_PAYLOAD, full_text: 'x', rechunked_at: '2026-09-02T09:00:00.000Z' },
+    });
+
+    const outcome = await processDocument(deps, 'landesverbaende_documents', recipe, doc, {
+      ...RUN,
+      resume: true,
+    });
+
+    expect(outcome.skipped).toBe('already_rechunked');
+    expect(log.calls).toEqual([]);
   });
 });
