@@ -1098,6 +1098,39 @@ class NotebookQdrantHelper {
   }
 
   /**
+   * Whether `documentId` is linked to `collectionId` — a single-membership
+   * check for callers that must confirm attachment before acting on a
+   * document as if it were part of a given notebook (e.g. before scoping a
+   * search to it). Errors are rethrown rather than answered as "not linked":
+   * silently treating a Qdrant hiccup as a definite miss would look identical
+   * to a real absence to the caller.
+   */
+  async isDocumentInCollection(collectionId: string, documentId: string): Promise<boolean> {
+    await this.ensureInitialized();
+
+    try {
+      const filter: QdrantFilter = {
+        must: [
+          { key: 'collection_id', match: { value: collectionId } },
+          { key: 'document_id', match: { value: documentId } },
+        ],
+      };
+
+      const results = await this.qdrantOps!.scrollDocuments(
+        this.qdrant.collections.notebook_collection_documents,
+        filter,
+        { limit: 1, withPayload: false }
+      );
+
+      return results.length > 0;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error(`Error checking document-collection membership: ${message}`);
+      throw error;
+    }
+  }
+
+  /**
    * Get public access by token
    *
    * Token creation/revocation was removed when the notebook share model moved
