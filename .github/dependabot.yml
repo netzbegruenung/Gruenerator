@@ -74,6 +74,18 @@ updates:
     groups:
       # Toolchain packages must move monorepo-wide in ONE PR — a partial bump
       # desyncs the shared lint/type config across workspaces.
+      #
+      # `typescript-eslint` (the bare meta-package) is listed on its own because
+      # NONE of the other patterns reach it: 'typescript' is an exact match,
+      # 'eslint-*' is a prefix, '@typescript-eslint/*' is scoped. Without the
+      # line it fell into minor-patch and stayed behind while eslint-plugin and
+      # parser moved, which is how #3069 shipped 8.67.0 and 8.68.0 side by side.
+      # Under node-linker=hoisted the older tree nests under
+      # node_modules/typescript-eslint/node_modules/ and picks up the stale
+      # ts-api-utils@1.4.3 that @typescript-eslint/typescript-estree@6.21.0
+      # drags in — the three scoped `>ts-api-utils` overrides do not cover that
+      # copy — so every type-aware rule died with
+      # `tsutils.unionConstituents is not a function`.
       typescript-toolchain:
         patterns:
           - 'typescript'
@@ -82,6 +94,7 @@ updates:
           - '@eslint/*'
           - 'eslint-*'
           - '@typescript-eslint/*'
+          - 'typescript-eslint'
           - 'prettier'
           - 'prettier-*'
       commit-tooling:
@@ -106,6 +119,7 @@ updates:
           - '@eslint/*'
           - 'eslint-*'
           - '@typescript-eslint/*'
+          - 'typescript-eslint'
           - 'prettier'
           - 'prettier-*'
           - '@commitlint/*'
