@@ -290,3 +290,103 @@ export function upsertBatches<T extends { payload: Record<string, unknown> }>(po
   if (current.length > 0) batches.push(current);
   return batches;
 }
+
+export type SkipReason = 'no_full_text' | 'fast_path' | 'no_chunks' | 'already_rechunked';
+
+export interface DocumentOutcome {
+  /** Wert des `idKey`-Payloadfelds — der Gruppierungsschlüssel des Dokuments. */
+  key: string;
+  skipped: SkipReason | null;
+  structured: boolean;
+  oldChunks: number;
+  newChunks: number;
+  chars: number;
+  written: number;
+  deleted: number;
+}
+
+/**
+ * Ob der Struktur-Pfad gegriffen hat. Geprüft wird auf `=== 'structure-blocks'`
+ * (TextChunker.ts:72) gegen „alles andere" — NIE auf Gleichheit mit einem der
+ * alten Etiketten. Alte und neue Punkte liegen in derselben Sammlung, und die
+ * alten tragen für immer `'langchain-sentences'`, `'fallback-paragraph'`,
+ * `'langchain'`, `'hierarchical'` oder `'hierarchical-single'`.
+ */
+export function isStructured(
+  chunks: ReadonlyArray<{ metadata?: ChunkMetadata | undefined }>
+): boolean {
+  return chunks.some((chunk) => chunk.metadata?.chunkingMethod === 'structure-blocks');
+}
+
+/**
+ * Untergrenze der Einbettungsstapel: `MistralEmbeddingClient` stapelt bei 16
+ * Texten ODER 8000 geschätzten Token, je nachdem was zuerst greift
+ * (MistralEmbeddingService/MistralEmbeddingClient.ts:85-97). Lange Chunks
+ * erzeugen also mehr Stapel als diese Zahl, nie weniger.
+ */
+export const EMBEDDING_BATCH_SIZE = 16;
+
+export interface RunSummary {
+  documents: number;
+  withFullText: number;
+  withoutFullText: number;
+  alreadyRechunked: number;
+  fastPathSkipped: number;
+  noChunks: number;
+  processed: number;
+  processedStructured: number;
+  oldChunks: number;
+  newChunks: number;
+  chars: number;
+  embeddingBatches: number;
+  deleteCalls: number;
+}
+
+export function summarizeOutcomes(outcomes: ReadonlyArray<DocumentOutcome>): RunSummary {
+  const summary: RunSummary = {
+    documents: outcomes.length,
+    withFullText: 0,
+    withoutFullText: 0,
+    alreadyRechunked: 0,
+    fastPathSkipped: 0,
+    noChunks: 0,
+    processed: 0,
+    processedStructured: 0,
+    oldChunks: 0,
+    newChunks: 0,
+    chars: 0,
+    embeddingBatches: 0,
+    deleteCalls: 0,
+  };
+
+  for (const outcome of outcomes) {
+    if (outcome.skipped === 'no_full_text') {
+      summary.withoutFullText++;
+      continue;
+    }
+    summary.withFullText++;
+
+    if (outcome.skipped === 'already_rechunked') {
+      summary.alreadyRechunked++;
+      continue;
+    }
+    if (outcome.skipped === 'fast_path') {
+      summary.fastPathSkipped++;
+      continue;
+    }
+    if (outcome.skipped === 'no_chunks') {
+      summary.noChunks++;
+      continue;
+    }
+
+    summary.processed++;
+    if (outcome.structured) summary.processedStructured++;
+    summary.oldChunks += outcome.oldChunks;
+    summary.newChunks += outcome.newChunks;
+    summary.chars += outcome.chars;
+    summary.embeddingBatches += Math.ceil(outcome.newChunks / EMBEDDING_BATCH_SIZE);
+    if (outcome.oldChunks > outcome.newChunks) summary.deleteCalls++;
+  }
+
+  return summary;
+}

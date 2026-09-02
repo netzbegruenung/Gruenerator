@@ -2,11 +2,14 @@ import { describe, expect, it } from 'vitest';
 
 import {
   checkIdRecipe,
+  isStructured,
   leftoverPointIds,
   parseArgs,
   pointIdRecipeFor,
   rebuildChunkPayload,
+  summarizeOutcomes,
   upsertBatches,
+  type DocumentOutcome,
   type RechunkPoint,
 } from './rechunk-from-fulltext.js';
 
@@ -327,5 +330,102 @@ describe('upsertBatches', () => {
 
   it('gibt für eine leere Liste keine Stapel zurück', () => {
     expect(upsertBatches([])).toEqual([]);
+  });
+});
+
+describe('isStructured', () => {
+  it('erkennt den Struktur-Pfad an structure-blocks', () => {
+    expect(
+      isStructured([
+        { metadata: { chunkingMethod: 'structure-blocks' } },
+        { metadata: { chunkingMethod: 'structure-blocks' } },
+      ])
+    ).toBe(true);
+  });
+
+  it('nennt den Fließtext-Schnellpfad unstrukturiert — egal welches alte Etikett er trägt', () => {
+    expect(isStructured([{ metadata: { chunkingMethod: 'sentences' } }])).toBe(false);
+    expect(isStructured([{ metadata: { chunkingMethod: 'langchain-sentences' } }])).toBe(false);
+    expect(isStructured([{ metadata: {} }])).toBe(false);
+    expect(isStructured([])).toBe(false);
+  });
+});
+
+describe('summarizeOutcomes', () => {
+  function outcome(over: Partial<DocumentOutcome>): DocumentOutcome {
+    return {
+      key: 'k',
+      skipped: null,
+      structured: false,
+      oldChunks: 0,
+      newChunks: 0,
+      chars: 0,
+      written: 0,
+      deleted: 0,
+      ...over,
+    };
+  }
+
+  it('zählt grundsatz_documents richtig: drei Dokumente, keins mit full_text', () => {
+    const summary = summarizeOutcomes([
+      outcome({ key: 'a', skipped: 'no_full_text', oldChunks: 231 }),
+      outcome({ key: 'b', skipped: 'no_full_text', oldChunks: 335 }),
+      outcome({ key: 'c', skipped: 'no_full_text', oldChunks: 402 }),
+    ]);
+
+    expect(summary.documents).toBe(3);
+    expect(summary.withFullText).toBe(0);
+    expect(summary.withoutFullText).toBe(3);
+    expect(summary.processed).toBe(0);
+    expect(summary.newChunks).toBe(0);
+    expect(summary.embeddingBatches).toBe(0);
+  });
+
+  it('trennt struktur-wirksame Dokumente vom Fließtext-Schnellpfad', () => {
+    const summary = summarizeOutcomes([
+      outcome({ key: 'a', structured: true, oldChunks: 4, newChunks: 6, chars: 12_000 }),
+      outcome({ key: 'b', structured: false, oldChunks: 3, newChunks: 3, chars: 5_000 }),
+      outcome({ key: 'c', skipped: 'no_full_text', oldChunks: 2 }),
+    ]);
+
+    expect(summary.withFullText).toBe(2);
+    expect(summary.processed).toBe(2);
+    expect(summary.processedStructured).toBe(1);
+    expect(summary.oldChunks).toBe(7);
+    expect(summary.newChunks).toBe(9);
+    expect(summary.chars).toBe(17_000);
+  });
+
+  it('zählt Lösch-Aufrufe nur, wo die alte Menge grösser ist', () => {
+    const summary = summarizeOutcomes([
+      outcome({ key: 'a', oldChunks: 9, newChunks: 4 }),
+      outcome({ key: 'b', oldChunks: 4, newChunks: 9 }),
+      outcome({ key: 'c', oldChunks: 4, newChunks: 4 }),
+    ]);
+
+    expect(summary.deleteCalls).toBe(1);
+  });
+
+  it('rechnet die Einbettungsstapel je Dokument, nicht über den ganzen Lauf', () => {
+    // 17 und 17 Chunks sind vier Stapel (2 + 2), nicht drei (ceil(34/16)).
+    const summary = summarizeOutcomes([
+      outcome({ key: 'a', newChunks: 17 }),
+      outcome({ key: 'b', newChunks: 17 }),
+    ]);
+
+    expect(summary.embeddingBatches).toBe(4);
+  });
+
+  it('führt übersprungene Dokumente je Grund getrennt', () => {
+    const summary = summarizeOutcomes([
+      outcome({ key: 'a', skipped: 'fast_path', structured: false }),
+      outcome({ key: 'b', skipped: 'already_rechunked' }),
+      outcome({ key: 'c', skipped: 'no_chunks' }),
+    ]);
+
+    expect(summary.fastPathSkipped).toBe(1);
+    expect(summary.alreadyRechunked).toBe(1);
+    expect(summary.noChunks).toBe(1);
+    expect(summary.processed).toBe(0);
   });
 });
