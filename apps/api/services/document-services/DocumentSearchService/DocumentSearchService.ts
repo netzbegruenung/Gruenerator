@@ -181,6 +181,7 @@ export class DocumentSearchService extends BaseSearchService {
         rrfK: pOptions?.rrfK as number | undefined,
         qualityMin: typeof pOptions?.qualityMin === 'number' ? pOptions.qualityMin : undefined,
         ...(typeof pOptions?.recallLimit === 'number' ? { recallLimit: pOptions.recallLimit } : {}),
+        ...(pOptions?.rerankChunks === true && { rerankChunks: true }),
       };
 
       return {
