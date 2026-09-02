@@ -306,6 +306,8 @@ interface CaseMetrics {
   rerankTop3Mean: number;
   aboveThresholdShare: number;
   goldRank: number | null;
+  /** True if any candidate carried `dense_similarity` (BM25 server join). */
+  joinPath: boolean;
 }
 
 interface CaseResult {
@@ -425,6 +427,7 @@ async function runCase(spec: CaseSpec): Promise<CaseResult> {
         rerankTop3Mean,
         aboveThresholdShare,
         goldRank: spec.group === 'on-topic' ? firstMatchRank(reranked.results, spec.expect) : null,
+        joinPath: ctx.sortedResults.some((r) => r.dense_similarity != null),
       },
     };
   } catch (error) {
@@ -535,15 +538,15 @@ function fmt(n: number): string {
 
 function toMarkdownTable(results: CaseResult[]): string {
   const header =
-    '| id | group | candidates | denseTop | denseMedian | denseMargin | rerankTop | rerankMedian | rerankMargin | rerankTop3Mean | aboveThresholdShare | goldRank |\n' +
-    '|---|---|---|---|---|---|---|---|---|---|---|---|';
+    '| id | group | candidates | denseTop | denseMedian | denseMargin | rerankTop | rerankMedian | rerankMargin | rerankTop3Mean | aboveThresholdShare | goldRank | path |\n' +
+    '|---|---|---|---|---|---|---|---|---|---|---|---|---|';
   const rows = results.map((r) => {
-    if (!r.metrics) return `| ${r.id} | ${r.group} | ERROR: ${r.error} | | | | | | | | | |`;
+    if (!r.metrics) return `| ${r.id} | ${r.group} | ERROR: ${r.error} | | | | | | | | | | |`;
     const m = r.metrics;
     return (
       `| ${r.id} | ${r.group} | ${m.candidates} | ${fmt(m.denseTop)} | ${fmt(m.denseMedian)} | ${fmt(m.denseMargin)} | ` +
       `${fmt(m.rerankTop)} | ${fmt(m.rerankMedian)} | ${fmt(m.rerankMargin)} | ${fmt(m.rerankTop3Mean)} | ` +
-      `${fmt(m.aboveThresholdShare)} | ${m.goldRank ?? '—'} |`
+      `${fmt(m.aboveThresholdShare)} | ${m.goldRank ?? '—'} | ${m.joinPath ? 'join' : 'legacy'} |`
     );
   });
   return [header, ...rows].join('\n');
@@ -583,6 +586,14 @@ async function main() {
   const separationLines = NUMERIC_SIGNALS.map((signal) => separation(results, signal));
   for (const line of separationLines) console.log(line);
 
+  // The 0.89 default is calibrated on the legacy score domain; a join-path
+  // case (raw cosine, ~0.33 lower) would need its own separation line.
+  const joinCases = results.filter((r) => r.metrics?.joinPath).map((r) => r.id);
+  const pathLine = joinCases.length
+    ? `join-path cases (separate domain, split the separation per path): ${joinCases.join(', ')}`
+    : 'join-path cases: none — every case scored on the legacy domain';
+  console.log(pathLine);
+
   console.log('\n── Acceptance (A1 / A3) ──');
   const acceptance = acceptanceLines(results, env.NOTEBOOK_EVIDENCE_WEAK_THRESHOLD);
   for (const line of acceptance) console.log(line);
@@ -601,7 +612,7 @@ async function main() {
     `${NEAR_TOPIC_CASES.length} near-topic, reported only).\n\n` +
     `\`denseTop\` is \`evidenceTopOf\` — the same function production runs.\n\n` +
     `${table}\n\n## Separation\n\n${separationLines.map((l) => `- ${l}`).join('\n')}\n\n` +
-    `## Acceptance\n\n${acceptance.map((l) => `- ${l}`).join('\n')}\n`;
+    `## Acceptance\n\n${acceptance.map((l) => `- ${l}`).join('\n')}\n- ${pathLine}\n`;
   writeFileSync(mdPath, mdContent);
   writeFileSync(
     jsonPath,
