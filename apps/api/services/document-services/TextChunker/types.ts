@@ -25,7 +25,10 @@ export interface ChunkMetadata {
   headingPath?: string[] | null | undefined;
   /** Letztes Element von `headingPath`, denormalisiert für Anzeige und Filter. */
   heading?: string | null | undefined;
-  /** Laufende Nummer des Abschnitts im Dokument. */
+  /**
+   * Laufende Nummer des Abschnitts je Seite — `chunkStructured` läuft je
+   * Seitenmarker, der Zähler beginnt auf jeder Seite neu.
+   */
   sectionIndex?: number | null | undefined;
   isCompleteSentence?: boolean | undefined;
   hasOverlap?: boolean | undefined;
