@@ -273,6 +273,27 @@ export interface DocumentChunksResult {
   error?: string | undefined;
 }
 
+/** Ein Chunk im Kontext-Fenster; `isCenter` markiert den zitierten. */
+export interface ChunkContextItem {
+  text: string;
+  chunkIndex: number;
+  isCenter: boolean;
+}
+
+/**
+ * Rückgabe von `getChunkWithContext`. Die Form ist F0: qdrantController.ts:406-414
+ * reicht `centerChunk`/`contextChunks` unverändert an den Client, wo
+ * `ChunkContextData` (apps/web/src/stores/citationStore.ts:28-33) sie erwartet.
+ * Optionale Felder werden WEGGELASSEN, nie auf `undefined` gesetzt —
+ * apps/api fährt `exactOptionalPropertyTypes`.
+ */
+export interface ChunkWithContextResult {
+  success: boolean;
+  centerChunk?: { text: string; chunkIndex: number };
+  contextChunks?: ChunkContextItem[];
+  error?: string;
+}
+
 /**
  * Document data for bulk retrieval
  */
