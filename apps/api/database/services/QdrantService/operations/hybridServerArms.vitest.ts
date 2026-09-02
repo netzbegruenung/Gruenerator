@@ -543,4 +543,32 @@ describe('HYBRID_SERVER_SCORE_JOIN', () => {
     expect(response.results[0]?.originalTextScore).toBeCloseTo(0.9, 6);
     expect(response.results[0]?.originalVectorScore).toBeNull();
   });
+
+  it('meldet hasRealTextMatches erst, wenn die BM25-Lane wirklich getroffen hat', async () => {
+    const client = fakeClient();
+    respondWith(client, FUSION_POINTS, [{ id: 1, score: 0.62 }], []);
+    const response = await runArm(client);
+
+    expect(response.metadata.hasRealTextMatches).toBe(false);
+    // Welcher Matcher in der Lane läuft, ist eine Eigenschaft der Lane und
+    // ändert sich nicht dadurch, dass sie diesmal nichts gefunden hat.
+    expect(response.metadata.textMatchTypes).toEqual(['bm25']);
+  });
+
+  it('meldet hasRealTextMatches, sobald ein sparse Treffer dabei ist', async () => {
+    const client = fakeClient();
+    respondWith(client, FUSION_POINTS, [], [{ id: 2, score: 3.3 }]);
+    const response = await runArm(client);
+
+    expect(response.metadata.hasRealTextMatches).toBe(true);
+  });
+
+  it('bleibt ohne Join bei "Lane vorhanden" — mehr weiss der Pfad dort nicht', async () => {
+    state.hybrid = { ...DEFAULT_HYBRID, serverScoreJoin: false };
+    const client = fakeClient();
+    respondWith(client, FUSION_POINTS);
+    const response = await runArm(client);
+
+    expect(response.metadata.hasRealTextMatches).toBe(true);
+  });
 });
