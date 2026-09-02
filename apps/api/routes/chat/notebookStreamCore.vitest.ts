@@ -224,7 +224,7 @@ describe('handleNotebookStream — reranking per tier', () => {
     expect((await ctxAfterDeep).systemPrompt).toBe('ORIGINAL_SYSTEM_PROMPT');
   });
 
-  it('searches one formulation below ultra', async () => {
+  it('searches one formulation without history', async () => {
     await run('deep');
     expect(expandQuery).not.toHaveBeenCalled();
     const { queries } = getSearchContext.mock.calls[0][0] as { queries: string[] };
@@ -315,6 +315,29 @@ describe('handleNotebookStream — conversation history (ultra only)', () => {
     await run('ultra');
     const [, opts] = expandQuery.mock.calls[0] as [string, { historyContext?: string }];
     expect(opts.historyContext).toBeUndefined();
+  });
+});
+
+describe('query rewrite in deep', () => {
+  it('rewrites a follow-up against the history without feeding history to the model', async () => {
+    vi.clearAllMocks();
+    setupMocks();
+    expandQuery.mockResolvedValue({ primary: 'Hitzeschutz Bayern', alternatives: [] });
+    await run('deep', HISTORY_MESSAGES);
+    expect(expandQuery).toHaveBeenCalledTimes(1);
+    expect((expandQuery.mock.calls[0][1] as { historyContext?: string }).historyContext).toContain(
+      'Windkraft'
+    );
+    const ctx = getSearchContext.mock.calls[0][0] as { queries: string[] };
+    expect(ctx.queries).toEqual(['Hitzeschutz Bayern']);
+    expect(modelMessages().filter((m) => m.role === 'assistant')).toHaveLength(0);
+  });
+
+  it('does not call the rewriter without history', async () => {
+    vi.clearAllMocks();
+    setupMocks();
+    await run('deep');
+    expect(expandQuery).not.toHaveBeenCalled();
   });
 });
 

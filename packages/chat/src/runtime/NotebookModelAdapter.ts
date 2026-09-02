@@ -261,11 +261,11 @@ export function createNotebookModelAdapter(
         console.warn('[Notebook] getExtraParams threw:', err);
       }
 
-      // Conversation history is an Ultra-tier capability. The server's depth
-      // profile is the authority (other tiers drop history explicitly); the
-      // client just avoids shipping payload the server would ignore.
-      const wireHistory =
-        config.mode === 'ultra' ? buildWireHistory(messages, lastUserMessage) : [];
+      // The server's depth profile is the authority on what happens to
+      // history (prompt inclusion is Ultra-only, `deep` rewrites the search
+      // query against it) — the client just avoids shipping payload no tier
+      // would use. `fast` (Grün-O-Mat) stays history-free.
+      const wireHistory = config.mode !== 'fast' ? buildWireHistory(messages, lastUserMessage) : [];
 
       const payload = {
         messages: [...wireHistory, { role: 'user', content: question }],

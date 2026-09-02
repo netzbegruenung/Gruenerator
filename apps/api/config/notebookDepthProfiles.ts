@@ -53,6 +53,13 @@ export interface NotebookDepthProfile {
    * turn-granular trimming, carried citations, history-aware query rewrite.
    */
   history: boolean;
+  /**
+   * Ob eine Folgefrage vor der Suche gegen den Verlauf zu einer
+   * eigenständigen Anfrage umgeschrieben wird. Unabhängig von `history`:
+   * `deep` schreibt um, gibt dem Modell aber keinen Verlauf — die Suche
+   * braucht das Thema, der Prompt nicht die alten Turns.
+   */
+  queryRewrite: boolean;
 }
 
 const PROFILES: Record<NotebookDepth, NotebookDepthProfile> = {
@@ -67,6 +74,7 @@ const PROFILES: Record<NotebookDepth, NotebookDepthProfile> = {
     conciseAnswer: true,
     queryVariants: 1,
     history: false,
+    queryRewrite: false,
   },
   deep: {
     searchLimit: 40,
@@ -79,6 +87,7 @@ const PROFILES: Record<NotebookDepth, NotebookDepthProfile> = {
     conciseAnswer: false,
     queryVariants: 1,
     history: false,
+    queryRewrite: true,
   },
   ultra: {
     searchLimit: 60,
@@ -91,6 +100,7 @@ const PROFILES: Record<NotebookDepth, NotebookDepthProfile> = {
     conciseAnswer: false,
     queryVariants: 3,
     history: true,
+    queryRewrite: true,
   },
 };
 
