@@ -209,6 +209,17 @@ export const chunkInspectorContractRouter = s.router(chunkInspectorContract, {
         };
       }
 
+      // `getDocumentIdsFn` unten schränkt die Suche nur ein — es prüft nicht,
+      // ob das Dokument überhaupt zu diesem Notebook gehört. Ohne diese
+      // Prüfung würde jede beliebige documentId mit der Kennung der
+      // Eigentümerin durchsuchbar, solange die Sammlung existiert.
+      if (!(await notebookHelper.isDocumentInCollection(collection, documentId))) {
+        return {
+          status: 404 as const,
+          body: { success: false, message: 'Dieses Dokument liegt nicht in dieser Sammlung.' },
+        };
+      }
+
       const context = await notebookQAService.getSearchContext({
         question: query,
         collectionId: collection,

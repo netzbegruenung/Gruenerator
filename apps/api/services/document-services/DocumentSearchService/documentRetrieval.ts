@@ -215,8 +215,15 @@ function str(value: unknown): string | null {
  * Die Chunks eines Dokuments, wie sie im Punkt liegen — für den Admin-Inspektor.
  *
  * Unterschiede zu `getDocumentChunks` (jeder mit Grund, siehe Plan Task 2):
- * kein `user_id`-Filter, `withVector: true`, seitenweise statt `limit: 1000`,
- * und `hasTable` wird am Text erkannt statt aus der Nutzlast gelesen.
+ * kein `user_id`-Filter, seitenweise statt `limit: 1000`, und `hasTable` wird
+ * am Text erkannt statt aus der Nutzlast gelesen.
+ *
+ * Der Zähl-/Sortierdurchlauf holt bewusst KEINE Vektoren (`withVector: false`)
+ * — ein Dokument kann tausende Punkte haben, und jeder Vektor kostet hier
+ * ~8 KB, nur um am Ende auf 50 sichtbare Zeilen geschnitten zu werden. Ein
+ * zweiter, gezielter Abruf per Punkt-ID (`client.retrieve`, wie
+ * `contextRetrieval.ts:28`) holt Vektoren ausschliesslich für die sichtbare
+ * Seite.
  */
 export async function inspectDocumentChunks(
   qdrantOps: QdrantOperations,
@@ -236,7 +243,7 @@ export async function inspectDocumentChunks(
       const batch = await qdrantOps.scrollDocuments(qdrantCollection, filter, {
         limit: INSPECT_SCROLL_PAGE_SIZE,
         withPayload: true,
-        withVector: true,
+        withVector: false,
         offset: cursor,
       });
       // Qdrants Scroll-Offset ist eine Punkt-ID und inklusiv: der Cursor-Punkt
@@ -262,13 +269,17 @@ export async function inspectDocumentChunks(
     // `chunk_index` ist nirgends indiziert (qdrantCollectionsSchema.ts:205-208),
     // ein range-Filter wäre ein Nutzlast-Scan. Deshalb im Speicher sortieren —
     // genau wie getDocumentChunks es schon tut.
-    const all = points.map(toInspectedChunk).sort((a, b) => a.index - b.index);
+    const sortedPoints = points.slice().sort((a, b) => {
+      const indexA = typeof a.payload.chunk_index === 'number' ? a.payload.chunk_index : 0;
+      const indexB = typeof b.payload.chunk_index === 'number' ? b.payload.chunk_index : 0;
+      return indexA - indexB;
+    });
 
-    const first = points.find((p) => (p.payload.chunk_index ?? 0) === all[0].index) ?? points[0];
-    const maxPage = all.reduce<number | null>(
-      (acc, chunk) => (chunk.page === null ? acc : Math.max(acc ?? chunk.page, chunk.page)),
-      null
-    );
+    const first = sortedPoints[0];
+    const maxPage = sortedPoints.reduce<number | null>((acc, point) => {
+      const page = typeof point.payload.page_number === 'number' ? point.payload.page_number : null;
+      return page === null ? acc : Math.max(acc ?? page, page);
+    }, null);
     const payload: InspectedPayloadSummary = {
       title: str(first.payload.title),
       filename: str(first.payload.filename),
@@ -279,14 +290,36 @@ export async function inspectDocumentChunks(
       maxPage,
     };
 
-    const slice = all.slice(options.offset, options.offset + options.limit);
+    const slicePoints = sortedPoints.slice(options.offset, options.offset + options.limit);
+
+    // Vektoren nur für die sichtbare Seite holen, per Punkt-ID — nicht für
+    // die restlichen (ggf. tausenden) Punkte des Dokuments.
+    const sliceIds = slicePoints.map((p) => p.id);
+    const slicedVectors =
+      sliceIds.length > 0
+        ? await qdrantOps.client.retrieve(qdrantCollection, {
+            ids: sliceIds,
+            with_payload: false,
+            with_vector: true,
+          })
+        : [];
+    const vectorById = new Map<string | number, unknown>(
+      slicedVectors.map((point) => [point.id, point.vector])
+    );
+
+    const slice: InspectedChunkRow[] = slicePoints.map((point) =>
+      toInspectedChunk({
+        ...point,
+        vector: (vectorById.get(point.id) ?? null) as ScrollPoint['vector'],
+      })
+    );
     const next = options.offset + options.limit;
 
     return {
       success: true,
       chunks: slice,
-      chunkCount: all.length,
-      nextOffset: next < all.length ? next : null,
+      chunkCount: sortedPoints.length,
+      nextOffset: next < sortedPoints.length ? next : null,
       payload,
       error: null,
     };
