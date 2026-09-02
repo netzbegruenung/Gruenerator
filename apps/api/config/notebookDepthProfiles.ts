@@ -46,11 +46,14 @@ export interface NotebookDepthProfile {
    */
   queryVariants: number;
   /**
-   * Whether the tier reads the conversation history. `false` drops incoming
-   * history EXPLICITLY (single-shot, the behaviour every tier had before) —
-   * this is what neutralises the chat-mode client, which has always sent the
-   * full unpruned thread to this endpoint. `true` runs the budgeted path:
-   * turn-granular trimming, carried citations, history-aware query rewrite.
+   * Whether the tier puts the conversation history in the PROMPT. `false`
+   * drops incoming history EXPLICITLY from the prompt (single-shot, the
+   * behaviour every tier had before) — this is what neutralises the
+   * chat-mode client, which has always sent the full unpruned thread to this
+   * endpoint. `true` runs the budgeted path for the prompt: turn-granular
+   * trimming, carried citations. Independent of this flag: `queryRewrite`
+   * below, which reads history to rewrite the search query regardless of
+   * whether it ends up in the prompt.
    */
   history: boolean;
   /**

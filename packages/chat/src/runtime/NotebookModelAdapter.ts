@@ -63,10 +63,10 @@ function pickHistoryCitation(c: Record<string, unknown>): Record<string, unknown
 }
 
 /**
- * Conversation history for the wire — Ultra only. Prior messages travel as
- * `{role, content, citations?}`; `rawCitations` from the message metadata
- * (present after a live turn, a localStorage resume and a thread reload) let
- * the server merge previously cited sources into the new turn.
+ * Conversation history for the wire — every tier but `fast`. Prior messages
+ * travel as `{role, content, citations?}`; `rawCitations` from the message
+ * metadata (present after a live turn, a localStorage resume and a thread
+ * reload) let the server merge previously cited sources into the new turn.
  */
 function buildWireHistory(
   messages: ChatModelRunOptions['messages'],
