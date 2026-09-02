@@ -8,6 +8,7 @@
  */
 
 import { recencyBoost, resolveSourceDate } from './recency.js';
+import { selectRelevantExcerpt } from './relevantExcerpt.js';
 
 import type {
   SearchResultInput,
@@ -185,7 +186,8 @@ export function toClientSource(result: ExpandedChunkResult): ExpandedChunkResult
  */
 export function validateAndInjectCitations(
   draft: string,
-  referencesMap: ReferencesMap
+  referencesMap: ReferencesMap,
+  options: { question?: string } = {}
 ): ValidationResult {
   const validIds = new Set(Object.keys(referencesMap));
   const errors: string[] = [];
@@ -220,11 +222,22 @@ export function validateAndInjectCitations(
     content = content.replace(re, `[cite:${id}]`);
   }
 
+  const CITED_TEXT_MAX_CHARS = 300;
   const citations: Citation[] = [...usedIds].map((id) => {
     const ref = referencesMap[id];
+    const head = ref.snippets[0]?.[0] || '';
+    const excerpt =
+      options.question && ref.chunk_text
+        ? selectRelevantExcerpt(
+            ref.chunk_text,
+            options.question,
+            CITED_TEXT_MAX_CHARS,
+            'contiguous'
+          )
+        : null;
     return {
       index: id,
-      cited_text: ref.snippets[0]?.[0] || '',
+      cited_text: excerpt?.text || head,
       document_title: ref.title,
       document_id: ref.document_id,
       source_url: ref.source_url || null,
