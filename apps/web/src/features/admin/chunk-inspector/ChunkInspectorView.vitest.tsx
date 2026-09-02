@@ -1,0 +1,144 @@
+/**
+ * Der Inspektor darf nichts erfinden: ein Feld, das die Nutzlast nicht trägt,
+ * erscheint als „nicht gespeichert" — nicht als Leerzeile und nicht als 0.
+ * Und ein Chunk unter der Abrufschwelle wird als solcher ausgewiesen, sonst
+ * sieht die Person eine Zahl und zieht den falschen Schluss.
+ */
+import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
+import { http, HttpResponse } from 'msw';
+import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+
+import { server } from '../../../test/msw-server';
+import { axe, renderWithProviders, screen, waitFor } from '../../../test-utils';
+
+import { ChunkInspectorView } from './ChunkInspectorView';
+
+const ENDPOINT = 'http://localhost/api/auth/admin/chunk-inspector/doc-1';
+
+beforeAll(() => {
+  // Ohne absolute baseURL löst der Contracts-Client relativ auf und kein
+  // MSW-Handler greift (apps/web/CLAUDE-testing.md, „MSW: getting the URL right").
+  setGlobalApiClient(createApiClient({ baseURL: 'http://localhost/api', authMode: 'cookie' }));
+});
+
+afterEach(() => {
+  server.resetHandlers();
+});
+
+function header(over: Record<string, unknown> = {}) {
+  return {
+    documentId: 'doc-1',
+    collection: 'grundsatz-system',
+    qdrantCollection: 'grundsatz_documents',
+    isSystemCollection: true,
+    title: 'Grundsatzprogramm',
+    filename: 'grundsatz.pdf',
+    sourceUrl: null,
+    sourceType: 'program',
+    extractionMethod: 'docling',
+    extractionMethodOrigin: 'qdrant_payload',
+    pageCount: 12,
+    chunkCount: 2,
+    indexedAt: '2026-08-01T10:00:00.000Z',
+    embeddingTitlePrefix: 'Grundsatzprogramm (Präambel)',
+    qualityThreshold: 0.4,
+    ...over,
+  };
+}
+
+function chunk(index: number, over: Record<string, unknown> = {}) {
+  return {
+    index,
+    page: 3,
+    text: `Chunk ${index} Text`,
+    charCount: 13,
+    tokenCount: 4,
+    qualityScore: 0.72,
+    hasTable: false,
+    embeddingPresent: true,
+    sparsePresent: true,
+    ...over,
+  };
+}
+
+function respondWith(body: Record<string, unknown>, status = 200) {
+  server.use(http.get(ENDPOINT, () => HttpResponse.json(body, { status })));
+}
+
+describe('ChunkInspectorView', () => {
+  it('zeigt Kopfdaten und die Chunk-Zeilen', async () => {
+    respondWith({
+      success: true,
+      header: header(),
+      chunks: [chunk(0), chunk(1)],
+      nextOffset: null,
+    });
+    renderWithProviders(<ChunkInspectorView documentId="doc-1" collection="grundsatz-system" />);
+
+    expect(await screen.findByText('Grundsatzprogramm')).toBeInTheDocument();
+    expect(screen.getByText('docling')).toBeInTheDocument();
+    expect(screen.getByText(/Chunk 0 Text/)).toBeInTheDocument();
+    expect(screen.getByText(/Chunk 1 Text/)).toBeInTheDocument();
+  });
+
+  it('schreibt „nicht gespeichert" an die Felder, die kein Schreiber füllt', async () => {
+    respondWith({
+      success: true,
+      header: header({
+        extractionMethod: null,
+        extractionMethodOrigin: 'unknown',
+        pageCount: null,
+      }),
+      chunks: [chunk(0, { qualityScore: null, page: null })],
+      nextOffset: null,
+    });
+    renderWithProviders(<ChunkInspectorView documentId="doc-1" collection="nb-1" />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText('nicht gespeichert').length).toBeGreaterThanOrEqual(2);
+    });
+  });
+
+  it('markiert einen Chunk unter der Abrufschwelle', async () => {
+    respondWith({
+      success: true,
+      header: header({ qualityThreshold: 0.4 }),
+      chunks: [chunk(0, { qualityScore: 0.21 })],
+      nextOffset: null,
+    });
+    renderWithProviders(<ChunkInspectorView documentId="doc-1" collection="grundsatz-system" />);
+
+    expect(await screen.findByText('unter Abrufschwelle — nie abrufbar')).toBeInTheDocument();
+  });
+
+  it('zeigt einen Leerzustand statt einer leeren Tabelle', async () => {
+    respondWith({
+      success: true,
+      header: header({ chunkCount: 0 }),
+      chunks: [],
+      nextOffset: null,
+    });
+    renderWithProviders(<ChunkInspectorView documentId="doc-1" collection="grundsatz-system" />);
+
+    expect(
+      await screen.findByText('Zu diesem Dokument liegen keine Chunks vor.')
+    ).toBeInTheDocument();
+  });
+
+  it('meldet einen Fehler, statt still leer zu bleiben', async () => {
+    respondWith({ success: false, message: 'Keine Chunks gefunden.' }, 404);
+    renderWithProviders(<ChunkInspectorView documentId="doc-1" collection="grundsatz-system" />);
+
+    expect(await screen.findByText('Die Chunks konnten nicht geladen werden.')).toBeInTheDocument();
+  });
+
+  it('hat keine a11y-Verstösse — die Spaltenköpfe sind von Hand gesetzt', async () => {
+    respondWith({ success: true, header: header(), chunks: [chunk(0)], nextOffset: null });
+    const { container } = renderWithProviders(
+      <ChunkInspectorView documentId="doc-1" collection="grundsatz-system" />
+    );
+    await screen.findByText(/Chunk 0 Text/);
+
+    expect(await axe(container)).toHaveNoViolations();
+  });
+});
