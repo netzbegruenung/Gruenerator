@@ -31,6 +31,16 @@
  *                    and differ only in WHICH ones. Measuring either against
  *                    `off` measures window size instead, which is a different
  *                    question (and has a different answer — see #2824).
+ *   EVAL_LOOP_RERANK=1  fährt die Suche mit `rerankChunks: true`, also mit dem
+ *                    Cross-Encoder VOR der Gruppierung — der Pfad, den der
+ *                    agentische Loop hinter LOOP_RERANK_ENABLED fährt (#3120).
+ *                    Orthogonal zu EVAL_RERANK: das ist der Dokument-Rerank
+ *                    NACH der Gruppierung. Beide zusammen wären zwei Stufen und
+ *                    messen nichts, was in der Produktion vorkommt.
+ *                    Die Encoder-Zeit ist von hier nicht direkt sichtbar (der
+ *                    Aufruf sitzt im Dienst), deshalb misst `searchTimeMs` die
+ *                    Wanduhr je Suche; die Differenz der Mediane zwischen einem
+ *                    Lauf mit und einem ohne den Arm ist die Kostenzahl.
  *   EVAL_CASE_KIND   run another kind's cases through the chosen pipeline
  *   EVAL_VERBOSE=1   print top-5 titles for every miss (gold-label curation)
  *   EVAL_OUT         write per-case results as JSON to this path
@@ -140,6 +150,8 @@ interface CaseOutcome {
   rerankTimeMs?: number;
   /** Wie viele Kandidaten er dafür bewerten musste. */
   rerankBatch?: number;
+  /** Wanduhr des Suchaufrufs. Gepaart über zwei Läufe = Kosten des Encoders. */
+  searchTimeMs?: number;
   topTitles: string[];
   error?: string;
 }
@@ -170,7 +182,8 @@ async function runCase(
   evalCase: RetrievalCase,
   depth: NotebookDepth,
   withRerank: boolean,
-  excerptMode: ExcerptArm
+  excerptMode: ExcerptArm,
+  withChunkRerank: boolean
 ): Promise<CaseOutcome> {
   const config = getSystemCollectionConfig(evalCase.collection);
   if (!config) {
@@ -189,6 +202,7 @@ async function runCase(
   const additionalFilter = applyDefaultFilter(evalCase.collection, undefined);
 
   try {
+    const searchStartedAt = Date.now();
     const resp = await searchService.search({
       query: evalCase.query,
       userId: undefined,
@@ -202,8 +216,10 @@ async function runCase(
         recallLimit: searchParams.recallLimit,
         qualityMin: searchParams.qualityMin,
         additionalFilter,
+        ...(withChunkRerank && { rerankChunks: true }),
       },
     } as Parameters<DocumentSearchService['search']>[0]);
+    const searchTimeMs = Date.now() - searchStartedAt;
 
     if (resp.success === false) {
       return {
@@ -223,6 +239,7 @@ async function runCase(
       query: evalCase.query,
       rank: firstMatchRank(results, evalCase),
       topTitles: results.slice(0, 5).map((r) => r.title || r.filename || r.source_url || '?'),
+      searchTimeMs,
     };
 
     if (withRerank && results.length > 2) {
@@ -416,6 +433,7 @@ async function main() {
   const depth = (process.env.EVAL_DEPTH ||
     (pipeline === 'notebook' ? 'deep' : 'fast')) as NotebookDepth;
   const withRerank = process.env.EVAL_RERANK === '1';
+  const withChunkRerank = process.env.EVAL_LOOP_RERANK === '1';
   const excerptMode = (process.env.EVAL_RERANK_EXCERPT ?? 'off') as ExcerptArm;
   const verbose = process.env.EVAL_VERBOSE === '1';
   const collectionFilter = process.env.EVAL_COLLECTION;
@@ -441,7 +459,9 @@ async function main() {
       ? 'manual search'
       : pipeline === 'notebook'
         ? `notebook getSearchContext depth=${depth}`
-        : `depth=${depth}${withRerank ? `, +rerank(${excerptMode})` : ''}`;
+        : `depth=${depth}${withRerank ? `, +rerank(${excerptMode})` : ''}${
+            withChunkRerank ? ', +chunkRerank' : ''
+          }`;
   console.log(
     `Running ${cases.length} retrieval cases (${modeLabel}) against ${process.env.QDRANT_URL || 'QDRANT_URL unset!'}`
   );
@@ -454,7 +474,7 @@ async function main() {
         ? await runManualCase(searchService, evalCase)
         : pipeline === 'notebook'
           ? await runNotebookCase(evalCase, depth)
-          : await runCase(searchService, evalCase, depth, withRerank, excerptMode);
+          : await runCase(searchService, evalCase, depth, withRerank, excerptMode, withChunkRerank);
     outcomes.push(outcome);
     const rankLabel = outcome.error
       ? `ERROR ${outcome.error}`
@@ -488,6 +508,20 @@ async function main() {
     `${'GESAMT'.padEnd(28)} n=${String(outcomes.length).padStart(2)}  ${computeMetrics(outcomes, (o) => o.rank).line}`
   );
 
+  const searchTimings = outcomes
+    .map((o) => o.searchTimeMs)
+    .filter((t): t is number => typeof t === 'number')
+    .sort((a, b) => a - b);
+  if (searchTimings.length > 0) {
+    const at = (q: number): number =>
+      searchTimings[
+        Math.min(searchTimings.length - 1, Math.floor((searchTimings.length - 1) * q))
+      ] ?? 0;
+    console.log(
+      `\n── Wanduhr je Suche ──\nn=${searchTimings.length}  Median ${at(0.5)} ms  p90 ${at(0.9)} ms  max ${searchTimings[searchTimings.length - 1]} ms`
+    );
+  }
+
   if (withRerank) {
     console.log('\n── Ergebnisse (nach Rerank) ──');
     console.log(
@@ -520,7 +554,7 @@ async function main() {
   if (process.env.EVAL_OUT) {
     writeFileSync(
       process.env.EVAL_OUT,
-      JSON.stringify({ pipeline, depth, withRerank, outcomes }, null, 2)
+      JSON.stringify({ pipeline, depth, withRerank, withChunkRerank, outcomes }, null, 2)
     );
     console.log(`\nErgebnisse geschrieben: ${process.env.EVAL_OUT}`);
   }
