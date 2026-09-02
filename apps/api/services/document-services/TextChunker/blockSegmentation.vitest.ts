@@ -215,6 +215,31 @@ describe('segmentBlocks', () => {
     expect(blocks[0].headingPath).toEqual(['Kapitel 4']);
   });
 
+  it('lässt eine Geschwister-Überschrift die vorige auch nach einem Teil-Flush aus dem Carry verdrängen', () => {
+    // Zwischen "3.1" und "3.2" liegt kein Inhalt, der den Carry über openText()
+    // schon geleert hätte — der Bug zeigte sich nur, weil VOR "3.1" ein Absatz
+    // steht, der den Carry der Kapitelüberschrift bereits konsumiert hat.
+    // Danach zeigt `stack.length` die volle Vorfahrenkette, der Carry aber nur
+    // die seit dem Flush gesehene "3.1"-Zeile — beide Längen stimmen zufällig
+    // überein, obwohl "3.1" auf derselben Ebene wie das eingehende "3.2" liegt.
+    const blocks = segmentBlocks(
+      [
+        '# Kapitel 3: Wärmewende',
+        '',
+        'Einleitungstext.',
+        '',
+        '## 3.1 Fördermöglichkeiten',
+        '## 3.2 Ausnahmen',
+        '',
+        'Der Absatz.',
+      ].join('\n')
+    );
+
+    const block32 = blocks.find((b) => b.headingPath.at(-1) === '3.2 Ausnahmen');
+    expect(block32?.text.startsWith('## 3.2 Ausnahmen')).toBe(true);
+    expect(block32?.text).not.toContain('3.1');
+  });
+
   it('behält die Elternzeile im Carry, wenn eine tiefere Überschrift direkt folgt', () => {
     const blocks = segmentBlocks(
       ['# Kapitel 3', '## 3.1 Unterkapitel', 'Ein Satz Text.'].join('\n')
