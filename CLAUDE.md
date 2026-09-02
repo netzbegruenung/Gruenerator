@@ -245,7 +245,7 @@ Symptom of a missed pass: a frontend interface that duplicates a backend schema'
 
 ### Backend Routing & Typing
 
-See `docs/CLAUDE-routing.md` for Express 5 route typing, `TypedRequest`/`AuthRequest`, AI client access, locale-aware backend rules.
+See `docs/CLAUDE-routing.md` for Express 5 route typing, `TypedRequest`/`AuthRequest`, AI client access, locale-aware backend rules, and the admin surfaces with their `requireInstanceAdmin` gate (incl. the chunk inspector).
 
 ### External API Clients & SSRF
 
