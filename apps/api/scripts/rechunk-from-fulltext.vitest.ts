@@ -42,6 +42,21 @@ const GRUNDSATZ_HEAD_IDS: Array<{ documentId: string; id: number }> = [
  */
 const LV_URL = 'https://www.gruene-bw.de/wp-content/uploads/2025/03/beschluss-waermewende.pdf';
 
+/**
+ * Die drei Sammlungen aus #3163. Auch hier halten die Zahlen das REZEPT fest,
+ * nicht eine lebende Zeile: sie sind am 02.09.2026 gegen `chunkToNumericId` bzw.
+ * `generatePointId` aus `utils/validation/hash.ts` gerechnet. Ob der lebende
+ * Bestand sie trifft, prüft `checkIdRecipe` zur Laufzeit über JEDEN Punkt.
+ *
+ * Ein echter Lauf gegen diese drei ist NICHT vorgesehen (Spec, Offene Frage 4):
+ * der reguläre Vollauf zerlegt sie ohnehin neu, weil die Reparatur jeden
+ * `content_hash` ändert. Die Rezepte stehen hier für den TROCKENLAUF, der die
+ * Abnahmezahl „davon struktur-wirksam" liefert.
+ */
+const BUNDESTAG_URL = 'https://www.gruene-bundestag.de/unsere-politik/fachtexte/klimaschutz';
+const BOELL_URL = 'https://www.boell.de/de/2025/01/15/dossier-energiewende';
+const GRUENE_AT_URL = 'https://www.gruene.at/themen/klima/energiewende';
+
 describe('pointIdRecipeFor', () => {
   it('rechnet die drei lebenden grundsatz-IDs exakt nach', () => {
     const recipe = pointIdRecipeFor('grundsatz_documents');
@@ -56,6 +71,27 @@ describe('pointIdRecipeFor', () => {
     expect(recipe?.idKey).toBe('source_url');
     expect(recipe?.id(LV_URL, 0)).toBe(98221080);
     expect(recipe?.id(LV_URL, 1)).toBe(98221079);
+  });
+
+  it('rechnet bundestag_content OHNE Präfix — chunkToNumericId(url, index)', () => {
+    const recipe = pointIdRecipeFor('bundestag_content');
+    expect(recipe?.idKey).toBe('source_url');
+    expect(recipe?.id(BUNDESTAG_URL, 0)).toBe(330046947);
+    expect(recipe?.id(BUNDESTAG_URL, 1)).toBe(330046948);
+  });
+
+  it('rechnet boell_stiftung_documents mit dem Präfix boell', () => {
+    const recipe = pointIdRecipeFor('boell_stiftung_documents');
+    expect(recipe?.idKey).toBe('source_url');
+    expect(recipe?.id(BOELL_URL, 0)).toBe(149266895);
+    expect(recipe?.id(BOELL_URL, 1)).toBe(149266896);
+  });
+
+  it('rechnet gruene_at_documents mit dem Präfix gruene_at', () => {
+    const recipe = pointIdRecipeFor('gruene_at_documents');
+    expect(recipe?.idKey).toBe('source_url');
+    expect(recipe?.id(GRUENE_AT_URL, 0)).toBe(1793081277);
+    expect(recipe?.id(GRUENE_AT_URL, 1)).toBe(1793081278);
   });
 
   it('kennt kein Rezept für documents — die Sammlung ist tabu', () => {
