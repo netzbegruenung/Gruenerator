@@ -8,6 +8,9 @@ import {
   pointIdRecipeFor,
   processDocument,
   rebuildChunkPayload,
+  RechunkWriteError,
+  RECOMPUTED_PAYLOAD_KEYS,
+  scrollEach,
   summarizeOutcomes,
   upsertBatches,
   type DocumentGroup,
@@ -162,6 +165,44 @@ describe('parseArgs', () => {
   });
 });
 
+describe('scrollEach', () => {
+  it('verarbeitet jede Seite einzeln über die Callback — keine Gesamtmenge wird angesammelt', async () => {
+    const pages = [
+      {
+        points: [
+          { id: 1, payload: { a: 1 } },
+          { id: 2, payload: { a: 2 } },
+        ],
+        next_page_offset: 'p2',
+      },
+      { points: [{ id: 3, payload: { a: 3 } }], next_page_offset: 'p3' },
+      { points: [{ id: 4, payload: { a: 4 } }], next_page_offset: null },
+    ];
+    let scrollCalls = 0;
+    const client = {
+      scroll: async () => {
+        const page = pages[scrollCalls];
+        scrollCalls++;
+        return page;
+      },
+      delete: async () => undefined,
+    };
+
+    const seenIds: Array<string | number> = [];
+    const pageSizes: number[] = [];
+    await scrollEach(client, 'col', {}, async (points) => {
+      pageSizes.push(points.length);
+      for (const point of points) seenIds.push(point.id);
+    });
+
+    // Jeder Kopf genau einmal, in der Reihenfolge der Seiten — nicht als eine
+    // einzige zusammengefasste Liste am Ende.
+    expect(seenIds).toEqual([1, 2, 3, 4]);
+    expect(pageSizes).toEqual([2, 1, 1]);
+    expect(scrollCalls).toBe(3);
+  });
+});
+
 /** Ein Kopf-Payload, wie ihn `landesverbaende_documents` wirklich trägt. */
 const HEAD_PAYLOAD: Record<string, unknown> = {
   document_id: 'lv_9f1c',
@@ -194,6 +235,26 @@ const NOW = '2026-09-02T12:00:00.000Z';
 function chunkOf(text: string, metadata: ChunkMetadata = {}): Chunk {
   return { text, index: 0, tokens: 7, metadata };
 }
+
+describe('RECOMPUTED_PAYLOAD_KEYS', () => {
+  it('ist die Ausschlussliste, die rebuildChunkPayload aus dem Kopf entfernt und neu setzt', () => {
+    expect(RECOMPUTED_PAYLOAD_KEYS).toEqual([
+      'chunk_index',
+      'chunk_text',
+      'heading_path',
+      'heading',
+      'chunk_type',
+      'section_index',
+      'quality_score',
+      'token_count',
+      'indexed_at',
+      'page_number',
+      'full_text',
+      'rechunked_at',
+      'chunk_method',
+    ]);
+  });
+});
 
 describe('rebuildChunkPayload', () => {
   it('trägt Spar-Gatter und NLP-Facetten unverändert weiter', () => {
@@ -581,6 +642,38 @@ describe('processDocument', () => {
     ).rejects.toThrow('boom');
     expect(log.calls.some((call) => call.startsWith('setPayload'))).toBe(false);
     expect(log.payloadSet).toEqual([]);
+  });
+
+  it('trägt die erreichten Zähler auf den Fehler, wenn setPayload nach Upsert und Löschen wirft', async () => {
+    const { deps } = fakeDeps(structuredChunks(2));
+    const failingDeps: RechunkDeps = {
+      ...deps,
+      setPayload: async () => {
+        throw new Error('setPayload boom');
+      },
+    };
+    const doc = lvDoc({
+      pointIds: [
+        recipe.id('https://www.gruene-bw.de/beschluss.pdf', 0),
+        recipe.id('https://www.gruene-bw.de/beschluss.pdf', 1),
+        recipe.id('https://www.gruene-bw.de/beschluss.pdf', 2),
+      ],
+    });
+
+    let caught: unknown;
+    try {
+      await processDocument(failingDeps, 'landesverbaende_documents', recipe, doc, RUN);
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(RechunkWriteError);
+    const error = caught as RechunkWriteError;
+    expect(error.message).toContain('setPayload boom');
+    // Upsert (2 Chunks) und das Löschen des einen Leftovers sind schon durch —
+    // die alte Fassung hätte hier written: 0, deleted: 0 gemeldet.
+    expect(error.written).toBe(2);
+    expect(error.deleted).toBe(1);
   });
 
   it('wirft, wenn embed weniger Vektoren liefert als Chunks — statt vector: undefined zu upserten', async () => {

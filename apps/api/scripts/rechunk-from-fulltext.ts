@@ -31,9 +31,8 @@ import dotenv from 'dotenv';
 
 import { buildEmbeddingTextsForChunks } from '../services/document-services/embeddingText.js';
 import { structurePayload } from '../services/document-services/structurePayload.js';
-import { generatePointId, stringToNumericHash } from '../utils/validation/hash.js';
-
 import { type Chunk, type ChunkMetadata } from '../services/document-services/TextChunker/types.js';
+import { generatePointId, stringToNumericHash } from '../utils/validation/hash.js';
 
 dotenv.config();
 
@@ -459,6 +458,24 @@ export interface RunOptions {
   resume: boolean;
 }
 
+/**
+ * Wirft processDocument nach dem Upsert oder dem Löschen, trägt dieser Fehler
+ * die bis dahin erreichten Zähler — sonst meldet der Bericht für ein
+ * Dokument, das an setPayload scheiterte, `written: 0` obwohl der Upsert
+ * längst geschrieben hat.
+ */
+export class RechunkWriteError extends Error {
+  readonly written: number;
+  readonly deleted: number;
+
+  constructor(cause: unknown, counts: { written: number; deleted: number }) {
+    super(cause instanceof Error ? cause.message : String(cause), { cause });
+    this.name = 'RechunkWriteError';
+    this.written = counts.written;
+    this.deleted = counts.deleted;
+  }
+}
+
 export async function processDocument(
   deps: RechunkDeps,
   collection: string,
@@ -527,27 +544,36 @@ export async function processDocument(
     }),
   }));
 
-  // UPSERT ZUERST. Die IDs sind deterministisch, der Upsert überschreibt die
-  // alten Punkte 0 … min(n,m)-1 an Ort und Stelle; es entstehen keine Dubletten.
-  for (const batch of upsertBatches(points)) {
-    await deps.upsert(collection, batch);
+  let written = 0;
+  let deleted = 0;
+
+  try {
+    // UPSERT ZUERST. Die IDs sind deterministisch, der Upsert überschreibt die
+    // alten Punkte 0 … min(n,m)-1 an Ort und Stelle; es entstehen keine Dubletten.
+    for (const batch of upsertBatches(points)) {
+      await deps.upsert(collection, batch);
+      written += batch.length;
+    }
+
+    // LÖSCHEN DANACH, und nur was die neue Menge nicht abdeckt.
+    const leftovers = leftoverPointIds(
+      doc.pointIds,
+      points.map((point) => point.id)
+    );
+    if (leftovers.length > 0) {
+      await deps.deletePoints(collection, leftovers);
+      deleted = leftovers.length;
+    }
+
+    // ERST NACH DEM LÖSCHEN den Kopf als „fertig" markieren. Wirft deletePoints,
+    // läuft dieser Aufruf nie — genau der Punkt: ein halbfertiges Dokument darf
+    // --resume nie als erledigt vortäuschen.
+    await deps.setPayload(collection, recipe.id(doc.key, 0), { rechunked_at: now });
+  } catch (error) {
+    throw new RechunkWriteError(error, { written, deleted });
   }
 
-  // LÖSCHEN DANACH, und nur was die neue Menge nicht abdeckt.
-  const leftovers = leftoverPointIds(
-    doc.pointIds,
-    points.map((point) => point.id)
-  );
-  if (leftovers.length > 0) {
-    await deps.deletePoints(collection, leftovers);
-  }
-
-  // ERST NACH DEM LÖSCHEN den Kopf als „fertig" markieren. Wirft deletePoints,
-  // läuft dieser Aufruf nie — genau der Punkt: ein halbfertiges Dokument darf
-  // --resume nie als erledigt vortäuschen.
-  await deps.setPayload(collection, recipe.id(doc.key, 0), { rechunked_at: now });
-
-  return { ...measured, written: points.length, deleted: leftovers.length };
+  return { ...measured, written, deleted };
 }
 
 // =============================================================================
@@ -572,6 +598,28 @@ async function scrollAll(
   params: Record<string, unknown>
 ): Promise<Array<{ id: string | number; payload: Record<string, unknown> | null }>> {
   const all: Array<{ id: string | number; payload: Record<string, unknown> | null }> = [];
+  await scrollEach(client, collection, params, async (points) => {
+    all.push(...points);
+  });
+  return all;
+}
+
+/**
+ * Wie `scrollAll`, aber ohne die Gesamtmenge zu materialisieren: jede Seite
+ * geht durch `onPage` und wird danach freigegeben. Pass B scrollt die
+ * Kopf-Punkte MIT vollem Payload — ~8000 Stück auf
+ * `landesverbaende_documents`, jeder mit seinem `full_text`. `scrollAll`
+ * hätte das für den ganzen Lauf im Speicher gehalten, obwohl nur je ein
+ * Dokument gleichzeitig verarbeitet wird.
+ */
+export async function scrollEach(
+  client: ScrollingClient,
+  collection: string,
+  params: Record<string, unknown>,
+  onPage: (
+    points: Array<{ id: string | number; payload: Record<string, unknown> | null }>
+  ) => Promise<void>
+): Promise<void> {
   let offset: string | number | null | undefined = undefined;
 
   for (;;) {
@@ -582,19 +630,19 @@ async function scrollAll(
       ...(offset != null && { offset }),
     });
 
-    for (const point of page.points) {
-      all.push({ id: point.id, payload: (point.payload as Record<string, unknown>) ?? null });
-    }
+    await onPage(
+      page.points.map((point) => ({
+        id: point.id,
+        payload: (point.payload as Record<string, unknown>) ?? null,
+      }))
+    );
 
     offset = page.next_page_offset ?? null;
     if (offset == null) break;
   }
-
-  return all;
 }
 
-function printReport(collection: string, summary: RunSummary, options: RunOptions): void {
-  console.log(`\n[${collection}]`);
+function printReport(summary: RunSummary, options: RunOptions): void {
   console.log(
     `  Dokumente: ${summary.documents} · mit full_text: ${summary.withFullText} · ` +
       `ohne full_text: ${summary.withoutFullText} (übersprungen)`
@@ -719,12 +767,6 @@ async function main(): Promise<void> {
     else idsByKey.set(key, [point.id]);
   }
 
-  // Durchlauf B: nur die Kopf-Punkte, dafür mit vollem Payload.
-  const heads = await scrollAll(scrolling, args.collection, {
-    filter: { must: [{ key: 'chunk_index', match: { value: 0 } }] },
-    with_payload: true,
-  });
-
   const deps: RechunkDeps = {
     chunk: (text, baseMetadata) => smartChunkDocument(text, { baseMetadata }),
     embed: async (texts) => {
@@ -755,41 +797,52 @@ async function main(): Promise<void> {
   const outcomes: DocumentOutcome[] = [];
   let processed = 0;
 
-  for (const head of heads) {
-    if (processed >= args.limit) break;
-    const key = head.payload?.[recipe.idKey];
-    if (typeof key !== 'string') continue;
+  // Durchlauf B: nur die Kopf-Punkte, dafür mit vollem Payload — Seite für
+  // Seite verarbeitet, damit nie mehr als eine Seite `full_text` gleichzeitig
+  // im Speicher liegt (siehe scrollEach-Kommentar).
+  await scrollEach(
+    scrolling,
+    args.collection,
+    { filter: { must: [{ key: 'chunk_index', match: { value: 0 } }] }, with_payload: true },
+    async (heads) => {
+      for (const head of heads) {
+        if (processed >= args.limit) return;
+        const key = head.payload?.[recipe.idKey];
+        if (typeof key !== 'string') continue;
 
-    try {
-      const outcome = await processDocument(
-        deps,
-        args.collection,
-        recipe,
-        { key, headPayload: head.payload ?? {}, pointIds: idsByKey.get(key) ?? [head.id] },
-        options
-      );
-      outcomes.push(outcome);
-      if (outcome.skipped === null) processed++;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.error(`[error] ${key}: ${message}`);
-      process.exitCode = 1;
-      // Zählen, statt stillschweigend zu verschwinden: sonst unterschätzt der
-      // Bericht seine eigene Dokumentenzahl gegenüber den gescannten Köpfen.
-      outcomes.push({
-        key,
-        skipped: 'error',
-        structured: false,
-        oldChunks: (idsByKey.get(key) ?? [head.id]).length,
-        newChunks: 0,
-        chars: 0,
-        written: 0,
-        deleted: 0,
-      });
+        try {
+          const outcome = await processDocument(
+            deps,
+            args.collection,
+            recipe,
+            { key, headPayload: head.payload ?? {}, pointIds: idsByKey.get(key) ?? [head.id] },
+            options
+          );
+          outcomes.push(outcome);
+          if (outcome.skipped === null) processed++;
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          console.error(`[error] ${key}: ${message}`);
+          process.exitCode = 1;
+          const partial = error instanceof RechunkWriteError ? error : null;
+          // Zählen, statt stillschweigend zu verschwinden: sonst unterschätzt der
+          // Bericht seine eigene Dokumentenzahl gegenüber den gescannten Köpfen.
+          outcomes.push({
+            key,
+            skipped: 'error',
+            structured: false,
+            oldChunks: (idsByKey.get(key) ?? [head.id]).length,
+            newChunks: 0,
+            chars: 0,
+            written: partial?.written ?? 0,
+            deleted: partial?.deleted ?? 0,
+          });
+        }
+      }
     }
-  }
+  );
 
-  printReport(args.collection, summarizeOutcomes(outcomes), options);
+  printReport(summarizeOutcomes(outcomes), options);
 }
 
 // Nur bei direktem Aufruf laufen — die reinen Funktionen oben sind für
@@ -797,4 +850,11 @@ async function main(): Promise<void> {
 // CLI-Lauf, keinen Env-Parse und keine Qdrant-Verbindung auslösen.
 if (process.argv[1] && import.meta.url.endsWith(basename(process.argv[1]))) {
   await main();
+  // Explizit beenden: die dynamisch importierten Qdrant- und Redis-Clients
+  // halten die Event-Loop offen (z. B. das geloggte "Erfolgreich mit Redis
+  // verbunden"), egal ob main() über einen Abbruchpfad (process.exitCode = 1
+  // + return) oder den Erfolgspfad zurückkehrt — beide laufen hier durch.
+  // Ohne process.exit() hängt der Prozess, statt mit dem gesetzten Exit-Code
+  // zu beenden.
+  process.exit(process.exitCode ?? 0);
 }
