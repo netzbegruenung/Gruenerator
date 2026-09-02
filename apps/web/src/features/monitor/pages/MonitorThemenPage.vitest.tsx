@@ -55,8 +55,13 @@ describe('MonitorThemenPage — citation modal mount (issue #3130)', () => {
 
     renderPage();
 
-    expect(await screen.findByText('Zitat [1]')).toBeInTheDocument();
-    expect(screen.getByText('Grundsatzprogramm')).toBeInTheDocument();
+    // Die Rolle plus der zugängliche Name, nicht der blosse Text: das ist die
+    // Aussage, um die es seit #3133 geht — und sie hält auch dann noch, wenn
+    // jemand die Titel-Bausteine anders zusammensetzt. Dass Radix nach
+    // document.body portaliert, stört nicht: RTLs `screen` fragt document.body ab.
+    expect(
+      await screen.findByRole('dialog', { name: /Zitat \[1\] — Grundsatzprogramm/ })
+    ).toBeInTheDocument();
     expect(screen.getByText(/Ein Beispielzitat aus dem Programm\./)).toBeInTheDocument();
   });
 
@@ -65,6 +70,7 @@ describe('MonitorThemenPage — citation modal mount (issue #3130)', () => {
 
     renderPage();
 
-    expect(screen.queryByText(/^Zitat \[/)).not.toBeInTheDocument();
+    // Radix rendert geschlossen nichts — kein Dialog, nicht bloss kein Text.
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });
