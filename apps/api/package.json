@@ -166,7 +166,7 @@
     "@types/http-errors": "^2.0.5",
     "@types/morgan": "^1.9.10",
     "@types/multer": "^2.2.0",
-    "@types/node": "^26.2.0",
+    "@types/node": "^26.4.0",
     "@types/nodemailer": "^8.0.1",
     "@types/pg": "^8.23.1",
     "@types/react": "19.2.18",
