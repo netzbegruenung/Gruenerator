@@ -146,8 +146,14 @@ export function segmentBlocks(text: string): DocumentBlock[] {
   const stack: string[] = [];
   let sectionIndex = 0;
 
-  /** Überschriftenzeilen, die auf den nächsten Block warten. */
-  let carry: string[] = [];
+  /**
+   * Überschriftenzeilen, die auf den nächsten Block warten, je mit der Ebene,
+   * auf der sie in den Stapel kamen. Die Ebene entscheidet beim Verdrängen —
+   * nicht die Position im Array: `openText()` leert den Carry bei jedem
+   * Blockwechsel, während `stack` die volle Vorfahrenkette behält, die beiden
+   * laufen also nach einem Teil-Flush nicht mehr synchron.
+   */
+  let carry: Array<{ level: number; line: string }> = [];
   /** Zeilen des laufenden text-Blocks. */
   let pending: string[] = [];
   let pendingPath: string[] = [];
@@ -176,7 +182,7 @@ export function segmentBlocks(text: string): DocumentBlock[] {
     if (pending.length > 0) return;
     pendingPath = [...stack];
     pendingSection = sectionIndex;
-    pending.push(...carry);
+    pending.push(...carry.map((entry) => entry.line));
     carry = [];
   };
 
@@ -197,10 +203,14 @@ export function segmentBlocks(text: string): DocumentBlock[] {
       // längst überholte Zeile mit in den nächsten Block. Eine tiefere
       // Überschrift unter einem noch nicht verbrauchten Elternteil behält
       // dessen Zeile, exakt wie `headingPath` den Elternteil auch behält.
-      carry.length = Math.min(carry.length, stack.length);
+      // Das läuft über die gespeicherte Ebene jeder Carry-Zeile, NICHT über
+      // `stack.length`: nach einem Teil-Flush zeigt `stack.length` die volle
+      // Vorfahrenkette, der Carry aber nur die seit dem Flush gesehenen
+      // Überschriften — beide Längen sind dann nicht mehr dieselbe Position.
+      carry = carry.filter((entry) => entry.level < heading.level);
       stack.push(heading.title);
       sectionIndex += 1;
-      carry.push(lines[i].trim());
+      carry.push({ level: heading.level, line: lines[i].trim() });
       i += 1;
       continue;
     }
@@ -213,7 +223,12 @@ export function segmentBlocks(text: string): DocumentBlock[] {
         rows.push(lines[i].trim());
         i += 1;
       }
-      push('table', [...carry, ...rows].join('\n'), [...stack], sectionIndex);
+      push(
+        'table',
+        [...carry.map((entry) => entry.line), ...rows].join('\n'),
+        [...stack],
+        sectionIndex
+      );
       carry = [];
       continue;
     }
@@ -241,7 +256,7 @@ export function segmentBlocks(text: string): DocumentBlock[] {
   // text-Block, der nur aus der Überschrift besteht.
   const last = blocks.length > 0 ? blocks[blocks.length - 1] : undefined;
   if (pending.length === 0 && carry.length > 0 && last?.kind === 'text') {
-    last.text = [last.text, ...carry].join('\n');
+    last.text = [last.text, ...carry.map((entry) => entry.line)].join('\n');
   } else {
     openText();
     flushText();
