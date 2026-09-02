@@ -652,7 +652,7 @@ export async function scrollEach(
   params: Record<string, unknown>,
   onPage: (
     points: Array<{ id: string | number; payload: Record<string, unknown> | null }>
-  ) => Promise<void>
+  ) => Promise<void | 'stop'>
 ): Promise<void> {
   let offset: string | number | null | undefined = undefined;
 
@@ -664,12 +664,15 @@ export async function scrollEach(
       ...(offset != null && { offset }),
     });
 
-    await onPage(
+    // `'stop'` beendet den Scroll, bevor die nächste Seite geholt wird —
+    // sonst zöge `--limit 5` trotzdem jede Kopfseite der Sammlung übers Netz.
+    const signal = await onPage(
       page.points.map((point) => ({
         id: point.id,
         payload: (point.payload as Record<string, unknown>) ?? null,
       }))
     );
+    if (signal === 'stop') break;
 
     offset = page.next_page_offset ?? null;
     if (offset == null) break;
@@ -840,7 +843,7 @@ async function main(): Promise<void> {
     { filter: { must: [{ key: 'chunk_index', match: { value: 0 } }] }, with_payload: true },
     async (heads) => {
       for (const head of heads) {
-        if (processed >= args.limit) return;
+        if (processed >= args.limit) return 'stop';
         const key = head.payload?.[recipe.idKey];
         if (typeof key !== 'string') continue;
 
