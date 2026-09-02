@@ -7,8 +7,8 @@ import { cleanTextForEmbedding } from '../../text/index.js';
 
 import { mergeSiblingTextBlocks, segmentBlocks, splitTableBlock } from './blockSegmentation.js';
 import { sentenceRepack, enrichChunkWithMetadata } from './chunkPostProcessing.js';
-import { LangChainChunker } from './langchainIntegration.js';
 import { splitTextByPageMarkers, buildPageRangesFromRaw } from './pageMarkerProcessing.js';
+import { ParagraphChunker } from './paragraphSplitter.js';
 import { hierarchicalChunkDocument } from './structureAwareChunking.js';
 import { estimateTokens } from './validation.js';
 
@@ -33,7 +33,7 @@ import type { Chunk, ChunkingOptions } from './types.js';
  *    Abschnitt, weil nichts über eine Blockgrenze hinweg zusammenfasst.
  */
 async function chunkStructured(
-  chunker: LangChainChunker,
+  chunker: ParagraphChunker,
   text: string,
   meta: Record<string, unknown>,
   options: { pageRanges?: Array<{ start: number; end: number }> | undefined } = {}
@@ -113,18 +113,18 @@ export async function smartChunkDocument(
   const pages = splitTextByPageMarkers(text);
 
   try {
-    const langChainChunker = new LangChainChunker();
+    const paragraphChunker = new ParagraphChunker();
 
     let all: Chunk[] = [];
     if (pages.length === 0) {
       // No pages detected - process entire document
       const pageRanges = buildPageRangesFromRaw(text);
-      all = await chunkStructured(langChainChunker, text, baseMetadata, { pageRanges });
+      all = await chunkStructured(paragraphChunker, text, baseMetadata, { pageRanges });
     } else {
       // Process each page separately; die Blockzerlegung läuft innerhalb einer Seite
       for (const p of pages) {
         const pageMeta = { ...baseMetadata, page_number: p.pageNumber };
-        const repacked = await chunkStructured(langChainChunker, p.textWithoutMarker, pageMeta);
+        const repacked = await chunkStructured(paragraphChunker, p.textWithoutMarker, pageMeta);
         // Ensure page_number is set on every chunk (prefer explicit over detection)
         all.push(
           ...repacked.map((c) => ({
@@ -138,7 +138,9 @@ export async function smartChunkDocument(
     // Reindex chunks globally and enrich metadata
     return all.map((c, i) => enrichChunkWithMetadata({ ...c, index: i }, baseMetadata));
   } catch (_e) {
-    // Minimal safety fallback to avoid hard failure if LangChain is unavailable
+    // Minimal safety fallback; heute unerreichbar (die LangChain-Sonde, deren
+    // Fehler er auffangen sollte, ist mit #3135 weg). Ihn zusammen mit
+    // structureAwareChunking.ts abzuräumen ist ein eigener Aufräum-PR.
     const cleaned = cleanTextForEmbedding(text);
     const chunks = hierarchicalChunkDocument(cleaned, { maxTokens: 600, overlapTokens: 150 });
     return chunks.map((c) => enrichChunkWithMetadata(c, baseMetadata));
