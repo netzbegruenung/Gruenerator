@@ -107,7 +107,6 @@ export class QdrantService {
     user_texts: 'user_texts',
     notebook_collections: 'notebook_collections',
     notebook_collection_documents: 'notebook_collection_documents',
-    notebook_usage_logs: 'notebook_usage_logs',
     notebook_public_access: 'notebook_public_access',
     oparl_papers: 'oparl_papers',
     kommunalwiki_documents: 'kommunalwiki_documents',

@@ -327,8 +327,10 @@ async function runManualCase(
 /**
  * The notebook-scope Q&A path: `NotebookQAService.getSearchContext`, scored on
  * `sortedResults`. Mirrors the query construction of `notebookStreamCore`
- * (history only when the profile allows it, variant expansion only for
- * multi-variant profiles) — keep this copy in sync if that code changes.
+ * (history-aware rewrite when the profile allows it and history is present,
+ * variant expansion only for multi-variant profiles) — keep this copy in sync
+ * if that code changes. It only searches, so it needs no prompt-history
+ * variable — `meta.history` feeds the rewrite regardless of `profile.history`.
  */
 async function runNotebookCase(
   evalCase: RetrievalCase,
@@ -352,14 +354,23 @@ async function runNotebookCase(
     { role: 'user', content: evalCase.query },
   ];
   const lastUserIdx = messages.length - 1;
-  const history = profile.history ? normalizeNotebookHistory(messages.slice(0, lastUserIdx)) : [];
+  const incomingHistory = normalizeNotebookHistory(messages.slice(0, lastUserIdx));
   let queries = [evalCase.query];
-  if (profile.queryVariants > 1) {
+  const wantsRewrite = profile.queryRewrite && incomingHistory.length > 0;
+  if (wantsRewrite || profile.queryVariants > 1) {
     const expanded = await expandQuery(
       evalCase.query,
-      history.length > 0 ? { historyContext: buildRewriteTranscript(history) } : {}
+      wantsRewrite
+        ? {
+            historyContext: buildRewriteTranscript(incomingHistory),
+            ...(profile.queryVariants <= 1 && { variants: 0 }),
+          }
+        : {}
     );
-    queries = [expanded.primary, ...expanded.alternatives].slice(0, profile.queryVariants);
+    queries = [expanded.primary, ...expanded.alternatives].slice(
+      0,
+      Math.max(1, profile.queryVariants)
+    );
   }
 
   const user = meta.user;

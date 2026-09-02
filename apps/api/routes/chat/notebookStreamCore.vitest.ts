@@ -38,9 +38,9 @@ vi.mock('./agents/providers.js', () => ({
 vi.mock('../../services/telemetry/langfuseTelemetry.js', () => ({
   BOTH_LANES_FAILED: 'generation failed on both model lanes',
   buildAiTelemetry: () => undefined,
-  // Mirrors the disabled-mode handle: no trace id, update() swallowed.
+  // Mirrors the enabled-mode handle: a real trace id, update() swallowed.
   withLangfuseTrace: async (_o: unknown, fn: (t: unknown) => Promise<unknown>) =>
-    fn({ traceId: undefined, update: () => {} }),
+    fn({ traceId: 'a'.repeat(32), update: () => {} }),
 }));
 vi.mock('../../database/services/NotebookQdrantHelper.js', () => ({
   NotebookQdrantHelper: class {
@@ -68,6 +68,7 @@ function makeReqRes() {
   const sse = {
     send: (event: string, data: Record<string, unknown>) => sent.push({ event, data }),
     end: vi.fn(),
+    isEnded: () => false,
   } as unknown as Parameters<typeof handleNotebookStream>[0]['sse'];
   return { req, res, sse, sent };
 }
@@ -223,7 +224,7 @@ describe('handleNotebookStream — reranking per tier', () => {
     expect((await ctxAfterDeep).systemPrompt).toBe('ORIGINAL_SYSTEM_PROMPT');
   });
 
-  it('searches one formulation below ultra', async () => {
+  it('searches one formulation without history', async () => {
     await run('deep');
     expect(expandQuery).not.toHaveBeenCalled();
     const { queries } = getSearchContext.mock.calls[0][0] as { queries: string[] };
@@ -314,5 +315,116 @@ describe('handleNotebookStream — conversation history (ultra only)', () => {
     await run('ultra');
     const [, opts] = expandQuery.mock.calls[0] as [string, { historyContext?: string }];
     expect(opts.historyContext).toBeUndefined();
+  });
+});
+
+describe('query rewrite in deep', () => {
+  it('rewrites a follow-up against the history without feeding history to the model', async () => {
+    vi.clearAllMocks();
+    setupMocks();
+    expandQuery.mockResolvedValue({ primary: 'Hitzeschutz Bayern', alternatives: [] });
+    await run('deep', HISTORY_MESSAGES);
+    expect(expandQuery).toHaveBeenCalledTimes(1);
+    expect((expandQuery.mock.calls[0][1] as { historyContext?: string }).historyContext).toContain(
+      'Windkraft'
+    );
+    const ctx = getSearchContext.mock.calls[0][0] as { queries: string[] };
+    expect(ctx.queries).toEqual(['Hitzeschutz Bayern']);
+    expect(modelMessages().filter((m) => m.role === 'assistant')).toHaveLength(0);
+  });
+
+  it('does not call the rewriter without history', async () => {
+    vi.clearAllMocks();
+    setupMocks();
+    await run('deep');
+    expect(expandQuery).not.toHaveBeenCalled();
+  });
+
+  it('does not call the rewriter in fast, even with history (Grün-O-Mat cost guard)', async () => {
+    // `fast` has `queryRewrite: false` — history in the request must not
+    // trigger a rewrite call regardless.
+    vi.clearAllMocks();
+    setupMocks();
+    await run('fast', HISTORY_MESSAGES);
+    expect(expandQuery).not.toHaveBeenCalled();
+  });
+
+  it('reranks against the rewritten query, not the raw follow-up', async () => {
+    // Red before the fix: the reranker's cross-encoder read "Und was heißt
+    // das für Bayern?" while the 40 candidates were retrieved for the
+    // rewritten "Hitzeschutz Bayern".
+    vi.clearAllMocks();
+    setupMocks();
+    expandQuery.mockResolvedValue({ primary: 'Hitzeschutz Bayern', alternatives: [] });
+    await run('deep', HISTORY_MESSAGES);
+    const rerankCall = rerankNotebookResults.mock.calls[0][0] as { question: string };
+    expect(rerankCall.question).toBe('Hitzeschutz Bayern');
+  });
+
+  it('reranks against the raw question when there is no history to rewrite from', async () => {
+    vi.clearAllMocks();
+    setupMocks();
+    await run('deep');
+    const rerankCall = rerankNotebookResults.mock.calls[0][0] as { question: string };
+    expect(rerankCall.question).toBe('Was steht zur sozialen Sicherung drin?');
+  });
+
+  it('never asks the rewriter for alternatives it would immediately discard', async () => {
+    // deep keeps exactly one query (queryVariants: 1), so the alternatives a
+    // full condense call would produce are pure spend.
+    vi.clearAllMocks();
+    setupMocks();
+    expandQuery.mockResolvedValue({ primary: 'Hitzeschutz Bayern', alternatives: [] });
+    await run('deep', HISTORY_MESSAGES);
+    const opts = expandQuery.mock.calls[0][1] as { variants?: number };
+    expect(opts.variants).toBe(0);
+  });
+});
+
+describe('citation validation', () => {
+  it('warns when the model cites an id that is not in the reference map', async () => {
+    vi.clearAllMocks();
+    setupMocks();
+    getSearchContext.mockResolvedValue({
+      ...searchContextWith(4),
+      referencesMap: {
+        '1': {
+          title: 'Doc 1',
+          snippets: [['Text 1']],
+          description: null,
+          date: null,
+          source: 's',
+          document_id: 'd1',
+          source_url: null,
+          filename: null,
+          similarity_score: 0.9,
+          chunk_index: 0,
+          page_number: null,
+        },
+      },
+    });
+    rerankNotebookResults.mockImplementation(async ({ results, referencesMap }) => ({
+      results,
+      referencesMap,
+      contextSummary: 'x',
+      rerankTimeMs: 1,
+    }));
+    streamWithFallback.mockResolvedValue('Aussage.[1] Andere Aussage.[9]');
+    const sent = await run('deep');
+    const warning = sent.find((e) => e.event === 'warning');
+    expect(warning?.data.code).toBe('citation_invalid');
+    const completion = sent.find((e) => e.event === 'completion');
+    expect(completion?.data.answer).toContain('[cite:1]');
+    expect(completion?.data.answer).toContain('[9]');
+  });
+});
+
+describe('trace id', () => {
+  it('puts the langfuse trace id into the completion metadata and the result', async () => {
+    vi.clearAllMocks();
+    setupMocks();
+    const sent = await run('deep');
+    const completion = sent.find((e) => e.event === 'completion');
+    expect((completion?.data.metadata as { traceId?: string }).traceId).toBe('a'.repeat(32));
   });
 });
