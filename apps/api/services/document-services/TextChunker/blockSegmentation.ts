@@ -266,7 +266,7 @@ export function segmentBlocks(text: string): DocumentBlock[] {
 
 /**
  * Ab hier gilt ein Block als lang genug, um für sich zu stehen. Dieselbe Zahl
- * wie `mergeSmallChunks`' `minChars` (`langchainIntegration.ts`), eine Ebene
+ * wie `mergeSmallChunks`' `minChars` (`paragraphSplitter.ts`), eine Ebene
  * höher angewandt: dort werden Chunks INNERHALB eines Blocks zusammengefasst,
  * hier die Blöcke selbst.
  */

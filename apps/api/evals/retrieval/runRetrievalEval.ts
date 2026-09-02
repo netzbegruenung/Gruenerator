@@ -52,7 +52,11 @@
  *                    Aufruf sitzt im Dienst), deshalb misst `searchTimeMs` die
  *                    Wanduhr je Suche; die Differenz der Mediane zwischen einem
  *                    Lauf mit und einem ohne den Arm ist die Kostenzahl.
- *   EVAL_CASE_KIND   run another kind's cases through the chosen pipeline
+ *   EVAL_CASE_KIND   run another kind's cases through the chosen pipeline. A
+ *                    case without `notebook` meta falls back to its own
+ *                    `collection` as the collection id, so
+ *                    `EVAL_PIPELINE=notebook EVAL_CASE_KIND=qa` walks any qa
+ *                    case through the 0.35 threshold in NotebookQAService.
  *   EVAL_VERBOSE=1   print top-5 titles for every miss (gold-label curation)
  *   EVAL_OUT         write per-case results as JSON to this path
  *   EVAL_CHAT_EXPAND=1  nur für EVAL_PIPELINE=chat-notebook: hängt EINE
@@ -64,6 +68,11 @@
  *                    läuft der Arm wie die Produktion. Der Schalter bleibt,
  *                    damit der nächste Anlauf (etwa mit feinerem Sortier-
  *                    schlüssel) gepaart gegen dieselbe Grundlinie messen kann.
+ *
+ * The #3118 tuning-arm measurement session (Task 8) runs with
+ * HYBRID_ENABLE_QUALITY_GATE=false — the gate's minFinalScore is verified
+ * safe for `rrf` only (hybridSearch.ts), and this eval is what compares all
+ * five arms.
  *
  * Three pipelines, because the product has three: `qa` is the notebook Q&A
  * search (depth profile + optional rerank), `manual` is the notebook search
@@ -415,10 +424,14 @@ async function runNotebookCase(
     rank: null,
     topTitles: [],
   };
-  const meta = evalCase.notebook;
-  if (!meta) {
-    return { ...base, error: `notebook case without notebook meta: ${evalCase.id}` };
-  }
+  // Ein Fall ohne `notebook`-Metadaten ist ein qa-/manual-Fall, den
+  // EVAL_CASE_KIND in diese Pipeline gezogen hat. Sein `collection` IST die
+  // System-Sammlungs-ID, die `getSearchContext` erwartet — bei den vorhandenen
+  // notebook-Fällen stehen beide Felder ohnehin auf demselben Wert
+  // (cases.ts:527-532). Ohne diesen Rückfall bliebe die einzige Pipeline, die
+  // die 0,35-Schwelle in NotebookQAService.ts:195 durchläuft, für die einzige
+  // Sammlung mit Sparse-Vektoren blind (#3118).
+  const meta = evalCase.notebook ?? { collectionId: evalCase.collection };
 
   const profile = getNotebookDepthProfile(depth);
   const messages: Array<{ role: 'user' | 'assistant'; content: string }> = [

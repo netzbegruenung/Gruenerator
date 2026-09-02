@@ -42,8 +42,6 @@ export {
   smartChunkDocumentAsync,
   hierarchicalChunkDocument,
   estimateTokens,
-  LangChainChunker,
-  langChainChunker,
 } from './TextChunker/index.js';
 
 // Re-export types from all submodules
