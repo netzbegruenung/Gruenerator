@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  checkBm25Precondition,
   checkIdRecipe,
   isStructured,
   leftoverPointIds,
@@ -60,6 +61,33 @@ describe('pointIdRecipeFor', () => {
   it('kennt kein Rezept für documents — die Sammlung ist tabu', () => {
     expect(pointIdRecipeFor('documents')).toBeNull();
     expect(pointIdRecipeFor('kommunalwiki_documents')).toBeNull();
+  });
+});
+
+describe('checkBm25Precondition', () => {
+  it('bricht einen echten Lauf ohne bm25 ab', () => {
+    const result = checkBm25Precondition('landesverbaende_documents', false, false);
+
+    expect(result.proceed).toBe(false);
+    expect(result.log).toEqual({
+      level: 'error',
+      message: expect.stringContaining('deklariert den Sparse-Vektor bm25 nicht'),
+    });
+  });
+
+  it('lässt --dry-run trotz fehlendem bm25 durch — mit Warnung statt Abbruch (Finding 7)', () => {
+    const result = checkBm25Precondition('landesverbaende_documents', false, true);
+
+    expect(result.proceed).toBe(true);
+    expect(result.log).toEqual({
+      level: 'warn',
+      message: expect.stringContaining('deklariert den Sparse-Vektor bm25 nicht'),
+    });
+  });
+
+  it('meldet nichts, wenn bm25 da ist — egal ob dry-run', () => {
+    expect(checkBm25Precondition('x', true, false)).toEqual({ proceed: true, log: null });
+    expect(checkBm25Precondition('x', true, true)).toEqual({ proceed: true, log: null });
   });
 });
 
