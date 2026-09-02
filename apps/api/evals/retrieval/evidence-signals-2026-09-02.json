@@ -1,0 +1,286 @@
+{
+  "depth": "deep",
+  "results": [
+    {
+      "id": "notebook-berlin-hitzeschutz",
+      "group": "on-topic",
+      "query": "Was gilt in Berlin zum Hitzeschutz, etwa an Schulen oder für Hitzeempfindliche?",
+      "metrics": {
+        "candidates": 40,
+        "denseTop": 0.9895249084000001,
+        "denseMedian": 0.9413936556363636,
+        "denseMargin": 0.0481312527636365,
+        "rerankTop": 0.7603536248207092,
+        "rerankMedian": 0.41644082963466644,
+        "rerankMargin": 0.3439127951860428,
+        "rerankTop3Mean": 0.6281816363334656,
+        "aboveThresholdShare": 1,
+        "goldRank": 1
+      },
+      "error": null
+    },
+    {
+      "id": "notebook-berlin-milieuschutz",
+      "group": "on-topic",
+      "query": "Wie will Berlin mit Milieuschutzgebieten die Mietenentwicklung bremsen?",
+      "metrics": {
+        "candidates": 40,
+        "denseTop": 1,
+        "denseMedian": 1,
+        "denseMargin": 0,
+        "rerankTop": 0.8702751994132996,
+        "rerankMedian": 0.5629542768001556,
+        "rerankMargin": 0.3073209226131439,
+        "rerankTop3Mean": 0.7689570387204488,
+        "aboveThresholdShare": 1,
+        "goldRank": 2
+      },
+      "error": null
+    },
+    {
+      "id": "notebook-bayern-moorschutz",
+      "group": "on-topic",
+      "query": "Welche Ziele und Maßnahmen verfolgt der Moorschutz in Bayern?",
+      "metrics": {
+        "candidates": 40,
+        "denseTop": 1,
+        "denseMedian": 0.9576877257499999,
+        "denseMargin": 0.04231227425000006,
+        "rerankTop": 0.9478484988212585,
+        "rerankMedian": 0.60823193192482,
+        "rerankMargin": 0.3396165668964386,
+        "rerankTop3Mean": 0.8044488827387491,
+        "aboveThresholdShare": 1,
+        "goldRank": 3
+      },
+      "error": null
+    },
+    {
+      "id": "notebook-at-klimaticket",
+      "group": "on-topic",
+      "query": "Wie ist das Klimaticket in Österreich finanziert, und was kostet es?",
+      "metrics": {
+        "candidates": 30,
+        "denseTop": 0.9618639513548387,
+        "denseMedian": 0.9471726014482759,
+        "denseMargin": 0.014691349906562845,
+        "rerankTop": 0.5609114766120911,
+        "rerankMedian": 0.31995511054992676,
+        "rerankMargin": 0.2409563660621643,
+        "rerankTop3Mean": 0.5043821533521017,
+        "aboveThresholdShare": 1,
+        "goldRank": 1
+      },
+      "error": null
+    },
+    {
+      "id": "notebook-user-ausschreibungen",
+      "group": "on-topic",
+      "query": "Welche Direktvergabe an ein Architekturbüro hat das Rechnungsprüfungsamt beanstandet, und wie hoch war der Betrag?",
+      "metrics": {
+        "candidates": 20,
+        "denseTop": 0.9803357532244898,
+        "denseMedian": 0.9447426099643575,
+        "denseMargin": 0.0355931432601323,
+        "rerankTop": 0.7798036336898804,
+        "rerankMedian": 0.19494429230690002,
+        "rerankMargin": 0.5848593413829803,
+        "rerankTop3Mean": 0.6238334973653158,
+        "aboveThresholdShare": 0.5,
+        "goldRank": 1
+      },
+      "error": null
+    },
+    {
+      "id": "notebook-user-haushaltsplan",
+      "group": "on-topic",
+      "query": "Wie hoch sind die Einzahlungen aus laufender Verwaltungstätigkeit laut Finanzplan?",
+      "metrics": {
+        "candidates": 11,
+        "denseTop": 1,
+        "denseMedian": 1,
+        "denseMargin": 0,
+        "rerankTop": 0.6250783801078796,
+        "rerankMedian": 0.31106850504875183,
+        "rerankMargin": 0.3140098750591278,
+        "rerankTop3Mean": 0.6120895147323608,
+        "aboveThresholdShare": 0.9090909090909091,
+        "goldRank": 2
+      },
+      "error": null
+    },
+    {
+      "id": "notebook-history-moorschutz",
+      "group": "on-topic",
+      "query": "Und in Bayern?",
+      "metrics": {
+        "candidates": 60,
+        "denseTop": 0.9861193984444444,
+        "denseMedian": 0.8964311506666666,
+        "denseMargin": 0.08968824777777784,
+        "rerankTop": 0.9475604891777039,
+        "rerankMedian": 0.6050674915313721,
+        "rerankMargin": 0.3424929976463318,
+        "rerankTop3Mean": 0.8383779525756836,
+        "aboveThresholdShare": 1,
+        "goldRank": 2
+      },
+      "error": null
+    },
+    {
+      "id": "notebook-history-flaechenfrass",
+      "group": "on-topic",
+      "query": "Und in Bayern?",
+      "metrics": {
+        "candidates": 60,
+        "denseTop": 0.9957452680000001,
+        "denseMedian": 0.8840840215000001,
+        "denseMargin": 0.11166124649999998,
+        "rerankTop": 0.7509645223617554,
+        "rerankMedian": 0.48361100256443024,
+        "rerankMargin": 0.26735351979732513,
+        "rerankTop3Mean": 0.7116671005884806,
+        "aboveThresholdShare": 1,
+        "goldRank": 1
+      },
+      "error": null
+    },
+    {
+      "id": "notebook-history-artenvielfalt",
+      "group": "on-topic",
+      "query": "Und in Bayern?",
+      "metrics": {
+        "candidates": 60,
+        "denseTop": 1,
+        "denseMedian": 0.962287539,
+        "denseMargin": 0.03771246100000003,
+        "rerankTop": 0.8569032549858093,
+        "rerankMedian": 0.550315648317337,
+        "rerankMargin": 0.3065876066684723,
+        "rerankTop3Mean": 0.8203703761100769,
+        "aboveThresholdShare": 1,
+        "goldRank": 3
+      },
+      "error": null
+    },
+    {
+      "id": "offtopic-sauerteigbrot",
+      "group": "off-topic",
+      "query": "Wie backe ich Sauerteigbrot?",
+      "metrics": {
+        "candidates": 40,
+        "denseTop": 0.853524074,
+        "denseMedian": 0.848411493,
+        "denseMargin": 0.005112581000000005,
+        "rerankTop": 0.7877907156944275,
+        "rerankMedian": 0.49784591794013977,
+        "rerankMargin": 0.2899447977542877,
+        "rerankTop3Mean": 0.7611655394236246,
+        "aboveThresholdShare": 1,
+        "goldRank": null
+      },
+      "error": null
+    },
+    {
+      "id": "offtopic-fussball-wm-2014",
+      "group": "off-topic",
+      "query": "Wer gewann die Fußball-WM 2014?",
+      "metrics": {
+        "candidates": 40,
+        "denseTop": 0.8684124336,
+        "denseMedian": 0.8640842462857142,
+        "denseMargin": 0.004328187314285747,
+        "rerankTop": 0.8001556992530823,
+        "rerankMedian": 0.48477010428905487,
+        "rerankMargin": 0.3153855949640274,
+        "rerankTop3Mean": 0.705984354019165,
+        "aboveThresholdShare": 1,
+        "goldRank": null
+      },
+      "error": null
+    },
+    {
+      "id": "offtopic-tesla-model-3",
+      "group": "off-topic",
+      "query": "Was kostet ein Tesla Model 3?",
+      "metrics": {
+        "candidates": 40,
+        "denseTop": 0.8812706480000001,
+        "denseMedian": 0.8159330719999999,
+        "denseMargin": 0.06533757600000023,
+        "rerankTop": 0.9310391545295715,
+        "rerankMedian": 0.5997795462608337,
+        "rerankMargin": 0.3312596082687378,
+        "rerankTop3Mean": 0.7671333948771158,
+        "aboveThresholdShare": 1,
+        "goldRank": null
+      },
+      "error": null
+    },
+    {
+      "id": "offtopic-mars-distance",
+      "group": "off-topic",
+      "query": "Wie weit ist der Mars entfernt?",
+      "metrics": {
+        "candidates": 40,
+        "denseTop": 0.8955126093333333,
+        "denseMedian": 0.8461945333333333,
+        "denseMargin": 0.049318076000000044,
+        "rerankTop": 0.8134561777114868,
+        "rerankMedian": 0.4926336854696274,
+        "rerankMargin": 0.32082249224185944,
+        "rerankTop3Mean": 0.6815603375434875,
+        "aboveThresholdShare": 1,
+        "goldRank": null
+      },
+      "error": null
+    },
+    {
+      "id": "offtopic-carbonara",
+      "group": "off-topic",
+      "query": "Wie kocht man Spaghetti Carbonara?",
+      "metrics": {
+        "candidates": 40,
+        "denseTop": 0.84447766,
+        "denseMedian": 0.7971355710000001,
+        "denseMargin": 0.04734208899999992,
+        "rerankTop": 0.9633616209030151,
+        "rerankMedian": 0.45941489934921265,
+        "rerankMargin": 0.5039467215538025,
+        "rerankTop3Mean": 0.8940412998199463,
+        "aboveThresholdShare": 1,
+        "goldRank": null
+      },
+      "error": null
+    },
+    {
+      "id": "offtopic-bitcoin-mining",
+      "group": "off-topic",
+      "query": "Wie funktioniert Bitcoin-Mining?",
+      "metrics": {
+        "candidates": 40,
+        "denseTop": 0.8488372975999999,
+        "denseMedian": 0.8142339559999999,
+        "denseMargin": 0.034603341600000004,
+        "rerankTop": 0.8522958159446716,
+        "rerankMedian": 0.5056227445602417,
+        "rerankMargin": 0.34667307138442993,
+        "rerankTop3Mean": 0.7199183305104574,
+        "aboveThresholdShare": 1,
+        "goldRank": null
+      },
+      "error": null
+    }
+  ],
+  "separation": [
+    "candidates: does not separate — closest margin -20.0000 (negative = overlapping ranges)",
+    "denseTop: SEPARATES (on-topic > off-topic) — margin 0.0664, threshold ≈ 0.9287 (midpoint of the boundary values)",
+    "denseMedian: SEPARATES (on-topic > off-topic) — margin 0.0200, threshold ≈ 0.8741 (midpoint of the boundary values)",
+    "denseMargin: does not separate — closest margin -0.0653 (negative = overlapping ranges)",
+    "rerankTop: does not separate — closest margin -0.1601 (negative = overlapping ranges)",
+    "rerankMedian: does not separate — closest margin -0.1488 (negative = overlapping ranges)",
+    "rerankMargin: does not separate — closest margin -0.2630 (negative = overlapping ranges)",
+    "rerankTop3Mean: does not separate — closest margin -0.1568 (negative = overlapping ranges)",
+    "aboveThresholdShare: does not separate — closest margin 0.0000 (negative = overlapping ranges)"
+  ]
+}
