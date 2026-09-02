@@ -5,11 +5,15 @@
  * und deckt nur die Anmeldung ab; die Rolle prüft jeder Handler selbst — dieselbe
  * Begründung wie in agentVisibilityContractRouter.ts:4-7.
  *
- * Bewusst NICHT benutzt: `checkNotebookAccess`. Der Inspektor liest quer über
- * alle Eigentümer*innen — das ist sein Zweck —, und ein Instanz-Admin würde die
- * Mitgliedschaftsprüfung ohnehin nie bestehen. Damit sitzt die gesamte
- * Zugriffsentscheidung an einer Stelle statt an zweien, die sich widersprechen
- * könnten. Geschrieben wird nichts.
+ * Das einzige Gatter dieses Routers ist `requireInstanceAdmin`. Für
+ * Nutzer-Notebooks läuft die Suche unten mit der Kennung der Eigentümerin
+ * (`userId: notebook.user_id`) — `checkNotebookAccess` innerhalb von
+ * `getSearchContext` ist damit per Konstruktion erfüllt, nicht umgangen: ein
+ * Instanz-Admin würde die Mitgliedschaftsprüfung sonst nie bestehen, die
+ * Eigentümerin besteht sie immer. Zwei Autorisierungen auf einer Route ist
+ * die Bauform, aus der Rechteverwechslungen entstehen — deshalb sitzt die
+ * gesamte Zugriffsentscheidung an dieser einen Stelle. Geschrieben wird
+ * nichts.
  */
 import { chunkInspectorContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';

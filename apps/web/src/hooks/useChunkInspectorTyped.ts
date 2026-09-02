@@ -1,6 +1,7 @@
 /**
  * useChunkInspectorTyped — typisierte ts-rest-Hüllen für den Chunk-Inspektor.
- * Wirft bei allem ausser 200, damit TanStack Query es als Fehler zeigt.
+ * Wirft bei allem ausser 200, damit TanStack Query es als Fehler zeigt — mit
+ * einer pro Status passenden Meldung statt einer einzigen generischen.
  */
 import { type InspectDocumentResponse, type InspectSearchResponse } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
@@ -16,6 +17,15 @@ export async function fetchDocumentChunks(
     params: { documentId },
     query: { collection, offset, limit },
   });
+  // 403 nennt den Grund direkt statt der immer gleichen Server-Meldung. 404
+  // gibt die Server-Meldung weiter (z.B. „Keine Chunks gefunden."), sie ist
+  // dokumentspezifisch. Alles andere bleibt generisch mit dem HTTP-Status.
+  if (result.status === 403) {
+    throw new Error('Kein Zugriff (Instanz-Admin erforderlich)');
+  }
+  if (result.status === 404) {
+    throw new Error(result.body.message);
+  }
   if (result.status !== 200) {
     throw new Error(`Chunk-Inspektor: Chunks konnten nicht geladen werden (HTTP ${result.status})`);
   }
@@ -32,6 +42,12 @@ export async function fetchChunkSearch(
     params: { documentId },
     query: { collection, query },
   });
+  if (result.status === 403) {
+    throw new Error('Kein Zugriff (Instanz-Admin erforderlich)');
+  }
+  if (result.status === 404) {
+    throw new Error(result.body.message);
+  }
   if (result.status !== 200) {
     throw new Error(`Chunk-Inspektor: Die Suche ist fehlgeschlagen (HTTP ${result.status})`);
   }

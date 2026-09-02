@@ -73,8 +73,8 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
   const { enabledModelIds } = useModelPreferences({ enabled: !!userId });
 
   // Rollenwahl im Composer → Konto-Voreinstellung. Über einen Ref, weil
-  // `chatConfig` bewusst einmalig gebaut wird ([] als Abhängigkeiten) und die
-  // Mutation an den QueryClient dieses Renders gebunden ist.
+  // `chatConfig` nur bei einem Wechsel von `isInstanceAdmin` neu gebaut wird
+  // und die Mutation an den QueryClient dieses Renders gebunden ist.
   const setUserDefault = useSetUserDefault<'profile', 'activeRole'>();
   const setUserDefaultRef = useRef(setUserDefault);
   useEffect(() => {
