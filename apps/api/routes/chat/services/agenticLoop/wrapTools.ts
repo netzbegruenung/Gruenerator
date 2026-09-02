@@ -88,6 +88,25 @@ export interface ToolHooks {
 const BEFORE_HOOK_TIMEOUT_MS = 500;
 
 /**
+ * Felder, die ein Werkzeugergebnis nur für die Hooks trägt.
+ *
+ * Sie gehen an Karte, persistierten Schritt und `afterToolCall` — aber NICHT an
+ * das Modell: `rerankDegraded` ist eine Aussage über unsere Infrastruktur, nicht
+ * über die Fundstellen, und ein Planer, der sie liest, fängt an, sie in der
+ * Antwort zu erklären.
+ */
+const INTERNAL_RESULT_FIELDS: readonly string[] = ['rerankDegraded'];
+
+function stripInternalFields(output: unknown): unknown {
+  if (!output || typeof output !== 'object' || Array.isArray(output)) return output;
+  const record = output as Record<string, unknown>;
+  if (!INTERNAL_RESULT_FIELDS.some((field) => field in record)) return output;
+  const copy = { ...record };
+  for (const field of INTERNAL_RESULT_FIELDS) delete copy[field];
+  return copy;
+}
+
+/**
  * Beobachtende Hooks sind Fire-and-Forget: eine Ausnahme darf den Turn nicht
  * kippen. Die Rückgabe ist `void` typisiert, das hindert einen Handler aber
  * nicht daran, `async` zu sein — eine abgelehnte Zusage käme dann als
@@ -560,8 +579,8 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
       }
 
       // Model-facing payload only — the full result already went to the card /
-      // persisted step above.
-      return truncateResultForModel(output, maxResultChars);
+      // persisted step above, and the hooks above have seen the internal fields.
+      return truncateResultForModel(stripInternalFields(output), maxResultChars);
     };
 
     wrapped[toolName] = { ...toolDef, execute: wrappedExecute } as ToolSet[string];
