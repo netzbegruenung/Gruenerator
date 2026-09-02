@@ -31,7 +31,7 @@ export interface RetrievalExpectation {
  * field — a different retrieval problem, because the winning document is the
  * one that literally carries the term, not the one that is topically nearest.
  */
-export type RetrievalCaseKind = 'qa' | 'manual' | 'notebook';
+export type RetrievalCaseKind = 'qa' | 'manual' | 'notebook' | 'chat-notebook';
 
 /** Search scope + context of a notebook case (see `notebookStreamCore`). */
 export interface NotebookCaseMeta {
@@ -47,6 +47,25 @@ export interface NotebookCaseMeta {
   history?: Array<{ role: 'user' | 'assistant'; content: string }>;
 }
 
+/**
+ * Notebook-Bindung eines CHAT-seitigen Falls — der Pfad in `searchNode`, nicht
+ * die Notebook-Fläche. Der Unterschied ist nicht kosmetisch: `searchNode` holt
+ * gruppierte Dokumente über `executeDirectSearch` mit sammlungseigenen
+ * Schwellen und einem 800-Zeichen-Auszug, die Fläche geht über
+ * `NotebookQAService.getSearchContext`. Deshalb eine eigene Sorte statt eines
+ * Feldes an `NotebookCaseMeta`.
+ */
+export interface ChatNotebookCaseMeta {
+  /** Wie im Chat: `@mention`-IDs. Aufgelöst über NOTEBOOK_COLLECTION_MAP. */
+  notebookIds: string[];
+  /**
+   * Vorangehende Turns. Nur diese Fälle laufen durch `refineSearchQuery` —
+   * genau wie `classifyWithForcedSearch` es auf dem Mention-Pfad tut. Ohne
+   * Verlauf ist die Fallanfrage bereits das Thema (wie bei `qa` und `notebook`).
+   */
+  history?: Array<{ role: 'user' | 'assistant'; content: string }>;
+}
+
 export interface RetrievalCase {
   id: string;
   collection: string;
@@ -55,6 +74,7 @@ export interface RetrievalCase {
   /** Defaults to `qa`. */
   kind?: RetrievalCaseKind;
   notebook?: NotebookCaseMeta;
+  chatNotebook?: ChatNotebookCaseMeta;
 }
 
 export const RETRIEVAL_CASES: RetrievalCase[] = [
@@ -640,6 +660,125 @@ export const RETRIEVAL_CASES: RetrievalCase[] = [
     kind: 'notebook',
     notebook: {
       collectionIds: ['berlin-system', 'bayern-system'],
+      history: [
+        { role: 'user', content: 'Was plant Berlin für die Artenvielfalt?' },
+        {
+          role: 'assistant',
+          content:
+            'Berlin setzt unter anderem auf die Renaturierung von Grünflächen und den Schutz von Bienen und Insekten.',
+        },
+      ],
+    },
+  },
+
+  // ── chat-notebook scope: searchNode's notebook-bound branch
+  //    (EVAL_PIPELINE=chat-notebook) ──
+  // Gold labels reuse the calibrated `qa`/`manual`/`notebook` golds above (same
+  // corpus, same documents), so a rank change here is a retrieval change and
+  // not a relabelling. `notebookIds` are the ids a user @mentions; resolving
+  // them is part of the measured path.
+  {
+    id: 'chat-nb-berlin-hitzeschutz',
+    collection: 'berlin-system',
+    query: 'Was gilt in Berlin zum Hitzeschutz, etwa an Schulen oder für Hitzeempfindliche?',
+    expect: [{ titlePattern: 'Hitzeschutz' }],
+    kind: 'chat-notebook',
+    chatNotebook: { notebookIds: ['berlin-notebook'] },
+  },
+  {
+    id: 'chat-nb-berlin-milieuschutz',
+    collection: 'berlin-system',
+    query: 'Wie will Berlin mit Milieuschutzgebieten die Mietenentwicklung bremsen?',
+    expect: [{ titlePattern: 'Wohnungspolitik|Milieuschutz|Mieten' }],
+    kind: 'chat-notebook',
+    chatNotebook: { notebookIds: ['berlin-notebook'] },
+  },
+  {
+    id: 'chat-nb-berlin-verkehr',
+    collection: 'berlin-system',
+    query: 'Ausbau von Radwegen und ÖPNV in Berlin',
+    expect: [
+      { titlePattern: 'Rad|Verkehr|Mobilität|ÖPNV' },
+      { urlPattern: 'rad|verkehr|mobilitaet' },
+    ],
+    kind: 'chat-notebook',
+    chatNotebook: { notebookIds: ['berlin-notebook'] },
+  },
+  {
+    id: 'chat-nb-berlin-baumfaellmoratorium',
+    collection: 'berlin-system',
+    // Occurs in exactly one document — the hardest single-document case in the
+    // Berlin corpus, and the one a second formulation can most easily lose.
+    query: 'Was steht zum Baumfäll-Moratorium?',
+    expect: [{ titlePattern: 'Baumfäll-Moratorium' }],
+    kind: 'chat-notebook',
+    chatNotebook: { notebookIds: ['berlin-notebook'] },
+  },
+  {
+    id: 'chat-nb-bayern-moorschutz',
+    collection: 'bayern-system',
+    query: 'Welche Ziele und Maßnahmen verfolgt der Moorschutz in Bayern?',
+    expect: [{ titlePattern: 'Moorschutz' }],
+    kind: 'chat-notebook',
+    chatNotebook: { notebookIds: ['bayern-notebook'] },
+  },
+  {
+    id: 'chat-nb-bayern-artenvielfalt',
+    collection: 'bayern-system',
+    query: 'Volksbegehren Artenvielfalt — Rettet die Bienen',
+    expect: [{ titlePattern: 'Arten|Bienen|Volksbegehren' }, { urlPattern: 'arten|bienen' }],
+    kind: 'chat-notebook',
+    chatNotebook: { notebookIds: ['bayern-notebook'] },
+  },
+  {
+    id: 'chat-nb-bayern-flaechenfrass',
+    collection: 'bayern-system',
+    query: 'Flächenverbrauch und Flächenfraß in Bayern begrenzen',
+    expect: [{ titlePattern: 'Fläche|Boden' }, { urlPattern: 'flaeche|boden' }],
+    kind: 'chat-notebook',
+    chatNotebook: { notebookIds: ['bayern-notebook'] },
+  },
+  {
+    id: 'chat-nb-at-klimaticket',
+    collection: 'oesterreich-gruene-system',
+    // One AT case, not a third topic series: it proves the resolution
+    // (oesterreich-notebook opens exactly one collection) and the language
+    // choice, nothing else.
+    query: 'Wie ist das Klimaticket in Österreich finanziert, und was kostet es?',
+    expect: [{ titlePattern: 'Nationalratswahl|Wahlprogramm' }],
+    kind: 'chat-notebook',
+    chatNotebook: { notebookIds: ['oesterreich-notebook'] },
+  },
+  // Follow-up questions across the Berlin+Bayern multi-notebook scope. Only the
+  // rewritten standalone query can hit the gold document, so these measure the
+  // refiner (`refineSearchQuery`) as the mention path runs it — the expansion
+  // on top of it is what this PR changes.
+  {
+    id: 'chat-nb-history-moorschutz',
+    collection: 'multi',
+    query: 'Und in Bayern?',
+    expect: [{ titlePattern: 'Moorschutz' }],
+    kind: 'chat-notebook',
+    chatNotebook: {
+      notebookIds: ['berlin-notebook', 'bayern-notebook'],
+      history: [
+        { role: 'user', content: 'Was tut Berlin für den Moorschutz?' },
+        {
+          role: 'assistant',
+          content:
+            'Berlin engagiert sich für den Schutz von Mooren und deren Wiedervernässung sowie für den Hochwasserschutz im Umland.',
+        },
+      ],
+    },
+  },
+  {
+    id: 'chat-nb-history-artenvielfalt',
+    collection: 'multi',
+    query: 'Und in Bayern?',
+    expect: [{ titlePattern: 'Arten|Bienen|Volksbegehren' }],
+    kind: 'chat-notebook',
+    chatNotebook: {
+      notebookIds: ['berlin-notebook', 'bayern-notebook'],
       history: [
         { role: 'user', content: 'Was plant Berlin für die Artenvielfalt?' },
         {
