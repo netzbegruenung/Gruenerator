@@ -375,3 +375,28 @@ describe('HYBRID_SERVER_SPARSE_FACTOR', () => {
     expect(['RRF', 'weighted']).toContain(response.metadata.fusionMethod);
   });
 });
+
+describe('Qualitäts-Gatter auf dem Server-Pfad', () => {
+  const lowScoringPoints = [
+    { id: 1, score: 0.9, payload: { chunk_text: 'a' } },
+    { id: 2, score: 0.001, payload: { chunk_text: 'b' } },
+  ];
+
+  it('filtert bei rrf — dem ausgelieferten Arm — mit eingeschaltetem Gatter', async () => {
+    state.hybrid = { ...DEFAULT_HYBRID, enableQualityGate: true };
+    const client = fakeClient();
+    client.query.mockResolvedValue({ points: lowScoringPoints });
+    const response = await runArm(client);
+    expect(response.results.map((r) => r.id)).toEqual([1]);
+  });
+
+  it('lässt dbsf und sparse_only ungefiltert, weil das Gatter dort nie gemessen wurde', async () => {
+    for (const serverFusion of ['dbsf', 'sparse_only'] as const) {
+      state.hybrid = { ...DEFAULT_HYBRID, enableQualityGate: true, serverFusion };
+      const client = fakeClient();
+      client.query.mockResolvedValue({ points: lowScoringPoints });
+      const response = await runArm(client);
+      expect(response.results.map((r) => r.id)).toEqual([1, 2]);
+    }
+  });
+});

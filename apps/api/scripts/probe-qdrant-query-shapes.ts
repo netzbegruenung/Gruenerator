@@ -76,6 +76,11 @@ async function main(): Promise<void> {
     client
   );
   await shape(
+    'rrf mit einer einzigen Vorabholung (Sparse-Faktor 0, dicht-nur-Kontrollarm)',
+    { prefetch: [densePrefetch], query: { fusion: 'rrf' }, limit: 1 },
+    client
+  );
+  await shape(
     'dbsf',
     { prefetch: [densePrefetch, sparsePrefetch], query: { fusion: 'dbsf' }, limit: 1 },
     client

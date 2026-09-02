@@ -311,7 +311,12 @@ async function hybridSearchServerSide(
     originalTextScore: null,
   }));
 
-  if (hybridCfg.enableQualityGate) {
+  // Until #3166 gives the gate a score-domain-aware cut, it runs only on the
+  // arms whose domain it was measured against: the rank-based rrf family and
+  // dense_rescore, whose outer query returns the dense cosine. dbsf and
+  // sparse_only would be cut in a domain nobody has measured.
+  const gateMeasuredForArm = fusion !== 'dbsf' && fusion !== 'sparse_only';
+  if (hybridCfg.enableQualityGate && gateMeasuredForArm) {
     results = applyQualityGate(results, true, hybridCfg);
   }
   results = results.slice(0, limit);
