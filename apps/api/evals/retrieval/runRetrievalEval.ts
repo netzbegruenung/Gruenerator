@@ -31,12 +31,22 @@
  *                    and differ only in WHICH ones. Measuring either against
  *                    `off` measures window size instead, which is a different
  *                    question (and has a different answer — see #2824).
- *   EVAL_LOOP_RERANK=1  fährt die Suche mit `rerankChunks: true`, also mit dem
- *                    Cross-Encoder VOR der Gruppierung — der Pfad, den der
- *                    agentische Loop hinter LOOP_RERANK_ENABLED fährt (#3120).
- *                    Orthogonal zu EVAL_RERANK: das ist der Dokument-Rerank
- *                    NACH der Gruppierung. Beide zusammen wären zwei Stufen und
- *                    messen nichts, was in der Produktion vorkommt.
+ *   EVAL_LOOP_RERANK  dreiwertig, qa only. unset (default) — heutiger Lauf,
+ *                    byte-identisch zur historischen Basis. `0` — loop-förmige
+ *                    Suche OHNE Rerank: dasselbe geklemmte `limit` wie der
+ *                    agentische Loop (`executeDirectSearch`s RERANK_LIMIT_CLAMP
+ *                    + Overfetch, hier gespiegelt als LOOP_RERANK_LIMIT_CLAMP),
+ *                    aber ohne `rerankChunks`. `1` — dieselbe loop-förmige
+ *                    Suche MIT `rerankChunks: true`, also mit dem Cross-Encoder
+ *                    VOR der Gruppierung — der Pfad, den der agentische Loop
+ *                    hinter LOOP_RERANK_ENABLED fährt (#3120). `0` und `1`
+ *                    benutzen absichtlich dasselbe Limit, damit sie sich nur
+ *                    im Rerank unterscheiden und nicht auch in der Trefferbreite
+ *                    — sonst würde ein grösserer Kandidatenpool den Effekt des
+ *                    Rerankens vortäuschen oder verdecken. Orthogonal zu
+ *                    EVAL_RERANK: das ist der Dokument-Rerank NACH der
+ *                    Gruppierung. Beide zusammen wären zwei Stufen und messen
+ *                    nichts, was in der Produktion vorkommt.
  *                    Die Encoder-Zeit ist von hier nicht direkt sichtbar (der
  *                    Aufruf sitzt im Dienst), deshalb misst `searchTimeMs` die
  *                    Wanduhr je Suche; die Differenz der Mediane zwischen einem
@@ -140,6 +150,21 @@ const MANUAL_TEXT_WEIGHT = 0.3;
 const MANUAL_RESULT_LIMIT = 30;
 const MANUAL_MIN_SCORE = 0.35;
 
+/**
+ * Mirrors `RERANK_LIMIT_CLAMP` / `OVERFETCH_CEILING` and the `qdrantLimit`
+ * formula from `routes/chat/agents/directSearchExecutors.ts` (not exported
+ * there — `executeDirectSearch`'s clamp is a local const). Applied to BOTH
+ * loop-shaped arms (`EVAL_LOOP_RERANK=0` and `=1`), never only to the reranked
+ * one, so the two differ solely in the rerank flag and never in recall width.
+ */
+const LOOP_RERANK_LIMIT_CLAMP = 5;
+const LOOP_OVERFETCH_CEILING = 80;
+
+/** The limit the loop's `executeDirectSearch` would actually send to Qdrant. */
+function loopShapedLimit(limit: number): number {
+  return Math.min(Math.min(limit, LOOP_RERANK_LIMIT_CLAMP) * 2, LOOP_OVERFETCH_CEILING);
+}
+
 interface CaseOutcome {
   id: string;
   collection: string;
@@ -183,6 +208,7 @@ async function runCase(
   depth: NotebookDepth,
   withRerank: boolean,
   excerptMode: ExcerptArm,
+  loopShaped: boolean,
   withChunkRerank: boolean
 ): Promise<CaseOutcome> {
   const config = getSystemCollectionConfig(evalCase.collection);
@@ -200,6 +226,7 @@ async function runCase(
   const profile = getNotebookDepthProfile(depth);
   const searchParams = applyDepthProfile(getSearchParams(evalCase.collection), profile);
   const additionalFilter = applyDefaultFilter(evalCase.collection, undefined);
+  const effectiveLimit = loopShaped ? loopShapedLimit(searchParams.limit) : searchParams.limit;
 
   try {
     const searchStartedAt = Date.now();
@@ -207,7 +234,7 @@ async function runCase(
       query: evalCase.query,
       userId: undefined,
       options: {
-        limit: searchParams.limit,
+        limit: effectiveLimit,
         mode: searchParams.mode,
         vectorWeight: searchParams.vectorWeight,
         textWeight: searchParams.textWeight,
@@ -433,7 +460,12 @@ async function main() {
   const depth = (process.env.EVAL_DEPTH ||
     (pipeline === 'notebook' ? 'deep' : 'fast')) as NotebookDepth;
   const withRerank = process.env.EVAL_RERANK === '1';
-  const withChunkRerank = process.env.EVAL_LOOP_RERANK === '1';
+  // Three-valued: unset keeps today's run byte-identical to the historical
+  // baseline; '0' and '1' both run the loop-shaped limit (see
+  // `loopShapedLimit`) and differ only in whether rerankChunks fires.
+  const loopRerankEnv = process.env.EVAL_LOOP_RERANK;
+  const loopShaped = loopRerankEnv === '0' || loopRerankEnv === '1';
+  const withChunkRerank = loopRerankEnv === '1';
   const excerptMode = (process.env.EVAL_RERANK_EXCERPT ?? 'off') as ExcerptArm;
   const verbose = process.env.EVAL_VERBOSE === '1';
   const collectionFilter = process.env.EVAL_COLLECTION;
@@ -454,14 +486,18 @@ async function main() {
     process.exit(1);
   }
 
+  // Same for every qa case at this depth (`applyDepthProfile` overwrites
+  // `limit` with the depth's fixed `searchLimit` regardless of collection).
+  const loopLimit = loopShaped ? loopShapedLimit(getNotebookDepthProfile(depth).searchLimit) : null;
+
   const modeLabel =
     pipeline === 'manual'
       ? 'manual search'
       : pipeline === 'notebook'
         ? `notebook getSearchContext depth=${depth}`
         : `depth=${depth}${withRerank ? `, +rerank(${excerptMode})` : ''}${
-            withChunkRerank ? ', +chunkRerank' : ''
-          }`;
+            loopShaped ? `, loopLimit=${loopLimit}` : ''
+          }${withChunkRerank ? ', +chunkRerank' : ''}`;
   console.log(
     `Running ${cases.length} retrieval cases (${modeLabel}) against ${process.env.QDRANT_URL || 'QDRANT_URL unset!'}`
   );
@@ -474,7 +510,15 @@ async function main() {
         ? await runManualCase(searchService, evalCase)
         : pipeline === 'notebook'
           ? await runNotebookCase(evalCase, depth)
-          : await runCase(searchService, evalCase, depth, withRerank, excerptMode, withChunkRerank);
+          : await runCase(
+              searchService,
+              evalCase,
+              depth,
+              withRerank,
+              excerptMode,
+              loopShaped,
+              withChunkRerank
+            );
     outcomes.push(outcome);
     const rankLabel = outcome.error
       ? `ERROR ${outcome.error}`
@@ -554,7 +598,17 @@ async function main() {
   if (process.env.EVAL_OUT) {
     writeFileSync(
       process.env.EVAL_OUT,
-      JSON.stringify({ pipeline, depth, withRerank, withChunkRerank, outcomes }, null, 2)
+      JSON.stringify(
+        {
+          pipeline,
+          depth,
+          withRerank,
+          ...(pipeline === 'qa' && { withChunkRerank, loopLimit }),
+          outcomes,
+        },
+        null,
+        2
+      )
     );
     console.log(`\nErgebnisse geschrieben: ${process.env.EVAL_OUT}`);
   }
