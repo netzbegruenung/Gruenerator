@@ -420,13 +420,15 @@ const envSchema = z.object({
 
   /**
    * Welche Fusion der Server-Pfad benutzt. Siehe HYBRID_SERVER_FUSIONS.
-   * `dbsf` seit der Messreihe in #3118 (Task 8, 2026-09-02): auf den 10
-   * kommunalwiki-Fällen roh Hit@1 80 % / Hit@3 80 % / MRR@10 0,813 gegen
-   * `rrf` mit 50 % / 70 % / 0,642 und die Alt-Fusion (`legacy`) mit
-   * 60 % / 80 % / 0,720 — schlägt beide auf allen drei Metriken oder liegt
-   * gleichauf, bei unveränderten 42 Kontrollfällen.
+   * Default bleibt `rrf`, obwohl die Messreihe in #3118 (2026-09-02) `dbsf`
+   * auf dem qa-Pfad vorn sieht (10 kommunalwiki-Fälle roh: Hit@1 80 % /
+   * MRR@10 0,813 gegen `rrf` 50 % / 0,642): auf dem Notebook-Pfad, der die
+   * 0,35-Schwelle in `NotebookQAService` läuft, kehrt sich das um (`dbsf`
+   * 30 % / 0,361 gegen `rrf` 50 % / 0,567), weil die Schwelle für Kosinus-
+   * werte geschrieben ist. Umschalten erst, wenn die Schwelle den Wertebereich
+   * der Fusion kennt — siehe das Issue dazu in #3118.
    */
-  HYBRID_SERVER_FUSION: z.enum(HYBRID_SERVER_FUSIONS).default('dbsf'),
+  HYBRID_SERVER_FUSION: z.enum(HYBRID_SERVER_FUSIONS).default('rrf'),
 
   /**
    * Limit der Sparse-Vorabholung als Vielfaches der dichten. 0 lässt die
