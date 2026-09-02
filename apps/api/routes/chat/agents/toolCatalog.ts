@@ -53,6 +53,7 @@ import {
   SLICE_DEFAULT_CHARS,
   SLICE_REGISTER_CHARS,
 } from '../services/agenticLoop/attachedDocuments.js';
+import { isLoopRerankEnabled } from '../services/agenticLoop/flags.js';
 import { isEditorSurface } from '../services/agenticLoop/routing.js';
 import {
   mentionsRecipes,
@@ -68,7 +69,6 @@ import { hasReachableForm } from '../services/pdfFormAvailability.js';
 import { withImageProxy } from '../services/searchImagePayload.js';
 
 import { makeCloudFilesTool } from './cloudFileTools.js';
-import { makeMemoryTool } from './memoryTools.js';
 import {
   makeAbgeordnetenwatchTool,
   makeBundestagTool,
@@ -83,6 +83,7 @@ import {
 } from './domainTools.js';
 import { makeEditArtifactTool } from './editorTools.js';
 import { makeGroupsTool } from './groupTools.js';
+import { makeMemoryTool } from './memoryTools.js';
 import { makeNotebooksTool } from './notebookTools.js';
 import { makeReadPdfFormTool, makeFillPdfFormTool } from './pdfFormTools.js';
 import {
@@ -377,6 +378,10 @@ export function buildChatToolCatalog(params: {
       loop?.state.activeSkillMention,
       ...(recipeRegistry?.mentions ?? []),
     ],
+    // Chunk-Rerank vor der Gruppierung. Nur im Loop — der Einzelpfad rerankt
+    // danach in `rerankNode`, der Board-Agent gar nicht — und nur mit
+    // gesetztem Schalter: Default AUS bis zum Doppelmesslauf (#3120).
+    ...(loop != null && isLoopRerankEnabled() && { rerankSearchChunks: true }),
   });
 
   // Agents bound to their own corpus (the Landesverband agents and their

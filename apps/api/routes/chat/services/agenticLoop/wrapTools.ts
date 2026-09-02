@@ -84,8 +84,34 @@ export interface ToolHooks {
 
 /** Enge eigene Grenze für `beforeToolCall`: der einzige Hook, auf den gewartet
  *  wird (er kann attrappieren), also der einzige, der den Loop aufhalten
- *  könnte. Läuft er darüber, wird das Werkzeug ganz normal ausgeführt. */
+ *  könnte. Läuft er darüber, wird das Werkzeug ganz normal ausgeführt.
+ *  Ein über `composeToolHooks` zusammengesetzter Hook läuft seine Mitglieder
+ *  NACHEINANDER innerhalb dieses einen Budgets — es ist geteilt, nicht je
+ *  Mitglied neu vergeben. */
 const BEFORE_HOOK_TIMEOUT_MS = 500;
+
+/**
+ * Felder, die ein Werkzeugergebnis nur für die Hooks trägt.
+ *
+ * Sie gehen an Karte, persistierten Schritt und `afterToolCall` — aber NICHT an
+ * das Modell: `rerankDegraded` ist eine Aussage über unsere Infrastruktur, nicht
+ * über die Fundstellen, und ein Planer, der sie liest, fängt an, sie in der
+ * Antwort zu erklären. Der persistierte Schritt bleibt bewusst ROH (Karte,
+ * Fehlersuche) — gestrippt wird an zwei Stellen, die je einen eigenen Weg zum
+ * Modell haben: hier für die Antwort des laufenden Aufrufs, und in
+ * `mcpReplay.ts`s `shortValue` für den späteren Turn-Replay desselben
+ * persistierten Schritts (`buildToolObservationReplay`).
+ */
+const INTERNAL_RESULT_FIELDS: readonly string[] = ['rerankDegraded'];
+
+export function stripInternalFields<T>(output: T): T {
+  if (!output || typeof output !== 'object' || Array.isArray(output)) return output;
+  const record = output as Record<string, unknown>;
+  if (!INTERNAL_RESULT_FIELDS.some((field) => field in record)) return output;
+  const copy = { ...record } as T;
+  for (const field of INTERNAL_RESULT_FIELDS) delete (copy as Record<string, unknown>)[field];
+  return copy;
+}
 
 /**
  * Beobachtende Hooks sind Fire-and-Forget: eine Ausnahme darf den Turn nicht
@@ -104,6 +130,64 @@ function fireAndForget(hookName: string, run: () => unknown): void {
   } catch (err) {
     log.warn(`[ToolHook] ${hookName} geworfen: ${err instanceof Error ? err.message : err}`);
   }
+}
+
+/**
+ * Fasst mehrere `ToolHooks` zu einem zusammen, damit ein Aufrufer, der zwei
+ * unabhängige Beobachter braucht (z. B. Kostenrechnung + Rerank-Warnung),
+ * nicht von Hand einen Umschlag schreibt, der einen fehlschlagenden Beobachter
+ * den zweiten mitreißen lassen könnte.
+ *
+ * Jedes vorhandene Hook-Mitglied läuft für ALLE übergebenen `ToolHooks` in
+ * Reihenfolge, jeder Aufruf einzeln abgesichert — ein werfender oder
+ * abgelehnter Beobachter beendet nicht die Kette, sondern wird geloggt und
+ * übersprungen. `afterToolCall`/`onToolCallError` laufen über `fireAndForget`
+ * wie am einzelnen Aufrufpunkt in `wrappedExecute`; `beforeToolCall` wird dort
+ * hingegen ECHT awaitet (Attrappen-Semantik), deshalb hier sequenziell mit
+ * eigenem try/catch statt Fire-and-Forget.
+ */
+export function composeToolHooks(...hooks: ReadonlyArray<ToolHooks | undefined>): ToolHooks {
+  const present = hooks.filter((h): h is ToolHooks => h != null);
+  const composed: ToolHooks = {};
+
+  const befores = present
+    .map((h) => h.beforeToolCall)
+    .filter((fn): fn is NonNullable<ToolHooks['beforeToolCall']> => fn != null);
+  if (befores.length > 0) {
+    composed.beforeToolCall = async (event) => {
+      for (const fn of befores) {
+        try {
+          await fn(event);
+        } catch (err) {
+          log.warn(
+            `[ToolHook] composed beforeToolCall geworfen: ${
+              err instanceof Error ? err.message : String(err)
+            }`
+          );
+        }
+      }
+    };
+  }
+
+  const afters = present
+    .map((h) => h.afterToolCall)
+    .filter((fn): fn is NonNullable<ToolHooks['afterToolCall']> => fn != null);
+  if (afters.length > 0) {
+    composed.afterToolCall = (event) => {
+      for (const fn of afters) fireAndForget('afterToolCall', () => fn(event));
+    };
+  }
+
+  const onErrors = present
+    .map((h) => h.onToolCallError)
+    .filter((fn): fn is NonNullable<ToolHooks['onToolCallError']> => fn != null);
+  if (onErrors.length > 0) {
+    composed.onToolCallError = (event) => {
+      for (const fn of onErrors) fireAndForget('onToolCallError', () => fn(event));
+    };
+  }
+
+  return composed;
 }
 
 export interface WrapToolsContext {
@@ -566,8 +650,8 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
       }
 
       // Model-facing payload only — the full result already went to the card /
-      // persisted step above.
-      return truncateResultForModel(output, maxResultChars);
+      // persisted step above, and the hooks above have seen the internal fields.
+      return truncateResultForModel(stripInternalFields(output), maxResultChars);
     };
 
     wrapped[toolName] = { ...toolDef, execute: wrappedExecute } as ToolSet[string];
