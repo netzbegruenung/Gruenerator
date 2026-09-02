@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { manifest, type Role } from '@site/src/components/modelsManifest';
+import { manifest, type ProviderHost, type Role } from '@site/src/components/modelsManifest';
 
 /** Rolle → Zusatz hinter der Aufgabe. `primary` bekommt keinen. */
 const ROLE_SUFFIX: Record<Exclude<Role, 'primary'>, string> = {
@@ -30,10 +30,23 @@ const ROLE_SUFFIX: Record<Exclude<Role, 'primary'>, string> = {
  * gerechnet wird, entscheidet den Strommix — nicht, welche Gewichte dort
  * liegen.
  *
- * Ein Anbieter ohne Zeile in der Tabelle rendert nichts, statt einen leeren
- * Satz zu behaupten.
+ * ── Warum ein unbekannter Anbieter hier BRICHT ──
+ *
+ * `host` nimmt die Union, nicht `string` — ein Tippfehler im Aufruf ist damit
+ * ein Typfehler. Was die Union allein nicht sieht, ist die Umbenennung: Heisst
+ * der Anbieter im Generator plötzlich anders, passt der alte Name weiterhin auf
+ * die (dann ebenfalls veraltete) Union. Dagegen stehen zwei Netze — der Wächter
+ * in `modelsManifest.ts` und der Wurf unten, wenn ein angesprochener Anbieter
+ * keine einzige Zeile hat.
+ *
+ * Das ist bewusst strenger als ein stilles `null`. Ein Anbieter ohne Zeile ist
+ * kein Sonderfall, der sich von selbst richtig darstellt: Entweder ist der Name
+ * falsch, oder der Anbieter bedient keine Lane mehr — und dann gehört sein
+ * Abschnitt überarbeitet, nicht halb gerendert. Genau dieser Fall ist am
+ * 29.08.2026 eingetreten (die selbst gehostete Instanz), und aufgefallen ist er
+ * damals nur von Hand.
  */
-export function ProviderTasks({ host }: { host: string }): React.JSX.Element | null {
+export function ProviderTasks({ host }: { host: ProviderHost }): React.JSX.Element {
   const tasks = manifest.rows
     .map((row) => {
       const mine = row.models.filter((m) => m.host === host);
@@ -45,7 +58,13 @@ export function ProviderTasks({ host }: { host: string }): React.JSX.Element | n
     })
     .filter((t): t is string => t !== null);
 
-  if (tasks.length === 0) return null;
+  if (tasks.length === 0) {
+    throw new Error(
+      `<ProviderTasks host="${host}" /> findet keine Aufgabe in models.json. ` +
+        `Bedient der Anbieter keine Lane mehr? Dann gehört sein Abschnitt in ` +
+        `documentation/docs/basics/nachhaltigkeit.md überarbeitet, nicht leer gerendert.`
+    );
+  }
 
   return (
     <p>
