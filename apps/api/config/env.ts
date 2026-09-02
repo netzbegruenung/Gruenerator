@@ -20,6 +20,27 @@ const boolFlag = (defaultValue: boolean) =>
 /** Coerce a string to a number with a required default. */
 const numStr = (defaultValue: number) => z.coerce.number().default(defaultValue);
 
+/**
+ * Fusionsarme des server-seitigen Hybrid-Pfads (`HYBRID_SERVER_FUSION`, #3118).
+ * `as const`-Registry statt Inline-Liste: `z.enum` und die exportierte
+ * Literal-Union kommen aus EINER Quelle, und beide `HybridConfig`-Interfaces
+ * (`config/vectorConfig.ts`, `QdrantService/operations/types.ts`) leiten davon
+ * ab, statt die fünf Namen ein drittes und viertes Mal zu tippen.
+ *
+ * `sparse_only` ist ein Diagnosearm, kein Auslieferungskandidat: sein `score`
+ * ist ein BM25-Wert und keine Kosinus-Ähnlichkeit, und die Pipeline dahinter
+ * rechnet in Kosinus weiter.
+ */
+export const HYBRID_SERVER_FUSIONS = [
+  'rrf',
+  'rrf_weighted',
+  'dbsf',
+  'dense_rescore',
+  'sparse_only',
+] as const;
+
+export type ServerFusion = (typeof HYBRID_SERVER_FUSIONS)[number];
+
 // ---------------------------------------------------------------------------
 // Schema
 // ---------------------------------------------------------------------------
@@ -388,6 +409,27 @@ const envSchema = z.object({
   HYBRID_ENABLE_DYNAMIC_THRESHOLDS: boolFlag(true),
   HYBRID_ENABLE_CONFIDENCE_WEIGHTING: boolFlag(true),
   HYBRID_ENABLE_QUALITY_GATE: boolFlag(true),
+
+  /**
+   * Hauptschalter des server-seitigen Query-API-Pfads. `false` schickt JEDE
+   * Sammlung zurück auf die client-seitige Alt-Fusion, ohne Qdrant anzufassen:
+   * der Rückwärtsgang, der keine Migration braucht, und der Referenzarm jeder
+   * Messung aus #3118.
+   */
+  HYBRID_SERVER_SIDE_ENABLED: boolFlag(true),
+
+  /** Welche Fusion der Server-Pfad benutzt. Siehe HYBRID_SERVER_FUSIONS. */
+  HYBRID_SERVER_FUSION: z.enum(HYBRID_SERVER_FUSIONS).default('rrf'),
+
+  /**
+   * Limit der Sparse-Vorabholung als Vielfaches der dichten. 0 lässt die
+   * Sparse-Vorabholung ganz weg — zusammen mit `dense_rescore` ist das der
+   * dicht-nur-Kontrollarm über den Query-API-Pfad.
+   */
+  HYBRID_SERVER_SPARSE_FACTOR: numStr(1.0),
+
+  /** Gewicht der dichten Vorabholung bei `rrf_weighted`; sparse bekommt 1 − dies. */
+  HYBRID_SERVER_RRF_WEIGHT_DENSE: numStr(0.7),
 
   // ── Scoring ────────────────────────────────────────────────────────────
   SCORING_MAX_SIMILARITY_WEIGHT: z.coerce.number().default(0.6),
