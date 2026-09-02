@@ -21,6 +21,7 @@ import {
   splitTableBlock,
   TABLE_CHUNK_MAX_CHARS,
 } from './blockSegmentation.js';
+import { smartChunkDocument } from './TextChunker.js';
 
 describe('parseHeading', () => {
   it('erkennt Markdown-Überschriften mit ihrer Ebene', () => {
@@ -334,5 +335,56 @@ describe('splitTableBlock', () => {
 
     expect(teile).toHaveLength(1);
     expect(teile[0]).toContain(einzigeZeile);
+  });
+});
+
+describe('smartChunkDocument über einem strukturierten Dokument', () => {
+  it('setzt headingPath und chunkType auf jedem Chunk', async () => {
+    const chunks = await smartChunkDocument(STRUCTURED_FIXTURE, {
+      baseMetadata: { title: 'Wahlprogramm' },
+    });
+
+    expect(chunks.length).toBeGreaterThan(1);
+    for (const chunk of chunks) {
+      expect(['text', 'table']).toContain(chunk.metadata.chunkType);
+      expect(chunk.metadata.chunkingMethod).toBe('structure-blocks');
+    }
+
+    const ausAbschnitt31 = chunks.find((c) =>
+      c.metadata.headingPath?.includes('3.1 Förderprogramme')
+    );
+    expect(ausAbschnitt31?.metadata.headingPath).toEqual([
+      'Kapitel 3: Wärmewende',
+      '3.1 Förderprogramme',
+    ]);
+    expect(ausAbschnitt31?.metadata.heading).toBe('3.1 Förderprogramme');
+    expect(typeof ausAbschnitt31?.metadata.sectionIndex).toBe('number');
+  });
+
+  it('lässt keinen Chunk mit einer halben Tabellenzeile entstehen', async () => {
+    const chunks = await smartChunkDocument(LONG_TABLE_FIXTURE);
+    for (const chunk of chunks) {
+      if (!chunk.text.includes('|')) continue;
+      for (const zeile of chunk.text.split('\n').filter((l) => l.includes('|'))) {
+        expect(zeile.trim().startsWith('|')).toBe(true);
+        expect(zeile.trim().endsWith('|')).toBe(true);
+      }
+    }
+  });
+
+  it('macht aus der Tabelle des Fixtures genau einen Chunk', async () => {
+    const chunks = await smartChunkDocument(STRUCTURED_FIXTURE);
+    const tabellen = chunks.filter((c) => c.metadata.chunkType === 'table');
+    expect(tabellen).toHaveLength(1);
+    expect(tabellen[0].text).toContain('| Heizungstausch | Eigentum | 30 Prozent |');
+    expect(tabellen[0].text).toContain('| Effizienzbonus | Wärmepumpe | 5 Prozent |');
+  });
+
+  it('setzt auf reinem Fließtext keine Strukturfelder', async () => {
+    const chunks = await smartChunkDocument(PROSE_FIXTURE);
+    for (const chunk of chunks) {
+      expect(chunk.metadata.headingPath ?? null).toBeNull();
+      expect(chunk.metadata.chunkingMethod).toBe('langchain-sentences');
+    }
   });
 });
