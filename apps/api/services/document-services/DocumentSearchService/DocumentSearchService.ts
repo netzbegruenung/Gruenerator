@@ -38,6 +38,7 @@ import type {
   UserVectorStats,
   DocumentFullTextResult,
   DocumentChunksResult,
+  ChunkWithContextResult,
   InspectDocumentChunksResult,
   BulkDocumentResult,
   FirstChunksResult,
@@ -684,73 +685,18 @@ export class DocumentSearchService extends BaseSearchService {
     documentId: string,
     chunkIndex: number,
     options: { window?: number } = {}
-  ): Promise<{
-    success: boolean;
-    centerChunk?: { text: string; chunkIndex: number };
-    contextChunks?: Array<{ text: string; chunkIndex: number; isCenter: boolean }>;
-    error?: string;
-  }> {
+  ): Promise<ChunkWithContextResult> {
     await this.ensureInitialized();
     if (!this.qdrantOps) {
       return { success: false, error: 'Qdrant not available' };
     }
-
-    const collectionName = `user_${userId}_documents`;
-    const windowSize = options.window ?? 2;
-
-    try {
-      // First, find the point by document_id and chunk_index
-      const filter = {
-        must: [
-          { key: 'document_id', match: { value: documentId } },
-          { key: 'chunk_index', match: { value: chunkIndex } },
-        ],
-      };
-
-      const scrollResult = await this.qdrantOps.scrollDocuments(collectionName, filter, {
-        limit: 1,
-        withPayload: true,
-      });
-
-      if (!scrollResult || scrollResult.length === 0) {
-        return { success: false, error: 'Chunk not found' };
-      }
-
-      const centerPoint = scrollResult[0];
-
-      // Get context using existing method
-      const contextResult = await this.qdrantOps.getChunkWithContext(
-        collectionName,
-        { id: centerPoint.id, payload: centerPoint.payload },
-        { window: windowSize }
-      );
-
-      if (!contextResult.center) {
-        return { success: false, error: 'Failed to retrieve context' };
-      }
-
-      // Format the response
-      const centerChunk = {
-        text: (contextResult.center.payload.chunk_text as string) || '',
-        chunkIndex: (contextResult.center.payload.chunk_index as number) ?? chunkIndex,
-      };
-
-      const contextChunks = contextResult.context.map((chunk) => ({
-        text: (chunk.payload.chunk_text as string) || '',
-        chunkIndex: (chunk.payload.chunk_index as number) ?? 0,
-        isCenter: chunk.id === contextResult.center?.id,
-      }));
-
-      return {
-        success: true,
-        centerChunk,
-        contextChunks,
-      };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.error(`[DocumentSearchService] getChunkWithContext error: ${message}`);
-      return { success: false, error: message };
-    }
+    return await docRetrieval.getChunkWithContext(
+      this.qdrantOps,
+      userId,
+      documentId,
+      chunkIndex,
+      options
+    );
   }
 
   /**
