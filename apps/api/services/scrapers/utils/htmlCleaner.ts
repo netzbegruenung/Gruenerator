@@ -101,7 +101,10 @@ export function htmlToStructuredText(html: string): string {
     $(el)
       .find('li')
       .each((i, li) => {
-        const prefix = isOrdered ? `${i + 1}. ` : '- ';
+        // `1) ` statt `1. `: `NUMBERED_HEADING` (blockSegmentation.ts) liest ein
+        // `1. `-Präfix vor einem kurzen, grossgeschriebenen Wort als Überschrift
+        // und würde so einen echten heading_path unter einem Listenpunkt begraben.
+        const prefix = isOrdered ? `${i + 1}) ` : '- ';
         $(li).replaceWith(escapeForTextNode(`${prefix}${$(li).text()}\n`));
       });
   });
