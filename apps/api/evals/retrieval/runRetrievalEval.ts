@@ -31,6 +31,27 @@
  *                    and differ only in WHICH ones. Measuring either against
  *                    `off` measures window size instead, which is a different
  *                    question (and has a different answer — see #2824).
+ *   EVAL_LOOP_RERANK  dreiwertig, qa only. unset (default) — heutiger Lauf,
+ *                    byte-identisch zur historischen Basis. `0` — loop-förmige
+ *                    Suche OHNE Rerank: dasselbe geklemmte `limit` wie der
+ *                    agentische Loop (`executeDirectSearch`s exportiertes
+ *                    RERANK_LIMIT_CLAMP + OVERFETCH_CEILING, hier direkt
+ *                    importiert statt gespiegelt), aber ohne `rerankChunks`.
+ *                    `1` — dieselbe loop-förmige
+ *                    Suche MIT `rerankChunks: true`, also mit dem Cross-Encoder
+ *                    VOR der Gruppierung — der Pfad, den der agentische Loop
+ *                    hinter LOOP_RERANK_ENABLED fährt (#3120). `0` und `1`
+ *                    benutzen absichtlich dasselbe Limit, damit sie sich nur
+ *                    im Rerank unterscheiden und nicht auch in der Trefferbreite
+ *                    — sonst würde ein grösserer Kandidatenpool den Effekt des
+ *                    Rerankens vortäuschen oder verdecken. Orthogonal zu
+ *                    EVAL_RERANK: das ist der Dokument-Rerank NACH der
+ *                    Gruppierung. Beide zusammen wären zwei Stufen und messen
+ *                    nichts, was in der Produktion vorkommt.
+ *                    Die Encoder-Zeit ist von hier nicht direkt sichtbar (der
+ *                    Aufruf sitzt im Dienst), deshalb misst `searchTimeMs` die
+ *                    Wanduhr je Suche; die Differenz der Mediane zwischen einem
+ *                    Lauf mit und einem ohne den Arm ist die Kostenzahl.
  *   EVAL_CASE_KIND   run another kind's cases through the chosen pipeline
  *   EVAL_VERBOSE=1   print top-5 titles for every miss (gold-label curation)
  *   EVAL_OUT         write per-case results as JSON to this path
@@ -67,6 +88,8 @@ const { getSearchParams, getSystemCollectionConfig, applyDefaultFilter } =
   await import('../../config/systemCollectionsConfig.js');
 const { DocumentSearchService } =
   await import('../../services/document-services/DocumentSearchService/index.js');
+const { RERANK_LIMIT_CLAMP, OVERFETCH_CEILING } =
+  await import('../../routes/chat/agents/directSearchExecutors.js');
 const { rerankPipeline } = await import('../../services/search/rerankPipeline.js');
 const { selectRelevantExcerpt } = await import('../../services/search/relevantExcerpt.js');
 const { vectorConfig } = await import('../../config/vectorConfig.js');
@@ -130,6 +153,18 @@ const MANUAL_TEXT_WEIGHT = 0.3;
 const MANUAL_RESULT_LIMIT = 30;
 const MANUAL_MIN_SCORE = 0.35;
 
+/**
+ * The limit the loop's `executeDirectSearch` would actually send to Qdrant —
+ * same `qdrantLimit` formula, against the real `RERANK_LIMIT_CLAMP` /
+ * `OVERFETCH_CEILING` imported above instead of a mirrored copy. Applied to
+ * BOTH loop-shaped arms (`EVAL_LOOP_RERANK=0` and `=1`), never only to the
+ * reranked one, so the two differ solely in the rerank flag and never in
+ * recall width.
+ */
+function loopShapedLimit(limit: number): number {
+  return Math.min(Math.min(limit, RERANK_LIMIT_CLAMP) * 2, OVERFETCH_CEILING);
+}
+
 interface CaseOutcome {
   id: string;
   collection: string;
@@ -140,6 +175,8 @@ interface CaseOutcome {
   rerankTimeMs?: number;
   /** Wie viele Kandidaten er dafür bewerten musste. */
   rerankBatch?: number;
+  /** Wanduhr des Suchaufrufs. Gepaart über zwei Läufe = Kosten des Encoders. */
+  searchTimeMs?: number;
   topTitles: string[];
   error?: string;
 }
@@ -170,7 +207,9 @@ async function runCase(
   evalCase: RetrievalCase,
   depth: NotebookDepth,
   withRerank: boolean,
-  excerptMode: ExcerptArm
+  excerptMode: ExcerptArm,
+  loopShaped: boolean,
+  withChunkRerank: boolean
 ): Promise<CaseOutcome> {
   const config = getSystemCollectionConfig(evalCase.collection);
   if (!config) {
@@ -187,13 +226,15 @@ async function runCase(
   const profile = getNotebookDepthProfile(depth);
   const searchParams = applyDepthProfile(getSearchParams(evalCase.collection), profile);
   const additionalFilter = applyDefaultFilter(evalCase.collection, undefined);
+  const effectiveLimit = loopShaped ? loopShapedLimit(searchParams.limit) : searchParams.limit;
 
   try {
+    const searchStartedAt = Date.now();
     const resp = await searchService.search({
       query: evalCase.query,
       userId: undefined,
       options: {
-        limit: searchParams.limit,
+        limit: effectiveLimit,
         mode: searchParams.mode,
         vectorWeight: searchParams.vectorWeight,
         textWeight: searchParams.textWeight,
@@ -202,8 +243,10 @@ async function runCase(
         recallLimit: searchParams.recallLimit,
         qualityMin: searchParams.qualityMin,
         additionalFilter,
+        ...(withChunkRerank && { rerankChunks: true }),
       },
     } as Parameters<DocumentSearchService['search']>[0]);
+    const searchTimeMs = Date.now() - searchStartedAt;
 
     if (resp.success === false) {
       return {
@@ -223,6 +266,7 @@ async function runCase(
       query: evalCase.query,
       rank: firstMatchRank(results, evalCase),
       topTitles: results.slice(0, 5).map((r) => r.title || r.filename || r.source_url || '?'),
+      searchTimeMs,
     };
 
     if (withRerank && results.length > 2) {
@@ -427,6 +471,12 @@ async function main() {
   const depth = (process.env.EVAL_DEPTH ||
     (pipeline === 'notebook' ? 'deep' : 'fast')) as NotebookDepth;
   const withRerank = process.env.EVAL_RERANK === '1';
+  // Three-valued: unset keeps today's run byte-identical to the historical
+  // baseline; '0' and '1' both run the loop-shaped limit (see
+  // `loopShapedLimit`) and differ only in whether rerankChunks fires.
+  const loopRerankEnv = process.env.EVAL_LOOP_RERANK;
+  const loopShaped = loopRerankEnv === '0' || loopRerankEnv === '1';
+  const withChunkRerank = loopRerankEnv === '1';
   const excerptMode = (process.env.EVAL_RERANK_EXCERPT ?? 'off') as ExcerptArm;
   const verbose = process.env.EVAL_VERBOSE === '1';
   const collectionFilter = process.env.EVAL_COLLECTION;
@@ -447,12 +497,18 @@ async function main() {
     process.exit(1);
   }
 
+  // Same for every qa case at this depth (`applyDepthProfile` overwrites
+  // `limit` with the depth's fixed `searchLimit` regardless of collection).
+  const loopLimit = loopShaped ? loopShapedLimit(getNotebookDepthProfile(depth).searchLimit) : null;
+
   const modeLabel =
     pipeline === 'manual'
       ? 'manual search'
       : pipeline === 'notebook'
         ? `notebook getSearchContext depth=${depth}`
-        : `depth=${depth}${withRerank ? `, +rerank(${excerptMode})` : ''}`;
+        : `depth=${depth}${withRerank ? `, +rerank(${excerptMode})` : ''}${
+            loopShaped ? `, loopLimit=${loopLimit}` : ''
+          }${withChunkRerank ? ', +chunkRerank' : ''}`;
   console.log(
     `Running ${cases.length} retrieval cases (${modeLabel}) against ${process.env.QDRANT_URL || 'QDRANT_URL unset!'}`
   );
@@ -465,7 +521,15 @@ async function main() {
         ? await runManualCase(searchService, evalCase)
         : pipeline === 'notebook'
           ? await runNotebookCase(evalCase, depth)
-          : await runCase(searchService, evalCase, depth, withRerank, excerptMode);
+          : await runCase(
+              searchService,
+              evalCase,
+              depth,
+              withRerank,
+              excerptMode,
+              loopShaped,
+              withChunkRerank
+            );
     outcomes.push(outcome);
     const rankLabel = outcome.error
       ? `ERROR ${outcome.error}`
@@ -499,6 +563,20 @@ async function main() {
     `${'GESAMT'.padEnd(28)} n=${String(outcomes.length).padStart(2)}  ${computeMetrics(outcomes, (o) => o.rank).line}`
   );
 
+  const searchTimings = outcomes
+    .map((o) => o.searchTimeMs)
+    .filter((t): t is number => typeof t === 'number')
+    .sort((a, b) => a - b);
+  if (searchTimings.length > 0) {
+    const at = (q: number): number =>
+      searchTimings[
+        Math.min(searchTimings.length - 1, Math.floor((searchTimings.length - 1) * q))
+      ] ?? 0;
+    console.log(
+      `\n── Wanduhr je Suche ──\nn=${searchTimings.length}  Median ${at(0.5)} ms  p90 ${at(0.9)} ms  max ${searchTimings[searchTimings.length - 1]} ms`
+    );
+  }
+
   if (withRerank) {
     console.log('\n── Ergebnisse (nach Rerank) ──');
     console.log(
@@ -531,7 +609,17 @@ async function main() {
   if (process.env.EVAL_OUT) {
     writeFileSync(
       process.env.EVAL_OUT,
-      JSON.stringify({ pipeline, depth, withRerank, outcomes }, null, 2)
+      JSON.stringify(
+        {
+          pipeline,
+          depth,
+          withRerank,
+          ...(pipeline === 'qa' && loopShaped && { withChunkRerank, loopLimit }),
+          outcomes,
+        },
+        null,
+        2
+      )
     );
     console.log(`\nErgebnisse geschrieben: ${process.env.EVAL_OUT}`);
   }
