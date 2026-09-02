@@ -92,3 +92,62 @@ qa-Fällen) — daher 10 von 52 Anfragen je Lauf, nicht 52.
   `compareOutcomes`-Wert verwendet, wie in Step 6 vorgegeben.
 - Sonst nichts: keine abgebrochenen Läufe, keine Fehlermeldungen, keine Zeile
   ohne Deckungsgrad wo einer erwartet war.
+
+## Entscheidung
+
+**R1 (Join als Default):** bestanden. Verglichen wurden `tune-rrf*.json` gegen
+`tune-join-rrf*.json` auf allen drei Pipelines: qa 1 Fall gewonnen
+(`kommunalwiki-laerm` rank 2 → rank 1), MRR@10 0,642 → 0,692, kein Fall
+verloren; notebook 1 Fall verschoben, ohne Netto-Effekt auf die Metrik
+(`kommunalwiki-jugend` miss → rank 18, ausserhalb von MRR@10), MRR@10
+0,567 → 0,567; manual unverändert, 2/3 → 2/3 auf Rang 1. Die 42
+Kontrollfälle bleiben auf allen drei Pipelines rangidentisch.
+`HYBRID_SERVER_SCORE_JOIN` steht damit auf true.
+
+**Bonus-Sonderfall:** der qa-Pfad verlor keinen Fall; der +0,05-Hybrid-Bonus
+bleibt unverändert und feuert wieder auf dem Server-Pfad.
+
+**R2 (dbsf als Default):** nicht bestanden, Bedingung für Bedingung:
+
+1. MRR@10 gegen `rrf` mit Join — qa: `dbsf` 0,813 vor `rrf` 0,692 (Sieg für
+   `dbsf`); notebook: `dbsf` 0,350 hinter `rrf` 0,567 (Verlust für `dbsf`):
+   nicht erfüllt, da nur eine der beiden Pipelines gewinnt.
+2. höchstens ein Fall gegen den ausgelieferten Zustand: nicht erfüllt — auf
+   der Notebook-Pipeline fällt Hit@1 von 50 % (`tune-rrf-notebook.json`) auf
+   30 % (`tune-join-dbsf-notebook.json`), also zwei Fälle, und einer davon
+   liegt sogar unter der eigenen `dbsf`-Referenz aus #3169
+   (MRR@10 0,361 → 0,350, `kommunalwiki-laerm` rank 9 → rank 14) — die
+   Umstellung auf den dichten Kosinus-Schnitt hat die Inversion von `dbsf`
+   auf dem Notebook-Pfad also NICHT aufgelöst. Die verbleibenden Verdächtigen
+   sind die Stufen hinter dem Schnitt, die weiterhin auf dem Fusionswert statt
+   auf dem Kosinus arbeiten (`selectAcrossQueryGroups`,
+   `expandResultsToChunks`) — ungeprüft.
+3. 42 Kontrollfälle rangidentisch: erfüllt (Tabelle oben, Spalte
+   „42 Kontrollfälle identisch?", durchgehend „ja").
+4. manual 3/3 auf Rang 1: erfüllt (`tune-join-dbsf-manual.json`, byte-identisch
+   zur Referenz aus #3169).
+
+Da Bedingung 1 und 2 bereits nicht erfüllt sind, bleibt `HYBRID_SERVER_FUSION`
+auf `rrf`.
+
+**R3 (Auflösungsgrenze):** „der Vorsprung beträgt genau einen Fall und gilt
+als nicht aufgelöst — kein Rollout auf weitere Sammlungen." Der Join-Default
+gilt für kommunalwiki; der PR trägt keine Rollout-Empfehlung über das hinaus,
+was #3118 bereits sagt.
+
+**R5 (Latenz):** Median searchTimeMs 406 ms → 391 ms (−3,7 %). Unter 25 %,
+keine weitere Massnahme.
+
+**Deckungsgrad (Offene Frage 2 und 4 der Spec):** dense join 64,1 %
+(577/900), sparse join 56,6 % (509/900) — Zahlen des gewählten Arms (`rrf`
+mit Join). Beide Anteile liegen über der Hälfte, aber ein gutes Drittel der
+Fusionstreffer bleibt ohne eigenen Wert aus der jeweiligen Vorabholung. Der
+Anteil ist damit nicht klein genug, um ihn zu ignorieren, aber auch kein
+Totalausfall — der nächste Schritt ist deshalb kein neuer Regler, sondern die
+Frage, ob der dichte Boden auf der Vorabholung (`score_threshold`) zu eng
+sitzt und Treffer der Spiegelsuche systematisch abschneidet.
+
+**Was NICHT entschieden wurde:** die Sortierung auf dem Mehr-Sammlungs-
+Notebook-Pfad bleibt auf `similarity` (Offene Frage 1 der Spec) — es gibt bis
+heute keinen Eval-Fall, der eine migrierte und eine nicht migrierte Sammlung
+in einem Lauf mischt.
