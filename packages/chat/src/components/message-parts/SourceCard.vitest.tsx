@@ -51,6 +51,25 @@ describe('SourceCard meta line', () => {
     expect(container.textContent).toContain('78\u00a0%');
   });
 
+  // Ein Wert von 0 ist kein Beleg, sondern ein fehlender Score (der Rerank
+  // ist ausgefallen oder die Quelle kam ohne Treffer herein); „0 % Relevanz"
+  // liest sich als Urteil, nicht als Lücke.
+  it('omits the relevance when the score is zero', () => {
+    state.citations = [
+      {
+        id: 1,
+        title: 'Wahlprogramm',
+        url: '',
+        snippet: 'x',
+        source: 'grundsatz',
+        collectionName: 'Grundsatz',
+        similarityScore: 0,
+      },
+    ];
+    render(<SourceCard {...baseProps} />);
+    expect(screen.queryByText(/%/)).not.toBeInTheDocument();
+  });
+
   /**
    * Eine Quelle ohne Seite und ohne Relevanz darf weder ein leeres „S." noch
    * ein nacktes „%" zeigen — und schon gar keinen doppelten Trenner, den die
