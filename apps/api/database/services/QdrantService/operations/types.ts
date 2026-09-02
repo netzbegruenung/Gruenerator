@@ -53,6 +53,10 @@ export interface HybridSearchResult extends VectorSearchResult {
 export interface HybridSearchMetadata {
   vectorResults: number;
   textResults: number;
+  // Zwillinge dieser Union: QdrantService/types.ts (HybridSearchMetadata) und
+  // packages/query/src/vector/types.ts — beide führen noch 'RRF' | 'weighted'.
+  // Kein Typfehler, weil QdrantService.ts:~519 in ein Record<string, unknown>
+  // landet; wer hier etwas ergänzt, zieht die Zwillinge nach.
   fusionMethod: 'RRF' | 'weighted' | `${ServerFusion}-server`;
   vectorWeight: number;
   textWeight: number;
