@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  buildEmbeddingText,
-  buildEmbeddingTexts,
-  buildEmbeddingTextsForChunks,
-} from './embeddingText.js';
+import { buildEmbeddingText, buildEmbeddingTextsForChunks } from './embeddingText.js';
 
 describe('buildEmbeddingText', () => {
   it('prepends the title to the chunk', () => {
@@ -28,10 +24,6 @@ describe('buildEmbeddingText', () => {
     const result = buildEmbeddingText('Chunk.', title);
     expect(result.startsWith('T'.repeat(200) + '\n\n')).toBe(true);
     expect(result).not.toContain('T'.repeat(201));
-  });
-
-  it('maps over chunk arrays', () => {
-    expect(buildEmbeddingTexts(['a', 'b'], 'Titel')).toEqual(['Titel\n\na', 'Titel\n\nb']);
   });
 });
 

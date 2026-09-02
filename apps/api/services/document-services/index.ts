@@ -30,11 +30,7 @@ export {
 export { DocumentQnAService } from './DocumentQnAService/index.js';
 
 // Embedding input enrichment
-export {
-  buildEmbeddingText,
-  buildEmbeddingTexts,
-  buildEmbeddingTextsForChunks,
-} from './embeddingText.js';
+export { buildEmbeddingText, buildEmbeddingTextsForChunks } from './embeddingText.js';
 
 // Strukturfelder für das Qdrant-Payload
 export { structurePayload } from './structurePayload.js';

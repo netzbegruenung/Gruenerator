@@ -38,14 +38,9 @@ export function buildEmbeddingText(
   return `${kept.join(SEP)}\n\n${chunkText}`;
 }
 
-export function buildEmbeddingTexts(chunkTexts: string[], title?: string | null): string[] {
-  return chunkTexts.map((text) => buildEmbeddingText(text, title));
-}
-
 /**
- * Wie `buildEmbeddingTexts`, zieht den Überschriftenpfad aber je Chunk aus
- * dessen Metadaten. Das ist die Form, die Ingest-Pfade benutzen sollten — sie
- * haben die Chunks ohnehin in der Hand.
+ * Die Form, die Ingest-Pfade benutzen: der Überschriftenpfad kommt je Chunk aus
+ * dessen Metadaten, die sie ohnehin in der Hand haben.
  */
 export function buildEmbeddingTextsForChunks(
   chunks: Array<{ text: string; metadata?: ChunkMetadata | undefined }>,
