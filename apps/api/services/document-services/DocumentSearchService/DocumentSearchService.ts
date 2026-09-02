@@ -695,7 +695,13 @@ export class DocumentSearchService extends BaseSearchService {
       return { success: false, error: 'Qdrant not available' };
     }
 
-    const collectionName = `user_${userId}_documents`;
+    // Per-user documents live in the shared `documents` collection with a
+    // `user_id` payload index (see COLLECTION_SCHEMAS in
+    // config/qdrantCollectionsSchema.ts), not in a per-user collection. The
+    // `user_${userId}_documents` name this used to build has never been
+    // declared or written to, so the lookup always scrolled a missing
+    // collection and every citation on a user's own upload returned 404.
+    const collectionName = 'documents';
     const windowSize = options.window ?? 2;
 
     try {
@@ -704,6 +710,7 @@ export class DocumentSearchService extends BaseSearchService {
         must: [
           { key: 'document_id', match: { value: documentId } },
           { key: 'chunk_index', match: { value: chunkIndex } },
+          { key: 'user_id', match: { value: userId } },
         ],
       };
 

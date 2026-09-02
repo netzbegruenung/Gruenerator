@@ -1,0 +1,14 @@
+-- `notebook_usage_logs` (a Postgres table plus a mirror Qdrant collection of
+-- the same name) lost its last writer and reader in #3127/#3136: the three
+-- call sites that logged to it (askSingle/askPublic in
+-- notebookContractRouter.ts, /ask in notebooksRouter.ts, notebooks_search in
+-- landesverbandTools.ts) are gone, and nothing in the codebase ever read it.
+-- #3137 asked whether an external process (partner billing) reads the table
+-- or collection directly — the repo owner confirmed on 2026-09-02 that no
+-- such external reader exists, clearing the drop.
+--
+-- The Qdrant collection is dropped separately via
+-- `pnpm --filter @gruenerator/api qdrant:drop-usage-logs`.
+--
+-- No BEGIN/COMMIT: the migration runner wraps each file in a transaction.
+DROP TABLE IF EXISTS notebook_usage_logs;
