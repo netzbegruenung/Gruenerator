@@ -588,6 +588,41 @@ describe('executeResearch — the result', () => {
 
     expect(result.followUpQuestions).toEqual([]);
   });
+
+  it('carries documentId/chunkIndex from a document hit into its citation, and leaves a web citation without them', async () => {
+    mockPlannerAndCoverage({
+      subQuestions: [{ id: 'q1', question: 'eine frage', sources: ['qdrant', 'web'] }],
+      locale: 'de',
+      reportShape: 'general',
+    });
+    mockExecuteDirectSearch.mockResolvedValue({
+      collection: 'mock',
+      query: 'eine frage',
+      resultsCount: 1,
+      results: [
+        {
+          source: 'Grundsatzprogramm',
+          url: 'https://gruene.de/grundsatzprogramm',
+          excerpt: 'Auszug aus dem Programm',
+          relevance: 'Hoch',
+          documentId: '20200125_Grundsatzprogramm',
+          chunkIndex: 3,
+        },
+      ],
+    });
+    mockExecuteDirectWebSearch.mockResolvedValue(makeWebResult('eine frage', 1));
+
+    const result = await executeResearch({ question: 'eine frage' });
+
+    const docCitation = result.citations.find(
+      (c) => c.url === 'https://gruene.de/grundsatzprogramm'
+    );
+    expect(docCitation).toMatchObject({ documentId: '20200125_Grundsatzprogramm', chunkIndex: 3 });
+
+    const webCitation = result.citations.find((c) => c.domain === 'example.com');
+    expect(webCitation?.documentId).toBeUndefined();
+    expect(webCitation?.chunkIndex).toBeUndefined();
+  });
 });
 
 describe('researchConfidence', () => {
