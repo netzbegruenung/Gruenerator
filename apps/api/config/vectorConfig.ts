@@ -3,7 +3,7 @@
  * Replaces hardcoded magic numbers and provides environment-based configuration
  */
 
-import { env } from './env.js';
+import { env, type ServerFusion } from './env.js';
 
 interface LengthAdjustments {
   singleWord: number;
@@ -32,6 +32,14 @@ interface HybridConfig {
   enableDynamicThresholds: boolean;
   enableConfidenceWeighting: boolean;
   enableQualityGate: boolean;
+  /** Master switch des server-seitigen Query-API-Pfads (#3118). */
+  serverSideEnabled: boolean;
+  /** Welche Fusion dieser Pfad benutzt. */
+  serverFusion: ServerFusion;
+  /** Limit der Sparse-Vorabholung als Vielfaches der dichten; 0 lässt sie weg. */
+  serverSparseFactor: number;
+  /** Gewicht der dichten Vorabholung bei `rrf_weighted`. */
+  serverRrfWeightDense: number;
 }
 
 interface ScoringConfig {
@@ -218,6 +226,10 @@ class VectorConfig {
         enableDynamicThresholds: env.HYBRID_ENABLE_DYNAMIC_THRESHOLDS,
         enableConfidenceWeighting: env.HYBRID_ENABLE_CONFIDENCE_WEIGHTING,
         enableQualityGate: env.HYBRID_ENABLE_QUALITY_GATE,
+        serverSideEnabled: env.HYBRID_SERVER_SIDE_ENABLED,
+        serverFusion: env.HYBRID_SERVER_FUSION,
+        serverSparseFactor: env.HYBRID_SERVER_SPARSE_FACTOR,
+        serverRrfWeightDense: env.HYBRID_SERVER_RRF_WEIGHT_DENSE,
       },
 
       scoring: {
