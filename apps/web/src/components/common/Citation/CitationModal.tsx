@@ -65,16 +65,28 @@ const CitationModal = (): JSX.Element => {
     }
   }, [contextData]);
 
+  // Vorher hatten Laden und Fehler je eine eigene Live-Region, die mit ihrem
+  // Text zusammen ein- und aushängte — eine Ansage per Screenreader ist dabei
+  // unzuverlässig, und beim Eintreffen des Kontexts verschwindet die Region
+  // ersatzlos, ohne dass irgendetwas angesagt wird. Angesagt wird stattdessen
+  // über EINE dauerhaft montierte Live-Region (unten in der Dialog-Ausgabe),
+  // deren Text sich mit dem Zustand ändert; die sichtbaren Blöcke unten tragen
+  // dafür keine eigenen Live-Region-Attribute mehr.
+  const getContextStatusText = (): string => {
+    if (isLoadingContext) return 'Kontext wird geladen...';
+    if (contextError) return contextError;
+    if (contextData && contextData.contextChunks && contextData.contextChunks.length > 0) {
+      return 'Kontext geladen';
+    }
+    return '';
+  };
+
   const renderContextView = () => {
     if (!selectedCitation) return null;
 
     if (isLoadingContext) {
       return (
-        <div
-          role="status"
-          aria-live="polite"
-          className="flex items-center justify-center gap-sm p-lg text-disabled text-[clamp(0.9rem,1.5vw,1rem)] min-h-[100px] max-sm:p-xl max-sm:text-base"
-        >
+        <div className="flex items-center justify-center gap-sm p-lg text-disabled text-[clamp(0.9rem,1.5vw,1rem)] min-h-[100px] max-sm:p-xl max-sm:text-base">
           {/* Der Ring sagt nichts, was der Text nicht schon sagt. */}
           <span
             aria-hidden="true"
@@ -92,9 +104,7 @@ const CitationModal = (): JSX.Element => {
       // was man trotzdem hat.
       return (
         <div className="flex flex-col gap-md">
-          <p role="status" className="m-0 text-[0.9rem] text-muted-foreground">
-            {contextError}
-          </p>
+          <p className="m-0 text-[0.9rem] text-muted-foreground">{contextError}</p>
           <div className="text-foreground italic leading-[1.6] p-md rounded-sm bg-background-alt text-[clamp(0.9rem,1.5vw,1rem)] max-sm:p-md max-sm:text-base max-sm:leading-[1.7]">
             &ldquo;{selectedCitation.cited_text}&rdquo;
           </div>
@@ -203,6 +213,14 @@ const CitationModal = (): JSX.Element => {
                 Der zitierte Abschnitt im Zusammenhang des Dokuments.
               </DialogDescription>
             </DialogHeader>
+
+            {/* Einzige Live-Region für den Kontext-Zustand — siehe
+                getContextStatusText oben. Bleibt montiert, solange der Dialog
+                offen ist; nur ihr Text wechselt, damit Laden/Fehler/Erfolg
+                jeweils genau einmal angesagt werden. */}
+            <p role="status" aria-live="polite" className="sr-only">
+              {getContextStatusText()}
+            </p>
 
             {/* Scrollfläche und zugleich das erste fokussierbare Element im
                 Inhalt — siehe Kopfkommentar. WCAG 2.1.1 verlangt für eine
