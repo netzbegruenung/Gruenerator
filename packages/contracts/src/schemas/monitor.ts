@@ -127,6 +127,16 @@ export const monitorCitationSchema = z.object({
   title: z.string(),
   url: z.string(),
   snippet: z.string(),
+  /**
+   * Nur gesetzt, wenn das Zitat auf ein Dokument in der `documents`-Collection
+   * zeigt (nicht auf einen Nachrichtenartikel). Zusammen mit `chunkIndex` ist
+   * das die Bedingung, unter der CitationBadge.tsx:40 den Kontext-Abruf fährt
+   * statt nur `cited_text` zu zeigen. Additiv (F0): der heutige Erzeuger
+   * (HotTopicPipeline.ts:282) schickt beides nicht.
+   */
+  documentId: z.string().optional(),
+  /** Index des zitierten Chunks im Dokument; 0 ist gültig. */
+  chunkIndex: z.number().int().nonnegative().optional(),
 });
 export type MonitorCitation = z.infer<typeof monitorCitationSchema>;
 

@@ -17,6 +17,8 @@ import type {
   FirstChunksResult,
   QdrantFilter,
   QdrantDocument,
+  ChunkContextItem,
+  ChunkWithContextResult,
   InspectedChunkRow,
   InspectedPayloadSummary,
   InspectDocumentChunksResult,
@@ -148,6 +150,87 @@ export async function getDocumentChunks(
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('[DocumentRetrieval] Error getting document chunks:', error);
     return { success: false, chunks: [], chunkCount: 0, error: errorMessage };
+  }
+}
+
+/**
+ * Ein Chunk mit seinen Nachbarn — die Quelle des Zitat-Modals.
+ *
+ * #3138: die Vorgängerin (als Methode an DocumentSearchService) baute
+ * `user_${userId}_documents`. Diese Collection existiert nicht — weder in
+ * COLLECTION_SCHEMAS (qdrantCollectionsSchema.ts:193) noch als Ziel irgendeines
+ * Schreibers; vectorOperations.ts:80 upsertet Nutzerdokumente nach 'documents',
+ * mit user_id, document_id und chunk_index in der Nutzlast.
+ *
+ * Die `user_id`-Klausel steht hier UNBEDINGT, anders als in getDocumentChunks
+ * (:120-122): diese Funktion hat keinen System-Modus — dafür gibt es
+ * `getSystemChunkWithContext` (DocumentSearchService.ts:765). `document_id` und
+ * `user_id` sind indiziert (qdrantCollectionsSchema.ts:206, :534-539);
+ * `chunk_index` ist es nicht, der Gleichheitsfilter darauf ist ein Nutzlast-Scan
+ * über die bereits per document_id verengte Menge — also so teuer wie zuvor.
+ *
+ * Das erste Schloss ist NICHT dieser Filter, sondern die Eigentumsprüfung an
+ * der Route (qdrantController.ts:371-380, `getDocumentById(documentId, userId)`).
+ */
+export async function getChunkWithContext(
+  qdrantOps: QdrantOperations,
+  userId: string,
+  documentId: string,
+  chunkIndex: number,
+  options: { window?: number } = {}
+): Promise<ChunkWithContextResult> {
+  const collectionName = 'documents';
+  const windowSize = options.window ?? 2;
+
+  try {
+    const filter: QdrantFilter = {
+      must: [
+        { key: 'user_id', match: { value: userId } },
+        { key: 'document_id', match: { value: documentId } },
+        { key: 'chunk_index', match: { value: chunkIndex } },
+      ],
+    };
+
+    const scrollResult = await qdrantOps.scrollDocuments(collectionName, filter, {
+      limit: 1,
+      withPayload: true,
+    });
+
+    if (!scrollResult || scrollResult.length === 0) {
+      return { success: false, error: 'Chunk not found' };
+    }
+
+    const centerPoint = scrollResult[0];
+
+    // Die Nachbarn kommen aus contextRetrieval.ts:53-62 und hängen dort am
+    // document_id des Mittelpunkts plus einem chunk_index-Bereich — aus der
+    // geteilten Collection kann also kein fremdes Dokument hereinkommen.
+    const contextResult = await qdrantOps.getChunkWithContext(
+      collectionName,
+      { id: centerPoint.id, payload: centerPoint.payload },
+      { window: windowSize }
+    );
+
+    if (!contextResult.center) {
+      return { success: false, error: 'Failed to retrieve context' };
+    }
+
+    const centerChunk = {
+      text: (contextResult.center.payload.chunk_text as string) || '',
+      chunkIndex: (contextResult.center.payload.chunk_index as number) ?? chunkIndex,
+    };
+
+    const contextChunks: ChunkContextItem[] = contextResult.context.map((chunk) => ({
+      text: (chunk.payload.chunk_text as string) || '',
+      chunkIndex: (chunk.payload.chunk_index as number) ?? 0,
+      isCenter: chunk.id === contextResult.center?.id,
+    }));
+
+    return { success: true, centerChunk, contextChunks };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('[DocumentRetrieval] Error getting chunk with context:', error);
+    return { success: false, error: message };
   }
 }
 
