@@ -168,6 +168,10 @@ export class BundestagScraper {
                 embedding: c.embedding!,
                 token_count: c.token_count,
                 tokens: c.token_count,
+                // Ohne diese Zeile fällt der Überschriftenpfad hier auf den
+                // Boden, und `structurePayload` schriebe für jeden Punkt
+                // dieser Sammlung `null`.
+                metadata: c.metadata,
               }));
 
             if (chunks.length === 0) {
