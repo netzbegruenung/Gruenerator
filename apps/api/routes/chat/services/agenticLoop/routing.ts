@@ -18,6 +18,7 @@ import {
   hasExplicitSharepicWord,
   isNegatedArtifactRequest,
 } from '../../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
+import { looksLikeMemoryRequest } from '../../../../services/memory/memoryRequest.js';
 import { recordDecision } from '../../../../utils/decisionJournal.js';
 import {
   ARTIFACT_KINDS,
@@ -805,6 +806,11 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
   const selfContained = looksLikeSelfContainedTurn(p.lastUserText, {
     hasOwnMaterial: p.hasOwnMaterial === true,
   });
+  // "Merk dir, dass …" is an imperative without a question word, so every net
+  // above rejects it — and the only place that can honour it is the loop,
+  // where the `memory` tool is mounted. Single-pass would confirm a save it
+  // never made (the failure the explicit-memory rebuild exists for).
+  const memoryRequest = looksLikeMemoryRequest(p.lastUserText);
   const inLoopSet =
     p.agenticIntents.has(p.intent) ||
     // A named first-party connector puts the turn in the loop whatever the
@@ -819,7 +825,8 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
         unsourcedWriting ||
         !selfContained)) ||
     p.isPdfFillRequest ||
-    compoundGen;
+    compoundGen ||
+    memoryRequest;
   const secondaryAllowed =
     p.secondaryIntent == null || (compoundGen && p.secondaryIntent === 'scrape_url');
   // `mcp` is the ONLY executor for its turns (the legacy mcpToolNode was removed),
@@ -863,6 +870,7 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
       isPdfFillRequest: p.isPdfFillRequest,
       unsourcedWriting,
       selfContained,
+      memoryRequest,
       hasOwnMaterial: p.hasOwnMaterial === true,
     },
   });

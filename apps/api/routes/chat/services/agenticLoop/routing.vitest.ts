@@ -158,6 +158,26 @@ describe('decideRunAgentic', () => {
   };
   const decide = (o: Partial<typeof base>) => decideRunAgentic({ ...base, ...o });
 
+  it('routes an explicit memory request into the loop whatever the intent says', () => {
+    // "Merk dir …" is an imperative without a question word: every other net
+    // rejects it, and only the loop has the `memory` tool. Single-pass would
+    // confirm a save it never made.
+    expect(
+      decide({ intent: 'direct', lastUserText: 'Merk dir, dass ich für den KV Köln schreibe.' })
+    ).toBe(true);
+    expect(decide({ intent: 'produktion', lastUserText: 'Nein, ab jetzt immer kürzer.' })).toBe(
+      true
+    );
+    // The kill-switches still win — the single-pass honesty note covers that case.
+    expect(
+      decide({
+        intent: 'direct',
+        lastUserText: 'Merk dir, dass ich für den KV Köln schreibe.',
+        hasSelectedNotebook: true,
+      })
+    ).toBe(false);
+  });
+
   it('runs the loop for a whitelisted intent', () => {
     expect(decide({ intent: 'search' })).toBe(true);
     expect(decide({ intent: 'bundestag' })).toBe(true);
