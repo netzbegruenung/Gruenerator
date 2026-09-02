@@ -415,6 +415,13 @@ const envSchema = z.object({
    * Sammlung zurück auf die client-seitige Alt-Fusion, ohne Qdrant anzufassen:
    * der Rückwärtsgang, der keine Migration braucht, und der Referenzarm jeder
    * Messung aus #3118.
+   *
+   * Bleibt an, obwohl der ausgelieferte Arm `rrf` die Alt-Fusion auf dem
+   * qa-Pfad nicht erreicht (kommunalwiki roh 50 % / 0,642 gegen 60 % / 0,720):
+   * auf der manuellen Suche findet erst der Sparse-Vektor die Einwort-Anfragen
+   * (`rrf` 2 von 3 auf Rang 1, `dbsf` 3 von 3, Alt-Fusion vor der Migration
+   * 0 von 3). Abschalten hieße, kommunalwikis BM25 ganz aufzugeben. Die
+   * Alt-Fusion wurde auf dem manuellen und dem Notebook-Pfad nicht gemessen.
    */
   HYBRID_SERVER_SIDE_ENABLED: boolFlag(true),
 
@@ -426,7 +433,14 @@ const envSchema = z.object({
    * 0,35-Schwelle in `NotebookQAService` läuft, kehrt sich das um (`dbsf`
    * 30 % / 0,361 gegen `rrf` 50 % / 0,567), weil die Schwelle für Kosinus-
    * werte geschrieben ist. Umschalten erst, wenn die Schwelle den Wertebereich
-   * der Fusion kennt — siehe das Issue dazu in #3118.
+   * der Fusion kennt — Issue #3166.
+   *
+   * Die ganze Messreihe lief mit `HYBRID_ENABLE_QUALITY_GATE=false`; `dbsf`
+   * mit eingeschaltetem Gatter ist nie gemessen (siehe hybridSearch.ts, das
+   * Gatter ist nur für `rrf` als unschädlich belegt). Die qa-Arme liefen mit
+   * Tiefe `fast`, die Notebook-Arme mit `deep` (der Produktionsstufe des Chats);
+   * ohne Verlauf schreibt `deep` nicht um, die Zahlen sind also vergleichbar,
+   * aber nicht dieselbe Stufe.
    */
   HYBRID_SERVER_FUSION: z.enum(HYBRID_SERVER_FUSIONS).default('rrf'),
 
@@ -435,10 +449,10 @@ const envSchema = z.object({
    * Sparse-Vorabholung ganz weg — zusammen mit `dense_rescore` ist das der
    * dicht-nur-Kontrollarm über den Query-API-Pfad.
    */
-  HYBRID_SERVER_SPARSE_FACTOR: numStr(1.0),
+  HYBRID_SERVER_SPARSE_FACTOR: z.coerce.number().min(0).default(1.0),
 
   /** Gewicht der dichten Vorabholung bei `rrf_weighted`; sparse bekommt 1 − dies. */
-  HYBRID_SERVER_RRF_WEIGHT_DENSE: numStr(0.7),
+  HYBRID_SERVER_RRF_WEIGHT_DENSE: z.coerce.number().min(0).max(1).default(0.7),
 
   // ── Scoring ────────────────────────────────────────────────────────────
   SCORING_MAX_SIMILARITY_WEIGHT: z.coerce.number().default(0.6),
