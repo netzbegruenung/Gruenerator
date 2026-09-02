@@ -1,5 +1,6 @@
 import { createLogger } from '../../utils/logger.js';
 import {
+  buildEmbeddingText,
   smartChunkDocument,
   hierarchicalChunkDocument,
   estimateTokens,
@@ -29,6 +30,13 @@ interface ChunkMetadata {
   section?: string;
   chunk_index?: number;
   total_chunks?: number;
+  /**
+   * Überschriftenpfad des Abschnitts, aus dem der Chunk stammt. Kommt aus
+   * `smartChunkDocument` und ist hier ausdrücklich deklariert, weil die
+   * Index-Signatur ihn sonst als `unknown` durchreicht — und der
+   * Einbettungstext ihn damit stillschweigend verlöre.
+   */
+  headingPath?: string[] | null | undefined;
   [key: string]: unknown;
 }
 
@@ -365,7 +373,12 @@ class BundestagContentProcessor {
     // Process in batches
     for (let i = 0; i < chunks.length; i += this.batchSize) {
       const batch = chunks.slice(i, i + this.batchSize);
-      const texts = batch.map((chunk) => chunk.text);
+      // Derselbe Einbettungstext wie in jedem anderen Ingest-Pfad: Titel und
+      // Überschriftenpfad vor dem Chunk. Ohne das trägt der Vektor die Sektion
+      // nicht, aus der der Chunk stammt.
+      const texts = batch.map((chunk) =>
+        buildEmbeddingText(chunk.text, chunk.metadata.title ?? null, chunk.metadata.headingPath)
+      );
 
       try {
         const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(texts);

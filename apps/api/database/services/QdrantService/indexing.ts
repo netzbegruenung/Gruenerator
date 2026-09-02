@@ -45,6 +45,13 @@ export interface WebContentChunk {
   chunk_text?: string;
   token_count?: number;
   tokens?: number;
+  /**
+   * Die Chunk-Metadaten aus `smartChunkDocument`, aus denen `structurePayload`
+   * `heading_path`/`heading`/`chunk_type`/`section_index` zieht. Absichtlich so
+   * breit typisiert wie `ChunkData.metadata`: die Aufrufer reichen ihre eigenen
+   * Metadaten-Formen durch.
+   */
+  metadata?: Record<string, unknown> | undefined;
 }
 
 export interface WebContentMetadata {
@@ -194,6 +201,7 @@ export async function indexBundestagContent(
         source_url: url,
         chunk_index: index,
         chunk_text: chunk.text || chunk.chunk_text,
+        ...structurePayload(chunk),
         token_count: chunk.token_count || chunk.tokens,
         title: metadata.title || null,
         primary_category: metadata.primary_category || metadata.section || null,
@@ -241,6 +249,7 @@ export async function indexGrueneDeContent(
         source_url: url,
         chunk_index: index,
         chunk_text: chunk.text || chunk.chunk_text,
+        ...structurePayload(chunk),
         token_count: chunk.token_count || chunk.tokens,
         title: metadata.title || null,
         primary_category: metadata.primary_category || metadata.section || null,
@@ -288,6 +297,7 @@ export async function indexGrueneAtContent(
         source_url: url,
         chunk_index: index,
         chunk_text: chunk.text || chunk.chunk_text,
+        ...structurePayload(chunk),
         token_count: chunk.token_count || chunk.tokens,
         title: metadata.title || null,
         primary_category: metadata.primary_category || metadata.section || null,
