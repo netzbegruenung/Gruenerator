@@ -66,6 +66,7 @@ interface GlobalChatProviderProps {
 export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
   const userId = useAuthStore((s) => s.user?.id);
   const userName = useAuthStore((s) => s.user?.display_name);
+  const isInstanceAdmin = useAuthStore((s) => s.user?.is_admin === true);
   const navigate = useNavigate();
   const location = useLocation();
   const qaCollectionsLength = useNotebookStore((s) => s.qaCollections.length);
@@ -171,6 +172,20 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
         return (await handleUnauthorized('chat')) === 'retry';
       },
       wolkeConnectUrl: '/settings/wolke',
+      // Nur für Instanz-Admins: die Rolle lebt in apps/web, die Route auch.
+      // packages/chat bekommt fertig entschieden, ob es etwas anzuzeigen gibt.
+      chunkInspectorHref: isInstanceAdmin
+        ? ({
+            documentId,
+            collectionId,
+            chunkIndex,
+          }: {
+            documentId: string;
+            collectionId: string;
+            chunkIndex: number;
+          }) =>
+            `/admin/chunks/${encodeURIComponent(documentId)}?collection=${encodeURIComponent(collectionId)}#chunk-${chunkIndex}`
+        : undefined,
       renderSharepic: renderSharepicToImage,
       runPython,
       onEditSharepic: (variant: SharepicVariant, opts?: { threadId: string | null }) => {
@@ -362,7 +377,7 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
         }
       },
     }),
-    []
+    [isInstanceAdmin]
   );
 
   return (
