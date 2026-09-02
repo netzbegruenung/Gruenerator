@@ -41,6 +41,26 @@ describe('parseHeading', () => {
     expect(parseHeading('4. Wärmenetze')).toEqual({ level: 1, title: '4. Wärmenetze' });
   });
 
+  it('erkennt eine nummerierte Überschrift auch ohne Punkt am Ende der Nummer', () => {
+    expect(parseHeading('1. Einleitung')).toEqual({ level: 1, title: '1. Einleitung' });
+    expect(parseHeading('3.1 Förderprogramme')).toEqual({ level: 2, title: '3.1 Förderprogramme' });
+    expect(parseHeading('2.4.1 Radverkehr')).toEqual({ level: 3, title: '2.4.1 Radverkehr' });
+  });
+
+  it('liest Zahlen am Zeilenanfang nicht als Überschrift', () => {
+    // Eine blosse Zahl ohne Punkt ist ein Satzanfang, keine Nummerierung.
+    expect(parseHeading('2 Personen waren anwesend')).toBeNull();
+    expect(parseHeading('10 Prozent mehr Radwege bis 2030')).toBeNull();
+    expect(parseHeading('2026 Wahlprogramm')).toBeNull();
+    // Datumsangaben.
+    expect(parseHeading('5. Mai')).toBeNull();
+    expect(parseHeading('3.1.2024 Beschluss der Landesdelegiertenkonferenz')).toBeNull();
+    // Aufzählungspunkte eines Antrags — die häufigste Form, in der `1.` KEINE
+    // Abschnittsnummer ist.
+    expect(parseHeading('1. Wir fordern mehr Radwege')).toBeNull();
+    expect(parseHeading('1. Die Landesregierung wird aufgefordert')).toBeNull();
+  });
+
   it('hält Fließtext für Fließtext', () => {
     // Ein Satz mit Zahl am Anfang ist keine Überschrift.
     expect(parseHeading('3. Wir wollen die Wärmewende sozial gerecht gestalten.')).toBeNull();
@@ -57,6 +77,24 @@ describe('parseHeading', () => {
 describe('segmentBlocks', () => {
   it('lässt reinen Fließtext ein einziger Block ohne Überschriftenpfad sein', () => {
     const blocks = segmentBlocks(PROSE_FIXTURE);
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0].kind).toBe('text');
+    expect(blocks[0].headingPath).toEqual([]);
+    expect(blocks[0].sectionIndex).toBe(0);
+  });
+
+  it('lässt Fließtext mit einer Zahl am Absatzanfang ein einziger Block bleiben', () => {
+    // Der Riegel gegen die Ausfallart, die `PROSE_FIXTURE` nicht abdeckt: das
+    // Golden-Dokument trägt bewusst keine Zeile, die mit einer Zahl beginnt.
+    const text = [
+      PROSE_FIXTURE,
+      '',
+      '10 Prozent mehr Radwege bis 2030 sind das Ziel dieses Beschlusses. ' +
+        '2 Personen der Fraktion haben ihn eingebracht. ' +
+        '2026 Wahlprogramm heisst das Papier, aus dem er stammt.',
+    ].join('\n\n');
+    const blocks = segmentBlocks(text);
+
     expect(blocks).toHaveLength(1);
     expect(blocks[0].kind).toBe('text');
     expect(blocks[0].headingPath).toEqual([]);

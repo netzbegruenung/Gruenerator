@@ -134,6 +134,26 @@ describe('sourceTextForPrompt', () => {
     expect(out.length).toBeLessThanOrEqual(1800);
   });
 
+  it('lässt eine gedeckelte Tabelle mit einer ganzen Zeile enden', () => {
+    // Der Schnitt bei maxChars landet mitten in einer Zeile; die angeschnittene
+    // Zeile ordnet keine Zelle mehr einer Spalte zu und muss wegfallen.
+    const lang = [
+      '| Kommune | Betrag |',
+      '| --- | --- |',
+      ...Array(200).fill('| Musterstadt | 125000 Euro |'),
+    ].join('\n');
+    const out = sourceTextForPrompt(ref({ chunk_text: lang, chunk_type: 'table' }));
+    const zeilen = out.split('\n');
+
+    expect(zeilen[zeilen.length - 1].endsWith('|')).toBe(true);
+    expect(zeilen[zeilen.length - 1]).toBe('| Musterstadt | 125000 Euro |');
+  });
+
+  it('kürzt eine Tabelle, die ganz ins Fenster passt, um keine Zeile', () => {
+    const out = sourceTextForPrompt(ref({ chunk_text: tabelle, chunk_type: 'table' }));
+    expect(out.split('\n')).toHaveLength(3);
+  });
+
   it('wirft leere Zeilen aus der Tabelle', () => {
     const out = sourceTextForPrompt(
       ref({ chunk_text: '| A |\n\n| --- |\n\n| 1 |', chunk_type: 'table' })

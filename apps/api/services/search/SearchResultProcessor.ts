@@ -7,6 +7,8 @@
  * - Source grouping by collection
  */
 
+import { PROMPT_SOURCE_MAX_CHARS } from '../document-services/TextChunker/chunkBudget.js';
+
 import { recencyBoost, resolveSourceDate } from './recency.js';
 
 import type {
@@ -150,13 +152,16 @@ export function buildReferencesMap(
 /**
  * Per-source budget for prompt context.
  *
- * Chunks target ~1600 characters (TextChunker), so this passes a retrieved
- * chunk through whole in the ordinary case. The previous 300/400-character cut
- * meant a model asked to quote a passage, name a speaker or read a figure was
- * working from the chunk's opening sentences while the sentence that matched
- * the query sat in the discarded remainder.
+ * Chunks target ~1600 characters and a table chunk is capped at exactly this
+ * number (`TABLE_CHUNK_MAX_CHARS`), so this passes a retrieved chunk through
+ * whole in the ordinary case. The previous 300/400-character cut meant a model
+ * asked to quote a passage, name a speaker or read a figure was working from
+ * the chunk's opening sentences while the sentence that matched the query sat
+ * in the discarded remainder.
+ *
+ * The number itself lives in `chunkBudget.ts`, next to the chunk sizes it caps.
  */
-export const PROMPT_SOURCE_MAX_CHARS = 1800;
+export { PROMPT_SOURCE_MAX_CHARS };
 
 /**
  * The text of a source as the model should see it: the full chunk when the
@@ -176,12 +181,19 @@ export function sourceTextForPrompt(
   const clipped = text.slice(0, maxChars);
 
   if (ref.chunk_type === 'table') {
-    return clipped
+    const lines = clipped
       .split('\n')
       .map((line) => line.replace(/[ \t]+/g, ' ').trim())
-      .filter((line) => line.length > 0)
-      .join('\n')
-      .trim();
+      .filter((line) => line.length > 0);
+
+    // Ein Schnitt bei `maxChars` landet mitten in einer Zeile. Eine halbe
+    // Tabellenzeile ordnet keine Zelle mehr einer Spalte zu — sie fällt weg,
+    // statt dem Modell eine abgeschnittene Zahl als ganze anzubieten.
+    if (text.length > maxChars && lines.length > 1 && !lines[lines.length - 1].endsWith('|')) {
+      lines.pop();
+    }
+
+    return lines.join('\n').trim();
   }
 
   return clipped.replace(/\s+/g, ' ').trim();

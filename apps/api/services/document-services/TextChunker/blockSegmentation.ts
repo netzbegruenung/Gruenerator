@@ -23,6 +23,8 @@
  * text-Block.
  */
 
+import { PROMPT_SOURCE_MAX_CHARS } from './chunkBudget.js';
+
 export type BlockKind = 'text' | 'table';
 
 export interface DocumentBlock {
@@ -31,15 +33,27 @@ export interface DocumentBlock {
   text: string;
   /** Der Pfad, der über diesem Block gilt; leer oberhalb der ersten Überschrift. */
   headingPath: string[];
-  /** Laufende Nummer des Abschnitts im Dokument; 0 vor der ersten Überschrift. */
+  /**
+   * Laufende Nummer des Abschnitts JE SEITE, nicht je Dokument: `chunkStructured`
+   * ruft die Blockzerlegung einmal pro Seitenmarker auf, der Zähler beginnt also
+   * auf jeder Seite wieder bei 0 (= vor der ersten Überschrift dieser Seite).
+   */
   sectionIndex: number;
 }
 
 /** `# …` bis `###### …`, höchstens drei führende Leerzeichen (CommonMark). */
 const MARKDOWN_HEADING = /^ {0,3}(#{1,6})[ \t]+(\S.*?)[ \t]*$/;
 
-/** `3`, `3.1`, `3.1.1` — optional mit Punkt oder Doppelpunkt, dann ein Großbuchstabe. */
-const NUMBERED_HEADING = /^ {0,3}((?:\d+\.){0,3}\d+)[.:]?[ \t]+(\p{Lu}\S.*?)[ \t]*$/u;
+/**
+ * `3.1`, `3.1.1`, `1.` — Nummer, optional Punkt oder Doppelpunkt, dann ein
+ * Großbuchstabe. Die Nummer ist in drei Teilen gefangen, weil der Punkt hinter
+ * einer einstelligen Nummer (`1.`) über Zulassen oder Ablehnen entscheidet.
+ */
+const NUMBERED_HEADING = /^ {0,3}((?:\d+\.){0,3}\d+)([.:]?)[ \t]+(\p{Lu}\S.*?)[ \t]*$/u;
+
+/** Deutsche Monatsnamen: `5. Mai` ist ein Datum, keine Überschrift. */
+const MONTH_START =
+  /^(Januar|Februar|M\u00e4rz|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\b/u;
 
 /** Eine Zeile, die mit `|` beginnt und endet. */
 const TABLE_ROW = /^\s*\|.*\|\s*$/;
@@ -52,8 +66,35 @@ const TABLE_ROW = /^\s*\|.*\|\s*$/;
 const MAX_HEADING_CHARS = 120;
 
 /**
+ * Engere Grenzen für den nummerierten Zweig. Er hat kein `#` als Beweis, also
+ * trägt er die Beweislast selbst: eine nummerierte Überschrift ist kurz.
+ */
+const MAX_NUMBERED_HEADING_CHARS = 80;
+const MAX_NUMBERED_HEADING_WORDS = 10;
+
+/**
+ * `1. …` ist die zweideutigste Form überhaupt: sie ist genauso oft ein
+ * Aufzählungspunkt („1. Wir fordern mehr Radwege", „1. Die Landesregierung wird
+ * aufgefordert") wie eine Abschnittsnummer („1. Einleitung"). Eine innere
+ * Nummer (`3.1`) trägt die Beweislast selbst, eine blosse `1.` nicht — deshalb
+ * gilt hier zusätzlich eine harte Wortgrenze. Der Preis ist bekannt und
+ * gewollt: „1. Grundlagen der kommunalen Wärmeplanung" wird künftig übersehen,
+ * also wie bisher als Fließtext behandelt. Eine übersehene Überschrift kostet
+ * die Struktur EINES Abschnitts; eine erfundene zerschneidet ein ganzes
+ * Dokument in Ein-Satz-Chunks.
+ */
+const MAX_ENUMERATOR_TITLE_WORDS = 3;
+
+/**
  * Erkennt eine Überschriftenzeile. `level` ist die Tiefe im Stapel (1 = oberste),
  * `title` der Text, wie er in `heading_path` landet.
+ *
+ * Ein Seitenmarker (`## Seite 3`) sieht von hier aus wie eine Überschrift der
+ * Ebene 2 und würde als solche im `heading_path` landen. Dass das nie passiert,
+ * ist KEINE Leistung dieser Funktion, sondern hängt allein daran, dass
+ * `splitTextByPageMarkers` (`pageMarkerProcessing.ts`) die Marker vor dem
+ * Chunken herausschneidet — `smartChunkDocument` ruft die Blockzerlegung erst
+ * je Seite auf. Wer diese Reihenfolge ändert, braucht hier einen Ausschluss.
  */
 export function parseHeading(line: string): { level: number; title: string } | null {
   const trimmed = line.trim();
@@ -69,10 +110,29 @@ export function parseHeading(line: string): { level: number; title: string } | n
 
   const numbered = NUMBERED_HEADING.exec(line);
   if (!numbered) return null;
+  const [, number, punctuation, title] = numbered;
+
   // Ein Satz ist keine Überschrift: „3. Wir wollen die Wärmewende gestalten."
   if (/[.;:,]$/.test(trimmed)) return null;
-  if (/\.\s/.test(numbered[2])) return null;
-  return { level: numbered[1].split('.').length, title: trimmed };
+  if (/\.\s/.test(title)) return null;
+
+  const groups = number.split('.');
+
+  // Eine blosse Zahl ist keine Nummerierung, sondern ein Satzanfang: „2 Personen
+  // waren anwesend", „10 Prozent mehr Radwege bis 2030", „2026 Wahlprogramm".
+  // Es braucht einen Punkt — innen (`3.1`) oder hinten (`1.`).
+  if (groups.length === 1 && punctuation !== '.') return null;
+  // „3.1.2024 Beschluss der Landesdelegiertenkonferenz" ist ein Datum.
+  if (groups.length === 3 && /^\d{4}$/.test(groups[2])) return null;
+  // „5. Mai" ist eins.
+  if (MONTH_START.test(title)) return null;
+
+  if (trimmed.length > MAX_NUMBERED_HEADING_CHARS) return null;
+  const words = title.split(/\s+/).filter(Boolean);
+  if (words.length > MAX_NUMBERED_HEADING_WORDS) return null;
+  if (groups.length === 1 && words.length > MAX_ENUMERATOR_TITLE_WORDS) return null;
+
+  return { level: groups.length, title: trimmed };
 }
 
 /** Eine Tabelle braucht mindestens zwei aufeinanderfolgende Pipe-Zeilen. */
@@ -190,11 +250,16 @@ export function segmentBlocks(text: string): DocumentBlock[] {
 }
 
 /**
- * Deckel für einen Tabellen-Chunk. Dieselbe Zahl wie `mergeSmallChunks`'
- * `maxMergedChars` (`langchainIntegration.ts:100`), damit eine Tabelle nicht
- * größer wird als das, was der Fließtext-Pfad zusammenfassen darf.
+ * Deckel für einen Tabellen-Chunk: dieselbe Zahl wie `PROMPT_SOURCE_MAX_CHARS`,
+ * das Fenster, das der Antwort-Prompt je Quelle durchlässt.
+ *
+ * Er lag bis zum 02.09.2026 bei 2400 und damit ÜBER diesem Fenster. Die Folge
+ * war unsichtbar und teuer: `splitTableBlock` teilte sorgfältig entlang der
+ * Zeilen, und `sourceTextForPrompt` schnitt die letzten 600 Zeichen davon
+ * anschliessend mitten in einer Zeile wieder ab. Wer den Deckel wieder hebt,
+ * hebt zuerst `PROMPT_SOURCE_MAX_CHARS`.
  */
-export const TABLE_CHUNK_MAX_CHARS = 2400;
+export const TABLE_CHUNK_MAX_CHARS = PROMPT_SOURCE_MAX_CHARS;
 
 /** Eine Markdown-Trennzeile: `| --- | :---: |`. */
 const TABLE_SEPARATOR = /^\s*\|[\s:|-]+\|\s*$/;
