@@ -10,7 +10,7 @@ import {
 } from '@gruenerator/ui';
 import { useState } from 'react';
 
-import { CHUNK_PAGE_SIZE, useDocumentChunks } from '../hooks/useChunkInspector';
+import { CHUNK_PAGE_SIZE, useChunkSearch, useDocumentChunks } from '../hooks/useChunkInspector';
 
 const NOT_STORED = 'nicht gespeichert';
 
@@ -65,9 +65,11 @@ function DocumentHeader({ header }: { header: InspectedDocumentHeader }) {
 function ChunkRow({
   chunk,
   qualityThreshold,
+  hitSimilarity,
 }: {
   chunk: InspectedChunk;
   qualityThreshold: number | null;
+  hitSimilarity: number | null;
 }) {
   const [expanded, setExpanded] = useState(false);
   const belowThreshold =
@@ -77,7 +79,10 @@ function ChunkRow({
 
   return (
     <>
-      <TableRow id={`chunk-${chunk.index}`}>
+      <TableRow
+        id={`chunk-${chunk.index}`}
+        className={hitSimilarity === null ? undefined : 'bg-primary-50 dark:bg-primary-950'}
+      >
         <TableCell>
           <button
             type="button"
@@ -109,11 +114,20 @@ function ChunkRow({
           {chunk.embeddingPresent ? 'dicht' : '—'}
           {chunk.sparsePresent ? ' + BM25' : ''}
         </TableCell>
+        <TableCell>
+          {hitSimilarity === null ? (
+            <span className="text-grey-400">—</span>
+          ) : (
+            <span className="font-medium">
+              Treffer · {hitSimilarity.toFixed(2).replace('.', ',')}
+            </span>
+          )}
+        </TableCell>
         <TableCell className="max-w-md truncate">{chunk.text.slice(0, 300)}</TableCell>
       </TableRow>
       {expanded && (
         <TableRow>
-          <TableCell colSpan={7}>
+          <TableCell colSpan={8}>
             <pre className="whitespace-pre-wrap break-words text-sm">{chunk.text}</pre>
           </TableCell>
         </TableRow>
@@ -130,6 +144,12 @@ export function ChunkInspectorView({
   collection: string;
 }) {
   const [offset, setOffset] = useState(0);
+  const [draftQuery, setDraftQuery] = useState('');
+  const [submittedQuery, setSubmittedQuery] = useState('');
+  const search = useChunkSearch(documentId, collection, submittedQuery);
+  const hitByIndex = new Map(
+    (search.data?.hits ?? []).map((hit) => [hit.index, hit.similarity] as const)
+  );
   const { data, isLoading, isError } = useDocumentChunks(documentId, collection, offset);
 
   if (isLoading) {
@@ -154,6 +174,44 @@ export function ChunkInspectorView({
     <div className="flex flex-col gap-lg">
       <DocumentHeader header={data.header} />
 
+      <form
+        className="flex flex-col gap-2xs"
+        onSubmit={(event) => {
+          event.preventDefault();
+          setSubmittedQuery(draftQuery.trim());
+        }}
+      >
+        <label htmlFor="chunk-search" className="text-sm font-medium text-foreground">
+          Suche in diesem Dokument
+        </label>
+        <input
+          id="chunk-search"
+          type="search"
+          value={draftQuery}
+          onChange={(event) => setDraftQuery(event.target.value)}
+          placeholder="Frage stellen, wie im Chat"
+          className="rounded-md border border-grey-300 px-sm py-2xs text-sm dark:border-grey-700 dark:bg-grey-900"
+        />
+        {search.data && (
+          <div className="text-sm text-grey-500 dark:text-grey-400" aria-live="polite">
+            <p className="m-0">
+              {search.data.scoped
+                ? 'Suche auf dieses Dokument eingeschränkt'
+                : 'Suche über die ganze Sammlung; Treffer dieses Dokuments markiert'}
+            </p>
+            <p className="m-0">
+              {search.data.hits.length} von {search.data.totalResults} Treffern stammen aus diesem
+              Dokument.
+            </p>
+          </div>
+        )}
+        {search.isError && (
+          <p className="m-0 text-sm text-red-600 dark:text-red-400">
+            Die Suche ist fehlgeschlagen.
+          </p>
+        )}
+      </form>
+
       {data.chunks.length === 0 ? (
         <p className="py-lg text-center text-sm text-grey-500 dark:text-grey-400">
           Zu diesem Dokument liegen keine Chunks vor.
@@ -169,6 +227,7 @@ export function ChunkInspectorView({
                 <TableHead>Qualität</TableHead>
                 <TableHead>Tabelle</TableHead>
                 <TableHead>Vektor</TableHead>
+                <TableHead>Suche</TableHead>
                 <TableHead>Anfang</TableHead>
               </TableRow>
             </TableHeader>
@@ -178,6 +237,7 @@ export function ChunkInspectorView({
                   key={chunk.index}
                   chunk={chunk}
                   qualityThreshold={data.header.qualityThreshold}
+                  hitSimilarity={hitByIndex.get(chunk.index) ?? null}
                 />
               ))}
             </TableBody>
