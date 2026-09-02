@@ -1,8 +1,9 @@
 /**
  * Die vier Regler aus #3118. Geprüft wird dreierlei:
  *
- * 1. dass der Default-Zustand der ausgelieferte ist (Server-Pfad an, `rrf`,
- *    Faktor 1, Gewicht 0,7) — sonst verstellt dieser PR still die Produktion;
+ * 1. dass der Default-Zustand der ausgelieferte ist (Server-Pfad an, `dbsf`
+ *    seit der Messreihe in Task 8 (2026-09-02), Faktor 1, Gewicht 0,7) —
+ *    sonst verstellt dieser PR still die Produktion;
  * 2. dass `HYBRID_SERVER_FUSION` ein GESCHLOSSENER Wertevorrat ist. Ein
  *    `z.string()` würde einen Tippfehler klaglos annehmen und der Suchpfad
  *    fiele auf einen Zweig, den niemand gewählt hat;
@@ -41,7 +42,7 @@ describe('HYBRID_SERVER_* defaults', () => {
   it('liefert den ausgelieferten Zustand an vectorConfig', () => {
     const hybrid = vectorConfig.get('hybrid');
     expect(hybrid.serverSideEnabled).toBe(true);
-    expect(hybrid.serverFusion).toBe('rrf');
+    expect(hybrid.serverFusion).toBe('dbsf');
     expect(hybrid.serverSparseFactor).toBe(1.0);
     expect(hybrid.serverRrfWeightDense).toBe(0.7);
   });

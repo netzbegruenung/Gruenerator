@@ -1,0 +1,46 @@
+{
+  "pipeline": "manual",
+  "depth": "fast",
+  "withRerank": false,
+  "outcomes": [
+    {
+      "id": "manual-kommunalwiki-baumschutzsatzung",
+      "collection": "kommunalwiki-system",
+      "query": "Baumschutzsatzung",
+      "rank": 1,
+      "topTitles": [
+        "Umweltschutz durch kommunales Satzungsrecht",
+        "Schottergarten",
+        "Bodenschutzklausel",
+        "Verkehrssicherungspflicht im Wald",
+        "Bundesbodenschutzgesetz"
+      ]
+    },
+    {
+      "id": "manual-kommunalwiki-quartiersmanagement",
+      "collection": "kommunalwiki-system",
+      "query": "Quartiersmanagement",
+      "rank": 1,
+      "topTitles": [
+        "Quartiersmanagement",
+        "Service Learning an Schulen für kommunale Bedarfe nutzen",
+        "Kommunale Glücksspielkonzepte",
+        "Baukulturelles Erbe in den Städten",
+        "Den Alltag im Stadtteil bewegen"
+      ]
+    },
+    {
+      "id": "manual-kommunalwiki-klimaanpassung",
+      "collection": "kommunalwiki-system",
+      "query": "Klimaanpassung",
+      "rank": 1,
+      "topTitles": [
+        "Klimaanpassungs-Check",
+        "Gemeinschaftsaufgabe Klimaschutz und Klimaanpassung in Kommunen",
+        "Anpassung an den Klimawandel",
+        "Drei-Punkte-Plan zur Anpassung an den Klimawandel",
+        "Klimaschutz als kommunale Pflichtaufgabe?"
+      ]
+    }
+  ]
+}
