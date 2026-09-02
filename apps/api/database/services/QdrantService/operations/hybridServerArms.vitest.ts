@@ -248,3 +248,70 @@ describe('sparse_only', () => {
     expect(response.metadata.fusionMethod).toBe('sparse_only-server');
   });
 });
+
+describe('HYBRID_SERVER_SPARSE_FACTOR', () => {
+  it('fächert die Sparse-Vorabholung auf, ohne die dichte anzufassen', async () => {
+    state.hybrid = { ...DEFAULT_HYBRID, serverSparseFactor: 3 };
+    const client = fakeClient();
+    await runArm(client);
+
+    expect(sentBody(client)).toEqual({
+      prefetch: [DENSE_PREFETCH, SPARSE_PREFETCH(60)],
+      query: { fusion: 'rrf' },
+      limit: 20,
+      with_payload: true,
+    });
+  });
+
+  it('lässt die Sparse-Vorabholung bei Faktor 0 ganz weg', async () => {
+    state.hybrid = { ...DEFAULT_HYBRID, serverSparseFactor: 0 };
+    const client = fakeClient();
+    await runArm(client);
+
+    expect(sentBody(client)).toEqual({
+      prefetch: [DENSE_PREFETCH],
+      query: { fusion: 'rrf' },
+      limit: 20,
+      with_payload: true,
+    });
+  });
+
+  it('kürzt bei rrf_weighted die Gewichte mit der Liste, nicht daneben', async () => {
+    state.hybrid = {
+      ...DEFAULT_HYBRID,
+      serverFusion: 'rrf_weighted',
+      serverSparseFactor: 0,
+      serverRrfWeightDense: 0.7,
+    };
+    const client = fakeClient();
+    await runArm(client);
+
+    const body = sentBody(client);
+    expect(body.prefetch).toHaveLength(1);
+    // Ein Gewicht je Vorabholung — sonst lehnt der Server die Anfrage ab
+    // ("The number of weights should match the number of prefetches").
+    expect((body.query as { rrf: { weights: number[] } }).rrf.weights).toHaveLength(1);
+  });
+
+  it('ist der dicht-nur-Kontrollarm, wenn dense_rescore dazukommt', async () => {
+    state.hybrid = { ...DEFAULT_HYBRID, serverFusion: 'dense_rescore', serverSparseFactor: 0 };
+    const client = fakeClient();
+    await runArm(client);
+
+    expect(sentBody(client)).toEqual({
+      prefetch: [{ prefetch: [DENSE_PREFETCH], query: { fusion: 'rrf' }, limit: 20 }],
+      query: QUERY_VECTOR,
+      using: '',
+      limit: 20,
+      with_payload: true,
+    });
+  });
+
+  it('fällt bei sparse_only + Faktor 0 auf die Alt-Fusion zurück, statt nichts zu fragen', async () => {
+    state.hybrid = { ...DEFAULT_HYBRID, serverFusion: 'sparse_only', serverSparseFactor: 0 };
+    const client = fakeClient();
+    const response = await runArm(client);
+
+    expect(['RRF', 'weighted']).toContain(response.metadata.fusionMethod);
+  });
+});
