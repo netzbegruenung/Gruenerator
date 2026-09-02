@@ -500,6 +500,7 @@ export class BaseSearchService {
           chunk_index: tc.chunk_index,
           content_type: tc.content_type ?? null,
           page_number: tc.page_number ?? null,
+          chunk_type: tc.chunk_type ?? null,
           quality_score: typeof tc.quality_score === 'number' ? tc.quality_score : null,
           has_term: !!tc.has_term,
           preview:
@@ -709,6 +710,7 @@ export class BaseSearchService {
       text: rawChunk.chunk_text,
       content_type: rawChunk.content_type ?? rawChunk.metadata?.content_type,
       page_number: rawChunk.page_number ?? rawChunk.metadata?.page_number,
+      chunk_type: rawChunk.chunk_type ?? rawChunk.metadata?.chunk_type,
       similarity: rawChunk.similarity || 0,
       token_count: rawChunk.token_count,
     };
@@ -1014,6 +1016,7 @@ export class BaseSearchService {
           chunk_index: tc.chunk_index,
           content_type: tc.content_type ?? null,
           page_number: tc.page_number ?? null,
+          chunk_type: tc.chunk_type ?? null,
           quality_score: typeof tc.quality_score === 'number' ? tc.quality_score : null,
           has_term: !!tc.has_term,
           preview:
@@ -1226,6 +1229,7 @@ export class BaseSearchService {
         text: chunk.chunk_text,
         content_type: chunk.content_type ?? chunk.metadata?.content_type,
         page_number: chunk.page_number ?? chunk.metadata?.page_number,
+        chunk_type: chunk.chunk_type ?? chunk.metadata?.chunk_type,
         similarity:
           (chunk as RawChunk & { similarity_adjusted?: number }).similarity_adjusted ??
           chunk.similarity ??
@@ -1266,6 +1270,7 @@ export class BaseSearchService {
           chunk_index: tc.chunk_index,
           content_type: tc.content_type ?? null,
           page_number: tc.page_number ?? null,
+          chunk_type: tc.chunk_type ?? null,
           quality_score: typeof tc.quality_score === 'number' ? tc.quality_score : null,
           preview: BaseSearchService.extractExcerpt(tc.text, 300),
           text: tc.text,

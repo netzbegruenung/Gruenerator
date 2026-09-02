@@ -417,6 +417,8 @@ export interface QdrantResultPayload {
   quality_score?: number | undefined;
   content_type?: string | undefined;
   page_number?: number | undefined;
+  /** `'text'` oder `'table'`; fehlt auf Punkten, die vor #3122 geschrieben wurden. */
+  chunk_type?: string | undefined;
   created_at?: string | undefined;
   title?: string | undefined;
   filename?: string | undefined;
