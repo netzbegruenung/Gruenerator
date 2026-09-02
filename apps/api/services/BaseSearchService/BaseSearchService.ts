@@ -1177,6 +1177,10 @@ export class BaseSearchService {
       limit: params.options?.limit,
       threshold: params.options?.threshold,
       searchType: (params as { searchType?: string }).searchType,
+      // Ohne dies teilten ein reranktes und ein unrerranktes Ergebnis denselben
+      // Eintrag: `limit`/`threshold`/`filters` sind für beide identisch, nur
+      // die Rangfolge unterscheidet sich.
+      rerankChunks: params.options?.rerankChunks === true,
     };
 
     return `${this.serviceName}:${this.simpleHash(JSON.stringify(keyData))}`;
