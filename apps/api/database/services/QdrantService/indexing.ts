@@ -5,6 +5,7 @@
 
 import { type QdrantClient } from '@qdrant/js-client-rest';
 
+import { structurePayload } from '../../../services/document-services/structurePayload.js';
 import { createLogger } from '../../../utils/logger.js';
 import { generatePointId } from '../../../utils/validation/index.js';
 
@@ -44,6 +45,13 @@ export interface WebContentChunk {
   chunk_text?: string;
   token_count?: number;
   tokens?: number;
+  /**
+   * Die Chunk-Metadaten aus `smartChunkDocument`, aus denen `structurePayload`
+   * `heading_path`/`heading`/`chunk_type`/`section_index` zieht. Absichtlich so
+   * breit typisiert wie `ChunkData.metadata`: die Aufrufer reichen ihre eigenen
+   * Metadaten-Formen durch.
+   */
+  metadata?: Record<string, unknown> | undefined;
 }
 
 export interface WebContentMetadata {
@@ -92,6 +100,7 @@ export async function indexDocumentChunks(
           document_id: documentId,
           chunk_index: chunkIdx,
           chunk_text: chunk.text || chunk.chunk_text,
+          ...structurePayload(chunk),
           token_count: chunk.token_count || chunk.tokens,
           user_id: userId,
           title: chunk.title || chunk.metadata?.title || null,
@@ -138,6 +147,7 @@ export async function indexGrundsatzChunks(
           document_id: documentId,
           chunk_index: index,
           chunk_text: chunk.text || chunk.chunk_text,
+          ...structurePayload(chunk),
           token_count: chunk.token_count || chunk.tokens,
           content_type: chunk.metadata?.content_type,
           page_number:
@@ -191,6 +201,7 @@ export async function indexBundestagContent(
         source_url: url,
         chunk_index: index,
         chunk_text: chunk.text || chunk.chunk_text,
+        ...structurePayload(chunk),
         token_count: chunk.token_count || chunk.tokens,
         title: metadata.title || null,
         primary_category: metadata.primary_category || metadata.section || null,
@@ -238,6 +249,7 @@ export async function indexGrueneDeContent(
         source_url: url,
         chunk_index: index,
         chunk_text: chunk.text || chunk.chunk_text,
+        ...structurePayload(chunk),
         token_count: chunk.token_count || chunk.tokens,
         title: metadata.title || null,
         primary_category: metadata.primary_category || metadata.section || null,
@@ -285,6 +297,7 @@ export async function indexGrueneAtContent(
         source_url: url,
         chunk_index: index,
         chunk_text: chunk.text || chunk.chunk_text,
+        ...structurePayload(chunk),
         token_count: chunk.token_count || chunk.tokens,
         title: metadata.title || null,
         primary_category: metadata.primary_category || metadata.section || null,

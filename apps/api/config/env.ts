@@ -415,13 +415,17 @@ const envSchema = z.object({
    * die Tabelle mit acht Zeilen, und das 300-Zeichen-Fenster schnitt sie nach
    * der zweiten ab.
    *
-   * 1500 deckt einen ganzen Chunk — für kürzere Chunks ist die Kappung damit
-   * wirkungslos, sie schneidet nur noch, was wirklich zu lang ist. Die
+   * 1800 deckt einen ganzen Chunk — für kürzere Chunks ist die Kappung damit
+   * wirkungslos, sie schneidet nur noch, was wirklich zu lang ist. Die Zahl war
+   * bis zum 02.09.2026 1500 und deckte damit nicht einmal den Fließtext-Pfad
+   * (1600 Zeichen); der Wächter in `config/searchExcerptBudget.vitest.ts` maß
+   * gegen eine Token-Schätzung (400 × 3,3 = 1320) und meldete das grün. Er hält
+   * jetzt gegen die tatsächlichen Chunk-Grenzen aus `chunkBudget.ts`. Die
    * Anzeige-Pfade haben eigene, engere Deckel und wachsen NICHT mit
    * (`highlightSnippet` 400, Notebook-Sammlungen 200, Recherche 500,
    * `line-clamp-3` in der Dokumentübersicht).
    */
-  CONTENT_MAX_EXCERPT_LENGTH: numStr(1500),
+  CONTENT_MAX_EXCERPT_LENGTH: numStr(1800),
   CONTENT_EXCERPT_SENTENCE_BOUNDARY: z.coerce.number().default(0.7),
   CONTENT_MAX_CHUNKS_PER_DOC: numStr(10),
 
