@@ -98,6 +98,16 @@ export interface ChunkData {
   searchMethod?: string | undefined;
   originalVectorScore?: number | null | undefined;
   originalTextScore?: number | null | undefined;
+  /**
+   * Dichter Kosinus dieses Chunks, aber NUR wenn er über den server-seitigen
+   * Score-Join (#3166 Task 2) gemessen wurde — anders als
+   * `originalVectorScore`, das auf JEDEM Pfad einen echten Kosinus trägt.
+   * Der Alt-Pfad hat ebenfalls einen Kosinus, aber `similarity_score` trägt
+   * dort Zuschläge (Begriffstreffer, Diversität, Hybrid-Bonus) oben drauf,
+   * die dieses Feld nicht kennt — ein Schnitt dagegen würde die
+   * Alt-Kontrollgruppe verschieben. Siehe Fix-Runde 1.
+   */
+  denseSimilarityScore?: number | null | undefined;
 }
 
 export interface TransformedChunk {
@@ -120,6 +130,8 @@ export interface TransformedChunk {
   searchMethod?: string | undefined;
   originalVectorScore?: number | null | undefined;
   originalTextScore?: number | null | undefined;
+  /** Siehe `ChunkData.denseSimilarityScore` — dieselbe Gate-Bedingung. */
+  denseSimilarityScore?: number | null | undefined;
 }
 
 // ============ Scoring ============
@@ -154,6 +166,12 @@ export interface HybridMetadata {
   searchMethods: Set<string>;
   vectorScores: number[];
   textScores: number[];
+  /**
+   * Dichte Kosinus-Werte NUR aus dem server-seitigen Score-Join (#3166 Task
+   * 2), getrennt von `vectorScores` (das jeder Pfad füllt). Grundlage für
+   * `DocumentResult.dense_similarity_score`.
+   */
+  denseJoinScores: number[];
 }
 
 export interface DocumentData {
@@ -203,6 +221,20 @@ export interface DocumentResult {
   source_id?: string | null | undefined;
   relevant_content: string;
   similarity_score: number;
+  /**
+   * Höchster GEMESSENER dichter Kosinus über die Chunks dieses Dokuments,
+   * `null` wo keiner vorlag (#3166) — NUR aus dem server-seitigen Score-Join
+   * (Task 2, `HYBRID_SERVER_SCORE_JOIN`), nie aus dem Alt-Pfad. Fix-Runde 1:
+   * der Alt-Pfad hat pro Chunk ebenfalls einen echten Kosinus
+   * (`originalVectorScore`), aber sein `similarity_score` trägt zusätzlich
+   * Begriffstreffer-, Diversitäts- und Hybrid-Boni (zusammen bis zu ~0,33) auf
+   * die Rohwerte — ein Schnitt gegen den unboosteten Kosinus hätte die 42
+   * Alt-Kontrollfälle verschoben. Auf dem fusionierten Server-Pfad gilt das
+   * nicht: dort ist `similarity_score` kein Kosinus mehr, sondern ein
+   * Fusionswert (RRF ≈ 1,0 auf Rang 1, DBSF nahe 0), gegen den die
+   * Notebook-Schwelle von 0,35 gar nicht gemessen ist.
+   */
+  dense_similarity_score?: number | null | undefined;
   max_similarity: number;
   avg_similarity: number;
   position_score?: number | undefined;
