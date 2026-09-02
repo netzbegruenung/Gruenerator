@@ -49,6 +49,18 @@ describe('inspectDocumentChunks — Vektor-Auskunft', () => {
     expect(result.chunks[0].embeddingPresent).toBe(true);
     expect(result.chunks[0].sparsePresent).toBe(false);
   });
+
+  it('meldet ohne Vektor (null oder fehlend) weder embedding noch sparse', async () => {
+    const withNullVector = point(0, {}, null);
+    const withoutVectorField = { id: 2000, payload: { ...withNullVector.payload, chunk_index: 1 } };
+    const ops = opsReturning([withNullVector, withoutVectorField]);
+    const result = await inspectDocumentChunks(ops, 'doc-1', 'documents', { offset: 0, limit: 50 });
+
+    expect(result.chunks[0].embeddingPresent).toBe(false);
+    expect(result.chunks[0].sparsePresent).toBe(false);
+    expect(result.chunks[1].embeddingPresent).toBe(false);
+    expect(result.chunks[1].sparsePresent).toBe(false);
+  });
 });
 
 describe('inspectDocumentChunks — Felder', () => {
@@ -109,5 +121,34 @@ describe('inspectDocumentChunks — Seitenwechsel', () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toBe('No chunks found');
+  });
+});
+
+describe('inspectDocumentChunks — Qdrant-Scroll über mehrere Seiten', () => {
+  it('blättert über den Punkt-ID-Cursor weiter und zählt den inklusiven Wiederholer nur einmal', async () => {
+    // Volle Seite: 256 Punkte, chunk_index 0..255. `scrollDocuments` gibt bei
+    // Qdrant den Cursor-Punkt als erstes Element der Folgeseite noch einmal
+    // zurück — hier nachgebildet, indem dieselbe id in der zweiten Seite
+    // wiederkehrt.
+    const pageOne = Array.from({ length: 256 }, (_, i) => point(i));
+    const cursorId = pageOne[pageOne.length - 1]!.id;
+    const pageTwo = [point(255), point(256), point(257)];
+
+    const scrollDocuments = vi.fn().mockResolvedValueOnce(pageOne).mockResolvedValueOnce(pageTwo);
+    const ops = { scrollDocuments } as unknown as QdrantOperations;
+
+    const result = await inspectDocumentChunks(ops, 'doc-1', 'documents', {
+      offset: 0,
+      limit: 300,
+    });
+
+    expect(scrollDocuments).toHaveBeenCalledTimes(2);
+    // Zweiter Aufruf blättert mit der letzten id der ersten Seite als Versatz.
+    expect(scrollDocuments.mock.calls[1]?.[2]).toMatchObject({ offset: cursorId });
+
+    // 256 aus Seite eins + 3 aus Seite zwei − 1 doppelter Cursor-Punkt = 258.
+    expect(result.chunkCount).toBe(258);
+    expect(result.chunks.filter((c) => c.index === 255)).toHaveLength(1);
+    expect(result.chunks.map((c) => c.index)).toEqual(Array.from({ length: 258 }, (_, i) => i));
   });
 });
