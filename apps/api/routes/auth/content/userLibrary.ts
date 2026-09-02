@@ -228,8 +228,6 @@ router.post(
               ];
             } else {
               chunks = await smartChunkDocument(textForEmbedding, {
-                maxTokens: 600,
-                overlapTokens: 150,
                 preserveSentences: true,
               });
             }
@@ -632,8 +630,6 @@ router.put(
               ];
             } else {
               chunks = await smartChunkDocument(textForEmbedding, {
-                maxTokens: 600,
-                overlapTokens: 150,
                 preserveSentences: true,
               });
             }

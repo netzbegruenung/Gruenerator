@@ -47,6 +47,7 @@ export function buildChunkPayloadFields(payload: QdrantResultPayload | undefined
   quality_score: number | null;
   content_type: string | null;
   page_number: number | null;
+  chunk_type: string | null;
   created_at: string | undefined;
   published_at: string | null;
   source_id: string | null;
@@ -65,6 +66,7 @@ export function buildChunkPayloadFields(payload: QdrantResultPayload | undefined
     quality_score: (p.quality_score as number) ?? null,
     content_type: (p.content_type as string) ?? null,
     page_number: (p.page_number as number) ?? null,
+    chunk_type: (p.chunk_type as string) ?? null,
     created_at: p.created_at as string | undefined,
     published_at: (p.published_at as string) ?? (metadata?.published_at as string) ?? null,
     source_id: (p.source_id as string) ?? null,

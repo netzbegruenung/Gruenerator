@@ -8,6 +8,7 @@
  */
 
 import { vectorConfig } from '../../config/vectorConfig.js';
+import { PROMPT_SOURCE_MAX_CHARS } from '../document-services/TextChunker/chunkBudget.js';
 
 import { recencyBoost, resolveSourceDate } from './recency.js';
 import { selectRelevantExcerpt } from './relevantExcerpt.js';
@@ -57,6 +58,7 @@ export function expandResultsToChunks(
           similarity: r.similarity_score || 0,
           chunk_index: chunk.chunk_index,
           page_number: chunk.page_number ?? null,
+          chunk_type: chunk.chunk_type ?? null,
           published_at: publishedAt,
           ...(createdAt && { created_at: createdAt }),
           ...(collectionId && { collection_id: collectionId }),
@@ -75,6 +77,7 @@ export function expandResultsToChunks(
         similarity: typeof r.similarity_score === 'number' ? r.similarity_score : 0,
         chunk_index: r.chunk_index || 0,
         page_number: null,
+        chunk_type: null,
         published_at: publishedAt,
         ...(createdAt && { created_at: createdAt }),
         ...(collectionId && { collection_id: collectionId }),
@@ -139,6 +142,7 @@ export function buildReferencesMap(
       similarity_score: r.similarity,
       chunk_index: r.chunk_index,
       page_number: r.page_number,
+      chunk_type: r.chunk_type ?? null,
       ...(r.collection_id && { collection_id: r.collection_id }),
       ...(r.collection_name && { collection_name: r.collection_name }),
     };
@@ -150,24 +154,51 @@ export function buildReferencesMap(
 /**
  * Per-source budget for prompt context.
  *
- * Chunks target ~1600 characters (TextChunker), so this passes a retrieved
- * chunk through whole in the ordinary case. The previous 300/400-character cut
- * meant a model asked to quote a passage, name a speaker or read a figure was
- * working from the chunk's opening sentences while the sentence that matched
- * the query sat in the discarded remainder.
+ * Chunks target ~1600 characters and a table chunk is capped at exactly this
+ * number (`TABLE_CHUNK_MAX_CHARS`), so this passes a retrieved chunk through
+ * whole in the ordinary case. The previous 300/400-character cut meant a model
+ * asked to quote a passage, name a speaker or read a figure was working from
+ * the chunk's opening sentences while the sentence that matched the query sat
+ * in the discarded remainder.
+ *
+ * The number itself lives in `chunkBudget.ts`, next to the chunk sizes it caps.
  */
-export const PROMPT_SOURCE_MAX_CHARS = 1800;
+export { PROMPT_SOURCE_MAX_CHARS };
 
 /**
  * The text of a source as the model should see it: the full chunk when the
  * search layer supplied one, falling back to the display snippet.
+ *
+ * Eine Tabelle IST ihre Zeilenstruktur. `\s+ → ' '` macht aus einem sauber
+ * geschnittenen Tabellen-Chunk eine Zeile, in der keine Zelle mehr einer Spalte
+ * zuzuordnen ist — die ganze Arbeit der Blockzerlegung käme so nie beim Modell
+ * an. Deshalb behalten `chunk_type: 'table'`-Referenzen ihre Zeilenumbrüche;
+ * innerhalb einer Zeile wird weiter normalisiert.
  */
 export function sourceTextForPrompt(
   ref: ReferenceData,
   maxChars: number = PROMPT_SOURCE_MAX_CHARS
 ): string {
   const text = ref.chunk_text || ref.snippets[0]?.[0] || '';
-  return text.slice(0, maxChars).replace(/\s+/g, ' ').trim();
+  const clipped = text.slice(0, maxChars);
+
+  if (ref.chunk_type === 'table') {
+    const lines = clipped
+      .split('\n')
+      .map((line) => line.replace(/[ \t]+/g, ' ').trim())
+      .filter((line) => line.length > 0);
+
+    // Ein Schnitt bei `maxChars` landet mitten in einer Zeile. Eine halbe
+    // Tabellenzeile ordnet keine Zelle mehr einer Spalte zu — sie fällt weg,
+    // statt dem Modell eine abgeschnittene Zahl als ganze anzubieten.
+    if (text.length > maxChars && lines.length > 1 && !lines[lines.length - 1].endsWith('|')) {
+      lines.pop();
+    }
+
+    return lines.join('\n').trim();
+  }
+
+  return clipped.replace(/\s+/g, ' ').trim();
 }
 
 /**
