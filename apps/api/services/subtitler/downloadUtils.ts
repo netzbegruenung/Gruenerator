@@ -20,6 +20,7 @@ import { redisClient } from '../../utils/redis/index.js';
 import AssSubtitleService from './assSubtitleService.js';
 import { ffmpeg } from './ffmpegWrapper.js';
 import * as hwaccel from './hwaccelUtils.js';
+import { calculateFontSizing } from './subtitleSizingService.js';
 import { getFilePathFromUploadId, checkFileExists } from './tusService.js';
 import { getVideoMetadata, cleanupFiles } from './videoUploadService.js';
 
@@ -43,11 +44,6 @@ interface ExportParams {
 
 interface TokenData extends ExportParams {
   createdAt: number;
-}
-
-interface FontSizes {
-  finalFontSize: number;
-  finalSpacing: number;
 }
 
 interface QualitySettings {
@@ -252,9 +248,8 @@ async function processVideoWithSubtitles(
   heightPreference: string,
   exportToken: string
 ): Promise<void> {
-  const { finalFontSize } = calculateFontSizes(subtitles, metadata);
-
   const segments = processSubtitleSegments(subtitles);
+  const { finalFontSize } = calculateFontSizing(metadata, segments);
 
   const { assFilePath, tempFontPath } = await generateAssSubtitles(
     segments,
@@ -515,112 +510,6 @@ async function checkFont(): Promise<void> {
   }
 }
 
-function calculateFontSizes(subtitles: string, metadata: VideoMetadata): FontSizes {
-  const isVertical = metadata.width < metadata.height;
-  const referenceDimension = isVertical ? metadata.width : metadata.height;
-  const totalPixels = metadata.width * metadata.height;
-
-  let minFontSize: number, maxFontSize: number, basePercentage: number;
-
-  if (referenceDimension >= 2160) {
-    minFontSize = 80;
-    maxFontSize = 180;
-    basePercentage = isVertical ? 0.07 : 0.065;
-  } else if (referenceDimension >= 1440) {
-    minFontSize = 60;
-    maxFontSize = 140;
-    basePercentage = isVertical ? 0.065 : 0.06;
-  } else if (referenceDimension >= 1080) {
-    minFontSize = 45;
-    maxFontSize = 100;
-    basePercentage = isVertical ? 0.06 : 0.055;
-  } else if (referenceDimension >= 720) {
-    minFontSize = 35;
-    maxFontSize = 70;
-    basePercentage = isVertical ? 0.055 : 0.05;
-  } else {
-    minFontSize = 32;
-    maxFontSize = 65;
-    basePercentage = isVertical ? 0.065 : 0.06;
-  }
-
-  const pixelFactor = Math.log10(totalPixels / 2073600) * 0.15 + 1;
-  const adjustedPercentage = basePercentage * Math.min(pixelFactor, 1.4);
-  const fontSize = Math.max(
-    minFontSize,
-    Math.min(maxFontSize, Math.floor(referenceDimension * adjustedPercentage))
-  );
-
-  const minSpacing = 40;
-  const maxSpacing = fontSize * 1.25;
-  const spacing = Math.max(
-    minSpacing,
-    Math.min(maxSpacing, fontSize * (1.5 + (1 - fontSize / 48)))
-  );
-
-  const segments = processSubtitleSegments(subtitles);
-  let totalChars = 0;
-  let totalWords = 0;
-  segments.forEach((segment) => {
-    totalChars += segment.text.length;
-    totalWords += segment.text.split(' ').length;
-  });
-  const avgLength = segments.length > 0 ? totalChars / segments.length : 30;
-  const avgWords = segments.length > 0 ? totalWords / segments.length : 5;
-
-  const scaleFactor = calculateScaleFactor(avgLength, avgWords);
-  const finalFontSize = Math.max(
-    minFontSize,
-    Math.min(maxFontSize, Math.floor(fontSize * scaleFactor))
-  );
-  const scaledMaxSpacing = maxSpacing * (scaleFactor > 1 ? scaleFactor : 1);
-  const finalSpacing = Math.max(
-    minSpacing,
-    Math.min(scaledMaxSpacing, Math.floor(spacing * scaleFactor))
-  );
-
-  log.debug('Font calculation:', {
-    videoDimensionen: `${metadata.width}x${metadata.height}`,
-    avgTextLength: avgLength.toFixed(1),
-    scaleFactor: scaleFactor.toFixed(2),
-    finalFontSize: `${finalFontSize}px`,
-    finalSpacing: `${finalSpacing}px`,
-  });
-
-  return { finalFontSize, finalSpacing };
-}
-
-function calculateScaleFactor(avgChars: number, avgWords: number): number {
-  const shortCharThreshold = 20;
-  const longCharThreshold = 40;
-  const shortWordThreshold = 3;
-  const longWordThreshold = 7;
-
-  let charFactor: number;
-  if (avgChars <= shortCharThreshold) {
-    charFactor = 1.35;
-  } else if (avgChars >= longCharThreshold) {
-    charFactor = 0.95;
-  } else {
-    const range = longCharThreshold - shortCharThreshold;
-    const position = avgChars - shortCharThreshold;
-    charFactor = 1.35 - (1.35 - 0.95) * (position / range);
-  }
-
-  let wordFactor: number;
-  if (avgWords <= shortWordThreshold) {
-    wordFactor = 1.25;
-  } else if (avgWords >= longWordThreshold) {
-    wordFactor = 0.95;
-  } else {
-    const range = longWordThreshold - shortWordThreshold;
-    const position = avgWords - shortWordThreshold;
-    wordFactor = 1.25 - (1.25 - 0.95) * (position / range);
-  }
-
-  return charFactor * 0.7 + wordFactor * 0.3;
-}
-
 function processSubtitleSegments(subtitles: string): SubtitleSegment[] {
   log.debug('[downloadUtils] Raw subtitles input (last 500 chars):', subtitles.slice(-500));
 
@@ -791,4 +680,4 @@ export {
   processSubtitleSegments,
 };
 
-export type { ExportParams, SubtitleSegment, VideoMetadata, FontSizes, QualitySettings };
+export type { ExportParams, SubtitleSegment, VideoMetadata, QualitySettings };
