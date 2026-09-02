@@ -5,10 +5,12 @@ description: 'Wie viel Strom und CO₂ eine Anfrage kostet, wie wir das rechnen 
 ---
 
 import { ModelTable } from '@site/src/components/ModelTable';
+import { ProviderTasks } from '@site/src/components/ProviderTasks';
 
 {/*
-Welches Modell wo läuft, steht NICHT mehr in dieser Datei: <ModelTable /> rendert
-src/generated/models.json, und das liest scripts/generate-models.mjs aus dem
+Welches Modell wo läuft, steht NICHT in dieser Datei — und WELCHER ANBIETER
+WELCHE AUFGABE hat, ebenfalls nicht: <ModelTable /> und <ProviderTasks host="…" />
+rendern beide src/generated/models.json, und das liest scripts/generate-models.mjs aus dem
 Routing-Code selbst (AVAILABLE_MODELS, INTERMEDIATE_LANES, LOOP_PLANNER_PRIMARY,
 ARTIFACT_MODEL, VISION_MODEL, MODEL_OPTIONS, TRANSCRIPTION_CHAIN). Umzug einer
 Lane -> `pnpm --filter @gruenerator/documentation models:generate`; `models:check`
@@ -47,7 +49,7 @@ Die Rechnung geht damit in beide Richtungen: Der Strom war grüner als fast übe
 
 ## Sparsame Modelle statt Größenwahn
 
-Die größten kommerziellen KI-Modelle brauchen für jede einzelne Antwort ein Vielfaches der Energie eines kompakten Modells. Der Grünerator setzt deshalb bewusst auf **kleine und mittlere Modelle** — vom 31-Milliarden-Parameter-Modell Gemma 4 bis zum mittelgroßen Mistral Medium. Diese Tabelle wird direkt aus dem Routing-Code erzeugt und zeigt daher genau die Modelle, die gerade tatsächlich im Einsatz sind:
+Die größten kommerziellen KI-Modelle brauchen für jede einzelne Antwort ein Vielfaches der Energie eines kompakten Modells. Der Grünerator setzt deshalb bewusst auf **kleine und mittlere Modelle** — kein einziges davon spielt in der Größenklasse der Frontier-Modelle. Welche es gerade genau sind, ändert sich mehrmals im Jahr; diese Tabelle wird direkt aus dem Routing-Code erzeugt und zeigt deshalb immer den aktuellen Stand, nicht den von Hand nachgepflegten:
 
 <ModelTable />
 
@@ -57,27 +59,47 @@ Im Chat selbst stehen drei Größen zur Wahl — **Klein**, **Mittel** und **Ult
 
 Der Grünerator schickt nicht jede Anfrage an das größte verfügbare Modell. Stattdessen entscheidet ein **kompaktes Einordnungs-Modell** zuerst, was überhaupt gebraucht wird: eine einfache Antwort, eine Recherche, ein Dokument, ein Bild.
 
-Auch innerhalb einer Antwort ist die Arbeit geteilt: Ein **kleines, schnelles Modell** übernimmt das Planen und Aufrufen von Werkzeugen (Suche, Notebooks, Dokumente), und ein **kompaktes 31-Milliarden-Modell** schreibt den Text. Das große Standardmodell kommt nur dort zum Einsatz, wo seine Qualität wirklich gebraucht wird. So bleibt der Energieverbrauch pro Anfrage niedrig, ohne dass die Qualität leidet.
+Auch innerhalb einer Antwort ist die Arbeit geteilt: Ein **kleines, schnelles Modell** übernimmt das Planen und Aufrufen von Werkzeugen (Suche, Notebooks, Dokumente), ein **kompaktes Modell** schreibt den Text. Das große Standardmodell kommt nur dort zum Einsatz, wo seine Qualität wirklich gebraucht wird. So bleibt der Energieverbrauch pro Anfrage niedrig, ohne dass die Qualität leidet.
 
 ## Unsere Anbieter im Nachhaltigkeits-Check
 
 ### Regolo (Seeweb, Italien) — 100 % erneuerbar
 
-**[Regolo](https://regolo.ai/sustainable-ai/)** betreibt seine GPU-Server nach eigenen Angaben mit **100 % erneuerbarer Energie**, verzichtet auf Wasserkühlung und führt Hardware im Kreislauf (wiederverwenden, aufarbeiten, recyceln). Das Unternehmen ist ISO-14001-zertifiziert, Qualified Supporter der Green Web Foundation und arbeitet nach dem europäischen DNSH-Prinzip („Do No Significant Harm", EU-Taxonomie) — alles in europäischen Rechenzentren, mit Zero Data Retention. Beim Grünerator übernimmt Regolo die Anfragen-Einordnung (`mistral-small-4-119b`), das Schreiben von Antworten (`gemma4-31b`), das Bildmodell Qwen-Image und dient als Überlauf für die selbst gehosteten Modelle. Transkription lief hier bis Juli 2026 ebenfalls; Regolos eigene Hinweise begrenzten sie auf zwei Minuten pro Datei, und an einem 180-Sekunden-Ausschnitt wiederholte das Modell tatsächlich einen ganzen Satz. Seitdem läuft Transkription über Voxtral und GreenPT, die beide ohne diese Einschränkung arbeiten.
+**[Regolo](https://regolo.ai/sustainable-ai/)** betreibt seine GPU-Server nach eigenen Angaben mit **100 % erneuerbarer Energie**, verzichtet auf Wasserkühlung und führt Hardware im Kreislauf (wiederverwenden, aufarbeiten, recyceln). Das Unternehmen ist ISO-14001-zertifiziert, Qualified Supporter der Green Web Foundation und arbeitet nach dem europäischen DNSH-Prinzip („Do No Significant Harm", EU-Taxonomie) — alles in europäischen Rechenzentren, mit Zero Data Retention.
+
+<ProviderTasks host="Regolo" />
+
+Transkription lief hier bis Juli 2026 ebenfalls; Regolos eigene Hinweise begrenzten sie auf zwei Minuten pro Datei, und an einem 180-Sekunden-Ausschnitt wiederholte das Modell tatsächlich einen ganzen Satz. Seitdem läuft sie über Anbieter ohne diese Einschränkung.
 
 ### GreenPT — Dokumente und Ausweichweg
 
 **[GreenPT](https://greenpt.com/sustainability)** rechnet ausschließlich in EU-Rechenzentren mit **100 % erneuerbarer Energie** — in Paris sowie in Helsinki (je zur Hälfte Wasser- und Windkraft) — und nennt konkrete Effizienzwerte: PUE 1,25 (Branchenschnitt: 1,55) und ein Wasserverbrauch (WUE) von 0,25 statt branchenüblicher 1,8.
 
-Beim Grünerator schreibt GreenPTs Gemma 4 (`gemma4`) alle **erzeugten Dateien**: PDFs, Präsentationen, Tabellen und Dokumente. Das ist keine Verlegenheitslösung, sondern gemessen: Am 03.08.2026 gegen die echten Prompts und Vorlagen rief das große Standardmodell das nötige Werkzeug in keinem einzigen Lauf sauber auf und lief in Wiederholungen fest, GreenPTs Gemma 4 in zehn von zehn Läufen — und dabei drei- bis viermal schneller. Dazu plant hier das kleine Modell, das im Chat die Werkzeuge auswählt und aufruft, und GreenPT ist der **Ausweichweg** für die Transkription, wenn Voxtral nicht antwortet. Als frei wählbare Chat-Lane ist GreenPT im Code fertig verdrahtet, im Modellwähler aber noch nicht freigeschaltet — deshalb steht sie oben nicht bei den drei wählbaren Lanes.
+<ProviderTasks host="GreenPT" />
+
+Dass die **erzeugten Dateien** — PDFs, Präsentationen, Tabellen und Dokumente — hier laufen, ist keine Verlegenheitslösung, sondern gemessen: Am 03.08.2026 gegen die echten Prompts und Vorlagen rief das große Standardmodell das nötige Werkzeug in keinem einzigen Lauf sauber auf und lief in Wiederholungen fest, GreenPTs Modell in zehn von zehn Läufen — und dabei drei- bis viermal schneller. Als frei wählbare Chat-Lane ist GreenPT im Code fertig verdrahtet, im Modellwähler aber noch nicht freigeschaltet — deshalb steht sie oben nicht bei den drei wählbaren Lanes.
 
 ### Mistral AI (Frankreich) — Transparenz-Vorreiter
 
-**[Mistral AI](https://mistral.ai/news/our-contribution-to-a-global-environmental-standard-for-ai/)** vermarktet sich nicht als Öko-Anbieter, hat aber als erstes KI-Unternehmen überhaupt eine **vollständige, unabhängig geprüfte Lebenszyklus-Analyse** eines eigenen Modells veröffentlicht — erstellt mit der französischen Umweltagentur ADEME und Carbone 4, peer-reviewed nach ISO 14040/44. Die Zahlen machen KI-Umweltkosten erstmals konkret vergleichbar: Eine typische Antwort (400 Token) verursacht etwa **1,14 g CO₂e und 45 ml Wasser**. Mistral setzt sich zudem für einen verbindlichen globalen Umweltstandard für KI ein. Dazu kommt der französische Strommix, der zu den CO₂-ärmsten Europas gehört. Beim Grünerator liefert Mistral das Standardmodell, die Embeddings für Suche und Notebooks sowie die Transkription mit Voxtral.
+**[Mistral AI](https://mistral.ai/news/our-contribution-to-a-global-environmental-standard-for-ai/)** vermarktet sich nicht als Öko-Anbieter, hat aber als erstes KI-Unternehmen überhaupt eine **vollständige, unabhängig geprüfte Lebenszyklus-Analyse** eines eigenen Modells veröffentlicht — erstellt mit der französischen Umweltagentur ADEME und Carbone 4, peer-reviewed nach ISO 14040/44. Die Zahlen machen KI-Umweltkosten erstmals konkret vergleichbar: Eine typische Antwort (400 Token) verursacht etwa **1,14 g CO₂e und 45 ml Wasser**. Mistral setzt sich zudem für einen verbindlichen globalen Umweltstandard für KI ein. Dazu kommt der französische Strommix, der zu den CO₂-ärmsten Europas gehört.
+
+<ProviderTasks host="Mistral AI" />
 
 ### Black Forest Labs (Freiburg) — Bilder aus der EU
 
-**[Black Forest Labs](https://bfl.ai/)** aus Freiburg entwickelt die FLUX-Bildmodelle. Der Grünerator nutzt ausschließlich den **EU-Endpunkt** (`api.eu.bfl.ai`) mit den FLUX-2-Modellen — die Bilderzeugung läuft damit im europäischen Strommix, der deutlich CO₂-ärmer ist als der US-amerikanische, wo die meisten Bild-KIs rechnen.
+**[Black Forest Labs](https://bfl.ai/)** aus Freiburg entwickelt die FLUX-Bildmodelle. Der Grünerator nutzt ausschließlich den **EU-Endpunkt** (`api.eu.bfl.ai`) — die Bilderzeugung läuft damit im europäischen Strommix, der deutlich CO₂-ärmer ist als der US-amerikanische, wo die meisten Bild-KIs rechnen.
+
+<ProviderTasks host="Black Forest Labs" />
+
+### Cortecs — der Vermittler, und die ehrliche Lücke
+
+**Cortecs** ist kein Rechenzentrum, sondern ein **Vermittler**: Es reicht eine Anfrage an einen von mehreren Unteranbietern weiter. Wir schränken diese Auswahl vertraglich auf solche ein, die in der EU sitzen und dort reguliert sind und **Zero Data Retention** zusichern — und weil eine Weisung allein nichts beweist, prüfen wir jede Antwort nach: Cortecs nennt in einem Kopffeld, wer tatsächlich gerechnet hat, und ein Name außerhalb unserer Positivliste wird als Fehler protokolliert. Auch die Verbrauchsbuchhaltung läuft auf diesen Namen, nicht auf „Cortecs".
+
+In der Praxis rechnet dort **Infercom SCS** — Sitz in Luxemburg, Verarbeitung laut Cortecs-Vertrag in Deutschland. Ein zweiter Endpunkt desselben Modells liegt bei **Berget AI** (Schweden); der Router wählt ihn von sich aus bisher nicht.
+
+<ProviderTasks host="Cortecs" />
+
+Hier ist die Bilanz schlechter belegt als bei allen anderen auf dieser Seite, und das soll so dastehen: Für Infercom ist uns weder ein PUE-Wert noch ein Herkunftsnachweis für Ökostrom bekannt. Wir rechnen deshalb mit dem **deutschen Strommix** (344 g CO₂e/kWh, Umweltbundesamt 2025) und rechnen keinen Ökostrom an — die vorsichtige Lesart, nicht die günstige. Ein fremdes Zertifikat zu erben wäre derselbe Fehler wie bei Black Forest Labs weiter unten. Legt der Anbieter einen Nachweis vor, sinkt die Zahl; solange nicht, steht sie so in der Rechnung.
 
 ## Wie wir rechnen
 
@@ -128,7 +150,9 @@ Bei Scaleway müssen wir nicht auf den Landesdurchschnitt ausweichen: Der Impact
 
 Dazu kommt die Effizienz des Rechenzentrums selbst (PUE — wie viel Strom zusätzlich für Kühlung und Infrastruktur draufgeht). GreenPTs Messwerte enthalten einen PUE von 1,25; wo unsere Anbieter besser sind, rechnen wir die Differenz gut: Hetzner gibt 1,13 an, Seeweb unter 1,20. Wo ein Betreiber gar keinen PUE veröffentlicht, schätzen wir ihn — siehe unten.
 
-**Ein Glücksfall für die Genauigkeit:** GreenPT rechnet selbst bei Scaleway in Paris („Every GreenPT request runs on Scaleway's 100 % renewable-powered compute in Paris"), und Scaleway stellt sämtliche KI-Server in ein einziges Rechenzentrum — DC5, PUE 1,25. Unsere Gemma-4-Lane für lange Dokumente läuft ebenfalls dort. Für sie ist unsere Messung also **keine Übertragung auf fremde Hardware**, sondern dieselbe Maschinenklasse im selben Gebäude. Für alle anderen Lanes — unser Standardmodell Mistral Medium bei Mistral in Frankreich, Gemma 4 und Mistral Small über Cortecs, die Regolo-Modelle in Italien — bleibt es eine Übertragung; dort ist das „≈" wörtlich zu nehmen. (Mistral Medium lief bis August 2026 ebenfalls über Scaleway; wir haben es wegen fehlerhafter Antworten dieses Anbieters wieder direkt zu Mistral gelegt.)
+**Ein Glücksfall für die Genauigkeit:** GreenPT rechnet selbst bei Scaleway in Paris („Every GreenPT request runs on Scaleway's 100 % renewable-powered compute in Paris"), und Scaleway stellt sämtliche KI-Server in ein einziges Rechenzentrum — DC5, PUE 1,25. Für die Lanes, die **bei GreenPT** laufen, ist unsere Messung deshalb **keine Übertragung auf fremde Hardware**, sondern dieselbe Maschinenklasse im selben Gebäude.
+
+Für alle anderen ist es eine Übertragung, und dort ist das „≈" wörtlich zu nehmen. Diese Seite zählt nicht mehr auf, welche Lane das gerade betrifft — die Zuordnung ändert sich zu oft, und eine Aufzählung, die niemand nachzieht, ist schlechter als keine. Wer sie braucht, liest die Tabelle oben: alles, was dort **nicht** bei GreenPT steht, ist eine Übertragung. Bis August 2026 lief zusätzlich das Zusammenfassen langer Dokumente bei Scaleway und fiel damit ebenfalls unter den genauen Fall; heute nicht mehr. (Auch unser Standardmodell lief eine Zeitlang über Scaleway; wir haben es wegen fehlerhafter Antworten dieses Anbieters wieder direkt zum Hersteller gelegt.)
 
 ### Mitte statt Obergrenze — und die Spanne dazu
 
