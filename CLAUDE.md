@@ -103,6 +103,8 @@ Mistral AI (primary, EU), self-hosted GPT-OSS/Gemma via LiteLLM/verdigado, Seewe
 
 **Websuche: Linkup** (`LinkupService.ts`, `LINKUP_API_KEY`). Die `linkup-*` Skills gelten auch für unseren Integrations-Code: `depth` ist eine Kostenentscheidung — `fast`/`standard` als Default, `deep` nur für „erst URL finden, dann scrapen".
 
+**Hybrid-Suche: `similarity` ist nicht überall ein Kosinus.** Auf einer Sammlung mit Sparse-Vektoren (heute nur `kommunalwiki_documents`) fusioniert Qdrant server-seitig, und der zurückgegebene `score` ist ein Fusionswert — RRF liegt auf Rang 1 bei ≈ 1,0, DBSF läuft nahe 0 aus. Die Schwellen der Notebook-Ebene (0,35 in `notebookDepthProfiles.ts` und `NotebookQAService.ts`) sind dagegen als Kosinus geschrieben. Seit #3166 holt `hybridSearchServerSide` den dichten Kosinus und den BM25-Wert je Treffer über zwei zusätzliche Einträge desselben `queryBatch` zurück (`HYBRID_SERVER_SCORE_JOIN`, ein Rundlauf bleibt ein Rundlauf), und `SearchResultProcessor.filterAndSortResults` schneidet auf `dense_similarity ?? similarity` — **sortiert** wird weiter auf `similarity`. **Der Rückfall ist Pflicht:** auf dem Alt-Pfad und bei Dokumenten, deren Chunks nur aus der BM25-Lane kamen, gibt es keinen Kosinus, und ein Leser ohne `?? similarity` misst dort `undefined`. Zahlen und Deckungsgrad: `apps/api/evals/retrieval/hybrid-dense-join-2026-09-02.md`.
+
 ## Development Conventions
 
 ### Git Safety
