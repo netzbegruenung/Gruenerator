@@ -34,9 +34,10 @@
  *   EVAL_LOOP_RERANK  dreiwertig, qa only. unset (default) — heutiger Lauf,
  *                    byte-identisch zur historischen Basis. `0` — loop-förmige
  *                    Suche OHNE Rerank: dasselbe geklemmte `limit` wie der
- *                    agentische Loop (`executeDirectSearch`s RERANK_LIMIT_CLAMP
- *                    + Overfetch, hier gespiegelt als LOOP_RERANK_LIMIT_CLAMP),
- *                    aber ohne `rerankChunks`. `1` — dieselbe loop-förmige
+ *                    agentische Loop (`executeDirectSearch`s exportiertes
+ *                    RERANK_LIMIT_CLAMP + OVERFETCH_CEILING, hier direkt
+ *                    importiert statt gespiegelt), aber ohne `rerankChunks`.
+ *                    `1` — dieselbe loop-förmige
  *                    Suche MIT `rerankChunks: true`, also mit dem Cross-Encoder
  *                    VOR der Gruppierung — der Pfad, den der agentische Loop
  *                    hinter LOOP_RERANK_ENABLED fährt (#3120). `0` und `1`
@@ -87,6 +88,8 @@ const { getSearchParams, getSystemCollectionConfig, applyDefaultFilter } =
   await import('../../config/systemCollectionsConfig.js');
 const { DocumentSearchService } =
   await import('../../services/document-services/DocumentSearchService/index.js');
+const { RERANK_LIMIT_CLAMP, OVERFETCH_CEILING } =
+  await import('../../routes/chat/agents/directSearchExecutors.js');
 const { rerankPipeline } = await import('../../services/search/rerankPipeline.js');
 const { selectRelevantExcerpt } = await import('../../services/search/relevantExcerpt.js');
 const { vectorConfig } = await import('../../config/vectorConfig.js');
@@ -151,18 +154,15 @@ const MANUAL_RESULT_LIMIT = 30;
 const MANUAL_MIN_SCORE = 0.35;
 
 /**
- * Mirrors `RERANK_LIMIT_CLAMP` / `OVERFETCH_CEILING` and the `qdrantLimit`
- * formula from `routes/chat/agents/directSearchExecutors.ts` (not exported
- * there — `executeDirectSearch`'s clamp is a local const). Applied to BOTH
- * loop-shaped arms (`EVAL_LOOP_RERANK=0` and `=1`), never only to the reranked
- * one, so the two differ solely in the rerank flag and never in recall width.
+ * The limit the loop's `executeDirectSearch` would actually send to Qdrant —
+ * same `qdrantLimit` formula, against the real `RERANK_LIMIT_CLAMP` /
+ * `OVERFETCH_CEILING` imported above instead of a mirrored copy. Applied to
+ * BOTH loop-shaped arms (`EVAL_LOOP_RERANK=0` and `=1`), never only to the
+ * reranked one, so the two differ solely in the rerank flag and never in
+ * recall width.
  */
-const LOOP_RERANK_LIMIT_CLAMP = 5;
-const LOOP_OVERFETCH_CEILING = 80;
-
-/** The limit the loop's `executeDirectSearch` would actually send to Qdrant. */
 function loopShapedLimit(limit: number): number {
-  return Math.min(Math.min(limit, LOOP_RERANK_LIMIT_CLAMP) * 2, LOOP_OVERFETCH_CEILING);
+  return Math.min(Math.min(limit, RERANK_LIMIT_CLAMP) * 2, OVERFETCH_CEILING);
 }
 
 interface CaseOutcome {
@@ -603,7 +603,7 @@ async function main() {
           pipeline,
           depth,
           withRerank,
-          ...(pipeline === 'qa' && { withChunkRerank, loopLimit }),
+          ...(pipeline === 'qa' && loopShaped && { withChunkRerank, loopLimit }),
           outcomes,
         },
         null,
