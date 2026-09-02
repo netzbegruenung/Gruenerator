@@ -127,7 +127,7 @@ export interface HybridConfig {
   confidencePenalty: number;
   confidenceBoost: number;
   /**
-   * Master switch des server-seitigen Pfads. Diese vier Felder sind die
+   * Master switch des server-seitigen Pfads. Diese fünf Felder sind die
    * Spiegelung von `config/vectorConfig.ts` — `getHybridConfig()`
    * (`hybridSearch.ts:39–41`) castet zwischen den beiden Interfaces, und ein
    * Cast merkt ein fehlendes Feld NICHT: es wäre zur Laufzeit `undefined`.

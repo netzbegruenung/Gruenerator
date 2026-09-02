@@ -926,9 +926,7 @@ export class BaseSearchService {
       // #3166 Fix-Runde 1: NUR aus dem server-seitigen Score-Join, siehe
       // `ChunkData.denseSimilarityScore`. Nicht mit `originalVectorScore`
       // verwechseln — das trägt auf JEDEM Pfad einen echten Kosinus.
-      chunkData.denseSimilarityScore =
-        (chunk as TransformedChunk & { denseSimilarityScore?: number | null })
-          .denseSimilarityScore ?? null;
+      chunkData.denseSimilarityScore = chunk.denseSimilarityScore ?? null;
 
       docData.chunks.push(chunkData);
 

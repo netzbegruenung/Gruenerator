@@ -357,9 +357,12 @@ async function hybridSearchServerSide(
   // Der Deckungsgrad ist die Zahl, die dieser Entwurf schuldet: wie viele
   // Fusionstreffer bekommen überhaupt einen Kosinus? Vermutet werden darf sie
   // nicht — sie steht in jeder Anfrage im Log und im PR.
+  const sparseCoverage = useSparse
+    ? `, sparse join ${points.filter((p) => textById.has(p.id)).length}/${points.length}`
+    : ', sparse join skipped';
   const joinCoverage = useBatch
     ? `, dense join ${points.filter((p) => denseById.has(p.id)).length}/${points.length}` +
-      `, sparse join ${points.filter((p) => textById.has(p.id)).length}/${points.length}`
+      sparseCoverage
     : '';
 
   logger.info(
