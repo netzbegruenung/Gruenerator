@@ -6,10 +6,11 @@
  *   pnpm --filter @gruenerator/api eval:retrieval
  *
  * Env:
- *   EVAL_PIPELINE    qa (default) | manual — see below
+ *   EVAL_PIPELINE    qa (default) | manual | notebook — see below
  *   EVAL_COLLECTION  only run cases for this collection id (substring match)
  *   EVAL_FILTER      only run cases whose id contains this substring
- *   EVAL_DEPTH       depth profile: fast | deep | ultra (default fast), qa only
+ *   EVAL_DEPTH       depth profile: fast | deep | ultra (default fast;
+ *                    notebook defaults to deep, the production notebook default)
  *   EVAL_RERANK=1    additionally score the post-rerank ranking (Regolo), qa only
  *   EVAL_RERANK_EXCERPT  what the cross-encoder gets to read. Needs EVAL_RERANK=1.
  *                      off (default) — `relevant_content` whole, up to
@@ -34,11 +35,17 @@
  *   EVAL_VERBOSE=1   print top-5 titles for every miss (gold-label curation)
  *   EVAL_OUT         write per-case results as JSON to this path
  *
- * Two pipelines, because the product has two: `qa` is the notebook Q&A path
- * (depth profile + optional rerank), `manual` is the notebook search field
- * (`/api/research/search` params, then the real `rankManualSearchResults` the
- * route runs — not a copy of it, so the eval cannot drift away from the code
- * it measures). `manual` defaults to the `kind: 'manual'` cases.
+ * Three pipelines, because the product has three: `qa` is the notebook Q&A
+ * search (depth profile + optional rerank), `manual` is the notebook search
+ * field (`/api/research/search` params, then the real `rankManualSearchResults`
+ * the route runs — not a copy of it, so the eval cannot drift away from the
+ * code it measures), `notebook` is the notebook-scope Q&A path: the real
+ * `NotebookQAService.getSearchContext` with per-case scope (system collection,
+ * multi-collection, or a synthetic user notebook stubbed via `getCollectionFn`
+ * / `getDocumentIdsFn`). Its query construction mirrors `notebookStreamCore`
+ * — if that changes (e.g. the history-aware rewrite of the verbesserungsplan),
+ * the mirror below must follow. Each pipeline defaults to its own `kind`
+ * cases.
  *
  * A case scores at rank r when the first matching result appears at position
  * r (1-based). Metrics: Hit@1 / Hit@3 / Hit@5, MRR@10 — per collection and
@@ -64,6 +71,10 @@ const { rerankPipeline } = await import('../../services/search/rerankPipeline.js
 const { selectRelevantExcerpt } = await import('../../services/search/relevantExcerpt.js');
 const { vectorConfig } = await import('../../config/vectorConfig.js');
 const { rankManualSearchResults } = await import('../../services/search/manualSearchRanking.js');
+const { notebookQAService } = await import('../../services/notebook/NotebookQAService.js');
+const { normalizeNotebookHistory, buildRewriteTranscript } =
+  await import('../../routes/chat/services/notebookHistoryService.js');
+const { expandQuery } = await import('../../services/search/QueryExpansionService.js');
 
 const { RETRIEVAL_CASES } = await import('./cases.js');
 
@@ -133,7 +144,14 @@ interface CaseOutcome {
   error?: string;
 }
 
-function firstMatchRank(results: DocumentResult[], evalCase: RetrievalCase): number | null {
+/** Structural minimum: `DocumentResult` and `ExpandedChunkResult` both satisfy it. */
+type ScoredResult = {
+  title?: string | null | undefined;
+  filename?: string | null | undefined;
+  source_url?: string | null | undefined;
+};
+
+function firstMatchRank(results: ScoredResult[], evalCase: RetrievalCase): number | null {
   for (let i = 0; i < results.length; i++) {
     const title = results[i].title || results[i].filename || '';
     const url = results[i].source_url || '';
@@ -306,6 +324,74 @@ async function runManualCase(
   }
 }
 
+/**
+ * The notebook-scope Q&A path: `NotebookQAService.getSearchContext`, scored on
+ * `sortedResults`. Mirrors the query construction of `notebookStreamCore`
+ * (history only when the profile allows it, variant expansion only for
+ * multi-variant profiles) — keep this copy in sync if that code changes.
+ */
+async function runNotebookCase(
+  evalCase: RetrievalCase,
+  depth: NotebookDepth
+): Promise<CaseOutcome> {
+  const base: CaseOutcome = {
+    id: evalCase.id,
+    collection: evalCase.collection,
+    query: evalCase.query,
+    rank: null,
+    topTitles: [],
+  };
+  const meta = evalCase.notebook;
+  if (!meta) {
+    return { ...base, error: `notebook case without notebook meta: ${evalCase.id}` };
+  }
+
+  const profile = getNotebookDepthProfile(depth);
+  const messages: Array<{ role: 'user' | 'assistant'; content: string }> = [
+    ...(meta.history ?? []),
+    { role: 'user', content: evalCase.query },
+  ];
+  const lastUserIdx = messages.length - 1;
+  const history = profile.history ? normalizeNotebookHistory(messages.slice(0, lastUserIdx)) : [];
+  let queries = [evalCase.query];
+  if (profile.queryVariants > 1) {
+    const expanded = await expandQuery(
+      evalCase.query,
+      history.length > 0 ? { historyContext: buildRewriteTranscript(history) } : {}
+    );
+    queries = [expanded.primary, ...expanded.alternatives].slice(0, profile.queryVariants);
+  }
+
+  const user = meta.user;
+  try {
+    const ctx = await notebookQAService.getSearchContext({
+      question: evalCase.query,
+      // A user case reaches the single-collection path through the stubbed
+      // collection id, not through a system id.
+      collectionId: meta.collectionId ?? user?.collectionId,
+      ...(meta.collectionIds && { collectionIds: meta.collectionIds }),
+      userId: 'SYSTEM',
+      depth,
+      queries,
+      ...(user && {
+        getCollectionFn: async (id: string) =>
+          id === user.collectionId ? { name: user.name, user_id: 'SYSTEM' } : null,
+        getDocumentIdsFn: async (id: string) => (id === user.collectionId ? user.documentIds : []),
+      }),
+    });
+
+    const results = ctx?.sortedResults ?? [];
+    return {
+      ...base,
+      rank: firstMatchRank(results, evalCase),
+      topTitles: results.slice(0, 5).map((r) => r.title || r.source_url || '?'),
+      ...(ctx === null && { error: 'search returned no results' }),
+    };
+  } catch (error) {
+    return { ...base, error: (error as Error).message };
+  }
+}
+
 function computeMetrics(outcomes: CaseOutcome[], rankOf: (o: CaseOutcome) => number | null) {
   const n = outcomes.length;
   const hits = Object.fromEntries(HIT_KS.map((k) => [k, 0])) as Record<number, number>;
@@ -325,8 +411,10 @@ function computeMetrics(outcomes: CaseOutcome[], rankOf: (o: CaseOutcome) => num
 }
 
 async function main() {
-  const pipeline = process.env.EVAL_PIPELINE === 'manual' ? 'manual' : 'qa';
-  const depth = (process.env.EVAL_DEPTH || 'fast') as NotebookDepth;
+  const pipelineEnv = process.env.EVAL_PIPELINE;
+  const pipeline = pipelineEnv === 'manual' || pipelineEnv === 'notebook' ? pipelineEnv : 'qa';
+  const depth = (process.env.EVAL_DEPTH ||
+    (pipeline === 'notebook' ? 'deep' : 'fast')) as NotebookDepth;
   const withRerank = process.env.EVAL_RERANK === '1';
   const excerptMode = (process.env.EVAL_RERANK_EXCERPT ?? 'off') as ExcerptArm;
   const verbose = process.env.EVAL_VERBOSE === '1';
@@ -351,7 +439,9 @@ async function main() {
   const modeLabel =
     pipeline === 'manual'
       ? 'manual search'
-      : `depth=${depth}${withRerank ? `, +rerank(${excerptMode})` : ''}`;
+      : pipeline === 'notebook'
+        ? `notebook getSearchContext depth=${depth}`
+        : `depth=${depth}${withRerank ? `, +rerank(${excerptMode})` : ''}`;
   console.log(
     `Running ${cases.length} retrieval cases (${modeLabel}) against ${process.env.QDRANT_URL || 'QDRANT_URL unset!'}`
   );
@@ -362,7 +452,9 @@ async function main() {
     const outcome =
       pipeline === 'manual'
         ? await runManualCase(searchService, evalCase)
-        : await runCase(searchService, evalCase, depth, withRerank, excerptMode);
+        : pipeline === 'notebook'
+          ? await runNotebookCase(evalCase, depth)
+          : await runCase(searchService, evalCase, depth, withRerank, excerptMode);
     outcomes.push(outcome);
     const rankLabel = outcome.error
       ? `ERROR ${outcome.error}`
