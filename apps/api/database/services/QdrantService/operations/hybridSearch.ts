@@ -72,10 +72,16 @@ export async function hybridSearch(
   try {
     logger.debug(`Hybrid search - vector weight: ${vectorWeight}, text weight: ${textWeight}`);
 
-    // Server-side hybrid via Query API (dense + BM25 sparse, RRF fusion) for
-    // migrated collections. Legacy client-side scroll fusion remains the
+    // Server-side hybrid via Query API (dense + BM25 sparse, fused in Qdrant)
+    // for migrated collections. Legacy client-side scroll fusion remains the
     // fallback for collections that don't declare the sparse vector yet.
-    if (await collectionSupportsBm25(client, collection)) {
+    //
+    // HYBRID_SERVER_SIDE_ENABLED=false routes every collection back to the
+    // legacy path WITHOUT touching Qdrant — the rollback that needs no
+    // migration (#3118). The short-circuit order matters: with the switch off
+    // the getCollection round trip falls away too, and `collectionSupportsBm25`
+    // never writes its process-wide cache entry (batchOperations.ts:34).
+    if (hybridCfg.serverSideEnabled && (await collectionSupportsBm25(client, collection))) {
       const serverResult = await hybridSearchServerSide(
         client,
         collection,
