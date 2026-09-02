@@ -317,7 +317,7 @@ export async function executeDirectSearch(params: {
   }
 
   try {
-    let response = await documentSearchService.search({
+    const response = await documentSearchService.search({
       query,
       userId: undefined,
       options: {
@@ -336,47 +336,13 @@ export async function executeDirectSearch(params: {
     });
 
     if (!response.success || !response.results || response.results.length === 0) {
-      // If we had user filters, consider retrying without them
+      // User-selected filters (e.g. notebook source filter) are never dropped —
+      // no fallback retry without them.
       if (userFilter) {
-        const hasExplicitFilters = filters && Object.keys(filters).length > 0;
-        if (hasExplicitFilters) {
-          // Explicit user-selected filters (e.g. notebook source filter) — respect them
-          console.warn(
-            `[Direct Search] No results with explicit user filters for "${query}" in ${collection}. ` +
-              `NOT falling back to unfiltered search. Filters: ${JSON.stringify(filters)}`
-          );
-        } else {
-          // Auto-detected/heuristic filters — safe to retry without
-          log.info(
-            `[Direct Search] No results with auto-detected filters, retrying without for "${query}" in ${collection}`
-          );
-          const fallbackFilter = collectionDefault;
-          const fallbackResponse = await documentSearchService.search({
-            query,
-            userId: undefined,
-            options: {
-              limit: qdrantLimit,
-              mode: searchMode,
-              vectorWeight: searchParams.vectorWeight,
-              textWeight: searchParams.textWeight,
-              threshold: searchParams.threshold,
-              searchCollection: qdrantCollection,
-              recallLimit: searchParams.recallLimit,
-              qualityMin: searchParams.qualityMin,
-              additionalFilter: fallbackFilter,
-              // Auch hier, aus demselben Grund wie oben: ein Turn, dessen
-              // Filter nicht greifen, darf den Reranker nicht stillschweigend
-              // verlieren. (Zweig derzeit unerreichbar — #3139.)
-              ...(rerankChunks === true && { rerankChunks: true }),
-            },
-          });
-          if (fallbackResponse.success && fallbackResponse.results?.length > 0) {
-            log.info(
-              `[Direct Search] Fallback without auto-detected filters found ${fallbackResponse.results.length} results`
-            );
-            response = fallbackResponse;
-          }
-        }
+        console.warn(
+          `[Direct Search] No results with user filters for "${query}" in ${collection}. ` +
+            `NOT falling back to unfiltered search. Filters: ${JSON.stringify(filters)}`
+        );
       }
 
       // A backend failure is NOT "nothing found": conflating them made the tool
