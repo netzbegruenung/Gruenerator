@@ -597,6 +597,42 @@ const envSchema = z.object({
   RERANK_MERGE_OVERFETCH: numStr(16),
   RERANK_WEB_SCORE_CEILING: z.coerce.number().default(0.8),
   RERANK_DIP_SCORE_CEILING: z.coerce.number().default(0.8),
+
+  // ── Notebook: Evidenz-Hinweis (#3140) ──────────────────────────────────
+  /**
+   * Dichter Spitzenwert VOR dem Rerank, unter dem der Notebook-Stream
+   * `evidence_weak` meldet — `max(dense_similarity ?? similarity)` über
+   * `SearchContext.sortedResults`, gebildet in `NotebookQAService`.
+   *
+   * Kalibriert an 15 Fällen der Tiefe `deep` (PR #3156,
+   * `evals/retrieval/evidence-signals-2026-09-02.md`): on-topic ab 0,9619
+   * (`notebook-at-klimaticket`), off-topic bis 0,8955
+   * (`offtopic-mars-distance`). Der Mittelpunkt läge bei 0,9287; 0,89 sitzt
+   * bewusst tiefer, weil die on-topic-Klasse nach unten offen und damit die
+   * schlechter vermessene ist — ein Fehlalarm dort kostet mehr als ein
+   * entgangener Alarm bei einer Marsfrage (siehe Spec).
+   *
+   * Die Zahl hängt am Einbettungsmodell: kalibriert gegen `mistral-embed`
+   * (1024 Dimensionen). Ein Modellwechsel verschiebt die absolute
+   * Kosinus-Lage und macht 0,89 bedeutungslos, ohne dass ein Test rot wird.
+   *
+   * Das Signal `dense_similarity ?? similarity` ist auf dem Legacy-Pfad ein
+   * geboosteter Wert und auf dem server-seitigen Join (BM25-Sammlungen,
+   * heute keine davon eine Notebook-Sammlung) ein roher Kosinus, ca. 0,33
+   * auseinander — der Default 0,89 ist ausschliesslich gegen den
+   * Legacy-Pfad kalibriert.
+   */
+  NOTEBOOK_EVIDENCE_WEAK_THRESHOLD: z.coerce.number().min(0).max(1).default(0.89),
+
+  /**
+   * Dunkel ausgeliefert: `evidenceTop` wird immer berechnet und protokolliert,
+   * das `warning`-Ereignis geht nur mit `true` hinaus. `true` erst nach der
+   * 30-Fall-Runde und nur, wenn deren Abnahmeregel A1 hält.
+   *
+   * Falle: `boolFlag` nimmt ausschliesslich die Zeichenkette "true" — `=1`
+   * ist `false`, lautlos.
+   */
+  NOTEBOOK_EVIDENCE_WEAK_ENABLED: boolFlag(false),
 });
 
 // ---------------------------------------------------------------------------
