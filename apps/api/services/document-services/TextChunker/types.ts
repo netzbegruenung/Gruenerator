@@ -116,9 +116,9 @@ export interface ChunkingOptions {
 }
 
 /**
- * LangChain chunker options
+ * Paragraph chunker options
  */
-export interface LangChainChunkerOptions {
+export interface ParagraphChunkerOptions {
   chunkSize?: number | undefined;
   chunkOverlap?: number | undefined;
 }

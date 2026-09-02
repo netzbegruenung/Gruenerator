@@ -508,7 +508,7 @@ describe('smartChunkDocument über einem strukturierten Dokument', () => {
     const chunks = await smartChunkDocument(PROSE_FIXTURE);
     for (const chunk of chunks) {
       expect(chunk.metadata.headingPath ?? null).toBeNull();
-      expect(chunk.metadata.chunkingMethod).toBe('langchain-sentences');
+      expect(chunk.metadata.chunkingMethod).toBe('sentences');
     }
   });
 });
