@@ -64,16 +64,24 @@ export const MONITOR_CITATION_LINK_CONFIG = {
  * die Gatter in CitationBadge.tsx:40 und CitationSourcesDisplay.tsx:72 prüfen
  * `chunk_index !== undefined`, und `chunkIndex: 0` muss durchkommen — deshalb
  * `!== undefined` und nicht `!!`.
+ *
+ * Beide Schlüssel werden nur GEMEINSAM gesetzt: `MONITOR_CITATION_LINK_CONFIG`
+ * baut aus `document_id` allein schon einen Dokumentlink (`getDocumentUrl` in
+ * citationStore.ts), aber das Modal kann den Kontext nur mit BEIDEN IDs holen
+ * — ein Zitat mit `documentId`, aber ohne `chunkIndex` bekäme sonst einen Link
+ * auf einen Kontext, der sich nie laden lässt.
  */
 export function mapMonitorCitations(citations: MonitorCitation[] | undefined) {
-  return (citations ?? []).map((c) => ({
-    index: Number(c.id),
-    document_title: c.title,
-    source_url: c.url,
-    cited_text: c.snippet,
-    ...(c.documentId === undefined ? {} : { document_id: c.documentId }),
-    ...(c.chunkIndex === undefined ? {} : { chunk_index: c.chunkIndex }),
-  }));
+  return (citations ?? []).map((c) => {
+    const hasContextKeys = c.documentId !== undefined && c.chunkIndex !== undefined;
+    return {
+      index: Number(c.id),
+      document_title: c.title,
+      source_url: c.url,
+      cited_text: c.snippet,
+      ...(hasContextKeys ? { document_id: c.documentId, chunk_index: c.chunkIndex } : {}),
+    };
+  });
 }
 
 /**

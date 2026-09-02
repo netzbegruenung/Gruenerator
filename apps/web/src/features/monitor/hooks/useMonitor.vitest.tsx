@@ -228,6 +228,16 @@ describe('mapMonitorCitations', () => {
     expect('chunk_index' in mapped).toBe(true);
   });
 
+  it('lässt document_id UND chunk_index weg, wenn nur documentId vorliegt', () => {
+    // Mit document_id allein baut MONITOR_CITATION_LINK_CONFIG einen
+    // Dokumentlink (getDocumentUrl), dessen Kontext sich ohne chunkIndex nie
+    // laden lässt — beide Schlüssel gehören zusammen oder gar nicht.
+    const [mapped] = mapMonitorCitations([{ ...webCitation, documentId: 'doc-1' }]);
+
+    expect('document_id' in mapped).toBe(false);
+    expect('chunk_index' in mapped).toBe(false);
+  });
+
   it('liefert für undefined eine leere Liste', () => {
     expect(mapMonitorCitations(undefined)).toEqual([]);
   });

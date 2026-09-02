@@ -120,8 +120,12 @@ describe('CitationModal — die drei Zustände', () => {
       useCitationStore.setState({ selectedCitation: CITATION, isLoadingContext: true });
     });
 
-    const status = await screen.findByRole('status');
-    expect(status).toHaveTextContent('Kontext wird geladen...');
+    // Genau EINE Live-Region — Laden und Fehler teilen sich jetzt eine
+    // dauerhaft montierte Statuszeile statt je einer eigenen, die mit ihrem
+    // Text ein- und aushängt.
+    const statuses = await screen.findAllByRole('status');
+    expect(statuses).toHaveLength(1);
+    expect(statuses[0]).toHaveTextContent('Kontext wird geladen...');
   });
 
   it('zeigt die Fehlermeldung des Stores — nicht nur das Zitat', async () => {
@@ -135,7 +139,9 @@ describe('CitationModal — die drei Zustände', () => {
       });
     });
 
-    expect(await screen.findByText('Kontext konnte nicht geladen werden')).toBeInTheDocument();
+    const statuses = await screen.findAllByRole('status');
+    expect(statuses).toHaveLength(1);
+    expect(statuses[0]).toHaveTextContent('Kontext konnte nicht geladen werden');
     // Was man trotzdem hat, bleibt sichtbar.
     expect(screen.getByText(/Ein Beispielzitat aus dem Programm\./)).toBeInTheDocument();
   });
