@@ -17,6 +17,8 @@ const ChunkInspectorPage = () => {
   const { documentId } = useParams<{ documentId: string }>();
   const [searchParams] = useSearchParams();
   const collection = searchParams.get('collection') ?? '';
+  const offsetParam = Number(searchParams.get('offset'));
+  const initialOffset = Number.isInteger(offsetParam) && offsetParam >= 0 ? offsetParam : 0;
 
   return (
     <RequireAdmin type="instanceAdmin">
@@ -34,7 +36,11 @@ const ChunkInspectorPage = () => {
           </div>
           <SectionHeader title="Gespeicherte Chunks" />
           {documentId && collection ? (
-            <ChunkInspectorView documentId={documentId} collection={collection} />
+            <ChunkInspectorView
+              documentId={documentId}
+              collection={collection}
+              initialOffset={initialOffset}
+            />
           ) : (
             <p className="py-lg text-center text-sm text-grey-500 dark:text-grey-400">
               Ohne <code>?collection=…</code> ist nicht bestimmbar, in welcher Sammlung das Dokument

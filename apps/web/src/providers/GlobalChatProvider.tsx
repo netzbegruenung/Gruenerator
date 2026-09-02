@@ -11,6 +11,7 @@ import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import apiClient, { handleUnauthorized } from '../components/utils/apiClient';
+import { CHUNK_PAGE_SIZE } from '../features/admin/hooks/useChunkInspector';
 import {
   ChatPdfLetterheadExportHost,
   requestPdfLetterheadExport,
@@ -183,8 +184,12 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
             documentId: string;
             collectionId: string;
             chunkIndex: number;
-          }) =>
-            `/admin/chunks/${encodeURIComponent(documentId)}?collection=${encodeURIComponent(collectionId)}#chunk-${chunkIndex}`
+          }) => {
+            // Ohne offset öffnet die Seite immer bei 0 — der Anker `#chunk-N`
+            // trifft dann nur, wenn der Chunk zufällig auf der ersten Seite liegt.
+            const offset = Math.floor(chunkIndex / CHUNK_PAGE_SIZE) * CHUNK_PAGE_SIZE;
+            return `/admin/chunks/${encodeURIComponent(documentId)}?collection=${encodeURIComponent(collectionId)}&offset=${offset}#chunk-${chunkIndex}`;
+          }
         : undefined,
       renderSharepic: renderSharepicToImage,
       runPython,

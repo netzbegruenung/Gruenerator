@@ -11,6 +11,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { useChatConfigStore } from '../../stores/chatConfigStore';
+import { axe } from '../../test-utils';
 
 import { CitationBadge } from './CitationPopover';
 
@@ -40,16 +41,24 @@ afterEach(() => {
 describe('CitationBadge — Einstieg in den Chunk-Inspektor', () => {
   it('zeigt den Eintrag, wenn die Host-App einen Link liefert', async () => {
     useChatConfigStore.getState().configure({
-      chunkInspectorHref: ({ documentId, collectionId, chunkIndex }) =>
-        `/admin/chunks/${documentId}?collection=${collectionId}#chunk-${chunkIndex}`,
+      // Spiegelt GlobalChatProvider.tsx: der Host hängt `offset` an, damit die
+      // Seite den richtigen Ausschnitt statt immer Seite eins öffnet.
+      chunkInspectorHref: ({ documentId, collectionId, chunkIndex }) => {
+        const offset = Math.floor(chunkIndex / 50) * 50;
+        return `/admin/chunks/${documentId}?collection=${collectionId}&offset=${offset}#chunk-${chunkIndex}`;
+      },
     });
     const user = userEvent.setup();
-    render(<CitationBadge citationId={1} citation={citation()} />);
+    const { container } = render(<CitationBadge citationId={1} citation={citation()} />);
 
     await user.click(screen.getByRole('button', { name: /Quelle 1/ }));
 
     const link = await screen.findByRole('link', { name: 'Chunks ansehen' });
-    expect(link).toHaveAttribute('href', '/admin/chunks/doc-1?collection=grundsatz-system#chunk-4');
+    expect(link).toHaveAttribute(
+      'href',
+      '/admin/chunks/doc-1?collection=grundsatz-system&offset=0#chunk-4'
+    );
+    expect(await axe(container)).toHaveNoViolations();
   });
 
   it('blendet den Eintrag aus, wenn die Host-App null liefert (kein Admin)', async () => {
