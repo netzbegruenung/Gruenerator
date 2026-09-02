@@ -18,7 +18,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { hybridSearch } from './hybridSearch.js';
 
 import type { QdrantClient } from '@qdrant/js-client-rest';
-import type { HybridConfig } from './types.js';
+import type { HybridConfig, QdrantFilter } from './types.js';
 
 const state = vi.hoisted(() => ({ hybrid: {} as Record<string, unknown> }));
 
@@ -74,13 +74,13 @@ const QUERY = 'Klimaschutz Wahlprogramm';
  * Literale in den Zusicherungen, damit eine Änderung an der Recall-Formel
  * hier auffällt und nicht stillschweigend mitwandert.
  */
-async function runArm(client: ReturnType<typeof fakeClient>) {
+async function runArm(client: ReturnType<typeof fakeClient>, filter: QdrantFilter = {}) {
   return hybridSearch(
     client as unknown as QdrantClient,
     uniqueCollection(),
     QUERY_VECTOR,
     QUERY,
-    {},
+    filter,
     {
       limit: 5,
       threshold: 0.35,
@@ -109,6 +109,9 @@ const SPARSE_PREFETCH = (limit: number) => ({
   using: 'bm25',
   limit,
 });
+
+/** A non-empty filter, to pin where each arm attaches it (finding 2). */
+const TEST_FILTER: QdrantFilter = { must: [{ key: 'x', match: { value: 'y' } }] };
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -151,6 +154,21 @@ describe('rangbasierte Arme', () => {
     expect(response.metadata.fusionMethod).toBe('rrf-server');
   });
 
+  it('rrf: ein Filter landet in BEIDEN Vorabholungen, nicht auf der Anfrage', async () => {
+    const client = fakeClient();
+    await runArm(client, TEST_FILTER);
+
+    expect(sentBody(client)).toEqual({
+      prefetch: [
+        { ...DENSE_PREFETCH, filter: TEST_FILTER },
+        { ...SPARSE_PREFETCH(20), filter: TEST_FILTER },
+      ],
+      query: { fusion: 'rrf' },
+      limit: 20,
+      with_payload: true,
+    });
+  });
+
   it('dbsf: gleiche Vorabholungen, andere Fusion', async () => {
     state.hybrid = { ...DEFAULT_HYBRID, serverFusion: 'dbsf' };
     const client = fakeClient();
@@ -171,6 +189,7 @@ describe('rangbasierte Arme', () => {
     const response = await runArm(client);
 
     const body = sentBody(client);
+    expect(Object.keys(body).sort()).toEqual(['limit', 'prefetch', 'query', 'with_payload']);
     expect(body.prefetch).toEqual([DENSE_PREFETCH, SPARSE_PREFETCH(20)]);
     expect(body.limit).toBe(20);
     expect(body.with_payload).toBe(true);
@@ -231,6 +250,29 @@ describe('dense_rescore', () => {
     expect(body).not.toHaveProperty('score_threshold');
     expect(body).not.toHaveProperty('params');
   });
+
+  it('ein Filter landet in den INNEREN Vorabholungen, nicht auf der äusseren Abfrage', async () => {
+    state.hybrid = { ...DEFAULT_HYBRID, serverFusion: 'dense_rescore' };
+    const client = fakeClient();
+    await runArm(client, TEST_FILTER);
+
+    expect(sentBody(client)).toEqual({
+      prefetch: [
+        {
+          prefetch: [
+            { ...DENSE_PREFETCH, filter: TEST_FILTER },
+            { ...SPARSE_PREFETCH(20), filter: TEST_FILTER },
+          ],
+          query: { fusion: 'rrf' },
+          limit: 20,
+        },
+      ],
+      query: QUERY_VECTOR,
+      using: '',
+      limit: 20,
+      with_payload: true,
+    });
+  });
 });
 
 describe('sparse_only', () => {
@@ -246,6 +288,20 @@ describe('sparse_only', () => {
       with_payload: true,
     });
     expect(response.metadata.fusionMethod).toBe('sparse_only-server');
+  });
+
+  it('ein Filter landet auf der Anfrage selbst, nicht in einer Vorabholung', async () => {
+    state.hybrid = { ...DEFAULT_HYBRID, serverFusion: 'sparse_only' };
+    const client = fakeClient();
+    await runArm(client, TEST_FILTER);
+
+    expect(sentBody(client)).toEqual({
+      query: { indices: expect.any(Array), values: expect.any(Array) },
+      using: 'bm25',
+      limit: 20,
+      with_payload: true,
+      filter: TEST_FILTER,
+    });
   });
 });
 
@@ -263,10 +319,10 @@ describe('HYBRID_SERVER_SPARSE_FACTOR', () => {
     });
   });
 
-  it('lässt die Sparse-Vorabholung bei Faktor 0 ganz weg', async () => {
+  it('lässt die Sparse-Vorabholung bei Faktor 0 ganz weg und meldet keine BM25-Lane', async () => {
     state.hybrid = { ...DEFAULT_HYBRID, serverSparseFactor: 0 };
     const client = fakeClient();
-    await runArm(client);
+    const response = await runArm(client);
 
     expect(sentBody(client)).toEqual({
       prefetch: [DENSE_PREFETCH],
@@ -274,6 +330,10 @@ describe('HYBRID_SERVER_SPARSE_FACTOR', () => {
       limit: 20,
       with_payload: true,
     });
+    // Reines dichtes Prefetch — die Metadaten dürfen keine BM25-Lane behaupten,
+    // die es nie gab.
+    expect(response.metadata.hasRealTextMatches).toBe(false);
+    expect(response.metadata.textMatchTypes).toEqual([]);
   });
 
   it('kürzt bei rrf_weighted die Gewichte mit der Liste, nicht daneben', async () => {

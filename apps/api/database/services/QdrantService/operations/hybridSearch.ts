@@ -264,10 +264,13 @@ async function hybridSearchServerSide(
       ? {
           // Keine Fusion: die BM25-Lane allein. Diagnosearm — der score ist ein
           // BM25-Wert und keine Kosinus-Ähnlichkeit, und alles hinter
-          // `searchOperations.ts` rechnet in Kosinus weiter.
+          // `searchOperations.ts` rechnet in Kosinus weiter. `limit` ist
+          // `sparseLimit`, nicht `recall` — sonst wäre HYBRID_SERVER_SPARSE_FACTOR
+          // auf diesem Arm ein stiller no-op (der Faktor-0-Kurzschluss oben
+          // greift vorher, `sparseLimit` ist hier also immer ≥ 1).
           query: { indices: sparseQuery.indices, values: sparseQuery.values },
           using: BM25_SPARSE_VECTOR_NAME,
-          limit: recall,
+          limit: sparseLimit,
           with_payload: true,
           ...(prefetchFilter && { filter: prefetchFilter }),
         }
@@ -293,9 +296,12 @@ async function hybridSearchServerSide(
   const response = await client.query(collection, request);
 
   // Qdrant's server-side RRF scores are HIGHER than the legacy client-side
-  // 1/(60+rank) domain (measured: rank 1 in both lists ≈ 1.0). The quality
-  // gate's minFinalScore was tuned for the lower legacy domain, so it only
-  // ever filters less here — never more — and stays safe to apply.
+  // 1/(60+rank) domain (measured: rank 1 in both lists ≈ 1.0), so the quality
+  // gate's minFinalScore — tuned for the lower legacy domain — only ever
+  // filters less there, never more. That measurement covers `rrf` ONLY: DBSF
+  // normalises each prefetch's distribution and bottoms out near 0, and
+  // `sparse_only` returns raw BM25 scores, a different domain again. Both can
+  // be cut where `rrf` is not — this gate has not been shown safe for them.
   let results: HybridSearchResult[] = response.points.map((point) => ({
     id: point.id,
     score: point.score,
@@ -326,8 +332,10 @@ async function hybridSearchServerSide(
       dynamicThreshold: threshold,
       qualityFiltered: hybridCfg.enableQualityGate,
       autoSwitchedFromRRF: false,
-      hasRealTextMatches: true,
-      textMatchTypes: ['bm25'],
+      // Factor 0 drops the sparse prefetch entirely (`useSparse`, :243) — a
+      // dense-only request has no BM25 lane, so these must not claim one.
+      hasRealTextMatches: useSparse,
+      textMatchTypes: useSparse ? ['bm25'] : [],
     },
   };
 }
