@@ -25,6 +25,7 @@ const KEYS = [
   'HYBRID_SERVER_FUSION',
   'HYBRID_SERVER_SPARSE_FACTOR',
   'HYBRID_SERVER_RRF_WEIGHT_DENSE',
+  'HYBRID_SERVER_SCORE_JOIN',
 ] as const;
 
 const original = Object.fromEntries(KEYS.map((k) => [k, process.env[k]]));
@@ -45,6 +46,10 @@ describe('HYBRID_SERVER_* defaults', () => {
     expect(hybrid.serverFusion).toBe('rrf');
     expect(hybrid.serverSparseFactor).toBe(1.0);
     expect(hybrid.serverRrfWeightDense).toBe(0.7);
+    // Der Cast in getHybridConfig() (hybridSearch.ts:39-41) merkt ein
+    // fehlendes Feld nicht — es wäre zur Laufzeit `undefined` und der Join
+    // still aus. Diese Zeile ist das einzige Prüfmittel dagegen.
+    expect(hybrid.serverScoreJoin).toBe(true);
   });
 
   it('führt genau die fünf Arme der Spec', () => {

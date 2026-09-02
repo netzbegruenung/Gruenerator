@@ -170,6 +170,7 @@ describe('calculateDynamicThreshold', () => {
     serverFusion: 'rrf',
     serverSparseFactor: 1.0,
     serverRrfWeightDense: 0.7,
+    serverScoreJoin: true,
   };
 
   it('raises the floor when the text lane found nothing', () => {

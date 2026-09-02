@@ -117,6 +117,8 @@ export interface SearchResultInput {
   document_id?: string | undefined;
   source_id?: string | null | undefined;
   similarity_score?: number | undefined;
+  /** Höchster dichter Kosinus des Dokuments, `null` wo keiner gemessen wurde (#3166). */
+  dense_similarity_score?: number | null | undefined;
   relevant_content?: string | undefined;
   chunk_text?: string | undefined;
   // `| null` so a DocumentResult (whose chunk_index can be null) is structurally
@@ -148,6 +150,17 @@ export interface ExpandedChunkResult {
   chunk_text?: string | undefined;
   filename: string | null;
   similarity: number;
+  /**
+   * Der dichte Kosinus hinter `similarity`, aus dem server-seitigen
+   * Score-Join (#3166 Task 2) — NICHT einfach "wo die Suchschicht einen
+   * gemessen hat": der Alt-Pfad misst pro Chunk ebenfalls einen Kosinus,
+   * dieses Feld bleibt dort aber (Fix-Runde 1) bewusst leer, weil `similarity`
+   * dort bereits Begriffstreffer-/Diversitäts-/Hybrid-Boni auf den Kosinus
+   * addiert, die dieses Feld nicht kennt. Fehlt also auf dem Alt-Pfad UND bei
+   * Dokumenten, deren Chunks nur aus der BM25-Lane kamen — Leser brauchen
+   * deshalb IMMER den Rückfall `dense_similarity ?? similarity`.
+   */
+  dense_similarity?: number | null | undefined;
   chunk_index: number;
   page_number: number | null;
   chunk_type?: string | null | undefined;
