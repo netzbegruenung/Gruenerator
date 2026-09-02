@@ -9,7 +9,11 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { buildReferencesMap, expandResultsToChunks } from './SearchResultProcessor.js';
+import {
+  buildReferencesMap,
+  expandResultsToChunks,
+  sourceTextForPrompt,
+} from './SearchResultProcessor.js';
 
 describe('expandResultsToChunks', () => {
   it('reicht chunk_type eines neuen Chunks durch', () => {
@@ -85,5 +89,55 @@ describe('buildReferencesMap', () => {
       },
     ]);
     expect(map['1'].chunk_type).toBeNull();
+  });
+});
+
+describe('sourceTextForPrompt', () => {
+  const tabelle = '| Programm | Satz |\n| --- | --- |\n| Heizungstausch | 30 Prozent |';
+
+  const ref = (extra: Record<string, unknown>) => ({
+    title: 'T',
+    snippets: [['Vorschau']],
+    description: null,
+    date: null,
+    source: 'qa_documents',
+    document_id: 'doc-1',
+    source_url: null,
+    filename: null,
+    similarity_score: 0.9,
+    chunk_index: 0,
+    page_number: null,
+    ...extra,
+  });
+
+  it('behält die Zeilenumbrüche eines Tabellen-Chunks', () => {
+    const out = sourceTextForPrompt(ref({ chunk_text: tabelle, chunk_type: 'table' }));
+    expect(out.split('\n')).toHaveLength(3);
+    expect(out).toContain('| Heizungstausch | 30 Prozent |');
+  });
+
+  it('kollabiert Fließtext weiterhin auf eine Zeile', () => {
+    const out = sourceTextForPrompt(
+      ref({ chunk_text: 'Erster Satz.\n\nZweiter   Satz.', chunk_type: 'text' })
+    );
+    expect(out).toBe('Erster Satz. Zweiter Satz.');
+  });
+
+  it('kollabiert einen alten Punkt ohne chunk_type wie bisher', () => {
+    const out = sourceTextForPrompt(ref({ chunk_text: 'Erster Satz.\nZweiter Satz.' }));
+    expect(out).toBe('Erster Satz. Zweiter Satz.');
+  });
+
+  it('deckelt eine Tabelle weiter bei maxChars', () => {
+    const lang = ['| A | B |', '| --- | --- |', ...Array(200).fill('| x | y |')].join('\n');
+    const out = sourceTextForPrompt(ref({ chunk_text: lang, chunk_type: 'table' }));
+    expect(out.length).toBeLessThanOrEqual(1800);
+  });
+
+  it('wirft leere Zeilen aus der Tabelle', () => {
+    const out = sourceTextForPrompt(
+      ref({ chunk_text: '| A |\n\n| --- |\n\n| 1 |', chunk_type: 'table' })
+    );
+    expect(out.split('\n')).toHaveLength(3);
   });
 });
