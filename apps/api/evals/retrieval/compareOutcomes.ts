@@ -13,6 +13,7 @@
  * sets differ.
  */
 import { readFileSync } from 'node:fs';
+import { basename } from 'node:path';
 
 interface Outcome {
   id: string;
@@ -159,4 +160,8 @@ function main(): void {
   );
 }
 
-main();
+// Only run when invoked directly — `pairOutcomes` is exported for
+// `compareOutcomes.vitest.ts`, which must not trigger a CLI run on import.
+if (process.argv[1] && import.meta.url.endsWith(basename(process.argv[1]))) {
+  main();
+}

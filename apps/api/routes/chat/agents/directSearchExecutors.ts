@@ -203,7 +203,7 @@ function collapseAliasDuplicates(results: DocumentResult[]): DocumentResult[] {
  * Randfall. `chatNotebookDepth.vitest.ts` hält Decke und Stufenprofil
  * aneinander.
  */
-const OVERFETCH_CEILING = 80;
+export const OVERFETCH_CEILING = 80;
 
 /**
  * Grösstes `limit`, mit dem der Chunk-Reranker bestellt werden darf.
@@ -217,9 +217,11 @@ const OVERFETCH_CEILING = 80;
  * Geklemmt wird deshalb das an Qdrant gereichte Limit auf dem rerankten Pfad,
  * statt den Pool anzuheben: die 30 tragen ihre eigene Begründung
  * (`BaseSearchService.ts:76-89`). Der `.slice(0, limit)` weiter unten bleibt
- * unberührt — das Modell bekommt so viele Treffer, wie es angefragt hat.
+ * unberührt — das Modell bekommt aber nur so viele Treffer, wie der geklemmte
+ * Kandidatenpool nach Gruppierung noch hergibt, nicht zwingend die volle
+ * angefragte Anzahl.
  */
-const RERANK_LIMIT_CLAMP = 5;
+export const RERANK_LIMIT_CLAMP = 5;
 
 /**
  * Execute a direct document search against Qdrant.
@@ -364,8 +366,7 @@ export async function executeDirectSearch(params: {
               additionalFilter: fallbackFilter,
               // Auch hier, aus demselben Grund wie oben: ein Turn, dessen
               // Filter nicht greifen, darf den Reranker nicht stillschweigend
-              // verlieren. (Zweig derzeit unerreichbar — siehe Issue aus
-              // Step 5 dieses Umbaus.)
+              // verlieren. (Zweig derzeit unerreichbar — #3139.)
               ...(rerankChunks === true && { rerankChunks: true }),
             },
           });

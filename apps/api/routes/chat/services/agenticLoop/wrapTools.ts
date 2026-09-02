@@ -84,7 +84,10 @@ export interface ToolHooks {
 
 /** Enge eigene Grenze für `beforeToolCall`: der einzige Hook, auf den gewartet
  *  wird (er kann attrappieren), also der einzige, der den Loop aufhalten
- *  könnte. Läuft er darüber, wird das Werkzeug ganz normal ausgeführt. */
+ *  könnte. Läuft er darüber, wird das Werkzeug ganz normal ausgeführt.
+ *  Ein über `composeToolHooks` zusammengesetzter Hook läuft seine Mitglieder
+ *  NACHEINANDER innerhalb dieses einen Budgets — es ist geteilt, nicht je
+ *  Mitglied neu vergeben. */
 const BEFORE_HOOK_TIMEOUT_MS = 500;
 
 /**
