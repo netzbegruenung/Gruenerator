@@ -110,6 +110,7 @@ function mapToChatCitations(citations: Citation[]): ChatCitation[] {
     documentId: c.document_id,
     chunkIndex: c.chunk_index,
     similarityScore: c.similarity_score,
+    pageNumber: c.page_number ?? null,
     collectionId: c.collection_id,
   }));
 }

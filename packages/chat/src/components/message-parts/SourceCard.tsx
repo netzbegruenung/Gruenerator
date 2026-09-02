@@ -57,10 +57,13 @@ export function SourceCard(props: SourceMessagePartProps) {
     }
   }, [fetchFullText, citation?.url, citation?.collectionId]);
 
-  // Build metadata: domain · collection
+  // Build metadata: domain · collection · page · relevance
   const metaParts: string[] = [];
   if (citation?.domain) metaParts.push(citation.domain);
   if (citation?.collectionName) metaParts.push(style.label || citation.collectionName);
+  if (citation?.pageNumber != null) metaParts.push(`S. ${citation.pageNumber}`);
+  if (citation?.similarityScore != null)
+    metaParts.push(`${Math.round(citation.similarityScore * 100)} % Relevanz`);
   const metaLine = metaParts.join(' · ');
 
   return (
