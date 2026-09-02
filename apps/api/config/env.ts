@@ -492,6 +492,7 @@ const envSchema = z.object({
   RERANK_INPUT_LIMIT: numStr(16),
   RERANK_OUTPUT_LIMIT: numStr(8),
   RERANK_MIN_RELEVANCE: z.coerce.number().default(0.2),
+  NOTEBOOK_EVIDENCE_WEAK_THRESHOLD: z.coerce.number().default(0.1),
   RERANK_MMR_LAMBDA: z.coerce.number().default(0.7),
   RERANK_MMR_KEEP_TOP: numStr(2),
   RERANK_MERGE_OVERFETCH: numStr(16),

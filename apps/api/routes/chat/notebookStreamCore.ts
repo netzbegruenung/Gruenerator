@@ -11,6 +11,7 @@ import {
   buildConcisePromptGrundsatz,
   buildConcisePromptGeneral,
 } from '../../agents/langgraph/prompts.js';
+import { env } from '../../config/env.js';
 import { getNotebookDepthProfile } from '../../config/notebookDepthProfiles.js';
 import {
   SYSTEM_COLLECTIONS,
@@ -272,6 +273,16 @@ export async function handleNotebookStream(
       searchContext.sortedResults = reranked.results;
       searchContext.referencesMap = reranked.referencesMap;
       searchContext.contextSummary = reranked.contextSummary;
+
+      if (
+        reranked.topRelevance !== null &&
+        reranked.topRelevance < env.NOTEBOOK_EVIDENCE_WEAK_THRESHOLD
+      ) {
+        log.info(
+          `[Notebook] Weak evidence: top reranker score ${reranked.topRelevance.toFixed(3)}`
+        );
+        sendChatWarning(sse, 'evidence_weak');
+      }
 
       log.debug(
         `⏱ Rerank (${depth}): ${reranked.rerankTimeMs}ms, ${searchContext.sortedResults.length} results kept`
