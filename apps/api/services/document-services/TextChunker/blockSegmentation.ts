@@ -86,6 +86,13 @@ export function segmentBlocks(text: string): DocumentBlock[] {
   let pending: string[] = [];
   let pendingPath: string[] = [];
   let pendingSection = 0;
+  /**
+   * Leerzeilen zwischen einer Überschrift und dem nächsten Inhalt. Werden erst
+   * committet, wenn feststeht, WELCHER Block sie bekommt — sonst reißt eine
+   * Leerzeile den Überschriften-Carry vorzeitig in einen eigenen, inhaltslosen
+   * text-Block, noch bevor die eigentliche Tabelle oder der Absatz drankommt.
+   */
+  let blankBuffer: string[] = [];
 
   const push = (kind: BlockKind, body: string, path: string[], section: number): void => {
     const trimmed = body.trim();
@@ -112,6 +119,7 @@ export function segmentBlocks(text: string): DocumentBlock[] {
     const heading = parseHeading(lines[i]);
     if (heading) {
       flushText();
+      blankBuffer = [];
       stack.length = Math.max(0, heading.level - 1);
       stack.push(heading.title);
       sectionIndex += 1;
@@ -122,6 +130,7 @@ export function segmentBlocks(text: string): DocumentBlock[] {
 
     if (isTableStart(lines, i)) {
       flushText();
+      blankBuffer = [];
       const rows: string[] = [];
       while (i < lines.length && TABLE_ROW.test(lines[i])) {
         rows.push(lines[i].trim());
@@ -132,8 +141,16 @@ export function segmentBlocks(text: string): DocumentBlock[] {
       continue;
     }
 
+    if (!lines[i].trim() && pending.length === 0) {
+      // Vor dem ersten Inhalt eines Blocks: zwischenspeichern statt committen.
+      blankBuffer.push(lines[i]);
+      i += 1;
+      continue;
+    }
+
     openText();
-    pending.push(lines[i]);
+    pending.push(...blankBuffer, lines[i]);
+    blankBuffer = [];
     i += 1;
   }
 
