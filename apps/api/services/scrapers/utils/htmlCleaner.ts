@@ -103,18 +103,35 @@ export function htmlToStructuredText(html: string): string {
     $(el).replaceWith(escapeForTextNode(`${$(el).text()}\n\n`));
   });
 
-  $('ul, ol').each((_, el) => {
-    const isOrdered = (el as Element).tagName.toLowerCase() === 'ol';
-    $(el)
-      .find('li')
-      .each((i, li) => {
-        // `1) ` statt `1. `: `NUMBERED_HEADING` (blockSegmentation.ts) liest ein
-        // `1. `-Präfix vor einem kurzen, grossgeschriebenen Wort als Überschrift
-        // und würde so einen echten heading_path unter einem Listenpunkt begraben.
-        const prefix = isOrdered ? `${i + 1}) ` : '- ';
-        $(li).replaceWith(escapeForTextNode(`${prefix}${$(li).text()}\n`));
-      });
-  });
+  // Innerste Listen zuerst: `.get().reverse()` dreht die Dokumentreihenfolge
+  // um, und eine verschachtelte Liste steht darin immer NACH ihrer Eltern-Liste
+  // (sie liegt ja in deren <li>). Reihenfolge umgedreht heisst also innen vor
+  // aussen. `.find('li')` (vorher) sammelte auch die Punkte verschachtelter
+  // Listen ein — `.children('li')` nimmt nur die direkten Punkte dieser Liste.
+  $('ul, ol')
+    .get()
+    .reverse()
+    .forEach((list) => {
+      const isOrdered = (list as Element).tagName.toLowerCase() === 'ol';
+      const lines: string[] = [];
+      $(list)
+        .children('li')
+        .each((i, li) => {
+          // `1) ` statt `1. `: `NUMBERED_HEADING` (blockSegmentation.ts) liest ein
+          // `1. `-Präfix vor einem kurzen, grossgeschriebenen Wort als Überschrift
+          // und würde so einen echten heading_path unter einem Listenpunkt begraben.
+          const prefix = isOrdered ? `${i + 1}) ` : '- ';
+          // Eine bereits ersetzte verschachtelte Liste hinterlässt ein
+          // trailing `\n` im Text dieses <li> — abschneiden, sonst reisst der
+          // `join` unten eine Leerzeile zwischen die Geschwister-Punkte.
+          const text = $(li).text().replace(/\n+$/, '');
+          lines.push(`${prefix}${text}`);
+        });
+      // Führendes `\n` trennt vom vorangehenden Inline-Text, wenn diese Liste
+      // selbst in einem <li> steckt (z.B. "Eins<ul>…"); abschliessendes `\n`
+      // trennt vom folgenden Geschwister-Knoten.
+      $(list).replaceWith(escapeForTextNode(`\n${lines.join('\n')}\n`));
+    });
 
   return normalizeStructuredText($.text());
 }

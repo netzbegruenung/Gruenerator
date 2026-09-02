@@ -73,6 +73,23 @@ describe('htmlToStructuredText', () => {
   it('lässt eine leere Überschrift keine nackte ##-Zeile hinterlassen', () => {
     expect(htmlToStructuredText('<h2></h2><p>Text.</p>')).toBe('Text.');
   });
+
+  it("trennt Punkte verschachtelter Listen — `.find('li')` sammelte vorher auch die Nachfahren ein", () => {
+    const html =
+      '<h2>Titel</h2><ul><li>Eins<ul><li>Eins-a</li><li>Eins-b</li></ul></li><li>Zwei</li></ul>' +
+      '<ol><li>Erst<ol><li>Erst-a</li></ol></li><li>Zweit</li></ol>';
+
+    expect(htmlToStructuredText(html)).toBe(
+      '## Titel\n\n- Eins\n- Eins-a\n- Eins-b\n- Zwei\n\n1) Erst\n1) Erst-a\n2) Zweit'
+    );
+  });
+
+  it('nummeriert pro Liste neu — verschachteltes <ol> startet wieder bei 1, aussen ohne Lücke', () => {
+    const html =
+      '<ol><li>Erst<ol><li>Erst-a</li><li>Erst-b</li></ol></li><li>Zweit</li><li>Dritt</li></ol>';
+
+    expect(htmlToStructuredText(html)).toBe('1) Erst\n1) Erst-a\n2) Erst-b\n2) Zweit\n3) Dritt');
+  });
 });
 
 /**
