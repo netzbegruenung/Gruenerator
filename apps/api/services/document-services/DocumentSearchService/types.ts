@@ -95,6 +95,7 @@ export interface HybridConfig {
 export interface ChunkWithMetadata {
   text: string;
   tokens?: number | undefined;
+  metadata?: unknown;
 }
 
 /**

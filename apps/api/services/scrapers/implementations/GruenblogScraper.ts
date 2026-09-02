@@ -16,7 +16,11 @@ import {
 import { BRAND } from '../../../utils/domainUtils.js';
 import { generatePointId } from '../../../utils/validation/index.js';
 import { chunkQualityService } from '../../ChunkQualityService/index.js';
-import { smartChunkDocument, buildEmbeddingTexts } from '../../document-services/index.js';
+import {
+  smartChunkDocument,
+  buildEmbeddingTexts,
+  structurePayload,
+} from '../../document-services/index.js';
 import { mistralEmbeddingService } from '../../mistral/index.js';
 import { BaseScraper } from '../base/BaseScraper.js';
 import { recordSyncEvent, toExcerpt } from '../syncEventRecorder.js';
@@ -410,6 +414,7 @@ export class GruenblogScraper extends BaseScraper {
         content_hash: contentHash,
         chunk_index: index,
         chunk_text: chunkTexts[index],
+        ...structurePayload(chunk),
         quality_score: chunkQualityService.calculateQualityScore(chunkTexts[index]),
         content_type: 'artikel',
         primary_category: content.primaryCategory,
