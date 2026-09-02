@@ -81,6 +81,27 @@ describe('ChunkInspectorView', () => {
     expect(screen.getByText(/Chunk 1 Text/)).toBeInTheDocument();
   });
 
+  it('startet auf der Seite, die initialOffset vorgibt', async () => {
+    let requestedOffset: string | null = null;
+    server.use(
+      http.get(ENDPOINT, ({ request }) => {
+        requestedOffset = new URL(request.url).searchParams.get('offset');
+        return HttpResponse.json({
+          success: true,
+          header: header(),
+          chunks: [chunk(50)],
+          nextOffset: null,
+        });
+      })
+    );
+    renderWithProviders(
+      <ChunkInspectorView documentId="doc-1" collection="grundsatz-system" initialOffset={50} />
+    );
+
+    await screen.findByText(/Chunk 50 Text/);
+    expect(requestedOffset).toBe('50');
+  });
+
   it('schreibt „nicht gespeichert" an die Felder, die kein Schreiber füllt', async () => {
     respondWith({
       success: true,
@@ -226,7 +247,29 @@ describe('ChunkInspectorView — Suchfeld', () => {
 
     await user.type(screen.getByLabelText('Suche in diesem Dokument'), 'Klimageld{Enter}');
 
-    expect(await screen.findByText('Die Suche ist fehlgeschlagen.')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Chunk-Inspektor: Die Suche ist fehlgeschlagen (HTTP 500)')
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Chunk 0 Text/)).toBeInTheDocument();
+  });
+
+  it('meldet fehlenden Zugriff bei einer 403-Suchantwort, statt der Server-Meldung', async () => {
+    respondWith({ success: true, header: header(), chunks: [chunk(0)], nextOffset: null });
+    server.use(
+      http.get(SEARCH_ENDPOINT, () =>
+        HttpResponse.json({ success: false, message: 'Keine Admin-Berechtigung.' }, { status: 403 })
+      )
+    );
+    const { user } = renderWithProviders(
+      <ChunkInspectorView documentId="doc-1" collection="grundsatz-system" />
+    );
+    await screen.findByText(/Chunk 0 Text/);
+
+    await user.type(screen.getByLabelText('Suche in diesem Dokument'), 'Klimageld{Enter}');
+
+    expect(
+      await screen.findByText('Kein Zugriff (Instanz-Admin erforderlich)')
+    ).toBeInTheDocument();
     expect(screen.getByText(/Chunk 0 Text/)).toBeInTheDocument();
   });
 

@@ -3,6 +3,7 @@ import {
   Skeleton,
   Table,
   TableBody,
+  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
@@ -18,7 +19,13 @@ function HeaderField({ label, value }: { label: string; value: string | null }) 
   return (
     <div className="flex flex-col gap-3xs">
       <dt className="text-xs uppercase tracking-wide text-grey-500 dark:text-grey-400">{label}</dt>
-      <dd className={value === null ? 'text-sm italic text-grey-500' : 'text-sm text-foreground'}>
+      <dd
+        className={
+          value === null
+            ? 'text-sm italic text-grey-500 dark:text-grey-400'
+            : 'text-sm text-foreground'
+        }
+      >
         {value ?? NOT_STORED}
       </dd>
     </div>
@@ -48,7 +55,7 @@ function DocumentHeader({ header }: { header: InspectedDocumentHeader }) {
       <HeaderField label="Chunks" value={String(header.chunkCount)} />
       <HeaderField label="Qdrant-Sammlung" value={header.qdrantCollection} />
       <HeaderField
-        label="Indiziert am"
+        label="Zuletzt geändert / erstellt"
         value={
           header.indexedAt === null ? null : new Date(header.indexedAt).toLocaleString('de-DE')
         }
@@ -97,7 +104,7 @@ function ChunkRow({
         <TableCell>{chunk.charCount}</TableCell>
         <TableCell>
           {chunk.qualityScore === null ? (
-            <span className="italic text-grey-500">{NOT_STORED}</span>
+            <span className="italic text-grey-500 dark:text-grey-400">{NOT_STORED}</span>
           ) : (
             <span>
               {chunk.qualityScore.toFixed(2)}
@@ -139,11 +146,14 @@ function ChunkRow({
 export function ChunkInspectorView({
   documentId,
   collection,
+  initialOffset = 0,
 }: {
   documentId: string;
   collection: string;
+  /** Seed für die Seite, z.B. aus dem `offset`-Query-Parameter der Route. */
+  initialOffset?: number;
 }) {
-  const [offset, setOffset] = useState(0);
+  const [offset, setOffset] = useState(initialOffset);
   const [draftQuery, setDraftQuery] = useState('');
   const [submittedQuery, setSubmittedQuery] = useState('');
   const search = useChunkSearch(documentId, collection, submittedQuery);
@@ -210,12 +220,12 @@ export function ChunkInspectorView({
               </p>
             </>
           )}
+          {search.isError && (
+            <p className="m-0 text-sm text-red-600 dark:text-red-400">
+              {search.error?.message ?? 'Die Suche ist fehlgeschlagen.'}
+            </p>
+          )}
         </div>
-        {search.isError && (
-          <p className="m-0 text-sm text-red-600 dark:text-red-400">
-            Die Suche ist fehlgeschlagen.
-          </p>
-        )}
       </form>
 
       {data.chunks.length === 0 ? (
@@ -225,13 +235,18 @@ export function ChunkInspectorView({
       ) : (
         <div className="overflow-hidden rounded-lg border border-grey-200 dark:border-grey-700">
           <Table>
+            <TableCaption>
+              Seite und Qualität stammen aus der Nutzlast, Vektor aus dem gespeicherten Vektor
+              selbst. Zeichen und Tabelle (erkannt) werden beim Lesen aus dem gespeicherten Text
+              berechnet.
+            </TableCaption>
             <TableHeader>
               <TableRow>
                 <TableHead>#</TableHead>
                 <TableHead>Seite</TableHead>
                 <TableHead>Zeichen</TableHead>
                 <TableHead>Qualität</TableHead>
-                <TableHead>Tabelle</TableHead>
+                <TableHead>Tabelle (erkannt)</TableHead>
                 <TableHead>Vektor</TableHead>
                 <TableHead>Suche</TableHead>
                 <TableHead>Anfang</TableHead>
