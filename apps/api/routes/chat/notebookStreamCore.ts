@@ -11,6 +11,7 @@ import {
   buildConcisePromptGrundsatz,
   buildConcisePromptGeneral,
 } from '../../agents/langgraph/prompts.js';
+import { env } from '../../config/env.js';
 import { getNotebookDepthProfile } from '../../config/notebookDepthProfiles.js';
 import {
   SYSTEM_COLLECTIONS,
@@ -76,6 +77,14 @@ export interface NotebookStreamOptions {
   noResultsMessage?: string;
   /** Minimum results after rerank to proceed with generation (default: 0 = no gate). */
   minResultsForGeneration?: number;
+  /**
+   * Ob dieser Turn `evidence_weak` senden darf. Der Grün-O-Mat setzt `false`:
+   * er fährt `mode: 'fast'` — ein Tiefenprofil, das in der Kalibrierung nicht
+   * vorkam (alle 15 Fälle liefen `deep`) — und hat mit `topicGuard` plus
+   * `OFF_TOPIC_RESPONSE` seine eigene, härtere Themenabwehr. Berechnet und
+   * protokolliert wird der Wert dort trotzdem. Default: `true`.
+   */
+  emitEvidenceWarning?: boolean;
   /** Filter search to specific document IDs within the collection. */
   documentIds?: string[];
   /** Shared SSE writer — if provided, used instead of creating one internally. */
@@ -112,6 +121,7 @@ export async function handleNotebookStream(
     userId,
     allowUserCollections = true,
     documentIds,
+    emitEvidenceWarning = true,
   } = options;
 
   // An omitted mode has always meant the thorough tier here (`isFast` was
@@ -262,6 +272,29 @@ export async function handleNotebookStream(
         : '0 relevante Stellen gefunden',
       resultCount: searchContext?.sortedResults.length ?? 0,
     });
+
+    // Evidenz-Signal (#3140): der dichte Spitzenwert VOR dem Rerank. Er wird in
+    // `getSearchContext` gebildet, weil er hier nicht mehr rekonstruierbar wäre
+    // — `rerankNotebookResults` schreibt den Cross-Encoder-Wert auf
+    // `similarity` zurück und die Zeile darunter ersetzt die ganze Liste.
+    //
+    // Die Logzeile geht IMMER hinaus, auch bei ausgeschaltetem Schalter: sie
+    // ist die Produktionsmessung, die einzige Stelle, an der sichtbar wird, wo
+    // das Signal auf echten Fragen liegt. Der Zahlenwert geht NICHT auf die
+    // Leitung — die Wire-Gestalt bleibt { code, message }.
+    const evidenceTop = searchContext?.evidenceTop ?? null;
+    if (evidenceTop !== null) {
+      const weak = evidenceTop < env.NOTEBOOK_EVIDENCE_WEAK_THRESHOLD;
+      log.info(
+        `[Notebook] evidenceTop=${evidenceTop.toFixed(4)} ` +
+          `(threshold ${env.NOTEBOOK_EVIDENCE_WEAK_THRESHOLD.toFixed(3)}, ` +
+          `enabled=${env.NOTEBOOK_EVIDENCE_WEAK_ENABLED}, ${depth}, ` +
+          `${searchContext?.sortedResults.length ?? 0} candidates) → ${weak ? 'weak' : 'ok'}`
+      );
+      if (weak && env.NOTEBOOK_EVIDENCE_WEAK_ENABLED && emitEvidenceWarning) {
+        sendChatWarning(sse, 'evidence_weak');
+      }
+    }
 
     // Rerank in EVERY tier.
     //
