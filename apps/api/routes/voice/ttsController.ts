@@ -34,11 +34,17 @@ router.post('/generate', async (req: GenerateRequest, res: Response) => {
     });
   }
 
+  // Same as /stream: a client that hangs up must not leave us paying for
+  // audio nobody receives — and with a stalled provider, waiting on it.
+  const abort = new AbortController();
+  res.on('close', () => abort.abort());
+
   try {
     const wavBuffer = await ttsService.generateSpeech(text, {
       modelId,
       voiceId,
       language,
+      signal: abort.signal,
     });
 
     res.set({
@@ -48,6 +54,7 @@ router.post('/generate', async (req: GenerateRequest, res: Response) => {
     });
     return res.send(wavBuffer);
   } catch (error) {
+    if (abort.signal.aborted) return;
     log.error('[TTS] Generate error:', error);
     return res.status(500).json({
       success: false,

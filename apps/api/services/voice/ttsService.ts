@@ -132,22 +132,92 @@ function isAbort(error: unknown): boolean {
   return error instanceof Error && error.name === 'AbortError';
 }
 
+/**
+ * Measured on 2026-09-03 (#3207): in a sequential run about one request in
+ * five was accepted by the provider and never answered, while the same
+ * request on a fresh connection completed in four seconds. Without a deadline
+ * of our own such a request holds the Express response open until the client
+ * gives up — which a buffering client never does.
+ */
+const HEADERS_TIMEOUT_MS = 30_000;
+/** Longest pause between two body chunks before the connection counts as dead. */
+const BODY_IDLE_TIMEOUT_MS = 15_000;
+
+class UpstreamTimeoutError extends Error {
+  override readonly name = 'UpstreamTimeoutError';
+}
+
 async function postGenerate(text: string, options: TTSOptions): Promise<Response> {
-  const response = await fetch(`${baseUrl()}/v1/tts/generate`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey()}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(buildRequestBody(text, options)),
-    ...(options.signal ? { signal: options.signal } : {}),
+  const body = JSON.stringify(buildRequestBody(text, options));
+
+  for (let attempt = 1; ; attempt++) {
+    const deadline = new AbortController();
+    const timer = setTimeout(
+      () =>
+        deadline.abort(
+          new UpstreamTimeoutError(
+            `KugelAudio hat nach ${HEADERS_TIMEOUT_MS / 1000} s noch nicht geantwortet`
+          )
+        ),
+      HEADERS_TIMEOUT_MS
+    );
+
+    try {
+      const response = await fetch(`${baseUrl()}/v1/tts/generate`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey()}`,
+          'Content-Type': 'application/json',
+        },
+        body,
+        signal: options.signal
+          ? AbortSignal.any([options.signal, deadline.signal])
+          : deadline.signal,
+      });
+
+      if (!response.ok || !response.body) {
+        throw await providerError(response);
+      }
+
+      return response;
+    } catch (error) {
+      // Nothing of the body has been read yet, so a second attempt does not
+      // play the same audio twice — it only replaces a connection that stalled.
+      if (error instanceof UpstreamTimeoutError && attempt === 1) {
+        log.warn('[TTS] Provider stalled before answering, retrying once', {
+          textLength: text.length,
+        });
+        continue;
+      }
+      throw error;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+}
+
+/** One body read, with a pause longer than the idle budget treated as a dead connection. */
+async function readChunk(
+  reader: ReadableStreamDefaultReader<Uint8Array>
+): Promise<ReadableStreamReadResult<Uint8Array>> {
+  let timer: NodeJS.Timeout | undefined;
+  const idle = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      const error = new UpstreamTimeoutError(
+        `KugelAudio hat ${BODY_IDLE_TIMEOUT_MS / 1000} s lang keine Audiodaten geliefert`
+      );
+      reject(error);
+      // Release the upstream connection. After the reject, because cancel()
+      // settles the pending read synchronously and would win the race.
+      void reader.cancel(error).catch(() => undefined);
+    }, BODY_IDLE_TIMEOUT_MS);
   });
 
-  if (!response.ok || !response.body) {
-    throw await providerError(response);
+  try {
+    return await Promise.race([reader.read(), idle]);
+  } finally {
+    clearTimeout(timer);
   }
-
-  return response;
 }
 
 async function providerError(response: Response): Promise<Error> {
@@ -163,7 +233,14 @@ class TTSService {
 
     const response = await postGenerate(text, options);
     const sampleRate = resolveSampleRate(response);
-    const pcm = Buffer.from(await response.arrayBuffer());
+    const reader = response.body!.getReader();
+    const chunks: Buffer[] = [];
+    for (;;) {
+      const { done, value } = await readChunk(reader);
+      if (done) break;
+      if (value?.length) chunks.push(Buffer.from(value));
+    }
+    const pcm = Buffer.concat(chunks);
     // PCM16 is already what a 16-bit WAV stores, so this only prepends a header.
     const wav = pcm16ToWav(pcm, sampleRate);
 
@@ -193,7 +270,7 @@ class TTSService {
       const reader = response.body!.getReader();
 
       for (;;) {
-        const { done, value } = await reader.read();
+        const { done, value } = await readChunk(reader);
         if (done) break;
         if (!value?.length) continue;
 
