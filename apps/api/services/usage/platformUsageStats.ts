@@ -22,12 +22,20 @@
  * The result is cached in redis: this is an unauthenticated endpoint, and three
  * aggregate scans per page view is a denial-of-service surface handed to anyone
  * with curl.
+ *
+ * An optional `locale` narrows everything above to the users whose profile
+ * currently says Germany or Austria. It is a join at read time, not a column:
+ * a person who switches country takes their history with them, which is fine
+ * for a figure that describes the platform rather than a moment. A profile
+ * without a locale is in neither segment. The filter sits in step 1 already, so
+ * the suppression threshold is applied to the segment, not to the platform —
+ * a thin country publishes nothing rather than a number about a few people.
  */
 
 import { getTransparencyStatsResponseSchema } from '@gruenerator/contracts';
-import { gte, inArray, sql } from 'drizzle-orm';
+import { and, gte, inArray, sql } from 'drizzle-orm';
 
-import { userUsageDaily } from '../../database/schema/index.js';
+import { profiles, userUsageDaily } from '../../database/schema/index.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { createLogger } from '../../utils/logger.js';
 import { getCachedJson, setCachedJson } from '../../utils/redis/jsonCache.js';
@@ -44,7 +52,11 @@ import {
   referenceFootprint,
 } from './energyFootprint.js';
 
-import type { GetTransparencyStatsResponseDto, UsageFeature } from '@gruenerator/contracts';
+import type {
+  GetTransparencyStatsResponseDto,
+  TransparencyLocale,
+  UsageFeature,
+} from '@gruenerator/contracts';
 
 const log = createLogger('platformUsage');
 
@@ -68,6 +80,9 @@ const CACHE_TTL_SECONDS = 15 * 60;
 /** Bumped when the response shape changes, so old entries expire immediately
  *  rather than being served until their TTL runs out. */
 const CACHE_KEY_PREFIX = 'transparency:usage:v2';
+
+/** What `profiles.locale` holds for each publishable segment. */
+const LOCALE_VALUE: Record<TransparencyLocale, string> = { de: 'de-DE', at: 'de-AT' };
 
 const WMS_PER_WH = 3_600_000;
 const UG_PER_G = 1_000_000;
@@ -181,10 +196,17 @@ function emptyStats(days: number, sinceDay: string, suppressedDays: number, acti
  * Compute the aggregate. Prefer `getPlatformUsageStats`, which caches this.
  */
 export async function computePlatformUsageStats(
-  days: number
+  days: number,
+  locale: TransparencyLocale | null
 ): Promise<GetTransparencyStatsResponseDto> {
   const sinceDay = startOfWindow(days);
   const db = getDrizzleInstance();
+
+  // A subquery rather than a join: `user_id` must stay collapsed in every
+  // statement below, and a join would put a per-user row within reach.
+  const scope = locale
+    ? sql`${userUsageDaily.userId} IN (SELECT ${profiles.id} FROM ${profiles} WHERE ${profiles.locale} = ${LOCALE_VALUE[locale]})`
+    : undefined;
 
   // Step 1 — who was active on which day. This decides what may be published at
   // all, so it runs before anything is summed.
@@ -194,7 +216,7 @@ export async function computePlatformUsageStats(
       activeUsers: sql<number>`count(distinct ${userUsageDaily.userId})::int`,
     })
     .from(userUsageDaily)
-    .where(gte(userUsageDaily.day, sinceDay))
+    .where(and(gte(userUsageDaily.day, sinceDay), scope))
     .groupBy(userUsageDaily.day);
 
   const eligibleDays = new Map<string, number>();
@@ -213,7 +235,7 @@ export async function computePlatformUsageStats(
   const [windowUsers] = await db
     .select({ activeUsers: sql<number>`count(distinct ${userUsageDaily.userId})::int` })
     .from(userUsageDaily)
-    .where(inArray(userUsageDaily.day, dayList));
+    .where(and(inArray(userUsageDaily.day, dayList), scope));
 
   const activeUsers = windowUsers?.activeUsers ?? 0;
   if (activeUsers < MIN_GROUP_SIZE) {
@@ -242,7 +264,7 @@ export async function computePlatformUsageStats(
       emissionsUg: sql<number>`sum(${userUsageDaily.emissionsUg})::float8`,
     })
     .from(userUsageDaily)
-    .where(inArray(userUsageDaily.day, dayList))
+    .where(and(inArray(userUsageDaily.day, dayList), scope))
     .groupBy(
       userUsageDaily.day,
       userUsageDaily.feature,
@@ -538,15 +560,18 @@ export async function computePlatformUsageStats(
  * rather than to an error — `jsonCache` treats every failure as a miss.
  */
 export async function getPlatformUsageStats(
-  days: number
+  days: number,
+  locale: TransparencyLocale | null
 ): Promise<GetTransparencyStatsResponseDto> {
-  const key = `${CACHE_KEY_PREFIX}:${days}`;
+  const key = `${CACHE_KEY_PREFIX}:${days}:${locale ?? 'all'}`;
 
   const cached = await getCachedJson(key, getTransparencyStatsResponseSchema);
   if (cached) return cached;
 
-  const stats = await computePlatformUsageStats(days);
+  const stats = await computePlatformUsageStats(days, locale);
   await setCachedJson(key, stats, CACHE_TTL_SECONDS);
-  log.debug(`Recomputed platform usage for ${days}d (${stats.daily.length} published days)`);
+  log.debug(
+    `Recomputed platform usage for ${days}d/${locale ?? 'all'} (${stats.daily.length} published days)`
+  );
   return stats;
 }
