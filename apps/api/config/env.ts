@@ -630,8 +630,9 @@ const envSchema = z.object({
   NOTEBOOK_EVIDENCE_WEAK_THRESHOLD: z.coerce.number().min(0).max(1).default(0.9356),
 
   /**
-   * Dunkel ausgeliefert: `evidenceTop` wird immer berechnet und protokolliert,
-   * das `warning`-Ereignis geht nur mit `true` hinaus. `true` erst nach der
+   * Dunkel ausgeliefert: `evidenceTop` wird bei jeder beantworteten Anfrage
+   * berechnet und protokolliert, das `warning`-Ereignis geht nur mit `true`
+   * hinaus (und nie auf `fast`). `true` erst nach der
    * 30-Fall-Runde und nur, wenn deren Abnahmeregel A1 hält.
    *
    * Falle: `boolFlag` nimmt ausschliesslich die Zeichenkette "true" — `=1`

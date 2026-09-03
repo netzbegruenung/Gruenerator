@@ -118,7 +118,8 @@ router.post(
       // Der Grün-O-Mat fährt `fast` — ein Tiefenprofil, gegen das die
       // Evidenz-Schwelle nie kalibriert wurde — und hat mit topicGuard und
       // OFF_TOPIC_RESPONSE seine eigene, härtere Themenabwehr. Der Wert wird
-      // trotzdem berechnet und protokolliert (#3140).
+      // bei jeder beantworteten Anfrage berechnet und protokolliert (#3140);
+      // was die Qualitätsschranke abweist, wird nicht gemessen.
       emitEvidenceWarning: false,
     });
   }
