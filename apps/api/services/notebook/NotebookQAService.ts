@@ -213,7 +213,11 @@ export class NotebookQAService {
 
     // Deduplicate and filter
     const dedupedResults = deduplicateResults(allResults, true);
-    const sortedResults = filterAndSortResults(dedupedResults, { threshold: 0.35, limit: 40 });
+    const sortedResults = filterAndSortResults(dedupedResults, {
+      threshold: 0.35,
+      limit: 40,
+      maxPerDocument: env.NOTEBOOK_MAX_CHUNKS_PER_DOC,
+    });
 
     if (sortedResults.length === 0) {
       return {
@@ -431,6 +435,7 @@ export class NotebookQAService {
       threshold: 0.35,
       limit: 30,
       allowCreatedAt: !isSystem,
+      maxPerDocument: env.NOTEBOOK_MAX_CHUNKS_PER_DOC,
     });
 
     if (sorted.length === 0) {
