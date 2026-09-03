@@ -19,7 +19,10 @@ import {
 } from '../../config/systemCollectionsConfig.js';
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { notebookQAService } from '../../services/notebook/index.js';
-import { rerankNotebookResults } from '../../services/notebook/rerankNotebookResults.js';
+import {
+  cutNotebookResults,
+  rerankNotebookResults,
+} from '../../services/notebook/rerankNotebookResults.js';
 import {
   renumberCitationsInOrder,
   validateAndInjectCitations,
@@ -90,9 +93,15 @@ export interface NotebookStreamOptions {
   /** Shared SSE writer — if provided, used instead of creating one internally. */
   sse?: SSEWriter;
   /**
-   * `'off'` skips `rerankNotebookResults` entirely — results stay in the
-   * order `getSearchContext` returned. `'sort'`/`'filter'` and `instruct`
-   * pass through to `rerankNotebookResults`. Absent behaves like today.
+   * Default OFF since 2026-09-03: `apps/api/evals/answer/answer-eval-2026-09-03.md`
+   * measured the cross-encoder against the un-reranked (cut) order and found
+   * ties in 25 of 27 judged pairs and 8 of 10 human pairs, at ~3 s per answer
+   * saved. Absent, or `mode: 'off'`, therefore skips `rerankNotebookResults`
+   * and instead cuts `sortedResults` to `profile.rerankOutput` in retrieval
+   * order via `cutNotebookResults`. `mode: 'sort'` is the pre-2026-09-03
+   * behaviour (kept for the eval and as the documented way back); `'filter'`
+   * additionally drops candidates below the relevance floor. Both, plus
+   * `instruct`, pass through to `rerankNotebookResults`.
    */
   rerank?: { mode?: 'off' | 'sort' | 'filter'; instruct?: string };
   /**
@@ -279,29 +288,26 @@ export async function handleNotebookStream(
       resultCount: searchContext?.sortedResults.length ?? 0,
     });
 
-    // Rerank in EVERY tier.
-    //
-    // This used to be gated on `isFast`, which left "Tiefenrecherche" — the
-    // path that retrieves the MOST candidates — as the only one without a
-    // cross-encoder. That is inverse to what the UI promises: the mode
-    // advertised as the thorough one was handing the model the raw
-    // hybrid-search order.
-    //
-    // The tiers differ in HOW MUCH survives, not in WHETHER it is ranked.
-    // rerankNotebookResults degrades openly — with Regolo unconfigured it
-    // returns the original order rather than throwing — so a bigger window
-    // cannot make a tier fail where a smaller one used to work.
+    // Cut (or, with `rerank.mode`, rerank) in EVERY tier — the tiers differ in
+    // HOW MUCH survives (`profile.rerankOutput`), not in whether that cut
+    // happens. This used to gate the cross-encoder on `isFast`, which left
+    // "Tiefenrecherche" — the path that retrieves the MOST candidates — as the
+    // only one without any cut at all; the eval in the `rerank` docblock above
+    // then found the cross-encoder itself dispensable for the default path.
+    // rerankNotebookResults still degrades openly when `mode: 'sort'`/`'filter'`
+    // is requested — with Regolo unconfigured it returns the original order
+    // rather than throwing.
     if (searchContext) {
       const rerankMode = options.rerank?.mode;
       const rerankInstruct = options.rerank?.instruct;
-      if (rerankMode !== 'off') {
+      if (rerankMode === 'sort' || rerankMode === 'filter') {
         const reranked = await rerankNotebookResults({
           results: searchContext.sortedResults,
           referencesMap: searchContext.referencesMap,
           question: rerankQuery,
           limit: profile.rerankOutput,
           inputLimit: profile.rerankInput,
-          ...(rerankMode ? { mode: rerankMode } : {}),
+          mode: rerankMode,
           ...(rerankInstruct ? { instruct: rerankInstruct } : {}),
         });
         searchContext.sortedResults = reranked.results;
@@ -310,6 +316,19 @@ export async function handleNotebookStream(
 
         log.debug(
           `⏱ Rerank (${depth}): ${reranked.rerankTimeMs}ms, ${searchContext.sortedResults.length} results kept`
+        );
+      } else {
+        const cut = cutNotebookResults({
+          results: searchContext.sortedResults,
+          referencesMap: searchContext.referencesMap,
+          limit: profile.rerankOutput,
+        });
+        searchContext.sortedResults = cut.results;
+        searchContext.referencesMap = cut.referencesMap;
+        searchContext.contextSummary = cut.contextSummary;
+
+        log.debug(
+          `[Notebook] rerank off — cut to ${searchContext.sortedResults.length} by retrieval order`
         );
       }
 
