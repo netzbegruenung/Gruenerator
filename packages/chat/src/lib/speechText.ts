@@ -10,7 +10,7 @@
 // not swallow the line break before it and merge two lines.
 const CITATION_RE = /[ \t]*\[(?:cite:)?\d+(?:\s*,\s*\d+)*\]/g;
 /** A comma that only separated citations, left dangling before the full stop. */
-const ORPHAN_COMMA_RE = /(?:\s*,)+(?=\s*[.!?;:])/g;
+const ORPHAN_COMMA_RE = /(?:[ \t]*,)+(?=[ \t]*[.!?;:])/g;
 const LINK_RE = /\[([^\]]+)\]\([^)]*\)/g;
 const LIST_MARKER_RE = /^[ \t]*(?:[-*+]|\d+\.)[ \t]+/gm;
 const DECORATION_RE = /[#*_`~>|]/g;
