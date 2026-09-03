@@ -291,57 +291,84 @@ router.get(
 );
 
 /**
+ * Kern von GET /chunks und GET /:id/chunks: Chunks eines Dokuments für die
+ * chunkweise Anzeige. Nutzerdokumente und Systemsammlungen (via ?collectionId=).
+ */
+async function respondWithDocumentChunks(
+  req: DocumentRequest,
+  res: Response,
+  rawId: string
+): Promise<void> {
+  try {
+    const id = fromParam<DocumentId>(rawId);
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const collectionId = req.query.collectionId as string | undefined;
+    const systemConfig = collectionId ? getSystemCollectionConfig(collectionId) : null;
+
+    let documentTitle = 'Dokument';
+
+    if (!systemConfig) {
+      const document = await postgresDocumentService.getDocumentById(id, userId);
+      if (!document) {
+        res.status(404).json({ success: false, message: 'Document not found or access denied' });
+        return;
+      }
+      documentTitle = document.title;
+    }
+
+    const result = await documentSearchService.getDocumentChunks(
+      userId,
+      id,
+      systemConfig ? { qdrantCollection: systemConfig.qdrantCollection } : undefined
+    );
+    if (!result.success) {
+      res.status(404).json({ success: false, message: result.error || 'No chunks found' });
+      return;
+    }
+    res.json({
+      success: true,
+      document_id: id,
+      document_title: documentTitle,
+      chunk_count: result.chunkCount,
+      chunks: result.chunks,
+    });
+  } catch (error) {
+    log.error('[GET chunks] Error:', error);
+    res.status(500).json({
+      success: false,
+      message: (error as Error).message || 'Failed to get document chunks',
+    });
+  }
+}
+
+/**
+ * GET /chunks?documentId=… — derselbe Abruf mit der Dokument-ID im
+ * Query-String. URL-förmige IDs gescrapter Systemsammlungen überleben den
+ * Pfad nicht: der Reverse-Proxy dekodiert %2F und merged Slashes, bevor
+ * Express routet (beta, 03.09.2026); Query-Strings passieren unverändert.
+ */
+router.get('/chunks', async (req: DocumentRequest, res: Response): Promise<void> => {
+  const documentId = req.query.documentId;
+  if (typeof documentId !== 'string' || documentId.length === 0) {
+    res.status(400).json({ success: false, message: 'documentId query parameter is required' });
+    return;
+  }
+  await respondWithDocumentChunks(req, res, documentId);
+});
+
+/**
  * GET /:id/chunks - Get individual document chunks for chunk-level navigation.
  * Supports user documents and system collection documents via ?collectionId= param.
  */
 router.get(
   '/:id/chunks',
   async (req: DocumentRequest<{ id: string }>, res: Response): Promise<void> => {
-    try {
-      const id = fromParam<DocumentId>(req.params.id);
-      const userId = req.user?.id;
-      if (!userId) {
-        res.status(401).json({ error: 'Unauthorized' });
-        return;
-      }
-
-      const collectionId = req.query.collectionId as string | undefined;
-      const systemConfig = collectionId ? getSystemCollectionConfig(collectionId) : null;
-
-      let documentTitle = 'Dokument';
-
-      if (!systemConfig) {
-        const document = await postgresDocumentService.getDocumentById(id, userId);
-        if (!document) {
-          res.status(404).json({ success: false, message: 'Document not found or access denied' });
-          return;
-        }
-        documentTitle = document.title;
-      }
-
-      const result = await documentSearchService.getDocumentChunks(
-        userId,
-        id,
-        systemConfig ? { qdrantCollection: systemConfig.qdrantCollection } : undefined
-      );
-      if (!result.success) {
-        res.status(404).json({ success: false, message: result.error || 'No chunks found' });
-        return;
-      }
-      res.json({
-        success: true,
-        document_id: id,
-        document_title: documentTitle,
-        chunk_count: result.chunkCount,
-        chunks: result.chunks,
-      });
-    } catch (error) {
-      log.error('[GET /:id/chunks] Error:', error);
-      res.status(500).json({
-        success: false,
-        message: (error as Error).message || 'Failed to get document chunks',
-      });
-    }
+    await respondWithDocumentChunks(req, res, req.params.id);
   }
 );
 
