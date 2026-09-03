@@ -458,6 +458,20 @@ jobs:
               echo ""
             fi
 
+            # `skipped` allein verbirgt, was ein Lauf kostet: `unchanged` und
+            # die Freshness-Gatter sind gratis, ein `too_old` wird jede Nacht
+            # neu abgerufen, bevor der Altersfilter es verwirft (#3200).
+            SKIP_REASONS=$(jq -r '
+              .sources[] | select((.skipReasons // {}) | length > 0)
+              | "- **\(.name):** " + ([.skipReasons | to_entries | sort_by(-.value)[] | "\(.key) \(.value)"] | join(" · "))
+            ' "$SUMMARY_FILE")
+            if [ -n "$SKIP_REASONS" ]; then
+              echo "### ⏭️ Übersprungen, nach Grund"
+              echo ""
+              echo "$SKIP_REASONS"
+              echo ""
+            fi
+
             NEW_CONTENT=$(jq -r '.sources[] | select(.stored > 0) | "- **\(.name):** +\(.stored) new documents"' "$SUMMARY_FILE")
             if [ -n "$NEW_CONTENT" ]; then
               echo "### 📥 New Content"
@@ -613,6 +627,8 @@ jobs:
               jq -r '.sources[] | select((.deadLinkSamples // []) | length > 0)
                 | "Tote Links (Upstream, \(.deadLinks)):\n" + ([.deadLinkSamples[] | "- `" + . + "`"] | join("\n"))' "$SUMMARY_FILE"
             fi
+            jq -r '.sources[] | select((.skipReasons // {}) | length > 0)
+              | "**Übersprungen:** " + ([.skipReasons | to_entries | sort_by(-.value)[] | "\(.key) \(.value)"] | join(" · "))' "$SUMMARY_FILE"
             if [ "$(jq -r 'has("extraction")' "$SUMMARY_FILE")" = "true" ]; then
               jq -r '.extraction | "**Read:** \(.documents) docs / \(.pages) pages (OCR: \(.ocrDocuments)/\(.ocrPages)) | **For nothing:** \(.redundant) | **Gated:** \(.skipped.not_modified + .skipped.same_bytes + .skipped.freshly_indexed)"' "$SUMMARY_FILE"
             fi
