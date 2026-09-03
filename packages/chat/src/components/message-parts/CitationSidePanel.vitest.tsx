@@ -67,7 +67,14 @@ function Harness({ sources, at = 0 }: { sources: CitationPanelSource[]; at?: num
   );
 }
 
-function chunksResponse(documentId: string, chunks = CHUNKS) {
+interface TestChunk {
+  index: number;
+  text: string;
+  tokens: number;
+  pageNumber?: number;
+}
+
+function chunksResponse(documentId: string, chunks: TestChunk[] = CHUNKS) {
   return new Response(
     JSON.stringify({
       success: true,
