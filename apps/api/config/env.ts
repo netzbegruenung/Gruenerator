@@ -617,6 +617,48 @@ const envSchema = z.object({
   RERANK_MERGE_OVERFETCH: numStr(16),
   RERANK_WEB_SCORE_CEILING: z.coerce.number().default(0.8),
   RERANK_DIP_SCORE_CEILING: z.coerce.number().default(0.8),
+
+  // ── Notebook: Evidenz-Hinweis (#3140) ──────────────────────────────────
+  /**
+   * Dichter Spitzenwert VOR dem Rerank, unter dem der Notebook-Stream
+   * `evidence_weak` meldet — `max(dense_similarity ?? similarity)` über
+   * `SearchContext.sortedResults`, gebildet in `NotebookQAService`.
+   *
+   * Kalibriert in zwei Runden der Tiefe `deep`. Runde 1, 15 Fälle (PR #3156,
+   * `evals/retrieval/evidence-signals-2026-09-02.md`): on-topic ab 0,9619,
+   * off-topic bis 0,8955 — Default 0,89. Runde 2 am 02.09.2026, 30 Fälle
+   * (`evidence-signals-2026-09-02-v2.md`): on-topic ab 0,9581
+   * (`chat-nb-berlin-baumfaellmoratorium`), off-topic bis 0,9130
+   * (`offtopic-sternbilder-winter`), Abstand 0,0451. 0,89 lag damit unter
+   * dem höchsten off-topic-Wert; der Default ist der Mittelpunkt 0,9356
+   * (Abnahmeregel A1). Gesenkt wird nie ohne Neumessung.
+   *
+   * Beide Runden liefen ausschliesslich gegen die Tiefe `deep` — das
+   * `evidence_weak`-Ereignis geht deshalb nur bei `depth !== 'fast'` hinaus
+   * (`fast` durchsucht weniger Kandidaten und wurde nie vermessen).
+   *
+   * Die Zahl hängt am Einbettungsmodell: kalibriert gegen `mistral-embed`
+   * (1024 Dimensionen). Ein Modellwechsel verschiebt die absolute
+   * Kosinus-Lage und macht 0,9356 bedeutungslos, ohne dass ein Test rot wird.
+   *
+   * Das Signal `dense_similarity ?? similarity` ist auf dem Legacy-Pfad ein
+   * geboosteter Wert und auf dem server-seitigen Join (BM25-Sammlungen,
+   * heute keine davon eine Notebook-Sammlung) ein roher Kosinus, ca. 0,33
+   * auseinander — der Default 0,9356 ist ausschliesslich gegen den
+   * Legacy-Pfad kalibriert.
+   */
+  NOTEBOOK_EVIDENCE_WEAK_THRESHOLD: z.coerce.number().min(0).max(1).default(0.9356),
+
+  /**
+   * Dunkel ausgeliefert: `evidenceTop` wird bei jeder beantworteten Anfrage
+   * berechnet und protokolliert, das `warning`-Ereignis geht nur mit `true`
+   * hinaus (und nie auf `fast`). `true` erst nach der
+   * 30-Fall-Runde und nur, wenn deren Abnahmeregel A1 hält.
+   *
+   * Falle: `boolFlag` nimmt ausschliesslich die Zeichenkette "true" — `=1`
+   * ist `false`, lautlos.
+   */
+  NOTEBOOK_EVIDENCE_WEAK_ENABLED: boolFlag(false),
 });
 
 // ---------------------------------------------------------------------------
