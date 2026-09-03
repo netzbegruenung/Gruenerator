@@ -121,11 +121,17 @@ function dupHit(i: number) {
 }
 
 describe('getSearchContext — NOTEBOOK_MAX_CHUNKS_PER_DOC reaches the selection', () => {
+  const shippedDefault = env.NOTEBOOK_MAX_CHUNKS_PER_DOC;
   afterEach(() => {
-    env.NOTEBOOK_MAX_CHUNKS_PER_DOC = 0;
+    env.NOTEBOOK_MAX_CHUNKS_PER_DOC = shippedDefault;
   });
 
-  it('leaves a five-chunk single-document result set unshrunk at the default (0 = no cap)', async () => {
+  it('ships with a cap of two (measured 2026-09-03)', () => {
+    expect(shippedDefault).toBe(2);
+  });
+
+  it('leaves a five-chunk single-document result set unshrunk at 0 (no cap)', async () => {
+    env.NOTEBOOK_MAX_CHUNKS_PER_DOC = 0;
     search.mockResolvedValue({ results: Array.from({ length: 5 }, (_, i) => dupHit(i)) });
     const context = await notebookQAService.getSearchContext({
       question: 'Was steht drin?',
