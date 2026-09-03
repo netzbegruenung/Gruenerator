@@ -15,9 +15,9 @@ Im Modus **Automatisch** wählt der Grünerator das passende Modell für deine j
 
 Du wählst eine Größe, kein Herstellermodell – dieselben drei Stufen, die du auch in der Chrome-Erweiterung und im Excel-Add-in findest.
 
-**Klein** – Am schnellsten, für kurze Aufgaben. Vollständig quelloffen und selbst gehostet auf europäischen Servern.
+**Klein** – Am schnellsten, für kurze Aufgaben. Offenes Modell (Open Weights) bei einem europäischen Anbieter.
 
-**Mittel** – Eine gute Mischung aus Tempo und Qualität, besonders für Kreativtexte. Open-Source-Modell auf europäischen Servern.
+**Mittel** – Eine gute Mischung aus Tempo und Qualität, besonders für Kreativtexte. Offenes Modell (Open Weights) bei einem europäischen Anbieter.
 
 **Ultra** – Die beste Qualität, für Recherche und lange Aufgaben. Läuft auf EU-Servern (Mistral AI, Frankreich).
 
@@ -31,6 +31,6 @@ Für die Bildgenerierung kommen eigene Modelle zum Einsatz (u. a. Flux von Black
 
 Alle verfügbaren Modelle erfüllen höchste Datenschutzstandards:
 
-- **Europäische Server**: Deine Eingaben werden ausschließlich auf europäischen Servern verarbeitet – entweder bei Mistral AI (Frankreich) oder auf selbst gehosteten Servern.
+- **Europäische Server**: Deine Eingaben werden ausschließlich auf europäischen Servern verarbeitet – bei Mistral AI (Frankreich), Regolo (Italien) oder Cortecs (EU). Eigene, selbst gehostete Modelle setzt der Grünerator seit dem 29.08.2026 nicht mehr ein (siehe [Nachhaltigkeit](../basics/nachhaltigkeit.md)).
 - **Kein KI-Training**: Deine Eingaben werden nicht zum Training der KI verwendet.
-- **Open Source**: Die selbst gehosteten Modelle hinter **Klein** und **Mittel** sind vollständig quelloffen und transparent.
+- **Offene Modelle**: Hinter **Klein** und **Mittel** stehen Modelle mit offenen Gewichten (Open Weights), die jeder prüfen und selbst betreiben kann.
