@@ -114,6 +114,27 @@ describe('cortecs text lane', () => {
     expect(parsed.allow_zero_data_retention).toBe(true);
     expect(parsed.allowed_providers).toEqual(SOVEREIGN_ZDR_PROVIDERS);
     expect(parsed.input).toEqual(['erster Text', 'zweiter Text']);
+  });
+
+  it('legt die Weisung nach Vorhandensein des Felds an, nicht nach Wahrheitswert', async () => {
+    // `input: ''` ist eine Anfrage, die hinausgeht — ein Truthiness-Check
+    // liesse genau sie ohne Weisung passieren.
+    const sent = await sentBody(
+      { model: 'bge-m3', input: '' },
+      'https://example.invalid/embeddings'
+    );
+    const parsed = JSON.parse(String(sent)) as Record<string, unknown>;
+    expect(parsed.eu_native).toBe(true);
+    expect(parsed.allowed_providers).toEqual(SOVEREIGN_ZDR_PROVIDERS);
+  });
+
+  it('pinnt den Denk-Modus nicht auf eine Embeddings-Anfrage, auch nicht fuer ein Pin-Modell', async () => {
+    const sent = await sentBody(
+      { model: 'gemma-4-26b-a4b-it', input: ['Text'] },
+      'https://example.invalid/embeddings'
+    );
+    const parsed = JSON.parse(String(sent)) as Record<string, unknown>;
+    expect(parsed.eu_native).toBe(true);
     expect(parsed).not.toHaveProperty('reasoning_effort');
   });
 
