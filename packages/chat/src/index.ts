@@ -228,7 +228,7 @@ export { MarkdownStreamingProvider, useMarkdownSmooth } from './context/Markdown
 export {
   CitationPanelProvider,
   useCitationPanel,
-  type CitationPanelTarget,
+  type CitationPanelSource,
 } from './context/CitationPanelContext';
 export { CitationSidePanel } from './components/message-parts/CitationSidePanel';
 
