@@ -11,6 +11,10 @@ import {
 // the schema comment in qdrantCollectionsSchema.ts.
 const MEDIUM_PRESET = { indexing_threshold: 10000, max_segment_size: 20000 };
 
+// `large`'s ceiling after the raise (qdrantCollectionsSchema.ts) — same
+// indexing_threshold as MEDIUM_PRESET, five times the segment ceiling.
+const LARGE_PRESET = { indexing_threshold: 10000, max_segment_size: 100000 };
+
 function info(overrides: Partial<CollectionIndexInfo>): CollectionIndexInfo {
   return {
     indexingThreshold: null,
@@ -34,7 +38,12 @@ describe('planHnswPatch', () => {
       MEDIUM_PRESET
     );
 
-    expect(plan).toEqual({ action: 'skip', target: 10000, reason: 'already indexed' });
+    expect(plan).toEqual({
+      action: 'skip',
+      target: 10000,
+      maxSegmentSizeTarget: null,
+      reason: 'already indexed',
+    });
   });
 
   it('patches a collection whose threshold sits at or above max_segment_size (the #3119 bug)', () => {
@@ -85,6 +94,62 @@ describe('planHnswPatch', () => {
     expect(plan.target).toBe(8000);
     expect(plan.reason).toContain('stalled optimizer');
     expect(plan.reason).toContain('grey');
+  });
+
+  it('patches when only the segment ceiling differs from the preset', () => {
+    // indexing_threshold is already fine and the index is built — only
+    // max_segment_size lags the raised `large` preset.
+    const plan = planHnswPatch(
+      info({
+        indexingThreshold: 10000,
+        maxSegmentSize: 20000,
+        pointsCount: 48119,
+        indexedVectorsCount: 45667,
+      }),
+      LARGE_PRESET
+    );
+
+    expect(plan.action).toBe('patch');
+    expect(plan.target).toBe(10000);
+    expect(plan.maxSegmentSizeTarget).toBe(100000);
+    expect(plan.reason).toContain('segment ceiling');
+  });
+
+  it('skips when both indexing_threshold and max_segment_size already match the preset', () => {
+    const plan = planHnswPatch(
+      info({
+        indexingThreshold: 10000,
+        maxSegmentSize: 100000,
+        pointsCount: 48119,
+        indexedVectorsCount: 48119,
+      }),
+      LARGE_PRESET
+    );
+
+    expect(plan).toEqual({
+      action: 'skip',
+      target: 10000,
+      maxSegmentSizeTarget: null,
+      reason: 'already indexed',
+    });
+  });
+
+  it('patches both values when the threshold sits at or above a stale ceiling', () => {
+    // The #3119 bug shape (threshold === max_segment_size) against a preset
+    // whose ceiling has since moved — both dimensions must patch together.
+    const plan = planHnswPatch(
+      info({
+        indexingThreshold: 20000,
+        maxSegmentSize: 20000,
+        pointsCount: 48119,
+        indexedVectorsCount: 0,
+      }),
+      LARGE_PRESET
+    );
+
+    expect(plan.action).toBe('patch');
+    expect(plan.target).toBe(10000);
+    expect(plan.maxSegmentSizeTarget).toBe(100000);
   });
 });
 
