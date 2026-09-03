@@ -21,13 +21,20 @@
  *   Reads the filled-in `winner:` lines, joins them with the matching
  *   `.key.json` (same basename) to resolve each to a variant, and with
  *   `judgments-<date>.json` (same date, from `judgeAnswers.ts`) to print
- *   human/judge agreement on `filter-vs-today`.
+ *   human/judge agreement on the first configured comparison (default
+ *   `cut-vs-today`; `EVAL_ANSWER_COMPARISONS` picks another).
  */
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { answerKey, buildAbMapping, resolveWinner, today } from './answerEvalCore.js';
+import {
+  answerKey,
+  buildAbMapping,
+  resolveComparisons,
+  resolveWinner,
+  today,
+} from './answerEvalCore.js';
 import {
   type AbMapping,
   type AnswerRecord,
@@ -38,8 +45,11 @@ import {
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SAMPLE_SIZE = 10;
-const CHALLENGER: AnswerVariant = 'filter';
-const BASELINE: AnswerVariant = 'today';
+// Die Stichprobe folgt dem ersten konfigurierten Vergleich (Default cut-vs-today).
+const SAMPLE_COMPARISON = resolveComparisons(process.env)[0];
+if (!SAMPLE_COMPARISON) throw new Error('no comparison configured');
+const CHALLENGER: AnswerVariant = SAMPLE_COMPARISON.challenger;
+const BASELINE: AnswerVariant = SAMPLE_COMPARISON.baseline;
 
 function findLatest(prefix: string, suffix: string): string | null {
   const matches = readdirSync(HERE)
@@ -74,7 +84,7 @@ function citationLines(citations: readonly { title: string; url: string | null }
 
 interface SampleKey {
   date: string;
-  comparisonId: 'filter-vs-today';
+  comparisonId: string;
   mapping: Record<string, AbMapping>;
 }
 
@@ -138,7 +148,7 @@ function runSample(answersPath: string): void {
 
   const mdPath = join(HERE, `blind-sample-${date}.md`);
   const keyPath = join(HERE, `blind-sample-${date}.key.json`);
-  const key: SampleKey = { date, comparisonId: 'filter-vs-today', mapping };
+  const key: SampleKey = { date, comparisonId: SAMPLE_COMPARISON.id, mapping };
 
   writeFileSync(mdPath, lines.join('\n'));
   writeFileSync(keyPath, `${JSON.stringify(key, null, 2)}\n`);
@@ -192,7 +202,7 @@ function runScore(filledPath: string): void {
   const key = JSON.parse(readFileSync(keyPath, 'utf8')) as SampleKey;
   const judgments = JSON.parse(readFileSync(judgmentsPath, 'utf8')) as JudgmentRecord[];
   const judgmentByCase = new Map(
-    judgments.filter((j) => j.comparisonId === 'filter-vs-today').map((j) => [j.caseId, j])
+    judgments.filter((j) => j.comparisonId === key.comparisonId).map((j) => [j.caseId, j])
   );
 
   const humanWinners = parseFilledSample(
