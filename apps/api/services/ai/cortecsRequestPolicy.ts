@@ -195,8 +195,10 @@ export const cortecsFetchWithPolicy: typeof fetch = async (input, init) => {
   if (init?.body && typeof init.body === 'string') {
     try {
       const parsed = JSON.parse(init.body) as Record<string, unknown>;
-      if (typeof parsed.model === 'string' && parsed.messages) {
-        if (REASONING_OFF_MODELS.has(parsed.model)) {
+      // Chat-Anfragen tragen `messages`, Embeddings-Anfragen `input` — die
+      // Weisung gilt für beide. Der Denk-Pin bleibt eine Chat-Angelegenheit.
+      if (typeof parsed.model === 'string' && (parsed.messages || parsed.input)) {
+        if (parsed.messages && REASONING_OFF_MODELS.has(parsed.model)) {
           parsed.reasoning_effort = 'none';
         }
         // Die dokumentierte Weisung nach DPA 2.11. `eu_native` und
