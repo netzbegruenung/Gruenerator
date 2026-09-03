@@ -131,6 +131,8 @@ export interface SourceResult {
   deadLinkMessages: string[];
   /** Total vectors created */
   totalVectors: number;
+  /** Why documents were skipped, summed over all content paths (see ContentPathResult.skipReasons). */
+  skipReasons: Record<string, number>;
   /** Results by content type */
   contentTypes: Record<string, ContentPathResult>;
   /** Metadata of newly stored articles (for notifications) */
@@ -183,6 +185,8 @@ export interface LandesverbandFullResult {
   deadLinkMessages: string[];
   /** Total vectors created */
   totalVectors: number;
+  /** Why documents were skipped, summed over all sources. */
+  skipReasons: Record<string, number>;
   /** Results by source ID */
   bySource: Record<string, SourceResult>;
   /** Duration in seconds */

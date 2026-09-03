@@ -54,6 +54,7 @@ import {
   addDeadLinkSamples,
   addErrorSamples,
   foldDeadLinksIfNothingWorked,
+  mergeSkipReasons,
 } from './resultSamples.js';
 
 import type {
@@ -726,6 +727,7 @@ export class LandesverbandScraper extends BaseScraper {
       deadLinks: 0,
       deadLinkMessages: [],
       totalVectors: 0,
+      skipReasons: {},
       contentTypes: {},
       newArticles: [],
     };
@@ -744,6 +746,7 @@ export class LandesverbandScraper extends BaseScraper {
       result.deadLinks += pathResult.deadLinks;
       addDeadLinkSamples(result, ...pathResult.deadLinkMessages);
       result.totalVectors += pathResult.totalVectors;
+      mergeSkipReasons(result, pathResult.skipReasons);
       // Accumulate into the per-type bucket: a source can have several paths of the
       // same content type (e.g. multiple `beschluss` PDF archives + Wolke shares),
       // so overwriting would report only the last path's counts for that type.
@@ -758,9 +761,7 @@ export class LandesverbandScraper extends BaseScraper {
         addDeadLinkSamples(existing, ...pathResult.deadLinkMessages);
         existing.totalVectors += pathResult.totalVectors;
         existing.newArticles.push(...pathResult.newArticles);
-        for (const [reason, count] of Object.entries(pathResult.skipReasons)) {
-          existing.skipReasons[reason] = (existing.skipReasons[reason] || 0) + count;
-        }
+        mergeSkipReasons(existing, pathResult.skipReasons);
       } else {
         result.contentTypes[contentPath.type] = pathResult;
       }
@@ -851,6 +852,7 @@ export class LandesverbandScraper extends BaseScraper {
       deadLinks: 0,
       deadLinkMessages: [],
       totalVectors: 0,
+      skipReasons: {},
       bySource: {},
       duration: 0,
     };
@@ -901,6 +903,7 @@ export class LandesverbandScraper extends BaseScraper {
         totalResult.deadLinks += outcome.result.deadLinks;
         addDeadLinkSamples(totalResult, ...outcome.result.deadLinkMessages);
         totalResult.totalVectors += outcome.result.totalVectors;
+        mergeSkipReasons(totalResult, outcome.result.skipReasons);
         totalResult.bySource[outcome.sourceId] = outcome.result;
       } else {
         totalResult.errors++;

@@ -22,6 +22,20 @@ export function addErrorSamples(target: { errorMessages: string[] }, ...messages
   }
 }
 
+/**
+ * Skip reasons are counts, not samples: they are summed unchanged from content
+ * path to source to the full result, so the report can say how many of the
+ * `skipped` were `too_old` versus `unchanged` — the split #3200 could not see.
+ */
+export function mergeSkipReasons(
+  target: { skipReasons: Record<string, number> },
+  from: Record<string, number>
+): void {
+  for (const [reason, count] of Object.entries(from)) {
+    target.skipReasons[reason] = (target.skipReasons[reason] || 0) + count;
+  }
+}
+
 export function addDeadLinkSamples(
   target: { deadLinkMessages: string[] },
   ...messages: string[]
