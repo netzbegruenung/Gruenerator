@@ -2,7 +2,7 @@
  * Answer generator for the reranker answer-eval — runs the 34 cases from
  * `answerCases.ts` through the PRODUCTION notebook stream
  * (`handleNotebookStream`), once per variant in `VARIANT_RERANK`
- * (`none`/`today`/`filter`), and records the answer each variant produced.
+ * (`none`/`today`/`cut`/`filter`), and records the answer each variant produced.
  *
  *   pnpm --filter @gruenerator/api eval:answer:generate
  *
@@ -32,7 +32,7 @@
  * `evidenceTop` (the dense pre-rerank ceiling) never crosses the SSE
  * boundary — notebookStreamCore.ts computes it but deliberately keeps the
  * number off the wire (only a weak/ok warning may fire). It is the same value
- * for all three variants of a case (rerank runs AFTER `getSearchContext`), so
+ * for all variants of a case (rerank or cut both run AFTER `getSearchContext`), so
  * it is fetched once per case via a direct `getSearchContext` call that
  * mirrors `runNotebookCase`'s query construction, and reused across variants.
  */
@@ -283,7 +283,7 @@ async function main(): Promise<void> {
 
   const work: WorkItem[] = [];
   for (const c of runnable) {
-    // Randomised per case so three variants of the SAME case never line up
+    // Randomised per case so the variants of the SAME case never line up
     // with the same clock position across the whole run.
     const order = shuffleVariants(Math.random);
     for (const variant of order) {
