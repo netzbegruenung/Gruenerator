@@ -40,7 +40,7 @@ export const ttsVoiceIdSchema = z.enum([
 ]);
 export type TtsVoiceId = z.infer<typeof ttsVoiceIdSchema>;
 /** What every synthesis uses when the profile names no voice. */
-export const DEFAULT_TTS_VOICE_ID: TtsVoiceId = '1930';
+export const DEFAULT_TTS_VOICE_ID: TtsVoiceId = '1885';
 
 export const tusTranscribeBodySchema = z.object({
   uploadId: z.string().min(1),
