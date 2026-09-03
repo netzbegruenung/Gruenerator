@@ -9,6 +9,12 @@ describe('stripForSpeech', () => {
     );
   });
 
+  it('keeps the line break when a citation opens the next line', () => {
+    expect(stripForSpeech('Erste Zeile.\n[1] Zweite Zeile [cite:2]\nDritte Zeile.')).toBe(
+      'Erste Zeile.\nZweite Zeile\nDritte Zeile.'
+    );
+  });
+
   it('keeps numbers that are not citations', () => {
     expect(stripForSpeech('Seit 2026 sind es 3 Millionen und 1.250.000 €.')).toBe(
       'Seit 2026 sind es 3 Millionen und 1.250.000 €.'
