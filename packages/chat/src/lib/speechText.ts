@@ -11,7 +11,9 @@
 const CITATION_RE = /[ \t]*\[(?:cite:)?\d+(?:\s*,\s*\d+)*\]/g;
 /** A comma that only separated citations, left dangling before the full stop. */
 const ORPHAN_COMMA_RE = /(?:[ \t]*,)+(?=[ \t]*[.!?;:])/g;
-const LINK_RE = /\[([^\]]+)\]\([^)]*\)/g;
+// Neither class may contain the bracket that closes it, or a run of "[" makes
+// the engine backtrack quadratically (CodeQL: polynomial regex on model text).
+const LINK_RE = /\[([^[\]]+)\]\([^()]*\)/g;
 const LIST_MARKER_RE = /^[ \t]*(?:[-*+]|\d+\.)[ \t]+/gm;
 const DECORATION_RE = /[#*_`~>|]/g;
 
