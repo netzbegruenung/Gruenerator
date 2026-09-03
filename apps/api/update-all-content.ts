@@ -127,21 +127,31 @@ interface SourceGroup {
  * and notified nobody — that is how Saarland produced zero documents unnoticed.
  *
  * Unlike the gruenblog / gruene-at / böll scrapers, this one reports a single
- * undifferentiated `errors` count with no `skipReasons`, so there is nothing to
- * split. `fetchErrors: 0` says exactly that instead of guessing.
+ * undifferentiated `errors` count; its `skipReasons` count skips (`too_old`,
+ * `unchanged`, …), not failures, so there is nothing to split. `fetchErrors: 0`
+ * says exactly that instead of guessing.
  */
 function reportLandesverbandResult(result: {
   stored: number;
   updated: number;
   skipped: number;
   errors: number;
-}): { stored: number; updated: number; skipped: number; fetchErrors: number; errors: number } {
+  skipReasons: Record<string, number>;
+}): {
+  stored: number;
+  updated: number;
+  skipped: number;
+  fetchErrors: number;
+  errors: number;
+  skipReasons: Record<string, number>;
+} {
   return {
     stored: result.stored,
     updated: result.updated,
     skipped: result.skipped,
     fetchErrors: 0,
     errors: result.errors,
+    skipReasons: result.skipReasons,
   };
 }
 
