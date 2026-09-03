@@ -19,6 +19,7 @@ import {
   buildDraftPromptGeneral,
   buildFastModePrompt,
 } from '../../agents/langgraph/prompts.js';
+import { env } from '../../config/env.js';
 import {
   applyDepthProfile,
   getNotebookDepthProfile,
@@ -638,6 +639,7 @@ export class NotebookQAService {
     const sortedResults = selectAcrossQueryGroups(resultsByGroup, {
       threshold: profile.threshold,
       limit: profile.sortLimit.multi,
+      maxPerDocument: env.NOTEBOOK_MAX_CHUNKS_PER_DOC,
     });
 
     if (sortedResults.length === 0) {
@@ -780,6 +782,7 @@ export class NotebookQAService {
       threshold: profile.threshold,
       limit: profile.sortLimit.single,
       allowCreatedAt: !isSystem,
+      maxPerDocument: env.NOTEBOOK_MAX_CHUNKS_PER_DOC,
     });
 
     if (sortedResults.length === 0) {

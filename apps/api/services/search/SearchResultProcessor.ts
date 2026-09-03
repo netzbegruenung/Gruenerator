@@ -445,15 +445,46 @@ export function filterAndSortResults(
   results: ExpandedChunkResult[],
   options: FilterOptions = {}
 ): ExpandedChunkResult[] {
-  const { threshold = 0.35, limit = 40, now = new Date(), allowCreatedAt } = options;
+  const {
+    threshold = 0.35,
+    limit = 40,
+    now = new Date(),
+    allowCreatedAt,
+    maxPerDocument,
+  } = options;
 
   const effective = (r: ExpandedChunkResult): number =>
     r.similarity + recencyBoost(resolveSourceDate(r, { allowCreatedAt }), now);
 
-  return results
+  const sorted = results
     .filter((r) => (r.dense_similarity ?? r.similarity) >= threshold)
-    .sort((a, b) => effective(b) - effective(a))
-    .slice(0, limit);
+    .sort((a, b) => effective(b) - effective(a));
+
+  const capped = maxPerDocument ? capChunksPerDocument(sorted, maxPerDocument) : sorted;
+
+  return capped.slice(0, limit);
+}
+
+/**
+ * Hält je `document_id` höchstens `maxPerDocument` Treffer — Reihenfolge ist
+ * bereits nach Score sortiert, "zuerst" heisst also "bester". Ergebnisse ohne
+ * `document_id` (leerer String, z. B. Web-Quellen ohne Dokumentbezug) werden
+ * nie gedeckelt, es gibt dort kein Dokument, über das zu verteilen wäre.
+ * `counts` ist injizierbar, damit `selectAcrossQueryGroups` denselben Zähler
+ * über mehrere Gruppen hinweg weiterführen kann.
+ */
+function capChunksPerDocument(
+  results: ExpandedChunkResult[],
+  maxPerDocument: number,
+  counts: Map<string, number> = new Map()
+): ExpandedChunkResult[] {
+  return results.filter((r) => {
+    if (!r.document_id) return true;
+    const count = counts.get(r.document_id) ?? 0;
+    if (count >= maxPerDocument) return false;
+    counts.set(r.document_id, count + 1);
+    return true;
+  });
 }
 
 /**
@@ -484,11 +515,17 @@ export function selectAcrossQueryGroups(
     return filterAndSortResults(nonEmpty[0] ?? [], options);
   }
 
-  const { limit = 40, ...rest } = options;
-  const ranked = nonEmpty.map((g) => filterAndSortResults(g, { ...rest, limit: Infinity }));
+  const { limit = 40, maxPerDocument, ...rest } = options;
+  const ranked = nonEmpty.map((g) =>
+    filterAndSortResults(g, { ...rest, maxPerDocument, limit: Infinity })
+  );
 
   const selected: ExpandedChunkResult[] = [];
   const seen = new Set<string>();
+  // Per-Gruppe deckelt filterAndSortResults oben bereits, aber ein Dokument
+  // kann in ZWEI Gruppen vorne liegen — dieser zweite Zähler deckelt die
+  // gemergte Auswahl, den Fall, den der Gruppen-Deckel allein nicht sieht.
+  const docCounts = new Map<string, number>();
   const cursors = ranked.map(() => 0);
 
   let progressed = true;
@@ -504,7 +541,14 @@ export function selectAcrossQueryGroups(
         // Same identity as deduplicateResults — skip what another group took.
         const key = `${candidate.collection_id ?? ''}:${candidate.document_id}:${candidate.chunk_index}`;
         if (seen.has(key)) continue;
+        if (maxPerDocument && candidate.document_id) {
+          const docCount = docCounts.get(candidate.document_id) ?? 0;
+          if (docCount >= maxPerDocument) continue;
+        }
         seen.add(key);
+        if (candidate.document_id) {
+          docCounts.set(candidate.document_id, (docCounts.get(candidate.document_id) ?? 0) + 1);
+        }
         selected.push(candidate);
         progressed = true;
         break;
