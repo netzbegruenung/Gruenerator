@@ -39,7 +39,11 @@ interface ChunksResponse {
   chunks: ChunkData[];
 }
 
-const LABEL_CLS = 'text-[0.6875rem] font-bold uppercase tracking-[0.08em] text-foreground-muted';
+/** Header, body and footer share one gutter, so the left edge of every line —
+ *  label, quote, page note — stacks. 28px: wide enough that the quote card's
+ *  own inset does not read as a second, competing margin. */
+const GUTTER = 'px-7';
+const LABEL_CLS = 'text-xs font-bold uppercase tracking-[0.08em] text-foreground-muted';
 /** Literal classes — Tailwind scans source text, so a computed `w-${x}` yields
  *  no CSS at all. */
 const SKELETON_LINES = [
@@ -53,9 +57,10 @@ const SKELETON_LINES = [
   { id: 'h', width: 'w-4/5' },
 ];
 
-/** 17px/1.7 — the panel is a reading surface, not a metadata list. The 14px the
- *  rest of the chat chrome uses made a page of source text hard work. */
-const BODY_CLS = 'whitespace-pre-wrap text-[1.0625rem] leading-[1.7]';
+/** 17.5px/1.7 — the panel is a reading surface, not a metadata list. At the 14px
+ *  the rest of the chat chrome uses, a page of source text is work to get
+ *  through; the line height matters as much as the size. */
+const BODY_CLS = 'whitespace-pre-wrap text-[1.09375rem] leading-[1.7]';
 
 /** "PDF", "DOCX" — the left half of the origin chip. Falls back to the file
  *  extension, read from the last path segment only: a bare host would otherwise
@@ -101,8 +106,8 @@ function ContextRegion({
   if (chunks.length === 0) return null;
   return (
     <>
-      <p className={cn(LABEL_CLS, 'mb-sm')}>{label}</p>
-      <p className={cn(BODY_CLS, 'mb-lg', muted ? 'text-foreground-muted' : 'text-foreground')}>
+      <p className={cn(LABEL_CLS, 'mb-3.5')}>{label}</p>
+      <p className={cn(BODY_CLS, 'mb-5', muted ? 'text-foreground-muted' : 'text-foreground')}>
         {chunks.map((chunk) => chunk.text).join('\n\n')}
       </p>
     </>
@@ -189,12 +194,14 @@ function CitationPanelBody({ titleId }: { titleId: string }) {
 
   return (
     <>
-      <header className="flex shrink-0 flex-col gap-sm border-b border-border px-5 py-4">
+      <header
+        className={cn('flex shrink-0 flex-col gap-2.5 border-b border-border pb-4 pt-5', GUTTER)}
+      >
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2.5">
             <span
               aria-hidden="true"
-              className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary-600 text-xs font-bold text-white dark:bg-primary-500 dark:text-primary-950"
+              className="flex size-[1.625rem] shrink-0 items-center justify-center rounded-full bg-primary-600 text-sm font-bold text-white dark:bg-primary-500 dark:text-primary-950"
             >
               {source.citationId}
             </span>
@@ -236,9 +243,9 @@ function CitationPanelBody({ titleId }: { titleId: string }) {
           </div>
         </div>
         {(originLabel || positionLabel) && (
-          <div className="flex flex-wrap items-center gap-2 text-xs text-foreground-muted">
+          <div className="flex flex-wrap items-center gap-2 text-[0.84375rem] text-foreground-muted">
             {originLabel && (
-              <span className="rounded-md border border-border bg-background-alt px-2 py-0.5">
+              <span className="rounded-md border border-border bg-background-alt px-2.5 py-[3px]">
                 {originLabel}
               </span>
             )}
@@ -247,7 +254,9 @@ function CitationPanelBody({ titleId }: { titleId: string }) {
         )}
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+      {/* pb-10: the last line of a document should be scrollable clear of the
+          footer, not welded to it. */}
+      <div className={cn('min-h-0 flex-1 overflow-y-auto pb-10 pt-6', GUTTER)}>
         {chunksQuery.isLoading && (
           <div className="flex flex-col gap-3">
             {SKELETON_LINES.map((line) => (
@@ -271,9 +280,9 @@ function CitationPanelBody({ titleId }: { titleId: string }) {
 
             <div
               ref={citedRef}
-              className="mb-lg rounded-r-xl border-l-[3px] border-primary-500 bg-primary-50 px-5 py-4 dark:bg-primary-900/40"
+              className="mb-5 rounded-r-xl border-l-[3px] border-primary-500 bg-primary-50 px-[1.375rem] py-5 dark:bg-primary-900/40"
             >
-              <p className={cn(LABEL_CLS, 'mb-sm text-primary-700 dark:text-primary-300')}>
+              <p className={cn(LABEL_CLS, 'mb-3 text-primary-700 dark:text-primary-300')}>
                 Zitierte Passage
               </p>
               <p className={cn(BODY_CLS, 'text-foreground')}>
@@ -294,8 +303,13 @@ function CitationPanelBody({ titleId }: { titleId: string }) {
       </div>
 
       {sources.length > 1 && (
-        <footer className="flex shrink-0 items-center justify-between gap-3 border-t border-border px-5 py-3">
-          <span className="text-sm text-foreground-muted">
+        <footer
+          className={cn(
+            'flex shrink-0 items-center justify-between gap-3 border-t border-border py-3.5',
+            GUTTER
+          )}
+        >
+          <span className="text-[0.84375rem] text-foreground-muted">
             Zitat {activeIndex + 1} von {sources.length}
           </span>
           <div className="flex gap-2">
@@ -360,7 +374,7 @@ export const CitationSidePanel = memo(function CitationSidePanel({
         <SheetContent
           side="right"
           showCloseButton={false}
-          className="flex w-full flex-col gap-0 p-0 sm:max-w-[34rem]"
+          className="flex w-full flex-col gap-0 p-0 sm:max-w-[35rem]"
         >
           <SheetTitle className="sr-only">Quelle im Dokument</SheetTitle>
           <SheetDescription className="sr-only">
@@ -375,7 +389,9 @@ export const CitationSidePanel = memo(function CitationSidePanel({
   return (
     <aside
       aria-labelledby={titleId}
-      className="flex w-[clamp(24rem,38%,34rem)] shrink-0 flex-col border-l border-border bg-background-alt motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-right-3 motion-safe:duration-300"
+      /* 440–680px, ideally ~42% of the row: below 440 the quote card's inset
+         eats the measure, above 680 the line gets too long to track. */
+      className="flex w-[clamp(27.5rem,42%,42.5rem)] shrink-0 flex-col border-l border-border bg-background-alt motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-right-3 motion-safe:duration-300"
     >
       <CitationPanelBody titleId={titleId} />
     </aside>
