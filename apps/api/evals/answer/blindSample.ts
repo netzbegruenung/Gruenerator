@@ -1,6 +1,7 @@
 /**
  * Human sanity check against the model judge — a small blind sample of
- * `filter vs today` pairs a person scores by eye, then compared against
+ * challenger-vs-baseline pairs (the first configured comparison, default
+ * `cut vs today`) a person scores by eye, then compared against
  * `judgeAnswers.ts`'s verdict on the SAME pairs.
  *
  * No dotenv, no service imports, no model calls — this reads and writes the
@@ -10,7 +11,7 @@
  * Sample mode (default):
  *   pnpm --filter @gruenerator/api eval:answer:sample [answers-file.json]
  *
- *   Writes `blind-sample-<date>.md` — 10 `filter vs today` pairs, random A/B,
+ *   Writes `blind-sample-<date>.md` — 10 pairs of the configured comparison, random A/B,
  *   a blank `winner:` line per case for a human to fill in (A, B, or tie) —
  *   and `blind-sample-<date>.key.json`, the A/B↔variant mapping, NOT printed
  *   in the `.md`.
