@@ -22,7 +22,7 @@ import { type MouseEvent, useCallback, useState, useSyncExternalStore } from 're
 import { useChatNavigation } from '../../context/ChatNavigationContext';
 import { useExternalThread } from '../../context/ExternalThreadContext';
 import { adoptAuiAction, auiPromise } from '../../lib/auiAsync';
-import { buildThreadPath } from '../../lib/threadPath';
+import { buildThreadPath, pathNamesThread } from '../../lib/threadPath';
 import { cn } from '../../lib/utils';
 import { getThreadTags, subscribeThreadTags } from '../../runtime/GrueneratorThreadListAdapter';
 import { useAgentStore } from '../../stores/chatStore';
@@ -53,10 +53,8 @@ function useSafeThreadAction(action: 'delete' | 'archive' | 'unarchive') {
         // Parking on a new thread first bumps the switch generation, so the
         // in-flight switch dies at its generation check instead.
         if (action === 'delete') {
-          const item = aui.threadListItem.getState();
-          const remoteId = item.remoteId ?? null;
-          const threadPath = remoteId ? buildThreadPath(remoteId, item.title ?? null) : null;
-          if (remoteId && threadPath && nav?.activePath === threadPath) {
+          const remoteId = aui.threadListItem.getState().remoteId ?? null;
+          if (remoteId && pathNamesThread(nav?.activePath, remoteId)) {
             await auiPromise(aui.threads.switchToNewThread()).catch((err) => {
               console.warn('[ThreadList] Could not start a new thread before delete:', err);
             });
