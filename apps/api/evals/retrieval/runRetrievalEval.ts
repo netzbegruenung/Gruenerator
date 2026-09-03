@@ -68,6 +68,20 @@
  *                    über NotebookQAService bzw. executeDirectSearch, die diese
  *                    Naht nicht führen — ein Lauf dort MISST die Produktion und
  *                    sähe wie ein Kandidatenergebnis aus, deshalb bricht er ab.
+ *   EVAL_BM25_CANDIDATE  Slug aus `bm25Candidates.ts` — misst denselben Lauf
+ *                    gegen eine Wegwerf-Sammlung, deren BM25-Sparse-Vektoren mit
+ *                    einem anderen Wortstamm-Bildner gebaut wurden
+ *                    (`eval:retrieval:bm25:build`). Zwei Dinge ändern sich:
+ *                    die durchsuchte Sammlung (`eval_bm25_<slug>__<quelle>`)
+ *                    und der Anfrage-Vektor, der als `options.sparseQueryVector`
+ *                    am Encoder vorbei an `hybridSearchServerSide` geht. Beide
+ *                    MÜSSEN denselben Stemmer tragen — deshalb kommen sie aus
+ *                    derselben Weiche (`resolveTarget`). Nur EVAL_PIPELINE=qa
+ *                    und =manual, aus demselben Grund wie oben, und nie
+ *                    zusammen mit EVAL_EMBED_CANDIDATE. Sinnvoll nur mit
+ *                    HYBRID_SERVER_FUSION=sparse_only: jede andere Fusion mischt
+ *                    die dichte Lane dazu und verdünnt den Unterschied, den der
+ *                    Lauf messen soll.
  *   EVAL_VERBOSE=1   print top-5 titles for every miss (gold-label curation)
  *   EVAL_OUT         write per-case results as JSON to this path
  *   EVAL_CHAT_EXPAND=1  nur für EVAL_PIPELINE=chat-notebook: hängt EINE
@@ -146,12 +160,16 @@ const { expandQuery } = await import('../../services/search/QueryExpansionServic
 
 const { RETRIEVAL_CASES } = await import('./cases.js');
 const { resolveEvalCandidate, resolveEvalTarget } = await import('./embedCandidates.js');
+const { encodeCandidateQuery, resolveBm25Candidate, resolveBm25Target } =
+  await import('./bm25Candidates.js');
 const { createCandidateEmbedder } = await import('./candidateEmbedder.js');
 
 import { type RetrievalCase } from './cases.js';
 
+import type { Bm25Candidate } from './bm25Candidates.js';
 import type { CandidateEmbedder } from './candidateEmbedder.js';
 import type { DocumentResult } from '../../services/BaseSearchService/types.js';
+import type { SparseVector } from '../../services/text/index.js';
 import type { NotebookDepth } from '@gruenerator/contracts';
 import type { ModelMessage } from 'ai';
 
@@ -206,6 +224,38 @@ const HIT_KS = [1, 3, 5] as const;
  * findSimilarChunks/findHybridChunks).
  */
 const EVAL_EMBED_USER_ID = 'evalembedrunner';
+
+/**
+ * Die Sammlung dieses Laufs und, falls ein Stemmer-Kandidat gesetzt ist, sein
+ * Anfrage-Vektor.
+ *
+ * Beide Kandidaten-Weichen zeigen auf eine Wegwerf-Sammlung, aber es gibt
+ * keine, die BEIDE Umbauten trägt — `main()` bricht deshalb ab, wenn beide
+ * Variablen gesetzt sind. Hier wird nur noch entschieden, welche greift.
+ *
+ * Der Anfrage-Vektor MUSS aus demselben Stemmer stammen wie die Sammlung: ein
+ * CISTEM-Vektor gegen eine Snowball-Sammlung trifft still fast nichts und
+ * sähe im Bericht wie ein vernichtender Stemmer-Befund aus.
+ */
+function resolveTarget(
+  qdrantCollection: string,
+  query: string
+): { collection: string; isCandidate: boolean; sparseQueryVector: SparseVector | null } {
+  const bm25 = resolveBm25Target(process.env, qdrantCollection);
+  if (bm25.candidate) {
+    return {
+      collection: bm25.collection,
+      isCandidate: true,
+      sparseQueryVector: encodeCandidateQuery(query, bm25.candidate),
+    };
+  }
+  const embed = resolveEvalTarget(process.env, qdrantCollection);
+  return {
+    collection: embed.collection,
+    isCandidate: embed.candidate !== null,
+    sparseQueryVector: null,
+  };
+}
 
 // Request defaults of the manual search field, as the web client sends them.
 const MANUAL_VECTOR_WEIGHT = 0.7;
@@ -294,7 +344,7 @@ async function runCase(
   const searchParams = applyDepthProfile(getSearchParams(evalCase.collection), profile);
   const additionalFilter = applyDefaultFilter(evalCase.collection, undefined);
   const effectiveLimit = loopShaped ? loopShapedLimit(searchParams.limit) : searchParams.limit;
-  const target = resolveEvalTarget(process.env, config.qdrantCollection);
+  const target = resolveTarget(config.qdrantCollection, evalCase.query);
 
   try {
     const queryVector = embedder ? await embedder.embedQuery(evalCase.query) : null;
@@ -305,7 +355,7 @@ async function runCase(
       // `validateSearchParams` `userId: undefined` dort nicht durch. Der
       // Platzhalter filtert nichts: der user_id-Filter greift nur für die
       // Sammlung `documents` (searchOperations.ts).
-      userId: target.candidate ? EVAL_EMBED_USER_ID : undefined,
+      userId: target.isCandidate ? EVAL_EMBED_USER_ID : undefined,
       options: {
         limit: effectiveLimit,
         mode: searchParams.mode,
@@ -318,6 +368,7 @@ async function runCase(
         additionalFilter,
         ...(withChunkRerank && { rerankChunks: true }),
         ...(queryVector && { queryVector }),
+        ...(target.sparseQueryVector && { sparseQueryVector: target.sparseQueryVector }),
       },
     } as Parameters<DocumentSearchService['search']>[0]);
     const searchTimeMs = Date.now() - searchStartedAt;
@@ -404,13 +455,13 @@ async function runManualCase(
 
   const searchParams = getSearchParams(evalCase.collection);
   const additionalFilter = applyDefaultFilter(evalCase.collection, undefined);
-  const target = resolveEvalTarget(process.env, config.qdrantCollection);
+  const target = resolveTarget(config.qdrantCollection, evalCase.query);
 
   try {
     const queryVector = embedder ? await embedder.embedQuery(evalCase.query) : null;
     const resp = await searchService.search({
       query: evalCase.query,
-      userId: target.candidate ? EVAL_EMBED_USER_ID : undefined,
+      userId: target.isCandidate ? EVAL_EMBED_USER_ID : undefined,
       options: {
         limit: searchParams.limit,
         mode: 'hybrid',
@@ -422,6 +473,7 @@ async function runManualCase(
         qualityMin: searchParams.qualityMin,
         additionalFilter,
         ...(queryVector && { queryVector }),
+        ...(target.sparseQueryVector && { sparseQueryVector: target.sparseQueryVector }),
       },
     } as Parameters<DocumentSearchService['search']>[0]);
 
@@ -733,6 +785,28 @@ async function main() {
     process.exit(1);
   }
   const embedder = embedCandidate ? createCandidateEmbedder(embedCandidate) : null;
+
+  // Dieselbe Schranke für den Stemmer-Vergleich (#3188): nur die beiden
+  // Pipelines führen die `sparseQueryVector`-Naht, alle anderen würden gegen
+  // eine Snowball-Sammlung mit CISTEM-Anfragen suchen und fast nichts finden.
+  const bm25Candidate: Bm25Candidate | null = resolveBm25Candidate(process.env);
+  if (bm25Candidate && pipeline !== 'qa' && pipeline !== 'manual') {
+    console.error(
+      `EVAL_BM25_CANDIDATE is only supported for EVAL_PIPELINE=qa and =manual. ` +
+        `"${pipeline}" searches through NotebookQAService / executeDirectSearch, which do not ` +
+        `carry the sparseQueryVector seam — the run would query a Snowball collection with ` +
+        `CISTEM terms and report the empty result as a stemmer finding.`
+    );
+    process.exit(1);
+  }
+  // Es gibt keine Sammlung, die beide Umbauten trägt.
+  if (bm25Candidate && embedCandidate) {
+    console.error(
+      'EVAL_BM25_CANDIDATE and EVAL_EMBED_CANDIDATE cannot be combined: no throwaway ' +
+        'collection carries both a re-embedded dense vector and a re-stemmed sparse one.'
+    );
+    process.exit(1);
+  }
 
   // Each pipeline runs its own cases by default: keyword lookups say nothing
   // about the Q&A path, and questions say nothing about the search field.
