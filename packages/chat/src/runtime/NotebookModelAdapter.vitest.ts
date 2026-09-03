@@ -11,9 +11,8 @@
  * nicht gegen eine Attrappe des Adapters: die Zeile, um die es geht, sitzt im
  * Parser-Schalter, und ein Test, der ihn umgeht, sichert nichts zu.
  */
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-
 import { type ChatModelRunResult } from '@assistant-ui/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const notifyWarning = vi.fn<(...args: unknown[]) => void>();
 vi.mock('../lib/notify', () => ({
