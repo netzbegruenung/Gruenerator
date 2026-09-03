@@ -15,9 +15,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { type ChatModelRunResult } from '@assistant-ui/react';
 
-const notifyWarning = vi.fn();
+const notifyWarning = vi.fn<(...args: unknown[]) => void>();
 vi.mock('../lib/notify', () => ({
-  notifyWarning: (...args: unknown[]) => notifyWarning(...args),
+  notifyWarning: (...args: unknown[]) => {
+    notifyWarning(...args);
+  },
   notifyError: vi.fn(),
 }));
 
