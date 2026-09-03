@@ -302,18 +302,21 @@ describe('ChunkInspectorView — Suchfeld', () => {
 });
 
 /**
- * Für gescrapte Sammlungen IST die documentId die Quell-URL. ts-rests
- * insertParamsIntoPath ersetzt Pfadparameter unkodiert (blanker
- * String-Replace) — die Hülle muss selbst kodieren, sonst zerfällt der Pfad
- * in Segmente und die Route matcht nie (Prod-404 vom 03.09.2026).
+ * Für gescrapte Sammlungen IST die documentId die Quell-URL — und eine URL
+ * überlebt den PFAD nicht: der Reverse-Proxy dekodiert %2F und merged
+ * Slashes, bevor Express routet (beta, 03.09.2026). URL-förmige IDs reisen
+ * deshalb im Query-String; der Pfadparameter trägt den Platzhalter '-'.
  */
 describe('ChunkInspectorView — URL-förmige Dokument-IDs', () => {
-  it('kodiert die documentId als ein Pfadsegment', async () => {
+  it('transportiert die documentId im Query-String, Pfad trägt den Platzhalter', async () => {
     const urlId = 'https://kommunalwiki.boell.de/index.php/Zusammenarbeit_im_Team';
     let requestedPath: string | null = null;
+    let requestedDocumentId: string | null = null;
     server.use(
       http.get('http://localhost/api/auth/admin/chunk-inspector/*', ({ request }) => {
-        requestedPath = new URL(request.url).pathname;
+        const url = new URL(request.url);
+        requestedPath = url.pathname;
+        requestedDocumentId = url.searchParams.get('documentId');
         return HttpResponse.json({
           success: true,
           header: header({
@@ -332,6 +335,7 @@ describe('ChunkInspectorView — URL-förmige Dokument-IDs', () => {
     renderWithProviders(<ChunkInspectorView documentId={urlId} collection="kommunalwiki-system" />);
 
     expect(await screen.findByText(/Chunk 0 Text/)).toBeInTheDocument();
-    expect(requestedPath).toBe(`/api/auth/admin/chunk-inspector/${encodeURIComponent(urlId)}`);
+    expect(requestedPath).toBe('/api/auth/admin/chunk-inspector/-');
+    expect(requestedDocumentId).toBe(urlId);
   });
 });
