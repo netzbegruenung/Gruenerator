@@ -10,7 +10,7 @@
  * judge), together with their citation lists and a German rubric. The judge
  * never sees which variant produced which side.
  *
- * The judge is `aiObject` pinned to `{ provider: 'regolo', model: 'gemma4-31b' }`
+ * The judge is `aiObject` pinned to `{ provider: 'cortecs', model: 'gemma-4-26b-a4b-it' }` (small, 4B active)
  * (`AiCall.pinned` in `services/ai/generate.ts`) — a different model family
  * than the answers (Mistral Medium), so it cannot prefer its own prose —
  * a fixed target rather than the routing table, so the judge's own answer
@@ -126,7 +126,7 @@ async function judgeOne(
 ): Promise<JudgeResult | null> {
   const result = await aiObject({
     lane: 'notebook_answer_eval_judge',
-    pinned: { provider: 'regolo', model: 'gemma4-31b' },
+    pinned: { provider: 'cortecs', model: 'gemma-4-26b-a4b-it' },
     system: JUDGE_SYSTEM,
     prompt: buildJudgePrompt(question, a, b),
     temperature: 0.1,
