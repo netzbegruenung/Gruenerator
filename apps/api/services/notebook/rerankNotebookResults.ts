@@ -20,6 +20,8 @@ export interface RerankOptions {
   question: string;
   limit?: number;
   inputLimit?: number;
+  mode?: 'sort' | 'filter';
+  instruct?: string;
 }
 
 export interface RerankResult {
@@ -35,6 +37,8 @@ export async function rerankNotebookResults({
   question,
   limit = 10,
   inputLimit = 20,
+  mode,
+  instruct,
 }: RerankOptions): Promise<RerankResult> {
   const startTime = Date.now();
 
@@ -75,6 +79,8 @@ export async function rerankNotebookResults({
     minRelevance: 0.05,
     minKeep: Math.min(5, candidates.length),
     applyDiversity: true,
+    ...(mode ? { mode } : {}),
+    ...(instruct ? { instruct } : {}),
   });
 
   // Die Quellenkarte zeigt „x % Relevanz" — das ist `similarity_score` der
