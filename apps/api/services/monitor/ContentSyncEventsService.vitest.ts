@@ -94,4 +94,54 @@ describe('loadRecentLvArticles', () => {
     expect(urls).toEqual(['https://lv/a', 'https://lv/b']);
     expect(result.days.map((d) => d.date)).toEqual(['2026-09-01', '2026-08-20']);
   });
+
+  it('follows next_page_offset within one filtered scroll', async () => {
+    scroll
+      .mockResolvedValueOnce({
+        points: [
+          point({ chunk_index: 0, source_url: 'https://lv/p1', published_at: '2026-09-02' }),
+        ],
+        next_page_offset: 'page-2',
+      })
+      .mockResolvedValueOnce({
+        points: [
+          point({ chunk_index: 0, source_url: 'https://lv/p2', published_at: '2026-09-01' }),
+        ],
+        next_page_offset: null,
+      })
+      .mockResolvedValueOnce({ points: [], next_page_offset: null });
+
+    const result = await getWhatHappened({ days: 30 });
+
+    expect(scroll).toHaveBeenCalledTimes(3);
+    expect(scroll.mock.calls[0][1]).not.toHaveProperty('offset');
+    expect(scroll.mock.calls[1][1]).toMatchObject({ offset: 'page-2' });
+    // The second page carries the same filter as the first — still the published_at scroll.
+    expect(scroll.mock.calls[1][1]).toMatchObject({
+      filter: {
+        must: [
+          { key: 'chunk_index', match: { value: 0 } },
+          { key: 'published_at', range: { gte: '2026-08-05' } },
+        ],
+      },
+    });
+    const urls = result.days.flatMap((d) => d.articles.map((a) => a.sourceUrl));
+    expect(urls).toEqual(['https://lv/p1', 'https://lv/p2']);
+  });
+
+  it('returns an empty feed when the fallback scroll fails, dropping the first scroll too', async () => {
+    // The failure mode named in the PR: one Qdrant error empties the feed
+    // rather than showing a half-built one. Pinned so a change here is deliberate.
+    scroll
+      .mockResolvedValueOnce({
+        points: [point({ chunk_index: 0, source_url: 'https://lv/a', published_at: '2026-09-01' })],
+        next_page_offset: null,
+      })
+      .mockRejectedValueOnce(new Error('Bad Request'));
+
+    const result = await getWhatHappened({ days: 30 });
+
+    expect(scroll).toHaveBeenCalledTimes(2);
+    expect(result.days).toEqual([]);
+  });
 });

@@ -51,8 +51,11 @@ const FEED_WINDOW_DAYS = 30;
 /** Short-circuits the two filtered scrolls (one page each) — a convenience, not load-bearing. */
 const RECENT_CACHE_TTL_SECONDS = 15 * 60;
 const SCROLL_PAGE = 1000;
-/** Safety bound per collection (chunk_index=0 points = articles). Warns if hit. */
-const SCROLL_MAX_PER_COLLECTION = 40_000;
+/**
+ * Safety bound per scroll call (chunk_index=0 points = articles). Warns if hit.
+ * loadRecentLvArticles runs two scrolls, so its combined ceiling is twice this.
+ */
+const SCROLL_MAX_PER_SCROLL = 40_000;
 
 /**
  * All Landesverbände share one Qdrant collection, partitioned by the payload
@@ -257,7 +260,7 @@ function toCorpusArticle(payload: Record<string, unknown>): WhatHappenedArticle 
 
 /**
  * One filtered, paginated scroll over the LV corpus, returning the point
- * payloads. Bounded by SCROLL_MAX_PER_COLLECTION (warns if hit).
+ * payloads. Bounded by SCROLL_MAX_PER_SCROLL (warns if hit).
  */
 async function scrollLvPayloads(
   client: NonNullable<ReturnType<typeof getQdrantInstance>['client']>,
@@ -266,7 +269,7 @@ async function scrollLvPayloads(
   const payloads: Record<string, unknown>[] = [];
   let offset: string | number | null = null;
   let scanned = 0;
-  while (scanned < SCROLL_MAX_PER_COLLECTION) {
+  while (scanned < SCROLL_MAX_PER_SCROLL) {
     const result = await client.scroll(LV_COLLECTION, {
       filter: { must },
       limit: SCROLL_PAGE,
@@ -281,9 +284,9 @@ async function scrollLvPayloads(
     offset = typeof next === 'string' || typeof next === 'number' ? next : null;
     if (!offset || points.length === 0) break;
   }
-  if (scanned >= SCROLL_MAX_PER_COLLECTION) {
+  if (scanned >= SCROLL_MAX_PER_SCROLL) {
     log.warn(
-      `what-happened scan hit the ${SCROLL_MAX_PER_COLLECTION}-article cap; some recent LV articles may be omitted`
+      `what-happened scan hit the ${SCROLL_MAX_PER_SCROLL}-article cap; some recent LV articles may be omitted`
     );
   }
   return payloads;
