@@ -90,6 +90,12 @@ export interface NotebookStreamOptions {
   /** Shared SSE writer — if provided, used instead of creating one internally. */
   sse?: SSEWriter;
   /**
+   * `'off'` skips `rerankNotebookResults` entirely — results stay in the
+   * order `getSearchContext` returned. `'sort'`/`'filter'` and `instruct`
+   * pass through to `rerankNotebookResults`. Absent behaves like today.
+   */
+  rerank?: { mode?: 'off' | 'sort' | 'filter'; instruct?: string };
+  /**
    * When false, the function does NOT call `sse.end()` on success or error
    * paths — the caller is responsible for closing the stream after running
    * its own follow-up work (e.g. canvas-suggest tail step). Defaults to true.
@@ -286,20 +292,26 @@ export async function handleNotebookStream(
     // returns the original order rather than throwing — so a bigger window
     // cannot make a tier fail where a smaller one used to work.
     if (searchContext) {
-      const reranked = await rerankNotebookResults({
-        results: searchContext.sortedResults,
-        referencesMap: searchContext.referencesMap,
-        question: rerankQuery,
-        limit: profile.rerankOutput,
-        inputLimit: profile.rerankInput,
-      });
-      searchContext.sortedResults = reranked.results;
-      searchContext.referencesMap = reranked.referencesMap;
-      searchContext.contextSummary = reranked.contextSummary;
+      const rerankMode = options.rerank?.mode;
+      const rerankInstruct = options.rerank?.instruct;
+      if (rerankMode !== 'off') {
+        const reranked = await rerankNotebookResults({
+          results: searchContext.sortedResults,
+          referencesMap: searchContext.referencesMap,
+          question: rerankQuery,
+          limit: profile.rerankOutput,
+          inputLimit: profile.rerankInput,
+          ...(rerankMode ? { mode: rerankMode } : {}),
+          ...(rerankInstruct ? { instruct: rerankInstruct } : {}),
+        });
+        searchContext.sortedResults = reranked.results;
+        searchContext.referencesMap = reranked.referencesMap;
+        searchContext.contextSummary = reranked.contextSummary;
 
-      log.debug(
-        `⏱ Rerank (${depth}): ${reranked.rerankTimeMs}ms, ${searchContext.sortedResults.length} results kept`
-      );
+        log.debug(
+          `⏱ Rerank (${depth}): ${reranked.rerankTimeMs}ms, ${searchContext.sortedResults.length} results kept`
+        );
+      }
 
       // The concise prompt exists to shrink the answer to match a shrunken
       // context. The thorough tiers are asked for a thorough answer and keep
