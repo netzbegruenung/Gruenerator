@@ -20,6 +20,7 @@
     "eval:bgst:build": "cross-env NODE_OPTIONS=--conditions=development npx tsx evals/tools/buildBgstCorpus.ts && cross-env NODE_OPTIONS=--conditions=development npx tsx evals/tools/buildBgstKorpusCorpus.ts",
     "eval:retrieval": "cross-env NODE_OPTIONS=--conditions=development npx tsx evals/retrieval/runRetrievalEval.ts",
     "eval:retrieval:compare": "cross-env NODE_OPTIONS=--conditions=development npx tsx evals/retrieval/compareOutcomes.ts",
+    "eval:retrieval:embed:build": "cross-env NODE_OPTIONS=--conditions=development npx tsx scripts/build-eval-embed-collection.ts",
     "eval:retrieval:ann": "cross-env NODE_OPTIONS=--conditions=development npx tsx evals/retrieval/annRecallCheck.ts",
     "eval:retrieval:evidence": "cross-env NODE_OPTIONS=--conditions=development npx tsx evals/retrieval/evidenceSignalCheck.ts",
     "eval:manual:stages": "cross-env NODE_OPTIONS=--conditions=development npx tsx evals/retrieval/inspectManualStages.ts",
