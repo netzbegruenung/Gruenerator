@@ -21,8 +21,8 @@ import { type MouseEvent, useCallback, useState, useSyncExternalStore } from 're
 
 import { useChatNavigation } from '../../context/ChatNavigationContext';
 import { useExternalThread } from '../../context/ExternalThreadContext';
-import { adoptAuiAction } from '../../lib/auiAsync';
-import { buildThreadPath } from '../../lib/threadPath';
+import { adoptAuiAction, auiPromise } from '../../lib/auiAsync';
+import { buildThreadPath, pathNamesThread } from '../../lib/threadPath';
 import { cn } from '../../lib/utils';
 import { getThreadTags, subscribeThreadTags } from '../../runtime/GrueneratorThreadListAdapter';
 import { useAgentStore } from '../../stores/chatStore';
@@ -34,6 +34,7 @@ import { ShareThreadDialog } from './ShareThreadDialog';
 
 function useSafeThreadAction(action: 'delete' | 'archive' | 'unarchive') {
   const aui = useAui();
+  const nav = useChatNavigation();
   return useCallback(
     (e: MouseEvent) => {
       // The primitive's built-in call is fire-and-forget, so a rejection (the
@@ -41,11 +42,30 @@ function useSafeThreadAction(action: 'delete' | 'archive' | 'unarchive') {
       // rejection. Suppress it and re-issue with a catch — synchronously, see
       // adoptAuiAction for why the old microtask deferral was a bug.
       e.preventDefault();
-      adoptAuiAction(aui.threadListItem[action](), (err) => {
-        console.warn(`[ThreadList] ${action} failed (thread likely already removed):`, err);
-      });
+      void (async () => {
+        // A delete racing a switch that opens exactly this thread (the URL
+        // still names it) can leave the main thread pointing at the slot
+        // delete() just hid: for an archived thread the switch is suspended in
+        // `await unarchive(...)` — before it assigns the main thread — and the
+        // delete's "main is a different thread" check then skips its move. The
+        // switch would complete against the removed slot and every
+        // `item("main")` render throws `useClientLookup: key … not found`.
+        // Parking on a new thread first bumps the switch generation, so the
+        // in-flight switch dies at its generation check instead.
+        if (action === 'delete') {
+          const remoteId = aui.threadListItem.getState().remoteId ?? null;
+          if (remoteId && pathNamesThread(nav?.activePath, remoteId)) {
+            await auiPromise(aui.threads.switchToNewThread()).catch((err) => {
+              console.warn('[ThreadList] Could not start a new thread before delete:', err);
+            });
+          }
+        }
+        adoptAuiAction(aui.threadListItem[action](), (err) => {
+          console.warn(`[ThreadList] ${action} failed (thread likely already removed):`, err);
+        });
+      })();
     },
-    [aui, action]
+    [aui, action, nav]
   );
 }
 
