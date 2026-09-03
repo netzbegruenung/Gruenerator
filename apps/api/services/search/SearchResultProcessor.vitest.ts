@@ -289,12 +289,34 @@ describe('filterAndSortResults deckelt Chunks je Dokument', () => {
       chunk('b', 0.4, 2),
     ];
     const out = filterAndSortResults(results, { threshold: 0.35, maxPerDocument: 2 });
+    // Kopf vielfältig (je zwei), der Rest hängt nach Score dahinter.
     expect(out.map((r) => `${r.document_id}:${r.chunk_index}`)).toEqual([
       'a:0',
       'a:1',
       'b:0',
       'b:1',
+      'a:2',
+      'a:3',
+      'a:4',
+      'b:2',
     ]);
+  });
+
+  it('schneidet erst nach dem Auffüllen auf limit', () => {
+    const results = [
+      chunk('a', 0.9, 0),
+      chunk('a', 0.8, 1),
+      chunk('a', 0.7, 2),
+      chunk('b', 0.6, 0),
+    ];
+    const out = filterAndSortResults(results, { threshold: 0.35, maxPerDocument: 1, limit: 3 });
+    expect(out.map((r) => `${r.document_id}:${r.chunk_index}`)).toEqual(['a:0', 'b:0', 'a:1']);
+  });
+
+  it('lässt einem Notebook mit einem einzigen Dokument alle Chunks', () => {
+    const results = Array.from({ length: 5 }, (_, i) => chunk('only', 0.9 - i * 0.05, i));
+    const out = filterAndSortResults(results, { threshold: 0.35, maxPerDocument: 2 });
+    expect(out.map((r) => r.chunk_index)).toEqual([0, 1, 2, 3, 4]);
   });
 
   it('lässt die Liste bei cap 0 unverändert', () => {
@@ -321,7 +343,13 @@ describe('selectAcrossQueryGroups deckelt über die gemergte Auswahl', () => {
       threshold: 0.35,
       maxPerDocument: 1,
     });
-    expect(out.filter((r) => r.document_id === 'a')).toHaveLength(1);
+    // "a" steht genau einmal im Kopf; sein zweiter Chunk kommt nach c und d.
+    expect(out.map((r) => `${r.document_id}:${r.chunk_index}`)).toEqual([
+      'a:0',
+      'd:0',
+      'c:0',
+      'a:1',
+    ]);
   });
 });
 

@@ -141,14 +141,21 @@ describe('getSearchContext — NOTEBOOK_MAX_CHUNKS_PER_DOC reaches the selection
     expect(context?.sortedResults).toHaveLength(5);
   });
 
-  it('shrinks it once the env value is set', async () => {
+  it('pulls a second document forward once the env value is set', async () => {
     env.NOTEBOOK_MAX_CHUNKS_PER_DOC = 2;
-    search.mockResolvedValue({ results: Array.from({ length: 5 }, (_, i) => dupHit(i)) });
+    const other = { ...dupHit(9), document_id: 'doc-other', similarity_score: 0.8 };
+    search.mockResolvedValue({ results: [dupHit(0), dupHit(1), dupHit(2), other] });
     const context = await notebookQAService.getSearchContext({
       question: 'Was steht drin?',
       collectionId: 'grundsatz-system',
       depth: 'fast',
     });
-    expect(context?.sortedResults).toHaveLength(2);
+    // Kopf gedeckelt, Rest hinten angehängt — nichts geht verloren.
+    expect(context?.sortedResults.map((r) => r.document_id)).toEqual([
+      'doc-dup',
+      'doc-dup',
+      'doc-other',
+      'doc-dup',
+    ]);
   });
 });

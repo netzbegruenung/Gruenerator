@@ -466,8 +466,11 @@ export function filterAndSortResults(
 }
 
 /**
- * Hält je `document_id` höchstens `maxPerDocument` Treffer — Reihenfolge ist
- * bereits nach Score sortiert, "zuerst" heisst also "bester". Ergebnisse ohne
+ * Zieht je `document_id` höchstens `maxPerDocument` Treffer nach vorn — die
+ * Reihenfolge ist bereits nach Score sortiert, "zuerst" heisst also "bester" —
+ * und hängt die übrigen dahinter an, statt sie zu verwerfen: der Kopf der Liste
+ * wird vielfältig, der Kontext bleibt voll. Ein Notebook mit einem einzigen
+ * Dokument bekommt so weiterhin alle seine Chunks. Ergebnisse ohne
  * `document_id` (leerer String, z. B. Web-Quellen ohne Dokumentbezug) werden
  * nie gedeckelt, es gibt dort kein Dokument, über das zu verteilen wäre.
  * `selectAcrossQueryGroups` führt beim Mischen seinen eigenen Zähler, weil der
@@ -478,13 +481,18 @@ function capChunksPerDocument(
   maxPerDocument: number
 ): ExpandedChunkResult[] {
   const counts = new Map<string, number>();
-  return results.filter((r) => {
-    if (!r.document_id) return true;
-    const count = counts.get(r.document_id) ?? 0;
-    if (count >= maxPerDocument) return false;
-    counts.set(r.document_id, count + 1);
-    return true;
-  });
+  const head: ExpandedChunkResult[] = [];
+  const overflow: ExpandedChunkResult[] = [];
+  for (const r of results) {
+    const count = r.document_id ? (counts.get(r.document_id) ?? 0) : 0;
+    if (r.document_id && count >= maxPerDocument) {
+      overflow.push(r);
+      continue;
+    }
+    if (r.document_id) counts.set(r.document_id, count + 1);
+    head.push(r);
+  }
+  return [...head, ...overflow];
 }
 
 /**
@@ -526,6 +534,8 @@ export function selectAcrossQueryGroups(
   // kann in ZWEI Gruppen vorne liegen — dieser zweite Zähler deckelt die
   // gemergte Auswahl, den Fall, den der Gruppen-Deckel allein nicht sieht.
   const docCounts = new Map<string, number>();
+  // Was der Deckel übergeht, kommt hinten wieder dran (siehe capChunksPerDocument).
+  const overflow: ExpandedChunkResult[] = [];
   const cursors = ranked.map(() => 0);
 
   let progressed = true;
@@ -543,7 +553,10 @@ export function selectAcrossQueryGroups(
         if (seen.has(key)) continue;
         if (maxPerDocument && candidate.document_id) {
           const docCount = docCounts.get(candidate.document_id) ?? 0;
-          if (docCount >= maxPerDocument) continue;
+          if (docCount >= maxPerDocument) {
+            overflow.push(candidate);
+            continue;
+          }
         }
         seen.add(key);
         if (candidate.document_id) {
@@ -555,6 +568,14 @@ export function selectAcrossQueryGroups(
       }
       cursors[g] = cursor;
     }
+  }
+
+  for (const candidate of overflow) {
+    if (selected.length >= limit) break;
+    const key = `${candidate.collection_id ?? ''}:${candidate.document_id}:${candidate.chunk_index}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    selected.push(candidate);
   }
 
   return selected;
