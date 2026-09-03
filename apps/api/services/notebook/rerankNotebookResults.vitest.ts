@@ -158,4 +158,41 @@ describe('rerankNotebookResults', () => {
     const call = rerankPipeline.mock.calls[0][0] as Record<string, unknown>;
     expect('instruct' in call).toBe(false);
   });
+
+  it('defaults applyDiversity to true when omitted (byte-identical to today)', async () => {
+    rerankPipeline.mockResolvedValue({
+      rankedIndices: [0, 1, 2],
+      scores: new Map([
+        [0, 0.9],
+        [1, 0.8],
+        [2, 0.7],
+      ]),
+      rerankTimeMs: 5,
+    });
+
+    await rerankNotebookResults({ results, referencesMap, question: 'Warum?' });
+
+    expect(rerankPipeline).toHaveBeenCalledWith(expect.objectContaining({ applyDiversity: true }));
+  });
+
+  it('forwards applyDiversity: false to rerankPipeline when given', async () => {
+    rerankPipeline.mockResolvedValue({
+      rankedIndices: [0, 1, 2],
+      scores: new Map([
+        [0, 0.9],
+        [1, 0.8],
+        [2, 0.7],
+      ]),
+      rerankTimeMs: 5,
+    });
+
+    await rerankNotebookResults({
+      results,
+      referencesMap,
+      question: 'Warum?',
+      applyDiversity: false,
+    });
+
+    expect(rerankPipeline).toHaveBeenCalledWith(expect.objectContaining({ applyDiversity: false }));
+  });
 });
