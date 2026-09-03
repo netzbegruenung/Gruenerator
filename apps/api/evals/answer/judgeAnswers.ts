@@ -10,9 +10,9 @@
  * judge), together with their citation lists and a German rubric. The judge
  * never sees which variant produced which side.
  *
- * The judge is `aiObject` pinned to `{ provider: 'cortecs', model: 'gemma-4-26b-a4b-it' }` (small, 4B active)
+ * The judge is `aiObject` pinned to `{ provider: 'cortecs', model: 'mistral-small-3.2-24b-instruct-2506' }` (small)
  * (`AiCall.pinned` in `services/ai/generate.ts`) — a different model family
- * than the answers (Mistral Medium), so it cannot prefer its own prose —
+ * than the answers (Gemma 4), so it cannot prefer its own prose —
  * a fixed target rather than the routing table, so the judge's own answer
  * quality does not move if `AI_LANES` changes later.
  *
@@ -36,6 +36,8 @@ dotenv.config();
 
 const { aiObject } = await import('../../services/ai/generate.js');
 
+import { type StructuredValidation } from '../../services/ai/structuredParsing.js';
+
 import { ANSWER_CASES, type AnswerCase, type AnswerCaseGroup } from './answerCases.js';
 import {
   COMPARISONS,
@@ -54,8 +56,6 @@ import {
   type JudgeResult,
   type JudgmentRecord,
 } from './answerEvalCore.js';
-
-import type { StructuredValidation } from '../../services/ai/structuredParsing.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -126,7 +126,7 @@ async function judgeOne(
 ): Promise<JudgeResult | null> {
   const result = await aiObject({
     lane: 'notebook_answer_eval_judge',
-    pinned: { provider: 'cortecs', model: 'gemma-4-26b-a4b-it' },
+    pinned: { provider: 'cortecs', model: 'mistral-small-3.2-24b-instruct-2506' },
     system: JUDGE_SYSTEM,
     prompt: buildJudgePrompt(question, a, b),
     temperature: 0.1,
