@@ -690,6 +690,7 @@ export function PlannerKanban({
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
+        onDragCancel={handleDragEnd}
         className="items-start"
         after={
           showColumnTools ? (
