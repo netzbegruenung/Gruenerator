@@ -122,6 +122,14 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
     description: 'Was das Start-Symbol in der Seitenleiste öffnet',
   },
   {
+    // Web-only for now: the choice is applied server-side, so the app speaks
+    // with it too — it just has no row to change it yet.
+    id: 'allgemein.stimme',
+    tab: 'allgemein',
+    title: 'Stimme',
+    description: 'Mit welcher Stimme dir der Grünerator Texte vorliest',
+  },
+  {
     id: 'allgemein.feedbackButton',
     tab: 'allgemein',
     title: 'Feedback-Button',

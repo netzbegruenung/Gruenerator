@@ -1,3 +1,5 @@
+import { DEFAULT_TTS_VOICE_ID } from '@gruenerator/contracts';
+
 import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
 import { recordOperation } from '../usage/UsageTrackingService.js';
@@ -82,13 +84,15 @@ function apiKey(): string {
  * than silently swapped for the default — a wrong voice is the kind of thing
  * nobody files a bug for.
  */
-function resolveVoiceId(raw: string | undefined): number | null {
+function resolveVoiceId(raw: string | undefined): number {
   if (raw !== undefined && raw !== '') {
     const parsed = Number(raw);
     if (Number.isInteger(parsed)) return parsed;
     log.warn('[TTS] Ignoring non-numeric voiceId, falling back to the default', { voiceId: raw });
   }
-  return env.KUGELAUDIO_DEFAULT_VOICE_ID ?? null;
+  // The env var is an override for one deployment; the product default is the
+  // contract's, so web, mobile and the settings agree on what "Standard" is.
+  return env.KUGELAUDIO_DEFAULT_VOICE_ID ?? Number(DEFAULT_TTS_VOICE_ID);
 }
 
 /**
@@ -113,7 +117,7 @@ function buildRequestBody(text: string, options: TTSOptions): Record<string, unk
     text,
     model_id: options.modelId || DEFAULT_MODEL,
     output_format: OUTPUT_FORMAT,
-    ...(voiceId !== null ? { voice_id: voiceId } : {}),
+    voice_id: voiceId,
     // Normalisation only with a known language: without one the provider
     // guesses, and a wrongly guessed locale reads numbers and dates aloud
     // incorrectly. The clients have always sent `language` — until now it was
