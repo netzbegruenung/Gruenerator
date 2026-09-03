@@ -37,6 +37,7 @@ import {
 import { PROGRESS_MESSAGES, type SSEWriter } from '../services/sseHelpers.js';
 import { persistSourcesOnFailure } from '../services/threadPersistenceService.js';
 import { turnMaterialChars } from '../services/turnMaterial.js';
+import { looksLikeMemoryRequest } from '../../../services/memory/memoryRequest.js';
 
 import { type SharepicRefinement } from './earlyHandlerStage.js';
 import { type BuildTurnTrace } from './responseAgentic.js';
@@ -159,7 +160,20 @@ export async function runSinglePassAnswer({
   } else {
     sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
 
-    const systemMessage = await buildSystemMessage(finalState);
+    // A memory request that a kill-switch (selected notebook, image
+    // attachment, compound turn) kept out of the loop has no tool to honour
+    // it. The answer must say so — the model used to confirm "gespeichert"
+    // into the void.
+    const memoryNote = looksLikeMemoryRequest(lastUserText)
+      ? `\n\nHINWEIS ZUM GEDÄCHTNIS: In diesem Turn kann NICHTS gespeichert werden${
+          finalState.memoryEnabled ? '' : ' — das Gedächtnis ist in den Einstellungen ausgeschaltet'
+        }. Bestätige KEINE Speicherung. Sag knapp, dass du dir das gerade nicht merken kannst${
+          finalState.memoryEnabled
+            ? ' und schlage vor, es in einer neuen Nachricht ohne Anhang oder Notebook zu wiederholen'
+            : ' und dass das Gedächtnis unter Einstellungen → Erinnerungen eingeschaltet werden kann'
+        }. Erledige den Rest der Nachricht normal.`
+      : '';
+    const systemMessage = (await buildSystemMessage(finalState)) + memoryNote;
     const agentConfigForResolve = {
       provider: finalState.agentConfig.provider as string,
       model: finalState.agentConfig.model,

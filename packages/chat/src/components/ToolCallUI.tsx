@@ -3,7 +3,6 @@ import {
   User,
   Image,
   Globe,
-  Loader2,
   ChevronRight,
   ExternalLink,
   BookOpen,
@@ -11,6 +10,10 @@ import {
   MessageCircle,
   Cloud,
   FileText,
+  Presentation,
+  Table,
+  SquareKanban,
+  ChartColumn,
 } from 'lucide-react';
 import { Fragment, useState, memo, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
@@ -20,19 +23,21 @@ import { makeCitationComponents } from '../lib/citationMarkdownComponents';
 import { escapeCitationMarkers } from '../lib/citationProcessing';
 import { resolveToolEntry } from '../lib/toolRegistry';
 import {
-  getString,
-  getArray,
-  getObject,
-  getNumber,
   getToolMeta,
   getToolQuery,
+  getToolResultCount,
+  toolResultSummary,
+  toolOutcome,
+  toolErrorMessage,
   researchCitationToSerializable,
   parseResearchResult,
   CONFIDENCE_LABELS,
+  type ToolAccent,
   type ToolIconKey,
 } from '../lib/toolResults';
 
-import { ShimmerText } from './message-parts/ShimmerText';
+import { ToolCall } from './assistant-ui/elements/tool-call';
+import { ToolError } from './assistant-ui/elements/tool-error';
 import { PressemitteilungExamplesCard } from './PressemitteilungExamplesCard';
 import { CitationList } from './tool-ui/citation';
 import { LinkPreview } from './tool-ui/link-preview';
@@ -65,20 +70,22 @@ const ICON_BY_KEY: Record<ToolIconKey, typeof Search> = {
   'message-circle': MessageCircle,
   cloud: Cloud,
   file: FileText,
+  presentation: Presentation,
+  table: Table,
+  board: SquareKanban,
+  chart: ChartColumn,
 };
 
-const TOOL_COLOR: Record<string, string> = {
-  search_sources: 'text-primary-500',
-  gruenerator_search: 'text-primary-500',
-  gruenerator_person_search: 'text-secondary-600',
-  gruenerator_examples_search: 'text-secondary-600',
-  web_search: 'text-secondary-700',
-  research: 'text-secondary-700',
-  generate_image: 'text-primary-400',
-  scrape_url: 'text-secondary-700',
-  recall_memory: 'text-primary-400',
-  save_memory: 'text-primary-400',
-  search_chat_history: 'text-primary-400',
+// Presentation of the shared semantic accent. The old TOOL_COLOR table keyed
+// seven colours off raw tool NAMES and lived only on web, so every new tool was
+// grey and native had no accent at all. `meta.accent` is shared metadata.
+const ACCENT_CLASS: Record<ToolAccent, string> = {
+  retrieval: 'text-primary-500',
+  knowledge: 'text-secondary-600',
+  create: 'text-primary-400',
+  personal: 'text-secondary-700',
+  external: 'text-secondary-700',
+  neutral: 'text-grey-600',
 };
 
 export const ToolCallUI = memo(function ToolCallUI({
@@ -88,120 +95,94 @@ export const ToolCallUI = memo(function ToolCallUI({
   result,
 }: ToolCallUIProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const isLoading = state === 'call' || state === 'partial-call';
+  const done = state === 'result';
   const meta = getToolMeta(toolName);
+  // One source for "did this fail" — checked on BOTH channels, so the live
+  // stream and a reloaded thread agree (see toolOutcome).
+  const outcome = toolOutcome(result, done ? 'result' : 'call');
   const Icon = ICON_BY_KEY[meta.iconKey];
-  const config = { label: meta.label, color: TOOL_COLOR[toolName] ?? 'text-grey-600' };
 
-  const query = useMemo(() => {
-    const q = getToolQuery(args);
-    return q ? (q.length > 60 ? q.slice(0, 60) + '...' : q) : null;
-  }, [args]);
+  // `toolName` now participates: tools whose subject is not called `query`
+  // (rezept_laden's `rezept`, the create_* family's `prompt`) showed none before.
+  const query = useMemo(() => getToolQuery(args, toolName), [args, toolName]);
 
-  const resultCount = useMemo(() => {
-    if (!result || state !== 'result') return 0;
-    const citations = getArray(result, 'citations');
-    if (citations) return citations.length;
-    const arr = getArray(result, 'results') || getArray(result, 'examples');
-    if (arr) return arr.length;
-    if (Array.isArray(result)) return result.length;
-    if (getObject(result, 'person')) return 1;
-    const rc = getNumber(result, 'resultCount');
-    if (rc !== null && rc > 0) return rc;
-    return 0;
-  }, [result, state]);
+  const resultCount = useMemo(() => (done ? getToolResultCount(result) : 0), [result, done]);
+
+  // One line for what came of it. Shared with native, so both platforms say the
+  // same thing about the same result.
+  const summary = useMemo(
+    () => (done ? toolResultSummary(toolName, args, result) : null),
+    [done, toolName, args, result]
+  );
 
   const researchMeta = useMemo(() => {
-    if (toolName !== 'research' || !result || state !== 'result') return null;
+    if (toolName !== 'research' || !result || !done) return null;
     const parsed = parseResearchResult(result);
     return {
       confidence: parsed.confidence,
       searchStepsCount: parsed.stepsList.length,
       stepsList: parsed.stepsList,
     };
-  }, [toolName, result, state]);
+  }, [toolName, result, done]);
+
+  const status = done ? (
+    <>
+      {researchMeta?.confidence && (
+        <span
+          className={`text-[11px] font-medium ${CONFIDENCE_COLORS[researchMeta.confidence] ?? 'text-grey-500'}`}
+        >
+          {CONFIDENCE_LABELS[researchMeta.confidence] ?? researchMeta.confidence}
+        </span>
+      )}
+      {summary ? (
+        <span
+          className={`max-w-[12rem] truncate text-[11px] sm:max-w-[20rem] ${
+            outcome === 'error' ? 'text-destructive' : 'text-foreground-muted'
+          }`}
+        >
+          {summary}
+        </span>
+      ) : (
+        resultCount > 0 && (
+          <span className="text-primary text-[11px] font-medium">{resultCount}</span>
+        )
+      )}
+    </>
+  ) : null;
 
   return (
     <div className="my-1.5 text-sm">
-      <button
-        onClick={() => state === 'result' && setIsExpanded(!isExpanded)}
-        disabled={state !== 'result'}
-        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 transition-colors ${
-          state === 'result' ? 'bg-primary/5 hover:bg-primary/10 cursor-pointer' : 'bg-primary/5'
-        }`}
+      <ToolCall
+        icon={<Icon className={`h-3.5 w-3.5 ${ACCENT_CLASS[meta.accent ?? 'neutral']}`} />}
+        label={meta.label}
+        // Falls back to the resting label for tools that declare no verb pair,
+        // which is exactly the pre-change behaviour.
+        activeLabel={meta.activeLabel ?? meta.label}
+        query={query}
+        outcome={outcome}
+        status={status}
+        open={isExpanded && done}
+        // A running card must not open — but unlike the old `disabled` button it
+        // stays in the tab order (the fix McpToolUI already made).
+        onOpenChange={(next) => {
+          if (done) setIsExpanded(next);
+        }}
       >
-        {isLoading ? (
-          <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
-        ) : (
-          <Icon className={`h-3.5 w-3.5 ${config.color}`} />
-        )}
-        {isLoading ? (
-          <ShimmerText className="font-medium">{config.label}</ShimmerText>
-        ) : (
-          <span className="font-medium text-foreground">{config.label}</span>
-        )}
-        {query && (
-          <span className="text-foreground-muted max-w-[120px] sm:max-w-[200px] truncate">
-            &bdquo;{query}&ldquo;
-          </span>
-        )}
-        {state === 'result' && resultCount > 0 && (
+        {done && result != null && (
           <>
-            <span className="text-foreground-muted">&middot;</span>
-            {researchMeta ? (
-              <>
-                {researchMeta.confidence && (
-                  <span
-                    className={`text-[11px] font-medium ${
-                      researchMeta.confidence === 'high'
-                        ? 'text-status-green'
-                        : researchMeta.confidence === 'medium'
-                          ? 'text-status-yellow'
-                          : 'text-status-red'
-                    }`}
-                  >
-                    {researchMeta.confidence === 'high'
-                      ? 'Hohe Konfidenz'
-                      : researchMeta.confidence === 'medium'
-                        ? 'Mittlere Konfidenz'
-                        : 'Niedrige Konfidenz'}
-                  </span>
-                )}
-                {researchMeta.searchStepsCount > 0 && (
-                  <>
-                    <span className="text-foreground-muted">&middot;</span>
-                    <span className="text-foreground-muted text-[11px]">
-                      {researchMeta.searchStepsCount} Suche
-                      {researchMeta.searchStepsCount > 1 ? 'n' : ''}
-                    </span>
-                  </>
-                )}
-              </>
-            ) : (
-              <span className="text-primary font-medium">{resultCount}</span>
+            {researchMeta && researchMeta.stepsList.length > 0 && (
+              <div className="mb-2 space-y-0.5">
+                {researchMeta.stepsList.map((step, i) => (
+                  <div key={i} className="text-foreground-muted text-xs">
+                    &bdquo;{step.query}&ldquo; &middot; {step.resultsCount} Quellen
+                  </div>
+                ))}
+              </div>
             )}
-            <ChevronRight
-              className={`h-3.5 w-3.5 text-foreground-muted transition-transform ${isExpanded ? 'rotate-90' : ''}`}
-            />
+            <ToolResultRenderer toolName={toolName} args={args} result={result} />
           </>
         )}
-      </button>
-
-      {isExpanded && state === 'result' && result != null && (
-        <div className="mt-2 ml-2 border-l-2 border-primary/20 pl-3">
-          {researchMeta && researchMeta.stepsList.length > 0 && (
-            <div className="mb-2 space-y-0.5">
-              {researchMeta.stepsList.map((step, i) => (
-                <div key={i} className="text-foreground-muted text-xs">
-                  <span aria-hidden>{step.tool === 'web_search' ? '🌐' : '📄'}</span> &bdquo;
-                  {step.query}&ldquo; &middot; {step.resultsCount} Quellen
-                </div>
-              ))}
-            </div>
-          )}
-          <ToolResultRenderer toolName={toolName} args={args} result={result} />
-        </div>
-      )}
+      </ToolCall>
     </div>
   );
 });
@@ -221,9 +202,15 @@ const ToolResultRenderer = memo(function ToolResultRenderer({
     return <p className="text-xs text-foreground-muted">Keine Ergebnisse</p>;
   }
 
-  const error = getString(result, 'error');
+  const error = toolErrorMessage(result);
   if (error) {
-    return <p className="text-xs text-destructive">{error}</p>;
+    return (
+      <ToolError
+        name={getToolMeta(toolName).label}
+        target={getToolQuery(args, toolName)}
+        message={error}
+      />
+    );
   }
 
   const vm = resolveToolEntry(toolName).parse(args, result);

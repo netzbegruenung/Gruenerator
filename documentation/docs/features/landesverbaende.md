@@ -16,7 +16,7 @@ Es gibt drei Sorten von Landesverband-Grüneratoren:
 - **Wahlprüfsteine** — beantwortet Fragenkataloge von Verbänden und Initiativen, im Format des Katalogs und im Stil des Landesverbands.
 
 :::info[Sichtbar mit der Rolle deiner Landesgeschäftsstelle]
-Die Grüneratoren, Rezepte und Notebooks eines Landesverbands sind seinen Leuten zugeteilt: Sie erscheinen, sobald du in deinem Profil die Rolle _Mitarbeiter\*in Landesgeschäftsstelle_ (Österreich: _Landesorganisation_) mit deinem Bundesland hinterlegt hast. Wie das geht, steht unter [Für deinen Landesverband einrichten](/docs/konto/landesverband-einrichten).
+Die Grüneratoren, Rezepte und Notebooks eines Landesverbands sind seinen Leuten zugeteilt: Sie erscheinen, sobald du in deinem Profil die Rolle _Mitarbeiter\*in Landesgeschäftsstelle_ (Österreich: _Landesorganisation_) mit deinem Bundesland hinterlegt hast. Wie das geht, steht unter [Für deinen Landesverband einrichten](/docs/guides/landesverbaende/landesverband-einrichten).
 :::
 
 ## Abgedeckte Landesverbände

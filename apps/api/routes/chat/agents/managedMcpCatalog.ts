@@ -377,7 +377,12 @@ export async function loadManagedMcpCatalog(params: {
           labels.set(providerName, {
             serverName: source.name,
             toolName: t.name,
-            origin: { kind: 'managed', serverId: source.key, remoteToolName: t.name },
+            origin: {
+              kind: 'managed',
+              serverId: source.key,
+              remoteToolName: t.name,
+              ...(t.readOnlyHint != null ? { readOnlyHint: t.readOnlyHint } : {}),
+            },
           });
           const sanitized = sanitizeMcpSchema(t.inputSchema);
           const required = requiredParams(sanitized);

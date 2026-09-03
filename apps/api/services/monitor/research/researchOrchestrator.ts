@@ -179,6 +179,9 @@ export interface ResearchCitation {
   url: string;
   domain: string;
   snippet: string;
+  /** Set only for citations backed by an indexed Qdrant document (see `toDocSource`). */
+  documentId?: string;
+  chunkIndex?: number;
 }
 
 export interface ResearchResult {
@@ -203,6 +206,9 @@ interface CollectedSource {
   sourceType: 'web' | 'document' | 'person';
   /** The page was fetched and distilled, so `snippet` is a digest, not a teaser. */
   read?: boolean;
+  /** Set only for `sourceType: 'document'` hits — carried from `DocSearchHit`. */
+  documentId?: string;
+  chunkIndex?: number;
 }
 
 /**
@@ -331,6 +337,8 @@ function toDocSource(result: DocSearchHit, id: number, domain: string): Collecte
     // discards. See the note in searchNode's normalizeScore.
     relevance: relevanceLabelToScore(result.relevance),
     sourceType: 'document',
+    ...(result.documentId ? { documentId: result.documentId } : {}),
+    ...(result.chunkIndex != null ? { chunkIndex: result.chunkIndex } : {}),
   };
 }
 
@@ -977,6 +985,8 @@ function finalizeResearchResult(params: {
       url: s.url,
       domain: s.domain,
       snippet: s.snippet,
+      ...(s.documentId ? { documentId: s.documentId } : {}),
+      ...(s.chunkIndex != null ? { chunkIndex: s.chunkIndex } : {}),
     }))
   );
   answer = remapCitationMarkers(answer, deduped.remap);

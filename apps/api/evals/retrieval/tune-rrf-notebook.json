@@ -1,0 +1,131 @@
+{
+  "pipeline": "notebook",
+  "depth": "deep",
+  "withRerank": false,
+  "outcomes": [
+    {
+      "id": "kommunalwiki-buergerbegehren",
+      "collection": "kommunalwiki-system",
+      "query": "Wie funktioniert ein Bürgerbegehren in der Kommune?",
+      "rank": 1,
+      "topTitles": [
+        "Bürgerbegehren und Bürgerentscheide in Deutschland – Ein Überblick",
+        "Bürgerbegehren und Bürgerentscheide in Deutschland – Ein Überblick",
+        "Bürgerbegehren und Bürgerentscheide in Deutschland – Ein Überblick",
+        "Bürgerbegehren und Bürgerentscheide in Deutschland – Ein Überblick",
+        "Bürgerbegehren und Bürgerentscheide in Deutschland – Ein Überblick"
+      ]
+    },
+    {
+      "id": "kommunalwiki-bebauungsplan",
+      "collection": "kommunalwiki-system",
+      "query": "Aufstellung eines Bebauungsplans — Verfahren und Beteiligung",
+      "rank": null,
+      "topTitles": [
+        "Bodenschutzklausel",
+        "Bodenschutzklausel",
+        "Bürgerbeteiligung",
+        "Bürgerbeteiligung",
+        "Bürgerbeteiligung"
+      ]
+    },
+    {
+      "id": "kommunalwiki-radverkehr",
+      "collection": "kommunalwiki-system",
+      "query": "Radverkehrsförderung in der Kommunalpolitik",
+      "rank": 1,
+      "topTitles": ["Radverkehr", "Radverkehr", "Radverkehr", "Radverkehr", "Radverkehr"]
+    },
+    {
+      "id": "kommunalwiki-haushalt",
+      "collection": "kommunalwiki-system",
+      "query": "Wie liest man einen kommunalen Haushaltsplan?",
+      "rank": 1,
+      "topTitles": [
+        "Den kommunalen Haushaltsplan richtig lesen und verstehen",
+        "Haushalt",
+        "Haushalt",
+        "Haushalt",
+        "Haushalt"
+      ]
+    },
+    {
+      "id": "kommunalwiki-waermeplanung",
+      "collection": "kommunalwiki-system",
+      "query": "Kommunale Wärmeplanung umsetzen",
+      "rank": 1,
+      "topTitles": [
+        "Handlungsleitfaden Kommunale Wärmeplanung",
+        "Handlungsleitfaden Kommunale Wärmeplanung",
+        "Handlungsleitfaden Kommunale Wärmeplanung",
+        "Was bedeutet der Koalitionsvertrag für die Kommunen?",
+        "Was bedeutet der Koalitionsvertrag für die Kommunen?"
+      ]
+    },
+    {
+      "id": "kommunalwiki-fraktion",
+      "collection": "kommunalwiki-system",
+      "query": "Rechte und Arbeit einer Fraktion im Gemeinderat",
+      "rank": 15,
+      "topTitles": [
+        "Beispiele kommunaler Zusammenarbeit zwischen CDU und AfD",
+        "Zusammenarbeit im Team",
+        "Zusammenarbeit im Team",
+        "Zusammenarbeit im Team",
+        "Zusammenarbeit im Team"
+      ]
+    },
+    {
+      "id": "kommunalwiki-vergabe",
+      "collection": "kommunalwiki-system",
+      "query": "Öffentliche Vergabe und Ausschreibungen in Kommunen",
+      "rank": 3,
+      "topTitles": [
+        "Verdingungsordnung für Leistungen",
+        "Verdingungsordnung für Leistungen",
+        "Ausschreibung",
+        "Ausschreibung",
+        "Ausschreibung"
+      ]
+    },
+    {
+      "id": "kommunalwiki-jugend",
+      "collection": "kommunalwiki-system",
+      "query": "Jugendbeteiligung in der Kommune",
+      "rank": null,
+      "topTitles": [
+        "Werkstatt:Weblinks",
+        "Werkstatt:Weblinks",
+        "Werkstatt:Weblinks",
+        "Werkstatt:Weblinks",
+        "Werkstatt:Weblinks"
+      ]
+    },
+    {
+      "id": "kommunalwiki-laerm",
+      "collection": "kommunalwiki-system",
+      "query": "Lärmaktionsplanung und Lärmschutz vor Ort",
+      "rank": 3,
+      "topTitles": [
+        "Straßenverkehrsordnung (StVO)",
+        "Straßenverkehrsordnung (StVO)",
+        "Umgebungslärmrichtlinie",
+        "Umgebungslärmrichtlinie",
+        "Mehr Ruhe. Verkehrslärm wirksam reduzieren"
+      ]
+    },
+    {
+      "id": "kommunalwiki-baum",
+      "collection": "kommunalwiki-system",
+      "query": "Baumschutzsatzung und Stadtgrün",
+      "rank": 1,
+      "topTitles": [
+        "Umweltschutz durch kommunales Satzungsrecht",
+        "Umweltschutz durch kommunales Satzungsrecht",
+        "Umweltschutz durch kommunales Satzungsrecht",
+        "Urbanes Grün",
+        "Urbanes Grün"
+      ]
+    }
+  ]
+}

@@ -7,7 +7,12 @@ import { describe, it, expect, vi } from 'vitest';
 
 import { createToolLoopGuards } from './loopGuards.js';
 import { type PersistedStep } from './types.js';
-import { wrapToolsForLoop, type ToolHooks, type WrapToolsContext } from './wrapTools.js';
+import {
+  composeToolHooks,
+  wrapToolsForLoop,
+  type ToolHooks,
+  type WrapToolsContext,
+} from './wrapTools.js';
 
 import type { SSEWriter } from '../sseHelpers.js';
 import type { ToolSet } from 'ai';
@@ -363,5 +368,132 @@ describe('wrapToolsForLoop — Hooks', () => {
     // Eine Attrappe, die einen Ausfall nachstellt, muss auch dessen Buchhaltung
     // nachstellen — sonst prüft die Eval einen Pfad, den es so nie gibt.
     expect(ctx.guards.checkFailureCap('search')).toBeNull(); // 1 Fehlversuch, Limit 2
+  });
+});
+
+describe('composeToolHooks', () => {
+  it('ruft afterToolCall beider Hooks in Reihenfolge', () => {
+    const calls: string[] = [];
+    const a: ToolHooks = { afterToolCall: () => calls.push('a') };
+    const b: ToolHooks = { afterToolCall: () => calls.push('b') };
+    composeToolHooks(a, b).afterToolCall?.({
+      toolName: 't',
+      args: {},
+      stepId: 's1',
+      result: {},
+      ok: true,
+      mocked: false,
+      durationMs: 1,
+    });
+
+    expect(calls).toEqual(['a', 'b']);
+  });
+
+  it('ein werfender afterToolCall hält den zweiten nicht auf', () => {
+    const calls: string[] = [];
+    const a: ToolHooks = {
+      afterToolCall: () => {
+        throw new Error('kaputt');
+      },
+    };
+    const b: ToolHooks = { afterToolCall: () => calls.push('b') };
+    composeToolHooks(a, b).afterToolCall?.({
+      toolName: 't',
+      args: {},
+      stepId: 's1',
+      result: {},
+      ok: true,
+      mocked: false,
+      durationMs: 1,
+    });
+
+    expect(calls).toEqual(['b']);
+  });
+
+  it('ein abgelehnter async afterToolCall hält den zweiten nicht auf', async () => {
+    const calls: string[] = [];
+    const a: ToolHooks = { afterToolCall: () => Promise.reject(new Error('abgelehnt')) };
+    const b: ToolHooks = { afterToolCall: () => calls.push('b') };
+    composeToolHooks(a, b).afterToolCall?.({
+      toolName: 't',
+      args: {},
+      stepId: 's1',
+      result: {},
+      ok: true,
+      mocked: false,
+      durationMs: 1,
+    });
+
+    expect(calls).toEqual(['b']);
+    await new Promise((resolve) => setTimeout(resolve, 0)); // die Rejection darf niemand hochwerfen
+  });
+
+  it('ruft beforeToolCall beider Hooks in Reihenfolge, awaitet echt', async () => {
+    const calls: string[] = [];
+    const a: ToolHooks = {
+      beforeToolCall: async () => {
+        calls.push('a');
+      },
+    };
+    const b: ToolHooks = {
+      beforeToolCall: () => {
+        calls.push('b');
+      },
+    };
+    await composeToolHooks(a, b).beforeToolCall?.({
+      toolName: 't',
+      args: {},
+      stepId: 's1',
+      mock: () => {},
+    });
+
+    expect(calls).toEqual(['a', 'b']);
+  });
+
+  it('ein werfender beforeToolCall hält den zweiten nicht auf', async () => {
+    const calls: string[] = [];
+    const a: ToolHooks = {
+      beforeToolCall: () => {
+        throw new Error('kaputt');
+      },
+    };
+    const b: ToolHooks = {
+      beforeToolCall: () => {
+        calls.push('b');
+      },
+    };
+    await composeToolHooks(a, b).beforeToolCall?.({
+      toolName: 't',
+      args: {},
+      stepId: 's1',
+      mock: () => {},
+    });
+
+    expect(calls).toEqual(['b']);
+  });
+
+  it('ein fehlendes Hook-Mitglied auf einer Seite hindert das Mitglied der anderen Seite nicht', () => {
+    const calls: string[] = [];
+    const onlyAfter: ToolHooks = { afterToolCall: () => calls.push('after') };
+    const onlyBefore: ToolHooks = { beforeToolCall: () => calls.push('before') };
+    const composed = composeToolHooks(onlyAfter, onlyBefore);
+
+    composed.afterToolCall?.({
+      toolName: 't',
+      args: {},
+      stepId: 's1',
+      result: {},
+      ok: true,
+      mocked: false,
+      durationMs: 1,
+    });
+    void composed.beforeToolCall?.({ toolName: 't', args: {}, stepId: 's1', mock: () => {} });
+
+    expect(calls).toEqual(['after', 'before']);
+  });
+
+  it('ohne jedes Hook-Mitglied bleibt der Vertrag leer', () => {
+    expect(composeToolHooks()).toEqual({});
+    expect(composeToolHooks(undefined, {})).toEqual({});
   });
 });

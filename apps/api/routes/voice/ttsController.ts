@@ -16,13 +16,12 @@ interface GenerateRequest extends Request {
     text?: string;
     modelId?: string;
     voiceId?: string;
-    refAudio?: string;
     language?: string;
   };
 }
 
 router.post('/generate', async (req: GenerateRequest, res: Response) => {
-  const { text, modelId, voiceId, refAudio, language } = req.body;
+  const { text, modelId, voiceId, language } = req.body;
 
   if (!text || typeof text !== 'string') {
     return res.status(400).json({ success: false, error: 'Text ist erforderlich' });
@@ -39,7 +38,6 @@ router.post('/generate', async (req: GenerateRequest, res: Response) => {
     const wavBuffer = await ttsService.generateSpeech(text, {
       modelId,
       voiceId,
-      refAudio,
       language,
     });
 
@@ -59,7 +57,7 @@ router.post('/generate', async (req: GenerateRequest, res: Response) => {
 });
 
 router.post('/stream', async (req: GenerateRequest, res: Response) => {
-  const { text, modelId, voiceId, refAudio, language } = req.body;
+  const { text, modelId, voiceId, language } = req.body;
 
   if (!text || typeof text !== 'string') {
     return res.status(400).json({ success: false, error: 'Text ist erforderlich' });
@@ -79,10 +77,15 @@ router.post('/stream', async (req: GenerateRequest, res: Response) => {
   });
   res.flushHeaders();
 
+  // Without this the client can hang up while we keep pulling — and paying for
+  // — audio from the provider until the utterance ends.
+  const abort = new AbortController();
+  res.on('close', () => abort.abort());
+
   try {
     await ttsService.streamSpeech(
       text,
-      { modelId, voiceId, refAudio, language },
+      { modelId, voiceId, language, signal: abort.signal },
       {
         onChunk: (chunk) => {
           res.write(

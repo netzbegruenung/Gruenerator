@@ -47,6 +47,17 @@ describe('looksLikeToolableQuestion', () => {
     // Bare possessive + Wolke — kein Fragewort, kein führendes Verb; ohne den
     // `wolke`-Eintrag in PERSONAL_DATA_RE erreichte das den Loop nie.
     ['personal wolke', 'meine wolke dateien bitte'],
+    // Produktwort für Gruppen ist „Projekt" — ohne den Eintrag blieb „meine
+    // Projekte" beim Klassifikator hängen, während „meine Gruppen" den Loop traf.
+    ['personal projekte', 'zeig meine projekte'],
+    // Wiederkehrende Aufgaben heißen im Alltag „Erinnerungen".
+    ['personal erinnerungen', 'meine erinnerungen bitte'],
+    // Eigene Grünerator-Agenten.
+    ['personal agenten', 'zeig meine agenten'],
+    ['personal grünerator-agenten', 'zeig mir meine grünerator-agenten'],
+    // Eigene Textformen und Rezepte.
+    ['personal textformen', 'zeig meine textformen'],
+    ['personal rezepte', 'meine rezepte bitte'],
   ];
   it.each(toolable)('routes a real question into the loop: %s', (_label, q) => {
     expect(looksLikeToolableQuestion(q)).toBe(true);
@@ -71,6 +82,8 @@ describe('looksLikeToolableQuestion', () => {
     ['creative "erstelle"', 'Erstelle einen Antrag zur Radwege-Förderung'],
     ['creative "schreib"', 'Schreib eine Pressemitteilung zur Wärmewende'],
     ['empty', '   '],
+    // „Agentur" ist kein Agent — die Wortgrenze hinter `agent(en)?` hält es draußen.
+    ['agentur, not agent', 'meine Agentur für Arbeit'],
   ];
   it.each(fastPath)('keeps a fast-path turn out of the loop: %s', (_label, q) => {
     expect(looksLikeToolableQuestion(q)).toBe(false);
@@ -144,6 +157,26 @@ describe('decideRunAgentic', () => {
     hasManagedSources: false,
   };
   const decide = (o: Partial<typeof base>) => decideRunAgentic({ ...base, ...o });
+
+  it('routes an explicit memory request into the loop whatever the intent says', () => {
+    // "Merk dir …" is an imperative without a question word: every other net
+    // rejects it, and only the loop has the `memory` tool. Single-pass would
+    // confirm a save it never made.
+    expect(
+      decide({ intent: 'direct', lastUserText: 'Merk dir, dass ich für den KV Köln schreibe.' })
+    ).toBe(true);
+    expect(decide({ intent: 'produktion', lastUserText: 'Nein, ab jetzt immer kürzer.' })).toBe(
+      true
+    );
+    // The kill-switches still win — the single-pass honesty note covers that case.
+    expect(
+      decide({
+        intent: 'direct',
+        lastUserText: 'Merk dir, dass ich für den KV Köln schreibe.',
+        hasSelectedNotebook: true,
+      })
+    ).toBe(false);
+  });
 
   it('runs the loop for a whitelisted intent', () => {
     expect(decide({ intent: 'search' })).toBe(true);

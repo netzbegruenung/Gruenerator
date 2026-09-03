@@ -81,6 +81,12 @@ export const chatWarningCodeSchema = z.enum([
   // Retrieval / sources
   'source_unavailable',
   'rerank_degraded',
+  'citation_invalid',
+  // Das Notebook hat zur Frage nichts gefunden, was nah genug liegt: der dichte
+  // Spitzenwert VOR dem Rerank lag unter der kalibrierten Schwelle (#3140).
+  // Kein Defekt und keine Verweigerung — die Antwort streamt mit denselben
+  // Quellen weiter, der Hinweis steht darunter.
+  'evidence_weak',
   'research_plan_failed',
   // `@deepresearch` was asked for but not served: the daily quota is spent or the
   // call failed. Distinct from `research_plan_failed` — the turn did NOT degrade
@@ -320,6 +326,19 @@ export const confirmActionTypeSchema = z.enum([
   // Additiv (F0): ausgelieferte Clients kennen den Wert nicht und rendern die
   // Karte über ihren Fallback — sie fällt nicht aus, sie sieht nur generisch aus.
   'add_cloud_connection',
+  // Notebook-Karten des `notebooks`-Werkzeugs (09/2026), ebenfalls additiv.
+  'attach_wolke_folder',
+  'set_notebook_visibility',
+  'share_notebook',
+  // Projekt-Karte des `groups`-Werkzeugs (09/2026), additiv.
+  'set_group_visibility',
+  // Karte des `recurring_tasks`-Werkzeugs (09/2026), additiv. Gleichnamig mit
+  // dem stillgelegten Intent, bewusst: es ist dieselbe Handlung, nur mit
+  // Bestätigung statt stillem Schreiben.
+  'create_recurring_task',
+  // Karten des `user_agents`-Werkzeugs (09/2026), additiv.
+  'create_user_agent',
+  'share_user_agent',
 ]);
 export type ConfirmActionType = z.infer<typeof confirmActionTypeSchema>;
 
@@ -564,6 +583,8 @@ const chatCitationBase = z.object({
   documentId: z.string().optional(),
   chunkIndex: z.number().optional(),
   similarityScore: z.number().optional(),
+  /** Seite im Ursprungsdokument, wenn der Chunk eine trägt (PDF-Ingest). */
+  pageNumber: z.number().nullable().optional(),
   collectionId: z.string().optional(),
   /** Set on fan-out per-document retrieval, so the UI can group source cards
    *  by the document they answer for. */

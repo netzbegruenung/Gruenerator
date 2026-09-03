@@ -16,6 +16,11 @@ export interface PersistedStep {
   toolName: string;
   args: Record<string, unknown>;
   result: Record<string, unknown>;
+  /** Set ONLY on failure. The live card learns the outcome from the
+   *  `tool_step_result` event's `ok` flag, which was never persisted — so a
+   *  failed connector call came back GREEN after a thread reload. Absent means
+   *  "succeeded", which keeps every pre-existing thread reading correctly. */
+  ok?: false;
   /** MCP connector server title (e.g. "Notion"). Present only for MCP tool
    *  steps; lets a later turn identify + replay which server was used, since
    *  the `m<serverKey>__` tool name alone isn't human-readable. */
@@ -40,6 +45,13 @@ export interface ToolOrigin {
   serverId: string;
   /** Der Werkzeugname am Server — nicht der Katalogschlüssel `m<key>__<tool>`. */
   remoteToolName: string;
+  /**
+   * `annotations.readOnlyHint`, so wie der Server ihn geschickt hat — eine
+   * BEHAUPTUNG, keine Tatsache. Wird hier ungefiltert durchgereicht; ob sie
+   * zählt, entscheidet allein `approvalPolicy.ts` (und dort nur für
+   * `kind: 'managed'`). Fehlt = der Server hat nichts gesagt, nicht `false`.
+   */
+  readOnlyHint?: boolean;
 }
 
 /** Anzeigename eines Konnektor-Werkzeugs plus seine Herkunft. */
@@ -192,4 +204,13 @@ export const NEAR_DUPLICATE_EXEMPT_TOOLS: ReadonlySet<string> = new Set([
   'documents',
   'read_artifact',
   'notebooks',
+  'memory',
+  // get → content auf dasselbe Projekt teilen sich bis auf die action jedes Token.
+  'groups',
+  // get → pause → run_now auf dieselbe taskId: nur die action unterscheidet sie.
+  'recurring_tasks',
+  // get → update → share_to_group auf denselben identifier: nur die action unterscheidet sie.
+  'user_agents',
+  // get → add_examples → delete auf dieselbe mention: nur die action unterscheidet sie.
+  'recipes',
 ]);

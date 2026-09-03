@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { ATTACHED_DOC_SNIPPET_CHARS } from '../services/agenticLoop/attachedDocuments.js';
 import { createSourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
@@ -15,11 +15,17 @@ import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.j
 // the wrong field and silently registered nothing.
 const searchExec = vi.hoisted(() => vi.fn<(i: unknown, o: unknown) => Promise<unknown>>());
 const webExec = vi.hoisted(() => vi.fn<(i: unknown, o: unknown) => Promise<unknown>>());
+// Die Optionen, mit denen der Katalog die Fabrik aufruft — das Gatter für
+// `rerankSearchChunks` ist sonst von aussen nicht beobachtbar.
+const searchToolOptions = vi.hoisted(() => ({ last: null as Record<string, unknown> | null }));
 vi.mock('./searchTools.js', async (importOriginal) => ({
-  createSearchTools: () => ({
-    gruenerator_search: { description: 'd', inputSchema: {}, execute: searchExec },
-    web_search: { description: 'd', inputSchema: {}, execute: webExec },
-  }),
+  createSearchTools: (_agent: unknown, options: Record<string, unknown>) => {
+    searchToolOptions.last = options;
+    return {
+      gruenerator_search: { description: 'd', inputSchema: {}, execute: searchExec },
+      web_search: { description: 'd', inputSchema: {}, execute: webExec },
+    };
+  },
   // Real implementation: the catalog's web gate is what the tests below assert,
   // so stubbing it would make them prove nothing.
   agentAllowsWebSearch: (await importOriginal<typeof import('./searchTools.js')>())
@@ -311,6 +317,184 @@ describe('toolCatalog domain tool mounting', () => {
       genCatalog({ intent: 'agentic', kind: null, userText: 'erstelle ein Bild von einem Igel' })
         .toolNames
     ).toContain('generate_image');
+  });
+});
+
+describe('toolCatalog recurring_tasks — drei Tore, sonst nicht montiert', () => {
+  function catalogFor(state: Record<string, unknown>) {
+    const sourceRegistry = createSourceRegistry();
+    const sse = { send: () => {} } as unknown as NonNullable<
+      Parameters<typeof buildChatToolCatalog>[0]['loop']
+    >['sse'];
+    return buildChatToolCatalog({
+      agentConfig,
+      sourceRegistry,
+      loop: {
+        sse,
+        state: { intent: 'agentic', enabledTools: {}, ...state } as unknown as ChatGraphState,
+      },
+    }).toolNames;
+  }
+  const withText = (text: string, over: Record<string, unknown> = {}) =>
+    catalogFor({ messages: [{ role: 'user', content: text }], ...over });
+
+  it('bleibt bei einem gewöhnlichen Turn weg — das Schema kostet auf jedem Turn', () => {
+    expect(withText('Was sagt das Wahlprogramm zum Tempolimit?')).not.toContain('recurring_tasks');
+    expect(withText('Leg eine Aufgabe auf dem Board an')).not.toContain('recurring_tasks');
+  });
+
+  it('montiert auf den Pin aus Tier 3.4, auch ohne ein Wort aus dem Vokabular', () => {
+    expect(withText('mach das bitte', { mentionPinnedTool: 'recurring_tasks' })).toContain(
+      'recurring_tasks'
+    );
+  });
+
+  it('montiert auf den Dauerauftrag selbst (zweiter Weg in die Schleife)', () => {
+    expect(withText('Erinnere mich jeden Montag um 9 an den Wochenbericht')).toContain(
+      'recurring_tasks'
+    );
+  });
+
+  it('montiert auf das Verwaltungs-Vokabular', () => {
+    expect(withText('Pausier meine Erinnerung für den Newsletter')).toContain('recurring_tasks');
+    expect(withText('Welche wiederkehrenden Aufgaben laufen bei mir?')).toContain(
+      'recurring_tasks'
+    );
+  });
+
+  it('liest den Text ohne Erwähnungen, wenn der Router ihn liefert', () => {
+    expect(
+      catalogFor({
+        messages: [{ role: 'user', content: '@irgendwas' }],
+        lastUserTextNoMentions: 'pausier die Erinnerung',
+      })
+    ).toContain('recurring_tasks');
+  });
+
+  it('respektiert das Opt-out des Agenten — auch gegen den Pin', () => {
+    expect(
+      withText('Erinnere mich jeden Montag an den Bericht', {
+        enabledTools: { recurring_tasks: false },
+        mentionPinnedTool: 'recurring_tasks',
+      })
+    ).not.toContain('recurring_tasks');
+  });
+});
+
+describe('toolCatalog user_agents — Vokabular oder User-Agent-Thread, sonst nicht montiert', () => {
+  function catalogFor(state: Record<string, unknown>, agent: AgentConfig = agentConfig) {
+    const sourceRegistry = createSourceRegistry();
+    const sse = { send: () => {} } as unknown as NonNullable<
+      Parameters<typeof buildChatToolCatalog>[0]['loop']
+    >['sse'];
+    return buildChatToolCatalog({
+      agentConfig: agent,
+      sourceRegistry,
+      loop: {
+        sse,
+        state: {
+          intent: 'agentic',
+          enabledTools: {},
+          agentConfig: agent,
+          ...state,
+        } as unknown as ChatGraphState,
+      },
+    }).toolNames;
+  }
+  const withText = (text: string, over: Record<string, unknown> = {}, agent?: AgentConfig) =>
+    catalogFor({ messages: [{ role: 'user', content: text }], ...over }, agent);
+
+  it('bleibt bei einem gewöhnlichen Turn weg', () => {
+    expect(withText('Was sagt das Wahlprogramm zum Tempolimit?')).not.toContain('user_agents');
+    expect(withText('Schreib eine PM zur Agentur für Arbeit')).not.toContain('user_agents');
+  });
+
+  it('montiert auf das Vokabular', () => {
+    expect(withText('Bau mir einen Agenten, der Pressemitteilungen schreibt')).toContain(
+      'user_agents'
+    );
+    expect(withText('Welche Grünerator-Agenten habe ich?')).toContain('user_agents');
+    expect(withText('Ändere die Systemrolle meines Agenten')).toContain('user_agents');
+  });
+
+  it('montiert, wenn der Thread mit einem User-Agent läuft — ohne Stichwort', () => {
+    const userAgent = {
+      identifier: 'presse-kv-ab12cd',
+      isUserAgent: true,
+    } as unknown as AgentConfig;
+    expect(withText('Antworte ab jetzt kürzer', {}, userAgent)).toContain('user_agents');
+    // Ein Registry-Agent montiert nicht — er ist im Werkzeug ohnehin tabu.
+    expect(withText('Antworte ab jetzt kürzer')).not.toContain('user_agents');
+  });
+
+  it('liest den Text ohne Erwähnungen, wenn der Router ihn liefert', () => {
+    expect(
+      catalogFor({
+        messages: [{ role: 'user', content: '@irgendwas' }],
+        lastUserTextNoMentions: 'zeig meine Agenten',
+      })
+    ).toContain('user_agents');
+  });
+
+  it('respektiert das Opt-out des Agenten — auch im User-Agent-Thread', () => {
+    const userAgent = {
+      identifier: 'presse-kv-ab12cd',
+      isUserAgent: true,
+    } as unknown as AgentConfig;
+    expect(
+      withText('Bau mir einen Agenten', { enabledTools: { user_agents: false } }, userAgent)
+    ).not.toContain('user_agents');
+  });
+});
+
+describe('toolCatalog recipes — nur Vokabular, sonst nicht montiert', () => {
+  function catalogFor(state: Record<string, unknown>) {
+    const sourceRegistry = createSourceRegistry();
+    const sse = { send: () => {} } as unknown as NonNullable<
+      Parameters<typeof buildChatToolCatalog>[0]['loop']
+    >['sse'];
+    return buildChatToolCatalog({
+      agentConfig,
+      sourceRegistry,
+      loop: {
+        sse,
+        state: {
+          intent: 'agentic',
+          enabledTools: {},
+          agentConfig,
+          ...state,
+        } as unknown as ChatGraphState,
+      },
+    }).toolNames;
+  }
+  const withText = (text: string, over: Record<string, unknown> = {}) =>
+    catalogFor({ messages: [{ role: 'user', content: text }], ...over });
+
+  it('bleibt bei einem gewöhnlichen Turn weg — auch bei einem Schreibauftrag „im Stil von"', () => {
+    expect(withText('Was sagt das Wahlprogramm zum Tempolimit?')).not.toContain('recipes');
+    expect(withText('Schreib eine PM im Stil der Grünen Hessen')).not.toContain('recipes');
+    expect(withText('Das Medikament ist rezeptfrei')).not.toContain('recipes');
+  });
+
+  it('montiert auf das Vokabular', () => {
+    expect(withText('Welche Rezepte gibt es?')).toContain('recipes');
+    expect(withText('Lern meinen Schreibstil aus diesen drei Texten')).toContain('recipes');
+    expect(withText('Lösch meine Textform für Einladungen')).toContain('recipes');
+  });
+
+  it('liest den Text ohne Erwähnungen, wenn der Router ihn liefert', () => {
+    expect(
+      catalogFor({
+        messages: [{ role: 'user', content: '@irgendwas' }],
+        lastUserTextNoMentions: 'zeig meine Textformen',
+      })
+    ).toContain('recipes');
+  });
+
+  it('respektiert das Opt-out des Agenten', () => {
+    expect(withText('Welche Rezepte gibt es?', { enabledTools: { recipes: false } })).not.toContain(
+      'recipes'
+    );
   });
 });
 
@@ -1235,5 +1419,70 @@ describe('cloud_files mounting gate', () => {
       knowledge: string;
     };
     expect(out.knowledge).not.toContain('cloud_files');
+  });
+});
+
+describe('toolCatalog — Gatter des Chunk-Reranks', () => {
+  const originalFlag = process.env.LOOP_RERANK_ENABLED;
+
+  function buildLoopCatalog() {
+    const sourceRegistry = createSourceRegistry();
+    const sse = { send: () => {} } as unknown as NonNullable<
+      Parameters<typeof buildChatToolCatalog>[0]['loop']
+    >['sse'];
+    const state = { intent: 'search', enabledTools: {} } as unknown as ChatGraphState;
+    return buildChatToolCatalog({ agentConfig, sourceRegistry, loop: { sse, state } });
+  }
+
+  beforeEach(() => {
+    searchToolOptions.last = null;
+  });
+
+  afterEach(() => {
+    if (originalFlag === undefined) delete process.env.LOOP_RERANK_ENABLED;
+    else process.env.LOOP_RERANK_ENABLED = originalFlag;
+  });
+
+  it('setzt die Option im Loop, wenn der Schalter an ist', () => {
+    process.env.LOOP_RERANK_ENABLED = 'true';
+    buildLoopCatalog();
+    expect(searchToolOptions.last).toMatchObject({ rerankSearchChunks: true });
+  });
+
+  it('setzt sie nicht, wenn der Schalter aus ist', () => {
+    delete process.env.LOOP_RERANK_ENABLED;
+    buildLoopCatalog();
+    expect(searchToolOptions.last).not.toHaveProperty('rerankSearchChunks');
+  });
+
+  it('setzt sie ausserhalb des Loops nie — auch nicht mit gesetztem Schalter', () => {
+    process.env.LOOP_RERANK_ENABLED = 'true';
+    buildChatToolCatalog({ agentConfig, sourceRegistry: createSourceRegistry() });
+    expect(searchToolOptions.last).not.toHaveProperty('rerankSearchChunks');
+  });
+});
+
+describe('toolCatalog memory tool mounting', () => {
+  function catalogWith(state: Partial<ChatGraphState>) {
+    const sourceRegistry = createSourceRegistry();
+    const sse = { send: () => {} } as unknown as NonNullable<
+      Parameters<typeof buildChatToolCatalog>[0]['loop']
+    >['sse'];
+    const full = { intent: 'search', enabledTools: {}, ...state } as unknown as ChatGraphState;
+    return buildChatToolCatalog({ agentConfig, sourceRegistry, loop: { sse, state: full } });
+  }
+
+  it('mounts `memory` only when the profile switch is on', () => {
+    // Off: the prompt carries no GEDÄCHTNIS block, so a tool that could save
+    // into a store nobody reads would be the same lie in the other direction.
+    expect(catalogWith({ memoryEnabled: false }).toolNames).not.toContain('memory');
+    expect(catalogWith({}).toolNames).not.toContain('memory');
+    expect(catalogWith({ memoryEnabled: true }).toolNames).toContain('memory');
+  });
+
+  it('honours an agent opting out via enabledTools', () => {
+    expect(
+      catalogWith({ memoryEnabled: true, enabledTools: { memory: false } }).toolNames
+    ).not.toContain('memory');
   });
 });

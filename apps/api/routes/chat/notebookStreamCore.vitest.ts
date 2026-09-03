@@ -7,7 +7,7 @@
  * Second, `fast` keeps its exact pre-tier numbers, because the public
  * Grün-O-Mat surface runs on it and is not part of the tier change.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest';
 
 import { type NotebookDepth } from '@gruenerator/contracts';
 
@@ -18,7 +18,16 @@ const streamWithFallback = vi.fn();
 const streamForResolution = vi.fn();
 const isProviderConfigured = vi.fn(() => true);
 const expandQuery = vi.fn();
+const logInfo = vi.fn();
 
+vi.mock('../../utils/logger.js', () => ({
+  createLogger: () => ({
+    info: (...args: unknown[]) => logInfo(...args),
+    debug: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+  }),
+}));
 vi.mock('../../services/notebook/index.js', () => ({
   notebookQAService: {
     getSearchContext: (...args: unknown[]) => getSearchContext(...args),
@@ -38,9 +47,9 @@ vi.mock('./agents/providers.js', () => ({
 vi.mock('../../services/telemetry/langfuseTelemetry.js', () => ({
   BOTH_LANES_FAILED: 'generation failed on both model lanes',
   buildAiTelemetry: () => undefined,
-  // Mirrors the disabled-mode handle: no trace id, update() swallowed.
+  // Mirrors the enabled-mode handle: a real trace id, update() swallowed.
   withLangfuseTrace: async (_o: unknown, fn: (t: unknown) => Promise<unknown>) =>
-    fn({ traceId: undefined, update: () => {} }),
+    fn({ traceId: 'a'.repeat(32), update: () => {} }),
 }));
 vi.mock('../../database/services/NotebookQdrantHelper.js', () => ({
   NotebookQdrantHelper: class {
@@ -68,6 +77,7 @@ function makeReqRes() {
   const sse = {
     send: (event: string, data: Record<string, unknown>) => sent.push({ event, data }),
     end: vi.fn(),
+    isEnded: () => false,
   } as unknown as Parameters<typeof handleNotebookStream>[0]['sse'];
   return { req, res, sse, sent };
 }
@@ -223,7 +233,7 @@ describe('handleNotebookStream — reranking per tier', () => {
     expect((await ctxAfterDeep).systemPrompt).toBe('ORIGINAL_SYSTEM_PROMPT');
   });
 
-  it('searches one formulation below ultra', async () => {
+  it('searches one formulation without history', async () => {
     await run('deep');
     expect(expandQuery).not.toHaveBeenCalled();
     const { queries } = getSearchContext.mock.calls[0][0] as { queries: string[] };
@@ -314,5 +324,280 @@ describe('handleNotebookStream — conversation history (ultra only)', () => {
     await run('ultra');
     const [, opts] = expandQuery.mock.calls[0] as [string, { historyContext?: string }];
     expect(opts.historyContext).toBeUndefined();
+  });
+});
+
+describe('query rewrite in deep', () => {
+  it('rewrites a follow-up against the history without feeding history to the model', async () => {
+    vi.clearAllMocks();
+    setupMocks();
+    expandQuery.mockResolvedValue({ primary: 'Hitzeschutz Bayern', alternatives: [] });
+    await run('deep', HISTORY_MESSAGES);
+    expect(expandQuery).toHaveBeenCalledTimes(1);
+    expect((expandQuery.mock.calls[0][1] as { historyContext?: string }).historyContext).toContain(
+      'Windkraft'
+    );
+    const ctx = getSearchContext.mock.calls[0][0] as { queries: string[] };
+    expect(ctx.queries).toEqual(['Hitzeschutz Bayern']);
+    expect(modelMessages().filter((m) => m.role === 'assistant')).toHaveLength(0);
+  });
+
+  it('does not call the rewriter without history', async () => {
+    vi.clearAllMocks();
+    setupMocks();
+    await run('deep');
+    expect(expandQuery).not.toHaveBeenCalled();
+  });
+
+  it('does not call the rewriter in fast, even with history (Grün-O-Mat cost guard)', async () => {
+    // `fast` has `queryRewrite: false` — history in the request must not
+    // trigger a rewrite call regardless.
+    vi.clearAllMocks();
+    setupMocks();
+    await run('fast', HISTORY_MESSAGES);
+    expect(expandQuery).not.toHaveBeenCalled();
+  });
+
+  it('reranks against the rewritten query, not the raw follow-up', async () => {
+    // Red before the fix: the reranker's cross-encoder read "Und was heißt
+    // das für Bayern?" while the 40 candidates were retrieved for the
+    // rewritten "Hitzeschutz Bayern".
+    vi.clearAllMocks();
+    setupMocks();
+    expandQuery.mockResolvedValue({ primary: 'Hitzeschutz Bayern', alternatives: [] });
+    await run('deep', HISTORY_MESSAGES);
+    const rerankCall = rerankNotebookResults.mock.calls[0][0] as { question: string };
+    expect(rerankCall.question).toBe('Hitzeschutz Bayern');
+  });
+
+  it('reranks against the raw question when there is no history to rewrite from', async () => {
+    vi.clearAllMocks();
+    setupMocks();
+    await run('deep');
+    const rerankCall = rerankNotebookResults.mock.calls[0][0] as { question: string };
+    expect(rerankCall.question).toBe('Was steht zur sozialen Sicherung drin?');
+  });
+
+  it('never asks the rewriter for alternatives it would immediately discard', async () => {
+    // deep keeps exactly one query (queryVariants: 1), so the alternatives a
+    // full condense call would produce are pure spend.
+    vi.clearAllMocks();
+    setupMocks();
+    expandQuery.mockResolvedValue({ primary: 'Hitzeschutz Bayern', alternatives: [] });
+    await run('deep', HISTORY_MESSAGES);
+    const opts = expandQuery.mock.calls[0][1] as { variants?: number };
+    expect(opts.variants).toBe(0);
+  });
+});
+
+describe('citation validation', () => {
+  it('warns when the model cites an id that is not in the reference map', async () => {
+    vi.clearAllMocks();
+    setupMocks();
+    getSearchContext.mockResolvedValue({
+      ...searchContextWith(4),
+      referencesMap: {
+        '1': {
+          title: 'Doc 1',
+          snippets: [['Text 1']],
+          description: null,
+          date: null,
+          source: 's',
+          document_id: 'd1',
+          source_url: null,
+          filename: null,
+          similarity_score: 0.9,
+          chunk_index: 0,
+          page_number: null,
+        },
+      },
+    });
+    rerankNotebookResults.mockImplementation(async ({ results, referencesMap }) => ({
+      results,
+      referencesMap,
+      contextSummary: 'x',
+      rerankTimeMs: 1,
+    }));
+    streamWithFallback.mockResolvedValue('Aussage.[1] Andere Aussage.[9]');
+    const sent = await run('deep');
+    const warning = sent.find((e) => e.event === 'warning');
+    expect(warning?.data.code).toBe('citation_invalid');
+    const completion = sent.find((e) => e.event === 'completion');
+    expect(completion?.data.answer).toContain('[cite:1]');
+    expect(completion?.data.answer).toContain('[9]');
+  });
+});
+
+describe('trace id', () => {
+  it('puts the langfuse trace id into the completion metadata and the result', async () => {
+    vi.clearAllMocks();
+    setupMocks();
+    const sent = await run('deep');
+    const completion = sent.find((e) => e.event === 'completion');
+    expect((completion?.data.metadata as { traceId?: string }).traceId).toBe('a'.repeat(32));
+  });
+});
+
+describe('handleNotebookStream — evidence_weak', () => {
+  const KNOBS = ['NOTEBOOK_EVIDENCE_WEAK_ENABLED', 'NOTEBOOK_EVIDENCE_WEAK_THRESHOLD'] as const;
+  let env: Record<(typeof KNOBS)[number], boolean | number>;
+  let original: { enabled: boolean; threshold: number };
+
+  beforeAll(async () => {
+    // KEIN vi.mock: `env` ist `parsed.data`, ein gewöhnliches Objekt. Es zu
+    // mocken hiesse, jedem anderen Modul in diesem Graphen seine env-Felder
+    // wegzunehmen; punktuell mutieren tut das nicht.
+    ({ env } = (await import('../../config/env.js')) as unknown as {
+      env: Record<(typeof KNOBS)[number], boolean | number>;
+    });
+    original = {
+      enabled: env.NOTEBOOK_EVIDENCE_WEAK_ENABLED as boolean,
+      threshold: env.NOTEBOOK_EVIDENCE_WEAK_THRESHOLD as number,
+    };
+  });
+
+  afterEach(() => {
+    env.NOTEBOOK_EVIDENCE_WEAK_ENABLED = original.enabled;
+    env.NOTEBOOK_EVIDENCE_WEAK_THRESHOLD = original.threshold;
+  });
+
+  /** Ein Suchkontext mit gesetztem Evidenz-Spitzenwert. */
+  function contextWithEvidence(evidenceTop: number | null) {
+    return { ...searchContextWith(40), evidenceTop };
+  }
+
+  function evidenceWarnings(sent: { event: string; data: Record<string, unknown> }[]) {
+    return sent.filter((e) => e.event === 'warning' && e.data.code === 'evidence_weak');
+  }
+
+  it('meldet unter der Schwelle, wenn der Schalter an ist', async () => {
+    env.NOTEBOOK_EVIDENCE_WEAK_ENABLED = true;
+    env.NOTEBOOK_EVIDENCE_WEAK_THRESHOLD = 0.89;
+    getSearchContext.mockResolvedValue(contextWithEvidence(0.8713));
+
+    const warnings = evidenceWarnings(await run('deep'));
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0].data.message).toBe(
+      'Zu dieser Frage habe ich im Notebook wenig Passendes gefunden — bitte die angegebenen Quellen prüfen.'
+    );
+  });
+
+  it('schweigt bei ausgeschaltetem Schalter — der Dunkelbetrieb ist die Bauform', async () => {
+    env.NOTEBOOK_EVIDENCE_WEAK_ENABLED = false;
+    env.NOTEBOOK_EVIDENCE_WEAK_THRESHOLD = 0.89;
+    getSearchContext.mockResolvedValue(contextWithEvidence(0.8713));
+
+    expect(evidenceWarnings(await run('deep'))).toHaveLength(0);
+  });
+
+  it('schweigt über der Schwelle', async () => {
+    env.NOTEBOOK_EVIDENCE_WEAK_ENABLED = true;
+    env.NOTEBOOK_EVIDENCE_WEAK_THRESHOLD = 0.89;
+    getSearchContext.mockResolvedValue(contextWithEvidence(0.9803));
+
+    expect(evidenceWarnings(await run('deep'))).toHaveLength(0);
+  });
+
+  it('schweigt für den Grün-O-Mat, auch bei angeschaltetem Schalter', async () => {
+    env.NOTEBOOK_EVIDENCE_WEAK_ENABLED = true;
+    env.NOTEBOOK_EVIDENCE_WEAK_THRESHOLD = 0.89;
+    getSearchContext.mockResolvedValue(contextWithEvidence(0.8713));
+
+    const { req, res, sse, sent } = makeReqRes();
+    await handleNotebookStream({
+      req,
+      res,
+      sse,
+      messages: [{ role: 'user', content: 'Was steht zur sozialen Sicherung drin?' }] as Parameters<
+        typeof handleNotebookStream
+      >[0]['messages'],
+      collectionId: 'grundsatz-system',
+      mode: 'fast',
+      emitEvidenceWarning: false,
+      closeStream: false,
+    });
+
+    expect(evidenceWarnings(sent)).toHaveLength(0);
+  });
+
+  it('liest den Wert VOR dem Rerank — die Regression aus #3140', async () => {
+    // Der Rerank drückt jeden Treffer auf 0,05. Läse das Gitter die Liste NACH
+    // dem Rerank, schlüge es hier Alarm. Genau dieser Griff auf den falschen
+    // Wert war der Fehler des geparkten Anlaufs.
+    env.NOTEBOOK_EVIDENCE_WEAK_ENABLED = true;
+    env.NOTEBOOK_EVIDENCE_WEAK_THRESHOLD = 0.89;
+    getSearchContext.mockResolvedValue(contextWithEvidence(0.9803));
+    rerankNotebookResults.mockImplementation(
+      async ({ results, limit }: { results: { title: string }[]; limit: number }) => ({
+        results: results.slice(0, limit).map((r) => ({ ...r, similarity: 0.05 })),
+        referencesMap: {},
+        contextSummary: 'reranked summary',
+        rerankTimeMs: 5,
+      })
+    );
+
+    expect(evidenceWarnings(await run('deep'))).toHaveLength(0);
+  });
+
+  it('schweigt, wenn das Qualitäts-Gate die Antwort schon verweigert hat', async () => {
+    // minResultsForGeneration greift NACH dem Rerank; die Warnung darf einer
+    // verweigerten Antwort nie anhängen (F2).
+    env.NOTEBOOK_EVIDENCE_WEAK_ENABLED = true;
+    env.NOTEBOOK_EVIDENCE_WEAK_THRESHOLD = 0.89;
+    getSearchContext.mockResolvedValue(contextWithEvidence(0.8713));
+    rerankNotebookResults.mockImplementation(async () => ({
+      results: [],
+      referencesMap: {},
+      contextSummary: 'summary',
+      rerankTimeMs: 1,
+    }));
+
+    const { req, res, sse, sent } = makeReqRes();
+    await handleNotebookStream({
+      req,
+      res,
+      sse,
+      messages: [{ role: 'user', content: 'Was steht zur sozialen Sicherung drin?' }] as Parameters<
+        typeof handleNotebookStream
+      >[0]['messages'],
+      collectionId: 'grundsatz-system',
+      mode: 'deep',
+      minResultsForGeneration: 1,
+      closeStream: false,
+    });
+
+    expect(evidenceWarnings(sent)).toHaveLength(0);
+    const completion = sent.find((e) => e.event === 'completion');
+    expect(
+      (completion?.data.metadata as { qualityGateTriggered?: boolean })?.qualityGateTriggered
+    ).toBe(true);
+  });
+
+  it('schweigt auf der Tiefe fast, protokolliert aber weiterhin', async () => {
+    // Kalibriert wurde nur gegen `deep` — `fast` bekommt nie die Warnung,
+    // auch nicht mit angeschaltetem Schalter und einem schwachen Wert (F5).
+    env.NOTEBOOK_EVIDENCE_WEAK_ENABLED = true;
+    env.NOTEBOOK_EVIDENCE_WEAK_THRESHOLD = 0.89;
+    getSearchContext.mockResolvedValue(contextWithEvidence(0.8713));
+
+    expect(evidenceWarnings(await run('fast'))).toHaveLength(0);
+    expect(logInfo.mock.calls.some((args) => String(args[0]).includes('evidenceTop=0.8713'))).toBe(
+      true
+    );
+  });
+
+  it('protokolliert evidenceTop=none ohne Suchkontext und sendet keine Warnung', async () => {
+    // Der schwächste Fall — nichts hat die Tiefenschwelle überlebt — darf in
+    // der Produktionsmessung nicht stumm verschwinden (F3).
+    env.NOTEBOOK_EVIDENCE_WEAK_ENABLED = true;
+    env.NOTEBOOK_EVIDENCE_WEAK_THRESHOLD = 0.89;
+    getSearchContext.mockResolvedValue(null);
+
+    expect(evidenceWarnings(await run('deep'))).toHaveLength(0);
+    expect(
+      logInfo.mock.calls.some((args) =>
+        String(args[0]).includes('evidenceTop=none (no candidates, deep)')
+      )
+    ).toBe(true);
   });
 });

@@ -74,12 +74,20 @@ function normalizeToolDescriptor(entry: unknown): McpToolDescriptor | null {
 
   const outputSchema = asRecord(raw.outputSchema);
   const meta = asRecord(raw._meta);
+  // Only `readOnlyHint`, and only when it is a real boolean: a server that sends
+  // the string "true" gets no say. The other three spec hints (destructive,
+  // idempotent, openWorld) are deliberately NOT carried — nothing reads them,
+  // and a field with no consumer is the defect #3095 was filed for.
+  const annotations = asRecord(raw.annotations);
+  const readOnlyHint =
+    typeof annotations?.readOnlyHint === 'boolean' ? annotations.readOnlyHint : null;
   return {
     name,
     description: typeof raw.description === 'string' ? raw.description : '',
     inputSchema,
     ...(outputSchema ? { outputSchema } : {}),
     ...(meta ? { meta } : {}),
+    ...(readOnlyHint != null ? { readOnlyHint } : {}),
   };
 }
 
@@ -147,6 +155,14 @@ export interface McpToolDescriptor {
   /** Tool `_meta` — carries the MCP-Apps `ui.resourceUri` and the OpenAI Apps
    *  SDK `openai/outputTemplate` widget pointers. Dropped historically. */
   meta?: Record<string, unknown>;
+  /**
+   * `annotations.readOnlyHint` as the server sent it — a CLAIM, not a fact. The
+   * MCP spec is explicit that a client must not trust annotations from an
+   * untrusted server, so this is carried as far as `approvalPolicy.ts` and acted
+   * on ONLY for first-party managed connectors. Absent = the server said
+   * nothing, which is not the same as `false`.
+   */
+  readOnlyHint?: boolean;
 }
 
 /** A resource attached to a tool result — an MCP-Apps `ui://…` widget pointer

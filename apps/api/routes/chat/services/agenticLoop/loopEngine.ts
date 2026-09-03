@@ -461,10 +461,6 @@ export interface LoopEngineParams {
   forcedToolForStep?: () => string | null;
   onText: (delta: string) => void;
   onReasoning: (delta: string) => void;
-  /** Split mode: fires when the synth phase begins — i.e. tools are done and
-   *  the silent wait for the answer starts. The caller uses it to show progress
-   *  during a window that otherwise emits nothing at all. */
-  onSynthStart?: () => void;
   /** Fires when the synth stalled and the sibling lane takes over, so the
    *  client can surface the switch the same way the single-pass path does. */
   onSynthFallback?: () => void;
@@ -1059,7 +1055,6 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<LoopResu
     };
   };
 
-  p.onSynthStart?.();
   const first = await runPassWithFallback(baseSystem);
   // A decline is checked BEFORE degeneracy: an English refusal trips the
   // no-German-marker rule, so without this it would be retried (a second model

@@ -67,7 +67,6 @@ export type SSEEventType =
   | 'reel_picker'
   | 'reel_updated'
   | 'reel_edit_error'
-  | 'mcp_tool_error'
   | 'tool_step_start'
   | 'tool_step_result'
   | 'response_start'
@@ -229,11 +228,6 @@ export interface SSEEventPayloads {
     changedIndices: number[];
   };
   reel_edit_error: { projectId?: string; error: string };
-  // Connector (user MCP) tool failure — a first-class, user-facing error the
-  // frontend can render as a banner. The generic tool_step_result{ok:false}
-  // card still fires; this names the server and the human-readable error so the
-  // failure isn't only implied by a greyed-out tool card.
-  mcp_tool_error: { toolName: string; serverName: string; error: string };
   // Agentic tool loop: one start/result pair per tool step. Args/summaries are
   // compact display data. `title`/`serverName` label the card (MCP/connector
   // tools); `result` carries the rich per-tool payload the UI cards read
@@ -401,6 +395,7 @@ export const INTENT_MESSAGE_POOLS: Record<SearchIntent, string[]> = {
   edit_sheet: ['Bearbeite Tabelle...', 'Passe Zellen an...'],
   create_pdf: ['Baue das PDF...', 'Setze das Dokument...', 'Gestalte die Seiten...'],
   create_presentation: ['Erstelle Präsentation...', 'Baue Folien...', 'Gestalte Slides...'],
+  // Stillgelegt (09/2026) — total über `SearchIntent`, wie social_post.
   create_recurring_task: [
     'Richte wiederkehrende Aufgabe ein...',
     'Plane den Rhythmus...',
@@ -639,39 +634,21 @@ export function sseFail(
 }
 
 /**
- * Heartbeat for a window where the server is working but emits nothing: the
- * wait for a model's first content token. Some lanes spend many seconds there
- * (cold reasoning starts, overflow lanes); without a ping the UI shows
- * `response_start` and then nothing, which is indistinguishable from a hang.
+ * Heartbeat interval shared by the step heartbeat below.
  *
- * Shared by both answer paths — the single-pass streamer and the agentic loop's
- * synth phase, which is silent from the last tool result until the answer
- * begins. Returns the disarm function; call it on the first delta, on abort and
- * on error.
+ * There is deliberately NO heartbeat for the wait on a model's first content
+ * token. One existed (`startResponseHeartbeat`, 27.07.2026) and re-sent a
+ * `thinking_step` named `generating` every 3s — but `thinking_step` is the
+ * TOOL channel: the client's parser turns every one of them into a tool-call
+ * card (`parseSSEStream`, case 'thinking_step'), and this one never got a
+ * matching `completed`, so a plain `direct` turn with a slow first token left a
+ * card „generating — Formuliere Antwort…" spinning for the rest of the turn.
+ * The window needs no event anyway: `response_start` already puts the
+ * `generating` step in the list, and the status line shimmers on its own from
+ * there. Anything that really must narrate this window uses `progress_step`
+ * (see the note on that case in the parser), never `thinking_step`.
  */
 const HEARTBEAT_INTERVAL_MS = 3_000;
-
-export function startResponseHeartbeat(sse: SSEWriter): () => void {
-  const stepId = `generating_${Date.now()}`;
-  const handle = setInterval(() => {
-    if (sse.isEnded()) return;
-    sse.send('thinking_step', {
-      stepId,
-      toolName: 'generating',
-      title: 'Formuliere Antwort…',
-      status: 'in_progress',
-    });
-  }, HEARTBEAT_INTERVAL_MS);
-  // Don't keep the event loop alive solely on this timer if the response is
-  // aborted at the socket layer.
-  if (typeof handle.unref === 'function') handle.unref();
-  let cleared = false;
-  return () => {
-    if (cleared) return;
-    cleared = true;
-    clearInterval(handle);
-  };
-}
 
 /**
  * Derselbe Dienst für ein viel längeres Fenster: die Nachschritte eines
@@ -898,6 +875,26 @@ export const CHAT_WARNINGS = {
       'Der Privacy-Modus konnte nicht angewendet werden — es wurde der Standard-Anbieter genutzt.',
     severity: 'warning',
     attribution: 'provider',
+  },
+  // Das Modell hat eine Quellennummer genannt, die es nicht bekommen hat. Der
+  // Marker bleibt im Text (Löschen würde die Stelle verstecken); dieses Signal
+  // zählt den Fall, den der Notebook-Prompt ausdrücklich verbietet.
+  citation_invalid: {
+    message: 'Eine Quellenangabe in der Antwort verweist auf keine bereitgestellte Quelle.',
+    severity: 'warning',
+    attribution: 'system',
+  },
+  // Der EINZIGE Ort dieses Satzes. Der Client rendert die Zeichenkette von der
+  // Leitung und hält keine eigene Kopie — sonst gäbe es den Text zweimal und
+  // eine Änderung erreichte nur die Hälfte der Flächen.
+  //
+  // `info`, nicht `warning`: es ist nichts ausgefallen. Das Retrieval hat
+  // getan, was es soll, und meldet, dass die Sammlung zur Frage wenig hergibt.
+  evidence_weak: {
+    message:
+      'Zu dieser Frage habe ich im Notebook wenig Passendes gefunden — bitte die angegebenen Quellen prüfen.',
+    severity: 'info',
+    attribution: 'system',
   },
 } satisfies Record<ChatWarningCode, ChatWarningSpec>;
 

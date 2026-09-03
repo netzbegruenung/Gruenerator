@@ -116,6 +116,7 @@ export {
   resolveThreadBySlugSuffix,
   type ExternalThreadEntry,
 } from './runtime/GrueneratorThreadListAdapter';
+export { buildThreadPath } from './lib/threadPath';
 
 // External Thread Context
 export { ExternalThreadProvider, useExternalThread } from './context/ExternalThreadContext';
@@ -422,7 +423,13 @@ export {
   RECIPE_ORIGIN_SECTION_TITLES,
   type RecipeOrigin,
 } from './lib/mentionSections';
-export { INTENT_TO_TOOL, DEEP_TOOL_MAP } from './lib/toolMappings';
+export {
+  INTENT_TO_TOOL,
+  DEEP_TOOL_MAP,
+  // Benennt Konnektor-Werkzeuge (`m<key>__<tool>`) lesbar; die
+  // Freigabe-Karten beider Plattformen brauchen denselben Namen.
+  formatNamespacedToolLabel,
+} from './lib/toolMappings';
 
 // Which tool calls live in the shimmering status line instead of drawing a card.
 export {
@@ -460,7 +467,13 @@ export {
   parsePressemitteilungExamples,
   pressemitteilungLvLabel,
   formatGermanDate,
+  getToolResultCount,
+  toolResultSummary,
+  toolOutcome,
+  toolErrorMessage,
   type ToolIconKey,
+  type ToolAccent,
+  type ToolOutcome,
   type ToolMeta,
   type ResearchCitation,
   type ResearchConfidence,
@@ -472,6 +485,17 @@ export {
   type PressemitteilungExample,
   type ParsedPressemitteilungExamples,
 } from './lib/toolResults';
+
+// Werkzeug-Freigabe: die plattformneutrale Hälfte. Web rendert sie als Karte,
+// Native als Karte im eigenen Idiom — beide lesen dieselben Optionen und
+// dieselben Beschriftungen, damit die Entscheidung überall gleich heisst.
+export {
+  TOOL_APPROVAL_OPTIONS,
+  approvalDecidedLabel,
+  isApprovalDecided,
+  type ToolApprovalOptionId,
+  type ToolApprovalState,
+} from './lib/toolApproval';
 
 // Tool view-models & registry (platform-neutral; each platform maps kind → component)
 export {

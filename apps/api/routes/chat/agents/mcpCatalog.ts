@@ -193,6 +193,10 @@ export async function loadMcpCatalog(params: {
               kind: config.managed ? 'managed' : 'mcp',
               serverId: config.id,
               remoteToolName: t.name,
+              // Ungeprüft weitergereicht, auch für fremde Server: die
+              // Vertrauensfrage beantwortet `approvalPolicy.ts` anhand von
+              // `kind`, nicht diese Stelle.
+              ...(t.readOnlyHint != null ? { readOnlyHint: t.readOnlyHint } : {}),
             },
           });
 

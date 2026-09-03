@@ -7,11 +7,11 @@
  * Neuschreibung.
  *
  * **Es gibt keine Schreibmethoden, und das ist die Zusicherung.** Der Zugriff
- * auf fremde Ablagen ist lesend; das steht so in der Datenschutz-Auskunft und
- * in `documentation/docs/konto/gruene-wolke.md`. Eine Schreibmethode hier
- * einzuziehen ist deshalb keine Erweiterung, sondern eine Produktentscheidung —
- * der Guard-Test in `nextcloudApiClient.vitest.ts` ist die zweite Schranke, das
- * Fehlen von `write`/`delete`/`mkdir` in diesem Typ die erste.
+ * auf fremde Ablagen ist lesend; das steht so in der Datenschutz-Auskunft und in
+ * `documentation/docs/guides/fortgeschrittene/gruene-wolke-einbinden.md`. Eine
+ * Schreibmethode hier einzuziehen ist deshalb keine Erweiterung, sondern eine
+ * Produktentscheidung — der Guard-Test in `nextcloudApiClient.vitest.ts` ist die
+ * zweite Schranke, das Fehlen von `write`/`delete`/`mkdir` in diesem Typ die erste.
  *
  * `CloudRoot` ist bewusst VERBINDUNGS- und nicht token-förmig: heute steckt in
  * `connectionId` eine Share-Link-Id, morgen kann derselbe Träger ein

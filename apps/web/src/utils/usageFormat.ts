@@ -35,6 +35,9 @@ export const UNIT_LABELS: Record<string, string> = {
   images: 'Bilder',
   transcriptions: 'Transkriptionen',
   searches: 'Recherchen',
+  // Sekunden, keine Aufrufe: ein Vorlesen sind viele Anfragen, eine Zählung
+  // beschriebe unsere Satz-Aufteilung und nicht die Nutzung.
+  speech_seconds: 'Sekunden',
 };
 
 /**
@@ -49,10 +52,17 @@ export const FUNCTION_LABELS: Record<string, string> = {
   images: 'Bildmodelle',
   transcriptions: 'Spracherkennung',
   searches: 'Websuche',
+  speech_seconds: 'Sprachausgabe',
 };
 
 /** Order the function sections appear in — text first, it dominates every window. */
-export const FUNCTION_ORDER = ['tokens', 'images', 'transcriptions', 'searches'] as const;
+export const FUNCTION_ORDER = [
+  'tokens',
+  'images',
+  'transcriptions',
+  'searches',
+  'speech_seconds',
+] as const;
 
 /**
  * Human names for the upstreams the tracker records.
@@ -82,6 +92,10 @@ export const PROVIDER_LABELS: Record<string, string> = {
   greenpt: 'GreenPT',
   bfl: 'Black Forest Labs',
   linkup: 'Linkup',
+  // Bewusst ohne Länderzusatz: KugelAudios Unterauftragnehmer reichen von
+  // Finnland bis Polen, und der Anbieter legt nicht offen, welcher eine
+  // konkrete Anfrage bedient hat. Ein Standort hier wäre eine Behauptung.
+  kugelaudio: 'KugelAudio',
 };
 
 export function providerLabel(provider: string): string {
@@ -98,6 +112,27 @@ export const oneDecimal = new Intl.NumberFormat('de-DE', { maximumFractionDigits
 
 export function formatCount(value: number): string {
   return numberFormat.format(value);
+}
+
+/**
+ * Seconds as a duration.
+ *
+ * Speech is counted in seconds, and a bare "1.284" next to a label reads as a
+ * count of something — which is exactly the misreading the unit name avoids.
+ */
+export function formatDuration(seconds: number): string {
+  // Round to whole minutes FIRST, then split. Rounding the remainder on its own
+  // lets it reach 60 — 7190 s came out as "1 Std. 60 Min." rather than "2 Std.".
+  const totalMinutes = Math.round(seconds / 60);
+
+  if (totalMinutes >= 60) {
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    return minutes > 0 ? `${hours} Std. ${minutes} Min.` : `${hours} Std.`;
+  }
+  // Below a minute stays in seconds, so a short read-aloud is not "0 Min.".
+  if (seconds >= 60) return `${numberFormat.format(totalMinutes)} Min.`;
+  return `${numberFormat.format(seconds)} Sek.`;
 }
 
 /** Long token counts get an abbreviated form so the tiles stay readable. */

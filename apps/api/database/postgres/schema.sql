@@ -98,7 +98,7 @@ CREATE TABLE IF NOT EXISTS profiles (
     docs BOOLEAN DEFAULT FALSE,
     boards BOOLEAN DEFAULT FALSE,
     bundestag_api_enabled BOOLEAN DEFAULT FALSE,
-    memory_enabled BOOLEAN DEFAULT FALSE,
+    memory_enabled BOOLEAN DEFAULT TRUE,
     feedback_button TEXT NOT NULL DEFAULT 'text' CHECK (feedback_button IN ('text', 'icon', 'off')),
     reduce_motion BOOLEAN NOT NULL DEFAULT FALSE,
     reduce_transparency BOOLEAN NOT NULL DEFAULT FALSE,
@@ -111,7 +111,7 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS prompts BOOLEAN DEFAULT FALSE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS docs BOOLEAN DEFAULT FALSE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS boards BOOLEAN DEFAULT FALSE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS bundestag_api_enabled BOOLEAN DEFAULT FALSE;
-ALTER TABLE profiles ADD COLUMN IF NOT EXISTS memory_enabled BOOLEAN DEFAULT FALSE;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS memory_enabled BOOLEAN DEFAULT TRUE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS feedback_button TEXT NOT NULL DEFAULT 'text' CHECK (feedback_button IN ('text', 'icon', 'off'));
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS reduce_motion BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS reduce_transparency BOOLEAN NOT NULL DEFAULT FALSE;
@@ -373,19 +373,6 @@ CREATE TABLE IF NOT EXISTS notebook_collection_documents (
     added_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
     UNIQUE(collection_id, document_id)
 );
-
-CREATE TABLE IF NOT EXISTS notebook_usage_logs (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    collection_id UUID REFERENCES notebook_collections(id) ON DELETE CASCADE,
-    user_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
-    question TEXT NOT NULL,
-    answer_length INTEGER,
-    response_time_ms INTEGER,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    ip_address INET,
-    user_agent TEXT
-);
-
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- SECTION 7: GENERATORS & PROMPTS
@@ -1151,28 +1138,23 @@ CREATE TRIGGER update_chat_threads_updated_at
     EXECUTE FUNCTION update_updated_at_column();
 
 
--- ════════════════════════════════════════════════════════════════════════════
--- SECTION: MEM0 MEMORY HISTORY (GDPR Compliance & Audit)
--- Tracks all memory operations for user data rights and debugging
--- ════════════════════════════════════════════════════════════════════════════
 
-CREATE TABLE IF NOT EXISTS mem0_memory_history (
+-- ============================================================================
+-- Section: User memory (explicit — what the person asked the assistant to keep)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS user_memories (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
-    memory_id TEXT NOT NULL,
-    operation TEXT NOT NULL CHECK (operation IN ('add', 'update', 'delete', 'delete_all')),
-    memory_text TEXT,
-    metadata JSONB DEFAULT '{}',
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL CHECK (kind IN ('anweisung', 'fakt')),
+    text TEXT NOT NULL CHECK (char_length(text) BETWEEN 1 AND 400),
+    source TEXT NOT NULL CHECK (source IN ('chat', 'manual')),
     thread_id UUID REFERENCES chat_threads(id) ON DELETE SET NULL,
-    message_id UUID REFERENCES chat_messages(id) ON DELETE SET NULL
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Indexes for mem0 memory history
-CREATE INDEX IF NOT EXISTS idx_mem0_history_user ON mem0_memory_history(user_id);
-CREATE INDEX IF NOT EXISTS idx_mem0_history_memory ON mem0_memory_history(memory_id);
-CREATE INDEX IF NOT EXISTS idx_mem0_history_created ON mem0_memory_history(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_mem0_history_operation ON mem0_memory_history(operation);
+CREATE INDEX IF NOT EXISTS idx_user_memories_user ON user_memories(user_id, updated_at DESC);
 
 
 -- ============================================================================

@@ -84,6 +84,54 @@ export const CONFIRM_ACTION_CONFIG: Record<
     icon: 'cloud',
     confirmLabel: 'Verbinden',
   },
+  attach_wolke_folder: {
+    title: 'Wolke-Ordner ins Notebook übernehmen',
+    description:
+      'Der Ordner wird ans Notebook gehängt; die ersten Dateien werden sofort ausgelesen (OCR), der Rest erscheint im Notebook unter „Neue Dateien".',
+    icon: 'folder-input',
+    confirmLabel: 'Übernehmen',
+  },
+  set_notebook_visibility: {
+    title: 'Sichtbarkeit des Notebooks ändern',
+    description:
+      'Wer das Notebook lesen und bearbeiten darf. „Mit Anmeldung" heißt: alle angemeldeten Personen dieser Instanz.',
+    icon: 'eye',
+    confirmLabel: 'Ändern',
+  },
+  share_notebook: {
+    title: 'Notebook teilen',
+    description: 'Das Notebook wird mit dem Projekt geteilt — die Mitglieder können es lesen.',
+    icon: 'share-2',
+    confirmLabel: 'Teilen',
+  },
+  set_group_visibility: {
+    title: 'Sichtbarkeit des Projekts ändern',
+    description:
+      'Öffentlich heißt: das Projekt erscheint unter „Projekte entdecken" und andere können um Aufnahme bitten. Privat heißt: Beitritt nur per Einladungslink.',
+    icon: 'eye',
+    confirmLabel: 'Ändern',
+  },
+  create_recurring_task: {
+    title: 'Wiederkehrende Aufgabe einrichten',
+    description:
+      'Die Aufgabe läuft danach von selbst im angegebenen Takt und liefert dir jedes Mal ein Ergebnis. Bearbeiten und löschen geht jederzeit unter „Wiederkehrende Aufgaben".',
+    icon: 'repeat',
+    confirmLabel: 'Einrichten',
+  },
+  create_user_agent: {
+    title: 'Grünerator-Agent anlegen',
+    description:
+      'Der Agent wird mit der entworfenen Rolle angelegt und ist danach unter „Meine Agenten" in der Agentura nutzbar. Rolle, Werkzeuge und Notebooks lassen sich jederzeit dort oder im Chat ändern.',
+    icon: 'bot',
+    confirmLabel: 'Anlegen',
+  },
+  share_user_agent: {
+    title: 'Grünerator-Agent teilen',
+    description:
+      'Der Agent wird mit dem Projekt geteilt — die Mitglieder können ihn im Chat benutzen, aber nicht bearbeiten.',
+    icon: 'share-2',
+    confirmLabel: 'Teilen',
+  },
 };
 
 /**

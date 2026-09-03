@@ -82,6 +82,10 @@ const NON_REPLAYABLE_ACTION_TOOLS: ReadonlySet<string> = new Set([
   'create_pdf',
   'generate_image',
   'sharepic',
+  // A replayed save would tell the model it already remembered — and the
+  // person reading the replayed card would see a save that did not happen
+  // this turn.
+  'memory',
 ]);
 
 /**

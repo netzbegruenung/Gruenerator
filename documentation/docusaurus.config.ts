@@ -69,7 +69,10 @@ const config: Config = {
           sidebarPath: './sidebars.ts',
           // Hidden until ready — remove entries to re-enable in the sidebar.
           // intern: dev-only LV-Korpus analysis pages, internal.
-          exclude: ['intern/**'],
+          // finetuning + welches-ki-tool-wofuer: temporarily out of the docs —
+          // remove the two entries to re-publish them (keep in sync with
+          // EXCLUDED_FILES in scripts/generate-docs-index.mjs).
+          exclude: ['intern/**', 'basics/finetuning.md', 'basics/welches-ki-tool-wofuer.md'],
           // "Edit this page" points at the docs in the monorepo.
           editUrl: 'https://github.com/netzbegruenung/Gruenerator/tree/master/documentation/',
         },
@@ -166,8 +169,52 @@ const config: Config = {
           // projekte + Profil → konto/*
           { from: '/docs/projekte/intro', to: '/docs/konto/projekte' },
           { from: '/docs/Profil/einstellungen', to: '/docs/konto/einstellungen' },
-          { from: '/docs/Profil/gruene-wolke-tutorial', to: '/docs/konto/gruene-wolke' },
-          // llm-basics → grundlagen/*
+          {
+            from: '/docs/Profil/gruene-wolke-tutorial',
+            to: '/docs/guides/fortgeschrittene/gruene-wolke-einbinden',
+          },
+          {
+            from: '/docs/konto/gruene-wolke',
+            to: '/docs/guides/fortgeschrittene/gruene-wolke-einbinden',
+          },
+          {
+            from: '/docs/konto/landesverband-einrichten',
+            to: '/docs/guides/landesverbaende/landesverband-einrichten',
+          },
+          // Basics: "Über den Grünerator" and "Grundlagen" merged into basics/
+          { from: '/docs/ueber-den-gruenerator/intro', to: '/docs/basics/intro' },
+          { from: '/docs/ueber-den-gruenerator/tools', to: '/docs/basics/tools' },
+          {
+            from: '/docs/ueber-den-gruenerator/gruenerator-pro-eu',
+            to: '/docs/basics/gruenerator-pro-eu',
+          },
+          {
+            from: '/docs/ueber-den-gruenerator/nachhaltigkeit',
+            to: '/docs/basics/nachhaltigkeit',
+          },
+          { from: '/docs/ueber-den-gruenerator/notebook', to: '/docs/basics/notebook' },
+          { from: '/docs/ueber-den-gruenerator/open-source', to: '/docs/basics/open-source' },
+          {
+            from: '/docs/ueber-den-gruenerator/barrierefreiheit',
+            to: '/docs/basics/barrierefreiheit',
+          },
+          {
+            from: '/docs/ueber-den-gruenerator/wie-diese-doku-entsteht',
+            to: '/docs/sonstiges/wie-diese-doku-entsteht',
+          },
+          {
+            from: '/docs/grundlagen/wie-llms-funktionieren',
+            to: '/docs/basics/wie-llms-funktionieren',
+          },
+          {
+            from: '/docs/grundlagen/risiken-und-gefahren-von-llms',
+            to: '/docs/basics/risiken-und-gefahren-von-llms',
+          },
+          {
+            from: '/docs/grundlagen/Kennzeichnungs-Guide',
+            to: '/docs/basics/Kennzeichnungs-Guide',
+          },
+          // llm-basics → basics/*
           //
           // The two pages that merely changed case (/docs/Grundlagen/* →
           // /docs/grundlagen/*) get NO redirect on purpose: macOS' filesystem
@@ -175,14 +222,20 @@ const config: Config = {
           // real page and every local build would fail. Those two URLs are
           // low-traffic concept pages; a build that only works on Linux costs
           // more than the two dead links.
-          { from: '/docs/llm-basics/finetuning', to: '/docs/grundlagen/finetuning' },
+          //
+          // finetuning and welches-ki-tool-wofuer are temporarily out of the
+          // docs (see docs.exclude above) — their old addresses land on the
+          // Basics intro until the pages come back.
+          { from: '/docs/llm-basics/finetuning', to: section('basics').intro },
+          { from: '/docs/grundlagen/finetuning', to: section('basics').intro },
+          { from: '/docs/grundlagen/welches-ki-tool-wofuer', to: section('basics').intro },
           {
             from: '/docs/llm-basics/risiken-und-gefahren-von-llms',
-            to: '/docs/grundlagen/risiken-und-gefahren-von-llms',
+            to: '/docs/basics/risiken-und-gefahren-von-llms',
           },
           {
             from: '/docs/llm-basics/wie-llms-funktionieren',
-            to: '/docs/grundlagen/wie-llms-funktionieren',
+            to: '/docs/basics/wie-llms-funktionieren',
           },
           // The top-level /docs/category/… index pages disappeared with the
           // per-area sidebars (a category page only exists while a category
@@ -192,7 +245,7 @@ const config: Config = {
           // (still categories inside archivSidebar) and need no rule.
           {
             from: '/docs/category/über-den-grünerator',
-            to: section('ueber-den-gruenerator').intro,
+            to: section('basics').intro,
           },
           { from: '/docs/category/chat', to: section('chat').intro },
           { from: '/docs/category/office', to: section('features').intro },
@@ -200,7 +253,7 @@ const config: Config = {
           { from: '/docs/category/grüneratoren', to: section('features').intro },
           { from: '/docs/category/konto--projekte', to: section('konto').intro },
           { from: '/docs/category/integrationen', to: section('integrationen').intro },
-          { from: '/docs/category/grundlagen', to: section('grundlagen').intro },
+          { from: '/docs/category/grundlagen', to: section('basics').intro },
           { from: '/docs/category/archiv', to: EXTRA_LINKS.archiv.to },
         ],
         // The dated newsletter and Signal posts moved into archiv/ as a whole —
@@ -306,7 +359,7 @@ const config: Config = {
         },
         {
           title: 'Verstehen',
-          items: [...section('grundlagen').topPages, ...section('ueber-den-gruenerator').topPages],
+          items: section('basics').topPages,
         },
         {
           title: 'Mehr',

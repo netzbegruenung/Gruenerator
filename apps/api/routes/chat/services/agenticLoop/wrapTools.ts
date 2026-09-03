@@ -84,8 +84,34 @@ export interface ToolHooks {
 
 /** Enge eigene Grenze für `beforeToolCall`: der einzige Hook, auf den gewartet
  *  wird (er kann attrappieren), also der einzige, der den Loop aufhalten
- *  könnte. Läuft er darüber, wird das Werkzeug ganz normal ausgeführt. */
+ *  könnte. Läuft er darüber, wird das Werkzeug ganz normal ausgeführt.
+ *  Ein über `composeToolHooks` zusammengesetzter Hook läuft seine Mitglieder
+ *  NACHEINANDER innerhalb dieses einen Budgets — es ist geteilt, nicht je
+ *  Mitglied neu vergeben. */
 const BEFORE_HOOK_TIMEOUT_MS = 500;
+
+/**
+ * Felder, die ein Werkzeugergebnis nur für die Hooks trägt.
+ *
+ * Sie gehen an Karte, persistierten Schritt und `afterToolCall` — aber NICHT an
+ * das Modell: `rerankDegraded` ist eine Aussage über unsere Infrastruktur, nicht
+ * über die Fundstellen, und ein Planer, der sie liest, fängt an, sie in der
+ * Antwort zu erklären. Der persistierte Schritt bleibt bewusst ROH (Karte,
+ * Fehlersuche) — gestrippt wird an zwei Stellen, die je einen eigenen Weg zum
+ * Modell haben: hier für die Antwort des laufenden Aufrufs, und in
+ * `mcpReplay.ts`s `shortValue` für den späteren Turn-Replay desselben
+ * persistierten Schritts (`buildToolObservationReplay`).
+ */
+const INTERNAL_RESULT_FIELDS: readonly string[] = ['rerankDegraded'];
+
+export function stripInternalFields<T>(output: T): T {
+  if (!output || typeof output !== 'object' || Array.isArray(output)) return output;
+  const record = output as Record<string, unknown>;
+  if (!INTERNAL_RESULT_FIELDS.some((field) => field in record)) return output;
+  const copy = { ...record } as T;
+  for (const field of INTERNAL_RESULT_FIELDS) delete (copy as Record<string, unknown>)[field];
+  return copy;
+}
 
 /**
  * Beobachtende Hooks sind Fire-and-Forget: eine Ausnahme darf den Turn nicht
@@ -104,6 +130,64 @@ function fireAndForget(hookName: string, run: () => unknown): void {
   } catch (err) {
     log.warn(`[ToolHook] ${hookName} geworfen: ${err instanceof Error ? err.message : err}`);
   }
+}
+
+/**
+ * Fasst mehrere `ToolHooks` zu einem zusammen, damit ein Aufrufer, der zwei
+ * unabhängige Beobachter braucht (z. B. Kostenrechnung + Rerank-Warnung),
+ * nicht von Hand einen Umschlag schreibt, der einen fehlschlagenden Beobachter
+ * den zweiten mitreißen lassen könnte.
+ *
+ * Jedes vorhandene Hook-Mitglied läuft für ALLE übergebenen `ToolHooks` in
+ * Reihenfolge, jeder Aufruf einzeln abgesichert — ein werfender oder
+ * abgelehnter Beobachter beendet nicht die Kette, sondern wird geloggt und
+ * übersprungen. `afterToolCall`/`onToolCallError` laufen über `fireAndForget`
+ * wie am einzelnen Aufrufpunkt in `wrappedExecute`; `beforeToolCall` wird dort
+ * hingegen ECHT awaitet (Attrappen-Semantik), deshalb hier sequenziell mit
+ * eigenem try/catch statt Fire-and-Forget.
+ */
+export function composeToolHooks(...hooks: ReadonlyArray<ToolHooks | undefined>): ToolHooks {
+  const present = hooks.filter((h): h is ToolHooks => h != null);
+  const composed: ToolHooks = {};
+
+  const befores = present
+    .map((h) => h.beforeToolCall)
+    .filter((fn): fn is NonNullable<ToolHooks['beforeToolCall']> => fn != null);
+  if (befores.length > 0) {
+    composed.beforeToolCall = async (event) => {
+      for (const fn of befores) {
+        try {
+          await fn(event);
+        } catch (err) {
+          log.warn(
+            `[ToolHook] composed beforeToolCall geworfen: ${
+              err instanceof Error ? err.message : String(err)
+            }`
+          );
+        }
+      }
+    };
+  }
+
+  const afters = present
+    .map((h) => h.afterToolCall)
+    .filter((fn): fn is NonNullable<ToolHooks['afterToolCall']> => fn != null);
+  if (afters.length > 0) {
+    composed.afterToolCall = (event) => {
+      for (const fn of afters) fireAndForget('afterToolCall', () => fn(event));
+    };
+  }
+
+  const onErrors = present
+    .map((h) => h.onToolCallError)
+    .filter((fn): fn is NonNullable<ToolHooks['onToolCallError']> => fn != null);
+  if (onErrors.length > 0) {
+    composed.onToolCallError = (event) => {
+      for (const fn of onErrors) fireAndForget('onToolCallError', () => fn(event));
+    };
+  }
+
+  return composed;
 }
 
 export interface WrapToolsContext {
@@ -165,9 +249,74 @@ function summarize(result: unknown): string | undefined {
   if (Array.isArray(r.results)) return `${r.results.length} Ergebnisse`;
   if (typeof r.resultCount === 'number') return `${r.resultCount} Ergebnisse`;
   if (Array.isArray(r.examples)) return `${r.examples.length} Beispiele`;
+  // `cloud_files`: ohne diese beiden Zeilen meldete jede Wolke-Auflistung nur
+  // „ok" — die Logzeile verschwieg also genau das, was man wissen muss, wenn
+  // eine Antwort danach behauptet, es liege nichts vor.
+  if (typeof r.connectionCount === 'number') {
+    return `${r.connectionCount} Verbindung${r.connectionCount === 1 ? '' : 'en'}`;
+  }
+  if (typeof r.entryCount === 'number') return `${r.entryCount} Einträge`;
+  // `notebooks`: search liefert Antwort + Zitate, get ein Detailobjekt, die
+  // Karten-Aktionen eine Bestätigungsanfrage — alle drei sagten sonst nur „ok".
+  if (typeof r.answer === 'string' && typeof r.resultCount === 'number') {
+    return `Antwort mit ${r.resultCount} Zitat${r.resultCount === 1 ? '' : 'en'}`;
+  }
+  if (r.needsConfirmation === true) return 'Bestätigung angefordert';
+  if (r.notebook && typeof r.notebook === 'object') {
+    const nb = r.notebook as { name?: unknown; documentCount?: unknown };
+    if (typeof nb.name === 'string') {
+      return typeof nb.documentCount === 'number'
+        ? `Notebook „${nb.name}" (${nb.documentCount} Dokumente)`
+        : `Notebook „${nb.name}"`;
+    }
+  }
+  // `groups`: get liefert ein Detailobjekt — sonst hieße es nur „ok".
+  if (r.group && typeof r.group === 'object') {
+    const g = r.group as { name?: unknown; contentCount?: unknown };
+    if (typeof g.name === 'string') {
+      return typeof g.contentCount === 'number'
+        ? `Projekt „${g.name}" (${g.contentCount} Inhalte)`
+        : `Projekt „${g.name}"`;
+    }
+  }
+  // `recurring_tasks`: get liefert ein Detailobjekt — sonst hieße es nur „ok".
+  if (r.task && typeof r.task === 'object') {
+    const t = r.task as { title?: unknown; recurrenceLabel?: unknown };
+    if (typeof t.title === 'string') {
+      return typeof t.recurrenceLabel === 'string'
+        ? `Aufgabe „${t.title}" (${t.recurrenceLabel})`
+        : `Aufgabe „${t.title}"`;
+    }
+  }
+  // `user_agents`: get liefert ein Detailobjekt — sonst hieße es nur „ok".
+  if (r.agent && typeof r.agent === 'object') {
+    const a = r.agent as { title?: unknown; sharedFromGroup?: unknown };
+    if (typeof a.title === 'string') {
+      return typeof a.sharedFromGroup === 'string'
+        ? `Grünerator-Agent „${a.title}" (aus „${a.sharedFromGroup}")`
+        : `Grünerator-Agent „${a.title}"`;
+    }
+  }
+  // `recipes`: get liefert ein Detailobjekt, create/add_examples eines mit
+  // Beispielzahl — sonst hieße es nur „ok".
+  if (r.recipe && typeof r.recipe === 'object') {
+    const t = r.recipe as { title?: unknown; source?: unknown; exampleCount?: unknown };
+    if (typeof t.title === 'string') {
+      if (t.source === 'system') return `Rezept „${t.title}"`;
+      return typeof t.exampleCount === 'number'
+        ? `Textform „${t.title}" (${t.exampleCount} Beispiele)`
+        : `Textform „${t.title}"`;
+    }
+  }
   // rezept_laden: the card names the recipe; the prompt body stays server-side.
   if (typeof r.titel === 'string' && r.geladen === true) return `Rezept: ${r.titel}`;
   if (r.geladen === false) return 'Rezept nicht verfügbar';
+  // memory: the card is the only place the person sees what was kept.
+  if (typeof r.text === 'string') {
+    if (r.gespeichert === true) return `${r.hinweis ? 'Bereits gemerkt' : 'Gemerkt'}: ${r.text}`;
+    if (r.aktualisiert === true) return `Aktualisiert: ${r.text}`;
+    if (r.vergessen === true) return `Vergessen: ${r.text}`;
+  }
   return undefined;
 }
 
@@ -458,17 +607,11 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
         const detail = server ? describeMcpContent(output) : outcomeDetail;
         log.info(`[Tool] ${toolName}${serverTag} ok — ${detail}`);
       } else {
+        // Die Karte ist der einzige Weg zur Person: `sendResult(ok=false)` unten,
+        // dazu `ok: false` im Schritt, damit der Fehlschlag den Reload ueberlebt.
+        // Ein zusaetzliches `mcp_tool_error` fuer Konnektor-Aufrufe stand hier bis
+        // 01.09.2026 und hat nie ein Client gelesen (#3095).
         log.warn(`[Tool] ${toolName}${serverTag} FEHLER — ${outcomeDetail}`);
-        // MCP/connector failures also get a first-class, user-facing error
-        // event (the generic tool card only carries ok:false); internal tools
-        // keep their own error channels.
-        if (server) {
-          ctx.sse.send('mcp_tool_error', {
-            toolName,
-            serverName: server,
-            error: outcomeDetail,
-          });
-        }
       }
 
       ctx.recordStep({
@@ -476,6 +619,8 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
         toolName,
         args,
         result: asRecord(output),
+        // Only the failure is written; absence means ok (see PersistedStep.ok).
+        ...(ok ? {} : { ok: false as const }),
         ...serverMeta,
         ...(textOffset != null && { textOffset }),
         ...(narration ? { narration } : {}),
@@ -505,8 +650,8 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
       }
 
       // Model-facing payload only — the full result already went to the card /
-      // persisted step above.
-      return truncateResultForModel(output, maxResultChars);
+      // persisted step above, and the hooks above have seen the internal fields.
+      return truncateResultForModel(stripInternalFields(output), maxResultChars);
     };
 
     wrapped[toolName] = { ...toolDef, execute: wrappedExecute } as ToolSet[string];

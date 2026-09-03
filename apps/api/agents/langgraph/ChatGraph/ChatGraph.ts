@@ -196,6 +196,8 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
 
     // Memory context (will be set by controller before graph execution)
     memoryContext: null,
+    memories: null,
+    memoryEnabled: false,
     memoryRetrieveTimeMs: 0,
 
     // Chat history context (will be set by controller when classifier detects past conversation reference)

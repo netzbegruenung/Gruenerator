@@ -195,10 +195,14 @@ export async function* parseSSEStream(
   let receivedBahnData: BahnPayload | null = null;
   let receivedFollowUpSuggestions: string[] = [];
   let receivedMetadata: StreamMetadata | null = null;
+  // Notebook turns end on `completion`, never on `done`, so their trace id
+  // arrives outside the metadata envelope the chat paths use.
+  let receivedTraceId: string | null = null;
   let receivedConfirmAction: ConfirmActionData | null = null;
   let receivedCreatedDocument: DocumentCreatedData | null = null;
   let receivedReelProcessing: ReelProcessingData | null = null;
   let receivedReelPicker: ReelPickerData | null = null;
+  let evidenceWeakAccum: string | null = null;
   let activeToolCall: ToolCallPart | null = null;
   const allToolCalls: ToolCallPart[] = [...(carryOver?.toolCalls ?? [])];
   // Agentic tool-loop steps, keyed by stepId. The loop can run several tools in
@@ -324,12 +328,20 @@ export async function* parseSSEStream(
     if (receivedComputeData) custom.computeData = receivedComputeData;
     if (receivedBahnData) custom.bahnData = receivedBahnData;
     if (receivedMetadata) custom.streamMetadata = receivedMetadata;
+    else if (receivedTraceId)
+      custom.streamMetadata = {
+        intent: 'direct',
+        searchCount: 0,
+        totalTimeMs: 0,
+        traceId: receivedTraceId,
+      };
     if (receivedFollowUpSuggestions.length > 0)
       custom.followUpSuggestions = receivedFollowUpSuggestions;
     if (receivedConfirmAction) custom.confirmAction = receivedConfirmAction;
     if (receivedCreatedDocument) custom.createdDocument = receivedCreatedDocument;
     if (receivedReelProcessing) custom.reelProcessing = receivedReelProcessing;
     if (receivedReelPicker) custom.reelPicker = receivedReelPicker;
+    if (evidenceWeakAccum) custom.evidenceWeak = evidenceWeakAccum;
     if (agentInfo?.agentId) {
       custom.agentId = agentInfo.agentId;
       if (agentInfo.agentMention) custom.agentMention = agentInfo.agentMention;
@@ -1037,12 +1049,16 @@ export async function* parseSSEStream(
           const mappedToolName = DEEP_TOOL_MAP[toolName] || toolName;
 
           if (status === 'in_progress') {
-            // The backend heartbeat (responseStreamingService.startResponseHeartbeat)
-            // re-emits the SAME stepId every 3s. If it matches the current
-            // activeToolCall, or is already in allToolCalls, skip the
+            // A re-sent stepId must not become a SECOND card: if it matches the
+            // current activeToolCall, or is already in allToolCalls, skip the
             // archive-and-replace below — otherwise we'd render two tool-call
             // parts with the same toolCallId and trip assistant-ui's
             // `tapResources` with "Duplicate key toolCallId-…".
+            //
+            // Note this only dedupes; it does not make a repeat HARMLESS. Every
+            // `thinking_step` opens a card that stays on screen until a matching
+            // `completed` closes it, so this event is for real tools only —
+            // internal stages narrate through `progress_step` (see below).
             const isDuplicateStepId =
               (activeToolCall !== null && activeToolCall.toolCallId === stepId) ||
               allToolCalls.some((tc) => tc.toolCallId === stepId);
@@ -1170,11 +1186,15 @@ export async function* parseSSEStream(
 
         case 'warning': {
           // Non-fatal degradation carrying a ready-made German message.
-          // Note: where the turn still has a model, the answer itself explains
-          // the degradation — this toast is the fallback for the paths where
-          // no answer can carry it (persistence, notebook streams).
+          // Note: `evidence_weak` is a statement about THIS answer, not a
+          // disruption — it goes under the text (custom.evidenceWeak), not in
+          // a toast that sits above the page and belongs to no message.
           const { code, message } = data as { code: string; message: string };
           console.warn(`[GrueneratorModelAdapter] warning (${code}): ${message}`);
+          if (code === 'evidence_weak') {
+            if (message) evidenceWeakAccum = message;
+            break;
+          }
           if (message) notifyWarning(message);
           break;
         }
@@ -1489,7 +1509,11 @@ export async function* parseSSEStream(
           const completionData = data as {
             text?: string;
             citations?: Array<NotebookWireCitation | Citation>;
+            metadata?: { traceId?: string };
           };
+          if (typeof completionData.metadata?.traceId === 'string') {
+            receivedTraceId = completionData.metadata.traceId;
+          }
           const isNotebookCitation = (
             c: NotebookWireCitation | Citation
           ): c is NotebookWireCitation => typeof (c as NotebookWireCitation).index === 'string';

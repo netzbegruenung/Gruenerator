@@ -31,47 +31,51 @@ export type DocSection = {
 
 export const SECTIONS: DocSection[] = [
   {
-    id: 'ueber-den-gruenerator',
-    label: 'Über den Grünerator',
-    icon: '🎯',
-    description: 'Was der Grünerator ist, welche Werkzeuge es gibt und worauf er aufbaut.',
-    intro: '/docs/ueber-den-gruenerator/intro',
-    sidebarId: 'ueberSidebar',
-    navbar: 'more',
+    id: 'basics',
+    label: 'Basics',
+    icon: '🧠',
+    description:
+      'Was der Grünerator ist, welche Werkzeuge es gibt, worauf er aufbaut — und wie Sprachmodelle funktionieren und wo ihre Grenzen liegen.',
+    intro: '/docs/basics/intro',
+    sidebarId: 'basicsSidebar',
+    navbar: 'direct',
+    navbarOrder: 1,
     topPages: [
-      { label: 'Einführung', to: '/docs/ueber-den-gruenerator/intro' },
-      { label: 'Alle Werkzeuge', to: '/docs/ueber-den-gruenerator/tools' },
+      { label: 'Einführung', to: '/docs/basics/intro' },
+      { label: 'Alle Werkzeuge', to: '/docs/basics/tools' },
       {
         label: 'Wie nachhaltig ist der Grünerator?',
-        to: '/docs/ueber-den-gruenerator/nachhaltigkeit',
+        to: '/docs/basics/nachhaltigkeit',
       },
-      { label: 'Deine Daten im Grünerator', to: '/docs/ueber-den-gruenerator/notebook' },
-      { label: 'Barrierefreiheit', to: '/docs/ueber-den-gruenerator/barrierefreiheit' },
-      {
-        label: 'Wie diese Doku entsteht',
-        to: '/docs/ueber-den-gruenerator/wie-diese-doku-entsteht',
-      },
+      { label: 'Deine Daten im Grünerator', to: '/docs/basics/notebook' },
+      { label: 'Barrierefreiheit', to: '/docs/basics/barrierefreiheit' },
+      { label: 'Wie LLMs funktionieren', to: '/docs/basics/wie-llms-funktionieren' },
+      { label: 'Risiken & Gefahren', to: '/docs/basics/risiken-und-gefahren-von-llms' },
+      { label: 'Kennzeichnungs-Guide', to: '/docs/basics/Kennzeichnungs-Guide' },
     ],
   },
   {
     id: 'guides',
     label: 'Guides',
-    icon: '🧭',
+    icon: '📖',
     description:
-      'Kurze Schritt-für-Schritt-Anleitungen für einzelne Aufgaben, sortiert nach Erfahrungsstand.',
+      'Kurze Schritt-für-Schritt-Anleitungen für einzelne Aufgaben — sortiert nach Erfahrungsstand und Thema.',
     intro: '/docs/guides/intro',
     sidebarId: 'guidesSidebar',
     navbar: 'direct',
     navbarOrder: 2,
     topPages: [
-      { label: 'Was Guides sind', to: '/docs/guides/intro' },
       {
-        label: 'Wie schreibe ich einen Social Media Beitrag?',
-        to: '/docs/guides/einsteigerinnen/social-media-beitrag',
+        label: 'Texte aus einer Quelle',
+        to: '/docs/guides/einsteigerinnen/eigenes-notebook-erstellen',
       },
       {
-        label: 'Wie erstelle ich einen Antrag?',
-        to: '/docs/guides/einsteigerinnen/antrag-stadtrat',
+        label: 'Grüne Wolke einbinden',
+        to: '/docs/guides/fortgeschrittene/gruene-wolke-einbinden',
+      },
+      {
+        label: 'Für deinen Landesverband einrichten',
+        to: '/docs/guides/landesverbaende/landesverband-einrichten',
       },
     ],
   },
@@ -111,19 +115,13 @@ export const SECTIONS: DocSection[] = [
     id: 'konto',
     label: 'Konto & Projekte',
     icon: '👤',
-    description:
-      'Projekte, Einstellungen, die Einrichtung für deinen Landesverband und die Anbindung der Grünen Wolke.',
+    description: 'Projekte und Einstellungen.',
     intro: '/docs/konto/projekte',
     sidebarId: 'kontoSidebar',
     navbar: 'more',
     topPages: [
       { label: 'Projekte', to: '/docs/konto/projekte' },
       { label: 'Einstellungen', to: '/docs/konto/einstellungen' },
-      {
-        label: 'Für deinen Landesverband einrichten',
-        to: '/docs/konto/landesverband-einrichten',
-      },
-      { label: 'Grüne Wolke', to: '/docs/konto/gruene-wolke' },
     ],
   },
   {
@@ -149,22 +147,12 @@ export const SECTIONS: DocSection[] = [
     intro: '/docs/sonstiges/inhaltsdatenbank',
     sidebarId: 'sonstigesSidebar',
     navbar: 'more',
-    topPages: [{ label: 'Inhaltsdatenbank', to: '/docs/sonstiges/inhaltsdatenbank' }],
-  },
-  {
-    id: 'grundlagen',
-    label: 'Grundlagen',
-    icon: '🧠',
-    description:
-      'Wie KI-Sprachmodelle funktionieren, wo ihre Grenzen liegen, wie man kennzeichnet.',
-    intro: '/docs/grundlagen/wie-llms-funktionieren',
-    sidebarId: 'grundlagenSidebar',
-    navbar: 'direct',
-    navbarOrder: 1,
     topPages: [
-      { label: 'Wie LLMs funktionieren', to: '/docs/grundlagen/wie-llms-funktionieren' },
-      { label: 'Risiken & Gefahren', to: '/docs/grundlagen/risiken-und-gefahren-von-llms' },
-      { label: 'Kennzeichnungs-Guide', to: '/docs/grundlagen/Kennzeichnungs-Guide' },
+      { label: 'Inhaltsdatenbank', to: '/docs/sonstiges/inhaltsdatenbank' },
+      {
+        label: 'Wie diese Doku entsteht',
+        to: '/docs/sonstiges/wie-diese-doku-entsteht',
+      },
     ],
   },
 ];
@@ -190,7 +178,7 @@ export const QUICK_TASKS: QuickTask[] = [
   {
     label: 'Für deinen Landesverband einrichten',
     description: 'Einmal die Rolle hinterlegen — danach kennt der Grünerator euren Stil.',
-    to: '/docs/konto/landesverband-einrichten',
+    to: '/docs/guides/landesverbaende/landesverband-einrichten',
   },
   {
     label: 'Eigenes Wissen anlegen',

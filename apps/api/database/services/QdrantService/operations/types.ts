@@ -3,6 +3,7 @@
  * Higher-level search algorithms and operations
  */
 
+import type { ServerFusion } from '../../../../config/env.js';
 import type { QdrantFilter, CollectionStats } from '../types.js';
 
 // Search options
@@ -52,7 +53,11 @@ export interface HybridSearchResult extends VectorSearchResult {
 export interface HybridSearchMetadata {
   vectorResults: number;
   textResults: number;
-  fusionMethod: 'RRF' | 'weighted' | 'rrf-server';
+  // Zwillinge dieser Union: QdrantService/types.ts (HybridSearchMetadata) und
+  // packages/query/src/vector/types.ts — beide führen noch 'RRF' | 'weighted'.
+  // Kein Typfehler, weil QdrantService.ts:~519 in ein Record<string, unknown>
+  // landet; wer hier etwas ergänzt, zieht die Zwillinge nach.
+  fusionMethod: 'RRF' | 'weighted' | `${ServerFusion}-server`;
   vectorWeight: number;
   textWeight: number;
   dynamicThreshold: number;
@@ -121,6 +126,18 @@ export interface HybridConfig {
   enableConfidenceWeighting: boolean;
   confidencePenalty: number;
   confidenceBoost: number;
+  /**
+   * Master switch des server-seitigen Pfads. Diese fünf Felder sind die
+   * Spiegelung von `config/vectorConfig.ts` — `getHybridConfig()`
+   * (`hybridSearch.ts:39–41`) castet zwischen den beiden Interfaces, und ein
+   * Cast merkt ein fehlendes Feld NICHT: es wäre zur Laufzeit `undefined`.
+   * Wer hier etwas ergänzt, ergänzt es dort auch.
+   */
+  serverSideEnabled: boolean;
+  serverFusion: ServerFusion;
+  serverSparseFactor: number;
+  serverRrfWeightDense: number;
+  serverScoreJoin: boolean;
 }
 
 // Quality config interface

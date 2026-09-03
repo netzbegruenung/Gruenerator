@@ -18,6 +18,7 @@ import { knownArtifactRefs } from '../../../../agents/langgraph/ChatGraph/nodes/
 import { isSummaryAsk } from '../../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { forbidsNewResearch } from '../../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
 import { isModelSlow, recordSlowVerdict } from '../../../../services/ai/modelHealth.js';
+import { looksLikeMemoryRequest } from '../../../../services/memory/memoryRequest.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { type McpCatalog } from '../../agents/mcpCatalog.js';
 import {
@@ -69,6 +70,7 @@ import { createAnswerEmitter } from './loopSse.js';
 import { buildToolObservationReplay, spliceToolReplay } from './mcpReplay.js';
 import { stripDuplicatedOpening } from './openingDedupe.js';
 import { type RecipeRegistry } from './recipeRegistry.js';
+import { createRerankDegradedHook } from './rerankWarning.js';
 import { rewritesSuppliedText } from './routing.js';
 import { createSourceRegistry } from './sourceRegistry.js';
 import { buildConnectorNotes, buildSynthSystem, type SynthPromptContext } from './synthPrompt.js';
@@ -80,6 +82,7 @@ import { createToolCostLedger } from './toolCostLedger.js';
 import { buildToolUsageBlock } from './toolUsageBlock.js';
 import { logTurnSummary } from './turnSummary.js';
 import { type PendingToolCall, type PersistedStep } from './types.js';
+import { composeToolHooks } from './wrapTools.js';
 
 import type {
   ChatGraphState,
@@ -320,9 +323,14 @@ export async function streamAgenticResponse(
       serverNameFor: (name) => toolLabels.get(name)?.serverName,
       ...(grantedOnce ? { grantedOnce } : {}),
     });
+    // Zwei Beobachter am selben Haken: die Kostenrechnung zählt JEDEN Aufruf,
+    // die Rerank-Warnung feuert höchstens einmal je Turn. `composeToolHooks`
+    // isoliert dabei jeden Beobachter einzeln — ein werfender Kostenzähler
+    // reißt die Warnung nicht mit, und umgekehrt.
+    const rerankWarning = createRerankDegradedHook(sse);
     const wrapped = wrapAssembledTools(tools, {
       sse,
-      hooks: costLedger.hooks,
+      hooks: composeToolHooks(costLedger.hooks, rerankWarning),
       guards,
       recordStep: (step) => steps.push(step),
       perCallTimeoutMs: budget.perCallTimeoutMs,
@@ -484,6 +492,21 @@ export async function streamAgenticResponse(
     const hasAttachedDocuments = retrievableAttachedSources(finalState).length > 0;
     const summaryAsk = isSummaryAsk(lastUserText);
 
+    // Ein Merk-Auftrag benennt sein Werkzeug so eindeutig wie eine
+    // @-Erwähnung. Ohne Zwang liess der kleine Planer ein montiertes Werkzeug
+    // in 2 von 5 Fällen liegen (toolScope-Rundlauf) — und eine Speicherung, die
+    // die Antwort bestätigt, aber nie stattfand, ist die teuerste Ausfallform.
+    // Nur pinnen, wenn das Werkzeug wirklich montiert ist: ein benanntes
+    // Werkzeug, das nicht in `activeTools` steht, verlangt einen Aufruf, dessen
+    // Definition nie mitgeschickt wird.
+    const memoryPin =
+      finalState.mentionPinnedTool == null &&
+      'memory' in wrapped &&
+      looksLikeMemoryRequest(lastUserText)
+        ? 'memory'
+        : null;
+    const pinnedTool = finalState.mentionPinnedTool ?? memoryPin;
+
     // Die acht Wege dahinter stehen in `shouldForceFirstToolCall` — samt der
     // Live-Ausfälle, die jeden einzelnen erzwungen haben.
     const forceFirstToolCall = shouldForceFirstToolCall({
@@ -497,7 +520,7 @@ export async function streamAgenticResponse(
       priorTurnRetrieved: priorTurnRetrieved(toolHistory),
       classifierContradictedResearch: finalState.classifierContradictedResearch === true,
       materialHeavy,
-      pinnedTool: finalState.mentionPinnedTool ?? null,
+      pinnedTool,
       hasAttachedDocuments,
       summaryAsk,
       attachedSeedDelivered: seeded.delivered,
@@ -509,7 +532,7 @@ export async function streamAgenticResponse(
     // Modell kann die Wahl also gar nicht mehr sehen.
     const firstToolName = forceFirstToolCall
       ? pinnedFirstTool({
-          pinnedTool: finalState.mentionPinnedTool ?? null,
+          pinnedTool,
           hasAttachedDocuments,
           summaryAsk,
           isMounted: (name) => name in wrapped,
@@ -533,9 +556,6 @@ export async function streamAgenticResponse(
       plannerModel: plannerLane ? plannerLane.languageModel : resolution.model,
       synthModel: synth.model,
       ...(synthFallback && { synthFallbackModel: synthFallback.model }),
-      onSynthStart: () => {
-        emitter.startSynthHeartbeat();
-      },
       // Der Stillstand der WERKZEUG-Phase. Hier gibt es nichts umzuschalten —
       // der Zug antwortet aus dem, was schon gesammelt war —, aber die Lane
       // gehört vermerkt: sonst ist sie im nächsten Zug wieder erste Wahl und
@@ -718,7 +738,6 @@ export async function streamAgenticResponse(
       }
     }
   } finally {
-    emitter.endSynthHeartbeat();
     if (mcpCatalog) await mcpCatalog.close();
     if (systemCatalog) await systemCatalog.close();
   }

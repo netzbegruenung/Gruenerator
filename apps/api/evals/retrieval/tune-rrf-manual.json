@@ -1,0 +1,32 @@
+{
+  "pipeline": "manual",
+  "depth": "fast",
+  "withRerank": false,
+  "outcomes": [
+    {
+      "id": "manual-kommunalwiki-baumschutzsatzung",
+      "collection": "kommunalwiki-system",
+      "query": "Baumschutzsatzung",
+      "rank": 1,
+      "topTitles": ["Umweltschutz durch kommunales Satzungsrecht"]
+    },
+    {
+      "id": "manual-kommunalwiki-quartiersmanagement",
+      "collection": "kommunalwiki-system",
+      "query": "Quartiersmanagement",
+      "rank": 1,
+      "topTitles": [
+        "Quartiersmanagement",
+        "Service Learning an Schulen für kommunale Bedarfe nutzen",
+        "Gemeinwesenarbeit"
+      ]
+    },
+    {
+      "id": "manual-kommunalwiki-klimaanpassung",
+      "collection": "kommunalwiki-system",
+      "query": "Klimaanpassung",
+      "rank": null,
+      "topTitles": ["Anpassung an den Klimawandel"]
+    }
+  ]
+}

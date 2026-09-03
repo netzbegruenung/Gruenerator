@@ -20,6 +20,27 @@ const boolFlag = (defaultValue: boolean) =>
 /** Coerce a string to a number with a required default. */
 const numStr = (defaultValue: number) => z.coerce.number().default(defaultValue);
 
+/**
+ * Fusionsarme des server-seitigen Hybrid-Pfads (`HYBRID_SERVER_FUSION`, #3118).
+ * `as const`-Registry statt Inline-Liste: `z.enum` und die exportierte
+ * Literal-Union kommen aus EINER Quelle, und beide `HybridConfig`-Interfaces
+ * (`config/vectorConfig.ts`, `QdrantService/operations/types.ts`) leiten davon
+ * ab, statt die fünf Namen ein drittes und viertes Mal zu tippen.
+ *
+ * `sparse_only` ist ein Diagnosearm, kein Auslieferungskandidat: sein `score`
+ * ist ein BM25-Wert und keine Kosinus-Ähnlichkeit, und die Pipeline dahinter
+ * rechnet in Kosinus weiter.
+ */
+export const HYBRID_SERVER_FUSIONS = [
+  'rrf',
+  'rrf_weighted',
+  'dbsf',
+  'dense_rescore',
+  'sparse_only',
+] as const;
+
+export type ServerFusion = (typeof HYBRID_SERVER_FUSIONS)[number];
+
 // ---------------------------------------------------------------------------
 // Schema
 // ---------------------------------------------------------------------------
@@ -249,7 +270,15 @@ const envSchema = z.object({
     .enum(['auto', 'voxtral', 'greenpt', 'regolo'])
     .default('auto')
     .transform((provider) => (provider === 'regolo' ? ('auto' as const) : provider)),
-  VOXTRAL_DEFAULT_VOICE_ID: z.string().optional(),
+  // KugelAudio (Berlin) serves the whole text-to-speech path since 09/2026;
+  // Mistral Speech is gone. KUGELAUDIO_BASE_URL is an escape hatch only — the
+  // vendor default host api.kugelaudio.com is geo-routed and may leave the EU,
+  // so the service pins the EU host itself and this var is the only way past it.
+  KUGELAUDIO_API_KEY: z.string().optional(),
+  KUGELAUDIO_BASE_URL: z.string().optional(),
+  // An integer, not a UUID: KugelAudio numbers its voices where Mistral named
+  // them. Coerced because env values arrive as strings.
+  KUGELAUDIO_DEFAULT_VOICE_ID: z.coerce.number().int().optional(),
   VISION_DEFAULT_MODEL: z.string().optional(),
 
   // ── Monitoring / External services ────────────────────────────────────
@@ -389,6 +418,81 @@ const envSchema = z.object({
   HYBRID_ENABLE_CONFIDENCE_WEIGHTING: boolFlag(true),
   HYBRID_ENABLE_QUALITY_GATE: boolFlag(true),
 
+  /**
+   * Hauptschalter des server-seitigen Query-API-Pfads. `false` schickt JEDE
+   * Sammlung zurück auf die client-seitige Alt-Fusion, ohne Qdrant anzufassen:
+   * der Rückwärtsgang, der keine Migration braucht, und der Referenzarm jeder
+   * Messung aus #3118.
+   *
+   * Bleibt an, obwohl der ausgelieferte Arm `rrf` die Alt-Fusion auf dem
+   * qa-Pfad nicht erreicht (kommunalwiki roh 50 % / 0,642 gegen 60 % / 0,720):
+   * auf der manuellen Suche findet erst der Sparse-Vektor die Einwort-Anfragen
+   * (`rrf` 2 von 3 auf Rang 1, `dbsf` 3 von 3, Alt-Fusion vor der Migration
+   * 0 von 3). Abschalten hieße, kommunalwikis BM25 ganz aufzugeben. Die
+   * Alt-Fusion wurde auf dem manuellen und dem Notebook-Pfad nicht gemessen.
+   */
+  HYBRID_SERVER_SIDE_ENABLED: boolFlag(true),
+
+  /**
+   * Welche Fusion der Server-Pfad benutzt. Siehe HYBRID_SERVER_FUSIONS.
+   * Default bleibt `rrf`, obwohl die Messreihe in #3118 (2026-09-02) `dbsf`
+   * auf dem qa-Pfad vorn sieht (10 kommunalwiki-Fälle roh: Hit@1 80 % /
+   * MRR@10 0,813 gegen `rrf` 50 % / 0,642): auf dem Notebook-Pfad, der die
+   * 0,35-Schwelle in `NotebookQAService` läuft, kehrt sich das um (`dbsf`
+   * 30 % / 0,361 gegen `rrf` 50 % / 0,567), weil die Schwelle für Kosinus-
+   * werte geschrieben ist.
+   *
+   * Die Schwelle kennt den Wertebereich inzwischen (#3166: `filterAndSortResults`
+   * schneidet auf `dense_similarity ?? similarity`) — `dbsf` blieb trotzdem
+   * draussen, weil es mit Join auf dem Notebook-Pfad weiterhin zwei Fälle
+   * gegen den ausgelieferten Zustand verliert (Hit@1 50 % → 30 %) und dabei
+   * sogar hinter seine eigene #3169-Referenz zurückfällt (MRR@10
+   * 0,361 → 0,350). Die Zahlen stehen in
+   * `evals/retrieval/hybrid-dense-join-2026-09-02.md`.
+   *
+   * Die ganze Messreihe lief mit `HYBRID_ENABLE_QUALITY_GATE=false`; `dbsf`
+   * mit eingeschaltetem Gatter ist nie gemessen (siehe hybridSearch.ts, das
+   * Gatter ist nur für `rrf` als unschädlich belegt). Die qa-Arme liefen mit
+   * Tiefe `fast`, die Notebook-Arme mit `deep` (der Produktionsstufe des Chats);
+   * ohne Verlauf schreibt `deep` nicht um, die Zahlen sind also vergleichbar,
+   * aber nicht dieselbe Stufe. Ein Gatter-Arm ist inzwischen gemessen
+   * (`tune-join-rrf-gate.json`, 02.09.2026): identisch zum Nicht-Gatter-Lauf
+   * (53,8 % / 0,665 GESAMT, `kommunalwiki-system` unverändert 60 % / 0,692) —
+   * das Gatter läuft auf `rrf` und entfernt dort nichts.
+   */
+  HYBRID_SERVER_FUSION: z.enum(HYBRID_SERVER_FUSIONS).default('rrf'),
+
+  /**
+   * Limit der Sparse-Vorabholung als Vielfaches der dichten. 0 lässt die
+   * Sparse-Vorabholung ganz weg — zusammen mit `dense_rescore` ist das der
+   * dicht-nur-Kontrollarm über den Query-API-Pfad.
+   */
+  HYBRID_SERVER_SPARSE_FACTOR: z.coerce.number().min(0).default(1.0),
+
+  /** Gewicht der dichten Vorabholung bei `rrf_weighted`; sparse bekommt 1 − dies. */
+  HYBRID_SERVER_RRF_WEIGHT_DENSE: z.coerce.number().min(0).max(1).default(0.7),
+
+  /**
+   * Holt je Treffer den dichten Kosinus und den BM25-Wert über einen zweiten
+   * und dritten Eintrag desselben `queryBatch` zurück (#3166). `false` ist
+   * exakt der Zustand vor diesem PR — der Rückwärtsgang ohne Deploy und der
+   * Referenzarm der Messung.
+   *
+   * Die Batch geht nur auf den fusionierenden Armen raus (`rrf`,
+   * `rrf_weighted`, `dbsf`): bei `dense_rescore` IST der äussere `score`
+   * schon der Kosinus, bei `sparse_only` der BM25-Wert — dort kostet ein
+   * Join einen Rundlauf für nichts und wird nicht gebaut. `false` blendet
+   * trotzdem auf ALLEN fünf Armen aus: `joinOn` gated auch
+   * `denseFromScore`/`textFromScore` (`hybridSearch.ts:334–335`), also leert
+   * es auch `originalVectorScore` auf `dense_rescore` und `originalTextScore`
+   * auf `sparse_only`.
+   *
+   * Der Default steht auf `true`, WEIL die Messung ihn setzt (Regel R1 in der
+   * Spec). Bleibt der Join hinter dem ausgelieferten Zustand zurück, geht er
+   * als `false` in den Merge und der Code bleibt inert stehen.
+   */
+  HYBRID_SERVER_SCORE_JOIN: boolFlag(true),
+
   // ── Scoring ────────────────────────────────────────────────────────────
   SCORING_MAX_SIMILARITY_WEIGHT: z.coerce.number().default(0.6),
   SCORING_AVG_SIMILARITY_WEIGHT: z.coerce.number().default(0.4),
@@ -415,13 +519,17 @@ const envSchema = z.object({
    * die Tabelle mit acht Zeilen, und das 300-Zeichen-Fenster schnitt sie nach
    * der zweiten ab.
    *
-   * 1500 deckt einen ganzen Chunk — für kürzere Chunks ist die Kappung damit
-   * wirkungslos, sie schneidet nur noch, was wirklich zu lang ist. Die
+   * 1800 deckt einen ganzen Chunk — für kürzere Chunks ist die Kappung damit
+   * wirkungslos, sie schneidet nur noch, was wirklich zu lang ist. Die Zahl war
+   * bis zum 02.09.2026 1500 und deckte damit nicht einmal den Fließtext-Pfad
+   * (1600 Zeichen); der Wächter in `config/searchExcerptBudget.vitest.ts` maß
+   * gegen eine Token-Schätzung (400 × 3,3 = 1320) und meldete das grün. Er hält
+   * jetzt gegen die tatsächlichen Chunk-Grenzen aus `chunkBudget.ts`. Die
    * Anzeige-Pfade haben eigene, engere Deckel und wachsen NICHT mit
    * (`highlightSnippet` 400, Notebook-Sammlungen 200, Recherche 500,
    * `line-clamp-3` in der Dokumentübersicht).
    */
-  CONTENT_MAX_EXCERPT_LENGTH: numStr(1500),
+  CONTENT_MAX_EXCERPT_LENGTH: numStr(1800),
   CONTENT_EXCERPT_SENTENCE_BOUNDARY: z.coerce.number().default(0.7),
   CONTENT_MAX_CHUNKS_PER_DOC: numStr(10),
 
@@ -497,6 +605,48 @@ const envSchema = z.object({
   RERANK_MERGE_OVERFETCH: numStr(16),
   RERANK_WEB_SCORE_CEILING: z.coerce.number().default(0.8),
   RERANK_DIP_SCORE_CEILING: z.coerce.number().default(0.8),
+
+  // ── Notebook: Evidenz-Hinweis (#3140) ──────────────────────────────────
+  /**
+   * Dichter Spitzenwert VOR dem Rerank, unter dem der Notebook-Stream
+   * `evidence_weak` meldet — `max(dense_similarity ?? similarity)` über
+   * `SearchContext.sortedResults`, gebildet in `NotebookQAService`.
+   *
+   * Kalibriert in zwei Runden der Tiefe `deep`. Runde 1, 15 Fälle (PR #3156,
+   * `evals/retrieval/evidence-signals-2026-09-02.md`): on-topic ab 0,9619,
+   * off-topic bis 0,8955 — Default 0,89. Runde 2 am 02.09.2026, 30 Fälle
+   * (`evidence-signals-2026-09-02-v2.md`): on-topic ab 0,9581
+   * (`chat-nb-berlin-baumfaellmoratorium`), off-topic bis 0,9130
+   * (`offtopic-sternbilder-winter`), Abstand 0,0451. 0,89 lag damit unter
+   * dem höchsten off-topic-Wert; der Default ist der Mittelpunkt 0,9356
+   * (Abnahmeregel A1). Gesenkt wird nie ohne Neumessung.
+   *
+   * Beide Runden liefen ausschliesslich gegen die Tiefe `deep` — das
+   * `evidence_weak`-Ereignis geht deshalb nur bei `depth !== 'fast'` hinaus
+   * (`fast` durchsucht weniger Kandidaten und wurde nie vermessen).
+   *
+   * Die Zahl hängt am Einbettungsmodell: kalibriert gegen `mistral-embed`
+   * (1024 Dimensionen). Ein Modellwechsel verschiebt die absolute
+   * Kosinus-Lage und macht 0,9356 bedeutungslos, ohne dass ein Test rot wird.
+   *
+   * Das Signal `dense_similarity ?? similarity` ist auf dem Legacy-Pfad ein
+   * geboosteter Wert und auf dem server-seitigen Join (BM25-Sammlungen,
+   * heute keine davon eine Notebook-Sammlung) ein roher Kosinus, ca. 0,33
+   * auseinander — der Default 0,9356 ist ausschliesslich gegen den
+   * Legacy-Pfad kalibriert.
+   */
+  NOTEBOOK_EVIDENCE_WEAK_THRESHOLD: z.coerce.number().min(0).max(1).default(0.9356),
+
+  /**
+   * Dunkel ausgeliefert: `evidenceTop` wird bei jeder beantworteten Anfrage
+   * berechnet und protokolliert, das `warning`-Ereignis geht nur mit `true`
+   * hinaus (und nie auf `fast`). `true` erst nach der
+   * 30-Fall-Runde und nur, wenn deren Abnahmeregel A1 hält.
+   *
+   * Falle: `boolFlag` nimmt ausschliesslich die Zeichenkette "true" — `=1`
+   * ist `false`, lautlos.
+   */
+  NOTEBOOK_EVIDENCE_WEAK_ENABLED: boolFlag(false),
 });
 
 // ---------------------------------------------------------------------------

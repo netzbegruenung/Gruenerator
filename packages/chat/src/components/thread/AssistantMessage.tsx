@@ -331,6 +331,10 @@ export const AssistantMessage = memo(function AssistantMessage() {
             <p className="text-xs text-foreground-muted italic">Antwort wurde unterbrochen</p>
           )}
 
+          {!isStreaming && custom?.evidenceWeak && (
+            <p className="text-xs text-foreground-muted italic">{custom.evidenceWeak}</p>
+          )}
+
           {!isStreaming && custom?.chartData && <ChatChart data={custom.chartData} />}
 
           {!isStreaming && custom?.artifactData && <ArtifactCard artifact={custom.artifactData} />}

@@ -3,16 +3,27 @@
 import { ShieldQuestion, Check, X, Clock } from 'lucide-react';
 import { memo, useState } from 'react';
 
-import { TOOL_APPROVAL_OPTIONS } from '../../lib/toolApproval';
+import {
+  TOOL_APPROVAL_OPTIONS,
+  approvalDecidedLabel,
+  isApprovalDecided,
+  type ToolApprovalState,
+} from '../../lib/toolApproval';
 import { formatNamespacedToolLabel } from '../../lib/toolMappings';
+import { field, inkButton, mono, paper } from '../assistant-ui/elements/surfaces';
 
-export interface ToolApprovalState {
-  id: string;
-  approved?: boolean;
-  reason?: string;
-  optionId?: string;
-  resolution?: 'cancelled' | 'expired';
-}
+export { type ToolApprovalState };
+
+/**
+ * Presentation follows the Elements surface tokens (`paper`, `field`,
+ * `inkButton`, `mono`) rather than vendoring `elements-permission-grant`
+ * verbatim. Upstream's PermissionGrant is built around a `reach: string[]`
+ * ("this grants …") and a session/always/denied `GrantScope` — we have neither:
+ * our gate carries three options of its own (allow-once / allow-always /
+ * reject-once) and no capability-reach data. Taking the component would have
+ * meant inventing a reach list to fill it, so we take the token layer, which is
+ * the part that actually makes it look like the rest of the Elements.
+ */
 
 interface ToolApprovalCardProps {
   toolName: string;
@@ -21,13 +32,6 @@ interface ToolApprovalCardProps {
   title?: string;
   serverName?: string;
   respondToApproval: (response: { approved: boolean; optionId?: string; reason?: string }) => void;
-}
-
-function decidedLabel(approval: ToolApprovalState): string {
-  if (approval.resolution === 'expired') return 'Abgelaufen';
-  if (approval.resolution === 'cancelled') return 'Abgebrochen';
-  if (approval.approved === false) return 'Abgelehnt';
-  return approval.optionId === 'allow-always' ? 'Immer erlaubt' : 'Erlaubt';
 }
 
 export const ToolApprovalCard = memo(function ToolApprovalCard({
@@ -40,7 +44,7 @@ export const ToolApprovalCard = memo(function ToolApprovalCard({
 }: ToolApprovalCardProps) {
   const [busy, setBusy] = useState(false);
   const label = title ?? formatNamespacedToolLabel(toolName, serverName);
-  const decided = approval.approved !== undefined || approval.resolution !== undefined;
+  const decided = isApprovalDecided(approval);
 
   if (decided) {
     const denied = approval.approved === false || approval.resolution !== undefined;
@@ -51,7 +55,7 @@ export const ToolApprovalCard = memo(function ToolApprovalCard({
           <Icon className={`h-3.5 w-3.5 ${denied ? 'text-foreground-muted' : 'text-primary'}`} />
           <span className="font-medium text-foreground">{label}</span>
           <span className="text-foreground-muted">&middot;</span>
-          <span className="text-foreground-muted">{decidedLabel(approval)}</span>
+          <span className="text-foreground-muted">{approvalDecidedLabel(approval)}</span>
         </div>
       </div>
     );
@@ -65,11 +69,13 @@ export const ToolApprovalCard = memo(function ToolApprovalCard({
   const argEntries = Object.entries(args ?? {});
 
   return (
-    <div className="my-5 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
-      <div className="mb-2 flex items-start gap-2">
-        <ShieldQuestion className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
+    <div className={`my-5 rounded-[20px] px-4 py-3.5 ${paper}`}>
+      <div className="mb-2 flex items-start gap-2.5">
+        <span className="bg-foreground/[0.05] flex size-7 shrink-0 items-center justify-center rounded-lg text-primary">
+          <ShieldQuestion className="size-3.5" />
+        </span>
         <div>
-          <p className="text-sm font-medium text-foreground">{label} ausführen?</p>
+          <p className="text-[13.5px] font-medium text-foreground">{label} ausführen?</p>
           <p className="mt-0.5 text-xs text-foreground-muted">
             {serverName
               ? `${serverName} ist ein verbundener Dienst — der Aufruf verlässt den Grünerator.`
@@ -79,17 +85,19 @@ export const ToolApprovalCard = memo(function ToolApprovalCard({
       </div>
 
       {argEntries.length > 0 && (
-        <details className="mb-3 ml-6">
-          <summary className="cursor-pointer text-xs text-foreground-muted hover:text-foreground">
+        <details className="mb-3 ms-[38px]">
+          <summary className={`cursor-pointer ${mono} text-foreground/40 hover:text-foreground/70`}>
             Übergabewerte anzeigen
           </summary>
-          <pre className="mt-1.5 max-h-48 overflow-auto rounded-lg bg-background/60 p-2 text-xs text-foreground">
+          <pre
+            className={`mt-1.5 max-h-48 overflow-auto rounded-xl p-2 text-xs text-foreground ${field}`}
+          >
             {JSON.stringify(args, null, 2)}
           </pre>
         </details>
       )}
 
-      <div className="ml-6 flex flex-wrap items-center gap-2">
+      <div className="ms-[38px] flex flex-wrap items-center gap-2">
         {TOOL_APPROVAL_OPTIONS.map((option) => {
           const isPrimary = option.id === 'allow-once';
           return (
@@ -101,8 +109,8 @@ export const ToolApprovalCard = memo(function ToolApprovalCard({
               title={'description' in option ? option.description : undefined}
               className={
                 isPrimary
-                  ? 'inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-sm text-white transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60'
-                  : 'cursor-pointer rounded-full border border-grey-300 bg-background px-3 py-1.5 text-sm text-foreground transition-colors hover:bg-grey-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-grey-600 dark:hover:bg-grey-800'
+                  ? `inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full px-3 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-60 ${inkButton}`
+                  : 'text-foreground/55 hover:bg-foreground/[0.06] hover:text-foreground/90 h-8 cursor-pointer rounded-full px-3 text-xs font-medium transition-[background-color,color,scale] duration-150 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-60'
               }
             >
               {isPrimary && <Check className="h-3.5 w-3.5" />}

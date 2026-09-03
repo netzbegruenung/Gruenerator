@@ -32,7 +32,7 @@ Nach der Auswahl einer Verbindung öffnet sich ein Ordner-Browser: Du hängst en
 
 Schlägt beim Sync eine Datei fehl, wird sie samt Grund benannt statt stillschweigend übersprungen.
 
-Mehr zur Einrichtung des Wolke-Links: → [Wolke einbinden](/docs/konto/gruene-wolke).
+Mehr zur Einrichtung des Wolke-Links: → [Wolke einbinden](/docs/guides/fortgeschrittene/gruene-wolke-einbinden).
 
 ### Docs importieren
 
@@ -103,5 +103,5 @@ Dann ließ sich beim Verarbeiten kein Text daraus gewinnen; der Grund steht in d
 
 ## Verwandte Themen
 
-- [Wolke einbinden](/docs/konto/gruene-wolke) — Voraussetzung, um Wolke-Ordner an Notebooks zu hängen.
-- [Deine Daten im Grünerator](/docs/ueber-den-gruenerator/notebook) — Hintergrund zu Notebooks für Landesverbände und Abgeordnetenbüros.
+- [Wolke einbinden](/docs/guides/fortgeschrittene/gruene-wolke-einbinden) — Voraussetzung, um Wolke-Ordner an Notebooks zu hängen.
+- [Deine Daten im Grünerator](/docs/basics/notebook) — Hintergrund zu Notebooks für Landesverbände und Abgeordnetenbüros.
