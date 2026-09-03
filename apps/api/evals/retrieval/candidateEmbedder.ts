@@ -33,7 +33,7 @@
  * Cortecs laufen, gehört diese Bedingung in `cortecsRequestPolicy.ts` erweitert
  * — siehe Bericht.)
  */
-import { embedMany } from 'ai';
+import { embedMany, type EmbeddingModel } from 'ai';
 
 import { type EmbedCandidate } from './embedCandidates.js';
 
@@ -44,7 +44,10 @@ export interface BatchEmbedResult {
   embeddings: number[][];
   /** `usage.tokens` des Stapels, 0 wenn der Anbieter keine nennt. */
   tokens: number;
-  /** Der tatsächlich rechnende Unterauftragnehmer je Antwort (nur Cortecs). */
+  /**
+   * Der tatsächlich rechnende Unterauftragnehmer — EIN Eintrag je HTTP-Antwort,
+   * also je Stapel, nicht je Wert. Leer bei Anbietern, die keine Router sind.
+   */
   upstreams: (string | null)[];
 }
 
@@ -150,20 +153,32 @@ export function createCandidateEmbedder(
 // ============================================================================
 
 interface ResolvedModel {
-  model: Awaited<ReturnType<typeof resolveEmbeddingModel>>['model'];
-  upstreamHeader: string;
+  model: EmbeddingModel;
+  /**
+   * Der Antwort-Header, der den tatsächlich rechnenden Unterauftragnehmer
+   * nennt — `null`, wo es keinen gibt.
+   *
+   * Nur Cortecs ist ein Router. GreenPT und Regolo rechnen selbst; ihnen den
+   * Cortecs-Header-Namen hinzuhalten hiesse, aus jeder Antwort ohne diesen
+   * Header eine Aussage über einen Unterauftragnehmer zu machen, den es dort
+   * nicht gibt.
+   */
+  upstreamHeader: string | null;
 }
 
-async function resolveEmbeddingModel(candidate: EmbedCandidate) {
-  const { CORTECS_UPSTREAM_HEADER } = await import('../../services/ai/cortecsRequestPolicy.js');
+async function resolveEmbeddingModel(candidate: EmbedCandidate): Promise<ResolvedModel> {
   if (candidate.provider === 'cortecs') {
+    const { CORTECS_UPSTREAM_HEADER } = await import('../../services/ai/cortecsRequestPolicy.js');
     const provider = await createCortecsEmbeddingProvider();
-    return { model: provider.embeddingModel(candidate.model), header: CORTECS_UPSTREAM_HEADER };
+    return {
+      model: provider.embeddingModel(candidate.model),
+      upstreamHeader: CORTECS_UPSTREAM_HEADER,
+    };
   }
   const { getGreenPTProvider, getRegoloProvider } =
     await import('../../services/ai/providerInstances.js');
   const provider = candidate.provider === 'greenpt' ? getGreenPTProvider() : getRegoloProvider();
-  return { model: provider.embeddingModel(candidate.model), header: CORTECS_UPSTREAM_HEADER };
+  return { model: provider.embeddingModel(candidate.model), upstreamHeader: null };
 }
 
 /**
@@ -219,23 +234,21 @@ export function createProviderBatchEmbedder(candidate: EmbedCandidate): BatchEmb
   let resolved: Promise<ResolvedModel> | null = null;
 
   return async (values: string[]): Promise<BatchEmbedResult> => {
-    if (resolved === null) {
-      resolved = resolveEmbeddingModel(candidate).then(({ model, header }) => ({
-        model,
-        upstreamHeader: header,
-      }));
-    }
+    if (resolved === null) resolved = resolveEmbeddingModel(candidate);
     const { model, upstreamHeader } = await resolved;
 
     const result = await embedMany({ model, values });
-    const upstreams = (result.responses ?? []).map((response) => {
-      const value = response?.headers?.[upstreamHeader];
-      return typeof value === 'string' && value.length > 0 ? value : null;
-    });
+    const upstreams =
+      upstreamHeader === null
+        ? []
+        : (result.responses ?? []).map((response) => {
+            const value = response?.headers?.[upstreamHeader];
+            return typeof value === 'string' && value.length > 0 ? value : null;
+          });
 
     return {
       embeddings: result.embeddings,
-      tokens: result.usage?.tokens ?? 0,
+      tokens: result.usage.tokens,
       upstreams,
     };
   };

@@ -84,8 +84,6 @@ export const EMBED_CANDIDATES = [
   },
 ] as const satisfies readonly EmbedCandidate[];
 
-export type EmbedCandidateSlug = (typeof EMBED_CANDIDATES)[number]['slug'];
-
 /** Der Kandidat zu einem Slug, oder `null`. Nimmt `string`, weil der Wert von
  *  der Kommandozeile bzw. aus der Umgebung kommt. */
 export function getEmbedCandidate(slug: string): EmbedCandidate | null {
