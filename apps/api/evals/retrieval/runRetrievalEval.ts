@@ -548,9 +548,13 @@ async function runNotebookCase(
         inputLimit: profile.rerankInput,
         ...(instructText !== null && { instruct: instructText }),
       });
-      outcome.rerankRank = firstMatchRank(reranked.results, evalCase);
-      outcome.rerankTimeMs = reranked.rerankTimeMs;
-      outcome.rerankBatch = Math.min(results.length, profile.rerankInput);
+      // Wie im qa-Arm: ein ausgefallener oder übersprungener Rerank zählt nicht
+      // als rerankter Fall (Eingabe-Reihenfolge wäre sonst ein „Ergebnis").
+      if (reranked.reranked) {
+        outcome.rerankRank = firstMatchRank(reranked.results, evalCase);
+        outcome.rerankTimeMs = reranked.rerankTimeMs;
+        outcome.rerankBatch = Math.min(results.length, profile.rerankInput);
+      }
     }
 
     return outcome;
