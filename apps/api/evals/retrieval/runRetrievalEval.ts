@@ -179,12 +179,13 @@ const { RERANK_INSTRUCT_PRESETS, isRerankInstructPreset } = await import('./rera
 const { rerankDelta } = await import('./rerankDelta.js');
 const { applyRerankMode } = await import('./rerankMode.js');
 
+import { type ExpandedChunkResult } from '../../services/search/types.js';
+
 import { type RetrievalCase } from './cases.js';
 import { type RerankInstructPreset } from './rerankInstructs.js';
 import { type RerankMode } from './rerankMode.js';
 
 import type { DocumentResult } from '../../services/BaseSearchService/types.js';
-import type { ExpandedChunkResult } from '../../services/search/types.js';
 import type { NotebookDepth } from '@gruenerator/contracts';
 import type { ModelMessage } from 'ai';
 
@@ -612,9 +613,11 @@ async function runNotebookCase(
         const finalOrder = applyRerankMode(rerankMode, retrievalOrder, rerankOrder, keepHead);
         const reordered = finalOrder.map((i) => candidates[i]);
         outcome.rerankRank = firstMatchRank(reordered, evalCase);
-        outcome.rerankTimeMs = reranked.rerankTimeMs;
-        outcome.rerankBatch = Math.min(results.length, profile.rerankInput);
       }
+      // Zeit und Batch zählen auch bei Ausfall oder Skip — wie im qa-Arm: ein
+      // Timeout kostet Wanduhr genauso.
+      outcome.rerankTimeMs = reranked.rerankTimeMs;
+      outcome.rerankBatch = Math.min(results.length, profile.rerankInput);
     }
 
     return outcome;
@@ -852,7 +855,7 @@ async function main() {
       : pipeline === 'notebook'
         ? `notebook getSearchContext depth=${depth}${
             withRerank
-              ? `, +rerank(${instructPreset}, mode=${rerankMode}, mmr=${mmrEnabled ? 'on' : 'off'})`
+              ? `, +rerank(${instructPreset}, mode=${rerankMode}, keepHead=${keepHead}, mmr=${mmrEnabled ? 'on' : 'off'})`
               : ''
           }`
         : pipeline === 'chat-notebook'
@@ -861,7 +864,7 @@ async function main() {
             }`
           : `depth=${depth}${
               withRerank
-                ? `, +rerank(${excerptMode}, shape=${rerankShape}, ${instructPreset}, mode=${rerankMode}, mmr=${mmrEnabled ? 'on' : 'off'})`
+                ? `, +rerank(${excerptMode}, shape=${rerankShape}, ${instructPreset}, mode=${rerankMode}, keepHead=${keepHead}, mmr=${mmrEnabled ? 'on' : 'off'})`
                 : ''
             }${loopShaped ? `, loopLimit=${loopLimit}` : ''}${
               withChunkRerank ? ', +chunkRerank' : ''
