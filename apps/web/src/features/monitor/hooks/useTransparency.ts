@@ -1,4 +1,7 @@
-import { type GetTransparencyStatsResponseDto } from '@gruenerator/contracts';
+import {
+  type GetTransparencyStatsResponseDto,
+  type TransparencyLocale,
+} from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
 
@@ -11,12 +14,18 @@ import { useQuery } from '@tanstack/react-query';
  * cached snapshot. The response carries `generated_at` for exactly this reason
  * — the figure is knowingly older than the request, and the page says so
  * rather than implying it is live.
+ *
+ * `locale` narrows the figure to one country's users; `null` is the whole
+ * instance. The key is omitted rather than sent empty so the bare request stays
+ * byte-identical to what it was before the segment existed.
  */
-export function useTransparencyStats(days: number) {
+export function useTransparencyStats(days: number, locale: TransparencyLocale | null) {
   return useQuery({
-    queryKey: ['monitor', 'transparency', days],
+    queryKey: ['monitor', 'transparency', days, locale ?? 'all'],
     queryFn: async (): Promise<GetTransparencyStatsResponseDto> => {
-      const res = await getContractsClient().transparency.getTransparencyStats({ query: { days } });
+      const res = await getContractsClient().transparency.getTransparencyStats({
+        query: locale ? { days, locale } : { days },
+      });
       if (res.status === 200) return res.body;
       throw new Error('Transparenzdaten konnten nicht geladen werden.');
     },
