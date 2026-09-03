@@ -1,8 +1,24 @@
-import { type FeedbackButtonMode, type StartPage } from '@gruenerator/contracts';
+import { type FeedbackButtonMode, type StartPage, type TtsVoiceId } from '@gruenerator/contracts';
 import { getPinnedLocale } from '@gruenerator/shared/instances';
-import { Button, toast } from '@gruenerator/ui';
+import {
+  DEFAULT_TTS_VOICE_ID,
+  TTS_VOICES,
+  TTS_VOICE_AGE_LABEL,
+  ttsVoiceLabel,
+  ttsVoiceSampleUrl,
+} from '@gruenerator/shared/settings';
+import {
+  Button,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  toast,
+} from '@gruenerator/ui';
 import { type QueryClient } from '@tanstack/react-query';
-import { Rocket, RotateCcw } from 'lucide-react';
+import { Rocket, RotateCcw, Volume2 } from 'lucide-react';
+import { useRef } from 'react';
 import { type IconType } from 'react-icons';
 import {
   PiBriefcase,
@@ -69,6 +85,15 @@ const GeneralTab = () => {
   const pinnedLocale = getPinnedLocale(CURRENT_INSTANCE);
   const startPage = useAuthStore((s) => s.user?.default_startpage ?? 'chat');
   const updateStartPage = useAuthStore((s) => s.updateStartPage);
+  const ttsVoice = useAuthStore((s) => s.user?.tts_voice_id ?? DEFAULT_TTS_VOICE_ID);
+  const updateTtsVoice = useAuthStore((s) => s.updateTtsVoice);
+  const sampleRef = useRef<HTMLAudioElement>(null);
+  const playSample = () => {
+    const audio = sampleRef.current;
+    if (!audio) return;
+    audio.src = ttsVoiceSampleUrl(ttsVoice);
+    void audio.play().catch(() => undefined);
+  };
   const feedbackButton = useAuthStore((s) => s.user?.feedback_button ?? 'text');
   const updateFeedbackButton = useAuthStore((s) => s.updateFeedbackButton);
   const setTab = useSettingsDialogStore((s) => s.setTab);
@@ -145,6 +170,44 @@ const GeneralTab = () => {
                 {label}
               </button>
             ))}
+          </div>
+        </SettingsRow>
+
+        <SettingsRow id="allgemein.stimme">
+          <div className="flex items-center gap-xs">
+            <Select
+              value={ttsVoice}
+              onValueChange={(value) =>
+                void updateTtsVoice(value === DEFAULT_TTS_VOICE_ID ? null : (value as TtsVoiceId))
+              }
+            >
+              <SelectTrigger className="w-[13rem]" aria-label="Stimme">
+                {/* The items carry age and "Standard" as hints; the trigger shows the name alone. */}
+                <SelectValue>{ttsVoiceLabel(ttsVoice)}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {TTS_VOICES.map((voice) => (
+                  <SelectItem key={voice.id} value={voice.id}>
+                    {ttsVoiceLabel(voice.id)}
+                    <span className="text-grey-500"> · {TTS_VOICE_AGE_LABEL[voice.age]}</span>
+                    {voice.id === DEFAULT_TTS_VOICE_ID ? (
+                      <span className="text-grey-500"> · Standard</span>
+                    ) : null}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={playSample}
+              aria-label="Hörprobe abspielen"
+            >
+              <Volume2 className="size-4" />
+              Hörprobe
+            </Button>
+            {/* eslint-disable-next-line jsx-a11y/media-has-caption -- one spoken sentence; its text is fixed and known */}
+            <audio ref={sampleRef} preload="none" />
           </div>
         </SettingsRow>
 
