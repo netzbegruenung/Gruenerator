@@ -142,7 +142,7 @@ Dependabot-seitig ergänzend: `cooldown: { default-days: 7 }` auf dem npm-Eintra
 
 ---
 
-## Sofortmaßnahmen (die nächsten drei PRs — Stand 03.09.2026: #3185 offen, Deckung und pnpm-Bump als Folge-PRs darauf gestapelt; #517–#520 sind mit Grund und Datum dismissed)
+## Sofortmaßnahmen (die nächsten drei PRs — Stand 03.09.2026: #3185 Alerts, #3187 Deckung, #3186 pnpm; #517–#520 sind mit Grund und Datum dismissed)
 
 1. **`chore(deps): close open Dependabot alerts (2026-09-03)`** — fünf Override-Floors (`qs`, `fast-uri`, `brace-expansion@>=1 <2`, zwei `@xmldom/xmldom`-Ranges), Familien-Bump `@tiptap/*` auf `^3.30.4` (17 Overrides + 3 Manifeste), `pnpm install --lockfile-only`, Web-Build lokal. Dismiss von #517, #518, #519, #520 mit Kommentar nach B3. Schließt #3181 und #3182. Erwartung: 16 → 0 offene Alerts, 4 dismissed.
 2. **`chore(ci): audit gate, pip and docker coverage`** — B5 Punkte 1–4 in einem PR (nur Config, kein Lockfile-Risiko).
