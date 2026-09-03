@@ -67,7 +67,7 @@ export const CitationBadge = memo(function CitationBadge({
       <PopoverContent
         side="top"
         align="center"
-        className="w-80 max-w-[90vw] p-0"
+        className="max-h-[var(--radix-popover-content-available-height)] w-80 max-w-[90vw] overflow-y-auto p-0"
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         onOpenAutoFocus={(e) => e.preventDefault()}
