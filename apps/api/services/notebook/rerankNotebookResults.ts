@@ -31,6 +31,67 @@ export interface RerankResult {
   rerankTimeMs: number;
 }
 
+export interface CutOptions {
+  results: ExpandedChunkResult[];
+  referencesMap: ReferencesMap;
+  limit: number;
+}
+
+export interface CutResult {
+  results: ExpandedChunkResult[];
+  referencesMap: ReferencesMap;
+  contextSummary: string;
+}
+
+/**
+ * Die Zitationskarte auf die tatsächlich behaltenen Ergebnisse zuschneiden und
+ * neu durchnummerieren — dieselbe Logik, die der Rerank-Zweig unten auf sein
+ * `rerankedResults` anwendet, hier gegen eine beliebige gekürzte Liste.
+ *
+ * Der Schlüssel ist `document_id`, nicht der Index: die Karte trägt eine
+ * Zeile je `results`-Eintrag, aber der Join läuft über die Dokumentidentität,
+ * damit er unverändert bleibt, egal ob die Kürzung nach Rerank-Rang oder
+ * (wie in `cutNotebookResults`) nach Retrieval-Reihenfolge erfolgt.
+ */
+function renumberReferencesMap(
+  keptResults: ExpandedChunkResult[],
+  referencesMap: ReferencesMap,
+  scoreByChunk?: Map<string, number>
+): ReferencesMap {
+  const keptDocIds = new Set(keptResults.map((r) => r.document_id));
+  const filteredReferencesMap: ReferencesMap = {};
+  for (const [key, ref] of Object.entries(referencesMap)) {
+    if (keptDocIds.has(ref.document_id)) {
+      filteredReferencesMap[key] = ref;
+    }
+  }
+
+  const renumberedMap: ReferencesMap = {};
+  let newIndex = 1;
+  for (const ref of Object.values(filteredReferencesMap)) {
+    const score = scoreByChunk?.get(`${ref.document_id}:${ref.chunk_index}`);
+    renumberedMap[String(newIndex)] =
+      score === undefined ? ref : { ...ref, similarity_score: score };
+    newIndex++;
+  }
+  return renumberedMap;
+}
+
+/**
+ * Kein Rerank — die ersten `limit` Ergebnisse in Retrieval-Reihenfolge
+ * behalten und die Zitationskarte darauf zuschneiden. Der produktive Ersatz
+ * für den Cross-Encoder seit 03.09.2026 (siehe `notebookStreamCore.ts`).
+ */
+export function cutNotebookResults({ results, referencesMap, limit }: CutOptions): CutResult {
+  const keptResults = results.slice(0, limit);
+  const renumberedMap = renumberReferencesMap(keptResults, referencesMap);
+  return {
+    results: keptResults,
+    referencesMap: renumberedMap,
+    contextSummary: buildContextSummary(renumberedMap),
+  };
+}
+
 export async function rerankNotebookResults({
   results,
   referencesMap,
@@ -111,22 +172,7 @@ export async function rerankNotebookResults({
     }
   }
 
-  const keptDocIds = new Set(rerankedResults.map((r) => r.document_id));
-  const filteredReferencesMap: ReferencesMap = {};
-  for (const [key, ref] of Object.entries(referencesMap)) {
-    if (keptDocIds.has(ref.document_id)) {
-      filteredReferencesMap[key] = ref;
-    }
-  }
-
-  const renumberedMap: ReferencesMap = {};
-  let newIndex = 1;
-  for (const ref of Object.values(filteredReferencesMap)) {
-    const score = rerankScoreByChunk.get(`${ref.document_id}:${ref.chunk_index}`);
-    renumberedMap[String(newIndex)] =
-      score === undefined ? ref : { ...ref, similarity_score: score };
-    newIndex++;
-  }
+  const renumberedMap = renumberReferencesMap(rerankedResults, referencesMap, rerankScoreByChunk);
 
   log.info(
     `[Rerank] ${candidates.length} → ${rerankedResults.length} results in ${rerankTimeMs}ms`
