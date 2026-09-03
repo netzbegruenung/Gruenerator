@@ -202,7 +202,7 @@ export async function* parseSSEStream(
   let receivedCreatedDocument: DocumentCreatedData | null = null;
   let receivedReelProcessing: ReelProcessingData | null = null;
   let receivedReelPicker: ReelPickerData | null = null;
-  let evidenceWeakAccum: string | undefined;
+  let evidenceWeakAccum: string | null = null;
   let activeToolCall: ToolCallPart | null = null;
   const allToolCalls: ToolCallPart[] = [...(carryOver?.toolCalls ?? [])];
   // Agentic tool-loop steps, keyed by stepId. The loop can run several tools in
