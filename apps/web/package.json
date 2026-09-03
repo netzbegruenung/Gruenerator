@@ -80,7 +80,6 @@
     "react-webcam": "^7.2.0",
     "rehype-raw": "^7.0.0",
     "topojson-client": "^3.1.0",
-    "tunnel-rat": "^0.1.2",
     "tus-js-client": "^4.3.1",
     "use-image": "^1.1.4",
     "uuid": "^14.0.2",
