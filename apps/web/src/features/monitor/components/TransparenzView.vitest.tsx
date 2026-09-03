@@ -37,7 +37,7 @@ const FOOTPRINT = {
   image_emissions_g: 260,
   reference_energy_wh: 9000,
   reference_emissions_g: 3200,
-  unvalued_ops: { transcriptions: 12, searches: 34 },
+  unvalued_ops: { transcriptions: 12, searches: 34, speech_seconds: 480 },
 };
 
 const RESPONSE = {
@@ -57,6 +57,7 @@ const RESPONSE = {
     images: 140,
     transcriptions: 12,
     searches: 34,
+    speech_seconds: 480,
   },
   footprint: FOOTPRINT,
   providers: [
@@ -101,6 +102,7 @@ const RESPONSE = {
       images: 0,
       transcriptions: 12,
       searches: 34,
+      speech_seconds: 480,
       emissions_g: 1140,
     },
     {
@@ -110,6 +112,7 @@ const RESPONSE = {
       images: 140,
       transcriptions: 0,
       searches: 0,
+      speech_seconds: 0,
       emissions_g: 260,
     },
   ],

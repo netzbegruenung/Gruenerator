@@ -270,7 +270,15 @@ const envSchema = z.object({
     .enum(['auto', 'voxtral', 'greenpt', 'regolo'])
     .default('auto')
     .transform((provider) => (provider === 'regolo' ? ('auto' as const) : provider)),
-  VOXTRAL_DEFAULT_VOICE_ID: z.string().optional(),
+  // KugelAudio (Berlin) serves the whole text-to-speech path since 09/2026;
+  // Mistral Speech is gone. KUGELAUDIO_BASE_URL is an escape hatch only — the
+  // vendor default host api.kugelaudio.com is geo-routed and may leave the EU,
+  // so the service pins the EU host itself and this var is the only way past it.
+  KUGELAUDIO_API_KEY: z.string().optional(),
+  KUGELAUDIO_BASE_URL: z.string().optional(),
+  // An integer, not a UUID: KugelAudio numbers its voices where Mistral named
+  // them. Coerced because env values arrive as strings.
+  KUGELAUDIO_DEFAULT_VOICE_ID: z.coerce.number().int().optional(),
   VISION_DEFAULT_MODEL: z.string().optional(),
 
   // ── Monitoring / External services ────────────────────────────────────

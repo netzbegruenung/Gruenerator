@@ -14,6 +14,8 @@
 
 import { sql } from 'drizzle-orm';
 
+import type { UsageUnit as ContractUsageUnit } from '@gruenerator/contracts';
+
 import { userUsageDaily } from '../../database/schema/index.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { createLogger } from '../../utils/logger.js';
@@ -24,8 +26,14 @@ const log = createLogger('usageTracking');
 const FLUSH_INTERVAL_MS = 15_000;
 const FLUSH_THRESHOLD = 200;
 
-/** What is being counted — decides how the usage tab renders a row. */
-export type UsageUnit = 'tokens' | 'images' | 'transcriptions' | 'searches';
+/**
+ * What is being counted — decides how the usage tab renders a row.
+ *
+ * Derived from the contract rather than restated, so the wire enum and the
+ * server cannot drift apart. Note that for `speech_seconds` alone, `ops` carries
+ * a DURATION in whole seconds rather than a count of operations.
+ */
+export type UsageUnit = ContractUsageUnit;
 
 interface UsageDelta {
   userId: string;

@@ -59,7 +59,7 @@ export const AREA_HINTS: Record<string, string> = {
   // but with no hint the PR audit never did, which is the half that matters:
   // the claim drifts in the same PR that moves the routing.
   basics:
-    'apps/api/services/ai, apps/api/services/usage/energyFootprint.ts, apps/api/services/transcription, packages/core/src/models',
+    'apps/api/services/ai, apps/api/services/usage/energyFootprint.ts, apps/api/services/transcription, apps/api/services/voice, packages/core/src/models',
   grueneratoren: 'apps/web/src/features/agents, apps/web/src/features/agentura, packages/chat',
   wissen: 'apps/web/src/features/notebook',
   experimente: 'apps/web/src/features/monitor',

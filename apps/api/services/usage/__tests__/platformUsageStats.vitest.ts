@@ -183,7 +183,11 @@ describe('what the number does not include', () => {
 
     const stats = await computePlatformUsageStats(30);
 
-    expect(stats.footprint.unvalued_ops).toEqual({ transcriptions: 3, searches: 7 });
+    expect(stats.footprint.unvalued_ops).toEqual({
+      transcriptions: 3,
+      searches: 7,
+      speech_seconds: 0,
+    });
     expect(stats.footprint.energy_wh).toBe(0);
     // A provider at 0 g in the list would read as "this one is free". The two
     // units have no coefficient at all, which is a different statement.
