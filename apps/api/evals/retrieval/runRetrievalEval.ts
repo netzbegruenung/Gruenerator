@@ -874,14 +874,25 @@ async function main() {
   }
 
   if (withRerank) {
-    console.log('\n── Ergebnisse (nach Rerank) ──');
-    for (const [collection, list] of byCollection) {
+    // Nur die Fälle, die der Rerank wirklich gesehen hat, und ein Gold, das er
+    // fallen lässt (null), zählt als Fehltreffer — `rerankRank ?? rank` hatte
+    // ihm bis zum 03.09.2026 den alten Rang gutgeschrieben (#3197).
+    const reranked = outcomes.filter((o) => o.rerankRank !== undefined);
+    const rerankedBy = new Map<string, CaseOutcome[]>();
+    for (const o of reranked) {
+      rerankedBy.set(o.collection, [...(rerankedBy.get(o.collection) ?? []), o]);
+    }
+    console.log('\n── Ergebnisse (nach Rerank; nur rerankte Fälle, fallen gelassen = miss) ──');
+    for (const [collection, list] of rerankedBy) {
       console.log(
-        `${collection.padEnd(28)} n=${String(list.length).padStart(2)}  ${computeMetrics(list, (o) => o.rerankRank ?? o.rank).line}`
+        `${collection.padEnd(28)} n=${String(list.length).padStart(2)}  ${computeMetrics(list, (o) => o.rerankRank ?? null).line}`
       );
     }
     console.log(
-      `${'GESAMT'.padEnd(28)} n=${String(outcomes.length).padStart(2)}  ${computeMetrics(outcomes, (o) => o.rerankRank ?? o.rank).line}`
+      `${'GESAMT'.padEnd(28)} n=${String(reranked.length).padStart(2)}  ${computeMetrics(reranked, (o) => o.rerankRank ?? null).line}`
+    );
+    console.log(
+      `${'vor Rerank (dieselben)'.padEnd(28)} n=${String(reranked.length).padStart(2)}  ${computeMetrics(reranked, (o) => o.rank).line}`
     );
 
     const delta = rerankDelta(outcomes);
