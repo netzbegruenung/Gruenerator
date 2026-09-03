@@ -375,7 +375,8 @@ export async function handleNotebookStream(
     // Die Emission sitzt bewusst NACH dem Layer-4-Gate: eine verweigerte
     // Antwort soll nie mit der Warnung ausgestattet werden.
     //
-    // Die Logzeile geht IMMER hinaus, auch bei ausgeschaltetem Schalter: sie
+    // Die Logzeile geht bei jeder beantworteten Anfrage hinaus (nicht bei einer
+    // Abweisung durch die Qualitätsschranke), auch bei ausgeschaltetem Schalter: sie
     // ist die Produktionsmessung, die einzige Stelle, an der sichtbar wird, wo
     // das Signal auf echten Fragen liegt. Der Zahlenwert geht NICHT auf die
     // Leitung — die Wire-Gestalt bleibt { code, message }.
