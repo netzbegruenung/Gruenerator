@@ -45,6 +45,9 @@ export type GrueneratorMessageMetadata = {
   createdDocument?: DocumentCreatedData;
   reelProcessing?: ReelProcessingData;
   reelPicker?: ReelPickerData;
+  /** Notebook found little relevant to answer with (`evidence_weak`); rendered
+   *  as a quiet note under the answer instead of a toast (AssistantMessage.tsx). */
+  evidenceWeak?: string;
   [key: string]: unknown;
 };
 
