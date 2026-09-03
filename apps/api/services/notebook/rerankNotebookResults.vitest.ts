@@ -72,6 +72,7 @@ describe('rerankNotebookResults', () => {
 
     const out = await rerankNotebookResults({ results, referencesMap, question: 'Warum?' });
 
+    expect(out.reranked).toBe(true);
     expect(out.results.map((r) => r.similarity)).toEqual([0.94, 0.71, 0.63]);
     const scoresInOrder = out.results.map((r) => r.similarity);
     expect(scoresInOrder).toEqual([...scoresInOrder].sort((a, b) => b - a));
@@ -103,6 +104,7 @@ describe('rerankNotebookResults', () => {
     expect(Object.values(out.referencesMap).map((r) => r.similarity_score)).toEqual([
       0.5, 0.51, 0.52,
     ]);
+    expect(out.reranked).toBe(false);
   });
 
   it('keeps the retrieval score on the skip path', async () => {
@@ -115,5 +117,82 @@ describe('rerankNotebookResults', () => {
 
     expect(rerankPipeline).not.toHaveBeenCalled();
     expect(out.results.map((r) => r.similarity)).toEqual([0.5, 0.51, 0.52]);
+  });
+
+  it('forwards instruct to rerankPipeline when given', async () => {
+    rerankPipeline.mockResolvedValue({
+      rankedIndices: [0, 1, 2],
+      scores: new Map([
+        [0, 0.9],
+        [1, 0.8],
+        [2, 0.7],
+      ]),
+      rerankTimeMs: 5,
+    });
+
+    await rerankNotebookResults({
+      results,
+      referencesMap,
+      question: 'Warum?',
+      instruct: 'Test-Instruct',
+    });
+
+    expect(rerankPipeline).toHaveBeenCalledWith(
+      expect.objectContaining({ instruct: 'Test-Instruct' })
+    );
+  });
+
+  it('omits instruct from the rerankPipeline call when absent', async () => {
+    rerankPipeline.mockResolvedValue({
+      rankedIndices: [0, 1, 2],
+      scores: new Map([
+        [0, 0.9],
+        [1, 0.8],
+        [2, 0.7],
+      ]),
+      rerankTimeMs: 5,
+    });
+
+    await rerankNotebookResults({ results, referencesMap, question: 'Warum?' });
+
+    const call = rerankPipeline.mock.calls[0][0] as Record<string, unknown>;
+    expect('instruct' in call).toBe(false);
+  });
+
+  it('defaults applyDiversity to true when omitted (byte-identical to today)', async () => {
+    rerankPipeline.mockResolvedValue({
+      rankedIndices: [0, 1, 2],
+      scores: new Map([
+        [0, 0.9],
+        [1, 0.8],
+        [2, 0.7],
+      ]),
+      rerankTimeMs: 5,
+    });
+
+    await rerankNotebookResults({ results, referencesMap, question: 'Warum?' });
+
+    expect(rerankPipeline).toHaveBeenCalledWith(expect.objectContaining({ applyDiversity: true }));
+  });
+
+  it('forwards applyDiversity: false to rerankPipeline when given', async () => {
+    rerankPipeline.mockResolvedValue({
+      rankedIndices: [0, 1, 2],
+      scores: new Map([
+        [0, 0.9],
+        [1, 0.8],
+        [2, 0.7],
+      ]),
+      rerankTimeMs: 5,
+    });
+
+    await rerankNotebookResults({
+      results,
+      referencesMap,
+      question: 'Warum?',
+      applyDiversity: false,
+    });
+
+    expect(rerankPipeline).toHaveBeenCalledWith(expect.objectContaining({ applyDiversity: false }));
   });
 });
