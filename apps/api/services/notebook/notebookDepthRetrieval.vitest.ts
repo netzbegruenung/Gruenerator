@@ -7,7 +7,7 @@
  * reranking. These tests pin that each tier actually asks Qdrant for a
  * different amount, and that `fast` still asks for exactly what it always did.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const search = vi.fn();
 
@@ -29,6 +29,7 @@ vi.mock('../bundestag/index.js', () => ({
 }));
 
 const { notebookQAService } = await import('./NotebookQAService.js');
+const { env } = await import('../../config/env.js');
 
 /** One Qdrant hit, shaped enough to survive expansion and sorting. */
 function hit(i: number) {
@@ -104,5 +105,57 @@ describe('getSearchContext — retrieval per depth tier', () => {
   it('ignores extra formulations on single-query tiers', async () => {
     await optionsFor('fast', ['eine', 'zwei', 'drei']);
     expect(search).toHaveBeenCalledTimes(1);
+  });
+});
+
+/** Five chunks of the SAME document — the shape the cap exists for. */
+function dupHit(i: number) {
+  return {
+    document_id: 'doc-dup',
+    title: 'Wiederholtes Dokument',
+    chunk_text: `Chunk ${i}`,
+    similarity_score: 0.9 - i / 100,
+    chunk_index: i,
+    source_url: null,
+  };
+}
+
+describe('getSearchContext — NOTEBOOK_MAX_CHUNKS_PER_DOC reaches the selection', () => {
+  const shippedDefault = env.NOTEBOOK_MAX_CHUNKS_PER_DOC;
+  afterEach(() => {
+    env.NOTEBOOK_MAX_CHUNKS_PER_DOC = shippedDefault;
+  });
+
+  it('ships with a cap of two (measured 2026-09-03)', () => {
+    expect(shippedDefault).toBe(2);
+  });
+
+  it('leaves a five-chunk single-document result set unshrunk at 0 (no cap)', async () => {
+    env.NOTEBOOK_MAX_CHUNKS_PER_DOC = 0;
+    search.mockResolvedValue({ results: Array.from({ length: 5 }, (_, i) => dupHit(i)) });
+    const context = await notebookQAService.getSearchContext({
+      question: 'Was steht drin?',
+      collectionId: 'grundsatz-system',
+      depth: 'fast',
+    });
+    expect(context?.sortedResults).toHaveLength(5);
+  });
+
+  it('pulls a second document forward once the env value is set', async () => {
+    env.NOTEBOOK_MAX_CHUNKS_PER_DOC = 2;
+    const other = { ...dupHit(9), document_id: 'doc-other', similarity_score: 0.8 };
+    search.mockResolvedValue({ results: [dupHit(0), dupHit(1), dupHit(2), other] });
+    const context = await notebookQAService.getSearchContext({
+      question: 'Was steht drin?',
+      collectionId: 'grundsatz-system',
+      depth: 'fast',
+    });
+    // Kopf gedeckelt, Rest hinten angehängt — nichts geht verloren.
+    expect(context?.sortedResults.map((r) => r.document_id)).toEqual([
+      'doc-dup',
+      'doc-dup',
+      'doc-other',
+      'doc-dup',
+    ]);
   });
 });
