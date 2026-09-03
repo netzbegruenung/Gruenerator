@@ -5,14 +5,18 @@
 import { describe, it, expect } from 'vitest';
 
 import {
+  ALL_COMPARISONS,
   ANSWER_VARIANTS,
+  COMPARISONS,
   buildAbMapping,
   judgeResultSchema,
   mean,
+  resolveComparisons,
   resolveWinner,
   shuffleVariants,
   sideOf,
   tally,
+  VARIANT_RERANK,
   type AnswerVariant,
 } from './answerEvalCore.js';
 
@@ -138,5 +142,37 @@ describe('judgeResultSchema', () => {
       rationale: 'x',
     };
     expect(judgeResultSchema.safeParse(withoutRationale).success).toBe(false);
+  });
+});
+
+describe('VARIANT_RERANK', () => {
+  it('covers exactly the four variants with the shapes handleNotebookStream expects', () => {
+    expect(Object.keys(VARIANT_RERANK).sort()).toEqual([...ANSWER_VARIANTS].sort());
+    expect(VARIANT_RERANK.none).toEqual({ mode: 'off' });
+    expect(VARIANT_RERANK.today).toEqual({ mode: 'sort' });
+    expect(VARIANT_RERANK.cut).toEqual({});
+    expect(VARIANT_RERANK.filter.mode).toBe('filter');
+    expect(VARIANT_RERANK.filter.instruct).toBeTruthy();
+  });
+});
+
+describe('resolveComparisons', () => {
+  it('defaults to the cut comparisons when the env var is unset or empty', () => {
+    expect(resolveComparisons({})).toEqual(COMPARISONS);
+    expect(resolveComparisons({ EVAL_ANSWER_COMPARISONS: '' })).toEqual(COMPARISONS);
+    expect(COMPARISONS.map((c) => c.id)).toEqual(['cut-vs-today', 'cut-vs-none']);
+  });
+
+  it('selects comparisons named in the env var, in ALL_COMPARISONS order', () => {
+    const selected = resolveComparisons({ EVAL_ANSWER_COMPARISONS: 'filter-vs-today' });
+    expect(selected).toEqual([{ id: 'filter-vs-today', challenger: 'filter', baseline: 'today' }]);
+  });
+
+  it('falls back to the default when every named id is unknown', () => {
+    expect(resolveComparisons({ EVAL_ANSWER_COMPARISONS: 'not-a-real-id' })).toEqual(COMPARISONS);
+  });
+
+  it('ALL_COMPARISONS still carries the pre-2026-09-03 filter comparison', () => {
+    expect(ALL_COMPARISONS.map((c) => c.id)).toContain('filter-vs-today');
   });
 });

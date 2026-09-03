@@ -8,8 +8,16 @@
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 
-/** `none` schaltet den Reranker ab, `today` ist der ausgelieferte Zustand. */
-export const ANSWER_VARIANTS = ['none', 'today', 'filter'] as const;
+/**
+ * `none` schaltet den Reranker ab und lässt den vollen Kandidaten-Pool durch
+ * (Messvariante, nie Produktion). `today` ist die Produktionsform vor dem
+ * 03.09.2026 — der Reranker (`mode: 'sort'`), jetzt explizit statt implizit
+ * über die Abwesenheit von `rerank`. `cut` ist der seit dem 03.09.2026
+ * ausgelieferte Zustand: kein Rerank, aber auf `profile.rerankOutput`
+ * gekürzt (siehe `notebookStreamCore.ts` und `answer-eval-2026-09-03.md`).
+ * `filter` ist der zusätzliche Relevanzfilter obendrauf.
+ */
+export const ANSWER_VARIANTS = ['none', 'today', 'cut', 'filter'] as const;
 export type AnswerVariant = (typeof ANSWER_VARIANTS)[number];
 
 /**
@@ -30,7 +38,8 @@ export interface RerankVariantOptions {
 /** Was jede Variante an `handleNotebookStream({ rerank })` durchreicht. */
 export const VARIANT_RERANK: Record<AnswerVariant, RerankVariantOptions> = {
   none: { mode: 'off' },
-  today: {},
+  today: { mode: 'sort' },
+  cut: {},
   filter: { mode: 'filter', instruct: DE_STRICT_INSTRUCT },
 };
 
@@ -84,10 +93,42 @@ export interface Comparison {
   baseline: AnswerVariant;
 }
 
-export const COMPARISONS: readonly Comparison[] = [
+export const ALL_COMPARISONS: readonly Comparison[] = [
+  { id: 'cut-vs-today', challenger: 'cut', baseline: 'today' },
+  { id: 'cut-vs-none', challenger: 'cut', baseline: 'none' },
   { id: 'filter-vs-today', challenger: 'filter', baseline: 'today' },
-  { id: 'filter-vs-none', challenger: 'filter', baseline: 'none' },
 ];
+
+const DEFAULT_COMPARISON_IDS = ['cut-vs-today', 'cut-vs-none'];
+
+/** Die neuen Standard-Vergleiche für die Produktionsvariante `cut`. */
+export const COMPARISONS: readonly Comparison[] = ALL_COMPARISONS.filter((c) =>
+  DEFAULT_COMPARISON_IDS.includes(c.id)
+);
+
+/**
+ * `env.EVAL_ANSWER_COMPARISONS` (kommagetrennte IDs aus `ALL_COMPARISONS`)
+ * wählt andere Vergleiche — z. B. `filter-vs-today`, um den alten
+ * Filter-Vergleich erneut zu fahren, ohne diese Datei zu ändern. Nimmt `env`
+ * als Parameter statt `process.env` selbst zu lesen: ein statischer Import
+ * dieses Moduls läuft VOR dem `dotenv.config()` der aufrufenden Skripte
+ * (Modulausführung folgt dem Abhängigkeitsgraphen, nicht der Textreihenfolge
+ * der Imports) — ein Lesezugriff auf Modulebene hier sähe eine per `.env`
+ * gesetzte Variable nie. Aufrufer lesen `process.env` deshalb selbst, erst
+ * innerhalb von `main()`.
+ */
+export function resolveComparisons(env: Record<string, string | undefined>): readonly Comparison[] {
+  const raw = env.EVAL_ANSWER_COMPARISONS;
+  if (!raw) return COMPARISONS;
+  const ids = new Set(
+    raw
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+  );
+  const selected = ALL_COMPARISONS.filter((c) => ids.has(c.id));
+  return selected.length > 0 ? selected : COMPARISONS;
+}
 
 export type AbSide = 'A' | 'B';
 export type JudgeWinner = AbSide | 'tie';
