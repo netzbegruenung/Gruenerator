@@ -16,10 +16,23 @@ interface Voice {
 
 interface Playing {
   voice: Voice;
-  /** `sample` is the provider's own clip, `text` is our synthesis of the textarea. */
-  kind: 'sample' | 'text';
+  /**
+   * `sample` is the provider's own clip, `text` a live synthesis of the
+   * textarea, `stored` a clip of the default text generated once and checked
+   * in under public/kugel-test so nobody pays for the same sentence twice.
+   */
+  kind: 'sample' | 'text' | 'stored';
   latencyMs?: number;
 }
+
+interface StoredClips {
+  text: string;
+  model: string;
+  generatedAt: string;
+  clips: Record<string, { file: string; durationSec: number; latencyMs: number }>;
+}
+
+const STORED_INDEX_URL = '/kugel-test/index.json';
 
 const DEFAULT_TEXT =
   'Liebe Freundinnen und Freunde, am 14. März 2027 wählen wir. ' +
@@ -42,6 +55,7 @@ type GenderFilter = 'all' | 'female' | 'male';
 
 const KugelVoiceTestPage = () => {
   const [voices, setVoices] = useState<Voice[] | null>(null);
+  const [stored, setStored] = useState<StoredClips | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [text, setText] = useState(DEFAULT_TEXT);
   const [gender, setGender] = useState<GenderFilter>('all');
@@ -75,6 +89,25 @@ const KugelVoiceTestPage = () => {
       .catch((err: unknown) => {
         if (!cancelled) setLoadError(err instanceof Error ? err.message : String(err));
       });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    // Optional: a missing index just means every click synthesises live.
+    fetch(STORED_INDEX_URL)
+      // The SPA fallback answers an unknown path with index.html and 200.
+      .then((res) =>
+        res.ok && res.headers.get('content-type')?.includes('json')
+          ? (res.json() as Promise<StoredClips>)
+          : null
+      )
+      .then((index) => {
+        if (!cancelled && index) setStored(index);
+      })
+      .catch(() => undefined);
     return () => {
       cancelled = true;
     };
@@ -140,6 +173,9 @@ const KugelVoiceTestPage = () => {
   );
 
   const visible = voices?.filter((v) => gender === 'all' || v.gender === gender) ?? [];
+  // Stored clips only stand in for the exact text they were generated from.
+  const storedApplies = stored !== null && stored.text === text;
+  const storedClip = (voice: Voice) => (storedApplies ? stored.clips[voice.id] : undefined);
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-8">
@@ -166,6 +202,25 @@ const KugelVoiceTestPage = () => {
         <p className="text-xs text-muted-foreground">
           Zahlen, Datum, Umlaute und Ortsnamen drin lassen — daran scheitern Stimmen zuerst.
         </p>
+        {stored ? (
+          <p className="text-xs text-muted-foreground">
+            {storedApplies ? (
+              <>
+                Für diesen Text liegen {Object.keys(stored.clips).length} fertige Clips vor (
+                {stored.model}, erzeugt am{' '}
+                {new Date(stored.generatedAt).toLocaleDateString('de-DE')}) — „Anhören“ spielt sie
+                sofort.
+              </>
+            ) : (
+              <>
+                Der Text weicht vom gespeicherten ab — jeder Klick synthetisiert live.{' '}
+                <button type="button" className="underline" onClick={() => setText(stored.text)}>
+                  Standardtext wiederherstellen
+                </button>
+              </>
+            )}
+          </p>
+        ) : null}
       </section>
 
       <section className="sticky top-12 z-10 space-y-2 rounded-lg border bg-card p-4">
@@ -188,7 +243,11 @@ const KugelVoiceTestPage = () => {
               <span className="font-medium">{playing.voice.name}</span>
               <span className="text-muted-foreground">
                 (ID {playing.voice.id}) ·{' '}
-                {playing.kind === 'sample' ? 'Hörprobe des Anbieters' : 'unser Text'}
+                {playing.kind === 'sample'
+                  ? 'Hörprobe des Anbieters'
+                  : playing.kind === 'stored'
+                    ? 'gespeicherter Clip'
+                    : 'unser Text'}
                 {playing.latencyMs !== undefined
                   ? ` · ${playing.latencyMs} ms bis WAV komplett (das Produkt streamt)`
                   : ''}
@@ -272,18 +331,34 @@ const KugelVoiceTestPage = () => {
                       Hörprobe
                     </Button>
                   ) : null}
-                  <Button
-                    size="sm"
-                    disabled={busyId !== null || text.trim().length === 0}
-                    onClick={() => void speak(voice)}
-                  >
-                    {busyId === voice.id ? (
-                      <Loader2 className="mr-1 size-4 animate-spin" />
-                    ) : (
+                  {storedClip(voice) ? (
+                    <Button
+                      size="sm"
+                      onClick={() =>
+                        play(storedClip(voice)!.file, {
+                          voice,
+                          kind: 'stored',
+                          latencyMs: storedClip(voice)!.latencyMs,
+                        })
+                      }
+                    >
                       <Play className="mr-1 size-4" />
-                    )}
-                    Text sprechen
-                  </Button>
+                      Anhören
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      disabled={busyId !== null || text.trim().length === 0}
+                      onClick={() => void speak(voice)}
+                    >
+                      {busyId === voice.id ? (
+                        <Loader2 className="mr-1 size-4 animate-spin" />
+                      ) : (
+                        <Play className="mr-1 size-4" />
+                      )}
+                      Text sprechen
+                    </Button>
+                  )}
                 </div>
               </li>
             );
