@@ -15,6 +15,7 @@ import {
   addDeadLinkSamples,
   foldDeadLinksIfNothingWorked,
   MAX_ERROR_SAMPLES,
+  mergeSkipReasons,
 } from './resultSamples.js';
 
 import type { SourceResult } from './types.js';
@@ -31,6 +32,7 @@ function sourceResult(overrides: Partial<SourceResult> = {}): SourceResult {
     deadLinks: 0,
     deadLinkMessages: [],
     totalVectors: 0,
+    skipReasons: {},
     contentTypes: {},
     newArticles: [],
     ...overrides,
@@ -113,5 +115,14 @@ describe('addDeadLinkSamples', () => {
     );
 
     expect(result.deadLinkMessages).toHaveLength(MAX_ERROR_SAMPLES);
+  });
+});
+
+describe('mergeSkipReasons', () => {
+  it('sums counts per reason across content paths without dropping unknown reasons', () => {
+    const result = sourceResult();
+    mergeSkipReasons(result, { too_old: 400, unchanged: 12 });
+    mergeSkipReasons(result, { too_old: 53, no_chunks: 1 });
+    expect(result.skipReasons).toEqual({ too_old: 453, unchanged: 12, no_chunks: 1 });
   });
 });
