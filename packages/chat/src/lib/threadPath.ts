@@ -1,4 +1,4 @@
-import { buildChatThreadSlug } from '@gruenerator/shared/utils';
+import { buildChatThreadSlug, extractSlugSuffix } from '@gruenerator/shared/utils';
 
 import {
   getNotebookCollectionId,
@@ -34,4 +34,17 @@ export function buildThreadPath(remoteId: string, title: string | null): string 
   }
   const suffix = getThreadSlugSuffix(remoteId);
   return suffix ? `/chat/${buildChatThreadSlug(title, suffix)}` : `/chat/${remoteId}`;
+}
+
+/**
+ * Whether an in-app path (the host's `location.pathname`) names this thread.
+ * Compared by slug suffix, not by the full path: the title half of the slug is
+ * cosmetic and lags a rename, and legacy links carry the bare remote id.
+ */
+export function pathNamesThread(path: string | null | undefined, remoteId: string): boolean {
+  if (!path) return false;
+  const last = path.split('/').pop() ?? '';
+  if (last === remoteId) return true;
+  const suffix = getThreadSlugSuffix(remoteId);
+  return suffix !== null && extractSlugSuffix(last) === suffix;
 }
