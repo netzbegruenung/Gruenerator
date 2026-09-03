@@ -57,6 +57,17 @@
  *                    `collection` as the collection id, so
  *                    `EVAL_PIPELINE=notebook EVAL_CASE_KIND=qa` walks any qa
  *                    case through the 0.35 threshold in NotebookQAService.
+ *   EVAL_EMBED_CANDIDATE  Slug aus `embedCandidates.ts` — misst denselben Lauf
+ *                    gegen eine Wegwerf-Sammlung, die mit einem anderen
+ *                    Einbettungsmodell gebaut wurde (`eval:retrieval:embed:build`).
+ *                    Zwei Dinge ändern sich, sonst nichts: die durchsuchte
+ *                    Sammlung (`eval_embed_<slug>__<quelle>`) und die
+ *                    Anfrage-Einbettung, die als `options.queryVector` an der
+ *                    Suche vorbei an `generateQueryEmbedding` geht. Nur
+ *                    EVAL_PIPELINE=qa und =manual: die beiden anderen laufen
+ *                    über NotebookQAService bzw. executeDirectSearch, die diese
+ *                    Naht nicht führen — ein Lauf dort MISST die Produktion und
+ *                    sähe wie ein Kandidatenergebnis aus, deshalb bricht er ab.
  *   EVAL_VERBOSE=1   print top-5 titles for every miss (gold-label curation)
  *   EVAL_OUT         write per-case results as JSON to this path
  *   EVAL_CHAT_EXPAND=1  nur für EVAL_PIPELINE=chat-notebook: hängt EINE
@@ -134,9 +145,12 @@ const { normalizeNotebookHistory, buildRewriteTranscript } =
 const { expandQuery } = await import('../../services/search/QueryExpansionService.js');
 
 const { RETRIEVAL_CASES } = await import('./cases.js');
+const { resolveEvalCandidate, resolveEvalTarget } = await import('./embedCandidates.js');
+const { createCandidateEmbedder } = await import('./candidateEmbedder.js');
 
 import { type RetrievalCase } from './cases.js';
 
+import type { CandidateEmbedder } from './candidateEmbedder.js';
 import type { DocumentResult } from '../../services/BaseSearchService/types.js';
 import type { NotebookDepth } from '@gruenerator/contracts';
 import type { ModelMessage } from 'ai';
@@ -181,6 +195,17 @@ function excerptFor(content: string, query: string, arm: ExcerptArm): string {
   return selectRelevantExcerpt(content, query, evalWindow, mode)?.text ?? head;
 }
 const HIT_KS = [1, 3, 5] as const;
+
+/**
+ * Platzhalter-Nutzer für Läufe gegen eine Wegwerf-Sammlung.
+ *
+ * `validateSearchParams` lässt `userId: null/undefined` nur für Sammlungen
+ * durch, die `isSystemQdrantCollection` kennt — eine `eval_embed_*`-Sammlung
+ * gehört bewusst nicht dazu. Der Name ist folgenlos: der `user_id`-Filter wird
+ * ausschliesslich für die Sammlung `documents` gesetzt (searchOperations.ts,
+ * findSimilarChunks/findHybridChunks).
+ */
+const EVAL_EMBED_USER_ID = 'evalembedrunner';
 
 // Request defaults of the manual search field, as the web client sends them.
 const MANUAL_VECTOR_WEIGHT = 0.7;
@@ -250,7 +275,8 @@ async function runCase(
   withRerank: boolean,
   excerptMode: ExcerptArm,
   loopShaped: boolean,
-  withChunkRerank: boolean
+  withChunkRerank: boolean,
+  embedder: CandidateEmbedder | null
 ): Promise<CaseOutcome> {
   const config = getSystemCollectionConfig(evalCase.collection);
   if (!config) {
@@ -268,23 +294,30 @@ async function runCase(
   const searchParams = applyDepthProfile(getSearchParams(evalCase.collection), profile);
   const additionalFilter = applyDefaultFilter(evalCase.collection, undefined);
   const effectiveLimit = loopShaped ? loopShapedLimit(searchParams.limit) : searchParams.limit;
+  const target = resolveEvalTarget(process.env, config.qdrantCollection);
 
   try {
+    const queryVector = embedder ? await embedder.embedQuery(evalCase.query) : null;
     const searchStartedAt = Date.now();
     const resp = await searchService.search({
       query: evalCase.query,
-      userId: undefined,
+      // Eine Wegwerf-Sammlung ist keine System-Sammlung, also lässt
+      // `validateSearchParams` `userId: undefined` dort nicht durch. Der
+      // Platzhalter filtert nichts: der user_id-Filter greift nur für die
+      // Sammlung `documents` (searchOperations.ts).
+      userId: target.candidate ? EVAL_EMBED_USER_ID : undefined,
       options: {
         limit: effectiveLimit,
         mode: searchParams.mode,
         vectorWeight: searchParams.vectorWeight,
         textWeight: searchParams.textWeight,
         threshold: searchParams.threshold,
-        searchCollection: config.qdrantCollection,
+        searchCollection: target.collection,
         recallLimit: searchParams.recallLimit,
         qualityMin: searchParams.qualityMin,
         additionalFilter,
         ...(withChunkRerank && { rerankChunks: true }),
+        ...(queryVector && { queryVector }),
       },
     } as Parameters<DocumentSearchService['search']>[0]);
     const searchTimeMs = Date.now() - searchStartedAt;
@@ -353,7 +386,8 @@ async function runCase(
  */
 async function runManualCase(
   searchService: DocumentSearchService,
-  evalCase: RetrievalCase
+  evalCase: RetrievalCase,
+  embedder: CandidateEmbedder | null
 ): Promise<CaseOutcome> {
   const base: CaseOutcome = {
     id: evalCase.id,
@@ -370,21 +404,24 @@ async function runManualCase(
 
   const searchParams = getSearchParams(evalCase.collection);
   const additionalFilter = applyDefaultFilter(evalCase.collection, undefined);
+  const target = resolveEvalTarget(process.env, config.qdrantCollection);
 
   try {
+    const queryVector = embedder ? await embedder.embedQuery(evalCase.query) : null;
     const resp = await searchService.search({
       query: evalCase.query,
-      userId: undefined,
+      userId: target.candidate ? EVAL_EMBED_USER_ID : undefined,
       options: {
         limit: searchParams.limit,
         mode: 'hybrid',
         vectorWeight: MANUAL_VECTOR_WEIGHT,
         textWeight: MANUAL_TEXT_WEIGHT,
         threshold: searchParams.threshold,
-        searchCollection: config.qdrantCollection,
+        searchCollection: target.collection,
         recallLimit: searchParams.recallLimit,
         qualityMin: searchParams.qualityMin,
         additionalFilter,
+        ...(queryVector && { queryVector }),
       },
     } as Parameters<DocumentSearchService['search']>[0]);
 
@@ -685,6 +722,18 @@ async function main() {
   const collectionFilter = process.env.EVAL_COLLECTION;
   const idFilter = process.env.EVAL_FILTER;
 
+  // Wirft bei unbekanntem Slug, statt still gegen die Produktion zu messen.
+  const embedCandidate = resolveEvalCandidate(process.env);
+  if (embedCandidate && pipeline !== 'qa' && pipeline !== 'manual') {
+    console.error(
+      `EVAL_EMBED_CANDIDATE is only supported for EVAL_PIPELINE=qa and =manual. ` +
+        `"${pipeline}" searches through NotebookQAService / executeDirectSearch, which do not ` +
+        `carry the queryVector seam — the run would silently measure production.`
+    );
+    process.exit(1);
+  }
+  const embedder = embedCandidate ? createCandidateEmbedder(embedCandidate) : null;
+
   // Each pipeline runs its own cases by default: keyword lookups say nothing
   // about the Q&A path, and questions say nothing about the search field.
   // EVAL_CASE_KIND crosses them deliberately — running the long `qa` queries
@@ -719,13 +768,19 @@ async function main() {
   console.log(
     `Running ${cases.length} retrieval cases (${modeLabel}) against ${process.env.QDRANT_URL || 'QDRANT_URL unset!'}`
   );
+  if (embedCandidate) {
+    console.log(
+      `Embedding candidate: ${embedCandidate.slug} (${embedCandidate.provider}, ` +
+        `${embedCandidate.model}, ${embedCandidate.dims} dims) — searching eval_embed_* collections`
+    );
+  }
 
   const searchService = new DocumentSearchService();
   const outcomes: CaseOutcome[] = [];
   for (const evalCase of cases) {
     const outcome =
       pipeline === 'manual'
-        ? await runManualCase(searchService, evalCase)
+        ? await runManualCase(searchService, evalCase, embedder)
         : pipeline === 'notebook'
           ? await runNotebookCase(evalCase, depth)
           : pipeline === 'chat-notebook'
@@ -737,7 +792,8 @@ async function main() {
                 withRerank,
                 excerptMode,
                 loopShaped,
-                withChunkRerank
+                withChunkRerank,
+                embedder
               );
     outcomes.push(outcome);
     const rankLabel = outcome.error
@@ -819,6 +875,17 @@ async function main() {
     }
   }
 
+  if (embedder) {
+    const upstreams = Object.entries(embedder.stats.upstreams)
+      .map(([name, count]) => `${name}×${count}`)
+      .join(', ');
+    console.log(
+      `\n── Anfrage-Einbettung (${embedCandidate?.slug}) ──\n` +
+        `${embedder.stats.values} Anfragen, ${embedder.stats.tokens} Token` +
+        (upstreams.length > 0 ? `, x-cortecs-provider: ${upstreams}` : '')
+    );
+  }
+
   const errors = outcomes.filter((o) => o.error);
   if (errors.length > 0) {
     console.log(`\n${errors.length} Fälle mit Fehlern — Metriken entsprechend unvollständig.`);
@@ -832,6 +899,15 @@ async function main() {
           pipeline,
           depth,
           withRerank,
+          ...(embedCandidate && {
+            embedCandidate: {
+              slug: embedCandidate.slug,
+              provider: embedCandidate.provider,
+              model: embedCandidate.model,
+              dims: embedCandidate.dims,
+              queryTokens: embedder?.stats.tokens ?? 0,
+            },
+          }),
           ...(pipeline === 'qa' && loopShaped && { withChunkRerank, loopLimit }),
           ...(pipeline === 'chat-notebook' && { withChatExpand }),
           outcomes,

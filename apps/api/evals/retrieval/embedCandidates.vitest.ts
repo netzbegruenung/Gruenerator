@@ -6,6 +6,7 @@ import {
   evalCollectionName,
   getEmbedCandidate,
   isEvalEmbedCollection,
+  resolveEvalCandidate,
   resolveEvalTarget,
 } from './embedCandidates.js';
 
@@ -89,6 +90,23 @@ describe('isEvalEmbedCollection', () => {
     expect(isEvalEmbedCollection('xeval_embed_bge-m3__documents')).toBe(false);
     expect(isEvalEmbedCollection('grundsatz_documents__eval_embed_bge-m3')).toBe(false);
     expect(isEvalEmbedCollection('')).toBe(false);
+  });
+});
+
+describe('resolveEvalCandidate', () => {
+  it('is null when the variable is unset or empty', () => {
+    expect(resolveEvalCandidate({})).toBeNull();
+    expect(resolveEvalCandidate({ EVAL_EMBED_CANDIDATE: '' })).toBeNull();
+  });
+
+  it('returns the candidate for a known slug', () => {
+    expect(resolveEvalCandidate({ EVAL_EMBED_CANDIDATE: 'bge-m3' })?.provider).toBe('cortecs');
+  });
+
+  it('throws on an unknown slug', () => {
+    expect(() => resolveEvalCandidate({ EVAL_EMBED_CANDIDATE: 'jina-v3' })).toThrow(
+      /not a known candidate/
+    );
   });
 });
 

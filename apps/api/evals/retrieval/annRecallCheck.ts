@@ -6,6 +6,16 @@
  * (which the main eval measures). Target: >95% recall@k.
  *
  *   pnpm --filter @gruenerator/api eval:retrieval:ann
+ *
+ * Env:
+ *   EVAL_EMBED_CANDIDATE  Slug aus `embedCandidates.ts` — prüft dieselbe Frage
+ *                    gegen die Wegwerf-Sammlung eines Bake-off-Kandidaten
+ *                    (`eval_embed_<slug>__<quelle>`, gebaut von
+ *                    `eval:retrieval:embed:build`), mit dessen Anfrage-
+ *                    Einbettung. Nötig, weil eine frisch angelegte Sammlung
+ *                    ihren HNSW-Index erst noch bauen muss: eine Kandidatenzahl
+ *                    aus dem Hauptlauf ist ohne diese Prüfung nicht von einem
+ *                    halb indizierten Index zu unterscheiden.
  */
 import dotenv from 'dotenv';
 
@@ -17,6 +27,8 @@ const { getSystemCollectionConfig } = await import('../../config/systemCollectio
 const { createQdrantClient } = await import('../../database/services/QdrantService/connection.js');
 const { mistralEmbeddingService } = await import('../../services/mistral/index.js');
 const { RETRIEVAL_CASES } = await import('./cases.js');
+const { resolveEvalCandidate, resolveEvalTarget } = await import('./embedCandidates.js');
+const { createCandidateEmbedder } = await import('./candidateEmbedder.js');
 
 const K = 10;
 
@@ -27,7 +39,19 @@ async function main() {
     ...(env.QDRANT_BASIC_AUTH_USERNAME && { basicAuthUsername: env.QDRANT_BASIC_AUTH_USERNAME }),
     ...(env.QDRANT_BASIC_AUTH_PASSWORD && { basicAuthPassword: env.QDRANT_BASIC_AUTH_PASSWORD }),
   });
-  await mistralEmbeddingService.init();
+
+  // Wirft bei unbekanntem Slug, statt still gegen die Produktion zu messen.
+  const candidate = resolveEvalCandidate(process.env);
+  const embedder = candidate ? createCandidateEmbedder(candidate) : null;
+  if (candidate) {
+    console.log(
+      `Embedding candidate: ${candidate.slug} (${candidate.provider}, ${candidate.model}, ${candidate.dims} dims)`
+    );
+  } else {
+    // Nur der Produktionsarm braucht Mistral; ein Kandidatenlauf soll ohne
+    // MISTRAL_API_KEY durchgehen.
+    await mistralEmbeddingService.init();
+  }
 
   const perCollection = new Map<string, { overlap: number; total: number }>();
 
@@ -35,10 +59,13 @@ async function main() {
     const config = getSystemCollectionConfig(evalCase.collection);
     if (!config) continue;
 
-    const vector = await mistralEmbeddingService.generateEmbedding(evalCase.query);
+    const target = resolveEvalTarget(process.env, config.qdrantCollection);
+    const vector = embedder
+      ? await embedder.embedQuery(evalCase.query)
+      : await mistralEmbeddingService.generateEmbedding(evalCase.query);
     const [approx, exact] = await Promise.all([
-      client.query(config.qdrantCollection, { query: vector, limit: K, with_payload: false }),
-      client.query(config.qdrantCollection, {
+      client.query(target.collection, { query: vector, limit: K, with_payload: false }),
+      client.query(target.collection, {
         query: vector,
         limit: K,
         with_payload: false,
@@ -49,10 +76,10 @@ async function main() {
     const exactIds = new Set(exact.points.map((p) => String(p.id)));
     const overlap = approx.points.filter((p) => exactIds.has(String(p.id))).length;
 
-    const stats = perCollection.get(config.qdrantCollection) ?? { overlap: 0, total: 0 };
+    const stats = perCollection.get(target.collection) ?? { overlap: 0, total: 0 };
     stats.overlap += overlap;
     stats.total += exactIds.size;
-    perCollection.set(config.qdrantCollection, stats);
+    perCollection.set(target.collection, stats);
   }
 
   console.log(`── ANN recall@${K} (approximate vs exact) ──`);
