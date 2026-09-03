@@ -99,7 +99,8 @@ export const BM25_SPARSE_VECTOR_NAME = 'bm25';
  * prod on 2026-09-03: `documents` held 48,119 points across **18 segments**
  * (45,667 indexed) — the 20000 KB cap was doing its job as a cap (a 1024-dim
  * float32 vector is ~4 KB, so 20000 KB ≈ 5,000 vectors per segment; 48k points
- * at ~5k/segment lands in that 18-segment range), but 18 live segments each
+ * would fill ~10 such segments, and uneven packing from years of writes and
+ * merges doubled that), but 18 live segments each
  * carry their own HNSW graph, so a query fans out to 18 graphs instead of a
  * handful. At 100000 KB (≈ 25,000 vectors/segment) the same collection lands
  * at 2-3 segments. `indexing_threshold` stays 10000 — the ratio only widens
