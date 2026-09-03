@@ -1,4 +1,9 @@
-import { chatBackgroundSchema, type ChatBackground } from '@gruenerator/contracts';
+import {
+  chatBackgroundSchema,
+  type ChatBackground,
+  ttsVoiceIdSchema,
+  type TtsVoiceId,
+} from '@gruenerator/contracts';
 import { type InferSelectModel } from 'drizzle-orm';
 
 import { type profiles } from '../../database/schema/core.js';
@@ -36,6 +41,9 @@ export function toUserProfile(row: ProfileSelectModel): UserProfile {
     reduce_motion: row.reduce_motion,
     reduce_transparency: row.reduce_transparency,
     show_skip_link: row.show_skip_link,
+    ...(ttsVoiceIdSchema.safeParse(row.tts_voice_id).success && {
+      tts_voice_id: row.tts_voice_id as TtsVoiceId,
+    }),
     ai_consent_at: row.ai_consent_at ? row.ai_consent_at.toISOString() : null,
     ...(row.custom_prompt != null && { custom_prompt: row.custom_prompt }),
 

@@ -209,6 +209,7 @@ export { MessageActions } from './components/message-parts/MessageActions';
 export { MessageSourcesButton } from './components/message-parts/MessageSourcesButton';
 export { MessageTTSButton } from './components/message-parts/MessageTTSButton';
 export { useMessageTTS, type TTSState } from './hooks/useMessageTTS';
+export { stripForSpeech } from './lib/speechText';
 
 // Citation Context
 export {
