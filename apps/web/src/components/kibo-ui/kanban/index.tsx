@@ -35,6 +35,7 @@ import type {
   DndContextProps,
   DraggableAttributes,
   DraggableSyntheticListeners,
+  DragCancelEvent,
   DragEndEvent,
   DragOverEvent,
   DragStartEvent,
@@ -198,6 +199,26 @@ const KanbanCardInner = <T extends KanbanItemProps = KanbanItemProps>({
     [listeners]
   );
 
+  // Die Kopie für das DragOverlay geht durch einen tunnel-rat-Tunnel. Dessen
+  // `In` schreibt in einem Layout-Effekt in seinen Store, sobald sich die
+  // Identität seiner Kinder ändert — und ein inline gebautes Element ist bei
+  // jedem Render neu, also auch bei jeder Zeigerbewegung, die nur `transform`
+  // ändert. Memoisiert schreibt der Tunnel nur, wenn sich der Inhalt ändert.
+  const overlay = useMemo(
+    () => (
+      <div
+        className={cn(
+          'cursor-grab rounded-[6px] bg-background-pure dark:bg-[#282828] shadow-lg ring-2 ring-primary-500 border border-grey-200 dark:border-[#333]',
+          isDragging && 'cursor-grabbing',
+          className
+        )}
+      >
+        {children ?? <p className="m-0 font-medium text-sm">{name}</p>}
+      </div>
+    ),
+    [children, className, isDragging, name]
+  );
+
   return (
     <>
       <div style={style} {...pointerListeners} ref={setNodeRef}>
@@ -220,19 +241,7 @@ const KanbanCardInner = <T extends KanbanItemProps = KanbanItemProps>({
           {children ?? <p className="m-0 font-medium text-sm">{name}</p>}
         </div>
       </div>
-      {activeCardId === id && (
-        <t.In>
-          <div
-            className={cn(
-              'cursor-grab rounded-[6px] bg-background-pure dark:bg-[#282828] shadow-lg ring-2 ring-primary-500 border border-grey-200 dark:border-[#333]',
-              isDragging && 'cursor-grabbing',
-              className
-            )}
-          >
-            {children ?? <p className="m-0 font-medium text-sm">{name}</p>}
-          </div>
-        </t.In>
-      )}
+      {activeCardId === id && <t.In>{overlay}</t.In>}
     </>
   );
 };
@@ -288,6 +297,7 @@ export type KanbanProviderProps<
   onDragStart?: (event: DragStartEvent) => void;
   onDragEnd?: (event: DragEndEvent) => void;
   onDragOver?: (event: DragOverEvent) => void;
+  onDragCancel?: (event: DragCancelEvent) => void;
 };
 
 export const KanbanProvider = <
@@ -298,6 +308,7 @@ export const KanbanProvider = <
   onDragStart,
   onDragEnd,
   onDragOver,
+  onDragCancel,
   className,
   columns,
   data,
@@ -428,6 +439,20 @@ export const KanbanProvider = <
     [columnById, itemById, columns, onColumnReorder, itemIndexById, data, onDataChange, onDragEnd]
   );
 
+  // dnd-kit bricht ein Ziehen auch von sich aus ab — Escape, `visibilitychange`
+  // (Tab in den Hintergrund, Rechner in den Ruhezustand). Ohne diesen Zweig
+  // blieb `activeCardId` dann bis zum nächsten Ziehen stehen, und mit ihm der
+  // Tunnel-`In` der Karte: jeder Board-Render schrieb weiter in den Overlay-
+  // Store, und ein späteres Ziehen in einer anderen Lane zeigte zwei Karten
+  // im Overlay.
+  const handleDragCancel = useCallback(
+    (event: DragCancelEvent) => {
+      setActiveCardId(null);
+      onDragCancel?.(event);
+    },
+    [onDragCancel]
+  );
+
   const announcements: Announcements = useMemo(
     () => ({
       onDragStart({ active }) {
@@ -462,6 +487,7 @@ export const KanbanProvider = <
       <DndContext
         accessibility={{ announcements }}
         collisionDetection={collisionDetection}
+        onDragCancel={handleDragCancel}
         onDragEnd={handleDragEnd}
         onDragOver={handleDragOver}
         onDragStart={handleDragStart}
