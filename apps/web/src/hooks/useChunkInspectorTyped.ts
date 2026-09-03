@@ -13,12 +13,14 @@ export async function fetchDocumentChunks(
   limit: number
 ): Promise<InspectDocumentResponse> {
   const client = getContractsClient();
-  // documentId kann eine Quell-URL sein (gescrapte Sammlungen); ts-rests
-  // insertParamsIntoPath ersetzt Pfadparameter unkodiert (String-Replace),
-  // deshalb hier selbst kodieren — sonst zerfällt der Pfad in Segmente.
+  // documentId kann eine Quell-URL sein (gescrapte Sammlungen) — und eine URL
+  // überlebt den Pfad nicht: der Reverse-Proxy dekodiert %2F und merged
+  // Slashes, bevor Express routet. URL-förmige IDs reisen deshalb im
+  // Query-String, der Pfad trägt den Platzhalter '-'.
+  const isUrlId = /^https?:\/\//.test(documentId);
   const result = await client.chunkInspector.inspectDocument({
-    params: { documentId: encodeURIComponent(documentId) },
-    query: { collection, offset, limit },
+    params: { documentId: isUrlId ? '-' : encodeURIComponent(documentId) },
+    query: { collection, offset, limit, ...(isUrlId ? { documentId } : {}) },
   });
   // 403 nennt den Grund direkt statt der immer gleichen Server-Meldung. 404
   // gibt die Server-Meldung weiter (z.B. „Keine Chunks gefunden."), sie ist
@@ -41,10 +43,11 @@ export async function fetchChunkSearch(
   query: string
 ): Promise<InspectSearchResponse> {
   const client = getContractsClient();
+  // s.o.: URL-förmige IDs reisen im Query-String, Pfad trägt '-'.
+  const isUrlId = /^https?:\/\//.test(documentId);
   const result = await client.chunkInspector.inspectSearch({
-    // s.o.: URL-förmige IDs müssen kodiert in den Pfad.
-    params: { documentId: encodeURIComponent(documentId) },
-    query: { collection, query },
+    params: { documentId: isUrlId ? '-' : encodeURIComponent(documentId) },
+    query: { collection, query, ...(isUrlId ? { documentId } : {}) },
   });
   if (result.status === 403) {
     throw new Error('Kein Zugriff (Instanz-Admin erforderlich)');
