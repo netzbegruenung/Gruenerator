@@ -48,11 +48,14 @@ const SUMMARY_TTL_TODAY_SECONDS = 3600;
 
 /** The feed surfaces at most the last 30 days (the query schema's `days` ceiling). */
 const FEED_WINDOW_DAYS = 30;
-/** The corpus scan is expensive; cache the recent set briefly. */
+/** Short-circuits the two filtered scrolls (one page each) — a convenience, not load-bearing. */
 const RECENT_CACHE_TTL_SECONDS = 15 * 60;
 const SCROLL_PAGE = 1000;
-/** Safety bound per collection (chunk_index=0 points = articles). Warns if hit. */
-const SCROLL_MAX_PER_COLLECTION = 40_000;
+/**
+ * Safety bound per scroll call (chunk_index=0 points = articles). Warns if hit.
+ * loadRecentLvArticles runs two scrolls, so its combined ceiling is twice this.
+ */
+const SCROLL_MAX_PER_SCROLL = 40_000;
 
 /**
  * All Landesverbände share one Qdrant collection, partitioned by the payload
@@ -256,11 +259,50 @@ function toCorpusArticle(payload: Record<string, unknown>): WhatHappenedArticle 
 }
 
 /**
- * Scroll the Landesverband corpus and build the recent-article set (published
- * within FEED_WINDOW_DAYS). published_at is keyword-indexed in Qdrant — its
- * order_by/range returns 400 — so we page the whole collection (chunk_index=0
- * = one point per article) and bucket by date in Node, the same pattern as
- * notebookStatsService. Redis-cached because the full scan is expensive.
+ * One filtered, paginated scroll over the LV corpus, returning the point
+ * payloads. Bounded by SCROLL_MAX_PER_SCROLL (warns if hit).
+ */
+async function scrollLvPayloads(
+  client: NonNullable<ReturnType<typeof getQdrantInstance>['client']>,
+  must: Record<string, unknown>[]
+): Promise<Record<string, unknown>[]> {
+  const payloads: Record<string, unknown>[] = [];
+  let offset: string | number | null = null;
+  let scanned = 0;
+  while (scanned < SCROLL_MAX_PER_SCROLL) {
+    const result = await client.scroll(LV_COLLECTION, {
+      filter: { must },
+      limit: SCROLL_PAGE,
+      with_payload: true,
+      with_vector: false,
+      ...(offset != null && { offset }),
+    });
+    const points = result.points ?? [];
+    for (const p of points) payloads.push((p.payload as Record<string, unknown>) ?? {});
+    scanned += points.length;
+    const next = result.next_page_offset;
+    offset = typeof next === 'string' || typeof next === 'number' ? next : null;
+    if (!offset || points.length === 0) break;
+  }
+  if (scanned >= SCROLL_MAX_PER_SCROLL) {
+    log.warn(
+      `what-happened scan hit the ${SCROLL_MAX_PER_SCROLL}-article cap; some recent LV articles may be omitted`
+    );
+  }
+  return payloads;
+}
+
+/**
+ * Build the recent-article set (published within FEED_WINDOW_DAYS) from the
+ * Landesverband corpus. published_at is keyword-indexed in Qdrant, which rules
+ * out `order_by` (400, see #3190) but not a datetime `range` filter: Qdrant
+ * evaluates that against the raw payload, and both stored formats
+ * ("2025-02-21", "2025-02-17T09:18:18.000Z") parse. Two filtered scrolls
+ * (chunk_index=0 = one point per article) mirror `dayOf`: an article is recent
+ * if its published_at day is in the window, or, lacking published_at, its
+ * indexed_at day is. One page each instead of walking the whole corpus
+ * (~9 000 points, ~1 s). The Node-side day check stays as a cheap guard, the
+ * Redis cache as a short-circuit.
  */
 async function loadRecentLvArticles(): Promise<WhatHappenedArticle[]> {
   const cached = await getCachedJson(RECENT_CACHE_KEY, recentArticlesSchema);
@@ -277,39 +319,26 @@ async function loadRecentLvArticles(): Promise<WhatHappenedArticle[]> {
     return [];
   }
 
-  const filter: Record<string, unknown> = {
-    must: [{ key: 'chunk_index', match: { value: 0 } }],
-  };
-  const articles: WhatHappenedArticle[] = [];
-  let offset: string | number | null = null;
-  let scanned = 0;
+  const chunkZero = { key: 'chunk_index', match: { value: 0 } };
+  const publishedInWindow = [chunkZero, { key: 'published_at', range: { gte: cutoffDay } }];
+  const indexedInWindow = [
+    chunkZero,
+    { is_empty: { key: 'published_at' } },
+    { key: 'indexed_at', range: { gte: cutoffDay } },
+  ];
 
+  const articles: WhatHappenedArticle[] = [];
   try {
-    while (scanned < SCROLL_MAX_PER_COLLECTION) {
-      const result = await client.scroll(LV_COLLECTION, {
-        filter,
-        limit: SCROLL_PAGE,
-        with_payload: true,
-        with_vector: false,
-        ...(offset != null && { offset }),
-      });
-      const points = result.points ?? [];
-      for (const p of points) {
-        const article = toCorpusArticle((p.payload as Record<string, unknown>) ?? {});
-        if (!article) continue;
-        const day = dayOf(article);
-        if (!day || day < cutoffDay || day > today) continue;
-        articles.push(article);
-      }
-      scanned += points.length;
-      const next = result.next_page_offset;
-      offset = typeof next === 'string' || typeof next === 'number' ? next : null;
-      if (!offset || points.length === 0) break;
-    }
-    if (scanned >= SCROLL_MAX_PER_COLLECTION) {
-      log.warn(
-        `what-happened scan hit the ${SCROLL_MAX_PER_COLLECTION}-article cap; some recent LV articles may be omitted`
-      );
+    const payloads = [
+      ...(await scrollLvPayloads(client, publishedInWindow)),
+      ...(await scrollLvPayloads(client, indexedInWindow)),
+    ];
+    for (const payload of payloads) {
+      const article = toCorpusArticle(payload);
+      if (!article) continue;
+      const day = dayOf(article);
+      if (!day || day < cutoffDay || day > today) continue;
+      articles.push(article);
     }
   } catch (error) {
     log.warn(`what-happened corpus scroll failed: ${toError(error).message}`);
