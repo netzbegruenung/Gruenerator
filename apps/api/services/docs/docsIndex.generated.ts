@@ -845,7 +845,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Datenschutz per Design",
     "anchor": "#datenschutz-per-design",
     "category": "Basics",
-    "text": "Anders als andere Seiten trackt der Grünerator nicht und kann völlig anonym verwendet werden. Er verwendet ausschließlich EU-Server zur Verarbeitung der KI-Eingaben und bietet mit selbst gehosteten Open-Source-Modellen zusätzliche Datensouveränität. Der Grünerator setzt dabei bewusst auf europäische Technologieanbieter wie Mistral AI (Frankreich) und Black Forest Labs (Deutschland), um die digitale Souveränität Europas zu stärken."
+    "text": "Anders als andere Seiten trackt der Grünerator nicht und kann völlig anonym verwendet werden. Er verwendet ausschließlich EU-Server zur Verarbeitung der KI-Eingaben und bietet mit offenen Modellen bei europäischen Anbietern zusätzliche Datensouveränität. Der Grünerator setzt dabei bewusst auf europäische Technologieanbieter wie Mistral AI (Frankreich) und Black Forest Labs (Deutschland), um die digitale Souveränität Europas zu stärken."
   },
   {
     "url": "/docs/basics/intro",
@@ -861,7 +861,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Einfache UI & modernste Technik",
     "anchor": "#einfache-ui--modernste-technik",
     "category": "Basics",
-    "text": "Der Grünerator verwendet eine stark vereinfachte Benutzeroberfläche, die fast jede:r auf Anhieb versteht. Er wurde so designt, dass er von allen Ehrenamtlichen aller Altersklassen verwendet werden kann. Die UI orientiert sich stark an Seiten, die die Nutzer:innen kennen und lieben. Er nutzt modernste KI-Modelle – du kannst zwischen mehreren KI-Modellen wählen, vom europäischen Mistral AI bis zu vollständig selbst gehosteten Open-Source-Modellen. Standardmäßig wählt der Grünerator automatisch das passende Modell für deine Aufgabe."
+    "text": "Der Grünerator verwendet eine stark vereinfachte Benutzeroberfläche, die fast jede:r auf Anhieb versteht. Er wurde so designt, dass er von allen Ehrenamtlichen aller Altersklassen verwendet werden kann. Die UI orientiert sich stark an Seiten, die die Nutzer:innen kennen und lieben. Er nutzt modernste KI-Modelle – du kannst zwischen mehreren KI-Modellen wählen, vom europäischen Mistral AI bis zu offenen Modellen (Open Weights) bei europäischen Anbietern. Standardmäßig wählt der Grünerator automatisch das passende Modell für deine Aufgabe."
   },
   {
     "url": "/docs/basics/intro",
@@ -1605,7 +1605,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Datenschutz",
     "anchor": "#datenschutz",
     "category": "Chat",
-    "text": "Alle verfügbaren Modelle erfüllen höchste Datenschutzstandards: Europäische Server: Deine Eingaben werden ausschließlich auf europäischen Servern verarbeitet – entweder bei Mistral AI (Frankreich) oder auf selbst gehosteten Servern. Kein KI-Training: Deine Eingaben werden nicht zum Training der KI verwendet. Open Source: Die selbst gehosteten Modelle hinter Klein und Mittel sind vollständig quelloffen und transparent."
+    "text": "Alle verfügbaren Modelle erfüllen höchste Datenschutzstandards: Europäische Server: Deine Eingaben werden ausschließlich auf europäischen Servern verarbeitet – bei Mistral AI (Frankreich), Regolo (Italien) oder Cortecs (EU). Eigene, selbst gehostete Modelle setzt der Grünerator seit dem 29.08.2026 nicht mehr ein (siehe Nachhaltigkeit). Kein KI-Training: Deine Eingaben werden nicht zum Training der KI verwendet. Offene Modelle: Hinter Klein und Mittel stehen Modelle mit offenen Gewichten (Open Weights), die jeder prüfen und selbst betreiben kann."
   },
   {
     "url": "/docs/chat/ki-modelle",
@@ -1613,7 +1613,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Verfügbare Modelle",
     "anchor": "#verfügbare-modelle",
     "category": "Chat",
-    "text": "Du wählst eine Größe, kein Herstellermodell – dieselben drei Stufen, die du auch in der Chrome-Erweiterung und im Excel-Add-in findest. Klein – Am schnellsten, für kurze Aufgaben. Vollständig quelloffen und selbst gehostet auf europäischen Servern. Mittel – Eine gute Mischung aus Tempo und Qualität, besonders für Kreativtexte. Open-Source-Modell auf europäischen Servern. Ultra – Die beste Qualität, für Recherche und lange Aufgaben. Läuft auf EU-Servern (Mistral AI, Frankreich). Welches Modell hinter einer Stufe steckt, kann sich ändern, wenn ein besseres verfügbar wird – die Stufe bleibt. Welche Anbieter aktuell dahinterstehen, steht jederzeit in der Datenschutzerklärung. Für die Bildgenerierung kommen eigene Modelle zum Einsatz (u. a. Flux von Black Forest Labs, Deutschland). Auch hier gilt: Verarbeitung auf europäischen Servern."
+    "text": "Du wählst eine Größe, kein Herstellermodell – dieselben drei Stufen, die du auch in der Chrome-Erweiterung und im Excel-Add-in findest. Klein – Am schnellsten, für kurze Aufgaben. Offenes Modell (Open Weights) bei einem europäischen Anbieter. Mittel – Eine gute Mischung aus Tempo und Qualität, besonders für Kreativtexte. Offenes Modell (Open Weights) bei einem europäischen Anbieter. Ultra – Die beste Qualität, für Recherche und lange Aufgaben. Läuft auf EU-Servern (Mistral AI, Frankreich). Welches Modell hinter einer Stufe steckt, kann sich ändern, wenn ein besseres verfügbar wird – die Stufe bleibt. Welche Anbieter aktuell dahinterstehen, steht jederzeit in der Datenschutzerklärung. Für die Bildgenerierung kommen eigene Modelle zum Einsatz (u. a. Flux von Black Forest Labs, Deutschland). Auch hier gilt: Verarbeitung auf europäischen Servern."
   },
   {
     "url": "/docs/chat/was-kann-ich-fragen",
