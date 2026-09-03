@@ -29,6 +29,8 @@ export interface RerankResult {
   referencesMap: ReferencesMap;
   contextSummary: string;
   rerankTimeMs: number;
+  /** false auf dem Skip-Pfad und wenn der Cross-Encoder ausfiel (Reihenfolge = Eingabe). */
+  reranked: boolean;
 }
 
 export async function rerankNotebookResults({
@@ -48,6 +50,7 @@ export async function rerankNotebookResults({
       referencesMap,
       contextSummary: buildContextSummary(referencesMap),
       rerankTimeMs: Date.now() - startTime,
+      reranked: false,
     };
   }
 
@@ -135,5 +138,6 @@ export async function rerankNotebookResults({
     referencesMap: renumberedMap,
     contextSummary: buildContextSummary(renumberedMap),
     rerankTimeMs,
+    reranked: !failed,
   };
 }

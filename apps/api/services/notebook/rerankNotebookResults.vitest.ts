@@ -72,6 +72,7 @@ describe('rerankNotebookResults', () => {
 
     const out = await rerankNotebookResults({ results, referencesMap, question: 'Warum?' });
 
+    expect(out.reranked).toBe(true);
     expect(out.results.map((r) => r.similarity)).toEqual([0.94, 0.71, 0.63]);
     const scoresInOrder = out.results.map((r) => r.similarity);
     expect(scoresInOrder).toEqual([...scoresInOrder].sort((a, b) => b - a));
@@ -103,6 +104,7 @@ describe('rerankNotebookResults', () => {
     expect(Object.values(out.referencesMap).map((r) => r.similarity_score)).toEqual([
       0.5, 0.51, 0.52,
     ]);
+    expect(out.reranked).toBe(false);
   });
 
   it('keeps the retrieval score on the skip path', async () => {
