@@ -116,4 +116,46 @@ describe('rerankNotebookResults', () => {
     expect(rerankPipeline).not.toHaveBeenCalled();
     expect(out.results.map((r) => r.similarity)).toEqual([0.5, 0.51, 0.52]);
   });
+
+  it('forwards mode and instruct when given', async () => {
+    rerankPipeline.mockResolvedValue({
+      rankedIndices: [0, 1, 2],
+      scores: new Map([
+        [0, 0.9],
+        [1, 0.8],
+        [2, 0.7],
+      ]),
+      rerankTimeMs: 5,
+    });
+
+    await rerankNotebookResults({
+      results,
+      referencesMap,
+      question: 'Warum?',
+      mode: 'filter',
+      instruct: 'Bevorzuge amtliche Quellen',
+    });
+
+    const call = rerankPipeline.mock.calls.at(-1)?.[0] as Record<string, unknown>;
+    expect(call.mode).toBe('filter');
+    expect(call.instruct).toBe('Bevorzuge amtliche Quellen');
+  });
+
+  it('omits mode and instruct when absent', async () => {
+    rerankPipeline.mockResolvedValue({
+      rankedIndices: [0, 1, 2],
+      scores: new Map([
+        [0, 0.9],
+        [1, 0.8],
+        [2, 0.7],
+      ]),
+      rerankTimeMs: 5,
+    });
+
+    await rerankNotebookResults({ results, referencesMap, question: 'Warum?' });
+
+    const call = rerankPipeline.mock.calls.at(-1)?.[0] as Record<string, unknown>;
+    expect(call).not.toHaveProperty('mode');
+    expect(call).not.toHaveProperty('instruct');
+  });
 });

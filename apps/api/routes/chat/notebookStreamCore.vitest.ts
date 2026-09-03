@@ -282,6 +282,49 @@ describe('handleNotebookStream — reranking per tier', () => {
   });
 });
 
+describe('handleNotebookStream — rerank option', () => {
+  async function runWithRerank(rerank?: { mode?: 'off' | 'sort' | 'filter'; instruct?: string }) {
+    const { req, res, sse, sent } = makeReqRes();
+    await handleNotebookStream({
+      req,
+      res,
+      sse,
+      messages: [{ role: 'user', content: 'Was steht zur sozialen Sicherung drin?' }] as Parameters<
+        typeof handleNotebookStream
+      >[0]['messages'],
+      collectionId: 'grundsatz-system',
+      mode: 'deep',
+      ...(rerank && { rerank }),
+      closeStream: false,
+    });
+    return sent;
+  }
+
+  it("mode: 'off' never calls rerankNotebookResults", async () => {
+    await runWithRerank({ mode: 'off' });
+    expect(rerankNotebookResults).not.toHaveBeenCalled();
+  });
+
+  it("mode: 'filter' with instruct reaches rerankNotebookResults", async () => {
+    await runWithRerank({ mode: 'filter', instruct: 'Bevorzuge amtliche Quellen' });
+    expect(rerankNotebookResults).toHaveBeenCalledTimes(1);
+    const call = rerankNotebookResults.mock.calls[0][0] as {
+      mode?: string;
+      instruct?: string;
+    };
+    expect(call.mode).toBe('filter');
+    expect(call.instruct).toBe('Bevorzuge amtliche Quellen');
+  });
+
+  it('an absent rerank option calls it as today, without mode or instruct', async () => {
+    await runWithRerank(undefined);
+    expect(rerankNotebookResults).toHaveBeenCalledTimes(1);
+    const call = rerankNotebookResults.mock.calls[0][0] as Record<string, unknown>;
+    expect(call).not.toHaveProperty('mode');
+    expect(call).not.toHaveProperty('instruct');
+  });
+});
+
 describe('handleNotebookStream — conversation history (ultra only)', () => {
   it('hands the history to the model in ultra, between system prompt and question', async () => {
     await run('ultra', HISTORY_MESSAGES);
