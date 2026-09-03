@@ -13,7 +13,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { ChatModelRunResult } from '@assistant-ui/react';
+import { type ChatModelRunResult } from '@assistant-ui/react';
 
 const notifyWarning = vi.fn();
 vi.mock('../lib/notify', () => ({

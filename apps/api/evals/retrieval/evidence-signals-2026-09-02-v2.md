@@ -58,6 +58,7 @@ Depth `deep`, live Qdrant + reranker, 35 cases (13 on-topic, 17 off-topic — 30
 
 - A1 (denseTop): min(on-topic) = 0.9581 (chat-nb-berlin-baumfaellmoratorium), max(off-topic) = 0.9130 (offtopic-sternbilder-winter), margin 0.0451
 - A1 (default 0.890): strictly between the two boundary values — NO
+- Note (after the run): the default was raised from 0.89 to the midpoint 0.9356 in this PR (commit b785b9b6f3); the "NO" above refers to the pre-raise default.
 - A3 (resolution): second-lowest on-topic 0.9619 (notebook-at-klimaticket), jump 0.0038 vs limit 0.03 — resolved
 - near-topic (reported only, never decides): neartopic-bvg-monatsabo 0.9219, neartopic-abgeordnetenhauswahl 0.9515, neartopic-muenchen-einwohner 0.8825, neartopic-landesvorsitz-bayern 0.9409, neartopic-moor-foerdersumme 0.9971
 - join-path cases: none — every case scored on the legacy domain

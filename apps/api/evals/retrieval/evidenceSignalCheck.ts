@@ -586,7 +586,7 @@ async function main() {
   const separationLines = NUMERIC_SIGNALS.map((signal) => separation(results, signal));
   for (const line of separationLines) console.log(line);
 
-  // The 0.89 default is calibrated on the legacy score domain; a join-path
+  // The shipped default is calibrated on the legacy score domain; a join-path
   // case (raw cosine, ~0.33 lower) would need its own separation line.
   const joinCases = results.filter((r) => r.metrics?.joinPath).map((r) => r.id);
   const pathLine = joinCases.length

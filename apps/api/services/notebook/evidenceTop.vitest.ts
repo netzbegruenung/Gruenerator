@@ -34,7 +34,7 @@ vi.mock('../bundestag/index.js', () => ({
 
 const { evidenceTopOf, notebookQAService } = await import('./NotebookQAService.js');
 
-import type { ExpandedChunkResult } from '../search/types.js';
+import { type ExpandedChunkResult } from '../search/types.js';
 
 /** Ein expandierter Chunk, nur mit den Feldern, die die Rechnung liest. */
 function chunk(similarity: number, denseSimilarity?: number | null): ExpandedChunkResult {
