@@ -17,12 +17,13 @@ export interface CitationPreviewProps {
   title: string;
   /** With a URL the title becomes a link; the popover stays open around it. */
   url?: string | undefined;
-  /** Snippet or cited text under the title. */
+  /** Snippet or cited text under the title. Clamped — see `bodyClassName`. */
   body?: string | undefined;
   /** Collection chip (notebook sources); web sources have none. */
   chip?: CitationPreviewChip | undefined;
   /** Extra action row, e.g. the "Im Dokument lesen" button. */
   action?: ReactNode;
+  /** Overrides the default body clamp, e.g. a tighter `line-clamp-2`. */
   bodyClassName?: string;
 }
 
@@ -70,7 +71,17 @@ export function CitationPreview({
         <p className="text-sm leading-snug font-medium">{title}</p>
       )}
       {body && (
-        <p className={cn('text-muted-foreground text-xs leading-relaxed', bodyClassName)}>{body}</p>
+        // Clamped because `citedText` carries up to 1500 chars (projectCitation
+        // in apps/api/.../citationUtils.ts): unclamped, the popover grows past
+        // the viewport edge. The full text lives in the document panel.
+        <p
+          className={cn(
+            'text-muted-foreground line-clamp-6 text-xs leading-relaxed',
+            bodyClassName
+          )}
+        >
+          {body}
+        </p>
       )}
       {action}
     </div>
