@@ -5,6 +5,7 @@
  */
 
 import * as cheerio from 'cheerio';
+import { type AnyNode } from 'domhandler';
 
 import { getQdrantInstance } from '../../../database/services/QdrantService/index.js';
 import {
@@ -312,11 +313,18 @@ export class GruenblogScraper extends BaseScraper {
     ]);
 
     // Extract article body from .entry-content
+    // `.html()` liefert nur das erste Element der Auswahl; `.text()` hatte
+    // alle verkettet. Deshalb über die Auswahl mappen, wie GrueneAtScraper.
+    const structuredTextOf = (selection: cheerio.Cheerio<AnyNode>): string =>
+      htmlToStructuredText(
+        selection
+          .map((_, node) => $(node).html() ?? '')
+          .get()
+          .join('\n')
+      );
     const contentEl = $('.entry-content');
     const text =
-      contentEl.length > 0
-        ? htmlToStructuredText(contentEl.html() ?? '')
-        : htmlToStructuredText($('article').html() ?? '');
+      contentEl.length > 0 ? structuredTextOf(contentEl) : structuredTextOf($('article'));
 
     return {
       title: title.substring(0, 500),
