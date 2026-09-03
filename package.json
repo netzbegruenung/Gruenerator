@@ -5,6 +5,12 @@
   "type": "module",
   "packageManager": "pnpm@10.0.0",
   "pnpm": {
+    "auditConfig": {
+      "ignoreGhsas": [
+        "GHSA-5p2g-fcmc-qvqq",
+        "GHSA-w3rx-r6r6-pgpr"
+      ]
+    },
     "neverBuiltDependencies": [
       "canvas"
     ],

@@ -14,6 +14,12 @@ on:
       - 'nginx.conf'
       - 'docker-compose.prod.yml'
       - '.github/workflows/build-images.yml'
+  # Sunday 03:00 UTC: rebuild every image so base-image patches (node:22-*,
+  # python:3.12-slim) reach the registry without waiting for a code push.
+  # Test picks the images up via Watchtower; prod rollout stays manual
+  # (docs/CLAUDE-deployment.md).
+  schedule:
+    - cron: '0 3 * * 0'
   workflow_dispatch:
     inputs:
       force_all:
@@ -165,6 +171,7 @@ jobs:
     if: >
       needs.detect-changes.outputs.web == 'true' ||
       github.event.inputs.force_all == 'true' ||
+      github.event_name == 'schedule' ||
       github.event.inputs.build_web == 'true'
     runs-on: ubuntu-latest
     permissions:
@@ -219,6 +226,7 @@ jobs:
     if: >
       needs.detect-changes.outputs.api == 'true' ||
       github.event.inputs.force_all == 'true' ||
+      github.event_name == 'schedule' ||
       github.event.inputs.build_api == 'true'
     runs-on: ubuntu-latest
     permissions:
@@ -269,6 +277,7 @@ jobs:
     if: >
       needs.detect-changes.outputs.hocuspocus == 'true' ||
       github.event.inputs.force_all == 'true' ||
+      github.event_name == 'schedule' ||
       github.event.inputs.build_hocuspocus == 'true'
     runs-on: ubuntu-latest
     permissions:
@@ -319,6 +328,7 @@ jobs:
     if: >
       needs.detect-changes.outputs.gruen-o-mat == 'true' ||
       github.event.inputs.force_all == 'true' ||
+      github.event_name == 'schedule' ||
       github.event.inputs.build_gruen_o_mat == 'true'
     runs-on: ubuntu-latest
     permissions:
@@ -369,6 +379,7 @@ jobs:
     if: >
       needs.detect-changes.outputs.nlp == 'true' ||
       github.event.inputs.force_all == 'true' ||
+      github.event_name == 'schedule' ||
       github.event.inputs.build_nlp == 'true'
     runs-on: ubuntu-latest
     permissions:
@@ -419,6 +430,7 @@ jobs:
     if: >
       needs.detect-changes.outputs.doku == 'true' ||
       github.event.inputs.force_all == 'true' ||
+      github.event_name == 'schedule' ||
       github.event.inputs.build_doku == 'true'
     runs-on: ubuntu-latest
     permissions:

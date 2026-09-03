@@ -69,6 +69,13 @@ updates:
       time: '05:00'
       timezone: 'Europe/Berlin'
     open-pull-requests-limit: 10
+    # Seven days between a version's publish date and Dependabot proposing
+    # it: the hijacked releases of 2025 (chalk/debug, Shai-Hulud) were pulled
+    # within 48 h. Security updates are exempt from the cooldown. pnpm
+    # enforces the same window at install time via minimumReleaseAge in
+    # pnpm-workspace.yaml, so Dependabot never proposes what pnpm refuses.
+    cooldown:
+      default-days: 7
     labels:
       - 'dependencies'
     groups:
@@ -202,6 +209,60 @@ updates:
       - dependency-name: 'react-native-*'
       - dependency-name: '@react-native/*'
       - dependency-name: '@react-native-*/*'
+
+  # =============================================================================
+  # PIP - services/nlp (outside the pnpm workspace, own lockfile)
+  # =============================================================================
+  # pyproject.toml only carries `>=` floors; requirements.txt is the pinned
+  # closure (`uv pip compile pyproject.toml -o requirements.txt`) and the file
+  # Dependabot bumps. Without it every image build resolved a different set.
+  - package-ecosystem: 'pip'
+    directory: '/services/nlp'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+      time: '05:00'
+      timezone: 'Europe/Berlin'
+    open-pull-requests-limit: 3
+    labels:
+      - 'dependencies'
+      - 'python'
+    groups:
+      python:
+        patterns:
+          - '*'
+
+  # =============================================================================
+  # DOCKER - base images of the six Dockerfiles we ship
+  # =============================================================================
+  # Only the FROM lines. Majors (node:22 -> 24, python:3.12 -> 3.13) are a
+  # deliberate project, not a bump: node 22 is the version every CI lane and
+  # every base image agree on (see CLAUDE.md › Code Quality, third failure
+  # mode), and reaches end of life on 2027-04-30.
+  - package-ecosystem: 'docker'
+    directories:
+      - '/apps/api'
+      - '/apps/web'
+      - '/apps/gruen-o-mat'
+      - '/services/hocuspocus'
+      - '/services/nlp'
+      - '/documentation'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+      time: '05:00'
+      timezone: 'Europe/Berlin'
+    open-pull-requests-limit: 2
+    labels:
+      - 'dependencies'
+      - 'docker'
+    groups:
+      base-images:
+        patterns:
+          - '*'
+    ignore:
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']
 
   # =============================================================================
   # CARGO - Tauri desktop shell (separate workspace, own lockfile)

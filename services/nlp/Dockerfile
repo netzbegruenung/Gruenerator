@@ -14,8 +14,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-COPY pyproject.toml ./
-RUN pip install --no-cache-dir .
+# requirements.txt is the pinned closure of pyproject.toml (regenerate with
+# `uv pip compile pyproject.toml -o requirements.txt`); pyproject alone only
+# carries floors and gave every build a different set.
+COPY pyproject.toml requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt .
 
 # Pre-download spaCy model (~610 MB, baked into image for fast startup)
 RUN python -m spacy download de_core_news_lg
