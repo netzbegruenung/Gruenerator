@@ -27,6 +27,14 @@ describe('stripForSpeech', () => {
     );
   });
 
+  it('does not stall on a long run of opening brackets', () => {
+    const start = performance.now();
+    // The previous pattern needed ~1 s here: every "[" opened a link candidate
+    // that ran to the lone "]" and backtracked.
+    stripForSpeech('['.repeat(50_000) + ']');
+    expect(performance.now() - start).toBeLessThan(200);
+  });
+
   it('removes markdown decoration but keeps hyphens inside words', () => {
     expect(stripForSpeech('## Titel\n\n- **Klima-Kanzler** ist _wichtig_\n1. `Code`')).toBe(
       'Titel\n\nKlima-Kanzler ist wichtig\nCode'
