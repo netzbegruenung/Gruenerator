@@ -40,11 +40,17 @@ export const CitationSidePanel = memo(function CitationSidePanel() {
     queryFn: async ({ signal }) => {
       const { fetch: configFetch } = useChatConfigStore.getState();
       const params = collectionId ? `?collectionId=${encodeURIComponent(collectionId)}` : '';
-      const response = await configFetch(`/api/documents/${documentId}/chunks${params}`, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-        signal,
-      });
+      // documentId kann eine Quell-URL sein (gescrapte Systemsammlungen wie
+      // KommunalWiki) — unkodiert zerfiele der Pfad in Segmente und die
+      // Express-Route `/:id/chunks` matcht nie.
+      const response = await configFetch(
+        `/api/documents/${encodeURIComponent(documentId ?? '')}/chunks${params}`,
+        {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          signal,
+        }
+      );
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data: ChunksResponse = await response.json();
       if (!data.success || data.chunks.length === 0) {

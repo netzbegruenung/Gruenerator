@@ -13,8 +13,11 @@ export async function fetchDocumentChunks(
   limit: number
 ): Promise<InspectDocumentResponse> {
   const client = getContractsClient();
+  // documentId kann eine Quell-URL sein (gescrapte Sammlungen); ts-rests
+  // insertParamsIntoPath ersetzt Pfadparameter unkodiert (String-Replace),
+  // deshalb hier selbst kodieren — sonst zerfällt der Pfad in Segmente.
   const result = await client.chunkInspector.inspectDocument({
-    params: { documentId },
+    params: { documentId: encodeURIComponent(documentId) },
     query: { collection, offset, limit },
   });
   // 403 nennt den Grund direkt statt der immer gleichen Server-Meldung. 404
@@ -39,7 +42,8 @@ export async function fetchChunkSearch(
 ): Promise<InspectSearchResponse> {
   const client = getContractsClient();
   const result = await client.chunkInspector.inspectSearch({
-    params: { documentId },
+    // s.o.: URL-förmige IDs müssen kodiert in den Pfad.
+    params: { documentId: encodeURIComponent(documentId) },
     query: { collection, query },
   });
   if (result.status === 403) {
