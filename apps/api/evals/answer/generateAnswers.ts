@@ -40,6 +40,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { type NotebookDepth } from '@gruenerator/contracts';
 import dotenv from 'dotenv';
 
 // Load .env BEFORE any app module: those import config/env.js at module scope,
@@ -54,6 +55,8 @@ const { expandQuery } = await import('../../services/search/QueryExpansionServic
 const { normalizeNotebookHistory, buildRewriteTranscript } =
   await import('../../routes/chat/services/notebookHistoryService.js');
 
+import { type NotebookStreamOptions } from '../../routes/chat/notebookStreamCore.js';
+
 import { ANSWER_CASES, type AnswerCase } from './answerCases.js';
 import {
   ANSWER_VARIANTS,
@@ -66,12 +69,11 @@ import {
   type AnswerVariant,
 } from './answerEvalCore.js';
 
-import type { NotebookStreamOptions } from '../../routes/chat/notebookStreamCore.js';
-import type { NotebookDepth } from '@gruenerator/contracts';
-
 const HERE = dirname(fileURLToPath(import.meta.url));
 
 /** The tier the whole answer-eval measures — matches the brief. */
+/** Der Antwortgeber aller Varianten: das Modell, das im Produkt die meisten Antworten schreibt. */
+const ANSWER_MODEL = 'gruenerator-medium';
 const DEPTH: NotebookDepth = 'deep';
 const CONCURRENCY = 2;
 
@@ -184,6 +186,9 @@ async function runOne(
       ...(meta.collectionIds && { collectionIds: meta.collectionIds }),
       userId: 'SYSTEM',
       mode: DEPTH,
+      // Fest gepinnt: ohne Angabe wich der Lauf vom 03.09.2026 bei 80 von 96
+      // Antworten auf Gemma aus (Mistral galt als zäh), gemischt über die Varianten.
+      model: ANSWER_MODEL,
       rerank: VARIANT_RERANK[variant],
       closeStream: false,
     });
@@ -316,6 +321,7 @@ async function main(): Promise<void> {
 
   await Promise.all(Array.from({ length: Math.min(CONCURRENCY, total) }, () => worker()));
   console.log(`Done. Wrote ${outPath}`);
+  process.exit(0);
 }
 
 main().catch((error) => {

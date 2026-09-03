@@ -28,13 +28,12 @@ import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { answerKey, buildAbMapping, resolveWinner, today } from './answerEvalCore.js';
-
-import type {
-  AbMapping,
-  AnswerRecord,
-  AnswerVariant,
-  JudgeWinner,
-  JudgmentRecord,
+import {
+  type AbMapping,
+  type AnswerRecord,
+  type AnswerVariant,
+  type JudgeWinner,
+  type JudgmentRecord,
 } from './answerEvalCore.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
