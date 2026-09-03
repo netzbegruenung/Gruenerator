@@ -24,7 +24,7 @@
     "@gruenerator/shared": "workspace:*",
     "@gruenerator/sites-design": "workspace:*",
     "@gruenerator/ui": "workspace:*",
-    "@tiptap/core": "3.29.2",
+    "@tiptap/core": "3.30.4",
     "@tiptap/extension-list": "3.29.2",
     "@tiptap/extensions": "3.29.2",
     "@tiptap/pm": "3.29.2",
