@@ -83,6 +83,14 @@ export const contentSyncResultSchema = z.object({
   deadLinks: z.number().optional(),
   /** URLs hinter `deadLinks`, serverseitig gedeckelt wie `errorSamples`. */
   deadLinkSamples: z.array(z.string()).optional(),
+  /**
+   * Warum übersprungen wurde, als Zähler je Grund (`too_old`, `unchanged`,
+   * `too_short`, …). Die Summe `skipped` verbirgt, was ein Lauf kostet: ein vor
+   * dem Abruf verworfenes Dokument ist gratis, ein `too_old` nach dem Abruf
+   * wird jede Nacht neu geholt (#3200). Optional, weil ein Backend-Stand vor
+   * diesem Feld schlicht nichts sendet.
+   */
+  skipReasons: z.record(z.string(), z.number()).optional(),
   fetchErrors: z.number(),
   durationMs: z.number(),
 });
