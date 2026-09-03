@@ -29,6 +29,9 @@ on:
       # Provider and energy claims in basics/ (Nachhaltigkeit)
       - 'apps/api/services/usage/energyFootprint.ts'
       - 'apps/api/services/transcription/**'
+      # Speech synthesis: the provider named on the Pro-EU and Nachhaltigkeit
+      # pages lives here, and this path was missing when TTS moved to KugelAudio.
+      - 'apps/api/services/voice/**'
       - 'packages/core/src/models/**'
       # Pre-existing gaps: these three were in AREA_HINTS but never here, so a
       # PR touching only them started no audit at all — the same silent miss

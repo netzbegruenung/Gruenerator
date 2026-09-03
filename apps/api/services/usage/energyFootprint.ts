@@ -263,6 +263,35 @@ const MODEL_ENERGY: Readonly<Record<string, EnergyCoefficients>> = {
 /** EU average, Ember 2025. The fallback for a provider we did not record. */
 const EU_AVERAGE_G_PER_KWH = 213;
 
+/**
+ * `kugelaudio` is absent from every table in this file ON PURPOSE.
+ *
+ * It serves the speech synthesis and reports no consumption, and no published
+ * text-to-speech measurement shares the system boundary the figures here are
+ * calibrated against (operational, inference only, PUE included, idle not
+ * subtracted). Without a coefficient no speech row carries energy, so
+ * `byProvider` never lists the provider and no grid or PUE value for it is ever
+ * printed. An entry here would be a constant that nothing was computed with —
+ * what the PUE_ESTIMATE_BY_PROVIDER note calls worse than an honest gap.
+ *
+ * What is recorded instead is the DURATION (`unit: 'speech_seconds'`), the
+ * quantity the energy would scale with, published under `unvalued_ops`.
+ *
+ * Valuing it later needs two things, and only one of them is hard:
+ *
+ *  - A GRID_SPAN_G_PER_KWH row rather than a point. The provider's own
+ *    sub-processor register (Trust Center, 10.08.2026) names Verda AI (FI) and
+ *    Nebius (FI/FR) for inference and Hetzner (DE) for GPU servers, so the
+ *    compute sits mostly in Finland, France and Germany. Poland enters only
+ *    through Scaleway, which is listed as generic GPU/server infrastructure —
+ *    less likely, not excluded. Roughly 20 g/kWh (FR) to 600 (PL), and the
+ *    provider does not disclose which host served a given request.
+ *  - A coefficient in mWh per second of generated audio. This is the one that
+ *    does not exist anywhere, and no grid figure is worth anything without it,
+ *    since g/kWh multiplies an energy quantity we do not have. Asking the
+ *    provider for average GPU draw plus a real-time factor would be enough.
+ */
+
 const GRID_INTENSITY_G_PER_KWH: Readonly<Record<string, number>> = {
   // All figures are 2024 annual averages, combustion emissions only (no
   // upstream/lifecycle), so the three stay comparable to each other.

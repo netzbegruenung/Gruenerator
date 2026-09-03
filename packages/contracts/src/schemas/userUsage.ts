@@ -24,7 +24,26 @@ export const usageFeatureSchema = z.enum([
   'other',
 ]);
 
-export const usageUnitSchema = z.enum(['tokens', 'images', 'transcriptions', 'searches']);
+/**
+ * What is being counted.
+ *
+ * `speech_seconds` counts SECONDS of generated audio, not calls — one read-aloud
+ * is many requests, so a count would describe our chunking rather than any use.
+ * The name says so out loud because the usage tab renders the number right next
+ * to this label.
+ *
+ * Widening this enum is additive and safe only while `userUsage` stays out of
+ * the `validateResponse` list in packages/shared/src/api/contractsClient.ts: a
+ * validating client REJECTS a row carrying a value it predates rather than
+ * skipping it. Check that before turning validation on here.
+ */
+export const usageUnitSchema = z.enum([
+  'tokens',
+  'images',
+  'transcriptions',
+  'searches',
+  'speech_seconds',
+]);
 
 export const usageTotalsSchema = z.object({
   requests: z.number(),
@@ -34,6 +53,7 @@ export const usageTotalsSchema = z.object({
   images: z.number(),
   transcriptions: z.number(),
   searches: z.number(),
+  speech_seconds: z.number(),
 });
 
 /**
@@ -136,6 +156,7 @@ export const usageByFeatureEntrySchema = z.object({
   images: z.number(),
   transcriptions: z.number(),
   searches: z.number(),
+  speech_seconds: z.number(),
 });
 
 export const usageByModelEntrySchema = z.object({
