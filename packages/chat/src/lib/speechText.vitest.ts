@@ -35,6 +35,16 @@ describe('stripForSpeech', () => {
     expect(performance.now() - start).toBeLessThan(200);
   });
 
+  it('does not stall on a long run of commas without a sentence end', () => {
+    const start = performance.now();
+    stripForSpeech(','.repeat(50_000));
+    expect(performance.now() - start).toBeLessThan(200);
+  });
+
+  it('leaves ordinary commas alone', () => {
+    expect(stripForSpeech('Erstens, zweitens, drittens.')).toBe('Erstens, zweitens, drittens.');
+  });
+
   it('removes markdown decoration but keeps hyphens inside words', () => {
     expect(stripForSpeech('## Titel\n\n- **Klima-Kanzler** ist _wichtig_\n1. `Code`')).toBe(
       'Titel\n\nKlima-Kanzler ist wichtig\nCode'
