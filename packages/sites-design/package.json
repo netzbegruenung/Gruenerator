@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "@gruenerator/contracts": "workspace:*",
-    "@tiptap/core": "3.29.2",
+    "@tiptap/core": "3.30.4",
     "@tiptap/pm": "3.29.2",
     "@tiptap/static-renderer": "3.29.2",
     "class-variance-authority": "^0.7.1",

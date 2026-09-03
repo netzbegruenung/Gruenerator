@@ -33,7 +33,7 @@
   },
   "dependencies": {
     "@gruenerator/core": "workspace:*",
-    "@tiptap/core": "3.29.2",
+    "@tiptap/core": "3.30.4",
     "@tiptap/extension-bold": "3.29.2",
     "@tiptap/extension-document": "3.29.2",
     "@tiptap/extension-hard-break": "3.29.2",
