@@ -11,7 +11,25 @@
  *   EVAL_FILTER      only run cases whose id contains this substring
  *   EVAL_DEPTH       depth profile: fast | deep | ultra (default fast;
  *                    notebook defaults to deep, the production notebook default)
- *   EVAL_RERANK=1    additionally score the post-rerank ranking (Regolo), qa only
+ *   EVAL_RERANK=1    additionally score the post-rerank ranking (Regolo). qa
+ *                    and chat-notebook — manual has no rerank stage.
+ *   EVAL_RERANK_INSTRUCT  preset key from `rerankInstructs.ts` (`service`
+ *                    default, `chat`, `qa`, `de`, `de-strict`). Needs
+ *                    EVAL_RERANK=1. Applies to the qa arm's rerankPipeline
+ *                    call. chat-notebook always sends its
+ *                    own instruct (rerankNode's text minus the temporal hint)
+ *                    and ignores this. `service` sends no `instruct` — the
+ *                    cross-encoder service's own default text applies, i.e.
+ *                    the eval's behaviour before this preset existed.
+ *   EVAL_RERANK_SHAPE  full (default, today) | prod. qa arm only. `full`
+ *                    keeps the eval's own knobs (`inputLimit: results.length,
+ *                    outputLimit: MRR_K, minRelevance: 0` — rerank the WHOLE
+ *                    candidate list). `prod` uses the config-driven knobs
+ *                    `rerankNode` actually reads (RERANK_INPUT_LIMIT /
+ *                    RERANK_OUTPUT_LIMIT / RERANK_MIN_RELEVANCE via
+ *                    vectorConfig), omits `minKeep` (rerankNode never sets it
+ *                    either — pipeline default 0) and leaves MMR at the
+ *                    pipeline's own default, matching what production sends.
  *   EVAL_RERANK_EXCERPT  what the cross-encoder gets to read. Needs EVAL_RERANK=1.
  *                      off (default) — `relevant_content` whole, up to
  *                        CONTENT_MAX_EXCERPT_LENGTH. NOT what `rerankNode`
@@ -134,8 +152,11 @@ const { normalizeNotebookHistory, buildRewriteTranscript } =
 const { expandQuery } = await import('../../services/search/QueryExpansionService.js');
 
 const { RETRIEVAL_CASES } = await import('./cases.js');
+const { RERANK_INSTRUCT_PRESETS, isRerankInstructPreset } = await import('./rerankInstructs.js');
+const { rerankDelta } = await import('./rerankDelta.js');
 
 import { type RetrievalCase } from './cases.js';
+import { type RerankInstructPreset } from './rerankInstructs.js';
 
 import type { DocumentResult } from '../../services/BaseSearchService/types.js';
 import type { NotebookDepth } from '@gruenerator/contracts';
@@ -150,6 +171,16 @@ const MRR_K = 10;
  * window the node does not use. EVAL_RERANK_WINDOW overrides it for sweeps.
  */
 const RERANK_WINDOW = vectorConfig.get('content').maxExcerptLength;
+
+/**
+ * Production's config-driven rerank knobs — the same source `rerankNode`
+ * reads (`vectorConfig.get('rerank')`, itself `env.RERANK_*`). Used by
+ * EVAL_RERANK_SHAPE=prod so that arm measures the real thresholds instead of
+ * the eval's own `results.length` / `MRR_K` / `0`.
+ */
+const rerankCfg = vectorConfig.get('rerank');
+
+type RerankShape = 'full' | 'prod';
 
 /**
  * `node` ist der Arm, der den ausgelieferten Zustand nachbildet — und der ist
@@ -250,7 +281,9 @@ async function runCase(
   withRerank: boolean,
   excerptMode: ExcerptArm,
   loopShaped: boolean,
-  withChunkRerank: boolean
+  withChunkRerank: boolean,
+  rerankShape: RerankShape,
+  instructText: string | null
 ): Promise<CaseOutcome> {
   const config = getSystemCollectionConfig(evalCase.collection);
   if (!config) {
@@ -311,15 +344,26 @@ async function runCase(
     };
 
     if (withRerank && results.length > 2) {
+      // `full` (default) reranks the WHOLE candidate list — the eval's own
+      // knobs, unrelated to what production sends. `prod` mirrors
+      // `rerankNode`'s actual config-driven thresholds; see EVAL_RERANK_SHAPE
+      // in the header.
+      const shapeOpts =
+        rerankShape === 'prod'
+          ? {
+              inputLimit: rerankCfg.inputLimit,
+              outputLimit: rerankCfg.outputLimit,
+              minRelevance: rerankCfg.minRelevance,
+            }
+          : { inputLimit: results.length, outputLimit: MRR_K, minRelevance: 0 };
       const rerank = await rerankPipeline({
         query: evalCase.query,
         items: results.map((r) => ({
           title: r.title || '',
           content: excerptFor(r.relevant_content || '', evalCase.query, excerptMode),
         })),
-        inputLimit: results.length,
-        outputLimit: MRR_K,
-        minRelevance: 0,
+        ...shapeOpts,
+        ...(instructText !== null && { instruct: instructText }),
       });
       if (!rerank.failed) {
         const reranked = rerank.rankedIndices.map((i) => results[i]);
@@ -681,6 +725,11 @@ async function main() {
   const loopShaped = loopRerankEnv === '0' || loopRerankEnv === '1';
   const withChunkRerank = loopRerankEnv === '1';
   const excerptMode = (process.env.EVAL_RERANK_EXCERPT ?? 'off') as ExcerptArm;
+  const rerankShape: RerankShape = process.env.EVAL_RERANK_SHAPE === 'prod' ? 'prod' : 'full';
+  const instructEnv = process.env.EVAL_RERANK_INSTRUCT;
+  const instructPreset: RerankInstructPreset =
+    instructEnv && isRerankInstructPreset(instructEnv) ? instructEnv : 'service';
+  const instructText = RERANK_INSTRUCT_PRESETS[instructPreset];
   const verbose = process.env.EVAL_VERBOSE === '1';
   const collectionFilter = process.env.EVAL_COLLECTION;
   const idFilter = process.env.EVAL_FILTER;
@@ -713,9 +762,11 @@ async function main() {
           ? `searchNode notebook scope, ${withChatExpand ? 2 : 1} Formulierung(en)${
               withRerank ? ', +rerank' : ''
             }`
-          : `depth=${depth}${withRerank ? `, +rerank(${excerptMode})` : ''}${
-              loopShaped ? `, loopLimit=${loopLimit}` : ''
-            }${withChunkRerank ? ', +chunkRerank' : ''}`;
+          : `depth=${depth}${
+              withRerank ? `, +rerank(${excerptMode}, shape=${rerankShape}, ${instructPreset})` : ''
+            }${loopShaped ? `, loopLimit=${loopLimit}` : ''}${
+              withChunkRerank ? ', +chunkRerank' : ''
+            }`;
   console.log(
     `Running ${cases.length} retrieval cases (${modeLabel}) against ${process.env.QDRANT_URL || 'QDRANT_URL unset!'}`
   );
@@ -737,7 +788,9 @@ async function main() {
                 withRerank,
                 excerptMode,
                 loopShaped,
-                withChunkRerank
+                withChunkRerank,
+                rerankShape,
+                instructText
               );
     outcomes.push(outcome);
     const rankLabel = outcome.error
@@ -797,8 +850,20 @@ async function main() {
 
   if (withRerank) {
     console.log('\n── Ergebnisse (nach Rerank) ──');
+    for (const [collection, list] of byCollection) {
+      console.log(
+        `${collection.padEnd(28)} n=${String(list.length).padStart(2)}  ${computeMetrics(list, (o) => o.rerankRank ?? o.rank).line}`
+      );
+    }
     console.log(
       `${'GESAMT'.padEnd(28)} n=${String(outcomes.length).padStart(2)}  ${computeMetrics(outcomes, (o) => o.rerankRank ?? o.rank).line}`
+    );
+
+    const delta = rerankDelta(outcomes);
+    console.log(
+      `\ndelta: improved ${delta.improved.length} (${delta.improved.join(', ') || 'none'})` +
+        `  worsened ${delta.worsened.length} (${delta.worsened.join(', ') || 'none'})` +
+        `  unchanged ${delta.unchanged.length}`
     );
 
     const timings = outcomes
@@ -832,6 +897,13 @@ async function main() {
           pipeline,
           depth,
           withRerank,
+          ...(pipeline === 'qa' &&
+            withRerank && {
+              instruct: instructPreset,
+              shape: rerankShape,
+              excerpt: excerptMode,
+              window: evalWindow,
+            }),
           ...(pipeline === 'qa' && loopShaped && { withChunkRerank, loopLimit }),
           ...(pipeline === 'chat-notebook' && { withChatExpand }),
           outcomes,
