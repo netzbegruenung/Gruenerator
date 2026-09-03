@@ -23,7 +23,7 @@ vi.mock('../../utils/logger.js', () => ({
   createLogger: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() }),
 }));
 
-const { rerankPipeline } = await import('./rerankPipeline.js');
+const { rerankPipeline, applyFilterMode } = await import('./rerankPipeline.js');
 
 /** Kandidat mit vorhersagbarer Länge und genug Wortmaterial für die Auswahl. */
 function item(title: string, chars: number, marker = 'Klimageld') {
@@ -151,5 +151,117 @@ describe('rerankPipeline — Budget', () => {
     for (const doc of docsFromLastCall()) {
       expect(doc.length).toBeLessThanOrEqual(1000);
     }
+  });
+});
+
+describe('applyFilterMode — pure helper', () => {
+  it('skips a rejected head item instead of keeping it', () => {
+    // index 1 sat inside the head range (input positions 0-2) but never
+    // survived the reranker's minRelevance filter — it is absent from
+    // rerankedOrder and must not reappear anywhere in the result.
+    const result = applyFilterMode([0, 1, 2, 3, 4], [4, 0, 2, 3], 3);
+    expect(result).toEqual([0, 2, 3, 4]);
+    expect(result).not.toContain(1);
+  });
+
+  it('never duplicates an index shared between head and reranked order', () => {
+    const result = applyFilterMode([2, 0, 1], [0, 1, 2], 2);
+    expect(result).toEqual([2, 0, 1]);
+    expect(new Set(result).size).toBe(result.length);
+  });
+
+  it('keeps rerank order for everything past keepHead', () => {
+    const result = applyFilterMode([0, 1, 2, 3], [3, 2, 1, 0], 1);
+    // Head is just index 0 (input order); the tail is the reranker's order
+    // for the rest, minus whatever the head already claimed.
+    expect(result).toEqual([0, 3, 2, 1]);
+  });
+});
+
+describe('rerankPipeline — mode: filter', () => {
+  it('drops a rejected head candidate and orders the rest input-first, then by rerank', async () => {
+    const items = Array.from({ length: 5 }, (_, i) => item(`Dok ${i}`, 800));
+    rerank.mockImplementation(() =>
+      Promise.resolve([
+        { originalIndex: 0, relevanceScore: 0.9 },
+        { originalIndex: 1, relevanceScore: 0.2 }, // rejected below minRelevance
+        { originalIndex: 2, relevanceScore: 0.85 },
+        { originalIndex: 3, relevanceScore: 0.8 },
+        { originalIndex: 4, relevanceScore: 0.95 },
+      ])
+    );
+
+    const result = await rerankPipeline({
+      query: 'Klimageld',
+      items,
+      inputLimit: 5,
+      outputLimit: 10,
+      minRelevance: 0.5,
+      applyDiversity: false,
+      mode: 'filter',
+      keepHead: 3,
+    });
+
+    // Head keeps input order among survivors (0, 2, 3 — index 1 dropped),
+    // tail is the reranker's order for what's left (4).
+    expect(result.rankedIndices).toEqual([0, 2, 3, 4]);
+  });
+
+  it('cuts to outputLimit even when that is smaller than the head', async () => {
+    const items = Array.from({ length: 4 }, (_, i) => item(`Dok ${i}`, 800));
+    rerank.mockImplementation(() =>
+      Promise.resolve([
+        { originalIndex: 0, relevanceScore: 0.9 },
+        { originalIndex: 1, relevanceScore: 0.8 },
+        { originalIndex: 2, relevanceScore: 0.85 },
+        { originalIndex: 3, relevanceScore: 0.7 },
+      ])
+    );
+
+    const result = await rerankPipeline({
+      query: 'Klimageld',
+      items,
+      inputLimit: 4,
+      outputLimit: 2,
+      minRelevance: 0,
+      applyDiversity: false,
+      mode: 'filter',
+      keepHead: 3,
+    });
+
+    expect(result.rankedIndices).toEqual([0, 1]);
+  });
+
+  it('mode: sort (default) stays byte-identical to today', async () => {
+    const items = Array.from({ length: 4 }, (_, i) => item(`Dok ${i}`, 800));
+    rerank.mockImplementation(() =>
+      Promise.resolve([
+        { originalIndex: 0, relevanceScore: 0.9 },
+        { originalIndex: 1, relevanceScore: 0.8 },
+        { originalIndex: 2, relevanceScore: 0.85 },
+        { originalIndex: 3, relevanceScore: 0.7 },
+      ])
+    );
+
+    const withMode = await rerankPipeline({
+      query: 'Klimageld',
+      items,
+      inputLimit: 4,
+      outputLimit: 10,
+      minRelevance: 0,
+      applyDiversity: false,
+      mode: 'sort',
+    });
+    const withoutMode = await rerankPipeline({
+      query: 'Klimageld',
+      items,
+      inputLimit: 4,
+      outputLimit: 10,
+      minRelevance: 0,
+      applyDiversity: false,
+    });
+
+    expect(withMode.rankedIndices).toEqual([0, 2, 1, 3]);
+    expect(withoutMode.rankedIndices).toEqual(withMode.rankedIndices);
   });
 });
