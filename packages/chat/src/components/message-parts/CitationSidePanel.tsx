@@ -39,18 +39,25 @@ export const CitationSidePanel = memo(function CitationSidePanel() {
     queryKey: ['document-chunks', documentId, collectionId],
     queryFn: async ({ signal }) => {
       const { fetch: configFetch } = useChatConfigStore.getState();
-      const params = collectionId ? `?collectionId=${encodeURIComponent(collectionId)}` : '';
+      const query = new URLSearchParams();
+      if (collectionId) query.set('collectionId', collectionId);
       // documentId kann eine Quell-URL sein (gescrapte Systemsammlungen wie
-      // KommunalWiki) — unkodiert zerfiele der Pfad in Segmente und die
-      // Express-Route `/:id/chunks` matcht nie.
-      const response = await configFetch(
-        `/api/documents/${encodeURIComponent(documentId ?? '')}/chunks${params}`,
-        {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
-          signal,
-        }
-      );
+      // KommunalWiki) — und eine URL überlebt den Pfad nicht: der
+      // Reverse-Proxy dekodiert %2F und merged Slashes, bevor Express routet.
+      // URL-förmige IDs reisen deshalb im Query-String (GET /chunks).
+      let requestUrl: string;
+      if (/^https?:\/\//.test(documentId ?? '')) {
+        query.set('documentId', documentId ?? '');
+        requestUrl = `/api/documents/chunks?${query.toString()}`;
+      } else {
+        const qs = query.toString();
+        requestUrl = `/api/documents/${encodeURIComponent(documentId ?? '')}/chunks${qs ? `?${qs}` : ''}`;
+      }
+      const response = await configFetch(requestUrl, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        signal,
+      });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data: ChunksResponse = await response.json();
       if (!data.success || data.chunks.length === 0) {
