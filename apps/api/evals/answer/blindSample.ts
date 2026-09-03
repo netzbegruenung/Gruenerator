@@ -146,13 +146,14 @@ function runSample(answersPath: string): void {
 }
 
 /** `## <caseId>` ... `winner: <value>` — the only two lines that round-trip. */
-function parseFilledSample(md: string): Map<string, string> {
+function parseFilledSample(md: string, caseIds: readonly string[]): Map<string, string> {
+  // The answers carry their own `## ` headings, so the file cannot be split
+  // on `## ` — locate each known case heading and the first `winner:` after it.
   const winners = new Map<string, string>();
-  const sections = md.split(/^## /m).slice(1);
-  for (const section of sections) {
-    const caseId = section.split('\n', 1)[0]?.trim();
-    if (!caseId) continue;
-    const match = section.match(/^winner:\s*(.*)$/m);
+  for (const caseId of caseIds) {
+    const start = md.indexOf(`\n## ${caseId}\n`);
+    if (start < 0) continue;
+    const match = md.slice(start).match(/^winner:\s*(.*)$/m);
     winners.set(caseId, (match?.[1] ?? '').trim().toLowerCase());
   }
   return winners;
@@ -194,7 +195,10 @@ function runScore(filledPath: string): void {
     judgments.filter((j) => j.comparisonId === 'filter-vs-today').map((j) => [j.caseId, j])
   );
 
-  const humanWinners = parseFilledSample(readFileSync(filledPath, 'utf8'));
+  const humanWinners = parseFilledSample(
+    readFileSync(filledPath, 'utf8'),
+    Object.keys(key.mapping)
+  );
 
   let agree = 0;
   let scored = 0;
