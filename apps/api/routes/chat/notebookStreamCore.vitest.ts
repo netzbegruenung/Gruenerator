@@ -1,11 +1,17 @@
 /**
  * Notebook stream core — retrieval per depth tier.
  *
- * Two things are pinned here. First, every tier reranks: that used to be gated
- * on `isFast`, so "Tiefenrecherche" — the path that retrieves the MOST
- * candidates — was the only one handing the model the raw hybrid-search order.
- * Second, `fast` keeps its exact pre-tier numbers, because the public
- * Grün-O-Mat surface runs on it and is not part of the tier change.
+ * Two things are pinned here. First, every tier reranks (when asked to): that
+ * used to be gated on `isFast`, so "Tiefenrecherche" — the path that retrieves
+ * the MOST candidates — was the only one handing the model the raw
+ * hybrid-search order. Second, `fast` keeps its exact pre-tier numbers,
+ * because the public Grün-O-Mat surface runs on it and is not part of the
+ * tier change. Since 2026-09-03 the reranker itself is opt-in
+ * (`rerank: { mode: 'sort' | 'filter' }`) — the default cuts to
+ * `profile.rerankOutput` in retrieval order instead (see the `rerank option`
+ * describe block). The other describe blocks below pass `mode: 'sort'`
+ * explicitly through the shared `run()` helper so they keep exercising the
+ * reranker mechanics they were written to pin.
  */
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest';
 
@@ -33,9 +39,17 @@ vi.mock('../../services/notebook/index.js', () => ({
     getSearchContext: (...args: unknown[]) => getSearchContext(...args),
   },
 }));
-vi.mock('../../services/notebook/rerankNotebookResults.js', () => ({
-  rerankNotebookResults: (...args: unknown[]) => rerankNotebookResults(...args),
-}));
+vi.mock('../../services/notebook/rerankNotebookResults.js', async () => {
+  // `cutNotebookResults` stays real: it is a pure function, and mocking it
+  // would just re-implement it a second time in this file.
+  const actual = await vi.importActual<
+    typeof import('../../services/notebook/rerankNotebookResults.js')
+  >('../../services/notebook/rerankNotebookResults.js');
+  return {
+    ...actual,
+    rerankNotebookResults: (...args: unknown[]) => rerankNotebookResults(...args),
+  };
+});
 vi.mock('./services/responseStreamingService.js', () => ({
   resolveModel: (...args: unknown[]) => resolveModel(...args),
   streamWithFallback: (...args: unknown[]) => streamWithFallback(...args),
@@ -97,6 +111,10 @@ function searchContextWith(n: number) {
   };
 }
 
+// `rerank: { mode: 'sort' }`: the default is now to cut instead of rerank
+// (see the `rerank option` describe block below), so the tests in this file
+// that pin per-tier reranking behaviour opt back into the reranker
+// explicitly, exactly as `mode: 'sort'` lets a caller do in production.
 async function run(mode?: NotebookDepth, messages?: unknown[]) {
   const { req, res, sse, sent } = makeReqRes();
   await handleNotebookStream({
@@ -108,6 +126,7 @@ async function run(mode?: NotebookDepth, messages?: unknown[]) {
     ]) as Parameters<typeof handleNotebookStream>[0]['messages'],
     collectionId: 'grundsatz-system',
     ...(mode && { mode }),
+    rerank: { mode: 'sort' },
     closeStream: false,
   });
   return sent;
@@ -300,9 +319,12 @@ describe('handleNotebookStream — rerank option', () => {
     return sent;
   }
 
-  it("mode: 'off' never calls rerankNotebookResults", async () => {
-    await runWithRerank({ mode: 'off' });
+  it("mode: 'off' never calls rerankNotebookResults and cuts to the tier's rerankOutput", async () => {
+    const sent = await runWithRerank({ mode: 'off' });
     expect(rerankNotebookResults).not.toHaveBeenCalled();
+    // 'deep' has rerankOutput 18 against the 40-result fixture.
+    const completion = sent.find((e) => e.event === 'completion');
+    expect((completion?.data.metadata as { totalResults?: number })?.totalResults).toBe(18);
   });
 
   it("mode: 'filter' with instruct reaches rerankNotebookResults", async () => {
@@ -316,12 +338,55 @@ describe('handleNotebookStream — rerank option', () => {
     expect(call.instruct).toBe('Bevorzuge amtliche Quellen');
   });
 
-  it('an absent rerank option calls it as today, without mode or instruct', async () => {
-    await runWithRerank(undefined);
+  it("mode: 'sort' reaches rerankNotebookResults without instruct", async () => {
+    await runWithRerank({ mode: 'sort' });
     expect(rerankNotebookResults).toHaveBeenCalledTimes(1);
     const call = rerankNotebookResults.mock.calls[0][0] as Record<string, unknown>;
-    expect(call).not.toHaveProperty('mode');
+    expect(call.mode).toBe('sort');
     expect(call).not.toHaveProperty('instruct');
+  });
+
+  it('an absent rerank option never calls rerankNotebookResults and cuts to rerankOutput, renumbering references', async () => {
+    // Real referencesMap (not the `{}` default fixture) so the renumbering
+    // `cutNotebookResults` does is actually exercised: 40 index-keyed entries
+    // in, 18 kept and renumbered 1..18.
+    getSearchContext.mockResolvedValue({
+      ...searchContextWith(40),
+      sortedResults: Array.from({ length: 40 }, (_, i) => ({
+        title: `Doc ${i}`,
+        snippet: `Inhalt ${i}`,
+        similarity: 1 - i / 100,
+        document_id: `doc-${i}`,
+        chunk_index: 0,
+      })),
+      referencesMap: Object.fromEntries(
+        Array.from({ length: 40 }, (_, i) => [
+          String(i + 1),
+          {
+            title: `Doc ${i}`,
+            snippets: [[`Inhalt ${i}`]],
+            description: null,
+            date: null,
+            source: 's',
+            document_id: `doc-${i}`,
+            source_url: null,
+            filename: null,
+            similarity_score: 1 - i / 100,
+            chunk_index: 0,
+            page_number: null,
+          },
+        ])
+      ),
+    });
+
+    const sent = await runWithRerank(undefined);
+    expect(rerankNotebookResults).not.toHaveBeenCalled();
+    const completion = sent.find((e) => e.event === 'completion');
+    expect((completion?.data.metadata as { totalResults?: number })?.totalResults).toBe(18);
+    // The model's [1] still resolves after the cut+renumber, to the first
+    // retrieval-order result — not to whatever the un-renumbered map had at key 1.
+    const citations = completion?.data.citations as { document_id: string }[];
+    expect(citations[0]?.document_id).toBe('doc-0');
   });
 });
 
@@ -606,6 +671,7 @@ describe('handleNotebookStream — evidence_weak', () => {
       collectionId: 'grundsatz-system',
       mode: 'deep',
       minResultsForGeneration: 1,
+      rerank: { mode: 'sort' },
       closeStream: false,
     });
 

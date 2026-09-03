@@ -5,6 +5,8 @@
 import { ROBOT_ID_MIN, ROBOT_ID_MAX } from '@gruenerator/core/avatar';
 import { z } from 'zod';
 
+import { ttsVoiceIdSchema } from './voice.js';
+
 /**
  * Fehlercode, mit dem die KI-Eingänge eine fehlende Art.-9-Einwilligung
  * abweisen (HTTP 403). Bewusst **nicht** 401: die Sitzung ist gültig, es fehlt
@@ -75,6 +77,8 @@ export const profileUpdateBodySchema = z.object({
   reduce_motion: z.boolean().optional(),
   reduce_transparency: z.boolean().optional(),
   show_skip_link: z.boolean().optional(),
+  /** Voice for speech output; `null` returns to the default voice. */
+  tts_voice_id: ttsVoiceIdSchema.nullable().optional(),
   /** The Gedächtnis switch in the Erinnerungen tab (profiles.memory_enabled). */
   memory_enabled: z.boolean().optional(),
   /**
@@ -202,6 +206,8 @@ export const userProfileSchema = z.object({
   reduce_motion: z.boolean().default(false),
   reduce_transparency: z.boolean().default(false),
   show_skip_link: z.boolean().default(true),
+  /** Absent means the default voice — see DEFAULT_TTS_VOICE_ID. */
+  tts_voice_id: ttsVoiceIdSchema.optional(),
   /**
    * ISO-Zeitstempel der Art.-9-Einwilligung; null = nicht erteilt.
    *
