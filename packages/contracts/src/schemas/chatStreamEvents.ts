@@ -82,6 +82,11 @@ export const chatWarningCodeSchema = z.enum([
   'source_unavailable',
   'rerank_degraded',
   'citation_invalid',
+  // Das Notebook hat zur Frage nichts gefunden, was nah genug liegt: der dichte
+  // Spitzenwert VOR dem Rerank lag unter der kalibrierten Schwelle (#3140).
+  // Kein Defekt und keine Verweigerung — die Antwort streamt mit denselben
+  // Quellen weiter, der Hinweis steht darunter.
+  'evidence_weak',
   'research_plan_failed',
   // `@deepresearch` was asked for but not served: the daily quota is spent or the
   // call failed. Distinct from `research_plan_failed` — the turn did NOT degrade

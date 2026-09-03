@@ -11,6 +11,7 @@ import {
   buildConcisePromptGrundsatz,
   buildConcisePromptGeneral,
 } from '../../agents/langgraph/prompts.js';
+import { env } from '../../config/env.js';
 import { getNotebookDepthProfile } from '../../config/notebookDepthProfiles.js';
 import {
   SYSTEM_COLLECTIONS,
@@ -76,6 +77,14 @@ export interface NotebookStreamOptions {
   noResultsMessage?: string;
   /** Minimum results after rerank to proceed with generation (default: 0 = no gate). */
   minResultsForGeneration?: number;
+  /**
+   * Ob dieser Turn `evidence_weak` senden darf. Der Grün-O-Mat setzt `false`:
+   * er fährt `mode: 'fast'` — ein Tiefenprofil, das in der Kalibrierung nicht
+   * vorkam (alle 15 Fälle liefen `deep`) — und hat mit `topicGuard` plus
+   * `OFF_TOPIC_RESPONSE` seine eigene, härtere Themenabwehr. Berechnet und
+   * protokolliert wird der Wert dort trotzdem. Default: `true`.
+   */
+  emitEvidenceWarning?: boolean;
   /** Filter search to specific document IDs within the collection. */
   documentIds?: string[];
   /** Shared SSE writer — if provided, used instead of creating one internally. */
@@ -112,6 +121,7 @@ export async function handleNotebookStream(
     userId,
     allowUserCollections = true,
     documentIds,
+    emitEvidenceWarning = true,
   } = options;
 
   // An omitted mode has always meant the thorough tier here (`isFast` was
@@ -352,6 +362,41 @@ export async function handleNotebookStream(
       });
       if (options.closeStream !== false) sse.end();
       return null;
+    }
+
+    // Evidenz-Signal (#3140): der dichte Spitzenwert VOR dem Rerank. Er wird in
+    // `getSearchContext` gebildet, weil er hier nicht mehr rekonstruierbar wäre
+    // — `rerankNotebookResults` schreibt den Cross-Encoder-Wert auf
+    // `similarity` zurück und die Zeile weiter oben ersetzt die ganze Liste.
+    // `searchContext.evidenceTop` selbst bleibt vom Rerank unberührt, deshalb
+    // liefert das Feld auch hier — nach Rerank und Qualitäts-Gate — noch den
+    // Vor-Rerank-Wert.
+    //
+    // Die Emission sitzt bewusst NACH dem Layer-4-Gate: eine verweigerte
+    // Antwort soll nie mit der Warnung ausgestattet werden.
+    //
+    // Die Logzeile geht bei jeder beantworteten Anfrage hinaus (nicht bei einer
+    // Abweisung durch die Qualitätsschranke), auch bei ausgeschaltetem Schalter: sie
+    // ist die Produktionsmessung, die einzige Stelle, an der sichtbar wird, wo
+    // das Signal auf echten Fragen liegt. Der Zahlenwert geht NICHT auf die
+    // Leitung — die Wire-Gestalt bleibt { code, message }.
+    const evidenceTop = searchContext?.evidenceTop ?? null;
+    if (evidenceTop !== null) {
+      const weak = evidenceTop < env.NOTEBOOK_EVIDENCE_WEAK_THRESHOLD;
+      log.info(
+        `[Notebook] evidenceTop=${evidenceTop.toFixed(4)} ` +
+          `(threshold ${env.NOTEBOOK_EVIDENCE_WEAK_THRESHOLD.toFixed(3)}, ` +
+          `enabled=${env.NOTEBOOK_EVIDENCE_WEAK_ENABLED}, ${depth}, ` +
+          `${searchContext?.sortedResults.length ?? 0} candidates) → ${weak ? 'weak' : 'ok'}`
+      );
+      // Kalibriert nur auf `deep` (beide Runden) — `fast` durchsucht weniger
+      // Kandidaten und wurde nie vermessen, `ultra` holt eine Obermenge von
+      // `deep` und liegt darum mindestens genauso hoch.
+      if (weak && env.NOTEBOOK_EVIDENCE_WEAK_ENABLED && emitEvidenceWarning && depth !== 'fast') {
+        sendChatWarning(sse, 'evidence_weak');
+      }
+    } else {
+      log.info(`[Notebook] evidenceTop=none (no candidates, ${depth})`);
     }
 
     // Handle no results case
