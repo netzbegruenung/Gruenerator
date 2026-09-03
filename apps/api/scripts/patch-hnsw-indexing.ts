@@ -1,5 +1,6 @@
 /**
- * One-time HNSW indexing_threshold patch for existing Qdrant collections (#3119).
+ * One-time HNSW indexing_threshold / max_segment_size patch for existing
+ * Qdrant collections (#3119).
  *
  * PR #2770 fixed `OPTIMIZER_PRESETS` in `config/qdrantCollectionsSchema.ts` so a
  * freshly *created* collection gets `indexing_threshold` below `max_segment_size`
@@ -7,7 +8,10 @@
  * `indexed_vectors_count` stays 0 forever. But `getCollectionConfig` is only ever
  * read by `createCollection`; nothing issues an `updateCollection`, so every
  * collection that already existed on 2026-08-21 kept its old (broken) config.
- * This script issues that missing `PATCH /collections/<name>` once per collection.
+ * This script issues that missing `PATCH /collections/<name>` once per collection —
+ * and, since `large.max_segment_size` was later raised (fewer, bigger segments
+ * per HNSW graph), also patches a live `max_segment_size` that has drifted from
+ * its preset even when `indexing_threshold` was already fine.
  *
  * Trap: `scripts/migrate-bm25-sparse.ts` recreates collections (createCollection)
  * and therefore already picks up the fixed presets on its own. Run the BM25
@@ -122,38 +126,67 @@ export type HnswPatchAction = 'skip' | 'patch';
 export interface HnswPatchPlan {
   action: HnswPatchAction;
   target: number;
+  /**
+   * `max_segment_size` to send in the PATCH body, or `null` when the live
+   * value already matches the preset — the PATCH body then omits the key
+   * entirely rather than resending an unchanged value.
+   */
+  maxSegmentSizeTarget: number | null;
   reason: string;
 }
 
 /**
- * Decides whether a live collection needs its `indexing_threshold` patched to
- * the target a freshly created collection would get (`preset`, derived from
- * `getCollectionConfig` — see `presetFor` below).
+ * Decides whether a live collection needs its `indexing_threshold` and/or
+ * `max_segment_size` patched to the target a freshly created collection would
+ * get (`preset`, derived from `getCollectionConfig` — see `presetFor` below).
  *
  * `info.indexingThreshold`/`maxSegmentSize` are `null` when the live collection
  * never had `optimizers_config` set explicitly — Qdrant then falls back to its
- * own default of 20000 KB, which is treated as "above every preset target"
- * here (an unset threshold is never known to be at or below one).
+ * own default of 20000 KB, which is treated as "above every preset target" /
+ * "differs from every preset" here (an unset value is never known to already
+ * match one).
  *
  * A threshold already at or below target but `indexedVectorsCount === 0` is
  * patched anyway, with the SAME value: Qdrant's optimizer can sit in "grey"
  * (optimizations pending, awaiting an update operation), and the documented
  * remedy is any update-collection call — the value need not change. The plan
  * says so in its reason, so the log does not claim a threshold changed.
+ *
+ * `max_segment_size` is checked independently of `indexing_threshold`: the
+ * ceiling raise (#2770 fixed the ratio, a later change raised `large` from
+ * 20000 to 100000 KB) means a collection can have a perfectly fine, already-
+ * indexed threshold and still carry a stale ceiling — that must still patch,
+ * with reason "segment ceiling", even though the threshold branch alone would
+ * have skipped.
  */
 export function planHnswPatch(info: CollectionIndexInfo, preset: HnswPatchPreset): HnswPatchPlan {
   const target = preset.indexing_threshold;
   const effectiveThreshold = info.indexingThreshold ?? Infinity;
   const isAtOrBelowTarget = effectiveThreshold <= target;
+  const maxSegmentSizeDiffers = info.maxSegmentSize !== preset.max_segment_size;
+  const maxSegmentSizeTarget = maxSegmentSizeDiffers ? preset.max_segment_size : null;
 
   if (isAtOrBelowTarget && info.indexedVectorsCount > 0) {
-    return { action: 'skip', target, reason: 'already indexed' };
+    if (maxSegmentSizeDiffers) {
+      return {
+        action: 'patch',
+        target: effectiveThreshold,
+        maxSegmentSizeTarget,
+        reason:
+          `indexing_threshold (${effectiveThreshold}) is already at or below the ${target} target ` +
+          `and the index is built, but max_segment_size (${info.maxSegmentSize ?? 'unset'}) differs ` +
+          `from the ${preset.max_segment_size} preset target — the segment ceiling is stale and ` +
+          `needs raising so segments merge into fewer, bigger HNSW graphs.`,
+      };
+    }
+    return { action: 'skip', target, maxSegmentSizeTarget: null, reason: 'already indexed' };
   }
 
   if (isAtOrBelowTarget && info.indexedVectorsCount === 0) {
     return {
       action: 'patch',
       target: effectiveThreshold,
+      maxSegmentSizeTarget,
       reason:
         `indexing_threshold (${info.indexingThreshold}) is already at or below the ${target} ` +
         `target, yet indexed_vectors_count is 0 (status '${info.status}'): the optimizer has not ` +
@@ -165,6 +198,7 @@ export function planHnswPatch(info: CollectionIndexInfo, preset: HnswPatchPreset
   return {
     action: 'patch',
     target,
+    maxSegmentSizeTarget,
     reason:
       `indexing_threshold (${info.indexingThreshold ?? 'unset'}) is above the ${target} target ` +
       `(max_segment_size ${info.maxSegmentSize ?? 'unset'}) — the HNSW index can never build at ` +
@@ -193,6 +227,8 @@ interface ReportRow {
   collection: string;
   thresholdBefore: number | null;
   thresholdAfter: number | null;
+  maxSegBefore: number | null;
+  maxSegAfter: number | null;
   points: number;
   indexedBefore: number;
   action: HnswPatchAction;
@@ -224,19 +260,30 @@ async function processCollection(
     max_segment_size: preset.max_segment_size,
   });
 
+  const patchBody: { indexing_threshold: number; max_segment_size?: number } = {
+    indexing_threshold: plan.target,
+  };
+  if (plan.maxSegmentSizeTarget !== null) {
+    patchBody.max_segment_size = plan.maxSegmentSizeTarget;
+  }
+
   if (plan.action === 'skip') {
     console.log(`[skip] ${name}: ${plan.reason}`);
   } else if (dryRun) {
     console.log(
       `[dry-run] ${name}: would PATCH /collections/${name} ` +
-        `{"optimizers_config":{"indexing_threshold":${plan.target}}} (${plan.reason})`
+        `{"optimizers_config":${JSON.stringify(patchBody)}} (${plan.reason})`
     );
   } else {
+    const maxSegLog =
+      plan.maxSegmentSizeTarget !== null
+        ? `, max_segment_size ${indexInfo.maxSegmentSize ?? 'unset'} -> ${plan.maxSegmentSizeTarget}`
+        : '';
     console.log(
-      `[patch] ${name}: indexing_threshold ${indexInfo.indexingThreshold ?? 'unset'} -> ${plan.target}`
+      `[patch] ${name}: indexing_threshold ${indexInfo.indexingThreshold ?? 'unset'} -> ${plan.target}${maxSegLog}`
     );
     await client.updateCollection(name, {
-      optimizers_config: { indexing_threshold: plan.target },
+      optimizers_config: patchBody,
     });
   }
 
@@ -244,6 +291,8 @@ async function processCollection(
     collection: name,
     thresholdBefore: indexInfo.indexingThreshold,
     thresholdAfter: plan.action === 'patch' ? plan.target : indexInfo.indexingThreshold,
+    maxSegBefore: indexInfo.maxSegmentSize,
+    maxSegAfter: plan.maxSegmentSizeTarget ?? indexInfo.maxSegmentSize,
     points: indexInfo.pointsCount,
     indexedBefore: indexInfo.indexedVectorsCount,
     action: plan.action,
@@ -256,15 +305,19 @@ function printTable(rows: ReportRow[], dryRun: boolean): void {
     '\n' +
       'collection'.padEnd(38) +
       'threshold before -> after'.padEnd(30) +
+      'maxseg before -> after'.padEnd(30) +
       'points'.padEnd(10) +
       'indexed before'
   );
   for (const row of rows) {
     const before = row.thresholdBefore ?? 'unset';
     const after = row.thresholdAfter ?? 'unset';
+    const maxSegBefore = row.maxSegBefore ?? 'unset';
+    const maxSegAfter = row.maxSegAfter ?? 'unset';
     console.log(
       row.collection.padEnd(38) +
         `${before} -> ${after}`.padEnd(30) +
+        `${maxSegBefore} -> ${maxSegAfter}`.padEnd(30) +
         String(row.points).padEnd(10) +
         String(row.indexedBefore)
     );
