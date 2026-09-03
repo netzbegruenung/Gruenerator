@@ -16,6 +16,32 @@
  *                    ihren HNSW-Index erst noch bauen muss: eine Kandidatenzahl
  *                    aus dem Hauptlauf ist ohne diese Prüfung nicht von einem
  *                    halb indizierten Index zu unterscheiden.
+ *
+ * Filtered arm (#3189): every unfiltered case above queries a collection with
+ * no payload filter — the segment layout `documents` actually serves under
+ * (18 live segments as of 2026-09-03, see qdrantCollectionsSchema.ts) is a
+ * FILTERED query, because every real notebook search narrows `documents` to
+ * its own document set. HNSW's filtered search degrades differently than
+ * unfiltered — more segments means more per-segment graphs to walk when most
+ * of each graph gets excluded by the filter. The `notebook.user.documentIds`
+ * cases in `cases.ts` are the only `kind: 'notebook'` cases that actually
+ * route through `documents` (system-collection notebook cases, incl. the
+ * `collectionIds` multi-collection ones, resolve to their own system
+ * collections instead — see `getSystemCollectionConfig`). Their filter shape
+ * is copied from `NotebookQAService`'s user-collection path
+ * (`_getSingleCollectionSearchContext` → `_performSearch` with `documentIds`),
+ * which DocumentSearchService/searchOperations.ts turns into
+ * `{ key: 'document_id', match: { any: documentIds } }` — NOT `collection_id`.
+ *
+ * The 2 real `notebook.user` cases give only 2 query vectors — too few to
+ * read anything into a filtered-vs-unfiltered gap. `ANN_PROBE_QUESTIONS`
+ * broadens that to 10 short municipal/state-politics questions, each run
+ * against EACH user notebook's document-id filter (documents (filtered,
+ * notebook) below), plus once unfiltered per question (same vector). The
+ * `documents` rows are reported as their own block, separate from the main
+ * per-collection table, and are NOT folded into GESAMT — GESAMT stays
+ * comparable across runs regardless of how many probe questions this arm
+ * adds.
  */
 import dotenv from 'dotenv';
 
@@ -29,8 +55,44 @@ const { mistralEmbeddingService } = await import('../../services/mistral/index.j
 const { RETRIEVAL_CASES } = await import('./cases.js');
 const { resolveEvalCandidate, resolveEvalTarget } = await import('./embedCandidates.js');
 const { createCandidateEmbedder } = await import('./candidateEmbedder.js');
+const { recallAtK } = await import('./recallAtK.js');
 
 const K = 10;
+const DOCUMENTS_COLLECTION = 'documents';
+
+/**
+ * Ten short German questions spanning municipal/state-politics topics
+ * (budget, procurement, heat planning, housing, transport, climate
+ * adaptation, digitalisation, participation, biodiversity, energy) — a
+ * broader probe set than the 2 real `notebook.user` eval cases on their own.
+ */
+const ANN_PROBE_QUESTIONS: string[] = [
+  'Wie hoch ist der Haushaltsansatz für dieses Jahr?',
+  'Welche Fristen gelten bei einer öffentlichen Vergabe?',
+  'Was sieht die kommunale Wärmeplanung vor?',
+  'Wie wird bezahlbarer Wohnraum geschaffen?',
+  'Welche Maßnahmen verbessern den öffentlichen Nahverkehr?',
+  'Wie bereitet sich die Gemeinde auf Starkregen und Hitze vor?',
+  'Welche Projekte treiben die Digitalisierung der Verwaltung voran?',
+  'Wie können Bürgerinnen und Bürger an Entscheidungen beteiligt werden?',
+  'Welche Schritte schützen die Artenvielfalt vor Ort?',
+  'Wie soll die Energieversorgung künftig aussehen?',
+];
+
+function recordStats(
+  perCollection: Map<string, { overlap: number; total: number }>,
+  key: string,
+  result: { overlap: number; total: number }
+): void {
+  const stats = perCollection.get(key) ?? { overlap: 0, total: 0 };
+  stats.overlap += result.overlap;
+  stats.total += result.total;
+  perCollection.set(key, stats);
+}
+
+function idsOf(points: Array<{ id: string | number }>): string[] {
+  return points.map((p) => String(p.id));
+}
 
 async function main() {
   const client = createQdrantClient({
@@ -100,13 +162,11 @@ async function main() {
       continue;
     }
 
-    const exactIds = new Set(exact.points.map((p) => String(p.id)));
-    const overlap = approx.points.filter((p) => exactIds.has(String(p.id))).length;
-
-    const stats = perCollection.get(target.collection) ?? { overlap: 0, total: 0 };
-    stats.overlap += overlap;
-    stats.total += exactIds.size;
-    perCollection.set(target.collection, stats);
+    recordStats(
+      perCollection,
+      target.collection,
+      recallAtK(idsOf(approx.points), idsOf(exact.points))
+    );
   }
 
   console.log(`── ANN recall@${K} (approximate vs exact) ──`);
@@ -131,6 +191,134 @@ async function main() {
   if (overallPct < 95) {
     console.log('\nUnter 95% — HNSW-Tuning prüfen (hnsw_ef erhöhen, ggf. ef_construct/m).');
   }
+
+  // Filtered arm on `documents` (#3189) — see module docblock. Reported as
+  // its own block, separate from (and excluded from) GESAMT above: it
+  // measures a different collection under a different query shape, so
+  // averaging it in would make GESAMT depend on how many probe questions
+  // this arm happens to run.
+  const notebookDocumentCases = RETRIEVAL_CASES.filter(
+    (c) =>
+      c.kind === 'notebook' &&
+      c.notebook?.user?.documentIds !== undefined &&
+      c.notebook.user.documentIds.length > 0
+  );
+
+  if (candidate) {
+    console.log('\n(documents-Arm übersprungen: `documents` ist keine Bake-off-Quelle.)');
+  } else if (notebookDocumentCases.length > 0) {
+    const documentsStats = {
+      filtered: { overlap: 0, total: 0 },
+      unfiltered: { overlap: 0, total: 0 },
+    };
+
+    const record = (arm: 'filtered' | 'unfiltered', result: { overlap: number; total: number }) => {
+      documentsStats[arm].overlap += result.overlap;
+      documentsStats[arm].total += result.total;
+    };
+
+    // The 2 real eval cases: each case's own query against its own notebook.
+    for (const evalCase of notebookDocumentCases) {
+      const documentIds = evalCase.notebook!.user!.documentIds;
+      const filter = { must: [{ key: 'document_id', match: { any: documentIds } }] };
+      const vector = await mistralEmbeddingService.generateEmbedding(evalCase.query);
+
+      const [approxFiltered, exactFiltered, approxUnfiltered, exactUnfiltered] = await Promise.all([
+        client.query(DOCUMENTS_COLLECTION, {
+          query: vector,
+          limit: K,
+          with_payload: false,
+          filter,
+        }),
+        client.query(DOCUMENTS_COLLECTION, {
+          query: vector,
+          limit: K,
+          with_payload: false,
+          filter,
+          params: { exact: true },
+        }),
+        client.query(DOCUMENTS_COLLECTION, { query: vector, limit: K, with_payload: false }),
+        client.query(DOCUMENTS_COLLECTION, {
+          query: vector,
+          limit: K,
+          with_payload: false,
+          params: { exact: true },
+        }),
+      ]);
+
+      record('filtered', recallAtK(idsOf(approxFiltered.points), idsOf(exactFiltered.points)));
+      record(
+        'unfiltered',
+        recallAtK(idsOf(approxUnfiltered.points), idsOf(exactUnfiltered.points))
+      );
+    }
+
+    // Probe questions: 2 real-case vectors are too few to read anything into
+    // a filtered-vs-unfiltered gap. Run every probe question against EACH
+    // user notebook's document-id filter, plus once unfiltered per question
+    // (same vector — the unfiltered query doesn't depend on the notebook).
+    const userNotebooks = notebookDocumentCases.map((c) => ({
+      id: c.id,
+      documentIds: c.notebook!.user!.documentIds,
+    }));
+
+    for (const question of ANN_PROBE_QUESTIONS) {
+      const vector = await mistralEmbeddingService.generateEmbedding(question);
+
+      const [approxUnfiltered, exactUnfiltered] = await Promise.all([
+        client.query(DOCUMENTS_COLLECTION, { query: vector, limit: K, with_payload: false }),
+        client.query(DOCUMENTS_COLLECTION, {
+          query: vector,
+          limit: K,
+          with_payload: false,
+          params: { exact: true },
+        }),
+      ]);
+      record(
+        'unfiltered',
+        recallAtK(idsOf(approxUnfiltered.points), idsOf(exactUnfiltered.points))
+      );
+
+      for (const notebook of userNotebooks) {
+        const filter = { must: [{ key: 'document_id', match: { any: notebook.documentIds } }] };
+        const [approxFiltered, exactFiltered] = await Promise.all([
+          client.query(DOCUMENTS_COLLECTION, {
+            query: vector,
+            limit: K,
+            with_payload: false,
+            filter,
+          }),
+          client.query(DOCUMENTS_COLLECTION, {
+            query: vector,
+            limit: K,
+            with_payload: false,
+            filter,
+            params: { exact: true },
+          }),
+        ]);
+        record('filtered', recallAtK(idsOf(approxFiltered.points), idsOf(exactFiltered.points)));
+      }
+    }
+
+    const collectionInfo = await client.getCollection(DOCUMENTS_COLLECTION);
+    const pct = (stats: { overlap: number; total: number }) =>
+      ((100 * stats.overlap) / Math.max(1, stats.total)).toFixed(1);
+
+    console.log(
+      `\n── ${DOCUMENTS_COLLECTION} (notebook, filtered vs unfiltered; excluded from GESAMT) ──`
+    );
+    console.log(
+      `segments_count=${collectionInfo.segments_count ?? 'unknown'} ` +
+        `indexed_vectors_count=${collectionInfo.indexed_vectors_count ?? 'unknown'}`
+    );
+    console.log(
+      `${`${DOCUMENTS_COLLECTION} (filtered, notebook)`.padEnd(32)} ${pct(documentsStats.filtered)}%`
+    );
+    console.log(
+      `${`${DOCUMENTS_COLLECTION} (unfiltered, notebook)`.padEnd(32)} ${pct(documentsStats.unfiltered)}%`
+    );
+  }
+
   process.exit(0);
 }
 
