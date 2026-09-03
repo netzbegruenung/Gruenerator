@@ -20,8 +20,17 @@ interface GenerateRequest extends Request {
   };
 }
 
+/**
+ * An explicit voice in the request wins; otherwise the person's choice from the
+ * settings; the service falls back to the default voice when both are absent.
+ */
+function voiceFor(req: GenerateRequest): string | undefined {
+  return req.body.voiceId || req.user?.tts_voice_id || undefined;
+}
+
 router.post('/generate', async (req: GenerateRequest, res: Response) => {
-  const { text, modelId, voiceId, language } = req.body;
+  const { text, modelId, language } = req.body;
+  const voiceId = voiceFor(req);
 
   if (!text || typeof text !== 'string') {
     return res.status(400).json({ success: false, error: 'Text ist erforderlich' });
@@ -64,7 +73,8 @@ router.post('/generate', async (req: GenerateRequest, res: Response) => {
 });
 
 router.post('/stream', async (req: GenerateRequest, res: Response) => {
-  const { text, modelId, voiceId, language } = req.body;
+  const { text, modelId, language } = req.body;
+  const voiceId = voiceFor(req);
 
   if (!text || typeof text !== 'string') {
     return res.status(400).json({ success: false, error: 'Text ist erforderlich' });

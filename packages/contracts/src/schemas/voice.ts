@@ -12,6 +12,36 @@ import { z } from 'zod';
 
 // ── Request bodies ──────────────────────────────────────────────────────────
 
+/**
+ * The KugelAudio voices a person may pick for speech output. Provider ids,
+ * frozen (F1): a renamed or retired voice keeps its id here until the profiles
+ * that carry it are migrated. Display names live in
+ * `@gruenerator/shared/settings` (ttsVoices.ts); the order there is the order
+ * the voices are numbered in, so append, never reorder.
+ */
+export const ttsVoiceIdSchema = z.enum([
+  '1930',
+  '1887',
+  '1885',
+  '1876',
+  '1840',
+  '1708',
+  '1707',
+  '1705',
+  '1704',
+  '1660',
+  '1659',
+  '1657',
+  '980',
+  '979',
+  '978',
+  '973',
+  '972',
+]);
+export type TtsVoiceId = z.infer<typeof ttsVoiceIdSchema>;
+/** What every synthesis uses when the profile names no voice. */
+export const DEFAULT_TTS_VOICE_ID: TtsVoiceId = '1930';
+
 export const tusTranscribeBodySchema = z.object({
   uploadId: z.string().min(1),
   language: z.string().nullish(),

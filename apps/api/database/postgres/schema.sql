@@ -94,6 +94,7 @@ CREATE TABLE IF NOT EXISTS profiles (
     canva_connection JSONB DEFAULT NULL,
     document_mode TEXT DEFAULT 'manual',
     default_startpage TEXT NOT NULL DEFAULT 'chat' CHECK (default_startpage IN ('chat', 'arbeiten')),
+    tts_voice_id TEXT,
     user_defaults JSONB DEFAULT '{}',
     docs BOOLEAN DEFAULT FALSE,
     boards BOOLEAN DEFAULT FALSE,
