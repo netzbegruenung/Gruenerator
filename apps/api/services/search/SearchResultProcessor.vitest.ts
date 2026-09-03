@@ -13,6 +13,7 @@ import {
   buildReferencesMap,
   expandResultsToChunks,
   filterAndSortResults,
+  selectAcrossQueryGroups,
   sourceTextForPrompt,
 } from './SearchResultProcessor.js';
 
@@ -251,6 +252,76 @@ describe('filterAndSortResults schneidet auf dem dichten Kosinus', () => {
       'hoeherer-fusionswert',
       'niedriger-fusionswert',
     ]);
+  });
+});
+
+/**
+ * `maxPerDocument` (Phase 2, #3181): sechs von neun Notebook-Fällen liefern
+ * fünf Chunks EINES Dokuments als Top-5-Treffer, Hit@3 kann Hit@1 dann nicht
+ * überbieten. Der Deckel muss VOR dem `limit`-Schnitt greifen, damit das
+ * Budget auf verschiedene Dokumente verteilt wird.
+ */
+const chunk = (
+  documentId: string,
+  similarity: number,
+  chunkIndex: number
+): ExpandedChunkResult => ({
+  document_id: documentId,
+  source_url: null,
+  title: documentId,
+  snippet: documentId,
+  filename: null,
+  similarity,
+  chunk_index: chunkIndex,
+  page_number: null,
+});
+
+describe('filterAndSortResults deckelt Chunks je Dokument', () => {
+  it('hält höchstens maxPerDocument Treffer je document_id, Reihenfolge bleibt erhalten', () => {
+    const results = [
+      chunk('a', 0.9, 0),
+      chunk('a', 0.8, 1),
+      chunk('a', 0.7, 2),
+      chunk('a', 0.6, 3),
+      chunk('a', 0.5, 4),
+      chunk('b', 0.45, 0),
+      chunk('b', 0.42, 1),
+      chunk('b', 0.4, 2),
+    ];
+    const out = filterAndSortResults(results, { threshold: 0.35, maxPerDocument: 2 });
+    expect(out.map((r) => `${r.document_id}:${r.chunk_index}`)).toEqual([
+      'a:0',
+      'a:1',
+      'b:0',
+      'b:1',
+    ]);
+  });
+
+  it('lässt die Liste bei cap 0 unverändert', () => {
+    const results = [chunk('a', 0.9, 0), chunk('a', 0.8, 1), chunk('a', 0.7, 2)];
+    const out = filterAndSortResults(results, { threshold: 0.35, maxPerDocument: 0 });
+    expect(out).toHaveLength(3);
+  });
+
+  it('deckelt Treffer ohne document_id nie', () => {
+    const results = [chunk('', 0.9, 0), chunk('', 0.8, 1), chunk('', 0.7, 2)];
+    const out = filterAndSortResults(results, { threshold: 0.35, maxPerDocument: 1 });
+    expect(out).toHaveLength(3);
+  });
+});
+
+describe('selectAcrossQueryGroups deckelt über die gemergte Auswahl', () => {
+  it('lässt ein in zwei Gruppen führendes Dokument bei cap 1 nur einmal durch', () => {
+    // Jede Gruppe für sich hält den Deckel bereits ein (nur ein "a"-Chunk je
+    // Gruppe) — der Fall, den nur der zweite Zähler über die gemergte Auswahl
+    // sieht, ist "a" führt in BEIDEN Gruppen.
+    const groupOne = [chunk('a', 0.9, 0), chunk('c', 0.5, 0)];
+    const groupTwo = [chunk('a', 0.85, 1), chunk('d', 0.5, 0)];
+    const out = selectAcrossQueryGroups([groupOne, groupTwo], {
+      threshold: 0.35,
+      maxPerDocument: 1,
+    });
+    expect(out.filter((r) => r.document_id === 'a')).toHaveLength(1);
   });
 });
 

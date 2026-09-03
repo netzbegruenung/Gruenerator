@@ -596,6 +596,18 @@ const envSchema = z.object({
   QUERY_INTENT_ENABLED: boolFlag(true),
   USE_GERMAN_PATTERNS: boolFlag(true),
 
+  /**
+   * Deckel je Dokument im Notebook-Kandidatenpool, angewandt in
+   * `SearchResultProcessor.filterAndSortResults` / `selectAcrossQueryGroups`
+   * NACH Schwelle+Sortierung und VOR dem `limit`-Schnitt — also bevor der
+   * Reranker die Kandidaten sieht. Befund
+   * (`evals/retrieval/baseline-notebook-2026-09-02.json`): in 6 von 9
+   * Notebook-Fällen sind die Top-5-Treffer fünf Chunks EINES Dokuments, Hit@3
+   * kann dann Hit@1 nicht überbieten. `0` = heutiges Verhalten (kein Deckel);
+   * gemessene Werte folgen im PR.
+   */
+  NOTEBOOK_MAX_CHUNKS_PER_DOC: z.coerce.number().int().min(0).default(0),
+
   // ── Rerank ─────────────────────────────────────────────────────────────
   RERANK_INPUT_LIMIT: numStr(16),
   RERANK_OUTPUT_LIMIT: numStr(8),
