@@ -22,6 +22,13 @@ export interface RerankOptions {
   inputLimit?: number;
   /** Forwarded to `rerankPipeline` unchanged; absent when omitted (production default). */
   instruct?: string;
+  /**
+   * Forwarded to `rerankPipeline` unchanged; absent means its default (MMR
+   * diversity reranking on). `false` measures whether MMR — not the
+   * cross-encoder score itself — is what moves the gold document down
+   * (rerank-matrix-2026-09-03.md).
+   */
+  applyDiversity?: boolean;
 }
 
 export interface RerankResult {
@@ -40,6 +47,7 @@ export async function rerankNotebookResults({
   limit = 10,
   inputLimit = 20,
   instruct,
+  applyDiversity,
 }: RerankOptions): Promise<RerankResult> {
   const startTime = Date.now();
 
@@ -80,7 +88,7 @@ export async function rerankNotebookResults({
     outputLimit: limit,
     minRelevance: 0.05,
     minKeep: Math.min(5, candidates.length),
-    applyDiversity: true,
+    applyDiversity: applyDiversity ?? true,
     ...(instruct && { instruct }),
   });
 
