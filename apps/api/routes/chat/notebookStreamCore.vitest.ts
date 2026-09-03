@@ -18,7 +18,16 @@ const streamWithFallback = vi.fn();
 const streamForResolution = vi.fn();
 const isProviderConfigured = vi.fn(() => true);
 const expandQuery = vi.fn();
+const logInfo = vi.fn();
 
+vi.mock('../../utils/logger.js', () => ({
+  createLogger: () => ({
+    info: (...args: unknown[]) => logInfo(...args),
+    debug: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+  }),
+}));
 vi.mock('../../services/notebook/index.js', () => ({
   notebookQAService: {
     getSearchContext: (...args: unknown[]) => getSearchContext(...args),
@@ -528,5 +537,67 @@ describe('handleNotebookStream — evidence_weak', () => {
     );
 
     expect(evidenceWarnings(await run('deep'))).toHaveLength(0);
+  });
+
+  it('schweigt, wenn das Qualitäts-Gate die Antwort schon verweigert hat', async () => {
+    // minResultsForGeneration greift NACH dem Rerank; die Warnung darf einer
+    // verweigerten Antwort nie anhängen (F2).
+    env.NOTEBOOK_EVIDENCE_WEAK_ENABLED = true;
+    env.NOTEBOOK_EVIDENCE_WEAK_THRESHOLD = 0.89;
+    getSearchContext.mockResolvedValue(contextWithEvidence(0.8713));
+    rerankNotebookResults.mockImplementation(async () => ({
+      results: [],
+      referencesMap: {},
+      contextSummary: 'summary',
+      rerankTimeMs: 1,
+    }));
+
+    const { req, res, sse, sent } = makeReqRes();
+    await handleNotebookStream({
+      req,
+      res,
+      sse,
+      messages: [{ role: 'user', content: 'Was steht zur sozialen Sicherung drin?' }] as Parameters<
+        typeof handleNotebookStream
+      >[0]['messages'],
+      collectionId: 'grundsatz-system',
+      mode: 'deep',
+      minResultsForGeneration: 1,
+      closeStream: false,
+    });
+
+    expect(evidenceWarnings(sent)).toHaveLength(0);
+    const completion = sent.find((e) => e.event === 'completion');
+    expect(
+      (completion?.data.metadata as { qualityGateTriggered?: boolean })?.qualityGateTriggered
+    ).toBe(true);
+  });
+
+  it('schweigt auf der Tiefe fast, protokolliert aber weiterhin', async () => {
+    // Kalibriert wurde nur gegen `deep` — `fast` bekommt nie die Warnung,
+    // auch nicht mit angeschaltetem Schalter und einem schwachen Wert (F5).
+    env.NOTEBOOK_EVIDENCE_WEAK_ENABLED = true;
+    env.NOTEBOOK_EVIDENCE_WEAK_THRESHOLD = 0.89;
+    getSearchContext.mockResolvedValue(contextWithEvidence(0.8713));
+
+    expect(evidenceWarnings(await run('fast'))).toHaveLength(0);
+    expect(logInfo.mock.calls.some((args) => String(args[0]).includes('evidenceTop=0.8713'))).toBe(
+      true
+    );
+  });
+
+  it('protokolliert evidenceTop=none ohne Suchkontext und sendet keine Warnung', async () => {
+    // Der schwächste Fall — nichts hat die Tiefenschwelle überlebt — darf in
+    // der Produktionsmessung nicht stumm verschwinden (F3).
+    env.NOTEBOOK_EVIDENCE_WEAK_ENABLED = true;
+    env.NOTEBOOK_EVIDENCE_WEAK_THRESHOLD = 0.89;
+    getSearchContext.mockResolvedValue(null);
+
+    expect(evidenceWarnings(await run('deep'))).toHaveLength(0);
+    expect(
+      logInfo.mock.calls.some((args) =>
+        String(args[0]).includes('evidenceTop=none (no candidates, deep)')
+      )
+    ).toBe(true);
   });
 });

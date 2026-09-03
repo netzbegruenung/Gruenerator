@@ -613,6 +613,10 @@ const envSchema = z.object({
    * dem höchsten off-topic-Wert; der Default ist der Mittelpunkt 0,9356
    * (Abnahmeregel A1). Gesenkt wird nie ohne Neumessung.
    *
+   * Beide Runden liefen ausschliesslich gegen die Tiefe `deep` — das
+   * `evidence_weak`-Ereignis geht deshalb nur bei `depth !== 'fast'` hinaus
+   * (`fast` durchsucht weniger Kandidaten und wurde nie vermessen).
+   *
    * Die Zahl hängt am Einbettungsmodell: kalibriert gegen `mistral-embed`
    * (1024 Dimensionen). Ein Modellwechsel verschiebt die absolute
    * Kosinus-Lage und macht 0,9356 bedeutungslos, ohne dass ein Test rot wird.
