@@ -94,8 +94,16 @@ function featureFallback(feature: string): UsageFeature {
   return (KNOWN_FEATURES.has(feature) ? feature : 'other') as UsageFeature;
 }
 
-const KNOWN_UNITS = new Set<string>(['tokens', 'images', 'transcriptions', 'searches']);
-type KnownUnit = 'tokens' | 'images' | 'transcriptions' | 'searches';
+// A unit missing from this set does not raise anything — it is silently read as
+// 'tokens', which files the row under text models with a token count of zero.
+const KNOWN_UNITS = new Set<string>([
+  'tokens',
+  'images',
+  'transcriptions',
+  'searches',
+  'speech_seconds',
+]);
+type KnownUnit = 'tokens' | 'images' | 'transcriptions' | 'searches' | 'speech_seconds';
 
 function unitFallback(unit: string): KnownUnit {
   return (KNOWN_UNITS.has(unit) ? unit : 'tokens') as KnownUnit;
@@ -141,6 +149,7 @@ function emptyStats(days: number, sinceDay: string, suppressedDays: number, acti
       images: 0,
       transcriptions: 0,
       searches: 0,
+      speech_seconds: 0,
     },
     footprint: {
       energy_wh: 0,
@@ -159,7 +168,7 @@ function emptyStats(days: number, sinceDay: string, suppressedDays: number, acti
       market_emissions_g: 0,
       image_market_emissions_g: 0,
       market_backed_share: 0,
-      unvalued_ops: { transcriptions: 0, searches: 0 },
+      unvalued_ops: { transcriptions: 0, searches: 0, speech_seconds: 0 },
     },
     providers: [],
     daily: [],
@@ -250,6 +259,7 @@ export async function computePlatformUsageStats(
     images: 0,
     transcriptions: 0,
     searches: 0,
+    speech_seconds: 0,
   };
   const daily = new Map<string, { requests: number; input: number; output: number }>();
   const byFeature = new Map<
@@ -260,6 +270,7 @@ export async function computePlatformUsageStats(
       images: number;
       transcriptions: number;
       searches: number;
+      speech_seconds: number;
       emissionsUg: number;
     }
   >();
@@ -410,6 +421,7 @@ export async function computePlatformUsageStats(
     if (unit === 'images') totals.images += row.ops;
     if (unit === 'transcriptions') totals.transcriptions += row.ops;
     if (unit === 'searches') totals.searches += row.ops;
+    if (unit === 'speech_seconds') totals.speech_seconds += row.ops;
 
     const dayEntry = daily.get(row.day) ?? { requests: 0, input: 0, output: 0 };
     dayEntry.requests += row.requests;
@@ -423,6 +435,7 @@ export async function computePlatformUsageStats(
       images: 0,
       transcriptions: 0,
       searches: 0,
+      speech_seconds: 0,
       emissionsUg: 0,
     };
     featureEntry.requests += row.requests;
@@ -431,6 +444,7 @@ export async function computePlatformUsageStats(
     if (unit === 'images') featureEntry.images += row.ops;
     if (unit === 'transcriptions') featureEntry.transcriptions += row.ops;
     if (unit === 'searches') featureEntry.searches += row.ops;
+    if (unit === 'speech_seconds') featureEntry.speech_seconds += row.ops;
     byFeature.set(feature, featureEntry);
 
     const modelKey = `${row.provider}|${row.model}|${unit}`;
@@ -483,6 +497,7 @@ export async function computePlatformUsageStats(
       unvalued_ops: {
         transcriptions: totals.transcriptions,
         searches: totals.searches,
+        speech_seconds: totals.speech_seconds,
       },
     },
     // Only providers that actually contributed energy. Listing a search or

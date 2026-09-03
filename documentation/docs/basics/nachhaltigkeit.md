@@ -103,7 +103,7 @@ Hier ist die Bilanz schlechter belegt als bei allen anderen auf dieser Seite, un
 
 ## Wie wir rechnen
 
-Unter **Einstellungen → Nutzung** siehst du, was du gemacht hast — Anfragen, Tokens, Bilder, Transkriptionen, Recherchen — und daneben, wie viel CO₂ dieselbe Arbeit auf ChatGPT gekostet hätte. Was **du** verbraucht hast, zeigen wir dort bewusst nicht.
+Unter **Einstellungen → Nutzung** siehst du, was du gemacht hast — Anfragen, Tokens, Bilder, Transkriptionen, Recherchen, Sprachausgabe — und daneben, wie viel CO₂ dieselbe Arbeit auf ChatGPT gekostet hätte. Was **du** verbraucht hast, zeigen wir dort bewusst nicht.
 
 Das ist eine Entscheidung, keine Auslassung. Wie viel eine Anfrage kostet, hängt fast vollständig davon ab, welches Modell wo läuft und an welchem Netz das Rechenzentrum hängt — und das entscheiden wir, nicht du. Eine persönliche Gramm-Zahl macht eine einzelne Person für eine Architekturentscheidung verantwortlich, die sie nicht getroffen hat, und legt nahe, weniger zu fragen, wo eigentlich wir sparsamer bauen müssen. Die absolute Zahl gehört deshalb dorthin, wo sie hingehört: auf die **[Transparenz-Seite](https://gruenerator.eu/transparenz)**, die den Verbrauch der ganzen Plattform ausweist.
 
@@ -267,6 +267,7 @@ Zur Einordnung von außen: Scope3 veranschlagt für ein hochwertiges GPT-4o-Bild
 ### Was die Zahl _nicht_ enthält
 
 - **Keine Herstellung, kein Training.** Wir zählen den Strom der Anfrage selbst. Der CO₂-Rucksack aus GPU-Produktion und Modelltraining fehlt.
+- **Keine Sprachausgabe.** KugelAudio veröffentlicht keine Verbrauchsdaten, und für Sprachsynthese gibt es keine veröffentlichte Messung, deren Systemgrenze zu unserer passt. Anders als bei der Transkription erfassen wir hier aber die **Dauer** — die Größe, mit der die Energie skalieren würde. Sobald jemand einen belastbaren Wert in Wattstunden je Sekunde erzeugter Sprache liefert, lässt sich der gesamte bisher erfasste Zeitraum rückwirkend bewerten, ohne dass Daten nachgetragen werden müssen. Für den Netzfaktor bräuchte es zusätzlich eine Spanne statt eines Punktwerts: KugelAudios Unterauftragnehmer-Register nennt für die Inferenz Verda AI (Finnland) und Nebius (Finnland, Frankreich) sowie Hetzner für GPU-Server (Deutschland); Polen kommt nur über Scaleway als allgemeine Infrastruktur ins Bild. Welcher Standort eine einzelne Anfrage bedient hat, legt der Anbieter nicht offen.
 - **Keine Transkription, keine Recherche.** Dafür liefert kein Anbieter Messwerte. Bei GreenPT, das als einziges überhaupt misst, haben wir alle in Frage kommenden Endpunkte geprüft: Transkription (`/v1/listen`) und beide Suchendpunkte antworten ohne `impact`-Feld, und einen Endpunkt für den Konto-Gesamtverbrauch gibt es nicht. Gemessen wird dort ausschließlich Inferenz auf `/v1/chat/completions` und `/v1/embeddings`. Beide Schritte werden deshalb **gezählt, aber nicht bewertet** — die Übersicht weist sie getrennt aus, damit die Aktivität nicht so aussieht, als wäre sie kostenlos.
 - **Kein Grundverbrauch der eigenen Infrastruktur.** Datenbanken, Cache, Vektorsuche und die API-Container laufen rund um die Uhr, unabhängig davon, ob jemand etwas erzeugt. Sie stecken in keiner dieser Zahlen.
 
@@ -305,7 +306,7 @@ Drei Entscheidungen dahinter sind erklärungsbedürftig, weil sie die Zahlen kle
 
 **Die Konstanten stehen dabei.** Zu jedem Anbieter veröffentlichen wir den angesetzten Netzmix und den PUE-Wert neben seinem Anteil. Ein Fußabdruck, den niemand nachrechnen kann, ist eine Behauptung und keine Offenlegung.
 
-**Transkription und Websuche stehen dabei, tragen aber null.** Beide erscheinen als eigene Abschnitte mit ihren Modellen — sonst sähe die Aufstellung so aus, als hätten wir sie vergessen. Ein Fußabdruck ist ihnen trotzdem nicht zugeordnet: Für Spracherkennung meldet kein Anbieter Verbrauch, und wir speichern keine Audiodauer, mit der er skalieren würde; bei der Websuche steckt die Energie im Index des Suchanbieters, nicht bei uns. Als Lücke ausgewiesen ist ehrlicher, als sie stillschweigend als Null mitzuzählen.
+**Transkription, Websuche und Sprachausgabe stehen dabei, tragen aber null.** Alle drei erscheinen als eigene Abschnitte mit ihren Modellen — sonst sähe die Aufstellung so aus, als hätten wir sie vergessen. Ein Fußabdruck ist ihnen trotzdem nicht zugeordnet: Für Spracherkennung meldet kein Anbieter Verbrauch, und wir speichern keine Audiodauer, mit der er skalieren würde; bei der Websuche steckt die Energie im Index des Suchanbieters, nicht bei uns; bei der Sprachausgabe erfassen wir zwar die Dauer, es fehlt aber der Verbrauchswert je Sekunde. Als Lücke ausgewiesen ist ehrlicher, als sie stillschweigend als Null mitzuzählen.
 
 Was oben unter „Was die Zahl _nicht_ enthält" steht, gilt hier unverändert — auch die Plattformzahl ist eine Untergrenze.
 

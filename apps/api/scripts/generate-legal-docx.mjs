@@ -127,11 +127,11 @@ function render(blocks) {
 // --- Datenschutzerklärung content ----------------------------------------
 const datenschutz = [
   { title: 'Datenschutzerklärung' },
-  { p: 'Stand: 16. Juni 2026' },
+  { p: 'Stand: 2. September 2026' },
 
   { h: 2, text: 'Kurzzusammenfassung' },
   {
-    p: `**Der [[GRUENERATOR|${PRIMARY_URL}]] verarbeitet nur die Texte, die Du aktiv in die Eingabefelder eingibst. Diese werden zur KI-Bearbeitung an einen unserer europäischen KI-Dienstleister weitergeleitet (insbesondere [[Mistral AI|https://mistral.ai/]] in Frankreich, KI-Modelle der netzbegrünung e.V. sowie Seeweb/Regolo AI in Italien); welches Modell verwendet wird, kannst Du pro Anfrage selbst wählen. Deine Daten werden dort nicht zum Training der KI verwendet. Bei Nutzung des Grünerator Imagine zur Bildbearbeitung werden Deine hochgeladenen Bilder direkt an Black Forest Labs auf EU-Servern weitergeleitet und dort mit dem FLUX-Modell verarbeitet. Wir speichern die Bilder nicht auf unseren Servern. Die Bilder werden ausschließlich zur Bearbeitung verwendet und nicht zum Training der KI genutzt. Wenn Du die Suchfunktion des GRUENERATORs nutzt, werden Deine Suchanfragen über unsere KI-Dienstleister sowie spezialisierte Suchdienste (in der EU) verarbeitet. Bei Nutzung der Sprachverarbeitung werden Deine Audiodaten an Mistral AI in der EU verarbeitet (Voxtral für Spracherkennung, Mistral TTS für die Sprachausgabe des KI-Agenten). Bei Aktivierung des Echtzeit-Sprachdialogs bleibt Dein Mikrofon für die Dauer der Sitzung aktiv und wird automatisch freigegeben, sobald Du die Sitzung beendest, den Browser-Tab wechselst, die Seite verlässt oder das Fenster schließt. Bitte achte also darauf, dass Du keine personenbezogenen oder vertraulichen Daten eingibst oder sprichst und dass sich keine weiteren Personen ohne deren Einwilligung in Hörweite Deines Mikrofons befinden.**`,
+    p: `**Der [[GRUENERATOR|${PRIMARY_URL}]] verarbeitet nur die Texte, die Du aktiv in die Eingabefelder eingibst. Diese werden zur KI-Bearbeitung an einen unserer europäischen KI-Dienstleister weitergeleitet (insbesondere [[Mistral AI|https://mistral.ai/]] in Frankreich, KI-Modelle der netzbegrünung e.V. sowie Seeweb/Regolo AI in Italien); welches Modell verwendet wird, kannst Du pro Anfrage selbst wählen. Deine Daten werden dort nicht zum Training der KI verwendet. Bei Nutzung des Grünerator Imagine zur Bildbearbeitung werden Deine hochgeladenen Bilder direkt an Black Forest Labs auf EU-Servern weitergeleitet und dort mit dem FLUX-Modell verarbeitet. Wir speichern die Bilder nicht auf unseren Servern. Die Bilder werden ausschließlich zur Bearbeitung verwendet und nicht zum Training der KI genutzt. Wenn Du die Suchfunktion des GRUENERATORs nutzt, werden Deine Suchanfragen über unsere KI-Dienstleister sowie spezialisierte Suchdienste (in der EU) verarbeitet. Bei Nutzung der Sprachverarbeitung werden Deine Audiodaten in der EU verarbeitet: die Spracherkennung übernimmt Mistral AI (Voxtral), die Sprachausgabe des KI-Agenten die KugelAudio GmbH (Berlin). Bei Aktivierung des Echtzeit-Sprachdialogs bleibt Dein Mikrofon für die Dauer der Sitzung aktiv und wird automatisch freigegeben, sobald Du die Sitzung beendest, den Browser-Tab wechselst, die Seite verlässt oder das Fenster schließt. Bitte achte also darauf, dass Du keine personenbezogenen oder vertraulichen Daten eingibst oder sprichst und dass sich keine weiteren Personen ohne deren Einwilligung in Hörweite Deines Mikrofons befinden.**`,
   },
   { p: '**Hinweis zu den KI-Anbietern:** Du kannst pro Anfrage selbst wählen, welches KI-Modell und damit welcher Anbieter Deine Eingaben verarbeitet (oder „Automatisch" wählen lassen). Es kommen ausschließlich Anbieter mit Verarbeitung in der EU zum Einsatz:' },
   { li: 'Mistral AI (Frankreich)' },
@@ -193,7 +193,7 @@ const datenschutz = [
 
   { h: 4, text: 'Unsere Auftragsverarbeiter im Detail:' },
   { p: '**1. Mistral AI** (15 rue des Halles, 75001 Paris, Frankreich)' },
-  { li: 'Zweck: Text- und Sprachverarbeitung (KI-Textmodelle, Voxtral für Spracherkennung, Mistral Speech/TTS für die Sprachausgabe im Echtzeit-Sprachdialog)' },
+  { li: 'Zweck: Text- und Sprachverarbeitung (KI-Textmodelle, Voxtral für Spracherkennung)' },
   { li: 'Server: EU (Frankreich)' },
   { li: 'Im Echtzeit-Sprachdialog: Live-Stream-Verarbeitung ohne Persistierung bei netzbegrünung; keine Nutzung zu Trainingszwecken; keine Erstellung von Stimmprofilen' },
   { li: 'Besonderheit: Subunternehmer möglich (mit EU-Standardvertragsklauseln)' },
@@ -246,6 +246,15 @@ const datenschutz = [
   { li: 'Sicherheit: TLS 1.2+, Verschlüsselung im Ruhezustand' },
   { li: 'Besonderheit: Selbst gehostete Open-Source-Software (Alternative zu Sentry); keine Weitergabe an Dritte, keine Drittlandübermittlung, keine Nutzung zum KI-Training' },
   { li: 'Details: [[Datenschutzerklärung|https://glitchtip.com/legal/privacy/]]' },
+
+  { p: '**8. KugelAudio** (KugelAudio GmbH, Rosenthaler Str. 36, 10178 Berlin, Deutschland; Amtsgericht Charlottenburg, HRB 277989 B)' },
+  { li: 'Zweck: Sprachausgabe (Text-to-Speech) — Vorlesen von Antworten und Sprachausgabe im Echtzeit-Sprachdialog' },
+  { li: 'Server: EU (Verarbeitung über den EU-Endpunkt des Anbieters)' },
+  { li: 'Verarbeitete Daten: der vorzulesende Antworttext' },
+  { li: 'Speicherdauer: keine — Inhalte werden nur für die Dauer der Anfrage im Arbeitsspeicher verarbeitet (Zero Data Retention laut Anbieter)' },
+  { li: 'Besonderheit: deutscher Anbieter mit EU-Verarbeitung; kein KI-Training mit Inhalten; erzeugte Audiodateien tragen ein Wasserzeichen und einen Kennzeichnungs-Header nach Art. 50 KI-VO' },
+  { li: 'Unterauftragnehmer laut Trust Center des Anbieters: Verda AI (FI), Hetzner (DE), Nebius (FI/FR), Contabo (DE), OVH (FR/DE), Scaleway (FR/NL/PL), Supabase (EU)' },
+  { li: 'Details: [[Nutzungsbedingungen|https://www.kugelaudio.com/AGB-ToS%20-%20KugelAudio%20-%202026-07-21.pdf]] und [[EU-Auftragsverarbeitungsvertrag|https://www.kugelaudio.com/AVV-DPA%20-%20KugelAudio%20-%20EU%20-%202026-08-19.pdf]]' },
 
   { h: 3, text: 'Webanalyse mit Umami' },
   {
@@ -302,14 +311,14 @@ const datenschutz = [
   { li: 'Dein Mikrofon-Audio wird im Browser auf 16 kHz (PCM) heruntergerechnet und über eine verschlüsselte WebSocket-Verbindung an unseren Server der netzbegrünung e.V. (EU) gesendet.' },
   { li: 'Unser Server leitet den Audiostream zur Spracherkennung an **Mistral AI Voxtral** (EU, Frankreich) weiter.' },
   { li: 'Das erkannte Transkript wird in unserer Chat-Pipeline (ChatGraph) mit dem von Dir gewählten KI-Modell verarbeitet (siehe „Hinweis zu den KI-Anbietern" oben).' },
-  { li: 'Die Textantwort des Agenten wird satzweise an **Mistral AI Speech (TTS)** (EU, Frankreich) gesendet und als Audio-Stream zurück in Deinen Browser geliefert, wo sie lokal über Deine Lautsprecher abgespielt wird.' },
+  { li: 'Die Textantwort des Agenten wird satzweise an **KugelAudio** (EU-Endpunkt) gesendet und als Audio-Stream zurück in Deinen Browser geliefert, wo sie lokal über Deine Lautsprecher abgespielt wird.' },
   { p: '**Mikrofon-Freigabe:** Das Mikrofon bleibt nur so lange aktiv, wie die Sprachsitzung läuft. Es wird automatisch und unverzüglich freigegeben (MediaStreamTrack.stop), sobald einer dieser Auslöser eintritt:' },
   { li: 'Du klickst auf das Voice-Symbol oder den Hintergrund des Sprachdialog-Fensters' },
   { li: 'Du wechselst den Browser-Tab oder minimierst das Fenster (Visibility Change)' },
   { li: 'Du verlässt die Seite, lädst neu oder schließt den Tab (pagehide / beforeunload)' },
   { li: 'Du wechselst innerhalb der Anwendung in einen anderen Bereich (Route-Navigation)' },
   { li: 'Der Browser-Tab gerät in den Hintergrund (z. B. iOS-bfcache)' },
-  { p: '**Speicherung & Training:** Audio-Frames werden ausschließlich im Arbeitsspeicher unseres Servers durchgereicht (Live-Stream, keine Persistenz). Weder wir noch Mistral AI verwenden Deinen Audiostream zum Training von KI-Modellen. Es werden keine Sprachprofile (Voice Prints) erstellt.' },
+  { p: '**Speicherung & Training:** Audio-Frames werden ausschließlich im Arbeitsspeicher unseres Servers durchgereicht (Live-Stream, keine Persistenz). Weder wir noch Mistral AI oder KugelAudio verwenden Deinen Audiostream zum Training von KI-Modellen. Es werden keine Sprachprofile (Voice Prints) erstellt.' },
   { p: '**Rechtsgrundlage:** [[Art. 6 Abs. 1 lit. a DSGVO|https://dejure.org/gesetze/DSGVO/6.html]] (Einwilligung durch aktive Aktivierung der Sprachsitzung). Du kannst Deine Einwilligung jederzeit durch das Beenden der Sitzung widerrufen.' },
   { p: '**Deine Verantwortung:** Sprache kann unbeabsichtigt sensible Informationen enthalten — politische Meinungen, Gesundheitsangaben, religiöse Überzeugungen, Identifikationsmerkmale Dritter ([[Art. 9 DSGVO|https://dejure.org/gesetze/DSGVO/9.html]]). Bitte nutze den Echtzeit-Sprachdialog nur in einer Umgebung, in der sich keine weiteren Personen ohne deren Einwilligung in Hörweite Deines Mikrofons befinden, und sprich keine Daten Dritter aus, für deren Verarbeitung Du keine Rechtsgrundlage hast. Die Funktion ist nicht für die Nutzung durch Minderjährige unter 16 Jahren ohne Einwilligung der Erziehungsberechtigten bestimmt.' },
 
@@ -390,7 +399,7 @@ const datenschutz = [
 // --- Nutzungsbedingungen (AGB) content ------------------------------------
 const nutzungsbedingungen = [
   { title: 'Nutzungsbedingungen' },
-  { p: 'Stand: 16. Juni 2026' },
+  { p: 'Stand: 2. September 2026' },
 
   { h: 2, text: '§ 1 Geltungsbereich' },
   { p: `(1) Diese Nutzungsbedingungen gelten für die Nutzung der Plattform **GRUENERATOR** (erreichbar unter [[${PRIMARY_URL}|${PRIMARY_URL}]]), betrieben von Moritz Wächter, Villestr. 6-8, 53347 Alfter (nachfolgend „Betreiber").` },
@@ -405,7 +414,7 @@ const nutzungsbedingungen = [
   { li: '**Notebooks:** KI-gestützte Frage-Antwort-Funktion zu Parteiprogrammen, Beschlüssen und weiteren Dokumenten' },
   { li: '**Kollaborative Dokumentenbearbeitung:** Gemeinsames Erstellen und Bearbeiten von Texten in Echtzeit' },
   { li: '**Sprachverarbeitung:** Diktat und einmalige Spracheingabe über Mistral Voxtral' },
-  { li: '**Echtzeit-Sprachdialog (Voice Agent):** Bidirektionales, freihändiges Gespräch mit der KI mit kontinuierlich aktivem Mikrofon für die Dauer der Sitzung sowie Sprachausgabe der Antworten (Voxtral und Mistral Speech, EU)' },
+  { li: '**Echtzeit-Sprachdialog (Voice Agent):** Bidirektionales, freihändiges Gespräch mit der KI mit kontinuierlich aktivem Mikrofon für die Dauer der Sitzung sowie Sprachausgabe der Antworten (Voxtral für die Erkennung, KugelAudio für die Ausgabe, EU)' },
   { p: '(2) Der Betreiber ist berechtigt, den Funktionsumfang der Plattform jederzeit zu erweitern, einzuschränken oder zu verändern, sofern dies für Dich zumutbar ist.' },
   { p: '(3) Die Nutzung der Plattform ist derzeit unentgeltlich. Ein Anspruch auf dauerhafte kostenlose Bereitstellung besteht nicht.' },
 

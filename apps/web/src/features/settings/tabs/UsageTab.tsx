@@ -15,6 +15,7 @@ import {
   FEATURE_LABELS,
   formatCount,
   formatDay,
+  formatDuration,
   formatEnergy,
   formatCorridor,
   formatGrams,
@@ -190,7 +191,11 @@ export default function UsageTab() {
 
   const { totals, footprint, daily, byFeature, byModel } = data;
   const maxDayTokens = daily.reduce((max, d) => Math.max(max, d.input_tokens + d.output_tokens), 0);
-  const hasAnything = totals.requests > 0 || totals.images > 0 || totals.transcriptions > 0;
+  const hasAnything =
+    totals.requests > 0 ||
+    totals.images > 0 ||
+    totals.transcriptions > 0 ||
+    totals.speech_seconds > 0;
 
   return (
     <div className="flex flex-col gap-lg">
@@ -233,6 +238,7 @@ export default function UsageTab() {
             <StatTile label="Bilder" value={formatCount(totals.images)} />
             <StatTile label="Transkriptionen" value={formatCount(totals.transcriptions)} />
             <StatTile label="Web-Recherchen" value={formatCount(totals.searches)} />
+            <StatTile label="Sprachausgabe" value={formatDuration(totals.speech_seconds)} />
             {/* No CO2 tile here on purpose: this tab reports what you DID, and
                 the comparison below reports what that saved. An individual
                 footprint would make one person answerable for a platform
@@ -302,6 +308,9 @@ export default function UsageTab() {
                         ? `${formatCount(entry.transcriptions)} Transkriptionen`
                         : null,
                       entry.searches ? `${formatCount(entry.searches)} Recherchen` : null,
+                      entry.speech_seconds
+                        ? `${formatDuration(entry.speech_seconds)} Sprachausgabe`
+                        : null,
                     ].filter(Boolean);
                     return (
                       <tr
@@ -384,8 +393,8 @@ export default function UsageTab() {
       )}
 
       <p className="m-0 text-xs text-grey-500">
-        Erfasst werden Anfragen an KI-Modelle sowie erzeugte Bilder, Transkriptionen und
-        Web-Recherchen. Automatische Hintergrundprozesse zählen nicht mit.
+        Erfasst werden Anfragen an KI-Modelle sowie erzeugte Bilder, Transkriptionen, Web-Recherchen
+        und die Dauer der Sprachausgabe. Automatische Hintergrundprozesse zählen nicht mit.
       </p>
     </div>
   );
