@@ -673,6 +673,7 @@ export class NotebookQAService {
     return {
       referencesMap,
       sortedResults,
+      // Der Deckel je Dokument lässt den besten Chunk jedes Dokuments stehen — das Maximum ändert er nie.
       evidenceTop: evidenceTopOf(sortedResults),
       systemPrompt,
       contextSummary,
@@ -817,6 +818,7 @@ export class NotebookQAService {
     return {
       referencesMap,
       sortedResults,
+      // Der Deckel je Dokument lässt den besten Chunk jedes Dokuments stehen — das Maximum ändert er nie.
       evidenceTop: evidenceTopOf(sortedResults),
       systemPrompt,
       contextSummary,
