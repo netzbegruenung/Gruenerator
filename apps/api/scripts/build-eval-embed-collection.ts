@@ -32,20 +32,21 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const { env } = await import('../config/env.js');
-const { BM25_SPARSE_VECTOR_NAME, COLLECTION_SCHEMAS, getCollectionConfig, INDEX_TYPES } =
-  await import('../config/qdrantCollectionsSchema.js');
-const { getSystemCollectionConfig, getSystemQdrantCollections } =
-  await import('../config/systemCollectionsConfig.js');
+const { BM25_SPARSE_VECTOR_NAME } = await import('../config/qdrantCollectionsSchema.js');
+const { getSystemQdrantCollections } = await import('../config/systemCollectionsConfig.js');
 const { createQdrantClient } = await import('../database/services/QdrantService/connection.js');
 const { createCandidateEmbedder, createProviderBatchEmbedder } =
   await import('../evals/retrieval/candidateEmbedder.js');
 const { embedCandidateSlugs, evalCollectionName, getEmbedCandidate } =
   await import('../evals/retrieval/embedCandidates.js');
 const {
+  createTargetCollection,
   deleteEvalCollections,
   expiresAtIso,
+  guardDelete,
   planPages,
   pointText,
+  resolveSourceCollections,
   SCROLL_PAGE,
   toEvalPoint,
   UPSERT_BATCH,
@@ -60,10 +61,17 @@ interface CliArgs {
   collections: string[];
   limit: number | null;
   delete: boolean;
+  yes: boolean;
 }
 
 function parseArgs(argv: string[]): CliArgs {
-  const args: CliArgs = { candidate: null, collections: [], limit: null, delete: false };
+  const args: CliArgs = {
+    candidate: null,
+    collections: [],
+    limit: null,
+    delete: false,
+    yes: false,
+  };
   for (let i = 0; i < argv.length; i++) {
     switch (argv[i]) {
       case '--candidate':
@@ -87,6 +95,9 @@ function parseArgs(argv: string[]): CliArgs {
       case '--delete':
         args.delete = true;
         break;
+      case '--yes':
+        args.yes = true;
+        break;
       default:
         console.error(`Unknown argument: ${argv[i]}`);
         process.exit(1);
@@ -99,15 +110,17 @@ function usage(): never {
   console.error(
     'Usage:\n' +
       '  build-eval-embed-collection.ts --candidate <slug> --collections a,b [--limit N]\n' +
-      '  build-eval-embed-collection.ts --delete\n\n' +
+      '  build-eval-embed-collection.ts --delete --candidate <slug>   (drops that one)\n' +
+      '  build-eval-embed-collection.ts --delete --yes                (drops all of them)\n\n' +
       `Candidates: ${embedCandidateSlugs().join(', ')}\n` +
       `Collections: ${[...new Set(getSystemQdrantCollections())].join(', ')}`
   );
   process.exit(1);
 }
 
-/** Der Kandidat eines Bau-Laufs, oder Abbruch mit einer brauchbaren Meldung. */
-function validateBuildArgs(args: CliArgs): EmbedCandidate {
+/** Kandidat und Quellsammlungen eines Bau-Laufs, oder Abbruch mit einer
+ *  brauchbaren Meldung. Läuft VOR dem Verbindungsaufbau. */
+function validateBuildArgs(args: CliArgs): { candidate: EmbedCandidate; sources: string[] } {
   if (!args.candidate || args.collections.length === 0) usage();
   const candidate = getEmbedCandidate(args.candidate);
   if (!candidate) {
@@ -116,12 +129,12 @@ function validateBuildArgs(args: CliArgs): EmbedCandidate {
     );
     process.exit(1);
   }
-  return candidate;
-}
-
-/** Nimmt eine System-Kennung (`grundsatz-system`) ODER den physischen Namen. */
-function resolveSourceCollection(name: string): string {
-  return getSystemCollectionConfig(name)?.qdrantCollection ?? name;
+  try {
+    return { candidate, sources: resolveSourceCollections(args.collections) };
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  }
 }
 
 async function hasSparseVector(client: QdrantClient, collection: string): Promise<boolean> {
@@ -134,43 +147,6 @@ async function hasSparseVector(client: QdrantClient, collection: string): Promis
 async function collectionExists(client: QdrantClient, name: string): Promise<boolean> {
   const { collections } = await client.getCollections();
   return collections.some((c) => c.name === name);
-}
-
-async function createTargetCollection(
-  client: QdrantClient,
-  target: string,
-  source: string,
-  dims: number
-): Promise<void> {
-  const schema = COLLECTION_SCHEMAS[source];
-  if (!schema) {
-    console.warn(
-      `  ${source} has no entry in COLLECTION_SCHEMAS — creating ${target} without payload indexes`
-    );
-    await client.createCollection(target, {
-      vectors: { size: dims, distance: 'Cosine' },
-      sparse_vectors: { [BM25_SPARSE_VECTOR_NAME]: { modifier: 'idf' } },
-    });
-    return;
-  }
-
-  const config = getCollectionConfig(dims, schema);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await client.createCollection(target, config as any);
-  for (const index of schema.indexes ?? []) {
-    try {
-      await client.createPayloadIndex(target, {
-        field_name: index.field,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        field_schema: INDEX_TYPES[index.type] as any,
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      if (!message.includes('already exists')) {
-        console.warn(`  index ${index.field} on ${target} failed: ${message}`);
-      }
-    }
-  }
 }
 
 async function buildOne(
@@ -196,7 +172,18 @@ async function buildOne(
 
   const withSparse = await hasSparseVector(client, source);
   console.log(`  sparse vector on the source: ${withSparse ? 'yes, copied' : 'no'}`);
-  await createTargetCollection(client, target, source, candidate.dims);
+  await createTargetCollection(
+    {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      createCollection: (name, config) => client.createCollection(name, config as any),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      createPayloadIndex: (name, params) => client.createPayloadIndex(name, params as any),
+    },
+    target,
+    source,
+    candidate.dims,
+    withSparse
+  );
 
   // Der Stapel-Einbetter wird hier umwickelt, damit der Cortecs-Unterauftrag-
   // nehmer im Protokoll steht. Nicht je Stapel — das wären Tausende gleicher
@@ -279,7 +266,15 @@ async function main(): Promise<void> {
 
   // Erst prüfen, dann verbinden: ein Tippfehler im Slug soll auch ohne
   // Qdrant-Schlüssel als Tippfehler gemeldet werden, nicht als fehlender Key.
-  const candidate = args.delete ? null : validateBuildArgs(args);
+  const build = args.delete ? null : validateBuildArgs(args);
+
+  // Beim Löschen darf der Slug fehlen, aber wenn er da ist, muss er stimmen —
+  // ein Tippfehler träfe sonst nichts und sähe wie "schon aufgeräumt" aus.
+  const deleteSlug = args.delete ? args.candidate : null;
+  if (deleteSlug !== null && getEmbedCandidate(deleteSlug) === null) {
+    console.error(`Unknown candidate "${deleteSlug}". Known: ${embedCandidateSlugs().join(', ')}`);
+    process.exit(1);
+  }
 
   const client = createQdrantClient({
     url: env.QDRANT_URL ?? 'http://localhost:6333',
@@ -290,29 +285,51 @@ async function main(): Promise<void> {
 
   if (args.delete) {
     const { collections } = await client.getCollections();
+    const names = collections.map((c) => c.name);
+    const doomed = guardDelete(names, deleteSlug);
+
+    if (doomed.length === 0) {
+      console.log(
+        deleteSlug === null
+          ? 'No eval_embed_* collections to drop.'
+          : `No eval_embed_${deleteSlug}__* collections to drop.`
+      );
+      process.exit(0);
+    }
+
+    // Ein unbeschränktes `--delete` nimmt auch die Sammlungen eines Kandidaten
+    // mit, der gerade woanders gemessen wird. Die Liste vorher zu zeigen und
+    // eine zweite Bestätigung zu verlangen ist der Unterschied zwischen einem
+    // Aufräumen und einem gelöschten Lauf.
+    if (deleteSlug === null && !args.yes) {
+      console.error(
+        `--delete without --candidate would drop ALL ${doomed.length} throwaway ` +
+          `collection(s), including any a parallel run is measuring right now:\n  ` +
+          `${doomed.join('\n  ')}\n\n` +
+          `Re-run with --candidate <slug> to drop just one candidate's, or --yes to confirm.`
+      );
+      process.exit(1);
+    }
+
     const dropped = await deleteEvalCollections(
-      collections.map((c) => c.name),
-      (name) => client.deleteCollection(name)
+      names,
+      (name) => client.deleteCollection(name),
+      deleteSlug
     );
-    console.log(
-      dropped.length === 0
-        ? 'No eval_embed_* collections to drop.'
-        : `Dropped ${dropped.length}:\n  ${dropped.join('\n  ')}`
-    );
+    console.log(`Dropped ${dropped.length}:\n  ${dropped.join('\n  ')}`);
     process.exit(0);
   }
 
-  if (candidate === null) usage();
+  if (build === null) usage();
 
-  const sources = args.collections.map(resolveSourceCollection);
   console.log(
-    `Building ${sources.length} collection(s) for ${candidate.slug} against ` +
+    `Building ${build.sources.length} collection(s) for ${build.candidate.slug} against ` +
       `${env.QDRANT_URL ?? 'QDRANT_URL unset!'}` +
       (args.limit === null ? '' : ` (limit ${args.limit} points per collection)`)
   );
 
-  for (const source of sources) {
-    await buildOne(client, candidate, source, args.limit);
+  for (const source of build.sources) {
+    await buildOne(client, build.candidate, source, args.limit);
   }
   process.exit(0);
 }
