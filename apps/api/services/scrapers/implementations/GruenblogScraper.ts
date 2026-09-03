@@ -25,7 +25,7 @@ import { mistralEmbeddingService } from '../../mistral/index.js';
 import { BaseScraper } from '../base/BaseScraper.js';
 import { recordSyncEvent, toExcerpt } from '../syncEventRecorder.js';
 import { batchProcess } from '../utils/batchFetch.js';
-import { removeUnwantedElements } from '../utils/htmlCleaner.js';
+import { htmlToStructuredText, removeUnwantedElements } from '../utils/htmlCleaner.js';
 
 import type { QdrantService } from '../../../database/services/QdrantService/index.js';
 import type { ScraperResult } from '../types.js';
@@ -315,8 +315,8 @@ export class GruenblogScraper extends BaseScraper {
     const contentEl = $('.entry-content');
     const text =
       contentEl.length > 0
-        ? contentEl.text().replace(/\s+/g, ' ').trim()
-        : $('article').text().replace(/\s+/g, ' ').trim();
+        ? htmlToStructuredText(contentEl.html() ?? '')
+        : htmlToStructuredText($('article').html() ?? '');
 
     return {
       title: title.substring(0, 500),
