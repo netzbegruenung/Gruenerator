@@ -331,7 +331,7 @@ export const AssistantMessage = memo(function AssistantMessage() {
             <p className="text-xs text-foreground-muted italic">Antwort wurde unterbrochen</p>
           )}
 
-          {custom?.evidenceWeak && (
+          {!isStreaming && custom?.evidenceWeak && (
             <p className="text-xs text-foreground-muted italic">{custom.evidenceWeak}</p>
           )}
 

@@ -45,8 +45,12 @@ const { AssistantMessage } = await import('./AssistantMessage');
 const EVIDENCE_MESSAGE =
   'Zu dieser Frage habe ich im Notebook wenig Passendes gefunden — bitte die angegebenen Quellen prüfen.';
 
-function renderWith(custom: Record<string, unknown>) {
+function renderWith(
+  custom: Record<string, unknown>,
+  status: { type: string } = { type: 'complete' }
+) {
   h.message.metadata = { custom };
+  h.message.status = status;
   return render(<AssistantMessage />);
 }
 
@@ -58,6 +62,14 @@ describe('AssistantMessage — evidenceWeak', () => {
 
   it('zeigt nichts ohne das Feld', () => {
     renderWith({});
+    expect(screen.queryByText(EVIDENCE_MESSAGE)).toBeNull();
+  });
+
+  it('zeigt den Satz nicht, solange die Antwort noch streamt', () => {
+    // Der Server schickt `evidence_weak` direkt nach `search_complete`, also
+    // noch vor dem ersten Token — ungegated stünde der Satz allein über einer
+    // leeren Antwort.
+    renderWith({ evidenceWeak: EVIDENCE_MESSAGE }, { type: 'running' });
     expect(screen.queryByText(EVIDENCE_MESSAGE)).toBeNull();
   });
 
