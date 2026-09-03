@@ -121,13 +121,29 @@ export const EVAL_EMBED_SEPARATOR = '__';
  * ersten geschrieben.
  */
 export function evalCollectionName(slug: string, sourceCollection: string): string {
-  if (slug.length === 0 || sourceCollection.length === 0) {
-    throw new Error('evalCollectionName: slug and sourceCollection must be non-empty');
+  if (sourceCollection.length === 0) {
+    throw new Error('evalCollectionName: sourceCollection must be non-empty');
+  }
+  return `${evalCandidatePrefix(slug)}${sourceCollection}`;
+}
+
+/**
+ * Was allen Sammlungen EINES Kandidaten gemeinsam ist.
+ *
+ * Eigene Funktion, weil `--delete --candidate <slug>` genau daran erkennt, was
+ * zu diesem Kandidaten gehört und was zu einem anderen: ein Aufräumen nach
+ * einem Kandidaten darf die Sammlungen eines noch laufenden nicht mitnehmen.
+ */
+export function evalCandidatePrefix(slug: string): string {
+  if (slug.length === 0) {
+    throw new Error('evalCandidatePrefix: slug must be non-empty');
   }
   if (slug.includes(EVAL_EMBED_SEPARATOR)) {
-    throw new Error(`evalCollectionName: slug must not contain "${EVAL_EMBED_SEPARATOR}": ${slug}`);
+    throw new Error(
+      `evalCandidatePrefix: slug must not contain "${EVAL_EMBED_SEPARATOR}": ${slug}`
+    );
   }
-  return `${EVAL_EMBED_PREFIX}${slug}${EVAL_EMBED_SEPARATOR}${sourceCollection}`;
+  return `${EVAL_EMBED_PREFIX}${slug}${EVAL_EMBED_SEPARATOR}`;
 }
 
 /**

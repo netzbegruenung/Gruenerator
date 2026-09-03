@@ -2,14 +2,18 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { EMBED_CANDIDATES, evalCollectionName } from './embedCandidates.js';
 import {
+  buildTargetConfig,
+  createTargetCollection,
   deleteEvalCollections,
   EVAL_TTL_DAYS,
   expiresAtIso,
   guardDelete,
   planPages,
   pointText,
+  resolveSourceCollections,
   SCROLL_PAGE,
   toEvalPoint,
+  type TargetCollectionWriter,
 } from './evalEmbedCollection.js';
 
 import { getSystemQdrantCollections } from '../../config/systemCollectionsConfig.js';
@@ -150,5 +154,142 @@ describe('the delete guard', () => {
       'eval_embed_qwen3-8b-regolo__kommunalwiki_documents',
     ]);
     expect(deleteFn.mock.calls.map((c) => c[0])).toEqual(dropped);
+  });
+});
+
+describe('resolveSourceCollections', () => {
+  it('accepts a system collection id and its physical name alike', () => {
+    expect(resolveSourceCollections(['grundsatz-system', 'kommunalwiki_documents'])).toEqual([
+      'grundsatz_documents',
+      'kommunalwiki_documents',
+    ]);
+  });
+
+  it('rejects the user-content collections, naming the allowed set', () => {
+    expect(() => resolveSourceCollections(['documents'])).toThrow(/not an allowed source/);
+    expect(() => resolveSourceCollections(['documents'])).toThrow(/grundsatz_documents/);
+    expect(() => resolveSourceCollections(['user_knowledge'])).toThrow(/not an allowed source/);
+  });
+
+  it('rejects an unknown name and fails the whole list, not just that entry', () => {
+    expect(() => resolveSourceCollections(['grundsatz_documents', 'nonsense'])).toThrow(
+      /"nonsense"/
+    );
+  });
+});
+
+/**
+ * `getCollectionConfig` deklariert IMMER `sparse_vectors.bm25`. Auf einer
+ * Quelle ohne Sparse-Vektor hätte die Kopie damit einen — und
+ * `collectionSupportsBm25` schickt sie über den server-seitigen Fusions-Pfad,
+ * also über eine andere Fusion als die Basis. Das wäre eine zweite Variable im
+ * Vergleich und stünde in der Tabelle als Modellbefund.
+ */
+describe('buildTargetConfig / createTargetCollection', () => {
+  function fakeWriter() {
+    const creates: Array<{ name: string; config: Record<string, unknown> }> = [];
+    const indexes: Array<{ name: string; field: string }> = [];
+    const writer: TargetCollectionWriter = {
+      createCollection: async (name, config) => {
+        creates.push({ name, config });
+        return undefined;
+      },
+      createPayloadIndex: async (name, params) => {
+        indexes.push({ name, field: params.field_name });
+        return undefined;
+      },
+    };
+    return { creates, indexes, writer };
+  }
+
+  it('declares no sparse vector when the source has none', async () => {
+    const { creates, writer } = fakeWriter();
+    await createTargetCollection(
+      writer,
+      'eval_embed_bge-m3__grundsatz_documents',
+      'grundsatz_documents',
+      1024,
+      false
+    );
+    expect(creates).toHaveLength(1);
+    expect(creates[0].name).toBe('eval_embed_bge-m3__grundsatz_documents');
+    expect(creates[0].config).not.toHaveProperty('sparse_vectors');
+    expect(creates[0].config.vectors).toEqual({ size: 1024, distance: 'Cosine' });
+  });
+
+  it('declares the sparse vector when the source has one', async () => {
+    const { creates, writer } = fakeWriter();
+    await createTargetCollection(
+      writer,
+      'eval_embed_bge-m3__kommunalwiki_documents',
+      'kommunalwiki_documents',
+      1024,
+      true
+    );
+    expect(creates[0].config.sparse_vectors).toEqual({ bm25: { modifier: 'idf' } });
+  });
+
+  it('carries the dimension of the candidate, not of the source', () => {
+    expect(buildTargetConfig(4096, 'grundsatz_documents', false).vectors).toEqual({
+      size: 4096,
+      distance: 'Cosine',
+    });
+  });
+
+  it("recreates the source's payload indexes", async () => {
+    const { indexes, writer } = fakeWriter();
+    await createTargetCollection(
+      writer,
+      'eval_embed_x__grundsatz_documents',
+      'grundsatz_documents',
+      1024,
+      false
+    );
+    expect(indexes.map((i) => i.field)).toContain('chunk_text');
+  });
+
+  it('creates the collection even for a source without a schema entry', async () => {
+    const { creates, indexes, writer } = fakeWriter();
+    const warnings: string[] = [];
+    await createTargetCollection(
+      writer,
+      'eval_embed_x__unknown_collection',
+      'unknown_collection',
+      1024,
+      false,
+      (m) => warnings.push(m)
+    );
+    expect(creates).toHaveLength(1);
+    expect(indexes).toHaveLength(0);
+    expect(warnings.join(' ')).toMatch(/COLLECTION_SCHEMAS/);
+  });
+});
+
+describe('the delete guard, scoped to one candidate', () => {
+  const names = [
+    'grundsatz_documents',
+    'eval_embed_bge-m3__grundsatz_documents',
+    'eval_embed_bge-m3__kommunalwiki_documents',
+    'eval_embed_qwen3-8b-regolo__grundsatz_documents',
+  ];
+
+  it('drops only the named candidate, never a sibling still being measured', async () => {
+    const deleteFn = vi.fn(async () => undefined);
+    const dropped = await deleteEvalCollections(names, deleteFn, 'bge-m3');
+
+    expect(dropped).toEqual([
+      'eval_embed_bge-m3__grundsatz_documents',
+      'eval_embed_bge-m3__kommunalwiki_documents',
+    ]);
+    expect(deleteFn.mock.calls.map((c) => c[0])).toEqual(dropped);
+  });
+
+  it('does not match a slug by prefix alone', () => {
+    // `bge` darf nicht die Sammlungen von `bge-m3` treffen.
+    expect(guardDelete(names, 'bge')).toEqual([]);
+  });
+
+  it('still drops everything when no slug is given', () => {
+    expect(guardDelete(names)).toHaveLength(3);
   });
 });
