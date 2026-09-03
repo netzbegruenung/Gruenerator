@@ -34,7 +34,9 @@ function fakeProvider(dims: number, tokensPerValue = 3) {
     return {
       embeddings: values.map(() => Array.from({ length: dims }, () => 0.1)),
       tokens: values.length * tokensPerValue,
-      upstreams: values.map(() => 'scaleway'),
+      // Ein Eintrag je STAPEL, wie der echte Anbieter: `embedMany` liefert
+      // `responses` je HTTP-Antwort, nicht je Wert.
+      upstreams: ['scaleway'],
     };
   };
   return { seen, embedBatch };
@@ -130,7 +132,8 @@ describe('createCandidateEmbedder', () => {
       batches: 2,
       values: 20,
       tokens: 40,
-      upstreams: { scaleway: 20 },
+      // Zwei Stapel, zwei Antworten — nicht 20 Werte.
+      upstreams: { scaleway: 2 },
     });
   });
 });

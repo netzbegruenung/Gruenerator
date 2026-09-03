@@ -20,6 +20,19 @@
  * Grund, warum der Join-Pfad dort überhaupt vergleichbar bleibt. Führt die
  * Quelle keinen, wird gar kein Vektor angefordert.
  *
+ * WAS NICHT MITKOPIERT WIRD: die `TEXT_SEARCH_INDEXES` aus
+ * `config/qdrantCollectionsSchema.ts` (`chunk_text`, `title`, `filename`,
+ * `user_id`). Sie werden ausserhalb von `COLLECTION_SCHEMAS` geführt und von
+ * `QdrantService` nur auf den drei Sammlungen in `TEXT_SEARCH_COLLECTIONS`
+ * angelegt — `documents`, `grundsatz_documents`, `user_knowledge`. Für den
+ * Bake-off ist das folgenlos: `chunk_text` steht bei jeder Eval-Sammlung
+ * ohnehin schon als `text`-Index in ihrem `COLLECTION_SCHEMAS`-Eintrag und wird
+ * dort mitkopiert, `title`/`filename` filtert kein Pfad dieser Messung, und
+ * `user_id` wird nur für die Sammlung `documents` gesetzt, die als Quelle gar
+ * nicht zugelassen ist. Wer den Kopierer je über eine Sammlung fährt, deren
+ * Schema `chunk_text` NICHT führt, muss das hier nachziehen — sonst misst der
+ * Text-Arm dort gegen einen fehlenden Index.
+ *
  * DIE LÖSCH-SCHRANKE steht in `evals/retrieval/evalEmbedCollection.ts`
  * (`guardDelete` / `deleteEvalCollections`) — dort, weil sie ohne Qdrant
  * prüfbar sein muss. Dieses Skript ruft nur.

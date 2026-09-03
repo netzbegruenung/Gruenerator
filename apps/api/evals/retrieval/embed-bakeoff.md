@@ -50,6 +50,11 @@ wäre eine Sammlungs-Neuanlage (kein `updateCollection`), also expand → backfi
 
 ## Notizen zum Lauf
 
+- **`--limit` ist ein Rauchtest, nie eine Messung.** Die Punkte kommen in
+  Scroll-Reihenfolge, nicht nach Relevanz — die Gold-Dokumente der 52 Fälle sind
+  in einem gekürzten Aufbau in aller Regel gar nicht enthalten. Eine Zahl aus
+  einem `--limit`-Lauf gehört in keine Zeile dieser Tabelle; sie belegt nur, dass
+  Anbieter, Dimension und Upsert-Pfad funktionieren.
 - ANN recall@10 unter 95 % heisst: der HNSW-Index der Wegwerf-Sammlung war noch
   nicht fertig gebaut. Die Retrieval-Zahlen derselben Sammlung sind dann kein
   Modellbefund.
