@@ -170,6 +170,17 @@ export interface DocumentScope {
 export interface SearchContext {
   referencesMap: ReferencesMap;
   sortedResults: ExpandedChunkResult[];
+  /**
+   * Der dichte Spitzenwert der Kandidatenliste, gebildet BEVOR ein Rerank sie
+   * anfasst: `max(dense_similarity ?? similarity)`. Nach dem Rerank ist die
+   * Zahl nicht mehr rekonstruierbar — `rerankNotebookResults` schreibt den
+   * Cross-Encoder-Wert auf `similarity` zurück. `null` nur bei leerer Liste.
+   *
+   * Absichtlich PFLICHT: beide Rückgabestellen von `getSearchContext` sollen
+   * vom Compiler erwischt werden, nicht eine von beiden still `undefined`
+   * liefern.
+   */
+  evidenceTop: number | null;
   systemPrompt: string;
   contextSummary: string;
   collectionName?: string | undefined;

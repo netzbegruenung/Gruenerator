@@ -1,19 +1,26 @@
 /**
- * Evidence-weak signal calibration (refs #3140): the reranker's absolute top
- * score does not separate on-topic notebook questions from off-topic ones.
- * Measures alternative signals on the same 15 questions and reports whether
- * any single threshold on any signal separates the two groups.
+ * Evidence-weak signal calibration (refs #3140), 2nd round: 30 deciding cases.
  *
  *   pnpm --filter @gruenerator/api eval:retrieval:evidence
  *
+ * Round 1 (15 cases, `evidence-signals-2026-09-02.md`) found that the
+ * reranker's absolute top score does NOT separate on-topic notebook questions
+ * from off-topic ones, and that the dense top score BEFORE the rerank does
+ * (margin 0.0664). 13 on-topic cases mean a single outlier can carry the whole
+ * margin, so this round widens both groups and adds a third, `near-topic`,
+ * that is REPORTED but never decides anything.
+ *
  * Each case runs `getSearchContext` → `rerankNotebookResults` exactly as
- * `notebookStreamCore.ts` does, depth `deep`. Query construction mirrors
- * `runNotebookCase` in runRetrievalEval.ts via the same underlying helpers.
+ * `notebookStreamCore.ts` does, depth `deep`. `denseTop` comes from the
+ * production function `evidenceTopOf` — not a second copy of the formula,
+ * which would drift apart at the first field change.
  *
  * Trap from #3140: `rerankPipeline`'s catch branch returns a synthetic
  * `scores` map with `failed: true`. Not a concern here — `rerankNotebookResults`
  * only rewrites `similarity` when `!failed`, so a failed call just leaves the
  * dense score in place (rerankTop == denseTop), visible in the table.
+ *
+ * READ-ONLY against live Qdrant and the live reranker. No writes, ever.
  */
 import { writeFileSync } from 'node:fs';
 
@@ -27,7 +34,9 @@ const { useQdrantConnectOnly } = await import('../../database/services/QdrantSer
 useQdrantConnectOnly();
 
 const { getNotebookDepthProfile } = await import('../../config/notebookDepthProfiles.js');
-const { notebookQAService } = await import('../../services/notebook/NotebookQAService.js');
+const { notebookQAService, evidenceTopOf } =
+  await import('../../services/notebook/NotebookQAService.js');
+const { env } = await import('../../config/env.js');
 const { rerankNotebookResults } = await import('../../services/notebook/rerankNotebookResults.js');
 const { normalizeNotebookHistory, buildRewriteTranscript } =
   await import('../../routes/chat/services/notebookHistoryService.js');
@@ -42,7 +51,7 @@ const DEPTH: NotebookDepth = 'deep';
 /** Production `RERANK_MIN_RELEVANCE` default (config/env.ts). */
 const PRODUCTION_MIN_RELEVANCE = 0.2;
 
-type Group = 'on-topic' | 'off-topic';
+type Group = 'on-topic' | 'off-topic' | 'near-topic';
 
 interface CaseSpec {
   id: string;
@@ -52,49 +61,205 @@ interface CaseSpec {
   expect?: RetrievalExpectation[];
 }
 
-// The 6 off-topic questions from #3140, 3 per notebook against the same
-// Berlin/Bayern system notebooks the on-topic cases use. #3140 quoted only 4
-// of the 6 verbatim (Sauerteigbrot, Fußball-WM 2014, Tesla Model 3, Mars);
-// Carbonara/Bitcoin-Mining were parenthetical labels only, not quotes — the
-// exact wording lived in a gitignored per-run file not present in this
-// worktree, so those two are phrased to match the label. Flagged in report.
+/**
+ * Die beiden synthetischen Nutzer-Notebooks, wortgleich aus `cases.ts`
+ * (`notebook-user-ausschreibungen`, `notebook-user-haushaltsplan`) übernommen,
+ * damit off-topic und on-topic denselben Bestand sehen.
+ */
+const USER_PRUEFUNGSBERICHT: NonNullable<NotebookCaseMeta['user']> = {
+  collectionId: '00000000-0000-4000-8000-0000000000a1',
+  name: 'Prüfungsbericht Notebook',
+  documentIds: ['bb3c2541-9cf4-4dd9-9b33-88720d7ac5c8', '8899154c-04c7-49da-8296-f5d1b8ee6d62'],
+};
+const USER_HAUSHALTSPLAN: NonNullable<NotebookCaseMeta['user']> = {
+  collectionId: '00000000-0000-4000-8000-0000000000a2',
+  name: 'Haushaltsplan Notebook',
+  documentIds: ['bb3c2541-9cf4-4dd9-9b33-88720d7ac5c8', '8899154c-04c7-49da-8296-f5d1b8ee6d62'],
+};
+
+function inSystem(collectionId: string): NotebookCaseMeta {
+  return { collectionId };
+}
+function inUserNotebook(user: NonNullable<NotebookCaseMeta['user']>): NotebookCaseMeta {
+  return { collectionId: user.collectionId, user };
+}
+function spec(group: Group, id: string, query: string, notebook: NotebookCaseMeta): CaseSpec {
+  return { id, group, query, notebook };
+}
+
+/**
+ * 17 Fragen, deren Antwort in KEINER der Sammlungen steht.
+ *
+ * Die ersten sechs sind die Menge aus Runde 1 und bleiben wortgleich, damit die
+ * beiden Läufe vergleichbar sind. #3140 zitierte nur vier davon wörtlich
+ * (Sauerteigbrot, Fußball-WM 2014, Tesla Model 3, Mars); Carbonara und
+ * Bitcoin-Mining waren Etiketten, nicht Zitate — deren Wortlaut stammt aus
+ * Runde 1 und ist dort so vermerkt.
+ *
+ * Die elf neuen decken erstmals ALLE fünf Sammlungen ab. Die österreichische
+ * Sammlung und die beiden Nutzer-Notebooks (11 bzw. 20 Kandidaten, die
+ * kürzesten Listen der Messung) waren off-topic nie gemessen — und
+ * `notebook-user-haushaltsplan` hatte in Runde 1 `denseTop` 1,0000, was bei so
+ * wenig Text fast von selbst passiert.
+ */
 const OFF_TOPIC_CASES: CaseSpec[] = [
-  {
-    id: 'offtopic-sauerteigbrot',
-    query: 'Wie backe ich Sauerteigbrot?',
-    collection: 'berlin-system',
-  },
-  {
-    id: 'offtopic-fussball-wm-2014',
-    query: 'Wer gewann die Fußball-WM 2014?',
-    collection: 'berlin-system',
-  },
-  {
-    id: 'offtopic-tesla-model-3',
-    query: 'Was kostet ein Tesla Model 3?',
-    collection: 'berlin-system',
-  },
-  {
-    id: 'offtopic-mars-distance',
-    query: 'Wie weit ist der Mars entfernt?',
-    collection: 'bayern-system',
-  },
-  {
-    id: 'offtopic-carbonara',
-    query: 'Wie kocht man Spaghetti Carbonara?',
-    collection: 'bayern-system',
-  },
-  {
-    id: 'offtopic-bitcoin-mining',
-    query: 'Wie funktioniert Bitcoin-Mining?',
-    collection: 'bayern-system',
-  },
-].map((c) => ({
-  id: c.id,
-  group: 'off-topic' as const,
-  query: c.query,
-  notebook: { collectionId: c.collection },
-}));
+  spec(
+    'off-topic',
+    'offtopic-sauerteigbrot',
+    'Wie backe ich Sauerteigbrot?',
+    inSystem('berlin-system')
+  ),
+  spec(
+    'off-topic',
+    'offtopic-fussball-wm-2014',
+    'Wer gewann die Fußball-WM 2014?',
+    inSystem('berlin-system')
+  ),
+  spec(
+    'off-topic',
+    'offtopic-tesla-model-3',
+    'Was kostet ein Tesla Model 3?',
+    inSystem('berlin-system')
+  ),
+  spec(
+    'off-topic',
+    'offtopic-mars-distance',
+    'Wie weit ist der Mars entfernt?',
+    inSystem('bayern-system')
+  ),
+  spec(
+    'off-topic',
+    'offtopic-carbonara',
+    'Wie kocht man Spaghetti Carbonara?',
+    inSystem('bayern-system')
+  ),
+  spec(
+    'off-topic',
+    'offtopic-bitcoin-mining',
+    'Wie funktioniert Bitcoin-Mining?',
+    inSystem('bayern-system')
+  ),
+  // ── neu in Runde 2 ──
+  spec(
+    'off-topic',
+    'offtopic-gitarre-drop-d',
+    'Wie stimme ich eine Gitarre auf Drop D?',
+    inSystem('berlin-system')
+  ),
+  spec(
+    'off-topic',
+    'offtopic-sternbilder-winter',
+    'Welche Sternbilder sieht man am Winterhimmel?',
+    inSystem('berlin-system')
+  ),
+  spec(
+    'off-topic',
+    'offtopic-weiches-ei',
+    'Wie lange kocht ein weiches Ei?',
+    inSystem('berlin-system')
+  ),
+  spec(
+    'off-topic',
+    'offtopic-dieselmotor',
+    'Wie funktioniert ein Dieselmotor?',
+    inSystem('bayern-system')
+  ),
+  spec(
+    'off-topic',
+    'offtopic-steppenwolf-autor',
+    'Wer hat den Roman „Steppenwolf" geschrieben?',
+    inSystem('bayern-system')
+  ),
+  spec(
+    'off-topic',
+    'offtopic-welpe-leine',
+    'Wie gewöhne ich einen Welpen an die Leine?',
+    inSystem('bayern-system')
+  ),
+  spec(
+    'off-topic',
+    'offtopic-bmi-berechnen',
+    'Wie berechnet man den Body-Mass-Index?',
+    inSystem('oesterreich-gruene-system')
+  ),
+  spec(
+    'off-topic',
+    'offtopic-http-https',
+    'Was ist der Unterschied zwischen HTTP und HTTPS?',
+    inSystem('oesterreich-gruene-system')
+  ),
+  spec(
+    'off-topic',
+    'offtopic-impfungen-thailand',
+    'Welche Impfungen brauche ich für eine Thailandreise?',
+    inUserNotebook(USER_PRUEFUNGSBERICHT)
+  ),
+  spec(
+    'off-topic',
+    'offtopic-apfelbaum-schnitt',
+    'Wann schneidet man einen Apfelbaum im Winter?',
+    inUserNotebook(USER_PRUEFUNGSBERICHT)
+  ),
+  spec(
+    'off-topic',
+    'offtopic-zeitumstellung',
+    'Wann ist die Zeitumstellung auf Sommerzeit?',
+    inUserNotebook(USER_HAUSHALTSPLAN)
+  ),
+];
+
+/**
+ * Politische Fragen IM Themenfeld der Sammlung, deren Antwort im Korpus
+ * vermutlich nicht steht. Hier wird eine Schwelle in der Produktion falsch
+ * liegen — und hier gibt es keine Wahrheit: ob die Sammlung sie beantwortet,
+ * ist UNGEPRÜFT. Die Gruppe steht im Bericht, damit die Zahl beim nächsten Mal
+ * jemand ansieht; in die Abnahmeregel geht sie NICHT.
+ */
+const NEAR_TOPIC_CASES: CaseSpec[] = [
+  spec(
+    'near-topic',
+    'neartopic-bvg-monatsabo',
+    'Was kostet ein BVG-Monatsabo?',
+    inSystem('berlin-system')
+  ),
+  spec(
+    'near-topic',
+    'neartopic-abgeordnetenhauswahl',
+    'Wann ist die nächste Wahl zum Berliner Abgeordnetenhaus?',
+    inSystem('berlin-system')
+  ),
+  spec(
+    'near-topic',
+    'neartopic-muenchen-einwohner',
+    'Wie viele Einwohner hat München?',
+    inSystem('bayern-system')
+  ),
+  spec(
+    'near-topic',
+    'neartopic-landesvorsitz-bayern',
+    'Wer hat den Landesvorsitz der bayerischen Grünen?',
+    inSystem('bayern-system')
+  ),
+  spec(
+    'near-topic',
+    'neartopic-moor-foerdersumme',
+    'Wie hoch war die Fördersumme für Moorrenaturierung 2024?',
+    inSystem('bayern-system')
+  ),
+];
+
+/**
+ * Die vier `chat-notebook`-Fälle, deren Fragetext in KEINEM `notebook`-Fall
+ * vorkommt — über ihr `collection`-Feld als Notebook-Fall gefahren. Die
+ * übrigen sechs sind wörtliche Dubletten schon gemessener Fragen und blieben
+ * draussen: sie würden die Streuung künstlich verengen.
+ */
+const EXTRA_ON_TOPIC_IDS = new Set([
+  'chat-nb-berlin-verkehr',
+  'chat-nb-berlin-baumfaellmoratorium',
+  'chat-nb-bayern-artenvielfalt',
+  'chat-nb-bayern-flaechenfrass',
+]);
 
 const ON_TOPIC_CASES: CaseSpec[] = [];
 for (const c of RETRIEVAL_CASES) {
@@ -106,10 +271,29 @@ for (const c of RETRIEVAL_CASES) {
       notebook: c.notebook,
       expect: c.expect,
     });
+  } else if (c.kind === 'chat-notebook' && EXTRA_ON_TOPIC_IDS.has(c.id)) {
+    ON_TOPIC_CASES.push({
+      id: c.id,
+      group: 'on-topic',
+      query: c.query,
+      notebook: { collectionId: c.collection },
+      expect: c.expect,
+    });
   }
 }
 
-const ALL_CASES: CaseSpec[] = [...ON_TOPIC_CASES, ...OFF_TOPIC_CASES];
+const ALL_CASES: CaseSpec[] = [...ON_TOPIC_CASES, ...OFF_TOPIC_CASES, ...NEAR_TOPIC_CASES];
+
+/**
+ * Fail-fast: die Zahlen aus der Spec. Eine still geschrumpfte Fallmenge — ein
+ * umbenannter Fall in `cases.ts`, ein vertippter Set-Eintrag — würde eine
+ * schwächere Messung als 30-Fall-Runde ausgeben.
+ */
+const EXPECTED_COUNTS: Record<Group, number> = {
+  'on-topic': 13,
+  'off-topic': 17,
+  'near-topic': 5,
+};
 
 interface CaseMetrics {
   candidates: number;
@@ -122,6 +306,8 @@ interface CaseMetrics {
   rerankTop3Mean: number;
   aboveThresholdShare: number;
   goldRank: number | null;
+  /** True if any candidate carried `dense_similarity` (BM25 server join). */
+  joinPath: boolean;
 }
 
 interface CaseResult {
@@ -206,15 +392,11 @@ async function runCase(spec: CaseSpec): Promise<CaseResult> {
       return { ...base, error: 'search returned no results' };
     }
 
-    // Derselbe Rückfall wie im Schnitt (#3166): auf einer fusionierten
-    // Sammlung ist `similarity` kein Kosinus, und `denseTop` ist als
-    // absoluter Kosinuswert kalibriert (PR #3156, Schwelle ≈ 0,929). Ohne
-    // diese Zeile misst die Kalibrierung auf kommunalwiki etwas anderes als
-    // die Produktion.
-    const denseSorted = ctx.sortedResults
-      .map((r) => r.dense_similarity ?? r.similarity)
-      .sort((a, b) => b - a);
-    const denseTop = denseSorted[0] ?? 0;
+    // Dasselbe Feld wie die Produktion, über dieselbe Funktion: `similarity`
+    // allein ist auf einer server-seitig fusionierten Sammlung ein Fusionswert
+    // und kein Kosinus (Vorgänger-PR, hybrid-dense-score-join).
+    const denseSorted = ctx.sortedResults.map((r) => evidenceTopOf([r]) ?? 0).sort((a, b) => b - a);
+    const denseTop = evidenceTopOf(ctx.sortedResults) ?? 0;
     const denseMedian = median(denseSorted);
 
     const reranked = await rerankNotebookResults({
@@ -245,6 +427,7 @@ async function runCase(spec: CaseSpec): Promise<CaseResult> {
         rerankTop3Mean,
         aboveThresholdShare,
         goldRank: spec.group === 'on-topic' ? firstMatchRank(reranked.results, spec.expect) : null,
+        joinPath: ctx.sortedResults.some((r) => r.dense_similarity != null),
       },
     };
   } catch (error) {
@@ -298,27 +481,88 @@ function separation(results: CaseResult[], signal: NumericSignal): string {
   return `${signal}: does not separate — closest margin ${Math.max(onAboveOff, offAboveOn).toFixed(4)} (negative = overlapping ranges)`;
 }
 
+interface DenseTopValue {
+  id: string;
+  value: number;
+}
+
+function denseTops(results: CaseResult[], group: Group): DenseTopValue[] {
+  const out: DenseTopValue[] = [];
+  for (const r of results)
+    if (r.group === group && r.metrics) out.push({ id: r.id, value: r.metrics.denseTop });
+  return out;
+}
+
+/**
+ * Die zwei Zeilen, die die Abnahmeregel mechanisch machen.
+ *
+ * A1 verlangt den Abstand `min(on-topic) − max(off-topic)` MIT beiden
+ * Randfall-IDs — „trennt" als Wort reicht nicht — und dass der ausgelieferte
+ * Default echt dazwischen liegt.
+ *
+ * A3 ist die Auflösungsgrenze: bei 13 on-topic-Fällen kann ein einzelner
+ * Ausreisser den Abstand allein tragen. Springt der Randfall nach dem
+ * Entfernen des zweitniedrigsten Falls um mehr als 0,03, hängt die Aussage an
+ * einem Fall und trägt keine Empfehlung, den Schalter anzuschalten.
+ */
+const A3_JUMP_LIMIT = 0.03;
+
+function acceptanceLines(results: CaseResult[], threshold: number): string[] {
+  const on = denseTops(results, 'on-topic').sort((a, b) => a.value - b.value);
+  const off = denseTops(results, 'off-topic').sort((a, b) => b.value - a.value);
+  if (on.length < 2 || off.length === 0) {
+    return ['A1/A3 (denseTop): incomplete data — not enough successful cases'];
+  }
+  const margin = on[0].value - off[0].value;
+  const between = threshold > off[0].value && threshold < on[0].value;
+  const jump = on[1].value - on[0].value;
+  return [
+    `A1 (denseTop): min(on-topic) = ${fmt(on[0].value)} (${on[0].id}), ` +
+      `max(off-topic) = ${fmt(off[0].value)} (${off[0].id}), margin ${fmt(margin)}`,
+    `A1 (default ${threshold.toFixed(3)}): strictly between the two boundary values — ${between ? 'YES' : 'NO'}`,
+    `A3 (resolution): second-lowest on-topic ${fmt(on[1].value)} (${on[1].id}), ` +
+      `jump ${fmt(jump)} vs limit ${A3_JUMP_LIMIT.toFixed(2)} — ` +
+      `${jump > A3_JUMP_LIMIT ? 'HANGS ON ONE CASE (carries no recommendation)' : 'resolved'}`,
+    `near-topic (reported only, never decides): ` +
+      (denseTops(results, 'near-topic').length === 0
+        ? 'no successful cases'
+        : denseTops(results, 'near-topic')
+            .map((v) => `${v.id} ${fmt(v.value)}`)
+            .join(', ')),
+  ];
+}
+
 function fmt(n: number): string {
   return n.toFixed(4);
 }
 
 function toMarkdownTable(results: CaseResult[]): string {
   const header =
-    '| id | group | candidates | denseTop | denseMedian | denseMargin | rerankTop | rerankMedian | rerankMargin | rerankTop3Mean | aboveThresholdShare | goldRank |\n' +
-    '|---|---|---|---|---|---|---|---|---|---|---|---|';
+    '| id | group | candidates | denseTop | denseMedian | denseMargin | rerankTop | rerankMedian | rerankMargin | rerankTop3Mean | aboveThresholdShare | goldRank | path |\n' +
+    '|---|---|---|---|---|---|---|---|---|---|---|---|---|';
   const rows = results.map((r) => {
-    if (!r.metrics) return `| ${r.id} | ${r.group} | ERROR: ${r.error} | | | | | | | | | |`;
+    if (!r.metrics) return `| ${r.id} | ${r.group} | ERROR: ${r.error} | | | | | | | | | | |`;
     const m = r.metrics;
     return (
       `| ${r.id} | ${r.group} | ${m.candidates} | ${fmt(m.denseTop)} | ${fmt(m.denseMedian)} | ${fmt(m.denseMargin)} | ` +
       `${fmt(m.rerankTop)} | ${fmt(m.rerankMedian)} | ${fmt(m.rerankMargin)} | ${fmt(m.rerankTop3Mean)} | ` +
-      `${fmt(m.aboveThresholdShare)} | ${m.goldRank ?? '—'} |`
+      `${fmt(m.aboveThresholdShare)} | ${m.goldRank ?? '—'} | ${m.joinPath ? 'join' : 'legacy'} |`
     );
   });
   return [header, ...rows].join('\n');
 }
 
 async function main() {
+  for (const group of Object.keys(EXPECTED_COUNTS) as Group[]) {
+    const actual = ALL_CASES.filter((c) => c.group === group).length;
+    if (actual !== EXPECTED_COUNTS[group]) {
+      console.error(
+        `Case-set drift: expected ${EXPECTED_COUNTS[group]} ${group} cases, got ${actual}`
+      );
+      process.exit(1);
+    }
+  }
+
   console.log(
     `Running ${ALL_CASES.length} evidence-signal cases (depth=${DEPTH}) against ${process.env.QDRANT_URL || 'QDRANT_URL unset!'}`
   );
@@ -342,19 +586,47 @@ async function main() {
   const separationLines = NUMERIC_SIGNALS.map((signal) => separation(results, signal));
   for (const line of separationLines) console.log(line);
 
+  // The shipped default is calibrated on the legacy score domain; a join-path
+  // case (raw cosine, ~0.33 lower) would need its own separation line.
+  const joinCases = results.filter((r) => r.metrics?.joinPath).map((r) => r.id);
+  const pathLine = joinCases.length
+    ? `join-path cases (separate domain, split the separation per path): ${joinCases.join(', ')}`
+    : 'join-path cases: none — every case scored on the legacy domain';
+  console.log(pathLine);
+
+  console.log('\n── Acceptance (A1 / A3) ──');
+  const acceptance = acceptanceLines(results, env.NOTEBOOK_EVIDENCE_WEAK_THRESHOLD);
+  for (const line of acceptance) console.log(line);
+
   const outDir = new URL('.', import.meta.url).pathname;
-  const mdPath = `${outDir}evidence-signals-2026-09-02.md`;
-  const jsonPath = `${outDir}evidence-signals-2026-09-02.json`;
+  // `-v2`, weil Runde 1 am selben Tag lief: A4 verlangt, dass die alte Datei
+  // stehen bleibt — sonst ist der Vergleich weg.
+  const stem = 'evidence-signals-2026-09-02-v2';
+  const mdPath = `${outDir}${stem}.md`;
+  const jsonPath = `${outDir}${stem}.json`;
 
   const mdContent =
-    `# Evidence-signal calibration (refs #3140)\n\n` +
+    `# Evidence-signal calibration, round 2 (refs #3140)\n\n` +
     `Depth \`${DEPTH}\`, live Qdrant + reranker, ${ALL_CASES.length} cases ` +
-    `(${ON_TOPIC_CASES.length} on-topic, ${OFF_TOPIC_CASES.length} off-topic).\n\n` +
-    `${table}\n\n## Separation\n\n${separationLines.map((l) => `- ${l}`).join('\n')}\n`;
+    `(${ON_TOPIC_CASES.length} on-topic, ${OFF_TOPIC_CASES.length} off-topic — 30 deciding; ` +
+    `${NEAR_TOPIC_CASES.length} near-topic, reported only).\n\n` +
+    `\`denseTop\` is \`evidenceTopOf\` — the same function production runs.\n\n` +
+    `${table}\n\n## Separation\n\n${separationLines.map((l) => `- ${l}`).join('\n')}\n\n` +
+    `## Acceptance\n\n${acceptance.map((l) => `- ${l}`).join('\n')}\n- ${pathLine}\n`;
   writeFileSync(mdPath, mdContent);
   writeFileSync(
     jsonPath,
-    JSON.stringify({ depth: DEPTH, results, separation: separationLines }, null, 2)
+    JSON.stringify(
+      {
+        depth: DEPTH,
+        threshold: env.NOTEBOOK_EVIDENCE_WEAK_THRESHOLD,
+        results,
+        separation: separationLines,
+        acceptance,
+      },
+      null,
+      2
+    )
   );
   console.log(`\nErgebnisse geschrieben: ${mdPath}\n${jsonPath}`);
 
