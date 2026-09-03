@@ -29,6 +29,19 @@ export interface SearchOptions {
   recallLimit?: number | undefined;
   /** Siehe `MMROptions.rerankChunks` — von hier durchgereicht. */
   rerankChunks?: boolean | undefined;
+  /**
+   * Eine fertige Anfrage-Einbettung. Ist sie gesetzt, ruft
+   * `BaseSearchService.generateQueryEmbedding` `mistralEmbeddingService`
+   * NICHT — die Suche läuft sonst unverändert.
+   *
+   * Die eine Naht, über die der Einbettungs-Bake-off
+   * (`evals/retrieval/embedCandidates.ts`) einen anderen Einbetter gegen
+   * dieselbe Pipeline messen kann, ohne dass Eval-Logik in die Produktions-
+   * pfade wandert. Kein Produktionsaufrufer setzt sie — und wer es täte, muss
+   * wissen: die Einbettung MUSS zum Modell der durchsuchten Sammlung passen,
+   * das prüft niemand nach.
+   */
+  queryVector?: number[] | undefined;
   [key: string]: unknown;
 }
 

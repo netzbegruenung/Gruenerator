@@ -81,6 +81,23 @@ const SYSTEM_COLLECTION_MAP: Record<string, string> = {
   gruene_de: 'gruene_de_documents',
 };
 
+/**
+ * `queryVector` über die Validierung tragen.
+ *
+ * `validateSearchParams` baut seine Options-Objekte als Positivliste — was
+ * nicht ausdrücklich übernommen wird, fällt weg. Ein Aufrufer, der eine fertige
+ * Anfrage-Einbettung mitgibt, bekäme sonst still eine `mistral-embed`-Einbettung
+ * gegen eine fremd eingebettete Sammlung, und das Ergebnis sähe bloss nach
+ * schlechtem Retrieval aus. Deshalb steht das in ALLEN drei Zweigen und nicht
+ * nur in dem, den der Bake-off heute nimmt.
+ */
+function carriedQueryVector(source: Record<string, unknown> | undefined): {
+  queryVector?: number[];
+} {
+  const value = source?.queryVector;
+  return Array.isArray(value) && value.length > 0 ? { queryVector: value as number[] } : {};
+}
+
 export class DocumentSearchService extends BaseSearchService {
   private qdrant: QdrantService;
   private qdrantOps: QdrantOperations | null;
@@ -184,6 +201,7 @@ export class DocumentSearchService extends BaseSearchService {
         qualityMin: typeof pOptions?.qualityMin === 'number' ? pOptions.qualityMin : undefined,
         ...(typeof pOptions?.recallLimit === 'number' ? { recallLimit: pOptions.recallLimit } : {}),
         ...(pOptions?.rerankChunks === true && { rerankChunks: true }),
+        ...carriedQueryVector(pOptions),
       };
 
       return {
@@ -256,6 +274,7 @@ export class DocumentSearchService extends BaseSearchService {
           ...(typeof textWeightOpt === 'number' && { textWeight: textWeightOpt }),
           ...(typeof p.qualityMin === 'number' ? { qualityMin: p.qualityMin } : {}),
           ...(typeof p.recallLimit === 'number' ? { recallLimit: p.recallLimit } : {}),
+          ...carriedQueryVector(p),
         },
       };
     }
@@ -299,6 +318,7 @@ export class DocumentSearchService extends BaseSearchService {
         ...(typeof textWeightOpt === 'number' && { textWeight: textWeightOpt }),
         ...(typeof p.qualityMin === 'number' ? { qualityMin: p.qualityMin } : {}),
         ...(typeof p.recallLimit === 'number' ? { recallLimit: p.recallLimit } : {}),
+        ...carriedQueryVector(p),
       },
     };
   }
