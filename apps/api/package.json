@@ -24,6 +24,7 @@
     "eval:retrieval:evidence": "cross-env NODE_OPTIONS=--conditions=development npx tsx evals/retrieval/evidenceSignalCheck.ts",
     "eval:answer:generate": "cross-env NODE_OPTIONS=--conditions=development npx tsx evals/answer/generateAnswers.ts",
     "eval:answer:judge": "cross-env NODE_OPTIONS=--conditions=development npx tsx evals/answer/judgeAnswers.ts",
+    "eval:answer:sample": "cross-env NODE_OPTIONS=--conditions=development npx tsx evals/answer/blindSample.ts",
     "eval:manual:stages": "cross-env NODE_OPTIONS=--conditions=development npx tsx evals/retrieval/inspectManualStages.ts",
     "eval:manual:mentions": "cross-env NODE_OPTIONS=--conditions=development npx tsx evals/retrieval/mentionCountCheck.ts",
     "eval:cap": "cross-env NODE_OPTIONS=--conditions=development npx tsx evals/retrieval/capSaturationCheck.ts",
