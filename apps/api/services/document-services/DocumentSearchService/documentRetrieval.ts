@@ -104,6 +104,20 @@ export async function getDocumentFullText(
 }
 
 /**
+ * Identitätsklausel für Dokumente in expliziten Qdrant-Collections: gescrapte
+ * Systemsammlungen (kommunalwiki_documents, grundsatz_documents, …) tragen
+ * KEIN document_id in der Nutzlast — ihre Identität ist die indizierte
+ * source_url, und genau diese URL mintet SearchResultProcessor.ts:39
+ * (`r.document_id || sourceUrl`) als documentId der Zitationen. Eine
+ * URL-förmige ID ist also per Konstruktion eine source_url; alles andere
+ * bleibt beim document_id-Filter.
+ */
+function documentIdentityClause(documentId: string): { key: string; match: { value: string } } {
+  const key = /^https?:\/\//.test(documentId) ? 'source_url' : 'document_id';
+  return { key, match: { value: documentId } };
+}
+
+/**
  * Get individual chunks for a document, sorted by chunk_index.
  * Supports both user documents (in 'documents' collection with user_id)
  * and system documents (in named collections without user_id).
@@ -117,7 +131,9 @@ export async function getDocumentChunks(
   try {
     const collectionName = options?.qdrantCollection || 'documents';
     const mustFilters: QdrantFilter['must'] = [
-      { key: 'document_id', match: { value: documentId } },
+      options?.qdrantCollection
+        ? documentIdentityClause(documentId)
+        : { key: 'document_id', match: { value: documentId } },
     ];
     if (!options?.qdrantCollection) {
       mustFilters.unshift({ key: 'user_id', match: { value: userId } });
@@ -316,7 +332,7 @@ export async function inspectDocumentChunks(
 ): Promise<InspectDocumentChunksResult> {
   try {
     const filter: QdrantFilter = {
-      must: [{ key: 'document_id', match: { value: documentId } }],
+      must: [documentIdentityClause(documentId)],
     };
 
     const points: ScrollPoint[] = [];
