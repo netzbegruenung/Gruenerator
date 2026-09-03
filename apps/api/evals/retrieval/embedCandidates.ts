@@ -154,12 +154,32 @@ export interface EvalEmbedTarget {
 }
 
 /**
- * Wohin ein Lauf zeigt — die eine Stelle, an der `EVAL_EMBED_CANDIDATE`
- * ausgewertet wird.
+ * Der Kandidat dieses Laufs — die eine Stelle, an der `EVAL_EMBED_CANDIDATE`
+ * gelesen wird.
  *
- * Rein, damit sie prüfbar ist: ein Tippfehler im Slug darf nicht in einem Lauf
- * gegen die Produktionssammlung enden, der dann wie eine Basismessung aussieht.
- * Deshalb wirft sie bei einem unbekannten Slug, statt still zurückzufallen.
+ * Wirft bei einem unbekannten Slug, statt still auf `null` zurückzufallen: ein
+ * Tippfehler darf nicht in einem Lauf gegen die Produktionssammlung enden, der
+ * hinterher wie eine Basismessung aussieht.
+ */
+export function resolveEvalCandidate(env: {
+  EVAL_EMBED_CANDIDATE?: string | undefined;
+}): EmbedCandidate | null {
+  const slug = env.EVAL_EMBED_CANDIDATE;
+  if (!slug) return null;
+  const candidate = getEmbedCandidate(slug);
+  if (!candidate) {
+    throw new Error(
+      `EVAL_EMBED_CANDIDATE="${slug}" is not a known candidate. Known: ${embedCandidateSlugs().join(', ')}`
+    );
+  }
+  return candidate;
+}
+
+/**
+ * Wohin ein Lauf zeigt: Produktionssammlung oder Wegwerf-Sammlung.
+ *
+ * Rein, damit sie prüfbar ist — die Weiche entscheidet, welche Zahlen der
+ * Bericht später trägt.
  *
  * `sourceQdrantCollection` ist der PHYSISCHE Name (`grundsatz_documents`), den
  * `getSystemCollectionConfig(fall.collection).qdrantCollection` liefert — nicht
@@ -169,14 +189,8 @@ export function resolveEvalTarget(
   env: { EVAL_EMBED_CANDIDATE?: string | undefined },
   sourceQdrantCollection: string
 ): EvalEmbedTarget {
-  const slug = env.EVAL_EMBED_CANDIDATE;
-  if (!slug) return { collection: sourceQdrantCollection, candidate: null };
-  const candidate = getEmbedCandidate(slug);
-  if (!candidate) {
-    throw new Error(
-      `EVAL_EMBED_CANDIDATE="${slug}" is not a known candidate. Known: ${embedCandidateSlugs().join(', ')}`
-    );
-  }
+  const candidate = resolveEvalCandidate(env);
+  if (candidate === null) return { collection: sourceQdrantCollection, candidate: null };
   return {
     collection: evalCollectionName(candidate.slug, sourceQdrantCollection),
     candidate,

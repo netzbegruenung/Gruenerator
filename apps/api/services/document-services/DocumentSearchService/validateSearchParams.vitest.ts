@@ -106,3 +106,46 @@ describe('validateSearchParams — the branches that were already correct', () =
     expect(out.recallLimit).toBe(50);
   });
 });
+
+/**
+ * Die Naht des Einbettungs-Bake-offs. `queryVector` muss die Positivliste
+ * überleben, sonst bettet `generateQueryEmbedding` still mit `mistral-embed`
+ * ein und misst eine fremd eingebettete Sammlung — das Ergebnis sähe nur nach
+ * schlechtem Retrieval aus.
+ */
+describe('validateSearchParams — queryVector', () => {
+  const vector = [0.1, 0.2, 0.3];
+
+  it('survives the nested-options branch', () => {
+    expect(
+      validate({
+        query: 'Klimaschutz',
+        userId: undefined,
+        options: { searchCollection: 'grundsatz_documents', queryVector: vector },
+      }).options.queryVector
+    ).toEqual(vector);
+  });
+
+  it('survives the flat system-collection branch', () => {
+    expect(
+      validate({
+        query: 'Klimaschutz',
+        searchCollection: 'grundsatz_documents',
+        user_id: null,
+        queryVector: vector,
+      }).options.queryVector
+    ).toEqual(vector);
+  });
+
+  it('is absent when not supplied, and when supplied empty or malformed', () => {
+    const nested = (options: Record<string, unknown>) =>
+      validate({ query: 'Klimaschutz', userId: undefined, options }).options;
+    expect(nested({ searchCollection: 'grundsatz_documents' })).not.toHaveProperty('queryVector');
+    expect(nested({ searchCollection: 'grundsatz_documents', queryVector: [] })).not.toHaveProperty(
+      'queryVector'
+    );
+    expect(
+      nested({ searchCollection: 'grundsatz_documents', queryVector: 'nope' })
+    ).not.toHaveProperty('queryVector');
+  });
+});
