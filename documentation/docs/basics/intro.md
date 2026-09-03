@@ -17,11 +17,11 @@ Der Grünerator wurde anhand grüner Sprache antrainiert. Wenn er einen Beitrag 
 
 Der Grünerator verwendet eine stark vereinfachte Benutzeroberfläche, die fast jede:r auf Anhieb versteht. Er wurde so designt, dass er von allen Ehrenamtlichen aller Altersklassen verwendet werden kann. Die UI orientiert sich stark an Seiten, die die Nutzer:innen kennen und lieben.
 
-Er nutzt modernste KI-Modelle – du kannst zwischen mehreren [KI-Modellen](../chat/ki-modelle) wählen, vom europäischen Mistral AI bis zu vollständig selbst gehosteten Open-Source-Modellen. Standardmäßig wählt der Grünerator automatisch das passende Modell für deine Aufgabe.
+Er nutzt modernste KI-Modelle – du kannst zwischen mehreren [KI-Modellen](../chat/ki-modelle) wählen, vom europäischen Mistral AI bis zu offenen Modellen (Open Weights) bei europäischen Anbietern. Standardmäßig wählt der Grünerator automatisch das passende Modell für deine Aufgabe.
 
 ### Datenschutz per Design
 
-Anders als andere Seiten trackt der Grünerator nicht und kann völlig anonym verwendet werden. Er verwendet **ausschließlich EU-Server** zur Verarbeitung der KI-Eingaben und bietet mit [selbst gehosteten Open-Source-Modellen](../chat/ki-modelle) zusätzliche Datensouveränität. Der Grünerator setzt dabei bewusst auf [europäische Technologieanbieter](./gruenerator-pro-eu) wie Mistral AI (Frankreich) und Black Forest Labs (Deutschland), um die digitale Souveränität Europas zu stärken.
+Anders als andere Seiten trackt der Grünerator nicht und kann völlig anonym verwendet werden. Er verwendet **ausschließlich EU-Server** zur Verarbeitung der KI-Eingaben und bietet mit [offenen Modellen](../chat/ki-modelle) bei europäischen Anbietern zusätzliche Datensouveränität. Der Grünerator setzt dabei bewusst auf [europäische Technologieanbieter](./gruenerator-pro-eu) wie Mistral AI (Frankreich) und Black Forest Labs (Deutschland), um die digitale Souveränität Europas zu stärken.
 
 ### Plus für Barrierefreiheit
 
