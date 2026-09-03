@@ -1,8 +1,16 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
 import { parseSSEStream } from './parseSSEStream';
 
 import type { GrueneratorAdapterCallbacks, StreamOutcome, ToolCallPart } from './types';
+
+const notifyWarning = vi.fn<(...args: unknown[]) => void>();
+vi.mock('../../lib/notify', () => ({
+  notifyWarning: (...args: unknown[]) => {
+    notifyWarning(...args);
+  },
+  notifyError: vi.fn(),
+}));
 
 /**
  * Stufe 2 (Interleaving): text_delta and tool_step_* cards must render in true
@@ -495,5 +503,50 @@ describe('parseSSEStream notebook completion metadata', () => {
   it('leaves streamMetadata off a completion without a trace id', async () => {
     const custom = await lastMetadata([{ event: 'completion', data: { text: 'Antwort' } }]);
     expect(custom.streamMetadata).toBeUndefined();
+  });
+});
+
+/**
+ * `/chat?mode=notebook` and any reopened notebook thread route through this
+ * parser (endpoints.notebookStream), not NotebookModelAdapter — so the
+ * evidence_weak carve-out from that adapter's `warning` handling must hold
+ * here too, or this path still toasts what Task 4 made quiet elsewhere.
+ */
+describe('parseSSEStream warning — evidence_weak', () => {
+  const EVIDENCE_MESSAGE =
+    'Zu dieser Frage habe ich im Notebook wenig Passendes gefunden — bitte die angegebenen Quellen prüfen.';
+
+  async function lastCustom(events: Array<{ event: string; data: unknown }>) {
+    const outcome = { interrupted: false, indexedDocumentIds: [] as string[] };
+    let last: { metadata?: { custom?: Record<string, unknown> } } | undefined;
+    for await (const result of parseSSEStream(sseResponse(events), callbacks, outcome)) {
+      last = result as typeof last;
+    }
+    return last?.metadata?.custom ?? {};
+  }
+
+  it('carries evidence_weak on custom.evidenceWeak instead of toasting it', async () => {
+    notifyWarning.mockClear();
+    const custom = await lastCustom([
+      { event: 'warning', data: { code: 'evidence_weak', message: EVIDENCE_MESSAGE } },
+      { event: 'text_delta', data: { text: 'Dazu steht hier wenig.' } },
+    ]);
+
+    expect(custom.evidenceWeak).toBe(EVIDENCE_MESSAGE);
+    expect(notifyWarning).not.toHaveBeenCalled();
+  });
+
+  it('still toasts every other warning code', async () => {
+    notifyWarning.mockClear();
+    const custom = await lastCustom([
+      {
+        event: 'warning',
+        data: { code: 'search_degraded', message: 'Einige Quellen waren nicht erreichbar.' },
+      },
+      { event: 'text_delta', data: { text: 'Antwort.' } },
+    ]);
+
+    expect(notifyWarning).toHaveBeenCalledWith('Einige Quellen waren nicht erreichbar.');
+    expect(custom.evidenceWeak).toBeUndefined();
   });
 });

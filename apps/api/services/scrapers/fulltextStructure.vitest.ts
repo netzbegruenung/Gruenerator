@@ -25,6 +25,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const EXTRACTION_SOURCES = [
   'implementations/BundestagScraper/BundestagScraper.ts',
   'implementations/GrueneAtScraper.ts',
+  'implementations/GruenblogScraper.ts',
   'implementations/WebsiteCrawler.ts',
   'utils/contentExtractor.ts',
 ];

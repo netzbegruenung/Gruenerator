@@ -56,6 +56,7 @@ const LV_URL = 'https://www.gruene-bw.de/wp-content/uploads/2025/03/beschluss-wa
 const BUNDESTAG_URL = 'https://www.gruene-bundestag.de/unsere-politik/fachtexte/klimaschutz';
 const BOELL_URL = 'https://www.boell.de/de/2025/01/15/dossier-energiewende';
 const GRUENE_AT_URL = 'https://www.gruene.at/themen/klima/energiewende';
+const GRUENBLOG_URL = 'https://www.gruenblog.com/wissen/waermewende';
 
 describe('pointIdRecipeFor', () => {
   it('rechnet die drei lebenden grundsatz-IDs exakt nach', () => {
@@ -92,6 +93,13 @@ describe('pointIdRecipeFor', () => {
     expect(recipe?.idKey).toBe('source_url');
     expect(recipe?.id(GRUENE_AT_URL, 0)).toBe(1793081277);
     expect(recipe?.id(GRUENE_AT_URL, 1)).toBe(1793081278);
+  });
+
+  it('rechnet gruenblog_documents mit dem Präfix gruenblog', () => {
+    const recipe = pointIdRecipeFor('gruenblog_documents');
+    expect(recipe?.idKey).toBe('source_url');
+    expect(recipe?.id(GRUENBLOG_URL, 0)).toBe(1916456806);
+    expect(recipe?.id(GRUENBLOG_URL, 1)).toBe(1916456807);
   });
 
   it('kennt kein Rezept für documents — die Sammlung ist tabu', () => {
