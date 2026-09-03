@@ -120,6 +120,26 @@ function withProgramFilter(
 }
 
 /**
+ * Das Evidenz-Signal (#3140): der höchste dichte Ähnlichkeitswert der
+ * Kandidatenliste. `dense_similarity` ist der gemessene Kosinus des
+ * server-seitigen Hybrid-Pfads; wo er fehlt (nicht migrierte Sammlung, oder
+ * ein Dokument, dessen Chunks nur aus der BM25-Lane stammen), ist `similarity`
+ * der Rückfall — ohne ihn misst das Signal je Sammlung etwas anderes.
+ *
+ * Exportiert, damit die Kalibrierung (`evals/retrieval/evidenceSignalCheck.ts`)
+ * genau DIESE Rechnung fährt statt einer Zweitkopie, die beim ersten
+ * Feldwechsel still auseinanderdriftet.
+ */
+export function evidenceTopOf(results: ExpandedChunkResult[]): number | null {
+  let top: number | null = null;
+  for (const r of results) {
+    const value = r.dense_similarity ?? r.similarity;
+    if (top === null || value > top) top = value;
+  }
+  return top;
+}
+
+/**
  * Per-source budget for the fast-mode prompt. Smaller than
  * PROMPT_SOURCE_MAX_CHARS because fast mode packs 15 sources and answers
  * briefly — but still the matched passage, not the chunk's opening.
@@ -653,6 +673,7 @@ export class NotebookQAService {
     return {
       referencesMap,
       sortedResults,
+      evidenceTop: evidenceTopOf(sortedResults),
       systemPrompt,
       contextSummary,
       isMulti: true,
@@ -796,6 +817,7 @@ export class NotebookQAService {
     return {
       referencesMap,
       sortedResults,
+      evidenceTop: evidenceTopOf(sortedResults),
       systemPrompt,
       contextSummary,
       collectionName: collection?.name ?? collectionId,

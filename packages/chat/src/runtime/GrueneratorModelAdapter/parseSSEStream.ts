@@ -202,6 +202,7 @@ export async function* parseSSEStream(
   let receivedCreatedDocument: DocumentCreatedData | null = null;
   let receivedReelProcessing: ReelProcessingData | null = null;
   let receivedReelPicker: ReelPickerData | null = null;
+  let evidenceWeakAccum: string | null = null;
   let activeToolCall: ToolCallPart | null = null;
   const allToolCalls: ToolCallPart[] = [...(carryOver?.toolCalls ?? [])];
   // Agentic tool-loop steps, keyed by stepId. The loop can run several tools in
@@ -340,6 +341,7 @@ export async function* parseSSEStream(
     if (receivedCreatedDocument) custom.createdDocument = receivedCreatedDocument;
     if (receivedReelProcessing) custom.reelProcessing = receivedReelProcessing;
     if (receivedReelPicker) custom.reelPicker = receivedReelPicker;
+    if (evidenceWeakAccum) custom.evidenceWeak = evidenceWeakAccum;
     if (agentInfo?.agentId) {
       custom.agentId = agentInfo.agentId;
       if (agentInfo.agentMention) custom.agentMention = agentInfo.agentMention;
@@ -1184,11 +1186,15 @@ export async function* parseSSEStream(
 
         case 'warning': {
           // Non-fatal degradation carrying a ready-made German message.
-          // Note: where the turn still has a model, the answer itself explains
-          // the degradation — this toast is the fallback for the paths where
-          // no answer can carry it (persistence, notebook streams).
+          // Note: `evidence_weak` is a statement about THIS answer, not a
+          // disruption — it goes under the text (custom.evidenceWeak), not in
+          // a toast that sits above the page and belongs to no message.
           const { code, message } = data as { code: string; message: string };
           console.warn(`[GrueneratorModelAdapter] warning (${code}): ${message}`);
+          if (code === 'evidence_weak') {
+            if (message) evidenceWeakAccum = message;
+            break;
+          }
           if (message) notifyWarning(message);
           break;
         }

@@ -884,6 +884,18 @@ export const CHAT_WARNINGS = {
     severity: 'warning',
     attribution: 'system',
   },
+  // Der EINZIGE Ort dieses Satzes. Der Client rendert die Zeichenkette von der
+  // Leitung und hält keine eigene Kopie — sonst gäbe es den Text zweimal und
+  // eine Änderung erreichte nur die Hälfte der Flächen.
+  //
+  // `info`, nicht `warning`: es ist nichts ausgefallen. Das Retrieval hat
+  // getan, was es soll, und meldet, dass die Sammlung zur Frage wenig hergibt.
+  evidence_weak: {
+    message:
+      'Zu dieser Frage habe ich im Notebook wenig Passendes gefunden — bitte die angegebenen Quellen prüfen.',
+    severity: 'info',
+    attribution: 'system',
+  },
 } satisfies Record<ChatWarningCode, ChatWarningSpec>;
 
 /**
