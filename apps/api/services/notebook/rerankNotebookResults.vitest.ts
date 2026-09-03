@@ -116,4 +116,44 @@ describe('rerankNotebookResults', () => {
     expect(rerankPipeline).not.toHaveBeenCalled();
     expect(out.results.map((r) => r.similarity)).toEqual([0.5, 0.51, 0.52]);
   });
+
+  it('forwards instruct to rerankPipeline when given', async () => {
+    rerankPipeline.mockResolvedValue({
+      rankedIndices: [0, 1, 2],
+      scores: new Map([
+        [0, 0.9],
+        [1, 0.8],
+        [2, 0.7],
+      ]),
+      rerankTimeMs: 5,
+    });
+
+    await rerankNotebookResults({
+      results,
+      referencesMap,
+      question: 'Warum?',
+      instruct: 'Test-Instruct',
+    });
+
+    expect(rerankPipeline).toHaveBeenCalledWith(
+      expect.objectContaining({ instruct: 'Test-Instruct' })
+    );
+  });
+
+  it('omits instruct from the rerankPipeline call when absent', async () => {
+    rerankPipeline.mockResolvedValue({
+      rankedIndices: [0, 1, 2],
+      scores: new Map([
+        [0, 0.9],
+        [1, 0.8],
+        [2, 0.7],
+      ]),
+      rerankTimeMs: 5,
+    });
+
+    await rerankNotebookResults({ results, referencesMap, question: 'Warum?' });
+
+    const call = rerankPipeline.mock.calls[0][0] as Record<string, unknown>;
+    expect('instruct' in call).toBe(false);
+  });
 });

@@ -11,12 +11,13 @@
  *   EVAL_FILTER      only run cases whose id contains this substring
  *   EVAL_DEPTH       depth profile: fast | deep | ultra (default fast;
  *                    notebook defaults to deep, the production notebook default)
- *   EVAL_RERANK=1    additionally score the post-rerank ranking (Regolo). qa
- *                    and chat-notebook — manual has no rerank stage.
+ *   EVAL_RERANK=1    additionally score the post-rerank ranking (Regolo). qa,
+ *                    notebook, and chat-notebook — manual has no rerank stage.
  *   EVAL_RERANK_INSTRUCT  preset key from `rerankInstructs.ts` (`service`
  *                    default, `chat`, `qa`, `de`, `de-strict`). Needs
  *                    EVAL_RERANK=1. Applies to the qa arm's rerankPipeline
- *                    call. chat-notebook always sends its
+ *                    call and, for EVAL_PIPELINE=notebook, to
+ *                    rerankNotebookResults. chat-notebook always sends its
  *                    own instruct (rerankNode's text minus the temporal hint)
  *                    and ignores this. `service` sends no `instruct` — the
  *                    cross-encoder service's own default text applies, i.e.
@@ -147,6 +148,7 @@ const { selectRelevantExcerpt } = await import('../../services/search/relevantEx
 const { vectorConfig } = await import('../../config/vectorConfig.js');
 const { rankManualSearchResults } = await import('../../services/search/manualSearchRanking.js');
 const { notebookQAService } = await import('../../services/notebook/NotebookQAService.js');
+const { rerankNotebookResults } = await import('../../services/notebook/rerankNotebookResults.js');
 const { normalizeNotebookHistory, buildRewriteTranscript } =
   await import('../../routes/chat/services/notebookHistoryService.js');
 const { expandQuery } = await import('../../services/search/QueryExpansionService.js');
@@ -463,7 +465,9 @@ async function runManualCase(
  */
 async function runNotebookCase(
   evalCase: RetrievalCase,
-  depth: NotebookDepth
+  depth: NotebookDepth,
+  withRerank: boolean,
+  instructText: string | null
 ): Promise<CaseOutcome> {
   const base: CaseOutcome = {
     id: evalCase.id,
@@ -525,12 +529,31 @@ async function runNotebookCase(
     });
 
     const results = ctx?.sortedResults ?? [];
-    return {
+    const outcome: CaseOutcome = {
       ...base,
       rank: firstMatchRank(results, evalCase),
       topTitles: results.slice(0, 5).map((r) => r.title || r.source_url || '?'),
       ...(ctx === null && { error: 'search returned no results' }),
     };
+
+    // Wie `notebookStreamCore.ts`: kein Längen-Tor am Aufrufort, `rerankNotebookResults`
+    // entscheidet selbst (Schwelle 3), und die Anfrage ist `queries[0]` —
+    // dieselbe umgeschriebene Frage, die auch `getSearchContext` bekam.
+    if (withRerank && ctx) {
+      const reranked = await rerankNotebookResults({
+        results: ctx.sortedResults,
+        referencesMap: ctx.referencesMap,
+        question: queries[0],
+        limit: profile.rerankOutput,
+        inputLimit: profile.rerankInput,
+        ...(instructText !== null && { instruct: instructText }),
+      });
+      outcome.rerankRank = firstMatchRank(reranked.results, evalCase);
+      outcome.rerankTimeMs = reranked.rerankTimeMs;
+      outcome.rerankBatch = Math.min(results.length, profile.rerankInput);
+    }
+
+    return outcome;
   } catch (error) {
     return { ...base, error: (error as Error).message };
   }
@@ -757,7 +780,9 @@ async function main() {
     pipeline === 'manual'
       ? 'manual search'
       : pipeline === 'notebook'
-        ? `notebook getSearchContext depth=${depth}`
+        ? `notebook getSearchContext depth=${depth}${
+            withRerank ? `, +rerank(${instructPreset})` : ''
+          }`
         : pipeline === 'chat-notebook'
           ? `searchNode notebook scope, ${withChatExpand ? 2 : 1} Formulierung(en)${
               withRerank ? ', +rerank' : ''
@@ -778,7 +803,7 @@ async function main() {
       pipeline === 'manual'
         ? await runManualCase(searchService, evalCase)
         : pipeline === 'notebook'
-          ? await runNotebookCase(evalCase, depth)
+          ? await runNotebookCase(evalCase, depth, withRerank, instructText)
           : pipeline === 'chat-notebook'
             ? await runChatNotebookCase(evalCase, withChatExpand, withRerank)
             : await runCase(
@@ -897,9 +922,12 @@ async function main() {
           pipeline,
           depth,
           withRerank,
+          ...(withRerank &&
+            (pipeline === 'qa' || pipeline === 'notebook') && {
+              instruct: instructPreset,
+            }),
           ...(pipeline === 'qa' &&
             withRerank && {
-              instruct: instructPreset,
               shape: rerankShape,
               excerpt: excerptMode,
               window: evalWindow,
