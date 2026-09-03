@@ -14,8 +14,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# requirements.txt is the pinned closure of pyproject.toml (regenerate with
-# `uv pip compile pyproject.toml -o requirements.txt`); pyproject alone only
+# requirements.txt is the pinned runtime closure of pyproject.toml (regenerate
+# with `uv pip compile pyproject.toml -o requirements.txt`; the CI test job
+# uses requirements-dev.txt, compiled with `--extra dev`). pyproject alone only
 # carries floors and gave every build a different set.
 COPY pyproject.toml requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt .

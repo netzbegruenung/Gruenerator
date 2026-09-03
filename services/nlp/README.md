@@ -11,7 +11,7 @@ und in `notebook_keyword_snapshots`.
 ```bash
 cd services/nlp
 python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt -e ".[dev]"
+pip install -r requirements-dev.txt -e ".[dev]"
 pytest
 ```
 
