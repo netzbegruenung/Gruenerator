@@ -1,6 +1,7 @@
 import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
 import { recordOperation } from '../usage/UsageTrackingService.js';
+
 import { Pcm16ToFloat32Stream, pcm16ToWav } from './pcmCodec.js';
 
 const log = createLogger('tts');
@@ -37,7 +38,26 @@ interface Voice {
   name: string;
   languages?: string[];
   gender?: string;
+  age?: string;
+  quality?: string;
+  description?: string;
+  /** Provider-hosted preview clip; a pre-signed URL that expires, so never store it. */
+  sampleUrl?: string;
 }
+
+interface KugelVoice {
+  id: number;
+  name?: string;
+  supported_languages?: string[];
+  sex?: string;
+  age?: string;
+  quality?: string;
+  description?: string;
+  sample_url?: string;
+}
+
+/** The provider caps a page at 100; anything above is silently clamped. */
+const VOICES_PAGE_SIZE = 100;
 
 interface Model {
   id: string;
@@ -124,13 +144,17 @@ async function postGenerate(text: string, options: TTSOptions): Promise<Response
   });
 
   if (!response.ok || !response.body) {
-    const detail = await response.text().catch(() => '');
-    throw new Error(
-      `KugelAudio antwortete mit ${response.status}${detail ? `: ${detail.slice(0, 200)}` : ''}`
-    );
+    throw await providerError(response);
   }
 
   return response;
+}
+
+async function providerError(response: Response): Promise<Error> {
+  const detail = await response.text().catch(() => '');
+  return new Error(
+    `KugelAudio antwortete mit ${response.status}${detail ? `: ${detail.slice(0, 200)}` : ''}`
+  );
 }
 
 class TTSService {
@@ -207,31 +231,49 @@ class TTSService {
     }
   }
 
+  /**
+   * The provider ignores a `language` query parameter and pages at 20 by
+   * default, so the filter happens here after walking every page. Matching is
+   * on the primary subtag: the provider tags its German voices `de-DE`
+   * (including the Austrian ones), and callers pass `de`, `de-DE` or `de-AT`.
+   */
   async listVoices(language?: string): Promise<Voice[]> {
     log.debug('[TTS] Listing voices', { language });
 
-    const url = new URL('/v1/voices', baseUrl());
-    if (language) url.searchParams.set('language', language);
+    const voices: KugelVoice[] = [];
+    // Advance by what a page actually held, not by what was asked for: a
+    // provider that clamps the page size would otherwise leave gaps.
+    for (let total = Infinity; voices.length < total;) {
+      const url = new URL('/v1/voices', baseUrl());
+      url.searchParams.set('limit', String(VOICES_PAGE_SIZE));
+      url.searchParams.set('offset', String(voices.length));
 
-    const response = await fetch(url, { headers: { Authorization: `Bearer ${apiKey()}` } });
-    if (!response.ok) {
-      throw new Error(`KugelAudio antwortete mit ${response.status}`);
+      const response = await fetch(url, { headers: { Authorization: `Bearer ${apiKey()}` } });
+      if (!response.ok) {
+        throw await providerError(response);
+      }
+
+      const page = (await response.json()) as { voices?: KugelVoice[]; total?: number };
+      const items = page.voices ?? [];
+      if (items.length === 0) break;
+      voices.push(...items);
+      total = page.total ?? voices.length;
     }
 
-    const data = (await response.json()) as {
-      voices?: Array<{
-        id: number;
-        name?: string;
-        supported_languages?: string[];
-        gender?: string;
-      }>;
-    };
+    const primary = (code: string): string => code.toLowerCase().split('-')[0] ?? '';
+    const wanted = language ? primary(language) : null;
+    const matches = (voice: KugelVoice): boolean =>
+      wanted === null || (voice.supported_languages ?? []).some((code) => primary(code) === wanted);
 
-    return (data.voices ?? []).map((voice) => ({
+    return voices.filter(matches).map((voice) => ({
       id: String(voice.id),
       name: voice.name || '',
       ...(voice.supported_languages ? { languages: voice.supported_languages } : {}),
-      ...(voice.gender ? { gender: voice.gender } : {}),
+      ...(voice.sex ? { gender: voice.sex } : {}),
+      ...(voice.age ? { age: voice.age } : {}),
+      ...(voice.quality ? { quality: voice.quality } : {}),
+      ...(voice.description ? { description: voice.description } : {}),
+      ...(voice.sample_url ? { sampleUrl: voice.sample_url } : {}),
     }));
   }
 

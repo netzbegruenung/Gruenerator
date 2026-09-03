@@ -122,7 +122,8 @@ router.post('/stream', async (req: GenerateRequest, res: Response) => {
 });
 
 router.get('/voices', async (req: Request, res: Response) => {
-  const language = req.query.language as string | undefined;
+  // Express parses a repeated key as an array; only a single string is a language.
+  const language = typeof req.query.language === 'string' ? req.query.language : undefined;
 
   try {
     const voices = await ttsService.listVoices(language);
