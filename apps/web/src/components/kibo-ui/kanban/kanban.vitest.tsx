@@ -96,17 +96,16 @@ describe('KanbanCard', () => {
 
 /**
  * GlitchTip #540/#471 (drei Ereignisse 08–09/2026, alle auf demselben Board):
- * React #185 aus dem Layout-Effekt von tunnel-rats `In`, also mit einer Karte,
- * die das Board für „aktiv gezogen" hielt. dnd-kit bricht ein Ziehen auch ohne
- * Loslassen ab — Escape, oder `visibilitychange`, wenn der Rechner in den
- * Ruhezustand geht; zwei der drei Ereignisse kamen Sekunden nach dem
- * Aufwachen. `KanbanProvider` verarbeitete nur `onDragEnd`, also blieb
- * `activeCardId` nach einem Abbruch stehen und mit ihm der Tunnel-`In` der
- * Karte.
+ * React #185 aus dem Overlay-Pfad, also mit einer Karte, die das Board für
+ * „aktiv gezogen" hielt. dnd-kit bricht ein Ziehen auch ohne Loslassen ab —
+ * Escape, oder `visibilitychange`, wenn der Rechner in den Ruhezustand geht;
+ * zwei der drei Ereignisse kamen Sekunden nach dem Aufwachen.
+ * `KanbanProvider` verarbeitete nur `onDragEnd`, also blieb `activeCardId`
+ * nach einem Abbruch stehen und mit ihm die Overlay-Kopie der Karte.
  *
- * Sichtbar wird das erst mit zwei Lanes (Swimlanes rendern je einen
- * Provider, der Tunnel ist modulweit): die stehen gebliebene Karte taucht im
- * Overlay des nächsten Ziehens in der anderen Lane mit auf.
+ * Zwei Lanes, weil Swimlanes je einen Provider rendern: die stehen
+ * gebliebene Karte darf beim nächsten Ziehen in der anderen Lane nicht
+ * wieder auftauchen.
  */
 describe('KanbanProvider bei abgebrochenem Ziehen', () => {
   const lane = (laneId: string, item: { id: string; name: string }, onDragCancel = vi.fn()) => (
@@ -177,5 +176,62 @@ describe('KanbanProvider bei abgebrochenem Ziehen', () => {
     expect(screen.getAllByText('Rede kürzen')).toHaveLength(2);
     // Vor der Reparatur stand hier die abgebrochene Karte ein zweites Mal.
     expect(screen.getAllByText('Antrag schreiben')).toHaveLength(1);
+  });
+});
+
+/**
+ * Das Overlay wird aus `activeCardId` gebaut, nicht mehr per tunnel-rat aus
+ * dem Kartenbaum herausgereicht (Issue #3214): der Tunnel schrieb in einem
+ * Layout-Effekt der Karte in einen externen Store, den das Overlay per
+ * useSyncExternalStore las — eine Kette aus Layout-Phase-Updates, die React
+ * als verschachtelte Updates zählt und mit #185 abbricht.
+ */
+describe('KanbanProvider-Overlay', () => {
+  const griff = (name: string) =>
+    screen.getByRole('button', { name: `Karte „${name}" verschieben` });
+  const ziehen = async (name: string) => {
+    const g = griff(name);
+    g.focus();
+    await act(async () => {
+      fireEvent.keyDown(g, { code: 'Space', key: ' ' });
+    });
+  };
+
+  it('zeigt die gezogene Karte über renderOverlay, sonst ihren Namen', async () => {
+    render(
+      <KanbanProvider
+        columns={columns}
+        data={data}
+        onDataChange={vi.fn()}
+        renderOverlay={(item) => <span data-testid="overlay">{item.name} (Kopie)</span>}
+      >
+        {(column) => (
+          <KanbanBoard key={column.id} id={column.id}>
+            <KanbanCards id={column.id}>
+              {(item) => (
+                <KanbanCard key={item.id} {...item}>
+                  <div>{item.name}</div>
+                </KanbanCard>
+              )}
+            </KanbanCards>
+          </KanbanBoard>
+        )}
+      </KanbanProvider>
+    );
+
+    expect(screen.queryByTestId('overlay')).toBeNull();
+
+    await ziehen('Antrag schreiben');
+    expect(screen.getByTestId('overlay')).toHaveTextContent('Antrag schreiben (Kopie)');
+    // Die Karte selbst steht weiter genau einmal im Board.
+    expect(screen.getAllByText('Antrag schreiben')).toHaveLength(1);
+
+    await act(async () => {
+      fireEvent.keyDown(document.activeElement ?? document.body, {
+        code: 'Escape',
+        key: 'Escape',
+      });
+    });
+    expect(screen.queryByTestId('overlay')).toBeNull();
   });
 });
