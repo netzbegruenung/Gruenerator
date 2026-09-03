@@ -5,6 +5,7 @@
  */
 
 import * as cheerio from 'cheerio';
+import { type AnyNode } from 'domhandler';
 
 import { getQdrantInstance } from '../../../database/services/QdrantService/index.js';
 import {
@@ -25,7 +26,7 @@ import { mistralEmbeddingService } from '../../mistral/index.js';
 import { BaseScraper } from '../base/BaseScraper.js';
 import { recordSyncEvent, toExcerpt } from '../syncEventRecorder.js';
 import { batchProcess } from '../utils/batchFetch.js';
-import { removeUnwantedElements } from '../utils/htmlCleaner.js';
+import { htmlToStructuredText, removeUnwantedElements } from '../utils/htmlCleaner.js';
 
 import type { QdrantService } from '../../../database/services/QdrantService/index.js';
 import type { ScraperResult } from '../types.js';
@@ -312,11 +313,18 @@ export class GruenblogScraper extends BaseScraper {
     ]);
 
     // Extract article body from .entry-content
+    // `.html()` liefert nur das erste Element der Auswahl; `.text()` hatte
+    // alle verkettet. Deshalb über die Auswahl mappen, wie GrueneAtScraper.
+    const structuredTextOf = (selection: cheerio.Cheerio<AnyNode>): string =>
+      htmlToStructuredText(
+        selection
+          .map((_, node) => $(node).html() ?? '')
+          .get()
+          .join('\n')
+      );
     const contentEl = $('.entry-content');
     const text =
-      contentEl.length > 0
-        ? contentEl.text().replace(/\s+/g, ' ').trim()
-        : $('article').text().replace(/\s+/g, ' ').trim();
+      contentEl.length > 0 ? structuredTextOf(contentEl) : structuredTextOf($('article'));
 
     return {
       title: title.substring(0, 500),
