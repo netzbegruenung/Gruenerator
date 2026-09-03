@@ -11,7 +11,7 @@ und in `notebook_keyword_snapshots`.
 ```bash
 cd services/nlp
 python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
+pip install -r requirements.txt -e ".[dev]"
 pytest
 ```
 
@@ -83,7 +83,7 @@ macht sie wieder fällig.
 ## Betrieb
 
 ```bash
-pip install -e .
+pip install -r requirements.txt -e .
 python -m spacy download de_core_news_lg
 uvicorn topic_classifier.api:app --reload --port 8000
 ```
