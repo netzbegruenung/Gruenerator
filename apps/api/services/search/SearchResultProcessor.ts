@@ -470,14 +470,14 @@ export function filterAndSortResults(
  * bereits nach Score sortiert, "zuerst" heisst also "bester". Ergebnisse ohne
  * `document_id` (leerer String, z. B. Web-Quellen ohne Dokumentbezug) werden
  * nie gedeckelt, es gibt dort kein Dokument, über das zu verteilen wäre.
- * `counts` ist injizierbar, damit `selectAcrossQueryGroups` denselben Zähler
- * über mehrere Gruppen hinweg weiterführen kann.
+ * `selectAcrossQueryGroups` führt beim Mischen seinen eigenen Zähler, weil der
+ * Deckel dort über Gruppen hinweg gilt.
  */
 function capChunksPerDocument(
   results: ExpandedChunkResult[],
-  maxPerDocument: number,
-  counts: Map<string, number> = new Map()
+  maxPerDocument: number
 ): ExpandedChunkResult[] {
+  const counts = new Map<string, number>();
   return results.filter((r) => {
     if (!r.document_id) return true;
     const count = counts.get(r.document_id) ?? 0;
