@@ -22,11 +22,36 @@ export type {
 
 /**
  * Index schema for Qdrant field_schema parameter
- * Uses Record<string, unknown> for API compatibility
+ * Uses Record<string, unknown> for API compatibility; `type` is the base
+ * data_type Qdrant reports back in `payload_schema`.
  */
-export type IndexSchema = Record<string, unknown>;
+export type IndexSchema = { type: string } & Record<string, unknown>;
 
 const logger = createLogger('QdrantCollections');
+
+/**
+ * Live index types of a collection, field → data_type. Empty on failure:
+ * without it the backfill below degrades to create-only, which is what it
+ * did before type changes were applied at all.
+ */
+async function readLivePayloadTypes(
+  client: QdrantClient,
+  collectionName: string,
+  log: Logger
+): Promise<Record<string, string>> {
+  try {
+    const info = await client.getCollection(collectionName);
+    const types: Record<string, string> = {};
+    for (const [field, index] of Object.entries(info.payload_schema ?? {})) {
+      if (index?.data_type) types[field] = index.data_type;
+    }
+    return types;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    log.warn(`Failed to read payload schema of ${collectionName}: ${message}`);
+    return {};
+  }
+}
 
 /**
  * Index definition for text search
@@ -89,11 +114,41 @@ export async function createCollections(
       // backfills indexes added to a schema after its collection was created —
       // without it, schema index additions silently never apply to existing
       // collections (which broke the curated_lists facet → filter UI).
+      //
+      // It does NOT change the type of an index that already exists: Qdrant
+      // answers "already exists" and keeps the old one. So a declared type
+      // change (published_at keyword → datetime, #3190) is applied by comparing
+      // the live payload_schema and dropping the stale index first. Only the
+      // base data_type is compared — params (is_tenant, tokenizer) never
+      // trigger a rebuild.
+      //
+      // This runs in every cluster worker at boot. Two workers can race on the
+      // same field: one deletes, the other's delete finds nothing or removes
+      // the freshly rebuilt index, both create, one of them hits "already
+      // exists". Every interleaving ends with the declared type, so a failed
+      // delete is logged and the create is attempted regardless.
+      const liveTypes = schema.indexes?.length
+        ? await readLivePayloadTypes(client, schema.name, log)
+        : {};
       for (const index of schema.indexes || []) {
+        const fieldSchema = getIndexSchema(index.type);
+        const liveType = liveTypes[index.field];
+        if (liveType && liveType !== fieldSchema.type) {
+          log.info(
+            `Rebuilding index ${index.field} on ${schema.name}: ${liveType} → ${fieldSchema.type}`
+          );
+          try {
+            await client.deletePayloadIndex(schema.name, index.field);
+          } catch (deleteError) {
+            const message =
+              deleteError instanceof Error ? deleteError.message : String(deleteError);
+            log.warn(`Failed to delete index ${index.field} on ${schema.name}: ${message}`);
+          }
+        }
         try {
           await client.createPayloadIndex(schema.name, {
             field_name: index.field,
-            field_schema: getIndexSchema(index.type),
+            field_schema: fieldSchema,
           });
         } catch (indexError) {
           const message = indexError instanceof Error ? indexError.message : String(indexError);
