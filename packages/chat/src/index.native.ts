@@ -210,7 +210,9 @@ export {
 } from './lib/mentionAttachments';
 export { joinWolkePath, wolkeParentPath, isWolkeRoot } from './lib/wolkePath';
 
-// useMessageTTS excluded — imports @gruenerator/voice (web-only)
+// useMessageTTS excluded — imports @gruenerator/voice (web-only). The text
+// preparation is pure and shared, so both platforms read the same words.
+export { stripForSpeech } from './lib/speechText';
 
 // Day-separator labels. Pure calendar logic (no React, no DOM) so mobile draws
 // the same rule web does — "Heute"/"Gestern"/date, and only where the calendar

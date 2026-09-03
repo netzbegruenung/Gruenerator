@@ -1,4 +1,4 @@
-import { useChatConfigStore } from '@gruenerator/chat';
+import { stripForSpeech, useChatConfigStore } from '@gruenerator/chat';
 import { useAudioPlayer } from 'expo-audio';
 import { File, Paths } from 'expo-file-system';
 import { useCallback, useRef, useState } from 'react';
@@ -94,8 +94,8 @@ export function useNativeTTS() {
     async (text: string) => {
       if (state !== 'idle') return;
 
-      const stripped = text.replace(/\[?\d+\]?/g, '').replace(/[#*_`~>|-]/g, '');
-      if (!stripped.trim()) return;
+      const stripped = stripForSpeech(text);
+      if (!stripped) return;
 
       setState('loading');
       const controller = new AbortController();
