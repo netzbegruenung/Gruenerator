@@ -6,7 +6,7 @@ vi.mock('../search/rerankPipeline.js', () => ({
   rerankPipeline: (...args: unknown[]) => rerankPipeline(...args),
 }));
 
-import { rerankNotebookResults } from './rerankNotebookResults.js';
+import { cutNotebookResults, rerankNotebookResults } from './rerankNotebookResults.js';
 
 import type { ExpandedChunkResult, ReferencesMap } from '../search/types.js';
 
@@ -157,5 +157,43 @@ describe('rerankNotebookResults', () => {
     const call = rerankPipeline.mock.calls.at(-1)?.[0] as Record<string, unknown>;
     expect(call).not.toHaveProperty('mode');
     expect(call).not.toHaveProperty('instruct');
+  });
+});
+
+describe('cutNotebookResults', () => {
+  it('keeps the first `limit` results in retrieval order, without calling the pipeline', () => {
+    const out = cutNotebookResults({ results, referencesMap, limit: 3 });
+
+    expect(rerankPipeline).not.toHaveBeenCalled();
+    expect(out.results.map((r) => r.document_id)).toEqual(['doc-0', 'doc-1', 'doc-2']);
+    // Order is retrieval order — untouched, not resorted by similarity.
+    expect(out.results.map((r) => r.similarity)).toEqual([0.5, 0.51, 0.52]);
+  });
+
+  it('renumbers the reference map to 1..n for the kept results', () => {
+    const out = cutNotebookResults({ results, referencesMap, limit: 3 });
+
+    expect(Object.keys(out.referencesMap)).toEqual(['1', '2', '3']);
+    expect(Object.values(out.referencesMap).map((r) => r.document_id)).toEqual([
+      'doc-0',
+      'doc-1',
+      'doc-2',
+    ]);
+    // The retrieval score is untouched — no rerank score to write back.
+    expect(Object.values(out.referencesMap).map((r) => r.similarity_score)).toEqual([
+      0.5, 0.51, 0.52,
+    ]);
+  });
+
+  it('is a no-op when `limit` is at or above the result count', () => {
+    const out = cutNotebookResults({ results, referencesMap, limit: results.length });
+
+    expect(out.results).toEqual(results);
+    expect(Object.keys(out.referencesMap)).toEqual(Object.keys(referencesMap));
+    expect(out.referencesMap).toEqual(referencesMap);
+
+    const wider = cutNotebookResults({ results, referencesMap, limit: results.length + 10 });
+    expect(wider.results).toEqual(results);
+    expect(wider.referencesMap).toEqual(referencesMap);
   });
 });
