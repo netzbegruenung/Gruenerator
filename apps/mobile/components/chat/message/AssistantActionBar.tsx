@@ -5,7 +5,7 @@ import { memo, useCallback, useMemo, useState } from 'react';
 import { View, Pressable, StyleSheet } from 'react-native';
 
 import { useMessageActions } from '../../../hooks/useMessageActions';
-// import { useNativeTTS } from '../../../hooks/useNativeTTS';
+import { useNativeTTS } from '../../../hooks/useNativeTTS';
 import { copyToClipboard } from '../../../services/share';
 import { colors, spacing } from '../../../theme';
 import { asMessageMenuId, buildMessageMenuActions } from '../menuActions';
@@ -33,7 +33,8 @@ async function writeToClipboard(text: string): Promise<void> {
  * The icon row under each assistant reply.
  *
  * Shaped after ChatGPT: bare glyphs on the page rather than filled pills, and
- * only the actions one reaches for mid-conversation — copy and regenerate.
+ * only the actions one reaches for mid-conversation — copy, read aloud and
+ * regenerate.
  * Everything that leaves the chat (Word export, editor handoff)
  * sits behind the "⋮".
  *
@@ -52,7 +53,7 @@ export const AssistantActionBar = memo(function AssistantActionBar({
   metadata: ChatMessageMetadata;
 }) {
   const aui = useAui();
-  // const { state: ttsState, play, stop } = useNativeTTS();
+  const { state: ttsState, play, stop } = useNativeTTS();
   const target = useMemo(
     () =>
       messageText
@@ -71,13 +72,13 @@ export const AssistantActionBar = memo(function AssistantActionBar({
     aui.message.reload();
   }, [aui]);
 
-  // const handleTTS = useCallback(() => {
-  //   if (ttsState === 'playing') {
-  //     stop();
-  //   } else if (messageText) {
-  //     void play(messageText);
-  //   }
-  // }, [ttsState, messageText, play, stop]);
+  const handleTTS = useCallback(() => {
+    if (ttsState === 'playing') {
+      stop();
+    } else if (messageText) {
+      void play(messageText);
+    }
+  }, [ttsState, messageText, play, stop]);
 
   const menuActions = useMemo(() => buildMessageMenuActions(!!exporting), [exporting]);
 
@@ -108,14 +109,13 @@ export const AssistantActionBar = memo(function AssistantActionBar({
           )}
         </ActionBarPrimitive.Copy>
       ) : null}
-      {/* Vorlesen ist im Web ausgebaut (MessageActions.tsx) — hier gleichziehen.
       <Pressable onPress={handleTTS} style={styles.button} accessibilityLabel="Vorlesen">
         <Ionicons
           name={ttsState === 'playing' ? 'stop' : 'volume-medium-outline'}
           size={ICON_SIZE}
           color={ttsState === 'playing' ? colors.primary[500] : theme.textSecondary}
         />
-      </Pressable> */}
+      </Pressable>
       <Pressable
         onPress={handleReload}
         testID="chat-message-reload"
