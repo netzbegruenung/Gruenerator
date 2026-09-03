@@ -17,6 +17,13 @@ export interface SourceGroupResult {
    */
   deadLinks?: number;
   deadLinkSamples?: string[];
+  /**
+   * Warum Dokumente übersprungen wurden (`too_old`, `unchanged`, `too_short`, …),
+   * als Zähler. `skipped` allein sagt nicht, ob ein Dokument VOR dem Abruf
+   * (Freshness-Gatter) oder DANACH (Altersfilter) verworfen wurde — und nur
+   * das Zweite kostet jede Nacht wieder einen Abruf (#3200).
+   */
+  skipReasons?: Record<string, number>;
   duration: number;
   status: 'success' | 'failed';
   error?: string;
