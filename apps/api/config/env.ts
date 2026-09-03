@@ -609,10 +609,11 @@ const envSchema = z.object({
    * `evals/retrieval/notebook-doc-cap-2026-09-03.md`): acht Fälle stehen bei
    * jedem Deckel auf Rang 1; der einzige bewegliche Fall
    * (`notebook-berlin-hitzeschutz`) geht von Rang 8 auf 3 (Deckel 1), 5 (2),
-   * 6 (3). Default 2: hebt den Fall in die Top 5 und lässt dem Modell zwei
-   * Chunks je Dokument als Kontext — Deckel 1 misst besser, gäbe dem Modell
-   * aber nur einen Ausschnitt je Quelle. Was die Eval NICHT misst: die
-   * Antwortqualität bei mehr Dokumenten im Kontext.
+   * 6 (3). Default 2: hebt den Fall in die Top 5. Der Deckel wirft nichts weg
+   * — er zieht je Dokument höchstens zwei Chunks nach vorn und hängt den Rest
+   * dahinter an, ein Notebook mit einem Dokument behält also alle Chunks. Was
+   * die Eval NICHT misst: die Antwortqualität bei mehr Dokumenten vorn im
+   * Kontext.
    */
   NOTEBOOK_MAX_CHUNKS_PER_DOC: z.coerce.number().int().min(0).default(2),
 
