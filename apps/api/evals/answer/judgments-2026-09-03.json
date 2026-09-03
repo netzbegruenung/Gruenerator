@@ -1982,5 +1982,1989 @@
       },
       "rationale": "Beide Antworten sind gleich gut. Sie beantworten die Frage direkt und vollständig, indem sie klarstellen, dass die Quellen keine spezifische Fördersumme für die Moorrenaturierung im Jahr 2024 enthalten. Beide Antworten stützen sich gut auf die genannten Quellen und erfüllen alle Kriterien gleich gut."
     }
+  },
+  {
+    "caseId": "notebook-berlin-hitzeschutz",
+    "comparisonId": "cut-vs-today",
+    "challenger": "cut",
+    "baseline": "today",
+    "mapping": {
+      "A": "today",
+      "B": "cut"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten beantworten die Frage direkt und vollständig, indem sie detaillierte Maßnahmen zum Hitzeschutz in Berlin, insbesondere für Schulen und hitzeempfindliche Gruppen, darlegen. Beide Antworten stützen sich gut auf die bereitgestellten Quellen und erfüllen die Kriterien vollständig. Es gibt keine erfundenen Quellen oder fehlenden wichtigen Aspekte."
+    }
+  },
+  {
+    "caseId": "notebook-berlin-hitzeschutz",
+    "comparisonId": "cut-vs-none",
+    "challenger": "cut",
+    "baseline": "none",
+    "mapping": {
+      "A": "cut",
+      "B": "none"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten beantworten die Frage direkt und vollständig, indem sie detaillierte Maßnahmen zum Hitzeschutz in Berlin für verschiedene Gruppen, einschließlich Schulen und hitzeempfindliche Personen, darlegen. Beide Antworten stützen sich gut auf die genannten Quellen, ohne diese zu erfinden oder wichtige Aspekte auszulassen. Die Antworten sind inhaltlich sehr ähnlich und gleichwertig."
+    }
+  },
+  {
+    "caseId": "notebook-berlin-milieuschutz",
+    "comparisonId": "cut-vs-today",
+    "challenger": "cut",
+    "baseline": "today",
+    "mapping": {
+      "A": "cut",
+      "B": "today"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten beantworten die Frage direkt und vollständig, indem sie detailliert erklären, wie Berlin mit Milieuschutzgebieten die Mietenentwicklung bremsen will. Sie stützen sich gut auf die bereitgestellten Quellen und erfinden keine Informationen. Beide Antworten decken die wichtigsten Aspekte ab, wie die Bekämpfung der Zweckentfremdung von Wohnraum, die Unterbindung von Umwandlungen und die Stärkung der bezirklichen Verwaltung. Es gibt keine wesentlichen Unterschiede in der Qualität oder Vollständigkeit der Antworten."
+    }
+  },
+  {
+    "caseId": "notebook-berlin-milieuschutz",
+    "comparisonId": "cut-vs-none",
+    "challenger": "cut",
+    "baseline": "none",
+    "mapping": {
+      "A": "cut",
+      "B": "none"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten beantworten die Frage direkt und vollständig, indem sie die Strategien Berlins zur Mietenentwicklung in Milieuschutzgebieten detailliert darlegen. Beide stützen sich gut auf die genannten Quellen und erfüllen alle Kriterien gleich gut. Es gibt keine erfundenen Quellen oder fehlenden wichtigen Aspekte."
+    }
+  },
+  {
+    "caseId": "notebook-bayern-moorschutz",
+    "comparisonId": "cut-vs-today",
+    "challenger": "cut",
+    "baseline": "today",
+    "mapping": {
+      "A": "cut",
+      "B": "today"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten sind sehr detailliert und direkt. Sie beantworten die Frage umfassend und stützen sich gut auf die Quellen. Keine der Antworten erfindet Quellen oder Aussagen, und keine wichtige Information aus den Quellen fehlt. Beide Antworten sind gleichwertig."
+    }
+  },
+  {
+    "caseId": "notebook-bayern-moorschutz",
+    "comparisonId": "cut-vs-none",
+    "challenger": "cut",
+    "baseline": "none",
+    "mapping": {
+      "A": "none",
+      "B": "cut"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten sind sehr detailliert und direkt. Sie beantworten die Frage vollständig und stützen sich gut auf die Quellen. Keine der Antworten erfindet Quellen oder Aussagen, und keine wichtige Information aus den Quellen fehlt. Beide Antworten sind gleichwertig."
+    }
+  },
+  {
+    "caseId": "notebook-at-klimaticket",
+    "comparisonId": "cut-vs-today",
+    "challenger": "cut",
+    "baseline": "today",
+    "mapping": {
+      "A": "today",
+      "B": "cut"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten sind sehr ähnlich und beantworten die Frage direkt und vollständig. Sie stützen sich gut auf die Quellen und erfüllen alle Kriterien gleich gut."
+    }
+  },
+  {
+    "caseId": "notebook-at-klimaticket",
+    "comparisonId": "cut-vs-none",
+    "challenger": "cut",
+    "baseline": "none",
+    "mapping": {
+      "A": "none",
+      "B": "cut"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten sind sehr ähnlich und beantworten die Frage direkt und vollständig. Sie stützen sich gut auf die Quellen und erfinden keine Aussagen. Es gibt keine wichtigen Aspekte, die fehlen. Daher ist es ein Unentschieden."
+    }
+  },
+  {
+    "caseId": "notebook-history-moorschutz",
+    "comparisonId": "cut-vs-today",
+    "challenger": "cut",
+    "baseline": "today",
+    "mapping": {
+      "A": "cut",
+      "B": "today"
+    },
+    "winnerVariant": "cut",
+    "result": {
+      "winner": "A",
+      "answersQuestion": {
+        "A": 3,
+        "B": 2
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": true
+      },
+      "rationale": "Antwort A beantwortet die Frage direkt und vollständig, indem sie detaillierte Informationen zu den politischen Forderungen und Analysen der Landtags-Grünen in Bayern bereitstellt. Sie stützt sich gut auf die genannten Quellen und erfindet keine Aussagen. Antwort B ist ebenfalls gut in den Quellen verankert, jedoch fehlt ein wichtiger Aspekt, der in den Quellen enthalten ist, wie die Kritik an der Umsetzung durch die Staatsregierung, die in Antwort A detailliert ausgeführt wird."
+    }
+  },
+  {
+    "caseId": "notebook-history-moorschutz",
+    "comparisonId": "cut-vs-none",
+    "challenger": "cut",
+    "baseline": "none",
+    "mapping": {
+      "A": "cut",
+      "B": "none"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten beantworten die Frage direkt und vollständig, indem sie detaillierte Informationen zu den politischen Forderungen und Analysen der Landtags-Grünen in Bayern bereitstellen. Beide Antworten stützen ihre Aussagen gut mit den genannten Quellen und erfinden keine Quellen oder Aussagen. Keine der Antworten lässt wichtige Aspekte aus, die die Quellen hergegeben hätten."
+    }
+  },
+  {
+    "caseId": "notebook-history-flaechenfrass",
+    "comparisonId": "cut-vs-today",
+    "challenger": "cut",
+    "baseline": "today",
+    "mapping": {
+      "A": "cut",
+      "B": "today"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten beantworten die Frage direkt und vollständig, indem sie detaillierte Informationen zu den politischen Forderungen und Analysen der Landtags-Grünen in Bayern bereitstellen. Beide Antworten stützen ihre Aussagen gut durch die genannten Quellen und erfinden keine Quellen oder Aussagen. Beide Antworten decken alle wichtigen Aspekte ab, die die Quellen hergeben."
+    }
+  },
+  {
+    "caseId": "notebook-history-flaechenfrass",
+    "comparisonId": "cut-vs-none",
+    "challenger": "cut",
+    "baseline": "none",
+    "mapping": {
+      "A": "cut",
+      "B": "none"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten beantworten die Frage direkt und vollständig, indem sie detaillierte Informationen zu den politischen Forderungen und Analysen der Landtags-Grünen in Bayern bereitstellen. Beide Antworten stützen ihre Aussagen gut durch die genannten Quellen und erfinden keine Aussagen oder Quellen. Beide Antworten decken die wichtigsten Aspekte ab, die in den Quellen zu finden sind."
+    }
+  },
+  {
+    "caseId": "notebook-history-artenvielfalt",
+    "comparisonId": "cut-vs-today",
+    "challenger": "cut",
+    "baseline": "today",
+    "mapping": {
+      "A": "today",
+      "B": "cut"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten sind sehr detailliert und direkt. Sie beantworten die Frage umfassend und stützen sich gut auf die Quellen. Keine der Antworten erfindet Quellen oder lässt wichtige Aspekte aus. Beide Antworten sind gleichwertig."
+    }
+  },
+  {
+    "caseId": "notebook-history-artenvielfalt",
+    "comparisonId": "cut-vs-none",
+    "challenger": "cut",
+    "baseline": "none",
+    "mapping": {
+      "A": "cut",
+      "B": "none"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten beantworten die Frage direkt und vollständig, indem sie detaillierte Informationen über den Naturschutz in Bayern bereitstellen. Sie stützen sich gut auf die genannten Quellen und erfinden keine Aussagen oder Quellen. Beide Antworten decken die wichtigsten Aspekte ab, die in den Quellen enthalten sind, und es gibt keine wesentlichen Unterschiede in der Qualität oder Vollständigkeit der Informationen."
+    }
+  },
+  {
+    "caseId": "grundsatz-oekologie",
+    "comparisonId": "cut-vs-today",
+    "challenger": "cut",
+    "baseline": "today",
+    "mapping": {
+      "A": "cut",
+      "B": "today"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten beantworten die Frage direkt und vollständig und sind gut in den Quellen verankert. Sie decken alle relevanten Aspekte ab und erfinden keine Quellen oder Aussagen. Die Antworten sind nahezu identisch, daher ist das Ergebnis ein Unentschieden."
+    }
+  },
+  {
+    "caseId": "grundsatz-oekologie",
+    "comparisonId": "cut-vs-none",
+    "challenger": "cut",
+    "baseline": "none",
+    "mapping": {
+      "A": "cut",
+      "B": "none"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten sind sehr detailliert und direkt. Sie beantworten die Frage vollständig und stützen sich gut auf die genannten Quellen. Beide Antworten sind gleich gut und es gibt keine wesentlichen Unterschiede in der Qualität oder Vollständigkeit."
+    }
+  },
+  {
+    "caseId": "gruene-de-waermepumpe",
+    "comparisonId": "cut-vs-today",
+    "challenger": "cut",
+    "baseline": "today",
+    "mapping": {
+      "A": "today",
+      "B": "cut"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten sind sehr detailliert und gut strukturiert. Sie beantworten die Frage direkt und vollständig, stützen sich gut auf die Quellen und erfüllen alle Kriterien gleich gut. Daher ist das Ergebnis ein Unentschieden."
+    }
+  },
+  {
+    "caseId": "gruene-de-waermepumpe",
+    "comparisonId": "cut-vs-none",
+    "challenger": "cut",
+    "baseline": "none",
+    "mapping": {
+      "A": "cut",
+      "B": "none"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten beantworten die Frage direkt und vollständig und sind gut in den Quellen verankert. Sie decken alle relevanten Aspekte ab und erfinden keine Quellen oder Aussagen. Daher ist das Urteil ein Unentschieden."
+    }
+  },
+  {
+    "caseId": "kommunalwiki-buergerbegehren",
+    "comparisonId": "cut-vs-today",
+    "challenger": "cut",
+    "baseline": "today",
+    "mapping": {
+      "A": "today",
+      "B": "cut"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten sind sehr detailliert und gut strukturiert. Sie decken alle Aspekte des Bürgerbegehrens ab, einschließlich Struktur, Arten, Zulässigkeitsvoraussetzungen und Verfahrensablauf. Beide Antworten stützen sich stark auf die bereitgestellten Quellen und erfüllen die Kriterien vollständig. Es gibt keine erfundenen Quellen oder fehlenden wichtigen Aspekte. Die Antworten sind nahezu identisch in Qualität und Inhalt, daher ist es ein Unentschieden."
+    }
+  },
+  {
+    "caseId": "kommunalwiki-buergerbegehren",
+    "comparisonId": "cut-vs-none",
+    "challenger": "cut",
+    "baseline": "none",
+    "mapping": {
+      "A": "none",
+      "B": "cut"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten beantworten die Frage sehr direkt und vollständig, indem sie detailliert den Ablauf, die rechtlichen Rahmenbedingungen und die praktische Umsetzung von Bürgerbegehren in deutschen Kommunen beschreiben. Sie stützen sich gut auf die genannten Quellen und erfüllen alle relevanten Aspekte der Frage. Es gibt keine erfundenen Quellen oder fehlenden wichtigen Aspekte in beiden Antworten."
+    }
+  },
+  {
+    "caseId": "at-grundsatz",
+    "comparisonId": "cut-vs-today",
+    "challenger": "cut",
+    "baseline": "today",
+    "mapping": {
+      "A": "today",
+      "B": "cut"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten sind sehr detailliert und direkt. Sie beantworten die Frage vollständig und sind gut in den Quellen verankert. Beide Antworten sind gleich gut."
+    }
+  },
+  {
+    "caseId": "at-grundsatz",
+    "comparisonId": "cut-vs-none",
+    "challenger": "cut",
+    "baseline": "none",
+    "mapping": {
+      "A": "cut",
+      "B": "none"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten sind sehr detailliert und direkt. Sie beantworten die Frage nach den Grundwerten der österreichischen Grünen umfassend und stützen sich vollständig auf die genannten Quellen. Keine der Antworten erfindet Quellen oder Aussagen, und keine wichtige Information aus den Quellen fehlt."
+    }
+  },
+  {
+    "caseId": "bayern-flaechenfrass",
+    "comparisonId": "cut-vs-today",
+    "challenger": "cut",
+    "baseline": "today",
+    "mapping": {
+      "A": "today",
+      "B": "cut"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten sind sehr detailliert und gut strukturiert. Sie decken die Frage umfassend ab und stützen sich auf die gleichen Quellen. Beide Antworten sind gleichwertig und liefern eine fundierte Analyse der Positionen der Grünen in Bayern zum Thema Flächenverbrauch und Flächenfraß."
+    }
+  },
+  {
+    "caseId": "bayern-flaechenfrass",
+    "comparisonId": "cut-vs-none",
+    "challenger": "cut",
+    "baseline": "none",
+    "mapping": {
+      "A": "none",
+      "B": "cut"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten beantworten die Frage direkt und vollständig, indem sie detailliert die Positionen der Grünen in Bayern zum Flächenverbrauch und Flächenfraß darlegen. Beide stützen sich gut auf die genannten Quellen und erfüllen die Kriterien gleich gut. Es gibt keine erfundenen Quellen oder fehlenden wichtigen Aspekte."
+    }
+  },
+  {
+    "caseId": "berlin-mieten",
+    "comparisonId": "cut-vs-today",
+    "challenger": "cut",
+    "baseline": "today",
+    "mapping": {
+      "A": "cut",
+      "B": "today"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten beantworten die Frage direkt und vollständig, indem sie detaillierte Informationen zur Mietenpolitik und zum bezahlbaren Wohnen in Berlin bereitstellen. Sie stützen sich gut auf die genannten Quellen und erfinden keine Aussagen oder Quellen. Keine der Antworten lässt wichtige Aspekte aus, die die Quellen hergegeben hätten. Daher ist das Urteil ein Unentschieden."
+    }
+  },
+  {
+    "caseId": "berlin-mieten",
+    "comparisonId": "cut-vs-none",
+    "challenger": "cut",
+    "baseline": "none",
+    "mapping": {
+      "A": "none",
+      "B": "cut"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten beantworten die Frage direkt und vollständig und sind gut in den Quellen verankert. Keine der Antworten erfindet Quellen oder lässt wichtige Aspekte aus."
+    }
+  },
+  {
+    "caseId": "boell-demokratie",
+    "comparisonId": "cut-vs-today",
+    "challenger": "cut",
+    "baseline": "today",
+    "mapping": {
+      "A": "cut",
+      "B": "today"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten beantworten die Frage direkt und vollständig. Sie stützen sich gut auf die genannten Quellen und erfinden keine Aussagen. Beide Antworten decken die wichtigsten Aspekte ab, die in den Quellen zu finden sind. Es gibt keine wesentlichen Unterschiede in der Qualität der Antworten."
+    }
+  },
+  {
+    "caseId": "boell-demokratie",
+    "comparisonId": "cut-vs-none",
+    "challenger": "cut",
+    "baseline": "none",
+    "mapping": {
+      "A": "cut",
+      "B": "none"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten beantworten die Frage direkt und vollständig. Sie stützen sich gut auf die genannten Quellen und erfinden keine Aussagen oder Quellen. Beide Antworten decken die wichtigsten Aspekte ab, die die Quellen hergeben. Es gibt keine signifikanten Unterschiede zwischen den Antworten, daher ist das Urteil ein Unentschieden."
+    }
+  },
+  {
+    "caseId": "gruenblog-netzpolitik",
+    "comparisonId": "cut-vs-today",
+    "challenger": "cut",
+    "baseline": "today",
+    "mapping": {
+      "A": "cut",
+      "B": "today"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten sind sehr detailliert und gut strukturiert. Sie decken die gleichen Themenbereiche ab und stützen sich auf die gleichen Quellen. Beide beantworten die Frage vollständig und sind gut in den Quellen verankert. Es gibt keine erfundenen Quellen oder fehlenden wichtigen Aspekte."
+    }
+  },
+  {
+    "caseId": "gruenblog-netzpolitik",
+    "comparisonId": "cut-vs-none",
+    "challenger": "cut",
+    "baseline": "none",
+    "mapping": {
+      "A": "cut",
+      "B": "none"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten sind sehr detailliert und gut strukturiert. Sie decken die gleichen Themenbereiche ab und stützen sich auf die gleichen Quellen. Beide beantworten die Frage vollständig und direkt, ohne wichtige Aspekte zu übergehen oder Quellen zu erfinden."
+    }
+  },
+  {
+    "caseId": "gruene-at-klima",
+    "comparisonId": "cut-vs-today",
+    "challenger": "cut",
+    "baseline": "today",
+    "mapping": {
+      "A": "cut",
+      "B": "today"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten sind sehr detailliert und gut strukturiert. Sie decken die Klimapolitik der Grünen in Österreich umfassend ab, einschließlich Energiewende, Naturschutz, nachhaltiger Mobilität und internationaler Zusammenarbeit. Beide Antworten stützen sich auf die bereitgestellten Quellen und erfüllen die Kriterien vollständig."
+    }
+  },
+  {
+    "caseId": "gruene-at-klima",
+    "comparisonId": "cut-vs-none",
+    "challenger": "cut",
+    "baseline": "none",
+    "mapping": {
+      "A": "cut",
+      "B": "none"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten sind sehr detailliert und gut strukturiert. Sie decken die Klimapolitik der Grünen in Österreich umfassend ab, einschließlich Energiewende, Naturschutz, Mobilität und internationaler Zusammenarbeit. Beide Antworten stützen sich gut auf die angegebenen Quellen und erfüllen die Kriterien vollständig. Daher ist das Urteil ein Unentschieden."
+    }
+  },
+  {
+    "caseId": "grundsatz-wuerde",
+    "comparisonId": "cut-vs-today",
+    "challenger": "cut",
+    "baseline": "today",
+    "mapping": {
+      "A": "cut",
+      "B": "today"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten beantworten die Frage direkt und vollständig, indem sie die Gründe für den Titel des Grundsatzprogramms „zu achten und zu schützen“ detailliert erläutern. Sie stützen sich ausschließlich auf die bereitgestellten Quellen und erfüllen alle Kriterien gleich gut. Daher ist das Ergebnis ein Unentschieden."
+    }
+  },
+  {
+    "caseId": "grundsatz-wuerde",
+    "comparisonId": "cut-vs-none",
+    "challenger": "cut",
+    "baseline": "none",
+    "mapping": {
+      "A": "cut",
+      "B": "none"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten beantworten die Frage direkt und vollständig, indem sie die Bedeutung des Titels „zu achten und zu schützen“ ausführlich erläutern. Sie stützen sich gut auf die bereitgestellten Quellen und erfüllen alle Kriterien gleich gut. Daher ist das Ergebnis ein Unentschieden."
+    }
+  },
+  {
+    "caseId": "gruene-de-vielfalt",
+    "comparisonId": "cut-vs-today",
+    "challenger": "cut",
+    "baseline": "today",
+    "mapping": {
+      "A": "today",
+      "B": "cut"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten sind sehr detailliert und direkt. Sie beantworten die Frage umfassend und stützen sich gut auf die Quellen. Keine der Antworten erfindet Quellen oder lässt wichtige Aspekte aus, die die Quellen hergegeben hätten."
+    }
+  },
+  {
+    "caseId": "gruene-de-vielfalt",
+    "comparisonId": "cut-vs-none",
+    "challenger": "cut",
+    "baseline": "none",
+    "mapping": {
+      "A": "none",
+      "B": "cut"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten beantworten die Frage direkt und vollständig und sind gut in den Quellen verankert. Sie decken die gleichen Themenbereiche ab und erfüllen alle Kriterien gleich gut. Daher ist das Ergebnis ein Unentschieden."
+    }
+  },
+  {
+    "caseId": "kommunalwiki-bebauungsplan",
+    "comparisonId": "cut-vs-today",
+    "challenger": "cut",
+    "baseline": "today",
+    "mapping": {
+      "A": "cut",
+      "B": "today"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten beantworten die Frage direkt und vollständig. Sie stützen sich gut auf die genannten Quellen und erfinden keine Aussagen. Beide Antworten decken die wichtigsten Aspekte ab, die die Quellen hergeben. Es gibt keinen signifikanten Unterschied zwischen den Antworten."
+    }
+  },
+  {
+    "caseId": "kommunalwiki-bebauungsplan",
+    "comparisonId": "cut-vs-none",
+    "challenger": "cut",
+    "baseline": "none",
+    "mapping": {
+      "A": "cut",
+      "B": "none"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten beantworten die Frage direkt und vollständig. Sie stützen sich gut auf die genannten Quellen und erfinden keine Aussagen oder Quellen. Beide Antworten decken alle wichtigen Aspekte ab, die die Quellen hergeben. Es gibt keine signifikanten Unterschiede zwischen den Antworten, daher ist es ein Unentschieden."
+    }
+  },
+  {
+    "caseId": "at-nrw-klima",
+    "comparisonId": "cut-vs-today",
+    "challenger": "cut",
+    "baseline": "today",
+    "mapping": {
+      "A": "cut",
+      "B": "today"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten sind sehr detailliert und direkt. Sie beantworten die Frage vollständig und stützen sich gut auf die genannten Quellen. Keine der Antworten erfindet Quellen oder Aussagen, und es fehlt auch kein wichtiger Aspekt, den die Quellen hergegeben hätten. Beide Antworten sind gleich gut."
+    }
+  },
+  {
+    "caseId": "at-nrw-klima",
+    "comparisonId": "cut-vs-none",
+    "challenger": "cut",
+    "baseline": "none",
+    "mapping": {
+      "A": "cut",
+      "B": "none"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten beantworten die Frage direkt und vollständig und sind gut in den Quellen verankert. Sie decken alle relevanten Aspekte ab und erfinden keine Quellen oder Aussagen. Es gibt keine wesentlichen Unterschiede in der Qualität der Antworten."
+    }
+  },
+  {
+    "caseId": "bayern-artenvielfalt",
+    "comparisonId": "cut-vs-today",
+    "challenger": "cut",
+    "baseline": "today",
+    "mapping": {
+      "A": "cut",
+      "B": "today"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten beantworten die Frage direkt und vollständig und sind gut in den Quellen verankert. Sie erfinden keine Quellen oder Aussagen und lassen keine wichtigen Aspekte aus. Beide Antworten sind gleichwertig."
+    }
+  },
+  {
+    "caseId": "bayern-artenvielfalt",
+    "comparisonId": "cut-vs-none",
+    "challenger": "cut",
+    "baseline": "none",
+    "mapping": {
+      "A": "cut",
+      "B": "none"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten sind sehr detailliert und gut strukturiert. Sie beantworten die Frage direkt und vollständig, stützen sich auf die gleichen Quellen und erfüllen alle Kriterien gleich gut. Daher ist das Urteil ein Unentschieden."
+    }
+  },
+  {
+    "caseId": "berlin-verkehr",
+    "comparisonId": "cut-vs-today",
+    "challenger": "cut",
+    "baseline": "today",
+    "mapping": {
+      "A": "cut",
+      "B": "today"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten sind sehr detailliert und direkt. Sie beantworten die Frage umfassend und stützen sich gut auf die genannten Quellen. Keine der Antworten erfindet Quellen oder lässt wichtige Aspekte aus, die die Quellen hergegeben hätten."
+    }
+  },
+  {
+    "caseId": "berlin-verkehr",
+    "comparisonId": "cut-vs-none",
+    "challenger": "cut",
+    "baseline": "none",
+    "mapping": {
+      "A": "none",
+      "B": "cut"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten sind sehr detailliert und gut strukturiert. Sie decken die Frage umfassend ab und stützen sich auf eine Vielzahl von Quellen. Beide Antworten sind gleichwertig und es gibt keine wesentlichen Unterschiede in der Qualität oder Vollständigkeit."
+    }
+  },
+  {
+    "caseId": "boell-atlas",
+    "comparisonId": "cut-vs-today",
+    "challenger": "cut",
+    "baseline": "today",
+    "mapping": {
+      "A": "cut",
+      "B": "today"
+    },
+    "winnerVariant": "today",
+    "result": {
+      "winner": "B",
+      "answersQuestion": {
+        "A": 2,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": true,
+        "B": false
+      },
+      "rationale": "Antwort B geht direkter auf die Frage ein, indem sie explizit auf die Themen Fleisch und Mobilität eingeht, auch wenn sie zu Fleisch keine Informationen hat. Antwort A erwähnt diese Themen nur am Rande und gibt vor, die Quellen hätten etwas zu den Themen, was sie nicht tun. Beide Antworten sind gut in den Quellen verankert, aber Antwort A behauptet, die Quellen hätten etwas, was sie nicht haben, und lässt damit einen wichtigen Aspekt aus, den die Quellen nicht hergeben."
+    }
+  },
+  {
+    "caseId": "boell-atlas",
+    "comparisonId": "cut-vs-none",
+    "challenger": "cut",
+    "baseline": "none",
+    "mapping": {
+      "A": "cut",
+      "B": "none"
+    },
+    "winnerVariant": "none",
+    "result": {
+      "winner": "B",
+      "answersQuestion": {
+        "A": 2,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": true,
+        "B": false
+      },
+      "rationale": "Antwort B beantwortet die Frage direkter und vollständiger, indem sie spezifische Fakten zu Fleisch und Mobilität aus den genannten Atlanten der Heinrich-Böll-Stiftung bereitstellt. Beide Antworten sind gut in den Quellen verankert und erfinden keine Quellen. Antwort A lässt jedoch wichtige Aspekte aus, die in den Quellen enthalten sein könnten, während Antwort B alle relevanten Informationen liefert."
+    }
+  },
+  {
+    "caseId": "gruenblog-partei",
+    "comparisonId": "cut-vs-today",
+    "challenger": "cut",
+    "baseline": "today",
+    "mapping": {
+      "A": "today",
+      "B": "cut"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten beantworten die Frage direkt und vollständig, indem sie detailliert die strategische Ausrichtung der Grünen diskutieren. Sie stützen sich gut auf die genannten Quellen und erfinden keine Aussagen. Beide Antworten decken die wichtigsten Aspekte ab, die in den Quellen zu finden sind. Daher ist das Ergebnis ein Unentschieden."
+    }
+  },
+  {
+    "caseId": "gruenblog-partei",
+    "comparisonId": "cut-vs-none",
+    "challenger": "cut",
+    "baseline": "none",
+    "mapping": {
+      "A": "none",
+      "B": "cut"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten sind sehr detailliert und direkt. Sie beantworten die Frage vollständig und stützen sich gut auf die Quellen. Keine der Antworten erfindet Quellen oder lässt wichtige Aspekte aus."
+    }
+  },
+  {
+    "caseId": "gruene-at-team",
+    "comparisonId": "cut-vs-today",
+    "challenger": "cut",
+    "baseline": "today",
+    "mapping": {
+      "A": "today",
+      "B": "cut"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten beantworten die Frage direkt und vollständig, indem sie die Mitglieder des Grünen Klubs im Nationalrat detailliert auflisten. Sie stützen sich gut auf die genannten Quellen und erfinden keine Informationen. Beide Antworten sind umfassend und decken alle relevanten Aspekte ab, die in den Quellen enthalten sind. Daher ist das Urteil 'tie'."
+    }
+  },
+  {
+    "caseId": "gruene-at-team",
+    "comparisonId": "cut-vs-none",
+    "challenger": "cut",
+    "baseline": "none",
+    "mapping": {
+      "A": "cut",
+      "B": "none"
+    },
+    "winnerVariant": "cut",
+    "result": {
+      "winner": "A",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": true
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Antwort A und Antwort B beantworten die Frage direkt und vollständig, indem sie die Mitglieder der Grünen im Nationalrat detailliert auflisten. Beide Antworten stützen sich gut auf die genannten Quellen. Allerdings erwähnt Antwort B eine aktuelle Team-Aufstellung vom März 2026, die nicht durch die bereitgestellten Quellen gestützt wird, was darauf hindeutet, dass hier eine erfundene Quelle oder ein erfundener Zeitpunkt verwendet wurde. Antwort A bleibt dagegen durchgehend konsistent mit den angegebenen Quellen."
+    }
+  },
+  {
+    "caseId": "grundsatz-btw25-klima",
+    "comparisonId": "cut-vs-today",
+    "challenger": "cut",
+    "baseline": "today",
+    "mapping": {
+      "A": "today",
+      "B": "cut"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten beantworten die Frage direkt und vollständig und sind gut in den Quellen verankert. Es gibt keine erfundenen Quellen oder fehlenden wichtigen Aspekte. Beide Antworten sind gleichwertig."
+    }
+  },
+  {
+    "caseId": "grundsatz-btw25-klima",
+    "comparisonId": "cut-vs-none",
+    "challenger": "cut",
+    "baseline": "none",
+    "mapping": {
+      "A": "cut",
+      "B": "none"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten sind sehr detailliert und direkt. Sie beantworten die Frage vollständig und stützen sich gut auf die genannten Quellen. Keine der Antworten erfindet Quellen oder Aussagen, und es fehlen keine wichtigen Aspekte, die die Quellen hergegeben hätten."
+    }
+  },
+  {
+    "caseId": "gruene-de-frauentag",
+    "comparisonId": "cut-vs-today",
+    "challenger": "cut",
+    "baseline": "today",
+    "mapping": {
+      "A": "cut",
+      "B": "today"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten beantworten die Frage direkt und vollständig und sind gut in den Quellen verankert. Sie decken alle relevanten Aspekte ab und erfinden keine Quellen oder Aussagen. Es gibt keine wesentlichen Unterschiede in der Qualität oder Vollständigkeit."
+    }
+  },
+  {
+    "caseId": "gruene-de-frauentag",
+    "comparisonId": "cut-vs-none",
+    "challenger": "cut",
+    "baseline": "none",
+    "mapping": {
+      "A": "cut",
+      "B": "none"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten beantworten die Frage direkt und vollständig und sind gut in den Quellen verankert. Sie decken alle relevanten Aspekte ab und erfinden keine Quellen oder Aussagen. Es gibt keine wesentlichen Unterschiede in der Qualität oder Vollständigkeit der Antworten."
+    }
+  },
+  {
+    "caseId": "neartopic-bvg-monatsabo",
+    "comparisonId": "cut-vs-today",
+    "challenger": "cut",
+    "baseline": "today",
+    "mapping": {
+      "A": "cut",
+      "B": "today"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 1,
+        "B": 1
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": true,
+        "B": true
+      },
+      "rationale": "Beide Antworten beantworten die Frage nicht direkt, sondern gehen auf verschiedene Ticketmodelle und politische Forderungen ein. Sie sind gut in den Quellen verankert, aber keine der Antworten nennt den aktuellen Preis eines regulären BVG-Monatsabos, der in den Quellen nicht enthalten ist."
+    }
+  },
+  {
+    "caseId": "neartopic-bvg-monatsabo",
+    "comparisonId": "cut-vs-none",
+    "challenger": "cut",
+    "baseline": "none",
+    "mapping": {
+      "A": "none",
+      "B": "cut"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 2,
+        "B": 2
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten sind sehr ähnlich und beantworten die Frage nicht direkt, sondern listen verschiedene Ticketpreise und politische Forderungen auf. Beide sind gut in den Quellen verankert und erfinden keine Informationen. Die Antworten sind umfangreich, aber nicht präzise genug, um die Frage nach dem Preis eines BVG-Monatsabos direkt zu beantworten."
+    }
+  },
+  {
+    "caseId": "neartopic-abgeordnetenhauswahl",
+    "comparisonId": "cut-vs-today",
+    "challenger": "cut",
+    "baseline": "today",
+    "mapping": {
+      "A": "cut",
+      "B": "today"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten beantworten die Frage direkt und vollständig, indem sie den Termin der nächsten Wahl zum Berliner Abgeordnetenhaus korrekt angeben. Sie stützen sich gut auf die bereitgestellten Quellen und erfüllen alle Kriterien gleich gut. Daher ist das Ergebnis ein Unentschieden."
+    }
+  },
+  {
+    "caseId": "neartopic-abgeordnetenhauswahl",
+    "comparisonId": "cut-vs-none",
+    "challenger": "cut",
+    "baseline": "none",
+    "mapping": {
+      "A": "cut",
+      "B": "none"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten beantworten die Frage direkt und vollständig, indem sie den Termin der nächsten Wahl zum Berliner Abgeordnetenhaus korrekt angeben. Sie stützen sich gut auf die genannten Quellen und erfüllen alle Kriterien gleich gut. Daher ist das Ergebnis ein Unentschieden."
+    }
+  },
+  {
+    "caseId": "neartopic-muenchen-einwohner",
+    "comparisonId": "cut-vs-today",
+    "challenger": "cut",
+    "baseline": "today",
+    "mapping": {
+      "A": "cut",
+      "B": "today"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 1,
+        "B": 1
+      },
+      "groundedInSources": {
+        "A": 0,
+        "B": 0
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten sind identisch und geben direkt an, dass die Einwohnerzahl von München nicht in den Quellen enthalten ist. Da keine Quellen angegeben sind, können die Antworten nicht durch Quellen gestützt werden. Beide Antworten sind in diesem Sinne gleichwertig."
+    }
+  },
+  {
+    "caseId": "neartopic-muenchen-einwohner",
+    "comparisonId": "cut-vs-none",
+    "challenger": "cut",
+    "baseline": "none",
+    "mapping": {
+      "A": "cut",
+      "B": "none"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 1,
+        "B": 1
+      },
+      "groundedInSources": {
+        "A": 0,
+        "B": 0
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten geben an, dass die Einwohnerzahl von München nicht in den Quellen enthalten ist. Da keine Quellen angegeben sind, können die Antworten nicht auf ihre Richtigkeit überprüft werden. Beide Antworten sind gleichwertig, da sie dieselbe Information liefern und keine Quellen angegeben sind."
+    }
+  },
+  {
+    "caseId": "neartopic-landesvorsitz-bayern",
+    "comparisonId": "cut-vs-today",
+    "challenger": "cut",
+    "baseline": "today",
+    "mapping": {
+      "A": "cut",
+      "B": "today"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten beantworten die Frage direkt und vollständig, indem sie klar angeben, dass Eva Lettenbauer und Gisela Sengl die aktuellen Landesvorsitzenden der bayerischen Grünen sind. Beide Antworten stützen ihre Aussagen gut mit den genannten Quellen, und es gibt keine erfundenen Quellen oder fehlenden wichtigen Aspekte. Die Antworten sind inhaltlich nahezu identisch und gleich gut begründet."
+    }
+  },
+  {
+    "caseId": "neartopic-landesvorsitz-bayern",
+    "comparisonId": "cut-vs-none",
+    "challenger": "cut",
+    "baseline": "none",
+    "mapping": {
+      "A": "none",
+      "B": "cut"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten beantworten die Frage direkt und vollständig, wer den Landesvorsitz der bayerischen Grünen innehat. Sie stützen sich gut auf die genannten Quellen und erfüllen alle Kriterien gleich gut. Daher ist das Ergebnis ein Unentschieden."
+    }
+  },
+  {
+    "caseId": "neartopic-moor-foerdersumme",
+    "comparisonId": "cut-vs-today",
+    "challenger": "cut",
+    "baseline": "today",
+    "mapping": {
+      "A": "cut",
+      "B": "today"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten sind gleich gut. Sie beantworten die Frage direkt und vollständig, indem sie klarstellen, dass die Fördersumme für die Moorrenaturierung im Jahr 2024 nicht in den Quellen angegeben ist. Beide Antworten stützen sich gut auf die genannten Quellen und erfüllen alle Kriterien gleich gut."
+    }
+  },
+  {
+    "caseId": "neartopic-moor-foerdersumme",
+    "comparisonId": "cut-vs-none",
+    "challenger": "cut",
+    "baseline": "none",
+    "mapping": {
+      "A": "none",
+      "B": "cut"
+    },
+    "winnerVariant": "tie",
+    "result": {
+      "winner": "tie",
+      "answersQuestion": {
+        "A": 3,
+        "B": 3
+      },
+      "groundedInSources": {
+        "A": 3,
+        "B": 3
+      },
+      "inventedSource": {
+        "A": false,
+        "B": false
+      },
+      "missingImportant": {
+        "A": false,
+        "B": false
+      },
+      "rationale": "Beide Antworten sind gleich gut. Sie beantworten die Frage direkt und vollständig, indem sie klarstellen, dass die Fördersumme für die Moorrenaturierung im Jahr 2024 nicht in den Quellen angegeben ist. Beide Antworten stützen sich auf die bereitgestellten Quellen und erfüllen die Kriterien vollständig."
+    }
   }
 ]
