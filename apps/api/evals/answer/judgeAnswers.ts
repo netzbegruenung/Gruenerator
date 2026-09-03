@@ -4,11 +4,13 @@
  *   pnpm --filter @gruenerator/api eval:answer:judge [answers-file.json]
  *
  * Reads an `answers-<date>.json` from `generateAnswers.ts` (the newest one in
- * this directory by default), and for every case runs the two comparisons in
- * `COMPARISONS` (`filter vs today`, `filter vs none`): both answers go to the
- * judge as A/B in a randomised order (mapping recorded, never shown to the
- * judge), together with their citation lists and a German rubric. The judge
- * never sees which variant produced which side.
+ * this directory by default), and for every case runs the comparisons from
+ * `resolveComparisons(process.env)` — default `cut vs today` and `cut vs
+ * none` since 2026-09-03; set `EVAL_ANSWER_COMPARISONS` (comma-separated ids
+ * from `ALL_COMPARISONS`, e.g. `filter-vs-today`) to run others instead: both
+ * answers go to the judge as A/B in a randomised order (mapping recorded,
+ * never shown to the judge), together with their citation lists and a German
+ * rubric. The judge never sees which variant produced which side.
  *
  * The judge is `aiObject` pinned to `{ provider: 'cortecs', model: 'mistral-small-3.2-24b-instruct-2506' }` (small)
  * (`AiCall.pinned` in `services/ai/generate.ts`) — a different model family
@@ -18,8 +20,8 @@
  *
  * Writes `judgments-<date>.json` (one `JudgmentRecord` per case×comparison)
  * and `answer-eval-<date>.md` (win rates with ties, mean judge scores per
- * variant, the cases where `filter` lost with the rationale, and near-topic
- * cases reported separately — they are not part of any win rate).
+ * variant, the cases where a challenger lost with the rationale, and
+ * near-topic cases reported separately — they are not part of any win rate).
  *
  * Resumable like `generateAnswers.ts`: a case×comparison already present in
  * today's `judgments-<date>.json` is not re-judged — a judge call is a real
@@ -40,11 +42,11 @@ import { type StructuredValidation } from '../../services/ai/structuredParsing.j
 
 import { ANSWER_CASES, type AnswerCase, type AnswerCaseGroup } from './answerCases.js';
 import {
-  COMPARISONS,
   buildAbMapping,
   judgeJsonSchema,
   judgeResultSchema,
   mean,
+  resolveComparisons,
   resolveWinner,
   tally,
   today,
@@ -53,6 +55,7 @@ import {
   type AnswerCitation,
   type AnswerRecord,
   type AnswerVariant,
+  type Comparison,
   type JudgeResult,
   type JudgmentRecord,
 } from './answerEvalCore.js';
@@ -192,7 +195,8 @@ function collectVariantStats(
 function renderReport(
   answersPath: string,
   cases: readonly AnswerCase[],
-  judgments: readonly JudgmentRecord[]
+  judgments: readonly JudgmentRecord[],
+  comparisons: readonly Comparison[]
 ): string {
   const caseGroup = new Map(cases.map((c) => [c.id, c.group]));
   const caseById = new Map(cases.map((c) => [c.id, c]));
@@ -201,7 +205,7 @@ function renderReport(
   lines.push(`# Answer eval — ${today()}`, '', `Input: ${answersPath}`, '');
 
   lines.push('## Gewinnraten (notebook + qa, Unentschieden zählen im Nenner)', '');
-  for (const comparison of COMPARISONS) {
+  for (const comparison of comparisons) {
     const winners = judgments
       .filter((j) => j.comparisonId === comparison.id && caseGroup.get(j.caseId) !== 'near-topic')
       .map((j) => j.winnerVariant);
@@ -231,16 +235,15 @@ function renderReport(
   }
   lines.push('');
 
-  lines.push('## Fälle, in denen `filter` verloren hat', '');
-  for (const comparison of COMPARISONS) {
+  lines.push('## Fälle, in denen die Challenger-Variante verloren hat', '');
+  for (const comparison of comparisons) {
     const losses = judgments.filter(
       (j) =>
         j.comparisonId === comparison.id &&
-        j.challenger === 'filter' &&
         j.winnerVariant === j.baseline &&
         caseGroup.get(j.caseId) !== 'near-topic'
     );
-    lines.push(`### filter vs ${comparison.baseline}`, '');
+    lines.push(`### ${comparison.challenger} vs ${comparison.baseline}`, '');
     if (losses.length === 0) {
       lines.push('(keine)', '');
       continue;
@@ -285,6 +288,12 @@ async function main(): Promise<void> {
   const answers = JSON.parse(readFileSync(answersPath, 'utf8')) as AnswerRecord[];
   const byKey = new Map(answers.map((r) => [answerKey(r.caseId, r.variant), r]));
 
+  // Read here, not at module scope: a static import of `answerEvalCore.js`
+  // runs before this file's own `dotenv.config()` (module execution follows
+  // the dependency graph, not import position), so `process.env` would still
+  // be missing anything set only via `.env` if read at module load time.
+  const comparisons = resolveComparisons(process.env);
+
   const judgmentsPath = join(HERE, `judgments-${today()}.json`);
   const existing = loadJudgments(judgmentsPath);
   const alreadyJudged = new Set(existing.map((j) => `${j.caseId}::${j.comparisonId}`));
@@ -294,7 +303,7 @@ async function main(): Promise<void> {
   let skippedMissing = 0;
 
   for (const c of ANSWER_CASES) {
-    for (const comparison of COMPARISONS) {
+    for (const comparison of comparisons) {
       if (alreadyJudged.has(`${c.id}::${comparison.id}`)) continue;
 
       const challengerRecord = byKey.get(answerKey(c.id, comparison.challenger));
@@ -339,7 +348,7 @@ async function main(): Promise<void> {
   }
 
   const reportPath = join(HERE, `answer-eval-${today()}.md`);
-  writeFileSync(reportPath, renderReport(answersPath, ANSWER_CASES, results));
+  writeFileSync(reportPath, renderReport(answersPath, ANSWER_CASES, results, comparisons));
   console.log(`Done. Wrote ${judgmentsPath} and ${reportPath}`);
 }
 

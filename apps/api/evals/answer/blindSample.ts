@@ -50,7 +50,7 @@ function findLatest(prefix: string, suffix: string): string | null {
 }
 
 /** Fisher-Yates on a copy — local to this file, `shuffleVariants` in
- *  `answerEvalCore.ts` is typed to the fixed 3-variant tuple, not a generic
+ *  `answerEvalCore.ts` is typed to the fixed variant tuple, not a generic
  *  array. */
 function shuffle<T>(rng: () => number, items: readonly T[]): T[] {
   const out = [...items];
