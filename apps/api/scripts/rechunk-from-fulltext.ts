@@ -161,6 +161,12 @@ export function pointIdRecipeFor(collection: string): PointIdRecipe | null {
         idKey: 'source_url',
         id: (key, index) => generatePointId('gruene_at', key, index),
       };
+    case 'gruenblog_documents':
+      // GruenblogScraper.ts:409.
+      return {
+        idKey: 'source_url',
+        id: (key, index) => generatePointId('gruenblog', key, index),
+      };
     default:
       return null;
   }
