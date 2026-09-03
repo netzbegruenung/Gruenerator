@@ -4,9 +4,11 @@ import { parseSSEStream } from './parseSSEStream';
 
 import type { GrueneratorAdapterCallbacks, StreamOutcome, ToolCallPart } from './types';
 
-const notifyWarning = vi.fn();
+const notifyWarning = vi.fn<(...args: unknown[]) => void>();
 vi.mock('../../lib/notify', () => ({
-  notifyWarning: (...args: unknown[]) => notifyWarning(...args),
+  notifyWarning: (...args: unknown[]) => {
+    notifyWarning(...args);
+  },
   notifyError: vi.fn(),
 }));
 
