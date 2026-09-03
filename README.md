@@ -50,12 +50,12 @@ Political organizations need to create compelling, consistent content across mul
 
 Grünerator is built on **100% European infrastructure** with a commitment to digital sovereignty:
 
-| Principle                 | Implementation                                                                             |
-| ------------------------- | ------------------------------------------------------------------------------------------ |
-| **100% EU Hosting**       | All servers located exclusively in the European Union                                      |
-| **European AI Providers** | Mistral AI (France), Cortecs & Regolo (EU-hosted open models), Black Forest Labs (Germany) |
-| **Self-hosted AI**        | Green-powered inference hosted by netzbegrünung e.V. and EU partners                       |
-| **75% EU Target**         | Minimum 75% of spending with European companies                                            |
+| Principle                 | Implementation                                                                                                                     |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| **100% EU Hosting**       | All servers located exclusively in the European Union                                                                              |
+| **European AI Providers** | Mistral AI (France), Cortecs & Regolo (EU-hosted open models), Black Forest Labs (Germany), KugelAudio (Germany, speech synthesis) |
+| **Self-hosted AI**        | Green-powered inference hosted by netzbegrünung e.V. and EU partners                                                               |
+| **75% EU Target**         | Minimum 75% of spending with European companies                                                                                    |
 
 ### Key Features
 
@@ -327,6 +327,7 @@ CORTECS_API_KEY=...                    # EU-hosted open models via Cortecs (serv
 REGOLO_API_KEY=...                     # EU-hosted open models via Regolo (Italy)
 LITELLM_API_KEY=...                    # Retired alias — still read for CI/scripts; requests are remapped to Cortecs
 BFL_API_KEY=...                        # Image generation (Black Forest Labs, Germany)
+KUGELAUDIO_API_KEY=...                 # Speech synthesis (KugelAudio, Berlin; EU endpoint)
 
 # Keycloak Authentication
 KEYCLOAK_BASE_URL=https://auth.example.com
@@ -489,6 +490,7 @@ Write everything that lands on GitHub in **English** — commit messages, branch
 - [Netzbegrünung e.V.](https://netzbegruenung.de/) — Technical support, hosting, and self-hosted AI infrastructure
 - [Mistral AI](https://mistral.ai/) — Primary AI provider (France)
 - [Black Forest Labs](https://blackforestlabs.ai/) — Image generation (Germany)
+- [KugelAudio](https://kugelaudio.com/) — Speech synthesis (Germany)
 - All contributors and supporters of European digital sovereignty
 
 ---
