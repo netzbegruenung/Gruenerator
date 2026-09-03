@@ -655,9 +655,29 @@ describe('convertNotebookLoadedMessages', () => {
         documentId: 'doc_9',
         chunkIndex: 4,
         similarityScore: 0.82,
+        pageNumber: null,
         collectionId: 'grundsatz-system',
       },
     ]);
+  });
+
+  /**
+   * Der Live-Pfad (`NotebookModelAdapter`) bildet `page_number` ab, der Verlauf
+   * lief lange daran vorbei — „S. 12" stand auf der Quellenkarte bis zum
+   * Reload und war danach weg.
+   */
+  it('carries the page number of a reloaded citation', () => {
+    const [, answer] = convertNotebookLoadedMessages([
+      rows[0]!,
+      {
+        ...rows[1]!,
+        metadata: {
+          citations: [{ ...rawCitation, page_number: 12 }],
+        } as unknown as LoadedMessage['metadata'],
+      },
+    ]);
+    const custom = answer?.metadata?.custom as Record<string, unknown>;
+    expect((custom.citations as { pageNumber: number | null }[])[0]!.pageNumber).toBe(12);
   });
 
   it('keeps the raw citations and the sources for the panel and the export', () => {
@@ -694,6 +714,25 @@ describe('convertNotebookLoadedMessages', () => {
     ]);
     const custom = answer?.metadata?.custom as Record<string, unknown>;
     expect(custom.question).toBe('');
+  });
+
+  // Thumbs feedback targets the Langfuse trace of the turn, and the buttons
+  // only appear when `custom.streamMetadata.traceId` is there. The live path
+  // builds that in NotebookModelAdapter; reload has to rebuild the same shape
+  // or the thumbs vanish the moment the conversation is reopened.
+  it('rebuilds streamMetadata from the persisted traceId', () => {
+    const traceId = 'a'.repeat(32);
+    const [answer] = convertNotebookLoadedMessages([
+      { id: 'a1', role: 'assistant', content: 'Antwort.', metadata: { traceId } },
+    ]);
+    const custom = answer?.metadata?.custom as Record<string, unknown>;
+    expect(custom.streamMetadata).toEqual({ intent: 'direct', searchCount: 0, traceId });
+  });
+
+  it('leaves streamMetadata off an answer that has no traceId', () => {
+    const [, answer] = convertNotebookLoadedMessages(rows);
+    const custom = answer?.metadata?.custom as Record<string, unknown>;
+    expect(custom.streamMetadata).toBeUndefined();
   });
 
   it('reads an answer without citations as an empty list, not a crash', () => {

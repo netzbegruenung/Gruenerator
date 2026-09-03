@@ -152,13 +152,6 @@ interface PublicAccessData {
   last_accessed_at: string | null;
 }
 
-interface UsageLogMetadata {
-  ip_address?: string | null;
-  user_agent?: string | null;
-  apiKeyId?: string | null;
-  landesverband?: string | null;
-}
-
 interface BulkDeleteResult {
   deleted: string[];
   failed: Array<{ id: string; error: string }>;
@@ -678,6 +671,44 @@ class NotebookQdrantHelper {
   }
 
   /**
+   * Die Notebooks einer Person OHNE die Dokument-Zuordnung.
+   *
+   * `getUserNotebookCollections` holt zu jedem Notebook zusätzlich dessen
+   * Dokumente — also einen Scroll je Notebook. Für einen Chat-Werkzeugaufruf,
+   * der nur `settings.wolke_folders` braucht, wäre das ein N+1 mitten im
+   * Antwortpfad. Deshalb derselbe Zuschnitt wie bei
+   * `getNotebookCollectionsByAutoSync` (das das Fan-out aus demselben Grund
+   * überspringt), nur nach `user_id` gefiltert; `document_count` bleibt der
+   * gespeicherte Payload-Wert.
+   */
+  async getUserNotebookCollectionsLight(
+    userId: string,
+    options: GetCollectionsOptions = {}
+  ): Promise<NotebookCollection[]> {
+    await this.ensureInitialized();
+
+    try {
+      const { limit = 200, offset = 0 } = options;
+
+      const filter: QdrantFilter = {
+        must: [{ key: 'user_id', match: { value: userId } }],
+      };
+
+      const results = await this.qdrantOps!.scrollDocuments(
+        this.qdrant.collections.notebook_collections,
+        filter,
+        { limit, offset, withPayload: true }
+      );
+
+      return results.map((result: ScrollPoint) => this.formatCollectionFromPayload(result.payload));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error(`Error getting user Notebook collections (light): ${message}`);
+      throw new Error(`Failed to get user Notebook collections: ${message}`);
+    }
+  }
+
+  /**
    * Update Notebook collection
    */
   async updateNotebookCollection(
@@ -1067,6 +1098,39 @@ class NotebookQdrantHelper {
   }
 
   /**
+   * Whether `documentId` is linked to `collectionId` — a single-membership
+   * check for callers that must confirm attachment before acting on a
+   * document as if it were part of a given notebook (e.g. before scoping a
+   * search to it). Errors are rethrown rather than answered as "not linked":
+   * silently treating a Qdrant hiccup as a definite miss would look identical
+   * to a real absence to the caller.
+   */
+  async isDocumentInCollection(collectionId: string, documentId: string): Promise<boolean> {
+    await this.ensureInitialized();
+
+    try {
+      const filter: QdrantFilter = {
+        must: [
+          { key: 'collection_id', match: { value: collectionId } },
+          { key: 'document_id', match: { value: documentId } },
+        ],
+      };
+
+      const results = await this.qdrantOps!.scrollDocuments(
+        this.qdrant.collections.notebook_collection_documents,
+        filter,
+        { limit: 1, withPayload: false }
+      );
+
+      return results.length > 0;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error(`Error checking document-collection membership: ${message}`);
+      throw error;
+    }
+  }
+
+  /**
    * Get public access by token
    *
    * Token creation/revocation was removed when the notebook share model moved
@@ -1107,53 +1171,6 @@ class NotebookQdrantHelper {
       const message = error instanceof Error ? error.message : String(error);
       logger.error(`Error getting public access: ${message}`);
       throw new Error(`Failed to get public access: ${message}`);
-    }
-  }
-
-  /**
-   * Log Notebook usage
-   */
-  async logNotebookUsage(
-    collectionId: string,
-    userId: string | null,
-    question: string,
-    answerLength: number,
-    responseTime: number,
-    metadata: UsageLogMetadata = {}
-  ): Promise<{ success: boolean; error?: string }> {
-    await this.ensureInitialized();
-
-    try {
-      // Generate embedding for the question for analytics
-      await mistralEmbeddingService.init();
-      const questionEmbedding = await mistralEmbeddingService.generateEmbedding(question);
-
-      const point: QdrantPoint = {
-        id: this.generateNumericId(uuidv4()),
-        vector: questionEmbedding,
-        payload: {
-          collection_id: collectionId,
-          user_id: userId,
-          question: question,
-          answer_length: answerLength,
-          response_time_ms: responseTime,
-          created_at: new Date().toISOString(),
-          ip_address: metadata.ip_address || null,
-          user_agent: metadata.user_agent || null,
-          api_key_id: metadata.apiKeyId || null,
-          landesverband: metadata.landesverband || null,
-        },
-      };
-
-      await this.qdrantOps!.batchUpsert(this.qdrant.collections.notebook_usage_logs, [point]);
-
-      logger.info(`Logged Notebook usage for collection: ${collectionId}`);
-      return { success: true };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      logger.error(`Error logging Notebook usage: ${message}`);
-      // Don't throw error for logging failures
-      return { success: false, error: message };
     }
   }
 
@@ -1391,7 +1408,6 @@ export type {
   NotebookCollection,
   CollectionDocument,
   PublicAccessData,
-  UsageLogMetadata,
   BulkDeleteResult,
   GetCollectionsOptions,
 };

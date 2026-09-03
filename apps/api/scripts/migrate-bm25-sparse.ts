@@ -38,6 +38,11 @@ import type { QdrantClient } from '@qdrant/js-client-rest';
 
 const TMP_SUFFIX = '__bm25_tmp';
 const SCROLL_BATCH = 64;
+// Points travel with their dense vector AND the full payload (chunk text), so a
+// 64-point upsert is ~1 MB — above the reverse proxy's body limit in front of
+// Qdrant (413 "Request Entity Too Large" on kommunalwiki_documents, 02.09.2026).
+// Scrolling stays at 64; only the write is split.
+const UPSERT_BATCH = 16;
 const BACKFILL_SCROLL_BATCH = 256;
 
 interface CliArgs {
@@ -120,8 +125,11 @@ async function copyPoints(client: QdrantClient, src: string, dst: string): Promi
         vector: toNamedVectorWithBm25(p.vector, p.payload as Record<string, unknown>),
         payload: p.payload || {},
       }));
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await client.upsert(dst, { wait: true, points: points as any });
+      for (let i = 0; i < points.length; i += UPSERT_BATCH) {
+        const slice = points.slice(i, i + UPSERT_BATCH);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await client.upsert(dst, { wait: true, points: slice as any });
+      }
       copied += points.length;
       if (copied % 1024 < SCROLL_BATCH) {
         console.log(`  ${src} → ${dst}: ${copied} points copied`);

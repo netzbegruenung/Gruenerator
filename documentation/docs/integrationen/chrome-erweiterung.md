@@ -169,7 +169,7 @@ Die **Fehlertoleranz** steht auf 3. Bei langsamen Seiten lohnt sich zusätzlich 
 
 Der Agent ist ein Sprachmodell mit Fernbedienung, kein zuverlässiger Automat. Er verliest sich, klickt daneben und behauptet gelegentlich, etwas erledigt zu haben, das er nicht erledigt hat. **Prüfe jedes Ergebnis, bevor du damit weiterarbeitest** — besonders bei Zahlen, Zitaten und Links.
 
-Warum das so ist und woran man es erkennt, steht unter [Risiken und Gefahren von LLMs](../grundlagen/risiken-und-gefahren-von-llms).
+Warum das so ist und woran man es erkennt, steht unter [Risiken und Gefahren von LLMs](../basics/risiken-und-gefahren-von-llms).
 
 ## Und jetzt?
 

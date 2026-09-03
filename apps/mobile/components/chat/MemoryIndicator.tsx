@@ -8,15 +8,12 @@ import type { Theme } from '../../theme/colors';
 import type { MemoryContextInfo } from '@gruenerator/chat';
 
 /**
- * Kept inline because packages/chat cannot import from apps/api — mirrors
- * CATEGORY_LABELS in apps/api/services/mem0/categories.ts, same as web's copy.
+ * Mirrors `memoryKindSchema` in @gruenerator/contracts (schemas/memory.ts),
+ * same as web's copy.
  */
 const CATEGORY_LABEL: Record<string, string> = {
-  identity: 'Profil',
-  activity: 'Aktivität',
-  context: 'Kontext',
-  experience: 'Erfahrung',
-  preference: 'Präferenz',
+  anweisung: 'Anweisung',
+  fakt: 'Fakt',
 };
 
 /**

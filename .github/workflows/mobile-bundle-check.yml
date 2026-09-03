@@ -9,8 +9,9 @@ on:
       - 'pnpm-lock.yaml'
       - 'package.json'
       - '.github/workflows/mobile-bundle-check.yml'
+  # Kein `branches:`-Filter, damit gestapelte PRs (Basis = ein anderer
+  # Feature-Branch) nicht durchfallen — Begruendung in ci.yml, Befund in #3100.
   pull_request:
-    branches: [master, main]
     paths:
       - 'apps/mobile/**'
       - 'packages/**'

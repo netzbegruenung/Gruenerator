@@ -9,7 +9,6 @@ import {
   Suggestions,
   useRemoteThreadListRuntime,
   type RemoteThreadListAdapter,
-  type FeedbackAdapter,
   RuntimeAdapterProvider,
   ExportedMessageRepository,
   McpAppRenderer,
@@ -58,6 +57,7 @@ import {
 import { MESSAGE_QUEUE_ENABLED } from './messageQueueFlag';
 import { ThreadDataSyncEffect } from './ThreadDataSyncEffect';
 import { convertToThreadMessageLike, type LoadedMessage } from './threadMessageConversion';
+import { useFeedbackAdapter } from './useFeedbackAdapter';
 
 import type { StreamMetadata } from '../hooks/useChatGraphStream';
 
@@ -324,39 +324,7 @@ function useGrueneratorThreadRuntime() {
     []
   );
 
-  // Thumbs up/down → Langfuse score on this turn's trace. The backend put the
-  // trace id into the `done` metadata, which parseSSEStream stored on
-  // custom.streamMetadata. No traceId (Langfuse off) → no-op. A per-trace guard
-  // skips re-POSTing the same rating when the user toggles/double-clicks.
-  const lastFeedbackRef = useRef(new Map<string, 'positive' | 'negative'>());
-  const feedbackAdapter = useMemo<FeedbackAdapter>(
-    () => ({
-      submit: ({ message, type }) => {
-        const custom = message.metadata?.custom as
-          { streamMetadata?: { traceId?: string } } | undefined;
-        const traceId = custom?.streamMetadata?.traceId;
-        if (!traceId) return;
-        if (lastFeedbackRef.current.get(traceId) === type) return;
-        lastFeedbackRef.current.set(traceId, type);
-        const { fetch: configFetch, endpoints } = useChatConfigStore.getState();
-        void configFetch(endpoints.feedback, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ traceId, value: type }),
-        })
-          .then((res) => {
-            // fetch resolves on 4xx/5xx too, so the guard above would otherwise
-            // lock in a rating the backend rejected and block every retry.
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          })
-          .catch((err) => {
-            lastFeedbackRef.current.delete(traceId);
-            console.warn('[Feedback] submit failed', err);
-          });
-      },
-    }),
-    []
-  );
+  const feedbackAdapter = useFeedbackAdapter();
 
   const runtime = useLocalRuntime(modelAdapter, {
     unstable_humanToolNames: ['ask_human'],

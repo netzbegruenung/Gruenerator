@@ -20,3 +20,30 @@ export const TOOL_APPROVAL_OPTIONS = [
 }>;
 
 export type ToolApprovalOptionId = (typeof TOOL_APPROVAL_OPTIONS)[number]['id'];
+
+/**
+ * Der Zustand eines Freigabe-Gates, wie ihn beide Plattformen lesen. Lag bis
+ * 08/2026 in der Web-Karte und war damit für Native unerreichbar — Mobile hatte
+ * deshalb gar keine Freigabe-Oberfläche und zeigte ein wartendes Werkzeug als
+ * Shimmer, der nie auflöste.
+ */
+export interface ToolApprovalState {
+  id: string;
+  approved?: boolean;
+  reason?: string;
+  optionId?: string;
+  resolution?: 'cancelled' | 'expired';
+}
+
+/** Ist das Gate entschieden (erlaubt, abgelehnt, abgebrochen, abgelaufen)? */
+export function isApprovalDecided(approval: ToolApprovalState): boolean {
+  return approval.approved !== undefined || approval.resolution !== undefined;
+}
+
+/** Was die eingeklappte Pille nach der Entscheidung sagt. */
+export function approvalDecidedLabel(approval: ToolApprovalState): string {
+  if (approval.resolution === 'expired') return 'Abgelaufen';
+  if (approval.resolution === 'cancelled') return 'Abgebrochen';
+  if (approval.approved === false) return 'Abgelehnt';
+  return approval.optionId === 'allow-always' ? 'Immer erlaubt' : 'Erlaubt';
+}

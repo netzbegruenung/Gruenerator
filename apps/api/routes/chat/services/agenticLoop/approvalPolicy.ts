@@ -7,7 +7,11 @@
 import { type ToolOrigin } from './types.js';
 
 export type ApprovalVerdict =
-  | { required: false; reason: 'flag_off' | 'internal' | 'confirm_action_gated' | 'allowlisted' }
+  | {
+      required: false;
+      reason:
+        'flag_off' | 'internal' | 'confirm_action_gated' | 'allowlisted' | 'managed_read_only';
+    }
   | { required: true; scopeKey: string };
 
 /**
@@ -30,6 +34,15 @@ export const CONFIRM_ACTION_GATED_TOOLS: ReadonlySet<string> = new Set([
   // `cloud_files` liest nur; seine einzige wirksame Aktion (`add_connection`)
   // emittiert selbst eine `confirm_action`-Karte.
   'cloud_files',
+  // `create` ist eine Karte, `delete` der `confirm=true`-Zweischritt; der Rest
+  // ist privat und umkehrbar.
+  'recurring_tasks',
+  // `create` und `share_to_group` sind Karten, `delete` der Zweischritt;
+  // `update` ist privat und umkehrbar.
+  'user_agents',
+  // `delete` ist der `confirm=true`-Zweischritt; `create` und `add_examples`
+  // sind privat und umkehrbar (delete), sie zeigen keine Karte.
+  'recipes',
 ]);
 
 export function approvalScopeKey(toolName: string, origin?: ToolOrigin | null): string {
@@ -38,10 +51,25 @@ export function approvalScopeKey(toolName: string, origin?: ToolOrigin | null): 
 }
 
 /**
- * Konnektor-Werkzeuge sind grundsätzlich freigabepflichtig, auch die von uns
- * betriebenen: sie führen fremden Code aus, und ihre Wirkung steht in keiner
- * Tabelle, die wir pflegen. Ein unbekanntes Werkzeug fällt damit in die
- * sichere Richtung.
+ * Konnektor-Werkzeuge sind grundsätzlich freigabepflichtig: sie führen fremden
+ * Code aus, und ihre Wirkung steht in keiner Tabelle, die wir pflegen. Ein
+ * unbekanntes Werkzeug fällt damit in die sichere Richtung.
+ *
+ * EINE Ausnahme, und sie ist die einzige Stelle, an der ein Server über sein
+ * eigenes Gatter mitredet: ein `readOnlyHint: true` erlässt die Frage NUR bei
+ * `kind: 'managed'`. Das sind die fünf von uns betriebenen Konnektoren
+ * (systemMcpServers.ts) — die Annotation kommt dort aus unserem eigenen
+ * Deploy, also aus derselben Quelle wie bei einem internen Werkzeug, das
+ * ohnehin ungefragt läuft.
+ *
+ * Für `kind: 'mcp'` wird der Hinweis NIE gelesen — die MCP-Spec führt
+ * Annotationen ausdrücklich als nicht vertrauenswürdig. Sonst hätte jeder per
+ * URL eingefügte Server einen Schalter, sein eigenes Gatter abzuschalten. Aus demselben Grund muss der Hinweis auch nicht in den
+ * Fingerabdruck (mcpToolDrift.ts) — was nie gelesen wird, kann auch nicht
+ * nachträglich umgelegt werden.
+ *
+ * Der fehlende Hinweis bedeutet „der Server hat nichts gesagt", nicht „nein":
+ * ohne Annotation bleibt alles, wie es war, und die Frage wird gestellt.
  */
 export function evaluateApproval(params: {
   toolName: string;
@@ -59,6 +87,13 @@ export function evaluateApproval(params: {
     if (!INTERNAL_APPROVAL_REQUIRED_TOOLS.has(toolName)) {
       return { required: false, reason: 'internal' };
     }
+  }
+
+  // `origin.readOnlyHint` trägt den Hinweis JEDES Servers ungefiltert — die
+  // Kataloge filtern nichts vor. Erst der `kind`-Vergleich hier entscheidet,
+  // wessen Hinweis zählt.
+  if (origin?.kind === 'managed' && origin.readOnlyHint === true) {
+    return { required: false, reason: 'managed_read_only' };
   }
 
   const scopeKey = approvalScopeKey(toolName, origin);

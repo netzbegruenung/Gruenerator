@@ -1,0 +1,177 @@
+{
+  "pipeline": "qa",
+  "depth": "fast",
+  "withRerank": true,
+  "outcomes": [
+    {
+      "id": "kommunalwiki-buergerbegehren",
+      "collection": "kommunalwiki-system",
+      "query": "Wie funktioniert ein Bürgerbegehren in der Kommune?",
+      "rank": 1,
+      "topTitles": [
+        "Bürgerbegehren und Bürgerentscheide in Deutschland – Ein Überblick",
+        "BürgerBegehren Klimaschutz",
+        "Korrekturbegehren",
+        "Grünes Leitbild Kommune",
+        "Initiativbegehren"
+      ],
+      "searchTimeMs": 14691,
+      "rerankRank": 5,
+      "rerankTimeMs": 2805,
+      "rerankBatch": 30
+    },
+    {
+      "id": "kommunalwiki-bebauungsplan",
+      "collection": "kommunalwiki-system",
+      "query": "Aufstellung eines Bebauungsplans — Verfahren und Beteiligung",
+      "rank": null,
+      "topTitles": [
+        "Bodenschutzklausel",
+        "Bürgerbeteiligung",
+        "Formelle Bürgerbeteiligung",
+        "Leitfaden für eine neue Planungskultur",
+        "Sozialgerechte Bodennutzung"
+      ],
+      "searchTimeMs": 741,
+      "rerankRank": null,
+      "rerankTimeMs": 2286,
+      "rerankBatch": 30
+    },
+    {
+      "id": "kommunalwiki-radverkehr",
+      "collection": "kommunalwiki-system",
+      "query": "Radverkehrsförderung in der Kommunalpolitik",
+      "rank": 1,
+      "topTitles": [
+        "Radverkehr",
+        "Modal Split",
+        "Nationaler Radverkehrsplan",
+        "Einführungen in die Grundlagen der Kommunalpolitik",
+        "Dossier: Kommunale Verkehrswende"
+      ],
+      "searchTimeMs": 477,
+      "rerankRank": 6,
+      "rerankTimeMs": 1809,
+      "rerankBatch": 30
+    },
+    {
+      "id": "kommunalwiki-haushalt",
+      "collection": "kommunalwiki-system",
+      "query": "Wie liest man einen kommunalen Haushaltsplan?",
+      "rank": 1,
+      "topTitles": [
+        "Den kommunalen Haushaltsplan richtig lesen und verstehen",
+        "Gemeindehaushaltsverordnung",
+        "Haushalt",
+        "Kameralistik",
+        "Haushaltsbegriffe und Haushaltsrecht"
+      ],
+      "searchTimeMs": 308,
+      "rerankRank": 4,
+      "rerankTimeMs": 2155,
+      "rerankBatch": 30
+    },
+    {
+      "id": "kommunalwiki-waermeplanung",
+      "collection": "kommunalwiki-system",
+      "query": "Kommunale Wärmeplanung umsetzen",
+      "rank": 1,
+      "topTitles": [
+        "Handlungsleitfaden Kommunale Wärmeplanung",
+        "Was bedeutet der Koalitionsvertrag für die Kommunen?",
+        "Klimaschutz als kommunale Pflichtaufgabe?",
+        "Wärmewende in Kommunen",
+        "Wasserstoff"
+      ],
+      "searchTimeMs": 324,
+      "rerankRank": 1,
+      "rerankTimeMs": 2096,
+      "rerankBatch": 30
+    },
+    {
+      "id": "kommunalwiki-fraktion",
+      "collection": "kommunalwiki-system",
+      "query": "Rechte und Arbeit einer Fraktion im Gemeinderat",
+      "rank": 4,
+      "topTitles": [
+        "Beispiele kommunaler Zusammenarbeit zwischen CDU und AfD",
+        "Zusammenarbeit im Team",
+        "Thüringer Kommunalordnung: Mehr Transparenz und Beteiligung?",
+        "Neu im Rat: Die ersten Schritte",
+        "FAQ Kommunalpolitik Bayern"
+      ],
+      "searchTimeMs": 830,
+      "rerankRank": 5,
+      "rerankTimeMs": 2541,
+      "rerankBatch": 30
+    },
+    {
+      "id": "kommunalwiki-vergabe",
+      "collection": "kommunalwiki-system",
+      "query": "Öffentliche Vergabe und Ausschreibungen in Kommunen",
+      "rank": 2,
+      "topTitles": [
+        "Verdingungsordnung für Leistungen",
+        "Ausschreibung",
+        "Was hat das TTIP mit den Kommunen zu tun?",
+        "Vergaberecht",
+        "Kommunen in der Corona-Krise"
+      ],
+      "searchTimeMs": 351,
+      "rerankRank": 1,
+      "rerankTimeMs": 2766,
+      "rerankBatch": 30
+    },
+    {
+      "id": "kommunalwiki-jugend",
+      "collection": "kommunalwiki-system",
+      "query": "Jugendbeteiligung in der Kommune",
+      "rank": 6,
+      "topTitles": [
+        "Werkstatt:Weblinks",
+        "Bildungspolitik als kommunale Aufgabe",
+        "Service Learning an Schulen für kommunale Bedarfe nutzen",
+        "Kommunalpolitische Podcasts",
+        "Hauptseite"
+      ],
+      "searchTimeMs": 397,
+      "rerankRank": 1,
+      "rerankTimeMs": 1992,
+      "rerankBatch": 30
+    },
+    {
+      "id": "kommunalwiki-laerm",
+      "collection": "kommunalwiki-system",
+      "query": "Lärmaktionsplanung und Lärmschutz vor Ort",
+      "rank": 2,
+      "topTitles": [
+        "Straßenverkehrsordnung (StVO)",
+        "Umgebungslärmrichtlinie",
+        "Mehr Ruhe. Verkehrslärm wirksam reduzieren",
+        "Urbanes Grün",
+        "Werkstatt:Weblinks"
+      ],
+      "searchTimeMs": 35837,
+      "rerankRank": 2,
+      "rerankTimeMs": 2643,
+      "rerankBatch": 30
+    },
+    {
+      "id": "kommunalwiki-baum",
+      "collection": "kommunalwiki-system",
+      "query": "Baumschutzsatzung und Stadtgrün",
+      "rank": 1,
+      "topTitles": [
+        "Umweltschutz durch kommunales Satzungsrecht",
+        "Urbanes Grün",
+        "Grüne Infrastruktur",
+        "Kommunen für biologische Vielfalt",
+        "Schottergarten"
+      ],
+      "searchTimeMs": 819,
+      "rerankRank": 4,
+      "rerankTimeMs": 3327,
+      "rerankBatch": 30
+    }
+  ]
+}

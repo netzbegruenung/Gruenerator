@@ -9,7 +9,7 @@ import {
 import { useAuiState } from '@assistant-ui/store';
 import { useCollaborators, PresenceAvatars, TypingIndicator } from '@gruenerator/collab';
 import { QuoteIcon } from 'lucide-react';
-import { useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { useChatCollaborationContext } from '../../context/ChatCollaborationContext';
 import { useActiveAgentMeta } from '../../lib/useActiveAgentMeta';
@@ -23,6 +23,7 @@ import { CompactionIndicator } from './CompactionIndicator';
 import { GrueneratorComposer } from './GrueneratorComposer';
 import { InlineAttachmentNotice } from './InlineAttachmentNotice';
 import { ThreadLoadingSkeleton } from './ThreadLoadingSkeleton';
+import { ThreadSearchBar } from './ThreadSearchBar';
 import { UserMessage } from './UserMessage';
 import { WelcomeScreen } from './WelcomeScreen';
 
@@ -41,6 +42,12 @@ interface GrueneratorThreadProps {
     sendAdornment?: ReactNode;
   };
   requireProfileHydration?: boolean;
+  /**
+   * Strg/Cmd+F opens find-in-conversation. Off by default: the side-panel
+   * assistants (Docs, Sheets, Präsentationen, Boards) render this same thread
+   * next to a document, and there Cmd+F belongs to the document.
+   */
+  enableSearch?: boolean;
   enablePastedTextAttachments?: boolean;
   /**
    * Extra classes on the thread's root. The one surface a consumer can dress:
@@ -113,6 +120,7 @@ export function GrueneratorThread({
   showModelPicker,
   composerSlots,
   requireProfileHydration,
+  enableSearch = false,
   className,
   composerVariant = 'card',
   enablePastedTextAttachments,
@@ -120,6 +128,30 @@ export function GrueneratorThread({
 }: GrueneratorThreadProps = {}) {
   const isRunning = useAuiState((s) => s.thread.isRunning);
   const messageComponents = useMemo(() => ({ UserMessage, AssistantMessage }), []);
+  // The Viewport owns the scroll box AND the viewport context provider, which
+  // is rendered inside it — a sibling above cannot read that context, but the
+  // primitive forwards its ref, so the element itself is reachable.
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  // Bumped on every Cmd+F so a second press re-selects the field rather than
+  // closing the bar; the bar focuses whenever this changes.
+  const [searchFocusToken, setSearchFocusToken] = useState(0);
+  const closeSearch = useCallback(() => setSearchOpen(false), []);
+
+  useEffect(() => {
+    if (!enableSearch) return undefined;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'f' || !(event.metaKey || event.ctrlKey) || event.altKey) return;
+      // Scoping the browser's own find to this conversation is the feature:
+      // native find also matches the composer, the sidebar and every tool chip,
+      // and has no notion of "hit 3 of 12 in this thread".
+      event.preventDefault();
+      setSearchOpen(true);
+      setSearchFocusToken((token) => token + 1);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [enableSearch]);
   const collab = useChatCollaborationContext();
   const collaborators = useCollaborators(collab?.provider ?? null);
   const isCompact = density === 'compact';
@@ -138,7 +170,19 @@ export function GrueneratorThread({
           </div>
         )}
 
-        <ThreadPrimitive.Viewport className="flex flex-1 flex-col overflow-y-auto overflow-x-hidden scrollbar-thin">
+        {enableSearch && searchOpen && (
+          <ThreadSearchBar
+            viewportRef={viewportRef}
+            focusToken={searchFocusToken}
+            onClose={closeSearch}
+            className="absolute top-3 left-1/2 z-20 -translate-x-1/2"
+          />
+        )}
+
+        <ThreadPrimitive.Viewport
+          ref={viewportRef}
+          className="flex flex-1 flex-col overflow-y-auto overflow-x-hidden scrollbar-thin"
+        >
           {/* `relative` hält absolut positionierte Nachfahren (v. a. `sr-only`)
               im Scrollbereich: sonst ist ihr Enthaltender-Block der Root
               oberhalb des Viewports, ihr Überhang entkommt dessen Kappung und

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest';
 
 import {
   attachedDocsQuery,
@@ -107,7 +107,14 @@ describe('attachedDocsQuery', () => {
 });
 
 describe('retrieveAttachedDocuments', () => {
+  const originalLoopRerank = process.env.LOOP_RERANK_ENABLED;
+
   beforeEach(() => fanout.mockReset());
+
+  afterEach(() => {
+    if (originalLoopRerank === undefined) delete process.env.LOOP_RERANK_ENABLED;
+    else process.env.LOOP_RERANK_ENABLED = originalLoopRerank;
+  });
 
   it('fährt den Fan-out und sortiert über alle Dokumente nach Relevanz', async () => {
     fanout.mockResolvedValue({
@@ -128,12 +135,23 @@ describe('retrieveAttachedDocuments', () => {
   });
 
   /**
-   * Der Anhang-Pfad ist der einzige, der den Cross-Encoder selbst bestellen
-   * muss: nach der Gruppierung steht hier EIN Treffer, und `rerankPipeline`
-   * überspringt bei ≤2 Items. Fällt dieses Argument weg, verliert der Pfad
-   * seine Bewertung, ohne dass irgendetwas rot wird.
+   * `rerankChunks` hängt am selben Flag wie der Loop-Suchpfad
+   * (`LOOP_RERANK_ENABLED`) — seit der Validator-Reparatur in 03e297cca4
+   * kommt die Option beim Dienst tatsächlich an, und ein unbedingtes `true`
+   * würde den Cross-Encoder für jeden Anhang unbemerkt scharfschalten.
    */
-  it('bestellt das Chunk-Reranking mit', async () => {
+  it('lässt das Chunk-Reranking ohne LOOP_RERANK_ENABLED weg', async () => {
+    delete process.env.LOOP_RERANK_ENABLED;
+    fanout.mockResolvedValue({ perSourceResults: {}, searchedCollections: [], errors: [] });
+    const state = stateWith({ documentSources: [src('document_chat', 'a')] });
+
+    await retrieveAttachedDocuments(state, 'Löschfristen');
+
+    expect(fanout.mock.calls[0]?.[3]).toEqual({});
+  });
+
+  it('bestellt das Chunk-Reranking mit LOOP_RERANK_ENABLED=true', async () => {
+    process.env.LOOP_RERANK_ENABLED = 'true';
     fanout.mockResolvedValue({ perSourceResults: {}, searchedCollections: [], errors: [] });
     const state = stateWith({ documentSources: [src('document_chat', 'a')] });
 

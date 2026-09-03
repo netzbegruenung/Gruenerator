@@ -130,6 +130,30 @@ describe('UserMCPClient.listTools tolerance', () => {
     expect(tool?.meta).toEqual({ 'ui.resourceUri': 'ui://widget' });
   });
 
+  it('carries annotations.readOnlyHint through, but only as a boolean', async () => {
+    const client = withResponses({}, [
+      {
+        tools: [
+          { name: 'reads', inputSchema: {}, annotations: { readOnlyHint: true } },
+          { name: 'writes', inputSchema: {}, annotations: { readOnlyHint: false } },
+          // Ein String ist kein Hinweis: der Server bekommt kein Mitspracherecht
+          // ueber eine Wahrheitspruefung auf einem beliebigen Wert.
+          { name: 'lies', inputSchema: {}, annotations: { readOnlyHint: 'true' } },
+          { name: 'silent', inputSchema: {} },
+        ],
+      },
+    ]);
+
+    const byName = new Map((await client.listTools()).map((t) => [t.name, t]));
+
+    expect(byName.get('reads')?.readOnlyHint).toBe(true);
+    expect(byName.get('writes')?.readOnlyHint).toBe(false);
+    // Fehlend, nicht `false`: „nichts gesagt" und „nein" duerfen sich nicht
+    // vermischen — approvalPolicy behandelt nur `true` besonders.
+    expect(byName.get('lies')).not.toHaveProperty('readOnlyHint');
+    expect(byName.get('silent')).not.toHaveProperty('readOnlyHint');
+  });
+
   it('survives a non-object entry in the tools array', async () => {
     // z.array(z.record(...)) hätte hier die ganze Seite verworfen — also genau
     // den Fehler wiederholt, gegen den das permissive Schema antritt.

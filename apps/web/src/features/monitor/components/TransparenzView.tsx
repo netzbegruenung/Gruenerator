@@ -34,6 +34,7 @@ import {
   FEATURE_LABELS,
   formatCount,
   formatDay,
+  formatDuration,
   formatEnergy,
   formatGrams,
   formatTokens,
@@ -63,7 +64,7 @@ import {
 const RANGES = [7, 30, 90] as const;
 export const DEFAULT_DAYS = 30;
 
-const DOCS_LINK = `${getDocsUrl()}/docs/ueber-den-gruenerator/nachhaltigkeit`;
+const DOCS_LINK = `${getDocsUrl()}/docs/basics/nachhaltigkeit`;
 
 function formatTimestamp(iso: string): string {
   const date = new Date(iso);
@@ -457,11 +458,11 @@ function Meter({ label, share, hint }: { label: string; share: number; hint: str
  *
  * `unvalued_ops` sits in this card rather than in a footnote on purpose: a page
  * that shows a CO2 figure beside an activity count implies the activity is in
- * it. For transcription and web search it is not, and the number saying so has
- * to be as easy to reach as the number it qualifies.
+ * it. For transcription, web search and speech synthesis it is not, and the
+ * number saying so has to be as easy to reach as the number it qualifies.
  */
 function CoveragePanel({ footprint }: { footprint: TransparencyFootprintDto }) {
-  const { transcriptions, searches } = footprint.unvalued_ops;
+  const { transcriptions, searches, speech_seconds: speechSeconds } = footprint.unvalued_ops;
 
   return (
     <section>
@@ -486,7 +487,7 @@ function CoveragePanel({ footprint }: { footprint: TransparencyFootprintDto }) {
           share={footprint.covered_share}
           hint="Anteil der erzeugten Tokens, für die überhaupt ein Energiewert existiert."
         />
-        {(transcriptions > 0 || searches > 0) && (
+        {(transcriptions > 0 || searches > 0 || speechSeconds > 0) && (
           <div className="border-t border-[#eef2ef] pt-4 dark:border-grey-700/60">
             <p className={cn('m-0 mb-1 text-[0.85rem] font-bold', MONITOR_HEADING)}>
               Nicht enthalten
@@ -496,17 +497,27 @@ function CoveragePanel({ footprint }: { footprint: TransparencyFootprintDto }) {
                 <>
                   {formatCount(transcriptions)} Transkriptionen — kein Anbieter meldet dafür
                   Verbrauch, und wir speichern keine Audiodauer, mit der er skalieren würde.
-                  {searches > 0 && ' '}
+                  {(searches > 0 || speechSeconds > 0) && ' '}
                 </>
               )}
               {searches > 0 && (
                 <>
                   {formatCount(searches)} Web-Recherchen — die Energie steckt im Index des
                   Suchanbieters, nicht bei uns.
+                  {speechSeconds > 0 && ' '}
+                </>
+              )}
+              {speechSeconds > 0 && (
+                <>
+                  {formatDuration(speechSeconds)} Sprachausgabe — KugelAudio meldet keinen
+                  Verbrauch, und für Sprachsynthese gibt es keine veröffentlichte Messung, deren
+                  Systemgrenze zu unserer passt. Anders als bei der Transkription erfassen wir hier
+                  die Dauer, also die Größe, mit der die Energie skalieren würde; sobald eine
+                  belastbare Messung existiert, lässt sich der Zeitraum rückwirkend bewerten.
                 </>
               )}{' '}
-              Beides zählt in den Aktivitätszahlen mit, aber mit <strong>0 g</strong> im Fußabdruck
-              — als Lücke ausgewiesen statt stillschweigend als Null.
+              Das zählt in den Aktivitätszahlen mit, aber mit <strong>0 g</strong> im Fußabdruck —
+              als Lücke ausgewiesen statt stillschweigend als Null.
             </p>
           </div>
         )}
@@ -637,6 +648,7 @@ function FeaturePanel({ byFeature }: { byFeature: GetTransparencyStatsResponseDt
             entry.images ? `${formatCount(entry.images)} Bilder` : null,
             entry.transcriptions ? `${formatCount(entry.transcriptions)} Transkriptionen` : null,
             entry.searches ? `${formatCount(entry.searches)} Recherchen` : null,
+            entry.speech_seconds ? `${formatDuration(entry.speech_seconds)} Sprachausgabe` : null,
           ].filter(Boolean);
           return (
             <BreakdownRow
@@ -695,7 +707,7 @@ function ModelPanel({ byModel }: { byModel: GetTransparencyStatsResponseDto['byM
                     share={amount(entry) / max}
                   />
                 ))}
-              {(unit === 'transcriptions' || unit === 'searches') && (
+              {(unit === 'transcriptions' || unit === 'searches' || unit === 'speech_seconds') && (
                 <p className={cn('m-0 text-[0.78rem]', MONITOR_FAINT)}>
                   Zählt mit, trägt aber keinen Fußabdruck — siehe „Nicht enthalten“ oben.
                 </p>
@@ -956,7 +968,7 @@ function SimpleView({ data }: { data: GetTransparencyStatsResponseDto }) {
                 share={grams / max}
               />
             ))}
-            {(totals.searches > 0 || totals.transcriptions > 0) && (
+            {(totals.searches > 0 || totals.transcriptions > 0 || totals.speech_seconds > 0) && (
               <p
                 className={cn(
                   'm-0 mt-1 border-t border-[#eef2ef] pt-4 text-[0.8rem] leading-relaxed dark:border-grey-700/60',
@@ -977,8 +989,16 @@ function SimpleView({ data }: { data: GetTransparencyStatsResponseDto }) {
                     die uns kein Anbieter einen Verbrauch meldet
                   </>
                 )}
-                . Beides können wir deshalb nicht seriös mitzählen; es fehlt in der Zahl oben und
-                wir sagen das lieber dazu.
+                {totals.speech_seconds > 0 &&
+                  (totals.transcriptions > 0 || totals.searches > 0) && <> — und </>}
+                {totals.speech_seconds > 0 && (
+                  <>
+                    {formatDuration(totals.speech_seconds)} vorgelesene Sprachausgabe, für die es
+                    keine Messung mit passender Systemgrenze gibt
+                  </>
+                )}
+                . Das können wir deshalb nicht seriös mitzählen; es fehlt in der Zahl oben und wir
+                sagen das lieber dazu.
               </p>
             )}
           </div>
@@ -1032,6 +1052,10 @@ function ExpertView({ data }: { data: GetTransparencyStatsResponseDto }) {
         </span>
         <span>
           <strong className="tabular-nums">{formatCount(totals.searches)}</strong> Recherchen
+        </span>
+        <span>
+          <strong className="tabular-nums">{formatDuration(totals.speech_seconds)}</strong>{' '}
+          Sprachausgabe
         </span>
       </div>
 

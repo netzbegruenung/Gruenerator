@@ -166,7 +166,44 @@ async function settle(
 /** Cap for the composer's office search — a few more than the palette, still scannable. */
 const OFFICE_SEARCH_LIMIT = 8;
 
+/** Cap for the sidebar's thread search — a list, not a five-row palette. */
+const THREAD_SEARCH_LIMIT = 20;
+
 export const globalSearchContractRouter = s.router(globalSearchContract, {
+  threadSearch: async (args) => {
+    try {
+      const userId = getAuthedUser(args.req).id;
+      const q = args.query.q.trim();
+      // `ownedOnly` is load-bearing, not a default worth inheriting: without it
+      // every is_public thread in the system matches a personal search.
+      const hits = await searchChatHistory(userId, q, {
+        limit: THREAD_SEARCH_LIMIT,
+        ownedOnly: true,
+      });
+      return {
+        status: 200 as const,
+        body: {
+          query: q,
+          items: hits.map((hit) => ({
+            threadId: hit.threadId,
+            title: hit.threadTitle ?? 'Unbenannter Chat',
+            snippet: hit.snippet,
+            messageRole: hit.messageRole,
+            matchedAt: hit.matchedAt,
+          })),
+        },
+      };
+    } catch (error) {
+      // One source, so a DB outage must reach the client as a failure. Settling
+      // it to an empty list would render as "nothing found", which is a lie.
+      const err = error as Error;
+      log.error('[globalSearch.threadSearch] Error:', err);
+      return {
+        status: 500 as const,
+        body: { error: 'Thread search failed', details: err.message },
+      };
+    }
+  },
   officeSearch: async (args) => {
     try {
       const userId = getAuthedUser(args.req).id;

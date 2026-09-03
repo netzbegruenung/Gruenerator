@@ -1,7 +1,8 @@
 /**
  * The turns that CREATE an artifact and then own the turn: board, document,
- * sheet, presentation, PDF, the sheet follow-up edit, a recurring task, and
- * sharing a document.
+ * sheet, presentation, PDF, the sheet follow-up edit, and sharing a document.
+ * (A recurring task is no longer one of them — since 09/2026 the loop tool
+ * `recurring_tasks` owns it, with a confirm card.)
  *
  * The five create routes are a table rather than five if-blocks because every
  * branch had the same shape — gate on the forced tool or the classified
@@ -20,7 +21,6 @@ import {
   handleBoardCreation,
   handlePdfCreation,
   handlePresentationCreation,
-  handleRecurringTaskCreation,
   handleShareDoc,
   handleSheetCreation,
   handleSheetEdit,
@@ -46,7 +46,6 @@ export interface CreateIntentStageParams {
   forcedTools: string[] | undefined;
   /** Compound turns let the loop call the fat tool instead of these routes. */
   runAgentic: boolean;
-  agentId: StreamBody['agentId'];
   rawDocMentionIds: StreamBody['docMentionIds'];
   rawDocumentChatIds: StreamBody['documentChatIds'];
 }
@@ -61,7 +60,6 @@ export async function runCreateIntentStage({
   lastUserMessage,
   forcedTools,
   runAgentic,
-  agentId,
   rawDocMentionIds,
   rawDocumentChatIds,
 }: CreateIntentStageParams): Promise<MaybeHandled> {
@@ -168,25 +166,6 @@ export async function runCreateIntentStage({
     });
     await cleanupPending(true);
     return { handled: true, result: { status: 200 as const, body: undefined } };
-  }
-
-  // === EXPERIMENTAL: create_recurring_task intent ===
-  // Falls through to the normal pipeline if extraction fails.
-  if (!runAgentic && classifiedState.intent === 'create_recurring_task') {
-    const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
-    const created = await handleRecurringTaskCreation({
-      sse,
-      classifiedState,
-      ...(actualThreadId != null && { actualThreadId }),
-      userId,
-      userContent: lastUserText as string,
-      agentId: agentId ?? null,
-      userLocale: classifiedState.userLocale === 'de-AT' ? 'de-AT' : 'de-DE',
-    });
-    if (created) {
-      await cleanupPending(true);
-      return { handled: true, result: { status: 200 as const, body: undefined } };
-    }
   }
 
   // === Handle share_doc intent ===

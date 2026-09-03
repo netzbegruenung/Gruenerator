@@ -16,7 +16,11 @@ import {
 import { BRAND } from '../../../utils/domainUtils.js';
 import { generatePointId } from '../../../utils/validation/index.js';
 import { chunkQualityService } from '../../ChunkQualityService/index.js';
-import { smartChunkDocument, buildEmbeddingTexts } from '../../document-services/index.js';
+import {
+  smartChunkDocument,
+  buildEmbeddingTextsForChunks,
+  structurePayload,
+} from '../../document-services/index.js';
 import { mistralEmbeddingService } from '../../mistral/index.js';
 import { BaseScraper } from '../base/BaseScraper.js';
 import { recordSyncEvent, toExcerpt } from '../syncEventRecorder.js';
@@ -621,7 +625,7 @@ export class BoellStiftungScraper extends BaseScraper {
 
     const chunkTexts = chunks.map((c) => c.text);
     const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(
-      buildEmbeddingTexts(chunkTexts, content.title)
+      buildEmbeddingTextsForChunks(chunks, content.title)
     );
 
     const subcategories = [...(content.topics || [])];
@@ -638,6 +642,7 @@ export class BoellStiftungScraper extends BaseScraper {
         content_hash: contentHash,
         chunk_index: index,
         chunk_text: chunkTexts[index],
+        ...structurePayload(chunk),
         quality_score: chunkQualityService.calculateQualityScore(chunkTexts[index]),
         content_type: content.contentType,
         primary_category: content.topic,

@@ -72,10 +72,16 @@ export async function hybridSearch(
   try {
     logger.debug(`Hybrid search - vector weight: ${vectorWeight}, text weight: ${textWeight}`);
 
-    // Server-side hybrid via Query API (dense + BM25 sparse, RRF fusion) for
-    // migrated collections. Legacy client-side scroll fusion remains the
+    // Server-side hybrid via Query API (dense + BM25 sparse, fused in Qdrant)
+    // for migrated collections. Legacy client-side scroll fusion remains the
     // fallback for collections that don't declare the sparse vector yet.
-    if (await collectionSupportsBm25(client, collection)) {
+    //
+    // HYBRID_SERVER_SIDE_ENABLED=false routes every collection back to the
+    // legacy path WITHOUT touching Qdrant — the rollback that needs no
+    // migration (#3118). The short-circuit order matters: with the switch off
+    // the getCollection round trip falls away too, and `collectionSupportsBm25`
+    // never writes its process-wide cache entry (batchOperations.ts:34).
+    if (hybridCfg.serverSideEnabled && (await collectionSupportsBm25(client, collection))) {
       const serverResult = await hybridSearchServerSide(
         client,
         collection,
@@ -183,8 +189,14 @@ export async function hybridSearch(
 
 /**
  * Server-side hybrid search: one Query API round trip with a dense and a BM25
- * sparse prefetch, fused via RRF in Qdrant. Replaces the client-side
- * scroll+TF-heuristic fusion for collections that declare the sparse vector.
+ * sparse prefetch, fused in Qdrant. Replaces the client-side scroll+TF-heuristic
+ * fusion for collections that declare the sparse vector.
+ *
+ * Which fusion runs is HYBRID_SERVER_FUSION (#3118). `rrf` is the shipped
+ * state; `rrf_weighted` mirrors the legacy path (dense dominates, the keyword
+ * lane only lifts) without mixing two incomparable score ranges; `dbsf`
+ * normalizes each prefetch's distribution instead of only its ranks.
+ *
  * Returns null when the query yields no sparse terms (stopwords only) so the
  * caller can fall back to the legacy path.
  */
@@ -205,50 +217,156 @@ async function hybridSearchServerSide(
   const hasFilter = Boolean(filter.must?.length || filter.should?.length || filter.must_not);
   const prefetchFilter = hasFilter ? (filter as Schemas['Filter']) : undefined;
 
-  const prefetch: Schemas['Prefetch'][] = [
-    {
-      query: queryVector,
-      using: '',
-      limit: recall,
-      score_threshold: threshold,
-      params: { hnsw_ef: Math.max(100, recall * 2) },
-      ...(prefetchFilter && { filter: prefetchFilter }),
-    },
-    {
-      query: { indices: sparseQuery.indices, values: sparseQuery.values },
-      using: BM25_SPARSE_VECTOR_NAME,
-      limit: recall,
-      ...(prefetchFilter && { filter: prefetchFilter }),
-    },
-  ];
+  // Nur die dichte Vorabholung trägt eine Schwelle (`score_threshold`), die
+  // sparse ist immer voll besetzt. Der Faktor ist der Regler auf genau diese
+  // Asymmetrie: #3118 schlug eine grössere Sparse-Vorabholung vor, und als
+  // Regler ist der Vorschlag in JEDEM Arm messbar, nicht nur in `rrf`.
+  const sparseLimit = Math.round(recall * hybridCfg.serverSparseFactor);
 
-  const response = await client.query(collection, {
-    prefetch,
-    query: { fusion: 'rrf' },
+  const densePrefetch: Schemas['Prefetch'] = {
+    query: queryVector,
+    using: '',
     limit: recall,
-    with_payload: true,
-  });
+    score_threshold: threshold,
+    params: { hnsw_ef: Math.max(100, recall * 2) },
+    ...(prefetchFilter && { filter: prefetchFilter }),
+  };
+
+  const sparsePrefetch: Schemas['Prefetch'] = {
+    query: { indices: sparseQuery.indices, values: sparseQuery.values },
+    using: BM25_SPARSE_VECTOR_NAME,
+    limit: sparseLimit,
+    ...(prefetchFilter && { filter: prefetchFilter }),
+  };
+
+  const fusion = hybridCfg.serverFusion;
+  const useSparse = sparseLimit >= 1;
+
+  // Vorabholungen und Gewichte entstehen PAARWEISE: der Client verlangt „the
+  // number of weights should match the number of prefetches"
+  // (generated_schema.d.ts:3652). Zwei getrennt gepflegte Listen wären genau
+  // die Stelle, an der ein weggelassener Prefetch die Gewichte verschiebt,
+  // ohne dass irgendwo ein Fehler entsteht.
+  const prefetches: Schemas['Prefetch'][] = [densePrefetch];
+  const weights: number[] = [hybridCfg.serverRrfWeightDense];
+  if (useSparse) {
+    prefetches.push(sparsePrefetch);
+    weights.push(1 - hybridCfg.serverRrfWeightDense);
+  }
+
+  // `sparse_only` ohne Sparse-Lane ist eine Abfrage ohne jede Lane. Derselbe
+  // Rückfall wie bei einer stoppwortfreien Anfrage (:200-201): der Aufrufer
+  // nimmt die Alt-Fusion, statt einen Rundlauf für nichts zu bezahlen.
+  if (fusion === 'sparse_only' && !useSparse) return null;
+
+  const request: Schemas['QueryRequest'] =
+    fusion === 'sparse_only'
+      ? {
+          // Keine Fusion: die BM25-Lane allein. Diagnosearm — der score ist ein
+          // BM25-Wert und keine Kosinus-Ähnlichkeit, und alles hinter
+          // `searchOperations.ts` rechnet in Kosinus weiter. `limit` ist
+          // `sparseLimit`, nicht `recall` — sonst wäre HYBRID_SERVER_SPARSE_FACTOR
+          // auf diesem Arm ein stiller no-op (der Faktor-0-Kurzschluss oben
+          // greift vorher, `sparseLimit` ist hier also immer ≥ 1).
+          query: { indices: sparseQuery.indices, values: sparseQuery.values },
+          using: BM25_SPARSE_VECTOR_NAME,
+          limit: sparseLimit,
+          with_payload: true,
+          ...(prefetchFilter && { filter: prefetchFilter }),
+        }
+      : fusion === 'dense_rescore'
+        ? {
+            // Zweistufig: innen liefern beide Lanes die Kandidaten, aussen
+            // sortiert der dichte Vektor sie — der zurückgegebene score ist
+            // damit wieder ein Kosinus. Kein `score_threshold` und keine
+            // `params` auf der äusseren Abfrage: `params` gilt laut Schema
+            // „for when there is no prefetch", und eine zweite Schwelle wäre
+            // ein neues Gatter. Die Schwelle bleibt auf der dichten
+            // Vorabholung, wo sie heute steht.
+            prefetch: [{ prefetch: prefetches, query: { fusion: 'rrf' }, limit: recall }],
+            query: queryVector,
+            using: '',
+            limit: recall,
+            with_payload: true,
+          }
+        : fusion === 'rrf_weighted'
+          ? { prefetch: prefetches, query: { rrf: { weights } }, limit: recall, with_payload: true }
+          : { prefetch: prefetches, query: { fusion }, limit: recall, with_payload: true };
+
+  // Der Join spiegelt die beiden Vorabholungen als eigene Suchen im SELBEN
+  // `queryBatch` (#3166): ein HTTP-Rundlauf, drei Abfragen
+  // (qdrant-client.d.ts:895-899). Nur auf den fusionierenden Armen — bei
+  // `dense_rescore` ist der äussere `score` schon der Kosinus, bei
+  // `sparse_only` der BM25-Wert, dort wäre ein Batch ein Rundlauf für nichts.
+  const joinOn = hybridCfg.serverScoreJoin;
+  const useBatch = joinOn && (fusion === 'rrf' || fusion === 'rrf_weighted' || fusion === 'dbsf');
+
+  const denseById = new Map<string | number, number>();
+  const textById = new Map<string | number, number>();
+  let points: Schemas['ScoredPoint'][];
+
+  if (useBatch) {
+    // Aus den Vorabholungen SELBST gebaut, nicht daneben getippt: nur so kann
+    // die Spiegelsuche nicht von der Vorabholung wegdriften — und nur dann ist
+    // ein Fusionstreffer ohne Eintrag eine Aussage ("war nicht in der dichten
+    // Kandidatenmenge") statt eines Messfehlers.
+    const searches: Schemas['QueryRequest'][] = [
+      request,
+      { ...densePrefetch, with_payload: false },
+    ];
+    if (useSparse) searches.push({ ...sparsePrefetch, with_payload: false });
+
+    const responses = await client.queryBatch(collection, { searches });
+    points = responses[0]?.points ?? [];
+    for (const point of responses[1]?.points ?? []) denseById.set(point.id, point.score);
+    for (const point of responses[2]?.points ?? []) textById.set(point.id, point.score);
+  } else {
+    points = (await client.query(collection, request)).points;
+  }
 
   // Qdrant's server-side RRF scores are HIGHER than the legacy client-side
-  // 1/(60+rank) domain (measured: rank 1 in both lists ≈ 1.0). The quality
-  // gate's minFinalScore was tuned for the lower legacy domain, so it only
-  // ever filters less here — never more — and stays safe to apply.
-  let results: HybridSearchResult[] = response.points.map((point) => ({
+  // 1/(60+rank) domain (measured: rank 1 in both lists ≈ 1.0), so the quality
+  // gate's minFinalScore — tuned for the lower legacy domain — only ever
+  // filters less there, never more. That measurement covers `rrf` ONLY: DBSF
+  // normalises each prefetch's distribution and bottoms out near 0, and
+  // `sparse_only` returns raw BM25 scores, a different domain again. Both can
+  // be cut where `rrf` is not — this gate has not been shown safe for them.
+  const denseFromScore = joinOn && fusion === 'dense_rescore';
+  const textFromScore = joinOn && fusion === 'sparse_only';
+
+  let results: HybridSearchResult[] = points.map((point) => ({
     id: point.id,
     score: point.score,
     payload: (point.payload as Record<string, unknown>) || {},
     searchMethod: 'hybrid' as const,
-    originalVectorScore: null,
-    originalTextScore: null,
+    originalVectorScore: denseFromScore ? point.score : (denseById.get(point.id) ?? null),
+    originalTextScore: textFromScore ? point.score : (textById.get(point.id) ?? null),
   }));
 
-  if (hybridCfg.enableQualityGate) {
+  // Until the gate has a score-domain-aware cut, it runs only on the arms whose
+  // domain it was measured against: the rank-based rrf family and
+  // dense_rescore, whose outer query returns the dense cosine. dbsf and
+  // sparse_only would be cut in a domain nobody has measured. Der Join ändert
+  // daran nichts: applyQualityGate prüft `result.score`, den Fusionswert.
+  const gateMeasuredForArm = fusion !== 'dbsf' && fusion !== 'sparse_only';
+  if (hybridCfg.enableQualityGate && gateMeasuredForArm) {
     results = applyQualityGate(results, true, hybridCfg);
   }
   results = results.slice(0, limit);
 
+  // Der Deckungsgrad ist die Zahl, die dieser Entwurf schuldet: wie viele
+  // Fusionstreffer bekommen überhaupt einen Kosinus? Vermutet werden darf sie
+  // nicht — sie steht in jeder Anfrage im Log und im PR.
+  const sparseCoverage = useSparse
+    ? `, sparse join ${points.filter((p) => textById.has(p.id)).length}/${points.length}`
+    : ', sparse join skipped';
+  const joinCoverage = useBatch
+    ? `, dense join ${points.filter((p) => denseById.has(p.id)).length}/${points.length}` +
+      sparseCoverage
+    : '';
+
   logger.info(
-    `Server-side hybrid (rrf): ${results.length}/${response.points.length} results for "${query}"`
+    `Server-side hybrid (${fusion}): ${results.length}/${points.length} results${joinCoverage} for "${query}"`
   );
 
   return {
@@ -257,14 +375,22 @@ async function hybridSearchServerSide(
     metadata: {
       vectorResults: -1,
       textResults: -1,
-      fusionMethod: 'rrf-server',
-      vectorWeight: 0.5,
-      textWeight: 0.5,
+      fusionMethod: `${fusion}-server`,
+      vectorWeight: fusion === 'rrf_weighted' ? hybridCfg.serverRrfWeightDense : 0.5,
+      textWeight: fusion === 'rrf_weighted' ? 1 - hybridCfg.serverRrfWeightDense : 0.5,
       dynamicThreshold: threshold,
       qualityFiltered: hybridCfg.enableQualityGate,
       autoSwitchedFromRRF: false,
-      hasRealTextMatches: true,
-      textMatchTypes: ['bm25'],
+      // Factor 0 drops the sparse prefetch entirely (`useSparse`, :243) — a
+      // dense-only request has no BM25 lane, so these must not claim one.
+      //
+      // Mit dem Sparse-Join (#3166) ist die ehrliche Antwort schärfer: nicht
+      // "Lane vorhanden", sondern "Lane hat getroffen". Ohne Join bleibt es
+      // bei der Lane — mehr weiss der Pfad dort nicht. `textMatchTypes` folgt
+      // bewusst NICHT: welcher Matcher in der Lane läuft, ist eine Eigenschaft
+      // der Lane und keine Aussage über diesen einen Treffer.
+      hasRealTextMatches: useBatch ? textById.size > 0 : useSparse,
+      textMatchTypes: useSparse ? ['bm25'] : [],
     },
   };
 }

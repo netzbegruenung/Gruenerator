@@ -18,6 +18,7 @@ import {
   hasExplicitSharepicWord,
   isNegatedArtifactRequest,
 } from '../../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
+import { looksLikeMemoryRequest } from '../../../../services/memory/memoryRequest.js';
 import { recordDecision } from '../../../../utils/decisionJournal.js';
 import {
   ARTIFACT_KINDS,
@@ -83,8 +84,12 @@ const CHITCHAT_RE = /^(wer bist du|was (kannst|bist) du|wie geht|wie heißt du|h
 //
 // `wolke` came in with the cloud_files tool: „meine Wolke-Dateien“ carries
 // neither a question word nor a leading verb and must still reach the loop.
+// `erinnerung(en)` likewise with recurring_tasks: „meine Erinnerungen bitte“.
+// `agent(en)` with user_agents: „meine Agenten“, „meine Grünerator-Agenten“ —
+// the trailing `\b` keeps „meine Agentur“ out. `rezepte`/`textformen` with
+// the recipes tool: „meine Textformen“, „meine Rezepte“.
 const PERSONAL_DATA_RE =
-  /\b(mein|meine|meiner|meinen)\b[\s\wäöüß]*\b(dokumente?|boards?|aufgaben?|tasks?|notebooks?|notizb[üu]cher|sammlung\w*|reels?|sharepics?|gruppen?|inhalte?|wolke)\b/i;
+  /\b(mein|meine|meiner|meinen)\b[\s\wäöüß]*\b(dokumente?|boards?|aufgaben?|tasks?|notebooks?|notizb[üu]cher|sammlung\w*|reels?|sharepics?|gruppen?|projekte?|inhalte?|wolke|erinnerung(?:en)?|(?:gr[üu]nerator-)?agent(?:en|innen|in)?|rezepte?|textform(?:en)?)\b/i;
 
 /**
  * The whole turn (after stripping a leading greeting) is assistant-directed
@@ -801,6 +806,11 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
   const selfContained = looksLikeSelfContainedTurn(p.lastUserText, {
     hasOwnMaterial: p.hasOwnMaterial === true,
   });
+  // "Merk dir, dass …" is an imperative without a question word, so every net
+  // above rejects it — and the only place that can honour it is the loop,
+  // where the `memory` tool is mounted. Single-pass would confirm a save it
+  // never made (the failure the explicit-memory rebuild exists for).
+  const memoryRequest = looksLikeMemoryRequest(p.lastUserText);
   const inLoopSet =
     p.agenticIntents.has(p.intent) ||
     // A named first-party connector puts the turn in the loop whatever the
@@ -815,7 +825,8 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
         unsourcedWriting ||
         !selfContained)) ||
     p.isPdfFillRequest ||
-    compoundGen;
+    compoundGen ||
+    memoryRequest;
   const secondaryAllowed =
     p.secondaryIntent == null || (compoundGen && p.secondaryIntent === 'scrape_url');
   // `mcp` is the ONLY executor for its turns (the legacy mcpToolNode was removed),
@@ -859,6 +870,7 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
       isPdfFillRequest: p.isPdfFillRequest,
       unsourcedWriting,
       selfContained,
+      memoryRequest,
       hasOwnMaterial: p.hasOwnMaterial === true,
     },
   });

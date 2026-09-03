@@ -6,6 +6,8 @@ Dieses Papier hält das Ergebnis von fünf Audit-Runden fest: Bewertung von Lang
 
 Jede Architekturaussage ist mit `datei:zeile` belegt und wurde gegen den oben genannten Commit geprüft. Wo eine Aussage nicht verifiziert werden konnte, steht das ausdrücklich dabei.
 
+> **Lies §11 zuerst.** Die §§1–10 sind eine Bestandsaufnahme vom **29.07.2026** und beschreiben den Zustand **vor** dem Sanierungsprogramm — sie stehen bewusst im Präsens und lesen sich deshalb wie eine Beschreibung von heute. Das sind sie nicht: Das Programm ist abgearbeitet, und was stattdessen gilt, hält [§11](#11-endstand-des-sanierungsprogramms) fest. Wer §2.1 („Zwei Wege, ein LLM aufzurufen", `AIWorkerPool`) für den aktuellen Stand hält, plant gegen eine Architektur, die es nicht mehr gibt — heute führt genau **ein** Weg zum Modell (`services/ai/generate.ts`). Der Hinweis steht hier oben, weil eine Aussage, die man erst 280 Zeilen später zurückgenommen findet, vorher schon jemand geglaubt hat.
+
 ---
 
 ## 1. Zusammenfassung
@@ -72,6 +74,19 @@ Zitate: `[N]` positional-append im `agenticLoop/sourceRegistry.ts` (stabil über
 `agenticLoop/flags.ts:13` liest `CHAT_AGENT_LOOP !== 'false'` — **Default an**, Opt-out. Zwei Modi in `loopEngine.ts` (647 Z.): `unified` (Mistral treibt Tools und schreibt) und `split` (fester schneller Planer sammelt Belege, das gewählte Modell schreibt einmal darüber). Budget in `agenticLoop/types.ts:107-114`: `maxSteps` 8, `wallClockMs` 120 s (weich), `hardCapMs` 300 s (hart), `perCallTimeoutMs` 20 s.
 
 Guards in `agenticLoop/loopGuards.ts`: `MAX_FAILURES_PER_TOOL` 2, `MAX_TOTAL_FAILURES` 5, `MAX_SEARCH_CALLS` 6, `MAX_SOURCES` 20, `NEAR_DUPLICATE_JACCARD` 0.6, `MIN_INTERNAL_SOURCES_TO_SKIP_WEB` 3. Alle sind **Closures pro Turn** — sie kennen keine Subagenten.
+
+### 2.7 Chunk-Rerank im Loop: gemessen, Default bleibt aus
+
+`agenticLoop/flags.ts` (`isLoopRerankEnabled()`) liest `LOOP_RERANK_ENABLED`, Default **aus**. Eingeschaltet setzt `toolCatalog.ts` `rerankSearchChunks: true` auf `createSearchTools`; die Option läuft über `searchCollectionOrBundle` (Einzelsammlung **und** AT-Bündel) nach `executeDirectSearch({ rerankChunks: true })` und von dort in `SearchOptions.rerankChunks` — derselbe Cross-Encoder-Pfad, den der Anhang-Fanout (`attachedDocuments.ts`) seit dem Validator-Fix in 03e297cca4 fährt, nicht seit #2816: die Option war seit #2816 gesetzt, aber `DocumentSearchService`s Validator liess `rerankChunks` in den geschachtelten Optionen stillschweigend fallen, bis 03e297cca4 das behob. Der Anhang-Pfad hängt seither hinter demselben `LOOP_RERANK_ENABLED`-Flag wie `gruenerator_search` — sonst hätte der Bugfix den Cross-Encoder für jeden Anhang unbemerkt scharfgeschaltet. Auf dem rerankten Zweig ist das an Qdrant gereichte Limit auf 5 geklemmt, damit `RERANK_LIMIT_CLAMP` den Kandidatenpool nicht über den Cross-Encoder-Deckel treibt. Fällt der Encoder aus, sendet `agenticLoop/rerankWarning.ts` einmal je Turn `rerank_degraded`; der Marker selbst (`rerankDegraded` am Werkzeugergebnis) wird vor dem Modell entfernt (`wrapTools.ts`, `INTERNAL_RESULT_FIELDS`) und beim Turn-übergreifenden Replay erneut gestrippt (`mcpReplay.ts`) — er ist eine Aussage über unsere Infrastruktur, keine, die das Modell lesen soll. Der Anhang-Fanout (`executeMultiDocFanout` in `searchNode.ts:~915-928`) liest von der Antwort nur `results`, nicht `metadata` — eine Degradation des Cross-Encoders kann dort also nicht gemeldet werden, anders als auf dem `gruenerator_search`-Pfad. `directSearchExecutors.ts`s unerreichbarer Fallback-Zweig, der `rerankChunks` mitführte, ist mit #3139 entfernt.
+
+**Gemessen** mit dem loop-förmigen Controller-Lauf (`EVAL_LOOP_RERANK=0|1`, `loopLimit` 10, n=52, Live-Index, 52 GreenPT-Aufrufe im An-Arm):
+
+| Arm | Hit@1 | Hit@3 | Hit@5 | MRR@10 | Median `searchTimeMs` |
+|---|---|---|---|---|---|
+| aus (loop-förmig, ohne Rerank) | 57,7 % | 80,8 % | 84,6 % | 0,698 | 586 ms |
+| an (`rerankChunks: true`) | 55,8 % | 80,8 % | 84,6 % | 0,677 | 1938 ms |
+
+Verschiebungen auf Rang 1: 9 Fälle verloren, 8 gewonnen; bei Top-3: 3 verloren, 3 gewonnen — kein Ausreißer, sondern Rauschen um einen leichten Verlust bei +1,35 s Median-Aufpreis pro Suche. **Entscheidung: `LOOP_RERANK_ENABLED` bleibt aus.** Die dokumentbezogene Eval zeigt keinen Gewinn, der den Aufpreis rechtfertigt — aber sie misst auch nicht das, was der Entwurf eigentlich als Nutzen benennt: welcher CHUNK eines Dokuments nach `truncateText(relevant_content, 800)` beim Modell ankommt. Eine chunk-genaue Messung ist die Anschlussarbeit, bevor der Default kippt.
 
 ---
 

@@ -55,6 +55,14 @@
   --color-border: #e5e5e5;
   --color-border-dark: #374151;
 
+  /* Find-in-conversation. Opaque, not an alpha tint: these paint through
+     ::highlight(), which takes no Tailwind classes, and an amber-400/35 over
+     white sits at 1.19:1 against the page — a highlight you have to hunt for.
+     Not mirrored into chat-embedded.css: the embedded surface has no search. */
+  --color-search-hit: #fde68a;
+  --color-search-hit-active: #fbbf24;
+  --color-search-hit-foreground: #1a1a1a;
+
   /* Card Colors */
   --color-card: #ffffff;
   --color-card-foreground: #1a1a1a;
@@ -180,6 +188,9 @@
   --color-background-secondary: #242424;
   --color-foreground: #e5e5e5;
   --color-foreground-muted: #999999;
+  --color-search-hit: #78500a;
+  --color-search-hit-active: #b45309;
+  --color-search-hit-foreground: #f5f5f5;
   --color-border: #374151;
   --color-card: #242424;
   --color-card-foreground: #e5e5e5;
@@ -709,4 +720,29 @@
 [data-theme='dark'] .shiki,
 [data-theme='dark'] .shiki span {
   color: var(--shiki-dark);
+}
+
+/*
+ * Find-in-conversation paints through the CSS Custom Highlight API: the browser
+ * renders these off a registry, so not a single message component re-renders
+ * when the query changes, and no <mark> wrapping can split a KaTeX node or a
+ * citation anchor.
+ */
+::highlight(gruenerator-search) {
+  background-color: var(--color-search-hit);
+  color: var(--color-search-hit-foreground);
+}
+
+::highlight(gruenerator-search-active) {
+  background-color: var(--color-search-hit-active);
+  color: var(--color-search-hit-foreground);
+}
+
+/* Without the API the message is the finest anchor we can offer. */
+@supports not selector(::highlight(x)) {
+  [data-aui-search-active] {
+    outline: 2px solid var(--color-search-hit-active);
+    outline-offset: 2px;
+    border-radius: 0.5rem;
+  }
 }

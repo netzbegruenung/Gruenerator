@@ -59,4 +59,29 @@ describe('expandQuery with history context', () => {
     // The second call must hit the model with the condense prompt.
     expect(aiText).toHaveBeenCalledTimes(2);
   });
+
+  it('bounds the call with a per-call timeout instead of falling back to REQUEST_TIMEOUT', async () => {
+    aiText.mockResolvedValue(JSON.stringify({ alternatives: ['a1 lang genug', 'a2 lang genug'] }));
+    await expandQuery('Und in Bayern?', { historyContext: 'Verlauf' });
+    const call = aiText.mock.calls[0][0] as { timeoutMs?: number };
+    expect(call.timeoutMs).toBe(4000);
+  });
+
+  it('a timed-out call degrades to the raw query, like any other failure', async () => {
+    aiText.mockRejectedValue(Object.assign(new Error('Request timeout after 4000ms'), {}));
+    const result = await expandQuery('Und in Bayern?', { historyContext: 'Verlauf' });
+    expect(result).toEqual({ primary: 'Und in Bayern?', alternatives: [] });
+  });
+
+  it('skips the alternatives step when the caller only keeps one variant', async () => {
+    aiText.mockResolvedValue(JSON.stringify({ standalone: 'Hitzeschutz Bayern' }));
+    const result = await expandQuery('Und in Bayern?', {
+      historyContext: 'Verlauf',
+      variants: 0,
+    });
+    expect(result).toEqual({ primary: 'Hitzeschutz Bayern', alternatives: [] });
+    const call = aiText.mock.calls[0][0] as { system: string; maxOutputTokens: number };
+    expect(call.system).not.toContain('alternative Formulierungen');
+    expect(call.maxOutputTokens).toBe(80);
+  });
 });

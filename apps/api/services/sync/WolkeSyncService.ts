@@ -282,8 +282,6 @@ export class WolkeSyncService {
 
       // Chunk the text
       const chunks = await smartChunkDocument(extractedText, {
-        maxTokens: 400,
-        overlapTokens: 50,
         preserveSentences: true,
       });
 

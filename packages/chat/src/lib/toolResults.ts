@@ -9,7 +9,7 @@
 
 import { type SerializableCitation } from '../components/tool-ui/citation/schema';
 
-import { formatNamespacedToolLabel } from './toolMappings';
+import { formatNamespacedToolLabel, toolCountLabel } from './toolMappings';
 import { extractDomain, getHostname } from './urlUtils';
 
 import type {
@@ -96,45 +96,386 @@ export type ToolIconKey =
   | 'external-link'
   | 'message-circle'
   | 'cloud'
-  | 'file';
+  | 'file'
+  // Deliberately few: every key costs an entry in mobile's TOTAL
+  // `Record<ToolIconKey, IoniconsIconName>` (apps/mobile/.../toolIcons.ts), so
+  // a new key is a hard native compile error until both halves are filled in.
+  | 'presentation'
+  | 'table'
+  | 'board'
+  | 'chart';
+
+/**
+ * Semantic accent, NOT a class name — a Tailwind string could not cross into
+ * Metro. Web maps it to a text colour, native may map it to a theme colour.
+ */
+export type ToolAccent = 'retrieval' | 'knowledge' | 'create' | 'personal' | 'external' | 'neutral';
 
 export interface ToolMeta {
+  /** Resting label — what the finished card says. */
   label: string;
+  /**
+   * Present-tense label shown WHILE the call runs ("Lade Schreibvorgaben").
+   * Optional: without it a card shimmers `label`, exactly as before, so the
+   * verb pairs can be filled in tool by tool without a flag day.
+   */
+  activeLabel?: string;
   iconKey: ToolIconKey;
+  /** Defaults to 'neutral' at the presentation layer. */
+  accent?: ToolAccent;
+  /**
+   * Extra arg keys to read the card's subject from, tried in order AFTER the
+   * `query`/`question` defaults — `rezept_laden` names its arg `rezept`, the
+   * create_* family `prompt`.
+   */
+  queryKeys?: readonly string[];
+  /**
+   * One-line German outcome for the collapsed card. Tolerant by contract:
+   * returns null rather than throwing on an unexpected payload, so a shape
+   * change downgrades the line instead of blanking the card.
+   */
+  summarize?: (args: unknown, result: unknown) => string | null;
 }
 
 const TOOL_METADATA: Record<string, ToolMeta> = {
-  search_sources: { label: 'Quellen', iconKey: 'search' },
-  gruenerator_search: { label: 'Dokumente', iconKey: 'search' },
-  gruenerator_docs_search: { label: 'Anleitungen', iconKey: 'book' },
-  gruenerator_person_search: { label: 'Person', iconKey: 'user' },
-  gruenerator_examples_search: { label: 'Beispiele', iconKey: 'image' },
-  web_search: { label: 'Websuche', iconKey: 'globe' },
-  bundestag: { label: 'Bundestag (DIP)', iconKey: 'book' },
-  research: { label: 'Deep Research', iconKey: 'book' },
-  generate_image: { label: 'Bild', iconKey: 'sparkles' },
-  scrape_url: { label: 'URL', iconKey: 'external-link' },
-  recall_memory: { label: 'Erinnerung', iconKey: 'message-circle' },
-  save_memory: { label: 'Speichern', iconKey: 'message-circle' },
-  search_chat_history: { label: 'Frühere Inhalte', iconKey: 'message-circle' },
-  search_user_content: { label: 'Inhalte', iconKey: 'search' },
-  gruenerator_pressemitteilung_examples: { label: 'Pressemitteilungen', iconKey: 'file' },
-  ask_human: { label: 'Rückfrage', iconKey: 'message-circle' },
-  run_python: { label: 'Tabellen-Berechnung', iconKey: 'sparkles' },
-  edit_document: { label: 'Bearbeitung', iconKey: 'file' },
-  mcp_tool: { label: 'MCP-Tool', iconKey: 'external-link' },
-  sharepic_edit: { label: 'Sharepic', iconKey: 'image' },
-  reel_edit: { label: 'Reel', iconKey: 'image' },
-  find_content: { label: 'Meine Inhalte', iconKey: 'search' },
-  documents: { label: 'Dokumente', iconKey: 'file' },
-  boards_tasks: { label: 'Boards & Aufgaben', iconKey: 'file' },
-  groups: { label: 'Gruppen', iconKey: 'user' },
-  media: { label: 'Medien', iconKey: 'image' },
-  notebooks: { label: 'Notebooks', iconKey: 'book' },
-  read_pdf_form: { label: 'Formularfelder', iconKey: 'file' },
-  fill_pdf_form: { label: 'Formular ausfüllen', iconKey: 'file' },
-  cloud_files: { label: 'Wolke', iconKey: 'cloud' },
+  // --- Retrieval -----------------------------------------------------------
+  search_sources: {
+    label: 'Quellen',
+    activeLabel: 'Suche Quellen',
+    iconKey: 'search',
+    accent: 'retrieval',
+  },
+  gruenerator_search: {
+    label: 'Dokumente',
+    activeLabel: 'Durchsuche Dokumente',
+    iconKey: 'search',
+    accent: 'retrieval',
+  },
+  gruenerator_docs_search: {
+    label: 'Anleitungen',
+    activeLabel: 'Durchsuche Anleitungen',
+    iconKey: 'book',
+    accent: 'knowledge',
+  },
+  gruenerator_person_search: {
+    label: 'Person',
+    activeLabel: 'Suche Person',
+    iconKey: 'user',
+    accent: 'retrieval',
+  },
+  gruenerator_examples_search: {
+    label: 'Beispiele',
+    activeLabel: 'Suche Beispiele',
+    iconKey: 'image',
+    accent: 'retrieval',
+  },
+  web_search: {
+    label: 'Websuche',
+    activeLabel: 'Durchsuche das Web',
+    iconKey: 'globe',
+    accent: 'retrieval',
+  },
+  bundestag: {
+    label: 'Bundestag (DIP)',
+    activeLabel: 'Durchsuche den Bundestag',
+    iconKey: 'book',
+    accent: 'retrieval',
+  },
+  research: {
+    label: 'Deep Research',
+    activeLabel: 'Recherchiere',
+    iconKey: 'book',
+    accent: 'retrieval',
+  },
+  scrape_url: {
+    label: 'URL',
+    activeLabel: 'Lese die Seite',
+    iconKey: 'external-link',
+    accent: 'external',
+  },
+  gruenerator_pressemitteilung_examples: {
+    label: 'Pressemitteilungen',
+    activeLabel: 'Suche Pressemitteilungen',
+    iconKey: 'file',
+    accent: 'retrieval',
+  },
+  // Backend wire name is the German verb; F1 keeps it even though it now also
+  // serves poll data rather than only surveys.
+  umfragen: {
+    label: 'Umfragen',
+    activeLabel: 'Rufe Umfragewerte ab',
+    iconKey: 'chart',
+    accent: 'retrieval',
+    queryKeys: ['topic', 'bundesland'],
+  },
+  abgeordnetenwatch: {
+    label: 'Abgeordnetenwatch',
+    activeLabel: 'Frage Abgeordnetenwatch ab',
+    iconKey: 'user',
+    accent: 'retrieval',
+  },
+
+  // --- Knowledge / context -------------------------------------------------
+  product_knowledge: {
+    label: 'Produktwissen',
+    activeLabel: 'Schlage im Produktwissen nach',
+    iconKey: 'book',
+    accent: 'knowledge',
+  },
+  // F1: the wire name says "summarize", but it summarises the ATTACHMENTS of
+  // this turn, not a search. Renaming it would break persisted threads.
+  summarize: {
+    label: 'Zusammenfassung',
+    activeLabel: 'Fasse zusammen',
+    iconKey: 'file',
+    accent: 'knowledge',
+  },
+  expand_attachment: {
+    label: 'Anhang',
+    activeLabel: 'Lese den Anhang',
+    iconKey: 'file',
+    accent: 'knowledge',
+  },
+  // F1: German wire name, and it reads slices rather than whole documents.
+  dokumente_lesen: {
+    label: 'Dokumente',
+    activeLabel: 'Lese die Dokumente',
+    iconKey: 'file',
+    accent: 'knowledge',
+  },
+  rezept_laden: {
+    label: 'Schreibvorgaben',
+    activeLabel: 'Lade Schreibvorgaben',
+    iconKey: 'book',
+    accent: 'knowledge',
+    queryKeys: ['rezept'],
+    // The backend already sends "Rezept: <titel>" (wrapTools.ts) on the live
+    // turn; this is the reload path, where only the persisted result survives.
+    summarize: (_args, result) => {
+      if (getBoolean(result, 'geladen')) {
+        const titel = getString(result, 'titel') ?? getString(result, 'rezept');
+        return titel ? `Rezept: ${titel}` : 'Rezept geladen';
+      }
+      return getString(result, 'grund') ?? 'Rezept nicht verfügbar';
+    },
+  },
+
+  // --- Memory / personal content -------------------------------------------
+  memory: {
+    label: 'Gedächtnis',
+    activeLabel: 'Merke mir',
+    iconKey: 'message-circle',
+    accent: 'personal',
+    queryKeys: ['text'],
+    // Reload path: the live turn already got this line from wrapTools.ts.
+    summarize: (_args, result) => {
+      const text = getString(result, 'text');
+      if (!text) return getString(result, 'error');
+      if (getBoolean(result, 'gespeichert')) {
+        return `${getString(result, 'hinweis') != null ? 'Bereits gemerkt' : 'Gemerkt'}: ${text}`;
+      }
+      if (getBoolean(result, 'aktualisiert')) return `Aktualisiert: ${text}`;
+      if (getBoolean(result, 'vergessen')) return `Vergessen: ${text}`;
+      return null;
+    },
+  },
+  recall_memory: {
+    label: 'Erinnerung',
+    activeLabel: 'Erinnere mich',
+    iconKey: 'message-circle',
+    accent: 'personal',
+  },
+  save_memory: {
+    label: 'Speichern',
+    activeLabel: 'Speichere',
+    iconKey: 'message-circle',
+    accent: 'personal',
+  },
+  search_chat_history: {
+    label: 'Frühere Inhalte',
+    activeLabel: 'Durchsuche frühere Inhalte',
+    iconKey: 'message-circle',
+    accent: 'personal',
+  },
+  search_threads: {
+    label: 'Frühere Chats',
+    activeLabel: 'Durchsuche frühere Chats',
+    iconKey: 'message-circle',
+    accent: 'personal',
+  },
+  search_user_content: {
+    label: 'Inhalte',
+    activeLabel: 'Durchsuche deine Inhalte',
+    iconKey: 'search',
+    accent: 'personal',
+  },
+  find_content: {
+    label: 'Meine Inhalte',
+    activeLabel: 'Durchsuche meine Inhalte',
+    iconKey: 'search',
+    accent: 'personal',
+  },
+  documents: {
+    label: 'Dokumente',
+    activeLabel: 'Suche Dokumente',
+    iconKey: 'file',
+    accent: 'personal',
+  },
+  boards_tasks: {
+    label: 'Boards & Aufgaben',
+    activeLabel: 'Suche Boards & Aufgaben',
+    iconKey: 'file',
+    accent: 'personal',
+  },
+  groups: {
+    label: 'Projekte',
+    activeLabel: 'Sehe im Projekt nach',
+    iconKey: 'user',
+    accent: 'personal',
+  },
+  media: { label: 'Medien', activeLabel: 'Suche Medien', iconKey: 'image', accent: 'personal' },
+  notebooks: {
+    label: 'Notebooks',
+    activeLabel: 'Durchsuche Notebooks',
+    iconKey: 'book',
+    accent: 'personal',
+  },
+  read_artifact: {
+    label: 'Artefakt',
+    activeLabel: 'Öffne das Artefakt',
+    iconKey: 'file',
+    accent: 'personal',
+  },
+  cloud_files: {
+    label: 'Wolke',
+    activeLabel: 'Sehe in der Wolke nach',
+    iconKey: 'cloud',
+    accent: 'personal',
+  },
+  recurring_tasks: {
+    label: 'Wiederkehrende Aufgaben',
+    activeLabel: 'Sehe bei den Aufgaben nach',
+    iconKey: 'sparkles',
+    accent: 'personal',
+  },
+  user_agents: {
+    label: 'Grünerator-Agenten',
+    activeLabel: 'Sehe bei den Grünerator-Agenten nach',
+    iconKey: 'user',
+    accent: 'personal',
+  },
+  recipes: {
+    label: 'Rezepte & Textformen',
+    activeLabel: 'Sehe bei den Rezepten nach',
+    iconKey: 'sparkles',
+    accent: 'personal',
+  },
+
+  // --- Creation ------------------------------------------------------------
+  generate_image: {
+    label: 'Bild',
+    activeLabel: 'Erzeuge ein Bild',
+    iconKey: 'sparkles',
+    accent: 'create',
+  },
+  sharepic: {
+    label: 'Sharepic',
+    activeLabel: 'Erstelle Sharepic',
+    iconKey: 'image',
+    accent: 'create',
+    queryKeys: ['text', 'prompt'],
+  },
+  create_document: {
+    label: 'Dokument',
+    activeLabel: 'Erstelle Dokument',
+    iconKey: 'file',
+    accent: 'create',
+    queryKeys: ['prompt', 'titel'],
+    summarize: (_args, result) => artifactTitle(result),
+  },
+  create_presentation: {
+    label: 'Präsentation',
+    activeLabel: 'Erstelle Präsentation',
+    iconKey: 'presentation',
+    accent: 'create',
+    queryKeys: ['prompt', 'thema'],
+    summarize: (_args, result) => artifactTitle(result),
+  },
+  create_sheet: {
+    label: 'Tabelle',
+    activeLabel: 'Erstelle Tabelle',
+    iconKey: 'table',
+    accent: 'create',
+    queryKeys: ['prompt'],
+    summarize: (_args, result) => artifactTitle(result),
+  },
+  create_pdf: {
+    label: 'PDF',
+    activeLabel: 'Erstelle PDF',
+    iconKey: 'file',
+    accent: 'create',
+    queryKeys: ['prompt'],
+    // The self-check's findings are the one thing in this payload that appears
+    // nowhere else, so they belong in the collapsed line, not only in the body.
+    summarize: (_args, result) => {
+      const title = artifactTitle(result);
+      const problems = getArray(result, 'probleme')?.length ?? 0;
+      if (!title) return null;
+      if (problems === 0) return `${title} · geprüft`;
+      return `${title} · ${problems} ${problems === 1 ? 'Hinweis' : 'Hinweise'} aus der Prüfung`;
+    },
+  },
+  create_board: {
+    label: 'Board',
+    activeLabel: 'Erstelle Board',
+    iconKey: 'board',
+    accent: 'create',
+    queryKeys: ['prompt'],
+    // Boards emit no document_created event, so this card is the ONLY place the
+    // board is ever named — unlike the doc family, which has DocumentCreatedCard.
+    summarize: (_args, result) => getString(getObject(result, 'board'), 'title'),
+  },
+  edit_document: {
+    label: 'Bearbeitung',
+    activeLabel: 'Bearbeite',
+    iconKey: 'file',
+    accent: 'create',
+  },
+  read_pdf_form: {
+    label: 'Formularfelder',
+    activeLabel: 'Lese Formularfelder',
+    iconKey: 'file',
+    accent: 'create',
+  },
+  fill_pdf_form: {
+    label: 'Formular ausfüllen',
+    activeLabel: 'Fülle das Formular',
+    iconKey: 'file',
+    accent: 'create',
+  },
+  sharepic_edit: {
+    label: 'Sharepic',
+    activeLabel: 'Bearbeite Sharepic',
+    iconKey: 'image',
+    accent: 'create',
+  },
+  reel_edit: { label: 'Reel', activeLabel: 'Bearbeite Reel', iconKey: 'image', accent: 'create' },
+
+  // --- Interactive / external ----------------------------------------------
+  ask_human: { label: 'Rückfrage', iconKey: 'message-circle', accent: 'neutral' },
+  run_python: {
+    label: 'Tabellen-Berechnung',
+    activeLabel: 'Rechne',
+    iconKey: 'sparkles',
+    accent: 'neutral',
+  },
+  mcp_tool: { label: 'MCP-Tool', iconKey: 'external-link', accent: 'external' },
 };
+
+/** Title of a freshly created artifact — the `{ document: {...} }` envelope. */
+function artifactTitle(result: unknown): string | null {
+  return getString(getObject(result, 'document'), 'title') ?? getString(result, 'title');
+}
 
 export function getToolMeta(toolName: string): ToolMeta {
   // Namespaced connector/system tools (s0__x, bahn__x) have no static entry —
@@ -144,9 +485,106 @@ export function getToolMeta(toolName: string): ToolMeta {
   );
 }
 
-/** The user-facing query/question a tool was invoked with, if any. */
-export function getToolQuery(args: unknown): string | null {
-  return getString(args, 'query') ?? getString(args, 'question');
+/**
+ * The user-facing subject a tool was invoked with, if any. `toolName` is
+ * optional so every existing call site keeps working; passing it additionally
+ * consults that tool's `queryKeys` (e.g. `rezept` for `rezept_laden`, which
+ * otherwise showed no subject at all).
+ */
+export function getToolQuery(args: unknown, toolName?: string): string | null {
+  const direct = getString(args, 'query') ?? getString(args, 'question');
+  if (direct) return direct;
+  if (!toolName) return null;
+  for (const key of getToolMeta(toolName).queryKeys ?? []) {
+    const value = getString(args, key);
+    if (value) return value;
+  }
+  return null;
+}
+
+/**
+ * How many things a finished tool result stands for. Hoisted out of web's
+ * ToolCallUI so native reads the same number (it showed none before).
+ */
+export function getToolResultCount(result: unknown): number {
+  if (!result) return 0;
+  const citations = getArray(result, 'citations');
+  if (citations) return citations.length;
+  const arr = getArray(result, 'results') ?? getArray(result, 'examples');
+  if (arr) return arr.length;
+  if (Array.isArray(result)) return result.length;
+  if (getObject(result, 'person')) return 1;
+  const rc = getNumber(result, 'resultCount');
+  if (rc !== null && rc > 0) return rc;
+  return 0;
+}
+
+/** How a settled tool call should present itself. */
+export type ToolOutcome = 'running' | 'ok' | 'error';
+
+/**
+ * The failure message of a call, or null.
+ *
+ * `result.error` is the channel that SURVIVES a thread reload: wrapTools turns
+ * every throw into `{ error }` before the result leaves the backend, and the
+ * whole `result` object is what gets persisted.
+ */
+export function toolErrorMessage(result: unknown): string | null {
+  return getString(result, 'error');
+}
+
+/**
+ * Did this call fail? Two channels carry that one fact and neither is
+ * sufficient alone:
+ *   - `result.ok === false` — folded in by parseSSEStream from the live
+ *     `tool_step_result` event. It is NOT persisted, so it is gone on reload;
+ *   - `result.error`        — lives inside `result`, so it does survive.
+ * Reading only `ok` is why a failed connector call came back GREEN after a
+ * reload; reading only `error` misses the tools that fail via the flag alone.
+ */
+export function toolOutcome(result: unknown, state: 'call' | 'result'): ToolOutcome {
+  if (state !== 'result' || result == null) return 'running';
+  if (toolErrorMessage(result)) return 'error';
+  // Explicit `false` only. `getBoolean` must NOT be used here: it reports a
+  // MISSING key as false, which is precisely the post-reload shape.
+  const ok = typeof result === 'object' ? (result as Record<string, unknown>).ok : undefined;
+  return ok === false ? 'error' : 'ok';
+}
+
+/**
+ * The collapsed card's one-line outcome, or null when there is nothing worth
+ * saying. Precedence, and each step is load-bearing:
+ *   1. `error`            — a failure must never read as success;
+ *   2. `meta.summarize`   — per-tool and structural. Ahead of (3) because
+ *      wrapTools' own summariser returns nothing for the whole create_* family,
+ *      so those tools have no backend line to fall back on;
+ *   3. `result.summary`   — what the backend sent (wrapTools → parseSSEStream);
+ *   4. count-derived      — "3 Suchen", via the shared plural table;
+ *   5. null.
+ */
+export function toolResultSummary(toolName: string, args: unknown, result: unknown): string | null {
+  if (result == null) return null;
+
+  const error = getString(result, 'error');
+  if (error) return error;
+
+  const custom = getToolMeta(toolName).summarize;
+  if (custom) {
+    // Tolerant by contract: a payload shape change must downgrade the line,
+    // never blank the card or throw through the render.
+    try {
+      const line = custom(args, result);
+      if (line) return line;
+    } catch {
+      /* fall through to the generic paths */
+    }
+  }
+
+  const backend = getString(result, 'summary');
+  if (backend) return backend;
+
+  const count = getToolResultCount(result);
+  return count > 0 ? toolCountLabel(toolName, count) : null;
 }
 
 // ---------------------------------------------------------------------------

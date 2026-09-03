@@ -2,8 +2,10 @@
  * Notebook conversation history — normalization, turn-granular budgeting and
  * carry-over of previously cited sources.
  *
- * Only the `ultra` depth tier reads history (see notebookDepthProfiles). Three
- * invariants this module exists to hold:
+ * `ultra` is the only depth tier that puts history in the PROMPT (see
+ * notebookDepthProfiles). `deep` reads history too, but only to rewrite the
+ * search query against it (`buildRewriteTranscript`) — it never reaches the
+ * model. Three invariants this module exists to hold:
  *
  * 1. **Messages are never cut in the middle.** A follow-up may refer to the
  *    END of an earlier answer, so a message is either present in full or

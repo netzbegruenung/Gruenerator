@@ -21,7 +21,6 @@ CREATE INDEX IF NOT EXISTS api_keys_key_hash_idx ON api_keys(key_hash);
 CREATE INDEX IF NOT EXISTS api_keys_active_idx
   ON api_keys(revoked_at, expires_at) WHERE revoked_at IS NULL;
 
--- Note: notebook usage logs are written to a Qdrant collection
--- (`notebook_usage_logs` collection in QdrantService), not the Postgres
--- table of the same name. Per-key audit fields (api_key_id, landesverband)
--- are added to the Qdrant payload via UsageLogMetadata, not via SQL columns.
+-- Note: notebook usage logging (a Qdrant collection plus a mirror Postgres
+-- table, both named `notebook_usage_logs`) was removed entirely — it was
+-- never written by the streaming notebook chat and had no reader (#3127).

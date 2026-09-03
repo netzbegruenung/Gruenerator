@@ -41,22 +41,6 @@ const mistralClient = new Mistral({
   server: env.MISTRAL_REGION,
 });
 
-/**
- * Escape hatch for the two surfaces that do not exist on a regional endpoint
- * — they answer 404 "no Route matched" there:
- *   - `files.*`           → Files API (promptAssemblyGraph document upload)
- *   - `audio.voices.list` → TTS voice catalogue (ttsService)
- *
- * Reach for this ONLY for those two. The voice catalogue is metadata with no
- * user payload. The Files API does send content globally, which is why
- * promptAssemblyGraph prefers its data-URL path and gates the upload on
- * `MISTRAL_REGION === 'global'` — so it never runs in our EU deployment.
- */
-const mistralGlobalClient = new Mistral({
-  apiKey: apiKey,
-  server: 'global',
-});
-
 console.log(
   `[Mistral Client] Initialized (region: ${env.MISTRAL_REGION})${apiKey ? '' : ' (API key not provided)'}`
 );
@@ -75,4 +59,4 @@ process.on('exit', () => {
 });
 
 export default mistralClient;
-export { connectionMetrics, mistralGlobalClient };
+export { connectionMetrics };

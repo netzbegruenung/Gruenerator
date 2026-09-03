@@ -27,7 +27,13 @@ vi.mock('../../../../ChunkQualityService/index.js', () => ({
 
 vi.mock('../../../../document-services/index.js', () => ({
   smartChunkDocument: (text: string) => Promise.resolve([{ text }]),
-  buildEmbeddingTexts: (texts: string[]) => texts,
+  buildEmbeddingTextsForChunks: (chunks: Array<{ text: string }>) => chunks.map((c) => c.text),
+  structurePayload: () => ({
+    heading_path: null,
+    heading: null,
+    chunk_type: 'text',
+    section_index: null,
+  }),
 }));
 
 vi.mock('../../../../mistral/index.js', () => ({

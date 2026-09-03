@@ -221,6 +221,181 @@ async function executeAction(action: PendingAction): Promise<{ message: string; 
       };
     }
 
+    case 'attach_wolke_folder': {
+      const { NotebookQdrantHelper } =
+        await import('../../database/services/NotebookQdrantHelper.js');
+      const { attachWolkeFolderToNotebook } =
+        await import('../../services/notebook/notebookWolkeAttach.js');
+      const { buildNotebookSlug } = await import('@gruenerator/shared/utils');
+      const p = action.payload;
+      const helper = new NotebookQdrantHelper();
+
+      // Ohne collectionId legt die Karte das Notebook erst an — privat, leer,
+      // wie `notebooks` action="create" es auch täte.
+      let collectionId = p.collectionId;
+      let slugSuffix: string | null = null;
+      if (!collectionId) {
+        const created = await helper.storeNotebookCollection({
+          user_id: action.userId,
+          name: p.notebookName,
+          description: p.description,
+          audience: p.audience,
+          settings: { wolke_folders: [], linked_docs: [], wordpress_sites: [] },
+          document_count: 0,
+        });
+        collectionId = created.collection_id;
+        slugSuffix = created.slug_suffix;
+      } else {
+        slugSuffix = (await helper.getNotebookCollection(collectionId))?.slug_suffix ?? null;
+      }
+      const url = `/notebooks/${slugSuffix ? buildNotebookSlug(p.notebookName, slugSuffix) : collectionId}`;
+
+      try {
+        const r = await attachWolkeFolderToNotebook({
+          userId: action.userId,
+          collectionId,
+          shareLinkId: p.shareLinkId,
+          folderPath: p.folderPath,
+          includeSubfolders: p.includeSubfolders,
+        });
+        const parts = [`${r.importedNow} sofort ausgelesen`];
+        if (r.alreadyImported > 0) parts.push(`${r.alreadyImported} bereits vorhanden`);
+        if (r.queued > 0) parts.push(`${r.queued} warten unter „Neue Dateien"`);
+        if (r.failed > 0) parts.push(`${r.failed} fehlgeschlagen (ebenfalls dort)`);
+        return {
+          message: `Ordner **„${r.folderName}"** hängt am Notebook **„${p.notebookName}"** — ${r.total} Datei${r.total === 1 ? '' : 'en'}: ${parts.join(', ')}.`,
+          url,
+        };
+      } catch (err) {
+        // Kein 500: Notebook und Ordner-Ref stehen (die Ref wird zuerst
+        // geschrieben), nur der Import ist gescheitert. Der stündliche Wächter
+        // oder „Synchronisieren" im Notebook holt die Dateien nach.
+        log.error('[attach_wolke_folder] import failed after attaching the folder:', err);
+        return {
+          message: p.collectionId
+            ? `Ordner **„${p.folderName}"** hängt am Notebook **„${p.notebookName}"**, der Import ist fehlgeschlagen — im Notebook „Synchronisieren" wählen.`
+            : `Notebook **„${p.notebookName}"** wurde angelegt und der Ordner **„${p.folderName}"** angehängt, der Import ist fehlgeschlagen — im Notebook „Synchronisieren" wählen.`,
+          url,
+        };
+      }
+    }
+
+    case 'set_notebook_visibility': {
+      const { applyNotebookVisibility } =
+        await import('../../services/notebook/notebookVisibility.js');
+      const { collectionId, notebookName, ...patch } = action.payload;
+      const applied = await applyNotebookVisibility(collectionId, action.userId, patch);
+      if (!applied.ok) throw new ConfirmActionRefusal(applied.error);
+      return {
+        message: `Sichtbarkeit von **„${notebookName}"** wurde geändert.`,
+        url: `/notebooks/${collectionId}`,
+      };
+    }
+
+    case 'share_notebook': {
+      const { shareContentToGroup } = await import('../../services/groups/groupContent.js');
+      const { getPostgresInstance } = await import('../../database/services/PostgresService.js');
+      const { collectionId, notebookName, groupId, groupName } = action.payload;
+      const rows = (await getPostgresInstance().query(
+        'SELECT display_name FROM profiles WHERE id = $1',
+        [action.userId]
+      )) as { display_name: string | null }[];
+      const outcome = await shareContentToGroup({
+        userId: action.userId,
+        contentType: 'notebook_collections',
+        contentId: collectionId,
+        groupId,
+        permissions: { read: true, write: false },
+        sharerName: rows[0]?.display_name || 'Jemand',
+      });
+      if (!outcome.success) throw new ConfirmActionRefusal(outcome.message);
+      return {
+        message: `Notebook **„${notebookName}"** wurde mit **„${groupName}"** geteilt.`,
+        url: `/gruppen/${groupId}`,
+      };
+    }
+
+    case 'set_group_visibility': {
+      const { setGroupVisibility } = await import('../../services/groups/groupMutations.js');
+      const { groupId, groupName, is_public, audience } = action.payload;
+      // Wirft bei fehlender Admin-Rolle — der Rollenwechsel zwischen Karte und
+      // Klick ist selten, aber die Meldung soll dann die des Dienstes sein.
+      let updated: Awaited<ReturnType<typeof setGroupVisibility>>;
+      try {
+        updated = await setGroupVisibility(groupId, action.userId, { is_public, audience });
+      } catch (err) {
+        throw new ConfirmActionRefusal(err instanceof Error ? err.message : String(err));
+      }
+      if (!updated) throw new ConfirmActionRefusal('Gruppe nicht gefunden.');
+      return {
+        message: updated.is_public
+          ? `Projekt **„${groupName}"** ist jetzt öffentlich gelistet.`
+          : `Projekt **„${groupName}"** ist jetzt privat.`,
+        url: `/gruppen/${groupId}`,
+      };
+    }
+
+    case 'create_recurring_task': {
+      const { createRecurringTask } =
+        await import('../../services/recurringTasks/recurringTasksRepository.js');
+      const { describeRecurrence, DELIVERY_LABELS_DE, formatNextRun } =
+        await import('../../services/recurringTasks/recurringTaskLabels.js');
+      const { agentTitle: _agentTitle, ...body } = action.payload;
+      const task = await createRecurringTask(action.userId, body);
+      // Takt und nächster Lauf gehören in die Zeile: bei einer Beschwerde („die
+      // Erinnerung kommt zur falschen Zeit") muss nachvollziehbar sein, ob der
+      // Planer oder der Scheduler danebenlag.
+      log.info(
+        `[ConfirmController] Recurring task created: "${task.title}" (${task.id}) — ` +
+          `${describeRecurrence(task.recurrence)}, next=${new Date(task.nextRunAt).toISOString()}`
+      );
+      return {
+        message:
+          `Wiederkehrende Aufgabe **„${task.title}"** eingerichtet — läuft ${describeRecurrence(task.recurrence)}, ` +
+          `${DELIVERY_LABELS_DE[task.delivery]}. Nächste Ausführung: ${formatNextRun(task.nextRunAt, task.locale)}.`,
+        url: '/wiederkehrend',
+      };
+    }
+
+    case 'create_user_agent': {
+      const { createUserAgentSafely, userAgentUrl } = await import('./agents/userAgentTools.js');
+      const agent = await createUserAgentSafely(action.userId, action.payload.input);
+      log.info(
+        `[ConfirmController] User agent created: "${agent.title}" (${agent.identifier}) — ` +
+          `tools=[${(agent.enabledTools ?? []).join(',')}] notebooks=${agent.defaultNotebookIds?.length ?? 0}`
+      );
+      return {
+        message: `Grünerator-Agent **„${agent.title}"** angelegt — die Rolle lässt sich jederzeit in den Einstellungen des Agenten oder im Chat verfeinern.`,
+        url: userAgentUrl(agent.identifier),
+      };
+    }
+
+    case 'share_user_agent': {
+      const { shareContentToGroup } = await import('../../services/groups/groupContent.js');
+      const { getPostgresInstance } = await import('../../database/services/PostgresService.js');
+      const { agentTitle, agentId, groupId, groupName } = action.payload;
+      const rows = (await getPostgresInstance().query(
+        'SELECT display_name FROM profiles WHERE id = $1',
+        [action.userId]
+      )) as { display_name: string | null }[];
+      // Derselbe Pfad wie `userAgentsSharingContractRouter.addGroupShare`:
+      // Besitzprüfung über `user_agents.user_id`, Doppel-Check, Insert mit
+      // {read, !write} — plus die Benachrichtigung, die der Router nicht schickt.
+      const outcome = await shareContentToGroup({
+        userId: action.userId,
+        contentType: 'user_agents',
+        contentId: agentId,
+        groupId,
+        permissions: { read: true, write: false },
+        sharerName: rows[0]?.display_name || 'Jemand',
+      });
+      if (!outcome.success) throw new ConfirmActionRefusal(outcome.message);
+      return {
+        message: `Grünerator-Agent **„${agentTitle}"** wurde mit **„${groupName}"** geteilt.`,
+        url: `/gruppen/${groupId}`,
+      };
+    }
+
     default: {
       const _exhaustive: never = action;
       throw new Error(`Unknown action type: ${(action as PendingAction).type}`);

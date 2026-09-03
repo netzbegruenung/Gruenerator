@@ -29,6 +29,13 @@ const SEARCH_PROGRESS_TOOLS: ReadonlySet<string> = new Set([
   'gruenerator_docs_search',
   'search_sources',
   'bundestag',
+  // Same shape and role as `bundestag` — {resultCount, sources}, hits re-surface
+  // in the message's Quellen-Liste — so they belong in the line, not in a card.
+  'abgeordnetenwatch',
+  // Attachment readers: the turn's own documents. A card per slice would narrate
+  // the plumbing of a document the user attached themselves.
+  'dokumente_lesen',
+  'expand_attachment',
 ]);
 
 /** Whether this tool reports through the status line instead of a card. */

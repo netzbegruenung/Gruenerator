@@ -118,7 +118,7 @@ jobs:
         run: |
           curl -sfS -H "x-admin-token: $ADMIN_TOKEN" \
             "$CONTENT_SYNC_API_URL/api/internal/content-sync/stats" \
-            | jq -r '.markdown' > documentation/docs/ueber-den-gruenerator/inhaltsdatenbank.md
+            | jq -r '.markdown' > documentation/docs/sonstiges/inhaltsdatenbank.md
         env:
           ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
           CONTENT_SYNC_API_URL: ${{ vars.NOTEBOOK_API_URL || 'https://gruenerator.eu' }}
@@ -131,7 +131,7 @@ jobs:
           title: 'docs: update content stats'
           body: 'Automated content stats update from Social Media Sync workflow.'
           branch: automated/content-stats-update
-          add-paths: documentation/docs/ueber-den-gruenerator/inhaltsdatenbank.md
+          add-paths: documentation/docs/sonstiges/inhaltsdatenbank.md
           delete-branch: true
           labels: automated
 

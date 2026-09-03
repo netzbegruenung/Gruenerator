@@ -1899,7 +1899,9 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       case 'greeting':
         break;
       // Artefact + editor intents: the content comes from the generation
-      // services, not from retrieval here.
+      // services, not from retrieval here. `create_recurring_task` ist
+      // stillgelegt (09/2026) und erreicht diesen switch nicht mehr — bleibt
+      // nur, weil der Enum-Wert bleibt.
       case 'save_as_doc':
       case 'modify_doc':
       case 'modify_board':

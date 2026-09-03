@@ -8,6 +8,7 @@ import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { server } from '../../../test/msw-server';
 
 import {
+  mapMonitorCitations,
   useMonitorHistory,
   useMonitorSnapshot,
   usePollParliaments,
@@ -181,5 +182,63 @@ describe('usePollParliaments (MSW)', () => {
 
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(result.current.data).toBeUndefined();
+  });
+});
+
+/**
+ * `mapMonitorCitations` ist die Naht zwischen dem Vertrag und den beiden
+ * Gattern in CitationBadge.tsx:40 / CitationSourcesDisplay.tsx:72. Beide
+ * prüfen `chunk_index !== undefined` — deshalb muss ein fehlendes Feld hier
+ * FEHLEN und nicht als `undefined` gesetzt sein.
+ */
+describe('mapMonitorCitations', () => {
+  const webCitation = {
+    id: '1',
+    title: 'Tagesschau: Debatte um das Klimageld',
+    url: 'https://www.tagesschau.de/inland/klimageld-100.html',
+    snippet: 'Die Bundesregierung diskutiert…',
+  };
+
+  it('bildet ein Web-Zitat ohne Dokument-Kennung ab und lässt die Schlüssel weg', () => {
+    const [mapped] = mapMonitorCitations([webCitation]);
+
+    expect(mapped).toEqual({
+      index: 1,
+      document_title: 'Tagesschau: Debatte um das Klimageld',
+      source_url: 'https://www.tagesschau.de/inland/klimageld-100.html',
+      cited_text: 'Die Bundesregierung diskutiert…',
+    });
+    expect('document_id' in mapped).toBe(false);
+    expect('chunk_index' in mapped).toBe(false);
+  });
+
+  it('reicht documentId/chunkIndex als document_id/chunk_index durch', () => {
+    const [mapped] = mapMonitorCitations([
+      { ...webCitation, documentId: '6d1f1c8e-2b4a-4c5d-8e9f-0a1b2c3d4e5f', chunkIndex: 4 },
+    ]);
+
+    expect(mapped.document_id).toBe('6d1f1c8e-2b4a-4c5d-8e9f-0a1b2c3d4e5f');
+    expect(mapped.chunk_index).toBe(4);
+  });
+
+  it('behält chunk_index 0 — der erste Chunk darf nicht wegfallen', () => {
+    const [mapped] = mapMonitorCitations([{ ...webCitation, documentId: 'doc-1', chunkIndex: 0 }]);
+
+    expect(mapped.chunk_index).toBe(0);
+    expect('chunk_index' in mapped).toBe(true);
+  });
+
+  it('lässt document_id UND chunk_index weg, wenn nur documentId vorliegt', () => {
+    // Mit document_id allein baut MONITOR_CITATION_LINK_CONFIG einen
+    // Dokumentlink (getDocumentUrl), dessen Kontext sich ohne chunkIndex nie
+    // laden lässt — beide Schlüssel gehören zusammen oder gar nicht.
+    const [mapped] = mapMonitorCitations([{ ...webCitation, documentId: 'doc-1' }]);
+
+    expect('document_id' in mapped).toBe(false);
+    expect('chunk_index' in mapped).toBe(false);
+  });
+
+  it('liefert für undefined eine leere Liste', () => {
+    expect(mapMonitorCitations(undefined)).toEqual([]);
   });
 });

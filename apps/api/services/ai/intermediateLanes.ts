@@ -281,8 +281,9 @@ export const INTERMEDIATE_LANES = {
   standard: { ...GREENPT_SMALL_32, fallback: SMALL_CHAIN },
 
   /**
-   * Die Qualitätslatte: Zusammenfassungen, der Boards-Agent, die
-   * mem0-Extraktion, Deep-Research-Planung.
+   * Die Qualitätslatte: Zusammenfassungen, der Boards-Agent,
+   * Deep-Research-Planung. (Die mem0-Extraktion war bis 01.09.2026 der vierte
+   * Abnehmer; das explizite Gedächtnis in `services/memory/` ruft kein Modell.)
    *
    * Gemma 4 statt Small 4. Belegt ist EIN Grund, und der ist schmal: der
    * Zusammenfassungs-Prompt verlangt Überschriften „für Hauptthemen", Small 4
@@ -373,7 +374,8 @@ export const INTERMEDIATE_LANES = {
    * Inhalt ist für die Fassade kein Fehler, sondern startet die Fallback-Kette;
    * `classifyDeliverable` mit seinen 20 Token stirbt zuerst.
    *
-   * mem0s Extraktion folgt dieser Stufe wieder (seit 31.08.2026, #3065). Sie tat
+   * Historisch (mem0 ist seit 01.09.2026 weg, die Falle bleibt lehrreich):
+   * mem0s Extraktion folgte dieser Stufe zuletzt wieder (31.08.2026, #3065). Sie tat
    * es zwischendurch nicht: `services/mem0/config.ts` band `REGOLO_BASE_URL` +
    * `REGOLO_API_KEY` fest an den Modellnamen VON HIER und hätte bei einem Umzug
    * dieser Stufe einen fremden Namen an Regolos Basis-URL geschickt. Der Pin

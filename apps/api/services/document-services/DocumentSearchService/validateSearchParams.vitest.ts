@@ -61,6 +61,36 @@ describe('validateSearchParams — nested options branch', () => {
     expect(out.qualityMin).toBe(0.4);
     expect(out.useCache).toBe(false);
   });
+
+  it('carries rerankChunks: true through to the validated options', () => {
+    expect(
+      nested({ mode: 'hybrid', rerankChunks: true, searchCollection: 'grundsatz_documents' })
+        .options.rerankChunks
+    ).toBe(true);
+  });
+
+  it('omits rerankChunks when the caller does not set it', () => {
+    expect(
+      nested({ mode: 'hybrid', searchCollection: 'grundsatz_documents' }).options
+    ).not.toHaveProperty('rerankChunks');
+  });
+
+  it('omits rerankChunks for any non-true value', () => {
+    expect(
+      nested({
+        mode: 'hybrid',
+        rerankChunks: false,
+        searchCollection: 'grundsatz_documents',
+      }).options
+    ).not.toHaveProperty('rerankChunks');
+    expect(
+      nested({
+        mode: 'hybrid',
+        rerankChunks: 'yes',
+        searchCollection: 'grundsatz_documents',
+      }).options
+    ).not.toHaveProperty('rerankChunks');
+  });
 });
 
 describe('validateSearchParams — the branches that were already correct', () => {

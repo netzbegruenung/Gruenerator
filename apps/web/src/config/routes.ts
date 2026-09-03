@@ -165,6 +165,7 @@ const MeineVorlagenPage = lazy(() => import('../features/vorlagen/MeineVorlagenP
 const GeteilteVorlagePage = lazy(() => import('../features/vorlagen/GeteilteVorlagePage'));
 const AdminPage = lazy(() => import('../features/admin/AdminPage'));
 const AdminSkillsPage = lazy(() => import('../features/admin/AdminSkillsPage'));
+const ChunkInspectorPage = lazy(() => import('../features/admin/ChunkInspectorPage'));
 const LandesverbandAdminPage = lazy(
   () => import('../features/landesverband-admin/LandesverbandAdminPage')
 );
@@ -449,6 +450,10 @@ const standardRoutes: RouteConfig[] = [
   },
   { path: '/admin', component: AdminPage },
   { path: '/admin/skills', component: AdminSkillsPage },
+  // Chunk-Inspektor (#3123). Kein layoutMode → 'default', wie /admin und
+  // /admin/skills. Auth ist die Vorgabe; das Admin-Gatter sitzt in der Seite
+  // (RequireAdmin) und, verbindlich, im Backend-Handler.
+  { path: '/admin/chunks/:documentId', component: ChunkInspectorPage },
   // Der Instanz-Admin ist in `/admin` aufgegangen; die alte URL leitet dorthin,
   // statt zu verschwinden (URL-Sonderrecht, CLAUDE.md).
   {

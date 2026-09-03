@@ -132,6 +132,11 @@
       "title": "Dein Friend",
       "description": "Das Profilbild, das dich in Chats, Projekten und Kommentaren vertritt"
     },
+    "erinnerungen.gedaechtnis": {
+      "tab": "erinnerungen",
+      "title": "Gedächtnis",
+      "description": "Der Grünerator merkt sich nur, was du ihm ausdrücklich sagst („merk dir …\") — und berücksichtigt es in jedem Chat. Aus: nichts wird gespeichert oder verwendet."
+    },
     "personalisierung.rollen": {
       "tab": "personalisierung",
       "title": "Rollen",

@@ -12,6 +12,7 @@ import authMiddleware from './middleware/authMiddleware.js';
 import { deprecatedRoute } from './middleware/deprecatedRoute.js';
 import { rateLimitMiddleware } from './middleware/rateLimitMiddleware.js';
 import { requireAiConsent } from './middleware/requireAiConsent.js';
+import { mountChunkInspectorContractRouter } from './routes/admin/chunkInspectorContractRouter.js';
 import { mountInstanceAdminOverviewContractRouter } from './routes/admin/instanceAdminOverviewContractRouter.js';
 import { mountLandesverbandAdminContractRouter } from './routes/admin/landesverbandAdminContractRouter.js';
 import { mountLvAdminAssignmentContractRouter } from './routes/admin/lvAdminAssignmentContractRouter.js';
@@ -68,6 +69,7 @@ import { mountMcpOAuthCallbackRouter } from './routes/mcp/mcpOAuthCallbackRouter
 import { mountMcpServersContractRouter } from './routes/mcp/mcpServersContractRouter.js';
 import { createMcpAppsRouter } from './routes/mcp-apps/mcpAppsRouter.js';
 import mcpServerRouter from './routes/mcp-server/index.js';
+import { mountMemoryContractRouter } from './routes/memory/memoryContractRouter.js';
 import { mountMonitorContractRouter } from './routes/monitor/monitorContractRouter.js';
 import { mountNotebookCollectionsContractRouter } from './routes/notebook/notebookCollectionsContractRouter.js';
 import { mountNotebookContractRouter } from './routes/notebook/notebookContractRouter.js';
@@ -76,6 +78,7 @@ import { mountNotebookWordpressContractRouter } from './routes/notebook/notebook
 import { mountWolkePendingContractRouter } from './routes/notebook/wolkePendingContractRouter.js';
 import notificationsRouter from './routes/notifications/index.js';
 import { mountNotificationsContractRouter } from './routes/notifications/notificationsContractRouter.js';
+import notificationStreamRouter from './routes/notifications/stream.js';
 import presentationExportRouter from './routes/presentations/presentationExportController.js';
 import { mountPresentationsContractRouter } from './routes/presentations/presentationsContractRouter.js';
 import protokollRouter from './routes/protokoll/index.js';
@@ -336,7 +339,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   // freie provider/model-Wahl entgegen und wäre sonst ein Empfänger, den die
   // Datenschutzerklärung nicht mehr nennt.
   // const { default: playgroundRouter } = await import('./routes/texte/playground.js');
-  const { default: mem0Router } = await import('./routes/mem0/mem0Controller.js');
   const { default: emailRouter } = await import('./routes/email/emailController.js');
   const { default: videoRouter } = await import('./routes/video/index.js');
   const { default: visionRouter } = await import('./routes/vision/visionController.js');
@@ -828,7 +830,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/thumbs', publicReadLimiter, thumbnailRouter);
   // /api/transfer wurde entfernt (Wolke ist nur noch lesend); bestehende
   // Transfer-Links laufen weiter über den öffentlichen Download in /api/share.
-  app.use('/api/mem0', requireAuth, standardMutationLimiter, mem0Router);
   // ts-rest contract router for /api/email — mounts BEFORE legacy emailRouter
   // so the typed /test endpoint matches first; /send-content stays on legacy.
   app.use('/api/email', requireAuth);
@@ -851,11 +852,19 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/content', requireAuth, publicReadLimiter);
   mountContentContractRouter(app);
   // ts-rest contract router for notifications — mounts BEFORE the legacy router
-  // so contract-modeled routes match first; /stream SSE falls through to legacy.
+  // so contract-modeled routes match first.
   // requireAuth applied at prefix; notification-preferences also handled here.
+  // The SSE channel resolves the session itself and reports a refusal inside
+  // the stream (an EventSource client cannot read status codes), so it must
+  // NOT sit behind the requireAuth prefix below — see stream.ts.
+  app.use('/api/notifications/stream', publicReadLimiter, notificationStreamRouter);
   app.use('/api/notifications', requireAuth);
   app.use('/api/auth/profile', requireAuth);
   mountNotificationsContractRouter(app);
+  // Explicit user memory — auth and limiter on the prefix, because
+  // createExpressEndpoints registers handlers straight on `app`.
+  app.use('/api/memory', requireAuth, standardMutationLimiter);
+  mountMemoryContractRouter(app);
   mountModelPreferencesContractRouter(app);
   mountImageModelPreferenceContractRouter(app);
   // Skill prompt bodies. requireAuth at the prefix: the recipe catalogue is
@@ -871,6 +880,11 @@ export async function setupRoutes(app: Application): Promise<void> {
   // abgesichert), ein einziger Mount-Aufruf.
   app.use('/api/agents', requireAuth);
   mountAgentVisibilityContractRouter(app);
+  // Chunk-Inspektor (#3123): admin-gesicherter Blick auf das, was der Abruf zu
+  // einem Dokument gespeichert hat. requireAuth am Präfix, requireInstanceAdmin
+  // pro Handler — dieselbe Bauform wie die Admin-Router oben.
+  app.use('/api/auth/admin/chunk-inspector', requireAuth);
+  mountChunkInspectorContractRouter(app);
   // Per-user external MCP server registry (EXPERIMENTAL). requireAuth at the
   // prefix — every route is user-scoped and handles user-entered credentials.
   app.use('/api/mcp/servers', requireAuth);

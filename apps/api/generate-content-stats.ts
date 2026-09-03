@@ -23,13 +23,7 @@ async function main() {
 
   const outputPath =
     env.STATS_OUTPUT_PATH ??
-    path.join(
-      process.cwd(),
-      'documentation',
-      'docs',
-      'ueber-den-gruenerator',
-      'inhaltsdatenbank.md'
-    );
+    path.join(process.cwd(), 'documentation', 'docs', 'sonstiges', 'inhaltsdatenbank.md');
 
   writeFileSync(outputPath, markdown);
   console.log(`Stats page written to ${outputPath}`);

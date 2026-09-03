@@ -4,6 +4,7 @@ export * from './chat.js';
 export * from './core.js';
 export * from './documents.js';
 export * from './notifications.js';
+export * from './userMemories.js';
 export * from './loginAnnouncementDeliveries.js';
 export * from './generators.js';
 export * from './subtitler.js';

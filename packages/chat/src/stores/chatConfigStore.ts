@@ -141,6 +141,17 @@ export interface ChatConfig {
    */
   wolkeConnectUrl?: string;
   /**
+   * Href des Chunk-Inspektors zu einer Zitation, oder `null` für „nicht
+   * anzeigen". Die Host-App entscheidet darin auch, ob die angemeldete Person
+   * Instanz-Admin ist — packages/chat kennt weder die Rolle noch die Route.
+   * Weggelassen (mobil) blendet den Eintrag aus.
+   */
+  chunkInspectorHref?: (target: {
+    documentId: string;
+    collectionId: string;
+    chunkIndex: number;
+  }) => string | null;
+  /**
    * Uploads a composer-attached video to the subtitler TUS endpoint and
    * resolves with its uploadId. Required for video attachments — without it
    * the attachment adapter rejects video files. The abort handle terminates
@@ -303,6 +314,8 @@ interface ChatConfigStore extends ResolvedChatConfig {
   platform?: ChatConfig['platform'];
   /** URL the @wolke empty-state CTA opens (new tab). Hidden when unset. */
   wolkeConnectUrl?: string;
+  /** Href des Chunk-Inspektors zu einer Zitation; null/unset blendet ihn aus. */
+  chunkInspectorHref?: ChatConfig['chunkInspectorHref'];
   /** threadId → context-getter, populated by host surfaces (e.g. docs editor). */
   contextProviders: Map<string, ChatRequestContextProvider>;
   /** Register a context provider for a thread. Returns the unregister function. */
@@ -408,6 +421,7 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
   onEditInDocs: undefined,
   onExportPdfLetterhead: undefined,
   wolkeConnectUrl: undefined,
+  chunkInspectorHref: undefined,
   contextProviders: new Map(),
   documentEditHandlers: new Map(),
   boardActionHandlers: new Map(),
@@ -439,6 +453,7 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
       persistActiveRole: config?.persistActiveRole,
       platform: config?.platform,
       wolkeConnectUrl: config?.wolkeConnectUrl,
+      chunkInspectorHref: config?.chunkInspectorHref,
     });
   },
 

@@ -1,7 +1,6 @@
 import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 
-import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { requireApiKey } from '../../middleware/apiKeyMiddleware.js';
 import { apiKeyRateLimit } from '../../middleware/apiKeyRateLimitMiddleware.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
@@ -16,7 +15,6 @@ import {
 } from './landesverbandNotebooks.js';
 
 const log = createLogger('v1.notebooks');
-const notebookHelper = new NotebookQdrantHelper();
 
 const router: Router = Router();
 
@@ -81,7 +79,6 @@ router.post(
   '/ask',
   validateBody(askRequestSchema),
   async (req: TypedRequest<AskRequestBody>, res: Response) => {
-    const startTime = Date.now();
     const ctx = req.apiKey;
     if (!ctx) {
       res.status(401).json({ error: 'API key context missing' });
@@ -105,17 +102,6 @@ router.post(
         requestFilters: filters,
         fastMode,
       });
-
-      notebookHelper
-        .logNotebookUsage(
-          collectionId,
-          ctx.userId,
-          question,
-          (result.answer || '').length,
-          Date.now() - startTime,
-          { apiKeyId: ctx.id, landesverband: lv }
-        )
-        .catch((e) => log.warn('[v1.notebooks.ask] usage log failed:', e));
 
       res.json(result);
     } catch (err) {

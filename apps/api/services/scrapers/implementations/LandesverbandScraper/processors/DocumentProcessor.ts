@@ -16,7 +16,11 @@ import {
   setPayload,
 } from '../../../../../database/services/QdrantService/operations/batchOperations.js';
 import { chunkQualityService } from '../../../../ChunkQualityService/index.js';
-import { buildEmbeddingTexts, smartChunkDocument } from '../../../../document-services/index.js';
+import {
+  buildEmbeddingTextsForChunks,
+  smartChunkDocument,
+  structurePayload,
+} from '../../../../document-services/index.js';
 import { mistralEmbeddingService } from '../../../../mistral/index.js';
 import { recordSyncEvent, toExcerpt } from '../../../syncEventRecorder.js';
 import { DateExtractor } from '../extractors/DateExtractor.js';
@@ -135,7 +139,7 @@ export class DocumentProcessor {
       (c: { text?: string; chunk_text?: string }) => c.text || c.chunk_text || ''
     );
     const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(
-      buildEmbeddingTexts(chunkTexts, documentTitle)
+      buildEmbeddingTextsForChunks(chunks, documentTitle)
     );
 
     // STEP 8: Build Qdrant points (with quality scoring)
@@ -157,6 +161,7 @@ export class DocumentProcessor {
         content_hash: contentHash,
         chunk_index: index,
         chunk_text: chunkTexts[index],
+        ...structurePayload(chunk),
         quality_score: chunkQualityService.calculateQualityScore(chunkTexts[index]),
         title: documentTitle,
         primary_category: categories?.[0] || null,

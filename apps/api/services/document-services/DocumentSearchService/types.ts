@@ -19,6 +19,7 @@ import type {
   HybridOptions,
   DocumentResult,
 } from '../../BaseSearchService/types.js';
+import type { ChunkMetadata } from '../TextChunker/types.js';
 
 // ============ Qdrant Filter Types ============
 
@@ -95,6 +96,7 @@ export interface HybridConfig {
 export interface ChunkWithMetadata {
   text: string;
   tokens?: number | undefined;
+  metadata?: ChunkMetadata | undefined;
 }
 
 /**
@@ -225,6 +227,42 @@ export interface DocumentChunkItem {
   pageNumber?: number | null | undefined;
 }
 
+/** Ein Chunk, wie der Inspektor ihn zeigt — nur, was im Punkt liegt. */
+export interface InspectedChunkRow {
+  index: number;
+  page: number | null;
+  text: string;
+  charCount: number;
+  tokenCount: number | null;
+  qualityScore: number | null;
+  hasTable: boolean;
+  embeddingPresent: boolean;
+  sparsePresent: boolean;
+}
+
+/**
+ * Was die Nutzlast über das Dokument als Ganzes sagt. Für Systemsammlungen ist
+ * das die EINZIGE Quelle: dort gibt es keine `documents`-Zeile in Postgres.
+ */
+export interface InspectedPayloadSummary {
+  title: string | null;
+  filename: string | null;
+  sourceUrl: string | null;
+  sourceType: string | null;
+  extractionMethod: string | null;
+  createdAt: string | null;
+  maxPage: number | null;
+}
+
+export interface InspectDocumentChunksResult {
+  success: boolean;
+  chunks: InspectedChunkRow[];
+  chunkCount: number;
+  nextOffset: number | null;
+  payload: InspectedPayloadSummary | null;
+  error: string | null;
+}
+
 /**
  * Result of retrieving individual chunks for a document
  */
@@ -233,6 +271,27 @@ export interface DocumentChunksResult {
   chunks: DocumentChunkItem[];
   chunkCount: number;
   error?: string | undefined;
+}
+
+/** Ein Chunk im Kontext-Fenster; `isCenter` markiert den zitierten. */
+export interface ChunkContextItem {
+  text: string;
+  chunkIndex: number;
+  isCenter: boolean;
+}
+
+/**
+ * Rückgabe von `getChunkWithContext`. Die Form ist F0: qdrantController.ts:406-414
+ * reicht `centerChunk`/`contextChunks` unverändert an den Client, wo
+ * `ChunkContextData` (apps/web/src/stores/citationStore.ts:28-33) sie erwartet.
+ * Optionale Felder werden WEGGELASSEN, nie auf `undefined` gesetzt —
+ * apps/api fährt `exactOptionalPropertyTypes`.
+ */
+export interface ChunkWithContextResult {
+  success: boolean;
+  centerChunk?: { text: string; chunkIndex: number };
+  contextChunks?: ChunkContextItem[];
+  error?: string;
 }
 
 /**
@@ -416,6 +475,8 @@ export interface QdrantResultPayload {
   quality_score?: number | undefined;
   content_type?: string | undefined;
   page_number?: number | undefined;
+  /** `'text'` oder `'table'`; fehlt auf Punkten, die vor #3122 geschrieben wurden. */
+  chunk_type?: string | undefined;
   created_at?: string | undefined;
   title?: string | undefined;
   filename?: string | undefined;

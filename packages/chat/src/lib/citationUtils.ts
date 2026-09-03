@@ -23,6 +23,10 @@ export function mapRawCitationsToChat(raw: unknown[]): ChatCitation[] {
       documentId: c.document_id as string | undefined,
       chunkIndex: c.chunk_index as number | undefined,
       similarityScore: c.similarity_score as number | undefined,
+      // Ohne diese Zeile verlor ein neu geladener Thread die Seitenzahl: der
+      // Live-Pfad (NotebookModelAdapter) bildet sie ab, der Verlauf lief hier
+      // vorbei und die Karte zeigte „S. 12" nur bis zum Reload.
+      pageNumber: (c.page_number as number | null | undefined) ?? null,
       collectionId: c.collection_id as string | undefined,
     }));
 }

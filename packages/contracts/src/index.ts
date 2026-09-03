@@ -61,6 +61,7 @@ export {
   sharepicTextContract,
   unsplashContract,
   notificationsContract,
+  memoryContract,
   emailContract,
   feedbackContract,
   modelPreferencesContract,
@@ -77,6 +78,7 @@ export {
   userTextFormsContract,
   skillPromptContract,
   agentVisibilityContract,
+  chunkInspectorContract,
   skillVisibilityContract,
   instanceAdminOverviewContract,
   lvAdminAssignmentContract,
@@ -109,6 +111,7 @@ export * from './schemas/research.js';
 export * from './schemas/chatGraph.js';
 export * from './schemas/searchGraph.js';
 export * from './schemas/chatStreamEvents.js';
+export * from './schemas/chunkInspector.js';
 export * from './schemas/jobErrors.js';
 export * from './schemas/socialPost.js';
 export * from './schemas/bundestag.js';
@@ -144,6 +147,7 @@ export * from './schemas/sharepic.js';
 export * from './schemas/sharepicText.js';
 export * from './schemas/unsplash.js';
 export * from './schemas/notifications.js';
+export * from './schemas/memory.js';
 export * from './schemas/email.js';
 export * from './schemas/feedback.js';
 export * from './schemas/modelPreferences.js';

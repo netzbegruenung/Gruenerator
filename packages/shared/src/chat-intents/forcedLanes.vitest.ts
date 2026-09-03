@@ -110,7 +110,7 @@ describe('the pipeline lane is exactly the create-route family', () => {
     expect([...intentsWithForcedLane('pipeline')].sort()).toEqual([...withCreateRoute].sort());
   });
 
-  it('leaves create_recurring_task out — it has no create route to reach', () => {
+  it('leaves create_recurring_task out — it has no create route to reach (and is retired)', () => {
     const recurring = CHAT_INTENTS.create_recurring_task;
     expect(recurring.category === 'artifact' && recurring.forcedTool).toBeNull();
     expect(forcedLaneOf('create_recurring_task')).toBe('single-pass');

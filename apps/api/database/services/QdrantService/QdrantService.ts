@@ -84,6 +84,26 @@ const log = createLogger('Qdrant');
 dotenv.config();
 
 /**
+ * Set by `useQdrantConnectOnly()` before a script reaches the singleton via
+ * `getQdrantInstance()`. Not an env var: an env var would let the API boot
+ * path skip reconciliation too (accidentally or via prod config drift), and
+ * there is no constructor option because the singleton is created deep
+ * inside services on first use, so a per-call option can't reach it. See #3167.
+ */
+let connectOnly = false;
+
+/**
+ * Marks the Qdrant singleton so its next `init()` connects, tests the
+ * connection and inits the embedding service, but skips `createCollections()`
+ * and `createTextSearchIndexes()`. For read-only or write-only scripts that
+ * must not perform schema reconciliation as a side effect of connecting.
+ * Call this before any (dynamic) import that could reach `getQdrantInstance()`.
+ */
+export function useQdrantConnectOnly(): void {
+  connectOnly = true;
+}
+
+/**
  * Qdrant Vector Database Service
  * Handles all vector operations for document embeddings and similarity search
  */
@@ -107,7 +127,6 @@ export class QdrantService {
     user_texts: 'user_texts',
     notebook_collections: 'notebook_collections',
     notebook_collection_documents: 'notebook_collection_documents',
-    notebook_usage_logs: 'notebook_usage_logs',
     notebook_public_access: 'notebook_public_access',
     oparl_papers: 'oparl_papers',
     kommunalwiki_documents: 'kommunalwiki_documents',
@@ -209,24 +228,28 @@ export class QdrantService {
       await mistralEmbeddingService.init();
       this.vectorSize = mistralEmbeddingService.getDimensions();
 
-      await createCollections(
-        this.client,
-        this.vectorSize,
-        this.collections,
-        COLLECTION_SCHEMAS,
-        getCollectionConfig,
-        getIndexSchema,
-        log
-      );
+      if (connectOnly) {
+        log.info('Connect-only mode: skipping collection and index reconciliation');
+      } else {
+        await createCollections(
+          this.client,
+          this.vectorSize,
+          this.collections,
+          COLLECTION_SCHEMAS,
+          getCollectionConfig,
+          getIndexSchema,
+          log
+        );
 
-      await createTextSearchIndexes(
-        this.client,
-        this.collections,
-        TEXT_SEARCH_COLLECTIONS,
-        TEXT_SEARCH_INDEXES,
-        getIndexSchema,
-        log
-      );
+        await createTextSearchIndexes(
+          this.client,
+          this.collections,
+          TEXT_SEARCH_COLLECTIONS,
+          TEXT_SEARCH_INDEXES,
+          getIndexSchema,
+          log
+        );
+      }
 
       this.operations = new QdrantOperations(this.client);
 
