@@ -267,6 +267,7 @@ export class BaseSearchService {
           useRRF: options.useRRF ?? false,
           rrfK: options.rrfK ?? 60,
           recallLimit: options.recallLimit,
+          sparseQueryVector: options.sparseQueryVector,
         },
       });
 
