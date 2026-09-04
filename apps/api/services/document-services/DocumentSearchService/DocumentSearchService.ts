@@ -56,6 +56,7 @@ import type { QdrantFilter as QdrantServiceFilter } from '../../../database/serv
 import type { QdrantService } from '../../../database/services/QdrantService.js';
 import type { SearchParamsInput } from '../../../utils/validation/types.js';
 import type { SearchParams, SearchResponse, DocumentData } from '../../BaseSearchService/types.js';
+import type { SparseVector } from '../../text/index.js';
 
 /**
  * Main DocumentSearchService class
@@ -96,6 +97,27 @@ function carriedQueryVector(source: Record<string, unknown> | undefined): {
 } {
   const value = source?.queryVector;
   return Array.isArray(value) && value.length > 0 ? { queryVector: value as number[] } : {};
+}
+
+/**
+ * `sparseQueryVector` über die Validierung tragen — dieselbe Falle, dieselbe
+ * Stelle, andere Lane.
+ *
+ * Der Stemmer-Vergleich (#3188) fiel beim ersten Anlauf genau hier hinein: die
+ * Wegwerf-Sammlung war Snowball-gehasht, die Anfrage kam als CISTEM durch, und
+ * der Lauf meldete Hit@1 14,3 % statt 50 % — kein Fehler, keine leere
+ * Trefferliste, nur ein Ergebnis, das wie ein vernichtender Stemmer-Befund
+ * aussah. Ein Sparse-Vektor ist noch anfälliger dafür als eine Einbettung:
+ * fällt er weg, rechnet `hybridSearchServerSide` klaglos einen neuen aus dem
+ * Anfragetext — mit dem Produktions-Stemmer.
+ */
+function carriedSparseQueryVector(source: Record<string, unknown> | undefined): {
+  sparseQueryVector?: SparseVector;
+} {
+  const value = source?.sparseQueryVector as SparseVector | undefined;
+  return value && Array.isArray(value.indices) && value.indices.length > 0
+    ? { sparseQueryVector: value }
+    : {};
 }
 
 export class DocumentSearchService extends BaseSearchService {
@@ -202,6 +224,7 @@ export class DocumentSearchService extends BaseSearchService {
         ...(typeof pOptions?.recallLimit === 'number' ? { recallLimit: pOptions.recallLimit } : {}),
         ...(pOptions?.rerankChunks === true && { rerankChunks: true }),
         ...carriedQueryVector(pOptions),
+        ...carriedSparseQueryVector(pOptions),
       };
 
       return {
@@ -275,6 +298,7 @@ export class DocumentSearchService extends BaseSearchService {
           ...(typeof p.qualityMin === 'number' ? { qualityMin: p.qualityMin } : {}),
           ...(typeof p.recallLimit === 'number' ? { recallLimit: p.recallLimit } : {}),
           ...carriedQueryVector(p),
+          ...carriedSparseQueryVector(p),
         },
       };
     }
@@ -319,6 +343,7 @@ export class DocumentSearchService extends BaseSearchService {
         ...(typeof p.qualityMin === 'number' ? { qualityMin: p.qualityMin } : {}),
         ...(typeof p.recallLimit === 'number' ? { recallLimit: p.recallLimit } : {}),
         ...carriedQueryVector(p),
+        ...carriedSparseQueryVector(p),
       },
     };
   }
