@@ -149,3 +149,54 @@ describe('validateSearchParams — queryVector', () => {
     ).not.toHaveProperty('queryVector');
   });
 });
+
+/**
+ * Die Naht des Stemmer-Vergleichs (#3188) — dieselbe Positivliste, dieselbe
+ * Falle. Fällt `sparseQueryVector` hier weg, rechnet `hybridSearchServerSide`
+ * klaglos einen neuen Vektor aus dem Anfragetext, mit dem PRODUKTIONS-Stemmer:
+ * die Anfrage sucht dann in einem anderen Hash-Alphabet als die Sammlung. Der
+ * erste Lauf von #3188 fiel genau so aus und meldete Hit@1 14,3 % statt 60 % —
+ * kein Fehler, keine leere Antwort, nur eine Zahl, die wie ein vernichtender
+ * Stemmer-Befund aussah.
+ */
+describe('validateSearchParams — sparseQueryVector', () => {
+  const sparse = { indices: [7, 42], values: [1, 1] };
+
+  it('survives the nested-options branch', () => {
+    expect(
+      validate({
+        query: 'Klimaschutz',
+        userId: undefined,
+        options: { searchCollection: 'grundsatz_documents', sparseQueryVector: sparse },
+      }).options.sparseQueryVector
+    ).toEqual(sparse);
+  });
+
+  it('survives the flat system-collection branch', () => {
+    expect(
+      validate({
+        query: 'Klimaschutz',
+        searchCollection: 'grundsatz_documents',
+        user_id: null,
+        sparseQueryVector: sparse,
+      }).options.sparseQueryVector
+    ).toEqual(sparse);
+  });
+
+  it('is absent when not supplied, and when supplied empty or malformed', () => {
+    const nested = (options: Record<string, unknown>) =>
+      validate({ query: 'Klimaschutz', userId: undefined, options }).options;
+    expect(nested({ searchCollection: 'grundsatz_documents' })).not.toHaveProperty(
+      'sparseQueryVector'
+    );
+    expect(
+      nested({
+        searchCollection: 'grundsatz_documents',
+        sparseQueryVector: { indices: [], values: [] },
+      })
+    ).not.toHaveProperty('sparseQueryVector');
+    expect(
+      nested({ searchCollection: 'grundsatz_documents', sparseQueryVector: 'nope' })
+    ).not.toHaveProperty('sparseQueryVector');
+  });
+});
