@@ -107,7 +107,10 @@ export const RETRIEVAL_CASES: RetrievalCase[] = [
     id: 'grundsatz-europa',
     collection: 'grundsatz-system',
     query: 'Positionen aus dem Europawahlprogramm 2024',
-    expect: [{ titlePattern: 'Europawahl|Europa' }],
+    // Die Sammlung führt genau drei Dokumente; das gesuchte heisst
+    // „EU-Wahlprogramm 2024 – Was uns schützt". Das alte Muster verlangte
+    // „Europa" und buchte den Treffer auf Rang 1 als Miss.
+    expect: [{ titlePattern: 'EU-Wahlprogramm|Europawahl' }],
   },
   {
     id: 'grundsatz-grundsicherung',
@@ -224,10 +227,15 @@ export const RETRIEVAL_CASES: RetrievalCase[] = [
     expect: [{ titlePattern: 'Bürgerbegehren|Bürgerentscheid' }],
   },
   {
-    id: 'kommunalwiki-bebauungsplan',
+    // Ersetzt den unerfüllbaren Fall `kommunalwiki-bebauungsplan`: keiner der
+    // 8.392 Punkte trägt „Bebauungsplan"/„Bauleitplan" im Titel. Der Artikel
+    // hier beantwortet dieselbe Ecke (Baurecht unter Bedingungen im
+    // B-Plan-Verfahren) und wird vom Begriff der Anfrage nicht genannt.
+    id: 'kommunalwiki-bodennutzung',
     collection: 'kommunalwiki-system',
-    query: 'Aufstellung eines Bebauungsplans — Verfahren und Beteiligung',
-    expect: [{ titlePattern: 'Bebauungsplan|Bauleitplan' }],
+    query:
+      'Wie beteiligen Kommunen Investoren an den Kosten für Erschließung, Kitas und geförderte Wohnungen im Neubaugebiet?',
+    expect: [{ titlePattern: '^Sozialgerechte Bodennutzung$' }],
   },
   {
     id: 'kommunalwiki-radverkehr',
@@ -330,10 +338,14 @@ export const RETRIEVAL_CASES: RetrievalCase[] = [
     expect: [{ titlePattern: 'Arten|Bienen|Volksbegehren' }, { urlPattern: 'arten|bienen' }],
   },
   {
-    id: 'bayern-wahlprogramm',
+    // Ersetzt `bayern-wahlprogramm`: im BY-Ausschnitt liegt kein
+    // Landtagswahlprogramm. Einziger Treffer des alten Musters war eine
+    // Meldung über die ÖSTERREICHISCHE Landtagswahl. Das Programmdokument,
+    // das die Sammlung wirklich führt, ist das 100-Tage-Programm.
+    id: 'bayern-100-tage',
     collection: 'bayern-system',
-    query: 'Kernforderungen im Landtagswahlprogramm Bayern',
-    expect: [{ titlePattern: 'Landtagswahl|Wahlprogramm|Regierungsprogramm' }],
+    query: 'Was wollen die bayerischen Grünen in den ersten 100 Tagen einer Regierung umsetzen?',
+    expect: [{ titlePattern: '100-Tage-Programm|14 in 100' }],
   },
   {
     id: 'berlin-mieten',
@@ -388,16 +400,29 @@ export const RETRIEVAL_CASES: RetrievalCase[] = [
 
   // ── gruenblog-system ──
   {
-    id: 'gruenblog-netzpolitik',
+    // Ersetzt `gruenblog-netzpolitik`: die Titel des Magazins sind
+    // redaktionell („Der Ball ist bunt", „Oh Mann!"), die Slugs spiegeln sie —
+    // kein einziger der 605 Punkte trug `Digital|Netz` in Titel oder URL. Das
+    // Gold hängt deshalb am Slug, nicht an einem Themenwort.
+    id: 'gruenblog-ki-strom',
     collection: 'gruenblog-system',
-    query: 'Digitalisierung und Netzpolitik im Grünblog',
-    expect: [{ titlePattern: 'Digital|Netz' }, { urlPattern: 'digital|netz' }],
+    query: 'Wie viel Strom werden Rechenzentren durch Künstliche Intelligenz verbrauchen?',
+    expect: [{ urlPattern: 'energiefresser-ki' }],
   },
   {
-    id: 'gruenblog-partei',
+    // Ersetzt `gruenblog-partei`: das alte Muster traf 13 Artikel, alle über
+    // `Kurs` in „WachstumsKURS" — ein Treffer wäre ein Zufall gewesen. Die
+    // Trennung von Amt und Mandat behandeln genau diese drei Artikel; die
+    // Anfrage hat in diesem Korpus also drei richtige Antworten.
+    id: 'gruenblog-satzungsreform',
     collection: 'gruenblog-system',
-    query: 'Debatte über die strategische Ausrichtung der Partei',
-    expect: [{ titlePattern: 'Strategie|Partei|Kurs' }, { urlPattern: 'strategie|partei' }],
+    query: 'Was ändert die Reform der Parteisatzung an der Trennung von Amt und Mandat?',
+    expect: [
+      {
+        urlPattern:
+          'demokratischer-vielfaeltiger-schneller|heisse-eisen-und-heilige-kuehe|update-im-maschinenraum',
+      },
+    ],
   },
 
   // ── gruene-at-system (Website der österreichischen Grünen) ──
