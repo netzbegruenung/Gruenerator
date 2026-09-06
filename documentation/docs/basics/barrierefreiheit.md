@@ -1,14 +1,14 @@
 ---
 sidebar_position: 6
 title: Barrierefreiheit
-description: 'Wie barrierefrei der Grünerator heute ist, einschließlich der Stellen, an denen er es noch nicht ist. Stand: 13. August 2026.'
+description: 'Wie barrierefrei der Grünerator heute ist, einschließlich der Stellen, an denen er es noch nicht ist. Stand: 6. September 2026.'
 ---
 
 # Barrierefreiheit
 
 Diese Seite sagt, wie barrierefrei der Grünerator heute ist — einschließlich der Stellen, an denen er es **noch nicht** ist. Eine geschönte Liste hilft niemandem: Wer auf eine Barriere stößt, die hier nicht steht, verliert Zeit mit der Frage, ob es an ihm liegt.
 
-**Stand: 13. August 2026.**
+**Stand: 6. September 2026.**
 
 ## Was wir anstreben
 
@@ -30,7 +30,7 @@ Behoben und nachgemessen sind unter anderem:
 
 - **Statusmeldungen werden kaum angesagt.** Wenn eine Chat-Antwort beginnt oder endet, ein Werkzeug arbeitet, ein Upload fertig wird oder ein Formular einen Fehler meldet, erfährt ein Screenreader das in den meisten Fällen nicht. Das ist derzeit die größte offene Lücke.
 - **Videos haben keine Untertitelspur.** Der Grünerator kann Untertitel erzeugen, verlangt sie aber bei eingebetteten Videos nicht.
-- **Einzelne Farbpaare liegen weiter unter dem geforderten Wert** — bekannt ist ein Blau-auf-Blau-Paar im Bereich _Projekte_.
+- **Einzelne Farbpaare liegen weiter unter dem geforderten Wert** — bekannt sind ein Blau-auf-Blau-Paar im Bereich _Projekte_, das weiße Herz-Symbol auf grünem Grund bei gemerkten Vorlagen und Stellen im dunklen Modus, an denen das Primärgrün noch zu wenig Kontrast bietet.
 - **Die Seitenstruktur ist uneinheitlich.** Nicht jede Seite kennzeichnet ihren Hauptbereich und ihre Navigationsleisten so, dass ein Screenreader direkt dorthin springen kann.
 - **Die Mobil-App ist nicht auf einem Gerät geprüft.** Die Namen der Bedienelemente sind gesetzt, aber Kontrast, Reihenfolge beim Durchtippen und die tatsächlichen Ansagen von VoiceOver und TalkBack sind ungeprüft.
 - **Nicht gemessen wurden bisher:** die veröffentlichten Kandidat:innen-Seiten, die Desktop-App und diese Dokumentationsseite selbst.
