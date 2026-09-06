@@ -62,7 +62,7 @@ const WolkeAddForm = ({ onSuccess, onError }: WolkeAddFormProps) => {
         Erstelle in deiner Wolke einen öffentlichen Freigabe-Link („Nur anzeigen" genügt) und füge
         ihn hier ein.{' '}
         <a
-          href="https://doku.services.moritz-waechter.de/docs/guides/fortgeschrittene/gruene-wolke-einbinden"
+          href="https://doku.gruenerator.eu/docs/guides/fortgeschrittene/gruene-wolke-einbinden"
           target="_blank"
           rel="noopener noreferrer"
           className="text-primary-500 dark:text-primary-400 hover:underline"
