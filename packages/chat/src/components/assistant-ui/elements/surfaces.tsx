@@ -4,7 +4,7 @@
  * (web-search, math-block, whatever ships next) cost a fetch plus an adapter
  * rather than a rewrite.
  *
- * FOUR deliberate deviations from upstream. Keep them when re-syncing:
+ * FIVE deliberate deviations from upstream. Keep them when re-syncing:
  *   1. `collapsePanel` targets RADIX (--radix-collapsible-content-height,
  *      data-[state]); upstream targets Base UI (--collapsible-panel-height,
  *      data-[starting-style]). Our Collapsible comes from @gruenerator/ui.
@@ -12,6 +12,10 @@
  *      instead of the tw-shimmer package, which we do not install.
  *   3. `live` is the Gruenerator primary, not upstream blue.
  *   4. Imports are relative: packages/chat has no "@/" alias at build time.
+ *   5. SwapLabel hoists its two useRef calls out of the `layers` array
+ *      literal. Upstream's `[useRef(null), useRef(null)]` gets the hook calls
+ *      memoized by babel-plugin-react-compiler (they run only on mount), which
+ *      crashes every re-render with React error #311 in production builds.
  */
 'use client';
 
@@ -96,7 +100,14 @@ export function SwapLabel({
   children: [React.ReactNode, React.ReactNode];
   className?: string;
 }) {
-  const layers = [useRef<HTMLSpanElement>(null), useRef<HTMLSpanElement>(null)];
+  // The refs MUST be separate statements, not `[useRef(null), useRef(null)]`:
+  // babel-plugin-react-compiler@1.0.0 memoizes the array literal INCLUDING the
+  // useRef calls into its memo cache, so on every re-render the refs are
+  // skipped and the hook order shifts — React error #311 in the production
+  // build (the compiler only runs on `vite build`, dev is unaffected).
+  const layerA = useRef<HTMLSpanElement>(null);
+  const layerB = useRef<HTMLSpanElement>(null);
+  const layers = [layerA, layerB];
   const [width, setWidth] = useState<number | null>(null);
 
   useLayoutEffect(() => {
