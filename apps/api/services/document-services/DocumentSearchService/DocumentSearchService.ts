@@ -758,87 +758,20 @@ export class DocumentSearchService extends BaseSearchService {
     documentId: string,
     chunkIndex: number,
     options: { window?: number } = {}
-  ): Promise<{
-    success: boolean;
-    centerChunk?: { text: string; chunkIndex: number };
-    contextChunks?: Array<{ text: string; chunkIndex: number; isCenter: boolean }>;
-    error?: string;
-  }> {
+  ): Promise<ChunkWithContextResult> {
     await this.ensureInitialized();
     if (!this.qdrantOps) {
       return { success: false, error: 'Qdrant not available' };
     }
 
     const collectionName = SYSTEM_COLLECTION_MAP[collectionType] || `${collectionType}_documents`;
-    const windowSize = options.window ?? 2;
-
-    try {
-      // Find the point by document_id (or title for some collections) and chunk_index
-      const filter = {
-        must: [
-          { key: 'document_id', match: { value: documentId } },
-          { key: 'chunk_index', match: { value: chunkIndex } },
-        ],
-      };
-
-      let scrollResult = await this.qdrantOps.scrollDocuments(collectionName, filter, {
-        limit: 1,
-        withPayload: true,
-      });
-
-      // If not found by document_id, try with title field
-      if (!scrollResult || scrollResult.length === 0) {
-        const titleFilter = {
-          must: [
-            { key: 'title', match: { value: documentId } },
-            { key: 'chunk_index', match: { value: chunkIndex } },
-          ],
-        };
-
-        scrollResult = await this.qdrantOps.scrollDocuments(collectionName, titleFilter, {
-          limit: 1,
-          withPayload: true,
-        });
-
-        if (!scrollResult || scrollResult.length === 0) {
-          return { success: false, error: 'Chunk not found in collection' };
-        }
-      }
-
-      const centerPoint = scrollResult[0];
-
-      // Get context using existing method
-      const contextResult = await this.qdrantOps.getChunkWithContext(
-        collectionName,
-        { id: centerPoint.id, payload: centerPoint.payload },
-        { window: windowSize }
-      );
-
-      if (!contextResult.center) {
-        return { success: false, error: 'Failed to retrieve context' };
-      }
-
-      const centerChunk = {
-        text: (contextResult.center.payload.chunk_text as string) || '',
-        chunkIndex: (contextResult.center.payload.chunk_index as number) ?? chunkIndex,
-      };
-
-      const contextChunks = contextResult.context.map((chunk) => ({
-        text: (chunk.payload.chunk_text as string) || '',
-        chunkIndex: (chunk.payload.chunk_index as number) ?? 0,
-        isCenter: chunk.id === contextResult.center?.id,
-      }));
-
-      return {
-        success: true,
-        centerChunk,
-        contextChunks,
-      };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.error(`[DocumentSearchService] getSystemChunkWithContext error: ${message}`);
-      return { success: false, error: message };
-    }
+    return await docRetrieval.getSystemChunkWithContext(
+      this.qdrantOps,
+      collectionName,
+      documentId,
+      chunkIndex,
+      options
+    );
   }
 
   /**
@@ -861,32 +794,7 @@ export class DocumentSearchService extends BaseSearchService {
       }
     }
 
-    for (const { type, collection } of systemCollections) {
-      try {
-        const filter = {
-          should: [
-            { key: 'document_id', match: { value: documentId } },
-            { key: 'title', match: { value: documentId } },
-          ],
-        };
-
-        const result = await this.qdrantOps.scrollDocuments(collection, filter, {
-          limit: 1,
-          withPayload: false,
-        });
-
-        if (result && result.length > 0) {
-          console.log(
-            `[DocumentSearchService] Found document '${documentId}' in collection '${collection}'`
-          );
-          return type;
-        }
-      } catch {
-        // Collection might not exist, continue to next
-      }
-    }
-
-    return 'user';
+    return await docRetrieval.detectSystemCollection(this.qdrantOps, systemCollections, documentId);
   }
 
   // ========== Bundestag Search ==========
