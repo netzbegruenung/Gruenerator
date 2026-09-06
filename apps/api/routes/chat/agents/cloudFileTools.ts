@@ -15,14 +15,20 @@
  * Test ohne Netz und ohne Datenbank.
  */
 import { type WolkeFolderRef } from '@gruenerator/contracts';
+import { looksLikeCloudSharePath } from '@gruenerator/shared/utils';
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
+import { lastUserText } from '../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { NotebookQdrantHelper } from '../../../database/services/NotebookQdrantHelper.js';
+import {
+  classifyWebdavStatus,
+  statusOf,
+} from '../../../services/api-clients/nextcloudApiClient.js';
 import { extractTextFromFile } from '../../../services/document-services/DocumentProcessingService/textExtraction.js';
 import { listAllCloudRoots, nextcloudShareProvider } from '../../../services/files/index.js';
 import { createLogger } from '../../../utils/logger.js';
-import { attachedCloudShareLinks } from '../services/cloudConnectionContext.js';
+import { attachedCloudShareLinks, findCloudShareUrls } from '../services/cloudConnectionContext.js';
 import { emitToolConfirmAction, newActionId } from '../services/confirmActionService.js';
 
 import type {
@@ -30,7 +36,12 @@ import type {
   PendingAction,
   SearchResult,
 } from '../../../agents/langgraph/ChatGraph/types.js';
-import type { CloudEntry, CloudFileProvider, CloudRoot } from '../../../services/files/index.js';
+import type {
+  CloudConnectionErrorCode,
+  CloudEntry,
+  CloudFileProvider,
+  CloudRoot,
+} from '../../../services/files/index.js';
 import type { SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 import type { SSEWriter } from '../services/sseHelpers.js';
 
@@ -110,6 +121,27 @@ export interface CloudToolCtx {
 const NO_SESSION = 'Keine Nutzer-Sitzung — diese Aktion braucht eine angemeldete Person.';
 const NO_CONNECTION =
   'Für dieses Konto ist keine Wolke verbunden. Eine Verbindung entsteht über einen öffentlichen Freigabe-Link aus der Wolke — entweder unter Einstellungen → Wolke, oder hier im Chat mit action="add_connection".';
+
+/**
+ * Die eine errorCode→Prosa-Stelle im Backend, ans MODELL gerichtet: sie muss
+ * die nächste sinnvolle Aktion nennen, nicht nur den Befund. Die
+ * personengerichtete Schwester lebt in
+ * `packages/wolke/src/lib/connectionErrors.ts` — zwei Maps, weil die API kein
+ * Frontend-Paket importiert und die Adressaten verschieden sind.
+ *
+ * Zur 401-Deutung (`invalid_link`): `public.php/webdav` prüft die Auth VOR der
+ * Pfadauflösung, ein 401 heißt also immer „Token abgewiesen" — Freigabe
+ * gelöscht, abgelaufen oder passwortgeschützt (wir senden ein leeres Passwort).
+ */
+const CLOUD_ERROR_REASONS: Record<CloudConnectionErrorCode, string> = {
+  invalid_link:
+    'Der Freigabe-Link ist nicht (mehr) nutzbar: Entweder hat er nicht die Form https://<wolke>/s/<token>, oder die Freigabe wurde gelöscht, ist abgelaufen oder ist passwortgeschützt. Die Person kann in der Wolke einen neuen Link ohne Passwort erstellen und ihn unter Einstellungen → Wolke (oder hier per add_connection) neu verbinden — sag ihr das.',
+  forbidden: 'Die Freigabe ist nicht mehr aktiv.',
+  not_found: 'Unter diesem Link liegt nichts (mehr).',
+  file_drop:
+    'Das ist eine Upload-Freigabe („Dateien ablegen") — aus ihr kann nichts gelesen werden. Die Person braucht einen Freigabe-Link mit der Berechtigung „Nur anzeigen" — sag ihr das.',
+  unknown: 'Der Link ließ sich nicht öffnen.',
+};
 
 function requireUserId(state: ChatGraphState): string | null {
   return state.agentConfig?.userId ?? null;
@@ -284,11 +316,19 @@ export function makeCloudFilesTool(ctx: CloudToolCtx): Tool {
 
   // Über `@link` angehängte Freigabe-Links stehen nicht im Nachrichtentext —
   // ohne diese Zeile weiß das Modell nichts von ihnen und könnte
-  // `add_connection` gar nicht mit ihnen aufrufen.
-  const attachedLinks = attachedCloudShareLinks(state.attachedWebpageUrls);
+  // `add_connection` gar nicht mit ihnen aufrufen. GETIPPTE Links stehen zwar
+  // im Text, aber ohne diesen Hinweis nahm das Modell live den URL-Pfad
+  // (`s/<token>`) als Dateipfad für `read` — der sanktionierte Weg muss im
+  // Werkzeug selbst stehen.
+  const attachedLinks = [
+    ...new Set([
+      ...attachedCloudShareLinks(state.attachedWebpageUrls),
+      ...findCloudShareUrls(state.lastUserTextNoMentions ?? lastUserText(state)),
+    ]),
+  ];
   const attachedNote =
     attachedLinks.length > 0
-      ? `\n\nIn dieser Nachricht ist ein Freigabe-Link ANGEHÄNGT: ${attachedLinks.join(', ')}. Bei add_connection und test_connection darf 'link' dann entfallen — der angehängte wird genommen.`
+      ? `\n\nIn dieser Nachricht ist ein Freigabe-Link ANGEHÄNGT oder GENANNT: ${attachedLinks.join(', ')}. Für einen solchen Link sind add_connection und test_connection die richtigen Aktionen (dabei darf 'link' entfallen — der angehängte bzw. genannte wird genommen); als 'path' für list/read taugt er nie.`
       : '';
 
   return tool({
@@ -361,7 +401,7 @@ Der Zugriff ist ausschließlich lesend — Schreiben, Umbenennen und Löschen in
         const result = await provider.test({ link: resolvedLink });
         const note = result.ok
           ? `Der Link funktioniert${result.entryCount != null ? ` und enthält ${result.entryCount} Einträge` : ''}.`
-          : `Der Link ist nicht nutzbar (${result.errorCode ?? 'unknown'}).`;
+          : `Der Link ist nicht nutzbar. ${CLOUD_ERROR_REASONS[result.errorCode ?? 'unknown']}`;
         groundNote(sourceRegistry, 'Wolke-Link geprüft', note);
         return { ...result, note };
       }
@@ -371,7 +411,9 @@ Der Zugriff ist ausschließlich lesend — Schreiben, Umbenennen und Löschen in
         roots = await rootsOf(userId);
       } catch (err) {
         log.warn('listRoots failed', err);
-        return { error: `Verbindungen konnten nicht geladen werden: ${errMessage(err)}` };
+        const message = `Verbindungen konnten nicht geladen werden: ${errMessage(err)}`;
+        groundNote(sourceRegistry, 'Wolke', message);
+        return { error: message };
       }
 
       if (action === 'list_connections') {
@@ -432,15 +474,29 @@ Der Zugriff ist ausschließlich lesend — Schreiben, Umbenennen und Löschen in
       }
 
       const picked = pickRoot(roots, connectionId);
-      if ('error' in picked) return { error: picked.error };
+      if ('error' in picked) {
+        groundNote(sourceRegistry, 'Wolke', picked.error);
+        return { error: picked.error };
+      }
       const root = picked.root;
+
+      // Ein Freigabe-Link ist keine Pfadangabe. Live nahm das Modell den
+      // URL-Pfad eines geposteten Links (`s/<token>`) als `path` für `read` —
+      // der lief dann mit dem Token der GESPEICHERTEN Verbindung gegen einen
+      // fremden Share und scheiterte als nichtssagender 401.
+      if ((action === 'list' || action === 'read') && path && looksLikeCloudSharePath(path)) {
+        const message =
+          'Das ist ein Freigabe-Link, kein Dateipfad. Eine neue Freigabe verbindest du mit action="add_connection" und link="<URL>" (oder prüfst sie mit test_connection); Pfade kommen aus einer list-Antwort.';
+        groundNote(sourceRegistry, 'Wolke', message);
+        return { error: message };
+      }
 
       try {
         if (action === 'test_connection') {
           const result = await provider.test(root);
           const note = result.ok
             ? `„${rootLabel(root)}" ist erreichbar${result.entryCount != null ? ` (${result.entryCount} Einträge)` : ''}.`
-            : `„${rootLabel(root)}" antwortet nicht (${result.errorCode ?? 'unknown'}).`;
+            : `„${rootLabel(root)}" antwortet nicht. ${CLOUD_ERROR_REASONS[result.errorCode ?? 'unknown']}`;
           groundNote(sourceRegistry, 'Wolke-Verbindung geprüft', note);
           return { ...result, note };
         }
@@ -486,9 +542,9 @@ Der Zugriff ist ausschließlich lesend — Schreiben, Umbenennen und Löschen in
           size: download.size,
         });
         if (!text.trim()) {
-          return {
-            error: `Aus „${fileName}" ließ sich kein Text gewinnen — das Format wird nicht unterstützt oder die Datei ist leer.`,
-          };
+          const message = `Aus „${fileName}" ließ sich kein Text gewinnen — das Format wird nicht unterstützt oder die Datei ist leer.`;
+          groundNote(sourceRegistry, 'Wolke', message);
+          return { error: message };
         }
         const chunks = chunkText(text);
         const sources = sourceRegistry.register(
@@ -511,7 +567,21 @@ Der Zugriff ist ausschließlich lesend — Schreiben, Umbenennen und Löschen in
         };
       } catch (err) {
         log.warn(`[cloud_files] ${action} failed`, err);
-        return { error: `Wolke-Zugriff fehlgeschlagen: ${errMessage(err)}` };
+        // Der Status kommt als `NextcloudHttpError` durch alle Re-Wraps des
+        // Clients — hier wird er zur Handlungsanweisung. Ohne die Erdung als
+        // Vorgangsnotiz sieht der Schreiber im split-Modus vom Fehlschlag
+        // NICHTS und erfindet eine Begründung („ich kann keine externen Links
+        // lesen" — live am 06.09.2026).
+        const code = classifyWebdavStatus(statusOf(err));
+        const detail =
+          code === 'not_found'
+            ? 'Die Datei oder der Ordner wurde unter diesem Pfad nicht gefunden — prüfe den Pfad mit action="list".'
+            : code === 'unknown'
+              ? errMessage(err)
+              : CLOUD_ERROR_REASONS[code];
+        const message = `Wolke-Zugriff auf „${rootLabel(root)}" fehlgeschlagen: ${detail}`;
+        groundNote(sourceRegistry, 'Wolke-Zugriff fehlgeschlagen', message);
+        return { error: message, ...(code !== 'unknown' ? { errorCode: code } : {}) };
       }
     },
   });
@@ -547,14 +617,7 @@ async function addConnection(args: {
 
   const test = await provider.test({ link: raw });
   if (!test.ok) {
-    const reasons: Record<string, string> = {
-      invalid_link:
-        'Der Link sieht nicht wie ein öffentlicher Freigabe-Link aus (er muss die Form https://<wolke>/s/<token> haben) oder ist passwortgeschützt.',
-      forbidden: 'Die Freigabe ist nicht mehr aktiv.',
-      not_found: 'Unter diesem Link liegt nichts (mehr).',
-      unknown: 'Der Link ließ sich nicht öffnen.',
-    };
-    const note = reasons[test.errorCode ?? 'unknown'] ?? reasons.unknown;
+    const note = CLOUD_ERROR_REASONS[test.errorCode ?? 'unknown'];
     groundNote(sourceRegistry, 'Wolke-Link nicht nutzbar', note);
     return { ok: false, errorCode: test.errorCode ?? 'unknown', note };
   }
