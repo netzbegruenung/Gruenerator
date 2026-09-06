@@ -1,5 +1,7 @@
 import path from 'node:path';
 
+import babel from '@rolldown/plugin-babel';
+import { reactCompilerPreset } from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
 
 // Resolve workspace packages (@gruenerator/*) to their TS sources. Shared by both
@@ -37,6 +39,14 @@ export default defineConfig({
       {
         // React component/render lane. Kept separate so the node lane stays fast
         // and the two globs never overlap (.ts vs .tsx).
+        //
+        // The dom lane runs the React Compiler — the SAME babel preset the
+        // production build applies (vite.config.ts). The compiler only ever ran
+        // on `vite build`, so its output was first executed in production; that
+        // shipped a hook-order crash (React #311, SwapLabel in packages/chat).
+        // With the preset here, component tests execute the compiled code the
+        // bundle ships. packages/chat's config carries the same line.
+        plugins: [babel({ presets: [reactCompilerPreset()] })],
         resolve,
         test: {
           name: 'dom',
