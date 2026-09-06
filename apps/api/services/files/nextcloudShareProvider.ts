@@ -243,6 +243,9 @@ export class NextcloudShareProvider implements CloudFileProvider {
       const entries = await client.listFolder(undefined);
       return { ok: true, entryCount: entries.length };
     } catch (err) {
+      // Bewusst geschluckt: eine File-Drop-Freigabe scheitert schon am
+      // PROPFIND in `testConnection` (405 → `file_drop`), hier landet nur
+      // noch ein transienter Listing-Fehler hinter einem erreichbaren Link.
       log.warn('root listing after successful test failed', err);
       return { ok: true };
     }
