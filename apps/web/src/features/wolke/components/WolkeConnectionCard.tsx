@@ -8,6 +8,7 @@ import {
 import {
   useDeleteShareLink,
   useTestConnection,
+  connectionErrorMessage,
   generateDisplayName,
   parseShareLink,
   WolkeFolderBrowser,
@@ -56,7 +57,9 @@ const WolkeConnectionCard = ({ shareLink, onSuccess, onError }: WolkeConnectionC
       if (result.success) {
         onSuccess?.('Verbindung erfolgreich getestet!');
       } else {
-        onError?.('Verbindungstest fehlgeschlagen: ' + (result.message || 'Unbekannter Fehler'));
+        // Nicht `result.message` — das ist der englische Maschinenstring des
+        // Backends; der errorCode trägt die deutsche, handlungsleitende Fassung.
+        onError?.('Verbindungstest fehlgeschlagen: ' + connectionErrorMessage(result.errorCode));
       }
     } catch (error) {
       onError?.('Fehler beim Testen: ' + (error instanceof Error ? error.message : String(error)));
