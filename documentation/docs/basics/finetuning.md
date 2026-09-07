@@ -166,7 +166,7 @@ Das heruntergeladene Modell kann lokal oder auf eigener Infrastruktur betrieben 
 
 - **Österreich-Adapter**: Separates Modell für Die Grüne Alternative, trainiert auf österreichischen Parteidokumenten
 - **Spezialist\*innen-Adapter**: Fokussierte Modelle für einzelne Inhaltstypen (Presse, Social Media, Beschlüsse), falls die Qualität es erfordert
-- **Integration**: Anbindung an den Grünerator über LiteLLM, automatische Adapter-Auswahl nach Sprache und Inhaltstyp
+- **Integration**: Anbindung an den Grünerator über das zentrale Provider-Routing des Backends, automatische Adapter-Auswahl nach Sprache und Inhaltstyp. (Der ursprünglich vorgesehene Weg über LiteLLM entfällt — LiteLLM/Verdigado ist als Modellziel stillgelegt.)
 
 ## Kosten-Überblick
 
