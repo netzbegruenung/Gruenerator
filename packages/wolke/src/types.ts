@@ -25,7 +25,8 @@ export interface WolkeFileItem {
   lastModifiedFormatted?: string;
 }
 
-export type ConnectionErrorCode = 'invalid_link' | 'not_found' | 'forbidden' | 'unknown';
+export type ConnectionErrorCode =
+  'invalid_link' | 'not_found' | 'forbidden' | 'file_drop' | 'unknown';
 
 export interface ConnectionTestResult {
   success: boolean;
