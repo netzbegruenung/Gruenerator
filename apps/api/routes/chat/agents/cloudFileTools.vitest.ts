@@ -7,6 +7,7 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 
+import { NextcloudHttpError } from '../../../services/api-clients/nextcloudApiClient.js';
 import { createSourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 
 import { makeCloudFilesTool, type AttachedNotebookFolder } from './cloudFileTools.js';
@@ -76,6 +77,8 @@ function makeCtx(
     attachedWebpageUrls?: string[];
     folders?: AttachedNotebookFolder[];
     foldersThrow?: boolean;
+    /** Der getippte Nachrichtentext — für Links, die NICHT angehängt sind. */
+    userText?: string;
   } = {}
 ) {
   const notes: Array<[string, string]> = [];
@@ -96,6 +99,7 @@ function makeCtx(
   const state = {
     agentConfig: { userId: opts.userId === undefined ? 'user-1' : opts.userId },
     attachedWebpageUrls: opts.attachedWebpageUrls ?? [],
+    ...(opts.userText ? { lastUserTextNoMentions: opts.userText } : {}),
   } as unknown as ChatGraphState;
 
   const tool = makeCloudFilesTool({
@@ -351,6 +355,129 @@ describe('read', () => {
       read: async () => ({ buffer: Buffer.from(''), mimeType: null, size: 0 }),
     });
     expect(String((await run({ action: 'read' })).error)).toContain('path');
+  });
+});
+
+/**
+ * Der Live-Ausfall vom 06.09.2026: `read` mit `path: 's/<token>'` lief mit dem
+ * Token der GESPEICHERTEN Verbindung gegen einen fremden Share, der 401 kam
+ * als nacktes „Request failed with status code 401" an, und weil der Fehler
+ * nirgends geerdet war, erfand der Schreiber „ich kann keine externen Links
+ * lesen". Diese Blöcke sichern alle drei Reparaturen.
+ */
+describe('share-URL path guard', () => {
+  it('refuses a share-URL path on read without touching the provider', async () => {
+    const read = vi.fn();
+    const { run, notes } = makeCtx({ read });
+    const result = await run({ action: 'read', path: 's/AbCdEf' });
+    expect(String(result.error)).toContain('add_connection');
+    expect(read).not.toHaveBeenCalled();
+    expect(notes.some(([, content]) => content.includes('add_connection'))).toBe(true);
+  });
+
+  it('refuses a full share URL as a list path', async () => {
+    const list = vi.fn();
+    const { run } = makeCtx({ list });
+    const result = await run({
+      action: 'list',
+      path: 'https://wolke.netzbegruenung.de/s/4oKeBG2t236tXTA',
+    });
+    expect(String(result.error)).toContain('Freigabe-Link');
+    expect(list).not.toHaveBeenCalled();
+  });
+
+  it('still accepts an ordinary folder path', async () => {
+    const list = vi.fn(async () => listing());
+    const { run } = makeCtx({ list });
+    const result = await run({ action: 'list', path: 'Anträge/2026' });
+    expect(result.error).toBeUndefined();
+    expect(list).toHaveBeenCalled();
+  });
+});
+
+describe('error classification', () => {
+  function failingRead(status: number) {
+    return makeCtx({
+      read: async () => {
+        throw new NextcloudHttpError(`status ${status}`, status);
+      },
+    });
+  }
+
+  it('tells the model the connection itself is dead on 401, and grounds it', async () => {
+    const { run, notes } = failingRead(401);
+    const result = await run({ action: 'read', path: 'rede.pdf' });
+    expect(String(result.error)).toContain('Einstellungen → Wolke');
+    expect(result.errorCode).toBe('invalid_link');
+    // Die Erdung ist der Halluzinations-Fix: ohne sie sieht der Schreiber im
+    // split-Modus vom Fehlschlag NICHTS.
+    expect(notes.some(([title]) => title === 'Wolke-Zugriff fehlgeschlagen')).toBe(true);
+  });
+
+  it('names the upload-only share on 405', async () => {
+    const { run } = failingRead(405);
+    const result = await run({ action: 'read', path: 'rede.pdf' });
+    expect(String(result.error)).toContain('Nur anzeigen');
+    expect(result.errorCode).toBe('file_drop');
+  });
+
+  it('points at the path, not the connection, on 404', async () => {
+    const { run } = failingRead(404);
+    const result = await run({ action: 'read', path: 'gibtsnicht.pdf' });
+    expect(String(result.error)).toContain('action="list"');
+    expect(result.errorCode).toBe('not_found');
+  });
+
+  it('keeps the raw message for unclassified failures', async () => {
+    const { run, notes } = makeCtx({
+      list: async () => {
+        throw new Error('WebDAV 503');
+      },
+    });
+    const result = await run({ action: 'list' });
+    expect(String(result.error)).toContain('WebDAV 503');
+    expect(result.errorCode).toBeUndefined();
+    expect(notes).toHaveLength(1);
+  });
+
+  it('spells out the reason when testing a saved file-drop connection', async () => {
+    const { run, notes } = makeCtx({
+      test: async () => ({ ok: false, errorCode: 'file_drop' as const }),
+    });
+    const result = await run({ action: 'test_connection' });
+    expect(result.ok).toBe(false);
+    expect(String(result.note)).toContain('Nur anzeigen');
+    expect(notes[0][1]).toContain('Nur anzeigen');
+  });
+
+  it('mentions expiry and password protection for an unusable link', async () => {
+    const { run } = makeCtx({
+      test: async () => ({ ok: false, errorCode: 'invalid_link' as const }),
+    });
+    const result = await run({ action: 'add_connection', link: 'https://w.example/s/Tot123' });
+    expect(String(result.note)).toContain('passwortgeschützt');
+    expect(String(result.note)).toContain('abgelaufen');
+  });
+});
+
+describe('typed share links', () => {
+  const TYPED = 'https://wolke.netzbegruenung.de/s/Getippt1';
+
+  it('surfaces a link typed into the message text, like an attached one', async () => {
+    const { tool } = makeCtx({}, { userText: `kannst du den link auslesen ${TYPED}` });
+    expect(tool.description).toContain(TYPED);
+  });
+
+  it('uses the typed link for test_connection when the model names none', async () => {
+    const test = vi.fn(async () => ({ ok: true, entryCount: 2 }));
+    const { run } = makeCtx({ test }, { userText: `bitte prüfen: ${TYPED}` });
+    await run({ action: 'test_connection' });
+    expect(test).toHaveBeenCalledWith({ link: TYPED });
+  });
+
+  it('does not duplicate a link that is both attached and typed', async () => {
+    const { tool } = makeCtx({}, { userText: `siehe ${TYPED}`, attachedWebpageUrls: [TYPED] });
+    expect(tool.description.split(TYPED).length - 1).toBe(1);
   });
 });
 

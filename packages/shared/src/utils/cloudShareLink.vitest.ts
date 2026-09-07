@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { checkCloudShareLink, isCloudShareUrl, parseCloudShareLink } from './cloudShareLink.js';
+import {
+  checkCloudShareLink,
+  isCloudShareUrl,
+  looksLikeCloudSharePath,
+  parseCloudShareLink,
+} from './cloudShareLink.js';
 
 describe('parseCloudShareLink', () => {
   it('splits a Grüne-Wolke link into base and token', () => {
@@ -68,5 +73,27 @@ describe('isCloudShareUrl', () => {
   it('leaves ordinary pages to the web crawler', () => {
     expect(isCloudShareUrl('https://gruene.de/programm')).toBe(false);
     expect(isCloudShareUrl('https://wolke.netzbegruenung.de/apps/files/')).toBe(false);
+  });
+});
+
+describe('looksLikeCloudSharePath', () => {
+  // The live failure this guards: the model cut `s/<token>` out of a pasted
+  // share URL and passed it as a file path for cloud_files read.
+  it('catches a bare share-URL path in all its spellings', () => {
+    expect(looksLikeCloudSharePath('s/AbCdEf')).toBe(true);
+    expect(looksLikeCloudSharePath('/s/AbCdEf')).toBe(true);
+    expect(looksLikeCloudSharePath('s/AbCdEf/')).toBe(true);
+    expect(looksLikeCloudSharePath('index.php/s/AbCdEf')).toBe(true);
+  });
+
+  it('catches a full share URL passed as a path', () => {
+    expect(looksLikeCloudSharePath('https://wolke.netzbegruenung.de/s/AbCdEfGhIj')).toBe(true);
+  });
+
+  it('leaves ordinary folder and file paths alone', () => {
+    expect(looksLikeCloudSharePath('Anträge/2026')).toBe(false);
+    expect(looksLikeCloudSharePath('Ordner/s/unterordner')).toBe(false);
+    expect(looksLikeCloudSharePath('rede.pdf')).toBe(false);
+    expect(looksLikeCloudSharePath('')).toBe(false);
   });
 });

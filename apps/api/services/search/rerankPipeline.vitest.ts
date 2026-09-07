@@ -70,17 +70,25 @@ describe('rerankPipeline — Budget', () => {
     expect(docs[2]!.length).toBeGreaterThanOrEqual(1000);
   });
 
-  it('hält die Summe unter der Aufruf-Grenze, wenn viele grosse Kandidaten kommen', async () => {
-    const items = Array.from({ length: 16 }, (_, i) => item(`Gross ${i}`, 15_000));
+  // 15s statt der 5s-Vorgabe: die beiden Budget-Tests bauen 16 grosse
+  // Kandidaten und sind auf einem ausgelasteten CI-Runner am Ende der Suite
+  // zweimal in den Default-Timeout gelaufen (#3248) — auf demselben Commit,
+  // ohne Berührung dieses Codes. Die Behauptung ist das Budget, nicht die Zeit.
+  it(
+    'hält die Summe unter der Aufruf-Grenze, wenn viele grosse Kandidaten kommen',
+    { timeout: 15_000 },
+    async () => {
+      const items = Array.from({ length: 16 }, (_, i) => item(`Gross ${i}`, 15_000));
 
-    await rerankPipeline({ query: 'Klimageld', items, inputLimit: 16, minRelevance: 0 });
+      await rerankPipeline({ query: 'Klimageld', items, inputLimit: 16, minRelevance: 0 });
 
-    const total = docsFromLastCall().reduce((sum, d) => sum + d.length, 0);
-    // 16 × 15 000 = 240 000 roh; die Decke liegt bei 150 000.
-    expect(total).toBeLessThanOrEqual(150_000);
-  });
+      const total = docsFromLastCall().reduce((sum, d) => sum + d.length, 0);
+      // 16 × 15 000 = 240 000 roh; die Decke liegt bei 150 000.
+      expect(total).toBeLessThanOrEqual(150_000);
+    }
+  );
 
-  it('leert beim Kürzen keinen Kandidaten', async () => {
+  it('leert beim Kürzen keinen Kandidaten', { timeout: 15_000 }, async () => {
     const items = Array.from({ length: 16 }, (_, i) => item(`Gross ${i}`, 30_000));
 
     await rerankPipeline({ query: 'Klimageld', items, inputLimit: 16, minRelevance: 0 });
