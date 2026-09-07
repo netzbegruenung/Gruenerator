@@ -1,5 +1,6 @@
 import { Badge, Button } from '@gruenerator/ui';
 import {
+  connectionErrorMessage,
   generateDisplayName,
   parseShareLink,
   useTestConnection,
@@ -39,7 +40,9 @@ const SharedWolkeConnectionCard = ({
       if (result.success) {
         onSuccess?.('Verbindung erfolgreich getestet!');
       } else {
-        onError?.('Verbindungstest fehlgeschlagen: ' + (result.message ?? 'Unbekannter Fehler'));
+        // Nicht `result.message` — das ist der englische Maschinenstring des
+        // Backends; der errorCode trägt die deutsche, handlungsleitende Fassung.
+        onError?.('Verbindungstest fehlgeschlagen: ' + connectionErrorMessage(result.errorCode));
       }
     } catch (error) {
       onError?.('Fehler beim Testen: ' + (error instanceof Error ? error.message : String(error)));

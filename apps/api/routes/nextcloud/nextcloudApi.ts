@@ -3,7 +3,9 @@ import { z } from 'zod';
 
 import { requireAuth } from '../../middleware/authMiddleware.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
-import NextcloudApiClient from '../../services/api-clients/nextcloudApiClient.js';
+import NextcloudApiClient, {
+  type ConnectionTestResult,
+} from '../../services/api-clients/nextcloudApiClient.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { NextcloudShareManager } from '../../utils/integrations/nextcloud/index.js';
 import { createLogger } from '../../utils/logger.js';
@@ -218,7 +220,10 @@ router.post(
         finalShareToken || ''
       );
 
-      let connectionTest: { success: boolean; message: string } | null = null;
+      // Der volle Typ, nicht `{success, message}`: die schmalere Annotation
+      // strippte den `errorCode`, den das Frontend für die deutsche
+      // Fehlerdeutung braucht — der Wert war längst da.
+      let connectionTest: ConnectionTestResult | null = null;
       try {
         const client = await NextcloudApiClient.create(shareLink);
         connectionTest = await client.testConnection();
@@ -231,6 +236,7 @@ router.post(
         connectionTest = {
           success: false,
           message: testErr.message,
+          errorCode: 'invalid_link',
         };
       }
 
@@ -338,7 +344,22 @@ router.post(
         return;
       }
 
-      const client = await NextcloudApiClient.create(shareLink);
+      // Wirft der Client-Bau (Format/SSRF), ist das ein unbrauchbarer LINK,
+      // kein Serverfehler — ohne errorCode fiele der Wizard in den
+      // nichtssagenden unknown-Zweig.
+      let client: NextcloudApiClient;
+      try {
+        client = await NextcloudApiClient.create(shareLink);
+      } catch (createError) {
+        const createErr = createError as Error;
+        log.warn('[NextcloudApi] Share link rejected before test', { error: createErr.message });
+        res.json({
+          success: false,
+          message: toUserFacingMessage(createErr),
+          errorCode: 'invalid_link',
+        } satisfies ConnectionTestResult);
+        return;
+      }
       const testResult = await client.testConnection();
 
       res.json(testResult);
@@ -348,7 +369,8 @@ router.post(
       res.status(500).json({
         success: false,
         message: toUserFacingMessage(err),
-      });
+        errorCode: 'unknown',
+      } satisfies ConnectionTestResult);
     }
   }
 );

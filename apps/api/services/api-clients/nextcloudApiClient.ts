@@ -29,7 +29,8 @@ export function normalizeWebdavEtag(etag: string | null | undefined): string | n
   return cleaned || null;
 }
 
-export type ConnectionErrorCode = 'invalid_link' | 'not_found' | 'forbidden' | 'unknown';
+export type ConnectionErrorCode =
+  'invalid_link' | 'not_found' | 'forbidden' | 'file_drop' | 'unknown';
 
 export interface ConnectionTestResult {
   success: boolean;
@@ -97,6 +98,47 @@ export class WebdavParseError extends Error {
     super(message);
     this.name = 'WebdavParseError';
   }
+}
+
+/**
+ * Ein HTTP-Fehler der Nextcloud-Instanz, mit überlebendem Statuscode.
+ *
+ * Der Response-Interceptor normalisierte jeden axios-Fehler zu einem plain
+ * `Error` — die `err.response?.status`-Zweige in den Catches darunter waren
+ * damit tote Zweige, und jeder 401/404/405 kam beim Aufrufer als nacktes
+ * „Request failed" an. Diese Klasse trägt den Status durch alle Re-Wraps.
+ */
+export class NextcloudHttpError extends Error {
+  constructor(
+    message: string,
+    readonly status?: number,
+    readonly statusText?: string
+  ) {
+    super(message);
+    this.name = 'NextcloudHttpError';
+  }
+}
+
+/** Der Status eines Fehlers, sofern er einer unserer HTTP-Fehler ist. */
+export function statusOf(err: unknown): number | undefined {
+  return err instanceof NextcloudHttpError ? err.status : undefined;
+}
+
+/**
+ * Live gemessene Semantik von `public.php/webdav`: die Auth wird VOR der
+ * Pfadauflösung geprüft — 401 heißt also immer „Token abgewiesen" (Freigabe
+ * gelöscht, abgelaufen oder passwortgeschützt; wir senden Token + leeres
+ * Passwort), nie „Pfad falsch". 405 auf einem Lese-Verb ist eine
+ * File-Drop-Freigabe („Dateien ablegen" — sabre/dav erlaubt dort nur
+ * Schreib-Verben, gemessen am lebenden Endpunkt). 404 ist ein gültiges Token
+ * mit fehlendem Pfad.
+ */
+export function classifyWebdavStatus(status: number | undefined): ConnectionErrorCode {
+  if (status === 401) return 'invalid_link';
+  if (status === 403) return 'forbidden';
+  if (status === 404) return 'not_found';
+  if (status === 405) return 'file_drop';
+  return 'unknown';
 }
 
 /**
@@ -322,27 +364,24 @@ class NextcloudApiClient {
         message: 'Connection successful',
       };
     } catch (error) {
-      const err = error as AxiosError;
-      console.error('[NextcloudApiClient] Connection test failed', { error: err.message });
+      const err = error as Error;
+      console.error('[NextcloudApiClient] Connection test failed', {
+        error: err.message,
+        status: statusOf(err),
+      });
 
-      if (err.response?.status === 401) {
-        return {
-          success: false,
-          message: 'Authentication failed - invalid share token',
-          errorCode: 'invalid_link',
-        };
-      } else if (err.response?.status === 403) {
-        return {
-          success: false,
-          message: 'Access forbidden - share may not be active',
-          errorCode: 'forbidden',
-        };
-      } else if (err.response?.status === 404) {
-        return {
-          success: false,
-          message: 'Share not found - check the share link',
-          errorCode: 'not_found',
-        };
+      // Der Interceptor hat den axios-Fehler bereits zu `NextcloudHttpError`
+      // normalisiert — `err.response` gibt es hier nicht mehr.
+      const errorCode = classifyWebdavStatus(statusOf(err));
+      const messages: Record<Exclude<ConnectionErrorCode, 'unknown'>, string> = {
+        invalid_link: 'Authentication failed - share deleted, expired, or password-protected',
+        forbidden: 'Access forbidden - share may not be active',
+        not_found: 'Share not found - check the share link',
+        file_drop: 'Read access denied - this is a file-drop (upload only) share',
+      };
+
+      if (errorCode !== 'unknown') {
+        return { success: false, message: messages[errorCode], errorCode };
       }
 
       return {
@@ -408,7 +447,9 @@ class NextcloudApiClient {
       // Unverpackt weiterreichen: „ich habe die Antwort nicht gelesen" ist
       // eine andere Auskunft als „das Auflisten ist fehlgeschlagen", und der
       // ganze Sinn von #3038 ist, dass ein Aufrufer sie unterscheiden kann.
-      if (err instanceof WebdavParseError) throw err;
+      // `NextcloudHttpError` ebenso: der Status ist die Grundlage, auf der
+      // `cloud_files` dem Modell sagt, WARUM die Wolke nicht antwortet.
+      if (err instanceof WebdavParseError || err instanceof NextcloudHttpError) throw err;
       throw new Error(err.message || 'Failed to list folder');
     }
   }
@@ -457,6 +498,7 @@ class NextcloudApiClient {
     } catch (error) {
       const err = error as Error;
       console.error('[NextcloudApiClient] Failed to get share info', { error: err.message });
+      if (err instanceof NextcloudHttpError) throw err;
       throw new Error(err.message || 'Failed to get share information');
     }
   }
@@ -521,22 +563,24 @@ class NextcloudApiClient {
         throw new Error(`Download failed with status: ${response.status}`);
       }
     } catch (error) {
-      const err = error as AxiosError;
+      const err = error as Error;
+      const status = statusOf(err);
       console.error(`[NextcloudApiClient] File download failed:`, {
         filePath,
         error: err.message,
-        status: err.response?.status,
+        status,
       });
 
-      if (err.response?.status === 401) {
-        throw new Error('Authentication failed - cannot download file');
-      } else if (err.response?.status === 404) {
-        throw new Error('File not found on Nextcloud share');
-      } else if (err.response?.status === 403) {
-        throw new Error('Access denied - file download not permitted');
-      }
-
-      throw new Error(`File download failed: ${err.message}`);
+      const messages: Partial<Record<number, string>> = {
+        401: 'Authentication failed - cannot download file',
+        403: 'Access denied - file download not permitted',
+        404: 'File not found on Nextcloud share',
+        405: 'Read access denied - this is a file-drop (upload only) share',
+      };
+      throw new NextcloudHttpError(
+        (status && messages[status]) || `File download failed: ${err.message}`,
+        status
+      );
     }
   }
 
@@ -546,12 +590,11 @@ class NextcloudApiClient {
   private normalizeError(error: AxiosError): Error {
     if (error.response) {
       // Server responded with error status
-      const normalizedError: Error & { status?: number; statusText?: string } = new Error(
-        (error.response.data as { message?: string })?.message || error.message
+      return new NextcloudHttpError(
+        (error.response.data as { message?: string })?.message || error.message,
+        error.response.status,
+        error.response.statusText
       );
-      normalizedError.status = error.response.status;
-      normalizedError.statusText = error.response.statusText;
-      return normalizedError;
     } else if (error.request) {
       // Network error
       return new Error('Network error: Unable to connect to Nextcloud');
