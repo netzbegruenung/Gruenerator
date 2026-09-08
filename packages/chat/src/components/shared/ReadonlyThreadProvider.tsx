@@ -11,6 +11,7 @@ import { type ReactNode } from 'react';
 
 import { MarkdownStreamingProvider } from '../../context/MarkdownStreamingContext';
 import { ReadonlyModeContext } from '../../context/ReadonlyModeContext';
+import { useFeedbackAdapter } from '../../runtime/useFeedbackAdapter';
 
 export interface ReadonlyThreadProviderProps {
   /** The finished transcript, e.g. from convertToThreadMessageLike(). */
@@ -44,7 +45,15 @@ const readonlyAdapter: ChatModelAdapter = {
 };
 
 function ReadonlyThreadProviderInner({ messages, children }: ReadonlyThreadProviderProps) {
-  const runtime = useLocalRuntime(readonlyAdapter, { initialMessages: messages });
+  // ReadonlyModeContext hides the thumbs, but the guard in
+  // useFeedbackAdapter.vitest.ts requires every local runtime to register the
+  // adapter — assistant-ui throws "Feedback adapter not configured" the moment
+  // a feedback control renders, and surfaces have been missed twice before.
+  const feedbackAdapter = useFeedbackAdapter();
+  const runtime = useLocalRuntime(readonlyAdapter, {
+    initialMessages: messages,
+    adapters: { feedback: feedbackAdapter },
+  });
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
