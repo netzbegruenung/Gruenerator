@@ -926,10 +926,23 @@ async function main() {
   }
 
   if (withRerank) {
+    // Nur die Fälle, für die ein Rerank WIRKLICH lief: `rerankRank` bleibt
+    // `undefined`, wenn das Tor bei ≤2 Kandidaten zugeblieben ist oder der
+    // Cross-Encoder scheiterte, und ist `null`, wenn er das Gold aus der Liste
+    // geschoben hat. Der frühere `?? o.rank` hat beides eingeebnet und einem
+    // Rerank-Miss seinen Rang VOR dem Rerank gutgeschrieben — auf dem
+    // Stichwort-Set war das Hit@1 65,0 % statt 41,2 % (keyword-cases-2026-09-03.md).
+    const reranked = outcomes.filter((o) => o.rerankRank !== undefined);
+    const skipped = outcomes.length - reranked.length;
     console.log('\n── Ergebnisse (nach Rerank) ──');
     console.log(
-      `${'GESAMT'.padEnd(28)} n=${String(outcomes.length).padStart(2)}  ${computeMetrics(outcomes, (o) => o.rerankRank ?? o.rank).line}`
+      `${'GESAMT'.padEnd(28)} n=${String(reranked.length).padStart(2)}  ${computeMetrics(reranked, (o) => o.rerankRank ?? null).line}`
     );
+    if (skipped > 0) {
+      console.log(
+        `${''.padEnd(28)} ${skipped} Fälle ohne Rerank (≤2 Kandidaten oder Fehlschlag) — nicht eingerechnet`
+      );
+    }
 
     const timings = outcomes
       .map((o) => o.rerankTimeMs)
