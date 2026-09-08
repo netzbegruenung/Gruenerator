@@ -19,6 +19,7 @@ export { initClient, type ClientInferRequest, type ClientInferResponses } from '
 // ── Contracts ───────────────────────────────────────────────────────────────
 export {
   threadsContract,
+  chatThreadSharingContract,
   exportsContract,
   recentValuesContract,
   recentActivityContract,
@@ -98,6 +99,7 @@ export {
 // ── Schemas (Zod) ───────────────────────────────────────────────────────────
 export * from './schemas/roleRef.js';
 export * from './schemas/threads.js';
+export * from './schemas/chatThreadSharing.js';
 export * from './schemas/textForm.js';
 export * from './schemas/exports.js';
 export * from './schemas/recentValues.js';

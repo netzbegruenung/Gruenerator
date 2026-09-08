@@ -72,8 +72,8 @@ function mockQueries(
     .mockResolvedValueOnce(docGroupRows);
 }
 
-const directRow = (isOwner: boolean, hasWriteGrant: boolean) => [
-  { is_owner: isOwner, has_write_grant: hasWriteGrant },
+const directRow = (isOwner: boolean, hasWriteGrant: boolean, isLinkShared = false) => [
+  { is_owner: isOwner, has_write_grant: hasWriteGrant, is_link_shared: isLinkShared },
 ];
 
 // ── Access levels ─────────────────────────────────────────────────────────
@@ -154,6 +154,36 @@ describe('getThreadAccessLevel — group share path', () => {
 
     expect(result).toBe('none');
     expect(queryMock).toHaveBeenCalledTimes(4);
+  });
+});
+
+describe('getThreadAccessLevel — link share path (share_mode)', () => {
+  it("returns 'read' when share_mode is 'authenticated' and nothing stronger matches", async () => {
+    mockQueries(directRow(false, false, true));
+
+    const result = await getThreadAccessLevel(THREAD_ID, OTHER_USER);
+
+    expect(result).toBe('read');
+    // All share queries still ran — a writable grant must outrank the link.
+    expect(queryMock).toHaveBeenCalledTimes(4);
+  });
+
+  it("owner outranks the link share ('owner', not 'read')", async () => {
+    mockQueries(directRow(true, false, true));
+
+    expect(await getThreadAccessLevel(THREAD_ID, USER_ID)).toBe('owner');
+  });
+
+  it("a writable group share outranks the link share ('write')", async () => {
+    mockQueries(directRow(false, false, true), [{ can_write: true }]);
+
+    expect(await getThreadAccessLevel(THREAD_ID, USER_ID)).toBe('write');
+  });
+
+  it("share_mode 'private' grants nothing", async () => {
+    mockQueries(directRow(false, false, false));
+
+    expect(await getThreadAccessLevel(THREAD_ID, OTHER_USER)).toBe('none');
   });
 });
 
