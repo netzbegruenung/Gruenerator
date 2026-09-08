@@ -267,6 +267,7 @@ export class BaseSearchService {
           useRRF: options.useRRF ?? false,
           rrfK: options.rrfK ?? 60,
           recallLimit: options.recallLimit,
+          sparseQueryVector: options.sparseQueryVector,
         },
       });
 
@@ -336,9 +337,19 @@ export class BaseSearchService {
 
   /**
    * Generate query embedding with smart expansion support
+   *
+   * `options.queryVector` short-circuits this: a caller that already holds a
+   * query embedding gets it used verbatim. The only caller doing that is the
+   * embedding bake-off (`evals/retrieval/`), which measures a different
+   * embedder against this exact pipeline — see the field's doc comment in
+   * BaseSearchService/types.ts for why the seam sits here and not at the
+   * call sites.
+   *
    * @protected
    */
-  async generateQueryEmbedding(query: string, _options: SearchOptions = {}): Promise<number[]> {
+  async generateQueryEmbedding(query: string, options: SearchOptions = {}): Promise<number[]> {
+    const provided = options.queryVector;
+    if (Array.isArray(provided) && provided.length > 0) return provided;
     return await mistralEmbeddingService.generateQueryEmbedding(query);
   }
 

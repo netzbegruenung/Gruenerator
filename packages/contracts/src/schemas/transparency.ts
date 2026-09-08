@@ -185,6 +185,17 @@ export const transparencyErrorResponseSchema = z.object({
   error: z.string(),
 });
 
+/**
+ * Optional segment of the platform: the users whose profile locale is Germany
+ * or Austria. Same vocabulary as the monitor's `MonitorLocale`.
+ *
+ * Absent means the whole instance. A profile with no locale ("Land unbekannt",
+ * see `profiles.locale`) is in neither segment, so `de` + `at` is smaller than
+ * the unsegmented figure — by design, not by rounding.
+ */
+export const transparencyLocaleSchema = z.enum(['de', 'at']);
+
+export type TransparencyLocale = z.infer<typeof transparencyLocaleSchema>;
 export type TransparencyFootprintDto = z.infer<typeof transparencyFootprintSchema>;
 export type TransparencyProviderEntryDto = z.infer<typeof transparencyProviderEntrySchema>;
 export type TransparencyDayEntryDto = z.infer<typeof transparencyDayEntrySchema>;

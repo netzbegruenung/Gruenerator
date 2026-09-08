@@ -39,6 +39,15 @@ export interface RerankPipelineOptions {
   mmrKeepTop?: number;
   instruct?: string;
   sourceTagFn?: (item: RerankableItem) => string;
+  /**
+   * `'sort'` (default): the reranker's own order, unchanged from today.
+   * `'filter'`: keep retrieval order for the first `keepHead` survivors and
+   * let the reranker only decide the tail — measured to lose Hit@1 as a
+   * sorter but win on every metric as a filter (see `applyFilterMode`).
+   */
+  mode?: 'sort' | 'filter';
+  /** Head size for `mode: 'filter'`. Unused in `'sort'` mode. */
+  keepHead?: number;
   /** @see MAX_CHARS_PER_ITEM */
   maxCharsPerItem?: number;
   /** @see MAX_CHARS_PER_CALL */
@@ -83,6 +92,31 @@ async function rerankOnce(request: RerankRequest): Promise<RerankResultItem[]> {
 
 const SKIP_THRESHOLD = 2;
 export const DEFAULT_RELEVANCE = 0.5;
+const DEFAULT_KEEP_HEAD = 3;
+
+/**
+ * Combines the input order and the reranker's order into one final order for
+ * `mode: 'filter'`. Ported from the eval's `applyRerankMode('filter', ...)`
+ * (`apps/api/evals/retrieval/rerankMode.ts`) so the eval's measured numbers
+ * describe this code. Pure and index-only.
+ *
+ * `rerankedOrder` may be a strict subset of `inputOrder`: an index present in
+ * `inputOrder` but absent from `rerankedOrder` was dropped by the reranker
+ * (below `minRelevance`) and must not reappear, head or tail.
+ */
+export function applyFilterMode(
+  inputOrder: number[],
+  rerankedOrder: number[],
+  keepHead: number
+): number[] {
+  const rerankedSet = new Set(rerankedOrder);
+  // Retrieval order for the head, but only among candidates the reranker did
+  // not drop — a dropped candidate must never reappear, head or tail.
+  const head = inputOrder.filter((index) => rerankedSet.has(index)).slice(0, keepHead);
+  const headSet = new Set(head);
+  const tail = rerankedOrder.filter((index) => !headSet.has(index));
+  return [...head, ...tail];
+}
 
 /**
  * Obergrenze für EINEN Kandidaten.
@@ -213,6 +247,8 @@ export async function rerankPipeline(
     mmrKeepTop = rerankCfg.mmrKeepTop,
     instruct,
     sourceTagFn,
+    mode = 'sort',
+    keepHead = DEFAULT_KEEP_HEAD,
     maxCharsPerItem = MAX_CHARS_PER_ITEM,
     maxCharsPerCall = MAX_CHARS_PER_CALL,
   } = options;
@@ -289,15 +325,25 @@ export async function rerankPipeline(
       finalOrder = filtered;
     }
 
-    const result = finalOrder.slice(0, outputLimit);
+    const rerankedIndices = finalOrder.map((r) => r.index);
+    const finalIndices =
+      mode === 'filter'
+        ? applyFilterMode(
+            candidates.map((_, i) => i),
+            rerankedIndices,
+            keepHead
+          )
+        : rerankedIndices;
+
+    const rankedIndices = finalIndices.slice(0, outputLimit);
     const rerankTimeMs = Date.now() - startTime;
 
     log.info(
-      `${candidates.length} → ${result.length} results (diversity=${applyDiversity}) in ${rerankTimeMs}ms`
+      `${candidates.length} → ${rankedIndices.length} results (diversity=${applyDiversity}) in ${rerankTimeMs}ms`
     );
 
     return {
-      rankedIndices: result.map((r) => r.index),
+      rankedIndices,
       scores: scoreMap,
       rerankTimeMs,
     };

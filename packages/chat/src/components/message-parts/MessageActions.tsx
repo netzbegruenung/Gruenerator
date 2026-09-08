@@ -24,7 +24,6 @@ import { HiOutlineDocumentText } from 'react-icons/hi';
 
 import { useExtraActions } from '../../context/ExtraActionsContext';
 import { useRegenerateMessage } from '../../hooks/useRegenerateMessage';
-// import { MessageTTSButton } from './MessageTTSButton';
 import { downloadBlob } from '../../lib/downloadBlob';
 import { formatSourcesMarkdown } from '../../lib/formatSourcesMarkdown';
 import {
@@ -40,6 +39,7 @@ import { useChatDensity } from '../thread/chatDensityContext';
 import { MessageBranchPicker } from './MessageBranchPicker';
 import { MessageSourcesButton } from './MessageSourcesButton';
 import { MessageTime } from './MessageTimestamp';
+import { MessageTTSButton } from './MessageTTSButton';
 
 import type { Citation, ChatMessage } from '../../hooks/useChatGraphStream';
 import type { ExportToDocsBody, ExportToDocsResponse } from '@gruenerator/contracts';
@@ -226,7 +226,7 @@ export const MessageActions = memo(function MessageActions({
       >
         {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
       </button>
-      {/* <MessageTTSButton content={content} /> */}
+      <MessageTTSButton content={content} />
       {/*
         One document button, four destinations. Download and "im Editor
         bearbeiten" used to be two glyphs side by side, which left no room for

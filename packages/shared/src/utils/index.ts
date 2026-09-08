@@ -52,6 +52,7 @@ export {
   parseCloudShareLink,
   checkCloudShareLink,
   isCloudShareUrl,
+  looksLikeCloudSharePath,
   type ParsedCloudShareLink,
   type CloudShareLinkCheck,
   type CloudShareLinkProblem,

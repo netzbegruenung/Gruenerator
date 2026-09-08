@@ -56,6 +56,7 @@ import type { QdrantFilter as QdrantServiceFilter } from '../../../database/serv
 import type { QdrantService } from '../../../database/services/QdrantService.js';
 import type { SearchParamsInput } from '../../../utils/validation/types.js';
 import type { SearchParams, SearchResponse, DocumentData } from '../../BaseSearchService/types.js';
+import type { SparseVector } from '../../text/index.js';
 
 /**
  * Main DocumentSearchService class
@@ -80,6 +81,44 @@ const SYSTEM_COLLECTION_MAP: Record<string, string> = {
   bundestag: 'bundestag_content',
   gruene_de: 'gruene_de_documents',
 };
+
+/**
+ * `queryVector` über die Validierung tragen.
+ *
+ * `validateSearchParams` baut seine Options-Objekte als Positivliste — was
+ * nicht ausdrücklich übernommen wird, fällt weg. Ein Aufrufer, der eine fertige
+ * Anfrage-Einbettung mitgibt, bekäme sonst still eine `mistral-embed`-Einbettung
+ * gegen eine fremd eingebettete Sammlung, und das Ergebnis sähe bloss nach
+ * schlechtem Retrieval aus. Deshalb steht das in ALLEN drei Zweigen und nicht
+ * nur in dem, den der Bake-off heute nimmt.
+ */
+function carriedQueryVector(source: Record<string, unknown> | undefined): {
+  queryVector?: number[];
+} {
+  const value = source?.queryVector;
+  return Array.isArray(value) && value.length > 0 ? { queryVector: value as number[] } : {};
+}
+
+/**
+ * `sparseQueryVector` über die Validierung tragen — dieselbe Falle, dieselbe
+ * Stelle, andere Lane.
+ *
+ * Der Stemmer-Vergleich (#3188) fiel beim ersten Anlauf genau hier hinein: die
+ * Wegwerf-Sammlung war Snowball-gehasht, die Anfrage kam als CISTEM durch, und
+ * der Lauf meldete Hit@1 14,3 % statt 50 % — kein Fehler, keine leere
+ * Trefferliste, nur ein Ergebnis, das wie ein vernichtender Stemmer-Befund
+ * aussah. Ein Sparse-Vektor ist noch anfälliger dafür als eine Einbettung:
+ * fällt er weg, rechnet `hybridSearchServerSide` klaglos einen neuen aus dem
+ * Anfragetext — mit dem Produktions-Stemmer.
+ */
+function carriedSparseQueryVector(source: Record<string, unknown> | undefined): {
+  sparseQueryVector?: SparseVector;
+} {
+  const value = source?.sparseQueryVector as SparseVector | undefined;
+  return value && Array.isArray(value.indices) && value.indices.length > 0
+    ? { sparseQueryVector: value }
+    : {};
+}
 
 export class DocumentSearchService extends BaseSearchService {
   private qdrant: QdrantService;
@@ -184,6 +223,8 @@ export class DocumentSearchService extends BaseSearchService {
         qualityMin: typeof pOptions?.qualityMin === 'number' ? pOptions.qualityMin : undefined,
         ...(typeof pOptions?.recallLimit === 'number' ? { recallLimit: pOptions.recallLimit } : {}),
         ...(pOptions?.rerankChunks === true && { rerankChunks: true }),
+        ...carriedQueryVector(pOptions),
+        ...carriedSparseQueryVector(pOptions),
       };
 
       return {
@@ -256,6 +297,8 @@ export class DocumentSearchService extends BaseSearchService {
           ...(typeof textWeightOpt === 'number' && { textWeight: textWeightOpt }),
           ...(typeof p.qualityMin === 'number' ? { qualityMin: p.qualityMin } : {}),
           ...(typeof p.recallLimit === 'number' ? { recallLimit: p.recallLimit } : {}),
+          ...carriedQueryVector(p),
+          ...carriedSparseQueryVector(p),
         },
       };
     }
@@ -299,6 +342,8 @@ export class DocumentSearchService extends BaseSearchService {
         ...(typeof textWeightOpt === 'number' && { textWeight: textWeightOpt }),
         ...(typeof p.qualityMin === 'number' ? { qualityMin: p.qualityMin } : {}),
         ...(typeof p.recallLimit === 'number' ? { recallLimit: p.recallLimit } : {}),
+        ...carriedQueryVector(p),
+        ...carriedSparseQueryVector(p),
       },
     };
   }
@@ -713,87 +758,20 @@ export class DocumentSearchService extends BaseSearchService {
     documentId: string,
     chunkIndex: number,
     options: { window?: number } = {}
-  ): Promise<{
-    success: boolean;
-    centerChunk?: { text: string; chunkIndex: number };
-    contextChunks?: Array<{ text: string; chunkIndex: number; isCenter: boolean }>;
-    error?: string;
-  }> {
+  ): Promise<ChunkWithContextResult> {
     await this.ensureInitialized();
     if (!this.qdrantOps) {
       return { success: false, error: 'Qdrant not available' };
     }
 
     const collectionName = SYSTEM_COLLECTION_MAP[collectionType] || `${collectionType}_documents`;
-    const windowSize = options.window ?? 2;
-
-    try {
-      // Find the point by document_id (or title for some collections) and chunk_index
-      const filter = {
-        must: [
-          { key: 'document_id', match: { value: documentId } },
-          { key: 'chunk_index', match: { value: chunkIndex } },
-        ],
-      };
-
-      let scrollResult = await this.qdrantOps.scrollDocuments(collectionName, filter, {
-        limit: 1,
-        withPayload: true,
-      });
-
-      // If not found by document_id, try with title field
-      if (!scrollResult || scrollResult.length === 0) {
-        const titleFilter = {
-          must: [
-            { key: 'title', match: { value: documentId } },
-            { key: 'chunk_index', match: { value: chunkIndex } },
-          ],
-        };
-
-        scrollResult = await this.qdrantOps.scrollDocuments(collectionName, titleFilter, {
-          limit: 1,
-          withPayload: true,
-        });
-
-        if (!scrollResult || scrollResult.length === 0) {
-          return { success: false, error: 'Chunk not found in collection' };
-        }
-      }
-
-      const centerPoint = scrollResult[0];
-
-      // Get context using existing method
-      const contextResult = await this.qdrantOps.getChunkWithContext(
-        collectionName,
-        { id: centerPoint.id, payload: centerPoint.payload },
-        { window: windowSize }
-      );
-
-      if (!contextResult.center) {
-        return { success: false, error: 'Failed to retrieve context' };
-      }
-
-      const centerChunk = {
-        text: (contextResult.center.payload.chunk_text as string) || '',
-        chunkIndex: (contextResult.center.payload.chunk_index as number) ?? chunkIndex,
-      };
-
-      const contextChunks = contextResult.context.map((chunk) => ({
-        text: (chunk.payload.chunk_text as string) || '',
-        chunkIndex: (chunk.payload.chunk_index as number) ?? 0,
-        isCenter: chunk.id === contextResult.center?.id,
-      }));
-
-      return {
-        success: true,
-        centerChunk,
-        contextChunks,
-      };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.error(`[DocumentSearchService] getSystemChunkWithContext error: ${message}`);
-      return { success: false, error: message };
-    }
+    return await docRetrieval.getSystemChunkWithContext(
+      this.qdrantOps,
+      collectionName,
+      documentId,
+      chunkIndex,
+      options
+    );
   }
 
   /**
@@ -816,32 +794,7 @@ export class DocumentSearchService extends BaseSearchService {
       }
     }
 
-    for (const { type, collection } of systemCollections) {
-      try {
-        const filter = {
-          should: [
-            { key: 'document_id', match: { value: documentId } },
-            { key: 'title', match: { value: documentId } },
-          ],
-        };
-
-        const result = await this.qdrantOps.scrollDocuments(collection, filter, {
-          limit: 1,
-          withPayload: false,
-        });
-
-        if (result && result.length > 0) {
-          console.log(
-            `[DocumentSearchService] Found document '${documentId}' in collection '${collection}'`
-          );
-          return type;
-        }
-      } catch {
-        // Collection might not exist, continue to next
-      }
-    }
-
-    return 'user';
+    return await docRetrieval.detectSystemCollection(this.qdrantOps, systemCollections, documentId);
   }
 
   // ========== Bundestag Search ==========

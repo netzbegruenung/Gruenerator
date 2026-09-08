@@ -104,6 +104,23 @@ export async function getDocumentFullText(
 }
 
 /**
+ * Identitätsklausel für Dokumente in expliziten Qdrant-Collections: gescrapte
+ * Systemsammlungen (kommunalwiki_documents, grundsatz_documents, …) tragen
+ * KEIN document_id in der Nutzlast — ihre Identität ist die indizierte
+ * source_url, und genau diese URL mintet SearchResultProcessor.ts:39
+ * (`r.document_id || sourceUrl`) als documentId der Zitationen. Eine
+ * URL-förmige ID ist also per Konstruktion eine source_url; alles andere
+ * bleibt beim document_id-Filter.
+ */
+export function documentIdentityClause(documentId: string): {
+  key: string;
+  match: { value: string };
+} {
+  const key = /^https?:\/\//.test(documentId) ? 'source_url' : 'document_id';
+  return { key, match: { value: documentId } };
+}
+
+/**
  * Get individual chunks for a document, sorted by chunk_index.
  * Supports both user documents (in 'documents' collection with user_id)
  * and system documents (in named collections without user_id).
@@ -117,7 +134,9 @@ export async function getDocumentChunks(
   try {
     const collectionName = options?.qdrantCollection || 'documents';
     const mustFilters: QdrantFilter['must'] = [
-      { key: 'document_id', match: { value: documentId } },
+      options?.qdrantCollection
+        ? documentIdentityClause(documentId)
+        : { key: 'document_id', match: { value: documentId } },
     ];
     if (!options?.qdrantCollection) {
       mustFilters.unshift({ key: 'user_id', match: { value: userId } });
@@ -234,6 +253,129 @@ export async function getChunkWithContext(
   }
 }
 
+/**
+ * Ein Chunk mit Nachbarn aus einer System-Collection (grundsatz, kommunalwiki, …).
+ *
+ * #3232: die Vorgängerin (als Methode an DocumentSearchService) filterte
+ * document_id und fiel auf title zurück — nie auf source_url. Gescrapte
+ * Sammlungen tragen aber KEIN document_id in der Nutzlast; ihre Identität ist
+ * die indizierte source_url, und genau die mintet SearchResultProcessor als
+ * documentId der Zitationen. documentIdentityClause (oben) wählt das Feld.
+ * Der title-Rückfall bleibt für die von Hand benannten Alt-IDs
+ * ('Gruenes-Grundsatzprogramm' u. ä.), die nur als title existieren.
+ */
+export async function getSystemChunkWithContext(
+  qdrantOps: QdrantOperations,
+  collectionName: string,
+  documentId: string,
+  chunkIndex: number,
+  options: { window?: number } = {}
+): Promise<ChunkWithContextResult> {
+  const windowSize = options.window ?? 2;
+
+  try {
+    const filter: QdrantFilter = {
+      must: [
+        documentIdentityClause(documentId),
+        { key: 'chunk_index', match: { value: chunkIndex } },
+      ],
+    };
+
+    let scrollResult = await qdrantOps.scrollDocuments(collectionName, filter, {
+      limit: 1,
+      withPayload: true,
+    });
+
+    if (!scrollResult || scrollResult.length === 0) {
+      const titleFilter: QdrantFilter = {
+        must: [
+          { key: 'title', match: { value: documentId } },
+          { key: 'chunk_index', match: { value: chunkIndex } },
+        ],
+      };
+
+      scrollResult = await qdrantOps.scrollDocuments(collectionName, titleFilter, {
+        limit: 1,
+        withPayload: true,
+      });
+
+      if (!scrollResult || scrollResult.length === 0) {
+        return { success: false, error: 'Chunk not found in collection' };
+      }
+    }
+
+    const centerPoint = scrollResult[0];
+
+    const contextResult = await qdrantOps.getChunkWithContext(
+      collectionName,
+      { id: centerPoint.id, payload: centerPoint.payload },
+      { window: windowSize }
+    );
+
+    if (!contextResult.center) {
+      return { success: false, error: 'Failed to retrieve context' };
+    }
+
+    const centerChunk = {
+      text: (contextResult.center.payload.chunk_text as string) || '',
+      chunkIndex: (contextResult.center.payload.chunk_index as number) ?? chunkIndex,
+    };
+
+    const contextChunks: ChunkContextItem[] = contextResult.context.map((chunk) => ({
+      text: (chunk.payload.chunk_text as string) || '',
+      chunkIndex: (chunk.payload.chunk_index as number) ?? 0,
+      isCenter: chunk.id === contextResult.center?.id,
+    }));
+
+    return { success: true, centerChunk, contextChunks };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`[DocumentRetrieval] getSystemChunkWithContext error: ${message}`);
+    return { success: false, error: message };
+  }
+}
+
+/**
+ * Findet die System-Collection, die ein Dokument enthält.
+ *
+ * #3232: die should-Klauseln prüften nur document_id und title — eine
+ * URL-förmige ID (gescrapte Sammlungen, s. documentIdentityClause) fand nie
+ * etwas, die Erkennung fiel auf 'user' zurück und die Route lief in
+ * getDocumentById(url) → 404.
+ */
+export async function detectSystemCollection(
+  qdrantOps: QdrantOperations,
+  systemCollections: Array<{ type: string; collection: string }>,
+  documentId: string
+): Promise<string> {
+  for (const { type, collection } of systemCollections) {
+    try {
+      const filter: QdrantFilter = {
+        should: [
+          documentIdentityClause(documentId),
+          { key: 'title', match: { value: documentId } },
+        ],
+      };
+
+      const result = await qdrantOps.scrollDocuments(collection, filter, {
+        limit: 1,
+        withPayload: false,
+      });
+
+      if (result && result.length > 0) {
+        console.log(
+          `[DocumentRetrieval] Found document '${documentId}' in collection '${collection}'`
+        );
+        return type;
+      }
+    } catch {
+      // Collection might not exist, continue to next
+    }
+  }
+
+  return 'user';
+}
+
 /** Eine Scroll-Seite; klein genug für Qdrant, gross genug für wenige Runden. */
 const INSPECT_SCROLL_PAGE_SIZE = 256;
 /** Deckel gegen ein Dokument mit absurd vielen Punkten (256 * 40 = 10 240). */
@@ -316,7 +458,7 @@ export async function inspectDocumentChunks(
 ): Promise<InspectDocumentChunksResult> {
   try {
     const filter: QdrantFilter = {
-      must: [{ key: 'document_id', match: { value: documentId } }],
+      must: [documentIdentityClause(documentId)],
     };
 
     const points: ScrollPoint[] = [];
