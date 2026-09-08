@@ -57,3 +57,35 @@ describe('getDocumentChunks — Identitätsklausel', () => {
     });
   });
 });
+
+describe('getDocumentChunks — seitenweiser Scroll', () => {
+  it('holt Dokumente mit mehr als 1000 Punkten vollständig', async () => {
+    // Der frühere Einzel-Scroll mit `limit: 1000` schnitt hier still ab.
+    const TOTAL = 1100;
+    const points = Array.from({ length: TOTAL }, (_, i) => ({
+      id: `p${i}`,
+      payload: { chunk_index: i, chunk_text: `Text ${i}`, token_count: 1 },
+    }));
+    const scrollDocuments = vi.fn(
+      async (
+        _collection: string,
+        _filter: QdrantFilter,
+        opts: { limit: number; offset?: string | number | null }
+      ) => {
+        const start = opts.offset == null ? 0 : points.findIndex((p) => p.id === opts.offset);
+        // Qdrants Scroll-Offset ist eine Punkt-ID und inklusiv: der
+        // Cursor-Punkt kommt als erstes Element der nächsten Seite noch einmal.
+        return points.slice(start, start + opts.limit);
+      }
+    );
+    const ops = { scrollDocuments } as unknown as QdrantOperations;
+
+    const result = await getDocumentChunks(ops, 'user-1', 'doc-1');
+
+    expect(result.success).toBe(true);
+    expect(result.chunkCount).toBe(TOTAL);
+    expect(result.chunks[0]?.index).toBe(0);
+    expect(result.chunks[TOTAL - 1]?.index).toBe(TOTAL - 1);
+    expect(scrollDocuments.mock.calls.length).toBeGreaterThan(1);
+  });
+});

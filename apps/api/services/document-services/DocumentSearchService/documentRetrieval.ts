@@ -143,13 +143,28 @@ export async function getDocumentChunks(
     }
     const filter: QdrantFilter = { must: mustFilters };
 
-    const rawChunks = await qdrantOps.scrollDocuments(collectionName, filter, {
-      limit: 1000,
-      withPayload: true,
-      withVector: false,
-    });
+    // Seitenweise statt einem einzelnen `limit: 1000`-Scroll: der schnitt ein
+    // grosses Dokument still nach 1000 Punkten ab — das Quellen-Panel zeigte
+    // dann ein gekürztes Dokument ohne jedes Fehlersignal. Gleiche Schleife
+    // wie `inspectDocumentChunks` unten.
+    const rawChunks: ScrollPoint[] = [];
+    let cursor: string | number | null = null;
+    for (let page = 0; page < CHUNK_MAX_SCROLL_PAGES; page++) {
+      const batch = await qdrantOps.scrollDocuments(collectionName, filter, {
+        limit: CHUNK_SCROLL_PAGE_SIZE,
+        withPayload: true,
+        withVector: false,
+        offset: cursor,
+      });
+      // Qdrants Scroll-Offset ist eine Punkt-ID und inklusiv (siehe
+      // inspectDocumentChunks).
+      const fresh = cursor === null ? batch : batch.filter((p) => p.id !== cursor);
+      rawChunks.push(...fresh);
+      if (batch.length < CHUNK_SCROLL_PAGE_SIZE) break;
+      cursor = batch[batch.length - 1].id;
+    }
 
-    if (!rawChunks || rawChunks.length === 0) {
+    if (rawChunks.length === 0) {
       return { success: false, chunks: [], chunkCount: 0, error: 'No chunks found' };
     }
 
@@ -377,9 +392,9 @@ export async function detectSystemCollection(
 }
 
 /** Eine Scroll-Seite; klein genug für Qdrant, gross genug für wenige Runden. */
-const INSPECT_SCROLL_PAGE_SIZE = 256;
+const CHUNK_SCROLL_PAGE_SIZE = 256;
 /** Deckel gegen ein Dokument mit absurd vielen Punkten (256 * 40 = 10 240). */
-const INSPECT_MAX_SCROLL_PAGES = 40;
+const CHUNK_MAX_SCROLL_PAGES = 40;
 
 function readVectorPresence(raw: unknown): {
   embeddingPresent: boolean;
@@ -464,9 +479,9 @@ export async function inspectDocumentChunks(
     const points: ScrollPoint[] = [];
     let cursor: string | number | null = null;
 
-    for (let page = 0; page < INSPECT_MAX_SCROLL_PAGES; page++) {
+    for (let page = 0; page < CHUNK_MAX_SCROLL_PAGES; page++) {
       const batch = await qdrantOps.scrollDocuments(qdrantCollection, filter, {
-        limit: INSPECT_SCROLL_PAGE_SIZE,
+        limit: CHUNK_SCROLL_PAGE_SIZE,
         withPayload: true,
         withVector: false,
         offset: cursor,
@@ -476,7 +491,7 @@ export async function inspectDocumentChunks(
       // Gleiche Behandlung wie NotebookQdrantHelper.ts:615-617.
       const fresh = cursor === null ? batch : batch.filter((p) => p.id !== cursor);
       points.push(...fresh);
-      if (batch.length < INSPECT_SCROLL_PAGE_SIZE) break;
+      if (batch.length < CHUNK_SCROLL_PAGE_SIZE) break;
       cursor = batch[batch.length - 1].id;
     }
 
