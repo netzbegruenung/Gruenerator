@@ -141,6 +141,33 @@ describe('CitationSidePanel — Darstellung', () => {
     render(<Harness sources={[source({ chunkIndex: 99 })]} />);
     expect(await screen.findByText('Originaltext')).toBeInTheDocument();
     expect(screen.queryByText('Zitierte Passage')).not.toBeInTheDocument();
+    // Auch ohne Hervorhebung bleibt das Dokument gerahmt.
+    expect(screen.getByText('Anfang des Dokuments')).toBeInTheDocument();
+    expect(screen.getByText('Ende des Dokuments')).toBeInTheDocument();
+  });
+
+  it('rahmt das Dokument mit Anfang und Ende, auch wenn die Passage ganz oben sitzt', async () => {
+    // Ohne die Rahmung liest sich ein vollständiges kurzes Dokument wie ein
+    // abgeschnittenes — genau so entstand der Befund „nur ein Kapitel davor".
+    render(<Harness sources={[source({ chunkIndex: 0, citedText: undefined })]} />);
+    await screen.findByText('Zitierte Passage');
+    expect(screen.getByText('Anfang des Dokuments')).toBeInTheDocument();
+    expect(screen.getByText('Ende des Dokuments')).toBeInTheDocument();
+    expect(screen.queryByText('Kontext davor')).not.toBeInTheDocument();
+  });
+
+  it('bietet am Dokumentende den Sprung zur vollständigen Quelle an', async () => {
+    render(<Harness sources={[source()]} />);
+    const link = await screen.findByRole('link', { name: 'Vollständige Quelle öffnen' });
+    expect(link).toHaveAttribute('href', 'https://example.org/handbuch.pdf');
+  });
+
+  it('lässt den Quellen-Sprung weg, wenn keine URL bekannt ist', async () => {
+    render(<Harness sources={[source({ sourceUrl: '' })]} />);
+    await screen.findByText('Zitierte Passage');
+    expect(
+      screen.queryByRole('link', { name: 'Vollständige Quelle öffnen' })
+    ).not.toBeInTheDocument();
   });
 
   it('meldet einen fehlgeschlagenen Abruf, statt leer zu bleiben', async () => {
