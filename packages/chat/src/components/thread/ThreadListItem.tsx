@@ -22,9 +22,14 @@ import { type MouseEvent, useCallback, useState, useSyncExternalStore } from 're
 import { useChatNavigation } from '../../context/ChatNavigationContext';
 import { useExternalThread } from '../../context/ExternalThreadContext';
 import { adoptAuiAction, auiPromise } from '../../lib/auiAsync';
-import { buildThreadPath, pathNamesThread } from '../../lib/threadPath';
+import { buildSharedThreadPath, buildThreadPath, pathNamesThread } from '../../lib/threadPath';
 import { cn } from '../../lib/utils';
-import { getThreadTags, subscribeThreadTags } from '../../runtime/GrueneratorThreadListAdapter';
+import {
+  getThreadAccessType,
+  getThreadTags,
+  isThreadReadOnly,
+  subscribeThreadTags,
+} from '../../runtime/GrueneratorThreadListAdapter';
 import { useAgentStore } from '../../stores/chatStore';
 import useChatPinsStore, { useIsChatPinned } from '../../stores/useChatPinsStore';
 
@@ -75,10 +80,20 @@ function useSafeThreadAction(action: 'delete' | 'archive' | 'unarchive') {
  * raced — the click's switch and the URL's switch cancelled each other, which
  * is what made rapid clicks flicker between two threads.
  */
-function useOpenThread(remoteId: string | null | undefined, title: string | null | undefined) {
+function useOpenThread(
+  remoteId: string | null | undefined,
+  title: string | null | undefined,
+  readOnly = false
+) {
   const aui = useAui();
   const nav = useChatNavigation();
-  const threadPath = remoteId ? buildThreadPath(remoteId, title ?? null) : null;
+  // A read-only group share opens the archive view — the live ChatPage would
+  // offer a composer whose send the backend rejects (canWriteThread).
+  const threadPath = remoteId
+    ? readOnly
+      ? buildSharedThreadPath(remoteId, title ?? null)
+      : buildThreadPath(remoteId, title ?? null)
+    : null;
 
   const onClick = useCallback(
     (e: MouseEvent) => {
@@ -133,7 +148,20 @@ function ExternalThreadItem() {
 
 export function GrueneratorThreadListItem() {
   const { externalId, remoteId, title } = useAuiState((s) => s.threadListItem);
-  const { threadPath, onClick: handleOpen } = useOpenThread(remoteId, title);
+  // Share metadata rides the same subscription channel as the tags cache
+  // (both are refreshed by list() and must survive item recycling).
+  const accessType = useSyncExternalStore(
+    subscribeThreadTags,
+    () => getThreadAccessType(remoteId ?? ''),
+    () => getThreadAccessType(remoteId ?? '')
+  );
+  const readOnly = useSyncExternalStore(
+    subscribeThreadTags,
+    () => isThreadReadOnly(remoteId ?? ''),
+    () => isThreadReadOnly(remoteId ?? '')
+  );
+  const isOwner = accessType === 'owner';
+  const { threadPath, onClick: handleOpen } = useOpenThread(remoteId, title, readOnly);
   const handleArchive = useSafeThreadAction('archive');
   const handleDelete = useSafeThreadAction('delete');
   const [shareOpen, setShareOpen] = useState(false);
@@ -168,10 +196,19 @@ export function GrueneratorThreadListItem() {
             ⌘-click open a tab, and hovering shows where it goes. */}
         {threadPath ? (
           <a href={threadPath} onClick={handleOpen} className="flex min-w-0 flex-1 items-center">
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm">
+            <div className="flex min-w-0 flex-1 items-center gap-1.5">
+              <p className="min-w-0 truncate text-sm">
                 <ThreadListItemPrimitive.Title fallback="Neue Unterhaltung" />
               </p>
+              {!isOwner && (
+                <span
+                  className="flex shrink-0 items-center gap-1 rounded bg-secondary-100 px-1 py-0.5 text-[10px] text-foreground-muted dark:bg-secondary-800"
+                  title={readOnly ? 'Geteilt · Nur lesen' : 'Geteilt'}
+                >
+                  <Users className="h-3 w-3" aria-hidden />
+                  {readOnly ? 'Nur lesen' : 'Geteilt'}
+                </span>
+              )}
             </div>
           </a>
         ) : (
@@ -200,46 +237,53 @@ export function GrueneratorThreadListItem() {
               {isPinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
               {isPinned ? 'Lösen' : 'Anheften'}
             </ThreadListItemMorePrimitive.Item>
-            <ThreadListItemMorePrimitive.Item className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-primary/10 hover:text-foreground">
-              <Pencil className="h-3.5 w-3.5" />
-              Umbenennen
-            </ThreadListItemMorePrimitive.Item>
-            <ThreadListItemMorePrimitive.Item
-              onClick={() => setTagsOpen(true)}
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-primary/10 hover:text-foreground"
-            >
-              <Tag className="h-3.5 w-3.5" />
-              Tags bearbeiten
-            </ThreadListItemMorePrimitive.Item>
-            <ThreadListItemMorePrimitive.Item
-              onClick={() => setSpaceOpen(true)}
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-primary/10 hover:text-foreground"
-            >
-              <Users className="h-3.5 w-3.5" />
-              Zu Projekt hinzufügen
-            </ThreadListItemMorePrimitive.Item>
-            <ThreadListItemMorePrimitive.Item
-              onClick={() => setShareOpen(true)}
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-primary/10 hover:text-foreground"
-            >
-              <Share2 className="h-3.5 w-3.5" />
-              Teilen
-            </ThreadListItemMorePrimitive.Item>
-            <ThreadListItemMorePrimitive.Separator className="my-1 h-px bg-border" />
-            <ThreadListItemPrimitive.Archive
-              onClick={handleArchive}
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-primary/10 hover:text-foreground"
-            >
-              <Archive className="h-3.5 w-3.5" />
-              Archivieren
-            </ThreadListItemPrimitive.Archive>
-            <ThreadListItemPrimitive.Delete
-              onClick={handleDelete}
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-destructive/10 hover:text-destructive"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-              Löschen
-            </ThreadListItemPrimitive.Delete>
+            {/* Owner-only management: the backend 403s rename/tags/space/share/
+                archive/delete for non-owners, so a shared row only offers the
+                local pin. Defense in depth, not the enforcement itself. */}
+            {isOwner && (
+              <>
+                <ThreadListItemMorePrimitive.Item className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-primary/10 hover:text-foreground">
+                  <Pencil className="h-3.5 w-3.5" />
+                  Umbenennen
+                </ThreadListItemMorePrimitive.Item>
+                <ThreadListItemMorePrimitive.Item
+                  onClick={() => setTagsOpen(true)}
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-primary/10 hover:text-foreground"
+                >
+                  <Tag className="h-3.5 w-3.5" />
+                  Tags bearbeiten
+                </ThreadListItemMorePrimitive.Item>
+                <ThreadListItemMorePrimitive.Item
+                  onClick={() => setSpaceOpen(true)}
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-primary/10 hover:text-foreground"
+                >
+                  <Users className="h-3.5 w-3.5" />
+                  Zu Projekt hinzufügen
+                </ThreadListItemMorePrimitive.Item>
+                <ThreadListItemMorePrimitive.Item
+                  onClick={() => setShareOpen(true)}
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-primary/10 hover:text-foreground"
+                >
+                  <Share2 className="h-3.5 w-3.5" />
+                  Teilen
+                </ThreadListItemMorePrimitive.Item>
+                <ThreadListItemMorePrimitive.Separator className="my-1 h-px bg-border" />
+                <ThreadListItemPrimitive.Archive
+                  onClick={handleArchive}
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-primary/10 hover:text-foreground"
+                >
+                  <Archive className="h-3.5 w-3.5" />
+                  Archivieren
+                </ThreadListItemPrimitive.Archive>
+                <ThreadListItemPrimitive.Delete
+                  onClick={handleDelete}
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-destructive/10 hover:text-destructive"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Löschen
+                </ThreadListItemPrimitive.Delete>
+              </>
+            )}
           </ThreadListItemMorePrimitive.Content>
         </ThreadListItemMorePrimitive.Root>
       </ThreadListItemPrimitive.Root>
