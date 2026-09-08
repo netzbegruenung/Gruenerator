@@ -10,7 +10,8 @@ import { type ThreadId, type UserId } from '../../../utils/types/branded.js';
  *              without a `write` key count as writable), or — for doc-linked
  *              threads — access to the linked document.
  * - `read`   — may read the transcript only: a group share stored with
- *              `{"write": false}`.
+ *              `{"write": false}`, or a link share (`share_mode =
+ *              'authenticated'`) for any logged-in user.
  * - `none`   — no access; callers must respond as if the thread does not exist.
  *
  * Signatures use branded `ThreadId` and `UserId` so swapping the two
@@ -37,9 +38,14 @@ export async function getThreadAccessLevel(
 
   // Owner, explicit permissions, or public. Always returns a row when the
   // thread exists, so a missing thread short-circuits to 'none' here.
-  const directRows = await db.query<{ is_owner: boolean; has_write_grant: boolean }>(
+  const directRows = await db.query<{
+    is_owner: boolean;
+    has_write_grant: boolean;
+    is_link_shared: boolean;
+  }>(
     `SELECT (user_id = $2) AS is_owner,
-            (permissions ? $2::text OR is_public = true) AS has_write_grant
+            (permissions ? $2::text OR is_public = true) AS has_write_grant,
+            (COALESCE(share_mode, 'private') = 'authenticated') AS is_link_shared
      FROM chat_threads
      WHERE id = $1
      LIMIT 1`,
@@ -49,6 +55,7 @@ export async function getThreadAccessLevel(
   const direct = directRows[0];
   if (direct?.is_owner) return 'owner';
   if (direct?.has_write_grant) return 'write';
+  const linkShared = direct?.is_link_shared === true;
 
   // Doc-linked chat threads: defer to the linked document's access rules so
   // any user who can access the document can use its chat. Mirrors
@@ -108,9 +115,9 @@ export async function getThreadAccessLevel(
   );
   if (docGroupAccess.length > 0) return 'write';
 
-  // A read-only group share is the weakest grant — checked last so any
-  // writable path above wins.
-  if (groupWrite === false) return 'read';
+  // Read-only grants are the weakest — checked last so any writable path
+  // above wins: a read-only group share, or the authenticated link share.
+  if (groupWrite === false || linkShared) return 'read';
 
   return 'none';
 }

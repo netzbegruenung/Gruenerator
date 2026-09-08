@@ -18,6 +18,7 @@
 
 import {
   threadsContract,
+  chatThreadSharingContract,
   exportsContract,
   recentValuesContract,
   recentActivityContract,
@@ -295,6 +296,7 @@ const _notebookWordpressClient = () => initClient(notebookWordpressContract, CLI
 const _userWebsitesClient = () => initClient(userWebsitesContract, CLIENT_OPTS);
 const _letterheadsClient = () => initClient(letterheadsContract, CLIENT_OPTS);
 const _notebookSharingClient = () => initClient(notebookSharingContract, CLIENT_OPTS);
+const _chatThreadSharingClient = () => initClient(chatThreadSharingContract, CLIENT_OPTS);
 const _notificationsClient = () => initClient(notificationsContract, CLIENT_OPTS);
 const _memoryClient = () => initClient(memoryContract, CLIENT_OPTS);
 const _emailClient = () => initClient(emailContract, CLIENT_OPTS);
@@ -367,6 +369,7 @@ export interface ContractsClient {
   userWebsites: ReturnType<typeof _userWebsitesClient>;
   letterheads: ReturnType<typeof _letterheadsClient>;
   notebookSharing: ReturnType<typeof _notebookSharingClient>;
+  chatThreadSharing: ReturnType<typeof _chatThreadSharingClient>;
   notifications: ReturnType<typeof _notificationsClient>;
   memory: ReturnType<typeof _memoryClient>;
   email: ReturnType<typeof _emailClient>;
@@ -453,6 +456,7 @@ export function getContractsClient(): ContractsClient {
     userWebsites: _userWebsitesClient(),
     letterheads: _letterheadsClient(),
     notebookSharing: _notebookSharingClient(),
+    chatThreadSharing: _chatThreadSharingClient(),
     notifications: _notificationsClient(),
     memory: _memoryClient(),
     email: _emailClient(),
