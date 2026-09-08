@@ -15,6 +15,11 @@ packages:
 minimumReleaseAge: 10080
 minimumReleaseAgeExclude:
   - '@assistant-ui/*'
+  # Same publisher and monorepo as @assistant-ui/*, pulled in lockstep by each
+  # release; without them the scoped exclusion cannot install a fresh bugfix.
+  - 'assistant-stream'
+  - 'assistant-cloud'
+  - 'safe-content-frame'
   - '@blocknote/*'
 # Fail the install when a package's provenance trust level drops between
 # releases (trusted publishing -> token), the signature of a taken-over
