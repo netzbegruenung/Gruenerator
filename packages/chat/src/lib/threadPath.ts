@@ -37,6 +37,17 @@ export function buildThreadPath(remoteId: string, title: string | null): string 
 }
 
 /**
+ * The read-only archive view of a shared thread — where a read-only
+ * group share opens instead of the live chat.
+ */
+export function buildSharedThreadPath(remoteId: string, title: string | null): string {
+  const suffix = getThreadSlugSuffix(remoteId);
+  return suffix
+    ? `/chat/geteilt/${buildChatThreadSlug(title, suffix)}`
+    : `/chat/geteilt/${remoteId}`;
+}
+
+/**
  * Whether an in-app path (the host's `location.pathname`) names this thread.
  * Compared by slug suffix, not by the full path: the title half of the slug is
  * cosmetic and lags a rename, and legacy links carry the bare remote id.

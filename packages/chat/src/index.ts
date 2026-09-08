@@ -99,7 +99,7 @@ export {
 // Runtime
 export { GrueneratorChatProvider, preloadChatRuntime } from './runtime/GrueneratorChatProvider';
 export { useChatRuntimeReady } from './context/ChatRuntimeReadyContext';
-export { convertToThreadMessageLike } from './runtime/threadMessageConversion';
+export { convertToThreadMessageLike, type LoadedMessage } from './runtime/threadMessageConversion';
 export { GrueneratorAttachmentAdapter } from './runtime/GrueneratorAttachmentAdapter';
 export {
   createGrueneratorModelAdapter,
@@ -113,6 +113,8 @@ export {
   getNotebookCollectionId,
   getThreadSlugSuffix,
   getThreadAgentId,
+  getThreadAccessType,
+  isThreadReadOnly,
   resolveThreadBySlugSuffix,
   type ExternalThreadEntry,
 } from './runtime/GrueneratorThreadListAdapter';
@@ -167,6 +169,12 @@ export { type CategoryFilterField } from './components/notebook/CategoryFilterDr
 
 // Thread Components
 export { GrueneratorThread } from './components/thread/GrueneratorThread';
+// Read-only transcript view (shared thread archive)
+export {
+  ReadonlyThreadProvider,
+  type ReadonlyThreadProviderProps,
+} from './components/shared/ReadonlyThreadProvider';
+export { ReadonlyThreadView } from './components/shared/ReadonlyThreadView';
 export { SharepicArtifactPanel } from './components/SharepicArtifactPanel';
 export { ReelArtifactPanel } from './components/ReelArtifactPanel';
 export { ArtifactPanel } from './components/ArtifactPanel';
