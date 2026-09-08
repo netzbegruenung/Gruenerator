@@ -1,23 +1,25 @@
 /**
- * Authorization tests for `canAccessThread`.
+ * Authorization tests for the thread access service.
  *
  * Auth ≠ authz. These tests exist to pin the access control logic for
- * chat threads — who can see a given thread. A regression here is a
- * user-data leak, which is why every access path has a test and the
- * negative case (no access) is covered explicitly.
+ * chat threads — who can see and who can write a given thread. A
+ * regression here is a user-data leak, which is why every access path has
+ * a test and the negative case (no access) is covered explicitly.
  *
- * Access paths validated:
+ * Access levels validated (via `getThreadAccessLevel`):
  *
- *   1. Owner — `chat_threads.user_id = userId`.
- *   2. Explicit permissions — `chat_threads.permissions ? userId`.
- *   3. Public — `chat_threads.is_public = true`.
- *   4. Group share — thread shared into a group the user is a member of
- *      (via `group_content_shares` + `group_memberships`).
- *   5. No access — none of the above → returns false (not 500).
+ *   1. Owner — `chat_threads.user_id = userId` → 'owner'.
+ *   2. Explicit permissions / public — `permissions ? userId` or
+ *      `is_public = true` → 'write' (pre-levels behavior preserved).
+ *   3. Group share — thread shared into a group the user is an active
+ *      member of (via `group_content_shares` + `group_memberships`):
+ *      `write:true` (or a legacy row without the key) → 'write',
+ *      `{"write":false}` → 'read', `{"read":false}` → 'none'.
+ *   4. No access — none of the above → 'none' (not 500).
  *
  * Doc-linked threads additionally defer to the linked document's access
  * rules (direct + group); those queries run between/after the above and
- * return no rows in these tests.
+ * return no rows in most of these tests.
  *
  * The Postgres instance is mocked via `vi.mock` so these tests run in
  * milliseconds with no DB. Each test asserts both the call shape (correct
@@ -39,7 +41,8 @@ vi.mock('../../../database/services/PostgresService.js', () => ({
 }));
 
 // Import AFTER mock
-const { canAccessThread } = await import('./threadAccessService.js');
+const { getThreadAccessLevel, canAccessThread, canWriteThread } =
+  await import('./threadAccessService.js');
 
 // ── Test helpers ──────────────────────────────────────────────────────────
 
@@ -51,32 +54,37 @@ beforeEach(() => {
   queryMock.mockReset();
 });
 
-// The service runs up to four sequential queries (each short-circuits on a
-// hit): direct access → doc direct access → group share → doc group share.
-// We program the mock per call-order position; later positions default to
-// "no rows" for tests that only exercise the early paths.
+// The service runs up to four sequential queries: direct access (always one
+// row when the thread exists) → doc direct access → group share (one
+// `bool_or` row; can_write NULL = no share) → doc group share. We program
+// the mock per call-order position; later positions default to "no rows"
+// for tests that only exercise the early paths.
 function mockQueries(
-  directAccessRows: unknown[],
-  groupAccessRows: unknown[],
-  docDirectAccessRows: unknown[] = [],
-  docGroupAccessRows: unknown[] = []
+  directRows: unknown[],
+  groupRows: unknown[] = [{ can_write: null }],
+  docDirectRows: unknown[] = [],
+  docGroupRows: unknown[] = []
 ) {
   queryMock
-    .mockResolvedValueOnce(directAccessRows)
-    .mockResolvedValueOnce(docDirectAccessRows)
-    .mockResolvedValueOnce(groupAccessRows)
-    .mockResolvedValueOnce(docGroupAccessRows);
+    .mockResolvedValueOnce(directRows)
+    .mockResolvedValueOnce(docDirectRows)
+    .mockResolvedValueOnce(groupRows)
+    .mockResolvedValueOnce(docGroupRows);
 }
 
-// ── Access paths ──────────────────────────────────────────────────────────
+const directRow = (isOwner: boolean, hasWriteGrant: boolean) => [
+  { is_owner: isOwner, has_write_grant: hasWriteGrant },
+];
 
-describe('canAccessThread — owner path', () => {
-  it('returns true when user_id matches (owner)', async () => {
-    mockQueries([{ '?column?': 1 }], []);
+// ── Access levels ─────────────────────────────────────────────────────────
 
-    const result = await canAccessThread(THREAD_ID, USER_ID);
+describe('getThreadAccessLevel — owner path', () => {
+  it("returns 'owner' when user_id matches", async () => {
+    mockQueries(directRow(true, false));
 
-    expect(result).toBe(true);
+    const result = await getThreadAccessLevel(THREAD_ID, USER_ID);
+
+    expect(result).toBe('owner');
     // Direct-access query was called with (threadId, userId).
     const firstCall = queryMock.mock.calls[0];
     expect(firstCall?.[1]).toEqual([THREAD_ID, USER_ID]);
@@ -85,38 +93,26 @@ describe('canAccessThread — owner path', () => {
   });
 });
 
-describe('canAccessThread — explicit permissions path', () => {
-  it('returns true when userId is in the permissions JSONB map', async () => {
-    // `permissions ? userId::text` matches in the direct-access query.
-    // Same query path as owner — the SQL handles all three in one shot.
-    mockQueries([{ '?column?': 1 }], []);
+describe('getThreadAccessLevel — explicit permissions / public path', () => {
+  it("returns 'write' when userId is in the permissions JSONB map or is_public", async () => {
+    // `permissions ? userId::text OR is_public` fold into one flag — both
+    // grant full access, exactly as before the level split.
+    mockQueries(directRow(false, true));
 
-    const result = await canAccessThread(THREAD_ID, USER_ID);
+    const result = await getThreadAccessLevel(THREAD_ID, OTHER_USER);
 
-    expect(result).toBe(true);
+    expect(result).toBe('write');
     expect(queryMock).toHaveBeenCalledTimes(1);
   });
 });
 
-describe('canAccessThread — public path', () => {
-  it('returns true when is_public is true (any user)', async () => {
-    // Same query; `OR is_public = true` matches regardless of userId.
-    mockQueries([{ '?column?': 1 }], []);
+describe('getThreadAccessLevel — group share path', () => {
+  it("returns 'write' for a writable group share", async () => {
+    mockQueries(directRow(false, false), [{ can_write: true }]);
 
-    const result = await canAccessThread(THREAD_ID, OTHER_USER);
+    const result = await getThreadAccessLevel(THREAD_ID, USER_ID);
 
-    expect(result).toBe(true);
-  });
-});
-
-describe('canAccessThread — group share path', () => {
-  it('returns true when user is a member of a group the thread is shared to', async () => {
-    // Direct access empty, group access has a row.
-    mockQueries([], [{ '?column?': 1 }]);
-
-    const result = await canAccessThread(THREAD_ID, USER_ID);
-
-    expect(result).toBe(true);
+    expect(result).toBe('write');
     expect(queryMock).toHaveBeenCalledTimes(3);
     // Group query (3rd in order, after direct + doc-direct) was called with
     // (threadId, userId).
@@ -124,34 +120,125 @@ describe('canAccessThread — group share path', () => {
     expect(groupCall?.[1]).toEqual([THREAD_ID, USER_ID]);
   });
 
-  it('returns false when thread is shared to a group the user is NOT in', async () => {
-    mockQueries([], []);
+  it("returns 'write' for a legacy share row without a write key (COALESCE pin)", async () => {
+    // Legacy rows were written as {"read":true,"write":true}, but rows with
+    // NULL/{} permissions must keep granting write via COALESCE(..., true).
+    // The SQL folds that into bool_or, so the mock just returns true — this
+    // test pins the SQL text instead.
+    mockQueries(directRow(false, false), [{ can_write: true }]);
 
-    const result = await canAccessThread(THREAD_ID, OTHER_USER);
+    await getThreadAccessLevel(THREAD_ID, USER_ID);
 
-    expect(result).toBe(false);
+    const groupSql = String(queryMock.mock.calls[2]?.[0]);
+    expect(groupSql).toContain("COALESCE((gcs.permissions->>'write')::boolean, true)");
+    expect(groupSql).toContain("COALESCE((gcs.permissions->>'read')::boolean, true)");
+    expect(groupSql).toContain('gm.is_active = TRUE');
+  });
+
+  it('returns \'read\' for a read-only group share ({"write":false})', async () => {
+    mockQueries(directRow(false, false), [{ can_write: false }]);
+
+    const result = await getThreadAccessLevel(THREAD_ID, USER_ID);
+
+    expect(result).toBe('read');
+    // The doc-group query still ran (a writable doc link would outrank read).
+    expect(queryMock).toHaveBeenCalledTimes(4);
+  });
+
+  it("returns 'none' when the share has read:false or membership is inactive", async () => {
+    // Both cases are filtered inside the group SQL (permissions->>'read',
+    // gm.is_active), so the query yields no matching rows → can_write NULL.
+    mockQueries(directRow(false, false), [{ can_write: null }]);
+
+    const result = await getThreadAccessLevel(THREAD_ID, USER_ID);
+
+    expect(result).toBe('none');
     expect(queryMock).toHaveBeenCalledTimes(4);
   });
 });
 
-describe('canAccessThread — denied path', () => {
-  it('returns false when no access path matches', async () => {
-    // Non-owner, not in permissions, not public, not in group.
-    mockQueries([], []);
+describe('getThreadAccessLevel — doc-linked paths', () => {
+  it("returns 'write' when the linked document grants direct access", async () => {
+    mockQueries(directRow(false, false), [{ can_write: null }], [{ '?column?': 1 }]);
 
-    const result = await canAccessThread(THREAD_ID, OTHER_USER);
+    const result = await getThreadAccessLevel(THREAD_ID, USER_ID);
 
-    expect(result).toBe(false);
+    expect(result).toBe('write');
+    expect(queryMock).toHaveBeenCalledTimes(2);
   });
 
-  it('returns false when the thread does not exist', async () => {
-    // Non-existent thread id — both queries return nothing.
-    mockQueries([], []);
+  it("returns 'write' when the linked document is group-shared", async () => {
+    mockQueries(directRow(false, false), [{ can_write: null }], [], [{ '?column?': 1 }]);
+
+    const result = await getThreadAccessLevel(THREAD_ID, USER_ID);
+
+    expect(result).toBe('write');
+    expect(queryMock).toHaveBeenCalledTimes(4);
+  });
+
+  it('a writable doc-group link outranks a read-only thread group share', async () => {
+    mockQueries(directRow(false, false), [{ can_write: false }], [], [{ '?column?': 1 }]);
+
+    const result = await getThreadAccessLevel(THREAD_ID, USER_ID);
+
+    expect(result).toBe('write');
+  });
+});
+
+describe('getThreadAccessLevel — denied path', () => {
+  it("returns 'none' when no access path matches", async () => {
+    mockQueries(directRow(false, false));
+
+    const result = await getThreadAccessLevel(THREAD_ID, OTHER_USER);
+
+    expect(result).toBe('none');
+  });
+
+  it("returns 'none' without further queries when the thread does not exist", async () => {
+    // The direct query always returns a row for an existing thread, so an
+    // empty result means the thread is gone — no need to probe shares.
+    mockQueries([]);
 
     const nonExistent = ThreadId('00000000-0000-0000-0000-000000000000');
-    const result = await canAccessThread(nonExistent, USER_ID);
+    const result = await getThreadAccessLevel(nonExistent, USER_ID);
 
-    expect(result).toBe(false);
+    expect(result).toBe('none');
+    expect(queryMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns 'none' for a non-UUID thread id without touching the DB", async () => {
+    const result = await getThreadAccessLevel(ThreadId('__LOCALID_abc'), USER_ID);
+
+    expect(result).toBe('none');
+    expect(queryMock).not.toHaveBeenCalled();
+  });
+});
+
+// ── Wrappers ─────────────────────────────────────────────────────────────
+
+describe('canAccessThread / canWriteThread wrappers', () => {
+  it('canAccessThread is true for read-only access', async () => {
+    mockQueries(directRow(false, false), [{ can_write: false }]);
+
+    expect(await canAccessThread(THREAD_ID, USER_ID)).toBe(true);
+  });
+
+  it('canWriteThread is false for read-only access', async () => {
+    mockQueries(directRow(false, false), [{ can_write: false }]);
+
+    expect(await canWriteThread(THREAD_ID, USER_ID)).toBe(false);
+  });
+
+  it('canWriteThread is true for the owner', async () => {
+    mockQueries(directRow(true, false));
+
+    expect(await canWriteThread(THREAD_ID, USER_ID)).toBe(true);
+  });
+
+  it('canAccessThread is false when there is no access', async () => {
+    mockQueries(directRow(false, false));
+
+    expect(await canAccessThread(THREAD_ID, OTHER_USER)).toBe(false);
   });
 });
 
@@ -161,7 +248,7 @@ describe('canAccessThread — denied path', () => {
 // the signature back to `(string, string)`, the `@ts-expect-error`
 // assertions fail at compile time and CI catches the regression.
 
-describe('canAccessThread — branded type enforcement (compile-time)', () => {
+describe('getThreadAccessLevel — branded type enforcement (compile-time)', () => {
   it('rejects swapping threadId and userId', () => {
     // Compile-time-only assertions: the `@ts-expect-error` comments fire
     // during `tsc` if the signature ever loosens back to `(string, string)`
@@ -169,10 +256,10 @@ describe('canAccessThread — branded type enforcement (compile-time)', () => {
     // so nothing actually hits the mocked DB at runtime.
     const _typeOnlyChecks = () => {
       // @ts-expect-error — cannot pass raw strings where branded IDs required
-      void canAccessThread('raw-string', 'another-raw-string');
+      void getThreadAccessLevel('raw-string', 'another-raw-string');
 
       // @ts-expect-error — cannot pass UserId where ThreadId expected (args swapped)
-      void canAccessThread(USER_ID, THREAD_ID);
+      void getThreadAccessLevel(USER_ID, THREAD_ID);
     };
 
     expect(typeof _typeOnlyChecks).toBe('function');
