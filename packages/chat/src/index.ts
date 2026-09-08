@@ -113,6 +113,8 @@ export {
   getNotebookCollectionId,
   getThreadSlugSuffix,
   getThreadAgentId,
+  getThreadAccessType,
+  isThreadReadOnly,
   resolveThreadBySlugSuffix,
   type ExternalThreadEntry,
 } from './runtime/GrueneratorThreadListAdapter';

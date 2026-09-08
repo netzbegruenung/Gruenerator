@@ -27,6 +27,12 @@ export const threadSchema = z.object({
   groupId: z.string().nullable(),
   tags: z.array(z.string()).default([]),
   slugSuffix: z.string().nullable(),
+  // How the caller sees this thread: own / per-user permission / via a group
+  // share. Optional (F0): older clients tolerate absence.
+  accessType: z.enum(['owner', 'shared', 'group']).nullable().optional(),
+  // True when the caller's only grant is a read-only group share — the
+  // sidebar routes such threads to the archive view instead of the live chat.
+  readOnly: z.boolean().nullable().optional(),
   createdAt: z.string(), // ISO date string
   updatedAt: z.string(),
   lastMessage: lastMessageSchema.nullable().optional(),

@@ -37,8 +37,6 @@ export const ShareThreadDialog = memo(function ShareThreadDialog({
     if (open && threadId) void reload();
   }, [open, threadId, reload]);
 
-  const sharedIds = new Set(sharedGroups.map((g) => g.group_id));
-
   const linkEnabled = shareMode === 'authenticated';
   const shareUrl =
     linkEnabled && slugSuffix
@@ -131,28 +129,67 @@ export const ShareThreadDialog = memo(function ShareThreadDialog({
             <div className="space-y-2">
               <p className="text-xs text-grey-400 mb-2">Mit Gruppe teilen:</p>
               {userGroups.map((group) => {
-                const isShared = sharedIds.has(group.id);
+                const share = sharedGroups.find((g) => g.group_id === group.id);
+                const isShared = Boolean(share);
                 return (
-                  <button
+                  <div
                     key={group.id}
-                    onClick={() => (isShared ? unshare(group.id) : shareWithGroup(group.id))}
-                    className={`flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors bg-transparent border cursor-pointer ${
+                    className={`rounded-lg border transition-colors ${
                       isShared
-                        ? 'border-primary-500/30 bg-primary-500/5 text-foreground'
-                        : 'border-grey-200 dark:border-grey-700 text-foreground-muted hover:border-primary-500/30 hover:bg-primary-500/5'
+                        ? 'border-primary-500/30 bg-primary-500/5'
+                        : 'border-grey-200 dark:border-grey-700 hover:border-primary-500/30 hover:bg-primary-500/5'
                     }`}
                   >
-                    <div className="flex items-center gap-2">
-                      <Users className="h-4 w-4" />
-                      <span>{group.name}</span>
-                    </div>
-                    {isShared && (
-                      <span className="flex items-center gap-1 text-xs text-primary-600">
-                        <Check className="h-3.5 w-3.5" />
-                        Geteilt
-                      </span>
+                    <button
+                      onClick={() => (isShared ? unshare(group.id) : shareWithGroup(group.id))}
+                      className={`flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm bg-transparent border-none cursor-pointer ${
+                        isShared ? 'text-foreground' : 'text-foreground-muted'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4" />
+                        <span>{group.name}</span>
+                      </div>
+                      {isShared && (
+                        <span className="flex items-center gap-1 text-xs text-primary-600">
+                          <Check className="h-3.5 w-3.5" />
+                          Geteilt
+                        </span>
+                      )}
+                    </button>
+                    {share && (
+                      // Mode switch = same shareWithGroup call (upsert on the server).
+                      <div
+                        className="flex items-center gap-1 px-3 pb-2.5"
+                        role="radiogroup"
+                        aria-label={`Freigabe-Modus für ${group.name}`}
+                      >
+                        {(
+                          [
+                            { mode: 'write', label: 'Mitarbeiten' },
+                            { mode: 'read', label: 'Nur lesen' },
+                          ] as const
+                        ).map(({ mode, label }) => (
+                          <button
+                            key={mode}
+                            type="button"
+                            role="radio"
+                            aria-checked={share.mode === mode}
+                            onClick={() => {
+                              if (share.mode !== mode) void shareWithGroup(group.id, mode);
+                            }}
+                            className={`rounded-md border px-2 py-1 text-xs cursor-pointer transition-colors ${
+                              share.mode === mode
+                                ? 'border-primary-500/40 bg-primary-500/10 text-primary-700 dark:text-primary-400'
+                                : 'border-grey-200 dark:border-grey-700 bg-transparent text-foreground-muted hover:bg-primary-500/5'
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
                     )}
-                  </button>
+                  </div>
                 );
               })}
             </div>
