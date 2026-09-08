@@ -51,7 +51,11 @@ export interface ThreadAccessControl {
 export const threadAccess: ThreadAccessControl = { allow: true };
 
 export function threadAccessMock(): Record<string, unknown> {
-  return { canAccessThread: () => Promise.resolve(threadAccess.allow) };
+  return {
+    canAccessThread: () => Promise.resolve(threadAccess.allow),
+    canWriteThread: () => Promise.resolve(threadAccess.allow),
+    getThreadAccessLevel: () => Promise.resolve(threadAccess.allow ? 'owner' : 'none'),
+  };
 }
 
 /**

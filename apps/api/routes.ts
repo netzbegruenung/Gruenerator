@@ -40,6 +40,7 @@ import { mountPublicBoardsContractRouter } from './routes/boards/publicBoardsCon
 import { mountCanvasAiContractRouter } from './routes/canvas/aiSuggestRoute.js';
 import { mountCanvasContractRouter } from './routes/canvas/canvasContractRouter.js';
 import { mountChatGraphContractRouter } from './routes/chat/chatGraphContractRouter.js';
+import { mountChatThreadSharingContractRouter } from './routes/chat/chatThreadSharingContractRouter.js';
 import { mountThreadsContractRouter } from './routes/chat/threadsContractRouter.js';
 import { mountToolApprovalsContractRouter } from './routes/chat/toolApprovalsContractRouter.js';
 import { mountContentContractRouter } from './routes/content/contentContractRouter.js';
@@ -532,8 +533,13 @@ export async function setupRoutes(app: Application): Promise<void> {
   const decisionLog = decisionLogMiddleware();
   if (decisionLog) app.use('/api/chat-graph', decisionLog);
   mountThreadsContractRouter(app);
+  mountChatThreadSharingContractRouter(app);
   mountChatGraphContractRouter(app);
   app.use('/api/chat-service', authenticatedReadLimiter, chatServiceRouter);
+  // DEPRECATED: superseded by chatThreadSharingContract (group-shares,
+  // sharing/user-groups). Kept on its old paths for shipped mobile binaries
+  // that still call /:id/groups and /user-groups — remove after mobile
+  // adoption. The path sets are disjoint, so both can stay mounted.
   app.use('/api/chat-service/threads', authenticatedReadLimiter, threadSharingRouter);
   // optionalAuth so the gruen_o_mat limiter can bucket logged-in users as
   // 'authenticated' (50/day) instead of the 'anonymous' 20/day fallback.
