@@ -60,7 +60,7 @@ import {
   sanitizeUIFileParts,
 } from './messageHelpers.js';
 import { type createSSEStream, PROGRESS_MESSAGES } from './sseHelpers.js';
-import { canAccessThread } from './threadAccessService.js';
+import { canWriteThread } from './threadAccessService.js';
 import {
   getUser,
   getUserMessageTexts,
@@ -151,7 +151,7 @@ export function inlineMaterialAttachment(
 // chat_threads.id is a uuid column. A client may send a local-only sentinel id
 // (e.g. "__LOCALID_..." from the lazy-thread-creation runtime, or the sheet /
 // deck editor sidebars) for a thread it has not persisted yet — that is not a
-// UUID and must never reach canAccessThread's `WHERE id = $1`, or Postgres
+// UUID and must never reach the access service's `WHERE id = $1`, or Postgres
 // throws 22P02 and the whole turn 500s. Treat any non-UUID id as "no thread
 // yet" and mint a fresh one.
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -496,8 +496,8 @@ export async function buildStreamContext({
 
   if (actualThreadId && lastUserMessage) {
     if (!isNewThread) {
-      if (!(await canAccessThread(ThreadId(actualThreadId), UserId(userId)))) {
-        // The client-supplied threadId is gone or not accessible — most often a
+      if (!(await canWriteThread(ThreadId(actualThreadId), UserId(userId)))) {
+        // The client-supplied threadId is gone or not writable — most often a
         // freshly-created empty thread reaped by the sidebar's auto-cleanup race
         // mid-send, or a stale client id. Recover gracefully by minting a new
         // thread for this user instead of hard-erroring. Safe: a foreign/deleted
