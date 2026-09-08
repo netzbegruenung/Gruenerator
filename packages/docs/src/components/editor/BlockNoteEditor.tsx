@@ -57,6 +57,7 @@ import { EditorDictationButton } from './EditorDictationButton';
 import { SuggestionPopover } from './SuggestionPopover';
 import { isDocAIForked } from '../../lib/aiExtension';
 import { disableGcOnAIFork } from '../../lib/forkedDocGc';
+import { guardDocUndoAcrossAIFork, type UndoGuardEditor } from '../../lib/undoAcrossAIFork';
 import { SuggestChangesExtension } from '../../lib/suggestChangesExtension';
 import { useSuggestionMode } from '../../hooks/useSuggestionMode';
 import './BlockNoteEditor.css';
@@ -420,6 +421,15 @@ const BlockNoteEditorInner = ({
       isCollaborative: Boolean(collaborationOptions),
     });
 
+    // The same fork/merge cycle destroys the yUndo UndoManager while ProseMirror
+    // carries it over in the plugin state — without this guard, undo/redo is
+    // dead for the rest of the session after the first AI invocation. See
+    // guardDocUndoAcrossAIFork.
+    const stopUndoGuard = guardDocUndoAcrossAIFork(
+      editor as unknown as UndoGuardEditor,
+      { isCollaborative: Boolean(collaborationOptions) }
+    );
+
     // Fix checkbox multi-click: intercept click on checkbox inputs and
     // toggle the block directly via editor API, bypassing ProseMirror's
     // slow event pipeline that drops native change events.
@@ -450,6 +460,7 @@ const BlockNoteEditorInner = ({
       editorDom?.removeEventListener('click', handleCheckboxClick);
       clearTimeout(timeoutId);
       stopForkGcGuard();
+      stopUndoGuard();
       removeEditor(documentId);
     };
   }, [
