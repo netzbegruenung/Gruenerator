@@ -52,13 +52,11 @@ export async function getDocumentFullText(
       ],
     };
 
-    const chunks = await qdrantOps.scrollDocuments('documents', filter, {
-      limit: 1000,
-      withPayload: true,
-      withVector: false,
-    });
+    // Seitenweise statt einem einzelnen `limit: 1000`-Scroll — der schnitt
+    // Dokumente mit mehr als 1000 Punkten still ab (#3255).
+    const chunks = await scrollAllChunks(qdrantOps, 'documents', filter);
 
-    if (!chunks || chunks.length === 0) {
+    if (chunks.length === 0) {
       return {
         success: false,
         fullText: '',
@@ -143,26 +141,7 @@ export async function getDocumentChunks(
     }
     const filter: QdrantFilter = { must: mustFilters };
 
-    // Seitenweise statt einem einzelnen `limit: 1000`-Scroll: der schnitt ein
-    // grosses Dokument still nach 1000 Punkten ab — das Quellen-Panel zeigte
-    // dann ein gekürztes Dokument ohne jedes Fehlersignal. Gleiche Schleife
-    // wie `inspectDocumentChunks` unten.
-    const rawChunks: ScrollPoint[] = [];
-    let cursor: string | number | null = null;
-    for (let page = 0; page < CHUNK_MAX_SCROLL_PAGES; page++) {
-      const batch = await qdrantOps.scrollDocuments(collectionName, filter, {
-        limit: CHUNK_SCROLL_PAGE_SIZE,
-        withPayload: true,
-        withVector: false,
-        offset: cursor,
-      });
-      // Qdrants Scroll-Offset ist eine Punkt-ID und inklusiv (siehe
-      // inspectDocumentChunks).
-      const fresh = cursor === null ? batch : batch.filter((p) => p.id !== cursor);
-      rawChunks.push(...fresh);
-      if (batch.length < CHUNK_SCROLL_PAGE_SIZE) break;
-      cursor = batch[batch.length - 1].id;
-    }
+    const rawChunks = await scrollAllChunks(qdrantOps, collectionName, filter);
 
     if (rawChunks.length === 0) {
       return { success: false, chunks: [], chunkCount: 0, error: 'No chunks found' };
@@ -396,6 +375,37 @@ const CHUNK_SCROLL_PAGE_SIZE = 256;
 /** Deckel gegen ein Dokument mit absurd vielen Punkten (256 * 40 = 10 240). */
 const CHUNK_MAX_SCROLL_PAGES = 40;
 
+/**
+ * Alle Punkte eines Dokuments seitenweise einsammeln. Ein einzelner Scroll
+ * mit `limit: 1000` schnitt grössere Dokumente still ab (#3255) — das hier
+ * ist die eine geteilte Schleife für getDocumentFullText, getDocumentChunks
+ * und inspectDocumentChunks.
+ */
+async function scrollAllChunks(
+  qdrantOps: QdrantOperations,
+  collectionName: string,
+  filter: QdrantFilter
+): Promise<ScrollPoint[]> {
+  const points: ScrollPoint[] = [];
+  let cursor: string | number | null = null;
+  for (let page = 0; page < CHUNK_MAX_SCROLL_PAGES; page++) {
+    const batch = await qdrantOps.scrollDocuments(collectionName, filter, {
+      limit: CHUNK_SCROLL_PAGE_SIZE,
+      withPayload: true,
+      withVector: false,
+      offset: cursor,
+    });
+    // Qdrants Scroll-Offset ist eine Punkt-ID und inklusiv: der Cursor-Punkt
+    // kommt als erstes Element der nächsten Seite noch einmal.
+    // Gleiche Behandlung wie NotebookQdrantHelper.ts:615-617.
+    const fresh = cursor === null ? batch : batch.filter((p) => p.id !== cursor);
+    points.push(...fresh);
+    if (batch.length < CHUNK_SCROLL_PAGE_SIZE) break;
+    cursor = batch[batch.length - 1].id;
+  }
+  return points;
+}
+
 function readVectorPresence(raw: unknown): {
   embeddingPresent: boolean;
   sparsePresent: boolean;
@@ -476,24 +486,7 @@ export async function inspectDocumentChunks(
       must: [documentIdentityClause(documentId)],
     };
 
-    const points: ScrollPoint[] = [];
-    let cursor: string | number | null = null;
-
-    for (let page = 0; page < CHUNK_MAX_SCROLL_PAGES; page++) {
-      const batch = await qdrantOps.scrollDocuments(qdrantCollection, filter, {
-        limit: CHUNK_SCROLL_PAGE_SIZE,
-        withPayload: true,
-        withVector: false,
-        offset: cursor,
-      });
-      // Qdrants Scroll-Offset ist eine Punkt-ID und inklusiv: der Cursor-Punkt
-      // kommt als erstes Element der nächsten Seite noch einmal.
-      // Gleiche Behandlung wie NotebookQdrantHelper.ts:615-617.
-      const fresh = cursor === null ? batch : batch.filter((p) => p.id !== cursor);
-      points.push(...fresh);
-      if (batch.length < CHUNK_SCROLL_PAGE_SIZE) break;
-      cursor = batch[batch.length - 1].id;
-    }
+    const points = await scrollAllChunks(qdrantOps, qdrantCollection, filter);
 
     if (points.length === 0) {
       return {
@@ -597,7 +590,7 @@ export async function getMultipleDocumentsFullText(
 ): Promise<BulkDocumentResult> {
   try {
     if (!documentIds || documentIds.length === 0) {
-      return { documents: [], errors: [] };
+      return { documents: [], errors: [], capped: false };
     }
 
     console.log(
@@ -611,8 +604,14 @@ export async function getMultipleDocumentsFullText(
       ],
     };
 
+    // Bewusstes Budget für LLM-Kontext-Pfade — hier ist ein Deckel gewollt,
+    // anders als in getDocumentFullText (#3255). Aber er ist GEMEINSAM über
+    // alle Dokumente und der Scroll ist unsortiert: ein grosses Dokument kann
+    // einem anderen das Budget wegnehmen, und einem Dokument können dabei
+    // mittlere Chunks fehlen, nicht nur das Ende. `capped` macht das sichtbar.
+    const pointBudget = documentIds.length * 20;
     const chunks = await qdrantOps.scrollDocuments('documents', filter, {
-      limit: documentIds.length * 20,
+      limit: pointBudget,
       withPayload: true,
       withVector: false,
     });
@@ -621,7 +620,15 @@ export async function getMultipleDocumentsFullText(
       return {
         documents: [],
         errors: documentIds.map((id) => ({ documentId: id, error: 'No chunks found' })),
+        capped: false,
       };
+    }
+
+    const capped = chunks.length >= pointBudget;
+    if (capped) {
+      console.warn(
+        `[DocumentRetrieval] Bulk reconstruction hit its shared point budget (${pointBudget} points for ${documentIds.length} documents) — at least one document is incomplete`
+      );
     }
 
     const chunksByDocument = new Map<string, QdrantDocument[]>();
@@ -675,6 +682,7 @@ export async function getMultipleDocumentsFullText(
     return {
       documents,
       errors,
+      capped,
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -682,6 +690,7 @@ export async function getMultipleDocumentsFullText(
     return {
       documents: [],
       errors: documentIds.map((id) => ({ documentId: id, error: errorMessage })),
+      capped: false,
     };
   }
 }

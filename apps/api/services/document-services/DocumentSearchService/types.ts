@@ -318,6 +318,11 @@ export interface BulkDocumentError {
 export interface BulkDocumentResult {
   documents: BulkDocumentData[];
   errors: BulkDocumentError[];
+  /**
+   * true, wenn der gemeinsame Punkte-Deckel (documentIds.length * 20) erreicht
+   * wurde — mindestens ein Dokument ist dann unvollständig rekonstruiert.
+   */
+  capped: boolean;
 }
 
 /**
