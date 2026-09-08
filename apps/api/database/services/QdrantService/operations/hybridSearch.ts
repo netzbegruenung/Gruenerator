@@ -30,6 +30,7 @@ import type {
   VariantSearchResult,
   QdrantFilter,
 } from './types.js';
+import type { SparseVector } from '../../../../services/text/index.js';
 
 const logger = createLogger('QdrantOperations:hybridSearch');
 
@@ -88,7 +89,12 @@ export async function hybridSearch(
         queryVector,
         query,
         filter,
-        { limit, threshold, recallLimit: recallLimit ?? null },
+        {
+          limit,
+          threshold,
+          recallLimit: recallLimit ?? null,
+          sparseQueryVector: options.sparseQueryVector ?? null,
+        },
         hybridCfg
       );
       if (serverResult) return serverResult;
@@ -206,10 +212,17 @@ async function hybridSearchServerSide(
   queryVector: number[],
   query: string,
   filter: QdrantFilter,
-  opts: { limit: number; threshold: number; recallLimit: number | null },
+  opts: {
+    limit: number;
+    threshold: number;
+    recallLimit: number | null;
+    sparseQueryVector?: SparseVector | null | undefined;
+  },
   hybridCfg: HybridConfig
 ): Promise<HybridSearchResponse | null> {
-  const sparseQuery = encodeBm25Query(query);
+  // Ein mitgegebener Vektor ersetzt den Encoder vollständig — er stammt dann
+  // aus einem anderen Stemmer und passt zu einer anderen Sammlung (#3188).
+  const sparseQuery = opts.sparseQueryVector ?? encodeBm25Query(query);
   if (sparseQuery.indices.length === 0) return null;
 
   const { limit, threshold, recallLimit } = opts;

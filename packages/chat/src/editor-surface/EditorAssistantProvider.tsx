@@ -30,6 +30,7 @@ import {
 } from '../runtime/GrueneratorModelAdapter';
 import { MESSAGE_QUEUE_ENABLED } from '../runtime/messageQueueFlag';
 import { convertToThreadMessageLike } from '../runtime/threadMessageConversion';
+import { useFeedbackAdapter } from '../runtime/useFeedbackAdapter';
 import { useChatConfigStore } from '../stores/chatConfigStore';
 
 import { deriveGateState, shouldImportHistory } from './helpers';
@@ -247,10 +248,14 @@ function EditorAssistantReadyHost({
   // shared adapter still arms `interruptedThreadId` and aborts every further run
   // on the thread. Reading the status would have looked like cover and been
   // none — see useQueueInterruptGuard (#3020).
+  const feedbackAdapter = useFeedbackAdapter();
   const runtime = useLocalRuntime(modelAdapter, {
     initialMessages: initialMessages ?? [],
     unstable_enableMessageQueue: MESSAGE_QUEUE_ENABLED,
-    ...(attachmentAdapter ? { adapters: { attachments: attachmentAdapter } } : {}),
+    adapters: {
+      feedback: feedbackAdapter,
+      ...(attachmentAdapter ? { attachments: attachmentAdapter } : {}),
+    },
   });
   useQueueInterruptGuard(runtime, interruptSignal);
 

@@ -175,6 +175,7 @@ const GrueneApiTestPage = lazy(() => import('../features/admin/GrueneApiTestPage
 // Route bleibt auskommentiert, bis entschieden ist, ob sie zurückkommt.
 // const PlaygroundPage = lazy(() => import('../features/playground/PlaygroundPage'));
 const IconAnimationTestPage = lazy(() => import('../features/playground/IconAnimationTestPage'));
+const KugelVoiceTestPage = lazy(() => import('../features/playground/KugelVoiceTestPage'));
 // Auth-Komponenten importieren (only components still used after Authentic integration)
 const LoginPage = lazy(() => import('../features/auth/pages/LoginPage'));
 const OAuthConsentPage = lazy(() => import('../features/auth/pages/OAuthConsentPage'));
@@ -473,6 +474,7 @@ const standardRoutes: RouteConfig[] = [
   { path: '/admin/gruene-api', component: GrueneApiTestPage },
   // { path: '/playground', component: PlaygroundPage },
   { path: '/icon-test', component: IconAnimationTestPage, channel: 'internal' },
+  { path: '/kugel-test', component: KugelVoiceTestPage, channel: 'internal' },
   { path: '/vorlagen', component: GrueneratorenBundle.VorlagenListe },
   { path: '/vorlagen/meine', component: MeineVorlagenPage },
   // Link-shared Vorlage. `public` because the öffentlich mode has to open

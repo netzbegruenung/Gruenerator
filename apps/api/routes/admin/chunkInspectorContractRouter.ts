@@ -89,8 +89,11 @@ export const chunkInspectorContractRouter = s.router(chunkInspectorContract, {
       const authedUser = getAuthedUser(args.req);
       if (!(await requireInstanceAdmin(authedUser.id, authedUser.email))) return FORBIDDEN;
 
-      const { documentId } = args.params;
       const { collection, offset, limit } = args.query;
+      // Query gewinnt über den Pfad: URL-förmige IDs überleben den Pfad nicht
+      // (der Reverse-Proxy dekodiert %2F und merged Slashes), sie reisen im
+      // Query-String und der Pfad trägt den Platzhalter '-'.
+      const documentId = args.query.documentId ?? args.params.documentId;
 
       // Der kanonische Auflöser. SYSTEM_COLLECTION_MAP (DocumentSearchService.ts:65)
       // ist eine unvollständige Zweitkopie und wird hier nicht angefasst.
@@ -168,8 +171,9 @@ export const chunkInspectorContractRouter = s.router(chunkInspectorContract, {
       const authedUser = getAuthedUser(args.req);
       if (!(await requireInstanceAdmin(authedUser.id, authedUser.email))) return FORBIDDEN;
 
-      const { documentId } = args.params;
       const { collection, query } = args.query;
+      // s.o.: Query-documentId gewinnt über den Pfad-Platzhalter.
+      const documentId = args.query.documentId ?? args.params.documentId;
       const systemConfig = getSystemCollectionConfig(collection);
 
       if (systemConfig) {

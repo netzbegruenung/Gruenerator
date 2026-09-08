@@ -87,6 +87,11 @@
       "title": "Startseite",
       "description": "Was das Start-Symbol in der Seitenleiste öffnet"
     },
+    "allgemein.stimme": {
+      "tab": "allgemein",
+      "title": "Stimme",
+      "description": "Mit welcher Stimme dir der Grünerator Texte vorliest"
+    },
     "allgemein.feedbackButton": {
       "tab": "allgemein",
       "title": "Feedback-Button",

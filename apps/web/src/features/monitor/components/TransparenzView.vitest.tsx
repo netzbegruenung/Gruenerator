@@ -5,15 +5,27 @@
  * suppression rather than left to read as inactivity.
  */
 import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
+import { renderHook } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { type ReactNode } from 'react';
+import { MemoryRouter } from 'react-router-dom';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { server } from '../../../test/msw-server';
 import { renderWithProviders, screen, waitFor } from '../../../test-utils';
 
-import { TransparenzView } from './TransparenzView';
+import { TransparenzView, useTransparencyLocaleParam } from './TransparenzView';
 
 const ENDPOINT = 'http://localhost/api/transparency/usage';
+
+// jsdom serves from localhost, which the registry maps to the `local` instance;
+// the tests below need to choose between a pinned and an unpinned one.
+const instance = vi.hoisted(() => ({ id: 'production' }));
+vi.mock('../../../config/instance', () => ({
+  get CURRENT_INSTANCE() {
+    return instance.id;
+  },
+}));
 
 beforeAll(() => {
   setGlobalApiClient(createApiClient({ baseURL: 'http://localhost/api', authMode: 'cookie' }));
@@ -21,6 +33,7 @@ beforeAll(() => {
 
 afterEach(() => {
   server.resetHandlers();
+  instance.id = 'production';
 });
 
 const FOOTPRINT = {
@@ -143,7 +156,7 @@ function serve(body: Record<string, unknown>) {
 describe('TransparenzView', () => {
   it('publishes the central figure with its scale, not a bare upper bound', async () => {
     serve(RESPONSE);
-    renderWithProviders(<TransparenzView days={30} expert />);
+    renderWithProviders(<TransparenzView days={30} expert locale={null} />);
 
     // The headline is the MIDDLE (1.400 g between 900 and 1.900), and the width
     // of what we do not know is drawn under it rather than written into the
@@ -173,7 +186,7 @@ describe('TransparenzView', () => {
         },
       ],
     });
-    renderWithProviders(<TransparenzView days={30} expert />);
+    renderWithProviders(<TransparenzView days={30} expert locale={null} />);
 
     await waitFor(() => expect(screen.getByText('verdigado')).toBeInTheDocument());
     expect(screen.queryByText('litellm')).not.toBeInTheDocument();
@@ -181,7 +194,7 @@ describe('TransparenzView', () => {
 
   it('lists models grouped by function, with the unvalued lanes marked', async () => {
     serve(RESPONSE);
-    renderWithProviders(<TransparenzView days={30} expert />);
+    renderWithProviders(<TransparenzView days={30} expert locale={null} />);
 
     await waitFor(() => expect(screen.getByText('Textmodelle')).toBeInTheDocument());
     expect(screen.getByText('Bildmodelle')).toBeInTheDocument();
@@ -191,7 +204,7 @@ describe('TransparenzView', () => {
 
   it('shows each provider with the constants its figure was computed from', async () => {
     serve(RESPONSE);
-    renderWithProviders(<TransparenzView days={30} expert />);
+    renderWithProviders(<TransparenzView days={30} expert locale={null} />);
 
     // "Mistral AI" also labels the model rows, so match the provider panel's
     // own unambiguous markers instead of the name.
@@ -203,7 +216,7 @@ describe('TransparenzView', () => {
 
   it('marks an estimated PUE as estimated and says how it was derived', async () => {
     serve(RESPONSE);
-    renderWithProviders(<TransparenzView days={30} expert />);
+    renderWithProviders(<TransparenzView days={30} expert locale={null} />);
 
     // Regolo publishes a PUE, Mistral does not — only the second may carry the
     // marker, otherwise the label stops distinguishing anything.
@@ -218,7 +231,7 @@ describe('TransparenzView', () => {
 
   it('ranks providers by CO2 rather than by energy', async () => {
     serve(RESPONSE);
-    renderWithProviders(<TransparenzView days={30} expert />);
+    renderWithProviders(<TransparenzView days={30} expert locale={null} />);
 
     // Mistral burns more energy (2600 Wh vs 1600) but emits less (700 g vs
     // 900) — on a CO2 ranking Regolo has to come first.
@@ -229,7 +242,7 @@ describe('TransparenzView', () => {
 
   it('labels the gap in the daily series as suppression, not inactivity', async () => {
     serve(RESPONSE);
-    renderWithProviders(<TransparenzView days={30} expert />);
+    renderWithProviders(<TransparenzView days={30} expert locale={null} />);
 
     await waitFor(() =>
       expect(screen.getByText(/Die Lücke ist Unterdrückung, keine Untätigkeit/)).toBeInTheDocument()
@@ -239,7 +252,7 @@ describe('TransparenzView', () => {
 
   it('names transcriptions and searches as excluded rather than as zero', async () => {
     serve(RESPONSE);
-    renderWithProviders(<TransparenzView days={30} expert />);
+    renderWithProviders(<TransparenzView days={30} expert locale={null} />);
 
     // The counts also appear as activity extras under "Nach Bereich" — that
     // collision is the point of this panel, so assert on the exclusion wording.
@@ -257,7 +270,7 @@ describe('TransparenzView', () => {
       ...RESPONSE,
       footprint: { ...FOOTPRINT, reference_emissions_g: 200, reference_energy_wh: 500 },
     });
-    renderWithProviders(<TransparenzView days={30} expert />);
+    renderWithProviders(<TransparenzView days={30} expert locale={null} />);
 
     await waitFor(() => expect(screen.getByText('Vergleich zu ChatGPT')).toBeInTheDocument());
     expect(screen.getByText('CO₂ mehr als bei GPT-4o')).toBeInTheDocument();
@@ -266,7 +279,7 @@ describe('TransparenzView', () => {
 
   it('refuses to publish a figure when too few people were active', async () => {
     serve({ ...RESPONSE, sufficient_data: false, active_users: 2 });
-    renderWithProviders(<TransparenzView days={30} expert />);
+    renderWithProviders(<TransparenzView days={30} expert locale={null} />);
 
     await waitFor(() =>
       expect(
@@ -279,7 +292,7 @@ describe('TransparenzView', () => {
 
   it('surfaces an error banner when the endpoint fails', async () => {
     server.use(http.get(ENDPOINT, () => HttpResponse.json({ error: 'boom' }, { status: 500 })));
-    renderWithProviders(<TransparenzView days={30} expert />);
+    renderWithProviders(<TransparenzView days={30} expert locale={null} />);
 
     await waitFor(() =>
       expect(screen.getByText(/Transparenzdaten konnten nicht geladen werden/)).toBeInTheDocument()
@@ -287,10 +300,84 @@ describe('TransparenzView', () => {
   });
 });
 
+describe('TransparenzView (Land)', () => {
+  function serveRecordingUrl(body: Record<string, unknown>): { url: URL | null } {
+    const seen: { url: URL | null } = { url: null };
+    server.use(
+      http.get(ENDPOINT, ({ request }) => {
+        seen.url = new URL(request.url);
+        return HttpResponse.json(body);
+      })
+    );
+    return seen;
+  }
+
+  it('asks the endpoint for the segment when a country is chosen', async () => {
+    const seen = serveRecordingUrl(RESPONSE);
+    renderWithProviders(<TransparenzView days={30} expert locale="at" />);
+
+    await waitFor(() => expect(screen.getByText(/≈ 1\.400 g/)).toBeInTheDocument());
+    expect(seen.url?.searchParams.get('locale')).toBe('at');
+  });
+
+  it('sends no locale at all for the whole instance', async () => {
+    const seen = serveRecordingUrl(RESPONSE);
+    renderWithProviders(<TransparenzView days={30} expert locale={null} />);
+
+    await waitFor(() => expect(screen.getByText(/≈ 1\.400 g/)).toBeInTheDocument());
+    expect(seen.url?.searchParams.has('locale')).toBe(false);
+  });
+
+  it('names the country when a segment is too thin to publish', async () => {
+    serve({ ...RESPONSE, sufficient_data: false, active_users: 2 });
+    renderWithProviders(<TransparenzView days={30} expert locale="at" />);
+
+    await waitFor(() =>
+      expect(screen.getByText(/aus Österreich weniger als 5 Personen/)).toBeInTheDocument()
+    );
+  });
+});
+
+describe('useTransparencyLocaleParam', () => {
+  const wrapperFor = (route: string) =>
+    function Wrapper({ children }: { children: ReactNode }) {
+      return <MemoryRouter initialEntries={[route]}>{children}</MemoryRouter>;
+    };
+
+  it('reads the country from the URL and defaults to the whole instance', () => {
+    const at = renderHook(() => useTransparencyLocaleParam(), {
+      wrapper: wrapperFor('/transparenz?locale=at'),
+    });
+    expect(at.result.current.locale).toBe('at');
+    expect(at.result.current.available).toBe(true);
+
+    const bare = renderHook(() => useTransparencyLocaleParam(), {
+      wrapper: wrapperFor('/transparenz'),
+    });
+    expect(bare.result.current.locale).toBeNull();
+
+    const unknown = renderHook(() => useTransparencyLocaleParam(), {
+      wrapper: wrapperFor('/transparenz?locale=ch'),
+    });
+    expect(unknown.result.current.locale).toBeNull();
+  });
+
+  it('offers no split on an instance that pins its locale', () => {
+    // bgst is one country by construction; a `?locale=` in a pasted link must
+    // neither narrow the figure nor surface a switch.
+    instance.id = 'bgst';
+    const { result } = renderHook(() => useTransparencyLocaleParam(), {
+      wrapper: wrapperFor('/transparenz?locale=at'),
+    });
+    expect(result.current.available).toBe(false);
+    expect(result.current.locale).toBeNull();
+  });
+});
+
 describe('TransparenzView (einfache Übersicht)', () => {
   it('shows the same scales in the simple view, worded without jargon', async () => {
     serve(RESPONSE);
-    renderWithProviders(<TransparenzView days={30} expert={false} />);
+    renderWithProviders(<TransparenzView days={30} expert={false} locale={null} />);
 
     // The simple view drops the technical vocabulary, not the uncertainty: both
     // the CO2 figure and the electricity figure carry their scale here too.
@@ -307,7 +394,7 @@ describe('TransparenzView (einfache Übersicht)', () => {
 
   it('groups CO₂ by what people did, not by provider, and drops the jargon', async () => {
     serve(RESPONSE);
-    renderWithProviders(<TransparenzView days={30} expert={false} />);
+    renderWithProviders(<TransparenzView days={30} expert={false} locale={null} />);
 
     await waitFor(() => expect(screen.getByText('Chat')).toBeInTheDocument());
     expect(screen.getByText('Bilder')).toBeInTheDocument();
@@ -322,7 +409,7 @@ describe('TransparenzView (einfache Übersicht)', () => {
 
   it('still names web searches and subtitles as not countable, in plain words', async () => {
     serve(RESPONSE);
-    renderWithProviders(<TransparenzView days={30} expert={false} />);
+    renderWithProviders(<TransparenzView days={30} expert={false} locale={null} />);
 
     await waitFor(() =>
       expect(screen.getByText(/34 Websuchen — der Strom dafür fällt beim/)).toBeInTheDocument()

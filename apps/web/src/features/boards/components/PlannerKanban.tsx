@@ -325,6 +325,18 @@ export function PlannerKanban({
     [updateRowCell]
   );
 
+  const renderOverlay = useCallback(
+    (item: KanbanItem) => (
+      <CardContent
+        row={item.row}
+        fields={fields}
+        onCardClick={handleCardClick}
+        onRenameCard={handleRenameCard}
+      />
+    ),
+    [fields, handleCardClick, handleRenameCard]
+  );
+
   const handleDetailClose = useCallback(
     (open: boolean) => {
       setDetailOpen(open);
@@ -690,6 +702,8 @@ export function PlannerKanban({
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
+        onDragCancel={handleDragEnd}
+        renderOverlay={renderOverlay}
         className="items-start"
         after={
           showColumnTools ? (

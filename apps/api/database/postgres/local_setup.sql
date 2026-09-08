@@ -35,7 +35,8 @@ CREATE TABLE IF NOT EXISTS profiles (
     chat_color TEXT,
     nextcloud_share_links JSONB DEFAULT '[]',
     document_mode TEXT DEFAULT 'manual',
-    default_startpage TEXT NOT NULL DEFAULT 'chat' CHECK (default_startpage IN ('chat', 'arbeiten'))
+    default_startpage TEXT NOT NULL DEFAULT 'chat' CHECK (default_startpage IN ('chat', 'arbeiten')),
+    tts_voice_id TEXT
 );
 
 -- Documents table with dual-mode support (vectors-only, no file storage)

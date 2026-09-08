@@ -1,6 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
-import { buildNotebookThreadPath } from './threadPath';
+import { createGrueneratorThreadListAdapter } from '../runtime/GrueneratorThreadListAdapter';
+
+import { buildNotebookThreadPath, pathNamesThread } from './threadPath';
+
+import type { ChatApiClient } from '../context/ChatContext';
 
 // A notebook thread row links to its notebook page and carries the thread id in
 // the query. The earlier targets (`/gruene-…`, `/notebook/…`) went through
@@ -29,5 +33,57 @@ describe('buildNotebookThreadPath', () => {
     expect(buildNotebookThreadPath('system-wandel-system', 't1')).toBe(
       '/notebooks/system-wandel?thread=t1'
     );
+  });
+});
+
+// The delete guard in ThreadListItem asks whether the URL still names the
+// clicked thread. The answer must not depend on the title half of the slug: a
+// rename replaces the URL a tick later, and legacy links carry the bare id.
+describe('pathNamesThread', () => {
+  const remoteId = '10e6ccc2-5ec2-4800-a5b6-6db04eabdc07';
+
+  async function seedSlugCache() {
+    const apiClient = {
+      get: vi.fn().mockResolvedValue([
+        {
+          id: remoteId,
+          slugSuffix: 'scQqEC',
+          agentId: 'chat',
+          title: 'Reformprozess Ortsverband',
+          status: 'regular',
+          updatedAt: new Date().toISOString(),
+          lastMessage: { content: 'x', role: 'user', created_at: new Date().toISOString() },
+        },
+      ]),
+      post: vi.fn(),
+      patch: vi.fn(),
+      delete: vi.fn(),
+    } as unknown as ChatApiClient;
+    await createGrueneratorThreadListAdapter(apiClient, 'chat').list();
+  }
+
+  it('matches the canonical slug and a slug whose title half is stale', async () => {
+    await seedSlugCache();
+    expect(pathNamesThread('/chat/reformprozess-ortsverband-scQqEC', remoteId)).toBe(true);
+    expect(pathNamesThread('/chat/bitte-schreibe-mir-eine-pressemitteilung-scQqEC', remoteId)).toBe(
+      true
+    );
+  });
+
+  it('matches a legacy link carrying the bare remote id', async () => {
+    await seedSlugCache();
+    expect(pathNamesThread(`/chat/${remoteId}`, remoteId)).toBe(true);
+  });
+
+  it('rejects other threads, bare /chat and a missing path', async () => {
+    await seedSlugCache();
+    expect(pathNamesThread('/chat/anderer-thread-zzzzzz', remoteId)).toBe(false);
+    expect(pathNamesThread('/chat', remoteId)).toBe(false);
+    expect(pathNamesThread(null, remoteId)).toBe(false);
+    expect(pathNamesThread(undefined, remoteId)).toBe(false);
+  });
+
+  it('never matches a thread whose suffix is unknown', () => {
+    expect(pathNamesThread('/chat/irgendwas-abcdef', 'unbekannt')).toBe(false);
   });
 });

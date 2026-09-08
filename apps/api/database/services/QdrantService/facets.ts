@@ -150,6 +150,13 @@ export async function getFieldValueCounts(
 
 /**
  * Get date range (min/max) for a date field
+ *
+ * Uses `order_by`, which Qdrant only serves from a range-capable index
+ * (integer / float / datetime). On a keyword-indexed field it answers
+ * HTTP 400 — that was every system collection's `published_at` until the
+ * schema declared it `datetime` (#3190). A 400 still yields `{min, max}`
+ * = null so the filter UI degrades to unbounded pickers, but it is logged
+ * so the next index drift shows up in the API log instead of vanishing.
  * @param client - Qdrant client instance
  * @param collectionName - The collection to query
  * @param fieldName - The date field to analyze
@@ -192,11 +199,16 @@ export async function getDateRange(
     return { min: extractDate(minResult), max: extractDate(maxResult) };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    if (
-      message.includes("doesn't exist") ||
-      message.includes('not found') ||
-      message.includes('Bad Request')
-    ) {
+    if (message.includes("doesn't exist") || message.includes('not found')) {
+      return { min: null, max: null };
+    }
+    if (message.includes('Bad Request')) {
+      // The client's message is only the status text; Qdrant's reason
+      // ("No range index for `order_by` key …") sits in the response body.
+      const detail = (error as { data?: { status?: { error?: string } } }).data?.status?.error;
+      log.warn(
+        `Date range for ${fieldName} in ${collectionName} rejected by Qdrant: ${detail ?? message}`
+      );
       return { min: null, max: null };
     }
     log.error(`Failed to get date range for ${fieldName} in ${collectionName}: ${message}`);

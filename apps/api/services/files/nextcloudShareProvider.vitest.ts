@@ -227,6 +227,29 @@ describe('test', () => {
       errorCode: 'invalid_link',
     });
   });
+
+  it('reports a file-drop share as unusable, not as ok', async () => {
+    // An upload-only ("Dateien ablegen") share authenticates fine but refuses
+    // every read verb with 405 — the client classifies that as `file_drop`.
+    const client = fakeClient({});
+    (client.testConnection as ReturnType<typeof vi.fn>).mockResolvedValue({
+      success: false,
+      message: 'Read access denied - this is a file-drop (upload only) share',
+      errorCode: 'file_drop',
+    });
+    const provider = makeProvider(client);
+    await expect(provider.test(root)).resolves.toEqual({ ok: false, errorCode: 'file_drop' });
+  });
+
+  it('still reports ok when only the entry count fails after a passed test', async () => {
+    // Deliberate: a file-drop share never reaches this point (the PROPFIND in
+    // testConnection already fails with 405), so what is swallowed here is a
+    // transient listing failure behind a proven-reachable link.
+    const client = fakeClient({});
+    (client.listFolder as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('flaky'));
+    const provider = makeProvider(client);
+    await expect(provider.test(root)).resolves.toEqual({ ok: true });
+  });
 });
 
 describe('read-only guarantee', () => {

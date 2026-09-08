@@ -20,8 +20,17 @@ interface GenerateRequest extends Request {
   };
 }
 
+/**
+ * An explicit voice in the request wins; otherwise the person's choice from the
+ * settings; the service falls back to the default voice when both are absent.
+ */
+function voiceFor(req: GenerateRequest): string | undefined {
+  return req.body.voiceId || req.user?.tts_voice_id || undefined;
+}
+
 router.post('/generate', async (req: GenerateRequest, res: Response) => {
-  const { text, modelId, voiceId, language } = req.body;
+  const { text, modelId, language } = req.body;
+  const voiceId = voiceFor(req);
 
   if (!text || typeof text !== 'string') {
     return res.status(400).json({ success: false, error: 'Text ist erforderlich' });
@@ -34,11 +43,17 @@ router.post('/generate', async (req: GenerateRequest, res: Response) => {
     });
   }
 
+  // Same as /stream: a client that hangs up must not leave us paying for
+  // audio nobody receives — and with a stalled provider, waiting on it.
+  const abort = new AbortController();
+  res.on('close', () => abort.abort());
+
   try {
     const wavBuffer = await ttsService.generateSpeech(text, {
       modelId,
       voiceId,
       language,
+      signal: abort.signal,
     });
 
     res.set({
@@ -48,6 +63,7 @@ router.post('/generate', async (req: GenerateRequest, res: Response) => {
     });
     return res.send(wavBuffer);
   } catch (error) {
+    if (abort.signal.aborted) return;
     log.error('[TTS] Generate error:', error);
     return res.status(500).json({
       success: false,
@@ -57,7 +73,8 @@ router.post('/generate', async (req: GenerateRequest, res: Response) => {
 });
 
 router.post('/stream', async (req: GenerateRequest, res: Response) => {
-  const { text, modelId, voiceId, language } = req.body;
+  const { text, modelId, language } = req.body;
+  const voiceId = voiceFor(req);
 
   if (!text || typeof text !== 'string') {
     return res.status(400).json({ success: false, error: 'Text ist erforderlich' });
@@ -122,7 +139,8 @@ router.post('/stream', async (req: GenerateRequest, res: Response) => {
 });
 
 router.get('/voices', async (req: Request, res: Response) => {
-  const language = req.query.language as string | undefined;
+  // Express parses a repeated key as an array; only a single string is a language.
+  const language = typeof req.query.language === 'string' ? req.query.language : undefined;
 
   try {
     const voices = await ttsService.listVoices(language);

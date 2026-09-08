@@ -201,6 +201,7 @@ class ProfileService {
         'document_mode',
         'default_startpage',
         'feedback_button',
+        'tts_voice_id',
       ] as const;
 
       for (const col of knownTextColumns) {

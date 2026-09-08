@@ -24,7 +24,8 @@ export const transparencyContractRouter = s.router(transparencyContract, {
   getTransparencyStats: async (args) => {
     try {
       const days = args.query.days ?? 30;
-      return { status: 200 as const, body: await getPlatformUsageStats(days) };
+      const locale = args.query.locale ?? null;
+      return { status: 200 as const, body: await getPlatformUsageStats(days, locale) };
     } catch (error) {
       log.error('[Transparency Contract] Error retrieving platform usage:', error);
       // No internals in the message: this endpoint answers the open internet.

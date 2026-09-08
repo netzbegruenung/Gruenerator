@@ -164,9 +164,15 @@ const useCitationStore = create<CitationState>((set, get) => ({
 
     try {
       const collection = citation.collection_id || 'user';
-      const response = await apiClient.get(`/documents/qdrant/${documentId}/chunk-context`, {
-        params: { chunkIndex, window: 2, collection },
-      });
+      // documentId kann eine Quell-URL sein (gescrapte Systemsammlungen wie
+      // KommunalWiki) — unkodiert zerfiele der Pfad in Segmente und die
+      // Express-Route `/:documentId/chunk-context` matcht nie (#3232).
+      const response = await apiClient.get(
+        `/documents/qdrant/${encodeURIComponent(documentId)}/chunk-context`,
+        {
+          params: { chunkIndex, window: 2, collection },
+        }
+      );
 
       interface ChunkContextResponse {
         success: boolean;

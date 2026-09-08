@@ -300,3 +300,42 @@ describe('ChunkInspectorView — Suchfeld', () => {
     expect(await screen.findByText('Suche auf dieses Dokument eingeschränkt')).toBeInTheDocument();
   });
 });
+
+/**
+ * Für gescrapte Sammlungen IST die documentId die Quell-URL — und eine URL
+ * überlebt den PFAD nicht: der Reverse-Proxy dekodiert %2F und merged
+ * Slashes, bevor Express routet (beta, 03.09.2026). URL-förmige IDs reisen
+ * deshalb im Query-String; der Pfadparameter trägt den Platzhalter '-'.
+ */
+describe('ChunkInspectorView — URL-förmige Dokument-IDs', () => {
+  it('transportiert die documentId im Query-String, Pfad trägt den Platzhalter', async () => {
+    const urlId = 'https://kommunalwiki.boell.de/index.php/Zusammenarbeit_im_Team';
+    let requestedPath: string | null = null;
+    let requestedDocumentId: string | null = null;
+    server.use(
+      http.get('http://localhost/api/auth/admin/chunk-inspector/*', ({ request }) => {
+        const url = new URL(request.url);
+        requestedPath = url.pathname;
+        requestedDocumentId = url.searchParams.get('documentId');
+        return HttpResponse.json({
+          success: true,
+          header: header({
+            documentId: urlId,
+            collection: 'kommunalwiki-system',
+            qdrantCollection: 'kommunalwiki_documents',
+            title: 'Zusammenarbeit im Team',
+            filename: null,
+            sourceUrl: urlId,
+          }),
+          chunks: [chunk(0)],
+          nextOffset: null,
+        });
+      })
+    );
+    renderWithProviders(<ChunkInspectorView documentId={urlId} collection="kommunalwiki-system" />);
+
+    expect(await screen.findByText(/Chunk 0 Text/)).toBeInTheDocument();
+    expect(requestedPath).toBe('/api/auth/admin/chunk-inspector/-');
+    expect(requestedDocumentId).toBe(urlId);
+  });
+});

@@ -17,3 +17,13 @@ export {
   type ChatBackgroundPlatform,
   type ChatBackgroundPreset,
 } from './chatBackgrounds';
+export {
+  DEFAULT_TTS_VOICE_ID,
+  TTS_VOICES,
+  TTS_VOICE_AGE_LABEL,
+  ttsVoiceLabel,
+  ttsVoiceSampleUrl,
+  type TtsVoice,
+  type TtsVoiceAge,
+  type TtsVoiceReading,
+} from './ttsVoices';

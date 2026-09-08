@@ -500,7 +500,10 @@ export function GrueneratorChatRuntimeProvider({
     [onExternalThreadClick, activePath]
   );
 
-  const navigationCtx = useMemo(() => (onNavigate ? { navigate: onNavigate } : null), [onNavigate]);
+  const navigationCtx = useMemo(
+    () => (onNavigate ? { navigate: onNavigate, activePath } : null),
+    [onNavigate, activePath]
+  );
 
   return (
     <ChatRuntimeReadyProvider>

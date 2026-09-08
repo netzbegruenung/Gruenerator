@@ -11,7 +11,7 @@
  * Nachmessung gescheitert. Hier stehen die Karten immer da.
  */
 
-import { render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { axe } from '../../../test-utils';
@@ -91,5 +91,147 @@ describe('KanbanCard', () => {
     expect(spalte).not.toBeNull();
     // Karte und Griff sind Geschwister, nicht verschachtelt.
     expect(within(spalte as HTMLElement).getAllByRole('button')).toHaveLength(2);
+  });
+});
+
+/**
+ * GlitchTip #540/#471 (drei Ereignisse 08–09/2026, alle auf demselben Board):
+ * React #185 aus dem Overlay-Pfad, also mit einer Karte, die das Board für
+ * „aktiv gezogen" hielt. dnd-kit bricht ein Ziehen auch ohne Loslassen ab —
+ * Escape, oder `visibilitychange`, wenn der Rechner in den Ruhezustand geht;
+ * zwei der drei Ereignisse kamen Sekunden nach dem Aufwachen.
+ * `KanbanProvider` verarbeitete nur `onDragEnd`, also blieb `activeCardId`
+ * nach einem Abbruch stehen und mit ihm die Overlay-Kopie der Karte.
+ *
+ * Zwei Lanes, weil Swimlanes je einen Provider rendern: die stehen
+ * gebliebene Karte darf beim nächsten Ziehen in der anderen Lane nicht
+ * wieder auftauchen.
+ */
+describe('KanbanProvider bei abgebrochenem Ziehen', () => {
+  const lane = (laneId: string, item: { id: string; name: string }, onDragCancel = vi.fn()) => (
+    <KanbanProvider
+      key={laneId}
+      columns={[{ id: `${laneId}-todo`, name: 'Zu erledigen' }]}
+      data={[{ ...item, column: `${laneId}-todo` }]}
+      onDataChange={vi.fn()}
+      onDragCancel={onDragCancel}
+    >
+      {(column) => (
+        <KanbanBoard key={column.id} id={column.id}>
+          <KanbanCards id={column.id}>
+            {(card) => (
+              <KanbanCard key={card.id} {...card}>
+                <div>{card.name}</div>
+              </KanbanCard>
+            )}
+          </KanbanCards>
+        </KanbanBoard>
+      )}
+    </KanbanProvider>
+  );
+
+  const griff = (name: string) =>
+    screen.getByRole('button', { name: `Karte „${name}" verschieben` });
+  const ziehen = async (name: string) => {
+    const g = griff(name);
+    g.focus();
+    await act(async () => {
+      fireEvent.keyDown(g, { code: 'Space', key: ' ' });
+    });
+  };
+
+  it.each([
+    [
+      'visibilitychange',
+      () => document.dispatchEvent(new Event('visibilitychange', { bubbles: true })),
+    ],
+    [
+      'Escape',
+      () =>
+        fireEvent.keyDown(document.activeElement ?? document.body, {
+          code: 'Escape',
+          key: 'Escape',
+        }),
+    ],
+  ])('vergisst die aktive Karte nach einem Abbruch per %s', async (_name, abbrechen) => {
+    const onDragCancel = vi.fn();
+    render(
+      <>
+        {lane('a', { id: 'karte-a', name: 'Antrag schreiben' }, onDragCancel)}
+        {lane('b', { id: 'karte-b', name: 'Rede kürzen' })}
+      </>
+    );
+
+    await ziehen('Antrag schreiben');
+    // Die Karte liegt jetzt doppelt vor: im Board und als Kopie im DragOverlay.
+    expect(screen.getAllByText('Antrag schreiben')).toHaveLength(2);
+
+    await act(async () => {
+      abbrechen();
+    });
+    expect(onDragCancel).toHaveBeenCalledTimes(1);
+    expect(screen.getAllByText('Antrag schreiben')).toHaveLength(1);
+
+    await ziehen('Rede kürzen');
+    expect(screen.getAllByText('Rede kürzen')).toHaveLength(2);
+    // Vor der Reparatur stand hier die abgebrochene Karte ein zweites Mal.
+    expect(screen.getAllByText('Antrag schreiben')).toHaveLength(1);
+  });
+});
+
+/**
+ * Das Overlay wird aus `activeCardId` gebaut, nicht mehr per tunnel-rat aus
+ * dem Kartenbaum herausgereicht (Issue #3214): der Tunnel schrieb in einem
+ * Layout-Effekt der Karte in einen externen Store, den das Overlay per
+ * useSyncExternalStore las — eine Kette aus Layout-Phase-Updates, die React
+ * als verschachtelte Updates zählt und mit #185 abbricht.
+ */
+describe('KanbanProvider-Overlay', () => {
+  const griff = (name: string) =>
+    screen.getByRole('button', { name: `Karte „${name}" verschieben` });
+  const ziehen = async (name: string) => {
+    const g = griff(name);
+    g.focus();
+    await act(async () => {
+      fireEvent.keyDown(g, { code: 'Space', key: ' ' });
+    });
+  };
+
+  it('zeigt die gezogene Karte über renderOverlay, sonst ihren Namen', async () => {
+    render(
+      <KanbanProvider
+        columns={columns}
+        data={data}
+        onDataChange={vi.fn()}
+        renderOverlay={(item) => <span data-testid="overlay">{item.name} (Kopie)</span>}
+      >
+        {(column) => (
+          <KanbanBoard key={column.id} id={column.id}>
+            <KanbanCards id={column.id}>
+              {(item) => (
+                <KanbanCard key={item.id} {...item}>
+                  <div>{item.name}</div>
+                </KanbanCard>
+              )}
+            </KanbanCards>
+          </KanbanBoard>
+        )}
+      </KanbanProvider>
+    );
+
+    expect(screen.queryByTestId('overlay')).toBeNull();
+
+    await ziehen('Antrag schreiben');
+    expect(screen.getByTestId('overlay')).toHaveTextContent('Antrag schreiben (Kopie)');
+    // Die Karte selbst steht weiter genau einmal im Board.
+    expect(screen.getAllByText('Antrag schreiben')).toHaveLength(1);
+
+    await act(async () => {
+      fireEvent.keyDown(document.activeElement ?? document.body, {
+        code: 'Escape',
+        key: 'Escape',
+      });
+    });
+    expect(screen.queryByTestId('overlay')).toBeNull();
   });
 });

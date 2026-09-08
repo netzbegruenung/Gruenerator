@@ -741,7 +741,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Barrierefreiheit",
     "anchor": "",
     "category": "Basics",
-    "text": "Diese Seite sagt, wie barrierefrei der Grünerator heute ist — einschließlich der Stellen, an denen er es noch nicht ist. Eine geschönte Liste hilft niemandem: Wer auf eine Barriere stößt, die hier nicht steht, verliert Zeit mit der Frage, ob es an ihm liegt. Stand: 13. August 2026."
+    "text": "Diese Seite sagt, wie barrierefrei der Grünerator heute ist — einschließlich der Stellen, an denen er es noch nicht ist. Eine geschönte Liste hilft niemandem: Wer auf eine Barriere stößt, die hier nicht steht, verliert Zeit mit der Frage, ob es an ihm liegt. Stand: 6. September 2026."
   },
   {
     "url": "/docs/basics/barrierefreiheit",
@@ -797,7 +797,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Was noch nicht erfüllt ist",
     "anchor": "#was-noch-nicht-erfüllt-ist",
     "category": "Basics",
-    "text": "Statusmeldungen werden kaum angesagt. Wenn eine Chat-Antwort beginnt oder endet, ein Werkzeug arbeitet, ein Upload fertig wird oder ein Formular einen Fehler meldet, erfährt ein Screenreader das in den meisten Fällen nicht. Das ist derzeit die größte offene Lücke. Videos haben keine Untertitelspur. Der Grünerator kann Untertitel erzeugen, verlangt sie aber bei eingebetteten Videos nicht. Einzelne Farbpaare liegen weiter unter dem geforderten Wert — bekannt ist ein Blau-auf-Blau-Paar im Bereich Projekte. Die Seitenstruktur ist uneinheitlich. Nicht jede Seite kennzeichnet ihren Hauptbereich und ihre Navigationsleisten so, dass ein Screenreader direkt dorthin springen kann. Die Mobil-App ist nicht auf einem Gerät geprüft. Die Namen der Bedienelemente sind gesetzt, aber Kontrast, Reihenfolge beim Durchtippen und die tatsächlichen Ansagen von VoiceOver und TalkBack sind ungeprüft. Nicht gemessen wurden bisher: die veröffentlichten Kandidat:innen-Seiten, die Desktop-App und diese Dokumentationsseite selbst."
+    "text": "Statusmeldungen werden kaum angesagt. Wenn eine Chat-Antwort beginnt oder endet, ein Werkzeug arbeitet, ein Upload fertig wird oder ein Formular einen Fehler meldet, erfährt ein Screenreader das in den meisten Fällen nicht. Das ist derzeit die größte offene Lücke. Videos haben keine Untertitelspur. Der Grünerator kann Untertitel erzeugen, verlangt sie aber bei eingebetteten Videos nicht. Einzelne Farbpaare liegen weiter unter dem geforderten Wert — bekannt sind ein Blau-auf-Blau-Paar im Bereich Projekte, das weiße Herz-Symbol auf grünem Grund bei gemerkten Vorlagen und Stellen im dunklen Modus, an denen das Primärgrün noch zu wenig Kontrast bietet. Die Seitenstruktur ist uneinheitlich. Nicht jede Seite kennzeichnet ihren Hauptbereich und ihre Navigationsleisten so, dass ein Screenreader direkt dorthin springen kann. Die Mobil-App ist nicht auf einem Gerät geprüft. Die Namen der Bedienelemente sind gesetzt, aber Kontrast, Reihenfolge beim Durchtippen und die tatsächlichen Ansagen von VoiceOver und TalkBack sind ungeprüft. Nicht gemessen wurden bisher: die veröffentlichten Kandidat:innen-Seiten, die Desktop-App und diese Dokumentationsseite selbst."
   },
   {
     "url": "/docs/basics/barrierefreiheit",
@@ -2301,7 +2301,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Häufige Probleme und Lösungen",
     "anchor": "#häufige-probleme-und-lösungen",
     "category": "Guides",
-    "text": "Falls die Verbindung nicht klappt, prüfe, ob der Link über „Öffentlichen Link erstellen\" erzeugt wurde, ob der Ordner noch existiert und ob der Link passwortgeschützt ist — passwortgeschützte Links kann der Grünerator nicht öffnen. Öffne die Grüne Wolke und folge der Anleitung Schritt für Schritt."
+    "text": "Falls die Verbindung nicht klappt, prüfe, ob der Link über „Öffentlichen Link erstellen\" erzeugt wurde, ob der Ordner noch existiert und ob der Link passwortgeschützt ist — passwortgeschützte Links kann der Grünerator nicht öffnen. Meldet der Grünerator, die Verbindung sei abgelaufen oder abgewiesen, wurde der Link in der Wolke gelöscht, ist abgelaufen oder nachträglich mit einem Passwort versehen worden. Erstelle dann einen neuen Link und verbinde ihn unter Einstellungen → Wolke neu. Meldet er eine Upload-Freigabe („Dateien ablegen\"), erstelle einen neuen Link mit der Berechtigung „Nur anzeigen\" — aus einer reinen Upload-Freigabe kann er nichts lesen. Öffne die Grüne Wolke und folge der Anleitung Schritt für Schritt."
   },
   {
     "url": "/docs/guides/fortgeschrittene/gruene-wolke-einbinden",
@@ -2325,7 +2325,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Schritt 2: Öffentlichen Link erstellen",
     "anchor": "#schritt-2-öffentlichen-link-erstellen",
     "category": "Guides",
-    "text": "Wähle den Ordner aus und klicke rechts auf „Teilen\". Klicke dann unten auf „Öffentlichen Link erstellen\", um einen Freigabe-Link zu generieren. Die Standard-Berechtigung „Nur anzeigen\" genügt — mehr Rechte braucht der Grünerator nicht."
+    "text": "Wähle den Ordner aus und klicke rechts auf „Teilen\". Klicke dann unten auf „Öffentlichen Link erstellen\", um einen Freigabe-Link zu generieren. Die Standard-Berechtigung „Nur anzeigen\" genügt — mehr Rechte braucht der Grünerator nicht. Wichtig: Wähle nicht „Dateien ablegen\" — eine solche Upload-Freigabe erlaubt kein Lesen, der Grünerator kann daraus nichts abrufen."
   },
   {
     "url": "/docs/guides/fortgeschrittene/gruene-wolke-einbinden",
@@ -2357,7 +2357,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Wichtige Hinweise",
     "anchor": "#wichtige-hinweise",
     "category": "Guides",
-    "text": "Der Grünerator greift nur lesend auf deine Wolke zu. Ein Link mit der Berechtigung „Nur anzeigen\" reicht deshalb aus; bestehende Verbindungen mit „Kann bearbeiten\" funktionieren weiter, du kannst die Berechtigung in der Wolke aber bedenkenlos auf „Nur anzeigen\" zurückstellen. Der Link darf nicht passwortgeschützt sein. Er funktioniert auch ohne Ablaufdatum, und du kannst ihn in der Wolke jederzeit deaktivieren — damit endet auch der Zugriff des Grünerators. Beachte: Ein öffentlicher Freigabe-Link ist für alle nutzbar, die ihn kennen. Teile ihn nur dort, wo das in Ordnung ist, und gib nur Ordner frei, deren Inhalte dafür geeignet sind."
+    "text": "Der Grünerator greift nur lesend auf deine Wolke zu. Ein Link mit der Berechtigung „Nur anzeigen\" reicht deshalb aus. Links mit „Kann bearbeiten\" funktionieren ebenfalls — der Grünerator nutzt die Schreibrechte nie, du kannst die Berechtigung in der Wolke bedenkenlos auf „Nur anzeigen\" zurückstellen. Nicht geeignet ist dagegen die Berechtigung „Dateien ablegen\": Eine reine Upload-Freigabe erlaubt kein Lesen. Der Link darf nicht passwortgeschützt sein. Er funktioniert auch ohne Ablaufdatum, und du kannst ihn in der Wolke jederzeit deaktivieren — damit endet auch der Zugriff des Grünerators. Beachte: Ein öffentlicher Freigabe-Link ist für alle nutzbar, die ihn kennen. Teile ihn nur dort, wo das in Ordnung ist, und gib nur Ordner frei, deren Inhalte dafür geeignet sind."
   },
   {
     "url": "/docs/guides/intro",
@@ -2661,7 +2661,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Eigenen MCP-Server hinzufügen",
     "anchor": "#eigenen-mcp-server-hinzufügen",
     "category": "Integrationen",
-    "text": "Für Dienste außerhalb des Verzeichnisses klicke auf „Eigenen MCP-Server hinzufügen\" und trage Name und Server-URL (https://…/mcp) ein. Der Grünerator erkennt automatisch, ob der Server eine Anmeldung braucht, und startet bei Bedarf den Login-Flow. Falls der Anbieter eine manuell registrierte App verlangt, kannst du optional Client-ID und Client-Secret hinterlegen."
+    "text": "Für Dienste außerhalb des Verzeichnisses klicke auf „Eigenen MCP-Server hinzufügen\" und trage Name und Server-URL (https://…/mcp) ein. Ein so hinzugefügter Server wird ohne Anmeldung eingebunden. Der Login-Flow mit „Autorisieren\" (bei Bedarf mit Client-ID und Client-Secret) steht nur bei Diensten zur Verfügung, die du direkt aus dem Verzeichnis auswählst — ein manuell eingetragener Server lässt sich derzeit nicht nachträglich auf eine Anmeldung umstellen."
   },
   {
     "url": "/docs/integrationen/konnektoren",

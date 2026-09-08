@@ -55,6 +55,10 @@ export type InspectedDocumentHeader = z.infer<typeof inspectedDocumentHeaderSche
 
 export const inspectDocumentQuerySchema = z.object({
   collection: z.string().min(1),
+  // URL-förmige Dokument-IDs (gescrapte Sammlungen) reisen im Query-String:
+  // der Reverse-Proxy dekodiert %2F im Pfad und merged Slashes, bevor Express
+  // routet; der Pfadparameter trägt dann den Platzhalter '-'.
+  documentId: z.string().min(1).optional(),
   offset: z.coerce.number().int().min(0).default(0),
   limit: z.coerce.number().int().min(1).max(200).default(50),
 });
@@ -69,6 +73,10 @@ export type InspectDocumentResponse = z.infer<typeof inspectDocumentResponseSche
 
 export const inspectSearchQuerySchema = z.object({
   collection: z.string().min(1),
+  // URL-förmige Dokument-IDs (gescrapte Sammlungen) reisen im Query-String:
+  // der Reverse-Proxy dekodiert %2F im Pfad und merged Slashes, bevor Express
+  // routet; der Pfadparameter trägt dann den Platzhalter '-'.
+  documentId: z.string().min(1).optional(),
   query: z.string().min(2).max(500),
 });
 

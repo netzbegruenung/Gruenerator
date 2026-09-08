@@ -189,3 +189,20 @@ describe('inspectDocumentChunks — Vektor-Abruf bleibt auf die Seite beschränk
     }
   );
 });
+
+/**
+ * Gescrapte Sammlungen tragen kein document_id — die Zitations-ID ist dort die
+ * Quell-URL (SearchResultProcessor.ts:39). Der Inspektor muss sie über
+ * source_url auflösen, sonst meldet er „Keine Chunks gefunden" für Dokumente,
+ * die es gibt.
+ */
+describe('inspectDocumentChunks — URL-förmige Dokument-IDs', () => {
+  it('filtert über source_url statt document_id', async () => {
+    const url = 'https://kommunalwiki.boell.de/index.php/Zusammenarbeit_im_Team';
+    const ops = opsReturning([point(0, { source_url: url })]);
+    await inspectDocumentChunks(ops, url, 'kommunalwiki_documents', { offset: 0, limit: 50 });
+
+    const [, filter] = vi.mocked(ops.scrollDocuments).mock.calls[0];
+    expect(filter).toEqual({ must: [{ key: 'source_url', match: { value: url } }] });
+  });
+});

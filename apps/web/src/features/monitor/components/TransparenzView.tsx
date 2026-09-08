@@ -22,12 +22,15 @@ import {
   type TransparencyDayEntryDto,
   type TransparencyFeatureEntryDto,
   type TransparencyFootprintDto,
+  type TransparencyLocale,
   type TransparencyProviderEntryDto,
   type UsageFeature,
 } from '@gruenerator/contracts';
+import { getPinnedLocale } from '@gruenerator/shared/instances';
 import { cn, LoadingSection, StatusBanner } from '@gruenerator/ui';
 import { useSearchParams } from 'react-router-dom';
 
+import { CURRENT_INSTANCE } from '../../../config/instance';
 import { getDocsUrl } from '../../../utils/docsUrl';
 import {
   carComparison,
@@ -146,6 +149,72 @@ export function ViewSwitcher({
       <PillButton size="sm" active={expert} onClick={() => onChange(true)}>
         Expert*innenübersicht
       </PillButton>
+    </div>
+  );
+}
+
+/* ── Land wählen ──────────────────────────────────────────────────────────── */
+
+const LOCALE_LABELS: Record<TransparencyLocale, string> = {
+  de: 'Deutschland',
+  at: 'Österreich',
+};
+
+function isTransparencyLocale(value: string | null): value is TransparencyLocale {
+  return value === 'de' || value === 'at';
+}
+
+/**
+ * Which country's users the figure describes; `null` is the whole instance and
+ * the default. Unlike the monitor's locale param this does NOT default from the
+ * profile: the platform total is the figure this page exists for, and the
+ * split is a drill-down into it.
+ *
+ * An instance that pins its locale (bgst) has nothing to split, so the param
+ * is ignored there and `available` tells the page not to offer the switch.
+ */
+export function useTransparencyLocaleParam(): {
+  locale: TransparencyLocale | null;
+  setLocale: (locale: TransparencyLocale | null) => void;
+  available: boolean;
+} {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const available = getPinnedLocale(CURRENT_INSTANCE) === null;
+  const raw = searchParams.get('locale');
+  const locale = available && isTransparencyLocale(raw) ? raw : null;
+
+  const setLocale = (next: TransparencyLocale | null) => {
+    setSearchParams(
+      (prev) => {
+        const params = new URLSearchParams(prev);
+        if (next) params.set('locale', next);
+        else params.delete('locale');
+        return params;
+      },
+      { replace: true }
+    );
+  };
+
+  return { locale, setLocale, available };
+}
+
+export function LocaleSwitcher({
+  locale,
+  onChange,
+}: {
+  locale: TransparencyLocale | null;
+  onChange: (locale: TransparencyLocale | null) => void;
+}) {
+  return (
+    <div className={MONITOR_PILL_TRACK}>
+      <PillButton size="sm" active={locale === null} onClick={() => onChange(null)}>
+        Alle
+      </PillButton>
+      {(Object.keys(LOCALE_LABELS) as TransparencyLocale[]).map((entry) => (
+        <PillButton key={entry} size="sm" active={locale === entry} onClick={() => onChange(entry)}>
+          {LOCALE_LABELS[entry]}
+        </PillButton>
+      ))}
     </div>
   );
 }
@@ -1081,8 +1150,16 @@ function ExpertView({ data }: { data: GetTransparencyStatsResponseDto }) {
   );
 }
 
-export function TransparenzView({ days, expert }: { days: number; expert: boolean }) {
-  const { data, isLoading, isError } = useTransparencyStats(days);
+export function TransparenzView({
+  days,
+  expert,
+  locale,
+}: {
+  days: number;
+  expert: boolean;
+  locale: TransparencyLocale | null;
+}) {
+  const { data, isLoading, isError } = useTransparencyStats(days, locale);
 
   if (isLoading) return <LoadingSection label="Verbrauchsdaten werden geladen..." />;
 
@@ -1104,10 +1181,11 @@ export function TransparenzView({ days, expert }: { days: number; expert: boolea
           Zu wenige Personen für eine veröffentlichbare Zahl
         </p>
         <p className={cn('m-0 mt-2 text-[0.9rem] leading-relaxed', MONITOR_MUTED)}>
-          In den letzten {data.days} Tagen waren weniger als {data.min_group_size} Personen aktiv.
-          Ein Verbrauchswert aus so wenigen Personen beschreibt keine Plattform, sondern einzelne
-          Nachmittage — deshalb zeigen wir hier nichts. Mit einem größeren Zeitraum kann die
-          Auswertung greifen.
+          In den letzten {data.days} Tagen waren
+          {locale ? ` aus ${LOCALE_LABELS[locale]}` : ''} weniger als {data.min_group_size} Personen
+          aktiv. Ein Verbrauchswert aus so wenigen Personen beschreibt keine Plattform, sondern
+          einzelne Nachmittage — deshalb zeigen wir hier nichts. Mit einem größeren Zeitraum kann
+          die Auswertung greifen.
         </p>
       </div>
     );

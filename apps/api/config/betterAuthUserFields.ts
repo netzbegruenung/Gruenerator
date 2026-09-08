@@ -30,6 +30,9 @@ export const USER_ADDITIONAL_FIELDS = {
   default_startpage: { type: 'string', required: false, defaultValue: 'chat' },
   feedback_button: { type: 'string', required: false, defaultValue: 'text' },
   reduce_motion: { type: 'boolean', required: false, defaultValue: false },
+  // Kein defaultValue: NULL heißt Standardstimme (DEFAULT_TTS_VOICE_ID), damit
+  // ein Wechsel des Standards nicht jedes Profil einzeln umschreiben muss.
+  tts_voice_id: { type: 'string', required: false },
   reduce_transparency: { type: 'boolean', required: false, defaultValue: false },
   show_skip_link: { type: 'boolean', required: false, defaultValue: true },
   ai_consent_at: { type: 'date', required: false },

@@ -4,6 +4,7 @@
  */
 
 import type { ServerFusion } from '../../../../config/env.js';
+import type { SparseVector } from '../../../../services/text/index.js';
 import type { QdrantFilter, CollectionStats } from '../types.js';
 
 // Search options
@@ -21,6 +22,8 @@ export interface HybridSearchOptions extends VectorSearchOptions {
   useRRF?: boolean | undefined;
   rrfK?: number | undefined;
   recallLimit?: number | undefined;
+  /** Siehe `SearchOptions.sparseQueryVector` — von dort durchgereicht. */
+  sparseQueryVector?: SparseVector | undefined;
 }
 
 export interface ContextOptions {

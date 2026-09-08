@@ -11,9 +11,11 @@ import { useChatConfigStore } from '../stores/chatConfigStore';
  * `custom.streamMetadata`. No traceId (Langfuse off) → no-op. A per-trace guard
  * skips re-POSTing the same rating when the user toggles/double-clicks.
  *
- * Shared by every surface that renders the thumbs: the chat runtime and the
- * notebook runtime. assistant-ui's `submitFeedback` THROWS when no feedback
- * adapter is registered, so a surface that shows the buttons must register one.
+ * Shared by every surface that renders the thumbs: the chat runtime, the
+ * notebook runtime and the embedded editor sidebars. assistant-ui's
+ * `submitFeedback` THROWS when no feedback adapter is registered, so a surface
+ * that shows the buttons must register one — useFeedbackAdapter.vitest.ts
+ * checks every `useLocalRuntime` call in this package for it.
  */
 export function useFeedbackAdapter(): FeedbackAdapter {
   const lastFeedbackRef = useRef(new Map<string, 'positive' | 'negative'>());

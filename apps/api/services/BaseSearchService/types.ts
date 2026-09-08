@@ -5,6 +5,7 @@
  */
 
 import type { SearchPatternResult } from './keyword-extractor-types.js';
+import type { SparseVector } from '../text/index.js';
 
 // ============ Search Parameters ============
 
@@ -29,6 +30,33 @@ export interface SearchOptions {
   recallLimit?: number | undefined;
   /** Siehe `MMROptions.rerankChunks` — von hier durchgereicht. */
   rerankChunks?: boolean | undefined;
+  /**
+   * Eine fertige Anfrage-Einbettung. Ist sie gesetzt, ruft
+   * `BaseSearchService.generateQueryEmbedding` `mistralEmbeddingService`
+   * NICHT — die Suche läuft sonst unverändert.
+   *
+   * Die eine Naht, über die der Einbettungs-Bake-off
+   * (`evals/retrieval/embedCandidates.ts`) einen anderen Einbetter gegen
+   * dieselbe Pipeline messen kann, ohne dass Eval-Logik in die Produktions-
+   * pfade wandert. Kein Produktionsaufrufer setzt sie — und wer es täte, muss
+   * wissen: die Einbettung MUSS zum Modell der durchsuchten Sammlung passen,
+   * das prüft niemand nach.
+   */
+  queryVector?: number[] | undefined;
+  /**
+   * Ein fertiger BM25-Sparse-Vektor für die Anfrage. Ist er gesetzt, ruft
+   * `hybridSearchServerSide` `encodeBm25Query` NICHT — die Suche läuft sonst
+   * unverändert.
+   *
+   * Die sparse Schwester von {@link SearchOptions.queryVector} und aus
+   * demselben Grund da: der Stemmer-Vergleich (#3188) misst einen anderen
+   * Wortstamm-Bildner gegen dieselbe Pipeline, ohne Eval-Logik in den
+   * Produktionspfad zu legen. Kein Produktionsaufrufer setzt sie. Wer es
+   * täte, muss wissen: das Hash-Alphabet der Anfrage MUSS zu dem der
+   * durchsuchten Sammlung passen, das prüft niemand nach — ein Vektor aus
+   * einem anderen Stemmer trifft still nichts, statt zu scheitern.
+   */
+  sparseQueryVector?: SparseVector | undefined;
   [key: string]: unknown;
 }
 
@@ -302,6 +330,8 @@ export interface HybridOptions {
   useRRF?: boolean | undefined;
   rrfK?: number | undefined;
   recallLimit?: number | undefined;
+  /** Siehe `SearchOptions.sparseQueryVector` — von dort durchgereicht. */
+  sparseQueryVector?: SparseVector | undefined;
 }
 
 export interface HybridChunkParams {

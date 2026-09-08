@@ -16,7 +16,7 @@ import {
   type ExtraAction,
   type NotebookMessageMetadata,
 } from '@gruenerator/chat';
-import React, { useState, useCallback, useEffect, useMemo, type ReactNode } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { FaFileWord } from 'react-icons/fa';
 import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 
@@ -155,6 +155,9 @@ export const NotebookPageContent = ({
   const systemCollectionId = isSingleSystem ? config.collections[0].id : null;
   const locale = useAuthStore((state) => state.locale);
   const extraActionsFactory = useNotebookExtraActionsFactory();
+  // Die Reihe, die sich Unterhaltung und Quellenleser teilen — das Panel misst
+  // sie, um zwischen Spalte und Sheet zu entscheiden.
+  const surfaceRef = useRef<HTMLDivElement>(null);
   const { getFiltersForCollection, fetchFilterValues, setActiveFilter, clearAllFilters } =
     useNotebookStore();
   const filterValuesCache = useNotebookStore((s) => s.filterValuesCache);
@@ -362,60 +365,64 @@ export const NotebookPageContent = ({
     >
       <PendingQuestionSender />
       <CitationPanelProvider>
-        <ExtraActionsProvider factory={extraActionsFactory}>
-          <ThreadPrimitive.Root className="flex h-full min-h-0 flex-col">
-            {/* `isLoading` guards the start page while a conversation named by
+        {/* Der Quellenleser ist eine Geschwisterspalte, kein Overlay: ein Zitat
+            nachzulesen heißt, es mit dem Satz zu vergleichen, der es benutzt. */}
+        <div ref={surfaceRef} className="flex h-full min-h-0 w-full">
+          <ExtraActionsProvider factory={extraActionsFactory}>
+            <ThreadPrimitive.Root className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
+              {/* `isLoading` guards the start page while a conversation named by
                 `?thread=` is still being fetched — without it the start page
                 flashes up first and reads as "this conversation is gone". */}
-            <AuiIf condition={(s) => s.thread.isEmpty && !s.thread.isLoading}>
-              <div className="flex flex-1 flex-col overflow-y-auto">
-                <NotebookStartpage
-                  title={config.startPageTitle}
-                  placeholder={config.placeholder}
-                  exampleQuestions={showExamples ? (config.exampleQuestions ?? []) : []}
-                  composerSourceFilters={sourceFilters}
-                  composerCategoryFilters={categoryFilters}
-                  mode={mode}
-                  onModeChange={setMode}
-                  recentCollectionIds={recentCollectionIds}
-                  showRecentSourceLabel={isMulti}
-                  showStats={showStats}
-                  showLastAdded={showLastAdded}
-                  showManualSearch={showManualSearch}
-                  hideGlobalChat={hideGlobalChat}
-                  manualSearchNotebookId={manualSearchNotebookId}
-                  notebookMention={notebookMention}
-                  notebookId={notebookId}
-                  omniComposer={omniComposer}
-                  pageGradient={pageGradient}
-                  footer={startpageFooter}
-                />
-              </div>
-            </AuiIf>
-            <AuiIf condition={(s) => !s.thread.isEmpty}>
-              <div className="flex min-h-0 h-full flex-col">
-                <ThreadPrimitive.Viewport className="flex flex-1 flex-col overflow-y-auto px-4">
-                  <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 py-4">
-                    <ThreadPrimitive.Messages
-                      components={{
-                        UserMessage,
-                        AssistantMessage,
-                      }}
-                    />
-                  </div>
-                </ThreadPrimitive.Viewport>
-                <NotebookComposer
-                  placeholder={config.placeholder}
-                  sourceFilters={sourceFilters}
-                  categoryFilters={categoryFilters}
-                  mode={mode}
-                  onModeChange={setMode}
-                />
-              </div>
-            </AuiIf>
-          </ThreadPrimitive.Root>
-        </ExtraActionsProvider>
-        <CitationSidePanel />
+              <AuiIf condition={(s) => s.thread.isEmpty && !s.thread.isLoading}>
+                <div className="flex flex-1 flex-col overflow-y-auto">
+                  <NotebookStartpage
+                    title={config.startPageTitle}
+                    placeholder={config.placeholder}
+                    exampleQuestions={showExamples ? (config.exampleQuestions ?? []) : []}
+                    composerSourceFilters={sourceFilters}
+                    composerCategoryFilters={categoryFilters}
+                    mode={mode}
+                    onModeChange={setMode}
+                    recentCollectionIds={recentCollectionIds}
+                    showRecentSourceLabel={isMulti}
+                    showStats={showStats}
+                    showLastAdded={showLastAdded}
+                    showManualSearch={showManualSearch}
+                    hideGlobalChat={hideGlobalChat}
+                    manualSearchNotebookId={manualSearchNotebookId}
+                    notebookMention={notebookMention}
+                    notebookId={notebookId}
+                    omniComposer={omniComposer}
+                    pageGradient={pageGradient}
+                    footer={startpageFooter}
+                  />
+                </div>
+              </AuiIf>
+              <AuiIf condition={(s) => !s.thread.isEmpty}>
+                <div className="flex min-h-0 h-full flex-col">
+                  <ThreadPrimitive.Viewport className="flex flex-1 flex-col overflow-y-auto px-4">
+                    <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 py-4">
+                      <ThreadPrimitive.Messages
+                        components={{
+                          UserMessage,
+                          AssistantMessage,
+                        }}
+                      />
+                    </div>
+                  </ThreadPrimitive.Viewport>
+                  <NotebookComposer
+                    placeholder={config.placeholder}
+                    sourceFilters={sourceFilters}
+                    categoryFilters={categoryFilters}
+                    mode={mode}
+                    onModeChange={setMode}
+                  />
+                </div>
+              </AuiIf>
+            </ThreadPrimitive.Root>
+          </ExtraActionsProvider>
+          <CitationSidePanel containerRef={surfaceRef} />
+        </div>
       </CitationPanelProvider>
     </NotebookChatProvider>
   );
