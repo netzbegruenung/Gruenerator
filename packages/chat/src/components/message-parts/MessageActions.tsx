@@ -23,6 +23,7 @@ import { memo, useState } from 'react';
 import { HiOutlineDocumentText } from 'react-icons/hi';
 
 import { useExtraActions } from '../../context/ExtraActionsContext';
+import { useReadonlyMode } from '../../context/ReadonlyModeContext';
 import { useRegenerateMessage } from '../../hooks/useRegenerateMessage';
 import { downloadBlob } from '../../lib/downloadBlob';
 import { formatSourcesMarkdown } from '../../lib/formatSourcesMarkdown';
@@ -73,6 +74,7 @@ export const MessageActions = memo(function MessageActions({
 }: MessageActionsProps) {
   const extraActions = useExtraActions();
   const isCompact = useChatDensity() === 'compact';
+  const readOnly = useReadonlyMode();
   const handleRegenerate = useRegenerateMessage();
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState<DocumentActionId | null>(null);
@@ -278,14 +280,16 @@ export const MessageActions = memo(function MessageActions({
           </ResponsiveMenuSection>
         }
       />
-      <button
-        onClick={handleRegenerate}
-        className="rounded-lg p-1.5 text-foreground-muted hover:bg-primary/10 hover:text-foreground"
-        aria-label="Neu generieren"
-        title="Neu generieren"
-      >
-        <RefreshCw className="h-4 w-4" />
-      </button>
+      {!readOnly && (
+        <button
+          onClick={handleRegenerate}
+          className="rounded-lg p-1.5 text-foreground-muted hover:bg-primary/10 hover:text-foreground"
+          aria-label="Neu generieren"
+          title="Neu generieren"
+        >
+          <RefreshCw className="h-4 w-4" />
+        </button>
+      )}
       <MessageBranchPicker />
       {extraActions?.map((action) => (
         <button
@@ -299,7 +303,7 @@ export const MessageActions = memo(function MessageActions({
           {action.loading ? <Loader2 className="h-4 w-4 animate-spin" /> : action.icon}
         </button>
       ))}
-      {showFeedback && (
+      {showFeedback && !readOnly && (
         <>
           <ActionBarPrimitive.FeedbackPositive
             className="rounded-lg p-1.5 text-foreground-muted hover:bg-primary/10 hover:text-foreground data-[submitted]:text-primary"
