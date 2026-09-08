@@ -52,6 +52,10 @@ async function checkOwnership(
   threadId: string,
   userId: string
 ): Promise<'missing' | 'forbidden' | 'ok'> {
+  // chat_threads.id is uuid — a malformed path param would make the query
+  // throw 22P02 and turn into a bare 500. There is no such thread, so answer
+  // like the rest of this file (and threadAccessService) does: not found.
+  if (!UUID_RE.test(threadId)) return 'missing';
   const db = getPostgresInstance();
   const rows = await db.query(`SELECT user_id FROM chat_threads WHERE id = $1`, [threadId]);
   if (rows.length === 0) return 'missing';

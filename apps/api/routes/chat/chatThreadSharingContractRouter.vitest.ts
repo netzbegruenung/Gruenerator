@@ -108,6 +108,17 @@ describe('resolveShared', () => {
 });
 
 describe('shareWithGroup', () => {
+  it('404s on a non-UUID threadId without touching the DB (no 22P02 → 500)', async () => {
+    const res = await chatThreadSharingContractRouter.shareWithGroup({
+      req: reqAs(OWNER),
+      params: { threadId: '__LOCALID_abc' },
+      body: { groupId: GROUP_ID, mode: 'read' },
+    } as never);
+
+    expect(res.status).toBe(404);
+    expect(queryMock).not.toHaveBeenCalled();
+  });
+
   it('403s for a non-owner', async () => {
     queryMock.mockResolvedValueOnce([{ user_id: OWNER }]); // ownership check
 
