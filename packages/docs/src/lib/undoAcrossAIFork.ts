@@ -40,10 +40,7 @@ interface UndoManagerLike {
 
 /** The editor members the guard touches; see UndoableEditor for the rationale. */
 export interface UndoGuardEditor extends UndoableEditor {
-  replaceExtension?: (
-    toUnregister: string[] | undefined,
-    toRegister: unknown[]
-  ) => void;
+  replaceExtension?: (toUnregister: string[] | undefined, toRegister: unknown[]) => void;
 }
 
 function isAlive(um: UndoManagerLike): boolean {

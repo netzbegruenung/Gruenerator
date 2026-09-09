@@ -425,10 +425,9 @@ const BlockNoteEditorInner = ({
     // carries it over in the plugin state — without this guard, undo/redo is
     // dead for the rest of the session after the first AI invocation. See
     // guardDocUndoAcrossAIFork.
-    const stopUndoGuard = guardDocUndoAcrossAIFork(
-      editor as unknown as UndoGuardEditor,
-      { isCollaborative: Boolean(collaborationOptions) }
-    );
+    const stopUndoGuard = guardDocUndoAcrossAIFork(editor as unknown as UndoGuardEditor, {
+      isCollaborative: Boolean(collaborationOptions),
+    });
 
     // Fix checkbox multi-click: intercept click on checkbox inputs and
     // toggle the block directly via editor API, bypassing ProseMirror's
