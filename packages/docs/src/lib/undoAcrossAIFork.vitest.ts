@@ -245,7 +245,11 @@ describe('guardDocUndoAcrossAIFork', () => {
   it('warns when collaboration is expected but the fork store is missing', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     guardDocUndoAcrossAIFork(
-      { undo: () => {}, redo: () => {}, getExtension: () => undefined } as unknown as UndoGuardEditor,
+      {
+        undo: () => {},
+        redo: () => {},
+        getExtension: () => undefined,
+      } as unknown as UndoGuardEditor,
       { isCollaborative: true }
     );
     expect(warn).toHaveBeenCalledOnce();
