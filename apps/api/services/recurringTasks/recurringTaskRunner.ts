@@ -2,29 +2,53 @@
  * EXPERIMENTAL — executes one recurring task: run the assigned agent, deliver the
  * result (document / summary notification / new chat thread), and record the run.
  *
- * Reuses the board agent generation core (prepareAgentState + generateFromState),
- * the standalone document-creation path (createDocumentWithContent), thread
- * persistence, and the unified notification (which handles in-app + email + push
- * per the user's prefs — so "email delivery" comes for free).
+ * Seit #3221 läuft die Generierung über den VOLLEN agentischen Loop
+ * (`runHeadlessAgenticTurn`: Budget, Stall-Guards, Quellen-Registry, kompletter
+ * interner Werkzeugkatalog) statt über den 5-Schritt-Kern `generateFromState`
+ * — der bleibt für die Board-Pfade. Dazu kommt die Ergebnis-Prüfung
+ * (`verifyRecurringResult`): ein Verdikt pro Lauf, bei Beanstandung GENAU EINE
+ * Reparatur-Runde (ein if, keine Schleife), geliefert wird IMMER — das Verdikt
+ * ist Messwert, kein Gate, und steht als `recurring_task_runs.verdict` im
+ * Verlauf.
+ *
+ * Der Loop wirft nie, sondern ersetzt harte Ausfälle durch Ersatztext — für
+ * den Chat die ehrliche Auskunft, hier ein falsches Ergebnisdokument. Deshalb
+ * entscheidet `degraded`, nicht der Text: 'no_answer' → Empty-Pfad,
+ * 'aborted'/'failed' → Failed-Pfad, 'none' → prüfen und liefern.
  */
 import { type RecurringTask } from '../../database/schema/recurringTasks.js';
+import {
+  runHeadlessAgenticTurn as runHeadlessAgenticTurnReal,
+  type HeadlessTurnResult,
+} from '../../routes/chat/services/agenticLoop/runHeadlessAgenticTurn.js';
 import {
   createMessage,
   createThread,
 } from '../../routes/chat/services/threadPersistenceService.js';
 import { createLogger } from '../../utils/logger.js';
-import {
-  deriveTitle,
-  generateFromState,
-  prepareAgentState,
-  type UserLocale,
-} from '../boards/agentFlow/generate.js';
+import { deriveTitle, type UserLocale } from '../boards/agentFlow/generate.js';
 import { createDocumentWithContent } from '../docs/DocGenerationService.js';
 import { createNotification } from '../notifications/NotificationService.js';
 
 import { recordRecurringTaskRun, setConsecutiveEmptyCount } from './recurringTasksRepository.js';
+import {
+  verifyRecurringResult as verifyRecurringResultReal,
+  type RunVerdict,
+} from './runVerifier.js';
 
 const log = createLogger('recurringTaskRunner');
+
+/** Injizierbar (Repo-Muster: agenticRespondService, catalogAssembly), damit der
+ *  Runner ohne Modell, DB und Redis prüfbar ist. */
+export interface RecurringRunnerDeps {
+  runTurn: typeof runHeadlessAgenticTurnReal;
+  verify: typeof verifyRecurringResultReal;
+}
+
+const defaultDeps: RecurringRunnerDeps = {
+  runTurn: runHeadlessAgenticTurnReal,
+  verify: verifyRecurringResultReal,
+};
 
 function preview(text: string, max = 140): string {
   const clean = text.replace(/\s+/g, ' ').trim();
@@ -35,7 +59,10 @@ function preview(text: string, max = 140): string {
  * Run a single recurring task end-to-end. Owns its own failure handling (records a
  * 'failed' run + fires agent_task_failed) so the worker loop can stay a thin drain.
  */
-export async function runRecurringTask(task: RecurringTask): Promise<void> {
+export async function runRecurringTask(
+  task: RecurringTask,
+  deps: RecurringRunnerDeps = defaultDeps
+): Promise<void> {
   const startedAt = Date.now();
   const userLocale: UserLocale = task.locale === 'de-AT' ? 'de-AT' : 'de-DE';
   const longForm = task.delivery !== 'summary';
@@ -43,21 +70,32 @@ export async function runRecurringTask(task: RecurringTask): Promise<void> {
   // Phase 1 — generation + delivery. A failure HERE is a genuine task failure.
   let delivered: { actionUrl: string | null; notifyTitle: string; notifyBody: string };
   let content: string;
+  let verdict: RunVerdict | null = null;
+  let turn: HeadlessTurnResult;
   try {
-    const prepared = await prepareAgentState(task.instruction, userLocale, {
-      agentId: task.agent_identifier,
+    const turnParams = {
+      instruction: task.instruction,
       userId: task.user_id,
-    });
-    content = await generateFromState(prepared, {
+      agentId: task.agent_identifier,
+      userLocale,
       longForm,
       slotLabel: `recurring-task-${task.id}`,
       // Honor the bound agent's tool selection; the default universal agent
       // (no agent_identifier) keeps the full tool set.
       restrictToAgentTools: !!task.agent_identifier,
-    });
+    };
+    turn = await deps.runTurn(turnParams);
+
+    // Ersatztext des Nie-Werfen-Vertrags ist KEIN Ergebnis. 'aborted'/'failed'
+    // gehen in den bestehenden Catch (wie früher ein Timeout des alten Kerns).
+    if (turn.degraded === 'aborted' || turn.degraded === 'failed') {
+      throw new Error(`agentic turn degraded: ${turn.degraded}`);
+    }
+    content = turn.degraded === 'no_answer' ? '' : turn.text;
 
     // Empty-suppression: nothing to deliver → record 'empty', bump the counter,
     // do NOT notify (avoids recurring noise). Output resets the counter.
+    // Läuft VOR der Prüfung — Leeres wird nicht verifiziert.
     if (!content) {
       await setConsecutiveEmptyCount(task.id, task.consecutive_empty_count + 1);
       await recordRecurringTaskRun({
@@ -67,6 +105,26 @@ export async function runRecurringTask(task: RecurringTask): Promise<void> {
       });
       log.info(`Recurring task ${task.id} produced no output (empty run)`);
       return;
+    }
+
+    // Ergebnis-Prüfung + höchstens EINE Reparatur-Runde. Scheitert die
+    // Reparatur (degraded oder leer), bleibt der Erstentwurf — fail-open
+    // schlägt Zurückhalten, es wartet niemand, der nachbessern könnte.
+    verdict = await deps.verify({ instruction: task.instruction, resultText: content });
+    if (!verdict.ok && verdict.hint) {
+      const second = await deps.runTurn({
+        ...turnParams,
+        feedback: { hint: verdict.hint, priorDraft: content },
+      });
+      if (second.degraded === 'none' && second.text.trim()) {
+        content = second.text;
+        verdict = {
+          ...(await deps.verify({ instruction: task.instruction, resultText: content })),
+          repaired: true,
+        };
+      } else {
+        verdict = { ...verdict, repaired: false };
+      }
     }
 
     delivered = await deliver(task, content);
@@ -101,6 +159,7 @@ export async function runRecurringTask(task: RecurringTask): Promise<void> {
       resultsSummary: task.delivery === 'summary' ? content : preview(content, 280),
       resultUrl: delivered.actionUrl,
       durationMs: Date.now() - startedAt,
+      verdict,
     });
     await createNotification({
       userId: task.user_id,

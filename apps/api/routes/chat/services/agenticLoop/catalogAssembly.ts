@@ -154,11 +154,18 @@ export async function assembleToolCatalog(
     sourceRegistry: SourceRegistry;
     sse: SSEWriter;
     req?: Request;
+    /** Headless-Läufe (#3221): weder Nutzer-MCP noch verwaltete Connectoren
+     *  montieren — BEIDE Blöcke, die verwalteten hängen nicht am Intent,
+     *  sondern an `state.managedSourceKeys`. */
+    disableMcp?: boolean;
+    /** Suchfamilie auf die Picker-Auswahl eines gebundenen Agenten beschränken
+     *  (siehe `buildChatToolCatalog.searchToolKeys`). */
+    searchToolKeys?: readonly string[];
     threadId: string | null;
   },
   deps: CatalogDeps = defaultDeps
 ): Promise<AssembledCatalog> {
-  const { state, sourceRegistry, sse, req, threadId } = params;
+  const { state, sourceRegistry, sse, req, disableMcp, searchToolKeys, threadId } = params;
   const agentConfig = state.agentConfig;
 
   // Vor dem Werkzeugkatalog angelegt, obwohl `rezept_laden` erst weiter unten
@@ -173,6 +180,7 @@ export async function assembleToolCatalog(
     sourceRegistry,
     recipeRegistry,
     loop: { sse, state, ...(req && { req }), threadId },
+    ...(searchToolKeys?.length ? { searchToolKeys } : {}),
   });
 
   // Phase 2: an `mcp` turn also mounts the user's connected MCP server tools
@@ -188,7 +196,7 @@ export async function assembleToolCatalog(
   const mcpMountStart = Date.now();
   let mcpCatalog: McpCatalog | null = null;
   let systemCatalog: McpCatalog | null = null;
-  if ((state.intent === 'mcp' || state.intent === 'agentic') && userId) {
+  if (!disableMcp && (state.intent === 'mcp' || state.intent === 'agentic') && userId) {
     // Scope precedence: explicit @mention/name-match > this thread's sticky
     // last-used server > null (fan out over all connected servers).
     const explicitScope = state.mcpServerScope ?? null;
@@ -239,7 +247,7 @@ export async function assembleToolCatalog(
   // The loader also applies the per-user opt-out and the country filter, so no
   // caller can forget either.
   const managedKeys = state.managedSourceKeys ?? [];
-  if (managedKeys.length > 0) {
+  if (!disableMcp && managedKeys.length > 0) {
     systemCatalog = await deps.loadManagedMcpCatalog({
       keys: managedKeys,
       sse,

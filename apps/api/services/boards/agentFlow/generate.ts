@@ -39,14 +39,17 @@ const MIN_DOCUMENT_TOKENS = 4000;
 // Max model<->tool round-trips while authoring (search/research then write).
 const MAX_TOOL_STEPS = 5;
 
-const DOCUMENT_MODE = `
+// Exportiert, weil der headless Loop-Einstieg (#3221,
+// `runHeadlessAgenticTurn`) dieselben Modus-Suffixe an denselben Systemprompt
+// hängt — eine zweite Kopie liefe auseinander.
+export const DOCUMENT_MODE = `
 
 ## DOKUMENT-MODUS (vorrangig)
 Du erstellst ein eigenständiges, vollständiges Dokument — KEINE kurze Chat-Antwort. Die Längen- und Knappheitsregeln aus den ANTWORT-REGELN gelten hier NICHT. Schreibe so ausführlich und strukturiert, wie die Aufgabe es verlangt: mit aussagekräftiger Überschrift (#), sinnvollen Zwischenüberschriften und vollständig ausformulierten Absätzen.
 
 Du hast Recherche-Tools (gruenerator_search, web_search, research, …). Nutze sie aktiv, um Fakten und grüne Positionen zu belegen, bevor du schreibst — verlasse dich nicht nur auf vorhandenen Kontext. Gib am Ende AUSSCHLIESSLICH den Dokumentinhalt als Markdown aus — keine Meta-Kommentare, keine Rückfragen.`;
 
-const COMMENT_MODE = `
+export const COMMENT_MODE = `
 
 ## KOMMENTAR-MODUS
 Du antwortest direkt in einem Board-Kommentar-Thread. Antworte knapp und konkret auf die Frage. Nutze bei Faktenbedarf zuerst die Recherche-Tools. Gib NUR die Antwort aus — keine Anrede, keine Meta-Kommentare, keine Überschrift.

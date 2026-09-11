@@ -278,6 +278,44 @@ describe('assembleToolCatalog — Rezept-Werkzeug', () => {
   });
 });
 
+describe('assembleToolCatalog — disableMcp (headless, #3221)', () => {
+  it('lädt weder Nutzer-MCP noch verwaltete Connectoren — auch bei mcp-Intent + managedSourceKeys', async () => {
+    const loadMcp = vi.fn(async () => mcpCatalog());
+    const loadManaged = vi.fn(async () => mcpCatalog());
+    const assembled = await assembleToolCatalog(
+      {
+        state: fakeState({ intent: 'mcp', managedSourceKeys: ['bahn'] }),
+        sourceRegistry: createSourceRegistry(),
+        sse: fakeSse().sse,
+        disableMcp: true,
+        threadId: 't1',
+      },
+      deps({ loadMcpCatalog: loadMcp, loadManagedMcpCatalog: loadManaged } as never)
+    );
+    expect(loadMcp).not.toHaveBeenCalled();
+    expect(loadManaged).not.toHaveBeenCalled();
+    expect(assembled.mcpCatalog).toBeNull();
+    expect(assembled.systemCatalog).toBeNull();
+  });
+
+  it('reicht searchToolKeys an den Werkzeugkatalog durch', async () => {
+    const build = vi.fn(() => ({ tools: {} }));
+    await assembleToolCatalog(
+      {
+        state: fakeState(),
+        sourceRegistry: createSourceRegistry(),
+        sse: fakeSse().sse,
+        searchToolKeys: ['search', 'web'],
+        threadId: 't1',
+      },
+      deps({ buildChatToolCatalog: build } as never)
+    );
+    expect(build).toHaveBeenCalledWith(
+      expect.objectContaining({ searchToolKeys: ['search', 'web'] })
+    );
+  });
+});
+
 describe('assembleToolCatalog — Montage-Reihenfolge', () => {
   it('montiert intern → MCP → verwaltete Quellen → Rezept, spätere gewinnen', async () => {
     const order: string[] = [];

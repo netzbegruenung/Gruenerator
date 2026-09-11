@@ -80,6 +80,10 @@ export const recurring_task_runs = pgTable(
     result_url: text('result_url'),
     error: text('error'),
     duration_ms: integer('duration_ms'),
+    // Verdikt der Ergebnis-Prüfung (#3221): {ok, hint?, repaired?}. Messwert,
+    // kein Gate — geliefert wird unabhängig davon. Null bei alten Läufen und
+    // wenn die Prüfung nicht lief (empty/failed).
+    verdict: jsonb('verdict').$type<{ ok: boolean; hint?: string; repaired?: boolean } | null>(),
     created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('idx_recurring_task_runs_task').on(t.task_id, t.created_at)]

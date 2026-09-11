@@ -130,6 +130,14 @@ export interface AgenticResponseOutcome {
   modelName: string;
   /** Gesetzt ⇒ der Zug pausiert und wartet auf eine Werkzeug-Freigabe. */
   pendingApproval?: PendingToolCall[];
+  /**
+   * Wie der Nie-Werfen-Vertrag diesen Zug aufgelöst hat. Fehlt ⇒ echte
+   * Antwort. Der Request-Pfad ignoriert das Feld (der Text IST dort die
+   * ehrliche Auskunft an die Person); ein headless Aufrufer (#3221) braucht
+   * es, weil er sonst den Entschuldigungs- bzw. „keine Antwort"-Text als
+   * fertiges Ergebnis ablegen würde.
+   */
+  degraded?: 'no_answer' | 'aborted' | 'failed';
 }
 
 /**
@@ -155,6 +163,13 @@ export async function streamAgenticResponse(
      *  Null (absent, or the shared read failed) falls back to reading here, which
      *  keeps each failure as narrow as it was before. */
     toolHistory?: ThreadToolHistory | null;
+    /** Headless-Läufe (#3221): weder Nutzer-MCP noch verwaltete Connectoren
+     *  montieren. Ohne die kann das Freigabe-Gate strukturell nicht feuern —
+     *  und ein Hintergrundlauf hat niemanden, den er fragen könnte. */
+    disableMcp?: boolean;
+    /** Suchfamilie auf die Picker-Auswahl eines gebundenen Agenten beschränken
+     *  (siehe `buildChatToolCatalog.searchToolKeys`). */
+    searchToolKeys?: readonly string[];
     /** Fortsetzung nach einer Freigabe: `scopeKey` → wie oft er das Gate noch
      *  passieren darf. Genau die Einmal-Freigaben dieser Entscheidung. */
     grantedOnce?: ReadonlyMap<string, number>;
@@ -178,6 +193,8 @@ export async function streamAgenticResponse(
     req,
     threadId,
     toolHistory,
+    disableMcp,
+    searchToolKeys,
     grantedOnce,
     resumeApproval,
   } = params;
@@ -211,6 +228,9 @@ export async function streamAgenticResponse(
   let answerReplaced: AnswerReplacement | null = null;
   // Außerhalb des try, weil der Abbruchpfad die zurückgehaltenen Aufrufe liest.
   let approvalGate: ToolApprovalGate | null = null;
+  // Wie der Nie-Werfen-Vertrag den Zug auflöste — an genau den Stellen gesetzt,
+  // die Ersatztext produzieren. Siehe AgenticResponseOutcome.degraded.
+  let degraded: AgenticResponseOutcome['degraded'] | null = null;
 
   // Computed BEFORE the model is resolved: the same number decides the lane
   // (precise + reasoning on) and, further down, whether the writer gives up the
@@ -251,6 +271,8 @@ export async function streamAgenticResponse(
       sourceRegistry,
       sse,
       ...(req && { req }),
+      ...(disableMcp ? { disableMcp } : {}),
+      ...(searchToolKeys?.length ? { searchToolKeys } : {}),
       threadId: threadId ?? null,
     });
     const { tools, recipeCatalog, recipeRegistry, toolLabels } = assembled;
@@ -309,7 +331,9 @@ export async function streamAgenticResponse(
     const toolActivity = createToolActivity();
     // Einmal pro Zug gelesen; ein Ausfall liefert die leere Menge, also „fragen".
     const approvalUserId = agentConfig.userId ?? null;
-    const approvalEnabled = isToolApprovalEnabled() && approvalUserId != null;
+    // `disableMcp` (headless): ohne Connectoren kann das Gate nicht feuern —
+    // der Allowlist-Read wäre bei jedem Hintergrundlauf reine Kosten.
+    const approvalEnabled = !disableMcp && isToolApprovalEnabled() && approvalUserId != null;
     approvalGate = createToolApprovalGate({
       enabled: approvalEnabled,
       allowlist: approvalEnabled
@@ -707,11 +731,14 @@ export async function streamAgenticResponse(
       // Replacement text invalidates offsets recorded against the streamed
       // (whitespace-only) text — drop them so reload keeps cards-first.
       for (const s of steps) delete s.textOffset;
-      emitter.replaceAndStream(
-        finalState.editorEditsSummary
-          ? `Erledigt — ${finalState.editorEditsSummary}.`
-          : 'Ich konnte dazu leider keine passende Antwort finden. Magst du deine Frage anders formulieren?'
-      );
+      if (finalState.editorEditsSummary) {
+        emitter.replaceAndStream(`Erledigt — ${finalState.editorEditsSummary}.`);
+      } else {
+        degraded = 'no_answer';
+        emitter.replaceAndStream(
+          'Ich konnte dazu leider keine passende Antwort finden. Magst du deine Frage anders formulieren?'
+        );
+      }
     }
   } catch (err) {
     // Anything the dedupe still holds is real answer text — release it before
@@ -727,6 +754,11 @@ export async function streamAgenticResponse(
     } else {
       log.warn(`[Agentic] loop ${aborted ? 'stopped (budget/abort)' : 'failed'}: ${msg}`);
       const outcome = resolveAbortOutcome({ text: emitter.text, aborted });
+      // NUR wenn der Ausgang die Antwort wirklich ersetzt/markiert: ein
+      // genuiner Fehler NACH fertig gestreamter Antwort (outcome == null,
+      // z. B. ein werfender Artefakt-Hook) lässt eine vollständige, richtige
+      // Antwort stehen — ein headless Aufrufer würde sie sonst wegwerfen.
+      if (outcome != null) degraded = aborted ? 'aborted' : 'failed';
       if (outcome?.mode === 'replace') {
         for (const s of steps) delete s.textOffset;
         emitter.replaceAndStream(outcome.delta);
@@ -831,6 +863,7 @@ export async function streamAgenticResponse(
     // threw away half the research of a thorough turn.
     sources: sourceRegistry.getResults(MAX_SOURCES),
     modelName: resolution?.modelName ?? agentConfig.model,
+    ...(degraded != null ? { degraded } : {}),
   };
 }
 

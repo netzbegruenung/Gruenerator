@@ -207,6 +207,83 @@ describe('streamAgenticResponse — Verdikt und Wiederholung', () => {
   });
 });
 
+describe('streamAgenticResponse — degraded-Marker (#3221)', () => {
+  // Ein headless Aufrufer entscheidet am Marker, nicht am Text — ohne ihn
+  // würde der Ersatztext des Nie-Werfen-Vertrags als Ergebnis abgelegt.
+  it('markiert den „keine Antwort"-Rückfall als no_answer', async () => {
+    const { sse } = fakeSse();
+    const outcome = await streamAgenticResponse(
+      { ...baseParams(fakeState(), 'x'.repeat(4000), 'Frage?'), sse },
+      fakeDeps({ provider: 'greenpt', loopResult: { text: '   ' } })
+    );
+    expect(outcome.degraded).toBe('no_answer');
+  });
+
+  it('eine stumme, aber erfolgreiche Bearbeitung ist KEIN no_answer', async () => {
+    const { sse } = fakeSse();
+    const outcome = await streamAgenticResponse(
+      {
+        ...baseParams(
+          fakeState({ editorEditsSummary: '3 Folien angepasst' } as never),
+          'x'.repeat(4000),
+          'Frage?'
+        ),
+        sse,
+      },
+      fakeDeps({ provider: 'greenpt', loopResult: { text: '   ' } })
+    );
+    expect(outcome.degraded).toBeUndefined();
+    expect(outcome.fullText).toContain('Erledigt');
+  });
+
+  it('markiert einen geworfenen Loop als failed, einen Abbruch als aborted', async () => {
+    for (const [errName, expected] of [
+      ['Error', 'failed'],
+      ['AbortError', 'aborted'],
+    ] as const) {
+      const { sse } = fakeSse();
+      const deps = fakeDeps({ provider: 'greenpt' });
+      deps.runAgenticLoop = (async () => {
+        const err = new Error('kaputt');
+        err.name = errName;
+        throw err;
+      }) as unknown as AgenticRespondDeps['runAgenticLoop'];
+      const outcome = await streamAgenticResponse(
+        { ...baseParams(fakeState(), 'x'.repeat(4000), 'Frage?'), sse },
+        deps
+      );
+      expect(outcome.degraded).toBe(expected);
+    }
+  });
+
+  it('fehlt bei einer echten Antwort', async () => {
+    const { sse } = fakeSse();
+    const outcome = await streamAgenticResponse(
+      { ...baseParams(fakeState(), 'x'.repeat(4000), 'Frage?'), sse },
+      fakeDeps({ provider: 'greenpt' })
+    );
+    expect(outcome.degraded).toBeUndefined();
+  });
+
+  it('ein Fehler NACH fertig gestreamter Antwort ist kein failed — die Antwort steht', async () => {
+    // resolveAbortOutcome bleibt hier bewusst still (null): die Antwort war
+    // komplett, erst ein Nachschritt warf. Ein headless Aufrufer würde sie
+    // mit degraded='failed' wegwerfen und einen Fehlschlag melden.
+    const { sse } = fakeSse();
+    const deps = fakeDeps({ provider: 'greenpt' });
+    deps.runAgenticLoop = (async (p: LoopEngineParams) => {
+      p.onText('Die vollständige Antwort steht.');
+      throw new Error('Artefakt-Hook danach geworfen');
+    }) as unknown as AgenticRespondDeps['runAgenticLoop'];
+    const outcome = await streamAgenticResponse(
+      { ...baseParams(fakeState(), 'x'.repeat(4000), 'Frage?'), sse },
+      deps
+    );
+    expect(outcome.degraded).toBeUndefined();
+    expect(outcome.fullText).toBe('Die vollständige Antwort steht.');
+  });
+});
+
 describe('streamAgenticResponse — der Ersatz in der Zusammenfassungszeile', () => {
   it('trägt das Verdikt des Loops bis in die eine Zeile, die den Zug beschreibt', async () => {
     // Die Falle: `logTurnSummary` kennt nur `answerChars`, und die ist beim
