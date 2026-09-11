@@ -225,6 +225,7 @@ const SubtitlerBetaPage = lazy(
 const SubStudioPage = lazy(() => import('../features/subtitler-beta/components/SubStudioPage'));
 const SharedVideoPage = lazy(() => import('../features/subtitler/components/SharedVideoPage'));
 const SharedMediaPage = lazy(() => import('../features/shared-media/SharedMediaPage'));
+const SharedChatPage = lazy(() => import('../features/chat/SharedChatPage'));
 const ImageStudioPage = lazy(() => import('../features/image-studio/ImageStudioPage'));
 const ImageGallery = lazy(() => import('../features/image-studio/gallery'));
 const AppsPage = lazy(() => import('../features/apps/AppsPage'));
@@ -683,6 +684,16 @@ const standardRoutes: RouteConfig[] = [
   // PageLayout, the sidebar and its thread-list portal on the very first thread
   // a user opens. React Router ranks the static /chat/settings above this
   // dynamic segment.
+  // Geteilte (nur-lesen) Chat-Ansicht. Own entry on purpose — it renders a
+  // different page, so the one-entry remount rule of /chat below does not
+  // apply; React Router ranks the static `geteilt` segment above the dynamic
+  // :threadSlug. Login required (no `public: true`) — link shares are
+  // authenticated-only by design.
+  {
+    path: '/chat/geteilt/:threadSlug',
+    component: SharedChatPage,
+    layoutMode: 'noChrome',
+  },
   {
     path: '/chat/:threadSlug?',
     component: GrueneratorenBundle.Chat,
