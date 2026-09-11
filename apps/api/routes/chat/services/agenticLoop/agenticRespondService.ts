@@ -41,6 +41,7 @@ import { turnMaterialChars } from '../turnMaterial.js';
 import { withInstructionHierarchy } from '../untrustedContent.js';
 
 import { isToolApprovalEnabled } from './approvalPolicy.js';
+import { createAskHumanGate, type AskHumanGate } from './askHumanGate.js';
 import { ATTACHED_DOCS_TOOL, retrievableAttachedSources } from './attachedDocuments.js';
 import {
   assembleToolCatalog,
@@ -81,7 +82,7 @@ import { loadAllowlist } from './toolApprovalRepo.js';
 import { createToolCostLedger } from './toolCostLedger.js';
 import { buildToolUsageBlock } from './toolUsageBlock.js';
 import { logTurnSummary } from './turnSummary.js';
-import { type PendingToolCall, type PersistedStep } from './types.js';
+import { type PendingAskRequest, type PendingToolCall, type PersistedStep } from './types.js';
 import { composeToolHooks } from './wrapTools.js';
 
 import type {
@@ -130,6 +131,9 @@ export interface AgenticResponseOutcome {
   modelName: string;
   /** Gesetzt ⇒ der Zug pausiert und wartet auf eine Werkzeug-Freigabe. */
   pendingApproval?: PendingToolCall[];
+  /** Gesetzt ⇒ der Zug pausiert und wartet auf die Antwort einer Rückfrage
+   *  (`ask_human`). Gewinnt gegen `pendingApproval`, wenn beide anstehen. */
+  pendingAsk?: PendingAskRequest;
 }
 
 /**
@@ -211,6 +215,8 @@ export async function streamAgenticResponse(
   let answerReplaced: AnswerReplacement | null = null;
   // Außerhalb des try, weil der Abbruchpfad die zurückgehaltenen Aufrufe liest.
   let approvalGate: ToolApprovalGate | null = null;
+  // Wie das Freigabe-Gate: der Abbruchpfad und der Rückgabewert lesen es.
+  let askGate: AskHumanGate | null = null;
 
   // Computed BEFORE the model is resolved: the same number decides the lane
   // (precise + reasoning on) and, further down, whether the writer gives up the
@@ -323,6 +329,7 @@ export async function streamAgenticResponse(
       serverNameFor: (name) => toolLabels.get(name)?.serverName,
       ...(grantedOnce ? { grantedOnce } : {}),
     });
+    askGate = createAskHumanGate();
     // Zwei Beobachter am selben Haken: die Kostenrechnung zählt JEDEN Aufruf,
     // die Rerank-Warnung feuert höchstens einmal je Turn. `composeToolHooks`
     // isoliert dabei jeden Beobachter einzeln — ein werfender Kostenzähler
@@ -337,6 +344,7 @@ export async function streamAgenticResponse(
       toolActivity,
       toolLabels,
       approvalGate,
+      askGate,
       // Reads `mode` lazily: it's finalized further down, before the loop runs.
       getTextOffset: () => (mode === 'unified' ? emitter.text.length : null),
       takeNarration: () => emitter.takeNarration(),
@@ -432,7 +440,7 @@ export async function streamAgenticResponse(
     const { abortSignal, writeAbortSignal, toolBudgetDeadline } = createTurnClocks(
       budget,
       reqSignal,
-      approvalGate.signal
+      AbortSignal.any([approvalGate.signal, askGate.signal])
     );
 
     // Der Zustand, den die frühere Closure einfach SAH, steht jetzt als
@@ -678,7 +686,7 @@ export async function streamAgenticResponse(
       // tool card already carries.
       onNarration: (s) => emitter.handleNarration(s),
       validateAnswer: createAnswerValidator(),
-      suspended: () => approvalGate?.hasPending() ?? false,
+      suspended: () => (approvalGate?.hasPending() ?? false) || (askGate?.hasPending() ?? false),
     });
     emitter.flush();
     answerReplaced = loopResult.replacement ?? null;
@@ -722,8 +730,12 @@ export async function streamAgenticResponse(
       err instanceof Error && (err.name === 'AbortError' || err.name === 'TimeoutError');
     // Eine Pause ist kein Abbruch: weder Entschuldigungstext noch „abgebrochen"-
     // Zusatz. Der Teiltext bleibt, wie er ist, und wird unten mitgegeben.
-    if (err instanceof TurnSuspendedError || approvalGate?.hasPending()) {
-      log.info(`[Agentic] Zug pausiert — ${approvalGate?.pending().length ?? 0} Freigabe(n) offen`);
+    if (err instanceof TurnSuspendedError || approvalGate?.hasPending() || askGate?.hasPending()) {
+      log.info(
+        askGate?.hasPending()
+          ? '[Agentic] Zug pausiert — Rückfrage an die Nutzer*in offen'
+          : `[Agentic] Zug pausiert — ${approvalGate?.pending().length ?? 0} Freigabe(n) offen`
+      );
     } else {
       log.warn(`[Agentic] loop ${aborted ? 'stopped (budget/abort)' : 'failed'}: ${msg}`);
       const outcome = resolveAbortOutcome({ text: emitter.text, aborted });
@@ -745,6 +757,23 @@ export async function streamAgenticResponse(
   // Vor jeder Nachbearbeitung: ein pausierter Zug hat keine fertige Antwort, an
   // der eine Zitat-Klammer, eine PDF-Notiz oder der „keine Antwort"-Rückfall
   // etwas zu korrigieren hätten. Die Teilantwort geht unverändert weiter.
+  //
+  // Die Rückfrage GEWINNT gegen die Freigabe, wenn Geschwister-Aufrufe beide
+  // Gates im selben Step getroffen haben: die Antwort auf die Frage entscheidet
+  // erst, ob der zurückgehaltene Aufruf überhaupt gewollt ist — die Fortsetzung
+  // versucht ihn erneut, und DANN hält ihn das Freigabe-Gate.
+  const pendingAsk = askGate?.pending() ?? null;
+  if (pendingAsk) {
+    costLedger.log();
+    return {
+      fullText: emitter.text,
+      steps,
+      citations: sourceRegistry.getCitations(),
+      sources: sourceRegistry.getResults(MAX_SOURCES),
+      modelName: resolution?.modelName ?? agentConfig.model,
+      pendingAsk,
+    };
+  }
   if (approvalGate?.hasPending()) {
     costLedger.log();
     return {

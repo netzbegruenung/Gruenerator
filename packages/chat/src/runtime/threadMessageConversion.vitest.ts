@@ -745,3 +745,62 @@ describe('convertNotebookLoadedMessages', () => {
     expect(custom.question).toBe('');
   });
 });
+
+describe('convertToThreadMessageLike — offene Loop-Rückfrage (#3220)', () => {
+  const pendingClarification = {
+    askTurnId: 'ask-1',
+    toolCallId: 'call_ask',
+    question: 'Welche Anna meinst du?',
+    options: ['Anna Müller', 'Anna Meier'],
+    resolved: false,
+  };
+
+  it('rehydriert die beantwortbare ask_human-Karte samt requires-action', () => {
+    const [msg] = convertToThreadMessageLike([
+      {
+        id: 'm1',
+        role: 'assistant',
+        content: 'Ich habe zwei Kandidatinnen gefunden.',
+        metadata: { pendingClarification },
+      },
+    ]);
+    const parts = msg!.content as unknown as Array<Record<string, unknown>>;
+    const ask = parts.find((p) => p.type === 'tool-call' && p.toolName === 'ask_human');
+    expect(ask).toMatchObject({
+      toolCallId: 'call_ask',
+      args: { question: 'Welche Anna meinst du?', options: ['Anna Müller', 'Anna Meier'] },
+    });
+    expect(ask).not.toHaveProperty('result');
+    expect(msg!.status).toEqual({ type: 'requires-action', reason: 'tool-calls' });
+  });
+
+  it('rehydriert eine BEANTWORTETE Rückfrage als kollabierte Karte (String-Antwort)', () => {
+    const [msg] = convertToThreadMessageLike([
+      {
+        id: 'm1',
+        role: 'assistant',
+        content: 'Anna Müller stimmte dafür.',
+        metadata: {
+          pendingClarification: { ...pendingClarification, resolved: true, answer: 'Anna Müller' },
+          toolCalls: [
+            {
+              toolCallId: 'call_ask',
+              toolName: 'ask_human',
+              args: { question: 'Welche Anna meinst du?' },
+              result: { answer: 'Anna Müller' },
+            },
+          ],
+        },
+      },
+    ]);
+    const parts = msg!.content as unknown as Array<Record<string, unknown>>;
+    const asks = parts.filter((p) => p.type === 'tool-call' && p.toolName === 'ask_human');
+    // Nur die Karte aus toolCalls — keine zweite aus pendingClarification.
+    expect(asks).toHaveLength(1);
+    // Die Karte rendert String(result): die Antwort muss als String ankommen,
+    // sonst steht dort "[object Object]".
+    expect(asks[0]!.result).toBe('Anna Müller');
+    expect(asks[0]!.args).toMatchObject({ question: 'Welche Anna meinst du?' });
+    expect(msg!.status).toBeUndefined();
+  });
+});
