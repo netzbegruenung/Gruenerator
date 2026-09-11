@@ -445,15 +445,54 @@ export function filterAndSortResults(
   results: ExpandedChunkResult[],
   options: FilterOptions = {}
 ): ExpandedChunkResult[] {
-  const { threshold = 0.35, limit = 40, now = new Date(), allowCreatedAt } = options;
+  const {
+    threshold = 0.35,
+    limit = 40,
+    now = new Date(),
+    allowCreatedAt,
+    maxPerDocument,
+  } = options;
 
   const effective = (r: ExpandedChunkResult): number =>
     r.similarity + recencyBoost(resolveSourceDate(r, { allowCreatedAt }), now);
 
-  return results
+  const sorted = results
     .filter((r) => (r.dense_similarity ?? r.similarity) >= threshold)
-    .sort((a, b) => effective(b) - effective(a))
-    .slice(0, limit);
+    .sort((a, b) => effective(b) - effective(a));
+
+  const capped = maxPerDocument ? capChunksPerDocument(sorted, maxPerDocument) : sorted;
+
+  return capped.slice(0, limit);
+}
+
+/**
+ * Zieht je `document_id` höchstens `maxPerDocument` Treffer nach vorn — die
+ * Reihenfolge ist bereits nach Score sortiert, "zuerst" heisst also "bester" —
+ * und hängt die übrigen dahinter an, statt sie zu verwerfen: der Kopf der Liste
+ * wird vielfältig, der Kontext bleibt voll. Ein Notebook mit einem einzigen
+ * Dokument bekommt so weiterhin alle seine Chunks. Ergebnisse ohne
+ * `document_id` (leerer String, z. B. Web-Quellen ohne Dokumentbezug) werden
+ * nie gedeckelt, es gibt dort kein Dokument, über das zu verteilen wäre.
+ * `selectAcrossQueryGroups` führt beim Mischen seinen eigenen Zähler, weil der
+ * Deckel dort über Gruppen hinweg gilt.
+ */
+function capChunksPerDocument(
+  results: ExpandedChunkResult[],
+  maxPerDocument: number
+): ExpandedChunkResult[] {
+  const counts = new Map<string, number>();
+  const head: ExpandedChunkResult[] = [];
+  const overflow: ExpandedChunkResult[] = [];
+  for (const r of results) {
+    const count = r.document_id ? (counts.get(r.document_id) ?? 0) : 0;
+    if (r.document_id && count >= maxPerDocument) {
+      overflow.push(r);
+      continue;
+    }
+    if (r.document_id) counts.set(r.document_id, count + 1);
+    head.push(r);
+  }
+  return [...head, ...overflow];
 }
 
 /**
@@ -484,11 +523,19 @@ export function selectAcrossQueryGroups(
     return filterAndSortResults(nonEmpty[0] ?? [], options);
   }
 
-  const { limit = 40, ...rest } = options;
-  const ranked = nonEmpty.map((g) => filterAndSortResults(g, { ...rest, limit: Infinity }));
+  const { limit = 40, maxPerDocument, ...rest } = options;
+  const ranked = nonEmpty.map((g) =>
+    filterAndSortResults(g, { ...rest, maxPerDocument, limit: Infinity })
+  );
 
   const selected: ExpandedChunkResult[] = [];
   const seen = new Set<string>();
+  // Per-Gruppe deckelt filterAndSortResults oben bereits, aber ein Dokument
+  // kann in ZWEI Gruppen vorne liegen — dieser zweite Zähler deckelt die
+  // gemergte Auswahl, den Fall, den der Gruppen-Deckel allein nicht sieht.
+  const docCounts = new Map<string, number>();
+  // Was der Deckel übergeht, kommt hinten wieder dran (siehe capChunksPerDocument).
+  const overflow: ExpandedChunkResult[] = [];
   const cursors = ranked.map(() => 0);
 
   let progressed = true;
@@ -504,13 +551,31 @@ export function selectAcrossQueryGroups(
         // Same identity as deduplicateResults — skip what another group took.
         const key = `${candidate.collection_id ?? ''}:${candidate.document_id}:${candidate.chunk_index}`;
         if (seen.has(key)) continue;
+        if (maxPerDocument && candidate.document_id) {
+          const docCount = docCounts.get(candidate.document_id) ?? 0;
+          if (docCount >= maxPerDocument) {
+            overflow.push(candidate);
+            continue;
+          }
+        }
         seen.add(key);
+        if (candidate.document_id) {
+          docCounts.set(candidate.document_id, (docCounts.get(candidate.document_id) ?? 0) + 1);
+        }
         selected.push(candidate);
         progressed = true;
         break;
       }
       cursors[g] = cursor;
     }
+  }
+
+  for (const candidate of overflow) {
+    if (selected.length >= limit) break;
+    const key = `${candidate.collection_id ?? ''}:${candidate.document_id}:${candidate.chunk_index}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    selected.push(candidate);
   }
 
   return selected;
