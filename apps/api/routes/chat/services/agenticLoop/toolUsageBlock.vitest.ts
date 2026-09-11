@@ -34,6 +34,23 @@ describe('buildToolUsageBlock', () => {
   });
 });
 
+describe('buildToolUsageBlock — ask_human-Regel', () => {
+  it('nur wenn das Tool wirklich montiert ist', () => {
+    const withAsk = buildToolUsageBlock(6, false, false, ['gruenerator_search', 'ask_human']);
+    expect(withAsk).toContain('RÜCKFRAGE MIT ask_human');
+    expect(withAsk).toContain('EINZIGER Aufruf des Schritts');
+  });
+
+  it('fehlt ohne Montage — auch wenn die Werkzeugnamen unbekannt sind', () => {
+    // Anders als die übrigen Gates (Default: Regel behalten): eine Anweisung
+    // auf ein fehlendes Tool wäre eine Anweisung ins Leere.
+    expect(buildToolUsageBlock(6, false, false, ['gruenerator_search'])).not.toContain(
+      'RÜCKFRAGE MIT ask_human'
+    );
+    expect(buildToolUsageBlock(6)).not.toContain('RÜCKFRAGE MIT ask_human');
+  });
+});
+
 describe('buildToolUsageBlock with includeArtifactOutcomeRule (unified mode)', () => {
   const unifiedBlock = buildToolUsageBlock(6, false, true);
 

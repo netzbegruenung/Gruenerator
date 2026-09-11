@@ -110,6 +110,14 @@ export function buildToolUsageBlock(
         ]
       : []),
     '- NUTZE das passende Tool DIREKT, statt anzubieten es zu tun. Frage NIEMALS "Soll ich das für dich suchen/tun?" — wenn du ein Tool dafür hast, ruf es einfach auf. Frag nur zurück, wenn dir eine echte Angabe fehlt (z.B. um welche Person/Abstimmung es geht).',
+    // Nur wenn die Rückfrage diesen Turn wirklich montiert ist — Default false,
+    // anders als die übrigen Gates: eine Regel über ein fehlendes Tool wäre
+    // eine Anweisung ins Leere.
+    ...(toolNames?.includes('ask_human')
+      ? [
+          '- RÜCKFRAGE MIT ask_human: Fehlt dir eine ECHTE Angabe — auch wenn das erst ein Tool-Ergebnis zeigt (z.B. mehrere gleichwertige Kandidaten, mehrdeutige Person/Abstimmung, fehlende Pflichtangabe) — stelle sie mit ask_human: GENAU EINE kurze Frage, möglichst mit 2–4 konkreten Optionen, als EINZIGER Aufruf des Schritts. Frage NICHT nach Dingen, die du selbst nachschlagen kannst, und höchstens einmal pro Zug.',
+        ]
+      : []),
     '- Rufe so WENIGE Tools wie möglich auf. Sobald die ersten Ergebnisse deine Frage beantworten, antworte SOFORT — such nicht zur Absicherung weiter und wiederhole keine ähnlichen Suchen. Verfeinere oder wechsle das Tool NUR, wenn ein Ergebnis leer oder unpassend ist (z.B. Websuche statt Programmsuche, oder das Bundestag-Tool für Fraktions-/Gesetzesfragen).',
     ...(hasSearchTools
       ? [
