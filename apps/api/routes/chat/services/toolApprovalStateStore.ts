@@ -8,7 +8,7 @@ import { type StoredRequestContext } from './pipelineStateStore.js';
 import type { PendingToolCall, PersistedStep } from './agenticLoop/types.js';
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 
-const log = createLogger('ToolApprovalStateStore');
+const log = createLogger('SuspendedTurnStore');
 
 /** Deutlich länger als die 10 Minuten der Klärungs-Pause: hier entscheidet ein
  *  Mensch über einen Seiteneffekt, und das darf über eine Pause hinweg gehen. */
@@ -40,73 +40,94 @@ export interface StoredApprovalState {
   createdAt: number;
 }
 
-const key = (threadId: string): string => REDIS_PREFIX + threadId;
-const claimKey = (threadId: string, approvalTurnId: string): string =>
-  `${CLAIM_PREFIX}${threadId}:${approvalTurnId}`;
+export interface SuspendedTurnStore<TPayload extends { createdAt: number }> {
+  store(threadId: string, data: Omit<TPayload, 'createdAt'>): Promise<boolean>;
+  get(threadId: string): Promise<TPayload | undefined>;
+  claim(threadId: string, turnId: string): Promise<boolean>;
+  releaseClaim(threadId: string, turnId: string): Promise<void>;
+  delete(threadId: string): Promise<void>;
+}
 
-export const toolApprovalStateStore = {
-  async store(threadId: string, data: Omit<StoredApprovalState, 'createdAt'>): Promise<boolean> {
-    // Gleiche Begründung wie beim Klärungs-Zustand: die PDF-Formularbytes liegen
-    // schon in `requestContext.processedMeta`.
-    const { pdfFormAttachments: _bytes, ...classifiedState } = data.classifiedState;
-    const entry: StoredApprovalState = {
-      ...data,
-      classifiedState: classifiedState as ChatGraphState,
-      createdAt: Date.now(),
-    };
-    try {
-      await redisClient.setEx(key(threadId), TTL_SECONDS, JSON.stringify(entry));
-      return true;
-    } catch (err) {
-      // Ohne gespeicherten Zustand gibt es keine Fortsetzung — der Aufrufer muss
-      // das wissen und darf die Freigabe dann gar nicht erst anbieten.
-      log.error(`Freigabe-Zustand für Thread ${threadId} nicht speicherbar:`, err);
-      return false;
-    }
-  },
+/**
+ * Redis-Zustand eines pausierten Loop-Zuges — geteilt von Werkzeug-Freigabe
+ * und `ask_human`-Rückfrage, weil store/get/claim/releaseClaim/delete für
+ * beide identisch sind: ein Schlüssel je Thread, 24-h-TTL, und ein
+ * SET-NX-Anspruch, der genau eine Fortsetzung je Pause zulässt (ein zweiter
+ * Tab oder ein Doppelklick darf den Zug nicht zweimal fortsetzen).
+ */
+export function createSuspendedTurnStore<
+  TPayload extends { createdAt: number; classifiedState: ChatGraphState },
+>(opts: { prefix: string; claimPrefix: string; label: string }): SuspendedTurnStore<TPayload> {
+  const key = (threadId: string): string => opts.prefix + threadId;
+  const claimKey = (threadId: string, turnId: string): string =>
+    `${opts.claimPrefix}${threadId}:${turnId}`;
 
-  async get(threadId: string): Promise<StoredApprovalState | undefined> {
-    try {
-      const raw = await redisClient.get(key(threadId));
-      if (!raw) return undefined;
-      return parseJSON<StoredApprovalState>(raw);
-    } catch (err) {
-      log.error(`Freigabe-Zustand für Thread ${threadId} nicht lesbar:`, err);
-      return undefined;
-    }
-  },
+  return {
+    async store(threadId, data) {
+      // Gleiche Begründung wie beim Klärungs-Zustand: die PDF-Formularbytes liegen
+      // schon in `requestContext.processedMeta`.
+      const { pdfFormAttachments: _bytes, ...classifiedState } = data.classifiedState;
+      const entry = {
+        ...data,
+        classifiedState: classifiedState as ChatGraphState,
+        createdAt: Date.now(),
+      } as TPayload;
+      try {
+        await redisClient.setEx(key(threadId), TTL_SECONDS, JSON.stringify(entry));
+        return true;
+      } catch (err) {
+        // Ohne gespeicherten Zustand gibt es keine Fortsetzung — der Aufrufer muss
+        // das wissen und darf die Pause dann gar nicht erst anbieten.
+        log.error(`${opts.label}-Zustand für Thread ${threadId} nicht speicherbar:`, err);
+        return false;
+      }
+    },
 
-  /**
-   * Genau eine Fortsetzung je Pause. Ohne den Anspruch führt ein zweiter Tab
-   * oder ein Doppelklick den freigegebenen Aufruf ein zweites Mal aus — und
-   * genau davor soll die Freigabe schützen.
-   */
-  async claim(threadId: string, approvalTurnId: string): Promise<boolean> {
-    try {
-      const res = await redisClient.set(claimKey(threadId, approvalTurnId), '1', {
-        condition: 'NX',
-        expiration: { type: 'EX', value: CLAIM_TTL_SECONDS },
-      });
-      return res === 'OK';
-    } catch (err) {
-      log.error(`Anspruch auf Freigabe ${approvalTurnId} fehlgeschlagen:`, err);
-      return false;
-    }
-  },
+    async get(threadId) {
+      try {
+        const raw = await redisClient.get(key(threadId));
+        if (!raw) return undefined;
+        return parseJSON<TPayload>(raw);
+      } catch (err) {
+        log.error(`${opts.label}-Zustand für Thread ${threadId} nicht lesbar:`, err);
+        return undefined;
+      }
+    },
 
-  async releaseClaim(threadId: string, approvalTurnId: string): Promise<void> {
-    try {
-      await redisClient.del(claimKey(threadId, approvalTurnId));
-    } catch (err) {
-      log.error(`Anspruch auf Freigabe ${approvalTurnId} nicht freigegeben:`, err);
-    }
-  },
+    async claim(threadId, turnId) {
+      try {
+        const res = await redisClient.set(claimKey(threadId, turnId), '1', {
+          condition: 'NX',
+          expiration: { type: 'EX', value: CLAIM_TTL_SECONDS },
+        });
+        return res === 'OK';
+      } catch (err) {
+        log.error(`Anspruch auf ${opts.label} ${turnId} fehlgeschlagen:`, err);
+        return false;
+      }
+    },
 
-  async delete(threadId: string): Promise<void> {
-    try {
-      await redisClient.del(key(threadId));
-    } catch (err) {
-      log.error(`Freigabe-Zustand für Thread ${threadId} nicht löschbar:`, err);
-    }
-  },
-};
+    async releaseClaim(threadId, turnId) {
+      try {
+        await redisClient.del(claimKey(threadId, turnId));
+      } catch (err) {
+        log.error(`Anspruch auf ${opts.label} ${turnId} nicht freigegeben:`, err);
+      }
+    },
+
+    async delete(threadId) {
+      try {
+        await redisClient.del(key(threadId));
+      } catch (err) {
+        log.error(`${opts.label}-Zustand für Thread ${threadId} nicht löschbar:`, err);
+      }
+    },
+  };
+}
+
+export const toolApprovalStateStore: SuspendedTurnStore<StoredApprovalState> =
+  createSuspendedTurnStore<StoredApprovalState>({
+    prefix: REDIS_PREFIX,
+    claimPrefix: CLAIM_PREFIX,
+    label: 'Freigabe',
+  });

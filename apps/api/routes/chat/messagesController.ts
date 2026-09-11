@@ -239,6 +239,11 @@ router.get('/', async (req, res) => {
             ...(meta.pendingApproval && typeof meta.pendingApproval === 'object'
               ? { pendingApproval: meta.pendingApproval as Record<string, unknown> }
               : {}),
+            // Offene Loop-Rückfragen (#3220): dieselbe Begründung — ohne das
+            // Feld ist die Frage nach einem Reload weg und nicht beantwortbar.
+            ...(meta.pendingClarification && typeof meta.pendingClarification === 'object'
+              ? { pendingClarification: meta.pendingClarification as Record<string, unknown> }
+              : {}),
           };
           if (Array.isArray(meta.toolCalls)) {
             embeddedToolCalls = meta.toolCalls as EmbeddedToolCall[];

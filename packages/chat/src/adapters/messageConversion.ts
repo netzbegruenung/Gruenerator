@@ -37,6 +37,18 @@ export interface LoadedMessage {
     roleName?: string;
     /** Row was still status='streaming' after request end — interrupted turn. */
     interrupted?: boolean;
+    /** Eine Loop-Rückfrage (`ask_human`, #3220). Solange `resolved` falsch ist,
+     *  kommt die beantwortbare Karte nach einem Reload zurück. Muss mit
+     *  `threadMessageConversion.ts` in Schritt bleiben (siehe Kommentar an den
+     *  custom-Feldern unten). */
+    pendingClarification?: {
+      askTurnId: string;
+      toolCallId: string;
+      question: string;
+      options?: string[];
+      resolved?: boolean;
+      answer?: string;
+    };
   };
 }
 
@@ -44,7 +56,8 @@ type ToolCallPart = {
   readonly type: 'tool-call';
   readonly toolCallId: string;
   readonly toolName: string;
-  readonly args: Record<string, string>;
+  /** JSON-eng gehalten: assistant-ui verlangt ReadonlyJSONObject-kompatible args. */
+  readonly args: Record<string, string | string[] | null>;
   readonly result?: unknown;
 };
 
@@ -54,6 +67,10 @@ export interface ConvertedMessage {
   role: 'user' | 'assistant';
   content: Array<TextPart | ToolCallPart>;
   id: string;
+  /** `requires-action` bei offener Rückfrage — sonst verweigert assistant-ui
+   *  die Antwort auf die rehydrierte ask_human-Karte. `fromThreadMessageLike`
+   *  bevorzugt einen gesetzten Status vor dem Auto-Status. */
+  status?: { type: 'requires-action'; reason: 'tool-calls' };
   metadata?: { custom: Record<string, unknown> };
 }
 
@@ -99,6 +116,21 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): Converted
 
       if (m.metadata?.toolCalls) {
         for (const tc of m.metadata.toolCalls) {
+          if (tc.toolName === 'ask_human') {
+            // Beantwortete Loop-Rückfrage: echte args (question/options),
+            // Antwort als String — die Karte rendert `String(result)`.
+            const answer = (tc.result as Record<string, unknown> | undefined)?.answer;
+            contentParts.push({
+              type: 'tool-call' as const,
+              toolCallId: tc.toolCallId || `tc_${m.id}`,
+              toolName: tc.toolName,
+              // Aus der Datenbank gelesenes JSON — die Form ist JSON-tauglich,
+              // der persistierte Typ nur weiter gefasst.
+              args: (tc.args ?? {}) as Record<string, string | string[] | null>,
+              result: answer != null ? String(answer) : tc.result,
+            });
+            continue;
+          }
           contentParts.push({
             type: 'tool-call' as const,
             toolCallId: tc.toolCallId || `tc_${m.id}`,
@@ -118,6 +150,22 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): Converted
             result: { results: m.metadata.searchResults },
           });
         }
+      }
+
+      // Offene Loop-Rückfragen überleben den Reload: die ask_human-Karte kommt
+      // ohne Ergebnis zurück und bleibt beantwortbar (Redis-Zustand: 24 h).
+      const pendingClar = m.metadata?.pendingClarification;
+      const clarUnresolved = pendingClar != null && pendingClar.resolved !== true;
+      if (clarUnresolved) {
+        contentParts.push({
+          type: 'tool-call' as const,
+          toolCallId: pendingClar.toolCallId,
+          toolName: 'ask_human',
+          args: {
+            question: pendingClar.question,
+            ...(pendingClar.options ? { options: pendingClar.options } : {}),
+          },
+        });
       }
 
       contentParts.push({ type: 'text' as const, text: textContent });
@@ -149,6 +197,9 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): Converted
         role: m.role as 'user' | 'assistant',
         content: contentParts,
         id: m.id,
+        ...(clarUnresolved
+          ? { status: { type: 'requires-action' as const, reason: 'tool-calls' as const } }
+          : {}),
         metadata: Object.keys(custom).length > 0 ? { custom } : undefined,
       };
     });

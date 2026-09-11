@@ -278,6 +278,26 @@ describe('assembleToolCatalog — Rezept-Werkzeug', () => {
   });
 });
 
+describe('assembleToolCatalog — ask_human (Loop-Rückfrage, #3220)', () => {
+  it('montiert ask_human nur mit Thread — ohne Resume-Weg keine Frage', async () => {
+    const withThread = await assemble(fakeState(), deps(), { threadId: 't1' });
+    expect('ask_human' in withThread.tools).toBe(true);
+
+    const withoutThread = await assemble(fakeState(), deps(), { threadId: null });
+    expect('ask_human' in withoutThread.tools).toBe(false);
+  });
+
+  it('respektiert den Aus-Schalter CHAT_LOOP_ASK_HUMAN=false', async () => {
+    process.env.CHAT_LOOP_ASK_HUMAN = 'false';
+    try {
+      const assembled = await assemble(fakeState(), deps(), { threadId: 't1' });
+      expect('ask_human' in assembled.tools).toBe(false);
+    } finally {
+      delete process.env.CHAT_LOOP_ASK_HUMAN;
+    }
+  });
+});
+
 describe('assembleToolCatalog — Montage-Reihenfolge', () => {
   it('montiert intern → MCP → verwaltete Quellen → Rezept, spätere gewinnen', async () => {
     const order: string[] = [];

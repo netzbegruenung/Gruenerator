@@ -38,6 +38,7 @@ import { discardPendingAssistantIfEmpty } from './services/threadPersistenceServ
 import { createTurnDeadline } from './services/turnDeadline.js';
 import { runActionGateStage } from './streamStages/actionGateStage.js';
 import { runArtifactEmitStage } from './streamStages/artifactEmitStage.js';
+import { suspendForLoopClarification } from './streamStages/clarificationLoopSuspend.js';
 import { runClarificationStage } from './streamStages/clarificationStage.js';
 import { runClassifyStage } from './streamStages/classifyStage.js';
 import { runComputeInterruptStage } from './streamStages/computeInterruptStage.js';
@@ -379,30 +380,45 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         langfuseTraceId,
       } = response;
 
-      // Ein Werkzeug wartet auf die Freigabe: der Zug endet hier, der Rest
-      // (Artefakt-Auslöser, Persistenz) läuft erst in der Fortsetzung.
-      if (response.pendingApproval && response.pendingApproval.length > 0 && actualThreadId) {
+      // Der Zug pausiert (Rückfrage oder Werkzeug-Freigabe): er endet hier,
+      // der Rest (Artefakt-Auslöser, Persistenz) läuft erst in der Fortsetzung.
+      // Beide Pausen speichern denselben Anfragekontext.
+      if ((response.pendingAsk || response.pendingApproval?.length) && actualThreadId) {
+        const suspendRequestContext = {
+          userId,
+          agentId: agentId ?? 'gruenerator-universal',
+          enabledTools: enabledTools ?? {},
+          ...(modelId != null && { modelId }),
+          actualThreadId,
+          isNewThread,
+          processedMeta,
+          userMessageId,
+          imageAttachments,
+          memoryContext,
+          memoryRetrieveTimeMs,
+          validMessages,
+          forcedTool,
+          ...(rawDocumentIds != null && { rawDocumentIds }),
+        };
+        if (response.pendingAsk) {
+          return await suspendForLoopClarification({
+            sse,
+            threadId: actualThreadId,
+            classifiedState,
+            requestContext: suspendRequestContext,
+            pendingAsk: response.pendingAsk,
+            partialText: fullText,
+            priorSteps: agenticSteps ?? [],
+            pendingId,
+            startTime: initialState.startTime,
+          });
+        }
         return await suspendForToolApproval({
           sse,
           threadId: actualThreadId,
           classifiedState,
-          requestContext: {
-            userId,
-            agentId: agentId ?? 'gruenerator-universal',
-            enabledTools: enabledTools ?? {},
-            ...(modelId != null && { modelId }),
-            actualThreadId,
-            isNewThread,
-            processedMeta,
-            userMessageId,
-            imageAttachments,
-            memoryContext,
-            memoryRetrieveTimeMs,
-            validMessages,
-            forcedTool,
-            ...(rawDocumentIds != null && { rawDocumentIds }),
-          },
-          pendingApproval: response.pendingApproval,
+          requestContext: suspendRequestContext,
+          pendingApproval: response.pendingApproval as NonNullable<typeof response.pendingApproval>,
           partialText: fullText,
           priorSteps: agenticSteps ?? [],
           pendingId,

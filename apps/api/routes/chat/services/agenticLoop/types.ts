@@ -78,6 +78,17 @@ export interface PendingToolCall {
 }
 
 /**
+ * Eine Rückfrage aus dem laufenden Loop (`ask_human`-Tool), die auf die Antwort
+ * der Nutzer*in wartet. Wie `PendingToolCall` trägt sie alles, was Karte und
+ * Fortsetzung brauchen — beim Antworten ist der Zug beendet.
+ */
+export interface PendingAskRequest {
+  toolCallId: string;
+  question: string;
+  options?: string[];
+}
+
+/**
  * What an MCP connector tool call yields: EITHER text content OR an error
  * string — never both. `mcpCatalog.ts`'s `dynamicTool` returns exactly this
  * shape (`{ content } | { error }`), so it is the contract the split synth

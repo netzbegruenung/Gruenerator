@@ -24,6 +24,7 @@ import { createLogger } from '../../../../utils/logger.js';
 import { truncateResultForModel } from './truncate.js';
 import { readMcpResult, type PersistedStep } from './types.js';
 
+import type { AskHumanGate } from './askHumanGate.js';
 import type { ToolLoopGuards } from './loopGuards.js';
 import type { ToolActivity } from './toolActivity.js';
 import type { ToolApprovalGate } from './toolApprovalGate.js';
@@ -230,6 +231,9 @@ export interface WrapToolsContext {
   hooks?: ToolHooks;
   /** Freigabe-Gate. Nicht gesetzt ⇒ jeder Aufruf läuft wie bisher durch. */
   approvalGate?: Pick<ToolApprovalGate, 'hold'>;
+  /** Rückfrage-Gate für `ask_human`. Nicht gesetzt ⇒ der Aufruf wird wie ein
+   *  gewöhnliches Tool ausgeführt (und liefert nur den defensiven Stub). */
+  askGate?: Pick<AskHumanGate, 'hold'>;
 }
 
 function isErrorResult(value: unknown): boolean {
@@ -485,6 +489,15 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
       // Antwort für ein Geschwister, das den Abbruch noch überholt.
       if (ctx.approvalGate?.hold({ toolName, stepId, args })) {
         return { error: 'Warte auf die Freigabe durch die Nutzer*in.' };
+      }
+
+      // `ask_human` an derselben Stelle: die Frage hat noch nicht stattgefunden
+      // — keine Karte, kein Schritt, kein `noteCall` (die Karte kommt erst im
+      // Suspend, mit der Wire-Form der Pre-Loop-Klärung). Der Rückgabewert ist
+      // die harmlose Antwort für ein Geschwister, das den Abbruch überholt.
+      if (toolName === 'ask_human' && ctx.askGate) {
+        ctx.askGate.hold({ stepId, args });
+        return { error: 'Warte auf die Antwort der Nutzer*in.' };
       }
 
       // Captured at tool START (before execution) — the semantics of textOffset.
