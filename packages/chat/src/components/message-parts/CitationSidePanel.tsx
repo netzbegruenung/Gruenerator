@@ -114,6 +114,19 @@ function ContextRegion({
   );
 }
 
+/** Viele Quellen sind kurze Einzelseiten (ein LV-Beschluss, ein Artikel) — ohne
+ *  sichtbare Grenzen liest sich ein vollständiges kurzes Dokument wie ein
+ *  abgeschnittenes, besonders wenn die zitierte Passage ganz oben sitzt. */
+function DocumentBoundary({ label }: { label: string }) {
+  return (
+    <div className="my-6 flex items-center gap-3">
+      <span aria-hidden="true" className="h-px flex-1 bg-border" />
+      <span className={LABEL_CLS}>{label}</span>
+      <span aria-hidden="true" className="h-px flex-1 bg-border" />
+    </div>
+  );
+}
+
 function CitationPanelBody({ titleId }: { titleId: string }) {
   const { source, sources, activeIndex, goTo, close } = useCitationPanel();
   const citedRef = useRef<HTMLDivElement | null>(null);
@@ -276,6 +289,7 @@ function CitationPanelBody({ titleId }: { titleId: string }) {
 
         {cited && (
           <>
+            <DocumentBoundary label="Anfang des Dokuments" />
             <ContextRegion label="Kontext davor" chunks={chunks.slice(0, citedPosition)} />
 
             <div
@@ -298,7 +312,24 @@ function CitationPanelBody({ titleId }: { titleId: string }) {
             so an older answer can point past the end. The document itself is still
             worth showing; only the highlight is lost. */}
         {!cited && !error && chunks.length > 0 && (
-          <ContextRegion label="Originaltext" chunks={chunks} muted={false} />
+          <>
+            <DocumentBoundary label="Anfang des Dokuments" />
+            <ContextRegion label="Originaltext" chunks={chunks} muted={false} />
+          </>
+        )}
+
+        {chunks.length > 0 && (
+          <>
+            <DocumentBoundary label="Ende des Dokuments" />
+            {source.sourceUrl && (
+              <Button asChild variant="outline" className="w-full">
+                <a href={source.sourceUrl} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="size-4" />
+                  Vollständige Quelle öffnen
+                </a>
+              </Button>
+            )}
+          </>
         )}
       </div>
 
