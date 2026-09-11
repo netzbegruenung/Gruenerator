@@ -136,6 +136,13 @@ export const AI_LANES = {
 
   // — Fast helper tasks. Alle auf der `standard`-Stufe: kurze Ausgabe, aber
   //   nutzersichtbare Latenz. Ein Edit an der Stufe bewegt alle fünf.
+  // Ergebnis-Prüfung für Hintergrundläufe (#3221): kurzes JSON-Verdikt über
+  // Aufgabe vs. Ergebnis, keine nutzersichtbare Latenz — kein Pinning nötig.
+  background_verify: {
+    provider: LANE.provider,
+    model: LANE.model,
+    structuredMode: 'tool',
+  },
   image_picker: {
     provider: LANE.provider,
     model: LANE.model,
