@@ -1,4 +1,5 @@
 import { YUndoExtension } from '@blocknote/core/yjs';
+import * as Y from 'yjs';
 
 import { getDocForkStore } from './aiExtension';
 import { getDocUndoManager, type UndoableEditor } from '../hooks/useDocUndoState';
@@ -25,6 +26,22 @@ import { getDocUndoManager, type UndoableEditor } from '../hooks/useDocUndoState
  * - on merge: rebuilds the yUndo plugin so y-prosemirror's `init` creates a
  *   fresh, live UndoManager, then restores the pre-fork stacks (merge() itself
  *   reinstates the undo stack BlockNote captured at fork time).
+ *
+ * When the caller passes the collaborative `fragment`, the guard additionally
+ * makes the accepted AI merge itself an undo step (#3261). merge() applies the
+ * fork's changes via `Y.applyUpdate(originalDoc, update, editor)` — origin =
+ * the editor instance, which neither the plugin's UndoManager (dead at that
+ * point, and it only tracks the ySync origin anyway) nor the rebuilt one (born
+ * after the merge transaction) can capture. So the guard runs a standalone
+ * Y.UndoManager on the ORIGINAL fragment for the duration of the review,
+ * tracking the editor origin. It lives outside the plugin state, so the
+ * fork/merge `replaceExtension` swaps cannot destroy it; during the review
+ * nothing else writes to the original doc under that origin, so its only
+ * possible capture is the merge itself. Its captured step is then appended to
+ * the rebuilt manager's stack (stack items are plain data scoped to the same
+ * fragment, so a foreign manager can pop them — only the selection-restore
+ * metadata y-prosemirror would have attached is missing, which degrades
+ * gracefully). On reject nothing is captured and nothing is appended.
  *
  * Liveness probe: a yjs UndoManager adds ITSELF to `trackedOrigins` in its
  * constructor and removes itself in `destroy()` — `trackedOrigins.has(um)`
@@ -71,7 +88,10 @@ function createDriftWarner() {
  */
 export function guardDocUndoAcrossAIFork(
   editor: UndoGuardEditor | null,
-  { isCollaborative = false }: { isCollaborative?: boolean } = {}
+  {
+    isCollaborative = false,
+    fragment = null,
+  }: { isCollaborative?: boolean; fragment?: Y.XmlFragment | null } = {}
 ): () => void {
   if (!editor) return () => {};
   const warnDrift = createDriftWarner();
@@ -87,7 +107,28 @@ export function guardDocUndoAcrossAIFork(
   // preserves the redo stack — carry it across the cycle here.
   let savedRedoStack: unknown[] | null = null;
 
+  // Standalone manager that watches the ORIGINAL fragment for the editor-origin
+  // merge transaction while the plugin managers are being swapped and killed —
+  // see the module docstring. Alive only between fork and merge.
+  let mergeCapture: Y.UndoManager | null = null;
+
+  const takeMergeCaptureSteps = (): unknown[] => {
+    if (!mergeCapture) return [];
+    // Grab the items before destroy(); every exit path of onMergeEnd must
+    // dispose the capture manager, so this runs unconditionally up front.
+    const steps: unknown[] = [...mergeCapture.undoStack];
+    mergeCapture.destroy();
+    mergeCapture = null;
+    return steps;
+  };
+
   const onForkStart = () => {
+    if (fragment) {
+      mergeCapture = new Y.UndoManager(fragment, {
+        trackedOrigins: new Set([editor]),
+        captureTimeout: 0,
+      });
+    }
     const um = getDocUndoManager(editor) as UndoManagerLike | null;
     if (!um) {
       warnDrift('forked but no undo manager could be read from the plugin state');
@@ -102,6 +143,10 @@ export function guardDocUndoAcrossAIFork(
   };
 
   const onMergeEnd = () => {
+    // By now merge() has already run its applyUpdate (the store flips to
+    // un-forked last), so an accepted AI change sits captured in here; a
+    // reject captured nothing.
+    const aiSteps = takeMergeCaptureSteps();
     const um = getDocUndoManager(editor) as UndoManagerLike | null;
     if (!um) {
       warnDrift('merged but no undo manager could be read from the plugin state');
@@ -131,6 +176,13 @@ export function guardDocUndoAcrossAIFork(
     }
     fresh.undoStack = undoStack;
     fresh.redoStack = redoStack;
+    // Accepted AI change on top of the restored history: the very next undo
+    // reverts the AI edit. (Should upstream ever both keep the manager alive
+    // AND track the editor origin, this would double-capture — the canary
+    // tests above flag any upstream change to this machinery first.)
+    if (aiSteps.length > 0) {
+      fresh.undoStack.push(...aiSteps);
+    }
   };
 
   let wasForked = store.state?.isForked ?? false;
@@ -138,7 +190,7 @@ export function guardDocUndoAcrossAIFork(
   // is fresh but the review-phase stacks should still read as unavailable.
   if (wasForked) onForkStart();
 
-  return store.subscribe(() => {
+  const unsubscribe = store.subscribe(() => {
     const isForked = store.state?.isForked ?? false;
     if (isForked === wasForked) return;
     wasForked = isForked;
@@ -148,4 +200,14 @@ export function guardDocUndoAcrossAIFork(
       onMergeEnd();
     }
   });
+
+  return () => {
+    unsubscribe();
+    // An editor torn down mid-review must not leave the capture manager
+    // listening on the doc.
+    if (mergeCapture) {
+      mergeCapture.destroy();
+      mergeCapture = null;
+    }
+  };
 }

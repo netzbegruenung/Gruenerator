@@ -46,12 +46,12 @@ export function acceptDocumentAI(documentId: string): AcceptDocumentAIResult {
   };
   ydoc?.on('update', onUpdate);
 
-  // Note on undoability: the AI merge itself is NOT captured as an undo step.
-  // ForkYDoc.merge() applies it while the carried-over UndoManager is already
-  // destroyed (see guardDocUndoAcrossAIFork, which rebuilds a live manager only
-  // AFTER the merge transaction has run). An earlier beforeTransaction /
-  // addTrackedOrigin hook here tried to capture it and provably never worked —
-  // it registered the origin on that same dead manager.
+  // Note on undoability: the plugin's own UndoManager cannot capture the AI
+  // merge (ForkYDoc.merge() applies it while the carried-over manager is
+  // already destroyed; an earlier beforeTransaction/addTrackedOrigin hook here
+  // provably never worked). guardDocUndoAcrossAIFork owns this instead: a
+  // standalone capture manager on the original fragment records the merge and
+  // hands it to the rebuilt manager, so accept IS one undo step (#3261).
   try {
     ext.acceptChanges();
   } finally {
