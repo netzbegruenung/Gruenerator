@@ -362,11 +362,11 @@ importers:
         specifier: ^1.11.0
         version: 1.11.0
       multer:
-        specifier: ^2.3.0
+        specifier: ^2.2.0
         version: 2.3.0
       nodemailer:
-        specifier: ^9.1.1
-        version: 9.1.1
+        specifier: ^9.0.5
+        version: 9.1.0
       openai:
         specifier: ^6.49.0
         version: 6.49.0(ws@8.21.3)(zod@3.25.76)
@@ -401,7 +401,7 @@ importers:
         specifier: ^3.13.0
         version: 3.13.0
       sharp:
-        specifier: ^0.35.4
+        specifier: ^0.35.0
         version: 0.35.4(@types/node@26.3.0)
       turndown:
         specifier: ^7.2.4
@@ -1159,7 +1159,7 @@ importers:
         specifier: ^6.1.3
         version: 6.1.3
       sharp:
-        specifier: ^0.35.4
+        specifier: ^0.35.0
         version: 0.35.4(@types/node@26.3.0)
       tailwind-merge:
         specifier: ^3.6.0
@@ -1684,6 +1684,9 @@ importers:
       '@types/react-dom':
         specifier: ^19.2.4
         version: 19.2.4(@types/react@19.2.18)
+      jsdom:
+        specifier: 30.0.1
+        version: 30.0.1(@noble/hashes@2.2.0)
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -4527,6 +4530,9 @@ packages:
 
   '@emnapi/runtime@1.11.2':
     resolution: {integrity: sha512-kyOl3X0DuTiT1h2ft8r2fYO8JYtU9a9Xis/zBSiGArNaagCOWx90N1k2wxp18czFDH+OgcWGb5ZP/XMt3dcyPA==}
+
+  '@emnapi/runtime@1.11.3':
+    resolution: {integrity: sha512-Xz4Tpyki7XyrpbUK1jR1AhdAdaXyhhY4lZ3neLodmhpuWfy2PAQN5B46sAiU4liOXGLkHypn/qU+jvfWSCYYLA==}
 
   '@emnapi/wasi-threads@1.2.1':
     resolution: {integrity: sha512-uTII7OYF+/Mes/MrcIOYp5yOtSMLBWSIoLPpcgwipoiKbli6k322tcoFsxoIIxPDqW01SQGAgko4EzZi2BNv2w==}
@@ -18601,8 +18607,8 @@ packages:
     deprecated: Node Sass is no longer supported. Please use `sass` or `sass-embedded` instead.
     hasBin: true
 
-  nodemailer@9.1.1:
-    resolution: {integrity: sha512-izw9mVKFix6YSnC9eLgV6g1opl9DUlRio9ZNcq+Wu9Ujn2UwF+8Nl0B8nz22kEC+CTZCvinkxwJ0DeFbb6NwcQ==}
+  nodemailer@9.1.0:
+    resolution: {integrity: sha512-xj1Ri5Sau3qpPffHJwi2bY0oWVVWYq62Ph17l+2v1xXpxjqTls3YPc3L8dub9mcJpxj+1ucNnuYVqLlgh4pmDA==}
     engines: {node: '>=6.0.0'}
 
   nopt@5.0.0:
@@ -26872,6 +26878,11 @@ snapshots:
       tslib: 2.8.1
     optional: true
 
+  '@emnapi/runtime@1.11.3':
+    dependencies:
+      tslib: 2.8.1
+    optional: true
+
   '@emnapi/wasi-threads@1.2.1':
     dependencies:
       tslib: 2.8.1
@@ -28191,7 +28202,7 @@ snapshots:
 
   '@img/sharp-wasm32@0.35.4':
     dependencies:
-      '@emnapi/runtime': 1.11.2
+      '@emnapi/runtime': 1.11.3
     optional: true
 
   '@img/sharp-webcontainers-wasm32@0.35.4':
@@ -44829,7 +44840,7 @@ snapshots:
       - supports-color
     optional: true
 
-  nodemailer@9.1.1: {}
+  nodemailer@9.1.0: {}
 
   nopt@5.0.0:
     dependencies:
