@@ -610,13 +610,18 @@ export async function getMultipleDocumentsFullText(
     // einem anderen das Budget wegnehmen, und einem Dokument können dabei
     // mittlere Chunks fehlen, nicht nur das Ende. `capped` macht das sichtbar.
     const pointBudget = documentIds.length * 20;
-    const chunks = await qdrantOps.scrollDocuments('documents', filter, {
-      limit: pointBudget,
+    // Ein Punkt mehr als das Budget: eine einzige, unpaginierte Scroll-Anfrage
+    // kann "Limit ausgeschöpft" sonst nicht von "passt exakt" unterscheiden —
+    // bei exakt vollem Budget wäre jedes Dokument vollständig und `capped`
+    // trotzdem true. Der Überhang-Punkt wird verworfen; er beweist nur, dass
+    // hinter dem Budget noch etwas lag.
+    const fetched = await qdrantOps.scrollDocuments('documents', filter, {
+      limit: pointBudget + 1,
       withPayload: true,
       withVector: false,
     });
 
-    if (!chunks || chunks.length === 0) {
+    if (!fetched || fetched.length === 0) {
       return {
         documents: [],
         errors: documentIds.map((id) => ({ documentId: id, error: 'No chunks found' })),
@@ -624,7 +629,8 @@ export async function getMultipleDocumentsFullText(
       };
     }
 
-    const capped = chunks.length >= pointBudget;
+    const capped = fetched.length > pointBudget;
+    const chunks = capped ? fetched.slice(0, pointBudget) : fetched;
     if (capped) {
       console.warn(
         `[DocumentRetrieval] Bulk reconstruction hit its shared point budget (${pointBudget} points for ${documentIds.length} documents) — at least one document is incomplete`

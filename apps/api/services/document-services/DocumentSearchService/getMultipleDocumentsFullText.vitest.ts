@@ -47,6 +47,17 @@ describe('getMultipleDocumentsFullText — Budget-Signal', () => {
     expect(result.documents[0]?.chunkCount).toBe(5);
   });
 
+  it('meldet capped: false, wenn die Punkte das Budget exakt füllen', async () => {
+    // Exakt volles Budget heißt: nichts fehlt. Der Überhang-Abruf
+    // (pointBudget + 1) unterscheidet diesen Fall vom echten Schnitt.
+    const { ops } = opsWithPoints(20);
+
+    const result = await getMultipleDocumentsFullText(ops, 'user-1', ['doc-1']);
+
+    expect(result.capped).toBe(false);
+    expect(result.documents[0]?.chunkCount).toBe(20);
+  });
+
   it('meldet capped: false auf dem Fehlerpfad ohne Treffer', async () => {
     const { ops } = opsWithPoints(0);
 
