@@ -178,6 +178,11 @@ export async function runChatGraphResume({
           });
           return { status: result.status, body: result.body };
         }
+        // Der jüngere Pre-Loop-Zustand gewinnt — dann ist der ältere
+        // Loop-Zustand überholt und muss WEG: sonst überlebt er (24 h TTL)
+        // den 10-Minuten-Zustand und eine spätere ask_human-Antwort liefe
+        // gegen die falsche, längst überholte Frage.
+        await loopClarificationStateStore.delete(threadId);
       }
     }
 
