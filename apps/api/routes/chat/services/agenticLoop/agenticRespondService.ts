@@ -331,7 +331,9 @@ export async function streamAgenticResponse(
     const toolActivity = createToolActivity();
     // Einmal pro Zug gelesen; ein Ausfall liefert die leere Menge, also „fragen".
     const approvalUserId = agentConfig.userId ?? null;
-    const approvalEnabled = isToolApprovalEnabled() && approvalUserId != null;
+    // `disableMcp` (headless): ohne Connectoren kann das Gate nicht feuern —
+    // der Allowlist-Read wäre bei jedem Hintergrundlauf reine Kosten.
+    const approvalEnabled = !disableMcp && isToolApprovalEnabled() && approvalUserId != null;
     approvalGate = createToolApprovalGate({
       enabled: approvalEnabled,
       allowlist: approvalEnabled
@@ -751,8 +753,12 @@ export async function streamAgenticResponse(
       log.info(`[Agentic] Zug pausiert — ${approvalGate?.pending().length ?? 0} Freigabe(n) offen`);
     } else {
       log.warn(`[Agentic] loop ${aborted ? 'stopped (budget/abort)' : 'failed'}: ${msg}`);
-      degraded = aborted ? 'aborted' : 'failed';
       const outcome = resolveAbortOutcome({ text: emitter.text, aborted });
+      // NUR wenn der Ausgang die Antwort wirklich ersetzt/markiert: ein
+      // genuiner Fehler NACH fertig gestreamter Antwort (outcome == null,
+      // z. B. ein werfender Artefakt-Hook) lässt eine vollständige, richtige
+      // Antwort stehen — ein headless Aufrufer würde sie sonst wegwerfen.
+      if (outcome != null) degraded = aborted ? 'aborted' : 'failed';
       if (outcome?.mode === 'replace') {
         for (const s of steps) delete s.textOffset;
         emitter.replaceAndStream(outcome.delta);

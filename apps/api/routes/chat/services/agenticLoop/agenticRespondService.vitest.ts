@@ -264,6 +264,24 @@ describe('streamAgenticResponse — degraded-Marker (#3221)', () => {
     );
     expect(outcome.degraded).toBeUndefined();
   });
+
+  it('ein Fehler NACH fertig gestreamter Antwort ist kein failed — die Antwort steht', async () => {
+    // resolveAbortOutcome bleibt hier bewusst still (null): die Antwort war
+    // komplett, erst ein Nachschritt warf. Ein headless Aufrufer würde sie
+    // mit degraded='failed' wegwerfen und einen Fehlschlag melden.
+    const { sse } = fakeSse();
+    const deps = fakeDeps({ provider: 'greenpt' });
+    deps.runAgenticLoop = (async (p: LoopEngineParams) => {
+      p.onText('Die vollständige Antwort steht.');
+      throw new Error('Artefakt-Hook danach geworfen');
+    }) as unknown as AgenticRespondDeps['runAgenticLoop'];
+    const outcome = await streamAgenticResponse(
+      { ...baseParams(fakeState(), 'x'.repeat(4000), 'Frage?'), sse },
+      deps
+    );
+    expect(outcome.degraded).toBeUndefined();
+    expect(outcome.fullText).toBe('Die vollständige Antwort steht.');
+  });
 });
 
 describe('streamAgenticResponse — der Ersatz in der Zusammenfassungszeile', () => {
