@@ -231,6 +231,90 @@ describe('guardDocUndoAcrossAIFork', () => {
     expect(getText(editor)).toBe('KI 2');
   });
 
+  describe('AI merge as an undo step (#3261, fragment passed)', () => {
+    function guardedWithFragment() {
+      ctx = createCollabEditor();
+      const stop = guardDocUndoAcrossAIFork(ctx.editor as unknown as UndoGuardEditor, {
+        isCollaborative: true,
+        fragment: ctx.fragment,
+      });
+      return { ...ctx, stop };
+    }
+
+    it('undo directly after accept reverts the AI change, redo reapplies it', () => {
+      const { editor } = guardedWithFragment();
+      setText(editor, 'Original');
+
+      forkExt(editor).fork();
+      setText(editor, 'KI-Vorschlag');
+      forkExt(editor).merge({ keepChanges: true });
+      expect(getText(editor)).toBe('KI-Vorschlag');
+
+      expect(getDocUndoFlags(editor as unknown as UndoableEditor).canUndo).toBe(true);
+      editor.undo();
+      expect(getText(editor)).toBe('Original');
+
+      expect(getDocUndoFlags(editor as unknown as UndoableEditor).canRedo).toBe(true);
+      editor.redo();
+      expect(getText(editor)).toBe('KI-Vorschlag');
+    });
+
+    it('undo unwinds in order: post-merge edit, then AI change, then pre-fork history', () => {
+      const { editor } = guardedWithFragment();
+      setText(editor, 'Eins');
+      getUndoManager(editor).stopCapturing();
+      setText(editor, 'Zwei');
+
+      forkExt(editor).fork();
+      setText(editor, 'KI-Vorschlag');
+      forkExt(editor).merge({ keepChanges: true });
+
+      setText(editor, 'Nachher');
+      editor.undo();
+      expect(getText(editor)).toBe('KI-Vorschlag');
+      editor.undo();
+      expect(getText(editor)).toBe('Zwei');
+      editor.undo();
+      expect(getText(editor)).toBe('Eins');
+    });
+
+    it('reject adds no phantom undo step', () => {
+      const { editor } = guardedWithFragment();
+      setText(editor, 'Eins');
+      getUndoManager(editor).stopCapturing();
+      setText(editor, 'Zwei');
+      const stackLenBefore = getUndoManager(editor).undoStack.length;
+
+      forkExt(editor).fork();
+      setText(editor, 'KI-Vorschlag');
+      forkExt(editor).merge({ keepChanges: false });
+      expect(getText(editor)).toBe('Zwei');
+
+      expect(getUndoManager(editor).undoStack.length).toBe(stackLenBefore);
+      editor.undo();
+      expect(getText(editor)).toBe('Eins');
+    });
+
+    it('an editor torn down mid-review destroys the capture manager', () => {
+      // Install before any manager exists — yjs binds destroy per instance,
+      // so a later prototype spy would miss calls on existing managers.
+      const destroySpy = vi.spyOn(Y.UndoManager.prototype, 'destroy');
+      try {
+        const { editor, stop } = guardedWithFragment();
+        setText(editor, 'Original');
+        forkExt(editor).fork();
+
+        const callsAfterFork = destroySpy.mock.calls.length;
+        stop();
+        // Exactly one more — the capture manager; stop() tears down nothing else.
+        expect(destroySpy.mock.calls.length).toBe(callsAfterFork + 1);
+        forkExt(editor).merge({ keepChanges: false });
+      } finally {
+        destroySpy.mockRestore();
+      }
+    });
+  });
+
   it('is a silent no-op without collaboration', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const editor = BlockNoteEditor.create();

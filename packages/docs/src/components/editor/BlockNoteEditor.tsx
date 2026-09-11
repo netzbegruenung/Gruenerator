@@ -58,6 +58,8 @@ import { SuggestionPopover } from './SuggestionPopover';
 import { isDocAIForked } from '../../lib/aiExtension';
 import { disableGcOnAIFork } from '../../lib/forkedDocGc';
 import { guardDocUndoAcrossAIFork, type UndoGuardEditor } from '../../lib/undoAcrossAIFork';
+import { carryUndoAcrossEditorRecreate } from '../../lib/undoAcrossRecreate';
+import { type UndoableEditor } from '../../hooks/useDocUndoState';
 import { SuggestChangesExtension } from '../../lib/suggestChangesExtension';
 import { useSuggestionMode } from '../../hooks/useSuggestionMode';
 import './BlockNoteEditor.css';
@@ -423,11 +425,21 @@ const BlockNoteEditorInner = ({
 
     // The same fork/merge cycle destroys the yUndo UndoManager while ProseMirror
     // carries it over in the plugin state — without this guard, undo/redo is
-    // dead for the rest of the session after the first AI invocation. See
-    // guardDocUndoAcrossAIFork.
+    // dead for the rest of the session after the first AI invocation. With the
+    // fragment it additionally captures the accepted AI merge as an undo step
+    // (#3261). See guardDocUndoAcrossAIFork.
     const stopUndoGuard = guardDocUndoAcrossAIFork(editor as unknown as UndoGuardEditor, {
       isCollaborative: Boolean(collaborationOptions),
+      fragment: fragment ?? null,
     });
+
+    // useCreateBlockNote recreates the editor when its deps change identity
+    // (threadStore flip, provider remount) — carry the undo history onto the
+    // next incarnation instead of silently resetting it (#3262).
+    const stopUndoCarry = carryUndoAcrossEditorRecreate(
+      editor as unknown as UndoableEditor,
+      fragment ?? null
+    );
 
     // Fix checkbox multi-click: intercept click on checkbox inputs and
     // toggle the block directly via editor API, bypassing ProseMirror's
@@ -458,6 +470,8 @@ const BlockNoteEditorInner = ({
     return () => {
       editorDom?.removeEventListener('click', handleCheckboxClick);
       clearTimeout(timeoutId);
+      // Park the history first, while the undo plugin state is still intact.
+      stopUndoCarry();
       stopForkGcGuard();
       stopUndoGuard();
       removeEditor(documentId);
@@ -466,6 +480,7 @@ const BlockNoteEditorInner = ({
     editor,
     documentId,
     ydoc,
+    fragment,
     provider,
     collaborationOptions,
     setEditorInStore,
