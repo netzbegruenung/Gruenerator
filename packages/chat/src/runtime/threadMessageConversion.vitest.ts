@@ -764,7 +764,7 @@ describe('convertToThreadMessageLike — offene Loop-Rückfrage (#3220)', () => 
         metadata: { pendingClarification },
       },
     ]);
-    const parts = msg!.content as Array<Record<string, unknown>>;
+    const parts = msg!.content as unknown as Array<Record<string, unknown>>;
     const ask = parts.find((p) => p.type === 'tool-call' && p.toolName === 'ask_human');
     expect(ask).toMatchObject({
       toolCallId: 'call_ask',
@@ -793,7 +793,7 @@ describe('convertToThreadMessageLike — offene Loop-Rückfrage (#3220)', () => 
         },
       },
     ]);
-    const parts = msg!.content as Array<Record<string, unknown>>;
+    const parts = msg!.content as unknown as Array<Record<string, unknown>>;
     const asks = parts.filter((p) => p.type === 'tool-call' && p.toolName === 'ask_human');
     // Nur die Karte aus toolCalls — keine zweite aus pendingClarification.
     expect(asks).toHaveLength(1);
