@@ -1,4 +1,8 @@
+import { TOOL_APPROVAL_OPTIONS } from '../lib/toolApproval';
 import { INTENT_TO_TOOL } from '../lib/toolMappings';
+
+type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+type JsonObject = { [key: string]: JsonValue };
 
 interface PersistedToolCall {
   toolCallId: string;
@@ -49,6 +53,17 @@ export interface LoadedMessage {
       resolved?: boolean;
       answer?: string;
     };
+    pendingApproval?: {
+      approvalTurnId: string;
+      calls: Array<{
+        toolCallId: string;
+        toolName: string;
+        args?: Record<string, unknown>;
+        title?: string;
+        serverName?: string;
+      }>;
+      resolved?: boolean | 'expired';
+    };
   };
 }
 
@@ -57,8 +72,15 @@ type ToolCallPart = {
   readonly toolCallId: string;
   readonly toolName: string;
   /** JSON-eng gehalten: assistant-ui verlangt ReadonlyJSONObject-kompatible args. */
-  readonly args: Record<string, string | string[] | null>;
+  readonly args: JsonObject;
   readonly result?: unknown;
+  readonly approval?: {
+    readonly id: string;
+    readonly options?: typeof TOOL_APPROVAL_OPTIONS;
+    readonly resolution?: 'cancelled' | 'expired';
+  };
+  readonly title?: string;
+  readonly serverName?: string;
 };
 
 type TextPart = { type: 'text'; text: string };
@@ -67,9 +89,9 @@ export interface ConvertedMessage {
   role: 'user' | 'assistant';
   content: Array<TextPart | ToolCallPart>;
   id: string;
-  /** `requires-action` bei offener Rückfrage — sonst verweigert assistant-ui
-   *  die Antwort auf die rehydrierte ask_human-Karte. `fromThreadMessageLike`
-   *  bevorzugt einen gesetzten Status vor dem Auto-Status. */
+  /** `requires-action` bei offener Rückfrage oder Werkzeug-Freigabe — sonst
+   *  verweigert assistant-ui die Antwort auf die rehydrierte Karte.
+   *  `fromThreadMessageLike` bevorzugt diesen Status vor dem Auto-Status. */
   status?: { type: 'requires-action'; reason: 'tool-calls' };
   metadata?: { custom: Record<string, unknown> };
 }
@@ -106,7 +128,8 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): Converted
           m.role === 'assistant' &&
           m.metadata?.interrupted &&
           !extractContent(m.content) &&
-          !m.metadata?.toolCalls?.length
+          !m.metadata?.toolCalls?.length &&
+          !m.metadata?.pendingApproval?.calls.length
         )
     )
     .map((m) => {
@@ -126,7 +149,7 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): Converted
               toolName: tc.toolName,
               // Aus der Datenbank gelesenes JSON — die Form ist JSON-tauglich,
               // der persistierte Typ nur weiter gefasst.
-              args: (tc.args ?? {}) as Record<string, string | string[] | null>,
+              args: (tc.args ?? {}) as JsonObject,
               result: answer != null ? String(answer) : tc.result,
             });
             continue;
@@ -168,6 +191,30 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): Converted
         });
       }
 
+      // Offene Werkzeug-Freigaben überleben den Reload: volle Argumente und
+      // Dienstbeschriftung bleiben sichtbar, und assistant-ui erhält wieder
+      // sein Approval-Gate statt eines nie endenden Shimmers.
+      const pendingApproval = m.metadata?.pendingApproval;
+      const approvalVisible = pendingApproval != null && pendingApproval.resolved !== true;
+      const approvalUnresolved = approvalVisible && pendingApproval.resolved !== 'expired';
+      if (approvalVisible) {
+        for (const call of pendingApproval.calls) {
+          contentParts.push({
+            type: 'tool-call',
+            toolCallId: call.toolCallId,
+            toolName: call.toolName,
+            args: (call.args ?? {}) as JsonObject,
+            approval: {
+              id: call.toolCallId,
+              options: TOOL_APPROVAL_OPTIONS,
+              ...(pendingApproval.resolved === 'expired' ? { resolution: 'expired' as const } : {}),
+            },
+            ...(call.title != null ? { title: call.title } : {}),
+            ...(call.serverName != null ? { serverName: call.serverName } : {}),
+          });
+        }
+      }
+
       contentParts.push({ type: 'text' as const, text: textContent });
 
       const custom: Record<string, unknown> = {};
@@ -197,7 +244,7 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): Converted
         role: m.role as 'user' | 'assistant',
         content: contentParts,
         id: m.id,
-        ...(clarUnresolved
+        ...(clarUnresolved || approvalUnresolved
           ? { status: { type: 'requires-action' as const, reason: 'tool-calls' as const } }
           : {}),
         metadata: Object.keys(custom).length > 0 ? { custom } : undefined,
