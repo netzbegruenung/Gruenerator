@@ -394,7 +394,13 @@ const SLIDER_DESCRIPTOR: SharepicTemplateDescriptor = {
       },
     },
   },
-  supportedOperations: ['set-text', 'set-font-size', 'set-color-scheme'],
+  supportedOperations: [
+    'set-text',
+    'set-font-size',
+    'set-color-scheme',
+    'set-background-image',
+    'update-element',
+  ],
   textFields: [
     {
       field: 'label',
@@ -428,7 +434,11 @@ const SLIDER_DESCRIPTOR: SharepicTemplateDescriptor = {
       { id: 'tanne-sand', label: 'Tanne & Sand (dunkler Hintergrund)' },
     ],
   },
-  elements: [],
+  // A photo covers the plane whole and forces white text + a contrast scrim,
+  // same rule as every sibling photo template. The chat can set a query and
+  // then adjust the picture afterwards via the `hintergrundbild` element.
+  backgroundImage: { stateKey: 'currentImageSrc' },
+  elements: [backgroundPhotoElement()],
   defaultState: { colorScheme: 'sand-tanne' },
 };
 
