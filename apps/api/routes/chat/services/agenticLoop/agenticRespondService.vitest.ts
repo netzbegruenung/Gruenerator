@@ -39,6 +39,7 @@ import { createAnswerValidator } from './synthVerdicts.js';
 import {
   SYNTH_CUTOFF_RETRY_SUFFIX,
   SYNTH_INVALID_JSON_RETRY_SUFFIX,
+  TurnSuspendedError,
   type AnswerReplacement,
   type LoopEngineParams,
 } from './loopEngine.js';
@@ -204,6 +205,57 @@ describe('streamAgenticResponse — Verdikt und Wiederholung', () => {
     );
     expect(outcome.fullText).toContain('keine passende Antwort');
     expect(sent.some((e) => e.event === 'response_start')).toBe(true);
+  });
+});
+
+describe('streamAgenticResponse — Rückfrage (ask_human)', () => {
+  const askCatalog = {
+    ...EMPTY_CATALOG,
+    tools: {
+      ask_human: { execute: async () => ({ error: 'ask_human wird nie direkt ausgeführt.' }) },
+    } as unknown as ToolSet,
+  };
+
+  it('pausiert den Zug und gibt die Frage als pendingAsk zurück — ohne Rückfall-Text', async () => {
+    const { sse } = fakeSse();
+    const deps = fakeDeps({ assemble: (async () => askCatalog) as never });
+    deps.runAgenticLoop = (async (p: LoopEngineParams) => {
+      p.onText('Bisheriger Teil. ');
+      const ask = p.tools['ask_human'] as {
+        execute: (i: unknown, o: { toolCallId: string }) => Promise<unknown>;
+      };
+      await ask.execute(
+        { question: 'Welche Anna meinst du?', options: ['Anna Müller', 'Anna Meier'] },
+        { toolCallId: 'ask_1' }
+      );
+      if (p.suspended?.()) throw new TurnSuspendedError();
+      return { text: 'nie erreicht' };
+    }) as unknown as AgenticRespondDeps['runAgenticLoop'];
+
+    const outcome = await streamAgenticResponse(
+      { ...baseParams(fakeState(), 'x'.repeat(4000), 'Frage?'), sse },
+      deps
+    );
+
+    expect(outcome.pendingAsk).toEqual({
+      toolCallId: 'ask_1',
+      question: 'Welche Anna meinst du?',
+      options: ['Anna Müller', 'Anna Meier'],
+    });
+    expect(outcome.pendingApproval).toBeUndefined();
+    // Die Teilantwort bleibt, wie sie ist: kein Entschuldigungstext, kein
+    // „keine Antwort"-Rückfall, keine Zitat-Klammer.
+    expect(outcome.fullText).toBe('Bisheriger Teil. ');
+  });
+
+  it('ohne gehaltene Frage bleibt der Ausgang unverändert (kein pendingAsk)', async () => {
+    const { sse } = fakeSse();
+    const outcome = await streamAgenticResponse(
+      { ...baseParams(fakeState(), 'x'.repeat(4000), 'Frage?'), sse },
+      fakeDeps({ assemble: (async () => askCatalog) as never })
+    );
+    expect(outcome.pendingAsk).toBeUndefined();
+    expect(outcome.fullText).toBe('Fertige Antwort.');
   });
 });
 
