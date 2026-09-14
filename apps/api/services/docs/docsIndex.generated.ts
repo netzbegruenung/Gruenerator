@@ -122,7 +122,7 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "url": "/docs/basics/nachhaltigkeit",
     "title": "Wie nachhaltig ist der Grünerator?",
     "category": "Basics",
-    "lead": "{/ Welches Modell wo läuft, steht NICHT in dieser Datei — und WELCHER ANBIETER WELCHE AUFGABE hat, ebenfalls nicht: und rendern beide src/generated/models.json, und das liest scripts/generate-models.…"
+    "lead": "Künstliche Intelligenz braucht Strom, Wasser und Hardware. Das lässt sich nicht wegreden. Der Grünerator ist deshalb so gebaut, dass er Ressourcen spart, europäische Infrastruktur bevorzugt und die v…"
   },
   {
     "url": "/docs/basics/notebook",
@@ -925,175 +925,79 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Wie nachhaltig ist der Grünerator?",
     "anchor": "",
     "category": "Basics",
-    "text": "Künstliche Intelligenz kostet Strom, Wasser und Hardware — das lässt sich nicht wegdiskutieren. Der Grünerator ist deshalb so gebaut, dass er möglichst wenig davon braucht und den Rest aus möglichst sauberen Quellen bezieht. Drei Hebel machen den Unterschied: Grünes Hosting — die Server laufen mit erneuerbarer Energie. Sparsame Modelle — kleine und mittlere Modelle statt Frontier-Giganten. Intelligentes Routing — jede Anfrage bekommt nur so viel Rechenleistung, wie sie wirklich braucht."
+    "text": "Künstliche Intelligenz braucht Strom, Wasser und Hardware. Das lässt sich nicht wegreden. Der Grünerator ist deshalb so gebaut, dass er Ressourcen spart, europäische Infrastruktur bevorzugt und die verbleibenden Auswirkungen transparent macht."
   },
   {
     "url": "/docs/basics/nachhaltigkeit",
     "pageTitle": "Wie nachhaltig ist der Grünerator?",
-    "heading": "Black Forest Labs (Freiburg) — Bilder aus der EU",
-    "anchor": "#black-forest-labs-freiburg--bilder-aus-der-eu",
+    "heading": "Europäische Infrastruktur und Anbieter",
+    "anchor": "#europäische-infrastruktur-und-anbieter",
     "category": "Basics",
-    "text": "Black Forest Labs aus Freiburg entwickelt die FLUX-Bildmodelle. Der Grünerator nutzt ausschließlich den EU-Endpunkt (api.eu.bfl.ai) — die Bilderzeugung läuft damit im europäischen Strommix, der deutlich CO₂-ärmer ist als der US-amerikanische, wo die meisten Bild-KIs rechnen."
+    "text": "Unsere eigene Plattform – Web-Oberfläche, Datenbanken und Suche – läuft bei Hetzner in Deutschland. Hetzner gibt für seine deutschen Standorte erneuerbare Wasserkraft und einen durchschnittlichen PUE-Wert von 1,13 an. Der PUE beschreibt, wie viel zusätzliche Energie ein Rechenzentrum neben der eigentlichen Rechenarbeit benötigt: Je näher er an 1 liegt, desto effizienter ist die Infrastruktur. Für KI-Anfragen arbeiten wir mit europäischen Anbietern. Sie verarbeiten die jeweiligen Inhalte innerhalb Europas; Details zu den Auftragsverarbeitern und den Datenflüssen stehen in unserer Datenschutzerklärung. Welche Technik im Hintergrund eingesetzt wird, kann sich ändern – deshalb veröffentlichen wir hier bewusst keine kurzlebigen Listen einzelner Modelle."
   },
   {
     "url": "/docs/basics/nachhaltigkeit",
     "pageTitle": "Wie nachhaltig ist der Grünerator?",
-    "heading": "Cortecs — der Vermittler, und die ehrliche Lücke",
-    "anchor": "#cortecs--der-vermittler-und-die-ehrliche-lücke",
+    "heading": "Quellen und Weiteres",
+    "anchor": "#quellen-und-weiteres",
     "category": "Basics",
-    "text": "Cortecs ist kein Rechenzentrum, sondern ein Vermittler: Es reicht eine Anfrage an einen von mehreren Unteranbietern weiter. Wir schränken diese Auswahl vertraglich auf solche ein, die in der EU sitzen und dort reguliert sind und Zero Data Retention zusichern — und weil eine Weisung allein nichts beweist, prüfen wir jede Antwort nach: Cortecs nennt in einem Kopffeld, wer tatsächlich gerechnet hat, und ein Name außerhalb unserer Positivliste wird als Fehler protokolliert. Auch die Verbrauchsbuchhaltung läuft auf diesen Namen, nicht auf „Cortecs\". In der Praxis rechnet dort Infercom SCS — Sitz in Luxemburg, Verarbeitung laut Cortecs-Vertrag in Deutschland. Ein zweiter Endpunkt desselben Modells liegt bei Berget AI (Schweden); der Router wählt ihn von sich aus bisher nicht. Hier ist die Bilanz schlechter belegt als bei allen anderen auf dieser Seite, und das soll so dastehen: Für Infercom ist uns weder ein PUE-Wert noch ein Herkunftsnachweis für Ökostrom bekannt. Wir rechnen deshalb mit dem deutschen Strommix (344 g CO₂e/kWh, Umweltbundesamt 2025) und rechnen keinen Ökostrom an — die vorsichtige Lesart, nicht die günstige. Ein fremdes Zertifikat zu erben wäre derselbe Fehler wie bei…"
+    "text": "Hetzner: Nachhaltigkeit GreenPT: Sustainability Melious: Environmental impact Umweltbundesamt: Vergleich der durchschnittlichen Emissionen im Personenverkehr 2024 (TREMOD 6.71B) Umweltbundesamt: Vergleich im Fernverkehr 2023 ADEME AGRIBALYSE: gemahlener Kaffee GHG Protocol: Scope 2 Guidance Grünerator Pro-EU Auch KI mit erneuerbarer Energie verbraucht Ressourcen. Nachhaltigkeit bedeutet für uns nicht „folgenlos“, sondern: möglichst sparsam bauen, nachvollziehbar messen und bei neuen Daten besser werden."
   },
   {
     "url": "/docs/basics/nachhaltigkeit",
     "pageTitle": "Wie nachhaltig ist der Grünerator?",
-    "heading": "Erzeugte Bilder",
-    "anchor": "#erzeugte-bilder",
+    "heading": "So entsteht eine Zahl",
+    "anchor": "#so-entsteht-eine-zahl",
     "category": "Basics",
-    "text": "Ein einzelnes Bild wiegt schwerer als alles andere in der Übersicht: Ein Sharepic mit Flux Pro entspricht rund 25 erzeugten Pressemitteilungen. Deshalb zeigt die Übersicht den Bildanteil getrennt an — eine Summe allein würde nahelegen, dass Chatten das Problem ist. Auch hier meldet kein Anbieter Messwerte, und GreenPT betreibt kein Bildmodell, mit dem wir kalibrieren könnten. Die Werte stammen aus einer veröffentlichten Messreihe: Iyengar et al. (2025) vermessen gängige Diffusionsmodelle auf einer A100 über das gesamte Raster aus Auflösung, Schritten, Rechengenauigkeit und Guidance. Genau das macht die Arbeit brauchbar — wir können die Zelle nehmen, die zu unserer Nutzung passt, statt eine Schlagzeile zu zitieren. Bei 1024×1024, 50 Schritten, fp16, mit CFG: Modell | Energie je Bild (nur GPU) | ----------------------------- | ------------------------- | Qwen-Image (läuft bei Regolo) | 3,58 Wh | FLUX.1 [dev] | 4,28 Wh | Zwei Korrekturen sind nötig, bevor man das übernehmen darf. Erstens misst die Arbeit ausschließlich die GPU und zieht deren Leerlauf ab. In einem echten Rechenzentrum zahlt man beides: den Leerlauf ohnehin, dazu CPU, Arbeitsspeicher, Netzwerk, Lüfter und Verluste im…"
+    "text": "Die Transparenz-Seite veröffentlicht die Eingaben und das Ergebnis je Anbieter. Damit lässt sich nachvollziehen, wie eine Summe zustande kommt, ohne technische Modellnamen kennen zu müssen. Direkt gemessene Anfragen: Wir übernehmen die Energie und CO₂-Werte aus der Antwort des Anbieters. 1 kWh = 1.000 Wh; die CO₂-Angabe wird unverändert in Gramm ausgewiesen. Geschätzte Textanfragen: Für jede Anfrage rechnen wir Energie = Eingabe-Tokens × Eingabe-Faktor + Ausgabe-Tokens × Ausgabe-Faktor + Anfragen × Grundwert. Ausgabe-Tokens zählen deutlich stärker, weil das Erzeugen einer Antwort mehr Rechenzeit benötigt als das Einlesen einer Anfrage. Rechenzentrum: Der geschätzte Energiebedarf wird mit dem PUE des Rechenzentrums korrigiert. Ist kein PUE veröffentlicht, kennzeichnen wir den standortbasierten Ersatzwert als Schätzung. CO₂: CO₂ = Energie in kWh × Netzintensität in g CO₂/kWh. Die Transparenz-Seite zeigt für jeden Anbieter die verwendete Netzintensität und den PUE direkt neben dessen Anteil. Für direkt gemessene Anfragen fallen keine zusätzlichen Annahmen an. Für geschätzte Anfragen zeigt die Transparenz-Seite getrennt, welcher Anteil gemessen, mit einem kalibrierten Faktor geschätzt…"
   },
   {
     "url": "/docs/basics/nachhaltigkeit",
     "pageTitle": "Wie nachhaltig ist der Grünerator?",
-    "heading": "GreenPT — Dokumente und Ausweichweg",
-    "anchor": "#greenpt--dokumente-und-ausweichweg",
+    "heading": "Transparenz statt individuellem CO₂-Konto",
+    "anchor": "#transparenz-statt-individuellem-co₂-konto",
     "category": "Basics",
-    "text": "GreenPT rechnet ausschließlich in EU-Rechenzentren mit 100 % erneuerbarer Energie — in Paris sowie in Helsinki (je zur Hälfte Wasser- und Windkraft) — und nennt konkrete Effizienzwerte: PUE 1,25 (Branchenschnitt: 1,55) und ein Wasserverbrauch (WUE) von 0,25 statt branchenüblicher 1,8. Dass die erzeugten Dateien — PDFs, Präsentationen, Tabellen und Dokumente — hier laufen, ist keine Verlegenheitslösung, sondern gemessen: Am 03.08.2026 gegen die echten Prompts und Vorlagen rief das große Standardmodell das nötige Werkzeug in keinem einzigen Lauf sauber auf und lief in Wiederholungen fest, GreenPTs Modell in zehn von zehn Läufen — und dabei drei- bis viermal schneller. Als frei wählbare Chat-Lane ist GreenPT im Code fertig verdrahtet, im Modellwähler aber noch nicht freigeschaltet — deshalb steht sie oben nicht bei den drei wählbaren Lanes."
+    "text": "Unter Einstellungen → Nutzung siehst du deine Aktivitäten und einen Vergleich mit einer vergleichbaren Nutzung von ChatGPT. Eine persönliche Gramm-Zahl zeigen wir bewusst nicht: Die entscheidenden Architektur- und Routing-Entscheidungen treffen wir, nicht einzelne Nutzer:innen. Die absolute Wirkung der Plattform veröffentlichen wir auf der Transparenz-Seite. Dort zeigen wir Energie und CO₂ über den gesamten Grünerator, nach Bereichen aufgeschlüsselt und mit erkennbaren Unsicherheiten. Das hilft uns, die Infrastruktur und das Routing laufend zu verbessern."
   },
   {
     "url": "/docs/basics/nachhaltigkeit",
     "pageTitle": "Wie nachhaltig ist der Grünerator?",
-    "heading": "Grünes Hosting: Wasserkraft statt Kohlestrom",
-    "anchor": "#grünes-hosting-wasserkraft-statt-kohlestrom",
+    "heading": "Vergleichswerte zur Einordnung",
+    "anchor": "#vergleichswerte-zur-einordnung",
     "category": "Basics",
-    "text": "Der Grünerator selbst — Web-Oberfläche, Datenbanken, Suche — läuft bei Hetzner in Deutschland. Hetzner betreibt seine deutschen Standorte nach eigenen Angaben mit 100 % Wasserkraft, ist EMAS- und ISO-14001-zertifiziert und erreicht mit einem durchschnittlichen PUE-Wert von 1,13 eine überdurchschnittliche Energieeffizienz (je näher an 1,0, desto weniger Strom geht für Kühlung und Infrastruktur verloren). Gegenüber dem deutschen Durchschnitts-Strommix spart das laut Hetzner rund 77.000 Tonnen CO₂ pro Jahr. Die selbst gehosteten Open-Source-Modelle, die netzbegrünung e.V. und die verdigado eG betreiben, liefen ebenfalls auf dieser Wasserkraft-Infrastruktur. Seit dem 29.08.2026 bedienen sie keine Anfrage des Grünerators mehr — die Infrastruktur, Datenbank und Suche laufen unverändert dort weiter. Der Rückzug ging in drei Schritten, und alle drei hatten denselben Grund: Die selbst gehostete Instanz denkt vor jeder Antwort nach, und kein Schalter stellte das ab — rund zwei Drittel der Ausgabe gingen in einen Denkblock, den niemand angefordert hatte. 31.07.2026 — Gemma 4 zog zu Regolo nach Italien. Dieselben Gewichte antworten dort neunmal schneller, weil sie den Denkblock nicht…"
+    "text": "Vergleiche sollen eine Größenordnung vermitteln, nicht eine zweite Bilanz behaupten. In der Oberfläche verwenden wir deshalb nur den klar abgegrenzten Vergleich Pkw im deutschen Durchschnitt: 164 g CO₂e pro Personenkilometer. Das entspricht bei durchschnittlich 1,4 Personen pro Pkw etwa 6,1 Metern Pkw-Fahrt pro Gramm CO₂e. Der UBA-Wert enthält die Bereitstellung und Umwandlung der Energieträger; er ist kein Wert pro Fahrzeugkilometer. Umgerechnet wären das rund 230 g CO₂e je Fahrzeugkilometer. Weitere Vergleichswerte helfen bei der Einordnung, werden aber nicht in eine individuelle KI-Bilanz eingerechnet: Vergleich | Wert | Abgrenzung | ------------------------------------------------------- | ------------------------------------------: | ----------------------------------------------------------------------------------- | Pkw, Benzin / Diesel / Elektro | 165 / 175 / 70 g CO₂e pro Personenkilometer | Deutschland, durchschnittlicher Strommix bzw. Energievorkette enthalten (UBA, 2024) | Zug im Fernverkehr / Fernlinienbus / Flugzeug im Inland | 30 / 30 / 297 g CO₂e pro Personenkilometer | Deutschland, Bezugsjahr 2023 (UBA) | Kaffee mit 7 g / 10 g gemahlenem Kaffee | 58,8 / 84 g CO₂e…"
   },
   {
     "url": "/docs/basics/nachhaltigkeit",
     "pageTitle": "Wie nachhaltig ist der Grünerator?",
-    "heading": "Intelligentes Routing: nur so viel KI wie nötig",
-    "anchor": "#intelligentes-routing-nur-so-viel-ki-wie-nötig",
+    "heading": "Was die Zahlen abdecken – und was nicht",
+    "anchor": "#was-die-zahlen-abdecken--und-was-nicht",
     "category": "Basics",
-    "text": "Der Grünerator schickt nicht jede Anfrage an das größte verfügbare Modell. Stattdessen entscheidet ein kompaktes Einordnungs-Modell zuerst, was überhaupt gebraucht wird: eine einfache Antwort, eine Recherche, ein Dokument, ein Bild. Auch innerhalb einer Antwort ist die Arbeit geteilt: Ein kleines, schnelles Modell übernimmt das Planen und Aufrufen von Werkzeugen (Suche, Notebooks, Dokumente), ein kompaktes Modell schreibt den Text. Das große Standardmodell kommt nur dort zum Einsatz, wo seine Qualität wirklich gebraucht wird. So bleibt der Energieverbrauch pro Anfrage niedrig, ohne dass die Qualität leidet."
+    "text": "Unsere Bilanz erfasst vor allem den Strombedarf während der Nutzung. Nicht vollständig enthalten sind: Herstellung und Entsorgung von Hardware Training der KI-Systeme Grundverbrauch von Infrastruktur, die unabhängig von einer einzelnen Anfrage läuft Bereiche, für die uns noch keine belastbaren Messwerte vorliegen, etwa Teile von Suche und Transkription. Diese zählen wir als Aktivität, aber nicht stillschweigend als „null CO₂“. Die ausgewiesenen Werte sind daher eine Untergrenze, keine vollständige Lebenszyklusbilanz."
   },
   {
     "url": "/docs/basics/nachhaltigkeit",
     "pageTitle": "Wie nachhaltig ist der Grünerator?",
-    "heading": "Mistral AI (Frankreich) — Transparenz-Vorreiter",
-    "anchor": "#mistral-ai-frankreich--transparenz-vorreiter",
+    "heading": "Weniger Rechenaufwand, wo er keinen Nutzen bringt",
+    "anchor": "#weniger-rechenaufwand-wo-er-keinen-nutzen-bringt",
     "category": "Basics",
-    "text": "Mistral AI vermarktet sich nicht als Öko-Anbieter, hat aber als erstes KI-Unternehmen überhaupt eine vollständige, unabhängig geprüfte Lebenszyklus-Analyse eines eigenen Modells veröffentlicht — erstellt mit der französischen Umweltagentur ADEME und Carbone 4, peer-reviewed nach ISO 14040/44. Die Zahlen machen KI-Umweltkosten erstmals konkret vergleichbar: Eine typische Antwort (400 Token) verursacht etwa 1,14 g CO₂e und 45 ml Wasser. Mistral setzt sich zudem für einen verbindlichen globalen Umweltstandard für KI ein. Dazu kommt der französische Strommix, der zu den CO₂-ärmsten Europas gehört."
+    "text": "Nicht jede Aufgabe braucht dieselbe Rechenleistung. Der Grünerator ordnet Anfragen ein und setzt für einfache Schritte kleinere, schnellere KI ein. Anspruchsvollere Aufgaben erhalten nur dann mehr Rechenleistung, wenn sie davon wirklich profitieren. Auch Werkzeuge wie Suche oder Dokumentenerstellung werden gezielt eingesetzt. Das spart Zeit, Kosten und Energie – ohne Nutzer:innen dazu zu drängen, ihre Arbeit künstlich kurz zu halten."
   },
   {
     "url": "/docs/basics/nachhaltigkeit",
     "pageTitle": "Wie nachhaltig ist der Grünerator?",
-    "heading": "Mitte statt Obergrenze — und die Spanne dazu",
-    "anchor": "#mitte-statt-obergrenze--und-die-spanne-dazu",
+    "heading": "Wir messen, statt nur zu behaupten",
+    "anchor": "#wir-messen-statt-nur-zu-behaupten",
     "category": "Basics",
-    "text": "Überall, wo wir schätzen müssen, zeigen wir seit dem 29.08.2026 einen mittleren Wert und daneben die Spanne, in der er sitzt. Vorher stand an diesen Stellen die Obergrenze allein. Der Wechsel ist keine Beschönigung, sondern die Korrektur eines zweiten Fehlers. Auf jede Unsicherheit nach oben zu runden liest sich wie Vorsicht, verhält sich aber wie eine Verzerrung: Die Zahl ist dann verlässlich falsch, und zwar immer in dieselbe Richtung — und weil mehrere solcher Aufschläge sich multiplizieren, wächst der Fehler mit jeder Unsicherheit, die man ehrlich benennt. Wer vorsichtig sein will, wird dafür bestraft. Dazu kam ein Ungleichgewicht, das erst beim Nachrechnen auffiel: Die Aufschläge lagen alle auf der Energie-Seite, während auf der Kohlenstoff-Seite eine Annahme in die Gegenrichtung lief (nur Verbrennungsemissionen, siehe oben). Die Rechnung war also nicht durchgehend streng, sondern streng beim Strom und großzügig beim CO₂ — was niemand beabsichtigt hatte und was in keiner der beiden Richtungen als Vorsicht durchgeht. Was die Spanne trägt und was nicht, steht ausdrücklich dabei: Wo eine Lane gemessen und das Land des Anbieters bekannt ist, fallen beide Enden zusammen und es…"
+    "text": "Wo Anbieter die Umweltwirkung einer Anfrage direkt zurückmelden, übernehmen wir diese Werte. Das gilt für GreenPT und jetzt auch für Melious: Beide liefern Energieverbrauch und CO₂-Emissionen zusammen mit der jeweiligen Antwort. Für Anfragen ohne solche Messwerte schätzen wir den Verbrauch anhand der tatsächlich erzeugten und eingelesenen Tokens. Die verwendeten Faktoren beruhen auf eigenen Messreihen vergleichbarer KI-Systeme. Standort, Rechenzentrum und technische Auslastung können wir dabei nicht immer vollständig sehen. Deshalb behandeln wir Schätzungen als Schätzungen und zeigen Unsicherheit nicht als Scheingenauigkeit. Unsere Hauptzahl orientiert sich am Strommix am Ort des Rechenzentrums. Zusätzlich berücksichtigen wir, wenn ein Anbieter nachweislich erneuerbaren Strom beschafft. Beides ist relevant: Ein Ökostromvertrag unterstützt den Ausbau erneuerbarer Energien, der lokale Strommix beschreibt jedoch die physische Versorgung zum Zeitpunkt der Anfrage."
   },
   {
     "url": "/docs/basics/nachhaltigkeit",
     "pageTitle": "Wie nachhaltig ist der Grünerator?",
-    "heading": "Modelle ohne Messwert: die Mitte einer gemessenen Klammer",
-    "anchor": "#modelle-ohne-messwert-die-mitte-einer-gemessenen-klammer",
+    "heading": "Zwei Begriffe, die unsere Rechnung beeinflussen",
+    "anchor": "#zwei-begriffe-die-unsere-rechnung-beeinflussen",
     "category": "Basics",
-    "text": "Für einige Lanes betreibt GreenPT kein Gegenstück — Mistral Small 4 (119 Mrd.) und Pixtral Large. Sie einfach wegzulassen wäre die bequemste Lösung und die falscheste: Bei realer Nutzung läuft ein Großteil des Volumens genau dort. Über die Modellgröße lässt sich das nicht schätzen — die Messreihe widerlegt den Zusammenhang direkt: GPT-OSS mit 120 Mrd. Parametern verbraucht je Token weniger als ein Sechstel von Mistral Medium mit 128 Mrd. Wir haben deshalb einen zweiten Weg geprüft: Antwortgeschwindigkeit als Energie-Proxy. Auf identischer Regolo-Hardware sollte ein Modell, das doppelt so lange für ein Token braucht, ungefähr doppelt so viel ziehen. Als Kontrolle haben wir den Proxy an zwei Modellen getestet, deren Energieverbrauch wir kennen: | Verhältnis GPT-OSS 120B zu Gemma 4 | --------------------------- | ---------------------------------- | laut Geschwindigkeits-Proxy | 0,43× | laut Messung | 1,12× | Der Proxy lag um 62 % daneben — und zwar in der schmeichelhaften Richtung. Geschwindigkeit sagt vor allem, über wie viele GPUs ein Modell verteilt ist, nicht wie viel es zieht. Die daraus abgeleiteten Zahlen haben wir verworfen. Was bleibt, ist die gemessene Spanne dieser…"
-  },
-  {
-    "url": "/docs/basics/nachhaltigkeit",
-    "pageTitle": "Wie nachhaltig ist der Grünerator?",
-    "heading": "Quellen",
-    "anchor": "#quellen",
-    "category": "Basics",
-    "text": "Alle Zahlen dieser Seite sind nachprüfbar. Unsere Anbieter Scaleway Impact Report 2025 — Scope 1/2/3, PUE je Rechenzentrum, WUE Hetzner: Nachhaltigkeit — PUE 1,10–1,16, Wasserkraft seit 2008, EMAS DHH Group Sustainability Report 2024 — Seeweb (Regolo), Stromverbrauch und PUE GreenPT: Sustainability — Methode der CO₂-Berechnung, stündliche Netzdaten von Nodera GreenPT: Partner — Infrastruktur läuft bei Scaleway in Paris Regolo: Sustainable AI Mistral AI: Ökobilanz mit ADEME und Carbone 4 Strommix Umweltbundesamt: CO₂-Emissionen pro Kilowattstunde Strom — Deutschland, verbrauchsbasiert RTE: Bilan électrique — Frankreich Ember: Yearly Electricity Data — Italien und Ländervergleich Methode und Vergleichszahlen Jegham et al., „How Hungry is AI?\" (arXiv:2505.09598) — Grundlage des ChatGPT-Vergleichs Iyengar et al., „Energy Scaling Laws for Diffusion Models\" (arXiv:2511.17031) — Grundlage der Bildwerte; Tabelle 3 (FLUX.1) und Tabelle 6 (Qwen-Image) Scope3: Sustainable AI — Image Generation — unabhängige Gegenprobe für Bilder Uptime Institute Global Data Center Survey 2025 — PUE-Durchschnitt: europäische Region 1,50 (n = 134), weltweit 1,54 (n = 681) Energieeffizienzgesetz (EnEfG) § 11 —…"
-  },
-  {
-    "url": "/docs/basics/nachhaltigkeit",
-    "pageTitle": "Wie nachhaltig ist der Grünerator?",
-    "heading": "Regolo (Seeweb, Italien) — 100 % erneuerbar",
-    "anchor": "#regolo-seeweb-italien--100--erneuerbar",
-    "category": "Basics",
-    "text": "Regolo betreibt seine GPU-Server nach eigenen Angaben mit 100 % erneuerbarer Energie, verzichtet auf Wasserkühlung und führt Hardware im Kreislauf (wiederverwenden, aufarbeiten, recyceln). Das Unternehmen ist ISO-14001-zertifiziert, Qualified Supporter der Green Web Foundation und arbeitet nach dem europäischen DNSH-Prinzip („Do No Significant Harm\", EU-Taxonomie) — alles in europäischen Rechenzentren, mit Zero Data Retention. Transkription lief hier bis Juli 2026 ebenfalls; Regolos eigene Hinweise begrenzten sie auf zwei Minuten pro Datei, und an einem 180-Sekunden-Ausschnitt wiederholte das Modell tatsächlich einen ganzen Satz. Seitdem läuft sie über Anbieter ohne diese Einschränkung."
-  },
-  {
-    "url": "/docs/basics/nachhaltigkeit",
-    "pageTitle": "Wie nachhaltig ist der Grünerator?",
-    "heading": "Sparsame Modelle statt Größenwahn",
-    "anchor": "#sparsame-modelle-statt-größenwahn",
-    "category": "Basics",
-    "text": "Die größten kommerziellen KI-Modelle brauchen für jede einzelne Antwort ein Vielfaches der Energie eines kompakten Modells. Der Grünerator setzt deshalb bewusst auf kleine und mittlere Modelle — kein einziges davon spielt in der Größenklasse der Frontier-Modelle. Welche es gerade genau sind, ändert sich mehrmals im Jahr; diese Tabelle wird direkt aus dem Routing-Code erzeugt und zeigt deshalb immer den aktuellen Stand, nicht den von Hand nachgepflegten: Im Chat selbst stehen drei Größen zur Wahl — Klein, Mittel und Ultra; welche Modelle dahinterstehen, sind die ersten drei Zeilen oben. Kein einziges dieser Modelle spielt in der Größenklasse der energiehungrigsten Frontier-Modelle — und für die Aufgaben im politischen Alltag reicht das nicht nur, es ist oft sogar die bessere Wahl, weil kleinere Modelle schneller antworten."
-  },
-  {
-    "url": "/docs/basics/nachhaltigkeit",
-    "pageTitle": "Wie nachhaltig ist der Grünerator?",
-    "heading": "Warum keine Nachkommastellen",
-    "anchor": "#warum-keine-nachkommastellen",
-    "category": "Basics",
-    "text": "Keine dieser Zahlen trägt eine Nachkommastelle. Der Fußabdruck ruht auf Modellkoeffizienten aus einer Messreihe und, wo die fehlt, auf der Mitte zwischen zwei gemessenen Modellen — ein Zehntelgramm ist eine Auflösung, die diese Rechnung nicht hergibt. „154 g\" sagt dasselbe wie „154,1 g\", nur ohne eine Genauigkeit zu behaupten, die es nicht gibt. Die Einheit wechselt erst bei 10 kg von Gramm auf Kilogramm, weil „1 kg\" für 1400 g ein Drittel wegrunden würde, um einen Dezimalpunkt zu vermeiden."
-  },
-  {
-    "url": "/docs/basics/nachhaltigkeit",
-    "pageTitle": "Wie nachhaltig ist der Grünerator?",
-    "heading": "Warum Ökostrom die Hauptzahl nicht auf null bringt — und wo er trotzdem auftaucht",
-    "anchor": "#warum-ökostrom-die-hauptzahl-nicht-auf-null-bringt--und-wo-er-trotzdem-auftaucht",
-    "category": "Basics",
-    "text": "Alle drei Anbieter beziehen zertifizierte erneuerbare Energie. Trotzdem steht in unserer Hauptzahl der jeweilige Netzmix. Das ist keine Nachlässigkeit, sondern der Punkt: Ein Ökostromvertrag ändert nichts daran, welcher Strom im selben Moment physisch durch die Leitung fließt. Scaleway macht es selbst genau so. Der Impact Report weist den Ökostrom ausdrücklich als Guarantee of Origin aus, also als Herkunftsnachweise — und rechnet die Emissionen trotzdem standortbasiert. Ein Anbieter, der sich mit einem Federstrich auf nahe null hätte rechnen können, tut es nicht. Dem folgen wir. Ihn ganz zu verschweigen wäre allerdings die andere Hälfte derselben Unehrlichkeit. Zertifikate zu kaufen ist eine reale Handlung mit realer Wirkung auf den Ausbau. Deshalb zeigen wir die marktbasierte Rechnung als günstiges Ende der Spanne, ausdrücklich als zweite Methode gekennzeichnet — nicht als Unsicherheit und nie als Ersatz für die Hauptzahl. Marktbasiert ist dabei nichts zu schätzen: Für Verbrauch, der durch entwertete Herkunftsnachweise gedeckt ist, gilt der Emissionsfaktor der vertraglich bezogenen Erzeugung, also null. Die einzige Frage je Anbieter ist der Beleg, und die Latte ist ein benanntes…"
-  },
-  {
-    "url": "/docs/basics/nachhaltigkeit",
-    "pageTitle": "Wie nachhaltig ist der Grünerator?",
-    "heading": "Was die ganze Plattform verbraucht",
-    "anchor": "#was-die-ganze-plattform-verbraucht",
-    "category": "Basics",
-    "text": "Die Transparenz-Seite zeigt die Summe über alle Nutzer:innen: Energie und CO₂ des gesamten Grünerators, aufgeschlüsselt nach Anbieter, Bereich und Funktion, dazu der Tagesverlauf. Das ist die einzige Stelle, an der wir eine absolute Verbrauchszahl nennen — hier beschreibt sie unsere eigenen Entscheidungen und nicht das Verhalten einzelner Menschen. Drei Entscheidungen dahinter sind erklärungsbedürftig, weil sie die Zahlen kleiner oder unschärfer machen, als sie sein könnten. Es ist eine Spanne, keine Zahl. Wo ein Modell vermessen ist und das Land des Anbieters feststeht, fallen alle Enden zusammen. Wo nicht, zeigt die Skala beide Enden der gemessenen Klammer und die angezeigte Zahl sitzt dazwischen. Ihre Breite ist damit ein direktes Maß dafür, wie viel wir noch nicht wissen — und sie wird schmaler, sobald eine Lane vermessen wird, nicht durch besseres Formulieren. Tage mit sehr wenigen Aktiven fallen ganz heraus. Unterschreitet ein Tag fünf verschiedene Nutzer:innen, wird er nicht nur aus dem Verlauf ausgeblendet, sondern auch aus allen Summen entfernt. Nur auszublenden würde nichts nützen: Wer zwei Zeiträume abfragt, die sich um einen Tag unterscheiden, könnte ihn durch…"
-  },
-  {
-    "url": "/docs/basics/nachhaltigkeit",
-    "pageTitle": "Wie nachhaltig ist der Grünerator?",
-    "heading": "Was die Zahl nicht enthält",
-    "anchor": "#was-die-zahl-nicht-enthält",
-    "category": "Basics",
-    "text": "Keine Herstellung, kein Training. Wir zählen den Strom der Anfrage selbst. Der CO₂-Rucksack aus GPU-Produktion und Modelltraining fehlt. Keine Sprachausgabe. KugelAudio veröffentlicht keine Verbrauchsdaten, und für Sprachsynthese gibt es keine veröffentlichte Messung, deren Systemgrenze zu unserer passt. Anders als bei der Transkription erfassen wir hier aber die Dauer — die Größe, mit der die Energie skalieren würde. Sobald jemand einen belastbaren Wert in Wattstunden je Sekunde erzeugter Sprache liefert, lässt sich der gesamte bisher erfasste Zeitraum rückwirkend bewerten, ohne dass Daten nachgetragen werden müssen. Für den Netzfaktor bräuchte es zusätzlich eine Spanne statt eines Punktwerts: KugelAudios Unterauftragnehmer-Register nennt für die Inferenz Verda AI (Finnland) und Nebius (Finnland, Frankreich) sowie Hetzner für GPU-Server (Deutschland); Polen kommt nur über Scaleway als allgemeine Infrastruktur ins Bild. Welcher Standort eine einzelne Anfrage bedient hat, legt der Anbieter nicht offen. Keine Transkription, keine Recherche. Dafür liefert kein Anbieter Messwerte. Bei GreenPT, das als einziges überhaupt misst, haben wir alle in Frage kommenden Endpunkte geprüft:…"
-  },
-  {
-    "url": "/docs/basics/nachhaltigkeit",
-    "pageTitle": "Wie nachhaltig ist der Grünerator?",
-    "heading": "Was dieselbe Arbeit mit ChatGPT gekostet hätte",
-    "anchor": "#was-dieselbe-arbeit-mit-chatgpt-gekostet-hätte",
-    "category": "Basics",
-    "text": "Die Nutzungs-Übersicht zeigt ausschließlich diese Differenz — den Betrag, um den dieselbe Arbeit auf ChatGPT teurer oder billiger gewesen wäre. Sie beruht auf Jegham et al. (2025) — der einzigen veröffentlichten Rechnung zu GPT-4o mit derselben Systemgrenze wie unserer: nur Betriebsstrom, kein Training, keine Hardware-Herstellung, PUE eingerechnet, standortbasierter Emissionsfaktor. Alles andere wäre ein Vergleich von Äpfeln mit Birnen. Für eine Kurzanfrage (100 Token rein, 300 raus) nennt die Arbeit 0,42 Wh und damit rund 147 mg CO₂e. Unsere Modelle in derselben Konfiguration: Modell und Standort | Energie | CO₂ | ---------------------------- | ------- | ------ | Gemma 4 bei Regolo | 0,21 Wh | 56 mg | GPT-OSS 120B bei Regolo | 0,24 Wh | 66 mg | Mistral Medium in Frankreich | 1,37 Wh | 30 mg | GPT-4o (Jegham et al.) | 0,42 Wh | 147 mg | Daraus ergibt sich die Spanne, die die Übersicht zeigt: rund 2- bis 5-mal weniger CO₂ je vergleichbarer Anfrage. Der Vergleich gilt nur für Text. Für erzeugte Bilder gibt es keine OpenAI-Zahl mit vergleichbar sauber benannter Systemgrenze; eine Herstellerschätzung gegen eine grenzkorrigierte Messung zu stellen würde die Sorgfalt entwerten, um die…"
-  },
-  {
-    "url": "/docs/basics/nachhaltigkeit",
-    "pageTitle": "Wie nachhaltig ist der Grünerator?",
-    "heading": "Wenn ein Betreiber keinen PUE veröffentlicht",
-    "anchor": "#wenn-ein-betreiber-keinen-pue-veröffentlicht",
-    "category": "Basics",
-    "text": "Drei Anbieter nennen keinen: Mistral, Infercom und Berget. Bis August 2026 fiel die Rechnung dort still auf GreenPTs 1,25 zurück — also auf den Wert eines fremden, besonders effizienten Rechenzentrums. Die Transparenz-Seite hat ihn danebengeschrieben, als hätte der Anbieter ihn genannt. Das war falsch, und zwar in die schmeichelnde Richtung. Jetzt schätzen wir stattdessen über den Standort und weisen die Schätzung als Schätzung aus (auf der Seite als „PUE geschätzt\", mit einem ≈ vor der Zahl): Fall | Wert | Grundlage | --------------------------------- | ---- | ------------------------------------------------------------------------------------- | Rechenzentrum in Deutschland | 1,5 | Obergrenze des Energieeffizienzgesetzes für Bestandsanlagen ab dem 01.07.2027 | Standort nur als „EU/EWR\" bekannt | 1,50 | Uptime Institute, Global Data Center Survey 2025 — europäischer Durchschnitt, n = 134 | Bewusst der europäische Durchschnitt und nicht der weltweite Wert derselben Erhebung (1,54 bei n = 681): Alle betroffenen Anbieter sind vertraglich auf den EWR festgelegt. Regionen mit schlechteren Werten — Naher Osten und Afrika melden 1,68 — würden unseren Fußabdruck mit Rechenzentren…"
-  },
-  {
-    "url": "/docs/basics/nachhaltigkeit",
-    "pageTitle": "Wie nachhaltig ist der Grünerator?",
-    "heading": "Wie wir Emissionen berechnen",
-    "anchor": "#wie-wir-emissionen-berechnen",
-    "category": "Basics",
-    "text": "Emissionen sind Energie mal Kohlenstoffintensität des Stroms. Dafür gibt es zwei anerkannte Methoden, und das GHG-Protokoll verlangt ausdrücklich beide. Wir weisen seit August 2026 auch beide aus: die standortbasierte Zahl mit dem realen Strommix am Rechenzentrumsstandort ist unsere Bilanz und die Zahl, die überall groß steht. Die marktbasierte Zahl, die den bezogenen Ökostrom anrechnet, bildet das günstige Ende der angezeigten Spanne. Nie eine ohne die andere. Das ist bewusst die strengere Variante, und wir folgen damit GreenPT selbst: Der Anbieter wirbt mit 100 % erneuerbarer Energie und rechnet seine Emissionen trotzdem nicht auf null, sondern nutzt stündliche Netzdaten je Standort. Ein Ökostromvertrag ändert nichts daran, welcher Strom im selben Moment physisch durch die Leitung fließt. Die grüne Beschaffung bleibt richtig und wirksam — sie ist nur kein Rabatt auf die Bilanz. Wir rechnen mit diesen Werten (Jahresmittel 2024, nur Verbrennungsemissionen): Standort | g CO₂/kWh | Quelle | --------------------------------- | --------- | -------------------------------------------------- | Scaleway (Paris) | 24 | Scaleway Impact Report 2025, eigene Scope-2-Zahl | Frankreich ……"
-  },
-  {
-    "url": "/docs/basics/nachhaltigkeit",
-    "pageTitle": "Wie nachhaltig ist der Grünerator?",
-    "heading": "Wie wir rechnen",
-    "anchor": "#wie-wir-rechnen",
-    "category": "Basics",
-    "text": "Unter Einstellungen → Nutzung siehst du, was du gemacht hast — Anfragen, Tokens, Bilder, Transkriptionen, Recherchen, Sprachausgabe — und daneben, wie viel CO₂ dieselbe Arbeit auf ChatGPT gekostet hätte. Was du verbraucht hast, zeigen wir dort bewusst nicht. Das ist eine Entscheidung, keine Auslassung. Wie viel eine Anfrage kostet, hängt fast vollständig davon ab, welches Modell wo läuft und an welchem Netz das Rechenzentrum hängt — und das entscheiden wir, nicht du. Eine persönliche Gramm-Zahl macht eine einzelne Person für eine Architekturentscheidung verantwortlich, die sie nicht getroffen hat, und legt nahe, weniger zu fragen, wo eigentlich wir sparsamer bauen müssen. Die absolute Zahl gehört deshalb dorthin, wo sie hingehört: auf die Transparenz-Seite, die den Verbrauch der ganzen Plattform ausweist. Die Zahlen unten erklären trotzdem beides — die Ersparnis im Nutzung-Tab und die Plattformzahl entstehen aus derselben Rechnung."
-  },
-  {
-    "url": "/docs/basics/nachhaltigkeit",
-    "pageTitle": "Wie nachhaltig ist der Grünerator?",
-    "heading": "Woher die Messwerte kommen",
-    "anchor": "#woher-die-messwerte-kommen",
-    "category": "Basics",
-    "text": "Von unseren Anbietern liefert nur GreenPT die Umweltkosten einer Anfrage mit: Jede Antwort trägt ein impact-Objekt mit Energieverbrauch und Emissionen. Diese Werte übernehmen wir unverändert. Für alle anderen rechnen wir hoch — mit Werten, die an genau denselben Modellen gemessen wurden. GreenPT betreibt Gemma 4, GPT-OSS 120B und Mistral Medium 3.5 ebenfalls, also verrät eine Messung dort, was dasselbe Modell bei Regolo oder Cortecs kostet. Gemessen am 31.07.2026 über 35 Läufe mit unterschiedlich langen Antworten: Modell | Energie je erzeugtem Token | typische Antwort (400 Token) | ----------------------------- | -------------------------- | ---------------------------- | Mistral Small 3.2 (24 Mrd.) | 0,70 mWh | 0,28 Wh | Gemma 4 (31 Mrd.) | 0,72 mWh | 0,29 Wh | GPT-OSS 120B | 0,81 mWh | 0,34 Wh | Mistral Medium 3.5 (128 Mrd.) | 4,52 mWh | 1,84 Wh | Qwen 3.5 (397 Mrd.) | 7,47 mWh | 3,08 Wh | Das ist die harte Zahl unter dem, was weiter oben über sparsame Modelle steht: Mistral Medium braucht das 6,3-fache von Gemma 4, das größte gemessene Modell das 10,3-fache. Genau deshalb schreibt bei uns ein kompaktes Modell die Antworten. Nebenbei zeigt die Messung, dass der Prompt fast…"
+    "text": "PUE (Power Usage Effectiveness) beschreibt die Effizienz eines Rechenzentrums. Ein PUE von 1,0 hieße: Jeder Watt Strom versorgt direkt die IT. Bei einem PUE von 1,25 kommen auf 100 Watt Rechenarbeit weitere 25 Watt für Kühlung, Stromversorgung und andere Infrastruktur hinzu. Darum rechnen wir den PUE in die Energie einer Anfrage ein. Netzintensität meint hier nicht die Auslastung des Internets, sondern den CO₂-Gehalt des Stromnetzes: Wie viele Gramm CO₂ bei einer Kilowattstunde Strom am Rechenzentrumsstandort entstehen. Dieser Wert kann je Land, Region und Tageszeit schwanken – etwa wenn viel Wind- oder Solarstrom verfügbar ist. GreenPT erklärt diesen Ansatz und seine PUE-Werte auf seiner Nachhaltigkeitsseite; dort werden für einzelne Rechenzentren auch stündliche CO₂-Daten genutzt. Wo wir einen direkt gemessenen Anbieterwert erhalten, übernehmen wir ihn. Andernfalls verwenden wir die dokumentierte standortbasierte Netzintensität und weisen die Unsicherheit aus."
   },
   {
     "url": "/docs/basics/notebook",

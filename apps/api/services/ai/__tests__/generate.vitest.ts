@@ -99,10 +99,10 @@ describe('aiText', () => {
     await expect(aiText({ lane: 'antrag', prompt: 'x' })).resolves.toBe('Vom Fallback');
     // `antrag` writes a finished text, so Gemma 4 is primary — auf welchem
     // Host, entscheidet services/ai/gemmaHosts.ts; die generische Kette
-    // (cortecs → regolo → mistral) führt danach mit dem übrig gebliebenen
+    // (cortecs → melious → mistral) führt danach mit dem übrig gebliebenen
     // zweiten Gemma-Host.
     expect(callAt(0).provider).toBe(GEMMA_31B_PRIMARY.provider);
-    expect(callAt(1).provider).toBe('regolo');
+    expect(callAt(1).provider).toBe('melious');
   });
 
   it('lets each fallback answer on its own default model', async () => {
@@ -232,7 +232,7 @@ describe('the wall clock', () => {
     expect([0, 1, 2, 3].map((i) => callAt(i).provider)).toEqual([
       'greenpt',
       'cortecs',
-      'regolo',
+      'melious',
       'mistral',
     ]);
   });

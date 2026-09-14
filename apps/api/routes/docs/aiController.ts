@@ -142,7 +142,7 @@ export async function handleAiRequest(req: TypedRequest<AiRequestBody>, res: Res
     const provider = providerChain.find((p) => isProviderConfigured(p));
 
     if (!provider) {
-      log.error('[DocsAI] No AI provider configured (tried: mistral, regolo, cortecs)');
+      log.error('[DocsAI] No AI provider configured (tried: mistral, melious, cortecs)');
       return res.status(500).json({ error: 'AI provider not configured' });
     }
 
