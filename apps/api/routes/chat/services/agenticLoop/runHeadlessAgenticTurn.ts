@@ -151,6 +151,23 @@ export async function runHeadlessAgenticTurn(
     };
   }
 
+  // Wie die Freigabe: ohne Thread ist `ask_human` nicht montiert, doch ein
+  // gehaltener Aufruf (z. B. ein halluzinierter Name) würde sonst als fertiges
+  // Ergebnis abgelegt, auf das niemand antwortet.
+  if (outcome.pendingAsk) {
+    log.error(
+      `[Headless] ${p.slotLabel}: Zug wollte eine Rückfrage (${outcome.pendingAsk.question}) — kein Mensch am Lauf, als failed gewertet`
+    );
+    return {
+      text: '',
+      degraded: 'failed',
+      steps: outcome.steps,
+      citations: outcome.citations,
+      sources: outcome.sources,
+      modelName: outcome.modelName,
+    };
+  }
+
   return {
     text: outcome.fullText.trim(),
     degraded: outcome.degraded ?? 'none',
