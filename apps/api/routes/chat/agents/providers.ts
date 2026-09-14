@@ -7,6 +7,7 @@ import { env } from '../../../config/env.js';
 import {
   GEMMA_31B_ALTERNATE,
   GEMMA_31B_ON_CORTECS,
+  GEMMA_31B_ON_MELIOUS,
   GEMMA_31B_ON_REGOLO,
   GEMMA_31B_PRIMARY,
 } from '../../../services/ai/gemmaHosts.js';
@@ -17,6 +18,7 @@ import { isModelSlow } from '../../../services/ai/modelHealth.js';
 import { pickHealthyTarget } from '../../../services/ai/modelSiblings.js';
 import {
   getGreenPTProvider,
+  getMeliousProvider,
   getMistralProvider,
   getRegoloProvider,
   getCortecsProvider,
@@ -92,7 +94,8 @@ export { isVisionCapable };
  * Begründung steht bei `ModelConfigSingle` unten, damit sie nicht zweimal
  * gepflegt werden muss.
  */
-export type Provider = 'mistral' | 'litellm' | 'regolo' | 'greenpt' | 'scaleway' | 'cortecs';
+export type Provider =
+  'mistral' | 'litellm' | 'regolo' | 'melious' | 'greenpt' | 'scaleway' | 'cortecs';
 
 const GREENPT_DEFAULT_MODEL = 'mistral-medium-3.5-128b';
 
@@ -192,11 +195,11 @@ const SMALL_ANSWER_LANE: ModelConfigSingle = {
  * 29.08.2026 bedient es überhaupt keine Lane mehr, und die Überlauf-Bauform
  * samt Slot, gegen die dieser Absatz argumentierte, gibt es nicht mehr.
  */
-const GEMMA_4_REGOLO: ModelConfigSingle = {
+const GEMMA_4_MELIOUS: ModelConfigSingle = {
   kind: 'single',
-  provider: GEMMA_31B_ON_REGOLO.provider,
-  model: GEMMA_31B_ON_REGOLO.model,
-  contextWindow: GEMMA_31B_ON_REGOLO.contextWindow,
+  provider: GEMMA_31B_ON_MELIOUS.provider,
+  model: GEMMA_31B_ON_MELIOUS.model,
+  contextWindow: GEMMA_31B_ON_MELIOUS.contextWindow,
   // Der Ausweichhost war bis 19.08.2026 `gemma-4-verdigado` — dieselben
   // Gewichte, aber der teuerste denkbare Ausweg: 20s bis zum ersten Token,
   // Denken nicht abschaltbar, und vor allem EIN einziger Inferenz-Slot, den
@@ -316,7 +319,7 @@ const GEMMA_4_31B_CORTECS: ModelConfigSingle = {
   // Ausweich auf Regolo trägt 262k, dieser Endpunkt 128k. Wer hier CTX_FULL
   // hinschreibt, bekommt keine Fehlermeldung, sondern eine stille Kürzung.
   contextWindow: GEMMA_31B_ON_CORTECS.contextWindow,
-  fallback: GEMMA_31B_ON_REGOLO.laneId,
+  fallback: GEMMA_31B_ON_MELIOUS.laneId,
 };
 
 /**
@@ -408,6 +411,12 @@ export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
     model: regoloTextDefault(),
     contextWindow: CTX_FULL,
   },
+  melious: {
+    kind: 'single',
+    provider: 'melious',
+    model: env.MELIOUS_DEFAULT_MODEL || 'gemma-4-31b:balanced',
+    contextWindow: CTX_FULL,
+  },
   // Backend-only lane and, since 03.08.2026, no longer an auto-policy target
   // (its auto-policy role moved to `gemma-4-26b`, which was itself folded into
   // `gemma-litellm` on 07.08.2026 — see autoPolicy.ts). It stays registered
@@ -477,7 +486,10 @@ AVAILABLE_MODELS['gruenerator-ultra'] = AVAILABLE_MODELS['mistral-medium-3.5'];
 AVAILABLE_MODELS['litellm'] = SMALL_ANSWER_LANE;
 AVAILABLE_MODELS['gpt-oss-regolo'] = SMALL_ANSWER_LANE;
 AVAILABLE_MODELS['gemma-litellm'] = GEMMA_ANSWER_LANE;
-AVAILABLE_MODELS['gemma-regolo'] = GEMMA_4_REGOLO;
+// F0: historic persisted lane id. It now resolves to Melious and can no
+// longer trigger a Regolo text request.
+AVAILABLE_MODELS['gemma-regolo'] = GEMMA_4_MELIOUS;
+AVAILABLE_MODELS['gemma-melious'] = GEMMA_4_MELIOUS;
 // `gemma-4-verdigado` gab es hier bis 19.08.2026 als reines Failover-Ziel der
 // Gemma-Lane. Es stand nie im User-Katalog, war nie ein Auto-Policy-Ziel und
 // wurde nie persistiert (`streamWithFallback` behält die modelId des
@@ -697,6 +709,18 @@ function instantiateModel(
       }
       return getRegoloProvider().chat(modelId || regoloTextDefault());
     }
+    case 'melious': {
+      if (!env.MELIOUS_API_KEY) {
+        log.warn(
+          `MELIOUS_API_KEY not set — answering on Mistral instead of Melious (requested "${modelId}")`
+        );
+        lastFallbackProvider = 'mistral';
+        return getMistralProvider()(modelId);
+      }
+      return getMeliousProvider().chat(
+        modelId || env.MELIOUS_DEFAULT_MODEL || 'gemma-4-31b:balanced'
+      );
+    }
     case 'greenpt':
       return getGreenPTProvider().chat(
         modelId || env.GREENPT_DEFAULT_MODEL || GREENPT_DEFAULT_MODEL
@@ -711,10 +735,10 @@ function instantiateModel(
         // Naming the substitute here keeps the lane inside the Gemma family and
         // says so once in the log instead of once per request downstream.
         log.warn(
-          `SCALEWAY_API_KEY not set — answering on Regolo Gemma 4 instead (requested "${modelId}")`
+          `SCALEWAY_API_KEY not set — answering on Melious Gemma 4 instead (requested "${modelId}")`
         );
-        lastFallbackProvider = 'regolo';
-        return getRegoloProvider().chat(GEMMA_4_REGOLO.model);
+        lastFallbackProvider = 'melious';
+        return getMeliousProvider().chat(GEMMA_4_MELIOUS.model);
       }
       // Literal, NICHT aus einer Lane-Konfiguration gezogen: das ist der Name,
       // den DIESER Host serviert. Eine Lane, die den Provider wechselt, nähme
@@ -729,10 +753,10 @@ function instantiateModel(
     case 'cortecs': {
       if (!env.CORTECS_API_KEY) {
         log.warn(
-          `CORTECS_API_KEY not set — answering on Regolo Gemma 4 instead (requested "${modelId}")`
+          `CORTECS_API_KEY not set — answering on Melious Gemma 4 instead (requested "${modelId}")`
         );
-        lastFallbackProvider = 'regolo';
-        return getRegoloProvider().chat(GEMMA_4_REGOLO.model);
+        lastFallbackProvider = 'melious';
+        return getMeliousProvider().chat(GEMMA_4_MELIOUS.model);
       }
       return getCortecsProvider().chat(modelId || GEMMA_4_31B_CORTECS.model);
     }
@@ -997,6 +1021,8 @@ export function getProviderName(provider: AgentConfig['provider'] | Provider): s
       return 'Verdigado';
     case 'regolo':
       return 'Regolo AI';
+    case 'melious':
+      return 'Melious';
     case 'greenpt':
       return 'GreenPT';
     case 'scaleway':

@@ -1,5 +1,5 @@
-export type TextProvider = 'mistral' | 'litellm' | 'regolo' | 'greenpt' | 'cortecs';
-export type ImageBackend = 'hosted' | 'regolo';
+export type TextProvider = 'mistral' | 'litellm' | 'regolo' | 'melious' | 'greenpt' | 'cortecs';
+export type ImageBackend = 'hosted' | 'melious';
 
 export type Provider = TextProvider;
 
@@ -53,7 +53,7 @@ export interface TextModelOption extends BaseModelOption {
   offByDefault?: boolean;
 }
 
-export type ImageFamilyId = 'flux' | 'regolo';
+export type ImageFamilyId = 'flux' | 'melious';
 
 export interface ImageModelOption extends BaseModelOption {
   modality: 'image';
@@ -67,7 +67,7 @@ export interface ImageModelOption extends BaseModelOption {
   /**
    * Whether generation honors free width/height (format presets, custom px).
    * Absent = false: the backend snaps to the sizes the provider supports
-   * (e.g. Regolo/Qwen-Image only renders 256/512/1024 squares).
+   * when the selected provider only exposes fixed dimensions.
    */
   supportsCustomDimensions?: boolean;
 }
@@ -173,24 +173,26 @@ export const MODEL_OPTIONS: ModelOption[] = [
   },
   {
     modality: 'image',
+    // F0: the historic `regolo-image` preference stays readable. The ID now
+    // resolves to Melious; it must not cause another Qwen request.
     id: 'regolo-image',
-    family: 'regolo',
-    name: '🌳 Qwen-Image',
-    description: 'Selbst gehostet, eigener Stil',
-    backend: 'regolo',
+    family: 'melious',
+    name: '🌿 FLUX.2 [dev]',
+    description: 'Melious-Fallback für Bilder',
+    backend: 'melious',
     costMultiplier: 1,
     icon: 'server',
-    region: 'self-hosted',
+    region: 'eu',
   },
 ];
 
 export const IMAGE_FAMILIES: ImageFamilyOption[] = [
   { id: 'flux', name: '⭐ Flux', description: 'Black Forest Labs (EU)', region: 'eu' },
   {
-    id: 'regolo',
-    name: '🌳 Qwen-Image',
-    description: 'Selbst gehostet, klimaneutral',
-    region: 'self-hosted',
+    id: 'melious',
+    name: '🌿 Melious',
+    description: 'FLUX.2 [dev], europäisch geroutet',
+    region: 'eu',
   },
 ];
 
@@ -202,7 +204,7 @@ export function getImageFamily(id: ImageModelId): ImageFamilyId {
 }
 
 export function getDefaultModelForFamily(family: ImageFamilyId): ImageModelId {
-  if (family === 'regolo') return 'regolo-image';
+  if (family === 'melious') return 'regolo-image';
   return DEFAULT_FLUX_MODEL_ID;
 }
 
