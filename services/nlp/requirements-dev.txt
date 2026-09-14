@@ -6,7 +6,7 @@ annotated-doc==0.0.5
     #   typer
 annotated-types==0.8.0
     # via pydantic
-anyio==4.15.0
+anyio==4.15.1
     # via
     #   httpx
     #   starlette
@@ -75,7 +75,7 @@ murmurhash==1.0.15
     #   preshed
     #   spacy
     #   thinc
-numpy==2.5.2
+numpy==2.5.3
     # via
     #   blis
     #   spacy
@@ -101,7 +101,7 @@ pydantic==2.13.5
     #   spacy
     #   thinc
     #   weasel
-pydantic-core==2.46.5
+pydantic-core==2.49.0
     # via pydantic
 pygments==2.21.0
     # via
@@ -138,7 +138,7 @@ srsly==2.5.3
     #   weasel
 starlette==1.6.0
     # via fastapi
-thinc==8.3.13
+thinc==9.1.1
     # via spacy
 tqdm==4.70.0
     # via spacy
@@ -175,5 +175,5 @@ weasel==1.0.0
     # via spacy
 websockets==17.1
     # via uvicorn
-wrapt==2.4.0
+wrapt==2.4.1
     # via smart-open
