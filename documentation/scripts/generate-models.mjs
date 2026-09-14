@@ -54,7 +54,7 @@ const SRC = {
   voxtral: 'apps/api/services/voice/mistralVoiceService.ts',
   greenptStt: 'apps/api/services/transcription/greenptListen.ts',
   catalog: 'packages/core/src/models/catalog.ts',
-  regoloImage: 'apps/api/services/flux/RegoloImageService.ts',
+  meliousImage: 'apps/api/services/flux/MeliousImageService.ts',
   // FluxImageService is deliberately absent: the picker's catalog owns which
   // FLUX variants exist (`modelPath`), the service only owns the EU endpoint —
   // which is prose on the page, not a table row.
@@ -83,6 +83,7 @@ const MODEL_LABELS = {
   // Für Leser*innen der Tabelle ist das ein Modell auf zwei Hosts, und genau
   // so soll es dort stehen.
   'gemma-4-31b-it': 'Gemma 4 (31 Mrd.)',
+  'gemma-4-31b:speed': 'Gemma 4 (31 Mrd., Melious Speed)',
   'gemma-4-26b-a4b-it': 'Gemma 4 (26 Mrd., MoE)',
   gemma4: 'Gemma 4',
   'gpt-oss-120b': 'GPT-OSS 120B',
@@ -92,7 +93,7 @@ const MODEL_LABELS = {
   'verdigado-pro': 'GPT-OSS 120B',
   'voxtral-mini-latest': 'Voxtral Mini',
   'green-s-pro': 'Green S Pro',
-  'Qwen-Image': 'Qwen-Image',
+  'flux-2-dev': 'FLUX.2 [dev]',
   '/v1/flux-2-pro': 'FLUX 2 Pro',
   '/v1/flux-2-klein-9b': 'FLUX 2 Klein',
   '/v1/flux-2-max': 'FLUX 2 Max',
@@ -106,6 +107,7 @@ const MODEL_LABELS = {
 const PROVIDER_HOSTS = {
   mistral: { host: 'Mistral AI', flag: '🇫🇷' },
   regolo: { host: 'Regolo', flag: '🇮🇹' },
+  melious: { host: 'Melious', flag: '🇪🇺' },
   // Stillgelegt am 29.08.2026 — der Name wird nur noch gelesen und bedient
   // Cortecs (apps/api/services/ai/litellmRetired.ts). Der Eintrag bleibt, damit
   // eine Alt-Kennung nicht ohne Standort in der Tabelle landet.
@@ -436,7 +438,7 @@ function generate() {
   if (!optionsDecl || !ts.isArrayLiteralExpression(optionsDecl)) {
     fail(SRC.catalog, 'MODEL_OPTIONS', 'an array literal of model options');
   }
-  const regoloImageModel = constString(parse(SRC.regoloImage), 'DEFAULT_MODEL', SRC.regoloImage);
+  const meliousImageModel = constString(parse(SRC.meliousImage), 'DEFAULT_MODEL', SRC.meliousImage);
   const imageRows = [];
   for (const el of optionsDecl.elements) {
     const option = unwrap(el);
@@ -449,8 +451,8 @@ function generate() {
       const modelPath = resolveString(catalog, props.get('modelPath'));
       if (!modelPath) fail(SRC.catalog, 'a hosted image option', 'a `modelPath` string');
       imageRows.push(entry('bfl', modelPath, where));
-    } else if (backend === 'regolo') {
-      imageRows.push(entry('regolo', regoloImageModel, where));
+    } else if (backend === 'melious') {
+      imageRows.push(entry('melious', meliousImageModel, where));
     } else {
       throw new Error(
         `${SRC.catalog}: unknown image backend "${backend}".\n` +

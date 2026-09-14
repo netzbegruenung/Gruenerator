@@ -13,7 +13,7 @@ const sleep = promisify(setTimeout);
 
 type AxiosConfigWithFamily = AxiosRequestConfig & { family?: 4 | 6 };
 
-export type FluxBackend = 'hosted' | 'regolo';
+export type FluxBackend = 'hosted' | 'melious';
 
 type FluxApiError = Error & {
   code?: string;
@@ -138,12 +138,16 @@ class FluxImageService {
   private circuitBreaker: CircuitBreaker;
 
   static async create(backend?: FluxBackend, modelPath?: string): Promise<FluxImageService> {
-    const useBackend = backend || (env.FLUX_BACKEND as FluxBackend) || 'hosted';
+    const configuredBackend = backend || env.FLUX_BACKEND || 'hosted';
+    // F0 compatibility: a persisted/deployed `FLUX_BACKEND=regolo` must no
+    // longer send a Qwen request. It now selects the Melious replacement.
+    const useBackend: FluxBackend =
+      configuredBackend === 'regolo' ? 'melious' : (configuredBackend as FluxBackend);
 
-    if (useBackend === 'regolo') {
-      console.log('[FluxImageService] Using Regolo Qwen-Image backend');
-      const mod = await import('./RegoloImageService.js');
-      return new mod.RegoloImageService() as unknown as FluxImageService;
+    if (useBackend === 'melious') {
+      console.log('[FluxImageService] Using Melious FLUX.2 [dev] backend');
+      const mod = await import('./MeliousImageService.js');
+      return new mod.MeliousImageService() as unknown as FluxImageService;
     }
 
     if (useBackend !== 'hosted') {

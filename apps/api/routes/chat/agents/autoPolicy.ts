@@ -543,8 +543,8 @@ export const LOOP_PLANNER_HEALTHY_ALT = {
   model: GEMMA_31B_ON_CORTECS.model,
 };
 export const LOOP_PLANNER_SELFHOSTED = {
-  provider: 'regolo' as const,
-  model: 'mistral-small-4-119b',
+  provider: 'melious' as const,
+  model: 'gemma-4-31b:speed',
 };
 /**
  * Die letzte Stufe. Stand bis zum 29.08.2026 auf `litellm/verdigado-pro` und

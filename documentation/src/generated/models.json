@@ -38,12 +38,12 @@
           "role": "primary"
         },
         {
-          "model": "gemma4-31b",
-          "code": "gemma4-31b",
-          "label": "Gemma 4 (31 Mrd.)",
-          "provider": "regolo",
-          "host": "Regolo",
-          "flag": "🇮🇹",
+          "model": "gemma-4-31b:speed",
+          "code": "gemma-4-31b:speed",
+          "label": "Gemma 4 (31 Mrd., Melious Speed)",
+          "provider": "melious",
+          "host": "Melious",
+          "flag": "🇪🇺",
           "role": "fallback"
         }
       ]
@@ -179,12 +179,12 @@
           "role": "primary"
         },
         {
-          "model": "Qwen-Image",
-          "code": "Qwen-Image",
-          "label": "Qwen-Image",
-          "provider": "regolo",
-          "host": "Regolo",
-          "flag": "🇮🇹",
+          "model": "flux-2-dev",
+          "code": "flux-2-dev",
+          "label": "FLUX.2 [dev]",
+          "provider": "melious",
+          "host": "Melious",
+          "flag": "🇪🇺",
           "role": "primary"
         }
       ]
@@ -233,6 +233,7 @@
     "Black Forest Labs 🇩🇪",
     "Cortecs 🇱🇺",
     "GreenPT 🇪🇺",
+    "Melious 🇪🇺",
     "Mistral AI 🇫🇷",
     "Regolo 🇮🇹"
   ]
