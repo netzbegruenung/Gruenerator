@@ -1098,6 +1098,63 @@ function SimpleView({ data }: { data: GetTransparencyStatsResponseDto }) {
 
 /* ── Ansicht ──────────────────────────────────────────────────────────────── */
 
+function CalculationPanel({ data }: { data: GetTransparencyStatsResponseDto }) {
+  const { calculation } = data;
+
+  return (
+    <section className="mt-12">
+      <h2 className={cn('mb-5 text-[1.35rem] font-semibold tracking-[-0.01em]', MONITOR_HEADING)}>
+        Rechenweg
+      </h2>
+      <div className={cn('flex flex-col gap-4 p-6', MONITOR_CARD)}>
+        <p className={cn('m-0 text-[0.9rem] leading-relaxed', MONITOR_BODY)}>
+          Direkt gemeldete Werte übernehmen wir als{' '}
+          <code>{calculation.direct_measurement.energy}</code> und{' '}
+          <code>{calculation.direct_measurement.emissions}</code>. Für Schätzungen gilt:
+        </p>
+        <code className={cn('overflow-x-auto rounded-md p-3 text-[0.78rem]', MONITOR_TAG)}>
+          {calculation.estimated_text.formula}
+        </code>
+        <p className={cn('m-0 text-[0.82rem] leading-relaxed', MONITOR_FAINT)}>
+          Kalibrierungs-PUE: {oneDecimal.format(calculation.estimated_text.calibration_pue)}. Die
+          Faktoren unten werden direkt aus dem laufenden Berechnungsprofil veröffentlicht und
+          enthalten keine Modellnamen.
+        </p>
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-left text-[0.78rem]">
+            <thead className={MONITOR_FAINT}>
+              <tr>
+                <th className="pb-2 pr-4 font-medium">Grundlage</th>
+                <th className="pb-2 pr-4 font-medium">Eingabe mWh/Token</th>
+                <th className="pb-2 pr-4 font-medium">Ausgabe mWh/Token</th>
+                <th className="pb-2 font-medium">Grundwert mWh/Anfrage</th>
+              </tr>
+            </thead>
+            <tbody className={MONITOR_BODY}>
+              {calculation.estimated_text.profiles.map((profile) => (
+                <tr
+                  key={`${profile.basis}-${profile.input_mwh_per_token}-${profile.output_mwh_per_token}`}
+                >
+                  <td className="py-1.5 pr-4">
+                    {profile.basis === 'calibrated' ? 'kalibriert' : 'Bandbreite'}
+                  </td>
+                  <td className="py-1.5 pr-4 tabular-nums">{profile.input_mwh_per_token}</td>
+                  <td className="py-1.5 pr-4 tabular-nums">{profile.output_mwh_per_token}</td>
+                  <td className="py-1.5 tabular-nums">{profile.fixed_mwh_per_request}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className={cn('m-0 text-[0.82rem] leading-relaxed', MONITOR_FAINT)}>
+          Anschließend gilt: <code>{calculation.emissions_formula}</code>. Netzintensität und PUE
+          stehen in der Anbieterübersicht; Bandbreiten zeigen die verbleibende Unsicherheit.
+        </p>
+      </div>
+    </section>
+  );
+}
+
 function ExpertView({ data }: { data: GetTransparencyStatsResponseDto }) {
   const { footprint, totals, daily, byFeature, byModel, providers } = data;
 
@@ -1139,6 +1196,7 @@ function ExpertView({ data }: { data: GetTransparencyStatsResponseDto }) {
         suppressedDays={data.suppressed_days}
       />
       <ReferencePanel footprint={footprint} />
+      <CalculationPanel data={data} />
 
       <div className="grid grid-cols-1 gap-x-12 lg:grid-cols-2">
         <FeaturePanel byFeature={byFeature} />

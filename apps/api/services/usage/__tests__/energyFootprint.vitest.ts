@@ -5,6 +5,7 @@ import {
   emissionsFromEnergy,
   estimateFootprint,
   estimateImageFootprint,
+  getPublicTextCalculationProfiles,
   gridIntensityFor,
   hasGridSpan,
   hasEnergyCoefficients,
@@ -94,6 +95,18 @@ describe('referenceFootprint — the GPT-4o counterfactual', () => {
     // come out as nearly free.
     const many = referenceFootprint({ outputTokens: 100, requests: 100 });
     expect(many.energyWms / 3_600_000).toBeGreaterThan(7.9);
+  });
+});
+
+describe('public calculation profiles', () => {
+  it('exposes current factors without exposing model identifiers', () => {
+    const profiles = getPublicTextCalculationProfiles();
+
+    expect(profiles.length).toBeGreaterThan(1);
+    expect(profiles.some((profile) => profile.basis === 'calibrated')).toBe(true);
+    expect(profiles.some((profile) => profile.basis === 'bounded')).toBe(true);
+    expect(JSON.stringify(profiles)).not.toContain('gemma');
+    expect(JSON.stringify(profiles)).not.toContain('mistral');
   });
 });
 
