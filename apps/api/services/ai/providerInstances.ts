@@ -27,6 +27,7 @@ import { cortecsBaseUrl } from './cortecsEndpoint.js';
 import { cortecsFetchWithPolicy } from './cortecsRequestPolicy.js';
 import { greenptFetchWithThinkingDisabled } from './greenptThinkingFetch.js';
 import { litellmFetchWithThinkingDisabled } from './litellmThinkingFetch.js';
+import { meliousFetchWithImpact } from './meliousImpactFetch.js';
 import { regoloFetchWithThinkingDisabled } from './regoloThinkingFetch.js';
 import { scalewayBaseUrl } from './scalewayEndpoint.js';
 import { scalewayFetchWithMistralFallback } from './scalewayMistralFallbackFetch.js';
@@ -131,7 +132,7 @@ export function getRegoloProvider(): ReturnType<typeof createOpenAI> {
 
 /**
  * Melious. Its chat-completions API is OpenAI-compatible and routes requests
- * between European inference providers. The model's `:speed` suffix is part
+ * between European inference providers. The model's `:balanced` suffix is part
  * of the model id (not a provider option), therefore callers can still choose
  * another documented Melious routing flavor explicitly when needed.
  */
@@ -145,6 +146,7 @@ export function getMeliousProvider(): ReturnType<typeof createOpenAI> {
       baseURL: MELIOUS_BASE_URL,
       apiKey,
       name: 'melious',
+      fetch: meliousFetchWithImpact,
     });
   }
   return meliousInstance;

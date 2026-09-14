@@ -38,9 +38,9 @@
           "role": "primary"
         },
         {
-          "model": "gemma-4-31b:speed",
-          "code": "gemma-4-31b:speed",
-          "label": "Gemma 4 (31 Mrd., Melious Speed)",
+          "model": "gemma-4-31b:balanced",
+          "code": "gemma-4-31b:balanced",
+          "label": "Gemma 4 (31 Mrd., Melious Balanced)",
           "provider": "melious",
           "host": "Melious",
           "flag": "🇪🇺",

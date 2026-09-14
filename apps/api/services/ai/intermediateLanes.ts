@@ -163,7 +163,7 @@ export interface IntermediateLaneConfig extends LaneTarget {
 }
 
 /** Der Ausgangszustand: was `INTERMEDIATE_MODEL` für alle 36 Stellen war. */
-const MELIOUS_GEMMA_4 = { provider: 'melious', model: 'gemma-4-31b:speed' } as const;
+const MELIOUS_GEMMA_4 = { provider: 'melious', model: 'gemma-4-31b:balanced' } as const;
 
 /**
  * Die vier Glieder der kleinen Stufen: DREIMAL dasselbe Modell auf drei Hosts,

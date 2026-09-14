@@ -199,7 +199,7 @@ const envSchema = z.object({
   REGOLO_DEFAULT_MODEL: z.string().optional(),
   // Melious — OpenAI-compatible European inference router,
   // https://api.melious.ai/v1. The default model includes the documented
-  // `:speed` routing flavor so ordinary chat turns avoid reasoning routes.
+  // `:balanced` is the default routing flavor for chat.
   MELIOUS_API_KEY: z.string().optional(),
   MELIOUS_DEFAULT_MODEL: z.string().optional(),
   // GreenPT — OpenAI-compatible, https://api.greenpt.ai/v1
