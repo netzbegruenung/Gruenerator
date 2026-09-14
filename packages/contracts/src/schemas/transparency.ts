@@ -149,6 +149,30 @@ export const transparencyFeatureEntrySchema = usageByFeatureEntrySchema.extend({
   emissions_g: z.number(),
 });
 
+/** Current, model-neutral inputs of the public token-footprint calculation. */
+export const transparencyCalculationSchema = z.object({
+  version: z.string(),
+  direct_measurement: z.object({
+    energy: z.literal('provider-reported kWh × 1,000 = Wh'),
+    emissions: z.literal('provider-reported g CO2e'),
+  }),
+  estimated_text: z.object({
+    formula: z.literal(
+      '(input_tokens × input_mwh_per_token + output_tokens × output_mwh_per_token + requests × fixed_mwh_per_request) × provider_pue / calibration_pue'
+    ),
+    calibration_pue: z.number(),
+    profiles: z.array(
+      z.object({
+        basis: z.enum(['calibrated', 'bounded']),
+        input_mwh_per_token: z.number(),
+        output_mwh_per_token: z.number(),
+        fixed_mwh_per_request: z.number(),
+      })
+    ),
+  }),
+  emissions_formula: z.literal('energy_kwh × grid_g_per_kwh = g CO2e'),
+});
+
 export const getTransparencyStatsResponseSchema = z.object({
   success: z.literal(true),
   days: z.number(),
@@ -175,6 +199,8 @@ export const getTransparencyStatsResponseSchema = z.object({
   suppressed_days: z.number(),
   totals: usageTotalsSchema,
   footprint: transparencyFootprintSchema,
+  /** Calculation constants for reproducing estimates; generated from live code. */
+  calculation: transparencyCalculationSchema,
   providers: z.array(transparencyProviderEntrySchema),
   daily: z.array(transparencyDayEntrySchema),
   byFeature: z.array(transparencyFeatureEntrySchema),
