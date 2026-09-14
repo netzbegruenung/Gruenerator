@@ -435,3 +435,37 @@ export function getSliderColors(scheme: SliderColorScheme) {
     isSliderColorScheme(scheme) ? scheme : DEFAULT_SLIDER_COLOR_SCHEME
   ];
 }
+
+/**
+ * Slider colours when a background photo covers the plane.
+ *
+ * The rule matches every sibling photo template: white text plus a contrast
+ * scrim — an arbitrary photograph has no predictable luminance, so the derived
+ * scheme text colours would land unreadable about half the time. The pill keeps
+ * its state-driven colour: a filled chip over an image is legible whether it
+ * picks the tanne or the sand variant, and a per-slide pill colour the user
+ * picked stays theirs. The arrow follows the text (white), matching the sibling
+ * "force white" rule — the scrim darkens the bottom of the frame so a light
+ * arrow reads there.
+ */
+export const SLIDER_PHOTO_OVERLAY = {
+  headlineText: '#FFFFFF',
+  subtextText: '#FFFFFF',
+  arrowFill: '#FFFFFF',
+} as const;
+
+export interface SliderStateLike {
+  colorScheme: SliderColorScheme;
+  currentImageSrc?: string | null;
+}
+
+/**
+ * Scheme colours, overridden by the photo overlay while a background picture
+ * covers the plane. Same total-by-construction contract as `getSliderColors`:
+ * callers read fields straight off the result.
+ */
+export function getSliderColorsForState(state: SliderStateLike) {
+  const base = getSliderColors(state.colorScheme);
+  if (!state.currentImageSrc) return base;
+  return { ...base, ...SLIDER_PHOTO_OVERLAY };
+}
