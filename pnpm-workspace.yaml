@@ -14,6 +14,9 @@ packages:
 # sometimes need on the day a bugfix ships.
 minimumReleaseAge: 10080
 minimumReleaseAgeExclude:
+  # Security fix GHSA-vwc7-r8mq-g2x9 (symlink extraction escape) used at runtime
+  # in apps/api; 0.6.1 was blocked only by the age gate, not by any trust signal.
+  - 'adm-zip'
   - '@assistant-ui/*'
   # Same publisher and monorepo as @assistant-ui/*, pulled in lockstep by each
   # release; without them the scoped exclusion cannot install a fresh bugfix.
