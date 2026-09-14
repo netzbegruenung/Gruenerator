@@ -32,6 +32,7 @@ const BOARD_AI_MODELS: Record<AgentConfig['provider'], string> = {
   // Eintrag nennt deshalb das Modell, das dort tatsächlich antwortet.
   litellm: 'gemma-4-31b-it',
   regolo: 'mistral-small-4-119b',
+  melious: 'gemma-4-31b:balanced',
   mistral: 'mistral-medium-2604',
   anthropic: 'mistral-medium-2604',
   greenpt: 'mistral-medium-3.5-128b',
@@ -161,7 +162,7 @@ export async function generateBoardOperations(opts: {
 }): Promise<BoardOperation[]> {
   const { userPrompt, board, referenceContent, today } = opts;
 
-  const providerChain: AgentConfig['provider'][] = ['mistral', 'regolo', 'cortecs'];
+  const providerChain: AgentConfig['provider'][] = ['mistral', 'melious', 'cortecs'];
   const provider = providerChain.find((p) => isProviderConfigured(p));
   if (!provider) {
     // Aus der Kette abgeleitet, nicht danebengeschrieben: die Liste stand hier
