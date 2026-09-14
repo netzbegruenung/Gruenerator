@@ -25,6 +25,7 @@ import {
   SLIDER_CONFIG,
   calculateSliderLayout,
   getSliderColors,
+  getSliderColorsForState,
   isSliderColorScheme,
 } from '../utils/sliderLayout';
 
@@ -47,7 +48,7 @@ import type {
   AdditionalText,
 } from './types';
 import type { CanvasAiSnapshot } from '@gruenerator/contracts';
-import type { BackgroundColorOption } from '../sidebar/types';
+import type { BackgroundColorOption, StockImageAttribution } from '../sidebar/types';
 import type { BalkenInstance, BalkenMode } from '../utils/balkenUtils';
 import type { AssetInstance } from '../utils/canvasAssets';
 import type { CircleBadgeInstance } from '../utils/circleBadgeUtils';
@@ -81,6 +82,18 @@ export interface SliderState extends BaseCanvasState {
   // Color scheme
   colorScheme: SliderColorScheme;
   backgroundColor: string;
+
+  // Photo background. Optional throughout: every slider starts on a scheme's
+  // colour plane, and the photo covers the plane whole once set. Mirrors the
+  // sibling `createColorTwoTextCanvas` factory's state keys so the picker, the
+  // update-element chat ops and the descriptor all speak the same keys.
+  currentImageSrc?: string;
+  backgroundImageFile?: File | Blob | null;
+  imageOffset?: { x: number; y: number };
+  imageScale?: number;
+  isBackgroundLocked?: boolean;
+  backgroundImageOpacity?: number;
+  imageAttribution?: StockImageAttribution | null;
 
   // Font size overrides
   customLabelFontSize: number | null;
@@ -142,6 +155,13 @@ export interface SliderActions {
   setColorScheme: (scheme: SliderColorScheme) => void;
   setBackgroundColor: (color: string) => void;
 
+  // Photo background. Same action shape as the sibling `createColorTwoTextCanvas`
+  // factory so `ImageBackgroundSection` props stay drop-in.
+  setCurrentImageSrc: (file: File | null, objectUrl?: string) => void;
+  setImageScale: (scale: number) => void;
+  toggleBackgroundLock: () => void;
+  setImageAttribution: (attribution: StockImageAttribution | null) => void;
+
   // Pill badge actions
   addPillBadge: (preset?: string) => void;
   updatePillBadge: (id: string, partial: Partial<PillBadgeInstance>) => void;
@@ -195,7 +215,7 @@ const BACKGROUND_COLORS: BackgroundColorOption[] = [
 // ============================================================================
 
 const calculateLayout = (state: SliderState): LayoutResult => {
-  const colors = getSliderColors(state.colorScheme);
+  const colors = getSliderColorsForState(state);
   const showPill = state.slideVariant === 'cover';
   const isLastSlide = state.slideVariant === 'last';
   const layout = calculateSliderLayout(
@@ -283,10 +303,50 @@ const backgroundElement: BackgroundElementConfig<SliderState> = {
   type: 'background',
   x: 0,
   y: 0,
-  order: 0,
+  // Negative so the photo plane and its scrim (added below) sit above the
+  // colour and the sunflower / text content (which start at order 1+) stays
+  // on top of both. Matches `createColorTwoTextCanvas`'s background stack.
+  order: -2,
   width: SLIDER_CONFIG.canvas.width,
   height: SLIDER_CONFIG.canvas.height,
   colorKey: 'backgroundColor',
+};
+
+// Photo layer + contrast scrim, both gated on `currentImageSrc` so the picker's
+// "Farbe" subsection keeps the old flat-colour look with no other changes.
+// Same ids and order values as the sibling factory's stack so any future shared
+// renderer keeps working across templates.
+const backgroundImageElement: ImageElementConfig<SliderState> = {
+  id: 'background-image',
+  type: 'image',
+  order: -1,
+  x: 0,
+  y: 0,
+  width: SLIDER_CONFIG.canvas.width,
+  height: SLIDER_CONFIG.canvas.height,
+  srcKey: 'currentImageSrc',
+  offsetKey: 'imageOffset',
+  scaleKey: 'imageScale',
+  draggable: true,
+  lockedKey: 'isBackgroundLocked',
+  opacityStateKey: 'backgroundImageOpacity',
+  coverFit: true,
+};
+
+// Uniform scrim (not the sibling's top→bottom gradient) — the slider's text
+// block starts at the very top of the frame with the pill, so a bottom-heavy
+// gradient would leave the headline over raw photo pixels.
+const gradientOverlayElement: RectElementConfig<SliderState> = {
+  id: 'gradient-overlay',
+  type: 'rect',
+  order: -0.5,
+  x: 0,
+  y: 0,
+  width: SLIDER_CONFIG.canvas.width,
+  height: SLIDER_CONFIG.canvas.height,
+  fill: 'rgba(0, 0, 0, 0.35)',
+  listening: false,
+  visible: (state) => !!state.currentImageSrc,
 };
 
 const sunflowerElement: ImageElementConfig<SliderState> = {
@@ -325,7 +385,7 @@ const headlineTextElement: TextElementConfig<SliderState> = {
   draggable: true,
   fontSizeStateKey: 'customHeadlineFontSize',
   opacityStateKey: 'headlineOpacity',
-  fill: (state) => getSliderColors(state.colorScheme).headlineText,
+  fill: (state) => getSliderColorsForState(state).headlineText,
   fillStateKey: 'headlineColor',
   positionStateKey: 'headlinePosition',
 };
@@ -348,7 +408,7 @@ const subtextTextElement: TextElementConfig<SliderState> = {
   draggable: true,
   fontSizeStateKey: 'customSubtextFontSize',
   opacityStateKey: 'subtextOpacity',
-  fill: (state) => getSliderColors(state.colorScheme).subtextText,
+  fill: (state) => getSliderColorsForState(state).subtextText,
   fillStateKey: 'subtextColor',
   positionStateKey: 'subtextPosition',
 };
@@ -371,7 +431,7 @@ const subtext2TextElement: TextElementConfig<SliderState> = {
   draggable: true,
   fontSizeStateKey: 'customSubtext2FontSize',
   opacityStateKey: 'subtext2Opacity',
-  fill: (state) => getSliderColors(state.colorScheme).subtextText,
+  fill: (state) => getSliderColorsForState(state).subtextText,
   fillStateKey: 'subtext2Color',
   positionStateKey: 'subtext2Position',
   visible: (state) => state.slideVariant === 'content',
@@ -549,6 +609,18 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
           const scheme = color === '#005538' ? 'tanne-sand' : 'sand-tanne';
           actions.setColorScheme(scheme);
         },
+        // The photo the issue was opened about: same keys the sibling
+        // templates use, so the "Bild" subsection of the picker appears and
+        // update-element chat ops work unchanged.
+        currentImageSrc: state.currentImageSrc,
+        onImageChange: (
+          file: File | null,
+          objectUrl?: string,
+          attribution?: StockImageAttribution | null
+        ) => {
+          actions.setCurrentImageSrc(file, objectUrl);
+          if (attribution !== undefined) actions.setImageAttribution(attribution);
+        },
       }),
     }),
     text: section({
@@ -599,6 +671,8 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
 
   elements: [
     backgroundElement,
+    backgroundImageElement,
+    gradientOverlayElement,
     sunflowerElement,
     headlineTextElement,
     subtextTextElement,
@@ -619,13 +693,16 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
     const includeArrow = variant !== 'last';
     const showPill = variant === 'cover';
 
-    // Default arrow icon state
+    // Default arrow icon state. When the seed already carries a photo the
+    // arrow starts on the photo-overlay colour too — otherwise a re-seed of
+    // an edited slide would flip it back to the scheme's arrowFill mid-photo.
+    const carriedPhotoSrc = (props.currentImageSrc as string | undefined) ?? '';
     const arrowIconState: IconState = {
       x: SLIDER_CONFIG.arrow.defaultX,
       y: SLIDER_CONFIG.arrow.defaultY,
       scale: SLIDER_CONFIG.arrow.scale,
       rotation: 0,
-      color: colors.arrowFill,
+      color: carriedPhotoSrc ? '#FFFFFF' : colors.arrowFill,
       opacity: 1,
     };
 
@@ -706,6 +783,17 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
       colorScheme,
       backgroundColor: colors.background,
 
+      // Photo background. Carried, never hard-reset: card renders and
+      // remote-sync re-seeds run through this whitelist, so a key not named
+      // here is dropped and the next re-render forgets the picture.
+      currentImageSrc: (props.currentImageSrc as string) || '',
+      imageOffset: (props.imageOffset as { x: number; y: number } | undefined) ?? { x: 0, y: 0 },
+      imageScale: (props.imageScale as number | undefined) ?? 1,
+      isBackgroundLocked: (props.isBackgroundLocked as boolean | undefined) ?? false,
+      backgroundImageOpacity: (props.backgroundImageOpacity as number | undefined) ?? 1,
+      imageAttribution:
+        (props.imageAttribution as StockImageAttribution | null | undefined) ?? null,
+
       // Sunflower watermark tweaks — must survive re-seeds, the initial state
       // is a whitelist and would drop them otherwise.
       ...(typeof props.sunflowerOpacity === 'number'
@@ -749,7 +837,7 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
 
     const getFontColor = () => {
       const state = getState();
-      return getSliderColors(state.colorScheme).headlineText;
+      return getSliderColorsForState(state).headlineText;
     };
 
     const baseActions = createBaseActions(
@@ -813,13 +901,18 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
         const colors = getSliderColors(scheme);
         const pillColors = getPillBadgeColorsForScheme(scheme);
         const state = getState();
+        // Over a photo the arrow follows the white-text rule even though the
+        // scheme's own fill may be tanne: the plane is hidden, the pill stays
+        // filled and legible, the arrow needs the light colour the scrim
+        // darkens behind.
+        const arrowColor = state.currentImageSrc ? '#FFFFFF' : colors.arrowFill;
 
         // Update arrow icon color to match new scheme
         const updatedIconStates = { ...state.iconStates };
         if (updatedIconStates[ARROW_ICON_ID]) {
           updatedIconStates[ARROW_ICON_ID] = {
             ...updatedIconStates[ARROW_ICON_ID],
-            color: colors.arrowFill,
+            color: arrowColor,
           };
         }
 
@@ -849,7 +942,10 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
         if (updatedIconStates[ARROW_ICON_ID]) {
           updatedIconStates[ARROW_ICON_ID] = {
             ...updatedIconStates[ARROW_ICON_ID],
-            color: colors.arrowFill,
+            color: getSliderColorsForState({
+              colorScheme: scheme,
+              currentImageSrc: state.currentImageSrc,
+            }).arrowFill,
           };
         }
 
@@ -867,6 +963,42 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
           pillBadgeInstances: updatedPillBadges,
         } as Partial<SliderState>);
         saveToHistory(getState());
+      },
+
+      // Photo background. Mirrors the sibling `createColorTwoTextCanvas`
+      // setters, plus one arrow-side side effect: the scheme colours bake
+      // the arrow fill into `iconStates[hi-chevronright].color`, so entering
+      // or leaving photo mode has to move that one field too or the arrow
+      // keeps the old scheme colour over the new background.
+      setCurrentImageSrc: (file: File | null, objectUrl?: string) => {
+        const state = getState();
+        const nextSrc = objectUrl || '';
+        const patch: Partial<SliderState> = {
+          currentImageSrc: nextSrc,
+          backgroundImageFile: file,
+        };
+        const arrow = state.iconStates[ARROW_ICON_ID];
+        if (arrow) {
+          const nextColor = nextSrc ? '#FFFFFF' : getSliderColors(state.colorScheme).arrowFill;
+          patch.iconStates = {
+            ...state.iconStates,
+            [ARROW_ICON_ID]: { ...arrow, color: nextColor },
+          };
+        }
+        setState(patch);
+        saveToHistory(getState());
+      },
+      setImageScale: (scale: number) => {
+        setState({ imageScale: scale } as Partial<SliderState>);
+      },
+      toggleBackgroundLock: () => {
+        setState((prev: SliderState) => ({
+          ...prev,
+          isBackgroundLocked: !prev.isBackgroundLocked,
+        }));
+      },
+      setImageAttribution: (attribution: StockImageAttribution | null) => {
+        setState({ imageAttribution: attribution } as Partial<SliderState>);
       },
 
       // Pill badge actions
