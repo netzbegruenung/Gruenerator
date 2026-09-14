@@ -61,3 +61,56 @@ describe('convertToThreadMessageLike — rich metadata survives a reload', () =>
     ).toHaveLength(0);
   });
 });
+
+describe('convertToThreadMessageLike — offene Loop-Rückfrage (#3220, Mobile-Pfad)', () => {
+  const pendingClarification = {
+    askTurnId: 'ask-1',
+    toolCallId: 'call_ask',
+    question: 'Welche Anna meinst du?',
+    options: ['Anna Müller', 'Anna Meier'],
+    resolved: false,
+  };
+
+  it('rehydriert die beantwortbare ask_human-Karte samt requires-action-Status', () => {
+    const [msg] = convertToThreadMessageLike([
+      {
+        id: 'm1',
+        role: 'assistant',
+        content: 'Ich habe zwei Kandidatinnen gefunden.',
+        metadata: { pendingClarification },
+      },
+    ]);
+    const ask = msg!.content.find((p) => p.type === 'tool-call' && p.toolName === 'ask_human');
+    expect(ask).toMatchObject({
+      toolCallId: 'call_ask',
+      args: { question: 'Welche Anna meinst du?', options: ['Anna Müller', 'Anna Meier'] },
+    });
+    expect(ask).not.toHaveProperty('result');
+    expect(msg!.status).toEqual({ type: 'requires-action', reason: 'tool-calls' });
+  });
+
+  it('gibt einer beantworteten Rückfrage echte args und die Antwort als String', () => {
+    const [msg] = convertToThreadMessageLike([
+      {
+        id: 'm1',
+        role: 'assistant',
+        content: 'Anna Müller stimmte dafür.',
+        metadata: {
+          pendingClarification: { ...pendingClarification, resolved: true, answer: 'Anna Müller' },
+          toolCalls: [
+            {
+              toolCallId: 'call_ask',
+              toolName: 'ask_human',
+              args: { question: 'Welche Anna meinst du?' },
+              result: { answer: 'Anna Müller' },
+            },
+          ],
+        },
+      },
+    ]);
+    const asks = msg!.content.filter((p) => p.type === 'tool-call' && p.toolName === 'ask_human');
+    expect(asks).toHaveLength(1);
+    expect((asks[0] as { result?: unknown }).result).toBe('Anna Müller');
+    expect(msg!.status).toBeUndefined();
+  });
+});

@@ -97,6 +97,16 @@ export interface LoadedMessage {
       }>;
       resolved?: boolean | 'expired';
     };
+    /** Eine Loop-Rückfrage (`ask_human`, #3220). Solange `resolved` falsch ist,
+     *  zeigt der Thread nach einem Reload wieder die beantwortbare Karte. */
+    pendingClarification?: {
+      askTurnId: string;
+      toolCallId: string;
+      question: string;
+      options?: string[];
+      resolved?: boolean;
+      answer?: string;
+    };
   };
 }
 
@@ -368,21 +378,39 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMes
 
       const contentParts: Array<{ type: 'text'; text: string } | ToolCallLike> = [];
 
-      const cardFor = (tc: PersistedToolCall, parentId: string): ToolCallLike => ({
-        type: 'tool-call' as const,
-        toolCallId: tc.toolCallId || `tc_${m.id}`,
-        toolName: tc.toolName,
-        args: { query: String((tc.args as Record<string, unknown>)?.query ?? '') },
-        // Live, parseSSEStream folds `ok` into `result`; do the same here so a
-        // reloaded card reaches the identical shape and reports the identical
-        // outcome. Without this a failed call reloads as a green tick.
-        result:
-          tc.ok === false && tc.result && typeof tc.result === 'object'
-            ? { ...(tc.result as Record<string, unknown>), ok: false }
-            : tc.result,
-        parentId,
-        ...(tc.narration ? { narration: tc.narration } : {}),
-      });
+      const cardFor = (tc: PersistedToolCall, parentId: string): ToolCallLike => {
+        // Eine beantwortete Loop-Rückfrage: die Karte liest `args.question`/
+        // `args.options` und rendert `String(result)` als Antwort-Pill — das
+        // generische `{query}`-Mapping und das Ergebnis-Objekt zeigten sonst
+        // eine leere Frage und "[object Object]".
+        if (tc.toolName === 'ask_human') {
+          const args = (tc.args ?? {}) as Record<string, unknown>;
+          const answer = (tc.result as Record<string, unknown> | undefined)?.answer;
+          return {
+            type: 'tool-call' as const,
+            toolCallId: tc.toolCallId || `tc_${m.id}`,
+            toolName: tc.toolName,
+            args: args as ToolCallMessagePart['args'],
+            result: answer != null ? String(answer) : tc.result,
+            parentId,
+          };
+        }
+        return {
+          type: 'tool-call' as const,
+          toolCallId: tc.toolCallId || `tc_${m.id}`,
+          toolName: tc.toolName,
+          args: { query: String((tc.args as Record<string, unknown>)?.query ?? '') },
+          // Live, parseSSEStream folds `ok` into `result`; do the same here so a
+          // reloaded card reaches the identical shape and reports the identical
+          // outcome. Without this a failed call reloads as a green tick.
+          result:
+            tc.ok === false && tc.result && typeof tc.result === 'object'
+              ? { ...(tc.result as Record<string, unknown>), ok: false }
+              : tc.result,
+          parentId,
+          ...(tc.narration ? { narration: tc.narration } : {}),
+        };
+      };
 
       const toolCalls = m.metadata?.toolCalls;
       const hasOffsets = toolCalls?.some((tc) => typeof tc.textOffset === 'number') ?? false;
@@ -421,6 +449,18 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMes
         // Legacy / split turns: cards first, then the full text — unchanged.
         if (toolCalls) {
           for (const tc of toolCalls) {
+            if (tc.toolName === 'ask_human') {
+              // Gleiche Sonderform wie in `cardFor`: echte args, Antwort als String.
+              const answer = (tc.result as Record<string, unknown> | undefined)?.answer;
+              contentParts.push({
+                type: 'tool-call' as const,
+                toolCallId: tc.toolCallId || `tc_${m.id}`,
+                toolName: tc.toolName,
+                args: (tc.args ?? {}) as ToolCallMessagePart['args'],
+                result: answer != null ? String(answer) : tc.result,
+              });
+              continue;
+            }
             contentParts.push({
               type: 'tool-call' as const,
               toolCallId: tc.toolCallId || `tc_${m.id}`,
@@ -454,6 +494,23 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMes
       // und bleibt entscheidbar. Die vollen Übergabewerte bleiben hier stehen —
       // wer freigibt, muss sehen, was übergeben wird (die normalen Karten oben
       // führen bewusst nur `query`).
+      // Offene Loop-Rückfragen überleben den Reload genauso: die ask_human-
+      // Karte kommt ohne Ergebnis zurück und bleibt beantwortbar (der Redis-
+      // Zustand dahinter hält 24 h).
+      const pendingClar = m.metadata?.pendingClarification;
+      const clarUnresolved = pendingClar != null && pendingClar.resolved !== true;
+      if (clarUnresolved) {
+        contentParts.push({
+          type: 'tool-call' as const,
+          toolCallId: pendingClar.toolCallId,
+          toolName: 'ask_human',
+          args: {
+            question: pendingClar.question,
+            ...(pendingClar.options ? { options: pendingClar.options } : {}),
+          } as ToolCallMessagePart['args'],
+        });
+      }
+
       const pending = m.metadata?.pendingApproval;
       const pendingUnresolved = pending && pending.resolved !== true;
       if (pendingUnresolved) {
@@ -529,8 +586,9 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMes
         content: contentParts,
         id: m.id,
         // Ohne `requires-action` verweigert assistant-ui die Antwort auf eine
-        // Freigabe — die Karte wäre nach einem Reload nur noch Dekoration.
-        ...(pendingUnresolved && pending?.resolved !== 'expired'
+        // Freigabe oder Rückfrage — die Karte wäre nach einem Reload nur noch
+        // Dekoration.
+        ...((pendingUnresolved && pending?.resolved !== 'expired') || clarUnresolved
           ? { status: { type: 'requires-action' as const, reason: 'tool-calls' as const } }
           : {}),
         ...(createdAt && !Number.isNaN(createdAt.getTime()) ? { createdAt } : {}),

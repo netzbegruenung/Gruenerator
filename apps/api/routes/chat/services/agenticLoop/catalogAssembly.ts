@@ -13,6 +13,7 @@
  * Die Lader werden injiziert (`CatalogDeps`), damit die Montage ohne DB, ohne
  * Netz und ohne echte MCP-Server prüfbar ist.
  */
+import { makeAskHumanTool } from '../../agents/askHumanTool.js';
 import { preferredLvRecipeMention } from '../../agents/lvRecipePreference.js';
 import { loadManagedMcpCatalog as loadManagedMcpCatalogReal } from '../../agents/managedMcpCatalog.js';
 import { loadMcpCatalog as loadMcpCatalogReal, type McpCatalog } from '../../agents/mcpCatalog.js';
@@ -31,13 +32,14 @@ import {
   type ThreadToolHistory,
 } from '../threadPersistenceService.js';
 
+import { type AskHumanGate } from './askHumanGate.js';
 import {
   ATTACHED_DOC_SNIPPET_CHARS,
   attachedDocsQuery,
   retrievableAttachedSources,
   retrieveAttachedDocuments,
 } from './attachedDocuments.js';
-import { isMcpReplayEnabled } from './flags.js';
+import { isLoopAskHumanEnabled, isMcpReplayEnabled } from './flags.js';
 import { createToolLoopGuards } from './loopGuards.js';
 import { buildToolObservationReplay } from './mcpReplay.js';
 import { createRecipeRegistry, type RecipeRegistry } from './recipeRegistry.js';
@@ -293,6 +295,14 @@ export async function assembleToolCatalog(
           }),
       });
     }
+  }
+
+  // `ask_human`: die Rückfrage aus dem Loop (#3220). Nur mit Thread — eine
+  // Klärung, die der Client nicht fortsetzen kann, ist schlechter als keine
+  // (dasselbe Gate wie `clarificationStage`). Der Aufruf wird in `wrapTools`
+  // abgefangen, nie ausgeführt.
+  if (threadId != null && isLoopAskHumanEnabled()) {
+    tools.ask_human = makeAskHumanTool();
   }
 
   // Tool-card labels for BOTH catalogs (user connectors + system sources).
@@ -583,6 +593,8 @@ export function wrapAssembledTools(
     toolLabels: Map<string, ToolLabel>;
     /** Freigabe-Gate. Nicht gesetzt ⇒ es wird nie gefragt. */
     approvalGate?: Pick<ToolApprovalGate, 'hold'>;
+    /** Rückfrage-Gate für `ask_human`. Nicht gesetzt ⇒ das Tool tut nichts. */
+    askGate?: Pick<AskHumanGate, 'hold'>;
     /** Only unified mode streams answer text WHILE tools run, so its `text`
      *  length is a meaningful per-tool offset. In split mode the answer stays
      *  empty through the whole gather phase → return null so no (all-0) offsets
@@ -617,6 +629,7 @@ export function wrapAssembledTools(
     takeNarration: ctx.takeNarration,
     ...(ctx.hooks ? { hooks: ctx.hooks } : {}),
     ...(ctx.approvalGate ? { approvalGate: ctx.approvalGate } : {}),
+    ...(ctx.askGate ? { askGate: ctx.askGate } : {}),
     ...(ctx.toolLabels.size > 0
       ? {
           titleFor: (name: string) => {
