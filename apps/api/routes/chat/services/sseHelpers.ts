@@ -618,6 +618,28 @@ export function createSSEStream(res: Response): SSEWriter {
 }
 
 /**
+ * Ein SSEWriter ohne Leitung — der headless Einstieg in den agentischen Loop
+ * (#3221). Ein ECHTER SSEWriter über einer stummen Response statt eines
+ * eigenen Interfaces: `sse` fließt vom Loop in gut ein Dutzend Tool-Fabriken
+ * weiter, und jede davon auf ein schmaleres Interface umzuschreiben wäre ein
+ * Riesen-Diff für dasselbe Verhalten. Der Writer berührt die Response nur mit
+ * write/end/writableEnded/destroyed — hier alles stumm bedient.
+ * `setTextListener` funktioniert weiter, falls ein headless Aufrufer den
+ * Textstrom doch abgreifen will.
+ */
+export function createNullSSE(): SSEWriter {
+  const noopRes = {
+    write: () => true,
+    end: () => noopRes,
+    writableEnded: false,
+    destroyed: false,
+    json: () => noopRes,
+    send: () => noopRes,
+  } as unknown as Response;
+  return new SSEWriter(noopRes);
+}
+
+/**
  * Emit an SSE `error` event, close the stream, and return the ts-rest
  * handler result literal. Consolidates the
  * `sse.send('error', …); sse.end(); return { status: 200, body: undefined }`
