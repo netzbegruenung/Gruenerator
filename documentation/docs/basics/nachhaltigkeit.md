@@ -41,6 +41,12 @@ Für direkt gemessene Anfragen fallen keine zusätzlichen Annahmen an. Für gesc
 
 Die Methode bleibt bei einem Wechsel der eingesetzten Technik gleich: Neue Systeme liefern entweder eigene Messwerte oder erhalten vor dem Einsatz ein versioniertes Berechnungsprofil. Die Seite zeigt immer die aktuellen Summen und Annahmen aus dem laufenden System – nicht eine von Hand gepflegte Modellliste.
 
+## Zwei Begriffe, die unsere Rechnung beeinflussen
+
+**PUE (Power Usage Effectiveness)** beschreibt die Effizienz eines Rechenzentrums. Ein PUE von 1,0 hieße: Jeder Watt Strom versorgt direkt die IT. Bei einem PUE von 1,25 kommen auf 100 Watt Rechenarbeit weitere 25 Watt für Kühlung, Stromversorgung und andere Infrastruktur hinzu. Darum rechnen wir den PUE in die Energie einer Anfrage ein.
+
+**Netzintensität** meint hier nicht die Auslastung des Internets, sondern den CO₂-Gehalt des Stromnetzes: Wie viele Gramm CO₂ bei einer Kilowattstunde Strom am Rechenzentrumsstandort entstehen. Dieser Wert kann je Land, Region und Tageszeit schwanken – etwa wenn viel Wind- oder Solarstrom verfügbar ist. GreenPT erklärt diesen Ansatz und seine PUE-Werte auf seiner [Nachhaltigkeitsseite](https://greenpt.com/sustainability); dort werden für einzelne Rechenzentren auch stündliche CO₂-Daten genutzt. Wo wir einen direkt gemessenen Anbieterwert erhalten, übernehmen wir ihn. Andernfalls verwenden wir die dokumentierte standortbasierte Netzintensität und weisen die Unsicherheit aus.
+
 ## Was die Zahlen abdecken – und was nicht
 
 Unsere Bilanz erfasst vor allem den Strombedarf während der Nutzung. Nicht vollständig enthalten sind:
