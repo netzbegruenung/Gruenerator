@@ -523,6 +523,38 @@ export async function applySliderOpsToDeck(args: {
     );
   }
 
+  // Deck sibling of the single-canvas query resolution above: resolve each
+  // per-slide stock query server-side, then write the URL into three places —
+  // the per-page patch (if the slide already exists), the fold-in state of a
+  // pending `add` op (a slide minted in this batch has no page to patch yet),
+  // and the working page's state (that is what the version snapshot mirrors).
+  if (result.imageQueries.length > 0 && descriptor.backgroundImage) {
+    const stateKey = descriptor.backgroundImage.stateKey;
+    for (const { pageId, query } of result.imageQueries) {
+      try {
+        const selection = await imagePickerService.selectBestImage(query, {
+          sharepicType: descriptor.id,
+        });
+        const url = `/api/image-picker/stock-image/${encodeURIComponent(selection.selectedImage.filename)}`;
+        const patchEntry = result.pagePatches.find((p) => p.pageId === pageId);
+        if (patchEntry) {
+          patchEntry.patch[stateKey] = url;
+          patchEntry.patch.hasBackgroundImage = true;
+        }
+        const addOp = result.pageOps.find((op) => op.op === 'add' && op.page.id === pageId);
+        if (addOp && addOp.op === 'add') {
+          addOp.page.state = { ...addOp.page.state, [stateKey]: url, hasBackgroundImage: true };
+        }
+        const working = result.newPages.find((p) => p.id === pageId);
+        if (working) {
+          working.state = { ...working.state, [stateKey]: url, hasBackgroundImage: true };
+        }
+      } catch (err) {
+        log.warn(`[SliderDeck] Image selection failed for slide ${pageId}: ${err}`);
+      }
+    }
+  }
+
   if (result.pagePatches.length === 0 && result.pageOps.length === 0) {
     return {
       ok: false,
