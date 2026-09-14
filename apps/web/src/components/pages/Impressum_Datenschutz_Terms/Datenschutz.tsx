@@ -301,7 +301,8 @@ const Datenschutz = () => {
         Rosenthaler Str. 36, 10178 Berlin, Deutschland (Amtsgericht Charlottenburg, HRB 277989 B) ·
         Seeweb S.r.l., C.so Lazio 9/a, 03100 Frosinone, Italien · Melious AI GmbH, Universität des
         Saarlandes, Campus Starterzentrum, Geb. A1.2, 66123 Saarbrücken, Deutschland · Linkup
-        Technologies SAS, 28 avenue des Pépinières, 94260 Fresnes, Frankreich (RCS Créteil 930 910 740).
+        Technologies SAS, 28 avenue des Pépinières, 94260 Fresnes, Frankreich (RCS Créteil 930 910
+        740).
       </p>
 
       <p>
