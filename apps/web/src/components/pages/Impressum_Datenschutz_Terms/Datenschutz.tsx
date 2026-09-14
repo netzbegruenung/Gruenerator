@@ -243,6 +243,20 @@ const Datenschutz = () => {
             <td>KI-Textmodelle sowie Audio-/Videotranskription (keine dauerhafte Speicherung)</td>
           </tr>
           <tr>
+            <td>
+              <a href="https://melious.ai/de/legal/dpa" target="_blank" rel="noopener noreferrer">
+                Melious AI GmbH
+              </a>
+            </td>
+            <td>Deutschland (EU)</td>
+            <td>
+              KI-Textmodelle sowie Bildgenerierung (FLUX.2 [dev]);{' '}
+              <a href="https://melious.ai/de/legal/dpa" target="_blank" rel="noopener noreferrer">
+                Auftragsverarbeitungsvertrag
+              </a>
+            </td>
+          </tr>
+          <tr>
             <td>Seeweb S.r.l. / Regolo AI</td>
             <td>Italien (EU)</td>
             <td>
@@ -285,8 +299,9 @@ const Datenschutz = () => {
         Ville-l&apos;Évêque, 75008 Paris, Frankreich (RCS Paris 433 115 904) · GreenPT BV,
         Plompetorengracht 4, 3512 CC Utrecht, Niederlande (KvK 97084360) · KugelAudio GmbH,
         Rosenthaler Str. 36, 10178 Berlin, Deutschland (Amtsgericht Charlottenburg, HRB 277989 B) ·
-        Seeweb S.r.l., C.so Lazio 9/a, 03100 Frosinone, Italien · Linkup Technologies SAS, 28 avenue
-        des Pépinières, 94260 Fresnes, Frankreich (RCS Créteil 930 910 740).
+        Seeweb S.r.l., C.so Lazio 9/a, 03100 Frosinone, Italien · Melious AI GmbH, Universität des
+        Saarlandes, Campus Starterzentrum, Geb. A1.2, 66123 Saarbrücken, Deutschland · Linkup
+        Technologies SAS, 28 avenue des Pépinières, 94260 Fresnes, Frankreich (RCS Créteil 930 910 740).
       </p>
 
       <p>
@@ -394,18 +409,19 @@ const Datenschutz = () => {
       <h3 id="ki-textgenerierung">KI-Textgenerierung und Chat</h3>
       <p>
         Die von Dir eingegebenen Texte werden zur Bearbeitung an KI-Dienstleister mit Verarbeitung
-        in der EU weitergeleitet (Mistral AI/FR, KI-Modelle der netzbegrünung/EU, Seeweb/Regolo
-        AI/IT, GreenPT/NL mit Verarbeitung in FR). Welcher Dienstleister eingesetzt wird, richtet
-        sich nach der genutzten Funktion: Im Chat kannst Du das Modell selbst wählen; voreingestellt
-        ist „Automatisch“, bei dieser Einstellung wählt die Plattform den Dienstleister anhand von
-        Funktion und Verfügbarkeit. Bei allen übrigen Funktionen (u. a. Anträge, Reden,
-        Sharepic-Texte, Notebooks, Präsentationen) ist der Dienstleister je Funktionstyp fest
-        vorgegeben. Das Modell Mistral Medium 3.5 läuft dabei auf Rechenleistung von Scaleway/FR;
-        fällt Scaleway aus, geht dieselbe Anfrage direkt an Mistral AI. Eine Nutzung Deiner Eingaben
-        zum Training der KI findet nicht statt. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO;
-        enthalten Deine Eingaben besondere Kategorien (z. B. politische Meinungen), stützt sich
-        deren Verarbeitung auf Art. 9 Abs. 2 lit. a DSGVO (Deine ausdrückliche Einwilligung, die wir
-        vor der ersten Nutzung der KI-Funktionen gesondert einholen).
+        in der EU weitergeleitet (Mistral AI/FR, KI-Modelle der netzbegrünung/EU, Melious/DE,
+        Seeweb/Regolo AI/IT, GreenPT/NL mit Verarbeitung in FR). Welcher Dienstleister eingesetzt
+        wird, richtet sich nach der genutzten Funktion: Im Chat kannst Du das Modell selbst wählen;
+        voreingestellt ist „Automatisch“, bei dieser Einstellung wählt die Plattform den
+        Dienstleister anhand von Funktion und Verfügbarkeit. Bei allen übrigen Funktionen (u. a.
+        Anträge, Reden, Sharepic-Texte, Notebooks, Präsentationen) ist der Dienstleister je
+        Funktionstyp fest vorgegeben. Das Modell Mistral Medium 3.5 läuft dabei auf Rechenleistung
+        von Scaleway/FR; fällt Scaleway aus, geht dieselbe Anfrage direkt an Mistral AI. Eine
+        Nutzung Deiner Eingaben zum Training der KI findet nicht statt. Rechtsgrundlage ist Art. 6
+        Abs. 1 lit. b DSGVO; enthalten Deine Eingaben besondere Kategorien (z. B. politische
+        Meinungen), stützt sich deren Verarbeitung auf Art. 9 Abs. 2 lit. a DSGVO (Deine
+        ausdrückliche Einwilligung, die wir vor der ersten Nutzung der KI-Funktionen gesondert
+        einholen).
       </p>
 
       <h3>Bildbearbeitung und -generierung (Grünerator Imagine)</h3>
@@ -413,11 +429,11 @@ const Datenschutz = () => {
         Bei Nutzung des Grünerator Imagine werden Deine hochgeladenen Bilder und Prompts unmittelbar
         an den Anbieter des gewählten Bildmodells weitergeleitet und dort ausschließlich zur
         Bearbeitung verwendet. Im Bild-Studio ist Black Forest Labs (FLUX, EU-API api.eu.bfl.ai)
-        voreingestellt; wählst Du dort das Regolo-Bildmodell, verarbeitet stattdessen Seeweb/Regolo
-        AI (Italien) Deine Eingaben mit dem Modell Qwen-Image. Die Funktion „KI-Bild erstellen“ im
-        Sharepic-Editor nutzt immer Seeweb/Regolo AI mit Qwen-Image; dort gibt es keine Modellwahl.
-        Wir speichern die Bilder nicht auf unseren Servern; eine Nutzung zum KI-Training findet
-        nicht statt. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO.
+        voreingestellt; für den Melious-Fallback verarbeitet Melious AI GmbH (Deutschland) Deine
+        Eingaben mit FLUX.2 [dev]. Die Funktion „KI-Bild erstellen“ im Sharepic-Editor nutzt diesen
+        Melious-Fallback; dort gibt es keine Modellwahl. Wir speichern die Bilder nicht auf unseren
+        Servern; eine Nutzung zum KI-Training findet nicht statt. Rechtsgrundlage ist Art. 6 Abs. 1
+        lit. b DSGVO.
       </p>
 
       <h3>Audio- und Videotranskription (Reel-Grünerator, Sprachaufnahme)</h3>
@@ -548,9 +564,9 @@ const Datenschutz = () => {
         Transkription an Mistral AI Voxtral bzw. GreenPT übermittelten Audiodaten kannst Du über uns
         geltend machen; die Audiodaten werden dort nicht dauerhaft gespeichert. Bilder im Grünerator
         Imagine speichern wir nicht, sondern leiten sie nur durch; Deine Rechte hinsichtlich
-        etwaiger bei Black Forest Labs oder bei Seeweb/Regolo AI befindlicher Bilddaten kannst Du
-        dennoch jederzeit über uns geltend machen. Zusätzlich erreichst Du Black Forest Labs direkt
-        unter <a href="mailto:support@blackforestlabs.ai">support@blackforestlabs.ai</a>.
+        etwaiger bei Black Forest Labs oder Melious AI GmbH befindlicher Bilddaten kannst Du dennoch
+        jederzeit über uns geltend machen. Zusätzlich erreichst Du Black Forest Labs direkt unter{' '}
+        <a href="mailto:support@blackforestlabs.ai">support@blackforestlabs.ai</a>.
       </p>
     </div>
   );
