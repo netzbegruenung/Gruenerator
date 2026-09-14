@@ -501,7 +501,7 @@ export function resolveAutoSelection(input: AutoSelectionInput): AutoSelection {
  * planner's fixed tool-usage prefix is re-billed every turn — same as before.
  *
  * The two lower tiers keep the loop alive when GreenPT is not configured:
- * regolo stays the self-hosted option, Mistral the last resort.
+ * melious stays the self-hosted option, Mistral the last resort.
  */
 export const LOOP_PLANNER_PRIMARY = {
   provider: 'greenpt' as const,

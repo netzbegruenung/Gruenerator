@@ -46,7 +46,7 @@ describe('loop planner fallback chain', () => {
   beforeEach(() => {
     configured.clear();
     slow.clear();
-    for (const p of ['greenpt', 'cortecs', 'regolo', 'litellm']) configured.add(p);
+    for (const p of ['greenpt', 'cortecs', 'melious', 'litellm']) configured.add(p);
   });
 
   it('nimmt den Primär, solange er gesund ist', () => {

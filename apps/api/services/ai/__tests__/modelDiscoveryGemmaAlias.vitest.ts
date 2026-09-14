@@ -5,9 +5,9 @@
  * ein Achtel Kontext gegenüber dem 31B, das der Grünerator überall anfragt. Der
  * Proxy wird seit dem 29.08.2026 gar nicht mehr befragt
  * (services/ai/litellmRetired.ts), die Regel bleibt aber die interessante: ein
- * `/gemma/i`-Muster hätte Regolos `gemma4-31b` mitgenommen, und DAS ist ein
- * Modell, das die Auswahl anbieten soll. Deshalb prüft dieser Test jetzt gegen
- * Regolos Katalog statt gegen den des Proxys.
+ * `/gemma/i`-Muster hätte die Gemma-4-31B-Kennung mitgenommen, und DAS ist ein
+ * Modell, das die Auswahl anbieten soll. Seit dem 14.09.2026 wird nur noch
+ * `melious` abgefragt, also prüft dieser Test gegen dessen Katalog.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
@@ -16,13 +16,13 @@ import type * as ProviderInstances from '../providerInstances.js';
 
 vi.mock('../providerInstances.js', async (importOriginal) => ({
   ...(await importOriginal<typeof ProviderInstances>()),
-  isProviderConfigured: (p: string) => p === 'regolo',
+  isProviderConfigured: (p: string) => p === 'melious',
 }));
 
 vi.mock('../../../config/env.js', async (importOriginal) => ({
   env: {
     ...(await importOriginal<typeof EnvModule>()).env,
-    REGOLO_API_KEY: 'test-key',
+    MELIOUS_API_KEY: 'test-key',
   },
 }));
 

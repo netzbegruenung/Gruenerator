@@ -53,6 +53,35 @@ const FOOTPRINT = {
   unvalued_ops: { transcriptions: 12, searches: 34, speech_seconds: 480 },
 };
 
+// Mirrors publicCalculation() in apps/api/services/usage/platformUsageStats.ts.
+const CALCULATION = {
+  version: '2026-09-14',
+  direct_measurement: {
+    energy: 'provider-reported kWh × 1,000 = Wh' as const,
+    emissions: 'provider-reported g CO2e' as const,
+  },
+  estimated_text: {
+    formula:
+      '(input_tokens × input_mwh_per_token + output_tokens × output_mwh_per_token + requests × fixed_mwh_per_request) × provider_pue / calibration_pue' as const,
+    calibration_pue: 1.5,
+    profiles: [
+      {
+        basis: 'calibrated' as const,
+        input_mwh_per_token: 0.00012,
+        output_mwh_per_token: 0.00048,
+        fixed_mwh_per_request: 0.02,
+      },
+      {
+        basis: 'bounded' as const,
+        input_mwh_per_token: 0.0002,
+        output_mwh_per_token: 0.0008,
+        fixed_mwh_per_request: 0.03,
+      },
+    ],
+  },
+  emissions_formula: 'energy_kwh × grid_g_per_kwh = g CO2e' as const,
+};
+
 const RESPONSE = {
   success: true as const,
   days: 30,
@@ -73,6 +102,7 @@ const RESPONSE = {
     speech_seconds: 480,
   },
   footprint: FOOTPRINT,
+  calculation: CALCULATION,
   providers: [
     {
       provider: 'mistral',
