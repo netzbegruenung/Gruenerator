@@ -275,11 +275,11 @@ describe('aiController – POST /api/docs/ai', () => {
       await handleAiRequest(req, res);
 
       expect(mockLogError).toHaveBeenCalledWith(
-        '[DocsAI] No AI provider configured (tried: mistral, regolo, cortecs)'
+        '[DocsAI] No AI provider configured (tried: mistral, melious, cortecs)'
       );
     });
 
-    it('tries providers in order: mistral → regolo → cortecs', async () => {
+    it('tries providers in order: mistral → melious → cortecs', async () => {
       mockIsProviderConfigured.mockReturnValue(false);
       const { res } = createMockRes();
       const req = createMockReq({
@@ -290,7 +290,7 @@ describe('aiController – POST /api/docs/ai', () => {
       await handleAiRequest(req, res);
 
       expect(mockIsProviderConfigured).toHaveBeenCalledWith('cortecs');
-      expect(mockIsProviderConfigured).toHaveBeenCalledWith('regolo');
+      expect(mockIsProviderConfigured).toHaveBeenCalledWith('melious');
       expect(mockIsProviderConfigured).toHaveBeenCalledWith('mistral');
     });
 
@@ -308,9 +308,9 @@ describe('aiController – POST /api/docs/ai', () => {
       expect(mockGetModel).toHaveBeenCalledWith('mistral', 'mistral-medium-2604');
     });
 
-    it('falls back to regolo when mistral is not configured', async () => {
+    it('falls back to melious when mistral is not configured', async () => {
       setupHappyPath();
-      mockIsProviderConfigured.mockImplementation((p: string) => p === 'regolo');
+      mockIsProviderConfigured.mockImplementation((p: string) => p === 'melious');
       const { res } = createMockRes();
       const req = createMockReq({
         messages: sampleMessages,
@@ -319,10 +319,10 @@ describe('aiController – POST /api/docs/ai', () => {
 
       await handleAiRequest(req, res);
 
-      expect(mockGetModel).toHaveBeenCalledWith('regolo', 'mistral-small-4-119b');
+      expect(mockGetModel).toHaveBeenCalledWith('melious', 'gemma-4-31b:balanced');
     });
 
-    it('falls back to cortecs when mistral and regolo are not configured', async () => {
+    it('falls back to cortecs when mistral and melious are not configured', async () => {
       setupHappyPath();
       mockIsProviderConfigured.mockImplementation((p: string) => p === 'cortecs');
       const { res } = createMockRes();

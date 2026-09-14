@@ -195,7 +195,7 @@ describe('cortecs text lane', () => {
     // sicherer.
     const lane = intermediateLane('pruefung');
     expect(lane).toMatchObject({ provider: 'cortecs', model: 'gemma-4-31b-it' });
-    expect(lane.hedge).toEqual({ provider: 'regolo', model: 'gemma4-31b' });
+    expect(lane.hedge).toEqual({ provider: 'melious', model: 'gemma-4-31b:balanced' });
     expect(lane.hedge?.provider).not.toBe(lane.provider);
   });
 });
