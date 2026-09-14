@@ -334,6 +334,13 @@ export function buildChatToolCatalog(params: {
    * nodes. Absent in unit tests → search family only.
    */
   loop?: { sse: SSEWriter; state: ChatGraphState; req?: Request; threadId?: string | null };
+  /**
+   * Beschränkt die Suchfamilie auf die Picker-Auswahl eines gebundenen Agenten
+   * (`enabledToolKeys` in `createSearchTools`) — der headless Pfad (#3221)
+   * erbt damit die `restrictToAgentTools`-Semantik des alten Recurring-Kerns.
+   * Fehlt ⇒ Verhalten unverändert.
+   */
+  searchToolKeys?: readonly string[];
 }): ChatToolCatalog {
   const { agentConfig, sourceRegistry, recipeRegistry, loop } = params;
 
@@ -382,6 +389,7 @@ export function buildChatToolCatalog(params: {
     // danach in `rerankNode`, der Board-Agent gar nicht — und nur mit
     // gesetztem Schalter: Default AUS bis zum Doppelmesslauf (#3120).
     ...(loop != null && isLoopRerankEnabled() && { rerankSearchChunks: true }),
+    ...(params.searchToolKeys?.length ? { enabledToolKeys: params.searchToolKeys } : {}),
   });
 
   // Agents bound to their own corpus (the Landesverband agents and their

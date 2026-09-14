@@ -258,10 +258,12 @@ export async function recordRecurringTaskRun(params: {
   resultUrl?: string | null;
   error?: string | null;
   durationMs?: number | null;
+  /** Verdikt der Ergebnis-Prüfung (#3221) — Messwert, kein Gate. */
+  verdict?: { ok: boolean; hint?: string; repaired?: boolean } | null;
 }): Promise<void> {
   await db.query(
-    `INSERT INTO recurring_task_runs (task_id, status, results_summary, result_url, error, duration_ms)
-     VALUES ($1, $2, $3, $4, $5, $6)`,
+    `INSERT INTO recurring_task_runs (task_id, status, results_summary, result_url, error, duration_ms, verdict)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
     [
       params.taskId,
       params.status,
@@ -269,6 +271,7 @@ export async function recordRecurringTaskRun(params: {
       params.resultUrl ?? null,
       params.error ?? null,
       params.durationMs ?? null,
+      params.verdict != null ? JSON.stringify(params.verdict) : null,
     ]
   );
 }
