@@ -27,6 +27,7 @@ export const agentProviderSchema = z.enum([
   'anthropic',
   'litellm',
   'regolo',
+  'melious',
   'greenpt',
   'cortecs',
 ]);

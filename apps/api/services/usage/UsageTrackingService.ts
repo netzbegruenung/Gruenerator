@@ -46,7 +46,7 @@ interface UsageDelta {
   inputTokens: number;
   outputTokens: number;
   ops: number;
-  /** Measured footprint. GreenPT is the only provider that reports it. */
+  /** Measured footprint reported by GreenPT and Melious. */
   energyWms: number;
   emissionsUg: number;
 }

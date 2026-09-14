@@ -44,12 +44,14 @@ import {
   estimateFootprint,
   estimateImageFootprint,
   gridIntensityFor,
+  getPublicTextCalculationProfiles,
   isPueEstimated,
   pueFor,
   emissionsFromEnergy,
   hasMarketInstrument,
   marketIntensityFor,
   referenceFootprint,
+  TOKEN_CALIBRATION_PUE,
 } from './energyFootprint.js';
 
 import type {
@@ -86,6 +88,23 @@ const LOCALE_VALUE: Record<TransparencyLocale, string> = { de: 'de-DE', at: 'de-
 
 const WMS_PER_WH = 3_600_000;
 const UG_PER_G = 1_000_000;
+
+function publicCalculation() {
+  return {
+    version: '2026-09-14',
+    direct_measurement: {
+      energy: 'provider-reported kWh × 1,000 = Wh' as const,
+      emissions: 'provider-reported g CO2e' as const,
+    },
+    estimated_text: {
+      formula:
+        '(input_tokens × input_mwh_per_token + output_tokens × output_mwh_per_token + requests × fixed_mwh_per_request) × provider_pue / calibration_pue' as const,
+      calibration_pue: TOKEN_CALIBRATION_PUE,
+      profiles: getPublicTextCalculationProfiles(),
+    },
+    emissions_formula: 'energy_kwh × grid_g_per_kwh = g CO2e' as const,
+  };
+}
 
 /** Rows predate schema changes; an unknown slug must not break the response. */
 const KNOWN_FEATURES = new Set<string>([
@@ -185,6 +204,7 @@ function emptyStats(days: number, sinceDay: string, suppressedDays: number, acti
       market_backed_share: 0,
       unvalued_ops: { transcriptions: 0, searches: 0, speech_seconds: 0 },
     },
+    calculation: publicCalculation(),
     providers: [],
     daily: [],
     byFeature: [],
@@ -522,6 +542,7 @@ export async function computePlatformUsageStats(
         speech_seconds: totals.speech_seconds,
       },
     },
+    calculation: publicCalculation(),
     // Only providers that actually contributed energy. Listing a search or
     // transcription provider here at 0 g would read as "this one is free"; what
     // is really true about them lives in `unvalued_ops`.
