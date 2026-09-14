@@ -109,3 +109,37 @@ describe('SSEWriter text listener', () => {
     expect(listener).not.toHaveBeenCalled();
   });
 });
+
+describe('createNullSSE (#3221)', () => {
+  it('schluckt Events, ohne zu werfen, und meldet end() über isEnded()', async () => {
+    const { createNullSSE } = await import('./sseHelpers.js');
+    const sse = createNullSSE();
+
+    expect(sse.isEnded()).toBe(false);
+    expect(() => {
+      sse.send('text_delta', { text: 'hallo' });
+      sse.sendRaw('thinking_step', { stepId: 's1' });
+      sse.send('error', { error: 'x' });
+    }).not.toThrow();
+
+    sse.end();
+    expect(sse.isEnded()).toBe(true);
+    // Nach end() bleibt send ein No-op — derselbe Vertrag wie beim echten Writer.
+    expect(() => sse.send('text_delta', { text: 'nachher' })).not.toThrow();
+  });
+
+  it('bedient den Text-Tap wie der echte Writer', async () => {
+    const { createNullSSE } = await import('./sseHelpers.js');
+    const sse = createNullSSE();
+    const seen: Array<[string, string]> = [];
+    sse.setTextListener((kind, text) => seen.push([kind, text]));
+
+    sse.send('text_delta', { text: 'a' });
+    sse.send('completion', { text: 'ab', citations: [] });
+
+    expect(seen).toEqual([
+      ['delta', 'a'],
+      ['completion', 'ab'],
+    ]);
+  });
+});
