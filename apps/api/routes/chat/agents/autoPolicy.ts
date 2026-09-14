@@ -544,7 +544,7 @@ export const LOOP_PLANNER_HEALTHY_ALT = {
 };
 export const LOOP_PLANNER_SELFHOSTED = {
   provider: 'melious' as const,
-  model: 'gemma-4-31b:speed',
+  model: 'gemma-4-31b:balanced',
 };
 /**
  * Die letzte Stufe. Stand bis zum 29.08.2026 auf `litellm/verdigado-pro` und

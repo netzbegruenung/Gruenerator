@@ -89,7 +89,7 @@ const PROVIDER_DEFAULTS = {
   // den gespeicherte Agenten-Konfigurationen weiterhin nennen dürfen (F0).
   litellm: RETIRED_LITELLM_DEFAULT.model,
   regolo: regoloTextDefault(),
-  melious: env.MELIOUS_DEFAULT_MODEL ?? 'gemma-4-31b:speed',
+  melious: env.MELIOUS_DEFAULT_MODEL ?? 'gemma-4-31b:balanced',
   greenpt: env.GREENPT_DEFAULT_MODEL ?? 'mistral-medium-3.5-128b',
   // Gemma 4 26B-A4B. Named rather than inherited: Scaleway also serves
   // `mistral-medium-3.5-128b`, and an unnamed default here would quietly hand

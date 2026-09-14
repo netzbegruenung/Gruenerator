@@ -271,7 +271,7 @@ function fetchModelsForProvider(provider: ProviderName): Promise<PlaygroundModel
  *  Aufruf danach still umbiegt. */
 const FALLBACK_MODELS: PlaygroundModel[] = ['mistral-medium-2604', 'mistral-small-latest']
   .map((id) => enrichModel(id, 'mistral'))
-  .concat(['gemma-4-31b:speed'].map((id) => enrichModel(id, 'melious')));
+  .concat(['gemma-4-31b:balanced'].map((id) => enrichModel(id, 'melious')));
 
 async function discoverModels(): Promise<PlaygroundModel[]> {
   // `greenpt`, `scaleway` und `cortecs` sind bewusst abwesend, nicht vergessen:

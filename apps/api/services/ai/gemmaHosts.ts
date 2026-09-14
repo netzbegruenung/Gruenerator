@@ -173,7 +173,7 @@ export const GEMMA_31B_ON_REGOLO: GemmaHost = {
  *  model suffix. */
 export const GEMMA_31B_ON_MELIOUS: GemmaHost = {
   provider: 'melious',
-  model: 'gemma-4-31b:speed',
+  model: 'gemma-4-31b:balanced',
   contextWindow: 262_144,
   laneId: 'gemma-melious',
 };

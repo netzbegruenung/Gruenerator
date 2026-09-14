@@ -414,7 +414,7 @@ export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
   melious: {
     kind: 'single',
     provider: 'melious',
-    model: env.MELIOUS_DEFAULT_MODEL || 'gemma-4-31b:speed',
+    model: env.MELIOUS_DEFAULT_MODEL || 'gemma-4-31b:balanced',
     contextWindow: CTX_FULL,
   },
   // Backend-only lane and, since 03.08.2026, no longer an auto-policy target
@@ -717,7 +717,9 @@ function instantiateModel(
         lastFallbackProvider = 'mistral';
         return getMistralProvider()(modelId);
       }
-      return getMeliousProvider().chat(modelId || env.MELIOUS_DEFAULT_MODEL || 'gemma-4-31b:speed');
+      return getMeliousProvider().chat(
+        modelId || env.MELIOUS_DEFAULT_MODEL || 'gemma-4-31b:balanced'
+      );
     }
     case 'greenpt':
       return getGreenPTProvider().chat(

@@ -102,7 +102,7 @@ const DOCS_AI_MODELS: Record<AgentConfig['provider'], string> = {
   // Eintrag nennt deshalb das Modell, das dort tatsächlich antwortet.
   litellm: 'gemma-4-31b-it',
   regolo: 'mistral-small-4-119b',
-  melious: 'gemma-4-31b:speed',
+  melious: 'gemma-4-31b:balanced',
   mistral: 'mistral-medium-2604',
   anthropic: 'mistral-medium-2604',
   greenpt: 'mistral-medium-3.5-128b',

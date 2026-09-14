@@ -83,7 +83,7 @@ const MODEL_LABELS = {
   // Für Leser*innen der Tabelle ist das ein Modell auf zwei Hosts, und genau
   // so soll es dort stehen.
   'gemma-4-31b-it': 'Gemma 4 (31 Mrd.)',
-  'gemma-4-31b:speed': 'Gemma 4 (31 Mrd., Melious Speed)',
+  'gemma-4-31b:balanced': 'Gemma 4 (31 Mrd., Melious Balanced)',
   'gemma-4-26b-a4b-it': 'Gemma 4 (26 Mrd., MoE)',
   gemma4: 'Gemma 4',
   'gpt-oss-120b': 'GPT-OSS 120B',
