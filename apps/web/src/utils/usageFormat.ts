@@ -171,16 +171,19 @@ export function formatEnergy(wh: number): string {
 }
 
 /**
- * Average CO2 of the German car fleet, g/km (UBA). Only ever used to make an
- * abstract milligram figure imaginable — never as a claim of its own.
+ * Average German car, g CO2e per PERSON-kilometre (UBA TREMOD 6.71B, 2024).
+ *
+ * This includes the energy supply chain and assumes 1.4 people per car. The
+ * comparison is deliberately person-based: using a vehicle-kilometre here
+ * would overstate the distance by the occupancy factor.
  */
-export const CAR_G_PER_KM = 150;
+export const CAR_G_PER_PERSON_KM = 164;
 
 export function carComparison(grams: number): string {
-  const metres = (grams / CAR_G_PER_KM) * 1000;
+  const metres = (grams / CAR_G_PER_PERSON_KM) * 1000;
   const rounded = Math.round(metres);
-  if (rounded >= 10_000) return `${numberFormat.format(Math.round(metres / 1000))} km Autofahrt`;
-  return `${numberFormat.format(rounded)} m Autofahrt`;
+  if (rounded >= 10_000) return `${numberFormat.format(Math.round(metres / 1000))} km Pkw-Fahrt`;
+  return `${numberFormat.format(rounded)} m Pkw-Fahrt`;
 }
 
 export function formatDay(day: string): string {
