@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { McpRegistryService } from './McpRegistryService.js';
 
 describe('McpRegistryService — Typeform directory entries', () => {
-  it('offers OAuth connections for the global and both EU MCP resources', async () => {
+  it('uses the primary EU resource by default and offers the other regions', async () => {
     const { recommended } = await McpRegistryService.list({});
 
     expect(
@@ -13,12 +13,12 @@ describe('McpRegistryService — Typeform directory entries', () => {
     ).toEqual([
       {
         title: 'Typeform',
-        url: 'https://api.typeform.com/mcp',
+        url: 'https://api.eu.typeform.com/mcp',
         authHint: 'oauth',
       },
       {
-        title: 'Typeform (EU – .com)',
-        url: 'https://api.eu.typeform.com/mcp',
+        title: 'Typeform (Global)',
+        url: 'https://api.typeform.com/mcp',
         authHint: 'oauth',
       },
       {

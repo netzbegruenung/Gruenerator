@@ -289,17 +289,17 @@
       {
         "title": "Typeform",
         "auth": "Anmeldung beim Dienst",
-        "description": "Formulare erstellen, bearbeiten, veröffentlichen und Antworten auswerten."
-      },
-      {
-        "title": "Typeform (EU – .com)",
-        "auth": "Anmeldung beim Dienst",
-        "description": "Formulare und Antworten im EU-Rechenzentrum (api.eu.typeform.com) verwalten."
+        "description": "Formulare und Antworten im Standard-EU-Rechenzentrum verwalten."
       },
       {
         "title": "Typeform (EU – .eu)",
         "auth": "Anmeldung beim Dienst",
         "description": "Formulare und Antworten im EU-Rechenzentrum (api.typeform.eu) verwalten."
+      },
+      {
+        "title": "Typeform (Global)",
+        "auth": "Anmeldung beim Dienst",
+        "description": "Formulare erstellen, bearbeiten, veröffentlichen und Antworten im globalen Rechenzentrum auswerten."
       }
     ],
     "Karten": [
