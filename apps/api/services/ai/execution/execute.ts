@@ -110,6 +110,7 @@ const CONFIG_HINT: Record<ProviderName, string> = {
   mistral: 'MISTRAL_API_KEY',
   litellm: 'LITELLM_API_KEY',
   regolo: 'REGOLO_API_KEY',
+  melious: 'MELIOUS_API_KEY',
   greenpt: 'GREENPT_API_KEY',
   scaleway: 'SCALEWAY_API_KEY',
   cortecs: 'CORTECS_API_KEY',

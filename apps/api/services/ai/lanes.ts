@@ -296,7 +296,7 @@ export function providerForModel(modelName = ''): ProviderName {
  * Und einen anderen hatte der Proxy nicht: sein zweiter Alias
  * (`verdigado-think`) denkt ebenfalls, unabschaltbar.
  */
-export const GENERIC_FALLBACK: readonly ProviderName[] = ['cortecs', 'regolo', 'mistral'];
+export const GENERIC_FALLBACK: readonly ProviderName[] = ['cortecs', 'melious', 'mistral'];
 
 /**
  * Failover order after the primary. Two chains: sharepics lead with Mistral
@@ -306,7 +306,7 @@ export const GENERIC_FALLBACK: readonly ProviderName[] = ['cortecs', 'regolo', '
 export function laneFallback(lane: LaneId): readonly ProviderName[] {
   const primary = AI_LANES[lane].provider;
   const chain = lane.startsWith('sharepic_')
-    ? (['mistral', 'cortecs', 'regolo'] as const)
+    ? (['mistral', 'cortecs', 'melious'] as const)
     : GENERIC_FALLBACK;
   return chain.filter((p) => p !== primary);
 }

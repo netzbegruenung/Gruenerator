@@ -995,6 +995,51 @@ const BOUND_MID: EnergyCoefficients = {
   basis: 'bound',
 };
 
+/**
+ * Public, model-neutral inputs for independently checking token estimates.
+ *
+ * The profile list is derived from the active coefficient table, rather than
+ * maintained in documentation. Model IDs deliberately do not leave this
+ * module: an auditor needs the arithmetic, not a moving product catalogue.
+ */
+export function getPublicTextCalculationProfiles(): Array<{
+  basis: 'calibrated' | 'bounded';
+  input_mwh_per_token: number;
+  output_mwh_per_token: number;
+  fixed_mwh_per_request: number;
+}> {
+  const profiles = new Map<string, EnergyCoefficients>();
+  for (const profile of Object.values(MODEL_ENERGY)) {
+    if (profile.basis === 'measured') {
+      profiles.set(
+        `${profile.mWhPerInputToken}|${profile.mWhPerOutputToken}|${profile.mWhFixed}`,
+        profile
+      );
+    }
+  }
+  for (const profile of [BOUND_FLOOR, BOUND_MID, BOUND_CEILING]) {
+    profiles.set(
+      `${profile.mWhPerInputToken}|${profile.mWhPerOutputToken}|${profile.mWhFixed}`,
+      profile
+    );
+  }
+  return [...profiles.values()]
+    .map((profile) => ({
+      basis: profile.basis === 'measured' ? ('calibrated' as const) : ('bounded' as const),
+      input_mwh_per_token: profile.mWhPerInputToken,
+      output_mwh_per_token: profile.mWhPerOutputToken,
+      fixed_mwh_per_request: profile.mWhFixed,
+    }))
+    .sort(
+      (a, b) =>
+        a.output_mwh_per_token - b.output_mwh_per_token ||
+        a.input_mwh_per_token - b.input_mwh_per_token
+    );
+}
+
+/** PUE included in the measurement that calibrates token coefficients. */
+export const TOKEN_CALIBRATION_PUE = GREENPT_PUE;
+
 /** Which of the three bracket points a `bound` text entry is costed at. */
 function boundedCoefficients(bound: EnergyBound): EnergyCoefficients {
   if (bound === 'low') return BOUND_FLOOR;
