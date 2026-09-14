@@ -2685,7 +2685,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Verfügbare Konnektoren",
     "anchor": "#verfügbare-konnektoren",
     "category": "Integrationen",
-    "text": "Das Verzeichnis enthält aktuell handverlesene Dienste: Über die Suche findest du weitere Server aus dem offenen MCP-Katalog — oder du fügst einen eigenen hinzu. Manche Anbieter verlangen dafür weiterhin eine eigene App-Registrierung pro Organisation, etwa Zoom oder DocuSign. Für die meisten Typeform-Konten wählst du Typeform. EU-gehostete Konten brauchen einen der beiden Typeform (EU …)-Einträge; die beiden EU-Endpunkte sind nicht austauschbar. Wenn du dein Rechenzentrum nicht kennst, frage den Typeform-Support bzw. deinen Customer Success Manager."
+    "text": "Das Verzeichnis enthält aktuell handverlesene Dienste: Über die Suche findest du weitere Server aus dem offenen MCP-Katalog — oder du fügst einen eigenen hinzu. Manche Anbieter verlangen dafür weiterhin eine eigene App-Registrierung pro Organisation, etwa Zoom oder DocuSign. Typeform verbindet sich standardmäßig mit api.eu.typeform.com. Für ein global gehostetes Konto wählst du Typeform (Global). Typeform (EU – .eu) ist Typeforms separate zweite EU-Umgebung; die beiden EU-Endpunkte sind nicht austauschbar. Wenn du dein Rechenzentrum nicht kennst, frage den Typeform-Support bzw. deinen Customer Success Manager."
   },
   {
     "url": "/docs/integrationen/konnektoren",

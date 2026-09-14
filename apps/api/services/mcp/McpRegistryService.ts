@@ -48,10 +48,10 @@ const SEEDS: Seed[] = [
   ['Google Maps', 'https://mapstools.googleapis.com/mcp', 'bearer', 'Geocoding, Places, Routing und Kartendaten.', 'https://developers.google.com/maps', 'Karten'],
   ['Tally', 'https://api.tally.so/mcp', 'oauth', 'Formulare erstellen, bearbeiten und Antworten auswerten.', 'https://tally.so', 'Formulare'],
   // Typeform allowlists gruenerator.eu for DCR (verified 2026-09-14). Its
-  // account regions are separate MCP resources, so offer each documented
-  // endpoint rather than routing a user's OAuth token across regions.
-  ['Typeform', 'https://api.typeform.com/mcp', 'oauth', 'Formulare erstellen, bearbeiten, veröffentlichen und Antworten auswerten.', 'https://typeform.com', 'Formulare'],
-  ['Typeform (EU – .com)', 'https://api.eu.typeform.com/mcp', 'oauth', 'Formulare und Antworten im EU-Rechenzentrum (api.eu.typeform.com) verwalten.', 'https://typeform.com', 'Formulare'],
+  // account regions are separate MCP resources, so the normal entry uses our
+  // EU endpoint and the other documented endpoints stay explicit alternatives.
+  ['Typeform', 'https://api.eu.typeform.com/mcp', 'oauth', 'Formulare und Antworten im Standard-EU-Rechenzentrum verwalten.', 'https://typeform.com', 'Formulare'],
+  ['Typeform (Global)', 'https://api.typeform.com/mcp', 'oauth', 'Formulare erstellen, bearbeiten, veröffentlichen und Antworten im globalen Rechenzentrum auswerten.', 'https://typeform.com', 'Formulare'],
   ['Typeform (EU – .eu)', 'https://api.typeform.eu/mcp', 'oauth', 'Formulare und Antworten im EU-Rechenzentrum (api.typeform.eu) verwalten.', 'https://typeform.com', 'Formulare'],
   ['Todoist', 'https://ai.todoist.net/mcp', 'oauth', 'Aufgaben, Projekte und To-do-Listen verwalten.', 'https://todoist.com', 'Produktivität'],
   ['Miro', 'https://mcp.miro.com/', 'oauth', 'Whiteboards, Boards und Diagramme lesen und bearbeiten.', 'https://miro.com', 'Produktivität'],

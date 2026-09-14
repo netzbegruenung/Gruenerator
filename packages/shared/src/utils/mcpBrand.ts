@@ -18,7 +18,7 @@ const BRAND: Record<string, string> = {
   'Google Maps': '#4285F4',
   Tally: '#F24E43',
   Typeform: '#262627',
-  'Typeform (EU – .com)': '#262627',
+  'Typeform (Global)': '#262627',
   'Typeform (EU – .eu)': '#262627',
   Zoom: '#2D8CFF',
   Todoist: '#E44332',
