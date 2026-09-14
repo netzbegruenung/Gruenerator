@@ -167,6 +167,17 @@ export const GEMMA_31B_ON_REGOLO: GemmaHost = {
   laneId: 'gemma-regolo',
 };
 
+/** Melious' European routing endpoint serving the same Gemma 4 31B weights.
+ *  `:speed` keeps normal interactive turns on the documented non-reasoning
+ *  route; callers that need a different Melious flavor may use their own
+ *  model suffix. */
+export const GEMMA_31B_ON_MELIOUS: GemmaHost = {
+  provider: 'melious',
+  model: 'gemma-4-31b:speed',
+  contextWindow: 262_144,
+  laneId: 'gemma-melious',
+};
+
 /** Dieselben Gewichte über Cortecs, ohne Vorgabe an infercom vermittelt
  *  (Luxemburg, Verarbeitung Deutschland); `berget` steht daneben, siehe die
  *  Messung im Kopf dieser Datei.
@@ -236,4 +247,4 @@ export const GEMMA_31B_ON_CORTECS: GemmaHost = {
  *   4. `modelSiblings.ts` und die Lane-Konfigurationen ziehen von selbst mit.
  */
 export const GEMMA_31B_PRIMARY: GemmaHost = GEMMA_31B_ON_CORTECS;
-export const GEMMA_31B_ALTERNATE: GemmaHost = GEMMA_31B_ON_REGOLO;
+export const GEMMA_31B_ALTERNATE: GemmaHost = GEMMA_31B_ON_MELIOUS;

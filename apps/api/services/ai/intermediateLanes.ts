@@ -163,7 +163,7 @@ export interface IntermediateLaneConfig extends LaneTarget {
 }
 
 /** Der Ausgangszustand: was `INTERMEDIATE_MODEL` für alle 36 Stellen war. */
-const REGOLO_SMALL_4 = { provider: 'regolo', model: 'mistral-small-4-119b' } as const;
+const MELIOUS_GEMMA_4 = { provider: 'melious', model: 'gemma-4-31b:speed' } as const;
 
 /**
  * Die vier Glieder der kleinen Stufen: DREIMAL dasselbe Modell auf drei Hosts,
@@ -218,7 +218,7 @@ const MISTRAL_SMALL = { provider: 'mistral', model: 'mistral-small-latest' } as 
 /** Die eine Kette der beiden kleinen Stufen. Sie teilen sie, weil sie dieselbe
  *  Arbeit in verschiedenem Tempo tun — die Stufen unterscheiden sich im
  *  Zeitbudget des Aufrufers, nicht in der Frage, wer einspringt. */
-const SMALL_CHAIN = [CORTECS_SMALL_32, MISTRAL_SMALL, REGOLO_SMALL_4] as const;
+const SMALL_CHAIN = [CORTECS_SMALL_32, MISTRAL_SMALL, MELIOUS_GEMMA_4] as const;
 
 /**
  * Das dichte Gemma 4 31B — Primär und Ausweich kommen beide aus `gemmaHosts.ts`.
@@ -426,7 +426,7 @@ export const INTERMEDIATE_LANES = {
     // 17 Rechenfälle, Small 4 nur 94,1 %. Auf dieser Stufe ist ein Fehler eine
     // FALSCHE ZAHL beim Nutzer — die Kette folgt deshalb der Trefferquote und
     // nicht dem Energiewert.
-    fallback: [{ provider: GEMMA_PRIMARY.provider, model: GEMMA_PRIMARY.model }, REGOLO_SMALL_4],
+    fallback: [{ provider: GEMMA_PRIMARY.provider, model: GEMMA_PRIMARY.model }, MELIOUS_GEMMA_4],
   },
 
   /**

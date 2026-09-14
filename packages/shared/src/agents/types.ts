@@ -1,6 +1,7 @@
 import type { ComponentType } from 'react';
 
-export type AgentProvider = 'mistral' | 'anthropic' | 'litellm' | 'regolo' | 'greenpt' | 'cortecs';
+export type AgentProvider =
+  'mistral' | 'anthropic' | 'litellm' | 'regolo' | 'melious' | 'greenpt' | 'cortecs';
 
 export type SkillIcon = ComponentType<{ className?: string }>;
 
