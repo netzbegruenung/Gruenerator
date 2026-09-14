@@ -26,6 +26,13 @@ export interface SliderDeckOpsResult {
   newPages: SliderDeckPage[];
   applied: SliderDeckOperation[];
   rejected: Array<{ op: SliderDeckOperation | CanvasAiOperation; reason: string }>;
+  /**
+   * Stock-photo queries the caller must resolve server-side and merge under
+   * `descriptor.backgroundImage.stateKey` on the addressed slide. Mirrors
+   * `SharepicOpsResult.imageQueries`, keyed per page because a deck can carry
+   * a different photo on each slide.
+   */
+  imageQueries: Array<{ pageId: string; query: string }>;
 }
 
 const newPageId = (): string =>
@@ -117,6 +124,10 @@ export function sliderDeckOpsToPagePatches(
   const addedPages = new Map<string, SliderDeckPage>();
 
   const working: SliderDeckPage[] = pages.map((p) => ({ ...p, state: { ...p.state } }));
+  // Deck-wide: an image query has to know which slide it belongs to, and a
+  // slide added in this batch has to carry the resolved URL on its `add` op
+  // (patches run before pageOps, so a fresh slide has no page to patch).
+  const imageQueries: Array<{ pageId: string; query: string }> = [];
 
   const mergePatch = (page: SliderDeckPage, patch: Record<string, unknown>): void => {
     if (Object.keys(patch).length === 0) return;
@@ -136,6 +147,7 @@ export function sliderDeckOpsToPagePatches(
       newPages: working,
       applied,
       rejected: ops.map((op) => ({ op, reason: `${descriptor.id} ist kein Folien-Deck` })),
+      imageQueries: [],
     };
   }
 
@@ -149,6 +161,7 @@ export function sliderDeckOpsToPagePatches(
       }
       const result = sharepicOpsToStatePatch(descriptor, op.operations, page.state);
       rejected.push(...result.rejected);
+      for (const query of result.imageQueries) imageQueries.push({ pageId: page.id, query });
       if (result.applied.length === 0) continue;
 
       const schemeOp = result.applied.find((o) => o.kind === 'set-color-scheme');
@@ -232,6 +245,7 @@ export function sliderDeckOpsToPagePatches(
     newPages: working,
     applied,
     rejected,
+    imageQueries,
   };
 }
 

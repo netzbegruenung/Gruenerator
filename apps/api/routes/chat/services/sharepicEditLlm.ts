@@ -189,6 +189,12 @@ export function buildSliderDeckOperationCatalog(descriptor: SharepicTemplateDesc
     `      { "kind": "set-font-size", "field": "<field>", "label": "<Label>", "size": <Zahl> } (${fontBounds})`,
     `      { "kind": "set-color-scheme", "schemeId": <id> } — nur: ${schemeIds}. Gilt IMMER für das GANZE Karussell.`,
     '      Hinweis: "label" gibt es nur auf dem Cover (Slide 1), "subtext2" nur auf Inhalts-Folien.',
+    ...(descriptor.backgroundImage
+      ? [
+          '      { "kind": "set-background-image", "query": "<Bildbeschreibung>" } — Hintergrundbild für EINE Folie; Text wird automatisch weiß, Farbschema bleibt für Pille & Pfeil erhalten.',
+          '      { "kind": "update-element", "elementId": "hintergrundbild", "patch": { "x"?: <Zahl>, "y"?: <Zahl>, "scale"?: <Zahl>, "opacity"?: <Zahl> } } — verschiebt/zoomt das Foto einer Folie.',
+        ]
+      : []),
     '  - { "kind": "add-slide", "afterSlide"?: <Nr>, "headline": "<Text>", "subtext"?: "<Text>", "subtext2"?: "<Text>" } — neue Inhalts-Folie (ohne afterSlide: vor der Abschluss-Folie).',
     '  - { "kind": "remove-slide", "slide": <Nr> } — Cover (1) und Abschluss-Folie sind geschützt.',
   ];
