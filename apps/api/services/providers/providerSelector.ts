@@ -249,7 +249,8 @@ export function selectProviderAndModel({
     type === 'antrag_question_generation' ||
     type === 'antrag_qa_summary' ||
     type === 'gruenerator_ask' ||
-    type === 'gruenerator_ask_grundsatz'
+    type === 'gruenerator_ask_grundsatz' ||
+    type === 'background_verify'
   ) {
     provider = LANE.provider;
     model = options.model || LANE.model;
