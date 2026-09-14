@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { TOOL_APPROVAL_OPTIONS } from '../lib/toolApproval';
+
 import { convertToThreadMessageLike, type LoadedMessage } from './messageConversion';
 
 /**
@@ -112,5 +114,71 @@ describe('convertToThreadMessageLike — offene Loop-Rückfrage (#3220, Mobile-P
     expect(asks).toHaveLength(1);
     expect((asks[0] as { result?: unknown }).result).toBe('Anna Müller');
     expect(msg!.status).toBeUndefined();
+  });
+});
+
+describe('convertToThreadMessageLike — pending tool approval', () => {
+  const pendingApproval = {
+    approvalTurnId: 'turn-1',
+    calls: [
+      {
+        toolCallId: 'call-1',
+        toolName: 'mcp__drive__share_file',
+        args: { path: '/Plan.pdf', recipients: ['anna@example.org'] },
+        title: 'Datei teilen',
+        serverName: 'Google Drive',
+      },
+    ],
+    resolved: false as const,
+  };
+
+  it('rehydrates a decidable card with full arguments, labels, and status', () => {
+    const [message] = convertToThreadMessageLike([
+      assistant({ interrupted: true, pendingApproval }),
+    ]);
+    const card = message?.content.find((part) => part.type === 'tool-call');
+
+    expect(card).toMatchObject({
+      toolCallId: 'call-1',
+      toolName: 'mcp__drive__share_file',
+      args: { path: '/Plan.pdf', recipients: ['anna@example.org'] },
+      title: 'Datei teilen',
+      serverName: 'Google Drive',
+      approval: { id: 'call-1', options: TOOL_APPROVAL_OPTIONS },
+    });
+    expect(message?.status).toEqual({ type: 'requires-action', reason: 'tool-calls' });
+  });
+
+  it('keeps an otherwise empty interrupted turn when it contains an approval', () => {
+    const converted = convertToThreadMessageLike([
+      {
+        id: 'm1',
+        role: 'assistant',
+        content: '',
+        metadata: { interrupted: true, pendingApproval },
+      },
+    ]);
+
+    expect(converted).toHaveLength(1);
+    expect(converted[0]?.content.some((part) => part.type === 'tool-call')).toBe(true);
+  });
+
+  it('does not restore a card after the approval was resolved', () => {
+    const [message] = convertToThreadMessageLike([
+      assistant({ pendingApproval: { ...pendingApproval, resolved: true } }),
+    ]);
+
+    expect(message?.content.some((part) => part.type === 'tool-call')).toBe(false);
+    expect(message?.status).toBeUndefined();
+  });
+
+  it('restores an expired approval as a terminal card', () => {
+    const [message] = convertToThreadMessageLike([
+      assistant({ pendingApproval: { ...pendingApproval, resolved: 'expired' } }),
+    ]);
+    const card = message?.content.find((part) => part.type === 'tool-call');
+
+    expect(card).toMatchObject({ approval: { id: 'call-1', resolution: 'expired' } });
+    expect(message?.status).toBeUndefined();
   });
 });

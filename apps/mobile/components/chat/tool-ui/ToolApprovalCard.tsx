@@ -20,6 +20,7 @@ import type { Theme } from '../../../theme/colors';
 // geteilten Barrel, damit beide Plattformen dasselbe sagen.
 export function ToolApprovalCard({
   toolName,
+  args,
   approval,
   title,
   serverName,
@@ -27,6 +28,7 @@ export function ToolApprovalCard({
   theme,
 }: {
   toolName: string;
+  args: Record<string, unknown>;
   approval: ToolApprovalState;
   title?: string;
   serverName?: string;
@@ -34,7 +36,9 @@ export function ToolApprovalCard({
   theme: Theme;
 }) {
   const [busy, setBusy] = useState(false);
+  const [showArgs, setShowArgs] = useState(false);
   const label = title ?? formatNamespacedToolLabel(toolName, serverName);
+  const hasArgs = Object.keys(args).length > 0;
 
   if (isApprovalDecided(approval)) {
     const denied = approval.approved === false || approval.resolution !== undefined;
@@ -76,6 +80,34 @@ export function ToolApprovalCard({
           </Text>
         </View>
       </View>
+
+      {hasArgs && (
+        <View style={styles.argsSection}>
+          <Pressable
+            onPress={() => setShowArgs((value) => !value)}
+            accessibilityRole="button"
+            accessibilityLabel={showArgs ? 'Übergabewerte ausblenden' : 'Übergabewerte anzeigen'}
+            accessibilityState={{ expanded: showArgs }}
+            style={styles.argsToggle}
+          >
+            <Text style={[styles.argsToggleText, { color: theme.textSecondary }]}>
+              {showArgs ? 'Übergabewerte ausblenden' : 'Übergabewerte anzeigen'}
+            </Text>
+            <Ionicons
+              name={showArgs ? 'chevron-up' : 'chevron-down'}
+              size={14}
+              color={theme.textSecondary}
+            />
+          </Pressable>
+          {showArgs && (
+            <View style={[styles.argsBox, { backgroundColor: theme.card }]}>
+              <Text selectable style={[styles.argsText, { color: theme.text }]}>
+                {JSON.stringify(args, null, 2)}
+              </Text>
+            </View>
+          )}
+        </View>
+      )}
 
       <View style={styles.actions}>
         {TOOL_APPROVAL_OPTIONS.map((option) => {
@@ -125,8 +157,21 @@ const styles = StyleSheet.create({
   headText: { flex: 1, gap: 2 },
   title: { ...chatType.chatSecondary, fontWeight: '600' },
   meta: { ...chatType.chatMeta },
+  argsSection: { gap: spacing.xxsmall },
+  argsToggle: {
+    minHeight: 44,
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xxsmall,
+  },
+  argsToggleText: { ...chatType.chatMeta, fontWeight: '600' },
+  argsBox: { padding: spacing.xsmall, borderRadius: borderRadius.medium },
+  argsText: { ...chatType.chatMeta, fontFamily: 'monospace' },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xsmall },
   button: {
+    minHeight: 44,
+    justifyContent: 'center',
     paddingHorizontal: spacing.small,
     paddingVertical: spacing.xxsmall,
     borderRadius: borderRadius.full,
