@@ -34,11 +34,13 @@ import { createLogger } from '../../../utils/logger.js';
 import { getContextWindow } from '../agents/providers.js';
 
 import { runToolApprovalResume } from './agenticLoop/approvalResume.js';
+import { runClarificationLoopResume } from './agenticLoop/clarificationResume.js';
 import { ARTIFACT_CONFIRMATION_TEXTS, buildSharepicConfirmation } from './artifactConfirmations.js';
 import { persistComputeAssets } from './computeAssetStorage.js';
 import { hasBrokenComputeValues } from './computeResultSanity.js';
 import { pruneMessages } from './contextPruningService.js';
 import { executeIntentPipeline, reportUnavailableSources } from './intentExecutionService.js';
+import { loopClarificationStateStore } from './loopClarificationStateStore.js';
 import { extractTextContent } from './messageHelpers.js';
 import { createPendingAssistantWriter } from './pendingAssistantWriter.js';
 import { pipelineStateStore } from './pipelineStateStore.js';
@@ -150,6 +152,38 @@ export async function runChatGraphResume({
     const user = getUser(req);
     if (!user?.id) {
       return sseFail(sse, PROGRESS_MESSAGES.unauthorized, { code: 'unauthorized' });
+    }
+
+    // Eine ask_human-Antwort hat zwei mögliche Absender-Zustände: die
+    // Pre-Loop-Klärung (pipelineStateStore, Single-Pass-Fortsetzung unten) und
+    // die Loop-Rückfrage (#3220, eigener Zustand + agentische Fortsetzung).
+    // Der Wire-Body ist identisch — entschieden wird am gespeicherten Zustand.
+    // Liegen BEIDE vor (Stale-Shadowing: 24 h gegen 10 min TTL), gewinnt der
+    // jüngere.
+    if (resumeInput.kind === 'ask_human') {
+      const loopState = await loopClarificationStateStore.get(threadId);
+      if (loopState) {
+        const pipelineState = await pipelineStateStore.get(threadId);
+        if (!pipelineState || loopState.createdAt >= pipelineState.createdAt) {
+          const result = await runClarificationLoopResume({
+            req,
+            sse,
+            threadId,
+            userId: user.id,
+            answer: resumeInput.answer,
+            fail: (message, code) => ({
+              handled: true as const,
+              ...sseFail(sse, message, { code }),
+            }),
+          });
+          return { status: result.status, body: result.body };
+        }
+        // Der jüngere Pre-Loop-Zustand gewinnt — dann ist der ältere
+        // Loop-Zustand überholt und muss WEG: sonst überlebt er (24 h TTL)
+        // den 10-Minuten-Zustand und eine spätere ask_human-Antwort liefe
+        // gegen die falsche, längst überholte Frage.
+        await loopClarificationStateStore.delete(threadId);
+      }
     }
 
     const stored = await pipelineStateStore.get(threadId);
