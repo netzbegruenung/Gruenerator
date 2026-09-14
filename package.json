@@ -133,7 +133,10 @@
         "GHSA-8988-4f7v-96qf",
         "GHSA-h67p-54hq-rp68",
         "GHSA-rmmh-p597-ppvv",
-        "GHSA-64mm-vxmg-q3vj"
+        "GHSA-64mm-vxmg-q3vj",
+        "GHSA-7pqw-9j4j-h8q3",
+        "GHSA-jmr9-qjv8-65gv",
+        "GHSA-528h-pc64-c93x"
       ]
     }
   },
