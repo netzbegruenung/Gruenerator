@@ -229,6 +229,10 @@
       "label": "Eigene Inhalte",
       "description": "Durchsucht die eigenen gespeicherten Texte und Dokumente."
     },
+    "vertonen": {
+      "label": "Vertonen",
+      "description": "Macht aus einem Text eine Audiodatei zum Herunterladen – Ansage, Vorlesefassung oder Audiodeskription. Die Datei landet in der Mediathek."
+    },
     "vision": {
       "label": "Bildanalyse",
       "description": "Beschreibt und analysiert hochgeladene Bilder."

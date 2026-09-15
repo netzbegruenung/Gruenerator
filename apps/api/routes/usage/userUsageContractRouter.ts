@@ -7,7 +7,7 @@
  * / breakdowns happens in memory rather than in four separate SQL aggregates.
  */
 
-import { userUsageContract } from '@gruenerator/contracts';
+import { usageFeatureSchema, userUsageContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 import { and, eq, gte } from 'drizzle-orm';
 
@@ -33,21 +33,7 @@ const log = createLogger('userUsageContract');
 const s = initServer();
 
 /** Rows predate schema changes; an unknown slug must not break the response. */
-const KNOWN_FEATURES = new Set<string>([
-  'chat',
-  'docs',
-  'sheets',
-  'presentations',
-  'boards',
-  'sharepic',
-  'subtitler',
-  'search',
-  'monitor',
-  'sites',
-  'texte',
-  'notebook',
-  'other',
-]);
+const KNOWN_FEATURES = new Set<string>(usageFeatureSchema.options);
 
 function usageFeatureFallback(feature: string): UsageFeature {
   // Boundary cast: the Set membership check IS the runtime assertion.

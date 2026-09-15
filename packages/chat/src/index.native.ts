@@ -93,6 +93,9 @@ export { splitMathSegments, type MathSegment } from './lib/mathSegments';
 
 // Compute results (run_python stdout → ComputeData entries; shared with web)
 export { parseComputeResult } from './lib/computeResult';
+// Audio among a compute payload's file assets. Native needs it for the same
+// reason web does: its ComputeCard must not call a recording a calculation.
+export { audioAssetsOf, type ComputeFileAsset } from './lib/computeAssets';
 
 // Stores
 export {

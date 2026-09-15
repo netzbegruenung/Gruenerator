@@ -1,5 +1,9 @@
 import { SYSTEM_AGENTS } from '@gruenerator/shared/agents';
-import { getContractsClient } from '@gruenerator/shared/api';
+import {
+  apiErrorFromResponse,
+  getContractsClient,
+  isApiErrorWithStatus,
+} from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'motion/react';
 import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
@@ -46,7 +50,8 @@ const GroupDetailSection = memo(
       queryKey: ['groupDetails', groupId],
       queryFn: async () => {
         const res = await getContractsClient().groups.getDetails({ params: { groupId } });
-        if (res.status !== 200) throw new Error('Failed to fetch group details');
+        if (res.status !== 200)
+          throw apiErrorFromResponse(res, 'Fehler beim Laden der Gruppendetails.');
         return {
           groupInfo: res.body.group,
           isAdmin: res.body.membership.isAdmin,
@@ -59,6 +64,9 @@ const GroupDetailSection = memo(
       staleTime: 5 * 60 * 1000,
       refetchOnWindowFocus: false,
       refetchOnMount: 'always' as const,
+      // This component renders the failure inline (including the 403 "no
+      // access" panel below), so the global toast layer stays out of it.
+      meta: { silent: true },
     });
 
     const data = rawData as GroupData | undefined;
@@ -259,16 +267,39 @@ const GroupDetailSection = memo(
       refetchGroupData,
     ]);
 
-    if (isLoadingDetails || !data) {
-      return null;
-    }
-
+    // Error branch first: a failed query has no `data`, so the `!data` bail
+    // below used to swallow it and render a blank page (GlitchTip #590).
     if (isErrorDetails) {
+      // 403 is the designed answer for a non-member, not a fault — say so
+      // plainly instead of showing a red error box.
+      if (isApiErrorWithStatus(errorDetails, 403)) {
+        return (
+          <div className="rounded-md border border-grey-200 bg-grey-50 p-lg text-center dark:border-grey-700 dark:bg-grey-800/40">
+            <p className="text-base font-medium text-grey-900 dark:text-grey-100">
+              Kein Zugriff auf dieses Projekt
+            </p>
+            <p className="mt-xs text-sm text-grey-600 dark:text-grey-400">
+              {errorDetails?.message || 'Du bist nicht Mitglied dieser Gruppe.'}
+            </p>
+            <button
+              type="button"
+              onClick={() => void navigate('/projekte')}
+              className="mt-md text-sm font-medium underline text-grey-700 dark:text-grey-300"
+            >
+              Zu meinen Projekten
+            </button>
+          </div>
+        );
+      }
       return (
         <div className="rounded-md border border-red-200 bg-red-50 p-md text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
           Fehler beim Laden der Gruppendetails: {errorDetails?.message || 'Unbekannter Fehler'}
         </div>
       );
+    }
+
+    if (isLoadingDetails || !data) {
+      return null;
     }
 
     return (

@@ -193,6 +193,10 @@ export const DEFAULT_LOOP_BUDGET: LoopBudget = {
  */
 export const TOOL_TIMEOUT_OVERRIDES_MS: Record<string, number> = {
   research: 30_000,
+  // A long text is several provider requests plus an ffmpeg encode, and the
+  // provider runs them one at a time (#3208). Idempotent per turn, so this
+  // cannot stack either.
+  vertonen: 120_000,
   create_pdf: 90_000,
   create_presentation: 90_000,
   create_document: 90_000,

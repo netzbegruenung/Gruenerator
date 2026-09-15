@@ -14,6 +14,7 @@ import {
   Table,
   SquareKanban,
   ChartColumn,
+  Volume2,
 } from 'lucide-react';
 import { Fragment, useState, memo, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
@@ -74,6 +75,7 @@ const ICON_BY_KEY: Record<ToolIconKey, typeof Search> = {
   table: Table,
   board: SquareKanban,
   chart: ChartColumn,
+  audio: Volume2,
 };
 
 // Presentation of the shared semantic accent. The old TOOL_COLOR table keyed

@@ -175,6 +175,8 @@ export interface CreateSearchToolsOptions {
    * When set, restrict the returned search tools to the agent's user-selected
    * capabilities (USER_SELECTABLE_TOOLS keys: `search` → gruenerator_search,
    * `examples` → examples/pressemitteilung, `web`/`research` → web_search).
+   * Raw tool names count as their picker key (`gruenerator_search` → `search`),
+   * because the editor agents declare those — see `agentAllowsTool`.
    * Undefined leaves the full set (chat + board defaults unchanged).
    */
   enabledToolKeys?: readonly string[];
@@ -723,17 +725,22 @@ NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search)`,
 
   // Optional per-agent gating: recurring agents honor their picker selection.
   // Undefined → keep everything (board/chat behavior unchanged).
+  //
+  // Read through `agentAllowsTool` rather than against a raw key set, so this
+  // list speaks the same two vocabularies as every other gate: the picker keys
+  // AND the raw tool names the editor agents declare in frontmatter. The board
+  // flow passes its agent's `enabledTools` straight in (agentFlow/generate.ts),
+  // so an editor agent declaring `gruenerator_search` used to lose the very
+  // corpus it had asked for (#3307). `web`/`research` stay one capability —
+  // that group now lives in the helper instead of in this `||`.
   if (options.enabledToolKeys) {
-    const keys = new Set(options.enabledToolKeys);
-    if (!keys.has('search')) delete tools.gruenerator_search;
-    if (!keys.has('examples')) {
+    const declared = { enabledTools: [...options.enabledToolKeys] };
+    if (!agentAllowsTool(declared, 'search')) delete tools.gruenerator_search;
+    if (!agentAllowsTool(declared, 'examples')) {
       delete tools.gruenerator_examples_search;
       delete tools.gruenerator_pressemitteilung_examples;
     }
-    // `research` is still accepted as a key: it is persisted in agent configs
-    // (F0), and an agent that was given "Recherche" must keep its web access
-    // now that recherche IS the web tool at a deeper tier.
-    if (!keys.has('web') && !keys.has('research')) {
+    if (!agentAllowsTool(declared, 'web')) {
       delete tools.web_search;
     }
   }

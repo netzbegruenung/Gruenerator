@@ -109,6 +109,10 @@ export const TOOL_NOTES: Record<string, ToolNote> = {
     note: 'Verschriftlicht Audioaufnahmen — für Interviews, Sitzungen und Sprachnotizen.',
     platform: ['web', 'desktop', 'mobile'],
   },
+  voice: {
+    note: 'Verwandelt Text in gesprochene Sprache — als Ansage für den Anrufbeantworter, Vorlesefassung eines Textes oder Audiodeskription. Die Datei landet in der Mediathek.',
+    platform: ['web', 'desktop'],
+  },
   newsletter: {
     note: 'Der Grünerator-Newsletter mit neuen Funktionen und Beispielen. Führt auf ein externes Anmeldeformular.',
     platform: ['web', 'desktop', 'mobile'],

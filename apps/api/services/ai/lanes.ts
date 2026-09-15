@@ -113,6 +113,9 @@ export const AI_LANES = {
     model: GEMMA_4,
     structuredMode: 'tool',
   },
+  // Grünerator Voice: the spoken script a person edits before synthesis. Same
+  // slot as `rede` — it is finished German prose, only meant for the ear.
+  voice_script: { provider: GEMMA_31B_PRIMARY.provider, model: GEMMA_4, structuredMode: 'tool' },
 
   // — Candidate-site content. Mistral, which the route always intended; it used
   //   to say so with a top-level `provider` that selected the adapter without

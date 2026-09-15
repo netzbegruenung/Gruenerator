@@ -34,7 +34,7 @@ import { transferService } from '../../services/transferService.js';
 import { setContentDisposition } from '../../utils/http/contentDisposition.js';
 import { createLogger } from '../../utils/logger.js';
 
-import { getSharedMediaService } from './shareServices.js';
+import { getSharedMediaService, type SharedMediaService } from './shareServices.js';
 
 import type { AuthenticatedRequest } from '../../middleware/types.js';
 import type { SharedMediaRow } from '../../types/media.js';
@@ -157,8 +157,10 @@ router.get(
             })
           );
         }
-      } else if (share.media_type === 'video') {
+      } else if (share.media_type === 'video' || share.media_type === 'audio') {
         response.share!.duration = share.duration;
+        // The public page picks the download extension from this (mp3 vs WAV).
+        if (share.media_type === 'audio') response.share!.mimeType = share.mime_type;
       } else {
         const metadata = (
           typeof share.image_metadata === 'string'
@@ -329,27 +331,77 @@ async function resolveShareMedia(
   return { share, mediaPath, fileSize: stat.size };
 }
 
-/** Byte-range video streaming. */
-function streamVideo(req: Request, res: Response, mediaPath: string, fileSize: number): void {
+/** Byte-range streaming for video and audio — what `<video>`/`<audio>` need to seek. */
+function streamMedia(
+  req: Request,
+  res: Response,
+  mediaPath: string,
+  fileSize: number,
+  contentType: string
+): void {
   const range = req.headers.range;
 
   if (range) {
-    const parts = range.replace(/bytes=/, '').split('-');
-    const start = parseInt(parts[0], 10);
-    const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+    // `bytes=a-b`, `bytes=a-` and the suffix form `bytes=-n` (RFC 7233), which
+    // some players send for the trailer. Anything else, or a start past the
+    // file, is a 416 — before this the NaN reached `createReadStream` after
+    // the 206 header was already out.
+    const match = /^bytes=(\d*)-(\d*)$/.exec(range);
+    const suffix = match && match[1] === '' ? Number(match[2]) : null;
+    const start = match
+      ? suffix !== null
+        ? Math.max(0, fileSize - suffix)
+        : Number(match[1])
+      : NaN;
+    const end =
+      match && match[2] !== '' && suffix === null
+        ? Math.min(Number(match[2]), fileSize - 1)
+        : fileSize - 1;
+
+    if (
+      !match ||
+      !Number.isFinite(start) ||
+      (suffix !== null && !suffix) ||
+      start >= fileSize ||
+      start > end
+    ) {
+      res.writeHead(416, { 'Content-Range': `bytes */${fileSize}` });
+      res.end();
+      return;
+    }
 
     res.writeHead(206, {
       'Content-Range': `bytes ${start}-${end}/${fileSize}`,
       'Accept-Ranges': 'bytes',
       'Content-Length': end - start + 1,
-      'Content-Type': 'video/mp4',
+      'Content-Type': contentType,
     });
     fs.createReadStream(mediaPath, { start, end }).pipe(res);
     return;
   }
 
-  res.writeHead(200, { 'Content-Length': fileSize, 'Content-Type': 'video/mp4' });
+  res.writeHead(200, { 'Content-Length': fileSize, 'Content-Type': contentType });
   fs.createReadStream(mediaPath).pipe(res);
+}
+
+/**
+ * Video keeps the `video/mp4` it always advertised — a QuickTime upload
+ * streamed as `video/quicktime` would stop playing in Firefox, which trusts
+ * the header where Chrome sniffs. Audio rows carry their real mime type.
+ */
+function streamContentType(share: SharedMediaRow): string {
+  return share.media_type === 'video' ? 'video/mp4' : share.mime_type || 'audio/mpeg';
+}
+
+/**
+ * Extension for the download filename. Audio rows always carry a mime type
+ * and use the service's one map; the image/video branches keep their old
+ * answers (an unknown image mime stays "png", not "bin").
+ */
+function downloadExtension(share: SharedMediaRow, service: SharedMediaService): string {
+  if (share.media_type === 'video') return 'mp4';
+  if (share.media_type === 'audio') return service.getExtensionFromMime(share.mime_type);
+  return share.mime_type === 'image/jpeg' ? 'jpg' : 'png';
 }
 
 /**
@@ -364,11 +416,11 @@ router.get('/:shareToken/stream', async (req: Request<ShareTokenParams>, res: Re
   try {
     const resolved = await resolveShareMedia(req.params.shareToken, res);
     if (!resolved) return;
-    if (resolved.share.media_type !== 'video') {
-      res.status(404).json({ error: 'Kein Video' });
+    if (resolved.share.media_type !== 'video' && resolved.share.media_type !== 'audio') {
+      res.status(404).json({ error: 'Kein Video oder Audio' });
       return;
     }
-    streamVideo(req, res, resolved.mediaPath, resolved.fileSize);
+    streamMedia(req, res, resolved.mediaPath, resolved.fileSize, streamContentType(resolved.share));
   } catch (error) {
     log.error('Failed to stream media:', error);
     res.status(500).json({ error: 'Fehler beim Laden des Videos' });
@@ -399,8 +451,8 @@ router.get('/:shareToken/preview', async (req: Request<ShareTokenParams>, res: R
     if (!resolved) return;
     const { share, mediaPath, fileSize } = resolved;
 
-    if (share.media_type === 'video') {
-      streamVideo(req, res, mediaPath, fileSize);
+    if (share.media_type === 'video' || share.media_type === 'audio') {
+      streamMedia(req, res, mediaPath, fileSize, streamContentType(share));
       return;
     }
 
@@ -601,9 +653,7 @@ router.get(
           .replace(/[^a-zA-Z0-9_-]/g, '_')
           .substring(0, 50);
 
-        const extension =
-          share.media_type === 'video' ? 'mp4' : share.mime_type === 'image/jpeg' ? 'jpg' : 'png';
-        const filename = `${sanitizedTitle}_gruenerator.${extension}`;
+        const filename = `${sanitizedTitle}_gruenerator.${downloadExtension(share, service)}`;
 
         res.setHeader(
           'Content-Type',

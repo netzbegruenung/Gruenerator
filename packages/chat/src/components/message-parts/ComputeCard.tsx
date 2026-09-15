@@ -1,8 +1,9 @@
 'use client';
 
-import { Calculator, Download, FileDown } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Calculator, Download, FileDown, Volume2 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 
+import { audioAssetsOf } from '../../lib/computeAssets';
 import { downloadBase64, downloadBlob, mimeFromFilename } from '../../lib/downloadBlob';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { useComputeExportStore } from '../../stores/computeExportStore';
@@ -75,6 +76,113 @@ const CHIP_CLASS =
   'flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1 text-xs text-foreground transition-colors hover:border-primary/50 hover:bg-primary/10';
 
 /**
+ * Listen to a generated audio file without leaving the chat.
+ *
+ * Loads on demand rather than with the message: a reopened thread would
+ * otherwise fetch every recording it ever produced. The bytes go through the
+ * configured fetch like every other asset — a bare `<audio src>` carries no
+ * Bearer and would break on desktop.
+ */
+function ComputeAudio({
+  file,
+  unavailable,
+  onDownload,
+}: {
+  file: { name: string; url: string };
+  unavailable: boolean;
+  onDownload: () => void;
+}) {
+  const [objectUrl, setObjectUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    if (!objectUrl) return;
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [objectUrl]);
+
+  // The fetch outlives the component when someone presses play and leaves. An
+  // object URL minted after unmount is never revoked, because the effect that
+  // would revoke it has already run its cleanup.
+  const gone = useRef(false);
+  useEffect(
+    () => () => {
+      gone.current = true;
+    },
+    []
+  );
+
+  const load = async () => {
+    setLoading(true);
+    const blob = await fetchAssetBlob(file.url);
+    if (gone.current) return;
+    setLoading(false);
+    if (!blob) {
+      setFailed(true);
+      return;
+    }
+    setObjectUrl(URL.createObjectURL(blob));
+  };
+
+  // `failed` is the playback fetch, `unavailable` the download — two separate
+  // requests, so one failing must not erase the other's result. Bytes already
+  // in memory keep playing even once the file is gone from the server, and a
+  // transient download error must not stop a recording mid-sentence. Note that
+  // `unavailable` never clears, so gating playback on it would also be
+  // permanent for the rest of the session.
+  if (failed || (unavailable && !objectUrl)) {
+    return (
+      <p className="mb-2 text-xs text-foreground-muted">
+        Die Aufnahme ist auf dem Server nicht mehr verfügbar.
+      </p>
+    );
+  }
+
+  return (
+    <div className="mb-2 flex items-center gap-2">
+      {objectUrl ? (
+        // eslint-disable-next-line jsx-a11y/media-has-caption -- the audio IS the spoken form of the text in this message
+        <audio
+          controls
+          autoPlay
+          src={objectUrl}
+          aria-label={`${file.name} abspielen`}
+          className="min-w-0 flex-1"
+        />
+      ) : (
+        <button onClick={() => void load()} disabled={loading} className={CHIP_CLASS}>
+          <Volume2 className="h-3.5 w-3.5 text-primary" />
+          {loading ? 'Wird geladen …' : `${file.name} anhören`}
+        </button>
+      )}
+      {/* Saving is a different act from listening, and the recording is no
+          longer repeated in the chip row below — so this is the only way to
+          keep the file. Same shape as a figure, which carries its own too.
+          A failed download is reported HERE, on the control that failed,
+          rather than by replacing the player next to it. */}
+      {unavailable ? (
+        <button
+          disabled
+          aria-label={`${file.name} ist nicht mehr verfügbar`}
+          title="Die Datei ist auf dem Server nicht mehr verfügbar."
+          className="shrink-0 rounded-md border border-border bg-background p-1.5 text-foreground-muted opacity-60"
+        >
+          <FileDown className="h-3.5 w-3.5" />
+        </button>
+      ) : (
+        <button
+          onClick={onDownload}
+          className="shrink-0 rounded-md border border-border bg-background p-1.5 text-foreground-muted transition-colors hover:text-foreground"
+          aria-label={`${file.name} herunterladen`}
+        >
+          <FileDown className="h-3.5 w-3.5" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+/**
  * Inline card for a deterministic calculation (compute intent). Its whole
  * purpose is transparency: the numbers were computed by real code (not guessed
  * by the model), and this card shows the user exactly that — a labelled tool
@@ -82,6 +190,16 @@ const CHIP_CLASS =
  */
 export function ComputeCard({ data }: { data: ComputeData }) {
   const [unavailable, setUnavailable] = useState<ReadonlySet<string>>(new Set());
+
+  // A vertonen result is not a calculation. Same card (one persistence path,
+  // one download path), honest heading.
+  const audioAssets = audioAssetsOf(data.fileAssets);
+  const isAudio = audioAssets.length > 0;
+  // A recording is rendered ONCE, by ComputeAudio, which carries its own
+  // download. Leaving it in the chip row as well showed the same file twice:
+  // "▶ ansage.mp3 anhören" and a bare "⬇ ansage.mp3" right underneath.
+  const audioUrls = new Set(audioAssets.map((file) => file.url));
+  const fileChips = (data.fileAssets ?? []).filter((file) => !audioUrls.has(file.url));
 
   const handleAssetDownload = async (file: { name: string; url: string }) => {
     // Fresh export: the interpreter just wrote these bytes in THIS browser —
@@ -104,17 +222,25 @@ export function ComputeCard({ data }: { data: ComputeData }) {
     <div
       className="my-5 w-full rounded-xl border border-border bg-background px-4 py-3"
       role="group"
-      aria-label={`Berechnung: ${data.operation}`}
+      aria-label={isAudio ? data.operation : `Berechnung: ${data.operation}`}
     >
       <div className="mb-2 flex items-center gap-2">
         <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-          <Calculator className="h-4 w-4" />
+          {isAudio ? <Volume2 className="h-4 w-4" /> : <Calculator className="h-4 w-4" />}
         </span>
         <span className="text-sm font-medium text-foreground">{data.operation}</span>
         <span className="ml-auto text-[11px] uppercase tracking-wide text-foreground-muted">
-          berechnet
+          {isAudio ? 'Audio' : 'berechnet'}
         </span>
       </div>
+      {audioAssets.map((file) => (
+        <ComputeAudio
+          key={file.url}
+          file={file}
+          unavailable={unavailable.has(file.url)}
+          onDownload={() => void handleAssetDownload(file)}
+        />
+      ))}
       {/* Server-stored figures (URL, small metadata) — the normal path. */}
       {data.figureUrls?.map((url, i) => (
         <ComputeFigure key={url} url={url} index={i} />
@@ -139,9 +265,9 @@ export function ComputeCard({ data }: { data: ComputeData }) {
           </button>
         </div>
       ))}
-      {((data.fileAssets?.length ?? 0) > 0 || (data.files?.length ?? 0) > 0) && (
+      {(fileChips.length > 0 || (data.files?.length ?? 0) > 0) && (
         <div className="mb-2 flex flex-wrap gap-2">
-          {data.fileAssets?.map((file) =>
+          {fileChips.map((file) =>
             unavailable.has(file.url) ? (
               <span
                 key={file.url}

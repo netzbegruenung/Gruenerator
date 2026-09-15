@@ -40,25 +40,41 @@ describe('creationFeedWhere', () => {
 
     expect(sql).toContain('$4');
     expect(sql).toContain('$5');
-    expect(sql).toContain('status = ANY($6)');
-    expect(params).toHaveLength(6);
+    expect(sql).toContain('$6');
+    expect(sql).toContain('status = ANY($7)');
+    expect(params).toHaveLength(7);
   });
 
   it('keeps drafts visible — canvas autosave never promotes to ready on its own', () => {
     const params: unknown[] = ['user-1'];
     creationFeedWhere(params, USER_VISIBLE_SHARE_STATUSES);
-    expect(params[3]).toEqual(['ready', 'draft']);
+    expect(params[4]).toEqual(['ready', 'draft']);
   });
 
   it('takes a single status, and omits the status clause entirely for null', () => {
     const single: unknown[] = ['user-1'];
-    expect(creationFeedWhere(single, 'ready')).toContain('status = $4');
-    expect(single[3]).toBe('ready');
+    expect(creationFeedWhere(single, 'ready')).toContain('status = $5');
+    expect(single[4]).toBe('ready');
 
     const none: unknown[] = ['user-1'];
     const sql = creationFeedWhere(none, null);
     expect(sql).not.toContain('status');
-    expect(none).toHaveLength(3);
+    expect(none).toHaveLength(4);
+  });
+
+  it('keeps generated audio out of every creation feed — those render <img>/<video> only', () => {
+    const params: unknown[] = ['user-1'];
+    const sql = creationFeedWhere(params, null);
+    expect(sql).toContain('media_type = ANY($4)');
+    expect(params[3]).toEqual(['image', 'video', 'transfer']);
+  });
+
+  it('lets an explicit type through, so ?type=audio can still match', () => {
+    const params: unknown[] = ['user-1'];
+    const sql = creationFeedWhere(params, 'ready', 'audio');
+    expect(sql).toContain('media_type = $4');
+    expect(params[3]).toBe('audio');
+    expect(sql).toContain('status = $5');
   });
 
   it('never filters on is_library_item — that column belongs to the asset pool', () => {
