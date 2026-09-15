@@ -2,7 +2,13 @@ import { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import { describe, it, expect } from 'vitest';
 
 import { createApiClient } from './client';
-import { ApiError, isApiErrorWithStatus, isUnauthorizedError, UnauthorizedError } from './errors';
+import {
+  ApiError,
+  apiErrorFromResponse,
+  isApiErrorWithStatus,
+  isUnauthorizedError,
+  UnauthorizedError,
+} from './errors';
 
 /**
  * Callers branch on the status to tell "this is gone" (404 — drop the local
@@ -41,6 +47,47 @@ describe('isApiErrorWithStatus', () => {
     expect(isApiErrorWithStatus(undefined, 404)).toBe(false);
     expect(isApiErrorWithStatus('Not found', 404)).toBe(false);
     expect(isApiErrorWithStatus(new Error('Not found'), 404)).toBe(false);
+  });
+});
+
+/**
+ * ts-rest resolves a non-2xx as data, so the idiomatic
+ * `throw new Error(errMessage(res.body))` dropped the status. An expected 403
+ * was then retried three times and reported to Sentry as an unclassified
+ * crash (GlitchTip #590).
+ */
+describe('apiErrorFromResponse', () => {
+  it('keeps the status of the non-2xx response', () => {
+    const err = apiErrorFromResponse({
+      status: 403,
+      body: { message: 'Du bist nicht Mitglied dieser Gruppe.' },
+    });
+
+    expect(err).toBeInstanceOf(ApiError);
+    expect(err.status).toBe(403);
+    expect(err.message).toBe('Du bist nicht Mitglied dieser Gruppe.');
+  });
+
+  it("prefers the backend's own message over the caller's fallback", () => {
+    const err = apiErrorFromResponse(
+      { status: 500, body: { message: 'Datenbank nicht erreichbar.' } },
+      'Fehler beim Laden der Gruppen.'
+    );
+
+    expect(err.message).toBe('Datenbank nicht erreichbar.');
+  });
+
+  it('falls back when the body carries no usable message', () => {
+    expect(
+      apiErrorFromResponse({ status: 502, body: null }, 'Fehler beim Laden der Gruppen.').message
+    ).toBe('Fehler beim Laden der Gruppen.');
+    expect(apiErrorFromResponse({ status: 502, body: 'gateway' }).message).toBe(
+      'Aktion fehlgeschlagen.'
+    );
+  });
+
+  it('is recognised by the duck-typed check the 403 UI branches on', () => {
+    expect(isApiErrorWithStatus(apiErrorFromResponse({ status: 403, body: {} }), 403)).toBe(true);
   });
 });
 
