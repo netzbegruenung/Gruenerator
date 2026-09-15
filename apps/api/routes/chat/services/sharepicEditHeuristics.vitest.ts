@@ -104,6 +104,46 @@ describe('isSharepicEditInstruction', () => {
     expect(isSharepicEditInstruction('zeig mir alle varianten')).toBe(false);
   });
 
+  it('matches separable ADD verbs — the live miss "Füge … ein" / "bestücken"', () => {
+    // Live 15.09.2026: "Füge folgende Bullet Points auf Variante 3 ein" hit no
+    // verb — `einfüg` is only the contiguous stem, and German splits it. The
+    // turn fell through to prose, the model searched the media library and
+    // then claimed the edit was done.
+    expect(
+      isSharepicEditInstruction(
+        'Füge folgende Bullet Points auf Variante 3 ein:\n- Hilf uns, dass unsere Inhalte künftig auch auf gruene.social zu finden sind.'
+      )
+    ).toBe(true);
+    expect(
+      isSharepicEditInstruction(
+        'Versuch noch mal, Variante 3 mit folgenden Bullet Points zu bestücken:'
+      )
+    ).toBe(true);
+    expect(isSharepicEditInstruction('Trag die Uhrzeit 15 Uhr ein')).toBe(true);
+    expect(isSharepicEditInstruction('fügst du noch das Datum in Zeile 2 hinzu?')).toBe(true);
+  });
+
+  it('does not take "verfügbar"/"Beitrag" for the new stems', () => {
+    // The lookbehind is what keeps `füg` from matching inside "verfügbar";
+    // the noun requirement is what keeps "Beitrag" a creation, not an edit.
+    expect(isSharepicEditInstruction('Ist das Sharepic schon verfügbar?')).toBe(false);
+    expect(isSharepicEditInstruction('Schreib einen Beitrag zum Sharepic')).toBe(false);
+    // Word-initial "trag"/"füg" without the particle is not the verb.
+    expect(isSharepicEditInstruction('Was ist die Tragweite des Zitats auf dem Sharepic?')).toBe(
+      false
+    );
+    expect(isSharepicEditInstruction('Kann man das Sharepic-Motiv auch auf T-Shirts tragen?')).toBe(
+      false
+    );
+  });
+
+  it('leaves edits of OTHER artifacts alone, even with a sharepic in the thread', () => {
+    expect(isSharepicEditInstruction('Füg der Präsentation noch eine Seite hinzu')).toBe(false);
+    expect(isSharepicEditInstruction('Trag das Datum in meinen Kalender ein')).toBe(false);
+    expect(isSharepicEditInstruction('Füge das Foto in die Präsentation ein')).toBe(false);
+    expect(isSharepicEditInstruction('Trag den Text ins Dokument ein')).toBe(false);
+  });
+
   it('requires an edit verb', () => {
     expect(isSharepicEditInstruction('was steht im wahlprogramm zum klimaschutz?')).toBe(false);
   });

@@ -67,6 +67,22 @@ describe('ARTEFAKTE-Block im fertigen Systemprompt', () => {
     expect(prompt).toContain('Bild „Windrad im Sonnenuntergang" — in diesem Turn erstellt');
   });
 
+  it('verbietet auch die Gegenrichtung: kein behaupteter oder angekündigter Edit ohne Werkzeug', async () => {
+    // Live 15.09.2026: „Ich habe die Bullet Points in Variante 3 eingefügt" —
+    // kein Sharepic-Werkzeug lief. Der Block verbot bis dahin nur das Leugnen.
+    const prompt = await buildSystemMessage(
+      state({ threadArtifacts: [{ kind: 'sharepic', ref: null, label: null }] })
+    );
+    expect(prompt).toContain(
+      'Behaupte NIEMALS, eine Aktion oder ein Artefakt sei in diesem Turn erledigt'
+    );
+    expect(prompt).toContain('kündige nichts für „gleich" an');
+    // Live: „als visuelle Karte über oder unter meiner Antwort … von dort speichern".
+    expect(prompt).toContain('Die Oberfläche siehst du NICHT');
+    // …und der eine Hinweis, der stimmt: die Edit-Lane und der Karten-Schalter.
+    expect(prompt).toContain('„Im Chat bearbeiten"');
+  });
+
   it('schweigt auf einem Thread ohne Artefakte', async () => {
     // Der Block kostet Kontext. Ein Wissens-Turn darf ihn nicht sehen.
     expect(await buildSystemMessage(state())).not.toContain('ARTEFAKTE IN DIESEM GESPRÄCH');
