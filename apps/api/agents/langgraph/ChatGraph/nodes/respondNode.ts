@@ -48,6 +48,7 @@ import {
   artifactsFromTurn,
   buildArtifactInventory,
   renderArtifactInventory,
+  NO_PHANTOM_ACTION_RULE,
 } from './artifactInventory.js';
 import { buildCitableSources, MAX_SOURCES, type CitableSource } from './citableSources.js';
 import { lastUserText } from './classifierHeuristics.js';
@@ -1109,8 +1110,7 @@ const GREETING_GUIDANCE =
 // otherwise narrates research or a delivered image FROM THE HISTORY (observed
 // live: "laut meiner Recherche …" and "hier ist dein Bild" with zero tool
 // calls). Safe unconditionally on `direct` — a direct turn produces neither.
-const DIRECT_HONESTY_NOTE =
-  '\nWICHTIG: In diesem Turn wurde NICHTS recherchiert und KEIN Bild/Dokument/Sharepic erstellt. Behaupte daher keine Recherche, keine Quellen/[N]-Belege und kein soeben erzeugtes Bild oder Dokument. Beziehst du dich auf etwas aus einem früheren Turn, mach das explizit ("vorhin"); für neue sachliche Angaben sag ehrlich, dass du sie nachschlagen müsstest.';
+const DIRECT_HONESTY_NOTE = `\nWICHTIG: In diesem Turn wurde NICHTS recherchiert und KEIN Bild/Dokument/Sharepic erstellt oder geändert. Behaupte daher keine Recherche und keine Quellen/[N]-Belege. ${NO_PHANTOM_ACTION_RULE} Beziehst du dich auf etwas aus einem früheren Turn, mach das explizit ("vorhin"); für neue sachliche Angaben sag ehrlich, dass du sie nachschlagen müsstest.`;
 
 /**
  * The no-file half of the same honesty, split out because it is needed on turns

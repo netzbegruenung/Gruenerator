@@ -64,6 +64,29 @@ export function buildToolFailureNote(steps: PersistedStep[]): string {
   );
 }
 
+/**
+ * Native tools that ran OK and returned NOTHING. Neither note above covers that
+ * (failures stop at `!ok`, empty-ok is MCP-only), so the split synth saw plain
+ * silence — live 15.09.2026 `media` → `{ resultCount: 0 }` became "eingefügt".
+ */
+export function buildEmptyResultNote(steps: PersistedStep[]): string {
+  const empty = steps.filter((s) => !s.serverName && isEmptyOkResult(s.result));
+  if (empty.length === 0) return '';
+  const lines = empty.map((s) => `- ${s.toolName}: lieferte KEINE Einträge`);
+  return (
+    `\n\nLEERE ERGEBNISSE IN DIESEM TURN:\n${lines.join('\n')}\n\n` +
+    'Diese Aufrufe haben funktioniert, aber nichts zurückgegeben. Sag das knapp, wenn es die Frage betrifft.'
+  );
+}
+
+// `results: []` only — `resultCount` is not always an entry count (a notebook
+// answer carries `resultCount: citations.length` beside a full `answer`).
+function isEmptyOkResult(result: Record<string, unknown>): boolean {
+  if (!readMcpResult(result).ok) return false;
+  const results = result.results;
+  return Array.isArray(results) && results.length === 0;
+}
+
 /** Whether any MCP connector call this turn failed — the same predicate
  *  `buildMcpOutcomeNote` uses internally, exposed so callers can detect a
  *  mixed success/failure turn without parsing its rendered prose. */

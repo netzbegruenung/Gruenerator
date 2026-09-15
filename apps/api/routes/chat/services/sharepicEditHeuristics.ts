@@ -15,8 +15,11 @@
 // a plain text answer and the sharepic was never touched. Adding to an existing
 // artifact is an edit by any reading — the pattern simply only knew how to
 // CHANGE and to REMOVE.
+// `füg … ein`/`trag … ein`/`bestück`: German splits these, so the contiguous stems
+// never saw them — live 15.09.2026 "Füge … auf Variante 3 ein" fell through. The
+// particle is required, or "Tragweite"/"tragen" would read as edits.
 const EDIT_VERB_PATTERN =
-  /(?<!\p{L})(änder|aender|mach|verschieb|beweg|setz|tausch|ersetz|wechsel|vergrößer|vergroesser|verklein|größer|groesser|kleiner|höher|hoeher|tiefer|kürz|kuerz|verläng|verlaeng|anpass|entfern|ausblend|einblend|zeig|versteck|ergänz|ergaenz|hinzufüg|hinzufueg|einfüg|einfueg|nach\s+(?:oben|unten|links|rechts)|anderes?|neues?)/iu;
+  /(?<!\p{L})(änder|aender|mach|verschieb|beweg|setz|tausch|ersetz|wechsel|vergrößer|vergroesser|verklein|größer|groesser|kleiner|höher|hoeher|tiefer|kürz|kuerz|verläng|verlaeng|anpass|entfern|ausblend|einblend|zeig|versteck|ergänz|ergaenz|hinzufüg|hinzufueg|einfüg|einfueg|(?:füg|fueg|trag)\p{L}*\s[^.!?\n]{0,80}?(?<!\p{L})(?:ein|hinzu|dazu|rein)(?!\p{L})|bestück|bestueck|nach\s+(?:oben|unten|links|rechts)|anderes?|neues?)/iu;
 
 // `uhrzeit`/`datum` for the same reason: an invitation sharepic is exactly the
 // template where they are the fields being edited. Kept to the two unambiguous
@@ -85,9 +88,17 @@ export function isVerificationQuestion(text: string): boolean {
  * sharepic (vs. a request for a fresh one). Only meaningful when the thread
  * actually has a sharepic to edit — callers check target existence.
  */
+// "Füg der Präsentation eine Seite hinzu" / "Trag das Datum in meinen Kalender
+// ein" carry an edit verb and a field noun, but the definite object is a
+// different artifact. `threadHasSharepic` stays true for the thread's lifetime,
+// so without this the sharepic lane would claim them.
+const OTHER_ARTIFACT_OBJECT_PATTERN =
+  /(?<!\p{L})(?:im|ins|in\s+(?:der|die|das|dem|den|mein\w*)|der|die|das|dem|den|zur|zum)\s+(?:dokument|pr(?:ä|ae)sentation|tabelle|board|kalender|newsletter|pressemitteilung|post(?:ing)?)(?!\p{L})/iu;
+
 export function isSharepicEditInstruction(text: string): boolean {
   if (NEW_VARIANTS_PATTERN.test(text)) return false;
   if (NEW_ARTIFACT_PATTERN.test(text)) return false;
+  if (OTHER_ARTIFACT_OBJECT_PATTERN.test(text)) return false;
   if (isVerificationQuestion(text)) return false;
   return EDIT_VERB_PATTERN.test(text) && EDIT_NOUN_PATTERN.test(text);
 }
