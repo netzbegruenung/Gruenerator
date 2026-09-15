@@ -16,10 +16,16 @@
 // artifact is an edit by any reading — the pattern simply only knew how to
 // CHANGE and to REMOVE.
 // `füg … ein`/`trag … ein`/`bestück`: German splits these, so the contiguous stems
-// never saw them — live 15.09.2026 "Füge … auf Variante 3 ein" fell through. The
-// particle is required, or "Tragweite"/"tragen" would read as edits.
+// never saw them — live 15.09.2026 "Füge … auf Variante 3 ein" fell through.
+//
+// Two restrictions, and both are load-bearing (a `\p{L}*` suffix over an 80-char
+// window read "Die Tragweite des Zitats ist für uns ein großes Thema." as an edit):
+//  - the stem takes only a VERB ending, so "Tragweite"/"tragbar"/"Tragik" are out
+//    while "trag/trage/tragt/tragen" and "füg/füge/fügst/fügt" stay in;
+//  - the particle must sit in the SAME clause, which is where German puts it —
+//    hence `,` and `;` end the window alongside sentence punctuation.
 const EDIT_VERB_PATTERN =
-  /(?<!\p{L})(änder|aender|mach|verschieb|beweg|setz|tausch|ersetz|wechsel|vergrößer|vergroesser|verklein|größer|groesser|kleiner|höher|hoeher|tiefer|kürz|kuerz|verläng|verlaeng|anpass|entfern|ausblend|einblend|zeig|versteck|ergänz|ergaenz|hinzufüg|hinzufueg|einfüg|einfueg|(?:füg|fueg|trag)\p{L}*\s[^.!?\n]{0,80}?(?<!\p{L})(?:ein|hinzu|dazu|rein)(?!\p{L})|bestück|bestueck|nach\s+(?:oben|unten|links|rechts)|anderes?|neues?)/iu;
+  /(?<!\p{L})(änder|aender|mach|verschieb|beweg|setz|tausch|ersetz|wechsel|vergrößer|vergroesser|verklein|größer|groesser|kleiner|höher|hoeher|tiefer|kürz|kuerz|verläng|verlaeng|anpass|entfern|ausblend|einblend|zeig|versteck|ergänz|ergaenz|hinzufüg|hinzufueg|einfüg|einfueg|(?:füg|fueg|trag)(?:e|st|t|en)?\s[^.!?,;\n]{0,80}?(?<!\p{L})(?:ein|hinzu|dazu|rein)(?!\p{L})|bestück|bestueck|nach\s+(?:oben|unten|links|rechts)|anderes?|neues?)/iu;
 
 // `uhrzeit`/`datum` for the same reason: an invitation sharepic is exactly the
 // template where they are the fields being edited. Kept to the two unambiguous

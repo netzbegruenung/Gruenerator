@@ -137,6 +137,26 @@ describe('isSharepicEditInstruction', () => {
     );
   });
 
+  it('reads a mid-sentence trag-word plus a distant "ein" as prose, not as an edit', () => {
+    // Both negatives above end in "?" right after the trag-word, so the window
+    // never reached a particle and the gap they were meant to guard stayed open:
+    // a statement leaves the window running until the sentence ends, and "ein"
+    // is one of the commonest words in German.
+    expect(
+      isSharepicEditInstruction('Die Tragweite des Zitats ist für uns ein großes Thema.')
+    ).toBe(false);
+    expect(isSharepicEditInstruction('Die Tragik des Zitats auf dem Sharepic ist ein Thema')).toBe(
+      false
+    );
+    // A clause boundary ends the window — the particle of a separable verb
+    // stands in the clause of its own verb.
+    expect(
+      isSharepicEditInstruction('Die Tragweite dieses Sharepics, finde ich, ist ein Thema')
+    ).toBe(false);
+    // …while the real construction keeps matching across a long object phrase.
+    expect(isSharepicEditInstruction('Tragen Sie bitte die Uhrzeit 15 Uhr ein')).toBe(true);
+  });
+
   it('leaves edits of OTHER artifacts alone, even with a sharepic in the thread', () => {
     expect(isSharepicEditInstruction('Füg der Präsentation noch eine Seite hinzu')).toBe(false);
     expect(isSharepicEditInstruction('Trag das Datum in meinen Kalender ein')).toBe(false);
