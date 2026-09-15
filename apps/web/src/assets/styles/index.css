@@ -484,6 +484,8 @@
   --color-destructive-foreground: var(--color-destructive-foreground-val);
   --color-input: var(--color-input-val);
   --color-ring: var(--color-ring-val);
+  /* Streamdown draws its code-block container on `bg-sidebar` (shadcn surface). */
+  --color-sidebar: var(--color-background-secondary);
 }
 
 /* ── Keyframe animations for BaseForm components ── */

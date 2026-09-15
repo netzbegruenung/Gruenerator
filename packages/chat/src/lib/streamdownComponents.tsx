@@ -1,7 +1,12 @@
 import { type ReactNode } from 'react';
 
-import { ChatCodeBlock } from '../components/message-parts/ChatCodeBlock';
 import { CitationMarker } from '../components/message-parts/CitationMarker';
+import { toText } from '../components/message-parts/codeBlockExecution';
+import { StreamdownCodeBlock } from '../components/message-parts/StreamdownCodeBlock';
+
+import { normalizeLang } from './shikiHighlight';
+
+const LANGUAGE_CLASS_RE = /language-(\S+)/;
 
 /**
  * Component map for StreamdownTextPrimitive (StreamdownMarkdownText). Fork of
@@ -15,11 +20,20 @@ import { CitationMarker } from '../components/message-parts/CitationMarker';
  *   (CitationMarker resolves citations from context), so it can be a
  *   module-level constant — a stable prop identity Streamdown's block
  *   memoization benefits from.
+ * - Fenced code goes through the `code` override alone (no `pre`): the
+ *   assistant-ui wrapper marks a fence's code element with `data-block`, and
+ *   StreamdownCodeBlock draws it in Streamdown's own chrome. A `pre` override
+ *   next to `code` would switch the wrapper into its react-markdown
+ *   compatibility adapter, which bypasses that chrome.
  *
  * `citation` is not a standard HTML tag, hence the cast: the wrapper's
  * `StreamdownTextComponents` extends react-markdown's `Components` (keyed by
  * known tag names), while Streamdown deliberately supports custom tags
  * declared via `allowedTags` (same pattern as their `<mention>` example).
+ *
+ * Every override receives the hast `node` prop (the legacy map went through
+ * memoizeMarkdownComponents, which strips it); an override that spreads its
+ * rest props onto a DOM element must drop `node` first.
  */
 export const streamdownComponents = {
   a: ({ children, href }: { children?: ReactNode; href?: string }) => (
@@ -32,19 +46,19 @@ export const streamdownComponents = {
       {children}
     </a>
   ),
-  // `node` is the hast element Streamdown hands every override; it must not reach the DOM.
   code: ({
     className,
     children,
     node: _node,
+    'data-block': dataBlock,
     ...props
   }: {
     className?: string;
     children?: ReactNode;
     node?: unknown;
+    'data-block'?: string;
   }) => {
-    const isInline = !className?.includes('language-');
-    if (isInline) {
+    if (!dataBlock) {
       return (
         <code
           className="rounded bg-code-inline-bg px-1 py-0.5 font-mono text-sm break-words"
@@ -54,13 +68,9 @@ export const streamdownComponents = {
         </code>
       );
     }
-    return (
-      <code className={className} {...props}>
-        {children}
-      </code>
-    );
+    const language = normalizeLang(LANGUAGE_CLASS_RE.exec(className ?? '')?.[1]);
+    return <StreamdownCodeBlock code={toText(children).replace(/\n$/, '')} language={language} />;
   },
-  pre: ({ children }: { children?: ReactNode }) => <ChatCodeBlock>{children}</ChatCodeBlock>,
   ul: ({ children }: { children?: ReactNode }) => (
     <ul className="my-2 list-disc space-y-1 pl-4">{children}</ul>
   ),

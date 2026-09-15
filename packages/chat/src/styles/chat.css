@@ -177,6 +177,8 @@
   --color-destructive-foreground: #ffffff;
   --color-input: #e5e5e5;
   --color-ring: #316049;
+  /* Streamdown draws its code-block container on `bg-sidebar` (shadcn surface). */
+  --color-sidebar: var(--color-background-secondary);
 }
 
 @keyframes slide-in {
