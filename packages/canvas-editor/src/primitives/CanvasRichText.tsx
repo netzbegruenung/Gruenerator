@@ -1,40 +1,54 @@
 /**
- * CanvasListText — ein Textblock, dessen Zeilen mit einem Aufzählungszeichen
- * beginnen.
+ * CanvasRichText — ein Textblock mit Aufzählung und/oder Inline-Auszeichnung.
  *
- * Warum ein eigener Renderer: Konva.Text kennt keinen hängenden Einzug. Eine
- * umbrechende Aufzählung wurde deshalb auf Spalte 0 zurückgesetzt und las sich
- * wie ein neuer Punkt. Hier steht je Zeile ein eigener Knoten — der Marker am
- * Blockrand, der Text um `indent` nach rechts —, und ALLE Zeilen eines Punktes
- * tragen denselben Einzug.
+ * Warum ein eigener Renderer: Konva.Text kennt weder einen hängenden Einzug
+ * noch gemischte Schnitte in einem Knoten. Hier steht je Zeile ein Marker-
+ * Knoten am Blockrand und je Lauf ein eigener Textknoten an seiner gemessenen
+ * Position — fett, kursiv oder unterstrichen, wie der Lauf es trägt —, und
+ * ALLE Zeilen eines Punktes tragen denselben Einzug.
  *
- * Die Zeilen sind vorberechnet (`layoutTextBlock`) und werden mit `wrap="none"`
- * gesetzt: derselbe Umbruch, den der Server-Renderer fährt, statt zweier
- * Verfahren, die auseinanderdriften.
+ * Die Zeilen sind vorberechnet (`layoutRichTextBlock`) und werden mit
+ * `wrap="none"` gesetzt: derselbe Umbruch, den der Server-Renderer fährt,
+ * statt zweier Verfahren, die auseinanderdriften.
  *
  * Die Aufteilung zwischen diesem Renderer und dem gewöhnlichen `CanvasText`
  * entscheidet `CanvasText` selbst — an der Komponentengrenze, nicht in einem
  * Zweig innerhalb einer Komponente, damit die Hook-Reihenfolge stabil bleibt,
  * wenn ein Text seinen ersten Marker bekommt.
+ *
+ * Bearbeitet wird mit `RichTextField` als Overlay über dem Knoten (Portal in
+ * `document.body`), nicht mit einer nackten Textarea: nur so sieht man beim
+ * Tippen Fett statt Sternchen.
  */
 
-import { layoutTextBlock } from '@gruenerator/contracts';
+import { layoutRichTextBlock } from '@gruenerator/contracts';
 import { useRef, useEffect, useState, useCallback, useMemo, Fragment } from 'react';
+import { createPortal } from 'react-dom';
 import { Group, Text as KonvaText, Transformer } from 'react-konva';
 
+import { RichTextField } from '../components/RichTextField';
 import { useGeometryReporter } from '../hooks/useGeometryReporter';
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { calculateElementSnapPosition } from '../utils/snapping';
-import { textMeasurer } from '../utils/textUtils';
+import { fontStyleForRun, runMeasurer } from '../utils/textUtils';
 
 import { type CanvasTextProps } from './CanvasText';
 
 import type Konva from 'konva';
 import type { TransformAnchor } from '@gruenerator/shared/canvas-editor';
+import type { CSSProperties } from 'react';
 
 const DEFAULT_TEXT_ANCHORS: TransformAnchor[] = ['middle-left', 'middle-right'];
 
-export function CanvasListText({
+interface OverlayBox {
+  top: number;
+  left: number;
+  width: number;
+  minHeight: number;
+  scale: number;
+}
+
+export function CanvasRichText({
   id,
   text,
   x,
@@ -59,6 +73,7 @@ export function CanvasListText({
   draggable = true,
   selected = false,
   editable = false,
+  richText = false,
   transformConfig,
   onSelect,
   onTextChange,
@@ -76,10 +91,12 @@ export function CanvasListText({
 }: CanvasTextProps) {
   const groupRef = useRef<Konva.Group>(null);
   const trRef = useRef<Konva.Transformer>(null);
-  const [isEditing, setIsEditing] = useState(false);
+  const [overlay, setOverlay] = useState<OverlayBox | null>(null);
+  const [draft, setDraft] = useState(text);
+  const isEditing = overlay !== null;
 
   const measure = useMemo(
-    () => textMeasurer(fontSize, fontFamily, fontStyle),
+    () => runMeasurer(fontSize, fontFamily, fontStyle),
     [fontSize, fontFamily, fontStyle]
   );
 
@@ -87,16 +104,25 @@ export function CanvasListText({
   // damit die Marker eine Spalte bilden.
   const innerWidth = width != null ? Math.max(width - 2 * padding, 1) : Number.POSITIVE_INFINITY;
   const lines = useMemo(
-    () => layoutTextBlock(text, innerWidth, measure),
+    () => layoutRichTextBlock(text, innerWidth, measure),
     [text, innerWidth, measure]
   );
 
   const lineHeightPx = fontSize * lineHeight;
   const blockHeight = lines.length * lineHeightPx + 2 * padding;
+  // Breite je Zeile: der Marker steht links davor, der letzte Lauf endet rechts.
+  const lineWidths = useMemo(
+    () =>
+      lines.map((line) => {
+        const last = line.runs[line.runs.length - 1];
+        return line.indent + (last ? last.x + measure(last.text, last) : 0);
+      }),
+    [lines, measure]
+  );
   // Ohne feste Breite die breiteste gesetzte Zeile — der Transformer und die
   // Snap-Ziele brauchen eine Box, eine Gruppe misst sich nicht selbst.
-  const blockWidth =
-    width ?? Math.max(...lines.map((line) => line.indent + measure(line.text)), 1) + 2 * padding;
+  const blockWidth = width ?? Math.max(...lineWidths, 1) + 2 * padding;
+  const innerBoxWidth = Math.max(blockWidth - 2 * padding, 1);
 
   useEffect(() => {
     if (selected && trRef.current && groupRef.current && !isEditing) {
@@ -176,76 +202,71 @@ export function CanvasListText({
     }
   }, [fontSize, blockWidth, onFontSizeChange, onTransformEnd]);
 
+  // Sobald der Editor geschlossen ist, darf sein Blur nichts mehr schreiben.
+  // Beim Abräumen des Portals verschiebt tiptap das fokussierte
+  // contenteditable, der Browser feuert dabei synchron `blur` — und `onBlur`
+  // hält noch die Callbacks des letzten Renderns, also ein `commit` mit dem
+  // gerade verworfenen Entwurf. Ein Guard auf `isConnected` hilft nicht: beim
+  // Feuern hängt der Knoten noch im Dokument.
+  const closed = useRef(false);
+
   const handleDblClick = useCallback(() => {
     if (!editable) return;
     const node = groupRef.current;
     const stage = node?.getStage();
     if (!node || !stage) return;
 
-    setIsEditing(true);
-
+    // Dieselbe Geometrie wie die Textarea des einfachen Textknotens: Bühne
+    // im Fenster, Knoten auf der Bühne, Maßstab der Bühne.
     const stageBox = stage.container().getBoundingClientRect();
     const position = node.getAbsolutePosition();
     const scale = stage.scaleX();
-    const textarea = document.createElement('textarea');
-    document.body.appendChild(textarea);
-
-    textarea.value = text;
-    textarea.style.position = 'absolute';
-    textarea.style.top = `${stageBox.top + window.scrollY + position.y}px`;
-    textarea.style.left = `${stageBox.left + window.scrollX + position.x}px`;
-    textarea.style.width = `${blockWidth * scale}px`;
-    textarea.style.minHeight = `${blockHeight * scale}px`;
-    textarea.style.fontSize = `${fontSize * scale}px`;
-    textarea.style.fontFamily = fontFamily;
-    textarea.style.color = fill;
-    textarea.style.textAlign = align;
-    textarea.style.lineHeight = String(lineHeight);
-    textarea.style.border = 'none';
-    textarea.style.padding = '0px';
-    textarea.style.margin = '0';
-    textarea.style.background = 'none';
-    textarea.style.outline = '2px solid #0088cc';
-    textarea.style.outlineOffset = '2px';
-    textarea.style.resize = 'none';
-    textarea.style.overflow = 'hidden';
-    textarea.style.zIndex = '10000';
-    textarea.style.transformOrigin = 'left top';
-    textarea.focus();
-    textarea.select();
-
-    const removeTextarea = () => {
-      if (textarea.value !== text) onTextChange?.(textarea.value);
-      setIsEditing(false);
-      textarea.remove();
-    };
-    textarea.addEventListener('blur', removeTextarea);
-    textarea.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        textarea.value = text;
-        textarea.blur();
-      }
-      // Enter setzt eine neue Zeile — in einer Aufzählung ist das der
-      // Normalfall. Abschluss über Klick daneben, Escape oder Cmd/Strg+Enter.
-      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault();
-        textarea.blur();
-      }
+    closed.current = false;
+    setDraft(text);
+    setOverlay({
+      top: stageBox.top + window.scrollY + position.y,
+      left: stageBox.left + window.scrollX + position.x,
+      width: blockWidth * scale,
+      minHeight: blockHeight * scale,
+      scale,
     });
-  }, [
-    editable,
-    text,
-    blockWidth,
-    blockHeight,
-    fontSize,
-    fontFamily,
-    fill,
-    align,
-    lineHeight,
-    onTextChange,
-  ]);
+  }, [editable, text, blockWidth, blockHeight]);
+
+  const commit = useCallback(() => {
+    if (closed.current) return;
+    closed.current = true;
+    setOverlay(null);
+    if (draft !== text) onTextChange?.(draft);
+  }, [draft, text, onTextChange]);
+
+  const cancel = useCallback(() => {
+    if (closed.current) return;
+    closed.current = true;
+    setDraft(text);
+    setOverlay(null);
+  }, [text]);
 
   const enabledAnchors = transformConfig?.enabledAnchors ?? DEFAULT_TEXT_ANCHORS;
+
+  const overlayStyle: CSSProperties | null = overlay
+    ? {
+        position: 'absolute',
+        top: overlay.top,
+        left: overlay.left,
+        width: overlay.width,
+        minHeight: overlay.minHeight,
+        zIndex: 10000,
+      }
+    : null;
+  const contentStyle: CSSProperties = {
+    fontSize: fontSize * (overlay?.scale ?? 1),
+    fontFamily,
+    fontStyle: fontStyle.includes('italic') ? 'italic' : 'normal',
+    fontWeight: fontStyle.includes('bold') ? 'bold' : 'normal',
+    color: fill,
+    textAlign: align,
+    lineHeight: String(lineHeight),
+  };
 
   return (
     <>
@@ -274,12 +295,22 @@ export function CanvasListText({
           // "middle"). Ein Stapel einzeiliger Knoten im Abstand einer Zeilenbox
           // liegt deshalb exakt dort, wo ein mehrzeiliger Textknoten läge.
           const top = padding + index * lineHeightPx;
+          // Die Läufe stehen an gemessenen x-Positionen, also richtet sich die
+          // Zeile nicht von selbst aus — der Versatz muss hier rein. Ohne ihn
+          // rutschten alle zentrierten Vorlagen (die AT-Sujets) nach links,
+          // sobald ihr Text einen Marker trägt.
+          const offset =
+            align === 'center'
+              ? (innerBoxWidth - lineWidths[index]!) / 2
+              : align === 'right'
+                ? innerBoxWidth - lineWidths[index]!
+                : 0;
           return (
             <Fragment key={index}>
               {line.marker !== null && (
                 <KonvaText
                   text={line.marker}
-                  x={padding}
+                  x={padding + offset}
                   y={top}
                   fontSize={fontSize}
                   fontFamily={fontFamily}
@@ -290,31 +321,31 @@ export function CanvasListText({
                   listening={false}
                 />
               )}
-              <KonvaText
-                text={line.text}
-                x={padding + line.indent}
-                y={top}
-                {...(width != null
-                  ? { width: Math.max(width - 2 * padding - line.indent, 1) }
-                  : {})}
-                fontSize={fontSize}
-                fontFamily={fontFamily}
-                fontStyle={fontStyle}
-                fill={fill}
-                stroke={stroke}
-                strokeWidth={strokeWidth}
-                fillAfterStrokeEnabled={!!stroke && (strokeWidth ?? 0) > 0}
-                lineJoin="round"
-                shadowColor={shadowColor}
-                shadowBlur={shadowBlur}
-                shadowOffsetX={shadowOffsetX}
-                shadowOffsetY={shadowOffsetY}
-                shadowOpacity={shadowOpacity}
-                align={align}
-                lineHeight={lineHeight}
-                wrap="none"
-                listening={false}
-              />
+              {line.runs.map((run, runIndex) => (
+                <KonvaText
+                  key={runIndex}
+                  text={run.text}
+                  x={padding + offset + line.indent + run.x}
+                  y={top}
+                  fontSize={fontSize}
+                  fontFamily={fontFamily}
+                  fontStyle={fontStyleForRun(fontStyle, run)}
+                  textDecoration={run.underline ? 'underline' : ''}
+                  fill={fill}
+                  stroke={stroke}
+                  strokeWidth={strokeWidth}
+                  fillAfterStrokeEnabled={!!stroke && (strokeWidth ?? 0) > 0}
+                  lineJoin="round"
+                  shadowColor={shadowColor}
+                  shadowBlur={shadowBlur}
+                  shadowOffsetX={shadowOffsetX}
+                  shadowOffsetY={shadowOffsetY}
+                  shadowOpacity={shadowOpacity}
+                  lineHeight={lineHeight}
+                  wrap="none"
+                  listening={false}
+                />
+              ))}
             </Fragment>
           );
         })}
@@ -337,6 +368,24 @@ export function CanvasListText({
           }}
         />
       )}
+      {overlayStyle &&
+        createPortal(
+          <div style={overlayStyle}>
+            <RichTextField
+              value={draft}
+              onChange={setDraft}
+              // Listen darf jedes Feld, das hier landet; Fett/Kursiv nur ein
+              // `richText`-Feld — die anderen laufen in GrueneTypeNeue.
+              marks={richText}
+              autoFocus
+              contentStyle={contentStyle}
+              onBlur={commit}
+              onEscape={cancel}
+              onSubmit={commit}
+            />
+          </div>,
+          document.body
+        )}
     </>
   );
 }

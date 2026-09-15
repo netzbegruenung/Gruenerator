@@ -14,6 +14,7 @@ import {
 } from '@gruenerator/contracts';
 
 import { CONTENT_INTEGRITY_EDIT_RULES } from '../../../services/contentPolicy.js';
+import { SHAREPIC_MARKUP_RULES } from '../../sharepic/sharepic_text/unifiedHandler.js';
 
 import { runToolForcedEdit } from './toolForcedEdit.js';
 
@@ -63,7 +64,10 @@ export function buildOperationCatalog(descriptor: SharepicTemplateDescriptor): s
       // Ohne diesen Satz entstehen im Chat praktisch nie Aufzählungen: das
       // Schema darüber liest sich wie ein Einzeiler. `value` ist ein blankes
       // z.string(), Umbrüche erreichen den Editor also unverändert.
-      '    "value" darf Zeilenumbrüche tragen. Eine Aufzählung schreibst du als eine Zeile je Punkt, jede beginnt mit "• " — kein Markdown, keine Leerzeilen.'
+      '    "value" darf Zeilenumbrüche tragen. Eine Aufzählung schreibst du als eine Zeile je Punkt, jede beginnt mit "• " — keine Leerzeilen.',
+      // Dieselbe Regel wie in der Textgenerierung, damit der Chat dieselbe
+      // Form schreibt, die der Editor zeichnet.
+      ...SHAREPIC_MARKUP_RULES.map((rule) => `    ${rule}`)
     );
   }
   if (supported.has('set-font-size')) {
@@ -191,6 +195,7 @@ export function buildSliderDeckOperationCatalog(descriptor: SharepicTemplateDesc
     '  - { "kind": "edit-slide", "slide": <Nr>, "operations": [ ... ] } — ändert EINE Folie. Erlaubte innere Operationen:',
     '      { "kind": "set-text", "field": "label" | "headline" | "subtext" | "subtext2", "label": "<Label>", "value": "<neuer Text>" }',
     '      "value" darf Zeilenumbrüche tragen; Aufzählungspunkte stehen je auf einer Zeile und beginnen mit "• ".',
+    ...SHAREPIC_MARKUP_RULES.map((rule) => `      ${rule}`),
     `      { "kind": "set-font-size", "field": "<field>", "label": "<Label>", "size": <Zahl> } (${fontBounds})`,
     `      { "kind": "set-color-scheme", "schemeId": <id> } — nur: ${schemeIds}. Gilt IMMER für das GANZE Karussell.`,
     '      Hinweis: "label" gibt es nur auf dem Cover (Slide 1), "subtext2" nur auf Inhalts-Folien.',

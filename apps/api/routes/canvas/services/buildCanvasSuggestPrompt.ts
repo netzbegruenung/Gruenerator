@@ -6,6 +6,8 @@
  * model with citations + prose from an upstream research pipeline so canvas
  * operations can be research-grounded.
  */
+import { SHAREPIC_MARKUP_RULES } from '../../sharepic/sharepic_text/unifiedHandler.js';
+
 import type { Citation } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { CanvasAiSnapshot } from '@gruenerator/contracts';
 
@@ -133,7 +135,9 @@ export function buildCanvasSuggestSystemPrompt(
       '  - { "kind": "set-text", "field": "<field>", "label": "<Feld-Label>", "value": "<neuer Text>" }'
     );
     lines.push(
-      '    "field" MUSS einer der oben unter "Aktueller Inhalt" gelisteten Feld-Identifier sein (z.B. "quote", "line1", "title"). "value" enthält den NEUEN Text. Niemals "text" als Schlüssel verwenden.'
+      '    "field" MUSS einer der oben unter "Aktueller Inhalt" gelisteten Feld-Identifier sein (z.B. "quote", "line1", "title"). "value" enthält den NEUEN Text. Niemals "text" als Schlüssel verwenden.',
+      '    "value" darf Zeilenumbrüche tragen; Aufzählungspunkte stehen je auf einer Zeile und beginnen mit "• ".',
+      ...SHAREPIC_MARKUP_RULES.map((rule) => `    ${rule}`)
     );
   }
   if (supportedSet.has('set-color-scheme')) {
