@@ -30,8 +30,20 @@ const EDIT_VERB_PATTERN =
 // `uhrzeit`/`datum` for the same reason: an invitation sharepic is exactly the
 // template where they are the fields being edited. Kept to the two unambiguous
 // nouns — a bare `zeit` would match "Zeitung", "zur Zeit", "Zeitpunkt".
+//
+// `stichpunkt`/`aufzähl`/`bullet`/`liste`: bullet lists became a sharepic
+// capability on 15.09.2026, and the noun list never learned their name — the
+// same hole as `uhrzeit`, one feature later. Live 16.09.2026, on an Info card
+// that was active for chat editing: "kannst du dort mehrere stichpunkte
+// hinzufügen" carries a valid edit VERB, fails the noun half, and both doors
+// (classifier Tier 2.7, router edit lane) share this predicate — so the turn
+// was answered with the edit-is-impossible hint while the editable card sat
+// right there. `set-text` already knows how to write them ("• " per line), so
+// the vocabulary was the only thing missing.
+//
+// A bare `punkt` stays out: "bring es auf den Punkt" is the opposite request.
 const EDIT_NOUN_PATTERN =
-  /(?<!\p{L})(zeile\s*[123]?|text|balken|schrift|font|farb|hintergrund|bild|foto|motiv|sonnenblume|logo|zitat|überschrift|ueberschrift|header|sharepic|variante|slides?|folien?|seite\s*\d*|karussell|slider|deck|cover|abschluss(folie)?|headline|untertext|zusatztext|label|uhrzeit|datum)/iu;
+  /(?<!\p{L})(zeile\s*[123]?|text|balken|schrift|font|farb|hintergrund|bild|foto|motiv|sonnenblume|logo|zitat|überschrift|ueberschrift|header|sharepic|variante|slides?|folien?|seite\s*\d*|karussell|slider|deck|cover|abschluss(folie)?|headline|untertext|zusatztext|label|uhrzeit|datum|stichpunkt|stichwort|aufzähl|aufzaehl|bullet|liste)/iu;
 
 /** Phrases that mean "generate fresh variants" — never treated as an edit. */
 const NEW_VARIANTS_PATTERN =

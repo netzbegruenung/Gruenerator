@@ -164,6 +164,32 @@ describe('isSharepicEditInstruction', () => {
     expect(isSharepicEditInstruction('Trag den Text ins Dokument ein')).toBe(false);
   });
 
+  it('matches bullet-list nouns — the live miss "mehrere stichpunkte hinzufügen"', () => {
+    // Live 16.09.2026 on an Info card that was active for chat editing: the
+    // VERB half matched (`hinzufüg`), the noun half had no word for a bullet
+    // list, and both doors share this predicate — so the turn came back with
+    // the edit-is-impossible hint while the editable card sat right above it.
+    //
+    // The separable-verb case above looks like it already covered this and
+    // does not: "Füge folgende Bullet Points auf Variante 3 ein" passes on
+    // `variante`. Naming the list WITHOUT naming a variant is the gap, which
+    // is why that test stayed green through the whole bug.
+    expect(isSharepicEditInstruction('kannst du dort mehrere stichpunkte hinzufügen')).toBe(true);
+    expect(isSharepicEditInstruction('füge dort mehrere stichpunkte hinzu')).toBe(true);
+    expect(isSharepicEditInstruction('mach eine aufzählung draus')).toBe(true);
+    expect(isSharepicEditInstruction('ergänze zwei bullet points')).toBe(true);
+    expect(isSharepicEditInstruction('mach die liste kürzer')).toBe(true);
+  });
+
+  it('keeps a bare "Punkt" and a noun inside a word out of the list vocabulary', () => {
+    // `punkt` is deliberately NOT a noun — "auf den Punkt bringen" asks for the
+    // opposite of adding items. Both of these carry a real edit verb, so only
+    // the noun half can decide them.
+    expect(isSharepicEditInstruction('mach den standpunkt klarer')).toBe(false);
+    // The lookbehind is what stops `liste` from matching inside "Preisliste".
+    expect(isSharepicEditInstruction('mach die Preisliste größer')).toBe(false);
+  });
+
   it('requires an edit verb', () => {
     expect(isSharepicEditInstruction('was steht im wahlprogramm zum klimaschutz?')).toBe(false);
   });
