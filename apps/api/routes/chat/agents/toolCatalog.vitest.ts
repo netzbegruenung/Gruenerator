@@ -632,6 +632,37 @@ describe('toolCatalog: Formularwerkzeuge hängen am Formular, nicht am MIME-Typ'
   });
 });
 
+/**
+ * `vertonen` erzeugt eine NEUE Datei. In einer Editor-Seitenleiste ist das
+ * falsch — dort wird das offene Dokument bearbeitet, nichts Neues angelegt.
+ */
+describe('toolCatalog: vertonen', () => {
+  const catalogFor = (state: Record<string, unknown>) => {
+    const sourceRegistry = createSourceRegistry();
+    const sse = { send: () => {} } as unknown as NonNullable<
+      Parameters<typeof buildChatToolCatalog>[0]['loop']
+    >['sse'];
+    const { toolNames } = buildChatToolCatalog({
+      agentConfig,
+      sourceRegistry,
+      loop: { sse, state: { intent: 'search', ...state } as unknown as ChatGraphState },
+    });
+    return toolNames;
+  };
+
+  it('ist im normalen Chat montiert', () => {
+    expect(catalogFor({})).toContain('vertonen');
+  });
+
+  it('fehlt, wenn die Agentin es abgeschaltet hat', () => {
+    expect(catalogFor({ enabledTools: { vertonen: false } })).not.toContain('vertonen');
+  });
+
+  it('fehlt in einer Editor-Seitenleiste', () => {
+    expect(catalogFor({ enabledTools: { edit_current_doc: true } })).not.toContain('vertonen');
+  });
+});
+
 describe('toolCatalog expand_attachment (M4)', () => {
   beforeEach(() => {
     documentSearch.mockReset();

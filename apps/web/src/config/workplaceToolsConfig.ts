@@ -232,6 +232,13 @@ export const TOOL_MENUS: WorkplaceToolMenu[] = [
         icon: getIcon('navigation', 'transkription')!,
       },
       {
+        id: 'voice',
+        title: 'Voice',
+        description: 'Text vertonen',
+        path: '/voice',
+        icon: getIcon('navigation', 'voice')!,
+      },
+      {
         id: 'newsletter',
         title: 'Newsletter',
         description: 'Updates abonnieren',

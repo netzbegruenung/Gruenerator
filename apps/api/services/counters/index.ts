@@ -7,6 +7,7 @@
 export { TokenCounter, tokenCounter } from './TokenCounter.js';
 export { ImageGenerationCounter } from './ImageGenerationCounter.js';
 export { DeepResearchCounter } from './DeepResearchCounter.js';
+export { SpeechSecondsCounter } from './SpeechSecondsCounter.js';
 
 // Named function exports from TokenCounter (backward compatibility)
 export {

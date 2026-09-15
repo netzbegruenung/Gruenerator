@@ -30,7 +30,11 @@ export type ShareMediaType = z.infer<typeof shareMediaTypeSchema>;
 
 /**
  * The full stored set — `shared_media.media_type`, whose CHECK constraint names
- * exactly these three (`schema.sql`).
+ * exactly these four (`schema.sql`).
+ *
+ * `'audio'` is what Grünerator Voice writes (generated speech, one row per
+ * output format). The share *write* endpoints never create it, so it stays out
+ * of {@link shareMediaTypeSchema}.
  *
  * `'transfer'` is the one that is easy to miss: the removed transfer feature
  * wrote file transfers into this same table (rows persist and stay
@@ -45,7 +49,7 @@ export type ShareMediaType = z.infer<typeof shareMediaTypeSchema>;
  * Same narrow-vs-stored split as {@link contentOriginSchema} /
  * {@link storedContentOriginSchema} above, for the same reason.
  */
-export const storedMediaTypeSchema = z.enum(['image', 'video', 'transfer']);
+export const storedMediaTypeSchema = z.enum(['image', 'video', 'transfer', 'audio']);
 export type StoredMediaType = z.infer<typeof storedMediaTypeSchema>;
 
 /**

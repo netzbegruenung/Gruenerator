@@ -51,6 +51,7 @@ export const USAGE_FEATURES = [
   'sites',
   'texte',
   'notebook',
+  'voice',
   'other',
 ] as const;
 
@@ -106,6 +107,8 @@ const FEATURE_BY_PREFIX: ReadonlyArray<readonly [string, UsageFeature]> = (
     // stays with the subtitler; /api/voice/realtime is a chat surface too, but
     // it upgrades to a WebSocket that this middleware never sees.
     ['/api/voice/tts', 'chat'],
+    // Grünerator Voice (text → audio file); longer than '/api/voice', so it wins.
+    ['/api/voice/speech', 'voice'],
     ['/api/voice', 'subtitler'],
     ['/api/protokoll', 'subtitler'],
     ['/api/process', 'subtitler'],

@@ -162,7 +162,13 @@ gh api graphql -f query='{repository(owner:"netzbegruenung",name:"Gruenerator"){
 
 Leeres Array = kein Schlüsselwort erkannt. Steht es, erscheint es auch als „Linked issues" in der PR-Seitenleiste.
 
-**Automatisch geschlossen wird nur beim Merge in `master`.** Ein PR gegen `test-branch` lässt das Issue offen, auch mit korrektem Schlüsselwort — die Verknüpfung bleibt aber stehen und greift, sobald dieselbe Arbeit auf `master` landet.
+**Automatisch geschlossen wird nur beim Merge in `master`.** Ein PR gegen einen anderen Branch (`test-branch`, oder der Basis-PR eines Stapels) lässt das Issue offen — und die Verknüpfung **entsteht dabei gar nicht erst**: GitHub wertet Body-Schlüsselwörter nur aus, solange der PR gegen den Default-Branch läuft. Am 15.09.2026 an #3300 gemessen (Basis `feat/gruenerator-voice`, `Closes #3295, closes #3296` korrekt im Body): `closingIssuesReferences` lieferte `[]`. Sie entsteht erst, wenn der PR auf `master` umgehängt wird — beim Merge des Basis-PRs passiert das automatisch.
+
+**Bei einem gestapelten PR gehört das Schlüsselwort deshalb in die Commit-Message.** Dort schließt es sein Issue, sobald der Commit `master` erreicht, unabhängig von Basis und Merge-Reihenfolge; beides gleichzeitig zu setzen schadet nicht. Nachgesehen wird dann am Commit statt am PR, denn `closingIssuesReferences` bleibt bei dieser Variante leer:
+
+```bash
+gh api repos/netzbegruenung/Gruenerator/commits/<sha> --jq '.commit.message' | tail -5
+```
 
 Ohne Schlüsselwort bleibt, was nur _erwähnt_ gehört: verwandte Issues, Vorgänger-PRs, und ein Nebenbefund, den dieser PR gerade **nicht** repariert — der bekommt sein eigenes Issue, siehe oben.
 
@@ -204,7 +210,7 @@ Zustand (global state). TanStack Query v5 (server state/fetching) with axios.
 
 **Persist-Konvention:** Jeder zustand-persist-Store wird mit `version` + `migrate` angelegt. DB-Umbauten mit ID-Semantik: expand → backfill/dual-write → contract; bei Spalten-Änderungen alle Queries greppen.
 
-**Sprachregelungen (Produkt-Wording):** Plural **„Grüneratoren"**, Singular **„Grünerator-Agent"** (nie „Agent" allein — „der Grünerator" meint das Produkt); **„Rezepte"** (nicht „Skills"); **„Projekte"** (nicht „Gruppen"/„Spaces"); **„Notebook"/„Notebooks"** (nie „Notizbuch"/„Notizbücher"). Neue Produktnamen hier eintragen, bevor das Feature gebaut wird.
+**Sprachregelungen (Produkt-Wording):** Plural **„Grüneratoren"**, Singular **„Grünerator-Agent"** (nie „Agent" allein — „der Grünerator" meint das Produkt); **„Rezepte"** (nicht „Skills"); **„Projekte"** (nicht „Gruppen"/„Spaces"); **„Notebook"/„Notebooks"** (nie „Notizbuch"/„Notizbücher"); **„Grünerator Voice"** (das Text-zu-Audio-Werkzeug unter `/voice`, Registry-Id `voice`; das geplante Chat-Werkzeug dazu heißt `vertonen`). Neue Produktnamen hier eintragen, bevor das Feature gebaut wird.
 
 **„Notizbuch" ist verboten — mit genau zwei Ausnahmen.** Das Wort ist am 27.08.2026 aus Code, UI und Doku entfernt worden; es lebt nur noch da weiter, wo es NICHT für uns steht:
 

@@ -99,6 +99,12 @@ export const USER_SELECTABLE_TOOLS: readonly UserSelectableTool[] = [
     description:
       'Durchsucht die verbundenen Wolke-Ordner, listet Dateien auf und liest sie — ausschließlich lesend.',
   },
+  {
+    key: 'vertonen',
+    label: 'Vertonen',
+    description:
+      'Macht aus einem Text eine Audiodatei zum Herunterladen – Ansage, Vorlesefassung oder Audiodeskription. Die Datei landet in der Mediathek.',
+  },
 ] as const;
 
 /**
