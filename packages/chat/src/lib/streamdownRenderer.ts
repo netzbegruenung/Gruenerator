@@ -10,12 +10,12 @@
  *   localStorage.setItem('gruenerator-chat-renderer', 'legacy')
  *   localStorage.removeItem('gruenerator-chat-renderer')  // back to default
  *
- * Default is `legacy` until the Streamdown path is validated in production;
- * the default flips in a follow-up and the legacy branch is deleted after
- * (see the migration PR).
+ * Default is `streamdown`; `legacy` stays available per browser as the
+ * rollback for QA. The legacy branch is deleted once the Streamdown path has
+ * held up in production.
  */
 const RENDERER_KEY = 'gruenerator-chat-renderer';
-const DEFAULT_STREAMDOWN = false;
+const DEFAULT_STREAMDOWN = true;
 
 export function isStreamdownRendererEnabled(): boolean {
   if (typeof window === 'undefined') return DEFAULT_STREAMDOWN;
