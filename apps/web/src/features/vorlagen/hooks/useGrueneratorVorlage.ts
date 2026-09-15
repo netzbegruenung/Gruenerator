@@ -1,4 +1,4 @@
-import { getContractsClient } from '@gruenerator/shared/api';
+import { apiErrorFromResponse, getContractsClient } from '@gruenerator/shared/api';
 import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -39,7 +39,7 @@ export const useGrueneratorVorlage = () => {
           body: {},
         });
         if (result.status !== 201) {
-          throw new Error(`Failed to clone canvas (HTTP ${result.status})`);
+          throw apiErrorFromResponse(result, 'Failed to clone canvas');
         }
         void navigate(`/studio/canvas/${result.body.newCanvasId}`);
       } catch (e) {

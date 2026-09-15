@@ -14,7 +14,7 @@ import {
   type NotebookShareSettings,
   type PublicOwnership,
 } from '@gruenerator/contracts';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { apiErrorFromResponse, getContractsClient } from '@gruenerator/shared/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 const SHARE_SETTINGS_KEY = (id: string) => ['notebook', 'share', 'settings', id];
@@ -32,7 +32,7 @@ export function useNotebookShareSettings(notebookId: string | null, enabled: boo
         params: { id: notebookId as string },
       });
       if (result.status !== 200) {
-        throw new Error(`Failed to fetch share settings (HTTP ${result.status})`);
+        throw apiErrorFromResponse(result, 'Failed to fetch share settings');
       }
       return result.body;
     },
@@ -50,7 +50,7 @@ export function useNotebookGroupShares(notebookId: string | null, enabled: boole
         params: { id: notebookId as string },
       });
       if (result.status !== 200) {
-        throw new Error(`Failed to fetch group shares (HTTP ${result.status})`);
+        throw apiErrorFromResponse(result, 'Failed to fetch group shares');
       }
       return result.body;
     },
@@ -66,7 +66,7 @@ export function useMyGroupsForSharing(enabled: boolean) {
       const client = getContractsClient();
       const result = await client.notebookSharing.listMyGroups({});
       if (result.status !== 200) {
-        throw new Error(`Failed to fetch user groups (HTTP ${result.status})`);
+        throw apiErrorFromResponse(result, 'Failed to fetch user groups');
       }
       return result.body;
     },
@@ -83,7 +83,7 @@ export function useSetNotebookShareMode(notebookId: string) {
         body: { mode },
       });
       if (result.status !== 200) {
-        throw new Error(`Failed to set share mode (HTTP ${result.status})`);
+        throw apiErrorFromResponse(result, 'Failed to set share mode');
       }
       return result.body;
     },
@@ -105,7 +105,7 @@ export function useSetNotebookAudience(notebookId: string) {
         body: { audience },
       });
       if (result.status !== 200) {
-        throw new Error(`Failed to set audience (HTTP ${result.status})`);
+        throw apiErrorFromResponse(result, 'Failed to set audience');
       }
       return result.body;
     },
@@ -127,7 +127,7 @@ export function useSetNotebookIsPublic(notebookId: string) {
         body: input,
       });
       if (result.status !== 200) {
-        throw new Error(`Failed to set Von-der-Basis discovery (HTTP ${result.status})`);
+        throw apiErrorFromResponse(result, 'Failed to set Von-der-Basis discovery');
       }
       return result.body;
     },
@@ -149,7 +149,7 @@ export function useSetNotebookEditPolicy(notebookId: string) {
         body: { policy },
       });
       if (result.status !== 200) {
-        throw new Error(`Failed to set edit policy (HTTP ${result.status})`);
+        throw apiErrorFromResponse(result, 'Failed to set edit policy');
       }
       return result.body;
     },
@@ -169,7 +169,7 @@ export function useAddNotebookGroupShare(notebookId: string) {
         body: { group_id: groupId },
       });
       if (result.status !== 201) {
-        throw new Error(`Failed to add group share (HTTP ${result.status})`);
+        throw apiErrorFromResponse(result, 'Failed to add group share');
       }
       return result.body;
     },
@@ -188,7 +188,7 @@ export function useRemoveNotebookGroupShare(notebookId: string) {
         params: { id: notebookId, groupId },
       });
       if (result.status !== 200) {
-        throw new Error(`Failed to remove group share (HTTP ${result.status})`);
+        throw apiErrorFromResponse(result, 'Failed to remove group share');
       }
       return result.body;
     },

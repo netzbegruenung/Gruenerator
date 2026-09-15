@@ -1,5 +1,5 @@
 import { type CommentBlock } from '@gruenerator/contracts';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { apiErrorFromResponse, getContractsClient } from '@gruenerator/shared/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 /**
@@ -18,7 +18,7 @@ export function useBoardComments(boardId: string | undefined, cardId: string) {
       const client = getContractsClient();
       const result = await client.boardComments.listComments({ params: { boardId, cardId } });
       if (result.status !== 200) {
-        throw new Error(`Failed to load comments (HTTP ${result.status})`);
+        throw apiErrorFromResponse(result, 'Failed to load comments');
       }
       return result.body;
     },
@@ -46,7 +46,7 @@ export function useBoardComments(boardId: string | undefined, cardId: string) {
         },
       });
       if (result.status !== 201) {
-        throw new Error(`Failed to add comment (HTTP ${result.status})`);
+        throw apiErrorFromResponse(result, 'Failed to add comment');
       }
       return result.body;
     },
@@ -61,7 +61,7 @@ export function useBoardComments(boardId: string | undefined, cardId: string) {
         body: {},
       });
       if (result.status !== 200) {
-        throw new Error(`Failed to delete comment (HTTP ${result.status})`);
+        throw apiErrorFromResponse(result, 'Failed to delete comment');
       }
     },
     onSuccess: () => void queryClient.invalidateQueries({ queryKey }),
@@ -84,7 +84,7 @@ export function useBoardComments(boardId: string | undefined, cardId: string) {
           body: {},
         });
         if (result.status !== 200) {
-          throw new Error(`Failed to remove reaction (HTTP ${result.status})`);
+          throw apiErrorFromResponse(result, 'Failed to remove reaction');
         }
       } else {
         const result = await client.boardComments.addReaction({
@@ -92,7 +92,7 @@ export function useBoardComments(boardId: string | undefined, cardId: string) {
           body: { emoji },
         });
         if (result.status !== 200 && result.status !== 201) {
-          throw new Error(`Failed to add reaction (HTTP ${result.status})`);
+          throw apiErrorFromResponse(result, 'Failed to add reaction');
         }
       }
     },

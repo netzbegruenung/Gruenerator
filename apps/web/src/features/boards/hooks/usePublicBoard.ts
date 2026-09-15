@@ -1,4 +1,4 @@
-import { getContractsClient } from '@gruenerator/shared/api';
+import { apiErrorFromResponse, getContractsClient } from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
 
 /**
@@ -12,7 +12,7 @@ export function usePublicBoard(id: string | undefined) {
       const client = getContractsClient();
       const result = await client.publicBoards.getPublicBoard({ params: { id: id! } });
       if (result.status !== 200) {
-        throw new Error(`Board not publicly accessible (HTTP ${result.status})`);
+        throw apiErrorFromResponse(result, 'Board not publicly accessible');
       }
       return result.body;
     },

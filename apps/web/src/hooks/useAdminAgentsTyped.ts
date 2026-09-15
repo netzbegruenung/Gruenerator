@@ -5,13 +5,13 @@
  * TanStack Query es als Fehler zeigt.
  */
 
-import { getContractsClient } from '@gruenerator/shared/api';
+import { apiErrorFromResponse, getContractsClient } from '@gruenerator/shared/api';
 
 export async function fetchAdminAgents() {
   const client = getContractsClient();
   const result = await client.agentVisibility.list();
   if (result.status !== 200) {
-    throw new Error(`Agenten konnten nicht geladen werden (HTTP ${result.status})`);
+    throw apiErrorFromResponse(result, 'Agenten konnten nicht geladen werden');
   }
   return result.body.data;
 }
@@ -20,7 +20,7 @@ export async function fetchHiddenAgentIdentifiers(): Promise<string[]> {
   const client = getContractsClient();
   const result = await client.agentVisibility.getVisibility();
   if (result.status !== 200) {
-    throw new Error(`Agenten-Sichtbarkeit konnte nicht geladen werden (HTTP ${result.status})`);
+    throw apiErrorFromResponse(result, 'Agenten-Sichtbarkeit konnte nicht geladen werden');
   }
   return result.body.hiddenIdentifiers;
 }
@@ -32,6 +32,6 @@ export async function setAgentHidden(identifier: string, hidden: boolean): Promi
     body: { hidden },
   });
   if (result.status !== 200) {
-    throw new Error(`Agenten-Sichtbarkeit konnte nicht geändert werden (HTTP ${result.status})`);
+    throw apiErrorFromResponse(result, 'Agenten-Sichtbarkeit konnte nicht geändert werden');
   }
 }

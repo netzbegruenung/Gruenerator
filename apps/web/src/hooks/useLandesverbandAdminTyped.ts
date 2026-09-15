@@ -3,13 +3,13 @@
  * Landesverband-Admin self-service surface (greeting, LV-scoped Rezepte
  * visibility, own member list, own scopes).
  */
-import { getContractsClient } from '@gruenerator/shared/api';
+import { apiErrorFromResponse, getContractsClient } from '@gruenerator/shared/api';
 
 export async function fetchMyLandesverbandScopes() {
   const client = getContractsClient();
   const result = await client.landesverbandAdmin.mine();
   if (result.status !== 200) {
-    throw new Error(`Failed to fetch Landesverband scopes (HTTP ${result.status})`);
+    throw apiErrorFromResponse(result, 'Failed to fetch Landesverband scopes');
   }
   return result.body.data;
 }
@@ -18,7 +18,7 @@ export async function fetchLandesverbandDetail(landesverbandId: string) {
   const client = getContractsClient();
   const result = await client.landesverbandAdmin.get({ params: { landesverbandId } });
   if (result.status !== 200) {
-    throw new Error(`Failed to fetch Landesverband (HTTP ${result.status})`);
+    throw apiErrorFromResponse(result, 'Failed to fetch Landesverband');
   }
   return result.body.data;
 }
@@ -33,7 +33,7 @@ export async function updateLandesverbandGreeting(
     body: { greetingText },
   });
   if (result.status !== 200) {
-    throw new Error(`Failed to update greeting (HTTP ${result.status})`);
+    throw apiErrorFromResponse(result, 'Failed to update greeting');
   }
 }
 
@@ -41,7 +41,7 @@ export async function fetchLandesverbandSkills(landesverbandId: string) {
   const client = getContractsClient();
   const result = await client.landesverbandAdmin.listSkills({ params: { landesverbandId } });
   if (result.status !== 200) {
-    throw new Error(`Failed to fetch Landesverband skills (HTTP ${result.status})`);
+    throw apiErrorFromResponse(result, 'Failed to fetch Landesverband skills');
   }
   return result.body.data;
 }
@@ -57,7 +57,7 @@ export async function setLandesverbandSkillHidden(
     body: { hidden },
   });
   if (result.status !== 200) {
-    throw new Error(`Failed to update skill visibility (HTTP ${result.status})`);
+    throw apiErrorFromResponse(result, 'Failed to update skill visibility');
   }
 }
 
@@ -65,7 +65,7 @@ export async function fetchLandesverbandUsers(landesverbandId: string) {
   const client = getContractsClient();
   const result = await client.landesverbandAdmin.listUsers({ params: { landesverbandId } });
   if (result.status !== 200) {
-    throw new Error(`Failed to fetch Landesverband members (HTTP ${result.status})`);
+    throw apiErrorFromResponse(result, 'Failed to fetch Landesverband members');
   }
   return result.body.data;
 }

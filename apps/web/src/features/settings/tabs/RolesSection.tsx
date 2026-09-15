@@ -1,6 +1,6 @@
 import { type UserRole, useUserLandesverbaende } from '@gruenerator/chat';
 import { isLandesverbandRolle, landesverbandOfferForBundesland } from '@gruenerator/shared/agents';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { apiErrorFromResponse, getContractsClient } from '@gruenerator/shared/api';
 import { getInstance } from '@gruenerator/shared/instances';
 import {
   type EbeneConfig,
@@ -418,7 +418,7 @@ export default function RolesSection() {
             body: { custom_prompt: cleaned },
           });
           if (res.status !== 200) {
-            throw new Error(`Profil-Update fehlgeschlagen (HTTP ${res.status})`);
+            throw apiErrorFromResponse(res, 'Profil-Update fehlgeschlagen');
           }
           queryClient.setQueryData<Profile>(QUERY_KEYS.profile(userId), (current) =>
             current ? { ...current, custom_prompt: cleaned } : current
