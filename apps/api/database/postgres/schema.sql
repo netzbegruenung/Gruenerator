@@ -587,7 +587,7 @@ CREATE TABLE IF NOT EXISTS shared_media (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
     share_token VARCHAR(32) UNIQUE NOT NULL,
-    media_type VARCHAR(10) NOT NULL CHECK (media_type IN ('video', 'image', 'transfer')),
+    media_type VARCHAR(10) NOT NULL CHECK (media_type IN ('video', 'image', 'transfer', 'audio')),
     title TEXT,
     file_path TEXT,
     file_name TEXT,

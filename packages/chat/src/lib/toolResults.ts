@@ -103,7 +103,8 @@ export type ToolIconKey =
   | 'presentation'
   | 'table'
   | 'board'
-  | 'chart';
+  | 'chart'
+  | 'audio';
 
 /**
  * Semantic accent, NOT a class name — a Tailwind string could not cross into
@@ -451,6 +452,12 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
     label: 'Formular ausfüllen',
     activeLabel: 'Fülle das Formular',
     iconKey: 'file',
+    accent: 'create',
+  },
+  vertonen: {
+    label: 'Vertonung',
+    activeLabel: 'Vertone den Text',
+    iconKey: 'audio',
     accent: 'create',
   },
   sharepic_edit: {

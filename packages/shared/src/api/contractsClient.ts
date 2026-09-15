@@ -20,6 +20,7 @@ import {
   threadsContract,
   chatThreadSharingContract,
   exportsContract,
+  speechContract,
   recentValuesContract,
   recentActivityContract,
   contentContract,
@@ -270,6 +271,7 @@ const VALIDATED_CLIENT_OPTS = {
 // which may not be exported in all @ts-rest/core minor versions.
 const _threadsClient = () => initClient(threadsContract, CLIENT_OPTS);
 const _exportsClient = () => initClient(exportsContract, CLIENT_OPTS);
+const _speechClient = () => initClient(speechContract, CLIENT_OPTS);
 const _recentValuesClient = () => initClient(recentValuesContract, CLIENT_OPTS);
 const _recentActivityClient = () => initClient(recentActivityContract, CLIENT_OPTS);
 const _contentClient = () => initClient(contentContract, CLIENT_OPTS);
@@ -343,6 +345,7 @@ const _promptsClient = () => initClient(promptsContract, CLIENT_OPTS);
 export interface ContractsClient {
   threads: ReturnType<typeof _threadsClient>;
   exports: ReturnType<typeof _exportsClient>;
+  speech: ReturnType<typeof _speechClient>;
   recentValues: ReturnType<typeof _recentValuesClient>;
   recentActivity: ReturnType<typeof _recentActivityClient>;
   content: ReturnType<typeof _contentClient>;
@@ -496,6 +499,7 @@ export function getContractsClient(): ContractsClient {
     imagePicker: _imagePickerClient(),
     sharesRead: _sharesReadClient(),
     prompts: _promptsClient(),
+    speech: _speechClient(),
   };
 
   return _client;

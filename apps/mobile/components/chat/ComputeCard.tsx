@@ -1,4 +1,4 @@
-import { useChatConfigStore } from '@gruenerator/chat';
+import { audioAssetsOf, useChatConfigStore } from '@gruenerator/chat';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { Image } from 'expo-image';
 import { useCallback, useState } from 'react';
@@ -74,20 +74,29 @@ export function ComputeCard({ data, theme }: { data: ComputeData; theme: Theme }
   );
 
   const hasFiles = (data.fileAssets?.length ?? 0) > 0 || (data.files?.length ?? 0) > 0;
+  // A vertonen result is not a calculation. Same rule as web's card, from the
+  // shared helper — this label is exactly what drifted apart before.
+  const isAudio = audioAssetsOf(data.fileAssets).length > 0;
 
   return (
     <View
       style={[styles.card, { backgroundColor: theme.background, borderColor: theme.border }]}
-      accessibilityLabel={`Berechnung: ${data.operation}`}
+      accessibilityLabel={isAudio ? data.operation : `Berechnung: ${data.operation}`}
     >
       <View style={styles.header}>
         <View style={styles.iconPill}>
-          <Ionicons name="calculator-outline" size={15} color={colors.primary[500]} />
+          <Ionicons
+            name={isAudio ? 'volume-high-outline' : 'calculator-outline'}
+            size={15}
+            color={colors.primary[500]}
+          />
         </View>
         <Text style={[styles.operation, { color: theme.text }]} numberOfLines={1}>
           {data.operation}
         </Text>
-        <Text style={[styles.caption, { color: theme.textSecondary }]}>BERECHNET</Text>
+        <Text style={[styles.caption, { color: theme.textSecondary }]}>
+          {isAudio ? 'AUDIO' : 'BERECHNET'}
+        </Text>
       </View>
       {data.figures?.map((figure, index) => (
         <Image

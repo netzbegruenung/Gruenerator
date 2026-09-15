@@ -21,6 +21,7 @@ export const usageFeatureSchema = z.enum([
   'sites',
   'texte',
   'notebook',
+  'voice',
   'other',
 ]);
 

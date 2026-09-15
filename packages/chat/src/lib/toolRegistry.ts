@@ -82,6 +82,7 @@ export const UI_TOOL_NAMES = z.enum([
   'search_threads',
   'read_artifact',
   'memory',
+  'vertonen',
 ]);
 export type UiToolName = z.infer<typeof UI_TOOL_NAMES>;
 
@@ -196,6 +197,19 @@ function parsePdfFormReadVM(args: unknown, result: unknown): ToolResultVM {
     entries.push({ label: 'Gelesen', value: `${shown} von ${fieldCount}` });
   }
   return { kind: 'key-value', entries, citations: [], markdown: null, imageUrl: null };
+}
+
+/** Vertonung outcome. The file itself renders in the compute card below. */
+function parseVertonenVM(args: unknown, result: unknown): ToolResultVM {
+  const error = getString(result, 'error');
+  if (error) return { kind: 'text-note', text: error };
+  const fileName = getString(result, 'fileName');
+  if (!fileName) return parseGenericFallback(args, result);
+  const laenge = getString(result, 'laenge');
+  return {
+    kind: 'text-note',
+    text: laenge ? `„${fileName}" erstellt · ${laenge}` : `„${fileName}" erstellt.`,
+  };
 }
 
 /** Fill outcome. Counts, not the field list — the arrays may be truncated. */
@@ -711,6 +725,9 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   // The filled file itself renders in the compute card (fileAssets); the tool
   // card only reports what happened.
   fill_pdf_form: entry('fill_pdf_form', 'text-note', parsePdfFormFillVM),
+  // The audio file itself renders in the compute card (fileAssets); the tool
+  // card only reports what was made.
+  vertonen: entry('vertonen', 'text-note', parseVertonenVM),
   cloud_files: entry('cloud_files', 'key-value', parseCloudFilesVM),
   recurring_tasks: entry('recurring_tasks', 'citations', parseRecurringTasksVM),
   user_agents: entry('user_agents', 'citations', parseUserAgentsVM),

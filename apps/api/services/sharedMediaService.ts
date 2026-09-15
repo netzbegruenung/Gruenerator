@@ -30,6 +30,8 @@ import { deriveContentOrigin } from './sharedMediaOrigin.js';
 import type {
   SharedMediaRow,
   CreateVideoShareParams,
+  CreateAudioShareParams,
+  AudioShareResult,
   CreatePendingVideoShareParams,
   CreateImageShareParams,
   UpdateImageShareParams,
@@ -533,6 +535,67 @@ class SharedMediaService {
     }
   }
 
+  /**
+   * Generated speech from Grünerator Voice. A creation (`content_origin 'ki'`):
+   * like every creation it is never refused by the Mediathek cap, but it does
+   * count toward it afterwards (one row per format). No thumbnail — the
+   * Mediathek card draws a glyph.
+   */
+  async createAudioShare(
+    userId: string,
+    params: CreateAudioShareParams
+  ): Promise<AudioShareResult> {
+    await this.ensureInitialized();
+
+    const { buffer, mimeType, extension, title, durationSeconds } = params;
+    const shareToken = this.generateShareToken();
+    const shareDir = getSafeShareDir(shareToken);
+
+    try {
+      await fs.mkdir(shareDir, { recursive: true });
+
+      const fileName = `media.${extension}`;
+      await fs.writeFile(path.join(shareDir, fileName), buffer);
+
+      const query = `
+                INSERT INTO shared_media
+                (user_id, share_token, media_type, title, file_path, file_name, thumbnail_path,
+                 file_size, mime_type, duration, status, is_library_item, upload_source,
+                 content_origin, image_metadata)
+                VALUES ($1, $2, 'audio', $3, $4, $5, NULL, $6, $7, $8, 'ready', TRUE, 'voice', 'ki', '{}')
+                RETURNING id, share_token, created_at
+            `;
+
+      const result = await this.postgres!.queryOne<{
+        id: string;
+        share_token: string;
+        created_at: Date;
+      }>(query, [
+        userId,
+        shareToken,
+        title,
+        `${shareToken}/${fileName}`,
+        fileName,
+        buffer.length,
+        mimeType,
+        durationSeconds,
+      ]);
+
+      console.log(`[SharedMediaService] Created audio share ${shareToken} for user ${userId}`);
+
+      return {
+        id: result!.id,
+        shareToken: result!.share_token,
+        shareUrl: `/share/${shareToken}`,
+        createdAt: result!.created_at,
+      };
+    } catch (error) {
+      await fs.rm(shareDir, { recursive: true, force: true }).catch(() => undefined);
+      console.error('[SharedMediaService] Failed to create audio share:', error);
+      throw new Error(`Failed to create audio share: ${(error as Error).message}`);
+    }
+  }
+
   async createImageShare(userId: string, params: CreateImageShareParams): Promise<ShareResult> {
     await this.ensureInitialized();
 
@@ -830,13 +893,8 @@ class SharedMediaService {
                        content_origin
                 FROM shared_media
                 WHERE user_id = $1
-                  AND ${creationFeedWhere(params, status)}
+                  AND ${creationFeedWhere(params, status, mediaType)}
             `;
-
-      if (mediaType) {
-        params.push(mediaType);
-        query += ` AND media_type = $${params.length}`;
-      }
 
       params.push(Math.min(Math.max(1, Math.trunc(limit)), USER_SHARES_MAX_LIMIT));
       query += ` ORDER BY created_at DESC LIMIT $${params.length}`;
@@ -1266,6 +1324,8 @@ class SharedMediaService {
       'video/mp4': 'mp4',
       'video/webm': 'webm',
       'video/quicktime': 'mov',
+      'audio/mpeg': 'mp3',
+      'audio/wav': 'wav',
     };
     return mimeToExt[mimeType] || 'bin';
   }
