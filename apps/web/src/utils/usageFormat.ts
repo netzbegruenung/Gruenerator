@@ -27,6 +27,7 @@ export const FEATURE_LABELS: Record<UsageFeature, string> = {
   sites: 'Websites',
   texte: 'Texte',
   notebook: 'Notebooks',
+  voice: 'Voice',
   other: 'Sonstiges',
 };
 

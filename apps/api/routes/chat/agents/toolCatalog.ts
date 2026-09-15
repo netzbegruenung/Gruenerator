@@ -100,6 +100,7 @@ import { harvestSearchImages, imageDeliveryNote } from './searchImageHarvest.js'
 import { agentAllowsWebSearch, createSearchTools } from './searchTools.js';
 import { makeRecipesTool } from './textFormTools.js';
 import { makeUserAgentsTool } from './userAgentTools.js';
+import { makeVertonenTool } from './voiceTools.js';
 
 import type { AgentConfig } from './types.js';
 import type { ChatGraphState, SearchResult } from '../../../agents/langgraph/ChatGraph/types.js';
@@ -142,6 +143,30 @@ const CATALOG_TOOLS = new Set([
 
 /** Tools whose results feed the citation registry and get the lean `sources` shape. */
 const SOURCE_HARVEST_TOOLS = new Set(['gruenerator_search', 'web_search']);
+
+/**
+ * Which record keys gate each search-family tool on the LOOP path — the tool
+ * stays away if ANY of them is switched off. The single pass has honoured these
+ * keys all along (`searchBranch.ts`, under the intent name), while this catalog
+ * mounted the corpora for every turn — so an agent without "Grünerator-Wissen"
+ * lost it on single-pass turns and kept it on loop turns, which is the same
+ * tool answering to two different rules (#3307).
+ *
+ * Two keys reach the press examples because two different things write them:
+ * `examples` is the agent picker's entry, `pressemitteilung_examples` is the
+ * composer toggle and the classifier intent of the same name (`ToolKey` in
+ * packages/chat/src/stores/chatStore.ts). Asking only the first would let a
+ * composer opt-out close the corpus on single-pass turns and not on loop turns.
+ *
+ * `web_search` is deliberately absent: its door is the agent's own array, one
+ * capability behind two key names, and it closes above via
+ * `agentAllowsWebSearch`.
+ */
+const CATALOG_TOOL_PICKER_KEYS: Readonly<Record<string, readonly string[]>> = {
+  gruenerator_search: ['search'],
+  gruenerator_examples_search: ['examples'],
+  gruenerator_pressemitteilung_examples: ['examples', 'pressemitteilung_examples'],
+};
 
 /**
  * Snippet budget for `scrape_url`. A deliberate page read deserves far more
@@ -408,6 +433,8 @@ export function buildChatToolCatalog(params: {
   const tools: ToolSet = {};
   for (const [name, def] of Object.entries(base)) {
     if (!CATALOG_TOOLS.has(name) || researchBanned) continue;
+    const pickerKeys = CATALOG_TOOL_PICKER_KEYS[name];
+    if (pickerKeys?.some((key) => loop?.state.enabledTools?.[key] === false)) continue;
 
     if (!SOURCE_HARVEST_TOOLS.has(name)) {
       // Examples tools: surfaced to the model + UI as-is (they render via the
@@ -761,9 +788,13 @@ NICHT für eine Zusammenfassung des ganzen Dokuments — dafür gibt es \`summar
     if (isIntentAllowedForLocale('abgeordnetenwatch', state.userLocale)) {
       tools.abgeordnetenwatch = makeAbgeordnetenwatchTool({ state, sourceRegistry });
     }
-    // `umfragen` is NOT gated: PolitPro covers the Austrian parliaments, and the
-    // tool resolves them from `state.userLocale`.
-    tools.umfragen = makeUmfragenTool({ sourceRegistry, state });
+    // `umfragen` is not LOCALE-gated: PolitPro covers the Austrian parliaments,
+    // and the tool resolves them from `state.userLocale`. It is gated on the
+    // picker key behind it ("Umfragen"), which reached nothing at all before
+    // #3307 — the checkbox existed and the tool mounted anyway.
+    if (state.enabledTools?.['meinungsbild'] !== false) {
+      tools.umfragen = makeUmfragenTool({ sourceRegistry, state });
+    }
     // Documentation search (`hilfe`). Mounted broadly like the other domain
     // tools — the classifier routinely labels an operating question `direct` or
     // `search`, and gating on intent would hide the tool exactly then. In-process
@@ -850,13 +881,19 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
       threadId: loop.threadId ?? null,
       sourceRegistry,
     };
-    if (state.enabledTools?.['find_content'] !== false) {
+    // "Eigene Inhalte" (`user_content`) is the picker key that covers the
+    // user's own texts and documents; the per-tool keys are the finer grain the
+    // loop's other callers switch on. Both are asked, because only the picker
+    // key is something an agent could actually uncheck — and it gated nothing
+    // until #3307, so an agent told not to read the user's content read it.
+    const userContentAllowed = state.enabledTools?.['user_content'] !== false;
+    if (userContentAllowed && state.enabledTools?.['find_content'] !== false) {
       tools.find_content = makeFindContentTool(personalCtx);
     }
     if (state.enabledTools?.['search_threads'] !== false) {
       tools.search_threads = makeSearchThreadsTool(personalCtx);
     }
-    if (state.enabledTools?.['documents'] !== false) {
+    if (userContentAllowed && state.enabledTools?.['documents'] !== false) {
       tools.documents = makeDocumentsTool(personalCtx);
       // Gated together with `documents` on purpose: they are the pointer and
       // the content of the same thing. A catalog that can LIST artifacts but
@@ -970,6 +1007,17 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
       const pdfCtx = { state, sse, threadId: loop.threadId ?? null };
       tools.read_pdf_form = makeReadPdfFormTool(pdfCtx);
       tools.fill_pdf_form = makeFillPdfFormTool(pdfCtx);
+    }
+    // Text → audio file (Grünerator Voice engine). Never in an editor sidebar:
+    // the file is a NEW artifact, and those surfaces only edit the open one.
+    // The voice comes from the person's settings, the same precedence the
+    // read-aloud button and /api/voice/speech/generate use.
+    if (!editorSurface && state.enabledTools?.['vertonen'] !== false) {
+      tools.vertonen = makeVertonenTool({
+        state,
+        sse,
+        voiceId: loop.req?.user?.tts_voice_id ?? null,
+      });
     }
     // Image is expensive + rate-limited and the classifier routes it reliably,
     // so it stays intent-scoped (and gated). image_edit stays single-pass.

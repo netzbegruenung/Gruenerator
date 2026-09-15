@@ -748,3 +748,38 @@ describe('Pipeline-Turn: genau ein Ausgangstext im Prompt', () => {
     expect(out).toContain('Radwege');
   });
 });
+
+/**
+ * `vision` ("Bildanalyse") war der dritte Schlüssel ohne Gatter (#3307). Die
+ * Bytes hängt `responseSinglePass` an die Nachricht; dieser Prompt-Block sagt
+ * dem Modell, dass sie da sind. Beide müssen dieselbe Antwort geben — ein
+ * Prompt, der Sichtbarkeit behauptet, während die Injektion ausblieb, ist die
+ * Bauanleitung für eine erfundene Bildbeschreibung.
+ */
+describe('formatImageContext — die Sichtbarkeitszusage folgt dem vision-Schalter', () => {
+  const withImages = (enabledTools: Record<string, boolean>) =>
+    makeState({
+      intent: 'direct',
+      searchResults: [],
+      citations: [],
+      agentConfig: { identifier: 'gruenerator-universal' },
+      enabledTools,
+      imageAttachments: [{ name: 'plakat.png', type: 'image/png', data: 'AAAA' }],
+    } as unknown as Partial<ChatGraphState>);
+
+  it('sagt dem Modell, dass die Bilder sichtbar sind, wenn vision an ist', async () => {
+    const out = await buildSystemMessage(withImages({}));
+    expect(out).toContain('ANGEHÄNGTE BILDER');
+    expect(out).toContain('plakat.png');
+    expect(out).toContain('sind in der Nachricht sichtbar');
+  });
+
+  it('nennt die Bilder weiter, sagt aber, dass sie NICHT sichtbar sind', async () => {
+    // Verschweigen wäre die andere Falle: die Person hat ein Bild angehängt
+    // und erwartet eine Reaktion darauf, nicht Schweigen.
+    const out = await buildSystemMessage(withImages({ vision: false }));
+    expect(out).toContain('plakat.png');
+    expect(out).toContain('NICHT in der Nachricht sichtbar');
+    expect(out).not.toContain('Die Bilder sind in der Nachricht sichtbar');
+  });
+});

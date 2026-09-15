@@ -231,6 +231,41 @@ updates:
       python:
         patterns:
           - '*'
+    # requirements*.txt is a COMPILED CLOSURE, and Dependabot rewrites single
+    # lines in it instead of recompiling. It therefore proposes transitive
+    # versions the closure's own pins forbid, and the resulting PR cannot
+    # install at all: #3272 and #3305 both carried
+    # `pydantic-core` 2.46.5 -> 2.49.0 while leaving `pydantic==2.13.5`, which
+    # requires `pydantic-core==2.46.5` EXACTLY, so `NLP Service (Python)` died
+    # with `ResolutionImpossible` before it ever reached pytest.
+    #
+    # The two rules below are derived from PyPI metadata for all 57 pinned
+    # packages, not from the two that happened to break (#3303):
+    #   - exactly ONE package is locked to a single version (pydantic-core);
+    #   - 25 of the 57 are upper-capped by a parent (`thinc<8.4.0` from spacy,
+    #     `blis<1.4.0` from thinc, `numpy<3.0.0`, `anyio<5`, ...), so a MAJOR
+    #     bump of any of them cannot resolve on its own.
+    # `httpcore` looks locked too (`httpx` requires `httpcore==1.*`) but that
+    # wildcard admits every 1.x, so it is deliberately NOT ignored here.
+    #
+    # Minor and patch bumps of the other 56 still come through, which is where
+    # the real security value is. A MAJOR — of a transitive or of a direct
+    # dependency (fastapi, spacy, pydantic, uvicorn, orjson) — is a deliberate
+    # recompile, not a line edit:
+    #   uv pip compile pyproject.toml -o requirements.txt
+    #   uv pip compile pyproject.toml --extra dev -o requirements-dev.txt
+    # Same shape as the docker entry below, and the same tradeoff: a
+    # major-only security fix would need that recompile by hand. The Dependabot
+    # ALERT still fires either way.
+    #
+    # Do NOT use per-PR `@dependabot ignore` comments for this instead. They are
+    # account/repo state that leaves no trace in this file, and the one used to
+    # close #3272 (`@dependabot ignore pydantic-core`) did not stop #3305 from
+    # proposing the identical impossible bump a week later.
+    ignore:
+      - dependency-name: 'pydantic-core'
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']
 
   # =============================================================================
   # DOCKER - base images of the six Dockerfiles we ship

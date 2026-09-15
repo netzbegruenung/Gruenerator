@@ -288,3 +288,50 @@ describe('agentAllowsWebSearch — corpus-bound agents keep off the open web', (
     expect(agentAllowsWebSearch(withTools([]))).toBe(false);
   });
 });
+
+/**
+ * `enabledToolKeys` is the board/headless path's narrowing (`restrictToAgentTools`
+ * in agentFlow/generate.ts hands the agent's `enabledTools` in verbatim). It
+ * used to compare against a raw `Set`, so it only understood the PICKER keys —
+ * while the editor and LV agents declare RAW TOOL NAMES in their frontmatter.
+ * An agent asking for `gruenerator_search` therefore lost the corpus it had
+ * just asked for (#3307). One vocabulary now: `agentAllowsTool`.
+ */
+describe('createSearchTools — enabledToolKeys speaks both vocabularies', () => {
+  const namesFor = (enabledToolKeys: readonly string[]) =>
+    Object.keys(createSearchTools(AGENT, { userLocale: 'de-DE', enabledToolKeys }));
+
+  it('keeps the full family when the caller narrows nothing', () => {
+    const names = Object.keys(createSearchTools(AGENT, { userLocale: 'de-DE' }));
+    expect(names).toContain('gruenerator_search');
+    expect(names).toContain('web_search');
+    expect(names).toContain('gruenerator_examples_search');
+  });
+
+  it('honours the picker keys', () => {
+    const names = namesFor(['search']);
+    expect(names).toContain('gruenerator_search');
+    expect(names).not.toContain('web_search');
+    expect(names).not.toContain('gruenerator_examples_search');
+    expect(names).not.toContain('gruenerator_pressemitteilung_examples');
+  });
+
+  it('reads a raw tool name as its picker key', () => {
+    // The regression: `gruenerator_search` is what the editor agents declare.
+    expect(namesFor(['gruenerator_search'])).toContain('gruenerator_search');
+    expect(namesFor(['web_search'])).toContain('web_search');
+    expect(namesFor(['gruenerator_examples_search'])).toContain('gruenerator_examples_search');
+  });
+
+  it('keeps `web` and `research` one capability', () => {
+    expect(namesFor(['research'])).toContain('web_search');
+    expect(namesFor(['web'])).toContain('web_search');
+  });
+
+  it('drops the whole family for a caller that allows none of it', () => {
+    const names = namesFor(['pdf_form']);
+    expect(names).not.toContain('gruenerator_search');
+    expect(names).not.toContain('web_search');
+    expect(names).not.toContain('gruenerator_examples_search');
+  });
+});

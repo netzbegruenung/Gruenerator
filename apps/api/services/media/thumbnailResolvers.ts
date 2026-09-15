@@ -75,6 +75,9 @@ async function resolveMedia(shareToken: string): Promise<ResolvedThumbnail> {
     return { ok: true, sourcePath: posterPath, contentType: 'image/jpeg' };
   }
 
+  // Generated speech has no picture at all; keep sharp away from the mp3.
+  if (share.media_type === 'audio') return { ok: false, reason: 'not_found' };
+
   const mediaPath = service.getMediaFilePath(share.file_path ?? null);
   if (!mediaPath) return { ok: false, reason: 'not_found' };
 

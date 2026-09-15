@@ -12,7 +12,7 @@ import {
 import type { AllowedMimeType, SharedMediaRow } from '../../types/media.js';
 
 interface MediaListQuery {
-  type?: 'image' | 'video' | 'all';
+  type?: 'image' | 'video' | 'audio' | 'all';
   search?: string;
   limit?: string;
   offset?: string;
@@ -21,7 +21,7 @@ interface MediaListQuery {
 
 interface MediaSearchQuery {
   q?: string;
-  type?: 'image' | 'video' | 'all';
+  type?: 'image' | 'video' | 'audio' | 'all';
   limit?: string;
 }
 
@@ -93,7 +93,8 @@ function transformMediaItem(item: SharedMediaRow) {
     thumbnailUrl: item.thumbnail_path ? `/api/share/${item.share_token}/preview` : null,
     fileSize: item.file_size,
     mimeType: item.mime_type,
-    duration: item.duration,
+    // NUMERIC arrives from pg as a string; the shared type promises a number.
+    duration: item.duration === null ? null : Number(item.duration),
     imageType: item.image_type,
     imageMetadata: item.image_metadata,
     altText: item.alt_text,
