@@ -80,6 +80,7 @@
     "babel-plugin-react-compiler": "1.0.0",
     "jsdom": "^30.0.1",
     "pyodide": "^314.0.5",
+    "tailwind-merge": "^3.6.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.11",
     "vitest-axe": "^0.1.0"
