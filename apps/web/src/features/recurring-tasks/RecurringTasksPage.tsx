@@ -5,22 +5,39 @@
  */
 import { type RecurringTask } from '@gruenerator/contracts';
 import { ConfirmDialogProvider, useConfirm } from '@gruenerator/ui';
-import { Link, useNavigate } from 'react-router-dom';
+import { useEffect, useRef } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { useDeleteRecurringTask, useRecurringTasks, useUpdateRecurringTask } from './api';
 import { RunHistoryDisclosure } from './RunHistory';
 import { DELIVERY_LABEL, describeRecurrence } from './scheduleState';
 import { useRecurringRunNow } from './useRecurringRunNow';
 
-function TaskRow({ task }: { task: RecurringTask }) {
+function TaskRow({ task, highlighted }: { task: RecurringTask; highlighted: boolean }) {
   const update = useUpdateRecurringTask();
   const remove = useDeleteRecurringTask();
   const confirm = useConfirm();
   const navigate = useNavigate();
+  const rowRef = useRef<HTMLDivElement | null>(null);
+
+  // Aus der Benachrichtigung oder direkt nach dem Anlegen kommt ?task=<id> —
+  // die Zeile muss dann sichtbar UND fokussiert sein, sonst sucht die Person
+  // ihre Aufgabe in einer langen Liste.
+  useEffect(() => {
+    if (!highlighted || !rowRef.current) return;
+    rowRef.current.scrollIntoView({ block: 'center' });
+    rowRef.current.focus();
+  }, [highlighted]);
   const { start: startRun, isBusy } = useRecurringRunNow(task, (url) => void navigate(url));
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-4">
+    <div
+      ref={rowRef}
+      tabIndex={-1}
+      className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4 ${
+        highlighted ? 'border-primary-500' : 'border-border'
+      }`}
+    >
       <div className="min-w-0">
         <p className="font-medium">{task.title}</p>
         <p className="truncate text-sm text-muted-foreground">{task.instruction}</p>
@@ -38,7 +55,12 @@ function TaskRow({ task }: { task: RecurringTask }) {
               })
             : 'noch nie'}
         </p>
-        <RunHistoryDisclosure taskId={task.id} delivery={task.delivery} limit={10} />
+        <RunHistoryDisclosure
+          taskId={task.id}
+          delivery={task.delivery}
+          limit={10}
+          defaultOpen={highlighted}
+        />
       </div>
       <div className="flex items-center gap-2">
         {/* Only agents that resolve as editable user agents (created via the
@@ -98,6 +120,8 @@ function TaskRow({ task }: { task: RecurringTask }) {
  */
 export function RecurringTasksManager() {
   const { data: tasks, isLoading } = useRecurringTasks();
+  const [params] = useSearchParams();
+  const focusTaskId = params.get('task');
 
   // `useConfirm` fällt ohne Provider auf `window.confirm` zurück; der Provider
   // hier liefert stattdessen den fokusgeführten AlertDialog.
@@ -114,7 +138,7 @@ export function RecurringTasksManager() {
         ) : (
           <div className="flex flex-col gap-3">
             {tasks.map((task) => (
-              <TaskRow key={task.id} task={task} />
+              <TaskRow key={task.id} task={task} highlighted={task.id === focusTaskId} />
             ))}
           </div>
         )}
