@@ -31,10 +31,11 @@ describe('imageVisibility', () => {
     expect(imageVisibility(state({ enabledTools: { vision: false } }))).toBe('vision_off');
   });
 
-  it('nennt bei image_edit die Beschreibungen als Grund', () => {
+  it('nennt bei image_edit die Bearbeitung als Grund', () => {
     // Die Rohbytes bleiben dort bewusst draußen; der Prompt darf trotzdem nicht
-    // behaupten, das Modell sähe sie.
-    expect(imageVisibility(state({ intent: 'image_edit' }))).toBe('image_edit_descriptions');
+    // behaupten, das Modell sähe sie. Ob es ERSATZ hat (BILDVERGLEICH), sagt
+    // dieser Wert bewusst nicht — die Beschreibungen dürfen fehlschlagen.
+    expect(imageVisibility(state({ intent: 'image_edit' }))).toBe('image_edit');
   });
 
   it('nennt den ausdrücklichen Schalter zuerst, wenn beide Gründe zutreffen', () => {

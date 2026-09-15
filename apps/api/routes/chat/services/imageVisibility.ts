@@ -33,13 +33,17 @@ export type ImageVisibility =
   /** „Bildanalyse" ist für diesen Grünerator ausgeschaltet (#3307). */
   | 'vision_off'
   /**
-   * `image_edit`: Das Modell erzählt aus den BILDVERGLEICH-Beschreibungen, die
-   * `imageEditNode` von einem Vision-Modell geholt hat. Die Rohbytes bleiben
-   * bewusst draussen — sie stünden sonst vor einem Modell, das sie nicht
-   * dekodieren kann, und wären neben den Beschreibungen eine zweite,
-   * konkurrierende Erdungsquelle.
+   * `image_edit`: Die Rohbytes bleiben bewusst draussen — sie stünden sonst vor
+   * einem Modell, das sie nicht dekodieren kann, und wären neben den
+   * BILDVERGLEICH-Beschreibungen eine zweite, konkurrierende Erdungsquelle.
+   *
+   * Dass es diese Beschreibungen GIBT, sagt dieser Wert ausdrücklich nicht: sie
+   * sind zwei Vision-Aufrufe in `imageEditNode`, die beide fehlschlagen dürfen.
+   * Wer dem Modell sagt, es solle sich auf den Block stützen, sieht vorher nach,
+   * ob er gerendert wird (`formatImageContext`) — auf einen fehlenden Abschnitt
+   * zu zeigen ist derselbe Fehler wie eine erfundene Sichtbarkeit.
    */
-  | 'image_edit_descriptions';
+  | 'image_edit';
 
 /**
  * Sieht das Modell die angehängten Bilder in diesem Zug?
@@ -53,6 +57,6 @@ export function imageVisibility(
 ): ImageVisibility {
   if (!state.imageAttachments || state.imageAttachments.length === 0) return 'none';
   if (state.enabledTools?.['vision'] === false) return 'vision_off';
-  if (state.intent === 'image_edit') return 'image_edit_descriptions';
+  if (state.intent === 'image_edit') return 'image_edit';
   return 'visible';
 }
