@@ -9,6 +9,7 @@ import {
 import { createLogger } from '../../utils/logger.js';
 import { COLORS } from '../sharepic/canvas/config.js';
 import { checkFiles, registerFonts } from '../sharepic/canvas/fileManagement.js';
+import { wrapTextLines as wrapText } from '../sharepic/textLayout.js';
 
 import type {
   BrandColors,
@@ -57,31 +58,6 @@ export const VARIANT_CONFIGS: Readonly<Record<string, VariantConfig>> = {
     defaultTextColor: BRAND_COLORS.WHITE,
   },
 };
-
-function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
-  const words = text.split(' ');
-  const lines: string[] = [];
-  let currentLine = '';
-
-  for (let i = 0; i < words.length; i++) {
-    const word = words[i];
-    const testLine = currentLine ? currentLine + ' ' + word : word;
-    const testWidth = ctx.measureText(testLine).width;
-
-    if (testWidth > maxWidth && currentLine) {
-      lines.push(currentLine);
-      currentLine = word;
-    } else {
-      currentLine = testLine;
-    }
-  }
-
-  if (currentLine) {
-    lines.push(currentLine);
-  }
-
-  return lines;
-}
 
 function calculateFontSize(
   ctx: CanvasRenderingContext2D,

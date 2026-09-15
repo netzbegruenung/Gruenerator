@@ -1,3 +1,5 @@
+import { normalizeListMarkers, splitListItems } from '@gruenerator/contracts';
+
 import { createLogger } from '../logger.js';
 
 const log = createLogger('sharepic-textParser');
@@ -178,18 +180,65 @@ export function parseLabeledTextBatch(
   return results;
 }
 
+export interface SanitizeFieldOptions {
+  /**
+   * Zeilenumbrüche VOR einer Aufzählungszeile erhalten. Nur für Felder
+   * setzen, die eine Liste tragen dürfen — siehe `multilineFields` in
+   * `TYPE_CONFIGS`.
+   */
+  keepListBreaks?: boolean;
+}
+
 /**
- * Sanitize a field value by removing markdown and normalizing whitespace
+ * Sanitize a field value by removing markdown and normalizing whitespace.
+ *
+ * Ohne `keepListBreaks` schmilzt `\s+` jeden Umbruch zu einem Leerzeichen —
+ * das war der Grund, warum KEIN KI-generierter Sharepic-Text je eine
+ * Aufzählung tragen konnte: der Parser sammelt mehrzeilige Werte korrekt ein
+ * und diese Zeile warf sie direkt danach wieder weg.
+ *
+ * Mit `keepListBreaks` bleibt ein Umbruch genau dann stehen, wenn die nächste
+ * Zeile mit einem Marker beginnt. Ein Modell, das seine Prosa auf 80 Zeichen
+ * umbricht, läuft weiterhin zu einem Absatz zusammen — sonst hätte die
+ * Korrektur harte Umbrüche mitten in Sätze gesetzt.
  */
-export function sanitizeField(value: string | undefined | null): string {
+export function sanitizeField(
+  value: string | undefined | null,
+  options: SanitizeFieldOptions = {}
+): string {
   if (!value || typeof value !== 'string') return '';
 
-  return value
+  if (!options.keepListBreaks) {
+    return value
+      .replace(/\*{1,3}/g, '')
+      .replace(/_{1,2}/g, '')
+      .replace(/#\w+/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  // Marker ZUERST vereinheitlichen: der Markdown-Strip unten entfernt `*`,
+  // und `* Punkt` wäre danach nur noch ` Punkt` — der Marker wäre weg, bevor
+  // ihn jemand erkennen kann.
+  const stripped = normalizeListMarkers(value)
     .replace(/\*{1,3}/g, '')
     .replace(/_{1,2}/g, '')
-    .replace(/#\w+/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
+    .replace(/#\w+/g, '');
+
+  // `splitListItems` entscheidet blockweise, was ein Marker ist (eine einzelne
+  // Ziffernzeile wie „1. Mai" ist ein Datum, keine Aufzählung).
+  let out = '';
+  for (const item of splitListItems(stripped)) {
+    const body = item.body.replace(/[^\S\n]+/g, ' ').trim();
+    if (!body && !item.marker) continue;
+    const line = item.marker ? `${item.marker} ${body}` : body;
+    if (out === '') {
+      out = line;
+      continue;
+    }
+    out += item.marker ? `\n${line}` : ` ${line}`;
+  }
+  return out.trim();
 }
 
 /**
