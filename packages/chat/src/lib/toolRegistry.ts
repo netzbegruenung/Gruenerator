@@ -66,6 +66,8 @@ export const UI_TOOL_NAMES = z.enum([
   // apps/api enforces exactly that. F0: additive only, never renamed.
   'rezept_laden',
   'sharepic',
+  // Persisted by the deterministic edit lane (sharepicEditService), not the loop.
+  'sharepic_edit',
   'create_document',
   'create_presentation',
   'create_sheet',
@@ -303,6 +305,15 @@ function parseSharepicVM(args: unknown, result: unknown): ToolResultVM {
   if (error) return { kind: 'text-note', text: error };
   const note = getString(result, 'note');
   return note ? { kind: 'text-note', text: note } : parseGenericFallback(args, result);
+}
+
+// The edited picture re-renders via `sharepic_updated`; the card names the
+// change. The rest of the result is canvas/variant UUIDs nobody should see.
+function parseSharepicEditVM(args: unknown, result: unknown): ToolResultVM {
+  const error = getString(result, 'error');
+  if (error) return { kind: 'text-note', text: error };
+  const summary = getString(result, 'summary');
+  return summary ? { kind: 'text-note', text: summary } : parseGenericFallback(args, result);
 }
 
 // read_artifact has an ambiguous-match branch (`candidates`) that the generic
@@ -708,6 +719,7 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   // --- Loop-catalog tools, previously falling through to the raw-name pill ---
   rezept_laden: entry('rezept_laden', 'text-note', parseRecipeVM),
   sharepic: entry('sharepic', 'text-note', parseSharepicVM),
+  sharepic_edit: entry('sharepic_edit', 'text-note', parseSharepicEditVM),
   create_document: entry('create_document', 'text-note', parseArtifactCreatedVM),
   create_presentation: entry('create_presentation', 'text-note', parseArtifactCreatedVM),
   create_sheet: entry('create_sheet', 'text-note', parseArtifactCreatedVM),

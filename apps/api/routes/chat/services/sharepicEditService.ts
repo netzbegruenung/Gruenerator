@@ -484,6 +484,8 @@ export function appendRejectedOpsNote(
   return `${reply}\n\nNicht übernommen: ${reasons} ` + 'Im Studio lässt sich das direkt anpassen.';
 }
 
+const NO_BACKGROUND_IMAGE_REASON = 'Kein passendes Hintergrundbild gefunden';
+
 /**
  * Core of an edit: validate ops against the descriptor, resolve stock-image
  * queries, apply the patch (live-broadcasts into open studio tabs), snapshot
@@ -506,6 +508,8 @@ export async function applySharepicOpsToCanvas(args: {
     args;
 
   const opsResult = sharepicOpsToStatePatch(descriptor, operations, state);
+  const rejected = opsResult.rejected.map((r) => ({ kind: r.op.kind, reason: r.reason }));
+  let appliedKinds = opsResult.applied.map((o) => o.kind);
 
   // Resolve stock-photo queries server-side (dreizeilen background).
   if (opsResult.imageQueries.length > 0 && descriptor.backgroundImage) {
@@ -519,10 +523,13 @@ export async function applySharepicOpsToCanvas(args: {
       opsResult.patch.hasBackgroundImage = true;
     } catch (err) {
       log.warn(`[SharepicEdit] Image selection failed: ${err}`);
+      // The op validated but wrote nothing — report it as not applied so the
+      // reply cannot describe a background that never changed (#3290).
+      rejected.push({ kind: 'set-background-image', reason: NO_BACKGROUND_IMAGE_REASON });
+      appliedKinds = appliedKinds.filter((k) => k !== 'set-background-image');
     }
   }
 
-  const rejected = opsResult.rejected.map((r) => ({ kind: r.op.kind, reason: r.reason }));
   if (rejected.length > 0) {
     log.warn(
       `[SharepicEdit] Rejected ops: ${rejected.map((r) => `${r.kind}: ${r.reason}`).join(' | ')}`
@@ -566,7 +573,7 @@ export async function applySharepicOpsToCanvas(args: {
     ok: true,
     version,
     newState,
-    appliedKinds: opsResult.applied.map((o) => o.kind),
+    appliedKinds,
     rejected,
   };
 }
@@ -635,6 +642,7 @@ export async function applySliderOpsToDeck(args: {
         }
       } catch (err) {
         log.warn(`[SliderDeck] Image selection failed for slide ${pageId}: ${err}`);
+        rejected.push({ kind: 'set-background-image', reason: NO_BACKGROUND_IMAGE_REASON });
       }
     }
   }
