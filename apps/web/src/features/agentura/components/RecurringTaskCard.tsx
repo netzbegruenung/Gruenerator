@@ -6,15 +6,12 @@
  */
 import { type RecurringTask } from '@gruenerator/contracts';
 import { PiPause, PiPencilSimple, PiPlay, PiRepeat, PiTrash } from 'react-icons/pi';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
-import {
-  useDeleteRecurringTask,
-  useRunRecurringTaskNow,
-  useUpdateRecurringTask,
-} from '../../recurring-tasks/api';
+import { useDeleteRecurringTask, useUpdateRecurringTask } from '../../recurring-tasks/api';
 import { RunHistoryDisclosure } from '../../recurring-tasks/RunHistory';
 import { DELIVERY_LABEL, describeRecurrence } from '../../recurring-tasks/scheduleState';
+import { useRecurringRunNow } from '../../recurring-tasks/useRecurringRunNow';
 
 /** Grau wie {@link MarketCard} — die Kachel steht in derselben Rasterzeile. */
 const ICON_BTN = 'rounded-md p-2 text-foreground-muted transition-colors hover:bg-hover-alt';
@@ -22,7 +19,8 @@ const ICON_BTN = 'rounded-md p-2 text-foreground-muted transition-colors hover:b
 export function RecurringTaskCard({ task }: { task: RecurringTask }) {
   const update = useUpdateRecurringTask();
   const remove = useDeleteRecurringTask();
-  const runNow = useRunRecurringTaskNow();
+  const navigate = useNavigate();
+  const { start: startRun, isBusy } = useRecurringRunNow(task, (url) => void navigate(url));
 
   const nextRun = new Date(task.nextRunAt).toLocaleString('de-DE', {
     dateStyle: 'short',
@@ -97,13 +95,18 @@ export function RecurringTaskCard({ task }: { task: RecurringTask }) {
           </button>
           <button
             type="button"
-            onClick={() => runNow.mutate(task.id)}
-            disabled={runNow.isPending}
+            onClick={startRun}
+            disabled={isBusy}
+            aria-busy={isBusy}
             className="inline-flex items-center gap-xs rounded-md border border-grey-200 px-sm py-1 text-xs font-medium text-foreground transition-colors hover:bg-hover-alt disabled:opacity-50 dark:border-grey-700"
           >
             <PiPlay className="h-3.5 w-3.5" />
-            Jetzt ausführen
+            {isBusy ? 'Läuft …' : 'Jetzt ausführen'}
           </button>
+          {/* Toasts erreichen Screenreader nicht verlässlich. */}
+          <span role="status" aria-live="polite" className="sr-only">
+            {isBusy ? `Lauf „${task.title}" läuft.` : ''}
+          </span>
         </div>
         <RunHistoryDisclosure taskId={task.id} delivery={task.delivery} limit={3} />
       </div>
