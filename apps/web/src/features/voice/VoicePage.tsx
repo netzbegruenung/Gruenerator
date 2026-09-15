@@ -34,6 +34,7 @@ import { formatFileSize } from '../../utils/formatFileSize';
 import { getPublicAppOrigin } from '../../utils/platform';
 import { formatCount } from '../../utils/usageFormat';
 
+import ScriptAssistant from './components/ScriptAssistant';
 import VoicePicker from './components/VoicePicker';
 import { useGenerateSpeech } from './hooks/useGenerateSpeech';
 import {
@@ -158,6 +159,15 @@ const VoicePage = () => {
             );
           })}
         </div>
+
+        <ScriptAssistant
+          preset={preset}
+          onDraft={(script) => {
+            setText(script.slice(0, def.maxChars));
+            generate.reset();
+            textareaRef.current?.focus();
+          }}
+        />
 
         <div className="flex flex-col gap-sm">
           <div className="flex flex-wrap items-center justify-between gap-sm">

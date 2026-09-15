@@ -77,3 +77,46 @@ export const speechErrorSchema = z.object({
   error: z.string(),
 });
 export type SpeechError = z.infer<typeof speechErrorSchema>;
+
+// ── AI script assistant ──────────────────────────────────────────────────────
+
+/**
+ * What the assistant is asked to draft. The preset decides which fields the
+ * form collects, so this is a discriminated union rather than one object with
+ * everything optional — an Audiodeskription without a visual to describe is
+ * not a request the server should have to guess about.
+ */
+export const draftScriptBodySchema = z.discriminatedUnion('preset', [
+  z.object({
+    preset: z.literal('mailbox'),
+    /** Whose answering machine this is — an office, a local group, a person. */
+    organisation: z.string().trim().min(1).max(120),
+    /** Named in the greeting, when the person wants to be. */
+    person: z.string().trim().max(120).nullish(),
+    /** Office hours, callback times — free text, spoken as given. */
+    reachability: z.string().trim().max(300).nullish(),
+    /** Where to turn in the meantime: an address, another number. */
+    alternative: z.string().trim().max(300).nullish(),
+    tone: z.enum(['freundlich', 'sachlich']),
+  }),
+  z.object({
+    preset: z.literal('vorlesefassung'),
+    /** The written original; the draft is its read-aloud rewrite. */
+    sourceText: z.string().trim().min(1).max(SPEECH_MAX_TEXT_CHARS),
+  }),
+  z.object({
+    preset: z.literal('audiodeskription'),
+    /** What is to be seen — the assistant turns it into spoken description. */
+    visualDescription: z.string().trim().min(1).max(4000),
+    /** Where the material appears: a post, an exhibition, a video. */
+    context: z.string().trim().max(500).nullish(),
+  }),
+]);
+export type DraftScriptBody = z.infer<typeof draftScriptBodySchema>;
+
+export const draftScriptResponseSchema = z.object({
+  success: z.literal(true),
+  /** Plain text for the editor — never longer than the editor accepts. */
+  script: z.string(),
+});
+export type DraftScriptResponse = z.infer<typeof draftScriptResponseSchema>;
