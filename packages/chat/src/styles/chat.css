@@ -8,6 +8,16 @@
 @source "../**/*.{js,ts,jsx,tsx}";
 
 /*
+ * Streamdown ships Tailwind utility classes in its dist (streaming caret,
+ * built-in controls). Tailwind v4 does not scan node_modules, so register the
+ * hoisted (node-linker=hoisted) workspace-root copies explicitly — without
+ * these the caret and any Streamdown chrome render unstyled. Only installed
+ * plugins need a line.
+ */
+@source "../../../../node_modules/streamdown/dist/*.js";
+@source "../../../../node_modules/@streamdown/math/dist/*.js";
+
+/*
  * Tailwind Theme Configuration
  * Custom colors and design tokens for the chat package
  */
@@ -167,6 +177,8 @@
   --color-destructive-foreground: #ffffff;
   --color-input: #e5e5e5;
   --color-ring: #316049;
+  /* Streamdown draws its code-block container on `bg-sidebar` (shadcn surface). */
+  --color-sidebar: var(--color-background-secondary);
 }
 
 @keyframes slide-in {
@@ -181,6 +193,23 @@
 
 :root {
   --radius: 0.5rem;
+
+  /*
+   * shadcn-style raw tokens consumed by Streamdown's built-in components
+   * (caret, controls). The repo's own tokens live in the `--color-*` namespace
+   * (see @theme above); this bridge aliases them. var() chains resolve at use
+   * time, so the [data-theme='dark'] overrides of --color-* apply automatically.
+   */
+  --background: var(--color-background);
+  --foreground: var(--color-foreground);
+  --card: var(--color-card);
+  --card-foreground: var(--color-card-foreground);
+  --muted: var(--color-muted);
+  --muted-foreground: var(--color-muted-foreground);
+  --border: var(--color-border);
+  --input: var(--color-input);
+  --primary: var(--color-primary);
+  --primary-foreground: var(--color-primary-foreground);
 }
 
 [data-theme='dark'] {
