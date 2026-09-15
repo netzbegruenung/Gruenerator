@@ -104,6 +104,42 @@ describe('ComputeCard with an audio asset', () => {
     expect(screen.queryByRole('button', { name: 'ansage.mp3' })).toBeNull();
   });
 
+  it('keeps a playing recording when the download fails', async () => {
+    const user = userEvent.setup();
+    render(<ComputeCard data={audioData} />);
+
+    await user.click(screen.getByRole('button', { name: /ansage\.mp3 anhören/ }));
+    await waitFor(() => expect(document.querySelector('audio')).not.toBeNull());
+
+    // The same URL served the playback moments ago, so a failure here is a
+    // transient blip or a file removed since. Either way the bytes in memory
+    // are fine and must keep playing.
+    fetchMock.mockResolvedValue({ ok: false });
+    await user.click(screen.getByRole('button', { name: 'ansage.mp3 herunterladen' }));
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'ansage.mp3 ist nicht mehr verfügbar' })
+      ).toBeDisabled()
+    );
+    expect(document.querySelector('audio')).not.toBeNull();
+    expect(screen.queryByText(/Die Aufnahme ist auf dem Server nicht mehr verfügbar/)).toBeNull();
+  });
+
+  it('reports the recording as gone when the download fails before anything played', async () => {
+    fetchMock.mockResolvedValue({ ok: false });
+    const user = userEvent.setup();
+    render(<ComputeCard data={audioData} />);
+
+    await user.click(screen.getByRole('button', { name: 'ansage.mp3 herunterladen' }));
+
+    // Nothing is playing, so there is no working thing to protect — the honest
+    // answer is the same one a chip gives.
+    expect(
+      await screen.findByText(/Die Aufnahme ist auf dem Server nicht mehr verfügbar/)
+    ).toBeInTheDocument();
+  });
+
   it('leaves a real calculation labelled as one', () => {
     render(
       <ComputeCard
