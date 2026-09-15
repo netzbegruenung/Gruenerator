@@ -1,6 +1,12 @@
 /**
  * Shared text utilities for canvas editor
+ *
+ * Umbruch, Aufzählungsmarker und hängender Einzug liegen in
+ * `@gruenerator/contracts` (`text/listLayout.ts`) — DOM-frei, damit die
+ * Vorschau hier und der Server-Renderer an derselben Stelle umbrechen. Hier
+ * bleibt nur, was ein Canvas braucht: die Messung.
  */
+import { layoutTextBlock, wrapLines, type MeasureText } from '@gruenerator/contracts';
 
 const _warnedFonts = new Set<string>();
 
@@ -14,24 +20,7 @@ export function wrapText(
   fontSize: number,
   charWidthRatio = 0.5
 ): string[] {
-  const charWidth = fontSize * charWidthRatio;
-  const maxCharsPerLine = Math.floor(maxWidth / charWidth);
-  const words = text.split(' ');
-  const lines: string[] = [];
-  let currentLine = '';
-
-  for (const word of words) {
-    const testLine = currentLine ? `${currentLine} ${word}` : word;
-    if (testLine.length <= maxCharsPerLine) {
-      currentLine = testLine;
-    } else {
-      if (currentLine) lines.push(currentLine);
-      currentLine = word;
-    }
-  }
-  if (currentLine) lines.push(currentLine);
-
-  return lines;
+  return wrapLines(text, maxWidth, (value) => value.length * fontSize * charWidthRatio);
 }
 
 /**
@@ -78,9 +67,23 @@ export function measureTextWidthWithFont(
   return ctx.measureText(text).width;
 }
 
+/** Bindet eine konkrete Schrift an eine Messfunktion für `listLayout`. */
+export function textMeasurer(
+  fontSize: number,
+  fontFamily: string,
+  fontStyle: string = 'normal'
+): MeasureText {
+  return (text: string) => measureTextWidthWithFont(text, fontSize, fontFamily, fontStyle);
+}
+
 /**
  * Wrap text using accurate font measurement
  * This produces line breaks that match actual Konva text rendering
+ *
+ * Bricht auch an `\n` und rechnet den Einzug einer Aufzählung mit — die
+ * Zeilenzahl ist genau das, was die Auto-Fit-Schleifen der Vorlagen auswerten.
+ * Die Marker stehen in den gelieferten Zeilen wieder vorn, damit Aufrufer, die
+ * die Strings zeichnen statt sie zu zählen, sich nicht ändern müssen.
  */
 export function wrapTextAccurate(
   text: string,
@@ -89,22 +92,7 @@ export function wrapTextAccurate(
   fontFamily: string,
   fontStyle: string = 'normal'
 ): string[] {
-  const words = text.split(' ');
-  const lines: string[] = [];
-  let currentLine = '';
-
-  for (const word of words) {
-    const testLine = currentLine ? `${currentLine} ${word}` : word;
-    const testWidth = measureTextWidthWithFont(testLine, fontSize, fontFamily, fontStyle);
-
-    if (testWidth <= maxWidth) {
-      currentLine = testLine;
-    } else {
-      if (currentLine) lines.push(currentLine);
-      currentLine = word;
-    }
-  }
-  if (currentLine) lines.push(currentLine);
-
-  return lines;
+  return layoutTextBlock(text, maxWidth, textMeasurer(fontSize, fontFamily, fontStyle)).map(
+    (line) => (line.marker ? `${line.marker} ${line.text}` : line.text)
+  );
 }
