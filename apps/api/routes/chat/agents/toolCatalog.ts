@@ -100,6 +100,7 @@ import { harvestSearchImages, imageDeliveryNote } from './searchImageHarvest.js'
 import { agentAllowsWebSearch, createSearchTools } from './searchTools.js';
 import { makeRecipesTool } from './textFormTools.js';
 import { makeUserAgentsTool } from './userAgentTools.js';
+import { makeVertonenTool } from './voiceTools.js';
 
 import type { AgentConfig } from './types.js';
 import type { ChatGraphState, SearchResult } from '../../../agents/langgraph/ChatGraph/types.js';
@@ -970,6 +971,17 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
       const pdfCtx = { state, sse, threadId: loop.threadId ?? null };
       tools.read_pdf_form = makeReadPdfFormTool(pdfCtx);
       tools.fill_pdf_form = makeFillPdfFormTool(pdfCtx);
+    }
+    // Text → audio file (Grünerator Voice engine). Never in an editor sidebar:
+    // the file is a NEW artifact, and those surfaces only edit the open one.
+    // The voice comes from the person's settings, the same precedence the
+    // read-aloud button and /api/voice/speech/generate use.
+    if (!editorSurface && state.enabledTools?.['vertonen'] !== false) {
+      tools.vertonen = makeVertonenTool({
+        state,
+        sse,
+        voiceId: loop.req?.user?.tts_voice_id ?? null,
+      });
     }
     // Image is expensive + rate-limited and the classifier routes it reliably,
     // so it stays intent-scoped (and gated). image_edit stays single-pass.

@@ -38,7 +38,18 @@ export interface GenerateSpeechInput {
   voiceId: string | null;
   speed: number | null;
   signal: AbortSignal | null;
+  /**
+   * Name of the Mediathek row. Null falls back to the preset's name, which is
+   * what the tool page sends — there the person picked the preset and sees the
+   * file appear. A caller that knows what the text is ABOUT (the chat tool)
+   * passes a real title, so the library does not fill up with rows all called
+   * "Vorlesefassung".
+   */
+  title?: string | null;
 }
+
+/** The media title column is not the place for a whole paragraph. */
+const MAX_TITLE_CHARS = 120;
 
 export interface GenerateSpeechOutput {
   durationSeconds: number;
@@ -133,7 +144,7 @@ export async function generateSpeechFiles(
   // One WAV buffer; the joined PCM only lives inside the concat.
   const wav = pcm16ToWav(Buffer.concat(parts), sampleRate);
   parts.length = 0;
-  const title = PRESET_TITLE[input.preset];
+  const title = input.title?.trim().slice(0, MAX_TITLE_CHARS) || PRESET_TITLE[input.preset];
 
   // The formats share one synthesis; encoding them at the same time costs a
   // second ffmpeg process and saves the second encode's wall clock.

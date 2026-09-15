@@ -1,7 +1,7 @@
 'use client';
 
-import { Calculator, Download, FileDown } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Calculator, Download, FileDown, Volume2 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 
 import { downloadBase64, downloadBlob, mimeFromFilename } from '../../lib/downloadBlob';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
@@ -74,6 +74,78 @@ function ComputeFigure({ url, index }: { url: string; index: number }) {
 const CHIP_CLASS =
   'flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1 text-xs text-foreground transition-colors hover:border-primary/50 hover:bg-primary/10';
 
+const AUDIO_FILE = /\.(mp3|wav)$/i;
+
+/**
+ * Listen to a generated audio file without leaving the chat.
+ *
+ * Loads on demand rather than with the message: a reopened thread would
+ * otherwise fetch every recording it ever produced. The bytes go through the
+ * configured fetch like every other asset — a bare `<audio src>` carries no
+ * Bearer and would break on desktop.
+ */
+function ComputeAudio({ file }: { file: { name: string; url: string } }) {
+  const [objectUrl, setObjectUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    if (!objectUrl) return;
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [objectUrl]);
+
+  // The fetch outlives the component when someone presses play and leaves. An
+  // object URL minted after unmount is never revoked, because the effect that
+  // would revoke it has already run its cleanup.
+  const gone = useRef(false);
+  useEffect(
+    () => () => {
+      gone.current = true;
+    },
+    []
+  );
+
+  const load = async () => {
+    setLoading(true);
+    const blob = await fetchAssetBlob(file.url);
+    if (gone.current) return;
+    setLoading(false);
+    if (!blob) {
+      setFailed(true);
+      return;
+    }
+    setObjectUrl(URL.createObjectURL(blob));
+  };
+
+  if (failed) {
+    return (
+      <p className="mb-2 text-xs text-foreground-muted">
+        Die Aufnahme ist auf dem Server nicht mehr verfügbar.
+      </p>
+    );
+  }
+
+  if (!objectUrl) {
+    return (
+      <button onClick={() => void load()} disabled={loading} className={`mb-2 ${CHIP_CLASS}`}>
+        <Volume2 className="h-3.5 w-3.5 text-primary" />
+        {loading ? 'Wird geladen …' : `${file.name} anhören`}
+      </button>
+    );
+  }
+
+  return (
+    // eslint-disable-next-line jsx-a11y/media-has-caption -- the audio IS the spoken form of the text in this message
+    <audio
+      controls
+      autoPlay
+      src={objectUrl}
+      aria-label={`${file.name} abspielen`}
+      className="mb-2 w-full"
+    />
+  );
+}
+
 /**
  * Inline card for a deterministic calculation (compute intent). Its whole
  * purpose is transparency: the numbers were computed by real code (not guessed
@@ -82,6 +154,11 @@ const CHIP_CLASS =
  */
 export function ComputeCard({ data }: { data: ComputeData }) {
   const [unavailable, setUnavailable] = useState<ReadonlySet<string>>(new Set());
+
+  // A vertonen result is not a calculation. Same card (one persistence path,
+  // one download path), honest heading.
+  const audioAssets = data.fileAssets?.filter((file) => AUDIO_FILE.test(file.name)) ?? [];
+  const isAudio = audioAssets.length > 0;
 
   const handleAssetDownload = async (file: { name: string; url: string }) => {
     // Fresh export: the interpreter just wrote these bytes in THIS browser —
@@ -104,17 +181,20 @@ export function ComputeCard({ data }: { data: ComputeData }) {
     <div
       className="my-5 w-full rounded-xl border border-border bg-background px-4 py-3"
       role="group"
-      aria-label={`Berechnung: ${data.operation}`}
+      aria-label={isAudio ? data.operation : `Berechnung: ${data.operation}`}
     >
       <div className="mb-2 flex items-center gap-2">
         <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-          <Calculator className="h-4 w-4" />
+          {isAudio ? <Volume2 className="h-4 w-4" /> : <Calculator className="h-4 w-4" />}
         </span>
         <span className="text-sm font-medium text-foreground">{data.operation}</span>
         <span className="ml-auto text-[11px] uppercase tracking-wide text-foreground-muted">
-          berechnet
+          {isAudio ? 'Audio' : 'berechnet'}
         </span>
       </div>
+      {audioAssets.map((file) => (
+        <ComputeAudio key={file.url} file={file} />
+      ))}
       {/* Server-stored figures (URL, small metadata) — the normal path. */}
       {data.figureUrls?.map((url, i) => (
         <ComputeFigure key={url} url={url} index={i} />
