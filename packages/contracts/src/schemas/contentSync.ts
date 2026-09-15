@@ -91,6 +91,19 @@ export const contentSyncResultSchema = z.object({
    * diesem Feld schlicht nichts sendet.
    */
   skipReasons: z.record(z.string(), z.number()).optional(),
+  /**
+   * KommunalWiki: Punkte gelöschter Wiki-Seiten, die der Lauf entfernt hat.
+   * Der Crawl läuft über `list=allpages` und sieht deshalb nur, was es noch
+   * gibt — ohne diesen Abgleich bleibt jede gelöschte Seite für immer stehen
+   * (#3198). Optional, weil ein Backend-Stand vor diesem Feld nichts sendet.
+   */
+  pruned: z.number().optional(),
+  /**
+   * Warum NICHT aufgeräumt wurde. Gesetzt, wenn eines der beiden Gatter
+   * gegriffen hat (leere Seitenliste oder Mengenschwelle) — ohne dieses Feld
+   * ist ein abgewürgter Lauf von einem sauberen nicht zu unterscheiden.
+   */
+  pruneSkippedReason: z.string().optional(),
   fetchErrors: z.number(),
   durationMs: z.number(),
 });
