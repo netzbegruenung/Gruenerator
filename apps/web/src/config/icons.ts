@@ -58,6 +58,7 @@ import {
   PiBrain,
   PiTextAlignLeftFill,
   PiTextAa,
+  PiTranslate,
   PiPaintBrush,
   PiArticle,
   PiSquaresFour,
@@ -148,7 +149,8 @@ export type NavigationIconName =
   | 'desk'
   | 'transkription'
   | 'monitor'
-  | 'zeichenzaehler';
+  | 'zeichenzaehler'
+  | 'uebersetzer';
 
 /**
  * Action icon names
@@ -269,6 +271,7 @@ export const ICONS: IconRegistry = {
     transkription: HiMicrophone,
     monitor: PiChartBar,
     zeichenzaehler: PiTextAa,
+    uebersetzer: PiTranslate,
   },
 
   actions: {

@@ -125,6 +125,12 @@
           "path": "/zeichenzaehler"
         },
         {
+          "id": "uebersetzer",
+          "title": "Übersetzer",
+          "description": "Texte & Dokumente übersetzen",
+          "path": "/uebersetzer"
+        },
+        {
           "id": "transkription",
           "title": "Transkription",
           "description": "Audio zu Text",
@@ -199,6 +205,11 @@
       "title": "Transkription",
       "path": "/transkription",
       "subtitle": "Audio mit KI verschriftlichen"
+    },
+    "tool-uebersetzer": {
+      "title": "Übersetzer",
+      "path": "/uebersetzer",
+      "subtitle": "Texte & Dokumente mit DeepL übersetzen"
     },
     "tool-vorlagen": {
       "title": "Vorlagen",

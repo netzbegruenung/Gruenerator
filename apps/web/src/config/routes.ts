@@ -244,6 +244,7 @@ const MobileRenderPage = lazy(() => import('../pages/MobileRenderPage'));
 
 const ScannerPage = lazy(() => import('../features/scanner/ScannerPage'));
 const ZeichenzaehlerPage = lazy(() => import('../features/zeichenzaehler/ZeichenzaehlerPage'));
+const UebersetzerPage = lazy(() => import('../features/uebersetzer/UebersetzerPage'));
 const TranskriptionPage = lazy(() => import('../features/transkription/TranskriptionPage'));
 const RecurringTasksPage = lazy(() => import('../features/recurring-tasks/RecurringTasksPage'));
 const WorkplacePage = lazy(() => import('../features/workplace/WorkplacePage'));
@@ -609,6 +610,7 @@ const standardRoutes: RouteConfig[] = [
   { path: '/reel/studio', component: SubStudioPage },
   { path: '/scanner', component: GrueneratorenBundle.Scanner },
   { path: '/zeichenzaehler', component: ZeichenzaehlerPage },
+  { path: '/uebersetzer', component: UebersetzerPage },
   { path: '/transfer', component: TransferRedirect, channel: 'internal' },
   { path: '/transkription', component: GrueneratorenBundle.Transkription },
   {

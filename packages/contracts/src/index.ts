@@ -82,6 +82,7 @@ export {
   chunkInspectorContract,
   skillVisibilityContract,
   instanceAdminOverviewContract,
+  translationContract,
   lvAdminAssignmentContract,
   landesverbandAdminContract,
   recurringTasksContract,
@@ -152,6 +153,7 @@ export * from './schemas/notifications.js';
 export * from './schemas/memory.js';
 export * from './schemas/email.js';
 export * from './schemas/feedback.js';
+export * from './schemas/translation.js';
 export * from './schemas/modelPreferences.js';
 export * from './schemas/imageModelPreference.js';
 export * from './schemas/mcpServers.js';

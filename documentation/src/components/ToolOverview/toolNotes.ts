@@ -105,6 +105,10 @@ export const TOOL_NOTES: Record<string, ToolNote> = {
     note: 'Zählt Zeichen und Wörter, mit den Grenzwerten der gängigen Social-Media-Plattformen.',
     platform: ['web', 'desktop', 'mobile'],
   },
+  uebersetzer: {
+    note: 'Übersetzt Texte und ganze Dokumente (DOCX, PPTX, PDF …) mit DeepL — das gepflegte Grünen-Glossar wird automatisch angewendet.',
+    platform: ['web', 'desktop'],
+  },
   transkription: {
     note: 'Verschriftlicht Audioaufnahmen — für Interviews, Sitzungen und Sprachnotizen.',
     platform: ['web', 'desktop', 'mobile'],

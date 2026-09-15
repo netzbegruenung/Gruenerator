@@ -130,6 +130,8 @@ import subtitlerShareRouter from './routes/subtitler/shareController.js';
 import { mountSubtitlerContractRouter } from './routes/subtitler/subtitlerContractRouter.js';
 import { universalRouter, textAdjustmentRouter } from './routes/texte/index.js';
 import { mountTexteContractRouter } from './routes/texte/texteContractRouter.js';
+import { mountTranslationContractRouter } from './routes/translation/translationContractRouter.js';
+import { translationUploadRouter } from './routes/translation/translationUploadRouter.js';
 import { mountTransparencyContractRouter } from './routes/transparency/transparencyContractRouter.js';
 import { mountUnsplashContractRouter } from './routes/unsplash/unsplashContractRouter.js';
 import { mountItemUsageContractRouter } from './routes/usage/itemUsageContractRouter.js';
@@ -506,6 +508,15 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/texte/website', requireAuth, requireAiConsent, aiGenerationLimiter);
   mountTexteContractRouter(app);
   app.use('/api/texte/social', requireAuth, requireAiConsent, aiGenerationLimiter, socialRoute);
+  // DeepL-Übersetzer (Seite + Admin-Glossar). Anmeldung und Art.-9-Einwilligung
+  // am Präfix, VOR dem Vertrags-Mount (createExpressEndpoints registriert auf
+  // der App). Kein aiGenerationLimiter: der Dokument-Status wird alle 3 s
+  // gepollt, die eigentliche Kostenbremse ist das Zeichenbudget je Nutzer*in
+  // (services/translation/translationQuota.ts). Der rohe Router danach trägt
+  // Upload (multipart) und Download (binär), die ts-rest nicht abbildet.
+  app.use('/api/translation', requireAuth, requireAiConsent, standardMutationLimiter);
+  mountTranslationContractRouter(app);
+  app.use('/api/translation', translationUploadRouter);
   app.use('/api/vision', aiGenerationLimiter, requireAuth, requireAiConsent, visionRouter);
   // ts-rest contract routers — mount before legacy routers.
   // Apply requireAuth on the path prefixes BEFORE the mount calls so

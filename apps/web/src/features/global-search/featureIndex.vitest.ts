@@ -49,6 +49,8 @@ describe('matchFeatures — tool search', () => {
     // Both sides fold ä→ae, so the umlaut spelling resolves to the tool.
     expect(pathsFor('zeichenzähler')).toContain('/zeichenzaehler');
     expect(pathsFor('zeichen')).toContain('/zeichenzaehler');
+    expect(pathsFor('übersetzer')).toContain('/uebersetzer');
+    expect(pathsFor('deepl')).toContain('/uebersetzer');
   });
 
   it('respects the limit', () => {
