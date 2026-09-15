@@ -8,9 +8,12 @@
  * server.ts.
  */
 import { createIntervalWorker } from '../../utils/intervalWorker.js';
+import { createLogger } from '../../utils/logger.js';
 
 import { runRecurringTask } from './recurringTaskRunner.js';
-import { claimDueRecurringTasks } from './recurringTasksRepository.js';
+import { claimDueRecurringTasks, sweepStaleRecurringRuns } from './recurringTasksRepository.js';
+
+const log = createLogger('RecurringTaskWorker');
 
 const CHECK_INTERVAL_MS = 60 * 1000; // every minute
 
@@ -19,11 +22,17 @@ const worker = createIntervalWorker({
   intervalMs: CHECK_INTERVAL_MS,
   initialDelayMs: 45_000,
   tick: async () => {
+    // ZUERST aufräumen: ein Lauf, den ein Absturz mitgerissen hat, steht sonst
+    // für immer auf 'running' und der Unique-Index sperrt die Aufgabe dauerhaft.
+    const swept = await sweepStaleRecurringRuns();
+    if (swept > 0)
+      log.warn(`${swept} Lauf/Läufe mit abgelaufener Frist als fehlgeschlagen verbucht`);
+
     const due = await claimDueRecurringTasks();
     // Run sequentially: each run holds a model slot, and the claim already advanced
     // next_run_at so a slow batch won't re-fire the same task on the next tick.
-    for (const task of due) {
-      await runRecurringTask(task);
+    for (const { task, runId } of due) {
+      await runRecurringTask(task, runId);
     }
   },
 });

@@ -25,6 +25,8 @@ function run(id: string, createdAt = '2026-09-01T07:00:00.000Z'): RecurringTaskR
     error: null,
     durationMs: 1000,
     verdict: null,
+    startedAt: null,
+    finishedAt: null,
     createdAt,
   };
 }

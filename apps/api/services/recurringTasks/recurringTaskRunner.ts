@@ -30,7 +30,7 @@ import { deriveTitle, type UserLocale } from '../boards/agentFlow/generate.js';
 import { createDocumentWithContent } from '../docs/DocGenerationService.js';
 import { createNotification } from '../notifications/NotificationService.js';
 
-import { recordRecurringTaskRun, setConsecutiveEmptyCount } from './recurringTasksRepository.js';
+import { finishRecurringTaskRun, setConsecutiveEmptyCount } from './recurringTasksRepository.js';
 import {
   verifyRecurringResult as verifyRecurringResultReal,
   type RunVerdict,
@@ -61,6 +61,8 @@ function preview(text: string, max = 140): string {
  */
 export async function runRecurringTask(
   task: RecurringTask,
+  /** Die beim Claim angelegte 'running'-Zeile, die dieser Lauf abschliesst. */
+  runId: string,
   deps: RecurringRunnerDeps = defaultDeps
 ): Promise<void> {
   const startedAt = Date.now();
@@ -100,8 +102,8 @@ export async function runRecurringTask(
     // Läuft VOR der Prüfung — Leeres wird nicht verifiziert.
     if (!content) {
       await setConsecutiveEmptyCount(task.id, task.consecutive_empty_count + 1);
-      await recordRecurringTaskRun({
-        taskId: task.id,
+      await finishRecurringTaskRun({
+        runId,
         status: 'empty',
         durationMs: Date.now() - startedAt,
       });
@@ -133,8 +135,8 @@ export async function runRecurringTask(
   } catch (error) {
     const err = error as Error;
     log.error(`Recurring task ${task.id} failed:`, err);
-    await recordRecurringTaskRun({
-      taskId: task.id,
+    await finishRecurringTaskRun({
+      runId,
       status: 'failed',
       error: err.message,
       durationMs: Date.now() - startedAt,
@@ -158,8 +160,8 @@ export async function runRecurringTask(
   // user). Best-effort: log and move on.
   try {
     await setConsecutiveEmptyCount(task.id, 0);
-    await recordRecurringTaskRun({
-      taskId: task.id,
+    await finishRecurringTaskRun({
+      runId,
       status: 'completed',
       resultsSummary: task.delivery === 'summary' ? content : preview(content, 280),
       resultUrl: delivered.actionUrl,
