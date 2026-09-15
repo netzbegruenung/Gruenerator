@@ -62,6 +62,8 @@ export const sharedMedia = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     user_id: uuid('user_id'),
     share_token: varchar('share_token', { length: 32 }).notNull().unique(),
+    // CHECK (video | image | transfer | audio) lives in schema.sql / the
+    // migrations; the contract's `storedMediaTypeSchema` mirrors that set.
     media_type: varchar('media_type', { length: 10 }).notNull(),
     title: text('title'),
     file_path: text('file_path'),

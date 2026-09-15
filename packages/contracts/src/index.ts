@@ -56,6 +56,7 @@ export {
   documentsContract,
   subtitlerContract,
   voiceContract,
+  speechContract,
   imagePickerContract,
   videoContract,
   sharepicContract,
@@ -143,6 +144,7 @@ export * from './schemas/documents.js';
 export * from './schemas/subtitler.js';
 export * from './schemas/voice.js';
 export * from './schemas/voiceLimits.js';
+export * from './schemas/speech.js';
 export * from './schemas/imagePicker.js';
 export * from './schemas/video.js';
 export * from './schemas/sharepic.js';

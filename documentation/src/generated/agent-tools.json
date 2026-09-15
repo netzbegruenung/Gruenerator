@@ -59,6 +59,11 @@
       "key": "cloud_files",
       "label": "Wolke",
       "description": "Durchsucht die verbundenen Wolke-Ordner, listet Dateien auf und liest sie — ausschließlich lesend."
+    },
+    {
+      "key": "vertonen",
+      "label": "Vertonen",
+      "description": "Macht aus einem Text eine Audiodatei zum Herunterladen – Ansage, Vorlesefassung oder Audiodeskription. Die Datei landet in der Mediathek."
     }
   ],
   "defaults": [

@@ -4,6 +4,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import {
   FaImage,
   FaVideo,
+  FaMusic,
   FaUpload,
   FaTrash,
   FaEdit,
@@ -13,10 +14,12 @@ import {
   FaExclamationTriangle,
 } from 'react-icons/fa';
 
+import AudioPlayer from '../../components/common/AudioPlayer';
 import LoginRequired from '../../components/common/LoginRequired/LoginRequired';
 import { SharedMediaImage } from '../../components/common/SharedMediaImage';
 import { useOptimizedAuth } from '../../hooks/useAuth';
 import { cn } from '../../utils/cn';
+import { formatAudioDuration } from '../../utils/formatAudioDuration';
 
 import type { MediaItem, MediaType } from '@gruenerator/shared/media-library';
 
@@ -109,6 +112,13 @@ const MediaCard: React.FC<MediaCardProps> = ({
             preload="metadata"
             className="w-full h-full object-cover"
           />
+        ) : item.mediaType === 'audio' ? (
+          <div className="w-full h-full flex flex-col items-center justify-center gap-xs text-grey-500">
+            <FaMusic className="text-3xl" aria-hidden="true" />
+            {item.duration ? (
+              <span className="text-xs">{formatAudioDuration(item.duration)}</span>
+            ) : null}
+          </div>
         ) : (
           <SharedMediaImage
             shareToken={item.shareToken}
@@ -120,7 +130,13 @@ const MediaCard: React.FC<MediaCardProps> = ({
           />
         )}
         <span className="absolute top-sm left-sm px-sm py-xs bg-black/60 text-white rounded-lg text-xs">
-          {item.mediaType === 'video' ? <FaVideo /> : <FaImage />}
+          {item.mediaType === 'video' ? (
+            <FaVideo />
+          ) : item.mediaType === 'audio' ? (
+            <FaMusic />
+          ) : (
+            <FaImage />
+          )}
         </span>
         {selectionMode && isSelected && (
           <div className="absolute inset-0 flex items-center justify-center bg-primary-600/50 text-white text-3xl">
@@ -251,6 +267,13 @@ const EditModal: React.FC<EditModalProps> = ({ item, onSave, onClose }) => {
               preload="metadata"
               className="w-full h-full object-contain"
             />
+          ) : item.mediaType === 'audio' ? (
+            <div className="w-full h-full flex items-center justify-center p-md">
+              <AudioPlayer
+                src={`${baseURL}/share/${item.shareToken}/stream`}
+                title={item.title || 'Audio'}
+              />
+            </div>
           ) : (
             <SharedMediaImage
               shareToken={item.shareToken}
@@ -422,6 +445,17 @@ const MediaLibraryPage: React.FC = () => {
             onClick={() => handleTypeFilter('video')}
           >
             <FaVideo /> Videos
+          </button>
+          <button
+            className={cn(
+              'flex items-center gap-xs px-md py-sm border rounded-lg bg-background text-foreground cursor-pointer transition-all duration-200 hover:border-primary-600',
+              filters.type === 'audio'
+                ? 'bg-primary-600 text-white border-primary-600'
+                : 'border-grey-200 dark:border-grey-700'
+            )}
+            onClick={() => handleTypeFilter('audio')}
+          >
+            <FaMusic /> Audio
           </button>
         </div>
 
