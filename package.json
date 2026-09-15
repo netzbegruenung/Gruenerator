@@ -102,6 +102,7 @@
       "@assistant-ui/react": "^0.15.19",
       "@assistant-ui/tap": "^0.9.17",
       "@assistant-ui/react-markdown": "^0.14.15",
+      "@assistant-ui/react-streamdown": "^0.3.14",
       "@assistant-ui/react-native": "0.1.41",
       "@tiptap/core": "^3.31.0",
       "@tiptap/extension-bold": "^3.31.0",
