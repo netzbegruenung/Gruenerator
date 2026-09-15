@@ -147,14 +147,6 @@ interface MetadataConfig {
   };
 }
 
-interface ChunkingConfig {
-  adaptive: {
-    enabled: boolean;
-    defaultSize: number;
-    overlapSize: number;
-  };
-}
-
 interface RetrievalConfig {
   queryIntent: {
     enabled: boolean;
@@ -188,7 +180,6 @@ interface FullConfig {
   performance: PerformanceConfig;
   quality: QualityConfig;
   metadata: MetadataConfig;
-  chunking: ChunkingConfig;
   retrieval: RetrievalConfig;
   rerank: RerankConfig;
 }
@@ -333,14 +324,6 @@ class VectorConfig {
         },
       },
 
-      chunking: {
-        adaptive: {
-          enabled: env.ADAPTIVE_CHUNKING_ENABLED,
-          defaultSize: env.CHUNK_DEFAULT_SIZE,
-          overlapSize: env.CHUNK_OVERLAP_SIZE,
-        },
-      },
-
       retrieval: {
         queryIntent: {
           enabled: env.QUERY_INTENT_ENABLED,
@@ -442,8 +425,6 @@ class VectorConfig {
       'hybrid.confidenceBoost',
       'hybrid.confidencePenalty',
       'quality.retrieval.qualityBoostFactor',
-      'chunking.adaptive.defaultSize',
-      'chunking.adaptive.overlapSize',
     ];
 
     positiveValues.forEach((path) => {
