@@ -28,7 +28,7 @@ export function useCardSubscription(boardId: string | undefined, cardId: string)
       const result = subscribe
         ? await client.boardSubscriptions.subscribe({ params: { boardId, cardId }, body: {} })
         : await client.boardSubscriptions.unsubscribe({ params: { boardId, cardId }, body: {} });
-      if (result.status !== 200) throw new Error('Subscription toggle failed');
+      if (result.status !== 200) throw new ApiError(result.status, 'Subscription toggle failed');
       return result.body;
     },
     onSuccess: (body) => {

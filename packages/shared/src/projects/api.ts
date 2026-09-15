@@ -12,6 +12,7 @@
 
 import { getGlobalApiClient } from '../api/client.js';
 import { getContractsClient } from '../api/contractsClient.js';
+import { ApiError } from '../api/errors.js';
 
 import type { Project, SaveProjectData, UpdateProjectData } from './types.js';
 
@@ -28,7 +29,7 @@ function errorFrom(body: unknown, fallback: string): string {
 export async function fetchProjects(): Promise<Project[]> {
   const res = await getContractsClient().subtitler.listProjects();
   if (res.status !== 200) {
-    throw new Error(errorFrom(res.body, 'Projekte konnten nicht geladen werden'));
+    throw new ApiError(res.status, errorFrom(res.body, 'Projekte konnten nicht geladen werden'));
   }
   return res.body.projects as unknown as Project[];
 }
@@ -39,7 +40,7 @@ export async function fetchProjects(): Promise<Project[]> {
 export async function getProject(projectId: string): Promise<Project> {
   const res = await getContractsClient().subtitler.getProject({ params: { projectId } });
   if (res.status !== 200) {
-    throw new Error(errorFrom(res.body, 'Projekt konnte nicht geladen werden'));
+    throw new ApiError(res.status, errorFrom(res.body, 'Projekt konnte nicht geladen werden'));
   }
   return res.body.project as unknown as Project;
 }
@@ -58,7 +59,7 @@ export async function saveProject(
     },
   });
   if (res.status !== 200 && res.status !== 201) {
-    throw new Error(errorFrom(res.body, 'Projekt konnte nicht gespeichert werden'));
+    throw new ApiError(res.status, errorFrom(res.body, 'Projekt konnte nicht gespeichert werden'));
   }
   return {
     project: res.body.project as unknown as Project,
@@ -78,7 +79,7 @@ export async function updateProject(
     body: updates,
   });
   if (res.status !== 200) {
-    throw new Error(errorFrom(res.body, 'Projekt konnte nicht aktualisiert werden'));
+    throw new ApiError(res.status, errorFrom(res.body, 'Projekt konnte nicht aktualisiert werden'));
   }
   return res.body.project as unknown as Project;
 }
@@ -89,7 +90,7 @@ export async function updateProject(
 export async function deleteProject(projectId: string): Promise<void> {
   const res = await getContractsClient().subtitler.deleteProject({ params: { projectId } });
   if (res.status !== 200) {
-    throw new Error(errorFrom(res.body, 'Projekt konnte nicht gelöscht werden'));
+    throw new ApiError(res.status, errorFrom(res.body, 'Projekt konnte nicht gelöscht werden'));
   }
 }
 

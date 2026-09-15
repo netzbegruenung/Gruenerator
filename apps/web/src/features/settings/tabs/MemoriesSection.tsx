@@ -9,7 +9,7 @@
  * capped at 60 rows server-side, a round trip would be slower than a filter.
  */
 import { MEMORY_TEXT_MAX_CHARS, type MemoryKind, type UserMemory } from '@gruenerator/contracts';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { formatRelativeTime } from '@gruenerator/shared/utils';
 import {
   Badge,
@@ -48,7 +48,7 @@ const memoriesQueryKey = (userId: string | undefined) => ['memories', userId];
 
 async function fetchMemories(): Promise<UserMemory[]> {
   const res = await getContractsClient().memory.list();
-  if (res.status !== 200) throw new Error(res.body.message);
+  if (res.status !== 200) throw new ApiError(res.status, res.body.message);
   return res.body.memories;
 }
 
@@ -143,7 +143,7 @@ export default memo(function MemoriesSection() {
   const addMutation = useMutation({
     mutationFn: async ({ text, kind }: { text: string; kind: MemoryKind }) => {
       const res = await getContractsClient().memory.create({ body: { text, kind } });
-      if (res.status !== 200) throw new Error(res.body.message);
+      if (res.status !== 200) throw new ApiError(res.status, res.body.message);
       return res.body;
     },
     onSuccess: (body) => {
@@ -158,7 +158,7 @@ export default memo(function MemoriesSection() {
   const updateMutation = useMutation({
     mutationFn: async ({ id, text }: { id: string; text: string }) => {
       const res = await getContractsClient().memory.update({ params: { id }, body: { text } });
-      if (res.status !== 200) throw new Error(res.body.message);
+      if (res.status !== 200) throw new ApiError(res.status, res.body.message);
       return res.body;
     },
     onSuccess: () => {
@@ -173,7 +173,7 @@ export default memo(function MemoriesSection() {
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const res = await getContractsClient().memory.remove({ params: { id }, body: {} });
-      if (res.status !== 200) throw new Error(res.body.message);
+      if (res.status !== 200) throw new ApiError(res.status, res.body.message);
     },
     onMutate: async (id) => {
       await queryClient.cancelQueries({ queryKey });
@@ -195,7 +195,7 @@ export default memo(function MemoriesSection() {
   const deleteAllMutation = useMutation({
     mutationFn: async () => {
       const res = await getContractsClient().memory.removeAll({ body: {} });
-      if (res.status !== 200) throw new Error(res.body.message);
+      if (res.status !== 200) throw new ApiError(res.status, res.body.message);
     },
     onSuccess: () => {
       queryClient.setQueryData<UserMemory[]>(queryKey, []);
@@ -210,7 +210,7 @@ export default memo(function MemoriesSection() {
   async function handleExport() {
     try {
       const res = await getContractsClient().memory.export();
-      if (res.status !== 200) throw new Error(res.body.message);
+      if (res.status !== 200) throw new ApiError(res.status, res.body.message);
       const blob = new Blob([JSON.stringify(res.body, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');

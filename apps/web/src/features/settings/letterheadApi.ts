@@ -6,7 +6,7 @@
  * at the point of use is indistinguishable from one created in settings.
  */
 
-import { getContractsClient, getGlobalApiClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient, getGlobalApiClient } from '@gruenerator/shared/api';
 
 import type { Letterhead, LetterheadDispatchMode } from '@gruenerator/contracts';
 
@@ -25,14 +25,16 @@ export interface LetterheadInput {
 export const letterheadApi = {
   async list(): Promise<Letterhead[]> {
     const res = await getContractsClient().letterheads.listLetterheads();
-    if (res.status !== 200) throw new Error('Briefköpfe konnten nicht geladen werden.');
+    if (res.status !== 200)
+      throw new ApiError(res.status, 'Briefköpfe konnten nicht geladen werden.');
     return res.body.letterheads;
   },
 
   async create(input: LetterheadInput): Promise<Letterhead> {
     const res = await getContractsClient().letterheads.createLetterhead({ body: input });
     if (res.status !== 201) {
-      throw new Error(
+      throw new ApiError(
+        res.status,
         (res.body as { message?: string })?.message ?? 'Briefkopf konnte nicht angelegt werden.'
       );
     }
@@ -45,7 +47,8 @@ export const letterheadApi = {
       body: input,
     });
     if (res.status !== 200) {
-      throw new Error(
+      throw new ApiError(
+        res.status,
         (res.body as { message?: string })?.message ?? 'Briefkopf konnte nicht gespeichert werden.'
       );
     }
@@ -58,7 +61,8 @@ export const letterheadApi = {
       body: {},
     });
     if (res.status !== 200) {
-      throw new Error(
+      throw new ApiError(
+        res.status,
         (res.body as { message?: string })?.message ?? 'Briefkopf konnte nicht gelöscht werden.'
       );
     }

@@ -35,7 +35,7 @@ export function useBoardCardDocuments(boardId: string | undefined, cardId: strin
         params: { boardId, linkId },
         body: {},
       });
-      if (result.status !== 200) throw new Error('Unlink failed');
+      if (result.status !== 200) throw new ApiError(result.status, 'Unlink failed');
     },
     onSuccess: () => void queryClient.invalidateQueries({ queryKey }),
   });

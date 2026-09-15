@@ -1,12 +1,13 @@
 import { type ChatToolApproval } from '@gruenerator/contracts';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 
 export type { ChatToolApproval };
 
 export async function fetchToolApprovals(): Promise<ChatToolApproval[]> {
   const client = getContractsClient();
   const result = await client.chatToolApprovals.list();
-  if (result.status !== 200) throw new Error('Freigaben konnten nicht geladen werden');
+  if (result.status !== 200)
+    throw new ApiError(result.status, 'Freigaben konnten nicht geladen werden');
   return result.body.approvals;
 }
 

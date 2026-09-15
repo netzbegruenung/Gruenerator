@@ -27,7 +27,8 @@ export function useBoardSubscription(boardId: string | undefined) {
       const result = subscribe
         ? await client.boardSubscriptions.subscribeBoard({ params: { boardId }, body: {} })
         : await client.boardSubscriptions.unsubscribeBoard({ params: { boardId }, body: {} });
-      if (result.status !== 200) throw new Error('Board subscription toggle failed');
+      if (result.status !== 200)
+        throw new ApiError(result.status, 'Board subscription toggle failed');
       return result.body;
     },
     onSuccess: (body) => {
