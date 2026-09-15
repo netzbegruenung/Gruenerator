@@ -45,13 +45,25 @@ const CATEGORY_LIMIT = 5;
 const notebookHelper = new NotebookQdrantHelper();
 
 async function findChats(userId: string, q: string, limit: number): Promise<GlobalSearchItem[]> {
-  const hits = await searchChatHistory(userId, q, { limit, ownedOnly: true });
+  // `ownedOnly` is load-bearing, not a default worth inheriting: without it
+  // every is_public thread in the system matches a personal search.
+  // `includeArchived` belongs to the palette alone: the sidebar lists an
+  // "Archiviert" section to browse, so a search that cannot find what sits in
+  // it makes archiving look like deleting. The rows carry `archived` and say
+  // so. Deliberately NOT inherited by recall — feeding archived chats into
+  // model context is a separate call.
+  const hits = await searchChatHistory(userId, q, {
+    limit,
+    ownedOnly: true,
+    includeArchived: true,
+  });
 
   return hits.map((hit) => ({
     id: hit.threadId,
     type: 'chat' as const,
     title: hit.threadTitle ?? 'Unbenannter Chat',
     subtitle: hit.snippet || null,
+    archived: hit.threadStatus === 'archived',
     // Threads predating the slug backfill fall back to the raw UUID, which
     // `/chat/:threadSlug` still resolves.
     url: `/chat/${
@@ -166,51 +178,7 @@ async function settle(
 /** Cap for the composer's office search — a few more than the palette, still scannable. */
 const OFFICE_SEARCH_LIMIT = 8;
 
-/** Cap for the sidebar's thread search — a list, not a five-row palette. */
-const THREAD_SEARCH_LIMIT = 20;
-
 export const globalSearchContractRouter = s.router(globalSearchContract, {
-  threadSearch: async (args) => {
-    try {
-      const userId = getAuthedUser(args.req).id;
-      const q = args.query.q.trim();
-      // `ownedOnly` is load-bearing, not a default worth inheriting: without it
-      // every is_public thread in the system matches a personal search.
-      // `includeArchived` is this endpoint's alone: the sidebar offers an
-      // "Archiviert" section to browse, so a search that cannot find what sits
-      // in it makes archiving look like deleting. The rows carry `status` and
-      // are marked. Deliberately NOT inherited by `findChats` below or by
-      // recall — feeding archived chats into model context is a separate call.
-      const hits = await searchChatHistory(userId, q, {
-        limit: THREAD_SEARCH_LIMIT,
-        ownedOnly: true,
-        includeArchived: true,
-      });
-      return {
-        status: 200 as const,
-        body: {
-          query: q,
-          items: hits.map((hit) => ({
-            threadId: hit.threadId,
-            title: hit.threadTitle ?? 'Unbenannter Chat',
-            snippet: hit.snippet,
-            messageRole: hit.messageRole,
-            matchedAt: hit.matchedAt,
-            status: hit.threadStatus,
-          })),
-        },
-      };
-    } catch (error) {
-      // One source, so a DB outage must reach the client as a failure. Settling
-      // it to an empty list would render as "nothing found", which is a lie.
-      const err = error as Error;
-      log.error('[globalSearch.threadSearch] Error:', err);
-      return {
-        status: 500 as const,
-        body: { error: 'Thread search failed', details: err.message },
-      };
-    }
-  },
   officeSearch: async (args) => {
     try {
       const userId = getAuthedUser(args.req).id;
