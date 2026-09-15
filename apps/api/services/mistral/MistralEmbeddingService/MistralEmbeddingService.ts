@@ -14,6 +14,7 @@ import {
   estimateTokenCount,
 } from './embeddingOperations.js';
 import MistralEmbeddingClient from './MistralEmbeddingClient.js';
+import { EMBEDDING_DIMENSIONS, EMBEDDING_MODEL_NAME } from './modelConstants.js';
 
 import type { ModelInfo } from './types.js';
 
@@ -28,10 +29,10 @@ export class MistralEmbeddingService {
 
   constructor() {
     // Mistral is the sole embedding backend (1024-dim)
-    this.client = new MistralEmbeddingClient({ model: 'mistral-embed' });
+    this.client = new MistralEmbeddingClient({ model: EMBEDDING_MODEL_NAME });
     this.modelInfo = {
-      modelName: 'mistral-embed',
-      dimensions: 1024,
+      modelName: EMBEDDING_MODEL_NAME,
+      dimensions: EMBEDDING_DIMENSIONS,
       maxSequenceLength: 8192,
       isInitialized: true,
     };
