@@ -10,6 +10,7 @@ import { slugifyName } from '@gruenerator/shared/utils';
 import {
   Button,
   Checkbox,
+  CollapsibleSection,
   CopyLinkRow,
   Label,
   Textarea,
@@ -45,8 +46,6 @@ import {
   VOICE_PRESET_ORDER,
 } from './presets';
 
-import { cn } from '@/utils/cn';
-
 const baseURL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api';
 const FORMAT_ORDER: readonly SpeechOutputFormat[] = ['mp3', 'wav_phone'];
 
@@ -56,10 +55,10 @@ function fileNameFor(title: string, file: SpeechFile): string {
 
 const VoicePage = () => {
   const profileVoice = useAuthStore((s) => s.user?.tts_voice_id ?? null);
-  const [preset, setPreset] = useState<SpeechPreset>('mailbox');
+  const [preset, setPreset] = useState<SpeechPreset>('vorlesefassung');
   const [text, setText] = useState('');
   const [formats, setFormats] = useState<readonly SpeechOutputFormat[]>(
-    VOICE_PRESETS.mailbox.defaultFormats
+    VOICE_PRESETS.vorlesefassung.defaultFormats
   );
   const [speed, setSpeed] = useState<number>(1);
   const [voiceId, setVoiceId] = useState<TtsVoiceId>(profileVoice ?? DEFAULT_TTS_VOICE_ID);
@@ -131,35 +130,6 @@ const VoicePage = () => {
       maxWidth="md"
     >
       <div className="flex flex-col gap-xl">
-        <div
-          role="radiogroup"
-          aria-label="Was soll entstehen?"
-          className="grid gap-sm sm:grid-cols-3"
-        >
-          {VOICE_PRESET_ORDER.map((id) => {
-            const p = VOICE_PRESETS[id];
-            const active = id === preset;
-            return (
-              <button
-                key={id}
-                type="button"
-                role="radio"
-                aria-checked={active}
-                onClick={() => choosePreset(id)}
-                className={cn(
-                  'rounded-xl border bg-background p-md text-left transition-all duration-200 hover:border-primary-600',
-                  active
-                    ? 'border-primary-600 shadow-[0_0_0_2px_var(--primary-600)]'
-                    : 'border-grey-200 dark:border-grey-700'
-                )}
-              >
-                <span className="block font-semibold text-foreground">{p.title}</span>
-                <span className="block text-sm text-muted-foreground">{p.description}</span>
-              </button>
-            );
-          })}
-        </div>
-
         <ScriptAssistant
           preset={preset}
           onDraft={(script) => {
@@ -204,63 +174,89 @@ const VoicePage = () => {
           </p>
         </div>
 
-        <div className="grid gap-lg sm:grid-cols-2">
-          <div className="flex flex-col gap-sm">
-            <span className="text-sm font-medium text-foreground">Stimme</span>
-            <VoicePicker value={voiceId} onChange={setVoiceId} />
-          </div>
-          <div className="flex flex-col gap-sm">
-            <span id="voice-speed-label" className="text-sm font-medium text-foreground">
-              Tempo
-            </span>
-            <ToggleGroup
-              type="single"
-              value={String(speed)}
-              onValueChange={(value) => {
-                if (value) setSpeed(Number(value));
-              }}
-              aria-labelledby="voice-speed-label"
-              className="justify-start"
-            >
-              {SPEED_OPTIONS.map((option) => (
-                <ToggleGroupItem key={option.value} value={String(option.value)}>
-                  {option.label}
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
-          </div>
-        </div>
+        <CollapsibleSection bordered title="Mehr einstellen">
+          <div className="flex flex-col gap-lg pt-sm">
+            <div className="flex flex-col gap-sm">
+              <span id="voice-preset-label" className="text-sm font-medium text-foreground">
+                Art der Aufnahme
+              </span>
+              <ToggleGroup
+                type="single"
+                value={preset}
+                onValueChange={(value) => {
+                  if (value) choosePreset(value as SpeechPreset);
+                }}
+                aria-labelledby="voice-preset-label"
+                className="justify-start"
+              >
+                {VOICE_PRESET_ORDER.map((id) => (
+                  <ToggleGroupItem key={id} value={id}>
+                    {VOICE_PRESETS[id].title}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+              <p className="m-0 text-sm text-muted-foreground">{def.description}</p>
+            </div>
 
-        <fieldset className="m-0 flex flex-col gap-sm border-0 p-0">
-          <legend className="mb-sm text-sm font-medium text-foreground">Ausgabeformat</legend>
-          {FORMAT_ORDER.map((format) => {
-            const id = `voice-format-${format}`;
-            return (
-              <div key={format} className="flex items-start gap-sm">
-                <Checkbox
-                  id={id}
-                  checked={formats.includes(format)}
-                  onCheckedChange={(checked) => toggleFormat(format, checked === true)}
-                />
-                <Label htmlFor={id} className="flex flex-col gap-xxs font-normal">
-                  <span className="font-medium">{FORMAT_LABELS[format].label}</span>
-                  <span className="text-sm text-muted-foreground">
-                    {FORMAT_LABELS[format].hint}
-                  </span>
-                </Label>
+            <div className="grid gap-lg sm:grid-cols-2">
+              <div className="flex flex-col gap-sm">
+                <span className="text-sm font-medium text-foreground">Stimme</span>
+                <VoicePicker value={voiceId} onChange={setVoiceId} />
               </div>
-            );
-          })}
-          {formats.length === 0 ? (
-            <p className="m-0 text-sm text-destructive" role="alert">
-              Mindestens ein Format auswählen.
-            </p>
-          ) : null}
-        </fieldset>
+              <div className="flex flex-col gap-sm">
+                <span id="voice-speed-label" className="text-sm font-medium text-foreground">
+                  Tempo
+                </span>
+                <ToggleGroup
+                  type="single"
+                  value={String(speed)}
+                  onValueChange={(value) => {
+                    if (value) setSpeed(Number(value));
+                  }}
+                  aria-labelledby="voice-speed-label"
+                  className="justify-start"
+                >
+                  {SPEED_OPTIONS.map((option) => (
+                    <ToggleGroupItem key={option.value} value={String(option.value)}>
+                      {option.label}
+                    </ToggleGroupItem>
+                  ))}
+                </ToggleGroup>
+              </div>
+            </div>
+
+            <fieldset className="m-0 flex flex-col gap-sm border-0 p-0">
+              <legend className="mb-sm text-sm font-medium text-foreground">Ausgabeformat</legend>
+              {FORMAT_ORDER.map((format) => {
+                const id = `voice-format-${format}`;
+                return (
+                  <div key={format} className="flex items-start gap-sm">
+                    <Checkbox
+                      id={id}
+                      checked={formats.includes(format)}
+                      onCheckedChange={(checked) => toggleFormat(format, checked === true)}
+                    />
+                    <Label htmlFor={id} className="flex flex-col gap-xxs font-normal">
+                      <span className="font-medium">{FORMAT_LABELS[format].label}</span>
+                      <span className="text-sm text-muted-foreground">
+                        {FORMAT_LABELS[format].hint}
+                      </span>
+                    </Label>
+                  </div>
+                );
+              })}
+              {formats.length === 0 ? (
+                <p className="m-0 text-sm text-destructive" role="alert">
+                  Mindestens ein Format auswählen.
+                </p>
+              ) : null}
+            </fieldset>
+          </div>
+        </CollapsibleSection>
 
         <div className="flex flex-col gap-md">
           <SubmitButton
-            text="Sprachausgabe erzeugen"
+            text="Vertonen"
             onClick={submit}
             loading={generate.isPending}
             disabled={!canSubmit}
