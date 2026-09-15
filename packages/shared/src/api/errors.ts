@@ -58,3 +58,34 @@ export function isApiErrorWithStatus(err: unknown, status: number): boolean {
   if (err == null || typeof err !== 'object') return false;
   return (err as { status?: unknown }).status === status;
 }
+
+/**
+ * Safely read a `message` off a ts-rest error body. The client response type
+ * widens the body to `unknown` for non-2xx (undeclared) statuses, so we extract
+ * defensively rather than asserting the error-schema shape.
+ */
+export function errMessage(body: unknown, fallback = 'Aktion fehlgeschlagen.'): string {
+  if (body && typeof body === 'object' && 'message' in body) {
+    const m = (body as { message?: unknown }).message;
+    if (typeof m === 'string') return m;
+  }
+  return fallback;
+}
+
+/**
+ * Build an `ApiError` from a ts-rest response that came back non-2xx.
+ *
+ * ts-rest resolves 4xx/5xx as *data*, not a throw (`contractsClient` only
+ * treats 401 as invalid), so the idiomatic `throw new Error(errMessage(body))`
+ * drops the status. Three things downstream go blind at once: the TanStack
+ * retry predicate retries an expected 403 instead of accepting it, the toast
+ * layer cannot pick the "Zugriff verweigert" wording, and `getErrorMessage`
+ * falls through to the generic fallback — which is the very condition that
+ * reports the non-bug to Sentry. Keeping the status makes all three correct.
+ */
+export function apiErrorFromResponse(
+  res: { status: number; body: unknown },
+  fallback = 'Aktion fehlgeschlagen.'
+): ApiError {
+  return new ApiError(res.status, errMessage(res.body, fallback));
+}
