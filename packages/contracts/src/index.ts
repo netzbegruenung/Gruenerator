@@ -195,3 +195,7 @@ export * from './schemas/landesverbaende.js';
 export * from './schemas/lvAdminAssignment.js';
 export * from './schemas/instanceAdminOverview.js';
 export * from './schemas/landesverbandAdmin.js';
+
+// Canvas-Textlayout: Umbruch, Aufzählungsmarker und hängender Einzug.
+// DOM-frei, damit Client-Vorschau und Server-Export dieselbe Logik fahren.
+export * from './text/listLayout.js';

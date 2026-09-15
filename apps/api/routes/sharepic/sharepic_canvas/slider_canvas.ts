@@ -17,6 +17,7 @@ import {
   bufferToBase64,
 } from '../../../services/sharepic/canvas/imageOptimizer.js';
 import { isValidHexColor } from '../../../services/sharepic/canvas/utils.js';
+import { wrapTextLines as wrapText } from '../../../services/sharepic/textLayout.js';
 import { createLogger } from '../../../utils/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -125,27 +126,6 @@ const ARROW_CONFIG = {
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
-
-function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
-  const words = text.split(' ');
-  const lines: string[] = [];
-  let currentLine = '';
-
-  for (let i = 0; i < words.length; i++) {
-    const testLine = currentLine + words[i] + ' ';
-    const metrics = ctx.measureText(testLine);
-    const testWidth = metrics.width;
-
-    if (testWidth > maxWidth && i > 0) {
-      lines.push(currentLine.trim());
-      currentLine = words[i] + ' ';
-    } else {
-      currentLine = testLine;
-    }
-  }
-  lines.push(currentLine.trim());
-  return lines;
-}
 
 function drawRoundedRect(
   ctx: CanvasRenderingContext2D,
