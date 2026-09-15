@@ -56,6 +56,18 @@ export interface ContentSelectors {
   author: string[];
 }
 
+/**
+ * Age limit for a source that does not set `maxAgeYears` — three do not today
+ * (hamburg-lv-beschluesse, wahlprogramm-be, wahlprogramm-lsa), and the field
+ * stays optional, so new ones will land here too.
+ *
+ * Exported rather than written as a literal at each use: the store stage
+ * (`DocumentProcessor`) and the pre-fetch rejected-URL gate must agree on it.
+ * While they did not, the gate cached rejections for exactly those sources and
+ * never read them back — inert precisely where no counter would reveal it.
+ */
+export const DEFAULT_MAX_AGE_YEARS = 10;
+
 export interface LandesverbandSource {
   id: LandesverbandSourceId;
   name: string;
@@ -67,7 +79,7 @@ export interface LandesverbandSource {
   contentSelectors: ContentSelectors;
   excludePatterns: string[];
   qdrantCollection?: string; // Optional: custom collection name (default: landesverbaende_documents)
-  maxAgeYears?: number; // Optional: max age of content in years (default: 10)
+  maxAgeYears?: number; // Optional: max age of content in years (default: DEFAULT_MAX_AGE_YEARS)
   notificationEmail?: string; // Optional: email to notify when new articles are indexed
   dormant?: boolean; // Optional: when true, scrapeAllSources skips this source. Set for sources that no longer publish (e.g. dissolved Fraktionen). Direct scrapeSource(id) calls are unaffected.
 }
