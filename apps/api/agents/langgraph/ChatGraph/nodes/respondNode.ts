@@ -547,20 +547,30 @@ ${embedUntrusted('anhang', limitedContext)}`;
 }
 
 /**
- * Was dem Modell über die angehängten Bilder gesagt wird — je Grund ein Satz.
- * „Nicht sichtbar“ steht nie ohne Grund da: ohne ihn liest es sich wie ein
- * Fehler, und das Modell rät den Inhalt dann doch.
+ * Warum die Bytes fehlen — je Grund ein Satz. „Nicht sichtbar“ steht nie ohne
+ * Grund da: ohne ihn liest es sich wie ein Fehler, und das Modell rät doch.
  */
-const VISIBILITY_SENTENCE: Record<ImageVisibility, string> = {
-  visible: 'Die Bilder sind in der Nachricht sichtbar.',
+const NOT_VISIBLE_REASON: Record<Exclude<ImageVisibility, 'visible'>, string> = {
   // Unerreichbar — der Block unten steht hinter der Leerprüfung. Der Typ
   // verlangt den Fall, und ein leerer Satz wäre die stillere Lüge.
   none: 'Die Bilder sind NICHT in der Nachricht sichtbar.',
   vision_off:
-    'Die Bildanalyse ist für diesen Grünerator ausgeschaltet — die Bilder sind NICHT in der Nachricht sichtbar. Sage das offen und rate den Inhalt nicht.',
-  image_edit_descriptions:
-    'Die Bilder sind NICHT in der Nachricht sichtbar — du arbeitest mit den Beschreibungen unter BILDVERGLEICH. Rate nichts, was dort nicht steht.',
+    'Die Bildanalyse ist für diesen Grünerator ausgeschaltet — die Bilder sind NICHT in der Nachricht sichtbar.',
+  image_edit:
+    'Die Bilder sind NICHT in der Nachricht sichtbar — bei einer Bildbearbeitung bleiben die Rohbytes bewusst draußen.',
 };
+
+/**
+ * Woran sich das Modell stattdessen hält. Das entscheidet NICHT der Intent,
+ * sondern ob der BILDVERGLEICH-Block unten wirklich gerendert wird: seine
+ * Beschreibungen sind zwei Vision-Aufrufe in `imageEditNode`, die beide
+ * fehlschlagen dürfen. Auf einen fehlenden Abschnitt zu zeigen ist derselbe
+ * Fehler wie eine erfundene Sichtbarkeit — nur eine Zeile tiefer.
+ */
+const GROUNDED_CLAUSE =
+  'Stütze dich auf den BILDVERGLEICH-Block unten und rate nichts, was dort nicht steht.';
+const UNGROUNDED_CLAUSE =
+  'Es liegt auch keine Beschreibung davon vor. Sage das offen und rate den Inhalt nicht.';
 
 /**
  * Format image attachment context for the system message.
@@ -568,6 +578,15 @@ const VISIBILITY_SENTENCE: Record<ImageVisibility, string> = {
  */
 function formatImageContext(state: ChatGraphState): string {
   const sections: string[] = [];
+
+  // Vision-grounded before/after descriptions populated by imageEditNode after a
+  // successful FLUX edit. Lets respondNode narrate the actual change instead of
+  // hallucinating ("I can't edit images") when the model isn't itself vision-capable.
+  // Beide Aufrufe dürfen fehlschlagen, deshalb wird die Zusage unten an DIESE
+  // Prüfung gehängt und nicht an den Intent.
+  const editDescriptions = state.imageEditDescriptions;
+  const hasEditDescriptions =
+    !!editDescriptions && !!(editDescriptions.original || editDescriptions.edited);
 
   if (state.imageAttachments && state.imageAttachments.length > 0) {
     const count = state.imageAttachments.length;
@@ -577,20 +596,19 @@ function formatImageContext(state: ChatGraphState): string {
     // eigener Ausdruck, und der Bearbeitungs- wie der Wiederaufnahme-Pfad
     // widersprachen ihm — ein Modell, dem man sagt, es sehe ein Bild, das ihm
     // niemand gegeben hat, beschreibt es trotzdem.
+    const visibility = imageVisibility(state);
+    const sentence =
+      visibility === 'visible'
+        ? 'Die Bilder sind in der Nachricht sichtbar.'
+        : `${NOT_VISIBLE_REASON[visibility]} ${hasEditDescriptions ? GROUNDED_CLAUSE : UNGROUNDED_CLAUSE}`;
     sections.push(`
 
 ## ANGEHÄNGTE BILDER
 
-Der*die Nutzer*in hat ${count} Bild${count > 1 ? 'er' : ''} angehängt (${names}). ${
-      VISIBILITY_SENTENCE[imageVisibility(state)]
-    }`);
+Der*die Nutzer*in hat ${count} Bild${count > 1 ? 'er' : ''} angehängt (${names}). ${sentence}`);
   }
 
-  // Vision-grounded before/after descriptions populated by imageEditNode after a
-  // successful FLUX edit. Lets respondNode narrate the actual change instead of
-  // hallucinating ("I can't edit images") when the model isn't itself vision-capable.
-  const editDescriptions = state.imageEditDescriptions;
-  if (editDescriptions && (editDescriptions.original || editDescriptions.edited)) {
+  if (editDescriptions && hasEditDescriptions) {
     const before = editDescriptions.original ?? '(keine Beschreibung verfügbar)';
     const after = editDescriptions.edited ?? '(keine Beschreibung verfügbar)';
     sections.push(`
