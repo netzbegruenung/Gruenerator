@@ -29,6 +29,7 @@ import {
   buildEmbeddingTextsForChunks,
   structurePayload,
   embeddingPayload,
+  offsetPayload,
 } from '../../document-services/index.js';
 import { mistralEmbeddingService } from '../../mistral/index.js';
 import { BaseScraper } from '../base/BaseScraper.js';
@@ -348,6 +349,7 @@ export class GrueneDeScraper extends BaseScraper {
         chunk_text: chunkTexts[index],
         ...structurePayload(chunk),
         ...embeddingPayload(),
+        ...offsetPayload(chunk),
         quality_score: chunkQualityService.calculateQualityScore(chunkTexts[index]),
         content_type: content.contentType,
         primary_category: content.contentType,
