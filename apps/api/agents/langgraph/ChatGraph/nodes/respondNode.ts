@@ -552,11 +552,24 @@ function formatImageContext(state: ChatGraphState): string {
   if (state.imageAttachments && state.imageAttachments.length > 0) {
     const count = state.imageAttachments.length;
     const names = state.imageAttachments.map((img) => img.name).join(', ');
-    sections.push(`
+    // Ob die Bytes wirklich in der Nachricht stehen, entscheidet `vision`:
+    // responseSinglePass injiziert sie sonst nicht (#3307). Ohne diesen Zweig
+    // behauptete der Prompt eine Sichtbarkeit, die es dann nicht gibt — und ein
+    // Modell, dem man sagt, es sehe ein Bild, beschreibt es auch.
+    const visionAllowed = state.enabledTools?.['vision'] !== false;
+    sections.push(
+      visionAllowed
+        ? `
 
 ## ANGEHÄNGTE BILDER
 
-Der*die Nutzer*in hat ${count} Bild${count > 1 ? 'er' : ''} angehängt (${names}). Die Bilder sind in der Nachricht sichtbar.`);
+Der*die Nutzer*in hat ${count} Bild${count > 1 ? 'er' : ''} angehängt (${names}). Die Bilder sind in der Nachricht sichtbar.`
+        : `
+
+## ANGEHÄNGTE BILDER
+
+Der*die Nutzer*in hat ${count} Bild${count > 1 ? 'er' : ''} angehängt (${names}). Die Bildanalyse ist für diesen Grünerator ausgeschaltet — die Bilder sind NICHT in der Nachricht sichtbar. Sage das offen und rate den Inhalt nicht.`
+    );
   }
 
   // Vision-grounded before/after descriptions populated by imageEditNode after a
