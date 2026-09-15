@@ -57,6 +57,8 @@ interface ApiResponse {
   deadLinks?: number;
   deadLinkSamples?: string[];
   skipReasons?: Record<string, number>;
+  pruned?: number;
+  pruneSkippedReason?: string;
   fetchErrors?: number;
   durationMs?: number;
   error?: string;
@@ -91,6 +93,8 @@ async function main() {
         ...(response.skipReasons && Object.keys(response.skipReasons).length > 0
           ? { skipReasons: response.skipReasons }
           : {}),
+        ...(response.pruned ? { pruned: response.pruned } : {}),
+        ...(response.pruneSkippedReason ? { pruneSkippedReason: response.pruneSkippedReason } : {}),
         duration: durationSec,
         status: 'success',
       }
