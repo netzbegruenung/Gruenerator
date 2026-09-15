@@ -19,6 +19,7 @@ import { chunkQualityService } from '../../../../ChunkQualityService/index.js';
 import {
   buildEmbeddingTextsForChunks,
   embeddingPayload,
+  offsetPayload,
   smartChunkDocument,
   structurePayload,
 } from '../../../../document-services/index.js';
@@ -164,6 +165,7 @@ export class DocumentProcessor {
         chunk_text: chunkTexts[index],
         ...structurePayload(chunk),
         ...embeddingPayload(),
+        ...offsetPayload(chunk),
         quality_score: chunkQualityService.calculateQualityScore(chunkTexts[index]),
         title: documentTitle,
         primary_category: categories?.[0] || null,

@@ -181,6 +181,7 @@ async function reprocessPdf(
     await import('../services/document-services/embeddingText.js');
   const { structurePayload } = await import('../services/document-services/structurePayload.js');
   const { embeddingPayload } = await import('../services/document-services/embeddingProvenance.js');
+  const { offsetPayload } = await import('../services/document-services/offsetPayload.js');
   const { chunkQualityService } =
     await import('../services/ChunkQualityService/ChunkQualityService.js');
   const { batchDelete, batchUpsert } =
@@ -327,6 +328,7 @@ async function reprocessPdf(
         chunk_text: chunkTexts[index],
         ...structurePayload(chunk),
         ...embeddingPayload(),
+        ...offsetPayload(chunk),
         quality_score: chunkQualityService.calculateQualityScore(chunkTexts[index]),
         indexed_at: new Date().toISOString(),
         reprocessed: true,

@@ -49,6 +49,8 @@ export function buildChunkPayloadFields(payload: QdrantResultPayload | undefined
   page_number: number | null;
   chunk_type: string | null;
   embedding_model: string | null;
+  char_start: number | null;
+  char_end: number | null;
   created_at: string | undefined;
   published_at: string | null;
   source_id: string | null;
@@ -71,6 +73,10 @@ export function buildChunkPayloadFields(payload: QdrantResultPayload | undefined
     // `null` heißt hier „vor #3224 geschrieben", nicht „kaputt" — siehe
     // `embeddingProvenance.ts`.
     embedding_model: (p.embedding_model as string) ?? null,
+    // `null` heißt „nicht auffindbar" oder „vor #3223 geschrieben" — siehe
+    // `offsetPayload.ts`. Ein halbes Paar kommt hier nie an.
+    char_start: (p.char_start as number) ?? null,
+    char_end: (p.char_end as number) ?? null,
     created_at: p.created_at as string | undefined,
     published_at: (p.published_at as string) ?? (metadata?.published_at as string) ?? null,
     source_id: (p.source_id as string) ?? null,

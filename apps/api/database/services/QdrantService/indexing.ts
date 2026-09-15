@@ -6,6 +6,7 @@
 import { type QdrantClient } from '@qdrant/js-client-rest';
 
 import { embeddingPayload } from '../../../services/document-services/embeddingProvenance.js';
+import { offsetPayload } from '../../../services/document-services/offsetPayload.js';
 import { structurePayload } from '../../../services/document-services/structurePayload.js';
 import { createLogger } from '../../../utils/logger.js';
 import { generatePointId } from '../../../utils/validation/index.js';
@@ -103,6 +104,7 @@ export async function indexDocumentChunks(
           chunk_text: chunk.text || chunk.chunk_text,
           ...structurePayload(chunk),
           ...embeddingPayload(),
+          ...offsetPayload(chunk),
           token_count: chunk.token_count || chunk.tokens,
           user_id: userId,
           title: chunk.title || chunk.metadata?.title || null,
@@ -151,6 +153,7 @@ export async function indexGrundsatzChunks(
           chunk_text: chunk.text || chunk.chunk_text,
           ...structurePayload(chunk),
           ...embeddingPayload(),
+          ...offsetPayload(chunk),
           token_count: chunk.token_count || chunk.tokens,
           content_type: chunk.metadata?.content_type,
           page_number:
@@ -206,6 +209,7 @@ export async function indexBundestagContent(
         chunk_text: chunk.text || chunk.chunk_text,
         ...structurePayload(chunk),
         ...embeddingPayload(),
+        ...offsetPayload(chunk),
         token_count: chunk.token_count || chunk.tokens,
         title: metadata.title || null,
         primary_category: metadata.primary_category || metadata.section || null,
@@ -255,6 +259,7 @@ export async function indexGrueneDeContent(
         chunk_text: chunk.text || chunk.chunk_text,
         ...structurePayload(chunk),
         ...embeddingPayload(),
+        ...offsetPayload(chunk),
         token_count: chunk.token_count || chunk.tokens,
         title: metadata.title || null,
         primary_category: metadata.primary_category || metadata.section || null,
@@ -304,6 +309,7 @@ export async function indexGrueneAtContent(
         chunk_text: chunk.text || chunk.chunk_text,
         ...structurePayload(chunk),
         ...embeddingPayload(),
+        ...offsetPayload(chunk),
         token_count: chunk.token_count || chunk.tokens,
         title: metadata.title || null,
         primary_category: metadata.primary_category || metadata.section || null,
