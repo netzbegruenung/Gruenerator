@@ -117,6 +117,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         threadToolHistory,
         userMessageId,
       } = ctxResult.ctx;
+      // The whitelisted record (agent array applied in initializeChatState),
+      // NOT the raw body copy: the single-pass stages, the suspend base and the
+      // persisted requestContext must gate on the same record as the loop.
+      const enabledTools = initialState.enabledTools;
 
       // A placeholder assistant row was minted in buildStreamContext. Its writer
       // accumulates the streamed reply so an aborted/crashed turn keeps whatever
@@ -130,7 +134,6 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       const {
         agentId,
         forcedTools: bodyForcedTools,
-        enabledTools,
         modelId,
         documentIds: rawDocumentIds,
         documentChatIds: rawDocumentChatIds,
