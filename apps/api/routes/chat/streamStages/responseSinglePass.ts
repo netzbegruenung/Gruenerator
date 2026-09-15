@@ -24,6 +24,7 @@ import {
 } from '../services/artifactConfirmations.js';
 import { injectImageAttachments } from '../services/attachmentProcessingService.js';
 import { applyCompaction, pruneMessages } from '../services/contextPruningService.js';
+import { imageVisibility } from '../services/imageVisibility.js';
 import { executeIntentPipeline } from '../services/intentExecutionService.js';
 import {
   announcesPendingWork,
@@ -175,6 +176,9 @@ export async function runSinglePassAnswer({
         }. Erledige den Rest der Nachricht normal.`
       : '';
     const systemMessage = (await buildSystemMessage(finalState)) + memoryNote;
+    // Die eine Antwort auf „sieht das Modell die Bilder?“ — dieselbe, die
+    // `formatImageContext` oben in den Prompt geschrieben hat (#3313).
+    const imagesVisible = imageVisibility(finalState) === 'visible';
     const agentConfigForResolve = {
       provider: finalState.agentConfig.provider as string,
       model: finalState.agentConfig.model,
@@ -183,7 +187,10 @@ export async function runSinglePassAnswer({
       }),
     };
     const resolution = await resolveModel(agentConfigForResolve, modelId ?? undefined, requestId, {
-      hasImages: imageAttachments.length > 0,
+      // Die Vision-Weiche soll das Modell tauschen, damit es die Bytes SEHEN
+      // kann. Bleiben sie draußen, wäre der Tausch umsonst — er nähme dem Zug
+      // das gewählte Modell für ein Bild, das nie ankommt.
+      hasImages: imagesVisible,
       intent: finalState.intent,
       ...(finalState.taskShape != null && { taskShape: finalState.taskShape }),
       materialChars: turnMaterialChars(finalState),
@@ -227,17 +234,10 @@ export async function runSinglePassAnswer({
       finalSystemMessage,
       contextMessages as Parameters<typeof buildMessagesForAI>[1]
     );
-    // image_edit narrates from BILDVERGLEICH text descriptions; the raw image
-    // would put bytes in front of a non-vision model (since we no longer
-    // force-switch above) and create a redundant grounding source for vision
-    // models — skip injection so the descriptions are the single source.
-    //
-    // `vision` ("Bildanalyse") is the picker key for letting the model SEE an
-    // uploaded image, and this injection is the only place the bytes reach it —
-    // so this is where that checkbox becomes a gate (#3307). The prompt follows
-    // suit: `formatImageContext` stops claiming the images are visible, because
-    // a model told it can see an image it was never handed describes it anyway.
-    if (finalState.intent !== 'image_edit' && enabledTools?.['vision'] !== false) {
+    // Welche Züge die Bytes bekommen — und warum nicht — steht in
+    // `imageVisibility`: `image_edit` erzählt aus den BILDVERGLEICH-
+    // Beschreibungen, und „Bildanalyse“ aus ist die Wahl der Person (#3307).
+    if (imagesVisible) {
       messagesForAI = injectImageAttachments(
         messagesForAI as Parameters<typeof injectImageAttachments>[0],
         imageAttachments,
