@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { threadStatusSchema } from './threads.js';
+
 /** Content types the unified search covers. Features/agents are matched client-side. */
 export const globalSearchTypeSchema = z.enum(['chat', 'doc', 'canvas', 'media', 'notebook']);
 
@@ -106,6 +108,12 @@ export const threadSearchItemSchema = z.object({
   messageRole: z.enum(['user', 'assistant']),
   /** ISO timestamp of the matched message. Drives the date grouping. */
   matchedAt: z.string(),
+  /**
+   * Archive state, so the row can say so. This search is the one caller that
+   * gets archived threads back; a hit that silently opened an archived chat
+   * would be worse than no hit.
+   */
+  status: threadStatusSchema,
 });
 
 export type ThreadSearchItem = z.infer<typeof threadSearchItemSchema>;

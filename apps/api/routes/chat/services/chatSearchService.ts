@@ -34,6 +34,15 @@ export interface ChatSearchOptions {
    * and the in-chat search, wrong for a personal "my content" search.
    */
   ownedOnly?: boolean;
+  /**
+   * Include archived threads. Off by default so the agent's recall, the ⌘K
+   * palette and the REST endpoint keep excluding them — only the sidebar
+   * search, which marks a hit as archived, asks for them. Note that this is
+   * one of several places the archive filter is spelled: `pastChatRecallService`
+   * re-applies it when it hydrates semantic hits, so flipping this alone does
+   * not make archived threads reachable through recall.
+   */
+  includeArchived?: boolean;
 }
 
 /**
@@ -81,6 +90,7 @@ export async function searchChatHistory(
     tags,
     threadIds,
     ownedOnly = false,
+    includeArchived = false,
   } = options;
   const db = getPostgresInstance();
 
@@ -151,6 +161,7 @@ export async function searchChatHistory(
       t.agent_id,
       t.slug_suffix AS thread_slug_suffix,
       t.updated_at AS thread_updated_at,
+      COALESCE(t.status, 'regular') AS thread_status,
       m.content AS message_content,
       m.role AS message_role,
       m.created_at AS matched_at
@@ -163,7 +174,7 @@ export async function searchChatHistory(
     )
     AND m.role IN ('user', 'assistant')
     ${textClause}
-    AND COALESCE(t.status, 'regular') = 'regular'
+    ${includeArchived ? '' : "AND COALESCE(t.status, 'regular') = 'regular'"}
     ${threadTypeClause}
     ${excludeClause}
     ${dateFromClause}
@@ -182,6 +193,7 @@ export async function searchChatHistory(
       agent_id: string;
       thread_slug_suffix: string | null;
       thread_updated_at: Date | string;
+      thread_status: string;
       message_content: string | null;
       message_role: string;
       matched_at: Date | string;
@@ -208,6 +220,9 @@ export async function searchChatHistory(
         messageRole: row.message_role as 'user' | 'assistant',
         matchedAt: toIsoString(row.matched_at),
         threadUpdatedAt: toIsoString(row.thread_updated_at),
+        // Narrowed rather than cast: the column is a VARCHAR with no CHECK
+        // constraint, so anything other than 'archived' reads as 'regular'.
+        threadStatus: row.thread_status === 'archived' ? 'archived' : 'regular',
       });
 
       if (results.length >= limit) break;

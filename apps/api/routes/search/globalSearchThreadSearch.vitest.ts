@@ -44,6 +44,7 @@ function hit(over: Partial<ChatSearchResult> = {}): ChatSearchResult {
     messageRole: 'assistant',
     matchedAt: '2026-09-01T10:00:00.000Z',
     threadUpdatedAt: '2026-09-01T10:05:00.000Z',
+    threadStatus: 'regular',
     ...over,
   };
 }
@@ -77,6 +78,30 @@ describe('threadSearch', () => {
     );
   });
 
+  it('asks for archived threads, which no other consumer does', async () => {
+    // The sidebar has an "Archiviert" section to browse, so a search that
+    // cannot find what sits in it makes archiving look like deleting. The
+    // default stays false everywhere else, keeping archived chats out of
+    // model context — see the option's doc comment.
+    searchChatHistory.mockResolvedValue([]);
+
+    await call('windkraft');
+
+    expect(searchChatHistory).toHaveBeenCalledWith(
+      'user-1',
+      'windkraft',
+      expect.objectContaining({ includeArchived: true })
+    );
+  });
+
+  it('marks an archived hit so the row can say so', async () => {
+    searchChatHistory.mockResolvedValue([hit({ threadStatus: 'archived' })]);
+
+    const res = await call('windkraft');
+
+    expect((res.body as { items: { status: string }[] }).items[0]?.status).toBe('archived');
+  });
+
   it('names an untitled thread rather than shipping null', async () => {
     searchChatHistory.mockResolvedValue([hit({ threadTitle: null })]);
 
@@ -97,6 +122,7 @@ describe('threadSearch', () => {
       snippet: '…Windkraft im Landkreis…',
       messageRole: 'assistant',
       matchedAt: '2026-09-01T10:00:00.000Z',
+      status: 'regular',
     });
   });
 
