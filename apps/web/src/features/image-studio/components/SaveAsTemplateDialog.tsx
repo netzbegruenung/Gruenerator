@@ -1,4 +1,4 @@
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import {
   Button,
   Dialog,
@@ -100,7 +100,7 @@ export function SaveAsTemplateDialog({
             visibility,
           },
         });
-        if (res.status !== 201) throw new Error('Speichern fehlgeschlagen.');
+        if (res.status !== 201) throw new ApiError(res.status, 'Speichern fehlgeschlagen.');
         setStatus(visibility === 'private' ? 'saved' : 'submitted');
       } catch (err) {
         setStatus('error');

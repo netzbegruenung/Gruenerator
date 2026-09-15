@@ -69,9 +69,8 @@ const errorMessages: Record<ErrorCode, ErrorMessageInfo> = {
       'Es wurden zu viele Anfragen gestellt. Bitte warten Sie einen Moment und versuchen Sie es dann erneut.',
   },
   500: {
-    title: 'KI-Dienst nicht verfügbar',
-    message:
-      'Ein unerwarteter Fehler ist in der KI aufgetreten. Bitte versuchen Sie es später erneut.',
+    title: 'Serverfehler',
+    message: 'Auf dem Server ist ein Fehler aufgetreten. Bitte versuchen Sie es später erneut.',
   },
   502: {
     title: 'Server nicht erreichbar',

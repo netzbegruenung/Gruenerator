@@ -47,7 +47,7 @@ export function useBoardAttachments(boardId: string | undefined, cardId: string)
         params: { boardId, attachmentId },
         body: {},
       });
-      if (result.status !== 200) throw new Error('Delete failed');
+      if (result.status !== 200) throw new ApiError(result.status, 'Delete failed');
     },
     onSuccess: () => void queryClient.invalidateQueries({ queryKey }),
   });
@@ -60,7 +60,7 @@ export function useBoardAttachments(boardId: string | undefined, cardId: string)
         params: { boardId, attachmentId },
         body: { isCover },
       });
-      if (result.status !== 200) throw new Error('Set cover failed');
+      if (result.status !== 200) throw new ApiError(result.status, 'Set cover failed');
     },
     onSuccess: () => void queryClient.invalidateQueries({ queryKey }),
   });

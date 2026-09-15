@@ -4,7 +4,7 @@ import {
   type DraftedAgentSpec,
 } from '@gruenerator/contracts';
 import { SYSTEM_AGENTS, type Agent } from '@gruenerator/shared/agents';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { useOptimizedAuth } from '../../hooks/useAuth';
@@ -122,7 +122,7 @@ export function useShareSystemAgentWithGroup() {
           permissions: { read: true, write: false, collaborative: false },
         },
       });
-      if (res.status !== 200) throw new Error('share failed');
+      if (res.status !== 200) throw new ApiError(res.status, 'share failed');
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['shared-system-agents'] });
@@ -238,7 +238,7 @@ export function useDeleteUserAgent() {
   return useMutation({
     mutationFn: async (identifier: string): Promise<void> => {
       const res = await getContractsClient().userAgents.remove({ params: { identifier } });
-      if (res.status !== 200) throw new Error('Löschen fehlgeschlagen.');
+      if (res.status !== 200) throw new ApiError(res.status, 'Löschen fehlgeschlagen.');
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: KEY });

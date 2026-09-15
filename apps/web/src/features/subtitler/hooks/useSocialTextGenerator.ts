@@ -5,7 +5,7 @@
  * via the ts-rest contract client (`subtitler.generateSocial`).
  */
 
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { useState, useCallback } from 'react';
 
 /**
@@ -32,7 +32,8 @@ export const useSocialTextGenerator = () => {
       try {
         const res = await getContractsClient().subtitler.generateSocial({ body: { subtitles } });
         if (res.status !== 200) {
-          throw new Error(
+          throw new ApiError(
+            res.status,
             (res.body as { error?: string })?.error ?? 'Fehler bei der Erstellung des Textes'
           );
         }

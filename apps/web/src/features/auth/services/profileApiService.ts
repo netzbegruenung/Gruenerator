@@ -242,7 +242,7 @@ export const profileApiService = {
     const res = await getContractsClient().userProfile.getProfile();
 
     if (res.status !== 200) {
-      throw new Error('Profil nicht gefunden');
+      throw new ApiError(res.status, 'Profil nicht gefunden');
     }
 
     const profile = res.body.user;
@@ -384,7 +384,10 @@ export const profileApiService = {
   async getNotebookCollections(): Promise<NotebookCollection[]> {
     const response = await getContractsClient().notebookCollections.listCollections();
 
-    if (response.status !== 200 || !response.body.success) {
+    if (response.status !== 200) {
+      throw new ApiError(response.status, 'Failed to fetch Q&A collections');
+    }
+    if (!response.body.success) {
       throw new Error('Failed to fetch Q&A collections');
     }
 
@@ -579,7 +582,10 @@ export const profileApiService = {
   async getUserTemplates(): Promise<UserTemplate[]> {
     const response = await getContractsClient().userTemplates.list();
 
-    if (response.status !== 200 || !response.body.success) {
+    if (response.status !== 200) {
+      throw new ApiError(response.status, 'Failed to fetch templates');
+    }
+    if (!response.body.success) {
       throw new Error('Failed to fetch templates');
     }
 
