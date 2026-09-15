@@ -142,6 +142,9 @@ export async function runRecurringTask(
       type: 'agent_task_failed',
       title: `Wiederkehrende Aufgabe fehlgeschlagen: ${task.title}`,
       body: 'Ein geplanter Lauf konnte nicht ausgeführt werden. Bitte prüfe die Aufgabe.',
+      // Ohne actionUrl rendert das Web keinen Aktionsknopf — der Hinweis
+      // „prüfe die Aufgabe" führte sonst nirgendwohin.
+      actionUrl: `/wiederkehrend?task=${task.id}`,
       metadata: { taskId: task.id },
       groupKey: `recurring-task-${task.id}`,
     }).catch((e) => log.error(`Failed to notify failure for ${task.id}:`, e as Error));

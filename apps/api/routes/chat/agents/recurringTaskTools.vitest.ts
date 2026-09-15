@@ -53,6 +53,8 @@ function taskRun(over: Partial<RecurringTaskRun> = {}): RecurringTaskRun {
     resultsSummary: null,
     resultUrl: '/office/d1',
     error: null,
+    durationMs: 4200,
+    verdict: null,
     createdAt: '2026-08-31T07:00:00.000Z',
     ...over,
   };
