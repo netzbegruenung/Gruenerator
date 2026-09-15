@@ -84,6 +84,7 @@
       "vite>esbuild": "^0.28.1",
       "tsx>esbuild": "^0.28.1",
       "@blocknote/xl-ai>ai": "^6.0.224",
+      "@blocknote/shadcn>tailwind-merge": "2.6.0",
       "@types/node": "26.3.0",
       "@tanstack/react-query": "^5.101.4",
       "zustand": "5.0.15",

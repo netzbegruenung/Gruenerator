@@ -80,6 +80,7 @@ overrides:
   vite>esbuild: ^0.28.1
   tsx>esbuild: ^0.28.1
   '@blocknote/xl-ai>ai': ^6.0.224
+  '@blocknote/shadcn>tailwind-merge': 2.6.0
   '@types/node': 26.3.0
   '@tanstack/react-query': ^5.101.4
   zustand: 5.0.15
@@ -1561,6 +1562,9 @@ importers:
       pyodide:
         specifier: ^314.0.5
         version: 314.0.5
+      tailwind-merge:
+        specifier: ^3.6.0
+        version: 3.6.0
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -21825,9 +21829,6 @@ packages:
   tailwind-merge@2.6.0:
     resolution: {integrity: sha512-P+Vu1qXfzediirmHOC3xKGAYeZtPcV9g76X+xg2FD4tYgR71ewMA35Y3sCz3zhiN/dwefRpJX0yBcgwi1fXNQA==}
 
-  tailwind-merge@2.6.1:
-    resolution: {integrity: sha512-Oo6tHdpZsGpkKG88HJ8RR1rg/RdnEkQEfMoEk2x1XRI3F1AxeU+ijRXpiVUF4UbLfcxxRGw6TbUINKYdWVsQTQ==}
-
   tailwind-merge@3.6.0:
     resolution: {integrity: sha512-uxL7qAVQriqRQPAyK3pj66VqskWqoZ37PW94jwOTwNfq/z9oyu1V+eqrZqtR2+fCiXdYOZe/Modt8GtvqNzu+w==}
 
@@ -24873,7 +24874,7 @@ snapshots:
       lucide-react: 0.525.0(react@19.2.8)
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
-      tailwind-merge: 2.6.1
+      tailwind-merge: 2.6.0
       tailwindcss: 4.3.3
     transitivePeerDependencies:
       - '@date-fns/tz'
@@ -48332,8 +48333,6 @@ snapshots:
   tagged-tag@1.0.0: {}
 
   tailwind-merge@2.6.0: {}
-
-  tailwind-merge@2.6.1: {}
 
   tailwind-merge@3.6.0: {}
 
