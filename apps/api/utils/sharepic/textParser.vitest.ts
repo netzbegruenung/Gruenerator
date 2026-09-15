@@ -5,6 +5,7 @@ import {
   parseLabeledText,
   truncateAtSentence,
   truncateField,
+  sanitizeField,
 } from './textParser.js';
 
 describe('truncateField', () => {
@@ -113,5 +114,47 @@ describe('isAttributionLine', () => {
     ]) {
       expect(isAttributionLine(line), line).toBe(false);
     }
+  });
+});
+
+/**
+ * `sanitizeField` schmolz mit `\s+ → ' '` jeden Zeilenumbruch ein. Das war der
+ * Grund, warum KEIN KI-generierter Sharepic-Text je eine Aufzählung tragen
+ * konnte: der Parser sammelt mehrzeilige Werte korrekt ein, und diese eine
+ * Zeile warf sie direkt danach wieder weg.
+ */
+describe('sanitizeField', () => {
+  it('schmilzt ohne keepListBreaks weiterhin alles zu einer Zeile', () => {
+    expect(sanitizeField('• eins\n• zwei')).toBe('• eins • zwei');
+  });
+
+  it('behält den Umbruch vor einer Aufzählungszeile', () => {
+    expect(sanitizeField('• eins\n• zwei', { keepListBreaks: true })).toBe('• eins\n• zwei');
+  });
+
+  it('vereinheitlicht Strich-Marker auf das Bullet', () => {
+    // Ohne die Normalisierung VOR dem Markdown-Strip bliebe von "* zwei" nur
+    // " zwei" übrig — der Marker wäre weg, bevor ihn jemand erkennen kann.
+    expect(sanitizeField('- eins\n* zwei', { keepListBreaks: true })).toBe('• eins\n• zwei');
+  });
+
+  it('schmilzt einen Umbruch mitten im Fließtext weiterhin ein', () => {
+    // Ein Modell, das seine Prosa auf 80 Zeichen umbricht, soll zu einem
+    // Absatz zusammenlaufen — sonst stünden harte Umbrüche mitten im Satz.
+    expect(sanitizeField('Wir wollen mehr\nRadwege bauen.', { keepListBreaks: true })).toBe(
+      'Wir wollen mehr Radwege bauen.'
+    );
+  });
+
+  it('hält eine einzelne Ziffernzeile für ein Datum, nicht für eine Aufzählung', () => {
+    expect(sanitizeField('Kundgebung am\n1. Mai 2027', { keepListBreaks: true })).toBe(
+      'Kundgebung am 1. Mai 2027'
+    );
+  });
+
+  it('entfernt Markdown-Auszeichnung wie bisher', () => {
+    expect(sanitizeField('**fett** und _kursiv_', { keepListBreaks: true })).toBe(
+      'fett und kursiv'
+    );
   });
 });
