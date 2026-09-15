@@ -225,6 +225,13 @@ export const TOOL_MENUS: WorkplaceToolMenu[] = [
         icon: getIcon('navigation', 'zeichenzaehler')!,
       },
       {
+        id: 'uebersetzer',
+        title: 'Übersetzer',
+        description: 'Texte & Dokumente übersetzen',
+        path: '/uebersetzer',
+        icon: getIcon('navigation', 'uebersetzer')!,
+      },
+      {
         id: 'transkription',
         title: 'Transkription',
         description: 'Audio zu Text',

@@ -54,6 +54,11 @@
     "subtitle": "Audio mit KI verschriftlichen",
     "path": "/transkription"
   },
+  "catalog.tool-uebersetzer": {
+    "title": "Übersetzer",
+    "subtitle": "Texte & Dokumente mit DeepL übersetzen",
+    "path": "/uebersetzer"
+  },
   "catalog.tool-vorlagen": {
     "title": "Vorlagen",
     "subtitle": "Fertige Design-Vorlagen",
@@ -222,6 +227,11 @@
     "title": "Transkription",
     "subtitle": "Audio zu Text",
     "path": "/transkription"
+  },
+  "workplace.uebersetzer": {
+    "title": "Übersetzer",
+    "subtitle": "Texte & Dokumente übersetzen",
+    "path": "/uebersetzer"
   },
   "workplace.vorlagen": {
     "title": "Vorlagen",
