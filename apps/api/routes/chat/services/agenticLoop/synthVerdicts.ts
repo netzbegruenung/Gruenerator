@@ -12,6 +12,7 @@
  * statt zu ersetzen — sie wird gestreamt, bevor die Beschneidung greift.
  */
 import {
+  announcesPendingWork,
   containsBrokenJsonPayload,
   defersToSearchDespiteSources,
   deniesSearchAbilityDespiteSearching,
@@ -134,6 +135,13 @@ export function finalizeAnswerText(input: {
   ) {
     warnings.push(
       `[Agentic] Answer denies being able to search although ${input.stepCount} step(s) gathered ${input.sourceCount} source(s) — synth prompt read as a capability limit`
+    );
+  }
+
+  // Nothing runs after the answer — a waiting instruction is a claimed action.
+  if (announcesPendingWork(text)) {
+    warnings.push(
+      `[Agentic] answer asks the user to wait for work that will not happen — the turn is over (${input.stepCount} step(s) ran): ${JSON.stringify(text.trim().slice(0, 100))}`
     );
   }
 
