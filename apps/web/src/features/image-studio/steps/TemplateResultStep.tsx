@@ -1,5 +1,5 @@
 import { ControllableCanvasWrapper, SHARE_ORIGINAL_IMAGE_SRC } from '@gruenerator/canvas-editor';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { useShareStore } from '@gruenerator/shared/share';
 import { Button } from '@gruenerator/ui';
 import { motion } from 'motion/react';
@@ -182,7 +182,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
         },
       });
       if (result.status !== 201) {
-        throw new Error(`Failed to create canvas (HTTP ${result.status})`);
+        throw new ApiError(result.status, `Failed to create canvas (HTTP ${result.status})`);
       }
       void navigate(`/studio/canvas/${result.body.id}`);
     } catch (err) {
