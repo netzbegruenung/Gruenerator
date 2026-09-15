@@ -557,19 +557,15 @@ function formatImageContext(state: ChatGraphState): string {
     // behauptete der Prompt eine Sichtbarkeit, die es dann nicht gibt — und ein
     // Modell, dem man sagt, es sehe ein Bild, beschreibt es auch.
     const visionAllowed = state.enabledTools?.['vision'] !== false;
-    sections.push(
+    sections.push(`
+
+## ANGEHÄNGTE BILDER
+
+Der*die Nutzer*in hat ${count} Bild${count > 1 ? 'er' : ''} angehängt (${names}). ${
       visionAllowed
-        ? `
-
-## ANGEHÄNGTE BILDER
-
-Der*die Nutzer*in hat ${count} Bild${count > 1 ? 'er' : ''} angehängt (${names}). Die Bilder sind in der Nachricht sichtbar.`
-        : `
-
-## ANGEHÄNGTE BILDER
-
-Der*die Nutzer*in hat ${count} Bild${count > 1 ? 'er' : ''} angehängt (${names}). Die Bildanalyse ist für diesen Grünerator ausgeschaltet — die Bilder sind NICHT in der Nachricht sichtbar. Sage das offen und rate den Inhalt nicht.`
-    );
+        ? 'Die Bilder sind in der Nachricht sichtbar.'
+        : 'Die Bildanalyse ist für diesen Grünerator ausgeschaltet — die Bilder sind NICHT in der Nachricht sichtbar. Sage das offen und rate den Inhalt nicht.'
+    }`);
   }
 
   // Vision-grounded before/after descriptions populated by imageEditNode after a
