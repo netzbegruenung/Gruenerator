@@ -91,3 +91,8 @@ export {
   mentionTokenRegex,
 } from './mentionTokens.js';
 export type { MentionToken, MentionTokenType } from './mentionTokens.js';
+
+// German-aware sentence boundaries — read-aloud pipelining (voice) and
+// server-side chunking of long texts for Grünerator Voice (api)
+export { splitSentences } from './sentenceSplitter.js';
+export type { SplitResult } from './sentenceSplitter.js';
