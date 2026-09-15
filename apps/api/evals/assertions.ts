@@ -40,8 +40,16 @@ const ARTIFACT_NOUN_RE =
 const ACTION_TOOL_RE =
   /^(?:create_|edit_document$|sharepic$|generate_image$|image_edit$|social_post$)/;
 
+/**
+ * Both halves have to meet in ONE sentence. Tested over the whole text they
+ * need nothing to do with each other: "Ich habe die Reihenfolge geändert. Das
+ * Museum hat heute ein neues Sharepic ausgestellt." claims an edit and mentions
+ * an artifact, and neither statement is a phantom action.
+ */
 export function claimsArtifactAction(text: string): boolean {
-  return CLAIMED_ACTION_RE.test(text) && ARTIFACT_NOUN_RE.test(text);
+  return text
+    .split(/(?<=[.!?\n])\s*/)
+    .some((sentence) => CLAIMED_ACTION_RE.test(sentence) && ARTIFACT_NOUN_RE.test(sentence));
 }
 
 /** An action EVENT backed this turn — shared with the judge's auto-rubrics so both gates agree. */
