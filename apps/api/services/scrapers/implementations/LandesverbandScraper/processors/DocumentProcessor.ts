@@ -6,6 +6,7 @@
 
 import {
   CONTENT_TYPE_LABELS,
+  DEFAULT_MAX_AGE_YEARS,
   getCuratedListsForUrl,
   getCuratedContentTypeForUrl,
 } from '../../../../../config/landesverbaendeConfig.js';
@@ -18,6 +19,8 @@ import {
 import { chunkQualityService } from '../../../../ChunkQualityService/index.js';
 import {
   buildEmbeddingTextsForChunks,
+  embeddingPayload,
+  offsetPayload,
   smartChunkDocument,
   structurePayload,
 } from '../../../../document-services/index.js';
@@ -59,7 +62,7 @@ export class DocumentProcessor {
   ): Promise<ProcessResult> {
     const { title, text, publishedAt, categories } = content;
     const targetCollection = collectionOverride || this.collectionName;
-    const ageLimit = maxAgeYears ?? 10;
+    const ageLimit = maxAgeYears ?? DEFAULT_MAX_AGE_YEARS;
 
     // A curated list (e.g. wahlprogramm-be) may override the scraping path's
     // content type so a canonical subset surfaces under its own "Typ" filter
@@ -162,6 +165,8 @@ export class DocumentProcessor {
         chunk_index: index,
         chunk_text: chunkTexts[index],
         ...structurePayload(chunk),
+        ...embeddingPayload(),
+        ...offsetPayload(chunk),
         quality_score: chunkQualityService.calculateQualityScore(chunkTexts[index]),
         title: documentTitle,
         primary_category: categories?.[0] || null,
