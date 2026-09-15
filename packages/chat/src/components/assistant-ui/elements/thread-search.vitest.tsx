@@ -110,6 +110,21 @@ describe('ThreadSearch', () => {
     expect(screen.getByText('Heute')).toBeInTheDocument();
   });
 
+  it('marks an archived hit in the link’s own name', () => {
+    // Archived threads are searchable but stay browsable under "Archiviert".
+    // A hit that opened one without saying so would read as an ordinary chat,
+    // so the marker is text inside the <a>, not a colour or a bare icon.
+    renderSearch({ threads: [thread({ archived: true })] });
+
+    expect(screen.getByRole('link', { name: /Archiviert/ })).toBeInTheDocument();
+  });
+
+  it('leaves an ordinary hit unmarked', () => {
+    renderSearch();
+
+    expect(screen.queryByText('Archiviert')).not.toBeInTheDocument();
+  });
+
   it('has no accessibility violations', async () => {
     const { container } = renderSearch();
 
