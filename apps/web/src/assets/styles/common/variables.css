@@ -363,7 +363,9 @@
     /* Standard shadcn semantic tokens */
     --color-primary-foreground-val: #ffffff;
     --color-secondary-foreground-val: #ffffff;
-    --color-accent-foreground-val: #1a1a1a;
+    /* Schrift AUF --color-accent, das hier die Interaktionsfarbe trägt: hell
+       Eucalyptus (Weiß darauf 4,65:1), dunkel Weiß (#1a1a1a darauf 17:1). */
+    --color-accent-foreground-val: #ffffff;
     --color-muted-val: #f3f4f6;
     --color-destructive-foreground-val: #ffffff;
     --color-input-val: #e5e5e5;
@@ -534,7 +536,7 @@
     --color-relevance-low-val: #f87171;
 
     /* Standard shadcn semantic tokens */
-    --color-accent-foreground-val: #e5e5e5;
+    --color-accent-foreground-val: #1a1a1a;
     --color-muted-val: #2a2a2a;
     --color-destructive-val: #f87171;
     --color-input-val: #374151;
@@ -670,7 +672,7 @@
         --color-relevance-high-val: #4ade80;
         --color-relevance-medium-val: #facc15;
         --color-relevance-low-val: #f87171;
-        --color-accent-foreground-val: #e5e5e5;
+        --color-accent-foreground-val: #1a1a1a;
         --color-muted-val: #2a2a2a;
         --color-destructive-val: #f87171;
         --color-input-val: #374151;
