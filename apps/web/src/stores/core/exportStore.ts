@@ -1,4 +1,4 @@
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { create } from 'zustand';
 
 import apiClient from '../../components/utils/apiClient';
@@ -111,7 +111,7 @@ export const useExportStore = create<ExportState>((set) => ({
         body: { content, title },
       });
       if (result.status !== 200) {
-        throw new Error(`DOCX generation failed (HTTP ${result.status})`);
+        throw new ApiError(result.status, `DOCX generation failed (HTTP ${result.status})`);
       }
       const blob = result.body as Blob;
       const url = URL.createObjectURL(blob);

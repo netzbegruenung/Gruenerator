@@ -12,7 +12,7 @@
  * all consumers can drop-in replace `useBoards` with `useBoardsTyped`.
  */
 
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { isBoardArchived, type BoardType } from '../features/boards/types';
@@ -49,7 +49,7 @@ export const useBoardsTyped = (options?: { enabled?: boolean }) => {
         },
       });
       if (result.status !== 201) {
-        throw new Error(`Failed to create board (HTTP ${result.status})`);
+        throw new ApiError(result.status, `Failed to create board (HTTP ${result.status})`);
       }
       return result.body;
     },
@@ -66,7 +66,7 @@ export const useBoardsTyped = (options?: { enabled?: boolean }) => {
         body: {},
       });
       if (result.status !== 200) {
-        throw new Error(`Failed to delete board (HTTP ${result.status})`);
+        throw new ApiError(result.status, `Failed to delete board (HTTP ${result.status})`);
       }
     },
     onSuccess: () => {
@@ -96,7 +96,7 @@ export const useBoardsTyped = (options?: { enabled?: boolean }) => {
         },
       });
       if (result.status !== 200) {
-        throw new Error(`Failed to update board (HTTP ${result.status})`);
+        throw new ApiError(result.status, `Failed to update board (HTTP ${result.status})`);
       }
       return result.body;
     },
@@ -112,7 +112,7 @@ export const useBoardsTyped = (options?: { enabled?: boolean }) => {
         body: { description },
       });
       if (result.status !== 201) {
-        throw new Error(`Failed to generate board (HTTP ${result.status})`);
+        throw new ApiError(result.status, `Failed to generate board (HTTP ${result.status})`);
       }
       return result.body;
     },

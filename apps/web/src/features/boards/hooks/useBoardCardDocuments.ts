@@ -1,5 +1,5 @@
 import { type BoardCardDocumentEntry } from '@gruenerator/contracts';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 /**
@@ -20,7 +20,7 @@ export function useBoardCardDocuments(boardId: string | undefined, cardId: strin
       const result = await client.boardCardDocuments.listCardDocuments({
         params: { boardId, cardId },
       });
-      if (result.status !== 200) throw new Error('Failed to load card documents');
+      if (result.status !== 200) throw new ApiError(result.status, 'Failed to load card documents');
       return result.body;
     },
     enabled: !!boardId && !!cardId,
