@@ -5,7 +5,7 @@ import {
   type McpOauthStartResult,
   type McpServerTestResult,
 } from '@gruenerator/contracts';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 
 export type {
   McpServerSummary,
@@ -46,7 +46,8 @@ export interface McpServerCreateInput {
 export async function fetchMcpServers(): Promise<McpServerSummary[]> {
   const client = getContractsClient();
   const result = await client.mcpServers.list();
-  if (result.status !== 200) throw new Error('MCP-Server konnten nicht geladen werden');
+  if (result.status !== 200)
+    throw new ApiError(result.status, 'MCP-Server konnten nicht geladen werden');
   return result.body.servers;
 }
 
@@ -82,7 +83,8 @@ export async function updateMcpServer(
 export async function deleteMcpServer(id: string): Promise<void> {
   const client = getContractsClient();
   const result = await client.mcpServers.remove({ params: { id } });
-  if (result.status !== 200) throw new Error('MCP-Server konnte nicht entfernt werden');
+  if (result.status !== 200)
+    throw new ApiError(result.status, 'MCP-Server konnte nicht entfernt werden');
 }
 
 export async function startMcpOAuth(id: string): Promise<McpOauthStartResult> {
@@ -98,7 +100,7 @@ export async function startMcpOAuth(id: string): Promise<McpOauthStartResult> {
 export async function testMcpServer(id: string): Promise<McpServerTestResult> {
   const client = getContractsClient();
   const result = await client.mcpServers.test({ params: { id } });
-  if (result.status !== 200) throw new Error('Verbindungstest fehlgeschlagen');
+  if (result.status !== 200) throw new ApiError(result.status, 'Verbindungstest fehlgeschlagen');
   return result.body;
 }
 
@@ -110,6 +112,7 @@ export async function fetchMcpRegistry(search?: string, cursor?: string): Promis
       ...(cursor ? { cursor } : {}),
     },
   });
-  if (result.status !== 200) throw new Error('MCP-Registry konnte nicht geladen werden');
+  if (result.status !== 200)
+    throw new ApiError(result.status, 'MCP-Registry konnte nicht geladen werden');
   return result.body;
 }

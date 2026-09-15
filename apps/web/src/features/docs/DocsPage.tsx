@@ -11,7 +11,7 @@ import {
   type TemplateType,
 } from '@gruenerator/docs';
 import { instantiateUserTemplate, type UserTemplateSummary } from '@gruenerator/shared';
-import { getContractsClient, isUnauthorizedError } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient, isUnauthorizedError } from '@gruenerator/shared/api';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -517,11 +517,13 @@ export function DocumentsContent({
           );
         } else if (kind === 'sheet') {
           const res = await getContractsClient().sheets.generate({ body: { description } });
-          if (res.status !== 201) throw new Error(`Sheet generation failed (${res.status})`);
+          if (res.status !== 201)
+            throw new ApiError(res.status, `Sheet generation failed (${res.status})`);
           void navigate(`/office/${res.body.id}`);
         } else {
           const res = await getContractsClient().presentations.generate({ body: { description } });
-          if (res.status !== 201) throw new Error(`Presentation generation failed (${res.status})`);
+          if (res.status !== 201)
+            throw new ApiError(res.status, `Presentation generation failed (${res.status})`);
           void navigate(`/office/${res.body.id}`);
         }
       } catch (err) {

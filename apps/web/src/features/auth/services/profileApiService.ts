@@ -1,4 +1,4 @@
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import {
   getRobotAvatarPath,
   validateRobotId,
@@ -242,7 +242,7 @@ export const profileApiService = {
     const res = await getContractsClient().userProfile.getProfile();
 
     if (res.status !== 200) {
-      throw new Error('Profil nicht gefunden');
+      throw new ApiError(res.status, 'Profil nicht gefunden');
     }
 
     const profile = res.body.user;
@@ -318,7 +318,7 @@ export const profileApiService = {
 
     const res = await getContractsClient().userProfile.updateProfile({ body });
     if (res.status !== 200) {
-      throw new Error(`Profil-Update fehlgeschlagen (HTTP ${res.status})`);
+      throw new ApiError(res.status, `Profil-Update fehlgeschlagen (HTTP ${res.status})`);
     }
 
     return res.body.profile;
@@ -331,7 +331,7 @@ export const profileApiService = {
       });
 
       if (res.status !== 200) {
-        throw new Error(`Avatar-Update fehlgeschlagen (HTTP ${res.status})`);
+        throw new ApiError(res.status, `Avatar-Update fehlgeschlagen (HTTP ${res.status})`);
       }
 
       return res.body.profile;
@@ -384,7 +384,10 @@ export const profileApiService = {
   async getNotebookCollections(): Promise<NotebookCollection[]> {
     const response = await getContractsClient().notebookCollections.listCollections();
 
-    if (response.status !== 200 || !response.body.success) {
+    if (response.status !== 200) {
+      throw new ApiError(response.status, 'Failed to fetch Q&A collections');
+    }
+    if (!response.body.success) {
       throw new Error('Failed to fetch Q&A collections');
     }
 
@@ -519,7 +522,7 @@ export const profileApiService = {
     });
 
     if (response.status !== 200) {
-      throw new Error('Failed to delete Q&A collection');
+      throw new ApiError(response.status, 'Failed to delete Q&A collection');
     }
 
     return { success: response.body.success, message: response.body.message };
@@ -579,7 +582,10 @@ export const profileApiService = {
   async getUserTemplates(): Promise<UserTemplate[]> {
     const response = await getContractsClient().userTemplates.list();
 
-    if (response.status !== 200 || !response.body.success) {
+    if (response.status !== 200) {
+      throw new ApiError(response.status, 'Failed to fetch templates');
+    }
+    if (!response.body.success) {
       throw new Error('Failed to fetch templates');
     }
 
@@ -598,7 +604,7 @@ export const profileApiService = {
     });
 
     if (response.status !== 200) {
-      throw new Error('Failed to update template title');
+      throw new ApiError(response.status, 'Failed to update template title');
     }
 
     return { success: response.body.success, message: response.body.message };
@@ -610,7 +616,7 @@ export const profileApiService = {
     });
 
     if (response.status !== 200) {
-      throw new Error('Failed to delete template');
+      throw new ApiError(response.status, 'Failed to delete template');
     }
 
     return { success: response.body.success, message: response.body.message };
@@ -633,7 +639,7 @@ export const profileApiService = {
     });
 
     if (response.status !== 200) {
-      throw new Error('Failed to update template visibility');
+      throw new ApiError(response.status, 'Failed to update template visibility');
     }
 
     return { success: response.body.success, message: response.body.message };
@@ -649,7 +655,7 @@ export const profileApiService = {
     });
 
     if (response.status !== 200) {
-      throw new Error('Failed to update template');
+      throw new ApiError(response.status, 'Failed to update template');
     }
 
     return { success: response.body.success, message: response.body.message };

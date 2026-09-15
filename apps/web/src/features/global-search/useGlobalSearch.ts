@@ -3,7 +3,7 @@ import {
   GLOBAL_SEARCH_MIN_QUERY_LENGTH,
   type GlobalSearchResponse,
 } from '@gruenerator/contracts';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 
 import useDebounce from '../../components/hooks/useDebounce';
@@ -15,7 +15,7 @@ const DEBOUNCE_MS = 250;
 async function fetchGlobalSearch(query: string): Promise<GlobalSearchResponse> {
   const result = await getContractsClient().globalSearch.search({ query: { q: query } });
   if (result.status !== 200) {
-    throw new Error('Suche fehlgeschlagen');
+    throw new ApiError(result.status, 'Suche fehlgeschlagen');
   }
   return result.body;
 }

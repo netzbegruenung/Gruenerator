@@ -1,4 +1,4 @@
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -516,7 +516,7 @@ const DocumentOverview = ({
     try {
       const res = await getContractsClient().documents.getContent({ params: { id: item.id } });
       if (res.status !== 200) {
-        throw new Error('Dokument-Inhalt konnte nicht geladen werden');
+        throw new ApiError(res.status, 'Dokument-Inhalt konnte nicht geladen werden');
       }
       const enhancedItem: DocumentItem = {
         ...item,
@@ -544,7 +544,7 @@ const DocumentOverview = ({
 
     const res = await getContractsClient().documents.getContent({ params: { id: item.id } });
     if (res.status !== 200) {
-      throw new Error('Dokument-Inhalt konnte nicht geladen werden');
+      throw new ApiError(res.status, 'Dokument-Inhalt konnte nicht geladen werden');
     }
     return res.body.data.ocr_text ?? '';
   };

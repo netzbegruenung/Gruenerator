@@ -17,7 +17,7 @@ import {
   serializePresentationContext,
   yMapToSlide,
 } from '@gruenerator/presentations';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { useMemo, useRef, type ReactNode } from 'react';
 import { type Doc as YDoc } from 'yjs';
 
@@ -70,7 +70,7 @@ export function PresentationsChatProvider({
           params: { id: documentId },
         });
         if (result.status !== 200) {
-          throw new Error(`Chat thread lookup failed: ${result.status}`);
+          throw new ApiError(result.status, `Chat thread lookup failed: ${result.status}`);
         }
         return chatThreadResponseSchema.parse(result.body).threadId;
       },

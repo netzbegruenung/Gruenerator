@@ -1,4 +1,4 @@
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { Button, Skeleton, VideoCard } from '@gruenerator/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -165,7 +165,8 @@ function SubtitlerBetaPageInner() {
       getContractsClient()
         .subtitler.getProject({ params: { projectId } })
         .then((res) => {
-          if (res.status !== 200) throw new Error('Projekt konnte nicht geladen werden.');
+          if (res.status !== 200)
+            throw new ApiError(res.status, 'Projekt konnte nicht geladen werden.');
           // Contract SubtitlerProject is nullability-wide; the local shape is a
           // tight subset the beta editor reads off.
           const p = res.body.project as unknown as SubtitlerProject;

@@ -1,5 +1,7 @@
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
+
+import { shouldRetryQuery } from '../../../components/utils/queryRetry';
 
 import type { NotebookCollection } from '../../../types/notebook';
 
@@ -7,7 +9,10 @@ const QUERY_KEY = ['notebookCollections', 'public'] as const;
 
 async function fetchPublicNotebookCollections(): Promise<NotebookCollection[]> {
   const res = await getContractsClient().notebookCollections.listPublicCollections();
-  if (res.status !== 200 || !res.body.success) {
+  if (res.status !== 200) {
+    throw new ApiError(res.status, 'Failed to fetch public notebook collections');
+  }
+  if (!res.body.success) {
     throw new Error('Failed to fetch public notebook collections');
   }
   // The contract's collection schema and the app's richer NotebookCollection
@@ -24,6 +29,6 @@ export function usePublicNotebookCollections({ enabled = true }: { enabled?: boo
     enabled,
     staleTime: 10 * 60 * 1000,
     refetchOnWindowFocus: false,
-    retry: 1,
+    retry: (failureCount, error) => shouldRetryQuery(failureCount, error, 1),
   });
 }
