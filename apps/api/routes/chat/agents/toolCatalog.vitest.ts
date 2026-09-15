@@ -24,6 +24,10 @@ vi.mock('./searchTools.js', async (importOriginal) => ({
     return {
       gruenerator_search: { description: 'd', inputSchema: {}, execute: searchExec },
       web_search: { description: 'd', inputSchema: {}, execute: webExec },
+      // Die Beispielkorpora tragen keine Quellen und kommen darum ohne
+      // eigenes `execute` aus — sie werden nur montiert oder eben nicht.
+      gruenerator_examples_search: { description: 'd', inputSchema: {} },
+      gruenerator_pressemitteilung_examples: { description: 'd', inputSchema: {} },
     };
   },
   // Real implementation: the catalog's web gate is what the tests below assert,
@@ -1515,5 +1519,88 @@ describe('toolCatalog memory tool mounting', () => {
     expect(
       catalogWith({ memoryEnabled: true, enabledTools: { memory: false } }).toolNames
     ).not.toContain('memory');
+  });
+});
+
+/**
+ * Drei Picker-Schlüssel standen im Agenten-Baukasten und erreichten kein
+ * einziges Gatter, und die Suchfamilie gehorchte auf dem Loop-Pfad anderen
+ * Regeln als auf dem Einzelpfad (#3307). Die Kästchen waren also nicht streng
+ * oder lasch — sie waren wirkungslos, was die teurere Ausfallform ist: die
+ * Person sieht eine Einstellung, die sie getroffen hat, und das Werkzeug
+ * antwortet trotzdem.
+ */
+describe('toolCatalog: Picker-Schlüssel, die nichts erreichten (#3307)', () => {
+  const catalogFor = (enabledTools: Record<string, boolean>) => {
+    const sourceRegistry = createSourceRegistry();
+    const sse = { send: () => {} } as unknown as NonNullable<
+      Parameters<typeof buildChatToolCatalog>[0]['loop']
+    >['sse'];
+    return buildChatToolCatalog({
+      agentConfig,
+      sourceRegistry,
+      loop: {
+        sse,
+        state: { intent: 'agentic', enabledTools, agentConfig } as unknown as ChatGraphState,
+      },
+    }).toolNames;
+  };
+
+  it('lässt einen Turn ohne Abwahl unverändert', () => {
+    const names = catalogFor({});
+    expect(names).toEqual(
+      expect.arrayContaining([
+        'gruenerator_search',
+        'gruenerator_examples_search',
+        'umfragen',
+        'find_content',
+        'documents',
+        'read_artifact',
+      ])
+    );
+  });
+
+  it('nimmt den Grünerator-Korpus weg, wenn `search` abgewählt ist', () => {
+    // Der Einzelpfad tat das längst (searchBranch über den Intent-Namen), der
+    // Loop montierte weiter — dasselbe Werkzeug, zwei Regeln.
+    const names = catalogFor({ search: false });
+    expect(names).not.toContain('gruenerator_search');
+    expect(names).toContain('web_search');
+  });
+
+  it('nimmt beide Beispielkorpora weg, wenn `examples` abgewählt ist', () => {
+    const names = catalogFor({ examples: false });
+    expect(names).not.toContain('gruenerator_examples_search');
+    expect(names).not.toContain('gruenerator_pressemitteilung_examples');
+    expect(names).toContain('gruenerator_search');
+  });
+
+  it('nimmt nur die Presse-Beispiele weg, wenn der Composer sie einzeln abwählt', () => {
+    // `pressemitteilung_examples` ist ein eigener Composer-Schalter (ToolKey in
+    // chatStore.ts) und ein eigener Klassifikator-Intent — der Einzelpfad
+    // gehorchte ihm, der Loop kannte nur `examples`.
+    const names = catalogFor({ pressemitteilung_examples: false });
+    expect(names).not.toContain('gruenerator_pressemitteilung_examples');
+    expect(names).toContain('gruenerator_examples_search');
+  });
+
+  it('lässt `umfragen` weg, wenn `meinungsbild` abgewählt ist', () => {
+    expect(catalogFor({ meinungsbild: false })).not.toContain('umfragen');
+  });
+
+  it('nimmt mit `user_content` die eigenen Inhalte weg — samt `read_artifact`', () => {
+    const names = catalogFor({ user_content: false });
+    expect(names).not.toContain('find_content');
+    expect(names).not.toContain('documents');
+    expect(names).not.toContain('read_artifact');
+    // Der Nachbar im selben Block bleibt: `search_threads` hat seinen eigenen
+    // Schlüssel ("Frühere Chats") und ist nicht gemeint.
+    expect(names).toContain('search_threads');
+  });
+
+  it('lässt die feineren Werkzeugschlüssel daneben weiter gelten', () => {
+    const names = catalogFor({ find_content: false });
+    expect(names).not.toContain('find_content');
+    expect(names).toContain('documents');
   });
 });
