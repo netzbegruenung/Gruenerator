@@ -8,6 +8,8 @@
 import { initContract } from '@ts-rest/core';
 
 import {
+  draftScriptBodySchema,
+  draftScriptResponseSchema,
   generateSpeechBodySchema,
   generateSpeechResponseSchema,
   speechErrorSchema,
@@ -37,6 +39,25 @@ export const speechContract = c.router(
         500: speechErrorSchema,
       },
       summary: 'Generate a downloadable audio file from text',
+    },
+    /**
+     * POST /api/voice/speech/script
+     * Drafts the text that `generate` will later speak. Deliberately a separate
+     * call: the person reads and edits the draft before anything is
+     * synthesised, so a bad draft costs no provider seconds.
+     */
+    draftScript: {
+      method: 'POST',
+      path: '/api/voice/speech/script',
+      body: draftScriptBodySchema,
+      responses: {
+        200: draftScriptResponseSchema,
+        400: speechErrorSchema,
+        401: speechErrorSchema,
+        403: speechErrorSchema,
+        500: speechErrorSchema,
+      },
+      summary: 'Draft a spoken-language script for a Voice preset',
     },
   },
   { pathPrefix: '' }

@@ -3,6 +3,7 @@
  *
  * Covers:
  *   POST /api/voice/speech/generate
+ *   POST /api/voice/speech/script
  *
  * requireAuth, requireAiConsent and the rate limiter are applied on the
  * /api/voice prefix in routes.ts before this router is mounted —
@@ -10,9 +11,10 @@
  * middleware added afterwards would not cover them (routes.mountGuard.vitest.ts).
  */
 
-import { speechContract } from '@gruenerator/contracts';
+import { SPEECH_MAX_TEXT_CHARS, speechContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
+import { aiText } from '../../services/ai/generate.js';
 import {
   SpeechQuotaExceededError,
   generateSpeechFiles,
@@ -20,6 +22,8 @@ import {
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
+
+import { buildScriptPrompt } from './speechScriptPrompts.js';
 
 import type { Application } from 'express';
 
@@ -61,6 +65,41 @@ const speechContractRouter = s.router(speechContract, {
       if (!abort.signal.aborted) {
         log.error('[Speech] Generate error:', error);
       }
+      return {
+        status: 500 as const,
+        body: { success: false as const, error: toUserFacingMessage(error) },
+      };
+    }
+  },
+
+  draftScript: async ({ body, req }) => {
+    if (!req.user?.id) {
+      return { status: 401 as const, body: { success: false as const, error: 'Nicht angemeldet' } };
+    }
+
+    try {
+      const { system, prompt } = buildScriptPrompt(
+        body,
+        req.user.locale === 'de-AT' ? 'de-AT' : 'de-DE'
+      );
+      const script = await aiText({ lane: 'voice_script', system, prompt });
+      if (!script) {
+        return {
+          status: 500 as const,
+          body: {
+            success: false as const,
+            error: 'Es kam kein Entwurf zurück. Bitte versuch es noch einmal.',
+          },
+        };
+      }
+      // The editor refuses anything longer, so a rambling draft is cut here
+      // rather than rejected by the next request the person sends.
+      return {
+        status: 200 as const,
+        body: { success: true as const, script: script.slice(0, SPEECH_MAX_TEXT_CHARS) },
+      };
+    } catch (error) {
+      log.error('[Speech] Script draft error:', error);
       return {
         status: 500 as const,
         body: { success: false as const, error: toUserFacingMessage(error) },

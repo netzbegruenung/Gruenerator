@@ -112,6 +112,30 @@ describe('VoicePage', () => {
     );
   });
 
+  it('drops an AI draft into the editor instead of sending it straight off', async () => {
+    let generateCalls = 0;
+    server.use(
+      http.post('http://localhost/api/voice/speech/script', () =>
+        HttpResponse.json({ success: true, script: 'Guten Tag, hier ist das Grüne Büro.' })
+      ),
+      http.post(ENDPOINT, () => {
+        generateCalls += 1;
+        return HttpResponse.json(okResponse);
+      })
+    );
+    const { user } = renderWithProviders(<VoicePage />);
+
+    await user.click(screen.getByRole('button', { name: /Text mit KI entwerfen/ }));
+    fireEvent.change(screen.getByLabelText('Wen erreicht man?'), {
+      target: { value: 'Grünes Büro Musterstadt' },
+    });
+    await user.click(screen.getByRole('button', { name: /Entwurf erstellen/ }));
+
+    await waitFor(() => expect(textarea()).toHaveValue('Guten Tag, hier ist das Grüne Büro.'));
+    // The person reads and edits first — a draft must never synthesise by itself.
+    expect(generateCalls).toBe(0);
+  });
+
   it('shows the quota message from a 429 as an alert', async () => {
     server.use(
       http.post(ENDPOINT, () =>
