@@ -42,13 +42,66 @@ export interface LayoutedLine {
   marker: string | null;
 }
 
-/** Strich-Marker, die auf `•` vereinheitlicht werden. */
-const DASH_MARKER_RE = /^([ \t]*)[-*–][ \t]+/;
+/** Zeichen, die als Aufzählungsmarker gelten. */
+const BULLET_MARKERS = new Set(['-', '*', '–', '•']);
 
-/** Eine Markerzeile: Strich, Bullet oder Ziffer, gefolgt von Abstand. */
-const LINE_MARKER_RE = /^[ \t]*([-*–•]|\d{1,3}[.)])[ \t]+(.*)$/;
+/** Die davon, die auf `•` vereinheitlicht werden — `•` ist schon am Ziel. */
+const DASH_MARKERS = new Set(['-', '*', '–']);
 
-const isNumericMarker = (marker: string): boolean => /^\d/.test(marker);
+const isSpace = (char: string): boolean => char === ' ' || char === '\t';
+
+const isNumericMarker = (marker: string): boolean => {
+  const code = marker.charCodeAt(0);
+  return code >= 48 && code <= 57;
+};
+
+interface ParsedLine {
+  /** Index hinter dem führenden Leerraum. */
+  indentEnd: number;
+  /** Der Marker ohne Abstand, z. B. `•` oder `2.`. */
+  marker: string;
+  /** Index, an dem der Text nach dem Marker beginnt. */
+  bodyStart: number;
+}
+
+/**
+ * Zerlegt EINE Zeile in Einzug, Marker und Rest — von Hand statt mit einem
+ * Regex.
+ *
+ * Der naheliegende Ausdruck `^[ \t]*(marker)[ \t]+(.*)$` hat zwei Quantifier
+ * über Leerraum und dahinter ein `.`, das Leerraum ebenfalls frisst. Über
+ * langen Tab-Ketten kann der Backtracker dieselbe Zeile auf viele Arten
+ * aufteilen; CodeQL meldet das als `js/polynomial-redos`, und der Eingabetext
+ * kommt hier aus Nutzereingaben und Modellausgaben, ist also fremdbestimmt.
+ * Ein einzelner linearer Durchlauf hat das Problem bauartbedingt nicht.
+ */
+function parseLine(line: string): ParsedLine | null {
+  let i = 0;
+  while (i < line.length && isSpace(line[i]!)) i++;
+  const indentEnd = i;
+  if (i >= line.length) return null;
+
+  let marker: string;
+  if (BULLET_MARKERS.has(line[i]!)) {
+    marker = line[i]!;
+    i += 1;
+  } else {
+    // Höchstens drei Ziffern, dann `.` oder `)` — wie `\d{1,3}[.)]`, nur ohne
+    // Rücksetzen: mehr als drei Ziffern ist ohnehin kein Aufzählungspunkt.
+    let digits = 0;
+    while (digits < 3 && isNumericMarker(line[i + digits] ?? '')) digits++;
+    if (digits === 0) return null;
+    const punctuation = line[i + digits];
+    if (punctuation !== '.' && punctuation !== ')') return null;
+    marker = line.slice(i, i + digits + 1);
+    i += digits + 1;
+  }
+
+  // Hinter dem Marker MUSS Leerraum stehen: „2.5 Prozent" ist eine Zahl.
+  if (i >= line.length || !isSpace(line[i]!)) return null;
+  while (i < line.length && isSpace(line[i]!)) i++;
+  return { indentEnd, marker, bodyStart: i };
+}
 
 /**
  * `- Punkt` / `* Punkt` / `– Punkt` → `• Punkt`, zeilenweise.
@@ -57,7 +110,11 @@ const isNumericMarker = (marker: string): boolean => /^\d/.test(marker);
 export function normalizeListMarkers(text: string): string {
   return text
     .split('\n')
-    .map((line) => line.replace(DASH_MARKER_RE, `$1${LIST_BULLET} `))
+    .map((line) => {
+      const parsed = parseLine(line);
+      if (!parsed || !DASH_MARKERS.has(parsed.marker)) return line;
+      return `${line.slice(0, parsed.indentEnd)}${LIST_BULLET} ${line.slice(parsed.bodyStart)}`;
+    })
     .join('\n');
 }
 
@@ -71,16 +128,16 @@ export function normalizeListMarkers(text: string): string {
  */
 export function splitListItems(text: string): ListItem[] {
   const lines = text.split('\n');
-  const matches = lines.map((line) => LINE_MARKER_RE.exec(line));
-  const numericCount = matches.filter((m) => m !== null && isNumericMarker(m[1]!)).length;
+  const parsed = lines.map(parseLine);
+  const numericCount = parsed.filter((p) => p !== null && isNumericMarker(p.marker)).length;
   const acceptNumeric = numericCount >= 2;
 
   return lines.map((line, i) => {
-    const m = matches[i];
-    if (!m || (isNumericMarker(m[1]!) && !acceptNumeric)) {
+    const p = parsed[i];
+    if (!p || (isNumericMarker(p.marker) && !acceptNumeric)) {
       return { marker: null, body: line.trim() };
     }
-    return { marker: m[1]!, body: m[2]!.trim() };
+    return { marker: p.marker, body: line.slice(p.bodyStart).trim() };
   });
 }
 
