@@ -32,7 +32,7 @@
  * a thin country publishes nothing rather than a number about a few people.
  */
 
-import { getTransparencyStatsResponseSchema } from '@gruenerator/contracts';
+import { getTransparencyStatsResponseSchema, usageFeatureSchema } from '@gruenerator/contracts';
 import { and, gte, inArray, sql } from 'drizzle-orm';
 
 import { profiles, userUsageDaily } from '../../database/schema/index.js';
@@ -107,21 +107,7 @@ function publicCalculation() {
 }
 
 /** Rows predate schema changes; an unknown slug must not break the response. */
-const KNOWN_FEATURES = new Set<string>([
-  'chat',
-  'docs',
-  'sheets',
-  'presentations',
-  'boards',
-  'sharepic',
-  'subtitler',
-  'search',
-  'monitor',
-  'sites',
-  'texte',
-  'notebook',
-  'other',
-]);
+const KNOWN_FEATURES = new Set<string>(usageFeatureSchema.options);
 
 function featureFallback(feature: string): UsageFeature {
   // Boundary cast: the Set membership check IS the runtime assertion.

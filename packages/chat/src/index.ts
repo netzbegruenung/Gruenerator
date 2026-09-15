@@ -495,6 +495,10 @@ export {
   type ParsedPressemitteilungExamples,
 } from './lib/toolResults';
 
+// Audio among a compute payload's file assets. Shared because web and native
+// each render the card from their own file and must label it the same way.
+export { audioAssetsOf, type ComputeFileAsset } from './lib/computeAssets';
+
 // Werkzeug-Freigabe: die plattformneutrale Hälfte. Web rendert sie als Karte,
 // Native als Karte im eigenen Idiom — beide lesen dieselben Optionen und
 // dieselben Beschriftungen, damit die Entscheidung überall gleich heisst.

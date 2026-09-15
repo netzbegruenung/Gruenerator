@@ -953,6 +953,7 @@ const SIMPLE_GROUPS: Record<UsageFeature, string> = {
   sheets: 'Präsentationen & Tabellen',
   presentations: 'Präsentationen & Tabellen',
   subtitler: 'Untertitel',
+  voice: 'Sprachausgabe',
   search: 'Websuche',
   boards: 'Sonstiges',
   sites: 'Sonstiges',

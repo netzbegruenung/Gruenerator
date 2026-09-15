@@ -131,6 +131,12 @@
           "path": "/transkription"
         },
         {
+          "id": "voice",
+          "title": "Voice",
+          "description": "Text vertonen",
+          "path": "/voice"
+        },
+        {
           "id": "newsletter",
           "title": "Newsletter",
           "description": "Updates abonnieren"
@@ -199,6 +205,11 @@
       "title": "Transkription",
       "path": "/transkription",
       "subtitle": "Audio mit KI verschriftlichen"
+    },
+    "tool-voice": {
+      "title": "Grünerator Voice",
+      "path": "/voice",
+      "subtitle": "Anrufbeantworter, Vorlesefassung & Audiodeskription"
     },
     "tool-vorlagen": {
       "title": "Vorlagen",

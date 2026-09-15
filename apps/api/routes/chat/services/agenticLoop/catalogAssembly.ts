@@ -84,6 +84,10 @@ const NON_REPLAYABLE_ACTION_TOOLS: ReadonlySet<string> = new Set([
   'create_pdf',
   'generate_image',
   'sharepic',
+  // The audio file renders from the compute card's persisted metadata. Replayed
+  // as a tool message it would tell the model a file exists this turn — and the
+  // model would announce a download nobody just made.
+  'vertonen',
   // A replayed save would tell the model it already remembered — and the
   // person reading the replayed card would see a save that did not happen
   // this turn.
