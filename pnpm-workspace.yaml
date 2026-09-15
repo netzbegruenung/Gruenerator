@@ -28,3 +28,12 @@ minimumReleaseAgeExclude:
 # releases (trusted publishing -> token), the signature of a taken-over
 # maintainer account.
 trustPolicy: no-downgrade
+# Trust is compared by PUBLISH DATE, not semver, so a backport published after
+# a provenance-carrying later release reads as a downgrade: semver@6.3.1 (2023-07,
+# behind @babel/core), fbjs@3.0.5, ua-parser-js@1.0.41, tailwind-merge@2.6.0. All
+# are long-locked and shipped, and every one of them aborted `pnpm install
+# --lockfile-only` (the check stops at the first hit, so the list was unbounded).
+# Only check releases younger than one year; minimumReleaseAge above already holds
+# every new version for seven days, which is the window the hijacks this policy
+# guards against (chalk/debug, Shai-Hulud) were live. Unit is MINUTES.
+trustPolicyIgnoreAfter: 525600
