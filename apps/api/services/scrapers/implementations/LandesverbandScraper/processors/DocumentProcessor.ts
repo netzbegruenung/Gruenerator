@@ -6,6 +6,7 @@
 
 import {
   CONTENT_TYPE_LABELS,
+  DEFAULT_MAX_AGE_YEARS,
   getCuratedListsForUrl,
   getCuratedContentTypeForUrl,
 } from '../../../../../config/landesverbaendeConfig.js';
@@ -59,7 +60,7 @@ export class DocumentProcessor {
   ): Promise<ProcessResult> {
     const { title, text, publishedAt, categories } = content;
     const targetCollection = collectionOverride || this.collectionName;
-    const ageLimit = maxAgeYears ?? 10;
+    const ageLimit = maxAgeYears ?? DEFAULT_MAX_AGE_YEARS;
 
     // A curated list (e.g. wahlprogramm-be) may override the scraping path's
     // content type so a canonical subset surfaces under its own "Typ" filter
