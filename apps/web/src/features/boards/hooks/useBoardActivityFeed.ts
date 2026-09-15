@@ -1,5 +1,5 @@
 import { type ActivityType } from '@gruenerator/contracts';
-import { apiErrorFromResponse, getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 /**
@@ -18,7 +18,7 @@ export function useBoardActivityFeed(boardId: string | undefined, enabled = true
       const client = getContractsClient();
       const result = await client.boardActivity.listBoardActivity({ params: { boardId } });
       if (result.status !== 200)
-        throw apiErrorFromResponse(result, 'Failed to load board activity');
+        throw new ApiError(result.status, `Failed to load board activity (HTTP ${result.status})`);
       return result.body;
     },
     enabled: !!boardId && enabled,

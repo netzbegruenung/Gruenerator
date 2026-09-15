@@ -5,7 +5,7 @@
  * records new Wolke files as "pending"; these hooks let the owner list them,
  * import one on demand ("Hinzufügen"), dismiss one, and toggle hourly watching.
  */
-import { apiErrorFromResponse, getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { invalidateFileMentions } from '../utils/invalidateFileMentions';
@@ -19,7 +19,7 @@ export function usePendingWolkeFiles(collectionId: string, enabled = true) {
       const client = getContractsClient();
       const result = await client.wolkePending.listPendingFiles({ params: { id: collectionId } });
       if (result.status !== 200) {
-        throw apiErrorFromResponse(result, 'Failed to load pending files');
+        throw new ApiError(result.status, `Failed to load pending files (HTTP ${result.status})`);
       }
       return result.body.pending;
     },
@@ -37,7 +37,7 @@ export function useAddPendingFile(collectionId: string) {
         params: { id: collectionId, pendingId },
       });
       if (result.status !== 200) {
-        throw apiErrorFromResponse(result, 'Failed to add file');
+        throw new ApiError(result.status, `Failed to add file (HTTP ${result.status})`);
       }
       return result.body;
     },
@@ -60,7 +60,7 @@ export function useDismissPendingFile(collectionId: string) {
         params: { id: collectionId, pendingId },
       });
       if (result.status !== 200) {
-        throw apiErrorFromResponse(result, 'Failed to dismiss file');
+        throw new ApiError(result.status, `Failed to dismiss file (HTTP ${result.status})`);
       }
       return result.body;
     },
@@ -80,7 +80,7 @@ export function useSetNotebookAutoSync(collectionId: string) {
         body: { enabled },
       });
       if (result.status !== 200) {
-        throw apiErrorFromResponse(result, 'Failed to update watch setting');
+        throw new ApiError(result.status, `Failed to update watch setting (HTTP ${result.status})`);
       }
       return result.body;
     },

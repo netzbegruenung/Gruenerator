@@ -1,5 +1,5 @@
 import { type CanvasListItem } from '@gruenerator/contracts';
-import { apiErrorFromResponse, getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 
 /**
@@ -13,7 +13,7 @@ export const useRecentCanvases = (enabled: boolean): UseQueryResult<CanvasListIt
     queryFn: async () => {
       const result = await getContractsClient().canvas.list();
       if (result.status !== 200) {
-        throw apiErrorFromResponse(result, 'Failed to list canvases');
+        throw new ApiError(result.status, `Failed to list canvases (HTTP ${result.status})`);
       }
       return result.body;
     },

@@ -3,13 +3,13 @@
  * Hauptgrünerator-Super-Admin's Landesverband master data + LV-admin
  * assignment endpoints.
  */
-import { apiErrorFromResponse, getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 
 export async function fetchLandesverbaende() {
   const client = getContractsClient();
   const result = await client.lvAdminAssignment.list();
   if (result.status !== 200) {
-    throw apiErrorFromResponse(result, 'Failed to fetch Landesverbände');
+    throw new ApiError(result.status, `Failed to fetch Landesverbände (HTTP ${result.status})`);
   }
   return result.body.data;
 }
@@ -18,7 +18,10 @@ export async function fetchLandesverbandAdmins(landesverbandId: string) {
   const client = getContractsClient();
   const result = await client.lvAdminAssignment.listAdmins({ params: { landesverbandId } });
   if (result.status !== 200) {
-    throw apiErrorFromResponse(result, 'Failed to fetch Landesverband admins');
+    throw new ApiError(
+      result.status,
+      `Failed to fetch Landesverband admins (HTTP ${result.status})`
+    );
   }
   return result.body.data;
 }
@@ -33,7 +36,10 @@ export async function assignLandesverbandAdmin(
     body: { email },
   });
   if (result.status !== 200) {
-    throw apiErrorFromResponse(result, 'Failed to assign Landesverband admin');
+    throw new ApiError(
+      result.status,
+      `Failed to assign Landesverband admin (HTTP ${result.status})`
+    );
   }
 }
 
@@ -47,7 +53,10 @@ export async function revokeLandesverbandAdmin(
     body: {},
   });
   if (result.status !== 200) {
-    throw apiErrorFromResponse(result, 'Failed to revoke Landesverband admin');
+    throw new ApiError(
+      result.status,
+      `Failed to revoke Landesverband admin (HTTP ${result.status})`
+    );
   }
 }
 
@@ -55,7 +64,7 @@ export async function searchAdminUsers(search: string) {
   const client = getContractsClient();
   const result = await client.lvAdminAssignment.searchUsers({ query: { search } });
   if (result.status !== 200) {
-    throw apiErrorFromResponse(result, 'Failed to search users');
+    throw new ApiError(result.status, `Failed to search users (HTTP ${result.status})`);
   }
   return result.body.data;
 }

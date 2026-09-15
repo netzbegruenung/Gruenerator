@@ -1,4 +1,4 @@
-import { apiErrorFromResponse, getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
 
@@ -80,7 +80,10 @@ export function useResearchFilters(initialCollectionIds: string[] = []) {
     queryFn: async () => {
       const result = await getContractsClient().research.collections();
       if (result.status !== 200) {
-        throw apiErrorFromResponse(result, 'Failed to load research collections');
+        throw new ApiError(
+          result.status,
+          `Failed to load research collections (HTTP ${result.status})`
+        );
       }
       return result.body;
     },
@@ -104,7 +107,10 @@ export function useResearchFilters(initialCollectionIds: string[] = []) {
         },
       });
       if (result.status !== 200) {
-        throw apiErrorFromResponse(result, 'Failed to load research filters');
+        throw new ApiError(
+          result.status,
+          `Failed to load research filters (HTTP ${result.status})`
+        );
       }
       // Boundary cast: the contract types `type` as `string` (shared schema),
       // but the backend only ever emits 'keyword' | 'date_range'.
