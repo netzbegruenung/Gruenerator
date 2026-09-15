@@ -12,7 +12,7 @@ import {
   type EditorSurfaceAdapter,
 } from '@gruenerator/chat';
 import { boardOperationSchema, chatThreadResponseSchema } from '@gruenerator/contracts';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -95,7 +95,7 @@ export function BoardAssistantProvider({
       resolveThreadId: async () => {
         const result = await getContractsClient().boards.getChatThread({ params: { id: boardId } });
         if (result.status !== 200) {
-          throw new Error(`Chat thread lookup failed: ${result.status}`);
+          throw new ApiError(result.status, `Chat thread lookup failed: ${result.status}`);
         }
         return chatThreadResponseSchema.parse(result.body).threadId;
       },
@@ -160,7 +160,8 @@ export function BoardAssistantProvider({
                   params: { boardId, cardId: taskId },
                   body: { blocks: [{ type: 'text', text }] },
                 });
-                if (res.status !== 201) throw new Error(`Kommentar fehlgeschlagen (${res.status})`);
+                if (res.status !== 201)
+                  throw new ApiError(res.status, `Kommentar fehlgeschlagen (${res.status})`);
                 void queryClient.invalidateQueries({
                   queryKey: ['board-comments', boardId, taskId],
                 });

@@ -1,10 +1,11 @@
-import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
+import { createApiClient, isApiErrorWithStatus, setGlobalApiClient } from '@gruenerator/shared/api';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { type ReactNode } from 'react';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
+import { defaultErrorMessage, getErrorMessage } from '../../../components/utils/errorMessages';
 import { server } from '../../../test/msw-server';
 
 import { useNotebookStats } from './useNotebookStats';
@@ -77,6 +78,28 @@ describe('useNotebookStats (MSW)', () => {
 
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(result.current.data).toBeUndefined();
+  });
+
+  // A plain `new Error` carries no status, so TanStack retries an expected 4xx and
+  // `getErrorMessage` falls through to `defaultErrorMessage` — which is the exact
+  // condition guarding `Sentry.captureException` (GlitchTip #590). Both assertions
+  // are needed: the status is the fix, the classification is what it buys.
+  it('keeps the HTTP status on a 403 so it classifies instead of reporting as a crash', async () => {
+    server.use(
+      http.get(SINGLE_ENDPOINT, () =>
+        HttpResponse.json({ message: 'Kein Zugriff auf dieses Notebook.' }, { status: 403 })
+      )
+    );
+
+    const { result } = renderHook(() => useNotebookStats({ collectionIds: ['col-1'] }), {
+      wrapper,
+    });
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+
+    const err = result.current.error;
+    expect(isApiErrorWithStatus(err, 403)).toBe(true);
+    expect(getErrorMessage(err as Error)).not.toBe(defaultErrorMessage);
   });
 
   it('does not fetch when disabled', () => {

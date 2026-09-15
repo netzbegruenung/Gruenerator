@@ -1,5 +1,5 @@
 import { deriveIndexingState } from '@gruenerator/contracts';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import coverEigene from '@gruenerator/shared/assets/notebook-covers/eigene.webp';
 import coverLaenderverbaende from '@gruenerator/shared/assets/notebook-covers/landesverbaende.webp';
 import coverNeu from '@gruenerator/shared/assets/notebook-covers/notebook-neu.webp';
@@ -237,7 +237,7 @@ const EigeneNotebooks = memo(
             permissions: { read: true, write: false, collaborative: false },
           },
         });
-        if (res.status !== 200) throw new Error('share failed');
+        if (res.status !== 200) throw new ApiError(res.status, 'share failed');
         setSharedInfo(collectionId);
         setTimeout(() => setSharedInfo(null), 2000);
       } catch {
