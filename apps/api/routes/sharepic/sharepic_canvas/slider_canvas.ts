@@ -17,6 +17,7 @@ import {
   bufferToBase64,
 } from '../../../services/sharepic/canvas/imageOptimizer.js';
 import { isValidHexColor } from '../../../services/sharepic/canvas/utils.js';
+import { wrapTextLines as wrapText } from '../../../services/sharepic/textLayout.js';
 import { createLogger } from '../../../utils/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -126,27 +127,6 @@ const ARROW_CONFIG = {
 // HELPER FUNCTIONS
 // ============================================================================
 
-function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
-  const words = text.split(' ');
-  const lines: string[] = [];
-  let currentLine = '';
-
-  for (let i = 0; i < words.length; i++) {
-    const testLine = currentLine + words[i] + ' ';
-    const metrics = ctx.measureText(testLine);
-    const testWidth = metrics.width;
-
-    if (testWidth > maxWidth && i > 0) {
-      lines.push(currentLine.trim());
-      currentLine = words[i] + ' ';
-    } else {
-      currentLine = testLine;
-    }
-  }
-  lines.push(currentLine.trim());
-  return lines;
-}
-
 function drawRoundedRect(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -186,7 +166,8 @@ async function processSliderText(textData: Partial<SliderTextData>): Promise<Sli
 
 async function createSliderImage(
   processedText: SliderTextData,
-  validatedParams: SliderParams
+  validatedParams: SliderParams,
+  backgroundFile?: { buffer: Buffer } | null
 ): Promise<Buffer> {
   log.debug('Starting createSliderImage function');
   try {
@@ -207,10 +188,31 @@ async function createSliderImage(
       subtext2FontSize,
     } = validatedParams;
 
-    // Draw background
+    // Draw background. Photo mode covers the solid plane whole and forces the
+    // text/arrow to white — same rule as every sibling photo template, and the
+    // same scrim darkness keeps it legible regardless of what the model picked.
     ctx.fillStyle = backgroundColor;
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
     log.debug('Background filled with color:', backgroundColor);
+
+    let effectiveTextColor = textColor;
+    if (backgroundFile) {
+      try {
+        const photo = await loadImage(backgroundFile.buffer);
+        // Cover-fit: draw at the smallest size that fully covers the frame,
+        // centred so the overflow crops symmetrically.
+        const scale = Math.max(CANVAS_WIDTH / photo.width, CANVAS_HEIGHT / photo.height);
+        const drawW = photo.width * scale;
+        const drawH = photo.height * scale;
+        ctx.drawImage(photo, (CANVAS_WIDTH - drawW) / 2, (CANVAS_HEIGHT - drawH) / 2, drawW, drawH);
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+        ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        effectiveTextColor = '#FFFFFF';
+        log.debug('Photo drawn cover-fit with scrim');
+      } catch (error) {
+        log.warn('Could not load background photo:', (error as Error).message);
+      }
+    }
 
     // Calculate pill dimensions
     ctx.font = `${labelFontSize}px GrueneTypeNeue`;
@@ -239,7 +241,7 @@ async function createSliderImage(
 
     // Draw headline
     if (processedText.headline) {
-      ctx.fillStyle = textColor;
+      ctx.fillStyle = effectiveTextColor;
       ctx.font = `${headlineFontSize}px GrueneTypeNeue`;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
@@ -258,7 +260,7 @@ async function createSliderImage(
 
     // Draw subtext
     if (processedText.subtext) {
-      ctx.fillStyle = textColor;
+      ctx.fillStyle = effectiveTextColor;
       ctx.font = `bold ${subtextFontSize}px PTSans-Bold`;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
@@ -277,7 +279,7 @@ async function createSliderImage(
 
     // Draw subtext2
     if (processedText.subtext2) {
-      ctx.fillStyle = textColor;
+      ctx.fillStyle = effectiveTextColor;
       ctx.font = `bold ${subtext2FontSize}px PTSans-Bold`;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
@@ -307,7 +309,7 @@ async function createSliderImage(
 
       // Apply color overlay using globalCompositeOperation
       arrowCtx.globalCompositeOperation = 'source-in';
-      arrowCtx.fillStyle = textColor;
+      arrowCtx.fillStyle = effectiveTextColor;
       arrowCtx.fillRect(0, 0, ARROW_CONFIG.size, ARROW_CONFIG.size);
 
       // Draw tinted arrow onto main canvas
@@ -391,7 +393,11 @@ router.post('/', upload.single('image'), async (req: Request, res: Response): Pr
     const processedText = await processSliderText(textDataForProcessing);
     log.debug('Processed text:', processedText);
 
-    const generatedImageBuffer = await createSliderImage(processedText, sliderValidatedParams);
+    const generatedImageBuffer = await createSliderImage(
+      processedText,
+      sliderValidatedParams,
+      req.file ? { buffer: req.file.buffer } : null
+    );
 
     const base64Image = bufferToBase64(generatedImageBuffer);
 

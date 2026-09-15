@@ -38,6 +38,39 @@ describe('resolveResumeInput', () => {
     expect(resolveResumeInput({})).toBeNull();
     expect(resolveResumeInput({ toolName: '' })).toBeNull();
   });
+
+  it('erkennt eine Werkzeug-Freigabe', () => {
+    expect(
+      resolveResumeInput({
+        approvalTurnId: 'a1',
+        toolApprovals: [{ toolCallId: 'c1', approved: true, optionId: 'allow-always' }],
+      })
+    ).toEqual({
+      kind: 'tool_approval',
+      approvalTurnId: 'a1',
+      decisions: [{ toolCallId: 'c1', approved: true, optionId: 'allow-always' }],
+    });
+  });
+
+  // Die Reihenfolge ist Vertrag: eine Freigabe-Antwort darf nie als
+  // Klärungsantwort oder als Client-Werkzeug-Ergebnis gelesen werden.
+  it('lässt die Freigabe gegen `resume` und `toolName` gewinnen', () => {
+    expect(
+      resolveResumeInput({
+        resume: 'ignoriert',
+        toolName: 'run_python',
+        result: 1,
+        toolApprovals: [{ toolCallId: 'c1', approved: false }],
+      })
+    ).toMatchObject({ kind: 'tool_approval' });
+  });
+
+  it('ignoriert eine leere Entscheidungsliste', () => {
+    expect(resolveResumeInput({ toolApprovals: [], resume: 'Berlin' })).toEqual({
+      kind: 'ask_human',
+      answer: 'Berlin',
+    });
+  });
 });
 
 describe('hasBrokenComputeValues', () => {

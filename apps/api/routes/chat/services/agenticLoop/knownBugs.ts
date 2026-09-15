@@ -38,7 +38,7 @@ export const KNOWN_AGENTIC_BUGS: readonly KnownAgenticBug[] = [
     status: 'mitigated',
     symptom:
       'doc_generation über greenpt/gemma4 scheitert nach 3 identischen Retries mit AI_APICallError: Gateway Timeout, weil gemma4 laut eigenem Code-Kommentar Reasoning-Flags ignoriert.',
-    fix: 'execute.ts gibt greenpt nur noch 1 statt 2 Retries — erreicht die bestehende Provider-Fallback-Kette schneller. Die Wurzelursache (Output-Budget-Floor für die think-Lane) bleibt offen, im Code selbst als Follow-up benannt.',
+    fix: 'execute.ts gibt greenpt nur noch 1 statt 2 Retries. Das reichte nicht: die Fallback-Kette lief GAR NICHT, weil GreenPTs eigene Frist (120s) mit der Wanduhr über der ganzen Kette (env.REQUEST_TIMEOUT, 120s) identisch war — live am 28.08.2026 als 4 Minuten Warten und HTTP 500 auf POST /api/docs/generate. Seitdem teilt attemptBudget (services/ai/generate.ts) die Frist pro Anbieter zu und cortecs steht als erster Ausweich in der Kette. Die Wurzelursache (Output-Budget-Floor für die think-Lane) bleibt offen — GreenPT hängt weiter, es kostet nur keinen Turn mehr.',
   },
   {
     id: 4,

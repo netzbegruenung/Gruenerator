@@ -1,0 +1,156 @@
+{
+  "pipeline": "chat-notebook",
+  "depth": "deep",
+  "withRerank": false,
+  "withChatExpand": false,
+  "outcomes": [
+    {
+      "id": "chat-nb-berlin-hitzeschutz",
+      "collection": "berlin-system",
+      "query": "Was gilt in Berlin zum Hitzeschutz, etwa an Schulen oder für Hitzeempfindliche?",
+      "rank": 1,
+      "topTitles": [
+        "Hitzeschutz für alle Berliner*innen – Berlin als Vorbild für umfassende Hitzeschutzmaßnahmen: Beschluss auf dem Landesausschuss:\nDie Klimakrise...",
+        "Das Beste für Berlin: Klimaschutz, der wirkt: Beschluss auf der Landesdelegiertenkonferenz:\nDie...",
+        "Hitzehilfe für Obdachlose in Berlin: Beschluss auf der Landesdelegiertenkonferenz:\nBerlin...",
+        "Eine Stadt atmet auf - 1 Million Bäume für Berlin",
+        "Unser Wahlprogramm - Kapitel 5: Berlin begleitet ein Leben lang\nBerlin begleitet ein..."
+      ],
+      "qdrantCalls": 1,
+      "searchTimeMs": 16470
+    },
+    {
+      "id": "chat-nb-berlin-milieuschutz",
+      "collection": "berlin-system",
+      "query": "Wie will Berlin mit Milieuschutzgebieten die Mietenentwicklung bremsen?",
+      "rank": 1,
+      "topTitles": [
+        "Beschluss \"Grüne Wohnungspolitik für ganz Berlin – Gemeinwohl statt Mietenspekulation\"",
+        "Es braucht einen Paradigmenwechsel in der Wohnungspolitik – für ein faires und gemeinwohlorientiertes Miet- und Baurecht!: Beschluss auf dem Landesausschuss:\nJede*r braucht ein...",
+        "WPS-Gruene-Berlin-2026-06-01-Berliner_Mieterverein-Antwort",
+        "Ein bezahlbares Zuhause für alle Berliner*innen schaffen – Für eine soziale Wohnungspolitik, faire Mieten und eine nachhaltige Stadtentwicklung: Beschluss auf der Landesdelegiertenkonferenz:\nDie...",
+        "20210917_Grüne Antworten_erster Teil_WPS_mietenpolitisches Dossiers Initiativenforum Stadtpolitik Berlin"
+      ],
+      "qdrantCalls": 1,
+      "searchTimeMs": 992
+    },
+    {
+      "id": "chat-nb-berlin-verkehr",
+      "collection": "berlin-system",
+      "query": "Ausbau von Radwegen und ÖPNV in Berlin",
+      "rank": 2,
+      "topTitles": [
+        "20210527_Grüne Antworten_WPS_Bürgerforum Berlin e.V",
+        "Grüne fordern im Verkehrshaushalt mehr Verkehrssicherheit und eine Angebotsoffensive im ÖPNV",
+        "Nahverkehrstangente Ost (NVT) retten: Die Regio-S-Bahn bringt den Osten Berlins und das Umland voran!: Beschluss auf der...",
+        "Grüne Antworten NABU",
+        "20210827_Grüne Antworten_WPS_Stadt für Menschen"
+      ],
+      "qdrantCalls": 1,
+      "searchTimeMs": 756
+    },
+    {
+      "id": "chat-nb-berlin-baumfaellmoratorium",
+      "collection": "berlin-system",
+      "query": "Was steht zum Baumfäll-Moratorium?",
+      "rank": null,
+      "topTitles": [
+        "Eine Stadt atmet auf - 1 Million Bäume für Berlin",
+        "Grüne Antworten Waldinitative Berlin",
+        "Das schwarz-rote Schneller-Bauen-Gesetz geht am Problem vorbei: Massive Lücken und mehr Doppelstrukturen",
+        "Die Berliner Wälder in der Klimakrise: Beschluss auf der Landesdelegiertenkonferenz:\nIn den...",
+        "20210820_WPS_Bündnisgrüne Antwort_Bürgerinitiative Grüner Kiez Pankow_Nachhaltige Stadtentwicklung"
+      ],
+      "qdrantCalls": 1,
+      "searchTimeMs": 2204
+    },
+    {
+      "id": "chat-nb-bayern-moorschutz",
+      "collection": "bayern-system",
+      "query": "Welche Ziele und Maßnahmen verfolgt der Moorschutz in Bayern?",
+      "rank": 1,
+      "topTitles": [
+        "Landtags-Grüne wollen Moorschutz und Moorwirtschaft in Bayern massiv voranbringen",
+        "Grüne CO2-Spar-Tipps für die Staatsregierung",
+        "Schon Bienen gerettet?",
+        "Bayern kommt beim Moorschutz kaum voran",
+        "Ein Radentscheid für Bayern"
+      ],
+      "qdrantCalls": 1,
+      "searchTimeMs": 2131
+    },
+    {
+      "id": "chat-nb-bayern-artenvielfalt",
+      "collection": "bayern-system",
+      "query": "Volksbegehren Artenvielfalt — Rettet die Bienen",
+      "rank": 2,
+      "topTitles": [
+        "Bayern verliert Vorreiterrolle im Naturschutz",
+        "Erfolge des Volksbegehrens sind gefährdet",
+        "Anhörung zu 5 Jahren Volksbegehren „Rettet die Bienen“ und Artenschutzgesetz",
+        "Schon Bienen gerettet?",
+        "Gute Indikatoren, aber beunruhigende Fakten"
+      ],
+      "qdrantCalls": 1,
+      "searchTimeMs": 1651
+    },
+    {
+      "id": "chat-nb-bayern-flaechenfrass",
+      "collection": "bayern-system",
+      "query": "Flächenverbrauch und Flächenfraß in Bayern begrenzen",
+      "rank": 4,
+      "topTitles": [
+        "„Söder-Regierung sind selbst die eigenen Ziele egal“",
+        "Dein Ort wird schöner mit dir. Dafür stehen wir GRÜNE bei der Kommunalwahl 2026 in Bayern.",
+        "Grüne Bilanz zur 18. Legislaturperiode",
+        "Statement zur Flächenstatistik",
+        "Für eine umwelt- und tiergerechte Tierhaltung als Teil einer naturgerechten Landwirtschaft in Bayern"
+      ],
+      "qdrantCalls": 1,
+      "searchTimeMs": 2336
+    },
+    {
+      "id": "chat-nb-at-klimaticket",
+      "collection": "oesterreich-gruene-system",
+      "query": "Wie ist das Klimaticket in Österreich finanziert, und was kostet es?",
+      "rank": 1,
+      "topTitles": [
+        "Wahlprogramm Nationalratswahl 2024 der Grünen (Österreich)",
+        "EU-Wahlprogramm 2024 der Grünen (Österreich)",
+        "Grundsatzprogramm der Grünen (Österreich)"
+      ],
+      "qdrantCalls": 1,
+      "searchTimeMs": 797
+    },
+    {
+      "id": "chat-nb-history-moorschutz",
+      "collection": "multi",
+      "query": "Und in Bayern?",
+      "rank": 29,
+      "topTitles": [
+        "20210701_Grüne Antworten_WPS_NABU",
+        "Die Berliner Wälder in der Klimakrise: Beschluss auf der Landesdelegiertenkonferenz:\nIn den...",
+        "Beschluss \"MUF 2.0 - Jetzt für die Zukunft der Stadt bauen\"",
+        "Beschluss \"Grüne Wohnungspolitik für ganz Berlin – Gemeinwohl statt Mietenspekulation\"",
+        "Ohne Wasser kein Leben: Strategien für eine nachhaltige Wasserversorgung in Berlin"
+      ],
+      "qdrantCalls": 2,
+      "searchTimeMs": 3313
+    },
+    {
+      "id": "chat-nb-history-artenvielfalt",
+      "collection": "multi",
+      "query": "Und in Bayern?",
+      "rank": 18,
+      "topTitles": [
+        "Die Berliner Wälder in der Klimakrise: Beschluss auf der Landesdelegiertenkonferenz:\nIn den...",
+        "Grüne Antworten NABU",
+        "Grüne Positionen für eine Richtlinie zum Berliner Wald: Beschluss auf dem Landesausschuss:\nGrüne Positionen für...",
+        "Unser Wahlprogramm - Kapitel 1: Berlin bleibt lebenswert\nBerlin ist unsere gemeinsame...",
+        "Wachsendes Grün für die wachsende Stadt – Berlin braucht eine Grünbauoffensive"
+      ],
+      "qdrantCalls": 2,
+      "searchTimeMs": 4591
+    }
+  ]
+}

@@ -63,10 +63,10 @@ function pickHistoryCitation(c: Record<string, unknown>): Record<string, unknown
 }
 
 /**
- * Conversation history for the wire — Ultra only. Prior messages travel as
- * `{role, content, citations?}`; `rawCitations` from the message metadata
- * (present after a live turn, a localStorage resume and a thread reload) let
- * the server merge previously cited sources into the new turn.
+ * Conversation history for the wire — every tier but `fast`. Prior messages
+ * travel as `{role, content, citations?}`; `rawCitations` from the message
+ * metadata (present after a live turn, a localStorage resume and a thread
+ * reload) let the server merge previously cited sources into the new turn.
  */
 function buildWireHistory(
   messages: ChatModelRunOptions['messages'],
@@ -110,6 +110,7 @@ function mapToChatCitations(citations: Citation[]): ChatCitation[] {
     documentId: c.document_id,
     chunkIndex: c.chunk_index,
     similarityScore: c.similarity_score,
+    pageNumber: c.page_number ?? null,
     collectionId: c.collection_id,
   }));
 }
@@ -182,6 +183,7 @@ interface StreamCompletionData {
   sources: Source[];
   allSources: unknown[];
   sourcesByCollection?: Record<string, unknown>;
+  metadata?: { traceId?: string };
 }
 
 export interface NotebookAdapterCallbacks {
@@ -260,11 +262,11 @@ export function createNotebookModelAdapter(
         console.warn('[Notebook] getExtraParams threw:', err);
       }
 
-      // Conversation history is an Ultra-tier capability. The server's depth
-      // profile is the authority (other tiers drop history explicitly); the
-      // client just avoids shipping payload the server would ignore.
-      const wireHistory =
-        config.mode === 'ultra' ? buildWireHistory(messages, lastUserMessage) : [];
+      // The server's depth profile is the authority on what happens to
+      // history (prompt inclusion is Ultra-only, `deep` rewrites the search
+      // query against it) — the client just avoids shipping payload no tier
+      // would use. `fast` (Grün-O-Mat) stays history-free.
+      const wireHistory = config.mode !== 'fast' ? buildWireHistory(messages, lastUserMessage) : [];
 
       const payload = {
         messages: [...wireHistory, { role: 'user', content: question }],
@@ -272,7 +274,6 @@ export function createNotebookModelAdapter(
           ? { collectionIds: config.collectionIds }
           : { collectionId: config.collectionId || config.collectionIds?.[0] }),
         ...(config.filters && { filters: config.filters }),
-        locale: config.locale,
         ...(config.mode && { mode: config.mode }),
         ...(config.documentIds?.length && { documentIds: config.documentIds }),
         ...(config.threadId && { threadId: config.threadId }),
@@ -340,6 +341,7 @@ export function createNotebookModelAdapter(
       let sourcesByCollectionAccum: Record<string, unknown> | undefined;
       let resultIdAccum: string | undefined;
       let linkConfigAccum: LinkConfig | undefined;
+      let evidenceWeakAccum: string | undefined;
 
       function buildResult(): ChatModelRunResult {
         const custom: Record<string, unknown> = {};
@@ -352,6 +354,14 @@ export function createNotebookModelAdapter(
         if (linkConfigAccum) custom.linkConfig = linkConfigAccum;
         if (resultIdAccum) custom.resultId = resultIdAccum;
         if (sourcesByCollectionAccum) custom.sourcesByCollection = sourcesByCollectionAccum;
+        if (completionData?.metadata?.traceId) {
+          custom.streamMetadata = {
+            intent: 'direct',
+            searchCount: 0,
+            traceId: completionData.metadata.traceId,
+          };
+        }
+        if (evidenceWeakAccum) custom.evidenceWeak = evidenceWeakAccum;
         custom.question = question;
         custom.answerText = accumulatedText;
 
@@ -484,7 +494,14 @@ export function createNotebookModelAdapter(
                 // Non-fatal degradation the backend wants the user to know
                 // about. Without this case the event fell into `default:` and
                 // was dropped on every notebook surface.
-                const { message } = data as { code: string; message: string };
+                const { code, message } = data as { code: string; message: string };
+                // `evidence_weak` ist keine Störung, sondern eine Aussage über
+                // GENAU DIESE Antwort. Ein Toast steht über der Seite und
+                // gehört zu keiner Nachricht; der Satz gehört unter den Text.
+                if (code === 'evidence_weak') {
+                  if (message) evidenceWeakAccum = message;
+                  break;
+                }
                 if (message) notifyWarning(message);
                 break;
               }

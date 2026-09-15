@@ -1,21 +1,29 @@
 /**
- * Die Chunk-Größe des aktiven Upload-Pfads — eigene Datei, damit sie ohne die
- * Einbettungs-Kette importierbar bleibt.
+ * Die Zeichenzahlen, an denen der Upload-Pfad seine Chunks schneidet — eigene
+ * Datei, damit sie ohne die Einbettungs-Kette importierbar bleiben.
  *
- * Sie steht hier, weil eine zweite Zahl von ihr abhängt: die Ausschnittsgrenze
- * der Suche (`CONTENT_MAX_EXCERPT_LENGTH`). Liegt die darunter, bekommt das
- * Modell einen Bruchteil genau der Einheit zurück, die wir eingebettet, gesucht
- * und bewertet haben — und niemand sieht es, weil beide Zahlen für sich
- * plausibel aussehen. Genau so war es bis zum 24.08.2026: 400 Token gegen 300
- * Zeichen, also gut ein Fünftel. Der Wächter dazu steht in
+ * Sie stehen hier, weil zwei weitere Zahlen von ihnen abhängen: die
+ * Ausschnittsgrenze der Suche (`CONTENT_MAX_EXCERPT_LENGTH`) und das Fenster,
+ * das der Antwort-Prompt je Quelle durchlässt. Liegt eine davon unter der
+ * Chunk-Größe, bekommt das Modell einen Bruchteil genau der Einheit zurück, die
+ * wir eingebettet, gesucht und bewertet haben — und niemand sieht es, weil jede
+ * Zahl für sich plausibel aussieht. Genau so war es bis zum 24.08.2026 (400
+ * Token indexiert gegen 300 Zeichen ausgeschnitten, also gut ein Fünftel) und
+ * noch einmal bis zum 02.09.2026 (Tabellen-Chunks bis 2400 Zeichen gegen ein
+ * Prompt-Fenster von 1800). Der Wächter dazu steht in
  * `apps/api/config/searchExcerptBudget.vitest.ts`.
  */
-export const DOCUMENT_CHUNK_MAX_TOKENS = 400;
 
 /**
- * Zeichen je Token für deutschen Fließtext — die Umrechnung, die die beiden
- * Zahlen überhaupt vergleichbar macht. Konservativ gewählt: gemessen an einem
- * 8-Seiten-PDF (21 118 Zeichen auf 16 Chunks = 1320 im Schnitt) liegt der
- * tatsächliche Wert bei rund 3,3.
+ * Obergrenze eines Fließtext-Chunks (`sentenceRepack`, `chunkPostProcessing.ts`,
+ * `targetChars`).
  */
-export const CHARS_PER_TOKEN_DE = 3.3;
+export const PROSE_CHUNK_MAX_CHARS = 1600;
+
+/**
+ * Was der Antwort-Prompt je Quelle durchlässt (`sourceTextForPrompt`,
+ * `services/search/SearchResultProcessor.ts`) — und zugleich der Deckel für
+ * einen Tabellen-Chunk (`TABLE_CHUNK_MAX_CHARS`, `blockSegmentation.ts`). Wer
+ * die Zahl senkt, schneidet Tabellen im Prompt wieder mitten in einer Zeile ab.
+ */
+export const PROMPT_SOURCE_MAX_CHARS = 1800;

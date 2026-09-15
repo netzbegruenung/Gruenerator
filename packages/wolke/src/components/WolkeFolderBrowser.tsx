@@ -41,9 +41,7 @@ const WolkeFolderBrowser = ({
   const [viewMode, setViewMode] = useState<ViewMode>('tree');
   const [pickedShareLinkId, setPickedShareLinkId] = useState<string | null>(null);
   const [ownSelectedPath, setOwnSelectedPath] = useState<string | undefined>(undefined);
-  const { data: shareLinks = [] } = useShareLinks(undefined, undefined, {
-    enabled: !externalShareLinkId,
-  });
+  const { data: shareLinks = [] } = useShareLinks({ enabled: !externalShareLinkId });
 
   const shareLinkId = externalShareLinkId ?? pickedShareLinkId;
   const activeShareLinks = shareLinks.filter((l) => l.is_active);

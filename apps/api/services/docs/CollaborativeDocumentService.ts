@@ -78,7 +78,6 @@ export interface UpdateFields {
   title?: string | null | undefined;
   folder_id?: string | null | undefined;
   content?: string | null | undefined;
-  wolke_live_sync?: boolean | null | undefined;
 }
 
 export type UpdateResult =
@@ -119,11 +118,6 @@ export async function updateCollaborativeDocument(
     setClauses.push('last_edited_at = CURRENT_TIMESTAMP');
     setClauses.push('updated_at = CURRENT_TIMESTAMP');
   }
-  if (fields.wolke_live_sync != null) {
-    setClauses.push(`wolke_live_sync = $${i++}`);
-    values.push(fields.wolke_live_sync);
-  }
-
   if (setClauses.length === 0) return { status: 'ok', document: access.document };
 
   values.push(id);

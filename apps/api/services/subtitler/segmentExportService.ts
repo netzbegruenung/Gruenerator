@@ -26,6 +26,7 @@ import {
   calculateTotalDuration,
   type Segment,
 } from './segmentFilterBuilders.js';
+import { calculateFontSizing } from './subtitleSizingService.js';
 import { probeVideoMetadata } from './videoMetadata.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -53,44 +54,6 @@ interface ExportResult {
   outputPath: string;
   duration: number;
   segmentCount: number;
-}
-
-function calculateFontSize(metadata: VideoMetadata): number {
-  const isVertical = metadata.width < metadata.height;
-  const referenceDimension = isVertical ? metadata.width : metadata.height;
-
-  let minFontSize: number, maxFontSize: number, basePercentage: number;
-
-  if (referenceDimension >= 2160) {
-    minFontSize = 80;
-    maxFontSize = 180;
-    basePercentage = isVertical ? 0.07 : 0.065;
-  } else if (referenceDimension >= 1440) {
-    minFontSize = 60;
-    maxFontSize = 140;
-    basePercentage = isVertical ? 0.065 : 0.06;
-  } else if (referenceDimension >= 1080) {
-    minFontSize = 40;
-    maxFontSize = 90;
-    basePercentage = isVertical ? 0.054 : 0.0495;
-  } else if (referenceDimension >= 720) {
-    minFontSize = 35;
-    maxFontSize = 70;
-    basePercentage = isVertical ? 0.055 : 0.05;
-  } else {
-    minFontSize = 32;
-    maxFontSize = 65;
-    basePercentage = isVertical ? 0.065 : 0.06;
-  }
-
-  const totalPixels = metadata.width * metadata.height;
-  const pixelFactor = Math.log10(totalPixels / 2073600) * 0.15 + 1;
-  const adjustedPercentage = basePercentage * Math.min(pixelFactor, 1.4);
-
-  return Math.max(
-    minFontSize,
-    Math.min(maxFontSize, Math.floor(referenceDimension * adjustedPercentage))
-  );
 }
 
 /**
@@ -385,8 +348,9 @@ export async function exportWithSegmentsAndSubtitles(
     const adjustedSubtitles = adjustSubtitleTimings(subtitleConfig.segments, validSegments);
 
     const isVertical = metadata.width < metadata.height;
+    const { finalFontSize } = calculateFontSizing(metadata, adjustedSubtitles);
     const styleOptions = {
-      fontSize: Math.floor(calculateFontSize(metadata) / 2),
+      fontSize: Math.floor(finalFontSize / 2),
       marginL: 10,
       marginR: 10,
       marginV:

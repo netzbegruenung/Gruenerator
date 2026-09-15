@@ -7,7 +7,7 @@ import * as cheerio from 'cheerio';
 
 import { toUserFacingMessage } from '../../../utils/errors/index.js';
 
-import { cleanText, removeUnwantedElements, extractTitle } from './htmlCleaner.js';
+import { htmlToStructuredText, removeUnwantedElements, extractTitle } from './htmlCleaner.js';
 
 import type { HtmlExtractionOptions, ExtractionResult } from '../types.js';
 
@@ -70,7 +70,10 @@ export function extractMainContent(
     const title = extractTitle(html);
 
     return {
-      content: cleanText($(content).text()),
+      // `content` hält bereits das Inhalts-HTML (`:38`, `:59`, `:67`). Es über
+      // `$(content).text()` plattzuziehen warf die Blockgrenzen weg, die der
+      // Struktur-Chunker braucht (#3163).
+      content: htmlToStructuredText(content),
       title: title || undefined,
       success: true,
     };

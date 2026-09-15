@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { closeCompletesOnboarding, resolveSettingsTab, visibleSettingsNav } from './SettingsDialog';
+import { SETTINGS_TAB_MAP } from './SettingsRedirect';
 
 /**
  * Welcher Bereich beim Öffnen offen ist, hängt an drei Zuständen, die sich nur
@@ -54,5 +55,38 @@ describe('closeCompletesOnboarding', () => {
 
   it('rührt eine bereits erledigte Einrichtung nicht an', () => {
     expect(closeCompletesOnboarding(false, 'onboarding')).toBe(false);
+  });
+});
+
+describe('SETTINGS_TAB_MAP', () => {
+  it('löst jeden Bereich unter seinem eigenen Namen auf', () => {
+    // Die Zweitliste, die diese Tabelle mal war, hatte drei Bereiche vergessen
+    // (#2912). Die kanonischen Schlüssel leiten sich jetzt aus SETTINGS_TABS ab
+    // — hier steht, dass die Ableitung die Seitenleiste wirklich abdeckt.
+    for (const { value } of visibleSettingsNav(true)) {
+      expect(SETTINGS_TAB_MAP[value]).toBe(value);
+    }
+  });
+
+  it('hält die Namen am Leben, die ein Bereich mal hatte', () => {
+    expect(SETTINGS_TAB_MAP.barrierefreiheit).toBe('datenschutz');
+    expect(SETTINGS_TAB_MAP.profil).toBe('allgemein');
+    expect(SETTINGS_TAB_MAP.mcp).toBe('konnektoren');
+  });
+
+  it('kennt Onboarding, obwohl es aus der Seitenleiste verschwindet', () => {
+    expect(SETTINGS_TAB_MAP.onboarding).toBe('onboarding');
+    expect(visibleSettingsNav(false).map((e) => e.value)).not.toContain('onboarding');
+  });
+});
+
+describe('Datenschutz & Barrierefreiheit', () => {
+  it('führt Barrierefreiheit nicht mehr als eigenen Bereich', () => {
+    expect(visibleSettingsNav(true).map((e) => String(e.value))).not.toContain('barrierefreiheit');
+  });
+
+  it('nennt beide Hälften im Label des zusammengelegten Bereichs', () => {
+    const entry = visibleSettingsNav(false).find((e) => e.value === 'datenschutz');
+    expect(entry?.label).toBe('Datenschutz & Barrierefreiheit');
   });
 });

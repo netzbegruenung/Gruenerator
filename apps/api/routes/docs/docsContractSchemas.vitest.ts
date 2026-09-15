@@ -18,7 +18,13 @@ describe('updateDocumentBodySchema', () => {
 
   it('rejects a wrongly-typed field', () => {
     expect(updateDocumentBodySchema.safeParse({ title: 42 }).success).toBe(false);
-    expect(updateDocumentBodySchema.safeParse({ wolke_live_sync: 'yes' }).success).toBe(false);
+    expect(updateDocumentBodySchema.safeParse({ content: 42 }).success).toBe(false);
+  });
+
+  it('tolerates the removed wolke_live_sync key from old clients (stripped, not 400)', () => {
+    const parsed = updateDocumentBodySchema.safeParse({ wolke_live_sync: true });
+    expect(parsed.success).toBe(true);
+    expect(parsed.success && 'wolke_live_sync' in parsed.data).toBe(false);
   });
 });
 

@@ -1,8 +1,8 @@
 name: Docs Tools & Office
 
 # Keeps two articles honest about what the app actually offers:
-#   - documentation/docs/ueber-den-gruenerator/tools.mdx (the tool overview),
-#   - documentation/docs/office/** (the Office tutorials).
+#   - documentation/docs/basics/tools.mdx (the tool overview),
+#   - documentation/docs/features/** (the Office tutorials, now under Features).
 #
 # Both follow the same split as the chat-capabilities article: the STRUCTURE
 # (which tools exist, which AI operations an editor understands) is generated

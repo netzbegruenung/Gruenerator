@@ -4,7 +4,7 @@
 # about what a real model would have done.
 
 ## turn 0: "Was liegt zum Heizungsgesetz vor?"
-router.run_agentic               = loop                           forcedLoop=true forcedTool=true gateOpen=true hasImageAttachments=false hasManagedSources=false hasOwnMaterial=false hasSelectedNotebook=false inLoopSet=true intent=bundestag isCompound=false isPdfFillRequest=false loopEnabled=true mustLoop=false secondaryAllowed=true selfContained=false unsourcedWriting=false
+router.run_agentic               = loop                           forcedLoop=true forcedTool=true gateOpen=true hasImageAttachments=false hasManagedSources=false hasOwnMaterial=false hasSelectedNotebook=false inLoopSet=true intent=bundestag isCompound=false isPdfFillRequest=false loopEnabled=true memoryRequest=false mustLoop=false secondaryAllowed=true selfContained=false unsourcedWriting=false
 router.intent_override           = (not reached)
 router.implicit_recipe           = (not reached)
 router.persistent_action_gate    = (not reached)

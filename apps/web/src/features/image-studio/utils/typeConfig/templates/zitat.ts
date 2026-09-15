@@ -11,7 +11,7 @@ export const zitatTypeConfig: TemplateTypeConfig = {
   id: IMAGE_STUDIO_TYPES.ZITAT,
   category: IMAGE_STUDIO_CATEGORIES.TEMPLATES,
   label: 'Zitat mit Bild',
-  description: 'Zitat mit Hintergrundbild',
+  description: 'Zitat auf Foto oder Farbfläche',
   icon: PiQuotes,
   previewImage: '/imagine/previews/zitat-preview.webp',
   previewImageFallback: '/imagine/previews/zitat-preview.png',

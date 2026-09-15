@@ -1,0 +1,191 @@
+{
+  "pipeline": "qa",
+  "depth": "fast",
+  "withRerank": false,
+  "outcomes": [
+    {
+      "id": "kommunalwiki-buergerbegehren",
+      "collection": "kommunalwiki-system",
+      "query": "Wie funktioniert ein Bürgerbegehren in der Kommune?",
+      "rank": 1,
+      "topTitles": [
+        "Bürgerbegehren und Bürgerentscheide in Deutschland – Ein Überblick",
+        "Straßenverkehrsordnung (StVO)",
+        "Kommunalpolitik und Kommunalverwaltung",
+        "Mobile Beratung Brandenburg",
+        "Cannabis"
+      ],
+      "searchTimeMs": 966
+    },
+    {
+      "id": "kommunalwiki-bebauungsplan",
+      "collection": "kommunalwiki-system",
+      "query": "Aufstellung eines Bebauungsplans — Verfahren und Beteiligung",
+      "rank": null,
+      "topTitles": [
+        "Sozialgerechte Bodennutzung",
+        "Bürgerbeteiligung - Konzepte und Lösungswege für die Praxis",
+        "Feministische Planung",
+        "Wasserrahmenrichtlinie",
+        "Spielhallengesetz"
+      ],
+      "searchTimeMs": 340
+    },
+    {
+      "id": "kommunalwiki-radverkehr",
+      "collection": "kommunalwiki-system",
+      "query": "Radverkehrsförderung in der Kommunalpolitik",
+      "rank": 1,
+      "topTitles": [
+        "Radverkehr",
+        "Dietmar Strehl",
+        "Grünes Forum Selbstverwaltung Mecklenburg-Vorpommern",
+        "Sozialdemokratie und Kommunalpolitik",
+        "Interkommunale Kooperation"
+      ],
+      "searchTimeMs": 311
+    },
+    {
+      "id": "kommunalwiki-haushalt",
+      "collection": "kommunalwiki-system",
+      "query": "Wie liest man einen kommunalen Haushaltsplan?",
+      "rank": 1,
+      "topTitles": [
+        "Gemeindehaushaltsverordnung",
+        "Nachhaltigkeit",
+        "Rathaus",
+        "Finanzierungsübersicht",
+        "Die systemische Kommune"
+      ],
+      "searchTimeMs": 182
+    },
+    {
+      "id": "kommunalwiki-waermeplanung",
+      "collection": "kommunalwiki-system",
+      "query": "Kommunale Wärmeplanung umsetzen",
+      "rank": 1,
+      "topTitles": [
+        "Handlungsleitfaden Kommunale Wärmeplanung",
+        "Finanzmemorandum niedersächsischer Oberbürgermeister",
+        "Neues Kommunales Finanzmanagement",
+        "Die Rolle der Kommunen in der Agenda 21",
+        "Zukunftsradar Digitale Kommune"
+      ],
+      "searchTimeMs": 205
+    },
+    {
+      "id": "kommunalwiki-fraktion",
+      "collection": "kommunalwiki-system",
+      "query": "Rechte und Arbeit einer Fraktion im Gemeinderat",
+      "rank": 3,
+      "topTitles": [
+        "Thüringer Kommunalordnung: Mehr Transparenz und Beteiligung?",
+        "Jana Borkamp",
+        "Opferberatung",
+        "Sondervermögen \"Hessens gute Zukunft sichern\"",
+        "Kommunalwahlen in Thüringen 2024"
+      ],
+      "searchTimeMs": 229
+    },
+    {
+      "id": "kommunalwiki-vergabe",
+      "collection": "kommunalwiki-system",
+      "query": "Öffentliche Vergabe und Ausschreibungen in Kommunen",
+      "rank": 13,
+      "topTitles": [
+        "Verdingungsordnung für Leistungen",
+        "Wiesbadener Erklärung zur Stadt von morgen",
+        "Netzwerk der deutschen Bio-Städte, -Gemeinden und –Landkreise",
+        "Gesetz gegen Wettbewerbsbeschränkungen",
+        "Elektronisches Rezept"
+      ],
+      "searchTimeMs": 239
+    },
+    {
+      "id": "kommunalwiki-jugend",
+      "collection": "kommunalwiki-system",
+      "query": "Jugendbeteiligung in der Kommune",
+      "rank": null,
+      "topTitles": [
+        "Werkstatt:Weblinks",
+        "Bundeswettbewerb Bioenergie-Kommunen",
+        "In- und Outsourcing in der kommunalen Abfallwirtschaft",
+        "Derivate",
+        "Kommunen in der Corona-Krise"
+      ],
+      "searchTimeMs": 263
+    },
+    {
+      "id": "kommunalwiki-laerm",
+      "collection": "kommunalwiki-system",
+      "query": "Lärmaktionsplanung und Lärmschutz vor Ort",
+      "rank": 1,
+      "topTitles": [
+        "Umgebungslärmrichtlinie",
+        "Bürgerbeteiligung für nachhaltige Entwicklung vor Ort",
+        "Shared Space",
+        "Region Mittleres Flöha- und Zschopautal",
+        "Hass-Angriffe auf Kommunalpolitiker/innen"
+      ],
+      "searchTimeMs": 257
+    },
+    {
+      "id": "kommunalwiki-baum",
+      "collection": "kommunalwiki-system",
+      "query": "Baumschutzsatzung und Stadtgrün",
+      "rank": 1,
+      "topTitles": [
+        "Umweltschutz durch kommunales Satzungsrecht",
+        "Grüne Infrastruktur",
+        "Kommunen für biologische Vielfalt",
+        "Urbanes Grün",
+        "Kommunale Maßnahmen gegen Hitze"
+      ],
+      "searchTimeMs": 100
+    },
+    {
+      "id": "kw-kommunalwiki-art-28-gg",
+      "collection": "kommunalwiki-system",
+      "query": "Art. 28 GG Allzuständigkeit",
+      "rank": 1,
+      "topTitles": [
+        "Kommunale Selbstverwaltung",
+        "Event Styling Guide: Theme, Spatial Design, Florals, Lighting, Stage, Signage And Photo Moments",
+        "Lars Keitel",
+        "Hauptseite",
+        "Königsteiner Schlüssel"
+      ],
+      "searchTimeMs": 269
+    },
+    {
+      "id": "kw-kommunalwiki-waermeplanungsgesetz",
+      "collection": "kommunalwiki-system",
+      "query": "Wärmeplanungsgesetz",
+      "rank": 1,
+      "topTitles": ["Klimaschutz als kommunale Pflichtaufgabe?"],
+      "searchTimeMs": 160
+    },
+    {
+      "id": "kw-kommunalwiki-erhaltungssatzung",
+      "collection": "kommunalwiki-system",
+      "query": "Erhaltungssatzung Milieuschutzsatzung",
+      "rank": 1,
+      "topTitles": ["Vorkaufsrecht der Gemeinde"],
+      "searchTimeMs": 140
+    },
+    {
+      "id": "kw-kommunalwiki-pfas",
+      "collection": "kommunalwiki-system",
+      "query": "PFAS Grenzwerte Trinkwasser",
+      "rank": 1,
+      "topTitles": [
+        "Per- und polyfluorierte Alkylverbindungen (PFAS)",
+        "Nitrate",
+        "Trinkwasser",
+        "Stickoxide",
+        "Interaktive Karten"
+      ],
+      "searchTimeMs": 267
+    }
+  ]
+}

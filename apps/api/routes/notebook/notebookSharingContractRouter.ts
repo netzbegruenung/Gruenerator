@@ -15,6 +15,7 @@ import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { applyNotebookVisibility } from '../../services/notebook/notebookVisibility.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -59,6 +60,19 @@ interface ExistingShareRow {
 }
 
 const s = initServer();
+
+/**
+ * Die Regeln (Owner-Gate, Abstufung löscht die Listung, Listung braucht
+ * 'authenticated' + public_ownership) leben in `notebookVisibility.ts`, weil
+ * die Chat-Karte dieselben braucht. Hier bleibt nur die Übersetzung in die
+ * Statuscodes des Contracts.
+ */
+function visibilityFailure<S extends 400 | 403 | 404>(failed: {
+  status: S;
+  error: string;
+}): { status: S; body: { error: string } } {
+  return { status: failed.status, body: { error: failed.error } };
+}
 
 export const notebookSharingContractRouter = s.router(notebookSharingContract, {
   listMyGroups: async (args) => {
@@ -116,29 +130,14 @@ export const notebookSharingContractRouter = s.router(notebookSharingContract, {
   setShareMode: async (args) => {
     try {
       const userId = getUserId(args.req);
-      const collection = await notebookHelper.getNotebookCollection(args.params.id);
-      if (!collection) {
-        return { status: 404 as const, body: { error: 'Notebook nicht gefunden' } };
-      }
-      if (collection.user_id !== userId) {
-        return { status: 403 as const, body: { error: 'Nur Eigentümer*in erlaubt' } };
-      }
-      // Invariant: Von-der-Basis discovery only makes sense atop
-      // share_mode='authenticated'. Stepping down to 'private'/'groups'
-      // clears the discovery flag so the listing query and the access
-      // check stay in lockstep (the original orphan-listing bug).
-      const updates: {
-        share_mode: typeof args.body.mode;
-        is_public?: boolean;
-        public_ownership?: null;
-      } = {
+      const applied = await applyNotebookVisibility(args.params.id, userId, {
         share_mode: args.body.mode,
-      };
-      if (args.body.mode !== 'authenticated' && collection.is_public === true) {
-        updates.is_public = false;
-        updates.public_ownership = null;
+      });
+      if (!applied.ok) {
+        // Ein 400 entsteht nur aus `is_public`; dieser Contract kennt ihn nicht.
+        if (applied.status === 400) throw new Error(applied.error);
+        return visibilityFailure(applied);
       }
-      await notebookHelper.updateNotebookCollection(args.params.id, updates);
       return {
         status: 200 as const,
         body: { success: true, message: 'Sichtbarkeit aktualisiert' },
@@ -152,35 +151,12 @@ export const notebookSharingContractRouter = s.router(notebookSharingContract, {
   setIsPublic: async (args) => {
     try {
       const userId = getUserId(args.req);
-      const collection = await notebookHelper.getNotebookCollection(args.params.id);
-      if (!collection) {
-        return { status: 404 as const, body: { error: 'Notebook nicht gefunden' } };
-      }
-      if (collection.user_id !== userId) {
-        return { status: 403 as const, body: { error: 'Nur Eigentümer*in erlaubt' } };
-      }
       const { is_public, public_ownership } = args.body;
-      if (is_public) {
-        if (!public_ownership) {
-          return {
-            status: 400 as const,
-            body: { error: 'Bitte bestätige die Quelle der Inhalte (Eigentum oder öffentlich).' },
-          };
-        }
-        if (collection.share_mode !== 'authenticated') {
-          return {
-            status: 400 as const,
-            body: {
-              error:
-                'Bitte zuerst Sichtbarkeit auf „Mit Anmeldung" setzen, dann auf Von der Basis listen.',
-            },
-          };
-        }
-      }
-      await notebookHelper.updateNotebookCollection(args.params.id, {
+      const applied = await applyNotebookVisibility(args.params.id, userId, {
         is_public,
-        public_ownership: is_public ? public_ownership : null,
+        public_ownership: public_ownership ?? null,
       });
+      if (!applied.ok) return visibilityFailure(applied);
       return {
         status: 200 as const,
         body: {
@@ -197,16 +173,14 @@ export const notebookSharingContractRouter = s.router(notebookSharingContract, {
   setEditPolicy: async (args) => {
     try {
       const userId = getUserId(args.req);
-      const collection = await notebookHelper.getNotebookCollection(args.params.id);
-      if (!collection) {
-        return { status: 404 as const, body: { error: 'Notebook nicht gefunden' } };
-      }
-      if (collection.user_id !== userId) {
-        return { status: 403 as const, body: { error: 'Nur Eigentümer*in erlaubt' } };
-      }
-      await notebookHelper.updateNotebookCollection(args.params.id, {
+      const applied = await applyNotebookVisibility(args.params.id, userId, {
         edit_policy: args.body.policy,
       });
+      if (!applied.ok) {
+        // Ein 400 entsteht nur aus `is_public`; dieser Contract kennt ihn nicht.
+        if (applied.status === 400) throw new Error(applied.error);
+        return visibilityFailure(applied);
+      }
       return {
         status: 200 as const,
         body: { success: true, message: 'Bearbeitungsrechte aktualisiert' },

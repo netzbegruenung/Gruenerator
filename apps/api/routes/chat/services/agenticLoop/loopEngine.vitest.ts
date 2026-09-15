@@ -13,6 +13,7 @@ import {
   SYNTH_CUTOFF_RETRY_SUFFIX,
   SYNTH_INVALID_JSON_RETRY_SUFFIX,
   SYNTH_DEGENERATE_RETRY_SUFFIX,
+  TurnSuspendedError,
   type LoopDeps,
   type LoopEngineParams,
 } from './loopEngine.js';
@@ -1205,5 +1206,45 @@ describe('runAgenticLoop — reasoning reaches the writing phases', () => {
     await runAgenticLoop(baseParams({ mode: 'unified' }), deps);
 
     expect(seen).toEqual([undefined]);
+  });
+});
+
+// Eine Freigabe-Pause muss den Zug WIRKLICH beenden. Der Nachweis ist nötig,
+// weil `gather()` jeden Fehler fängt und danach zur Synthese degradiert: ohne
+// die ausdrückliche Prüfung schriebe der Zug eine Antwort, während die Person
+// noch entscheidet — und `afterGather` erzeugte dabei Artefakte.
+describe('runAgenticLoop — Werkzeug-Freigabe pausiert den Zug', () => {
+  const deps: LoopDeps = {
+    streamText: (() =>
+      streamOf([
+        { type: 'text-delta', text: 'SOLLTE_NICHT_ERSCHEINEN' },
+      ])) as unknown as LoopDeps['streamText'],
+    generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+  };
+
+  it('bricht im geteilten Modus vor Synthese und Artefakt-Garantie ab', async () => {
+    const afterGather = vi.fn(async () => {});
+    await expect(
+      runAgenticLoop(baseParams({ mode: 'split', afterGather, suspended: () => true }), deps)
+    ).rejects.toThrow(TurnSuspendedError);
+    expect(afterGather).not.toHaveBeenCalled();
+  });
+
+  it('bricht im vereinten Modus vor der Artefakt-Garantie ab', async () => {
+    const afterGather = vi.fn(async () => {});
+    await expect(
+      runAgenticLoop(baseParams({ mode: 'unified', afterGather, suspended: () => true }), deps)
+    ).rejects.toThrow(TurnSuspendedError);
+    expect(afterGather).not.toHaveBeenCalled();
+  });
+
+  it('lässt einen Zug ohne Pause unverändert laufen', async () => {
+    const afterGather = vi.fn(async () => {});
+    const out = await runAgenticLoop(
+      baseParams({ mode: 'unified', afterGather, suspended: () => false }),
+      deps
+    );
+    expect(out.text).toBe('SOLLTE_NICHT_ERSCHEINEN');
+    expect(afterGather).toHaveBeenCalledTimes(1);
   });
 });

@@ -16,9 +16,9 @@
   },
   "dependencies": {
     "@gruenerator/contracts": "workspace:*",
-    "@tiptap/core": "3.29.2",
-    "@tiptap/pm": "3.29.2",
-    "@tiptap/static-renderer": "3.29.2",
+    "@tiptap/core": "3.31.0",
+    "@tiptap/pm": "3.31.0",
+    "@tiptap/static-renderer": "3.31.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "embla-carousel-react": "^8.6.0",

@@ -3,6 +3,8 @@
  * Platform configurations and mappings
  */
 
+import { MEDIA_LIBRARY_ITEM_LIMIT } from '../media-library/constants.js';
+
 import type { SharePlatform, PlatformConfig } from './types.js';
 
 /**
@@ -73,7 +75,7 @@ export const DEFAULT_SHARE_PLATFORMS: SharePlatform[] = [
  * Share limits
  */
 export const SHARE_LIMITS = {
-  MAX_ITEMS_PER_USER: 50,
+  MAX_ITEMS_PER_USER: MEDIA_LIBRARY_ITEM_LIMIT,
   MAX_TITLE_LENGTH: 200,
 } as const;
 

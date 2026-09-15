@@ -212,7 +212,25 @@ export const chatResumeBodySchema = z.object({
   // ask_human flow is untouched.
   toolName: z.string().optional(),
   result: z.unknown().optional(),
+  // Werkzeug-Freigabe: die Entscheidungen zu den zurückgehaltenen Aufrufen.
+  approvalTurnId: z.string().optional(),
+  toolApprovals: z
+    .array(
+      z.object({
+        toolCallId: z.string(),
+        approved: z.boolean(),
+        optionId: z.enum(['allow-once', 'allow-always', 'reject-once']).optional(),
+        reason: z.string().optional(),
+      })
+    )
+    .optional(),
 });
+
+export type ChatToolApprovalDecision = z.infer<
+  typeof chatResumeBodySchema
+>['toolApprovals'] extends (infer T)[] | undefined
+  ? T
+  : never;
 
 // ── Response schemas ────────────────────────────────────────────────────────
 

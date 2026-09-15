@@ -3,14 +3,20 @@
  * Platform-agnostic types for sharing functionality
  */
 
+import type { ShareMediaType, ShareStatus } from '@gruenerator/contracts';
+
 // Social media platforms for sharing (subset of generators.SocialPlatform)
 export type SharePlatform = 'instagram' | 'facebook' | 'twitter' | 'linkedin' | 'pressemitteilung';
 
-// Media types that can be shared
-export type ShareMediaType = 'video' | 'image';
-
-// Share status
-export type ShareStatus = 'processing' | 'ready' | 'failed' | 'draft';
+/**
+ * Media type and status both cross the wire — as `?type=`/`?status=` on the
+ * share list endpoints and back on every share row — so the unions live in
+ * `@gruenerator/contracts` (`shareMediaTypeSchema`, `shareStatusSchema`) and
+ * are re-exported here for the callers that already import from this module.
+ * Restating them would put the closed set in two places with nothing keeping
+ * them in step.
+ */
+export type { ShareMediaType, ShareStatus };
 
 /**
  * Which product made an image — the Studio gallery's Sharepic/KI split.

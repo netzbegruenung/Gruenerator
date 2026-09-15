@@ -9,6 +9,7 @@ import {
   globalSearchQuerySchema,
   globalSearchResponseSchema,
   officeSearchResponseSchema,
+  threadSearchResponseSchema,
 } from '../schemas/globalSearch.js';
 
 const c = initContract();
@@ -37,6 +38,17 @@ export const globalSearchContract = c.router(
       },
       summary:
         'Search the caller’s office content (docs, boards, sheets, presentations) by title or body',
+    },
+    threadSearch: {
+      method: 'GET',
+      path: '/api/global-search/threads',
+      query: globalSearchQuerySchema,
+      responses: {
+        200: threadSearchResponseSchema,
+        401: globalSearchErrorResponseSchema,
+        500: globalSearchErrorResponseSchema,
+      },
+      summary: 'Search the caller’s chat threads by message content or title',
     },
   },
   { pathPrefix: '' }

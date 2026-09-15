@@ -103,6 +103,15 @@ describe.each(TEMPLATES)('%s: toolbar controls are wired', (type) => {
       if (raw.type === 'image' && raw.transformable && !raw.sizeStateKey && !raw.scaleKey) {
         missing.push(`${where}: sizeStateKey or scaleKey`);
       }
+
+      // The mirror case: `sizeStateKey` is written only by
+      // `handleImageTransformEnd`, which fires only from the Transformer's
+      // corner anchors — and those are enabled only for `transformable`
+      // images. A size key without `transformable` is therefore a state slot
+      // nothing can ever write.
+      if (raw.type === 'image' && raw.sizeStateKey && !raw.transformable) {
+        missing.push(`${where}: transformable (sizeStateKey has no writer)`);
+      }
     }
 
     expect(missing, `dead controls in ${type}:\n  ${missing.join('\n  ')}`).toEqual([]);

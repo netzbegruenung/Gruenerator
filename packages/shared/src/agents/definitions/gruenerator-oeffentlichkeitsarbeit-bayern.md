@@ -42,7 +42,6 @@ enabledTools:
   - image
   - memory
   - memory_save
-  - self_review
 defaultFilter:
   landesverband:
     - BY

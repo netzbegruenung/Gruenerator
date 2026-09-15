@@ -37,6 +37,7 @@ const BASE = {
     images: 3,
     transcriptions: 2,
     searches: 5,
+    speech_seconds: 90,
   },
   footprint: {
     energy_wh: 120,
@@ -58,6 +59,7 @@ const BASE = {
       images: 0,
       transcriptions: 2,
       searches: 5,
+      speech_seconds: 90,
     },
   ],
   byModel: [

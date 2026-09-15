@@ -22,18 +22,22 @@ import {
   type TransparencyDayEntryDto,
   type TransparencyFeatureEntryDto,
   type TransparencyFootprintDto,
+  type TransparencyLocale,
   type TransparencyProviderEntryDto,
   type UsageFeature,
 } from '@gruenerator/contracts';
+import { getPinnedLocale } from '@gruenerator/shared/instances';
 import { cn, LoadingSection, StatusBanner } from '@gruenerator/ui';
 import { useSearchParams } from 'react-router-dom';
 
+import { CURRENT_INSTANCE } from '../../../config/instance';
 import { getDocsUrl } from '../../../utils/docsUrl';
 import {
   carComparison,
   FEATURE_LABELS,
   formatCount,
   formatDay,
+  formatDuration,
   formatEnergy,
   formatGrams,
   formatTokens,
@@ -63,7 +67,7 @@ import {
 const RANGES = [7, 30, 90] as const;
 export const DEFAULT_DAYS = 30;
 
-const DOCS_LINK = `${getDocsUrl()}/docs/ueber-den-gruenerator/nachhaltigkeit`;
+const DOCS_LINK = `${getDocsUrl()}/docs/basics/nachhaltigkeit`;
 
 function formatTimestamp(iso: string): string {
   const date = new Date(iso);
@@ -149,6 +153,72 @@ export function ViewSwitcher({
   );
 }
 
+/* ── Land wählen ──────────────────────────────────────────────────────────── */
+
+const LOCALE_LABELS: Record<TransparencyLocale, string> = {
+  de: 'Deutschland',
+  at: 'Österreich',
+};
+
+function isTransparencyLocale(value: string | null): value is TransparencyLocale {
+  return value === 'de' || value === 'at';
+}
+
+/**
+ * Which country's users the figure describes; `null` is the whole instance and
+ * the default. Unlike the monitor's locale param this does NOT default from the
+ * profile: the platform total is the figure this page exists for, and the
+ * split is a drill-down into it.
+ *
+ * An instance that pins its locale (bgst) has nothing to split, so the param
+ * is ignored there and `available` tells the page not to offer the switch.
+ */
+export function useTransparencyLocaleParam(): {
+  locale: TransparencyLocale | null;
+  setLocale: (locale: TransparencyLocale | null) => void;
+  available: boolean;
+} {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const available = getPinnedLocale(CURRENT_INSTANCE) === null;
+  const raw = searchParams.get('locale');
+  const locale = available && isTransparencyLocale(raw) ? raw : null;
+
+  const setLocale = (next: TransparencyLocale | null) => {
+    setSearchParams(
+      (prev) => {
+        const params = new URLSearchParams(prev);
+        if (next) params.set('locale', next);
+        else params.delete('locale');
+        return params;
+      },
+      { replace: true }
+    );
+  };
+
+  return { locale, setLocale, available };
+}
+
+export function LocaleSwitcher({
+  locale,
+  onChange,
+}: {
+  locale: TransparencyLocale | null;
+  onChange: (locale: TransparencyLocale | null) => void;
+}) {
+  return (
+    <div className={MONITOR_PILL_TRACK}>
+      <PillButton size="sm" active={locale === null} onClick={() => onChange(null)}>
+        Alle
+      </PillButton>
+      {(Object.keys(LOCALE_LABELS) as TransparencyLocale[]).map((entry) => (
+        <PillButton key={entry} size="sm" active={locale === entry} onClick={() => onChange(entry)}>
+          {LOCALE_LABELS[entry]}
+        </PillButton>
+      ))}
+    </div>
+  );
+}
+
 export function RangeSwitcher({
   days,
   onChange,
@@ -170,6 +240,71 @@ export function RangeSwitcher({
 /* ── Hero ─────────────────────────────────────────────────────────────────── */
 
 /** Output tokens per day — the quantity the footprint actually scales with. */
+/**
+ * A published figure and the width of what we do not know about it.
+ *
+ * The number a reader carries away is the middle; the track under it is the
+ * span the middle sits in. Drawn rather than written out because the two are a
+ * pair — a point estimate printed alone reads as certainty we do not have, and
+ * a bare "x to y" reads as if every value in between were equally likely.
+ *
+ * The track is linear between the two ends, so the marker's position IS the
+ * middle's position in its own span; a middle near the left edge says the
+ * uncertainty runs mostly upward. Where low and high coincide (a metered lane
+ * in a known country) there is nothing to draw and the caller shows the number
+ * alone — an empty scale would imply a precision claim of its own.
+ */
+function Scale({
+  low,
+  mid,
+  high,
+  format,
+  lowLabel = 'mindestens',
+  highLabel = 'höchstens',
+}: {
+  low: number;
+  mid: number;
+  high: number;
+  format: (v: number) => string;
+  lowLabel?: string;
+  highLabel?: string;
+}) {
+  const span = high - low;
+  const pct = span > 0 ? Math.min(100, Math.max(0, ((mid - low) / span) * 100)) : 50;
+
+  return (
+    <div className="mt-4 max-w-[26rem]">
+      <div
+        className="relative h-2 rounded-full bg-[#e4ebe7] dark:bg-grey-800"
+        role="img"
+        aria-label={`Spanne von ${format(low)} bis ${format(high)}, Schätzwert ${format(mid)}`}
+      >
+        <div
+          className="absolute inset-y-0 rounded-full bg-[#a8cbbb] dark:bg-[#3d6455]"
+          style={{ left: 0, right: 0 }}
+        />
+        <div
+          className="absolute top-1/2 h-3.5 w-[3px] -translate-x-1/2 -translate-y-1/2 rounded-sm bg-[#316049] dark:bg-[#6fae90]"
+          style={{ left: `${pct}%` }}
+        />
+      </div>
+      <div className={cn('mt-1.5 flex justify-between text-[0.75rem]', MONITOR_FAINT)}>
+        <span>
+          {lowLabel} {format(low)}
+        </span>
+        <span>
+          {highLabel} {format(high)}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/** True when the two ends are far enough apart to be worth drawing. */
+function hasSpan(low: number, high: number): boolean {
+  return high - low > Math.max(0.5, high * 0.005);
+}
+
 function HeroSparkline({ points }: { points: TransparencyDayEntryDto[] }) {
   const series = points.slice(-12).map((p) => p.output_tokens);
   if (series.length < 2) return null;
@@ -220,10 +355,12 @@ function HeroSparkline({ points }: { points: TransparencyDayEntryDto[] }) {
 }
 
 /**
- * The headline figure, as a range.
+ * The headline figure: the central estimate, with its scale drawn under it.
  *
- * The upper end is what a single-number reading falls back to, deliberately:
- * of the two ends, it is the one that cannot flatter us.
+ * It used to be the upper end, on the reasoning that a lone number should be
+ * the one that cannot flatter us. That reasoning produced a number reliably
+ * wrong in one direction and hid how wide the real uncertainty was. The ends
+ * are now drawn beside the middle instead of standing in for it — see `Scale`.
  */
 function FootprintHero({
   footprint,
@@ -234,12 +371,11 @@ function FootprintHero({
   daily: TransparencyDayEntryDto[];
   days: number;
 }) {
-  const isBand = footprint.emissions_g - footprint.emissions_g_low > 0.5;
+  const co2Span = hasSpan(footprint.emissions_g_low, footprint.emissions_g_high);
+  const energySpan = hasSpan(footprint.energy_wh_low, footprint.energy_wh_high);
 
   return (
-    <div
-      className={cn('mb-10 flex flex-wrap items-center justify-between gap-8 p-8', MONITOR_CARD)}
-    >
+    <div className={cn('mb-10 flex flex-wrap items-start justify-between gap-8 p-8', MONITOR_CARD)}>
       <div>
         <p className={cn('m-0 mb-1', MONITOR_EYEBROW)}>CO₂ der letzten {days} Tage</p>
         <div className="flex flex-wrap items-baseline gap-3.5">
@@ -249,21 +385,33 @@ function FootprintHero({
               MONITOR_HEADING
             )}
           >
-            {isBand
-              ? `${formatGrams(footprint.emissions_g_low)} – ${formatGrams(footprint.emissions_g)}`
-              : `≈ ${formatGrams(footprint.emissions_g)}`}
+            ≈ {formatGrams(footprint.emissions_g)}
           </span>
           <span className={cn('text-[1.1rem] font-bold', MONITOR_ACCENT)}>CO₂e</span>
         </div>
-        <p className={cn('m-0 mt-2.5 text-[0.9rem]', MONITOR_MUTED)}>
-          {isBand
-            ? `${formatEnergy(footprint.energy_wh_low)} – ${formatEnergy(footprint.energy_wh)} Strom`
-            : `${formatEnergy(footprint.energy_wh)} Strom`}{' '}
-          · so viel wie {carComparison(footprint.emissions_g)}
+        {co2Span && (
+          <Scale
+            low={footprint.emissions_g_low}
+            mid={footprint.emissions_g}
+            high={footprint.emissions_g_high}
+            format={formatGrams}
+          />
+        )}
+        <p className={cn('m-0 mt-4 text-[0.9rem]', MONITOR_MUTED)}>
+          {formatEnergy(footprint.energy_wh)} Strom · so viel wie{' '}
+          {carComparison(footprint.emissions_g)}
           {footprint.image_emissions_g > 0 && (
             <> · davon {formatGrams(footprint.image_emissions_g)} aus erzeugten Bildern</>
           )}
         </p>
+        {energySpan && (
+          <Scale
+            low={footprint.energy_wh_low}
+            mid={footprint.energy_wh}
+            high={footprint.energy_wh_high}
+            format={formatEnergy}
+          />
+        )}
       </div>
       <HeroSparkline points={daily} />
     </div>
@@ -273,15 +421,22 @@ function FootprintHero({
 /* ── Anbieter ─────────────────────────────────────────────────────────────── */
 
 /**
- * Where the energy went, and with which constants it was costed.
+ * Where the emissions went, and with which constants they were costed.
  *
  * This is the part that makes the headline number checkable: grid intensity and
  * PUE are the only two inputs besides kWh, and both are printed next to the
  * share they were applied to.
+ *
+ * Ranked by CO2, not by energy, because the two orders genuinely differ: the
+ * grid factors in this table span a factor of 16, so the biggest consumer of
+ * kWh is not the biggest emitter. The page is about the footprint, so it sorts
+ * by the footprint — and the bar has to carry the same quantity as the sort,
+ * otherwise the rows read as if they were out of order.
  */
 function ProviderPanel({ providers }: { providers: TransparencyProviderEntryDto[] }) {
-  const ranked = [...providers].sort((a, b) => b.energy_wh - a.energy_wh);
-  const max = Math.max(...ranked.map((p) => p.energy_wh), 1);
+  const ranked = [...providers].sort((a, b) => b.emissions_g - a.emissions_g);
+  const max = Math.max(...ranked.map((p) => p.emissions_g), 1);
+  const estimatedPue = ranked.some((p) => p.pue_estimated);
 
   return (
     <section>
@@ -289,7 +444,7 @@ function ProviderPanel({ providers }: { providers: TransparencyProviderEntryDto[
         <h2 className={cn('m-0 text-[1.35rem] font-semibold tracking-[-0.01em]', MONITOR_HEADING)}>
           Nach Anbieter
         </h2>
-        <span className={cn('text-[0.85rem]', MONITOR_FAINT)}>Sortiert nach Energie</span>
+        <span className={cn('text-[0.85rem]', MONITOR_FAINT)}>Sortiert nach CO₂</span>
       </div>
       <div className={cn('flex flex-col gap-4 p-6', MONITOR_CARD)}>
         {ranked.map((entry) => (
@@ -299,28 +454,48 @@ function ProviderPanel({ providers }: { providers: TransparencyProviderEntryDto[
                 {providerLabel(entry.provider)}
               </span>
               <span className={cn('text-[0.95rem] font-bold tabular-nums', MONITOR_ACCENT)}>
-                {formatEnergy(entry.energy_wh)} · {formatGrams(entry.emissions_g)}
+                {formatGrams(entry.emissions_g)} · {formatEnergy(entry.energy_wh)}
               </span>
             </div>
             <div className="h-[18px] overflow-hidden rounded-md bg-[#eef2ef] dark:bg-grey-800">
               <div
                 className="h-full rounded-md bg-[#52907a] transition-[width] duration-500"
-                style={{ width: `${(entry.energy_wh / max) * 100}%` }}
+                style={{ width: `${(entry.emissions_g / max) * 100}%` }}
               />
             </div>
             <div className="flex flex-wrap gap-1.5">
               <span className={MONITOR_TAG}>
                 Netz {oneDecimal.format(entry.grid_g_per_kwh)} g/kWh
               </span>
-              <span className={MONITOR_TAG}>PUE {oneDecimal.format(entry.pue)}</span>
+              <span className={MONITOR_TAG}>
+                PUE {entry.pue_estimated ? '≈' : ''}
+                {oneDecimal.format(entry.pue)}
+              </span>
+              {entry.pue_estimated && (
+                <span className={MONITOR_TAG} title="Vom Betreiber nicht veröffentlicht">
+                  PUE geschätzt
+                </span>
+              )}
             </div>
           </div>
         ))}
         <p className={cn('m-0 mt-1 text-[0.8rem] leading-relaxed', MONITOR_FAINT)}>
           Emissionen = Energie × Netzintensität, standortbasiert. Die Netzintensität ist der
-          Jahresdurchschnitt des Landes, in dem der Anbieter rechnet — kein Zertifikatehandel. PUE
-          ist der Aufschlag des Rechenzentrums für Kühlung und Verluste; er steckt bereits in der
-          gezeigten Energie.
+          Jahresdurchschnitt des Landes, in dem der Anbieter rechnet — kein Zertifikatehandel, und
+          nur Verbrennungsemissionen: Kraftwerksbau und Brennstoffkette sind nicht enthalten, was
+          kohlenstoffarme Netze deutlich günstiger aussehen lässt. PUE ist der Aufschlag des
+          Rechenzentrums für Kühlung und Verluste; er steckt bereits in der gezeigten Energie.
+          {estimatedPue && (
+            <>
+              {' '}
+              Wo <strong>PUE geschätzt</strong> steht, veröffentlicht der Betreiber keinen Wert. Wir
+              schätzen dann über den Standort — für Deutschland mit der gesetzlichen Obergrenze des
+              Energieeffizienzgesetzes (1,5), sonst mit dem europäischen Durchschnitt (1,50).
+              Europäisch und nicht weltweit, weil alle betroffenen Anbieter vertraglich im EWR
+              rechnen. Beides liegt über dem, was ein modernes Rechenzentrum erreicht: Die Schätzung
+              soll unseren Fußabdruck eher zu groß als zu klein ausweisen.
+            </>
+          )}
         </p>
       </div>
     </section>
@@ -352,11 +527,11 @@ function Meter({ label, share, hint }: { label: string; share: number; hint: str
  *
  * `unvalued_ops` sits in this card rather than in a footnote on purpose: a page
  * that shows a CO2 figure beside an activity count implies the activity is in
- * it. For transcription and web search it is not, and the number saying so has
- * to be as easy to reach as the number it qualifies.
+ * it. For transcription, web search and speech synthesis it is not, and the
+ * number saying so has to be as easy to reach as the number it qualifies.
  */
 function CoveragePanel({ footprint }: { footprint: TransparencyFootprintDto }) {
-  const { transcriptions, searches } = footprint.unvalued_ops;
+  const { transcriptions, searches, speech_seconds: speechSeconds } = footprint.unvalued_ops;
 
   return (
     <section>
@@ -372,16 +547,16 @@ function CoveragePanel({ footprint }: { footprint: TransparencyFootprintDto }) {
           hint="Vom Anbieter mitgelieferte Messwerte statt eigener Hochrechnung."
         />
         <Meter
-          label="Obergrenze"
+          label="Ohne eigene Messung"
           share={footprint.bounded_share}
-          hint="Kein messbares Gegenstück vorhanden — bewusst mit dem oberen Ende der gemessenen Spanne gerechnet."
+          hint="Für dieses Modell existiert nirgends ein Messwert. Gerechnet wird mit der Mitte zwischen zwei Modellen, die wir gemessen haben — beide Enden stehen in der Spanne oben."
         />
         <Meter
           label="Abgedeckt"
           share={footprint.covered_share}
           hint="Anteil der erzeugten Tokens, für die überhaupt ein Energiewert existiert."
         />
-        {(transcriptions > 0 || searches > 0) && (
+        {(transcriptions > 0 || searches > 0 || speechSeconds > 0) && (
           <div className="border-t border-[#eef2ef] pt-4 dark:border-grey-700/60">
             <p className={cn('m-0 mb-1 text-[0.85rem] font-bold', MONITOR_HEADING)}>
               Nicht enthalten
@@ -391,17 +566,27 @@ function CoveragePanel({ footprint }: { footprint: TransparencyFootprintDto }) {
                 <>
                   {formatCount(transcriptions)} Transkriptionen — kein Anbieter meldet dafür
                   Verbrauch, und wir speichern keine Audiodauer, mit der er skalieren würde.
-                  {searches > 0 && ' '}
+                  {(searches > 0 || speechSeconds > 0) && ' '}
                 </>
               )}
               {searches > 0 && (
                 <>
                   {formatCount(searches)} Web-Recherchen — die Energie steckt im Index des
                   Suchanbieters, nicht bei uns.
+                  {speechSeconds > 0 && ' '}
+                </>
+              )}
+              {speechSeconds > 0 && (
+                <>
+                  {formatDuration(speechSeconds)} Sprachausgabe — KugelAudio meldet keinen
+                  Verbrauch, und für Sprachsynthese gibt es keine veröffentlichte Messung, deren
+                  Systemgrenze zu unserer passt. Anders als bei der Transkription erfassen wir hier
+                  die Dauer, also die Größe, mit der die Energie skalieren würde; sobald eine
+                  belastbare Messung existiert, lässt sich der Zeitraum rückwirkend bewerten.
                 </>
               )}{' '}
-              Beides zählt in den Aktivitätszahlen mit, aber mit <strong>0 g</strong> im Fußabdruck
-              — als Lücke ausgewiesen statt stillschweigend als Null.
+              Das zählt in den Aktivitätszahlen mit, aber mit <strong>0 g</strong> im Fußabdruck —
+              als Lücke ausgewiesen statt stillschweigend als Null.
             </p>
           </div>
         )}
@@ -532,6 +717,7 @@ function FeaturePanel({ byFeature }: { byFeature: GetTransparencyStatsResponseDt
             entry.images ? `${formatCount(entry.images)} Bilder` : null,
             entry.transcriptions ? `${formatCount(entry.transcriptions)} Transkriptionen` : null,
             entry.searches ? `${formatCount(entry.searches)} Recherchen` : null,
+            entry.speech_seconds ? `${formatDuration(entry.speech_seconds)} Sprachausgabe` : null,
           ].filter(Boolean);
           return (
             <BreakdownRow
@@ -590,7 +776,7 @@ function ModelPanel({ byModel }: { byModel: GetTransparencyStatsResponseDto['byM
                     share={amount(entry) / max}
                   />
                 ))}
-              {(unit === 'transcriptions' || unit === 'searches') && (
+              {(unit === 'transcriptions' || unit === 'searches' || unit === 'speech_seconds') && (
                 <p className={cn('m-0 text-[0.78rem]', MONITOR_FAINT)}>
                   Zählt mit, trägt aber keinen Fußabdruck — siehe „Nicht enthalten“ oben.
                 </p>
@@ -648,9 +834,21 @@ function ReferencePanel({ footprint }: { footprint: TransparencyFootprintDto }) 
           <p className={cn('m-0 mt-2 text-[0.85rem]', MONITOR_MUTED)}>
             {formatCorridor(comparison.worst, comparison.best)}
           </p>
+          {comparison.best - comparison.worst > 0.5 && (
+            <Scale
+              low={comparison.worst}
+              // The signed difference, which is what the two ends bracket. The
+              // headline above shows its magnitude with a word for the sign.
+              mid={co2Saved ? comparison.magnitude : -comparison.magnitude}
+              high={comparison.best}
+              format={(v) => formatGrams(Math.abs(v))}
+              lowLabel="ungünstigste Lesart"
+              highLabel="günstigste"
+            />
+          )}
         </div>
         <div>
-          <p className={cn('m-0 mb-1', MONITOR_EYEBROW)}>Energie</p>
+          <p className={cn('m-0 mb-1', MONITOR_EYEBROW)}>Energie bei ChatGPT</p>
           <span
             className={cn(
               'text-[2.2rem] font-semibold leading-none tracking-[-0.02em]',
@@ -660,13 +858,17 @@ function ReferencePanel({ footprint }: { footprint: TransparencyFootprintDto }) 
             ≈ {formatEnergy(footprint.reference_energy_wh)}
           </span>
           <p className={cn('m-0 mt-2 text-[0.85rem]', MONITOR_MUTED)}>
-            statt {formatEnergy(textEnergy)}
+            unser Verbrauch: {formatEnergy(textEnergy)}
             {energyFactor > 0 && (
               <>
                 {' — '}
+                {/* Das Vielfache haengt IMMER an der groesseren Seite, damit
+                    das „x" nie „x weniger" heissen muss: „1,5x weniger" ist
+                    keine Aussage, die jemand richtig liest, und hier stand sie
+                    ausgerechnet dort, wo WIR die schlechtere Seite sind. */}
                 {energyFactor >= 1
-                  ? `${oneDecimal.format(energyFactor)}× so viel`
-                  : `${oneDecimal.format(1 / energyFactor)}× weniger als bei uns`}
+                  ? `ChatGPT hätte ${oneDecimal.format(energyFactor)}× so viel gebraucht`
+                  : `${oneDecimal.format(1 / energyFactor)}× so viel wie ChatGPT`}
               </>
             )}
           </p>
@@ -735,9 +937,12 @@ function MethodNote({ data }: { data: GetTransparencyStatsResponseDto }) {
  * datacenter ran it. Tokens, PUE, grid intensity, bands and coverage shares
  * all stay in the expert view.
  *
- * The single number is the UPPER end of the band, with the rounding direction
- * said in words ("eher darunter") — the honest reading of a range for someone
- * who was never going to read a range.
+ * The single number is the same central estimate the expert view shows, and
+ * since 29.08.2026 it carries the same two scales — CO2 and electricity — in
+ * plain words ("mindestens"/"höchstens") rather than none at all. Dropping the
+ * vocabulary is the point of this view; dropping the uncertainty was never
+ * meant to be, and the earlier copy ("die tatsächliche Zahl liegt eher
+ * darunter") described a rounding direction that no longer exists.
  */
 const SIMPLE_GROUPS: Record<UsageFeature, string> = {
   chat: 'Chat',
@@ -748,6 +953,7 @@ const SIMPLE_GROUPS: Record<UsageFeature, string> = {
   sheets: 'Präsentationen & Tabellen',
   presentations: 'Präsentationen & Tabellen',
   subtitler: 'Untertitel',
+  voice: 'Sprachausgabe',
   search: 'Websuche',
   boards: 'Sonstiges',
   sites: 'Sonstiges',
@@ -784,10 +990,33 @@ function SimpleView({ data }: { data: GetTransparencyStatsResponseDto }) {
           </span>
           <span className={cn('text-[1.1rem] font-bold', MONITOR_ACCENT)}>CO₂</span>
         </div>
-        <p className={cn('m-0 mt-2.5 max-w-[38rem] text-[0.9rem] leading-relaxed', MONITOR_MUTED)}>
-          Das entspricht ungefähr {carComparison(footprint.emissions_g)}. Wo wir schätzen müssen,
-          runden wir auf — die tatsächliche Zahl liegt eher darunter.
+        {hasSpan(footprint.emissions_g_low, footprint.emissions_g_high) && (
+          <Scale
+            low={footprint.emissions_g_low}
+            mid={footprint.emissions_g}
+            high={footprint.emissions_g_high}
+            format={formatGrams}
+          />
+        )}
+        <p className={cn('m-0 mt-4 max-w-[38rem] text-[0.9rem] leading-relaxed', MONITOR_MUTED)}>
+          Das entspricht ungefähr {carComparison(footprint.emissions_g)}. Ein Teil davon ist
+          gemessen, ein Teil geschätzt — der Balken zeigt, wie weit die Schätzung reicht. Die
+          angezeigte Zahl liegt in der Mitte, nicht am günstigen Rand.
         </p>
+        <div className="mt-6 border-t border-[#eef2ef] pt-5 dark:border-grey-700/60">
+          <p className={cn('m-0 mb-1', MONITOR_EYEBROW)}>Verbrauchter Strom</p>
+          <span className={cn('text-[1.6rem] font-semibold leading-none', MONITOR_HEADING)}>
+            ≈ {formatEnergy(footprint.energy_wh)}
+          </span>
+          {hasSpan(footprint.energy_wh_low, footprint.energy_wh_high) && (
+            <Scale
+              low={footprint.energy_wh_low}
+              mid={footprint.energy_wh}
+              high={footprint.energy_wh_high}
+              format={formatEnergy}
+            />
+          )}
+        </div>
       </div>
 
       {ranked.length > 0 && (
@@ -809,7 +1038,7 @@ function SimpleView({ data }: { data: GetTransparencyStatsResponseDto }) {
                 share={grams / max}
               />
             ))}
-            {(totals.searches > 0 || totals.transcriptions > 0) && (
+            {(totals.searches > 0 || totals.transcriptions > 0 || totals.speech_seconds > 0) && (
               <p
                 className={cn(
                   'm-0 mt-1 border-t border-[#eef2ef] pt-4 text-[0.8rem] leading-relaxed dark:border-grey-700/60',
@@ -830,8 +1059,16 @@ function SimpleView({ data }: { data: GetTransparencyStatsResponseDto }) {
                     die uns kein Anbieter einen Verbrauch meldet
                   </>
                 )}
-                . Beides können wir deshalb nicht seriös mitzählen; es fehlt in der Zahl oben und
-                wir sagen das lieber dazu.
+                {totals.speech_seconds > 0 &&
+                  (totals.transcriptions > 0 || totals.searches > 0) && <> — und </>}
+                {totals.speech_seconds > 0 && (
+                  <>
+                    {formatDuration(totals.speech_seconds)} vorgelesene Sprachausgabe, für die es
+                    keine Messung mit passender Systemgrenze gibt
+                  </>
+                )}
+                . Das können wir deshalb nicht seriös mitzählen; es fehlt in der Zahl oben und wir
+                sagen das lieber dazu.
               </p>
             )}
           </div>
@@ -862,6 +1099,63 @@ function SimpleView({ data }: { data: GetTransparencyStatsResponseDto }) {
 
 /* ── Ansicht ──────────────────────────────────────────────────────────────── */
 
+function CalculationPanel({ data }: { data: GetTransparencyStatsResponseDto }) {
+  const { calculation } = data;
+
+  return (
+    <section className="mt-12">
+      <h2 className={cn('mb-5 text-[1.35rem] font-semibold tracking-[-0.01em]', MONITOR_HEADING)}>
+        Rechenweg
+      </h2>
+      <div className={cn('flex flex-col gap-4 p-6', MONITOR_CARD)}>
+        <p className={cn('m-0 text-[0.9rem] leading-relaxed', MONITOR_BODY)}>
+          Direkt gemeldete Werte übernehmen wir als{' '}
+          <code>{calculation.direct_measurement.energy}</code> und{' '}
+          <code>{calculation.direct_measurement.emissions}</code>. Für Schätzungen gilt:
+        </p>
+        <code className={cn('overflow-x-auto rounded-md p-3 text-[0.78rem]', MONITOR_TAG)}>
+          {calculation.estimated_text.formula}
+        </code>
+        <p className={cn('m-0 text-[0.82rem] leading-relaxed', MONITOR_FAINT)}>
+          Kalibrierungs-PUE: {oneDecimal.format(calculation.estimated_text.calibration_pue)}. Die
+          Faktoren unten werden direkt aus dem laufenden Berechnungsprofil veröffentlicht und
+          enthalten keine Modellnamen.
+        </p>
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-left text-[0.78rem]">
+            <thead className={MONITOR_FAINT}>
+              <tr>
+                <th className="pb-2 pr-4 font-medium">Grundlage</th>
+                <th className="pb-2 pr-4 font-medium">Eingabe mWh/Token</th>
+                <th className="pb-2 pr-4 font-medium">Ausgabe mWh/Token</th>
+                <th className="pb-2 font-medium">Grundwert mWh/Anfrage</th>
+              </tr>
+            </thead>
+            <tbody className={MONITOR_BODY}>
+              {calculation.estimated_text.profiles.map((profile) => (
+                <tr
+                  key={`${profile.basis}-${profile.input_mwh_per_token}-${profile.output_mwh_per_token}`}
+                >
+                  <td className="py-1.5 pr-4">
+                    {profile.basis === 'calibrated' ? 'kalibriert' : 'Bandbreite'}
+                  </td>
+                  <td className="py-1.5 pr-4 tabular-nums">{profile.input_mwh_per_token}</td>
+                  <td className="py-1.5 pr-4 tabular-nums">{profile.output_mwh_per_token}</td>
+                  <td className="py-1.5 tabular-nums">{profile.fixed_mwh_per_request}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className={cn('m-0 text-[0.82rem] leading-relaxed', MONITOR_FAINT)}>
+          Anschließend gilt: <code>{calculation.emissions_formula}</code>. Netzintensität und PUE
+          stehen in der Anbieterübersicht; Bandbreiten zeigen die verbleibende Unsicherheit.
+        </p>
+      </div>
+    </section>
+  );
+}
+
 function ExpertView({ data }: { data: GetTransparencyStatsResponseDto }) {
   const { footprint, totals, daily, byFeature, byModel, providers } = data;
 
@@ -886,6 +1180,10 @@ function ExpertView({ data }: { data: GetTransparencyStatsResponseDto }) {
         <span>
           <strong className="tabular-nums">{formatCount(totals.searches)}</strong> Recherchen
         </span>
+        <span>
+          <strong className="tabular-nums">{formatDuration(totals.speech_seconds)}</strong>{' '}
+          Sprachausgabe
+        </span>
       </div>
 
       <div className="grid grid-cols-1 gap-12 lg:grid-cols-[1.45fr_1fr]">
@@ -899,6 +1197,7 @@ function ExpertView({ data }: { data: GetTransparencyStatsResponseDto }) {
         suppressedDays={data.suppressed_days}
       />
       <ReferencePanel footprint={footprint} />
+      <CalculationPanel data={data} />
 
       <div className="grid grid-cols-1 gap-x-12 lg:grid-cols-2">
         <FeaturePanel byFeature={byFeature} />
@@ -910,8 +1209,16 @@ function ExpertView({ data }: { data: GetTransparencyStatsResponseDto }) {
   );
 }
 
-export function TransparenzView({ days, expert }: { days: number; expert: boolean }) {
-  const { data, isLoading, isError } = useTransparencyStats(days);
+export function TransparenzView({
+  days,
+  expert,
+  locale,
+}: {
+  days: number;
+  expert: boolean;
+  locale: TransparencyLocale | null;
+}) {
+  const { data, isLoading, isError } = useTransparencyStats(days, locale);
 
   if (isLoading) return <LoadingSection label="Verbrauchsdaten werden geladen..." />;
 
@@ -933,10 +1240,11 @@ export function TransparenzView({ days, expert }: { days: number; expert: boolea
           Zu wenige Personen für eine veröffentlichbare Zahl
         </p>
         <p className={cn('m-0 mt-2 text-[0.9rem] leading-relaxed', MONITOR_MUTED)}>
-          In den letzten {data.days} Tagen waren weniger als {data.min_group_size} Personen aktiv.
-          Ein Verbrauchswert aus so wenigen Personen beschreibt keine Plattform, sondern einzelne
-          Nachmittage — deshalb zeigen wir hier nichts. Mit einem größeren Zeitraum kann die
-          Auswertung greifen.
+          In den letzten {data.days} Tagen waren
+          {locale ? ` aus ${LOCALE_LABELS[locale]}` : ''} weniger als {data.min_group_size} Personen
+          aktiv. Ein Verbrauchswert aus so wenigen Personen beschreibt keine Plattform, sondern
+          einzelne Nachmittage — deshalb zeigen wir hier nichts. Mit einem größeren Zeitraum kann
+          die Auswertung greifen.
         </p>
       </div>
     );

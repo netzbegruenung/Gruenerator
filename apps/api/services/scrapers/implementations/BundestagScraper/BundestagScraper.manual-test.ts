@@ -54,9 +54,9 @@ const JS_BANNER = 'verwendet JavaScript';
 function extractText($: cheerio.CheerioAPI, html: string): string {
   const typo3 = html.match(/<!--TYPO3SEARCH_begin-->([\s\S]*?)<!--TYPO3SEARCH_end-->/);
   let text = '';
-  if (typo3?.[1]) text = cheerio.load(typo3[1]).text().replace(/\s+/g, ' ').trim();
+  if (typo3?.[1]) text = cheerio.load(typo3[1]).text().trim();
   if (text.length < 200) {
-    text = $('main, article, .content, #content, body').first().text().replace(/\s+/g, ' ').trim();
+    text = $('main, article, .content, #content, body').first().text().trim();
   }
   return text;
 }

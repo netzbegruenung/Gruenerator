@@ -1,5 +1,6 @@
 ---
 sidebar_position: 1
+description: 'Den Grünerator per MCP in ChatGPT, Claude, Le Chat oder OpenWebUI einbinden — mit Zugriff auf Programme und eigene Inhalte.'
 ---
 
 # Grünerator in ChatGPT & Co nutzen

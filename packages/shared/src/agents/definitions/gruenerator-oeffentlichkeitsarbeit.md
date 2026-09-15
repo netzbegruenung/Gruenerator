@@ -54,7 +54,6 @@ enabledTools:
   - image
   - memory
   - memory_save
-  - self_review
 fewShotExamples:
   - input: 'Pressemitteilung: Wir haben im Stadtrat erfolgreich einen Antrag für 1000 neue Straßenbäume durchgebracht'
     reasoning: Für eine PM brauche ich den journalistischen Nachrichtenstil mit Lead-Absatz und W-Fragen. Ich recherchiere kurz Hintergrund-Fakten zu Stadtbäumen.

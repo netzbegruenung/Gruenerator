@@ -14,7 +14,22 @@ export interface ChunkMetadata {
   quality_score?: number | undefined;
   chapterTitle?: string | undefined;
   sectionTitle?: string | undefined;
+  /**
+   * `'text'` oder `'table'` auf dem Struktur-Pfad. Der tote hierarchische
+   * Chunker schreibt in dasselbe Feld sechs andere Werte
+   * (`detectChunkType`, structureAwareChunking.ts:275) — deshalb bleibt der
+   * Typ breit; die Verengung auf zwei Werte passiert in `structurePayload`.
+   */
   chunkType?: string | undefined;
+  /** Überschriftenpfad des Abschnitts, z. B. `['Kapitel 3', '3.1 Förderung']`. */
+  headingPath?: string[] | null | undefined;
+  /** Letztes Element von `headingPath`, denormalisiert für Anzeige und Filter. */
+  heading?: string | null | undefined;
+  /**
+   * Laufende Nummer des Abschnitts je Seite — `chunkStructured` läuft je
+   * Seitenmarker, der Zähler beginnt auf jeder Seite neu.
+   */
+  sectionIndex?: number | null | undefined;
   isCompleteSentence?: boolean | undefined;
   hasOverlap?: boolean | undefined;
   prevChunkId?: string | undefined;
@@ -93,8 +108,6 @@ export interface PageWithText {
  * Chunking options
  */
 export interface ChunkingOptions {
-  maxTokens?: number | undefined;
-  overlapTokens?: number | undefined;
   chunkSize?: number | undefined;
   chunkOverlap?: number | undefined;
   preserveSentences?: boolean | undefined;
@@ -103,9 +116,9 @@ export interface ChunkingOptions {
 }
 
 /**
- * LangChain chunker options
+ * Paragraph chunker options
  */
-export interface LangChainChunkerOptions {
+export interface ParagraphChunkerOptions {
   chunkSize?: number | undefined;
   chunkOverlap?: number | undefined;
 }

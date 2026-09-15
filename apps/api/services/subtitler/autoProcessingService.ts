@@ -28,6 +28,7 @@ import {
 import { ffmpegPool } from './ffmpegPool.js';
 import { ffmpeg } from './ffmpegWrapper.js';
 import { autoSaveProject } from './projectSavingService.js';
+import { calculateFontSizing } from './subtitleSizingService.js';
 import { transcribeVideo } from './transcriptionService.js';
 import { probeVideoMetadata } from './videoMetadata.js';
 
@@ -424,9 +425,10 @@ async function exportWithEnhancements(
   const outputPath = path.join(EXPORTS_DIR, outputFilename);
 
   const subtitleSegments = parseSubtitlesToSegments(subtitles, trimPoints);
+  const { finalFontSize } = calculateFontSizing(metadata, subtitleSegments);
 
   const styleOptions = {
-    fontSize: calculateFontSize(metadata),
+    fontSize: Math.floor(finalFontSize / 2),
     marginL: 10,
     marginR: 10,
     marginV:
@@ -619,22 +621,6 @@ function parseSubtitlesToSegments(subtitles: string, trimPoints: TrimPoints): Su
   }
 
   return segments;
-}
-
-function calculateFontSize(metadata: VideoMetadata): number {
-  const isVertical = metadata.width < metadata.height;
-  const referenceDimension = isVertical ? metadata.width : metadata.height;
-
-  let basePercentage: number;
-  if (referenceDimension >= 2160) {
-    basePercentage = isVertical ? 0.035 : 0.0325;
-  } else if (referenceDimension >= 1080) {
-    basePercentage = isVertical ? 0.027 : 0.025;
-  } else {
-    basePercentage = isVertical ? 0.033 : 0.03;
-  }
-
-  return Math.floor(referenceDimension * basePercentage);
 }
 
 /**

@@ -225,7 +225,7 @@ export function sentenceRepack(
     tokens: estimateTokens(r.text),
     metadata: {
       ...baseMetadata,
-      chunkingMethod: 'langchain-sentences',
+      chunkingMethod: 'sentences',
       page_number: r.page_number,
     },
   }));

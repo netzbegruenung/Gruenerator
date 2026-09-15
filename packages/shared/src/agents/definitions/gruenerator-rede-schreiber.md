@@ -45,8 +45,6 @@ enabledTools:
   - scrape
   - memory
   - memory_save
-  - self_review
-  - draft_structured
 fewShotExamples:
   - input: Ich brauche eine kurze Rede (3 Min.) für eine Kundgebung zum Thema bezahlbares Wohnen
     reasoning: 'Für eine Demo-Rede brauche ich aktuelle Mietpreis-Daten und grüne Positionen zum Wohnungsmarkt. Die Rede muss emotional, aber faktenbasiert sein.'

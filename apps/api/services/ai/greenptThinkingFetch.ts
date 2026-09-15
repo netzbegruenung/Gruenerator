@@ -72,6 +72,17 @@ export const GREENPT_FETCH_TIMEOUT_MS = (() => {
  * Zeit des ganzen Zuges, nicht die einer Anfrage) und unter jeder Turn-Decke,
  * lässt die Kette also noch greifen. Das Signal des Aufrufers bleibt daneben
  * bestehen — wer zuerst abbricht, gewinnt.
+ *
+ * NACHTRAG 28.08.2026 — der Satz „lässt die Kette also noch greifen" stimmte
+ * NICHT. `env.REQUEST_TIMEOUT` ist ebenfalls 120_000, und diese Uhr deckte die
+ * ganze Kette: beide liefen im selben Moment ab, also kam hinter GreenPT nie
+ * ein Anbieter dran. `doc_generation` scheiterte deshalb nach zwei
+ * `aiObject`-Versuchen à 120 s mit HTTP 500, ohne dass ein einziger Ausweich
+ * gelaufen wäre. Was die Kette jetzt greifen lässt, ist NICHT diese Zahl,
+ * sondern `attemptBudget` in `services/ai/generate.ts`: dort bekommt jeder
+ * Anbieter eine eigene Scheibe der Restfrist, und die reicht als `abortSignal`
+ * bis hierher durch. Wer diese Konstante ändert, ändert damit nicht mehr, ob
+ * die Kette läuft.
  */
 export const greenptFetchWithThinkingDisabled: typeof fetch = async (input, init) => {
   if (init?.body && typeof init.body === 'string') {

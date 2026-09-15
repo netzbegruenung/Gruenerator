@@ -43,7 +43,6 @@ author: Grünerator
 enabledTools:
   - memory
   - memory_save
-  - self_review
 fewShotExamples:
   - input: "Übersetze in Leichte Sprache: 'Die Grünen setzen sich für eine sozial-ökologische Transformation ein, die Klimaschutz, soziale Gerechtigkeit und wirtschaftliche Innovation verbindet.'"
     reasoning: 'Der Text hat viele Fremd·wörter (Transformation, sozial-ökologisch, Innovation) und einen langen, komplexen Satz. Ich zerlege ihn in kurze Sätze und ersetze die Fremd·wörter durch einfache Worte.'

@@ -19,6 +19,7 @@ export { initClient, type ClientInferRequest, type ClientInferResponses } from '
 // ── Contracts ───────────────────────────────────────────────────────────────
 export {
   threadsContract,
+  chatThreadSharingContract,
   exportsContract,
   recentValuesContract,
   recentActivityContract,
@@ -55,18 +56,20 @@ export {
   documentsContract,
   subtitlerContract,
   voiceContract,
+  speechContract,
   imagePickerContract,
   videoContract,
   sharepicContract,
   sharepicTextContract,
-  transferContract,
   unsplashContract,
   notificationsContract,
+  memoryContract,
   emailContract,
   feedbackContract,
   modelPreferencesContract,
   imageModelPreferenceContract,
   mcpServersContract,
+  chatToolApprovalsContract,
   imageEditContract,
   adminVorlagenContract,
   userTemplatesContract,
@@ -77,6 +80,7 @@ export {
   userTextFormsContract,
   skillPromptContract,
   agentVisibilityContract,
+  chunkInspectorContract,
   skillVisibilityContract,
   instanceAdminOverviewContract,
   lvAdminAssignmentContract,
@@ -96,6 +100,7 @@ export {
 // ── Schemas (Zod) ───────────────────────────────────────────────────────────
 export * from './schemas/roleRef.js';
 export * from './schemas/threads.js';
+export * from './schemas/chatThreadSharing.js';
 export * from './schemas/textForm.js';
 export * from './schemas/exports.js';
 export * from './schemas/recentValues.js';
@@ -109,6 +114,7 @@ export * from './schemas/research.js';
 export * from './schemas/chatGraph.js';
 export * from './schemas/searchGraph.js';
 export * from './schemas/chatStreamEvents.js';
+export * from './schemas/chunkInspector.js';
 export * from './schemas/jobErrors.js';
 export * from './schemas/socialPost.js';
 export * from './schemas/bundestag.js';
@@ -138,18 +144,20 @@ export * from './schemas/documents.js';
 export * from './schemas/subtitler.js';
 export * from './schemas/voice.js';
 export * from './schemas/voiceLimits.js';
+export * from './schemas/speech.js';
 export * from './schemas/imagePicker.js';
 export * from './schemas/video.js';
 export * from './schemas/sharepic.js';
 export * from './schemas/sharepicText.js';
-export * from './schemas/transfer.js';
 export * from './schemas/unsplash.js';
 export * from './schemas/notifications.js';
+export * from './schemas/memory.js';
 export * from './schemas/email.js';
 export * from './schemas/feedback.js';
 export * from './schemas/modelPreferences.js';
 export * from './schemas/imageModelPreference.js';
 export * from './schemas/mcpServers.js';
+export * from './schemas/chatToolApprovals.js';
 export * from './schemas/imageEdit.js';
 export * from './schemas/adminVorlagen.js';
 export * from './schemas/userTemplates.js';
@@ -189,3 +197,7 @@ export * from './schemas/landesverbaende.js';
 export * from './schemas/lvAdminAssignment.js';
 export * from './schemas/instanceAdminOverview.js';
 export * from './schemas/landesverbandAdmin.js';
+
+// Canvas-Textlayout: Umbruch, Aufzählungsmarker und hängender Einzug.
+// DOM-frei, damit Client-Vorschau und Server-Export dieselbe Logik fahren.
+export * from './text/listLayout.js';

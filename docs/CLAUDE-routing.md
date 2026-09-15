@@ -68,3 +68,46 @@ Platform serves German (`de-DE`) and Austrian (`de-AT`) users. Never hardcode pa
 5. **Ein direkter `aiText`-Aufruf**: Bypasses localization. Prefer `assemblePromptGraphAsync` or call `localizePlaceholders()` manually.
 
 Utilities in `services/localization/index.ts`: `extractLocaleFromRequest(req)`, `localizePlaceholders(text, locale)`, `getDefaultCollectionsForLocale(locale)`.
+
+## Admin-Flächen und ihr Gatter
+
+Jede Admin-Fläche fährt dieselbe Bauform, und zwar aus einem Grund: `requireAuth`
+am Präfix in `routes.ts` deckt **nur die Anmeldung** ab. Die Rolle prüft jeder
+Handler selbst mit `requireInstanceAdmin(userId, email)` (`utils/adminAuthz.ts`) —
+`ADMIN_EMAILS` oder `profiles.is_admin`. Der Frontend-Wächter
+`RequireAdmin type="instanceAdmin"` (`apps/web/src/features/admin/components/RequireAdmin.tsx`)
+ist Bequemlichkeit, kein Schutz.
+
+| Fläche | Präfix | Router |
+|---|---|---|
+| Vorlagen-Moderation | `/api/auth/admin/vorlagen` | `routes/auth/adminVorlagenContractRouter.ts` |
+| Rezepte-Sichtbarkeit | `/api/auth/admin/skills` | `routes/skills/skillVisibilityContractRouter.ts` |
+| Agenten-Sichtbarkeit | `/api/auth/admin/agents` | `routes/agents/agentVisibilityContractRouter.ts` |
+| Instanz-Überblick | `/api/auth/admin/bgst` | `routes/admin/instanceAdminOverviewContractRouter.ts` |
+| Landesverbands-Zuordnung | `/api/auth/admin/landesverbaende` | `routes/admin/lvAdminAssignmentContractRouter.ts` |
+| **Chunk-Inspektor** | `/api/auth/admin/chunk-inspector` | `routes/admin/chunkInspectorContractRouter.ts` |
+
+**Der Chunk-Inspektor** (`/admin/chunks/:documentId?collection=…`, #3123) zeigt zu
+einem Dokument, was der Abruf tatsächlich gespeichert hat: die Chunks in ihrer
+Reihenfolge mit `page_number`, `quality_score`, Zeichenzahl, Tabellen-Erkennung
+und Vektor-Auskunft, dazu ein Suchfeld, das die Produktions-Suche fährt und die
+Treffer dieses Dokuments markiert. Drei Dinge daran sind absichtlich so und
+sollten nicht „aufgeräumt" werden:
+
+- **Er rechnet nichts nach.** Ein Feld, das kein Schreiber in die Nutzlast legt,
+  erscheint als „nicht gespeichert". Bei Nutzerdokumenten sind das `quality_score`
+  und `page_number` — die Nutzlast in
+  `services/document-services/DocumentSearchService/vectorOperations.ts` trägt sie
+  nicht, obwohl `smartChunkDocument` sie berechnet. Genau dieser Unterschied zu den
+  Scraper-Sammlungen ist der Befund, den die Seite sichtbar machen soll; eine
+  nachgerechnete Zahl würde ihn verdecken.
+- **Er umgeht den Qualitätsfilter nicht.** Die Suche fährt
+  `NotebookQAService.getSearchContext` unverändert. Die Liste zeigt
+  `quality_score` neben der Abrufschwelle (`QUALITY_MIN_RETRIEVAL`, Vorgabe 0,4) und
+  markiert Chunks darunter als „unter Abrufschwelle — nie abrufbar".
+- **Bei Systemsammlungen ist die Suche nicht eingeschränkt.** Dort fragt der
+  Abrufdienst `getDocumentIdsFn` gar nicht; die Suche läuft über die ganze Sammlung,
+  die Antwort trägt `scoped: false`, und die Seite beschriftet das wörtlich. Bei
+  Nutzer-Notebooks greift `getDocumentIdsFn` — dann läuft der Aufruf mit der Kennung
+  der **Eigentümerin**, weil `checkNotebookAccess` einen Instanz-Admin nicht als
+  Mitglied kennt.

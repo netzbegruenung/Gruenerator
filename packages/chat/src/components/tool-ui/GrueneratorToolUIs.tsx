@@ -1,7 +1,10 @@
 'use client';
 
+import { useAuiState } from '@assistant-ui/react';
 import { type ComponentProps, type ComponentType, type ReactNode } from 'react';
+import { useShallow } from 'zustand/shallow';
 
+import { selectApprovalLabels, type PartLike } from '../../lib/narrationView';
 import { UI_TOOL_NAMES, type UiToolName } from '../../lib/toolRegistry';
 import { isSearchProgressTool } from '../../lib/toolStatusLine';
 import { ToolNarration } from '../message-parts/ToolNarration';
@@ -12,6 +15,7 @@ import { McpToolUI } from './McpToolUI';
 import { PressemitteilungExamplesToolRender } from './PressemitteilungExamplesToolRender';
 import { ResearchToolRender } from './ResearchToolRender';
 import { RunPythonToolUI } from './RunPythonToolUI';
+import { ToolApprovalCard, type ToolApprovalState } from './ToolApprovalCard';
 
 import type { Toolkit } from '@assistant-ui/react';
 
@@ -26,10 +30,46 @@ function withNarration(render: (props: ToolRenderProps) => ReactNode): ToolRende
   const Wrapped: ComponentType<ToolRenderProps> = (props) => (
     <>
       <ToolNarration toolCallId={props.toolCallId} />
-      {render(props)}
+      {renderApproval(props) ?? render(props)}
     </>
   );
   return Wrapped;
+}
+
+/**
+ * Trägt der Part ein Freigabe-Gate, ersetzt die Karte den normalen Render:
+ * solange nichts entschieden ist, gibt es kein Ergebnis zu zeigen, und nach der
+ * Entscheidung erzählt die Pille, was passiert ist.
+ */
+function renderApproval(props: ToolRenderProps): ReactNode {
+  const approval = (props as { approval?: ToolApprovalState }).approval;
+  if (!approval) return null;
+  return <ApprovalGate {...props} approval={approval} />;
+}
+
+/**
+ * Holt Anzeigename und Dienst vom rohen Part — derselbe Kanal wie bei
+ * `ToolNarration`: assistant-uis typisierte Render-Props führen die beiden
+ * Felder nicht, auf `message.parts` überleben sie live wie nach dem Reload.
+ * Ohne sie zeigt die Karte nur den Katalognamen `m<key>__<tool>` und
+ * verschweigt, welcher verbundene Dienst angesprochen wird.
+ */
+function ApprovalGate(props: ToolRenderProps & { approval: ToolApprovalState }): ReactNode {
+  const labels = useAuiState(
+    useShallow((s) =>
+      selectApprovalLabels((s.message?.parts ?? []) as ReadonlyArray<PartLike>, props.toolCallId)
+    )
+  );
+  return (
+    <ToolApprovalCard
+      toolName={props.toolName}
+      args={(props.args ?? {}) as Record<string, unknown>}
+      approval={props.approval}
+      respondToApproval={props.respondToApproval}
+      {...(labels.title != null && { title: labels.title })}
+      {...(labels.serverName != null && { serverName: labels.serverName })}
+    />
+  );
 }
 
 function createToolRender(toolName: string) {
@@ -74,3 +114,17 @@ export const grueneratorToolkit: Toolkit = Object.fromEntries(
     },
   ])
 );
+
+/**
+ * Für Werkzeuge, deren Namen erst zur Laufzeit entstehen — die Konnektor-Werkzeuge
+ * heissen `m<serverKey>__<tool>` und stehen in keiner Registry. Ohne diesen
+ * Eintrag rendert assistant-ui sie gar nicht: weder Karte noch Freigabe.
+ */
+export const GrueneratorToolFallback: ToolRender = withNarration((props) => (
+  <ToolCallUI
+    toolName={props.toolName}
+    args={props.args ?? {}}
+    state={props.result ? 'result' : 'call'}
+    result={props.result}
+  />
+));

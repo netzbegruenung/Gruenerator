@@ -35,7 +35,7 @@ export interface HnswConfig {
 export type IndexTypeKey = 'keyword' | 'keywordTenant' | 'text' | 'datetime';
 
 export interface IndexTypeConfig extends Record<string, unknown> {
-  type: 'keyword' | 'text';
+  type: 'keyword' | 'text' | 'datetime';
   is_tenant?: boolean;
   tokenizer?: string;
   min_token_len?: number;
@@ -95,14 +95,27 @@ export const BM25_SPARSE_VECTOR_NAME = 'bm25';
  * indexing_threshold 10000 against max_segment_size 20000 — a value that comes
  * from neither preset. The ratio below is that working collection's.
  *
+ * `large.max_segment_size` was later raised from 20000 to 100000. Measured on
+ * prod on 2026-09-03: `documents` held 48,119 points across **18 segments**
+ * (45,667 indexed) — the 20000 KB cap was doing its job as a cap (a 1024-dim
+ * float32 vector is ~4 KB, so 20000 KB ≈ 5,000 vectors per segment; 48k points
+ * would fill ~10 such segments, and uneven packing from years of writes and
+ * merges doubled that), but 18 live segments each
+ * carry their own HNSW graph, so a query fans out to 18 graphs instead of a
+ * handful. At 100000 KB (≈ 25,000 vectors/segment) the same collection lands
+ * at 2-3 segments. `indexing_threshold` stays 10000 — the ratio only widens
+ * (10000 vs 100000 instead of 10000 vs 20000), staying well below the ceiling.
+ *
  * Note this only shapes collections at CREATE time; `getCollectionConfig` is
- * only ever read by `createCollection`, and nothing in the codebase issues an
- * `updateCollection`. Existing collections keep whatever they were made with.
+ * only ever read by `createCollection`. Existing collections keep whatever
+ * they were made with until `scripts/patch-hnsw-indexing.ts` PATCHes their
+ * `indexing_threshold` (and, since the ceiling raise, `max_segment_size` too)
+ * to the preset (the only `updateCollection` caller).
  */
 export const OPTIMIZER_PRESETS: Record<OptimizerPresetKey, OptimizerConfig> = {
   large: {
     default_segment_number: 2,
-    max_segment_size: 20000,
+    max_segment_size: 100000,
     memmap_threshold: 10000,
     indexing_threshold: 10000,
   },
@@ -164,7 +177,7 @@ export const INDEX_TYPES: Record<IndexTypeKey, IndexTypeConfig> = {
   keyword: { type: 'keyword' },
   keywordTenant: { type: 'keyword', is_tenant: true },
   text: { type: 'text', tokenizer: 'word', min_token_len: 2, max_token_len: 50, lowercase: true },
-  datetime: { type: 'keyword' },
+  datetime: { type: 'datetime' },
 };
 
 // =============================================================================
@@ -181,7 +194,7 @@ export const SYSTEM_COLLECTION_STANDARD_INDEXES: CollectionSchemaIndex[] = [
   { field: 'content_type', type: 'keyword' },
   { field: 'subcategories', type: 'keyword' },
   { field: 'country', type: 'keyword' },
-  { field: 'published_at', type: 'keyword' },
+  { field: 'published_at', type: 'datetime' },
   { field: 'indexed_at', type: 'keyword' },
   { field: 'chunk_text', type: 'text' },
 ];
@@ -320,15 +333,6 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
       { field: 'document_id', type: 'keyword' },
     ],
   },
-  notebook_usage_logs: {
-    name: 'notebook_usage_logs',
-    optimizer: 'small',
-    hnsw: null,
-    indexes: [
-      { field: 'collection_id', type: 'keyword' },
-      { field: 'user_id', type: 'keyword' },
-    ],
-  },
   notebook_public_access: {
     name: 'notebook_public_access',
     optimizer: 'minimal',
@@ -371,7 +375,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
       { field: 'source_url', type: 'keyword' },
       { field: 'primary_category', type: 'keyword' },
       { field: 'country', type: 'keyword' },
-      { field: 'published_at', type: 'keyword' },
+      { field: 'published_at', type: 'datetime' },
       { field: 'indexed_at', type: 'keyword' },
       { field: 'chunk_text', type: 'text' },
     ],
@@ -384,7 +388,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
       { field: 'source_url', type: 'keyword' },
       { field: 'primary_category', type: 'keyword' },
       { field: 'country', type: 'keyword' },
-      { field: 'published_at', type: 'keyword' },
+      { field: 'published_at', type: 'datetime' },
       { field: 'indexed_at', type: 'keyword' },
       { field: 'chunk_text', type: 'text' },
     ],
@@ -397,7 +401,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
       { field: 'source_url', type: 'keyword' },
       { field: 'primary_category', type: 'keyword' },
       { field: 'country', type: 'keyword' },
-      { field: 'published_at', type: 'keyword' },
+      { field: 'published_at', type: 'datetime' },
       { field: 'indexed_at', type: 'keyword' },
       { field: 'chunk_text', type: 'text' },
     ],
@@ -425,7 +429,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
       { field: 'primary_category', type: 'keyword' },
       { field: 'content_type', type: 'keyword' },
       { field: 'subcategories', type: 'keyword' },
-      { field: 'published_at', type: 'keyword' },
+      { field: 'published_at', type: 'datetime' },
       { field: 'indexed_at', type: 'keyword' },
       { field: 'chunk_text', type: 'text' },
     ],
@@ -453,7 +457,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
       { field: 'primary_category', type: 'keyword' },
       { field: 'landesverband', type: 'keyword' },
       { field: 'source_id', type: 'keyword' },
-      { field: 'published_at', type: 'keyword' },
+      { field: 'published_at', type: 'datetime' },
       { field: 'indexed_at', type: 'keyword' },
       { field: 'chunk_text', type: 'text' },
     ],
@@ -475,7 +479,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
       { field: 'primary_category', type: 'keyword' },
       { field: 'landesverband', type: 'keyword' },
       { field: 'source_id', type: 'keyword' },
-      { field: 'published_at', type: 'keyword' },
+      { field: 'published_at', type: 'datetime' },
       { field: 'indexed_at', type: 'keyword' },
       { field: 'chunk_text', type: 'text' },
     ],
@@ -498,21 +502,22 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
       { field: 'person', type: 'keyword' },
       { field: 'income_level', type: 'keyword' },
       { field: 'gruene_vote', type: 'keyword' },
-      { field: 'published_at', type: 'keyword' },
+      { field: 'published_at', type: 'datetime' },
       { field: 'indexed_at', type: 'keyword' },
       { field: 'chunk_text', type: 'text' },
     ],
   },
-  // mem0 user memory collection for cross-thread persistent context
+  // The person's explicit memory — only `kind = 'fakt'` rows are mirrored here
+  // for retrieval; instructions live in the prompt (services/memory/memoryStore.ts).
+  // Same collection mem0 used; its old points lack `kind` and are filtered out.
   user_memories: {
     name: 'user_memories',
-    optimizer: 'medium',
+    optimizer: 'small',
     hnsw: 'standard',
     indexes: [
       { field: 'user_id', type: 'keywordTenant' },
-      { field: 'memory_type', type: 'keyword' },
-      { field: 'created_at', type: 'datetime' },
-      { field: 'memory_text', type: 'text' },
+      { field: 'kind', type: 'keyword' },
+      { field: 'memory_id', type: 'keyword' },
     ],
   },
   // One point per chat thread (title + tags + first message + compaction

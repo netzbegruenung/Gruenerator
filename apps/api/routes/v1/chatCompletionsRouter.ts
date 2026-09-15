@@ -26,12 +26,12 @@ import { validateBody, type TypedRequest } from '../../middleware/validateBody.j
 import {
   forwardChatCompletion,
   estimatePromptTokens,
-  isAllowedModel,
+  resolveRequestedModel,
   ALLOWED_MODELS,
   DEFAULT_MODEL,
   MODEL_LABELS,
   MAX_PROMPT_TOKENS,
-} from '../../services/ai/litellmPassthrough.js';
+} from '../../services/ai/addinModelPassthrough.js';
 import { createLogger } from '../../utils/logger.js';
 
 import { requireAddinAuth } from './addinAuth.js';
@@ -75,14 +75,18 @@ router.post(
     }
 
     const body = req.body as Record<string, unknown>;
-    const model = typeof body.model === 'string' ? body.model : DEFAULT_MODEL;
-    if (!isAllowedModel(model)) {
+    const requested = typeof body.model === 'string' ? body.model : DEFAULT_MODEL;
+    // Legacy-Kennungen werden umgeschrieben, nicht abgelehnt: ein installiertes
+    // Add-in hat die Modellliste gecacht — siehe `resolveRequestedModel`.
+    const model = resolveRequestedModel(requested);
+    if (!model) {
       res.status(400).json({
-        error: `Model '${model}' is not available on this endpoint`,
+        error: `Model '${requested}' is not available on this endpoint`,
         allowedModels: [...ALLOWED_MODELS],
       });
       return;
     }
+    if (model !== requested) body.model = model;
 
     const estimatedTokens = estimatePromptTokens(body);
     if (estimatedTokens > MAX_PROMPT_TOKENS) {
@@ -159,8 +163,9 @@ export default router;
  * OpenAI-compatible clients probe `${baseUrl}/models` to learn what they may
  * ask for, and they cache the answer. Without this route a client keeps
  * whatever it discovered against an earlier base URL — which is how a stale
- * `gemma` (picked up from LiteLLM's own list) ends up being sent here and
- * rejected. Serving the allowlist is what lets that self-correct.
+ * `gemma` (picked up from the upstream's own list) ends up being sent here.
+ * Serving the allowlist is what lets that self-correct; bis es so weit ist,
+ * schreibt `resolveRequestedModel` die alten Kennungen um.
  */
 export const modelsRouter: Router = Router();
 

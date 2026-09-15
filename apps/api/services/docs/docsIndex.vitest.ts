@@ -51,7 +51,7 @@ describe('searchDocs', () => {
   it('finds the how-to page for an operating question', () => {
     const hits = searchDocs('wie lege ich ein eigenes notebook an');
     expect(hits.length).toBeGreaterThan(0);
-    expect(hits[0]!.url).toContain('/docs/wissen/eigenes-notebook-erstellen');
+    expect(hits[0]!.url).toContain('/docs/guides/einsteigerinnen/eigenes-notebook-erstellen');
   });
 
   it('returns absolute, deep-linked URLs', () => {

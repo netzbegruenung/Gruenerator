@@ -11,6 +11,7 @@ import BundestagContentProcessor from '../../../bundestag/BundestagContentProces
 import { chunkQualityService } from '../../../ChunkQualityService/index.js';
 import { mistralEmbeddingService } from '../../../mistral/index.js';
 import { recordSyncEvent, toExcerpt } from '../../syncEventRecorder.js';
+import { htmlToStructuredText } from '../../utils/htmlCleaner.js';
 import { WebsiteCrawler } from '../WebsiteCrawler.js';
 
 import {
@@ -168,6 +169,10 @@ export class BundestagScraper {
                 embedding: c.embedding!,
                 token_count: c.token_count,
                 tokens: c.token_count,
+                // Ohne diese Zeile fällt der Überschriftenpfad hier auf den
+                // Boden, und `structurePayload` schriebe für jeden Punkt
+                // dieser Sammlung `null`.
+                metadata: c.metadata,
               }));
 
             if (chunks.length === 0) {
@@ -374,19 +379,20 @@ export class BundestagScraper {
 
     $(NOISE_SELECTOR).remove();
 
-    // Try TYPO3 search markers first, fall back to <main> if too short
+    // Try TYPO3 search markers first, fall back to <main> if too short.
+    // Blockgrenzen erhalten (#3163): `text` wird unten `full_text` (:200) UND
+    // die Eingabe des Chunkers. Der TYPO3-Zweig bekommt das rohe Fragment —
+    // `htmlToStructuredText` lädt selbst, und damit greift die
+    // NOISE_SELECTOR-Entfernung auf `$` hier weiterhin bewusst NICHT.
     const typo3Match = html.match(/<!--TYPO3SEARCH_begin-->([\s\S]*?)<!--TYPO3SEARCH_end-->/);
     let text = '';
     if (typo3Match) {
-      const $inner = cheerio.load(typo3Match[1]);
-      text = $inner.text().replace(/\s+/g, ' ').trim();
+      text = htmlToStructuredText(typo3Match[1]);
     }
     if (text.length < 200) {
-      text = $('main, article, .content, #content, body')
-        .first()
-        .text()
-        .replace(/\s+/g, ' ')
-        .trim();
+      text = htmlToStructuredText(
+        $('main, article, .content, #content, body').first().html() ?? ''
+      );
     }
 
     const title = $('h1').first().text().trim() || $('title').text().trim();

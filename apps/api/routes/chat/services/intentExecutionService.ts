@@ -2,8 +2,8 @@
  * Intent Execution Service — the facade over `intentHandlers/`.
  *
  * The turn handlers that are NOT plain artifact creation live one directory
- * down, one module per intent family: recurring tasks, share_doc,
- * sharepic/social-post generation and the search/image/summary pipeline.
+ * down, one module per intent family: share_doc, sharepic/social-post
+ * generation and the search/image/summary pipeline.
  * Artifact-creating turns live in createTurn.ts (choreography) and
  * artifactKinds.ts (per-kind data); the thin handlers naming them sit in
  * intentHandlers/artifactTurns.ts.
@@ -34,7 +34,6 @@ export {
 } from './intentHandlers/artifactTurns.js';
 export { reportMcpWithoutLoop } from './intentHandlers/mcpWithoutLoop.js';
 export { carryThreadSourcesIfNeeded, executeIntentPipeline } from './intentHandlers/pipeline.js';
-export { handleRecurringTaskCreation } from './intentHandlers/recurringTask.js';
 export { handleShareDoc } from './intentHandlers/shareDoc.js';
 export { runSharepicGeneration } from './intentHandlers/sharepic.js';
 export { handleSheetEdit } from './intentHandlers/sheetEdit.js';

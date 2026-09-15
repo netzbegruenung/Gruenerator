@@ -15,6 +15,8 @@
     "settings:audit": "node scripts/generate-settings.mjs --audit",
     "agentura:generate": "node scripts/generate-agentura.mjs",
     "agentura:check": "node scripts/generate-agentura.mjs --check",
+    "agent-tools:generate": "node scripts/generate-agent-tools.mjs",
+    "agent-tools:check": "node scripts/generate-agent-tools.mjs --check",
     "reference:generate": "node scripts/generate-reference.mjs",
     "reference:check": "node scripts/generate-reference.mjs --check",
     "models:generate": "node scripts/generate-models.mjs",

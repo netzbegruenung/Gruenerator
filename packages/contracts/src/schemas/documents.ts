@@ -53,24 +53,6 @@ export const documentStatsErrorSchema = z.object({
   message: z.unknown(),
 });
 
-// ── wolkeController schemas ──────────────────────────────────────────────────
-
-/**
- * GET /api/documents/sync-status
- * Returns Wolke sync statuses from WolkeSyncService.getUserSyncStatus().
- * The `syncStatuses` shape is a service-internal array — z.unknown() used
- * because pinning the full Nextcloud sync-status type is out of scope here.
- */
-export const syncStatusResponseSchema = z.object({
-  success: z.boolean(),
-  syncStatuses: z.unknown(),
-});
-
-export const syncStatusErrorSchema = z.object({
-  success: z.boolean(),
-  message: z.unknown(),
-});
-
 // ── document statuses (used during notebook creation progress polling) ─────
 
 /**

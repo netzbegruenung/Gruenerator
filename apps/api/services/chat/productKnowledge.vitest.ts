@@ -110,6 +110,7 @@ describe('buildProductKnowledgeBlock', () => {
     expect(block).toContain('### Grüneratoren');
     expect(block).toContain('### Werkzeuge');
     expect(block).toContain('Sharepics');
+    expect(block).toContain('Grüne Wolke');
     expect(block).toContain('mcp.gruenerator.eu');
     expect(block).not.toContain('Satzungen');
   });

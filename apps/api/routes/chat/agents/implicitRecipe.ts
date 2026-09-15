@@ -73,6 +73,26 @@ const RECIPE_WORDS = [
   ['wahlpruefstein', /\bwahlpr(?:ü|ue)fstein(?:e|en)?\b/i],
 ] as const satisfies ReadonlyArray<readonly [string, RegExp]>;
 
+/**
+ * Der Auftrag ist ein Social-Post, nennt aber keine Plattform — „schreibe einen
+ * Social-Media-Post zu mehr Artenschutz". Bis 08/2026 fing das der Intent
+ * `social_post` mit seiner eigenen, plattformlosen Rubrik ab; die ist mit ihm
+ * gefallen, und ohne Ersatz bekäme genau die häufigste Formulierung als
+ * einzige gar keine Formvorgabe.
+ *
+ * Das Ziel ist `instagram`, und das ist keine neue Entscheidung: die
+ * plattformlose Rubrik sagte den Default selbst („Falls die Plattform nicht
+ * explizit benannt ist, schreibe als Default für **Instagram**"). Das Rezept
+ * sagt dasselbe genauer — korpusgestützt, mit AT-Gabelung.
+ *
+ * Bewusst eng: nur das zusammengesetzte Wort. Ein nacktes „Post" ist zu billig
+ * (Blogpost, Post im Sinne von Briefkasten, „poste das mal"), und wo eine
+ * Plattform IM Text steht, kommt der Treffer ohnehin aus der Tabelle oben —
+ * dieser Auffang läuft nur, wenn sie nichts geliefert hat.
+ */
+const GENERIC_SOCIAL_RE = /\b(?:social[\s-]?media|social[\s-]?post)\w*/i;
+const GENERIC_SOCIAL_FALLBACK = 'instagram' as const;
+
 /** The closed set of implicitly matchable mentions — mirrored as the
  *  `router.implicit_recipe` branches in decisionJournal.ts (typechecked at the
  *  recordDecision call site, so the two lists cannot drift silently). */
@@ -125,5 +145,19 @@ export function deriveImplicitRecipeMention(
     hits.push(mention);
   }
 
-  return hits.length === 1 ? (hits[0] ?? null) : null;
+  if (hits.length === 1) return hits[0] ?? null;
+  // Zwei Plattformen bleiben mehrdeutig — ein Text „für Instagram und Facebook"
+  // darf nicht still die Längenvorgabe einer der beiden bekommen. Der Auffang
+  // greift deshalb NUR bei null Treffern.
+  if (hits.length > 0) return null;
+
+  if (!GENERIC_SOCIAL_RE.test(t)) return null;
+  if (isNegatedArtifactRequest(t, GENERIC_SOCIAL_RE)) return null;
+  if (isMetaQuestionAbout(firstSentence, GENERIC_SOCIAL_RE)) return null;
+  const fallback = allSkills.find((sk) => sk.mention === GENERIC_SOCIAL_FALLBACK);
+  if (!fallback) return null;
+  if (!matchesRecipeAudience(fallback.audience, userLocale)) return null;
+  if (DISABLED_LV_AGENT_IDS.has(fallback.identifier)) return null;
+  if (!isSkillOfferedIn(fallback, instanceId)) return null;
+  return GENERIC_SOCIAL_FALLBACK;
 }

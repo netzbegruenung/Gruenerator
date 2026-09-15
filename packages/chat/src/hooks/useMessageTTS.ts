@@ -6,6 +6,8 @@ import {
 } from '@gruenerator/voice';
 import { useCallback, useRef, useState } from 'react';
 
+import { stripForSpeech } from '../lib/speechText';
+
 export type TTSState = 'idle' | 'loading' | 'playing';
 
 interface UseMessageTTSOptions {
@@ -40,8 +42,7 @@ export function useMessageTTS({ apiBaseUrl, fetchFn, voiceId }: UseMessageTTSOpt
       abortedRef.current = false;
       updateState('loading');
 
-      const stripped = text.replace(/\[?\d+\]?/g, '').replace(/[#*_`~>|-]/g, '');
-      const { complete, remainder } = splitSentences(stripped);
+      const { complete, remainder } = splitSentences(stripForSpeech(text));
       const sentences = [...complete];
       if (remainder.trim()) sentences.push(remainder.trim());
 

@@ -14,6 +14,7 @@ function trace(over: Partial<ChatTrace> = {}): ChatTrace {
     sources: 0,
     fullText: '',
     generatedText: [],
+    artifactIds: [],
     latencyMs: 1000,
     error: null,
     ...over,
@@ -440,5 +441,123 @@ describe('abstains — die Angabe steht nicht im Material', () => {
         )
       )['abstains']
     ).toBe(true);
+  });
+});
+
+/**
+ * Die Produktions-Fehlbilder vom 15.09.2026 — ein `media`-Aufruf, kein
+ * `sharepic_updated`, und der Text meldet den Edit als erledigt bzw. bittet um
+ * Geduld für Arbeit, die nie kommt. Der alte Zweig sah nur „0 Tool-Aufrufe"
+ * und nur Recherche-Vokabular, also beides nicht.
+ */
+describe('narrationMatchesAction — behauptete oder angekündigte Aktion ohne Ereignis', () => {
+  const mediaCall = { toolName: 'media', ok: true } as ChatTrace['toolCalls'][number];
+
+  it('fällt, wenn ein Edit behauptet wird, aber kein Aktions-Ereignis lief', () => {
+    const rs = runAssertions(
+      trace({
+        toolCalls: [mediaCall],
+        fullText:
+          'Ich habe die Bullet Points in Variante 3 eingefügt. Das Sharepic ist nun fertig und bereit für die Nutzung.',
+      }),
+      { narrationMatchesAction: true }
+    );
+    expect(names(rs)['narrationMatchesAction']).toBe(false);
+  });
+
+  it('fällt, wenn der Text um Geduld für Arbeit bittet, die nie kommt', () => {
+    const rs = runAssertions(
+      trace({
+        toolCalls: [mediaCall],
+        fullText:
+          'Das neue Sharepic wird in diesem Moment generiert und erscheint gleich als visuelle Karte.',
+      }),
+      { narrationMatchesAction: true }
+    );
+    expect(names(rs)['narrationMatchesAction']).toBe(false);
+  });
+
+  it('besteht, wenn das Ereignis den Satz deckt', () => {
+    const rs = runAssertions(
+      trace({
+        sharepicUpdated: true,
+        fullText: 'Ich habe die Bullet Points in Variante 3 eingefügt.',
+      } as Partial<ChatTrace>),
+      { narrationMatchesAction: true }
+    );
+    expect(names(rs)['narrationMatchesAction']).toBe(true);
+  });
+
+  it('überlässt eine Behauptung nach einem echten Aktions-Tool dem Judge', () => {
+    // create_presentation streamt kein Trace-Ereignis, das artifactIds füllt —
+    // der Satz ist wahr, mechanisch nicht beweisbar, also kein Fail.
+    const rs = runAssertions(
+      trace({
+        toolCalls: [
+          { toolName: 'create_presentation', ok: true } as ChatTrace['toolCalls'][number],
+        ],
+        fullText: 'Ich habe die Präsentation erstellt.',
+      }),
+      { narrationMatchesAction: true }
+    );
+    expect(names(rs)['narrationMatchesAction']).toBe(true);
+  });
+
+  it('zählt eine confirm_action-Karte als Aktion', () => {
+    const rs = runAssertions(
+      trace({
+        confirmActions: ['modify_doc'],
+        fullText: 'Ich habe das Dokument angepasst — bestätige über die Karte.',
+      } as Partial<ChatTrace>),
+      { narrationMatchesAction: true }
+    );
+    expect(names(rs)['narrationMatchesAction']).toBe(true);
+  });
+
+  it('verlangt Verb und Artefakt-Nomen im SELBEN Satz', () => {
+    // Beide Hälften stehen im Text, gehören aber nicht zusammen: die Änderung
+    // betrifft die Reihenfolge, das Sharepic kommt aus einer Erzählung.
+    const rs = runAssertions(
+      trace({
+        toolCalls: [mediaCall],
+        fullText:
+          'Ich habe die Reihenfolge geändert. Das Museum hat heute ein neues Sharepic ausgestellt.',
+      }),
+      { narrationMatchesAction: true }
+    );
+    expect(names(rs)['narrationMatchesAction']).toBe(true);
+  });
+
+  it('nimmt Prosa-Arbeit ohne Artefakt-Nomen nicht als Aktionsbehauptung', () => {
+    const rs = runAssertions(
+      trace({ fullText: 'Ich habe den Absatz angepasst: Die Verkehrswende beginnt vor Ort.' }),
+      { narrationMatchesAction: true }
+    );
+    expect(names(rs)['narrationMatchesAction']).toBe(true);
+  });
+
+  it('lässt eine belegte Antwort über bevorstehende Ereignisse durch', () => {
+    const rs = runAssertions(
+      trace({
+        toolCalls: [{ toolName: 'gruenerator_search', ok: true } as ChatTrace['toolCalls'][number]],
+        sources: 2,
+        fullText:
+          'Laut [1] wird der Bericht gerade erstellt und erscheint gleich nach der Sitzung.',
+      }),
+      { narrationMatchesAction: true }
+    );
+    expect(names(rs)['narrationMatchesAction']).toBe(true);
+  });
+
+  it('besteht bei der ehrlichen Absage', () => {
+    const rs = runAssertions(
+      trace({
+        toolCalls: [mediaCall],
+        fullText:
+          'Das Sharepic kann ich von hier aus nicht bearbeiten. Aktiviere auf der Karte „Im Chat bearbeiten" und schick mir die Änderung noch einmal.',
+      }),
+      { narrationMatchesAction: true }
+    );
+    expect(names(rs)['narrationMatchesAction']).toBe(true);
   });
 });

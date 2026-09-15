@@ -59,7 +59,11 @@ export function buildOperationCatalog(descriptor: SharepicTemplateDescriptor): s
   lines.push('ERLAUBTE OPERATIONEN (genaue Schemas, Schlüssel ist "kind"):');
   if (supported.has('set-text')) {
     lines.push(
-      '  - { "kind": "set-text", "field": "<field>", "label": "<Label>", "value": "<neuer Text>" }'
+      '  - { "kind": "set-text", "field": "<field>", "label": "<Label>", "value": "<neuer Text>" }',
+      // Ohne diesen Satz entstehen im Chat praktisch nie Aufzählungen: das
+      // Schema darüber liest sich wie ein Einzeiler. `value` ist ein blankes
+      // z.string(), Umbrüche erreichen den Editor also unverändert.
+      '    "value" darf Zeilenumbrüche tragen. Eine Aufzählung schreibst du als eine Zeile je Punkt, jede beginnt mit "• " — kein Markdown, keine Leerzeilen.'
     );
   }
   if (supported.has('set-font-size')) {
@@ -186,9 +190,16 @@ export function buildSliderDeckOperationCatalog(descriptor: SharepicTemplateDesc
     'ERLAUBTE OPERATIONEN (genaue Schemas, Schlüssel ist "kind"):',
     '  - { "kind": "edit-slide", "slide": <Nr>, "operations": [ ... ] } — ändert EINE Folie. Erlaubte innere Operationen:',
     '      { "kind": "set-text", "field": "label" | "headline" | "subtext" | "subtext2", "label": "<Label>", "value": "<neuer Text>" }',
+    '      "value" darf Zeilenumbrüche tragen; Aufzählungspunkte stehen je auf einer Zeile und beginnen mit "• ".',
     `      { "kind": "set-font-size", "field": "<field>", "label": "<Label>", "size": <Zahl> } (${fontBounds})`,
     `      { "kind": "set-color-scheme", "schemeId": <id> } — nur: ${schemeIds}. Gilt IMMER für das GANZE Karussell.`,
     '      Hinweis: "label" gibt es nur auf dem Cover (Slide 1), "subtext2" nur auf Inhalts-Folien.',
+    ...(descriptor.backgroundImage
+      ? [
+          '      { "kind": "set-background-image", "query": "<Bildbeschreibung>" } — Hintergrundbild für EINE Folie; Text wird automatisch weiß, Farbschema bleibt für Pille & Pfeil erhalten.',
+          '      { "kind": "update-element", "elementId": "hintergrundbild", "patch": { "x"?: <Zahl>, "y"?: <Zahl>, "scale"?: <Zahl>, "opacity"?: <Zahl> } } — verschiebt/zoomt das Foto einer Folie.',
+        ]
+      : []),
     '  - { "kind": "add-slide", "afterSlide"?: <Nr>, "headline": "<Text>", "subtext"?: "<Text>", "subtext2"?: "<Text>" } — neue Inhalts-Folie (ohne afterSlide: vor der Abschluss-Folie).',
     '  - { "kind": "remove-slide", "slide": <Nr> } — Cover (1) und Abschluss-Folie sind geschützt.',
   ];

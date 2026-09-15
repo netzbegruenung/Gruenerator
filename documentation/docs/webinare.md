@@ -1,5 +1,6 @@
 ---
 sidebar_position: 8
+description: 'Kostenlose Online-Seminare zu KI und Grünerator für grüne Kommunalpolitik — mit Muster-Einladungstext für deinen Kreisverband.'
 ---
 
 # Webinare

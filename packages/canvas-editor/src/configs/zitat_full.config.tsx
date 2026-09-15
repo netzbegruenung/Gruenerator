@@ -7,6 +7,7 @@
 
 import { ZITAT_CONFIG, calculateZitatLayout } from '../utils/zitatLayout';
 
+import { DEFAULT_PHOTO_BACKGROUND_DE, PHOTO_BACKGROUND_COLORS_DE } from './backgroundPalettes';
 import {
   createAiCapabilities,
   createImageTwoTextCanvas,
@@ -103,6 +104,8 @@ const baseZitatConfig = createImageTwoTextCanvas({
   passthroughStateKeys: ['quoteMarkOffset', 'quoteMarkOpacity'],
   elements: [quoteMarkElement, quoteTextElement, nameTextElement],
   features: { icons: true, shapes: true, illustrations: true },
+  backgroundColors: PHOTO_BACKGROUND_COLORS_DE,
+  defaultBackgroundColor: DEFAULT_PHOTO_BACKGROUND_DE,
   gradientOpacity: ZITAT_CONFIG.gradient.bottomOpacity,
   getCanvasText: (state) => {
     const quote = state.quote || '';
@@ -128,6 +131,7 @@ const zitatAiCapabilities = createAiCapabilities<ZitatState, ImageTwoTextActions
       setter: (a) => a.setSecondary,
     },
   ],
+  background: { read: (s) => (s.backgroundColor ?? DEFAULT_PHOTO_BACKGROUND_DE) as `#${string}` },
 });
 
 export const zitatFullConfig = wrapWithAi(baseZitatConfig, 'zitat', zitatAiCapabilities);

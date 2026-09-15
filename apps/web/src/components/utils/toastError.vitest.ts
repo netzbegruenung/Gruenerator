@@ -9,6 +9,7 @@
  * `console.error` alone isn't captured in production (no captureConsole
  * integration in `index.tsx`).
  */
+import { ApiError } from '@gruenerator/shared/api';
 import { toast } from '@gruenerator/ui';
 import * as Sentry from '@sentry/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -114,5 +115,26 @@ describe('toastApiError', () => {
     expect(captureExceptionMock).toHaveBeenCalledTimes(1);
 
     nowSpy.mockRestore();
+  });
+
+  /**
+   * GlitchTip #590. A 403 from `/api/auth/groups/:id/content` is the designed
+   * answer for a non-member, but the group hooks threw a bare `Error` that
+   * dropped the status. `getErrorMessage` then fell through to
+   * `defaultErrorMessage` — the exact condition guarding `captureException` —
+   * so an authorization outcome was filed as an unclassified crash. The pair
+   * below pins both halves: carrying the status silences Sentry, and dropping
+   * it still does not, which is what makes the first assertion meaningful.
+   */
+  it('does not report a status-carrying 403 to Sentry — it is classified, not a crash', () => {
+    toastApiError(new ApiError(403, 'Du bist nicht Mitglied dieser Gruppe.'), { source: 'query' });
+
+    expect(captureExceptionMock).not.toHaveBeenCalled();
+  });
+
+  it('still reports the same failure once the status is dropped (the regression this guards)', () => {
+    toastApiError(new Error('Fehler beim Laden der Gruppeninhalte.'), { source: 'query' });
+
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
   });
 });

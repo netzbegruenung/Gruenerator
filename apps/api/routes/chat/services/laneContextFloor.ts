@@ -20,12 +20,17 @@
  * WHY A FLOOR AND NOT THE REAL WINDOW. Mirroring `resolveAutoSelection` here to
  * predict the lane would mean recomputing its inputs (`turnMaterialChars` among
  * them, which agenticRespondService already flags as a "two computations could
- * disagree" hazard), and hoisting `resolveModel` itself would hold the Verdigado
- * inference slot across pruning AND compaction — compaction can start an LLM
- * call. Both buy exactness with a coupling that drifts. A floor needs neither:
- * it is a pure table lookup, and being too small only ever prunes more, while
- * being too large runs Verdigado into a SILENT truncation (HTTP 200,
- * `prompt_tokens` collapses to ~64Ki, nothing says so — see CTX_VERDIGADO).
+ * disagree" hazard). That buys exactness with a coupling that drifts. A floor
+ * needs neither: it is a pure table lookup, and being too small only ever
+ * prunes more.
+ *
+ * Die Zahl selbst ist am 29.08.2026 von 120.000 auf 131.000 gestiegen, ohne
+ * dass hier etwas umgestellt wurde: die kleinste Lane WAR die Verdigado-Seite
+ * mit ihrer gemessenen Ollama-Decke, und die ist weg. Kleinste Lane ist jetzt
+ * `SMALL_ANSWER_LANE` (Cortecs, `context_size: 131000` laut dessen
+ * `GET /v1/models` am selben Tag). Die stille Kürzung, gegen die die alte Decke
+ * gemessen wurde, ist damit ebenfalls weg — sie war eine Eigenschaft von
+ * Ollama, nicht des Modells.
  *
  * WHAT THE FLOOR BUYS BEYOND THE NUMBER. It also keeps the split-mode PLANNER
  * inside its own window. The planner (`mistral-small-3.2-24b-instruct-2506` via
@@ -34,27 +39,21 @@
  * accident kept it safe. Budgeting against the SMALLEST lane keeps the history
  * under that model's window too. Anyone raising this to the resolved lane's
  * real window (262k on the Gemma lanes) must measure the planner first — a
- * needle test, the way CTX_VERDIGADO was measured.
+ * needle test.
  *
  * NOT considered: the first-token-timeout `fallback` of a single lane. It would
- * be the stricter reading — `mistral-small-4` falls back to `gpt-oss`, i.e. onto
- * the 120k Verdigado side, and the GEMMA_4_REGOLO comment records exactly that
- * shape as a live silent truncation. It is left out because honouring it here
- * and nowhere else would make the agentic path quietly stricter than the
- * single-pass path for the same explicit model, and because it currently changes
- * no value: the auto floor is already the Verdigado window. Fix it for both
- * paths in `resolveModelTuple`, not for one path here.
+ * be the stricter reading. It is left out because honouring it here and nowhere
+ * else would make the agentic path quietly stricter than the single-pass path
+ * for the same explicit model. Fix it for both paths in `resolveModelTuple`,
+ * not for one path here.
  */
 import { AVAILABLE_MODELS, getModelConfig, type ModelConfig } from '../agents/providers.js';
 
-/** Smallest window this lane can serve. For an overflow lane the slot decides
- *  which side runs, so the smaller one bounds the prompt — `contextWindow` is
- *  documented as the conservative (primary) side, and this asserts it rather
- *  than assuming it. */
+/** Smallest window this lane can serve. Bis zum 29.08.2026 konnte eine Lane
+ *  zwei verschieden grosse Seiten haben (Verdigado-Primär, Regolo-Überlauf) und
+ *  diese Funktion nahm die kleinere; jede Lane ist jetzt einseitig. */
 function laneFloor(config: ModelConfig): number {
-  return config.kind === 'overflow'
-    ? Math.min(config.contextWindow, config.overflowContextWindow)
-    : config.contextWindow;
+  return config.contextWindow;
 }
 
 /** Floor across every lane the auto policy could land on. Computed from the

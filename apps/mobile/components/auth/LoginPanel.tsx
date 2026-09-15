@@ -49,8 +49,15 @@ const PROVIDER_LOGO: Partial<Record<LoginProviderId, ImageSourcePropType>> = {
 export function LoginPanel({
   /** Ran instead of the default `/(tabs)` replace, when there is tidying to do first. */
   onSuccess,
+  /**
+   * Nimmt die in `GATED_PROVIDERS` gesperrten Anbieter mit in die Liste.
+   * Gesetzt vom Freischalt-Griff auf dem Anmeldebildschirm; überall sonst
+   * (etwa auf der letzten Onboarding-Folie) bleibt es aus.
+   */
+  showGatedProviders = false,
 }: {
   onSuccess?: () => void;
+  showGatedProviders?: boolean;
 }) {
   const theme = useTheme();
   const isDark = useColorScheme() === 'dark';
@@ -58,7 +65,7 @@ export function LoginPanel({
   // Resolved once. Nothing about the device's country changes while the screen
   // is up, and re-reading it per render would re-order the list under a finger.
   const [primary] = useState(deviceCountryProvider);
-  const providers = orderedProviders(primary);
+  const providers = orderedProviders(primary, showGatedProviders);
   const primaryTitle = providers[0]?.title;
   const [providersOpen, setProvidersOpen] = useState(false);
   const [pending, setPending] = useState<LoginProviderId | null>(null);

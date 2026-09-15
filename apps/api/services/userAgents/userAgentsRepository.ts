@@ -276,6 +276,12 @@ export async function listUserAgentsByIds(ids: string[]): Promise<Array<Agent & 
  * Postgres accessor; the matched row is mapped through the same `rowToAgent`
  * boundary as the owner-scoped lookups. `content_id` is TEXT, so the UUID is
  * cast to text for the comparison.
+ *
+ * `identifier` is unique per OWNER, not globally, so two people in the same
+ * group may both have shared a `klima-gruenerator` and the `LIMIT 1` has to
+ * pick one. It orders by creation to pick the same one every time —
+ * `listMentionableUserAgents` repeats this order so the picker offers the agent
+ * this function will load, not another one under the same name.
  */
 export async function getGroupSharedUserAgent(
   identifier: string,
@@ -295,11 +301,134 @@ export async function getGroupSharedUserAgent(
              AND gm.user_id = $2
              AND gm.is_active = true
         )
+      ORDER BY ua.created_at, ua.id
       LIMIT 1`,
     [identifier, requestingUserId],
     { table: 'user_agents' }
   );
   return row ? rowToAgent(row) : undefined;
+}
+
+/**
+ * A picker entry for one agent. `sharedFromGroup` names the group it reached
+ * the caller through, `null` for their own.
+ */
+export interface MentionableUserAgentRow {
+  identifier: string;
+  title: string;
+  description: string;
+  avatar: string;
+  iconKey?: string;
+  backgroundColor: string;
+  sharedFromGroup: string | null;
+}
+
+const MENTIONABLE_COLUMNS = {
+  identifier: userAgents.identifier,
+  title: userAgents.title,
+  description: userAgents.description,
+  avatar: userAgents.avatar,
+  icon_key: userAgents.icon_key,
+  background_color: userAgents.background_color,
+} as const;
+
+type MentionableColumns = {
+  identifier: string;
+  title: string;
+  description: string;
+  avatar: string;
+  icon_key: string | null;
+  background_color: string;
+};
+
+function toMentionable(
+  row: MentionableColumns,
+  sharedFromGroup: string | null
+): MentionableUserAgentRow {
+  return {
+    identifier: row.identifier,
+    title: row.title,
+    description: row.description,
+    avatar: row.avatar,
+    ...(row.icon_key ? { iconKey: row.icon_key } : {}),
+    backgroundColor: row.background_color,
+    sharedFromGroup,
+  };
+}
+
+/**
+ * The agents the caller can name with an `@mention`: their own, plus every
+ * agent shared into a group they are an active member of.
+ *
+ * A lean projection on purpose — the picker needs a label, an icon and the
+ * identifier it routes to. `system_role` stays on the server: a group share
+ * lets a teammate USE an agent, it is not a licence to read its prompt.
+ *
+ * Discovery only. `getAgentForUser` already resolved both kinds long before
+ * this existed (#2909) — what was missing was a way to find them.
+ */
+export async function listMentionableUserAgents(
+  userId: string
+): Promise<MentionableUserAgentRow[]> {
+  const db = getDrizzleInstance();
+  const ownRows = await db
+    .select(MENTIONABLE_COLUMNS)
+    .from(userAgents)
+    .where(eq(userAgents.user_id, userId));
+  const own = ownRows.map((row) => toMentionable(row, null));
+
+  // `group_content_shares` has no Drizzle table, so the join uses the raw
+  // accessor — same boundary as `getGroupSharedUserAgent` above. `content_id`
+  // is TEXT, hence the cast on the UUID.
+  //
+  // The ORDER BY is load-bearing twice over, and both halves are silent when
+  // wrong. `ua.created_at, ua.id` is verbatim the resolver's tie-break, so a
+  // colliding identifier resolves to the same agent here and there; `g.name`
+  // decides which group an agent shared into SEVERAL of the caller's groups is
+  // credited to. Without it Postgres is free to return either, and the sublabel
+  // would flip between page loads.
+  const pg = getPostgresInstance();
+  const sharedRows = (await pg.query(
+    `SELECT ua.identifier, ua.title, ua.description, ua.avatar, ua.icon_key,
+            ua.background_color, g.name AS group_name
+       FROM user_agents ua
+       INNER JOIN group_content_shares gcs
+               ON gcs.content_type = 'user_agents' AND gcs.content_id = ua.id::text
+       INNER JOIN groups g ON g.id = gcs.group_id
+       INNER JOIN group_memberships gm
+               ON gm.group_id = gcs.group_id AND gm.user_id = $1::uuid AND gm.is_active = true
+      WHERE ua.user_id <> $1::uuid
+      ORDER BY ua.created_at, ua.id, g.name`,
+    [userId],
+    { table: 'user_agents' }
+  )) as unknown as Array<MentionableColumns & { group_name: string }>;
+
+  return mergeMentionableAgents(
+    own,
+    sharedRows.map((row) => toMentionable(row, row.group_name))
+  );
+}
+
+/**
+ * Own agents first, then the group-shared ones an identifier does not already
+ * cover. Extracted because the ORDER is the claim: `getAgentForUser` resolves
+ * an owned row before it looks at any share, and among shares it takes the
+ * oldest — a picker that offered a different agent under the same name would
+ * hand the chat something else than it showed. Which share is "first" is the
+ * caller's ORDER BY, not this function's; it only keeps the two lists apart.
+ */
+export function mergeMentionableAgents(
+  own: MentionableUserAgentRow[],
+  shared: MentionableUserAgentRow[]
+): MentionableUserAgentRow[] {
+  const seen = new Set(own.map((a) => a.identifier));
+  const merged = [...own];
+  for (const agent of shared) {
+    if (seen.has(agent.identifier)) continue;
+    seen.add(agent.identifier);
+    merged.push(agent);
+  }
+  return merged;
 }
 
 /**

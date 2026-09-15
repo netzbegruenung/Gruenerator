@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  GATED_PROVIDERS,
   LOGIN_PROVIDERS,
   PROVIDER_SOURCE,
   detectCountryProvider,
@@ -59,20 +60,39 @@ describe('detectCountryProvider', () => {
 });
 
 describe('orderedProviders', () => {
+  const ungated = LOGIN_PROVIDERS.filter((p) => !GATED_PROVIDERS.includes(p.id));
+
   it('puts the detected provider first and keeps the rest', () => {
     const ordered = orderedProviders('gruene-oesterreich');
     expect(ordered[0]?.id).toBe('gruene-oesterreich');
-    expect(ordered).toHaveLength(LOGIN_PROVIDERS.length);
+    expect(ordered).toHaveLength(ungated.length);
   });
 
-  it('offers every provider, including the ones web hides behind ?provider=', () => {
-    const ids = orderedProviders('gruenes-netz').map((p) => p.id);
-    expect(ids).toContain('netzbegruenung');
+  // Netzbegrünung ist NICHT gesperrt, und das ist der Kern der Trennung: Web
+  // versteckt beide hinter `?provider=`, ein Telefon hat aber keine
+  // Adresszeile — versteckt hieße hier ausgesperrt.
+  it('zeigt netzbegruenung, obwohl web es hinter ?provider= versteckt', () => {
+    expect(orderedProviders('gruenes-netz').map((p) => p.id)).toContain('netzbegruenung');
+  });
+
+  it('lässt den gesperrten anbieter weg, solange nicht freigeschaltet ist', () => {
+    expect(orderedProviders('gruenes-netz').map((p) => p.id)).not.toContain('gruenerator');
+  });
+
+  it('holt ihn herein, sobald freigeschaltet ist', () => {
+    const ids = orderedProviders('gruenes-netz', true).map((p) => p.id);
     expect(ids).toContain('gruenerator');
+    expect(ids).toHaveLength(LOGIN_PROVIDERS.length);
   });
 
-  it('drops nobody when the primary is not in the registry', () => {
+  // Sonst wäre die Sperre eine Umsortierung: der Anbieter bliebe in der Liste
+  // und stünde nur woanders.
+  it('hält die reihenfolge der übrigen bei, wenn der gesperrte fehlt', () => {
+    expect(orderedProviders('gruenes-netz').map((p) => p.id)).toEqual(ungated.map((p) => p.id));
+  });
+
+  it('drops nobody besides the gated ones when the primary is not in the registry', () => {
     const ordered = orderedProviders('nicht-da' as LoginProviderId);
-    expect(ordered.map((p) => p.id)).toEqual(LOGIN_PROVIDERS.map((p) => p.id));
+    expect(ordered.map((p) => p.id)).toEqual(ungated.map((p) => p.id));
   });
 });

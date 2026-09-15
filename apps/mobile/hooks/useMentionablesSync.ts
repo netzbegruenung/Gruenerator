@@ -7,6 +7,7 @@ import {
   syncMcpServers,
   syncSheets,
   syncTextforms,
+  syncUserAgents,
   syncUserNotebooks,
   useUserLandesverbaende,
   type MentionableFetch,
@@ -91,6 +92,7 @@ export function useMentionablesSync(): void {
     queryFn: () => syncCustomAgents(get),
     ...common,
   });
+  useQuery({ queryKey: ['mention-user-agents'], queryFn: () => syncUserAgents(get), ...common });
   useQuery({ queryKey: ['mention-textforms'], queryFn: () => syncTextforms(get), ...common });
   useQuery({ queryKey: ['mention-boards'], queryFn: () => syncBoards(get), ...common });
   useQuery({ queryKey: ['mention-docs'], queryFn: () => syncDocs(get), ...common });

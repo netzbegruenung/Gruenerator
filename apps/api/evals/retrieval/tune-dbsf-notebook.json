@@ -1,0 +1,113 @@
+{
+  "pipeline": "notebook",
+  "depth": "deep",
+  "withRerank": false,
+  "outcomes": [
+    {
+      "id": "kommunalwiki-buergerbegehren",
+      "collection": "kommunalwiki-system",
+      "query": "Wie funktioniert ein Bürgerbegehren in der Kommune?",
+      "rank": 6,
+      "topTitles": [
+        "Grünes Leitbild Kommune",
+        "Grünes Leitbild Kommune",
+        "Grünes Leitbild Kommune",
+        "Grünes Leitbild Kommune",
+        "Grünes Leitbild Kommune"
+      ]
+    },
+    {
+      "id": "kommunalwiki-bebauungsplan",
+      "collection": "kommunalwiki-system",
+      "query": "Aufstellung eines Bebauungsplans — Verfahren und Beteiligung",
+      "rank": null,
+      "topTitles": ["Bauturbo", "Bauturbo", "Bauturbo", "Bauturbo", "Bauturbo"]
+    },
+    {
+      "id": "kommunalwiki-radverkehr",
+      "collection": "kommunalwiki-system",
+      "query": "Radverkehrsförderung in der Kommunalpolitik",
+      "rank": 1,
+      "topTitles": ["Radverkehr", "Radverkehr", "Radverkehr", "Radverkehr", "Radverkehr"]
+    },
+    {
+      "id": "kommunalwiki-haushalt",
+      "collection": "kommunalwiki-system",
+      "query": "Wie liest man einen kommunalen Haushaltsplan?",
+      "rank": 1,
+      "topTitles": ["Haushalt", "Haushalt", "Haushalt", "Haushalt", "Haushalt"]
+    },
+    {
+      "id": "kommunalwiki-waermeplanung",
+      "collection": "kommunalwiki-system",
+      "query": "Kommunale Wärmeplanung umsetzen",
+      "rank": 17,
+      "topTitles": [
+        "Wasserstoff",
+        "Wasserstoff",
+        "Wasserstoff",
+        "Klimaschutz als kommunale Pflichtaufgabe?",
+        "Klimaschutz als kommunale Pflichtaufgabe?"
+      ]
+    },
+    {
+      "id": "kommunalwiki-fraktion",
+      "collection": "kommunalwiki-system",
+      "query": "Rechte und Arbeit einer Fraktion im Gemeinderat",
+      "rank": 17,
+      "topTitles": [
+        "FAQ Kommunalpolitik Bayern",
+        "FAQ Kommunalpolitik Bayern",
+        "FAQ Kommunalpolitik Bayern",
+        "FAQ Kommunalpolitik Bayern",
+        "FAQ Kommunalpolitik Bayern"
+      ]
+    },
+    {
+      "id": "kommunalwiki-vergabe",
+      "collection": "kommunalwiki-system",
+      "query": "Öffentliche Vergabe und Ausschreibungen in Kommunen",
+      "rank": 3,
+      "topTitles": [
+        "Outsourcing",
+        "Outsourcing",
+        "Vergabe- und Vertragsordnung für Bauleistungen",
+        "Vergabe- und Vertragsordnung für Bauleistungen",
+        "Vergabe- und Vertragsordnung für Bauleistungen"
+      ]
+    },
+    {
+      "id": "kommunalwiki-jugend",
+      "collection": "kommunalwiki-system",
+      "query": "Jugendbeteiligung in der Kommune",
+      "rank": 25,
+      "topTitles": [
+        "Hauptseite",
+        "Wirkungsorientierter Haushalt",
+        "Kommunalpolitische Podcasts",
+        "Was bedeutet der Koalitionsvertrag für die Kommunen?",
+        "Was bedeutet der Koalitionsvertrag für die Kommunen?"
+      ]
+    },
+    {
+      "id": "kommunalwiki-laerm",
+      "collection": "kommunalwiki-system",
+      "query": "Lärmaktionsplanung und Lärmschutz vor Ort",
+      "rank": 9,
+      "topTitles": [
+        "Urbanes Grün",
+        "Urbanes Grün",
+        "Urbanes Grün",
+        "Straßenverkehrsordnung (StVO)",
+        "Straßenverkehrsordnung (StVO)"
+      ]
+    },
+    {
+      "id": "kommunalwiki-baum",
+      "collection": "kommunalwiki-system",
+      "query": "Baumschutzsatzung und Stadtgrün",
+      "rank": 1,
+      "topTitles": ["Urbanes Grün", "Urbanes Grün", "Urbanes Grün", "Urbanes Grün", "Urbanes Grün"]
+    }
+  ]
+}

@@ -249,6 +249,32 @@ const TOOLS = [
     favourite: true,
   },
   {
+    id: 'voice',
+    title: 'Voice',
+    path: '/voice',
+    icon: { navigation: 'voice' },
+    menuItem: { description: 'Text vertonen' },
+    search: {
+      id: 'tool-voice',
+      title: 'Grünerator Voice',
+      subtitle: 'Anrufbeantworter, Vorlesefassung & Audiodeskription',
+      keywords: [
+        'voice',
+        'vertonen',
+        'sprachausgabe',
+        'stimme',
+        'audio',
+        'vorlesen',
+        'anrufbeantworter',
+        'mailbox',
+        'ansage',
+        'audiodeskription',
+        'vorlesefassung',
+        'tts',
+      ],
+    },
+  },
+  {
     id: 'newsletter',
     title: 'Newsletter',
     href: 'https://896ca129.sibforms.com/serve/MUIFAFnH3lov98jrw3d75u_DFByChA39XRS6JkBKqjTsN9gx0MxCvDn1FMnkvHLgzxEh1JBcEOiyHEkyzRC-XUO2DffKsVccZ4r7CCaYiugoiLf1a-yoTxDwoctxuzCsmDuodwrVwEwnofr7K42jQc-saIKeVuB_8UxrwS18QIaahZml1qMExNno2sEC7HyMy9Nz4f2f8-UJ4QmW',
@@ -339,17 +365,6 @@ const TOOLS = [
     search: {
       subtitle: 'KI-Assistent',
       keywords: ['chat', 'assistent', 'ki', 'gpt', 'frage'],
-    },
-  },
-  {
-    id: 'tool-transfer',
-    title: 'Transfer',
-    path: '/transfer',
-    icon: { actions: 'upload' },
-    search: {
-      subtitle: 'Dateien sicher übertragen',
-      keywords: ['transfer', 'datei', 'upload', 'senden', 'teilen'],
-      channel: 'internal',
     },
   },
 ] as const satisfies readonly ToolDefinition[];
@@ -474,6 +489,7 @@ const SEARCH_ORDER = [
   'tool-imagine',
   'tool-scanner',
   'tool-transkription',
+  'tool-voice',
   'tool-zeichenzaehler',
   'tool-vorlagen',
   'office',
@@ -482,7 +498,6 @@ const SEARCH_ORDER = [
   'tool-suche',
   'tool-agentura',
   'tool-projekte',
-  'tool-transfer',
 ] as const satisfies readonly ToolSearchId[];
 
 export function resolveToolIcon(ref: ToolIconRef): IconType {

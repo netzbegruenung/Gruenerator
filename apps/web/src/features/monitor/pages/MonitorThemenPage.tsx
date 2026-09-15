@@ -2,7 +2,11 @@ import { cn, LoadingSection, Skeleton } from '@gruenerator/ui';
 import { useMemo, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 
-import { CitationSourcesDisplay, CitationTextRenderer } from '../../../components/common/Citation';
+import {
+  CitationModal,
+  CitationSourcesDisplay,
+  CitationTextRenderer,
+} from '../../../components/common/Citation';
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import PageContainer from '../../../components/common/PageContainer';
 import { MonitorPageHeader } from '../components/MonitorPageHeader';
@@ -276,6 +280,7 @@ function MonitorThemenPage() {
 
   return (
     <PageContainer maxWidth="lg">
+      <CitationModal />
       <MonitorPageHeader
         current="themen"
         title="Themen"

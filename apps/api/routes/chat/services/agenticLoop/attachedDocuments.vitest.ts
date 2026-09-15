@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest';
 
 import {
   attachedDocsQuery,
@@ -21,13 +21,29 @@ vi.mock('../../../../agents/langgraph/ChatGraph/nodes/searchNode.js', () => ({
 }));
 
 const fullText = vi.hoisted(() => vi.fn<(...a: unknown[]) => Promise<unknown>>());
-vi.mock(
-  '../../../../services/document-services/DocumentSearchService/index.js',
-  async (importOriginal) => ({
-    ...(await importOriginal<Record<string, unknown>>()),
-    getQdrantDocumentService: () => ({ getMultipleDocumentsFullText: fullText }),
-  })
-);
+/**
+ * Reine Attrappe, KEIN `importOriginal` — `readAttachedDocumentSlice` erreicht
+ * dieses Modul erst über ein `await import()` mitten im Aufruf. Eine Fabrik, die
+ * das echte Modul lädt, läuft damit nicht beim Import der Testdatei, sondern auf
+ * der Uhr des ERSTEN Tests, der sie auslöst. Der ganze DocumentSearchService-Graph
+ * ist auf einem langsamen Runner mehr als die 5 s `testTimeout` wert — und
+ * während die Fabrik noch fliegt, liefert vite-node dem nächsten Aufruf desselben
+ * Pfads das ECHTE Modul zurück. Genau so war master am 28.08.2026 rot: erster
+ * Test „Test timed out in 5000ms", zweiter „Qdrant not available" aus dem
+ * leibhaftigen `DocumentSearchService` (#3013).
+ *
+ * Der Unterschied zu `toolCatalog.vitest.ts`, das dasselbe Modul MIT
+ * `importOriginal` mockt und grün bleibt: dort zieht eine statische Kette
+ * (`directSearch` → `exampleSearchService`) das Modul schon beim Import der
+ * Datei herein. Hier ist `searchNode` komplett attrappiert, und damit ist das
+ * `await import()` der einzige Weg dorthin. Wer hier `importOriginal` nachrüstet,
+ * baut die Bombe wieder ein — und `toolCatalog` umgekehrt auf eine reine
+ * Attrappe umzustellen bricht sofort (`DocumentSearchService is not a
+ * constructor`).
+ */
+vi.mock('../../../../services/document-services/DocumentSearchService/index.js', () => ({
+  getQdrantDocumentService: () => ({ getMultipleDocumentsFullText: fullText }),
+}));
 
 const src = (kind: DocumentSource['kind'], id: string, label = id): DocumentSource => ({
   kind,
@@ -91,7 +107,14 @@ describe('attachedDocsQuery', () => {
 });
 
 describe('retrieveAttachedDocuments', () => {
+  const originalLoopRerank = process.env.LOOP_RERANK_ENABLED;
+
   beforeEach(() => fanout.mockReset());
+
+  afterEach(() => {
+    if (originalLoopRerank === undefined) delete process.env.LOOP_RERANK_ENABLED;
+    else process.env.LOOP_RERANK_ENABLED = originalLoopRerank;
+  });
 
   it('fährt den Fan-out und sortiert über alle Dokumente nach Relevanz', async () => {
     fanout.mockResolvedValue({
@@ -112,12 +135,23 @@ describe('retrieveAttachedDocuments', () => {
   });
 
   /**
-   * Der Anhang-Pfad ist der einzige, der den Cross-Encoder selbst bestellen
-   * muss: nach der Gruppierung steht hier EIN Treffer, und `rerankPipeline`
-   * überspringt bei ≤2 Items. Fällt dieses Argument weg, verliert der Pfad
-   * seine Bewertung, ohne dass irgendetwas rot wird.
+   * `rerankChunks` hängt am selben Flag wie der Loop-Suchpfad
+   * (`LOOP_RERANK_ENABLED`) — seit der Validator-Reparatur in 03e297cca4
+   * kommt die Option beim Dienst tatsächlich an, und ein unbedingtes `true`
+   * würde den Cross-Encoder für jeden Anhang unbemerkt scharfschalten.
    */
-  it('bestellt das Chunk-Reranking mit', async () => {
+  it('lässt das Chunk-Reranking ohne LOOP_RERANK_ENABLED weg', async () => {
+    delete process.env.LOOP_RERANK_ENABLED;
+    fanout.mockResolvedValue({ perSourceResults: {}, searchedCollections: [], errors: [] });
+    const state = stateWith({ documentSources: [src('document_chat', 'a')] });
+
+    await retrieveAttachedDocuments(state, 'Löschfristen');
+
+    expect(fanout.mock.calls[0]?.[3]).toEqual({});
+  });
+
+  it('bestellt das Chunk-Reranking mit LOOP_RERANK_ENABLED=true', async () => {
+    process.env.LOOP_RERANK_ENABLED = 'true';
     fanout.mockResolvedValue({ perSourceResults: {}, searchedCollections: [], errors: [] });
     const state = stateWith({ documentSources: [src('document_chat', 'a')] });
 
@@ -135,6 +169,17 @@ describe('retrieveAttachedDocuments', () => {
 });
 
 describe('readAttachedDocumentSlice', () => {
+  // `readAttachedDocumentSlice` reaches the document service through a lazy
+  // `await import()`, so whichever test calls it first pays for loading that
+  // whole module graph — measured at ~4.9 s on CI, against a 5 s test budget.
+  // It tipped over often enough to keep master red, and it did not fail alone:
+  // aborting the first test mid-import left the next one resolving the real
+  // module instead of the mock below, which then threw "Qdrant not available".
+  // Warming the import here buys the cost once, outside anyone's timeout.
+  beforeAll(async () => {
+    await import('../../../../services/document-services/DocumentSearchService/index.js');
+  });
+
   beforeEach(() => fullText.mockReset());
 
   const sources = [src('document_chat', 'doc-1', 'Beschlusspapier.pdf')];

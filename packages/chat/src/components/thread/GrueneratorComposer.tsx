@@ -59,6 +59,7 @@ import { SearchDepthToggle } from '../SearchDepthToggle';
 import { CanvaMentionPopover } from './CanvaMentionPopover';
 import { useChatDensity } from './chatDensityContext';
 import { ComposerMentionPills } from './ComposerMentionPills';
+import { ComposerQueueList } from './ComposerQueueList';
 import { ComposerToken } from './ComposerToken';
 import { ConnectMentionPopover } from './ConnectMentionPopover';
 import { FileMentionPopover } from './FileMentionPopover';
@@ -133,11 +134,14 @@ function SendButton({
   hasPillMentions,
   onFlushPillMentions,
   onSendWithPillMentions,
+  title,
 }: {
   requireProfileHydration?: boolean;
   hasPillMentions?: boolean;
   onFlushPillMentions?: () => void;
   onSendWithPillMentions?: () => void;
+  /** Hover hint. Set while a run streams to explain that the turn is queued. */
+  title?: string;
 }) {
   const isCompact = useChatDensity() === 'compact';
   const isHydrated = useUserProfileStore((s) => s.isHydrated);
@@ -170,6 +174,7 @@ function SendButton({
         type="button"
         onClick={onSendWithPillMentions}
         aria-label="Nachricht senden"
+        title={title}
         className={`${roundBtnSize(isCompact)} ${ROUND_BTN_BASE} bg-primary text-white hover:bg-primary-600 active:scale-95`}
       >
         <ArrowUp className={isCompact ? 'h-4 w-4' : 'h-5 w-5'} />
@@ -184,6 +189,7 @@ function SendButton({
       onClick={hasPillMentions ? onFlushPillMentions : undefined}
       className={`${roundBtnSize(isCompact)} ${ROUND_BTN_BASE} bg-primary text-white enabled:hover:bg-primary-600 enabled:active:scale-95 disabled:opacity-30`}
       aria-label="Nachricht senden"
+      title={title}
     >
       <ArrowUp className={isCompact ? 'h-4 w-4' : 'h-5 w-5'} />
     </ComposerPrimitive.Send>
@@ -272,9 +278,34 @@ function ComposerButtons({
   const isDictating = useAuiState((s) => s.composer.dictation != null);
   const hasDictation = useAuiState((s) => s.thread.capabilities.dictation);
   const isEmpty = useAuiState((s) => s.composer.isEmpty);
+  const canQueue = useAuiState((s) => s.thread.capabilities.queue);
 
-  if (isRunning) return <CancelButton />;
+  // Dictation now outranks the run: with a queue you may type (or dictate) the
+  // next turn while one is still streaming, so a live dictation must keep its
+  // stop button instead of being replaced by the run's cancel button.
   if (isDictating) return <StopDictationButton />;
+  if (isRunning && !canQueue) return <CancelButton />;
+  if (isRunning) {
+    // Send joins cancel only once there is something to queue — an empty draft
+    // would otherwise park a greyed-out primary button next to the red stop,
+    // which reads as broken rather than as "type to queue".
+    const hasDraft = !isEmpty || hasPillMentions === true;
+    return (
+      <>
+        {hasDraft && (
+          <SendButton
+            requireProfileHydration={requireProfileHydration}
+            hasPillMentions={hasPillMentions}
+            onFlushPillMentions={onFlushPillMentions}
+            onSendWithPillMentions={onSendWithPillMentions}
+            title="Wird gesendet, sobald die aktuelle Antwort fertig ist"
+          />
+        )}
+        {/* Cancel sits last so it keeps the corner position it holds today. */}
+        <CancelButton />
+      </>
+    );
+  }
   if (hasDictation && isEmpty && !hasPillMentions) return <DictateButton />;
   return (
     <SendButton
@@ -328,6 +359,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   const composerAreaRef = useRef<HTMLDivElement>(null);
   const composerRuntime = useAui().composer;
   const isCompact = useChatDensity() === 'compact';
+  const canQueue = useAuiState((s) => s.thread.capabilities.queue);
   const isMobile = useIsMobile();
   const effectivePlaceholder = placeholder ?? (isMobile ? 'Schreibe...' : 'Nachricht schreiben...');
   const isMistral = useAgentStore((s) => s.selectedProvider === 'mistral');
@@ -729,11 +761,13 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
         // Enter on a pills-only draft: the primitive's Enter→submit path is
         // inert (canSend false on empty text), so send explicitly. Non-empty
         // drafts keep the normal path — the Root onSubmit flush covers them.
+        // A running turn only blocks this when the thread cannot queue; with a
+        // queue the send is what puts the draft in line.
         if (
           e.key === 'Enter' &&
           !e.shiftKey &&
           !e.nativeEvent.isComposing &&
-          !isRunning &&
+          (!isRunning || canQueue) &&
           state.text.trim() === '' &&
           state.attachments.length === 0
         ) {
@@ -818,6 +852,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
       dismissPopover,
       composerRuntime,
       isRunning,
+      canQueue,
       sendWithPillMentions,
       removePillMention,
     ]
@@ -992,6 +1027,12 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
         {/* Inset mirrors the input's horizontal padding per variant, so the
             tile's left edge lines up with the first character of the draft. */}
         <ComposerAttachments className={isPill ? 'mx-3.5' : isCompact ? 'mx-3' : 'mx-5'} />
+
+        {/* Same inset as the attachment tiles, so waiting turns line up with
+            the first character of the draft in every variant. */}
+        <ComposerQueueList
+          className={cn('mt-2', isPill ? 'mx-3.5' : isCompact ? 'mx-3' : 'mx-5')}
+        />
 
         {slots?.aboveInput}
 

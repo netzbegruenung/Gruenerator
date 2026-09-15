@@ -46,7 +46,6 @@ export interface CollectionNames {
   user_texts: string;
   notebook_collections: string;
   notebook_collection_documents: string;
-  notebook_usage_logs: string;
   notebook_public_access: string;
   oparl_papers: string;
   kommunalwiki_documents: string;

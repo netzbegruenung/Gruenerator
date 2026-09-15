@@ -85,46 +85,45 @@ describe('buildRubricPrompt', () => {
   });
 });
 
-// Live calibration hits the real verdigado LiteLLM proxy — a billable network
+// Live calibration hits the real Cortecs endpoint — a billable network
 // call that must not run (nor leave a dangling rejection) in the default
 // `pnpm test` just because keys sit in the local .env. Opt in with
 // RUN_LIVE_PROVIDER_TESTS=1, consistent with the live provider-integration tests.
-describe.skipIf(
-  !process.env.LITELLM_API_KEY ||
-    !process.env.LITELLM_BASE_URL ||
-    !process.env.RUN_LIVE_PROVIDER_TESTS
-)('judge calibration (live)', () => {
-  async function judge(system: string, user: string): Promise<boolean | null> {
-    const base = (process.env.LITELLM_BASE_URL ?? '').replace(/\/$/, '');
-    const res = await fetch(`${base}/v1/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        authorization: `Bearer ${process.env.LITELLM_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: process.env.EVAL_JUDGE_MODEL ?? 'verdigado-pro',
-        temperature: 0,
-        messages: [
-          { role: 'system', content: system },
-          { role: 'user', content: user },
-        ],
-      }),
-    });
-    const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-    const { parseVerdict } = await import('./runJudge.js');
-    return parseVerdict(json.choices?.[0]?.message?.content ?? '')?.pass ?? null;
+describe.skipIf(!process.env.CORTECS_API_KEY || !process.env.RUN_LIVE_PROVIDER_TESTS)(
+  'judge calibration (live)',
+  () => {
+    async function judge(system: string, user: string): Promise<boolean | null> {
+      const base = (process.env.CORTECS_BASE_URL ?? 'https://api.cortecs.ai/v1').replace(/\/$/, '');
+      const res = await fetch(`${base}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${process.env.CORTECS_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: process.env.EVAL_JUDGE_MODEL ?? 'gemma-4-31b-it',
+          temperature: 0,
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: user },
+          ],
+        }),
+      });
+      const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+      const { parseVerdict } = await import('./runJudge.js');
+      return parseVerdict(json.choices?.[0]?.message?.content ?? '')?.pass ?? null;
+    }
+
+    it('fails the historical class-6 bug (real sources, "keine Treffer" answer)', async () => {
+      const { turn } = loadFixtureTurn('class6-ungrounded-keine-treffer.json');
+      const prompt = buildRubricPrompt('groundedness', turn, {})!;
+      expect(await judge(prompt.system, prompt.user)).toBe(false);
+    }, 60000);
+
+    it('fails the historical class-11 bug (edit applied, text denies it)', async () => {
+      const { turn } = loadFixtureTurn('class11-edit-denied.json');
+      const prompt = buildRubricPrompt('narration_consistency', turn, {})!;
+      expect(await judge(prompt.system, prompt.user)).toBe(false);
+    }, 60000);
   }
-
-  it('fails the historical class-6 bug (real sources, "keine Treffer" answer)', async () => {
-    const { turn } = loadFixtureTurn('class6-ungrounded-keine-treffer.json');
-    const prompt = buildRubricPrompt('groundedness', turn, {})!;
-    expect(await judge(prompt.system, prompt.user)).toBe(false);
-  }, 60000);
-
-  it('fails the historical class-11 bug (edit applied, text denies it)', async () => {
-    const { turn } = loadFixtureTurn('class11-edit-denied.json');
-    const prompt = buildRubricPrompt('narration_consistency', turn, {})!;
-    expect(await judge(prompt.system, prompt.user)).toBe(false);
-  }, 60000);
-});
+);

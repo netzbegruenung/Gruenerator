@@ -1,0 +1,455 @@
+{
+  "text": "Liebe Freundinnen und Freunde, am 14. März 2027 wählen wir. Wir Grüne wollen 1,5 Milliarden Euro in den Ausbau der Bahn stecken – für Kiel, Görlitz und Passau genauso wie für Wien.",
+  "model": "kugel-3",
+  "generatedAt": "2026-09-03T16:03:16+0200",
+  "clips": {
+    "1887": {
+      "file": "/kugel-test/1887.mp3",
+      "durationSec": 11.47,
+      "latencyMs": 4132,
+      "name": "Celine Weber",
+      "quality": "high"
+    },
+    "1885": {
+      "file": "/kugel-test/1885.mp3",
+      "durationSec": 10.27,
+      "latencyMs": 3151,
+      "name": "Thomas Brandt",
+      "quality": "high"
+    },
+    "1876": {
+      "file": "/kugel-test/1876.mp3",
+      "durationSec": 12.8,
+      "latencyMs": 3664,
+      "name": "Larissa Hendriks",
+      "quality": "high"
+    },
+    "1708": {
+      "file": "/kugel-test/1708.mp3",
+      "durationSec": 12.67,
+      "latencyMs": 3872,
+      "name": "Ernst August",
+      "quality": "high"
+    },
+    "1707": {
+      "file": "/kugel-test/1707.mp3",
+      "durationSec": 10.53,
+      "latencyMs": 3271,
+      "name": "Alexa",
+      "quality": "high"
+    },
+    "1705": {
+      "file": "/kugel-test/1705.mp3",
+      "durationSec": 12.4,
+      "latencyMs": 3502,
+      "name": "Johanna",
+      "quality": "high"
+    },
+    "1704": {
+      "file": "/kugel-test/1704.mp3",
+      "durationSec": 11.2,
+      "latencyMs": 3954,
+      "name": "Tanja",
+      "quality": "high"
+    },
+    "1660": {
+      "file": "/kugel-test/1660.mp3",
+      "durationSec": 10.4,
+      "latencyMs": 3454,
+      "name": "Finn Wagner",
+      "quality": "high"
+    },
+    "1657": {
+      "file": "/kugel-test/1657.mp3",
+      "durationSec": 11.87,
+      "latencyMs": 4273,
+      "name": "Jonas Brandt",
+      "quality": "high"
+    },
+    "980": {
+      "file": "/kugel-test/980.mp3",
+      "durationSec": 10.4,
+      "latencyMs": 6768,
+      "name": "Marius Behnke",
+      "quality": "high"
+    },
+    "979": {
+      "file": "/kugel-test/979.mp3",
+      "durationSec": 11.2,
+      "latencyMs": 3443,
+      "name": "Sara Wagner",
+      "quality": "high"
+    },
+    "978": {
+      "file": "/kugel-test/978.mp3",
+      "durationSec": 12.0,
+      "latencyMs": 3562,
+      "name": "Lea Huber",
+      "quality": "high"
+    },
+    "973": {
+      "file": "/kugel-test/973.mp3",
+      "durationSec": 10.53,
+      "latencyMs": 3128,
+      "name": "Anna Martin",
+      "quality": "high"
+    },
+    "972": {
+      "file": "/kugel-test/972.mp3",
+      "durationSec": 10.93,
+      "latencyMs": 4334,
+      "name": "Tim Schröder",
+      "quality": "high"
+    },
+    "480": {
+      "file": "/kugel-test/480.mp3",
+      "durationSec": 12.0,
+      "latencyMs": 7803,
+      "name": "Carla Brandt",
+      "quality": "mid"
+    },
+    "476": {
+      "file": "/kugel-test/476.mp3",
+      "durationSec": 13.6,
+      "latencyMs": 6446,
+      "name": "Greta Winkler",
+      "quality": "mid"
+    },
+    "468": {
+      "file": "/kugel-test/468.mp3",
+      "durationSec": 11.73,
+      "latencyMs": 7215,
+      "name": "Amelie Kraft",
+      "quality": "mid"
+    },
+    "462": {
+      "file": "/kugel-test/462.mp3",
+      "durationSec": 14.53,
+      "latencyMs": 6475,
+      "name": "Renate Haas",
+      "quality": "mid"
+    },
+    "460": {
+      "file": "/kugel-test/460.mp3",
+      "durationSec": 11.73,
+      "latencyMs": 3391,
+      "name": "Tobias Kraft",
+      "quality": "mid"
+    },
+    "450": {
+      "file": "/kugel-test/450.mp3",
+      "durationSec": 11.87,
+      "latencyMs": 4449,
+      "name": "Lisa Hofmann",
+      "quality": "mid"
+    },
+    "448": {
+      "file": "/kugel-test/448.mp3",
+      "durationSec": 12.13,
+      "latencyMs": 3421,
+      "name": "Andreas Schwarz",
+      "quality": "mid"
+    },
+    "446": {
+      "file": "/kugel-test/446.mp3",
+      "durationSec": 12.13,
+      "latencyMs": 5121,
+      "name": "Hannah Vogel",
+      "quality": "mid"
+    },
+    "438": {
+      "file": "/kugel-test/438.mp3",
+      "durationSec": 13.73,
+      "latencyMs": 4178,
+      "name": "Sabine Neumann",
+      "quality": "mid"
+    },
+    "436": {
+      "file": "/kugel-test/436.mp3",
+      "durationSec": 10.67,
+      "latencyMs": 3784,
+      "name": "Patrick Müller",
+      "quality": "mid"
+    },
+    "422": {
+      "file": "/kugel-test/422.mp3",
+      "durationSec": 13.47,
+      "latencyMs": 4127,
+      "name": "Elisabeth Fuchs",
+      "quality": "mid"
+    },
+    "420": {
+      "file": "/kugel-test/420.mp3",
+      "durationSec": 11.07,
+      "latencyMs": 3282,
+      "name": "Niklas Bauer",
+      "quality": "mid"
+    },
+    "416": {
+      "file": "/kugel-test/416.mp3",
+      "durationSec": 12.13,
+      "latencyMs": 3422,
+      "name": "Jan Schulz",
+      "quality": "mid"
+    },
+    "413": {
+      "file": "/kugel-test/413.mp3",
+      "durationSec": 10.93,
+      "latencyMs": 3983,
+      "name": "Lukas Ehlers",
+      "quality": "mid"
+    },
+    "1930": {
+      "file": "/kugel-test/1930.mp3",
+      "durationSec": 12.0,
+      "latencyMs": 3844,
+      "name": "Antonia Meier",
+      "quality": "high"
+    },
+    "1840": {
+      "file": "/kugel-test/1840.mp3",
+      "durationSec": 11.47,
+      "latencyMs": 3912,
+      "name": "Sophie Martens",
+      "quality": "high"
+    },
+    "1659": {
+      "file": "/kugel-test/1659.mp3",
+      "durationSec": 10.13,
+      "latencyMs": 33229,
+      "name": "Lena Hoffmann",
+      "quality": "high"
+    },
+    "465": {
+      "file": "/kugel-test/465.mp3",
+      "durationSec": 13.33,
+      "latencyMs": 5499,
+      "name": "Paula Beckmann",
+      "quality": "mid"
+    },
+    "458": {
+      "file": "/kugel-test/458.mp3",
+      "durationSec": 13.33,
+      "latencyMs": 3847,
+      "name": "Monika Weiß",
+      "quality": "mid"
+    },
+    "439": {
+      "file": "/kugel-test/439.mp3",
+      "durationSec": 12.53,
+      "latencyMs": 3596,
+      "name": "Christine Kühn",
+      "quality": "mid"
+    },
+    "412": {
+      "file": "/kugel-test/412.mp3",
+      "durationSec": 12.93,
+      "latencyMs": 3724,
+      "name": "Felix Richter",
+      "quality": "mid"
+    },
+    "410": {
+      "file": "/kugel-test/410.mp3",
+      "durationSec": 12.93,
+      "latencyMs": 3917,
+      "name": "Anna Hoffmann",
+      "quality": "mid"
+    },
+    "409": {
+      "file": "/kugel-test/409.mp3",
+      "durationSec": 12.4,
+      "latencyMs": 3468,
+      "name": "Helmut Drechsler",
+      "quality": "mid"
+    },
+    "404": {
+      "file": "/kugel-test/404.mp3",
+      "durationSec": 11.07,
+      "latencyMs": 3218,
+      "name": "Markus Lehmann",
+      "quality": "mid"
+    },
+    "402": {
+      "file": "/kugel-test/402.mp3",
+      "durationSec": 12.8,
+      "latencyMs": 3534,
+      "name": "Lena Berger",
+      "quality": "mid"
+    },
+    "283": {
+      "file": "/kugel-test/283.mp3",
+      "durationSec": 11.07,
+      "latencyMs": 3404,
+      "name": "Notfallsystem",
+      "quality": "mid"
+    },
+    "282": {
+      "file": "/kugel-test/282.mp3",
+      "durationSec": 13.47,
+      "latencyMs": 3690,
+      "name": "Otto der Vorleser",
+      "quality": "mid"
+    },
+    "281": {
+      "file": "/kugel-test/281.mp3",
+      "durationSec": 11.33,
+      "latencyMs": 3280,
+      "name": "Suffi Thomas",
+      "quality": "mid"
+    },
+    "280": {
+      "file": "/kugel-test/280.mp3",
+      "durationSec": 10.4,
+      "latencyMs": 4054,
+      "name": "Johann",
+      "quality": "mid"
+    },
+    "279": {
+      "file": "/kugel-test/279.mp3",
+      "durationSec": 10.8,
+      "latencyMs": 3071,
+      "name": "Markus der Analyst",
+      "quality": "mid"
+    },
+    "277": {
+      "file": "/kugel-test/277.mp3",
+      "durationSec": 11.47,
+      "latencyMs": 3314,
+      "name": "Radio Lars",
+      "quality": "mid"
+    },
+    "276": {
+      "file": "/kugel-test/276.mp3",
+      "durationSec": 10.8,
+      "latencyMs": 3125,
+      "name": "Jens",
+      "quality": "mid"
+    },
+    "274": {
+      "file": "/kugel-test/274.mp3",
+      "durationSec": 13.47,
+      "latencyMs": 3815,
+      "name": "Heinrich",
+      "quality": "mid"
+    },
+    "273": {
+      "file": "/kugel-test/273.mp3",
+      "durationSec": 14.13,
+      "latencyMs": 3904,
+      "name": "Rita die Vorleserin",
+      "quality": "mid"
+    },
+    "272": {
+      "file": "/kugel-test/272.mp3",
+      "durationSec": 12.4,
+      "latencyMs": 5045,
+      "name": "Friedrich",
+      "quality": "mid"
+    },
+    "271": {
+      "file": "/kugel-test/271.mp3",
+      "durationSec": 13.6,
+      "latencyMs": 3854,
+      "name": "Johann",
+      "quality": "mid"
+    },
+    "270": {
+      "file": "/kugel-test/270.mp3",
+      "durationSec": 15.2,
+      "latencyMs": 4616,
+      "name": "Friedrich Sänger",
+      "quality": "mid"
+    },
+    "269": {
+      "file": "/kugel-test/269.mp3",
+      "durationSec": 14.8,
+      "latencyMs": 5453,
+      "name": "Heinrich",
+      "quality": "mid"
+    },
+    "268": {
+      "file": "/kugel-test/268.mp3",
+      "durationSec": 15.33,
+      "latencyMs": 5644,
+      "name": "Hans",
+      "quality": "mid"
+    },
+    "267": {
+      "file": "/kugel-test/267.mp3",
+      "durationSec": 12.67,
+      "latencyMs": 3945,
+      "name": "Heike die Vorleserin",
+      "quality": "mid"
+    },
+    "266": {
+      "file": "/kugel-test/266.mp3",
+      "durationSec": 12.93,
+      "latencyMs": 4654,
+      "name": "Petra die Vorleserin",
+      "quality": "mid"
+    },
+    "265": {
+      "file": "/kugel-test/265.mp3",
+      "durationSec": 13.07,
+      "latencyMs": 5047,
+      "name": "Angela Österreicherin",
+      "quality": "mid"
+    },
+    "264": {
+      "file": "/kugel-test/264.mp3",
+      "durationSec": 13.47,
+      "latencyMs": 4589,
+      "name": "Katrin",
+      "quality": "mid"
+    },
+    "263": {
+      "file": "/kugel-test/263.mp3",
+      "durationSec": 13.47,
+      "latencyMs": 3744,
+      "name": "Österreichische Irmgard",
+      "quality": "mid"
+    },
+    "262": {
+      "file": "/kugel-test/262.mp3",
+      "durationSec": 11.07,
+      "latencyMs": 33500,
+      "name": "Hans",
+      "quality": "mid"
+    },
+    "261": {
+      "file": "/kugel-test/261.mp3",
+      "durationSec": 12.0,
+      "latencyMs": 3628,
+      "name": "Sauerer Felix",
+      "quality": "mid"
+    },
+    "259": {
+      "file": "/kugel-test/259.mp3",
+      "durationSec": 11.33,
+      "latencyMs": 3318,
+      "name": "Verrückter Bernd",
+      "quality": "mid"
+    },
+    "258": {
+      "file": "/kugel-test/258.mp3",
+      "durationSec": 14.4,
+      "latencyMs": 34193,
+      "name": "Lukas der Flüsterer",
+      "quality": "mid"
+    },
+    "256": {
+      "file": "/kugel-test/256.mp3",
+      "durationSec": 11.47,
+      "latencyMs": 3537,
+      "name": "Jörg",
+      "quality": "mid"
+    },
+    "255": {
+      "file": "/kugel-test/255.mp3",
+      "durationSec": 14.13,
+      "latencyMs": 3999,
+      "name": "Durchsage",
+      "quality": "mid"
+    }
+  }
+}

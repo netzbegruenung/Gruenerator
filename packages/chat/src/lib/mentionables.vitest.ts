@@ -99,14 +99,9 @@ const BEFORE: Row[] = [
     title: 'Bild bearbeiten',
     audience: 'all',
   },
-  // ── Added deliberately: seven intents that had no @-trigger at all. ───────
-  {
-    identifier: 'social_post',
-    mention: 'social',
-    title: 'Social Post',
-    audience: 'all',
-    aliases: ['socialpost'],
-  },
+  // ── Added deliberately: the intents that had no @-trigger at all. ────────
+  // `@social` stand hier, bis `social_post` 08/2026 stillgelegt wurde: ein
+  // Social-Post ist eine Textsorte, und die wählt man mit `/instagram` &Co.
   {
     identifier: 'chart',
     mention: 'diagramm',

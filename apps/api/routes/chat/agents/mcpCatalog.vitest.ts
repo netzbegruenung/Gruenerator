@@ -83,9 +83,13 @@ describe('loadMcpCatalog', () => {
     const names = Object.keys(cat.tools).sort();
     // `m<serverKey>__<tool>` where serverKey = id without dashes, first 8 chars.
     expect(names).toEqual(['ma__search_page', 'mb__send']);
+    // `origin` trägt die VOLLE Server-ID, nicht das auf 8 Zeichen gekürzte
+    // Namensraum-Präfix — daran hängt der Schlüssel der dauerhaften Freigabe,
+    // und zwei Server dürfen sich dort nicht überlagern.
     expect(cat.labels.get('ma__search_page')).toEqual({
       serverName: 'Notion',
       toolName: 'search page',
+      origin: { kind: 'mcp', serverId: 'a', remoteToolName: 'search page' },
     });
     expect(saveToolsSnapshot).toHaveBeenCalledTimes(2);
   });

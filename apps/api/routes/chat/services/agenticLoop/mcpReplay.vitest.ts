@@ -102,6 +102,20 @@ describe('buildToolObservationReplay', () => {
     // the surrounding text survives, only the markers are gone
     expect(out).toContain('Wahlprogramm');
   });
+  it('never leaks rerankDegraded into a replayed tool-result, but keeps the rest', () => {
+    // The persisted step is intentionally raw (card + debugging) — the strip
+    // must happen here, at replay serialization, not before recordStep.
+    const degraded = mcpStep({
+      toolName: 'gruenerator_search',
+      serverName: undefined,
+      result: { results: [{ title: 'Klimaschutz' }], rerankDegraded: true },
+    });
+    const msgs = buildToolObservationReplay([degraded], catalog);
+    const out = (msgs[1].content as Array<{ output: { value: string } }>)[0].output.value;
+    expect(out).not.toContain('rerankDegraded');
+    expect(out).toContain('Klimaschutz');
+  });
+
   it('gives a knowledge result the same replay budget as a source block', () => {
     // `product_knowledge` registers no sources, so it fell into the 500-char
     // action preview: live on 03.08.2026 its replay was cut from 3.876 to 500

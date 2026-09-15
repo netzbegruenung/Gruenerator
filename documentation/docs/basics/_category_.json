@@ -1,0 +1,8 @@
+{
+  "label": "Basics",
+  "position": 1,
+  "link": {
+    "type": "generated-index",
+    "description": "Was der Grünerator ist, welche Werkzeuge es gibt, worauf er aufbaut — und wie Sprachmodelle funktionieren, wo ihre Grenzen liegen."
+  }
+}

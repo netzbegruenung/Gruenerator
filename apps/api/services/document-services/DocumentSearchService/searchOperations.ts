@@ -47,6 +47,7 @@ export function buildChunkPayloadFields(payload: QdrantResultPayload | undefined
   quality_score: number | null;
   content_type: string | null;
   page_number: number | null;
+  chunk_type: string | null;
   created_at: string | undefined;
   published_at: string | null;
   source_id: string | null;
@@ -65,6 +66,7 @@ export function buildChunkPayloadFields(payload: QdrantResultPayload | undefined
     quality_score: (p.quality_score as number) ?? null,
     content_type: (p.content_type as string) ?? null,
     page_number: (p.page_number as number) ?? null,
+    chunk_type: (p.chunk_type as string) ?? null,
     created_at: p.created_at as string | undefined,
     published_at: (p.published_at as string) ?? (metadata?.published_at as string) ?? null,
     source_id: (p.source_id as string) ?? null,
@@ -384,6 +386,18 @@ export async function findHybridChunks(
     `[SearchOperations] Qdrant hybridSearch returned ${hybridResult.results.length} hits`
   );
 
+  // #3166 Fix-Runde 1: `dense_similarity_score` darf NUR aus dem
+  // server-seitigen Score-Join kommen, nie aus der Alt-Fusion — beide liefern
+  // `originalVectorScore` als echten Kosinus, aber nur auf dem Server-Pfad ist
+  // der Kosinus mit `similarity_score` (dort ein reiner Fusionswert)
+  // unvergleichbar genug, um einen eigenen Schnittwert zu rechtfertigen. Der
+  // Alt-Pfad rechnet Begriffstreffer-/Diversitäts-/Hybrid-Boni auf denselben
+  // Kosinus drauf, bevor er `similarity_score` wird — ein Schnitt gegen den
+  // unboosteten Wert würde dort die Kontrollgruppe verschieben. `fusionMethod`
+  // ist der Diskriminator: `${fusion}-server` NUR aus `hybridSearchServerSide`
+  // (hybridSearch.ts), `'RRF' | 'weighted'` aus der Alt-Fusion.
+  const viaServerScoreJoin = hybridResult.metadata?.fusionMethod?.endsWith('-server') ?? false;
+
   return hybridResult.results.map((result) => ({
     id: result.id,
     similarity: result.score,
@@ -391,6 +405,7 @@ export async function findHybridChunks(
     searchMethod: result.searchMethod || 'hybrid',
     originalVectorScore: result.originalVectorScore ?? null,
     originalTextScore: result.originalTextScore ?? null,
+    denseSimilarityScore: viaServerScoreJoin ? (result.originalVectorScore ?? null) : null,
   }));
 }
 

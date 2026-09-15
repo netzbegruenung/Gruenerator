@@ -60,6 +60,7 @@ export interface VeranstaltungFullState {
   backgroundImageFile?: File | Blob | null;
   imageOffset: { x: number; y: number };
   imageScale: number;
+  backgroundImageOpacity?: number;
   isBackgroundLocked: boolean;
   customEventTitleFontSize: number | null;
   customBeschreibungFontSize: number | null;
@@ -417,7 +418,9 @@ export const veranstaltungFullConfig: FullCanvasConfig<
       ? 'chart-settings'
       : selectedElement?.startsWith('frame-')
         ? 'frame-settings'
-        : null,
+        : selectedElement === 'background-image'
+          ? 'image'
+          : null,
 
   sections: {
     image: section({
@@ -482,9 +485,49 @@ export const veranstaltungFullConfig: FullCanvasConfig<
     ai: createAiSectionRegistration('veranstaltung', veranstaltungAiCapabilities),
   },
 
-  // Veranstaltung has complex elements (circle with rotated text, clipped photo)
-  // that don't fit the generic element model well. Using simplified elements.
+  // The date circle (rotated text) doesn't fit the generic element model and is
+  // rendered via circleBadgeInstances; the photo band, title and description are
+  // standard elements.
   elements: [
+    // Green plane behind the photo slot (order -1). The band is a partial-height
+    // cover image, so when it is zoomed out (scale < 1) or no photo is picked the
+    // slot is not fully covered — this plane fills the exposed area with the
+    // template green instead of a transparent hole, mirroring the color-backed
+    // photo templates.
+    {
+      id: 'band-background',
+      type: 'rect',
+      x: 0,
+      y: 0,
+      order: -1,
+      width: VERANSTALTUNG_CONFIG.canvas.width,
+      height: VERANSTALTUNG_CONFIG.photo.height,
+      fill: VERANSTALTUNG_CONFIG.greenSection.color,
+      listening: false,
+    },
+    // Photo band at the top (40% of the canvas). coverFit center-crops to 2:1 to
+    // match the backend reference (veranstaltung_canvas.ts). Fixed slot, not
+    // draggable, and centerZoom so the shared 0.5–3 zoom magnifies about the slot
+    // centre: zoom-in is a centred crop (no top-left bias, no re-centre needed)
+    // and zoom-out shrinks toward the centre over the green plane behind it
+    // instead of leaving a corner gap. order 0 keeps it behind the green section.
+    {
+      id: 'background-image',
+      type: 'image',
+      x: 0,
+      y: 0,
+      order: 0,
+      width: VERANSTALTUNG_CONFIG.canvas.width,
+      height: VERANSTALTUNG_CONFIG.photo.height,
+      srcKey: 'currentImageSrc',
+      offsetKey: 'imageOffset',
+      scaleKey: 'imageScale',
+      draggable: false,
+      lockedKey: 'isBackgroundLocked',
+      opacityStateKey: 'backgroundImageOpacity',
+      coverFit: true,
+      centerZoom: true,
+    },
     // Green section background
     {
       id: 'green-section',
@@ -592,7 +635,9 @@ export const veranstaltungFullConfig: FullCanvasConfig<
       backgroundImageFile: (props.backgroundImageFile as File | Blob | null | undefined) ?? null,
       imageOffset: (props.imageOffset as { x: number; y: number } | undefined) ?? { x: 0, y: 0 },
       imageScale: (props.imageScale as number | undefined) ?? 1,
-      isBackgroundLocked: false,
+      backgroundImageOpacity: (props.backgroundImageOpacity as number | undefined) ?? 1,
+      // Carried, not hard-reset — see createImageTwoTextCanvas.
+      isBackgroundLocked: (props.isBackgroundLocked as boolean | undefined) ?? false,
       // Carried over from props for the same reason as the two-text factories:
       // card renders and remote-sync re-seeds run through here, so hard-nulling
       // silently reverted a chat "Schrift größer" edit on the next render.

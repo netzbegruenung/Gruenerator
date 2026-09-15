@@ -19,6 +19,7 @@ import {
   type Mentionable,
   type CustomAgentMentionable,
   type TextformMentionable,
+  type UserAgentMentionable,
 } from '../lib/mentionables';
 import {
   slugifyMention as slugify,
@@ -28,6 +29,7 @@ import {
   syncMcpServers,
   syncSheets,
   syncTextforms,
+  syncUserAgents,
   syncUserNotebooks,
   type BoardListItem,
   type DocListItem,
@@ -61,6 +63,20 @@ export function useCustomAgentsQuery() {
   return useQuery<CustomAgentMentionable[]>({
     queryKey: ['mention-custom-agents'],
     queryFn: () => syncCustomAgents(get),
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+/**
+ * Grünerator-Agenten (`user_agents`): the user's own plus every agent shared
+ * into one of their groups, the latter carrying their group of origin.
+ */
+export function useUserAgentsQuery() {
+  const get = useMentionableFetch();
+  return useQuery<UserAgentMentionable[]>({
+    queryKey: ['mention-user-agents'],
+    queryFn: () => syncUserAgents(get),
     staleTime: STALE_TIME,
     retry: 1,
   });
@@ -464,6 +480,7 @@ export function useHiddenSkillMentions(): readonly string[] {
  */
 export function useMentionablesQuery(): void {
   useCustomAgentsQuery();
+  useUserAgentsQuery();
   useTextformsQuery();
   useBoardsQuery();
   useDocsQuery();

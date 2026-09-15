@@ -93,6 +93,9 @@ export { splitMathSegments, type MathSegment } from './lib/mathSegments';
 
 // Compute results (run_python stdout → ComputeData entries; shared with web)
 export { parseComputeResult } from './lib/computeResult';
+// Audio among a compute payload's file assets. Native needs it for the same
+// reason web does: its ComputeCard must not call a recording a calculation.
+export { audioAssetsOf, type ComputeFileAsset } from './lib/computeAssets';
 
 // Stores
 export {
@@ -210,7 +213,9 @@ export {
 } from './lib/mentionAttachments';
 export { joinWolkePath, wolkeParentPath, isWolkeRoot } from './lib/wolkePath';
 
-// useMessageTTS excluded — imports @gruenerator/voice (web-only)
+// useMessageTTS excluded — imports @gruenerator/voice (web-only). The text
+// preparation is pure and shared, so both platforms read the same words.
+export { stripForSpeech } from './lib/speechText';
 
 // Day-separator labels. Pure calendar logic (no React, no DOM) so mobile draws
 // the same rule web does — "Heute"/"Gestern"/date, and only where the calendar
@@ -233,7 +238,7 @@ export { useFetchFullText, type FetchFullTextFn } from './context/CitationContex
 export { parseSSELine, type SSECurrentEvent, type SSEParseResult } from './lib/sseParser';
 
 // Narration view-logic + label pacing (shared web + mobile)
-export { selectNarration, type PartLike } from './lib/narrationView';
+export { selectNarration, selectApprovalLabels, type PartLike } from './lib/narrationView';
 export { usePacedLabel } from './hooks/usePacedLabel';
 
 // The streaming status line's two decisions — which element, which sentence.
@@ -291,7 +296,13 @@ export {
   parsePressemitteilungExamples,
   pressemitteilungLvLabel,
   formatGermanDate,
+  getToolResultCount,
+  toolResultSummary,
+  toolOutcome,
+  toolErrorMessage,
   type ToolIconKey,
+  type ToolAccent,
+  type ToolOutcome,
   type ToolMeta,
   type ResearchCitation,
   type ResearchConfidence,
@@ -303,6 +314,17 @@ export {
   type PressemitteilungExample,
   type ParsedPressemitteilungExamples,
 } from './lib/toolResults';
+
+// Werkzeug-Freigabe: die plattformneutrale Hälfte. Web rendert sie als Karte,
+// Native als Karte im eigenen Idiom — beide lesen dieselben Optionen und
+// dieselben Beschriftungen, damit die Entscheidung überall gleich heisst.
+export {
+  TOOL_APPROVAL_OPTIONS,
+  approvalDecidedLabel,
+  isApprovalDecided,
+  type ToolApprovalOptionId,
+  type ToolApprovalState,
+} from './lib/toolApproval';
 
 // Tool view-models & registry (platform-neutral; each platform maps kind → component)
 export {
@@ -373,6 +395,9 @@ export {
   setCustomAgents,
   getCustomAgentMentionables,
   customAgentToMentionable,
+  setUserAgentMentionables,
+  getUserAgentMentionables,
+  userAgentToMentionable,
   setBoardMentionables,
   getBoardMentionables,
   boardToolMentionables,
@@ -387,6 +412,7 @@ export {
   type MentionableType,
   type MentionableCategory,
   type CustomAgentMentionable,
+  type UserAgentMentionable,
   type BoardMentionable,
   type DocMentionable,
 } from './lib/mentionables';
@@ -398,6 +424,7 @@ export {
   syncMcpServers,
   syncSheets,
   syncTextforms,
+  syncUserAgents,
   syncUserNotebooks,
   type MentionableFetch,
 } from './lib/mentionableSync';
@@ -407,7 +434,13 @@ export {
   RECIPE_ORIGIN_SECTION_TITLES,
   type RecipeOrigin,
 } from './lib/mentionSections';
-export { INTENT_TO_TOOL, DEEP_TOOL_MAP } from './lib/toolMappings';
+export {
+  INTENT_TO_TOOL,
+  DEEP_TOOL_MAP,
+  // Benennt Konnektor-Werkzeuge (`m<key>__<tool>`) lesbar; die
+  // Freigabe-Karten beider Plattformen brauchen denselben Namen.
+  formatNamespacedToolLabel,
+} from './lib/toolMappings';
 
 // Thread History Adapter (shared between drawer + provider on mobile)
 export {

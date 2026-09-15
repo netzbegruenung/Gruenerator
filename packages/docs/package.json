@@ -44,7 +44,7 @@
     "@gruenerator/voice": "workspace:*",
     "@handlewithcare/prosemirror-suggest-changes": "^0.1.8",
     "@hocuspocus/provider": "^4.4.0",
-    "@tiptap/core": "3.29.2",
+    "@tiptap/core": "^3.31.0",
     "ai": "^7.0.68",
     "lucide-react": "^1.32.0",
     "prosemirror-model": "^1.25.11",
@@ -58,6 +58,7 @@
   "devDependencies": {
     "@types/react": "19.2.18",
     "@types/react-dom": "^19.2.4",
+    "jsdom": "^30.0.1",
     "prosemirror-transform": "^1.12.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.11"

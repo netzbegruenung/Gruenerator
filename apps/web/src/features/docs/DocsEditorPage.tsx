@@ -26,7 +26,6 @@ import {
 import { EditorTopBar } from '@gruenerator/shared/components/EditorTopBar';
 import { useMediaQuery } from '@gruenerator/shared/hooks';
 import { Fab, Skeleton, useIsMobile, useScreenCornerReservation } from '@gruenerator/ui';
-import { WolkeSaveModal, uploadToWolke, useShareLinks } from '@gruenerator/wolke';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Suspense,
@@ -43,7 +42,6 @@ import {
   FiCheck,
   FiChevronDown,
   FiClock,
-  FiCloud,
   FiCornerUpLeft,
   FiCornerUpRight,
   FiDownload,
@@ -78,7 +76,6 @@ import { GuestBadge, GUEST_ANIMALS } from './GuestBadge';
 import { getOrCreateGuestIdentity } from './guestIdentity';
 import { blockLines, detectRecipient, stripDetectedBlocks } from './letterDetection';
 import { PdfExportDialog, type PdfExportSubmit } from './PdfExportDialog';
-import { useDocsLiveWolkeSync } from './useDocsLiveWolkeSync';
 
 import type { LetterheadChoice } from './LetterheadChooser';
 import type { Block, BlockNoteEditor } from '@blocknote/core';
@@ -235,7 +232,6 @@ function EditorContent() {
   );
 
   const [showShareModal, setShowShareModal] = useState(false);
-  const [showWolkeModal, setShowWolkeModal] = useState(false);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
   const [showExportSubmenu, setShowExportSubmenu] = useState(false);
   // The old export was local and instant; the server round-trip takes seconds,
@@ -254,9 +250,6 @@ function EditorContent() {
     if (activeSidebar === 'chat' && !hasOpenedChat) setHasOpenedChat(true);
   }, [activeSidebar, hasOpenedChat]);
   const [editor, setEditor] = useState<BlockNoteEditor | null>(null);
-
-  const { data: shareLinks } = useShareLinks('personal', null, { enabled: !isGuest });
-  const wolkeConnected = (shareLinks?.length ?? 0) > 0;
 
   const actionsMenuRef = useRef<HTMLDivElement>(null);
   const actionsButtonRef = useRef<HTMLButtonElement>(null);
@@ -527,39 +520,6 @@ function EditorContent() {
     }
   }, [docData, editor, exportBlockedBySuggestions]);
 
-  const handleSaveToWolke = useCallback(
-    async (shareLinkId: string, folderPath: string | undefined, liveSync: boolean) => {
-      if (!docData || !editor) throw new Error('Editor not ready');
-      const view = editor.prosemirrorView;
-      if (view && hasPendingSuggestions(view.state.doc)) {
-        throw new Error(
-          'Das Dokument enthält offene Änderungsvorschläge. Bitte zuerst alle annehmen oder ablehnen.'
-        );
-      }
-      const { DOCXExporter, docxDefaultSchemaMappings } =
-        await import('@blocknote/xl-docx-exporter');
-      const exporter = new DOCXExporter(editor.schema, docxDefaultSchemaMappings);
-      const blob = await exporter.toBlob(editor.document);
-      const arrayBuffer = await blob.arrayBuffer();
-      const bytes = new Uint8Array(arrayBuffer);
-      let binary = '';
-      for (let i = 0; i < bytes.length; i++) {
-        binary += String.fromCharCode(bytes[i]);
-      }
-      const base64Content = btoa(binary);
-      const filename = `${docData.title || 'Dokument'}.docx`;
-      await uploadToWolke(shareLinkId, base64Content, filename, {
-        ...(folderPath ? { folderPath } : {}),
-        documentId: docData.id,
-        enableLiveSync: liveSync,
-      });
-      await queryClient.invalidateQueries({ queryKey: ['document', id] });
-    },
-    [docData, editor, queryClient, id]
-  );
-
-  useDocsLiveWolkeSync({ editor, docData, canEdit });
-
   const togglePanel = useCallback((panel: SidebarPanel) => {
     setActiveSidebar((prev) => (prev === panel ? null : panel));
   }, []);
@@ -675,30 +635,6 @@ function EditorContent() {
           onTitleChange={handleTitleChange}
           rightActions={
             <>
-              {!isGuest && docData.wolke_live_sync && docData.wolke_share_link_id && (
-                <button
-                  type="button"
-                  onClick={() => setShowWolkeModal(true)}
-                  // Hidden below sm: its "Live" label only appears on hover, so
-                  // on touch it is a mute icon competing for scarce bar width.
-                  // "In Wolke speichern" in the actions menu covers the same ground.
-                  className="group relative hidden sm:flex items-center gap-1.5 py-1 px-2 text-[0.75rem] rounded-full text-secondary-700 dark:text-secondary-300 transition-all duration-200 ease-out hover:bg-secondary-100/80 dark:hover:bg-secondary-900/50 hover:scale-105 hover:shadow-[0_0_0_3px_rgba(34,197,94,0.15)] dark:hover:shadow-[0_0_0_3px_rgba(34,197,94,0.25)]"
-                  title={
-                    docData.wolke_file_path
-                      ? `Live mit Wolke synchronisiert: ${docData.wolke_file_path}`
-                      : 'Live mit Wolke synchronisiert'
-                  }
-                  aria-label="Wolke-Live-Sync aktiv"
-                >
-                  <span className="relative flex items-center justify-center">
-                    <span className="absolute inline-flex h-full w-full rounded-full bg-secondary-400/40 opacity-0 group-hover:opacity-100 group-hover:animate-ping" />
-                    <FiCloud className="relative h-3.5 w-3.5 transition-transform duration-200 group-hover:scale-110" />
-                  </span>
-                  <span className="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-200 group-hover:max-w-[3rem] group-hover:opacity-100">
-                    Live
-                  </span>
-                </button>
-              )}
               {isGuest && guestIdentity && (
                 <GuestBadge
                   guestName={guestIdentity.guestName}
@@ -879,24 +815,6 @@ function EditorContent() {
                           >
                             <FiList />
                             Änderungen prüfen
-                          </button>
-                        )}
-                        {wolkeConnected && (
-                          <button
-                            className="flex items-center gap-2.5 w-full py-2 max-sm:min-h-11 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
-                            onClick={() => {
-                              setShowActionsMenu(false);
-                              setShowWolkeModal(true);
-                            }}
-                            title={docData.wolke_file_path ?? undefined}
-                          >
-                            <FiCloud />
-                            <span className="flex-1">In Wolke speichern</span>
-                            {docData.wolke_live_sync && (
-                              <span className="text-[0.6875rem] text-secondary-600 dark:text-secondary-400 font-medium">
-                                Live
-                              </span>
-                            )}
                           </button>
                         )}
                         <div className="my-1 h-px bg-black/5 dark:bg-white/10" />
@@ -1127,15 +1045,6 @@ function EditorContent() {
             onClose={() => setShowShareModal(false)}
           />
         </Suspense>
-      )}
-
-      {!isGuest && (
-        <WolkeSaveModal
-          open={showWolkeModal}
-          onOpenChange={setShowWolkeModal}
-          onSave={handleSaveToWolke}
-          initialLiveSync={!!docData.wolke_live_sync}
-        />
       )}
 
       {showPdfDialog && editor && (

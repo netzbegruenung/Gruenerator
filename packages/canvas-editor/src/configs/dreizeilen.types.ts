@@ -51,6 +51,10 @@ export interface DreizeilenFullState {
   sunflowerVisible: boolean;
   sunflowerOpacity: number;
 
+  // === Background Colour ===
+  /** Solid plane under the photo — what the canvas shows before one is picked. */
+  backgroundColor: string;
+
   // === Background Image ===
   currentImageSrc?: string;
   backgroundImageFile?: File | Blob | null; // Original file for base64 conversion when saving
@@ -111,6 +115,7 @@ export interface DreizeilenFullActions {
   setLine3: (text: string) => void;
   setFontSize: (size: number) => void;
   setColorSchemeId: (id: string) => void;
+  setBackgroundColor: (color: string) => void;
 
   // === Balken Actions ===
   setBalkenWidthScale: (scale: number) => void;

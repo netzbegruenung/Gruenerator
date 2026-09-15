@@ -44,7 +44,7 @@ appId: de.gruenerator.app
 
 # No country question any more: one Anmelden button, everyone else behind the
 # disclosure. Which provider comes first depends on the device, so the flow
-# asserts that all four are reachable rather than naming the primary.
+# asserts that the reachable ones are there rather than naming the primary.
 - assertNotVisible:
     id: 'login-provider-gruenerator'
 - tapOn:
@@ -55,6 +55,20 @@ appId: de.gruenerator.app
     id: 'login-provider-gruene-oesterreich'
 - assertVisible:
     id: 'login-provider-netzbegruenung'
+
+# Der Grünerator-Login ist gesperrt und bleibt es auch mit offener Liste. Das
+# ist die Zusicherung, die zählt: fällt sie, sehen ihn alle Mitglieder.
+- assertNotVisible:
+    id: 'login-provider-gruenerator'
+
+# Fünf Tipper auf das Logo schalten ihn frei — der Weg, den die App-Review-Notes
+# bei Apple beschreiben. Bricht das hier, kommt der Prüfer nicht mehr herein und
+# die nächste Einreichung fällt wieder unter Guideline 2.1(a).
+- repeat:
+    times: 5
+    commands:
+      - tapOn:
+          id: 'login-logo'
 - assertVisible:
     id: 'login-provider-gruenerator'
 

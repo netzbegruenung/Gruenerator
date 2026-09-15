@@ -1,4 +1,9 @@
+import { TOOL_APPROVAL_OPTIONS } from '../lib/toolApproval';
+import { buildToolDerivedCustom } from '../lib/toolDerivedCustom';
 import { INTENT_TO_TOOL } from '../lib/toolMappings';
+
+type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+type JsonObject = { [key: string]: JsonValue };
 
 interface PersistedToolCall {
   toolCallId: string;
@@ -37,6 +42,29 @@ export interface LoadedMessage {
     roleName?: string;
     /** Row was still status='streaming' after request end — interrupted turn. */
     interrupted?: boolean;
+    /** Eine Loop-Rückfrage (`ask_human`, #3220). Solange `resolved` falsch ist,
+     *  kommt die beantwortbare Karte nach einem Reload zurück. Muss mit
+     *  `threadMessageConversion.ts` in Schritt bleiben (siehe Kommentar an den
+     *  custom-Feldern unten). */
+    pendingClarification?: {
+      askTurnId: string;
+      toolCallId: string;
+      question: string;
+      options?: string[];
+      resolved?: boolean;
+      answer?: string;
+    };
+    pendingApproval?: {
+      approvalTurnId: string;
+      calls: Array<{
+        toolCallId: string;
+        toolName: string;
+        args?: Record<string, unknown>;
+        title?: string;
+        serverName?: string;
+      }>;
+      resolved?: boolean | 'expired';
+    };
   };
 }
 
@@ -44,8 +72,16 @@ type ToolCallPart = {
   readonly type: 'tool-call';
   readonly toolCallId: string;
   readonly toolName: string;
-  readonly args: Record<string, string>;
+  /** JSON-eng gehalten: assistant-ui verlangt ReadonlyJSONObject-kompatible args. */
+  readonly args: JsonObject;
   readonly result?: unknown;
+  readonly approval?: {
+    readonly id: string;
+    readonly options?: typeof TOOL_APPROVAL_OPTIONS;
+    readonly resolution?: 'cancelled' | 'expired';
+  };
+  readonly title?: string;
+  readonly serverName?: string;
 };
 
 type TextPart = { type: 'text'; text: string };
@@ -54,6 +90,10 @@ export interface ConvertedMessage {
   role: 'user' | 'assistant';
   content: Array<TextPart | ToolCallPart>;
   id: string;
+  /** `requires-action` bei offener Rückfrage oder Werkzeug-Freigabe — sonst
+   *  verweigert assistant-ui die Antwort auf die rehydrierte Karte.
+   *  `fromThreadMessageLike` bevorzugt diesen Status vor dem Auto-Status. */
+  status?: { type: 'requires-action'; reason: 'tool-calls' };
   metadata?: { custom: Record<string, unknown> };
 }
 
@@ -89,7 +129,8 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): Converted
           m.role === 'assistant' &&
           m.metadata?.interrupted &&
           !extractContent(m.content) &&
-          !m.metadata?.toolCalls?.length
+          !m.metadata?.toolCalls?.length &&
+          !m.metadata?.pendingApproval?.calls.length
         )
     )
     .map((m) => {
@@ -99,6 +140,21 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): Converted
 
       if (m.metadata?.toolCalls) {
         for (const tc of m.metadata.toolCalls) {
+          if (tc.toolName === 'ask_human') {
+            // Beantwortete Loop-Rückfrage: echte args (question/options),
+            // Antwort als String — die Karte rendert `String(result)`.
+            const answer = (tc.result as Record<string, unknown> | undefined)?.answer;
+            contentParts.push({
+              type: 'tool-call' as const,
+              toolCallId: tc.toolCallId || `tc_${m.id}`,
+              toolName: tc.toolName,
+              // Aus der Datenbank gelesenes JSON — die Form ist JSON-tauglich,
+              // der persistierte Typ nur weiter gefasst.
+              args: (tc.args ?? {}) as JsonObject,
+              result: answer != null ? String(answer) : tc.result,
+            });
+            continue;
+          }
           contentParts.push({
             type: 'tool-call' as const,
             toolCallId: tc.toolCallId || `tc_${m.id}`,
@@ -116,6 +172,46 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): Converted
             toolName,
             args: { query: '' },
             result: { results: m.metadata.searchResults },
+          });
+        }
+      }
+
+      // Offene Loop-Rückfragen überleben den Reload: die ask_human-Karte kommt
+      // ohne Ergebnis zurück und bleibt beantwortbar (Redis-Zustand: 24 h).
+      const pendingClar = m.metadata?.pendingClarification;
+      const clarUnresolved = pendingClar != null && pendingClar.resolved !== true;
+      if (clarUnresolved) {
+        contentParts.push({
+          type: 'tool-call' as const,
+          toolCallId: pendingClar.toolCallId,
+          toolName: 'ask_human',
+          args: {
+            question: pendingClar.question,
+            ...(pendingClar.options ? { options: pendingClar.options } : {}),
+          },
+        });
+      }
+
+      // Offene Werkzeug-Freigaben überleben den Reload: volle Argumente und
+      // Dienstbeschriftung bleiben sichtbar, und assistant-ui erhält wieder
+      // sein Approval-Gate statt eines nie endenden Shimmers.
+      const pendingApproval = m.metadata?.pendingApproval;
+      const approvalVisible = pendingApproval != null && pendingApproval.resolved !== true;
+      const approvalUnresolved = approvalVisible && pendingApproval.resolved !== 'expired';
+      if (approvalVisible) {
+        for (const call of pendingApproval.calls) {
+          contentParts.push({
+            type: 'tool-call',
+            toolCallId: call.toolCallId,
+            toolName: call.toolName,
+            args: (call.args ?? {}) as JsonObject,
+            approval: {
+              id: call.toolCallId,
+              options: TOOL_APPROVAL_OPTIONS,
+              ...(pendingApproval.resolved === 'expired' ? { resolution: 'expired' as const } : {}),
+            },
+            ...(call.title != null ? { title: call.title } : {}),
+            ...(call.serverName != null ? { serverName: call.serverName } : {}),
           });
         }
       }
@@ -138,6 +234,7 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): Converted
       // next thread switch, silently and only on mobile.
       if (m.metadata?.searchImages) custom.searchImages = m.metadata.searchImages;
       if (m.metadata?.generatedImage) custom.generatedImage = m.metadata.generatedImage;
+      Object.assign(custom, buildToolDerivedCustom(m.metadata?.toolCalls));
       if (m.metadata?.intent || m.metadata?.traceId)
         custom.streamMetadata = {
           intent: m.metadata.intent ?? 'direct',
@@ -149,6 +246,9 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): Converted
         role: m.role as 'user' | 'assistant',
         content: contentParts,
         id: m.id,
+        ...(clarUnresolved || approvalUnresolved
+          ? { status: { type: 'requires-action' as const, reason: 'tool-calls' as const } }
+          : {}),
         metadata: Object.keys(custom).length > 0 ? { custom } : undefined,
       };
     });

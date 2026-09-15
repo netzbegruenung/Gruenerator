@@ -28,7 +28,7 @@ const IMPORTABLE_EXTENSIONS = new Set(['.pdf', '.docx', '.doc', '.odt', '.pptx']
 
 export default function WolkeImportModal({ open, onOpenChange }: WolkeImportModalProps) {
   const adapter = useDocsAdapter();
-  const { data: shareLinks = [], isLoading: isLoadingLinks } = useShareLinks(undefined, undefined, {
+  const { data: shareLinks = [], isLoading: isLoadingLinks } = useShareLinks({
     enabled: open,
   });
 

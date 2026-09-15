@@ -23,6 +23,7 @@ import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelp
 import { createLogger } from '../../utils/logger.js';
 import { createNotification } from '../notifications/NotificationService.js';
 
+import { insertPendingFiles } from './wolkePendingFiles.js';
 import { getWolkeSyncService } from './WolkeSyncService.js';
 
 const log = createLogger('wolke-watch');
@@ -97,28 +98,16 @@ export class WolkeWatchService {
       const newFiles = files.filter((f) => !importedPaths.has(f.href) && !pendingPaths.has(f.href));
       if (newFiles.length === 0) continue;
 
-      const inserted = await db
-        .insert(wolkePendingFiles)
-        .values(
-          newFiles.map((f) => ({
-            collectionId: collection.id,
-            userId: collection.user_id,
-            shareLinkId: folder.shareLinkId,
-            folderPath: folder.folderPath,
-            filePath: f.href,
-            fileName: f.name,
-            etag: f.etag ?? null,
-            size: f.size ?? null,
-            mimeType: null,
-            status: 'pending',
-          }))
-        )
-        .onConflictDoNothing({
-          target: [wolkePendingFiles.collectionId, wolkePendingFiles.filePath],
-        })
-        .returning({ id: wolkePendingFiles.id });
-
-      newCount += inserted.length;
+      newCount += await insertPendingFiles(
+        {
+          collectionId: collection.id,
+          userId: collection.user_id,
+          shareLinkId: folder.shareLinkId,
+          folderPath: folder.folderPath,
+          files: newFiles,
+        },
+        db
+      );
       for (const f of newFiles) pendingPaths.add(f.href);
     }
 

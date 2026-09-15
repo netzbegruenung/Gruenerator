@@ -4,7 +4,7 @@
 # about what a real model would have done.
 
 ## turn 0: "Erstelle ein Sharepic zur Windkraft"
-router.run_agentic               = single_pass                    forcedLoop=false forcedTool=false gateOpen=false hasImageAttachments=false hasManagedSources=false hasOwnMaterial=false hasSelectedNotebook=false inLoopSet=false intent=sharepic isCompound=false isPdfFillRequest=false loopEnabled=true mustLoop=false secondaryAllowed=true selfContained=false unsourcedWriting=true
+router.run_agentic               = single_pass                    forcedLoop=false forcedTool=false gateOpen=false hasImageAttachments=false hasManagedSources=false hasOwnMaterial=false hasSelectedNotebook=false inLoopSet=false intent=sharepic isCompound=false isPdfFillRequest=false loopEnabled=true memoryRequest=false mustLoop=false secondaryAllowed=true selfContained=false unsourcedWriting=true
 router.intent_override           = (not reached)
 router.implicit_recipe           = (not reached)
 router.persistent_action_gate    = (not reached)

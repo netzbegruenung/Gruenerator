@@ -1,6 +1,7 @@
 ---
 sidebar_position: 0
 title: 'Juli 2026: Der XXL-Testsommer'
+description: 'Sharepics als grünes Canva, Tabellen und Präsentationen, Agent*innen in den Boards und die Apps für Mac und Handy.'
 ---
 
 # Der XXL-Testsommer

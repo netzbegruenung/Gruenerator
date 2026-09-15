@@ -22,12 +22,15 @@ import { grueneratorToolkit } from '../components/tool-ui/GrueneratorToolUIs';
 import { ChatCollaborationProvider } from '../context/ChatCollaborationContext';
 import { ChatSurfaceProvider, createChatSurfaceStore } from '../context/ChatSurfaceContext';
 import { useChatCollaboration } from '../hooks/useChatCollaboration';
+import { useInterruptSignal, useQueueInterruptGuard } from '../hooks/useQueueInterruptGuard';
 import { GrueneratorAttachmentAdapter } from '../runtime/GrueneratorAttachmentAdapter';
 import {
   createGrueneratorModelAdapter,
   type GrueneratorAdapterConfig,
 } from '../runtime/GrueneratorModelAdapter';
+import { MESSAGE_QUEUE_ENABLED } from '../runtime/messageQueueFlag';
 import { convertToThreadMessageLike } from '../runtime/threadMessageConversion';
+import { useFeedbackAdapter } from '../runtime/useFeedbackAdapter';
 import { useChatConfigStore } from '../stores/chatConfigStore';
 
 import { deriveGateState, shouldImportHistory } from './helpers';
@@ -224,19 +227,37 @@ function EditorAssistantReadyHost({
 
   // Pinned binding: one thread per mount, resolved by the surface — the aui
   // runtime's per-run thread id is never consulted (see ThreadBinding).
+  const interruptSignal = useInterruptSignal();
   const modelAdapter = useMemo(
-    () => createGrueneratorModelAdapter(getConfig, {}, { threadBinding: 'pinned' }),
-    [getConfig]
+    () =>
+      createGrueneratorModelAdapter(
+        getConfig,
+        { onInterrupt: interruptSignal.notify },
+        { threadBinding: 'pinned' }
+      ),
+    [getConfig, interruptSignal]
   );
   const attachmentAdapter = useMemo(
     () => (adapter.attachments === false ? null : new GrueneratorAttachmentAdapter()),
     [adapter.attachments]
   );
 
+  // The queue is paired with the adapter-side interrupt signal, not with the
+  // message status: this runtime declares no `unstable_humanToolNames`, so a
+  // clarification never parks the message at `requires-action` here, while the
+  // shared adapter still arms `interruptedThreadId` and aborts every further run
+  // on the thread. Reading the status would have looked like cover and been
+  // none — see useQueueInterruptGuard (#3020).
+  const feedbackAdapter = useFeedbackAdapter();
   const runtime = useLocalRuntime(modelAdapter, {
     initialMessages: initialMessages ?? [],
-    ...(attachmentAdapter ? { adapters: { attachments: attachmentAdapter } } : {}),
+    unstable_enableMessageQueue: MESSAGE_QUEUE_ENABLED,
+    adapters: {
+      feedback: feedbackAdapter,
+      ...(attachmentAdapter ? { attachments: attachmentAdapter } : {}),
+    },
   });
+  useQueueInterruptGuard(runtime, interruptSignal);
 
   const importedRef = useRef(false);
   useEffect(() => {

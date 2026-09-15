@@ -77,6 +77,16 @@ export const threadsContractRouter = s.router(threadsContract, {
                   WHEN t.permissions ? $2::text THEN 'shared'
                   ELSE 'group'
                 END as access_type,
+                CASE
+                  WHEN t.user_id::text = $1 OR t.permissions ? $2::text OR t.is_public = true THEN false
+                  ELSE NOT COALESCE((
+                    SELECT bool_or(COALESCE((gcs.permissions->>'write')::boolean, true))
+                    FROM group_content_shares gcs
+                    INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id::text = $1 AND gm.is_active = TRUE
+                    WHERE gcs.content_type = 'chat_threads' AND gcs.content_id = t.id::text
+                      AND COALESCE((gcs.permissions->>'read')::boolean, true) = true
+                  ), true)
+                END as read_only,
                 m.content as last_msg_content, m.role as last_msg_role, m.created_at as last_msg_created_at
          FROM chat_threads t
          LEFT JOIN LATERAL (
@@ -94,6 +104,7 @@ export const threadsContractRouter = s.router(threadsContract, {
              SELECT gcs.content_id::uuid FROM group_content_shares gcs
              INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id::text = $1 AND gm.is_active = TRUE
              WHERE gcs.content_type = 'chat_threads'
+               AND COALESCE((gcs.permissions->>'read')::boolean, true) = true
            )
          )${statusClause}
          ORDER BY t.updated_at DESC`,
@@ -111,6 +122,8 @@ export const threadsContractRouter = s.router(threadsContract, {
         groupId: (row.group_id as string) || null,
         tags: (row.tags as string[]) ?? [],
         slugSuffix: (row.slug_suffix as string) ?? null,
+        accessType: (row.access_type as 'owner' | 'shared' | 'group') ?? null,
+        readOnly: row.read_only === true,
         createdAt: row.created_at as Date | string,
         updatedAt: row.updated_at as Date | string,
         user_id: row.user_id as string,
@@ -138,6 +151,8 @@ export const threadsContractRouter = s.router(threadsContract, {
         groupId: t.groupId ?? null,
         tags: t.tags,
         slugSuffix: t.slugSuffix,
+        accessType: t.accessType,
+        readOnly: t.readOnly,
         createdAt: toIsoString(t.createdAt),
         updatedAt: toIsoString(t.updatedAt),
         lastMessage: t.lastMessage

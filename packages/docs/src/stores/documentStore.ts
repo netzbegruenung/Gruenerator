@@ -25,7 +25,6 @@ export interface Document {
   wolke_share_link_id?: string | null;
   wolke_file_path?: string | null;
   wolke_etag?: string | null;
-  wolke_live_sync?: boolean | null;
   last_synced_at?: string | null;
 }
 

@@ -11,6 +11,7 @@ import {
   buildConcisePromptGrundsatz,
   buildConcisePromptGeneral,
 } from '../../agents/langgraph/prompts.js';
+import { env } from '../../config/env.js';
 import { getNotebookDepthProfile } from '../../config/notebookDepthProfiles.js';
 import {
   SYSTEM_COLLECTIONS,
@@ -18,7 +19,10 @@ import {
 } from '../../config/systemCollectionsConfig.js';
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { notebookQAService } from '../../services/notebook/index.js';
-import { rerankNotebookResults } from '../../services/notebook/rerankNotebookResults.js';
+import {
+  cutNotebookResults,
+  rerankNotebookResults,
+} from '../../services/notebook/rerankNotebookResults.js';
 import {
   renumberCitationsInOrder,
   validateAndInjectCitations,
@@ -48,7 +52,7 @@ import {
   streamForResolution,
   streamWithFallback,
 } from './services/responseStreamingService.js';
-import { PROGRESS_MESSAGES, SSEWriter } from './services/sseHelpers.js';
+import { PROGRESS_MESSAGES, SSEWriter, sendChatWarning } from './services/sseHelpers.js';
 
 import type { SearchContext } from '../../services/notebook/types.js';
 import type { CollectionConfig, SourcesByCollection } from '../../services/search/types.js';
@@ -67,7 +71,6 @@ export interface NotebookStreamOptions {
   collectionId?: string;
   collectionIds?: string[];
   filters?: Record<string, unknown>;
-  provider?: string;
   model?: string;
   mode?: NotebookDepth;
   userId?: string;
@@ -77,10 +80,30 @@ export interface NotebookStreamOptions {
   noResultsMessage?: string;
   /** Minimum results after rerank to proceed with generation (default: 0 = no gate). */
   minResultsForGeneration?: number;
+  /**
+   * Ob dieser Turn `evidence_weak` senden darf. Der Grün-O-Mat setzt `false`:
+   * er fährt `mode: 'fast'` — ein Tiefenprofil, das in der Kalibrierung nicht
+   * vorkam (alle 15 Fälle liefen `deep`) — und hat mit `topicGuard` plus
+   * `OFF_TOPIC_RESPONSE` seine eigene, härtere Themenabwehr. Berechnet und
+   * protokolliert wird der Wert dort trotzdem. Default: `true`.
+   */
+  emitEvidenceWarning?: boolean;
   /** Filter search to specific document IDs within the collection. */
   documentIds?: string[];
   /** Shared SSE writer — if provided, used instead of creating one internally. */
   sse?: SSEWriter;
+  /**
+   * Default OFF since 2026-09-03: `apps/api/evals/answer/answer-eval-2026-09-03.md`
+   * measured the cross-encoder against the un-reranked (cut) order and found
+   * ties in 25 of 27 judged pairs and 8 of 10 human pairs, at ~3 s per answer
+   * saved. Absent, or `mode: 'off'`, therefore skips `rerankNotebookResults`
+   * and instead cuts `sortedResults` to `profile.rerankOutput` in retrieval
+   * order via `cutNotebookResults`. `mode: 'sort'` is the pre-2026-09-03
+   * behaviour (kept for the eval and as the documented way back); `'filter'`
+   * additionally drops candidates below the relevance floor. Both, plus
+   * `instruct`, pass through to `rerankNotebookResults`.
+   */
+  rerank?: { mode?: 'off' | 'sort' | 'filter'; instruct?: string };
   /**
    * When false, the function does NOT call `sse.end()` on success or error
    * paths — the caller is responsible for closing the stream after running
@@ -94,6 +117,8 @@ export interface NotebookStreamResult {
   citations: unknown[];
   sources: unknown[];
   question: string;
+  /** Langfuse trace of the turn; null when Langfuse is disabled. Target for thumbs feedback. */
+  traceId: string | null;
 }
 
 export async function handleNotebookStream(
@@ -106,12 +131,12 @@ export async function handleNotebookStream(
     collectionId,
     collectionIds,
     filters,
-    provider: _provider,
     model,
     mode,
     userId,
     allowUserCollections = true,
     documentIds,
+    emitEvidenceWarning = true,
   } = options;
 
   // An omitted mode has always meant the thorough tier here (`isFast` was
@@ -158,30 +183,43 @@ export async function handleNotebookStream(
     const question = lastUserMessage.content;
     const t0 = Date.now();
 
-    // Conversation history is an ultra-only capability (profile.history).
-    // Other tiers drop incoming history EXPLICITLY — the chat-mode client has
-    // always sent the full unpruned thread to this endpoint, and before this
-    // gate it was spread into the model messages unbudgeted.
     const lastUserIdx = messages.lastIndexOf(lastUserMessage);
-    let history = profile.history ? normalizeNotebookHistory(messages.slice(0, lastUserIdx)) : [];
-    if (!profile.history && messages.length > 1) {
-      log.debug(`[Notebook] Dropping ${messages.length - 1} history messages (tier ${depth})`);
+    const incomingHistory = normalizeNotebookHistory(messages.slice(0, lastUserIdx));
+    // Prompt-Verlauf ist eine Ultra-Fähigkeit (profile.history). Die Stufen
+    // darunter verwerfen ihn für den Prompt AUSDRÜCKLICH — der Chat-Client hat
+    // immer den vollen Thread geschickt, und ohne dieses Gitter landete er
+    // unbudgetiert in den Modellnachrichten.
+    let history = profile.history ? incomingHistory : [];
+    if (!profile.history && incomingHistory.length > 0) {
+      log.debug(
+        `[Notebook] Dropping ${incomingHistory.length} history messages from the prompt (tier ${depth})`
+      );
     }
 
     sse.send('search_start', { message: 'Suche in Dokumenten...' });
 
-    // Tiers above one variant search several formulations of the question and
-    // union the hits. expandQuery degrades to zero alternatives on failure, so
-    // the worst case is the single-query behaviour of the tiers below. With
-    // history present, the same call also resolves the follow-up into a
-    // standalone query ("und in Bayern?" carries no topic for vector search).
+    // Die Suchanfrage: umgeschrieben gegen den Verlauf, wenn die Stufe es
+    // erlaubt und Verlauf da ist („und in Bayern?" trägt kein Thema); dazu
+    // Paraphrasen, wenn die Stufe mehr als eine Formulierung sucht. Beides ist
+    // EIN expandQuery-Aufruf; ohne Verlauf und mit einer Variante gibt es keinen.
     let queries = [question];
-    if (profile.queryVariants > 1) {
+    const wantsRewrite = profile.queryRewrite && incomingHistory.length > 0;
+    if (wantsRewrite || profile.queryVariants > 1) {
       const expanded = await expandQuery(
         question,
-        history.length > 0 ? { historyContext: buildRewriteTranscript(history) } : {}
+        wantsRewrite
+          ? {
+              historyContext: buildRewriteTranscript(incomingHistory),
+              // `deep` rewrites but keeps a single query — asking for
+              // alternatives it would immediately slice away is wasted spend.
+              ...(profile.queryVariants <= 1 && { variants: 0 }),
+            }
+          : {}
       );
-      queries = [expanded.primary, ...expanded.alternatives].slice(0, profile.queryVariants);
+      queries = [expanded.primary, ...expanded.alternatives].slice(
+        0,
+        Math.max(1, profile.queryVariants)
+      );
       if (queries.length > 1) {
         sse.send('progress_step', {
           stepId: 'notebook-query-expansion',
@@ -192,6 +230,13 @@ export async function handleNotebookStream(
         });
       }
     }
+
+    // The reranker's cross-encoder must read the same query the candidates
+    // were retrieved with. `queries[0]` is the rewritten standalone question
+    // when the rewrite ran, and equals `question` unchanged when it was
+    // skipped or failed — so the un-rewritten follow-up never reaches it.
+    // `queries` is seeded with `question`, so it is never empty.
+    const rerankQuery = queries[0];
 
     let searchContext: SearchContext | null;
     try {
@@ -243,33 +288,49 @@ export async function handleNotebookStream(
       resultCount: searchContext?.sortedResults.length ?? 0,
     });
 
-    // Rerank in EVERY tier.
-    //
-    // This used to be gated on `isFast`, which left "Tiefenrecherche" — the
-    // path that retrieves the MOST candidates — as the only one without a
-    // cross-encoder. That is inverse to what the UI promises: the mode
-    // advertised as the thorough one was handing the model the raw
-    // hybrid-search order.
-    //
-    // The tiers differ in HOW MUCH survives, not in WHETHER it is ranked.
-    // rerankNotebookResults degrades openly — with Regolo unconfigured it
-    // returns the original order rather than throwing — so a bigger window
-    // cannot make a tier fail where a smaller one used to work.
+    // Cut (or, with `rerank.mode`, rerank) in EVERY tier — the tiers differ in
+    // HOW MUCH survives (`profile.rerankOutput`), not in whether that cut
+    // happens. This used to gate the cross-encoder on `isFast`, which left
+    // "Tiefenrecherche" — the path that retrieves the MOST candidates — as the
+    // only one without any cut at all; the eval in the `rerank` docblock above
+    // then found the cross-encoder itself dispensable for the default path.
+    // rerankNotebookResults still degrades openly when `mode: 'sort'`/`'filter'`
+    // is requested — with Regolo unconfigured it returns the original order
+    // rather than throwing.
     if (searchContext) {
-      const reranked = await rerankNotebookResults({
-        results: searchContext.sortedResults,
-        referencesMap: searchContext.referencesMap,
-        question,
-        limit: profile.rerankOutput,
-        inputLimit: profile.rerankInput,
-      });
-      searchContext.sortedResults = reranked.results;
-      searchContext.referencesMap = reranked.referencesMap;
-      searchContext.contextSummary = reranked.contextSummary;
+      const rerankMode = options.rerank?.mode;
+      const rerankInstruct = options.rerank?.instruct;
+      if (rerankMode === 'sort' || rerankMode === 'filter') {
+        const reranked = await rerankNotebookResults({
+          results: searchContext.sortedResults,
+          referencesMap: searchContext.referencesMap,
+          question: rerankQuery,
+          limit: profile.rerankOutput,
+          inputLimit: profile.rerankInput,
+          mode: rerankMode,
+          ...(rerankInstruct ? { instruct: rerankInstruct } : {}),
+        });
+        searchContext.sortedResults = reranked.results;
+        searchContext.referencesMap = reranked.referencesMap;
+        searchContext.contextSummary = reranked.contextSummary;
 
-      log.debug(
-        `⏱ Rerank (${depth}): ${reranked.rerankTimeMs}ms, ${searchContext.sortedResults.length} results kept`
-      );
+        log.debug(
+          `⏱ Rerank (${depth}): ${reranked.rerankTimeMs}ms, ${searchContext.sortedResults.length} results kept`
+        );
+      } else {
+        const cut = cutNotebookResults({
+          results: searchContext.sortedResults,
+          referencesMap: searchContext.referencesMap,
+          limit: profile.rerankOutput,
+        });
+        searchContext.sortedResults = cut.results;
+        searchContext.referencesMap = cut.referencesMap;
+        searchContext.contextSummary = cut.contextSummary;
+
+        log.debug(
+          `[Notebook] rerank off — cut to ${searchContext.sortedResults.length} by retrieval order`
+        );
+      }
 
       // The concise prompt exists to shrink the answer to match a shrunken
       // context. The thorough tiers are asked for a thorough answer and keep
@@ -334,6 +395,41 @@ export async function handleNotebookStream(
       return null;
     }
 
+    // Evidenz-Signal (#3140): der dichte Spitzenwert VOR dem Rerank. Er wird in
+    // `getSearchContext` gebildet, weil er hier nicht mehr rekonstruierbar wäre
+    // — `rerankNotebookResults` schreibt den Cross-Encoder-Wert auf
+    // `similarity` zurück und die Zeile weiter oben ersetzt die ganze Liste.
+    // `searchContext.evidenceTop` selbst bleibt vom Rerank unberührt, deshalb
+    // liefert das Feld auch hier — nach Rerank und Qualitäts-Gate — noch den
+    // Vor-Rerank-Wert.
+    //
+    // Die Emission sitzt bewusst NACH dem Layer-4-Gate: eine verweigerte
+    // Antwort soll nie mit der Warnung ausgestattet werden.
+    //
+    // Die Logzeile geht bei jeder beantworteten Anfrage hinaus (nicht bei einer
+    // Abweisung durch die Qualitätsschranke), auch bei ausgeschaltetem Schalter: sie
+    // ist die Produktionsmessung, die einzige Stelle, an der sichtbar wird, wo
+    // das Signal auf echten Fragen liegt. Der Zahlenwert geht NICHT auf die
+    // Leitung — die Wire-Gestalt bleibt { code, message }.
+    const evidenceTop = searchContext?.evidenceTop ?? null;
+    if (evidenceTop !== null) {
+      const weak = evidenceTop < env.NOTEBOOK_EVIDENCE_WEAK_THRESHOLD;
+      log.info(
+        `[Notebook] evidenceTop=${evidenceTop.toFixed(4)} ` +
+          `(threshold ${env.NOTEBOOK_EVIDENCE_WEAK_THRESHOLD.toFixed(3)}, ` +
+          `enabled=${env.NOTEBOOK_EVIDENCE_WEAK_ENABLED}, ${depth}, ` +
+          `${searchContext?.sortedResults.length ?? 0} candidates) → ${weak ? 'weak' : 'ok'}`
+      );
+      // Kalibriert nur auf `deep` (beide Runden) — `fast` durchsucht weniger
+      // Kandidaten und wurde nie vermessen, `ultra` holt eine Obermenge von
+      // `deep` und liegt darum mindestens genauso hoch.
+      if (weak && env.NOTEBOOK_EVIDENCE_WEAK_ENABLED && emitEvidenceWarning && depth !== 'fast') {
+        sendChatWarning(sse, 'evidence_weak');
+      }
+    } else {
+      log.info(`[Notebook] evidenceTop=none (no candidates, ${depth})`);
+    }
+
     // Handle no results case
     if (!searchContext) {
       const noResultsMessage = collectionId
@@ -366,9 +462,6 @@ export async function handleNotebookStream(
     });
 
     if (!isProviderConfigured(primaryResolution.provider)) {
-      // If we acquired the Verdigado slot but can't actually use the resolution,
-      // release it so the next request isn't blocked.
-      if (primaryResolution.releaseSlot) await primaryResolution.releaseSlot();
       sse.send('error', {
         error: PROGRESS_MESSAGES.aiUnavailable,
         code: 'provider_unavailable',
@@ -421,50 +514,45 @@ export async function handleNotebookStream(
 
     sse.send('response_start', { message: 'Generiere Antwort...' });
 
-    let fullText: string | null;
-    try {
-      const notebookTelemetry = buildAiTelemetry('notebook-chat.respond');
-      // Wrap in a trace so propagateAttributes sets trace-level user/session —
-      // AI SDK telemetry carries no metadata of its own, so without this
-      // notebook traces would show empty User/Session.
-      fullText = await withLangfuseTrace(
-        {
-          name: 'notebook-turn',
-          ...(userId && { userId }),
-          ...(collectionId && { sessionId: collectionId }),
-        },
-        async (trace) => {
-          const text = await streamWithFallback({
-            primary: primaryResolution,
-            sse,
-            logPrefix: '[Notebook]',
-            buildStream: async (resolution) => {
-              return streamForResolution({
-                resolution,
-                messages: aiMessages,
-                maxTokens: baseMaxOutput,
-                temperature: 0.2,
-                sse,
-                signal: abortController.signal,
-                logPrefix: '[Notebook]',
-                ...(notebookTelemetry && { telemetry: notebookTelemetry }),
-              });
-            },
-          });
-          // Both lanes dead → null, not a throw; the span has to say so itself.
-          trace.update(
-            text === null
-              ? { input: userContent, level: 'ERROR', statusMessage: BOTH_LANES_FAILED }
-              : { input: userContent, output: text }
-          );
-          return text;
-        }
-      );
-    } finally {
-      if (primaryResolution.releaseSlot) {
-        await primaryResolution.releaseSlot();
+    const notebookTelemetry = buildAiTelemetry('notebook-chat.respond');
+    let traceId: string | null = null;
+    // Wrap in a trace so propagateAttributes sets trace-level user/session —
+    // AI SDK telemetry carries no metadata of its own, so without this
+    // notebook traces would show empty User/Session.
+    const fullText: string | null = await withLangfuseTrace(
+      {
+        name: 'notebook-turn',
+        ...(userId && { userId }),
+        ...(collectionId && { sessionId: collectionId }),
+      },
+      async (trace) => {
+        traceId = trace.traceId ?? null;
+        const text = await streamWithFallback({
+          primary: primaryResolution,
+          sse,
+          logPrefix: '[Notebook]',
+          buildStream: async (resolution) => {
+            return streamForResolution({
+              resolution,
+              messages: aiMessages,
+              maxTokens: baseMaxOutput,
+              temperature: 0.2,
+              sse,
+              signal: abortController.signal,
+              logPrefix: '[Notebook]',
+              ...(notebookTelemetry && { telemetry: notebookTelemetry }),
+            });
+          },
+        });
+        // Both lanes dead → null, not a throw; the span has to say so itself.
+        trace.update(
+          text === null
+            ? { input: userContent, level: 'ERROR', statusMessage: BOTH_LANES_FAILED }
+            : { input: userContent, output: text }
+        );
+        return text;
       }
-    }
+    );
 
     if (fullText === null) {
       log.debug(`⏱ Total (stream failed): ${Date.now() - t0}ms`);
@@ -496,17 +584,22 @@ export async function handleNotebookStream(
       // Return the fallback instead of null: the controller only persists when
       // a result comes back, so returning null left the user's message in the
       // thread without any assistant reply after reload.
-      return { answer: fallback, citations: [], sources: [], question };
+      return { answer: fallback, citations: [], sources: [], question, traceId: null };
     }
 
     const { renumberedDraft, newReferencesMap } = renumberCitationsInOrder(
       fullText,
       searchContext.referencesMap
     );
-    const { cleanDraft, citations, sources } = validateAndInjectCitations(
+    const { cleanDraft, citations, sources, errors } = validateAndInjectCitations(
       renumberedDraft,
-      newReferencesMap
+      newReferencesMap,
+      { question }
     );
+    if (errors && errors.length > 0) {
+      log.warn(`[Notebook] ${errors.length} invalid citation marker(s): ${errors.join(', ')}`);
+      sendChatWarning(sse, 'citation_invalid');
+    }
 
     const allSources = searchContext.sortedResults
       .filter((_, i) => !citations.some((c) => c.index === String(i + 1)))
@@ -544,6 +637,7 @@ export async function handleNotebookStream(
         citationsCount: citations.length,
         depth,
         queryCount: queries.length,
+        ...(traceId ? { traceId } : {}),
       },
     });
 
@@ -553,7 +647,7 @@ export async function handleNotebookStream(
     );
     if (options.closeStream !== false) sse.end();
 
-    return { answer: cleanDraft, citations, sources, question };
+    return { answer: cleanDraft, citations, sources, question, traceId };
   } catch (error: unknown) {
     log.error('Notebook stream error:', error);
     sse.send('error', {

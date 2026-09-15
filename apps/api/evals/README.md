@@ -18,7 +18,7 @@ Every bug we found by hand is now a permanent, automated check.
 2. **LLM judge** (`eval:judge`) — post-pass over `last-run.json` for what regex
    can't score: groundedness ([N] actually supported), narration honesty (text
    vs executed actions), known-answer contradiction, German/AT quality,
-   long-thread parity. Model: `verdigado-pro` (free, LiteLLM proxy), temp 0, JSON verdicts.
+   long-thread parity. Model: `gemma-4-31b-it` (Cortecs), temp 0, JSON verdicts.
    `groundedness` und `unsourced_confidence` sind ein Paar: die erste setzt bei
    null Quellen aus (ihre Frage ist dann leer), die zweite läuft dann an ihrer
    Stelle und fragt, ob der Text Belegtes im Indikativ behauptet, ohne seine
@@ -150,7 +150,7 @@ Log-Lücke halten, bevor daraus ein Befund wird.
 | `EVAL_UPDATE_BASELINE=1`        | —                       | overwrite the baseline with this run               |
 | `EVAL_RECORD_DIR`               | —                       | record raw SSE per turn (E2E fixtures)             |
 | `EVAL_DECISION_DIR`             | —                       | read decision journals back, render maps           |
-| `LITELLM_BASE_URL/_API_KEY`     | —                       | judge only (verdigado proxy)                       |
+| `CORTECS_API_KEY`               | —                       | judge only (Cortecs)                               |
 | `EVAL_JUDGE_BLOCKING=1`         | —                       | judge failures set exit code                       |
 
 ## Decision maps from a live run

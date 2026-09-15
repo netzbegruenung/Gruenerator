@@ -279,6 +279,16 @@ const LoginPage = ({
 
   const primaryProvider = primaryProviderId ? getProviderById(primaryProviderId) : undefined;
 
+  // Gleiche Regel wie auf der Startseite (StartpageHero): Anbieter ohne
+  // `enabledByDefault` stehen nicht in der Liste. Der Grünerator-Login ist für
+  // Mitarbeitende von Abgeordneten und Geschäftsstellen und wird nur über den
+  // Deeplink /login?login=gruenerator erreicht — der macht ihn zum
+  // `primaryProviderId` und damit hier wieder sichtbar, sonst wäre er nach der
+  // Wahl nicht mehr auffindbar.
+  const visibleProviders = LOGIN_PROVIDERS.filter(
+    (provider) => provider.enabledByDefault || provider.id === primaryProviderId
+  );
+
   const standaloneLoginCta = (
     <div className="lp-cta">
       {/* Ohne erkanntes Land keine Vorauswahl: beide Länder stehen gleichrangig
@@ -351,7 +361,7 @@ const LoginPage = ({
 
       {providersOpen && (
         <ul className="lp-provider-list">
-          {LOGIN_PROVIDERS.map((provider) => (
+          {visibleProviders.map((provider) => (
             <li key={provider.id}>
               <button
                 type="button"

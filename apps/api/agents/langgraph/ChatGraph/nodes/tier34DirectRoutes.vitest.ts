@@ -2,9 +2,11 @@
  * Die beiden Direktrouten aus Tier 3.4 — und was sie NICHT beanspruchen dürfen.
  *
  * Beide sind Präzisionsmuster, keine Gitter, und der Unterschied hat hier
- * Zähne: `create_recurring_task` steht nicht in `AGENTIC_INTENTS`, der
- * Dispatcher legt also OHNE Rückfrage an. Ein Fehlalarm schreibt in die
- * Datenbank und lässt die eigentliche Frage unbeantwortet. `chat_history` läuft
+ * Zähne. Der Dauerauftrag geht seit 09/2026 als `agentic` mit Pin auf das
+ * Werkzeug `recurring_tasks` in die Schleife, und das Anlegen ist dort eine
+ * Karte — ein Fehlalarm schreibt also nicht mehr in die Datenbank, aber er
+ * zwingt den ersten Werkzeugaufruf auf `recurring_tasks` (`pinnedFirstTool`)
+ * und lässt die eigentliche Frage einen Umweg nehmen. `chat_history` läuft
  * mit `excludeThreadId: currentThread`, ein Fehlalarm beantwortet die Nachricht
  * also aus FREMDEN Gesprächen.
  *

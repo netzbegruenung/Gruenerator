@@ -3,6 +3,7 @@
  *
  * Replaces the legacy Express router in userAgents.ts. Covers:
  *   - GET    /api/user-agents
+ *   - GET    /api/user-agents/mentionable
  *   - POST   /api/user-agents
  *   - GET    /api/user-agents/:identifier
  *   - PATCH  /api/user-agents/:identifier
@@ -25,6 +26,7 @@ import {
   createUserAgent,
   deleteUserAgent,
   getUserAgent,
+  listMentionableUserAgents,
   listUserAgents,
   updateUserAgent,
   type UserAgentInput,
@@ -208,6 +210,18 @@ export const userAgentsContractRouter = s.router(userAgentsContract, {
         status: 500 as const,
         body: { success: false, message: 'Entwurf konnte nicht erstellt werden.' },
       };
+    }
+  },
+
+  listMentionable: async (args) => {
+    try {
+      const userId = getAuthedUser(args.req).id;
+      const agents = await listMentionableUserAgents(userId);
+      return { status: 200 as const, body: { success: true, agents } };
+    } catch (error) {
+      const err = error as Error;
+      log.error('[userAgentsContract.listMentionable] Error:', err);
+      return { status: 500 as const, body: { success: false, message: toUserFacingMessage(err) } };
     }
   },
 

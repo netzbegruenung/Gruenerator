@@ -29,11 +29,11 @@ import {
   resolveUserNotebookDocumentIds,
 } from '../../../config/notebookCollectionMap.js';
 import {
-  getMem0Instance,
-  normalizeCategory,
-  formatMemoriesByCategory,
-} from '../../../services/mem0/index.js';
-import { getCachedPersona } from '../../../services/mem0/personaService.js';
+  loadTurnMemories,
+  numberMemories,
+  renderMemoryLines,
+  type RenderedMemory,
+} from '../../../services/memory/index.js';
 import { findRole, resolveCustomSystemPrompt } from '../../../services/roles/roleSystemPrompt.js';
 import { loadUserRoles } from '../../../services/roles/userRoles.js';
 import { recordItemUsageSafe } from '../../../services/usage/ItemUsageService.js';
@@ -51,6 +51,7 @@ import {
   isTabularAttachment,
   processAttachments,
 } from './attachmentProcessingService.js';
+import { countCloudConnections } from './cloudConnectionContext.js';
 import { enrichContext } from './contextEnrichmentService.js';
 import { backfillEmptyUserMessages } from './historyBackfill.js';
 import {
@@ -59,7 +60,7 @@ import {
   sanitizeUIFileParts,
 } from './messageHelpers.js';
 import { type createSSEStream, PROGRESS_MESSAGES } from './sseHelpers.js';
-import { canAccessThread } from './threadAccessService.js';
+import { canWriteThread } from './threadAccessService.js';
 import {
   getUser,
   getUserMessageTexts,
@@ -84,7 +85,7 @@ import type { Request } from 'express';
 
 const log = createLogger('chatGraphContractRouter');
 
-// Upper bound for best-effort external context calls (Mem0, Nextcloud) that
+// Upper bound for best-effort external context calls (memory, Nextcloud) that
 // run before the LLM stream starts — they add to time-to-first-token, so a
 // hanging service must not stall the chat. On timeout the turn proceeds
 // without that context.
@@ -150,7 +151,7 @@ export function inlineMaterialAttachment(
 // chat_threads.id is a uuid column. A client may send a local-only sentinel id
 // (e.g. "__LOCALID_..." from the lazy-thread-creation runtime, or the sheet /
 // deck editor sidebars) for a thread it has not persisted yet — that is not a
-// UUID and must never reach canAccessThread's `WHERE id = $1`, or Postgres
+// UUID and must never reach the access service's `WHERE id = $1`, or Postgres
 // throws 22P02 and the whole turn 500s. Treat any non-UUID id as "no thread
 // yet" and mint a fresh one.
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -334,6 +335,11 @@ export async function buildStreamContext({
     }
   }
 
+  // Tor für `cloud_files`: der Katalog wird synchron gebaut und kann diese Frage
+  // nicht selbst stellen. Gecacht (60 s) und fehlertolerant — ein Ausfall macht
+  // aus dem Zähler eine 0, und das Vokabular-Tor trägt den Turn weiter.
+  const cloudConnectionCount = await countCloudConnections(userId);
+
   // @connect file refs need no per-ref ownership pre-check: the Nango
   // connection (resolved per-file at retrieval time via
   // ConnectionService.getConnection(userId, provider)) IS the ownership
@@ -490,8 +496,8 @@ export async function buildStreamContext({
 
   if (actualThreadId && lastUserMessage) {
     if (!isNewThread) {
-      if (!(await canAccessThread(ThreadId(actualThreadId), UserId(userId)))) {
-        // The client-supplied threadId is gone or not accessible — most often a
+      if (!(await canWriteThread(ThreadId(actualThreadId), UserId(userId)))) {
+        // The client-supplied threadId is gone or not writable — most often a
         // freshly-created empty thread reaped by the sidebar's auto-cleanup race
         // mid-send, or a stale client id. Recover gracefully by minting a new
         // thread for this user instead of hard-erroring. Safe: a foreign/deleted
@@ -673,52 +679,30 @@ export async function buildStreamContext({
     ...new Set([...(rawDocumentChatIds ?? []), ...embeddedAttachmentDocIds]),
   ];
 
-  // === Memory retrieval (mem0) ===
-  // Honor the user's memory toggle (profiles.memory_enabled): when off, skip both
-  // retrieval here and the write-back in postResponseService.
-  const memoryEnabled = user.memory_enabled ?? false;
+  // === Memory retrieval (explicit user memory) ===
+  // Honor the profile switch (profiles.memory_enabled): off means no block in
+  // the prompt and no `memory` tool in the catalog (toolCatalog.ts).
+  const memoryEnabled = user.memory_enabled ?? true;
   let memoryContext: string | null = null;
+  let memories: RenderedMemory[] = [];
   let memoryRetrieveTimeMs = 0;
-  let memoriesUsed: Array<{ content: string; category: string | null }> = [];
 
-  const mem0 = getMem0Instance();
-  if (mem0 && lastUserMessage && memoryEnabled) {
+  if (lastUserMessage && memoryEnabled) {
     try {
       const memoryStartTime = Date.now();
-
-      const persona = await withTimeout(
-        getCachedPersona(userId),
+      const turn = await withTimeout(
+        loadTurnMemories(userId, sanitizeMentionTokens(lastUserTextRaw, 'remove')),
         EXTERNAL_CONTEXT_TIMEOUT_MS,
-        'mem0 persona lookup'
+        'memory lookup'
       );
-      if (persona) {
-        memoryContext = persona;
-        memoriesUsed = [{ content: '[Persona]', category: null }];
-        log.info(`[${requestId}] Using cached persona for memory context`);
-      } else {
-        const userQuery = sanitizeMentionTokens(lastUserTextRaw, 'remove');
-        const memories = await withTimeout(
-          mem0.searchMemories(userQuery, userId, 5),
-          EXTERNAL_CONTEXT_TIMEOUT_MS,
-          'mem0 memory search'
-        );
-        if (memories.length > 0) {
-          memoriesUsed = memories.map((m) => ({
-            content: m.memory,
-            category: normalizeCategory(m.metadata?.memoryType) ?? null,
-          }));
-
-          memoryContext = formatMemoriesByCategory(
-            memories.map((m) => ({
-              memory: m.memory,
-              category: normalizeCategory(m.metadata?.memoryType),
-            }))
-          );
-          log.info(`[${requestId}] Retrieved ${memories.length} memories for context`);
-        }
-      }
-
+      memories = numberMemories(turn);
+      memoryContext = memories.length > 0 ? renderMemoryLines(memories) : null;
       memoryRetrieveTimeMs = Date.now() - memoryStartTime;
+      if (memories.length > 0) {
+        log.info(
+          `[${requestId}] Memory: ${turn.anweisungen.length} Anweisungen, ${turn.fakten.length} Fakten im Prompt`
+        );
+      }
     } catch (memError) {
       log.warn(`[${requestId}] Memory retrieval failed (continuing without):`, memError);
     }
@@ -787,6 +771,7 @@ export async function buildStreamContext({
       research: true,
       image: true,
       image_edit: true,
+      memory: true,
     },
     attachmentContext: attachmentContext ?? undefined,
     imageAttachments: imageAttachments.length > 0 ? imageAttachments : undefined,
@@ -809,6 +794,7 @@ export async function buildStreamContext({
     boardIds: mergedBoardIds.length ? mergedBoardIds : undefined,
     sheetIds: mergedSheetIds.length ? mergedSheetIds : undefined,
     wolkeFiles,
+    cloudConnectionCount,
     connectFiles,
     attachedWebpageUrls: rawWebpageUrls?.length ? rawWebpageUrls : undefined,
     // When the docs editor sends a currentDocument, also surface its id as a
@@ -875,15 +861,18 @@ export async function buildStreamContext({
     // liest der Loop selbst — der Ausfall bleibt so eng wie zuvor.
     threadToolHistory = history;
   }
+  initialState.memoryEnabled = memoryEnabled;
   if (memoryContext) {
     initialState.memoryContext = memoryContext;
+    initialState.memories = memories;
     initialState.memoryRetrieveTimeMs = memoryRetrieveTimeMs;
 
-    const isPersona = memoriesUsed.length === 1 && memoriesUsed[0].content === '[Persona]';
+    // Event shape is frozen (shipped mobile binaries read it); `isPersona`
+    // stays as a constant false, `category` now carries the memory kind.
     sse.send('memory_context', {
-      memoryCount: isPersona ? 1 : memoriesUsed.length,
-      memories: isPersona ? [] : memoriesUsed,
-      isPersona,
+      memoryCount: memories.length,
+      memories: memories.map((m) => ({ content: m.text, category: m.kind })),
+      isPersona: false,
     });
   }
 

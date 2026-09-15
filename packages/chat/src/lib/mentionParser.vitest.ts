@@ -11,6 +11,7 @@ import {
   resolveMentionable,
   setBoardMentionables,
   setDocMentionables,
+  setUserAgentMentionables,
   toolMentionables,
 } from './mentionables';
 import { buildMentionPrefix } from './mentionInsertion';
@@ -22,6 +23,16 @@ beforeAll(() => {
     { id: 'board-abc', title: 'Kampagnenplan Berlin', slug: 'kampagnenplan-berlin' },
   ]);
   setDocMentionables([{ id: 'doc-xyz', title: 'Pressespiegel', slug: 'pressespiegel' }]);
+  setUserAgentMentionables([
+    {
+      identifier: 'kv-klima-gruenerator',
+      title: 'KV Klima-Grünerator',
+      description: 'Klimapolitik im Kreisverband',
+      avatar: '🌱',
+      backgroundColor: '#316049',
+      sharedFromGroup: 'KV Köln',
+    },
+  ]);
 });
 
 describe('mentionParser: unresolvedMentions', () => {
@@ -172,6 +183,34 @@ describe('mentionParser: skill mentions carry the recipe, not just the agent', (
     expect(result.boardIds).toHaveLength(0);
     expect(result.skillMention).toBeNull();
     expect(result.tokenText).toBe('was steht hier?');
+  });
+});
+
+/**
+ * Ein Grünerator ersetzt die handelnde Agentin — er ist kein Rezept. Stünde
+ * sein Bezeichner in `skillMention`, suchte das Backend eine Textform dieses
+ * Namens und kündigte sie in der Antwort an; und das Token müsste `skill:`
+ * heissen, das beim Nachreichen einer bearbeiteten Nachricht erneut als Rezept
+ * gelesen wird (#2909).
+ */
+describe('mentionParser: Grünerator-Agenten routen den Agenten, kein Rezept', () => {
+  it('@grünerator setzt agentId, aber keine skillMention', () => {
+    const result = parseAllMentions('@kv-klima-gruenerator was steht im wahlprogramm?');
+    expect(result.agentId).toBe('kv-klima-gruenerator');
+    expect(result.agentMention).toBe('kv-klima-gruenerator');
+    expect(result.skillMention).toBeNull();
+    expect(result.cleanText).toBe('was steht im wahlprogramm?');
+  });
+
+  it('persistiert ihn als agent-Token, nicht als skill-Token', () => {
+    const result = parseAllMentions('@kv-klima-gruenerator leg los');
+    expect(result.tokenText).toBe('@[KV Klima-Grünerator](agent:kv-klima-gruenerator) leg los');
+  });
+
+  it('lässt ein zuvor gewähltes Rezept unangetastet', () => {
+    const result = parseAllMentions('@presse @kv-klima-gruenerator zum artenschutz');
+    expect(result.agentId).toBe('kv-klima-gruenerator');
+    expect(result.skillMention).toBe('presse');
   });
 });
 

@@ -17,7 +17,9 @@
  */
 
 import { type ChatIntentId, degradeTargetForLocale } from '@gruenerator/shared/chat-intents';
+import { isCloudShareUrl } from '@gruenerator/shared/utils';
 
+import { agentAllowsTool } from '../../../../routes/chat/agents/agentToolWhitelist.js';
 import { isAgenticLoopEnabled } from '../../../../routes/chat/services/agenticLoop/flags.js';
 import {
   looksLikeSelfContainedTurn,
@@ -47,7 +49,7 @@ import {
   heuristicClassify,
   extractSearchTopic,
   extractMessageText,
-  extractUrls,
+  crawlableUrls,
   extractDomainScope,
   wantsImageResults,
   formatConversationHistory,
@@ -59,7 +61,6 @@ import {
   BOARD_MODIFY_PATTERN,
   DOC_MODIFY_PATTERN,
   HEURISTIC_CONFIDENCE_THRESHOLD,
-  detectSocialPlatform,
   nounNearCreateVerb,
   NOUN_TRIGGER_MAX_LENGTH,
   SOCIAL_BARE_NOUN_PATTERN,
@@ -234,17 +235,20 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
   // verb "zusammenfassen".
   // Agent must allow scraping (whitelist holds 'scrape'; one agent uses the tool
   // name 'scrape_url') and the user must not have toggled it off in the composer.
-  const scrapeWhitelist = state.agentConfig?.enabledTools;
-  const agentAllowsScrape =
-    !scrapeWhitelist ||
-    scrapeWhitelist.includes('scrape') ||
-    scrapeWhitelist.includes('scrape_url');
+  const agentAllowsScrape = agentAllowsTool(
+    { enabledTools: state.agentConfig?.enabledTools },
+    'scrape'
+  );
   const scrapeEnabled = agentAllowsScrape && state.enabledTools?.['scrape'] !== false;
   // @link-attached URLs are explicit user intent — union them with auto-detected
   // ones (deduped, attached first so they rank highest in scrape_url).
-  const attachedUrls = scrapeEnabled ? (state.attachedWebpageUrls ?? []) : [];
+  // Auch die ausdrücklich angehängten: ein Wolke-Freigabe-Link liefert beim
+  // Crawlen die SPA-Hülle, egal ob er getippt oder über @link angehängt wurde.
+  const attachedUrls = scrapeEnabled
+    ? (state.attachedWebpageUrls ?? []).filter((url) => !isCloudShareUrl(url))
+    : [];
   const detectedUrls = scrapeEnabled
-    ? [...new Set([...attachedUrls, ...extractUrls(userText)])]
+    ? [...new Set([...attachedUrls, ...crawlableUrls(userText)])]
     : [];
 
   // `summary` is not a wording, it is a STATE: material is already here, so skip
@@ -977,20 +981,26 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // eine Tweet-Sammlung zu suchen.
     if (agentWantsExamples && userContent.length > 0) {
       if (SOCIAL_NOUN_PATTERN.test(userContent)) {
-        // Platform hint for the social composer/generator. Null when
-        // unspecified → generic rubric.
-        const platform = detectSocialPlatform(userContent);
+        // Das Verdikt hiess `social_post` und ist mit ihm gefallen. Was der
+        // Block WOLLTE, steht in seinem eigenen Namen: `alwaysSearchesExamples`
+        // — der Turn soll auf echten Posts der Kanäle gegründet sein, und
+        // genau das tut `examples`. Die Kombischeibe (Karte, Sharepic-Hälfte,
+        // eigene Rubrik) war nie das, wonach das Flag fragte.
+        //
+        // Die Textsorte trägt jetzt das Rezept: `examples` ist ein
+        // Einzeldurchlauf, und `deriveImplicitRecipeMention` wählt darauf
+        // `instagram`/`facebook`/… aus demselben Nutzertext, aus dem hier
+        // vorher `platform` gelesen wurde.
         log.info(
-          `[Classifier] Content-creation agent (${state.agentConfig.identifier}) → social_post${platform ? `, platform=${platform}` : ''}`
+          `[Classifier] Content-creation agent (${state.agentConfig.identifier}) → examples (Social-Auftrag)`
         );
         return {
-          intent: 'social_post',
+          intent: 'examples',
           secondaryIntent: null,
-          platform,
           searchSources: [],
           searchQuery: extractSearchTopic(userContent) || userContent,
           detectedFilters: null,
-          reasoning: `Agent ${state.agentConfig.identifier} requires social_post grounding for content creation`,
+          reasoning: `Agent ${state.agentConfig.identifier} requires example grounding for content creation`,
           hasTemporal: temporal.hasTemporal,
           complexity,
           classificationTimeMs: Date.now() - startTime,
@@ -1112,21 +1122,34 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     if (looksLikeSocialCreation && userContent.length >= 10) {
       if (hasExplicitSharepicWord(userContent) && !POST_NOUN_PATTERN.test(userContent)) {
         // "Sharepic für Instagram" — a sharepic ask that merely names a
-        // platform. Defer to the sharepic route. Naming both ("Post mit
-        // Sharepic") stays here: social_post carries the sharepic half itself.
+        // platform. Defer to the sharepic route.
+        //
+        // Der zweite Halbsatz von früher („Post mit Sharepic" bleibt hier, weil
+        // social_post die Sharepic-Hälfte selbst trägt) ist mit dem Verdikt weg:
+        // ein Post-Auftrag ist jetzt ein Schreibauftrag, kein Artefakt-Auftrag.
+        // „Post MIT Sharepic" nennt das Post-Nomen und fällt deshalb weiter in
+        // den Zweig darunter — es wird zum Text, und das Sharepic bestellt man
+        // im nächsten Turn (oder direkt mit „Sharepic zu …").
         log.info('[Classifier] Sharepic-only ask with a platform hint — deferring');
       } else {
-        const platform = detectSocialPlatform(userContent);
-        log.info(
-          `[Classifier] Social post creation → social_post${platform ? ` (platform=${platform})` : ''}`
-        );
+        // Das Gitter bleibt, das Verdikt wechselt. Ein Social-Post ist eine
+        // TEXTSORTE, keine Artefaktart: `produktion` ist der Einzeldurchlauf,
+        // auf dem `deriveImplicitRecipeMention` das Rezept (`instagram`,
+        // `facebook`, `twitter`, `linkedin`, `reel`) setzt — korpusgestützt,
+        // mit AT-Gabelung, mit angelerntem Stil und mit LV-Vorzug. Die
+        // eingebaute Rubrik des alten Zweigs widersprach den Rezepten messbar.
+        //
+        // Warum der Block überhaupt stehenbleibt, statt die Heuristik machen zu
+        // lassen: er ist der Grund, warum ein Schreibauftrag nicht als
+        // Beispiel-Stöberei (`examples`, deren Verbliste `schreib` enthält) und
+        // nicht als Schleifen-Turn endet. Nur das Etikett war falsch.
+        log.info('[Classifier] Social post creation → produktion (Rezept schreibt)');
         return {
-          intent: 'social_post',
-          platform,
+          intent: 'produktion',
           searchSources: [],
           searchQuery: extractSearchTopic(userContent) || userContent,
           detectedFilters: null,
-          reasoning: 'Social post creation',
+          reasoning: 'Social post creation — Rezept auf dem Einzeldurchlauf',
           hasTemporal: temporal.hasTemporal,
           complexity,
           classificationTimeMs: Date.now() - startTime,
@@ -1531,15 +1554,22 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       };
     }
 
+    // Ein Dauerauftrag geht in die Schleife, nicht auf einen Intent: der Pin
+    // auf `recurring_tasks` zwingt den Turn hinein (`turnPlan`) und benennt den
+    // ersten Werkzeugaufruf (`pinnedFirstTool`), so wie `@umfragen` es über die
+    // Erwähnung tut — nur dass hier der Detektor pinnt. Der Loop-Planer füllt
+    // Takt und Zustellung selbst, und das Anlegen ist eine Karte; bis 09/2026
+    // schrieb der Intent `create_recurring_task` ohne Bestätigung in die DB.
     if (looksLikeRecurringOrder(userContent)) {
-      log.info('[Classifier] Recurring order (direct route, LLM skipped)');
+      log.info('[Classifier] Recurring order → loop with recurring_tasks pinned (LLM skipped)');
       recordDecision('classifier.tier', 'tier3.4_recurring_order', {});
       return {
-        intent: 'create_recurring_task',
+        intent: 'agentic',
+        mentionPinnedTool: 'recurring_tasks',
         searchSources: [],
         searchQuery: userContent.slice(0, 500),
         detectedFilters: null,
-        reasoning: 'Wiederkehrender Auftrag (Takt + Zustellung erkannt)',
+        reasoning: 'Wiederkehrender Auftrag (Takt + Zustellung erkannt) → Werkzeug recurring_tasks',
         hasTemporal: temporal.hasTemporal,
         complexity,
         classificationTimeMs: Date.now() - startTime,
@@ -1757,10 +1787,6 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
 
     return {
       intent: residualIntent,
-      // Recovered here rather than carried: `social_post` is reachable as a
-      // low-confidence heuristic verdict, and the composer rubric is
-      // platform-specific.
-      platform: residualIntent === 'social_post' ? detectSocialPlatform(userContent) : null,
       searchSources: detectSearchSources(userContent, residualIntent),
       searchQuery: (heuristic.searchQuery ?? extractSearchTopic(userContent) ?? userContent).slice(
         0,

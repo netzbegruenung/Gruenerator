@@ -4,6 +4,7 @@ import {
   type FeedbackButtonMode,
   type StartPage,
   type SupportedLocale,
+  type TtsVoiceId,
   type UserProfile,
 } from '@gruenerator/contracts';
 import {
@@ -95,6 +96,7 @@ export interface AuthStore {
   updateLocale: (newLocale: SupportedLocale) => Promise<boolean>;
   updateChatBackground: (background: ChatBackground) => Promise<boolean>;
   updateStartPage: (page: StartPage) => Promise<boolean>;
+  updateTtsVoice: (voiceId: TtsVoiceId | null) => Promise<boolean>;
   updateFeedbackButton: (mode: FeedbackButtonMode) => Promise<boolean>;
   updateA11yPreference: (
     field: 'reduce_motion' | 'reduce_transparency' | 'show_skip_link',
@@ -743,6 +745,37 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error('[AuthStore] Error updating start page:', errorMessage);
       toast.error('Startseite konnte nicht gespeichert werden.');
+      return false;
+    }
+  },
+
+  // Voice for speech output. `null` clears the choice; the server then uses
+  // DEFAULT_TTS_VOICE_ID. Persisted via the profile update contract like the
+  // start page, so the session caches learn about it on the same path.
+  updateTtsVoice: async (voiceId: TtsVoiceId | null): Promise<boolean> => {
+    try {
+      const result = await getContractsClient().userProfile.updateProfile({
+        body: { tts_voice_id: voiceId },
+      });
+      if (result.status !== 200) {
+        console.error('[AuthStore] Error updating voice:', result.status);
+        toast.error('Stimme konnte nicht gespeichert werden.');
+        return false;
+      }
+
+      set((state) => ({
+        // The profile omits the field when cleared; drop the stale value so the
+        // settings row falls back to "Standard" instead of showing the old one.
+        user: state.user
+          ? { ...state.user, tts_voice_id: undefined, ...result.body.profile }
+          : null,
+      }));
+
+      return true;
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('[AuthStore] Error updating voice:', errorMessage);
+      toast.error('Stimme konnte nicht gespeichert werden.');
       return false;
     }
   },

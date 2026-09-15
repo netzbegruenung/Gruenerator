@@ -1,0 +1,177 @@
+{
+  "pipeline": "qa",
+  "depth": "fast",
+  "withRerank": true,
+  "outcomes": [
+    {
+      "id": "kommunalwiki-buergerbegehren",
+      "collection": "kommunalwiki-system",
+      "query": "Wie funktioniert ein Bürgerbegehren in der Kommune?",
+      "rank": 1,
+      "topTitles": [
+        "BürgerBegehren Klimaschutz",
+        "Strategische Stadtplanung (Literatur)",
+        "Kommunalpolitik und Kommunalverwaltung",
+        "Büromaterial",
+        "Initiativbegehren"
+      ],
+      "searchTimeMs": 12158,
+      "rerankRank": null,
+      "rerankTimeMs": 2122,
+      "rerankBatch": 30
+    },
+    {
+      "id": "kommunalwiki-bebauungsplan",
+      "collection": "kommunalwiki-system",
+      "query": "Aufstellung eines Bebauungsplans — Verfahren und Beteiligung",
+      "rank": null,
+      "topTitles": [
+        "Bodenschutzklausel",
+        "Haushaltswirtschaft",
+        "Bürgerbeteiligung - Konzepte und Lösungswege für die Praxis",
+        "Sonnenenergie",
+        "Feministische Planung"
+      ],
+      "searchTimeMs": 371,
+      "rerankRank": null,
+      "rerankTimeMs": 1688,
+      "rerankBatch": 30
+    },
+    {
+      "id": "kommunalwiki-radverkehr",
+      "collection": "kommunalwiki-system",
+      "query": "Radverkehrsförderung in der Kommunalpolitik",
+      "rank": 1,
+      "topTitles": [
+        "Radverkehr",
+        "Dietmar Strehl",
+        "Kommunalpolitik und Kommunalverwaltung",
+        "Sozialdemokratie und Kommunalpolitik",
+        "Kommunalwahl in Brandenburg 2024"
+      ],
+      "searchTimeMs": 615,
+      "rerankRank": 3,
+      "rerankTimeMs": 1570,
+      "rerankBatch": 30
+    },
+    {
+      "id": "kommunalwiki-haushalt",
+      "collection": "kommunalwiki-system",
+      "query": "Wie liest man einen kommunalen Haushaltsplan?",
+      "rank": 1,
+      "topTitles": [
+        "Gemeindehaushaltsverordnung",
+        "10 Places That You Can Find Water Calculator Aquarium",
+        "Nachhaltigkeit",
+        "Zeit des Zorns",
+        "Finanzierungsübersicht"
+      ],
+      "searchTimeMs": 354,
+      "rerankRank": 4,
+      "rerankTimeMs": 1638,
+      "rerankBatch": 30
+    },
+    {
+      "id": "kommunalwiki-waermeplanung",
+      "collection": "kommunalwiki-system",
+      "query": "Kommunale Wärmeplanung umsetzen",
+      "rank": 1,
+      "topTitles": [
+        "Handlungsleitfaden Kommunale Wärmeplanung",
+        "Grünes Jugendforum",
+        "Steuerschätzung vom Mai 2018",
+        "E-Scooter",
+        "3D-Druck"
+      ],
+      "searchTimeMs": 342,
+      "rerankRank": 2,
+      "rerankTimeMs": 1591,
+      "rerankBatch": 30
+    },
+    {
+      "id": "kommunalwiki-fraktion",
+      "collection": "kommunalwiki-system",
+      "query": "Rechte und Arbeit einer Fraktion im Gemeinderat",
+      "rank": 2,
+      "topTitles": [
+        "Beispiele kommunaler Zusammenarbeit zwischen CDU und AfD",
+        "Integrationsgesetz",
+        "Die Andere Kommunalpolitik Thüringen",
+        "Katja Dörner",
+        "Susanna Tausendfreund"
+      ],
+      "searchTimeMs": 360,
+      "rerankRank": 7,
+      "rerankTimeMs": 1450,
+      "rerankBatch": 30
+    },
+    {
+      "id": "kommunalwiki-vergabe",
+      "collection": "kommunalwiki-system",
+      "query": "Öffentliche Vergabe und Ausschreibungen in Kommunen",
+      "rank": 14,
+      "topTitles": [
+        "Verdingungsordnung für Leistungen",
+        "Wiesbadener Erklärung zur Stadt von morgen",
+        "Netzwerk der deutschen Bio-Städte, -Gemeinden und –Landkreise",
+        "Gesetz gegen Wettbewerbsbeschränkungen",
+        "Elektronisches Rezept"
+      ],
+      "searchTimeMs": 315,
+      "rerankRank": 8,
+      "rerankTimeMs": 2022,
+      "rerankBatch": 30
+    },
+    {
+      "id": "kommunalwiki-jugend",
+      "collection": "kommunalwiki-system",
+      "query": "Jugendbeteiligung in der Kommune",
+      "rank": null,
+      "topTitles": [
+        "Werkstatt:Weblinks",
+        "Bundeswettbewerb Bioenergie-Kommunen",
+        "In- und Outsourcing in der kommunalen Abfallwirtschaft",
+        "Derivate",
+        "Kommunen in der Corona-Krise"
+      ],
+      "searchTimeMs": 284,
+      "rerankRank": null,
+      "rerankTimeMs": 1668,
+      "rerankBatch": 30
+    },
+    {
+      "id": "kommunalwiki-laerm",
+      "collection": "kommunalwiki-system",
+      "query": "Lärmaktionsplanung und Lärmschutz vor Ort",
+      "rank": 14,
+      "topTitles": [
+        "Straßenverkehrsordnung (StVO)",
+        "Werkstatt:Weblinks",
+        "Region Mittleres Flöha- und Zschopautal",
+        "Kommunalwahlen in Nordrhein-Westfalen 2025",
+        "Mobile Beratung Mecklenburg-Vorpommern"
+      ],
+      "searchTimeMs": 401,
+      "rerankRank": 1,
+      "rerankTimeMs": 1602,
+      "rerankBatch": 30
+    },
+    {
+      "id": "kommunalwiki-baum",
+      "collection": "kommunalwiki-system",
+      "query": "Baumschutzsatzung und Stadtgrün",
+      "rank": 1,
+      "topTitles": [
+        "Umweltschutz durch kommunales Satzungsrecht",
+        "Grüne Infrastruktur",
+        "Kommunen für biologische Vielfalt",
+        "Urbanes Grün",
+        "Kommunale Maßnahmen gegen Hitze"
+      ],
+      "searchTimeMs": 192,
+      "rerankRank": 2,
+      "rerankTimeMs": 745,
+      "rerankBatch": 11
+    }
+  ]
+}

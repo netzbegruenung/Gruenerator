@@ -47,8 +47,6 @@ enabledTools:
   - edit_image
   - analyze_image
   - scrape_url
-  - draft_structured
-  - self_review
   - find_content
   - recall_memory
   - save_memory

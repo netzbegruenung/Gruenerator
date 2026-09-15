@@ -7,6 +7,7 @@
 
 import { SIMPLE_CONFIG, calculateSimpleLayout } from '../utils/simpleLayout';
 
+import { DEFAULT_PHOTO_BACKGROUND_DE, PHOTO_BACKGROUND_COLORS_DE } from './backgroundPalettes';
 import {
   createAiCapabilities,
   createImageTwoTextCanvas,
@@ -93,6 +94,8 @@ const baseSimpleConfig = createImageTwoTextCanvas({
   calculateLayout,
   elements: [headlineElement, subtextElement],
   features: { icons: true, shapes: true, illustrations: true },
+  backgroundColors: PHOTO_BACKGROUND_COLORS_DE,
+  defaultBackgroundColor: DEFAULT_PHOTO_BACKGROUND_DE,
   gradientOpacity: 0.3,
   getCanvasText: (state) => {
     const headline = state.headline || '';
@@ -118,6 +121,7 @@ const simpleAiCapabilities = createAiCapabilities<SimpleState, ImageTwoTextActio
       setter: (a) => a.setSecondary,
     },
   ],
+  background: { read: (s) => (s.backgroundColor ?? DEFAULT_PHOTO_BACKGROUND_DE) as `#${string}` },
 });
 
 export const simpleFullConfig = wrapWithAi(baseSimpleConfig, 'simple', simpleAiCapabilities);

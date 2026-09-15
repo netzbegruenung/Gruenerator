@@ -83,9 +83,19 @@ export interface AIRequestData {
   platforms?: string[] | undefined;
   documents?: DocumentReference[] | undefined;
   tools?: Tool[] | undefined;
-  /** Eigene Zeitsperre für DIESEN Aufruf in ms; ohne Angabe gilt
-   *  `env.REQUEST_TIMEOUT`. Für Aufrufe, die nachweislich länger brauchen als
-   *  eine interaktive Antwort und deren Ausfall teurer ist als das Warten. */
+  /**
+   * Die Frist DIESES Anbieterversuchs in ms — `execute.ts` macht daraus das
+   * `abortSignal` des Aufrufs.
+   *
+   * Nicht die Frist des Aufrufers: die heisst `AiCall.timeoutMs`
+   * (`services/ai/generate.ts`), deckt die ganze Ausweichkette und wird von
+   * `attemptBudget` auf die Anbieter aufgeteilt. Wer hier von Hand einen Wert
+   * setzt, umgeht diese Aufteilung.
+   *
+   * Bis zum 28.08.2026 stand hier die Beschreibung der Aufrufer-Frist, und das
+   * Feld wurde von niemandem gelesen — der aufgegebene Anbieteraufruf lief
+   * weiter und wurde zu Ende bezahlt.
+   */
   timeoutMs?: number | undefined;
   [key: string]: unknown;
 }

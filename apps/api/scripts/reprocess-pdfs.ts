@@ -177,6 +177,9 @@ async function reprocessPdf(
 ): Promise<void> {
   const { smartChunkDocument } =
     await import('../services/document-services/TextChunker/TextChunker.js');
+  const { buildEmbeddingTextsForChunks } =
+    await import('../services/document-services/embeddingText.js');
+  const { structurePayload } = await import('../services/document-services/structurePayload.js');
   const { chunkQualityService } =
     await import('../services/ChunkQualityService/ChunkQualityService.js');
   const { batchDelete, batchUpsert } =
@@ -283,12 +286,13 @@ async function reprocessPdf(
       return;
     }
 
-    // Generate embeddings
-    const chunkTexts = chunks.map(
-      (c: { text?: string; chunk_text?: string }) => c.text || c.chunk_text
-    );
+    // Generate embeddings — Titel und Überschriftenpfad vor dem Chunk, wie in
+    // jedem anderen Ingest-Pfad. Der gespeicherte `chunk_text` bleibt roh.
+    const chunkTexts = chunks.map((c) => c.text);
     await mistralEmbeddingService.init();
-    const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(chunkTexts);
+    const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(
+      buildEmbeddingTextsForChunks(chunks, pdf.title)
+    );
 
     // Delete old chunks
     await batchDelete(client, collection, {
@@ -312,7 +316,7 @@ async function reprocessPdf(
       ...preservedPayload
     } = pdf.originalPayload;
 
-    const points = chunks.map((chunk: { text?: string; chunk_text?: string }, index: number) => ({
+    const points = chunks.map((chunk, index: number) => ({
       id: generatePointId(pdf.sourceUrl, index),
       vector: embeddings[index],
       payload: {
@@ -320,6 +324,7 @@ async function reprocessPdf(
         content_hash: newHash,
         chunk_index: index,
         chunk_text: chunkTexts[index],
+        ...structurePayload(chunk),
         quality_score: chunkQualityService.calculateQualityScore(chunkTexts[index]),
         indexed_at: new Date().toISOString(),
         reprocessed: true,

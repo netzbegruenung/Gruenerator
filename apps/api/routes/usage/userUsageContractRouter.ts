@@ -7,7 +7,7 @@
  * / breakdowns happens in memory rather than in four separate SQL aggregates.
  */
 
-import { userUsageContract } from '@gruenerator/contracts';
+import { usageFeatureSchema, userUsageContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 import { and, eq, gte } from 'drizzle-orm';
 
@@ -33,28 +33,22 @@ const log = createLogger('userUsageContract');
 const s = initServer();
 
 /** Rows predate schema changes; an unknown slug must not break the response. */
-const KNOWN_FEATURES = new Set<string>([
-  'chat',
-  'docs',
-  'sheets',
-  'presentations',
-  'boards',
-  'sharepic',
-  'subtitler',
-  'search',
-  'monitor',
-  'sites',
-  'texte',
-  'notebook',
-  'other',
-]);
+const KNOWN_FEATURES = new Set<string>(usageFeatureSchema.options);
 
 function usageFeatureFallback(feature: string): UsageFeature {
   // Boundary cast: the Set membership check IS the runtime assertion.
   return (KNOWN_FEATURES.has(feature) ? feature : 'other') as UsageFeature;
 }
 
-const KNOWN_UNITS = new Set<string>(['tokens', 'images', 'transcriptions', 'searches']);
+// A unit missing from this set does not raise anything — it is silently read as
+// 'tokens', which files the row under text models with a token count of zero.
+const KNOWN_UNITS = new Set<string>([
+  'tokens',
+  'images',
+  'transcriptions',
+  'searches',
+  'speech_seconds',
+]);
 
 function usageUnitFallback(unit: string): UsageUnit {
   return (KNOWN_UNITS.has(unit) ? unit : 'tokens') as UsageUnit;
@@ -85,6 +79,7 @@ export const userUsageContractRouter = s.router(userUsageContract, {
         images: 0,
         transcriptions: 0,
         searches: 0,
+        speech_seconds: 0,
       };
       const daily = new Map<string, { requests: number; input: number; output: number }>();
       const byFeature = new Map<
@@ -95,6 +90,7 @@ export const userUsageContractRouter = s.router(userUsageContract, {
           images: number;
           transcriptions: number;
           searches: number;
+          speech_seconds: number;
         }
       >();
       const byModel = new Map<
@@ -120,9 +116,9 @@ export const userUsageContractRouter = s.router(userUsageContract, {
       let energyWms = 0;
       let emissionsUg = 0;
       let measuredEnergyWms = 0;
-      // Energy that rests on a conservative upper bound rather than a metered
-      // coefficient. Reported separately so the headline number is never taken
-      // for more than it is.
+      // Energy whose model was never metered anywhere, so it is valued from the
+      // bracket between two models that were. Reported separately so the
+      // headline number is never taken for more than it is.
       let boundedEnergyWms = 0;
       let textOutputTokens = 0;
       // Doubles as the base of the GPT-4o counterfactual, so both sides of the
@@ -208,6 +204,7 @@ export const userUsageContractRouter = s.router(userUsageContract, {
         if (unit === 'images') totals.images += row.ops;
         if (unit === 'transcriptions') totals.transcriptions += row.ops;
         if (unit === 'searches') totals.searches += row.ops;
+        if (unit === 'speech_seconds') totals.speech_seconds += row.ops;
 
         const dayEntry = daily.get(row.day) ?? { requests: 0, input: 0, output: 0 };
         dayEntry.requests += row.requests;
@@ -221,12 +218,14 @@ export const userUsageContractRouter = s.router(userUsageContract, {
           images: 0,
           transcriptions: 0,
           searches: 0,
+          speech_seconds: 0,
         };
         featureEntry.requests += row.requests;
         featureEntry.total_tokens += tokens;
         if (unit === 'images') featureEntry.images += row.ops;
         if (unit === 'transcriptions') featureEntry.transcriptions += row.ops;
         if (unit === 'searches') featureEntry.searches += row.ops;
+        if (unit === 'speech_seconds') featureEntry.speech_seconds += row.ops;
         byFeature.set(feature, featureEntry);
 
         const modelKey = `${row.provider}|${row.model}|${unit}`;

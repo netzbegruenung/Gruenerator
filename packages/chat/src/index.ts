@@ -99,7 +99,7 @@ export {
 // Runtime
 export { GrueneratorChatProvider, preloadChatRuntime } from './runtime/GrueneratorChatProvider';
 export { useChatRuntimeReady } from './context/ChatRuntimeReadyContext';
-export { convertToThreadMessageLike } from './runtime/threadMessageConversion';
+export { convertToThreadMessageLike, type LoadedMessage } from './runtime/threadMessageConversion';
 export { GrueneratorAttachmentAdapter } from './runtime/GrueneratorAttachmentAdapter';
 export {
   createGrueneratorModelAdapter,
@@ -113,9 +113,12 @@ export {
   getNotebookCollectionId,
   getThreadSlugSuffix,
   getThreadAgentId,
+  getThreadAccessType,
+  isThreadReadOnly,
   resolveThreadBySlugSuffix,
   type ExternalThreadEntry,
 } from './runtime/GrueneratorThreadListAdapter';
+export { buildThreadPath } from './lib/threadPath';
 
 // External Thread Context
 export { ExternalThreadProvider, useExternalThread } from './context/ExternalThreadContext';
@@ -166,6 +169,12 @@ export { type CategoryFilterField } from './components/notebook/CategoryFilterDr
 
 // Thread Components
 export { GrueneratorThread } from './components/thread/GrueneratorThread';
+// Read-only transcript view (shared thread archive)
+export {
+  ReadonlyThreadProvider,
+  type ReadonlyThreadProviderProps,
+} from './components/shared/ReadonlyThreadProvider';
+export { ReadonlyThreadView } from './components/shared/ReadonlyThreadView';
 export { SharepicArtifactPanel } from './components/SharepicArtifactPanel';
 export { ReelArtifactPanel } from './components/ReelArtifactPanel';
 export { ArtifactPanel } from './components/ArtifactPanel';
@@ -208,6 +217,7 @@ export { MessageActions } from './components/message-parts/MessageActions';
 export { MessageSourcesButton } from './components/message-parts/MessageSourcesButton';
 export { MessageTTSButton } from './components/message-parts/MessageTTSButton';
 export { useMessageTTS, type TTSState } from './hooks/useMessageTTS';
+export { stripForSpeech } from './lib/speechText';
 
 // Citation Context
 export {
@@ -226,7 +236,7 @@ export { MarkdownStreamingProvider, useMarkdownSmooth } from './context/Markdown
 export {
   CitationPanelProvider,
   useCitationPanel,
-  type CitationPanelTarget,
+  type CitationPanelSource,
 } from './context/CitationPanelContext';
 export { CitationSidePanel } from './components/message-parts/CitationSidePanel';
 
@@ -384,6 +394,9 @@ export {
   setCustomAgents,
   getCustomAgentMentionables,
   customAgentToMentionable,
+  setUserAgentMentionables,
+  getUserAgentMentionables,
+  userAgentToMentionable,
   setBoardMentionables,
   getBoardMentionables,
   boardToolMentionables,
@@ -397,6 +410,7 @@ export {
   type MentionableType,
   type MentionableCategory,
   type CustomAgentMentionable,
+  type UserAgentMentionable,
   type BoardMentionable,
   type DocMentionable,
 } from './lib/mentionables';
@@ -408,6 +422,7 @@ export {
   syncMcpServers,
   syncSheets,
   syncTextforms,
+  syncUserAgents,
   syncUserNotebooks,
   type MentionableFetch,
 } from './lib/mentionableSync';
@@ -417,7 +432,13 @@ export {
   RECIPE_ORIGIN_SECTION_TITLES,
   type RecipeOrigin,
 } from './lib/mentionSections';
-export { INTENT_TO_TOOL, DEEP_TOOL_MAP } from './lib/toolMappings';
+export {
+  INTENT_TO_TOOL,
+  DEEP_TOOL_MAP,
+  // Benennt Konnektor-Werkzeuge (`m<key>__<tool>`) lesbar; die
+  // Freigabe-Karten beider Plattformen brauchen denselben Namen.
+  formatNamespacedToolLabel,
+} from './lib/toolMappings';
 
 // Which tool calls live in the shimmering status line instead of drawing a card.
 export {
@@ -455,7 +476,13 @@ export {
   parsePressemitteilungExamples,
   pressemitteilungLvLabel,
   formatGermanDate,
+  getToolResultCount,
+  toolResultSummary,
+  toolOutcome,
+  toolErrorMessage,
   type ToolIconKey,
+  type ToolAccent,
+  type ToolOutcome,
   type ToolMeta,
   type ResearchCitation,
   type ResearchConfidence,
@@ -467,6 +494,21 @@ export {
   type PressemitteilungExample,
   type ParsedPressemitteilungExamples,
 } from './lib/toolResults';
+
+// Audio among a compute payload's file assets. Shared because web and native
+// each render the card from their own file and must label it the same way.
+export { audioAssetsOf, type ComputeFileAsset } from './lib/computeAssets';
+
+// Werkzeug-Freigabe: die plattformneutrale Hälfte. Web rendert sie als Karte,
+// Native als Karte im eigenen Idiom — beide lesen dieselben Optionen und
+// dieselben Beschriftungen, damit die Entscheidung überall gleich heisst.
+export {
+  TOOL_APPROVAL_OPTIONS,
+  approvalDecidedLabel,
+  isApprovalDecided,
+  type ToolApprovalOptionId,
+  type ToolApprovalState,
+} from './lib/toolApproval';
 
 // Tool view-models & registry (platform-neutral; each platform maps kind → component)
 export {

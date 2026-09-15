@@ -42,7 +42,10 @@ const SYSTEM_TOOL_PREFIXES: Record<string, string> = {
  * serverName). Internal tools pass through unchanged.
  */
 export function formatNamespacedToolLabel(toolName: string, serverName?: string): string {
-  const match = /^s\d+__(.+)$/.exec(toolName);
+  // `m<serverKey>__` ist die heutige Form (serverKey = die ersten 8 Zeichen der
+  // mcp_servers.id, also Hex); `s<idx>__` war die frühere und steht noch in
+  // älteren Threads.
+  const match = /^(?:s\d+|m[0-9a-f]{4,8})__(.+)$/.exec(toolName);
   if (match) return serverName ? `${serverName} · ${match[1]}` : (match[1] ?? toolName);
   const system = /^([a-z]+)__(.+)$/.exec(toolName);
   const systemName = system?.[1] ? SYSTEM_TOOL_PREFIXES[system[1]] : undefined;
@@ -63,6 +66,16 @@ const TOOL_COUNT_LABELS: Record<string, readonly [singular: string, plural: stri
   create_document: ['Dokument', 'Dokumente'],
   save_as_doc: ['Dokument', 'Dokumente'],
   rezept_laden: ['Rezept geladen', 'Rezepte geladen'],
+  create_pdf: ['PDF', 'PDFs'],
+  create_board: ['Board', 'Boards'],
+  umfragen: ['Umfrage', 'Umfragen'],
+  memory: ['Erinnerung', 'Erinnerungen'],
+  notebooks: ['Notebook-Zugriff', 'Notebook-Zugriffe'],
+  groups: ['Projekt-Zugriff', 'Projekt-Zugriffe'],
+  recurring_tasks: ['Aufgaben-Zugriff', 'Aufgaben-Zugriffe'],
+  user_agents: ['Agenten-Zugriff', 'Agenten-Zugriffe'],
+  recipes: ['Rezept-Zugriff', 'Rezept-Zugriffe'],
+  vertonen: ['Vertonung', 'Vertonungen'],
 };
 
 /**

@@ -77,7 +77,12 @@ const KIND_TO_INTENT = {
   präsentation: 'create_presentation',
   pdf: 'create_pdf',
   diagramm: 'chart',
-  social: 'social_post',
+  // `social: 'social_post'` stand hier, bis das Verdikt 08/2026 stillgelegt
+  // wurde. Ein Social-Post ist kein ARTEFAKT — er entsteht nicht neben der
+  // Antwort, er IST die Antwort. Das Wort ist deshalb auch aus dem Prompt
+  // unten gestrichen: bliebe es dort, antwortete das Modell weiter „social"
+  // und der Parser verwürfe es als unbekannt — ein bezahlter Aufruf ohne
+  // Ergebnis.
 } as const satisfies Record<string, ChatIntentId>;
 
 export type GenerationKind = keyof typeof KIND_TO_INTENT;
@@ -125,10 +130,9 @@ tabelle — eine Tabelle/Kalkulation als Datei
 praesentation — Folien
 pdf — ein PDF
 diagramm — ein Diagramm/Chart aus Zahlen
-social — ein fertiger Social-Media-Beitrag
 keine — alles andere
 
-"keine" ist die richtige Antwort für: zusammenfassen, kürzen, prüfen, erklären, umformulieren, übersetzen, beraten — auch wenn dabei ein langer Text entsteht. Ein Text IN der Antwort ist kein Artefakt.
+"keine" ist die richtige Antwort für: einen Social-Media-Post oder eine Pressemitteilung schreiben, zusammenfassen, kürzen, prüfen, erklären, umformulieren, übersetzen, beraten — auch wenn dabei ein langer Text entsteht. Ein Text IN der Antwort ist kein Artefakt.
 
 "keine" ist auch die richtige Antwort, wenn die Nachricht das Erzeugen VERBIETET ("kein Dokument erstellen", "nichts speichern"). Ein Verbot ist keine Bestellung.
 

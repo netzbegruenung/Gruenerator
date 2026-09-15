@@ -17,6 +17,7 @@ import { sendGroupInviteEmail } from '../../../../services/email/index.js';
 import {
   createGroupForUser,
   joinGroupByToken,
+  updateGroupInfo,
 } from '../../../../services/groups/groupMutations.js';
 import {
   createNotification,
@@ -357,75 +358,28 @@ export const coreRoutes = {
     const { name, description, settings } = args.body;
     try {
       const userId = getUserId(args.req);
-      const postgres = getPostgresInstance();
-      await postgres.ensureInitialized();
-
-      const membershipAndGroup = (await postgres.queryOne(
-        `SELECT gm.role, g.created_by
-           FROM group_memberships gm
-           JOIN groups g ON g.id = gm.group_id
-          WHERE gm.group_id = $1 AND gm.user_id = $2`,
-        [groupId, userId],
-        { table: 'group_memberships' }
-      )) as { role: string; created_by: string } | null;
-
-      if (!membershipAndGroup) {
-        return {
-          status: 403 as const,
-          body: { success: false as const, message: 'Du bist nicht Mitglied dieser Gruppe.' },
-        };
-      }
-      if (membershipAndGroup.role !== 'admin' && membershipAndGroup.created_by !== userId) {
-        return {
-          status: 403 as const,
-          body: {
-            success: false as const,
-            message: 'Keine Berechtigung zum Ändern der Gruppendetails.',
-          },
-        };
-      }
-
-      const updateFields: string[] = [];
-      const updateValues: Array<string | null> = [];
-      let paramIndex = 1;
-
-      if (name != null) {
-        if (!name.trim()) {
+      const outcome = await updateGroupInfo(groupId, userId, {
+        ...(name !== undefined ? { name } : {}),
+        ...(description !== undefined ? { description } : {}),
+        ...(settings !== undefined ? { settings } : {}),
+      });
+      switch (outcome.status) {
+        case 200:
+          return {
+            status: 200 as const,
+            body: { success: true as const, message: outcome.message },
+          };
+        case 400:
           return {
             status: 400 as const,
-            body: { success: false as const, message: 'Gruppenname darf nicht leer sein.' },
+            body: { success: false as const, message: outcome.message },
           };
-        }
-        updateFields.push(`name = $${paramIndex++}`);
-        updateValues.push(name.trim());
+        case 403:
+          return {
+            status: 403 as const,
+            body: { success: false as const, message: outcome.message },
+          };
       }
-      if (description !== undefined) {
-        updateFields.push(`description = $${paramIndex++}`);
-        updateValues.push(description?.trim() || null);
-      }
-      if (settings != null) {
-        updateFields.push(`settings = $${paramIndex++}`);
-        updateValues.push(JSON.stringify(settings));
-      }
-
-      if (updateFields.length === 0) {
-        return {
-          status: 400 as const,
-          body: { success: false as const, message: 'Keine Änderungen angegeben.' },
-        };
-      }
-
-      updateValues.push(groupId);
-      const result = await postgres.exec(
-        `UPDATE groups SET ${updateFields.join(', ')} WHERE id = $${paramIndex}`,
-        updateValues
-      );
-      if (result.changes === 0) throw new Error('Group not found or no changes made');
-
-      return {
-        status: 200 as const,
-        body: { success: true as const, message: 'Gruppendetails erfolgreich aktualisiert.' },
-      };
     } catch (error) {
       log.error('[groupsContract.updateInfo] Error:', error);
       return {

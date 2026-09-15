@@ -30,7 +30,11 @@ export {
 export { DocumentQnAService } from './DocumentQnAService/index.js';
 
 // Embedding input enrichment
-export { buildEmbeddingText, buildEmbeddingTexts } from './embeddingText.js';
+export { buildEmbeddingText, buildEmbeddingTextsForChunks } from './embeddingText.js';
+
+// Strukturfelder für das Qdrant-Payload
+export { structurePayload } from './structurePayload.js';
+export type { ChunkStructurePayload } from './structurePayload.js';
 
 // TextChunker - Text segmentation utilities
 export {
@@ -38,8 +42,6 @@ export {
   smartChunkDocumentAsync,
   hierarchicalChunkDocument,
   estimateTokens,
-  LangChainChunker,
-  langChainChunker,
 } from './TextChunker/index.js';
 
 // Re-export types from all submodules

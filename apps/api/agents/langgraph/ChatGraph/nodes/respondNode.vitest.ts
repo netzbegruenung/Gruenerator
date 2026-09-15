@@ -102,6 +102,42 @@ describe('truncateDocument', () => {
   });
 });
 
+describe('truncateDocument — mit Anfrage (#2824)', () => {
+  /** Antwort weit hinten: genau der Fall, den 60/40 wegschneidet. */
+  const filler = Array.from(
+    { length: 40 },
+    (_, i) =>
+      `## Abschnitt ${i}\n\nAllgemeine Ausführungen zu Zuständigkeiten und Zeitplänen im Haus.`
+  ).join('\n\n');
+  const doc = `${filler}\n\n## Löschfristen\n\nDie Löschfristen betragen sechs Monate.\n\n${filler}`;
+
+  it('behält die Passage zur Frage, wo der 60/40-Schnitt sie verlöre', () => {
+    const positional = truncateDocument(doc, 1200);
+    expect(positional).not.toContain('Die Löschfristen betragen');
+
+    const focused = truncateDocument(doc, 1200, 'Wie lang sind die Löschfristen?');
+    expect(focused).toContain('Die Löschfristen betragen');
+    expect(focused.length).toBeLessThanOrEqual(1200);
+  });
+
+  it('fällt ohne verwertbares Signal auf den alten Schnitt zurück', () => {
+    // Byte-gleich: das ist die Zusicherung, die alle Aufrufer ohne Anfrage tragen.
+    expect(truncateDocument(doc, 1200, '')).toBe(truncateDocument(doc, 1200));
+    expect(truncateDocument(doc, 1200, 'und was ist mit dem')).toBe(truncateDocument(doc, 1200));
+  });
+
+  it('fällt zurück, wenn der Begriff überall gleich oft steht', () => {
+    // „fasse das Dokument zusammen" darf keine beliebige Auswahl auslösen.
+    const flat = Array.from(
+      { length: 60 },
+      (_, i) => `## Teil ${i}\n\nDieses Dokument beschreibt das Dokument und seine Teile.`
+    ).join('\n\n');
+    expect(truncateDocument(flat, 1200, 'fasse das Dokument zusammen')).toBe(
+      truncateDocument(flat, 1200)
+    );
+  });
+});
+
 describe('limitAttachmentContext — fair per-document split (M1/M3)', () => {
   function doc(name: string, chars: number): string {
     return `### ${name}\n\n${'A'.repeat(chars)}`;
@@ -710,5 +746,40 @@ describe('Pipeline-Turn: genau ein Ausgangstext im Prompt', () => {
     const out = await buildSystemMessage(state({ pipelineSourceText: null }));
     expect(out).not.toContain('ZU ÜBERTRAGENDER TEXT');
     expect(out).toContain('Radwege');
+  });
+});
+
+/**
+ * `vision` ("Bildanalyse") war der dritte Schlüssel ohne Gatter (#3307). Die
+ * Bytes hängt `responseSinglePass` an die Nachricht; dieser Prompt-Block sagt
+ * dem Modell, dass sie da sind. Beide müssen dieselbe Antwort geben — ein
+ * Prompt, der Sichtbarkeit behauptet, während die Injektion ausblieb, ist die
+ * Bauanleitung für eine erfundene Bildbeschreibung.
+ */
+describe('formatImageContext — die Sichtbarkeitszusage folgt dem vision-Schalter', () => {
+  const withImages = (enabledTools: Record<string, boolean>) =>
+    makeState({
+      intent: 'direct',
+      searchResults: [],
+      citations: [],
+      agentConfig: { identifier: 'gruenerator-universal' },
+      enabledTools,
+      imageAttachments: [{ name: 'plakat.png', type: 'image/png', data: 'AAAA' }],
+    } as unknown as Partial<ChatGraphState>);
+
+  it('sagt dem Modell, dass die Bilder sichtbar sind, wenn vision an ist', async () => {
+    const out = await buildSystemMessage(withImages({}));
+    expect(out).toContain('ANGEHÄNGTE BILDER');
+    expect(out).toContain('plakat.png');
+    expect(out).toContain('sind in der Nachricht sichtbar');
+  });
+
+  it('nennt die Bilder weiter, sagt aber, dass sie NICHT sichtbar sind', async () => {
+    // Verschweigen wäre die andere Falle: die Person hat ein Bild angehängt
+    // und erwartet eine Reaktion darauf, nicht Schweigen.
+    const out = await buildSystemMessage(withImages({ vision: false }));
+    expect(out).toContain('plakat.png');
+    expect(out).toContain('NICHT in der Nachricht sichtbar');
+    expect(out).not.toContain('Die Bilder sind in der Nachricht sichtbar');
   });
 });

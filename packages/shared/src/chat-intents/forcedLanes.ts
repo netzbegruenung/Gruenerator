@@ -98,10 +98,14 @@ export const FORCED_LANE_BY_INTENT: Record<ChatIntentId, ForcedLane> = {
   image: 'single-pass',
   image_edit: 'single-pass',
   sharepic: 'single-pass',
-  social_post: 'single-pass',
   chart: 'single-pass',
   summary: 'single-pass',
   compute: 'single-pass',
+  // Stillgelegt, aber der Token lebt: `@social` ist als Erwähnung weg, steht
+  // aber in persistierten Threads und in ausgelieferten Composern (F0). Er
+  // landet über `forcedIntentStage` auf `produktion` — die Zeile hier sagt nur,
+  // dass ein solcher Zwang den Einzeldurchlauf nähme, nie die Schleife.
+  social_post: 'single-pass',
   // Nicht erwähnbar. Der Eintrag sagt, wo ein Zwang LANDEN würde — und für
   // `sharepic` oben ist das keine Hypothese: die Verfeinerungs-Heuristik in
   // `earlyHandlerStage` setzt `forcedTool` ohne jede Erwähnung.
@@ -109,7 +113,6 @@ export const FORCED_LANE_BY_INTENT: Record<ChatIntentId, ForcedLane> = {
   web: 'single-pass',
   scrape_url: 'single-pass',
   artifact: 'single-pass',
-  create_recurring_task: 'single-pass',
   modify_doc: 'single-pass',
   edit_current_doc: 'single-pass',
   edit_current_board: 'single-pass',
@@ -134,6 +137,9 @@ export const FORCED_LANE_BY_INTENT: Record<ChatIntentId, ForcedLane> = {
   // Dasselbe für `@pressemitteilungen`: der Pin zwingt den Turn in die
   // Schleife, nicht diese Zeile.
   pressemitteilung_examples: 'single-pass',
+  // `create_recurring_task` hat gar keine Erwähnung; der Pin kommt aus Tier 3.4
+  // des Klassifikators. Auch hier zwingt der Pin, nicht die Zeile.
+  create_recurring_task: 'single-pass',
   bahn: 'single-pass',
   reise: 'single-pass',
   hotel: 'single-pass',

@@ -79,6 +79,16 @@ export interface ContentPathResult {
    * could only be diagnosed by reading prod logs within their retention window.
    */
   errorMessages: string[];
+  /**
+   * Links the upstream site still publishes but no longer serves (HTTP 403/404/
+   * 410). Counted apart from `errors` because they are an upstream data-quality
+   * fact that no change on our side can clear — six of them recur on every
+   * nightly run (issue #2971), and left inside `errors` they train the reader to
+   * ignore the one number that is supposed to mean "something broke".
+   */
+  deadLinks: number;
+  /** URLs behind `deadLinks`, capped like `errorMessages`. */
+  deadLinkMessages: string[];
   /** Total vectors created */
   totalVectors: number;
   /** Skip reasons with counts */
@@ -115,8 +125,14 @@ export interface SourceResult {
    * could only be diagnosed by reading prod logs within their retention window.
    */
   errorMessages: string[];
+  /** Links upstream publishes but no longer serves. See ContentPathResult.deadLinks. */
+  deadLinks: number;
+  /** URLs behind `deadLinks`, capped. */
+  deadLinkMessages: string[];
   /** Total vectors created */
   totalVectors: number;
+  /** Why documents were skipped, summed over all content paths (see ContentPathResult.skipReasons). */
+  skipReasons: Record<string, number>;
   /** Results by content type */
   contentTypes: Record<string, ContentPathResult>;
   /** Metadata of newly stored articles (for notifications) */
@@ -163,8 +179,14 @@ export interface LandesverbandFullResult {
   errors: number;
   /** Messages behind `errors`, capped. See ContentPathResult.errorMessages. */
   errorMessages: string[];
+  /** Links upstream publishes but no longer serves. See ContentPathResult.deadLinks. */
+  deadLinks: number;
+  /** URLs behind `deadLinks`, capped. */
+  deadLinkMessages: string[];
   /** Total vectors created */
   totalVectors: number;
+  /** Why documents were skipped, summed over all sources. */
+  skipReasons: Record<string, number>;
   /** Results by source ID */
   bySource: Record<string, SourceResult>;
   /** Duration in seconds */

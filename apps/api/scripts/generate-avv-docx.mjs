@@ -132,7 +132,7 @@ function render(blocks) {
 // =========================================================================
 const content = [
   { title: 'Leistungsvereinbarung und Vereinbarung zur Auftragsverarbeitung' },
-  { p: '**Muster** – Stand: 11. August 2026' },
+  { p: '**Muster** – Stand: 2. September 2026' },
   {
     p: 'Dieses Dokument besteht aus der Leistungsvereinbarung (Teil A), der ihr als Anlage beigefügten Vereinbarung zur Auftragsverarbeitung (Teil B) sowie den zugehörigen Anhängen (Weisungsbefugnis, technisch-organisatorische Maßnahmen, Subunternehmen).',
   },
@@ -174,7 +174,7 @@ const content = [
   },
   { li: '**Web-Recherche:** agentische Recherche mit Quellenangaben (Linkup, SearXNG)' },
   {
-    li: '**Sprachverarbeitung & Echtzeit-Sprachdialog (Voice Agent):** Spracherkennung (Voxtral) und Sprachausgabe (Mistral Speech)',
+    li: '**Sprachverarbeitung & Echtzeit-Sprachdialog (Voice Agent):** Spracherkennung (Voxtral) und Sprachausgabe (KugelAudio)',
   },
   {
     p: '(2) Konkret bereitgestellt wird für den Auftraggeber in der Regel ein dediziertes **Notebook**, in das die vom Auftraggeber bereitgestellten Inhalte eingepflegt (eingelesen und indexiert) werden, um eine KI-gestützte Recherche und Frage-Antwort-Funktion auf diesen Inhalten zu ermöglichen. Die Einpflege erfolgt in der Regel automatisiert durch Auslesen (Scraping) der vom Auftraggeber benannten Webseiten; in Ausnahmefällen ist auch eine manuelle Bereitstellung und Einpflege möglich.',
@@ -307,13 +307,13 @@ const content = [
     p: '(7) Auskünfte an Dritte oder die betroffene Person darf der Auftragsverarbeiter nur nach vorheriger ausdrücklicher schriftlicher (oder dokumentierter elektronischer) Zustimmung durch den Verantwortlichen erteilen, es sei denn er ist gesetzlich zur Herausgabe verpflichtet.',
   },
   {
-    p: '(8) **Zweckbindung und KI-Training:** Der Auftragsverarbeiter verwendet die Daten für keine anderen Zwecke und ist insbesondere nicht berechtigt, sie an Dritte weiterzugeben, es sei denn er ist hierzu gesetzlich verpflichtet. Insbesondere ist eine Nutzung personenbezogener Daten zu Trainings- oder Modellentwicklungszwecken durch den Auftragsverarbeiter oder dessen Subunternehmer (z. B. Mistral AI, Scaleway, GreenPT, Seeweb/Regolo AI, Black Forest Labs) vertraglich ausgeschlossen bzw. per Opt-out deaktiviert, sofern dies nicht ausdrücklich vom Verantwortlichen angewiesen wurde.',
+    p: '(8) **Zweckbindung und KI-Training:** Der Auftragsverarbeiter verwendet die Daten für keine anderen Zwecke und ist insbesondere nicht berechtigt, sie an Dritte weiterzugeben, es sei denn er ist hierzu gesetzlich verpflichtet. Insbesondere ist eine Nutzung personenbezogener Daten zu Trainings- oder Modellentwicklungszwecken durch den Auftragsverarbeiter oder dessen Subunternehmer (z. B. Mistral AI, Scaleway, GreenPT, Seeweb/Regolo AI, KugelAudio, Black Forest Labs) vertraglich ausgeschlossen bzw. per Opt-out deaktiviert, sofern dies nicht ausdrücklich vom Verantwortlichen angewiesen wurde.',
   },
   {
     p: '(9) Der Verantwortliche führt das Verzeichnis von Verarbeitungstätigkeiten i. S. d. Art. 30 Abs. 1 DSGVO. Der Auftragsverarbeiter führt entsprechend den Vorgaben des Art. 30 Abs. 2 DSGVO ein Verzeichnis zu allen Kategorien von im Auftrag des Verantwortlichen durchgeführten Tätigkeiten.',
   },
   {
-    p: '(10) **Verarbeitungsort:** Die Verarbeitung der Daten im Auftrag des Verantwortlichen findet ausschließlich auf dem Gebiet der Europäischen Union (EU) bzw. des Europäischen Wirtschaftsraumes (EWR) statt (insb. Deutschland, Frankreich, Finnland, Italien). Dies gilt auch für die eingesetzten KI-Dienstleister. Eine Übermittlung personenbezogener Daten in Drittländer findet nicht statt. Selbst gehostete Dienste (z. B. Fehlermonitoring mit GlitchTip, Metasuche mit SearXNG) werden auf eigenen bzw. von der netzbegrünung betriebenen EU-Servern ausgeführt.',
+    p: '(10) **Verarbeitungsort:** Die Verarbeitung der Daten im Auftrag des Verantwortlichen findet ausschließlich auf dem Gebiet der Europäischen Union (EU) bzw. des Europäischen Wirtschaftsraumes (EWR) statt (insb. Deutschland, Frankreich, Finnland, Italien, die Niederlande und Polen). Dies gilt auch für die eingesetzten KI-Dienstleister. Eine Übermittlung personenbezogener Daten in Drittländer findet nicht statt. Selbst gehostete Dienste (z. B. Fehlermonitoring mit GlitchTip, Metasuche mit SearXNG) werden auf eigenen bzw. von der netzbegrünung betriebenen EU-Servern ausgeführt.',
   },
   {
     p: '(11) Der Auftragsverarbeiter gewährleistet, dass ihm unterstellte natürliche Personen, die Zugang zu Daten haben, diese nur auf Anweisung des Verantwortlichen verarbeiten. Telearbeit/Home Office ist unter Einhaltung angemessener TOM zulässig.',
@@ -505,8 +505,15 @@ const content = [
           'Mistral AI',
           '15 rue des Halles, 75001 Paris, FR',
           'Bestehend',
-          'KI-Text- & Sprachverarbeitung (KI-Textmodelle, Voxtral-Spracherkennung, Mistral Speech/TTS)',
+          'KI-Text- & Sprachverarbeitung (KI-Textmodelle, Voxtral-Spracherkennung)',
           'Verarbeitung in FR (EU). DPA vorhanden. Kein Training.',
+        ],
+        [
+          'KugelAudio GmbH',
+          'Rosenthaler Str. 36, 10178 Berlin, DE (AG Charlottenburg, HRB 277989 B)',
+          'Bestehend',
+          'Sprachausgabe (Text-to-Speech) für Vorlesefunktion und Echtzeit-Sprachdialog',
+          'Sitz DE, Verarbeitung in der EU über den EU-Endpunkt. EU-AVV vom 19.08.2026. Keine dauerhafte Speicherung der Inhalte (Zero Data Retention), kein Training. Eigene Unterauftragnehmer laut Trust Center: Verda AI (FI), Hetzner (DE), Nebius (FI/FR), Contabo (DE), OVH (FR/DE), Scaleway (FR/NL/PL), Supabase (EU).',
         ],
         [
           'Scaleway SAS',

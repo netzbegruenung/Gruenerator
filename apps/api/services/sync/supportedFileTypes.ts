@@ -32,6 +32,19 @@ export const WOLKE_SUPPORTED_EXTENSIONS = [
   ...WOLKE_PLAINTEXT_EXTENSIONS,
 ] as const;
 
+/**
+ * Der Scraper-Pfad (`wolkeShareHandler` → `ocrService.extractTextFromDocument`)
+ * hat eine ANDERE Menge, und das ist kein Drift, sondern ein anderer Extraktor:
+ * er reicht die Datei direkt an Mistral-OCR weiter, das `.doc` und `.xlsx` über
+ * `getMediaType` kennt, aber keine Bilder gebrauchen kann — der Sync-Pfad geht
+ * über `extractTextFromFile`, wo es umgekehrt liegt.
+ *
+ * Die Liste stand deshalb doppelt; hier steht sie neben ihrer Schwester, damit
+ * der Unterschied sichtbar ist statt zufällig. Die Paarung mit `getMediaType`
+ * bewacht `wolkeMediaTypes.vitest.ts`.
+ */
+export const WOLKE_SCRAPER_OCR_EXTENSIONS = ['.pdf', '.docx', '.doc', '.pptx', '.xlsx'] as const;
+
 export type WolkeSupportedExtension = (typeof WOLKE_SUPPORTED_EXTENSIONS)[number];
 
 /** Lowercased extension of a file name, including the leading dot ('' if none). */

@@ -7,6 +7,7 @@ import type {
   EditorOperationsEvent,
   RoleRef,
 } from '@gruenerator/contracts';
+import type { UnauthorizedInfo } from '@gruenerator/shared/api';
 
 /** A raw file handed to the in-browser Python interpreter (Pyodide worker). */
 export interface PythonFile {
@@ -55,9 +56,12 @@ export interface ChatConfig {
    * Called on 401. A truthy (Promise-)return means "the session was probed and
    * is actually alive — retry the request once" (web routes this through the
    * shared handleUnauthorized authority); void/false means "don't retry".
+   * `info` carries the 401's code/requestId so the handler can report WHICH
+   * failure tore the session down instead of an anonymous one; every field is
+   * optional, so a zero-arg handler stays assignable.
    * Default: redirect to /login.
    */
-  onUnauthorized?: () => void | boolean | Promise<boolean | void>;
+  onUnauthorized?: (info?: UnauthorizedInfo) => void | boolean | Promise<boolean | void>;
   /** Client shell sent with chat requests; unset means 'web'. */
   platform?: ClientPlatform;
   /** API endpoint overrides (all have defaults matching current paths) */
@@ -141,6 +145,17 @@ export interface ChatConfig {
    */
   wolkeConnectUrl?: string;
   /**
+   * Href des Chunk-Inspektors zu einer Zitation, oder `null` für „nicht
+   * anzeigen". Die Host-App entscheidet darin auch, ob die angemeldete Person
+   * Instanz-Admin ist — packages/chat kennt weder die Rolle noch die Route.
+   * Weggelassen (mobil) blendet den Eintrag aus.
+   */
+  chunkInspectorHref?: (target: {
+    documentId: string;
+    collectionId: string;
+    chunkIndex: number;
+  }) => string | null;
+  /**
    * Uploads a composer-attached video to the subtitler TUS endpoint and
    * resolves with its uploadId. Required for video attachments — without it
    * the attachment adapter rejects video files. The abort handle terminates
@@ -195,7 +210,7 @@ export interface ResolvedEndpoints {
 
 interface ResolvedChatConfig {
   fetch: (url: string, options?: RequestInit) => Promise<Response>;
-  onUnauthorized: () => void | boolean | Promise<boolean | void>;
+  onUnauthorized: (info?: UnauthorizedInfo) => void | boolean | Promise<boolean | void>;
   endpoints: ResolvedEndpoints;
   docsBaseUrl?: string;
 }
@@ -303,6 +318,8 @@ interface ChatConfigStore extends ResolvedChatConfig {
   platform?: ChatConfig['platform'];
   /** URL the @wolke empty-state CTA opens (new tab). Hidden when unset. */
   wolkeConnectUrl?: string;
+  /** Href des Chunk-Inspektors zu einer Zitation; null/unset blendet ihn aus. */
+  chunkInspectorHref?: ChatConfig['chunkInspectorHref'];
   /** threadId → context-getter, populated by host surfaces (e.g. docs editor). */
   contextProviders: Map<string, ChatRequestContextProvider>;
   /** Register a context provider for a thread. Returns the unregister function. */
@@ -408,6 +425,7 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
   onEditInDocs: undefined,
   onExportPdfLetterhead: undefined,
   wolkeConnectUrl: undefined,
+  chunkInspectorHref: undefined,
   contextProviders: new Map(),
   documentEditHandlers: new Map(),
   boardActionHandlers: new Map(),
@@ -439,6 +457,7 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
       persistActiveRole: config?.persistActiveRole,
       platform: config?.platform,
       wolkeConnectUrl: config?.wolkeConnectUrl,
+      chunkInspectorHref: config?.chunkInspectorHref,
     });
   },
 

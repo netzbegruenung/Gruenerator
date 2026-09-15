@@ -153,6 +153,13 @@ export interface ImageElementConfig<
    * fixed-aspect canvas.
    */
   coverFit?: boolean;
+  /**
+   * When true, the scaled box is re-anchored on the slot's centre instead of
+   * scaling about the top-left origin (the default). Use for fixed photo slots
+   * (e.g. the veranstaltung band) that are not draggable: zoom then magnifies
+   * about the centre with no drift into a corner and no re-centring needed.
+   */
+  centerZoom?: boolean;
 }
 
 /** Rectangle element configuration */

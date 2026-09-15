@@ -1,0 +1,177 @@
+{
+  "pipeline": "qa",
+  "depth": "fast",
+  "withRerank": true,
+  "outcomes": [
+    {
+      "id": "kommunalwiki-buergerbegehren",
+      "collection": "kommunalwiki-system",
+      "query": "Wie funktioniert ein Bürgerbegehren in der Kommune?",
+      "rank": 1,
+      "topTitles": [
+        "Bürgerbegehren und Bürgerentscheide in Deutschland – Ein Überblick",
+        "Bürgerkommune und bürgerschaftliches Engagement",
+        "Direkte Demokratie in der Diskussion",
+        "FAQ Kommunalpolitik Bayern",
+        "Bürgerbeteiligung"
+      ],
+      "searchTimeMs": 13420,
+      "rerankRank": null,
+      "rerankTimeMs": 2976,
+      "rerankBatch": 30
+    },
+    {
+      "id": "kommunalwiki-bebauungsplan",
+      "collection": "kommunalwiki-system",
+      "query": "Aufstellung eines Bebauungsplans — Verfahren und Beteiligung",
+      "rank": null,
+      "topTitles": [
+        "Bürgerbeteiligung",
+        "Feministische Planung",
+        "Sozialgerechte Bodennutzung",
+        "Leitfaden für eine neue Planungskultur",
+        "Planungszelle"
+      ],
+      "searchTimeMs": 580,
+      "rerankRank": null,
+      "rerankTimeMs": 2498,
+      "rerankBatch": 30
+    },
+    {
+      "id": "kommunalwiki-radverkehr",
+      "collection": "kommunalwiki-system",
+      "query": "Radverkehrsförderung in der Kommunalpolitik",
+      "rank": 1,
+      "topTitles": [
+        "Radverkehr",
+        "Werkstatt:Weblinks",
+        "BVV-Planspiel Berlin",
+        "Mobilitätspolitik der Ampelregierung",
+        "Klimaschutz als kommunale Pflichtaufgabe?"
+      ],
+      "searchTimeMs": 577,
+      "rerankRank": 5,
+      "rerankTimeMs": 2253,
+      "rerankBatch": 30
+    },
+    {
+      "id": "kommunalwiki-haushalt",
+      "collection": "kommunalwiki-system",
+      "query": "Wie liest man einen kommunalen Haushaltsplan?",
+      "rank": 1,
+      "topTitles": [
+        "Haushaltsbegriffe und Haushaltsrecht",
+        "Kameralistik",
+        "Öffentliche Auslegung des Haushaltsplans",
+        "Haushalt",
+        "Haushaltsaufstellung"
+      ],
+      "searchTimeMs": 557,
+      "rerankRank": 3,
+      "rerankTimeMs": 2200,
+      "rerankBatch": 30
+    },
+    {
+      "id": "kommunalwiki-waermeplanung",
+      "collection": "kommunalwiki-system",
+      "query": "Kommunale Wärmeplanung umsetzen",
+      "rank": 2,
+      "topTitles": [
+        "Klimaschutz als kommunale Pflichtaufgabe?",
+        "Handlungsleitfaden Kommunale Wärmeplanung",
+        "Kommunale Maßnahmen gegen Hitze",
+        "Energiearmut",
+        "Werkstatt:Weblinks"
+      ],
+      "searchTimeMs": 504,
+      "rerankRank": 1,
+      "rerankTimeMs": 2688,
+      "rerankBatch": 30
+    },
+    {
+      "id": "kommunalwiki-fraktion",
+      "collection": "kommunalwiki-system",
+      "query": "Rechte und Arbeit einer Fraktion im Gemeinderat",
+      "rank": 2,
+      "topTitles": [
+        "FAQ Kommunalpolitik Bayern",
+        "Kommunale Demokratie in Corona-Zeiten",
+        "Zusammenarbeit im Team",
+        "Umgang mit Rechtspopulismus in der Kommune",
+        "GmbH als Rechtsform für kommunale Unternehmen"
+      ],
+      "searchTimeMs": 441,
+      "rerankRank": 3,
+      "rerankTimeMs": 2861,
+      "rerankBatch": 30
+    },
+    {
+      "id": "kommunalwiki-vergabe",
+      "collection": "kommunalwiki-system",
+      "query": "Öffentliche Vergabe und Ausschreibungen in Kommunen",
+      "rank": 1,
+      "topTitles": [
+        "Vergaberecht",
+        "Kommunen in der Corona-Krise",
+        "Öffentlich-öffentliche Zusammenarbeit",
+        "Kommunale Selbstverwaltung sieht anders aus",
+        "Sozialverträglichkeit als Kriterium in der kommunalen Beschaffung"
+      ],
+      "searchTimeMs": 489,
+      "rerankRank": 5,
+      "rerankTimeMs": 2499,
+      "rerankBatch": 30
+    },
+    {
+      "id": "kommunalwiki-jugend",
+      "collection": "kommunalwiki-system",
+      "query": "Jugendbeteiligung in der Kommune",
+      "rank": 5,
+      "topTitles": [
+        "Service Learning an Schulen für kommunale Bedarfe nutzen",
+        "Werkstatt:Weblinks",
+        "Bildungspolitik als kommunale Aufgabe",
+        "Von Projekten zu Strukturen – Übergangsmanagement im Kreis Gütersloh",
+        "Kommunale Praxis-, Koordinations- und Servicestelle Jugendhilfe-Schule Marburg"
+      ],
+      "searchTimeMs": 387,
+      "rerankRank": 1,
+      "rerankTimeMs": 2398,
+      "rerankBatch": 30
+    },
+    {
+      "id": "kommunalwiki-laerm",
+      "collection": "kommunalwiki-system",
+      "query": "Lärmaktionsplanung und Lärmschutz vor Ort",
+      "rank": 1,
+      "topTitles": [
+        "Mehr Ruhe. Verkehrslärm wirksam reduzieren",
+        "Werkstatt:Weblinks",
+        "Planungszelle",
+        "Bevölkerungsschutz",
+        "Umgebungslärmrichtlinie"
+      ],
+      "searchTimeMs": 446,
+      "rerankRank": 2,
+      "rerankTimeMs": 2551,
+      "rerankBatch": 30
+    },
+    {
+      "id": "kommunalwiki-baum",
+      "collection": "kommunalwiki-system",
+      "query": "Baumschutzsatzung und Stadtgrün",
+      "rank": 1,
+      "topTitles": [
+        "Urbanes Grün",
+        "Umweltschutz durch kommunales Satzungsrecht",
+        "Grüne Infrastruktur",
+        "Schottergarten",
+        "Klimaschutz als kommunale Pflichtaufgabe?"
+      ],
+      "searchTimeMs": 421,
+      "rerankRank": 2,
+      "rerankTimeMs": 2622,
+      "rerankBatch": 30
+    }
+  ]
+}

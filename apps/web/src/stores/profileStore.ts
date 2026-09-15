@@ -57,11 +57,6 @@ interface UserText {
   content?: string;
 }
 
-interface Memory {
-  id: string;
-  content?: string;
-}
-
 interface AvailableDocument {
   id: string;
   name?: string;
@@ -163,7 +158,6 @@ interface ProfileStore {
   savedGenerators: CustomGenerator[];
   userTexts: UserText[];
   userTemplates: unknown[];
-  memories: Memory[];
   availableDocuments: AvailableDocument[];
   editModes: EditModes;
   unsavedChanges: UnsavedChanges;
@@ -181,7 +175,6 @@ interface ProfileStore {
   syncSavedGenerators: (generators: CustomGenerator[] | null) => void;
   syncUserTexts: (texts: UserText[] | null) => void;
   syncUserTemplates: (templates: unknown[] | null) => void;
-  syncMemories: (memories: Memory[] | null) => void;
   syncAvailableDocuments: (documents: AvailableDocument[] | null) => void;
   setEditMode: (section: keyof Omit<EditModes, 'customGenerators'>, enabled: boolean) => void;
   setUnsavedChanges: (
@@ -248,7 +241,6 @@ export const useProfileStore = create<ProfileStore>()(
       savedGenerators: [],
       userTexts: [],
       userTemplates: [],
-      memories: [],
       availableDocuments: [],
       editModes: {
         profile: false,
@@ -345,11 +337,6 @@ export const useProfileStore = create<ProfileStore>()(
       syncUserTemplates: (templates) =>
         set((state) => {
           state.userTemplates = templates || [];
-        }),
-
-      syncMemories: (memories) =>
-        set((state) => {
-          state.memories = memories || [];
         }),
 
       syncAvailableDocuments: (documents) =>
@@ -682,7 +669,6 @@ export const useProfileStore = create<ProfileStore>()(
           savedGenerators: [],
           userTexts: [],
           userTemplates: [],
-          memories: [],
           availableDocuments: [],
           editModes: {
             profile: false,

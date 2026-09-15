@@ -16,6 +16,7 @@ import { z } from 'zod';
 import {
   getTransparencyStatsResponseSchema,
   transparencyErrorResponseSchema,
+  transparencyLocaleSchema,
 } from '../schemas/transparency.js';
 
 const c = initContract();
@@ -23,8 +24,10 @@ const c = initContract();
 export const transparencyContract = c.router(
   {
     /**
-     * GET /api/transparency/usage?days=30
+     * GET /api/transparency/usage?days=30&locale=at
      * Aggregate totals, footprint band, per-provider constants and breakdowns.
+     * `locale` narrows the aggregate to one country's users; the suppression
+     * threshold applies to the segment, so a thin one publishes nothing.
      */
     getTransparencyStats: {
       method: 'GET',
@@ -34,6 +37,7 @@ export const transparencyContract = c.router(
       // index signature and breaks the shared validation-error handler.
       query: z.object({
         days: z.coerce.number().int().min(1).max(365).optional(),
+        locale: transparencyLocaleSchema.optional(),
       }),
       responses: {
         200: getTransparencyStatsResponseSchema,

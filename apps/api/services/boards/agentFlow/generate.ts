@@ -39,14 +39,17 @@ const MIN_DOCUMENT_TOKENS = 4000;
 // Max model<->tool round-trips while authoring (search/research then write).
 const MAX_TOOL_STEPS = 5;
 
-const DOCUMENT_MODE = `
+// Exportiert, weil der headless Loop-Einstieg (#3221,
+// `runHeadlessAgenticTurn`) dieselben Modus-Suffixe an denselben Systemprompt
+// hängt — eine zweite Kopie liefe auseinander.
+export const DOCUMENT_MODE = `
 
 ## DOKUMENT-MODUS (vorrangig)
 Du erstellst ein eigenständiges, vollständiges Dokument — KEINE kurze Chat-Antwort. Die Längen- und Knappheitsregeln aus den ANTWORT-REGELN gelten hier NICHT. Schreibe so ausführlich und strukturiert, wie die Aufgabe es verlangt: mit aussagekräftiger Überschrift (#), sinnvollen Zwischenüberschriften und vollständig ausformulierten Absätzen.
 
 Du hast Recherche-Tools (gruenerator_search, web_search, research, …). Nutze sie aktiv, um Fakten und grüne Positionen zu belegen, bevor du schreibst — verlasse dich nicht nur auf vorhandenen Kontext. Gib am Ende AUSSCHLIESSLICH den Dokumentinhalt als Markdown aus — keine Meta-Kommentare, keine Rückfragen.`;
 
-const COMMENT_MODE = `
+export const COMMENT_MODE = `
 
 ## KOMMENTAR-MODUS
 Du antwortest direkt in einem Board-Kommentar-Thread. Antworte knapp und konkret auf die Frage. Nutze bei Faktenbedarf zuerst die Recherche-Tools. Gib NUR die Antwort aus — keine Anrede, keine Meta-Kommentare, keine Überschrift.
@@ -160,37 +163,33 @@ export async function generateFromState(
     { intent: finalState.intent }
   );
 
-  try {
-    const generated = await generateText({
-      model: resolution.model,
-      system: systemMessage,
-      messages: [taskMessage],
-      tools: createSearchTools(agentConfig, {
-        // The board flow has known the locale all along — `runFlow` derives it
-        // from the task and threads it into the chat state — it just never
-        // reached the search tools. That was survivable while the collection
-        // list mixed both countries; now that it is locale-filtered, omitting
-        // it would silently hand an Austrian board task the German corpora.
-        // It also fixes the older half of the same gap: the default collection
-        // was `deutschland` for an AT board task even before the filter.
-        userLocale: finalState.userLocale,
-        // Only restrict when the agent has a non-empty selection; an empty/absent
-        // list means "no per-agent narrowing", not "no tools at all".
-        ...(opts.restrictToAgentTools && agentConfig.enabledTools?.length
-          ? { enabledToolKeys: agentConfig.enabledTools }
-          : {}),
-      }),
-      stopWhen: isStepCount(MAX_TOOL_STEPS),
-      maxOutputTokens: opts.longForm
-        ? Math.max(agentConfig.params.max_tokens, MIN_DOCUMENT_TOKENS)
-        : agentConfig.params.max_tokens,
-      temperature: agentConfig.params.temperature,
-      abortSignal: AbortSignal.timeout(GENERATION_TIMEOUT_MS),
-    });
-    return generated.text.trim();
-  } finally {
-    if (resolution.releaseSlot) await resolution.releaseSlot();
-  }
+  const generated = await generateText({
+    model: resolution.model,
+    system: systemMessage,
+    messages: [taskMessage],
+    tools: createSearchTools(agentConfig, {
+      // The board flow has known the locale all along — `runFlow` derives it
+      // from the task and threads it into the chat state — it just never
+      // reached the search tools. That was survivable while the collection
+      // list mixed both countries; now that it is locale-filtered, omitting
+      // it would silently hand an Austrian board task the German corpora.
+      // It also fixes the older half of the same gap: the default collection
+      // was `deutschland` for an AT board task even before the filter.
+      userLocale: finalState.userLocale,
+      // Only restrict when the agent has a non-empty selection; an empty/absent
+      // list means "no per-agent narrowing", not "no tools at all".
+      ...(opts.restrictToAgentTools && agentConfig.enabledTools?.length
+        ? { enabledToolKeys: agentConfig.enabledTools }
+        : {}),
+    }),
+    stopWhen: isStepCount(MAX_TOOL_STEPS),
+    maxOutputTokens: opts.longForm
+      ? Math.max(agentConfig.params.max_tokens, MIN_DOCUMENT_TOKENS)
+      : agentConfig.params.max_tokens,
+    temperature: agentConfig.params.temperature,
+    abortSignal: AbortSignal.timeout(GENERATION_TIMEOUT_MS),
+  });
+  return generated.text.trim();
 }
 
 /**

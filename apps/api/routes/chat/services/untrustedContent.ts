@@ -23,6 +23,7 @@ export type UntrustedKind =
   | 'frueheres_dokument'
   | 'suchergebnis'
   | 'nutzer_anweisung'
+  | 'gedaechtnis'
   | 'agenten_prompt';
 
 /**

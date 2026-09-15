@@ -4,7 +4,10 @@
  *   pnpm --filter @gruenerator/api exec tsx scripts/probe-stats.ts
  */
 import 'dotenv/config';
-import { getQdrantInstance } from '../database/services/QdrantService/index.js';
+import {
+  getQdrantInstance,
+  useQdrantConnectOnly,
+} from '../database/services/QdrantService/index.js';
 
 const COLLECTION = 'landesverbaende_documents';
 const FILTER = {
@@ -29,6 +32,7 @@ async function step<T>(name: string, fn: () => Promise<T>) {
 }
 
 async function main() {
+  useQdrantConnectOnly();
   const qdrant = getQdrantInstance();
   await qdrant.init();
   const client = qdrant.client!;

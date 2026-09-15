@@ -199,10 +199,31 @@ function describe(entry: InventoryEntry): string {
 export const NO_ARTIFACT_URL_RULE =
   'Schreibe NIEMALS eine Internetadresse (http…, www…, Domain) zu einem Artefakt in deine Antwort — die Karte im Chat öffnet es selbst, jede ausgeschriebene Adresse wäre geraten und führte ins Leere. Nenne höchstens den Pfad, den dir der Code ausdrücklich genannt hat, und stelle ihm nichts voran.';
 
+/** Ein Ausgang, den der Code kennt, darf im Prompt keine Wahl sein — hier für
+ *  beide Richtungen. Live 15.09.2026: „Ich habe … eingefügt", dann „Moment
+ *  bitte", auf Turns ohne Sharepic-Werkzeug. Geteilt mit dem Loop-Block, dem
+ *  Split-Schreiber und DIRECT_HONESTY_NOTE, damit ein Prompt nicht drei
+ *  Fassungen davon trägt. */
+export const NO_PHANTOM_ACTION_RULE =
+  'Behaupte NIEMALS, eine Aktion oder ein Artefakt sei in diesem Turn erledigt, erstellt oder geändert worden, wenn kein Werkzeug das getan hat — und kündige nichts für „gleich" an: Was in diesem Turn kein Werkzeug tut, passiert nicht. Kannst du eine gewünschte Änderung hier nicht vornehmen, sag das in einem Satz.';
+
+/** Dieselbe Begründung wie beim URL-Verbot: das Modell sieht die Oberfläche
+ *  nicht (live 15.09.2026: „als visuelle Karte über oder unter meiner Antwort"). */
+export const UI_BLIND_RULE =
+  'Die Oberfläche siehst du NICHT. Beschreibe nie, wo oder wie etwas dort erscheint (Karte, Vorschau, oben/unten, Button, Download) — alles davon wäre geraten, außer dem Hinweis, den dir der Code ausdrücklich nennt. Ein Artefakt, das ein Werkzeug in diesem Turn erstellt hat, erscheint im Chat; mehr weißt du darüber nicht.';
+
+/** Der eine Oberflächen-Hinweis, den der Code kennt: die Edit-Lane liest
+ *  „Variante N: …" und den Karten-Schalter (sharepicEditService). */
+const SHAREPIC_EDIT_HINT =
+  ' Ein Sharepic aus diesem Gespräch kannst du in dieser Antwort NICHT ändern. Bitte darum, die Änderung als „Variante N: <Änderung>" zu schicken oder auf der Karte „Im Chat bearbeiten" zu aktivieren — genau diesen Hinweis darfst du nennen.';
+
 export function renderArtifactInventory(entries: readonly InventoryEntry[]): string {
   if (entries.length === 0) return '';
   const lines = entries.map(describe).join('\n');
-  return `\n\n## ARTEFAKTE IN DIESEM GESPRÄCH\n\n${lines}\n\nDiese Artefakte sind fertig und stehen sichtbar im Chat. Behaupte NIEMALS, eines davon existiere nicht, sei nicht erstellt worden oder seine Erstellung sei fehlgeschlagen. Wenn sich der Auftrag auf eines bezieht, meine dieses — erfinde kein zweites. ${NO_ARTIFACT_URL_RULE}`;
+  const sharepicHint = entries.some((e) => e.artifact.kind === 'sharepic')
+    ? SHAREPIC_EDIT_HINT
+    : '';
+  return `\n\n## ARTEFAKTE IN DIESEM GESPRÄCH\n\n${lines}\n\nDiese Artefakte sind fertig und stehen sichtbar im Chat. Behaupte NIEMALS, eines davon existiere nicht, sei nicht erstellt worden oder seine Erstellung sei fehlgeschlagen. Wenn sich der Auftrag auf eines bezieht, meine dieses — erfinde kein zweites. Umgekehrt gilt genauso: ${NO_PHANTOM_ACTION_RULE} ${NO_ARTIFACT_URL_RULE} ${UI_BLIND_RULE}${sharepicHint}`;
 }
 
 /**

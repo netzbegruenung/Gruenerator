@@ -5,6 +5,7 @@
  */
 
 import type { SearchPatternResult } from './keyword-extractor-types.js';
+import type { SparseVector } from '../text/index.js';
 
 // ============ Search Parameters ============
 
@@ -29,6 +30,33 @@ export interface SearchOptions {
   recallLimit?: number | undefined;
   /** Siehe `MMROptions.rerankChunks` — von hier durchgereicht. */
   rerankChunks?: boolean | undefined;
+  /**
+   * Eine fertige Anfrage-Einbettung. Ist sie gesetzt, ruft
+   * `BaseSearchService.generateQueryEmbedding` `mistralEmbeddingService`
+   * NICHT — die Suche läuft sonst unverändert.
+   *
+   * Die eine Naht, über die der Einbettungs-Bake-off
+   * (`evals/retrieval/embedCandidates.ts`) einen anderen Einbetter gegen
+   * dieselbe Pipeline messen kann, ohne dass Eval-Logik in die Produktions-
+   * pfade wandert. Kein Produktionsaufrufer setzt sie — und wer es täte, muss
+   * wissen: die Einbettung MUSS zum Modell der durchsuchten Sammlung passen,
+   * das prüft niemand nach.
+   */
+  queryVector?: number[] | undefined;
+  /**
+   * Ein fertiger BM25-Sparse-Vektor für die Anfrage. Ist er gesetzt, ruft
+   * `hybridSearchServerSide` `encodeBm25Query` NICHT — die Suche läuft sonst
+   * unverändert.
+   *
+   * Die sparse Schwester von {@link SearchOptions.queryVector} und aus
+   * demselben Grund da: der Stemmer-Vergleich (#3188) misst einen anderen
+   * Wortstamm-Bildner gegen dieselbe Pipeline, ohne Eval-Logik in den
+   * Produktionspfad zu legen. Kein Produktionsaufrufer setzt sie. Wer es
+   * täte, muss wissen: das Hash-Alphabet der Anfrage MUSS zu dem der
+   * durchsuchten Sammlung passen, das prüft niemand nach — ein Vektor aus
+   * einem anderen Stemmer trifft still nichts, statt zu scheitern.
+   */
+  sparseQueryVector?: SparseVector | undefined;
   [key: string]: unknown;
 }
 
@@ -63,10 +91,12 @@ export interface RawChunk {
   published_at?: string | null | undefined;
   content_type?: string | undefined;
   page_number?: number | undefined;
+  chunk_type?: string | undefined;
   url?: string | undefined;
   metadata?: {
     content_type?: string | undefined;
     page_number?: number | undefined;
+    chunk_type?: string | undefined;
     [key: string]: unknown;
   };
   documents?: {
@@ -86,6 +116,7 @@ export interface ChunkData {
   text: string;
   content_type?: string | null | undefined;
   page_number?: number | null | undefined;
+  chunk_type?: string | null | undefined;
   similarity: number;
   similarity_adjusted?: number | undefined;
   has_term?: boolean | undefined;
@@ -95,6 +126,16 @@ export interface ChunkData {
   searchMethod?: string | undefined;
   originalVectorScore?: number | null | undefined;
   originalTextScore?: number | null | undefined;
+  /**
+   * Dichter Kosinus dieses Chunks, aber NUR wenn er über den server-seitigen
+   * Score-Join (#3166 Task 2) gemessen wurde — anders als
+   * `originalVectorScore`, das auf JEDEM Pfad einen echten Kosinus trägt.
+   * Der Alt-Pfad hat ebenfalls einen Kosinus, aber `similarity_score` trägt
+   * dort Zuschläge (Begriffstreffer, Diversität, Hybrid-Bonus) oben drauf,
+   * die dieses Feld nicht kennt — ein Schnitt dagegen würde die
+   * Alt-Kontrollgruppe verschieben. Siehe Fix-Runde 1.
+   */
+  denseSimilarityScore?: number | null | undefined;
 }
 
 export interface TransformedChunk {
@@ -117,6 +158,8 @@ export interface TransformedChunk {
   searchMethod?: string | undefined;
   originalVectorScore?: number | null | undefined;
   originalTextScore?: number | null | undefined;
+  /** Siehe `ChunkData.denseSimilarityScore` — dieselbe Gate-Bedingung. */
+  denseSimilarityScore?: number | null | undefined;
 }
 
 // ============ Scoring ============
@@ -151,6 +194,12 @@ export interface HybridMetadata {
   searchMethods: Set<string>;
   vectorScores: number[];
   textScores: number[];
+  /**
+   * Dichte Kosinus-Werte NUR aus dem server-seitigen Score-Join (#3166 Task
+   * 2), getrennt von `vectorScores` (das jeder Pfad füllt). Grundlage für
+   * `DocumentResult.dense_similarity_score`.
+   */
+  denseJoinScores: number[];
 }
 
 export interface DocumentData {
@@ -172,6 +221,7 @@ export interface TopChunk {
   chunk_index: number;
   content_type?: string | null | undefined;
   page_number?: number | null | undefined;
+  chunk_type?: string | null | undefined;
   quality_score?: number | null | undefined;
   has_term?: boolean | undefined;
   /** Short excerpt for display in the UI's citation list. */
@@ -199,6 +249,20 @@ export interface DocumentResult {
   source_id?: string | null | undefined;
   relevant_content: string;
   similarity_score: number;
+  /**
+   * Höchster GEMESSENER dichter Kosinus über die Chunks dieses Dokuments,
+   * `null` wo keiner vorlag (#3166) — NUR aus dem server-seitigen Score-Join
+   * (Task 2, `HYBRID_SERVER_SCORE_JOIN`), nie aus dem Alt-Pfad. Fix-Runde 1:
+   * der Alt-Pfad hat pro Chunk ebenfalls einen echten Kosinus
+   * (`originalVectorScore`), aber sein `similarity_score` trägt zusätzlich
+   * Begriffstreffer-, Diversitäts- und Hybrid-Boni (zusammen bis zu ~0,33) auf
+   * die Rohwerte — ein Schnitt gegen den unboosteten Kosinus hätte die 42
+   * Alt-Kontrollfälle verschoben. Auf dem fusionierten Server-Pfad gilt das
+   * nicht: dort ist `similarity_score` kein Kosinus mehr, sondern ein
+   * Fusionswert (RRF ≈ 1,0 auf Rang 1, DBSF nahe 0), gegen den die
+   * Notebook-Schwelle von 0,35 gar nicht gemessen ist.
+   */
+  dense_similarity_score?: number | null | undefined;
   max_similarity: number;
   avg_similarity: number;
   position_score?: number | undefined;
@@ -248,6 +312,13 @@ export interface SearchResponse {
     searchPatterns?: string[] | undefined;
     hybridMethod?: string | undefined;
     processedDocuments?: number | undefined;
+    /**
+     * Der Chunk-Reranker war bestellt und ist ausgefallen (Anbieter aus,
+     * Breaker offen, Zeitüberschreitung). KEIN Fehler: die Sortierung ist die
+     * ohne Cross-Encoder. Das Feld existiert allein, damit der agentische Loop
+     * einmal je Turn `rerank_degraded` senden kann. Es wird NICHT mitgecacht.
+     */
+    rerankDegraded?: boolean | undefined;
   };
 }
 
@@ -259,6 +330,8 @@ export interface HybridOptions {
   useRRF?: boolean | undefined;
   rrfK?: number | undefined;
   recallLimit?: number | undefined;
+  /** Siehe `SearchOptions.sparseQueryVector` — von dort durchgereicht. */
+  sparseQueryVector?: SparseVector | undefined;
 }
 
 export interface HybridChunkParams {
@@ -358,4 +431,12 @@ export interface MMROptions {
    * danach keine zweite Rerank-Stufe mehr, die es nachholen könnte.
    */
   rerankChunks?: boolean | undefined;
+  /**
+   * Ausgabe-Senke für den Fehlschlag des Cross-Encoders. Wird genau dann
+   * gerufen, wenn `rerankChunks` bestellt war und `rerankPipeline` degradiert
+   * hat. Ein Rückruf statt eines zweiten Rückgabewerts, weil
+   * `groupAndRankHybridResults` `DocumentResult[]` an ein Dutzend Aufrufer
+   * liefert und keiner davon ein Tupel erwartet.
+   */
+  onRerankDegraded?: (() => void) | undefined;
 }

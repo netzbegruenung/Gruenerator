@@ -61,14 +61,12 @@ export type SSEEventType =
   | 'sharepic_minted'
   | 'sharepic_updated'
   | 'sharepic_edit_error'
-  | 'social_post_complete'
   | 'social_post_updated'
   | 'social_post_edit_error'
   | 'reel_processing'
   | 'reel_picker'
   | 'reel_updated'
   | 'reel_edit_error'
-  | 'mcp_tool_error'
   | 'tool_step_start'
   | 'tool_step_result'
   | 'response_start'
@@ -207,14 +205,10 @@ export interface SSEEventPayloads {
     summary: string;
   };
   sharepic_edit_error: { variantId?: string; error: string };
-  // Combined social post (EXPERIMENTAL): text half. Sharepic variants keep
-  // travelling via sharepic_complete so the whole variant machinery
-  // (mint/edit/live store) stays untouched.
-  social_post_complete: {
-    message: string;
-    post?: SocialPostPayload;
-    error?: string;
-  };
+  // Die Bearbeitung eines Posts aus der Zeit VOR der Stilllegung von
+  // `social_post` (08/2026). `social_post_complete` stand hier als drittes
+  // Ereignis und ist mit dem Erzeuger gefallen; die beiden hier sendet
+  // `socialPostEditService`, der weiterläuft.
   social_post_updated: {
     postId: string;
     post: SocialPostPayload;
@@ -234,11 +228,6 @@ export interface SSEEventPayloads {
     changedIndices: number[];
   };
   reel_edit_error: { projectId?: string; error: string };
-  // Connector (user MCP) tool failure — a first-class, user-facing error the
-  // frontend can render as a banner. The generic tool_step_result{ok:false}
-  // card still fires; this names the server and the human-readable error so the
-  // failure isn't only implied by a greyed-out tool card.
-  mcp_tool_error: { toolName: string; serverName: string; error: string };
   // Agentic tool loop: one start/result pair per tool step. Args/summaries are
   // compact display data. `title`/`serverName` label the card (MCP/connector
   // tools); `result` carries the rich per-tool payload the UI cards read
@@ -279,13 +268,23 @@ export interface SSEEventPayloads {
     // 'clarification' = ask_human (a human answers via UI). 'client_tool' = a
     // client-executed tool (e.g. run_python) whose result the browser produces
     // automatically and posts back to resume the same turn.
-    interruptType: 'clarification' | 'client_tool';
+    // 'tool_approval' = ein Werkzeugaufruf wartet auf die Freigabe der Person.
+    interruptType: 'clarification' | 'client_tool' | 'tool_approval';
     question?: string;
     options?: string[];
     // client_tool only: which tool the client must run + its arguments.
     toolName?: string;
     args?: Record<string, unknown>;
     threadId?: string;
+    // tool_approval only: die zurückgehaltenen Aufrufe dieses Model-Steps.
+    approvalTurnId?: string;
+    calls?: Array<{
+      toolCallId: string;
+      toolName: string;
+      args: Record<string, unknown>;
+      title?: string;
+      serverName?: string;
+    }>;
   };
   confirm_action: ConfirmActionEvent;
   memory_context: {
@@ -385,7 +384,8 @@ export const INTENT_MESSAGE_POOLS: Record<SearchIntent, string[]> = {
   image: ['Generiere...', 'Male...', 'Zeichne...'],
   image_edit: ['Bearbeite...', 'Pinsele...', 'Retuschiere...'],
   sharepic: ['Gestalte...', 'Baue...', 'Erstelle...'],
-  social_post: ['Texte und gestalte...', 'Baue deinen Post...', 'Schreibe und gestalte...'],
+  // Stillgelegt (08/2026) — total über `SearchIntent`, wie bahn/umfragen.
+  social_post: ['Texte deinen Post...', 'Schreibe...', 'Formuliere...'],
   summary: ['Fasse zusammen...', 'Verdichte...', 'Bündele...'],
   chart: ['Zeichne...', 'Plotte...', 'Erstelle...'],
   artifact: ['Baue...', 'Gestalte...', 'Erstelle...'],
@@ -395,6 +395,7 @@ export const INTENT_MESSAGE_POOLS: Record<SearchIntent, string[]> = {
   edit_sheet: ['Bearbeite Tabelle...', 'Passe Zellen an...'],
   create_pdf: ['Baue das PDF...', 'Setze das Dokument...', 'Gestalte die Seiten...'],
   create_presentation: ['Erstelle Präsentation...', 'Baue Folien...', 'Gestalte Slides...'],
+  // Stillgelegt (09/2026) — total über `SearchIntent`, wie social_post.
   create_recurring_task: [
     'Richte wiederkehrende Aufgabe ein...',
     'Plane den Rhythmus...',
@@ -617,6 +618,28 @@ export function createSSEStream(res: Response): SSEWriter {
 }
 
 /**
+ * Ein SSEWriter ohne Leitung — der headless Einstieg in den agentischen Loop
+ * (#3221). Ein ECHTER SSEWriter über einer stummen Response statt eines
+ * eigenen Interfaces: `sse` fließt vom Loop in gut ein Dutzend Tool-Fabriken
+ * weiter, und jede davon auf ein schmaleres Interface umzuschreiben wäre ein
+ * Riesen-Diff für dasselbe Verhalten. Der Writer berührt die Response nur mit
+ * write/end/writableEnded/destroyed — hier alles stumm bedient.
+ * `setTextListener` funktioniert weiter, falls ein headless Aufrufer den
+ * Textstrom doch abgreifen will.
+ */
+export function createNullSSE(): SSEWriter {
+  const noopRes = {
+    write: () => true,
+    end: () => noopRes,
+    writableEnded: false,
+    destroyed: false,
+    json: () => noopRes,
+    send: () => noopRes,
+  } as unknown as Response;
+  return new SSEWriter(noopRes);
+}
+
+/**
  * Emit an SSE `error` event, close the stream, and return the ts-rest
  * handler result literal. Consolidates the
  * `sse.send('error', …); sse.end(); return { status: 200, body: undefined }`
@@ -633,39 +656,21 @@ export function sseFail(
 }
 
 /**
- * Heartbeat for a window where the server is working but emits nothing: the
- * wait for a model's first content token. Some lanes spend many seconds there
- * (cold reasoning starts, overflow lanes); without a ping the UI shows
- * `response_start` and then nothing, which is indistinguishable from a hang.
+ * Heartbeat interval shared by the step heartbeat below.
  *
- * Shared by both answer paths — the single-pass streamer and the agentic loop's
- * synth phase, which is silent from the last tool result until the answer
- * begins. Returns the disarm function; call it on the first delta, on abort and
- * on error.
+ * There is deliberately NO heartbeat for the wait on a model's first content
+ * token. One existed (`startResponseHeartbeat`, 27.07.2026) and re-sent a
+ * `thinking_step` named `generating` every 3s — but `thinking_step` is the
+ * TOOL channel: the client's parser turns every one of them into a tool-call
+ * card (`parseSSEStream`, case 'thinking_step'), and this one never got a
+ * matching `completed`, so a plain `direct` turn with a slow first token left a
+ * card „generating — Formuliere Antwort…" spinning for the rest of the turn.
+ * The window needs no event anyway: `response_start` already puts the
+ * `generating` step in the list, and the status line shimmers on its own from
+ * there. Anything that really must narrate this window uses `progress_step`
+ * (see the note on that case in the parser), never `thinking_step`.
  */
 const HEARTBEAT_INTERVAL_MS = 3_000;
-
-export function startResponseHeartbeat(sse: SSEWriter): () => void {
-  const stepId = `generating_${Date.now()}`;
-  const handle = setInterval(() => {
-    if (sse.isEnded()) return;
-    sse.send('thinking_step', {
-      stepId,
-      toolName: 'generating',
-      title: 'Formuliere Antwort…',
-      status: 'in_progress',
-    });
-  }, HEARTBEAT_INTERVAL_MS);
-  // Don't keep the event loop alive solely on this timer if the response is
-  // aborted at the socket layer.
-  if (typeof handle.unref === 'function') handle.unref();
-  let cleared = false;
-  return () => {
-    if (cleared) return;
-    cleared = true;
-    clearInterval(handle);
-  };
-}
 
 /**
  * Derselbe Dienst für ein viel längeres Fenster: die Nachschritte eines
@@ -892,6 +897,26 @@ export const CHAT_WARNINGS = {
       'Der Privacy-Modus konnte nicht angewendet werden — es wurde der Standard-Anbieter genutzt.',
     severity: 'warning',
     attribution: 'provider',
+  },
+  // Das Modell hat eine Quellennummer genannt, die es nicht bekommen hat. Der
+  // Marker bleibt im Text (Löschen würde die Stelle verstecken); dieses Signal
+  // zählt den Fall, den der Notebook-Prompt ausdrücklich verbietet.
+  citation_invalid: {
+    message: 'Eine Quellenangabe in der Antwort verweist auf keine bereitgestellte Quelle.',
+    severity: 'warning',
+    attribution: 'system',
+  },
+  // Der EINZIGE Ort dieses Satzes. Der Client rendert die Zeichenkette von der
+  // Leitung und hält keine eigene Kopie — sonst gäbe es den Text zweimal und
+  // eine Änderung erreichte nur die Hälfte der Flächen.
+  //
+  // `info`, nicht `warning`: es ist nichts ausgefallen. Das Retrieval hat
+  // getan, was es soll, und meldet, dass die Sammlung zur Frage wenig hergibt.
+  evidence_weak: {
+    message:
+      'Zu dieser Frage habe ich im Notebook wenig Passendes gefunden — bitte die angegebenen Quellen prüfen.',
+    severity: 'info',
+    attribution: 'system',
   },
 } satisfies Record<ChatWarningCode, ChatWarningSpec>;
 

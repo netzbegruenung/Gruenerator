@@ -7,8 +7,11 @@
  * - This prevents re-renders during drag for smooth UX
  */
 
+import { hasListMarkers } from '@gruenerator/contracts';
 import { useRef, useEffect, useState, useCallback, memo } from 'react';
 import { Text as KonvaText, Transformer } from 'react-konva';
+
+import { CanvasListText } from './CanvasListText';
 
 import { calculateSnapPosition, calculateElementSnapPosition } from '../utils/snapping';
 import { gradientToKonvaProps, type GradientFill } from '../utils/gradientFill';
@@ -324,7 +327,11 @@ function CanvasTextInner({
         textarea.value = text;
         textarea.blur();
       }
-      if (e.key === 'Enter' && !e.shiftKey) {
+      // Enter setzt eine neue Zeile, wie in jedem Textfeld. Vorher schloss es
+      // den Editor und Shift+Enter war der einzige Weg zu einer zweiten Zeile —
+      // das stand nirgends, also ließ sich auf der Leinwand keine Aufzählung
+      // tippen. Abschluss jetzt über Klick daneben, Escape oder Cmd/Strg+Enter.
+      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         textarea.blur();
       }
@@ -413,8 +420,21 @@ function CanvasTextInner({
   );
 }
 
+/**
+ * Aufzählungen brauchen einen hängenden Einzug, den ein einzelner Konva.Text
+ * nicht kennt — die zeichnet {@link CanvasListText} als Gruppe aus Marker- und
+ * Textknoten. Alles andere bleibt exakt der bisherige eine Textknoten.
+ */
+function CanvasTextSwitch(props: CanvasTextProps) {
+  return hasListMarkers(props.text) ? (
+    <CanvasListText {...props} />
+  ) : (
+    <CanvasTextInner {...props} />
+  );
+}
+
 // Memoize to prevent re-renders when parent (ZitatPureCanvas) updates due to snap state changes
-export const CanvasText = memo(CanvasTextInner, (prevProps, nextProps) => {
+export const CanvasText = memo(CanvasTextSwitch, (prevProps, nextProps) => {
   // Custom comparison: only re-render if these specific props changed
   // Ignore snapTargets array reference changes (we use the values inside)
   const keysToCompare: (keyof CanvasTextProps)[] = [

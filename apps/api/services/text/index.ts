@@ -37,4 +37,5 @@ export {
   cistem,
   hashTerm,
   type SparseVector,
+  type Stemmer,
 } from './bm25.js';

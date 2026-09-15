@@ -61,8 +61,13 @@ function formatSearchContext(state: SearchGraphState): string {
         // Extract key paragraphs from crawled content using query relevance
         content = extractKeyParagraphs(crawledContent, state.searchQuery || '', charBudget);
       } else {
+        // Derselbe Massstab wie im Zweig darüber: `extractKeyParagraphs` wählt
+        // bei gecrawlten Seiten schon nach Anfrage aus, der Schnipsel-Zweig hat
+        // bisher nach Position geschnitten.
         content =
-          r.content.length > charBudget ? truncateDocument(r.content, charBudget) : r.content;
+          r.content.length > charBudget
+            ? truncateDocument(r.content, charBudget, state.searchQuery || '', 'contiguous')
+            : r.content;
       }
 
       return `<quelle nr="${i + 1}" titel="${escapeXml(r.title)}"${r.url ? ` url="${escapeXml(r.url)}"` : ''}>\n${content}\n</quelle>`;

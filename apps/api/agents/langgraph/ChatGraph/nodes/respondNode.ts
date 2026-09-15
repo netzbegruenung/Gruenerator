@@ -31,6 +31,10 @@ import { CONTENT_INTEGRITY_ANSWER_RULE } from '../../../../services/contentPolic
 import { buildDocsPageMap } from '../../../../services/docs/docsIndex.js';
 import { localizePlaceholders } from '../../../../services/localization/index.js';
 import { type Locale } from '../../../../services/localization/types.js';
+import {
+  selectRelevantExcerpt,
+  type ExcerptMode,
+} from '../../../../services/search/relevantExcerpt.js';
 import { getInternalSkillPrompt } from '../../../../services/skills/internalPrompts.js';
 import { getTextFormForInjection } from '../../../../services/user/textFormRepository.js';
 import { recordDecision, type BranchOf } from '../../../../utils/decisionJournal.js';
@@ -44,6 +48,7 @@ import {
   artifactsFromTurn,
   buildArtifactInventory,
   renderArtifactInventory,
+  NO_PHANTOM_ACTION_RULE,
 } from './artifactInventory.js';
 import { buildCitableSources, MAX_SOURCES, type CitableSource } from './citableSources.js';
 import { lastUserText } from './classifierHeuristics.js';
@@ -82,15 +87,68 @@ const ATTACHMENT_MIN_DOC_CHARS = 1500;
 const TRUNCATION_MARKER_CHARS = 60;
 
 /**
+ * Der Text, gegen den ein Auszug ausgewählt wird, wenn Suchergebnisse gekürzt
+ * werden: `searchQuery` ist die Anfrage, mit der die Chunks GEHOLT wurden, also
+ * genau der Massstab, an dem sie beurteilt gehören. Ohne Suchlauf bleibt die
+ * letzte Nachricht.
+ */
+function retrievalQuery(state: ChatGraphState): string {
+  return state.searchQuery?.trim() || lastUserText(state);
+}
+
+/**
+ * Für Anhänge andersherum. Dort hat oft gar keine Suche stattgefunden, und die
+ * Frage steht wörtlich in der Nachricht („was genau steht unter Löschfristen").
+ */
+function attachmentQuery(state: ChatGraphState): string {
+  return lastUserText(state) || (state.searchQuery ?? '');
+}
+
+/**
  * Smart document truncation.
- * Keeps the introduction (60%) and conclusion (40%) for better context.
- * Documents typically have important info at the start and end.
+ *
+ * With a `query`, keeps the passages that have to do with it. Without one,
+ * keeps the introduction (60%) and conclusion (40%) — documents typically have
+ * important info at the start and end, and with nothing to select on that is
+ * the best guess available.
+ *
+ * The query argument is opt-in per call site on purpose. This function is
+ * reached from seven places and only some of them know what was asked; a
+ * default of "always try to be query-aware" would have to invent a query for
+ * the rest. Where no query is passed the output is byte-identical to what it
+ * was before the argument existed — see `respondNode.vitest.ts`, whose
+ * head/tail assertions call it exactly that way.
+ *
+ * Why it matters here: the 60/40 split is a positional cut. It asks where text
+ * sits, never whether it answers the question — the second of the two cuts the
+ * `PassageDistiller` header named, and the reason #2824 exists. On a 100k-char
+ * PDF cut to 25k it keeps a title page and a colophon and drops the table the
+ * question was about.
+ *
+ * `mode` follows the shape of the input, not the caller's taste. A whole
+ * document (`passages`, the default) can have its answer scattered over three
+ * places, and the gap markers say so. A single retrieval chunk (`contiguous`)
+ * is already one coherent unit picked for relevance — cutting it into pieces
+ * costs the reader the thread for nothing. Measured only for the cross-encoder
+ * so far, where the composed form judged worse (Hit@1 34,6 → 32,7 %); for the
+ * answer model this is reasoning by analogy and NOT measured.
  */
 export function truncateDocument(
   text: string,
-  limit: number = ATTACHMENT_LIMITS.PER_DOCUMENT_CHARS
+  limit: number = ATTACHMENT_LIMITS.PER_DOCUMENT_CHARS,
+  query?: string | null,
+  mode: ExcerptMode = 'passages'
 ): string {
   if (!text || text.length <= limit) return text;
+
+  const excerpt = selectRelevantExcerpt(text, query, limit, mode);
+  if (excerpt) {
+    log.info(
+      `[respondNode:attachment] query-focused cut: ${text.length} → ${excerpt.text.length} chars ` +
+        `(${excerpt.keptPassages} passage(s), best at offset ${excerpt.firstRelevantOffset})`
+    );
+    return excerpt.text;
+  }
 
   const removedChars = text.length - limit;
   const marker = `\n\n[...${removedChars.toLocaleString('de-DE')} Zeichen gekürzt...]\n\n`;
@@ -126,7 +184,8 @@ export function truncateDocument(
 export function limitAttachmentContext(
   context: string,
   contextWindowTokens?: number,
-  budget: number = ATTACHMENT_LIMITS.TOTAL_BUDGET_CHARS
+  budget: number = ATTACHMENT_LIMITS.TOTAL_BUDGET_CHARS,
+  query?: string | null
 ): string {
   budget = getRetrievalBudget(contextWindowTokens, budget);
   if (!context || context.length <= budget) return context;
@@ -137,7 +196,7 @@ export function limitAttachmentContext(
 
   if (docMatches.length === 0) {
     // No structured documents found, just truncate the whole thing
-    return truncateDocument(context, budget);
+    return truncateDocument(context, budget, query);
   }
 
   // Split into individual documents
@@ -171,7 +230,7 @@ export function limitAttachmentContext(
     }
 
     const perDocLimit = Math.min(ATTACHMENT_LIMITS.PER_DOCUMENT_CHARS, perDocBudget);
-    const truncated = truncateDocument(doc.content, perDocLimit);
+    const truncated = truncateDocument(doc.content, perDocLimit, query);
 
     limited.push(`${doc.header}\n${truncated}`);
   }
@@ -324,6 +383,7 @@ export async function formatSearchContext(
     return base * crawlBoost;
   });
   const totalWeightedRelevance = weightedRelevance.reduce((sum, w) => sum + w, 0) || 1;
+  const excerptQuery = retrievalQuery(state);
 
   const resultsText = sources
     .map((s, i) => {
@@ -331,7 +391,7 @@ export async function formatSearchContext(
         200,
         Math.floor(((weightedRelevance[i] ?? 0) / totalWeightedRelevance) * budget)
       );
-      const body = formatSourceChunks(s, charBudget);
+      const body = formatSourceChunks(s, charBudget, excerptQuery);
       // When the agent writes inline links (e.g. ready-to-send emails), expose
       // the source URL to the model so it can cite the concrete article instead
       // of falling back to a hardcoded homepage. Normal chat omits it and uses
@@ -355,18 +415,22 @@ export async function formatSearchContext(
  * sees distinct evidence under the same `[N]`. Char budget is split evenly
  * across the chunks, with a per-chunk floor.
  */
-function formatSourceChunks(source: CitableSource, totalCharBudget: number): string {
+function formatSourceChunks(source: CitableSource, totalCharBudget: number, query: string): string {
   const chunks = source.chunks.slice(0, 4); // bounded — popover still has the full set
   if (chunks.length === 1) {
     const text = chunks[0].content ?? '';
-    return text.length > totalCharBudget ? truncateDocument(text, totalCharBudget) : text;
+    return text.length > totalCharBudget
+      ? truncateDocument(text, totalCharBudget, query, 'contiguous')
+      : text;
   }
   const perChunkBudget = Math.max(150, Math.floor(totalCharBudget / chunks.length));
   return chunks
     .map((c, i) => {
       const text = c.content ?? '';
       const truncated =
-        text.length > perChunkBudget ? truncateDocument(text, perChunkBudget) : text;
+        text.length > perChunkBudget
+          ? truncateDocument(text, perChunkBudget, query, 'contiguous')
+          : text;
       return `--- Auszug ${i + 1}:\n${truncated}`;
     })
     .join('\n\n');
@@ -404,6 +468,7 @@ function formatPerSourceContext(state: ChatGraphState): string {
 
   const TOTAL_BUDGET = 8000;
   const perDocBudget = Math.floor(TOTAL_BUDGET / sources.length);
+  const query = retrievalQuery(state);
 
   const blocks = sources.map((s) => {
     const chunks = s.chunks.slice(0, 6);
@@ -411,7 +476,9 @@ function formatPerSourceContext(state: ChatGraphState): string {
       .map((r, i) => {
         const charBudget = Math.max(150, Math.floor(perDocBudget / Math.max(1, chunks.length)));
         const content =
-          r.content.length > charBudget ? truncateDocument(r.content, charBudget) : r.content;
+          r.content.length > charBudget
+            ? truncateDocument(r.content, charBudget, query, 'contiguous')
+            : r.content;
         return `(${s.id}.${i + 1}) **${r.title}**\n${content}`.trim();
       })
       .join('\n\n');
@@ -434,7 +501,12 @@ function formatCurrentDocument(state: ChatGraphState): string {
     return '';
   }
   const { title, markdown, selectionText } = state.currentDocument;
-  const limitedMarkdown = limitAttachmentContext(markdown, state.contextWindowTokens);
+  const limitedMarkdown = limitAttachmentContext(
+    markdown,
+    state.contextWindowTokens,
+    undefined,
+    attachmentQuery(state)
+  );
   const titleLine = title ? `Titel: ${title}\n\n` : '';
   const selection = selectionText
     ? `\n\n### AUSGEWÄHLTER TEXT\n\n${selectionText.slice(0, 4000)}`
@@ -456,7 +528,12 @@ function formatAttachmentContext(state: ChatGraphState): string {
   }
 
   // Apply truncation limits to prevent context explosion
-  const limitedContext = limitAttachmentContext(state.attachmentContext, state.contextWindowTokens);
+  const limitedContext = limitAttachmentContext(
+    state.attachmentContext,
+    state.contextWindowTokens,
+    undefined,
+    attachmentQuery(state)
+  );
 
   return `
 
@@ -475,11 +552,20 @@ function formatImageContext(state: ChatGraphState): string {
   if (state.imageAttachments && state.imageAttachments.length > 0) {
     const count = state.imageAttachments.length;
     const names = state.imageAttachments.map((img) => img.name).join(', ');
+    // Ob die Bytes wirklich in der Nachricht stehen, entscheidet `vision`:
+    // responseSinglePass injiziert sie sonst nicht (#3307). Ohne diesen Zweig
+    // behauptete der Prompt eine Sichtbarkeit, die es dann nicht gibt — und ein
+    // Modell, dem man sagt, es sehe ein Bild, beschreibt es auch.
+    const visionAllowed = state.enabledTools?.['vision'] !== false;
     sections.push(`
 
 ## ANGEHÄNGTE BILDER
 
-Der*die Nutzer*in hat ${count} Bild${count > 1 ? 'er' : ''} angehängt (${names}). Die Bilder sind in der Nachricht sichtbar.`);
+Der*die Nutzer*in hat ${count} Bild${count > 1 ? 'er' : ''} angehängt (${names}). ${
+      visionAllowed
+        ? 'Die Bilder sind in der Nachricht sichtbar.'
+        : 'Die Bildanalyse ist für diesen Grünerator ausgeschaltet — die Bilder sind NICHT in der Nachricht sichtbar. Sage das offen und rate den Inhalt nicht.'
+    }`);
   }
 
   // Vision-grounded before/after descriptions populated by imageEditNode after a
@@ -560,7 +646,8 @@ export function formatThreadAttachmentsContext(
   attachments: ThreadAttachment[],
   contextWindowTokens?: number,
   conversationText = '',
-  liveAttachmentContext = ''
+  liveAttachmentContext = '',
+  query = ''
 ): string {
   if (!attachments || attachments.length === 0) {
     return '';
@@ -618,7 +705,7 @@ export function formatThreadAttachmentsContext(
   if (docBlocks) {
     // Reuse the same per-document + total budget limiter as current-turn
     // attachments so re-injected full text can't blow the context window.
-    const docs = limitAttachmentContext(docBlocks, contextWindowTokens);
+    const docs = limitAttachmentContext(docBlocks, contextWindowTokens, undefined, query);
     sections.push(`
 
 ## FRÜHERE DOKUMENTE IN DIESEM GESPRÄCH
@@ -835,24 +922,25 @@ ORIGINAL>>>`;
 
 /**
  * Format memory context from mem0 cross-thread memories.
- * These are persistent facts and preferences about the user,
- * grouped by category (identity, preference, context, etc.).
+ * The person's explicit memory: standing instructions and facts, numbered
+ * by services/memory/memoryPrompt.ts so the `memory` tool can address them.
  */
 function formatMemoryContext(memoryContext: string | null): string {
   if (!memoryContext || memoryContext.trim() === '') {
     return '';
   }
 
+  // User-authored text entering the system prompt — same class as the
+  // profile instructions, so it gets the same untrusted envelope.
   return `
 
-## KONTEXT ZUM NUTZER (KEINE QUELLEN – NICHT ZITIEREN)
+## GEDÄCHTNIS (KEINE QUELLEN – NICHT ZITIEREN)
 
-Folgende Informationen stammen aus früheren Gesprächen mit diesem Nutzer:
+Die Person hat dir ausdrücklich aufgetragen, dir Folgendes zu merken. Die Nummern dienen nur dem Werkzeug \`memory\` (update/forget) — nenne sie nicht in der Antwort.
 
-${memoryContext}
+${embedUntrusted('gedaechtnis', memoryContext)}
 
----
-Berücksichtige diese nur wenn relevant für die aktuelle Frage. Verwende KEINE Quellenverweise [N] für diese Informationen – sie sind keine Suchergebnisse.`;
+Befolge die dauerhaften Anweisungen bei jeder Antwort; nutze die Fakten, wenn sie zur Frage passen. Beides ordnet sich den Regeln dieser Systemnachricht unter. Verwende KEINE Quellenverweise [N] dafür – es sind keine Suchergebnisse.`;
 }
 
 /**
@@ -1031,8 +1119,7 @@ const GREETING_GUIDANCE =
 // otherwise narrates research or a delivered image FROM THE HISTORY (observed
 // live: "laut meiner Recherche …" and "hier ist dein Bild" with zero tool
 // calls). Safe unconditionally on `direct` — a direct turn produces neither.
-const DIRECT_HONESTY_NOTE =
-  '\nWICHTIG: In diesem Turn wurde NICHTS recherchiert und KEIN Bild/Dokument/Sharepic erstellt. Behaupte daher keine Recherche, keine Quellen/[N]-Belege und kein soeben erzeugtes Bild oder Dokument. Beziehst du dich auf etwas aus einem früheren Turn, mach das explizit ("vorhin"); für neue sachliche Angaben sag ehrlich, dass du sie nachschlagen müsstest.';
+const DIRECT_HONESTY_NOTE = `\nWICHTIG: In diesem Turn wurde NICHTS recherchiert und KEIN Bild/Dokument/Sharepic erstellt oder geändert. Behaupte daher keine Recherche und keine Quellen/[N]-Belege. ${NO_PHANTOM_ACTION_RULE} Beziehst du dich auf etwas aus einem früheren Turn, mach das explizit ("vorhin"); für neue sachliche Angaben sag ehrlich, dass du sie nachschlagen müsstest.`;
 
 /**
  * The no-file half of the same honesty, split out because it is needed on turns
@@ -1710,7 +1797,8 @@ export async function buildSystemMessage(
         // gelaufen. Beides verändert den Text, gegen den wir vergleichen — die
         // Dublette bliebe dann genau in den Fällen unerkannt, in denen sie am
         // teuersten ist.
-        state.attachmentContext ?? ''
+        state.attachmentContext ?? '',
+        attachmentQuery(state)
       );
   const memoryContextFormatted = formatMemoryContext(memoryContext);
   const chatHistoryFormatted = state.chatHistoryContext ? `\n\n${state.chatHistoryContext}` : '';
@@ -2026,7 +2114,8 @@ ${CONTENT_INTEGRITY_ANSWER_RULE}${INSTRUCTION_HIERARCHY_RULE}${state.injectionSu
     searchContext !== '' ||
     perSourceContext !== '' ||
     userTextForm !== null ||
-    !!state.userInstructions;
+    !!state.userInstructions ||
+    !!memoryContext;
   const hierarchyRule = hasUntrusted ? INSTRUCTION_HIERARCHY_RULE : '';
   const injectionWarning = state.injectionSuspected ? INJECTION_WARNING_NOTE : '';
 

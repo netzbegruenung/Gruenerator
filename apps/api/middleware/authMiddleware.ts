@@ -118,7 +118,7 @@ export function toBetterAuthUser(user: BetterAuthUser): UserProfile {
  *                           returned nothing → expired / revoked / row gone.
  *                           The smoking-gun case (warn-level).
  */
-type ResolveResult =
+export type ResolveResult =
   | { kind: 'user'; user: Express.User }
   | {
       kind: 'none';
@@ -534,5 +534,10 @@ function getUserId(req: Request): UserIdBrand {
   return UserId(req.user.id);
 }
 
-export { requireAuth, requireAdmin, optionalAuth, getUserId };
+// `tryResolveUser` is exported for ONE caller: the notification SSE channel,
+// which must tell 'no session' from 'auth backend down' itself because it
+// answers in-band instead of with a status code (see routes/notifications/
+// stream.ts). Everything else goes through requireAuth/optionalAuth — a
+// third resolver in a route handler is how auth policy drifts apart.
+export { requireAuth, requireAdmin, optionalAuth, getUserId, tryResolveUser };
 export default { requireAuth, requireAdmin, optionalAuth, getUserId };

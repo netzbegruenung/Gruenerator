@@ -108,7 +108,6 @@ export class GrueneratorOffboarding {
       // Delete from related tables first (foreign key constraints)
       await db.delete('group_memberships', { user_id: userId });
       await db.delete('user_sharepics', { user_id: userId });
-      await db.delete('user_uploads', { user_id: userId });
       await db.delete('documents', { user_id: userId });
 
       // Delete from profiles table (this will be handled by ProfileService)

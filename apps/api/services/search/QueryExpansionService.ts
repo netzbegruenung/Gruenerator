@@ -50,6 +50,17 @@ Gegeben ein Gesprächsverlauf und eine Anschlussfrage:
 Antworte NUR mit JSON:
 { "standalone": "eigenständige Suchanfrage", "alternatives": ["alternative 1", "alternative 2"] }`;
 
+/**
+ * Same as {@link CONDENSE_EXPANSION_PROMPT} minus step 2: for a caller that
+ * only keeps one query variant, asking for (and paying for) 2 alternatives
+ * that get sliced away is wasted tokens.
+ */
+const CONDENSE_ONLY_PROMPT = `Du hilfst bei der Suche in Dokumentensammlungen.
+Gegeben ein Gesprächsverlauf und eine Anschlussfrage: Formuliere die Anschlussfrage als eigenständige deutsche Suchanfrage um, die ohne den Verlauf verständlich ist. Löse Pronomen und Bezüge ("das", "dazu", "und in ...?") anhand des Verlaufs auf. Ist die Frage bereits eigenständig, übernimm sie unverändert.
+
+Antworte NUR mit JSON:
+{ "standalone": "eigenständige Suchanfrage" }`;
+
 export interface ExpandQueryOptions {
   /**
    * Compact transcript of the recent conversation. When set, the expansion
@@ -58,6 +69,13 @@ export interface ExpandQueryOptions {
    * turn.
    */
   historyContext?: string | undefined;
+  /**
+   * How many alternative formulations to request alongside the standalone
+   * rewrite. Defaults to 2. A caller that only keeps a single query variant
+   * (`profile.queryVariants <= 1`) passes 0 so the model is not asked to
+   * produce alternatives it would slice away anyway.
+   */
+  variants?: number;
 }
 
 /**
@@ -70,6 +88,7 @@ export async function expandQuery(
   options: ExpandQueryOptions = {}
 ): Promise<ExpandedQuery> {
   const historyContext = options.historyContext?.trim();
+  const wantsAlternatives = (options.variants ?? 2) > 0;
 
   // Check cache first (history turns are never cached — transcript varies)
   const cacheKey = query.toLowerCase().trim();
@@ -85,13 +104,21 @@ export async function expandQuery(
     const content = await aiText({
       lane: 'chat_query_expansion',
       pinned: 'standard',
-      system: historyContext ? CONDENSE_EXPANSION_PROMPT : EXPANSION_PROMPT,
+      system: historyContext
+        ? wantsAlternatives
+          ? CONDENSE_EXPANSION_PROMPT
+          : CONDENSE_ONLY_PROMPT
+        : EXPANSION_PROMPT,
       prompt: historyContext
         ? `Gesprächsverlauf:\n${historyContext}\n\nAnschlussfrage: "${query}"`
         : `Suchanfrage: "${query}"`,
-      maxOutputTokens: historyContext ? 200 : 100,
+      maxOutputTokens: historyContext ? (wantsAlternatives ? 200 : 80) : 100,
       temperature: 0.3,
       json: true,
+      // Without a per-call bound this falls back to `env.REQUEST_TIMEOUT`
+      // (120s) — far too long for a call whose only job is to shave a search
+      // query; the catch below already degrades to the raw query on failure.
+      timeoutMs: 4000,
     });
 
     const { alternatives, standalone } = parseExpansionResponse(content);

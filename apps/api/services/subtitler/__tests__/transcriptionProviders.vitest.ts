@@ -1,11 +1,15 @@
 /**
- * Round-trip transcription test: generate speech with Voxtral TTS, then transcribe it back.
+ * Round-trip transcription test: synthesise speech, then transcribe it back.
  * Tests both Voxtral and Regolo (faster-whisper) transcription providers.
+ *
+ * The speech side goes through our own ttsService rather than a provider SDK,
+ * so this stays a transcription test and does not pin a TTS vendor.
  */
 
 import { describe, it, expect, beforeAll } from 'vitest';
 import fs from 'fs';
 import mistralClient from '../../ai/mistralClient.js';
+import ttsService from '../../voice/ttsService.js';
 
 // Live round-trip (real TTS → real transcription) — billable and network-flaky,
 // so it only runs under the explicit opt-in, not on every `pnpm test` that
@@ -13,24 +17,17 @@ import mistralClient from '../../ai/mistralClient.js';
 const RUN_LIVE = !!process.env.RUN_LIVE_PROVIDER_TESTS;
 const HAS_MISTRAL_KEY = RUN_LIVE && !!process.env.MISTRAL_API_KEY;
 const HAS_REGOLO_KEY = RUN_LIVE && !!process.env.REGOLO_API_KEY;
+// The fixture audio now comes from KugelAudio, so its key gates the whole file.
+const CAN_SYNTHESISE = HAS_MISTRAL_KEY && !!process.env.KUGELAUDIO_API_KEY;
 
-const MARIE_NEUTRAL_ID = '5a271406-039d-46fe-835b-fbbb00eaf08d';
 const INPUT_TEXT =
   'Hallo, willkommen beim Grünerator. Heute sprechen wir über Klimaschutz und Nachhaltigkeit.';
 
 let speechWavPath: string;
 
-describe.skipIf(!HAS_MISTRAL_KEY)('Round-trip TTS → transcription', () => {
+describe.skipIf(!CAN_SYNTHESISE)('Round-trip TTS → transcription', () => {
   beforeAll(async () => {
-    const response = await mistralClient.audio.speech.complete({
-      model: 'voxtral-mini-tts-2603',
-      input: INPUT_TEXT,
-      voiceId: MARIE_NEUTRAL_ID,
-      responseFormat: 'wav',
-    });
-
-    const audioData = (response as { audioData: string }).audioData;
-    const wavBuffer = Buffer.from(audioData, 'base64');
+    const wavBuffer = await ttsService.generateSpeech(INPUT_TEXT, { language: 'de' });
     speechWavPath = `/tmp/roundtrip_tts_${Date.now()}.wav`;
     fs.writeFileSync(speechWavPath, wavBuffer);
     console.log(`  TTS generated: ${wavBuffer.length} bytes → ${speechWavPath}`);

@@ -9,13 +9,14 @@ import { MEDIA_ENDPOINTS } from '../constants.js';
 import type {
   MediaFilters,
   MediaListResponse,
+  MediaType,
   MediaItemResponse,
   MediaUploadResponse,
   MediaUpdateParams,
   MediaUpdateResponse,
   MediaDeleteResponse,
 } from '../types.js';
-import type { AxiosProgressEvent } from 'axios';
+import type { AxiosError, AxiosProgressEvent } from 'axios';
 
 /**
  * Fetch media library with filters
@@ -101,14 +102,31 @@ export async function uploadMedia(
     };
   }
 
-  const response = await client.post<MediaUploadResponse>(MEDIA_ENDPOINTS.UPLOAD, formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-    ...(options.onProgress != null && { onUploadProgress: uploadConfig.onUploadProgress }),
-  });
+  try {
+    const response = await client.post<MediaUploadResponse>(MEDIA_ENDPOINTS.UPLOAD, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      ...(options.onProgress != null && { onUploadProgress: uploadConfig.onUploadProgress }),
+    });
 
-  return response.data;
+    return response.data;
+  } catch (error) {
+    // A refused upload (409 quota, 400 validation) is a message the user needs
+    // to read. Axios rejects with "Request failed with status code 409" and
+    // buries the server's German text in `response.data`, so unwrap it here —
+    // every caller already handles `{ success: false, error }`.
+    const body = (error as AxiosError<MediaUploadResponse | { error?: string }>).response?.data;
+    if (body && typeof body === 'object') {
+      return {
+        success: false,
+        ...('error' in body && typeof body.error === 'string' ? { error: body.error } : {}),
+        ...('code' in body && typeof body.code === 'string' ? { code: body.code } : {}),
+        ...('quota' in body && body.quota ? { quota: body.quota } : {}),
+      };
+    }
+    throw error;
+  }
 }
 
 /**
@@ -137,7 +155,7 @@ export async function deleteMedia(id: string): Promise<MediaDeleteResponse> {
  */
 export async function searchMedia(
   query: string,
-  options: { type?: 'image' | 'video' | 'all'; limit?: number } = {}
+  options: { type?: MediaType | 'all'; limit?: number } = {}
 ): Promise<MediaListResponse> {
   const client = getGlobalApiClient();
 

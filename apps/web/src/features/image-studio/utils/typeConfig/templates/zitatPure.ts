@@ -11,7 +11,7 @@ export const zitatPureTypeConfig: TemplateTypeConfig = {
   id: IMAGE_STUDIO_TYPES.ZITAT_PURE,
   category: IMAGE_STUDIO_CATEGORIES.TEMPLATES,
   label: 'Zitat (Text)',
-  description: 'Reines Text-Zitat ohne Bild',
+  description: 'Zitat auf Farbfläche oder Foto',
   icon: PiQuotes,
   previewImage: '/imagine/previews/zitat-pure-preview.webp',
   previewImageFallback: '/imagine/previews/zitat-pure-preview.png',

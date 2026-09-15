@@ -655,9 +655,29 @@ describe('convertNotebookLoadedMessages', () => {
         documentId: 'doc_9',
         chunkIndex: 4,
         similarityScore: 0.82,
+        pageNumber: null,
         collectionId: 'grundsatz-system',
       },
     ]);
+  });
+
+  /**
+   * Der Live-Pfad (`NotebookModelAdapter`) bildet `page_number` ab, der Verlauf
+   * lief lange daran vorbei — „S. 12" stand auf der Quellenkarte bis zum
+   * Reload und war danach weg.
+   */
+  it('carries the page number of a reloaded citation', () => {
+    const [, answer] = convertNotebookLoadedMessages([
+      rows[0]!,
+      {
+        ...rows[1]!,
+        metadata: {
+          citations: [{ ...rawCitation, page_number: 12 }],
+        } as unknown as LoadedMessage['metadata'],
+      },
+    ]);
+    const custom = answer?.metadata?.custom as Record<string, unknown>;
+    expect((custom.citations as { pageNumber: number | null }[])[0]!.pageNumber).toBe(12);
   });
 
   it('keeps the raw citations and the sources for the panel and the export', () => {
@@ -696,6 +716,25 @@ describe('convertNotebookLoadedMessages', () => {
     expect(custom.question).toBe('');
   });
 
+  // Thumbs feedback targets the Langfuse trace of the turn, and the buttons
+  // only appear when `custom.streamMetadata.traceId` is there. The live path
+  // builds that in NotebookModelAdapter; reload has to rebuild the same shape
+  // or the thumbs vanish the moment the conversation is reopened.
+  it('rebuilds streamMetadata from the persisted traceId', () => {
+    const traceId = 'a'.repeat(32);
+    const [answer] = convertNotebookLoadedMessages([
+      { id: 'a1', role: 'assistant', content: 'Antwort.', metadata: { traceId } },
+    ]);
+    const custom = answer?.metadata?.custom as Record<string, unknown>;
+    expect(custom.streamMetadata).toEqual({ intent: 'direct', searchCount: 0, traceId });
+  });
+
+  it('leaves streamMetadata off an answer that has no traceId', () => {
+    const [, answer] = convertNotebookLoadedMessages(rows);
+    const custom = answer?.metadata?.custom as Record<string, unknown>;
+    expect(custom.streamMetadata).toBeUndefined();
+  });
+
   it('reads an answer without citations as an empty list, not a crash', () => {
     const [answer] = convertNotebookLoadedMessages([
       { id: 'a1', role: 'assistant', content: 'Dazu finde ich nichts.' },
@@ -704,5 +743,64 @@ describe('convertNotebookLoadedMessages', () => {
     expect(custom.citations).toEqual([]);
     expect(custom.sources).toEqual([]);
     expect(custom.question).toBe('');
+  });
+});
+
+describe('convertToThreadMessageLike — offene Loop-Rückfrage (#3220)', () => {
+  const pendingClarification = {
+    askTurnId: 'ask-1',
+    toolCallId: 'call_ask',
+    question: 'Welche Anna meinst du?',
+    options: ['Anna Müller', 'Anna Meier'],
+    resolved: false,
+  };
+
+  it('rehydriert die beantwortbare ask_human-Karte samt requires-action', () => {
+    const [msg] = convertToThreadMessageLike([
+      {
+        id: 'm1',
+        role: 'assistant',
+        content: 'Ich habe zwei Kandidatinnen gefunden.',
+        metadata: { pendingClarification },
+      },
+    ]);
+    const parts = msg!.content as unknown as Array<Record<string, unknown>>;
+    const ask = parts.find((p) => p.type === 'tool-call' && p.toolName === 'ask_human');
+    expect(ask).toMatchObject({
+      toolCallId: 'call_ask',
+      args: { question: 'Welche Anna meinst du?', options: ['Anna Müller', 'Anna Meier'] },
+    });
+    expect(ask).not.toHaveProperty('result');
+    expect(msg!.status).toEqual({ type: 'requires-action', reason: 'tool-calls' });
+  });
+
+  it('rehydriert eine BEANTWORTETE Rückfrage als kollabierte Karte (String-Antwort)', () => {
+    const [msg] = convertToThreadMessageLike([
+      {
+        id: 'm1',
+        role: 'assistant',
+        content: 'Anna Müller stimmte dafür.',
+        metadata: {
+          pendingClarification: { ...pendingClarification, resolved: true, answer: 'Anna Müller' },
+          toolCalls: [
+            {
+              toolCallId: 'call_ask',
+              toolName: 'ask_human',
+              args: { question: 'Welche Anna meinst du?' },
+              result: { answer: 'Anna Müller' },
+            },
+          ],
+        },
+      },
+    ]);
+    const parts = msg!.content as unknown as Array<Record<string, unknown>>;
+    const asks = parts.filter((p) => p.type === 'tool-call' && p.toolName === 'ask_human');
+    // Nur die Karte aus toolCalls — keine zweite aus pendingClarification.
+    expect(asks).toHaveLength(1);
+    // Die Karte rendert String(result): die Antwort muss als String ankommen,
+    // sonst steht dort "[object Object]".
+    expect(asks[0]!.result).toBe('Anna Müller');
+    expect(asks[0]!.args).toMatchObject({ question: 'Welche Anna meinst du?' });
+    expect(msg!.status).toBeUndefined();
   });
 });

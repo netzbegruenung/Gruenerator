@@ -1,12 +1,16 @@
 /**
  * Turns a crawled page into the part of it that answers the question.
  *
- * Scope: the crawl path only (`CrawlingService`). The positional cuts this was
- * written against still run elsewhere and are untouched by it —
- * `respondNode.truncateDocument` keeps the first 60% and last 40% of a char
- * budget for every source block, and `rerankNode` still scores candidates on
- * their first `RERANK_EXCERPT_CHARS`. Neither asks whether the kept text has
- * anything to do with the query; only crawled pages get that treatment here.
+ * Scope: the crawl path only (`CrawlingService`) — this is the model-backed
+ * variant, worth an LLM because one crawled page can be worth an LLM.
+ *
+ * The two positional cuts this header used to name as untouched
+ * (`respondNode.truncateDocument`'s 60/40 split, `rerankNode` scoring
+ * candidates on their first `RERANK_EXCERPT_CHARS`) now go through
+ * `selectRelevantExcerpt` instead — the lexical sibling of this file, on the
+ * paths where a network round trip per candidate would be paid to decide what
+ * the next round trip may read. Both keep their old cut as the fallback for
+ * when the query carries no usable signal; see #2824.
  *
  * Contract, relied on by every call site: NEVER throws, NEVER returns an empty
  * digest for non-empty input. Every failure degrades to a head cut labelled

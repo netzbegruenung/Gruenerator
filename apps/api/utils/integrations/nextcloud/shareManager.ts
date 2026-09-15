@@ -3,18 +3,24 @@
  * Manages Nextcloud share links for users
  */
 
+import { randomUUID } from 'node:crypto';
+
+import { checkCloudShareLink } from '@gruenerator/shared/utils';
+
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 
 import type {
   NextcloudShareLink,
   ShareLinkValidation,
   ShareLinkDeletionResult,
-  DeactivationResult,
   UsageStats,
-  DatabaseStateCheck,
   ShareLinkUpdates,
   SharedWithUserLink,
 } from './types.js';
+
+function asLinks(raw: unknown): NextcloudShareLink[] {
+  return Array.isArray(raw) ? (raw as NextcloudShareLink[]) : [];
+}
 
 export class NextcloudShareManager {
   /**
@@ -24,6 +30,47 @@ export class NextcloudShareManager {
     const postgres = getPostgresInstance();
     await postgres.ensureInitialized();
     return postgres;
+  }
+
+  /**
+   * Die EINE Stelle, an der `profiles.nextcloud_share_links` geändert wird.
+   *
+   * Die Liste liegt als JSONB in einer Spalte, jede Änderung ist also ein
+   * Lesen-Ändern-Schreiben über das ganze Array. Ohne Sperre verliert von zwei
+   * gleichzeitigen Änderungen eine ihren Schreibvorgang — und seit der Chat
+   * über `add_connection` eine zweite Tür neben der Einstellungsseite hat, ist
+   * „gleichzeitig" kein Gedankenspiel mehr (#3037).
+   *
+   * `FOR UPDATE` sperrt die Profilzeile bis zum COMMIT: die zweite Anfrage
+   * wartet und liest danach den bereits geschriebenen Stand, statt auf einem
+   * veralteten aufzubauen. Der Ertrag hängt daran, dass wirklich JEDER
+   * Schreiber hier durchgeht — ein vierter, der wieder selbst liest und
+   * schreibt, hebt die Sperre für alle auf.
+   */
+  private static async mutateLinks<T>(
+    userId: string,
+    mutate: (links: NextcloudShareLink[]) => { links: NextcloudShareLink[]; result: T }
+  ): Promise<T> {
+    const postgres = await this.getPostgres();
+    return postgres.transaction(async (client) => {
+      const profile = await postgres.transactionQueryOne(
+        client,
+        'SELECT nextcloud_share_links FROM profiles WHERE id = $1 FOR UPDATE',
+        [userId]
+      );
+      if (!profile) {
+        throw new Error('Profile not found');
+      }
+
+      const { links, result } = mutate(asLinks(profile.nextcloud_share_links));
+
+      await postgres.transactionExec(
+        client,
+        'UPDATE profiles SET nextcloud_share_links = $1 WHERE id = $2',
+        [JSON.stringify(links), userId]
+      );
+      return result;
+    });
   }
 
   /**
@@ -48,52 +95,30 @@ export class NextcloudShareManager {
         throw new Error('Share link is required');
       }
 
-      const postgres = await this.getPostgres();
+      // Die Duplikatsprüfung gehört INNERHALB der Sperre: davor gelesen wäre
+      // sie genau das Rennen, das sie verhindern soll.
+      const newLink = await this.mutateLinks(userId, (currentLinks) => {
+        if (currentLinks.some((link) => link.share_link === shareLink)) {
+          throw new Error('This share link is already saved');
+        }
 
-      // Get current profile to check existing links
-      const profile = await postgres.queryOne(
-        'SELECT nextcloud_share_links FROM profiles WHERE id = $1',
-        [userId],
-        { table: 'profiles' }
-      );
+        const link: NextcloudShareLink = {
+          // Zeitstempel als ID waren rat- und aufzählbar, und zwei Links in
+          // derselben Millisekunde teilten sich einen Fremdschlüssel (#3037).
+          // Bestandsdaten behalten ihre alte ID: die Spalten sind TEXT und
+          // jeder Vergleich ist ein Stringvergleich, neue IDs sind also rein
+          // additiv und brauchen keine Migration.
+          id: randomUUID(),
+          share_link: shareLink,
+          label: label || null,
+          base_url: baseUrl || null,
+          share_token: shareToken || null,
+          is_active: true,
+          created_at: new Date().toISOString(),
+        };
 
-      const rawCurrentLinks: unknown = profile?.nextcloud_share_links;
-      const currentLinks: NextcloudShareLink[] = Array.isArray(rawCurrentLinks)
-        ? (rawCurrentLinks as NextcloudShareLink[])
-        : [];
-
-      // Check if share link already exists
-      const existingLink = currentLinks.find(
-        (link: NextcloudShareLink) => link.share_link === shareLink
-      );
-      if (existingLink) {
-        throw new Error('This share link is already saved');
-      }
-
-      // Create new link object
-      const newLink: NextcloudShareLink = {
-        id: Date.now().toString(), // Simple ID based on timestamp
-        share_link: shareLink,
-        label: label || null,
-        base_url: baseUrl || null,
-        share_token: shareToken || null,
-        is_active: true,
-        created_at: new Date().toISOString(),
-      };
-
-      // Add to existing links
-      const updatedLinks = [...currentLinks, newLink];
-
-      // Update the profile with new links
-      const result = await postgres.update(
-        'profiles',
-        { nextcloud_share_links: JSON.stringify(updatedLinks) },
-        { id: userId }
-      );
-
-      if (!result.data || result.data.length === 0) {
-        throw new Error('Failed to save share link - profile not found');
-      }
+        return { links: [...currentLinks, link], result: link };
+      });
 
       console.log('[NextcloudShareManager] Share link saved successfully', {
         shareLinkId: newLink.id,
@@ -202,53 +227,27 @@ export class NextcloudShareManager {
         throw new Error('User ID and share link ID are required');
       }
 
-      const postgres = await this.getPostgres();
+      const updatedLink = await this.mutateLinks(userId, (currentLinks) => {
+        const linkIndex = currentLinks.findIndex((link) => link.id === shareLinkId);
+        if (linkIndex === -1) {
+          throw new Error('Share link not found or no permission to update');
+        }
 
-      // Get current profile
-      const profile = await postgres.queryOne(
-        'SELECT nextcloud_share_links FROM profiles WHERE id = $1',
-        [userId],
-        { table: 'profiles' }
-      );
+        const originalLink = currentLinks[linkIndex];
+        const link: NextcloudShareLink = {
+          ...originalLink,
+          share_link: updates.share_link != null ? updates.share_link : originalLink.share_link,
+          label: updates.label != null ? updates.label : originalLink.label,
+          base_url: updates.base_url != null ? updates.base_url : originalLink.base_url,
+          share_token: updates.share_token != null ? updates.share_token : originalLink.share_token,
+          is_active: updates.is_active != null ? updates.is_active : originalLink.is_active,
+          updated_at: new Date().toISOString(),
+        };
 
-      const rawCurrentLinksUpdate: unknown = profile?.nextcloud_share_links;
-      const currentLinks: NextcloudShareLink[] = Array.isArray(rawCurrentLinksUpdate)
-        ? (rawCurrentLinksUpdate as NextcloudShareLink[])
-        : [];
-      const linkIndex = currentLinks.findIndex(
-        (link: NextcloudShareLink) => link.id === shareLinkId
-      );
-
-      if (linkIndex === -1) {
-        throw new Error('Share link not found or no permission to update');
-      }
-
-      // Update the link
-      const originalLink = currentLinks[linkIndex];
-      const updatedLink: NextcloudShareLink = {
-        ...originalLink,
-        share_link: updates.share_link != null ? updates.share_link : originalLink.share_link,
-        label: updates.label != null ? updates.label : originalLink.label,
-        base_url: updates.base_url != null ? updates.base_url : originalLink.base_url,
-        share_token: updates.share_token != null ? updates.share_token : originalLink.share_token,
-        is_active: updates.is_active != null ? updates.is_active : originalLink.is_active,
-        updated_at: new Date().toISOString(),
-      };
-
-      // Replace the link in the array
-      const updatedLinks = [...currentLinks];
-      updatedLinks[linkIndex] = updatedLink;
-
-      // Update the profile
-      const result = await postgres.update(
-        'profiles',
-        { nextcloud_share_links: JSON.stringify(updatedLinks) },
-        { id: userId }
-      );
-
-      if (!result) {
-        throw new Error('Failed to update share link - profile not found');
-      }
+        const links = [...currentLinks];
+        links[linkIndex] = link;
+        return { links, result: link };
+      });
 
       console.log('[NextcloudShareManager] Share link updated successfully', {
         shareLinkId: updatedLink.id,
@@ -276,40 +275,17 @@ export class NextcloudShareManager {
         throw new Error('User ID and share link ID are required');
       }
 
+      await this.mutateLinks(userId, (currentLinks) => {
+        if (!currentLinks.some((link) => link.id === shareLinkId)) {
+          throw new Error('Share link not found or no permission to delete');
+        }
+        return {
+          links: currentLinks.filter((link) => link.id !== shareLinkId),
+          result: null,
+        };
+      });
+
       const postgres = await this.getPostgres();
-
-      // Get current profile
-      const profile = await postgres.queryOne(
-        'SELECT nextcloud_share_links FROM profiles WHERE id = $1',
-        [userId],
-        { table: 'profiles' }
-      );
-
-      const rawCurrentLinksDelete: unknown = profile?.nextcloud_share_links;
-      const currentLinks: NextcloudShareLink[] = Array.isArray(rawCurrentLinksDelete)
-        ? (rawCurrentLinksDelete as NextcloudShareLink[])
-        : [];
-      const linkToDelete = currentLinks.find((link: NextcloudShareLink) => link.id === shareLinkId);
-
-      if (!linkToDelete) {
-        throw new Error('Share link not found or no permission to delete');
-      }
-
-      // Remove the link from the array
-      const updatedLinks = currentLinks.filter(
-        (link: NextcloudShareLink) => link.id !== shareLinkId
-      );
-
-      // Update the profile
-      const result = await postgres.update(
-        'profiles',
-        { nextcloud_share_links: JSON.stringify(updatedLinks) },
-        { id: userId }
-      );
-
-      if (!result) {
-        throw new Error('Failed to delete share link - profile not found');
-      }
 
       // Cascade: remove any group shares that point at this link. There is no FK
       // (content_id is just TEXT in group_content_shares), so we delete manually.
@@ -335,120 +311,23 @@ export class NextcloudShareManager {
    * Validate share link format
    */
   static validateShareLink(shareLink: string): ShareLinkValidation {
-    try {
-      if (!shareLink || typeof shareLink !== 'string') {
-        return {
-          isValid: false,
-          error: 'Share link is required and must be a string',
-        };
-      }
-
-      // Check if it's a valid URL
-      let urlObj: URL;
-      try {
-        urlObj = new URL(shareLink);
-      } catch {
-        return {
-          isValid: false,
-          error: 'Invalid URL format',
-        };
-      }
-
-      // Check if it matches Nextcloud share pattern
-      const sharePattern = /\/s\/[A-Za-z0-9]+/;
-      if (!sharePattern.test(urlObj.pathname)) {
-        return {
-          isValid: false,
-          error: 'Invalid Nextcloud share link format',
-        };
-      }
-
-      // Extract share token
-      const tokenMatch = urlObj.pathname.match(/\/s\/([A-Za-z0-9]+)/);
-      if (!tokenMatch) {
-        return {
-          isValid: false,
-          error: 'Could not extract share token',
-        };
-      }
-
+    const check = checkCloudShareLink(shareLink);
+    if (check.ok) {
       return {
         isValid: true,
-        shareToken: tokenMatch[1],
-        baseUrl: `${urlObj.protocol}//${urlObj.host}`,
+        shareToken: check.parsed.shareToken,
+        baseUrl: check.parsed.baseUrl,
         error: null,
       };
-    } catch (error) {
-      console.error('[NextcloudShareManager] Error validating share link', {
-        error: (error as Error).message,
-      });
-      return {
-        isValid: false,
-        error: 'Validation error: ' + (error as Error).message,
-      };
     }
-  }
-
-  /**
-   * Deactivate all share links for a user (useful for security)
-   */
-  static async deactivateAllShareLinks(userId: string): Promise<DeactivationResult> {
-    try {
-      console.log('[NextcloudShareManager] Deactivating all share links for user', { userId });
-
-      if (!userId) {
-        throw new Error('User ID is required');
-      }
-
-      const postgres = await this.getPostgres();
-
-      // Get current profile
-      const profile = await postgres.queryOne(
-        'SELECT nextcloud_share_links FROM profiles WHERE id = $1',
-        [userId],
-        { table: 'profiles' }
-      );
-
-      const rawCurrentLinksDeactivate: unknown = profile?.nextcloud_share_links;
-      const currentLinks: NextcloudShareLink[] = Array.isArray(rawCurrentLinksDeactivate)
-        ? (rawCurrentLinksDeactivate as NextcloudShareLink[])
-        : [];
-
-      // Deactivate all links
-      const updatedLinks = currentLinks.map((link: NextcloudShareLink) => ({
-        ...link,
-        is_active: false,
-        updated_at: new Date().toISOString(),
-      }));
-
-      // Update the profile if there were any links to deactivate
-      if (currentLinks.length > 0) {
-        const result = await postgres.update(
-          'profiles',
-          { nextcloud_share_links: JSON.stringify(updatedLinks) },
-          { id: userId }
-        );
-
-        if (!result) {
-          throw new Error('Failed to deactivate share links - profile not found');
-        }
-      }
-
-      console.log('[NextcloudShareManager] Share links deactivated', {
-        userId,
-        count: currentLinks.length,
-      });
-
-      return {
-        success: true,
-        deactivatedCount: currentLinks.length,
-      };
-    } catch (error) {
-      console.error('[NextcloudShareManager] Error in deactivateAllShareLinks', {
-        error: (error as Error).message,
-      });
-      throw error;
-    }
+    // The parse lives in @gruenerator/shared; the wording stays here, because
+    // this surface answers in English and the web one in German.
+    const errors: Record<typeof check.problem, string> = {
+      empty: 'Share link is required and must be a string',
+      not_a_url: 'Invalid URL format',
+      no_share_token: 'Invalid Nextcloud share link format',
+    };
+    return { isValid: false, error: errors[check.problem] };
   }
 
   /**
@@ -609,52 +488,6 @@ export class NextcloudShareManager {
       groupName: r.group_name,
       sharedAt: r.shared_at,
     }));
-  }
-
-  /**
-   * Check database state for debugging - shows current nextcloud_share_links for a user
-   */
-  static async checkDatabaseState(userId: string): Promise<DatabaseStateCheck> {
-    try {
-      console.log('[NextcloudShareManager] Checking database state for user', { userId });
-
-      if (!userId) {
-        throw new Error('User ID is required');
-      }
-
-      const postgres = await this.getPostgres();
-
-      const profile = await postgres.queryOne(
-        'SELECT id, nextcloud_share_links FROM profiles WHERE id = $1',
-        [userId],
-        { table: 'profiles' }
-      );
-
-      if (!profile) {
-        console.log(`[NextcloudShareManager] No profile found for user ${userId}`);
-        return {
-          profileExists: false,
-          userId,
-          nextcloud_share_links: null,
-        };
-      }
-
-      console.log(`[NextcloudShareManager] Database state for user ${userId}:`, {
-        profileExists: true,
-        nextcloud_share_links: profile.nextcloud_share_links || [],
-      });
-
-      return {
-        profileExists: true,
-        userId,
-        nextcloud_share_links: (profile.nextcloud_share_links as NextcloudShareLink[]) || [],
-      };
-    } catch (error) {
-      console.error('[NextcloudShareManager] Error checking database state', {
-        error: (error as Error).message,
-      });
-      throw error;
-    }
   }
 }
 
