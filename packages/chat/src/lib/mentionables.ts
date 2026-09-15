@@ -35,6 +35,7 @@ import {
   PiCloudSun,
   PiChartLine,
   PiCalculator,
+  PiRepeat,
 } from '@gruenerator/shared/icons';
 import { NOTEBOOK_ICONS } from '@gruenerator/shared/notebook-icons';
 import {
@@ -500,6 +501,7 @@ const TOOL_MENTION_ICONS: Record<string, React.ComponentType<{ className?: strin
   wetter: PiCloudSun,
   diagramm: PiChartLine,
   rechnen: PiCalculator,
+  wiederkehrend: PiRepeat,
 };
 
 /**
@@ -528,6 +530,7 @@ const TOOL_MENTION_ORDER: readonly string[] = [
   'beispiele',
   'pressemitteilungen',
   'verlauf',
+  'wiederkehrend',
 ];
 
 /**

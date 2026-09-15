@@ -376,6 +376,9 @@ Wolke-Import, Sichtbarkeit und Teilen werden der Person als Karte zur Bestätigu
       if (action === 'share_to_group') return shareCard(userId, collection, args.groupName);
 
       // delete
+      // Kein Mensch am Lauf: der `confirm=true`-Zweischritt bestätigt sich hier
+      // selbst, und die Karte, die fragen würde, ginge an einen stummen Sink.
+      if (!threadId) return { error: 'Löschen ist in diesem Kontext nicht möglich.' };
       if (!args.confirm) {
         const ask = `Soll das Notebook „${collection.name}" wirklich gelöscht werden? Frage die Person und rufe delete erst mit confirm=true erneut auf.`;
         groundNote(sourceRegistry, 'Bestätigung nötig', ask);
