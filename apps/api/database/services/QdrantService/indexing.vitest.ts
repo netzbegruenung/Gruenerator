@@ -84,4 +84,25 @@ describe('indexBundestagContent', () => {
 
     expect((upserted[0].payload as { chunk_type: string }).chunk_type).toBe('table');
   });
+
+  /**
+   * #3224: ohne dieses Feld sind Vektoren aus zwei Modellen in derselben
+   * Sammlung nicht unterscheidbar, ein Modellwechsel also weder prüfbar noch
+   * teilweise reparierbar. Es hängt an keinem Chunk-Feld, sondern an der
+   * Konstante des einzigen Einbettungs-Backends — deshalb muss es auch auf
+   * einem Chunk ganz ohne Metadaten stehen.
+   */
+  it('schreibt das Einbettungsmodell in jedes Payload, auch ohne Chunk-Metadaten', async () => {
+    const { client, upserted } = fakeClient();
+
+    await indexBundestagContent(client, 'bundestag_content', 'https://example.org/d', [
+      { embedding: [0.1], text: 'Mit Metadaten.', metadata: { chunkType: 'table' } },
+      { embedding: [0.2], text: 'Ohne Metadaten.' },
+    ]);
+
+    expect(upserted).toHaveLength(2);
+    for (const point of upserted) {
+      expect(point.payload).toMatchObject({ embedding_model: 'mistral-embed' });
+    }
+  });
 });

@@ -30,6 +30,7 @@ import { basename } from 'node:path';
 import dotenv from 'dotenv';
 
 import { buildEmbeddingTextsForChunks } from '../services/document-services/embeddingText.js';
+import { embeddingPayload } from '../services/document-services/embeddingProvenance.js';
 import { structurePayload } from '../services/document-services/structurePayload.js';
 import { type Chunk, type ChunkMetadata } from '../services/document-services/TextChunker/types.js';
 import { generatePointId, stringToNumericHash } from '../utils/validation/hash.js';
@@ -312,6 +313,7 @@ export function rebuildChunkPayload(
     chunk_index: ctx.index,
     chunk_text: chunk.text,
     ...structurePayload(chunk),
+    ...embeddingPayload(),
     quality_score: ctx.qualityScore,
     ...(carriesTokenCount ? { token_count: chunk.tokens } : {}),
     // NIE schätzen: full_text trägt keine Seitenmarker, der Chunker hat also
