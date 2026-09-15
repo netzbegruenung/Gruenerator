@@ -23,6 +23,22 @@ const SINGLETONS = [
   'yjs',
 ];
 
+// Zweite Klasse: Pakete, deren TYPEN eine Identität tragen. `@ts-rest/core`
+// deklariert `ContractNoBody` und `ContractPlainType` als `unique symbol` —
+// die sind pro physischer Kopie verschieden. Hier genügt eine gemeinsame
+// Version nicht, es muss auch der Peer-Suffix übereinstimmen: pnpm legt pro
+// Peer-Variante ein eigenes Verzeichnis an, und zwei Verzeichnisse sind zwei
+// unique symbols. Am 28.08.2026 hat ein Lockfile-Refresh @types/node auf
+// 26.2.0 (apps/api) und 26.3.0 (packages/contracts, packages/shared)
+// gespalten; der API-Docker-Build starb an
+// `Type 'unique symbol' is not assignable to type 'ContractAnyType | unique
+// symbol'` in jedem Router mit `c.noBody()`. Es braucht dafuer zwei
+// Aenderungen: den gespaltenen Peer UND den isolierten Linker, den der
+// Builder seit #2974 benutzt — `node-linker=hoisted` (die .npmrc, und damit
+// jedes lokale node_modules) schmilzt die Varianten zu einer Kopie ein und
+// verbirgt den Bruch.
+const TYPE_IDENTITY = ['@ts-rest/core'];
+
 // Expo-Apps bundeln separat via Metro und pinnen react exakt auf die
 // SDK-Version (siehe CLAUDE.md) — Abweichungen dort sind gewollt.
 const EXCLUDED_IMPORTERS = ['apps/mobile', 'apps/docs-expo'];
@@ -38,23 +54,29 @@ const importersSection = lock.slice(
 const seen = new Map();
 let importer = null;
 let pendingPkg = null;
+let pendingFullVersion = false;
 
 for (const line of importersSection.split('\n')) {
   const impMatch = line.match(/^ {2}([\w@./-]+):$/);
   if (impMatch) {
     importer = impMatch[1];
     pendingPkg = null;
+    pendingFullVersion = false;
     continue;
   }
   if (!importer || EXCLUDED_IMPORTERS.includes(importer)) continue;
 
   const depMatch = line.match(/^ {6}'?([^':]+)'?:$/);
   if (depMatch) {
-    pendingPkg = SINGLETONS.includes(depMatch[1]) ? depMatch[1] : null;
+    pendingFullVersion = TYPE_IDENTITY.includes(depMatch[1]);
+    pendingPkg =
+      pendingFullVersion || SINGLETONS.includes(depMatch[1]) ? depMatch[1] : null;
     continue;
   }
   if (pendingPkg) {
-    const verMatch = line.match(/^ {8}version: ([^(\s]+)/);
+    const verMatch = line.match(
+      pendingFullVersion ? /^ {8}version: (\S+)/ : /^ {8}version: ([^(\s]+)/
+    );
     if (verMatch) {
       const version = verMatch[1];
       if (!version.startsWith('link:')) {
@@ -64,6 +86,7 @@ for (const line of importersSection.split('\n')) {
         byVersion.get(version).add(importer);
       }
       pendingPkg = null;
+      pendingFullVersion = false;
     }
   }
 }
@@ -83,7 +106,9 @@ if (failed) {
   console.error(
     '\nSingleton-Pakete müssen workspace-weit auf EINE Version auflösen.' +
       '\nFix: Version in pnpm.overrides (root package.json) pinnen und' +
-      ' `pnpm install` laufen lassen (siehe @tanstack/react-query dort).'
+      ' `pnpm install` laufen lassen (siehe @tanstack/react-query dort).' +
+      `\nUnterscheiden sich nur die Peer-Suffixe in Klammern (${TYPE_IDENTITY.join(', ')}),` +
+      ' ist der gespaltene Peer zu pinnen, nicht das Paket selbst.'
   );
   process.exit(1);
 }

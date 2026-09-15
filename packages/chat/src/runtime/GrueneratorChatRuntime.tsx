@@ -9,7 +9,6 @@ import {
   Suggestions,
   useRemoteThreadListRuntime,
   type RemoteThreadListAdapter,
-  type FeedbackAdapter,
   RuntimeAdapterProvider,
   ExportedMessageRepository,
   McpAppRenderer,
@@ -35,6 +34,7 @@ import { ChatNavigationProvider } from '../context/ChatNavigationContext';
 import { ChatRuntimeReadyProvider } from '../context/ChatRuntimeReadyContext';
 import { ExternalThreadProvider } from '../context/ExternalThreadContext';
 import { useChatCollaboration } from '../hooks/useChatCollaboration';
+import { useInterruptSignal, useQueueInterruptGuard } from '../hooks/useQueueInterruptGuard';
 import { adoptRejection } from '../lib/adoptRejection';
 import { getDefaultAgent } from '../lib/agents';
 import { handleDictationError } from '../lib/dictationErrorHandler';
@@ -54,8 +54,10 @@ import {
   createGrueneratorThreadListAdapter,
   type ExternalThreadEntry,
 } from './GrueneratorThreadListAdapter';
+import { MESSAGE_QUEUE_ENABLED } from './messageQueueFlag';
 import { ThreadDataSyncEffect } from './ThreadDataSyncEffect';
 import { convertToThreadMessageLike, type LoadedMessage } from './threadMessageConversion';
+import { useFeedbackAdapter } from './useFeedbackAdapter';
 
 import type { StreamMetadata } from '../hooks/useChatGraphStream';
 
@@ -296,9 +298,15 @@ function useGrueneratorThreadRuntime() {
     [incrementMessageCount, triggerCompaction, runtimeApiClient]
   );
 
+  const interruptSignal = useInterruptSignal();
   const modelAdapter = useMemo(
-    () => createGrueneratorModelAdapter(getConfig, { onThreadCreated, onComplete }),
-    [getConfig, onThreadCreated, onComplete]
+    () =>
+      createGrueneratorModelAdapter(getConfig, {
+        onThreadCreated,
+        onComplete,
+        onInterrupt: interruptSignal.notify,
+      }),
+    [getConfig, onThreadCreated, onComplete, interruptSignal]
   );
 
   const dictationAdapter = useMemo(
@@ -316,44 +324,21 @@ function useGrueneratorThreadRuntime() {
     []
   );
 
-  // Thumbs up/down → Langfuse score on this turn's trace. The backend put the
-  // trace id into the `done` metadata, which parseSSEStream stored on
-  // custom.streamMetadata. No traceId (Langfuse off) → no-op. A per-trace guard
-  // skips re-POSTing the same rating when the user toggles/double-clicks.
-  const lastFeedbackRef = useRef(new Map<string, 'positive' | 'negative'>());
-  const feedbackAdapter = useMemo<FeedbackAdapter>(
-    () => ({
-      submit: ({ message, type }) => {
-        const custom = message.metadata?.custom as
-          { streamMetadata?: { traceId?: string } } | undefined;
-        const traceId = custom?.streamMetadata?.traceId;
-        if (!traceId) return;
-        if (lastFeedbackRef.current.get(traceId) === type) return;
-        lastFeedbackRef.current.set(traceId, type);
-        const { fetch: configFetch, endpoints } = useChatConfigStore.getState();
-        void configFetch(endpoints.feedback, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ traceId, value: type }),
-        })
-          .then((res) => {
-            // fetch resolves on 4xx/5xx too, so the guard above would otherwise
-            // lock in a rating the backend rejected and block every retry.
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          })
-          .catch((err) => {
-            lastFeedbackRef.current.delete(traceId);
-            console.warn('[Feedback] submit failed', err);
-          });
-      },
-    }),
-    []
-  );
+  const feedbackAdapter = useFeedbackAdapter();
 
-  return useLocalRuntime(modelAdapter, {
+  const runtime = useLocalRuntime(modelAdapter, {
     unstable_humanToolNames: ['ask_human'],
+    unstable_enableMessageQueue: MESSAGE_QUEUE_ENABLED,
     adapters: { dictation: dictationAdapter, voice: voiceAdapter, feedback: feedbackAdapter },
   });
+
+  // Per thread, not around the thread list: this hook runs once per thread
+  // runtime, so `modelAdapter`, `runtime` and the queue being emptied all belong
+  // to the same thread. An interrupt on a thread the user has since left leaves
+  // the visible thread's queue alone.
+  useQueueInterruptGuard(runtime, interruptSignal);
+
+  return runtime;
 }
 
 /**
@@ -515,7 +500,10 @@ export function GrueneratorChatRuntimeProvider({
     [onExternalThreadClick, activePath]
   );
 
-  const navigationCtx = useMemo(() => (onNavigate ? { navigate: onNavigate } : null), [onNavigate]);
+  const navigationCtx = useMemo(
+    () => (onNavigate ? { navigate: onNavigate, activePath } : null),
+    [onNavigate, activePath]
+  );
 
   return (
     <ChatRuntimeReadyProvider>

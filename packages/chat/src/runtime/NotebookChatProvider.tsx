@@ -15,12 +15,14 @@ import { MarkdownStreamingProvider } from '../context/MarkdownStreamingContext';
 import { handleDictationError } from '../lib/dictationErrorHandler';
 
 import { GrueneratorAttachmentAdapter } from './GrueneratorAttachmentAdapter';
+import { MESSAGE_QUEUE_ENABLED } from './messageQueueFlag';
 import {
   createNotebookModelAdapter,
   type NotebookAdapterConfig,
   type NotebookMessageMetadata,
   type SharepicContextConfig,
 } from './NotebookModelAdapter';
+import { useFeedbackAdapter } from './useFeedbackAdapter';
 
 interface NotebookCollection {
   id: string;
@@ -184,6 +186,9 @@ function NotebookChatProviderInner({
     []
   );
   const attachmentAdapter = useMemo(() => new GrueneratorAttachmentAdapter(), []);
+  // AssistantMessage shows the thumbs whenever the turn carries a traceId, and
+  // assistant-ui throws "Feedback adapter not configured" without this.
+  const feedbackAdapter = useFeedbackAdapter();
 
   // Only the mount value matters: the runtime loads history exactly once, when
   // it is created. A thread minted later in this session already has its
@@ -194,9 +199,11 @@ function NotebookChatProviderInner({
 
   const runtime = useLocalRuntime(adapter, {
     initialMessages,
+    unstable_enableMessageQueue: MESSAGE_QUEUE_ENABLED,
     adapters: {
       dictation: dictationAdapter,
       attachments: attachmentAdapter,
+      feedback: feedbackAdapter,
       ...(historyAdapter ? { history: historyAdapter } : {}),
     },
   });

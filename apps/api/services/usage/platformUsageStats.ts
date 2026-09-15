@@ -15,19 +15,27 @@
  *     under-reports early and quiet days. Under-reporting a public footprint is
  *     the wrong direction, so `suppressed_days` ships alongside it.
  *
- *  3. The footprint is a BAND. `energyFootprint.ts` values un-metered lanes at
- *     the top of the plausible span; here the bottom is computed as well, and
- *     both ends are published. A single number invites being quoted as fact.
+ *  3. The footprint is a SCALE. `energyFootprint.ts` values un-metered lanes at
+ *     the centre of their plausible span; here both ends are computed too and
+ *     all three are published. A single number invites being quoted as fact.
  *
  * The result is cached in redis: this is an unauthenticated endpoint, and three
  * aggregate scans per page view is a denial-of-service surface handed to anyone
  * with curl.
+ *
+ * An optional `locale` narrows everything above to the users whose profile
+ * currently says Germany or Austria. It is a join at read time, not a column:
+ * a person who switches country takes their history with them, which is fine
+ * for a figure that describes the platform rather than a moment. A profile
+ * without a locale is in neither segment. The filter sits in step 1 already, so
+ * the suppression threshold is applied to the segment, not to the platform —
+ * a thin country publishes nothing rather than a number about a few people.
  */
 
-import { getTransparencyStatsResponseSchema } from '@gruenerator/contracts';
-import { gte, inArray, sql } from 'drizzle-orm';
+import { getTransparencyStatsResponseSchema, usageFeatureSchema } from '@gruenerator/contracts';
+import { and, gte, inArray, sql } from 'drizzle-orm';
 
-import { userUsageDaily } from '../../database/schema/index.js';
+import { profiles, userUsageDaily } from '../../database/schema/index.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { createLogger } from '../../utils/logger.js';
 import { getCachedJson, setCachedJson } from '../../utils/redis/jsonCache.js';
@@ -36,14 +44,21 @@ import {
   estimateFootprint,
   estimateImageFootprint,
   gridIntensityFor,
+  getPublicTextCalculationProfiles,
+  isPueEstimated,
   pueFor,
   emissionsFromEnergy,
   hasMarketInstrument,
   marketIntensityFor,
   referenceFootprint,
+  TOKEN_CALIBRATION_PUE,
 } from './energyFootprint.js';
 
-import type { GetTransparencyStatsResponseDto, UsageFeature } from '@gruenerator/contracts';
+import type {
+  GetTransparencyStatsResponseDto,
+  TransparencyLocale,
+  UsageFeature,
+} from '@gruenerator/contracts';
 
 const log = createLogger('platformUsage');
 
@@ -68,33 +83,47 @@ const CACHE_TTL_SECONDS = 15 * 60;
  *  rather than being served until their TTL runs out. */
 const CACHE_KEY_PREFIX = 'transparency:usage:v2';
 
+/** What `profiles.locale` holds for each publishable segment. */
+const LOCALE_VALUE: Record<TransparencyLocale, string> = { de: 'de-DE', at: 'de-AT' };
+
 const WMS_PER_WH = 3_600_000;
 const UG_PER_G = 1_000_000;
 
+function publicCalculation() {
+  return {
+    version: '2026-09-14',
+    direct_measurement: {
+      energy: 'provider-reported kWh × 1,000 = Wh' as const,
+      emissions: 'provider-reported g CO2e' as const,
+    },
+    estimated_text: {
+      formula:
+        '(input_tokens × input_mwh_per_token + output_tokens × output_mwh_per_token + requests × fixed_mwh_per_request) × provider_pue / calibration_pue' as const,
+      calibration_pue: TOKEN_CALIBRATION_PUE,
+      profiles: getPublicTextCalculationProfiles(),
+    },
+    emissions_formula: 'energy_kwh × grid_g_per_kwh = g CO2e' as const,
+  };
+}
+
 /** Rows predate schema changes; an unknown slug must not break the response. */
-const KNOWN_FEATURES = new Set<string>([
-  'chat',
-  'docs',
-  'sheets',
-  'presentations',
-  'boards',
-  'sharepic',
-  'subtitler',
-  'search',
-  'monitor',
-  'sites',
-  'texte',
-  'notebook',
-  'other',
-]);
+const KNOWN_FEATURES = new Set<string>(usageFeatureSchema.options);
 
 function featureFallback(feature: string): UsageFeature {
   // Boundary cast: the Set membership check IS the runtime assertion.
   return (KNOWN_FEATURES.has(feature) ? feature : 'other') as UsageFeature;
 }
 
-const KNOWN_UNITS = new Set<string>(['tokens', 'images', 'transcriptions', 'searches']);
-type KnownUnit = 'tokens' | 'images' | 'transcriptions' | 'searches';
+// A unit missing from this set does not raise anything — it is silently read as
+// 'tokens', which files the row under text models with a token count of zero.
+const KNOWN_UNITS = new Set<string>([
+  'tokens',
+  'images',
+  'transcriptions',
+  'searches',
+  'speech_seconds',
+]);
+type KnownUnit = 'tokens' | 'images' | 'transcriptions' | 'searches' | 'speech_seconds';
 
 function unitFallback(unit: string): KnownUnit {
   return (KNOWN_UNITS.has(unit) ? unit : 'tokens') as KnownUnit;
@@ -110,6 +139,8 @@ interface ProviderAccumulator {
   energyWms: number;
   emissionsUg: number;
   pueWeighted: number;
+  /** True as soon as ANY contributing kind used an estimated PUE. */
+  pueEstimated: boolean;
 }
 
 function startOfWindow(days: number): string {
@@ -138,12 +169,15 @@ function emptyStats(days: number, sinceDay: string, suppressedDays: number, acti
       images: 0,
       transcriptions: 0,
       searches: 0,
+      speech_seconds: 0,
     },
     footprint: {
       energy_wh: 0,
       energy_wh_low: 0,
+      energy_wh_high: 0,
       emissions_g: 0,
       emissions_g_low: 0,
+      emissions_g_high: 0,
       measured_share: 0,
       bounded_share: 0,
       covered_share: 0,
@@ -154,8 +188,9 @@ function emptyStats(days: number, sinceDay: string, suppressedDays: number, acti
       market_emissions_g: 0,
       image_market_emissions_g: 0,
       market_backed_share: 0,
-      unvalued_ops: { transcriptions: 0, searches: 0 },
+      unvalued_ops: { transcriptions: 0, searches: 0, speech_seconds: 0 },
     },
+    calculation: publicCalculation(),
     providers: [],
     daily: [],
     byFeature: [],
@@ -167,10 +202,17 @@ function emptyStats(days: number, sinceDay: string, suppressedDays: number, acti
  * Compute the aggregate. Prefer `getPlatformUsageStats`, which caches this.
  */
 export async function computePlatformUsageStats(
-  days: number
+  days: number,
+  locale: TransparencyLocale | null
 ): Promise<GetTransparencyStatsResponseDto> {
   const sinceDay = startOfWindow(days);
   const db = getDrizzleInstance();
+
+  // A subquery rather than a join: `user_id` must stay collapsed in every
+  // statement below, and a join would put a per-user row within reach.
+  const scope = locale
+    ? sql`${userUsageDaily.userId} IN (SELECT ${profiles.id} FROM ${profiles} WHERE ${profiles.locale} = ${LOCALE_VALUE[locale]})`
+    : undefined;
 
   // Step 1 — who was active on which day. This decides what may be published at
   // all, so it runs before anything is summed.
@@ -180,7 +222,7 @@ export async function computePlatformUsageStats(
       activeUsers: sql<number>`count(distinct ${userUsageDaily.userId})::int`,
     })
     .from(userUsageDaily)
-    .where(gte(userUsageDaily.day, sinceDay))
+    .where(and(gte(userUsageDaily.day, sinceDay), scope))
     .groupBy(userUsageDaily.day);
 
   const eligibleDays = new Map<string, number>();
@@ -199,7 +241,7 @@ export async function computePlatformUsageStats(
   const [windowUsers] = await db
     .select({ activeUsers: sql<number>`count(distinct ${userUsageDaily.userId})::int` })
     .from(userUsageDaily)
-    .where(inArray(userUsageDaily.day, dayList));
+    .where(and(inArray(userUsageDaily.day, dayList), scope));
 
   const activeUsers = windowUsers?.activeUsers ?? 0;
   if (activeUsers < MIN_GROUP_SIZE) {
@@ -228,7 +270,7 @@ export async function computePlatformUsageStats(
       emissionsUg: sql<number>`sum(${userUsageDaily.emissionsUg})::float8`,
     })
     .from(userUsageDaily)
-    .where(inArray(userUsageDaily.day, dayList))
+    .where(and(inArray(userUsageDaily.day, dayList), scope))
     .groupBy(
       userUsageDaily.day,
       userUsageDaily.feature,
@@ -245,6 +287,7 @@ export async function computePlatformUsageStats(
     images: 0,
     transcriptions: 0,
     searches: 0,
+    speech_seconds: 0,
   };
   const daily = new Map<string, { requests: number; input: number; output: number }>();
   const byFeature = new Map<
@@ -255,6 +298,7 @@ export async function computePlatformUsageStats(
       images: number;
       transcriptions: number;
       searches: number;
+      speech_seconds: number;
       emissionsUg: number;
     }
   >();
@@ -271,16 +315,21 @@ export async function computePlatformUsageStats(
   >();
   const byProvider = new Map<string, ProviderAccumulator>();
 
-  // Upper end of the band, and the shares that describe how much of it rests on
+  // The central estimate, and the shares that describe how much of it rests on
   // a meter. Mirrors userUsageContractRouter — see the comment there on why
   // coverage is weighted by OUTPUT tokens rather than by all tokens.
   let energyWms = 0;
   let emissionsUg = 0;
   let measuredEnergyWms = 0;
   let boundedEnergyWms = 0;
-  // Lower end. Differs only where a lane is valued by bound rather than meter.
+  // The two ends of the published scale. The figures above are the MIDDLE and
+  // are what every headline shows; these differ from it only where a lane is
+  // valued by bracket rather than by meter, or where the provider's location is
+  // a span rather than a known country.
   let energyWmsLow = 0;
   let emissionsUgLow = 0;
+  let energyWmsHigh = 0;
+  let emissionsUgHigh = 0;
   let imageEnergyWms = 0;
   let imageEmissionsUg = 0;
   let textOutputTokens = 0;
@@ -299,10 +348,19 @@ export async function computePlatformUsageStats(
     emissions: number,
     kind: 'tokens' | 'images'
   ): void => {
-    const entry = byProvider.get(provider) ?? { energyWms: 0, emissionsUg: 0, pueWeighted: 0 };
+    const entry = byProvider.get(provider) ?? {
+      energyWms: 0,
+      emissionsUg: 0,
+      pueWeighted: 0,
+      pueEstimated: false,
+    };
     entry.energyWms += energy;
     entry.emissionsUg += emissions;
     entry.pueWeighted += pueFor(provider, kind) * energy;
+    // OR across kinds: a provider whose token PUE is published but whose image
+    // PUE is not still carries an estimate in its weighted average, and the
+    // label has to reflect the weaker half.
+    entry.pueEstimated ||= isPueEstimated(provider, kind);
     byProvider.set(provider, entry);
   };
 
@@ -310,7 +368,7 @@ export async function computePlatformUsageStats(
     const unit = unitFallback(row.unit);
     const feature = featureFallback(row.feature);
     const tokens = row.inputTokens + row.outputTokens;
-    // This row's contribution to the platform emissions (upper end), so the
+    // This row's contribution to the platform emissions (central estimate), so the
     // per-feature breakdown can carry a CO2 figure of its own.
     let rowEmissionsUg = 0;
 
@@ -324,6 +382,8 @@ export async function computePlatformUsageStats(
         emissionsUg += row.emissionsUg;
         energyWmsLow += row.energyWms;
         emissionsUgLow += row.emissionsUg;
+        energyWmsHigh += row.energyWms;
+        emissionsUgHigh += row.emissionsUg;
         rowEmissionsUg = row.emissionsUg;
         marketEmissionsUg += emissionsFromEnergy(row.energyWms, marketIntensityFor(row.provider));
         if (hasMarketInstrument(row.provider)) marketBackedEnergyWms += row.energyWms;
@@ -338,41 +398,47 @@ export async function computePlatformUsageStats(
           outputTokens: row.outputTokens,
           requests: row.requests,
         };
-        const high = estimateFootprint(base);
-        if (high) {
+        const mid = estimateFootprint(base);
+        if (mid) {
           const low = estimateFootprint({ ...base, bound: 'low' });
-          energyWms += high.energyWms;
-          emissionsUg += high.emissionsUg;
-          energyWmsLow += low?.energyWms ?? high.energyWms;
-          emissionsUgLow += low?.emissionsUg ?? high.emissionsUg;
-          rowEmissionsUg = high.emissionsUg;
-          marketEmissionsUg += high.marketEmissionsUg;
-          if (hasMarketInstrument(row.provider)) marketBackedEnergyWms += high.energyWms;
+          const high = estimateFootprint({ ...base, bound: 'high' });
+          energyWms += mid.energyWms;
+          emissionsUg += mid.emissionsUg;
+          energyWmsLow += low?.energyWms ?? mid.energyWms;
+          emissionsUgLow += low?.emissionsUg ?? mid.emissionsUg;
+          energyWmsHigh += high?.energyWms ?? mid.energyWms;
+          emissionsUgHigh += high?.emissionsUg ?? mid.emissionsUg;
+          rowEmissionsUg = mid.emissionsUg;
+          marketEmissionsUg += mid.marketEmissionsUg;
+          if (hasMarketInstrument(row.provider)) marketBackedEnergyWms += mid.energyWms;
           coveredOutputTokens += row.outputTokens;
           coveredRequests += row.requests;
-          if (high.basis === 'bound') boundedEnergyWms += high.energyWms;
-          addProvider(row.provider, high.energyWms, high.emissionsUg, 'tokens');
+          if (mid.basis === 'bound') boundedEnergyWms += mid.energyWms;
+          addProvider(row.provider, mid.energyWms, mid.emissionsUg, 'tokens');
         }
       }
     }
 
     if (unit === 'images') {
       const base = { provider: row.provider, model: row.model, images: row.ops };
-      const high = estimateImageFootprint(base);
-      if (high) {
+      const mid = estimateImageFootprint(base);
+      if (mid) {
         const low = estimateImageFootprint({ ...base, bound: 'low' });
-        energyWms += high.energyWms;
-        emissionsUg += high.emissionsUg;
-        energyWmsLow += low?.energyWms ?? high.energyWms;
-        emissionsUgLow += low?.emissionsUg ?? high.emissionsUg;
-        imageEnergyWms += high.energyWms;
-        imageEmissionsUg += high.emissionsUg;
-        rowEmissionsUg = high.emissionsUg;
-        marketEmissionsUg += high.marketEmissionsUg;
-        imageMarketEmissionsUg += high.marketEmissionsUg;
-        if (hasMarketInstrument(row.provider)) marketBackedEnergyWms += high.energyWms;
-        if (high.basis === 'bound') boundedEnergyWms += high.energyWms;
-        addProvider(row.provider, high.energyWms, high.emissionsUg, 'images');
+        const high = estimateImageFootprint({ ...base, bound: 'high' });
+        energyWms += mid.energyWms;
+        emissionsUg += mid.emissionsUg;
+        energyWmsLow += low?.energyWms ?? mid.energyWms;
+        emissionsUgLow += low?.emissionsUg ?? mid.emissionsUg;
+        energyWmsHigh += high?.energyWms ?? mid.energyWms;
+        emissionsUgHigh += high?.emissionsUg ?? mid.emissionsUg;
+        imageEnergyWms += mid.energyWms;
+        imageEmissionsUg += mid.emissionsUg;
+        rowEmissionsUg = mid.emissionsUg;
+        marketEmissionsUg += mid.marketEmissionsUg;
+        imageMarketEmissionsUg += mid.marketEmissionsUg;
+        if (hasMarketInstrument(row.provider)) marketBackedEnergyWms += mid.energyWms;
+        if (mid.basis === 'bound') boundedEnergyWms += mid.energyWms;
+        addProvider(row.provider, mid.energyWms, mid.emissionsUg, 'images');
       }
     }
 
@@ -383,6 +449,7 @@ export async function computePlatformUsageStats(
     if (unit === 'images') totals.images += row.ops;
     if (unit === 'transcriptions') totals.transcriptions += row.ops;
     if (unit === 'searches') totals.searches += row.ops;
+    if (unit === 'speech_seconds') totals.speech_seconds += row.ops;
 
     const dayEntry = daily.get(row.day) ?? { requests: 0, input: 0, output: 0 };
     dayEntry.requests += row.requests;
@@ -396,6 +463,7 @@ export async function computePlatformUsageStats(
       images: 0,
       transcriptions: 0,
       searches: 0,
+      speech_seconds: 0,
       emissionsUg: 0,
     };
     featureEntry.requests += row.requests;
@@ -404,6 +472,7 @@ export async function computePlatformUsageStats(
     if (unit === 'images') featureEntry.images += row.ops;
     if (unit === 'transcriptions') featureEntry.transcriptions += row.ops;
     if (unit === 'searches') featureEntry.searches += row.ops;
+    if (unit === 'speech_seconds') featureEntry.speech_seconds += row.ops;
     byFeature.set(feature, featureEntry);
 
     const modelKey = `${row.provider}|${row.model}|${unit}`;
@@ -439,8 +508,10 @@ export async function computePlatformUsageStats(
     footprint: {
       energy_wh: energyWms / WMS_PER_WH,
       energy_wh_low: energyWmsLow / WMS_PER_WH,
+      energy_wh_high: energyWmsHigh / WMS_PER_WH,
       emissions_g: emissionsUg / UG_PER_G,
       emissions_g_low: emissionsUgLow / UG_PER_G,
+      emissions_g_high: emissionsUgHigh / UG_PER_G,
       measured_share: energyWms > 0 ? measuredEnergyWms / energyWms : 0,
       bounded_share: energyWms > 0 ? boundedEnergyWms / energyWms : 0,
       covered_share: textOutputTokens > 0 ? coveredOutputTokens / textOutputTokens : 0,
@@ -454,8 +525,10 @@ export async function computePlatformUsageStats(
       unvalued_ops: {
         transcriptions: totals.transcriptions,
         searches: totals.searches,
+        speech_seconds: totals.speech_seconds,
       },
     },
+    calculation: publicCalculation(),
     // Only providers that actually contributed energy. Listing a search or
     // transcription provider here at 0 g would read as "this one is free"; what
     // is really true about them lives in `unvalued_ops`.
@@ -464,6 +537,7 @@ export async function computePlatformUsageStats(
         provider,
         grid_g_per_kwh: gridIntensityFor(provider),
         pue: entry.energyWms > 0 ? entry.pueWeighted / entry.energyWms : pueFor(provider),
+        pue_estimated: entry.pueEstimated,
         energy_wh: entry.energyWms / WMS_PER_WH,
         emissions_g: entry.emissionsUg / UG_PER_G,
       }))
@@ -493,15 +567,18 @@ export async function computePlatformUsageStats(
  * rather than to an error — `jsonCache` treats every failure as a miss.
  */
 export async function getPlatformUsageStats(
-  days: number
+  days: number,
+  locale: TransparencyLocale | null
 ): Promise<GetTransparencyStatsResponseDto> {
-  const key = `${CACHE_KEY_PREFIX}:${days}`;
+  const key = `${CACHE_KEY_PREFIX}:${days}:${locale ?? 'all'}`;
 
   const cached = await getCachedJson(key, getTransparencyStatsResponseSchema);
   if (cached) return cached;
 
-  const stats = await computePlatformUsageStats(days);
+  const stats = await computePlatformUsageStats(days, locale);
   await setCachedJson(key, stats, CACHE_TTL_SECONDS);
-  log.debug(`Recomputed platform usage for ${days}d (${stats.daily.length} published days)`);
+  log.debug(
+    `Recomputed platform usage for ${days}d/${locale ?? 'all'} (${stats.daily.length} published days)`
+  );
   return stats;
 }

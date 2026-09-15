@@ -60,10 +60,11 @@ Snippet: ${r.snippet || r.content || 'No preview available'}
     // AI analyzes snippets and decides which URLs to crawl
     const crawlDecision = await aiText({
       lane: 'crawler_agent',
-      // litellm/verdigado-pro stand bisher als `options.provider`/`options.model`
-      // im Umschlag. `crawler_agent` hat keine Zeile in `AI_LANES`; ohne Pin
-      // liefe der Aufruf auf `default` (Mistral Medium) statt hier.
-      pinned: { provider: 'litellm', model: 'verdigado-pro' },
+      // `crawler_agent` hat keine Zeile in `AI_LANES`; ohne Pin liefe der
+      // Aufruf auf `default` (Mistral Medium) statt hier. Der Pin nannte bis
+      // zum 29.08.2026 `litellm/verdigado-pro` und nennt jetzt die Stufe —
+      // siehe services/ai/intermediateLanes.ts.
+      pinned: 'standard',
       system: `You are an intelligent web research agent. Based on search snippets, decide which URLs to crawl for full content.
 
 Evaluation criteria:

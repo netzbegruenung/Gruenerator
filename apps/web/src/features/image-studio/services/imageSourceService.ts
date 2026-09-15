@@ -79,7 +79,7 @@ export async function generateAiImage(
   const response = await apiClient.post<ImaginePureResponse>('/imagine/pure', {
     prompt,
     variant: variantValue,
-    backend: 'regolo',
+    backend: 'melious',
     ...(opts.width && opts.height ? { width: opts.width, height: opts.height } : {}),
   });
 

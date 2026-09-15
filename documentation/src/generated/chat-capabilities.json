@@ -10,7 +10,6 @@
     "compute",
     "create_pdf",
     "create_presentation",
-    "create_recurring_task",
     "create_sheet",
     "direct",
     "edit_current_board",
@@ -32,15 +31,12 @@
     "search",
     "share_doc",
     "sharepic",
-    "social_post",
     "summary",
     "umfragen",
     "web"
   ],
   "experimentalIntents": [
-    "create_recurring_task",
-    "mcp",
-    "social_post"
+    "mcp"
   ],
   "mentionables": {
     "abgeordnetenwatch": {
@@ -160,11 +156,6 @@
       "description": "Erstellt eine Tabelle (Spreadsheet) aus dem Chatverlauf",
       "mention": "@tabelle-erstellen"
     },
-    "social_post": {
-      "title": "Social Post",
-      "description": "Post-Text mit passendem Sharepic in einem Zug",
-      "mention": "@social"
-    },
     "summary": {
       "title": "Zusammenfassung",
       "description": "Dokument(e) zusammenfassen",
@@ -192,6 +183,10 @@
     }
   },
   "userTools": {
+    "cloud_files": {
+      "label": "Wolke",
+      "description": "Durchsucht die verbundenen Wolke-Ordner, listet Dateien auf und liest sie — ausschließlich lesend."
+    },
     "examples": {
       "label": "Social-Media-Beispiele",
       "description": "Findet passende Beispiel-Posts aus dem Grünerator-Fundus."
@@ -227,6 +222,10 @@
     "user_content": {
       "label": "Eigene Inhalte",
       "description": "Durchsucht die eigenen gespeicherten Texte und Dokumente."
+    },
+    "vertonen": {
+      "label": "Vertonen",
+      "description": "Macht aus einem Text eine Audiodatei zum Herunterladen – Ansage, Vorlesefassung oder Audiodeskription. Die Datei landet in der Mediathek."
     },
     "vision": {
       "label": "Bildanalyse",

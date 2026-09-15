@@ -35,12 +35,14 @@ export interface ActionGateStageParams {
   actualThreadId: string | undefined;
 }
 
-export interface ActionGateStageOutput {
-  /** Whether this turn was allowed to MAKE a sharepic. Read again in the
-   *  response stage: a post without a licence is text-only, not a failed
-   *  sharepic. */
-  sharepicLicensed: boolean;
-}
+/**
+ * Das Gitter gibt nichts mehr zurück — es entscheidet nur noch, ob der Turn
+ * weiterläuft. Sein einziges Ausgabefeld war `sharepicLicensed`, und der einzige
+ * Leser war der Social-Post-Zweig: „ein Post ohne Lizenz ist Text, kein
+ * gescheitertes Sharepic". Mit dem stillgelegten Verdikt ist die Frage weg, die
+ * Lizenz selbst bleibt hier drin und sperrt weiter die Sharepic-Route.
+ */
+export type ActionGateStageOutput = object;
 
 export async function runActionGateStage({
   classifiedState,
@@ -133,5 +135,5 @@ export async function runActionGateStage({
       classifiedState.forbiddenArtifactAction = primaryFamily;
     }
   }
-  return { handled: false, sharepicLicensed };
+  return { handled: false };
 }

@@ -10,6 +10,9 @@ import {
   index,
 } from 'drizzle-orm/pg-core';
 
+// Orphaned: no code reads or writes this table since the folder-sync endpoints
+// were removed (#3032). The table stays in the DB (F0 — existing rows), the
+// definition stays so schema files mirror the runtime DDL in schema.sql.
 export const wolkeSyncStatus = pgTable(
   'wolke_sync_status',
   {

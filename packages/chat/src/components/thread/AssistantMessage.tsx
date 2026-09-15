@@ -40,6 +40,7 @@ import { StreamingStatusLine } from '../message-parts/StreamingStatusLine';
 import { ToolCallGroup } from '../message-parts/ToolCallGroup';
 import { ConfirmActionCard } from '../tool-ui/ConfirmActionCard';
 import { DocumentCreatedCard } from '../tool-ui/DocumentCreatedCard';
+import { GrueneratorToolFallback } from '../tool-ui/GrueneratorToolUIs';
 import { ReelPickerCard } from '../tool-ui/ReelPickerCard';
 import { ReelProcessingCard } from '../tool-ui/ReelProcessingCard';
 
@@ -74,6 +75,10 @@ const partComponents = {
   Reasoning: HiddenReasoning,
   ReasoningGroup: HiddenReasoningGroup,
   ToolGroup: ToolCallGroup,
+  // Konnektor-Werkzeuge tragen erst zur Laufzeit gebildete Namen und stehen
+  // deshalb in keiner Toolkit-Registry. Ohne Fallback rendern sie nichts —
+  // auch keine Freigabe-Karte.
+  tools: { Fallback: GrueneratorToolFallback },
 };
 
 export const AssistantMessage = memo(function AssistantMessage() {
@@ -324,6 +329,10 @@ export const AssistantMessage = memo(function AssistantMessage() {
 
           {custom?.interrupted && (
             <p className="text-xs text-foreground-muted italic">Antwort wurde unterbrochen</p>
+          )}
+
+          {!isStreaming && custom?.evidenceWeak && (
+            <p className="text-xs text-foreground-muted italic">{custom.evidenceWeak}</p>
           )}
 
           {!isStreaming && custom?.chartData && <ChatChart data={custom.chartData} />}

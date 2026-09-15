@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 
 import { mentionableKey, type Mentionable } from '../../lib/mentionables';
 import { getFilteredMentionables } from '../../lib/mentionDetection';
 import { buildMentionSections, countMentionSectionItems } from '../../lib/mentionSections';
+import { phosphorAgentIcon } from '../../lib/phosphorAgentIcon';
 
 import { MentionFloatingPanel } from './MentionFloatingPanel';
 
@@ -96,6 +97,17 @@ function MentionItem({
   isSelected: boolean;
   onSelect: (m: Mentionable) => void;
 }) {
+  // Grünerator-Agenten bringen einen vollen Phosphor-Komponentennamen mit statt
+  // einer fertigen Komponente: `mentionables.ts` teilt sich das Mobile-Bündel
+  // und darf das Web-Icon-Paket nicht in dessen Graph ziehen. Hier, wo gerendert
+  // wird, ist der Auflöser am Platz — lazy und nach Name zwischengespeichert.
+  const row = useMemo(
+    () =>
+      mentionable.type === 'useragent' && mentionable.iconKey && !mentionable.icon
+        ? { ...mentionable, icon: phosphorAgentIcon(mentionable.iconKey) }
+        : mentionable,
+    [mentionable]
+  );
   return (
     <button
       type="button"
@@ -111,7 +123,7 @@ function MentionItem({
       }}
     >
       <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md text-secondary-600">
-        {mentionable.icon ? <mentionable.icon className="h-4 w-4" /> : null}
+        {row.icon ? <row.icon className="h-4 w-4" /> : null}
       </span>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-foreground">{mentionable.title}</p>

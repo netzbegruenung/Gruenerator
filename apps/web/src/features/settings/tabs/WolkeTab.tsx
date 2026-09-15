@@ -10,7 +10,6 @@ import { useCallback, useState } from 'react';
 
 import { SettingsCardsSkeleton } from '../components/SettingsSkeleton';
 
-import AutoBackupSection from '@/features/wolke/components/AutoBackupSection';
 import CloudButton from '@/features/wolke/components/CloudButton';
 import SharedWolkeConnectionCard from '@/features/wolke/components/SharedWolkeConnectionCard';
 import WolkeAddForm from '@/features/wolke/components/WolkeAddForm';
@@ -104,13 +103,6 @@ const WolkeTab = () => {
               />
             ))}
           </div>
-        </>
-      )}
-
-      {hasLinks && (
-        <>
-          <hr className="border-grey-200 dark:border-grey-700" />
-          <AutoBackupSection />
         </>
       )}
     </div>

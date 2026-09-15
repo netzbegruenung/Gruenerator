@@ -5,6 +5,11 @@ import {
   Share2,
   Users,
   UserPlus,
+  Cloud,
+  FolderInput,
+  Eye,
+  Repeat,
+  Bot,
   Check,
   X,
   ArrowRight,
@@ -25,9 +30,28 @@ const ICON_MAP: Record<ConfirmActionType, typeof FileText> = {
   share_doc: Share2,
   create_group: Users,
   join_group: UserPlus,
+  add_cloud_connection: Cloud,
+  attach_wolke_folder: FolderInput,
+  set_notebook_visibility: Eye,
+  share_notebook: Share2,
+  set_group_visibility: Eye,
+  create_recurring_task: Repeat,
+  create_user_agent: Bot,
+  share_user_agent: Share2,
 };
 
-const GROUP_ACTION_TYPES: ReadonlySet<ConfirmActionType> = new Set(['create_group', 'join_group']);
+const GROUP_ACTION_TYPES: ReadonlySet<ConfirmActionType> = new Set([
+  'create_group',
+  'join_group',
+  // Die Karte verlinkt danach das Projekt, nicht das Notebook.
+  'share_notebook',
+  'set_group_visibility',
+  'share_user_agent',
+]);
+const NOTEBOOK_ACTION_TYPES: ReadonlySet<ConfirmActionType> = new Set([
+  'attach_wolke_folder',
+  'set_notebook_visibility',
+]);
 
 export const ConfirmActionCard = memo(function ConfirmActionCard({
   action,
@@ -74,9 +98,15 @@ export const ConfirmActionCard = memo(function ConfirmActionCard({
               >
                 {action.type === 'modify_board'
                   ? 'Board öffnen'
-                  : GROUP_ACTION_TYPES.has(action.type)
-                    ? 'Gruppe öffnen'
-                    : 'Dokument öffnen'}
+                  : action.type === 'create_recurring_task'
+                    ? 'Aufgaben öffnen'
+                    : action.type === 'create_user_agent'
+                      ? 'Grünerator-Agent öffnen'
+                      : GROUP_ACTION_TYPES.has(action.type)
+                        ? 'Gruppe öffnen'
+                        : NOTEBOOK_ACTION_TYPES.has(action.type)
+                          ? 'Notebook öffnen'
+                          : 'Dokument öffnen'}
                 <ArrowRight className="h-3 w-3" />
               </a>
             </>

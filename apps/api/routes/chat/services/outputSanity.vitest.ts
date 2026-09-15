@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
 import {
+  announcesPendingWork,
   defersToSearchDespiteSources,
   deniesSearchAbilityDespiteSearching,
   looksCutOff,
@@ -365,5 +366,41 @@ describe('createControlTokenFilter — über den ganzen Strom', () => {
 
   it('verträgt leere Teilstücke', () => {
     expect(run(['', 'Text', ''])).toBe('Text');
+  });
+});
+
+describe('announcesPendingWork', () => {
+  it('flags the three live waiting sentences (15.09.2026)', () => {
+    expect(
+      announcesPendingWork(
+        'Das neue Sharepic wird in diesem Moment generiert und erscheint gleich als visuelle Karte.'
+      )
+    ).toBe(true);
+    expect(announcesPendingWork('Moment bitte einen Augenblick.')).toBe(true);
+    expect(announcesPendingWork('Das Bild erscheint gleich direkt hier im Chatverlauf.')).toBe(
+      true
+    );
+  });
+
+  it('flags the other first-person waiting idioms', () => {
+    expect(announcesPendingWork('Ich melde mich gleich mit dem Ergebnis.')).toBe(true);
+    expect(announcesPendingWork('Sobald der Vorgang abgeschlossen ist, siehst du das Bild.')).toBe(
+      true
+    );
+  });
+
+  it('leaves ordinary answers alone — including ones whose CONTENT is about waiting', () => {
+    // The loopEngine note on "Ich werde …" applies: intent alone is not a leak.
+    expect(announcesPendingWork('Ich werde das kurz zusammenfassen.')).toBe(false);
+    expect(announcesPendingWork('Das Dokument wurde gestern erstellt.')).toBe(false);
+    expect(announcesPendingWork('Moment mal, das stimmt so nicht.')).toBe(false);
+    expect(announcesPendingWork('Erledigt — die Zeile wurde geändert.')).toBe(false);
+    // Grounded facts and requested short texts must not read as a leak.
+    expect(announcesPendingWork('Laut [1] erscheint der Bericht in Kürze.')).toBe(false);
+    expect(announcesPendingWork('Bitte kurz warten, wir sind gleich für Sie da.')).toBe(false);
+    expect(announcesPendingWork('Der Antrag wird gerade bearbeitet, sagt das Protokoll [2].')).toBe(
+      false
+    );
+    expect(announcesPendingWork('Nimm dir einen Moment und atme dreimal tief durch.')).toBe(false);
   });
 });

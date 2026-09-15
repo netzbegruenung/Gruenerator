@@ -17,6 +17,10 @@ import {
 } from '@gruenerator/contracts';
 
 import { BRAND_THEMES } from '../brand/theme';
+import {
+  PHOTO_BACKGROUND_COLORS_AT,
+  PHOTO_BACKGROUND_COLORS_DE,
+} from '../configs/backgroundPalettes';
 import { dreizeilenFullConfig } from '../configs/dreizeilen_full.config';
 import { dreizeilenOverlayAtFullConfig } from '../configs/dreizeilen_overlay_at_full.config';
 import { infoAtFullConfig } from '../configs/info_at_full.config';
@@ -54,6 +58,88 @@ describe('sharepic template descriptor parity', () => {
         expected.map((c) => c.color),
         type
       ).toContain(descriptor.defaultState.backgroundColor);
+    }
+  });
+
+  /**
+   * The photo-backed templates draw a solid plane under the picture, and their
+   * palette is NOT the brand list above: their text colour is baked in as
+   * white, so only colours that carry white text may be offered. The editor
+   * source is configs/backgroundPalettes.ts; without this the descriptor could
+   * quietly offer Sand and the chat would set a background nobody can read on.
+   */
+  it('photo-template background palettes match configs/backgroundPalettes', () => {
+    const asOptions = (palette: readonly { id: string; label: string; color: string }[]) =>
+      palette.map((c) => ({ id: c.id, label: c.label, color: c.color }));
+
+    const cases: Array<[string, ReturnType<typeof asOptions>]> = [
+      ['zitat', asOptions(PHOTO_BACKGROUND_COLORS_DE)],
+      ['simple', asOptions(PHOTO_BACKGROUND_COLORS_DE)],
+      ['zitat-at', asOptions(PHOTO_BACKGROUND_COLORS_AT)],
+      ['dreizeilen-overlay-at', asOptions(PHOTO_BACKGROUND_COLORS_AT)],
+    ];
+
+    for (const [type, expected] of cases) {
+      const descriptor = getSharepicTemplateDescriptor(type)!;
+      expect(descriptor.backgroundColors?.options, type).toEqual(expected);
+      expect(
+        expected.map((c) => c.color),
+        type
+      ).toContain(descriptor.defaultState.backgroundColor);
+    }
+  });
+
+  /**
+   * An operation without the data it needs is worse than a missing operation:
+   * the model is told it may set a background colour, picks one, and
+   * `sharepicOpsToStatePatch` rejects every value because there is no palette
+   * to normalise against. The reverse — a palette nobody may write — is dead
+   * weight that still reaches the prompt. Both directions, every template.
+   */
+  it('pairs every background operation with the data it needs', () => {
+    for (const type of SHAREPIC_EDITABLE_TEMPLATES) {
+      const d = getSharepicTemplateDescriptor(type)!;
+      const canSetColor = d.supportedOperations.includes('set-background-color');
+      const canSetImage = d.supportedOperations.includes('set-background-image');
+
+      expect(canSetColor, `${type}: set-background-color without a palette`).toBe(
+        !!d.backgroundColors
+      );
+      expect(canSetImage, `${type}: set-background-image without a state key`).toBe(
+        !!d.backgroundImage
+      );
+    }
+  });
+
+  /**
+   * `set-background-image` only puts a picture there. Moving, zooming or fading
+   * it afterwards is `update-element` against the `hintergrundbild` descriptor,
+   * and `validateSharepicOp` resolves that by id: no element, and every
+   * follow-up is rejected with 'Unbekanntes Element "hintergrundbild"'. The
+   * user gets a photo they cannot then adjust, and only through the chat —
+   * the sidebar sliders work fine, so nothing looks broken.
+   *
+   * The pairing above does not see this: it asks whether the state key exists,
+   * not whether anything can address it. zitat-pure had exactly that shape
+   * while its three siblings did not.
+   */
+  it('lets the chat adjust a photo it is allowed to set', () => {
+    for (const type of SHAREPIC_EDITABLE_TEMPLATES) {
+      const d = getSharepicTemplateDescriptor(type)!;
+      if (!d.backgroundImage) continue;
+
+      const adjustable = d.elements.find(
+        (el) => el.presenceStateKey === d.backgroundImage!.stateKey
+      );
+      expect(
+        adjustable,
+        `${type}: can set a background photo but has no element gated on '${d.backgroundImage.stateKey}' to move or scale it`
+      ).toBeDefined();
+      expect(
+        adjustable?.positionStateKey,
+        `${type}: the photo element cannot be moved`
+      ).toBeTruthy();
+      expect(adjustable?.scale, `${type}: the photo element cannot be scaled`).toBeTruthy();
     }
   });
 

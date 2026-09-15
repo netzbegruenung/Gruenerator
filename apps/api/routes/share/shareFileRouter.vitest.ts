@@ -218,6 +218,19 @@ describe('GET /:shareToken/preview', () => {
     expect(meta.width).toBe(600);
   });
 
+  it('serves the canvas working tier at its own width, not clamped to 1200', async () => {
+    // The canvas editor loads exactly this variant for live rendering. The
+    // 600px fixture cannot distinguish the widths by pixel size
+    // (withoutEnlargement), so the ETag — which carries the accepted width —
+    // is the assertion.
+    const res = await get('/api/share/abc123/preview?w=2160&fmt=webp');
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toBe('image/webp');
+    expect(res.headers.get('etag')).toBe(
+      `"${Math.floor(Date.parse(CREATED) / 1000).toString(36)}-w2160-webp"`
+    );
+  });
+
   it.each([
     ['a missing share', null, 404],
     ['a failed conversion', imageShare({ status: 'failed' }), 500],

@@ -51,6 +51,7 @@ export const USAGE_FEATURES = [
   'sites',
   'texte',
   'notebook',
+  'voice',
   'other',
 ] as const;
 
@@ -66,7 +67,7 @@ const FEATURE_BY_PREFIX: ReadonlyArray<readonly [string, UsageFeature]> = (
     ['/api/chat-service', 'chat'],
     ['/api/chat-graph', 'chat'],
     ['/api/threads', 'chat'],
-    ['/api/mem0', 'chat'],
+    ['/api/memory', 'chat'],
 
     ['/api/docs', 'docs'],
     ['/api/documents', 'docs'],
@@ -100,6 +101,14 @@ const FEATURE_BY_PREFIX: ReadonlyArray<readonly [string, UsageFeature]> = (
 
     ['/api/subtitler', 'subtitler'],
     ['/api/video', 'subtitler'],
+    // Read-aloud and the voice agent are chat surfaces, so speech synthesis is
+    // booked under chat. This wins over the '/api/voice' line below because the
+    // list is matched longest-first. The rest of /api/voice is transcription and
+    // stays with the subtitler; /api/voice/realtime is a chat surface too, but
+    // it upgrades to a WebSocket that this middleware never sees.
+    ['/api/voice/tts', 'chat'],
+    // Grünerator Voice (text → audio file); longer than '/api/voice', so it wins.
+    ['/api/voice/speech', 'voice'],
     ['/api/voice', 'subtitler'],
     ['/api/protokoll', 'subtitler'],
     ['/api/process', 'subtitler'],

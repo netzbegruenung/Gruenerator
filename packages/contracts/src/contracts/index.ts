@@ -3,6 +3,7 @@
  * Import from '@gruenerator/contracts' (the package root).
  */
 export { threadsContract } from './threadsContract.js';
+export { chatThreadSharingContract } from './chatThreadSharingContract.js';
 export { exportsContract } from './exportsContract.js';
 export { recentValuesContract } from './recentValuesContract.js';
 export { recentActivityContract } from './recentActivityContract.js';
@@ -38,18 +39,20 @@ export { docsContract } from './docsContract.js';
 export { documentsContract } from './documentsContract.js';
 export { subtitlerContract } from './subtitlerContract.js';
 export { voiceContract } from './voiceContract.js';
+export { speechContract } from './speechContract.js';
 export { imagePickerContract } from './imagePickerContract.js';
 export { videoContract } from './videoContract.js';
 export { sharepicContract } from './sharepicContract.js';
 export { sharepicTextContract } from './sharepicTextContract.js';
-export { transferContract } from './transferContract.js';
 export { unsplashContract } from './unsplashContract.js';
 export { notificationsContract } from './notificationsContract.js';
+export { memoryContract, type MemoryContract } from './memoryContract.js';
 export { emailContract } from './emailContract.js';
 export { feedbackContract } from './feedbackContract.js';
 export { modelPreferencesContract } from './modelPreferencesContract.js';
 export { imageModelPreferenceContract } from './imageModelPreferenceContract.js';
 export { mcpServersContract } from './mcpServersContract.js';
+export { chatToolApprovalsContract } from './chatToolApprovalsContract.js';
 export { imageEditContract } from './imageEditContract.js';
 export { adminVorlagenContract } from './adminVorlagenContract.js';
 export { userTemplatesContract } from './userTemplatesContract.js';
@@ -70,6 +73,7 @@ export { reisekostenContract } from './reisekostenContract.js';
 export { promptsContract } from './promptsContract.js';
 export { skillPromptContract } from './skillPromptContract.js';
 export { agentVisibilityContract } from './agentVisibilityContract.js';
+export { chunkInspectorContract } from './chunkInspectorContract.js';
 export { skillVisibilityContract } from './skillVisibilityContract.js';
 export { instanceAdminOverviewContract } from './instanceAdminOverviewContract.js';
 export { lvAdminAssignmentContract } from './lvAdminAssignmentContract.js';

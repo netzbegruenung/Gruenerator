@@ -12,9 +12,14 @@
 
 import type { ForbiddableArtifact } from './nodes/fastPathGuards.js';
 import type { SubcategoryFilters } from '../../../config/systemCollectionsConfig.js';
+import type {
+  NotebookEditPolicy,
+  NotebookShareMode,
+} from '../../../database/services/NotebookQdrantHelper.js';
 import type { AgentConfig } from '../../../routes/chat/agents/types.js';
 import type { ArtifactKindId } from '../../../routes/chat/services/artifactKindRegistry.js';
 import type { SystemMcpKey } from '../../../services/mcp/systemMcpServers.js';
+import type { UserAgentInput } from '../../../services/userAgents/userAgentsRepository.js';
 import type {
   WolkeFileRef,
   ConnectFileRef,
@@ -27,10 +32,14 @@ import type {
   SearchIntent,
   ClientPlatform,
   SharepicVariant,
+  PublicOwnership,
+  GroupAudience,
+  CreateRecurringTaskBody,
 } from '@gruenerator/contracts';
 import type { RoleLandesverbandInput } from '@gruenerator/shared/agents';
 import type { ArtifactCreateKind } from '@gruenerator/shared/chat-intents';
 import type { ModelMessage } from 'ai';
+import type { RenderedMemory } from '../../../services/memory/memoryPrompt.js';
 
 export type { WolkeFileRef, ConnectFileRef, CurrentBoard, SocialPostPayload };
 
@@ -483,6 +492,13 @@ export interface ChatGraphInput {
    * pandas interpreter (`df`) instead of doing arithmetic in its head.
    */
   hasTabularAttachment?: boolean | undefined;
+  /**
+   * Anzahl der aktiven eigenen Wolke-Verbindungen. Das primäre Tor für
+   * `cloud_files` im Werkzeugkatalog — er wird synchron gebaut und kann die
+   * Frage nicht selbst stellen. Gesetzt in `buildStreamContext` aus einem
+   * 60-Sekunden-Cache; `undefined` heißt „nicht ermittelt", nicht „keine".
+   */
+  cloudConnectionCount?: number | undefined;
   /** THIS turn's fillable-PDF attachments (name + base64), for the PDF form
    *  tools. Needed separately from `threadAttachments`, which carries no bytes
    *  and is only written after the turn completes — on the very first turn
@@ -647,6 +663,8 @@ export interface ChatGraphState {
   imageAttachments: ImageAttachment[];
   threadAttachments: ThreadAttachment[];
   hasTabularAttachment: boolean;
+  /** See the input-side field: the tool-catalog gate for `cloud_files`. */
+  cloudConnectionCount: number;
   /** See the input-side field: this turn's fillable PDFs, name + base64. */
   pdfFormAttachments: Array<{ name: string; data: string }>;
   clientCanRunPython: boolean;
@@ -758,8 +776,12 @@ export interface ChatGraphState {
   // User profile instructions (from profiles.custom_prompt, additive to all modes)
   userInstructions: string | null;
 
-  // Memory context (from mem0 cross-thread memory)
+  // The person's explicit memory for this turn (services/memory). `memoryContext`
+  // is the rendered, numbered text the prompt shows; `memories` is the same
+  // list as data, so the `memory` tool can resolve "Nr. 3" to a row id.
   memoryContext: string | null;
+  memories: RenderedMemory[] | null;
+  memoryEnabled: boolean;
   memoryRetrieveTimeMs: number;
 
   // Chat history context (from past conversation search, injected by controller)
@@ -901,13 +923,6 @@ export interface ChatGraphState {
    * treated as usable material rather than as research context.
    */
   webImageResults?: WebImageResult[];
-
-  // Platform hint for the `examples` / `social_post` intents. Set by the
-  // classifier when the user prompt names a platform; null otherwise. Consumed
-  // by searchNode to filter social examples (instagram/facebook only — the
-  // Qdrant collection has no other platforms) and by socialMediaComposerNode
-  // to pick the platform-specific rubric.
-  platform: SocialTextPlatform | null;
 
   // Clarification (HITL interrupt)
   needsClarification: boolean;
@@ -1088,12 +1103,6 @@ export interface ChatGraphState {
    *  of ending with no computation at all. */
   pandasComputeFallback?: ComputeData | undefined;
 
-  // Combined social post (EXPERIMENTAL): text half of the `social_post`
-  // intent. Set by generateSocialPostText in the execution stage; persisted
-  // into the `social_post` tool-call result. The sharepic half travels via
-  // the existing sharepic variant machinery.
-  socialPostResult: SocialPostPayload | null;
-
   // Chart generation
   chartData: ChartData | null;
 
@@ -1254,6 +1263,100 @@ export interface JoinGroupPayload {
 }
 
 /**
+ * Eine Wolke-Verbindung anlegen. Der Link IST das Zugangsmittel, deshalb liegt
+ * er bis zur Zustimmung nur im Redis-Pending-Eintrag und nie in einer
+ * Modellantwort.
+ */
+export interface AddCloudConnectionPayload {
+  shareLink: string;
+  label: string | null;
+  host: string;
+  /** Einträge in der Wurzel zum Zeitpunkt der Prüfung — die Karte zeigt sie. */
+  entryCount: number | null;
+}
+
+/**
+ * Einen Wolke-Ordner an ein Notebook hängen und die erste Charge importieren.
+ * `collectionId === null` heißt: das Notebook wird beim Bestätigen erst
+ * angelegt (`create` mit `wolkeFolder`). `audience` kommt aus der Sitzung des
+ * Werkzeugs, weil `executeAction` keinen Request mit Profil-Locale hat.
+ */
+export interface AttachWolkeFolderPayload {
+  collectionId: string | null;
+  notebookName: string;
+  description: string | null;
+  audience: UserLocale;
+  shareLinkId: string;
+  shareLabel: string;
+  folderPath: string;
+  folderName: string;
+  includeSubfolders: boolean;
+  /** Stand der Vorschau — die Karte zeigt sie, der Import zählt selbst neu. */
+  fileCount: number;
+  alreadyImported: number;
+}
+
+/** Der Patch geht unverändert an `applyNotebookVisibility`. */
+export interface SetNotebookVisibilityPayload {
+  collectionId: string;
+  notebookName: string;
+  share_mode?: NotebookShareMode;
+  edit_policy?: NotebookEditPolicy;
+  is_public?: boolean;
+  public_ownership?: PublicOwnership | null;
+}
+
+export interface ShareNotebookPayload {
+  collectionId: string;
+  notebookName: string;
+  groupId: string;
+  groupName: string;
+}
+
+/**
+ * Ein Projekt öffentlich listen oder wieder privat stellen — geht unverändert
+ * an `setGroupVisibility`. Öffentlich heißt: in „Projekte entdecken" sichtbar
+ * und Beitrittsanfragen möglich, deshalb eine Karte.
+ */
+export interface SetGroupVisibilityPayload {
+  groupId: string;
+  groupName: string;
+  is_public: boolean;
+  audience: GroupAudience;
+}
+
+/**
+ * Eine wiederkehrende Aufgabe einrichten — der Body geht unverändert an
+ * `createRecurringTask`. Eine Karte, weil die Aufgabe danach selbstständig
+ * handelt und je Lauf kostet; `agentTitle` ist nur für die Vorschau und die
+ * Bestätigungsmeldung (der Identifier allein sagt der Person nichts).
+ */
+export type CreateRecurringTaskPayload = CreateRecurringTaskBody & { agentTitle: string | null };
+
+/**
+ * Einen eigenen Grünerator-Agent anlegen — `input` geht unverändert an
+ * `createUserAgent`. Eine Karte, weil die Rolle ein LLM-Entwurf ist, den die
+ * Person vor dem Speichern sehen soll, und der Agent danach in jedem Chat mit
+ * dieser Rolle handelt.
+ */
+export interface CreateUserAgentPayload {
+  input: UserAgentInput;
+}
+
+/**
+ * Einen eigenen Grünerator-Agent mit einem Projekt teilen. `agentId` ist die
+ * UUID (der Schlüssel in `group_content_shares`), `identifier` und
+ * `agentTitle` sind für Meldung und Link.
+ */
+export interface ShareUserAgentPayload {
+  identifier: string;
+  agentTitle: string;
+  agentId: string;
+  groupId: string;
+  groupName: string;
+}
+
+/**
  * Pending action stored in Redis while awaiting user confirmation.
  * Discriminated union ensures type-safe payload access per action type.
  */
@@ -1271,6 +1374,14 @@ export type PendingAction = {
   | { type: 'share_doc'; payload: ShareDocPayload }
   | { type: 'create_group'; payload: CreateGroupPayload }
   | { type: 'join_group'; payload: JoinGroupPayload }
+  | { type: 'add_cloud_connection'; payload: AddCloudConnectionPayload }
+  | { type: 'attach_wolke_folder'; payload: AttachWolkeFolderPayload }
+  | { type: 'set_notebook_visibility'; payload: SetNotebookVisibilityPayload }
+  | { type: 'share_notebook'; payload: ShareNotebookPayload }
+  | { type: 'set_group_visibility'; payload: SetGroupVisibilityPayload }
+  | { type: 'create_recurring_task'; payload: CreateRecurringTaskPayload }
+  | { type: 'create_user_agent'; payload: CreateUserAgentPayload }
+  | { type: 'share_user_agent'; payload: ShareUserAgentPayload }
 );
 
 /**

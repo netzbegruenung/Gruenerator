@@ -40,6 +40,10 @@ const createRedirect = (to: string): FC<Record<string, unknown>> => {
 // Redirects for /image-studio/* routes to /studio/*
 const ImageStudioRedirect = lazy(() => Promise.resolve({ default: createRedirect('/studio') }));
 
+// /transfer wurde entfernt (Wolke ist nur noch lesend); alte Links landen auf
+// der Startseite. Verschickte Download-Links (/share/:token) sind nicht betroffen.
+const TransferRedirect = lazy(() => Promise.resolve({ default: createRedirect('/') }));
+
 // Redirect /notebook/:id → /notebooks/:id preserving the param. Search, hash
 // and state come along: an old link to a notebook conversation carries the
 // thread id in `?thread=`, and dropping it here opened the notebook's start
@@ -161,6 +165,7 @@ const MeineVorlagenPage = lazy(() => import('../features/vorlagen/MeineVorlagenP
 const GeteilteVorlagePage = lazy(() => import('../features/vorlagen/GeteilteVorlagePage'));
 const AdminPage = lazy(() => import('../features/admin/AdminPage'));
 const AdminSkillsPage = lazy(() => import('../features/admin/AdminSkillsPage'));
+const ChunkInspectorPage = lazy(() => import('../features/admin/ChunkInspectorPage'));
 const LandesverbandAdminPage = lazy(
   () => import('../features/landesverband-admin/LandesverbandAdminPage')
 );
@@ -170,6 +175,7 @@ const GrueneApiTestPage = lazy(() => import('../features/admin/GrueneApiTestPage
 // Route bleibt auskommentiert, bis entschieden ist, ob sie zurückkommt.
 // const PlaygroundPage = lazy(() => import('../features/playground/PlaygroundPage'));
 const IconAnimationTestPage = lazy(() => import('../features/playground/IconAnimationTestPage'));
+const KugelVoiceTestPage = lazy(() => import('../features/playground/KugelVoiceTestPage'));
 // Auth-Komponenten importieren (only components still used after Authentic integration)
 const LoginPage = lazy(() => import('../features/auth/pages/LoginPage'));
 const OAuthConsentPage = lazy(() => import('../features/auth/pages/OAuthConsentPage'));
@@ -219,6 +225,7 @@ const SubtitlerBetaPage = lazy(
 const SubStudioPage = lazy(() => import('../features/subtitler-beta/components/SubStudioPage'));
 const SharedVideoPage = lazy(() => import('../features/subtitler/components/SharedVideoPage'));
 const SharedMediaPage = lazy(() => import('../features/shared-media/SharedMediaPage'));
+const SharedChatPage = lazy(() => import('../features/chat/SharedChatPage'));
 const ImageStudioPage = lazy(() => import('../features/image-studio/ImageStudioPage'));
 const ImageGallery = lazy(() => import('../features/image-studio/gallery'));
 const AppsPage = lazy(() => import('../features/apps/AppsPage'));
@@ -237,8 +244,8 @@ const MobileRenderPage = lazy(() => import('../pages/MobileRenderPage'));
 
 const ScannerPage = lazy(() => import('../features/scanner/ScannerPage'));
 const ZeichenzaehlerPage = lazy(() => import('../features/zeichenzaehler/ZeichenzaehlerPage'));
+const VoicePage = lazy(() => import('../features/voice/VoicePage'));
 const TranskriptionPage = lazy(() => import('../features/transkription/TranskriptionPage'));
-const TransferPage = lazy(() => import('../features/transfer/TransferPage'));
 const RecurringTasksPage = lazy(() => import('../features/recurring-tasks/RecurringTasksPage'));
 const WorkplacePage = lazy(() => import('../features/workplace/WorkplacePage'));
 const ProjektePage = lazy(() => import('../features/groups/pages/ProjektePage'));
@@ -303,7 +310,6 @@ export const GrueneratorenBundle = {
   MobileRender: MobileRenderPage,
   Scanner: ScannerPage,
   Transkription: TranskriptionPage,
-  Transfer: TransferPage,
 } as const;
 
 // Route Konfigurationen
@@ -447,6 +453,10 @@ const standardRoutes: RouteConfig[] = [
   },
   { path: '/admin', component: AdminPage },
   { path: '/admin/skills', component: AdminSkillsPage },
+  // Chunk-Inspektor (#3123). Kein layoutMode → 'default', wie /admin und
+  // /admin/skills. Auth ist die Vorgabe; das Admin-Gatter sitzt in der Seite
+  // (RequireAdmin) und, verbindlich, im Backend-Handler.
+  { path: '/admin/chunks/:documentId', component: ChunkInspectorPage },
   // Der Instanz-Admin ist in `/admin` aufgegangen; die alte URL leitet dorthin,
   // statt zu verschwinden (URL-Sonderrecht, CLAUDE.md).
   {
@@ -466,6 +476,7 @@ const standardRoutes: RouteConfig[] = [
   { path: '/admin/gruene-api', component: GrueneApiTestPage },
   // { path: '/playground', component: PlaygroundPage },
   { path: '/icon-test', component: IconAnimationTestPage, channel: 'internal' },
+  { path: '/kugel-test', component: KugelVoiceTestPage, channel: 'internal' },
   { path: '/vorlagen', component: GrueneratorenBundle.VorlagenListe },
   { path: '/vorlagen/meine', component: MeineVorlagenPage },
   // Link-shared Vorlage. `public` because the öffentlich mode has to open
@@ -599,7 +610,8 @@ const standardRoutes: RouteConfig[] = [
   { path: '/reel/studio', component: SubStudioPage },
   { path: '/scanner', component: GrueneratorenBundle.Scanner },
   { path: '/zeichenzaehler', component: ZeichenzaehlerPage },
-  { path: '/transfer', component: GrueneratorenBundle.Transfer, channel: 'internal' },
+  { path: '/voice', component: VoicePage },
+  { path: '/transfer', component: TransferRedirect, channel: 'internal' },
   { path: '/transkription', component: GrueneratorenBundle.Transkription },
   {
     path: '/subtitler/share/:shareToken',
@@ -674,12 +686,22 @@ const standardRoutes: RouteConfig[] = [
   // PageLayout, the sidebar and its thread-list portal on the very first thread
   // a user opens. React Router ranks the static /chat/settings above this
   // dynamic segment.
+  // Geteilte (nur-lesen) Chat-Ansicht. Own entry on purpose — it renders a
+  // different page, so the one-entry remount rule of /chat below does not
+  // apply; React Router ranks the static `geteilt` segment above the dynamic
+  // :threadSlug. Login required (no `public: true`) — link shares are
+  // authenticated-only by design.
+  {
+    path: '/chat/geteilt/:threadSlug',
+    component: SharedChatPage,
+    layoutMode: 'noChrome',
+  },
   {
     path: '/chat/:threadSlug?',
     component: GrueneratorenBundle.Chat,
     layoutMode: 'sidebarOnly',
   },
-  { path: '/voice', component: VoiceAgentPage, layoutMode: 'noChrome' },
+  { path: '/voice-agent', component: VoiceAgentPage, layoutMode: 'noChrome' },
   // Apps & Connect Page
   { path: '/apps', component: AppsPage },
   // Media Library Route

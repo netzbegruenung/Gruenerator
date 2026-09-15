@@ -18,7 +18,9 @@
 
 import {
   threadsContract,
+  chatThreadSharingContract,
   exportsContract,
+  speechContract,
   recentValuesContract,
   recentActivityContract,
   contentContract,
@@ -45,13 +47,14 @@ import {
   userWebsitesContract,
   letterheadsContract,
   notebookSharingContract,
-  transferContract,
   notificationsContract,
+  memoryContract,
   emailContract,
   feedbackContract,
   modelPreferencesContract,
   imageModelPreferenceContract,
   mcpServersContract,
+  chatToolApprovalsContract,
   imageEditContract,
   sharepicTextContract,
   adminVorlagenContract,
@@ -62,6 +65,7 @@ import {
   userAgentsSharingContract,
   skillPromptContract,
   agentVisibilityContract,
+  chunkInspectorContract,
   skillVisibilityContract,
   instanceAdminOverviewContract,
   lvAdminAssignmentContract,
@@ -84,7 +88,7 @@ import {
   promptsContract,
 } from '@gruenerator/contracts';
 import { initClient, isZodType, type AppRoute } from '@ts-rest/core';
-import { isAxiosError } from 'axios';
+import { AxiosError, isAxiosError } from 'axios';
 
 import { getGlobalApiClient } from './client.js';
 
@@ -178,6 +182,23 @@ async function axiosFetcher({
       throw error;
     });
 
+  // A request the browser tore down (page reload/navigation while it was in
+  // flight) ends with status 0. axios `settle()` resolves any response whose
+  // status is falsy without consulting `validateStatus` above, so it would
+  // arrive here looking like an HTTP answer. No contract declares status 0,
+  // and callers treat "not 200" as a generic failure — turning a network
+  // drop into an unclassified error that toastApiError then reports to
+  // Sentry (GlitchTip #576). Reject it the way axios itself rejects a network
+  // error, so the retry predicate and error dictionary recognise it.
+  if (response.status === 0) {
+    throw new AxiosError(
+      'Network Error',
+      AxiosError.ERR_NETWORK,
+      response.config,
+      response.request
+    );
+  }
+
   // Convert axios headers (AxiosResponseHeaders) to native Headers
   const nativeHeaders = new Headers();
   for (const [key, value] of Object.entries(response.headers as Record<string, string>)) {
@@ -231,7 +252,7 @@ const CLIENT_OPTS = {
  * process-wide singletons, so switching them on validates every caller of the
  * three contracts — `canvas` also serves the collab canvas editor, chat sharepic
  * minting and the template gallery; `subtitler` serves the whole web subtitler
- * pipeline; `sharesRead` also serves template cloning and share renaming. Those
+ * pipeline; `sharesRead` also serves share renaming. Those
  * response builders serialize their dates through the same `toIso` pattern, so
  * none of them throws today, but none was audited or covered by a test here
  * either. A drift in one of them now fails loudly instead of silently — which is
@@ -250,6 +271,7 @@ const VALIDATED_CLIENT_OPTS = {
 // which may not be exported in all @ts-rest/core minor versions.
 const _threadsClient = () => initClient(threadsContract, CLIENT_OPTS);
 const _exportsClient = () => initClient(exportsContract, CLIENT_OPTS);
+const _speechClient = () => initClient(speechContract, CLIENT_OPTS);
 const _recentValuesClient = () => initClient(recentValuesContract, CLIENT_OPTS);
 const _recentActivityClient = () => initClient(recentActivityContract, CLIENT_OPTS);
 const _contentClient = () => initClient(contentContract, CLIENT_OPTS);
@@ -276,13 +298,15 @@ const _notebookWordpressClient = () => initClient(notebookWordpressContract, CLI
 const _userWebsitesClient = () => initClient(userWebsitesContract, CLIENT_OPTS);
 const _letterheadsClient = () => initClient(letterheadsContract, CLIENT_OPTS);
 const _notebookSharingClient = () => initClient(notebookSharingContract, CLIENT_OPTS);
-const _transferClient = () => initClient(transferContract, CLIENT_OPTS);
+const _chatThreadSharingClient = () => initClient(chatThreadSharingContract, CLIENT_OPTS);
 const _notificationsClient = () => initClient(notificationsContract, CLIENT_OPTS);
+const _memoryClient = () => initClient(memoryContract, CLIENT_OPTS);
 const _emailClient = () => initClient(emailContract, CLIENT_OPTS);
 const _feedbackClient = () => initClient(feedbackContract, CLIENT_OPTS);
 const _modelPreferencesClient = () => initClient(modelPreferencesContract, CLIENT_OPTS);
 const _imageModelPreferenceClient = () => initClient(imageModelPreferenceContract, CLIENT_OPTS);
 const _mcpServersClient = () => initClient(mcpServersContract, CLIENT_OPTS);
+const _chatToolApprovalsClient = () => initClient(chatToolApprovalsContract, CLIENT_OPTS);
 const _imageEditClient = () => initClient(imageEditContract, CLIENT_OPTS);
 const _sharepicTextClient = () => initClient(sharepicTextContract, CLIENT_OPTS);
 const _adminVorlagenClient = () => initClient(adminVorlagenContract, CLIENT_OPTS);
@@ -293,6 +317,7 @@ const _userAgentsClient = () => initClient(userAgentsContract, CLIENT_OPTS);
 const _userAgentsSharingClient = () => initClient(userAgentsSharingContract, CLIENT_OPTS);
 const _skillPromptClient = () => initClient(skillPromptContract, CLIENT_OPTS);
 const _agentVisibilityClient = () => initClient(agentVisibilityContract, CLIENT_OPTS);
+const _chunkInspectorClient = () => initClient(chunkInspectorContract, CLIENT_OPTS);
 const _skillVisibilityClient = () => initClient(skillVisibilityContract, CLIENT_OPTS);
 const _instanceAdminOverviewClient = () => initClient(instanceAdminOverviewContract, CLIENT_OPTS);
 const _lvAdminAssignmentClient = () => initClient(lvAdminAssignmentContract, CLIENT_OPTS);
@@ -320,6 +345,7 @@ const _promptsClient = () => initClient(promptsContract, CLIENT_OPTS);
 export interface ContractsClient {
   threads: ReturnType<typeof _threadsClient>;
   exports: ReturnType<typeof _exportsClient>;
+  speech: ReturnType<typeof _speechClient>;
   recentValues: ReturnType<typeof _recentValuesClient>;
   recentActivity: ReturnType<typeof _recentActivityClient>;
   content: ReturnType<typeof _contentClient>;
@@ -346,13 +372,15 @@ export interface ContractsClient {
   userWebsites: ReturnType<typeof _userWebsitesClient>;
   letterheads: ReturnType<typeof _letterheadsClient>;
   notebookSharing: ReturnType<typeof _notebookSharingClient>;
-  transfer: ReturnType<typeof _transferClient>;
+  chatThreadSharing: ReturnType<typeof _chatThreadSharingClient>;
   notifications: ReturnType<typeof _notificationsClient>;
+  memory: ReturnType<typeof _memoryClient>;
   email: ReturnType<typeof _emailClient>;
   feedback: ReturnType<typeof _feedbackClient>;
   modelPreferences: ReturnType<typeof _modelPreferencesClient>;
   imageModelPreference: ReturnType<typeof _imageModelPreferenceClient>;
   mcpServers: ReturnType<typeof _mcpServersClient>;
+  chatToolApprovals: ReturnType<typeof _chatToolApprovalsClient>;
   imageEdit: ReturnType<typeof _imageEditClient>;
   sharepicText: ReturnType<typeof _sharepicTextClient>;
   adminVorlagen: ReturnType<typeof _adminVorlagenClient>;
@@ -363,6 +391,7 @@ export interface ContractsClient {
   userAgentsSharing: ReturnType<typeof _userAgentsSharingClient>;
   skillPrompt: ReturnType<typeof _skillPromptClient>;
   agentVisibility: ReturnType<typeof _agentVisibilityClient>;
+  chunkInspector: ReturnType<typeof _chunkInspectorClient>;
   skillVisibility: ReturnType<typeof _skillVisibilityClient>;
   instanceAdminOverview: ReturnType<typeof _instanceAdminOverviewClient>;
   lvAdminAssignment: ReturnType<typeof _lvAdminAssignmentClient>;
@@ -430,13 +459,15 @@ export function getContractsClient(): ContractsClient {
     userWebsites: _userWebsitesClient(),
     letterheads: _letterheadsClient(),
     notebookSharing: _notebookSharingClient(),
-    transfer: _transferClient(),
+    chatThreadSharing: _chatThreadSharingClient(),
     notifications: _notificationsClient(),
+    memory: _memoryClient(),
     email: _emailClient(),
     feedback: _feedbackClient(),
     modelPreferences: _modelPreferencesClient(),
     imageModelPreference: _imageModelPreferenceClient(),
     mcpServers: _mcpServersClient(),
+    chatToolApprovals: _chatToolApprovalsClient(),
     imageEdit: _imageEditClient(),
     sharepicText: _sharepicTextClient(),
     adminVorlagen: _adminVorlagenClient(),
@@ -447,6 +478,7 @@ export function getContractsClient(): ContractsClient {
     userAgentsSharing: _userAgentsSharingClient(),
     skillPrompt: _skillPromptClient(),
     agentVisibility: _agentVisibilityClient(),
+    chunkInspector: _chunkInspectorClient(),
     skillVisibility: _skillVisibilityClient(),
     instanceAdminOverview: _instanceAdminOverviewClient(),
     lvAdminAssignment: _lvAdminAssignmentClient(),
@@ -467,6 +499,7 @@ export function getContractsClient(): ContractsClient {
     imagePicker: _imagePickerClient(),
     sharesRead: _sharesReadClient(),
     prompts: _promptsClient(),
+    speech: _speechClient(),
   };
 
   return _client;

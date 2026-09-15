@@ -94,11 +94,12 @@ CREATE TABLE IF NOT EXISTS profiles (
     canva_connection JSONB DEFAULT NULL,
     document_mode TEXT DEFAULT 'manual',
     default_startpage TEXT NOT NULL DEFAULT 'chat' CHECK (default_startpage IN ('chat', 'arbeiten')),
+    tts_voice_id TEXT,
     user_defaults JSONB DEFAULT '{}',
     docs BOOLEAN DEFAULT FALSE,
     boards BOOLEAN DEFAULT FALSE,
     bundestag_api_enabled BOOLEAN DEFAULT FALSE,
-    memory_enabled BOOLEAN DEFAULT FALSE,
+    memory_enabled BOOLEAN DEFAULT TRUE,
     feedback_button TEXT NOT NULL DEFAULT 'text' CHECK (feedback_button IN ('text', 'icon', 'off')),
     reduce_motion BOOLEAN NOT NULL DEFAULT FALSE,
     reduce_transparency BOOLEAN NOT NULL DEFAULT FALSE,
@@ -111,7 +112,7 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS prompts BOOLEAN DEFAULT FALSE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS docs BOOLEAN DEFAULT FALSE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS boards BOOLEAN DEFAULT FALSE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS bundestag_api_enabled BOOLEAN DEFAULT FALSE;
-ALTER TABLE profiles ADD COLUMN IF NOT EXISTS memory_enabled BOOLEAN DEFAULT FALSE;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS memory_enabled BOOLEAN DEFAULT TRUE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS feedback_button TEXT NOT NULL DEFAULT 'text' CHECK (feedback_button IN ('text', 'icon', 'off'));
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS reduce_motion BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS reduce_transparency BOOLEAN NOT NULL DEFAULT FALSE;
@@ -374,19 +375,6 @@ CREATE TABLE IF NOT EXISTS notebook_collection_documents (
     UNIQUE(collection_id, document_id)
 );
 
-CREATE TABLE IF NOT EXISTS notebook_usage_logs (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    collection_id UUID REFERENCES notebook_collections(id) ON DELETE CASCADE,
-    user_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
-    question TEXT NOT NULL,
-    answer_length INTEGER,
-    response_time_ms INTEGER,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    ip_address INET,
-    user_agent TEXT
-);
-
-
 -- ════════════════════════════════════════════════════════════════════════════
 -- SECTION 7: GENERATORS & PROMPTS
 -- Custom generators, custom prompts, and saved items
@@ -499,7 +487,7 @@ CREATE TABLE IF NOT EXISTS template_likes (
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- SECTION 9: MEDIA & SHARING
--- Unified media sharing, sharepics, and user uploads
+-- Unified media sharing and sharepics
 -- ════════════════════════════════════════════════════════════════════════════
 
 CREATE TABLE IF NOT EXISTS user_sharepics (
@@ -512,18 +500,9 @@ CREATE TABLE IF NOT EXISTS user_sharepics (
     metadata JSONB DEFAULT '{}'
 );
 
-CREATE TABLE IF NOT EXISTS user_uploads (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
-    file_name TEXT NOT NULL,
-    file_url TEXT,
-    file_path TEXT,
-    file_size BIGINT,
-    mime_type TEXT,
-    upload_status TEXT DEFAULT 'pending',
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    metadata JSONB DEFAULT '{}'
-);
+-- (user_uploads lived here. Dropped in
+-- migrations/zz_20260828_drop_dead_user_uploads.sql — it never had a writer;
+-- uploads go to shared_media. See #2982.)
 
 
 -- ════════════════════════════════════════════════════════════════════════════
@@ -608,7 +587,7 @@ CREATE TABLE IF NOT EXISTS shared_media (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
     share_token VARCHAR(32) UNIQUE NOT NULL,
-    media_type VARCHAR(10) NOT NULL CHECK (media_type IN ('video', 'image', 'transfer')),
+    media_type VARCHAR(10) NOT NULL CHECK (media_type IN ('video', 'image', 'transfer', 'audio')),
     title TEXT,
     file_path TEXT,
     file_name TEXT,
@@ -643,7 +622,12 @@ ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS template_visibility TEXT DEFAU
     CHECK (template_visibility IN ('private', 'unlisted', 'public'));
 ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS template_use_count INTEGER DEFAULT 0;
 ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS template_creator_name TEXT;
-ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS original_template_id UUID REFERENCES shared_media(id);
+-- Retired: the shared_media template flow was removed in favour of
+-- user_templates + a frozen snapshot canvas. Columns kept (F0) so the rows that
+-- recorded a publish are not destroyed. ON DELETE SET NULL, not the original
+-- NO ACTION: without it, deleting a share another row points at 500s.
+ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS original_template_id UUID
+    REFERENCES shared_media(id) ON DELETE SET NULL;
 ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS wolke_share_link_id TEXT;
 ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS wolke_file_path TEXT;
 ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ;
@@ -850,9 +834,6 @@ CREATE INDEX IF NOT EXISTS idx_template_likes_popularity ON template_likes(templ
 -- Media indexes
 CREATE INDEX IF NOT EXISTS idx_user_sharepics_user_id ON user_sharepics(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_sharepics_created_at ON user_sharepics(created_at);
-CREATE INDEX IF NOT EXISTS idx_user_uploads_user_id ON user_uploads(user_id);
-CREATE INDEX IF NOT EXISTS idx_user_uploads_status ON user_uploads(upload_status);
-CREATE INDEX IF NOT EXISTS idx_user_uploads_created_at ON user_uploads(created_at);
 CREATE INDEX IF NOT EXISTS idx_shared_media_token ON shared_media(share_token);
 CREATE INDEX IF NOT EXISTS idx_shared_media_user ON shared_media(user_id);
 CREATE INDEX IF NOT EXISTS idx_shared_media_user_type ON shared_media(user_id, media_type);
@@ -864,6 +845,9 @@ CREATE INDEX IF NOT EXISTS idx_shared_media_templates
 CREATE INDEX IF NOT EXISTS idx_shared_media_public_templates
     ON shared_media(is_template, template_visibility, image_type, created_at DESC)
     WHERE is_template = TRUE AND template_visibility = 'public';
+-- Feeds the orphan reaper in uploadsCleanupService (#2989): partial, so it only
+-- ever holds the rows stuck in a non-user-visible status.
+CREATE INDEX IF NOT EXISTS idx_shared_media_orphan_status ON shared_media(created_at) WHERE status IN ('processing', 'failed');
 CREATE INDEX IF NOT EXISTS idx_shared_media_downloads_media ON shared_media_downloads(shared_media_id);
 
 -- Feature tables indexes
@@ -1155,28 +1139,23 @@ CREATE TRIGGER update_chat_threads_updated_at
     EXECUTE FUNCTION update_updated_at_column();
 
 
--- ════════════════════════════════════════════════════════════════════════════
--- SECTION: MEM0 MEMORY HISTORY (GDPR Compliance & Audit)
--- Tracks all memory operations for user data rights and debugging
--- ════════════════════════════════════════════════════════════════════════════
 
-CREATE TABLE IF NOT EXISTS mem0_memory_history (
+-- ============================================================================
+-- Section: User memory (explicit — what the person asked the assistant to keep)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS user_memories (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
-    memory_id TEXT NOT NULL,
-    operation TEXT NOT NULL CHECK (operation IN ('add', 'update', 'delete', 'delete_all')),
-    memory_text TEXT,
-    metadata JSONB DEFAULT '{}',
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL CHECK (kind IN ('anweisung', 'fakt')),
+    text TEXT NOT NULL CHECK (char_length(text) BETWEEN 1 AND 400),
+    source TEXT NOT NULL CHECK (source IN ('chat', 'manual')),
     thread_id UUID REFERENCES chat_threads(id) ON DELETE SET NULL,
-    message_id UUID REFERENCES chat_messages(id) ON DELETE SET NULL
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Indexes for mem0 memory history
-CREATE INDEX IF NOT EXISTS idx_mem0_history_user ON mem0_memory_history(user_id);
-CREATE INDEX IF NOT EXISTS idx_mem0_history_memory ON mem0_memory_history(memory_id);
-CREATE INDEX IF NOT EXISTS idx_mem0_history_created ON mem0_memory_history(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_mem0_history_operation ON mem0_memory_history(operation);
+CREATE INDEX IF NOT EXISTS idx_user_memories_user ON user_memories(user_id, updated_at DESC);
 
 
 -- ============================================================================

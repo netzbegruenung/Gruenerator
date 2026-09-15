@@ -18,6 +18,14 @@
  * hash differently than the stored documents — the sparse side then degrades
  * silently instead of failing. Any change requires a full sparse re-backfill
  * (`scripts/migrate-bm25-sparse.ts`, no re-embedding needed).
+ *
+ * Der Stemmer ist deshalb ein PARAMETER mit `cistem` als Vorgabe, kein
+ * Schalter: ein Aufrufer, der einen anderen mitgibt, muss beide Seiten selbst
+ * versorgen — und das tut genau einer, der Stemmer-Vergleich in
+ * `evals/retrieval/bm25Candidates.ts` (#3188), der dafür eine eigene
+ * Wegwerf-Sammlung baut. Ohne den Parameter hiesse dieselbe Messung: die
+ * Produktionsfunktion umschreiben und hoffen, dass sie danach wieder so
+ * aussieht wie vorher.
  */
 
 const K1 = 1.2;
@@ -280,15 +288,20 @@ export function hashTerm(term: string): number {
   return hash >>> 0;
 }
 
+/**
+ * Ein Wortstamm-Bildner. `cistem` ist der einzige, den die Produktion kennt.
+ */
+export type Stemmer = (word: string) => string;
+
 /** Tokenize + stopword-filter + stem. Shared by document and query side. */
-export function bm25Terms(text: string): string[] {
+export function bm25Terms(text: string, stem: Stemmer = cistem): string[] {
   const tokens = text
     .toLowerCase()
     .replace(/[^a-zäöüß0-9\s-]/gi, ' ')
     .split(/[\s-]+/)
     .filter((t) => t.length >= MIN_TOKEN_LENGTH && !GERMAN_STOPWORDS.has(t));
 
-  return tokens.map((t) => (/^\d+$/.test(t) ? t : cistem(t)));
+  return tokens.map((t) => (/^\d+$/.test(t) ? t : stem(t)));
 }
 
 /**
@@ -296,8 +309,8 @@ export function bm25Terms(text: string): string[] {
  * Values carry the TF component `tf·(k1+1) / (tf + k1·(1−b+b·len/avgLen))`;
  * Qdrant multiplies in the IDF via the collection's `modifier: 'idf'`.
  */
-export function encodeBm25Document(text: string): SparseVector {
-  const terms = bm25Terms(text);
+export function encodeBm25Document(text: string, stem: Stemmer = cistem): SparseVector {
+  const terms = bm25Terms(text, stem);
   if (terms.length === 0) return { indices: [], values: [] };
 
   const termFreq = new Map<number, number>();
@@ -318,8 +331,8 @@ export function encodeBm25Document(text: string): SparseVector {
 }
 
 /** Encode a search query as a BM25 sparse vector (uniform weights). */
-export function encodeBm25Query(text: string): SparseVector {
-  const terms = bm25Terms(text);
+export function encodeBm25Query(text: string, stem: Stemmer = cistem): SparseVector {
+  const terms = bm25Terms(text, stem);
   const indices = Array.from(new Set(terms.map(hashTerm)));
   return { indices, values: indices.map(() => 1) };
 }

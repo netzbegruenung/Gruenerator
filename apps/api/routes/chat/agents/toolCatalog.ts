@@ -35,6 +35,7 @@ import { tool, type Tool, type ToolSet } from 'ai';
 import { z } from 'zod';
 
 import { lastUserText } from '../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
+import { looksLikeRecurringOrder } from '../../../agents/langgraph/ChatGraph/nodes/classifierSignals.js';
 import { forbidsNewResearch } from '../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
 import {
   buildProductKnowledgeBlock,
@@ -52,11 +53,22 @@ import {
   SLICE_DEFAULT_CHARS,
   SLICE_REGISTER_CHARS,
 } from '../services/agenticLoop/attachedDocuments.js';
+import { isLoopRerankEnabled } from '../services/agenticLoop/flags.js';
 import { isEditorSurface } from '../services/agenticLoop/routing.js';
+import {
+  mentionsRecipes,
+  mentionsRecurringTasks,
+  mentionsUserAgents,
+} from '../services/agenturaContext.js';
 import { artifactKind, type ArtifactKindId } from '../services/artifactKindRegistry.js';
+import {
+  attachedCloudShareLinks,
+  mentionsCloudStorage,
+} from '../services/cloudConnectionContext.js';
 import { hasReachableForm } from '../services/pdfFormAvailability.js';
 import { withImageProxy } from '../services/searchImagePayload.js';
 
+import { makeCloudFilesTool } from './cloudFileTools.js';
 import {
   makeAbgeordnetenwatchTool,
   makeBundestagTool,
@@ -70,6 +82,9 @@ import {
   makeUmfragenTool,
 } from './domainTools.js';
 import { makeEditArtifactTool } from './editorTools.js';
+import { makeGroupsTool } from './groupTools.js';
+import { makeMemoryTool } from './memoryTools.js';
+import { makeNotebooksTool } from './notebookTools.js';
 import { makeReadPdfFormTool, makeFillPdfFormTool } from './pdfFormTools.js';
 import {
   makeBoardsTasksTool,
@@ -77,13 +92,15 @@ import {
   makeReadArtifactTool,
   makeFindContentTool,
   makeSearchThreadsTool,
-  makeGroupsTool,
   makeMediaTool,
-  makeNotebooksTool,
   type PersonalToolCtx,
 } from './personalDataTools.js';
+import { makeRecurringTasksTool } from './recurringTaskTools.js';
 import { harvestSearchImages, imageDeliveryNote } from './searchImageHarvest.js';
 import { agentAllowsWebSearch, createSearchTools } from './searchTools.js';
+import { makeRecipesTool } from './textFormTools.js';
+import { makeUserAgentsTool } from './userAgentTools.js';
+import { makeVertonenTool } from './voiceTools.js';
 
 import type { AgentConfig } from './types.js';
 import type { ChatGraphState, SearchResult } from '../../../agents/langgraph/ChatGraph/types.js';
@@ -126,6 +143,30 @@ const CATALOG_TOOLS = new Set([
 
 /** Tools whose results feed the citation registry and get the lean `sources` shape. */
 const SOURCE_HARVEST_TOOLS = new Set(['gruenerator_search', 'web_search']);
+
+/**
+ * Which record keys gate each search-family tool on the LOOP path — the tool
+ * stays away if ANY of them is switched off. The single pass has honoured these
+ * keys all along (`searchBranch.ts`, under the intent name), while this catalog
+ * mounted the corpora for every turn — so an agent without "Grünerator-Wissen"
+ * lost it on single-pass turns and kept it on loop turns, which is the same
+ * tool answering to two different rules (#3307).
+ *
+ * Two keys reach the press examples because two different things write them:
+ * `examples` is the agent picker's entry, `pressemitteilung_examples` is the
+ * composer toggle and the classifier intent of the same name (`ToolKey` in
+ * packages/chat/src/stores/chatStore.ts). Asking only the first would let a
+ * composer opt-out close the corpus on single-pass turns and not on loop turns.
+ *
+ * `web_search` is deliberately absent: its door is the agent's own array, one
+ * capability behind two key names, and it closes above via
+ * `agentAllowsWebSearch`.
+ */
+const CATALOG_TOOL_PICKER_KEYS: Readonly<Record<string, readonly string[]>> = {
+  gruenerator_search: ['search'],
+  gruenerator_examples_search: ['examples'],
+  gruenerator_pressemitteilung_examples: ['examples', 'pressemitteilung_examples'],
+};
 
 /**
  * Snippet budget for `scrape_url`. A deliberate page read deserves far more
@@ -318,6 +359,13 @@ export function buildChatToolCatalog(params: {
    * nodes. Absent in unit tests → search family only.
    */
   loop?: { sse: SSEWriter; state: ChatGraphState; req?: Request; threadId?: string | null };
+  /**
+   * Beschränkt die Suchfamilie auf die Picker-Auswahl eines gebundenen Agenten
+   * (`enabledToolKeys` in `createSearchTools`) — der headless Pfad (#3221)
+   * erbt damit die `restrictToAgentTools`-Semantik des alten Recurring-Kerns.
+   * Fehlt ⇒ Verhalten unverändert.
+   */
+  searchToolKeys?: readonly string[];
 }): ChatToolCatalog {
   const { agentConfig, sourceRegistry, recipeRegistry, loop } = params;
 
@@ -362,6 +410,11 @@ export function buildChatToolCatalog(params: {
       loop?.state.activeSkillMention,
       ...(recipeRegistry?.mentions ?? []),
     ],
+    // Chunk-Rerank vor der Gruppierung. Nur im Loop — der Einzelpfad rerankt
+    // danach in `rerankNode`, der Board-Agent gar nicht — und nur mit
+    // gesetztem Schalter: Default AUS bis zum Doppelmesslauf (#3120).
+    ...(loop != null && isLoopRerankEnabled() && { rerankSearchChunks: true }),
+    ...(params.searchToolKeys?.length ? { enabledToolKeys: params.searchToolKeys } : {}),
   });
 
   // Agents bound to their own corpus (the Landesverband agents and their
@@ -380,6 +433,8 @@ export function buildChatToolCatalog(params: {
   const tools: ToolSet = {};
   for (const [name, def] of Object.entries(base)) {
     if (!CATALOG_TOOLS.has(name) || researchBanned) continue;
+    const pickerKeys = CATALOG_TOOL_PICKER_KEYS[name];
+    if (pickerKeys?.some((key) => loop?.state.enabledTools?.[key] === false)) continue;
 
     if (!SOURCE_HARVEST_TOOLS.has(name)) {
       // Examples tools: surfaced to the model + UI as-is (they render via the
@@ -733,9 +788,13 @@ NICHT für eine Zusammenfassung des ganzen Dokuments — dafür gibt es \`summar
     if (isIntentAllowedForLocale('abgeordnetenwatch', state.userLocale)) {
       tools.abgeordnetenwatch = makeAbgeordnetenwatchTool({ state, sourceRegistry });
     }
-    // `umfragen` is NOT gated: PolitPro covers the Austrian parliaments, and the
-    // tool resolves them from `state.userLocale`.
-    tools.umfragen = makeUmfragenTool({ sourceRegistry, state });
+    // `umfragen` is not LOCALE-gated: PolitPro covers the Austrian parliaments,
+    // and the tool resolves them from `state.userLocale`. It is gated on the
+    // picker key behind it ("Umfragen"), which reached nothing at all before
+    // #3307 — the checkbox existed and the tool mounted anyway.
+    if (state.enabledTools?.['meinungsbild'] !== false) {
+      tools.umfragen = makeUmfragenTool({ sourceRegistry, state });
+    }
     // Documentation search (`hilfe`). Mounted broadly like the other domain
     // tools — the classifier routinely labels an operating question `direct` or
     // `search`, and gating on intent would hide the tool exactly then. In-process
@@ -743,6 +802,17 @@ NICHT für eine Zusammenfassung des ganzen Dokuments — dafür gibt es \`summar
     if (state.enabledTools?.['hilfe'] !== false) {
       tools.gruenerator_docs_search = makeDocsSearchTool({ sourceRegistry });
     }
+    // Ob `cloud_files` diesen Turn montiert wird — VOR dem product_knowledge-
+    // Block berechnet, weil es dort einen zweiten Verbraucher hat: der Wolke-
+    // Verweis im Tool-Ergebnis darf nie auf ein Werkzeug zeigen, das dieser
+    // Turn gar nicht trägt. Die Tore selbst sind am Mount weiter unten erklärt.
+    const wolkeInText = mentionsCloudStorage(state.lastUserTextNoMentions ?? lastUserText(state));
+    const cloudFilesMounted =
+      state.enabledTools?.['cloud_files'] !== false &&
+      ((state.cloudConnectionCount ?? 0) > 0 ||
+        (state.wolkeFiles?.length ?? 0) > 0 ||
+        attachedCloudShareLinks(state.attachedWebpageUrls).length > 0 ||
+        wolkeInText);
     // Product self-knowledge: what Grünerator itself offers (Grüneratoren,
     // Werkzeuge, MCP-Server, Wissenssammlungen). Same builder respondNode
     // injects when the meta regex matches — the loop inherits that system
@@ -756,7 +826,7 @@ NICHT für eine Zusammenfassung des ganzen Dokuments — dafür gibt es \`summar
       tools.product_knowledge = tool({
         description: `Beantwortet Fragen über den Grünerator selbst: verfügbare Grüneratoren (Assistenten), Werkzeuge, MCP-Server/Anbindungen und durchsuchbare Wissenssammlungen.
 
-NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefragt wird ("was kannst du", "welche MCP-Server kennst du", "wie erstelle ich ein Sharepic"). NICHT für politische Inhalte oder Recherche.`,
+NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefragt wird ("was kannst du", "welche MCP-Server kennst du", "wie erstelle ich ein Sharepic"). NICHT für politische Inhalte oder Recherche — und NICHT für die persönlichen Wolke-/Nextcloud-Verbindungen oder -Dateien der Person: welche Wolke-Links verbunden sind, beantwortet 'cloud_files' (list_connections).`,
         inputSchema: z.object({
           topic: z
             .string()
@@ -769,7 +839,19 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
             userId: state.agentConfig?.userId ?? null,
             question: `${topic} ${lastUserText(state)}`.trim(),
           });
-          return { knowledge };
+          // Zweites Netz zum Beschreibungs-Steering: greift der Planer trotzdem
+          // zuerst hierher (Live-Ausfall 29.08.2026, „welche wolke links sind
+          // verbunden“), trägt das Ergebnis den Verweis, und der nächste
+          // Schritt kann sich fangen. Nur wenn der Turn die Wolke selbst
+          // nennt: ein Konto MIT Verbindung montiert cloud_files auf JEDEM
+          // Turn, und eine fachfremde Produktantwort darf keinen
+          // Wolke-Fußnotensatz bekommen (Review-Befund auf #3062).
+          return {
+            knowledge:
+              cloudFilesMounted && wolkeInText
+                ? `${knowledge}\n\nHinweis: Welche Wolke-/Nextcloud-Freigaben die Person verbunden hat, steht hier nicht — das beantwortet das Werkzeug cloud_files (action "list_connections").`
+                : knowledge,
+          };
         },
       });
     }
@@ -799,13 +881,19 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
       threadId: loop.threadId ?? null,
       sourceRegistry,
     };
-    if (state.enabledTools?.['find_content'] !== false) {
+    // "Eigene Inhalte" (`user_content`) is the picker key that covers the
+    // user's own texts and documents; the per-tool keys are the finer grain the
+    // loop's other callers switch on. Both are asked, because only the picker
+    // key is something an agent could actually uncheck — and it gated nothing
+    // until #3307, so an agent told not to read the user's content read it.
+    const userContentAllowed = state.enabledTools?.['user_content'] !== false;
+    if (userContentAllowed && state.enabledTools?.['find_content'] !== false) {
       tools.find_content = makeFindContentTool(personalCtx);
     }
     if (state.enabledTools?.['search_threads'] !== false) {
       tools.search_threads = makeSearchThreadsTool(personalCtx);
     }
-    if (state.enabledTools?.['documents'] !== false) {
+    if (userContentAllowed && state.enabledTools?.['documents'] !== false) {
       tools.documents = makeDocumentsTool(personalCtx);
       // Gated together with `documents` on purpose: they are the pointer and
       // the content of the same thing. A catalog that can LIST artifacts but
@@ -824,6 +912,71 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
     }
     if (state.enabledTools?.['notebooks'] !== false) {
       tools.notebooks = makeNotebooksTool(personalCtx);
+    }
+    // The person's explicit memory. Only with the profile switch on: with it
+    // off the prompt carries no GEDÄCHTNIS block either, and a tool that can
+    // save into a store nobody reads would be a lie in the other direction.
+    if (state.memoryEnabled && state.enabledTools?.['memory'] !== false) {
+      tools.memory = makeMemoryTool(personalCtx);
+    }
+    // Wiederkehrende Aufgaben (Agentura). Nicht breit montiert — das Schema
+    // trägt den ganzen Takt-Block und kostet auf jedem Turn. Drei Tore:
+    //
+    // 1. Der Pin. Tier 3.4 des Klassifikators erkennt den Dauerauftrag
+    //    („erinnere mich jeden Montag …") und setzt `mentionPinnedTool`; der
+    //    Pin zwingt den Turn in die Schleife und benennt den ersten Aufruf —
+    //    aber `pinnedFirstTool` prüft die Montage, ein Pin auf ein fehlendes
+    //    Werkzeug wäre still wirkungslos.
+    // 2. Derselbe Detektor noch einmal, für den Fall, dass der Turn auf einem
+    //    anderen Weg in die Schleife kam (Erwähnung, Verbund).
+    // 3. Das Vokabular fürs Verwalten: „pausier die Erinnerung", „welche
+    //    Aufgaben laufen bei mir".
+    const agenturaText = state.lastUserTextNoMentions ?? lastUserText(state);
+    if (
+      state.enabledTools?.['recurring_tasks'] !== false &&
+      (state.mentionPinnedTool === 'recurring_tasks' ||
+        looksLikeRecurringOrder(agenturaText) ||
+        mentionsRecurringTasks(agenturaText))
+    ) {
+      tools.recurring_tasks = makeRecurringTasksTool(personalCtx);
+    }
+    // Eigene Grünerator-Agenten (Agentura). Zwei Tore: das Vokabular („bau mir
+    // einen Agenten", „meine Agenten", Persona, Systemrolle) — oder der Thread
+    // läuft selbst mit einem User-Agent (`agentConfig.isUserAgent`, gesetzt in
+    // `agentLoader.getAgentForUser`): dort soll „ändere deine Rolle" ohne
+    // Stichwort treffen. Ein Registry-Agent montiert es nicht, er ist hier
+    // ohnehin unantastbar.
+    if (
+      state.enabledTools?.['user_agents'] !== false &&
+      (state.agentConfig?.isUserAgent === true || mentionsUserAgents(agenturaText))
+    ) {
+      tools.user_agents = makeUserAgentsTool(personalCtx);
+    }
+    // Rezepte und eigene Textformen („Texte anlernen"). Nur das Vokabular:
+    // ein aktives Rezept heißt „anwenden", das macht `rezept_laden` (immer
+    // montiert, sobald der Katalog nicht leer ist); verwalten will, wer es
+    // sagt — „welche Rezepte gibt es", „lern meinen Stil", „lösch die Textform".
+    if (state.enabledTools?.['recipes'] !== false && mentionsRecipes(agenturaText)) {
+      tools.recipes = makeRecipesTool(personalCtx);
+    }
+
+    // Die verbundene Wolke. Zwei Tore, in dieser Reihenfolge:
+    //
+    // 1. Der Verbindungszähler (`buildStreamContext`, 60-s-Cache). Wer eine
+    //    Wolke hat, bekommt das Werkzeug IMMER — „Welche Ordner gibt es?" nennt
+    //    die Wolke nicht, und eine erfundene Fehlanzeige („du hast keine
+    //    Dateien") ist die teuerste Ausfallform, weil sie wie eine geprüfte
+    //    Antwort aussieht.
+    // 2. Das Vokabular, nur für Konten OHNE Verbindung — sonst könnte niemand
+    //    per Chat eine anlegen. Ein Konto ohne Wolke zahlt für dieses Werkzeug
+    //    also nur, wenn es selbst davon anfängt.
+    //
+    // Ein Wolke-Anhang in diesem Turn zählt wie das Vokabular: die Person hat
+    // die Datei über den Picker gewählt, der Text sagt darüber nichts. Aus
+    // demselben Grund zählt ein über `@link` angehängter Freigabe-Link —
+    // dessen URL steht ebenfalls nur in den Anhangsdaten.
+    if (cloudFilesMounted) {
+      tools.cloud_files = makeCloudFilesTool(personalCtx);
     }
 
     // PDF form tools. `hasReachableForm` carries the `isFillablePdf` verdict
@@ -854,6 +1007,17 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
       const pdfCtx = { state, sse, threadId: loop.threadId ?? null };
       tools.read_pdf_form = makeReadPdfFormTool(pdfCtx);
       tools.fill_pdf_form = makeFillPdfFormTool(pdfCtx);
+    }
+    // Text → audio file (Grünerator Voice engine). Never in an editor sidebar:
+    // the file is a NEW artifact, and those surfaces only edit the open one.
+    // The voice comes from the person's settings, the same precedence the
+    // read-aloud button and /api/voice/speech/generate use.
+    if (!editorSurface && state.enabledTools?.['vertonen'] !== false) {
+      tools.vertonen = makeVertonenTool({
+        state,
+        sse,
+        voiceId: loop.req?.user?.tts_voice_id ?? null,
+      });
     }
     // Image is expensive + rate-limited and the classifier routes it reliably,
     // so it stays intent-scoped (and gated). image_edit stays single-pass.

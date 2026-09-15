@@ -15,6 +15,7 @@
 import { getBrandTheme } from '../brand/theme';
 import { OVERLAY_AT_CONFIG, calculateOverlayAtLayout } from '../utils/overlayAtLayout';
 
+import { DEFAULT_PHOTO_BACKGROUND_AT, PHOTO_BACKGROUND_COLORS_AT } from './backgroundPalettes';
 import {
   createAiCapabilities,
   createImageTwoTextCanvas,
@@ -90,24 +91,13 @@ const calculateLayout = (state: OverlayAtState): LayoutResult => {
   };
 };
 
-/**
- * Solid fallback UNDER the photo. The image factory contributes only the photo
- * element, so before a picture is chosen the canvas was transparent and the
- * green box floated on nothing — the napi route already fell back to
- * Dunkelgrün, the editor did not. Negative order keeps it below the photo,
- * where it is invisible as soon as one is set.
+/*
+ * The hand-rolled `canvas-fallback` rect that used to sit here is gone: the
+ * factory now draws a `background-color` plane at the same order: -1, from the
+ * same Dunkelgrün default, and unlike the fixed rect the user can change it.
+ * Keeping both would stack two full-bleed planes with only the top one
+ * reachable.
  */
-const canvasFallbackElement: RectElementConfig<OverlayAtState> = {
-  id: 'canvas-fallback',
-  type: 'rect',
-  order: -1,
-  x: 0,
-  y: 0,
-  width: O.canvas.width,
-  height: O.canvas.height,
-  fill: AT.colors.primary,
-  listening: false,
-};
 
 const boxElement: RectElementConfig<OverlayAtState> = {
   id: 'overlay-box',
@@ -235,16 +225,10 @@ const baseOverlayAtConfig = createImageTwoTextCanvas({
     'logoOpacity',
     'logoPosition',
   ],
-  elements: [
-    canvasFallbackElement,
-    boxElement,
-    line1Element,
-    accentElement,
-    line3Element,
-    sublineElement,
-    logoElement,
-  ],
+  elements: [boxElement, line1Element, accentElement, line3Element, sublineElement, logoElement],
   features: { icons: true, shapes: true, illustrations: true },
+  backgroundColors: PHOTO_BACKGROUND_COLORS_AT,
+  defaultBackgroundColor: DEFAULT_PHOTO_BACKGROUND_AT,
   getCanvasText: (state) =>
     [
       state.line1 || '',
@@ -331,6 +315,9 @@ const overlayAtAiCapabilities = createAiCapabilities<OverlayAtState, OverlayAtFu
       setter: (a) => a.setSecondary,
     },
   ],
+  // The canvas plane behind the photo — NOT `boxColor`, which is the green
+  // square the headline sits on and has its own setter.
+  background: { read: (s) => (s.backgroundColor ?? DEFAULT_PHOTO_BACKGROUND_AT) as `#${string}` },
 });
 
 export const dreizeilenOverlayAtFullConfig = wrapWithAi(

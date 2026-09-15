@@ -18,6 +18,7 @@ import { logContractValidationError } from '../../utils/contractValidationLogger
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
 import { validateUrlForFetch } from '../../utils/validation/urlSecurity.js';
+import { revokeApprovalsForServer } from '../chat/services/agenticLoop/toolApprovalRepo.js';
 
 import type { Application } from 'express';
 
@@ -149,6 +150,10 @@ export const mcpServersContractRouter = s.router(mcpServersContract, {
       }
       const deleted = await McpServerRegistry.delete(userId, args.params.id);
       if (!deleted) return { status: 404 as const, body: { error: 'Server nicht gefunden.' } };
+      // Die dauerhaften Werkzeug-Freigaben dieses Servers verlieren mit ihm
+      // ihren Gegenstand — sie stünden sonst für immer in der Liste unter
+      // „Konnektoren". Best-effort: das Entfernen selbst ist schon passiert.
+      await revokeApprovalsForServer(userId, args.params.id);
       return { status: 200 as const, body: { success: true as const } };
     } catch (error) {
       log.error('remove failed', error);

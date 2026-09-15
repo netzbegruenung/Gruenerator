@@ -80,7 +80,12 @@ const REGOLO_REASONING_MODELS = new Set([
   // be silently ignored — the SDK path forces reasoning_effort:'none'.
   'mistral-small-4-119b',
 ]);
-const LITELLM_REASONING_MODELS = new Set(['verdigado-think', 'verdigado-pro']);
+/** Leer seit dem 29.08.2026: der Host bedient kein Ziel mehr, und `getModel`
+ *  biegt den Namen vorher auf Cortecs um (./litellmRetired.ts). Das Set bleibt
+ *  stehen, damit der Zweig unten symmetrisch zu den anderen Anbietern liest —
+ *  und damit sichtbar ist, dass hier NICHTS mehr denkt, statt dass der Zweig
+ *  ersatzlos fehlt. */
+const LITELLM_REASONING_MODELS = new Set<string>();
 
 /**
  * Cortecs-Modelle, die uns Denken streamen — und der Hebel dafür ist ein
@@ -167,13 +172,6 @@ export class ReasoningStreamUnavailableError extends Error {
 }
 
 /**
- * LiteLLMs Ollama-Aliase: `verdigado-pro` (gpt-oss) hat den nativen Dial,
- * `verdigado-think` (Gemma 4) nicht. Für Regolo gilt diese Liste NICHT — dort
- * nimmt jedes Modell `reasoning_effort` an, siehe {@link REGOLO_EFFORT_NOTE}.
- */
-const EFFORT_AWARE_MODELS = new Set(['gpt-oss-120b', 'verdigado-pro']);
-
-/**
  * ── Warum Regolo `reasoning_effort` bekommt und kein `enable_thinking` ──
  *
  * Regolo nimmt `reasoning_effort` für JEDES seiner Modelle an — nicht nur für
@@ -206,8 +204,6 @@ function resolveConfig(
   model: string,
   effort?: ThinkingEffort
 ): ReasoningStreamConfig | null {
-  const effortExtra = effort && EFFORT_AWARE_MODELS.has(model) ? { reasoning_effort: effort } : {};
-
   if (provider === 'regolo') {
     return {
       endpoint: REGOLO_ENDPOINT,
@@ -215,14 +211,6 @@ function resolveConfig(
       // `high`, wenn der Aufrufer nichts sagt: dieses Modul zu erreichen heisst
       // bereits „denken an", und `none` wäre die stille Umkehr davon.
       bodyExtras: { reasoning_effort: effort ?? 'high' },
-    };
-  }
-  if (provider === 'litellm') {
-    const base = env.LITELLM_BASE_URL;
-    return {
-      endpoint: base ? `${base}/v1/chat/completions` : '',
-      apiKey: env.LITELLM_API_KEY,
-      bodyExtras: { ...effortExtra },
     };
   }
   if (provider === 'cortecs') {

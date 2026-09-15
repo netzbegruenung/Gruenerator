@@ -38,6 +38,7 @@ import { discardPendingAssistantIfEmpty } from './services/threadPersistenceServ
 import { createTurnDeadline } from './services/turnDeadline.js';
 import { runActionGateStage } from './streamStages/actionGateStage.js';
 import { runArtifactEmitStage } from './streamStages/artifactEmitStage.js';
+import { suspendForLoopClarification } from './streamStages/clarificationLoopSuspend.js';
 import { runClarificationStage } from './streamStages/clarificationStage.js';
 import { runClassifyStage } from './streamStages/classifyStage.js';
 import { runComputeInterruptStage } from './streamStages/computeInterruptStage.js';
@@ -49,6 +50,7 @@ import { runRecallStage } from './streamStages/recallStage.js';
 import { runResponseStage } from './streamStages/responseStage.js';
 import { runRoutingStage } from './streamStages/routingStage.js';
 import { runSharepicTopicStage } from './streamStages/sharepicTopicStage.js';
+import { suspendForToolApproval } from './streamStages/toolApprovalSuspend.js';
 import { type FixedTextBase, type SuspendTurnBase } from './streamStages/turnEnd.js';
 
 import type { Application } from 'express';
@@ -115,6 +117,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         threadToolHistory,
         userMessageId,
       } = ctxResult.ctx;
+      // The whitelisted record (agent array applied in initializeChatState),
+      // NOT the raw body copy: the single-pass stages, the suspend base and the
+      // persisted requestContext must gate on the same record as the loop.
+      const enabledTools = initialState.enabledTools;
 
       // A placeholder assistant row was minted in buildStreamContext. Its writer
       // accumulates the streamed reply so an aborted/crashed turn keeps whatever
@@ -128,7 +134,6 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       const {
         agentId,
         forcedTools: bodyForcedTools,
-        enabledTools,
         modelId,
         documentIds: rawDocumentIds,
         documentChatIds: rawDocumentChatIds,
@@ -246,7 +251,6 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         actualThreadId,
       });
       if (gate.handled) return gate.result;
-      const { sharepicLicensed } = gate;
 
       sse.send('progress_step', {
         stepId: classifyStepId,
@@ -325,7 +329,6 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         lastUserMessage,
         forcedTools,
         runAgentic: plan.runAgentic,
-        agentId,
         rawDocMentionIds,
         rawDocumentChatIds,
       });
@@ -366,7 +369,6 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         lastUserText,
         forcedTool,
         sharepicRefinement,
-        sharepicLicensed,
         turnSignal: turnDeadline.signal,
       });
       if (response.handled) return response.result;
@@ -375,12 +377,57 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         fullText,
         generatedImage,
         sharepicVariants,
-        socialPost,
         createdDocument,
         createdBoard,
         agenticSteps,
         langfuseTraceId,
       } = response;
+
+      // Der Zug pausiert (Rückfrage oder Werkzeug-Freigabe): er endet hier,
+      // der Rest (Artefakt-Auslöser, Persistenz) läuft erst in der Fortsetzung.
+      // Beide Pausen speichern denselben Anfragekontext.
+      if ((response.pendingAsk || response.pendingApproval?.length) && actualThreadId) {
+        const suspendRequestContext = {
+          userId,
+          agentId: agentId ?? 'gruenerator-universal',
+          enabledTools: enabledTools ?? {},
+          ...(modelId != null && { modelId }),
+          actualThreadId,
+          isNewThread,
+          processedMeta,
+          userMessageId,
+          imageAttachments,
+          memoryContext,
+          memoryRetrieveTimeMs,
+          validMessages,
+          forcedTool,
+          ...(rawDocumentIds != null && { rawDocumentIds }),
+        };
+        if (response.pendingAsk) {
+          return await suspendForLoopClarification({
+            sse,
+            threadId: actualThreadId,
+            classifiedState,
+            requestContext: suspendRequestContext,
+            pendingAsk: response.pendingAsk,
+            partialText: fullText,
+            priorSteps: agenticSteps ?? [],
+            pendingId,
+            startTime: initialState.startTime,
+          });
+        }
+        return await suspendForToolApproval({
+          sse,
+          threadId: actualThreadId,
+          classifiedState,
+          requestContext: suspendRequestContext,
+          pendingApproval: response.pendingApproval as NonNullable<typeof response.pendingApproval>,
+          partialText: fullText,
+          priorSteps: agenticSteps ?? [],
+          pendingId,
+          startTime: initialState.startTime,
+        });
+      }
 
       // === Stages 3b–3d: chart / artifact / editor-surface triggers ===
       runArtifactEmitStage({
@@ -411,11 +458,9 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         lastUserMessage,
         processedMeta,
         isNewThread,
-        memoryEnabled,
         memoryRetrieveTimeMs,
         generatedImage,
         sharepicVariants,
-        socialPost,
         createdDocument,
         createdBoard,
         agenticSteps,

@@ -541,7 +541,7 @@ function CanvasEditorInner({
   }, [collabYdoc]);
 
   const handleDownload = useCallback(
-    async (format: 'png' | 'jpeg' | 'webp' = 'png', pixelRatio = 2, transparent = false) => {
+    async (format: 'png' | 'jpeg' | 'webp' = 'png', pixelRatio = 1, transparent = false) => {
       const ref = canvasRefsRef.current[currentPageIndex];
       if (!ref?.current) return;
       // Fonts load via font-display:swap; capture before they settle bakes in
@@ -807,7 +807,8 @@ function CanvasEditorInner({
       onDownload: async () => {
         const ref = canvasRefsRef.current[currentPageIndex];
         if (ref?.current) {
-          const dataUrl = await ref.current.captureCanvas();
+          await ensureFontsReady();
+          const dataUrl = ref.current.toDataURL({ pixelRatio: 1 });
           if (dataUrl) {
             downloadDataUrl(dataUrl, `gruenerator-slider-seite-${currentPageIndex + 1}.png`);
           }

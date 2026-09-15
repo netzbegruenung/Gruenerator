@@ -169,14 +169,15 @@ export const createDocumentBodySchema = z.object({
 
 /**
  * Body for PUT /api/docs/:id (updateDocument). Replaces the legacy raw controller
- * route. `content`/`wolke_live_sync` are kept so this fully covers the old PUT
- * (title/folder rename is the common case; content + live-sync are editor paths).
+ * route. `content` is kept so this fully covers the old PUT (title/folder rename
+ * is the common case; content is the editor path). `wolke_live_sync` was removed
+ * with the write access to Wolke — old clients still sending it get the key
+ * stripped, not a 400.
  */
 export const updateDocumentBodySchema = z.object({
   title: z.string().nullish(),
   folder_id: z.string().nullish(),
   content: z.string().nullish(),
-  wolke_live_sync: z.boolean().nullish(),
 });
 export type UpdateDocumentBody = z.infer<typeof updateDocumentBodySchema>;
 

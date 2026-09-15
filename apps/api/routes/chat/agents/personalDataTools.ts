@@ -20,11 +20,16 @@
  *     write-access check; deletes use a two-step confirm (the model must re-call
  *     with confirm=true only after the person agrees).
  *
+ * The `notebooks` tool moved to `notebookTools.ts` and `groups` to
+ * `groupTools.ts` (09/2026) when they grew past list/rename/delete; both reuse
+ * the exported helpers below (`ground*`, `makeRow`, `refuseForbiddenAction`).
+ *
  * userId comes off the shared `state.agentConfig?.userId` (set in streamContext).
  * SSE cards, timeout, truncation and step recording are layered on by
  * wrapToolsForLoop — these factories only implement data access + confirm emit.
  */
-import { buildNotebookSlug, buildGroupSlug, buildChatThreadSlug } from '@gruenerator/shared/utils';
+import { isKiImage } from '@gruenerator/shared/media-library/contentOrigin';
+import { buildChatThreadSlug } from '@gruenerator/shared/utils';
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
@@ -34,7 +39,6 @@ import {
   forbidsPersistentAction,
   type ForbiddableArtifact,
 } from '../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
-import { NotebookQdrantHelper } from '../../../database/services/NotebookQdrantHelper.js';
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { updateCard } from '../../../services/boards/boardCardWriteService.js';
 import {
@@ -43,12 +47,9 @@ import {
   resolveCardDisplay,
   type BoardState,
 } from '../../../services/boards/BoardService.js';
-import { getGroupByToken } from '../../../services/groups/groupMutations.js';
-import { findGroups, listUserGroups } from '../../../services/groups/groupQueries.js';
-import {
-  getSharedMediaService,
-  USER_VISIBLE_SHARE_STATUSES,
-} from '../../../services/sharedMediaService.js';
+import { findGroups } from '../../../services/groups/groupQueries.js';
+import { USER_VISIBLE_SHARE_STATUSES } from '../../../services/sharedMediaFilters.js';
+import { getSharedMediaService } from '../../../services/sharedMediaService.js';
 import { getSubtitlerProjectService } from '../../../services/subtitler/ProjectService.js';
 import { getReelTranscript, reelUrl, searchReels } from '../../../services/subtitler/reelSearch.js';
 import { toUserFacingMessage } from '../../../utils/errors/index.js';
@@ -102,7 +103,7 @@ export interface PersonalToolCtx {
  * Returns an error the model can read, rather than a silent no-op: a swallowed
  * refusal would leave it announcing a confirmation that was never emitted.
  */
-function refuseForbiddenAction(
+export function refuseForbiddenAction(
   state: ChatGraphState,
   family?: ForbiddableArtifact
 ): { error: string } | null {
@@ -123,7 +124,7 @@ function refuseForbiddenAction(
  * so a tool that merely returns `{ results }` is invisible to it (observed live:
  * "keine Aufgabenlisten liegen mir vor" while the tool had returned taskCount=1).
  */
-function ground(
+export function ground(
   reg: SourceRegistry,
   items: Array<{ title: string; content: string; url?: string }>
 ): void {
@@ -139,7 +140,7 @@ function ground(
 }
 
 /** Grounding lines from clickable result rows (list/search actions). */
-function groundRows(reg: SourceRegistry, rows: ResultRow[]): void {
+export function groundRows(reg: SourceRegistry, rows: ResultRow[]): void {
   ground(
     reg,
     rows.map((r) => ({
@@ -159,12 +160,12 @@ function groundRows(reg: SourceRegistry, rows: ResultRow[]): void {
  * later "mach ein PDF draus" was then briefed with a Kanban confirmation as the
  * only research in scope and built the whole document out of it.
  */
-function groundNote(reg: SourceRegistry, title: string, content: string): void {
+export function groundNote(reg: SourceRegistry, title: string, content: string): void {
   reg.note(title, content);
 }
 
 /** A clickable result row — the frontend registry lifts `{ title, url }` into a citation list. */
-interface ResultRow {
+export interface ResultRow {
   title: string;
   url: string;
   snippet?: string;
@@ -174,7 +175,7 @@ interface ResultRow {
 }
 
 /** Build a row, omitting empty optionals (exactOptionalPropertyTypes: no `undefined`). */
-function makeRow(
+export function makeRow(
   title: string,
   url: string,
   type: string,
@@ -190,17 +191,10 @@ function makeRow(
   };
 }
 
-const NO_SESSION = 'Keine Nutzer-Sitzung — diese Aktion braucht eine angemeldete Person.';
+export const NO_SESSION = 'Keine Nutzer-Sitzung — diese Aktion braucht eine angemeldete Person.';
 
-function requireUserId(state: ChatGraphState): string | null {
+export function requireUserId(state: ChatGraphState): string | null {
   return state.agentConfig?.userId ?? null;
-}
-
-/** Lazy notebook helper — instantiated once, only when a notebook action runs. */
-let notebookHelperSingleton: NotebookQdrantHelper | null = null;
-function notebookHelper(): NotebookQdrantHelper {
-  notebookHelperSingleton ??= new NotebookQdrantHelper();
-  return notebookHelperSingleton;
 }
 
 // ---------------------------------------------------------------------------
@@ -829,118 +823,17 @@ NUTZE FÜR: Boards auflisten (list_boards), Karten eines Boards lesen (get_cards
 }
 
 // ---------------------------------------------------------------------------
-// groups — list / find (read)
-// ---------------------------------------------------------------------------
-
-export function makeGroupsTool(ctx: PersonalToolCtx): Tool {
-  const { state, sse, threadId, sourceRegistry } = ctx;
-  return tool({
-    description: `Zugriff auf die Gruppen der Person.
-
-NUTZE FÜR: eigene Gruppen auflisten (list), eine Gruppe per Name finden (find), eine neue Gruppe anlegen (create, braucht name), einer Gruppe per Einladungslink/-token beitreten (join, braucht joinToken). Erstellen und Beitreten werden der Person zur Bestätigung angezeigt. Zum Teilen von Inhalten mit einer Gruppe nutze 'documents' action="share_to_group".`,
-    inputSchema: z.object({
-      action: z.enum(['list', 'find', 'create', 'join']),
-      query: z.string().optional().describe('Gruppenname (nur bei action="find")'),
-      name: z.string().optional().describe('Name der neuen Gruppe (nur bei action="create")'),
-      description: z
-        .string()
-        .optional()
-        .describe('Optionale Beschreibung der neuen Gruppe (nur bei action="create")'),
-      joinToken: z
-        .string()
-        .optional()
-        .describe('Einladungs-Token/-Link der Gruppe (nur bei action="join")'),
-      limit: z.number().int().min(1).max(30).default(15),
-    }),
-    execute: async ({ action, query, name, description, joinToken, limit }) => {
-      const userId = requireUserId(state);
-      if (!userId) return { error: NO_SESSION };
-      const groupUrl = (g: { name: string; slug_suffix: string | null; id: string }) =>
-        `/gruppen/${g.slug_suffix ? buildGroupSlug(g.name, g.slug_suffix) : g.id}`;
-
-      if (action === 'create') {
-        // No artifact noun to bind to — only an action-level prohibition
-        // ("nichts speichern", "keine Aktion") can rule a group out.
-        const forbidden = refuseForbiddenAction(state);
-        if (forbidden) return forbidden;
-        const groupName = name?.trim();
-        if (!groupName) return { error: 'create braucht einen name.' };
-        if (!threadId) return { error: 'Erstellen ist in diesem Kontext nicht möglich.' };
-        const pending: PendingAction = {
-          actionId: newActionId(),
-          threadId,
-          userId,
-          title: 'Gruppe erstellen',
-          preview: `„${groupName}" anlegen`,
-          createdAt: Date.now(),
-          type: 'create_group',
-          payload: { name: groupName, description: description?.trim() || null },
-        };
-        await emitToolConfirmAction(sse, pending, [{ key: 'Gruppe', value: groupName }]);
-        const note = `Bestätigung zum Erstellen der Gruppe „${groupName}" angefordert.`;
-        groundNote(sourceRegistry, 'Gruppe erstellen', note);
-        return { ok: true, note };
-      }
-
-      if (action === 'join') {
-        const token = joinToken?.trim();
-        if (!token) return { error: 'join braucht einen joinToken.' };
-        if (!threadId) return { error: 'Beitreten ist in diesem Kontext nicht möglich.' };
-        const group = await getGroupByToken(token);
-        if (!group) return { error: 'Ungültiger oder abgelaufener Einladungslink.' };
-        const pending: PendingAction = {
-          actionId: newActionId(),
-          threadId,
-          userId,
-          title: 'Gruppe beitreten',
-          preview: `„${group.name}" beitreten`,
-          createdAt: Date.now(),
-          type: 'join_group',
-          payload: { joinToken: token, groupName: group.name },
-        };
-        await emitToolConfirmAction(sse, pending, [{ key: 'Gruppe', value: group.name }]);
-        const note = `Bestätigung zum Beitritt zur Gruppe „${group.name}" angefordert.`;
-        groundNote(sourceRegistry, 'Gruppe beitreten', note);
-        return { ok: true, note };
-      }
-
-      if (action === 'find') {
-        const q = (query ?? '').trim();
-        if (!q) return { error: 'find braucht einen Suchbegriff.' };
-        const groups = await findGroups(userId, q, limit);
-        const results = groups.map((g) =>
-          makeRow(g.name, groupUrl(g), 'Gruppe', `${g.member_count} Mitglieder`)
-        );
-        groundRows(sourceRegistry, results);
-        return { resultCount: results.length, results };
-      }
-
-      const groups = await listUserGroups(userId, limit);
-      const results = groups.map((g) =>
-        makeRow(
-          g.name,
-          groupUrl(g),
-          'Gruppe',
-          `${g.role || 'Mitglied'} · ${g.member_count} Mitglieder`
-        )
-      );
-      groundRows(sourceRegistry, results);
-      return { resultCount: results.length, results };
-    },
-  });
-}
-
-// ---------------------------------------------------------------------------
 // media — reels + sharepics: list / get / delete
 // ---------------------------------------------------------------------------
 
 export function makeMediaTool(ctx: PersonalToolCtx): Tool {
   const { state, sourceRegistry } = ctx;
   return tool({
-    description: `Zugriff auf die EIGENEN Medien der Person: Reels (untertitelte Videos) und Sharepics (Social-Grafiken).
+    description: `Zugriff auf die EIGENEN Medien der Person: Reels (untertitelte Videos), Sharepics (Social-Grafiken aus den Vorlagen) und KI-Bilder (aus dem Bild-Editor).
+NUR LESEN: Dieses Tool erstellt und bearbeitet NICHTS. Soll ein Sharepic geändert werden und du hast kein Bearbeitungs-Tool, sag das — such nicht ersatzweise die Bibliothek ab.
 
 NUTZE FÜR:
-- auflisten (list, optional type="reel"|"sharepic")
+- auflisten (list, optional type="reel"|"sharepic"|"ki"). Sharepics und KI-Bilder sind zwei verschiedene Produkte — "meine Sharepics" meint type="sharepic", "meine KI-Bilder" type="ki".
 - Reels nach INHALT suchen (search mit query) — durchsucht Titel UND das gesprochene Untertitel-Transkript, z. B. "das Reel über Windkraft"
 - das volle Transkript eines Reels holen (transcript mit ref="reel:<id>") — nötig, bevor du eine Caption, einen Social-Post oder eine Zusammenfassung zum Video schreibst
 - löschen (delete mit ref aus der Liste + confirm=true nach Zustimmung)
@@ -948,12 +841,12 @@ NUTZE FÜR:
 TYPISCHER ABLAUF für "such das Reel zu Thema X und schreib eine Caption": erst search, dann transcript für den besten Treffer, dann die Caption aus dem Transkript formulieren.`,
     inputSchema: z.object({
       action: z.enum(['list', 'search', 'transcript', 'delete']),
-      type: z.enum(['all', 'reel', 'sharepic']).default('all'),
+      type: z.enum(['all', 'reel', 'sharepic', 'ki']).default('all'),
       query: z.string().optional().describe('Suchbegriff (nur bei action="search")'),
       ref: z
         .string()
         .optional()
-        .describe('Handle aus der Liste ("reel:<id>" oder "sharepic:<token>")'),
+        .describe('Handle aus der Liste ("reel:<id>" oder "sharepic:<token>", auch für KI-Bilder)'),
       confirm: z.boolean().default(false),
       limit: z.number().int().min(1).max(30).default(15),
     }),
@@ -1027,23 +920,40 @@ TYPISCHER ABLAUF für "such das Reel zu Thema X und schreib eine Caption": erst 
             );
           }
         }
-        if (type === 'all' || type === 'sharepic') {
+        if (type === 'all' || type === 'sharepic' || type === 'ki') {
+          // A filtered ask has to look past `limit`: someone's 15 most recent
+          // images can be Sharepics throughout while the KI-Bilder they asked
+          // for sit just below the cut. 100 is the service's own ceiling.
           const shares = await getSharedMediaService().getUserShares(
             userId,
             'image',
             USER_VISIBLE_SHARE_STATUSES,
-            limit
+            type === 'all' ? limit : 100
           );
+          let taken = 0;
           for (const s of shares) {
+            if (taken >= limit) break;
+            // Sharepics and KI-Bilder are separate products with separate
+            // sections in every gallery, so the same split has to reach the
+            // model. `isKiImage` is the classification those galleries use:
+            // `content_origin` first, falling back to the legacy `image_type`
+            // for rows written before that column existed.
+            const ki = isKiImage({ contentOrigin: s.content_origin, imageType: s.image_type });
+            if (type === 'sharepic' && ki) continue;
+            if (type === 'ki' && !ki) continue;
+            const label = ki ? 'KI-Bild' : 'Sharepic';
             results.push(
               makeRow(
-                s.title || 'Sharepic',
+                s.title || label,
                 `/share/${s.share_token}`,
-                'Sharepic',
+                label,
                 null,
+                // One handle namespace for both: the share token is what the
+                // delete path resolves, and a KI image is not a different row.
                 `sharepic:${s.share_token}`
               )
             );
+            taken++;
           }
         }
         groundRows(sourceRegistry, results);
@@ -1066,75 +976,11 @@ TYPISCHER ABLAUF für "such das Reel zu Thema X und schreib eine Caption": erst 
       }
       if (kind === 'sharepic') {
         const ok = await getSharedMediaService().deleteShare(userId, handle);
-        if (!ok) return { error: 'Sharepic nicht gefunden oder kein Zugriff.' };
-        groundNote(sourceRegistry, 'Gelöscht', 'Sharepic wurde gelöscht.');
-        return { ok: true, note: 'Sharepic wurde gelöscht.' };
+        if (!ok) return { error: 'Bild nicht gefunden oder kein Zugriff.' };
+        groundNote(sourceRegistry, 'Gelöscht', 'Bild wurde gelöscht.');
+        return { ok: true, note: 'Bild wurde gelöscht.' };
       }
       return { error: 'Unbekannter Medien-Verweis.' };
-    },
-  });
-}
-
-// ---------------------------------------------------------------------------
-// notebooks — list + rename/delete
-// ---------------------------------------------------------------------------
-
-export function makeNotebooksTool(ctx: PersonalToolCtx): Tool {
-  const { state, sourceRegistry } = ctx;
-  return tool({
-    description: `Zugriff auf die EIGENEN Notebooks (Sammlungen von Quellen/Dokumenten).
-
-NUTZE FÜR: Notebooks auflisten (list), umbenennen (rename), löschen (delete mit confirm=true nach Zustimmung).`,
-    inputSchema: z.object({
-      action: z.enum(['list', 'rename', 'delete']),
-      id: z.string().optional().describe('Notebook-ID (rename/delete)'),
-      name: z.string().optional().describe('Neuer Name (nur bei action="rename")'),
-      confirm: z.boolean().default(false),
-      limit: z.number().int().min(1).max(30).default(15),
-    }),
-    execute: async ({ action, id, name, confirm, limit }) => {
-      const userId = requireUserId(state);
-      if (!userId) return { error: NO_SESSION };
-      const helper = notebookHelper();
-
-      if (action === 'list') {
-        const collections = await helper.getUserNotebookCollections(userId, { limit });
-        const results = collections.map((c) =>
-          makeRow(
-            c.name,
-            `/notebooks/${c.slug_suffix ? buildNotebookSlug(c.name, c.slug_suffix) : c.id}`,
-            'Notebook',
-            c.description || `${c.document_count} Dokument(e)`
-          )
-        );
-        groundRows(sourceRegistry, results);
-        return { resultCount: results.length, results };
-      }
-
-      if (!id) return { error: `${action} braucht eine Notebook-ID.` };
-      const collection = await helper.getNotebookCollection(id);
-      if (!collection || collection.user_id !== userId) {
-        return { error: 'Notebook nicht gefunden oder kein Zugriff.' };
-      }
-
-      if (action === 'rename') {
-        if (!name?.trim()) return { error: 'rename braucht name.' };
-        await helper.updateNotebookCollection(id, { name: name.trim() });
-        const note = `Notebook in „${name.trim()}" umbenannt.`;
-        groundNote(sourceRegistry, 'Umbenannt', note);
-        return { ok: true, note };
-      }
-
-      // delete
-      if (!confirm) {
-        const ask = `Soll das Notebook „${collection.name}" wirklich gelöscht werden? Frage die Person und rufe delete erst mit confirm=true erneut auf.`;
-        groundNote(sourceRegistry, 'Bestätigung nötig', ask);
-        return { needsConfirmation: true, note: ask };
-      }
-      await helper.deleteNotebookCollection(id);
-      const note = `Notebook „${collection.name}" wurde gelöscht.`;
-      groundNote(sourceRegistry, 'Gelöscht', note);
-      return { ok: true, note };
     },
   });
 }

@@ -25,7 +25,6 @@ import { reportMcpWithoutLoop } from './mcpWithoutLoop.js';
 import { runChatHistoryBranch } from './recallBranch.js';
 import { runSearchBranch } from './searchBranch.js';
 import { runSharepicGeneration } from './sharepic.js';
-import { runSocialPostBranch } from './socialPostBranch.js';
 
 import type {
   ChatGraphState,
@@ -33,7 +32,6 @@ import type {
   ImageAttachment,
   SearchIntent,
   SearchResult,
-  SocialPostPayload,
 } from '../../../../agents/langgraph/ChatGraph/types.js';
 import type { PriorSharepic, SharepicVariant } from '../sharepicVariantHelpers.js';
 import type { SSEWriter } from '../sseHelpers.js';
@@ -119,32 +117,18 @@ export async function executeIntentPipeline(opts: {
   finalState: ChatGraphState;
   generatedImage: GeneratedImageResult | null;
   sharepicVariants: SharepicVariant[];
-  /** Text half of the EXPERIMENTAL social_post intent; null otherwise. */
-  socialPost: SocialPostPayload | null;
-  /** The text model refused: no post, no sharepic, and no success copy. */
-  socialPostRefused: boolean;
-  /** Whether that refusal is backed by a POLICY decline (the sharepic half
-   *  declined too) rather than only by the text half failing. Drives which
-   *  explanation the turn's answer gives — see the gate for the reasoning. */
-  socialPostRefusalIsPolicy: boolean;
 }> {
   const { classifiedState, sse, forcedTool, enabledTools, imageAttachments } = opts;
 
   let finalState = classifiedState;
   let generatedImage: GeneratedImageResult | null = null;
   let sharepicVariants: SharepicVariant[] = [];
-  let socialPost: SocialPostPayload | null = null;
-  let socialPostRefused = false;
-  let socialPostRefusalIsPolicy = false;
 
   // Build ordered list of intents to execute (primary first, then secondary).
-  // social_post handles pasted URLs inline BEFORE text generation — a
-  // trailing scrape_url iteration would crawl after the post is written.
   const intentsToExecute: SearchIntent[] = [classifiedState.intent];
   if (
     classifiedState.secondaryIntent &&
-    classifiedState.secondaryIntent !== classifiedState.intent &&
-    !(classifiedState.intent === 'social_post' && classifiedState.secondaryIntent === 'scrape_url')
+    classifiedState.secondaryIntent !== classifiedState.intent
   ) {
     intentsToExecute.push(classifiedState.secondaryIntent);
     log.info(`[ChatGraph] Multi-intent: ${intentsToExecute.join(' → ')}`);
@@ -220,22 +204,6 @@ export async function executeIntentPipeline(opts: {
         threadId: opts.threadId ?? null,
         ...(opts.sharepicRefinement && { sharepicRefinement: opts.sharepicRefinement }),
       });
-    } else if (currentIntent === 'social_post') {
-      const result = await runSocialPostBranch({
-        state: finalState,
-        sse,
-        forcedTool,
-        enabledTools,
-        req: opts.req,
-        threadId: opts.threadId ?? null,
-      });
-      finalState = result.state;
-      sharepicVariants = result.sharepicVariants;
-      socialPost = result.socialPost;
-      if (result.socialPostRefused) {
-        socialPostRefused = true;
-        socialPostRefusalIsPolicy = result.socialPostRefusalIsPolicy;
-      }
     } else if (currentIntent === 'summary') {
       const docCount =
         (finalState.documentChatIds?.length || 0) + (finalState.documentIds?.length || 0);
@@ -311,8 +279,5 @@ export async function executeIntentPipeline(opts: {
     finalState,
     generatedImage,
     sharepicVariants,
-    socialPost,
-    socialPostRefused,
-    socialPostRefusalIsPolicy,
   };
 }

@@ -4,7 +4,6 @@
  * Covers the validateBody routes from:
  *   - apps/api/routes/documents/qdrantController.ts    → GET /system-full-text
  *   - apps/api/routes/documents/retrievalController.ts → GET /stats
- *   - apps/api/routes/documents/wolkeController.ts     → GET /sync-status
  *
  * All routes require authentication — `requireAuth` is applied at the prefix
  * in routes.ts before this contract is mounted.
@@ -18,8 +17,6 @@ import {
   systemFullTextErrorSchema,
   documentStatsResponseSchema,
   documentStatsErrorSchema,
-  syncStatusResponseSchema,
-  syncStatusErrorSchema,
   documentsAuthErrorSchema,
   documentsValidationErrorSchema,
   documentStatusesRequestSchema,
@@ -66,21 +63,6 @@ export const documentsContract = c.router(
         500: documentStatsErrorSchema,
       },
       summary: 'Get document statistics for the current user',
-    },
-
-    /**
-     * GET /api/documents/sync-status
-     * Get Wolke sync status for the authenticated user.
-     */
-    getSyncStatus: {
-      method: 'GET',
-      path: '/api/documents/sync-status',
-      responses: {
-        200: syncStatusResponseSchema,
-        401: documentsAuthErrorSchema,
-        500: syncStatusErrorSchema,
-      },
-      summary: 'Get Wolke sync status for the current user',
     },
 
     /**

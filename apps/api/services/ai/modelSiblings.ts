@@ -27,7 +27,7 @@
 
 import { createLogger } from '../../utils/logger.js';
 
-import { GEMMA_31B_ON_CORTECS, GEMMA_31B_ON_REGOLO } from './gemmaHosts.js';
+import { GEMMA_31B_ON_CORTECS, GEMMA_31B_ON_MELIOUS } from './gemmaHosts.js';
 import { isModelSlow } from './modelHealth.js';
 import { getDefaultModel, isProviderConfigured } from './providers.js';
 
@@ -69,13 +69,13 @@ const MODEL_SIBLINGS: Readonly<Record<string, ModelTarget>> = {
   // `GemmaHost`: der trägt seit dem 25.08.2026 auch `contextWindow` und
   // `laneId`, und ein `ModelTarget` mit Extra-Feldern reist von hier aus
   // ungefragt in jeden Aufrufer weiter.
-  [`${GEMMA_31B_ON_REGOLO.provider}/${GEMMA_31B_ON_REGOLO.model}`]: {
+  [`${GEMMA_31B_ON_MELIOUS.provider}/${GEMMA_31B_ON_MELIOUS.model}`]: {
     provider: GEMMA_31B_ON_CORTECS.provider,
     model: GEMMA_31B_ON_CORTECS.model,
   },
   [`${GEMMA_31B_ON_CORTECS.provider}/${GEMMA_31B_ON_CORTECS.model}`]: {
-    provider: GEMMA_31B_ON_REGOLO.provider,
-    model: GEMMA_31B_ON_REGOLO.model,
+    provider: GEMMA_31B_ON_MELIOUS.provider,
+    model: GEMMA_31B_ON_MELIOUS.model,
   },
   // `cortecs/gemma-4-26b-a4b-it` stand hier bis zum 21.08.2026 und ist WEG,
   // nicht vergessen: die Modell-ID ist über Cortecs unbedienbar geworden (der
@@ -85,8 +85,13 @@ const MODEL_SIBLINGS: Readonly<Record<string, ModelTarget>> = {
   // Primär auf einen 404 aus.
 };
 
-/** Dieselbe Reihenfolge wie `tryFallbackProviders` in providerFallback.ts. */
-const FALLBACK_CHAIN: readonly ProviderName[] = ['litellm', 'regolo', 'mistral'];
+/** Dieselbe Reihenfolge wie `tryFallbackProviders` in providerFallback.ts.
+ *  `litellm` stand hier bis zum 29.08.2026 an erster Stelle — und weil dieser
+ *  Zweig `getDefaultModel(candidate)` nimmt, war das Ausweichziel eines zäh
+ *  vermerkten Modells `verdigado-pro`, also gpt-oss. Genau der Weg, den das
+ *  Veto weiter unten schon einmal zuschütten musste. Siehe
+ *  ./litellmRetired.ts. */
+const FALLBACK_CHAIN: readonly ProviderName[] = ['cortecs', 'melious', 'mistral'];
 
 function usable(target: ModelTarget): boolean {
   return isProviderConfigured(target.provider) && !isModelSlow(target.provider, target.model);

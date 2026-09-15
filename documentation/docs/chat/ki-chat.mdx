@@ -1,5 +1,6 @@
 ---
 sidebar_position: 1
+description: 'Die Chat-Oberfläche im Überblick: Rezepte, Quellen und Werkzeuge auswählen, recherchieren, Texte und Bilder erstellen lassen.'
 ---
 
 import UiLabel from '@site/src/components/UiLabel';
@@ -10,7 +11,7 @@ import { RecipeTables, SourceTable, ToolMentionTable } from '@site/src/component
 Der Grünerator Chat ist dein persönlicher KI-Assistent für grüne Politik. Du kannst Fragen stellen, Texte erstellen lassen, in Parteiprogrammen recherchieren und sogar Bilder generieren — alles in einer Chat-Oberfläche.
 
 :::info[Immer aktuell]
-Die Tabellen auf dieser Seite (Rezepte, Quellen, Werkzeuge) werden direkt aus dem Code des Grünerators erzeugt — sie zeigen also genau das, was der Chat gerade kann. Wie das funktioniert, steht unter [Wie diese Doku entsteht](../ueber-den-gruenerator/wie-diese-doku-entsteht).
+Die Tabellen auf dieser Seite (Rezepte, Quellen, Werkzeuge) werden direkt aus dem Code des Grünerators erzeugt — sie zeigen also genau das, was der Chat gerade kann. Wie das funktioniert, steht unter [Wie diese Doku entsteht](../sonstiges/wie-diese-doku-entsteht).
 :::
 
 ## Gespräch starten
@@ -35,11 +36,15 @@ Rezepte sind spezialisierte Schreib-Modi, die auf bestimmte Textarten optimiert 
 
 <RecipeTables />
 
-Für Anträge, Reden, Wahlprogramme und Bürger\*innenanfragen gibt es eigene **Grüneratoren** — du findest sie unter dem Menüpunkt **<UiLabel id="menu.grueneratoren" />** in der Seitenleiste und kannst sie direkt im Chat öffnen.
-
 :::tip[Rezepte kombinieren]
 Du kannst ein Rezept mit Quellen und Werkzeugen kombinieren. Zum Beispiel: `@presse @grundsatz Klimaschutz in Kommunen` schreibt eine Pressemitteilung auf Basis des Grundsatzprogramms.
 :::
+
+## Grüneratoren aufrufen
+
+Für Anträge, Reden, Wahlprogramme und Bürger\*innenanfragen gibt es eigene **Grüneratoren** — du findest sie unter dem Menüpunkt **<UiLabel id="menu.grueneratoren" />** in der Seitenleiste und kannst sie direkt im Chat öffnen.
+
+Sie stehen außerdem in derselben `@`-Liste wie die Rezepte: deine eigenen unter **eigene**. Hat jemand aus einem deiner Projekte einen Grünerator mit dem Projekt geteilt, steht er dort unter **aus deinen Gruppen**, mit dem Namen der Gruppe, aus der er kommt. Ein `@`-Aufruf wechselt für diese eine Nachricht auf diesen Grünerator; ein Rezept, das du vorher gewählt hast, bleibt dabei aktiv.
 
 ## Quellen durchsuchen
 
@@ -48,7 +53,7 @@ Der Chat kann gezielt in grünen Parteiprogrammen, Beschlüssen und Dokumenten r
 <SourceTable />
 
 :::info[Landesverbände]
-Weitere Landesverbände werden laufend ergänzt. Wenn dein Landesverband ein [Grünerator Notebook](../ueber-den-gruenerator/notebook) erworben hat, erscheinen eure Daten automatisch als Quelle.
+Weitere Landesverbände werden laufend ergänzt. Wenn dein Landesverband ein [Grünerator Notebook](../basics/notebook) erworben hat, erscheinen eure Daten automatisch als Quelle.
 :::
 
 :::tip[Mentions bleiben sichtbar]

@@ -102,3 +102,86 @@ describe('Chunk-Reranking vor der Gruppierung', () => {
     expect(items[0]?.content).toBe(lang);
   });
 });
+
+/**
+ * `rerankPipeline` wirft nicht — ein Ausfall kommt als `failed: true` mit der
+ * Eingabereihenfolge zurück. Bis hierher war das ununterscheidbar von „gar
+ * nicht bestellt": beides war `null`. Der Loop braucht den Unterschied, um
+ * einmal je Turn warnen zu können.
+ */
+describe('Degradations-Signal des Chunk-Reranks', () => {
+  beforeEach(() => rerank.mockReset());
+
+  it('meldet den Fehlschlag und sortiert wie ohne Encoder', async () => {
+    rerank.mockResolvedValue({
+      rankedIndices: [],
+      scores: new Map(),
+      rerankTimeMs: 4000,
+      failed: true,
+    });
+    let degraded = false;
+
+    const [doc] = await svc().groupAndRankHybridResults(chunks, 10, 'Löschfristen', {
+      rerankChunks: true,
+      onRerankDegraded: () => {
+        degraded = true;
+      },
+    });
+
+    expect(degraded).toBe(true);
+    // Kosinus-Reihenfolge: c0 (0.86) steht vorn, nicht die Fristen-Passage.
+    expect(doc?.relevant_content.startsWith('Allgemeines zur Verarbeitung')).toBe(true);
+  });
+
+  it('meldet nichts, wenn der Encoder geliefert hat', async () => {
+    rerank.mockResolvedValue(verdict([0.1, 0.05, 0.9, 0.02]));
+    let degraded = false;
+
+    await svc().groupAndRankHybridResults(chunks, 10, 'Löschfristen', {
+      rerankChunks: true,
+      onRerankDegraded: () => {
+        degraded = true;
+      },
+    });
+
+    expect(degraded).toBe(false);
+  });
+
+  it('meldet nichts, wenn der Encoder gar nicht bestellt war', async () => {
+    let degraded = false;
+
+    await svc().groupAndRankHybridResults(chunks, 10, 'Löschfristen', {
+      onRerankDegraded: () => {
+        degraded = true;
+      },
+    });
+
+    expect(degraded).toBe(false);
+    expect(rerank).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * `generateCacheKey` teilt sich einen Eintrag über `limit`/`threshold`/
+ * `filters` — ohne `rerankChunks` in `keyData` wäre ein rerankstes und ein
+ * unreranktes Ergebnis für dieselbe Suche im Cache ununterscheidbar.
+ */
+describe('generateCacheKey berücksichtigt rerankChunks', () => {
+  const baseParams = {
+    query: 'Löschfristen',
+    userId: 'u1',
+    filters: {},
+    options: { limit: 10, threshold: 0.15, useCache: true },
+  };
+
+  it('liefert unterschiedliche Schlüssel für reranked und unreranked', () => {
+    const service = svc();
+    const withoutRerank = service.generateCacheKey(baseParams);
+    const withRerank = service.generateCacheKey({
+      ...baseParams,
+      options: { ...baseParams.options, rerankChunks: true },
+    });
+
+    expect(withRerank).not.toBe(withoutRerank);
+  });
+});

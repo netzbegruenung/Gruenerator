@@ -54,8 +54,9 @@ describe('eine einzelne Erwähnung zurrt ihren Intent fest', () => {
     ['examples', 'examples'],
     // `@pressemitteilungen` steht aus demselben Grund unten: stillgelegter
     // Intent, Token zeigt auf `agentic` + Werkzeug-Pin + Rezept.
+    // `@social` steht aus demselben Grund unten: stillgelegter Intent, der
+    // Token zeigt auf den Einzeldurchlauf.
     ['chat_history', 'chat_history'],
-    ['social_post', 'social_post'],
     ['chart', 'chart'],
     ['compute', 'compute'],
   ])('@%s → %s', async (token, intent) => {
@@ -162,6 +163,25 @@ describe('@pressemitteilungen — Erwähnung ohne Intent, mit Rezept', () => {
     expect(state.intent).toBe('research');
     expect(state.mentionPinnedTool).toBe(null);
     expect(state.activeSkillMention).toBe('presse');
+  });
+});
+
+describe('@social — Erwähnung weg, Token bleibt', () => {
+  // Dritter Fall derselben Bauform, und der einzige ohne Ersatzziel: `@umfragen`
+  // zeigt auf ein Werkzeug, `@pressemitteilungen` auf Werkzeug plus Rezept —
+  // ein Social-Post hat kein Werkzeug, er ist eine Textsorte. Der Token landet
+  // deshalb schlicht auf dem Einzeldurchlauf; welches Rezept ihn schreibt,
+  // entscheidet `deriveImplicitRecipeMention` in routingStage aus dem Text.
+  it('setzt `produktion` und zurrt kein Werkzeug fest', async () => {
+    const { state, forcedTool } = await run(['social_post']);
+    expect(state.intent).toBe('produktion');
+    expect(state.mentionPinnedTool).toBe(null);
+    expect(forcedTool).toBe(true);
+  });
+
+  it('lädt kein Rezept aus der Erwähnung — das tut der Text', async () => {
+    const { state } = await run(['social_post']);
+    expect(state.activeSkillMention ?? null).toBe(null);
   });
 });
 

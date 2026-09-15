@@ -58,7 +58,12 @@ Fokussiere dich auf externe Quellen und verschiedene Perspektiven.`;
       lane: 'text_adjustment',
       system: researchSystemPrompt,
       prompt: researchPrompt,
-      pinned: { provider: 'litellm', model: 'verdigado-pro' },
+      // War `litellm/verdigado-pro` (= gpt-oss am Proxy) und ist seit dem
+      // 29.08.2026 die benannte Zwischenstufe: kurze schematische Ausgabe mit
+      // Zeitwirkung im Zug. Der Pin nennt jetzt die AUFGABE statt eines Hosts,
+      // damit ein Host-Wechsel nicht wieder je Aufrufstelle nachgezogen werden
+      // muss — siehe services/ai/intermediateLanes.ts.
+      pinned: 'standard',
       maxOutputTokens: 300,
       temperature: 0.3,
     });

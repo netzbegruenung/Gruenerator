@@ -4,18 +4,22 @@ import React, { useState, useCallback, useEffect } from 'react';
 import {
   FaImage,
   FaVideo,
+  FaMusic,
   FaUpload,
   FaTrash,
   FaEdit,
   FaCheck,
   FaTimes,
   FaSearch,
+  FaExclamationTriangle,
 } from 'react-icons/fa';
 
+import AudioPlayer from '../../components/common/AudioPlayer';
 import LoginRequired from '../../components/common/LoginRequired/LoginRequired';
 import { SharedMediaImage } from '../../components/common/SharedMediaImage';
 import { useOptimizedAuth } from '../../hooks/useAuth';
 import { cn } from '../../utils/cn';
+import { formatAudioDuration } from '../../utils/formatAudioDuration';
 
 import type { MediaItem, MediaType } from '@gruenerator/shared/media-library';
 
@@ -108,6 +112,13 @@ const MediaCard: React.FC<MediaCardProps> = ({
             preload="metadata"
             className="w-full h-full object-cover"
           />
+        ) : item.mediaType === 'audio' ? (
+          <div className="w-full h-full flex flex-col items-center justify-center gap-xs text-grey-500">
+            <FaMusic className="text-3xl" aria-hidden="true" />
+            {item.duration ? (
+              <span className="text-xs">{formatAudioDuration(item.duration)}</span>
+            ) : null}
+          </div>
         ) : (
           <SharedMediaImage
             shareToken={item.shareToken}
@@ -119,7 +130,13 @@ const MediaCard: React.FC<MediaCardProps> = ({
           />
         )}
         <span className="absolute top-sm left-sm px-sm py-xs bg-black/60 text-white rounded-lg text-xs">
-          {item.mediaType === 'video' ? <FaVideo /> : <FaImage />}
+          {item.mediaType === 'video' ? (
+            <FaVideo />
+          ) : item.mediaType === 'audio' ? (
+            <FaMusic />
+          ) : (
+            <FaImage />
+          )}
         </span>
         {selectionMode && isSelected && (
           <div className="absolute inset-0 flex items-center justify-center bg-primary-600/50 text-white text-3xl">
@@ -250,6 +267,13 @@ const EditModal: React.FC<EditModalProps> = ({ item, onSave, onClose }) => {
               preload="metadata"
               className="w-full h-full object-contain"
             />
+          ) : item.mediaType === 'audio' ? (
+            <div className="w-full h-full flex items-center justify-center p-md">
+              <AudioPlayer
+                src={`${baseURL}/share/${item.shareToken}/stream`}
+                title={item.title || 'Audio'}
+              />
+            </div>
           ) : (
             <SharedMediaImage
               shareToken={item.shareToken}
@@ -302,6 +326,7 @@ const MediaLibraryPage: React.FC = () => {
   const {
     items,
     pagination,
+    quota,
     filters,
     isLoading,
     isFetchingNextPage,
@@ -317,6 +342,7 @@ const MediaLibraryPage: React.FC = () => {
     isUploading,
     progress,
     error: uploadError,
+    errorCode: uploadErrorCode,
     reset: resetUpload,
   } = useMediaUpload();
 
@@ -375,7 +401,14 @@ const MediaLibraryPage: React.FC = () => {
     <div className="max-w-[1200px] mx-auto p-lg">
       <header className="flex justify-between items-center mb-lg">
         <h1 className="m-0 text-foreground">Mediathek</h1>
-        <p className="text-grey-400 text-[0.9rem]">{pagination.total} von 50 Medien</p>
+        <p
+          className={cn(
+            'text-[0.9rem]',
+            quota.isFull ? 'text-[#D32F2F] font-semibold' : 'text-grey-400'
+          )}
+        >
+          {quota.count} von {quota.limit} Medien
+        </p>
       </header>
 
       <div className="flex gap-md mb-lg flex-wrap items-center max-md:flex-col max-md:items-stretch">
@@ -413,6 +446,17 @@ const MediaLibraryPage: React.FC = () => {
           >
             <FaVideo /> Videos
           </button>
+          <button
+            className={cn(
+              'flex items-center gap-xs px-md py-sm border rounded-lg bg-background text-foreground cursor-pointer transition-all duration-200 hover:border-primary-600',
+              filters.type === 'audio'
+                ? 'bg-primary-600 text-white border-primary-600'
+                : 'border-grey-200 dark:border-grey-700'
+            )}
+            onClick={() => handleTypeFilter('audio')}
+          >
+            <FaMusic /> Audio
+          </button>
         </div>
 
         <div className="flex flex-1 max-w-[300px] max-md:max-w-none">
@@ -448,6 +492,34 @@ const MediaLibraryPage: React.FC = () => {
         </Button>
       </div>
 
+      {(quota.isFull || quota.isNearlyFull) && (
+        <div
+          role="status"
+          className={cn(
+            'flex items-start gap-sm p-md rounded-lg mb-md',
+            quota.isFull
+              ? 'bg-[rgba(220,38,38,0.1)] text-[#D32F2F]'
+              : 'bg-grey-100 dark:bg-grey-800 text-foreground'
+          )}
+        >
+          <FaExclamationTriangle className="mt-[0.2em] shrink-0" aria-hidden="true" />
+          <span>
+            {quota.isFull ? (
+              <>
+                <strong>Deine Mediathek ist voll</strong> ({quota.count} von {quota.limit} Medien).
+                Neue Uploads werden abgelehnt, bis du Medien löschst. Bereits erstellte Sharepics
+                und KI-Bilder bleiben erhalten — es wird nichts automatisch gelöscht.
+              </>
+            ) : (
+              <>
+                Deine Mediathek ist fast voll ({quota.count} von {quota.limit} Medien). Lösche nicht
+                mehr benötigte Medien, damit weitere Uploads möglich bleiben.
+              </>
+            )}
+          </span>
+        </div>
+      )}
+
       {isUploading && (
         <div className="relative h-8 bg-grey-100 dark:bg-grey-800 rounded-lg mb-md overflow-hidden">
           <div
@@ -460,7 +532,9 @@ const MediaLibraryPage: React.FC = () => {
         </div>
       )}
 
-      {(error || uploadError) && (
+      {/* A quota refusal is already spelled out by the banner above — repeating
+          the same sentence here just reads as a broken duplicate. */}
+      {(error || (uploadError && uploadErrorCode !== 'media_quota_exceeded')) && (
         <div className="p-md bg-[rgba(220,38,38,0.1)] text-[#D32F2F] rounded-lg mb-md">
           {error || uploadError}
         </div>

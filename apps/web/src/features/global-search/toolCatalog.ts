@@ -91,6 +91,27 @@ export const CATALOG: ToolCatalogEntry[] = [
     ],
   },
   {
+    id: 'tool-voice',
+    title: 'Grünerator Voice',
+    subtitle: 'Anrufbeantworter, Vorlesefassung & Audiodeskription',
+    path: '/voice',
+    icon: nav('voice'),
+    keywords: [
+      'voice',
+      'vertonen',
+      'sprachausgabe',
+      'stimme',
+      'audio',
+      'vorlesen',
+      'anrufbeantworter',
+      'mailbox',
+      'ansage',
+      'audiodeskription',
+      'vorlesefassung',
+      'tts',
+    ],
+  },
+  {
     id: 'tool-zeichenzaehler',
     title: 'Zeichenzähler',
     subtitle: 'Zeichen, Wörter & Social-Limits zählen',
@@ -196,15 +217,6 @@ export const CATALOG: ToolCatalogEntry[] = [
       'organisation',
       'zusammenarbeit',
     ],
-  },
-  {
-    id: 'tool-transfer',
-    title: 'Transfer',
-    subtitle: 'Dateien sicher übertragen',
-    path: '/transfer',
-    icon: getIcon('actions', 'upload') ?? null,
-    keywords: ['transfer', 'datei', 'upload', 'senden', 'teilen'],
-    channel: 'internal',
   },
 ] satisfies RegisteredEntry[];
 

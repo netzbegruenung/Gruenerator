@@ -99,19 +99,19 @@ describe('foldersForChangedFiles', () => {
   it('routes a provider-routing change to the pages that name providers', () => {
     // The 08/2026 case: Mistral Medium moved off Scaleway. Three pages carry
     // that claim — the model page (chat/ki-modelle.md), the sustainability page
-    // (ueber-den-gruenerator/nachhaltigkeit.md) and the README's provider list.
+    // (basics/nachhaltigkeit.md) and the README's provider list.
     const folders = foldersForChangedFiles([
       'apps/api/services/ai/providerInstances.ts',
       'apps/api/services/ai/regoloReasoningStream.ts',
     ]);
 
-    expect(folders).toEqual(expect.arrayContaining(['chat', 'ueber-den-gruenerator', 'readme']));
+    expect(folders).toEqual(expect.arrayContaining(['chat', 'basics', 'readme']));
   });
 
   it('routes an energy-coefficient change to the sustainability page', () => {
     // A single file, not a directory — the prefix match has to cover it.
     expect(foldersForChangedFiles(['apps/api/services/usage/energyFootprint.ts'])).toContain(
-      'ueber-den-gruenerator'
+      'basics'
     );
   });
 
@@ -119,7 +119,7 @@ describe('foldersForChangedFiles', () => {
     // `apps/api/services/aiSearchAgent.ts` sat next to the `services/ai`
     // directory until it was deleted as a dead service (16.08.2026) — it was
     // the repo's only such collision. A bare startsWith would pull chat/,
-    // ueber-den-gruenerator/ and readme/ into the audit every time such a
+    // basics/ and readme/ into the audit every time such a
     // sibling is edited, so the boundary check outlives its example.
     expect(foldersForChangedFiles(['apps/api/services/aiSearchAgent.ts'])).toEqual([]);
     // …while the directory itself still matches.

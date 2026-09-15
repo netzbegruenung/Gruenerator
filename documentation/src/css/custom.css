@@ -426,3 +426,37 @@
   border-color: var(--primary-400);
   box-shadow: var(--shadow-card-hover);
 }
+
+/* ============================================
+   DOC CARDS (generated-index)
+   ============================================ */
+
+/* Infima's .text--truncate clips card titles and descriptions to a single
+   line. Fragen-Titel und ganze Vorschau-Sätze passen dort nie hinein, also
+   wickeln wir stattdessen um und begrenzen die Zeilenzahl. */
+
+.theme-doc-card-heading {
+  align-items: flex-start;
+}
+
+.theme-doc-card-title,
+.theme-doc-card-description {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: normal;
+  text-overflow: unset;
+}
+
+.theme-doc-card-title {
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  line-height: 1.35;
+}
+
+.theme-doc-card-description {
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  margin-top: 0.5rem;
+  line-height: 1.5;
+}

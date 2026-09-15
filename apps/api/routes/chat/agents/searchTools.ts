@@ -17,6 +17,7 @@ import { normalizeDomainList } from '../../../services/search/domainFilters.js';
 import { createDeepTierBudget, SEARCH_TIERS } from '../../../services/search/searchDepth.js';
 import { createLogger } from '../../../utils/logger.js';
 
+import { agentAllowsTool } from './agentToolWhitelist.js';
 import {
   deduplicateByUrl,
   executeDirectSearch,
@@ -174,6 +175,8 @@ export interface CreateSearchToolsOptions {
    * When set, restrict the returned search tools to the agent's user-selected
    * capabilities (USER_SELECTABLE_TOOLS keys: `search` → gruenerator_search,
    * `examples` → examples/pressemitteilung, `web`/`research` → web_search).
+   * Raw tool names count as their picker key (`gruenerator_search` → `search`),
+   * because the editor agents declare those — see `agentAllowsTool`.
    * Undefined leaves the full set (chat + board defaults unchanged).
    */
   enabledToolKeys?: readonly string[];
@@ -217,6 +220,18 @@ export interface CreateSearchToolsOptions {
    * einstufigen Pfad beschränkt.
    */
   activeRecipeMentions?: () => readonly (string | null | undefined)[];
+  /**
+   * Sollen die Dokumentsuchen dieses Turns ihre Chunks VOR der Gruppierung vom
+   * Cross-Encoder bewerten lassen? Gesetzt ausschliesslich vom Werkzeugkatalog
+   * des agentischen Loops und nur bei LOOP_RERANK_ENABLED=true. Der zweite
+   * Aufrufer dieser Fabrik — der Board-Agent
+   * (`services/boards/agentFlow/generate.ts:167`) — setzt es nicht und bleibt
+   * unberührt.
+   *
+   * Der Name weicht bewusst vom durchgereichten `rerankChunks` ab: hier ist es
+   * eine Aussage über den TURN, eine Ebene tiefer über den AUFRUF.
+   */
+  rerankSearchChunks?: boolean;
 }
 
 /**
@@ -314,14 +329,18 @@ async function searchCollectionOrBundle(params: {
   query: string;
   collection: string;
   limit: number;
+  rerankChunks?: boolean;
 }): Promise<DirectSearchResult> {
-  const { query, collection, limit } = params;
+  const { query, collection, limit, rerankChunks } = params;
+  // Einmal gebaut, in BEIDE Zweige gespreizt: ein Bündel, das den Reranker
+  // verliert, sieht im Ergebnis genauso aus wie eines, das ihn hat.
+  const rerank = rerankChunks === true ? { rerankChunks: true as const } : {};
   const members = COLLECTION_BUNDLES[collection];
-  if (!members) return executeDirectSearch({ query, collection, limit });
+  if (!members) return executeDirectSearch({ query, collection, limit, ...rerank });
 
   // Each member is asked for the full limit; the merge below is what narrows.
   const parts = await Promise.all(
-    members.map((member) => executeDirectSearch({ query, collection: member, limit }))
+    members.map((member) => executeDirectSearch({ query, collection: member, limit, ...rerank }))
   );
   const merged = deduplicateByUrl(
     parts.flatMap((p) => p.results),
@@ -337,6 +356,10 @@ async function searchCollectionOrBundle(params: {
     searchMode: parts[0]?.searchMode ?? 'hybrid',
     resultsCount: merged.length,
     results: merged,
+    // Umgekehrter Quantor zur Zeile darunter, mit Absicht: ein Bündel ist
+    // degradiert, sobald EIN Mitglied es war (dann ist die halbe Liste
+    // kosinus-sortiert) — es ist aber erst gescheitert, wenn ALLE scheiterten.
+    ...(parts.some((p) => p.rerankDegraded) ? { rerankDegraded: true } : {}),
     // A bundle fails only when EVERY member failed; one dead corpus next to a
     // live one is a partial result, not an error.
     ...(parts.every((p) => p.error) ? { error: true } : {}),
@@ -370,9 +393,8 @@ async function searchCollectionOrBundle(params: {
  * `gruenerator_search` and the example corpora mounted.
  */
 export function agentAllowsWebSearch(agentConfig: Pick<AgentConfig, 'enabledTools'>): boolean {
-  const declared = agentConfig.enabledTools;
-  if (!declared) return true;
-  return declared.some((key) => key === 'web' || key === 'research' || key === 'web_search');
+  // One reading of the array for every gate — see agentToolWhitelist.ts.
+  return agentAllowsTool(agentConfig, 'web');
 }
 
 export function createSearchTools(
@@ -478,7 +500,12 @@ NICHT FÜR: Aktuelle Nachrichten, Personen-Infos, allgemeine Web-Suche`,
             query,
           };
         }
-        return await searchCollectionOrBundle({ query, collection, limit });
+        return await searchCollectionOrBundle({
+          query,
+          collection,
+          limit,
+          ...(options.rerankSearchChunks === true && { rerankChunks: true }),
+        });
       } catch (error) {
         log.error('Direct search error:', error);
         return { error: 'Suche fehlgeschlagen', results: [], collection, query };
@@ -698,17 +725,22 @@ NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search)`,
 
   // Optional per-agent gating: recurring agents honor their picker selection.
   // Undefined → keep everything (board/chat behavior unchanged).
+  //
+  // Read through `agentAllowsTool` rather than against a raw key set, so this
+  // list speaks the same two vocabularies as every other gate: the picker keys
+  // AND the raw tool names the editor agents declare in frontmatter. The board
+  // flow passes its agent's `enabledTools` straight in (agentFlow/generate.ts),
+  // so an editor agent declaring `gruenerator_search` used to lose the very
+  // corpus it had asked for (#3307). `web`/`research` stay one capability —
+  // that group now lives in the helper instead of in this `||`.
   if (options.enabledToolKeys) {
-    const keys = new Set(options.enabledToolKeys);
-    if (!keys.has('search')) delete tools.gruenerator_search;
-    if (!keys.has('examples')) {
+    const declared = { enabledTools: [...options.enabledToolKeys] };
+    if (!agentAllowsTool(declared, 'search')) delete tools.gruenerator_search;
+    if (!agentAllowsTool(declared, 'examples')) {
       delete tools.gruenerator_examples_search;
       delete tools.gruenerator_pressemitteilung_examples;
     }
-    // `research` is still accepted as a key: it is persisted in agent configs
-    // (F0), and an agent that was given "Recherche" must keep its web access
-    // now that recherche IS the web tool at a deeper tier.
-    if (!keys.has('web') && !keys.has('research')) {
+    if (!agentAllowsTool(declared, 'web')) {
       delete tools.web_search;
     }
   }

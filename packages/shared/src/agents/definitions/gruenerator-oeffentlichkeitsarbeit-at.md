@@ -46,7 +46,6 @@ enabledTools:
   - image
   - memory
   - memory_save
-  - self_review
 toolRestrictions:
   examplesCountry: AT
 defaultNotebookIds:

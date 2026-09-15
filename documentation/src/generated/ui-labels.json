@@ -49,15 +49,15 @@
     "subtitle": "Recherche im Netz",
     "path": "/suche"
   },
-  "catalog.tool-transfer": {
-    "title": "Transfer",
-    "subtitle": "Dateien sicher übertragen",
-    "path": "/transfer"
-  },
   "catalog.tool-transkription": {
     "title": "Transkription",
     "subtitle": "Audio mit KI verschriftlichen",
     "path": "/transkription"
+  },
+  "catalog.tool-voice": {
+    "title": "Grünerator Voice",
+    "subtitle": "Anrufbeantworter, Vorlesefassung & Audiodeskription",
+    "path": "/voice"
   },
   "catalog.tool-vorlagen": {
     "title": "Vorlagen",
@@ -227,6 +227,11 @@
     "title": "Transkription",
     "subtitle": "Audio zu Text",
     "path": "/transkription"
+  },
+  "workplace.voice": {
+    "title": "Voice",
+    "subtitle": "Text vertonen",
+    "path": "/voice"
   },
   "workplace.vorlagen": {
     "title": "Vorlagen",

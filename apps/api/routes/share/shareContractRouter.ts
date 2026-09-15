@@ -1,12 +1,11 @@
 /**
  * ts-rest contract router for /api/share (write endpoints only)
  *
- * Covers the six validateBody-guarded routes from shareController.ts:
+ * Covers the validateBody-guarded write routes from shareController.ts:
  *   POST /api/share/image
  *   POST /api/share/video
  *   POST /api/share/video/from-project
  *   PUT  /api/share/:shareToken/image
- *   POST /api/share/:shareToken/save-as-template
  *
  * File-streaming routes (preview, download, thumbnail, original) and
  * read-only GET routes are left in the legacy Express router.
@@ -26,6 +25,8 @@ import { logContractValidationError } from '../../utils/contractValidationLogger
 import { createLogger } from '../../utils/logger.js';
 import { parseJSON } from '../../utils/parseJSON.js';
 import { redisClient } from '../../utils/redis/index.js';
+
+import { getSharedMediaService, type UpdateImageShareParams } from './shareServices.js';
 
 import type { UserProfile } from '../../services/user/types.js';
 import type { Application, Request } from 'express';
@@ -50,103 +51,12 @@ function getUserId(req: Request): string | undefined {
   return (req.user as UserProfile | undefined)?.id;
 }
 
-function getUserInfo(req: Request): { id: string; displayName: string } | undefined {
-  const user = req.user as UserProfile | undefined;
-  if (!user) return undefined;
-  return {
-    id: user.id,
-    displayName: user.display_name || user.email || 'Anonymous',
-  };
-}
-
 // ── Lazy-loaded services ────────────────────────────────────────────────────
 
 interface ExportData {
   status: string;
   outputPath: string;
   duration?: number;
-}
-
-interface ShareResult {
-  id: string;
-  shareToken: string;
-  shareUrl: string;
-  createdAt: Date | string;
-  mediaType: 'image' | 'video';
-  hasOriginalImage?: boolean;
-  status?: string;
-}
-
-interface SharedMediaService {
-  ensureInitialized(): Promise<void>;
-  createImageShare(userId: string, params: CreateImageShareParams): Promise<ShareResult>;
-  createVideoShare(userId: string, params: CreateVideoShareParams): Promise<ShareResult>;
-  createPendingVideoShare(
-    userId: string,
-    params: CreatePendingVideoShareParams
-  ): Promise<ShareResult>;
-  getShareByToken(shareToken: string): Promise<SharedMediaRow | null>;
-  updateImageShare(
-    userId: string,
-    shareToken: string,
-    params: UpdateImageShareParams
-  ): Promise<ShareResult>;
-  markAsTemplate(
-    userId: string,
-    shareToken: string,
-    title: string,
-    visibility: string,
-    userName: string
-  ): Promise<void>;
-  getThumbnailPath?(relativePath: string): string;
-  getSubtitledVideoPath?(relativePath: string): string;
-  updateSubtitledVideoPath?(userId: string, projectId: string, relativePath: string): Promise<void>;
-  finalizeVideoShare?(shareToken: string, videoPath: string): Promise<void>;
-  markShareFailed?(shareToken: string): Promise<void>;
-}
-
-interface SharedMediaRow {
-  id: string;
-  user_id: string;
-  share_token: string;
-  media_type: string;
-  title: string | null;
-  file_path: string | null;
-  thumbnail_path: string | null;
-  status: string | null;
-  created_at: Date;
-  [key: string]: unknown;
-}
-
-interface CreateImageShareParams {
-  imageBase64: string;
-  title: string;
-  imageType: string | null;
-  metadata: Record<string, unknown>;
-  originalImage: string | null;
-  status?: 'ready' | 'draft';
-}
-
-interface CreateVideoShareParams {
-  videoPath: string;
-  title: string;
-  thumbnailPath: string | null;
-  duration: number | null;
-  projectId: string | null;
-}
-
-interface CreatePendingVideoShareParams {
-  title: string;
-  thumbnailPath: string | null;
-  duration: number | null;
-  projectId: string;
-}
-
-interface UpdateImageShareParams {
-  imageBase64: string;
-  title?: string;
-  metadata: Record<string, unknown>;
-  originalImage?: string | null;
 }
 
 interface ProjectService {
@@ -170,18 +80,7 @@ interface Project {
   height_preference?: string;
 }
 
-let sharedMediaServiceInstance: SharedMediaService | null = null;
 let projectServiceInstance: ProjectService | null = null;
-
-async function getSharedMediaService(): Promise<SharedMediaService> {
-  if (!sharedMediaServiceInstance) {
-    const { getSharedMediaService: getService } =
-      await import('../../services/sharedMediaService.js');
-    sharedMediaServiceInstance = getService() as unknown as SharedMediaService;
-    await sharedMediaServiceInstance.ensureInitialized();
-  }
-  return sharedMediaServiceInstance;
-}
 
 async function getProjectService(): Promise<ProjectService> {
   if (!projectServiceInstance) {
@@ -227,7 +126,7 @@ async function triggerBackgroundRender(
     await projService.updateSubtitledVideoPath(userId, projectId, subtitledVideoRelativePath);
 
     const service = await getSharedMediaService();
-    await service.finalizeVideoShare!(shareToken, subtitledVideoFullPath);
+    await service.finalizeVideoShare(shareToken, subtitledVideoFullPath);
 
     try {
       await fsPromises.unlink(result.outputPath);
@@ -239,7 +138,7 @@ async function triggerBackgroundRender(
   } catch (error) {
     log.error(`Background render failed for ${shareToken}:`, error);
     const service = await getSharedMediaService();
-    await service.markShareFailed!(shareToken);
+    await service.markShareFailed(shareToken);
   }
 }
 
@@ -587,64 +486,6 @@ export const shareContractRouter = s.router(sharesContract, {
       return {
         status: 500 as const,
         body: { success: false as const, error: 'Bild konnte nicht aktualisiert werden' },
-      };
-    }
-  },
-
-  /**
-   * @deprecated Legacy `shared_media` template flow. Saving a sharepic as a
-   * Vorlage now goes through `userTemplates.fromCanvas`, which snapshots the
-   * canvas instead of flagging a rendered share — this endpoint has had no
-   * frontend caller since. Kept alive because existing `shared_media`
-   * templates are still readable via `GET /share/templates/:token` and the
-   * `/studio?template=` clone path; remove once those are migrated.
-   */
-  saveAsTemplate: async (args) => {
-    try {
-      const { shareToken } = args.params;
-      const userInfo = getUserInfo(args.req);
-      if (!userInfo) return UNAUTHORIZED;
-      const { id: userId, displayName: userName } = userInfo;
-      const { title, visibility = 'private' } = args.body;
-
-      const service = await getSharedMediaService();
-      await service.markAsTemplate(userId, shareToken, title || 'Template', visibility, userName);
-
-      const templateUrl = `/studio?template=${shareToken}`;
-
-      log.info(
-        `Share ${shareToken} marked as template with visibility: ${visibility} by user ${userId}`
-      );
-
-      return {
-        status: 200 as const,
-        body: {
-          success: true as const,
-          templateUrl,
-          shareToken,
-          visibility,
-        },
-      };
-    } catch (error) {
-      log.error('Failed to save as template:', error);
-      const errorMessage = (error as Error).message;
-      if (errorMessage.includes('not found')) {
-        return {
-          status: 404 as const,
-          body: { success: false as const, error: 'Share not found' },
-        };
-      } else if (errorMessage.includes('Not authorized')) {
-        return {
-          status: 403 as const,
-          body: {
-            success: false as const,
-            error: 'Not authorized to mark this as template',
-          },
-        };
-      }
-      return {
-        status: 500 as const,
-        body: { success: false as const, error: 'Failed to save as template' },
       };
     }
   },

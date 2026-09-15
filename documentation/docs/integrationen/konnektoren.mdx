@@ -1,5 +1,6 @@
 ---
 sidebar_position: 3
+description: 'Notion, Tally oder Brevo mit dem Chat verbinden, sodass die KI wirklich in deinen Formularen, Dokumenten und Kontakten arbeitet.'
 ---
 
 import { ConnectorTable, Fact, ManagedConnectorTable } from '@site/src/components/Reference';
@@ -86,12 +87,16 @@ Das Verzeichnis enthält aktuell <Fact name="connectorCount" /> handverlesene Di
 <ConnectorTable />
 
 :::info[Ein Dienst fehlt?]
-Einige bekannte Anbieter (z. B. Typeform, Zoom, DocuSign) verlangen aktuell eine eigene App-Registrierung pro Organisation und sind deshalb vorerst nicht im Verzeichnis. Über die Suche und den offenen MCP-Katalog findest du trotzdem viele weitere Server — oder du fügst einen eigenen hinzu.
+Über die Suche findest du weitere Server aus dem offenen MCP-Katalog — oder du fügst einen eigenen hinzu. Manche Anbieter verlangen dafür weiterhin eine eigene App-Registrierung pro Organisation, etwa Zoom oder DocuSign.
+:::
+
+:::tip[Typeform-Rechenzentrum wählen]
+Für die meisten Typeform-Konten wählst du **Typeform**. EU-gehostete Konten brauchen einen der beiden **Typeform (EU …)**-Einträge; die beiden EU-Endpunkte sind nicht austauschbar. Wenn du dein Rechenzentrum nicht kennst, frage den Typeform-Support bzw. deinen Customer Success Manager.
 :::
 
 ## Eigenen MCP-Server hinzufügen
 
-Für Dienste außerhalb des Verzeichnisses klicke auf **„Eigenen MCP-Server hinzufügen"** und trage **Name** und **Server-URL** (`https://…/mcp`) ein. Der Grünerator erkennt automatisch, ob der Server eine Anmeldung braucht, und startet bei Bedarf den Login-Flow. Falls der Anbieter eine manuell registrierte App verlangt, kannst du optional **Client-ID** und **Client-Secret** hinterlegen.
+Für Dienste außerhalb des Verzeichnisses klicke auf **„Eigenen MCP-Server hinzufügen"** und trage **Name** und **Server-URL** (`https://…/mcp`) ein. Ein so hinzugefügter Server wird ohne Anmeldung eingebunden. Der Login-Flow mit **„Autorisieren"** (bei Bedarf mit **Client-ID** und **Client-Secret**) steht nur bei Diensten zur Verfügung, die du direkt aus dem Verzeichnis auswählst — ein manuell eingetragener Server lässt sich derzeit nicht nachträglich auf eine Anmeldung umstellen.
 
 ## Verwalten, pausieren, trennen
 

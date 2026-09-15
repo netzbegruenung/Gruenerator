@@ -28,7 +28,7 @@ export const INTENT_HANDLER_PATHS: Record<SearchIntent, string> = {
   image_edit: 'handled via image_edit branch in controller',
   sharepic: 'handled via sharepic branch in controller (image generation variant)',
   social_post:
-    'handled via social_post branch in executeIntentPipeline — parallel sharepic generation + examples-grounded text (EXPERIMENTAL combined post), fixed Stage-3 confirmation',
+    'STILLGELEGT (08/2026) — nichts erzeugt dieses Verdikt mehr; ein Social-Post ist eine Textsorte und wird vom Rezept geschrieben (respondNode bzw. rezept_laden). Die Karten alter Threads werden weiter gelesen und über socialPostEditService bearbeitet.',
   produktion:
     'falls through to response generation — the substance is already in the message (pasted material, an attachment, an open document, existing text to rework, or pure wordcraft). May inherit the thread’s earlier sources via carryThreadSourcesIfNeeded',
   direct:
@@ -74,7 +74,7 @@ export const INTENT_HANDLER_PATHS: Record<SearchIntent, string> = {
   create_pdf:
     'handled via handlePdfCreation — generates a tagged, CI-styled PDF (document/letter/form), verifies the finished bytes, stores it as a compute asset and emits document_created SSE (subtype pdf); owns the turn on failure (templated error, never falls through)',
   create_recurring_task:
-    'handled via handleRecurringTaskCreation — parses the schedule, persists a recurring_tasks row, emits confirm SSE (flag-gated EXPERIMENTAL)',
+    'RETIRED as a verdict (09/2026) — a recurring order is classified `agentic` with `mentionPinnedTool: recurring_tasks`; the loop tool fills the schedule and creates via confirm card',
   modify_doc: 'routes to respond, then confirm_action SSE + pendingActionStore',
   edit_current_doc:
     'routes to respond, controller emits trigger_doc_edit SSE for BlockNote AI live edit',

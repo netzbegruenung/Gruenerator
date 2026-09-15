@@ -10,9 +10,14 @@ name: PR Review
 # docs-freshness.yml, nicht über einen Pay-per-Token-API-Key.
 
 on:
+  # Kein `branches:`-Filter, damit gestapelte PRs (Basis = ein anderer
+  # Feature-Branch) nicht durchfallen — Begruendung in ci.yml, Befund in #3100.
+  # Hier wog der Filter am schwersten: ci.yml und a11y.yml lassen sich zur Not
+  # von Hand starten, dieser Workflow nicht. `workflow_dispatch` waere auch kein
+  # Ersatz — `track_progress` funktioniert laut Action-Doku nur auf PR-/Issue-
+  # Ereignissen, ein Dispatch-Lauf traegt den PR-Kontext nicht.
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
-    branches: [master, main]
 
 # Kein id-token: write — das OIDC-Token brauchte nur der App-Token-Tausch, und
 # den ueberspringt die Action, seit github_token gesetzt ist.

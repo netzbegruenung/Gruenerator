@@ -18,6 +18,12 @@ export const groups = pgTable('groups', {
   is_active: boolean('is_active').default(true),
   group_type: text('group_type').default('standard'),
   settings: jsonb('settings').$type<Record<string, unknown>>().default({}),
+  /**
+   * Tot: kein Leser, kein Schreiber. Die Wolke-Freigabe an eine Gruppe läuft
+   * über `group_content_shares` (`content_type = 'nextcloud_share_link'`).
+   * Nicht gedroppt, weil DB-Spalten extern eingefroren sind (CLAUDE.md, F0) —
+   * Kandidat für einen expand→contract-Lauf, wenn ohnehin einer ansteht.
+   */
   wolke_share_links: jsonb('wolke_share_links').$type<unknown[]>().default([]),
   avatar_url: text('avatar_url'),
   links: jsonb('links').$type<GroupLink[]>().default([]),

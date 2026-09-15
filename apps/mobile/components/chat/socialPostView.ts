@@ -15,8 +15,9 @@ export const COLLAPSE_THRESHOLD = 600;
 /** Lines shown while collapsed — web clamps to 10. */
 export const COLLAPSED_LINES = 10;
 
-/** Public documentation for the experimental feature. */
-export const SOCIAL_POST_DOC_URL = 'https://doku.gruenerator.eu/docs/chat/was-kann-ich-fragen';
+/** How-to guide for social posts — the card itself only appears in old threads. */
+export const SOCIAL_POST_DOC_URL =
+  'https://doku.gruenerator.eu/docs/guides/einsteigerinnen/social-media-beitrag';
 
 export interface PostSegment {
   text: string;

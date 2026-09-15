@@ -1,17 +1,16 @@
 /**
- * Social-media prompt construction.
+ * Das Plattform-Handwerk für einen Social-Media-Text: angelernter Stil vor
+ * Rezept vor eingebauter Rubrik.
  *
- * Builds a social-media-specific system prompt grounded on full Insta captions
- * / FB posts retrieved by searchNode, and picks a platform-specific craft
- * rubric when `state.platform` is set.
+ * Die Datei hiess einmal nach einem `socialMediaComposerNode` und trug später
+ * `buildSocialMediaSystemPrompt` — den Systemtext des Verdikts `social_post`.
+ * Beides ist weg: der Knoten hatte nie Aufrufer, und das Verdikt ist 08/2026
+ * stillgelegt, weil ein Social-Post eine Textsorte ist und Textsorten das
+ * Rezept trägt (`respondNode` bzw. `rezept_laden` im Loop).
  *
- * The file also held a `socialMediaComposerNode` that wrapped
- * `buildSocialMediaSystemPrompt` for the compiled ChatGraph. That graph had no
- * callers and is gone, so the node went with it — but the two prompt helpers
- * below are very much live: `socialPostService` uses
- * `buildSocialMediaSystemPrompt`, `socialPostEditService` uses
- * `craftGuidanceForPlatform` (das intern erst den angelernten Stil sucht und
- * bei fehlendem Rezept auf `rubricForPlatform` zurückfällt).
+ * Was bleibt, hat GENAU EINEN lebenden Aufrufer: `socialPostEditService`
+ * überarbeitet die Posts, die vor der Stilllegung entstanden sind, und braucht
+ * dafür dieselbe Formvorgabe, nach der sie geschrieben wurden.
  */
 
 import { SKILLS } from '@gruenerator/shared/agents';
@@ -20,16 +19,14 @@ import {
   embedUntrusted,
   INSTRUCTION_HIERARCHY_RULE,
 } from '../../../../routes/chat/services/untrustedContent.js';
-import { CONTENT_INTEGRITY_RULES } from '../../../../services/contentPolicy.js';
 import { getInternalSkillPrompt } from '../../../../services/skills/internalPrompts.js';
 import { getTextFormForInjection } from '../../../../services/user/textFormRepository.js';
 import { createLogger } from '../../../../utils/logger.js';
-import { formatGermanDate } from '../../../../utils/stringUtils.js';
 
 import { detectSocialPlatform } from './classifierHeuristics.js';
 import { deriveTextFormMention } from './textFormMention.js';
 
-import type { ChatGraphState, SocialExampleItem, SocialTextPlatform } from '../types.js';
+import type { SocialTextPlatform } from '../types.js';
 
 const log = createLogger('ChatGraph:SocialComposer');
 
@@ -216,59 +213,4 @@ export async function craftGuidanceForPlatform(
   // Derselbe Detektor wie in der Klassifikation, damit es dafür keine zweite
   // Namensheuristik gibt.
   return rubricForPlatform(mention ? (detectSocialPlatform(mention) ?? platform) : platform);
-}
-
-const PLATFORM_LABELS: Record<SocialTextPlatform, string> = {
-  instagram: 'Instagram',
-  facebook: 'Facebook',
-  twitter: 'X/Twitter',
-  linkedin: 'LinkedIn',
-};
-
-function formatExample(ex: SocialExampleItem, idx: number): string {
-  const meta = [ex.platform, ex.author, ex.date].filter(Boolean).join(' · ');
-  const header = meta ? `### Vorlage ${idx + 1} (${meta})` : `### Vorlage ${idx + 1}`;
-  return `${header}\n${ex.content}`;
-}
-
-/**
- * Build the social-specific system prompt: agent.systemRole + craft rubric +
- * up to 6 full social posts as worked examples + writing-assignment guidance.
- *
- * Pulls from `state.examplesResult.social` (populated by searchNode with full
- * bodies when fullBody=true was passed to searchExamples).
- */
-export async function buildSocialMediaSystemPrompt(state: ChatGraphState): Promise<string> {
-  const { agentConfig, examplesResult, platform, activeSkillMention } = state;
-  const examples = (examplesResult?.social ?? []).slice(0, 6);
-
-  const today = formatGermanDate();
-
-  const platformNote = platform
-    ? `\n\nDie*der Nutzer*in hat **${PLATFORM_LABELS[platform]}** angefragt. Halte dich an das ${PLATFORM_LABELS[platform]}-Handwerk unten.`
-    : '';
-
-  const examplesBlock =
-    examples.length === 0
-      ? '\n\n*(Keine Vorlagen verfügbar — schreibe eigenständig nach dem Handwerks-Standard.)*'
-      : `\n\n## VORLAGEN\n\nFolgende echte Posts aus den Grünen-Kanälen dienen als Vorlage. Mimik ihren Hook, ihre Tonalität, ihre Hashtag-Setzung und ihre Absatzrhythmik — schreibe NICHT generisch.\n\n${examples.map(formatExample).join('\n\n---\n\n')}`;
-
-  const craftGuidance = await craftGuidanceForPlatform(
-    platform,
-    activeSkillMention,
-    agentConfig.userId
-  );
-
-  return `${agentConfig.systemRole}
-
-Heutiges Datum: ${today}${platformNote}
-
-${craftGuidance}${examplesBlock}
-
-## SCHREIBAUFTRAG
-
-Verfasse jetzt einen Social-Media-Post zum unten erfragten Thema. Befolge das Handwerk und mimik die Vorlagen. Kein einleitender Meta-Text ("Hier ist dein Post..."), kein abschließender Kommentar — nur der fertige Post inklusive Hashtags.
-${CONTENT_INTEGRITY_RULES}
-
-Antworte ausschließlich auf Deutsch — auch dann, wenn du die Anfrage ablehnst. Kannst oder willst du den Post nicht schreiben (etwa weil ein Zitat erfunden werden müsste), dann schreibe NUR einen deutschen Satz, der die Ablehnung begründet, und keinen Post-Entwurf.`;
 }

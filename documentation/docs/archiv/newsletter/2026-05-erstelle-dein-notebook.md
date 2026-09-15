@@ -1,6 +1,7 @@
 ---
 sidebar_position: 1
 title: 'Mai 2026: Das Notebook-Update'
+description: 'Der neue Dokumenten-Chat, überarbeitete Agents und das Erstellen und Bearbeiten von Bildern.'
 ---
 
 # Das Notebook-Update

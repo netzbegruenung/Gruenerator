@@ -6,6 +6,7 @@
  * and large document vectorization.
  */
 
+import { lastUserText } from '../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { truncateDocument } from '../../../agents/langgraph/ChatGraph/nodes/respondNode.js';
 import { createLogger } from '../../../utils/logger.js';
 
@@ -192,6 +193,10 @@ export async function enrichContext(opts: {
       if (docResults.length > 0) {
         // Per-doc budget scales with context window: 8K for 128K models, 2K for 16K models
         const perDocBudget = Math.max(2000, Math.min(8000, Math.floor(contextWindowTokens * 0.25)));
+        // Ein @doc-Mention läuft an der Suche vorbei — was vom Dokument beim
+        // Modell ankommt, entscheidet allein dieser Schnitt. Ohne Frage bleibt
+        // es beim Kopf-und-Schluss.
+        const mentionQuery = lastUserText(initialState);
         const { getDocumentHtml } = await import('../../../services/docs/docContentService.js');
         const docParts = (
           await Promise.all(
@@ -224,7 +229,7 @@ export async function enrichContext(opts: {
                   .trim();
                 if (!plainText) return null;
 
-                const truncated = truncateDocument(plainText, perDocBudget);
+                const truncated = truncateDocument(plainText, perDocBudget, mentionQuery);
                 const origin = fromYjs?.html?.trim()
                   ? `yjs${fromYjs.live ? '/live' : ''}`
                   : 'preview';

@@ -11,17 +11,19 @@ describe('isReasoningStreamModel', () => {
     expect(isReasoningStreamModel('regolo', 'gemma4-31b')).toBe(true);
   });
 
-  it('returns true for verdigado-think on litellm (primary Gemma reasoning lane)', () => {
-    expect(isReasoningStreamModel('litellm', 'verdigado-think')).toBe(true);
-  });
-
-  it('returns true for verdigado-pro on litellm (primary gpt-oss reasoning lane)', () => {
-    expect(isReasoningStreamModel('litellm', 'verdigado-pro')).toBe(true);
-  });
-
-  it('returns false for non-reasoning litellm aliases', () => {
-    expect(isReasoningStreamModel('litellm', 'gemma')).toBe(false);
-  });
+  /**
+   * Seit dem 29.08.2026 denkt auf `litellm` NICHTS mehr — der Host bedient kein
+   * Ziel, `getModel` biegt den Namen vorher auf Cortecs um
+   * (services/ai/litellmRetired.ts). Der Wächter steht hier trotzdem: käme der
+   * Zweig zurück, ohne dass die Stilllegung aufgehoben wird, ginge ein Denk-
+   * Strom an einen Host, der die Anfrage gar nicht bekommt.
+   */
+  it.each(['verdigado-think', 'verdigado-pro', 'gemma'])(
+    'returns false for the retired litellm alias %s',
+    (model) => {
+      expect(isReasoningStreamModel('litellm', model)).toBe(false);
+    }
+  );
 
   /**
    * Der Cortecs-Zweig ist der Grund, warum die Gemma-Antwortlane den Host
@@ -100,38 +102,3 @@ describe.skipIf(!process.env.REGOLO_API_KEY)('streamWithReasoning — live integ
     await expect(run()).rejects.toThrow(/regolo reasoning stream unavailable/);
   }, 15_000);
 });
-
-describe.skipIf(!process.env.LITELLM_API_KEY || !process.env.LITELLM_BASE_URL)(
-  'streamWithReasoning — Verdigado/LiteLLM live integration',
-  () => {
-    // Both Ollama-backed aliases stream thinking in the `reasoning` field before
-    // any `content`: verdigado-think = Gemma 4, verdigado-pro = gpt-oss. The bug
-    // this guards against is the AI SDK dropping that field entirely (zero
-    // reasoning surfaced). We only need to prove a few reasoning deltas arrive —
-    // waiting for the full (slow, slot-queued) generation to reach the answer
-    // text would make the test flaky.
-    it.each(['verdigado-think', 'verdigado-pro'])(
-      'surfaces the `reasoning` field from %s',
-      async (model) => {
-        const reasoning: string[] = [];
-
-        for await (const chunk of streamWithReasoning({
-          provider: 'litellm',
-          model,
-          messages: [
-            { role: 'system', content: 'Answer in at most 3 words.' },
-            { role: 'user', content: 'What is 17*23? Reason briefly, then give the number.' },
-          ],
-          maxTokens: 2000,
-          temperature: 0,
-        })) {
-          if (chunk.type === 'reasoning') reasoning.push(chunk.delta);
-          if (reasoning.length >= 3) break;
-        }
-
-        expect(reasoning.length).toBeGreaterThanOrEqual(3);
-      },
-      45_000
-    );
-  }
-);

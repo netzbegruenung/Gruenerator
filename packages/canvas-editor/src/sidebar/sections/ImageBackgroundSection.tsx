@@ -1,7 +1,7 @@
-import { MasonryGrid, MasonryItem } from '@gruenerator/ui';
+import { MasonryGrid, MasonryItem, Switch } from '@gruenerator/ui';
 import { useState, useEffect, useCallback } from 'react';
 import { FaCheck } from 'react-icons/fa';
-import { HiAdjustments } from 'react-icons/hi';
+import { HiAdjustments, HiColorSwatch } from 'react-icons/hi';
 import { HiMagnifyingGlass, HiPhoto, HiXMark } from 'react-icons/hi2';
 
 import { shareThumbnailPreviewUrl } from '@gruenerator/shared/media-library';
@@ -10,13 +10,16 @@ import UnsplashAttribution from '../../common/UnsplashAttribution';
 import { useUnsplashSearch } from '../../hooks/useUnsplashSearch';
 import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import { persistImageSelection } from '../persistImageSelection';
+import { ColorSwatchGrid } from '../components/ColorSwatchGrid';
 import { MediaThumb } from '../components/MediaThumb';
 import { SidebarSlider } from '../components/SidebarSlider';
 import { SIDEBAR_SECTION } from '../sidebarStyles';
 import { SubsectionTabBar, type Subsection } from '../SubsectionTabBar';
 import { useUserUploads } from '../UserUploadsProvider';
+import { downscaleImageForUpload } from '../../utils/userImageUtils';
 
 import type { StockImage, StockImageAttribution } from '../../common/imageSourceTypes';
+import type { BackgroundColorOption } from '../types';
 import type { MediaItem } from '@gruenerator/shared/media-library';
 
 import { cn } from '../../utils/cn';
@@ -35,7 +38,8 @@ export interface ImageBackgroundSectionProps {
     attribution?: StockImageAttribution | null
   ) => void;
 
-  // Optional legacy scale controls (will be deprecated)
+  // The background photo is draggable but not transformable — it has no
+  // on-canvas handles — so this slider is the only way to zoom it.
   scale?: number;
   onScaleChange?: (scale: number) => void;
 
@@ -46,6 +50,14 @@ export interface ImageBackgroundSectionProps {
   // New Modular Lock Controls
   isLocked?: boolean;
   onToggleLock?: () => void;
+
+  // Solid colour under the photo. Present on the photo-backed templates, which
+  // draw a `background-color` plane at order -1: with no picture chosen the
+  // plane is what the user sees, with one it is fully covered. Passing all
+  // three adds the "Farbe" subsection.
+  backgroundColor?: string;
+  backgroundColors?: readonly BackgroundColorOption[];
+  onBackgroundColorChange?: (color: string) => void;
 }
 
 /**
@@ -118,7 +130,10 @@ function SearchContent({
         if (!response.ok) throw new Error('Bild konnte nicht geladen werden');
         const blob = await response.blob();
         const filename = item.originalFilename ?? item.title ?? `upload-${item.id}`;
-        const file = new File([blob], filename, { type: blob.type || 'image/jpeg' });
+        const rawFile = new File([blob], filename, { type: blob.type || 'image/jpeg' });
+        // Same cap as persistImageSelection: this File backs the auto-save
+        // `originalImage`, so it should be the working size, not the raw original.
+        const file = await downscaleImageForUpload(rawFile);
         // The library URL is already durable — persist it directly instead of a
         // session-local blob: URL (which dies on reload in the collab editor).
         onImageChange(file, url, null);
@@ -362,19 +377,43 @@ function SearchContent({
 }
 
 /**
- * Adjustment Controls Content - scale, gradient, etc.
+ * Adjustment Controls Content - zoom, lock, gradient.
+ *
+ * All three used to be accepted as props and none but the gradient was drawn,
+ * so every template that passed `scale` (all of them) opened this panel on an
+ * empty box. The bounds below match `backgroundPhotoElement()` in the sharepic
+ * descriptor, so the slider and the chat edit agree on what a zoom is.
  */
 function AdjustmentsContent({
   scale,
   onScaleChange,
   gradientOpacity,
   onGradientOpacityChange,
+  isLocked,
+  onToggleLock,
 }: Pick<
   ImageBackgroundSectionProps,
-  'scale' | 'onScaleChange' | 'gradientOpacity' | 'onGradientOpacityChange'
+  | 'scale'
+  | 'onScaleChange'
+  | 'gradientOpacity'
+  | 'onGradientOpacityChange'
+  | 'isLocked'
+  | 'onToggleLock'
 >) {
   return (
     <div className={cn(SIDEBAR_SECTION, 'gap-4 px-3 pb-4')}>
+      {scale !== undefined && onScaleChange !== undefined && (
+        <SidebarSlider
+          label="Zoom"
+          value={scale}
+          onValueChange={onScaleChange}
+          min={0.5}
+          max={3}
+          step={0.01}
+          unit="%"
+        />
+      )}
+
       {gradientOpacity !== undefined && onGradientOpacityChange !== undefined && (
         <SidebarSlider
           label="Overlay"
@@ -385,6 +424,13 @@ function AdjustmentsContent({
           step={0.01}
           unit="%"
         />
+      )}
+
+      {onToggleLock !== undefined && (
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-foreground">Hintergrund fixieren</span>
+          <Switch checked={!!isLocked} onCheckedChange={onToggleLock} />
+        </div>
       )}
     </div>
   );
@@ -399,10 +445,19 @@ export function ImageBackgroundSection({
   onGradientOpacityChange,
   isLocked,
   onToggleLock,
+  backgroundColor,
+  backgroundColors,
+  onBackgroundColorChange,
 }: ImageBackgroundSectionProps) {
   const hasAdjustments =
     (scale !== undefined && onScaleChange !== undefined) ||
-    (gradientOpacity !== undefined && onGradientOpacityChange !== undefined);
+    (gradientOpacity !== undefined && onGradientOpacityChange !== undefined) ||
+    onToggleLock !== undefined;
+
+  const hasColor =
+    backgroundColors !== undefined &&
+    backgroundColors.length > 0 &&
+    onBackgroundColorChange !== undefined;
 
   const subsections: Subsection[] = [
     {
@@ -412,6 +467,28 @@ export function ImageBackgroundSection({
       content: <SearchContent currentImageSrc={currentImageSrc} onImageChange={onImageChange} />,
     },
   ];
+
+  if (hasColor) {
+    subsections.push({
+      id: 'background-color',
+      icon: HiColorSwatch,
+      label: 'Farbe',
+      content: (
+        <div className={cn(SIDEBAR_SECTION, 'w-full gap-3 px-3 pb-4')}>
+          <ColorSwatchGrid
+            colors={backgroundColors}
+            currentColor={backgroundColor ?? ''}
+            onColorChange={onBackgroundColorChange}
+          />
+          {currentImageSrc ? (
+            <p className="m-0 text-xs text-foreground-muted">
+              Das Bild liegt über der Farbe. Entferne es unter „Bilder", um die Farbe zu sehen.
+            </p>
+          ) : null}
+        </div>
+      ),
+    });
+  }
 
   if (hasAdjustments) {
     subsections.push({
@@ -424,6 +501,8 @@ export function ImageBackgroundSection({
           onScaleChange={onScaleChange}
           gradientOpacity={gradientOpacity}
           onGradientOpacityChange={onGradientOpacityChange}
+          isLocked={isLocked}
+          onToggleLock={onToggleLock}
         />
       ),
     });

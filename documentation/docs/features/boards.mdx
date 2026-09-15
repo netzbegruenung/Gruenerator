@@ -1,0 +1,66 @@
+---
+sidebar_position: 6
+description: 'Spalten und Karten für Aufgaben, Redaktionsplanung oder Kampagnenstand — mit einem Grünerator, der in den Karten mitarbeitet.'
+---
+
+import UiLabel from '@site/src/components/UiLabel';
+import { BoardPresets } from '@site/src/components/OfficeOps';
+
+# Boards
+
+Ein Board ist eine Tafel aus Spalten und Karten — für Aufgabenverteilung, Redaktionsplanung oder den Stand einer Kampagne. Du legst es über **<UiLabel id="workplace.boards" />** an.
+
+Was Boards von einer gewöhnlichen Aufgabenliste unterscheidet: Der Grünerator kann darin **mitarbeiten**. Er beantwortet Fragen in Karten, recherchiert, und kann eine ganze Spalte automatisch befüllen.
+
+{/* SCREENSHOT: /boards/<id> mit drei Spalten und einigen Karten, eine Karte geöffnet. Bildunterschrift: „Ein Redaktionsboard mit geöffneter Karte." */}
+
+## Spalten und Karten
+
+Spalten sind die Stationen, die eine Aufgabe durchläuft — „Ideen", „In Arbeit", „Fertig". Karten wandern per Ziehen von einer Spalte in die nächste. Jede Karte hat einen Titel, eine Beschreibung, Kommentare und kann Personen zugewiesen werden.
+
+## Den Grünerator in einer Karte fragen
+
+Schreib in einem Kartenkommentar **@Grünerator** und dahinter deinen Auftrag. Die Antwort erscheint als Kommentar an derselben Karte — der Zusammenhang bleibt also dort, wo die Aufgabe steht.
+
+> „@Grünerator recherchier den aktuellen Stand beim Radwegeausbau und fass das kurz zusammen."
+
+Standardmäßig antwortet er als Kommentar. Sagst du ausdrücklich, dass etwas anderes herauskommen soll, erzeugt er stattdessen ein eigenes Dokument und hängt es an die Karte:
+
+| Was du schreibst                    | Was entsteht                                 |
+| ----------------------------------- | -------------------------------------------- |
+| „…und mach eine **Tabelle** daraus" | eine Tabelle, verknüpft mit der Karte        |
+| „…als **Präsentation**"             | eine Foliensammlung, verknüpft mit der Karte |
+| „…**leg daraus Aufgaben an**"       | neue Karten im selben Board                  |
+| „…schreib ein **Dokument** dazu"    | ein Textdokument, verknüpft mit der Karte    |
+
+:::tip[Die Formulierung entscheidet]
+Tabellen, Präsentationen und Aufgabenlisten entstehen nur, wenn du sie **ausdrücklich nennst**. Das ist Absicht: Wer nur eine Frage stellt, soll eine Antwort bekommen und nicht ungefragt ein neues Dokument.
+:::
+
+Erzeugte Dokumente erben die Freigabe des Boards. Wer das Board sehen darf, sieht auch das Ergebnis — du musst nichts zusätzlich freigeben.
+
+## Grünerator-Spalten
+
+Eine Grünerator-Spalte ist eine Spalte, die selbst arbeitet. Du richtest sie einmal ein, und danach durchläuft jede Karte drei Schritte: **Quelle → KI-Schritt → Ergebnis**.
+
+- **Quelle** — woher der Inhalt kommt: aus der Karte selbst, von einer Webadresse oder aus einem Social-Media-Beitrag.
+- **KI-Schritt** — was damit geschehen soll. Entweder eine der fertigen Aufgaben (unten) oder eine eigene Anweisung.
+- **Ergebnis** — was dabei herauskommt: ein Kommentar, ein Dokument, eine Tabelle, eine Präsentation oder eine E-Mail.
+
+Das Ganze lässt sich auch nach Zeitplan laufen lassen — etwa jeden Montagmorgen.
+
+### Fertige Aufgaben
+
+<BoardPresets />
+
+Reicht keine davon, gibst du stattdessen eine eigene Anweisung ein.
+
+{/* SCREENSHOT: AiColumnDialog mit Quelle/KI-Schritt/Ergebnis. Bildunterschrift: „Beim Einrichten einer Grünerator-Spalte legst du Quelle, KI-Schritt und Ergebnis fest." */}
+
+:::note[Erst nachsehen, dann schreiben]
+Bei Recherche-Aufgaben sucht der Grünerator zuerst und formuliert danach — er schreibt nicht aus dem Gedächtnis. Bei zitierten Recherchen bekommst du die Quellen mitgeliefert; prüf sie, bevor etwas nach außen geht.
+:::
+
+## Auf dem Handy
+
+In der App öffnet ein Board den vollen Editor — dieselbe Oberfläche wie im Browser, nur ohne Menüleiste drumherum. Karten verschieben, Spalten anlegen, Grünerator-Spalten einrichten: alles geht direkt vom Handy aus.

@@ -22,8 +22,51 @@ import { MAX_SOURCES } from './citableSources.js';
 
 const log = createLogger('ChatGraph:Rerank');
 
-/** Excerpt per candidate handed to the cross-encoder. */
-const RERANK_EXCERPT_CHARS = 1200;
+/*
+ * KEIN Auszugsfenster mehr — der Cross-Encoder liest den ganzen Kandidaten.
+ *
+ * Hier stand nacheinander ein Kopfschnitt auf 1200, dann einer auf 1500, dann
+ * ein anfragebezogener Auszug derselben Grösse. Gemessen am 28.08.2026 über
+ * `evals/retrieval` (52 Fälle, EVAL_RERANK=1, dieselben Kandidaten in
+ * derselben Reihenfolge, Werte nach Rerank):
+ *
+ *   Fenster  Auswahl        Hit@1   Hit@3   MRR@10   Encoder (Median)
+ *   1200     Kopf           34,6 %  76,9 %  0,554     854 ms
+ *   1500     Kopf           26,9 %  63,5 %  0,481    1051 ms
+ *   1500     anfragebezogen 40,4 %  71,2 %  0,580    1021 ms
+ *   3000     Kopf           38,5 %  63,5 %  0,552    1433 ms
+ *   3000     anfragebezogen 34,6 %  65,4 %  0,539    1397 ms
+ *   ohne Fenster (ganz)     48,1 %  73,1 %  0,622    1906 ms  ← jetzt
+ *
+ * Bei n=52 sind 1,9 Punkte ein Fall, und die beiden Kopf-Zeilen 1200/1500
+ * unterscheiden sich um 7,7 Punkte in die FALSCHE Richtung — unterhalb von rund
+ * acht Punkten löst diese Vorrichtung nichts auf. Genau deshalb entscheidet
+ * hier die einzige Zeile, die darüber liegt und zweimal identisch gemessen
+ * wurde: **der Preis des Fensters ist grösser als die Wahl des Schnitts.**
+ *
+ * **Warum das Fenster überhaupt bestehen konnte.** `r.content` ist bei
+ * Sammlungstreffern `relevant_content` — der mit `\n\n---\n\n` verkettete
+ * Auszug von bis zu `CONTENT_MAX_CHUNKS_PER_DOC` (10) bereits gefundenen
+ * Chunks (`BaseSearchService`, ~Zeile 449). Ein Kopfschnitt darauf liest nicht
+ * „den Anfang einer Seite", er wirft acht von zehn Belegen weg, und weil ein
+ * Treffer-Chunk nach vorn gezogen wird, bevorzugt der Rest ausgerechnet das
+ * lexikalische Signal, das der Cross-Encoder korrigieren soll.
+ *
+ * **Warum es jetzt weg kann (#2998).** Das Fenster war die Abwehr gegen
+ * unbegrenzte Kandidaten. Die gab es nur an zwei Stellen in `searchNode`, die
+ * `selectAndCrawlTopUrls` riefen und rohes `fullContent` durchreichten; beide
+ * laufen jetzt über `crawlAndDistill` (`WEB_CRAWL_TARGET_CHARS`, 8000). Damit
+ * ist JEDER Kandidat schon beim Eintritt begrenzt — Sammlungstreffer durch die
+ * Zehn-Chunk-Bauform (gemessenes Maximum 15 645 Zeichen), gecrawlte Seiten
+ * durch ihr Destillat. `rerankPipeline` zieht zusätzlich eine Decke pro Aufruf,
+ * falls je wieder jemand Unbegrenztes hereinreicht.
+ *
+ * Der Preis steht dabei: Encoder-Median 854 → 1906 ms, gegen Loop-Turns von
+ * 7,9 s / 9,4 s.
+ *
+ * Wer hier wieder schneiden will, misst vorher — und erweitert dafür
+ * `RETRIEVAL_CASES` (53 Fälle), sonst misst er Rauschen.
+ */
 
 /**
  * Obergrenze für Überlebende — nur noch im Zweig OHNE Notebook-Bezug.
@@ -113,14 +156,13 @@ export async function rerankNode(state: ChatGraphState): Promise<Partial<ChatGra
 
   const queryStr = researchBrief ? `${searchQuery}\n${researchBrief}` : searchQuery || '';
 
+  // Der ganze Kandidat, ungeschnitten — siehe den Block oben. Was hier
+  // hineingeht, ist beim Eintritt begrenzt; die Decke pro Aufruf zieht
+  // `rerankPipeline`, damit sie an EINER Stelle steht und nicht an fünf.
   const items: RerankableItem[] = candidates.map((r) => {
     const item: RerankableItem = {
       title: r.title,
-      // The cross-encoder scores THIS text, so the excerpt decides which sources
-      // survive. At 300 chars a crawled page whose relevant passage sits further
-      // in was judged on its boilerplate header — a selection loss that then
-      // propagates into everything downstream.
-      content: r.content.slice(0, RERANK_EXCERPT_CHARS),
+      content: r.content,
       source: r.source,
     };
     if (r.relevance != null) {

@@ -65,6 +65,7 @@ export const profiles = pgTable(
       .default([]),
     document_mode: text('document_mode').notNull().default('manual'),
     default_startpage: text('default_startpage').notNull().default('chat'),
+    tts_voice_id: text('tts_voice_id'),
     user_defaults: jsonb('user_defaults')
       .$type<Record<string, Record<string, unknown>>>()
       .notNull()
@@ -72,7 +73,7 @@ export const profiles = pgTable(
     docs: boolean('docs').notNull().default(false),
     boards: boolean('boards').notNull().default(false),
     bundestag_api_enabled: boolean('bundestag_api_enabled').notNull().default(false),
-    memory_enabled: boolean('memory_enabled').notNull().default(false),
+    memory_enabled: boolean('memory_enabled').notNull().default(true),
     feedback_button: text('feedback_button').notNull().default('text'),
     reduce_motion: boolean('reduce_motion').notNull().default(false),
     reduce_transparency: boolean('reduce_transparency').notNull().default(false),

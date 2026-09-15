@@ -13,7 +13,7 @@ import { type ChatIntentId } from './index.js';
  *
  * Die Disposition ist NICHT aus `category` ableitbar und deshalb eine eigene
  * Achse: `category: 'artifact'` enthält `save_as_doc` (artifact) neben
- * `share_doc` und `create_recurring_task` (beide gated), `category: 'internal'`
+ * `share_doc` (gated) und `create_recurring_task` (retired), `category: 'internal'`
  * enthält `agentic` (loop) neben `direct` (prose).
  *
  * Der Umbau auf Dispositionen behauptet, dass der Klassifikator heute eine
@@ -65,6 +65,10 @@ import { type ChatIntentId } from './index.js';
  *                Dokumente, darüber per_doc_bullets) und eigene Degradierung
  *                auf `search` bei ≤1 Doc-Quelle
  *   examples     @beispiele · Ziel der App-Herabstufung von social_post
+ *   social_post  STILLGELEGT (08/2026): die Textsorte liegt im Rezept
+ *                (`instagram`/`facebook`/`twitter`/`linkedin`/`reel`), das der
+ *                Einzeldurchlauf über `deriveImplicitRecipeMention` lädt —
+ *                der einzige, der ersatzlos fällt statt umzuziehen
  *   pressemitteilung_examples  STILLGELEGT (Phase L): die Karte hängt am
  *                Werkzeug, nicht am Verdikt; @pressemitteilungen/@pm zurrt
  *                Werkzeug UND Rezept `presse` fest
@@ -147,6 +151,19 @@ export const DISPOSITION_BY_INTENT: Record<ChatIntentId, Disposition> = {
   // Grund, warum der Intent nichts mehr trug: das Werkzeug hing im Katalog, die
   // Textsorte im Rezept, und übrig blieb `kinds.push('press')` plus eine Karte.
   pressemitteilung_examples: 'retired',
+  // Und ein drittes Mal, diesmal ganz ohne Werkzeug: `social_post` war als
+  // `artifact` geführt, weil es eine Karte erzeugte und eine Generierung
+  // kostete. Beides beschrieb die Verpackung, nicht die Frage — die Frage war
+  // „nach welcher Textsorte wird hier geschrieben", und die beantwortet ein
+  // Rezept auf dem Einzeldurchlauf. Kein Verdikt nötig, kein Urteil VOR der
+  // Antwort. Zensus 3/167 vor der Stilllegung.
+  social_post: 'retired',
+  // Und ein viertes Mal, wieder als Loop-Werkzeug: `create_recurring_task`
+  // trug einen Einzeldurchlauf mit eigenem Extraktions-LLM-Aufruf und schrieb
+  // OHNE Bestätigung. Jetzt liefert Tier 3.4 `agentic` mit dem Pin auf
+  // `recurring_tasks`, der Loop-Planer füllt das Contract-Schema selbst, und das
+  // Anlegen ist eine Karte. Zensus 0/205 vor der Stilllegung.
+  create_recurring_task: 'retired',
   /** Der Auffangwert selbst. Seit #2269 der Residualwert der LLM-Stufe. */
   agentic: 'loop',
 
@@ -155,7 +172,6 @@ export const DISPOSITION_BY_INTENT: Record<ChatIntentId, Disposition> = {
   image: 'artifact',
   image_edit: 'artifact',
   sharepic: 'artifact',
-  social_post: 'artifact',
   chart: 'artifact',
   artifact: 'artifact',
   save_as_doc: 'artifact',
@@ -176,7 +192,6 @@ export const DISPOSITION_BY_INTENT: Record<ChatIntentId, Disposition> = {
   share_doc: 'gated',
   chat_history: 'gated',
   hilfe: 'gated',
-  create_recurring_task: 'gated',
   summary: 'gated',
   compute: 'gated',
   mcp: 'gated',

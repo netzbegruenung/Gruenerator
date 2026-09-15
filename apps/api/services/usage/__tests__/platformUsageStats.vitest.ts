@@ -17,12 +17,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 /** Results handed to consecutive select() calls, in order. */
 let selectQueue: unknown[][] = [];
+/** The condition each statement was given, in the same order. */
+let whereArgs: unknown[] = [];
 
 function builder(result: unknown) {
   const chain: Record<string, unknown> = {};
-  for (const method of ['from', 'where', 'groupBy', 'orderBy', 'limit']) {
+  for (const method of ['from', 'groupBy', 'orderBy', 'limit']) {
     chain[method] = () => chain;
   }
+  chain.where = (condition: unknown) => {
+    whereArgs.push(condition);
+    return chain;
+  };
   chain.then = (resolve: (v: unknown) => unknown) => Promise.resolve(result).then(resolve);
   return chain;
 }
@@ -55,7 +61,25 @@ function row(over: Partial<Record<string, string | number>> = {}) {
 
 beforeEach(() => {
   selectQueue = [];
+  whereArgs = [];
 });
+
+/**
+ * Every bound parameter value inside a drizzle SQL tree, in order. A primitive
+ * interpolated into a `sql` template sits in `queryChunks` as itself and only
+ * becomes a `Param` when the query is built, so both forms are collected.
+ */
+function boundValues(node: unknown, out: unknown[] = []): unknown[] {
+  if (typeof node === 'string' || typeof node === 'number') out.push(node);
+  if (node && typeof node === 'object') {
+    if ('value' in node && !('queryChunks' in node)) out.push((node as { value: unknown }).value);
+    if ('queryChunks' in node) {
+      for (const chunk of (node as { queryChunks: unknown[] }).queryChunks) boundValues(chunk, out);
+    }
+    if (Array.isArray(node)) for (const chunk of node) boundValues(chunk, out);
+  }
+  return out;
+}
 
 describe('cell suppression', () => {
   it('removes a thin day from the TOTALS, not just from the daily series', async () => {
@@ -71,7 +95,7 @@ describe('cell suppression', () => {
       [row({ day: '2026-07-30', outputTokens: 1000 })],
     ];
 
-    const stats = await computePlatformUsageStats(30);
+    const stats = await computePlatformUsageStats(30, null);
 
     expect(stats.suppressed_days).toBe(1);
     expect(stats.daily.map((d) => d.day)).toEqual(['2026-07-30']);
@@ -84,7 +108,7 @@ describe('cell suppression', () => {
   it('publishes nothing when the whole window is below the threshold', async () => {
     selectQueue = [[{ day: '2026-07-31', activeUsers: MIN_GROUP_SIZE - 1 }]];
 
-    const stats = await computePlatformUsageStats(30);
+    const stats = await computePlatformUsageStats(30, null);
 
     expect(stats.sufficient_data).toBe(false);
     expect(stats.suppressed_days).toBe(1);
@@ -104,7 +128,7 @@ describe('cell suppression', () => {
       [{ activeUsers: MIN_GROUP_SIZE - 1 }],
     ];
 
-    const stats = await computePlatformUsageStats(30);
+    const stats = await computePlatformUsageStats(30, null);
 
     expect(stats.sufficient_data).toBe(false);
     expect(stats.suppressed_days).toBe(2);
@@ -112,8 +136,41 @@ describe('cell suppression', () => {
 
   it('reports the threshold it applied', async () => {
     selectQueue = [[]];
-    const stats = await computePlatformUsageStats(30);
+    const stats = await computePlatformUsageStats(30, null);
     expect(stats.min_group_size).toBe(MIN_GROUP_SIZE);
+  });
+});
+
+describe('locale scope', () => {
+  const window = () => [
+    [{ day: '2026-07-30', activeUsers: MIN_GROUP_SIZE }],
+    [{ activeUsers: MIN_GROUP_SIZE }],
+    [row()],
+  ];
+
+  it('narrows EVERY statement to the segment, the census included', async () => {
+    // The threshold has to be applied to the segment: if only the aggregate
+    // were filtered, a country with two users would pass the platform-wide
+    // census and publish a figure about those two.
+    selectQueue = window();
+    await computePlatformUsageStats(30, 'at');
+
+    expect(whereArgs).toHaveLength(3);
+    for (const condition of whereArgs) {
+      expect(boundValues(condition)).toContain('de-AT');
+    }
+  });
+
+  it('binds no country when the whole instance is asked for', async () => {
+    selectQueue = window();
+    await computePlatformUsageStats(30, null);
+
+    expect(whereArgs).toHaveLength(3);
+    for (const condition of whereArgs) {
+      const values = boundValues(condition);
+      expect(values).not.toContain('de-AT');
+      expect(values).not.toContain('de-DE');
+    }
   });
 });
 
@@ -126,7 +183,7 @@ describe('footprint band', () => {
   it('collapses to a single value where the provider measured it', async () => {
     selectQueue = [...eligible(), [row({ energyWms: 3_600_000, emissionsUg: 1_000_000 })]];
 
-    const stats = await computePlatformUsageStats(30);
+    const stats = await computePlatformUsageStats(30, null);
 
     expect(stats.footprint.energy_wh).toBeCloseTo(1, 6);
     expect(stats.footprint.energy_wh_low).toBeCloseTo(stats.footprint.energy_wh, 6);
@@ -137,7 +194,7 @@ describe('footprint band', () => {
     // qwen3.5-122b has no meter; it is costed at the top of the measured span.
     selectQueue = [...eligible(), [row({ provider: 'regolo', model: 'pixtral-large-latest' })]];
 
-    const stats = await computePlatformUsageStats(30);
+    const stats = await computePlatformUsageStats(30, null);
 
     expect(stats.footprint.bounded_share).toBeCloseTo(1, 6);
     expect(stats.footprint.energy_wh_low).toBeLessThan(stats.footprint.energy_wh);
@@ -150,11 +207,17 @@ describe('footprint band', () => {
       [row({ provider: 'bfl', model: 'flux-2-pro', unit: 'images', ops: 1, requests: 0 })],
     ];
 
-    const stats = await computePlatformUsageStats(30);
+    const stats = await computePlatformUsageStats(30, null);
 
-    // The uplift is exactly x2, so the band's ends stand in that ratio.
-    expect(stats.footprint.energy_wh).toBeCloseTo(stats.footprint.energy_wh_low * 2, 6);
-    expect(stats.footprint.image_energy_wh).toBeCloseTo(stats.footprint.energy_wh, 6);
+    // Only the boundary uplift moves for an image, so the scale's ends stand in
+    // its ratio (1.92 .. 2.70) and the published figure is the middle.
+    const { energy_wh, energy_wh_low, energy_wh_high, image_energy_wh } = stats.footprint;
+    expect(energy_wh_high / energy_wh_low).toBeCloseTo(2.7 / 1.92, 6);
+    expect(energy_wh).toBeCloseTo(Math.sqrt(energy_wh_low * energy_wh_high), 6);
+    expect(energy_wh_low).toBeLessThan(energy_wh);
+    expect(energy_wh).toBeLessThan(energy_wh_high);
+    // The headline is the middle, and the image half of it is the whole of it.
+    expect(image_energy_wh).toBeCloseTo(energy_wh, 6);
   });
 });
 
@@ -175,9 +238,13 @@ describe('what the number does not include', () => {
       ],
     ];
 
-    const stats = await computePlatformUsageStats(30);
+    const stats = await computePlatformUsageStats(30, null);
 
-    expect(stats.footprint.unvalued_ops).toEqual({ transcriptions: 3, searches: 7 });
+    expect(stats.footprint.unvalued_ops).toEqual({
+      transcriptions: 3,
+      searches: 7,
+      speech_seconds: 0,
+    });
     expect(stats.footprint.energy_wh).toBe(0);
     // A provider at 0 g in the list would read as "this one is free". The two
     // units have no coefficient at all, which is a different statement.
@@ -193,7 +260,7 @@ describe('provider disclosure', () => {
       [row({ provider: 'regolo', model: 'pixtral-large-latest' })],
     ];
 
-    const stats = await computePlatformUsageStats(30);
+    const stats = await computePlatformUsageStats(30, null);
 
     expect(stats.providers).toHaveLength(1);
     const [regolo] = stats.providers;
@@ -230,7 +297,7 @@ describe('cacheability', () => {
       aggregateRows,
     ];
 
-    const stats = await computePlatformUsageStats(30);
+    const stats = await computePlatformUsageStats(30, null);
     const parsed = getTransparencyStatsResponseSchema.safeParse(stats);
 
     expect(parsed.success ? null : parsed.error.message).toBeNull();

@@ -17,11 +17,19 @@ import { promises as fs } from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
-import NextcloudApiClient, { type NextcloudFile } from '../../api-clients/nextcloudApiClient.js';
+import NextcloudApiClient from '../../api-clients/nextcloudApiClient.js';
 import { ocrService } from '../../OcrService/index.js';
+import { walkWolkeFolder } from '../../sync/folderWalk.js';
+import {
+  WOLKE_PLAINTEXT_EXTENSIONS,
+  WOLKE_SCRAPER_OCR_EXTENSIONS,
+} from '../../sync/supportedFileTypes.js';
 
-/** Read straight off the wire as UTF-8 — never reaches OCR, so no media type needed. */
-export const TEXT_EXTENSIONS = ['.txt', '.md'];
+/**
+ * Read straight off the wire as UTF-8 — never reaches OCR, so no media type
+ * needed. Abgeleitet aus `supportedFileTypes.ts`, der einen Liste.
+ */
+export const TEXT_EXTENSIONS: string[] = [...WOLKE_PLAINTEXT_EXTENSIONS];
 
 /**
  * Binary document types handed to OCR. Every entry MUST have a mapping in
@@ -29,7 +37,7 @@ export const TEXT_EXTENSIONS = ['.txt', '.md'];
  * rejects the request, which the caller counts as an error per file on every full
  * crawl. `wolkeMediaTypes.vitest.ts` guards the pair.
  */
-export const OCR_EXTENSIONS = ['.pdf', '.docx', '.doc', '.pptx', '.xlsx'];
+export const OCR_EXTENSIONS: string[] = [...WOLKE_SCRAPER_OCR_EXTENSIONS];
 
 /** Document types worth extracting from a share (skip images, archives, media). */
 const SUPPORTED_EXTENSIONS = [...OCR_EXTENSIONS, ...TEXT_EXTENSIONS];
@@ -70,16 +78,6 @@ function hasSupportedExtension(name: string): boolean {
   return SUPPORTED_EXTENSIONS.some((ext) => lower.endsWith(ext));
 }
 
-/**
- * The shared NextcloudApiClient's regex parser leaves the WebDAV etag
- * HTML-entity-escaped (`&quot;…&quot;`). Normalize to the bare token here so the
- * stored `wolke_etag` is clean and the dedup compare stays stable run-to-run.
- */
-function normalizeEtag(etag: string | null): string | null {
-  if (!etag) return null;
-  return etag.replace(/&quot;/g, '').replace(/^["']|["']$/g, '');
-}
-
 /** WebDAV href → path relative to the share's webdav root (decoded, no leading slash). */
 function hrefToRelativePath(href: string): string {
   const idx = href.indexOf(WEBDAV_PREFIX);
@@ -98,35 +96,35 @@ export async function collectWolkeShareFiles(
   log: (msg: string) => void = () => {}
 ): Promise<{ client: NextcloudApiClient; files: WolkeShareFile[] }> {
   const client = await NextcloudApiClient.create(shareLink);
-  const files: WolkeShareFile[] = [];
-  const seenDirs = new Set<string>();
 
-  const walk = async (folderPath: string | undefined, depth: number): Promise<void> => {
-    const entries = await client.listFolder(folderPath);
-    for (const entry of entries as NextcloudFile[]) {
-      const rel = hrefToRelativePath(entry.href);
-      // PROPFIND Depth:1 echoes the folder itself — skip it to avoid recursing forever.
-      if (rel === (folderPath ?? '')) continue;
-
-      if (entry.isDirectory) {
-        if (!recursive || depth >= MAX_RECURSION_DEPTH || seenDirs.has(rel)) continue;
-        seenDirs.add(rel);
-        await walk(rel, depth + 1);
-        continue;
-      }
-
-      if (isAppleDoubleSidecar(entry.name) || !hasSupportedExtension(entry.name)) continue;
-      files.push({
-        url: `${shareLink}#/${rel}`,
-        href: entry.href,
-        name: entry.name,
-        etag: normalizeEtag(entry.etag),
-        lastModified: entry.lastModified,
-      });
+  // Ein Walker für beide Pfade. Der Scraper darf tiefer und ohne Dateideckel
+  // laufen als der Notebook-Import — das sind seine Grenzwerte, nicht seine
+  // eigene Traversierung. (Vorher lag hier eine zweite, rekursive Fassung, die
+  // sich in Tiefe, Deckel und Selbsteintrags-Erkennung leicht unterschied.)
+  const walk = await walkWolkeFolder(
+    (folderPath: string) => client.listFolder(folderPath || undefined),
+    '',
+    {
+      maxDepth: recursive ? MAX_RECURSION_DEPTH : 0,
+      maxFiles: Number.MAX_SAFE_INTEGER,
     }
-  };
+  );
 
-  await walk(undefined, 0);
+  const files: WolkeShareFile[] = [];
+  for (const entry of walk.files) {
+    if (isAppleDoubleSidecar(entry.name) || !hasSupportedExtension(entry.name)) continue;
+    const rel = hrefToRelativePath(entry.href);
+    files.push({
+      url: `${shareLink}#/${rel}`,
+      href: entry.href,
+      name: entry.name,
+      // Bereits vom Client normalisiert — die zweite Fassung, die es hier gab,
+      // war der Grund, warum nur DIESER Pfad saubere Etags speicherte.
+      etag: entry.etag,
+      lastModified: entry.lastModified,
+    });
+  }
+
   log(`[Wolke] ${shareLink}: ${files.length} supported file(s)`);
   return { client, files };
 }

@@ -9,6 +9,7 @@
 
 import { buildSystemMessage } from '../../../agents/langgraph/ChatGraph/index.js';
 import { knownArtifactRefs } from '../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
+import { looksLikeMemoryRequest } from '../../../services/memory/memoryRequest.js';
 import {
   BOTH_LANES_FAILED,
   buildAiTelemetry,
@@ -19,15 +20,13 @@ import { stripOutOfRangeCitations } from '../services/agenticLoop/citationStrip.
 import { MAX_SOURCES } from '../services/agenticLoop/loopGuards.js';
 import {
   ARTIFACT_CONFIRMATION_TEXTS,
-  buildPostWithSharepicsConfirmation,
   buildSharepicConfirmation,
-  buildSharepicsWithoutPostConfirmation,
 } from '../services/artifactConfirmations.js';
 import { injectImageAttachments } from '../services/attachmentProcessingService.js';
 import { applyCompaction, pruneMessages } from '../services/contextPruningService.js';
 import { executeIntentPipeline } from '../services/intentExecutionService.js';
-import { estimateRequestTokens } from '../services/messageHelpers.js';
 import {
+  announcesPendingWork,
   stripFabricatedArtifactDelivery,
   stripFabricatedSystemClaims,
 } from '../services/outputSanity.js';
@@ -73,9 +72,6 @@ export interface SinglePassAnswerParams {
   lastUserText: string;
   forcedTool: boolean;
   sharepicRefinement: SharepicRefinement | undefined;
-  /** Whether the turn was allowed to make a sharepic — a post without a
-   *  licence is text-only, not a failed sharepic. */
-  sharepicLicensed: boolean;
   buildTurnTrace: BuildTurnTrace;
   /** Turn-Decke aus turnDeadline.ts — dieselbe Frist, die auch der agentische
    *  Pfad bekommt. Komponiert unten in die Turn-Uhr des Einzeldurchlaufs. */
@@ -86,7 +82,6 @@ export interface SinglePassAnswer {
   finalState: PipelineResult['finalState'];
   generatedImage: PipelineResult['generatedImage'];
   sharepicVariants: PipelineResult['sharepicVariants'];
-  socialPost: PipelineResult['socialPost'];
   fullText: string | null;
   langfuseTraceId: string | undefined;
 }
@@ -107,7 +102,6 @@ export async function runSinglePassAnswer({
   lastUserText,
   forcedTool,
   sharepicRefinement,
-  sharepicLicensed,
   buildTurnTrace,
   turnSignal,
 }: SinglePassAnswerParams): Promise<MaybeHandled<SinglePassAnswer>> {
@@ -118,14 +112,7 @@ export async function runSinglePassAnswer({
   let langfuseTraceId: string | undefined;
 
   // === Stage 2: Search or Image Generation ===
-  const {
-    finalState,
-    generatedImage,
-    sharepicVariants,
-    socialPost,
-    socialPostRefused,
-    socialPostRefusalIsPolicy,
-  } = await executeIntentPipeline({
+  const { finalState, generatedImage, sharepicVariants } = await executeIntentPipeline({
     classifiedState,
     sse,
     forcedTool,
@@ -137,40 +124,7 @@ export async function runSinglePassAnswer({
   });
 
   // === Stage 3: Response generation ===
-  if (finalState.intent === 'social_post') {
-    // Combined post (EXPERIMENTAL): both halves were already produced +
-    // streamed in Stage 2 (social_post_complete / sharepic_complete).
-    // Fixed confirmation like the sharepic branch — no extra LLM call.
-    const hasText = socialPost != null;
-    const n = sharepicVariants.length;
-    fullText = socialPostRefused
-      ? // The text model refused, so both halves were discarded. Say so
-        // plainly — the old copy promised "dein Post mit N Varianten"
-        // because it only checked that SOME text came back.
-        //
-        // Only name the POLICY reason when the sharepic half declined on
-        // the same request; otherwise all we know is that no usable post
-        // came back, and asserting the fabricated-quote reason accused
-        // the user of something they never asked for (live: a plain
-        // request for an English version of their own post).
-        socialPostRefusalIsPolicy
-        ? ARTIFACT_CONFIRMATION_TEXTS.postRefusedPolicy
-        : ARTIFACT_CONFIRMATION_TEXTS.postRefusedGeneric
-      : hasText && n > 0
-        ? buildPostWithSharepicsConfirmation(n)
-        : // A post is text-only unless the user named a sharepic. Without
-          // this split, every ordinary post reported a FAILED sharepic
-          // that was never requested.
-          hasText && !sharepicLicensed
-          ? ARTIFACT_CONFIRMATION_TEXTS.postTextOnly
-          : hasText
-            ? ARTIFACT_CONFIRMATION_TEXTS.postSharepicFailed
-            : n > 0
-              ? buildSharepicsWithoutPostConfirmation(n)
-              : ARTIFACT_CONFIRMATION_TEXTS.genericFailed;
-    sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
-    sse.send('text_delta', { text: fullText });
-  } else if (finalState.intent === 'sharepic') {
+  if (finalState.intent === 'sharepic') {
     // Sharepic variants were already produced + streamed in Stage 2 (sharepic_complete).
     // Skip the LLM — with the still-vague topic it asks clarifying questions over the
     // already-finished sharepic. Emit a fixed confirmation instead so the user sees the
@@ -207,7 +161,20 @@ export async function runSinglePassAnswer({
   } else {
     sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
 
-    const systemMessage = await buildSystemMessage(finalState);
+    // A memory request that a kill-switch (selected notebook, image
+    // attachment, compound turn) kept out of the loop has no tool to honour
+    // it. The answer must say so — the model used to confirm "gespeichert"
+    // into the void.
+    const memoryNote = looksLikeMemoryRequest(lastUserText)
+      ? `\n\nHINWEIS ZUM GEDÄCHTNIS: In diesem Turn kann NICHTS gespeichert werden${
+          finalState.memoryEnabled ? '' : ' — das Gedächtnis ist in den Einstellungen ausgeschaltet'
+        }. Bestätige KEINE Speicherung. Sag knapp, dass du dir das gerade nicht merken kannst${
+          finalState.memoryEnabled
+            ? ' und schlage vor, es in einer neuen Nachricht ohne Anhang oder Notebook zu wiederholen'
+            : ' und dass das Gedächtnis unter Einstellungen → Erinnerungen eingeschaltet werden kann'
+        }. Erledige den Rest der Nachricht normal.`
+      : '';
+    const systemMessage = (await buildSystemMessage(finalState)) + memoryNote;
     const agentConfigForResolve = {
       provider: finalState.agentConfig.provider as string,
       model: finalState.agentConfig.model,
@@ -224,7 +191,6 @@ export async function runSinglePassAnswer({
       // Measured BEFORE pruning on purpose: the question is "does this
       // turn need a bigger lane", and pruning is exactly the loss we
       // want to avoid by answering it.
-      estimatedInputTokens: estimateRequestTokens(systemMessage, validMessages),
       ...(finalState.complexity != null && { complexity: finalState.complexity }),
     });
     if (resolution.unknownModelId) {
@@ -265,7 +231,13 @@ export async function runSinglePassAnswer({
     // would put bytes in front of a non-vision model (since we no longer
     // force-switch above) and create a redundant grounding source for vision
     // models — skip injection so the descriptions are the single source.
-    if (finalState.intent !== 'image_edit') {
+    //
+    // `vision` ("Bildanalyse") is the picker key for letting the model SEE an
+    // uploaded image, and this injection is the only place the bytes reach it —
+    // so this is where that checkbox becomes a gate (#3307). The prompt follows
+    // suit: `formatImageContext` stops claiming the images are visible, because
+    // a model told it can see an image it was never handed describes it anyway.
+    if (finalState.intent !== 'image_edit' && enabledTools?.['vision'] !== false) {
       messagesForAI = injectImageAttachments(
         messagesForAI as Parameters<typeof injectImageAttachments>[0],
         imageAttachments,
@@ -277,46 +249,42 @@ export async function runSinglePassAnswer({
     // AI SDK 7 telemetry has no metadata field.
     const respondTelemetry = buildAiTelemetry('chat-graph.respond');
 
-    try {
-      // One Langfuse trace per chat turn: the respond generation (and any
-      // sibling-fallback retry) nest under this `chat-turn` root span, and
-      // `traceId` is captured for the client feedback score.
-      fullText = await withLangfuseTrace(
-        buildTurnTrace(finalState.intent ?? 'unknown'),
-        async (trace) => {
-          langfuseTraceId = trace.traceId;
-          const text = await streamWithFallback({
-            primary: resolution,
-            sse,
-            logPrefix: '[ChatGraph]',
-            buildStream: async (r) =>
-              // No output cap (OpenWebUI-style): the provider/model window is
-              // the backstop; agentConfig.params.max_tokens is deliberately
-              // ignored here so answers are never cut mid-sentence.
-              streamForResolution({
-                resolution: r,
-                messages: messagesForAI as Parameters<typeof streamForResolution>[0]['messages'],
-                temperature: finalState.agentConfig.params.temperature,
-                sse,
-                logPrefix: '[ChatGraph]',
-                turnSignal,
-                ...(respondTelemetry && { telemetry: respondTelemetry }),
-              }),
-          });
-          // streamWithFallback swallows a dead primary AND a dead sibling
-          // into `null` instead of throwing, so without this the failed
-          // turn would sit in Langfuse as a successful one.
-          trace.update(
-            text === null
-              ? { input: lastUserText, level: 'ERROR', statusMessage: BOTH_LANES_FAILED }
-              : { input: lastUserText, output: text }
-          );
-          return text;
-        }
-      );
-    } finally {
-      if (resolution.releaseSlot) await resolution.releaseSlot();
-    }
+    // One Langfuse trace per chat turn: the respond generation (and any
+    // sibling-fallback retry) nest under this `chat-turn` root span, and
+    // `traceId` is captured for the client feedback score.
+    fullText = await withLangfuseTrace(
+      buildTurnTrace(finalState.intent ?? 'unknown'),
+      async (trace) => {
+        langfuseTraceId = trace.traceId;
+        const text = await streamWithFallback({
+          primary: resolution,
+          sse,
+          logPrefix: '[ChatGraph]',
+          buildStream: async (r) =>
+            // No output cap (OpenWebUI-style): the provider/model window is
+            // the backstop; agentConfig.params.max_tokens is deliberately
+            // ignored here so answers are never cut mid-sentence.
+            streamForResolution({
+              resolution: r,
+              messages: messagesForAI as Parameters<typeof streamForResolution>[0]['messages'],
+              temperature: finalState.agentConfig.params.temperature,
+              sse,
+              logPrefix: '[ChatGraph]',
+              turnSignal,
+              ...(respondTelemetry && { telemetry: respondTelemetry }),
+            }),
+        });
+        // streamWithFallback swallows a dead primary AND a dead sibling
+        // into `null` instead of throwing, so without this the failed
+        // turn would sit in Langfuse as a successful one.
+        trace.update(
+          text === null
+            ? { input: lastUserText, level: 'ERROR', statusMessage: BOTH_LANES_FAILED }
+            : { input: lastUserText, output: text }
+        );
+        return text;
+      }
+    );
 
     if (fullText === null) {
       // Generation failed, but the retrieval that preceded it was real and
@@ -370,6 +338,12 @@ export async function runSinglePassAnswer({
       log.warn(`[ChatGraph] Removed fabricated artefact delivery: ${delivery.removed.join(', ')}`);
       fullText = delivery.text;
     }
+    // Telemetry only — the text is already on the wire; the prompt rules are the fix.
+    if (announcesPendingWork(fullText)) {
+      log.warn(
+        `[ChatGraph] answer asks the user to wait for work that will not happen (intent=${finalState.intent ?? 'null'}): ${JSON.stringify(fullText.trim().slice(0, 100))}`
+      );
+    }
     const citeClamp = stripOutOfRangeCitations(fullText, finalState.citations.length);
     if (citeClamp.changed || sanity.fabricated.length > 0 || delivery.removed.length > 0) {
       fullText = citeClamp.text;
@@ -382,7 +356,6 @@ export async function runSinglePassAnswer({
     finalState,
     generatedImage,
     sharepicVariants,
-    socialPost,
     fullText,
     langfuseTraceId,
   };

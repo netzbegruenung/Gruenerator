@@ -3,7 +3,13 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-import { NON_LIBRARY_UPLOAD_SOURCES } from '@gruenerator/shared/media-library/constants';
+import { type ShareStatus, type StoredMediaType } from '@gruenerator/contracts';
+import {
+  MEDIA_LIBRARY_ITEM_LIMIT,
+  MEDIA_LIBRARY_WARN_RATIO,
+  NON_LIBRARY_UPLOAD_SOURCES,
+  QUOTA_GATED_UPLOAD_SOURCES,
+} from '@gruenerator/shared/media-library/constants';
 import { stripDataUrlPrefix } from '@gruenerator/shared/utils';
 import { encode as encodeBlurhash } from 'blurhash';
 import sharp from 'sharp';
@@ -11,11 +17,21 @@ import sharp from 'sharp';
 import { type PostgresService, getPostgresInstance } from '../database/services/PostgresService.js';
 import { likeContainsPattern } from '../utils/sqlLike.js';
 
+import {
+  LIBRARY_ITEM_CLAUSE,
+  ORPHANED_SHARE_STATUSES,
+  USER_SHARES_MAX_LIMIT,
+  USER_VISIBLE_SHARE_STATUSES,
+  assetPoolWhere,
+  creationFeedWhere,
+} from './sharedMediaFilters.js';
 import { deriveContentOrigin } from './sharedMediaOrigin.js';
 
 import type {
   SharedMediaRow,
   CreateVideoShareParams,
+  CreateAudioShareParams,
+  AudioShareResult,
   CreatePendingVideoShareParams,
   CreateImageShareParams,
   UpdateImageShareParams,
@@ -35,18 +51,51 @@ const __dirname = path.dirname(__filename);
 
 const SHARED_MEDIA_PATH = path.join(__dirname, '../uploads/shared-media');
 const SHARED_MEDIA_PATH_RESOLVED = path.resolve(SHARED_MEDIA_PATH);
-const MAX_ITEMS_PER_USER = 50;
 const THUMBNAIL_SIZE = 400;
 
+/** One row removed by {@link SharedMediaService.reapOrphanedShares}. */
+export interface ReapedShare {
+  shareToken: string;
+  status: string;
+  /** `file_size` at deletion time, `0` when the row never got one (a render that
+   * never produced a file). Only an estimate of the bytes freed — variants and
+   * thumbnails in the same directory are not counted in that column. */
+  fileSize: number;
+}
+
+/** Snapshot of how full one account's Mediathek is. */
+export interface MediaLibraryUsage {
+  count: number;
+  limit: number;
+  isFull: boolean;
+  isNearlyFull: boolean;
+}
+
 /**
- * Statuses a user sees in their own creation listings (galleries, recent
- * strips). Canvas autosave writes 'draft' and only an explicit publish
- * promotes to 'ready', so user-facing lists must include drafts — a
- * ready-only filter permanently hides autosaved work. Surfaces that
- * intentionally narrow (the curated media library is ready-only) should pass
- * an explicit status instead of duplicating the policy in raw SQL.
+ * Thrown by `uploadMediaFile` when the account is at
+ * `MEDIA_LIBRARY_ITEM_LIMIT`. Nothing has been written when this surfaces —
+ * neither a row nor a file. Callers turn it into an HTTP 409 so the user is
+ * told to free space instead of silently losing their oldest media.
  */
-export const USER_VISIBLE_SHARE_STATUSES = ['ready', 'draft'] as const;
+export class MediaQuotaExceededError extends Error {
+  readonly code = 'media_quota_exceeded' as const;
+
+  /**
+   * The sentence the user reads. Authored here rather than taken from
+   * `.message` at the route, so it is visibly not the raw text of some thrown
+   * tooling error (which must never reach a response body).
+   */
+  readonly userMessage: string;
+
+  constructor(readonly usage: MediaLibraryUsage) {
+    const userMessage =
+      `Deine Mediathek ist voll (${usage.count} von ${usage.limit} Medien). ` +
+      'Lösche nicht mehr benötigte Medien, um wieder hochladen zu können.';
+    super(userMessage);
+    this.name = 'MediaQuotaExceededError';
+    this.userMessage = userMessage;
+  }
+}
 
 // Responsive grid-thumbnail widths pre-generated at upload. Must stay in sync
 // with the widths the frontend requests (`buildSharedMediaSrcSet`) and the
@@ -244,55 +293,59 @@ class SharedMediaService {
     return true;
   }
 
-  async enforceUserLimit(userId: string): Promise<number> {
+  /**
+   * How full the user's Mediathek is. Read-only — nothing is ever deleted here.
+   *
+   * Counts only what the user can actually see and delete, on two axes:
+   *
+   * - Internal artifacts (canvas/chat thumbnails, template previews —
+   *   is_library_item = FALSE) are excluded: they are referenced by
+   *   canvas_documents.thumbnail_url and have their own delete-on-replace
+   *   lifecycle in updateCanvas.
+   * - So are rows outside USER_VISIBLE_SHARE_STATUSES. A video share that
+   *   failed to render, or one stuck in 'processing', appears in no listing
+   *   (getMediaLibrary is ready-only, the share galleries are ready/draft) and
+   *   no UI can remove it. Charging quota for those would be a trap with no way
+   *   out: the LRU eviction this replaces was the only thing that ever cleaned
+   *   them up, so counting them would let a few failed renders lock an account
+   *   out of uploading for good.
+   */
+  async getLibraryUsage(userId: string): Promise<MediaLibraryUsage> {
     await this.ensureInitialized();
 
-    try {
-      // Internal artifacts (canvas/chat thumbnails, template previews —
-      // is_library_item = FALSE) neither count against the user's quota nor
-      // get evicted: they are referenced by canvas_documents.thumbnail_url,
-      // and evicting one silently blanks that document's gallery preview.
-      // Their lifecycle is delete-on-replace in updateCanvas instead.
-      const countQuery = `SELECT COUNT(*) as count FROM shared_media
-                          WHERE user_id = $1 AND COALESCE(is_library_item, TRUE) = TRUE`;
-      const countResult = await this.postgres!.queryOne<{ count: string }>(countQuery, [userId]);
-      const count = parseInt(countResult?.count ?? '0', 10);
+    const countQuery = `SELECT COUNT(*) as count FROM shared_media
+                        WHERE user_id = $1
+                          AND ${LIBRARY_ITEM_CLAUSE}
+                          AND status = ANY($2::text[])`;
+    const countResult = await this.postgres!.queryOne<{ count: string }>(countQuery, [
+      userId,
+      [...USER_VISIBLE_SHARE_STATUSES],
+    ]);
+    const count = parseInt(countResult?.count ?? '0', 10);
 
-      if (count >= MAX_ITEMS_PER_USER) {
-        const excessCount = count - MAX_ITEMS_PER_USER + 1;
+    return {
+      count,
+      limit: MEDIA_LIBRARY_ITEM_LIMIT,
+      isFull: count >= MEDIA_LIBRARY_ITEM_LIMIT,
+      isNearlyFull: count >= Math.floor(MEDIA_LIBRARY_ITEM_LIMIT * MEDIA_LIBRARY_WARN_RATIO),
+    };
+  }
 
-        const deleteQuery = `
-                    WITH oldest AS (
-                        SELECT id, share_token, file_path, thumbnail_path
-                        FROM shared_media
-                        WHERE user_id = $1 AND COALESCE(is_library_item, TRUE) = TRUE
-                        ORDER BY created_at ASC
-                        LIMIT $2
-                    )
-                    DELETE FROM shared_media
-                    WHERE id IN (SELECT id FROM oldest)
-                    RETURNING share_token
-                `;
-
-        const deleted = await this.postgres!.query<{ share_token: string }>(deleteQuery, [
-          userId,
-          excessCount,
-        ]);
-
-        for (const item of deleted) {
-          await this.cleanupShareFiles(item.share_token);
-        }
-
-        console.log(
-          `[SharedMediaService] Deleted ${deleted.length} oldest items for user ${userId} (limit enforcement)`
-        );
-        return deleted.length;
-      }
-
-      return 0;
-    } catch (error) {
-      console.error('[SharedMediaService] Failed to enforce user limit:', error);
-      return 0;
+  /**
+   * Refuse a new **upload** once the library is full.
+   *
+   * Only uploads are gated. Creations (sharepics, canvas drafts) are let
+   * through deliberately: canvas autosave writes continuously and a hard
+   * failure there would lose the user's work mid-edit. Until this
+   * was fixed (#2980), the cap was instead enforced by deleting the oldest
+   * rows *and their files* on every write path — so uploading a source image
+   * could destroy a sharepic made months earlier, with no warning and nothing
+   * to recover from.
+   */
+  async assertLibraryCapacity(userId: string): Promise<void> {
+    const usage = await this.getLibraryUsage(userId);
+    if (usage.isFull) {
+      throw new MediaQuotaExceededError(usage);
     }
   }
 
@@ -309,16 +362,108 @@ class SharedMediaService {
     }
   }
 
-  async getUserShareCount(userId: string): Promise<number> {
+  /**
+   * Delete `shared_media` rows stuck in {@link ORPHANED_SHARE_STATUSES} past
+   * `olderThanHours`, together with their files on disk.
+   *
+   * **`file_path IS NULL` is a safety interlock, not an optimisation.** A row in
+   * one of these statuses is not supposed to have a file: `finalizeVideoShare`
+   * sets `file_path` and `status = 'ready'` in one UPDATE, so a render that got
+   * as far as producing bytes is never left `processing`. The clause was added
+   * because that invariant did not hold: `cloneTemplate` also inserted
+   * `'processing'`, on a path with no render at all, and `updateImageShare` —
+   * which the canvas editor's autosave calls on that very token — writes
+   * `file_path` and never touches `status`, so a cloned template someone edited
+   * and saved sat at `'processing'` holding a finished sharepic. Without this
+   * clause the reaper would have deleted it, files and all, a day after the
+   * clone (#3009).
+   *
+   * That producer is gone — the `shared_media` template flow was retired and the
+   * rows it stranded were promoted — so the clause now guards the invariant
+   * rather than a live bug, and it stays for two reasons. A file-bearing row in
+   * a dead status is a contradiction, and the safe reading of a contradiction is
+   * to leave it alone. And `countFileBearingOrphans` should now read zero
+   * forever: any later nonzero reading means a new synchronous writer of
+   * `'processing'` has appeared, which is worth knowing before it costs someone
+   * their work. `sharedMediaService.vitest.ts` pins who may write that status.
+   *
+   * These rows are unreachable from every user-facing surface: `getMediaLibrary`
+   * is ready-only, the galleries are `USER_VISIBLE_SHARE_STATUSES`, and the
+   * public share page can only report "failed" to whoever already holds the
+   * link. Nothing offered a delete button, and since #2980 removed the LRU
+   * eviction that used to sweep them along with everything else, nothing removed
+   * them at all — the row and its directory under `uploads/shared-media/<token>/`
+   * stayed forever (#2989).
+   *
+   * The DELETE is the easy half; the bytes are the point. Files go through
+   * {@link cleanupShareFiles} per token, after the row is gone rather than
+   * before: if the process dies in between, the directory is left with no row
+   * behind it and `cleanOrphanedSharedMedia` in the uploads cleaner — which
+   * deletes exactly that — picks it up on the next cycle. The other order would
+   * strand a row pointing at files that are no longer there.
+   *
+   * Returns what it removed so the caller can log it; an empty array means
+   * there was nothing to do.
+   */
+  async reapOrphanedShares(olderThanHours: number): Promise<ReapedShare[]> {
     await this.ensureInitialized();
-    const query = `SELECT COUNT(*) as count FROM shared_media WHERE user_id = $1`;
-    const result = await this.postgres!.queryOne<{ count: string }>(query, [userId]);
+
+    // `make_interval` rather than string concatenation: the age is a number, and
+    // `$2 || ' hours'` would need a cast on every call site to typecheck in PG.
+    const rows = await this.postgres!.query<{
+      share_token: string;
+      status: string;
+      file_size: string | number | null;
+    }>(
+      `DELETE FROM shared_media
+        WHERE status = ANY($1::text[])
+          AND file_path IS NULL
+          AND created_at < NOW() - make_interval(hours => $2::int)
+        RETURNING share_token, status, file_size`,
+      [[...ORPHANED_SHARE_STATUSES], Math.max(0, Math.trunc(olderThanHours))]
+    );
+
+    const reaped: ReapedShare[] = [];
+    for (const row of rows) {
+      await this.cleanupShareFiles(row.share_token);
+      reaped.push({
+        shareToken: row.share_token,
+        status: row.status,
+        fileSize: Number(row.file_size ?? 0),
+      });
+    }
+
+    if (reaped.length > 0) {
+      console.log(
+        `[SharedMediaService] Reaped ${reaped.length} orphaned share(s) older than ${olderThanHours}h`
+      );
+    }
+
+    return reaped;
+  }
+
+  /**
+   * How many rows the `file_path IS NULL` interlock in {@link reapOrphanedShares}
+   * is holding back — rows in a dead status that nonetheless carry a file.
+   *
+   * Read-only. Every one of these is a real sharepic wearing the wrong status
+   * (see the interlock's rationale), so the number is a bug counter, not a
+   * cleanup backlog: it should be reported, and it must never be reaped.
+   */
+  async countFileBearingOrphans(): Promise<number> {
+    await this.ensureInitialized();
+
+    const result = await this.postgres!.queryOne<{ count: string }>(
+      `SELECT COUNT(*) as count FROM shared_media
+        WHERE status = ANY($1::text[])
+          AND file_path IS NOT NULL`,
+      [[...ORPHANED_SHARE_STATUSES]]
+    );
     return parseInt(result?.count ?? '0', 10);
   }
 
   async createVideoShare(userId: string, params: CreateVideoShareParams): Promise<ShareResult> {
     await this.ensureInitialized();
-    await this.enforceUserLimit(userId);
 
     const { videoPath, title, thumbnailPath, duration, projectId } = params;
     const shareToken = this.generateShareToken();
@@ -390,9 +535,69 @@ class SharedMediaService {
     }
   }
 
+  /**
+   * Generated speech from Grünerator Voice. A creation (`content_origin 'ki'`):
+   * like every creation it is never refused by the Mediathek cap, but it does
+   * count toward it afterwards (one row per format). No thumbnail — the
+   * Mediathek card draws a glyph.
+   */
+  async createAudioShare(
+    userId: string,
+    params: CreateAudioShareParams
+  ): Promise<AudioShareResult> {
+    await this.ensureInitialized();
+
+    const { buffer, mimeType, extension, title, durationSeconds } = params;
+    const shareToken = this.generateShareToken();
+    const shareDir = getSafeShareDir(shareToken);
+
+    try {
+      await fs.mkdir(shareDir, { recursive: true });
+
+      const fileName = `media.${extension}`;
+      await fs.writeFile(path.join(shareDir, fileName), buffer);
+
+      const query = `
+                INSERT INTO shared_media
+                (user_id, share_token, media_type, title, file_path, file_name, thumbnail_path,
+                 file_size, mime_type, duration, status, is_library_item, upload_source,
+                 content_origin, image_metadata)
+                VALUES ($1, $2, 'audio', $3, $4, $5, NULL, $6, $7, $8, 'ready', TRUE, 'voice', 'ki', '{}')
+                RETURNING id, share_token, created_at
+            `;
+
+      const result = await this.postgres!.queryOne<{
+        id: string;
+        share_token: string;
+        created_at: Date;
+      }>(query, [
+        userId,
+        shareToken,
+        title,
+        `${shareToken}/${fileName}`,
+        fileName,
+        buffer.length,
+        mimeType,
+        durationSeconds,
+      ]);
+
+      console.log(`[SharedMediaService] Created audio share ${shareToken} for user ${userId}`);
+
+      return {
+        id: result!.id,
+        shareToken: result!.share_token,
+        shareUrl: `/share/${shareToken}`,
+        createdAt: result!.created_at,
+      };
+    } catch (error) {
+      await fs.rm(shareDir, { recursive: true, force: true }).catch(() => undefined);
+      console.error('[SharedMediaService] Failed to create audio share:', error);
+      throw new Error(`Failed to create audio share: ${(error as Error).message}`);
+    }
+  }
+
   async createImageShare(userId: string, params: CreateImageShareParams): Promise<ShareResult> {
     await this.ensureInitialized();
-    await this.enforceUserLimit(userId);
 
     const {
       imageBase64,
@@ -537,7 +742,6 @@ class SharedMediaService {
     params: CreatePendingVideoShareParams
   ): Promise<ShareResult> {
     await this.ensureInitialized();
-    await this.enforceUserLimit(userId);
 
     const { title, thumbnailPath, duration, projectId } = params;
     const shareToken = this.generateShareToken();
@@ -670,42 +874,30 @@ class SharedMediaService {
 
   async getUserShares(
     userId: string,
-    mediaType: 'image' | 'video' | null = null,
-    status: string | readonly string[] | null = null,
-    limit: number = 100
+    mediaType: StoredMediaType | null = null,
+    status: ShareStatus | readonly ShareStatus[] | null = null,
+    limit: number = USER_SHARES_MAX_LIMIT
   ): Promise<SharedMediaRow[]> {
     await this.ensureInitialized();
 
     try {
+      // Every caller of this method is a creation feed — the workplace "Zuletzt"
+      // strip, the Studio galleries, the share endpoints, the chat media list —
+      // so both provenance filters come from `creationFeedWhere`, not from a
+      // WHERE clause written out here. The Mediathek asks a different question
+      // and goes through `getMediaLibrary`.
+      const params: unknown[] = [userId];
       let query = `
                 SELECT id, share_token, media_type, title, thumbnail_path, file_size,
                        duration, image_type, image_metadata, status, download_count, created_at,
                        content_origin
                 FROM shared_media
                 WHERE user_id = $1
-                  AND (upload_source IS NULL OR upload_source != ALL($2))
+                  AND ${creationFeedWhere(params, status, mediaType)}
             `;
-      const params: unknown[] = [userId, [...NON_LIBRARY_UPLOAD_SOURCES]];
-      let paramIndex = 3;
 
-      if (mediaType) {
-        query += ` AND media_type = $${paramIndex}`;
-        params.push(mediaType);
-        paramIndex++;
-      }
-
-      if (Array.isArray(status)) {
-        query += ` AND status = ANY($${paramIndex})`;
-        params.push(status);
-        paramIndex++;
-      } else if (status) {
-        query += ` AND status = $${paramIndex}`;
-        params.push(status);
-        paramIndex++;
-      }
-
-      query += ` ORDER BY created_at DESC LIMIT $${paramIndex}`;
-      params.push(Math.min(Math.max(1, Math.trunc(limit)), 100));
+      params.push(Math.min(Math.max(1, Math.trunc(limit)), USER_SHARES_MAX_LIMIT));
+      query += ` ORDER BY created_at DESC LIMIT $${params.length}`;
 
       const results = await this.postgres!.query<SharedMediaRow>(query, params);
       return results;
@@ -877,8 +1069,6 @@ class SharedMediaService {
     const { type = 'all', search = null, limit = 50, offset = 0, sort = 'newest' } = filters;
 
     try {
-      // Intentionally narrower than USER_VISIBLE_SHARE_STATUSES: the media
-      // library is a curated asset pool, drafts stay out until published.
       let query = `
                 SELECT id, share_token, media_type, title, thumbnail_path, file_size,
                        mime_type, duration, image_type, image_metadata, status,
@@ -886,8 +1076,7 @@ class SharedMediaService {
                        original_filename, content_origin
                 FROM shared_media
                 WHERE user_id = $1
-                  AND status = 'ready'
-                  AND COALESCE(is_library_item, TRUE) = TRUE
+                  AND ${assetPoolWhere()}
             `;
       const params: unknown[] = [userId];
       let paramIndex = 2;
@@ -911,12 +1100,13 @@ class SharedMediaService {
 
       const results = await this.postgres!.query<SharedMediaRow>(query, params);
 
+      // Same predicate as the page query above, by construction — a COUNT that
+      // drifts from its list promises rows the paginator never hands out.
       const countQuery = `
                 SELECT COUNT(*) as total
                 FROM shared_media
                 WHERE user_id = $1
-                  AND status = 'ready'
-                  AND COALESCE(is_library_item, TRUE) = TRUE
+                  AND ${assetPoolWhere()}
                   ${type && type !== 'all' ? 'AND media_type = $2' : ''}
             `;
       const countParams = type && type !== 'all' ? [userId, type] : [userId];
@@ -1009,7 +1199,6 @@ class SharedMediaService {
 
   async uploadMediaFile(userId: string, params: UploadMediaFileParams): Promise<ShareResult> {
     await this.ensureInitialized();
-    await this.enforceUserLimit(userId);
 
     const {
       fileBuffer,
@@ -1019,6 +1208,22 @@ class SharedMediaService {
       altText,
       uploadSource = 'upload',
     } = params;
+
+    // Non-library sources (gallery thumbnails, canvas-element tool output) are
+    // internal artifacts — keep them out of the Mediathek (getMediaLibrary
+    // filters on is_library_item) and out of the quota.
+    const isLibraryItem = !(NON_LIBRARY_UPLOAD_SOURCES as readonly string[]).includes(uploadSource);
+
+    // Only a deliberate "put this file in my Mediathek" is refused. Uploads
+    // that are a substep of making something (canvas-mint's background photo,
+    // an asset dropped mid-edit) are creations wearing an upload's clothes, and
+    // failing them mid-flow is the harm this whole change set out to remove.
+    // Checked before the directory is created, so a refused upload leaves
+    // neither a row nor a stray file behind. Throws MediaQuotaExceededError.
+    if ((QUOTA_GATED_UPLOAD_SOURCES as readonly string[]).includes(uploadSource)) {
+      await this.assertLibraryCapacity(userId);
+    }
+
     const shareToken = this.generateShareToken();
     const shareDir = getSafeShareDir(shareToken);
 
@@ -1048,13 +1253,6 @@ class SharedMediaService {
           console.warn('[SharedMediaService] Could not read upload dimensions:', metaError);
         }
       }
-
-      // Non-library sources (gallery thumbnails, canvas-element tool output) are
-      // internal artifacts — keep them out of the Mediathek (getMediaLibrary
-      // filters on is_library_item).
-      const isLibraryItem = !(NON_LIBRARY_UPLOAD_SOURCES as readonly string[]).includes(
-        uploadSource
-      );
 
       // Everything arriving here is a source image, not a finished creation —
       // including the canvas editor's background/asset uploads. `ai_generated` is
@@ -1126,6 +1324,8 @@ class SharedMediaService {
       'video/mp4': 'mp4',
       'video/webm': 'webm',
       'video/quicktime': 'mov',
+      'audio/mpeg': 'mp3',
+      'audio/wav': 'wav',
     };
     return mimeToExt[mimeType] || 'bin';
   }
@@ -1240,230 +1440,6 @@ class SharedMediaService {
     } catch (error) {
       console.error('[SharedMediaService] Failed to update image share:', error);
       throw new Error(`Failed to update image share: ${(error as Error).message}`);
-    }
-  }
-
-  /**
-   * Mark existing shared media as a template
-   */
-  async markAsTemplate(
-    userId: string,
-    shareToken: string,
-    title: string,
-    visibility: 'private' | 'unlisted' | 'public',
-    creatorName: string
-  ): Promise<void> {
-    await this.ensureInitialized();
-
-    try {
-      // Verify ownership
-      const checkQuery = `SELECT user_id FROM shared_media WHERE share_token = $1`;
-      const existing = await this.postgres!.queryOne<{ user_id: string }>(checkQuery, [shareToken]);
-
-      if (!existing) {
-        throw new Error('Share not found');
-      }
-
-      if (existing.user_id !== userId) {
-        throw new Error('Not authorized to mark this as template');
-      }
-
-      // Mark as template
-      const updateQuery = `
-                UPDATE shared_media
-                SET is_template = TRUE,
-                    template_visibility = $1,
-                    template_creator_name = $2,
-                    title = $3
-                WHERE share_token = $4
-            `;
-
-      await this.postgres!.query(updateQuery, [visibility, creatorName, title, shareToken]);
-
-      console.log(
-        `[SharedMediaService] Marked ${shareToken} as template with visibility: ${visibility}`
-      );
-    } catch (error) {
-      console.error('[SharedMediaService] Failed to mark as template:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Clone a template to user's gallery
-   */
-  async cloneTemplate(
-    shareToken: string,
-    userId: string,
-    _userDisplayName: string
-  ): Promise<ShareResult> {
-    await this.ensureInitialized();
-    await this.enforceUserLimit(userId);
-
-    try {
-      // 1. Fetch template
-      const templateQuery = `
-                SELECT id, user_id, media_type, image_type, image_metadata, content_origin,
-                       template_visibility, template_creator_name
-                FROM shared_media
-                WHERE share_token = $1 AND is_template = TRUE
-            `;
-      const template = await this.postgres!.queryOne<{
-        id: string;
-        user_id: string;
-        media_type: string;
-        image_type: string | null;
-        image_metadata: Record<string, unknown>;
-        content_origin: string;
-        template_visibility: string;
-        template_creator_name: string | null;
-      }>(templateQuery, [shareToken]);
-
-      if (!template) {
-        throw new Error('Template not found');
-      }
-
-      // 2. Check visibility permissions
-      if (template.template_visibility === 'private' && template.user_id !== userId) {
-        throw new Error('Template not accessible (private)');
-      }
-
-      // 3. Deep copy metadata (all canvas state)
-      const clonedMetadata: Record<string, unknown> = template.image_metadata
-        ? (JSON.parse(JSON.stringify(template.image_metadata)) as Record<string, unknown>)
-        : {};
-
-      // 4. Create new share entry
-      const newShareToken = this.generateShareToken();
-      const insertQuery = `
-                INSERT INTO shared_media
-                (user_id, share_token, media_type, image_type, image_metadata, is_template,
-                 original_template_id, status, content_origin)
-                VALUES ($1, $2, $3, $4, $5, FALSE, $6, 'processing', $7)
-                RETURNING id, share_token, created_at
-            `;
-
-      const result = await this.postgres!.queryOne<{
-        id: string;
-        share_token: string;
-        created_at: Date;
-      }>(insertQuery, [
-        userId,
-        newShareToken,
-        template.media_type,
-        template.image_type,
-        JSON.stringify(clonedMetadata),
-        template.id,
-        // A clone is the same kind of artifact as what it was cloned from.
-        template.content_origin,
-      ]);
-
-      // 5. Increment template use count
-      const incrementQuery = `
-                UPDATE shared_media
-                SET template_use_count = template_use_count + 1
-                WHERE share_token = $1
-            `;
-      await this.postgres!.query(incrementQuery, [shareToken]);
-
-      console.log(
-        `[SharedMediaService] Cloned template ${shareToken} to ${newShareToken} for user ${userId}`
-      );
-
-      return {
-        id: result!.id,
-        shareToken: result!.share_token,
-        shareUrl: `/share/${result!.share_token}`,
-        createdAt: result!.created_at,
-        mediaType: template.media_type as 'image' | 'video',
-      };
-    } catch (error) {
-      console.error('[SharedMediaService] Failed to clone template:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get templates (user's + public)
-   */
-  async getTemplates(
-    userId: string,
-    filters?: { type?: string; visibility?: string }
-  ): Promise<SharedMediaRow[]> {
-    await this.ensureInitialized();
-
-    try {
-      let query = `
-                SELECT
-                    id, user_id, share_token, media_type, title, image_type, image_metadata,
-                    thumbnail_path, template_visibility, template_creator_name, template_use_count,
-                    created_at
-                FROM shared_media
-                WHERE is_template = TRUE
-                    AND (user_id = $1 OR template_visibility = 'public')
-            `;
-
-      const params: unknown[] = [userId];
-      let paramIndex = 2;
-
-      if (filters?.type) {
-        query += ` AND image_type = $${paramIndex}`;
-        params.push(filters.type);
-        paramIndex++;
-      }
-
-      if (filters?.visibility && filters.visibility !== 'all') {
-        query += ` AND template_visibility = $${paramIndex}`;
-        params.push(filters.visibility);
-        paramIndex++;
-      }
-
-      query += ` ORDER BY created_at DESC`;
-
-      const templates = await this.postgres!.query<SharedMediaRow>(query, params);
-
-      console.log(
-        `[SharedMediaService] Retrieved ${templates.length} templates for user ${userId}`
-      );
-      return templates;
-    } catch (error) {
-      console.error('[SharedMediaService] Failed to get templates:', error);
-      throw new Error('Failed to retrieve templates');
-    }
-  }
-
-  /**
-   * Get template by shareToken
-   */
-  async getTemplateByToken(shareToken: string, requestingUserId?: string): Promise<SharedMediaRow> {
-    await this.ensureInitialized();
-
-    try {
-      const query = `
-                SELECT
-                    id, user_id, share_token, media_type, title, image_type, image_metadata,
-                    thumbnail_path, template_visibility, template_creator_name, template_use_count,
-                    created_at
-                FROM shared_media
-                WHERE share_token = $1 AND is_template = TRUE
-            `;
-
-      const template = await this.postgres!.queryOne<SharedMediaRow>(query, [shareToken]);
-
-      if (!template) {
-        throw new Error('Template not found');
-      }
-
-      // Check access permissions
-      const visibility = template.template_visibility as string;
-      if (visibility === 'private' && template.user_id !== requestingUserId) {
-        throw new Error('Template not accessible (private)');
-      }
-
-      return template;
-    } catch (error) {
-      console.error('[SharedMediaService] Failed to get template by token:', error);
-      throw error;
     }
   }
 }

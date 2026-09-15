@@ -11,10 +11,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@gruenerator/shared": "workspace:*",
     "zustand": "^5.0.15"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.15.2",
+    "@assistant-ui/react": "^0.15.19",
     "react": "^19.0.0"
   },
   "devDependencies": {

@@ -20,7 +20,8 @@ interface ApiThread {
   notebookCollectionId?: string | null;
   tags?: string[];
   slugSuffix?: string | null;
-  accessType?: 'owner' | 'shared' | 'group';
+  accessType?: 'owner' | 'shared' | 'group' | null;
+  readOnly?: boolean | null;
   createdAt: string;
   updatedAt: string;
   lastMessage?: {
@@ -69,6 +70,20 @@ export function getThreadAgentId(remoteId: string): string | null {
   return threadAgentCache.get(remoteId) ?? null;
 }
 
+// Share metadata for sidebar rendering (badges + read-only routing). Absent
+// entries default to owner/writable, so nothing changes before list() lands
+// or against an older server that doesn't send the fields.
+const threadAccessTypeCache = new Map<string, 'owner' | 'shared' | 'group'>();
+const threadReadOnlyCache = new Set<string>();
+
+export function getThreadAccessType(remoteId: string): 'owner' | 'shared' | 'group' {
+  return threadAccessTypeCache.get(remoteId) ?? 'owner';
+}
+
+export function isThreadReadOnly(remoteId: string): boolean {
+  return threadReadOnlyCache.has(remoteId);
+}
+
 // Whether the most recent list() call failed (network/5xx/401) rather than
 // genuinely resolving to "no such thread". assistant-ui's core swallows
 // getLoadThreadsPromise() rejections internally (logs + resolves with the
@@ -84,6 +99,23 @@ function cacheThreadSlug(remoteId: string, suffix: string | null | undefined): v
   if (!suffix) return;
   threadSlugCache.set(remoteId, suffix);
   slugToThreadCache.set(suffix, remoteId);
+}
+
+/**
+ * Drop every routing cache entry for a thread. Called from `delete()` so a
+ * deleted thread's slug cannot be re-resolved by the routing effect: that
+ * would start a switch to a slot the delete's optimistic update just hid.
+ */
+function forgetThreadCaches(remoteId: string): void {
+  const suffix = threadSlugCache.get(remoteId);
+  if (suffix && slugToThreadCache.get(suffix) === remoteId) slugToThreadCache.delete(suffix);
+  threadSlugCache.delete(remoteId);
+  threadTypeCache.delete(remoteId);
+  notebookCollectionCache.delete(remoteId);
+  threadAgentCache.delete(remoteId);
+  threadTagsCache.delete(remoteId);
+  threadAccessTypeCache.delete(remoteId);
+  threadReadOnlyCache.delete(remoteId);
 }
 
 const EMPTY_TAGS: readonly string[] = [];
@@ -205,6 +237,7 @@ export function createGrueneratorThreadListAdapter(
         const external = callbacks?.getExternalThreads?.() ?? [];
 
         // Populate thread type + notebook collection caches for ThreadListItem rendering
+        let shareMetaChanged = false;
         for (const t of cachedThreads) {
           threadTypeCache.set(t.id, t.threadType || 'chat');
           if (t.notebookCollectionId) {
@@ -213,7 +246,21 @@ export function createGrueneratorThreadListAdapter(
           updateThreadTagsCache(t.id, t.tags ?? []);
           cacheThreadSlug(t.id, t.slugSuffix);
           threadAgentCache.set(t.id, t.agentId);
+          const accessType = t.accessType ?? 'owner';
+          if (threadAccessTypeCache.get(t.id) !== accessType) {
+            threadAccessTypeCache.set(t.id, accessType);
+            shareMetaChanged = true;
+          }
+          const readOnly = t.readOnly === true;
+          if (threadReadOnlyCache.has(t.id) !== readOnly) {
+            if (readOnly) threadReadOnlyCache.add(t.id);
+            else threadReadOnlyCache.delete(t.id);
+            shareMetaChanged = true;
+          }
         }
+        // Badge/routing readers subscribe via subscribeThreadTags (same
+        // listener set — one sidebar re-render channel, two caches).
+        if (shareMetaChanged) tagListeners.forEach((l) => l());
 
         const apiEntries = cachedThreads.map((t) => {
           const updatedAt = new Date(t.updatedAt).getTime();
@@ -322,6 +369,7 @@ export function createGrueneratorThreadListAdapter(
 
     async delete(remoteId: string) {
       if (isExternal(remoteId)) return;
+      forgetThreadCaches(remoteId);
       callbacks?.onDelete?.(remoteId);
       await apiClient.delete(`/api/chat-service/threads?threadId=${remoteId}`);
     },

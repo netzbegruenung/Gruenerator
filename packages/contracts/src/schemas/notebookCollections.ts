@@ -46,15 +46,17 @@ export const notebookAccessSourceSchema = z.enum(['owned', 'shared', 'authentica
 export type NotebookAccessSource = z.infer<typeof notebookAccessSourceSchema>;
 
 /**
- * Experimental: Wolke folder attached to a notebook.
+ * Wolke folder attached to a notebook.
  *
  * Persisted inside `settings.wolke_folders` (JSONB on `notebook_collections`).
  * On HTTP body the field name is snake_case (`wolke_folders`) to match the rest
  * of the collection contract; the inner object keeps camelCase because the
  * payload is opaque to Postgres.
  *
- * Sync is manual today (button on the editor card). The persisted pointer is
- * the foundation a future auto-sync follow-up needs.
+ * Sync runs both ways: manually (button on the editor card) and hourly via
+ * `WolkeWatchService` + the pending-files panel, which the persisted pointer
+ * was built for. (This comment used to call that follow-up "future"; it
+ * shipped.)
  */
 export const wolkeFolderRefSchema = z.object({
   shareLinkId: z.string(),

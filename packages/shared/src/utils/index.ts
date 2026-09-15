@@ -47,6 +47,17 @@ export {
   extractSlugSuffix,
 } from './slug.js';
 
+// Nextcloud share links — one parser for API, web and the chat classifier
+export {
+  parseCloudShareLink,
+  checkCloudShareLink,
+  isCloudShareUrl,
+  looksLikeCloudSharePath,
+  type ParsedCloudShareLink,
+  type CloudShareLinkCheck,
+  type CloudShareLinkProblem,
+} from './cloudShareLink.js';
+
 // Usage-based ranking (favourites-first ordering for notebooks & agents)
 export { compareUsageStats, sortByUsage } from './usageRanking.js';
 export type { UsageStat, UsageMap } from './usageRanking.js';
@@ -80,3 +91,8 @@ export {
   mentionTokenRegex,
 } from './mentionTokens.js';
 export type { MentionToken, MentionTokenType } from './mentionTokens.js';
+
+// German-aware sentence boundaries — read-aloud pipelining (voice) and
+// server-side chunking of long texts for Grünerator Voice (api)
+export { splitSentences } from './sentenceSplitter.js';
+export type { SplitResult } from './sentenceSplitter.js';

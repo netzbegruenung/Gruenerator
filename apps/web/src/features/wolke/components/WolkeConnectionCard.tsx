@@ -8,11 +8,11 @@ import {
 import {
   useDeleteShareLink,
   useTestConnection,
+  connectionErrorMessage,
   generateDisplayName,
   parseShareLink,
   WolkeFolderBrowser,
   type ShareLink,
-  type WolkeScope,
 } from '@gruenerator/wolke';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { FiChevronDown, FiExternalLink, FiTrash2, FiUsers, FiWifi } from 'react-icons/fi';
@@ -23,26 +23,18 @@ import { cn } from '@/utils/cn';
 
 interface WolkeConnectionCardProps {
   shareLink: ShareLink;
-  scope?: WolkeScope;
-  scopeId?: string | null;
   onSuccess?: (message: string) => void;
   onError?: (message: string) => void;
 }
 
-const WolkeConnectionCard = ({
-  shareLink,
-  scope,
-  scopeId,
-  onSuccess,
-  onError,
-}: WolkeConnectionCardProps) => {
+const WolkeConnectionCard = ({ shareLink, onSuccess, onError }: WolkeConnectionCardProps) => {
   const [expanded, setExpanded] = useState(false);
   const [deleteArmed, setDeleteArmed] = useState(false);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const deleteTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-  const deleteMutation = useDeleteShareLink(scope, scopeId);
-  const testMutation = useTestConnection(scope, scopeId);
+  const deleteMutation = useDeleteShareLink();
+  const testMutation = useTestConnection();
 
   const parsed = useMemo(
     () => (shareLink.share_link ? parseShareLink(shareLink.share_link) : null),
@@ -65,7 +57,9 @@ const WolkeConnectionCard = ({
       if (result.success) {
         onSuccess?.('Verbindung erfolgreich getestet!');
       } else {
-        onError?.('Verbindungstest fehlgeschlagen: ' + (result.message || 'Unbekannter Fehler'));
+        // Nicht `result.message` — das ist der englische Maschinenstring des
+        // Backends; der errorCode trägt die deutsche, handlungsleitende Fassung.
+        onError?.('Verbindungstest fehlgeschlagen: ' + connectionErrorMessage(result.errorCode));
       }
     } catch (error) {
       onError?.('Fehler beim Testen: ' + (error instanceof Error ? error.message : String(error)));
@@ -151,17 +145,15 @@ const WolkeConnectionCard = ({
               </Button>
             )}
 
-            {scope !== 'group' && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-9 w-9"
-                onClick={() => setShareDialogOpen(true)}
-                title="Mit Gruppe teilen"
-              >
-                <FiUsers className="w-4 h-4" />
-              </Button>
-            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9"
+              onClick={() => setShareDialogOpen(true)}
+              title="Mit Gruppe teilen"
+            >
+              <FiUsers className="w-4 h-4" />
+            </Button>
 
             <Button
               variant="ghost"
@@ -185,16 +177,14 @@ const WolkeConnectionCard = ({
           </div>
         </CollapsibleContent>
       </div>
-      {scope !== 'group' && (
-        <ShareWolkeLinkDialog
-          shareLinkId={shareLink.id}
-          displayName={displayName}
-          open={shareDialogOpen}
-          onOpenChange={setShareDialogOpen}
-          onSuccess={onSuccess}
-          onError={onError}
-        />
-      )}
+      <ShareWolkeLinkDialog
+        shareLinkId={shareLink.id}
+        displayName={displayName}
+        open={shareDialogOpen}
+        onOpenChange={setShareDialogOpen}
+        onSuccess={onSuccess}
+        onError={onError}
+      />
     </Collapsible>
   );
 };

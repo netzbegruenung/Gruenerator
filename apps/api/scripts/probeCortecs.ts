@@ -181,6 +181,9 @@ function zeile(label: string, a: Antwort): string {
   const teile = [
     `inhalt=${a.inhalt.length}z`,
     `denken=${a.denken.length}z`,
+    // `in=` ist das Signal der Nadelprobe: bricht es weit unter das Gesendete
+    // ein, hat der Endpunkt still gekürzt (siehe gemmaHosts.ts, GEMMA_31B_ON_CORTECS).
+    `in=${a.promptTokens ?? '?'}tok`,
     `out=${a.completionTokens ?? '?'}tok`,
     `finish=${a.finish ?? '?'}`,
     `${a.msGesamt}ms`,

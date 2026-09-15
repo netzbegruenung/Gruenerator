@@ -7,9 +7,7 @@ import {
   makeDocumentsTool,
   makeReadArtifactTool,
   makeFindContentTool,
-  makeGroupsTool,
   makeMediaTool,
-  makeNotebooksTool,
   makeSearchThreadsTool,
   type PersonalToolCtx,
 } from './personalDataTools.js';
@@ -24,9 +22,7 @@ const listUserBoards = vi.fn();
 const loadBoardState = vi.fn();
 const resolveCardDisplay = vi.fn();
 const updateCard = vi.fn();
-const listUserGroups = vi.fn();
 const findGroups = vi.fn();
-const getGroupByToken = vi.fn();
 const hasWriteAccess = vi.fn();
 const emitToolConfirmAction = vi.fn();
 const dbQuery = vi.fn();
@@ -36,10 +32,6 @@ const searchReels = vi.fn().mockResolvedValue([]);
 const getReelTranscript = vi.fn().mockResolvedValue(null);
 const getUserShares = vi.fn();
 const deleteShare = vi.fn();
-const nbGetUserCollections = vi.fn();
-const nbGetCollection = vi.fn();
-const nbUpdate = vi.fn();
-const nbDelete = vi.fn();
 const readArtifactContent = vi.fn();
 const recallPastChats = vi.fn();
 const listRecentThreads = vi.fn();
@@ -63,11 +55,7 @@ vi.mock('../../../services/boards/boardCardWriteService.js', () => ({
   updateCard: (...a: unknown[]) => updateCard(...a),
 }));
 vi.mock('../../../services/groups/groupQueries.js', () => ({
-  listUserGroups: (...a: unknown[]) => listUserGroups(...a),
   findGroups: (...a: unknown[]) => findGroups(...a),
-}));
-vi.mock('../../../services/groups/groupMutations.js', () => ({
-  getGroupByToken: (...a: unknown[]) => getGroupByToken(...a),
 }));
 vi.mock('../../workplace/recentActivityController.js', () => ({
   aggregateRecentActivity: (...a: unknown[]) => aggregateRecentActivity(...a),
@@ -87,7 +75,6 @@ vi.mock('../../../services/sharedMediaService.js', () => ({
     getUserShares: (...a: unknown[]) => getUserShares(...a),
     deleteShare: (...a: unknown[]) => deleteShare(...a),
   }),
-  USER_VISIBLE_SHARE_STATUSES: ['ready', 'draft'],
 }));
 vi.mock('../../../services/subtitler/ProjectService.js', () => ({
   getSubtitlerProjectService: () => ({
@@ -109,14 +96,6 @@ vi.mock('../services/pastChatRecallService.js', () => ({
   listRecentThreads: (...a: unknown[]) => listRecentThreads(...a),
   getThreadRecallContext: (...a: unknown[]) => getThreadRecallContext(...a),
   resolveSpaceThreadIds: (...a: unknown[]) => resolveSpaceThreadIds(...a),
-}));
-vi.mock('../../../database/services/NotebookQdrantHelper.js', () => ({
-  NotebookQdrantHelper: class {
-    getUserNotebookCollections = (...a: unknown[]) => nbGetUserCollections(...a);
-    getNotebookCollection = (...a: unknown[]) => nbGetCollection(...a);
-    updateNotebookCollection = (...a: unknown[]) => nbUpdate(...a);
-    deleteNotebookCollection = (...a: unknown[]) => nbDelete(...a);
-  },
 }));
 
 // --- helpers -----------------------------------------------------------------
@@ -471,72 +450,6 @@ describe('boards_tasks', () => {
   });
 });
 
-// --- groups ------------------------------------------------------------------
-describe('groups', () => {
-  it('list maps memberships to rows', async () => {
-    listUserGroups.mockResolvedValue([
-      { id: 'g1', name: 'Klima', slug_suffix: 'ab12', role: 'admin', member_count: 7 },
-    ]);
-    const out = (await exec(makeGroupsTool(ctx('u1')), { action: 'list', limit: 15 })) as {
-      results: Array<{ title: string; url: string }>;
-    };
-    expect(out.results[0].title).toBe('Klima');
-    expect(out.results[0].url).toContain('/gruppen/');
-  });
-
-  it('create without a name → error, no confirm', async () => {
-    const out = (await exec(makeGroupsTool(ctx('u1')), { action: 'create', limit: 15 })) as {
-      error?: string;
-    };
-    expect(out.error).toMatch(/name/);
-    expect(emitToolConfirmAction).not.toHaveBeenCalled();
-  });
-
-  it('create emits a create_group confirm with name + description', async () => {
-    const out = (await exec(makeGroupsTool(ctx('u1')), {
-      action: 'create',
-      name: 'Klima-AG',
-      description: 'Für den Klimaschutz',
-      limit: 15,
-    })) as { ok?: boolean };
-    expect(out.ok).toBe(true);
-    const [, action] = emitToolConfirmAction.mock.calls[0] as [
-      unknown,
-      { type: string; payload: unknown },
-    ];
-    expect(action.type).toBe('create_group');
-    expect(action.payload).toMatchObject({ name: 'Klima-AG', description: 'Für den Klimaschutz' });
-  });
-
-  it('join with an unknown token → error, no confirm', async () => {
-    getGroupByToken.mockResolvedValue(null);
-    const out = (await exec(makeGroupsTool(ctx('u1')), {
-      action: 'join',
-      joinToken: 'deadbeef',
-      limit: 15,
-    })) as { error?: string };
-    expect(out.error).toMatch(/Einladungslink/);
-    expect(emitToolConfirmAction).not.toHaveBeenCalled();
-  });
-
-  it('join emits a join_group confirm naming the resolved group', async () => {
-    getGroupByToken.mockResolvedValue({ id: 'g1', name: 'Klima' });
-    const out = (await exec(makeGroupsTool(ctx('u1')), {
-      action: 'join',
-      joinToken: 'tok123',
-      limit: 15,
-    })) as { ok?: boolean };
-    expect(out.ok).toBe(true);
-    expect(getGroupByToken).toHaveBeenCalledWith('tok123');
-    const [, action] = emitToolConfirmAction.mock.calls[0] as [
-      unknown,
-      { type: string; payload: unknown },
-    ];
-    expect(action.type).toBe('join_group');
-    expect(action.payload).toMatchObject({ joinToken: 'tok123', groupName: 'Klima' });
-  });
-});
-
 // --- media -------------------------------------------------------------------
 describe('media', () => {
   it('list merges reels and sharepics with follow-up refs', async () => {
@@ -552,6 +465,78 @@ describe('media', () => {
     const refs = out.results.map((r) => r.ref);
     expect(refs).toContain('reel:p1');
     expect(refs).toContain('sharepic:tok');
+  });
+
+  // Sharepics and KI-Bilder are separate products with separate sections in
+  // every gallery. Before this split the tool called every image a "Sharepic",
+  // so asking the chat for "meine Sharepics" answered with KI images too and
+  // the model had nothing to tell them apart by.
+  const images = [
+    { share_token: 'pic', title: 'Dreizeiler', media_type: 'image', content_origin: 'sharepic' },
+    { share_token: 'ki', title: 'Windrad', media_type: 'image', content_origin: 'ki' },
+    // Written before `content_origin` existed: classified off `image_type`,
+    // exactly as the galleries do for those rows.
+    { share_token: 'alt', title: 'Alt', media_type: 'image', image_type: 'pure-create' },
+  ];
+
+  it('labels images by what made them instead of calling them all Sharepics', async () => {
+    getUserProjects.mockResolvedValue([]);
+    getUserShares.mockResolvedValue(images);
+    const out = (await exec(makeMediaTool(ctx('u1')), {
+      action: 'list',
+      type: 'all',
+      limit: 15,
+    })) as { results: Array<{ type: string; ref?: string }> };
+
+    expect(out.results.map((r) => [r.ref, r.type])).toEqual([
+      ['sharepic:pic', 'Sharepic'],
+      ['sharepic:ki', 'KI-Bild'],
+      ['sharepic:alt', 'KI-Bild'],
+    ]);
+  });
+
+  it('type filters instead of describing: "sharepic" and "ki" each return only their own', async () => {
+    getUserProjects.mockResolvedValue([]);
+    getUserShares.mockResolvedValue(images);
+
+    const sharepics = (await exec(makeMediaTool(ctx('u1')), {
+      action: 'list',
+      type: 'sharepic',
+      limit: 15,
+    })) as { results: Array<{ ref?: string }> };
+    expect(sharepics.results.map((r) => r.ref)).toEqual(['sharepic:pic']);
+
+    getUserShares.mockResolvedValue(images);
+    const ki = (await exec(makeMediaTool(ctx('u1')), {
+      action: 'list',
+      type: 'ki',
+      limit: 15,
+    })) as { results: Array<{ ref?: string }> };
+    expect(ki.results.map((r) => r.ref)).toEqual(['sharepic:ki', 'sharepic:alt']);
+
+    // Reels stay out of both image buckets.
+    expect(getUserProjects).not.toHaveBeenCalled();
+    // A filtered ask reads a wider window than `limit`, or the KI images sitting
+    // below the 15 most recent Sharepics would never be reachable at all.
+    expect(getUserShares).toHaveBeenLastCalledWith('u1', 'image', ['ready', 'draft'], 100);
+  });
+
+  it('still honours limit after filtering', async () => {
+    getUserProjects.mockResolvedValue([]);
+    getUserShares.mockResolvedValue(
+      Array.from({ length: 8 }, (_, i) => ({
+        share_token: `k${i}`,
+        title: `KI ${i}`,
+        media_type: 'image',
+        content_origin: 'ki',
+      }))
+    );
+    const out = (await exec(makeMediaTool(ctx('u1')), {
+      action: 'list',
+      type: 'ki',
+      limit: 3,
+    })) as { resultCount: number };
+    expect(out.resultCount).toBe(3);
   });
 
   it('delete without confirm asks first; with confirm routes to the right service', async () => {
@@ -667,47 +652,6 @@ describe('media', () => {
 });
 
 // --- notebooks ---------------------------------------------------------------
-describe('notebooks', () => {
-  it('rename is refused when the collection belongs to someone else', async () => {
-    nbGetCollection.mockResolvedValue({ id: 'n1', name: 'Fremd', user_id: 'other' });
-    const out = (await exec(makeNotebooksTool(ctx('u1')), {
-      action: 'rename',
-      id: 'n1',
-      name: 'Neu',
-      confirm: false,
-      limit: 15,
-    })) as { error?: string };
-    expect(out.error).toMatch(/kein Zugriff/);
-    expect(nbUpdate).not.toHaveBeenCalled();
-  });
-
-  it('rename updates an owned collection', async () => {
-    nbGetCollection.mockResolvedValue({ id: 'n1', name: 'Alt', user_id: 'u1' });
-    nbUpdate.mockResolvedValue({ success: true });
-    const out = (await exec(makeNotebooksTool(ctx('u1')), {
-      action: 'rename',
-      id: 'n1',
-      name: 'Neu',
-      confirm: false,
-      limit: 15,
-    })) as { ok?: boolean };
-    expect(out.ok).toBe(true);
-    expect(nbUpdate).toHaveBeenCalledWith('n1', { name: 'Neu' });
-  });
-
-  it('delete needs a two-step confirm', async () => {
-    nbGetCollection.mockResolvedValue({ id: 'n1', name: 'Alt', user_id: 'u1' });
-    const out = (await exec(makeNotebooksTool(ctx('u1')), {
-      action: 'delete',
-      id: 'n1',
-      confirm: false,
-      limit: 15,
-    })) as { needsConfirmation?: boolean };
-    expect(out.needsConfirmation).toBe(true);
-    expect(nbDelete).not.toHaveBeenCalled();
-  });
-});
-
 // --- read_artifact -----------------------------------------------------------
 
 /**

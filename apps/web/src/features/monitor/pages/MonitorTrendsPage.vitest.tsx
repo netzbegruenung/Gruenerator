@@ -157,6 +157,23 @@ describe('MonitorFeedPage', () => {
       await screen.findByText('Landesparteitag beschliesst Wohnraumprogramm')
     ).toBeInTheDocument();
   });
+
+  // Der LV-Korpus ist rein deutsch — getWhatHappened nimmt `locale` entgegen,
+  // engt damit aber nichts ein. Unter `at` blieben sonst deutsche
+  // Landesverbands-Meldungen als oesterreichischer Feed stehen.
+  it('drops the Landesverband stream under the Austrian locale', async () => {
+    serveMonitor();
+
+    renderWithProviders(<MonitorFeedContent />, { route: '/feed?locale=at' });
+
+    expect(await screen.findByRole('heading', { name: 'Von Bluesky' })).toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: 'Aus den Landesverbänden' })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('Landesparteitag beschliesst Wohnraumprogramm')
+    ).not.toBeInTheDocument();
+  });
 });
 
 describe('MonitorTrendsPage after the Bluesky move', () => {

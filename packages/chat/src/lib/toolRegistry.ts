@@ -57,6 +57,32 @@ export const UI_TOOL_NAMES = z.enum([
   'notebooks',
   'read_pdf_form',
   'fill_pdf_form',
+  'cloud_files',
+  'recurring_tasks',
+  'user_agents',
+  'recipes',
+  // --- Loop-catalog tools that had no UI entry until now. Every string here is
+  // copied verbatim from its API mount site; toolCatalogUiCoverage.vitest.ts in
+  // apps/api enforces exactly that. F0: additive only, never renamed.
+  'rezept_laden',
+  'sharepic',
+  // Persisted by the deterministic edit lane (sharepicEditService), not the loop.
+  'sharepic_edit',
+  'create_document',
+  'create_presentation',
+  'create_sheet',
+  'create_pdf',
+  'create_board',
+  'umfragen',
+  'abgeordnetenwatch',
+  'summarize',
+  'product_knowledge',
+  'expand_attachment',
+  'dokumente_lesen',
+  'search_threads',
+  'read_artifact',
+  'memory',
+  'vertonen',
 ]);
 export type UiToolName = z.infer<typeof UI_TOOL_NAMES>;
 
@@ -73,7 +99,18 @@ export interface ToolRegistryEntry {
 // ---------------------------------------------------------------------------
 
 const MARKDOWNISH_KEYS = ['answer', 'markdown', 'content', 'text', 'summary'];
-const LIFTED_KEYS = new Set([...MARKDOWNISH_KEYS, 'results', 'citations', 'image', 'imageUrl']);
+const LIFTED_KEYS = new Set([
+  ...MARKDOWNISH_KEYS,
+  'results',
+  'citations',
+  'image',
+  'imageUrl',
+  // Lifted so an unregistered failing tool does not show its failure as a
+  // key/value row literally labelled "error"; the card renders it as an error.
+  'error',
+  // Live-only success flag (parseSSEStream folds it in); never a data row.
+  'ok',
+]);
 
 function liftCitations(result: unknown): SerializableCitation[] {
   const items =
@@ -162,6 +199,19 @@ function parsePdfFormReadVM(args: unknown, result: unknown): ToolResultVM {
   return { kind: 'key-value', entries, citations: [], markdown: null, imageUrl: null };
 }
 
+/** Vertonung outcome. The file itself renders in the compute card below. */
+function parseVertonenVM(args: unknown, result: unknown): ToolResultVM {
+  const error = getString(result, 'error');
+  if (error) return { kind: 'text-note', text: error };
+  const fileName = getString(result, 'fileName');
+  if (!fileName) return parseGenericFallback(args, result);
+  const laenge = getString(result, 'laenge');
+  return {
+    kind: 'text-note',
+    text: laenge ? `„${fileName}" erstellt · ${laenge}` : `„${fileName}" erstellt.`,
+  };
+}
+
 /** Fill outcome. Counts, not the field list — the arrays may be truncated. */
 function parsePdfFormFillVM(args: unknown, result: unknown): ToolResultVM {
   const fileName = getString(result, 'fileName');
@@ -181,9 +231,128 @@ function parseTextNoteVM(args: unknown, result: unknown): ToolResultVM {
       ? result
       : (getString(result, 'summary') ??
         getString(result, 'memory') ??
-        getString(result, 'message'));
+        getString(result, 'message') ??
+        // product_knowledge returns instruction prose, umfragen a poll digest.
+        getString(result, 'knowledge') ??
+        getString(result, 'umfragen'));
   if (!text) return parseGenericFallback(args, result);
   return { kind: 'text-note', text };
+}
+
+// memory: the card is the only place the person sees what was kept, changed
+// or dropped — so it shows the text, never the model-facing `hinweis`.
+function parseMemoryVM(args: unknown, result: unknown): ToolResultVM {
+  const error = getString(result, 'error');
+  if (error) return { kind: 'text-note', text: error };
+  const text = getString(result, 'text');
+  if (!text) return parseGenericFallback(args, result);
+  if (getBoolean(result, 'gespeichert')) {
+    const already = getString(result, 'hinweis') != null;
+    return { kind: 'text-note', text: `${already ? 'Bereits gemerkt' : 'Gemerkt'}: ${text}` };
+  }
+  if (getBoolean(result, 'aktualisiert'))
+    return { kind: 'text-note', text: `Aktualisiert: ${text}` };
+  if (getBoolean(result, 'vergessen')) return { kind: 'text-note', text: `Vergessen: ${text}` };
+  return parseGenericFallback(args, result);
+}
+
+// rezept_laden is a SWITCH, not a search: it registers a writing recipe for the
+// rest of the turn and returns a tiny acknowledgement. Show the recipe TITLE —
+// never the mention id (`presse`) and never `hinweis`, which is an instruction
+// addressed to the model, not to the reader.
+function parseRecipeVM(args: unknown, result: unknown): ToolResultVM {
+  const error = getString(result, 'error');
+  if (error) return { kind: 'text-note', text: error };
+  if (!getBoolean(result, 'geladen')) {
+    const grund = getString(result, 'grund');
+    return { kind: 'text-note', text: grund ?? 'Rezept konnte nicht geladen werden.' };
+  }
+  const titel = getString(result, 'titel') ?? getString(result, 'rezept');
+  if (!titel) return parseGenericFallback(args, result);
+  return { kind: 'text-note', text: `Rezept „${titel}" geladen.` };
+}
+
+// The doc family already renders a rich DocumentCreatedCard off the `done`
+// metadata, so this card stays deliberately slim — two cards for one artifact
+// would double-represent it.
+function parseArtifactCreatedVM(args: unknown, result: unknown): ToolResultVM {
+  const error = getString(result, 'error');
+  if (error) return { kind: 'text-note', text: error };
+  const title = getString(getObject(result, 'document'), 'title');
+  if (title) return { kind: 'text-note', text: `„${title}" erstellt.` };
+  const note = getString(result, 'note');
+  return note ? { kind: 'text-note', text: note } : parseGenericFallback(args, result);
+}
+
+// create_pdf carries a self-check the user can see NOWHERE else: `probleme` is
+// dropped entirely by the generic fallback's 8-entry <dl>. One row per problem.
+function parsePdfCreatedVM(args: unknown, result: unknown): ToolResultVM {
+  const error = getString(result, 'error');
+  if (error) return { kind: 'text-note', text: error };
+  const title = getString(getObject(result, 'document'), 'title');
+  if (!title) return parseGenericFallback(args, result);
+
+  const entries: KeyValueEntry[] = [{ label: 'Datei', value: title }];
+  const fields = getArray(result, 'felder');
+  if (fields?.length) entries.push({ label: 'Felder', value: String(fields.length) });
+  for (const [i, problem] of (getArray(result, 'probleme') ?? []).entries()) {
+    const text = typeof problem === 'string' ? problem : getString(problem, 'hinweis');
+    if (text) entries.push({ label: i === 0 ? 'Prüfung' : ' ', value: text });
+  }
+  return { kind: 'key-value', entries, citations: [], markdown: null, imageUrl: null };
+}
+
+// Boards emit no document_created event — this card is the ONLY place a created
+// board is ever named, which is why it carries the title rather than staying slim.
+function parseBoardCreatedVM(args: unknown, result: unknown): ToolResultVM {
+  const error = getString(result, 'error');
+  if (error) return { kind: 'text-note', text: error };
+  const title = getString(getObject(result, 'board'), 'title');
+  if (title) return { kind: 'text-note', text: `Board „${title}" erstellt.` };
+  const note = getString(result, 'note');
+  return note ? { kind: 'text-note', text: note } : parseGenericFallback(args, result);
+}
+
+// The variants themselves render in SharepicVariantStack; the card only reports.
+function parseSharepicVM(args: unknown, result: unknown): ToolResultVM {
+  const error = getString(result, 'error');
+  if (error) return { kind: 'text-note', text: error };
+  const note = getString(result, 'note');
+  return note ? { kind: 'text-note', text: note } : parseGenericFallback(args, result);
+}
+
+// The edited picture re-renders via `sharepic_updated`; the card names the
+// change. The rest of the result is canvas/variant UUIDs nobody should see.
+function parseSharepicEditVM(args: unknown, result: unknown): ToolResultVM {
+  const error = getString(result, 'error');
+  if (error) return { kind: 'text-note', text: error };
+  const summary = getString(result, 'summary');
+  return summary ? { kind: 'text-note', text: summary } : parseGenericFallback(args, result);
+}
+
+// read_artifact has an ambiguous-match branch (`candidates`) that the generic
+// fallback loses completely — it is exactly the branch the reader must act on.
+function parseReadArtifactVM(args: unknown, result: unknown): ToolResultVM {
+  const error = getString(result, 'error');
+  if (error) return { kind: 'text-note', text: error };
+
+  const candidates = getArray(result, 'candidates');
+  if (candidates?.length) {
+    const entries: KeyValueEntry[] = candidates.flatMap((c) => {
+      const title = getString(c, 'title');
+      return title ? [{ label: title, value: getString(c, 'id') ?? '' }] : [];
+    });
+    if (entries.length) {
+      return { kind: 'key-value', entries, citations: [], markdown: null, imageUrl: null };
+    }
+  }
+
+  const title = getString(result, 'title') ?? getString(getObject(result, 'document'), 'title');
+  if (title) {
+    const truncated = getBoolean(result, 'truncated') ? ' (gekürzt)' : '';
+    return { kind: 'text-note', text: `${title}${truncated}` };
+  }
+  return parseGenericFallback(args, result);
 }
 
 function parseLinkPreviewVM(args: unknown, result: unknown): ToolResultVM {
@@ -213,6 +382,203 @@ function parsePersonalDataVM(args: unknown, result: unknown): ToolResultVM {
   return parseGenericFallback(args, result);
 }
 
+// notebooks hat neben den Listen zwei eigene Formen: `search` liefert
+// `{answer, citations[]}` — die Antwort als Markdown, die Zitate als Liste —
+// und `get` ein `{notebook}`-Detailobjekt. Beide fielen sonst in den
+// generischen <dl>-Dump; alles andere (list, Vorgänge) geht weiter über
+// `parsePersonalDataVM`.
+function parseNotebooksVM(args: unknown, result: unknown): ToolResultVM {
+  const answer = getString(result, 'answer');
+  if (answer) {
+    const citations = (getArray(result, 'citations') ?? [])
+      .slice(0, 5)
+      .map((c, i) => toSerializableCitation(c, i, 'document'));
+    const notebook = getString(result, 'notebook');
+    return {
+      kind: 'key-value',
+      entries: notebook ? [{ label: 'Notebook', value: notebook }] : [],
+      citations,
+      markdown: answer,
+      imageUrl: null,
+    };
+  }
+  const notebook = getObject(result, 'notebook');
+  if (notebook) {
+    const entries: KeyValueEntry[] = [];
+    const name = getString(notebook, 'name');
+    if (name) entries.push({ label: 'Notebook', value: name });
+    const count = getNumber(notebook, 'documentCount');
+    if (count != null) entries.push({ label: 'Dokumente', value: String(count) });
+    const pending = getNumber(notebook, 'pendingCount');
+    if (pending) entries.push({ label: 'Neue Dateien', value: String(pending) });
+    const folders = getArray(notebook, 'wolkeFolders') ?? [];
+    if (folders.length) {
+      entries.push({
+        label: 'Wolke-Ordner',
+        value: folders.map((f) => getString(f, 'folderName') ?? '—').join(', '),
+      });
+    }
+    const groups = getArray(notebook, 'sharedGroups') ?? [];
+    if (groups.length) {
+      entries.push({
+        label: 'Geteilt mit',
+        value: groups.map((g) => getString(g, 'name') ?? '—').join(', '),
+      });
+    }
+    // Ein frisch angelegtes Notebook (`create`) hat nur name + url.
+    if (entries.length === 1 && getString(notebook, 'url')) {
+      return { kind: 'text-note', text: `Notebook „${name}" angelegt.` };
+    }
+    return { kind: 'key-value', entries, citations: [], markdown: null, imageUrl: null };
+  }
+  return parsePersonalDataVM(args, result);
+}
+
+// groups: `get` liefert ein `{group}`-Detailobjekt (groupTools.ts) — ohne Zweig
+// fiel es in den generischen <dl>-Dump mit englischen Schlüsseln. Listen
+// (list/find/content) und Vorgänge gehen weiter über `parsePersonalDataVM`.
+function parseGroupsVM(args: unknown, result: unknown): ToolResultVM {
+  const group = getObject(result, 'group');
+  if (group) {
+    const entries: KeyValueEntry[] = [];
+    const name = getString(group, 'name');
+    if (name) entries.push({ label: 'Projekt', value: name });
+    const description = getString(group, 'description');
+    if (description) entries.push({ label: 'Beschreibung', value: description });
+    entries.push({
+      label: 'Rolle',
+      value: getBoolean(group, 'isAdmin') ? 'Admin' : 'Mitglied',
+    });
+    const members = getNumber(group, 'memberCount');
+    if (members != null) entries.push({ label: 'Mitglieder', value: String(members) });
+    entries.push({
+      label: 'Sichtbarkeit',
+      value: getBoolean(group, 'isPublic') ? 'Öffentlich gelistet' : 'Privat',
+    });
+    const content = getNumber(group, 'contentCount');
+    if (content != null) entries.push({ label: 'Geteilte Inhalte', value: String(content) });
+    return { kind: 'key-value', entries, citations: [], markdown: null, imageUrl: null };
+  }
+  return parsePersonalDataVM(args, result);
+}
+
+// recurring_tasks: `get` liefert ein `{task}`-Detailobjekt mit fertigen
+// Etiketten (recurringTaskTools.ts) — der Takt wird serverseitig beschrieben,
+// damit die Wochentagsliste nicht ein drittes Mal existiert. Listen und
+// Vorgänge gehen weiter über `parsePersonalDataVM`.
+function parseRecurringTasksVM(args: unknown, result: unknown): ToolResultVM {
+  const task = getObject(result, 'task');
+  if (task) {
+    const entries: KeyValueEntry[] = [];
+    const title = getString(task, 'title');
+    if (title) entries.push({ label: 'Aufgabe', value: title });
+    const takt = getString(task, 'recurrenceLabel');
+    if (takt) entries.push({ label: 'Takt', value: takt });
+    const delivery = getString(task, 'deliveryLabel');
+    if (delivery) entries.push({ label: 'Zustellung', value: delivery });
+    const agent = getString(task, 'agentTitle') ?? getString(task, 'agentIdentifier');
+    entries.push({ label: 'Agent', value: agent ?? 'Grünerator (Standard)' });
+    entries.push({ label: 'Status', value: getBoolean(task, 'enabled') ? 'Aktiv' : 'Pausiert' });
+    const runs = getArray(result, 'runs') ?? [];
+    if (runs.length) {
+      entries.push({
+        label: 'Letzte Läufe',
+        value: runs.map((r) => getString(r, 'statusLabel') ?? '—').join(', '),
+      });
+    }
+    return { kind: 'key-value', entries, citations: [], markdown: null, imageUrl: null };
+  }
+  return parsePersonalDataVM(args, result);
+}
+
+// user_agents: `get` liefert ein `{agent}`-Detailobjekt mit fertigen Etiketten
+// (userAgentTools.ts); Listen gehen über `parsePersonalDataVM`, die Karten-
+// Aktionen und Fehler als Notiz — sonst zeigte der generische Fallback
+// `ok`/`needsConfirmation` als Tabellenzeilen.
+function parseUserAgentsVM(args: unknown, result: unknown): ToolResultVM {
+  const error = getString(result, 'error');
+  if (error) return { kind: 'text-note', text: error };
+  const agent = getObject(result, 'agent');
+  if (agent) {
+    const entries: KeyValueEntry[] = [];
+    const title = getString(agent, 'title');
+    if (title) entries.push({ label: 'Name', value: title });
+    const description = getString(agent, 'description');
+    if (description) entries.push({ label: 'Beschreibung', value: description });
+    const shared = getString(agent, 'sharedFromGroup');
+    if (shared) {
+      entries.push({ label: 'Geteilt aus', value: shared });
+      return { kind: 'key-value', entries, citations: [], markdown: null, imageUrl: null };
+    }
+    const tools = getString(agent, 'toolLabels');
+    if (tools) entries.push({ label: 'Werkzeuge', value: tools });
+    const recipes = getArray(agent, 'skillMentions') ?? [];
+    if (recipes.length) {
+      entries.push({ label: 'Rezepte', value: recipes.map((r) => String(r)).join(', ') });
+    }
+    const notebooks = getArray(agent, 'notebooks') ?? [];
+    if (notebooks.length) {
+      entries.push({
+        label: 'Notebooks',
+        value: notebooks.map((n) => getString(n, 'name') ?? '—').join(', '),
+      });
+    }
+    const visibility = getString(agent, 'shareModeLabel');
+    if (visibility) entries.push({ label: 'Sichtbarkeit', value: visibility });
+    return { kind: 'key-value', entries, citations: [], markdown: null, imageUrl: null };
+  }
+  const items = getArray(result, 'results');
+  if (items && items.length) return parsePersonalDataVM(args, result);
+  const note = getString(result, 'note');
+  if (note) return { kind: 'text-note', text: note };
+  return parseGenericFallback(args, result);
+}
+
+// recipes: `get` liefert `{recipe}` — für eine eigene Textform mit Art,
+// Textsorte, Beispielzahl und Stilblock, für ein mitgeliefertes Rezept nur
+// Titel, Beschreibung und den Hinweis (der Rumpf bleibt serverseitig).
+// Listen gehen über `parsePersonalDataVM`, create/add_examples/delete und
+// Fehler als Notiz.
+function parseRecipesVM(args: unknown, result: unknown): ToolResultVM {
+  const error = getString(result, 'error');
+  if (error) return { kind: 'text-note', text: error };
+  const note = getString(result, 'note');
+  if (note) return { kind: 'text-note', text: note };
+  const recipe = getObject(result, 'recipe');
+  if (recipe) {
+    const entries: KeyValueEntry[] = [];
+    const title = getString(recipe, 'title');
+    if (title) entries.push({ label: 'Name', value: title });
+    const mention = getString(recipe, 'mention');
+    if (mention) entries.push({ label: 'Mention', value: `@${mention}` });
+    if (getString(recipe, 'source') === 'system') {
+      const description = getString(recipe, 'description');
+      if (description) entries.push({ label: 'Beschreibung', value: description });
+      entries.push({ label: 'Art', value: 'Mitgeliefertes Rezept' });
+      return { kind: 'key-value', entries, citations: [], markdown: null, imageUrl: null };
+    }
+    const kind = getString(recipe, 'kindLabel');
+    if (kind) entries.push({ label: 'Art', value: kind });
+    const textType = getString(recipe, 'textTypeLabel');
+    if (textType) entries.push({ label: 'Textsorte', value: textType });
+    const count = getNumber(recipe, 'exampleCount');
+    if (count != null) entries.push({ label: 'Beispiele', value: String(count) });
+    const shared = getString(recipe, 'sharedFromGroup');
+    if (shared) entries.push({ label: 'Geteilt aus', value: shared });
+    const style = getString(recipe, 'styleBlock');
+    if (style) {
+      entries.push({
+        label: getBoolean(recipe, 'styleTruncated') ? 'Stil (gekürzt)' : 'Stil',
+        value: style,
+      });
+    }
+    return { kind: 'key-value', entries, citations: [], markdown: null, imageUrl: null };
+  }
+  const items = getArray(result, 'results');
+  if (items && items.length) return parsePersonalDataVM(args, result);
+  return parseGenericFallback(args, result);
+}
+
 // edit_document (agentic editor edit): the loop step that plans + applies typed
 // ops to the open sheet/presentation/board. Result is lean — {ok, operationCount,
 // opSummary} | {ok, operationCount:0, note} | {error} — so a compact text-note
@@ -228,6 +594,63 @@ function parseEditDocumentVM(_args: unknown, result: unknown): ToolResultVM {
   const summary = getString(result, 'opSummary');
   const head = n != null ? `${n} Änderung${n === 1 ? '' : 'en'} übernommen` : 'Änderung übernommen';
   return { kind: 'text-note', text: summary ? `${head} · ${summary}` : head };
+}
+
+// cloud_files hat vier Ergebnisformen: eine Ordner-/Trefferliste (`entries`),
+// eine Verbindungsliste (`connections`), ein gelesenes Dokument (nur
+// `resultCount`/`sources` — die Zitate laufen über die Quellen-Registry, nicht
+// über die Karte) und Status-/Fehlerzeilen. Ein Parser deckt alle vier ab.
+//
+// Die Kürzungs-Notiz wird bewusst MITGERENDERT: eine abgeschnittene Liste, die
+// wie eine vollständige aussieht, ist genau die Ausfallform, gegen die das
+// Werkzeug seine `note` schreibt.
+function parseCloudFilesVM(args: unknown, result: unknown): ToolResultVM {
+  const error = getString(result, 'error');
+  if (error) return { kind: 'text-note', text: error };
+
+  const entries = getArray(result, 'entries');
+  if (entries) {
+    const rows: KeyValueEntry[] = entries.map((raw) => {
+      const name = getString(raw, 'name') ?? getString(raw, 'path') ?? '—';
+      const isDirectory = getBoolean(raw, 'isDirectory');
+      return { label: isDirectory ? `${name}/` : name, value: getString(raw, 'info') ?? '' };
+    });
+    const note = getString(result, 'note');
+    if (note) rows.push({ label: 'Hinweis', value: note });
+    if (rows.length === 0) {
+      return { kind: 'text-note', text: 'Der Ordner ist leer.' };
+    }
+    return { kind: 'key-value', entries: rows, citations: [], markdown: null, imageUrl: null };
+  }
+
+  const connections = getArray(result, 'connections');
+  if (connections) {
+    if (connections.length === 0) {
+      return { kind: 'text-note', text: getString(result, 'note') ?? 'Keine Wolke verbunden.' };
+    }
+    return {
+      kind: 'key-value',
+      entries: connections.map((raw) => ({
+        label: getString(raw, 'label') ?? '—',
+        value: getString(raw, 'host') ?? '',
+      })),
+      citations: [],
+      markdown: null,
+      imageUrl: null,
+    };
+  }
+
+  const file = getString(result, 'file');
+  if (file) {
+    const count = getNumber(result, 'resultCount');
+    const note = getString(result, 'note');
+    const head = count != null ? `${file} gelesen (${count} Abschnitte)` : `${file} gelesen`;
+    return { kind: 'text-note', text: note ? `${head} · ${note}` : head };
+  }
+
+  const note = getString(result, 'note');
+  if (note) return { kind: 'text-note', text: note };
+  return parseGenericFallback(args, result);
 }
 
 function entry(name: UiToolName, kind: ToolViewKind, parse: ToolRegistryEntry['parse']) {
@@ -283,6 +706,7 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   generate_image: entry('generate_image', 'image', parseImageVM),
   recall_memory: entry('recall_memory', 'text-note', parseTextNoteVM),
   save_memory: entry('save_memory', 'text-note', parseTextNoteVM),
+  memory: entry('memory', 'text-note', parseMemoryVM),
   search_chat_history: entry('search_chat_history', 'citations', (_a, r) => ({
     kind: 'citations',
     citations: parseSearchCitations(r),
@@ -294,13 +718,50 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   find_content: entry('find_content', 'citations', parsePersonalDataVM),
   documents: entry('documents', 'citations', parsePersonalDataVM),
   boards_tasks: entry('boards_tasks', 'citations', parsePersonalDataVM),
-  groups: entry('groups', 'citations', parsePersonalDataVM),
+  groups: entry('groups', 'citations', parseGroupsVM),
   media: entry('media', 'citations', parsePersonalDataVM),
-  notebooks: entry('notebooks', 'citations', parsePersonalDataVM),
+  notebooks: entry('notebooks', 'citations', parseNotebooksVM),
   read_pdf_form: entry('read_pdf_form', 'key-value', parsePdfFormReadVM),
   // The filled file itself renders in the compute card (fileAssets); the tool
   // card only reports what happened.
   fill_pdf_form: entry('fill_pdf_form', 'text-note', parsePdfFormFillVM),
+  // The audio file itself renders in the compute card (fileAssets); the tool
+  // card only reports what was made.
+  vertonen: entry('vertonen', 'text-note', parseVertonenVM),
+  cloud_files: entry('cloud_files', 'key-value', parseCloudFilesVM),
+  recurring_tasks: entry('recurring_tasks', 'citations', parseRecurringTasksVM),
+  user_agents: entry('user_agents', 'citations', parseUserAgentsVM),
+  recipes: entry('recipes', 'citations', parseRecipesVM),
+
+  // --- Loop-catalog tools, previously falling through to the raw-name pill ---
+  rezept_laden: entry('rezept_laden', 'text-note', parseRecipeVM),
+  sharepic: entry('sharepic', 'text-note', parseSharepicVM),
+  sharepic_edit: entry('sharepic_edit', 'text-note', parseSharepicEditVM),
+  create_document: entry('create_document', 'text-note', parseArtifactCreatedVM),
+  create_presentation: entry('create_presentation', 'text-note', parseArtifactCreatedVM),
+  create_sheet: entry('create_sheet', 'text-note', parseArtifactCreatedVM),
+  create_pdf: entry('create_pdf', 'key-value', parsePdfCreatedVM),
+  create_board: entry('create_board', 'text-note', parseBoardCreatedVM),
+  read_artifact: entry('read_artifact', 'text-note', parseReadArtifactVM),
+  search_threads: entry('search_threads', 'citations', parsePersonalDataVM),
+  umfragen: entry('umfragen', 'text-note', parseTextNoteVM),
+  product_knowledge: entry('product_knowledge', 'text-note', parseTextNoteVM),
+  summarize: entry('summarize', 'text-note', parseTextNoteVM),
+  // The three below report through the status line and draw no card at all
+  // (SEARCH_PROGRESS_TOOLS); the entries exist so a reload still resolves a
+  // label, and so the drift guard stays total.
+  abgeordnetenwatch: entry('abgeordnetenwatch', 'citations', (_a, r) => ({
+    kind: 'citations',
+    citations: parseSearchCitations(r),
+  })),
+  dokumente_lesen: entry('dokumente_lesen', 'citations', (_a, r) => ({
+    kind: 'citations',
+    citations: parseSearchCitations(r),
+  })),
+  expand_attachment: entry('expand_attachment', 'citations', (_a, r) => ({
+    kind: 'citations',
+    citations: parseSearchCitations(r),
+  })),
 };
 
 /** Lookup that degrades gracefully for unregistered tool names. */

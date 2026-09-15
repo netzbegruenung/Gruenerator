@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildEmbeddingText, buildEmbeddingTexts } from './embeddingText.js';
+import { buildEmbeddingText, buildEmbeddingTextsForChunks } from './embeddingText.js';
 
 describe('buildEmbeddingText', () => {
   it('prepends the title to the chunk', () => {
@@ -25,8 +25,50 @@ describe('buildEmbeddingText', () => {
     expect(result.startsWith('T'.repeat(200) + '\n\n')).toBe(true);
     expect(result).not.toContain('T'.repeat(201));
   });
+});
 
-  it('maps over chunk arrays', () => {
-    expect(buildEmbeddingTexts(['a', 'b'], 'Titel')).toEqual(['Titel\n\na', 'Titel\n\nb']);
+describe('buildEmbeddingText mit Überschriftenpfad', () => {
+  it('stellt Titel und Pfad voran, mit › getrennt', () => {
+    expect(
+      buildEmbeddingText('Der Zuschuss beträgt 30 Prozent.', 'Wahlprogramm 2026', [
+        'Kapitel 3: Wärmewende',
+        '3.1 Förderprogramme',
+      ])
+    ).toBe(
+      'Wahlprogramm 2026 › Kapitel 3: Wärmewende › 3.1 Förderprogramme\n\nDer Zuschuss beträgt 30 Prozent.'
+    );
+  });
+
+  it('kommt ohne Titel mit dem Pfad allein aus', () => {
+    expect(buildEmbeddingText('Text.', null, ['Kapitel 1'])).toBe('Kapitel 1\n\nText.');
+  });
+
+  it('überspringt den Teil, den der Chunk schon trägt', () => {
+    const chunk = '3.1 Förderprogramme\nDer Zuschuss beträgt 30 Prozent.';
+    expect(buildEmbeddingText(chunk, null, ['3.1 Förderprogramme'])).toBe(chunk);
+  });
+
+  it('deckelt den Pfad wie den Titel bei 200 Zeichen', () => {
+    const result = buildEmbeddingText('Chunk.', null, ['P'.repeat(300)]);
+    expect(result.startsWith('P'.repeat(200) + '\n\n')).toBe(true);
+    expect(result).not.toContain('P'.repeat(201));
+  });
+
+  it('verhält sich ohne Pfad wie bisher', () => {
+    expect(buildEmbeddingText('Text.', 'Titel')).toBe('Titel\n\nText.');
+    expect(buildEmbeddingText('Text.', null, [])).toBe('Text.');
+    expect(buildEmbeddingText('Text.', null, null)).toBe('Text.');
+  });
+
+  it('zieht den Pfad je Chunk aus dessen Metadaten', () => {
+    expect(
+      buildEmbeddingTextsForChunks(
+        [
+          { text: 'A.', metadata: { headingPath: ['Kapitel 1'] } },
+          { text: 'B.', metadata: {} },
+        ],
+        'Titel'
+      )
+    ).toEqual(['Titel › Kapitel 1\n\nA.', 'Titel\n\nB.']);
   });
 });

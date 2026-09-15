@@ -74,7 +74,11 @@ const TOOL_MENTIONS_ADDED: Array<[string, string, string | undefined]> = [
   ['beispiele', 'examples', undefined],
   ['pressemitteilungen', 'pressemitteilung_examples', undefined],
   ['verlauf', 'chat_history', undefined],
-  ['social', 'social_post', undefined],
+  // `['social', 'social_post']` stand hier, bis der Intent 08/2026 stillgelegt
+  // wurde. Er ist der einzige, dessen Erwähnung ERSATZLOS fällt: `@umfragen`
+  // und `@pressemitteilungen` zeigen weiter auf ein Werkzeug, ein Social-Post
+  // ist dagegen eine Textsorte — und die haben mit `/instagram`, `/facebook`,
+  // `/twitter`, `/linkedin` schon genauere Einträge im Composer.
   ['diagramm', 'chart', undefined],
   ['rechnen', 'compute', undefined],
   // Variant mention of `research`: the only token that authorises Linkup's paid

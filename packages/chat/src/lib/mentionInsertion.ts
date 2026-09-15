@@ -85,12 +85,19 @@ export function computePillMentionInsertion(
  * backend leaves `agentId` to the body, and only the plain form makes the
  * client's parser resolve the owning agent. Recipes lose nothing by it; their
  * chip rides `activeSkillMention` in the store, as before.
+ *
+ * Grünerator-Agenten sit in the same exception for the same reason and a
+ * sharper one: an `agent:` token is the one kind `deriveMentionTokenFields`
+ * refuses to read (the body's agentId must win), and nothing else in the store
+ * carries the choice — a pill that flushed to its token form would silently
+ * hand the turn back to whichever agent the thread was already on (#2909).
  */
 // Typed against the union, not `Set<string>`: renaming or dropping a member has
 // to break the build here. Untyped, the set would silently stop matching, every
 // recipe would tokenise, and each one would quietly lose its agent.
 const CARRIES_ITS_OWN_AGENT: ReadonlySet<MentionableType> = new Set<MentionableType>([
   'agent',
+  'useragent',
   'textform',
 ]);
 

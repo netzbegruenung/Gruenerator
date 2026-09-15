@@ -37,9 +37,16 @@ export interface TurnClocks {
  * Split mode's writer gets a FRESH ceiling. Sharing the turn's would mean a 60s
  * artifact generation is billed to the sentence that comes after it.
  */
-export function createTurnClocks(budget: LoopBudget, reqSignal?: AbortSignal): TurnClocks {
+export function createTurnClocks(
+  budget: LoopBudget,
+  reqSignal?: AbortSignal,
+  /** Freigabe-Gate. MUSS auch in `writeAbortSignal`: sonst schreibt die Synthese
+   *  des geteilten Modus noch eine Antwort, während wir auf die Freigabe warten. */
+  suspendSignal?: AbortSignal
+): TurnClocks {
+  const extra = [reqSignal, suspendSignal].filter((s): s is AbortSignal => s != null);
   const withRequest = (signal: AbortSignal): AbortSignal =>
-    reqSignal ? AbortSignal.any([reqSignal, signal]) : signal;
+    extra.length > 0 ? AbortSignal.any([...extra, signal]) : signal;
   return {
     abortSignal: withRequest(AbortSignal.timeout(budget.hardCapMs)),
     writeAbortSignal: withRequest(AbortSignal.timeout(budget.hardCapMs)),

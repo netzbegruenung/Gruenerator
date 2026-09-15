@@ -31,7 +31,7 @@ import { parallelLimit } from '../../../../utils/parallelLimit.js';
 import { sendLvSyncNotificationEmail } from '../../../email/emailService.js';
 import { mistralEmbeddingService } from '../../../mistral/index.js';
 import { ocrService } from '../../../OcrService/index.js';
-import { BaseScraper } from '../../base/BaseScraper.js';
+import { BaseScraper, HttpStatusError, isGoneStatus } from '../../base/BaseScraper.js';
 import {
   recordExtraction,
   recordExtractionSkip,
@@ -50,6 +50,12 @@ import { LinkExtractor } from './extractors/LinkExtractor.js';
 import { WpApiExtractor } from './extractors/WpApiExtractor.js';
 import { SearchOperations } from './operations/SearchOperations.js';
 import { DocumentProcessor } from './processors/DocumentProcessor.js';
+import {
+  addDeadLinkSamples,
+  addErrorSamples,
+  foldDeadLinksIfNothingWorked,
+  mergeSkipReasons,
+} from './resultSamples.js';
 
 import type {
   SourceResult,
@@ -128,20 +134,6 @@ const LANDESVERBAENDE_ARCHIVE_COLLECTION = 'landesverbaende_archive';
  * worker pool makes meaningless.
  */
 const ARTICLE_CONCURRENCY = 6;
-
-/**
- * Fehlertexte sind eine Stichprobe, kein Protokoll: bei einem Totalausfall
- * würde eine Liste je Inhaltspfad sonst tausende Zeilen tragen und über den
- * Job-Status in Redis landen. Die Zahl `errors` bleibt ungedeckelt und exakt.
- */
-const MAX_ERROR_SAMPLES = 25;
-
-function addErrorSamples(target: { errorMessages: string[] }, ...messages: string[]): void {
-  for (const message of messages) {
-    if (target.errorMessages.length >= MAX_ERROR_SAMPLES) return;
-    target.errorMessages.push(message);
-  }
-}
 
 /**
  * Main scraper class - orchestrates all modules
@@ -245,6 +237,8 @@ export class LandesverbandScraper extends BaseScraper {
       skipped: 0,
       errors: 0,
       errorMessages: [],
+      deadLinks: 0,
+      deadLinkMessages: [],
       totalVectors: 0,
       skipReasons: {},
       newArticles: [],
@@ -680,6 +674,18 @@ export class LandesverbandScraper extends BaseScraper {
           }
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          // A link the listing still advertises but the host refuses to serve is
+          // upstream's stale index, not a failure of this run. Counting it apart
+          // keeps `errors` meaning "something broke"; foldDeadLinksIfNothingWorked
+          // takes it back if the whole source came up empty. Deliberately only
+          // here, on HTML articles: a Beschluss PDF that vanishes from its own
+          // archive page is worth a red number, and no such case was measured.
+          if (error instanceof HttpStatusError && isGoneStatus(error.status)) {
+            console.warn(`[Landesverband] ⚠ Dead link in ${source.id}: ${url} (${errorMessage})`);
+            result.deadLinks++;
+            addDeadLinkSamples(result, `${url}: ${errorMessage}`);
+            return;
+          }
           console.error(`[Landesverband] ✗ Error in ${source.id} (${url}): ${errorMessage}`);
           result.errors++;
           addErrorSamples(result, `${url}: ${errorMessage}`);
@@ -718,7 +724,10 @@ export class LandesverbandScraper extends BaseScraper {
       skipped: 0,
       errors: 0,
       errorMessages: [],
+      deadLinks: 0,
+      deadLinkMessages: [],
       totalVectors: 0,
+      skipReasons: {},
       contentTypes: {},
       newArticles: [],
     };
@@ -734,7 +743,10 @@ export class LandesverbandScraper extends BaseScraper {
       result.skipped += pathResult.skipped;
       result.errors += pathResult.errors;
       addErrorSamples(result, ...pathResult.errorMessages);
+      result.deadLinks += pathResult.deadLinks;
+      addDeadLinkSamples(result, ...pathResult.deadLinkMessages);
       result.totalVectors += pathResult.totalVectors;
+      mergeSkipReasons(result, pathResult.skipReasons);
       // Accumulate into the per-type bucket: a source can have several paths of the
       // same content type (e.g. multiple `beschluss` PDF archives + Wolke shares),
       // so overwriting would report only the last path's counts for that type.
@@ -745,16 +757,18 @@ export class LandesverbandScraper extends BaseScraper {
         existing.skipped += pathResult.skipped;
         existing.errors += pathResult.errors;
         addErrorSamples(existing, ...pathResult.errorMessages);
+        existing.deadLinks += pathResult.deadLinks;
+        addDeadLinkSamples(existing, ...pathResult.deadLinkMessages);
         existing.totalVectors += pathResult.totalVectors;
         existing.newArticles.push(...pathResult.newArticles);
-        for (const [reason, count] of Object.entries(pathResult.skipReasons)) {
-          existing.skipReasons[reason] = (existing.skipReasons[reason] || 0) + count;
-        }
+        mergeSkipReasons(existing, pathResult.skipReasons);
       } else {
         result.contentTypes[contentPath.type] = pathResult;
       }
       result.newArticles.push(...pathResult.newArticles);
     }
+
+    foldDeadLinksIfNothingWorked(result, this.log.bind(this));
 
     // Enforce the age cap on already-stored documents, not just at ingestion.
     // Skipped on dry runs so a preview never mutates the index.
@@ -835,7 +849,10 @@ export class LandesverbandScraper extends BaseScraper {
       errorMessages: lvFilterMatchedNothing
         ? [`Kein Quelleintrag für landesverband="${landesverband}" in diesem Build`]
         : [],
+      deadLinks: 0,
+      deadLinkMessages: [],
       totalVectors: 0,
+      skipReasons: {},
       bySource: {},
       duration: 0,
     };
@@ -883,7 +900,10 @@ export class LandesverbandScraper extends BaseScraper {
         totalResult.skipped += outcome.result.skipped;
         totalResult.errors += outcome.result.errors;
         addErrorSamples(totalResult, ...outcome.result.errorMessages);
+        totalResult.deadLinks += outcome.result.deadLinks;
+        addDeadLinkSamples(totalResult, ...outcome.result.deadLinkMessages);
         totalResult.totalVectors += outcome.result.totalVectors;
+        mergeSkipReasons(totalResult, outcome.result.skipReasons);
         totalResult.bySource[outcome.sourceId] = outcome.result;
       } else {
         totalResult.errors++;

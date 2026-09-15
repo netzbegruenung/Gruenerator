@@ -51,11 +51,11 @@ describe('LoginPage (standalone) — Land erkannt', () => {
     expect(toggle).toHaveAttribute('aria-expanded', 'true');
     expect(toggle).toHaveTextContent(/anbieter ausblenden/i);
     expect(screen.getByRole('list')).toBeInTheDocument();
-    // All 4 LOGIN_PROVIDERS, not just the enabledByDefault subset. This
-    // deliberately diverges from StartpageHero, which filters its expanded
-    // list to enabledByDefault (plus the remembered/deep-linked primary):
-    // /login is the fallback surface where every provider must stay reachable.
-    expect(screen.getAllByRole('listitem')).toHaveLength(4);
+    // Nur die `enabledByDefault`-Anbieter — gleiche Regel wie StartpageHero.
+    // Grünerator und Netzbegrünung sind Deeplink-Anbieter und tauchen hier
+    // nicht auf; der Deeplink-Fall wird unten eigens geprüft.
+    expect(screen.getAllByRole('listitem')).toHaveLength(2);
+    expect(screen.queryByRole('button', { name: /grünerator login/i })).not.toBeInTheDocument();
 
     await user.click(toggle);
 
@@ -70,6 +70,19 @@ describe('LoginPage (standalone) — Land erkannt', () => {
 
     await user.click(screen.getByRole('button', { name: /anderer anbieter/i }));
     expect(await axe(container)).toHaveNoViolations();
+  });
+});
+
+describe('LoginPage (standalone) — Deeplink-Anbieter', () => {
+  // Der Grünerator-Login wird im Frontend nicht mehr angeboten; erreichbar
+  // bleibt er über /login?login=gruenerator. Der Deeplink muss deshalb beides
+  // tun: die Liste aufklappen UND den Anbieter darin zeigen.
+  it('zeigt den Grünerator-Login nur über ?login=gruenerator', () => {
+    mitZeitzone('Europe/Berlin');
+    renderWithProviders(<LoginPage />, { route: '/login?login=gruenerator' });
+
+    expect(screen.getByRole('button', { name: /anbieter ausblenden/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Grünerator Login' })).toBeInTheDocument();
   });
 });
 

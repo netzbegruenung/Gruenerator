@@ -398,7 +398,6 @@ function ChatPage() {
       {!hub && (
         <ChatThreadRouting
           threadSlug={threadSlug ?? null}
-          landing={!threadSlug && (!!agentParam || !!modeParam)}
           onNavigateToThread={handleNavigateToThread}
           onThreadGone={handleThreadGone}
           onLeaveThread={handleLeaveThread}
@@ -448,6 +447,7 @@ function ChatPage() {
             onNavigate={handleNavigate}
             firstName={firstName}
             requireProfileHydration
+            enableSearch
             // `neutral` promises "kein Verlauf — nur der Seitenhintergrund", so
             // it gets no band either. Every other preset does: the band is the
             // same one regardless of which was picked, because it is the

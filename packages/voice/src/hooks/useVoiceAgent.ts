@@ -21,7 +21,7 @@ import { useSTT } from './useSTT';
 import { useTTSStream } from './useTTSStream';
 import { useAudioPlayback } from './useAudioPlayback';
 import { usePushToTalk } from './usePushToTalk';
-import { splitSentences } from '../lib/sentenceSplitter';
+import { splitSentences } from '@gruenerator/shared/utils';
 
 export function useVoiceAgent(config: VoiceAgentConfig) {
   const storeRef = useRef(createVoiceAgentStore());

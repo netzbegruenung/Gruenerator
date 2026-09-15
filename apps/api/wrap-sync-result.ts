@@ -54,6 +54,9 @@ interface ApiResponse {
   skipped?: number;
   errors?: number;
   errorSamples?: string[];
+  deadLinks?: number;
+  deadLinkSamples?: string[];
+  skipReasons?: Record<string, number>;
   fetchErrors?: number;
   durationMs?: number;
   error?: string;
@@ -83,6 +86,11 @@ async function main() {
         fetchErrors: response.fetchErrors ?? 0,
         errors: response.errors ?? 0,
         ...(response.errorSamples?.length ? { errorSamples: response.errorSamples } : {}),
+        ...(response.deadLinks ? { deadLinks: response.deadLinks } : {}),
+        ...(response.deadLinkSamples?.length ? { deadLinkSamples: response.deadLinkSamples } : {}),
+        ...(response.skipReasons && Object.keys(response.skipReasons).length > 0
+          ? { skipReasons: response.skipReasons }
+          : {}),
         duration: durationSec,
         status: 'success',
       }

@@ -17,8 +17,8 @@ import express from 'express';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const envMock = {
-  LITELLM_BASE_URL: 'https://litellm.test' as string | undefined,
-  LITELLM_API_KEY: 'upstream-secret' as string | undefined,
+  CORTECS_BASE_URL: 'https://cortecs.test/v1' as string | undefined,
+  CORTECS_API_KEY: 'upstream-secret' as string | undefined,
   NODE_ENV: 'test',
 };
 vi.mock('../../config/env.js', () => ({ env: envMock }));
@@ -49,7 +49,7 @@ vi.stubGlobal('fetch', (input: unknown, init?: unknown) =>
 );
 
 const { default: chatCompletionsRouter, modelsRouter } = await import('./chatCompletionsRouter.js');
-const { MAX_PROMPT_TOKENS } = await import('../../services/ai/litellmPassthrough.js');
+const { MAX_PROMPT_TOKENS } = await import('../../services/ai/addinModelPassthrough.js');
 
 let server: Server;
 let baseUrl = '';
@@ -133,8 +133,9 @@ function sseResponse(chunks: string[]): Response {
 beforeEach(() => {
   fetchMock.mockReset();
   apiKeyRow = keyRow(['chat:completions']);
-  envMock.LITELLM_BASE_URL = 'https://litellm.test';
-  envMock.LITELLM_API_KEY = 'upstream-secret';
+  envMock.CORTECS_BASE_URL = 'https://cortecs.test/v1';
+  envMock.CORTECS_API_KEY = 'upstream-secret';
+  process.env.CORTECS_BASE_URL = 'https://cortecs.test/v1';
 });
 
 describe('POST /api/v1/chat/completions', () => {
@@ -176,16 +177,38 @@ describe('POST /api/v1/chat/completions', () => {
   });
 
   describe('model allowlist', () => {
-    it('laesst verdigado-pro durch — waehlbar, aber nicht Standard', async () => {
+    it('laesst das kleine Modell durch — waehlbar, aber nicht Standard', async () => {
       fetchMock.mockResolvedValueOnce(completionResponse());
 
-      const res = await authedPost({ model: 'verdigado-pro', messages: MESSAGES });
+      const res = await authedPost({
+        model: 'mistral-small-3.2-24b-instruct-2506',
+        messages: MESSAGES,
+      });
 
       expect(res.status).toBe(200);
-      expect(sentBody().model).toBe('verdigado-pro');
+      expect(sentBody().model).toBe('mistral-small-3.2-24b-instruct-2506');
     });
 
-    it('sperrt Embedding-Modelle aus LiteLLMs eigener Liste', async () => {
+    /**
+     * Ein installiertes Add-in hat die Modellliste GECACHT (siehe den Kommentar
+     * an GET /v1/models). Nach der Stilllegung des Verdigado-Proxys am
+     * 29.08.2026 schickt es weiter die alten Kennungen; eine 400 dafür wäre ein
+     * Ausfall im Feld, bis der Client seinen Cache erneuert.
+     */
+    it.each([
+      ['verdigado-think', 'gemma-4-31b-it'],
+      ['verdigado-pro', 'mistral-small-3.2-24b-instruct-2506'],
+      ['gemma', 'gemma-4-31b-it'],
+    ])('schreibt die stillgelegte Kennung %s auf %s um', async (legacy, current) => {
+      fetchMock.mockResolvedValueOnce(completionResponse());
+
+      const res = await authedPost({ model: legacy, messages: MESSAGES });
+
+      expect(res.status).toBe(200);
+      expect(sentBody().model).toBe(current);
+    });
+
+    it('sperrt Embedding-Modelle aus dem Anbieter-Katalog', async () => {
       // Sie stehen dort neben den Chat-Modellen; ein Client, der die Liste
       // ungefiltert uebernimmt, waehlt sonst eines davon aus.
       const res = await authedPost({ model: 'nomic-embed-text', messages: MESSAGES });
@@ -194,31 +217,32 @@ describe('POST /api/v1/chat/completions', () => {
       expect(fetchMock).not.toHaveBeenCalled();
     });
 
-    it('refuses an arbitrary model, so a key is not general LiteLLM access', async () => {
+    it('refuses an arbitrary model, so a key is not general upstream access', async () => {
       const res = await authedPost({ model: 'gpt-4o', messages: MESSAGES });
       expect(res.status).toBe(400);
       expect(fetchMock).not.toHaveBeenCalled();
     });
 
-    it('defaults to verdigado-think when the client sends no model', async () => {
+    it('defaults to Gemma 4 31B when the client sends no model', async () => {
       fetchMock.mockResolvedValueOnce(completionResponse());
       await authedPost({ messages: MESSAGES });
 
-      expect(sentBody().model).toBe('verdigado-think');
+      expect(sentBody().model).toBe('gemma-4-31b-it');
     });
   });
 
   describe('context window', () => {
-    it('takes its ceiling from the chat stack, not a local guess', async () => {
-      // getContextWindow falls back to 32768 for an unknown provider, which
-      // would make every test below pass for the wrong reason. This pins the
-      // value to CTX_VERDIGADO and fails if either side moves alone.
-      expect(MAX_PROMPT_TOKENS).toBe(120_000);
+    it('pins the ceiling so it cannot drift unnoticed', async () => {
+      // Cortecs' eigener Katalog meldet für das kleinere der beiden erlaubten
+      // Modelle `context_size: 131000` (abgefragt 29.08.2026). Ein Default von
+      // 32768 würde jeden Test unten aus dem falschen Grund bestehen lassen.
+      expect(MAX_PROMPT_TOKENS).toBe(131_000);
     });
 
-    it('refuses a prompt the upstream would silently truncate', async () => {
-      // The failure mode this guards is invisible: Ollama answers HTTP 200 over
-      // the fragment. Only a 400 gives the caller something to act on.
+    it('refuses a prompt above the ceiling', async () => {
+      // Ob der Upstream sauber mit 400 ablehnt, ist NICHT nachgemessen; auf dem
+      // Vorgänger antwortete er HTTP 200 über das Fragment. Eine eigene 400 ist
+      // das Einzige, worauf der Aufrufer reagieren kann.
       const huge = 'x'.repeat(MAX_PROMPT_TOKENS * 4 + 10_000);
       const res = await authedPost({ messages: [{ role: 'user', content: huge }] });
 
@@ -300,7 +324,7 @@ describe('POST /api/v1/chat/completions', () => {
     });
 
     it('rejects a body with no messages', async () => {
-      const res = await authedPost({ model: 'verdigado-think' });
+      const res = await authedPost({ model: 'gemma-4-31b-it' });
       expect(res.status).toBe(400);
       expect(fetchMock).not.toHaveBeenCalled();
     });
@@ -310,7 +334,7 @@ describe('POST /api/v1/chat/completions', () => {
     it('pipes SSE bytes through, including the reasoning field the AI SDK drops', async () => {
       // The whole reason this is a byte pipe and not the AI SDK: `delta.reasoning`
       // is absent from @ai-sdk/openai's chat-completions schema, so routing the
-      // stream through it would discard verdigado-think's thinking.
+      // stream through it would discard a thinking model's reasoning.
       const chunks = [
         'data: {"choices":[{"delta":{"reasoning":"Ich pruefe Spalte B."}}]}\n\n',
         'data: {"choices":[{"delta":{"content":"Summe: "}}]}\n\n',
@@ -349,9 +373,9 @@ describe('POST /api/v1/chat/completions', () => {
 
   describe('upstream failure', () => {
     it('is unavailable rather than broken when no upstream key is configured', async () => {
-      // env.LITELLM_API_KEY is optional() in the schema and the shared provider
-      // factory would send an empty Bearer; this path must fail early instead.
-      envMock.LITELLM_API_KEY = undefined;
+      // env.CORTECS_API_KEY is optional in the schema; this path must fail
+      // early instead of sending an empty Bearer.
+      envMock.CORTECS_API_KEY = undefined;
       const res = await authedPost({ messages: MESSAGES });
 
       expect(res.status).toBe(503);
@@ -359,29 +383,27 @@ describe('POST /api/v1/chat/completions', () => {
     });
 
     it('falls back to the well-known host when no base url is configured', async () => {
-      // Matches getLiteLLMProvider: a missing LITELLM_BASE_URL is a config
+      // Matches `cortecsBaseUrl()`: a missing CORTECS_BASE_URL is a config
       // omission the rest of the app survives, so this path must too.
-      envMock.LITELLM_BASE_URL = undefined;
+      delete process.env.CORTECS_BASE_URL;
       fetchMock.mockResolvedValueOnce(completionResponse());
       const res = await authedPost({ messages: MESSAGES });
 
       expect(res.status).toBe(200);
-      expect(fetchMock.mock.calls[0]![0]).toBe(
-        'https://litellm.netzbegruenung.verdigado.net/v1/chat/completions'
-      );
+      expect(fetchMock.mock.calls[0]![0]).toBe('https://api.cortecs.ai/v1/chat/completions');
     });
 
     it('does not double the /v1 when the base url already carries it', async () => {
-      envMock.LITELLM_BASE_URL = 'https://litellm.test/v1';
+      process.env.CORTECS_BASE_URL = 'https://cortecs.test/v1';
       fetchMock.mockResolvedValueOnce(completionResponse());
       await authedPost({ messages: MESSAGES });
 
-      expect(fetchMock.mock.calls[0]![0]).toBe('https://litellm.test/v1/chat/completions');
+      expect(fetchMock.mock.calls[0]![0]).toBe('https://cortecs.test/v1/chat/completions');
     });
 
     it('reports our own upstream 401 as a server fault, not the caller_s', async () => {
       // Passing a 401 through would tell the client to re-check a key that is
-      // fine, while the actual problem is our LiteLLM credential.
+      // fine, while the actual problem is our own credential or prepaid balance.
       fetchMock.mockResolvedValueOnce(new Response('bad key', { status: 401 }));
       const res = await authedPost({ messages: MESSAGES });
 
@@ -423,13 +445,13 @@ describe('GET /api/v1/models', () => {
     const body = await jsonOf(res);
     expect(body.object).toBe('list');
     expect((body.data as { id: string }[]).map((m) => m.id)).toEqual([
-      'verdigado-think',
-      'verdigado-pro',
+      'gemma-4-31b-it',
+      'mistral-small-3.2-24b-instruct-2506',
     ]);
     // Anzeigenamen, sonst steht in der Auswahl nur die technische Kennung.
     expect((body.data as { name?: string }[]).map((m) => m.name)).toEqual([
       'Gemma 4 31B',
-      'GPT-OSS 120B',
+      'Mistral Small 3.2 24B',
     ]);
   });
 

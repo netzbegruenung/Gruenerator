@@ -40,8 +40,15 @@ COPY pnpm-workspace.yaml package.json pnpm-lock.yaml .npmrc ./
 # so the filtered install needs nothing else.
 COPY documentation/package.json ./documentation/
 
+# --node-linker overrides .npmrc's node-linker=hoisted (kept because Metro/RN in
+# apps/mobile needs it). The hoisted linker materializes the ENTIRE lockfile
+# regardless of --filter — 4799 packages / 4.5 GB for every scope, which is what
+# made a cold image build take ~1 h. --shamefully-hoist keeps the flat
+# node_modules layout the workspace relies on, built only from the filtered
+# closure. See #2924.
 RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile --filter @gruenerator/documentation...
+    pnpm install --frozen-lockfile --node-linker=isolated --shamefully-hoist \
+        --filter @gruenerator/documentation...
 
 # The native bundler binary is an OPTIONAL dependency: a resolver that skips it
 # leaves the install green and fails much later behind a misleading message.

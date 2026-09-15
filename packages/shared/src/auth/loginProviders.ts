@@ -66,6 +66,9 @@ export const LOGIN_PROVIDERS: LoginProvider[] = [
     className: 'gruenerator',
     logoPath: null,
     logoAlt: 'Grünerator',
+    // Like netzbegruenung: not offered anywhere in the web frontend, reachable
+    // only via the deep link /login?login=gruenerator (which makes it the
+    // primary provider and re-adds it to the expanded list).
     enabledByDefault: false,
   },
 ];

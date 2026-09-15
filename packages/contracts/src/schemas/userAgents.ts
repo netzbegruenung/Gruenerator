@@ -15,8 +15,22 @@ import { z } from 'zod';
 
 // ── Closed sets ──────────────────────────────────────────────────────────────
 
+/**
+ * ADDITIV am 29.08.2026 um `cortecs` erweitert, `litellm` bleibt stehen: der
+ * Name steht in gespeicherten Agenten-Konfigurationen und in ausgelieferten
+ * Mobile-Bundles (F0, siehe CLAUDE.md). Er wird weiter gelesen und in
+ * `getModel` auf Cortecs umgebogen — apps/api/services/ai/litellmRetired.ts.
+ */
 /** Matches `AgentProvider` in @gruenerator/shared/agents. */
-export const agentProviderSchema = z.enum(['mistral', 'anthropic', 'litellm', 'regolo', 'greenpt']);
+export const agentProviderSchema = z.enum([
+  'mistral',
+  'anthropic',
+  'litellm',
+  'regolo',
+  'melious',
+  'greenpt',
+  'cortecs',
+]);
 
 // ── Shared shapes ──────────────────────────────────────────────────────────────
 
@@ -78,6 +92,26 @@ export const userAgentSchema = z.object({
 
 export type UserAgent = z.infer<typeof userAgentSchema>;
 
+/**
+ * The lean projection the @-mention picker needs — NOT the full agent.
+ *
+ * Deliberately without `systemRole`: this list carries agents shared into the
+ * caller's groups, and a picker entry needs a label, an icon and the identifier
+ * it routes to, not a teammate's prompt. `sharedFromGroup` is the group an
+ * agent reached the caller through, `null` for their own.
+ */
+export const mentionableUserAgentSchema = z.object({
+  identifier: z.string(),
+  title: z.string(),
+  description: z.string(),
+  avatar: z.string(),
+  iconKey: z.string().optional(),
+  backgroundColor: z.string(),
+  sharedFromGroup: z.string().nullable(),
+});
+
+export type MentionableUserAgent = z.infer<typeof mentionableUserAgentSchema>;
+
 // ── Request bodies ───────────────────────────────────────────────────────────
 
 export const createUserAgentBodySchema = z.object({
@@ -119,6 +153,11 @@ export type UpdateUserAgentBody = z.infer<typeof updateUserAgentBodySchema>;
 export const userAgentsListResponseSchema = z.object({
   success: z.boolean(),
   agents: z.array(userAgentSchema),
+});
+
+export const mentionableUserAgentsListResponseSchema = z.object({
+  success: z.boolean(),
+  agents: z.array(mentionableUserAgentSchema),
 });
 
 export const userAgentItemResponseSchema = z.object({

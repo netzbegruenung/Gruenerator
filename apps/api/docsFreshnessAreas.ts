@@ -18,10 +18,10 @@ export const TOURS_FOLDER = 'touren';
 export const README_FOLDER = 'readme';
 
 // Feature/tutorial docs only — folders that describe the app UI. Content
-// archives (archiv, intern) and concept docs (grundlagen) are intentionally
-// excluded: they have nothing to verify against code.
+// archives (archiv, intern) are intentionally excluded: they have nothing to
+// verify against code.
 export const SCOPE_FOLDERS = [
-  'ueber-den-gruenerator',
+  'basics',
   'chat',
   'office',
   'wissen',
@@ -53,13 +53,13 @@ export const AREA_HINTS: Record<string, string> = {
   // three size tiers: that claim lives in neither routes/chat nor the
   // ChatGraph, it is decided in `providers.ts` / `providerInstances.ts`.
   chat: 'packages/chat, apps/web/src/features/chat, apps/web/src/features/models, apps/api/routes/chat, apps/api/agents/langgraph/ChatGraph, apps/api/services/ai, packages/contracts/src/schemas',
-  // The self-description articles (Nachhaltigkeit, Datenschutz, wie diese Doku
-  // entsteht) make provider and energy claims: which model runs at which host,
-  // measured Wh/CO₂ per request. In SCOPE_FOLDERS from the start, so the weekly
-  // scan covered it — but with no hint the PR audit never did, which is the
-  // half that matters: the claim drifts in the same PR that moves the routing.
-  'ueber-den-gruenerator':
-    'apps/api/services/ai, apps/api/services/usage/energyFootprint.ts, apps/api/services/transcription, packages/core/src/models',
+  // The self-description articles (Nachhaltigkeit, Datenschutz) make provider
+  // and energy claims: which model runs at which host, measured Wh/CO₂ per
+  // request. In SCOPE_FOLDERS from the start, so the weekly scan covered it —
+  // but with no hint the PR audit never did, which is the half that matters:
+  // the claim drifts in the same PR that moves the routing.
+  basics:
+    'apps/api/services/ai, apps/api/services/usage/energyFootprint.ts, apps/api/services/transcription, apps/api/services/voice, packages/core/src/models',
   grueneratoren: 'apps/web/src/features/agents, apps/web/src/features/agentura, packages/chat',
   wissen: 'apps/web/src/features/notebook',
   experimente: 'apps/web/src/features/monitor',

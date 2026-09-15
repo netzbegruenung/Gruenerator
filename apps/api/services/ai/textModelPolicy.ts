@@ -11,8 +11,9 @@
  *
  * ── Was hier AUSDRÜCKLICH NICHT geregelt wird ──
  *
- * **Bild und Rerank bleiben.** `Qwen-Image` (`services/flux/RegoloImageService.ts`)
- * und `Qwen3-Reranker-4B` (`services/search/RegoloRerankService.ts`) sind
+ * **Bild und Rerank bleiben.** `FLUX.2 [dev]` via Melious
+ * und `Qwen3-Reranker-4B` (`services/search/GreenPTRerankService.ts` mit
+ * `RegoloRerankService.ts` als Rückfall — dieselben Gewichte, zwei Hosts) sind
  * bewusst weiter im Einsatz: das eine ist eine ausgewiesene Modellwahl im UI,
  * das andere sortiert Suchtreffer und formuliert nichts. Beide laufen über
  * eigene Services und NICHT über `getModel`, werden von dieser Datei also gar

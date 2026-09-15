@@ -5,7 +5,7 @@ import {
   getContextWindow,
   loopSynthChoice,
   getModelConfig,
-  getLoopPlannerModel,
+  resolveLoopPlannerLane,
   loopPlannerModelName,
   prefersUnifiedLoop,
   resolveModelTuple,
@@ -13,7 +13,7 @@ import {
 import {
   GEMMA_31B_ALTERNATE,
   GEMMA_31B_ON_CORTECS,
-  GEMMA_31B_ON_REGOLO,
+  GEMMA_31B_ON_MELIOUS,
   GEMMA_31B_PRIMARY,
 } from '../../../services/ai/gemmaHosts.js';
 
@@ -29,7 +29,7 @@ import { LOOP_SYNTH_FALLBACK, LOOP_SYNTH_PRIMARY, mayWriteAnswer } from './autoP
  * damit auf ein Verbots-Modell.
  */
 const WRITER_MODELS = new Set([
-  GEMMA_31B_ON_REGOLO.model,
+  GEMMA_31B_ON_MELIOUS.model,
   GEMMA_31B_ON_CORTECS.model,
   'mistral-medium-2604',
 ]);
@@ -49,14 +49,20 @@ describe('prefersUnifiedLoop (unified vs planner/executor split)', () => {
 
 describe('split-mode model policy (getLoopSynthModel / loopPlannerModelName)', () => {
   it('planner is a verified NON-Chinese tool-caller', () => {
-    // The three declared tiers (autoPolicy.ts): GreenPT's Mistral Small first,
-    // then self-hosted regolo, then litellm/verdigado-pro. Tool calls were
-    // verified live on all three on 13.08.2026.
+    // Die deklarierten Stufen (autoPolicy.ts): GreenPTs Mistral Small zuerst,
+    // dann Cortecs, dann das selbstgehostete Regolo, zuletzt Mistral Medium.
+    // Die letzte Stufe war bis zum 29.08.2026 `litellm/verdigado-pro`, also
+    // gpt-oss — das Modell, das `AVOID_AS_SYNTH` ausschliesst und einen
+    // erzwungenen Werkzeugaufruf mit Prosa beantwortet.
+    // Werkzeugaufrufe wurden auf den Mistral-Stufen am 13.08.2026 live geprüft;
+    // für die Cortecs-Stufe steht diese Prüfung aus (siehe
+    // LOOP_PLANNER_HEALTHY_ALT).
     const planner = loopPlannerModelName();
     expect([
       'mistral-small-3.2-24b-instruct-2506',
+      GEMMA_31B_ON_CORTECS.model,
       'mistral-small-4-119b',
-      'verdigado-pro',
+      'mistral-medium-2604',
     ]).toContain(planner);
     // The invariant behind that list, spelled out so widening the constants
     // cannot quietly slip a banned lane into the slot.
@@ -81,7 +87,7 @@ describe('split-mode model policy (getLoopSynthModel / loopPlannerModelName)', (
     // This assertion holds in both worlds: with a key the primary builds, and
     // in a keyless CI the litellm tier does (default base URL, empty key
     // tolerated). What it forbids is the throw.
-    expect(() => getLoopPlannerModel()).not.toThrow();
+    expect(() => resolveLoopPlannerLane()).not.toThrow();
   });
 
   it('auto selection writes with the best writer, NEVER a think model', () => {
@@ -157,11 +163,17 @@ describe('getContextWindow', () => {
   // tag's 128k would sit in the unmeasured stretch right before the cliff.
   it('returns correct context window for known models', () => {
     expect(getContextWindow('mistral-large')).toBe(262_144);
-    expect(getContextWindow('gpt-oss')).toBe(120_000);
-    // Gemma 4 meldet seit dem 25.08.2026 die 128k des Cortecs-Endpunkts, nicht
-    // die 262k der Gewichte: `GET /v1/models` gibt für `gemma-4-31b-it`
-    // `context_size: 128000` an. Was der Endpunkt annimmt, zählt — eine zu
-    // grosse Zahl hier ist keine Fehlermeldung, sondern eine stille Kürzung.
+    // 131.000: was Cortecs' `GET /v1/models` am 29.08.2026 für
+    // `mistral-small-3.2-24b-instruct-2506` meldet. Die 120k davor waren
+    // Ollamas gemessene Kürzungsschwelle auf Verdigado — dorthin routet diese
+    // Lane nicht mehr (services/ai/litellmRetired.ts).
+    expect(getContextWindow('gpt-oss')).toBe(131_000);
+    // Gemma 4 trägt die 128k des Cortecs-Endpunkts, nicht die 262k der
+    // Gewichte. Die Begründung steht an EINER Stelle und wird hier bewusst
+    // nicht wiederholt: `GEMMA_31B_ON_CORTECS` in services/ai/gemmaHosts.ts.
+    // Kurz: der Katalog meldet inzwischen 262000, aber er ist für diese Zahl
+    // keine Quelle, und eine zu grosse Zahl ist keine Fehlermeldung, sondern
+    // eine stille Kürzung. Bewegen darf den Wert nur eine Nadelprobe (#3067).
     // Die 64k-Decke davor war Ollamas Kürzungs-Schutz auf Verdigado; dorthin
     // routet diese Lane nicht mehr.
     expect(getContextWindow('gemma-4')).toBe(128_000);
@@ -182,12 +194,13 @@ describe('getContextWindow', () => {
 
   it('uses provider fallback when model is unknown', () => {
     expect(getContextWindow('auto', 'mistral')).toBe(262_144);
-    expect(getContextWindow('auto', 'litellm')).toBe(120_000);
+    // `litellm` wird nur noch als Name gelesen und bedient Cortecs.
+    expect(getContextWindow('auto', 'litellm')).toBe(131_000);
     expect(getContextWindow('auto', 'regolo')).toBe(262_144);
   });
 
-  it('legacy litellm ID resolves to overflow lane window', () => {
-    expect(getContextWindow('litellm', 'mistral')).toBe(120_000);
+  it('legacy litellm ID resolves to the small answer lane window', () => {
+    expect(getContextWindow('litellm', 'mistral')).toBe(131_000);
   });
 
   // The unknown-model fallback stays conservative on purpose: an unrecognised
@@ -208,33 +221,39 @@ describe('getModelConfig', () => {
     }
   });
 
-  it('returns overflow config for the gpt-oss lane', () => {
+  /**
+   * Die Lane hiess einmal nach ihrem Modell und tut es nicht mehr: gpt-oss ist
+   * hier weg, weil `AVOID_AS_SYNTH` es vom Antwortschreiben ausschliesst und
+   * seine Denk-Tokens gegen `max_tokens` zählen (#3064). Der NAME bleibt, er
+   * steckt in persistierten Thread-Zuständen (F0).
+   */
+  it('serves the gpt-oss lane id from the small answer lane', () => {
     const config = getModelConfig('gpt-oss');
     expect(config).not.toBeNull();
-    expect(config!.kind).toBe('overflow');
-    if (config!.kind === 'overflow') {
-      expect(config.primary.provider).toBe('litellm');
-      expect(config.overflow.provider).toBe('regolo');
-      expect(config.contextWindow).toBe(120_000);
-    }
+    expect(config!.kind).toBe('single');
+    expect(config!.provider).toBe('cortecs');
+    expect(config!.model).toBe('mistral-small-3.2-24b-instruct-2506');
+    expect(config!.contextWindow).toBe(131_000);
   });
 
-  it('aliases legacy IDs to the new overflow lanes', () => {
+  it('aliases legacy IDs to the small answer lane', () => {
     expect(getModelConfig('litellm')).toBe(getModelConfig('gpt-oss'));
     expect(getModelConfig('gpt-oss-regolo')).toBe(getModelConfig('gpt-oss'));
     expect(getModelConfig('gemma-litellm')).toBe(getModelConfig('gemma-4'));
-    // `gemma-regolo` ist seit dem 25.08.2026 NICHT mehr dasselbe Objekt wie
+    // `gemma-regolo` ist seit dem 14.09.2026 NICHT mehr dasselbe Objekt wie
     // `gemma-4`: die Antwortlane liegt auf Cortecs, und dieser Alias ist die
-    // ausdrücklich Regolo benennende Kennung — zugleich das Ausweichziel der
-    // Cortecs-Seite. Zwei Kennungen, die verschiedene Hosts MEINEN, dürfen
-    // nicht auf dieselbe Konfiguration zeigen, sonst zeigt der Ausweg auf sich
-    // selbst. Was der Alias garantieren muss, ist nur: er löst auf, und er
-    // meint Regolo.
+    // historisch Regolo benennende Kennung (F0, persistiert) — er bedient seit
+    // dem Melious-Umzug Melious und kann keinen Regolo-Textaufruf mehr
+    // auslösen. Zwei Kennungen, die verschiedene Hosts MEINEN, dürfen nicht auf
+    // dieselbe Konfiguration zeigen, sonst zeigt der Ausweg auf sich selbst.
+    // Was der Alias garantieren muss, ist nur: er löst auf, und er meint den
+    // Gemma-Ausweichhost.
     expect(getModelConfig('gemma-regolo')).not.toBeNull();
     expect(getModelConfig('gemma-regolo')).toMatchObject({
-      provider: GEMMA_31B_ON_REGOLO.provider,
-      model: GEMMA_31B_ON_REGOLO.model,
+      provider: GEMMA_31B_ON_MELIOUS.provider,
+      model: GEMMA_31B_ON_MELIOUS.model,
     });
+    expect(getModelConfig('gemma-melious')).toBe(getModelConfig('gemma-regolo'));
   });
 
   it('returns null for unknown model', () => {
@@ -273,13 +292,6 @@ describe('resolveModelTuple — size-aware overflow routing', () => {
     expect(tuple!.contextWindow).toBe(128_000);
   });
 
-  it('takes no Verdigado slot for Gemma 4', async () => {
-    const tuple = await resolveModelTuple('gemma-4', 'req-noslot');
-    // The slot rations Verdigado's single inference slot. A lane that never
-    // runs there must not hold it — holding one would starve GPT-OSS.
-    expect(tuple!.releaseSlot).toBeUndefined();
-  });
-
   it('weicht auf dieselben 31B-Gewichte bei einem anderen Anbieter aus', async () => {
     const tuple = await resolveModelTuple('gemma-4', 'req-fallback');
     // Bis 19.08.2026 stand hier litellm/verdigado-think: 20s bis zum ersten
@@ -308,16 +320,8 @@ describe('resolveModelTuple — size-aware overflow routing', () => {
     expect(tuple!.sibling!.provider).not.toBe(tuple!.provider);
   });
 
-  it('preferOverflow is a no-op for Gemma 4 now that it is a single lane', async () => {
-    const tuple = await resolveModelTuple('gemma-4', 'req-overflow', { preferOverflow: true });
-    expect(tuple!.provider).toBe(GEMMA_31B_PRIMARY.provider);
-    expect(tuple!.contextWindow).toBe(128_000);
-  });
-
-  it('preferOverflow is a no-op for single lanes', async () => {
-    const tuple = await resolveModelTuple('mistral-medium-3.5', 'req-single', {
-      preferOverflow: true,
-    });
+  it('resolves a plain single lane', async () => {
+    const tuple = await resolveModelTuple('mistral-medium-3.5', 'req-single');
     expect(tuple!.provider).toBe('mistral');
     expect(tuple!.contextWindow).toBe(262_144);
   });
