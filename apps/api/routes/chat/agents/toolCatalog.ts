@@ -144,20 +144,27 @@ const CATALOG_TOOLS = new Set([
 const SOURCE_HARVEST_TOOLS = new Set(['gruenerator_search', 'web_search']);
 
 /**
- * Which picker key gates each search-family tool on the LOOP path. The single
- * pass has honoured these keys all along (`searchBranch.ts`, under the intent
- * name), while this catalog mounted the corpora for every turn — so an agent
- * without "Grünerator-Wissen" lost it on single-pass turns and kept it on loop
- * turns, which is the same tool answering to two different rules (#3307).
+ * Which record keys gate each search-family tool on the LOOP path — the tool
+ * stays away if ANY of them is switched off. The single pass has honoured these
+ * keys all along (`searchBranch.ts`, under the intent name), while this catalog
+ * mounted the corpora for every turn — so an agent without "Grünerator-Wissen"
+ * lost it on single-pass turns and kept it on loop turns, which is the same
+ * tool answering to two different rules (#3307).
+ *
+ * Two keys reach the press examples because two different things write them:
+ * `examples` is the agent picker's entry, `pressemitteilung_examples` is the
+ * composer toggle and the classifier intent of the same name (`ToolKey` in
+ * packages/chat/src/stores/chatStore.ts). Asking only the first would let a
+ * composer opt-out close the corpus on single-pass turns and not on loop turns.
  *
  * `web_search` is deliberately absent: its door is the agent's own array, one
  * capability behind two key names, and it closes above via
  * `agentAllowsWebSearch`.
  */
-const CATALOG_TOOL_PICKER_KEY: Readonly<Record<string, string>> = {
-  gruenerator_search: 'search',
-  gruenerator_examples_search: 'examples',
-  gruenerator_pressemitteilung_examples: 'examples',
+const CATALOG_TOOL_PICKER_KEYS: Readonly<Record<string, readonly string[]>> = {
+  gruenerator_search: ['search'],
+  gruenerator_examples_search: ['examples'],
+  gruenerator_pressemitteilung_examples: ['examples', 'pressemitteilung_examples'],
 };
 
 /**
@@ -425,8 +432,8 @@ export function buildChatToolCatalog(params: {
   const tools: ToolSet = {};
   for (const [name, def] of Object.entries(base)) {
     if (!CATALOG_TOOLS.has(name) || researchBanned) continue;
-    const pickerKey = CATALOG_TOOL_PICKER_KEY[name];
-    if (pickerKey && loop?.state.enabledTools?.[pickerKey] === false) continue;
+    const pickerKeys = CATALOG_TOOL_PICKER_KEYS[name];
+    if (pickerKeys?.some((key) => loop?.state.enabledTools?.[key] === false)) continue;
 
     if (!SOURCE_HARVEST_TOOLS.has(name)) {
       // Examples tools: surfaced to the model + UI as-is (they render via the

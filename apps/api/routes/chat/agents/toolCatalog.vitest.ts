@@ -1544,6 +1544,15 @@ describe('toolCatalog: Picker-Schlüssel, die nichts erreichten (#3307)', () => 
     expect(names).toContain('gruenerator_search');
   });
 
+  it('nimmt nur die Presse-Beispiele weg, wenn der Composer sie einzeln abwählt', () => {
+    // `pressemitteilung_examples` ist ein eigener Composer-Schalter (ToolKey in
+    // chatStore.ts) und ein eigener Klassifikator-Intent — der Einzelpfad
+    // gehorchte ihm, der Loop kannte nur `examples`.
+    const names = catalogFor({ pressemitteilung_examples: false });
+    expect(names).not.toContain('gruenerator_pressemitteilung_examples');
+    expect(names).toContain('gruenerator_examples_search');
+  });
+
   it('lässt `umfragen` weg, wenn `meinungsbild` abgewählt ist', () => {
     expect(catalogFor({ meinungsbild: false })).not.toContain('umfragen');
   });
