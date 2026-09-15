@@ -34,6 +34,8 @@ function run(over: Partial<RecurringTaskRun> = {}): RecurringTaskRun {
     error: null,
     durationMs: 4200,
     verdict: null,
+    startedAt: null,
+    finishedAt: null,
     createdAt: '2026-09-01T07:00:00.000Z',
     ...over,
   };

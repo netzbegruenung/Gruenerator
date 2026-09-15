@@ -6,9 +6,9 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { recordRun, setEmptyCount, notify, createDoc, createThreadMock, createMessageMock } =
+const { finishRun, setEmptyCount, notify, createDoc, createThreadMock, createMessageMock } =
   vi.hoisted(() => ({
-    recordRun: vi.fn(async () => {}),
+    finishRun: vi.fn(async () => {}),
     setEmptyCount: vi.fn(async () => {}),
     notify: vi.fn(async () => {}),
     createDoc: vi.fn(async () => ({ id: 'doc-1' })),
@@ -17,7 +17,7 @@ const { recordRun, setEmptyCount, notify, createDoc, createThreadMock, createMes
   }));
 
 vi.mock('./recurringTasksRepository.js', () => ({
-  recordRecurringTaskRun: recordRun,
+  finishRecurringTaskRun: finishRun,
   setConsecutiveEmptyCount: setEmptyCount,
 }));
 vi.mock('../notifications/NotificationService.js', () => ({ createNotification: notify }));
@@ -28,6 +28,9 @@ vi.mock('../../routes/chat/services/threadPersistenceService.js', () => ({
 }));
 
 import { runRecurringTask, type RecurringRunnerDeps } from './recurringTaskRunner.js';
+
+/** Die beim Claim angelegte 'running'-Zeile, die der Lauf abschliesst. */
+const RUN_ID = 'run-1';
 
 import type { RecurringTask } from '../../database/schema/recurringTasks.js';
 import type { HeadlessTurnResult } from '../../routes/chat/services/agenticLoop/runHeadlessAgenticTurn.js';
@@ -99,10 +102,10 @@ beforeEach(() => {
 describe('runRecurringTask — Mapping degraded→Pfad', () => {
   it('no_answer → Empty-Pfad: Zähler hoch, kein Verify, keine Notification', async () => {
     const deps = makeDeps({ turns: [turn({ degraded: 'no_answer', text: '' })] });
-    await runRecurringTask(task(), deps);
+    await runRecurringTask(task(), RUN_ID, deps);
 
     expect(setEmptyCount).toHaveBeenCalledWith('t1', 1);
-    expect(recordRun).toHaveBeenCalledWith(expect.objectContaining({ status: 'empty' }));
+    expect(finishRun).toHaveBeenCalledWith(expect.objectContaining({ status: 'empty' }));
     expect(deps.verifyMock).not.toHaveBeenCalled();
     expect(notify).not.toHaveBeenCalled();
     expect(createDoc).not.toHaveBeenCalled();
@@ -112,11 +115,15 @@ describe('runRecurringTask — Mapping degraded→Pfad', () => {
     const deps = makeDeps({
       turns: [turn({ degraded: 'aborted', text: 'Die Antwort wurde abgebrochen…' })],
     });
-    await runRecurringTask(task(), deps);
+    await runRecurringTask(task(), RUN_ID, deps);
 
     expect(createDoc).not.toHaveBeenCalled();
-    expect(recordRun).toHaveBeenCalledWith(
-      expect.objectContaining({ status: 'failed', error: expect.stringContaining('aborted') })
+    expect(finishRun).toHaveBeenCalledWith(
+      expect.objectContaining({
+        runId: RUN_ID,
+        status: 'failed',
+        error: expect.stringContaining('aborted'),
+      })
     );
     expect(notify).toHaveBeenCalledWith(expect.objectContaining({ type: 'agent_task_failed' }));
   });
@@ -132,9 +139,9 @@ describe('runRecurringTask — Mapping degraded→Pfad', () => {
         }),
       ],
     });
-    await runRecurringTask(task(), deps);
+    await runRecurringTask(task(), RUN_ID, deps);
 
-    expect(recordRun).toHaveBeenCalledWith(
+    expect(finishRun).toHaveBeenCalledWith(
       expect.objectContaining({
         status: 'failed',
         error: expect.stringContaining('Welcher Kreisverband?'),
@@ -144,12 +151,12 @@ describe('runRecurringTask — Mapping degraded→Pfad', () => {
 
   it('none → verifizieren, liefern, Verdikt im Run-Protokoll', async () => {
     const deps = makeDeps({ turns: [turn()], verdicts: [{ ok: true }] });
-    await runRecurringTask(task(), deps);
+    await runRecurringTask(task(), RUN_ID, deps);
 
     expect(deps.verifyMock).toHaveBeenCalledTimes(1);
     expect(createDoc).toHaveBeenCalledTimes(1);
     expect(setEmptyCount).toHaveBeenCalledWith('t1', 0);
-    expect(recordRun).toHaveBeenCalledWith(
+    expect(finishRun).toHaveBeenCalledWith(
       expect.objectContaining({ status: 'completed', verdict: { ok: true } })
     );
     expect(notify).toHaveBeenCalledWith(expect.objectContaining({ type: 'agent_task_completed' }));
@@ -162,7 +169,7 @@ describe('runRecurringTask — die EINE Reparatur-Runde', () => {
       turns: [turn({ text: 'Erster Entwurf' }), turn({ text: 'Besserer Entwurf' })],
       verdicts: [{ ok: false, hint: 'Thema verfehlt' }, { ok: true }],
     });
-    await runRecurringTask(task(), deps);
+    await runRecurringTask(task(), RUN_ID, deps);
 
     expect(deps.runTurnMock).toHaveBeenCalledTimes(2);
     const secondCall = deps.runTurnMock.mock.calls[1]![0] as Record<string, unknown>;
@@ -175,7 +182,7 @@ describe('runRecurringTask — die EINE Reparatur-Runde', () => {
       'blank',
       'user-1'
     );
-    expect(recordRun).toHaveBeenCalledWith(
+    expect(finishRun).toHaveBeenCalledWith(
       expect.objectContaining({ verdict: { ok: true, repaired: true } })
     );
   });
@@ -185,10 +192,10 @@ describe('runRecurringTask — die EINE Reparatur-Runde', () => {
       turns: [turn({ text: 'Erster Entwurf' }), turn({ degraded: 'failed', text: '' })],
       verdicts: [{ ok: false, hint: 'zu knapp' }],
     });
-    await runRecurringTask(task(), deps);
+    await runRecurringTask(task(), RUN_ID, deps);
 
     expect(createDoc).toHaveBeenCalledWith(expect.any(String), 'Erster Entwurf', 'blank', 'user-1');
-    expect(recordRun).toHaveBeenCalledWith(
+    expect(finishRun).toHaveBeenCalledWith(
       expect.objectContaining({
         status: 'completed',
         verdict: { ok: false, hint: 'zu knapp', repaired: false },
@@ -198,11 +205,11 @@ describe('runRecurringTask — die EINE Reparatur-Runde', () => {
 
   it('beanstandet OHNE Hinweis → keine Reparatur, trotzdem geliefert', async () => {
     const deps = makeDeps({ turns: [turn()], verdicts: [{ ok: false }] });
-    await runRecurringTask(task(), deps);
+    await runRecurringTask(task(), RUN_ID, deps);
 
     expect(deps.runTurnMock).toHaveBeenCalledTimes(1);
     expect(createDoc).toHaveBeenCalledTimes(1);
-    expect(recordRun).toHaveBeenCalledWith(
+    expect(finishRun).toHaveBeenCalledWith(
       expect.objectContaining({ status: 'completed', verdict: { ok: false } })
     );
   });
@@ -211,7 +218,7 @@ describe('runRecurringTask — die EINE Reparatur-Runde', () => {
 describe('runRecurringTask — Delivery unverändert', () => {
   it('thread-Delivery legt Thread + zwei Nachrichten an', async () => {
     const deps = makeDeps({ turns: [turn()] });
-    await runRecurringTask(task({ delivery: 'thread' }), deps);
+    await runRecurringTask(task({ delivery: 'thread' }), RUN_ID, deps);
 
     expect(createThreadMock).toHaveBeenCalledWith(
       'user-1',
@@ -220,14 +227,14 @@ describe('runRecurringTask — Delivery unverändert', () => {
       'chat'
     );
     expect(createMessageMock).toHaveBeenCalledTimes(2);
-    expect(recordRun).toHaveBeenCalledWith(
+    expect(finishRun).toHaveBeenCalledWith(
       expect.objectContaining({ status: 'completed', resultUrl: '/chat/thread-1' })
     );
   });
 
   it('gebundener Agent reicht restrictToAgentTools durch', async () => {
     const deps = makeDeps({ turns: [turn()] });
-    await runRecurringTask(task({ agent_identifier: 'mein-agent' }), deps);
+    await runRecurringTask(task({ agent_identifier: 'mein-agent' }), RUN_ID, deps);
 
     const call = deps.runTurnMock.mock.calls[0]![0] as Record<string, unknown>;
     expect(call.agentId).toBe('mein-agent');

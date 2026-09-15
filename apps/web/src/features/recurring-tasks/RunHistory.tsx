@@ -21,6 +21,9 @@ import { FiChevronDown } from 'react-icons/fi';
 import { useRecurringTaskRuns } from './api';
 
 const STATUS_META: Record<RecurringTaskRun['status'], { label: string; className: string }> = {
+  // Seit die Lauf-Zeile beim Claim entsteht (#3221), ist ein Lauf auch WÄHREND
+  // er läuft sichtbar — vorher tauchte er erst am Ende überhaupt auf.
+  running: { label: 'Läuft …', className: 'text-primary-600 dark:text-primary-400' },
   completed: { label: 'Erledigt', className: 'text-green-600 dark:text-green-400' },
   empty: { label: 'Nichts Neues', className: 'text-grey-500' },
   failed: { label: 'Fehlgeschlagen', className: 'text-red-600 dark:text-red-400' },

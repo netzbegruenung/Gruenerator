@@ -18,7 +18,8 @@ import { scheduleRecurrenceSchema } from './boardSchedules.js';
 export const recurringTaskDeliverySchema = z.enum(['document', 'summary', 'thread']);
 export type RecurringTaskDelivery = z.infer<typeof recurringTaskDeliverySchema>;
 
-export const recurringTaskRunStatusSchema = z.enum(['completed', 'empty', 'failed']);
+/** 'running' seit #3221: der Lauf wird beim Claim angelegt, nicht erst am Ende. */
+export const recurringTaskRunStatusSchema = z.enum(['running', 'completed', 'empty', 'failed']);
 export type RecurringTaskRunStatus = z.infer<typeof recurringTaskRunStatusSchema>;
 
 // ── Response item ──────────────────────────────────────────────────────────────
@@ -89,6 +90,9 @@ export const recurringTaskRunSchema = z.object({
   /** Wall-clock duration of the run. Null on rows written before it was kept. */
   durationMs: z.number().nullable(),
   verdict: recurringRunVerdictSchema.nullable(),
+  /** Gesetzt beim Claim; null bei Läufen von vor der Lease-Einführung. */
+  startedAt: z.string().nullable(),
+  finishedAt: z.string().nullable(),
   createdAt: z.string(),
 });
 export type RecurringTaskRun = z.infer<typeof recurringTaskRunSchema>;
