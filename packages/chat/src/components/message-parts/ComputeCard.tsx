@@ -124,9 +124,13 @@ function ComputeAudio({
     setObjectUrl(URL.createObjectURL(blob));
   };
 
-  // `unavailable` covers the download failing; `failed` the playback fetch.
-  // Either way the file is gone, and a dead player would be a lie.
-  if (failed || unavailable) {
+  // `failed` is the playback fetch, `unavailable` the download — two separate
+  // requests, so one failing must not erase the other's result. Bytes already
+  // in memory keep playing even once the file is gone from the server, and a
+  // transient download error must not stop a recording mid-sentence. Note that
+  // `unavailable` never clears, so gating playback on it would also be
+  // permanent for the rest of the session.
+  if (failed || (unavailable && !objectUrl)) {
     return (
       <p className="mb-2 text-xs text-foreground-muted">
         Die Aufnahme ist auf dem Server nicht mehr verfügbar.
@@ -153,14 +157,27 @@ function ComputeAudio({
       )}
       {/* Saving is a different act from listening, and the recording is no
           longer repeated in the chip row below — so this is the only way to
-          keep the file. Same shape as a figure, which carries its own too. */}
-      <button
-        onClick={onDownload}
-        className="shrink-0 rounded-md border border-border bg-background p-1.5 text-foreground-muted transition-colors hover:text-foreground"
-        aria-label={`${file.name} herunterladen`}
-      >
-        <FileDown className="h-3.5 w-3.5" />
-      </button>
+          keep the file. Same shape as a figure, which carries its own too.
+          A failed download is reported HERE, on the control that failed,
+          rather than by replacing the player next to it. */}
+      {unavailable ? (
+        <button
+          disabled
+          aria-label={`${file.name} ist nicht mehr verfügbar`}
+          title="Die Datei ist auf dem Server nicht mehr verfügbar."
+          className="shrink-0 rounded-md border border-border bg-background p-1.5 text-foreground-muted opacity-60"
+        >
+          <FileDown className="h-3.5 w-3.5" />
+        </button>
+      ) : (
+        <button
+          onClick={onDownload}
+          className="shrink-0 rounded-md border border-border bg-background p-1.5 text-foreground-muted transition-colors hover:text-foreground"
+          aria-label={`${file.name} herunterladen`}
+        >
+          <FileDown className="h-3.5 w-3.5" />
+        </button>
+      )}
     </div>
   );
 }
