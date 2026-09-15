@@ -1,0 +1,169 @@
+name: Last full Content Sync
+description: >-
+  How long ago the last *full* Content Sync run started, by inspecting the
+  workflow history. Shared by the watchdog (which alarms on the age) and by
+  Content Sync itself (which catches up a full run GitHub never fired).
+
+inputs:
+  repo:
+    description: owner/name of the repository to inspect
+    required: true
+  token:
+    description: 'Token with `actions: read` on that repository'
+    required: true
+  max_runs_inspected:
+    description: >-
+      How far back to look before giving up. Each candidate costs one jobs API
+      call; 25 covers well over a day of runs.
+    required: false
+    default: '25'
+  api_attempts:
+    description: >-
+      Attempts per API call. The jobs endpoint answers 502 often enough to hit a
+      single tick: measured on 2026-08-28, run 33128795542 returned HTTP 502 on
+      the first call and its job list on each of the three retries.
+    required: false
+    default: '3'
+
+outputs:
+  found:
+    description: '"true" when a full run was identified within the inspected window'
+    value: ${{ steps.walk.outputs.found }}
+  hours_since:
+    description: Whole hours since the last full run started; empty when none was found
+    value: ${{ steps.walk.outputs.hours_since }}
+  run_url:
+    description: HTML URL of that run; empty when none was found
+    value: ${{ steps.walk.outputs.run_url }}
+  runs_24h:
+    description: Successful Content Sync runs started in the last 24 h
+    value: ${{ steps.walk.outputs.runs_24h }}
+  unreadable:
+    description: >-
+      Candidates newer than the reported one whose job list the API would not
+      return. Non-zero means `hours_since` is an UPPER BOUND — by construction
+      every unreadable candidate is newer than whatever the walk settled on.
+    value: ${{ steps.walk.outputs.unreadable }}
+  inspected:
+    description: How many candidates were examined before stopping
+    value: ${{ steps.walk.outputs.inspected }}
+
+runs:
+  using: composite
+  steps:
+    - id: walk
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        REPO: ${{ inputs.repo }}
+        MAX_RUNS_INSPECTED: ${{ inputs.max_runs_inspected }}
+        API_ATTEMPTS: ${{ inputs.api_attempts }}
+      run: |
+        set -euo pipefail
+
+        NOW=$(date -u +%s)
+
+        # Every API answer this action acts on goes through here. A caller that
+        # reports GitHub's hiccups as findings is worse than none: it opens
+        # tracking issues for nothing, and an alarm nobody believes is an alarm
+        # nobody reads.
+        #
+        # Prints the result on success and stays silent on failure, so callers
+        # distinguish the two by exit status rather than by empty output —
+        # `.jobs[].name` on a run legitimately prints nothing too.
+        api_with_retry() {
+          local endpoint=$1 jq_filter=$2 attempt=1 out err_file err
+          err_file=$(mktemp)
+          while :; do
+            if out=$(gh api "$endpoint" --jq "$jq_filter" 2>"$err_file"); then
+              rm -f "$err_file"
+              printf '%s' "$out"
+              return 0
+            fi
+            if [ "$attempt" -ge "$API_ATTEMPTS" ]; then
+              # gh's own text is the only thing that separates a 502 from an
+              # expired token, a missing scope or a secondary rate limit, and
+              # during an incident that difference decides whether anyone needs
+              # to act. Flattened to one line because an annotation is one line,
+              # and capped in bash rather than through `head -c`: this script
+              # runs under `pipefail`, where a `head` that exits early SIGPIPEs
+              # its producer and the pipeline reports 141.
+              err=$(tr '\n' ' ' < "$err_file")
+              rm -f "$err_file"
+              echo "::warning::GitHub API did not answer $endpoint after $API_ATTEMPTS attempts. Last error: ${err:0:300}" >&2
+              return 1
+            fi
+            sleep $(( attempt * 2 ))
+            attempt=$((attempt + 1))
+          done
+        }
+
+        # status=success only: a failed run is already reported by
+        # ci-failure-issue.yml, and counting it here would mask a collapse
+        # behind runs that produced nothing.
+        if ! RUNS=$(api_with_retry \
+          "/repos/$REPO/actions/workflows/content-sync.yml/runs?status=success&per_page=100" \
+          '[.workflow_runs[] | {id: .id, created_at: .created_at, url: .html_url}]'); then
+          echo "::error::Could not read the Content Sync run list from the GitHub API. This says nothing about the schedule — the walk could not look."
+          exit 1
+        fi
+
+        RUNS_24H=$(printf '%s' "$RUNS" | jq --argjson now "$NOW" '
+          [.[] | select((.created_at | fromdateiso8601) > ($now - 86400))] | length')
+
+        # Which run was a *full* one is not in the run object — the API does not
+        # report which cron fired it. The distinguishing mark is that the non-LV
+        # matrix ran, so look for one of its jobs. Checked newest-first and
+        # stopped at the first hit, so the usual case costs one call.
+        #
+        # This is THE definition of "a full run" for both callers. It lives here
+        # exactly once: a second copy is how a rename silently demotes the
+        # nightly run in one place while the other still believes in it.
+        HOURS_SINCE_FULL=""
+        FULL_RUN_URL=""
+        INSPECTED=0
+        UNREADABLE=0
+        for ROW in $(printf '%s' "$RUNS" | jq -r '.[] | "\(.id)|\(.created_at)|\(.url)"'); do
+          if [ "$INSPECTED" -ge "$MAX_RUNS_INSPECTED" ]; then break; fi
+          INSPECTED=$((INSPECTED + 1))
+          RUN_ID=${ROW%%|*}
+          REST=${ROW#*|}
+          CREATED=${REST%%|*}
+          RUN_URL=${REST#*|}
+
+          # Fetch first, match after. `gh api ... | grep -q` would look tidier
+          # and be wrong: grep exits at the first match, gh dies of SIGPIPE, and
+          # under `pipefail` the pipeline reports 141 — so a run that *did*
+          # match would be read as no match.
+          #
+          # The failing call is kept apart from the empty answer. `|| true`
+          # collapsed them, which read as "this run had no Sync gruene-de job"
+          # — i.e. "this was not a full run" — whenever GitHub simply did not
+          # answer. That is a claim the walk never verified, and it is the claim
+          # its entire output rests on.
+          if ! JOB_NAMES=$(api_with_retry "/repos/$REPO/actions/runs/$RUN_ID/jobs?per_page=100" \
+            '.jobs[].name'); then
+            UNREADABLE=$((UNREADABLE + 1))
+            continue
+          fi
+          if [[ $'\n'"$JOB_NAMES"$'\n' == *$'\nSync gruene-de\n'* ]]; then
+            CREATED_EPOCH=$(date -u -d "$CREATED" +%s)
+            HOURS_SINCE_FULL=$(( (NOW - CREATED_EPOCH) / 3600 ))
+            FULL_RUN_URL=$RUN_URL
+            break
+          fi
+        done
+
+        {
+          if [ -n "$HOURS_SINCE_FULL" ]; then
+            echo "found=true"
+            echo "hours_since=$HOURS_SINCE_FULL"
+          else
+            echo "found=false"
+            echo "hours_since="
+          fi
+          echo "run_url=$FULL_RUN_URL"
+          echo "runs_24h=$RUNS_24H"
+          echo "unreadable=$UNREADABLE"
+          echo "inspected=$INSPECTED"
+        } >> "$GITHUB_OUTPUT"
