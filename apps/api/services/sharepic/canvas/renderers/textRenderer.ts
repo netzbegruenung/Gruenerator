@@ -32,11 +32,12 @@ function wrapText(
   // ein `\n` blieb in der Zeile stehen und `fillText` verschluckte es.
   let currentY = y;
   for (const line of layoutTextLines(ctx, text, maxWidth)) {
-    ctx.fillText(
-      line.marker ? `${line.marker} ${line.text}` : line.text,
-      x + line.indent,
-      currentY
-    );
+    // Marker an den Blockrand, Text um den Einzug nach rechts — GETRENNT. Als
+    // ein zusammengesetzter String an `x + indent` säße das Aufzählungszeichen
+    // dort, wo der Text hingehört, und die erste Zeile eines Punktes stünde um
+    // einen ganzen Einzug weiter rechts als ihre eigenen Folgezeilen.
+    if (line.marker !== null) ctx.fillText(line.marker, x, currentY);
+    ctx.fillText(line.text, x + line.indent, currentY);
     currentY += lineHeight;
   }
   return currentY + lineHeight;
