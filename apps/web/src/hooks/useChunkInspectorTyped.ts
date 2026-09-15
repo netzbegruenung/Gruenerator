@@ -4,7 +4,7 @@
  * einer pro Status passenden Meldung statt einer einzigen generischen.
  */
 import { type InspectDocumentResponse, type InspectSearchResponse } from '@gruenerator/contracts';
-import { apiErrorFromResponse, getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 
 export async function fetchDocumentChunks(
   documentId: string,
@@ -32,7 +32,10 @@ export async function fetchDocumentChunks(
     throw new Error(result.body.message);
   }
   if (result.status !== 200) {
-    throw apiErrorFromResponse(result, 'Chunk-Inspektor: Chunks konnten nicht geladen werden');
+    throw new ApiError(
+      result.status,
+      `Chunk-Inspektor: Chunks konnten nicht geladen werden (HTTP ${result.status})`
+    );
   }
   return result.body;
 }
@@ -56,7 +59,10 @@ export async function fetchChunkSearch(
     throw new Error(result.body.message);
   }
   if (result.status !== 200) {
-    throw apiErrorFromResponse(result, 'Chunk-Inspektor: Die Suche ist fehlgeschlagen');
+    throw new ApiError(
+      result.status,
+      `Chunk-Inspektor: Die Suche ist fehlgeschlagen (HTTP ${result.status})`
+    );
   }
   return result.body;
 }

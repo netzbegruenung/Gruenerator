@@ -1,5 +1,5 @@
 import { type SharedTemplate } from '@gruenerator/contracts';
-import { apiErrorFromResponse, getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { Button } from '@gruenerator/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useState } from 'react';
@@ -57,7 +57,7 @@ function GeteilteVorlageContent() {
         params: { id: data.template.canvas_id },
         body: {},
       });
-      if (res.status !== 201) throw apiErrorFromResponse(res);
+      if (res.status !== 201) throw new ApiError(res.status, `HTTP ${res.status}`);
       void navigate(`/studio/canvas/${res.body.newCanvasId}`);
     } catch (e) {
       toast.error(

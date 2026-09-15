@@ -1,4 +1,4 @@
-import { apiErrorFromResponse, getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { type UploadSource } from '@gruenerator/shared/media-library';
 
 import { uploadBlobToMediaLibrary } from './mediaUploadService';
@@ -24,6 +24,6 @@ export async function updateCanvasThumbnail(
     body: { thumbnail_url: thumbnailUrl },
   });
   if (result.status !== 200) {
-    throw apiErrorFromResponse(result, 'Failed to update canvas thumbnail');
+    throw new ApiError(result.status, `Failed to update canvas thumbnail (HTTP ${result.status})`);
   }
 }

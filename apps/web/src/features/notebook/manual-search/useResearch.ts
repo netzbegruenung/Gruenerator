@@ -2,7 +2,7 @@ import {
   type ResearchResult as ContractResearchResult,
   type ResearchSearchResponse,
 } from '@gruenerator/contracts';
-import { apiErrorFromResponse, getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { useState, useCallback } from 'react';
 
 import { type SearchMode, type SortOption } from './useResearchFilters';
@@ -70,7 +70,7 @@ export function useResearch(opts: UseResearchOptions = {}): UseResearchReturn {
             },
           });
           if (result.status !== 200) {
-            throw apiErrorFromResponse(result, 'Suche fehlgeschlagen');
+            throw new ApiError(result.status, `Suche fehlgeschlagen (HTTP ${result.status})`);
           }
           setResults(result.body.results);
           setMetadata(result.body.metadata);
@@ -86,7 +86,7 @@ export function useResearch(opts: UseResearchOptions = {}): UseResearchReturn {
             },
           });
           if (result.status !== 200) {
-            throw apiErrorFromResponse(result, 'Suche fehlgeschlagen');
+            throw new ApiError(result.status, `Suche fehlgeschlagen (HTTP ${result.status})`);
           }
           setResults(result.body.results);
           setMetadata(result.body.metadata);
@@ -112,7 +112,10 @@ export function useResearch(opts: UseResearchOptions = {}): UseResearchReturn {
         body: { sourceUrl, collectionId, limit: null },
       });
       if (result.status !== 200) {
-        throw apiErrorFromResponse(result, 'Ähnliche Dokumente konnten nicht geladen werden');
+        throw new ApiError(
+          result.status,
+          `Ähnliche Dokumente konnten nicht geladen werden (HTTP ${result.status})`
+        );
       }
       setResults(result.body.results);
       setMetadata(result.body.metadata);

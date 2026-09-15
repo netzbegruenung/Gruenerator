@@ -8,7 +8,7 @@ import {
   type UserProfile,
 } from '@gruenerator/contracts';
 import {
-  apiErrorFromResponse,
+  ApiError,
   getContractsClient,
   registerAiConsentRequiredHandler,
   setApiLocale,
@@ -297,7 +297,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
     const res = await getContractsClient().userProfile.updateProfile({ body });
     if (res.status !== 200) {
-      throw apiErrorFromResponse(res, 'Profil-Update fehlgeschlagen');
+      throw new ApiError(res.status, `Profil-Update fehlgeschlagen (HTTP ${res.status})`);
     }
 
     // Update user in store with new profile data
@@ -314,7 +314,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       body: { avatar_robot_id: Number(avatarRobotId) },
     });
     if (res.status !== 200) {
-      throw apiErrorFromResponse(res, 'Avatar-Update fehlgeschlagen');
+      throw new ApiError(res.status, `Avatar-Update fehlgeschlagen (HTTP ${res.status})`);
     }
 
     // Update user in store with new avatar
@@ -333,7 +333,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     try {
       const res = await getContractsClient().userProfile.updateMessageColor({ body: { color } });
       if (res.status !== 200) {
-        throw apiErrorFromResponse(res, 'Message Color Update fehlgeschlagen');
+        throw new ApiError(res.status, `Message Color Update fehlgeschlagen (HTTP ${res.status})`);
       }
 
       return res.body.messageColor;
@@ -531,7 +531,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       });
 
       if (res.status !== 200) {
-        throw apiErrorFromResponse(res, 'Konto-Löschung fehlgeschlagen');
+        throw new ApiError(res.status, `Konto-Löschung fehlgeschlagen (HTTP ${res.status})`);
       }
 
       // Clear local auth state
@@ -708,7 +708,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         body: { background },
       });
       if (result.status !== 200) {
-        throw apiErrorFromResponse(result);
+        throw new ApiError(result.status, `HTTP ${result.status}`);
       }
       return true;
     } catch (error: unknown) {
@@ -823,7 +823,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         body: { [field]: enabled },
       });
       if (result.status !== 200) {
-        throw apiErrorFromResponse(result);
+        throw new ApiError(result.status, `HTTP ${result.status}`);
       }
       return true;
     } catch (error: unknown) {
@@ -843,7 +843,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         body: { ai_consent: granted },
       });
       if (result.status !== 200) {
-        throw apiErrorFromResponse(result);
+        throw new ApiError(result.status, `HTTP ${result.status}`);
       }
       const ai_consent_at = result.body.profile?.ai_consent_at ?? null;
       set((state) => ({

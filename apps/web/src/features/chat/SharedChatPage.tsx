@@ -5,7 +5,7 @@ import {
   type LoadedMessage,
 } from '@gruenerator/chat';
 import { type ResolveSharedThreadResponse } from '@gruenerator/contracts';
-import { apiErrorFromResponse, getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { buildChatThreadSlug } from '@gruenerator/shared/utils';
 import { Button } from '@gruenerator/ui';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -65,7 +65,7 @@ function SharedChatContent() {
         params: { threadId: thread!.id },
         body: {},
       });
-      if (res.status !== 200) throw apiErrorFromResponse(res);
+      if (res.status !== 200) throw new ApiError(res.status, `HTTP ${res.status}`);
       return res.body;
     },
     onSuccess: (body) => {

@@ -1,4 +1,4 @@
-import { apiErrorFromResponse, getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 /** Whether the current user watches the whole board (A9), plus a toggle. */
@@ -13,7 +13,7 @@ export function useBoardSubscription(boardId: string | undefined) {
       const client = getContractsClient();
       const result = await client.boardSubscriptions.getBoardSubscription({ params: { boardId } });
       if (result.status !== 200)
-        throw apiErrorFromResponse(result, 'Failed to load board subscription');
+        throw new ApiError(result.status, 'Failed to load board subscription');
       return result.body;
     },
     enabled: !!boardId,
