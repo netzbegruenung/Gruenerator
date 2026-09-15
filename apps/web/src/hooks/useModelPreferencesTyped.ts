@@ -3,14 +3,14 @@
  * model-preferences endpoints. Mirrors useNotificationsTyped.
  */
 
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { type TextModelId } from '@gruenerator/shared/models';
 
 export async function fetchModelPreferences() {
   const client = getContractsClient();
   const result = await client.modelPreferences.getPreferences();
   if (result.status !== 200) {
-    throw new Error(`Failed to fetch model preferences (HTTP ${result.status})`);
+    throw new ApiError(result.status, `Failed to fetch model preferences (HTTP ${result.status})`);
   }
   return result.body;
 }
@@ -21,7 +21,7 @@ export async function updateModelPreference(modelId: TextModelId, enabled: boole
     body: { modelId, enabled },
   });
   if (result.status !== 200) {
-    throw new Error(`Failed to update model preference (HTTP ${result.status})`);
+    throw new ApiError(result.status, `Failed to update model preference (HTTP ${result.status})`);
   }
   return result.body;
 }

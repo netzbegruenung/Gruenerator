@@ -14,7 +14,7 @@ import {
   type EditorSurfaceAdapter,
 } from '@gruenerator/chat';
 import { chatThreadResponseSchema } from '@gruenerator/contracts';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { Sparkles } from 'lucide-react';
 import { useId, useMemo, useRef, useState, type ReactNode } from 'react';
 
@@ -106,7 +106,7 @@ function CanvasChatInner({ aiEdit, canvasType, getSharepicText }: InnerProps) {
             params: { id: chatDocId },
           });
           if (result.status !== 200) {
-            throw new Error(`Chat thread lookup failed: ${result.status}`);
+            throw new ApiError(result.status, `Chat thread lookup failed: ${result.status}`);
           }
           return chatThreadResponseSchema.parse(result.body).threadId;
         }
@@ -114,7 +114,7 @@ function CanvasChatInner({ aiEdit, canvasType, getSharepicText }: InnerProps) {
           body: { agentId: AGENT_ID, title: 'Sharepic-Entwurf', threadType: 'chat' },
         });
         if (result.status !== 201) {
-          throw new Error(`Thread creation failed: ${result.status}`);
+          throw new ApiError(result.status, `Thread creation failed: ${result.status}`);
         }
         return result.body.id;
       },

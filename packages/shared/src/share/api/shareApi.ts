@@ -5,6 +5,7 @@
 
 import { apiRequest } from '../../api/client.js';
 import { getContractsClient } from '../../api/contractsClient.js';
+import { ApiError } from '../../api/errors.js';
 
 import type {
   ShareResponse,
@@ -105,7 +106,7 @@ export async function getRecentShares(limit = 20): Promise<RecentSharesResponse>
     query: { limit: String(limit) },
   });
   if (res.status !== 200) {
-    throw new Error(`Letzte Shares konnten nicht geladen werden (${res.status})`);
+    throw new ApiError(res.status, `Letzte Shares konnten nicht geladen werden (${res.status})`);
   }
   return res.body;
 }

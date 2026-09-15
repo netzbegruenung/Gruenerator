@@ -15,7 +15,7 @@ import {
   type UserAgentShareMode,
   type UserAgentShareSettings,
 } from '@gruenerator/contracts';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 const SHARE_SETTINGS_KEY = (id: string) => ['agent', 'share', 'settings', id];
@@ -33,7 +33,7 @@ export function useAgentShareSettings(identifier: string | null, enabled: boolea
         params: { identifier: identifier as string },
       });
       if (result.status !== 200) {
-        throw new Error(`Failed to fetch share settings (HTTP ${result.status})`);
+        throw new ApiError(result.status, `Failed to fetch share settings (HTTP ${result.status})`);
       }
       return result.body;
     },
@@ -51,7 +51,7 @@ export function useAgentGroupShares(identifier: string | null, enabled: boolean)
         params: { identifier: identifier as string },
       });
       if (result.status !== 200) {
-        throw new Error(`Failed to fetch group shares (HTTP ${result.status})`);
+        throw new ApiError(result.status, `Failed to fetch group shares (HTTP ${result.status})`);
       }
       return result.body;
     },
@@ -67,7 +67,7 @@ export function useMyGroupsForSharing(enabled: boolean) {
       const client = getContractsClient();
       const result = await client.notebookSharing.listMyGroups({});
       if (result.status !== 200) {
-        throw new Error(`Failed to fetch user groups (HTTP ${result.status})`);
+        throw new ApiError(result.status, `Failed to fetch user groups (HTTP ${result.status})`);
       }
       return result.body;
     },
@@ -84,7 +84,7 @@ export function useSetAgentShareMode(identifier: string) {
         body: { mode },
       });
       if (result.status !== 200) {
-        throw new Error(`Failed to set share mode (HTTP ${result.status})`);
+        throw new ApiError(result.status, `Failed to set share mode (HTTP ${result.status})`);
       }
       return result.body;
     },
@@ -104,7 +104,7 @@ export function useSetAgentAudience(identifier: string) {
         body: { audience },
       });
       if (result.status !== 200) {
-        throw new Error(`Failed to set audience (HTTP ${result.status})`);
+        throw new ApiError(result.status, `Failed to set audience (HTTP ${result.status})`);
       }
       return result.body;
     },
@@ -124,7 +124,7 @@ export function useSetAgentIsPublic(identifier: string) {
         body: input,
       });
       if (result.status !== 200) {
-        throw new Error(`Failed to set Agentura listing (HTTP ${result.status})`);
+        throw new ApiError(result.status, `Failed to set Agentura listing (HTTP ${result.status})`);
       }
       return result.body;
     },
@@ -145,7 +145,7 @@ export function useAddAgentGroupShare(identifier: string) {
         body: { group_id: groupId },
       });
       if (result.status !== 201) {
-        throw new Error(`Failed to add group share (HTTP ${result.status})`);
+        throw new ApiError(result.status, `Failed to add group share (HTTP ${result.status})`);
       }
       return result.body;
     },
@@ -165,7 +165,7 @@ export function useRemoveAgentGroupShare(identifier: string) {
         params: { identifier, groupId },
       });
       if (result.status !== 200) {
-        throw new Error(`Failed to remove group share (HTTP ${result.status})`);
+        throw new ApiError(result.status, `Failed to remove group share (HTTP ${result.status})`);
       }
       return result.body;
     },

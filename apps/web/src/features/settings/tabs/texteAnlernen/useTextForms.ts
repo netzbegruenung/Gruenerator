@@ -3,7 +3,7 @@
  * styles). Wraps the typed ts-rest client (`userTextForms` namespace).
  */
 import { type SaveTextFormBody, type TextForm, type TextFormType } from '@gruenerator/contracts';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 const TEXT_FORMS_KEY = ['text-forms'];
@@ -21,7 +21,7 @@ export const textFormsQuery = {
   retry: false,
   queryFn: async (): Promise<TextForm[]> => {
     const res = await getContractsClient().userTextForms.list();
-    if (res.status !== 200) throw new Error(errorMessage(res.body, res.status));
+    if (res.status !== 200) throw new ApiError(res.status, errorMessage(res.body, res.status));
     return res.body.forms;
   },
 };
@@ -44,7 +44,7 @@ export function useTextForms(enabled: boolean) {
           examples: input.examples,
         },
       });
-      if (res.status !== 200) throw new Error(errorMessage(res.body, res.status));
+      if (res.status !== 200) throw new ApiError(res.status, errorMessage(res.body, res.status));
       return res.body.styleBlock;
     },
   });
@@ -55,7 +55,7 @@ export function useTextForms(enabled: boolean) {
         params: { mention: input.mention },
         body: input.body,
       });
-      if (res.status !== 200) throw new Error(errorMessage(res.body, res.status));
+      if (res.status !== 200) throw new ApiError(res.status, errorMessage(res.body, res.status));
       return res.body.form;
     },
     onSuccess: () => {
@@ -66,7 +66,7 @@ export function useTextForms(enabled: boolean) {
   const remove = useMutation({
     mutationFn: async (mention: string): Promise<void> => {
       const res = await getContractsClient().userTextForms.remove({ params: { mention } });
-      if (res.status !== 200) throw new Error(errorMessage(res.body, res.status));
+      if (res.status !== 200) throw new ApiError(res.status, errorMessage(res.body, res.status));
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: TEXT_FORMS_KEY });
@@ -79,7 +79,7 @@ export function useTextForms(enabled: boolean) {
         params: { mention: input.mention },
         body: { group_id: input.groupId },
       });
-      if (res.status !== 200) throw new Error(errorMessage(res.body, res.status));
+      if (res.status !== 200) throw new ApiError(res.status, errorMessage(res.body, res.status));
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: TEXT_FORMS_KEY });
@@ -92,7 +92,7 @@ export function useTextForms(enabled: boolean) {
         params: { mention: input.mention },
         body: { group_id: input.groupId },
       });
-      if (res.status !== 200) throw new Error(errorMessage(res.body, res.status));
+      if (res.status !== 200) throw new ApiError(res.status, errorMessage(res.body, res.status));
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: TEXT_FORMS_KEY });

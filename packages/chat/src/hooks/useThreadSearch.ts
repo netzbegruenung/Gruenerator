@@ -4,7 +4,7 @@ import {
   type ThreadSearchItem,
   type ThreadSearchResponse,
 } from '@gruenerator/contracts';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 
 import { useDebounce } from './useDebounce';
@@ -37,7 +37,7 @@ export function bucketLabel(matchedAt: string, now: Date = new Date()): string {
 async function fetchThreadSearch(query: string): Promise<ThreadSearchResponse> {
   const result = await getContractsClient().globalSearch.threadSearch({ query: { q: query } });
   if (result.status !== 200) {
-    throw new Error('Suche fehlgeschlagen');
+    throw new ApiError(result.status, 'Suche fehlgeschlagen');
   }
   return result.body;
 }
