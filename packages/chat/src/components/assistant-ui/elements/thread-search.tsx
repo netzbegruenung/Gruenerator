@@ -42,6 +42,12 @@ export interface SearchableThread {
   /** In-app path; the row is a real link so the browser can open it its way. */
   href: string;
   pinned?: boolean;
+  /**
+   * Marks the row as an archived chat. The badge is text, not a colour or an
+   * icon alone, so it reaches the link's accessible name — the row opens a
+   * thread the user has put away, and clicking it has to be a choice.
+   */
+  archived?: boolean;
 }
 
 export function ThreadSearch({
@@ -97,6 +103,11 @@ export function ThreadSearch({
           <PinIcon className="size-2.5 shrink-0 text-foreground-muted" aria-hidden="true" />
         )}
         <span className="min-w-0 flex-1 truncate text-[13px]">{thread.title}</span>
+        {thread.archived && (
+          <span className="shrink-0 rounded bg-secondary-100 px-1 py-px text-[10px] text-foreground-muted dark:bg-secondary-800">
+            Archiviert
+          </span>
+        )}
       </span>
       <span className="truncate text-xs text-foreground-muted">{thread.preview}</span>
     </a>

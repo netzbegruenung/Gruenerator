@@ -19,6 +19,7 @@ import type {
 import type { AgentConfig } from '../../../routes/chat/agents/types.js';
 import type { ArtifactKindId } from '../../../routes/chat/services/artifactKindRegistry.js';
 import type { SystemMcpKey } from '../../../services/mcp/systemMcpServers.js';
+import type { RenderedMemory } from '../../../services/memory/memoryPrompt.js';
 import type { UserAgentInput } from '../../../services/userAgents/userAgentsRepository.js';
 import type {
   WolkeFileRef,
@@ -39,7 +40,6 @@ import type {
 import type { RoleLandesverbandInput } from '@gruenerator/shared/agents';
 import type { ArtifactCreateKind } from '@gruenerator/shared/chat-intents';
 import type { ModelMessage } from 'ai';
-import type { RenderedMemory } from '../../../services/memory/memoryPrompt.js';
 
 export type { WolkeFileRef, ConnectFileRef, CurrentBoard, SocialPostPayload };
 
@@ -1397,4 +1397,11 @@ export interface ChatSearchResult {
   messageRole: 'user' | 'assistant';
   matchedAt: string;
   threadUpdatedAt: string;
+  /**
+   * Archive state of the matched thread. Required, not optional: every producer
+   * has to say it out loud, because a consumer that shows archived hits (the
+   * sidebar search) must be able to mark them, and one that does not must not
+   * silently inherit a default that says "regular" for a thread nobody checked.
+   */
+  threadStatus: 'regular' | 'archived';
 }
