@@ -2,7 +2,7 @@
  * Typed hooks for public-group discovery + admin-moderated join requests.
  * Backed by the ts-rest groups contract via the shared contracts client.
  */
-import { getContractsClient } from '@gruenerator/shared/api';
+import { apiErrorFromResponse, getContractsClient } from '@gruenerator/shared/api';
 import { GROUPS_QUERY_KEY, groupDetailsKey } from '@gruenerator/shared/groups';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -27,7 +27,7 @@ export function useDiscoverPublicGroups() {
     queryFn: async () => {
       const result = await getContractsClient().groups.discoverPublicGroups();
       if (result.status !== 200) {
-        throw new Error('Öffentliche Gruppen konnten nicht geladen werden.');
+        throw apiErrorFromResponse(result, 'Öffentliche Gruppen konnten nicht geladen werden.');
       }
       return result.body;
     },
@@ -41,10 +41,10 @@ export function useRequestToJoin() {
   return useMutation({
     mutationFn: async (groupId: string) => {
       const result = await getContractsClient().groups.requestToJoin({ params: { groupId } });
+      // `apiErrorFromResponse` already prefers the backend's own `message`,
+      // which is what the 409 branch reached for by hand.
       if (result.status !== 201) {
-        const message =
-          result.status === 409 ? result.body.message : 'Beitrittsanfrage fehlgeschlagen.';
-        throw new Error(message);
+        throw apiErrorFromResponse(result, 'Beitrittsanfrage fehlgeschlagen.');
       }
       return result.body;
     },
@@ -60,7 +60,7 @@ export function useGroupJoinRequests(groupId: string, enabled: boolean) {
     queryFn: async () => {
       const result = await getContractsClient().groups.listJoinRequests({ params: { groupId } });
       if (result.status !== 200) {
-        throw new Error('Beitrittsanfragen konnten nicht geladen werden.');
+        throw apiErrorFromResponse(result, 'Beitrittsanfragen konnten nicht geladen werden.');
       }
       return result.body;
     },
@@ -82,7 +82,8 @@ export function useReviewJoinRequest(groupId: string) {
       const result = await getContractsClient().groups.approveJoinRequest({
         params: { groupId, requestId },
       });
-      if (result.status !== 200) throw new Error('Anfrage konnte nicht angenommen werden.');
+      if (result.status !== 200)
+        throw apiErrorFromResponse(result, 'Anfrage konnte nicht angenommen werden.');
       return result.body;
     },
     onSuccess: invalidate,
@@ -93,7 +94,8 @@ export function useReviewJoinRequest(groupId: string) {
       const result = await getContractsClient().groups.denyJoinRequest({
         params: { groupId, requestId },
       });
-      if (result.status !== 200) throw new Error('Anfrage konnte nicht abgelehnt werden.');
+      if (result.status !== 200)
+        throw apiErrorFromResponse(result, 'Anfrage konnte nicht abgelehnt werden.');
       return result.body;
     },
     onSuccess: invalidate,
@@ -110,7 +112,8 @@ export function useSetGroupVisibility(groupId: string) {
         params: { groupId },
         body,
       });
-      if (result.status !== 200) throw new Error('Sichtbarkeit konnte nicht geändert werden.');
+      if (result.status !== 200)
+        throw apiErrorFromResponse(result, 'Sichtbarkeit konnte nicht geändert werden.');
       return result.body;
     },
     onSuccess: () => {
