@@ -37,3 +37,15 @@ trustPolicy: no-downgrade
 # every new version for seven days, which is the window the hijacks this policy
 # guards against (chalk/debug, Shai-Hulud) were live. Unit is MINUTES.
 trustPolicyIgnoreAfter: 525600
+# The window does not cover the whole family. tailwind-merge@2.6.1 (2026-01-30) is
+# a 2.x backport of a single bugfix, published from the maintainer's own npm
+# account — the same one that published 2.6.0 — after the 3.x line had already
+# moved to trusted publishing. So it reads as a downgrade AND is young enough to
+# still be checked: declaring tailwind-merge in any workspace package re-resolves
+# the entry and aborts the install (#3325). Its only source is @blocknote/shadcn's
+# `^2.6.0`, so rather than excluding the package from the policy — a permanent
+# hole, and the first-hit abort only ever reveals the next offender — the pin
+# `@blocknote/shadcn>tailwind-merge` in pnpm.overrides puts that one subtree on
+# 2.6.0: same range, already in the tree for @univerjs/design, and old enough to
+# predate the trusted-publishing era. Exact on purpose — a caret resolves straight
+# back to 2.6.1.
