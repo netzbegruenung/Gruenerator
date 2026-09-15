@@ -25,8 +25,16 @@ interface TTSOptions {
   modelId?: string | undefined;
   voiceId?: string | undefined;
   language?: string | undefined;
+  /** Provider time-stretching, 0.8–1.2; omitted means the natural pace. */
+  speed?: number | undefined;
   /** Lets the controller stop paying for audio once the client hangs up. */
   signal?: AbortSignal | undefined;
+}
+
+/** Raw provider output: PCM16 signed LE mono at `sampleRate`. */
+export interface PcmSpeech {
+  pcm: Buffer;
+  sampleRate: number;
 }
 
 interface TTSStreamCallbacks {
@@ -123,6 +131,7 @@ function buildRequestBody(text: string, options: TTSOptions): Record<string, unk
     // incorrectly. The clients have always sent `language` — until now it was
     // destructured nowhere and fell on the floor.
     ...(options.language ? { language: options.language, normalize: true } : {}),
+    ...(options.speed !== undefined ? { speed: options.speed } : {}),
   };
 }
 
@@ -232,7 +241,12 @@ async function providerError(response: Response): Promise<Error> {
 }
 
 class TTSService {
-  async generateSpeech(text: string, options: TTSOptions = {}): Promise<Buffer> {
+  /**
+   * One provider request, whole. Grünerator Voice joins several of these
+   * before encoding, so the raw samples are the unit here; usage is booked per
+   * request because every request is paid for on its own.
+   */
+  async generatePcm(text: string, options: TTSOptions = {}): Promise<PcmSpeech> {
     log.debug('[TTS] Generating speech', { textLength: text.length, ...options });
 
     const response = await postGenerate(text, options);
@@ -245,13 +259,17 @@ class TTSService {
       if (value?.length) chunks.push(Buffer.from(value));
     }
     const pcm = Buffer.concat(chunks);
-    // PCM16 is already what a 16-bit WAV stores, so this only prepends a header.
-    const wav = pcm16ToWav(pcm, sampleRate);
 
     recordSpeech(pcm.length / 2, sampleRate, options.modelId || DEFAULT_MODEL);
-    log.debug('[TTS] Speech generated', { wavSize: wav.length });
+    log.debug('[TTS] Speech generated', { pcmBytes: pcm.length, sampleRate });
 
-    return wav;
+    return { pcm, sampleRate };
+  }
+
+  async generateSpeech(text: string, options: TTSOptions = {}): Promise<Buffer> {
+    const { pcm, sampleRate } = await this.generatePcm(text, options);
+    // PCM16 is already what a 16-bit WAV stores, so this only prepends a header.
+    return pcm16ToWav(pcm, sampleRate);
   }
 
   async streamSpeech(
