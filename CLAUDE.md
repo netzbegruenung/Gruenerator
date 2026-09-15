@@ -162,7 +162,13 @@ gh api graphql -f query='{repository(owner:"netzbegruenung",name:"Gruenerator"){
 
 Leeres Array = kein Schlüsselwort erkannt. Steht es, erscheint es auch als „Linked issues" in der PR-Seitenleiste.
 
-**Automatisch geschlossen wird nur beim Merge in `master`.** Ein PR gegen `test-branch` lässt das Issue offen, auch mit korrektem Schlüsselwort — die Verknüpfung bleibt aber stehen und greift, sobald dieselbe Arbeit auf `master` landet.
+**Automatisch geschlossen wird nur beim Merge in `master`.** Ein PR gegen einen anderen Branch (`test-branch`, oder der Basis-PR eines Stapels) lässt das Issue offen — und die Verknüpfung **entsteht dabei gar nicht erst**: GitHub wertet Body-Schlüsselwörter nur aus, solange der PR gegen den Default-Branch läuft. Am 15.09.2026 an #3300 gemessen (Basis `feat/gruenerator-voice`, `Closes #3295, closes #3296` korrekt im Body): `closingIssuesReferences` lieferte `[]`. Sie entsteht erst, wenn der PR auf `master` umgehängt wird — beim Merge des Basis-PRs passiert das automatisch.
+
+**Bei einem gestapelten PR gehört das Schlüsselwort deshalb in die Commit-Message.** Dort schließt es sein Issue, sobald der Commit `master` erreicht, unabhängig von Basis und Merge-Reihenfolge; beides gleichzeitig zu setzen schadet nicht. Nachgesehen wird dann am Commit statt am PR, denn `closingIssuesReferences` bleibt bei dieser Variante leer:
+
+```bash
+gh api repos/netzbegruenung/Gruenerator/commits/<sha> --jq '.commit.message' | tail -5
+```
 
 Ohne Schlüsselwort bleibt, was nur _erwähnt_ gehört: verwandte Issues, Vorgänger-PRs, und ein Nebenbefund, den dieser PR gerade **nicht** repariert — der bekommt sein eigenes Issue, siehe oben.
 
