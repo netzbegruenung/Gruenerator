@@ -1,4 +1,4 @@
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 /**
@@ -16,7 +16,7 @@ export function useDuplicateBoard(boardId: string | undefined) {
       const client = getContractsClient();
       const result = await client.boards.duplicateBoard({ params: { id: boardId }, body: {} });
       if (result.status !== 201)
-        throw new Error(`Duplizieren fehlgeschlagen (HTTP ${result.status})`);
+        throw new ApiError(result.status, `Duplizieren fehlgeschlagen (HTTP ${result.status})`);
       // Notify watchers of the source board (fire-and-forget).
       await client.boardActivity
         .recordBoardActivity({ params: { boardId }, body: { type: 'board_duplicated' } })

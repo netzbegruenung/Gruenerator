@@ -1,5 +1,5 @@
 import { type BoardAttachmentEntry } from '@gruenerator/contracts';
-import { getContractsClient, getGlobalApiClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient, getGlobalApiClient } from '@gruenerator/shared/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 /**
@@ -16,7 +16,7 @@ export function useBoardAttachments(boardId: string | undefined, cardId: string)
       if (!boardId) return [];
       const client = getContractsClient();
       const result = await client.boardAttachments.listAttachments({ params: { boardId, cardId } });
-      if (result.status !== 200) throw new Error(`Failed to load attachments`);
+      if (result.status !== 200) throw new ApiError(result.status, `Failed to load attachments`);
       return result.body;
     },
     enabled: !!boardId && !!cardId,

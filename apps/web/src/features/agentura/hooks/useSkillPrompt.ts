@@ -1,4 +1,4 @@
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
 
 /**
@@ -22,7 +22,7 @@ export function useSkillPrompt(mention: string | undefined) {
       const client = getContractsClient();
       const result = await client.skillPrompt.getPrompt({ params: { mention: mention as string } });
       if (result.status !== 200) {
-        throw new Error(`Failed to fetch skill prompt (HTTP ${result.status})`);
+        throw new ApiError(result.status, `Failed to fetch skill prompt (HTTP ${result.status})`);
       }
       return result.body.prompt;
     },
