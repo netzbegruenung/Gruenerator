@@ -514,6 +514,20 @@ describe('narrationMatchesAction — behauptete oder angekündigte Aktion ohne E
     expect(names(rs)['narrationMatchesAction']).toBe(true);
   });
 
+  it('verlangt Verb und Artefakt-Nomen im SELBEN Satz', () => {
+    // Beide Hälften stehen im Text, gehören aber nicht zusammen: die Änderung
+    // betrifft die Reihenfolge, das Sharepic kommt aus einer Erzählung.
+    const rs = runAssertions(
+      trace({
+        toolCalls: [mediaCall],
+        fullText:
+          'Ich habe die Reihenfolge geändert. Das Museum hat heute ein neues Sharepic ausgestellt.',
+      }),
+      { narrationMatchesAction: true }
+    );
+    expect(names(rs)['narrationMatchesAction']).toBe(true);
+  });
+
   it('nimmt Prosa-Arbeit ohne Artefakt-Nomen nicht als Aktionsbehauptung', () => {
     const rs = runAssertions(
       trace({ fullText: 'Ich habe den Absatz angepasst: Die Verkehrswende beginnt vor Ort.' }),
