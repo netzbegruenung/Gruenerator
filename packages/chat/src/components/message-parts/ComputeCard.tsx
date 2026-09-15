@@ -3,6 +3,7 @@
 import { Calculator, Download, FileDown, Volume2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
+import { audioAssetsOf } from '../../lib/computeAssets';
 import { downloadBase64, downloadBlob, mimeFromFilename } from '../../lib/downloadBlob';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { useComputeExportStore } from '../../stores/computeExportStore';
@@ -73,8 +74,6 @@ function ComputeFigure({ url, index }: { url: string; index: number }) {
 
 const CHIP_CLASS =
   'flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1 text-xs text-foreground transition-colors hover:border-primary/50 hover:bg-primary/10';
-
-const AUDIO_FILE = /\.(mp3|wav)$/i;
 
 /**
  * Listen to a generated audio file without leaving the chat.
@@ -157,7 +156,7 @@ export function ComputeCard({ data }: { data: ComputeData }) {
 
   // A vertonen result is not a calculation. Same card (one persistence path,
   // one download path), honest heading.
-  const audioAssets = data.fileAssets?.filter((file) => AUDIO_FILE.test(file.name)) ?? [];
+  const audioAssets = audioAssetsOf(data.fileAssets);
   const isAudio = audioAssets.length > 0;
 
   const handleAssetDownload = async (file: { name: string; url: string }) => {
