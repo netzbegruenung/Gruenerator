@@ -5,22 +5,19 @@
  */
 import { type RecurringTask } from '@gruenerator/contracts';
 import { ConfirmDialogProvider, useConfirm } from '@gruenerator/ui';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
-import {
-  useDeleteRecurringTask,
-  useRecurringTasks,
-  useRunRecurringTaskNow,
-  useUpdateRecurringTask,
-} from './api';
+import { useDeleteRecurringTask, useRecurringTasks, useUpdateRecurringTask } from './api';
 import { RunHistoryDisclosure } from './RunHistory';
 import { DELIVERY_LABEL, describeRecurrence } from './scheduleState';
+import { useRecurringRunNow } from './useRecurringRunNow';
 
 function TaskRow({ task }: { task: RecurringTask }) {
   const update = useUpdateRecurringTask();
   const remove = useDeleteRecurringTask();
-  const runNow = useRunRecurringTaskNow();
   const confirm = useConfirm();
+  const navigate = useNavigate();
+  const { start: startRun, isBusy } = useRecurringRunNow(task, (url) => void navigate(url));
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-4">
@@ -62,12 +59,18 @@ function TaskRow({ task }: { task: RecurringTask }) {
           {task.enabled ? 'Pausieren' : 'Aktivieren'}
         </button>
         <button
-          onClick={() => runNow.mutate(task.id)}
-          disabled={runNow.isPending}
+          type="button"
+          onClick={startRun}
+          disabled={isBusy}
+          aria-busy={isBusy}
           className="rounded border border-border px-3 py-1 text-sm disabled:opacity-50"
         >
-          Jetzt ausführen
+          {isBusy ? 'Läuft …' : 'Jetzt ausführen'}
         </button>
+        {/* Toasts erreichen Screenreader nicht verlässlich. */}
+        <span role="status" aria-live="polite" className="sr-only">
+          {isBusy ? `Lauf „${task.title}" läuft.` : ''}
+        </span>
         <button
           onClick={() => {
             void confirm({
