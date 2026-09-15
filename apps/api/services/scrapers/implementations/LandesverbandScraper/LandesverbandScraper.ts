@@ -12,6 +12,7 @@ import { type QdrantClient } from '@qdrant/js-client-rest';
 
 import { env } from '../../../../config/env.js';
 import {
+  DEFAULT_MAX_AGE_YEARS,
   getSourceById,
   getSourcesByType,
   getSourcesByLandesverband,
@@ -665,11 +666,18 @@ export class LandesverbandScraper extends BaseScraper {
           // back on the next run. Counted under its own reason: `too_old` is a
           // page we paid to fetch, `too_old_gated` is the saving, and folding
           // them together would hide whether this gate works at all.
+          // The default matters: `maxAgeYears` is optional, and the processor
+          // rejects against DEFAULT_MAX_AGE_YEARS when it is unset. Requiring a
+          // configured value here would write rows for those sources and never
+          // read them back — the gate inert exactly where nothing reveals it,
+          // since `too_old_gated` would simply never increment.
           const rejectedPublishedAt = rejectedUrls.get(url);
           if (
             rejectedPublishedAt &&
-            source.maxAgeYears != null &&
-            DateExtractor.isDateTooOld(new Date(rejectedPublishedAt), source.maxAgeYears)
+            DateExtractor.isDateTooOld(
+              new Date(rejectedPublishedAt),
+              source.maxAgeYears ?? DEFAULT_MAX_AGE_YEARS
+            )
           ) {
             result.skipped++;
             result.skipReasons['too_old_gated'] = (result.skipReasons['too_old_gated'] || 0) + 1;
