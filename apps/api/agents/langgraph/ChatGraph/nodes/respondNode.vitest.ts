@@ -782,4 +782,67 @@ describe('formatImageContext — die Sichtbarkeitszusage folgt dem vision-Schalt
     expect(out).toContain('NICHT in der Nachricht sichtbar');
     expect(out).not.toContain('Die Bilder sind in der Nachricht sichtbar');
   });
+
+  it('zeigt bei image_edit auf den BILDVERGLEICH — wenn es ihn gibt', async () => {
+    // Der Einzeldurchlauf lässt die Bytes hier bewusst draußen; das Modell
+    // erzählt aus den Beschreibungen. Der Prompt behauptete trotzdem das
+    // Gegenteil, auf dem häufigsten Bild-Zug überhaupt (#3313).
+    const out = await buildSystemMessage(
+      makeState({
+        intent: 'image_edit',
+        searchResults: [],
+        citations: [],
+        agentConfig: { identifier: 'gruenerator-universal' },
+        enabledTools: {},
+        imageAttachments: [{ name: 'plakat.png', type: 'image/png', data: 'AAAA' }],
+        imageEditDescriptions: { original: 'ein rotes Plakat', edited: 'ein blaues Plakat' },
+      } as unknown as Partial<ChatGraphState>)
+    );
+    expect(out).toContain('plakat.png');
+    expect(out).toContain('NICHT in der Nachricht sichtbar');
+    // Nicht bloß das Wort: der Abschnitt muss wirklich dastehen.
+    expect(out).toContain('## BILDVERGLEICH');
+    expect(out).toContain('ein blaues Plakat');
+    expect(out).not.toContain('Die Bilder sind in der Nachricht sichtbar.');
+  });
+
+  it('zeigt auf keinen BILDVERGLEICH, wenn beide Vision-Aufrufe fehlschlugen', async () => {
+    // `imageEditNode` fängt beide describe()-Fehler zu null ab. Dann rendert der
+    // Abschnitt nicht — und ein Prompt, der auf ihn zeigt, ist derselbe Fehler
+    // wie eine erfundene Sichtbarkeit, nur eine Zeile tiefer.
+    const out = await buildSystemMessage(
+      makeState({
+        intent: 'image_edit',
+        searchResults: [],
+        citations: [],
+        agentConfig: { identifier: 'gruenerator-universal' },
+        enabledTools: {},
+        imageAttachments: [{ name: 'plakat.png', type: 'image/png', data: 'AAAA' }],
+        imageEditDescriptions: null,
+      } as unknown as Partial<ChatGraphState>)
+    );
+    expect(out).toContain('NICHT in der Nachricht sichtbar');
+    expect(out).toContain('keine Beschreibung davon vor');
+    expect(out).not.toContain('## BILDVERGLEICH');
+    expect(out).not.toContain('Stütze dich auf den BILDVERGLEICH-Block');
+  });
+
+  it('verweist auch bei abgeschalteter Bildanalyse auf vorhandene Beschreibungen', async () => {
+    // „Bildanalyse“ und „Bildbearbeitung“ sind zwei unabhängige Schalter: die
+    // Erdung kann da sein, während die Bytes es nicht sind.
+    const out = await buildSystemMessage(
+      makeState({
+        intent: 'image_edit',
+        searchResults: [],
+        citations: [],
+        agentConfig: { identifier: 'gruenerator-universal' },
+        enabledTools: { vision: false },
+        imageAttachments: [{ name: 'plakat.png', type: 'image/png', data: 'AAAA' }],
+        imageEditDescriptions: { original: 'ein rotes Plakat', edited: 'ein blaues Plakat' },
+      } as unknown as Partial<ChatGraphState>)
+    );
+    expect(out).toContain('Bildanalyse ist für diesen Grünerator ausgeschaltet');
+    expect(out).toContain('Stütze dich auf den BILDVERGLEICH-Block');
+    expect(out).not.toContain('keine Beschreibung davon vor');
+  });
 });
