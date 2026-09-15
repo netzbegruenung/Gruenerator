@@ -500,6 +500,14 @@ export interface ContentSyncSourceResult {
    */
   deadLinks?: number;
   deadLinkSamples?: string[];
+  /**
+   * KommunalWiki: Punkte gelöschter Wiki-Seiten, die der Lauf entfernt hat,
+   * und — wenn nicht aufgeräumt wurde — warum nicht. Ohne den Grund ist ein
+   * abgewürgtes Aufräumen von einem Lauf ohne Aufräumbedarf nicht zu
+   * unterscheiden: beide melden schlicht nichts.
+   */
+  pruned?: number;
+  pruneSkippedReason?: string;
   duration: number;
   error?: string;
 }
@@ -585,6 +593,12 @@ export function renderContentSyncTemplate(params: ContentSyncTemplateParams): {
               .map((m) => `<li style="margin:2px 0;">${escapeHtml(m)}</li>`)
               .join('')}</ul></td></tr>`
           : ''
+      }${
+        s.pruneSkippedReason
+          ? `<tr style="background-color:#fffbe6;"><td colspan="6" style="padding:4px 12px;border:1px solid #e5e5e5;color:#8a6d00;font-size:12px;">Nicht aufger&auml;umt: ${escapeHtml(s.pruneSkippedReason)}</td></tr>`
+          : s.pruned
+            ? `<tr><td colspan="6" style="padding:4px 12px;border:1px solid #e5e5e5;color:#666666;font-size:12px;">Aufger&auml;umt: ${s.pruned} Punkte gel&ouml;schter Seiten</td></tr>`
+            : ''
       }`;
     })
     .join('\n');
@@ -714,6 +728,13 @@ export function renderContentSyncTemplate(params: ContentSyncTemplateParams): {
             : '    Tote Links (von der Quelle verlinkt, aber nicht mehr abrufbar):',
           ...s.deadLinkSamples.map((m) => `      - ${m}`)
         );
+      }
+      // Auch hier, nicht nur im HTML: die Text-Fassung ist die, die viele
+      // Clients zeigen — und ein abgewürgtes Aufräumen ist sonst unsichtbar.
+      if (s.pruneSkippedReason) {
+        parts.push(`    WARNUNG nicht aufgeräumt: ${s.pruneSkippedReason}`);
+      } else if (s.pruned) {
+        parts.push(`    Aufgeräumt: ${s.pruned} Punkte gelöschter Seiten`);
       }
       return parts.join('\n');
     })

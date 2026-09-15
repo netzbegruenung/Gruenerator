@@ -76,6 +76,57 @@ describe('renderContentSyncTemplate — Auslese-Block', () => {
 });
 
 /**
+ * Das Aufräumen gelöschter Wiki-Seiten hat zwei Ausgänge, und der stille ist
+ * der gefährliche: greift die Mengenschwelle, wird NICHTS gelöscht — und in
+ * stored/updated/skipped sieht dieser Lauf exakt aus wie einer, bei dem es
+ * nichts aufzuräumen gab. Der Grund muss deshalb im Bericht stehen, und zwar
+ * in beiden Fassungen (siehe Punkt 1 oben).
+ */
+const WITH_PRUNE = {
+  ...BASE,
+  sources: [{ ...BASE.sources[0], name: 'KommunalWiki', pruned: 2137 }],
+};
+
+const WITH_PRUNE_SKIPPED = {
+  ...BASE,
+  sources: [
+    {
+      ...BASE.sources[0],
+      name: 'KommunalWiki',
+      pruneSkippedReason:
+        'prune of 2137/8954 points (23.9 %) exceeds the threshold of 10.0 % — nothing deleted',
+    },
+  ],
+};
+
+describe('renderContentSyncTemplate — aufgeräumte Seiten', () => {
+  it('reports pruned points in HTML and in plain text', () => {
+    const { html, text } = renderContentSyncTemplate(WITH_PRUNE);
+
+    expect(html).toContain('2137 Punkte gel&ouml;schter Seiten');
+    expect(text).toContain('Aufgeräumt: 2137 Punkte gelöschter Seiten');
+  });
+
+  it('reports a blocked prune as a warning, with the reason, in both parts', () => {
+    const { html, text } = renderContentSyncTemplate(WITH_PRUNE_SKIPPED);
+
+    expect(html).toContain('Nicht aufger&auml;umt:');
+    expect(html).toContain('exceeds the threshold');
+    expect(text).toContain('WARNUNG nicht aufgeräumt:');
+    expect(text).toContain('exceeds the threshold');
+  });
+
+  it('stays silent when there was nothing to prune', () => {
+    const { html, text } = renderContentSyncTemplate(BASE);
+
+    expect(html).not.toContain('Aufger&auml;umt:');
+    expect(html).not.toContain('Nicht aufger&auml;umt:');
+    expect(text).not.toContain('Aufgeräumt:');
+    expect(text).not.toContain('nicht aufgeräumt:');
+  });
+});
+
+/**
  * Tote Links sind kein Fehler und sollen auch nicht wie einer aussehen — aber
  * wer die Seite betreibt, ist die einzige Person, die sie reparieren kann, und
  * genau diese Person bekommt die per-LV-Mail. Sie lösen deshalb keine Mail aus
