@@ -5,6 +5,7 @@ import { lazy, Suspense, useState, useEffect, useCallback } from 'react';
 import { FaInstagram } from 'react-icons/fa';
 import { useParams } from 'react-router-dom';
 
+import AudioPlayer from '../../components/common/AudioPlayer';
 import LoginRequired from '../../components/common/LoginRequired/LoginRequired';
 import Spinner from '../../components/common/Spinner';
 import apiClient from '../../components/utils/apiClient';
@@ -18,6 +19,52 @@ const TransferDownloadPage = lazy(() => import('../transfer/components/TransferD
 
 const baseURL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api';
 
+/** German copy per kind; images are the fallback for anything unknown. */
+const KIND_WORDS = {
+  video: {
+    ein: 'ein Video',
+    dieses: 'dieses Video',
+    geteilt: 'Geteiltes Video',
+    noun: 'Video',
+    solche: 'solche Videos',
+    toolPath: '/subtitler',
+    toolPitch: 'Reels mit automatischen Untertiteln und grünem Design',
+  },
+  audio: {
+    ein: 'eine Audiodatei',
+    dieses: 'diese Audiodatei',
+    geteilt: 'Geteilte Audiodatei',
+    noun: 'Audio',
+    solche: 'solche Audiodateien',
+    toolPath: '/voice',
+    toolPitch: 'Ansagen, Vorlesefassungen und Audiodeskriptionen',
+  },
+  image: {
+    ein: 'ein Bild',
+    dieses: 'dieses Bild',
+    geteilt: 'Geteiltes Bild',
+    noun: 'Bild',
+    solche: 'solche Bilder',
+    toolPath: '/studio',
+    toolPitch: 'Sharepics und Bilder mit grünem Design',
+  },
+} as const;
+
+function kindWords(shareData: ShareData | null) {
+  const mediaType = shareData?.mediaType;
+  return mediaType === 'video' || mediaType === 'audio' ? KIND_WORDS[mediaType] : KIND_WORDS.image;
+}
+
+/** What the bytes behind /download or /stream are, for the file we hand over. */
+function fileMeta(shareData: ShareData | null): { mimeType: string; extension: string } {
+  if (shareData?.mediaType === 'video') return { mimeType: 'video/mp4', extension: 'mp4' };
+  if (shareData?.mediaType === 'audio') {
+    const mimeType = shareData.mimeType ?? 'audio/mpeg';
+    return { mimeType, extension: mimeType === 'audio/wav' ? 'wav' : 'mp3' };
+  }
+  return { mimeType: 'image/png', extension: 'png' };
+}
+
 interface TransferFields {
   fileName: string | null;
   fileSize: number | null;
@@ -30,7 +77,7 @@ interface TransferFields {
 
 interface ShareData extends Partial<TransferFields> {
   title: string;
-  mediaType: 'video' | 'image' | 'transfer';
+  mediaType: 'video' | 'image' | 'transfer' | 'audio';
   sharerName: string;
   status: 'processing' | 'ready' | 'failed';
   downloadCount?: number;
@@ -117,8 +164,7 @@ const SharedMediaPage = () => {
         responseType: 'blob',
       });
 
-      const mimeType = shareData?.mediaType === 'video' ? 'video/mp4' : 'image/png';
-      const extension = shareData?.mediaType === 'video' ? 'mp4' : 'png';
+      const { mimeType, extension } = fileMeta(shareData);
 
       const blob = new Blob([response.data as BlobPart], { type: mimeType });
       const url = window.URL.createObjectURL(blob);
@@ -158,7 +204,7 @@ const SharedMediaPage = () => {
       try {
         await shareContent({
           title: shareTitle,
-          text: `Schau dir ${shareData?.mediaType === 'video' ? 'dieses Video' : 'dieses Bild'} an: ${shareTitle}`,
+          text: `Schau dir ${kindWords(shareData).dieses} an: ${shareTitle}`,
           url: shareUrl,
         });
       } catch {
@@ -179,13 +225,12 @@ const SharedMediaPage = () => {
       // Video and image now have separate routes; /preview is images only for
       // new consumers.
       const path =
-        shareData?.mediaType === 'video'
+        shareData?.mediaType === 'video' || shareData?.mediaType === 'audio'
           ? `/share/${shareToken}/stream`
           : `/share/${shareToken}/preview`;
       const response = await apiClient.get<Blob>(path, { responseType: 'blob' });
       const blob = response.data as Blob;
-      const mimeType = shareData?.mediaType === 'video' ? 'video/mp4' : 'image/png';
-      const extension = shareData?.mediaType === 'video' ? 'mp4' : 'png';
+      const { mimeType, extension } = fileMeta(shareData);
       const file = new File([blob], `gruenerator_media.${extension}`, { type: mimeType });
 
       await navigator.share({
@@ -294,6 +339,8 @@ const SharedMediaPage = () => {
   }
 
   const isVideo = shareData?.mediaType === 'video';
+  const isAudio = shareData?.mediaType === 'audio';
+  const words = kindWords(shareData);
 
   return (
     <div className="min-h-dvh flex items-center justify-center p-lg max-md:p-md max-md:items-start bg-background-alt">
@@ -325,6 +372,13 @@ const SharedMediaPage = () => {
               <source src={`${baseURL}/share/${shareToken}/stream`} type="video/mp4" />
               Dein Browser unterstützt keine Video-Wiedergabe.
             </video>
+          ) : isAudio ? (
+            <div className="w-[min(90vw,32rem)] p-lg">
+              <AudioPlayer
+                src={`${baseURL}/share/${shareToken}/stream`}
+                title={shareData?.title || words.geteilt}
+              />
+            </div>
           ) : (
             <picture>
               {/* Detail view: a large WebP/AVIF variant is plenty for an 80vh
@@ -351,19 +405,18 @@ const SharedMediaPage = () => {
         <div className="flex flex-col p-lg min-w-[280px] max-md:text-center max-md:min-w-0">
           <div className="flex-1">
             <p className="m-0 mb-sm text-base text-foreground">
-              <strong>{shareData?.sharerName || 'Jemand'}</strong> hat{' '}
-              {isVideo ? 'ein Video' : 'ein Bild'} mit dir geteilt
+              <strong>{shareData?.sharerName || 'Jemand'}</strong> hat {words.ein} mit dir geteilt
             </p>
             <h1 className="m-0 mb-sm text-[1.75rem] text-foreground-heading">
-              {shareData?.title || (isVideo ? 'Geteiltes Video' : 'Geteiltes Bild')}
+              {shareData?.title || words.geteilt}
             </h1>
 
             <div className="mt-xl">
               {!isAuthenticated ? (
                 <LoginRequired
                   variant="inline"
-                  title={isVideo ? 'Video herunterladen' : 'Bild herunterladen'}
-                  message={`Melde dich an, um ${isVideo ? 'dieses Video' : 'dieses Bild'} herunterzuladen.`}
+                  title={`${words.noun} herunterladen`}
+                  message={`Melde dich an, um ${words.dieses} herunterzuladen.`}
                 />
               ) : downloadSuccess ? (
                 <div className="flex items-center gap-sm p-md bg-background rounded-sm text-secondary-600 border border-grey-200 dark:border-grey-700">
@@ -390,11 +443,7 @@ const SharedMediaPage = () => {
                       onClick={handleDownload}
                       disabled={isDownloading}
                     >
-                      {isDownloading
-                        ? 'Wird geladen...'
-                        : isVideo
-                          ? 'Video herunterladen'
-                          : 'Bild herunterladen'}
+                      {isDownloading ? 'Wird geladen...' : `${words.noun} herunterladen`}
                     </Button>
                     <Button variant="brand" size="brand" onClick={handleShare}>
                       {copied ? 'Link kopiert!' : 'Link teilen'}
@@ -422,20 +471,16 @@ const SharedMediaPage = () => {
 
             <div className="mt-lg pt-md border-t border-grey-200 dark:border-grey-700">
               <p className="m-0 text-sm text-grey-400">
-                Willst du auch {isVideo ? 'solche Videos' : 'solche Bilder'} erstellen? Mit dem{' '}
+                Willst du auch {words.solche} erstellen? Mit dem{' '}
                 <a
-                  href={buildUrl(isVideo ? '/subtitler' : '/studio')}
+                  href={buildUrl(words.toolPath)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-secondary-600 no-underline hover:underline"
                 >
                   Grünerator
                 </a>{' '}
-                kannst du{' '}
-                {isVideo
-                  ? 'Reels mit automatischen Untertiteln und grünem Design'
-                  : 'Sharepics und Bilder mit grünem Design'}{' '}
-                erstellen!
+                kannst du {words.toolPitch} erstellen!
               </p>
             </div>
           </div>

@@ -204,7 +204,7 @@ Zustand (global state). TanStack Query v5 (server state/fetching) with axios.
 
 **Persist-Konvention:** Jeder zustand-persist-Store wird mit `version` + `migrate` angelegt. DB-Umbauten mit ID-Semantik: expand → backfill/dual-write → contract; bei Spalten-Änderungen alle Queries greppen.
 
-**Sprachregelungen (Produkt-Wording):** Plural **„Grüneratoren"**, Singular **„Grünerator-Agent"** (nie „Agent" allein — „der Grünerator" meint das Produkt); **„Rezepte"** (nicht „Skills"); **„Projekte"** (nicht „Gruppen"/„Spaces"); **„Notebook"/„Notebooks"** (nie „Notizbuch"/„Notizbücher"). Neue Produktnamen hier eintragen, bevor das Feature gebaut wird.
+**Sprachregelungen (Produkt-Wording):** Plural **„Grüneratoren"**, Singular **„Grünerator-Agent"** (nie „Agent" allein — „der Grünerator" meint das Produkt); **„Rezepte"** (nicht „Skills"); **„Projekte"** (nicht „Gruppen"/„Spaces"); **„Notebook"/„Notebooks"** (nie „Notizbuch"/„Notizbücher"); **„Grünerator Voice"** (das Text-zu-Audio-Werkzeug unter `/voice`, Registry-Id `voice`; das geplante Chat-Werkzeug dazu heißt `vertonen`). Neue Produktnamen hier eintragen, bevor das Feature gebaut wird.
 
 **„Notizbuch" ist verboten — mit genau zwei Ausnahmen.** Das Wort ist am 27.08.2026 aus Code, UI und Doku entfernt worden; es lebt nur noch da weiter, wo es NICHT für uns steht:
 
