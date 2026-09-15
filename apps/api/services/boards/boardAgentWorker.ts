@@ -13,6 +13,7 @@ import { type CommentBlock } from '@gruenerator/contracts';
 
 import { type AgentTask } from '../../database/schema/agentTasks.js';
 import { createLogger } from '../../utils/logger.js';
+import { runWithUsageContext } from '../../utils/usageContext.js';
 import { aiText } from '../ai/generate.js';
 import { createDocumentWithContent } from '../docs/DocGenerationService.js';
 import { createNotification } from '../notifications/NotificationService.js';
@@ -136,7 +137,13 @@ async function drain(): Promise<void> {
 
     let task: AgentTask | null;
     while ((task = await claimNextAgentTask())) {
-      await processTask(task);
+      // Siehe recurringTaskWorker: ohne Usage-Kontext bleibt der Verbrauch
+      // eines Hintergrundlaufs unzugerechnet.
+      const claimed = task;
+      await runWithUsageContext(
+        { req: { user: { id: claimed.requested_by } }, feature: 'boards' },
+        () => processTask(claimed)
+      );
     }
   } catch (err) {
     log.error(`Drain loop error: ${err instanceof Error ? err.message : String(err)}`);

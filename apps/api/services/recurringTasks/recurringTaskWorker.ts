@@ -9,6 +9,7 @@
  */
 import { createIntervalWorker } from '../../utils/intervalWorker.js';
 import { createLogger } from '../../utils/logger.js';
+import { runWithUsageContext } from '../../utils/usageContext.js';
 
 import { runRecurringTask } from './recurringTaskRunner.js';
 import { claimDueRecurringTasks, sweepStaleRecurringRuns } from './recurringTasksRepository.js';
@@ -32,7 +33,12 @@ const worker = createIntervalWorker({
     // Run sequentially: each run holds a model slot, and the claim already advanced
     // next_run_at so a slow batch won't re-fire the same task on the next tick.
     for (const { task, runId } of due) {
-      await runRecurringTask(task, runId);
+      // Ohne Kontext hat `recordTokenUsage` keine Person: der Verbrauch eines
+      // Worker-Laufs fiel bisher unter den Tisch, während derselbe Lauf von Hand
+      // gestartet (im Request-Kontext) zugerechnet wurde.
+      await runWithUsageContext({ req: { user: { id: task.user_id } }, feature: 'chat' }, () =>
+        runRecurringTask(task, runId)
+      );
     }
   },
 });

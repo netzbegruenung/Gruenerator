@@ -55,6 +55,12 @@ function TaskRow({ task, highlighted }: { task: RecurringTask; highlighted: bool
               })
             : 'noch nie'}
         </p>
+        {task.pausedReason === 'auto_failures' && (
+          <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+            Nach drei Fehlschlägen in Folge automatisch angehalten. Prüfe die Anweisung und
+            aktiviere sie wieder.
+          </p>
+        )}
         <RunHistoryDisclosure
           taskId={task.id}
           delivery={task.delivery}

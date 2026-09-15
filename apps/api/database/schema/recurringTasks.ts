@@ -53,6 +53,11 @@ export const recurring_tasks = pgTable(
     // Empty-suppression (absorbed from briefing): a run that finds nothing new
     // skips delivery and increments this; a run with output resets it to 0.
     consecutive_empty_count: integer('consecutive_empty_count').notNull().default(0),
+    // Drei Fehlschläge in Folge pausieren die Aufgabe (#3221); jeder Erfolg und
+    // jeder leere Lauf setzen zurück — leer ist kein Fehler.
+    consecutive_failure_count: integer('consecutive_failure_count').notNull().default(0),
+    /** 'auto_failures' ⇒ selbst abgeschaltet; null ⇒ von Hand pausiert. */
+    paused_reason: text('paused_reason').$type<'auto_failures' | null>(),
     next_run_at: timestamp('next_run_at', { withTimezone: true }).notNull(),
     last_run_at: timestamp('last_run_at', { withTimezone: true }),
     created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

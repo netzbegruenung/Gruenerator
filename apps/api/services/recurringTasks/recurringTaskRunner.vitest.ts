@@ -6,19 +6,31 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { finishRun, setEmptyCount, notify, createDoc, createThreadMock, createMessageMock } =
-  vi.hoisted(() => ({
-    finishRun: vi.fn(async () => {}),
-    setEmptyCount: vi.fn(async () => {}),
-    notify: vi.fn(async () => {}),
-    createDoc: vi.fn(async () => ({ id: 'doc-1' })),
-    createThreadMock: vi.fn(async () => ({ id: 'thread-1' })),
-    createMessageMock: vi.fn(async () => ({})),
-  }));
+const {
+  finishRun,
+  setEmptyCount,
+  bumpFailure,
+  resetFailure,
+  notify,
+  createDoc,
+  createThreadMock,
+  createMessageMock,
+} = vi.hoisted(() => ({
+  finishRun: vi.fn(async () => {}),
+  setEmptyCount: vi.fn(async () => {}),
+  bumpFailure: vi.fn(async () => ({ count: 1, paused: false })),
+  resetFailure: vi.fn(async () => {}),
+  notify: vi.fn(async () => {}),
+  createDoc: vi.fn(async () => ({ id: 'doc-1' })),
+  createThreadMock: vi.fn(async () => ({ id: 'thread-1' })),
+  createMessageMock: vi.fn(async () => ({})),
+}));
 
 vi.mock('./recurringTasksRepository.js', () => ({
   finishRecurringTaskRun: finishRun,
   setConsecutiveEmptyCount: setEmptyCount,
+  bumpRecurringFailureCount: bumpFailure,
+  resetRecurringFailureCount: resetFailure,
 }));
 vi.mock('../notifications/NotificationService.js', () => ({ createNotification: notify }));
 vi.mock('../docs/DocGenerationService.js', () => ({ createDocumentWithContent: createDoc }));
@@ -126,6 +138,23 @@ describe('runRecurringTask — Mapping degraded→Pfad', () => {
       })
     );
     expect(notify).toHaveBeenCalledWith(expect.objectContaining({ type: 'agent_task_failed' }));
+  });
+
+  it('pausiert die Aufgabe nach drei Fehlschlägen — mit eigener Meldung', async () => {
+    bumpFailure.mockResolvedValueOnce({ count: 3, paused: true });
+    const deps = makeDeps({ turns: [turn({ degraded: 'failed', text: '' })] });
+    await runRecurringTask(task(), RUN_ID, deps);
+
+    const titles = notify.mock.calls.map((c) => (c[0] as { title: string }).title);
+    expect(titles.some((t) => t.includes('pausiert'))).toBe(true);
+    // Nicht zweimal melden: die Pausen-Meldung ersetzt die gewöhnliche.
+    expect(titles.some((t) => t.includes('fehlgeschlagen:'))).toBe(false);
+  });
+
+  it('beendet die Fehlerserie nach einem gelungenen Lauf', async () => {
+    const deps = makeDeps({ turns: [turn()], verdicts: [{ ok: true }] });
+    await runRecurringTask(task(), RUN_ID, deps);
+    expect(resetFailure).toHaveBeenCalledWith('t1');
   });
 
   it('schreibt den Klartext-Grund in den Verlauf statt „degraded: failed"', async () => {
