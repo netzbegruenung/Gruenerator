@@ -73,11 +73,17 @@ export const webAppDocsAdapter: DocsAdapter = {
     return {};
   },
 
-  onUnauthorized: async () => {
-    sessionDebug('http.401', { stack: 'docs' });
+  onUnauthorized: async (info) => {
+    sessionDebug('http.401', {
+      stack: 'docs',
+      endpoint: info?.url,
+      status: info?.status,
+      code: info?.code,
+      requestId: info?.requestId,
+    });
     // Route through the shared authority (probe → retry/atomic-teardown/stay)
     // instead of an unconditional redirect that races the other stacks.
-    return (await handleUnauthorized('docs')) === 'retry';
+    return (await handleUnauthorized('docs', info?.code)) === 'retry';
   },
 
   getDocumentUrl: (id) => `/office/${id}`,
