@@ -40,9 +40,16 @@ vi.mock('../../ChunkQualityService/index.js', () => ({
   chunkQualityService: { calculateQualityScore: () => 1 },
 }));
 
+// Vollständig gegen das echte Barrel gehalten. Der Speicherpfad läuft in
+// diesen Fällen nie — jede lebende Seite trifft `already_exists` —, aber ein
+// unvollständiger Mock würde den nächsten Fall hier mit „… is not a function"
+// begrüßen statt mit einer lesbaren Zusicherung.
 vi.mock('../../document-services/index.js', () => ({
   smartChunkDocument: (text: string) => Promise.resolve([{ text }]),
-  buildEmbeddingTexts: (texts: string[]) => texts,
+  buildEmbeddingTextsForChunks: (chunks: Array<{ text: string }>) => chunks.map((c) => c.text),
+  structurePayload: () => ({}),
+  embeddingPayload: () => ({}),
+  offsetPayload: () => ({}),
 }));
 
 vi.mock('../../mistral/index.js', () => ({

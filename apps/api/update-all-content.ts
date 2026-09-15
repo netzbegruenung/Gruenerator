@@ -320,6 +320,8 @@ const SOURCE_GROUPS: SourceGroup[] = [
         skipped: result.skipped,
         fetchErrors: result.errors,
         errors: 0,
+        ...(result.pruned > 0 ? { pruned: result.pruned } : {}),
+        ...(result.pruneSkippedReason ? { pruneSkippedReason: result.pruneSkippedReason } : {}),
       };
     },
   },
@@ -615,6 +617,21 @@ async function main() {
     console.log('New documents by source:');
     for (const r of results.filter((r) => r.stored > 0)) {
       console.log(`  ${r.id}: +${r.stored}`);
+    }
+    console.log('');
+  }
+
+  const pruned = results.filter((r) => (r.pruned ?? 0) > 0);
+  const pruneSkipped = results.filter((r) => r.pruneSkippedReason);
+  if (pruned.length > 0 || pruneSkipped.length > 0) {
+    console.log('Pruned (pages deleted upstream):');
+    for (const r of pruned) {
+      console.log(`  ${r.id}: -${r.pruned} points`);
+    }
+    // Eigene WARN-Zeile: ein abgewürgtes Aufräumen ist in den Zahlen oben
+    // unsichtbar — es sieht exakt aus wie „es gab nichts aufzuräumen".
+    for (const r of pruneSkipped) {
+      console.log(`  WARN ${r.id}: not pruned — ${r.pruneSkippedReason}`);
     }
     console.log('');
   }
