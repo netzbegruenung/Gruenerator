@@ -17,6 +17,11 @@ import { USER_SELECTABLE_TOOL_KEYS } from './userTools.js';
  *     in searchTools.ts, board flow via enabledToolKeys) and `scrape` /
  *     `scrape_url` (classifierNode scrape gate); `examples` and `search` also
  *     steer the board flow. Their arrays are deliberately NOT whitelisted.
+ *   - Independently of the array, the per-request RECORD gates `search` /
+ *     `examples` (loop catalog), `meinungsbild`, `user_content` and `vision`
+ *     (toolCatalog.ts, responseSinglePass.ts) — the keys that reached nothing
+ *     at all until #3307. For a user agent the whitelist above is what sets
+ *     them; for a system agent only an explicit request `false` does.
  *   - Raw tool names alias onto picker keys (`RAW_TOOL_NAME_TO_PICKER_KEY`:
  *     `web_search`→`web`, `scrape_url`→`scrape`, `generate_image`→`image`, …);
  *     `web` and `research` are one capability.
