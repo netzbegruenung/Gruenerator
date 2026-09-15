@@ -83,7 +83,15 @@ const CHIP_CLASS =
  * configured fetch like every other asset — a bare `<audio src>` carries no
  * Bearer and would break on desktop.
  */
-function ComputeAudio({ file }: { file: { name: string; url: string } }) {
+function ComputeAudio({
+  file,
+  unavailable,
+  onDownload,
+}: {
+  file: { name: string; url: string };
+  unavailable: boolean;
+  onDownload: () => void;
+}) {
   const [objectUrl, setObjectUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -116,7 +124,9 @@ function ComputeAudio({ file }: { file: { name: string; url: string } }) {
     setObjectUrl(URL.createObjectURL(blob));
   };
 
-  if (failed) {
+  // `unavailable` covers the download failing; `failed` the playback fetch.
+  // Either way the file is gone, and a dead player would be a lie.
+  if (failed || unavailable) {
     return (
       <p className="mb-2 text-xs text-foreground-muted">
         Die Aufnahme ist auf dem Server nicht mehr verfügbar.
@@ -124,24 +134,34 @@ function ComputeAudio({ file }: { file: { name: string; url: string } }) {
     );
   }
 
-  if (!objectUrl) {
-    return (
-      <button onClick={() => void load()} disabled={loading} className={`mb-2 ${CHIP_CLASS}`}>
-        <Volume2 className="h-3.5 w-3.5 text-primary" />
-        {loading ? 'Wird geladen …' : `${file.name} anhören`}
-      </button>
-    );
-  }
-
   return (
-    // eslint-disable-next-line jsx-a11y/media-has-caption -- the audio IS the spoken form of the text in this message
-    <audio
-      controls
-      autoPlay
-      src={objectUrl}
-      aria-label={`${file.name} abspielen`}
-      className="mb-2 w-full"
-    />
+    <div className="mb-2 flex items-center gap-2">
+      {objectUrl ? (
+        // eslint-disable-next-line jsx-a11y/media-has-caption -- the audio IS the spoken form of the text in this message
+        <audio
+          controls
+          autoPlay
+          src={objectUrl}
+          aria-label={`${file.name} abspielen`}
+          className="min-w-0 flex-1"
+        />
+      ) : (
+        <button onClick={() => void load()} disabled={loading} className={CHIP_CLASS}>
+          <Volume2 className="h-3.5 w-3.5 text-primary" />
+          {loading ? 'Wird geladen …' : `${file.name} anhören`}
+        </button>
+      )}
+      {/* Saving is a different act from listening, and the recording is no
+          longer repeated in the chip row below — so this is the only way to
+          keep the file. Same shape as a figure, which carries its own too. */}
+      <button
+        onClick={onDownload}
+        className="shrink-0 rounded-md border border-border bg-background p-1.5 text-foreground-muted transition-colors hover:text-foreground"
+        aria-label={`${file.name} herunterladen`}
+      >
+        <FileDown className="h-3.5 w-3.5" />
+      </button>
+    </div>
   );
 }
 
@@ -158,6 +178,11 @@ export function ComputeCard({ data }: { data: ComputeData }) {
   // one download path), honest heading.
   const audioAssets = audioAssetsOf(data.fileAssets);
   const isAudio = audioAssets.length > 0;
+  // A recording is rendered ONCE, by ComputeAudio, which carries its own
+  // download. Leaving it in the chip row as well showed the same file twice:
+  // "▶ ansage.mp3 anhören" and a bare "⬇ ansage.mp3" right underneath.
+  const audioUrls = new Set(audioAssets.map((file) => file.url));
+  const fileChips = (data.fileAssets ?? []).filter((file) => !audioUrls.has(file.url));
 
   const handleAssetDownload = async (file: { name: string; url: string }) => {
     // Fresh export: the interpreter just wrote these bytes in THIS browser —
@@ -192,7 +217,12 @@ export function ComputeCard({ data }: { data: ComputeData }) {
         </span>
       </div>
       {audioAssets.map((file) => (
-        <ComputeAudio key={file.url} file={file} />
+        <ComputeAudio
+          key={file.url}
+          file={file}
+          unavailable={unavailable.has(file.url)}
+          onDownload={() => void handleAssetDownload(file)}
+        />
       ))}
       {/* Server-stored figures (URL, small metadata) — the normal path. */}
       {data.figureUrls?.map((url, i) => (
@@ -218,9 +248,9 @@ export function ComputeCard({ data }: { data: ComputeData }) {
           </button>
         </div>
       ))}
-      {((data.fileAssets?.length ?? 0) > 0 || (data.files?.length ?? 0) > 0) && (
+      {(fileChips.length > 0 || (data.files?.length ?? 0) > 0) && (
         <div className="mb-2 flex flex-wrap gap-2">
-          {data.fileAssets?.map((file) =>
+          {fileChips.map((file) =>
             unavailable.has(file.url) ? (
               <span
                 key={file.url}
