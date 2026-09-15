@@ -31,6 +31,7 @@ import {
   failOrRetryAgentTask,
   postBotComment,
   updateBotComment,
+  sweepDeadAgentTasks,
 } from './agentTaskService.js';
 import { addRowsToBoardLive } from './boardLiveRowService.js';
 import { resolveNewCardColumn } from './BoardService.js';
@@ -107,11 +108,32 @@ export function stopBoardAgentWorker(): void {
   }
 }
 
+/** Eine Aufgabe ist endgültig gescheitert — vom catch UND vom Wächter genutzt. */
+async function notifyAgentTaskFailed(task: AgentTask): Promise<void> {
+  await createNotification({
+    userId: task.requested_by,
+    type: 'agent_task_failed',
+    title: 'Aufgabe konnte nicht erledigt werden',
+    body: 'Der Grünerator konnte deine Aufgabe leider nicht abschließen. Bitte versuche es erneut.',
+    actionUrl: `/boards/${task.board_id}?card=${task.card_id}`,
+    metadata: { boardId: task.board_id, cardId: task.card_id, taskId: task.id },
+    groupKey: `agent-task-${task.id}`,
+  }).catch((e: unknown) => log.warn('Failed to post failure notification', { error: errMsg(e) }));
+}
+
 /** Claim and process tasks until the queue is drained for this tick. */
 async function drain(): Promise<void> {
   if (draining) return;
   draining = true;
   try {
+    // ZUERST abräumen: eine Aufgabe, die den Prozess getötet hat, bekommt ihren
+    // Endstatus sonst nie — der Übergang liegt im catch von processTask, den
+    // genau dieser Absturz überspringt.
+    for (const dead of await sweepDeadAgentTasks()) {
+      log.warn(`Agent task ${dead.id} nach Absturz als fehlgeschlagen verbucht`);
+      await notifyAgentTaskFailed(dead);
+    }
+
     let task: AgentTask | null;
     while ((task = await claimNextAgentTask())) {
       await processTask(task);
@@ -371,17 +393,7 @@ async function processTask(task: AgentTask): Promise<void> {
     const { willRetry } = await failOrRetryAgentTask(task, message);
 
     if (!willRetry) {
-      await createNotification({
-        userId: task.requested_by,
-        type: 'agent_task_failed',
-        title: 'Aufgabe konnte nicht erledigt werden',
-        body: 'Der Grünerator konnte deine Aufgabe leider nicht abschließen. Bitte versuche es erneut.',
-        actionUrl: `/boards/${task.board_id}?card=${task.card_id}`,
-        metadata: { boardId: task.board_id, cardId: task.card_id, taskId: task.id },
-        groupKey: `agent-task-${task.id}`,
-      }).catch((e: unknown) =>
-        log.warn('Failed to post failure notification', { error: errMsg(e) })
-      );
+      await notifyAgentTaskFailed(task);
 
       await finishComment([
         {
