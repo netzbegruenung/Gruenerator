@@ -67,6 +67,7 @@ import {
   chunkInspectorContract,
   skillVisibilityContract,
   instanceAdminOverviewContract,
+  translationContract,
   lvAdminAssignmentContract,
   landesverbandAdminContract,
   userTextFormsContract,
@@ -318,6 +319,7 @@ const _agentVisibilityClient = () => initClient(agentVisibilityContract, CLIENT_
 const _chunkInspectorClient = () => initClient(chunkInspectorContract, CLIENT_OPTS);
 const _skillVisibilityClient = () => initClient(skillVisibilityContract, CLIENT_OPTS);
 const _instanceAdminOverviewClient = () => initClient(instanceAdminOverviewContract, CLIENT_OPTS);
+const _translationClient = () => initClient(translationContract, CLIENT_OPTS);
 const _lvAdminAssignmentClient = () => initClient(lvAdminAssignmentContract, CLIENT_OPTS);
 const _landesverbandAdminClient = () => initClient(landesverbandAdminContract, CLIENT_OPTS);
 const _userTextFormsClient = () => initClient(userTextFormsContract, CLIENT_OPTS);
@@ -374,6 +376,7 @@ export interface ContractsClient {
   memory: ReturnType<typeof _memoryClient>;
   email: ReturnType<typeof _emailClient>;
   feedback: ReturnType<typeof _feedbackClient>;
+  translation: ReturnType<typeof _translationClient>;
   modelPreferences: ReturnType<typeof _modelPreferencesClient>;
   imageModelPreference: ReturnType<typeof _imageModelPreferenceClient>;
   mcpServers: ReturnType<typeof _mcpServersClient>;
@@ -461,6 +464,7 @@ export function getContractsClient(): ContractsClient {
     memory: _memoryClient(),
     email: _emailClient(),
     feedback: _feedbackClient(),
+    translation: _translationClient(),
     modelPreferences: _modelPreferencesClient(),
     imageModelPreference: _imageModelPreferenceClient(),
     mcpServers: _mcpServersClient(),
