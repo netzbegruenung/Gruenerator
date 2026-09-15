@@ -12,6 +12,7 @@ import { type QdrantClient } from '@qdrant/js-client-rest';
 
 import { env } from '../../../../config/env.js';
 import {
+  DEFAULT_MAX_AGE_YEARS,
   getSourceById,
   getSourcesByType,
   getSourcesByLandesverband,
@@ -37,6 +38,11 @@ import {
   recordExtractionSkip,
   recordRedundantExtraction,
 } from '../../extractionRecorder.js';
+import {
+  CACHEABLE_REJECTION_REASON,
+  loadRejectedUrls,
+  rememberRejection,
+} from '../../rejectedUrlGate.js';
 import {
   conditionalHeaders,
   fingerprintResponse,
@@ -632,6 +638,16 @@ export class LandesverbandScraper extends BaseScraper {
         return result;
       }
 
+      // Third gate, and the only one that sits in front of the fetch for a URL
+      // that was never stored. The two gates below key on an existing Qdrant
+      // point, which a rejected document never writes — so without this the
+      // same pages are downloaded and extracted on every walk (#3200). Loaded
+      // once per content path rather than per URL; `forceUpdate` bypasses it
+      // like every other gate.
+      const rejectedUrls = forceUpdate
+        ? new Map<string, string>()
+        : await loadRejectedUrls(source.id);
+
       // Process discovered articles with bounded concurrency (see ARTICLE_CONCURRENCY).
       // Counters mutate from each task — safe under Node's single thread, where the
       // synchronous increments between awaits never interleave. `processed` is the
@@ -642,6 +658,29 @@ export class LandesverbandScraper extends BaseScraper {
         try {
           if (!forceUpdate && isFreshlyIndexed(await this.#storedPayload(url, targetCollection))) {
             result.skipped++;
+            return;
+          }
+
+          // Re-decided against the source's *current* age limit rather than
+          // trusted as a blocklist, so widening maxAgeYears brings these URLs
+          // back on the next run. Counted under its own reason: `too_old` is a
+          // page we paid to fetch, `too_old_gated` is the saving, and folding
+          // them together would hide whether this gate works at all.
+          // The default matters: `maxAgeYears` is optional, and the processor
+          // rejects against DEFAULT_MAX_AGE_YEARS when it is unset. Requiring a
+          // configured value here would write rows for those sources and never
+          // read them back — the gate inert exactly where nothing reveals it,
+          // since `too_old_gated` would simply never increment.
+          const rejectedPublishedAt = rejectedUrls.get(url);
+          if (
+            rejectedPublishedAt &&
+            DateExtractor.isDateTooOld(
+              new Date(rejectedPublishedAt),
+              source.maxAgeYears ?? DEFAULT_MAX_AGE_YEARS
+            )
+          ) {
+            result.skipped++;
+            result.skipReasons['too_old_gated'] = (result.skipReasons['too_old_gated'] || 0) + 1;
             return;
           }
 
@@ -671,6 +710,18 @@ export class LandesverbandScraper extends BaseScraper {
             result.skipped++;
             result.skipReasons[storeResult.reason || 'unknown'] =
               (result.skipReasons[storeResult.reason || 'unknown'] || 0) + 1;
+            // Remember only a rejection that cannot reverse on its own, and only
+            // with the date that justified it — a stub page that is `too_short`
+            // today may be filled in next week, so caching that would make the
+            // update invisible. See rejectedUrlGate.
+            if (storeResult.reason === CACHEABLE_REJECTION_REASON && content.publishedAt) {
+              await rememberRejection({
+                url,
+                sourceId: source.id,
+                reason: storeResult.reason,
+                publishedAt: content.publishedAt,
+              });
+            }
           }
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';

@@ -7,8 +7,9 @@ import { cleanTextForEmbedding } from '../../text/index.js';
 
 import { mergeSiblingTextBlocks, segmentBlocks, splitTableBlock } from './blockSegmentation.js';
 import { sentenceRepack, enrichChunkWithMetadata } from './chunkPostProcessing.js';
-import { splitTextByPageMarkers, buildPageRangesFromRaw } from './pageMarkerProcessing.js';
+import { splitTextByPageMarkers } from './pageMarkerProcessing.js';
 import { ParagraphChunker } from './paragraphSplitter.js';
+import { buildOffsetMap, locateChunk } from './sourceOffsets.js';
 import { hierarchicalChunkDocument } from './structureAwareChunking.js';
 import { estimateTokens } from './validation.js';
 
@@ -35,8 +36,7 @@ import type { Chunk, ChunkingOptions } from './types.js';
 async function chunkStructured(
   chunker: ParagraphChunker,
   text: string,
-  meta: Record<string, unknown>,
-  options: { pageRanges?: Array<{ start: number; end: number }> | undefined } = {}
+  meta: Record<string, unknown>
 ): Promise<Chunk[]> {
   // `preserveStructure=true`, sonst sieht die Blockzerlegung den
   // plattgedrückten Text: die Vorgabe ersetzt jedes `\s{2,}` durch ein
@@ -52,11 +52,7 @@ async function chunkStructured(
   if (isPlainProse) {
     const cleaned = cleanTextForEmbedding(text);
     const chunks = await chunker.chunkDocument(cleaned, meta);
-    return sentenceRepack(chunks, {
-      baseMetadata: meta,
-      originalRawText: text,
-      ...(options.pageRanges ? { pageRanges: options.pageRanges } : {}),
-    });
+    return sentenceRepack(chunks, { baseMetadata: meta });
   }
 
   // Erst hier, NICHT vor der Schnellpfad-Frage: ein kurzer Vorspann ohne Pfad
@@ -118,8 +114,7 @@ export async function smartChunkDocument(
     let all: Chunk[] = [];
     if (pages.length === 0) {
       // No pages detected - process entire document
-      const pageRanges = buildPageRangesFromRaw(text);
-      all = await chunkStructured(paragraphChunker, text, baseMetadata, { pageRanges });
+      all = await chunkStructured(paragraphChunker, text, baseMetadata);
     } else {
       // Process each page separately; die Blockzerlegung läuft innerhalb einer Seite
       for (const p of pages) {
@@ -135,8 +130,25 @@ export async function smartChunkDocument(
       }
     }
 
-    // Reindex chunks globally and enrich metadata
-    return all.map((c, i) => enrichChunkWithMetadata({ ...c, index: i }, baseMetadata));
+    // Reindex chunks globally, enrich metadata, and locate each chunk in the
+    // RAW text. Hier und nur hier liegen Rohtext und fertige Chunks zugleich
+    // vor. Warum nachträglich gesucht statt durchgereicht wird — und warum die
+    // Zahlen aus `sentenceRepack` dafür unbrauchbar sind — steht im
+    // Kopfkommentar von `sourceOffsets.ts`.
+    const offsets = buildOffsetMap(text);
+    let cursor = 0;
+    return all.map((c, i) => {
+      const enriched = enrichChunkWithMetadata({ ...c, index: i }, baseMetadata);
+      const at = locateChunk(offsets, enriched.text, cursor);
+      // Nicht gefunden heißt: kein Offset. Ein geratener wäre schlimmer als
+      // keiner, weil eine Sprungmarke ihm glauben würde.
+      if (!at) return enriched;
+      cursor = at.cursor;
+      return {
+        ...enriched,
+        metadata: { ...enriched.metadata, startPosition: at.start, endPosition: at.end },
+      };
+    });
   } catch (_e) {
     // Minimal safety fallback; heute unerreichbar (die LangChain-Sonde, deren
     // Fehler er auffangen sollte, ist mit #3135 weg). Ihn zusammen mit
