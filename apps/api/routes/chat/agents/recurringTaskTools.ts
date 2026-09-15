@@ -75,7 +75,8 @@ export interface RecurringTaskToolDeps {
   deleteRecurringTask: typeof deleteRecurringTask;
   listRecurringTaskRuns: typeof listRecurringTaskRuns;
   /** Was `POST /api/recurring-tasks/:id/run` ruft — Feuer und vergessen. */
-  runRecurringTask: (row: RecurringTaskRow) => Promise<void>;
+  /** `false` ⇒ für diese Aufgabe läuft bereits ein Lauf (Lease, #3221). */
+  runRecurringTask: (row: RecurringTaskRow) => Promise<boolean>;
   getAgentForUser: typeof getAgentForUser;
 }
 
@@ -96,9 +97,16 @@ function resolveDeps(partial: Partial<RecurringTaskToolDeps> | undefined): Recur
     runRecurringTask:
       partial?.runRecurringTask ??
       (async (row) => {
-        const { runRecurringTask } =
-          await import('../../../services/recurringTasks/recurringTaskRunner.js');
-        await runRecurringTask(row);
+        const [{ runRecurringTask }, { startManualRecurringRun }] = await Promise.all([
+          import('../../../services/recurringTasks/recurringTaskRunner.js'),
+          import('../../../services/recurringTasks/recurringTasksRepository.js'),
+        ]);
+        // Erst die Lauf-Zeile, dann der Lauf: sie ist zugleich die Sperre gegen
+        // einen zweiten Lauf derselben Aufgabe (#3221).
+        const runId = await startManualRecurringRun(row.id);
+        if (!runId) return false;
+        void runRecurringTask(row, runId);
+        return true;
       }),
     getAgentForUser: partial?.getAgentForUser ?? getAgentForUser,
   };
@@ -108,6 +116,9 @@ const NOT_FOUND = 'Aufgabe nicht gefunden, oder sie gehört dir nicht.';
 export const RECURRING_TASKS_URL = '/wiederkehrend';
 
 const RUN_STATUS_LABEL: Record<RecurringTaskRun['status'], string> = {
+  // Seit #3221 entsteht die Zeile beim Claim — ein Lauf ist auch währenddessen
+  // sichtbar, nicht erst an seinem Ende.
+  running: 'läuft gerade',
   completed: 'erledigt',
   empty: 'ohne Ergebnis',
   failed: 'fehlgeschlagen',
@@ -242,13 +253,21 @@ Für create formulierst du instruction als vollständige Arbeitsanweisung an den
         // Wie der ts-rest-Handler `runNow`: einmal sofort, unabhängig vom
         // Pausenstand, ohne next_run_at anzurühren; Feuer und vergessen, weil
         // ein Lauf Minuten dauern kann und der Runner selbst benachrichtigt.
-        void deps.runRecurringTask(row);
+        const started = await deps.runRecurringTask(row);
+        if (!started) {
+          const busy = `Für „${task.title}" läuft gerade schon ein Lauf. Warte, bis er fertig ist — ein zweiter würde ihn nicht überholen.`;
+          groundNote(sourceRegistry, 'Läuft bereits', busy);
+          return { ok: true, note: busy };
+        }
         const note = `Aufgabe „${task.title}" wurde gestartet — das Ergebnis kommt ${DELIVERY_LABELS_DE[task.delivery]}, sobald der Lauf fertig ist.`;
         groundNote(sourceRegistry, 'Aufgabe gestartet', note);
         return { ok: true, note };
       }
 
       // delete
+      // Kein Mensch am Lauf: der `confirm=true`-Zweischritt bestätigt sich hier
+      // selbst, und die Karte, die fragen würde, ginge an einen stummen Sink.
+      if (!threadId) return { error: 'Löschen ist in diesem Kontext nicht möglich.' };
       if (!args.confirm) {
         const ask = `Soll die wiederkehrende Aufgabe „${task.title}" wirklich gelöscht werden? Frage die Person und rufe delete erst mit confirm=true erneut auf.`;
         groundNote(sourceRegistry, 'Bestätigung nötig', ask);

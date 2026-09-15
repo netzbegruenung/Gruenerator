@@ -89,8 +89,16 @@ export async function claimNextAgentTask(): Promise<AgentTask | null> {
         SET status = 'running', started_at = now(), updated_at = now(), attempts = attempts + 1
       WHERE id = (
         SELECT id FROM agent_tasks
-         WHERE status = 'pending'
-            OR (status = 'running' AND started_at < now() - make_interval(mins => $1))
+         -- Rückzieh-Pause: ein frisch fehlgeschlagener Versuch wartet
+         -- attempts*2 Minuten, statt sofort im nächsten 5-Sekunden-Tick wieder
+         -- zu starten. attempts = 0 heisst „noch nie versucht" → sofort.
+         WHERE (status = 'pending' AND updated_at <= now() - make_interval(mins => attempts * 2))
+            -- Die attempts-Bedingung ist load-bearing: der Übergang nach
+            -- 'failed' liegt allein im catch des Workers, den ein Absturz nie
+            -- erreicht. Ohne die Bedingung kreist eine Aufgabe, die den Prozess
+            -- tötet, für immer: holen, abstürzen, 10 Minuten, holen.
+            OR (status = 'running' AND started_at < now() - make_interval(mins => $1)
+                AND attempts < max_attempts)
          ORDER BY created_at
          FOR UPDATE SKIP LOCKED
          LIMIT 1
@@ -141,6 +149,27 @@ export async function acceptReviewTask(taskId: string, boardId: string): Promise
     [taskId, boardId]
   );
   return rows.length > 0;
+}
+
+/**
+ * Räumt Aufgaben ab, die ihre Versuche aufgebraucht haben und deren Lauf ein
+ * Absturz mitgerissen hat. Der Endstatus 'failed' wird sonst nur im catch des
+ * Workers gesetzt — und genau der läuft nicht mehr, wenn der Prozess stirbt.
+ * Gibt die abgeräumten Aufgaben zurück, damit der Worker je eine
+ * Fehlschlag-Benachrichtigung senden kann.
+ */
+export async function sweepDeadAgentTasks(): Promise<AgentTask[]> {
+  return db.query<AgentTask>(
+    `UPDATE agent_tasks
+        SET status = 'failed',
+            error = COALESCE(error, 'Lauf abgebrochen: der Dienst wurde neu gestartet, während er lief.'),
+            completed_at = now(), updated_at = now()
+      WHERE status = 'running'
+        AND started_at < now() - make_interval(mins => $1)
+        AND attempts >= max_attempts
+      RETURNING *`,
+    [STALE_RUNNING_MINUTES]
+  );
 }
 
 /**

@@ -144,8 +144,9 @@ function AgentEditor({
           createdIdentifierRef.current = agentId;
         }
         if (variant === 'recurring') {
+          let newTaskId: string | null = null;
           try {
-            await createTaskMut.mutateAsync({
+            const createdTask = await createTaskMut.mutateAsync({
               title: form.title.trim(),
               instruction: form.systemRole.trim(),
               agentIdentifier: agentId,
@@ -156,13 +157,17 @@ function AgentEditor({
               locale: form.locale,
               enabled: true,
             });
+            newTaskId = createdTask.id;
           } catch {
             setError(
               'Grünerator-Agent angelegt, aber der Zeitplan konnte nicht gespeichert werden. Bitte erneut speichern.'
             );
             return;
           }
-          void navigate('/agentura?cat=wiederkehrend');
+          // `wiederkehrend` ist kein AgenturaCategoryKey — der Wert wurde
+          // verworfen und die Person landete auf dem Standardregal statt bei
+          // ihrer neuen Aufgabe. Ziel ist jetzt der Verlauf genau dieser Aufgabe.
+          void navigate(newTaskId != null ? `/wiederkehrend?task=${newTaskId}` : '/wiederkehrend');
         } else {
           void navigate(`/agents/${agentId}/edit`);
         }
