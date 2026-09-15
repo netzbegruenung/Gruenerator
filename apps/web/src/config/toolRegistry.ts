@@ -228,6 +228,18 @@ const TOOLS = [
     },
   },
   {
+    id: 'uebersetzer',
+    title: 'Übersetzer',
+    path: '/uebersetzer',
+    icon: { navigation: 'uebersetzer' },
+    menuItem: { description: 'Texte & Dokumente übersetzen' },
+    search: {
+      id: 'tool-uebersetzer',
+      subtitle: 'Texte & Dokumente mit DeepL übersetzen',
+      keywords: ['uebersetzer', 'uebersetzen', 'translate', 'deepl', 'sprache', 'englisch'],
+    },
+  },
+  {
     id: 'transkription',
     title: 'Transkription',
     path: '/transkription',
@@ -464,6 +476,7 @@ const SEARCH_ORDER = [
   'tool-scanner',
   'tool-transkription',
   'tool-zeichenzaehler',
+  'tool-uebersetzer',
   'tool-vorlagen',
   'office',
   'tool-notebooks',
