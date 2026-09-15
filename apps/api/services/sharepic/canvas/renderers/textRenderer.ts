@@ -4,6 +4,8 @@
  * Extracted from simple_canvas.ts and extended for Free Canvas API
  */
 
+import { layoutTextLines } from '../../textLayout.js';
+
 import type { TextLayer } from '../types/freeCanvasTypes.js';
 import type { SKRSContext2D as CanvasRenderingContext2D } from '@napi-rs/canvas';
 
@@ -25,22 +27,18 @@ function wrapText(
   maxWidth: number,
   lineHeight: number
 ): number {
-  const words = text.split(' ');
-  let line = '';
+  // Umbruch und Einzug kommen aus dem geteilten Helfer — dieselbe Logik, die
+  // der Editor für die Vorschau fährt. Vorher brach diese Kopie nur an ' ',
+  // ein `\n` blieb in der Zeile stehen und `fillText` verschluckte es.
   let currentY = y;
-
-  for (let i = 0; i < words.length; i++) {
-    const testLine = line + words[i] + ' ';
-    const testWidth = ctx.measureText(testLine).width;
-    if (testWidth > maxWidth && i > 0) {
-      ctx.fillText(line.trim(), x, currentY);
-      line = words[i] + ' ';
-      currentY += lineHeight;
-    } else {
-      line = testLine;
-    }
+  for (const line of layoutTextLines(ctx, text, maxWidth)) {
+    ctx.fillText(
+      line.marker ? `${line.marker} ${line.text}` : line.text,
+      x + line.indent,
+      currentY
+    );
+    currentY += lineHeight;
   }
-  ctx.fillText(line.trim(), x, currentY);
   return currentY + lineHeight;
 }
 

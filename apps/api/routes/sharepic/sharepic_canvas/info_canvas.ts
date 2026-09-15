@@ -16,6 +16,7 @@ import {
   bufferToBase64,
 } from '../../../services/sharepic/canvas/imageOptimizer.js';
 import { isValidHexColor } from '../../../services/sharepic/canvas/utils.js';
+import { wrapTextLines as wrapText } from '../../../services/sharepic/textLayout.js';
 import { createLogger } from '../../../utils/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -86,6 +87,8 @@ interface InfoLayout {
 interface WordWithFont {
   text: string;
   font: string;
+  /** Erstes Wort einer Zeile des Eingabetexts — erzwingt hier einen Umbruch. */
+  startsLine: boolean;
 }
 
 interface InfoRequestBody {
@@ -131,27 +134,6 @@ async function processInfoText(textData: Partial<InfoTextData>): Promise<InfoTex
   };
 }
 
-function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
-  const words = text.split(' ');
-  const lines: string[] = [];
-  let currentLine = '';
-
-  for (let i = 0; i < words.length; i++) {
-    const testLine = currentLine + words[i] + ' ';
-    const metrics = ctx.measureText(testLine);
-    const testWidth = metrics.width;
-
-    if (testWidth > maxWidth && i > 0) {
-      lines.push(currentLine.trim());
-      currentLine = words[i] + ' ';
-    } else {
-      currentLine = testLine;
-    }
-  }
-  lines.push(currentLine.trim());
-  return lines;
-}
-
 function renderWordsWithFonts(
   ctx: CanvasRenderingContext2D,
   wordsWithFont: WordWithFont[],
@@ -175,19 +157,35 @@ function renderWordsWithFonts(
   });
 }
 
+/**
+ * Zerlegt Text in Wörter und merkt sich, welches Wort eine neue Zeile eröffnet.
+ * Ohne diese Markierung verschwand ein `\n` im Wort davor und `fillText` zog
+ * die ganze Aufzählung auf eine einzige Zeile zusammen.
+ */
+function tokenize(text: string): { text: string; startsLine: boolean }[] {
+  const out: { text: string; startsLine: boolean }[] = [];
+  text.split('\n').forEach((line, lineIndex) => {
+    line
+      .split(' ')
+      .filter(Boolean)
+      .forEach((word, wordIndex) => {
+        out.push({ text: word, startsLine: lineIndex > 0 && wordIndex === 0 });
+      });
+  });
+  return out;
+}
+
 function buildWordsWithFont(
   bodyFirstSentence: string,
   bodyRemaining: string,
   bodyFontSize: number
 ): WordWithFont[] {
   const fullBodyText = `${bodyFirstSentence} ${bodyRemaining}`.trim();
-  const allWords = fullBodyText.split(' ').filter(Boolean);
-  const firstSentenceWordCount = bodyFirstSentence
-    ? bodyFirstSentence.split(' ').filter(Boolean).length
-    : 0;
+  const firstSentenceWordCount = bodyFirstSentence ? tokenize(bodyFirstSentence).length : 0;
 
-  return allWords.map((word, index) => ({
-    text: word,
+  return tokenize(fullBodyText).map((token, index) => ({
+    text: token.text,
+    startsLine: token.startsLine,
     font:
       index < firstSentenceWordCount
         ? `${bodyFontSize}px PTSans-Bold`
@@ -204,6 +202,12 @@ function wrapWordsWithFont(
   let currentLine: WordWithFont[] = [];
 
   for (const wordObj of wordsWithFont) {
+    // Ein harter Umbruch im Eingabetext ist eine Zeile, auch wenn noch Platz wäre.
+    if (wordObj.startsLine && currentLine.length > 0) {
+      lines.push(currentLine);
+      currentLine = [wordObj];
+      continue;
+    }
     const testLine = [...currentLine, wordObj];
     let testLineWidth = 0;
     testLine.forEach((w, idx) => {
