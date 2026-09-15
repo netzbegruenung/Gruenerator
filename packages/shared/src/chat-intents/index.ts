@@ -701,10 +701,12 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
   // Dauerauftrag weiterhin, liefert aber `agentic` mit
   // `mentionPinnedTool: 'recurring_tasks'` — der Pin zwingt in die Schleife und
   // benennt den ersten Aufruf, und das Anlegen geht dort über eine Karte statt
-  // ohne Bestätigung in die Datenbank. Keine Erwähnung, also nichts zu pinnen;
-  // `category: 'artifact'` bleibt, weil `forcedTool: null` genau das sagt: es
-  // gab nie eine Erstellroute. Enum-Wert bleibt (Wire-Vertrag, persistierte
-  // Threads).
+  // ohne Bestätigung in die Datenbank. Die Erwähnung pinnt genau dieses
+  // Werkzeug — der Regelfall für stillgelegte Intents (wie `@umfragen`), und
+  // die einzige Tür, die nicht davon abhängt, dass der Klassifikator den
+  // Dauerauftrag im Satz erkennt. `category: 'artifact'` bleibt, weil
+  // `forcedTool: null` genau das sagt: es gab nie eine Erstellroute. Enum-Wert
+  // bleibt (Wire-Vertrag, persistierte Threads).
   create_recurring_task: {
     id: 'create_recurring_task',
     category: 'artifact',
@@ -712,6 +714,15 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
     availability: 'retired',
     forcedTool: null,
     skipOnAgentic: true,
+    mention: {
+      slug: 'wiederkehrend',
+      aliases: ['dauerauftrag', 'zeitplan'],
+      title: 'Wiederkehrende Aufgabe',
+      description: 'Einen Grünerator regelmäßig von selbst laufen lassen',
+      avatar: '🔁',
+      backgroundColor: '#316049',
+      pinsTool: 'recurring_tasks',
+    },
   },
 
   // ── surface-edit (no mention by construction) ────────────────────────────

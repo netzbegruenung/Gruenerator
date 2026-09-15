@@ -135,6 +135,18 @@ const BEFORE: Row[] = [
   // from `setMcpServerMentionables` (fed by /api/mcp/servers) rather than from
   // the intent registry — and it has to leave this table, or the slug stays
   // taken and `takenByOther('wetter')` renames the connector to `@wetter-2`.
+  //
+  // Erwähnung eines STILLGELEGTEN Intents: `create_recurring_task` lebt als
+  // Loop-Werkzeug `recurring_tasks` weiter, und die Erwähnung pinnt es (wie
+  // `@umfragen`). Ohne sie war die Fähigkeit nur erreichbar, wenn der
+  // Klassifikator den Dauerauftrag im Satz erkannte.
+  {
+    identifier: 'create_recurring_task',
+    mention: 'wiederkehrend',
+    title: 'Wiederkehrende Aufgabe',
+    audience: 'all',
+    aliases: ['dauerauftrag', 'zeitplan'],
+  },
 ];
 
 describe('toolMentionables derived from the intent registry', () => {

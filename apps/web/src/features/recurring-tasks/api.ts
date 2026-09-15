@@ -19,6 +19,16 @@ export type RecurringTaskPatch = UpdateRecurringTaskBody;
 
 const KEY = ['recurring-tasks'] as const;
 
+/** Query key of one task's run history — shared with the run-now watcher. */
+export const recurringRunsKey = (taskId: string) => [...KEY, taskId, 'runs'] as const;
+
+/** The bare fetch, reused by the hook and by the pre-run snapshot. */
+export async function fetchRecurringTaskRuns(taskId: string): Promise<RecurringTaskRun[]> {
+  const res = await getContractsClient().recurringTasks.listRuns({ params: { id: taskId } });
+  if (res.status === 200) return res.body.runs;
+  throw new Error('Verlauf konnte nicht geladen werden.');
+}
+
 function readError(body: unknown): string {
   const obj = (body ?? {}) as { message?: unknown };
   return typeof obj.message === 'string' ? obj.message : 'Aktion fehlgeschlagen.';
@@ -37,15 +47,14 @@ export function useRecurringTasks() {
   });
 }
 
-export function useRecurringTaskRuns(taskId?: string) {
+export function useRecurringTaskRuns(taskId?: string, refetchIntervalMs?: number) {
   return useQuery({
-    queryKey: [...KEY, taskId, 'runs'],
+    queryKey: recurringRunsKey(taskId ?? ''),
     enabled: !!taskId,
+    ...(refetchIntervalMs != null ? { refetchInterval: refetchIntervalMs } : {}),
     queryFn: async (): Promise<RecurringTaskRun[]> => {
       if (!taskId) return [];
-      const res = await getContractsClient().recurringTasks.listRuns({ params: { id: taskId } });
-      if (res.status === 200) return res.body.runs;
-      throw new Error('Verlauf konnte nicht geladen werden.');
+      return fetchRecurringTaskRuns(taskId);
     },
   });
 }

@@ -10,6 +10,7 @@
     "compute",
     "create_pdf",
     "create_presentation",
+    "create_recurring_task",
     "create_sheet",
     "direct",
     "edit_current_board",
@@ -80,6 +81,11 @@
       "title": "Verbundene Accounts",
       "description": "Dateien aus verbundenen Diensten einfügen",
       "mention": "@connect"
+    },
+    "create_recurring_task": {
+      "title": "Wiederkehrende Aufgabe",
+      "description": "Einen Grünerator regelmäßig von selbst laufen lassen",
+      "mention": "@wiederkehrend"
     },
     "deepresearch": {
       "title": "Tiefenrecherche",
