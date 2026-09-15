@@ -19,6 +19,12 @@
  *                             For hourly runs; the nightly run omits it for a full walk.
  *   --dry-run                Preview without storing (only supported by landesverbaende)
  *   --concurrency <n>        Max parallel source groups (default: 2)
+ *   --prune-max-share <n>    KommunalWiki only: raise the cap on removing points
+ *                             whose wiki page was deleted upstream, as a share of
+ *                             the collection (default 0.1). The cap exists so a
+ *                             truncated-but-successful page list cannot empty the
+ *                             collection, so raising it is a deliberate one-off —
+ *                             the cleanup after #3198 needs about 0.3.
  *
  * Examples:
  *   npx tsx apps/api/update-all-content.ts                              # Sync all
@@ -26,6 +32,7 @@
  *   npx tsx apps/api/update-all-content.ts --landesverband BE           # Only Berlin LV
  *   npx tsx apps/api/update-all-content.ts --dry-run                    # Preview
  *   npx tsx apps/api/update-all-content.ts --force                      # Force re-index
+ *   npx tsx apps/api/update-all-content.ts --source kommunalwiki --prune-max-share 0.3
  *
  * Run: npx tsx apps/api/update-all-content.ts
  */
@@ -67,6 +74,8 @@ interface CliArgs {
   recent: boolean;
   concurrency: number;
   noEmail: boolean;
+  /** KommunalWiki: Obergrenze fürs Aufräumen gelöschter Seiten, Anteil der Punkte. */
+  pruneMaxShare?: number;
 }
 
 function parseArgs(): CliArgs {
@@ -102,6 +111,17 @@ function parseArgs(): CliArgs {
       case '--no-email':
         result.noEmail = true;
         break;
+      case '--prune-max-share': {
+        const share = Number.parseFloat(args[++i]);
+        // Einen Unsinnswert still auf den Standard fallen zu lassen wäre hier
+        // falsch: wer die Grenze anhebt, will genau diese Zahl — nicht heimlich
+        // wieder 0,1 und damit einen Lauf, der nichts aufräumt.
+        if (!Number.isFinite(share) || share < 0 || share > 1) {
+          throw new Error(`--prune-max-share expects a share between 0 and 1, got "${args[i]}"`);
+        }
+        result.pruneMaxShare = share;
+        break;
+      }
       default:
         break;
     }
@@ -292,6 +312,7 @@ const SOURCE_GROUPS: SourceGroup[] = [
       await kommunalwikiScraper.init();
       const result = await kommunalwikiScraper.fullCrawl({
         forceUpdate: args.force,
+        ...(args.pruneMaxShare !== undefined && { pruneMaxShare: args.pruneMaxShare }),
       });
       return {
         stored: result.stored,

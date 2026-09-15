@@ -18,6 +18,14 @@ import { recordSyncEvent, toExcerpt } from '../syncEventRecorder.js';
 
 import type { ScraperConfig, ScraperResult, MediaWikiPage } from '../types.js';
 
+/**
+ * Standard-Obergrenze fürs Aufräumen, als Anteil der Punkte in der Sammlung.
+ * Gemessen an der Sammlung vom 16.09.2026 (8.954 Punkte) sind 10 % ≈ 895
+ * Punkte — genug für jede normale Löschwelle im Wiki, zu wenig für einen
+ * Unfall. Der einmalige Grossputz nach #3198 hebt sie bewusst an.
+ */
+const DEFAULT_PRUNE_MAX_SHARE = 0.1;
+
 interface ArticleTitle {
   title: string;
   pageid: number;
@@ -25,6 +33,12 @@ interface ArticleTitle {
 
 interface CrawlOptions {
   forceUpdate?: boolean;
+  /**
+   * Obergrenze fürs Aufräumen, als Anteil der Punkte in der Sammlung. Greift
+   * sie, wird NICHTS gelöscht: eine Wiki-Antwort, die erfolgreich aussieht und
+   * trotzdem zu wenige Seiten nennt, soll die Sammlung nicht ausräumen können.
+   */
+  pruneMaxShare?: number;
 }
 
 interface ProcessResult {
@@ -57,6 +71,10 @@ interface CrawlResult {
   vectorsStored: number;
   totalVectors: number;
   duration: number;
+  /** Punkte gelöschter Wiki-Seiten, die dieser Lauf entfernt hat. */
+  pruned: number;
+  /** Warum nicht aufgeräumt wurde — `null`, wenn aufgeräumt wurde. */
+  pruneSkippedReason: string | null;
   skipReasons: {
     redirect: SkipReason;
     too_short: SkipReason;
@@ -387,10 +405,74 @@ export class KommunalwikiScraper extends BaseScraper {
   }
 
   /**
+   * Remove points whose wiki page no longer exists.
+   *
+   * Der Crawl sieht nur, was `list=allpages` noch nennt; eine gelöschte Seite
+   * wird nie wieder besucht, und `deleteArticle` feuert ausschliesslich beim
+   * Neuschreiben einer LEBENDEN Seite. Ohne diesen Abgleich bleibt jede
+   * gelöschte Seite dauerhaft in der Sammlung stehen — am 16.09.2026 waren das
+   * 131 gelöschte Spam-Seiten mit 2.137 Chunks, 23,9 % der Sammlung (#3198).
+   *
+   * Zwei Gatter, die verschiedene Ausfälle abdecken: eine leere Seitenliste
+   * (lauter Ausfall) und die Mengenschwelle (leiser Ausfall — eine Antwort,
+   * die erfolgreich aussieht und trotzdem zu wenige Seiten nennt).
+   */
+  private async pruneDeletedArticles(
+    livePageIds: Set<number>,
+    maxShare: number
+  ): Promise<{ pruned: number; skippedReason: string | null }> {
+    if (livePageIds.size === 0) {
+      return { pruned: 0, skippedReason: 'wiki listed no pages — refusing to prune' };
+    }
+
+    const staleIds: Array<string | number> = [];
+    let total = 0;
+    let offset: string | number | Record<string, unknown> | null = null;
+
+    do {
+      const page = await this.qdrant!.client!.scroll(this.config.collectionName, {
+        limit: 256,
+        ...(offset != null && { offset }),
+        with_payload: ['pageid'],
+        with_vector: false,
+      });
+
+      for (const point of page.points) {
+        total++;
+        const pageid = (point.payload as { pageid?: number } | null)?.pageid;
+        // Ein Punkt ohne `pageid` ist keiner Seite zuzuordnen — stehen lassen.
+        if (typeof pageid !== 'number') continue;
+        if (!livePageIds.has(pageid)) staleIds.push(point.id);
+      }
+
+      offset = page.next_page_offset ?? null;
+    } while (offset != null);
+
+    if (staleIds.length === 0) return { pruned: 0, skippedReason: null };
+
+    const share = total > 0 ? staleIds.length / total : 0;
+    if (share > maxShare) {
+      const reason =
+        `prune of ${staleIds.length}/${total} points (${(share * 100).toFixed(1)} %) ` +
+        `exceeds the threshold of ${(maxShare * 100).toFixed(1)} % — nothing deleted`;
+      console.error(`[KommunalWiki] ⚠ ${reason}`);
+      return { pruned: 0, skippedReason: reason };
+    }
+
+    for (let i = 0; i < staleIds.length; i += 100) {
+      await this.qdrant!.client!.delete(this.config.collectionName, {
+        points: staleIds.slice(i, i + 100),
+      });
+    }
+
+    return { pruned: staleIds.length, skippedReason: null };
+  }
+
+  /**
    * Full crawl of all Kommunalwiki articles
    */
   async fullCrawl(options: CrawlOptions = {}): Promise<CrawlResult> {
-    const { forceUpdate = false } = options;
+    const { forceUpdate = false, pruneMaxShare = DEFAULT_PRUNE_MAX_SHARE } = options;
     this.initializeSession();
 
     console.log('\n[KommunalWiki] ═══════════════════════════════════════');
@@ -409,6 +491,8 @@ export class KommunalwikiScraper extends BaseScraper {
       skipped: 0,
       updated: 0,
       totalVectors: 0,
+      pruned: 0,
+      pruneSkippedReason: null,
       skipReasons: {
         redirect: { count: 0, examples: [] },
         too_short: { count: 0, examples: [] },
@@ -559,6 +643,16 @@ export class KommunalwikiScraper extends BaseScraper {
 
         await this.delay(this.crawlDelay);
       }
+
+      // Erst hier ist `articles` vollständig aufgezählt. Wirft
+      // `getAllArticleTitles`, landen wir im catch und räumen nie auf — das
+      // ist Absicht: gegen einen lauten Ausfall hilft nur, nichts zu tun.
+      const prune = await this.pruneDeletedArticles(
+        new Set(articles.map((a) => a.pageid)),
+        pruneMaxShare
+      );
+      result.pruned = prune.pruned;
+      result.pruneSkippedReason = prune.skippedReason;
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
       console.error('[KommunalWiki] Crawl failed:', errorMsg);
@@ -587,6 +681,12 @@ export class KommunalwikiScraper extends BaseScraper {
       `[KommunalWiki] Updated: ${result.updated}, Skipped: ${result.skipped}, Errors: ${result.errors}`
     );
     console.log(`[KommunalWiki] Duration: ${Math.round(result.duration / 1000)}s`);
+
+    if (result.pruneSkippedReason) {
+      console.log(`[KommunalWiki] Prune SKIPPED: ${result.pruneSkippedReason}`);
+    } else if (result.pruned > 0) {
+      console.log(`[KommunalWiki] Pruned (deleted upstream): ${result.pruned} points`);
+    }
 
     if (result.skipped > 0) {
       console.log('\n[KommunalWiki] Skip Breakdown:');
