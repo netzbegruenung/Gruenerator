@@ -42,8 +42,10 @@ export const INFO_CONFIG = {
     leftMargin: 125, // 50 + 60 + 15
     rightMargin: 50,
     maxWidth: 905, // 1080 - 125 - 50
-    firstSentenceFont: 'PTSans-Bold',
-    remainingFont: 'PTSans-Regular',
+    // Die Familie, die das Web deklariert — mit echten Fett- und
+    // Kursivschnitten. `PTSans-Regular` gab es im Browser nie, das lief auf
+    // Arial hinaus. Fett steht als `**…**` im Text (siehe `richText`).
+    fontFamily: 'PT Sans',
     fontSize: 40,
     minFontSize: 30,
     maxFontSize: 60,
@@ -113,28 +115,8 @@ export function calculateInfoLayout(
       maxWidth: INFO_CONFIG.body.maxWidth,
       fontSize: bodyFontSize,
       lineHeight: bodyLineHeight,
-      firstFont: INFO_CONFIG.body.firstSentenceFont,
-      regularFont: INFO_CONFIG.body.remainingFont,
+      fontFamily: INFO_CONFIG.body.fontFamily,
       color: INFO_CONFIG.body.color,
     },
-  };
-}
-
-/**
- * Parse body text into first sentence and remaining text
- */
-export function parseBodyText(body: string): { firstSentence: string; remaining: string } {
-  // Split on sentence ending followed by capital letter
-  const match = body.match(/^([^.!?]*[.!?])(?:\s+)(.+)$/s);
-  if (match) {
-    return {
-      firstSentence: match[1].trim(),
-      remaining: match[2].trim(),
-    };
-  }
-  // If no match, treat entire body as first sentence
-  return {
-    firstSentence: body.trim(),
-    remaining: '',
   };
 }
