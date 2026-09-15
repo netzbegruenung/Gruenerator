@@ -22,6 +22,7 @@ import {
   COMMENT_MODE,
   prepareAgentState,
 } from '../../../../services/boards/agentFlow/generate.js';
+import { withLangfuseTrace } from '../../../../services/telemetry/langfuseTelemetry.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { createNullSSE } from '../sseHelpers.js';
 
@@ -34,6 +35,34 @@ import type { Citation, SearchResult } from '../../../../agents/langgraph/ChatGr
 import type { ModelMessage } from 'ai';
 
 const log = createLogger('HeadlessAgenticTurn');
+
+/**
+ * Ohne Thread ist `ask_human` gar nicht montiert, aber das Modell weiss das
+ * nicht und formuliert die Rückfrage trotzdem — der Lauf endet dann als
+ * `failed`, obwohl niemand gefragt war. Billiger als jede Reparatur ist, die
+ * Frage vorher zu verhindern.
+ */
+/**
+ * Werkzeuge, die im Hintergrund NICHT montiert werden.
+ *
+ * Nur `memory`, und zwar ganz: seine drei Aktionen (save/update/forget)
+ * schreiben ausnahmslos dauerhafte Notizen über die Person. Es gibt dort
+ * nichts zu lesen, das ein Lauf bräuchte.
+ *
+ * Die `confirm=true`-Zweischritte der übrigen Werkzeuge werden bewusst NICHT
+ * hierüber entschärft. Das Gate in `toolCatalog` greift pro WERKZEUG, nicht pro
+ * Aktion — `documents`, `notebooks` oder `boards_tasks` wären samt ihrer
+ * Leseaktionen verschwunden, und eine Aufgabe wie „fasse montags die offenen
+ * Karten aus Board X zusammen" hätte still eine unvollständige Antwort
+ * geliefert statt zu scheitern (`NO_QUESTIONS_MODE` sagt dem Modell ja, es
+ * solle annehmen und weitermachen). Stattdessen verweigern die Löschzweige
+ * selbst, wenn kein Thread da ist — dieselbe Naht, die die kartenbasierten
+ * Schreibzugriffe schon benutzen.
+ */
+export const HEADLESS_WITHHELD_TOOLS: ReadonlySet<string> = new Set(['memory']);
+
+const NO_QUESTIONS_MODE =
+  '\n\nDu kannst in diesem Lauf keine Rückfragen stellen — es ist niemand da, der antworten könnte. Triff die naheliegendste Annahme, arbeite weiter und nenne die Annahmen am Anfang des Ergebnisses.';
 
 export interface HeadlessTurnParams {
   instruction: string;
@@ -61,6 +90,12 @@ export interface HeadlessTurnResult {
   /** 'none' ⇒ echte Antwort. Alles andere ist Ersatztext des Nie-Werfen-
    *  Vertrags und darf NICHT als Ergebnis abgelegt werden. */
   degraded: 'none' | 'no_answer' | 'aborted' | 'failed';
+  /**
+   * Klartext-Grund, wo es einen gibt — wandert in `recurring_task_runs.error`
+   * und damit in den Verlauf. Ohne ihn stand dort „agentic turn degraded:
+   * failed", und die Rückfrage, an der der Lauf scheiterte, kannte nur das Log.
+   */
+  degradedReason: string | null;
   steps: PersistedStep[];
   citations: Citation[];
   sources: SearchResult[];
@@ -88,10 +123,17 @@ export async function runHeadlessAgenticTurn(
     userId: p.userId,
   });
 
+  // Schreibende Werkzeuge abschalten, BEVOR der Katalog gebaut wird. Das Gate
+  // sitzt in `toolCatalog` auf `state.enabledTools[key] !== false`, also genügt
+  // die Zustandsänderung — kein zweiter Katalog-Pfad.
+  const withheld: Record<string, boolean> = {};
+  for (const key of HEADLESS_WITHHELD_TOOLS) withheld[key] = false;
+  finalState.enabledTools = { ...finalState.enabledTools, ...withheld };
+
   // `retrievalExpected` wie im Request-Pfad: der Prompt entsteht, bevor ein
   // Tool lief — eine Zitatzahl von 0 sagt hier nichts über die Antwort.
   const baseSystem = await deps.buildSystemMessage(finalState, { retrievalExpected: true });
-  const systemMessage = `${baseSystem}${p.longForm ? DOCUMENT_MODE : COMMENT_MODE}`;
+  const systemMessage = `${baseSystem}${p.longForm ? DOCUMENT_MODE : COMMENT_MODE}${NO_QUESTIONS_MODE}`;
 
   const messages: ModelMessage[] = [{ role: 'user', content: p.instruction }];
   if (p.feedback) {
@@ -115,20 +157,39 @@ export async function runHeadlessAgenticTurn(
   const searchToolKeys =
     p.restrictToAgentTools && agentToolKeys?.length ? agentToolKeys : undefined;
 
+  // Eigene Wurzel-Spanne: der Request-Pfad öffnet sie in `responseAgentic`, das
+  // hier übersprungen wird — ohne sie hängen die Generierungs-Spannen eines
+  // Hintergrundlaufs ohne Elternteil und ohne Ein-/Ausgabe in Langfuse.
   let outcome: AgenticResponseOutcome;
   try {
-    outcome = await deps.streamAgenticResponse({
-      finalState,
-      systemMessage,
-      messages,
-      requestId: p.slotLabel,
-      sse: createNullSSE(),
-      reqSignal: controller.signal,
-      threadId: null,
-      toolHistory: null,
-      disableMcp: true,
-      ...(searchToolKeys ? { searchToolKeys } : {}),
-    });
+    outcome = await withLangfuseTrace(
+      {
+        name: 'headless-turn',
+        userId: p.userId,
+        metadata: {
+          requestId: p.slotLabel,
+          ...(p.agentId ? { agentId: p.agentId } : {}),
+          attempt: p.feedback ? 'repair' : 'initial',
+        },
+        tags: ['headless'],
+      },
+      async (trace) => {
+        const res = await deps.streamAgenticResponse({
+          finalState,
+          systemMessage,
+          messages,
+          requestId: p.slotLabel,
+          sse: createNullSSE(),
+          reqSignal: controller.signal,
+          threadId: null,
+          toolHistory: null,
+          disableMcp: true,
+          ...(searchToolKeys ? { searchToolKeys } : {}),
+        });
+        trace.update({ input: p.instruction, output: res.fullText });
+        return res;
+      }
+    );
   } finally {
     clearTimeout(timer);
   }
@@ -144,6 +205,9 @@ export async function runHeadlessAgenticTurn(
     return {
       text: '',
       degraded: 'failed',
+      degradedReason: `Der Agent wollte eine Werkzeug-Freigabe (${outcome.pendingApproval
+        .map((c) => c.toolName)
+        .join(', ')}) — im Hintergrund kann niemand zustimmen.`,
       steps: outcome.steps,
       citations: outcome.citations,
       sources: outcome.sources,
@@ -161,6 +225,7 @@ export async function runHeadlessAgenticTurn(
     return {
       text: '',
       degraded: 'failed',
+      degradedReason: `Der Agent brauchte eine Rückfrage: „${outcome.pendingAsk.question}" — formuliere die Anweisung eindeutiger.`,
       steps: outcome.steps,
       citations: outcome.citations,
       sources: outcome.sources,
@@ -171,6 +236,7 @@ export async function runHeadlessAgenticTurn(
   return {
     text: outcome.fullText.trim(),
     degraded: outcome.degraded ?? 'none',
+    degradedReason: null,
     steps: outcome.steps,
     citations: outcome.citations,
     sources: outcome.sources,

@@ -53,6 +53,8 @@ function taskRun(over: Partial<RecurringTaskRun> = {}): RecurringTaskRun {
     resultsSummary: null,
     resultUrl: '/office/d1',
     error: null,
+    durationMs: 4200,
+    verdict: null,
     createdAt: '2026-08-31T07:00:00.000Z',
     ...over,
   };
@@ -98,7 +100,8 @@ function makeCtx(opts: CtxOptions = {}) {
   } as unknown as ChatGraphState;
 
   const found = opts.found === undefined ? task() : opts.found;
-  const runner = vi.fn(async (_row: RecurringTaskRow) => {});
+  // `true` = Lauf gestartet; `false` = für die Aufgabe läuft schon einer.
+  const runner = vi.fn(async (_row: RecurringTaskRow) => true);
   const deps: RecurringTaskToolDeps = {
     listRecurringTasks: vi.fn(async () => opts.tasks ?? []),
     getRecurringTask: vi.fn(async () => found ?? undefined),
@@ -356,6 +359,16 @@ describe('recurring_tasks: run_now', () => {
     expect(runner).toHaveBeenCalledTimes(1);
     expect(runner.mock.calls[0][0]).toMatchObject({ id: 't1' });
     expect(notes[0][1]).toContain('gestartet');
+  });
+
+  it('sagt es, wenn schon ein Lauf läuft, statt einen Start zu behaupten', async () => {
+    const { run, notes, deps } = makeCtx();
+    // Die Lease ist vergeben: der Runner meldet „nicht gestartet".
+    (deps.runRecurringTask as ReturnType<typeof vi.fn>).mockResolvedValueOnce(false);
+
+    expect(await run({ action: 'run_now', taskId: 't1' })).toMatchObject({ ok: true });
+    expect(notes[0][1]).toContain('läuft gerade schon');
+    expect(notes[0][1]).not.toContain('wurde gestartet');
   });
 
   it('refuses when the message rules out actions', async () => {

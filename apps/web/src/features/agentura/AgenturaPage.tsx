@@ -407,13 +407,23 @@ function AgenturaPage() {
           heading: 'Wiederkehrende Aufgaben',
           icon: PiRepeat,
           action: (
-            <Link
-              to="/agents/new?mode=recurring"
-              className="inline-flex items-center gap-xs text-sm font-medium text-secondary-700 hover:underline dark:text-secondary-300"
-            >
-              <PiPlus className="h-4 w-4" />
-              Neue wiederkehrende Aufgabe
-            </Link>
+            <span className="inline-flex items-center gap-md">
+              <Link
+                to="/agents/new?mode=recurring"
+                className="inline-flex items-center gap-xs text-sm font-medium text-secondary-700 hover:underline dark:text-secondary-300"
+              >
+                <PiPlus className="h-4 w-4" />
+                Neue wiederkehrende Aufgabe
+              </Link>
+              {/* Die Kachel zeigt den Takt, nicht den Betrieb — Verlauf,
+                  Fehlertexte und Ergebnisse stehen auf /wiederkehrend. */}
+              <Link
+                to="/wiederkehrend"
+                className="text-sm font-medium text-secondary-700 hover:underline dark:text-secondary-300"
+              >
+                Verlauf &amp; Steuerung
+              </Link>
+            </span>
           ),
           cards: recurringTasks.map((task) => (
             <RecurringTaskCard key={`r-${task.id}`} task={task} />

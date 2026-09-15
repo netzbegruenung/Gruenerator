@@ -45,11 +45,13 @@ export function toApiTask(row: RecurringTask): ApiRecurringTask {
     locale: row.locale,
     nextRunAt: row.next_run_at.toISOString(),
     lastRunAt: row.last_run_at ? row.last_run_at.toISOString() : null,
+    pausedReason: row.paused_reason ?? null,
     createdAt: row.created_at.toISOString(),
   };
 }
 
-function toApiRun(row: RecurringTaskRun): ApiRecurringTaskRun {
+/** Exported for tests: pure row → wire mapping, no database needed. */
+export function toApiRun(row: RecurringTaskRun): ApiRecurringTaskRun {
   return {
     id: row.id,
     taskId: row.task_id,
@@ -57,6 +59,11 @@ function toApiRun(row: RecurringTaskRun): ApiRecurringTaskRun {
     resultsSummary: row.results_summary,
     resultUrl: row.result_url,
     error: row.error,
+    durationMs: row.duration_ms,
+    // Written since #3221, so every row older than that carries null.
+    verdict: row.verdict ?? null,
+    startedAt: row.started_at ? row.started_at.toISOString() : null,
+    finishedAt: row.finished_at ? row.finished_at.toISOString() : null,
     createdAt: row.created_at.toISOString(),
   };
 }
@@ -160,6 +167,20 @@ export async function updateRecurringTask(
             timezone = $7,
             locale = $8,
             enabled = $9,
+            -- Wer eine Aufgabe wieder AKTIVIERT, startet mit sauberer Weste.
+            -- Ohne das bliebe der Zähler auf 3 stehen: der nächste einzelne
+            -- Fehlschlag schaltete sie wieder ab (statt nach dreien), und das
+            -- Banner „automatisch angehalten" verschwände nie wieder.
+            --
+            -- Das AND NOT enabled ist der Übergang aus→an: rechts vom
+            -- Gleichheitszeichen liefert die Spalte den ALTEN Wert. Ohne diese
+            -- Bedingung setzte JEDE Änderung an einer laufenden Aufgabe den
+            -- Zähler zurück — ein über den Chat umbenannter Titel, der das
+            -- Enabled-Flag gar nicht anfasst, löschte die Fehlerserie und
+            -- hebelte damit die Drei-Schläge-Regel aus.
+            consecutive_failure_count =
+              CASE WHEN $9 AND NOT enabled THEN 0 ELSE consecutive_failure_count END,
+            paused_reason = CASE WHEN $9 AND NOT enabled THEN NULL ELSE paused_reason END,
             rrule = $10,
             next_run_at = $11,
             email_notify = $12,
@@ -215,7 +236,9 @@ export async function listRecurringTaskRuns(
  * next_run_at inside a `FOR UPDATE SKIP LOCKED` transaction so two nodes never fire
  * the same task. Returns the claimed rows for the runner to execute after commit.
  */
-export async function claimDueRecurringTasks(limit = 25): Promise<RecurringTask[]> {
+export async function claimDueRecurringTasks(
+  limit = 5
+): Promise<Array<{ task: RecurringTask; runId: string }>> {
   return db.transaction(async (client) => {
     const due = (await db.transactionQuery(
       client,
@@ -227,7 +250,27 @@ export async function claimDueRecurringTasks(limit = 25): Promise<RecurringTask[
       [limit]
     )) as unknown as RecurringTask[];
 
+    const claimed: Array<{ task: RecurringTask; runId: string }> = [];
     for (const row of due) {
+      // ERST den Lauf-Slot holen, dann erst den Zeitplan vorrücken. Die Zeile
+      // entsteht damit vor dem Lauf: stirbt der Prozess mittendrin, ist der Lauf
+      // trotzdem sichtbar und der Wächter kann ihn abräumen.
+      //
+      // Läuft für die Aufgabe schon einer (Handlauf), greift der partielle
+      // Unique-Index und wir lassen `next_run_at` STEHEN — der nächste Tick
+      // versucht es erneut. Würde hier vorgerückt, wäre diese Ausführung still
+      // verloren, obwohl sie nie stattgefunden hat.
+      const inserted = (await db.transactionQuery(
+        client,
+        `INSERT INTO recurring_task_runs (task_id, status, started_at)
+         VALUES ($1, 'running', now())
+         ON CONFLICT DO NOTHING
+         RETURNING id`,
+        [row.id]
+      )) as unknown as Array<{ id: string }>;
+      const runId = inserted[0]?.id;
+      if (!runId) continue;
+
       const recurrence = rruleStringToRecurrence(row.rrule);
       const nextRunAt = computeNextRun(recurrence, row.timezone, new Date());
       await db.transactionQuery(
@@ -237,9 +280,41 @@ export async function claimDueRecurringTasks(limit = 25): Promise<RecurringTask[
           WHERE id = $1`,
         [row.id, nextRunAt]
       );
+      claimed.push({ task: row, runId });
     }
-    return due;
+    return claimed;
   });
+}
+
+/** Startet einen Lauf von Hand. `null` ⇒ für diese Aufgabe läuft schon einer. */
+export async function startManualRecurringRun(taskId: string): Promise<string | null> {
+  const rows = await db.query<{ id: string }>(
+    `INSERT INTO recurring_task_runs (task_id, status, started_at)
+     VALUES ($1, 'running', now())
+     ON CONFLICT DO NOTHING
+     RETURNING id`,
+    [taskId]
+  );
+  return rows[0]?.id ?? null;
+}
+
+/**
+ * Räumt Läufe ab, deren Frist abgelaufen ist — der einzige Weg, auf dem ein
+ * abgestürzter Lauf je einen Endstatus bekommt. Die Frist deckt zwei volle
+ * Loop-Läufe (Erstversuch + Reparatur) samt Prüfung und Zustellung.
+ */
+export async function sweepStaleRecurringRuns(staleMinutes = 20): Promise<number> {
+  const rows = await db.query<{ id: string }>(
+    `UPDATE recurring_task_runs
+        SET status = 'failed',
+            error = 'Lauf abgebrochen: der Dienst wurde neu gestartet, während er lief.',
+            finished_at = now()
+      WHERE status = 'running'
+        AND started_at < now() - make_interval(mins => $1)
+      RETURNING id`,
+    [staleMinutes]
+  );
+  return rows.length;
 }
 
 /** Fetch a task row by id without owner scoping (trusted worker path). */
@@ -251,9 +326,13 @@ export async function getRecurringTaskById(id: string): Promise<RecurringTask | 
   return rows[0];
 }
 
-export async function recordRecurringTaskRun(params: {
-  taskId: string;
-  status: RecurringTaskRunStatus;
+/**
+ * Schliesst den beim Claim angelegten Lauf ab. Kein INSERT mehr: die Zeile
+ * existiert bereits als 'running', sonst wäre der Absturz unsichtbar.
+ */
+export async function finishRecurringTaskRun(params: {
+  runId: string;
+  status: Exclude<RecurringTaskRunStatus, 'running'>;
   resultsSummary?: string | null;
   resultUrl?: string | null;
   error?: string | null;
@@ -262,10 +341,12 @@ export async function recordRecurringTaskRun(params: {
   verdict?: { ok: boolean; hint?: string; repaired?: boolean } | null;
 }): Promise<void> {
   await db.query(
-    `INSERT INTO recurring_task_runs (task_id, status, results_summary, result_url, error, duration_ms, verdict)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    `UPDATE recurring_task_runs
+        SET status = $2, results_summary = $3, result_url = $4, error = $5,
+            duration_ms = $6, verdict = $7, finished_at = now()
+      WHERE id = $1`,
     [
-      params.taskId,
+      params.runId,
       params.status,
       params.resultsSummary ?? null,
       params.resultUrl ?? null,
@@ -273,6 +354,46 @@ export async function recordRecurringTaskRun(params: {
       params.durationMs ?? null,
       params.verdict != null ? JSON.stringify(params.verdict) : null,
     ]
+  );
+}
+
+/**
+ * Zählt Fehlschläge in Folge und schaltet die Aufgabe nach `limit` ab.
+ * Gibt zurück, ob dieser Lauf die Abschaltung ausgelöst hat — der Runner
+ * benachrichtigt dann genau einmal.
+ */
+export async function bumpRecurringFailureCount(
+  taskId: string,
+  limit = 3
+): Promise<{ count: number; paused: boolean }> {
+  const rows = await db.query<{ consecutive_failure_count: number; enabled: boolean }>(
+    `UPDATE recurring_tasks
+        SET consecutive_failure_count = consecutive_failure_count + 1,
+            -- Abschalten im selben Schritt: zwei Anweisungen könnten sich
+            -- zwischen zwei Knoten überholen und zweimal benachrichtigen.
+            enabled = CASE WHEN consecutive_failure_count + 1 >= $2 THEN FALSE ELSE enabled END,
+            paused_reason = CASE
+              WHEN consecutive_failure_count + 1 >= $2 THEN 'auto_failures'
+              ELSE paused_reason END,
+            updated_at = now()
+      WHERE id = $1
+      RETURNING consecutive_failure_count, enabled`,
+    [taskId, limit]
+  );
+  const row = rows[0];
+  if (!row) return { count: 0, paused: false };
+  // `>=`, nicht `===`: bei einem Zähler, der aus irgendeinem Grund über das
+  // Limit hinausgelaufen ist, meldete die Gleichheitsprüfung „nicht pausiert"
+  // und der Runner schickte die gewöhnliche Fehlschlag-Meldung, während die
+  // Aufgabe still abgeschaltet wurde.
+  return { count: row.consecutive_failure_count, paused: row.consecutive_failure_count >= limit };
+}
+
+/** Ein gelungener oder leerer Lauf beendet die Fehlerserie. */
+export async function resetRecurringFailureCount(taskId: string): Promise<void> {
+  await db.query(
+    `UPDATE recurring_tasks SET consecutive_failure_count = 0 WHERE id = $1 AND consecutive_failure_count <> 0`,
+    [taskId]
   );
 }
 
