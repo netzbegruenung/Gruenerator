@@ -5,7 +5,7 @@ import {
   type SharepicVariant,
 } from '@gruenerator/chat';
 import { type RoleRef } from '@gruenerator/contracts';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { getContractsClient, type UnauthorizedInfo } from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -165,12 +165,18 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
       // (absolute API origin + bearer); on web it's the same relative+cookie
       // behaviour as the store default.
       fetch: chatFetch,
-      onUnauthorized: async () => {
-        sessionDebug('http.401', { stack: 'chat' });
+      onUnauthorized: async (info?: UnauthorizedInfo) => {
+        sessionDebug('http.401', {
+          stack: 'chat',
+          endpoint: info?.url,
+          status: info?.status,
+          code: info?.code,
+          requestId: info?.requestId,
+        });
         // Route through the shared authority: probe → 'retry' replays the
         // request once (transient cookie rotation), 'logout' fires the single
         // atomic teardown, 'stay' leaves the user put (infra blip / logging out).
-        return (await handleUnauthorized('chat')) === 'retry';
+        return (await handleUnauthorized('chat', info?.code)) === 'retry';
       },
       wolkeConnectUrl: '/settings/wolke',
       // Nur für Instanz-Admins: die Rolle lebt in apps/web, die Route auch.

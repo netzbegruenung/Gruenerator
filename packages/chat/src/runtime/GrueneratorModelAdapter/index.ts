@@ -1,6 +1,6 @@
 import { isAiConsentRequiredBody } from '@gruenerator/contracts';
 import { getSystemAgent } from '@gruenerator/shared/agents';
-import { notifyAiConsentRequired } from '@gruenerator/shared/api';
+import { notifyAiConsentRequired, unauthorizedInfoFromResponse } from '@gruenerator/shared/api';
 import { buildMentionToken } from '@gruenerator/shared/utils';
 
 import { hasExplicitMcpScope, parseAllMentions } from '../../lib/mentionParser';
@@ -145,7 +145,10 @@ async function routeUnauthorized(response: Response): Promise<boolean> {
       return true;
     }
   }
-  void useChatConfigStore.getState().onUnauthorized?.();
+  // Ohne den `code` aus dem Rumpf meldet der Abbau, den dies auslösen kann,
+  // `auth.401code: unknown` — dieselbe Lücke wie im Chat-apiClient.
+  const info = await unauthorizedInfoFromResponse(response);
+  void useChatConfigStore.getState().onUnauthorized?.(info);
   return false;
 }
 
