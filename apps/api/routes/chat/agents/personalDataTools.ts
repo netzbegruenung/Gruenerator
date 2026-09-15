@@ -830,6 +830,7 @@ export function makeMediaTool(ctx: PersonalToolCtx): Tool {
   const { state, sourceRegistry } = ctx;
   return tool({
     description: `Zugriff auf die EIGENEN Medien der Person: Reels (untertitelte Videos), Sharepics (Social-Grafiken aus den Vorlagen) und KI-Bilder (aus dem Bild-Editor).
+NUR LESEN: Dieses Tool erstellt und bearbeitet NICHTS. Soll ein Sharepic geändert werden und du hast kein Bearbeitungs-Tool, sag das — such nicht ersatzweise die Bibliothek ab.
 
 NUTZE FÜR:
 - auflisten (list, optional type="reel"|"sharepic"|"ki"). Sharepics und KI-Bilder sind zwei verschiedene Produkte — "meine Sharepics" meint type="sharepic", "meine KI-Bilder" type="ki".

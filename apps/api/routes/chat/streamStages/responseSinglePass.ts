@@ -25,6 +25,7 @@ import { injectImageAttachments } from '../services/attachmentProcessingService.
 import { applyCompaction, pruneMessages } from '../services/contextPruningService.js';
 import { executeIntentPipeline } from '../services/intentExecutionService.js';
 import {
+  announcesPendingWork,
   stripFabricatedArtifactDelivery,
   stripFabricatedSystemClaims,
 } from '../services/outputSanity.js';
@@ -330,6 +331,12 @@ export async function runSinglePassAnswer({
     if (delivery.removed.length > 0) {
       log.warn(`[ChatGraph] Removed fabricated artefact delivery: ${delivery.removed.join(', ')}`);
       fullText = delivery.text;
+    }
+    // Telemetry only — the text is already on the wire; the prompt rules are the fix.
+    if (announcesPendingWork(fullText)) {
+      log.warn(
+        `[ChatGraph] answer asks the user to wait for work that will not happen (intent=${finalState.intent ?? 'null'}): ${JSON.stringify(fullText.trim().slice(0, 100))}`
+      );
     }
     const citeClamp = stripOutOfRangeCitations(fullText, finalState.citations.length);
     if (citeClamp.changed || sanity.fabricated.length > 0 || delivery.removed.length > 0) {
