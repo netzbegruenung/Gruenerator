@@ -4,6 +4,9 @@
  * memoizeMarkdownComponents, which strips it). An override that spreads its
  * rest props onto a DOM element must drop `node` first, or React sets
  * node="[object Object]" on the element.
+ *
+ * Fenced code is told apart by the wrapper's `data-block` marker, not by a
+ * `language-*` class — the block path is covered in StreamdownCodeBlock.vitest.
  */
 import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
@@ -25,15 +28,14 @@ describe('streamdownComponents.code', () => {
     expect(el?.hasAttribute('node')).toBe(false);
   });
 
-  it('renders fenced code with its language class and without the node attribute', () => {
+  it('treats a code element without the data-block marker as inline, whatever its class', () => {
     const Code = streamdownComponents.code;
     const { container } = render(
       <Code className="language-python" node={hastNode}>
-        print(1)
+        x
       </Code>
     );
-    const el = container.querySelector('code');
-    expect(el).toHaveClass('language-python');
-    expect(el?.hasAttribute('node')).toBe(false);
+    expect(container.querySelector('code')).toHaveClass('bg-code-inline-bg');
+    expect(container.querySelector('[data-streamdown="code-block"]')).toBeNull();
   });
 });
