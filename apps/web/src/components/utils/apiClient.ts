@@ -431,9 +431,10 @@ function performLoginRedirect(source: string, code?: string): void {
     tags: {
       'auth.source': source,
       'auth.probe': probeDetail,
-      // `session_not_found` = the backend had a token and could not resolve it;
-      // `no_session_cookie` = the cookie was already gone client-side, which
-      // should not normally reach a teardown at all.
+      // `session_not_found` = the backend had a token and could not resolve it
+      // — the one worth chasing in the API log. `no_session_cookie` = no
+      // credential was sent at all, which IS the ordinary expiry route (the
+      // cookie lapsed client-side), so it reaches a teardown routinely.
       'auth.401code': code ?? 'unknown',
     },
     fingerprintExtra: [source, probeDetail, code ?? 'unknown'],
