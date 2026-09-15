@@ -27,7 +27,6 @@ import { createLogger } from '../../../../utils/logger.js';
 import { createNullSSE } from '../sseHelpers.js';
 
 import { streamAgenticResponse } from './agenticRespondService.js';
-import { CONFIRM_ACTION_GATED_TOOLS } from './approvalPolicy.js';
 import { DEFAULT_LOOP_BUDGET } from './types.js';
 
 import type { AgenticResponseOutcome } from './agenticRespondService.js';
@@ -46,21 +45,21 @@ const log = createLogger('HeadlessAgenticTurn');
 /**
  * Werkzeuge, die im Hintergrund NICHT montiert werden.
  *
- * Die kartenbasierten Schreibzugriffe verweigern schon von selbst, wenn kein
- * Thread da ist — die `confirm=true`-Zweischritte derselben Werkzeuge aber
- * nicht: dort bestätigt das Modell seine eigene Absicht, und die Karte, die
- * einen Menschen fragen würde, ginge an einen stummen Sink. Ein Hintergrundlauf
- * darf deshalb gar nicht erst löschen oder teilen können. `memory` kommt dazu,
- * weil es dauerhafte Notizen über die Person schreibt.
+ * Nur `memory`, und zwar ganz: seine drei Aktionen (save/update/forget)
+ * schreiben ausnahmslos dauerhafte Notizen über die Person. Es gibt dort
+ * nichts zu lesen, das ein Lauf bräuchte.
  *
- * Abgeleitet aus `CONFIRM_ACTION_GATED_TOOLS`, damit die beiden Mengen nicht
- * auseinanderlaufen: was dort steht, fragt selbst nach — und genau das kann
- * hier niemand beantworten.
+ * Die `confirm=true`-Zweischritte der übrigen Werkzeuge werden bewusst NICHT
+ * hierüber entschärft. Das Gate in `toolCatalog` greift pro WERKZEUG, nicht pro
+ * Aktion — `documents`, `notebooks` oder `boards_tasks` wären samt ihrer
+ * Leseaktionen verschwunden, und eine Aufgabe wie „fasse montags die offenen
+ * Karten aus Board X zusammen" hätte still eine unvollständige Antwort
+ * geliefert statt zu scheitern (`NO_QUESTIONS_MODE` sagt dem Modell ja, es
+ * solle annehmen und weitermachen). Stattdessen verweigern die Löschzweige
+ * selbst, wenn kein Thread da ist — dieselbe Naht, die die kartenbasierten
+ * Schreibzugriffe schon benutzen.
  */
-export const HEADLESS_WITHHELD_TOOLS: ReadonlySet<string> = new Set([
-  ...CONFIRM_ACTION_GATED_TOOLS,
-  'memory',
-]);
+export const HEADLESS_WITHHELD_TOOLS: ReadonlySet<string> = new Set(['memory']);
 
 const NO_QUESTIONS_MODE =
   '\n\nDu kannst in diesem Lauf keine Rückfragen stellen — es ist niemand da, der antworten könnte. Triff die naheliegendste Annahme, arbeite weiter und nenne die Annahmen am Anfang des Ergebnisses.';

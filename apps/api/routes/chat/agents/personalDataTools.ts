@@ -418,6 +418,9 @@ NUTZE FÜR: eigene Dokumente auflisten (list), eines per id ansehen (get), umben
 
       if (action === 'delete') {
         if (!match) return { error: 'Dokument nicht gefunden oder kein Zugriff.' };
+        // Kein Mensch am Lauf: der `confirm=true`-Zweischritt bestätigt sich hier
+        // selbst, und die Karte, die fragen würde, ginge an einen stummen Sink.
+        if (!threadId) return { error: 'Löschen ist in diesem Kontext nicht möglich.' };
         if (!confirm) {
           const ask = `Soll das Dokument „${match.title}" wirklich gelöscht werden? Frage die Person und rufe delete erst mit confirm=true erneut auf.`;
           groundNote(sourceRegistry, 'Bestätigung nötig', ask);
@@ -827,7 +830,7 @@ NUTZE FÜR: Boards auflisten (list_boards), Karten eines Boards lesen (get_cards
 // ---------------------------------------------------------------------------
 
 export function makeMediaTool(ctx: PersonalToolCtx): Tool {
-  const { state, sourceRegistry } = ctx;
+  const { state, threadId, sourceRegistry } = ctx;
   return tool({
     description: `Zugriff auf die EIGENEN Medien der Person: Reels (untertitelte Videos), Sharepics (Social-Grafiken aus den Vorlagen) und KI-Bilder (aus dem Bild-Editor).
 NUR LESEN: Dieses Tool erstellt und bearbeitet NICHTS. Soll ein Sharepic geändert werden und du hast kein Bearbeitungs-Tool, sag das — such nicht ersatzweise die Bibliothek ab.
@@ -962,6 +965,9 @@ TYPISCHER ABLAUF für "such das Reel zu Thema X und schreib eine Caption": erst 
 
       // delete
       if (!ref) return { error: 'delete braucht ref (aus der Liste).' };
+      // Kein Mensch am Lauf: der `confirm=true`-Zweischritt bestätigt sich hier
+      // selbst, und die Karte, die fragen würde, ginge an einen stummen Sink.
+      if (!threadId) return { error: 'Löschen ist in diesem Kontext nicht möglich.' };
       if (!confirm) {
         return {
           needsConfirmation: true,

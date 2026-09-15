@@ -15,11 +15,15 @@ import { describe, expect, it } from 'vitest';
 
 import { pickFreshRun } from './useRecurringRunNow';
 
-function run(id: string, createdAt = '2026-09-01T07:00:00.000Z'): RecurringTaskRun {
+function run(
+  id: string,
+  createdAt = '2026-09-01T07:00:00.000Z',
+  status: RecurringTaskRun['status'] = 'completed'
+): RecurringTaskRun {
   return {
     id,
     taskId: 't1',
-    status: 'completed',
+    status,
     resultsSummary: null,
     resultUrl: '/office/d1',
     error: null,
@@ -49,6 +53,17 @@ describe('pickFreshRun', () => {
       new Set(['r1'])
     );
     expect(fresh?.id).toBe('r2');
+  });
+
+  it('hält den eigenen, gerade gestarteten Lauf nicht für das Ergebnis', () => {
+    // Die Zeile entsteht beim Claim: der Klick legt selbst eine 'running'-Zeile
+    // an, die der Grundmenge fehlt. Ohne die Endzustands-Prüfung meldete der
+    // Knopf Sekunden nach dem Klick „Ergebnis fertig".
+    expect(pickFreshRun([run('r2', undefined, 'running')], new Set(['r1']))).toBeNull();
+  });
+
+  it('nimmt denselben Lauf, sobald er einen Endzustand hat', () => {
+    expect(pickFreshRun([run('r2', undefined, 'empty')], new Set(['r1']))?.id).toBe('r2');
   });
 
   it('verträgt eine noch nicht geladene Liste', () => {

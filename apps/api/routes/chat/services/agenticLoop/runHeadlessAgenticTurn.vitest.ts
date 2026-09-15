@@ -124,6 +124,21 @@ describe('runHeadlessAgenticTurn', () => {
     expect(result.degradedReason).toContain('Welcher Kreisverband?');
   });
 
+  it('nimmt nur das Gedächtnis aus dem Katalog — Lesewerkzeuge bleiben montiert', async () => {
+    const { deps, streamCalls } = makeDeps({});
+    await runHeadlessAgenticTurn(baseParams, deps);
+
+    const enabled = (
+      streamCalls[0]!.finalState as unknown as { enabledTools: Record<string, boolean> }
+    ).enabledTools;
+    expect(enabled.memory).toBe(false);
+    // Ein zu grober Schnitt hätte auch die Leseaktionen dieser Werkzeuge
+    // entfernt — der Lauf hätte dann still unvollständig geantwortet.
+    for (const key of ['documents', 'notebooks', 'boards_tasks']) {
+      expect(enabled[key], `${key} muss im Hintergrund lesbar bleiben`).not.toBe(false);
+    }
+  });
+
   it('lässt den Grund leer, wenn der Zug durchlief', async () => {
     const { deps } = makeDeps({});
     expect((await runHeadlessAgenticTurn(baseParams, deps)).degradedReason).toBeNull();

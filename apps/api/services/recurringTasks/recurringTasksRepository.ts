@@ -167,6 +167,12 @@ export async function updateRecurringTask(
             timezone = $7,
             locale = $8,
             enabled = $9,
+            -- Wer eine Aufgabe wieder aktiviert, startet mit sauberer Weste.
+            -- Ohne das bliebe der Zähler auf 3 stehen: der nächste einzelne
+            -- Fehlschlag schaltete sie wieder ab (statt nach dreien), und das
+            -- Banner „automatisch angehalten" verschwände nie wieder.
+            consecutive_failure_count = CASE WHEN $9 THEN 0 ELSE consecutive_failure_count END,
+            paused_reason = CASE WHEN $9 THEN NULL ELSE paused_reason END,
             rrule = $10,
             next_run_at = $11,
             email_notify = $12,
@@ -368,7 +374,11 @@ export async function bumpRecurringFailureCount(
   );
   const row = rows[0];
   if (!row) return { count: 0, paused: false };
-  return { count: row.consecutive_failure_count, paused: row.consecutive_failure_count === limit };
+  // `>=`, nicht `===`: bei einem Zähler, der aus irgendeinem Grund über das
+  // Limit hinausgelaufen ist, meldete die Gleichheitsprüfung „nicht pausiert"
+  // und der Runner schickte die gewöhnliche Fehlschlag-Meldung, während die
+  // Aufgabe still abgeschaltet wurde.
+  return { count: row.consecutive_failure_count, paused: row.consecutive_failure_count >= limit };
 }
 
 /** Ein gelungener oder leerer Lauf beendet die Fehlerserie. */

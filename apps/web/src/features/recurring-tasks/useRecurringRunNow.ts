@@ -30,12 +30,20 @@ const POLL_INTERVAL_MS = 5000;
 /** Danach hört der Knopf auf zu warten — die Benachrichtigung trägt das Ergebnis. */
 const AWAIT_TIMEOUT_MS = 10 * 60 * 1000;
 
+/**
+ * Endzustände. `running` gehört NICHT dazu: seit die Lauf-Zeile beim Claim
+ * entsteht, legt der Klick selbst eine an, die der Grundmenge fehlt — „unbekannte
+ * ID" allein würde also sofort auf den eigenen, gerade gestarteten Lauf passen
+ * und Sekunden nach dem Klick „Ergebnis fertig" melden.
+ */
+const TERMINAL: ReadonlySet<RecurringTaskRun['status']> = new Set(['completed', 'empty', 'failed']);
+
 /** Exportiert, weil hier die eigentliche Entscheidung sitzt (siehe Kopf). */
 export function pickFreshRun(
   runs: readonly RecurringTaskRun[] | undefined,
   knownIds: ReadonlySet<string>
 ): RecurringTaskRun | null {
-  return (runs ?? []).find((r) => !knownIds.has(r.id)) ?? null;
+  return (runs ?? []).find((r) => !knownIds.has(r.id) && TERMINAL.has(r.status)) ?? null;
 }
 
 export interface RunNowTask {
