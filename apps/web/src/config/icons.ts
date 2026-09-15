@@ -62,6 +62,7 @@ import {
   PiArticle,
   PiSquaresFour,
   PiScan,
+  PiSpeakerHigh,
   PiChatCircle,
   PiDesktop,
   PiChartBar,
@@ -147,6 +148,7 @@ export type NavigationIconName =
   | 'research'
   | 'desk'
   | 'transkription'
+  | 'voice'
   | 'monitor'
   | 'zeichenzaehler';
 
@@ -267,6 +269,7 @@ export const ICONS: IconRegistry = {
     research: PiBrain,
     desk: PiDesktop,
     transkription: HiMicrophone,
+    voice: PiSpeakerHigh,
     monitor: PiChartBar,
     zeichenzaehler: PiTextAa,
   },
