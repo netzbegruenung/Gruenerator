@@ -53,6 +53,92 @@ describe('convertToThreadMessageLike — rich metadata survives a reload', () =>
     expect(converted?.metadata).toBeUndefined();
   });
 
+  // Tool-derived cards (#3288): these lived only on the web converter, so on
+  // mobile the sharepic rendered live and vanished on the next thread switch.
+  it('rebuilds the sharepic variant stack from the persisted tool call', () => {
+    const restored = custom(
+      assistant({
+        toolCalls: [
+          {
+            toolCallId: 'tc1',
+            toolName: 'sharepic',
+            args: {},
+            result: { variants: [{ id: 'v1', canvasType: 'dreizeilen', initialProps: {} }] },
+          },
+        ],
+      })
+    );
+    expect(restored.sharepicData).toEqual({
+      variants: [{ id: 'v1', canvasType: 'dreizeilen', initialProps: {} }],
+    });
+  });
+
+  it('drops sharepic variants with a non-canonical canvasType', () => {
+    const restored = custom(
+      assistant({
+        toolCalls: [
+          {
+            toolCallId: 'tc1',
+            toolName: 'sharepic',
+            args: {},
+            result: { variants: [{ id: 'v1', canvasType: 'not-a-template', initialProps: {} }] },
+          },
+        ],
+      })
+    );
+    expect(restored.sharepicData).toBeUndefined();
+  });
+
+  it('rebuilds the social post and the bahn board from persisted tool calls', () => {
+    const board = {
+      kind: 'timetable',
+      station: 'Köln Hbf',
+      date: '2026-07-17',
+      hour: '09',
+      entries: [
+        {
+          id: 'e1',
+          category: 'ICE',
+          number: '204',
+          line: null,
+          departureTime: '09:11',
+          departurePlatform: '5',
+          arrivalTime: null,
+          arrivalPlatform: null,
+          destination: 'Hamburg-Altona',
+          via: [],
+        },
+      ],
+    };
+    const restored = custom(
+      assistant({
+        toolCalls: [
+          {
+            toolCallId: 'tc1',
+            toolName: 'social_post',
+            args: {},
+            result: {
+              postId: 'p1',
+              platform: 'instagram',
+              text: 'Mein Post',
+              hashtags: [],
+              charCount: 9,
+              version: 1,
+            },
+          },
+          {
+            toolCallId: 'tc2',
+            toolName: 'bahn__get_planned_timetable',
+            args: {},
+            result: { content: JSON.stringify(board) },
+          },
+        ],
+      })
+    );
+    expect(restored.socialPostData).toMatchObject({ postId: 'p1', text: 'Mein Post' });
+    expect((restored.bahnData as { station?: string })?.station).toBe('Köln Hbf');
+  });
+
   // An interrupted turn that never received a delta has nothing to show; a row
   // rendering only the marker would read as an answer that said nothing.
   it('drops an interrupted turn that produced no text at all', () => {

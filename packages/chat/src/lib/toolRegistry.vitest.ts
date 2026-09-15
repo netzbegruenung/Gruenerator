@@ -308,6 +308,24 @@ describe('loop-catalog tool parsers', () => {
     if (vm.kind === 'text-note') expect(vm.text).toContain('keine Vorgaben');
   });
 
+  it('sharepic_edit names the change, never the canvas UUIDs (#3289)', () => {
+    const vm = resolveToolEntry('sharepic_edit').parse(
+      { query: 'Füge die Bullet Points ein' },
+      {
+        canvasId: '0b7e2b1a-4d9a-4a4e-8f3b-1c2d3e4f5a6b',
+        variantId: 'v-3',
+        version: 4,
+        summary: 'Drei Bullet Points in Zeile 2 ergänzt',
+        canvasType: 'info',
+      }
+    );
+    expect(vm.kind).toBe('text-note');
+    if (vm.kind === 'text-note') {
+      expect(vm.text).toBe('Drei Bullet Points in Zeile 2 ergänzt');
+      expect(vm.text).not.toContain('0b7e2b1a');
+    }
+  });
+
   it('create_pdf surfaces every self-check problem as its own row', () => {
     const vm = resolveToolEntry('create_pdf').parse(
       {},
