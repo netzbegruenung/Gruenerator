@@ -32,7 +32,17 @@ export const streamdownComponents = {
       {children}
     </a>
   ),
-  code: ({ className, children, ...props }: { className?: string; children?: ReactNode }) => {
+  // `node` is the hast element Streamdown hands every override; it must not reach the DOM.
+  code: ({
+    className,
+    children,
+    node: _node,
+    ...props
+  }: {
+    className?: string;
+    children?: ReactNode;
+    node?: unknown;
+  }) => {
     const isInline = !className?.includes('language-');
     if (isInline) {
       return (
