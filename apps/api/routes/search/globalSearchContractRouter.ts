@@ -176,9 +176,15 @@ export const globalSearchContractRouter = s.router(globalSearchContract, {
       const q = args.query.q.trim();
       // `ownedOnly` is load-bearing, not a default worth inheriting: without it
       // every is_public thread in the system matches a personal search.
+      // `includeArchived` is this endpoint's alone: the sidebar offers an
+      // "Archiviert" section to browse, so a search that cannot find what sits
+      // in it makes archiving look like deleting. The rows carry `status` and
+      // are marked. Deliberately NOT inherited by `findChats` below or by
+      // recall — feeding archived chats into model context is a separate call.
       const hits = await searchChatHistory(userId, q, {
         limit: THREAD_SEARCH_LIMIT,
         ownedOnly: true,
+        includeArchived: true,
       });
       return {
         status: 200 as const,
@@ -190,6 +196,7 @@ export const globalSearchContractRouter = s.router(globalSearchContract, {
             snippet: hit.snippet,
             messageRole: hit.messageRole,
             matchedAt: hit.matchedAt,
+            status: hit.threadStatus,
           })),
         },
       };

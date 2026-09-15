@@ -36,6 +36,7 @@ export function ChatThreadSearch({ query, onQueryChange }: ChatThreadSearchProps
         group: bucketLabel(item.matchedAt),
         href: buildThreadPath(item.threadId, item.title),
         pinned: pinnedIds.includes(item.threadId),
+        archived: item.status === 'archived',
       })),
     [items, pinnedIds]
   );
