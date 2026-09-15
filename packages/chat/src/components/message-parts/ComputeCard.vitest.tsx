@@ -70,6 +70,40 @@ describe('ComputeCard with an audio asset', () => {
     expect(screen.getByText('Audio')).toBeInTheDocument();
   });
 
+  it('renders a recording once, not also as a plain download chip', () => {
+    render(<ComputeCard data={audioData} />);
+
+    // The play control names the file. A second, bare chip with the same name
+    // is the duplicate: the generic chip loop used to include audio too.
+    expect(screen.getByRole('button', { name: /ansage\.mp3 anhören/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'ansage.mp3' })).toBeNull();
+  });
+
+  it('offers the recording as a download without playing it first', () => {
+    render(<ComputeCard data={audioData} />);
+
+    // Excluding audio from the chip row removed the only way to save it, so
+    // the player block carries its own.
+    expect(screen.getByRole('button', { name: 'ansage.mp3 herunterladen' })).toBeInTheDocument();
+  });
+
+  it('still chips a file that is not a recording', () => {
+    render(
+      <ComputeCard
+        data={{
+          ...audioData,
+          fileAssets: [
+            { name: 'ansage.mp3', url: '/api/share/tok-1/download' },
+            { name: 'bericht.pdf', url: '/api/share/tok-2/download' },
+          ],
+        }}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: 'bericht.pdf' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'ansage.mp3' })).toBeNull();
+  });
+
   it('leaves a real calculation labelled as one', () => {
     render(
       <ComputeCard
