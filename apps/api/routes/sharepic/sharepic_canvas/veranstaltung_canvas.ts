@@ -18,6 +18,7 @@ import {
   optimizeCanvasBuffer,
   bufferToBase64,
 } from '../../../services/sharepic/canvas/imageOptimizer.js';
+import { wrapTextLines as wrapText } from '../../../services/sharepic/textLayout.js';
 import { createLogger } from '../../../utils/logger.js';
 
 const log = createLogger('veranstaltung_canvas');
@@ -93,26 +94,6 @@ interface VeranstaltungRequestBody {
 
 interface MulterRequest extends Request {
   file?: Express.Multer.File;
-}
-
-function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
-  const words = text.split(' ');
-  const lines: string[] = [];
-  let currentLine = '';
-
-  for (let i = 0; i < words.length; i++) {
-    const testLine = currentLine + words[i] + ' ';
-    const testWidth = ctx.measureText(testLine).width;
-
-    if (testWidth > maxWidth && i > 0) {
-      lines.push(currentLine.trim());
-      currentLine = words[i] + ' ';
-    } else {
-      currentLine = testLine;
-    }
-  }
-  lines.push(currentLine.trim());
-  return lines;
 }
 
 function drawPhotoSection(ctx: CanvasRenderingContext2D, image: Image): void {
