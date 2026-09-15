@@ -56,6 +56,11 @@ export const USER_SELECTABLE_TOOLS: readonly UserSelectableTool[] = [
     description: 'Erstellt Bilder aus einer Beschreibung.',
   },
   {
+    key: 'text_uebersetzen',
+    label: 'Übersetzung',
+    description: 'Übersetzt Texte mit DeepL, inklusive Grünen-Glossar.',
+  },
+  {
     key: 'image_edit',
     label: 'Bildbearbeitung',
     description: 'Bearbeitet ein vorhandenes Bild nach Anweisung.',
