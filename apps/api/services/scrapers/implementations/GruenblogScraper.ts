@@ -21,6 +21,7 @@ import {
   smartChunkDocument,
   buildEmbeddingTextsForChunks,
   structurePayload,
+  embeddingPayload,
 } from '../../document-services/index.js';
 import { mistralEmbeddingService } from '../../mistral/index.js';
 import { BaseScraper } from '../base/BaseScraper.js';
@@ -423,6 +424,7 @@ export class GruenblogScraper extends BaseScraper {
         chunk_index: index,
         chunk_text: chunkTexts[index],
         ...structurePayload(chunk),
+        ...embeddingPayload(),
         quality_score: chunkQualityService.calculateQualityScore(chunkTexts[index]),
         content_type: 'artikel',
         primary_category: content.primaryCategory,

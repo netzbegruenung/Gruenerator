@@ -9,6 +9,7 @@
  */
 
 import { chunkToNumericId } from '../../../database/services/QdrantService/utils.js';
+import { embeddingPayload } from '../embeddingProvenance.js';
 import { structurePayload } from '../structurePayload.js';
 
 import type {
@@ -61,6 +62,7 @@ export async function storeDocumentVectors(
       chunk_index: index,
       chunk_text: chunk.text,
       ...structurePayload(chunk),
+      ...embeddingPayload(),
       token_count: chunk.tokens || 0,
       source_type: metadata.sourceType || 'manual',
       wolke_share_link_id: metadata.wolkeShareLinkId || null,
