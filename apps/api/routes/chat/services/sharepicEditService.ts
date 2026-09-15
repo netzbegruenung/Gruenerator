@@ -642,6 +642,14 @@ export async function applySliderOpsToDeck(args: {
         }
       } catch (err) {
         log.warn(`[SliderDeck] Image selection failed for slide ${pageId}: ${err}`);
+        // Only half of the single-canvas treatment, and deliberately so:
+        // `appliedKinds` here holds the OUTER `edit-slide` op (the translator
+        // pushes it before this lookup runs), so there is no
+        // 'set-background-image' entry to drop. Dropping the right `edit-slide`
+        // would mean knowing whether its other sub-ops produced a patch, which
+        // the translator does not report per slide. Not worth changing the
+        // contracts shape while this function has no caller — deck editing is
+        // short-circuited below. Wire the deck path up and this needs finishing.
         rejected.push({ kind: 'set-background-image', reason: NO_BACKGROUND_IMAGE_REASON });
       }
     }
