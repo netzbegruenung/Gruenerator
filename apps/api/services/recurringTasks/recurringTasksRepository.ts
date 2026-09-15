@@ -45,6 +45,7 @@ export function toApiTask(row: RecurringTask): ApiRecurringTask {
     locale: row.locale,
     nextRunAt: row.next_run_at.toISOString(),
     lastRunAt: row.last_run_at ? row.last_run_at.toISOString() : null,
+    pausedReason: row.paused_reason ?? null,
     createdAt: row.created_at.toISOString(),
   };
 }
@@ -339,6 +340,42 @@ export async function finishRecurringTaskRun(params: {
       params.durationMs ?? null,
       params.verdict != null ? JSON.stringify(params.verdict) : null,
     ]
+  );
+}
+
+/**
+ * Zählt Fehlschläge in Folge und schaltet die Aufgabe nach `limit` ab.
+ * Gibt zurück, ob dieser Lauf die Abschaltung ausgelöst hat — der Runner
+ * benachrichtigt dann genau einmal.
+ */
+export async function bumpRecurringFailureCount(
+  taskId: string,
+  limit = 3
+): Promise<{ count: number; paused: boolean }> {
+  const rows = await db.query<{ consecutive_failure_count: number; enabled: boolean }>(
+    `UPDATE recurring_tasks
+        SET consecutive_failure_count = consecutive_failure_count + 1,
+            -- Abschalten im selben Schritt: zwei Anweisungen könnten sich
+            -- zwischen zwei Knoten überholen und zweimal benachrichtigen.
+            enabled = CASE WHEN consecutive_failure_count + 1 >= $2 THEN FALSE ELSE enabled END,
+            paused_reason = CASE
+              WHEN consecutive_failure_count + 1 >= $2 THEN 'auto_failures'
+              ELSE paused_reason END,
+            updated_at = now()
+      WHERE id = $1
+      RETURNING consecutive_failure_count, enabled`,
+    [taskId, limit]
+  );
+  const row = rows[0];
+  if (!row) return { count: 0, paused: false };
+  return { count: row.consecutive_failure_count, paused: row.consecutive_failure_count === limit };
+}
+
+/** Ein gelungener oder leerer Lauf beendet die Fehlerserie. */
+export async function resetRecurringFailureCount(taskId: string): Promise<void> {
+  await db.query(
+    `UPDATE recurring_tasks SET consecutive_failure_count = 0 WHERE id = $1 AND consecutive_failure_count <> 0`,
+    [taskId]
   );
 }
 

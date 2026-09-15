@@ -22,10 +22,12 @@ import {
   COMMENT_MODE,
   prepareAgentState,
 } from '../../../../services/boards/agentFlow/generate.js';
+import { withLangfuseTrace } from '../../../../services/telemetry/langfuseTelemetry.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { createNullSSE } from '../sseHelpers.js';
 
 import { streamAgenticResponse } from './agenticRespondService.js';
+import { CONFIRM_ACTION_GATED_TOOLS } from './approvalPolicy.js';
 import { DEFAULT_LOOP_BUDGET } from './types.js';
 
 import type { AgenticResponseOutcome } from './agenticRespondService.js';
@@ -41,6 +43,25 @@ const log = createLogger('HeadlessAgenticTurn');
  * `failed`, obwohl niemand gefragt war. Billiger als jede Reparatur ist, die
  * Frage vorher zu verhindern.
  */
+/**
+ * Werkzeuge, die im Hintergrund NICHT montiert werden.
+ *
+ * Die kartenbasierten Schreibzugriffe verweigern schon von selbst, wenn kein
+ * Thread da ist — die `confirm=true`-Zweischritte derselben Werkzeuge aber
+ * nicht: dort bestätigt das Modell seine eigene Absicht, und die Karte, die
+ * einen Menschen fragen würde, ginge an einen stummen Sink. Ein Hintergrundlauf
+ * darf deshalb gar nicht erst löschen oder teilen können. `memory` kommt dazu,
+ * weil es dauerhafte Notizen über die Person schreibt.
+ *
+ * Abgeleitet aus `CONFIRM_ACTION_GATED_TOOLS`, damit die beiden Mengen nicht
+ * auseinanderlaufen: was dort steht, fragt selbst nach — und genau das kann
+ * hier niemand beantworten.
+ */
+export const HEADLESS_WITHHELD_TOOLS: ReadonlySet<string> = new Set([
+  ...CONFIRM_ACTION_GATED_TOOLS,
+  'memory',
+]);
+
 const NO_QUESTIONS_MODE =
   '\n\nDu kannst in diesem Lauf keine Rückfragen stellen — es ist niemand da, der antworten könnte. Triff die naheliegendste Annahme, arbeite weiter und nenne die Annahmen am Anfang des Ergebnisses.';
 
@@ -103,6 +124,13 @@ export async function runHeadlessAgenticTurn(
     userId: p.userId,
   });
 
+  // Schreibende Werkzeuge abschalten, BEVOR der Katalog gebaut wird. Das Gate
+  // sitzt in `toolCatalog` auf `state.enabledTools[key] !== false`, also genügt
+  // die Zustandsänderung — kein zweiter Katalog-Pfad.
+  const withheld: Record<string, boolean> = {};
+  for (const key of HEADLESS_WITHHELD_TOOLS) withheld[key] = false;
+  finalState.enabledTools = { ...finalState.enabledTools, ...withheld };
+
   // `retrievalExpected` wie im Request-Pfad: der Prompt entsteht, bevor ein
   // Tool lief — eine Zitatzahl von 0 sagt hier nichts über die Antwort.
   const baseSystem = await deps.buildSystemMessage(finalState, { retrievalExpected: true });
@@ -130,20 +158,39 @@ export async function runHeadlessAgenticTurn(
   const searchToolKeys =
     p.restrictToAgentTools && agentToolKeys?.length ? agentToolKeys : undefined;
 
+  // Eigene Wurzel-Spanne: der Request-Pfad öffnet sie in `responseAgentic`, das
+  // hier übersprungen wird — ohne sie hängen die Generierungs-Spannen eines
+  // Hintergrundlaufs ohne Elternteil und ohne Ein-/Ausgabe in Langfuse.
   let outcome: AgenticResponseOutcome;
   try {
-    outcome = await deps.streamAgenticResponse({
-      finalState,
-      systemMessage,
-      messages,
-      requestId: p.slotLabel,
-      sse: createNullSSE(),
-      reqSignal: controller.signal,
-      threadId: null,
-      toolHistory: null,
-      disableMcp: true,
-      ...(searchToolKeys ? { searchToolKeys } : {}),
-    });
+    outcome = await withLangfuseTrace(
+      {
+        name: 'headless-turn',
+        userId: p.userId,
+        metadata: {
+          requestId: p.slotLabel,
+          ...(p.agentId ? { agentId: p.agentId } : {}),
+          attempt: p.feedback ? 'repair' : 'initial',
+        },
+        tags: ['headless'],
+      },
+      async (trace) => {
+        const res = await deps.streamAgenticResponse({
+          finalState,
+          systemMessage,
+          messages,
+          requestId: p.slotLabel,
+          sse: createNullSSE(),
+          reqSignal: controller.signal,
+          threadId: null,
+          toolHistory: null,
+          disableMcp: true,
+          ...(searchToolKeys ? { searchToolKeys } : {}),
+        });
+        trace.update({ input: p.instruction, output: res.fullText });
+        return res;
+      }
+    );
   } finally {
     clearTimeout(timer);
   }

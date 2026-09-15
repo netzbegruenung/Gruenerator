@@ -43,7 +43,9 @@ export function RecurringTaskCard({ task }: { task: RecurringTask }) {
             </h3>
             {!task.enabled && (
               <span className="rounded-full bg-hover-alt px-2 py-0.5 text-xs font-medium text-foreground-muted">
-                Pausiert
+                {/* „Automatisch" ist der Unterschied zwischen „ich habe sie
+                    angehalten" und „sie hat aufgegeben". */}
+                {task.pausedReason === 'auto_failures' ? 'Automatisch pausiert' : 'Pausiert'}
               </span>
             )}
           </div>

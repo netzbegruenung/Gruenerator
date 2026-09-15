@@ -39,6 +39,8 @@ export const recurringTaskSchema = z.object({
   locale: z.string(),
   nextRunAt: z.string(),
   lastRunAt: z.string().nullable(),
+  /** Gesetzt, wenn die Aufgabe sich selbst abgeschaltet hat (#3221). */
+  pausedReason: z.enum(['auto_failures']).nullable(),
   createdAt: z.string(),
 });
 export type RecurringTask = z.infer<typeof recurringTaskSchema>;
