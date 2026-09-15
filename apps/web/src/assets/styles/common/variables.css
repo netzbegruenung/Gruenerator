@@ -380,6 +380,7 @@
     --hover-color-alt: var(--dark-hover-overlay);
     --font-color: var(--neutral-600);
     --font-color-h: var(--neutral-600);
+    --font-color-green: var(--neutral-600);
     --font-color-h3: var(--neutral-600);
     --link-color: var(--neutral-600);
     --button-background-color: var(--secondary-600);
