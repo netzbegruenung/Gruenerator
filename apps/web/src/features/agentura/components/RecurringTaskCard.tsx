@@ -13,6 +13,7 @@ import {
   useRunRecurringTaskNow,
   useUpdateRecurringTask,
 } from '../../recurring-tasks/api';
+import { RunHistoryDisclosure } from '../../recurring-tasks/RunHistory';
 import { DELIVERY_LABEL, describeRecurrence } from '../../recurring-tasks/scheduleState';
 
 /** Grau wie {@link MarketCard} — die Kachel steht in derselben Rasterzeile. */
@@ -27,6 +28,9 @@ export function RecurringTaskCard({ task }: { task: RecurringTask }) {
     dateStyle: 'short',
     timeStyle: 'short',
   });
+  const lastRun = task.lastRunAt
+    ? new Date(task.lastRunAt).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })
+    : 'noch nie';
 
   return (
     <div className="group flex flex-col gap-sm rounded-lg border border-grey-200 bg-card p-md shadow-xs transition-all duration-300 ease-out hover:border-grey-300 hover:shadow-md dark:border-grey-700 dark:hover:border-grey-600">
@@ -76,7 +80,7 @@ export function RecurringTaskCard({ task }: { task: RecurringTask }) {
       <div className="border-t border-grey-100 pt-sm dark:border-grey-800">
         <p className="m-0 mb-sm text-xs text-foreground-muted">
           {describeRecurrence(task.recurrence)} · {DELIVERY_LABEL[task.delivery]} · Nächste:{' '}
-          {nextRun}
+          {nextRun} · Zuletzt: {lastRun}
         </p>
         <div className="flex flex-wrap gap-xs">
           <button
@@ -101,6 +105,7 @@ export function RecurringTaskCard({ task }: { task: RecurringTask }) {
             Jetzt ausführen
           </button>
         </div>
+        <RunHistoryDisclosure taskId={task.id} delivery={task.delivery} limit={3} />
       </div>
     </div>
   );

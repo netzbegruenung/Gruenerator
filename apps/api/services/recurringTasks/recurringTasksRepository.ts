@@ -49,7 +49,8 @@ export function toApiTask(row: RecurringTask): ApiRecurringTask {
   };
 }
 
-function toApiRun(row: RecurringTaskRun): ApiRecurringTaskRun {
+/** Exported for tests: pure row → wire mapping, no database needed. */
+export function toApiRun(row: RecurringTaskRun): ApiRecurringTaskRun {
   return {
     id: row.id,
     taskId: row.task_id,
@@ -57,6 +58,9 @@ function toApiRun(row: RecurringTaskRun): ApiRecurringTaskRun {
     resultsSummary: row.results_summary,
     resultUrl: row.result_url,
     error: row.error,
+    durationMs: row.duration_ms,
+    // Written since #3221, so every row older than that carries null.
+    verdict: row.verdict ?? null,
     createdAt: row.created_at.toISOString(),
   };
 }
