@@ -167,12 +167,20 @@ export async function updateRecurringTask(
             timezone = $7,
             locale = $8,
             enabled = $9,
-            -- Wer eine Aufgabe wieder aktiviert, startet mit sauberer Weste.
+            -- Wer eine Aufgabe wieder AKTIVIERT, startet mit sauberer Weste.
             -- Ohne das bliebe der Zähler auf 3 stehen: der nächste einzelne
             -- Fehlschlag schaltete sie wieder ab (statt nach dreien), und das
             -- Banner „automatisch angehalten" verschwände nie wieder.
-            consecutive_failure_count = CASE WHEN $9 THEN 0 ELSE consecutive_failure_count END,
-            paused_reason = CASE WHEN $9 THEN NULL ELSE paused_reason END,
+            --
+            -- Das AND NOT enabled ist der Übergang aus→an: rechts vom
+            -- Gleichheitszeichen liefert die Spalte den ALTEN Wert. Ohne diese
+            -- Bedingung setzte JEDE Änderung an einer laufenden Aufgabe den
+            -- Zähler zurück — ein über den Chat umbenannter Titel, der das
+            -- Enabled-Flag gar nicht anfasst, löschte die Fehlerserie und
+            -- hebelte damit die Drei-Schläge-Regel aus.
+            consecutive_failure_count =
+              CASE WHEN $9 AND NOT enabled THEN 0 ELSE consecutive_failure_count END,
+            paused_reason = CASE WHEN $9 AND NOT enabled THEN NULL ELSE paused_reason END,
             rrule = $10,
             next_run_at = $11,
             email_notify = $12,
