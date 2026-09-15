@@ -13,6 +13,10 @@ import { type ChatIntentId, isGroundableProse } from '@gruenerator/shared/chat-i
 import { roleAwareDefaultRecipeMention } from '../../../../routes/chat/agents/lvRecipePreference.js';
 import { looksLikeChitchatTurn } from '../../../../routes/chat/services/agenticLoop/routing.js';
 import {
+  type ImageVisibility,
+  imageVisibility,
+} from '../../../../routes/chat/services/imageVisibility.js';
+import {
   extractTextContent,
   fairShare,
   getRetrievalBudget,
@@ -543,6 +547,22 @@ ${embedUntrusted('anhang', limitedContext)}`;
 }
 
 /**
+ * Was dem Modell über die angehängten Bilder gesagt wird — je Grund ein Satz.
+ * „Nicht sichtbar“ steht nie ohne Grund da: ohne ihn liest es sich wie ein
+ * Fehler, und das Modell rät den Inhalt dann doch.
+ */
+const VISIBILITY_SENTENCE: Record<ImageVisibility, string> = {
+  visible: 'Die Bilder sind in der Nachricht sichtbar.',
+  // Unerreichbar — der Block unten steht hinter der Leerprüfung. Der Typ
+  // verlangt den Fall, und ein leerer Satz wäre die stillere Lüge.
+  none: 'Die Bilder sind NICHT in der Nachricht sichtbar.',
+  vision_off:
+    'Die Bildanalyse ist für diesen Grünerator ausgeschaltet — die Bilder sind NICHT in der Nachricht sichtbar. Sage das offen und rate den Inhalt nicht.',
+  image_edit_descriptions:
+    'Die Bilder sind NICHT in der Nachricht sichtbar — du arbeitest mit den Beschreibungen unter BILDVERGLEICH. Rate nichts, was dort nicht steht.',
+};
+
+/**
  * Format image attachment context for the system message.
  * Instructs the model to acknowledge and describe the attached images.
  */
@@ -552,19 +572,17 @@ function formatImageContext(state: ChatGraphState): string {
   if (state.imageAttachments && state.imageAttachments.length > 0) {
     const count = state.imageAttachments.length;
     const names = state.imageAttachments.map((img) => img.name).join(', ');
-    // Ob die Bytes wirklich in der Nachricht stehen, entscheidet `vision`:
-    // responseSinglePass injiziert sie sonst nicht (#3307). Ohne diesen Zweig
-    // behauptete der Prompt eine Sichtbarkeit, die es dann nicht gibt — und ein
-    // Modell, dem man sagt, es sehe ein Bild, beschreibt es auch.
-    const visionAllowed = state.enabledTools?.['vision'] !== false;
+    // Ob die Bytes wirklich in der Nachricht stehen, beantwortet EINE Stelle
+    // für alle Antwortpfade (#3307, #3313). Vorher entschied das hier ein
+    // eigener Ausdruck, und der Bearbeitungs- wie der Wiederaufnahme-Pfad
+    // widersprachen ihm — ein Modell, dem man sagt, es sehe ein Bild, das ihm
+    // niemand gegeben hat, beschreibt es trotzdem.
     sections.push(`
 
 ## ANGEHÄNGTE BILDER
 
 Der*die Nutzer*in hat ${count} Bild${count > 1 ? 'er' : ''} angehängt (${names}). ${
-      visionAllowed
-        ? 'Die Bilder sind in der Nachricht sichtbar.'
-        : 'Die Bildanalyse ist für diesen Grünerator ausgeschaltet — die Bilder sind NICHT in der Nachricht sichtbar. Sage das offen und rate den Inhalt nicht.'
+      VISIBILITY_SENTENCE[imageVisibility(state)]
     }`);
   }
 

@@ -782,4 +782,24 @@ describe('formatImageContext — die Sichtbarkeitszusage folgt dem vision-Schalt
     expect(out).toContain('NICHT in der Nachricht sichtbar');
     expect(out).not.toContain('Die Bilder sind in der Nachricht sichtbar');
   });
+
+  it('verspricht bei image_edit keine Sichtbarkeit, sondern nennt BILDVERGLEICH', async () => {
+    // Der Einzeldurchlauf lässt die Bytes hier bewusst draußen — das Modell
+    // erzählt aus den Beschreibungen. Der Prompt behauptete trotzdem das
+    // Gegenteil, auf dem häufigsten Bild-Zug überhaupt (#3313).
+    const out = await buildSystemMessage(
+      makeState({
+        intent: 'image_edit',
+        searchResults: [],
+        citations: [],
+        agentConfig: { identifier: 'gruenerator-universal' },
+        enabledTools: {},
+        imageAttachments: [{ name: 'plakat.png', type: 'image/png', data: 'AAAA' }],
+      } as unknown as Partial<ChatGraphState>)
+    );
+    expect(out).toContain('plakat.png');
+    expect(out).toContain('NICHT in der Nachricht sichtbar');
+    expect(out).toContain('BILDVERGLEICH');
+    expect(out).not.toContain('Die Bilder sind in der Nachricht sichtbar.');
+  });
 });
