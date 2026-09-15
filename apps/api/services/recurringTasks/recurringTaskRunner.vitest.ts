@@ -59,6 +59,7 @@ function turn(overrides: Partial<HeadlessTurnResult> = {}): HeadlessTurnResult {
   return {
     text: '# Bericht\n\nAlles gut.',
     degraded: 'none',
+    degradedReason: null,
     steps: [],
     citations: [],
     sources: [],
@@ -118,6 +119,27 @@ describe('runRecurringTask — Mapping degraded→Pfad', () => {
       expect.objectContaining({ status: 'failed', error: expect.stringContaining('aborted') })
     );
     expect(notify).toHaveBeenCalledWith(expect.objectContaining({ type: 'agent_task_failed' }));
+  });
+
+  it('schreibt den Klartext-Grund in den Verlauf statt „degraded: failed"', async () => {
+    const deps = makeDeps({
+      turns: [
+        turn({
+          degraded: 'failed',
+          text: '',
+          degradedReason:
+            'Der Agent brauchte eine Rückfrage: „Welcher Kreisverband?" — formuliere die Anweisung eindeutiger.',
+        }),
+      ],
+    });
+    await runRecurringTask(task(), deps);
+
+    expect(recordRun).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'failed',
+        error: expect.stringContaining('Welcher Kreisverband?'),
+      })
+    );
   });
 
   it('none → verifizieren, liefern, Verdikt im Run-Protokoll', async () => {

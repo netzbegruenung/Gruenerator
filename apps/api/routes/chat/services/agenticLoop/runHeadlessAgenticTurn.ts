@@ -35,6 +35,15 @@ import type { ModelMessage } from 'ai';
 
 const log = createLogger('HeadlessAgenticTurn');
 
+/**
+ * Ohne Thread ist `ask_human` gar nicht montiert, aber das Modell weiss das
+ * nicht und formuliert die Rückfrage trotzdem — der Lauf endet dann als
+ * `failed`, obwohl niemand gefragt war. Billiger als jede Reparatur ist, die
+ * Frage vorher zu verhindern.
+ */
+const NO_QUESTIONS_MODE =
+  '\n\nDu kannst in diesem Lauf keine Rückfragen stellen — es ist niemand da, der antworten könnte. Triff die naheliegendste Annahme, arbeite weiter und nenne die Annahmen am Anfang des Ergebnisses.';
+
 export interface HeadlessTurnParams {
   instruction: string;
   userId: string;
@@ -61,6 +70,12 @@ export interface HeadlessTurnResult {
   /** 'none' ⇒ echte Antwort. Alles andere ist Ersatztext des Nie-Werfen-
    *  Vertrags und darf NICHT als Ergebnis abgelegt werden. */
   degraded: 'none' | 'no_answer' | 'aborted' | 'failed';
+  /**
+   * Klartext-Grund, wo es einen gibt — wandert in `recurring_task_runs.error`
+   * und damit in den Verlauf. Ohne ihn stand dort „agentic turn degraded:
+   * failed", und die Rückfrage, an der der Lauf scheiterte, kannte nur das Log.
+   */
+  degradedReason: string | null;
   steps: PersistedStep[];
   citations: Citation[];
   sources: SearchResult[];
@@ -91,7 +106,7 @@ export async function runHeadlessAgenticTurn(
   // `retrievalExpected` wie im Request-Pfad: der Prompt entsteht, bevor ein
   // Tool lief — eine Zitatzahl von 0 sagt hier nichts über die Antwort.
   const baseSystem = await deps.buildSystemMessage(finalState, { retrievalExpected: true });
-  const systemMessage = `${baseSystem}${p.longForm ? DOCUMENT_MODE : COMMENT_MODE}`;
+  const systemMessage = `${baseSystem}${p.longForm ? DOCUMENT_MODE : COMMENT_MODE}${NO_QUESTIONS_MODE}`;
 
   const messages: ModelMessage[] = [{ role: 'user', content: p.instruction }];
   if (p.feedback) {
@@ -144,6 +159,9 @@ export async function runHeadlessAgenticTurn(
     return {
       text: '',
       degraded: 'failed',
+      degradedReason: `Der Agent wollte eine Werkzeug-Freigabe (${outcome.pendingApproval
+        .map((c) => c.toolName)
+        .join(', ')}) — im Hintergrund kann niemand zustimmen.`,
       steps: outcome.steps,
       citations: outcome.citations,
       sources: outcome.sources,
@@ -161,6 +179,7 @@ export async function runHeadlessAgenticTurn(
     return {
       text: '',
       degraded: 'failed',
+      degradedReason: `Der Agent brauchte eine Rückfrage: „${outcome.pendingAsk.question}" — formuliere die Anweisung eindeutiger.`,
       steps: outcome.steps,
       citations: outcome.citations,
       sources: outcome.sources,
@@ -171,6 +190,7 @@ export async function runHeadlessAgenticTurn(
   return {
     text: outcome.fullText.trim(),
     degraded: outcome.degraded ?? 'none',
+    degradedReason: null,
     steps: outcome.steps,
     citations: outcome.citations,
     sources: outcome.sources,
