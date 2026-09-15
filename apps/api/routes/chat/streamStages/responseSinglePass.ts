@@ -9,6 +9,7 @@
 
 import { buildSystemMessage } from '../../../agents/langgraph/ChatGraph/index.js';
 import { knownArtifactRefs } from '../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
+import { looksLikeMemoryRequest } from '../../../services/memory/memoryRequest.js';
 import {
   BOTH_LANES_FAILED,
   buildAiTelemetry,
@@ -38,7 +39,6 @@ import {
 import { PROGRESS_MESSAGES, type SSEWriter } from '../services/sseHelpers.js';
 import { persistSourcesOnFailure } from '../services/threadPersistenceService.js';
 import { turnMaterialChars } from '../services/turnMaterial.js';
-import { looksLikeMemoryRequest } from '../../../services/memory/memoryRequest.js';
 
 import { type SharepicRefinement } from './earlyHandlerStage.js';
 import { type BuildTurnTrace } from './responseAgentic.js';
@@ -231,7 +231,13 @@ export async function runSinglePassAnswer({
     // would put bytes in front of a non-vision model (since we no longer
     // force-switch above) and create a redundant grounding source for vision
     // models — skip injection so the descriptions are the single source.
-    if (finalState.intent !== 'image_edit') {
+    //
+    // `vision` ("Bildanalyse") is the picker key for letting the model SEE an
+    // uploaded image, and this injection is the only place the bytes reach it —
+    // so this is where that checkbox becomes a gate (#3307). The prompt follows
+    // suit: `formatImageContext` stops claiming the images are visible, because
+    // a model told it can see an image it was never handed describes it anyway.
+    if (finalState.intent !== 'image_edit' && enabledTools?.['vision'] !== false) {
       messagesForAI = injectImageAttachments(
         messagesForAI as Parameters<typeof injectImageAttachments>[0],
         imageAttachments,
