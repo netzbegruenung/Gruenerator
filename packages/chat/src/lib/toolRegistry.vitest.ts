@@ -327,6 +327,27 @@ describe('loop-catalog tool parsers', () => {
     }
   });
 
+  it('vertonen names the file and its length, not the whole text', () => {
+    const vm = resolveToolEntry('vertonen').parse(
+      { text: 'Ein langer Text, der gesprochen wurde.' },
+      { ok: true, fileName: 'ansage.mp3', laenge: '1:23 Minuten' }
+    );
+    expect(vm.kind).toBe('text-note');
+    if (vm.kind === 'text-note') {
+      expect(vm.text).toContain('ansage.mp3');
+      expect(vm.text).toContain('1:23 Minuten');
+    }
+  });
+
+  it('vertonen shows the quota message instead of a success line', () => {
+    const vm = resolveToolEntry('vertonen').parse(
+      {},
+      { error: 'Das tägliche Kontingent ist aufgebraucht.' }
+    );
+    expect(vm.kind).toBe('text-note');
+    if (vm.kind === 'text-note') expect(vm.text).toContain('Kontingent');
+  });
+
   it('create_board names the board — it has no second surface', () => {
     const vm = resolveToolEntry('create_board').parse(
       {},
