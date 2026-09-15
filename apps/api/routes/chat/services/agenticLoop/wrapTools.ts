@@ -260,6 +260,11 @@ function summarize(result: unknown): string | undefined {
     return `${r.connectionCount} Verbindung${r.connectionCount === 1 ? '' : 'en'}`;
   }
   if (typeof r.entryCount === 'number') return `${r.entryCount} Einträge`;
+  // `text_uebersetzen`: Zielsprache und die bezahlten Zeichen sind das, was
+  // man in der Logzeile wissen will.
+  if (typeof r.uebersetzung === 'string' && typeof r.zielsprache === 'string') {
+    return `Übersetzung nach ${r.zielsprache}${typeof r.zeichen === 'number' ? ` (${r.zeichen} Zeichen)` : ''}`;
+  }
   // `notebooks`: search liefert Antwort + Zitate, get ein Detailobjekt, die
   // Karten-Aktionen eine Bestätigungsanfrage — alle drei sagten sonst nur „ok".
   if (typeof r.answer === 'string' && typeof r.resultCount === 'number') {

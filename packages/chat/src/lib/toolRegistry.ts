@@ -58,6 +58,7 @@ export const UI_TOOL_NAMES = z.enum([
   'read_pdf_form',
   'fill_pdf_form',
   'cloud_files',
+  'text_uebersetzen',
   'recurring_tasks',
   'user_agents',
   'recipes',
@@ -207,6 +208,16 @@ function parsePdfFormFillVM(args: unknown, result: unknown): ToolResultVM {
     kind: 'text-note',
     text: `${filled} Feld(er) in „${fileName}" ausgefüllt.${skipNote}`,
   };
+}
+
+// text_uebersetzen: the card IS the translation — the model repeats it in
+// the answer, but the card lets the person copy the untouched DeepL output.
+function parseTranslationVM(args: unknown, result: unknown): ToolResultVM {
+  const error = getString(result, 'error');
+  if (error) return { kind: 'text-note', text: error };
+  const text = getString(result, 'uebersetzung');
+  if (!text) return parseGenericFallback(args, result);
+  return { kind: 'text-note', text };
 }
 
 function parseTextNoteVM(args: unknown, result: unknown): ToolResultVM {
@@ -701,6 +712,7 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   // card only reports what happened.
   fill_pdf_form: entry('fill_pdf_form', 'text-note', parsePdfFormFillVM),
   cloud_files: entry('cloud_files', 'key-value', parseCloudFilesVM),
+  text_uebersetzen: entry('text_uebersetzen', 'text-note', parseTranslationVM),
   recurring_tasks: entry('recurring_tasks', 'citations', parseRecurringTasksVM),
   user_agents: entry('user_agents', 'citations', parseUserAgentsVM),
   recipes: entry('recipes', 'citations', parseRecipesVM),

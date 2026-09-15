@@ -32,6 +32,13 @@ vi.mock('./searchTools.js', async (importOriginal) => ({
     .agentAllowsWebSearch,
 }));
 
+// DeepL is a paid, key-gated door: the catalog must only carry the tool when
+// a service exists. Toggled per test, never a real client.
+const deeplConfigured = vi.hoisted(() => ({ current: false }));
+vi.mock('../../../services/translation/DeepLService.js', () => ({
+  getDeepLService: () => (deeplConfigured.current ? {} : null),
+}));
+
 const validateUrlForFetch = vi.fn<(u: string) => Promise<unknown>>();
 const crawlAndDistill = vi.fn<(s: unknown, q: unknown, o: unknown) => Promise<unknown>>();
 vi.mock('../../../utils/validation/urlSecurity.js', () => ({
@@ -197,6 +204,28 @@ describe('toolCatalog domain tool mounting', () => {
     expect(catalogFor('agentic', 'Mach ein Plakat für die Demo').toolNames).toContain(
       'generate_image'
     );
+  });
+
+  it('mounts text_uebersetzen only with a DeepL key, and respects the agent opt-out', () => {
+    deeplConfigured.current = false;
+    expect(catalogFor('search').toolNames).not.toContain('text_uebersetzen');
+
+    deeplConfigured.current = true;
+    expect(catalogFor('search').toolNames).toContain('text_uebersetzen');
+    expect(catalogFor('direct').toolNames).toContain('text_uebersetzen');
+
+    const sourceRegistry = createSourceRegistry();
+    const sse = { send: () => {} } as unknown as NonNullable<
+      Parameters<typeof buildChatToolCatalog>[0]['loop']
+    >['sse'];
+    const state = {
+      intent: 'search',
+      enabledTools: { text_uebersetzen: false },
+    } as unknown as ChatGraphState;
+    expect(
+      buildChatToolCatalog({ agentConfig, sourceRegistry, loop: { sse, state } }).toolNames
+    ).not.toContain('text_uebersetzen');
+    deeplConfigured.current = false;
   });
 
   it('mounts no domain tools without a loop context (unit-test / non-loop path)', () => {

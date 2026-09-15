@@ -211,6 +211,9 @@ export const TOOL_TIMEOUT_OVERRIDES_MS: Record<string, number> = {
  */
 export const NEAR_DUPLICATE_EXEMPT_TOOLS: ReadonlySet<string> = new Set([
   'create_board',
+  // Zwei Absätze desselben Flyers teilen sich fast jedes Token — jeder Aufruf
+  // ist trotzdem eine eigene, bezahlte Übersetzung.
+  'text_uebersetzen',
   'boards_tasks',
   'documents',
   'read_artifact',
