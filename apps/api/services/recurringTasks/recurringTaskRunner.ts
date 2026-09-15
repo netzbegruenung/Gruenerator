@@ -89,7 +89,9 @@ export async function runRecurringTask(
     // Ersatztext des Nie-Werfen-Vertrags ist KEIN Ergebnis. 'aborted'/'failed'
     // gehen in den bestehenden Catch (wie früher ein Timeout des alten Kerns).
     if (turn.degraded === 'aborted' || turn.degraded === 'failed') {
-      throw new Error(`agentic turn degraded: ${turn.degraded}`);
+      // Der Klartext-Grund landet im Verlauf. „agentic turn degraded: failed"
+      // sagt der Person nicht, dass ihr Agent eine Rückfrage stellen wollte.
+      throw new Error(turn.degradedReason ?? `agentic turn degraded: ${turn.degraded}`);
     }
     content = turn.degraded === 'no_answer' ? '' : turn.text;
 

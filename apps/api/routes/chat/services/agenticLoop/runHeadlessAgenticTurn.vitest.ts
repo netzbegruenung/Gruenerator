@@ -73,6 +73,9 @@ describe('runHeadlessAgenticTurn', () => {
     expect((call.sse as { isEnded: () => boolean }).isEnded()).toBe(false);
     expect(call.requestId).toBe('recurring-task-t1');
     expect(call.systemMessage).toContain('DOKUMENT-MODUS');
+    // Ohne Thread ist `ask_human` nicht montiert — das Modell muss das WISSEN,
+    // sonst formuliert es die Rückfrage trotzdem und der Lauf endet als failed.
+    expect(call.systemMessage).toContain('keine Rückfragen stellen');
 
     expect(result.degraded).toBe('none');
     expect(result.text).toBe('Ergebnis mit Quellen.');
@@ -105,6 +108,25 @@ describe('runHeadlessAgenticTurn', () => {
     const result = await runHeadlessAgenticTurn(baseParams, deps);
     expect(result.degraded).toBe('failed');
     expect(result.text).toBe('');
+    expect(result.degradedReason).toContain('Freigabe');
+  });
+
+  it('nennt die Rückfrage im Grund — sonst kennt sie nur das Log', async () => {
+    const { deps } = makeDeps({
+      outcome: outcome({
+        pendingAsk: { toolCallId: 'c1', question: 'Welcher Kreisverband?' },
+      }),
+    });
+    const result = await runHeadlessAgenticTurn(baseParams, deps);
+
+    expect(result.degraded).toBe('failed');
+    expect(result.text).toBe('');
+    expect(result.degradedReason).toContain('Welcher Kreisverband?');
+  });
+
+  it('lässt den Grund leer, wenn der Zug durchlief', async () => {
+    const { deps } = makeDeps({});
+    expect((await runHeadlessAgenticTurn(baseParams, deps)).degradedReason).toBeNull();
   });
 
   it('beschränkt die Suchfamilie nur bei gebundenem Agenten mit Picker-Auswahl', async () => {
