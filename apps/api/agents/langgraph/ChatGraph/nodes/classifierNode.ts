@@ -19,6 +19,7 @@
 import { type ChatIntentId, degradeTargetForLocale } from '@gruenerator/shared/chat-intents';
 import { isCloudShareUrl } from '@gruenerator/shared/utils';
 
+import { agentAllowsTool } from '../../../../routes/chat/agents/agentToolWhitelist.js';
 import { isAgenticLoopEnabled } from '../../../../routes/chat/services/agenticLoop/flags.js';
 import {
   looksLikeSelfContainedTurn,
@@ -234,11 +235,10 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
   // verb "zusammenfassen".
   // Agent must allow scraping (whitelist holds 'scrape'; one agent uses the tool
   // name 'scrape_url') and the user must not have toggled it off in the composer.
-  const scrapeWhitelist = state.agentConfig?.enabledTools;
-  const agentAllowsScrape =
-    !scrapeWhitelist ||
-    scrapeWhitelist.includes('scrape') ||
-    scrapeWhitelist.includes('scrape_url');
+  const agentAllowsScrape = agentAllowsTool(
+    { enabledTools: state.agentConfig?.enabledTools },
+    'scrape'
+  );
   const scrapeEnabled = agentAllowsScrape && state.enabledTools?.['scrape'] !== false;
   // @link-attached URLs are explicit user intent — union them with auto-detected
   // ones (deduped, attached first so they rank highest in scrape_url).

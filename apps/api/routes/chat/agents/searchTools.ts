@@ -17,6 +17,7 @@ import { normalizeDomainList } from '../../../services/search/domainFilters.js';
 import { createDeepTierBudget, SEARCH_TIERS } from '../../../services/search/searchDepth.js';
 import { createLogger } from '../../../utils/logger.js';
 
+import { agentAllowsTool } from './agentToolWhitelist.js';
 import {
   deduplicateByUrl,
   executeDirectSearch,
@@ -390,9 +391,8 @@ async function searchCollectionOrBundle(params: {
  * `gruenerator_search` and the example corpora mounted.
  */
 export function agentAllowsWebSearch(agentConfig: Pick<AgentConfig, 'enabledTools'>): boolean {
-  const declared = agentConfig.enabledTools;
-  if (!declared) return true;
-  return declared.some((key) => key === 'web' || key === 'research' || key === 'web_search');
+  // One reading of the array for every gate — see agentToolWhitelist.ts.
+  return agentAllowsTool(agentConfig, 'web');
 }
 
 export function createSearchTools(
