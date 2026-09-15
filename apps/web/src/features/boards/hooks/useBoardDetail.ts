@@ -1,4 +1,4 @@
-import { getContractsClient } from '@gruenerator/shared/api';
+import { apiErrorFromResponse, getContractsClient } from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
 
 /**
@@ -12,7 +12,7 @@ export function useBoardDetail(id: string | undefined) {
       const client = getContractsClient();
       const result = await client.boards.getBoard({ params: { id: id! } });
       if (result.status !== 200) {
-        throw new Error(`Failed to load board (HTTP ${result.status})`);
+        throw apiErrorFromResponse(result, 'Failed to load board');
       }
       return result.body;
     },

@@ -5,7 +5,7 @@
  * Throws on non-2xx so TanStack Query surfaces them as errors.
  */
 
-import { getContractsClient } from '@gruenerator/shared/api';
+import { apiErrorFromResponse, getContractsClient } from '@gruenerator/shared/api';
 
 export async function fetchAdminVorlagen(status = 'pending_review') {
   const client = getContractsClient();
@@ -13,7 +13,7 @@ export async function fetchAdminVorlagen(status = 'pending_review') {
     query: { status },
   });
   if (result.status !== 200) {
-    throw new Error(`Failed to fetch admin vorlagen (HTTP ${result.status})`);
+    throw apiErrorFromResponse(result, 'Failed to fetch admin vorlagen');
   }
   return result.body.data;
 }
@@ -22,7 +22,7 @@ export async function fetchVorlagenStats() {
   const client = getContractsClient();
   const result = await client.adminVorlagen.getStats();
   if (result.status !== 200) {
-    throw new Error(`Failed to fetch vorlagen stats (HTTP ${result.status})`);
+    throw apiErrorFromResponse(result, 'Failed to fetch vorlagen stats');
   }
   return result.body.data;
 }
@@ -34,7 +34,7 @@ export async function approveVorlage(id: string, message?: string): Promise<void
     body: { message: message ?? null },
   });
   if (result.status !== 200) {
-    throw new Error(`Failed to approve vorlage (HTTP ${result.status})`);
+    throw apiErrorFromResponse(result, 'Failed to approve vorlage');
   }
 }
 
@@ -45,6 +45,6 @@ export async function rejectVorlage(id: string, reason?: string): Promise<void> 
     body: { reason: reason ?? null },
   });
   if (result.status !== 200) {
-    throw new Error(`Failed to reject vorlage (HTTP ${result.status})`);
+    throw apiErrorFromResponse(result, 'Failed to reject vorlage');
   }
 }

@@ -1,4 +1,4 @@
-import { getContractsClient } from '@gruenerator/shared/api';
+import { apiErrorFromResponse, getContractsClient } from '@gruenerator/shared/api';
 
 import { uploadBlobToMediaLibrary } from '../services/mediaUploadService';
 
@@ -29,7 +29,7 @@ export async function mintCanvasFromImage(imageDataUrl: string, title: string): 
   });
 
   if (result.status !== 201) {
-    throw new Error(`Canvas konnte nicht erstellt werden (HTTP ${result.status}).`);
+    throw apiErrorFromResponse(result, 'Canvas konnte nicht erstellt werden.');
   }
   return result.body.id;
 }

@@ -3,13 +3,13 @@
  * Hauptgrünerator-Super-Admin's Landesverband master data + LV-admin
  * assignment endpoints.
  */
-import { getContractsClient } from '@gruenerator/shared/api';
+import { apiErrorFromResponse, getContractsClient } from '@gruenerator/shared/api';
 
 export async function fetchLandesverbaende() {
   const client = getContractsClient();
   const result = await client.lvAdminAssignment.list();
   if (result.status !== 200) {
-    throw new Error(`Failed to fetch Landesverbände (HTTP ${result.status})`);
+    throw apiErrorFromResponse(result, 'Failed to fetch Landesverbände');
   }
   return result.body.data;
 }
@@ -18,7 +18,7 @@ export async function fetchLandesverbandAdmins(landesverbandId: string) {
   const client = getContractsClient();
   const result = await client.lvAdminAssignment.listAdmins({ params: { landesverbandId } });
   if (result.status !== 200) {
-    throw new Error(`Failed to fetch Landesverband admins (HTTP ${result.status})`);
+    throw apiErrorFromResponse(result, 'Failed to fetch Landesverband admins');
   }
   return result.body.data;
 }
@@ -33,7 +33,7 @@ export async function assignLandesverbandAdmin(
     body: { email },
   });
   if (result.status !== 200) {
-    throw new Error(`Failed to assign Landesverband admin (HTTP ${result.status})`);
+    throw apiErrorFromResponse(result, 'Failed to assign Landesverband admin');
   }
 }
 
@@ -47,7 +47,7 @@ export async function revokeLandesverbandAdmin(
     body: {},
   });
   if (result.status !== 200) {
-    throw new Error(`Failed to revoke Landesverband admin (HTTP ${result.status})`);
+    throw apiErrorFromResponse(result, 'Failed to revoke Landesverband admin');
   }
 }
 
@@ -55,7 +55,7 @@ export async function searchAdminUsers(search: string) {
   const client = getContractsClient();
   const result = await client.lvAdminAssignment.searchUsers({ query: { search } });
   if (result.status !== 200) {
-    throw new Error(`Failed to search users (HTTP ${result.status})`);
+    throw apiErrorFromResponse(result, 'Failed to search users');
   }
   return result.body.data;
 }

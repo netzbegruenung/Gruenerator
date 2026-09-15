@@ -3,7 +3,7 @@ import {
   type DocumentStatusValue,
   type UploadOnlyResponse,
 } from '@gruenerator/contracts';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { apiErrorFromResponse, getContractsClient } from '@gruenerator/shared/api';
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 
@@ -723,7 +723,7 @@ export const useDocumentsStore = create<DocumentsStore>()(
             params: { id: documentId },
           });
           if (res.status !== 200) {
-            throw new Error('Failed to refresh document');
+            throw apiErrorFromResponse(res, 'Failed to refresh document');
           }
           // The contract types the row with honest wire types (string status,
           // nullable filename/created_at/page_count) that are wider than this

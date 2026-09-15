@@ -6,7 +6,7 @@ import {
 } from '@gruenerator/canvas-editor';
 import { PresenceAvatars, useCollaborators } from '@gruenerator/collab';
 import { type CanvasDocument } from '@gruenerator/contracts';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { apiErrorFromResponse, getContractsClient } from '@gruenerator/shared/api';
 import { EditableTitle } from '@gruenerator/shared/components/EditableTitle';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
@@ -44,7 +44,7 @@ function CollabCanvasStudioContent() {
     queryFn: async () => {
       const result = await getContractsClient().canvas.get({ params: { id: id! } });
       if (result.status !== 200) {
-        throw new Error(`Failed to load canvas (HTTP ${result.status})`);
+        throw apiErrorFromResponse(result, 'Failed to load canvas');
       }
       return result.body;
     },
@@ -78,7 +78,7 @@ function CollabCanvasStudioContent() {
           body: { title: newTitle },
         });
         if (result.status !== 200) {
-          throw new Error(`PATCH returned HTTP ${result.status}`);
+          throw apiErrorFromResponse(result, `PATCH returned HTTP ${result.status}`);
         }
       } catch (err) {
         console.error('[canvas-rename] PATCH failed, reverting', err);

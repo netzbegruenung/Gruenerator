@@ -1,4 +1,4 @@
-import { getContractsClient } from '@gruenerator/shared/api';
+import { apiErrorFromResponse, getContractsClient } from '@gruenerator/shared/api';
 import {
   getRobotAvatarPath,
   validateRobotId,
@@ -318,7 +318,7 @@ export const profileApiService = {
 
     const res = await getContractsClient().userProfile.updateProfile({ body });
     if (res.status !== 200) {
-      throw new Error(`Profil-Update fehlgeschlagen (HTTP ${res.status})`);
+      throw apiErrorFromResponse(res, 'Profil-Update fehlgeschlagen');
     }
 
     return res.body.profile;
@@ -331,7 +331,7 @@ export const profileApiService = {
       });
 
       if (res.status !== 200) {
-        throw new Error(`Avatar-Update fehlgeschlagen (HTTP ${res.status})`);
+        throw apiErrorFromResponse(res, 'Avatar-Update fehlgeschlagen');
       }
 
       return res.body.profile;
@@ -519,7 +519,7 @@ export const profileApiService = {
     });
 
     if (response.status !== 200) {
-      throw new Error('Failed to delete Q&A collection');
+      throw apiErrorFromResponse(response, 'Failed to delete Q&A collection');
     }
 
     return { success: response.body.success, message: response.body.message };
@@ -598,7 +598,7 @@ export const profileApiService = {
     });
 
     if (response.status !== 200) {
-      throw new Error('Failed to update template title');
+      throw apiErrorFromResponse(response, 'Failed to update template title');
     }
 
     return { success: response.body.success, message: response.body.message };
@@ -610,7 +610,7 @@ export const profileApiService = {
     });
 
     if (response.status !== 200) {
-      throw new Error('Failed to delete template');
+      throw apiErrorFromResponse(response, 'Failed to delete template');
     }
 
     return { success: response.body.success, message: response.body.message };
@@ -633,7 +633,7 @@ export const profileApiService = {
     });
 
     if (response.status !== 200) {
-      throw new Error('Failed to update template visibility');
+      throw apiErrorFromResponse(response, 'Failed to update template visibility');
     }
 
     return { success: response.body.success, message: response.body.message };
@@ -649,7 +649,7 @@ export const profileApiService = {
     });
 
     if (response.status !== 200) {
-      throw new Error('Failed to update template');
+      throw apiErrorFromResponse(response, 'Failed to update template');
     }
 
     return { success: response.body.success, message: response.body.message };

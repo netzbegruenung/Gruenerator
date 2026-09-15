@@ -5,7 +5,7 @@ import {
   type SharepicVariant,
 } from '@gruenerator/chat';
 import { type RoleRef } from '@gruenerator/contracts';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { apiErrorFromResponse, getContractsClient } from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -228,7 +228,7 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
                 variantId: variant.id,
               },
             });
-            if (res.status !== 201) throw new Error(`mint failed (HTTP ${res.status})`);
+            if (res.status !== 201) throw apiErrorFromResponse(res, 'mint failed');
             const { canvasId } = res.body;
             const studioUrl = `/studio/canvas/${canvasId}`;
             // No store stamp needed: the mint is idempotent on the (thread,
