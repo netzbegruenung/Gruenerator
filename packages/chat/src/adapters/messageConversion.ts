@@ -1,4 +1,5 @@
 import { TOOL_APPROVAL_OPTIONS } from '../lib/toolApproval';
+import { buildToolDerivedCustom } from '../lib/toolDerivedCustom';
 import { INTENT_TO_TOOL } from '../lib/toolMappings';
 
 type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
@@ -233,6 +234,7 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): Converted
       // next thread switch, silently and only on mobile.
       if (m.metadata?.searchImages) custom.searchImages = m.metadata.searchImages;
       if (m.metadata?.generatedImage) custom.generatedImage = m.metadata.generatedImage;
+      Object.assign(custom, buildToolDerivedCustom(m.metadata?.toolCalls));
       if (m.metadata?.intent || m.metadata?.traceId)
         custom.streamMetadata = {
           intent: m.metadata.intent ?? 'direct',
