@@ -244,6 +244,15 @@ describe('getModeGuidance — edit_current_doc ohne Bearbeitungsweg', () => {
     expect(out).toContain('hier ist mein Vorschlag als Text');
     expect(out).not.toContain('die Bearbeitung passiert direkt im Dokument');
   });
+
+  // Der Intent allein entscheidet das nicht: derselbe Prompt-Bau beliefert den
+  // Loop, und dort IST das Werkzeug montiert. Der Absagetext stünde dann neben
+  // „Rufe IMMER edit_document auf" — siehe docsEditPrompt.vitest.ts für die
+  // Prüfung am fertigen Prompt.
+  it('schweigt, sobald das edit_document der Dokument-Fläche montiert ist', () => {
+    const out = getModeGuidance(makeState({ intent: 'edit_current_doc', editToolSurface: 'doc' }));
+    expect(out).toBe('');
+  });
 });
 
 describe('getModeGuidance turn-outcome honesty (direct path)', () => {
