@@ -92,6 +92,7 @@ export interface OptionalCanvasActions {
   removeIllustration?: (id: string) => void;
   removeAsset?: (id: string) => void;
   removePillBadge?: (id: string) => void;
+  removeCircleBadge?: (id: string) => void;
   removeFrame?: (id: string) => void;
   removeUserImage?: (id: string) => void;
   removeChart?: (id: string) => void;
