@@ -22,6 +22,13 @@ export interface PreviewImageProps {
   blurhash?: string;
   /** Above-the-fold tiles: eager + high fetch priority (default lazy/low). */
   priority?: boolean;
+  /**
+   * Called once when the backend confirms the resource is gone for good (410).
+   * The image itself already degrades to the placeholder; this lets the owner of
+   * the surrounding tile react — typically by refetching the list it came from,
+   * which is stale by definition if the row behind it no longer exists.
+   */
+  onGone?: () => void;
   /** Background-image placeholder URL (legacy alternative to `blurhash`). */
   placeholder?: string;
   className?: string;
@@ -104,6 +111,7 @@ export function PreviewImage({
   sources,
   blurhash,
   priority,
+  onGone,
   placeholder,
   className,
   width,
@@ -137,8 +145,12 @@ export function PreviewImage({
     retryTimer.current = setTimeout(
       () => {
         void isPermanentlyGone(failedUrl).then((permanent) => {
-          if (permanent) setGone(true);
-          else setRetry((n) => n + 1);
+          if (!permanent) {
+            setRetry((n) => n + 1);
+            return;
+          }
+          setGone(true);
+          onGone?.();
         });
       },
       RETRY_DELAYS_MS[retry] ?? RETRY_DELAYS_MS[RETRY_DELAYS_MS.length - 1]
