@@ -18,6 +18,8 @@ import React, {
 } from 'react';
 import { Layer } from 'react-konva';
 
+import { PAGE_ELEMENT_STATE_KEYS } from '../collab/pageElementStateKeys';
+import { useEmitHostStateChanges } from '../collab/useEmitHostStateChanges';
 import { useSelectionAwareness } from '../collab/useSelectionAwareness';
 import { useYjsCanvasBinding } from '../collab/useYjsCanvasBinding';
 import { useYjsPageStateSync } from '../collab/useYjsPageStateSync';
@@ -67,6 +69,12 @@ const SYNCED_IMAGE_KEYS = [
   'backgroundImageOpacity',
   'hasBackgroundImage',
 ] as const;
+
+// Everything the page must push back out itself. The image keys ride on the
+// host callbacks CanvasEditorRouter wires per canvas type; the element keys have
+// no host callback anywhere and are served by the writers CanvasEditor mints in
+// createPageSyncedCallbacks.
+const HOST_EMITTED_STATE_KEYS = [...SYNCED_IMAGE_KEYS, ...PAGE_ELEMENT_STATE_KEYS];
 
 import type { AlignmentDirection } from './Toolbar';
 import type { BaseCanvasState } from '../configs/factory/baseTypes';
@@ -249,32 +257,11 @@ function GenericCanvasWithRef<
     }
   }, [config, initialProps]);
 
-  // Sync background-image fields back to the host whenever they change. The
-  // config stores update only local component state for these (unlike text
+  // Push background-image fields and free-element collections back to the host.
+  // The config stores change both only in local component state (unlike text
   // fields, which sync through their own callbacks), so without this the chosen
-  // background image is lost on reload in the collaborative editor. Emitting the
-  // matching `on<Key>Change` callback routes the value through the same
-  // formState persistence path text fields use. No-op for keys the active
-  // canvas type doesn't wire in CanvasEditorRouter.buildCallbacks.
-  const prevSyncedRef = useRef<Record<string, unknown>>({});
-  const syncedSeededRef = useRef(false);
-  useEffect(() => {
-    const s = state as Record<string, unknown>;
-    if (!syncedSeededRef.current) {
-      // Seed on first render so initial state isn't re-emitted as a change.
-      syncedSeededRef.current = true;
-      for (const key of SYNCED_IMAGE_KEYS) prevSyncedRef.current[key] = s[key];
-      return;
-    }
-    for (const key of SYNCED_IMAGE_KEYS) {
-      const next = s[key];
-      if (next !== prevSyncedRef.current[key]) {
-        prevSyncedRef.current[key] = next;
-        const cbName = `on${key.charAt(0).toUpperCase()}${key.slice(1)}Change`;
-        callbacks[cbName]?.(next);
-      }
-    }
-  }, [state, callbacks]);
+  // background image and every added element is lost on reload (#3416).
+  useEmitHostStateChanges(state as Record<string, unknown>, callbacks, HOST_EMITTED_STATE_KEYS);
 
   // Every family the template actually paints. Derived from the elements rather
   // than read from `config.fonts.primary` alone: a Konva paint is not a DOM font
