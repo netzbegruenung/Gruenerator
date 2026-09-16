@@ -7,10 +7,11 @@ import {
   insertInstance,
 } from '../utils/duplicateElement';
 import { assertAsPosition } from '../utils/stateTypeAssertions';
+import { findTemplateEntry } from '../utils/templateElementInstance';
 
 import type { OptionalCanvasActions } from './useCanvasElementHandlers';
 import type { BaseCanvasState } from '../configs/factory/baseTypes';
-import type { CanvasElementConfig } from '../configs/types';
+import type { CanvasElementConfig, LayoutResult } from '../configs/types';
 import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore';
 
 /**
@@ -38,6 +39,9 @@ export interface UseCanvasKeyboardHandlersOptions<TState extends Partial<BaseCan
   setSelectedElement: (id: string | null) => void;
   /** Config-Elemente der Vorlage — fuer Pfeiltasten an layoutgebundenen Elementen. */
   elements?: readonly CanvasElementConfig<TState>[];
+  /** Gerechnetes Layout — zusammen mit `elements` die aufgeloeste Lage einer
+   *  Vorlagen-Grafik, aus der Strg+D eine Asset-Instanz macht (#3403). */
+  layout?: LayoutResult;
   saveToHistory?: (state: TState) => void;
 }
 
@@ -47,17 +51,20 @@ export interface UseCanvasKeyboardHandlersOptions<TState extends Partial<BaseCan
 export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState>>(
   options: UseCanvasKeyboardHandlersOptions<TState>
 ): void {
-  const { store, state, actions, setState, setSelectedElement, elements, saveToHistory } = options;
+  const { store, state, actions, setState, setSelectedElement, elements, layout, saveToHistory } =
+    options;
 
   // Use refs for values that the handler reads but shouldn't trigger re-attachment
   const stateRef = useRef(state);
   const actionsRef = useRef(actions);
   const elementsRef = useRef(elements);
+  const layoutRef = useRef(layout);
   const saveToHistoryRef = useRef(saveToHistory);
   useEffect(() => {
     stateRef.current = state;
     actionsRef.current = actions;
     elementsRef.current = elements;
+    layoutRef.current = layout;
     saveToHistoryRef.current = saveToHistory;
   });
 
@@ -67,6 +74,9 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
       const isCtrlOrCmd = e.ctrlKey || e.metaKey;
       const currentState = stateRef.current;
       const currentActions = actionsRef.current;
+      /** Vorlagen-Grafiken: dieselbe Tür wie für den Knopf in der Kontextleiste. */
+      const templateEntry = (id: string) =>
+        findTemplateEntry(elementsRef.current, currentState, layoutRef.current, id);
 
       // Während getippt wird gehört JEDE dieser Tasten dem Textfeld: Strg+D
       // setzt dort kein Duplikat auf die Fläche, Strg+C/V meint die Textauswahl.
@@ -93,7 +103,9 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
         // Das Ergebnis wird VOR dem Schreiben berechnet, nicht im Updater:
         // React ruft den Updater erst beim nächsten Rendern, die neue Id und
         // der Zustand für den Verlauf stünden hier sonst noch nicht bereit.
-        const result = duplicateElementInState(currentState, selectedElement);
+        const result = duplicateElementInState(currentState, selectedElement, {
+          template: templateEntry,
+        });
         if (!result) return;
         setState(result.state);
         // Ohne diesen Eintrag lässt sich das Duplikat nicht rückgängig machen:
@@ -119,7 +131,7 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
 
       // COPY (Ctrl+C)
       if (isCtrlOrCmd && e.key === 'c') {
-        const entry = findDuplicableEntry(currentState, selectedElement);
+        const entry = findDuplicableEntry(currentState, selectedElement, templateEntry);
         if (entry) CanvasClipboard.copy(entry.type, entry.data);
         return;
       }

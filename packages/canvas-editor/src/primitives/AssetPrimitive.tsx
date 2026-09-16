@@ -3,15 +3,12 @@ import { Image, Group, Rect, Transformer } from 'react-konva';
 
 import { useGeometryReporter, type GeometryReporter } from '../hooks/useGeometryReporter';
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
-import { getAssetById } from '../utils/canvasAssets';
+import { ASSET_TARGET_SIZE, getAssetById } from '../utils/canvasAssets';
 import { calculateCenteredSnapPosition } from '../utils/snapping';
 
 import type { AssetInstance } from '../utils/canvasAssets';
 import type { SnapLine, SnapTarget } from '../utils/snapping';
 import type Konva from 'konva';
-
-// Assets werden auf eine einheitliche Kantenlaenge normalisiert.
-const TARGET_SIZE = 150;
 
 export interface AssetPrimitiveProps {
   asset: AssetInstance;
@@ -71,7 +68,7 @@ function AssetPrimitiveInner({
 
   // Normalize to a consistent target size while maintaining aspect ratio
   const maxDim = Math.max(imageSize.width, imageSize.height);
-  const baseScale = TARGET_SIZE / maxDim;
+  const baseScale = ASSET_TARGET_SIZE / maxDim;
   const scaledWidth = imageSize.width * baseScale;
   const scaledHeight = imageSize.height * baseScale;
 

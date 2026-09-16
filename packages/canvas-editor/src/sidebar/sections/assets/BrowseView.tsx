@@ -3,7 +3,12 @@ import { PiArrowLeft } from 'react-icons/pi';
 
 import { useDebounce } from '../../../hooks/useDebounce';
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
-import { ALL_ASSETS, sortLogoAssets, type UniversalAsset } from '../../../utils/canvasAssets';
+import {
+  ALL_ASSETS,
+  getAssetById,
+  sortLogoAssets,
+  type UniversalAsset,
+} from '../../../utils/canvasAssets';
 import { filterIllustrations, matchesQuery } from '../../../utils/filterUtils';
 import { ALL_ILLUSTRATIONS } from '../../../utils/illustrations/illustrationCatalog';
 import { SIDEBAR_SECTION } from '../../sidebarStyles';
@@ -200,7 +205,7 @@ export function BrowseView(props: BrowseViewProps) {
     const items: RecentItem[] = [];
     if (sectionProps.assetInstances) {
       for (const inst of sectionProps.assetInstances) {
-        const def = ALL_ASSETS.find((a) => a.id === (inst as AssetInstance).assetId);
+        const def = getAssetById((inst as AssetInstance).assetId);
         if (def) items.push({ id: def.id, type: 'asset', src: def.src, label: def.label });
       }
     }
