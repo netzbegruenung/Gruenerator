@@ -68,6 +68,7 @@
     "expo-image-and-video-compressor": "^1.0.2",
     "expo-image-manipulator": "~57.0.16",
     "expo-image-picker": "~57.0.16",
+    "expo-intent-launcher": "~57.0.1",
     "expo-linear-gradient": "~57.0.1",
     "expo-linking": "~57.0.9",
     "expo-media-library": "~57.0.4",
