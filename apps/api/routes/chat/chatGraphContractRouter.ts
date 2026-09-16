@@ -432,17 +432,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       }
 
       // === Stages 3b–3c: chart / artifact / editor-surface triggers ===
-      runArtifactEmitStage({
-        sse,
-        finalState,
-        fullText,
-        validMessages,
-        lastUserMessage,
-        compoundEdit: plan.compoundEdit,
-        editTarget: plan.editTarget,
-        editToolLoop: plan.editToolLoop,
-        rawCurrentDocument,
-      });
+      runArtifactEmitStage({ sse, finalState, fullText });
 
       // === Stage 4: Persist & complete ===
       return await runPersistStage({
