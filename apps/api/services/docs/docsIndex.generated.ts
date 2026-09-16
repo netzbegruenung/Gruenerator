@@ -266,7 +266,7 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "url": "/docs/guides/einsteigerinnen/reel-erstellen",
     "title": "Wie erstelle ich ein Reel?",
     "category": "Guides",
-    "lead": "Am Ende hast du ein Video mit eingebrannten Untertiteln zum Veröffentlichen. Du brauchst dafür einen bereits aufgenommenen Clip; das Studio erzeugt keine Videoaufnahmen, sondern transkribiert und ges…"
+    "lead": "Am Ende hast du ein Video mit eingebrannten Untertiteln zum Veröffentlichen. Du brauchst dafür nur einen bereits aufgenommenen Clip. Upload, Transkription, Untertitel und Videoexport laufen automatis…"
   },
   {
     "url": "/docs/guides/einsteigerinnen/social-media-beitrag",
@@ -2136,10 +2136,26 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   {
     "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
     "pageTitle": "Wie erstelle ich KI-Bilder?",
+    "heading": "Bild bearbeiten",
+    "anchor": "#bild-bearbeiten",
+    "category": "Guides",
+    "text": "Nach der Erstellung steht der Modus rechts im Eingabefeld automatisch auf „Bearbeiten“: Schreibe nur die gewünschte Änderung in das Feld, zum Beispiel: „Entferne die Autos im Vordergrund und ergänze einen Zebrastreifen.“ Falls sich die KI an einem anderen Bild orientieren soll, klicke unter dem Feld auf „Referenzbild“ und füge es hinzu. Schicke die Anweisung mit dem Pfeil ab. Das Original bleibt erhalten; die Änderung erscheint als neue Version. Möchtest du eine ältere Version anders weiterbearbeiten, wählst du zuerst ihr Vorschaubild in der Versionsleiste und gibst dann die neue Anweisung ein. So entsteht ein neuer Zweig, ohne spätere Versionen zu löschen. Du kannst statt eines KI-Bildes auch ein eigenes Bild bearbeiten: Wähle auf der Startseite „Oder editiere ein eigenes Bild“ und lade ein PNG oder JPG bis 10 MB hoch. Danach funktioniert das Bearbeiten genauso."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
+    "pageTitle": "Wie erstelle ich KI-Bilder?",
     "heading": "Damit die Bilder glaubwürdig werden",
     "anchor": "#damit-die-bilder-glaubwürdig-werden",
     "category": "Guides",
-    "text": "Beschreibe, was zu sehen sein soll — nicht nur das Thema. Wer ist im Bild? Wo spielt es? Welche Tageszeit, Perspektive und Stimmung soll es haben? Gib dem Format einen Zweck. „Hochkant für Instagram Story“, „quadratisch für einen Post“ oder „breit für eine Website“ hilft bei der Auswahl und beim späteren Zuschnitt. Keine falschen Tatsachenbilder. Ein KI-Bild darf nicht den Eindruck erwecken, es dokumentiere ein reales Ereignis, eine echte Person oder einen tatsächlichen Zustand, wenn das nicht stimmt. Prüfe Rechte und Privatsphäre. Lade nur Bilder hoch, die du verwenden darfst. Bei bearbeiteten Fotos brauchst du insbesondere die Rechte am Ausgangsbild und solltest abgebildete Personen nicht täuschend echt verändern."
+    "text": "Beschreibe, was zu sehen sein soll — nicht nur das Thema. Wer ist im Bild? Wo spielt es? Welche Tageszeit, Perspektive und Stimmung soll es haben? Stelle das Format über „Vergrößern“ ein. Eine Formatangabe im Bildtext ersetzt die Größenwahl nicht. Keine falschen Tatsachenbilder. Ein KI-Bild darf nicht den Eindruck erwecken, es dokumentiere ein reales Ereignis, eine echte Person oder einen tatsächlichen Zustand, wenn das nicht stimmt. Prüfe Rechte und Privatsphäre. Lade nur Bilder hoch, die du verwenden darfst. Bei bearbeiteten Fotos brauchst du insbesondere die Rechte am Ausgangsbild und solltest abgebildete Personen nicht täuschend echt verändern."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
+    "pageTitle": "Wie erstelle ich KI-Bilder?",
+    "heading": "Größe und Format einstellen",
+    "anchor": "#größe-und-format-einstellen",
+    "category": "Guides",
+    "text": "Die Größenwahl steckt nicht im Erstellen-Dialog. So bringst du ein fertiges Bild in ein anderes Seitenverhältnis: Klicke rechts im Eingabefeld auf „Bearbeiten“ und wähle „Vergrößern“. Klicke links auf das Zahnrad. Unter „Ziel-Format“ stehen 1:1, 4:3, 3:4, 16:9 und 9:16. Wähle das Format und klicke unter dem Eingabefeld auf „Auf … vergrößern“. Das Studio beschneidet das Bild dabei nicht, sondern ergänzt neuen Bildinhalt an den fehlenden Rändern. Für 9:16 wird ein 4:5-Ausgangsbild zum Beispiel oben und unten erweitert. Falls das Ziel die technische Maximalgröße überschreiten würde, meldet das Studio einen Fehler; dann verwendest du ein kleineres Ausgangsbild oder ein weniger breites Format."
   },
   {
     "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
@@ -2147,7 +2163,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "So geht's",
     "anchor": "#so-gehts",
     "category": "Guides",
-    "text": "Studio öffnen. Öffne im Bereich Arbeiten das Studio und wähle KI-Bilder. Damit öffnet sich der Bild-Editor unter /bild-editor. Bild konkret beschreiben. Im Feld „Beschreibe dein Bild …“ nennst du Motiv, Ort, Perspektive, Licht und Stimmung. Zum Beispiel: „Eine schöne Stadt“ ist zu allgemein. „Hochkant“, „geschützte Radwege“ und „dokumentarischer Stil“ geben dem Bild dagegen eine klare Richtung. Stil und Kennzeichnung wählen. Über das Einstellungs-Symbol neben dem Eingabefeld kannst du vor dem Erstellen einen Bildstil auswählen. Dort liegt auch die KI-Kennzeichnung mit einer ausführlichen, einer kurzen und keiner sichtbaren Kennzeichnung. Wählst du keine sichtbare Kennzeichnung, musst du sie bei der Veröffentlichung selbst zuverlässig ergänzen. Erstellen und Ergebnis prüfen. Schicke die Beschreibung ab. Sobald das Bild fertig ist, prüfst du es kritisch: Stimmen Menschen, Gegenstände, Schilder und die politische Aussage? KI-Bilder können überzeugend wirken und trotzdem sachlich falsche oder unplausible Details enthalten. Eine Variante weiterbearbeiten. Unter dem Bild bleiben die bisherigen Versionen sichtbar. Wähle eine aus und öffne rechts im Eingabefeld den Modus: Bearbeiten:…"
+    "text": "Studio öffnen. Öffne im Bereich Arbeiten das Studio und wähle KI-Bilder. Damit öffnet sich der Bild-Editor unter /bild-editor. Bild konkret beschreiben. Im Feld „Beschreibe dein Bild …“ nennst du Motiv, Ort, Perspektive, Licht und Stimmung. Zum Beispiel: „Eine schöne Stadt“ ist zu allgemein. „Geschützte Radwege“, die Tageszeit und der dokumentarische Stil geben dem Bild dagegen eine klare Richtung. Stil wählen. Klicke links im Eingabefeld auf das Zahnrad und wähle Illustration, Realistisch, Pixel Art oder Editorial. Alle vier Stile erzeugen zunächst ein Bild mit 1088 × 1360 Pixeln im Format 4:5. Eine andere Größe stellst du erst nach der Erstellung ein. Erstellen und Ergebnis prüfen. Schicke die Beschreibung mit dem Pfeil ab. Das Ergebnis erhält automatisch die sichtbare Kennzeichnung „KI-Generiert mit dem Grünerator“. Prüfe anschließend Menschen, Gegenstände, Schilder und die politische Aussage: KI-Bilder können überzeugend wirken und trotzdem falsche oder unplausible Details enthalten."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
+    "pageTitle": "Wie erstelle ich KI-Bilder?",
+    "heading": "Weitere Werkzeuge und Ausgabe",
+    "anchor": "#weitere-werkzeuge-und-ausgabe",
+    "category": "Guides",
+    "text": "Grün verwandeln: Wähle den Modus rechts und beschreibe optional, was grüner werden soll. Ohne eigenen Text nutzt das Studio eine fertige Anweisung für Bäume, Straßengrün, Blühflächen, geschützte Radwege und Aufenthaltsqualität. Hintergrund entfernen: Wähle den Modus rechts und klicke auf „Hintergrund entfernen“; eine Texteingabe ist nicht nötig. Herunterladen: Speichert die gerade ausgewählte Version als Bilddatei. In Canvas bearbeiten: Öffnet die ausgewählte Version im Studio-Canvas, etwa um daraus ein Sharepic mit Text und Gestaltungselementen zu machen."
   },
   {
     "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
@@ -2171,7 +2195,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Wie erstelle ich ein Reel?",
     "anchor": "",
     "category": "Guides",
-    "text": "Am Ende hast du ein Video mit eingebrannten Untertiteln zum Veröffentlichen. Du brauchst dafür einen bereits aufgenommenen Clip; das Studio erzeugt keine Videoaufnahmen, sondern transkribiert und gestaltet die Untertitel. Plane je nach Länge des Videos ein paar Minuten ein."
+    "text": "Am Ende hast du ein Video mit eingebrannten Untertiteln zum Veröffentlichen. Du brauchst dafür nur einen bereits aufgenommenen Clip. Upload, Transkription, Untertitel und Videoexport laufen automatisch; bearbeiten musst du nur, wenn du etwas ändern möchtest."
   },
   {
     "url": "/docs/guides/einsteigerinnen/reel-erstellen",
@@ -2179,7 +2203,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Damit das Reel verständlich wird",
     "anchor": "#damit-das-reel-verständlich-wird",
     "category": "Guides",
-    "text": "Kürze vor dem Upload. Schneide Versprecher, lange Pausen und nicht benötigte Passagen im Originalvideo heraus. Das macht auch die Untertitel leichter lesbar. Eine Aussage pro Untertitel. Teile lange Sätze beim Gegenlesen sinnvoll auf. Menschen sollen den Text lesen können, ohne das Bild aus den Augen zu verlieren. Namen und Zahlen immer kontrollieren. Die Transkription ist ein Vorschlag, keine Freigabe. Untertitel sind keine Option. Sie helfen gehörlosen und schwerhörigen Menschen, Personen ohne Ton und allen, die das Video in lauter Umgebung ansehen."
+    "text": "Kürze vor dem Upload. Das Reel-Studio untertitelt und gestaltet, schneidet aber keine Versprecher oder langen Pausen aus dem Video. Namen und Zahlen immer kontrollieren. Die Transkription ist ein Vorschlag, keine Freigabe. Untertitel sind keine Option. Sie helfen gehörlosen und schwerhörigen Menschen, Personen ohne Ton und allen, die das Video in lauter Umgebung ansehen."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/reel-erstellen",
+    "pageTitle": "Wie erstelle ich ein Reel?",
+    "heading": "Nur wenn du etwas ändern möchtest",
+    "anchor": "#nur-wenn-du-etwas-ändern-möchtest",
+    "category": "Guides",
+    "text": "Klicke auf der Fertig-Seite auf das Stift-Symbol „Bearbeiten“. Text korrigieren: Klicke auf die betreffende Untertitel-Karte. Der Text wird zum Eingabefeld und die Wiedergabe springt an diese Stelle. Ändere den Text und drücke Enter oder klicke außerhalb des Feldes. Das brauchst du vor allem bei Namen, Orten, Zahlen und Abkürzungen. Darstellung ändern: Klicke unter dem Video auf das Zahnrad „Einstellungen“. Dort wählst du: Stil: Empfohlen, Klassisch, Minimal oder Grün Position: Tiefer oder Mittig Qualität: Standard mit 1080p oder Volle Qualität Klicke unter dem Video auf das Download-Symbol. Das Studio rendert das Video mit deinen Änderungen neu und zeigt danach wieder die Fertig-Seite. Der Speichern-Button ist für den Download nicht nötig."
   },
   {
     "url": "/docs/guides/einsteigerinnen/reel-erstellen",
@@ -2187,7 +2219,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "So geht's",
     "anchor": "#so-gehts",
     "category": "Guides",
-    "text": "Studio öffnen. Öffne im Bereich Arbeiten das Studio und wähle dort Reels. Direkt erreichbar ist es auch unter /studio/video. Deinen Clip hochladen. Ziehe die Videodatei in den Bereich „Video hierher ziehen oder klicken“ oder wähle sie im Dateidialog aus. Das Studio akzeptiert MP4, MOV, AVI, MKV und WebM. Am besten funktioniert ein hochkant aufgenommenes Video; so passt es später zu Instagram Reels und TikTok. Die automatische Verarbeitung abwarten. Nach dem Upload analysiert das Studio das Video, trennt die Tonspur, erstellt die KI-Transkription und formatiert die Untertitel. Du siehst dabei den Fortschritt. Lass den Tab geöffnet, bis der Editor erscheint. Untertitel prüfen und korrigieren. Im Editor läuft das Video mit Untertitelvorschau. Klicke in einen Untertitelabschnitt in der Zeitleiste und ändere falsche Wörter, Namen oder Satzzeichen direkt. Spiele die betreffende Stelle danach noch einmal ab. Gerade Eigennamen, Ortsnamen und Abkürzungen brauchen oft einen Blick. Lesbarkeit einstellen. Über das Zahnrad „Einstellungen“ wählst du Stil und Position der Untertitel. Der Stil „Schatten“ ist als Empfehlung markiert und funktioniert auf vielen Hintergründen gut. Prüfe besonders,…"
+    "text": "Studio öffnen. Öffne im Bereich Arbeiten das Studio und wähle dort Reels. Direkt erreichbar ist es auch unter /studio/video. Deinen Clip hochladen. Ziehe die Datei in „Video auswählen oder hierher ziehen“ oder klicke auf das Feld. Das Studio akzeptiert MP4, MOV, AVI, MKV und WebM bis 500 MB. Der Upload startet nach der Auswahl sofort. Für Instagram Reels und TikTok nimmst du am besten ein Hochkantvideo. Kurz warten. Das Studio transkribiert die Tonspur, setzt die Untertitel im empfohlenen Stil an die tiefe Standardposition, rendert das fertige Video und speichert das Projekt automatisch. Du musst nichts auswählen. Lass den Tab geöffnet, bis „Dein Video ist fertig!“ erscheint. Video prüfen und herunterladen. Spiele das Ergebnis einmal ab. Passt alles, klickst du auf das Download-Symbol — fertig."
   },
   {
     "url": "/docs/guides/einsteigerinnen/reel-erstellen",
@@ -2203,7 +2235,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Wenn es nicht klappt",
     "anchor": "#wenn-es-nicht-klappt",
     "category": "Guides",
-    "text": "Der Upload schlägt fehl? Prüfe zuerst, ob deine Datei eines der unterstützten Videoformate hat. Exportiere problematische Dateien am zuverlässigsten noch einmal als MP4. Die Untertitel sind ungenau? Korrigiere die betroffenen Abschnitte im Editor. Ist die Tonspur sehr leise oder überlagert, hilft ein klarer aufgenommenes Ausgangsvideo. Der Download startet nicht? Warte, bis der Export fertig ist. Falls der automatische Download blockiert wird, erlaubt dein Browser möglicherweise erst nach einem erneuten Klick den Dateidownload."
+    "text": "Der Upload schlägt fehl? Prüfe zuerst, ob deine Datei eines der unterstützten Videoformate hat. Exportiere problematische Dateien am zuverlässigsten noch einmal als MP4. Die Untertitel sind ungenau? Öffne über das Stift-Symbol den Editor und korrigiere die betroffenen Karten. Bei sehr leiser oder überlagerter Tonspur hilft ein klarer aufgenommenes Ausgangsvideo. Der Download startet nicht? Warte, bis der Export fertig ist. Falls der automatische Download blockiert wird, erlaubt dein Browser möglicherweise erst nach einem erneuten Klick den Dateidownload."
   },
   {
     "url": "/docs/guides/einsteigerinnen/social-media-beitrag",
