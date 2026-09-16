@@ -16,8 +16,9 @@
  * Zweig innerhalb einer Komponente, damit die Hook-Reihenfolge stabil bleibt,
  * wenn ein Text seinen ersten Marker bekommt.
  *
- * Bearbeitet wird mit `RichTextField` als Overlay über dem Knoten (Portal in
- * `document.body`), nicht mit einer nackten Textarea: nur so sieht man beim
+ * Bearbeitet wird mit `RichTextField`, das der `CanvasTextEditorProvider`
+ * NEBEN der Bühne im DOM aufspannt (siehe `CanvasTextOverlay`) — nicht aus dem
+ * Konva-Baum heraus und nicht mit einer nackten Textarea: nur so sieht man beim
  * Tippen Fett statt Sternchen.
  */
 
