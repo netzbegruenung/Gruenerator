@@ -223,8 +223,17 @@ export function makeEditArtifactTool(ctx: EditorToolCtx): Tool | null {
       }
 
       const { operations } = planned;
+      // Two different summaries, deliberately: `planned.summary` is always the
+      // op-kind tally, `plannerLabel` the canvas planner's own German name for
+      // the batch. The SSE event (and with it the studio banner) takes the name
+      // where there is one — but the per-turn log takes BOTH. A second
+      // edit_document call in the same turn plans against a server snapshot
+      // that is already stale, so it has to know WHAT was changed, not just
+      // what the change was called.
       const summary = plannerLabel.value ?? planned.summary;
-      ctx.appliedOpsLog.push(`${operations.length} Op(s): ${summary}`);
+      const applied =
+        plannerLabel.value != null ? `${plannerLabel.value} — ${planned.summary}` : planned.summary;
+      ctx.appliedOpsLog.push(`${operations.length} Op(s): ${applied}`);
       // Surface a human edit summary onto shared state so the synth prompt makes
       // the model confirm the change (not write empty text or a false refusal).
       const editNote = `${operations.length} Änderung${operations.length === 1 ? '' : 'en'} ${anDer} ${artefact.noun} (${summary})`;
