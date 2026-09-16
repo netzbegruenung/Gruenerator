@@ -1,7 +1,8 @@
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
 
+import { shouldRetryQuery } from '../../../components/utils/queryRetry';
 import { useAuthStore } from '../../../stores/authStore';
 
 import type { GalleryTemplate } from '@gruenerator/contracts';
@@ -19,20 +20,20 @@ async function fetchFavorites(entityType: EntityFavoriteType): Promise<Favorites
   if (entityType !== 'template') return { favorite_ids: [], templates: [] };
   const client = getContractsClient();
   const result = await client.templateInteractions.listMyFavoriteTemplates();
-  if (result.status !== 200) throw new Error('Konnte Favoriten nicht laden');
+  if (result.status !== 200) throw new ApiError(result.status, 'Konnte Favoriten nicht laden');
   return { favorite_ids: result.body.favorite_ids, templates: result.body.templates };
 }
 
 async function callFavorite(entityId: string): Promise<void> {
   const client = getContractsClient();
   const result = await client.templateInteractions.favoriteTemplate({ params: { id: entityId } });
-  if (result.status !== 200) throw new Error('Favorit speichern fehlgeschlagen');
+  if (result.status !== 200) throw new ApiError(result.status, 'Favorit speichern fehlgeschlagen');
 }
 
 async function callUnfavorite(entityId: string): Promise<void> {
   const client = getContractsClient();
   const result = await client.templateInteractions.unfavoriteTemplate({ params: { id: entityId } });
-  if (result.status !== 200) throw new Error('Favorit entfernen fehlgeschlagen');
+  if (result.status !== 200) throw new ApiError(result.status, 'Favorit entfernen fehlgeschlagen');
 }
 
 export interface UseEntityFavoritesResult {
@@ -59,7 +60,7 @@ export function useEntityFavorites(entityType: EntityFavoriteType): UseEntityFav
     queryKey: templateFavoritesQueryKey,
     queryFn: () => fetchFavorites(entityType),
     enabled: isAuthenticated,
-    retry: 1,
+    retry: (failureCount, error) => shouldRetryQuery(failureCount, error, 1),
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
   });

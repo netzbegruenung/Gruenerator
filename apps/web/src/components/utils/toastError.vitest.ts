@@ -74,7 +74,7 @@ describe('toastApiError', () => {
     toastApiError({ status: 500 }, { source: 'query' });
 
     expect(toastErrorMock).toHaveBeenCalledTimes(1);
-    expect(toastErrorMock).toHaveBeenCalledWith('KI-Dienst nicht verfügbar', expect.anything());
+    expect(toastErrorMock).toHaveBeenCalledWith('Serverfehler', expect.anything());
     expect(captureExceptionMock).not.toHaveBeenCalled();
   });
 

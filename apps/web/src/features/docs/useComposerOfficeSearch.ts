@@ -1,5 +1,5 @@
 import { GLOBAL_SEARCH_MAX_QUERY_LENGTH, type OfficeSearchItem } from '@gruenerator/contracts';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
 
 import useDebounce from '../../components/hooks/useDebounce';
@@ -11,7 +11,7 @@ const DEBOUNCE_MS = 200;
 
 async function fetchOfficeSearch(query: string): Promise<OfficeSearchItem[]> {
   const result = await getContractsClient().globalSearch.officeSearch({ query: { q: query } });
-  if (result.status !== 200) throw new Error('Office-Suche fehlgeschlagen');
+  if (result.status !== 200) throw new ApiError(result.status, 'Office-Suche fehlgeschlagen');
   return result.body.items;
 }
 

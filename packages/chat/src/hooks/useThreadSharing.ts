@@ -1,5 +1,5 @@
 import { type GroupShareMode, type ThreadShareMode } from '@gruenerator/contracts';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
 
@@ -78,7 +78,8 @@ export function useThreadSharing(threadId: string | null) {
         params: { threadId },
         body: { groupId, mode },
       });
-      if (res.status !== 200) throw new Error(`Teilen fehlgeschlagen (HTTP ${res.status})`);
+      if (res.status !== 200)
+        throw new ApiError(res.status, `Teilen fehlgeschlagen (HTTP ${res.status})`);
     },
     onSuccess: invalidateShares,
     onError: () =>
@@ -92,7 +93,10 @@ export function useThreadSharing(threadId: string | null) {
         params: { threadId, groupId },
       });
       if (res.status !== 200)
-        throw new Error(`Freigabe konnte nicht entfernt werden (HTTP ${res.status})`);
+        throw new ApiError(
+          res.status,
+          `Freigabe konnte nicht entfernt werden (HTTP ${res.status})`
+        );
     },
     onSuccess: invalidateShares,
     onError: () =>
@@ -106,7 +110,8 @@ export function useThreadSharing(threadId: string | null) {
         params: { threadId },
         body: { shareMode },
       });
-      if (res.status !== 200) throw new Error(`Link-Freigabe fehlgeschlagen (HTTP ${res.status})`);
+      if (res.status !== 200)
+        throw new ApiError(res.status, `Link-Freigabe fehlgeschlagen (HTTP ${res.status})`);
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: shareModeKey });

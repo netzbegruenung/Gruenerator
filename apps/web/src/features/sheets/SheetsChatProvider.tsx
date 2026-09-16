@@ -11,7 +11,7 @@ import {
   type EditorSurfaceAdapter,
 } from '@gruenerator/chat';
 import { chatThreadResponseSchema, sheetOperationSchema } from '@gruenerator/contracts';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { applySheetOperations, serializeSheetContext, type FUniver } from '@gruenerator/sheets';
 import { useMemo, useRef, type ReactNode } from 'react';
 
@@ -58,7 +58,7 @@ export function SheetsChatProvider({
           params: { id: documentId },
         });
         if (result.status !== 200) {
-          throw new Error(`Chat thread lookup failed: ${result.status}`);
+          throw new ApiError(result.status, `Chat thread lookup failed: ${result.status}`);
         }
         return chatThreadResponseSchema.parse(result.body).threadId;
       },

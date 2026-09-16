@@ -1,5 +1,5 @@
 import { type FeedbackPageContext } from '@gruenerator/contracts';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { useMediaQuery } from '@gruenerator/shared/hooks';
 import {
   Button,
@@ -101,7 +101,10 @@ export default function FeedbackWidget({
         },
       });
       if (res.status !== 200) {
-        throw new Error(`Feedback konnte nicht gesendet werden (HTTP ${res.status})`);
+        throw new ApiError(
+          res.status,
+          `Feedback konnte nicht gesendet werden (HTTP ${res.status})`
+        );
       }
       return res.body;
     },
