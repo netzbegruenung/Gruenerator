@@ -101,8 +101,15 @@ COPY --from=builder --chown=gruenerator:gruenerator /app/services/hocuspocus/pac
 USER gruenerator
 
 # Install production dependencies only (trailing ... pulls workspace deps)
+# --node-linker is as load-bearing here as in the builder above, and for the
+# same reason. See the note at the matching line in apps/api/Dockerfile: #3351
+# moved nodeLinker: hoisted from .npmrc (which no production stage copies) into
+# pnpm-workspace.yaml (which every production stage copies), so --filter stopped
+# restricting anything. This image went 109 MB -> 1453 MB, installing Expo,
+# Metro, Tauri and Docusaurus into a server with no cross-package deps at all.
 RUN --mount=type=cache,id=pnpm-prod,target=/home/gruenerator/.local/share/pnpm/store \
-    pnpm install --prod --frozen-lockfile --filter @gruenerator/hocuspocus...
+    pnpm install --prod --frozen-lockfile --node-linker=isolated --shamefully-hoist \
+        --filter @gruenerator/hocuspocus...
 
 # Copy compiled workspace packages. The package.json files already ship with
 # the correct runtime exports map (`"default": "./dist/*.js"`), so Node's
