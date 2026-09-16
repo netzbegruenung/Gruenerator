@@ -35,6 +35,9 @@ const STOPS = [
 const TITLE_RATIOS = { xl: 0.17, lg: 0.14, md: 0.11, sm: 0.086 } as const;
 const SUBTITLE_RATIO = 0.054;
 
+/** Where the title box ends — web's `bottom: 24%`, above the subtitle line. */
+const TITLE_BOTTOM = 0.76;
+
 /**
  * Pick the step that lets the name breathe: short names get poster-sized type,
  * long ones step down. A very long single word (German compounds) is capped at
@@ -55,9 +58,10 @@ export function NotebookCoverArt({
   subtitle,
   size,
   /**
-   * Set when the tile carries a permanently visible top-right control (the like
-   * button). The title then starts below it instead of running underneath —
-   * there is no float in RN, so it costs a line rather than a corner.
+   * Set while the tile carries a top-right control (the like button, the
+   * indexing spinner). The title then starts below it instead of running
+   * underneath — there is no float in RN, so it costs a line rather than a
+   * corner. Pass the same condition that renders the control, not `true`.
    */
   reserveTopRight,
 }: {
@@ -68,6 +72,10 @@ export function NotebookCoverArt({
   reserveTopRight?: boolean;
 }) {
   const fontSize = Math.round(size * titleRatio(title));
+  // Web's title box is `top: 8%` / `bottom: 24%`. Reserving the corner moves the
+  // top down; the bottom must stay put, or a long name grows past 76% and runs
+  // into the subtitle instead of being clipped above it.
+  const titleTop = reserveTopRight ? 0.2 : 0.08;
 
   return (
     <View style={{ width: size, height: size }}>
@@ -93,14 +101,17 @@ export function NotebookCoverArt({
           {
             fontSize,
             lineHeight: Math.round(fontSize * 1.1),
-            top: size * (reserveTopRight ? 0.2 : 0.08),
+            top: size * titleTop,
             left: size * 0.1,
             right: size * 0.07,
           },
         ]}
         // The box is what clips, as on web — a tall name is cut off rather than
         // shrunk, so every tile in the grid keeps one type scale.
-        numberOfLines={Math.max(1, Math.floor((size * 0.68) / (fontSize * 1.1)))}
+        numberOfLines={Math.max(
+          1,
+          Math.floor((size * (TITLE_BOTTOM - titleTop)) / (fontSize * 1.1))
+        )}
       >
         {title}
       </Text>
