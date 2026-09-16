@@ -11,6 +11,7 @@ import { createBalkenInstanceFromPreset } from '../../utils/balkenUtils';
 import { createAssetInstance } from '../../utils/canvasAssets';
 import { createChartInstance, type ChartInstance, type ChartType } from '../../utils/chartUtils';
 import { createCircleBadgeInstance } from '../../utils/circleBadgeUtils';
+import { duplicateElementInState } from '../../utils/duplicateElement';
 import { createFrameInstance } from '../../utils/frameUtils';
 import { createIllustration } from '../../utils/illustrations/registry';
 import { createPillBadgeInstance } from '../../utils/pillBadgeUtils';
@@ -37,6 +38,20 @@ import type { AdditionalText } from '../types';
 
 type StateSetter<TState> = (partial: Partial<TState> | ((prev: TState) => TState)) => void;
 type HistorySaver<TState> = (state: TState) => void;
+
+/**
+ * Hält noch eine ANDERE Instanz dieselbe Bild-URL? Ein Duplikat teilt sie mit
+ * seinem Original — gäbe das Löschen des einen die Blob-URL frei, würde das
+ * Bild des anderen schwarz. Freigegeben wird deshalb erst, wenn die letzte
+ * Instanz geht.
+ */
+function isLastHolder<T>(
+  instances: T[],
+  srcOf: (instance: T) => string | null | undefined,
+  url: string
+): boolean {
+  return instances.filter((instance) => srcOf(instance) === url).length <= 1;
+}
 
 // ============================================================================
 // ASSET ACTIONS
@@ -230,20 +245,7 @@ export function createIllustrationActions<
       saveToHistory(getState());
     },
     duplicateIllustration: (illustrationId: string) => {
-      const original = getState().illustrationInstances.find((i) => i.id === illustrationId);
-      if (!original) return;
-
-      const duplicate: IllustrationInstance = {
-        ...original,
-        id: `illustration-${Date.now()}`,
-        x: original.x + 20,
-        y: original.y + 20,
-      };
-
-      setState((prev) => ({
-        ...prev,
-        illustrationInstances: [...prev.illustrationInstances, duplicate],
-      }));
+      setState((prev) => duplicateElementInState(prev, illustrationId)?.state ?? prev);
       saveToHistory(getState());
     },
     handleIllustrationDragEnd: (illustrationId: string, x: number, y: number) => {
@@ -514,19 +516,7 @@ export function createBalkenActions<TState extends { balkenInstances: BalkenInst
       saveToHistory(getState());
     },
     duplicateBalken: (balkenId: string) => {
-      const original = getState().balkenInstances.find((b) => b.id === balkenId);
-      if (!original) return;
-
-      const duplicate: BalkenInstance = {
-        ...original,
-        id: `balken-${Date.now()}`,
-        offset: { x: original.offset.x + 20, y: original.offset.y + 20 },
-      };
-
-      setState((prev) => ({
-        ...prev,
-        balkenInstances: [...prev.balkenInstances, duplicate],
-      }));
+      setState((prev) => duplicateElementInState(prev, balkenId)?.state ?? prev);
       saveToHistory(getState());
     },
   };
@@ -567,25 +557,6 @@ export function createChartActions<TState extends { chartInstances: ChartInstanc
       }));
       saveToHistory(getState());
     },
-    duplicateChart: (chartId: string) => {
-      const original = getState().chartInstances.find((c) => c.id === chartId);
-      if (!original) return;
-
-      const duplicate: ChartInstance = {
-        ...original,
-        id: `chart-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-        data: original.data.map((d) => ({ ...d })),
-        colors: [...original.colors],
-        x: original.x + 20,
-        y: original.y + 20,
-      };
-
-      setState((prev) => ({
-        ...prev,
-        chartInstances: [...prev.chartInstances, duplicate],
-      }));
-      saveToHistory(getState());
-    },
   };
 }
 
@@ -618,8 +589,9 @@ export function createFrameActions<TState extends { frameInstances: FrameInstanc
       debouncedSaveToHistory(getState());
     },
     removeFrame: (id: string) => {
-      const frame = getState().frameInstances.find((f) => f.id === id);
-      if (frame?.imageSrc) {
+      const frames = getState().frameInstances;
+      const frame = frames.find((f) => f.id === id);
+      if (frame?.imageSrc && isLastHolder(frames, (f) => f.imageSrc, frame.imageSrc)) {
         URL.revokeObjectURL(frame.imageSrc);
       }
       setState((prev) => ({
@@ -629,8 +601,9 @@ export function createFrameActions<TState extends { frameInstances: FrameInstanc
       saveToHistory(getState());
     },
     setFrameImage: (id: string, _file: File, objectUrl: string) => {
-      const oldFrame = getState().frameInstances.find((f) => f.id === id);
-      if (oldFrame?.imageSrc) {
+      const frames = getState().frameInstances;
+      const oldFrame = frames.find((f) => f.id === id);
+      if (oldFrame?.imageSrc && isLastHolder(frames, (f) => f.imageSrc, oldFrame.imageSrc)) {
         URL.revokeObjectURL(oldFrame.imageSrc);
       }
       setState((prev) => ({
@@ -701,8 +674,13 @@ export function createUserImageActions<TState extends { userImageInstances: User
     updateUserImage: (id: string, partial: Partial<UserImageInstance>) => {
       // Free the optimistic blob once it's swapped for a durable URL.
       if (partial.src) {
-        const prevInstance = getState().userImageInstances.find((u) => u.id === id);
-        if (prevInstance?.src.startsWith('blob:') && prevInstance.src !== partial.src) {
+        const images = getState().userImageInstances;
+        const prevInstance = images.find((u) => u.id === id);
+        if (
+          prevInstance?.src.startsWith('blob:') &&
+          prevInstance.src !== partial.src &&
+          isLastHolder(images, (u) => u.src, prevInstance.src)
+        ) {
           URL.revokeObjectURL(prevInstance.src);
         }
       }
@@ -715,8 +693,9 @@ export function createUserImageActions<TState extends { userImageInstances: User
       debouncedSaveToHistory(getState());
     },
     removeUserImage: (id: string) => {
-      const instance = getState().userImageInstances.find((u) => u.id === id);
-      if (instance?.src.startsWith('blob:')) {
+      const images = getState().userImageInstances;
+      const instance = images.find((u) => u.id === id);
+      if (instance?.src.startsWith('blob:') && isLastHolder(images, (u) => u.src, instance.src)) {
         URL.revokeObjectURL(instance.src);
       }
       setState((prev) => ({
