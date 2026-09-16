@@ -79,12 +79,34 @@ describe('generateTitle', () => {
       ])
     );
 
-    expect(title).toBe('Wie hoch ist die Pendlerpauschale');
+    // 33 characters, one past the sidebar budget — cut on the word boundary,
+    // then the stranded article goes too.
+    expect(title).toBe('Wie hoch ist');
     // Generated titles have a single writer, the server. A PATCH from here looks
     // exactly like a manual rename to the server's conditional write and would
     // lock its own AI refinement out. Only `rename()` may PATCH.
     expect(apiClient.patch).not.toHaveBeenCalled();
     expect(apiClient.post).toHaveBeenCalledOnce();
+  });
+
+  it('clamps the optimistic title to the sidebar budget, without an ellipsis (#3411)', async () => {
+    // The row ellipsizes itself (CSS `truncate` on web, `numberOfLines` on
+    // native), so a literal "..." either sat past the cut or doubled it. The
+    // clamp is `clampThreadTitle` from @gruenerator/shared — the same one the
+    // server writes with, so the optimistic title cannot drift from it.
+    const apiClient = makeApiClient({ status: 'accepted', title: 'Radinfrastruktur' });
+    const adapter = createGrueneratorThreadListAdapter(apiClient, 'chat');
+
+    const title = await titleFrom(
+      await adapter.generateTitle('thread-long', [
+        userMessage([
+          { type: 'text', text: 'Antrag zur Radinfrastruktur in der Innenstadt vorbereiten' },
+        ]),
+      ])
+    );
+
+    expect(title).toBe('Antrag zur Radinfrastruktur');
+    expect(title).not.toContain('...');
   });
 
   it('survives a failing title endpoint without rejecting the stream', async () => {
