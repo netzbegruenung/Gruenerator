@@ -5,7 +5,6 @@ import {
 } from '@gruenerator/contracts';
 import { Checkbox, Label, ToggleGroup, ToggleGroupItem } from '@gruenerator/ui';
 
-
 import { FORMAT_LABELS, SPEED_OPTIONS, VOICE_PRESETS, VOICE_PRESET_ORDER } from '../presets';
 
 import VoicePicker from './VoicePicker';
