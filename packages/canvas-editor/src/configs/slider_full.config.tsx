@@ -125,6 +125,9 @@ export interface SliderState extends BaseCanvasState {
   balkenInstances: BalkenInstance[];
   frameInstances: FrameInstance[];
 
+  /** z-order of the collections above; carried by `carryInstanceState`. */
+  layerOrder: string[];
+
   // Base state (from BaseCanvasState)
   assetInstances: AssetInstance[];
   isDesktop: boolean;
