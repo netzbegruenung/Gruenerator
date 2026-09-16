@@ -1042,34 +1042,58 @@ Der*die Nutzer*in schreibt aus der Grünerator-App (Mobil). Dort sind einige Fun
   return '';
 }
 
-/** Strict-output modes — anchor adjuncts skipped to keep their format rules
- *  clean. `edit_current_doc` stays in the set for a second reason since #3428:
- *  the currentDocument adjunct says "Schreibe das Dokument NICHT um", which is
- *  the opposite of the proposal this mode now asks for. */
+/**
+ * Strict-output modes — anchor adjuncts skipped to keep their format rules clean.
+ *
+ * `edit_current_doc` was in this set and is NOT any more (#3428). It was here
+ * because the mode demanded ONE sentence and the `## ZUSÄTZLICHER KONTEXT`
+ * block would have muddied it; that mode text is gone. What decides it now is
+ * consistency with the other editor surfaces: the sharepic studio reaches the
+ * SAME adjunct (`anchorContext` gives `currentCanvas` the `currentDocument`
+ * anchor) on its tool turns, under intents that were never in this set — so a
+ * doc tool turn skipping it would be the odd one out. The adjunct's wording
+ * fits both doc cases: "Schreibe das Dokument NICHT um, AUSSER der*die
+ * Nutzer*in fragt explizit danach" is satisfied by an explicit edit ask, and on
+ * a turn without the tool it is the mode guidance, not the adjunct, that says
+ * the edit cannot happen.
+ */
 const MODES_WITHOUT_ANCHORS: ReadonlySet<ChatGraphState['intent']> = new Set([
-  'edit_current_doc',
   'image_edit',
   'image',
   'chart',
 ]);
 
 /**
- * `edit_current_doc` im EINZELDURCHLAUF — und das heisst seit #3428: die
- * Bearbeitung findet NICHT statt.
- *
- * Das Dokument wird nur noch aus der Schleife heraus geändert, vom Werkzeug
- * `edit_document`. Hierher kommt ein Turn genau dann, wenn `decideEditToolLoop`
- * ihn aus der Schleife gehalten hat (Bildanhang, gewähltes Notebook,
- * Zweit-Intent, erzwungenes Werkzeug, Loop aus) — der alte Text versprach dann
- * eine Änderung, die niemand mehr vornimmt, denn die Stufe, die früher
- * `trigger_doc_edit` schickte, gibt es nicht mehr.
+ * Der Text für einen `edit_current_doc`-Turn OHNE Bearbeitungsweg — und nur für
+ * den. Siehe {@link getDocEditGuidance} für die Bedingung.
  *
  * Der Grund bleibt bewusst ungenannt: er ist technisch und für die Person
  * bedeutungslos. Was zählt, ist, dass sie den Vorschlag als Text bekommt und
  * ihn selbst einsetzen kann.
  */
-const EDIT_CURRENT_DOC_GUIDANCE =
+const EDIT_CURRENT_DOC_NO_PATH_GUIDANCE =
   '\nDu kannst das Dokument in diesem Zug nicht direkt bearbeiten. Beginne deine Antwort auf Deutsch mit genau diesem Satz: "Ich kann das Dokument in diesem Zug nicht direkt bearbeiten — hier ist mein Vorschlag als Text:" Schreibe danach die gewünschte Fassung vollständig aus, damit sie sich von Hand übernehmen lässt. Behaupte NIEMALS, du hättest das Dokument geändert oder würdest es gleich ändern.';
+
+/**
+ * Was ein `edit_current_doc`-Turn im Prompt bekommt — und das hängt NICHT am
+ * Intent allein.
+ *
+ * Dieser Prompt-Bau erreicht beide Pfade: `responseSinglePass` ruft ihn, und
+ * `responseAgentic` gibt denselben `systemMessage` an das werkzeughaltende
+ * Modell weiter. Das Verdikt `edit_current_doc` sagt also nichts darüber, ob
+ * dieser Zug bearbeiten kann — das sagt `state.editToolSurface`, gesetzt von
+ * `decideTurnPlan`, wenn `edit_document` montiert ist.
+ *
+ * Ist es montiert, schweigt diese Stelle, genau wie bei `edit_current_board`,
+ * `edit_sheet` und `edit_current_canvas`, die hier gar keinen Fall haben: die
+ * Anweisung, das Werkzeug zu rufen, steht in der Persona und in der
+ * Werkzeugbeschreibung. Ein Absagetext daneben wäre ein direkter Widerspruch
+ * dazu — und stand bis zur Korrektur genau so im Prompt jedes Dokument-Zuges,
+ * auf dem das Werkzeug lief.
+ */
+function getDocEditGuidance(state: ChatGraphState): string {
+  return state.editToolSurface == null ? EDIT_CURRENT_DOC_NO_PATH_GUIDANCE : '';
+}
 
 const SUMMARY_GUIDANCE =
   '\nDer*die Nutzer*in hat eine Zusammenfassung angefordert. Präsentiere die vorbereitete Zusammenfassung klar und strukturiert.';
@@ -1433,7 +1457,7 @@ export function citableSourcesAvailable(state: ChatGraphState): boolean {
 export function getModeGuidance(state: ChatGraphState): string {
   switch (state.intent) {
     case 'edit_current_doc':
-      return EDIT_CURRENT_DOC_GUIDANCE;
+      return getDocEditGuidance(state);
     case 'summary':
       return SUMMARY_GUIDANCE;
     case 'chart':
