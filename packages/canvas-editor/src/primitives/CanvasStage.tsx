@@ -39,6 +39,13 @@ export interface CanvasStageProps {
   maxContainerWidth?: number;
   maxContainerHeight?: number;
   onStageClick?: (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => void;
+  /**
+   * Hit detection for the whole stage. `false` skips Konva's hit graph — it
+   * keeps a second canvas per layer purely to answer "what is under the
+   * pointer", which a render-once offscreen snapshot never asks. Defaults to
+   * true; only the preview path turns it off.
+   */
+  listening?: boolean;
   children: ReactNode;
   className?: string;
   style?: React.CSSProperties;
@@ -62,6 +69,7 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
       maxContainerWidth = 600,
       maxContainerHeight,
       onStageClick,
+      listening = true,
       children,
       className,
       style,
@@ -200,10 +208,11 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
             width={containerSize.width}
             height={containerSize.height}
             scale={{ x: displayScale, y: displayScale }}
+            listening={listening}
             onMouseDown={onStageClick}
             onTouchStart={onStageClick}
           >
-            <Layer>
+            <Layer listening={listening}>
               {logicalWidth &&
               logicalHeight &&
               (logicalWidth !== width || logicalHeight !== height) ? (
