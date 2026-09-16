@@ -110,7 +110,6 @@ describe('decideTurnPlan — die Lanes', () => {
 
   it('loop (compoundEdit): recherchieren UND ins offene Dokument einbauen', () => {
     const p = plan({
-      // Eine Fläche OHNE Werkzeugpfad (docs) — sonst gewinnt `edit-loop`.
       agentIdentifier: 'gruenerator-docs-editor',
       enabledTools: { edit_current_doc: true },
       hasOpenDocumentId: true,
@@ -120,8 +119,41 @@ describe('decideTurnPlan — die Lanes', () => {
     expect(p.lane).toBe('loop');
     expect(p.runAgentic).toBe(true);
     expect(p.compoundEdit).toBe(true);
-    expect(p.editToolLoop).toBe(false);
+    // Seit #3428 trägt die Dokument-Fläche ihr `edit_document` mit: die beiden
+    // Editor-Varianten schliessen sich nicht aus, und der Verbund-Turn baut das
+    // Recherchierte über dasselbe Werkzeug ein.
+    expect(p.editToolLoop).toBe(true);
+    expect(p.editToolSurface).toBe('doc');
     expect(p.editTarget).toBe('doc');
+  });
+
+  it('loop (Dokument-Fläche): eine Bearbeitungsbitte montiert das edit_document der doc-Fläche', () => {
+    const p = plan({
+      agentIdentifier: 'gruenerator-docs-editor',
+      enabledTools: { edit_current_doc: true },
+      hasOpenDocumentId: true,
+      intent: 'edit_current_doc',
+      lastUserText: 'Kürze den ersten Absatz',
+    });
+    expect(p.lane).toBe('loop');
+    expect(p.editToolLoop).toBe(true);
+    expect(p.editToolSurface).toBe('doc');
+    expect(p.editTarget).toBe('doc');
+  });
+
+  it('ein Zweit-Intent nimmt der Dokument-Fläche das Werkzeug — und damit jeden Bearbeitungsweg', () => {
+    // Der bewusst hingenommene Handel (#3428): solche Züge bearbeiten nicht,
+    // und `buildArtifactNotes` lässt das Modell genau das sagen.
+    const p = plan({
+      agentIdentifier: 'gruenerator-docs-editor',
+      enabledTools: { edit_current_doc: true },
+      hasOpenDocumentId: true,
+      intent: 'edit_current_doc',
+      secondaryIntent: 'save_as_doc',
+      lastUserText: 'Kürze den ersten Absatz',
+    });
+    expect(p.editToolLoop).toBe(false);
+    expect(p.editToolSurface).toBeNull();
   });
 });
 

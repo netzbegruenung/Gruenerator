@@ -632,8 +632,7 @@ export type EditorSurfaceKind = 'doc' | 'sheet' | 'presentation' | 'board' | 'ca
  * messages (EDIT_SURFACE_SPECS) and the synth note that has to tell the model
  * this turn cannot edit. A surface's noun is a property of the surface, so it
  * lives with {@link EditorSurfaceKind} rather than in the tool that happens to
- * have needed it first. Total over the union: `doc` has no edit-tool spec but
- * the note still has to name it.
+ * have needed it first. Total over the union, because both readers are.
  */
 export const EDITOR_SURFACE_NOUNS: Readonly<
   Record<EditorSurfaceKind, { readonly noun: string; readonly gender: 'f' | 'n' }>
@@ -675,13 +674,21 @@ export function resolveEditorSurfaceKind(
 }
 
 /**
- * Editor surfaces with a tool-based edit path implemented — the loop plans ops
- * and streams `editor_operations` instead of the client round-trip. `board` is
- * live via this path (#1735), `canvas` since #3427. `doc` is the only dispatch
- * surface left and keeps the trigger_doc_edit path.
- * Add a surface once its editorTools branch AND client ops handler are wired.
+ * Editor surfaces whose edit runs through the loop's `edit_document` tool —
+ * i.e. all five since #3428. The MODEL decides and writes the instruction; what
+ * differs is only how the change reaches the artefact (see editorTools): four
+ * surfaces plan ops server-side and stream `editor_operations` (`board` since
+ * #1735, `canvas` since #3427), `doc` dispatches `trigger_doc_edit` and lets
+ * BlockNote compose the change client-side.
+ *
+ * The set is therefore no longer "which surfaces have a tool" — it is the total
+ * over {@link EditorSurfaceKind}. It stays a set rather than becoming `true`
+ * because it is also what `buildArtifactNotes` asks to decide whether a turn
+ * WITHOUT the tool has any edit path left at all; a sixth surface added without
+ * an edit path must be able to say so.
  */
 export const TOOL_EDIT_SURFACES: ReadonlySet<EditorSurfaceKind> = new Set([
+  'doc',
   'sheet',
   'presentation',
   'board',
@@ -716,8 +723,10 @@ export interface EditToolLoopInput {
  * `edit_current_*` intent: it routinely mislabels edit asks as `direct`
  * ("trag es in die Tabelle ein") and drops short follow-ups ("ja ab a1") into a
  * single-pass `direct` turn, both of which must still be able to edit. The same
- * single-pass kill-switches as {@link decideRunAgentic} still apply. A surface
- * without a tool path (`doc`) returns false → legacy trigger path.
+ * single-pass kill-switches as {@link decideRunAgentic} still apply — and on a
+ * doc surface a turn they hold back now has NO edit path at all (the classifier
+ * stage that used to emit `trigger_doc_edit` is gone), which is why
+ * `buildArtifactNotes` makes the model say so.
  */
 export function decideEditToolLoop(p: EditToolLoopInput): boolean {
   if (!p.loopEnabled) return false;

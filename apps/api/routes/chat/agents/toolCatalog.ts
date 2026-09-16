@@ -861,11 +861,13 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
     // enough).
     const editorSurface = isEditorSurface(state.enabledTools);
 
-    // Tool-based editor edit: the loop edits the OPEN artifact in place via
-    // `edit_document` instead of the client round-trip to the bespoke
-    // /api/{sheets,…}/:id/ai endpoint. Mounted only when the router resolved a
-    // surface with a tool path (state.editToolSurface set); otherwise the legacy
-    // trigger_doc_edit path stays in force. appliedOpsLog is per-turn.
+    // Tool-based editor edit: the MODEL decides and writes the instruction,
+    // instead of the client round-trip to the bespoke /api/{sheets,…}/:id/ai
+    // endpoint (plan-and-send surfaces) or the classifier's `edit_current_doc`
+    // verdict (the doc dispatch). Mounted only when the router resolved a
+    // surface for this turn (state.editToolSurface set); a turn the
+    // kill-switches held back has NO edit path and says so (artifactNotes).
+    // appliedOpsLog is per-turn.
     if (state.editToolSurface) {
       const editTool = makeEditArtifactTool({ sse, state, sourceRegistry, appliedOpsLog: [] });
       if (editTool) tools.edit_document = editTool;

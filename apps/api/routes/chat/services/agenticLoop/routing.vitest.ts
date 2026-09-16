@@ -982,8 +982,10 @@ describe('decideEditToolLoop', () => {
     expect(decideEditToolLoop({ ...base, surfaceKind: 'canvas' })).toBe(true);
   });
 
-  it('keeps the legacy dispatch path for docs (the last surface without a tool)', () => {
-    expect(decideEditToolLoop({ ...base, surfaceKind: 'doc' })).toBe(false);
+  it('enters the loop for docs too (dispatch strategy, #3428)', () => {
+    // The doc surface no longer has a path OUTSIDE the loop: the classifier
+    // stage that emitted `trigger_doc_edit` is gone, the tool dispatches it.
+    expect(decideEditToolLoop({ ...base, surfaceKind: 'doc' })).toBe(true);
   });
 
   it('requires the loop to be enabled', () => {
