@@ -4,44 +4,10 @@
  * Extracted from simple_canvas.ts and extended for Free Canvas API
  */
 
-import { layoutTextLines } from '../../textLayout.js';
+import { drawRichTextLines } from '../../textLayout.js';
 
 import type { TextLayer } from '../types/freeCanvasTypes.js';
 import type { SKRSContext2D as CanvasRenderingContext2D } from '@napi-rs/canvas';
-
-/**
- * Word-wrap text helper function
- * @param ctx - Canvas 2D context
- * @param text - Text to wrap
- * @param x - X position
- * @param y - Y position
- * @param maxWidth - Maximum line width
- * @param lineHeight - Line height in pixels
- * @returns Final Y position after all lines
- */
-function wrapText(
-  ctx: CanvasRenderingContext2D,
-  text: string,
-  x: number,
-  y: number,
-  maxWidth: number,
-  lineHeight: number
-): number {
-  // Umbruch und Einzug kommen aus dem geteilten Helfer — dieselbe Logik, die
-  // der Editor für die Vorschau fährt. Vorher brach diese Kopie nur an ' ',
-  // ein `\n` blieb in der Zeile stehen und `fillText` verschluckte es.
-  let currentY = y;
-  for (const line of layoutTextLines(ctx, text, maxWidth)) {
-    // Marker an den Blockrand, Text um den Einzug nach rechts — GETRENNT. Als
-    // ein zusammengesetzter String an `x + indent` säße das Aufzählungszeichen
-    // dort, wo der Text hingehört, und die erste Zeile eines Punktes stünde um
-    // einen ganzen Einzug weiter rechts als ihre eigenen Folgezeilen.
-    if (line.marker !== null) ctx.fillText(line.marker, x, currentY);
-    ctx.fillText(line.text, x + line.indent, currentY);
-    currentY += lineHeight;
-  }
-  return currentY + lineHeight;
-}
 
 /**
  * Render a text layer with full transforms
@@ -61,8 +27,18 @@ export function renderText(ctx: CanvasRenderingContext2D, text: TextLayer): void
   ctx.textBaseline = 'top';
 
   if (text.maxWidth) {
-    const lineHeight = text.fontSize * 1.2;
-    wrapText(ctx, text.text, 0, 0, text.maxWidth, lineHeight);
+    // Umbruch, Einzug und Auszeichnung kommen aus dem geteilten Helfer —
+    // dieselbe Logik, die der Editor für die Vorschau fährt. Vorher brach
+    // eine private Kopie nur an ' ', ein `\n` blieb in der Zeile stehen und
+    // `fillText` verschluckte es.
+    drawRichTextLines(ctx, text.text, {
+      x: 0,
+      y: 0,
+      maxWidth: text.maxWidth,
+      lineHeight: text.fontSize * 1.2,
+      font: { fontFamily: text.fontFamily, fontSize: text.fontSize, fontStyle: text.fontStyle },
+      color: text.color,
+    });
   } else {
     ctx.fillText(text.text, 0, 0);
   }

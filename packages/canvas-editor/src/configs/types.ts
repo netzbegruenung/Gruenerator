@@ -91,6 +91,13 @@ export interface TextElementConfig<
   padding?: PositionValue<TState>;
   /** Enable inline editing */
   editable?: boolean;
+  /**
+   * Der Text trägt Markdown-lite (`**fett**`, `_kursiv_`, `<u>…</u>`, Listen)
+   * und wird mit dem Rich-Text-Editor bearbeitet. Nur für Felder in einer
+   * Schrift mit echten Fett-/Kursiv-Schnitten (PT Sans) setzen — GrueneTypeNeue
+   * hat nur einen Schnitt, dort würde beides synthetisiert.
+   */
+  richText?: boolean;
   /** Enable dragging */
   draggable?: boolean;
   /** Enable transform handles */
