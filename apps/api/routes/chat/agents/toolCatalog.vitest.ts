@@ -319,6 +319,24 @@ describe('toolCatalog domain tool mounting', () => {
     expect(names).not.toContain('create_document');
   });
 
+  it('mounts edit_document for the docs surface (dispatch strategy, #3428)', () => {
+    const names = genCatalog({
+      kind: null,
+      enabledTools: { edit_current_doc: true },
+      extraState: {
+        editToolSurface: 'doc',
+        currentDocument: {
+          id: 'doc-1',
+          title: 'Antrag',
+          markdown: '# Antrag',
+          selectionText: null,
+        },
+      },
+    }).toolNames;
+    expect(names).toContain('edit_document');
+    expect(names).not.toContain('create_document');
+  });
+
   it('editor sidebars NEVER spawn a new artifact (create tools gated off when edit_current_* is on)', () => {
     // A docs/sheets/presentations sidebar (edit_current_doc enabled) editing its
     // open doc must not create a NEW one, even on a compound turn.

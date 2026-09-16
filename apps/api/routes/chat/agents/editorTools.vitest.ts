@@ -76,6 +76,21 @@ function canvasState(overrides?: Partial<ChatGraphState>): ChatGraphState {
   } as unknown as ChatGraphState;
 }
 
+function docState(overrides?: Partial<ChatGraphState>): ChatGraphState {
+  return {
+    intent: 'edit_current_doc',
+    editToolSurface: 'doc',
+    messages: [{ role: 'user', content: 'Kürze den ersten Absatz' }],
+    currentDocument: {
+      id: 'doc-1',
+      title: 'Antrag',
+      markdown: '# Antrag\n\nLanger erster Absatz.',
+      selectionText: null,
+    },
+    ...overrides,
+  } as unknown as ChatGraphState;
+}
+
 function ctx(events: SseEvent[], state: ChatGraphState): EditorToolCtx {
   return { sse: fakeSse(events), state, sourceRegistry: createSourceRegistry(), appliedOpsLog: [] };
 }
@@ -95,15 +110,15 @@ describe('makeEditArtifactTool (sheet)', () => {
     runCanvasSuggest.mockReset();
   });
 
-  it('is built for plan-and-send surfaces (sheet, presentation, board, canvas) only', () => {
+  it('is built for every resolved surface, and only for a resolved one', () => {
     expect(makeEditArtifactTool(ctx([], sheetState()))).not.toBeNull();
     expect(
       makeEditArtifactTool(ctx([], sheetState({ editToolSurface: 'presentation' })))
     ).not.toBeNull();
     expect(makeEditArtifactTool(ctx([], boardState({ editToolSurface: 'board' })))).not.toBeNull();
     expect(makeEditArtifactTool(ctx([], canvasState()))).not.toBeNull();
-    // `doc` is the last dispatch-strategy surface — no plan-and-send tool.
-    expect(makeEditArtifactTool(ctx([], sheetState({ editToolSurface: 'doc' })))).toBeNull();
+    // `doc` is built too since #3428 — it dispatches instead of planning.
+    expect(makeEditArtifactTool(ctx([], docState()))).not.toBeNull();
     expect(makeEditArtifactTool(ctx([], sheetState({ editToolSurface: null })))).toBeNull();
   });
 
@@ -265,5 +280,111 @@ describe('makeEditArtifactTool (sheet)', () => {
 
     expect(out.error).toBeTruthy();
     expect(generateSheetOperations).not.toHaveBeenCalled();
+  });
+});
+
+describe('makeEditArtifactTool (doc — dispatch strategy)', () => {
+  const LONG_ANSWER = `Der überarbeitete Antrag lautet: ${'Wir fordern mehr Tempo beim Ausbau. '.repeat(10)}`;
+
+  it('dispatches trigger_doc_edit with the MODEL instruction, not the user text', async () => {
+    const events: SseEvent[] = [];
+    const c = ctx(events, docState());
+    const out = (await exec(makeEditArtifactTool(c)!, {
+      instruction: 'Kürze den ersten Absatz auf zwei Sätze und behalte die Forderung.',
+    })) as { ok: boolean; dispatched: boolean; note: string };
+
+    expect(out).toMatchObject({ ok: true, dispatched: true });
+    expect(out.note).toContain('Vorschlag');
+    const emitted = events.find((e) => e.type === 'trigger_doc_edit');
+    const payload = emitted!.payload as {
+      targetDocumentId: string;
+      userPrompt: string;
+      useSelection: boolean;
+      referenceContent?: string;
+    };
+    expect(payload.targetDocumentId).toBe('doc-1');
+    // The whole point of the move: the instruction is the MODEL's, so the raw
+    // ask ("Kürze den ersten Absatz") is no longer what reaches BlockNote.
+    expect(payload.userPrompt).toBe(
+      'Kürze den ersten Absatz auf zwei Sätze und behalte die Forderung.'
+    );
+    expect(payload.useSelection).toBe(false);
+    expect(payload.referenceContent).toBeUndefined();
+    // Nothing is planned server-side on this surface.
+    expect(events.find((e) => e.type === 'editor_operations')).toBeUndefined();
+    expect(c.appliedOpsLog).toEqual([
+      'Bearbeitung angestoßen: Kürze den ersten Absatz auf zwei Sätze und behalte die Forderung.',
+    ]);
+    expect(c.state.editorEditsSummary).toContain('Bearbeitung am Dokument angestoßen');
+  });
+
+  it('derives useSelection from the open document selection', async () => {
+    const events: SseEvent[] = [];
+    const state = docState({
+      currentDocument: {
+        id: 'doc-1',
+        title: 'Antrag',
+        markdown: '# Antrag',
+        selectionText: 'Dieser Satz ist markiert.',
+      } as never,
+    });
+    await exec(makeEditArtifactTool(ctx(events, state))!, { instruction: 'Mach das knapper' });
+    expect((events[0]!.payload as { useSelection: boolean }).useSelection).toBe(true);
+  });
+
+  it('carries BOTH reference channels — the loop sources and the prior assistant turn', async () => {
+    const events: SseEvent[] = [];
+    const state = docState({
+      messages: [
+        { role: 'user', content: 'Schreib mir den Antrag' },
+        { role: 'assistant', content: LONG_ANSWER },
+        { role: 'user', content: 'Füge das ins Dokument ein' },
+      ] as never,
+    });
+    const c: EditorToolCtx = {
+      sse: fakeSse(events),
+      state,
+      sourceRegistry: createSourceRegistry(),
+      appliedOpsLog: [],
+    };
+    c.sourceRegistry.register([
+      { source: 'web', title: 'Ausbauzahlen 2026', content: '12,4 GW zugebaut.' },
+    ]);
+
+    await exec(makeEditArtifactTool(c)!, { instruction: 'Bau die Zahlen ein' });
+    const reference = (events[0]!.payload as { referenceContent: string }).referenceContent;
+    expect(reference).toContain('RECHERCHIERTE QUELLEN:');
+    expect(reference).toContain('12,4 GW zugebaut.');
+    expect(reference).toContain('VORHERIGE ANTWORT AUS DIESEM CHAT:');
+    expect(reference).toContain('Wir fordern mehr Tempo beim Ausbau.');
+  });
+
+  it('refuses a SECOND dispatch in the same turn instead of forking twice', async () => {
+    // The client neither queues nor rejects: invokeDocumentAI's in-flight Set is
+    // a signal for the review UI, so a second invoke would fork the Y.Doc while
+    // the first fork is still being written into.
+    const events: SseEvent[] = [];
+    const c = ctx(events, docState());
+    const editTool = makeEditArtifactTool(c)!;
+    await exec(editTool, { instruction: 'Kürze den ersten Absatz' });
+    const second = (await exec(editTool, { instruction: 'Und jetzt den zweiten' })) as {
+      error?: string;
+    };
+
+    expect(second.error).toContain('Es läuft bereits eine Bearbeitung am Dokument');
+    expect(events.filter((e) => e.type === 'trigger_doc_edit')).toHaveLength(1);
+  });
+
+  it('errors when no document is open', async () => {
+    const events: SseEvent[] = [];
+    const out = (await exec(
+      makeEditArtifactTool(ctx(events, docState({ currentDocument: null })))!,
+      {
+        instruction: 'x',
+      }
+    )) as { error?: string };
+
+    expect(out.error).toContain('Dokument');
+    expect(events).toHaveLength(0);
   });
 });

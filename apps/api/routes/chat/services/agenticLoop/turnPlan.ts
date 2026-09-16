@@ -377,11 +377,11 @@ export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
     looksLikeCompoundEdit(p.lastUserText);
 
   // Werkzeugbasierte Editor-Bearbeitung: der Turn geht mit dem `edit_document`
-  // der Fläche in die Schleife, damit das Modell suchen und das OFFENE Artefakt
-  // an Ort und Stelle ändern kann (`editor_operations`-SSE) statt über den
-  // Client-Umweg /api/{sheets,…}/:id/ai. Welche Flächen einen Werkzeugpfad
-  // haben und warum die letzte verbliebene (doc) beim alten trigger_doc_edit
-  // bleibt, steht bei {@link decideEditToolLoop}.
+  // der Fläche in die Schleife, damit das MODELL suchen und das OFFENE Artefakt
+  // ändern kann — vier Flächen über `editor_operations`, die Dokument-Fläche
+  // über den `trigger_doc_edit`-Versand aus demselben Werkzeug. Was passiert,
+  // wenn die Notausschalter den Turn zurückhalten, steht bei
+  // {@link decideEditToolLoop}.
   const editToolSurfaceKind = resolveEditorSurfaceKind(p.agentIdentifier, p.enabledTools);
   const editToolLoop = decideEditToolLoop({
     loopEnabled: p.loopEnabled,

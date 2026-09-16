@@ -5,18 +5,28 @@
  * (see routing.decideEditToolLoop / TOOL_EDIT_SURFACES). Lets the loop model edit
  * the OPEN artifact mid-conversation — search first, then edit, and write an
  * answer that knows what it changed — instead of a client round-trip to a
- * bespoke /api/{sheets,presentations}/:id/ai endpoint.
+ * bespoke /api/{sheets,presentations}/:id/ai endpoint or a classifier verdict.
  *
- * Strategy: plan-and-send. `execute` calls the existing per-surface op-planning
- * core (Mistral-Medium prompt, unchanged) with the loop's gathered sources as
- * reference material, emits an `editor_operations` SSE event carrying the typed
- * ops, and returns a lean summary to the model. The client applies the ops in
- * place (Univer / Yjs) via its per-surface handler — the artifact lives in the
- * browser, so apply is always client-side.
+ * TWO strategies, and the difference is who composes the change:
+ *
+ *  - `plan-and-send` (sheet/presentation/board/canvas): `execute` calls the
+ *    per-surface op-planning core (Mistral-Medium prompt, unchanged) with the
+ *    loop's gathered sources as reference material, emits an
+ *    `editor_operations` SSE event carrying the typed ops, and returns a lean
+ *    summary. The client applies the ops in place (Univer / Yjs).
+ *  - `dispatch` (doc): the server plans nothing. It forwards the model's
+ *    instruction as `trigger_doc_edit`, and BlockNote's xl-ai extension forks
+ *    the Y.Doc, calls POST /api/docs/ai and applies the result as suggestion
+ *    marks the person accepts or rejects. What moved into the loop here is the
+ *    DECISION and the INSTRUCTION, not the apply path.
+ *
+ * Either way the artifact lives in the browser, so apply is always client-side
+ * and there is NO acknowledgement channel back — a dispatched edit is never
+ * reported as saved (see the `Vorschlag` wording below and artifactNotes).
  *
  * Add a surface by adding an {@link EditSurfaceSpec} to EDIT_SURFACE_SPECS AND
- * the matching client `editorOpsHandler` (`doc` is the last dispatch-strategy
- * surface, keeps its trigger_doc_edit path and is NOT specced here).
+ * the matching client handler (`editorOpsHandler` for plan-and-send, the
+ * `documentEditHandler` for the doc dispatch).
  */
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
@@ -30,6 +40,7 @@ import { EDITOR_SURFACE_NOUNS, type EditorSurfaceKind } from '../services/agenti
 import { type SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 import { emitEditorOperations, planEditorOps, type EditorOp } from '../services/editorOpsCore.js';
 import { type SSEWriter } from '../services/sseHelpers.js';
+import { buildPriorTurnReference, EDIT_REFERENCE_CHAR_CAP } from '../streamStages/editReference.js';
 
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 
@@ -47,14 +58,19 @@ export interface EditorToolCtx {
   appliedOpsLog: string[];
 }
 
-/** Per-surface configuration for the plan-and-send edit tool. The artefact's
- *  noun and gender are NOT here: they live in `EDITOR_SURFACE_NOUNS`, because
- *  the synth's "cannot edit this turn" note names the same thing. */
-interface EditSurfaceSpec {
+/** What every surface's spec carries. The artefact's noun and gender are NOT
+ *  here: they live in `EDITOR_SURFACE_NOUNS`, because the synth's "cannot edit
+ *  this turn" note names the same thing. */
+interface EditSurfaceBase {
   /** Model-facing tool description. */
   description: string;
   /** The open artefact for this surface, or null if none is open. */
   getTarget: (state: ChatGraphState) => { id: string } | null;
+}
+
+/** The server plans the typed operations and streams them. */
+interface PlanAndSendSpec extends EditSurfaceBase {
+  strategy: 'plan-and-send';
   /**
    * Plan the typed operations. Each surface reads its own context off `state`
    * (currentDocument.markdown for sheet/presentation, structured currentBoard
@@ -71,6 +87,28 @@ interface EditSurfaceSpec {
 }
 
 /**
+ * The server plans nothing — it hands the instruction to the surface's own
+ * client-side AI pipeline and says so. `note` is what the model is told to
+ * report; it must not read as "saved", because nothing acknowledges the apply.
+ *
+ * `target` comes from {@link EditSurfaceBase.getTarget}, which `execute` has
+ * already refused a turn without — passing it keeps the dispatch free of a
+ * second, unreachable null check on the same field.
+ */
+interface DispatchSpec extends EditSurfaceBase {
+  strategy: 'dispatch';
+  dispatch: (input: {
+    instruction: string;
+    state: ChatGraphState;
+    referenceContent: string | null;
+    target: { id: string };
+    sse: SSEWriter;
+  }) => { note: string };
+}
+
+type EditSurfaceSpec = PlanAndSendSpec | DispatchSpec;
+
+/**
  * What a surface's planner hands back: the typed ops, optionally with a human
  * LABEL for the batch. Only canvas supplies one — its planner names every
  * suggestion in German ("Zitat geschärft"), and that name is what the studio's
@@ -79,8 +117,65 @@ interface EditSurfaceSpec {
  */
 type PlannedOps = EditorOp[] | { operations: EditorOp[]; label: string };
 
-const EDIT_SURFACE_SPECS: Partial<Record<EditorSurfaceKind, EditSurfaceSpec>> = {
+/**
+ * The note the doc dispatch returns to the model. Deliberately not past tense
+ * and deliberately not "gespeichert": BlockNote shows the change as suggestion
+ * marks, and whether it survives is the PERSON's decision, taken after this
+ * turn has ended. The server never learns the outcome.
+ */
+const DOC_DISPATCH_NOTE =
+  'Die Änderung wird im Dokument als Vorschlag angezeigt; die Person nimmt sie dort an oder verwirft sie.';
+
+/** How much of the model's instruction rides in the per-turn log and the edit
+ *  summary — enough to tell two edits apart, not a second copy of the brief. */
+const INSTRUCTION_ECHO_CHARS = 120;
+
+/**
+ * Both reference channels the docs AI gets, under their own headings.
+ *
+ * Two different questions the same field answers: "welche Fakten sollen rein"
+ * (the loop's gathered sources — `recherchiere X und bau es ein`) and "welchen
+ * Text meint die Person" (the previous assistant turn — `füge das ein`). The
+ * docs AI sees only the document, so both have to travel with the instruction.
+ * Capped TOGETHER, because the cap protects the docs-AI system prompt and that
+ * prompt carries the concatenation, not either half.
+ */
+function buildDocReferenceContent(state: ChatGraphState, sources: string | null): string | null {
+  const prior = buildPriorTurnReference(state.messages ?? []);
+  const blocks = [
+    sources ? `RECHERCHIERTE QUELLEN:\n${sources}` : '',
+    prior ? `VORHERIGE ANTWORT AUS DIESEM CHAT:\n${prior}` : '',
+  ].filter(Boolean);
+  if (blocks.length === 0) return null;
+  const joined = blocks.join('\n\n---\n\n');
+  return joined.length > EDIT_REFERENCE_CHAR_CAP
+    ? joined.slice(0, EDIT_REFERENCE_CHAR_CAP)
+    : joined;
+}
+
+const EDIT_SURFACE_SPECS: Record<EditorSurfaceKind, EditSurfaceSpec> = {
+  doc: {
+    strategy: 'dispatch',
+    description:
+      'Bearbeite das aktuell geöffnete Dokument (umschreiben, kürzen, ergänzen, Abschnitte einfügen). Nutze dies, nachdem du – falls nötig – recherchiert hast. Beschreibe im instruction-Feld vollständig, was geändert werden soll, inkl. der Inhalte/Fakten, die eingearbeitet werden sollen.',
+    getTarget: (state) => (state.currentDocument ? { id: state.currentDocument.id } : null),
+    dispatch: ({ instruction, state, referenceContent, target, sse }) => {
+      const reference = buildDocReferenceContent(state, referenceContent);
+      // Unchanged wire format (`triggerDocEditSchema`): what moved is WHO wrote
+      // `userPrompt`. It used to be the raw user text forwarded by the
+      // classifier stage; it is now the model's own, self-contained
+      // instruction, which already carries the researched facts.
+      sse.send('trigger_doc_edit', {
+        targetDocumentId: target.id,
+        userPrompt: instruction,
+        useSelection: !!state.currentDocument?.selectionText,
+        ...(reference ? { referenceContent: reference } : {}),
+      });
+      return { note: DOC_DISPATCH_NOTE };
+    },
+  },
   sheet: {
+    strategy: 'plan-and-send',
     description:
       'Bearbeite die aktuell geöffnete Tabelle direkt (Werte, Formeln, Formate). Nutze dies, nachdem du – falls nötig – recherchiert hast, um die Ergebnisse einzutragen. Beschreibe im "instruction"-Feld genau, was geändert werden soll, inkl. der konkreten Zahlen.',
     getTarget: (state) => (state.currentDocument ? { id: state.currentDocument.id } : null),
@@ -92,6 +187,7 @@ const EDIT_SURFACE_SPECS: Partial<Record<EditorSurfaceKind, EditSurfaceSpec>> = 
       }),
   },
   presentation: {
+    strategy: 'plan-and-send',
     description:
       'Bearbeite die aktuell geöffnete Präsentation direkt (Folien hinzufügen/ändern/löschen/verschieben, Layout, Design). Nutze dies, nachdem du – falls nötig – recherchiert hast, um die Inhalte einzuarbeiten. Beschreibe im "instruction"-Feld genau, was geändert werden soll, inkl. der konkreten Inhalte.',
     getTarget: (state) => (state.currentDocument ? { id: state.currentDocument.id } : null),
@@ -106,6 +202,7 @@ const EDIT_SURFACE_SPECS: Partial<Record<EditorSurfaceKind, EditSurfaceSpec>> = 
       }),
   },
   board: {
+    strategy: 'plan-and-send',
     description:
       'Bearbeite das aktuell geöffnete Board direkt (neue Aufgaben, Spalten, Felder oder Ansichten anlegen). Nutze dies, nachdem du – falls nötig – recherchiert hast, um die Ergebnisse einzutragen. Beschreibe im "instruction"-Feld genau, was angelegt werden soll.',
     getTarget: (state) => (state.currentBoard ? { id: state.currentBoard.id } : null),
@@ -122,6 +219,7 @@ const EDIT_SURFACE_SPECS: Partial<Record<EditorSurfaceKind, EditSurfaceSpec>> = 
       }),
   },
   canvas: {
+    strategy: 'plan-and-send',
     description:
       'Bearbeite das aktuell geöffnete Sharepic direkt (Texte, Farbschema, Elemente). Nutze dies, nachdem du – falls nötig – recherchiert hast, um die Ergebnisse einzuarbeiten. Beschreibe im "instruction"-Feld genau, was geändert werden soll, inkl. der konkreten Texte.',
     getTarget: (state) => (state.currentCanvas ? { id: state.currentCanvas.id } : null),
@@ -150,16 +248,16 @@ const EDIT_SURFACE_SPECS: Partial<Record<EditorSurfaceKind, EditSurfaceSpec>> = 
 };
 
 const INSTRUCTION_DESC =
-  'Vollständiger, in sich geschlossener Bearbeitungsauftrag auf Deutsch — inklusive der recherchierten Fakten/Inhalte, die eingearbeitet werden sollen. Der Auftrag wird an den Fachplaner weitergegeben, der die konkreten Operationen erzeugt.';
+  'Vollständiger, in sich geschlossener Bearbeitungsauftrag auf Deutsch — inklusive der recherchierten Fakten/Inhalte, die eingearbeitet werden sollen. Der Auftrag wird unverändert an die Bearbeitung der Fläche weitergegeben und muss für sich allein verständlich sein.';
 
 /**
- * Builds the `edit_document` tool for the active editor surface, or null if the
- * surface has no plan-and-send tool path (`doc` keeps the dispatch path).
+ * Builds the `edit_document` tool for the active editor surface, or null when
+ * the router resolved no surface for this turn (`state.editToolSurface`).
  */
 export function makeEditArtifactTool(ctx: EditorToolCtx): Tool | null {
   const kind = ctx.state.editToolSurface;
-  const spec = kind ? EDIT_SURFACE_SPECS[kind] : undefined;
-  if (!kind || !spec) return null;
+  if (!kind) return null;
+  const spec = EDIT_SURFACE_SPECS[kind];
 
   return tool({
     description: spec.description,
@@ -181,6 +279,43 @@ export function makeEditArtifactTool(ctx: EditorToolCtx): Tool | null {
       }
 
       const referenceContent = ctx.sourceRegistry.renderReference() || null;
+
+      // Discriminated on `spec.strategy`, never destructured — the branch is
+      // what narrows `spec` to the one member that has `dispatch`.
+      if (spec.strategy === 'dispatch') {
+        // A second dispatch in the same turn is REFUSED, not queued. The client
+        // has no queue: `invokeDocumentAI` (packages/docs/src/lib) tracks
+        // in-flight invocations in a Set purely as a SIGNAL for the review UI —
+        // it neither awaits nor rejects a second call, so a second invoke would
+        // fork the Y.Doc while the first fork is still being written into, and
+        // its `finally` would then clear the in-flight flag for both. The server
+        // cannot wait for the first one either (there is no acknowledgement
+        // channel), so telling the model to wait is the only honest answer.
+        if (ctx.appliedOpsLog.length > 0) {
+          return {
+            error: `Es läuft bereits eine Bearbeitung ${anDer} ${artefact.noun} — warte auf die Rückmeldung.`,
+          };
+        }
+        const dispatched = spec.dispatch({
+          instruction,
+          state: ctx.state,
+          referenceContent,
+          target,
+          sse: ctx.sse,
+        });
+        const echo =
+          instruction.length > INSTRUCTION_ECHO_CHARS
+            ? `${instruction.slice(0, INSTRUCTION_ECHO_CHARS)}…`
+            : instruction;
+        ctx.appliedOpsLog.push(`Bearbeitung angestoßen: ${echo}`);
+        const dispatchNote = `Bearbeitung ${anDer} ${artefact.noun} angestoßen (${echo})`;
+        ctx.state.editorEditsSummary = ctx.state.editorEditsSummary
+          ? `${ctx.state.editorEditsSummary}; ${dispatchNote}`
+          : dispatchNote;
+        log.info(`[EditorTool] dispatched ${kind} edit for "${instruction}"`);
+        return { ok: true, dispatched: true, note: dispatched.note };
+      }
+
       const appliedNote =
         ctx.appliedOpsLog.length > 0
           ? `\n\nBEREITS IN DIESEM TURN ANGEWENDET (plane darauf aufbauend, wiederhole diese Änderungen nicht):\n- ${ctx.appliedOpsLog.join('\n- ')}`
