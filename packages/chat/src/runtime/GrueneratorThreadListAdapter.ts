@@ -1,6 +1,7 @@
 'use client';
 
 import { isUnauthorizedError } from '@gruenerator/shared/api';
+import { clampThreadTitle } from '@gruenerator/shared/utils';
 import { createAssistantStream } from 'assistant-stream';
 
 import { notifyWarning } from '../lib/notify';
@@ -163,29 +164,6 @@ function isExternal(remoteId: string) {
 const titleGeneratedFor = new Set<string>();
 
 /**
- * The title budget, in characters. Measured: the sidebar row leaves the title
- * ~188px (260px panel − 16px `px-2` − 24px `px-3` − 8px gap − 24px more-button),
- * which is ~26–28 German characters in PT Sans 14px. The same number the server
- * clamps to, so the optimistic title does not jump when the generated one
- * replaces it.
- */
-const MAX_TITLE_CHARS = 32;
-
-/**
- * Cut at a word boundary. No ellipsis: both sidebars add their own — CSS
- * `text-overflow` on web (`ThreadListItem`), `numberOfLines={1}` on native
- * (`ThreadListDrawer`) — and a hand-appended `...` sits past that cut, so it
- * was either invisible or a second ellipsis. See #3411.
- */
-function clampToWords(text: string): string {
-  if (text.length <= MAX_TITLE_CHARS) return text;
-  const head = text.slice(0, MAX_TITLE_CHARS);
-  const lastSpace = head.lastIndexOf(' ');
-  // A single word longer than the budget is the only case we cut mid-word.
-  return (lastSpace > 0 ? head.slice(0, lastSpace) : head).replace(/[\s,;:–-]+$/, '');
-}
-
-/**
  * First-sentence title from the opening user message, or null when that message
  * carries no text of its own.
  *
@@ -209,7 +187,7 @@ function deriveLocalTitle(messages: readonly ThreadMessage[]): string | null {
 
   const sentenceEnd = fullText.search(/[.!?]/);
   const title = sentenceEnd > 0 ? fullText.slice(0, sentenceEnd) : fullText;
-  return clampToWords(title);
+  return clampThreadTitle(title);
 }
 
 export function createGrueneratorThreadListAdapter(
