@@ -48,6 +48,7 @@ function OpenSession({ id, fontFamily }: { id: string; fontFamily: string }) {
       fontStyle: 'normal',
       fill: '#005538',
       align: 'left',
+      opacity: 1,
       lineHeight: 1.2,
       onTextChange: () => {},
     };

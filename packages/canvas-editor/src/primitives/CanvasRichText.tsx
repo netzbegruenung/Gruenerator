@@ -209,6 +209,7 @@ export function CanvasRichText({
       fill,
       align,
       lineHeight,
+      opacity,
       onTextChange,
     });
   }, [
@@ -224,6 +225,7 @@ export function CanvasRichText({
     fill,
     align,
     lineHeight,
+    opacity,
     onTextChange,
   ]);
 

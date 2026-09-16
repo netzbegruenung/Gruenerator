@@ -75,7 +75,10 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 
+import { PLAIN_STYLE, splitListItems } from '@gruenerator/contracts';
+
 import { fontMarkSupport, type FontMarkSupport } from '../utils/fontMarkSupport';
+import { fontStyleForRun, measureTextWidthWithFont } from '../utils/textUtils';
 
 import { RichTextField } from './RichTextField';
 
@@ -93,6 +96,12 @@ export interface OverlayBox {
 /** Ohne offene Sitzung trägt niemand einen Schnitt. */
 const NO_MARKS: FontMarkSupport = { bold: false, italic: false };
 
+/**
+ * Untergrenze für die gespiegelte Deckkraft. Der Regler der Kopfleiste geht
+ * bis 0; ein Feld, das dort steht, wäre als Editor nicht mehr zu sehen.
+ */
+const LOWEST_LEGIBLE_OPACITY = 0.2;
+
 /** Was ein Knoten mitgibt, wenn er bearbeitet werden will. */
 export interface TextEditSession {
   /** Element-Id — der Knoten blendet sich aus, solange er bearbeitet wird. */
@@ -106,6 +115,8 @@ export interface TextEditSession {
   fill: string;
   align: CSSProperties['textAlign'];
   lineHeight: number;
+  /** Deckkraft des Feldes — die Kopfleiste stellt sie, also zeigt der Editor sie. */
+  opacity: number;
   onTextChange?: (value: string) => void;
 }
 
@@ -248,6 +259,30 @@ function TextEditorRoot({ children }: { children: ReactNode }) {
     [session]
   );
 
+  // Der Einzug einer Aufzählung, nach derselben Regel wie
+  // `layoutRichTextBlock`: der breiteste Marker des Blocks samt Leerzeichen,
+  // in der Schrift des Feldes gemessen. Er landet als CSS-Variable im Feld
+  // (siehe `canvas-editor.css`) und leistet dort zweierlei — der Punkt steht
+  // IM Feld statt links daneben, und der Editor bricht auf derselben Breite
+  // um wie Leinwand und Export, der Text springt beim Schließen also nicht.
+  //
+  // Am Entwurf gemessen und danach skaliert, genau wie auf der Bühne: dort
+  // rechnet der Renderer in Entwurfsmaßen, und die Gruppe darum skaliert.
+  const listIndent = useMemo(() => {
+    if (!session) return 0;
+    const markers = splitListItems(draft)
+      .map((item) => item.marker)
+      .filter((marker): marker is string => marker !== null);
+    if (markers.length === 0) return 0;
+    const style = fontStyleForRun(session.fontStyle, PLAIN_STYLE);
+    const widest = Math.max(
+      ...markers.map((marker) =>
+        measureTextWidthWithFont(`${marker} `, session.fontSize, session.fontFamily, style)
+      )
+    );
+    return widest * session.box.scale;
+  }, [draft, session]);
+
   const claimHost = useCallback(() => {
     setHosts((count) => count + 1);
     return () => setHosts((count) => count - 1);
@@ -294,6 +329,13 @@ function TextEditorRoot({ children }: { children: ReactNode }) {
                 color: session.fill,
                 textAlign: session.align,
                 lineHeight: String(session.lineHeight),
+                // Nicht ganz bis 0: die Deckkraft gehört zum Feld und wird
+                // in derselben Leiste gestellt, aber der Editor ist Werkzeug,
+                // nicht Sujet — bei 0 tippte man ins Unsichtbare.
+                opacity: Math.max(session.opacity, LOWEST_LEGIBLE_OPACITY),
+                // Eigene Eigenschaft; React typisiert sie nicht, reicht den
+                // Wert aber unverändert durch.
+                ...({ '--canvas-rte-list-indent': `${listIndent}px` } as CSSProperties),
               }}
               onBlur={commit}
               onEscape={cancel}
