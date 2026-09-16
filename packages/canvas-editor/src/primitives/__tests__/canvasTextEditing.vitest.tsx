@@ -142,7 +142,7 @@ function HostControls() {
 describe('Bühne innerhalb eines Wirt-Providers', () => {
   it('öffnet keine zweite Sitzung — der Wirt bekommt den Editor', () => {
     dblClickOnCanvas({ text: 'Klimaschutz ist kein Sprint', fontFamily: PT_SANS }, {}, (node) => (
-      <CanvasTextEditorProvider controls="host">
+      <CanvasTextEditorProvider>
         <HostControls />
         {node}
       </CanvasTextEditorProvider>
@@ -160,6 +160,18 @@ describe('Bühne innerhalb eines Wirt-Providers', () => {
     // `StandaloneCanvas`: Bühne ohne Editor-Rahmen. Ohne diesen Zweig verlöre
     // der Pfad jede Formatierung.
     dblClickOnCanvas({ text: 'Klimaschutz ist kein Sprint', fontFamily: PT_SANS });
+
+    expect(document.querySelector('.canvas-rte__floating-toolbar')).not.toBeNull();
+  });
+
+  it('zeigt sie auch, wenn der Provider steht, aber kein Wirt sich meldet', () => {
+    // Der Nativ-Brücken-Modus: `CanvasEditorInner` spannt den Provider auf,
+    // rendert die Kontextleiste aber nicht (die App stellt sie). Entschiede
+    // der Provider anhand einer Zusage des Aufrufers statt anhand der
+    // Anmeldung, bliebe der Text hier ganz ohne Schnitt-Knöpfe.
+    dblClickOnCanvas({ text: 'Klimaschutz ist kein Sprint', fontFamily: PT_SANS }, {}, (node) => (
+      <CanvasTextEditorProvider>{node}</CanvasTextEditorProvider>
+    ));
 
     expect(document.querySelector('.canvas-rte__floating-toolbar')).not.toBeNull();
   });
