@@ -94,6 +94,7 @@ const readOverridesBlock = (text) => {
   return out;
 };
 
+const rootPkg = readJson(join(root, 'package.json'));
 const overrides = readOverridesBlock(readFileSync(join(root, 'pnpm-workspace.yaml'), 'utf8'));
 
 // Overrides, die BEWUSST unter dem liegen, was Abhängige deklarieren. Nur diese
