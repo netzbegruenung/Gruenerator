@@ -22,14 +22,23 @@ import type { CanvasStageRef } from '../CanvasStage';
 const GRUENE_TYPE = 'GrueneTypeNeue, Arial, sans-serif';
 const PT_SANS = 'PT Sans, Arial, sans-serif';
 
+interface StageOptions {
+  /** Entwurfsmaße; weichen sie von width/height ab, skaliert CanvasStage eine Gruppe darum. */
+  logicalWidth?: number;
+  logicalHeight?: number;
+}
+
 /** Rendert das Feld auf einer echten Bühne und löst den Doppelklick am Knoten aus. */
-function dblClickOnCanvas(props: Partial<Parameters<typeof CanvasText>[0]> & { text: string }) {
+function dblClickOnCanvas(
+  props: Partial<Parameters<typeof CanvasText>[0]> & { text: string },
+  stageOptions: StageOptions = {}
+) {
   // Über `CanvasStage`, nicht über ein nacktes `<Stage>`: dort sitzt der
   // Provider, der den Editor auf der DOM-Seite zeichnet. Genau diese Naht
   // war kaputt — ein Test gegen ein nacktes `<Stage>` würde sie überspringen.
   const stageRef = createRef<CanvasStageRef>();
   render(
-    <CanvasStage ref={stageRef} width={600} height={600}>
+    <CanvasStage ref={stageRef} width={600} height={600} {...stageOptions}>
       <CanvasText
         id="text-1"
         x={10}
@@ -75,6 +84,24 @@ describe('Doppelklick auf Leinwand-Text', () => {
     expect(screen.queryByRole('button', { name: /Kursiv/ })).not.toBeInTheDocument();
     // Unterstreichung wird gezeichnet, nicht gesetzt — die gilt überall.
     expect(screen.getByRole('button', { name: /Unterstrichen/ })).toBeInTheDocument();
+  });
+
+  it('misst den Editor mit dem Maßstab des Knotens, nicht dem der Bühne', () => {
+    // Story/Flyer/Plakat: die Entwurfsmaße weichen von den Ausgabemaßen ab,
+    // CanvasStage legt dafür eine zusätzlich skalierte Gruppe um den Entwurf.
+    // Der Maßstab der Bühne allein kennt sie nicht — der Editor stünde dann
+    // an der richtigen Stelle in der falschen Größe über dem Text.
+    dblClickOnCanvas(
+      { text: 'Skaliert', fontFamily: PT_SANS, width: 100, fontSize: 20 },
+      { logicalWidth: 300, logicalHeight: 300 }
+    );
+
+    const overlay = document.querySelector<HTMLElement>('body > div[style*="z-index: 10000"]');
+    expect(overlay).not.toBeNull();
+    // Bühne 600 breit bei 300 Entwurfsbreite = Gruppenmaßstab 2; die Bühne
+    // selbst steht mangels Layout in jsdom auf 1. Ein 100 breites Feld misst
+    // also 200, nicht 100.
+    expect(overlay!.style.width).toBe('200px');
   });
 
   it('öffnet nichts, wo das Feld nicht bearbeitbar ist', () => {
