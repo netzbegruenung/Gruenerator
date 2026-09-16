@@ -295,6 +295,15 @@ router.get(
  * Resolve a share to a readable media file, or answer the request and return
  * null. Shared by /preview and /stream so the two cannot drift on which
  * statuses are visible.
+ *
+ * A share row that does not exist answers 410, not 404, because the two cases
+ * are not the same to a caller and used to be indistinguishable. A row that is
+ * gone is gone for good; a row whose bytes have not landed yet is the normal
+ * race right after upload (the share is listed in "Zuletzt" before the file is
+ * written) and is worth retrying. Both used to be 404, so `PreviewImage` — which
+ * only sees an <img> error event and no status — had to retry either way, and
+ * every deleted image cost four requests before it gave up. 410 lets the client
+ * stop after the first one without giving up on the race.
  */
 async function resolveShareMedia(
   shareToken: string,
@@ -304,7 +313,7 @@ async function resolveShareMedia(
   const share = await service.getShareByToken(shareToken);
 
   if (!share) {
-    res.status(404).json({ error: 'Medium nicht gefunden' });
+    res.status(410).json({ error: 'Medium nicht gefunden' });
     return null;
   }
   if (share.status === 'processing') {
