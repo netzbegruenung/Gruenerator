@@ -3,6 +3,7 @@ import { Button, Label, Textarea } from '@gruenerator/ui';
 import { Pause } from 'lucide-react';
 
 import { formatCount } from '../../../utils/usageFormat';
+import { clampToWire, countPauses, wireLength } from '../presets';
 
 import type { VoicePresetDef } from '../presets';
 import type { ReactNode, RefObject } from 'react';
@@ -36,7 +37,11 @@ export default function VoiceEditor({
   textareaRef,
   assistant,
 }: VoiceEditorProps) {
-  const chunkCount = Math.max(1, Math.ceil(text.length / SPEECH_MAX_CHUNK_CHARS));
+  // Every count here is the wire length: that is what the server measures and
+  // what the person is actually spending.
+  const sentLength = wireLength(text);
+  const pauses = countPauses(text);
+  const chunkCount = Math.max(1, Math.ceil(sentLength / SPEECH_MAX_CHUNK_CHARS));
 
   return (
     <div className="flex min-h-[20rem] flex-col overflow-hidden rounded-xl border border-grey-200 bg-background-pure shadow-sm focus-within:ring-[3px] focus-within:ring-ring/50 dark:border-grey-700 lg:min-h-[32rem]">
@@ -57,7 +62,8 @@ export default function VoiceEditor({
           aria-live="polite"
           className="m-0 ml-auto text-xs tabular-nums text-muted-foreground"
         >
-          {formatCount(text.length)} / {formatCount(def.maxChars)} Zeichen
+          {formatCount(sentLength)} / {formatCount(def.maxChars)} Zeichen
+          {pauses > 0 ? ` · ${pauses} ${pauses === 1 ? 'Pause' : 'Pausen'}` : ''}
         </p>
       </div>
 
@@ -72,9 +78,8 @@ export default function VoiceEditor({
           id="voice-text"
           ref={textareaRef}
           value={text}
-          onChange={(e) => onChange(e.target.value.slice(0, def.maxChars))}
+          onChange={(e) => onChange(clampToWire(e.target.value, def.maxChars))}
           placeholder={def.placeholder}
-          maxLength={def.maxChars}
           aria-describedby="voice-text-hint voice-text-count"
           className="min-h-0 flex-1 field-sizing-fixed bg-transparent px-0 text-base leading-relaxed focus-visible:ring-0"
         />
