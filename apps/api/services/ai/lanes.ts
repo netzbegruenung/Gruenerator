@@ -137,6 +137,21 @@ export const AI_LANES = {
   board_generation: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
   canvas_ai_suggest: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
 
+  // — Editor-Op-Planer (board/sheet/presentation), der `edit_document`-
+  //   Werkzeug im agentischen Loop. Erzwungener Tool-Call wie die Zeilen
+  //   darüber; alle drei planten vorher auf einer privaten Kette
+  //   (mistral → melious → cortecs), die diese Tabelle nicht so ausdrücken
+  //   kann — `laneFallback` kennt nur die generische Kette und die
+  //   Sharepic-Kette, beide filtern den Primär (hier mistral) heraus und
+  //   liefern für DIESE drei Lanes dasselbe Ergebnis (cortecs, melious), nur
+  //   in vertauschter Reihenfolge gegenüber der alten privaten Kette. Sheet
+  //   und Presentation waren zuvor auf Mistral GEPINNT ohne Ausweichkette
+  //   ("fail loudly" statt leise herabzustufen) — eine Lane hat dafür kein
+  //   Feld; siehe Stufe-3-Bericht.
+  editor_ops_board: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
+  editor_ops_sheet: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
+  editor_ops_presentation: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
+
   // — Fast helper tasks. Alle auf der `standard`-Stufe: kurze Ausgabe, aber
   //   nutzersichtbare Latenz. Ein Edit an der Stufe bewegt alle fünf.
   // Ergebnis-Prüfung für Hintergrundläufe (#3221): kurzes JSON-Verdikt über
