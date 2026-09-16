@@ -15,6 +15,10 @@ WORKDIR /app
 
 # Copy workspace configuration (layer caching)
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+# pnpm validates every `patchedDependencies` entry in pnpm-workspace.yaml
+# before it installs anything, so the patch files have to be in the image
+# even when the patched package is outside this filter's closure.
+COPY patches ./patches
 COPY tsconfig.base.json tsconfig.strict-migration.json ./
 
 # Copy package.json files for workspace resolution
