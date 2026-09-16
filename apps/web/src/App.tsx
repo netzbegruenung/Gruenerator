@@ -182,7 +182,7 @@ function App() {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <UserProfileHydrationBridge />
-        <Toaster richColors position="top-right" />
+        <Toaster richColors position="top-right" theme={darkMode ? 'dark' : 'light'} />
         <TooltipProvider>
           <Router>
             <AuthBootstrap />
