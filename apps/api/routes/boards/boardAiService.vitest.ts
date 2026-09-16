@@ -1,11 +1,14 @@
 /**
- * `generateBoardOperations` moved onto the AI facade (`aiTools`, lane
- * `editor_ops_board`) in stage 3 of the editor-ops-on-facade refactor. These
- * tests attrap the facade entry point, not the AI SDK — the same seam
- * `toolForcedEdit.vitest.ts` uses for its sibling driver — and cover the
- * behaviour the migration promised to keep: validated ops on the happy path,
- * the 50-op cap, per-op rejection, the 300-row board cap, and that the
- * create-only prompt and RECHERCHIERTE QUELLEN section still reach the model.
+ * `generateBoardOperations` moved onto the AI facade (lane `editor_ops_board`,
+ * via the shared `runForcedToolCall` in services/ai/forcedToolCall.ts) as
+ * part of #3426. These tests attrap the facade entry point (`aiTools`), not
+ * the AI SDK — the same seam `toolForcedEdit.vitest.ts` uses for its sibling
+ * driver — and run the REAL (unmocked) helper against it, so they cover the
+ * board-specific behaviour: validated ops on the happy path, the 50-op cap,
+ * per-op rejection, the 300-row board cap, and that the create-only prompt
+ * and RECHERCHIERTE QUELLEN section still reach the model. The retry/no-tool-
+ * call/throw mechanics of the shared helper itself are tested once, generically,
+ * in services/ai/__tests__/forcedToolCall.vitest.ts — not duplicated here.
  */
 import { type CurrentBoard } from '@gruenerator/contracts';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
@@ -31,10 +34,12 @@ function makeBoard(overrides: Partial<CurrentBoard> = {}): CurrentBoard {
   };
 }
 
-/** A tool-call-shaped `aiTools` resolution, the transport `extractToolInput` reads. */
+/** A tool-call-shaped `aiTools` resolution (`AiResult`), the transport
+ *  `runForcedToolCall` reads. */
 function toolCallResult(operations: unknown[]) {
   return {
     success: true,
+    content: null,
     stop_reason: 'tool_use',
     tool_calls: [{ name: 'applyBoardOperations', input: { operations } }],
   };
@@ -171,45 +176,5 @@ describe('generateBoardOperations', () => {
     const { system } = lastCallArgs();
     expect(system).toContain('RECHERCHIERTE QUELLEN');
     expect(system).toContain('Der Anteil liegt bei 42 Prozent.');
-  });
-
-  it('retries once when the provider fails, then succeeds', async () => {
-    aiTools.mockRejectedValueOnce(new Error('upstream 503'));
-    aiTools.mockResolvedValueOnce(toolCallResult([{ type: 'create_task', title: 'Neu' }]));
-
-    const ops = await generateBoardOperations({
-      userPrompt: 'lege eine Aufgabe an',
-      board: makeBoard(),
-      today: '2026-09-17',
-    });
-
-    expect(ops).toEqual([{ type: 'create_task', title: 'Neu' }]);
-    expect(aiTools).toHaveBeenCalledTimes(2);
-  });
-
-  it('throws after the provider fails on every attempt', async () => {
-    aiTools.mockRejectedValue(new Error('boom'));
-
-    await expect(
-      generateBoardOperations({
-        userPrompt: 'lege eine Aufgabe an',
-        board: makeBoard(),
-        today: '2026-09-17',
-      })
-    ).rejects.toThrow('boom');
-    expect(aiTools).toHaveBeenCalledTimes(2);
-  });
-
-  it('returns no ops (without throwing) when the model never calls the tool', async () => {
-    aiTools.mockResolvedValue({ success: true, stop_reason: 'stop', content: 'ich helfe nicht' });
-
-    const ops = await generateBoardOperations({
-      userPrompt: 'lege eine Aufgabe an',
-      board: makeBoard(),
-      today: '2026-09-17',
-    });
-
-    expect(ops).toEqual([]);
-    expect(aiTools).toHaveBeenCalledTimes(2);
   });
 });
