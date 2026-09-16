@@ -56,10 +56,7 @@ describe('VoicePage', () => {
   it('starts on the Vorlesefassung preset with MP3 only and adds the telephone WAV for a mailbox greeting', async () => {
     const { user } = renderWithProviders(<VoicePage />);
 
-    // Voice, tempo, format and the preset now live behind one disclosure — the
-    // page opens as nothing but a text field and the button.
-    await user.click(screen.getByRole('button', { name: /Mehr einstellen/ }));
-
+    // The rail is open from the start — no disclosure to defeat first.
     expect(screen.getByRole('radio', { name: /Vorlesefassung/ })).toHaveAttribute(
       'aria-checked',
       'true'
@@ -78,7 +75,7 @@ describe('VoicePage', () => {
 
     fireEvent.change(textarea(), { target: { value: 'a'.repeat(9000) } });
 
-    expect(screen.getByText(/wird in 2 Abschnitten erzeugt/)).toBeInTheDocument();
+    expect(screen.getByText(/Wird in 2 Abschnitten erzeugt/)).toBeInTheDocument();
   });
 
   it('sends the preset and formats, then shows player, downloads and the Mediathek link', async () => {
@@ -114,7 +111,21 @@ describe('VoicePage', () => {
     );
   });
 
-  it('drops an AI draft into the editor instead of sending it straight off', async () => {
+  it('estimates the audio length from the text and the tempo', async () => {
+    const { user } = renderWithProviders(<VoicePage />);
+
+    expect(screen.getByText('Dauer wird beim Eintippen geschätzt')).toBeInTheDocument();
+
+    // 130 characters at ~13 per second is ten seconds of speech.
+    fireEvent.change(textarea(), { target: { value: 'a'.repeat(130) } });
+    expect(screen.getByText('≈ 0:10 Min. Audio')).toBeInTheDocument();
+
+    // The estimate follows the tempo, so the rail and the number cannot disagree.
+    await user.click(screen.getByRole('radio', { name: 'Langsam' }));
+    expect(screen.getByText('≈ 0:11 Min. Audio')).toBeInTheDocument();
+  });
+
+  it('drafts in a dialog and drops the result into the editor instead of sending it off', async () => {
     let generateCalls = 0;
     server.use(
       http.post('http://localhost/api/voice/speech/script', () =>
@@ -128,12 +139,15 @@ describe('VoicePage', () => {
     const { user } = renderWithProviders(<VoicePage />);
 
     await user.click(screen.getByRole('button', { name: /Text mit KI entwerfen/ }));
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Geschriebener Text'), {
       target: { value: 'Ein Antragstext, der vorgelesen werden soll.' },
     });
     await user.click(screen.getByRole('button', { name: /Entwurf erstellen/ }));
 
     await waitFor(() => expect(textarea()).toHaveValue('Guten Tag, hier ist das Grüne Büro.'));
+    // The dialog gets out of the way once the draft has landed.
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     // The person reads and edits first — a draft must never synthesise by itself.
     expect(generateCalls).toBe(0);
   });
