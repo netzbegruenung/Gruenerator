@@ -179,6 +179,16 @@ describe('isSharepicEditInstruction', () => {
     expect(isSharepicEditInstruction('mach eine aufzählung draus')).toBe(true);
     expect(isSharepicEditInstruction('ergänze zwei bullet points')).toBe(true);
     expect(isSharepicEditInstruction('mach die liste kürzer')).toBe(true);
+    // The two alternatives that shipped untested. `aufzaehl` is the ASCII
+    // sibling of `aufzähl`, and this file pairs every umlaut noun with its
+    // ASCII form elsewhere — without a case here a regex refactor could drop
+    // either branch and stay green.
+    expect(isSharepicEditInstruction('ändere das stichwort')).toBe(true);
+    expect(isSharepicEditInstruction('mach die aufzaehlung kuerzer')).toBe(true);
+    // Every spelling the trailing boundary on `bullet` has to keep.
+    expect(isSharepicEditInstruction('ergänze zwei bullets')).toBe(true);
+    expect(isSharepicEditInstruction('ergänze zwei Bulletpoints')).toBe(true);
+    expect(isSharepicEditInstruction('ergänze zwei bullet-points')).toBe(true);
   });
 
   it('keeps a bare "Punkt" and a noun inside a word out of the list vocabulary', () => {
@@ -188,6 +198,13 @@ describe('isSharepicEditInstruction', () => {
     expect(isSharepicEditInstruction('mach den standpunkt klarer')).toBe(false);
     // The lookbehind is what stops `liste` from matching inside "Preisliste".
     expect(isSharepicEditInstruction('mach die Preisliste größer')).toBe(false);
+    // `bullet` needed a trailing boundary of its own: it is a prefix of
+    // "Bulletin", a real word here and an artifact this lane cannot edit.
+    // This one the lookbehind could not catch — "Bulletin" starts the word.
+    expect(isSharepicEditInstruction('Kannst du das Bulletin anpassen?')).toBe(false);
+    // "Pressebulletin" was already covered by the lookbehind; kept so a later
+    // rewrite of either guard leaves both spellings pinned.
+    expect(isSharepicEditInstruction('mach das Pressebulletin kürzer')).toBe(false);
   });
 
   it('requires an edit verb', () => {
