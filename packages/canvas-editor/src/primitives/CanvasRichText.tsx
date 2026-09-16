@@ -27,6 +27,7 @@ import { createPortal } from 'react-dom';
 import { Group, Text as KonvaText, Transformer } from 'react-konva';
 
 import { RichTextField } from '../components/RichTextField';
+import { useFontGeneration } from '../hooks/useFontGeneration';
 import { useGeometryReporter } from '../hooks/useGeometryReporter';
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { calculateElementSnapPosition } from '../utils/snapping';
@@ -95,9 +96,13 @@ export function CanvasRichText({
   const [draft, setDraft] = useState(text);
   const isEditing = overlay !== null;
 
+  // Ein nachgeladener Schriftschnitt misst anders. Ohne diese Abhängigkeit
+  // bliebe der mit der Ersatzschrift gerechnete Umbruch stehen — siehe
+  // `useFontGeneration`.
+  const fontGeneration = useFontGeneration();
   const measure = useMemo(
     () => runMeasurer(fontSize, fontFamily, fontStyle),
-    [fontSize, fontFamily, fontStyle]
+    [fontSize, fontFamily, fontStyle, fontGeneration]
   );
 
   // Ohne gesetzte Breite gibt es nichts zu umbrechen; der Einzug gilt trotzdem,
