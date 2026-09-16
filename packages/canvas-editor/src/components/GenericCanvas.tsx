@@ -28,7 +28,7 @@ import {
 } from '../stores/CanvasStoreProvider';
 import {
   useCanvasInteractions,
-  useCanvasStoreSetup,
+  useCanvasStoreReset,
   useCanvasHistorySetup,
   useFontGeneration,
   useFontLoader,
@@ -135,10 +135,13 @@ export interface GenericCanvasProps<TState, TActions extends OptionalCanvasActio
    * Everything switched off here is editor machinery that a hidden, one-shot
    * canvas still paid for: gallery auto-save (network writes, a `beforeunload`
    * handler and its own pixelRatio-2 capture 1500ms after every history
-   * change), the global keydown handlers, the module-level stage registry
-   * (whose key is `config.id`, so two previews of one template evict each
-   * other and the studio's live entry), and Konva's hit graph, which doubles
+   * change), the global keydown handlers, and Konva's hit graph, which doubles
    * the canvas memory per stage for events nothing will ever fire.
+   *
+   * Die Stage-Registry stand hier auch einmal: sie war nach `config.id`
+   * verschluesselt, sodass zwei Vorschauen derselben Vorlage einander und den
+   * Studio-Eintrag verdraengten. Sie ist mit #3406 ganz entfallen — gelesen
+   * hat sie niemand —, also gibt es hier nichts mehr abzuschalten.
    */
   preview?: boolean;
   /**
@@ -221,7 +224,7 @@ function GenericCanvasWithRef<
   const exportedImageRef = useRef<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
 
-  useCanvasStoreSetup(preview ? null : config.id, stageRef);
+  useCanvasStoreReset(preview ? null : config.id);
 
   // Dynamic maxContainerWidth for responsive rendering
   const [maxWidth, setMaxWidth] = useState(getOptimalContainerWidth());
