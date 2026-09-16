@@ -124,37 +124,67 @@ describe('isAttributionLine', () => {
  * Zeile warf sie direkt danach wieder weg.
  */
 describe('sanitizeField', () => {
-  it('schmilzt ohne keepListBreaks weiterhin alles zu einer Zeile', () => {
+  it('schmilzt ohne Optionen weiterhin alles zu einer Zeile und streicht Marker', () => {
     expect(sanitizeField('• eins\n• zwei')).toBe('• eins • zwei');
+    expect(sanitizeField('**fett** und _kursiv_')).toBe('fett und kursiv');
   });
 
   it('behält den Umbruch vor einer Aufzählungszeile', () => {
-    expect(sanitizeField('• eins\n• zwei', { keepListBreaks: true })).toBe('• eins\n• zwei');
+    expect(sanitizeField('• eins\n• zwei', { keepListBreaks: true, keepMarks: true })).toBe(
+      '• eins\n• zwei'
+    );
   });
 
   it('vereinheitlicht Strich-Marker auf das Bullet', () => {
-    // Ohne die Normalisierung VOR dem Markdown-Strip bliebe von "* zwei" nur
-    // " zwei" übrig — der Marker wäre weg, bevor ihn jemand erkennen kann.
-    expect(sanitizeField('- eins\n* zwei', { keepListBreaks: true })).toBe('• eins\n• zwei');
+    // `* zwei` ist ein Listenpunkt, kein halber Kursiv-Marker — die
+    // Listen-Normalisierung muss vor der Inline-Normalisierung laufen.
+    expect(sanitizeField('- eins\n* zwei', { keepListBreaks: true, keepMarks: true })).toBe(
+      '• eins\n• zwei'
+    );
   });
 
   it('schmilzt einen Umbruch mitten im Fließtext weiterhin ein', () => {
     // Ein Modell, das seine Prosa auf 80 Zeichen umbricht, soll zu einem
     // Absatz zusammenlaufen — sonst stünden harte Umbrüche mitten im Satz.
-    expect(sanitizeField('Wir wollen mehr\nRadwege bauen.', { keepListBreaks: true })).toBe(
-      'Wir wollen mehr Radwege bauen.'
-    );
+    expect(
+      sanitizeField('Wir wollen mehr\nRadwege bauen.', { keepListBreaks: true, keepMarks: true })
+    ).toBe('Wir wollen mehr Radwege bauen.');
   });
 
   it('hält eine einzelne Ziffernzeile für ein Datum, nicht für eine Aufzählung', () => {
-    expect(sanitizeField('Kundgebung am\n1. Mai 2027', { keepListBreaks: true })).toBe(
-      'Kundgebung am 1. Mai 2027'
+    expect(
+      sanitizeField('Kundgebung am\n1. Mai 2027', { keepListBreaks: true, keepMarks: true })
+    ).toBe('Kundgebung am 1. Mai 2027');
+  });
+
+  it('behält Auszeichnung und bringt sie in die eine Form', () => {
+    // `__fett__` und `*kursiv*` schreiben Modelle ebenfalls; der Editor
+    // zeichnet nur `**fett**` und `_kursiv_`.
+    expect(
+      sanitizeField('__fett__ und *kursiv* und <u>unter</u>', {
+        keepListBreaks: true,
+        keepMarks: true,
+      })
+    ).toBe('**fett** und _kursiv_ und <u>unter</u>');
+  });
+
+  it('streicht Hashtags weiterhin, auch mit Auszeichnung daneben', () => {
+    expect(sanitizeField('**Klima** jetzt #gruen', { keepListBreaks: true, keepMarks: true })).toBe(
+      '**Klima** jetzt'
     );
   });
 
-  it('entfernt Markdown-Auszeichnung wie bisher', () => {
-    expect(sanitizeField('**fett** und _kursiv_', { keepListBreaks: true })).toBe(
-      'fett und kursiv'
-    );
+  it('streicht einen Hashtag INNERHALB der Auszeichnung, ohne den Marker zu zerreißen', () => {
+    // Liefe der Hashtag-Strip nach der Normalisierung, bliebe `**Klima **`
+    // stehen: ein öffnender Marker ohne Partner, literal auf der Leinwand.
+    expect(
+      sanitizeField('**Klima #jetzt** ist gut', { keepListBreaks: true, keepMarks: true })
+    ).toBe('**Klima** ist gut');
+  });
+
+  it('streicht Auszeichnung in einem mehrzeiligen Feld ohne keepMarks', () => {
+    // Veranstaltungsbeschreibung und Simple-Unterzeile laufen in
+    // GrueneTypeNeue: Aufzählung ja, Fett nein.
+    expect(sanitizeField('• **eins**\n• zwei', { keepListBreaks: true })).toBe('• eins\n• zwei');
   });
 });

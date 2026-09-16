@@ -18,6 +18,10 @@ export const PTSANS_BOLD_PATH: string = path.resolve(
   __dirname,
   '../../../public/fonts/PTSans-Bold.ttf'
 );
+export const PTSANS_ITALIC_PATH: string = path.resolve(
+  __dirname,
+  '../../../public/fonts/PTSans-Italic.ttf'
+);
 
 // Österreich (de-AT) fonts — Gotham Narrow + Vollkorn (CI 2026)
 export const GOTHAM_ULTRA_PATH: string = path.resolve(

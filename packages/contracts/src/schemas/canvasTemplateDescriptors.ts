@@ -13,6 +13,9 @@
  */
 import { z } from 'zod';
 
+import { normalizeInlineMarks, stripInlineMarks } from '../text/inlineMarks.js';
+import { normalizeListMarkers } from '../text/listLayout.js';
+
 import {
   type CanvasAiCapabilities,
   type CanvasAiOperation,
@@ -98,6 +101,13 @@ export interface SharepicTextFieldDescriptor {
   stateKey: string;
   /** State key + clamp bounds for `set-font-size` on this field. */
   fontSize?: { stateKey: string; min: number; max: number };
+  /**
+   * The field carries Markdown-lite (`**bold**`, `_italic_`, `<u>…</u>`, list
+   * markers) and is rendered with mixed runs. Mirrors `richText` on the
+   * canvas-editor text element and `multilineFields` in the API's
+   * `TYPE_CONFIGS`; parity tests on both sides keep the three in step.
+   */
+  richText?: boolean;
 }
 
 export interface SharepicElementDescriptor {
@@ -337,6 +347,7 @@ const INFO_DESCRIPTOR: SharepicTemplateDescriptor = {
       label: 'Text',
       stateKey: 'body',
       fontSize: { stateKey: 'customSecondaryFontSize', min: 20, max: 80 },
+      richText: true,
     },
   ],
   backgroundColors: {
@@ -419,12 +430,14 @@ const SLIDER_DESCRIPTOR: SharepicTemplateDescriptor = {
       label: 'Untertext',
       stateKey: 'subtext',
       fontSize: { stateKey: 'customSubtextFontSize', min: 20, max: 90 },
+      richText: true,
     },
     {
       field: 'subtext2',
       label: 'Zusatztext (nur Content-Slides)',
       stateKey: 'subtext2',
       fontSize: { stateKey: 'customSubtext2FontSize', min: 20, max: 90 },
+      richText: true,
     },
   ],
   colorSchemes: {
@@ -909,7 +922,21 @@ export function validateSharepicOp(
   if (op.kind === 'set-text') {
     const field = descriptor.textFields.find((f) => f.field === op.field);
     if (!field) return { ok: false, reason: `Unbekanntes Textfeld "${op.field}"` };
-    return { ok: true, op, target: { write: 'state-key', stateKey: field.stateKey } };
+    // Die eine Stelle, an der Modelltext in den Zustand fällt.
+    //
+    // Nur ein Rich-Text-Feld bekommt Marker in die Form gebracht, die der
+    // Editor zeichnet (`- x` → `• x`, `__x__` → `**x**`). Für alle anderen
+    // wäre das falsch: ein Namensfeld mit „– Anna Müller" ist kein
+    // Aufzählungspunkt, und ein `**` in einer Überschrift zeichnet niemand —
+    // dort fliegt die Auszeichnung raus, statt literal stehen zu bleiben.
+    const value = field.richText
+      ? normalizeInlineMarks(normalizeListMarkers(op.value))
+      : stripInlineMarks(op.value);
+    return {
+      ok: true,
+      op: { ...op, value },
+      target: { write: 'state-key', stateKey: field.stateKey },
+    };
   }
 
   if (op.kind === 'set-font-size') {
