@@ -53,25 +53,28 @@ function textarea(): HTMLTextAreaElement {
 }
 
 describe('VoicePage', () => {
-  it('starts on the mailbox preset with both formats and drops the telephone WAV for a Vorlesefassung', async () => {
+  it('starts on the Vorlesefassung preset with MP3 only and adds the telephone WAV for a mailbox greeting', async () => {
     const { user } = renderWithProviders(<VoicePage />);
 
-    expect(screen.getByRole('radio', { name: /Anrufbeantworter/ })).toHaveAttribute(
+    // Voice, tempo, format and the preset now live behind one disclosure — the
+    // page opens as nothing but a text field and the button.
+    await user.click(screen.getByRole('button', { name: /Mehr einstellen/ }));
+
+    expect(screen.getByRole('radio', { name: /Vorlesefassung/ })).toHaveAttribute(
       'aria-checked',
       'true'
     );
-    expect(screen.getByRole('checkbox', { name: /Telefon-WAV/ })).toBeChecked();
     expect(screen.getByRole('checkbox', { name: /MP3/ })).toBeChecked();
-
-    await user.click(screen.getByRole('radio', { name: /Vorlesefassung/ }));
-
     expect(screen.getByRole('checkbox', { name: /Telefon-WAV/ })).not.toBeChecked();
+
+    await user.click(screen.getByRole('radio', { name: /Anrufbeantworter/ }));
+
+    expect(screen.getByRole('checkbox', { name: /Telefon-WAV/ })).toBeChecked();
     expect(screen.getByRole('checkbox', { name: /MP3/ })).toBeChecked();
   });
 
   it('announces how many provider requests a long text needs', async () => {
-    const { user } = renderWithProviders(<VoicePage />);
-    await user.click(screen.getByRole('radio', { name: /Vorlesefassung/ }));
+    renderWithProviders(<VoicePage />);
 
     fireEvent.change(textarea(), { target: { value: 'a'.repeat(9000) } });
 
@@ -89,15 +92,14 @@ describe('VoicePage', () => {
     const { user } = renderWithProviders(<VoicePage />);
 
     fireEvent.change(textarea(), { target: { value: 'Hallo, hier ist der Kreisverband.' } });
-    await user.click(screen.getByRole('button', { name: /Sprachausgabe erzeugen/ }));
+    await user.click(screen.getByRole('button', { name: /Vertonen/ }));
 
     expect(await screen.findByRole('heading', { name: /Fertig – 0:12/ })).toBeInTheDocument();
     expect(received).toMatchObject({
-      preset: 'mailbox',
+      preset: 'vorlesefassung',
       text: 'Hallo, hier ist der Kreisverband.',
-      // The mailbox preset lists the telephone WAV first: it is the file the
-      // person came for; the MP3 is the preview.
-      formats: ['wav_phone', 'mp3'],
+      // Plain vertonen is the default: an MP3 and nothing else.
+      formats: ['mp3'],
       speed: null,
     });
 
@@ -126,8 +128,8 @@ describe('VoicePage', () => {
     const { user } = renderWithProviders(<VoicePage />);
 
     await user.click(screen.getByRole('button', { name: /Text mit KI entwerfen/ }));
-    fireEvent.change(screen.getByLabelText('Wen erreicht man?'), {
-      target: { value: 'Grünes Büro Musterstadt' },
+    fireEvent.change(screen.getByLabelText('Geschriebener Text'), {
+      target: { value: 'Ein Antragstext, der vorgelesen werden soll.' },
     });
     await user.click(screen.getByRole('button', { name: /Entwurf erstellen/ }));
 
@@ -148,7 +150,7 @@ describe('VoicePage', () => {
     const { user } = renderWithProviders(<VoicePage />);
 
     fireEvent.change(textarea(), { target: { value: 'Ein Satz.' } });
-    await user.click(screen.getByRole('button', { name: /Sprachausgabe erzeugen/ }));
+    await user.click(screen.getByRole('button', { name: /Vertonen/ }));
 
     await waitFor(() =>
       expect(screen.getByRole('alert')).toHaveTextContent(

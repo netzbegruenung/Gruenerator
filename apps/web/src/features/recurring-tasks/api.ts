@@ -9,7 +9,7 @@ import {
   type RecurringTaskRun,
   type UpdateRecurringTaskBody,
 } from '@gruenerator/contracts';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { useOptimizedAuth } from '../../hooks/useAuth';
@@ -94,7 +94,7 @@ export function useDeleteRecurringTask() {
   return useMutation({
     mutationFn: async (id: string): Promise<void> => {
       const res = await getContractsClient().recurringTasks.remove({ params: { id } });
-      if (res.status !== 200) throw new Error('Löschen fehlgeschlagen.');
+      if (res.status !== 200) throw new ApiError(res.status, 'Löschen fehlgeschlagen.');
     },
     onSuccess: () => void qc.invalidateQueries({ queryKey: KEY }),
   });
@@ -105,7 +105,7 @@ export function useRunRecurringTaskNow() {
   return useMutation({
     mutationFn: async (id: string): Promise<void> => {
       const res = await getContractsClient().recurringTasks.runNow({ params: { id }, body: {} });
-      if (res.status !== 202) throw new Error('Ausführen fehlgeschlagen.');
+      if (res.status !== 202) throw new ApiError(res.status, 'Ausführen fehlgeschlagen.');
     },
     onSuccess: () => void qc.invalidateQueries({ queryKey: KEY }),
   });

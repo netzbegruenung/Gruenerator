@@ -6,7 +6,7 @@
  * and URL from it.
  */
 import { type UserWebsite } from '@gruenerator/contracts';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 const QUERY_KEY = ['user-websites'] as const;
@@ -16,7 +16,8 @@ export const userWebsitesQuery = {
   queryKey: QUERY_KEY,
   queryFn: async (): Promise<UserWebsite[]> => {
     const result = await getContractsClient().userWebsites.listWebsites();
-    if (result.status !== 200) throw new Error('Websites konnten nicht geladen werden.');
+    if (result.status !== 200)
+      throw new ApiError(result.status, 'Websites konnten nicht geladen werden.');
     return result.body.websites;
   },
   staleTime: 5 * 60 * 1000,
@@ -64,7 +65,8 @@ export function useDeleteUserWebsite() {
       const result = await getContractsClient().userWebsites.deleteWebsite({
         params: { id: websiteId },
       });
-      if (result.status !== 200) throw new Error('Website konnte nicht entfernt werden.');
+      if (result.status !== 200)
+        throw new ApiError(result.status, 'Website konnte nicht entfernt werden.');
     },
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
   });

@@ -56,6 +56,13 @@ interface SyncResult {
    * only — see `skipReasonCounts`.
    */
   skipReasons?: Record<string, number | { count: number }>;
+  /**
+   * KommunalWiki: aufgeräumte Punkte gelöschter Seiten bzw. warum nicht.
+   * `null` statt `undefined`, weil `CrawlResult` den Nicht-Fall ausdrücklich
+   * als `null` führt und der Scraper hier direkt durchgereicht wird.
+   */
+  pruned?: number;
+  pruneSkippedReason?: string | null;
   fetchErrors?: number;
 }
 
@@ -488,6 +495,11 @@ async function executeSyncRun(
     if (result.deadLinkSamples?.length) {
       log.info(`Content sync dead links: ${lockKey} — ${result.deadLinkSamples.join(' | ')}`);
     }
+    // Warnstufe: ein abgewürgtes Aufräumen sieht in den Zahlen sonst exakt
+    // aus wie ein Lauf, bei dem es nichts aufzuräumen gab.
+    if (result.pruneSkippedReason) {
+      log.warn(`Content sync prune skipped: ${lockKey} — ${result.pruneSkippedReason}`);
+    }
     const skipReasons = skipReasonCounts(result.skipReasons);
 
     return {
@@ -504,6 +516,8 @@ async function executeSyncRun(
         ...(result.deadLinks ? { deadLinks: result.deadLinks } : {}),
         ...(result.deadLinkSamples?.length ? { deadLinkSamples: result.deadLinkSamples } : {}),
         ...(skipReasons ? { skipReasons } : {}),
+        ...(result.pruned ? { pruned: result.pruned } : {}),
+        ...(result.pruneSkippedReason ? { pruneSkippedReason: result.pruneSkippedReason } : {}),
         fetchErrors: result.fetchErrors ?? 0,
         durationMs,
       },
