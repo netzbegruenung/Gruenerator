@@ -10,6 +10,8 @@
 
 import { and, eq, isNull, or } from 'drizzle-orm';
 
+import { MAX_THREAD_TITLE_CHARS, clampThreadTitle } from '@gruenerator/shared/utils';
+
 import { chatThreads } from '../../database/schema/chat.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { createLogger } from '../../utils/logger.js';
@@ -136,46 +138,8 @@ const LEAD_IN_PATTERNS = [
   ),
 ];
 
-/**
- * The title budget, in characters — one number, shared by the prompt, the
- * heuristic fallback and the AI title, so the three cannot drift apart.
- *
- * Measured, not guessed: the sidebar row leaves the title ~188px (260px panel
- * − 16px `px-2` − 24px `px-3` − 8px gap − 24px more-button), and PT Sans at
- * 14px fits ~26–28 German characters in that (~20 in the 220px desktop-app
- * panel). 32 is that plus a little slack — CSS truncates whatever overflows.
- */
-const MAX_TITLE_CHARS = 32;
 /** More words than this is a sentence, not a title — reject it. */
 const MAX_AI_TITLE_WORDS = 6;
-
-/** German function words — never a title on their own, never the last word. */
-const FUNCTION_WORDS =
-  'der|die|das|den|dem|des|ein|eine|einen|einem|eines|einer|und|oder|für|von|vom|' +
-  'mit|im|in|am|an|auf|zu|zum|zur|bei|über|unter|als|aus|nach|vor|durch|um';
-/**
- * A run of them left standing at the end. Cutting on a word boundary strands
- * articles and prepositions ("… Budget und Standortfragen" → "… Budget und");
- * the `+` takes the whole run, so "Suche nach dem Windkraft-Beschluss" ends at
- * "Suche" rather than at "Suche nach".
- */
-const DANGLING_WORDS = new RegExp(`(?:\\s+(?:${FUNCTION_WORDS}))+$`, 'i');
-const ONLY_A_FUNCTION_WORD = new RegExp(`^(?:${FUNCTION_WORDS})$`, 'i');
-
-/** Cut at a word boundary, never mid-word. No ellipsis — the sidebar adds its own. */
-function clampToWords(text: string, max: number): string {
-  if (text.length <= max) return text;
-  const head = text.slice(0, max);
-  const lastSpace = head.lastIndexOf(' ');
-  // A single word longer than the cap is the only case we cut mid-word.
-  const cut = (lastSpace > 0 ? head.slice(0, lastSpace) : head).replace(/[\s,;:–-]+$/, '');
-  const trimmed = cut.replace(DANGLING_WORDS, '');
-  // An article in front of one long compound ("Die Verwaltungsvorschriften-
-  // änderung") has its only word boundary after the article, so a clean cut
-  // leaves a bare "Die". A mid-word cut the sidebar can ellipsize beats that.
-  if (ONLY_A_FUNCTION_WORD.test(trimmed)) return head.replace(/[\s,;:–-]+$/, '');
-  return trimmed;
-}
 
 /**
  * German titles start with a capital; the user messages the fallback reads
@@ -209,7 +173,7 @@ export function extractFallbackTitle(text: string, hasImage?: boolean): string |
       cleaned = cleaned.trim();
       if (cleaned.length < 6) continue;
       const trimmed = cleaned.replace(/[.!?]+$/, '');
-      return capitalizeFirst(clampToWords(trimmed, MAX_TITLE_CHARS));
+      return capitalizeFirst(clampThreadTitle(trimmed));
     }
   }
   if (hasImage) {
@@ -243,14 +207,14 @@ export function normalizeAiTitle(raw: string | null | undefined): string | null 
   if (title.length < 3) return null;
   if (title.split(/\s+/).length > MAX_AI_TITLE_WORDS) return null;
   if (SENTENCE_END.test(title)) return null;
-  return clampToWords(title, MAX_TITLE_CHARS);
+  return clampThreadTitle(title);
 }
 
 const TITLE_PROMPT = `Du benennst einen Chat-Thread für eine schmale Seitenleiste.
 Gib eine deutsche Nominalphrase aus 2-4 Wörtern aus, die das Thema benennt — wie eine Überschrift, kein Satz.
 Regeln:
 - Kein Verb im Imperativ ("Recherchiere …" → "Recherche …"), keine Anrede, keine Füllwörter.
-- Höchstens ${MAX_TITLE_CHARS} Zeichen, kein Punkt am Ende, keine Anführungszeichen.
+- Höchstens ${MAX_THREAD_TITLE_CHARS} Zeichen, kein Punkt am Ende, keine Anführungszeichen.
 - Deutsche Komposita sind lang: lieber ein Wort weniger als über das Limit.
 Antworte NUR mit dem Titel.
 
