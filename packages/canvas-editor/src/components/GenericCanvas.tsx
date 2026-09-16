@@ -551,6 +551,7 @@ function GenericCanvasWithRef<
     setState: setStateWrapper,
     setSelectedElement,
     elements: config.elements,
+    layout,
     saveToHistory,
     enabled: !preview,
   });

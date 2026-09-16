@@ -14,6 +14,7 @@ import { UserImagePrimitive } from '../primitives/UserImagePrimitive';
 import { type GeometryReporter } from '../hooks/useGeometryReporter';
 import { useIsElementSelected } from '../stores/CanvasStoreProvider';
 import { getIconMapSync } from '../utils/canvasIcons';
+import { resolveIconDef } from '../utils/iconInstances';
 
 import { GenericCanvasElement } from './GenericCanvasElement';
 import { RemoteSelectionOverlay, type RemoteSelector } from './RemoteSelectionOverlay';
@@ -49,6 +50,7 @@ interface OptionalCanvasStateProperties {
       rotation?: number;
       color?: string;
       opacity?: number;
+      iconId?: string;
     }
   >;
 }
@@ -270,11 +272,16 @@ function CanvasRenderLayerInner<
     // Render Icon
     if (item.type === 'icon') {
       const iconId = item.id;
-      const iconDef = getIconMapSync()?.[iconId];
 
       // Type-safe access to optional iconStates property
       const stateWithOptional = state as TState & Partial<OptionalCanvasStateProperties>;
       const iconState = stateWithOptional.iconStates?.[iconId];
+
+      // `item.id` ist die INSTANZ-ID. Welches Katalog-Icon sie zeigt, steht in
+      // `iconState.iconId`; fehlt es, ist die Instanz-ID selbst die Katalog-ID
+      // (so liegen alle Dokumente von vor #3404 vor). Ohne diese Auflösung
+      // findet jede Kopie mit frischer ID keine Definition und zeichnet nichts.
+      const iconDef = resolveIconDef(iconId, stateWithOptional.iconStates, getIconMapSync());
 
       const x = iconState?.x ?? stageWidth / 2;
       const y = iconState?.y ?? stageHeight / 2;

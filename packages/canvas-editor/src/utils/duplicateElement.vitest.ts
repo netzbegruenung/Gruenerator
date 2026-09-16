@@ -31,6 +31,10 @@ function stateWithOneOfEach() {
     chartInstances: [
       { id: 'chart-1', x: 10, y: 20, data: [{ name: 'a', value: 1 }], colors: ['#005538'] },
     ],
+    // Ein Icon steht in KEINER Liste: seine ID in `selectedIcons`, sein Zustand
+    // unter derselben ID in `iconStates`. Hier in der Altform ohne `iconId`.
+    selectedIcons: ['tabler-sun'],
+    iconStates: { 'tabler-sun': { x: 10, y: 20, scale: 1, rotation: 0 } },
   } as unknown as BaseCanvasState;
 }
 
@@ -86,12 +90,12 @@ describe('duplicateElementInState', () => {
   });
 
   it('nimmt einen eigenen Versatz an', () => {
-    const result = duplicateElementInState(stateWithOneOfEach(), 'shape-1', 0);
+    const result = duplicateElementInState(stateWithOneOfEach(), 'shape-1', { offset: 0 });
     const copy = listOf(result!.state, 'shapeInstances')[1];
     expect(copy.x).toBe(10);
   });
 
-  it('gibt null für eine unbekannte ID zurück (Vorlagen-Element, Icon)', () => {
+  it('gibt null für eine unbekannte ID zurück', () => {
     expect(duplicateElementInState(stateWithOneOfEach(), 'quote-text')).toBeNull();
     expect(duplicateElementInState(stateWithOneOfEach(), 'sunflower')).toBeNull();
   });
@@ -169,23 +173,85 @@ describe('canDuplicateElement', () => {
     expect(canDuplicateElement(stateWithOneOfEach(), id)).toBe(true);
   });
 
-  it('verneint Vorlagen-Elemente, Icons und eine leere Auswahl', () => {
+  it('bejaht ein Icon', () => {
+    expect(canDuplicateElement(stateWithOneOfEach(), 'tabler-sun')).toBe(true);
+  });
+
+  it('verneint Vorlagen-Elemente und eine leere Auswahl', () => {
     expect(canDuplicateElement(stateWithOneOfEach(), 'quote-text')).toBe(false);
     expect(canDuplicateElement(stateWithOneOfEach(), null)).toBe(false);
   });
 });
 
 /**
+ * Icons, der Fall aus #3404. Bis dahin WAR die Instanz-ID die Katalog-ID, unter
+ * der `CanvasRenderLayer` die Definition nachschlägt — eine Kopie mit frischer
+ * ID fand nichts und zeichnete nichts. Die Kopie trägt deshalb `iconId`.
+ */
+describe('Icons', () => {
+  const iconStatesOf = (state: BaseCanvasState) => state.iconStates;
+
+  it('legt die Kopie als zweite Instanz mit Katalog-Verweis ab', () => {
+    const result = duplicateElementInState(stateWithOneOfEach(), 'tabler-sun');
+
+    expect(result).not.toBeNull();
+    const { state, newId } = result!;
+    expect(state.selectedIcons).toEqual(['tabler-sun', newId]);
+    expect(iconStatesOf(state)[newId]).toEqual({
+      x: 30,
+      y: 40,
+      scale: 1,
+      rotation: 0,
+      iconId: 'tabler-sun',
+    });
+  });
+
+  it('lässt das Original unberührt', () => {
+    const before = stateWithOneOfEach();
+    const result = duplicateElementInState(before, 'tabler-sun')!;
+    expect(iconStatesOf(result.state)['tabler-sun']).toEqual({
+      x: 10,
+      y: 20,
+      scale: 1,
+      rotation: 0,
+    });
+    expect(before.selectedIcons).toEqual(['tabler-sun']);
+  });
+
+  it('hält die Kopie einer Kopie am selben Katalog-Icon', () => {
+    const first = duplicateElementInState(stateWithOneOfEach(), 'tabler-sun')!;
+    const second = duplicateElementInState(first.state, first.newId)!;
+
+    expect(iconStatesOf(second.state)[second.newId].iconId).toBe('tabler-sun');
+    expect(second.state.selectedIcons).toHaveLength(3);
+  });
+
+  it('setzt die Kopie in der Ebenenfolge direkt über das Original', () => {
+    const state = { ...stateWithOneOfEach(), layerOrder: ['tabler-sun', 'shape-1'] };
+    const result = duplicateElementInState(state, 'tabler-sun')!;
+    expect(result.state.layerOrder).toEqual(['tabler-sun', result.newId, 'shape-1']);
+  });
+
+  it('verneint ein Icon ohne gespeicherten Zustand', () => {
+    // Ohne Eintrag in `iconStates` stünde die Lage erst im Renderer fest (Mitte
+    // der Fläche) — die Kopie läge dann exakt auf dem Original.
+    const state = { ...stateWithOneOfEach(), iconStates: {} } as unknown as BaseCanvasState;
+    expect(duplicateElementInState(state, 'tabler-sun')).toBeNull();
+    expect(canDuplicateElement(state, 'tabler-sun')).toBe(false);
+  });
+});
+
+/**
  * Drift-Wächter. `buildCanvasItems` ist die Liste dessen, was auf der Fläche
- * liegt; alles darin außer Vorlagen-Elementen (`element`) und Icons (`icon`,
- * ihre ID ist die Katalog-ID) muss duplizierbar sein. Eine neue Elementart, die
- * in `DUPLICABLE` vergessen wird, fällt hier auf statt still im Editor.
+ * liegt; alles darin außer Vorlagen-Elementen (`element`) muss duplizierbar
+ * sein. Eine neue Elementart, die in `DUPLICABLE` vergessen wird, fällt hier
+ * auf statt still im Editor.
  */
 describe('Vollständigkeit gegenüber buildCanvasItems', () => {
-  const NOT_DUPLICABLE: CanvasItem['type'][] = ['element', 'icon'];
+  const NOT_DUPLICABLE: CanvasItem['type'][] = ['element'];
 
   it('deckt jede Instanz-Art der Renderliste ab', () => {
-    const state = { ...stateWithOneOfEach(), selectedIcons: ['sonne'] };
+    const state = stateWithOneOfEach();
     const config = { elements: [] } as unknown as FullCanvasConfig<BaseCanvasState, unknown>;
     const items = buildCanvasItems(config, state);
 

@@ -13,6 +13,7 @@ import { createChartInstance, type ChartInstance, type ChartType } from '../../u
 import { createCircleBadgeInstance } from '../../utils/circleBadgeUtils';
 import { duplicateElementInState } from '../../utils/duplicateElement';
 import { createFrameInstance } from '../../utils/frameUtils';
+import { iconInstanceIdsFor } from '../../utils/iconInstances';
 import { createIllustration } from '../../utils/illustrations/registry';
 import { createPillBadgeInstance } from '../../utils/pillBadgeUtils';
 import { BRAND_COLORS, createShape } from '../../utils/shapes';
@@ -131,10 +132,18 @@ export function createIconActions<
         }));
       } else {
         setState((prev) => {
-          const { [id]: _, ...restStates } = prev.iconStates;
+          // `id` kommt entweder als Katalog-ID aus der Seitenleiste — dort steht
+          // je Icon EIN Eintrag zum Anklicken, gemeint sind also alle Kopien —
+          // oder als Instanz-ID aus dem Entf-Zweig, und dann genau diese eine.
+          // `iconInstanceIdsFor` trifft beides, weil die Instanz-ID einer Kopie
+          // nie die Katalog-ID einer anderen ist.
+          const doomed = new Set(iconInstanceIdsFor(id, prev.selectedIcons, prev.iconStates));
+          const restStates = Object.fromEntries(
+            Object.entries(prev.iconStates).filter(([key]) => !doomed.has(key))
+          );
           return {
             ...prev,
-            selectedIcons: prev.selectedIcons.filter((i) => i !== id),
+            selectedIcons: prev.selectedIcons.filter((i) => !doomed.has(i)),
             iconStates: restStates,
           };
         });
