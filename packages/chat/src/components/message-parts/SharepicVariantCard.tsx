@@ -39,7 +39,7 @@ export function SharepicVariantCard({ variant }: SharepicVariantCardProps) {
   const handleDownload = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
-      download();
+      void download();
     },
     [download]
   );
