@@ -3,18 +3,9 @@ import { View, Text, StyleSheet, useColorScheme } from 'react-native';
 
 import { getNotebookCover } from '../../config/notebookCovers';
 import { type MobileNotebookEntry } from '../../config/notebooksConfig';
-import { useLayout } from '../../hooks/useLayout';
 import { spacing, lightTheme, darkTheme } from '../../theme';
-import { gridColumns } from '../../theme/layout';
 
-import { NotebookTile } from './NotebookTile';
-
-const GAP = spacing.small;
-/**
- * Smallest a notebook tile may get before a column is dropped — what a phone
- * already draws at two columns.
- */
-const MIN_TILE = 160;
+import { NotebookTile, notebookTileGridStyle, useNotebookTileGrid } from './NotebookTile';
 
 /**
  * One tile, with its own press handlers.
@@ -70,22 +61,19 @@ export const NotebookSection = memo(function NotebookSection({
 }) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
-  const { gridWidth } = useLayout();
+  const { size } = useNotebookTileGrid();
 
   if (notebooks.length === 0) return null;
-
-  const columns = gridColumns(gridWidth, MIN_TILE, GAP);
-  const tileSize = Math.floor((gridWidth - GAP * (columns - 1)) / columns);
 
   return (
     <View style={styles.section}>
       <Text style={[styles.sectionTitle, { color: theme.text }]}>{title}</Text>
-      <View style={styles.grid}>
+      <View style={notebookTileGridStyle}>
         {notebooks.map((notebook) => (
           <SectionTile
             key={notebook.id}
             notebook={notebook}
-            size={tileSize}
+            size={size}
             onPress={onNotebookPress}
             onLongPress={onNotebookLongPress}
           />
@@ -103,10 +91,5 @@ const styles = StyleSheet.create({
     fontFamily: 'Raleway_700Bold',
     fontSize: 17,
     marginBottom: spacing.small,
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: GAP,
   },
 });
