@@ -84,7 +84,7 @@ export {
 } from './srcset.js';
 
 // Hooks
-export { useMediaLibrary } from './hooks/useMediaLibrary.js';
+export { useMediaLibrary, MEDIA_LIBRARY_QUERY_KEY } from './hooks/useMediaLibrary.js';
 export { useMediaUpload } from './hooks/useMediaUpload.js';
 
 // Stores
