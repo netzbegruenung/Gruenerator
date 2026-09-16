@@ -429,7 +429,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         });
       }
 
-      // === Stages 3b–3d: chart / artifact / editor-surface triggers ===
+      // === Stages 3b–3c: chart / artifact / editor-surface triggers ===
       runArtifactEmitStage({
         sse,
         finalState,
@@ -440,7 +440,6 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         editTarget: plan.editTarget,
         editToolLoop: plan.editToolLoop,
         rawCurrentDocument,
-        rawCurrentBoard,
       });
 
       // === Stage 4: Persist & complete ===

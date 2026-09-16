@@ -763,8 +763,9 @@ export function createGrueneratorModelAdapter(
               };
             }
             // Live board context (boards-editor surface). Required for the
-            // classifier to route to edit_current_board and emit
-            // trigger_board_action — without it the assistant only chats.
+            // classifier to route to edit_current_board so the loop's
+            // edit_document tool has a board to plan ops against — without it
+            // the assistant only chats.
             if (ctx.currentBoard) injectedCurrentBoard = ctx.currentBoard;
             const parts: string[] = [];
             if (ctx.selectionText) parts.push(`## Auswahl:\n${ctx.selectionText}`);

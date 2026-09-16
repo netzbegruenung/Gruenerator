@@ -2,15 +2,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useChatConfigStore } from '../stores/chatConfigStore';
 
-// The shared provider's registration lifecycle uses the store's document/board
-// handler registries. These tests assert register/unregister symmetry directly
-// against the real store (plain Maps), matching how the provider wires adapters.
+// The shared provider's registration lifecycle uses the store's document-edit
+// and editor-operations handler registries. These tests assert register/
+// unregister symmetry directly against the real store (plain Maps), matching
+// how the provider wires adapters.
 describe('editor-surface registration lifecycle', () => {
   beforeEach(() => {
     useChatConfigStore.setState({
       contextProviders: new Map(),
       documentEditHandlers: new Map(),
-      boardActionHandlers: new Map(),
       editorOpsHandlers: new Map(),
     });
   });
@@ -23,16 +23,6 @@ describe('editor-surface registration lifecycle', () => {
     expect(useChatConfigStore.getState().documentEditHandlers.get('doc-1')).toBe(handler);
     unregister();
     expect(useChatConfigStore.getState().documentEditHandlers.has('doc-1')).toBe(false);
-  });
-
-  it('registers and unregisters a board action handler symmetrically', () => {
-    const store = useChatConfigStore.getState();
-    const handler = vi.fn();
-    const unregister = store.registerBoardActionHandler('board-1', handler);
-
-    expect(useChatConfigStore.getState().boardActionHandlers.get('board-1')).toBe(handler);
-    unregister();
-    expect(useChatConfigStore.getState().boardActionHandlers.has('board-1')).toBe(false);
   });
 
   it('unregister only removes its own handler, not a replacement', () => {
