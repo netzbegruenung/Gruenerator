@@ -39,6 +39,52 @@ function hasOpenEditTarget(state: ChatGraphState, kind: EditorSurfaceKind): bool
 }
 
 /**
+ * An editor sidebar whose artefact IS open, whose toggle IS on — and whose
+ * `edit_document` was nevertheless not mounted, because `decideEditToolLoop`
+ * refused the turn (image attachment, selected notebook, secondary intent, a
+ * forced tool, a compound turn). That leaves NO edit path at all: nothing plans
+ * ops, nothing dispatches, and without the note below the model is told only
+ * that it sits in an editor and answers as if it had edited.
+ *
+ * `doc` used to be excluded here because it still had the classifier's
+ * `trigger_doc_edit` stage to fall back on. Since #3428 that stage is gone and
+ * the doc dispatch lives in the tool, so a missing tool means the same thing on
+ * every surface — which is the whole point of the trade-off `decideEditToolLoop`
+ * makes: those turns are allowed to skip the edit, but never to pretend.
+ */
+function noEditPathSurface(state: ChatGraphState): EditorSurfaceKind | null {
+  const kind = resolveEditorSurfaceKind(state.agentConfig?.identifier, state.enabledTools);
+  if (kind == null) return null;
+  const orphaned =
+    isEditToolEnabled(state.enabledTools) &&
+    TOOL_EDIT_SURFACES.has(kind) &&
+    hasOpenEditTarget(state, kind) &&
+    state.editToolSurface == null;
+  return orphaned ? kind : null;
+}
+
+/**
+ * The "no edit path this turn" note on its own, for the UNIFIED loop.
+ *
+ * Unified mode has no synth phase and never calls {@link buildArtifactNotes} —
+ * one model holds the tools and writes the answer in one stream — so without
+ * this the honesty rule reached only split-mode turns. Which is backwards: the
+ * editor agents run on Mistral, and Mistral is exactly what `resolveLoopMode`
+ * sends down the unified path.
+ */
+export function buildNoEditPathNote(state: ChatGraphState): string {
+  const kind = noEditPathSurface(state);
+  return kind == null ? '' : `\n\n${noEditPathNote(kind)}`;
+}
+
+/** One sentence, one place — both loop modes print the same thing. */
+function noEditPathNote(kind: EditorSurfaceKind): string {
+  const artefact = EDITOR_SURFACE_NOUNS[kind];
+  const geoeffnete = artefact.gender === 'f' ? 'die geöffnete' : 'das geöffnete';
+  return `HINWEIS: In diesem Zug kann ${geoeffnete} ${artefact.noun} nicht direkt bearbeitet werden. Beschreibe die gewünschte Änderung als Text und behaupte nicht, sie vorgenommen zu haben.`;
+}
+
+/**
  * The synth model's only channel for "what did this turn actually produce".
  *
  * Split mode runs the writer WITHOUT tools and without the tool-result replay,
@@ -64,22 +110,7 @@ export function buildArtifactNotes(
   // The AI-edit toggle. Read ONCE here so the two mutually exclusive notes
   // below cannot disagree about it — see `isEditToolEnabled`.
   const editToggleOn = isEditToolEnabled(state.enabledTools);
-  /**
-   * An editor sidebar whose artefact IS open, whose toggle IS on — and whose
-   * `edit_document` was nevertheless not mounted, because `decideEditToolLoop`
-   * refused the turn (image attachment, selected notebook, secondary intent,
-   * a forced tool, a compound turn). For a tool-path surface that leaves NO
-   * edit path at all: nothing plans ops, nothing dispatches, and without this
-   * note the model is told only that it sits in an editor and answers as if it
-   * had edited. `doc` is excluded on purpose — it still has the
-   * `trigger_doc_edit` dispatch path, so a missing tool means nothing there.
-   */
-  const noEditPathThisTurn =
-    editSurfaceKind != null &&
-    editToggleOn &&
-    TOOL_EDIT_SURFACES.has(editSurfaceKind) &&
-    hasOpenEditTarget(state, editSurfaceKind) &&
-    state.editToolSurface == null;
+  const noEditPathKind = noEditPathSurface(state);
   // Split mode has no tool returns in the synth context — without these
   // notes the synthesizer is blind to artifacts the gather phase produced.
   const artifacts = [
@@ -107,7 +138,12 @@ export function buildArtifactNotes(
     state.createdBoard != null
       ? `HINWEIS: In diesem Turn wurde bereits ein Board ("${state.createdBoard.title}") erstellt und dem*der Nutzer*in angezeigt — kündige es kurz an und nenne den Pfad genau so: /boards/${state.createdBoard.boardId}. ${NO_ARTIFACT_URL_RULE}`
       : '',
-    state.compoundEdit === true
+    // Gated on there BEING an edit path: `compoundEdit` and `editToolLoop` are
+    // decided separately (a `secondaryIntent` kills the second and not the
+    // first), and since #3428 nothing outside the loop inserts anything. Left
+    // ungated, this note and the "kann in diesem Zug nicht bearbeitet werden"
+    // note below would arrive together and contradict each other.
+    state.compoundEdit === true && noEditPathKind == null
       ? 'HINWEIS: Die recherchierten Inhalte werden gerade in das GEÖFFNETE Dokument eingefügt. Schreibe NUR eine KURZE Bestätigung (1–2 Sätze), die das Thema nennt und sagt, dass es ins Dokument eingearbeitet wird — KEINE lange Ausformulierung (der Inhalt landet im Dokument, nicht im Chat).'
       : '',
     // The edit tool PLANNED a change for the open artefact this turn and sent
@@ -126,8 +162,14 @@ export function buildArtifactNotes(
     //    on reload. Ordering past tense here is what produced that sentence.
     //
     // Present tense is the honest form of what the server actually knows.
+    //
+    // The doc surface adds one clause, because its apply path ends somewhere
+    // else: BlockNote writes suggestion MARKS, and the change is only in the
+    // document once the person accepts them. The unified loop reads the same
+    // fact off the tool result (`note`); split mode has no tool results in the
+    // writing context, so it has to be said here.
     state.editorEditsSummary
-      ? `HINWEIS: Die gewünschte Änderung ist geplant und wird gerade in die GEÖFFNETE Datei übernommen: ${state.editorEditsSummary}. Sag das dem*der Nutzer*in KURZ in der GEGENWART (1 Satz, z.B. „Die Folien werden gerade aktualisiert — …"). Behaupte NIEMALS, du könntest die Änderung nicht vornehmen — sie ist bereits ausgelöst. Behaupte aber ebenso NICHT, sie sei fertig GESPEICHERT: das Übernehmen geschieht in der geöffneten Datei.`
+      ? `HINWEIS: Die gewünschte Änderung ist geplant und wird gerade in die GEÖFFNETE Datei übernommen: ${state.editorEditsSummary}. Sag das dem*der Nutzer*in KURZ in der GEGENWART (1 Satz, z.B. „Die Folien werden gerade aktualisiert — …"). Behaupte NIEMALS, du könntest die Änderung nicht vornehmen — sie ist bereits ausgelöst. Behaupte aber ebenso NICHT, sie sei fertig GESPEICHERT: das Übernehmen geschieht in der geöffneten Datei.${state.editToolSurface === 'doc' ? ' Im Dokument erscheint sie als VORSCHLAG — nenne das und sag dazu, dass die Person ihn dort annehmen oder verwerfen kann.' : ''}`
       : '',
     // Editor surface with the AI-edit toggle OFF: the edit tool is NOT
     // mounted, so any "I changed X" would be a false claim the client never
@@ -138,9 +180,7 @@ export function buildArtifactNotes(
     // Mutually exclusive with the note above by construction (`editToggleOn`):
     // "the toggle is off" and "the toggle is on but this turn cannot edit" are
     // different facts and must never arrive together.
-    noEditPathThisTurn && editSurfaceKind != null
-      ? `HINWEIS: In diesem Zug kann ${EDITOR_SURFACE_NOUNS[editSurfaceKind].gender === 'f' ? 'die geöffnete' : 'das geöffnete'} ${EDITOR_SURFACE_NOUNS[editSurfaceKind].noun} nicht direkt bearbeitet werden. Beschreibe die gewünschte Änderung als Text und behaupte nicht, sie vorgenommen zu haben.`
-      : '',
+    noEditPathKind != null ? noEditPathNote(noEditPathKind) : '',
   ]
     .filter(Boolean)
     .map((n) => `\n\n${n}`)

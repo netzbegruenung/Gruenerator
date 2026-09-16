@@ -1042,7 +1042,10 @@ Der*die Nutzer*in schreibt aus der Grünerator-App (Mobil). Dort sind einige Fun
   return '';
 }
 
-/** Strict-output modes — anchor adjuncts skipped to keep their format rules clean. */
+/** Strict-output modes — anchor adjuncts skipped to keep their format rules
+ *  clean. `edit_current_doc` stays in the set for a second reason since #3428:
+ *  the currentDocument adjunct says "Schreibe das Dokument NICHT um", which is
+ *  the opposite of the proposal this mode now asks for. */
 const MODES_WITHOUT_ANCHORS: ReadonlySet<ChatGraphState['intent']> = new Set([
   'edit_current_doc',
   'image_edit',
@@ -1050,8 +1053,23 @@ const MODES_WITHOUT_ANCHORS: ReadonlySet<ChatGraphState['intent']> = new Set([
   'chart',
 ]);
 
+/**
+ * `edit_current_doc` im EINZELDURCHLAUF — und das heisst seit #3428: die
+ * Bearbeitung findet NICHT statt.
+ *
+ * Das Dokument wird nur noch aus der Schleife heraus geändert, vom Werkzeug
+ * `edit_document`. Hierher kommt ein Turn genau dann, wenn `decideEditToolLoop`
+ * ihn aus der Schleife gehalten hat (Bildanhang, gewähltes Notebook,
+ * Zweit-Intent, erzwungenes Werkzeug, Loop aus) — der alte Text versprach dann
+ * eine Änderung, die niemand mehr vornimmt, denn die Stufe, die früher
+ * `trigger_doc_edit` schickte, gibt es nicht mehr.
+ *
+ * Der Grund bleibt bewusst ungenannt: er ist technisch und für die Person
+ * bedeutungslos. Was zählt, ist, dass sie den Vorschlag als Text bekommt und
+ * ihn selbst einsetzen kann.
+ */
 const EDIT_CURRENT_DOC_GUIDANCE =
-  '\nDu hast eine Änderung am aktuellen Dokument angefordert. Antworte mit EINEM EINZIGEN kurzen Satz auf Deutsch, der bestätigt, was du gleich änderst (z.B. "Kürze den letzten Absatz."). Schreibe NICHT den geänderten Text aus — die Bearbeitung passiert direkt im Dokument. Keine Aufzählungen, keine Markdown-Formatierung, keine Quellenverweise.';
+  '\nDu kannst das Dokument in diesem Zug nicht direkt bearbeiten. Beginne deine Antwort auf Deutsch mit genau diesem Satz: "Ich kann das Dokument in diesem Zug nicht direkt bearbeiten — hier ist mein Vorschlag als Text:" Schreibe danach die gewünschte Fassung vollständig aus, damit sie sich von Hand übernehmen lässt. Behaupte NIEMALS, du hättest das Dokument geändert oder würdest es gleich ändern.';
 
 const SUMMARY_GUIDANCE =
   '\nDer*die Nutzer*in hat eine Zusammenfassung angefordert. Präsentiere die vorbereitete Zusammenfassung klar und strukturiert.';
