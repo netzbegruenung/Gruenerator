@@ -105,7 +105,7 @@ export interface CanvasEditorActions<
   removeElementPosition: (id: string) => void;
 
   triggerRender: () => void;
-  resetStore: () => void;
+  resetTemplateScopedState: () => void;
 
   setPendingAiSuggestion: (pending: { title: string } | null) => void;
 }
@@ -396,8 +396,27 @@ export function createCanvasEditorStore<
           state.renderVersion++;
         }),
 
-      // Reset
-      resetStore: () => set({ ...createInitialState<TComponentState>() }),
+      /**
+       * Zuruecksetzen auf das, was zu EINER Vorlage gehoert: Auswahl,
+       * Rueckgaengig-Verlauf, Fanglinien, gemerkte Element-Positionen.
+       *
+       * `layers` und `config` bleiben bewusst stehen. Liegt eine Yjs-Bindung
+       * an der Flaeche, gehoeren die beiden dem gemeinsamen Dokument:
+       * `bindCanvasStoreToYMap` schreibt jede Store-Aenderung an ihnen nach
+       * `pages[i]` zurueck, und der Echo-Schutz dort greift nur bei FREMDEN
+       * Updates. Ein vollstaendiges Zuruecksetzen kam deshalb als
+       * `reconcileLayers([])` im Y.Doc an und loeschte die freien Elemente der
+       * Seite — unter `LOCAL_ORIGIN`, also bei allen Mitarbeitenden und in
+       * Hocuspocus persistiert (#3413). `setPageConfigById` sagt genau das
+       * Gegenteil zu: beim Vorlagenwechsel ueberleben `layers` und `config`.
+       *
+       * Die beiden Werte werden als dieselben Referenzen zurueckgelegt, damit
+       * die Store-Subscription der Bindung gar keine Aenderung sieht.
+       */
+      resetTemplateScopedState: () => {
+        const { layers, config } = get();
+        set({ ...createInitialState<TComponentState>(), layers, config });
+      },
 
       // AI suggestion accept/revert state
       setPendingAiSuggestion: (pending) =>
