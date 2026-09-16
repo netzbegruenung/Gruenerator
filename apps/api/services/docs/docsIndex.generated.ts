@@ -257,6 +257,18 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "lead": "In etwa zehn Minuten erstellst du ein Notebook, das eure Dokumente bündelt und ihren Inhalt im Grünerator durchsuchbar macht — für Anträge, Beschlüsse, Programme oder Pressemitteilungen. Du brauchst…"
   },
   {
+    "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
+    "title": "Wie erstelle ich KI-Bilder?",
+    "category": "Guides",
+    "lead": "Am Ende hast du ein eigenes KI-Bild als Datei oder eine Grundlage für ein Sharepic. Du brauchst keine Bildbearbeitungskenntnisse; entscheidend ist eine gute Beschreibung. Für den ersten Entwurf reich…"
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/reel-erstellen",
+    "title": "Wie erstelle ich ein Reel?",
+    "category": "Guides",
+    "lead": "Am Ende hast du ein Video mit eingebrannten Untertiteln zum Veröffentlichen. Du brauchst dafür einen bereits aufgenommenen Clip; das Studio erzeugt keine Videoaufnahmen, sondern transkribiert und ges…"
+  },
+  {
     "url": "/docs/guides/einsteigerinnen/social-media-beitrag",
     "title": "Wie schreibe ich einen Social Media Beitrag?",
     "category": "Guides",
@@ -273,12 +285,6 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "title": "Wolke einbinden",
     "category": "Guides",
     "lead": "Die Grüne Wolke ist unser sicherer Cloud-Speicher für alle grünen Organisationen. Über einen öffentlichen Freigabe-Link kann der Grünerator deine Wolke-Dateien lesen: Du kannst Ordner durchstöbern, D…"
-  },
-  {
-    "url": "/docs/guides/intro",
-    "title": "Guides",
-    "category": "Guides",
-    "lead": "Guides sind kurze Anleitungen für eine konkrete Aufgabe: „Wie schreibe ich einen Social Media Beitrag?\", „Wie erstelle ich einen Antrag für meinen Stadtrat?\". Jeder Guide führt dich in wenigen Schrit…"
   },
   {
     "url": "/docs/guides/landesverbaende/landesverband-einrichten",
@@ -2120,6 +2126,86 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "text": "Notebooks — Quellarten, Teilen, Verwaltung, häufige Fragen Wolke einbinden — Voraussetzung, um Wolke-Ordner anzuhängen Landesverband-Grüneratoren — Österreich: vorgefertigte Wissensdatenbank der Grünen Österreich"
   },
   {
+    "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
+    "pageTitle": "Wie erstelle ich KI-Bilder?",
+    "heading": "Wie erstelle ich KI-Bilder?",
+    "anchor": "",
+    "category": "Guides",
+    "text": "Am Ende hast du ein eigenes KI-Bild als Datei oder eine Grundlage für ein Sharepic. Du brauchst keine Bildbearbeitungskenntnisse; entscheidend ist eine gute Beschreibung. Für den ersten Entwurf reichen meist wenige Minuten."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
+    "pageTitle": "Wie erstelle ich KI-Bilder?",
+    "heading": "Damit die Bilder glaubwürdig werden",
+    "anchor": "#damit-die-bilder-glaubwürdig-werden",
+    "category": "Guides",
+    "text": "Beschreibe, was zu sehen sein soll — nicht nur das Thema. Wer ist im Bild? Wo spielt es? Welche Tageszeit, Perspektive und Stimmung soll es haben? Gib dem Format einen Zweck. „Hochkant für Instagram Story“, „quadratisch für einen Post“ oder „breit für eine Website“ hilft bei der Auswahl und beim späteren Zuschnitt. Keine falschen Tatsachenbilder. Ein KI-Bild darf nicht den Eindruck erwecken, es dokumentiere ein reales Ereignis, eine echte Person oder einen tatsächlichen Zustand, wenn das nicht stimmt. Prüfe Rechte und Privatsphäre. Lade nur Bilder hoch, die du verwenden darfst. Bei bearbeiteten Fotos brauchst du insbesondere die Rechte am Ausgangsbild und solltest abgebildete Personen nicht täuschend echt verändern."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
+    "pageTitle": "Wie erstelle ich KI-Bilder?",
+    "heading": "So geht's",
+    "anchor": "#so-gehts",
+    "category": "Guides",
+    "text": "Studio öffnen. Öffne im Bereich Arbeiten das Studio und wähle KI-Bilder. Damit öffnet sich der Bild-Editor unter /bild-editor. Bild konkret beschreiben. Im Feld „Beschreibe dein Bild …“ nennst du Motiv, Ort, Perspektive, Licht und Stimmung. Zum Beispiel: „Eine schöne Stadt“ ist zu allgemein. „Hochkant“, „geschützte Radwege“ und „dokumentarischer Stil“ geben dem Bild dagegen eine klare Richtung. Stil und Kennzeichnung wählen. Über das Einstellungs-Symbol neben dem Eingabefeld kannst du vor dem Erstellen einen Bildstil auswählen. Dort liegt auch die KI-Kennzeichnung mit einer ausführlichen, einer kurzen und keiner sichtbaren Kennzeichnung. Wählst du keine sichtbare Kennzeichnung, musst du sie bei der Veröffentlichung selbst zuverlässig ergänzen. Erstellen und Ergebnis prüfen. Schicke die Beschreibung ab. Sobald das Bild fertig ist, prüfst du es kritisch: Stimmen Menschen, Gegenstände, Schilder und die politische Aussage? KI-Bilder können überzeugend wirken und trotzdem sachlich falsche oder unplausible Details enthalten. Eine Variante weiterbearbeiten. Unter dem Bild bleiben die bisherigen Versionen sichtbar. Wähle eine aus und öffne rechts im Eingabefeld den Modus: Bearbeiten:…"
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
+    "pageTitle": "Wie erstelle ich KI-Bilder?",
+    "heading": "Weiterlesen",
+    "anchor": "#weiterlesen",
+    "category": "Guides",
+    "text": "Kennzeichnungs-Guide — Kennzeichnung von KI-Bildern und -Videos Bildnachweise & Lizenzen — Quellen und Lizenzen der Icons und Illustrationen im Canvas"
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
+    "pageTitle": "Wie erstelle ich KI-Bilder?",
+    "heading": "Wenn es nicht passt",
+    "anchor": "#wenn-es-nicht-passt",
+    "category": "Guides",
+    "text": "Das Bild trifft die Idee nicht? Formuliere die Beschreibung konkreter und ändere nur einen Aspekt pro neuer Variante. So erkennst du, welche Anweisung wirkt. Eine Änderung geht zu weit? Wähle in der Versionsleiste wieder die passende frühere Version und arbeite von dort weiter. Das Ergebnis soll ein Social-Media-Motiv werden? Öffne es mit „In Canvas bearbeiten“ und ergänze dort Überschrift, Absender und weitere Gestaltung."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/reel-erstellen",
+    "pageTitle": "Wie erstelle ich ein Reel?",
+    "heading": "Wie erstelle ich ein Reel?",
+    "anchor": "",
+    "category": "Guides",
+    "text": "Am Ende hast du ein Video mit eingebrannten Untertiteln zum Veröffentlichen. Du brauchst dafür einen bereits aufgenommenen Clip; das Studio erzeugt keine Videoaufnahmen, sondern transkribiert und gestaltet die Untertitel. Plane je nach Länge des Videos ein paar Minuten ein."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/reel-erstellen",
+    "pageTitle": "Wie erstelle ich ein Reel?",
+    "heading": "Damit das Reel verständlich wird",
+    "anchor": "#damit-das-reel-verständlich-wird",
+    "category": "Guides",
+    "text": "Kürze vor dem Upload. Schneide Versprecher, lange Pausen und nicht benötigte Passagen im Originalvideo heraus. Das macht auch die Untertitel leichter lesbar. Eine Aussage pro Untertitel. Teile lange Sätze beim Gegenlesen sinnvoll auf. Menschen sollen den Text lesen können, ohne das Bild aus den Augen zu verlieren. Namen und Zahlen immer kontrollieren. Die Transkription ist ein Vorschlag, keine Freigabe. Untertitel sind keine Option. Sie helfen gehörlosen und schwerhörigen Menschen, Personen ohne Ton und allen, die das Video in lauter Umgebung ansehen."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/reel-erstellen",
+    "pageTitle": "Wie erstelle ich ein Reel?",
+    "heading": "So geht's",
+    "anchor": "#so-gehts",
+    "category": "Guides",
+    "text": "Studio öffnen. Öffne im Bereich Arbeiten das Studio und wähle dort Reels. Direkt erreichbar ist es auch unter /studio/video. Deinen Clip hochladen. Ziehe die Videodatei in den Bereich „Video hierher ziehen oder klicken“ oder wähle sie im Dateidialog aus. Das Studio akzeptiert MP4, MOV, AVI, MKV und WebM. Am besten funktioniert ein hochkant aufgenommenes Video; so passt es später zu Instagram Reels und TikTok. Die automatische Verarbeitung abwarten. Nach dem Upload analysiert das Studio das Video, trennt die Tonspur, erstellt die KI-Transkription und formatiert die Untertitel. Du siehst dabei den Fortschritt. Lass den Tab geöffnet, bis der Editor erscheint. Untertitel prüfen und korrigieren. Im Editor läuft das Video mit Untertitelvorschau. Klicke in einen Untertitelabschnitt in der Zeitleiste und ändere falsche Wörter, Namen oder Satzzeichen direkt. Spiele die betreffende Stelle danach noch einmal ab. Gerade Eigennamen, Ortsnamen und Abkürzungen brauchen oft einen Blick. Lesbarkeit einstellen. Über das Zahnrad „Einstellungen“ wählst du Stil und Position der Untertitel. Der Stil „Schatten“ ist als Empfehlung markiert und funktioniert auf vielen Hintergründen gut. Prüfe besonders,…"
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/reel-erstellen",
+    "pageTitle": "Wie erstelle ich ein Reel?",
+    "heading": "Weiterlesen",
+    "anchor": "#weiterlesen",
+    "category": "Guides",
+    "text": "Barrierefreiheit — was gute, zugängliche Inhalte ausmacht Kennzeichnungs-Guide — wann KI-generierte oder KI-bearbeitete Medien gekennzeichnet werden müssen"
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/reel-erstellen",
+    "pageTitle": "Wie erstelle ich ein Reel?",
+    "heading": "Wenn es nicht klappt",
+    "anchor": "#wenn-es-nicht-klappt",
+    "category": "Guides",
+    "text": "Der Upload schlägt fehl? Prüfe zuerst, ob deine Datei eines der unterstützten Videoformate hat. Exportiere problematische Dateien am zuverlässigsten noch einmal als MP4. Die Untertitel sind ungenau? Korrigiere die betroffenen Abschnitte im Editor. Ist die Tonspur sehr leise oder überlagert, hilft ein klarer aufgenommenes Ausgangsvideo. Der Download startet nicht? Warte, bis der Export fertig ist. Falls der automatische Download blockiert wird, erlaubt dein Browser möglicherweise erst nach einem erneuten Klick den Dateidownload."
+  },
+  {
     "url": "/docs/guides/einsteigerinnen/social-media-beitrag",
     "pageTitle": "Wie schreibe ich einen Social Media Beitrag?",
     "heading": "Wie schreibe ich einen Social Media Beitrag?",
@@ -2262,22 +2348,6 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#wichtige-hinweise",
     "category": "Guides",
     "text": "Der Grünerator greift nur lesend auf deine Wolke zu. Ein Link mit der Berechtigung „Nur anzeigen\" reicht deshalb aus. Links mit „Kann bearbeiten\" funktionieren ebenfalls — der Grünerator nutzt die Schreibrechte nie, du kannst die Berechtigung in der Wolke bedenkenlos auf „Nur anzeigen\" zurückstellen. Nicht geeignet ist dagegen die Berechtigung „Dateien ablegen\": Eine reine Upload-Freigabe erlaubt kein Lesen. Der Link darf nicht passwortgeschützt sein. Er funktioniert auch ohne Ablaufdatum, und du kannst ihn in der Wolke jederzeit deaktivieren — damit endet auch der Zugriff des Grünerators. Beachte: Ein öffentlicher Freigabe-Link ist für alle nutzbar, die ihn kennen. Teile ihn nur dort, wo das in Ordnung ist, und gib nur Ordner frei, deren Inhalte dafür geeignet sind."
-  },
-  {
-    "url": "/docs/guides/intro",
-    "pageTitle": "Guides",
-    "heading": "Guides",
-    "anchor": "",
-    "category": "Guides",
-    "text": "Guides sind kurze Anleitungen für eine konkrete Aufgabe: „Wie schreibe ich einen Social Media Beitrag?\", „Wie erstelle ich einen Antrag für meinen Stadtrat?\". Jeder Guide führt dich in wenigen Schritten zum Ergebnis und ist in ein paar Minuten durchgearbeitet. Der Unterschied zum Rest der Doku: Die Bereiche Chat, Office oder Features beschreiben, was es gibt — alle Rezepte, alle Werkzeuge, alle Schalter. Ein Guide beschreibt, was du tust, und lässt alles weg, was du dafür nicht brauchst. Am Ende jedes Guides stehen die Verweise für alles Weitere."
-  },
-  {
-    "url": "/docs/guides/intro",
-    "pageTitle": "Guides",
-    "heading": "Wie die Guides sortiert sind",
-    "anchor": "#wie-die-guides-sortiert-sind",
-    "category": "Guides",
-    "text": "Nach Erfahrungsstand — das ist die Ordnerstruktur in der Seitenleiste: Einsteiger*innen — die ersten Aufgaben, ohne Vorwissen. Weitere Stufen kommen dazu, sobald es Guides dafür gibt. Nach Aufgabenfeld — das sind die Schlagwörter unter jeder Überschrift (kommunikation, gremienarbeit, wissen, verwaltung). Ein Klick darauf zeigt alle Guides zu diesem Feld, quer über alle Erfahrungsstufen. Der Grünerator kennt seine eigene Doku. Tippe @doku im Chat und stell deine Frage — er antwortet mit Verweis auf die passende Stelle."
   },
   {
     "url": "/docs/guides/landesverbaende/landesverband-einrichten",

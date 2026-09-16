@@ -106,6 +106,9 @@ const config: Config = {
       '@docusaurus/plugin-client-redirects',
       {
         redirects: [
+          // The category now is the Guides entry point; keep deep links to
+          // the removed explanatory page working indefinitely.
+          { from: '/docs/guides/intro', to: '/docs/category/guides' },
           // gruenerieren/* → chat/*
           { from: '/docs/gruenerieren/ki-chat', to: '/docs/chat/ki-chat' },
           { from: '/docs/gruenerieren/was-kann-ich-fragen', to: '/docs/chat/was-kann-ich-fragen' },

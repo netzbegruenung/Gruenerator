@@ -60,11 +60,19 @@ export const SECTIONS: DocSection[] = [
     icon: '📖',
     description:
       'Kurze Schritt-für-Schritt-Anleitungen für einzelne Aufgaben — sortiert nach Erfahrungsstand und Thema.',
-    intro: '/docs/guides/intro',
+    intro: '/docs/category/guides',
     sidebarId: 'guidesSidebar',
     navbar: 'direct',
     navbarOrder: 2,
     topPages: [
+      {
+        label: 'Wie erstelle ich ein Reel?',
+        to: '/docs/guides/einsteigerinnen/reel-erstellen',
+      },
+      {
+        label: 'Wie erstelle ich KI-Bilder?',
+        to: '/docs/guides/einsteigerinnen/ki-bilder-erstellen',
+      },
       {
         label: 'Texte aus einer Quelle',
         to: '/docs/guides/einsteigerinnen/eigenes-notebook-erstellen',
