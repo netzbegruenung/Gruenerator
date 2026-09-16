@@ -287,6 +287,11 @@ export const sharepicEditResponseSchema = z.object({
 
 export type SharepicEditResponse = z.infer<typeof sharepicEditResponseSchema>;
 
+/** Model output may decline an edit; applied edits still require operations. */
+export const sharepicEditDecisionSchema = sharepicEditResponseSchema.extend({
+  operations: sharepicEditResponseSchema.shape.operations.min(0),
+});
+
 // ── Slider deck operations (multi-page chat editing) ────────────────────────
 
 /**
