@@ -257,6 +257,12 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "lead": "In etwa zehn Minuten erstellst du ein Notebook, das eure Dokumente bündelt und ihren Inhalt im Grünerator durchsuchbar macht — für Anträge, Beschlüsse, Programme oder Pressemitteilungen. Du brauchst…"
   },
   {
+    "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
+    "title": "Wie erstelle ich ein gemeinsames Projekt?",
+    "category": "Guides",
+    "lead": "Am Ende hast du einen gemeinsamen Bereich, in den du andere Menschen einladen und Inhalte wie Notebooks aufnehmen kannst. Die Team-Variante eines Projekts heißt in der aktuellen Oberfläche noch „Grup…"
+  },
+  {
     "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
     "title": "Wie erstelle ich KI-Bilder?",
     "category": "Guides",
@@ -2124,6 +2130,62 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#weiterlesen",
     "category": "Guides",
     "text": "Notebooks — Quellarten, Teilen, Verwaltung, häufige Fragen Wolke einbinden — Voraussetzung, um Wolke-Ordner anzuhängen Landesverband-Grüneratoren — Österreich: vorgefertigte Wissensdatenbank der Grünen Österreich"
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
+    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
+    "heading": "Wie erstelle ich ein gemeinsames Projekt?",
+    "anchor": "",
+    "category": "Guides",
+    "text": "Am Ende hast du einen gemeinsamen Bereich, in den du andere Menschen einladen und Inhalte wie Notebooks aufnehmen kannst. Die Team-Variante eines Projekts heißt in der aktuellen Oberfläche noch „Gruppe“."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
+    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
+    "heading": "Ein Notebook hinzufügen",
+    "anchor": "#ein-notebook-hinzufügen",
+    "category": "Guides",
+    "text": "Klicke neben „Geteilte Inhalte“ auf das Plus. Der Button heißt für Hilfstechnologien „Inhalte hinzufügen“. Wähle „Notebooks“. Klicke auf das Notebook, das du freigeben möchtest. Ein Häkchen zeigt die Auswahl an. Du kannst auch mehrere Notebooks auswählen. Klicke unten rechts auf „1 hinzufügen“. Bei mehreren ausgewählten Inhalten passt sich die Zahl automatisch an. Das Notebook erscheint danach im Abschnitt „Geteilte Inhalte“. Mitglieder des Projekts können es dort öffnen und lesen; durch das Hinzufügen erhalten sie keine Schreibrechte am Notebook."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
+    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
+    "heading": "Einladungslink kopieren",
+    "anchor": "#einladungslink-kopieren",
+    "category": "Guides",
+    "text": "Öffne oben rechts das Drei-Punkte-Menü „Aktionen“. Klicke auf „Einladungslink kopieren“. Der Link wird direkt in die Zwischenablage kopiert. Füge den Link in eine Nachricht an die Personen ein, die beitreten sollen. Der Link ist eine Einladung zu deinem Projekt. Teile ihn nur mit den vorgesehenen Personen. Nur Admins sehen diese Aktion. Alternativ kannst du im selben Menü „Per E-Mail einladen“ wählen."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
+    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
+    "heading": "Gemeinsames Projekt anlegen",
+    "anchor": "#gemeinsames-projekt-anlegen",
+    "category": "Guides",
+    "text": "Öffne im Bereich Arbeiten die Seite Projekte. Direkt erreichbar ist sie auch unter /projekte. Klicke auf „Gruppe erstellen“. Nimm nicht „Projekt erstellen“: Damit legst du ein persönliches Projekt ohne Mitglieder und Einladungslink an. Gib einen Namen ein. Er darf höchstens 100 Zeichen lang sein. Optional kannst du schon jetzt E-Mail-Adressen eingeben. Bestätige jede Adresse mit Enter oder einem Komma. Diese Personen erhalten nach dem Erstellen eine E-Mail mit einem Beitrittslink. Klicke auf „Gruppe erstellen“ beziehungsweise, wenn du Adressen hinzugefügt hast, auf „Erstellen & einladen“. Das neue gemeinsame Projekt öffnet sich automatisch. Du bist Admin und kannst Mitglieder sowie geteilte Inhalte verwalten."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
+    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
+    "heading": "Inhalte wieder entfernen",
+    "anchor": "#inhalte-wieder-entfernen",
+    "category": "Guides",
+    "text": "Als Admin kannst du einen geteilten Inhalt über den Entfernen-Button an seiner Karte wieder aus dem Projekt nehmen. Das löscht das ursprüngliche Notebook nicht — nur seine Freigabe im Projekt wird entfernt."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
+    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
+    "heading": "Weiterlesen",
+    "anchor": "#weiterlesen",
+    "category": "Guides",
+    "text": "Texte aus einer Quelle — ein eigenes Notebook anlegen und mit Quellen füllen Projekte — Überblick über persönliche und gemeinsame Projekte"
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
+    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
+    "heading": "Wenn etwas fehlt",
+    "anchor": "#wenn-etwas-fehlt",
+    "category": "Guides",
+    "text": "Kein Einladungslink im Menü? Dann handelt es sich wahrscheinlich um ein persönliches Projekt oder du bist kein Admin. Einladungen gibt es nur bei gemeinsamen Projekten. „Notebooks“ wird nicht angeboten? Die Auswahl zeigt nur Kategorien, in denen dir Inhalte zur Verfügung stehen. Lege zuerst ein Notebook an oder prüfe, ob du Zugriff auf eines hast. Das Plus bei „Geteilte Inhalte“ fehlt? Nur Admins können Inhalte hinzufügen oder entfernen."
   },
   {
     "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",

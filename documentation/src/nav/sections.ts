@@ -76,6 +76,10 @@ export const SECTIONS: DocSection[] = [
         to: '/docs/guides/einsteigerinnen/ki-bilder-erstellen',
       },
       {
+        label: 'Wie erstelle ich ein gemeinsames Projekt?',
+        to: '/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen',
+      },
+      {
         label: 'Texte aus einer Quelle',
         to: '/docs/guides/einsteigerinnen/eigenes-notebook-erstellen',
       },
