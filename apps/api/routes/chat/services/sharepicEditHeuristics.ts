@@ -42,8 +42,14 @@ const EDIT_VERB_PATTERN =
 // the vocabulary was the only thing missing.
 //
 // A bare `punkt` stays out: "bring es auf den Punkt" is the opposite request.
+//
+// `bullet` is the one new noun that needed a trailing boundary: it is a prefix
+// of "Bulletin" (Amtsbulletin, Pressebulletin — ordinary AT/CH administrative
+// German), so bare prefix matching would route "Kannst du das Bulletin
+// anpassen?" into the sharepic edit lane. The optional tail keeps the forms
+// people actually write (bullets, bullet point, Bulletpoints, bullet-points).
 const EDIT_NOUN_PATTERN =
-  /(?<!\p{L})(zeile\s*[123]?|text|balken|schrift|font|farb|hintergrund|bild|foto|motiv|sonnenblume|logo|zitat|überschrift|ueberschrift|header|sharepic|variante|slides?|folien?|seite\s*\d*|karussell|slider|deck|cover|abschluss(folie)?|headline|untertext|zusatztext|label|uhrzeit|datum|stichpunkt|stichwort|aufzähl|aufzaehl|bullet|liste)/iu;
+  /(?<!\p{L})(zeile\s*[123]?|text|balken|schrift|font|farb|hintergrund|bild|foto|motiv|sonnenblume|logo|zitat|überschrift|ueberschrift|header|sharepic|variante|slides?|folien?|seite\s*\d*|karussell|slider|deck|cover|abschluss(folie)?|headline|untertext|zusatztext|label|uhrzeit|datum|stichpunkt|stichwort|aufzähl|aufzaehl|bullet(?:[\s-]?points?|s)?(?!\p{L})|liste)/iu;
 
 /** Phrases that mean "generate fresh variants" — never treated as an edit. */
 const NEW_VARIANTS_PATTERN =
