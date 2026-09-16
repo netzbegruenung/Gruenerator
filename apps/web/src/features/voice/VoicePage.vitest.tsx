@@ -152,6 +152,46 @@ describe('VoicePage', () => {
     expect(generateCalls).toBe(0);
   });
 
+  it('shows a pause as a readable token and sends it as provider markup', async () => {
+    let received: unknown = null;
+    server.use(
+      http.post(ENDPOINT, async ({ request }) => {
+        received = await request.json();
+        return HttpResponse.json(okResponse);
+      })
+    );
+    const { user } = renderWithProviders(<VoicePage />);
+
+    fireEvent.change(textarea(), { target: { value: 'Guten Tag.' } });
+    await user.click(screen.getByRole('button', { name: /Pause einfügen/ }));
+
+    // What the person reads is the token, never the provider's angle brackets.
+    expect(textarea()).toHaveValue('Guten Tag.[Pause]');
+    expect(textarea().value).not.toContain('<break');
+
+    // The counter charges the full tag and says why the number jumped.
+    expect(screen.getByText(/31 \/ 24\.576 Zeichen · 1 Pause/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /Vertonen/ }));
+
+    await waitFor(() =>
+      expect(received).toMatchObject({ text: 'Guten Tag.<break time="500ms"/>' })
+    );
+  });
+
+  it('refuses a pause that would not fit and keeps the text unchanged', async () => {
+    const { user } = renderWithProviders(<VoicePage />);
+
+    // Anrufbeantworter caps at 1500 characters on the wire.
+    await user.click(screen.getByRole('radio', { name: /Anrufbeantworter/ }));
+    fireEvent.change(textarea(), { target: { value: 'a'.repeat(1490) } });
+
+    // 1490 + 21 is over the cap, so the button is out of reach rather than
+    // inserting half a tag — a cut-off tag is read aloud.
+    expect(screen.getByRole('button', { name: /Pause einfügen/ })).toBeDisabled();
+    expect(textarea()).toHaveValue('a'.repeat(1490));
+  });
+
   it('shows the quota message from a 429 as an alert', async () => {
     server.use(
       http.post(ENDPOINT, () =>

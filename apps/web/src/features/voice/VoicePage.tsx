@@ -25,7 +25,16 @@ import VoiceEditor from './components/VoiceEditor';
 import VoiceResult from './components/VoiceResult';
 import VoiceSettings from './components/VoiceSettings';
 import { useGenerateSpeech } from './hooks/useGenerateSpeech';
-import { PAUSE_TAG, VOICE_PRESETS, estimateSpeechSeconds } from './presets';
+import {
+  PAUSE_TAG,
+  PAUSE_TOKEN,
+  VOICE_PRESETS,
+  clampToWire,
+  estimateSpeechSeconds,
+  fromWire,
+  toWire,
+  wireLength,
+} from './presets';
 
 function fileNameFor(title: string, file: SpeechFile): string {
   return `${slugifyName(title, 'voice')}.${file.mimeType === 'audio/wav' ? 'wav' : 'mp3'}`;
@@ -60,23 +69,23 @@ const VoicePage = () => {
   const choosePreset = (next: SpeechPreset) => {
     setPreset(next);
     setFormats(VOICE_PRESETS[next].defaultFormats);
-    setText((current) => current.slice(0, VOICE_PRESETS[next].maxChars));
+    setText((current) => clampToWire(current, VOICE_PRESETS[next].maxChars));
     generate.reset();
   };
 
-  // Never truncate: a cut-off tag would be read aloud as text.
-  const pauseFits = text.length + PAUSE_TAG.length <= def.maxChars;
+  // The budget is spent in the wire form, where a pause costs the full tag.
+  const pauseFits = wireLength(text) + PAUSE_TAG.length <= def.maxChars;
 
   const insertPause = useCallback(() => {
     if (!pauseFits) return;
     const el = textareaRef.current;
     const start = el?.selectionStart ?? text.length;
     const end = el?.selectionEnd ?? start;
-    setText(`${text.slice(0, start)}${PAUSE_TAG}${text.slice(end)}`);
+    setText(`${text.slice(0, start)}${PAUSE_TOKEN}${text.slice(end)}`);
     requestAnimationFrame(() => {
       if (!el) return;
       el.focus();
-      const caret = start + PAUSE_TAG.length;
+      const caret = start + PAUSE_TOKEN.length;
       el.setSelectionRange(caret, caret);
     });
   }, [pauseFits, text]);
@@ -85,7 +94,7 @@ const VoicePage = () => {
     if (!canSubmit) return;
     generate.mutate({
       preset,
-      text: text.trim(),
+      text: toWire(text.trim()),
       voiceId,
       formats: [...formats],
       speed: speed === 1 ? null : speed,
@@ -134,7 +143,7 @@ const VoicePage = () => {
             <ScriptAssistant
               preset={preset}
               onDraft={(script) => {
-                setText(script.slice(0, def.maxChars));
+                setText(clampToWire(fromWire(script), def.maxChars));
                 generate.reset();
                 textareaRef.current?.focus();
               }}
