@@ -1,5 +1,10 @@
 import { type KiLabelMode } from '@gruenerator/contracts';
-import { AI_IMAGE_TRANSPARENCY, STYLE_VARIANTS } from '@gruenerator/shared/image-studio';
+import {
+  AI_IMAGE_TRANSPARENCY,
+  IMAGE_FORMAT_IDS,
+  STYLE_VARIANTS,
+  type ImageFormatId,
+} from '@gruenerator/shared/image-studio';
 import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { type ReactNode, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -13,7 +18,7 @@ import { BottomSheet } from '../../common';
 import { ChipGroup } from '../../common/ChipGroup';
 
 import { type BevPalette } from './palette';
-import { type BevAspect, type BevMode } from './types';
+import { type BevMode } from './types';
 
 const MODE_META: Record<
   BevMode,
@@ -57,13 +62,10 @@ const KI_LABEL_OPTIONS: Array<{ id: KiLabelMode; label: string }> = [
   { id: 'none', label: 'Keine Kennzeichnung' },
 ];
 
-const ASPECT_OPTIONS: Array<{ id: BevAspect; label: string }> = [
-  { id: '1:1', label: '1:1' },
-  { id: '4:3', label: '4:3' },
-  { id: '3:4', label: '3:4' },
-  { id: '16:9', label: '16:9' },
-  { id: '9:16', label: '9:16' },
-];
+const FORMAT_OPTIONS: Array<{ id: ImageFormatId; label: string }> = IMAGE_FORMAT_IDS.map((id) => ({
+  id,
+  label: id,
+}));
 
 function SettingsSheet({
   bev,
@@ -81,25 +83,36 @@ function SettingsSheet({
     <BottomSheet visible={visible} onClose={onClose} padded maxHeight="70%">
       <ScrollView>
         {mode === 'erstellen' && (
-          <View style={styles.section}>
-            <Text style={[styles.sectionLabel, { color: palette.muted }]}>Stil</Text>
-            <ChipGroup
-              options={STYLE_VARIANTS.map((v) => ({ id: v.id, label: v.label }))}
-              selected={settings.variant}
-              onSelect={(id) =>
-                setSettings((s) => ({ ...s, variant: id as typeof settings.variant }))
-              }
-            />
-          </View>
+          <>
+            <View style={styles.section}>
+              <Text style={[styles.sectionLabel, { color: palette.muted }]}>Stil</Text>
+              <ChipGroup
+                options={STYLE_VARIANTS.map((v) => ({ id: v.id, label: v.label }))}
+                selected={settings.variant}
+                onSelect={(id) =>
+                  setSettings((s) => ({ ...s, variant: id as typeof settings.variant }))
+                }
+              />
+            </View>
+
+            <View style={styles.section}>
+              <Text style={[styles.sectionLabel, { color: palette.muted }]}>Format</Text>
+              <ChipGroup
+                options={FORMAT_OPTIONS}
+                selected={settings.format}
+                onSelect={(id) => setSettings((s) => ({ ...s, format: id as ImageFormatId }))}
+              />
+            </View>
+          </>
         )}
 
         {mode === 'vergroessern' && (
           <View style={styles.section}>
             <Text style={[styles.sectionLabel, { color: palette.muted }]}>Ziel-Format</Text>
             <ChipGroup
-              options={ASPECT_OPTIONS}
+              options={FORMAT_OPTIONS}
               selected={settings.aspect}
-              onSelect={(id) => setSettings((s) => ({ ...s, aspect: id as BevAspect }))}
+              onSelect={(id) => setSettings((s) => ({ ...s, aspect: id as ImageFormatId }))}
             />
           </View>
         )}
