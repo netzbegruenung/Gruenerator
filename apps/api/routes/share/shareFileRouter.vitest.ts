@@ -33,12 +33,21 @@ const getShareByToken = vi.fn();
 let mediaPath = '';
 let videoPath = '';
 let thumbPath = '';
+// A path that resolves but is never written, so the handler's stat() fails —
+// the upload race, where the row is already listed and the bytes are not there.
+let unwrittenPath = '';
 
 vi.mock('./shareServices.js', () => ({
   getSharedMediaService: async () => ({
     getShareByToken,
     getMediaFilePath: (p: string | null) =>
-      p === 'video' ? videoPath : p === 'image' ? mediaPath : null,
+      p === 'video'
+        ? videoPath
+        : p === 'image'
+          ? mediaPath
+          : p === 'unwritten'
+            ? unwrittenPath
+            : null,
     getThumbnailFilePath: (p: string | null) => (p ? thumbPath : null),
     getOriginalImagePath: () => null,
   }),
@@ -74,6 +83,7 @@ beforeAll(async () => {
   mediaPath = path.join(tmpDir, 'media.png');
   videoPath = path.join(tmpDir, 'media.mp4');
   thumbPath = path.join(tmpDir, 'thumbnail.jpg');
+  unwrittenPath = path.join(tmpDir, 'not-written-yet.png');
   await sharp({ create: { width: 600, height: 400, channels: 3, background: '#008939' } })
     .png()
     .toFile(mediaPath);
@@ -232,11 +242,21 @@ describe('GET /:shareToken/preview', () => {
   });
 
   it.each([
-    ['a missing share', null, 404],
+    // 410, not 404: a share that is gone is gone, and <img> retries cannot read
+    // a body to find that out. A file that has not landed yet stays 404 below.
+    ['a missing share', null, 410],
     ['a failed conversion', imageShare({ status: 'failed' }), 500],
   ])('reports %s', async (_label, share, status) => {
     getShareByToken.mockResolvedValue(share);
     expect((await get('/api/share/abc123/preview')).status).toBe(status);
+  });
+
+  it('keeps 404 for a share whose bytes have not landed yet', async () => {
+    // The upload race: the row exists and is listed, the file is still being
+    // written. Distinct from the 410 above precisely so the client retries this
+    // one and gives up on that one.
+    getShareByToken.mockResolvedValue(imageShare({ file_path: 'unwritten' }));
+    expect((await get('/api/share/abc123/preview')).status).toBe(404);
   });
 
   it('keeps answering 202 while a share is still processing', async () => {
