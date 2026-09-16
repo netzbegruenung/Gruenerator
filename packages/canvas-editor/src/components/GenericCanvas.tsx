@@ -28,7 +28,7 @@ import {
 } from '../stores/CanvasStoreProvider';
 import {
   useCanvasInteractions,
-  useCanvasStoreSetup,
+  useCanvasStoreReset,
   useCanvasHistorySetup,
   useFontGeneration,
   useFontLoader,
@@ -202,7 +202,7 @@ function GenericCanvasWithRef<
   const exportedImageRef = useRef<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
 
-  useCanvasStoreSetup(config.id, stageRef);
+  useCanvasStoreReset();
 
   // Dynamic maxContainerWidth for responsive rendering
   const [maxWidth, setMaxWidth] = useState(getOptimalContainerWidth());
