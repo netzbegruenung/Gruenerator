@@ -33,12 +33,19 @@
  *
  * ## Wer die Knöpfe zeigt
  *
- * Fett/Kursiv/… gehören zum Text, nicht zum Overlay. Deshalb entscheidet
- * `controls`, WO sie erscheinen: `'floating'` als Karte über dem Text — das
- * ist der einzige Ort, an dem eine Bühne ohne Kopfleiste sie zeigen kann
- * (`StandaloneCanvas`) — oder `'host'`, wenn ein Wirt sie übernimmt. Im
- * Editor tut das die Kontextleiste der Kopfleiste, neben Farbe, Schriftgröße
- * und Ausrichtung desselben Elements.
+ * Fett/Kursiv/… gehören zum Text, nicht zum Overlay. Im Editor zeigt sie die
+ * Kontextleiste der Kopfleiste, neben Farbe, Schriftgröße und Ausrichtung
+ * desselben Elements. Wo es keine Kopfleiste gibt, bleibt die schwebende
+ * Karte über dem Text der einzige mögliche Ort.
+ *
+ * Wer von beiden, sagt nicht der Aufrufer, sondern der Wirt selbst: wer
+ * `useCanvasTextFormatting` aufruft, MELDET SICH damit an, und die Karte
+ * erscheint nur, solange niemand angemeldet ist. Ein Schalter am Provider
+ * („über mir liegt eine Kopfleiste") wäre ein Versprechen, das der Aufrufer
+ * brechen kann, ohne dass es auffällt — und genau das täte
+ * `CanvasEditorInner` im Nativ-Brücken-Modus, wo die App die Leiste stellt
+ * und die Kontextleiste gar nicht erst gerendert wird: der Text hätte dann
+ * überhaupt keine Schnitt-Knöpfe mehr, weder Leiste noch Karte.
  *
  * Damit der Wirt den Editor erreicht, steht dieser Provider dort, wo auch die
  * Kopfleiste steht: an der Wurzel des Editors. Der Provider in `CanvasStage`
@@ -59,6 +66,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -67,7 +75,10 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 
+import { PLAIN_STYLE, splitListItems } from '@gruenerator/contracts';
+
 import { fontMarkSupport, type FontMarkSupport } from '../utils/fontMarkSupport';
+import { fontStyleForRun, measureTextWidthWithFont } from '../utils/textUtils';
 
 import { RichTextField } from './RichTextField';
 
@@ -85,6 +96,12 @@ export interface OverlayBox {
 /** Ohne offene Sitzung trägt niemand einen Schnitt. */
 const NO_MARKS: FontMarkSupport = { bold: false, italic: false };
 
+/**
+ * Untergrenze für die gespiegelte Deckkraft. Der Regler der Kopfleiste geht
+ * bis 0; ein Feld, das dort steht, wäre als Editor nicht mehr zu sehen.
+ */
+const LOWEST_LEGIBLE_OPACITY = 0.2;
+
 /** Was ein Knoten mitgibt, wenn er bearbeitet werden will. */
 export interface TextEditSession {
   /** Element-Id — der Knoten blendet sich aus, solange er bearbeitet wird. */
@@ -98,11 +115,10 @@ export interface TextEditSession {
   fill: string;
   align: CSSProperties['textAlign'];
   lineHeight: number;
+  /** Deckkraft des Feldes — die Kopfleiste stellt sie, also zeigt der Editor sie. */
+  opacity: number;
   onTextChange?: (value: string) => void;
 }
-
-/** Wer die Formatierungsknöpfe zeigt. */
-export type TextEditorControls = 'floating' | 'host';
 
 interface TextEditorContextValue {
   open: (session: TextEditSession | null) => void;
@@ -112,7 +128,8 @@ interface TextEditorContextValue {
   editor: Editor | null;
   /** Welche Schnitte die Schrift des bearbeiteten Feldes trägt. */
   marks: FontMarkSupport;
-  controls: TextEditorControls;
+  /** Meldet einen Wirt an, der die Knöpfe zeigt; gibt das Abmelden zurück. */
+  claimHost: () => () => void;
 }
 
 const TextEditorContext = createContext<TextEditorContextValue | null>(null);
@@ -161,10 +178,18 @@ export function useCanvasTextEditor(id: string | undefined) {
 }
 
 /**
- * Für den Wirt der Formatierungsknöpfe (die Kontextleiste). Liefert `null`,
- * solange nichts bearbeitet wird — und auch dann, wenn die schwebende Karte
- * die Knöpfe schon zeigt: zwei Leisten für dieselbe Handlung wären eine zu
- * viel.
+ * Für den Wirt der Formatierungsknöpfe (die Kontextleiste). Der Aufruf IST
+ * die Anmeldung: solange dieser Hook irgendwo im Baum hängt, lässt das
+ * Overlay seine eigene Karte weg — zwei Leisten für dieselbe Handlung wären
+ * eine zu viel, keine wäre eine zu wenig.
+ *
+ * Angemeldet wird unabhängig davon, ob gerade etwas bearbeitet wird. Sonst
+ * fiele die Anmeldung mit dem Öffnen der Sitzung zusammen und die Karte
+ * blitzte für einen Durchlauf auf. Die Kontextleiste steht ohnehin schon,
+ * wenn ein Element ausgewählt ist — und ausgewählt ist es, bevor der
+ * Doppelklick den Editor öffnet.
+ *
+ * Liefert `null`, solange nichts bearbeitet wird.
  */
 export function useCanvasTextFormatting(): {
   editor: Editor;
@@ -172,8 +197,9 @@ export function useCanvasTextFormatting(): {
   editingId: string;
 } | null {
   const context = useContext(TextEditorContext);
-  if (!context || context.controls !== 'host') return null;
-  if (!context.editor || !context.editingId) return null;
+  const claimHost = context?.claimHost;
+  useEffect(() => claimHost?.(), [claimHost]);
+  if (!context || !context.editor || !context.editingId) return null;
   return { editor: context.editor, marks: context.marks, editingId: context.editingId };
 }
 
@@ -183,28 +209,20 @@ export function useCanvasTextFormatting(): {
  * `TextEditorRoot` — ein vorzeitiges `return` nach den Zustands-Hooks wäre
  * ein bedingter Hook-Aufruf.
  */
-export function CanvasTextEditorProvider({
-  children,
-  controls = 'floating',
-}: {
-  children: ReactNode;
-  controls?: TextEditorControls;
-}) {
+export function CanvasTextEditorProvider({ children }: { children: ReactNode }) {
   const existing = useContext(TextEditorContext);
   if (existing) return <>{children}</>;
-  return <TextEditorRoot controls={controls}>{children}</TextEditorRoot>;
+  return <TextEditorRoot>{children}</TextEditorRoot>;
 }
 
-function TextEditorRoot({
-  children,
-  controls,
-}: {
-  children: ReactNode;
-  controls: TextEditorControls;
-}) {
+function TextEditorRoot({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<TextEditSession | null>(null);
   const [editor, setEditor] = useState<Editor | null>(null);
   const [draft, setDraft] = useState('');
+  // Gezählt, nicht als Schalter: beim Wechsel zwischen Kontextleiste und
+  // mobiler Zeile hängen An- und Abmeldung kurz gleichzeitig im selben
+  // Durchlauf.
+  const [hosts, setHosts] = useState(0);
 
   // Sobald der Editor geschlossen ist, darf sein Blur nichts mehr schreiben.
   // Beim Abräumen verschiebt tiptap das fokussierte contenteditable, der
@@ -241,9 +259,38 @@ function TextEditorRoot({
     [session]
   );
 
+  // Der Einzug einer Aufzählung, nach derselben Regel wie
+  // `layoutRichTextBlock`: der breiteste Marker des Blocks samt Leerzeichen,
+  // in der Schrift des Feldes gemessen. Er landet als CSS-Variable im Feld
+  // (siehe `canvas-editor.css`) und leistet dort zweierlei — der Punkt steht
+  // IM Feld statt links daneben, und der Editor bricht auf derselben Breite
+  // um wie Leinwand und Export, der Text springt beim Schließen also nicht.
+  //
+  // Am Entwurf gemessen und danach skaliert, genau wie auf der Bühne: dort
+  // rechnet der Renderer in Entwurfsmaßen, und die Gruppe darum skaliert.
+  const listIndent = useMemo(() => {
+    if (!session) return 0;
+    const markers = splitListItems(draft)
+      .map((item) => item.marker)
+      .filter((marker): marker is string => marker !== null);
+    if (markers.length === 0) return 0;
+    const style = fontStyleForRun(session.fontStyle, PLAIN_STYLE);
+    const widest = Math.max(
+      ...markers.map((marker) =>
+        measureTextWidthWithFont(`${marker} `, session.fontSize, session.fontFamily, style)
+      )
+    );
+    return widest * session.box.scale;
+  }, [draft, session]);
+
+  const claimHost = useCallback(() => {
+    setHosts((count) => count + 1);
+    return () => setHosts((count) => count - 1);
+  }, []);
+
   const value = useMemo(
-    () => ({ open, editingId: session?.id ?? null, editor, marks, controls }),
-    [open, session?.id, editor, marks, controls]
+    () => ({ open, editingId: session?.id ?? null, editor, marks, claimHost }),
+    [open, session?.id, editor, marks, claimHost]
   );
 
   return (
@@ -271,7 +318,7 @@ function TextEditorRoot({
               value={draft}
               onChange={setDraft}
               marks={marks}
-              showToolbar={controls === 'floating'}
+              showToolbar={hosts === 0}
               onEditorReady={setEditor}
               autoFocus
               contentStyle={{
@@ -282,6 +329,13 @@ function TextEditorRoot({
                 color: session.fill,
                 textAlign: session.align,
                 lineHeight: String(session.lineHeight),
+                // Nicht ganz bis 0: die Deckkraft gehört zum Feld und wird
+                // in derselben Leiste gestellt, aber der Editor ist Werkzeug,
+                // nicht Sujet — bei 0 tippte man ins Unsichtbare.
+                opacity: Math.max(session.opacity, LOWEST_LEGIBLE_OPACITY),
+                // Eigene Eigenschaft; React typisiert sie nicht, reicht den
+                // Wert aber unverändert durch.
+                ...({ '--canvas-rte-list-indent': `${listIndent}px` } as CSSProperties),
               }}
               onBlur={commit}
               onEscape={cancel}
