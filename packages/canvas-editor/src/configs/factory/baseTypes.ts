@@ -144,7 +144,6 @@ export interface BaseCanvasActions {
   addChart: (chartType: ChartType) => void;
   updateChart: (id: string, partial: Partial<ChartInstance>) => void;
   removeChart: (id: string) => void;
-  duplicateChart: (id: string) => void;
 }
 
 /** Actions for image background templates */
