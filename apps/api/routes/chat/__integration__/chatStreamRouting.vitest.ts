@@ -284,6 +284,34 @@ describe('editor surfaces', () => {
     }
   });
 
+  /**
+   * The docs sidebar, which since #3428 is a tool surface like the others: the
+   * classifier stage that emitted `trigger_doc_edit` is gone, so a doc edit
+   * that does not reach the loop with `edit_document` mounted does nothing at
+   * all. Both halves are asserted for the same reason as the canvas case —
+   * `editToolSurface` without a `currentDocument` in state is the failure the
+   * board case documents ("Es ist kein Dokument geöffnet" on every edit).
+   */
+  it('routes an open document into the loop with the doc edit tool and its state', async () => {
+    const { trace } = await runTurn(suite.baseUrl(), {
+      messages: [userTurn('Kürze den ersten Absatz')],
+      agentId: 'gruenerator-docs-editor',
+      enabledTools: { edit_current_doc: true },
+      currentDocument: {
+        id: 'doc-1',
+        title: 'Antrag',
+        markdown: '# Antrag\n\nEin langer erster Absatz über den Ausbau.',
+        selectionText: null,
+      },
+    });
+
+    expect(trace.agentic).toBe(true);
+    expect(respond.agenticCalls).toHaveLength(1);
+    const state = respond.agenticCalls[0]!.finalState;
+    expect(state.editToolSurface).toBe('doc');
+    expect(state.currentDocument?.id).toBe('doc-1');
+  });
+
   it('keeps the same phrasing off the board path when no board is open', async () => {
     const { trace } = await runTurn(suite.baseUrl(), {
       messages: [userTurn('Erstelle eine Aufgabe „Plakate bestellen" in To-Do')],
