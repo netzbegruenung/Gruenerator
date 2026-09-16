@@ -351,6 +351,10 @@ export default function NotebooksScreen() {
                             title={c.name}
                             subtitle={collectionSubtitle(c)}
                             size={tileSize}
+                            // The spinner below occupies the same corner, and
+                            // `overlay` draws over the cover — so the title has
+                            // to step aside for exactly as long as it is there.
+                            reserveTopRight={collectionIndexingState(c) === 'indexing'}
                           />
                         }
                         onPress={() => handleCollectionPress(c.id, c.name)}
