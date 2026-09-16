@@ -75,7 +75,12 @@ describe('VoicePage', () => {
 
     fireEvent.change(textarea(), { target: { value: 'a'.repeat(9000) } });
 
-    expect(screen.getByText(/Wird in 2 Abschnitten erzeugt/)).toBeInTheDocument();
+    // "Announces" is the whole point: the notice has to sit in a live region the
+    // textarea points at, or a screen-reader user first learns about the split
+    // from the result heading after submitting.
+    const notice = screen.getByText(/Wird in 2 Abschnitten erzeugt/);
+    expect(notice).toHaveAttribute('aria-live', 'polite');
+    expect(textarea().getAttribute('aria-describedby')?.split(' ')).toContain(notice.id);
   });
 
   it('sends the preset and formats, then shows player, downloads and the Mediathek link', async () => {
