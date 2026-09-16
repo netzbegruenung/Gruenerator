@@ -13,6 +13,10 @@ import useImage from 'use-image';
 
 import { type GeometryReporter } from '../hooks/useGeometryReporter';
 import { canvasImageSourceUrl } from '../utils/canvasImageSource';
+// Die Aufloesung von x/y/width/height/opacity steht seit #3403 ausserhalb:
+// `templateElementToEntry` braucht dieselbe Rechnung, und zwei Fassungen
+// derselben Arithmetik driften auseinander.
+import { resolveColor, resolveImageElementBox, resolveValue } from '../utils/resolveElementValue';
 import { imageRenderInputsAreEqual } from '../utils/imageElementComparison';
 import { CanvasText, CanvasImage, CanvasBackground } from '../primitives';
 import { useIsElementSelected } from '../stores/CanvasStoreProvider';
@@ -22,8 +26,6 @@ import {
   assertAsBoolean,
   assertAsPosition,
   assertAsOpacity,
-  assertAsScale,
-  assertAsSize,
   getStateValue,
   getOptionalStateValue,
 } from '../utils/stateTypeAssertions';
@@ -40,34 +42,6 @@ import type {
   PositionValue,
 } from '../configs/types';
 import type { SnapTarget, SnapLine } from '../utils/snapping';
-
-// ============================================================================
-// UTILITY FUNCTIONS
-// ============================================================================
-
-/** Resolve a position value (static or derived) */
-function resolveValue<T, TState extends Record<string, unknown> = Record<string, unknown>>(
-  value: T | ((state: TState, layout: LayoutResult) => T),
-  state: TState,
-  layout: LayoutResult
-): T {
-  if (typeof value === 'function') {
-    return (value as (state: TState, layout: LayoutResult) => T)(state, layout);
-  }
-  return value;
-}
-
-/** Resolve a color value (static or derived) */
-function resolveColor<TState extends Record<string, unknown> = Record<string, unknown>>(
-  value: string | ((state: TState, layout: LayoutResult) => string) | undefined,
-  state: TState,
-  layout: LayoutResult
-): string | undefined {
-  if (typeof value === 'function') {
-    return (value as (state: TState, layout: LayoutResult) => string)(state, layout);
-  }
-  return value;
-}
 
 // ============================================================================
 // MEMOIZED TEXT ELEMENT
@@ -271,19 +245,10 @@ const MemoizedImageElement = memo(function MemoizedImageElement<
     imageSrc = typeof config.src === 'function' ? config.src(state) : config.src;
   }
 
-  const offset = config.offsetKey ? assertAsPosition(state[config.offsetKey]) : { x: 0, y: 0 };
-  const scale = config.scaleKey ? assertAsScale(state[config.scaleKey]) : 1;
-  const baseWidth = resolveValue(config.width, state, layout);
-  const baseHeight = resolveValue(config.height, state, layout);
-
   // `sizeStateKey` wurde bisher nur geschrieben (handleImageTransformEnd) und
   // nie gelesen — Groessenaenderungen an Profilbild und Sonnenblume fielen
   // beim naechsten Neuzeichnen zurueck.
-  const rawCustomSize = config.sizeStateKey ? state[config.sizeStateKey] : null;
-  const storedSize = rawCustomSize != null ? assertAsSize(rawCustomSize) : null;
-  // assertAsSize faellt auf {0,0} zurueck — das waere ein unsichtbares Bild.
-  const customSize = storedSize && storedSize.w > 0 && storedSize.h > 0 ? storedSize : null;
-  const width = customSize?.w ?? baseWidth * scale;
+  const { x, y, width, height, opacity } = resolveImageElementBox(config, state, layout);
 
   // Render the server's working-size WebP variant instead of the raw original:
   // the original is kept on disk for the gallery, but loading multi-MB
@@ -293,32 +258,8 @@ const MemoizedImageElement = memo(function MemoizedImageElement<
   const [image] = useImage(canvasImageSourceUrl(imageSrc, width) ?? '', 'anonymous');
 
   const isLocked = config.lockedKey ? assertAsBoolean(state[config.lockedKey]) : false;
-  const customOpacity = getOptionalStateValue<number>(state, config.opacityStateKey);
-  const opacity = assertAsOpacity(
-    customOpacity ?? (config.opacity ? resolveValue(config.opacity, state, layout) : 1)
-  );
   const customFill = getOptionalStateValue<string>(state, config.fillStateKey);
   const fill = customFill ?? resolveColor(config.fill, state, layout);
-
-  // Wie beim Text: null/undefined heisst "kein manueller Override" — der
-  // {0,0}-Fallback von assertAsPosition darf hier nicht greifen, sonst
-  // rutscht jedes Bild mit positionStateKey in den Koordinatenursprung.
-  const rawCustomPosition = config.positionStateKey ? state[config.positionStateKey] : null;
-  const customPosition = rawCustomPosition != null ? assertAsPosition(rawCustomPosition) : null;
-
-  const baseX = resolveValue(config.x, state, layout);
-  const baseY = resolveValue(config.y, state, layout);
-  // centerZoom re-anchors the scaled box on the slot's centre instead of the
-  // top-left origin: at scale 1 the box sits exactly on the slot, at scale > 1
-  // it overflows symmetrically and at scale < 1 it shrinks toward the centre,
-  // so a fixed (non-draggable) slot zooms without drifting into a corner.
-  const anchorX = config.centerZoom ? (baseWidth * (1 - scale)) / 2 : 0;
-  const anchorY = config.centerZoom ? (baseHeight * (1 - scale)) / 2 : 0;
-
-  const x = customPosition?.x ?? baseX + anchorX + offset.x;
-  const y = customPosition?.y ?? baseY + anchorY + offset.y;
-
-  const height = customSize?.h ?? baseHeight * scale;
 
   const handleSelect = useCallback(() => onSelect(config.id), [onSelect, config.id]);
   const handleDragEnd = useCallback(

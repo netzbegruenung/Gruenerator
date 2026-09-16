@@ -22,10 +22,10 @@
  * Registry-Eintrag aus `find` und `insert` statt aus einem Feldnamen — `listSpec`
  * baut das Paar für die zehn Listen-Arten, das Icon bringt sein eigenes mit.
  *
- * Nicht duplizierbar bleiben Vorlagen-Elemente: sie stehen fest in der Vorlage,
- * nicht im Zustand. Sie kommen über `templateElementToEntry` herein, das aus der
- * aufgelösten Geometrie eine Instanz macht; `duplicateElementInState` allein
- * liefert für sie `null`.
+ * Vorlagen-Elemente stehen fest in der Vorlage, nicht im Zustand. Sie kommen als
+ * `template`-Nachschlag herein (`findTemplateEntry`), der aus der aufgelösten
+ * Geometrie eine Instanz macht — ohne ihn liefert `duplicateElementInState` für
+ * sie `null`.
  */
 
 import { catalogIconId } from './iconInstances';
@@ -273,38 +273,57 @@ export function insertInstance<TState extends Partial<BaseCanvasState>>(
   return { state: nextState, newId };
 }
 
-/** Findet das Element mit dieser ID und benennt seine Art. `null` für alles,
- *  was nicht in einem Instanz-Array liegt (Vorlagen-Elemente, Icons). */
+/**
+ * Die Vorlagen-Tür. Ein Vorlagen-Element steht in keiner Sammlung des Zustands,
+ * sondern fest in der Vorlage — gefunden wird es nur mit `config.elements` und
+ * dem gerechneten Layout, die beide hier nicht vorliegen. Wer sie hat, reicht
+ * diese Funktion herein (`findTemplateEntry` aus `templateElementInstance.ts`);
+ * wer nicht, bekommt für Vorlagen-Elemente weiterhin `null`.
+ *
+ * Als Parameter statt als Import, weil `templateElementInstance` seinerseits den
+ * `DuplicableEntry` von hier braucht.
+ */
+export type TemplateEntryLookup = (elementId: string) => DuplicableEntry | null;
+
+export interface DuplicateOptions {
+  offset?: number;
+  template?: TemplateEntryLookup;
+}
+
+/** Findet das Element mit dieser ID und benennt seine Art. */
 export function findDuplicableEntry<TState extends Partial<BaseCanvasState>>(
   state: TState,
-  elementId: string
+  elementId: string,
+  template?: TemplateEntryLookup
 ): DuplicableEntry | null {
   for (const type of DUPLICABLE_TYPES) {
     const found = (DUPLICABLE[type] as DuplicableSpec<unknown>).find(state, elementId);
     if (found) return { type, data: found } as DuplicableEntry;
   }
-  return null;
+  return template?.(elementId) ?? null;
 }
 
 /** Ist dieses Element duplizierbar? Speist den Aktiv-Zustand des Knopfes. */
 export function canDuplicateElement<TState extends Partial<BaseCanvasState>>(
   state: TState,
-  elementId: string | null
+  elementId: string | null,
+  template?: TemplateEntryLookup
 ): boolean {
-  return elementId !== null && findDuplicableEntry(state, elementId) !== null;
+  return elementId !== null && findDuplicableEntry(state, elementId, template) !== null;
 }
 
 /**
- * Dupliziert das ausgewählte Element. Gibt `null` zurück, wenn die ID zu keiner
- * Instanz gehört — der Aufrufer lässt den Zustand dann unberührt und schreibt
- * insbesondere keinen Verlaufseintrag.
+ * Dupliziert das ausgewählte Element. Gibt `null` zurück, wenn die ID zu nichts
+ * Duplizierbarem gehört — der Aufrufer lässt den Zustand dann unberührt und
+ * schreibt insbesondere keinen Verlaufseintrag.
  */
 export function duplicateElementInState<TState extends Partial<BaseCanvasState>>(
   state: TState,
   elementId: string,
-  offset: number = DUPLICATE_OFFSET
+  options: DuplicateOptions = {}
 ): InsertResult<TState> | null {
-  const entry = findDuplicableEntry(state, elementId);
+  const { offset = DUPLICATE_OFFSET, template } = options;
+  const entry = findDuplicableEntry(state, elementId, template);
   if (!entry) return null;
   return insertInstance(state, entry, { afterId: elementId, offset });
 }

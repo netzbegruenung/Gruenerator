@@ -90,12 +90,12 @@ describe('duplicateElementInState', () => {
   });
 
   it('nimmt einen eigenen Versatz an', () => {
-    const result = duplicateElementInState(stateWithOneOfEach(), 'shape-1', 0);
+    const result = duplicateElementInState(stateWithOneOfEach(), 'shape-1', { offset: 0 });
     const copy = listOf(result!.state, 'shapeInstances')[1];
     expect(copy.x).toBe(10);
   });
 
-  it('gibt null für eine unbekannte ID zurück (Vorlagen-Element, Icon)', () => {
+  it('gibt null für eine unbekannte ID zurück', () => {
     expect(duplicateElementInState(stateWithOneOfEach(), 'quote-text')).toBeNull();
     expect(duplicateElementInState(stateWithOneOfEach(), 'sunflower')).toBeNull();
   });
