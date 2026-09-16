@@ -86,6 +86,9 @@ export interface ToolbarStateReport {
   canRedo: boolean;
   canMoveUp: boolean;
   canMoveDown: boolean;
+  /** Liegt die Auswahl in einer Instanz-Sammlung? Vorlagen-Elemente und Icons
+   *  nicht — siehe `utils/duplicateElement.ts`. */
+  canDuplicate: boolean;
 }
 
 export interface GenericCanvasProps<TState, TActions extends OptionalCanvasActions> {
@@ -124,6 +127,23 @@ export interface GenericCanvasProps<TState, TActions extends OptionalCanvasActio
    * persist via Hocuspocus.
    */
   autoSave?: boolean;
+  /**
+   * Render-once snapshot, never shown or touched by a user — the offscreen
+   * root that `renderSharepicToImage` mounts to turn a chat sharepic into a
+   * preview image.
+   *
+   * Everything switched off here is editor machinery that a hidden, one-shot
+   * canvas still paid for: gallery auto-save (network writes, a `beforeunload`
+   * handler and its own pixelRatio-2 capture 1500ms after every history
+   * change), the global keydown handlers, and Konva's hit graph, which doubles
+   * the canvas memory per stage for events nothing will ever fire.
+   *
+   * Die Stage-Registry stand hier auch einmal: sie war nach `config.id`
+   * verschluesselt, sodass zwei Vorschauen derselben Vorlage einander und den
+   * Studio-Eintrag verdraengten. Sie ist mit #3406 ganz entfallen — gelesen
+   * hat sie niemand —, also gibt es hier nichts mehr abzuschalten.
+   */
+  preview?: boolean;
   /**
    * Pushes this page's live state/actions/selection to the host on every
    * change — the multi-page editor's shared sidebar renders from it.
@@ -169,6 +189,7 @@ export interface GenericCanvasRef {
   undo?: () => void;
   redo?: () => void;
   handleMoveLayer?: (direction: 'up' | 'down') => void;
+  handleDuplicate?: () => void;
   handleColorSelect?: (color: string) => void;
   handleOpacityChange?: (id: string, opacity: number, type: string) => void;
   handleFontSizeChange?: (id: string, size: number) => void;
@@ -193,6 +214,7 @@ function GenericCanvasWithRef<
     mobileBridge,
     onToolbarStateChange,
     onAutoSaveShareToken,
+    preview = false,
   } = props;
 
   const stageRef = useRef<CanvasStageRef>(null);
@@ -202,7 +224,7 @@ function GenericCanvasWithRef<
   const exportedImageRef = useRef<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
 
-  useCanvasStoreReset();
+  useCanvasStoreReset(preview ? null : config.id);
 
   // Dynamic maxContainerWidth for responsive rendering
   const [maxWidth, setMaxWidth] = useState(getOptimalContainerWidth());
@@ -409,7 +431,7 @@ function GenericCanvasWithRef<
   // explicit value (off in collab — Hocuspocus persists server-side — and off
   // beyond one page, where deck-level autosave takes over); standalone
   // consumers keep the historical default of on.
-  const autoSaveEnabled = !mobileBridge && (props.autoSave ?? true);
+  const autoSaveEnabled = !mobileBridge && !preview && (props.autoSave ?? true);
 
   // Fresh capture for the unmount-flush path — transformer hiding makes the
   // shot clean even while an element is still selected.
@@ -530,6 +552,7 @@ function GenericCanvasWithRef<
     setSelectedElement,
     elements: config.elements,
     saveToHistory,
+    enabled: !preview,
   });
 
   const canvasItems = useMemo(() => buildCanvasItems(config, state), [config, state]);
@@ -641,6 +664,7 @@ function GenericCanvasWithRef<
       undo,
       redo,
       handleMoveLayer: (dir) => bridgeRef.current?.handleMoveLayer(dir),
+      handleDuplicate: () => bridgeRef.current?.handleDuplicate(),
       handleColorSelect: (color) => bridgeRef.current?.handleColorSelect(color),
       handleOpacityChange: (id, op, type) => bridgeRef.current?.handleOpacityChange(id, op, type),
       handleFontSizeChange: elementHandlers.handleFontSizeChange,
@@ -665,6 +689,7 @@ function GenericCanvasWithRef<
         responsive
         maxContainerWidth={maxWidth}
         onStageClick={handleStageClick}
+        listening={!preview}
         className={`${config.id}-stage`}
       >
         <CanvasRenderLayer

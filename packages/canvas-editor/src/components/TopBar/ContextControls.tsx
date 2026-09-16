@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { PiCopy } from 'react-icons/pi';
 
 import { FONT_COLORS, STROKE_ONLY_SHAPES } from '../../utils/shapes';
 
@@ -23,8 +24,12 @@ export interface ContextControlsProps {
   activeFloatingModule: FloatingModuleState | null;
   canMoveUp: boolean;
   canMoveDown: boolean;
+  /** Vorlagen-Elemente und Icons lassen sich nicht duplizieren — der Knopf
+   *  bleibt sichtbar und ausgegraut, statt zu verschwinden. */
+  canDuplicate: boolean;
   handlers: {
     handleMoveLayer: (direction: 'up' | 'down') => void;
+    handleDuplicate: () => void;
     handleColorSelect: (color: string) => void;
     handleOpacityChange: (id: string, opacity: number, type: string) => void;
     handleFontSizeChange: (id: string, size: number) => void;
@@ -57,6 +62,7 @@ export function ContextControls({
   activeFloatingModule,
   canMoveUp,
   canMoveDown,
+  canDuplicate,
   handlers,
   onDelete,
   onDeselect,
@@ -301,6 +307,30 @@ export function ContextControls({
         canMoveUp={canMoveUp}
         canMoveDown={canMoveDown}
       />
+    );
+  }
+
+  // Direkt bei den Ebenen-Knöpfen: beides betrifft das Element als Ganzes,
+  // nicht sein Aussehen. Der Knopf bleibt bei Vorlagen-Elementen und Icons
+  // sichtbar, aber deaktiviert — verschwände er, wäre unklar, ob die Aktion
+  // fehlt oder nur hier nicht geht.
+  if (selectedElement) {
+    groups.push(
+      <button
+        key="duplicate"
+        className={ICON_BTN}
+        onClick={handlers.handleDuplicate}
+        disabled={!canDuplicate}
+        title={
+          canDuplicate
+            ? 'Duplizieren (Strg+D)'
+            : 'Dieses Element gehört zur Vorlage und lässt sich nicht duplizieren'
+        }
+        aria-label="Duplizieren (Strg+D)"
+        type="button"
+      >
+        <PiCopy size={18} />
+      </button>
     );
   }
 

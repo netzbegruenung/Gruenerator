@@ -119,10 +119,6 @@ export function injectFeatureProps<S extends object, A extends object>(
     if ('removeShape' in actions) {
       injected.onRemoveShape = actions.removeShape as (id: string) => void;
     }
-
-    if ('duplicateShape' in actions) {
-      injected.onDuplicateShape = actions.duplicateShape as (id: string) => void;
-    }
   }
 
   // === CHARTS FEATURE ===
