@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Guard: ein `pnpm.overrides`-Eintrag ERSETZT den Bereich, den ein Paket selbst
+// Guard: ein `overrides`-Eintrag (pnpm-workspace.yaml) ERSETZT den Bereich, den ein Paket selbst
 // deklariert hat — pnpm prüft dabei nicht, ob die erzwungene Version diesen
 // Bereich noch erfüllt. Bei regulären `dependencies` gibt es dafür auch keine
 // Warnung (nur unerfüllte peerDependencies meldet pnpm).
@@ -72,8 +72,30 @@ import semver from 'semver';
 const root = process.env.REPO_ROOT ?? join(dirname(fileURLToPath(import.meta.url)), '..');
 const readJson = (file) => JSON.parse(readFileSync(file, 'utf8'));
 
+// pnpm 11 moved `overrides` out of package.json's `pnpm` field into
+// pnpm-workspace.yaml. Flat top-level mapping, so no YAML dependency needed.
+const readOverridesBlock = (text) => {
+  const lines = text.split('\n');
+  const start = lines.indexOf('overrides:');
+  if (start === -1) return {};
+  const unquote = (v) => {
+    const x = v.trim();
+    return (x.startsWith("'") && x.endsWith("'")) || (x.startsWith('"') && x.endsWith('"'))
+      ? x.slice(1, -1)
+      : x;
+  };
+  const out = {};
+  for (const line of lines.slice(start + 1)) {
+    if (line.trim() === '') continue;
+    if (!line.startsWith('  ')) break;
+    const m = /^ {2}('[^']+'|"[^"]+"|[^:]+): (.+)$/.exec(line);
+    if (m) out[unquote(m[1])] = unquote(m[2]);
+  }
+  return out;
+};
+
 const rootPkg = readJson(join(root, 'package.json'));
-const overrides = rootPkg.pnpm?.overrides ?? {};
+const overrides = readOverridesBlock(readFileSync(join(root, 'pnpm-workspace.yaml'), 'utf8'));
 
 // Overrides, die BEWUSST unter dem liegen, was Abhängige deklarieren. Nur diese
 // drei — jeder weitere Eintrag hier braucht denselben Nachweis, dass der
@@ -173,7 +195,7 @@ if (violations.size > 0) {
   for (const [target, hits] of violations) {
     const needed = [...new Set(hits.map((h) => h.range))].join(', ');
     console.error(
-      `\n✖ pnpm.overrides["${target}"] = "${overrides[target]}" hält ${target}@${hits[0].installed} fest,` +
+      `\n✖ overrides["${target}"] = "${overrides[target]}" hält ${target}@${hits[0].installed} fest,` +
         ` unter dem, was Abhängige fordern:`
     );
     for (const hit of hits)
