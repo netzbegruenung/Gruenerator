@@ -5,9 +5,13 @@
  * operations (BoardOperation[]). The operations are applied CLIENT-SIDE by the
  * boards assistant against the live Yjs board — this service only plans them.
  *
- * Mirrors the docs AI controller's provider chain + strict tool-call approach,
- * but returns plain JSON (no streaming) since the executor needs the full op
- * list, not a token stream.
+ * Routed through the facade (`aiTools`, lane `editor_ops_board`) rather than
+ * calling the AI SDK directly — see services/ai/generate.ts and the forced
+ * tool-call pattern in routes/chat/services/toolForcedEdit.ts, which this
+ * mirrors: a JSON-Schema tool built from the zod schema via `zodToJsonSchema`
+ * (the facade's `Tool.input_schema` is a plain schema, not a zod object), one
+ * retry when the provider fails or answers without the forced tool call, and a
+ * manual post-call zod validation of whatever came back.
  */
 
 import {
@@ -15,29 +19,16 @@ import {
   type BoardOperation,
   type CurrentBoard,
 } from '@gruenerator/contracts';
-import { generateText, tool } from 'ai';
+import { jsonSchema } from 'ai';
 import { z } from 'zod';
+import { zodToJsonSchema } from 'zod-to-json-schema';
 
+import { aiTools } from '../../services/ai/generate.js';
 import { createLogger } from '../../utils/logger.js';
-import { getModel, isProviderConfigured } from '../chat/agents/providers.js';
-import { type AgentConfig } from '../chat/agents/types.js';
+
+import type { AiResult, Tool } from '../../services/ai/types.js';
 
 const log = createLogger('BoardAI');
-
-// Mirror docs/aiController DOCS_AI_MODELS — these IDs are confirmed to return
-// finish_reason:tool_calls on their respective providers.
-const BOARD_AI_MODELS: Record<AgentConfig['provider'], string> = {
-  // Der Name wird noch gelesen (Agenten-Konfigurationen sind F0), bedient aber
-  // Cortecs — services/ai/litellmRetired.ts biegt ihn in `getModel` um. Der
-  // Eintrag nennt deshalb das Modell, das dort tatsächlich antwortet.
-  litellm: 'gemma-4-31b-it',
-  regolo: 'mistral-small-4-119b',
-  melious: 'gemma-4-31b:balanced',
-  mistral: 'mistral-medium-2604',
-  anthropic: 'mistral-medium-2604',
-  greenpt: 'mistral-medium-3.5-128b',
-  cortecs: 'gemma-4-31b-it',
-};
 
 const FIELD_IDS = {
   TITLE: 'field-title',
@@ -150,6 +141,22 @@ function serializeBoard(board: CurrentBoard, today: string): string {
   return lines.join('\n');
 }
 
+const TOOL_NAME = 'applyBoardOperations';
+const OPERATIONS_SCHEMA = z.object({ operations: z.array(boardOperationSchema).max(50) });
+
+/** How many times the forced tool call is attempted — one retry, as before. */
+const MAX_ATTEMPTS = 2;
+
+/** The tool call by NAME, in either transport shape the adapters produce. */
+function extractToolInput(result: AiResult): Record<string, unknown> | null {
+  const call = result.tool_calls?.find((c) => c.name === TOOL_NAME);
+  if (call) return call.input;
+  for (const block of result.raw_content_blocks ?? []) {
+    if (block.type === 'tool_use' && block.name === TOOL_NAME && block.input) return block.input;
+  }
+  return null;
+}
+
 /**
  * Plan board operations for a user request. Returns a validated BoardOperation[]
  * (possibly empty). Throws only on provider/model failure.
@@ -162,58 +169,65 @@ export async function generateBoardOperations(opts: {
 }): Promise<BoardOperation[]> {
   const { userPrompt, board, referenceContent, today } = opts;
 
-  const providerChain: AgentConfig['provider'][] = ['mistral', 'melious', 'cortecs'];
-  const provider = providerChain.find((p) => isProviderConfigured(p));
-  if (!provider) {
-    // Aus der Kette abgeleitet, nicht danebengeschrieben: die Liste stand hier
-    // als zweite Kopie und nannte nach der Cortecs-Umstellung noch `litellm`.
-    throw new Error(`No AI provider configured (tried: ${providerChain.join(', ')})`);
-  }
-
-  const modelId = BOARD_AI_MODELS[provider];
-  const model = getModel(provider, modelId);
-  log.info(`[BoardAI] Using provider: ${provider}, model: ${modelId}`);
-
   const referenceSection = referenceContent?.trim()
     ? `\n\nRECHERCHIERTE QUELLEN (Faktenbasis für die Bearbeitung — übernimm konkrete Zahlen, Namen und Fakten WÖRTLICH aus diesen Quellen; erfinde keine Beispielwerte):\n<recherchierte_quellen>\n${referenceContent.trim().slice(0, 8000)}\n</recherchierte_quellen>`
     : '';
 
   const system = `${BOARD_TOOL_STRICT_PROMPT}\n\nAKTUELLER BOARD-ZUSTAND:\n${serializeBoard(board, today)}${referenceSection}`;
 
-  let captured: BoardOperation[] | null = null;
-
-  const result = await generateText({
-    model,
-    system,
-    prompt: userPrompt,
-    tools: {
-      applyBoardOperations: tool({
-        description: 'Apply a batch of operations to the board.',
-        // No `.min(1)` here (unlike boardOperationsSchema): the prompt allows an
-        // empty array to mean "nothing to change", and requiring ≥1 op would make
-        // that legitimate no-op fail tool-input validation / burn a retry.
-        inputSchema: z.object({ operations: z.array(boardOperationSchema).max(50) }),
-      }),
-    },
-    toolChoice: 'required',
-    maxRetries: 1,
-    temperature: 0.2,
+  // jsonSchema() wrapping is required — the AI SDK's asSchema helper rejects
+  // raw JSON-Schema objects (see toolForcedEdit.ts).
+  const rawSchema = zodToJsonSchema(OPERATIONS_SCHEMA, {
+    target: 'jsonSchema7',
+    $refStrategy: 'none',
   });
+  const tool: Tool = {
+    name: TOOL_NAME,
+    description: 'Apply a batch of operations to the board.',
+    input_schema: jsonSchema(
+      rawSchema as Parameters<typeof jsonSchema>[0]
+    ) as unknown as Tool['input_schema'],
+  };
 
-  for (const tc of result.toolCalls) {
-    if (tc.toolName === 'applyBoardOperations') {
-      // Trust-boundary assertion + typed narrow. No `.min(1)` (empty = no-op is
-      // valid); the 50-op cap from boardOperationsSchema still applies.
-      const parsed = z
-        .array(boardOperationSchema)
-        .max(50)
-        .safeParse((tc.input as { operations: unknown }).operations);
-      if (parsed.success) {
-        captured = parsed.data;
-      } else {
-        log.warn(`[BoardAI] Operation validation failed: ${parsed.error.message}`);
-      }
+  let toolInput: Record<string, unknown> | null = null;
+  let lastResult: AiResult | null = null;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      const result = await aiTools({
+        lane: 'editor_ops_board',
+        system,
+        prompt: userPrompt,
+        tools: [tool],
+        toolChoice: 'required',
+        temperature: 0.2,
+      });
+      lastResult = result;
+      toolInput = extractToolInput(result);
+      if (toolInput) break;
+      log.warn(
+        `[BoardAI] attempt ${attempt}: no tool call (stop_reason=${result.stop_reason ?? 'unknown'})`
+      );
+    } catch (e) {
+      if (attempt === MAX_ATTEMPTS) throw e;
+      log.warn(`[BoardAI] attempt ${attempt} threw: ${e instanceof Error ? e.message : String(e)}`);
     }
+  }
+
+  let captured: BoardOperation[] | null = null;
+  if (toolInput) {
+    // Trust-boundary assertion + typed narrow. No `.min(1)` (empty = no-op is
+    // valid); the 50-op cap from boardOperationsSchema still applies.
+    const parsed = z
+      .array(boardOperationSchema)
+      .max(50)
+      .safeParse((toolInput as { operations: unknown }).operations);
+    if (parsed.success) {
+      captured = parsed.data;
+    } else {
+      log.warn(`[BoardAI] Operation validation failed: ${parsed.error.message}`);
+    }
+  } else if (lastResult) {
+    log.warn(`[BoardAI] no tool call after ${MAX_ATTEMPTS} attempt(s)`);
   }
 
   log.info(`[BoardAI] Planned ${captured?.length ?? 0} operation(s) for prompt: "${userPrompt}"`);
