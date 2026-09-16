@@ -128,6 +128,20 @@ export interface GenericCanvasProps<TState, TActions extends OptionalCanvasActio
    */
   autoSave?: boolean;
   /**
+   * Render-once snapshot, never shown or touched by a user — the offscreen
+   * root that `renderSharepicToImage` mounts to turn a chat sharepic into a
+   * preview image.
+   *
+   * Everything switched off here is editor machinery that a hidden, one-shot
+   * canvas still paid for: gallery auto-save (network writes, a `beforeunload`
+   * handler and its own pixelRatio-2 capture 1500ms after every history
+   * change), the global keydown handlers, the module-level stage registry
+   * (whose key is `config.id`, so two previews of one template evict each
+   * other and the studio's live entry), and Konva's hit graph, which doubles
+   * the canvas memory per stage for events nothing will ever fire.
+   */
+  preview?: boolean;
+  /**
    * Pushes this page's live state/actions/selection to the host on every
    * change — the multi-page editor's shared sidebar renders from it.
    */
@@ -197,6 +211,7 @@ function GenericCanvasWithRef<
     mobileBridge,
     onToolbarStateChange,
     onAutoSaveShareToken,
+    preview = false,
   } = props;
 
   const stageRef = useRef<CanvasStageRef>(null);
@@ -206,7 +221,7 @@ function GenericCanvasWithRef<
   const exportedImageRef = useRef<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
 
-  useCanvasStoreSetup(config.id, stageRef);
+  useCanvasStoreSetup(preview ? null : config.id, stageRef);
 
   // Dynamic maxContainerWidth for responsive rendering
   const [maxWidth, setMaxWidth] = useState(getOptimalContainerWidth());
@@ -413,7 +428,7 @@ function GenericCanvasWithRef<
   // explicit value (off in collab — Hocuspocus persists server-side — and off
   // beyond one page, where deck-level autosave takes over); standalone
   // consumers keep the historical default of on.
-  const autoSaveEnabled = !mobileBridge && (props.autoSave ?? true);
+  const autoSaveEnabled = !mobileBridge && !preview && (props.autoSave ?? true);
 
   // Fresh capture for the unmount-flush path — transformer hiding makes the
   // shot clean even while an element is still selected.
@@ -535,6 +550,7 @@ function GenericCanvasWithRef<
     elements: config.elements,
     layout,
     saveToHistory,
+    enabled: !preview,
   });
 
   const canvasItems = useMemo(() => buildCanvasItems(config, state), [config, state]);
@@ -671,6 +687,7 @@ function GenericCanvasWithRef<
         responsive
         maxContainerWidth={maxWidth}
         onStageClick={handleStageClick}
+        listening={!preview}
         className={`${config.id}-stage`}
       >
         <CanvasRenderLayer
