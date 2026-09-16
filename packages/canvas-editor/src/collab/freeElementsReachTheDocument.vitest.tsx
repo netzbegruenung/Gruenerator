@@ -120,7 +120,11 @@ describe('freie Elemente an der echten Flaeche', () => {
     expect(state.balkenInstances).toHaveLength(1);
     expect(state.selectedIcons).toEqual(['icon-1']);
     expect(state.iconStates).toBeDefined();
-  }, 30000);
+    // 30 s reichten, solange dies die einzige Datei der jsdom-Lane war, die
+    // eine echte Konva-Buehne baut. Seit `remoteEditKeepsAddedElements` daneben
+    // steht, teilen sich zwei Forks die Kerne mit 15 weiteren Turbo-Aufgaben:
+    // gemessen 32 s auf dem CI-Laeufer, knapp darueber (Lauf 35150293497).
+  }, 90_000);
 });
 
 /**

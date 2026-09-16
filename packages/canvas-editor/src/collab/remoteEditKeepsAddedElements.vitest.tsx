@@ -12,10 +12,15 @@
  * Geprüft wird an der echten Fläche: echte Vorlage, echtes Y.Doc, echter
  * Beobachter. Ein Test gegen `createInitialState` allein bliebe grün, wenn
  * `GenericCanvas` wieder anfinge, Schlüssel aus dem Ausschnitt zu entfernen.
+ *
+ * Genau zwei Montierungen, eine je Vorlage, und jede prüft alles, was an ihr
+ * zu prüfen ist. Jede kostet in der jsdom-Lane eine echte Konva-Bühne — auf
+ * einem ausgelasteten CI-Läufer zweistellige Sekunden —, und die Lane teilt
+ * sich die Kerne mit `freeElementsReachTheDocument`, das dieselbe Bühne baut.
  */
 import { act, render } from '@testing-library/react';
 import React from 'react';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
 
 import { GenericCanvas } from '../components/GenericCanvas';
@@ -36,6 +41,9 @@ Object.defineProperty(document, 'fonts', {
 
 const PAGE_ID = 'seed-0';
 
+/** Kein `PAGES_*`-Ursprung: genau so sieht der Beobachter eine fremde Bearbeitung. */
+const REMOTE_ORIGIN = Symbol('anderer-client');
+
 /** Eine vollstaendige Form — der Renderer laeuft hier echt, ein `{id}` reicht ihm nicht. */
 const shape = (id: string) => ({
   id,
@@ -51,21 +59,27 @@ const shape = (id: string) => ({
   opacity: 1,
 });
 
-/** Kein `PAGES_*`-Ursprung: genau so sieht der Beobachter eine fremde Bearbeitung. */
-const REMOTE_ORIGIN = Symbol('anderer-client');
+type ConfigId = 'dreizeilen' | 'zitat';
+
+// Einmal geladen und mit eigenem Budget: `loadCanvasConfig` zieht ueber einen
+// dynamischen Import den ganzen Config-Graphen (konva, recharts, @iconify)
+// herein. Im Test gemessen zaehlte das gegen dessen Zeitgrenze.
+const configs = new Map<ConfigId, Awaited<ReturnType<typeof loadCanvasConfig>>>();
+
+beforeAll(async () => {
+  for (const id of ['dreizeilen', 'zitat'] as ConfigId[]) {
+    configs.set(id, await loadCanvasConfig(id));
+  }
+}, 120_000);
 
 type Mounted = {
-  doc: Y.Doc;
   state: () => Record<string, unknown>;
   actions: () => Record<string, unknown>;
   remoteEdit: (partial: Record<string, unknown>) => Promise<void>;
 };
 
-async function mount(
-  configId: 'dreizeilen' | 'zitat',
-  seed: Record<string, unknown>
-): Promise<Mounted> {
-  const config = await loadCanvasConfig(configId);
+async function mount(configId: ConfigId, seed: Record<string, unknown>): Promise<Mounted> {
+  const config = configs.get(configId)!;
   const doc = new Y.Doc();
   seedPagesIfEmpty(doc, [{ id: PAGE_ID, configId, state: seed }]);
   const page = readPages(doc)[0];
@@ -99,7 +113,6 @@ async function mount(
   });
 
   return {
-    doc,
     state: () => live,
     actions: () => actions,
     remoteEdit: async (partial) => {
@@ -129,24 +142,9 @@ describe('Fernbearbeitung an der echten Fläche', () => {
     expect(after.map((b) => b.id)).toContain(added[0].id);
     const primary = after.find((b) => b.id === 'dreizeilen-balken')!;
     expect(primary.texts[0], 'der abgeleitete Balken folgt dem neuen Text nicht').toBe('Neu');
-  });
+  }, 60_000);
 
-  it('lässt eine selbst hinzugefügte Form stehen', async () => {
-    const canvas = await mount('zitat', { quote: 'Alt' });
-
-    await act(async () => {
-      (canvas.actions().addShape as (kind: string) => void)('rect');
-    });
-    const shapeId = (canvas.state().shapeInstances as Array<{ id: string }>)[0].id;
-
-    await canvas.remoteEdit({ quote: 'Neu' });
-
-    expect((canvas.state().shapeInstances as Array<{ id: string }>).map((s) => s.id)).toEqual([
-      shapeId,
-    ]);
-  });
-
-  it('hält die Ebenenreihenfolge über eine Fernbearbeitung', async () => {
+  it('lässt Formen und ihre Ebenenreihenfolge stehen', async () => {
     const canvas = await mount('zitat', {
       quote: 'Alt',
       shapeInstances: [shape('form-a'), shape('form-b')],
@@ -160,6 +158,11 @@ describe('Fernbearbeitung an der echten Fläche', () => {
 
     await canvas.remoteEdit({ quote: 'Neu' });
 
+    expect(canvas.state().quote).toBe('Neu');
+    expect((canvas.state().shapeInstances as Array<{ id: string }>).map((s) => s.id)).toEqual([
+      'form-a',
+      'form-b',
+    ]);
     expect(canvas.state().layerOrder).toEqual(['form-b', 'form-a']);
-  });
+  }, 60_000);
 });
