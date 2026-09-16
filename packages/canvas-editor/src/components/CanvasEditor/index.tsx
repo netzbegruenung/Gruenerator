@@ -422,7 +422,8 @@ function CanvasEditorInner({
         prev.canUndo === report.canUndo &&
         prev.canRedo === report.canRedo &&
         prev.canMoveUp === report.canMoveUp &&
-        prev.canMoveDown === report.canMoveDown
+        prev.canMoveDown === report.canMoveDown &&
+        prev.canDuplicate === report.canDuplicate
       ) {
         return prev;
       }
@@ -1034,6 +1035,7 @@ function CanvasEditorInner({
           activeFloatingModule: toolbarState.activeFloatingModule ?? null,
           canMoveUp: toolbarState.canMoveUp ?? false,
           canMoveDown: toolbarState.canMoveDown ?? false,
+          canDuplicate: toolbarState.canDuplicate ?? false,
           handlers: {
             ...toolbarHandlers,
             onEditImage: () => setActiveTab('image-adjust'),
