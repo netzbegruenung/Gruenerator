@@ -200,6 +200,14 @@ export function BrowseView(props: BrowseViewProps) {
     const items: RecentItem[] = [];
     if (sectionProps.assetInstances) {
       for (const inst of sectionProps.assetInstances) {
+        // Aufloesen ist hier bewusst breiter als die Auswahl: `getAssetById`
+        // kennt auch die `TEMPLATE_ASSETS`, die nicht im Katalog stehen. Eine
+        // duplizierte Vorlagen-Grafik (#3403) ist eine Asset-Instanz wie jede
+        // andere und gehoert in "Zuletzt" — der Grund fuer ihr Fehlen im
+        // Katalog ist das freie, kontextlose Auswaehlen, und dieser Streifen
+        // zeigt nur, was auf DIESER Flaeche schon liegt. Nicht auf
+        // `ALL_ASSETS` zurueckdrehen: dann verschwindet eine Kopie still aus
+        // dem Streifen, obwohl sie auf der Flaeche sichtbar ist.
         const def = getAssetById((inst as AssetInstance).assetId);
         if (def) items.push({ id: def.id, type: 'asset', src: def.src, label: def.label });
       }
