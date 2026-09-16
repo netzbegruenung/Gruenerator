@@ -240,6 +240,10 @@ export interface FilterOptions {
   // collections only). Omit both to keep pure-similarity ordering.
   now?: Date | undefined;
   allowCreatedAt?: boolean | undefined;
+  // Cap on kept results per `document_id`, applied after threshold+sort and
+  // before `limit`. `0`/absent = no cap. Results without a `document_id` are
+  // never capped.
+  maxPerDocument?: number | undefined;
 }
 
 export interface CollectionConfig {

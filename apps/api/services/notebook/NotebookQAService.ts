@@ -19,6 +19,7 @@ import {
   buildDraftPromptGeneral,
   buildFastModePrompt,
 } from '../../agents/langgraph/prompts.js';
+import { env } from '../../config/env.js';
 import {
   applyDepthProfile,
   getNotebookDepthProfile,
@@ -212,7 +213,11 @@ export class NotebookQAService {
 
     // Deduplicate and filter
     const dedupedResults = deduplicateResults(allResults, true);
-    const sortedResults = filterAndSortResults(dedupedResults, { threshold: 0.35, limit: 40 });
+    const sortedResults = filterAndSortResults(dedupedResults, {
+      threshold: 0.35,
+      limit: 40,
+      maxPerDocument: env.NOTEBOOK_MAX_CHUNKS_PER_DOC,
+    });
 
     if (sortedResults.length === 0) {
       return {
@@ -430,6 +435,7 @@ export class NotebookQAService {
       threshold: 0.35,
       limit: 30,
       allowCreatedAt: !isSystem,
+      maxPerDocument: env.NOTEBOOK_MAX_CHUNKS_PER_DOC,
     });
 
     if (sorted.length === 0) {
@@ -658,6 +664,7 @@ export class NotebookQAService {
     const sortedResults = selectAcrossQueryGroups(resultsByGroup, {
       threshold: profile.threshold,
       limit: profile.sortLimit.multi,
+      maxPerDocument: env.NOTEBOOK_MAX_CHUNKS_PER_DOC,
     });
 
     if (sortedResults.length === 0) {
@@ -671,6 +678,7 @@ export class NotebookQAService {
     return {
       referencesMap,
       sortedResults,
+      // Der Deckel je Dokument lässt den besten Chunk jedes Dokuments stehen — das Maximum ändert er nie.
       evidenceTop: evidenceTopOf(sortedResults),
       systemPrompt,
       contextSummary,
@@ -801,6 +809,7 @@ export class NotebookQAService {
       threshold: profile.threshold,
       limit: profile.sortLimit.single,
       allowCreatedAt: !isSystem,
+      maxPerDocument: env.NOTEBOOK_MAX_CHUNKS_PER_DOC,
     });
 
     if (sortedResults.length === 0) {
@@ -814,6 +823,7 @@ export class NotebookQAService {
     return {
       referencesMap,
       sortedResults,
+      // Der Deckel je Dokument lässt den besten Chunk jedes Dokuments stehen — das Maximum ändert er nie.
       evidenceTop: evidenceTopOf(sortedResults),
       systemPrompt,
       contextSummary,

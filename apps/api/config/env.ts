@@ -596,6 +596,27 @@ const envSchema = z.object({
   QUERY_INTENT_ENABLED: boolFlag(true),
   USE_GERMAN_PATTERNS: boolFlag(true),
 
+  /**
+   * Deckel je Dokument im Notebook-Kandidatenpool, angewandt in
+   * `SearchResultProcessor.filterAndSortResults` / `selectAcrossQueryGroups`
+   * NACH Schwelle+Sortierung und VOR dem `limit`-Schnitt — also bevor der
+   * Reranker die Kandidaten sieht. Befund
+   * (`evals/retrieval/baseline-notebook-2026-09-02.json`): in 6 von 9
+   * Notebook-Fällen sind die Top-5-Treffer fünf Chunks EINES Dokuments, Hit@3
+   * kann dann Hit@1 nicht überbieten. `0` = kein Deckel.
+   *
+   * Gemessen am 03.09.2026 (notebook, deep, 9 Fälle, live; Tabelle in
+   * `evals/retrieval/notebook-doc-cap-2026-09-03.md`): acht Fälle stehen bei
+   * jedem Deckel auf Rang 1; der einzige bewegliche Fall
+   * (`notebook-berlin-hitzeschutz`) geht von Rang 8 auf 3 (Deckel 1), 5 (2),
+   * 6 (3). Default 2: hebt den Fall in die Top 5. Der Deckel wirft nichts weg
+   * — er zieht je Dokument höchstens zwei Chunks nach vorn und hängt den Rest
+   * dahinter an, ein Notebook mit einem Dokument behält also alle Chunks. Was
+   * die Eval NICHT misst: die Antwortqualität bei mehr Dokumenten vorn im
+   * Kontext.
+   */
+  NOTEBOOK_MAX_CHUNKS_PER_DOC: z.coerce.number().int().min(0).default(2),
+
   // ── Rerank ─────────────────────────────────────────────────────────────
   RERANK_INPUT_LIMIT: numStr(16),
   RERANK_OUTPUT_LIMIT: numStr(8),
