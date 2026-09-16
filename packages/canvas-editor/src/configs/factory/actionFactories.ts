@@ -245,8 +245,10 @@ export function createIllustrationActions<
       saveToHistory(getState());
     },
     duplicateIllustration: (illustrationId: string) => {
-      setState((prev) => duplicateElementInState(prev, illustrationId)?.state ?? prev);
-      saveToHistory(getState());
+      const result = duplicateElementInState(getState(), illustrationId);
+      if (!result) return;
+      setState(result.state);
+      saveToHistory(result.state);
     },
     handleIllustrationDragEnd: (illustrationId: string, x: number, y: number) => {
       setState((prev) => ({
@@ -516,8 +518,10 @@ export function createBalkenActions<TState extends { balkenInstances: BalkenInst
       saveToHistory(getState());
     },
     duplicateBalken: (balkenId: string) => {
-      setState((prev) => duplicateElementInState(prev, balkenId)?.state ?? prev);
-      saveToHistory(getState());
+      const result = duplicateElementInState(getState(), balkenId);
+      if (!result) return;
+      setState(result.state);
+      saveToHistory(result.state);
     },
   };
 }
