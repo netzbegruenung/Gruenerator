@@ -178,6 +178,15 @@ describe('buildArtifactNotes', () => {
     const KEIN_WEG = 'nicht direkt bearbeitet werden';
     const AUS = 'Die KI-Bearbeitung ist ausgeschaltet';
 
+    const docTurn = (overrides: Partial<ChatGraphState> = {}) =>
+      makeState({
+        agentConfig: { identifier: 'gruenerator-docs-editor' } as never,
+        enabledTools: { edit_current_doc: true },
+        currentDocument: { id: 'doc-1' } as never,
+        editToolSurface: null,
+        ...overrides,
+      });
+
     const canvasTurn = (overrides: Partial<ChatGraphState> = {}) =>
       makeState({
         agentConfig: { identifier: 'gruenerator-sharepic-editor' } as never,
@@ -216,7 +225,7 @@ describe('buildArtifactNotes', () => {
       expect(notes).not.toContain(KEIN_WEG);
     });
 
-    it('dekliniert nach der Fläche und lässt die Dokument-Fläche aus', () => {
+    it('dekliniert nach der Fläche — und nimmt die Dokument-Fläche seit #3428 mit', () => {
       const sheet = buildArtifactNotes(
         makeState({
           agentConfig: { identifier: 'gruenerator-sheets-editor' } as never,
@@ -228,18 +237,31 @@ describe('buildArtifactNotes', () => {
       );
       expect(sheet.notes).toContain('die geöffnete Tabelle');
 
-      // `doc` behält seinen Dispatch-Weg (trigger_doc_edit) — ein fehlendes
-      // Werkzeug heisst dort nicht, dass nichts bearbeitet werden kann.
-      const doc = buildArtifactNotes(
-        makeState({
-          agentConfig: { identifier: 'gruenerator-docs-editor' } as never,
-          enabledTools: { edit_current_doc: true },
-          currentDocument: { id: 'doc-1' } as never,
-          editToolSurface: null,
-        }),
-        { artifactToolMounted: false }
+      // Der Dispatch-Weg (trigger_doc_edit) liegt jetzt IM Werkzeug — fehlt es,
+      // gibt es auf der Dokument-Fläche keinen Bearbeitungsweg mehr.
+      const doc = buildArtifactNotes(docTurn(), { artifactToolMounted: false });
+      expect(doc.notes).toContain(KEIN_WEG);
+      expect(doc.notes).toContain('das geöffnete Dokument');
+    });
+
+    it('widerspricht sich auf einem Verbund-Turn ohne Werkzeug nicht selbst', () => {
+      // `compoundEdit` und `editToolLoop` fallen getrennt (ein Zweit-Intent
+      // nimmt nur das zweite). Ohne Werkzeug fügt seit #3428 NICHTS mehr ein —
+      // die „wird gerade eingefügt"-Notiz darf dann nicht danebenstehen.
+      const { notes } = buildArtifactNotes(docTurn({ compoundEdit: true }), {
+        artifactToolMounted: false,
+      });
+      expect(notes).toContain(KEIN_WEG);
+      expect(notes).not.toContain('werden gerade in das GEÖFFNETE Dokument eingefügt');
+    });
+
+    it('lässt die Einfüge-Notiz stehen, sobald das Werkzeug montiert ist', () => {
+      const { notes } = buildArtifactNotes(
+        docTurn({ compoundEdit: true, editToolSurface: 'doc' }),
+        { artifactToolMounted: true }
       );
-      expect(doc.notes).not.toContain(KEIN_WEG);
+      expect(notes).not.toContain(KEIN_WEG);
+      expect(notes).toContain('werden gerade in das GEÖFFNETE Dokument eingefügt');
     });
   });
 

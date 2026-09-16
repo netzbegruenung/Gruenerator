@@ -230,6 +230,22 @@ describe('getModeGuidance — bestellte Textform auf einem Such-Turn', () => {
   });
 });
 
+/**
+ * Der Einzeldurchlauf mit `edit_current_doc` heisst seit #3428: die Bearbeitung
+ * findet NICHT statt. Bearbeitet wird nur noch aus der Schleife heraus, und
+ * hierher kommt genau der Zug, den `decideEditToolLoop` draussen gehalten hat
+ * (Bildanhang, Notebook, Zweit-Intent). Der alte Text versprach trotzdem eine
+ * Änderung — die Stufe, die sie ausgelöst hätte, gibt es nicht mehr.
+ */
+describe('getModeGuidance — edit_current_doc ohne Bearbeitungsweg', () => {
+  it('verspricht keine Bearbeitung mehr, sondern bestellt den Vorschlag als Text', () => {
+    const out = getModeGuidance(makeState({ intent: 'edit_current_doc' }));
+    expect(out).toContain('nicht direkt bearbeiten');
+    expect(out).toContain('hier ist mein Vorschlag als Text');
+    expect(out).not.toContain('die Bearbeitung passiert direkt im Dokument');
+  });
+});
+
 describe('getModeGuidance turn-outcome honesty (direct path)', () => {
   it('a direct turn carries the no-research/no-artifact honesty note', () => {
     const out = getModeGuidance(makeState({ intent: 'direct', searchResults: [] }));

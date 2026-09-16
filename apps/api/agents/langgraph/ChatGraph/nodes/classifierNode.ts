@@ -627,6 +627,15 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // explicitly disables `edit_current_doc`, fall through to normal intent
     // classification so the assistant answers conversationally instead of
     // patching the open document.
+    //
+    // Seit #3428 EMITTIERT dieses Verdikt nichts mehr von sich aus: den
+    // `trigger_doc_edit`-Versand macht das Loop-Werkzeug `edit_document`, und
+    // ob es montiert wird, entscheidet die FLÄCHE (`decideEditToolLoop`), nicht
+    // der Intent. Was `edit_current_doc` noch tut, ist steuern — es ist eines
+    // von drei Signalen der Bearbeitungs-Zusicherung (`loopGuarantees`) und
+    // wählt im Einzeldurchlauf den Antworttext. Diese Schnellbahn und
+    // `docsIntentTiebreak` bleiben deshalb bis zu einem Eval-Lauf stehen; ihre
+    // Abschaffung hängt an ihm (#3428), nicht an diesem Umbau.
     const editCurrentDocAllowed = state.enabledTools?.edit_current_doc !== false;
 
     if (hasCurrentDocument && editCurrentDocAllowed && userContent.length > 0) {
