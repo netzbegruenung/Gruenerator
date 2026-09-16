@@ -245,15 +245,27 @@ export function useSharepicArtifact(variant: SharepicVariant) {
     }
   }, [variant.id, variant.canvasType, variant.initialProps, variant.label, canvasId]);
 
-  const download = useCallback(() => {
-    if (!imageBase64) return;
+  /**
+   * Re-renders at export resolution before saving. What the card shows is a
+   * preview — sized for a 420px slot, not for posting — so handing that file
+   * to the user would quietly ship them a downscaled sharepic. Falls back to
+   * the preview only if the full render fails, since a smaller file still
+   * beats a dead button.
+   */
+  const download = useCallback(async () => {
+    const renderFn = useChatConfigStore.getState().renderSharepic;
+    const full = renderFn
+      ? await renderFn(variant.canvasType, renderInput, { quality: 'full' }).catch(() => null)
+      : null;
+    const href = full ?? imageBase64;
+    if (!href) return;
     const link = document.createElement('a');
-    link.href = imageBase64;
+    link.href = href;
     link.download = `sharepic-${variant.canvasType}.png`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  }, [imageBase64, variant.canvasType]);
+  }, [imageBase64, variant.canvasType, renderInput]);
 
   const openInStudio = useCallback(() => {
     const threadId = useAgentStore.getState().currentThreadId;
