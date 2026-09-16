@@ -7,11 +7,13 @@
  * service only plans them.
  *
  * Mirrors sheets/sheetAiService.ts (plan-then-apply, plain JSON, no streaming),
- * routed through the facade (`aiTools`, lane `editor_ops_presentation`) rather
- * than calling the AI SDK directly — see services/ai/generate.ts. As with the
- * sheet lane, a lane always carries the facade's generic fallback chain: an
- * unavailable Mistral now falls back to cortecs/melious instead of the
- * previous pinned, chain-less "fail loudly". See the stage-3 report.
+ * routed through the facade (lane `editor_ops_presentation`) rather than
+ * calling the AI SDK directly — see services/ai/generate.ts. The forced
+ * single tool call lives in services/ai/forcedToolCall.ts, shared with
+ * boardAiService.ts and sheetAiService.ts. As with the sheet lane, a lane
+ * always carries the facade's generic fallback chain: an unavailable Mistral
+ * now falls back to cortecs/melious instead of the previous pinned,
+ * chain-less "fail loudly" (#3426).
  */
 
 import {
@@ -19,14 +21,10 @@ import {
   presentationOperationSchema,
   type PresentationOperation,
 } from '@gruenerator/contracts';
-import { jsonSchema } from 'ai';
 import { z } from 'zod';
-import { zodToJsonSchema } from 'zod-to-json-schema';
 
-import { aiTools } from '../../services/ai/generate.js';
+import { runForcedToolCall } from '../../services/ai/forcedToolCall.js';
 import { createLogger } from '../../utils/logger.js';
-
-import type { AiResult, Tool } from '../../services/ai/types.js';
 
 const log = createLogger('PresentationAI');
 
@@ -75,21 +73,6 @@ BEISPIEL — die Person sagt "Füge am Ende eine Folie mit den drei wichtigsten 
 const TOOL_NAME = 'applyPresentationOperations';
 const OPERATIONS_SCHEMA = z.object({ operations: z.array(z.unknown()).max(40) });
 
-/** How many times the forced tool call is attempted — one retry, as before. */
-const MAX_ATTEMPTS = 2;
-
-/** The tool call by NAME, in either transport shape the adapters produce. */
-function extractToolInput(result: AiResult): { operations?: unknown[] } | null {
-  const call = result.tool_calls?.find((c) => c.name === TOOL_NAME);
-  if (call) return call.input as { operations?: unknown[] };
-  for (const block of result.raw_content_blocks ?? []) {
-    if (block.type === 'tool_use' && block.name === TOOL_NAME && block.input) {
-      return block.input as { operations?: unknown[] };
-    }
-  }
-  return null;
-}
-
 /**
  * Plan presentation operations for a user request. Returns a validated
  * PresentationOperation[] (possibly empty). Throws only on provider/model
@@ -110,51 +93,21 @@ export async function generatePresentationOperations(opts: {
 
   const system = `${buildStrictPrompt(brand)}\n\nAKTUELLER FOLIEN-ZUSTAND:\n${presentationContext.slice(0, 24_000)}${referenceSection}`;
 
-  // jsonSchema() wrapping is required — the AI SDK's asSchema helper rejects
-  // raw JSON-Schema objects (see toolForcedEdit.ts). Deliberately lenient
-  // (`z.unknown()` items): a single malformed op must not make the whole tool
-  // call unusable. We validate each op ourselves below against
-  // presentationOperationSchema and keep the good ones.
-  const rawSchema = zodToJsonSchema(OPERATIONS_SCHEMA, {
-    target: 'jsonSchema7',
-    $refStrategy: 'none',
-  });
-  const tool: Tool = {
-    name: TOOL_NAME,
-    description:
+  const toolInput = await runForcedToolCall({
+    lane: 'editor_ops_presentation',
+    system,
+    prompt: userPrompt,
+    toolName: TOOL_NAME,
+    // Deliberately lenient (`z.unknown()` items): a single malformed op must
+    // not make the whole tool call unusable. We validate each op ourselves
+    // below against presentationOperationSchema and keep the good ones.
+    toolDescription:
       'Apply a batch of presentation operations. Each item is one operation object with a "type" field (one of the operation types documented in the system prompt).',
-    input_schema: jsonSchema(
-      rawSchema as Parameters<typeof jsonSchema>[0]
-    ) as unknown as Tool['input_schema'],
-  };
+    inputSchema: OPERATIONS_SCHEMA,
+    temperature: 0.2,
+  });
 
-  let toolInput: { operations?: unknown[] } | null = null;
-  let lastResult: AiResult | null = null;
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    try {
-      const result = await aiTools({
-        lane: 'editor_ops_presentation',
-        system,
-        prompt: userPrompt,
-        tools: [tool],
-        toolChoice: 'required',
-        temperature: 0.2,
-      });
-      lastResult = result;
-      toolInput = extractToolInput(result);
-      if (toolInput) break;
-      log.warn(
-        `[PresentationAI] attempt ${attempt}: no tool call (stop_reason=${result.stop_reason ?? 'unknown'})`
-      );
-    } catch (e) {
-      if (attempt === MAX_ATTEMPTS) throw e;
-      log.warn(
-        `[PresentationAI] attempt ${attempt} threw: ${e instanceof Error ? e.message : String(e)}`
-      );
-    }
-  }
-
-  const rawOps = toolInput ? toolInput.operations : undefined;
+  const rawOps = toolInput ? (toolInput as { operations?: unknown[] }).operations : undefined;
 
   // Per-op validation: keep every valid operation, drop (and log) only the
   // malformed ones — one bad op must never silently discard a whole batch.
@@ -174,12 +127,13 @@ export async function generatePresentationOperations(opts: {
       `[PresentationAI] Dropped ${dropped.length} malformed operation(s): ${dropped.join(' | ')}`
     );
   }
+  // `runForcedToolCall` already logs each failed attempt's stop_reason as it
+  // happens; this summarizes what reached the validation step.
   if (captured.length === 0) {
     log.warn(
-      `[PresentationAI] 0 operations for prompt "${userPrompt}" — finish=${lastResult?.stop_reason ?? 'n/a'}, ` +
-        `toolCall=${toolInput ? 'yes' : 'no'}, rawOpsCount=${Array.isArray(rawOps) ? rawOps.length : 'n/a'}, ` +
-        `dropped=${dropped.length}, contextChars=${presentationContext.length}, ` +
-        `modelText=${JSON.stringify((lastResult?.content ?? '').slice(0, 200))}`
+      `[PresentationAI] 0 operations for prompt "${userPrompt}" — toolCall=${toolInput ? 'yes' : 'no'}, ` +
+        `rawOpsCount=${Array.isArray(rawOps) ? rawOps.length : 'n/a'}, dropped=${dropped.length}, ` +
+        `contextChars=${presentationContext.length}`
     );
   }
 

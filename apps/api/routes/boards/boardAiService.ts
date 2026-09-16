@@ -5,13 +5,12 @@
  * operations (BoardOperation[]). The operations are applied CLIENT-SIDE by the
  * boards assistant against the live Yjs board — this service only plans them.
  *
- * Routed through the facade (`aiTools`, lane `editor_ops_board`) rather than
- * calling the AI SDK directly — see services/ai/generate.ts and the forced
- * tool-call pattern in routes/chat/services/toolForcedEdit.ts, which this
- * mirrors: a JSON-Schema tool built from the zod schema via `zodToJsonSchema`
- * (the facade's `Tool.input_schema` is a plain schema, not a zod object), one
- * retry when the provider fails or answers without the forced tool call, and a
- * manual post-call zod validation of whatever came back.
+ * Routed through the facade (lane `editor_ops_board`) rather than calling the
+ * AI SDK directly — see services/ai/generate.ts. The forced single tool call
+ * (JSON-Schema conversion, retry, transport extraction) lives in
+ * services/ai/forcedToolCall.ts, shared with sheetAiService.ts and
+ * presentationAiService.ts; this file keeps only its own prompt, board
+ * serialization, and the whole-array post-call zod validation.
  */
 
 import {
@@ -19,14 +18,10 @@ import {
   type BoardOperation,
   type CurrentBoard,
 } from '@gruenerator/contracts';
-import { jsonSchema } from 'ai';
 import { z } from 'zod';
-import { zodToJsonSchema } from 'zod-to-json-schema';
 
-import { aiTools } from '../../services/ai/generate.js';
+import { runForcedToolCall } from '../../services/ai/forcedToolCall.js';
 import { createLogger } from '../../utils/logger.js';
-
-import type { AiResult, Tool } from '../../services/ai/types.js';
 
 const log = createLogger('BoardAI');
 
@@ -144,19 +139,6 @@ function serializeBoard(board: CurrentBoard, today: string): string {
 const TOOL_NAME = 'applyBoardOperations';
 const OPERATIONS_SCHEMA = z.object({ operations: z.array(boardOperationSchema).max(50) });
 
-/** How many times the forced tool call is attempted — one retry, as before. */
-const MAX_ATTEMPTS = 2;
-
-/** The tool call by NAME, in either transport shape the adapters produce. */
-function extractToolInput(result: AiResult): Record<string, unknown> | null {
-  const call = result.tool_calls?.find((c) => c.name === TOOL_NAME);
-  if (call) return call.input;
-  for (const block of result.raw_content_blocks ?? []) {
-    if (block.type === 'tool_use' && block.name === TOOL_NAME && block.input) return block.input;
-  }
-  return null;
-}
-
 /**
  * Plan board operations for a user request. Returns a validated BoardOperation[]
  * (possibly empty). Throws only on provider/model failure.
@@ -175,43 +157,15 @@ export async function generateBoardOperations(opts: {
 
   const system = `${BOARD_TOOL_STRICT_PROMPT}\n\nAKTUELLER BOARD-ZUSTAND:\n${serializeBoard(board, today)}${referenceSection}`;
 
-  // jsonSchema() wrapping is required — the AI SDK's asSchema helper rejects
-  // raw JSON-Schema objects (see toolForcedEdit.ts).
-  const rawSchema = zodToJsonSchema(OPERATIONS_SCHEMA, {
-    target: 'jsonSchema7',
-    $refStrategy: 'none',
+  const toolInput = await runForcedToolCall({
+    lane: 'editor_ops_board',
+    system,
+    prompt: userPrompt,
+    toolName: TOOL_NAME,
+    toolDescription: 'Apply a batch of operations to the board.',
+    inputSchema: OPERATIONS_SCHEMA,
+    temperature: 0.2,
   });
-  const tool: Tool = {
-    name: TOOL_NAME,
-    description: 'Apply a batch of operations to the board.',
-    input_schema: jsonSchema(
-      rawSchema as Parameters<typeof jsonSchema>[0]
-    ) as unknown as Tool['input_schema'],
-  };
-
-  let toolInput: Record<string, unknown> | null = null;
-  let lastResult: AiResult | null = null;
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    try {
-      const result = await aiTools({
-        lane: 'editor_ops_board',
-        system,
-        prompt: userPrompt,
-        tools: [tool],
-        toolChoice: 'required',
-        temperature: 0.2,
-      });
-      lastResult = result;
-      toolInput = extractToolInput(result);
-      if (toolInput) break;
-      log.warn(
-        `[BoardAI] attempt ${attempt}: no tool call (stop_reason=${result.stop_reason ?? 'unknown'})`
-      );
-    } catch (e) {
-      if (attempt === MAX_ATTEMPTS) throw e;
-      log.warn(`[BoardAI] attempt ${attempt} threw: ${e instanceof Error ? e.message : String(e)}`);
-    }
-  }
 
   let captured: BoardOperation[] | null = null;
   if (toolInput) {
@@ -226,8 +180,8 @@ export async function generateBoardOperations(opts: {
     } else {
       log.warn(`[BoardAI] Operation validation failed: ${parsed.error.message}`);
     }
-  } else if (lastResult) {
-    log.warn(`[BoardAI] no tool call after ${MAX_ATTEMPTS} attempt(s)`);
+  } else {
+    log.warn(`[BoardAI] no tool call after every attempt`);
   }
 
   log.info(`[BoardAI] Planned ${captured?.length ?? 0} operation(s) for prompt: "${userPrompt}"`);

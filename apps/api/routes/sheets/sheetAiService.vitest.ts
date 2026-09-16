@@ -1,7 +1,19 @@
 import { sheetOperationSchema } from '@gruenerator/contracts';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
 
-import { normalizeRawOp, SHEET_TOOL_STRICT_PROMPT } from './sheetAiService.js';
+// `generateSheetOperations` calls the shared `runForcedToolCall`
+// (services/ai/forcedToolCall.ts), which calls the facade's `aiTools`.
+// Mocking the facade and running the real (unmocked) helper exercises that
+// shared copy through the sheet planner as well as the board one — see
+// services/ai/__tests__/forcedToolCall.vitest.ts for the helper's own
+// retry/extraction mechanics.
+const aiTools = vi.fn();
+vi.mock('../../services/ai/generate.js', () => ({
+  aiTools: (...args: unknown[]) => aiTools(...args),
+}));
+
+const { generateSheetOperations, normalizeRawOp, SHEET_TOOL_STRICT_PROMPT } =
+  await import('./sheetAiService.js');
 
 /**
  * normalizeRawOp coerces the `values` shape mistakes models make most often on
@@ -186,5 +198,54 @@ describe('Phase 1 structural operation schema', () => {
     expect(sheetOperationSchema.safeParse({ type: 'unmerge_cells', range: 'A1:C1' }).success).toBe(
       true
     );
+  });
+});
+
+/** A tool-call-shaped `AiResult` for `applySheetOperations`. */
+function toolCallResult(operations: unknown[]) {
+  return {
+    success: true,
+    content: null,
+    stop_reason: 'tool_use',
+    tool_calls: [{ name: 'applySheetOperations', input: { operations } }],
+  };
+}
+
+describe('generateSheetOperations', () => {
+  beforeEach(() => {
+    aiTools.mockReset();
+  });
+
+  it('returns validated ops on the happy path', async () => {
+    aiTools.mockResolvedValueOnce(
+      toolCallResult([{ type: 'set_range_values', range: 'B1', values: [[2500]] }])
+    );
+
+    const ops = await generateSheetOperations({
+      userPrompt: 'ändere B1 auf 2500',
+      sheetContext: 'A1: Umsatz, B1: 1000',
+    });
+
+    expect(ops).toEqual([{ type: 'set_range_values', range: 'B1', values: [[2500]] }]);
+    const call = aiTools.mock.calls[0][0] as { lane: string; tools: Array<{ name: string }> };
+    expect(call.lane).toBe('editor_ops_sheet');
+    expect(call.tools[0].name).toBe('applySheetOperations');
+  });
+
+  it('drops an invalid op and keeps the valid ones (per-op leniency)', async () => {
+    aiTools.mockResolvedValueOnce(
+      toolCallResult([
+        { type: 'set_range_values', range: 'B1', values: [[2500]] },
+        // Missing "range" — invalid set_number_format, dropped, not fatal.
+        { type: 'set_number_format', pattern: '0%' },
+      ])
+    );
+
+    const ops = await generateSheetOperations({
+      userPrompt: 'ändere B1 und formatiere etwas',
+      sheetContext: 'A1: Umsatz, B1: 1000',
+    });
+
+    expect(ops).toEqual([{ type: 'set_range_values', range: 'B1', values: [[2500]] }]);
   });
 });

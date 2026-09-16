@@ -7,25 +7,22 @@
  * mutation-log collab bridge) — this service only plans them.
  *
  * Mirrors boards/boardAiService.ts (plan-then-apply, plain JSON, no streaming),
- * routed through the facade (`aiTools`, lane `editor_ops_sheet`) rather than
- * calling the AI SDK directly — see services/ai/generate.ts. The lane always
- * primes on Mistral Medium 3.5 (the model this planner needs — smaller
- * fallbacks mis-shape or drop set_range_values ops), but unlike the previous
- * pinned, chain-less provider check, a lane always carries the facade's
- * generic fallback chain: an unavailable Mistral now falls back to
- * cortecs/melious instead of failing loudly. See the stage-3 report for that
- * trade-off.
+ * routed through the facade (lane `editor_ops_sheet`) rather than calling the
+ * AI SDK directly — see services/ai/generate.ts. The forced single tool call
+ * lives in services/ai/forcedToolCall.ts, shared with boardAiService.ts and
+ * presentationAiService.ts. The lane always primes on Mistral Medium 3.5 (the
+ * model this planner needs — smaller fallbacks mis-shape or drop
+ * set_range_values ops), but unlike the previous pinned, chain-less provider
+ * check, a lane always carries the facade's generic fallback chain: an
+ * unavailable Mistral now falls back to cortecs/melious instead of failing
+ * loudly (#3426).
  */
 
 import { sheetOperationSchema, type SheetOperation } from '@gruenerator/contracts';
-import { jsonSchema } from 'ai';
 import { z } from 'zod';
-import { zodToJsonSchema } from 'zod-to-json-schema';
 
-import { aiTools } from '../../services/ai/generate.js';
+import { runForcedToolCall } from '../../services/ai/forcedToolCall.js';
 import { createLogger } from '../../utils/logger.js';
-
-import type { AiResult, Tool } from '../../services/ai/types.js';
 
 const log = createLogger('SheetAI');
 
@@ -129,21 +126,6 @@ export function normalizeRawOp(raw: unknown): unknown {
 const TOOL_NAME = 'applySheetOperations';
 const OPERATIONS_SCHEMA = z.object({ operations: z.array(z.unknown()).max(50) });
 
-/** How many times the forced tool call is attempted — one retry, as before. */
-const MAX_ATTEMPTS = 2;
-
-/** The tool call by NAME, in either transport shape the adapters produce. */
-function extractToolInput(result: AiResult): { operations?: unknown[] } | null {
-  const call = result.tool_calls?.find((c) => c.name === TOOL_NAME);
-  if (call) return call.input as { operations?: unknown[] };
-  for (const block of result.raw_content_blocks ?? []) {
-    if (block.type === 'tool_use' && block.name === TOOL_NAME && block.input) {
-      return block.input as { operations?: unknown[] };
-    }
-  }
-  return null;
-}
-
 /**
  * Plan sheet operations for a user request. Returns a validated
  * SheetOperation[] (possibly empty). Throws only on provider/model failure.
@@ -161,49 +143,21 @@ export async function generateSheetOperations(opts: {
 
   const system = `${SHEET_TOOL_STRICT_PROMPT}\n\nAKTUELLER TABELLEN-ZUSTAND:\n${sheetContext.slice(0, 24_000)}${referenceSection}`;
 
-  // jsonSchema() wrapping is required — the AI SDK's asSchema helper rejects
-  // raw JSON-Schema objects (see toolForcedEdit.ts). Deliberately lenient
-  // (`z.unknown()` items): a single malformed op must not make the whole tool
-  // call unusable. We validate each op ourselves below against
-  // sheetOperationSchema and keep the good ones.
-  const rawSchema = zodToJsonSchema(OPERATIONS_SCHEMA, {
-    target: 'jsonSchema7',
-    $refStrategy: 'none',
-  });
-  const tool: Tool = {
-    name: TOOL_NAME,
-    description:
+  const toolInput = await runForcedToolCall({
+    lane: 'editor_ops_sheet',
+    system,
+    prompt: userPrompt,
+    toolName: TOOL_NAME,
+    // Deliberately lenient (`z.unknown()` items): a single malformed op must
+    // not make the whole tool call unusable. We validate each op ourselves
+    // below against sheetOperationSchema and keep the good ones.
+    toolDescription:
       'Apply a batch of spreadsheet operations. Each item is one operation object with a "type" field (one of the operation types documented in the system prompt).',
-    input_schema: jsonSchema(
-      rawSchema as Parameters<typeof jsonSchema>[0]
-    ) as unknown as Tool['input_schema'],
-  };
+    inputSchema: OPERATIONS_SCHEMA,
+    temperature: 0.2,
+  });
 
-  let toolInput: { operations?: unknown[] } | null = null;
-  let lastResult: AiResult | null = null;
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    try {
-      const result = await aiTools({
-        lane: 'editor_ops_sheet',
-        system,
-        prompt: userPrompt,
-        tools: [tool],
-        toolChoice: 'required',
-        temperature: 0.2,
-      });
-      lastResult = result;
-      toolInput = extractToolInput(result);
-      if (toolInput) break;
-      log.warn(
-        `[SheetAI] attempt ${attempt}: no tool call (stop_reason=${result.stop_reason ?? 'unknown'})`
-      );
-    } catch (e) {
-      if (attempt === MAX_ATTEMPTS) throw e;
-      log.warn(`[SheetAI] attempt ${attempt} threw: ${e instanceof Error ? e.message : String(e)}`);
-    }
-  }
-
-  const rawOps = toolInput ? toolInput.operations : null;
+  const rawOps = toolInput ? (toolInput as { operations?: unknown[] }).operations : null;
 
   // Per-op validation: keep every valid operation, drop (and log) only the
   // malformed ones — one bad op must never silently discard a whole batch.
@@ -223,13 +177,14 @@ export async function generateSheetOperations(opts: {
   }
   // When the model plans nothing, surface WHY (empty tool call vs. no tool call
   // vs. all-dropped) — the frontend can only show "keine Änderung", so the
-  // diagnosis has to live in the logs.
+  // diagnosis has to live in the logs. `runForcedToolCall` already logs each
+  // failed attempt's stop_reason as it happens; this summarizes what reached
+  // the validation step.
   if (captured.length === 0) {
     log.warn(
-      `[SheetAI] 0 operations for prompt "${userPrompt}" — finish=${lastResult?.stop_reason ?? 'n/a'}, ` +
-        `toolCall=${toolInput ? 'yes' : 'no'}, rawOpsCount=${Array.isArray(rawOps) ? rawOps.length : 'n/a'}, ` +
-        `dropped=${dropped.length}, contextChars=${sheetContext.length}, ` +
-        `modelText=${JSON.stringify((lastResult?.content ?? '').slice(0, 200))}`
+      `[SheetAI] 0 operations for prompt "${userPrompt}" — toolCall=${toolInput ? 'yes' : 'no'}, ` +
+        `rawOpsCount=${Array.isArray(rawOps) ? rawOps.length : 'n/a'}, dropped=${dropped.length}, ` +
+        `contextChars=${sheetContext.length}`
     );
   }
 
