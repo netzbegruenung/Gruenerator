@@ -24,7 +24,7 @@
 
 import { layoutRichTextBlock } from '@gruenerator/contracts';
 import { useRef, useEffect, useCallback, useMemo, Fragment } from 'react';
-import { Group, Text as KonvaText, Transformer } from 'react-konva';
+import { Group, Rect, Text as KonvaText, Transformer } from 'react-konva';
 
 import { overlayBoxForNode, useCanvasTextEditor } from '../components/CanvasTextOverlay';
 import { useFontGeneration } from '../hooks/useFontGeneration';
@@ -253,6 +253,18 @@ export function CanvasRichText({
         onDragEnd={handleDragEnd}
         onTransformEnd={handleTransformEnd}
       >
+        {/* Die Trefferfläche des Blocks. Eine Konva-Gruppe hat keine eigene:
+            sie fragt ihre Kinder, und die Laufknoten hören alle nicht zu
+            (`listening={false}`, damit nicht jeder Lauf einzeln anspricht).
+            Ohne diesen Rahmen war die Gruppe für Maus und Finger nicht
+            vorhanden — kein Auswählen, kein Ziehen, kein Doppelklick, und
+            damit kein Weg zurück in den Editor. Betroffen war jedes Feld,
+            sobald sein Text einen Marker oder eine Auszeichnung trug, denn
+            genau dann übernimmt dieser Renderer von `CanvasText`.
+
+            `fill` muss gesetzt sein, sonst zeichnet Konva die Form nicht in
+            die Treffer-Ebene; sichtbar wird davon nichts. */}
+        <Rect width={blockWidth} height={blockHeight} fill="transparent" />
         {lines.map((line, index) => {
           // Konva zeichnet eine Zeile mittig in ihre Zeilenbox (textBaseline
           // "middle"). Ein Stapel einzeiliger Knoten im Abstand einer Zeilenbox
