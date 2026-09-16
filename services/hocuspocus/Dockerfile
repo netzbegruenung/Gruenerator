@@ -12,6 +12,10 @@ WORKDIR /app
 
 # Copy workspace config + base tsconfigs (contracts/shared tsconfigs extend tsconfig.base.json)
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+# pnpm validates every `patchedDependencies` entry in pnpm-workspace.yaml
+# before it installs anything, so the patch files have to be in the image
+# even when the patched package is outside this filter's closure.
+COPY patches ./patches
 COPY tsconfig.base.json tsconfig.strict-migration.json ./
 COPY packages/shared/package.json ./packages/shared/
 COPY packages/query/package.json ./packages/query/
@@ -84,6 +88,7 @@ WORKDIR /app
 COPY --from=builder --chown=gruenerator:gruenerator /app/pnpm-workspace.yaml ./
 COPY --from=builder --chown=gruenerator:gruenerator /app/package.json ./
 COPY --from=builder --chown=gruenerator:gruenerator /app/pnpm-lock.yaml ./
+COPY --from=builder --chown=gruenerator:gruenerator /app/patches ./patches
 
 # Copy package.json files for workspace structure (needed for pnpm to resolve workspace deps)
 COPY --from=builder --chown=gruenerator:gruenerator /app/packages/shared/package.json ./packages/shared/
