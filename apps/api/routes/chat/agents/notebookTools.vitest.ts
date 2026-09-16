@@ -8,6 +8,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createSourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 
 import { makeNotebooksTool, type NotebookToolDeps } from './notebookTools.js';
+import { collectionsForLocale } from './searchTools.js';
 
 // `emitToolConfirmAction` legt die Karte in Redis ab; ohne erreichbares Redis
 // antwortet der Client nie. Gemockt wird nur der Speicher, die Karte samt
@@ -57,6 +58,8 @@ interface CtxOptions {
   query?: (sql: string, params: unknown[]) => unknown[];
   preview?: NotebookToolDeps['preview'];
   search?: NotebookToolDeps['search'];
+  /** Antwort auf `scope='basis'` — die öffentlich gelisteten Notebooks. */
+  publicCollections?: NotebookCollection[];
   groups?: Array<{ id: string; name: string; role: string }>;
   registry?: SourceRegistry;
   userText?: string;
@@ -115,6 +118,7 @@ function makeCtx(opts: CtxOptions = {}) {
     access: vi.fn(async () => opts.access ?? OWNER),
     search:
       opts.search ?? vi.fn(async () => ({ ok: false as const, error: 'Suche nicht konfiguriert' })),
+    listPublic: vi.fn(async () => opts.publicCollections ?? []),
     preview: opts.preview ?? vi.fn(async () => ({ error: 'Vorschau nicht konfiguriert' })),
     findGroups: vi.fn(async () =>
       (opts.groups ?? []).map((g) => ({ ...g, slug_suffix: null, member_count: 1 }))
@@ -151,6 +155,68 @@ describe('list', () => {
       },
     ]);
     expect(registered).toHaveLength(1);
+  });
+
+  it('lists the system notebooks, keyed by what gruenerator_search accepts', async () => {
+    const { run } = makeCtx();
+    const result = await run({ action: 'list', scope: 'system' });
+    const rows = result.results as Array<{ title: string; type: string; ref: string }>;
+
+    expect(result.scope).toBe('system');
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.every((r) => r.type === 'System-Notebook')).toBe(true);
+
+    // Die tragende Zusicherung: jede genannte Sammlung ist auch durchsuchbar.
+    // Ohne sie kann die Ableitung still abdriften und der Agent nennt Korpora,
+    // die `gruenerator_search` nicht annimmt.
+    const searchable = collectionsForLocale('de-AT');
+    expect(rows.map((r) => r.ref).filter((key) => !searchable.includes(key))).toEqual([]);
+  });
+
+  it('scopes the system list to the locale of the session', async () => {
+    const { run } = makeCtx();
+    const rows = (await run({ action: 'list', scope: 'system' })).results as Array<{ ref: string }>;
+    // Die Sitzung ist de-AT; die deutschen Landesverbände gehören nicht hinein.
+    expect(rows.map((r) => r.ref)).toEqual([...collectionsForLocale('de-AT')]);
+    expect(rows.map((r) => r.ref)).not.toContain('hessen');
+  });
+
+  it('lists notebooks from Von der Basis without the caller’s own', async () => {
+    const mine = collection({ id: 'n1', user_id: 'user-1', name: 'Meins' });
+    const theirs = collection({
+      id: 'n2',
+      user_id: 'user-2',
+      name: 'Klimaanträge',
+      slug_suffix: 'Qq7wE2',
+      description: 'Anträge aus dem Kreisverband',
+      is_public: true,
+    });
+    const { run } = makeCtx({ publicCollections: [mine, theirs] });
+    const result = await run({ action: 'list', scope: 'basis' });
+
+    expect(result.scope).toBe('basis');
+    expect(result.results).toEqual([
+      {
+        title: 'Klimaanträge',
+        url: '/notebooks/klimaantraege-Qq7wE2',
+        type: 'Notebook von der Basis',
+        snippet: 'Anträge aus dem Kreisverband',
+        ref: 'n2',
+      },
+    ]);
+  });
+
+  it('passes the session locale to the public listing', async () => {
+    const { run, deps } = makeCtx();
+    await run({ action: 'list', scope: 'basis' });
+    expect(deps.listPublic).toHaveBeenCalledWith('de-AT');
+  });
+
+  it('defaults to the caller’s own notebooks', async () => {
+    const { run, helper } = makeCtx();
+    const result = await run({ action: 'list' });
+    expect(result.scope).toBe('mine');
+    expect(helper.getUserNotebookCollections).toHaveBeenCalled();
   });
 
   it('refuses without a signed-in person', async () => {
