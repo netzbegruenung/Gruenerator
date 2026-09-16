@@ -7,14 +7,13 @@ import {
   type CanvasTemplateType,
   type DreizeilenTextResponse,
   type InfoTextResponse,
+  type ImageFormatId,
   type KiLabelMode,
   type SimpleTextResponse,
   type SliderTextResponse,
   type VeranstaltungTextResponse,
   type ZitatTextResponse,
 } from '@gruenerator/contracts';
-
-import { type ImageFormatId } from './constants.js';
 
 // ============================================================================
 // CORE ENUMS

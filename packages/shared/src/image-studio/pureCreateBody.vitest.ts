@@ -1,3 +1,4 @@
+import { imageFormatIdSchema } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
 import { getImageFormat, IMAGE_FORMAT_IDS, IMAGE_FORMATS } from './constants.js';
@@ -64,5 +65,12 @@ describe('IMAGE_FORMATS', () => {
 
   it('exposes every id', () => {
     expect(IMAGE_FORMAT_IDS).toEqual(IMAGE_FORMATS.map((f) => f.id));
+  });
+
+  // `satisfies` only proves every registry id is a valid wire value. The other
+  // direction is what silently breaks: an id in the contract with no registry
+  // entry makes getImageFormat() fall back to the first format's dimensions.
+  it('covers every id the contract accepts', () => {
+    expect([...IMAGE_FORMAT_IDS].sort()).toEqual([...imageFormatIdSchema.options].sort());
   });
 });

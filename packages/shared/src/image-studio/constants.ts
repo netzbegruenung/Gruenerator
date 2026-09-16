@@ -3,6 +3,8 @@
  * Platform-agnostic configuration for image-studio types
  */
 
+import { type ImageFormatId } from '@gruenerator/contracts';
+
 import type {
   ImageStudioTemplateType,
   ImageStudioTypeConfig,
@@ -265,9 +267,9 @@ export const IMAGE_FORMATS = [
   { id: '3:4', width: 1056, height: 1408 },
   { id: '16:9', width: 1792, height: 1008 },
   { id: '9:16', width: 1008, height: 1792 },
-] as const;
+] as const satisfies ReadonlyArray<{ id: ImageFormatId; width: number; height: number }>;
 
-export type ImageFormatId = (typeof IMAGE_FORMATS)[number]['id'];
+export { type ImageFormatId };
 
 export const IMAGE_FORMAT_IDS: ImageFormatId[] = IMAGE_FORMATS.map((f) => f.id);
 
