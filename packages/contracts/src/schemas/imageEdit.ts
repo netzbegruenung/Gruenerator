@@ -26,6 +26,15 @@ export const imageEditTypeSchema = z.enum(['universal', 'green-edit', 'ally-make
 /** AI-label variants for generated/edited images (default: 'full'). */
 export const kiLabelModeSchema = z.enum(['full', 'short', 'none']);
 
+/**
+ * Output/target formats offered by the Bild-Editor. Crosses the wire twice:
+ * as the `aspectRatio` field of `/imagine/outpaint` and — resolved to pixel
+ * dimensions — as `width`/`height` of `/imagine/pure`. The dimensions behind
+ * each id live in `IMAGE_FORMATS` (`@gruenerator/shared/image-studio`), which
+ * derives its ids from this enum.
+ */
+export const imageFormatIdSchema = z.enum(['4:5', '1:1', '4:3', '3:4', '16:9', '9:16']);
+
 export const imageEditBodySchema = z.object({
   /** Natural-language edit instruction; may reference "Bild 1", "Bild 2", … */
   instruction: z.string().min(1).max(4000),
@@ -80,3 +89,4 @@ export type ImageEditBody = z.infer<typeof imageEditBodySchema>;
 export type ImageEditSuccess = z.infer<typeof imageEditSuccessSchema>;
 export type ImageEditType = z.infer<typeof imageEditTypeSchema>;
 export type KiLabelMode = z.infer<typeof kiLabelModeSchema>;
+export type ImageFormatId = z.infer<typeof imageFormatIdSchema>;

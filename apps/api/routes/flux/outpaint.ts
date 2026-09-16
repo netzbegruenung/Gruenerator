@@ -1,8 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 
-import { kiLabelModeSchema } from '@gruenerator/contracts';
-import { IMAGE_FORMAT_IDS, type ImageFormatId } from '@gruenerator/shared/image-studio';
+import { imageFormatIdSchema, kiLabelModeSchema } from '@gruenerator/contracts';
 import express, { type Response } from 'express';
 import multer from 'multer';
 import sharp from 'sharp';
@@ -29,15 +28,13 @@ const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
 const imageCounter = new ImageGenerationCounter(redisClient);
 
-const presetAspectSchema = z.enum(IMAGE_FORMAT_IDS as [ImageFormatId, ...ImageFormatId[]]);
-
 // Multipart form field: which AI label to burn into the result — 'full'
 // ("KI-Generiert mit dem Grünerator", default), 'short' ("KI-Generiert"),
 // or 'none' so users can apply their own labeling.
 const kiLabelFieldSchema = kiLabelModeSchema.nullish();
 
 const bodySchema = z.union([
-  z.object({ aspectRatio: presetAspectSchema, kiLabel: kiLabelFieldSchema }),
+  z.object({ aspectRatio: imageFormatIdSchema, kiLabel: kiLabelFieldSchema }),
   z
     .object({
       aspectRatio: z.literal('custom'),
@@ -103,9 +100,11 @@ router.post(
         const geo = computeOutpaintGeometry(srcWidth, srcHeight, parsed.data.aspectRatio);
         target = { width: geo.width, height: geo.height };
         if (geo.needsResize) {
+          // No output format is forced: sharp then re-encodes in the source's
+          // own format. Forcing JPEG here would flatten the alpha of a
+          // background-removed PNG onto black before BFL ever sees it.
           sourceBuffer = await sharp(req.file.buffer)
             .resize(geo.sourceWidth, geo.sourceHeight, { fit: 'fill' })
-            .jpeg({ quality: 92 })
             .toBuffer();
           log.debug(
             `[Outpaint] Scaled source ${srcWidth}x${srcHeight} → ${geo.sourceWidth}x${geo.sourceHeight} to fit the ${parsed.data.aspectRatio} canvas`
