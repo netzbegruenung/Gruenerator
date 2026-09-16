@@ -38,16 +38,19 @@ import { useEffect, useRef, type CSSProperties, type ReactNode } from 'react';
 import { FiBold, FiItalic, FiList, FiUnderline } from 'react-icons/fi';
 import { MdFormatListNumbered } from 'react-icons/md';
 
+import { type FontMarkSupport } from '../utils/fontMarkSupport';
+
 export interface RichTextFieldProps {
   /** Markdown-lite, wie es im Zustand steht. */
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
   /**
-   * Fett/Kursiv/Unterstrichen anbieten. Aus für Felder in einer Schrift ohne
-   * echte Schnitte (GrueneTypeNeue) — dort bleiben nur die Listen.
+   * Welche Schnitt-Auszeichnung diese Schrift wirklich tragen kann — aus
+   * `fontMarkSupport`, nicht je Vorlage gepflegt. Unterstreichung und Listen
+   * stehen nicht darin: die brauchen keinen Schnitt und gelten überall.
    */
-  marks?: boolean;
+  marks?: FontMarkSupport;
   autoFocus?: boolean;
   /** Schrift und Farbe des Leinwand-Textes, damit der Editor an seiner Stelle sitzt. */
   contentStyle?: CSSProperties;
@@ -70,20 +73,25 @@ const BASE_EXTENSIONS = [
   UndoRedo,
 ];
 
-const MARK_EXTENSIONS = [Bold, Italic, Underline];
+/**
+ * Unterstreichung wird gezeichnet, nicht gesetzt — sie braucht keinen
+ * Schriftschnitt und ist deshalb auf jedem Feld aktiv.
+ */
+const ALWAYS_MARK_EXTENSIONS = [Underline];
 
 /**
- * Dieselben Marks, nur ohne Tastenkürzel: Felder in einer Schrift ohne echte
- * Schnitte sollen keine anbieten.
- *
- * Sie müssen trotzdem IM SCHEMA stehen. Ein Dokument mit einem Mark, den das
- * Schema nicht kennt, lässt ProseMirror werfen, tiptap setzt daraufhin ein
- * leeres Dokument — der Editor stünde leer über einem Text, der Auszeichnung
- * trägt, und der erste Tastendruck überschriebe das Feld.
+ * Fett und Kursiv müssen IM SCHEMA stehen, auch wo die Schrift sie nicht
+ * tragen kann. Ein Dokument mit einem Mark, den das Schema nicht kennt, lässt
+ * ProseMirror werfen, tiptap setzt daraufhin ein leeres Dokument — der Editor
+ * stünde leer über einem Text, der Auszeichnung trägt, und der erste
+ * Tastendruck überschriebe das Feld. Ohne echten Schnitt kommen sie deshalb
+ * nur ohne Tastenkürzel herein, und die Werkzeugleiste zeigt sie nicht.
  */
-const INERT_MARK_EXTENSIONS = MARK_EXTENSIONS.map((mark) =>
-  mark.extend({ addKeyboardShortcuts: () => ({}) })
-);
+function markExtension(mark: typeof Bold | typeof Italic, offered: boolean) {
+  return offered ? mark : mark.extend({ addKeyboardShortcuts: () => ({}) });
+}
+
+const ALL_MARKS_SUPPORTED: FontMarkSupport = { bold: true, italic: true };
 
 interface ToolbarButtonProps {
   onClick: () => void;
@@ -113,7 +121,7 @@ function ToolbarButton({ onClick, isActive, label, children }: ToolbarButtonProp
   );
 }
 
-function Toolbar({ editor, marks }: { editor: Editor; marks: boolean }) {
+function Toolbar({ editor, marks }: { editor: Editor; marks: FontMarkSupport }) {
   const state = useEditorState({
     editor,
     selector: ({ editor: e }) => ({
@@ -131,31 +139,31 @@ function Toolbar({ editor, marks }: { editor: Editor; marks: boolean }) {
       aria-label="Textformatierung"
       className="flex items-center gap-0.5 px-1 py-0.5"
     >
-      {marks && (
-        <>
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleBold().run()}
-            isActive={state.bold}
-            label="Fett (⌘B)"
-          >
-            <FiBold />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleItalic().run()}
-            isActive={state.italic}
-            label="Kursiv (⌘I)"
-          >
-            <FiItalic />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleUnderline().run()}
-            isActive={state.underline}
-            label="Unterstrichen (⌘U)"
-          >
-            <FiUnderline />
-          </ToolbarButton>
-        </>
+      {marks.bold && (
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleBold().run()}
+          isActive={state.bold}
+          label="Fett (⌘B)"
+        >
+          <FiBold />
+        </ToolbarButton>
       )}
+      {marks.italic && (
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleItalic().run()}
+          isActive={state.italic}
+          label="Kursiv (⌘I)"
+        >
+          <FiItalic />
+        </ToolbarButton>
+      )}
+      <ToolbarButton
+        onClick={() => editor.chain().focus().toggleUnderline().run()}
+        isActive={state.underline}
+        label="Unterstrichen (⌘U)"
+      >
+        <FiUnderline />
+      </ToolbarButton>
       <ToolbarButton
         onClick={() => editor.chain().focus().toggleBulletList().run()}
         isActive={state.bulletList}
@@ -178,7 +186,7 @@ export function RichTextField({
   value,
   onChange,
   placeholder,
-  marks = true,
+  marks = ALL_MARKS_SUPPORTED,
   autoFocus = false,
   contentStyle,
   onBlur,
@@ -194,11 +202,17 @@ export function RichTextField({
   const editor = useEditor({
     extensions: [
       ...BASE_EXTENSIONS,
-      ...(marks ? MARK_EXTENSIONS : INERT_MARK_EXTENSIONS),
+      ...ALWAYS_MARK_EXTENSIONS,
+      markExtension(Bold, marks.bold),
+      markExtension(Italic, marks.italic),
       Placeholder.configure({ placeholder: placeholder ?? '' }),
     ],
     content: markdownLiteToRichText(value),
-    autofocus: autoFocus ? 'end' : false,
+    // 'all', nicht 'end': die Textarea, die dieser Editor ersetzt, rief
+    // `select()` — Doppelklick und lostippen ersetzte das Feld. Das ist der
+    // einzige Bearbeiten-Weg, den es auf der Leinwand je gab, und die
+    // eingeübte Bewegung.
+    autofocus: autoFocus ? 'all' : false,
     // Die Toolbar liest ihren Zustand über `useEditorState`; die Komponente
     // selbst muss nicht bei jeder Transaktion neu rendern.
     shouldRerenderOnTransaction: false,

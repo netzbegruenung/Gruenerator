@@ -22,11 +22,10 @@
  */
 
 import { layoutRichTextBlock } from '@gruenerator/contracts';
-import { useRef, useEffect, useState, useCallback, useMemo, Fragment } from 'react';
-import { createPortal } from 'react-dom';
+import { useRef, useEffect, useCallback, useMemo, Fragment } from 'react';
 import { Group, Text as KonvaText, Transformer } from 'react-konva';
 
-import { RichTextField } from '../components/RichTextField';
+import { overlayBoxForNode, useCanvasTextEditor } from '../components/CanvasTextOverlay';
 import { useFontGeneration } from '../hooks/useFontGeneration';
 import { useGeometryReporter } from '../hooks/useGeometryReporter';
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
@@ -37,17 +36,8 @@ import { type CanvasTextProps } from './CanvasText';
 
 import type Konva from 'konva';
 import type { TransformAnchor } from '@gruenerator/shared/canvas-editor';
-import type { CSSProperties } from 'react';
 
 const DEFAULT_TEXT_ANCHORS: TransformAnchor[] = ['middle-left', 'middle-right'];
-
-interface OverlayBox {
-  top: number;
-  left: number;
-  width: number;
-  minHeight: number;
-  scale: number;
-}
 
 export function CanvasRichText({
   id,
@@ -74,7 +64,6 @@ export function CanvasRichText({
   draggable = true,
   selected = false,
   editable = false,
-  richText = false,
   transformConfig,
   onSelect,
   onTextChange,
@@ -92,9 +81,7 @@ export function CanvasRichText({
 }: CanvasTextProps) {
   const groupRef = useRef<Konva.Group>(null);
   const trRef = useRef<Konva.Transformer>(null);
-  const [overlay, setOverlay] = useState<OverlayBox | null>(null);
-  const [draft, setDraft] = useState(text);
-  const isEditing = overlay !== null;
+  const { open, isEditing } = useCanvasTextEditor(id);
 
   // Ein nachgeladener Schriftschnitt misst anders. Ohne diese Abhängigkeit
   // bliebe der mit der Ersatzschrift gerechnete Umbruch stehen — siehe
@@ -207,71 +194,39 @@ export function CanvasRichText({
     }
   }, [fontSize, blockWidth, onFontSizeChange, onTransformEnd]);
 
-  // Sobald der Editor geschlossen ist, darf sein Blur nichts mehr schreiben.
-  // Beim Abräumen des Portals verschiebt tiptap das fokussierte
-  // contenteditable, der Browser feuert dabei synchron `blur` — und `onBlur`
-  // hält noch die Callbacks des letzten Renderns, also ein `commit` mit dem
-  // gerade verworfenen Entwurf. Ein Guard auf `isConnected` hilft nicht: beim
-  // Feuern hängt der Knoten noch im Dokument.
-  const closed = useRef(false);
-
   const handleDblClick = useCallback(() => {
-    if (!editable) return;
     const node = groupRef.current;
-    const stage = node?.getStage();
-    if (!node || !stage) return;
-
-    // Dieselbe Geometrie wie die Textarea des einfachen Textknotens: Bühne
-    // im Fenster, Knoten auf der Bühne, Maßstab der Bühne.
-    const stageBox = stage.container().getBoundingClientRect();
-    const position = node.getAbsolutePosition();
-    const scale = stage.scaleX();
-    closed.current = false;
-    setDraft(text);
-    setOverlay({
-      top: stageBox.top + window.scrollY + position.y,
-      left: stageBox.left + window.scrollX + position.x,
-      width: blockWidth * scale,
-      minHeight: blockHeight * scale,
-      scale,
+    const box = node && overlayBoxForNode(node, blockWidth, blockHeight);
+    if (!editable || !box) return;
+    open({
+      id: id ?? '',
+      box,
+      text,
+      fontFamily,
+      fontSize,
+      fontStyle,
+      fill,
+      align,
+      lineHeight,
+      onTextChange,
     });
-  }, [editable, text, blockWidth, blockHeight]);
-
-  const commit = useCallback(() => {
-    if (closed.current) return;
-    closed.current = true;
-    setOverlay(null);
-    if (draft !== text) onTextChange?.(draft);
-  }, [draft, text, onTextChange]);
-
-  const cancel = useCallback(() => {
-    if (closed.current) return;
-    closed.current = true;
-    setDraft(text);
-    setOverlay(null);
-  }, [text]);
+  }, [
+    editable,
+    open,
+    id,
+    text,
+    blockWidth,
+    blockHeight,
+    fontFamily,
+    fontSize,
+    fontStyle,
+    fill,
+    align,
+    lineHeight,
+    onTextChange,
+  ]);
 
   const enabledAnchors = transformConfig?.enabledAnchors ?? DEFAULT_TEXT_ANCHORS;
-
-  const overlayStyle: CSSProperties | null = overlay
-    ? {
-        position: 'absolute',
-        top: overlay.top,
-        left: overlay.left,
-        width: overlay.width,
-        minHeight: overlay.minHeight,
-        zIndex: 10000,
-      }
-    : null;
-  const contentStyle: CSSProperties = {
-    fontSize: fontSize * (overlay?.scale ?? 1),
-    fontFamily,
-    fontStyle: fontStyle.includes('italic') ? 'italic' : 'normal',
-    fontWeight: fontStyle.includes('bold') ? 'bold' : 'normal',
-    color: fill,
-    textAlign: align,
-    lineHeight: String(lineHeight),
-  };
 
   return (
     <>
@@ -373,24 +328,6 @@ export function CanvasRichText({
           }}
         />
       )}
-      {overlayStyle &&
-        createPortal(
-          <div style={overlayStyle}>
-            <RichTextField
-              value={draft}
-              onChange={setDraft}
-              // Listen darf jedes Feld, das hier landet; Fett/Kursiv nur ein
-              // `richText`-Feld — die anderen laufen in GrueneTypeNeue.
-              marks={richText}
-              autoFocus
-              contentStyle={contentStyle}
-              onBlur={commit}
-              onEscape={cancel}
-              onSubmit={commit}
-            />
-          </div>,
-          document.body
-        )}
     </>
   );
 }
