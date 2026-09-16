@@ -1018,15 +1018,14 @@ export interface ChatGraphState {
   // Literal: dieses Feld war der siebte Schreiber derselben Menge, und ein hier
   // fehlender Wert hätte im Katalog stumm kein Werkzeug montiert.
   compoundGenerationKind?: ArtifactKindId | null;
-  // Compound "research + edit the OPEN doc/board" (editor sidebars): runs the
-  // research loop, then feeds the gathered sources as reference material —
-  // via trigger_doc_edit for doc, or the edit_document tool loop for board.
-  // Synth writes only a short confirm.
+  // Compound "research + edit the OPEN artefact" (editor sidebars): runs the
+  // research loop, then feeds the gathered sources to the `edit_document` tool
+  // as reference material. Synth writes only a short confirm.
   compoundEdit?: boolean;
   // Tool-based editor edit: the resolved editor surface whose `edit_document`
-  // tool the loop mounts. Set only for surfaces with a tool path
-  // (routing.TOOL_EDIT_SURFACES); null/undefined keeps the legacy
-  // trigger_doc_edit path for the still-live surfaces.
+  // tool the loop mounts. Null/undefined means the turn has NO edit path at all
+  // (a kill-switch in `decideEditToolLoop` held it back) — `buildArtifactNotes`
+  // makes the model say so rather than answer as if it had edited.
   editToolSurface?: 'doc' | 'sheet' | 'presentation' | 'board' | 'canvas' | null;
   // Human summary of edits the edit_document tool made THIS turn (set by
   // editorTools). Feeds the synth prompt so the model confirms the change in
