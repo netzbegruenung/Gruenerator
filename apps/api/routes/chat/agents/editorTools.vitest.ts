@@ -142,7 +142,12 @@ describe('makeEditArtifactTool (sheet)', () => {
     // The suggestion's own German title, not the "2× set-text" op tally — this
     // string is what the studio's Behalten/Verwerfen banner prints.
     expect(payload.summary).toBe('Zitat geschärft');
-    expect(c.appliedOpsLog).toHaveLength(1);
+    // Der Turn-Merkzettel trägt BEIDES: den Namen und die Op-Arten. Ein zweiter
+    // edit_document-Aufruf plant gegen einen veralteten Server-Snapshot und
+    // muss wissen, WAS geändert wurde — „Zitat geschärft" allein sagt das nicht.
+    expect(c.appliedOpsLog).toEqual([
+      '2 Op(s): Zitat geschärft — 1× set-text, 1× set-color-scheme',
+    ]);
   });
 
   it('errors when no sharepic is open', async () => {
