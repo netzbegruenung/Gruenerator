@@ -13,10 +13,11 @@ import { CARRIED_INSTANCE_KEYS } from '../factory/carryInstanceState';
  * illustration, badge, frame, chart, uploaded image and additional text the
  * user had put on the canvas — silently, with no way to undo from the chat.
  *
- * Two templates derive one collection from their own text fields (the slider
- * pill from `label`, the event date circle from weekday/date/time). Those must
- * still follow the text, which is why they get their own cases below: keep the
- * instance, refresh only what the text owns.
+ * Three templates derive one entry from their own text fields (the slider pill
+ * from `label`, the event date circle from weekday/date/time, the dreizeilen
+ * bar from the three lines). Those must still follow the text, which is why
+ * they get their own cases below: keep the instance, refresh only what the
+ * text owns.
  */
 
 type CanvasConfigType = Parameters<typeof loadCanvasConfig>[0];
@@ -41,6 +42,7 @@ const TEMPLATES: CanvasConfigType[] = [
 /** Collections a template legitimately rebuilds from its own text fields. */
 const DERIVED: Partial<Record<CanvasConfigType, string[]>> = {
   slider: ['pillBadgeInstances'],
+  dreizeilen: ['balkenInstances'],
 };
 
 /** One recognisable entry per collection, shaped enough to be told apart. */
@@ -194,6 +196,64 @@ describe('derived collections keep the instance and refresh only the text', () =
 
     expect((state.selectedIcons as string[]).length).toBe(1);
     expect((state.pillBadgeInstances as unknown[]).length).toBe(1);
+  });
+
+  it('dreizeilen refreshes its own bar from the three lines', () => {
+    const config = configFor('dreizeilen');
+    const state = config.createInitialState({
+      line1: 'Neu',
+      line2: 'Aus dem',
+      line3: 'Chat',
+      balkenInstances: [{ id: 'dreizeilen-balken', texts: ['Alt', 'Alt', 'Alt'] }],
+    }) as Record<string, unknown>;
+
+    const bars = state.balkenInstances as Array<Record<string, unknown>>;
+    expect(bars).toHaveLength(1);
+    expect(bars[0].texts).toEqual(['Neu', 'Aus dem', 'Chat']);
+  });
+
+  it('dreizeilen keeps a hand-added balken next to its own', () => {
+    const config = configFor('dreizeilen');
+    const own = {
+      id: 'balken-1700000000-1',
+      mode: 'single',
+      texts: ['MEINS'],
+      offset: { x: 7, y: 9 },
+    };
+
+    const state = config.createInitialState({
+      line1: 'Neu',
+      line2: 'Aus dem',
+      line3: 'Chat',
+      balkenInstances: [{ id: 'dreizeilen-balken', texts: ['Alt', 'Alt', 'Alt'] }, own],
+    }) as Record<string, unknown>;
+
+    const bars = state.balkenInstances as Array<Record<string, unknown>>;
+    expect(bars[0].texts).toEqual(['Neu', 'Aus dem', 'Chat']);
+    expect(bars[1]).toEqual(own);
+  });
+
+  it('dreizeilen mints its bar when the seed carries none', () => {
+    const config = configFor('dreizeilen');
+    const state = config.createInitialState({ line1: 'A', line2: 'B', line3: 'C' }) as Record<
+      string,
+      unknown
+    >;
+
+    const bars = state.balkenInstances as Array<Record<string, unknown>>;
+    expect(bars).toHaveLength(1);
+    expect(bars[0].id).toBe('dreizeilen-balken');
+  });
+
+  it('dreizeilen rebuilds its bar to exactly the same value twice', () => {
+    // Deterministic regeneration is what keeps the now-persisted collection
+    // from ping-ponging between collaborators (#3421).
+    const config = configFor('dreizeilen');
+    const seed = { line1: 'A', line2: 'B', line3: 'C', balkenOffset: { x: 3, y: 4 } };
+    const once = config.createInitialState(seed) as Record<string, unknown>;
+    const twice = config.createInitialState(once) as Record<string, unknown>;
+
+    expect(twice.balkenInstances).toEqual(once.balkenInstances);
   });
 
   it('veranstaltung keeps a deliberately removed date circle removed', () => {
