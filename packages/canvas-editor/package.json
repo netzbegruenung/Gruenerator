@@ -79,9 +79,14 @@
   },
   "devDependencies": {
     "@napi-rs/canvas": "^1.0.8",
+    "@rolldown/plugin-babel": "^0.2.4",
     "@tailwindcss/cli": "^4.3.3",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
     "@types/react": "19.2.18",
     "@types/react-dom": "^19.2.7",
+    "@vitejs/plugin-react": "^6.1.1",
+    "jsdom": "30.0.1",
     "typescript": "^6.0.3",
     "vitest": "^4.1.11"
   },
