@@ -167,19 +167,32 @@ input[type='number'].hide-spinner {
   margin: 0;
 }
 
+/*
+ * Aufzählungen tragen den hängenden Einzug der Leinwand: der Marker steht am
+ * linken Rand des FELDES, und alle Zeilen eines Punktes fluchten dahinter —
+ * genau das, was `layoutRichTextBlock` zeichnet. Den Einzug reicht das Overlay
+ * als `--canvas-rte-list-indent` herein, mit derselben gemessenen Breite, auf
+ * der auch der Umbruch sitzt; ohne ihn bräche der Editor auf der vollen
+ * Feldbreite um, und der Text spränge beim Schließen neu.
+ *
+ * `list-style-type`, NICHT die Kurzform `list-style`: die setzt jede nicht
+ * genannte Langform auf ihren Anfangswert zurück. Sie stand hier eine Regel
+ * NACH `list-style-position: inside` und machte daraus wieder `outside` — der
+ * Marker hing damit links aus dem Feld heraus, neben dem Text statt in ihm.
+ */
 .canvas-rte__content ul,
 .canvas-rte__content ol {
   margin: 0;
-  padding-left: 0;
-  list-style-position: inside;
+  padding-left: var(--canvas-rte-list-indent, 1em);
+  list-style-position: outside;
 }
 
 .canvas-rte__content ul {
-  list-style: disc;
+  list-style-type: disc;
 }
 
 .canvas-rte__content ol {
-  list-style: decimal;
+  list-style-type: decimal;
 }
 
 /* Platzhalter der tiptap-Placeholder-Extension */

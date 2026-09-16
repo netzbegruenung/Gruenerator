@@ -282,6 +282,7 @@ function CanvasTextInner({
       fill,
       align,
       lineHeight,
+      opacity,
       onTextChange,
     });
   }, [
@@ -296,6 +297,7 @@ function CanvasTextInner({
     fill,
     align,
     lineHeight,
+    opacity,
     onTextChange,
   ]);
 
