@@ -49,8 +49,9 @@ export interface EditorSurfaceAdapter {
   getTools: (aiEditEnabled: boolean) => EditorToolConfig;
   /**
    * Registers the surface's live-edit handler(s) against the chat config store
-   * (documentEditHandlers for docs/sheets/presentations/canvas, boardActionHandlers
-   * for boards). Returns an unregister function. Called once per resolved thread.
+   * (documentEditHandlers for docs/canvas; editorOpsHandlers for the
+   * tool-based surfaces — sheets, presentations, boards). Returns an
+   * unregister function. Called once per resolved thread.
    */
   registerEditHandler: (ctx: EditorRegistrationCtx) => () => void;
   /** Peer sync + presence. Default true; canvas passes false (draft threads). */
