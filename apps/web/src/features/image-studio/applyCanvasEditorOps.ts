@@ -1,6 +1,8 @@
-import { canvasAiOperationSchema, type CanvasAiOperation } from '@gruenerator/contracts';
-
-import type { EditorOperationsEvent } from '@gruenerator/contracts';
+import {
+  canvasAiOperationSchema,
+  type CanvasAiOperation,
+  type EditorOperationsEvent,
+} from '@gruenerator/contracts';
 
 /**
  * What one `editor_operations` event did to the open sharepic.
