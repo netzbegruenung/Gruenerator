@@ -133,8 +133,18 @@ COPY --from=builder --chown=gruenerator:gruenerator /app/apps/api/package.json .
 USER gruenerator
 
 # Install production dependencies only (no tsx, typescript, @types/*, etc.)
+# --node-linker is as load-bearing here as in the builder above, and for the
+# same reason: hoisted materializes the ENTIRE lockfile and --filter restricts
+# nothing. This stage got pnpm's isolated default for free until #3351, because
+# the only place that said `node-linker=hoisted` was .npmrc -- which no
+# production stage copies. #3351 moved the setting into pnpm-workspace.yaml,
+# which every production stage DOES copy, so the filtered prod install silently
+# became a whole-workspace one: 634 MB -> 1589 MB here, 109 MB -> 1453 MB for
+# hocuspocus, with Expo, Metro, Tauri and Docusaurus in the runtime images. The
+# build stayed green the whole time, which is why nothing caught it.
 RUN --mount=type=cache,id=pnpm-prod,target=/home/gruenerator/.local/share/pnpm/store \
-    pnpm install --prod --frozen-lockfile --filter @gruenerator/api...
+    pnpm install --prod --frozen-lockfile --node-linker=isolated --shamefully-hoist \
+        --filter @gruenerator/api...
 
 # Copy compiled workspace packages. The package.json files already ship with
 # the correct runtime exports map (`"default": "./dist/*.js"`), so no rewrite
