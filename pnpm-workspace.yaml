@@ -60,7 +60,32 @@ nodeLinker: hoisted
 # Replaces neverBuiltDependencies: ['canvas'] — canvas ships prebuilt binaries
 # we do not want compiled from source.
 allowBuilds:
+  # Behaviour-preserving, not a new policy: pnpm 10 already ran none of these
+  # (nothing was ever approved), it just warned. pnpm 11 defaults
+  # strictDepBuilds to true and turns the same situation into
+  # ERR_PNPM_IGNORED_BUILDS, so the existing state has to be written down.
+  # Flipping any of these to true grants that package arbitrary code execution
+  # at install time -- do it per package, with a reason, not as a batch.
   canvas: false
+  '@ffprobe-installer/darwin-arm64': false
+  '@ffprobe-installer/darwin-x64': false
+  '@ffprobe-installer/linux-arm': false
+  '@ffprobe-installer/linux-arm64': false
+  '@ffprobe-installer/linux-ia32': false
+  '@ffprobe-installer/linux-x64': false
+  '@ffprobe-installer/win32-ia32': false
+  '@ffprobe-installer/win32-x64': false
+  '@parcel/watcher': false
+  '@swc/core': false
+  better-sqlite3: false
+  core-js: false
+  core-js-pure: false
+  esbuild: false
+  ffmpeg-static: false
+  msw: false
+  node-sass: false
+  protobufjs: false
+  unrs-resolver: false
 
 # Moved here from package.json's `pnpm.auditConfig`.
 auditConfig:
