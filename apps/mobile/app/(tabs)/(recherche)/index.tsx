@@ -7,7 +7,17 @@ import { Ionicons } from '@react-native-vector-icons/ionicons';
 import * as Clipboard from 'expo-clipboard';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, useColorScheme, Pressable, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  useColorScheme,
+  Pressable,
+  Alert,
+  Platform,
+  ActivityIndicator,
+} from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -15,9 +25,14 @@ import { BottomComposerBar } from '../../../components/common/BottomComposerBar'
 import { NotebookGradientBackground } from '../../../components/common/NotebookGradientBackground';
 import { ScreenScaffold } from '../../../components/navigation/ScreenScaffold';
 import { CommunityNotebooksSection } from '../../../components/notebook/CommunityNotebooksSection';
-import { NotebookCard, useNotebookGrid } from '../../../components/notebook/NotebookCard';
+import { NotebookCoverArt } from '../../../components/notebook/NotebookCoverArt';
 import { NotebookCreator } from '../../../components/notebook/NotebookCreator';
 import { NotebookSection } from '../../../components/notebook/NotebookSection';
+import {
+  NotebookTile,
+  notebookTileGridStyle,
+  useNotebookTileGrid,
+} from '../../../components/notebook/NotebookTile';
 import {
   getMobileNotebooksByCategory,
   getVisibleNotebooks,
@@ -57,9 +72,17 @@ export default function NotebooksScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const router = useRouter();
-  const notebookGrid = useNotebookGrid();
+  const { size: tileSize } = useNotebookTileGrid();
   const gridColumn = useContentColumn('grid');
   const insets = useSafeAreaInsets();
+  // The Android tab bar is an absolutely positioned capsule (ClassicTabLayout),
+  // so the navigator reserves no room for it and this screen has to clear it
+  // itself — without this the last shelf scrolls to a stop underneath it. On iOS
+  // the native tab bar is already inside insets.bottom.
+  const bottomClearance =
+    Platform.OS === 'ios'
+      ? insets.bottom + spacing.xxlarge
+      : insets.bottom + FLOATING_TAB_BAR_HEIGHT + spacing.xxlarge;
   const fabTone = getSurfaceFab('wissen', colorScheme === 'dark');
   const [creatorVisible, setCreatorVisible] = useState(false);
   // The ask-all-sources composer is opt-in: the gallery is what the tab is for,
@@ -242,7 +265,11 @@ export default function NotebooksScreen() {
         <View style={styles.container}>
           <ScrollView
             style={styles.container}
-            contentContainerStyle={[gridColumn, styles.scrollContent]}
+            contentContainerStyle={[
+              gridColumn,
+              styles.scrollContent,
+              { paddingBottom: bottomClearance },
+            ]}
             keyboardShouldPersistTaps="handled"
           >
             <View>
@@ -291,13 +318,18 @@ export default function NotebooksScreen() {
                   </Pressable>
                 </View>
                 {isLoading ? (
-                  <View style={styles.loadingPlaceholder}>
+                  <View style={notebookTileGridStyle}>
                     {[0, 1, 2].map((i) => (
                       <View
                         key={i}
                         style={[
-                          styles.skeletonCard,
-                          { backgroundColor: theme.surface, borderColor: theme.cardBorder },
+                          styles.skeletonTile,
+                          {
+                            width: tileSize,
+                            height: tileSize,
+                            backgroundColor: theme.surface,
+                            borderColor: theme.cardBorder,
+                          },
                         ]}
                       />
                     ))}
@@ -307,17 +339,30 @@ export default function NotebooksScreen() {
                     Noch keine eigenen Notebooks.
                   </Text>
                 ) : (
-                  <View style={notebookGrid.container}>
+                  <View style={notebookTileGridStyle}>
                     {collections.map((c) => (
-                      <NotebookCard
+                      <NotebookTile
                         key={c.id}
                         icon="book"
                         title={c.name}
-                        subtitle={collectionSubtitle(c)}
+                        size={tileSize}
+                        coverNode={
+                          <NotebookCoverArt
+                            title={c.name}
+                            subtitle={collectionSubtitle(c)}
+                            size={tileSize}
+                          />
+                        }
                         onPress={() => handleCollectionPress(c.id, c.name)}
                         onLongPress={() => handleCollectionActions(c)}
-                        isProcessing={collectionIndexingState(c) === 'indexing'}
-                        style={notebookGrid.item}
+                        // The subtitle already says "Wird indexiert", but it is
+                        // the fourth thing read on the tile; the spinner is what
+                        // the row card gave at a glance and what web's badge gives.
+                        overlay={
+                          collectionIndexingState(c) === 'indexing' ? (
+                            <ActivityIndicator size="small" color={colors.white} />
+                          ) : null
+                        }
                       />
                     ))}
                   </View>
@@ -389,8 +434,10 @@ const styles = StyleSheet.create({
   scrollContent: {
     // The hero above the first section is gone, so the sections carry the top
     // spacing themselves — without this the first heading sits on the header.
+    // `paddingBottom` is not here: it depends on the safe-area inset and on the
+    // Android tab capsule, neither of which a StyleSheet evaluated at import can
+    // see. See `bottomClearance`.
     paddingTop: spacing.small,
-    paddingBottom: spacing.xxlarge,
   },
   section: {
     marginBottom: spacing.large,
@@ -417,12 +464,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingVertical: spacing.large,
   },
-  loadingPlaceholder: {
-    gap: spacing.xsmall,
-  },
-  skeletonCard: {
-    height: 44,
-    borderRadius: borderRadius.medium,
-    borderWidth: 1,
+  skeletonTile: {
+    borderRadius: borderRadius.large,
+    borderWidth: StyleSheet.hairlineWidth,
   },
 });
