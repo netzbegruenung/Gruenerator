@@ -257,6 +257,24 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "lead": "In etwa zehn Minuten erstellst du ein Notebook, das eure Dokumente bündelt und ihren Inhalt im Grünerator durchsuchbar macht — für Anträge, Beschlüsse, Programme oder Pressemitteilungen. Du brauchst…"
   },
   {
+    "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
+    "title": "Wie erstelle ich ein gemeinsames Projekt?",
+    "category": "Guides",
+    "lead": "Am Ende hast du einen gemeinsamen Bereich, in den du andere Menschen einladen und Inhalte wie Notebooks aufnehmen kannst. Die Team-Variante eines Projekts heißt in der aktuellen Oberfläche noch „Grup…"
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
+    "title": "Wie erstelle ich KI-Bilder?",
+    "category": "Guides",
+    "lead": "Am Ende hast du ein eigenes KI-Bild als Datei oder eine Grundlage für ein Sharepic. Du brauchst keine Bildbearbeitungskenntnisse; entscheidend ist eine gute Beschreibung."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/reel-erstellen",
+    "title": "Wie erstelle ich ein Reel?",
+    "category": "Guides",
+    "lead": "Am Ende hast du ein Video mit eingebrannten Untertiteln zum Veröffentlichen. Du brauchst dafür nur einen bereits aufgenommenen Clip. Upload, Transkription, Untertitel und Videoexport laufen automatis…"
+  },
+  {
     "url": "/docs/guides/einsteigerinnen/social-media-beitrag",
     "title": "Wie schreibe ich einen Social Media Beitrag?",
     "category": "Guides",
@@ -273,12 +291,6 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "title": "Wolke einbinden",
     "category": "Guides",
     "lead": "Die Grüne Wolke ist unser sicherer Cloud-Speicher für alle grünen Organisationen. Über einen öffentlichen Freigabe-Link kann der Grünerator deine Wolke-Dateien lesen: Du kannst Ordner durchstöbern, D…"
-  },
-  {
-    "url": "/docs/guides/intro",
-    "title": "Guides",
-    "category": "Guides",
-    "lead": "Guides sind kurze Anleitungen für eine konkrete Aufgabe: „Wie schreibe ich einen Social Media Beitrag?\", „Wie erstelle ich einen Antrag für meinen Stadtrat?\". Jeder Guide führt dich in wenigen Schrit…"
   },
   {
     "url": "/docs/guides/landesverbaende/landesverband-einrichten",
@@ -1725,7 +1737,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Features",
     "anchor": "",
     "category": "Features",
-    "text": "Neben dem Chat gibt es im Grünerator drei größere Flächen. Diese Seiten beschreiben, was es dort gibt — jede Funktion, jeden Schalter. Wenn du stattdessen eine bestimmte Aufgabe erledigen willst, sind die Guides der kürzere Weg. Office — Dokumente, Tabellen, Präsentationen und Boards, gemeinsam bearbeitbar und mit KI-Unterstützung direkt im Editor. Agentura — der Marktplatz für Grüneratoren und Rezepte: fertige nutzen, eigene bauen. Notebooks — eigenes Wissen bündeln und durchsuchbar machen: Quellarten, Teilen, Verwaltung. Landesverbände — welche Inhalte der Landesverbände im Grünerator stecken und was ihre Grüneratoren können."
+    "text": "Neben dem Chat gibt es im Grünerator drei größere Flächen. Diese Seiten beschreiben, was es dort gibt — jede Funktion, jeden Schalter. Wenn du stattdessen eine bestimmte Aufgabe erledigen willst, sind die Guides für Einsteiger*innen der kürzere Weg. Office — Dokumente, Tabellen, Präsentationen und Boards, gemeinsam bearbeitbar und mit KI-Unterstützung direkt im Editor. Agentura — der Marktplatz für Grüneratoren und Rezepte: fertige nutzen, eigene bauen. Notebooks — eigenes Wissen bündeln und durchsuchbar machen: Quellarten, Teilen, Verwaltung. Landesverbände — welche Inhalte der Landesverbände im Grünerator stecken und was ihre Grüneratoren können."
   },
   {
     "url": "/docs/features/ki-im-editor",
@@ -2120,6 +2132,174 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "text": "Notebooks — Quellarten, Teilen, Verwaltung, häufige Fragen Wolke einbinden — Voraussetzung, um Wolke-Ordner anzuhängen Landesverband-Grüneratoren — Österreich: vorgefertigte Wissensdatenbank der Grünen Österreich"
   },
   {
+    "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
+    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
+    "heading": "Wie erstelle ich ein gemeinsames Projekt?",
+    "anchor": "",
+    "category": "Guides",
+    "text": "Am Ende hast du einen gemeinsamen Bereich, in den du andere Menschen einladen und Inhalte wie Notebooks aufnehmen kannst. Die Team-Variante eines Projekts heißt in der aktuellen Oberfläche noch „Gruppe“."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
+    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
+    "heading": "Ein Notebook hinzufügen",
+    "anchor": "#ein-notebook-hinzufügen",
+    "category": "Guides",
+    "text": "Klicke neben „Geteilte Inhalte“ auf das Plus. Der Button heißt für Hilfstechnologien „Inhalte hinzufügen“. Wähle „Notebooks“. Klicke auf das Notebook, das du freigeben möchtest. Ein Häkchen zeigt die Auswahl an. Du kannst auch mehrere Notebooks auswählen. Klicke unten rechts auf „1 hinzufügen“. Bei mehreren ausgewählten Inhalten passt sich die Zahl automatisch an. Das Notebook erscheint danach im Abschnitt „Geteilte Inhalte“. Mitglieder des Projekts können es dort öffnen und lesen; durch das Hinzufügen erhalten sie keine Schreibrechte am Notebook."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
+    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
+    "heading": "Einladungslink kopieren",
+    "anchor": "#einladungslink-kopieren",
+    "category": "Guides",
+    "text": "Öffne oben rechts das Drei-Punkte-Menü „Aktionen“. Klicke auf „Einladungslink kopieren“. Der Link wird direkt in die Zwischenablage kopiert. Füge den Link in eine Nachricht an die Personen ein, die beitreten sollen. Der Link ist eine Einladung zu deinem Projekt. Teile ihn nur mit den vorgesehenen Personen. Nur Admins sehen diese Aktion. Alternativ kannst du im selben Menü „Per E-Mail einladen“ wählen."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
+    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
+    "heading": "Gemeinsames Projekt anlegen",
+    "anchor": "#gemeinsames-projekt-anlegen",
+    "category": "Guides",
+    "text": "Öffne im Bereich Arbeiten die Seite Projekte. Direkt erreichbar ist sie auch unter /projekte. Klicke auf „Gruppe erstellen“. Nimm nicht „Projekt erstellen“: Damit legst du ein persönliches Projekt ohne Mitglieder und Einladungslink an. Gib einen Namen ein. Er darf höchstens 100 Zeichen lang sein. Optional kannst du schon jetzt E-Mail-Adressen eingeben. Bestätige jede Adresse mit Enter oder einem Komma. Diese Personen erhalten nach dem Erstellen eine E-Mail mit einem Beitrittslink. Klicke auf „Gruppe erstellen“ beziehungsweise, wenn du Adressen hinzugefügt hast, auf „Erstellen & einladen“. Das neue gemeinsame Projekt öffnet sich automatisch. Du bist Admin und kannst Mitglieder sowie geteilte Inhalte verwalten."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
+    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
+    "heading": "Inhalte wieder entfernen",
+    "anchor": "#inhalte-wieder-entfernen",
+    "category": "Guides",
+    "text": "Als Admin kannst du einen geteilten Inhalt über den Entfernen-Button an seiner Karte wieder aus dem Projekt nehmen. Das löscht das ursprüngliche Notebook nicht — nur seine Freigabe im Projekt wird entfernt."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
+    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
+    "heading": "Weiterlesen",
+    "anchor": "#weiterlesen",
+    "category": "Guides",
+    "text": "Texte aus einer Quelle — ein eigenes Notebook anlegen und mit Quellen füllen Projekte — Überblick über persönliche und gemeinsame Projekte"
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
+    "pageTitle": "Wie erstelle ich ein gemeinsames Projekt?",
+    "heading": "Wenn etwas fehlt",
+    "anchor": "#wenn-etwas-fehlt",
+    "category": "Guides",
+    "text": "Kein Einladungslink im Menü? Dann handelt es sich wahrscheinlich um ein persönliches Projekt oder du bist kein Admin. Einladungen gibt es nur bei gemeinsamen Projekten. „Notebooks“ wird nicht angeboten? Die Auswahl zeigt nur Kategorien, in denen dir Inhalte zur Verfügung stehen. Erstelle zunächst eines oder prüfe, ob du Zugriff auf ein Notebook hast. Das Plus bei „Geteilte Inhalte“ fehlt? Nur Admins können Inhalte hinzufügen oder entfernen."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
+    "pageTitle": "Wie erstelle ich KI-Bilder?",
+    "heading": "Wie erstelle ich KI-Bilder?",
+    "anchor": "",
+    "category": "Guides",
+    "text": "Am Ende hast du ein eigenes KI-Bild als Datei oder eine Grundlage für ein Sharepic. Du brauchst keine Bildbearbeitungskenntnisse; entscheidend ist eine gute Beschreibung."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
+    "pageTitle": "Wie erstelle ich KI-Bilder?",
+    "heading": "Bild bearbeiten",
+    "anchor": "#bild-bearbeiten",
+    "category": "Guides",
+    "text": "Nach der Erstellung steht der Modus rechts im Eingabefeld automatisch auf „Bearbeiten“: Schreibe nur die gewünschte Änderung in das Feld, zum Beispiel: „Entferne die Autos im Vordergrund und ergänze einen Zebrastreifen.“ Falls sich die KI an einem anderen Bild orientieren soll, klicke unter dem Feld auf „Referenzbild“ und füge es hinzu. Schicke die Anweisung mit dem Pfeil ab. Das Original bleibt erhalten; die Änderung erscheint als neue Version. Möchtest du eine ältere Version anders weiterbearbeiten, wählst du zuerst ihr Vorschaubild in der Versionsleiste und gibst dann die neue Anweisung ein. So entsteht ein neuer Zweig, ohne spätere Versionen zu löschen. Du kannst statt eines KI-Bildes auch ein eigenes Bild bearbeiten: Wähle auf der Startseite „Oder editiere ein eigenes Bild“ und lade ein PNG oder JPG bis 10 MB hoch. Danach funktioniert das Bearbeiten genauso."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
+    "pageTitle": "Wie erstelle ich KI-Bilder?",
+    "heading": "Damit die Bilder glaubwürdig werden",
+    "anchor": "#damit-die-bilder-glaubwürdig-werden",
+    "category": "Guides",
+    "text": "Beschreibe, was zu sehen sein soll — nicht nur das Thema. Wer ist im Bild? Wo spielt es? Welche Tageszeit, Perspektive und Stimmung soll es haben? Stelle das Format über „Vergrößern“ ein. Eine Formatangabe im Bildtext ersetzt die Größenwahl nicht. Keine falschen Tatsachenbilder. Ein KI-Bild darf nicht den Eindruck erwecken, es dokumentiere ein reales Ereignis, eine echte Person oder einen tatsächlichen Zustand, wenn das nicht stimmt. Prüfe Rechte und Privatsphäre. Lade nur Bilder hoch, die du verwenden darfst. Bei bearbeiteten Fotos brauchst du insbesondere die Rechte am Ausgangsbild und solltest abgebildete Personen nicht täuschend echt verändern."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
+    "pageTitle": "Wie erstelle ich KI-Bilder?",
+    "heading": "Größe und Format einstellen",
+    "anchor": "#größe-und-format-einstellen",
+    "category": "Guides",
+    "text": "Die Größenwahl steckt nicht im Erstellen-Dialog. So bringst du ein fertiges Bild in ein anderes Seitenverhältnis: Klicke rechts im Eingabefeld auf „Bearbeiten“ und wähle „Vergrößern“. Klicke links auf das Zahnrad. Unter „Ziel-Format“ stehen 1:1, 4:3, 3:4, 16:9 und 9:16. Wähle das Format und klicke unter dem Eingabefeld auf „Auf … vergrößern“. Das Studio beschneidet das Bild dabei nicht, sondern ergänzt neuen Bildinhalt an den fehlenden Rändern. Aus dem automatisch erzeugten Bild mit 1088 × 1360 Pixeln entstehen rechnerisch diese Zielgrößen: 1:1: 1360 × 1360 Pixel 4:3: 1813 × 1360 Pixel 3:4: 1088 × 1451 Pixel 9:16: 1088 × 1934 Pixel 16:9 funktioniert bei einem automatisch erzeugten 4:5-Bild derzeit nicht: Das nötige Ziel wäre 2418 × 1360 Pixel groß und überschreitet damit die Grenze von 2048 Pixeln pro Seite. Das Studio zeigt in diesem Fall eine Fehlermeldung. Mit einem kleineren hochgeladenen Ausgangsbild kann 16:9 funktionieren."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
+    "pageTitle": "Wie erstelle ich KI-Bilder?",
+    "heading": "So geht's",
+    "anchor": "#so-gehts",
+    "category": "Guides",
+    "text": "Studio öffnen. Öffne im Bereich Arbeiten das Studio und wähle KI-Bilder. Damit öffnet sich der Bild-Editor unter /bild-editor. Bild konkret beschreiben. Im Feld „Beschreibe dein Bild …“ nennst du Motiv, Ort, Perspektive, Licht und Stimmung. Zum Beispiel: „Eine schöne Stadt“ ist zu allgemein. „Geschützte Radwege“, die Tageszeit und der dokumentarische Stil geben dem Bild dagegen eine klare Richtung. Stil wählen. Klicke links im Eingabefeld auf das Zahnrad und wähle Illustration, Realistisch, Pixel Art oder Editorial. Alle vier Stile erzeugen zunächst ein Bild mit 1088 × 1360 Pixeln im Format 4:5. Eine andere Größe stellst du erst nach der Erstellung ein. Erstellen und Ergebnis prüfen. Schicke die Beschreibung mit dem Pfeil ab. Das Ergebnis erhält automatisch die sichtbare Kennzeichnung „KI-Generiert mit dem Grünerator“. Prüfe anschließend Menschen, Gegenstände, Schilder und die politische Aussage: KI-Bilder können überzeugend wirken und trotzdem falsche oder unplausible Details enthalten."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
+    "pageTitle": "Wie erstelle ich KI-Bilder?",
+    "heading": "Weitere Werkzeuge und Ausgabe",
+    "anchor": "#weitere-werkzeuge-und-ausgabe",
+    "category": "Guides",
+    "text": "Grün verwandeln: Wähle den Modus rechts und beschreibe optional, was grüner werden soll. Ohne eigenen Text nutzt das Studio eine fertige Anweisung für Bäume, Straßengrün, Blühflächen, geschützte Radwege und Aufenthaltsqualität. Hintergrund entfernen: Wähle den Modus rechts und klicke auf „Hintergrund entfernen“; eine Texteingabe ist nicht nötig. Herunterladen: Speichert die gerade ausgewählte Version als Bilddatei. In Canvas bearbeiten: Öffnet die ausgewählte Version im Studio-Canvas, etwa um daraus ein Sharepic mit Text und Gestaltungselementen zu machen."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
+    "pageTitle": "Wie erstelle ich KI-Bilder?",
+    "heading": "Weiterlesen",
+    "anchor": "#weiterlesen",
+    "category": "Guides",
+    "text": "Kennzeichnungs-Guide — Kennzeichnung von KI-Bildern und -Videos Bildnachweise & Lizenzen — Quellen und Lizenzen der Icons und Illustrationen im Canvas"
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
+    "pageTitle": "Wie erstelle ich KI-Bilder?",
+    "heading": "Wenn es nicht passt",
+    "anchor": "#wenn-es-nicht-passt",
+    "category": "Guides",
+    "text": "Das Bild trifft die Idee nicht? Formuliere die Beschreibung konkreter und ändere nur einen Aspekt pro neuer Variante. So erkennst du, welche Anweisung wirkt. Eine Änderung geht zu weit? Wähle in der Versionsleiste wieder die passende frühere Version und arbeite von dort weiter. Das Ergebnis soll ein Social-Media-Motiv werden? Öffne es mit „In Canvas bearbeiten“ und ergänze dort Überschrift, Absender und weitere Gestaltung."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/reel-erstellen",
+    "pageTitle": "Wie erstelle ich ein Reel?",
+    "heading": "Wie erstelle ich ein Reel?",
+    "anchor": "",
+    "category": "Guides",
+    "text": "Am Ende hast du ein Video mit eingebrannten Untertiteln zum Veröffentlichen. Du brauchst dafür nur einen bereits aufgenommenen Clip. Upload, Transkription, Untertitel und Videoexport laufen automatisch; bearbeiten musst du nur, wenn du etwas ändern möchtest."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/reel-erstellen",
+    "pageTitle": "Wie erstelle ich ein Reel?",
+    "heading": "Damit das Reel verständlich wird",
+    "anchor": "#damit-das-reel-verständlich-wird",
+    "category": "Guides",
+    "text": "Kürze vor dem Upload. Das Reel-Studio untertitelt und gestaltet, schneidet aber keine Versprecher oder langen Pausen aus dem Video. Namen und Zahlen immer kontrollieren. Die Transkription ist ein Vorschlag, keine Freigabe. Untertitel sind keine Option. Sie helfen gehörlosen und schwerhörigen Menschen, Personen ohne Ton und allen, die das Video in lauter Umgebung ansehen."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/reel-erstellen",
+    "pageTitle": "Wie erstelle ich ein Reel?",
+    "heading": "Nur wenn du etwas ändern möchtest",
+    "anchor": "#nur-wenn-du-etwas-ändern-möchtest",
+    "category": "Guides",
+    "text": "Klicke auf der Fertig-Seite auf das Stift-Symbol „Bearbeiten“. Text korrigieren: Klicke auf die betreffende Untertitel-Karte. Der Text wird zum Eingabefeld und die Wiedergabe springt an diese Stelle. Ändere den Text und drücke Enter oder klicke außerhalb des Feldes. Das brauchst du vor allem bei Namen, Orten, Zahlen und Abkürzungen. Darstellung ändern: Klicke unter dem Video auf das Zahnrad „Einstellungen“. Dort wählst du: Stil: Empfohlen, Klassisch, Minimal oder Grün Position: Tiefer oder Mittig Qualität: Standard („Perfekt für Reels“) oder Volle Qualität („Dauert länger“) Klicke unter dem Video auf das Download-Symbol. Das Studio rendert das Video mit deinen Änderungen neu und zeigt danach wieder die Fertig-Seite. Der Speichern-Button ist für den Download nicht nötig."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/reel-erstellen",
+    "pageTitle": "Wie erstelle ich ein Reel?",
+    "heading": "So geht's",
+    "anchor": "#so-gehts",
+    "category": "Guides",
+    "text": "Studio öffnen. Öffne im Bereich Arbeiten das Studio und wähle dort Reels. Direkt erreichbar ist es auch unter /studio/video. Deinen Clip hochladen. Ziehe die Datei in „Video auswählen oder hierher ziehen“ oder klicke auf das Feld. Das Studio akzeptiert MP4, MOV, AVI, MKV und WebM bis 500 MB. Der Upload startet nach der Auswahl sofort. Für Instagram Reels und TikTok nimmst du am besten ein Hochkantvideo. Kurz warten. Das Studio transkribiert die Tonspur, setzt die Untertitel im empfohlenen Stil an die tiefe Standardposition, rendert das fertige Video und speichert das Projekt automatisch. Du musst nichts auswählen. Lass den Tab geöffnet, bis „Dein Video ist fertig!“ erscheint. Video prüfen und herunterladen. Spiele das Ergebnis einmal ab. Passt alles, klickst du auf das Download-Symbol — fertig."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/reel-erstellen",
+    "pageTitle": "Wie erstelle ich ein Reel?",
+    "heading": "Weiterlesen",
+    "anchor": "#weiterlesen",
+    "category": "Guides",
+    "text": "Barrierefreiheit — was gute, zugängliche Inhalte ausmacht Kennzeichnungs-Guide — wann KI-generierte oder KI-bearbeitete Medien gekennzeichnet werden müssen"
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/reel-erstellen",
+    "pageTitle": "Wie erstelle ich ein Reel?",
+    "heading": "Wenn es nicht klappt",
+    "anchor": "#wenn-es-nicht-klappt",
+    "category": "Guides",
+    "text": "Der Upload schlägt fehl? Prüfe zuerst, ob deine Datei eines der unterstützten Videoformate hat. Exportiere problematische Dateien am zuverlässigsten noch einmal als MP4. Die Untertitel sind ungenau? Öffne über das Stift-Symbol den Editor und korrigiere die betroffenen Karten. Bei sehr leiser oder überlagerter Tonspur hilft ein klarer aufgenommenes Ausgangsvideo. Der Download startet nicht? Warte, bis der Export fertig ist. Falls der automatische Download blockiert wird, erlaubt dein Browser möglicherweise erst nach einem erneuten Klick den Dateidownload."
+  },
+  {
     "url": "/docs/guides/einsteigerinnen/social-media-beitrag",
     "pageTitle": "Wie schreibe ich einen Social Media Beitrag?",
     "heading": "Wie schreibe ich einen Social Media Beitrag?",
@@ -2262,22 +2442,6 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#wichtige-hinweise",
     "category": "Guides",
     "text": "Der Grünerator greift nur lesend auf deine Wolke zu. Ein Link mit der Berechtigung „Nur anzeigen\" reicht deshalb aus. Links mit „Kann bearbeiten\" funktionieren ebenfalls — der Grünerator nutzt die Schreibrechte nie, du kannst die Berechtigung in der Wolke bedenkenlos auf „Nur anzeigen\" zurückstellen. Nicht geeignet ist dagegen die Berechtigung „Dateien ablegen\": Eine reine Upload-Freigabe erlaubt kein Lesen. Der Link darf nicht passwortgeschützt sein. Er funktioniert auch ohne Ablaufdatum, und du kannst ihn in der Wolke jederzeit deaktivieren — damit endet auch der Zugriff des Grünerators. Beachte: Ein öffentlicher Freigabe-Link ist für alle nutzbar, die ihn kennen. Teile ihn nur dort, wo das in Ordnung ist, und gib nur Ordner frei, deren Inhalte dafür geeignet sind."
-  },
-  {
-    "url": "/docs/guides/intro",
-    "pageTitle": "Guides",
-    "heading": "Guides",
-    "anchor": "",
-    "category": "Guides",
-    "text": "Guides sind kurze Anleitungen für eine konkrete Aufgabe: „Wie schreibe ich einen Social Media Beitrag?\", „Wie erstelle ich einen Antrag für meinen Stadtrat?\". Jeder Guide führt dich in wenigen Schritten zum Ergebnis und ist in ein paar Minuten durchgearbeitet. Der Unterschied zum Rest der Doku: Die Bereiche Chat, Office oder Features beschreiben, was es gibt — alle Rezepte, alle Werkzeuge, alle Schalter. Ein Guide beschreibt, was du tust, und lässt alles weg, was du dafür nicht brauchst. Am Ende jedes Guides stehen die Verweise für alles Weitere."
-  },
-  {
-    "url": "/docs/guides/intro",
-    "pageTitle": "Guides",
-    "heading": "Wie die Guides sortiert sind",
-    "anchor": "#wie-die-guides-sortiert-sind",
-    "category": "Guides",
-    "text": "Nach Erfahrungsstand — das ist die Ordnerstruktur in der Seitenleiste: Einsteiger*innen — die ersten Aufgaben, ohne Vorwissen. Weitere Stufen kommen dazu, sobald es Guides dafür gibt. Nach Aufgabenfeld — das sind die Schlagwörter unter jeder Überschrift (kommunikation, gremienarbeit, wissen, verwaltung). Ein Klick darauf zeigt alle Guides zu diesem Feld, quer über alle Erfahrungsstufen. Der Grünerator kennt seine eigene Doku. Tippe @doku im Chat und stell deine Frage — er antwortet mit Verweis auf die passende Stelle."
   },
   {
     "url": "/docs/guides/landesverbaende/landesverband-einrichten",
