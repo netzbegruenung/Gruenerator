@@ -92,6 +92,9 @@ export interface VeranstaltungFullState {
   // Frame instances
   frameInstances: FrameInstance[];
   userImageInstances: UserImageInstance[];
+
+  /** z-order of the collections above; carried by `carryInstanceState`. */
+  layerOrder: string[];
   // Attribution
   imageAttribution?: StockImageAttribution | null;
 
