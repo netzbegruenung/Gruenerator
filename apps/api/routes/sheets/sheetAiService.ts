@@ -6,26 +6,28 @@
  * by the sheets editor via the Univer Facade API (and then flow through the
  * mutation-log collab bridge) — this service only plans them.
  *
- * Mirrors boards/boardAiService.ts (plan-then-apply, plain JSON, no streaming).
+ * Mirrors boards/boardAiService.ts (plan-then-apply, plain JSON, no streaming),
+ * routed through the facade (`aiTools`, lane `editor_ops_sheet`) rather than
+ * calling the AI SDK directly — see services/ai/generate.ts. The lane always
+ * primes on Mistral Medium 3.5 (the model this planner needs — smaller
+ * fallbacks mis-shape or drop set_range_values ops), but unlike the previous
+ * pinned, chain-less provider check, a lane always carries the facade's
+ * generic fallback chain: an unavailable Mistral now falls back to
+ * cortecs/melious instead of failing loudly. See the stage-3 report for that
+ * trade-off.
  */
 
 import { sheetOperationSchema, type SheetOperation } from '@gruenerator/contracts';
-import { generateText, tool } from 'ai';
+import { jsonSchema } from 'ai';
 import { z } from 'zod';
+import { zodToJsonSchema } from 'zod-to-json-schema';
 
+import { aiTools } from '../../services/ai/generate.js';
 import { createLogger } from '../../utils/logger.js';
-import { getModel, isProviderConfigured } from '../chat/agents/providers.js';
+
+import type { AiResult, Tool } from '../../services/ai/types.js';
 
 const log = createLogger('SheetAI');
-
-// Sheet planning ALWAYS uses Mistral Medium 3.5 — it is the op-planner and
-// needs a strong model; smaller fallbacks (mistral-small on Regolo, verdigado
-// on LiteLLM) mis-shape or drop set_range_values ops, which is what produced
-// "keine Tabellen-Änderung erkannt". Pinned with no provider chain: if Mistral
-// is unavailable we fail loudly rather than silently downgrade the model.
-// `mistral-medium-2604` === "Mistral Medium 3.5" (see services/ai/modelDiscovery.ts).
-const SHEET_AI_PROVIDER = 'mistral';
-const SHEET_AI_MODEL = 'mistral-medium-2604';
 
 /** Exportiert nur, damit der Konsistenz-Wächter den FERTIGEN Prompt lesen kann
  *  statt seiner Bausteine — siehe `sheetAiService.vitest.ts`. */
@@ -124,6 +126,24 @@ export function normalizeRawOp(raw: unknown): unknown {
   return { ...op, values };
 }
 
+const TOOL_NAME = 'applySheetOperations';
+const OPERATIONS_SCHEMA = z.object({ operations: z.array(z.unknown()).max(50) });
+
+/** How many times the forced tool call is attempted — one retry, as before. */
+const MAX_ATTEMPTS = 2;
+
+/** The tool call by NAME, in either transport shape the adapters produce. */
+function extractToolInput(result: AiResult): { operations?: unknown[] } | null {
+  const call = result.tool_calls?.find((c) => c.name === TOOL_NAME);
+  if (call) return call.input as { operations?: unknown[] };
+  for (const block of result.raw_content_blocks ?? []) {
+    if (block.type === 'tool_use' && block.name === TOOL_NAME && block.input) {
+      return block.input as { operations?: unknown[] };
+    }
+  }
+  return null;
+}
+
 /**
  * Plan sheet operations for a user request. Returns a validated
  * SheetOperation[] (possibly empty). Throws only on provider/model failure.
@@ -135,43 +155,55 @@ export async function generateSheetOperations(opts: {
 }): Promise<SheetOperation[]> {
   const { userPrompt, sheetContext, referenceContent } = opts;
 
-  if (!isProviderConfigured(SHEET_AI_PROVIDER)) {
-    throw new Error(
-      'Sheet AI requires Mistral Medium 3.5, but the Mistral provider is not configured (MISTRAL_API_KEY missing)'
-    );
-  }
-  const model = getModel(SHEET_AI_PROVIDER, SHEET_AI_MODEL);
-  log.info(`[SheetAI] Using Mistral Medium 3.5 (${SHEET_AI_MODEL})`);
-
   const referenceSection = referenceContent?.trim()
     ? `\n\nRECHERCHIERTE QUELLEN (Faktenbasis für die Bearbeitung — übernimm konkrete Zahlen, Namen und Fakten WÖRTLICH aus diesen Quellen; erfinde keine Beispielwerte):\n<recherchierte_quellen>\n${referenceContent.trim().slice(0, 8000)}\n</recherchierte_quellen>`
     : '';
 
   const system = `${SHEET_TOOL_STRICT_PROMPT}\n\nAKTUELLER TABELLEN-ZUSTAND:\n${sheetContext.slice(0, 24_000)}${referenceSection}`;
 
-  const result = await generateText({
-    model,
-    system,
-    prompt: userPrompt,
-    tools: {
-      applySheetOperations: tool({
-        description:
-          'Apply a batch of spreadsheet operations. Each item is one operation object with a "type" field (one of the operation types documented in the system prompt).',
-        // Deliberately lenient: accept the raw array so a single malformed op
-        // does not make the SDK reject the WHOLE tool call (which would surface
-        // as a hard error / drop every valid op with it). We validate each op
-        // ourselves below against sheetOperationSchema and keep the good ones.
-        // The precise op shapes are enumerated in the system prompt.
-        inputSchema: z.object({ operations: z.array(z.unknown()).max(50) }),
-      }),
-    },
-    toolChoice: 'required',
-    maxRetries: 1,
-    temperature: 0.2,
+  // jsonSchema() wrapping is required — the AI SDK's asSchema helper rejects
+  // raw JSON-Schema objects (see toolForcedEdit.ts). Deliberately lenient
+  // (`z.unknown()` items): a single malformed op must not make the whole tool
+  // call unusable. We validate each op ourselves below against
+  // sheetOperationSchema and keep the good ones.
+  const rawSchema = zodToJsonSchema(OPERATIONS_SCHEMA, {
+    target: 'jsonSchema7',
+    $refStrategy: 'none',
   });
+  const tool: Tool = {
+    name: TOOL_NAME,
+    description:
+      'Apply a batch of spreadsheet operations. Each item is one operation object with a "type" field (one of the operation types documented in the system prompt).',
+    input_schema: jsonSchema(
+      rawSchema as Parameters<typeof jsonSchema>[0]
+    ) as unknown as Tool['input_schema'],
+  };
 
-  const toolCall = result.toolCalls.find((tc) => tc.toolName === 'applySheetOperations');
-  const rawOps = toolCall ? (toolCall.input as { operations?: unknown[] }).operations : null;
+  let toolInput: { operations?: unknown[] } | null = null;
+  let lastResult: AiResult | null = null;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      const result = await aiTools({
+        lane: 'editor_ops_sheet',
+        system,
+        prompt: userPrompt,
+        tools: [tool],
+        toolChoice: 'required',
+        temperature: 0.2,
+      });
+      lastResult = result;
+      toolInput = extractToolInput(result);
+      if (toolInput) break;
+      log.warn(
+        `[SheetAI] attempt ${attempt}: no tool call (stop_reason=${result.stop_reason ?? 'unknown'})`
+      );
+    } catch (e) {
+      if (attempt === MAX_ATTEMPTS) throw e;
+      log.warn(`[SheetAI] attempt ${attempt} threw: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+
+  const rawOps = toolInput ? toolInput.operations : null;
 
   // Per-op validation: keep every valid operation, drop (and log) only the
   // malformed ones — one bad op must never silently discard a whole batch.
@@ -194,10 +226,10 @@ export async function generateSheetOperations(opts: {
   // diagnosis has to live in the logs.
   if (captured.length === 0) {
     log.warn(
-      `[SheetAI] 0 operations for prompt "${userPrompt}" — finish=${result.finishReason}, ` +
-        `toolCall=${toolCall ? 'yes' : 'no'}, rawOpsCount=${Array.isArray(rawOps) ? rawOps.length : 'n/a'}, ` +
+      `[SheetAI] 0 operations for prompt "${userPrompt}" — finish=${lastResult?.stop_reason ?? 'n/a'}, ` +
+        `toolCall=${toolInput ? 'yes' : 'no'}, rawOpsCount=${Array.isArray(rawOps) ? rawOps.length : 'n/a'}, ` +
         `dropped=${dropped.length}, contextChars=${sheetContext.length}, ` +
-        `modelText=${JSON.stringify(result.text.slice(0, 200))}`
+        `modelText=${JSON.stringify((lastResult?.content ?? '').slice(0, 200))}`
     );
   }
 
