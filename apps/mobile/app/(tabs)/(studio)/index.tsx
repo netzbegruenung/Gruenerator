@@ -3,7 +3,6 @@ import { useRouter, type Href } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View, useColorScheme } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BottomSheet } from '../../../components/common/BottomSheet';
 import { EmptyState } from '../../../components/common/EmptyState';
@@ -17,9 +16,9 @@ import { STUDIO_TOOLS } from '../../../components/tools/toolsConfig';
 import { useContentColumn } from '../../../hooks/useLayout';
 import { useOpenRecentItem } from '../../../hooks/useRecentActivity';
 import { useStudioMedia } from '../../../hooks/useStudioMedia';
+import { useTabBarClearance } from '../../../hooks/useTabBarClearance';
 import { useTabNavigationSwipe } from '../../../hooks/useTabSwipe';
 import { spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../../theme';
-import { FLOATING_TAB_BAR_HEIGHT } from '../../../theme/layout';
 import { getSurfaceFab, getToolTheme } from '../../../theme/toolTheme';
 
 const SECTION_LIMIT = 6;
@@ -47,7 +46,8 @@ const STUDIO_TILE_GLYPHS: Record<string, IoniconsIconName> = {
  * page; the reasoning is written out at the hook.
  */
 export default function StudioScreen() {
-  const insets = useSafeAreaInsets();
+  const bottomClearance = useTabBarClearance(spacing.xxlarge);
+  const fabBottom = useTabBarClearance(spacing.small);
   const router = useRouter();
   const isDark = useColorScheme() === 'dark';
   const theme = isDark ? darkTheme : lightTheme;
@@ -90,12 +90,7 @@ export default function StudioScreen() {
     >
       <GestureDetector gesture={swipe}>
         {showError ? (
-          <View
-            style={[
-              styles.empty,
-              { paddingBottom: insets.bottom + FLOATING_TAB_BAR_HEIGHT + spacing.xxlarge },
-            ]}
-          >
+          <View style={[styles.empty, { paddingBottom: bottomClearance }]}>
             <EmptyState
               tiles={[
                 {
@@ -118,12 +113,7 @@ export default function StudioScreen() {
             />
           </View>
         ) : isEmpty ? (
-          <View
-            style={[
-              styles.empty,
-              { paddingBottom: insets.bottom + FLOATING_TAB_BAR_HEIGHT + spacing.xxlarge },
-            ]}
-          >
+          <View style={[styles.empty, { paddingBottom: bottomClearance }]}>
             <EmptyState
               tiles={STUDIO_TOOLS.map((tool) => ({
                 glyph: STUDIO_TILE_GLYPHS[tool.id] ?? 'sparkles',
@@ -147,11 +137,7 @@ export default function StudioScreen() {
           </View>
         ) : (
           <ScrollView
-            contentContainerStyle={[
-              gridColumn,
-              styles.content,
-              { paddingBottom: insets.bottom + FLOATING_TAB_BAR_HEIGHT + spacing.xxlarge },
-            ]}
+            contentContainerStyle={[gridColumn, styles.content, { paddingBottom: bottomClearance }]}
             showsVerticalScrollIndicator={false}
           >
             {/* Each section borrows the hue of the tool that produced it, so nothing on
@@ -196,7 +182,7 @@ export default function StudioScreen() {
         color={fabTone.icon}
         style={{
           backgroundColor: fabTone.background,
-          bottom: insets.bottom + FLOATING_TAB_BAR_HEIGHT + spacing.small,
+          bottom: fabBottom,
         }}
       />
 
