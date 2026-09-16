@@ -109,6 +109,60 @@ describe('buildArtifactNotes', () => {
     expect(notes).toBe('');
   });
 
+  /**
+   * Der Ausgeschaltet-Hinweis hängt an der Liste der `edit_current_*`-Schalter,
+   * und die stand dreimal von Hand da: hier (NEGIERT), in `decideTurnPlan` und
+   * in `isEditorSurface`. Als `canvas` nur in zwei davon nachgetragen wurde,
+   * behauptete dieser Hinweis auf JEDEM Studio-Turn, die Bearbeitung sei aus —
+   * eine Notiz weiter oben kündigte im selben Prompt die Änderung an. Seitdem
+   * beantwortet `isEditToolEnabled` die Frage einmal.
+   */
+  describe('KI-Bearbeitung ausgeschaltet', () => {
+    const AUS = 'Die KI-Bearbeitung ist ausgeschaltet';
+
+    it('schweigt auf einer Sharepic-Fläche mit eingeschaltetem Schalter', () => {
+      const { notes } = buildArtifactNotes(
+        makeState({
+          agentConfig: { identifier: 'gruenerator-sharepic-editor' } as never,
+          enabledTools: { edit_current_canvas: true },
+        }),
+        { artifactToolMounted: true }
+      );
+      expect(notes).not.toContain(AUS);
+    });
+
+    it('meldet sich auf einer Sharepic-Fläche mit ausgeschaltetem Schalter', () => {
+      const { notes } = buildArtifactNotes(
+        makeState({
+          agentConfig: { identifier: 'gruenerator-sharepic-editor' } as never,
+          enabledTools: { edit_current_canvas: false },
+        }),
+        { artifactToolMounted: false }
+      );
+      expect(notes).toContain(AUS);
+    });
+
+    it('gilt unverändert für Dokument- und Board-Flächen', () => {
+      const docOn = buildArtifactNotes(
+        makeState({
+          agentConfig: { identifier: 'gruenerator-docs-editor' } as never,
+          enabledTools: { edit_current_doc: true },
+        }),
+        { artifactToolMounted: true }
+      );
+      expect(docOn.notes).not.toContain(AUS);
+
+      const boardOff = buildArtifactNotes(
+        makeState({
+          agentConfig: { identifier: 'gruenerator-boards-editor' } as never,
+          enabledTools: { edit_current_board: false },
+        }),
+        { artifactToolMounted: false }
+      );
+      expect(boardOff.notes).toContain(AUS);
+    });
+  });
+
   it('verlangt EINEN Absatz statt zweier getrennter Sätze, wenn im selben Turn etwas glückte UND etwas fehlschlug', () => {
     const { capabilityNote } = buildArtifactNotes(
       makeState({ createdBoard: { boardId: 'b-1', title: 'Sprint' } as never }),

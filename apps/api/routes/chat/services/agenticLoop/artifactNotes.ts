@@ -7,7 +7,7 @@
  */
 import { NO_ARTIFACT_URL_RULE } from '../../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
 
-import { resolveEditorSurfaceKind } from './routing.js';
+import { isEditToolEnabled, resolveEditorSurfaceKind } from './routing.js';
 
 import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/types.js';
 
@@ -96,8 +96,7 @@ export function buildArtifactNotes(
     // mounted, so any "I changed X" would be a false claim the client never
     // applied. Force the model to say editing is off instead.
     resolveEditorSurfaceKind(state.agentConfig?.identifier, state.enabledTools) != null &&
-    state.enabledTools?.['edit_current_doc'] !== true &&
-    state.enabledTools?.['edit_current_board'] !== true
+    !isEditToolEnabled(state.enabledTools)
       ? 'HINWEIS: Die KI-Bearbeitung ist ausgeschaltet — du kannst das geöffnete Dokument nur ANSEHEN und Fragen dazu beantworten, aber NICHTS ändern. Wird eine Änderung gewünscht, sag freundlich und knapp, dass die Bearbeitung ausgeschaltet ist (Stift-Symbol im Chat), und behaupte NIEMALS, etwas geändert/eingetragen zu haben.'
       : '',
   ]
