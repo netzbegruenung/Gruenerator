@@ -82,22 +82,20 @@ describe('extractFallbackTitle', () => {
     const title = extractFallbackTitle(
       'Analyse von Budget und Standortfragen der kommunalen Verwaltung'
     );
-    expect(title).toBe('Analyse von Budget und');
+    expect(title).toBe('Analyse von Budget');
   });
 
   it('strips politeness lead-ins so the topic stays visible', () => {
     expect(extractFallbackTitle('Kannst du mir bitte den Antrag zur Radinfrastruktur')).toBe(
-      'den Antrag zur Radinfrastruktur'
+      'Antrag zur Radinfrastruktur'
     );
     expect(extractFallbackTitle('Bitte einen Timer auf 10 Minuten setzen')).toBe(
-      'einen Timer auf 10 Minuten'
+      'Timer auf 10 Minuten setzen'
     );
   });
 
   it('skips salutations and takes the next sentence', () => {
-    expect(extractFallbackTitle('Hallo! Wie hoch ist die Pendlerpauschale?')).toBe(
-      'Wie hoch ist die'
-    );
+    expect(extractFallbackTitle('Hallo! Wie hoch ist die Pendlerpauschale?')).toBe('Wie hoch ist');
   });
 
   it('strips markdown and trailing sentence punctuation', () => {
@@ -126,6 +124,23 @@ describe('extractFallbackTitle', () => {
     expect(extractFallbackTitle('Timer setzen')).toBe('Timer setzen');
   });
 
+  it('strips an imperative opener and capitalises the topic (#3400)', () => {
+    // The AI prompt forbids an imperative; the fallback used to smuggle one in.
+    expect(extractFallbackTitle('erstelle eine stellenanzeige als sharepic')).toBe(
+      'Stellenanzeige als sharepic'
+    );
+    expect(extractFallbackTitle('Schreib mir eine Pressemitteilung')).toBe('Pressemitteilung');
+  });
+
+  it('leaves a verb form alone that is also a German noun', () => {
+    // "Suche", "Plane" and "Frage" carry the topic — stripping them empties it.
+    expect(extractFallbackTitle('Suche nach dem Windkraft-Beschluss')).toBe('Suche');
+  });
+
+  it('does not recapitalise a word that already carries a capital', () => {
+    expect(extractFallbackTitle('iPhone-Vergleich für die Fraktion')).toBe('iPhone-Vergleich');
+  });
+
   it('falls back to the image label and otherwise to null', () => {
     expect(extractFallbackTitle('', true)).toBe('Generiertes Bild');
     expect(extractFallbackTitle('')).toBeNull();
@@ -146,6 +161,32 @@ describe('normalizeAiTitle', () => {
   it('accepts a title that contains an ordinal date', () => {
     expect(normalizeAiTitle('Termin 30. Juni')).toBe('Termin 30. Juni');
     expect(normalizeAiTitle('Sitzung 1. Juli')).toBe('Sitzung 1. Juli');
+  });
+
+  it('shortens a long nominal phrase instead of discarding it (#3400)', () => {
+    // Three words, 43 characters: German compounds blow any tight char cap,
+    // and the old length gate threw the whole title away for a lowercase
+    // imperative fallback. Shape decides; length only clamps.
+    expect(normalizeAiTitle('Sharepic Stellenanzeige Wahlkampfmanagement')).toBe(
+      'Sharepic Stellenanzeige'
+    );
+    expect(normalizeAiTitle('Wahlkampfmanagement Stellenausschreibung')).toBe(
+      'Wahlkampfmanagement'
+    );
+  });
+
+  it('does not clamp an article + compound down to the bare article', () => {
+    // The only word boundary sits after "Die"; a mid-word cut the sidebar can
+    // ellipsize beats a stub.
+    expect(normalizeAiTitle('Die Verwaltungsvorschriftenänderung')).toBe(
+      'Die Verwaltungsvorschriftenänder'
+    );
+  });
+
+  it('never returns more than the sidebar budget', () => {
+    const title = normalizeAiTitle('Zusammenfassung der letzten Fraktionssitzung');
+    expect(title!.length).toBeLessThanOrEqual(32);
+    expect(title).toBe('Zusammenfassung der letzten');
   });
 
   it('rejects sentence-shaped answers so the fallback survives', () => {
@@ -171,7 +212,7 @@ describe('generateThreadTitle', () => {
       ANSWER
     );
 
-    expect(written[0]).toBe('Fasse die Protokolle vom 30.');
+    expect(written[0]).toBe('Protokolle vom 30. Juni und 1.');
     expect(written[0]).not.toContain('behandeln');
   });
 
@@ -188,7 +229,7 @@ describe('generateThreadTitle', () => {
     await generateThreadTitle('t-3', 'Wie hoch ist die Pendlerpauschale?', ANSWER);
 
     await vi.waitFor(() => expect(written).toHaveLength(1));
-    expect(written[0]).toBe('Wie hoch ist die');
+    expect(written[0]).toBe('Wie hoch ist');
   });
 
   it('keeps the fallback when the AI lane fails', async () => {
@@ -202,7 +243,7 @@ describe('generateThreadTitle', () => {
     answering('Protokolle Juni/Juli');
     await generateThreadTitle('t-5', '?', ANSWER);
 
-    expect(written[0]).toBe('Die Protokolle vom 30. Juni und');
+    expect(written[0]).toBe('Die Protokolle vom 30. Juni');
   });
 
   it('names a thread whose first message was only a pasted attachment', async () => {
@@ -212,8 +253,8 @@ describe('generateThreadTitle', () => {
     answering(null);
     const title = await generateThreadTitle('t-6', '', ANSWER);
 
-    expect(title).toBe('Die Protokolle vom 30. Juni und');
-    expect(written[0]).toBe('Die Protokolle vom 30. Juni und');
+    expect(title).toBe('Die Protokolle vom 30. Juni');
+    expect(written[0]).toBe('Die Protokolle vom 30. Juni');
   });
 
   it('returns the title it wrote, so a route can hand it to the client', async () => {

@@ -47,6 +47,10 @@ export {
   extractSlugSuffix,
 } from './slug.js';
 
+// Chat thread titles — the sidebar budget and the word-boundary clamp,
+// shared so the server's writers and the client's optimistic title agree
+export { MAX_THREAD_TITLE_CHARS, clampThreadTitle } from './threadTitle.js';
+
 // Nextcloud share links — one parser for API, web and the chat classifier
 export {
   parseCloudShareLink,
