@@ -623,6 +623,28 @@ export function compoundGenerationKind(
  */
 export type EditorSurfaceKind = 'doc' | 'sheet' | 'presentation' | 'board' | 'canvas';
 
+/**
+ * The German noun each surface's artefact is called, with its gender — every
+ * message that names it declines accordingly ("kein Sharepic" vs. "keine
+ * Tabelle", "am Board" vs. "an der Tabelle").
+ *
+ * One table, because two places name the same thing: the edit tool's own
+ * messages (EDIT_SURFACE_SPECS) and the synth note that has to tell the model
+ * this turn cannot edit. A surface's noun is a property of the surface, so it
+ * lives with {@link EditorSurfaceKind} rather than in the tool that happens to
+ * have needed it first. Total over the union: `doc` has no edit-tool spec but
+ * the note still has to name it.
+ */
+export const EDITOR_SURFACE_NOUNS: Readonly<
+  Record<EditorSurfaceKind, { readonly noun: string; readonly gender: 'f' | 'n' }>
+> = {
+  doc: { noun: 'Dokument', gender: 'n' },
+  sheet: { noun: 'Tabelle', gender: 'f' },
+  presentation: { noun: 'Präsentation', gender: 'f' },
+  board: { noun: 'Board', gender: 'n' },
+  canvas: { noun: 'Sharepic', gender: 'n' },
+};
+
 const EDITOR_AGENT_KIND: ReadonlyArray<readonly [string, EditorSurfaceKind]> = [
   ['gruenerator-sheets-editor', 'sheet'],
   ['gruenerator-presentations-editor', 'presentation'],

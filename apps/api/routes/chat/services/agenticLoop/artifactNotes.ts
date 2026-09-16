@@ -7,7 +7,13 @@
  */
 import { NO_ARTIFACT_URL_RULE } from '../../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
 
-import { isEditToolEnabled, resolveEditorSurfaceKind } from './routing.js';
+import {
+  EDITOR_SURFACE_NOUNS,
+  isEditToolEnabled,
+  resolveEditorSurfaceKind,
+  TOOL_EDIT_SURFACES,
+  type EditorSurfaceKind,
+} from './routing.js';
 
 import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/types.js';
 
@@ -23,6 +29,14 @@ export const ARTIFACT_TOOL_NAMES = [
   'create_board',
   'edit_document',
 ] as const;
+
+/** Is the surface's artefact actually open, with an addressable id? Each
+ *  surface carries its target in its own state field. */
+function hasOpenEditTarget(state: ChatGraphState, kind: EditorSurfaceKind): boolean {
+  if (kind === 'board') return state.currentBoard?.id != null;
+  if (kind === 'canvas') return state.currentCanvas?.id != null;
+  return state.currentDocument?.id != null;
+}
 
 /**
  * The synth model's only channel for "what did this turn actually produce".
@@ -43,6 +57,29 @@ export function buildArtifactNotes(
   }
 ): { notes: string; capabilityNote: string; producedArtifact: boolean } {
   const artifactToolMounted = opts.artifactToolMounted;
+  const editSurfaceKind = resolveEditorSurfaceKind(
+    state.agentConfig?.identifier,
+    state.enabledTools
+  );
+  // The AI-edit toggle. Read ONCE here so the two mutually exclusive notes
+  // below cannot disagree about it — see `isEditToolEnabled`.
+  const editToggleOn = isEditToolEnabled(state.enabledTools);
+  /**
+   * An editor sidebar whose artefact IS open, whose toggle IS on — and whose
+   * `edit_document` was nevertheless not mounted, because `decideEditToolLoop`
+   * refused the turn (image attachment, selected notebook, secondary intent,
+   * a forced tool, a compound turn). For a tool-path surface that leaves NO
+   * edit path at all: nothing plans ops, nothing dispatches, and without this
+   * note the model is told only that it sits in an editor and answers as if it
+   * had edited. `doc` is excluded on purpose — it still has the
+   * `trigger_doc_edit` dispatch path, so a missing tool means nothing there.
+   */
+  const noEditPathThisTurn =
+    editSurfaceKind != null &&
+    editToggleOn &&
+    TOOL_EDIT_SURFACES.has(editSurfaceKind) &&
+    hasOpenEditTarget(state, editSurfaceKind) &&
+    state.editToolSurface == null;
   // Split mode has no tool returns in the synth context — without these
   // notes the synthesizer is blind to artifacts the gather phase produced.
   const artifacts = [
@@ -95,9 +132,14 @@ export function buildArtifactNotes(
     // Editor surface with the AI-edit toggle OFF: the edit tool is NOT
     // mounted, so any "I changed X" would be a false claim the client never
     // applied. Force the model to say editing is off instead.
-    resolveEditorSurfaceKind(state.agentConfig?.identifier, state.enabledTools) != null &&
-    !isEditToolEnabled(state.enabledTools)
+    editSurfaceKind != null && !editToggleOn
       ? 'HINWEIS: Die KI-Bearbeitung ist ausgeschaltet — du kannst das geöffnete Dokument nur ANSEHEN und Fragen dazu beantworten, aber NICHTS ändern. Wird eine Änderung gewünscht, sag freundlich und knapp, dass die Bearbeitung ausgeschaltet ist (Stift-Symbol im Chat), und behaupte NIEMALS, etwas geändert/eingetragen zu haben.'
+      : '',
+    // Mutually exclusive with the note above by construction (`editToggleOn`):
+    // "the toggle is off" and "the toggle is on but this turn cannot edit" are
+    // different facts and must never arrive together.
+    noEditPathThisTurn && editSurfaceKind != null
+      ? `HINWEIS: In diesem Zug kann ${EDITOR_SURFACE_NOUNS[editSurfaceKind].gender === 'f' ? 'die geöffnete' : 'das geöffnete'} ${EDITOR_SURFACE_NOUNS[editSurfaceKind].noun} nicht direkt bearbeitet werden. Beschreibe die gewünschte Änderung als Text und behaupte nicht, sie vorgenommen zu haben.`
       : '',
   ]
     .filter(Boolean)
