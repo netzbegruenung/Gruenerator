@@ -1,12 +1,17 @@
 /**
  * Shared text utilities for canvas editor
  *
- * Umbruch, Aufzählungsmarker und hängender Einzug liegen in
- * `@gruenerator/contracts` (`text/listLayout.ts`) — DOM-frei, damit die
- * Vorschau hier und der Server-Renderer an derselben Stelle umbrechen. Hier
- * bleibt nur, was ein Canvas braucht: die Messung.
+ * Umbruch, Aufzählungsmarker, hängender Einzug und Inline-Auszeichnung liegen
+ * in `@gruenerator/contracts` (`text/listLayout.ts`, `text/inlineMarks.ts`) —
+ * DOM-frei, damit die Vorschau hier und der Server-Renderer an derselben
+ * Stelle umbrechen. Hier bleibt nur, was ein Canvas braucht: die Messung.
  */
-import { layoutTextBlock, wrapLines, type MeasureText } from '@gruenerator/contracts';
+import {
+  layoutRichTextBlock,
+  wrapLines,
+  type MeasureRun,
+  type RunStyle,
+} from '@gruenerator/contracts';
 
 const _warnedFonts = new Set<string>();
 
@@ -67,23 +72,61 @@ export function measureTextWidthWithFont(
   return ctx.measureText(text).width;
 }
 
-/** Bindet eine konkrete Schrift an eine Messfunktion für `listLayout`. */
-export function textMeasurer(
+/**
+ * Konva-`fontStyle` für einen Lauf: Blockstil plus die Marks des Laufs.
+ * Konva kennt genau die vier Werte `normal`, `bold`, `italic`, `bold italic`.
+ *
+ * **Kursiv schlägt fett.** Keine unserer Schriften hat einen Fett-Kursiv-
+ * Schnitt, und die beiden Seiten lösen `bold italic` gegensätzlich auf:
+ * der Browser nimmt den Kursivschnitt und fettet ihn synthetisch (gemessen:
+ * `bold italic` ist exakt so breit wie `italic`), `@napi-rs/canvas` nimmt den
+ * Fettschnitt und neigt ihn. Dieselbe Zeile wäre damit ~5 % verschieden breit
+ * und bräche in Vorschau und Export an anderer Stelle um — genau das, was der
+ * geteilte Umbruch verhindern soll. Also fragen beide Seiten nur `italic` an;
+ * ein kursives Wort in einem fetten Block ist dann nicht fett, aber überall
+ * gleich.
+ */
+export function fontStyleForRun(
+  baseStyle: string,
+  style: RunStyle
+): 'normal' | 'bold' | 'italic' | 'bold italic' {
+  if (style.italic || baseStyle.includes('italic')) return 'italic';
+  return style.bold || baseStyle.includes('bold') ? 'bold' : 'normal';
+}
+
+/**
+ * Bindet eine konkrete Schrift an eine Messfunktion für `listLayout` — je
+ * Lauf mit dessen Stil, denn ein fettes Wort ist breiter, und der Umbruch
+ * muss das wissen. Vier mögliche Stile, darum ein kleiner Cache je
+ * Kombination statt eines Canvas je Messung.
+ */
+export function runMeasurer(
   fontSize: number,
   fontFamily: string,
   fontStyle: string = 'normal'
-): MeasureText {
-  return (text: string) => measureTextWidthWithFont(text, fontSize, fontFamily, fontStyle);
+): MeasureRun {
+  const cache = new Map<string, number>();
+  return (text, style) => {
+    const konvaStyle = fontStyleForRun(fontStyle, style);
+    const key = `${konvaStyle}:${text}`;
+    let width = cache.get(key);
+    if (width === undefined) {
+      width = measureTextWidthWithFont(text, fontSize, fontFamily, konvaStyle);
+      cache.set(key, width);
+    }
+    return width;
+  };
 }
 
 /**
  * Wrap text using accurate font measurement
  * This produces line breaks that match actual Konva text rendering
  *
- * Bricht auch an `\n` und rechnet den Einzug einer Aufzählung mit — die
- * Zeilenzahl ist genau das, was die Auto-Fit-Schleifen der Vorlagen auswerten.
- * Die Marker stehen in den gelieferten Zeilen wieder vorn, damit Aufrufer, die
- * die Strings zeichnen statt sie zu zählen, sich nicht ändern müssen.
+ * Bricht auch an `\n`, rechnet den Einzug einer Aufzählung und die Breite
+ * fetter Läufe mit — die Zeilenzahl ist genau das, was die Auto-Fit-Schleifen
+ * der Vorlagen auswerten. Die Marker stehen in den gelieferten Zeilen wieder
+ * vorn, Auszeichnungsmarker sind entfernt, damit Aufrufer, die die Strings
+ * zeichnen statt sie zu zählen, sich nicht ändern müssen.
  */
 export function wrapTextAccurate(
   text: string,
@@ -92,7 +135,10 @@ export function wrapTextAccurate(
   fontFamily: string,
   fontStyle: string = 'normal'
 ): string[] {
-  return layoutTextBlock(text, maxWidth, textMeasurer(fontSize, fontFamily, fontStyle)).map(
-    (line) => (line.marker ? `${line.marker} ${line.text}` : line.text)
+  return layoutRichTextBlock(text, maxWidth, runMeasurer(fontSize, fontFamily, fontStyle)).map(
+    (line) => {
+      const body = line.runs.map((run) => run.text).join('');
+      return line.marker ? `${line.marker} ${body}` : body;
+    }
   );
 }

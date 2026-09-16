@@ -83,7 +83,7 @@ export const BRAND_THEMES: Record<BrandLocale, BrandTheme> = {
     },
     fonts: {
       headline: 'GrueneTypeNeue',
-      body: 'PTSans-Regular',
+      body: 'PT Sans',
       quoteShort: 'GrueneTypeNeue',
       quoteEmphasis: 'GrueneTypeNeue',
     },
