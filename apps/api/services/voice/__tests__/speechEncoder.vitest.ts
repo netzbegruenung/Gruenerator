@@ -1,8 +1,5 @@
-import fs from 'fs';
-
 import { describe, expect, it } from 'vitest';
 
-import { ffmpegPath } from '../../subtitler/ffmpegWrapper.js';
 import { pcm16ToWav } from '../pcmCodec.js';
 import { encodeSpeech } from '../speechEncoder.js';
 
@@ -16,9 +13,7 @@ function toneWav(): Buffer {
   return pcm16ToWav(pcm, rate);
 }
 
-const hasFfmpeg = fs.existsSync(ffmpegPath);
-
-describe.skipIf(!hasFfmpeg)('encodeSpeech (real ffmpeg)', () => {
+describe('encodeSpeech (real ffmpeg)', () => {
   it('produces an 8 kHz mono PCM16 WAV for the telephone preset', async () => {
     const { buffer, mimeType, extension } = await encodeSpeech(toneWav(), 'wav_phone');
     expect(mimeType).toBe('audio/wav');
