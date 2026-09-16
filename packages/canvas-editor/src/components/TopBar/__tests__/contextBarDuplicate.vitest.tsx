@@ -64,9 +64,9 @@ describe('Duplizieren-Knopf', () => {
   });
 
   /**
-   * Vorlagen-Elemente (Headline, Sonnenblume) und Icons liegen in keiner
-   * Instanz-Sammlung. Sie verschwinden zu lassen wäre irreführend: unklar, ob
-   * die Aktion fehlt oder nur hier nicht geht.
+   * Vorlagen-Elemente liegen in keiner Instanz-Sammlung. Sie verschwinden zu
+   * lassen wäre irreführend: unklar, ob die Aktion fehlt oder nur hier nicht
+   * geht. (Icons standen bis #3404 mit in dieser Zeile.)
    */
   it('zeigt den Knopf bei Vorlagen-Elementen deaktiviert statt ihn zu verbergen', () => {
     renderBar({ canDuplicate: false });

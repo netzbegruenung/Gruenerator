@@ -17,12 +17,20 @@
  *    sie zwischen Original und Kopie: das Bearbeiten des einen ändert das andere.
  * 3. **Balken versetzt `offset`, nicht `x`/`y`.**
  *
- * Nicht duplizierbar und bewusst nicht hier: Vorlagen-Elemente (stehen fest in
- * der Vorlage, nicht in einer Liste) und Icons (ihre ID ist die Katalog-ID, siehe
- * `CanvasRenderLayer`). Für beide liefert `duplicateElementInState` `null`.
+ * Nicht jede Art liegt in einer Liste von Objekten: ein Icon steht als ID in
+ * `selectedIcons` und mit seinem Zustand in `iconStates`. Darum besteht ein
+ * Registry-Eintrag aus `find` und `insert` statt aus einem Feldnamen — `listSpec`
+ * baut das Paar für die zehn Listen-Arten, das Icon bringt sein eigenes mit.
+ *
+ * Nicht duplizierbar bleiben Vorlagen-Elemente: sie stehen fest in der Vorlage,
+ * nicht im Zustand. Sie kommen über `templateElementToEntry` herein, das aus der
+ * aufgelösten Geometrie eine Instanz macht; `duplicateElementInState` allein
+ * liefert für sie `null`.
  */
 
-import type { BaseCanvasState } from '../configs/factory/baseTypes';
+import { catalogIconId } from './iconInstances';
+
+import type { BaseCanvasState, IconState } from '../configs/factory/baseTypes';
 import type { AdditionalText } from '../configs/types';
 import type { BalkenInstance } from '../primitives/BalkenGroup';
 import type { CircleBadgeInstance } from '../primitives/CircleBadge';
@@ -48,9 +56,19 @@ export type DuplicableType =
   | 'circle-badge'
   | 'frame'
   | 'user-image'
-  | 'chart';
+  | 'chart'
+  | 'icon';
 
-/** Nutzlast je Art — spiegelt `ClipboardDataMap`, ergänzt um `chart`. */
+/**
+ * Die Nutzlast eines Icons: sein Zustand plus die Katalog-ID, aufgelöst. Anders
+ * als in `IconState` ist `iconId` hier Pflicht — wer ein Icon einfügt, muss
+ * sagen, welches.
+ */
+export interface IconInstanceData extends IconState {
+  iconId: string;
+}
+
+/** Nutzlast je Art — spiegelt `ClipboardDataMap`, ergänzt um `chart` und `icon`. */
 export interface DuplicableDataMap {
   shape: ShapeInstance;
   'additional-text': AdditionalText;
@@ -62,6 +80,7 @@ export interface DuplicableDataMap {
   frame: FrameInstance;
   'user-image': UserImageInstance;
   chart: ChartInstance;
+  icon: IconInstanceData;
 }
 
 /** Diskriminierte Union: `entry.type` verengt `entry.data` automatisch. */
@@ -78,103 +97,129 @@ export function createInstanceId(prefix: string): string {
 const cloneGradient = (g: GradientFill | null | undefined): GradientFill | null | undefined =>
   g ? { ...g, stops: g.stops.map((s) => ({ ...s })) } : g;
 
-/**
- * Registry: je Art das Zustandsfeld, das sie hält, und wie eine versetzte
- * Kopie entsteht. Eine neue Elementart wird genau hier eingetragen — der
- * Rest dieser Datei und alle vier Aufrufer ziehen automatisch nach.
- */
-const DUPLICABLE: {
-  [K in DuplicableType]: {
-    field: string;
-    clone: (data: DuplicableDataMap[K], id: string, offset: number) => DuplicableDataMap[K];
-  };
-} = {
-  shape: {
-    field: 'shapeInstances',
-    clone: (d, id, o) => ({
-      ...d,
-      id,
-      x: d.x + o,
-      y: d.y + o,
-      ...(d.dash ? { dash: [...d.dash] } : {}),
-      ...(d.fillGradient !== undefined ? { fillGradient: cloneGradient(d.fillGradient) } : {}),
-    }),
-  },
-  'additional-text': {
-    field: 'additionalTexts',
-    clone: (d, id, o) => ({
-      ...d,
-      id,
-      x: d.x + o,
-      y: d.y + o,
-      ...(d.fillGradient !== undefined ? { fillGradient: cloneGradient(d.fillGradient) } : {}),
-    }),
-  },
-  balken: {
-    field: 'balkenInstances',
-    // Balken kennt kein x/y — seine Lage ist ein Versatz zur Layout-Basis.
-    clone: (d, id, o) => ({
-      ...d,
-      id,
-      offset: { x: (d.offset?.x ?? 0) + o, y: (d.offset?.y ?? 0) + o },
-      texts: [...d.texts],
-      ...(d.barOffsets ? { barOffsets: [...d.barOffsets] as [number, number, number] } : {}),
-    }),
-  },
-  illustration: {
-    field: 'illustrationInstances',
-    clone: (d, id, o) => ({ ...d, id, x: d.x + o, y: d.y + o }),
-  },
-  asset: {
-    field: 'assetInstances',
-    clone: (d, id, o) => ({ ...d, id, x: d.x + o, y: d.y + o }),
-  },
-  'pill-badge': {
-    field: 'pillBadgeInstances',
-    clone: (d, id, o) => ({ ...d, id, x: d.x + o, y: d.y + o }),
-  },
-  'circle-badge': {
-    field: 'circleBadgeInstances',
-    clone: (d, id, o) => ({
-      ...d,
-      id,
-      x: d.x + o,
-      y: d.y + o,
-      textLines: d.textLines.map((l) => ({ ...l })),
-    }),
-  },
-  frame: {
-    // `imageSrc` wird bewusst mitgenommen: ein Rahmen ohne sein Bild ist keine
-    // Kopie. Dass das Löschen des Originals die geteilte Blob-URL freigibt,
-    // verhindern die Zählungen in `removeFrame`/`removeUserImage`.
-    field: 'frameInstances',
-    clone: (d, id, o) => ({ ...d, id, x: d.x + o, y: d.y + o }),
-  },
-  'user-image': {
-    field: 'userImageInstances',
-    clone: (d, id, o) => ({ ...d, id, x: d.x + o, y: d.y + o }),
-  },
-  chart: {
-    field: 'chartInstances',
-    clone: (d, id, o) => ({
-      ...d,
-      id,
-      x: d.x + o,
-      y: d.y + o,
-      data: d.data.map((p) => ({ ...p })),
-      colors: [...d.colors],
-    }),
-  },
-};
-
-export const DUPLICABLE_TYPES = Object.keys(DUPLICABLE) as DuplicableType[];
-
 /** Liest ein Instanz-Array aus dem Zustand. Grenze zwischen Registry-Schlüssel
  *  (String) und getyptem Zustand — der Aufrufer kennt die Art über `DUPLICABLE`. */
 function readList(state: object, field: string): { id: string }[] {
   const value = (state as Record<string, unknown>)[field];
   return Array.isArray(value) ? (value as { id: string }[]) : [];
 }
+
+interface DuplicableSpec<T> {
+  /** Die Nutzlast dieser Art zu `id`, oder `null`, wenn die ID keine ist. */
+  find: (state: object, id: string) => T | null;
+  /** Der Teilzustand, den die Kopie ergänzt — er wird über den Zustand gelegt. */
+  insert: (state: object, data: T, newId: string, offset: number) => Record<string, unknown>;
+}
+
+/** Der Normalfall: eine Art, die als Liste von `{ id, … }` im Zustand liegt. */
+function listSpec<T extends { id: string }>(
+  field: string,
+  clone: (data: T, id: string, offset: number) => T
+): DuplicableSpec<T> {
+  return {
+    find: (state, id) => (readList(state, field).find((i) => i.id === id) as T | undefined) ?? null,
+    insert: (state, data, newId, offset) => ({
+      [field]: [...readList(state, field), clone(data, newId, offset)],
+    }),
+  };
+}
+
+/**
+ * Registry: je Art, wie man sie im Zustand findet und wie eine versetzte Kopie
+ * hineinkommt. Eine neue Elementart wird genau hier eingetragen — der Rest
+ * dieser Datei und alle vier Aufrufer ziehen automatisch nach.
+ */
+const DUPLICABLE: { [K in DuplicableType]: DuplicableSpec<DuplicableDataMap[K]> } = {
+  shape: listSpec('shapeInstances', (d, id, o) => ({
+    ...d,
+    id,
+    x: d.x + o,
+    y: d.y + o,
+    ...(d.dash ? { dash: [...d.dash] } : {}),
+    ...(d.fillGradient !== undefined ? { fillGradient: cloneGradient(d.fillGradient) } : {}),
+  })),
+  'additional-text': listSpec('additionalTexts', (d, id, o) => ({
+    ...d,
+    id,
+    x: d.x + o,
+    y: d.y + o,
+    ...(d.fillGradient !== undefined ? { fillGradient: cloneGradient(d.fillGradient) } : {}),
+  })),
+  // Balken kennt kein x/y — seine Lage ist ein Versatz zur Layout-Basis.
+  balken: listSpec('balkenInstances', (d, id, o) => ({
+    ...d,
+    id,
+    offset: { x: (d.offset?.x ?? 0) + o, y: (d.offset?.y ?? 0) + o },
+    texts: [...d.texts],
+    ...(d.barOffsets ? { barOffsets: [...d.barOffsets] as [number, number, number] } : {}),
+  })),
+  illustration: listSpec('illustrationInstances', (d, id, o) => ({
+    ...d,
+    id,
+    x: d.x + o,
+    y: d.y + o,
+  })),
+  asset: listSpec('assetInstances', (d, id, o) => ({ ...d, id, x: d.x + o, y: d.y + o })),
+  'pill-badge': listSpec('pillBadgeInstances', (d, id, o) => ({
+    ...d,
+    id,
+    x: d.x + o,
+    y: d.y + o,
+  })),
+  'circle-badge': listSpec('circleBadgeInstances', (d, id, o) => ({
+    ...d,
+    id,
+    x: d.x + o,
+    y: d.y + o,
+    textLines: d.textLines.map((l) => ({ ...l })),
+  })),
+  // `imageSrc` wird bewusst mitgenommen: ein Rahmen ohne sein Bild ist keine
+  // Kopie. Dass das Löschen des Originals die geteilte Blob-URL freigibt,
+  // verhindern die Zählungen in `removeFrame`/`removeUserImage`.
+  frame: listSpec('frameInstances', (d, id, o) => ({ ...d, id, x: d.x + o, y: d.y + o })),
+  'user-image': listSpec('userImageInstances', (d, id, o) => ({
+    ...d,
+    id,
+    x: d.x + o,
+    y: d.y + o,
+  })),
+  chart: listSpec('chartInstances', (d, id, o) => ({
+    ...d,
+    id,
+    x: d.x + o,
+    y: d.y + o,
+    data: d.data.map((p) => ({ ...p })),
+    colors: [...d.colors],
+  })),
+  /**
+   * Ein Icon liegt nicht in einer Liste: seine ID steht in `selectedIcons`,
+   * sein Zustand unter derselben ID in `iconStates`. Ohne gespeicherten Zustand
+   * gibt es nichts zu kopieren — Lage und Größe des Originals stünden dann erst
+   * im Renderer fest (Mitte der Fläche), die Kopie käme also nicht versetzt
+   * heraus. Solche Icons melden sich als nicht duplizierbar.
+   */
+  icon: {
+    find: (state, id) => {
+      const s = state as Partial<BaseCanvasState>;
+      if (!s.selectedIcons?.includes(id)) return null;
+      const base = s.iconStates?.[id];
+      if (!base) return null;
+      return { ...base, iconId: catalogIconId(id, s.iconStates) };
+    },
+    insert: (state, data, newId, offset) => {
+      const s = state as Partial<BaseCanvasState>;
+      return {
+        selectedIcons: [...(s.selectedIcons ?? []), newId],
+        iconStates: {
+          ...s.iconStates,
+          [newId]: { ...data, x: data.x + offset, y: data.y + offset },
+        },
+      };
+    },
+  },
+};
+
+export const DUPLICABLE_TYPES = Object.keys(DUPLICABLE) as DuplicableType[];
 
 /**
  * Setzt `newId` direkt hinter `afterId` (= eine Ebene darüber, die Liste ist
@@ -216,16 +261,10 @@ export function insertInstance<TState extends Partial<BaseCanvasState>>(
   // Eine Art pro Zweig: `entry.type` und `entry.data` bleiben korreliert, solange
   // sie nicht destrukturiert werden. Der Zugriff über den Registry-Schlüssel ist
   // die Grenze, an der der String-Schlüssel auf den getypten Zustand trifft.
-  const spec = DUPLICABLE[entry.type];
-  const copy = (spec.clone as (d: unknown, id: string, o: number) => unknown)(
-    entry.data,
-    newId,
-    offset
-  );
-
+  const spec = DUPLICABLE[entry.type] as DuplicableSpec<unknown>;
   const nextState = {
     ...state,
-    [spec.field]: [...readList(state, spec.field), copy],
+    ...spec.insert(state, entry.data, newId, offset),
   } as TState;
 
   const nextOrder = withDuplicateInLayerOrder(state.layerOrder, afterId, newId);
@@ -241,7 +280,7 @@ export function findDuplicableEntry<TState extends Partial<BaseCanvasState>>(
   elementId: string
 ): DuplicableEntry | null {
   for (const type of DUPLICABLE_TYPES) {
-    const found = readList(state, DUPLICABLE[type].field).find((i) => i.id === elementId);
+    const found = (DUPLICABLE[type] as DuplicableSpec<unknown>).find(state, elementId);
     if (found) return { type, data: found } as DuplicableEntry;
   }
   return null;
