@@ -15,11 +15,9 @@ import {
   useColorScheme,
   Pressable,
   Alert,
-  Platform,
   ActivityIndicator,
 } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BottomComposerBar } from '../../../components/common/BottomComposerBar';
 import { NotebookGradientBackground } from '../../../components/common/NotebookGradientBackground';
@@ -40,6 +38,7 @@ import {
 } from '../../../config/notebooksConfig';
 import { useNotebookSharing } from '../../../hooks/notebook/useNotebookSharing';
 import { useContentColumn } from '../../../hooks/useLayout';
+import { useTabBarClearance } from '../../../hooks/useTabBarClearance';
 import {
   collectionIndexingState,
   useNotebookCollections,
@@ -48,7 +47,6 @@ import {
 import { useTabNavigationSwipe } from '../../../hooks/useTabSwipe';
 import { useFavoritesStore } from '../../../stores/favoritesStore';
 import { colors, spacing, typography, borderRadius, lightTheme, darkTheme } from '../../../theme';
-import { FLOATING_TAB_BAR_HEIGHT } from '../../../theme/layout';
 import { getSurfaceFab } from '../../../theme/toolTheme';
 import { routeWithParams } from '../../../types/routes';
 
@@ -74,15 +72,9 @@ export default function NotebooksScreen() {
   const router = useRouter();
   const { size: tileSize } = useNotebookTileGrid();
   const gridColumn = useContentColumn('grid');
-  const insets = useSafeAreaInsets();
-  // The Android tab bar is an absolutely positioned capsule (ClassicTabLayout),
-  // so the navigator reserves no room for it and this screen has to clear it
-  // itself — without this the last shelf scrolls to a stop underneath it. On iOS
-  // the native tab bar is already inside insets.bottom.
-  const bottomClearance =
-    Platform.OS === 'ios'
-      ? insets.bottom + spacing.xxlarge
-      : insets.bottom + FLOATING_TAB_BAR_HEIGHT + spacing.xxlarge;
+  // Without this the last shelf scrolls to a stop underneath the tab bar.
+  const bottomClearance = useTabBarClearance(spacing.xxlarge);
+  const fabBottom = useTabBarClearance(spacing.small);
   const fabTone = getSurfaceFab('wissen', colorScheme === 'dark');
   const [creatorVisible, setCreatorVisible] = useState(false);
   // The ask-all-sources composer is opt-in: the gallery is what the tab is for,
@@ -400,7 +392,7 @@ export default function NotebooksScreen() {
                 styles.fab,
                 {
                   backgroundColor: fabTone.background,
-                  bottom: insets.bottom + FLOATING_TAB_BAR_HEIGHT + spacing.small,
+                  bottom: fabBottom,
                   opacity: pressed ? 0.9 : 1,
                   transform: [{ scale: pressed ? 0.96 : 1 }],
                 },
