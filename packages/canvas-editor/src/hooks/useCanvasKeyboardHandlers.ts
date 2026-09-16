@@ -90,20 +90,16 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
       // DUPLICATE (Ctrl+D) — dieselbe Tür wie der Knopf in der Kontextleiste.
       if (isCtrlOrCmd && e.key === 'd' && selectedElement) {
         e.preventDefault();
-        let duplicatedId: string | null = null;
-        setState((prev) => {
-          const result = duplicateElementInState(prev, selectedElement);
-          if (!result) return prev;
-          duplicatedId = result.newId;
-          return result.state;
-        });
+        // Das Ergebnis wird VOR dem Schreiben berechnet, nicht im Updater:
+        // React ruft den Updater erst beim nächsten Rendern, die neue Id und
+        // der Zustand für den Verlauf stünden hier sonst noch nicht bereit.
+        const result = duplicateElementInState(currentState, selectedElement);
+        if (!result) return;
+        setState(result.state);
         // Ohne diesen Eintrag lässt sich das Duplikat nicht rückgängig machen:
         // `setState` allein schreibt keinen Verlauf.
-        if (duplicatedId) {
-          saveToHistoryRef.current?.(stateRef.current);
-          const newId = duplicatedId;
-          setTimeout(() => setSelectedElement(newId), 0);
-        }
+        saveToHistoryRef.current?.(result.state);
+        setTimeout(() => setSelectedElement(result.newId), 0);
         return;
       }
 
@@ -112,18 +108,10 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
         const entry = CanvasClipboard.paste();
         if (!entry) return;
 
-        let pastedId: string | null = null;
-        setState((prev) => {
-          const result = insertInstance(prev, entry);
-          pastedId = result.newId;
-          return result.state;
-        });
-
-        if (pastedId) {
-          saveToHistoryRef.current?.(stateRef.current);
-          const newId = pastedId;
-          setTimeout(() => setSelectedElement(newId), 0);
-        }
+        const result = insertInstance(currentState, entry);
+        setState(result.state);
+        saveToHistoryRef.current?.(result.state);
+        setTimeout(() => setSelectedElement(result.newId), 0);
         return;
       }
 
