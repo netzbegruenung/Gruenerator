@@ -162,6 +162,7 @@ const MemoizedTextElement = memo(
         padding={padding}
         draggable={config.draggable ?? false}
         editable={config.editable ?? false}
+        richText={config.richText ?? false}
         opacity={opacity}
         selected={selected}
         onSelect={handleSelect}

@@ -7,11 +7,11 @@
  * - This prevents re-renders during drag for smooth UX
  */
 
-import { hasListMarkers } from '@gruenerator/contracts';
+import { hasInlineMarks, hasListMarkers } from '@gruenerator/contracts';
 import { useRef, useEffect, useState, useCallback, memo } from 'react';
 import { Text as KonvaText, Transformer } from 'react-konva';
 
-import { CanvasListText } from './CanvasListText';
+import { CanvasRichText } from './CanvasRichText';
 
 import { calculateSnapPosition, calculateElementSnapPosition } from '../utils/snapping';
 import { gradientToKonvaProps, type GradientFill } from '../utils/gradientFill';
@@ -52,6 +52,11 @@ export interface CanvasTextProps {
   draggable?: boolean;
   selected?: boolean;
   editable?: boolean;
+  /**
+   * Der Text trägt Markdown-lite und wird mit dem Rich-Text-Editor
+   * bearbeitet — siehe `TextElementConfig.richText`.
+   */
+  richText?: boolean;
   opacity?: number;
   transformConfig?: Partial<TransformConfig>;
   onSelect?: () => void;
@@ -421,13 +426,16 @@ function CanvasTextInner({
 }
 
 /**
- * Aufzählungen brauchen einen hängenden Einzug, den ein einzelner Konva.Text
- * nicht kennt — die zeichnet {@link CanvasListText} als Gruppe aus Marker- und
- * Textknoten. Alles andere bleibt exakt der bisherige eine Textknoten.
+ * Aufzählungen brauchen einen hängenden Einzug und Auszeichnung gemischte
+ * Schnitte — beides kennt ein einzelner Konva.Text nicht, das zeichnet
+ * {@link CanvasRichText} als Gruppe aus Marker-, Lauf- und Textknoten. Ein
+ * `richText`-Feld nimmt immer diesen Weg, damit sein Editor auch ohne ersten
+ * Marker der Rich-Text-Editor ist; alles andere bleibt exakt der bisherige
+ * eine Textknoten.
  */
 function CanvasTextSwitch(props: CanvasTextProps) {
-  return hasListMarkers(props.text) ? (
-    <CanvasListText {...props} />
+  return props.richText || hasListMarkers(props.text) || hasInlineMarks(props.text) ? (
+    <CanvasRichText {...props} />
   ) : (
     <CanvasTextInner {...props} />
   );
@@ -463,6 +471,7 @@ export const CanvasText = memo(CanvasTextSwitch, (prevProps, nextProps) => {
     'draggable',
     'selected',
     'editable',
+    'richText',
     'opacity',
     'stageWidth',
     'stageHeight',

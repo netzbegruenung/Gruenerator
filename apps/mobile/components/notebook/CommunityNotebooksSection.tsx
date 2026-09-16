@@ -14,12 +14,15 @@ import {
   BODY_FONT,
 } from '../../theme';
 
-import { NotebookCard, NotebookCardSkeleton, useNotebookGrid } from './NotebookCard';
+import { NotebookCoverArt } from './NotebookCoverArt';
+import { NotebookTile, notebookTileGridStyle, useNotebookTileGrid } from './NotebookTile';
 
 /**
- * "Von der Basis" — public community notebooks (web's VonDerBasisSection). Reuses
- * NotebookCard with a heart in the trailing slot. Gated on `enabled` (auth) so the
- * auth-required endpoints never query-storm for signed-out users.
+ * "Von der Basis" — public community notebooks (web's VonDerBasisSection). Same
+ * tile as every other shelf, with drawn cover art (a community notebook has no
+ * shipped webp) and the heart pinned in the corner, as on web. Gated on
+ * `enabled` (auth) so the auth-required endpoints never query-storm for
+ * signed-out users.
  */
 export function CommunityNotebooksSection({
   enabled,
@@ -30,7 +33,7 @@ export function CommunityNotebooksSection({
 }) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
-  const notebookGrid = useNotebookGrid();
+  const { size } = useNotebookTileGrid();
   const [query, setQuery] = useState('');
   const { publicNotebooks, isLoading } = usePublicNotebookCollections(enabled);
   const { isLiked, toggleLike } = useNotebookLikes(enabled);
@@ -66,26 +69,42 @@ export function CommunityNotebooksSection({
         </View>
       )}
       {isLoading ? (
-        <View style={notebookGrid.container}>
-          <NotebookCardSkeleton count={4} itemStyle={notebookGrid.item} />
+        <View style={notebookTileGridStyle}>
+          {[0, 1, 2, 3].map((i) => (
+            <View
+              key={i}
+              style={[
+                styles.skeletonTile,
+                { width: size, height: size, backgroundColor: theme.surface },
+              ]}
+            />
+          ))}
         </View>
       ) : filtered.length === 0 ? (
         <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
           Keine Treffer für &ldquo;{query}&rdquo;
         </Text>
       ) : (
-        <View style={notebookGrid.container}>
+        <View style={notebookTileGridStyle}>
           {filtered.map((n) => {
             const liked = isLiked(n.id);
+            const author = n.creator_name ? `von ${n.creator_name}` : undefined;
             return (
-              <NotebookCard
+              <NotebookTile
                 key={n.id}
                 icon="people-outline"
                 title={n.name}
-                subtitle={n.creator_name ? `von ${n.creator_name}` : undefined}
+                size={size}
+                coverNode={
+                  <NotebookCoverArt
+                    title={n.name}
+                    subtitle={author ?? n.description ?? undefined}
+                    size={size}
+                    reserveTopRight
+                  />
+                }
                 onPress={() => onOpen(n.id, n.name)}
-                style={notebookGrid.item}
-                trailing={
+                overlay={
                   <Pressable
                     onPress={() => toggleLike(n.id)}
                     hitSlop={8}
@@ -96,12 +115,10 @@ export function CommunityNotebooksSection({
                   >
                     <Ionicons
                       name={liked ? 'heart' : 'heart-outline'}
-                      size={16}
-                      color={liked ? colors.primary[600] : theme.textSecondary}
+                      size={14}
+                      color={colors.white}
                     />
-                    <Text style={[styles.likeCount, { color: theme.textSecondary }]}>
-                      {n.likes_count ?? 0}
-                    </Text>
+                    <Text style={styles.likeCount}>{n.likes_count ?? 0}</Text>
                   </Pressable>
                 }
               />
@@ -138,15 +155,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     paddingVertical: spacing.xxsmall,
   },
+  skeletonTile: {
+    borderRadius: borderRadius.large,
+  },
+  // Pinned on the cover art rather than on a card surface, so it carries its own
+  // scrim — white-on-pink alone does not hold at 14px over the lighter stops.
   likeButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: borderRadius.large,
+    backgroundColor: 'rgba(0,0,0,0.35)',
   },
   likeCount: {
     fontFamily: BODY_FONT,
     fontSize: 12,
     fontWeight: '500',
+    color: colors.white,
   },
   emptyText: {
     ...typography.bodySmall,

@@ -8,6 +8,7 @@ import {
   FONT_PATH,
   PTSANS_REGULAR_PATH,
   PTSANS_BOLD_PATH,
+  PTSANS_ITALIC_PATH,
   SUNFLOWER_PATH,
   GOTHAM_ULTRA_PATH,
   GOTHAM_BOOK_PATH,
@@ -35,6 +36,10 @@ export async function checkFiles(): Promise<void> {
     { path: FONT_PATH, name: 'GrueneTypeNeue Schriftartdatei' },
     { path: PTSANS_REGULAR_PATH, name: 'PTSans Regular Schriftartdatei' },
     { path: PTSANS_BOLD_PATH, name: 'PTSans Bold Schriftartdatei' },
+    // PTSans-Italic steht bewusst NICHT hier: `checkFiles` wirft, und diese
+    // Liste läuft bei jeder Anfrage. Fehlt der Kursivschnitt, meldet ihn
+    // `registerFonts` im Log und der Text wird synthetisch geneigt gesetzt —
+    // ein kosmetischer Mangel, der keine 500er-Antwort wert ist.
     { path: SUNFLOWER_PATH, name: 'Sonnenblumen-Bild' },
   ];
 
@@ -57,6 +62,14 @@ export function registerFonts(): void {
     { path: FONT_PATH, family: 'GrueneTypeNeue', name: 'GrueneTypeNeue' },
     { path: PTSANS_REGULAR_PATH, family: 'PTSans-Regular', name: 'PTSans Regular' },
     { path: PTSANS_BOLD_PATH, family: 'PTSans-Bold', name: 'PTSans Bold' },
+    // Dieselben Schnitte noch einmal unter EINER Familie, wie das Web sie
+    // deklariert: so wählt `bold 40px PT Sans` den echten Bold-Schnitt und
+    // `italic` den echten Italic-Schnitt, statt einen zu synthetisieren.
+    // Die Renderer mit Auszeichnung (`drawRichTextLines`) brauchen genau das;
+    // die Einzelfamilien oben bleiben für die unberührten Renderer stehen.
+    { path: PTSANS_REGULAR_PATH, family: 'PT Sans', name: 'PT Sans Regular' },
+    { path: PTSANS_BOLD_PATH, family: 'PT Sans', name: 'PT Sans Bold' },
+    { path: PTSANS_ITALIC_PATH, family: 'PT Sans', name: 'PT Sans Italic' },
     // Österreich (de-AT) — Gotham Narrow + Vollkorn (CI 2026)
     { path: GOTHAM_ULTRA_PATH, family: 'GothamNarrow-Ultra', name: 'Gotham Narrow Ultra' },
     { path: GOTHAM_BOOK_PATH, family: 'GothamNarrow-Book', name: 'Gotham Narrow Book' },

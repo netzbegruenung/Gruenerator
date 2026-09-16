@@ -198,6 +198,9 @@ export * from './schemas/lvAdminAssignment.js';
 export * from './schemas/instanceAdminOverview.js';
 export * from './schemas/landesverbandAdmin.js';
 
-// Canvas-Textlayout: Umbruch, Aufzählungsmarker und hängender Einzug.
-// DOM-frei, damit Client-Vorschau und Server-Export dieselbe Logik fahren.
+// Canvas-Textlayout: Umbruch, Aufzählungsmarker, hängender Einzug und
+// Inline-Auszeichnung (Markdown-lite). DOM-frei, damit Client-Vorschau,
+// Server-Export und der tiptap-Editor dieselbe Logik fahren.
 export * from './text/listLayout.js';
+export * from './text/inlineMarks.js';
+export * from './text/canvasRichText.js';
