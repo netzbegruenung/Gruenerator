@@ -2,7 +2,6 @@ import { SPEECH_MAX_CHUNK_CHARS } from '@gruenerator/contracts';
 import { Button, Label, Textarea } from '@gruenerator/ui';
 import { Pause } from 'lucide-react';
 
-
 import { formatCount } from '../../../utils/usageFormat';
 
 import type { VoicePresetDef } from '../presets';
