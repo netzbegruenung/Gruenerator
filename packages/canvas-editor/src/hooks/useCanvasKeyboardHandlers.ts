@@ -43,6 +43,12 @@ export interface UseCanvasKeyboardHandlersOptions<TState extends Partial<BaseCan
    *  Vorlagen-Grafik, aus der Strg+D eine Asset-Instanz macht (#3403). */
   layout?: LayoutResult;
   saveToHistory?: (state: TState) => void;
+  /**
+   * Attach the global keydown listener. Defaults to true; offscreen preview
+   * canvases pass false so a hidden, render-once stage never answers the
+   * user's Delete or Cmd+Z.
+   */
+  enabled?: boolean;
 }
 
 /**
@@ -51,8 +57,17 @@ export interface UseCanvasKeyboardHandlersOptions<TState extends Partial<BaseCan
 export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState>>(
   options: UseCanvasKeyboardHandlersOptions<TState>
 ): void {
-  const { store, state, actions, setState, setSelectedElement, elements, layout, saveToHistory } =
-    options;
+  const {
+    store,
+    state,
+    actions,
+    setState,
+    setSelectedElement,
+    elements,
+    layout,
+    saveToHistory,
+    enabled = true,
+  } = options;
 
   // Use refs for values that the handler reads but shouldn't trigger re-attachment
   const stateRef = useRef(state);
@@ -373,7 +388,8 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
       }
     };
 
+    if (!enabled) return undefined;
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [store, setState, setSelectedElement]);
+  }, [store, setState, setSelectedElement, enabled]);
 }

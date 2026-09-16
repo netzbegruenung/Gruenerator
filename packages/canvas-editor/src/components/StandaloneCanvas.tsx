@@ -27,6 +27,11 @@ export interface StandaloneCanvasProps {
   onStateChange?: (state: Record<string, unknown>) => void;
   onExport?: (base64: string) => void;
   className?: string;
+  /**
+   * Render-once snapshot rather than an embedded editor — see
+   * `GenericCanvasProps.preview`. Used by the offscreen chat-preview renderer.
+   */
+  preview?: boolean;
 }
 
 const noop = () => {};
@@ -38,6 +43,7 @@ function StandaloneCanvasInner({
   onStateChange,
   onExport,
   className,
+  preview = false,
 }: StandaloneCanvasProps) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [config, setConfig] = useState<FullCanvasConfig<any, any> | null>(null);
@@ -90,6 +96,7 @@ function StandaloneCanvasInner({
         onExport={onExport ?? noop}
         onCancel={noop}
         callbacks={callbacks.current}
+        preview={preview}
       />
     </div>
   );
