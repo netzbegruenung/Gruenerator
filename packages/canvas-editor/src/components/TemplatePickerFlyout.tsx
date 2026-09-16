@@ -316,6 +316,8 @@ interface AddPageButtonProps {
   disabled?: boolean;
   onAddSliderVariant?: (variant: 'cover' | 'content' | 'last') => void;
   templateFilter?: TemplateCategory;
+  /** Flache Bauform für die untere Leiste; sonst der breite Knopf unter der Fläche. */
+  compact?: boolean;
 }
 
 export function AddPageButton({
@@ -325,6 +327,7 @@ export function AddPageButton({
   disabled = false,
   onAddSliderVariant,
   templateFilter,
+  compact = false,
 }: AddPageButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -333,7 +336,10 @@ export function AddPageButton({
     <>
       <button
         ref={buttonRef}
-        className="w-full h-11 rounded-[10px] border border-[var(--editor-border-strong)] bg-[var(--editor-surface)] text-[var(--editor-text)] font-semibold text-sm cursor-pointer flex items-center justify-center gap-2 transition-[background-color,border-color] duration-200 hover:bg-[var(--editor-surface-hover)] hover:border-[var(--editor-accent)] active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed"
+        className={cn(
+          'rounded-[10px] border border-[var(--editor-border-strong)] bg-[var(--editor-surface)] text-[var(--editor-text)] font-semibold cursor-pointer flex items-center justify-center gap-2 transition-[background-color,border-color] duration-200 hover:bg-[var(--editor-surface-hover)] hover:border-[var(--editor-accent)] active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed',
+          compact ? 'h-8 px-3 text-xs' : 'w-full h-11 text-sm'
+        )}
         onClick={() => setIsOpen(!isOpen)}
         disabled={disabled}
         type="button"

@@ -80,13 +80,16 @@
   transition: transform 0.12s ease-out;
 }
 
-/* ── Bottom-fixed page navigator: leave clearance so last page can scroll above it ── */
-.heterogeneous-multipage__pages-container.has-page-navigator {
-  padding-bottom: 6.5rem;
+/* ── Bottom-fixed bar: leave clearance so the last page can scroll above it.
+      The value covers the tallest variant (with thumbnail strip); without the
+      strip the bar is shorter and some slack is left over. Below 900px the
+      layout hides the bar entirely. ── */
+.heterogeneous-multipage__pages-container.has-bottom-bar {
+  padding-bottom: 4.5rem;
 }
 
 @media (max-width: 899px) {
-  .heterogeneous-multipage__pages-container.has-page-navigator {
+  .heterogeneous-multipage__pages-container.has-bottom-bar {
     padding-bottom: 0;
   }
 }
