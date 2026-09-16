@@ -80,12 +80,20 @@ function buildSchemePatch(
     }));
   }
   const icons = state['iconStates'];
-  if (icons && typeof icons === 'object' && ARROW_ICON_ID in (icons as object)) {
+  if (icons && typeof icons === 'object') {
+    // Ein Icon steht unter seiner INSTANZ-ID; welches Katalog-Icon es zeigt,
+    // sagt `iconId` (fehlt es, ist die Instanz-ID die Katalog-ID). Seit sich
+    // Icons duplizieren lassen, kann derselbe Pfeil mehrfach liegen — ein
+    // Zugriff allein über ARROW_ICON_ID faerbte dann nur das erste Exemplar.
     const iconStates = icons as Record<string, Record<string, unknown>>;
-    patch['iconStates'] = {
-      ...iconStates,
-      [ARROW_ICON_ID]: { ...iconStates[ARROW_ICON_ID], color: colors.arrow },
-    };
+    const next: Record<string, Record<string, unknown>> = { ...iconStates };
+    let touched = false;
+    for (const [id, icon] of Object.entries(iconStates)) {
+      if ((icon['iconId'] ?? id) !== ARROW_ICON_ID) continue;
+      next[id] = { ...icon, color: colors.arrow };
+      touched = true;
+    }
+    if (touched) patch['iconStates'] = next;
   }
   return patch;
 }
