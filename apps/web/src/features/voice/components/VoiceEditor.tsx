@@ -80,15 +80,20 @@ export default function VoiceEditor({
           value={text}
           onChange={(e) => onChange(clampToWire(e.target.value, def.maxChars))}
           placeholder={def.placeholder}
-          aria-describedby="voice-text-hint voice-text-count"
+          aria-describedby="voice-text-hint voice-text-count voice-text-chunks"
           className="min-h-0 flex-1 field-sizing-fixed bg-transparent px-0 text-base leading-relaxed focus-visible:ring-0"
         />
-        {chunkCount > 1 ? (
-          <p className="m-0 text-xs text-muted-foreground">
-            Wird in {chunkCount} Abschnitten erzeugt (je höchstens{' '}
-            {formatCount(SPEECH_MAX_CHUNK_CHARS)} Zeichen).
-          </p>
-        ) : null}
+        {/* Always mounted: a live region inserted at the same moment as its text
+            is not reliably announced. Empty until the text actually splits. */}
+        <p
+          id="voice-text-chunks"
+          aria-live="polite"
+          className="m-0 text-xs text-muted-foreground empty:hidden"
+        >
+          {chunkCount > 1
+            ? `Wird in ${chunkCount} Abschnitten erzeugt (je höchstens ${formatCount(SPEECH_MAX_CHUNK_CHARS)} Zeichen).`
+            : ''}
+        </p>
       </div>
     </div>
   );
