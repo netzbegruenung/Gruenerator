@@ -114,6 +114,10 @@ router.get(
         });
       }
 
+      if (shareLinkExpired(share, req)) {
+        return res.status(410).json({ success: false, error: expiredLinkMessage(share) });
+      }
+
       await service.recordView(shareToken);
 
       const shareObj: NonNullable<ShareInfoResponse['share']> = {
@@ -125,6 +129,9 @@ router.get(
         status: share.status || 'ready',
         createdAt: share.created_at,
         ...(share.sharer_name != null ? { sharerName: share.sharer_name } : {}),
+        // Every type now carries a deadline, so the owner can see when their
+        // link goes dead instead of finding out from a recipient.
+        expiresAt: share.expires_at ?? null,
       };
       const response: ShareInfoResponse = {
         success: true,
@@ -132,19 +139,10 @@ router.get(
       };
 
       if (share.media_type === 'transfer') {
-        // Check expiry for transfers
-        if (share.expires_at && new Date(share.expires_at) < new Date()) {
-          return res.status(410).json({
-            success: false,
-            error: 'Dieser Transfer-Link ist abgelaufen.',
-          });
-        }
-
         response.share!.fileName = share.file_name;
         response.share!.fileSize = share.file_size;
         response.share!.mimeType = share.mime_type;
         response.share!.isPasswordProtected = !!share.password_hash;
-        response.share!.expiresAt = share.expires_at ?? null;
         response.share!.transferMessage = share.transfer_message ?? null;
 
         const files = share.transfer_files;
@@ -292,9 +290,48 @@ router.get(
 );
 
 /**
+ * Has this share's link passed its `expires_at`, for whoever is asking?
+ *
+ * Never for the owner. `/share/<token>` is also where someone checks their own
+ * share, and the row stays in their Mediathek regardless — expiry closes the
+ * *link*, so it applies to people who could only have arrived through one.
+ * `optionalAuth` is mounted on `/api/share` (routes.ts), so `req.user` is
+ * populated here when a session exists.
+ *
+ * Only the two routes that *are* that link ask this: the share page and its
+ * download. The image paths (`/preview`, `/thumbnail`, `/stream`) deliberately
+ * do not — they render the Mediathek, the galleries, the canvas editor and the
+ * candidate sites, so a deadline there would blank the product rather than
+ * close a share. See `SHARE_LINK_MAX_AGE_DAYS` for the full rationale; do not
+ * "fix" the inconsistency by adding a check to those three.
+ */
+function shareLinkExpired(share: SharedMediaRow, req: Request): boolean {
+  if (!share.expires_at) return false;
+  if (new Date(share.expires_at) >= new Date()) return false;
+  const viewerId = (req as AuthenticatedRequest).user?.id;
+  return viewerId !== share.user_id;
+}
+
+/** Wording for a dead link; transfers keep their own, older sentence. */
+function expiredLinkMessage(share: SharedMediaRow): string {
+  return share.media_type === 'transfer'
+    ? 'Dieser Transfer-Link ist abgelaufen.'
+    : 'Dieser Link ist abgelaufen.';
+}
+
+/**
  * Resolve a share to a readable media file, or answer the request and return
  * null. Shared by /preview and /stream so the two cannot drift on which
  * statuses are visible.
+ *
+ * A share row that does not exist answers 410, not 404, because the two cases
+ * are not the same to a caller and used to be indistinguishable. A row that is
+ * gone is gone for good; a row whose bytes have not landed yet is the normal
+ * race right after upload (the share is listed in "Zuletzt" before the file is
+ * written) and is worth retrying. Both used to be 404, so `PreviewImage` — which
+ * only sees an <img> error event and no status — had to retry either way, and
+ * every deleted image cost four requests before it gave up. 410 lets the client
+ * stop after the first one without giving up on the race.
  */
 async function resolveShareMedia(
   shareToken: string,
@@ -304,7 +341,7 @@ async function resolveShareMedia(
   const share = await service.getShareByToken(shareToken);
 
   if (!share) {
-    res.status(404).json({ error: 'Medium nicht gefunden' });
+    res.status(410).json({ error: 'Medium nicht gefunden' });
     return null;
   }
   if (share.status === 'processing') {
@@ -529,12 +566,12 @@ router.get(
         return;
       }
 
-      if (share.media_type === 'transfer') {
-        if (share.expires_at && new Date(share.expires_at) < new Date()) {
-          res.status(410).json({ success: false, error: 'Dieser Transfer-Link ist abgelaufen.' });
-          return;
-        }
+      if (shareLinkExpired(share, req)) {
+        res.status(410).json({ success: false, error: expiredLinkMessage(share) });
+        return;
+      }
 
+      if (share.media_type === 'transfer') {
         // scrypt format: "salt:hash"
         const password = req.headers['x-transfer-password'] as string;
         if (share.password_hash) {

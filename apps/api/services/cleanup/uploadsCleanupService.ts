@@ -27,6 +27,10 @@ const UPLOADS_BASE = path.resolve(__dirname, '../../uploads');
 
 const AGE_BASED_DIRS = [
   { name: 'flux/results', maxAgeDays: 7 },
+  // Input images of an edit request, written by routes/flux/imageEditing.ts.
+  // Write-only: generation runs off the in-memory buffer, and the path returned
+  // as `inputImage.relativePath` has no consumer — so nothing reads these back.
+  { name: 'flux/edits', maxAgeDays: 7 },
   { name: 'imagine', maxAgeDays: 7 },
   { name: 'temp', maxAgeDays: 1 },
   { name: 'transcriptions', maxAgeDays: 7 },

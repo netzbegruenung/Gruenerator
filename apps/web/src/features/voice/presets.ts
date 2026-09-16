@@ -69,3 +69,87 @@ export const SPEED_OPTIONS = [
 
 /** Provider pause markup; snapped to 500 ms, chain two for a second. */
 export const PAUSE_TAG = '<break time="500ms"/>';
+
+/**
+ * What a pause looks like while the text is being written.
+ *
+ * The field is a plain `<textarea>`, so a pause has to be characters — there is
+ * no surface here that could hold the design's inline chip. Making those
+ * characters readable is the reachable half of that idea: `<break time="500ms"/>`
+ * is provider markup that nobody typed, nobody can interpret, and anybody will
+ * eventually break by editing inside it — and a broken tag is read aloud,
+ * angle brackets and all.
+ *
+ * Typing the token by hand works too. That is deliberate: what you see in the
+ * field is the whole truth about where the pauses are.
+ */
+export const PAUSE_TOKEN = '[Pause]';
+
+/** Editor text → what the API receives. The wire format does not change. */
+export function toWire(text: string): string {
+  return text.split(PAUSE_TOKEN).join(PAUSE_TAG);
+}
+
+/**
+ * API text → what the editor shows.
+ *
+ * Only the exact tag we emit is folded back, so the round trip cannot lose
+ * information. A tag with some other duration stays visible as markup rather
+ * than being silently shortened to 500 ms — nothing produces one today.
+ */
+export function fromWire(text: string): string {
+  return text.split(PAUSE_TAG).join(PAUSE_TOKEN);
+}
+
+/** How many pauses the text contains. */
+export function countPauses(text: string): number {
+  return text.split(PAUSE_TOKEN).length - 1;
+}
+
+/**
+ * Length of the text as the API will see it.
+ *
+ * This is what every limit is measured against, because it is what gets sent.
+ * It is larger than what the field shows, which is why the counter names the
+ * number of pauses next to it instead of leaving the gap unexplained.
+ */
+export function wireLength(text: string): number {
+  return text.length + countPauses(text) * (PAUSE_TAG.length - PAUSE_TOKEN.length);
+}
+
+/**
+ * The longest prefix of `text` whose wire form still fits `maxChars`.
+ *
+ * Binary search rather than a trim loop: a full 24 576-character paste would
+ * otherwise walk the string once per dropped character. `wireLength` never
+ * shrinks as the prefix grows, so the predicate is monotonic.
+ */
+export function clampToWire(text: string, maxChars: number): string {
+  if (wireLength(text) <= maxChars) return text;
+  let fits = 0;
+  let rest = text.length;
+  while (fits < rest) {
+    const mid = Math.ceil((fits + rest) / 2);
+    if (wireLength(text.slice(0, mid)) <= maxChars) fits = mid;
+    else rest = mid - 1;
+  }
+  return text.slice(0, fits);
+}
+
+/** What one pause is worth in finished audio. */
+const PAUSE_SECONDS = 0.5;
+
+/**
+ * Characters of German prose per second at the default rate.
+ *
+ * A rule of thumb (~150 words per minute), not a measurement — which is why
+ * every reading of it is prefixed with "≈". It exists so the button is not the
+ * first place a person learns that their text is eleven minutes long.
+ */
+const CHARS_PER_SECOND = 13;
+
+/** Rough length of the finished audio, in seconds. Pauses count, their tokens do not. */
+export function estimateSpeechSeconds(text: string, speed: number): number {
+  const spoken = text.split(PAUSE_TOKEN).join('').trim().length;
+  return spoken / CHARS_PER_SECOND / speed + countPauses(text) * PAUSE_SECONDS;
+}
