@@ -105,10 +105,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     procps \
     && rm -rf /var/lib/apt/lists/*
 
-# Create non-root user and /app directory with correct ownership
+# Create non-root user and /app directory with correct ownership.
+# .cache is created here on purpose: the install below mounts a cache at
+# .cache/pnpm, and BuildKit would otherwise create that parent as root and leave
+# corepack unable to write its own .cache/node next to it (EACCES on mkdir).
 RUN groupadd -g 1001 gruenerator && \
     useradd -u 1001 -g gruenerator -s /bin/bash -m gruenerator && \
-    mkdir -p /app && chown gruenerator:gruenerator /app
+    mkdir -p /app /home/gruenerator/.cache && \
+    chown gruenerator:gruenerator /app /home/gruenerator/.cache
 
 # Install pnpm
 RUN corepack enable
