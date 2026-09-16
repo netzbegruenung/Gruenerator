@@ -97,6 +97,35 @@ export class MediaQuotaExceededError extends Error {
   }
 }
 
+/**
+ * How long a new share stays reachable at its public `/share/<token>` page.
+ *
+ * **This expires the link, not the bytes.** Nothing deletes a row or a file
+ * when the date passes: the owner keeps the item in their Mediathek forever and
+ * still opens its share page (`shareFileRouter` exempts them), and every image
+ * path — `/preview`, `/thumbnail`, `/stream`, the signed `/api/thumbs/...`
+ * URLs — ignores `expires_at` entirely. That asymmetry is deliberate and
+ * load-bearing, because those paths are not share links: they are how the
+ * Mediathek, the workplace strip, the Studio galleries, the canvas editor and
+ * the candidate-site builder render every image in the product. Enforcing a
+ * deadline there would blank the product, not close a share.
+ *
+ * Auto-*deleting* media was removed on purpose in #2980 (see
+ * `MEDIA_LIBRARY_ITEM_LIMIT`); this does not bring it back.
+ */
+const SHARE_LINK_MAX_AGE_DAYS = 30;
+
+/**
+ * `expires_at` for a freshly created share, as a SQL expression.
+ *
+ * Computed by Postgres rather than in Node so every share is stamped off the
+ * same clock as its own `created_at` — the API runs in cluster mode, and a
+ * skewed worker would otherwise mint deadlines that disagree with the rows
+ * around them. Interpolated rather than bound: the value is the numeric literal
+ * above, never caller input.
+ */
+const SHARE_EXPIRY_SQL = `NOW() + INTERVAL '${SHARE_LINK_MAX_AGE_DAYS} days'`;
+
 // Responsive grid-thumbnail widths pre-generated at upload. Must stay in sync
 // with the widths the frontend requests (`buildSharedMediaSrcSet`) and the
 // on-demand fallback in shareFileRouter's `/preview` handler.
@@ -494,8 +523,9 @@ class SharedMediaService {
       const query = `
                 INSERT INTO shared_media
                 (user_id, share_token, media_type, title, file_path, file_name, thumbnail_path,
-                 file_size, mime_type, duration, project_id, status)
-                VALUES ($1, $2, 'video', $3, $4, $5, $6, $7, 'video/mp4', $8, $9, 'ready')
+                 file_size, mime_type, duration, project_id, status, expires_at)
+                VALUES ($1, $2, 'video', $3, $4, $5, $6, $7, 'video/mp4', $8, $9, 'ready',
+                        ${SHARE_EXPIRY_SQL})
                 RETURNING id, share_token, created_at
             `;
 
@@ -687,8 +717,10 @@ class SharedMediaService {
       const query = `
                 INSERT INTO shared_media
                 (user_id, share_token, media_type, title, file_path, file_name, thumbnail_path,
-                 file_size, mime_type, image_type, image_metadata, status, content_origin)
-                VALUES ($1, $2, 'image', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+                 file_size, mime_type, image_type, image_metadata, status, content_origin,
+                 expires_at)
+                VALUES ($1, $2, 'image', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
+                        ${SHARE_EXPIRY_SQL})
                 RETURNING id, share_token, created_at
             `;
 
@@ -765,8 +797,9 @@ class SharedMediaService {
       const query = `
                 INSERT INTO shared_media
                 (user_id, share_token, media_type, title, file_path, file_name, thumbnail_path,
-                 mime_type, duration, project_id, status)
-                VALUES ($1, $2, 'video', $3, NULL, NULL, $4, 'video/mp4', $5, $6, 'processing')
+                 mime_type, duration, project_id, status, expires_at)
+                VALUES ($1, $2, 'video', $3, NULL, NULL, $4, 'video/mp4', $5, $6, 'processing',
+                        ${SHARE_EXPIRY_SQL})
                 RETURNING id, share_token, created_at
             `;
 
@@ -1264,8 +1297,9 @@ class SharedMediaService {
                 INSERT INTO shared_media
                 (user_id, share_token, media_type, title, file_path, file_name, thumbnail_path,
                  file_size, mime_type, status, is_library_item, alt_text, upload_source, original_filename,
-                 image_metadata, content_origin)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'ready', $10, $11, $12, $13, $14, $15)
+                 image_metadata, content_origin, expires_at)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'ready', $10, $11, $12, $13, $14, $15,
+                        ${SHARE_EXPIRY_SQL})
                 RETURNING id, share_token, created_at
             `;
 
