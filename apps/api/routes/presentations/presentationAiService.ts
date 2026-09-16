@@ -6,7 +6,12 @@
  * CLIENT-SIDE by the presentations editor against the deck's Y.Doc — this
  * service only plans them.
  *
- * Mirrors sheets/sheetAiService.ts (plan-then-apply, plain JSON, no streaming).
+ * Mirrors sheets/sheetAiService.ts (plan-then-apply, plain JSON, no streaming),
+ * routed through the facade (`aiTools`, lane `editor_ops_presentation`) rather
+ * than calling the AI SDK directly — see services/ai/generate.ts. As with the
+ * sheet lane, a lane always carries the facade's generic fallback chain: an
+ * unavailable Mistral now falls back to cortecs/melious instead of the
+ * previous pinned, chain-less "fail loudly". See the stage-3 report.
  */
 
 import {
@@ -14,20 +19,16 @@ import {
   presentationOperationSchema,
   type PresentationOperation,
 } from '@gruenerator/contracts';
-import { generateText, tool } from 'ai';
+import { jsonSchema } from 'ai';
 import { z } from 'zod';
+import { zodToJsonSchema } from 'zod-to-json-schema';
 
+import { aiTools } from '../../services/ai/generate.js';
 import { createLogger } from '../../utils/logger.js';
-import { getModel, isProviderConfigured } from '../chat/agents/providers.js';
+
+import type { AiResult, Tool } from '../../services/ai/types.js';
 
 const log = createLogger('PresentationAI');
-
-// Deck planning ALWAYS uses Mistral Medium 3.5 — the op-planner needs a strong
-// model. Pinned with no provider chain: if Mistral is unavailable we fail
-// loudly rather than silently downgrade. `mistral-medium-2604` === "Mistral
-// Medium 3.5" (see services/ai/modelDiscovery.ts).
-const PRESENTATION_AI_PROVIDER = 'mistral';
-const PRESENTATION_AI_MODEL = 'mistral-medium-2604';
 
 const buildStrictPrompt = (brand?: string | null): string => {
   const theme = getPresentationBrandTheme(brand);
@@ -71,6 +72,24 @@ BEISPIEL — die Person sagt "Füge am Ende eine Folie mit den drei wichtigsten 
 { "operations": [ { "type": "add_slide", "layout": "content", "title": "Die drei wichtigsten Argumente", "body": "- Argument 1\\n- Argument 2\\n- Argument 3" } ] }`;
 };
 
+const TOOL_NAME = 'applyPresentationOperations';
+const OPERATIONS_SCHEMA = z.object({ operations: z.array(z.unknown()).max(40) });
+
+/** How many times the forced tool call is attempted — one retry, as before. */
+const MAX_ATTEMPTS = 2;
+
+/** The tool call by NAME, in either transport shape the adapters produce. */
+function extractToolInput(result: AiResult): { operations?: unknown[] } | null {
+  const call = result.tool_calls?.find((c) => c.name === TOOL_NAME);
+  if (call) return call.input as { operations?: unknown[] };
+  for (const block of result.raw_content_blocks ?? []) {
+    if (block.type === 'tool_use' && block.name === TOOL_NAME && block.input) {
+      return block.input as { operations?: unknown[] };
+    }
+  }
+  return null;
+}
+
 /**
  * Plan presentation operations for a user request. Returns a validated
  * PresentationOperation[] (possibly empty). Throws only on provider/model
@@ -85,42 +104,57 @@ export async function generatePresentationOperations(opts: {
 }): Promise<PresentationOperation[]> {
   const { userPrompt, presentationContext, referenceContent, brand } = opts;
 
-  if (!isProviderConfigured(PRESENTATION_AI_PROVIDER)) {
-    throw new Error(
-      'Presentation AI requires Mistral Medium 3.5, but the Mistral provider is not configured (MISTRAL_API_KEY missing)'
-    );
-  }
-  const model = getModel(PRESENTATION_AI_PROVIDER, PRESENTATION_AI_MODEL);
-  log.info(`[PresentationAI] Using Mistral Medium 3.5 (${PRESENTATION_AI_MODEL})`);
-
   const referenceSection = referenceContent?.trim()
     ? `\n\nRECHERCHIERTE QUELLEN (Faktenbasis für die Bearbeitung — übernimm konkrete Zahlen, Namen und Fakten WÖRTLICH aus diesen Quellen; erfinde keine Beispielwerte):\n<recherchierte_quellen>\n${referenceContent.trim().slice(0, 8000)}\n</recherchierte_quellen>`
     : '';
 
   const system = `${buildStrictPrompt(brand)}\n\nAKTUELLER FOLIEN-ZUSTAND:\n${presentationContext.slice(0, 24_000)}${referenceSection}`;
 
-  const result = await generateText({
-    model,
-    system,
-    prompt: userPrompt,
-    tools: {
-      applyPresentationOperations: tool({
-        description:
-          'Apply a batch of presentation operations. Each item is one operation object with a "type" field (one of the operation types documented in the system prompt).',
-        // Deliberately lenient: accept the raw array so a single malformed op
-        // does not make the SDK reject the WHOLE tool call. We validate each op
-        // ourselves below against presentationOperationSchema and keep the good
-        // ones.
-        inputSchema: z.object({ operations: z.array(z.unknown()).max(40) }),
-      }),
-    },
-    toolChoice: 'required',
-    maxRetries: 1,
-    temperature: 0.2,
+  // jsonSchema() wrapping is required — the AI SDK's asSchema helper rejects
+  // raw JSON-Schema objects (see toolForcedEdit.ts). Deliberately lenient
+  // (`z.unknown()` items): a single malformed op must not make the whole tool
+  // call unusable. We validate each op ourselves below against
+  // presentationOperationSchema and keep the good ones.
+  const rawSchema = zodToJsonSchema(OPERATIONS_SCHEMA, {
+    target: 'jsonSchema7',
+    $refStrategy: 'none',
   });
+  const tool: Tool = {
+    name: TOOL_NAME,
+    description:
+      'Apply a batch of presentation operations. Each item is one operation object with a "type" field (one of the operation types documented in the system prompt).',
+    input_schema: jsonSchema(
+      rawSchema as Parameters<typeof jsonSchema>[0]
+    ) as unknown as Tool['input_schema'],
+  };
 
-  const toolCall = result.toolCalls.find((tc) => tc.toolName === 'applyPresentationOperations');
-  const rawOps = toolCall ? (toolCall.input as { operations?: unknown[] }).operations : undefined;
+  let toolInput: { operations?: unknown[] } | null = null;
+  let lastResult: AiResult | null = null;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      const result = await aiTools({
+        lane: 'editor_ops_presentation',
+        system,
+        prompt: userPrompt,
+        tools: [tool],
+        toolChoice: 'required',
+        temperature: 0.2,
+      });
+      lastResult = result;
+      toolInput = extractToolInput(result);
+      if (toolInput) break;
+      log.warn(
+        `[PresentationAI] attempt ${attempt}: no tool call (stop_reason=${result.stop_reason ?? 'unknown'})`
+      );
+    } catch (e) {
+      if (attempt === MAX_ATTEMPTS) throw e;
+      log.warn(
+        `[PresentationAI] attempt ${attempt} threw: ${e instanceof Error ? e.message : String(e)}`
+      );
+    }
+  }
+
+  const rawOps = toolInput ? toolInput.operations : undefined;
 
   // Per-op validation: keep every valid operation, drop (and log) only the
   // malformed ones — one bad op must never silently discard a whole batch.
@@ -142,10 +176,10 @@ export async function generatePresentationOperations(opts: {
   }
   if (captured.length === 0) {
     log.warn(
-      `[PresentationAI] 0 operations for prompt "${userPrompt}" — finish=${result.finishReason}, ` +
-        `toolCall=${toolCall ? 'yes' : 'no'}, rawOpsCount=${Array.isArray(rawOps) ? rawOps.length : 'n/a'}, ` +
+      `[PresentationAI] 0 operations for prompt "${userPrompt}" — finish=${lastResult?.stop_reason ?? 'n/a'}, ` +
+        `toolCall=${toolInput ? 'yes' : 'no'}, rawOpsCount=${Array.isArray(rawOps) ? rawOps.length : 'n/a'}, ` +
         `dropped=${dropped.length}, contextChars=${presentationContext.length}, ` +
-        `modelText=${JSON.stringify(result.text.slice(0, 200))}`
+        `modelText=${JSON.stringify((lastResult?.content ?? '').slice(0, 200))}`
     );
   }
 
