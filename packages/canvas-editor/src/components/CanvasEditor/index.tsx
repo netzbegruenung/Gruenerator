@@ -42,6 +42,7 @@ import { getCategoryForTemplate } from '../../utils/templateRegistry';
 
 import { PageThumbnailStrip } from '../PageThumbnailStrip';
 import { Toolbar } from '../Toolbar';
+import { CanvasTextEditorProvider } from '../CanvasTextOverlay';
 import { ContextToolbar } from '../TopBar/ContextToolbar';
 import { MobileContextBar } from '../TopBar/MobileContextBar';
 import { AddPageButton, TemplatePickerFlyout } from '../TemplatePickerFlyout';
@@ -1092,90 +1093,96 @@ function CanvasEditorInner({
 
   return (
     <UserUploadsProvider>
-      <CanvasEditorLayout
-        sidebar={panel}
-        tabBar={tabBar}
-        actions={null}
-        toolbar={toolbarElement}
-        contextBar={contextBarElement}
-        bottomBar={bottomBar}
-        hideMobileChrome={isMobileBridge}
-        externalSidebar={isExternalSidebar}
-        subsectionBar={webSubsectionBar}
-      >
-        {mobileContextBarElement}
-        <div
-          ref={pagesContainerRef}
-          onPointerDown={handleWorkAreaPointerDown}
-          className={cn(
-            'heterogeneous-multipage__pages-container flex flex-col items-center gap-md p-sm pb-lg w-full max-canvas-mobile:gap-sm max-canvas-mobile:p-xs',
-            showPageNavigator && 'has-page-navigator'
-          )}
+      {/* Die Text-Bearbeitung sitzt an der Wurzel des Editors, nicht je Seite:
+          nur so liegt sie über der Kontextleiste, die ihre Formatierungsknöpfe
+          zeigt (`controls="host"`). Der Provider in `CanvasStage` merkt, dass
+          er einen über sich hat, und reicht durch. */}
+      <CanvasTextEditorProvider controls="host">
+        <CanvasEditorLayout
+          sidebar={panel}
+          tabBar={tabBar}
+          actions={null}
+          toolbar={toolbarElement}
+          contextBar={contextBarElement}
+          bottomBar={bottomBar}
+          hideMobileChrome={isMobileBridge}
+          externalSidebar={isExternalSidebar}
+          subsectionBar={webSubsectionBar}
         >
-          {pages.map((page, index) => {
-            const config = loadedConfigs.get(page.configId);
-            if (!config) return null;
+          {mobileContextBarElement}
+          <div
+            ref={pagesContainerRef}
+            onPointerDown={handleWorkAreaPointerDown}
+            className={cn(
+              'heterogeneous-multipage__pages-container flex flex-col items-center gap-md p-sm pb-lg w-full max-canvas-mobile:gap-sm max-canvas-mobile:p-xs',
+              showPageNavigator && 'has-page-navigator'
+            )}
+          >
+            {pages.map((page, index) => {
+              const config = loadedConfigs.get(page.configId);
+              if (!config) return null;
 
-            const isActive = index === currentPageIndex;
-            const canDelete = pageCount > 1;
+              const isActive = index === currentPageIndex;
+              const canDelete = pageCount > 1;
 
-            return (
-              <PageWrapper
-                key={page.id}
-                page={page}
-                index={index}
-                pageCount={pageCount}
-                config={config}
-                isActive={isActive}
-                canDelete={canDelete}
-                canvasRef={canvasRefsRef.current[index]}
-                pageRef={pageDomRefsRef.current[index]}
-                onSelect={handlePageSelect}
-                onDelete={removePage}
-                onMovePage={movePage}
-                onDuplicatePage={duplicatePage}
-                onChangeTemplate={handleOpenTemplateChange}
-                onExport={handleExport}
-                onCancel={onCancel}
-                callbacks={getCallbacksForPage(page.id)}
-                multiPageExport={index === 0 ? multiPageExportProps : undefined}
-                onStateChange={handlePageStateChange}
-                onToolbarStateChange={isActive ? handleToolbarStateChange : undefined}
-                onAutoSaveShareToken={onAutoSaveShareToken}
-                autoSave={false}
-                mobileBridge={isActive ? mobileBridge : undefined}
-                pageBinding={pageBindingAt(index, page.id, isActive)}
-              />
-            );
-          })}
+              return (
+                <PageWrapper
+                  key={page.id}
+                  page={page}
+                  index={index}
+                  pageCount={pageCount}
+                  config={config}
+                  isActive={isActive}
+                  canDelete={canDelete}
+                  canvasRef={canvasRefsRef.current[index]}
+                  pageRef={pageDomRefsRef.current[index]}
+                  onSelect={handlePageSelect}
+                  onDelete={removePage}
+                  onMovePage={movePage}
+                  onDuplicatePage={duplicatePage}
+                  onChangeTemplate={handleOpenTemplateChange}
+                  onExport={handleExport}
+                  onCancel={onCancel}
+                  callbacks={getCallbacksForPage(page.id)}
+                  multiPageExport={index === 0 ? multiPageExportProps : undefined}
+                  onStateChange={handlePageStateChange}
+                  onToolbarStateChange={isActive ? handleToolbarStateChange : undefined}
+                  onAutoSaveShareToken={onAutoSaveShareToken}
+                  autoSave={false}
+                  mobileBridge={isActive ? mobileBridge : undefined}
+                  pageBinding={pageBindingAt(index, page.id, isActive)}
+                />
+              );
+            })}
 
-          {templateChangePage && (
-            <TemplatePickerFlyout
-              isOpen
-              mode="replace"
-              anchorRef={pageDomRefsRef.current[templateChangePage.index]}
-              onSelectTemplate={handleSelectTemplateChange}
-              onClose={handleCloseTemplateChange}
-              currentTemplateId={templateChangePage.configId}
-              templateFilter={categoryFilter}
-            />
-          )}
-
-          {/* Tail AddPageButton — only when no strip is shown (single page or mobile bridge) */}
-          {canAddMore && !showPageNavigator && (
-            <div className="w-full max-w-[28rem] pt-sm max-canvas-mobile:pt-xs max-canvas-mobile:px-xs">
-              <AddPageButton
-                onSelectTemplate={handleAddPage}
-                onDuplicateCurrent={duplicateCurrentPage}
-                currentTemplateId={currentTemplateId}
-                disabled={!canAddMore}
-                onAddSliderVariant={sliderVariantHandler}
+            {templateChangePage && (
+              <TemplatePickerFlyout
+                isOpen
+                mode="replace"
+                anchorRef={pageDomRefsRef.current[templateChangePage.index]}
+                onSelectTemplate={handleSelectTemplateChange}
+                onClose={handleCloseTemplateChange}
+                currentTemplateId={templateChangePage.configId}
                 templateFilter={categoryFilter}
               />
-            </div>
-          )}
-        </div>
-      </CanvasEditorLayout>
+            )}
+
+            {/* Tail AddPageButton — only when no strip is shown (single page or mobile bridge) */}
+            {canAddMore && !showPageNavigator && (
+              <div className="w-full max-w-[28rem] pt-sm max-canvas-mobile:pt-xs max-canvas-mobile:px-xs">
+                <AddPageButton
+                  onSelectTemplate={handleAddPage}
+                  onDuplicateCurrent={duplicateCurrentPage}
+                  currentTemplateId={currentTemplateId}
+                  disabled={!canAddMore}
+                  onAddSliderVariant={sliderVariantHandler}
+                  templateFilter={categoryFilter}
+                />
+              </div>
+            )}
+          </div>
+        </CanvasEditorLayout>
+      </CanvasTextEditorProvider>
     </UserUploadsProvider>
   );
 }

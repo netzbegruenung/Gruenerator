@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 
 import { FONT_COLORS, STROKE_ONLY_SHAPES } from '../../utils/shapes';
 
+import { useCanvasTextFormatting } from '../CanvasTextOverlay';
+import { TextFormatControls } from '../TextFormatControls';
+
 import { FloatingColorPicker } from './modules/FloatingColorPicker';
 import { FloatingFontSizeControl } from './modules/FloatingFontSizeControl';
 import { FloatingGradientControl } from './modules/FloatingGradientControl';
@@ -59,6 +62,9 @@ export function ContextControls({
   onDeselect,
 }: ContextControlsProps) {
   const [isColorPickerExpanded, setIsColorPickerExpanded] = useState(false);
+  // Fett/Kursiv/… nur, solange wirklich getippt wird: die Knöpfe bedienen die
+  // Auswahl IM Text, und ohne offenen Editor gibt es keine.
+  const formatting = useCanvasTextFormatting();
 
   const showColorFor = (type: FloatingModuleState['type']) => {
     if (type === 'text') {
@@ -112,6 +118,21 @@ export function ContextControls({
         onFontSizeChange={(size) =>
           handlers.handleFontSizeChange(activeFloatingModule.data.id, size)
         }
+      />
+    );
+  }
+
+  // Die Schnitt-Gruppe steht bei der Schrift, nicht bei der Ausrichtung — wie
+  // in Canva, wo alles Typografische beieinanderliegt. Der Id-Vergleich hält
+  // die Knöpfe vom falschen Element fern, falls Auswahl und Sitzung je
+  // auseinanderlaufen.
+  if (isText && formatting && formatting.editingId === activeFloatingModule?.data.id) {
+    groups.push(
+      <TextFormatControls
+        key="format"
+        editor={formatting.editor}
+        marks={formatting.marks}
+        variant="contextBar"
       />
     );
   }

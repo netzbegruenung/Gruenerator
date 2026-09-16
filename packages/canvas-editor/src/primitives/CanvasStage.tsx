@@ -21,6 +21,7 @@ import type { ExportOptions } from '@gruenerator/shared/canvas-editor';
 import type Konva from 'konva';
 
 import { withSelectionChromeHidden } from '../utils/captureStage';
+import { CanvasTextEditorProvider } from '../components/CanvasTextOverlay';
 import { cn } from '../utils/cn';
 
 export interface CanvasStageProps {
@@ -178,7 +179,12 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
     );
 
     return (
-      <>
+      // Der Text-Editor gehört ins DOM, nicht auf die Bühne: `react-konva`
+      // hat einen eigenen Reconciler und löst ein Portal aus einem Knoten
+      // heraus zu Konva-Knoten auf, statt zu DOM-Elementen. Der Provider
+      // steht deshalb HIER, außerhalb von `<Stage>` — siehe
+      // `components/CanvasTextOverlay.tsx`.
+      <CanvasTextEditorProvider>
         {/* Display Stage - Visible, interactive, responsively scaled */}
         <div
           ref={containerDivRef}
@@ -218,7 +224,7 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
             </Layer>
           </Stage>
         </div>
-      </>
+      </CanvasTextEditorProvider>
     );
   }
 );
