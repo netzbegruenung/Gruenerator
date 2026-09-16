@@ -8,7 +8,7 @@ export type {
   UseCanvasInteractionsResult,
 } from './useCanvasInteractions';
 
-export { useCanvasStoreSetup } from './useCanvasStoreSetup';
+export { useCanvasStoreReset } from './useCanvasStoreReset';
 
 export { useCanvasHistorySetup } from './useCanvasHistorySetup';
 export type { UseCanvasHistorySetupResult } from './useCanvasHistorySetup';
