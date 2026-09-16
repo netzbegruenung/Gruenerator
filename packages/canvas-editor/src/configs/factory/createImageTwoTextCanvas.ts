@@ -100,6 +100,9 @@ export interface ImageTwoTextStateBase {
   frameInstances: FrameInstance[];
   userImageInstances: UserImageInstance[];
   chartInstances: ChartInstance[];
+
+  /** z-order of the collections above; carried by `carryInstanceState`. */
+  layerOrder: string[];
 }
 
 /**

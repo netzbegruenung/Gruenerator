@@ -18,6 +18,10 @@ import { CARRIED_INSTANCE_KEYS } from '../factory/carryInstanceState';
  * bar from the three lines). Those must still follow the text, which is why
  * they get their own cases below: keep the instance, refresh only what the
  * text owns.
+ *
+ * `layerOrder` is in the same list because it is the z-order of exactly these
+ * collections. Until #3420 only `dreizeilen` and `freeform` read it back, so
+ * everywhere else a shape sent behind the headline came back in front.
  */
 
 type CanvasConfigType = Parameters<typeof loadCanvasConfig>[0];
@@ -48,6 +52,7 @@ const DERIVED: Partial<Record<CanvasConfigType, string[]>> = {
 /** One recognisable entry per collection, shaped enough to be told apart. */
 function seedFor(key: string): unknown {
   if (key === 'selectedIcons') return ['guard-icon'];
+  if (key === 'layerOrder') return ['guard-shapeInstances', 'guard-assetInstances'];
   if (key === 'iconStates') {
     return { 'guard-icon': { x: 11, y: 22, scale: 1, rotation: 0, opacity: 0.5 } };
   }

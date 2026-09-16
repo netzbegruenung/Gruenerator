@@ -5,7 +5,9 @@
  * Zustand und baut ihn über `createInitialState` neu auf. Bis #3421 nahm es
  * dabei `balkenInstances` ganz aus der Eingabe, damit der abgeleitete Balken
  * der Vorlage dem neuen Text folgt — und riss jeden von Hand hinzugefügten
- * Balken mit heraus.
+ * Balken mit heraus. Bis #3420 kam `layerOrder` auf den meisten Vorlagen gar
+ * nicht erst aus den Props zurück, die Ebenen sprangen also zusätzlich in die
+ * Standardreihenfolge.
  *
  * Geprüft wird an der echten Fläche: echte Vorlage, echtes Y.Doc, echter
  * Beobachter. Ein Test gegen `createInitialState` allein bliebe grün, wenn
@@ -33,6 +35,21 @@ Object.defineProperty(document, 'fonts', {
 });
 
 const PAGE_ID = 'seed-0';
+
+/** Eine vollstaendige Form — der Renderer laeuft hier echt, ein `{id}` reicht ihm nicht. */
+const shape = (id: string) => ({
+  id,
+  type: 'rect' as const,
+  x: 100,
+  y: 100,
+  width: 200,
+  height: 200,
+  fill: '#005538',
+  rotation: 0,
+  scaleX: 1,
+  scaleY: 1,
+  opacity: 1,
+});
 
 /** Kein `PAGES_*`-Ursprung: genau so sieht der Beobachter eine fremde Bearbeitung. */
 const REMOTE_ORIGIN = Symbol('anderer-client');
@@ -127,5 +144,22 @@ describe('Fernbearbeitung an der echten Fläche', () => {
     expect((canvas.state().shapeInstances as Array<{ id: string }>).map((s) => s.id)).toEqual([
       shapeId,
     ]);
+  });
+
+  it('hält die Ebenenreihenfolge über eine Fernbearbeitung', async () => {
+    const canvas = await mount('zitat', {
+      quote: 'Alt',
+      shapeInstances: [shape('form-a'), shape('form-b')],
+      layerOrder: ['form-b', 'form-a'],
+    });
+
+    expect(canvas.state().layerOrder, 'layerOrder kam schon beim Mounten nicht an').toEqual([
+      'form-b',
+      'form-a',
+    ]);
+
+    await canvas.remoteEdit({ quote: 'Neu' });
+
+    expect(canvas.state().layerOrder).toEqual(['form-b', 'form-a']);
   });
 });
