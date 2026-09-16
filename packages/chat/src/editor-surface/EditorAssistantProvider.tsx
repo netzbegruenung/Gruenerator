@@ -178,7 +178,7 @@ function EditorAssistantReadyHost({
     return registerContextProvider(threadId, adapter.getRequestContext);
   }, [threadId, adapter, registerContextProvider]);
 
-  // Surface's live-edit handler (documentEditHandlers / boardActionHandlers).
+  // Surface's live-edit handler (documentEditHandlers / editorOpsHandlers).
   useEffect(() => {
     return adapter.registerEditHandler({
       threadId,
