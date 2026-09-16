@@ -74,10 +74,14 @@ LABEL org.opencontainers.image.vendor="netzbegruenung"
 # Install curl for healthcheck
 RUN apk add --no-cache curl
 
-# Create non-root user and /app directory with correct ownership
+# Create non-root user and /app directory with correct ownership.
+# .cache is created here on purpose: the install below mounts a cache at
+# .cache/pnpm, and BuildKit would otherwise create that parent as root and leave
+# corepack unable to write its own .cache/node next to it (EACCES on mkdir).
 RUN addgroup -g 1001 gruenerator && \
     adduser -u 1001 -G gruenerator -s /bin/sh -D gruenerator && \
-    mkdir -p /app && chown gruenerator:gruenerator /app
+    mkdir -p /app /home/gruenerator/.cache && \
+    chown gruenerator:gruenerator /app /home/gruenerator/.cache
 
 # Install pnpm
 RUN corepack enable
@@ -107,7 +111,12 @@ USER gruenerator
 # pnpm-workspace.yaml (which every production stage copies), so --filter stopped
 # restricting anything. This image went 109 MB -> 1453 MB, installing Expo,
 # Metro, Tauri and Docusaurus into a server with no cross-package deps at all.
-RUN --mount=type=cache,id=pnpm-prod,target=/home/gruenerator/.local/share/pnpm/store \
+# The second mount is from the same bump: pnpm 12 caches a full packument per
+# lockfile entry under ~/.cache/pnpm while verifying the supply-chain policies,
+# 2.4 GB of registry JSON that was being baked into the image because only the
+# store was mounted. See the longer note in apps/api/Dockerfile.
+RUN --mount=type=cache,id=pnpm-prod,target=/home/gruenerator/.local/share/pnpm/store,uid=1001,gid=1001 \
+    --mount=type=cache,id=pnpm-prod-meta,target=/home/gruenerator/.cache/pnpm,uid=1001,gid=1001 \
     pnpm install --prod --frozen-lockfile --node-linker=isolated --shamefully-hoist \
         --filter @gruenerator/hocuspocus...
 
