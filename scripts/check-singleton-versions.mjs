@@ -45,9 +45,15 @@ const EXCLUDED_IMPORTERS = ['apps/mobile', 'apps/docs-expo'];
 
 const lock = readFileSync(new URL('../pnpm-lock.yaml', import.meta.url), 'utf8');
 
+// pnpm 12 prepends a second YAML document carrying `packageManagerDependencies`
+// (the pnpm binary itself), and it has its own `importers:`/`packages:` keys.
+// Anchoring on the FIRST of each would slice that block instead of the real one
+// and silently check zero packages, so anchor on the LAST `importers:` and take
+// the `packages:` that follows it.
+const importersStart = lock.lastIndexOf('\nimporters:');
 const importersSection = lock.slice(
-  lock.indexOf('\nimporters:'),
-  lock.indexOf('\npackages:')
+  importersStart,
+  lock.indexOf('\npackages:', importersStart)
 );
 
 // pkg -> version -> Set<importer>
@@ -105,7 +111,7 @@ for (const [pkg, byVersion] of seen) {
 if (failed) {
   console.error(
     '\nSingleton-Pakete müssen workspace-weit auf EINE Version auflösen.' +
-      '\nFix: Version in pnpm.overrides (root package.json) pinnen und' +
+      '\nFix: Version in overrides (pnpm-workspace.yaml) pinnen und' +
       ' `pnpm install` laufen lassen (siehe @tanstack/react-query dort).' +
       `\nUnterscheiden sich nur die Peer-Suffixe in Klammern (${TYPE_IDENTITY.join(', ')}),` +
       ' ist der gespaltene Peer zu pinnen, nicht das Paket selbst.'

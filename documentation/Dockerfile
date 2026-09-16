@@ -34,13 +34,13 @@ RUN corepack enable && corepack prepare pnpm@10 --activate
 WORKDIR /app
 
 # Workspace configuration first (better layer caching)
-COPY pnpm-workspace.yaml package.json pnpm-lock.yaml .npmrc ./
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 
 # Only this package's manifest: documentation declares no workspace dependency,
 # so the filtered install needs nothing else.
 COPY documentation/package.json ./documentation/
 
-# --node-linker overrides .npmrc's node-linker=hoisted (kept because Metro/RN in
+# --node-linker overrides pnpm-workspace.yaml's nodeLinker: hoisted (kept because Metro/RN in
 # apps/mobile needs it). The hoisted linker materializes the ENTIRE lockfile
 # regardless of --filter — 4799 packages / 4.5 GB for every scope, which is what
 # made a cold image build take ~1 h. --shamefully-hoist keeps the flat
