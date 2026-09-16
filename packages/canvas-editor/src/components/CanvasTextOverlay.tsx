@@ -31,6 +31,25 @@
  * Marker. Die Aufteilung der Renderer bleibt (ein Konva-Knoten für glatten
  * Text, eine Gruppe aus Läufen für ausgezeichneten); der Editor ist derselbe.
  *
+ * ## Wer die Knöpfe zeigt
+ *
+ * Fett/Kursiv/… gehören zum Text, nicht zum Overlay. Deshalb entscheidet
+ * `controls`, WO sie erscheinen: `'floating'` als Karte über dem Text — das
+ * ist der einzige Ort, an dem eine Bühne ohne Kopfleiste sie zeigen kann
+ * (`StandaloneCanvas`) — oder `'host'`, wenn ein Wirt sie übernimmt. Im
+ * Editor tut das die Kontextleiste der Kopfleiste, neben Farbe, Schriftgröße
+ * und Ausrichtung desselben Elements.
+ *
+ * Damit der Wirt den Editor erreicht, steht dieser Provider dort, wo auch die
+ * Kopfleiste steht: an der Wurzel des Editors. Der Provider in `CanvasStage`
+ * bleibt trotzdem stehen — er ist NESTFEST: findet er einen über sich, reicht
+ * er seine Kinder unverändert durch. So bedient eine Bühne im Editor die
+ * Kopfleiste, eine Bühne ohne Editor weiterhin sich selbst, und keine der
+ * beiden weiß etwas von der anderen.
+ *
+ * Genau eine Sitzung ist zu jeder Zeit offen — dieselbe Reichweite, die
+ * `selectedElement` längst hat. Vorher lag sie je Seite, eine Stufe zu eng.
+ *
  * Der Entwurf lebt im Overlay und wird erst beim Abschließen nach oben
  * gegeben. Das ist nicht nur Sparsamkeit: schriebe jeder Tastendruck in den
  * Zustand, wechselte das Feld beim ersten Marker mitten im Tippen den
@@ -48,10 +67,11 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 
-import { fontMarkSupport } from '../utils/fontMarkSupport';
+import { fontMarkSupport, type FontMarkSupport } from '../utils/fontMarkSupport';
 
 import { RichTextField } from './RichTextField';
 
+import type { Editor } from '@tiptap/react';
 import type Konva from 'konva';
 
 export interface OverlayBox {
@@ -61,6 +81,9 @@ export interface OverlayBox {
   minHeight: number;
   scale: number;
 }
+
+/** Ohne offene Sitzung trägt niemand einen Schnitt. */
+const NO_MARKS: FontMarkSupport = { bold: false, italic: false };
 
 /** Was ein Knoten mitgibt, wenn er bearbeitet werden will. */
 export interface TextEditSession {
@@ -78,10 +101,18 @@ export interface TextEditSession {
   onTextChange?: (value: string) => void;
 }
 
+/** Wer die Formatierungsknöpfe zeigt. */
+export type TextEditorControls = 'floating' | 'host';
+
 interface TextEditorContextValue {
   open: (session: TextEditSession | null) => void;
   /** Id des Feldes, das gerade bearbeitet wird — sonst `null`. */
   editingId: string | null;
+  /** Der lebende tiptap-Editor, sobald er steht. */
+  editor: Editor | null;
+  /** Welche Schnitte die Schrift des bearbeiteten Feldes trägt. */
+  marks: FontMarkSupport;
+  controls: TextEditorControls;
 }
 
 const TextEditorContext = createContext<TextEditorContextValue | null>(null);
@@ -129,8 +160,50 @@ export function useCanvasTextEditor(id: string | undefined) {
   };
 }
 
-export function CanvasTextEditorProvider({ children }: { children: ReactNode }) {
+/**
+ * Für den Wirt der Formatierungsknöpfe (die Kontextleiste). Liefert `null`,
+ * solange nichts bearbeitet wird — und auch dann, wenn die schwebende Karte
+ * die Knöpfe schon zeigt: zwei Leisten für dieselbe Handlung wären eine zu
+ * viel.
+ */
+export function useCanvasTextFormatting(): {
+  editor: Editor;
+  marks: FontMarkSupport;
+  editingId: string;
+} | null {
+  const context = useContext(TextEditorContext);
+  if (!context || context.controls !== 'host') return null;
+  if (!context.editor || !context.editingId) return null;
+  return { editor: context.editor, marks: context.marks, editingId: context.editingId };
+}
+
+/**
+ * Nestfest: liegt schon ein Provider darüber, reicht dieser seine Kinder
+ * unverändert durch. Die Prüfung MUSS hier stehen und nicht im Rumpf von
+ * `TextEditorRoot` — ein vorzeitiges `return` nach den Zustands-Hooks wäre
+ * ein bedingter Hook-Aufruf.
+ */
+export function CanvasTextEditorProvider({
+  children,
+  controls = 'floating',
+}: {
+  children: ReactNode;
+  controls?: TextEditorControls;
+}) {
+  const existing = useContext(TextEditorContext);
+  if (existing) return <>{children}</>;
+  return <TextEditorRoot controls={controls}>{children}</TextEditorRoot>;
+}
+
+function TextEditorRoot({
+  children,
+  controls,
+}: {
+  children: ReactNode;
+  controls: TextEditorControls;
+}) {
   const [session, setSession] = useState<TextEditSession | null>(null);
+  const [editor, setEditor] = useState<Editor | null>(null);
   const [draft, setDraft] = useState('');
 
   // Sobald der Editor geschlossen ist, darf sein Blur nichts mehr schreiben.
@@ -163,7 +236,15 @@ export function CanvasTextEditorProvider({ children }: { children: ReactNode }) 
     setSession(null);
   }, []);
 
-  const value = useMemo(() => ({ open, editingId: session?.id ?? null }), [open, session?.id]);
+  const marks = useMemo(
+    () => (session ? fontMarkSupport(session.fontFamily) : NO_MARKS),
+    [session]
+  );
+
+  const value = useMemo(
+    () => ({ open, editingId: session?.id ?? null, editor, marks, controls }),
+    [open, session?.id, editor, marks, controls]
+  );
 
   return (
     <TextEditorContext.Provider value={value}>
@@ -189,7 +270,9 @@ export function CanvasTextEditorProvider({ children }: { children: ReactNode }) 
             <RichTextField
               value={draft}
               onChange={setDraft}
-              marks={fontMarkSupport(session.fontFamily)}
+              marks={marks}
+              showToolbar={controls === 'floating'}
+              onEditorReady={setEditor}
               autoFocus
               contentStyle={{
                 fontSize: session.fontSize * session.box.scale,

@@ -11,9 +11,14 @@
  * Komponente selbst war die ganze Zeit in Ordnung.
  */
 import { render, screen, act } from '@testing-library/react';
-import { createRef } from 'react';
+import { createRef, type ReactNode } from 'react';
 import { describe, expect, it } from 'vitest';
 
+import {
+  CanvasTextEditorProvider,
+  useCanvasTextFormatting,
+} from '../../components/CanvasTextOverlay';
+import { TextFormatControls } from '../../components/TextFormatControls';
 import { CanvasStage } from '../CanvasStage';
 import { CanvasText } from '../CanvasText';
 
@@ -31,25 +36,28 @@ interface StageOptions {
 /** Rendert das Feld auf einer echten Bühne und löst den Doppelklick am Knoten aus. */
 function dblClickOnCanvas(
   props: Partial<Parameters<typeof CanvasText>[0]> & { text: string },
-  stageOptions: StageOptions = {}
+  stageOptions: StageOptions = {},
+  wrap: (node: ReactNode) => ReactNode = (node) => node
 ) {
   // Über `CanvasStage`, nicht über ein nacktes `<Stage>`: dort sitzt der
   // Provider, der den Editor auf der DOM-Seite zeichnet. Genau diese Naht
   // war kaputt — ein Test gegen ein nacktes `<Stage>` würde sie überspringen.
   const stageRef = createRef<CanvasStageRef>();
   render(
-    <CanvasStage ref={stageRef} width={600} height={600} {...stageOptions}>
-      <CanvasText
-        id="text-1"
-        x={10}
-        y={10}
-        width={400}
-        fontSize={24}
-        editable
-        onTextChange={() => {}}
-        {...props}
-      />
-    </CanvasStage>
+    wrap(
+      <CanvasStage ref={stageRef} width={600} height={600} {...stageOptions}>
+        <CanvasText
+          id="text-1"
+          x={10}
+          y={10}
+          width={400}
+          fontSize={24}
+          editable
+          onTextChange={() => {}}
+          {...props}
+        />
+      </CanvasStage>
+    )
   );
 
   // react-konva zeichnet auf ein Canvas — der Knoten ist kein DOM-Element,
@@ -108,5 +116,51 @@ describe('Doppelklick auf Leinwand-Text', () => {
     dblClickOnCanvas({ text: 'Nur Anzeige', fontFamily: PT_SANS, editable: false });
 
     expect(screen.queryByRole('toolbar')).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * Der Provider an der Wurzel des Editors und der in `CanvasStage` sind
+ * derselbe Baustein. Läge im Editor ein zweiter, hinge der Editor an IHM: die
+ * Kopfleiste bekäme nie einen Editor zu sehen, und die schwebende Karte käme
+ * zurück. Das sähe aus wie ein Stilfehler und wäre ein Verdrahtungsfehler.
+ */
+function HostControls() {
+  const formatting = useCanvasTextFormatting();
+  if (!formatting) return <span data-testid="host">leer</span>;
+  return (
+    <div data-testid="host">
+      <TextFormatControls
+        editor={formatting.editor}
+        marks={formatting.marks}
+        variant="contextBar"
+      />
+    </div>
+  );
+}
+
+describe('Bühne innerhalb eines Wirt-Providers', () => {
+  it('öffnet keine zweite Sitzung — der Wirt bekommt den Editor', () => {
+    dblClickOnCanvas({ text: 'Klimaschutz ist kein Sprint', fontFamily: PT_SANS }, {}, (node) => (
+      <CanvasTextEditorProvider controls="host">
+        <HostControls />
+        {node}
+      </CanvasTextEditorProvider>
+    ));
+
+    expect(screen.getByTestId('host')).not.toHaveTextContent('leer');
+    expect(screen.getAllByRole('toolbar', { name: 'Textformatierung' })).toHaveLength(1);
+    // Die Karte über dem Text bleibt aus: der Wirt zeigt die Knöpfe.
+    expect(document.querySelector('.canvas-rte__floating-toolbar')).toBeNull();
+    // Der Editor selbst steht trotzdem — nur eben ohne eigene Leiste.
+    expect(document.querySelector('.canvas-rte__content')).not.toBeNull();
+  });
+
+  it('zeigt die Karte weiterhin, wo keine Kopfleiste darüber liegt', () => {
+    // `StandaloneCanvas`: Bühne ohne Editor-Rahmen. Ohne diesen Zweig verlöre
+    // der Pfad jede Formatierung.
+    dblClickOnCanvas({ text: 'Klimaschutz ist kein Sprint', fontFamily: PT_SANS });
+
+    expect(document.querySelector('.canvas-rte__floating-toolbar')).not.toBeNull();
   });
 });

@@ -107,6 +107,45 @@ describe('RichTextField', () => {
     expect(container.querySelector('.canvas-rte__content strong')).toHaveTextContent('wichtig');
   });
 
+  it('lässt die Werkzeugleiste weg, wenn ein Wirt sie zeigt', () => {
+    // Im Editor trägt die Kontextleiste der Kopfleiste die Knöpfe; stünden
+    // sie zusätzlich über dem Text, gäbe es zwei Leisten für eine Handlung.
+    const { container } = render(
+      <RichTextField
+        value="Hallo"
+        onChange={() => {}}
+        marks={fontMarkSupport(PT_SANS)}
+        showToolbar={false}
+      />
+    );
+
+    expect(screen.queryByRole('toolbar', { name: 'Textformatierung' })).not.toBeInTheDocument();
+    expect(container.querySelector('.canvas-rte__floating-toolbar')).toBeNull();
+    // Der Editor selbst bleibt unberührt.
+    expect(container.querySelector('.canvas-rte__content')).not.toBeNull();
+  });
+
+  it('reicht den lebenden Editor nach oben und meldet sein Abräumen', () => {
+    const onEditorReady = vi.fn();
+    const { unmount } = render(
+      <RichTextField
+        value="Hallo"
+        onChange={() => {}}
+        marks={fontMarkSupport(PT_SANS)}
+        onEditorReady={onEditorReady}
+      />
+    );
+
+    expect(onEditorReady).toHaveBeenCalledWith(
+      expect.objectContaining({ commands: expect.anything() })
+    );
+
+    // Ohne das `null` bediente der Wirt nach dem Schließen eine Leiche.
+    onEditorReady.mockClear();
+    unmount();
+    expect(onEditorReady).toHaveBeenCalledWith(null);
+  });
+
   it('Auszeichnung aus dem Feldtext kommt als Auszeichnung im Editor an', () => {
     const { container } = render(
       <RichTextField
