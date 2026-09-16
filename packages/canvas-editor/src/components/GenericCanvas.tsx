@@ -86,6 +86,9 @@ export interface ToolbarStateReport {
   canRedo: boolean;
   canMoveUp: boolean;
   canMoveDown: boolean;
+  /** Liegt die Auswahl in einer Instanz-Sammlung? Vorlagen-Elemente und Icons
+   *  nicht — siehe `utils/duplicateElement.ts`. */
+  canDuplicate: boolean;
 }
 
 export interface GenericCanvasProps<TState, TActions extends OptionalCanvasActions> {
@@ -169,6 +172,7 @@ export interface GenericCanvasRef {
   undo?: () => void;
   redo?: () => void;
   handleMoveLayer?: (direction: 'up' | 'down') => void;
+  handleDuplicate?: () => void;
   handleColorSelect?: (color: string) => void;
   handleOpacityChange?: (id: string, opacity: number, type: string) => void;
   handleFontSizeChange?: (id: string, size: number) => void;
@@ -641,6 +645,7 @@ function GenericCanvasWithRef<
       undo,
       redo,
       handleMoveLayer: (dir) => bridgeRef.current?.handleMoveLayer(dir),
+      handleDuplicate: () => bridgeRef.current?.handleDuplicate(),
       handleColorSelect: (color) => bridgeRef.current?.handleColorSelect(color),
       handleOpacityChange: (id, op, type) => bridgeRef.current?.handleOpacityChange(id, op, type),
       handleFontSizeChange: elementHandlers.handleFontSizeChange,
