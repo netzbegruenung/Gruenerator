@@ -1,7 +1,7 @@
 import { getSharepicVariantLabel, isMintableCanvasType } from '@gruenerator/contracts';
 import { useState, useCallback, useEffect, useRef } from 'react';
 
-import { notifyError } from '../lib/notify';
+import { notifyError, notifyWarning } from '../lib/notify';
 import { useChatConfigStore } from '../stores/chatConfigStore';
 import { useAgentStore } from '../stores/chatStore';
 import { useSharepicLiveStore } from '../stores/sharepicLiveStore';
@@ -255,7 +255,10 @@ export function useSharepicArtifact(variant: SharepicVariant) {
   const download = useCallback(async () => {
     const renderFn = useChatConfigStore.getState().renderSharepic;
     const full = renderFn
-      ? await renderFn(variant.canvasType, renderInput, { quality: 'full' }).catch(() => null)
+      ? await renderFn(variant.canvasType, renderInput, { quality: 'full' }).catch(() => {
+          notifyWarning('Sharepic wird in Vorschau-Auflösung geladen');
+          return null;
+        })
       : null;
     const href = full ?? imageBase64;
     if (!href) return;
