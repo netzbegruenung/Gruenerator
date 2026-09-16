@@ -107,7 +107,12 @@ USER gruenerator
 # pnpm-workspace.yaml (which every production stage copies), so --filter stopped
 # restricting anything. This image went 109 MB -> 1453 MB, installing Expo,
 # Metro, Tauri and Docusaurus into a server with no cross-package deps at all.
-RUN --mount=type=cache,id=pnpm-prod,target=/home/gruenerator/.local/share/pnpm/store \
+# The second mount is from the same bump: pnpm 12 caches a full packument per
+# lockfile entry under ~/.cache/pnpm while verifying the supply-chain policies,
+# 2.4 GB of registry JSON that was being baked into the image because only the
+# store was mounted. See the longer note in apps/api/Dockerfile.
+RUN --mount=type=cache,id=pnpm-prod,target=/home/gruenerator/.local/share/pnpm/store,uid=1001,gid=1001 \
+    --mount=type=cache,id=pnpm-prod-meta,target=/home/gruenerator/.cache/pnpm,uid=1001,gid=1001 \
     pnpm install --prod --frozen-lockfile --node-linker=isolated --shamefully-hoist \
         --filter @gruenerator/hocuspocus...
 
