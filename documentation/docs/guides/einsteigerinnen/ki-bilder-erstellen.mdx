@@ -1,7 +1,7 @@
 ---
 sidebar_position: 5
 tags: [kommunikation, bild]
-description: 'Im Studio ein KI-Bild erstellen, gezielt weiterbearbeiten und über „Vergrößern“ ins gewünschte Format bringen.'
+description: 'Im Studio ein KI-Bild im passenden Format erstellen, kennzeichnen und gezielt weiterbearbeiten.'
 ---
 
 # Wie erstelle ich KI-Bilder?
@@ -24,11 +24,16 @@ Am Ende hast du ein eigenes KI-Bild als Datei oder eine Grundlage für ein Share
 
    „Eine schöne Stadt“ ist zu allgemein. „Geschützte Radwege“, die Tageszeit und der dokumentarische Stil geben dem Bild dagegen eine klare Richtung.
 
-3. **Stil wählen.** Klicke links im Eingabefeld auf das Zahnrad und wähle **Illustration**, **Realistisch**, **Pixel Art** oder **Editorial**. Alle vier Stile erzeugen zunächst ein Bild mit **1088 × 1360 Pixeln** im Format **4:5**. Eine andere Größe stellst du erst nach der Erstellung ein.
+3. **Stil, Format und Kennzeichnung wählen.** Klicke links im Eingabefeld auf **„Einstellungen“**. Dort stellst du ein:
+   - **Stil:** Illustration, Realistisch, Pixel Art oder Editorial
+   - **Format:** 4:5, 1:1, 4:3, 3:4, 16:9 oder 9:16
+   - **KI-Kennzeichnung:** „KI-Generiert mit dem Grünerator“, nur „KI-Generiert“ oder keine Kennzeichnung
 
-![Geöffnete Einstellungen des KI-Bildeditors mit Stil- und Kennzeichnungsoptionen](/img/guides/ki-bilder-einstellungen.webp)
+   Vorausgewählt sind **Illustration**, **4:5** und **„KI-Generiert mit dem Grünerator“**. Wenn du die Kennzeichnung änderst, wird genau diese Auswahl auf das neue Bild angewendet. Ohne sichtbare Kennzeichnung musst du ein realistisches KI-Bild („Deepfake“) beim Veröffentlichen gegebenenfalls selbst als KI-Bild kennzeichnen. Die maschinenlesbare Kennzeichnung bleibt in den Metadaten erhalten.
 
-4. **Erstellen und Ergebnis prüfen.** Schicke die Beschreibung mit dem Pfeil ab. Das Ergebnis erhält automatisch die sichtbare Kennzeichnung **„KI-Generiert mit dem Grünerator“**. Prüfe anschließend Menschen, Gegenstände, Schilder und die politische Aussage: KI-Bilder können überzeugend wirken und trotzdem falsche oder unplausible Details enthalten.
+![Geöffnete Einstellungen des KI-Bildeditors mit Stil, Format und KI-Kennzeichnung](/img/guides/ki-bilder-einstellungen.webp)
+
+4. **Erstellen und Ergebnis prüfen.** Schicke die Beschreibung mit dem Pfeil ab. Prüfe anschließend Format und Kennzeichnung sowie Menschen, Gegenstände, Schilder und die politische Aussage: KI-Bilder können überzeugend wirken und trotzdem falsche oder unplausible Details enthalten.
 
 ## Bild bearbeiten
 
@@ -42,22 +47,24 @@ Möchtest du eine ältere Version anders weiterbearbeiten, wählst du zuerst ihr
 
 Du kannst statt eines KI-Bildes auch ein eigenes Bild bearbeiten: Wähle auf der Startseite **„Oder editiere ein eigenes Bild“** und lade ein PNG oder JPG bis 10 MB hoch. Danach funktioniert das Bearbeiten genauso.
 
-## Größe und Format einstellen
+## Format und Größe einstellen
 
-Die Größenwahl steckt nicht im Erstellen-Dialog. So bringst du ein fertiges Bild in ein anderes Seitenverhältnis:
+Beim Erstellen wählst du das Format direkt in den Einstellungen. Das Studio verwendet dafür diese Größen:
+
+- **4:5:** 1088 × 1360 Pixel
+- **1:1:** 1216 × 1216 Pixel
+- **4:3:** 1408 × 1056 Pixel
+- **3:4:** 1056 × 1408 Pixel
+- **16:9:** 1792 × 1008 Pixel
+- **9:16:** 1008 × 1792 Pixel
+
+Ein bereits vorhandenes Bild bringst du so in ein anderes Seitenverhältnis:
 
 1. Klicke rechts im Eingabefeld auf **„Bearbeiten“** und wähle **„Vergrößern“**.
-2. Klicke links auf das Zahnrad. Unter **„Ziel-Format“** stehen **1:1, 4:3, 3:4, 16:9** und **9:16**.
+2. Klicke links auf **„Einstellungen“**. Unter **„Ziel-Format“** stehen **4:5, 1:1, 4:3, 3:4, 16:9** und **9:16**.
 3. Wähle das Format und klicke unter dem Eingabefeld auf **„Auf … vergrößern“**.
 
-Das Studio beschneidet das Bild dabei nicht, sondern ergänzt neuen Bildinhalt an den fehlenden Rändern. Aus dem automatisch erzeugten Bild mit 1088 × 1360 Pixeln entstehen rechnerisch diese Zielgrößen:
-
-- **1:1:** 1360 × 1360 Pixel
-- **4:3:** 1813 × 1360 Pixel
-- **3:4:** 1088 × 1451 Pixel
-- **9:16:** 1088 × 1934 Pixel
-
-**16:9 funktioniert bei einem automatisch erzeugten 4:5-Bild derzeit nicht:** Das nötige Ziel wäre 2418 × 1360 Pixel groß und überschreitet damit die Grenze von 2048 Pixeln pro Seite. Das Studio zeigt in diesem Fall eine Fehlermeldung. Mit einem kleineren hochgeladenen Ausgangsbild kann 16:9 funktionieren.
+Das Studio beschneidet das Bild dabei nicht, sondern ergänzt neuen Bildinhalt an den fehlenden Rändern. Das funktioniert jetzt auch für **16:9** bei einem automatisch erzeugten 4:5-Bild. Die genaue Pixelgröße beim Vergrößern hängt vom Ausgangsbild ab.
 
 ## Weitere Werkzeuge und Ausgabe
 
@@ -69,7 +76,7 @@ Das Studio beschneidet das Bild dabei nicht, sondern ergänzt neuen Bildinhalt a
 ## Damit die Bilder glaubwürdig werden
 
 - **Beschreibe, was zu sehen sein soll — nicht nur das Thema.** Wer ist im Bild? Wo spielt es? Welche Tageszeit, Perspektive und Stimmung soll es haben?
-- **Stelle das Format über „Vergrößern“ ein.** Eine Formatangabe im Bildtext ersetzt die Größenwahl nicht.
+- **Wähle das Format in den Einstellungen.** Bei einem vorhandenen Bild nutzt du dafür „Vergrößern“. Eine Formatangabe im Bildtext ersetzt die Auswahl nicht.
 - **Keine falschen Tatsachenbilder.** Ein KI-Bild darf nicht den Eindruck erwecken, es dokumentiere ein reales Ereignis, eine echte Person oder einen tatsächlichen Zustand, wenn das nicht stimmt.
 - **Prüfe Rechte und Privatsphäre.** Lade nur Bilder hoch, die du verwenden darfst. Bei bearbeiteten Fotos brauchst du insbesondere die Rechte am Ausgangsbild und solltest abgebildete Personen nicht täuschend echt verändern.
 
