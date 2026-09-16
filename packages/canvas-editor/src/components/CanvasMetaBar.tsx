@@ -40,10 +40,10 @@ export const CanvasMetaBar = memo(function CanvasMetaBar({
   const zoomPercent = Math.round(zoom * 100);
 
   const zoomBtn =
-    'size-7 rounded-md flex items-center justify-center text-[var(--editor-text-secondary)] hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)] transition-colors';
+    'size-6 rounded-md flex items-center justify-center text-[var(--editor-text-secondary)] hover:bg-[var(--editor-surface-hover)] hover:text-[var(--editor-active-fg)] transition-colors';
 
   return (
-    <div className="canvas-meta-bar flex items-center gap-3 px-3 py-1.5">
+    <div className="canvas-meta-bar flex items-center gap-2 px-2 py-1">
       <button
         className={zoomBtn}
         onClick={() => onZoomChange(Math.max(minZoom, zoom - 0.1))}
@@ -59,7 +59,7 @@ export const CanvasMetaBar = memo(function CanvasMetaBar({
         step={5}
         value={zoomPercent}
         onChange={(e) => onZoomChange(Number(e.currentTarget.value) / 100)}
-        className="w-40 accent-[var(--editor-accent)] cursor-pointer"
+        className="w-28 accent-[var(--editor-accent)] cursor-pointer"
         aria-label="Zoom"
       />
       <button
@@ -70,13 +70,17 @@ export const CanvasMetaBar = memo(function CanvasMetaBar({
       >
         <PiMagnifyingGlassPlus size={14} />
       </button>
-      <span className="text-xs font-medium text-[var(--editor-text)] tabular-nums w-10 text-center select-none">
+      <span className="text-[11px] font-medium text-[var(--editor-text)] tabular-nums w-9 text-center select-none">
         {zoomPercent}%
       </span>
 
-      <span className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-[var(--editor-inset)] text-xs text-[var(--editor-text-muted)] select-none">
-        <PiFile size={12} />
-        Seiten {currentPageIndex + 1}/{pageCount}
+      <span
+        className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-[var(--editor-inset)] text-[11px] text-[var(--editor-text-muted)] select-none"
+        title={`Seite ${currentPageIndex + 1} von ${pageCount}`}
+        aria-label={`Seite ${currentPageIndex + 1} von ${pageCount}`}
+      >
+        <PiFile size={11} />
+        {currentPageIndex + 1}/{pageCount}
       </span>
       <button
         className={zoomBtn}

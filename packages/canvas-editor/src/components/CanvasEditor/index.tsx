@@ -1057,7 +1057,14 @@ function CanvasEditorInner({
       <MobileContextBar {...contextControlsProps} />
     ) : null;
 
-  const showPageNavigator = !isMobileBridge && pages.length > 1;
+  // Die untere Leiste trägt zwei Dinge, und nur eines davon hängt an der
+  // Seitenzahl: der Miniaturen-Streifen ist erst im Deck sinnvoll, die
+  // Meta-Leiste daneben (Zoom-Regler, Vollbild, Seitenanzeige) gilt immer.
+  // Bis hierher hing beides an derselben Bedingung — bei einer einzelnen Seite
+  // fiel damit auch der Zoom weg und war nur noch per Pinch bzw. Strg/Cmd+Rad
+  // erreichbar.
+  const showBottomBar = !isMobileBridge;
+  const showPageStrip = showBottomBar && pages.length > 1;
   const currentTemplateId = pages[currentPageIndex]?.configId;
   const sliderVariantHandler = pages[0]?.configId === 'slider' ? handleAddSliderVariant : undefined;
   // Restrict the template picker to the same category as the current template
@@ -1065,24 +1072,49 @@ function CanvasEditorInner({
   // can't insert a presentation slide.
   const categoryFilter = currentTemplateId ? getCategoryForTemplate(currentTemplateId) : undefined;
 
-  const bottomBar = showPageNavigator ? (
-    <div className="canvas-bottom-bar flex items-stretch bg-[var(--editor-surface)] border-t border-[var(--editor-border)]">
-      <div className="flex-1 min-w-0">
-        <PageThumbnailStrip
-          pages={pages}
-          currentPageIndex={currentPageIndex}
-          thumbnails={pageThumbnails}
-          loadedConfigs={loadedConfigs}
-          currentTemplateId={currentTemplateId}
-          canAddMore={canAddMore}
-          onSelect={handleThumbnailSelect}
-          onAddPage={handleAddPage}
-          onDuplicateCurrent={duplicateCurrentPage}
-          onAddSliderVariant={sliderVariantHandler}
-          templateFilter={categoryFilter}
-        />
-      </div>
-      <div className="shrink-0 flex items-center border-l border-[var(--editor-border)]">
+  // Die Leiste selbst ist durchsichtig und rahmenlos — sie liegt über der
+  // Fläche, statt eine eigene Kante zu bilden, und fängt außerhalb ihrer
+  // Kapseln keine Klicks ab. Lesbar bleiben die Bedienteile durch je eine
+  // eigene, leicht durchscheinende Kapsel.
+  const bottomBarGroup =
+    'flex items-center rounded-xl border border-[var(--editor-border)] bg-[var(--editor-surface)]/80 shadow-sm backdrop-blur-sm pointer-events-auto';
+  const bottomBar = showBottomBar ? (
+    <div className="canvas-bottom-bar pointer-events-none flex items-center gap-2 px-2 pb-2">
+      {showPageStrip ? (
+        <div className="min-w-0 flex-1">
+          <div className={cn('w-fit max-w-full', bottomBarGroup)}>
+            <PageThumbnailStrip
+              pages={pages}
+              currentPageIndex={currentPageIndex}
+              thumbnails={pageThumbnails}
+              loadedConfigs={loadedConfigs}
+              currentTemplateId={currentTemplateId}
+              canAddMore={canAddMore}
+              onSelect={handleThumbnailSelect}
+              onAddPage={handleAddPage}
+              onDuplicateCurrent={duplicateCurrentPage}
+              onAddSliderVariant={sliderVariantHandler}
+              templateFilter={categoryFilter}
+            />
+          </div>
+        </div>
+      ) : (
+        <div className="min-w-0 flex-1">
+          {canAddMore && (
+            <div className={cn('w-fit px-1.5 py-1', bottomBarGroup)}>
+              <AddPageButton
+                onSelectTemplate={handleAddPage}
+                onDuplicateCurrent={duplicateCurrentPage}
+                currentTemplateId={currentTemplateId}
+                onAddSliderVariant={sliderVariantHandler}
+                templateFilter={categoryFilter}
+                compact
+              />
+            </div>
+          )}
+        </div>
+      )}
+      <div className={cn('shrink-0', bottomBarGroup)}>
         <CanvasMetaBar
           pageCount={pageCount}
           currentPageIndex={currentPageIndex}
@@ -1119,7 +1151,7 @@ function CanvasEditorInner({
             onPointerDown={handleWorkAreaPointerDown}
             className={cn(
               'heterogeneous-multipage__pages-container flex flex-col items-center gap-md p-sm pb-lg w-full max-canvas-mobile:gap-sm max-canvas-mobile:p-xs',
-              showPageNavigator && 'has-page-navigator'
+              showBottomBar && 'has-bottom-bar'
             )}
           >
             {pages.map((page, index) => {
@@ -1171,9 +1203,19 @@ function CanvasEditorInner({
               />
             )}
 
-            {/* Tail AddPageButton — only when no strip is shown (single page or mobile bridge) */}
-            {canAddMore && !showPageNavigator && (
-              <div className="w-full max-w-[28rem] pt-sm max-canvas-mobile:pt-xs max-canvas-mobile:px-xs">
+            {/* Seite hinzufügen unter der Fläche — für die Fälle, in denen die
+                untere Leiste den Knopf nicht trägt: im Brücken-Modus (dort gibt
+                es gar keine Leiste) und unterhalb von 900 px, wo
+                `CanvasEditorLayout` sie per `max-canvas-mobile:hidden`
+                ausblendet. Die Breakpoint-Bedingung steht hier gespiegelt, weil
+                nur CSS sie kennt. */}
+            {canAddMore && !showPageStrip && (
+              <div
+                className={cn(
+                  'w-full max-w-[28rem] pt-sm max-canvas-mobile:pt-xs max-canvas-mobile:px-xs',
+                  showBottomBar && 'canvas-mobile:hidden'
+                )}
+              >
                 <AddPageButton
                   onSelectTemplate={handleAddPage}
                   onDuplicateCurrent={duplicateCurrentPage}
