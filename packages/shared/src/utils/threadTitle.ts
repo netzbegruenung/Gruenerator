@@ -13,10 +13,17 @@
  */
 export const MAX_THREAD_TITLE_CHARS = 32;
 
-/** German function words — never a title on their own, never the last word. */
+/**
+ * German function words — never a title on their own, never the last word.
+ *
+ * Contractions are listed next to the preposition they contract ("bei"/"beim",
+ * "in"/"ins"): a title can end on either form, and half a pair would strip
+ * "… Vorgaben in" but leave "… Vorgaben ins".
+ */
 const FUNCTION_WORDS =
-  'der|die|das|den|dem|des|ein|eine|einen|einem|eines|einer|und|oder|für|von|vom|' +
-  'mit|im|in|am|an|auf|zu|zum|zur|bei|über|unter|als|aus|nach|vor|durch|um';
+  'der|die|das|den|dem|des|ein|eine|einen|einem|eines|einer|und|oder|als|' +
+  'für|fürs|von|vom|mit|in|im|ins|an|am|ans|auf|aufs|zu|zum|zur|bei|beim|' +
+  'über|übers|unter|unters|aus|nach|vor|vors|durch|durchs|um|ums';
 /**
  * A run of them left standing at the end. Cutting on a word boundary strands
  * articles and prepositions ("… Budget und Standortfragen" → "… Budget und");
