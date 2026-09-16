@@ -78,7 +78,6 @@ export {
 export {
   isLandesverbandRolle,
   isLvItemVisibleForRoles,
-  isLvNotebookVisibleForRoles,
   landesverbandHeadings,
   landesverbandIdsForRoles,
   landesverbandOfferForBundesland,

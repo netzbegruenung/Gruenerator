@@ -163,21 +163,6 @@ export function isLvItemVisibleForRoles(
 }
 
 /**
- * Soll dieses Notebook in einem Picker angeboten werden? Gleiche Semantik wie
- * {@link isLvItemVisibleForRoles}: Nicht-LV-Notebooks und der noch unbekannte
- * Fall passieren immer, die geprüft-rollenlose Person sieht keine LV-Notebooks.
- */
-export function isLvNotebookVisibleForRoles(
-  notebookId: string,
-  lvIds: readonly string[] | null
-): boolean {
-  if (lvIds === null) return true;
-  const lv = LANDESVERBAENDE.find((entry) => entry.notebookId === notebookId);
-  if (!lv) return true;
-  return lvIds.includes(lv.id);
-}
-
-/**
  * Die `mention`s der Rezepte aus den eigenen Landesverbänden, kleingeschrieben —
  * das Format, in dem der Favoriten-Store sie hält. Rezepte, deren Agent
  * ausgeblendet ist, bleiben draußen: was nichts rendert, wird auch nicht

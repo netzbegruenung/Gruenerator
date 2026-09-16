@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 
 import {
   isLvItemVisibleForRoles,
-  isLvNotebookVisibleForRoles,
   landesverbandHeadings,
   landesverbandIdsForRoles,
   landesverbandOfferForBundesland,
@@ -119,16 +118,6 @@ describe('isLvItemVisibleForRoles', () => {
     expect(isLvItemVisibleForRoles(hessen.buergerAgentId, ['hessen'])).toBe(true);
     expect(isLvItemVisibleForRoles(hessen.wahlpruefsteinAgentId, ['hessen'])).toBe(true);
     expect(isLvItemVisibleForRoles(bayern.prAgentId, ['hessen'])).toBe(false);
-  });
-});
-
-describe('isLvNotebookVisibleForRoles', () => {
-  it('filtert LV-Notebooks, andere nie', () => {
-    expect(isLvNotebookVisibleForRoles('hessen-notebook', ['hessen'])).toBe(true);
-    expect(isLvNotebookVisibleForRoles('bayern-notebook', ['hessen'])).toBe(false);
-    expect(isLvNotebookVisibleForRoles('kommunalwiki-notebook', ['hessen'])).toBe(true);
-    expect(isLvNotebookVisibleForRoles('bayern-notebook', null)).toBe(true);
-    expect(isLvNotebookVisibleForRoles('bayern-notebook', [])).toBe(false);
   });
 });
 

@@ -1,7 +1,6 @@
 import {
   isAdminVisibleSkill,
   isLvItemVisibleForRoles,
-  isLvNotebookVisibleForRoles,
   isSkillOfferedIn,
 } from '@gruenerator/shared/agents';
 import {
@@ -322,15 +321,20 @@ export function visibleToolMentionables(): Mentionable[] {
  * a notebook this instance does not offer must not be listed — while a token for
  * it in an existing thread keeps resolving, which is what makes `hidden`
  * different from `blocked`.
+ *
+ * The „Mitarbeiter*in Landesgeschäftsstelle" role deliberately does NOT filter
+ * here. It decides who writes in the name of a Landesverband — agents and
+ * recipes, i.e. `isLvItemVisibleForRoles` above. A notebook is reading material:
+ * both galleries (`NotebooksIndexPage`, mobile `(recherche)/index.tsx`) list all
+ * eleven Landesverbände and check only `audience` and `enabled`. While the
+ * picker filtered by role on top of that, the same person could open Bayern and
+ * chat in it, but typing `@bayern` offered nothing.
  */
 export function visibleNotebookMentionables(): Mentionable[] {
   const locale = mentionLocale === 'de-AT' ? 'de-AT' : 'de-DE';
   const allowed = new Set<string>(getNotebooksForAudience(locale).map((n) => n.id));
   return notebookMentionables.filter(
-    (m) =>
-      allowed.has(m.identifier) &&
-      isNotebookOfferedIn(m.identifier, getMentionInstance()) &&
-      isLvNotebookVisibleForRoles(m.identifier, mentionLandesverbaende)
+    (m) => allowed.has(m.identifier) && isNotebookOfferedIn(m.identifier, getMentionInstance())
   );
 }
 

@@ -105,7 +105,8 @@ export default function NotebooksScreen() {
   // Notebook ist Lesestoff: die Zuteilung entscheidet, wer im Namen eines
   // Landesverbands SCHREIBT, also über Agenten und Rezepte (`Agentur`,
   // `@`-Erwähnungen), nicht darüber, wer die Beschlüsse eines Verbands lesen
-  // darf. Siehe `isLvNotebookVisibleForRoles` — das gilt Pickern, nicht Regalen.
+  // darf. Der `@`-Picker filtert Notebooks aus demselben Grund nicht mehr
+  // (`visibleNotebookMentionables`).
   const bundesebene = useMemo(() => getMobileNotebooksByCategory('bundesebene', locale), [locale]);
   const landesebene = useMemo(() => getMobileNotebooksByCategory('landesebene', locale), [locale]);
   const weitere = useMemo(() => getMobileNotebooksByCategory('weitere', locale), [locale]);
