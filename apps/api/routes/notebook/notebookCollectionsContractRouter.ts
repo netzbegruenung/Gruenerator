@@ -32,6 +32,7 @@ import {
   unlikeEntity,
 } from '../../services/entityLikes/EntityLikesService.js';
 import { summarizeDocumentRows } from '../../services/notebook/corpusState.js';
+import { listPublicNotebooksForViewer } from '../../services/notebook/publicNotebookListing.js';
 import { createNotification } from '../../services/notifications/NotificationService.js';
 import { getUsageMap } from '../../services/usage/ItemUsageService.js';
 import { getProfileService } from '../../services/user/ProfileService.js';
@@ -420,13 +421,13 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
       };
 
       const postgres = getPostgresInstance();
-      // Audience-filter the public listing so a DE-targeted notebook never
-      // surfaces in an AT viewer's "Von der Basis" (and vice versa) — same
-      // exact-match rule the authenticated-share listing uses above.
+      // Selection (is_public + audience) is shared with the `notebooks` chat
+      // tool's scope='basis' — see services/notebook/publicNotebookListing.ts.
+      // Only the enrichment below is specific to this contract response.
       const viewerLocale = getUserLocale(args.req);
-      const collections = (
-        (await notebookHelper.getPublicNotebookCollections()) as NotebookCollectionFromQdrantRaw[]
-      ).filter((c) => c.audience === viewerLocale);
+      const collections = (await listPublicNotebooksForViewer(
+        viewerLocale
+      )) as NotebookCollectionFromQdrantRaw[];
 
       const likeCounts = await getLikeCountsForEntities(
         'notebook',
