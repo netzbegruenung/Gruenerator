@@ -73,7 +73,6 @@ function CanvasChatInner({ aiEdit, canvasType, getSharepicText }: InnerProps) {
   const docKey = chatDoc?.documentId ?? `sharepic-draft-${draftId}`;
   const setPendingAiSuggestion = useCanvasStoreSelector((s) => s.setPendingAiSuggestion);
 
-  const [applying, setApplying] = useState(false);
   const [applyError, setApplyError] = useState<string | null>(null);
 
   // Refs so the memoized adapter's handlers always see live values.
@@ -83,8 +82,6 @@ function CanvasChatInner({ aiEdit, canvasType, getSharepicText }: InnerProps) {
   getTextRef.current = getSharepicText;
   const setPendingRef = useRef(setPendingAiSuggestion);
   setPendingRef.current = setPendingAiSuggestion;
-  const titleRef = useRef(chatDoc?.title ?? null);
-  titleRef.current = chatDoc?.title ?? null;
   const canvasTypeRef = useRef(canvasType);
   canvasTypeRef.current = canvasType;
 
@@ -148,7 +145,6 @@ function CanvasChatInner({ aiEdit, canvasType, getSharepicText }: InnerProps) {
       // round-trip.
       registerEditHandler: () =>
         useChatConfigStore.getState().registerEditorOpsHandler(docKey, (payload) => {
-          setApplying(true);
           try {
             const outcome = applyCanvasEditorOps(payload, {
               docKey,
@@ -157,14 +153,16 @@ function CanvasChatInner({ aiEdit, canvasType, getSharepicText }: InnerProps) {
               },
               setPending: (pending) => setPendingRef.current(pending),
             });
+            // Another target's or another surface's event — several editor
+            // sidebars share the store, so leave this one's state alone.
             if (outcome.status === 'ignored') return;
+            // Reset on every event we DO handle, so a stale error cannot stand
+            // under a later successful edit.
             setApplyError(
               outcome.status === 'no_valid_ops' ? 'Keine passende Bearbeitung erkannt.' : null
             );
           } catch (err) {
             setApplyError(err instanceof Error ? err.message : 'Unbekannter Fehler');
-          } finally {
-            setApplying(false);
           }
         }),
     }),
@@ -178,7 +176,7 @@ function CanvasChatInner({ aiEdit, canvasType, getSharepicText }: InnerProps) {
       userName={null}
       aiEditEnabled
     >
-      <CanvasChatSurface applying={applying} applyError={applyError} />
+      <CanvasChatSurface applyError={applyError} />
     </EditorAssistantProvider>
   );
 }
@@ -198,13 +196,7 @@ function CanvasChatNotice({ children }: { children: ReactNode }) {
  * 'thread' property", which took the whole canvas editor down while the thread
  * id was still being resolved. Same gate as the docs/sheets/boards sidebars.
  */
-function CanvasChatSurface({
-  applying,
-  applyError,
-}: {
-  applying: boolean;
-  applyError: string | null;
-}) {
+function CanvasChatSurface({ applyError }: { applyError: string | null }) {
   const state = useEditorAssistant();
 
   if (state.status === 'guest') {
@@ -234,20 +226,18 @@ function CanvasChatSurface({
         assistantIcon={<Sparkles className="size-3.5" />}
         composerPlaceholder="Frage stellen oder Änderung beschreiben…"
       />
-      <CanvasEditStatusRow applying={applying} error={applyError} />
+      <CanvasEditStatusRow error={applyError} />
     </div>
   );
 }
 
-function CanvasEditStatusRow({ applying, error }: { applying: boolean; error: string | null }) {
-  if (applying) {
-    return (
-      <div className="flex items-center gap-2 border-t border-border bg-background-alt px-3 py-1.5 text-[11px] text-foreground-muted">
-        <Sparkles className="size-3 animate-pulse text-primary" aria-hidden="true" />
-        Bearbeitungs­vorschlag wird erstellt…
-      </div>
-    );
-  }
+/**
+ * Only an error row now. The "wird erstellt…" state belonged to the old client
+ * POST to /api/canvas/ai-suggest; the ops arrive pre-planned from the loop and
+ * apply synchronously, so a progress flag here would never render a frame —
+ * the loop's tool card is what shows that work.
+ */
+function CanvasEditStatusRow({ error }: { error: string | null }) {
   if (error) {
     return (
       <div
