@@ -22,6 +22,7 @@ const GRUENE_TYPE = 'GrueneTypeNeue, Arial, sans-serif';
 
 const HANDLERS = {
   handleMoveLayer: () => {},
+  handleDuplicate: () => {},
   handleColorSelect: () => {},
   handleOpacityChange: () => {},
   handleFontSizeChange: () => {},
@@ -74,6 +75,7 @@ function renderBar({
         activeFloatingModule={textModule(selectedId)}
         canMoveUp
         canMoveDown
+        canDuplicate
         handlers={HANDLERS}
       />
     </CanvasTextEditorProvider>
@@ -168,6 +170,7 @@ describe('useCanvasTextFormatting: Wirt ohne Provider', () => {
         activeFloatingModule={textModule('text-1')}
         canMoveUp={false}
         canMoveDown={false}
+        canDuplicate={false}
         handlers={HANDLERS}
       />
     );

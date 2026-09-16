@@ -10,13 +10,14 @@
  * exposes bridge handlers via a mutable ref for GenericCanvasInner's useImperativeHandle.
  */
 
-import { useEffect, type MutableRefObject } from 'react';
+import { useCallback, useEffect, type MutableRefObject } from 'react';
 
 import { useCanvasStoreSelector } from '../stores/CanvasStoreProvider';
 import { useFloatingModuleState } from '../hooks/useFloatingModuleState';
 import { useFloatingModuleHandlers } from '../hooks/useFloatingModuleHandlers';
 import { useCanvasLayerControls } from '../hooks/useCanvasLayerControls';
 import { useMobileBridge } from '../hooks/useMobileBridge';
+import { canDuplicateElement, duplicateElementInState } from '../utils/duplicateElement';
 
 import type { ToolbarStateReport } from './GenericCanvas';
 import type { FloatingModuleState } from '../hooks/useFloatingModuleState';
@@ -25,13 +26,16 @@ import type { GradientFill } from '../utils/gradientFill';
 import type { OptionalCanvasActions } from '../hooks/useCanvasElementHandlers';
 import type { FullCanvasConfig, LayoutResult } from '../configs/types';
 import type { CanvasItem } from '../utils/canvasLayerManager';
+import type { BaseCanvasState } from '../configs/factory/baseTypes';
 import type { MobileBridgeProps } from '../hooks/useMobileBridge';
 
 export interface ToolbarBridgeState {
   activeFloatingModule: FloatingModuleState | null;
   canMoveUp: boolean;
   canMoveDown: boolean;
+  canDuplicate: boolean;
   handleMoveLayer: (direction: 'up' | 'down') => void;
+  handleDuplicate: () => void;
   handleColorSelect: (color: string) => void;
   handleOpacityChange: (id: string, opacity: number, type: string) => void;
   handleShadowChange: (id: string, patch: ShadowPatch, type: string) => void;
@@ -41,7 +45,7 @@ export interface ToolbarBridgeState {
 }
 
 interface ToolbarStateBridgeProps<
-  TState extends Record<string, unknown>,
+  TState extends Record<string, unknown> & Partial<BaseCanvasState>,
   TActions extends OptionalCanvasActions,
 > {
   bridgeRef: MutableRefObject<ToolbarBridgeState | null>;
@@ -63,7 +67,7 @@ interface ToolbarStateBridgeProps<
 }
 
 export function ToolbarStateBridge<
-  TState extends Record<string, unknown>,
+  TState extends Record<string, unknown> & Partial<BaseCanvasState>,
   TActions extends OptionalCanvasActions,
 >({
   bridgeRef,
@@ -100,6 +104,24 @@ export function ToolbarStateBridge<
     state,
   });
 
+  const setSelectedElement = useCanvasStoreSelector((s) => s.setSelectedElement);
+
+  const canDuplicate = canDuplicateElement(state, selectedElement);
+
+  /**
+   * Dupliziert die Auswahl. `saveToHistory` ist hier nicht optional: `setState`
+   * allein schreibt keinen Verlaufseintrag, und ohne ihn ließe sich die Kopie
+   * nicht rückgängig machen — der Fehler, den der Strg+D-Pfad jahrelang hatte.
+   */
+  const handleDuplicate = useCallback(() => {
+    if (!selectedElement) return;
+    const result = duplicateElementInState(state, selectedElement);
+    if (!result) return;
+    setState(result.state);
+    saveToHistory(result.state);
+    setSelectedElement(result.newId);
+  }, [selectedElement, state, setState, saveToHistory, setSelectedElement]);
+
   const floatingHandlers = useFloatingModuleHandlers({
     activeFloatingModule,
     actions,
@@ -133,7 +155,9 @@ export function ToolbarStateBridge<
       activeFloatingModule,
       canMoveUp: layerControls.canMoveUp,
       canMoveDown: layerControls.canMoveDown,
+      canDuplicate,
       handleMoveLayer: layerControls.handleMoveLayer,
+      handleDuplicate,
       handleColorSelect: floatingHandlers.handleColorSelect,
       handleOpacityChange: floatingHandlers.handleOpacityChange,
       handleShadowChange: floatingHandlers.handleShadowChange,
@@ -152,6 +176,7 @@ export function ToolbarStateBridge<
       canRedo,
       canMoveUp: layerControls.canMoveUp,
       canMoveDown: layerControls.canMoveDown,
+      canDuplicate,
     });
   }, [
     selectedElement,
@@ -160,6 +185,7 @@ export function ToolbarStateBridge<
     canRedo,
     layerControls.canMoveUp,
     layerControls.canMoveDown,
+    canDuplicate,
     onToolbarStateChange,
   ]);
 
