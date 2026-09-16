@@ -47,6 +47,7 @@ import { ContextToolbar } from '../TopBar/ContextToolbar';
 import { MobileContextBar } from '../TopBar/MobileContextBar';
 import { AddPageButton, TemplatePickerFlyout } from '../TemplatePickerFlyout';
 
+import { PAGE_ELEMENT_STATE_KEYS } from '../../collab/pageElementStateKeys';
 import { createPageSyncedCallbacks } from '../../collab/wrapCallbacksWithPageSync';
 import { useDeckAutoSave } from '../../hooks/useDeckAutoSave';
 import { PageWrapper } from './PageWrapper';
@@ -185,7 +186,8 @@ function CanvasEditorInner({
     if (!wrapped) {
       wrapped = createPageSyncedCallbacks(
         () => callbacksRef.current,
-        (partial) => updatePageStateRef.current(pageId, partial)
+        (partial) => updatePageStateRef.current(pageId, partial),
+        PAGE_ELEMENT_STATE_KEYS
       );
       cache.set(pageId, wrapped);
     }
