@@ -99,10 +99,17 @@ export interface ChatConfig {
   onExportPdfLetterhead?: (content: string, title?: string) => Promise<void>;
   /** Opens a single sharepic variant in the canvas editor for editing. */
   onEditSharepic?: (variant: SharepicVariant, opts?: { threadId: string | null }) => void;
-  /** Renders a sharepic to a base64 PNG using the canvas editor. */
+  /**
+   * Renders a sharepic to a base64 PNG using the canvas editor.
+   *
+   * `quality: 'preview'` (the default) renders at display size — what the
+   * cards and the variant strip show. `'full'` renders at export resolution
+   * and is only worth its cost where the pixels leave the app: the download.
+   */
   renderSharepic?: (
     canvasType: string,
-    initialProps: Record<string, unknown>
+    initialProps: Record<string, unknown>,
+    options?: { quality?: 'preview' | 'full' }
   ) => Promise<string | null>;
   /** Runs Python in a browser Pyodide worker (in-chat code execution). */
   runPython?: RunPython;
@@ -298,10 +305,7 @@ interface ChatConfigStore extends ResolvedChatConfig {
   ) => Promise<string | void>;
   onExportPdfLetterhead?: ChatConfig['onExportPdfLetterhead'];
   onEditSharepic?: (variant: SharepicVariant, opts?: { threadId: string | null }) => void;
-  renderSharepic?: (
-    canvasType: string,
-    initialProps: Record<string, unknown>
-  ) => Promise<string | null>;
+  renderSharepic?: ChatConfig['renderSharepic'];
   runPython?: RunPython;
   fetchSharepicState?: ChatConfig['fetchSharepicState'];
   fetchSharepicVersions?: ChatConfig['fetchSharepicVersions'];
