@@ -138,8 +138,8 @@ export const AI_LANES = {
   canvas_ai_suggest: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
 
   // — Editor-Op-Planer (board/sheet/presentation), der `edit_document`-
-  //   Werkzeug im agentischen Loop. Erzwungener Tool-Call wie die Zeilen
-  //   darüber; alle drei planten vorher auf einer privaten Kette
+  //   Werkzeug im agentischen Loop (#3426). Erzwungener Tool-Call wie die
+  //   Zeilen darüber; alle drei planten vorher auf einer privaten Kette
   //   (mistral → melious → cortecs), die diese Tabelle nicht so ausdrücken
   //   kann — `laneFallback` kennt nur die generische Kette und die
   //   Sharepic-Kette, beide filtern den Primär (hier mistral) heraus und
@@ -147,7 +147,7 @@ export const AI_LANES = {
   //   in vertauschter Reihenfolge gegenüber der alten privaten Kette. Sheet
   //   und Presentation waren zuvor auf Mistral GEPINNT ohne Ausweichkette
   //   ("fail loudly" statt leise herabzustufen) — eine Lane hat dafür kein
-  //   Feld; siehe Stufe-3-Bericht.
+  //   Feld, sie bekommen jetzt dieselbe generische Ausweichkette.
   editor_ops_board: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
   editor_ops_sheet: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
   editor_ops_presentation: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
