@@ -29,7 +29,7 @@ ARG CACHEBUST=1
 FROM node:22-alpine AS builder
 
 # Install pnpm — same activation as apps/web/Dockerfile
-RUN corepack enable && corepack prepare pnpm@10 --activate
+RUN corepack enable
 
 WORKDIR /app
 

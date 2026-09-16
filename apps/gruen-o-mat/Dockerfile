@@ -9,7 +9,7 @@
 # =============================================================================
 FROM node:22-alpine AS builder
 
-RUN corepack enable && corepack prepare pnpm@10 --activate
+RUN corepack enable
 
 WORKDIR /app
 
