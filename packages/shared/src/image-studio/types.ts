@@ -7,11 +7,14 @@ import {
   type CanvasTemplateType,
   type DreizeilenTextResponse,
   type InfoTextResponse,
+  type KiLabelMode,
   type SimpleTextResponse,
   type SliderTextResponse,
   type VeranstaltungTextResponse,
   type ZitatTextResponse,
 } from '@gruenerator/contracts';
+
+import { type ImageFormatId } from './constants.js';
 
 // ============================================================================
 // CORE ENUMS
@@ -317,6 +320,10 @@ export type GreenEditInfrastructure =
 export interface KiCreateRequest {
   description: string;
   variant: KiStyleVariant;
+  /** Output format; omitted means the variant's own default dimensions. */
+  format?: ImageFormatId;
+  /** Which AI label the backend burns in; omitted means 'full'. */
+  kiLabel?: KiLabelMode;
 }
 
 /**

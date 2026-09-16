@@ -1,5 +1,5 @@
 import { type KiLabelMode } from '@gruenerator/contracts';
-import { type KiStyleVariant } from '@gruenerator/shared/image-studio';
+import { type ImageFormatId, type KiStyleVariant } from '@gruenerator/shared/image-studio';
 
 /** Composer modes. `erstellen` needs no image; the rest operate on the active
  *  version and are only offered once an image exists. */
@@ -20,11 +20,11 @@ export interface BevVersion {
   kind: BevVersionKind;
 }
 
-/** Aspect presets for the „Vergrößern" (outpaint) mode. */
-export type BevAspect = '1:1' | '4:3' | '3:4' | '16:9' | '9:16';
-
 export interface BevSettings {
   variant: KiStyleVariant;
   kiLabel: KiLabelMode;
-  aspect: BevAspect;
+  /** Output format of a newly created image („Erstellen"). */
+  format: ImageFormatId;
+  /** Target format of the „Vergrößern" (outpaint) mode. */
+  aspect: ImageFormatId;
 }
