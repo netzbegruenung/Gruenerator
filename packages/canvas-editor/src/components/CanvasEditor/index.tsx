@@ -1095,9 +1095,11 @@ function CanvasEditorInner({
     <UserUploadsProvider>
       {/* Die Text-Bearbeitung sitzt an der Wurzel des Editors, nicht je Seite:
           nur so liegt sie über der Kontextleiste, die ihre Formatierungsknöpfe
-          zeigt (`controls="host"`). Der Provider in `CanvasStage` merkt, dass
-          er einen über sich hat, und reicht durch. */}
-      <CanvasTextEditorProvider controls="host">
+          zeigt. Der Provider in `CanvasStage` merkt, dass er einen über sich
+          hat, und reicht durch. Ob die Leiste die Knöpfe wirklich übernimmt,
+          meldet sie selbst an — im Brücken-Modus rendern wir sie nicht, und
+          dann zeigt das Overlay wieder seine eigene Karte. */}
+      <CanvasTextEditorProvider>
         <CanvasEditorLayout
           sidebar={panel}
           tabBar={tabBar}

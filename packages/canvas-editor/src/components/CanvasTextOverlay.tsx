@@ -33,12 +33,19 @@
  *
  * ## Wer die Knöpfe zeigt
  *
- * Fett/Kursiv/… gehören zum Text, nicht zum Overlay. Deshalb entscheidet
- * `controls`, WO sie erscheinen: `'floating'` als Karte über dem Text — das
- * ist der einzige Ort, an dem eine Bühne ohne Kopfleiste sie zeigen kann
- * (`StandaloneCanvas`) — oder `'host'`, wenn ein Wirt sie übernimmt. Im
- * Editor tut das die Kontextleiste der Kopfleiste, neben Farbe, Schriftgröße
- * und Ausrichtung desselben Elements.
+ * Fett/Kursiv/… gehören zum Text, nicht zum Overlay. Im Editor zeigt sie die
+ * Kontextleiste der Kopfleiste, neben Farbe, Schriftgröße und Ausrichtung
+ * desselben Elements. Wo es keine Kopfleiste gibt, bleibt die schwebende
+ * Karte über dem Text der einzige mögliche Ort.
+ *
+ * Wer von beiden, sagt nicht der Aufrufer, sondern der Wirt selbst: wer
+ * `useCanvasTextFormatting` aufruft, MELDET SICH damit an, und die Karte
+ * erscheint nur, solange niemand angemeldet ist. Ein Schalter am Provider
+ * („über mir liegt eine Kopfleiste") wäre ein Versprechen, das der Aufrufer
+ * brechen kann, ohne dass es auffällt — und genau das täte
+ * `CanvasEditorInner` im Nativ-Brücken-Modus, wo die App die Leiste stellt
+ * und die Kontextleiste gar nicht erst gerendert wird: der Text hätte dann
+ * überhaupt keine Schnitt-Knöpfe mehr, weder Leiste noch Karte.
  *
  * Damit der Wirt den Editor erreicht, steht dieser Provider dort, wo auch die
  * Kopfleiste steht: an der Wurzel des Editors. Der Provider in `CanvasStage`
@@ -59,6 +66,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -101,9 +109,6 @@ export interface TextEditSession {
   onTextChange?: (value: string) => void;
 }
 
-/** Wer die Formatierungsknöpfe zeigt. */
-export type TextEditorControls = 'floating' | 'host';
-
 interface TextEditorContextValue {
   open: (session: TextEditSession | null) => void;
   /** Id des Feldes, das gerade bearbeitet wird — sonst `null`. */
@@ -112,7 +117,8 @@ interface TextEditorContextValue {
   editor: Editor | null;
   /** Welche Schnitte die Schrift des bearbeiteten Feldes trägt. */
   marks: FontMarkSupport;
-  controls: TextEditorControls;
+  /** Meldet einen Wirt an, der die Knöpfe zeigt; gibt das Abmelden zurück. */
+  claimHost: () => () => void;
 }
 
 const TextEditorContext = createContext<TextEditorContextValue | null>(null);
@@ -161,10 +167,18 @@ export function useCanvasTextEditor(id: string | undefined) {
 }
 
 /**
- * Für den Wirt der Formatierungsknöpfe (die Kontextleiste). Liefert `null`,
- * solange nichts bearbeitet wird — und auch dann, wenn die schwebende Karte
- * die Knöpfe schon zeigt: zwei Leisten für dieselbe Handlung wären eine zu
- * viel.
+ * Für den Wirt der Formatierungsknöpfe (die Kontextleiste). Der Aufruf IST
+ * die Anmeldung: solange dieser Hook irgendwo im Baum hängt, lässt das
+ * Overlay seine eigene Karte weg — zwei Leisten für dieselbe Handlung wären
+ * eine zu viel, keine wäre eine zu wenig.
+ *
+ * Angemeldet wird unabhängig davon, ob gerade etwas bearbeitet wird. Sonst
+ * fiele die Anmeldung mit dem Öffnen der Sitzung zusammen und die Karte
+ * blitzte für einen Durchlauf auf. Die Kontextleiste steht ohnehin schon,
+ * wenn ein Element ausgewählt ist — und ausgewählt ist es, bevor der
+ * Doppelklick den Editor öffnet.
+ *
+ * Liefert `null`, solange nichts bearbeitet wird.
  */
 export function useCanvasTextFormatting(): {
   editor: Editor;
@@ -172,8 +186,9 @@ export function useCanvasTextFormatting(): {
   editingId: string;
 } | null {
   const context = useContext(TextEditorContext);
-  if (!context || context.controls !== 'host') return null;
-  if (!context.editor || !context.editingId) return null;
+  const claimHost = context?.claimHost;
+  useEffect(() => claimHost?.(), [claimHost]);
+  if (!context || !context.editor || !context.editingId) return null;
   return { editor: context.editor, marks: context.marks, editingId: context.editingId };
 }
 
@@ -183,28 +198,20 @@ export function useCanvasTextFormatting(): {
  * `TextEditorRoot` — ein vorzeitiges `return` nach den Zustands-Hooks wäre
  * ein bedingter Hook-Aufruf.
  */
-export function CanvasTextEditorProvider({
-  children,
-  controls = 'floating',
-}: {
-  children: ReactNode;
-  controls?: TextEditorControls;
-}) {
+export function CanvasTextEditorProvider({ children }: { children: ReactNode }) {
   const existing = useContext(TextEditorContext);
   if (existing) return <>{children}</>;
-  return <TextEditorRoot controls={controls}>{children}</TextEditorRoot>;
+  return <TextEditorRoot>{children}</TextEditorRoot>;
 }
 
-function TextEditorRoot({
-  children,
-  controls,
-}: {
-  children: ReactNode;
-  controls: TextEditorControls;
-}) {
+function TextEditorRoot({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<TextEditSession | null>(null);
   const [editor, setEditor] = useState<Editor | null>(null);
   const [draft, setDraft] = useState('');
+  // Gezählt, nicht als Schalter: beim Wechsel zwischen Kontextleiste und
+  // mobiler Zeile hängen An- und Abmeldung kurz gleichzeitig im selben
+  // Durchlauf.
+  const [hosts, setHosts] = useState(0);
 
   // Sobald der Editor geschlossen ist, darf sein Blur nichts mehr schreiben.
   // Beim Abräumen verschiebt tiptap das fokussierte contenteditable, der
@@ -241,9 +248,14 @@ function TextEditorRoot({
     [session]
   );
 
+  const claimHost = useCallback(() => {
+    setHosts((count) => count + 1);
+    return () => setHosts((count) => count - 1);
+  }, []);
+
   const value = useMemo(
-    () => ({ open, editingId: session?.id ?? null, editor, marks, controls }),
-    [open, session?.id, editor, marks, controls]
+    () => ({ open, editingId: session?.id ?? null, editor, marks, claimHost }),
+    [open, session?.id, editor, marks, claimHost]
   );
 
   return (
@@ -271,7 +283,7 @@ function TextEditorRoot({
               value={draft}
               onChange={setDraft}
               marks={marks}
-              showToolbar={controls === 'floating'}
+              showToolbar={hosts === 0}
               onEditorReady={setEditor}
               autoFocus
               contentStyle={{
