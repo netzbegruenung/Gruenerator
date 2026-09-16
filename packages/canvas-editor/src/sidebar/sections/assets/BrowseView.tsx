@@ -3,12 +3,7 @@ import { PiArrowLeft } from 'react-icons/pi';
 
 import { useDebounce } from '../../../hooks/useDebounce';
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
-import {
-  ALL_ASSETS,
-  getAssetById,
-  sortLogoAssets,
-  type UniversalAsset,
-} from '../../../utils/canvasAssets';
+import { getAssetById, sortLogoAssets, type UniversalAsset } from '../../../utils/canvasAssets';
 import { filterIllustrations, matchesQuery } from '../../../utils/filterUtils';
 import { ALL_ILLUSTRATIONS } from '../../../utils/illustrations/illustrationCatalog';
 import { SIDEBAR_SECTION } from '../../sidebarStyles';
