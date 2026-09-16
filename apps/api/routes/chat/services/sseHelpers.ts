@@ -23,7 +23,6 @@ import type {
   CanvasAiSuggestion,
   ReelPickerProject,
   TriggerDocEdit,
-  TriggerBoardAction,
   ConfirmActionEvent,
   DocumentCreatedEvent,
   EditorOperationsEvent,
@@ -80,7 +79,6 @@ export type SSEEventType =
   | 'document_indexed'
   | 'document_created'
   | 'trigger_doc_edit'
-  | 'trigger_board_action'
   | 'editor_operations'
   | 'confirm_action'
   | 'chart_data'
@@ -262,7 +260,6 @@ export interface SSEEventPayloads {
   document_indexed: { documentId: string; title: string };
   document_created: DocumentCreatedEvent;
   trigger_doc_edit: TriggerDocEdit;
-  trigger_board_action: TriggerBoardAction;
   editor_operations: EditorOperationsEvent;
   interrupt: {
     // 'clarification' = ask_human (a human answers via UI). 'client_tool' = a

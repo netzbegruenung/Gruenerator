@@ -1,6 +1,5 @@
 import {
   triggerDocEditSchema,
-  triggerBoardActionSchema,
   editorOperationsEventSchema,
   isCanvasTemplateType,
   chatStreamEventSchemas,
@@ -1355,48 +1354,6 @@ export async function* parseSSEStream(
             );
             notifyWarning(
               'Dokument nicht verbunden',
-              'Öffne die Datei, damit Änderungen angewendet werden können.'
-            );
-          }
-          break;
-        }
-
-        case 'trigger_board_action': {
-          // Live board edit (boards editor surface). The chat backend has
-          // classified intent=edit_current_board and forwards the user's prompt
-          // here so the boards frontend can plan + apply operations on the live
-          // Yjs board. Handlers are keyed by boardId — one boards surface per
-          // board, registered when BoardAssistantProvider mounts.
-          const parsed = triggerBoardActionSchema.safeParse(data);
-          if (!parsed.success) {
-            console.warn(
-              '[ChatAdapter] trigger_board_action payload failed validation',
-              parsed.error
-            );
-            notifyError('Board konnte nicht bearbeitet werden', 'Die Anweisung war ungültig.');
-            break;
-          }
-          const payload = parsed.data;
-          const handler = useChatConfigStore
-            .getState()
-            .boardActionHandlers.get(payload.targetBoardId);
-          if (handler) {
-            try {
-              await handler(payload);
-            } catch (err) {
-              console.warn('[ChatAdapter] boardActionHandler threw', err);
-              notifyError(
-                'Board konnte nicht bearbeitet werden',
-                'Die Änderung konnte nicht angewendet werden.'
-              );
-            }
-          } else {
-            console.warn(
-              '[ChatAdapter] trigger_board_action received but no handler registered for board',
-              payload.targetBoardId
-            );
-            notifyWarning(
-              'Board nicht verbunden',
               'Öffne die Datei, damit Änderungen angewendet werden können.'
             );
           }

@@ -630,10 +630,9 @@ export function resolveEditorSurfaceKind(
 
 /**
  * Editor surfaces with a tool-based edit path implemented — the loop plans ops
- * and streams `editor_operations` instead of the client round-trip. These are
- * NOT live yet, so there is no legacy behaviour to protect and no rollout flag:
- * the tool path is simply the default for them. The still-live surfaces
- * (`doc`, `board`, `canvas`) are absent here and keep the trigger_doc_edit path.
+ * and streams `editor_operations` instead of the client round-trip. `board` is
+ * live via this path (#1735). The dispatch surfaces (`doc`, `canvas`) are
+ * absent here and keep the trigger_doc_edit path.
  * Add a surface once its editorTools branch AND client ops handler are wired.
  */
 export const TOOL_EDIT_SURFACES: ReadonlySet<EditorSurfaceKind> = new Set([

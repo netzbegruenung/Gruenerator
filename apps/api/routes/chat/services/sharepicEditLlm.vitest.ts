@@ -28,6 +28,13 @@ describe('sharepic edit reply guard', () => {
     expect(prompt).toMatch(/80px/);
   });
 
+  it('treats quote layouts as editable campaign drafts', () => {
+    expect(prompt).toContain('Vorlagenname \"Zitat\"');
+    expect(prompt).toContain('Verlange dafür keinen fertigen Ersatztext');
+    expect(prompt).toContain('vollständigen überarbeiteten Text als set-text-Operation');
+    expect(prompt).toContain('belegten Wortlaut gilt');
+  });
+
   it('still asks for a short chat confirmation reply', () => {
     expect(prompt).toMatch(/"reply"/);
   });

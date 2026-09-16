@@ -272,21 +272,6 @@ export type DocumentEditTriggerHandler = (
 ) => void | Promise<void>;
 
 /**
- * Handler the boards-editor surface registers to receive `trigger_board_action`
- * SSE events. The handler calls POST /api/boards/:id/ai to plan operations and
- * applies them to the live Yjs board via the client-side executor.
- */
-export interface BoardActionTriggerPayload {
-  targetBoardId: string;
-  userPrompt: string;
-  referenceContent?: string;
-}
-
-export type BoardActionTriggerHandler = (
-  payload: BoardActionTriggerPayload
-) => void | Promise<void>;
-
-/**
  * Handler an editor surface registers to receive `editor_operations` SSE events
  * — the tool-based edit path (CHAT_EDIT_TOOL_SURFACES). The agentic loop planned
  * the ops server-side; the handler applies them in place (Univer / Yjs / Konva)
@@ -335,10 +320,6 @@ interface ChatConfigStore extends ResolvedChatConfig {
     threadId: string,
     handler: DocumentEditTriggerHandler
   ) => () => void;
-  /** boardId → board-action dispatcher (boards editor surface only). */
-  boardActionHandlers: Map<string, BoardActionTriggerHandler>;
-  /** Register a board-action handler for a board. Returns the unregister function. */
-  registerBoardActionHandler: (boardId: string, handler: BoardActionTriggerHandler) => () => void;
   /** targetId → editor_operations dispatcher (tool-based edit path). */
   editorOpsHandlers: Map<string, EditorOperationsHandler>;
   /** Register an editor-operations handler for a target. Returns the unregister function. */
@@ -432,7 +413,6 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
   chunkInspectorHref: undefined,
   contextProviders: new Map(),
   documentEditHandlers: new Map(),
-  boardActionHandlers: new Map(),
   editorOpsHandlers: new Map(),
   pendingRunSignal: null,
 
@@ -487,19 +467,6 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
       if (after.get(threadId) === handler) {
         after.delete(threadId);
         set({ documentEditHandlers: after });
-      }
-    };
-  },
-
-  registerBoardActionHandler: (boardId, handler) => {
-    const next = new Map(get().boardActionHandlers);
-    next.set(boardId, handler);
-    set({ boardActionHandlers: next });
-    return () => {
-      const after = new Map(get().boardActionHandlers);
-      if (after.get(boardId) === handler) {
-        after.delete(boardId);
-        set({ boardActionHandlers: after });
       }
     };
   },
