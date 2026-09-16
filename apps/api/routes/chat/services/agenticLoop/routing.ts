@@ -476,6 +476,27 @@ export function looksLikeCompoundEdit(raw: string): boolean {
  * NEW one". Keyed on an edit_current_* tool being enabled.
  */
 export function isEditorSurface(enabledTools: Record<string, boolean> | null | undefined): boolean {
+  return isEditToolEnabled(enabledTools);
+}
+
+/**
+ * Is the surface's AI-edit toggle ON for this turn?
+ *
+ * THE list of edit_current_* keys, and the reason it is a function: it existed
+ * three times by hand — here, in `decideTurnPlan` (`editToolEnabled`) and in
+ * `buildArtifactNotes`, where it is read NEGATED. A key added to two of the
+ * three made the third silently claim the toggle was off: with `canvas` added
+ * to the first two only, every studio turn got the "KI-Bearbeitung ist
+ * ausgeschaltet — behaupte NIEMALS, etwas geändert zu haben" note, directly
+ * contradicting the edit the same prompt announced one note earlier.
+ *
+ * {@link isEditorSurface} is the same question asked for a different purpose
+ * ("is this an editor sidebar at all") and delegates here: a surface whose
+ * toggle is off still must not spawn a NEW artifact.
+ */
+export function isEditToolEnabled(
+  enabledTools: Record<string, boolean> | null | undefined
+): boolean {
   return (
     enabledTools?.['edit_current_doc'] === true ||
     enabledTools?.['edit_current_board'] === true ||

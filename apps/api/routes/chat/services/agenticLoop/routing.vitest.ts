@@ -6,6 +6,7 @@ import {
   looksLikeCompoundGeneration,
   looksLikeCompoundEdit,
   isEditorSurface,
+  isEditToolEnabled,
   compoundGenerationKind,
   decideRunAgentic,
   resolveEditorSurfaceKind,
@@ -911,6 +912,17 @@ describe('isEditorSurface', () => {
     expect(isEditorSurface({ edit_current_doc: false })).toBe(false);
     expect(isEditorSurface({ edit_current_canvas: false })).toBe(false);
     expect(isEditorSurface(undefined)).toBe(false);
+  });
+});
+
+describe('isEditToolEnabled', () => {
+  it('kennt alle drei Schalter — die Liste, die dreimal von Hand dastand', () => {
+    expect(isEditToolEnabled({ edit_current_doc: true })).toBe(true);
+    expect(isEditToolEnabled({ edit_current_board: true })).toBe(true);
+    expect(isEditToolEnabled({ edit_current_canvas: true })).toBe(true);
+    expect(isEditToolEnabled({ edit_current_canvas: false })).toBe(false);
+    expect(isEditToolEnabled({ search: true })).toBe(false);
+    expect(isEditToolEnabled(undefined)).toBe(false);
   });
 });
 

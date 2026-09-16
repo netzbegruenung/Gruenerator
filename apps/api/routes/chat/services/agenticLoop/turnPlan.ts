@@ -33,6 +33,7 @@ import {
   decideEditToolLoop,
   decideRunAgentic,
   isEditorSurface,
+  isEditToolEnabled,
   looksLikeCompoundEdit,
   resolveEditorSurfaceKind,
   type CompoundGenerationKind,
@@ -385,10 +386,7 @@ export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
   const editToolLoop = decideEditToolLoop({
     loopEnabled: p.loopEnabled,
     surfaceKind: editToolSurfaceKind,
-    editToolEnabled:
-      p.enabledTools?.['edit_current_doc'] === true ||
-      p.enabledTools?.['edit_current_board'] === true ||
-      p.enabledTools?.['edit_current_canvas'] === true,
+    editToolEnabled: isEditToolEnabled(p.enabledTools),
     hasEditTarget: editTarget != null,
     forcedTool: p.forcedTool,
     isCompound: p.isCompound,
