@@ -6,8 +6,11 @@
 # =============================================================================
 FROM node:22-alpine AS builder
 
-# Install pnpm
-RUN corepack enable && corepack prepare pnpm@10 --activate
+# Install pnpm. No `corepack prepare <version>` here: corepack takes the
+# version from `packageManager` in package.json, so pinning a second one on
+# this line only downloaded a pnpm we then never ran (it said 10 while 12.4.2
+# was doing the work).
+RUN corepack enable
 
 WORKDIR /app
 
