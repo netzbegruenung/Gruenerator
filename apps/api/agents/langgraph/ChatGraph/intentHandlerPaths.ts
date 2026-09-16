@@ -79,7 +79,7 @@ export const INTENT_HANDLER_PATHS: Record<SearchIntent, string> = {
   edit_current_doc:
     'routes to respond, controller emits trigger_doc_edit SSE for BlockNote AI live edit',
   edit_current_board:
-    'controller emits trigger_board_action SSE for the boards assistant live edit (client-side executor)',
+    "tool-based: the loop's edit_document tool plans ops (boardAiService) and streams editor_operations",
   modify_board: 'routes to respond, then confirm_action SSE + pendingActionStore',
   share_doc: 'short-circuits before LLM — resolves group, emits confirm_action SSE',
   mcp: "EXPERIMENTAL — always runs the agentic loop (streamAgenticResponse); mcpCatalog mounts the user's connected MCP tools into the same loop",

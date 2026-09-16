@@ -1,10 +1,12 @@
 /**
- * Stages 3b–3d: what the finished answer text is turned into besides prose.
+ * Stages 3b–3c: what the finished answer text is turned into besides prose.
  *
  * A chart fence becomes a `chart_data` event, a complete HTML/SVG document
- * becomes an `artifact` panel, and an editor-surface turn emits the
- * trigger event its frontend needs. ChatGraph never edits the doc or board
- * itself — it classifies and forwards.
+ * becomes an `artifact` panel, and a docs/canvas editor-surface turn emits
+ * the `trigger_doc_edit` event its frontend needs. ChatGraph never edits the
+ * doc itself — it classifies and forwards. Boards are tool-based (#1735):
+ * the loop's `edit_document` tool plans ops server-side and streams
+ * `editor_operations` directly, with no trigger event from this stage.
  */
 
 import { createLogger } from '../../../utils/logger.js';
@@ -36,7 +38,6 @@ export interface ArtifactEmitStageParams {
    *  trigger round-trip. */
   editToolLoop: boolean;
   rawCurrentDocument: StreamBody['currentDocument'];
-  rawCurrentBoard: StreamBody['currentBoard'];
 }
 
 export function runArtifactEmitStage({
@@ -49,7 +50,6 @@ export function runArtifactEmitStage({
   editTarget,
   editToolLoop,
   rawCurrentDocument,
-  rawCurrentBoard,
 }: ArtifactEmitStageParams): void {
   // === Stage 3b: Extract chart data from response (if chart intent) ===
   if (finalState.intent === 'chart') {
@@ -127,33 +127,6 @@ export function runArtifactEmitStage({
     });
     log.info(
       `[ChatGraph] Emitted trigger_doc_edit for doc ${rawCurrentDocument.id} (selection: ${hasSelection}, compoundEdit: ${compoundEdit}, refContentChars: ${referenceContent.length})`
-    );
-  }
-
-  // === Stage 3d: Live board edit trigger (boards editor surface only) ===
-  // For edit_current_board intent, emit a `trigger_board_action` SSE event
-  // with the user's prompt. The boards-editor frontend calls POST
-  // /api/boards/:id/ai to plan operations, then applies them to the live
-  // Yjs board. ChatGraph never edits the board itself — classify + forward.
-  if (
-    !editToolLoop &&
-    (finalState.intent === 'edit_current_board' || (compoundEdit && editTarget === 'board')) &&
-    rawCurrentBoard?.id
-  ) {
-    const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
-    const referenceContent = buildEditReferenceContent(
-      compoundEdit,
-      finalState.searchResults,
-      validMessages as ModelMessage[],
-      lastUserMessage as ModelMessage | undefined
-    );
-    sse.send('trigger_board_action', {
-      targetBoardId: rawCurrentBoard.id,
-      userPrompt: lastUserText,
-      ...(referenceContent.trim() ? { referenceContent } : {}),
-    });
-    log.info(
-      `[ChatGraph] Emitted trigger_board_action for board ${rawCurrentBoard.id} (compoundEdit: ${compoundEdit}, refContentChars: ${referenceContent.length})`
     );
   }
 }
