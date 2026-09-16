@@ -2,10 +2,9 @@ import { type CreateAttachment } from '@assistant-ui/react-native';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { useRouter } from 'expo-router';
 import { useCallback } from 'react';
-import { View, Text, StyleSheet, useColorScheme, ScrollView, Platform } from 'react-native';
+import { View, Text, StyleSheet, useColorScheme, ScrollView } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Composer } from '../../components/common/Composer';
 import { ContentColumn } from '../../components/common/ContentColumn';
@@ -15,11 +14,11 @@ import { ALL_TOOLS } from '../../components/tools/toolsConfig';
 import { ToolSquareGrid } from '../../components/tools/ToolSquareGrid';
 import { useDrawerStore } from '../../hooks/useDrawerStore';
 import { useLayout } from '../../hooks/useLayout';
+import { useTabBarClearance } from '../../hooks/useTabBarClearance';
 import { useTabNavigationSwipe } from '../../hooks/useTabSwipe';
 import { usePendingAttachmentStore } from '../../stores/pendingAttachmentStore';
 import { useToolFavoritesStore } from '../../stores/toolFavoritesStore';
 import { spacing, lightTheme, darkTheme } from '../../theme';
-import { FLOATING_TAB_BAR_HEIGHT } from '../../theme/layout';
 import { route, routeWithParams } from '../../types/routes';
 import { mobileGreeting } from '../../utils/greeting';
 
@@ -38,14 +37,7 @@ export default function StartScreen() {
   const firstName = user?.display_name?.split(' ')[0] ?? null;
   const greeting = mobileGreeting(locale, firstName);
 
-  const insets = useSafeAreaInsets();
-  // The Android tab bar is absolutely positioned (ClassicTabLayout), so the
-  // navigator reserves no room for it and the scroll content has to clear it
-  // itself — the same sum BottomComposerBar used while it was pinned there.
-  const bottomClearance =
-    Platform.OS === 'ios'
-      ? insets.bottom + spacing.medium
-      : insets.bottom + FLOATING_TAB_BAR_HEIGHT + spacing.medium;
+  const bottomClearance = useTabBarClearance(spacing.medium);
 
   const { isTablet, height, contentWidth } = useLayout();
   // Centring is right on a phone, where the block fills most of the screen. On a
