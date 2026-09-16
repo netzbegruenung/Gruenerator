@@ -201,12 +201,26 @@ export function requireUserId(state: ChatGraphState): string | null {
 // find_content — cross-domain read over the user's own stuff
 // ---------------------------------------------------------------------------
 
+/**
+ * Notebooks are deliberately NOT part of this tool, and the description says so
+ * out loud. Both paths below are Postgres-backed: `searchOfficeContent` reads
+ * `collaborative_documents` (office subtypes only) and `aggregateRecentActivity`
+ * aggregates docs/boards/images/reels/canvases. A notebook lives in Qdrant and
+ * is reached through `notebooks` (list/get/search) in `notebookTools.ts`.
+ *
+ * The description named Notebooks until #3345 — a leftover from before the
+ * notebook actions moved out of this file — so "such in meinen Notebooks nach X"
+ * landed here and got a confidently empty answer. Do not put the word back
+ * without wiring a notebook source in: the obvious candidate
+ * `searchUserNotebookCollections` matches only name and description, so it finds
+ * notebooks BY title, it does not search their content.
+ */
 export function makeFindContentTool(ctx: PersonalToolCtx): Tool {
   const { state, sourceRegistry } = ctx;
   return tool({
-    description: `Durchsucht die EIGENEN Inhalte der angemeldeten Person (Dokumente, Boards, Tabellen, Präsentationen, Notebooks sowie Reels/untertitelte Videos) oder listet die zuletzt bearbeiteten. Reels werden dabei auch nach ihrem gesprochenen Untertitel-Inhalt durchsucht.
+    description: `Durchsucht die EIGENEN Inhalte der angemeldeten Person (Dokumente, Boards, Tabellen, Präsentationen sowie Reels/untertitelte Videos) oder listet die zuletzt bearbeiteten. Reels werden dabei auch nach ihrem gesprochenen Untertitel-Inhalt durchsucht.
 
-NUTZE WENN nach eigenen Inhalten gefragt wird ("zeig mir meine Dokumente", "finde mein Klima-Board", "woran habe ich zuletzt gearbeitet"). Für Detailfragen zu EINEM Board/Dokument nutze 'documents' oder 'boards_tasks'. Für das VOLLE Transkript eines Reels (z. B. um eine Caption zu schreiben) nutze 'media' mit action="transcript".`,
+NUTZE WENN nach eigenen Inhalten gefragt wird ("zeig mir meine Dokumente", "finde mein Klima-Board", "woran habe ich zuletzt gearbeitet"). Für Detailfragen zu EINEM Board/Dokument nutze 'documents' oder 'boards_tasks'. Für das VOLLE Transkript eines Reels (z. B. um eine Caption zu schreiben) nutze 'media' mit action="transcript". NOTEBOOKS erreicht dieses Werkzeug NICHT — zum Auflisten, Ansehen und inhaltlichen Befragen eines Notebooks nutze 'notebooks'.`,
     inputSchema: z.object({
       action: z.enum(['search', 'recent']),
       query: z.string().optional().describe('Suchbegriff (nur bei action="search")'),
