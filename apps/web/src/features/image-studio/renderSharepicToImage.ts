@@ -38,9 +38,10 @@ import type { Root } from 'react-dom/client';
 const PREVIEW_PIXEL_RATIO = 0.7;
 
 /**
- * Export scale, for the one path whose pixels leave the app: the download
- * button. Matches `captureStageImage`'s default, which is what every preview
- * used to get.
+ * Export scale, and the default: every path whose pixels outlive the view that
+ * asked for them — download, the mobile share sheet, gallery thumbnails,
+ * template previews. Matches `captureStageImage`'s default, so a caller that
+ * passes no options gets exactly what it got before previews had a size.
  */
 const FULL_PIXEL_RATIO = 2;
 
@@ -152,17 +153,22 @@ function keyFor(
 }
 
 /**
- * Renders one sharepic preview, or resolves null when it cannot be produced.
+ * Renders one sharepic, or resolves null when it cannot be produced.
  *
  * Never rejects: a missing preview is a state the cards already draw, not an
  * exception every call site would have to catch.
+ *
+ * `quality` defaults to `'full'` because most callers persist or hand out what
+ * they get back, and a silent downscale there is invisible until someone opens
+ * the file. Only the chat cards ask for `'preview'`, and they display it at
+ * 420px and throw it away.
  */
 export function renderSharepicToImage(
   canvasType: string,
   initialProps: Record<string, unknown>,
   options?: { quality?: 'preview' | 'full' }
 ): Promise<string | null> {
-  const quality = options?.quality ?? 'preview';
+  const quality = options?.quality ?? 'full';
   const pixelRatio = quality === 'full' ? FULL_PIXEL_RATIO : PREVIEW_PIXEL_RATIO;
   return queue.run(keyFor(canvasType, initialProps, quality), () =>
     runRender(canvasType, initialProps, pixelRatio)

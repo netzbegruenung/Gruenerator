@@ -106,7 +106,7 @@ export function useSharepicArtifact(variant: SharepicVariant) {
       return undefined;
     }
     setIsRendering(true);
-    renderFn(variant.canvasType, renderInput)
+    renderFn(variant.canvasType, renderInput, { quality: 'preview' })
       .then((dataUrl) => {
         if (cancelled) return;
         if (dataUrl) {
