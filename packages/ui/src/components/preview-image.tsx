@@ -1,5 +1,5 @@
 import { decode as decodeBlurhash } from 'blurhash';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { type SyntheticEvent, useEffect, useMemo, useRef, useState } from 'react';
 
 import { cn } from '../lib/cn';
 
@@ -22,6 +22,13 @@ export interface PreviewImageProps {
   blurhash?: string;
   /** Above-the-fold tiles: eager + high fetch priority (default lazy/low). */
   priority?: boolean;
+  /**
+   * Called once when the backend confirms the resource is gone for good (410).
+   * The image itself already degrades to the placeholder; this lets the owner of
+   * the surrounding tile react — typically by refetching the list it came from,
+   * which is stale by definition if the row behind it no longer exists.
+   */
+  onGone?: () => void;
   /** Background-image placeholder URL (legacy alternative to `blurhash`). */
   placeholder?: string;
   className?: string;
@@ -38,6 +45,21 @@ const BLURHASH_SIZE = 32;
 // the buster has to reach every URL in a srcSet, not just the fallback src.
 const MAX_RETRIES = 3;
 const RETRY_DELAYS_MS = [500, 1500, 3500];
+
+// An <img> error event carries no status, so the retry above cannot tell the
+// upload race apart from an image that is gone for good — a deleted share used
+// to cost all four attempts before going quiet. The backend now answers 410 for
+// a resource that will never come back, so one probe of the URL that actually
+// failed settles it. Only 410 stops the retry: every other outcome, a network
+// error included, stays retryable, because being unable to ask is not an answer.
+async function isPermanentlyGone(url: string): Promise<boolean> {
+  try {
+    const res = await fetch(url, { credentials: 'include' });
+    return res.status === 410;
+  } catch {
+    return false;
+  }
+}
 
 function withCacheBust(url: string, attempt: number): string {
   if (attempt <= 0) return url;
@@ -89,6 +111,7 @@ export function PreviewImage({
   sources,
   blurhash,
   priority,
+  onGone,
   placeholder,
   className,
   width,
@@ -97,6 +120,9 @@ export function PreviewImage({
 }: PreviewImageProps) {
   const [loaded, setLoaded] = useState(false);
   const [retry, setRetry] = useState(0);
+  // Set once the backend says 410: the resource is gone, so stop asking and
+  // leave the blurhash/placeholder standing.
+  const [gone, setGone] = useState(false);
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isWebp = useMemo(() => src.endsWith('.webp'), [src]);
 
@@ -105,15 +131,28 @@ export function PreviewImage({
   useEffect(() => {
     setLoaded(false);
     setRetry(0);
+    setGone(false);
   }, [src]);
 
   useEffect(() => () => clearTimeout(retryTimer.current ?? undefined), []);
 
-  const handleError = () => {
-    if (retry >= MAX_RETRIES) return;
+  const handleError = (event: SyntheticEvent<HTMLImageElement>) => {
+    if (retry >= MAX_RETRIES || gone) return;
+    // `currentSrc` is the URL the browser actually picked out of the <picture>,
+    // which is the one that failed; `src` is only the <img> fallback.
+    const failedUrl = event.currentTarget.currentSrc || event.currentTarget.src;
     clearTimeout(retryTimer.current ?? undefined);
     retryTimer.current = setTimeout(
-      () => setRetry((n) => n + 1),
+      () => {
+        void isPermanentlyGone(failedUrl).then((permanent) => {
+          if (!permanent) {
+            setRetry((n) => n + 1);
+            return;
+          }
+          setGone(true);
+          onGone?.();
+        });
+      },
       RETRY_DELAYS_MS[retry] ?? RETRY_DELAYS_MS[RETRY_DELAYS_MS.length - 1]
     );
   };
