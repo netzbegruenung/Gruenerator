@@ -56,6 +56,35 @@ trustPolicyIgnoreAfter: 525600
 # --node-linker=isolated --shamefully-hoist for speed.
 nodeLinker: hoisted
 
+# pnpm 12 changed the default of this setting from `false` to `install`: every
+# `pnpm run` and `pnpm exec` first checks node_modules against the lockfile and,
+# on a mismatch, runs an install itself. That check is structurally wrong for
+# this repo, because the Dockerfiles install a deliberately FILTERED subset
+# (`--filter @gruenerator/api...`) and copy only that subset's manifests into
+# the image. The verifier compares against the whole workspace, always sees a
+# mismatch, and the install it then starts is unfiltered AND without
+# --frozen-lockfile -- so it re-resolves `workspace:*` deps whose packages were
+# never copied in and aborts:
+#
+#   × installing dependencies
+#   ╰─▶ Failed to resolve dependency tree: In /app/packages/contracts:
+#       "@gruenerator/eslint-config@workspace:*" is in the dependencies but no
+#       package named "@gruenerator/eslint-config" is present in the workspace
+#
+# That killed the api, web, gruen-o-mat and hocuspocus images (#3351 bumped
+# pnpm 10 -> 12; the doku image only survived because it is the one build whose
+# filtered scope happens to cover every manifest in its image -- it still paid
+# 27 s for the redundant install). Nothing in an image build should ever
+# re-resolve after the one explicit `pnpm install --frozen-lockfile`.
+#
+# Setting it here is the only place that works: pnpm 11+ no longer reads
+# settings from .npmrc or from `npm_config_*` env vars (both were measured
+# against pnpm 12.4.2 and ignored), and pnpm-workspace.yaml is already copied
+# into every image. `false` is also the pnpm 10 behaviour this monorepo was
+# built around -- an implicit full install fired by a `pnpm --filter x test` is
+# never wanted here, least of all on a 16 GB machine running several agents.
+verifyDepsBeforeRun: false
+
 # Moved here from package.json's `pnpm` field, which pnpm 11 no longer reads.
 # Replaces neverBuiltDependencies: ['canvas'] — canvas ships prebuilt binaries
 # we do not want compiled from source.
