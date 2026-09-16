@@ -739,14 +739,19 @@ export interface AgenticDecisionInput {
   /** Notebook gather pipeline — stays single-pass. */
   isCompound: boolean;
   /** The turn carries a selected notebook (`notebookIds`), whatever the agent.
-   *  Stays single-pass because `searchNode` is the ONLY place that retrieves
-   *  notebook content: `gruenerator_search` takes `collection` as a closed
-   *  `z.enum(ALL_COLLECTIONS)` (searchTools.ts), which addresses SYSTEM
-   *  collections by key — since that list is derived, every Landesverband is
-   *  among them, but there is still no parameter that could address a USER
-   *  notebook. In the loop the classifier's `gatherSources:
-   *  ['notebook-search']` is read by nobody and the chosen notebook is
-   *  silently answered around.
+   *  Stays single-pass — but no longer because the loop CANNOT reach a user
+   *  notebook. That was the original reason: `gruenerator_search` takes
+   *  `collection` as a closed `z.enum(ALL_COLLECTIONS)` (searchTools.ts), which
+   *  addresses SYSTEM collections by key and has no parameter for a USER
+   *  notebook. Since 09/2026 the `notebooks` tool has `search` (id + query, via
+   *  `runNotebookSearch`), so the capability now exists in the loop.
+   *  What has NOT been done is the measurement: `searchNode` owns the notebook
+   *  retrieval path with its own citation and rerank behaviour, and the
+   *  classifier's `gatherSources: ['notebook-search']` is still read by nobody
+   *  here, so a turn that entered the loop would be answered around the chosen
+   *  notebook unless the model happens to call `notebooks(search)` itself.
+   *  Flipping this flag is therefore a deliberate, measured change — not a
+   *  leftover. Do not remove it on the strength of the tool existing.
    *  `isCompound` covered only the NAMED-agent half of this; the universal agent
    *  reached the loop unguarded. Separate flag rather than a widened
    *  `isCompound`, because that name means "gather-then-apply pipeline" and
