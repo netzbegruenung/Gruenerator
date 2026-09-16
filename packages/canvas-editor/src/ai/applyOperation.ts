@@ -12,9 +12,8 @@
  *   - Each op is wrapped in try/catch so one bad op in a multi-op
  *     suggestion doesn't abort the rest.
  */
-import type { CanvasAiOperation, CanvasAiUpdatePatch } from '@gruenerator/contracts';
-
 import type { TemplateAiCapabilities } from './types';
+import type { CanvasAiOperation, CanvasAiUpdatePatch } from '@gruenerator/contracts';
 
 export type ApplyResult = { ok: true } | { ok: false; reason: string };
 
@@ -158,6 +157,11 @@ export function applyOperation<TState, TActions extends CanvasAiActionsBase>(
   try {
     switch (op.kind) {
       case 'set-text': {
+        // Hier wird NICHT normalisiert: ob ein Feld Marker tragen darf, weiß
+        // nur der Descriptor, und den hat dieser Applier nicht. Ein blindes
+        // `- x` → `• x` machte aus „– Anna Müller" in einem Namensfeld einen
+        // Aufzählungspunkt. Für den Chat-Pfad erledigt das `validateSharepicOp`
+        // feldgenau; hier führt der Prompt die Form.
         // 1) Try existing additionalText id
         const state = getState() as { additionalTexts?: Array<{ id: string }> };
         const existing = state.additionalTexts?.find((t) => t.id === op.field);

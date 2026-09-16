@@ -106,10 +106,11 @@ describe('the width caps', () => {
 const FRAMES = Array.from({ length: 11 }, (_, i) => i / 10);
 
 describe('dockingSpacer', () => {
-  // The Start tab's Android numbers, formed the way the screen forms them:
-  // gesture-bar inset, the capsule tab bar and the gap the block keeps under
-  // itself, against the seam the chat composer keeps — both through `typeScale`,
-  // so a screen that dropped it would part company with the thread here.
+  // The Start tab's Android numbers, formed the way the screen forms them —
+  // what `useTabBarClearance(spacing.medium)` returns there (gesture-bar inset
+  // plus the capsule tab bar plus the gap), against the seam the chat composer
+  // keeps. The seam runs through `typeScale`, so a screen that dropped it would
+  // part company with the thread here.
   const resting = 15 + FLOATING_TAB_BAR_HEIGHT + spacing.medium;
   const raised = typeScale(COMPOSER_BOTTOM_INSET_RAISED);
   const KEYBOARD = 300;
