@@ -35,9 +35,9 @@ export default function VoicePicker({ value, onChange }: VoicePickerProps) {
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-xs">
+    <div className="flex items-center gap-xs">
       <Select value={value} onValueChange={(next) => onChange(next as TtsVoiceId)}>
-        <SelectTrigger className="w-[13rem]" aria-label="Stimme">
+        <SelectTrigger className="min-w-0 flex-1" aria-label="Stimme">
           <SelectValue>{ttsVoiceLabel(value)}</SelectValue>
         </SelectTrigger>
         <SelectContent>
@@ -52,9 +52,15 @@ export default function VoicePicker({ value, onChange }: VoicePickerProps) {
           ))}
         </SelectContent>
       </Select>
-      <Button variant="outline" size="sm" onClick={playSample} aria-label="Hörprobe abspielen">
-        <Volume2 className="size-4" />
-        Hörprobe
+      <Button
+        variant="outline"
+        size="icon"
+        onClick={playSample}
+        aria-label="Hörprobe abspielen"
+        title="Hörprobe abspielen"
+        className="size-10 shrink-0"
+      >
+        <Volume2 aria-hidden="true" />
       </Button>
       {/* eslint-disable-next-line jsx-a11y/media-has-caption -- one spoken sentence; its text is fixed and known */}
       <audio ref={sampleRef} preload="none" />
