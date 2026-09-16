@@ -152,13 +152,16 @@ export function dockingSpacer(
  * natural height from `onLayout`; until that is known no height is set at all —
  * a height of 0 from a measurement that never happened would keep the section
  * from ever laying out, and so from ever reporting one.
+ *
+ * `progress` is clamped for the same reason `dockingSpacer` clamps it: the
+ * callers hand both of them the same unclamped shared value, and above 1 this
+ * would otherwise return a negative opacity and a negative height.
  */
 export function collapsingSection(
   progress: number,
   measuredHeight: number
 ): { opacity: number; height?: number } {
   'worklet';
-  return measuredHeight > 0
-    ? { opacity: 1 - progress, height: measuredHeight * (1 - progress) }
-    : { opacity: 1 - progress };
+  const open = Math.max(0, 1 - progress);
+  return measuredHeight > 0 ? { opacity: open, height: measuredHeight * open } : { opacity: open };
 }

@@ -170,4 +170,12 @@ describe('collapsingSection', () => {
     expect(collapsingSection(0, 180)).toEqual({ opacity: 1, height: 180 });
     expect(collapsingSection(1, 180)).toEqual({ opacity: 0, height: 0 });
   });
+
+  it('survives a progress above 1, which Android does not clamp', () => {
+    // The screen feeds this the same unclamped shared value as `dockingSpacer`,
+    // so it overshoots in the same case — a taller emoji panel. Unclamped this
+    // returned a negative opacity and a negative height.
+    expect(collapsingSection(1.4, 180)).toEqual({ opacity: 0, height: 0 });
+    expect(collapsingSection(1.4, 0)).toEqual({ opacity: 0 });
+  });
 });
