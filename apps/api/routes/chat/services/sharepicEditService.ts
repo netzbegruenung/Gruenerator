@@ -802,6 +802,10 @@ export async function handleSharepicEdit(args: HandleSharepicEditArgs): Promise<
     });
 
     if (!editResult.ok) {
+      if ('reply' in editResult) {
+        await finishWithText(args, editResult.reply);
+        return true;
+      }
       sse.send('sharepic_edit_error', { variantId: target.variantId, error: editResult.error });
       await finishWithText(
         args,
