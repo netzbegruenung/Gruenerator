@@ -30,6 +30,7 @@ import {
   useCanvasInteractions,
   useCanvasStoreSetup,
   useCanvasHistorySetup,
+  useFontGeneration,
   useFontLoader,
 } from '../hooks';
 import { useCanvasAutoSave } from '../hooks/useCanvasAutoSave';
@@ -376,10 +377,17 @@ function GenericCanvasWithRef<
     ]);
   }, [state]);
 
+  // `isFontAvailable` schlägt genau einmal um, und zwar sobald die
+  // GRUNDSCHNITTE da sind — bei PT Sans ist das schon beim Seitenaufbau der
+  // Fall, weil der Fließtext ihn benutzt. Fett und Kursiv treffen danach ein.
+  // `calculateLayout` misst aber mit (Auto-Fit-Schriftgrad, Y-Stapelung), also
+  // braucht es den Zähler zusätzlich, sonst stünde ein Slider-Untertext für
+  // immer in der Größe, die gegen den synthetisch gefetteten Regular passte.
+  const fontGeneration = useFontGeneration();
   const layout = useMemo<LayoutResult>(() => {
     return config.calculateLayout(state);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- layoutKey is a stable string derived from layout-relevant state fields
-  }, [config, layoutKey, isFontAvailable]);
+  }, [config, layoutKey, isFontAvailable, fontGeneration]);
 
   const { setSelectedElement, handleStageClick, handleSnapChange, getSnapTargets } =
     useCanvasInteractions({ stageRef });

@@ -41,6 +41,7 @@ export type {
   UseCanvasLayerControlsResult,
 } from './useCanvasLayerControls';
 
+export { useFontGeneration } from './useFontGeneration';
 export { useFontLoader } from './useFontLoader';
 export type { UseFontLoaderOptions, UseFontLoaderResult } from './useFontLoader';
 
