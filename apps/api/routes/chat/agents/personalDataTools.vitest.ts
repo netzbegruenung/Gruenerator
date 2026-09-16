@@ -214,6 +214,24 @@ describe('find_content', () => {
     expect(registry.size).toBe(1);
     expect(registry.renderAll()).toContain('Klimaplan');
   });
+
+  // #3345: the coverage sentence advertised Notebooks while both paths are
+  // Postgres-only (office documents + reels / the activity feed). "such in
+  // meinen Notebooks nach X" therefore landed here and got a confidently empty
+  // answer. The split is on "NUTZE WENN", this description's own divider between
+  // what the tool COVERS and where to go instead — so the redirect may keep
+  // naming notebooks while the promise above it may not.
+  it('does not claim to cover notebooks, and redirects to the notebooks tool', () => {
+    const description = makeFindContentTool(ctx('u1')).description ?? '';
+    const [coverage, guidance] = description.split('NUTZE WENN');
+    expect(guidance, 'description lost its "NUTZE WENN" marker').toBeTruthy();
+    expect(
+      coverage,
+      'find_content reaches no notebook: searchOfficeContent reads collaborative_documents ' +
+        'and aggregateRecentActivity has no notebook fetcher. Wire one in or leave the claim out.'
+    ).not.toMatch(/notizb|notebook/i);
+    expect(guidance, 'the redirect to the notebooks tool went missing').toContain("'notebooks'");
+  });
 });
 
 // --- documents ---------------------------------------------------------------
