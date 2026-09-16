@@ -69,3 +69,22 @@ export const SPEED_OPTIONS = [
 
 /** Provider pause markup; snapped to 500 ms, chain two for a second. */
 export const PAUSE_TAG = '<break time="500ms"/>';
+
+/** What one pause tag is worth in finished audio. */
+const PAUSE_SECONDS = 0.5;
+
+/**
+ * Characters of German prose per second at the default rate.
+ *
+ * A rule of thumb (~150 words per minute), not a measurement — which is why
+ * every reading of it is prefixed with "≈". It exists so the button is not the
+ * first place a person learns that their text is eleven minutes long.
+ */
+const CHARS_PER_SECOND = 13;
+
+/** Rough length of the finished audio, in seconds. Pauses count, their tags do not. */
+export function estimateSpeechSeconds(text: string, speed: number): number {
+  const pauses = text.split(PAUSE_TAG).length - 1;
+  const spoken = text.split(PAUSE_TAG).join('').trim().length;
+  return spoken / CHARS_PER_SECOND / speed + pauses * PAUSE_SECONDS;
+}
