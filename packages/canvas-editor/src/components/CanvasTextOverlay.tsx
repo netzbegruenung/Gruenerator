@@ -99,7 +99,12 @@ export function overlayBoxForNode(
   if (!stage) return null;
   const stageBox = stage.container().getBoundingClientRect();
   const position = node.getAbsolutePosition();
-  const scale = stage.scaleX();
+  // Der Maßstab des KNOTENS, nicht der der Bühne. Bei einem Format, dessen
+  // Entwurfsmaße von den Ausgabemaßen abweichen (Story, Präsentation, Flyer,
+  // Plakat), legt `CanvasStage` eine zusätzlich skalierte Gruppe um den
+  // Entwurf. `stage.scaleX()` kennt die nicht — der Editor stünde dort zwar
+  // an der richtigen Stelle, aber in der falschen Größe.
+  const scale = node.getAbsoluteScale().x;
   return {
     top: stageBox.top + window.scrollY + position.y,
     left: stageBox.left + window.scrollX + position.x,
