@@ -142,7 +142,17 @@ USER gruenerator
 # became a whole-workspace one: 634 MB -> 1589 MB here, 109 MB -> 1453 MB for
 # hocuspocus, with Expo, Metro, Tauri and Docusaurus in the runtime images. The
 # build stayed green the whole time, which is why nothing caught it.
-RUN --mount=type=cache,id=pnpm-prod,target=/home/gruenerator/.local/share/pnpm/store \
+#
+# The second mount is from the same bump. pnpm's supply-chain policies
+# (minimumReleaseAge, trustPolicy) verify every one of the ~4200 lockfile
+# entries, and pnpm 12 caches the full packument for each under ~/.cache/pnpm --
+# 2.4 GB of registry JSON (715 MB metadata + 1.7 GB metadata-full), where pnpm
+# 10 left 24.7 MB. Only the STORE was mounted, so all of it was landing in the
+# image: it alone accounted for the whole remaining install layer once the
+# linker fix was in. Mount it and it is cached between builds instead of shipped.
+# uid/gid because this stage installs as gruenerator, not root.
+RUN --mount=type=cache,id=pnpm-prod,target=/home/gruenerator/.local/share/pnpm/store,uid=1001,gid=1001 \
+    --mount=type=cache,id=pnpm-prod-meta,target=/home/gruenerator/.cache/pnpm,uid=1001,gid=1001 \
     pnpm install --prod --frozen-lockfile --node-linker=isolated --shamefully-hoist \
         --filter @gruenerator/api...
 
