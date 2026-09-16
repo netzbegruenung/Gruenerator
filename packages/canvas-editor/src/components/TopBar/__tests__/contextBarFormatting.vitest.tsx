@@ -3,8 +3,9 @@
  *
  * Der Editor entsteht tief in der Leinwand, die Leiste steht weit darüber.
  * Diese Tests halten die Naht fest, über die er sie erreicht: den Provider an
- * der Wurzel (`controls="host"`) und `useCanvasTextFormatting`. Ohne sie
- * fielen die Knöpfe stumm aus — sichtbar, aber ohne Editor dahinter.
+ * der Wurzel und `useCanvasTextFormatting` — dessen Aufruf zugleich die
+ * Anmeldung als Wirt ist. Ohne sie fielen die Knöpfe stumm aus — sichtbar,
+ * aber ohne Editor dahinter.
  */
 import { render, screen, act } from '@testing-library/react';
 import { useEffect } from 'react';
@@ -47,6 +48,7 @@ function OpenSession({ id, fontFamily }: { id: string; fontFamily: string }) {
       fontStyle: 'normal',
       fill: '#005538',
       align: 'left',
+      opacity: 1,
       lineHeight: 1.2,
       onTextChange: () => {},
     };
@@ -65,7 +67,7 @@ function renderBar({
   fontFamily?: string;
 } = {}) {
   return render(
-    <CanvasTextEditorProvider controls="host">
+    <CanvasTextEditorProvider>
       {editedId && <OpenSession id={editedId} fontFamily={fontFamily} />}
       <ContextControls
         selectedElement={selectedId}

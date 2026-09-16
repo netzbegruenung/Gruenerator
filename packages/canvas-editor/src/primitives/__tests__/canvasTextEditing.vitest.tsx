@@ -10,7 +10,7 @@
  * unerreichbar. Ein Test auf `RichTextField` allein sieht davon nichts: die
  * Komponente selbst war die ganze Zeit in Ordnung.
  */
-import { render, screen, act } from '@testing-library/react';
+import { render, screen, act, cleanup } from '@testing-library/react';
 import { createRef, type ReactNode } from 'react';
 import { describe, expect, it } from 'vitest';
 
@@ -142,7 +142,7 @@ function HostControls() {
 describe('Bühne innerhalb eines Wirt-Providers', () => {
   it('öffnet keine zweite Sitzung — der Wirt bekommt den Editor', () => {
     dblClickOnCanvas({ text: 'Klimaschutz ist kein Sprint', fontFamily: PT_SANS }, {}, (node) => (
-      <CanvasTextEditorProvider controls="host">
+      <CanvasTextEditorProvider>
         <HostControls />
         {node}
       </CanvasTextEditorProvider>
@@ -162,5 +162,81 @@ describe('Bühne innerhalb eines Wirt-Providers', () => {
     dblClickOnCanvas({ text: 'Klimaschutz ist kein Sprint', fontFamily: PT_SANS });
 
     expect(document.querySelector('.canvas-rte__floating-toolbar')).not.toBeNull();
+  });
+
+  it('zeigt sie auch, wenn der Provider steht, aber kein Wirt sich meldet', () => {
+    // Der Nativ-Brücken-Modus: `CanvasEditorInner` spannt den Provider auf,
+    // rendert die Kontextleiste aber nicht (die App stellt sie). Entschiede
+    // der Provider anhand einer Zusage des Aufrufers statt anhand der
+    // Anmeldung, bliebe der Text hier ganz ohne Schnitt-Knöpfe.
+    dblClickOnCanvas({ text: 'Klimaschutz ist kein Sprint', fontFamily: PT_SANS }, {}, (node) => (
+      <CanvasTextEditorProvider>{node}</CanvasTextEditorProvider>
+    ));
+
+    expect(document.querySelector('.canvas-rte__floating-toolbar')).not.toBeNull();
+  });
+});
+
+/**
+ * Der Editor liegt AUF dem Text und soll ihn zeigen, wie die Leinwand ihn
+ * zeigt — sonst sieht man beim Bearbeiten etwas anderes als im Export.
+ *
+ * Zwei Dinge fehlten. Der Einzug der Aufzählung: `layoutRichTextBlock` setzt
+ * den Marker an den linken Blockrand und rückt ALLE Zeilen des Punktes
+ * dahinter ein; im Editor hing der Marker links aus dem Feld heraus, und die
+ * Zeile brach auf der vollen Feldbreite um statt auf der eingerückten. Und
+ * die Deckkraft, die dieselbe Kopfleiste stellt, die auch die Schnitte zeigt.
+ */
+describe('Der Editor zeigt, was die Leinwand zeigt', () => {
+  /** Der Rahmen, an dem `contentStyle` hängt — wo immer tiptap ihn aufspannt. */
+  function styledFrame(): HTMLElement {
+    const content = document.querySelector<HTMLElement>('.canvas-rte__content');
+    if (!content) throw new Error('Editor-Inhalt nicht gefunden');
+    const frame = content.closest<HTMLElement>('[style*="font-family"]');
+    if (!frame) throw new Error('Kein Rahmen mit den Feldstilen gefunden');
+    return frame;
+  }
+
+  const indent = () => styledFrame().style.getPropertyValue('--canvas-rte-list-indent');
+
+  it('rückt eine Aufzählung ein, damit der Punkt im Feld steht statt daneben', () => {
+    dblClickOnCanvas({ text: '• Erster Punkt\n• Zweiter Punkt', fontFamily: PT_SANS });
+
+    expect(parseFloat(indent())).toBeGreaterThan(0);
+  });
+
+  it('rückt glatten Text nicht ein', () => {
+    dblClickOnCanvas({ text: 'Klimaschutz ist kein Sprint', fontFamily: PT_SANS });
+
+    expect(indent()).toBe('0px');
+  });
+
+  it('misst den Einzug am Entwurf und skaliert ihn wie die Bühne', () => {
+    // Derselbe Maßstabsfall wie oben beim Kasten: misst der Einzug am
+    // Bildschirm statt am Entwurf, driftet er auf jedem Format auseinander,
+    // dessen Entwurfsmaße von den Ausgabemaßen abweichen.
+    const feld = { text: '• Erster Punkt', fontFamily: PT_SANS, width: 100, fontSize: 20 };
+    dblClickOnCanvas(feld);
+    const einfach = parseFloat(indent());
+    cleanup();
+
+    dblClickOnCanvas(feld, { logicalWidth: 300, logicalHeight: 300 });
+
+    expect(einfach).toBeGreaterThan(0);
+    expect(parseFloat(indent())).toBeCloseTo(einfach * 2, 5);
+  });
+
+  it('zeigt die Deckkraft des Feldes', () => {
+    dblClickOnCanvas({ text: 'Klimaschutz', fontFamily: PT_SANS, opacity: 0.4 });
+
+    expect(styledFrame().style.opacity).toBe('0.4');
+  });
+
+  it('wird dabei aber nicht unsichtbar', () => {
+    // Der Regler der Kopfleiste geht bis 0. Der Editor ist Werkzeug, nicht
+    // Sujet — bei 0 tippte man ins Unsichtbare.
+    dblClickOnCanvas({ text: 'Klimaschutz', fontFamily: PT_SANS, opacity: 0 });
+
+    expect(styledFrame().style.opacity).toBe('0.2');
   });
 });
