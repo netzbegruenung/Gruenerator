@@ -260,7 +260,7 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
     "title": "Wie erstelle ich KI-Bilder?",
     "category": "Guides",
-    "lead": "Am Ende hast du ein eigenes KI-Bild als Datei oder eine Grundlage für ein Sharepic. Du brauchst keine Bildbearbeitungskenntnisse; entscheidend ist eine gute Beschreibung. Für den ersten Entwurf reich…"
+    "lead": "Am Ende hast du ein eigenes KI-Bild als Datei oder eine Grundlage für ein Sharepic. Du brauchst keine Bildbearbeitungskenntnisse; entscheidend ist eine gute Beschreibung."
   },
   {
     "url": "/docs/guides/einsteigerinnen/reel-erstellen",
@@ -2131,7 +2131,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Wie erstelle ich KI-Bilder?",
     "anchor": "",
     "category": "Guides",
-    "text": "Am Ende hast du ein eigenes KI-Bild als Datei oder eine Grundlage für ein Sharepic. Du brauchst keine Bildbearbeitungskenntnisse; entscheidend ist eine gute Beschreibung. Für den ersten Entwurf reichen meist wenige Minuten."
+    "text": "Am Ende hast du ein eigenes KI-Bild als Datei oder eine Grundlage für ein Sharepic. Du brauchst keine Bildbearbeitungskenntnisse; entscheidend ist eine gute Beschreibung."
   },
   {
     "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
@@ -2155,7 +2155,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Größe und Format einstellen",
     "anchor": "#größe-und-format-einstellen",
     "category": "Guides",
-    "text": "Die Größenwahl steckt nicht im Erstellen-Dialog. So bringst du ein fertiges Bild in ein anderes Seitenverhältnis: Klicke rechts im Eingabefeld auf „Bearbeiten“ und wähle „Vergrößern“. Klicke links auf das Zahnrad. Unter „Ziel-Format“ stehen 1:1, 4:3, 3:4, 16:9 und 9:16. Wähle das Format und klicke unter dem Eingabefeld auf „Auf … vergrößern“. Das Studio beschneidet das Bild dabei nicht, sondern ergänzt neuen Bildinhalt an den fehlenden Rändern. Für 9:16 wird ein 4:5-Ausgangsbild zum Beispiel oben und unten erweitert. Falls das Ziel die technische Maximalgröße überschreiten würde, meldet das Studio einen Fehler; dann verwendest du ein kleineres Ausgangsbild oder ein weniger breites Format."
+    "text": "Die Größenwahl steckt nicht im Erstellen-Dialog. So bringst du ein fertiges Bild in ein anderes Seitenverhältnis: Klicke rechts im Eingabefeld auf „Bearbeiten“ und wähle „Vergrößern“. Klicke links auf das Zahnrad. Unter „Ziel-Format“ stehen 1:1, 4:3, 3:4, 16:9 und 9:16. Wähle das Format und klicke unter dem Eingabefeld auf „Auf … vergrößern“. Das Studio beschneidet das Bild dabei nicht, sondern ergänzt neuen Bildinhalt an den fehlenden Rändern. Aus dem automatisch erzeugten Bild mit 1088 × 1360 Pixeln entstehen rechnerisch diese Zielgrößen: 1:1: 1360 × 1360 Pixel 4:3: 1813 × 1360 Pixel 3:4: 1088 × 1451 Pixel 9:16: 1088 × 1934 Pixel 16:9 funktioniert bei einem automatisch erzeugten 4:5-Bild derzeit nicht: Das nötige Ziel wäre 2418 × 1360 Pixel groß und überschreitet damit die Grenze von 2048 Pixeln pro Seite. Das Studio zeigt in diesem Fall eine Fehlermeldung. Mit einem kleineren hochgeladenen Ausgangsbild kann 16:9 funktionieren."
   },
   {
     "url": "/docs/guides/einsteigerinnen/ki-bilder-erstellen",
