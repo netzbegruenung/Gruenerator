@@ -141,6 +141,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         boardIds: rawBoardIds,
         currentDocument: rawCurrentDocument,
         currentBoard: rawCurrentBoard,
+        currentCanvas: rawCurrentCanvas,
         currentSharepic: rawCurrentSharepic,
         currentSocialPost: rawCurrentSocialPost,
         currentReel: rawCurrentReel,
@@ -279,6 +280,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         sharepicRefinement,
         rawCurrentDocument,
         rawCurrentBoard,
+        rawCurrentCanvas,
         rawBoardIds,
         mentionBoardIds: mentionTokenFields.boardIds,
       });

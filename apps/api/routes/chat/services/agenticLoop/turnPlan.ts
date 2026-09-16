@@ -107,7 +107,7 @@ export interface TurnPlan {
    */
   compoundEdit: boolean;
   editToolLoop: boolean;
-  editTarget: 'doc' | 'board' | null;
+  editTarget: 'doc' | 'board' | 'canvas' | null;
   /** Die Fläche, deren `edit_document` montiert wird — nur bei `editToolLoop`. */
   editToolSurface: EditorSurfaceKind | null;
   compoundGenerationKind: CompoundGenerationKind | null;
@@ -138,7 +138,7 @@ export interface TurnPlanInput {
   isPdfFillRequest: boolean;
   classifierContradictedResearch: boolean;
   hasOwnMaterial: boolean;
-  /** Die Werkzeug-Schalter der Fläche — `edit_current_doc`/`edit_current_board`. */
+  /** Die Werkzeug-Schalter der Fläche — `edit_current_doc`/`-board`/`-canvas`. */
   enabledTools: Record<string, boolean> | null;
   /** Agenten-Kennung, für die Auflösung der Editor-Fläche. */
   agentIdentifier: string | null;
@@ -152,6 +152,8 @@ export interface TurnPlanInput {
    * nach der id. Zusammengelegt wäre der Unterschied unsichtbar.
    */
   hasOpenBoardSurface: boolean;
+  /** Ein offenes Sharepic MIT id (Studio-Seitenleiste, `currentCanvas`). */
+  hasOpenCanvasId: boolean;
   /** Ein @board-Mention oder mitgeschickte boardIds benennen ein Ziel. */
   hasNamedBoard: boolean;
   /** Sharepic-Verfeinerung — hält die Verbund-Erzeugung aus dem Weg. */
@@ -340,12 +342,14 @@ export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
   // Das Ziel hängt am AKTIVIERTEN Bearbeitungswerkzeug, nicht daran, welches
   // Artefakt zufällig im Kontext liegt: eine Board-Seitenleiste, die auch ein
   // referenziertes Dokument trägt, muss trotzdem das BOARD bearbeiten.
-  const editTarget: 'doc' | 'board' | null =
+  const editTarget: 'doc' | 'board' | 'canvas' | null =
     p.enabledTools?.['edit_current_doc'] === true && p.hasOpenDocumentId
       ? 'doc'
       : p.enabledTools?.['edit_current_board'] === true && p.hasOpenBoardId
         ? 'board'
-        : null;
+        : p.enabledTools?.['edit_current_canvas'] === true && p.hasOpenCanvasId
+          ? 'canvas'
+          : null;
 
   // Verbund aus Recherche + Erzeugung: eine Erzeugungsbitte (Sharepic,
   // Präsentation, Tabelle, Textdokument, Board) MIT ausdrücklichem
@@ -375,15 +379,16 @@ export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
   // der Fläche in die Schleife, damit das Modell suchen und das OFFENE Artefakt
   // an Ort und Stelle ändern kann (`editor_operations`-SSE) statt über den
   // Client-Umweg /api/{sheets,…}/:id/ai. Welche Flächen einen Werkzeugpfad
-  // haben und warum die noch lebenden (doc/board/canvas) beim alten
-  // trigger_doc_edit bleiben, steht bei {@link decideEditToolLoop}.
+  // haben und warum die letzte verbliebene (doc) beim alten trigger_doc_edit
+  // bleibt, steht bei {@link decideEditToolLoop}.
   const editToolSurfaceKind = resolveEditorSurfaceKind(p.agentIdentifier, p.enabledTools);
   const editToolLoop = decideEditToolLoop({
     loopEnabled: p.loopEnabled,
     surfaceKind: editToolSurfaceKind,
     editToolEnabled:
       p.enabledTools?.['edit_current_doc'] === true ||
-      p.enabledTools?.['edit_current_board'] === true,
+      p.enabledTools?.['edit_current_board'] === true ||
+      p.enabledTools?.['edit_current_canvas'] === true,
     hasEditTarget: editTarget != null,
     forcedTool: p.forcedTool,
     isCompound: p.isCompound,

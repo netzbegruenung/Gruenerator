@@ -233,6 +233,57 @@ describe('editor surfaces', () => {
     expect(trace.intent).toBe('edit_current_board');
   });
 
+  /** Minimal live-canvas projection, the shape the studio sidebar sends. */
+  const openCanvas = {
+    id: 'canvas-1',
+    template: 'zitat',
+    snapshot: {
+      template: 'zitat',
+      textFields: [{ field: 'quote', label: 'Zitat', value: 'Mehr Tempo beim Ausbau.' }],
+      elementsSummary: [],
+    },
+    capabilities: { supportedOperations: ['set-text', 'set-color-scheme'] },
+    text: 'Zitat: „Mehr Tempo beim Ausbau."',
+  };
+
+  /**
+   * The studio sidebar's counterpart to the board case, and it has to be asked
+   * differently: canvas turns have NO classifier fast-path (they carry no
+   * `currentDocument` any more), so the observable fact is the routing plus the
+   * state the loop is handed. Both halves matter — `editToolSurface` without a
+   * `currentCanvas` in state is exactly the failure the board case documents
+   * ("Es ist kein Sharepic geöffnet" on every edit).
+   */
+  it('routes an open sharepic into the loop with the canvas edit tool and its state', async () => {
+    const { trace } = await runTurn(suite.baseUrl(), {
+      messages: [userTurn('Mach das Zitat schlagkräftiger')],
+      agentId: 'gruenerator-sharepic-editor',
+      enabledTools: { edit_current_canvas: true },
+      currentCanvas: openCanvas,
+    });
+
+    expect(trace.agentic).toBe(true);
+    expect(respond.agenticCalls).toHaveLength(1);
+    const state = respond.agenticCalls[0]!.finalState;
+    expect(state.editToolSurface).toBe('canvas');
+    expect(state.currentCanvas).toEqual(openCanvas);
+  });
+
+  it('leaves the canvas surface without an edit tool when no sharepic is open', async () => {
+    const { trace } = await runTurn(suite.baseUrl(), {
+      messages: [userTurn('Mach das Zitat schlagkräftiger')],
+      agentId: 'gruenerator-sharepic-editor',
+      enabledTools: { edit_current_canvas: true },
+    });
+
+    expect(trace.error).toBeNull();
+    for (const call of respond.agenticCalls) {
+      // Unset, not null: the router only ASSIGNS the field when a surface with
+      // a tool path resolved (routingStage), so "no edit tool" reads as absent.
+      expect(call.finalState.editToolSurface ?? null).toBeNull();
+    }
+  });
+
   it('keeps the same phrasing off the board path when no board is open', async () => {
     const { trace } = await runTurn(suite.baseUrl(), {
       messages: [userTurn('Erstelle eine Aufgabe „Plakate bestellen" in To-Do')],

@@ -47,6 +47,7 @@ const base: TurnPlanInput = {
   hasOpenDocumentId: false,
   hasOpenBoardId: false,
   hasOpenBoardSurface: false,
+  hasOpenCanvasId: false,
   hasNamedBoard: false,
   isSharepicRefinement: false,
   pipelineForceIntent: null,
@@ -61,6 +62,13 @@ const sheetSurface: Partial<TurnPlanInput> = {
   agentIdentifier: 'gruenerator-sheets-editor',
   enabledTools: { edit_current_doc: true },
   hasOpenDocumentId: true,
+};
+
+/** Die Sharepic-Studio-Fläche — eigener Kontextkanal, eigener Werkzeugschalter. */
+const canvasSurface: Partial<TurnPlanInput> = {
+  agentIdentifier: 'gruenerator-sharepic-editor',
+  enabledTools: { edit_current_canvas: true },
+  hasOpenCanvasId: true,
 };
 
 describe('decideTurnPlan — die Lanes', () => {
@@ -261,6 +269,23 @@ describe('decideTurnPlan — die Kippfälle', () => {
       intent: 'edit_current_board',
     });
     expect(p.editTarget).toBe('board');
+  });
+
+  it('eine Sharepic-Fläche mit offenem Canvas montiert das edit_document der Canvas-Fläche', () => {
+    // Der Intent ist bewusst NICHT das Kriterium: der Klassifikator sieht ohne
+    // currentDocument keine edit_current_doc-Schnellbahn mehr und gibt für eine
+    // glasklare Bearbeitungsbitte `direct` heraus.
+    const p = plan({ ...canvasSurface, intent: 'direct' });
+    expect(p.editTarget).toBe('canvas');
+    expect(p.editToolLoop).toBe(true);
+    expect(p.editToolSurface).toBe('canvas');
+    expect(p.runAgentic).toBe(true);
+  });
+
+  it('ohne offenes Sharepic bleibt die Canvas-Fläche ohne Ziel', () => {
+    const p = plan({ ...canvasSurface, hasOpenCanvasId: false, intent: 'direct' });
+    expect(p.editTarget).toBeNull();
+    expect(p.editToolSurface).toBeNull();
   });
 
   it('ohne offenes Ziel gibt es weder Bearbeitungsziel noch Editor-Lane', () => {

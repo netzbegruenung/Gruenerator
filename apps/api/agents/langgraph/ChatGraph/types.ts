@@ -25,6 +25,7 @@ import type {
   WolkeFileRef,
   ConnectFileRef,
   CurrentBoard,
+  CurrentCanvas,
   ConfirmActionType,
   ChartPayload,
   ArtifactPayload,
@@ -41,7 +42,7 @@ import type { RoleLandesverbandInput } from '@gruenerator/shared/agents';
 import type { ArtifactCreateKind } from '@gruenerator/shared/chat-intents';
 import type { ModelMessage } from 'ai';
 
-export type { WolkeFileRef, ConnectFileRef, CurrentBoard, SocialPostPayload };
+export type { WolkeFileRef, ConnectFileRef, CurrentBoard, CurrentCanvas, SocialPostPayload };
 
 /**
  * Retrieval backends the classifier can request for one turn. When several are
@@ -553,6 +554,7 @@ export interface ChatGraphInput {
   attachedWebpageUrls?: string[] | undefined;
   currentDocument?: CurrentDocument | undefined;
   currentBoard?: CurrentBoard | undefined;
+  currentCanvas?: CurrentCanvas | undefined;
   userLocale?: UserLocale | undefined;
   clientPlatform?: ClientPlatform | undefined;
   customSystemPrompt?: string | undefined;
@@ -747,6 +749,12 @@ export interface ChatGraphState {
   // Live board state when chat is embedded in the boards editor surface. Primary
   // context for board Q&A; presence + edit keywords route to edit_current_board.
   currentBoard: CurrentBoard | null;
+
+  // Live canvas state when chat is embedded in the sharepic studio sidebar.
+  // Primary context for sharepic Q&A (`text` is injected as AKTUELLES DOKUMENT)
+  // and the target of the loop's `edit_document` tool on the canvas surface
+  // (`snapshot`/`capabilities` feed runCanvasSuggest).
+  currentCanvas: CurrentCanvas | null;
 
   // Custom system prompt (replaces entire agent system prompt when set)
   customSystemPrompt: string | null;

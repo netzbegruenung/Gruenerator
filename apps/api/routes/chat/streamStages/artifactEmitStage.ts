@@ -2,11 +2,12 @@
  * Stages 3b–3c: what the finished answer text is turned into besides prose.
  *
  * A chart fence becomes a `chart_data` event, a complete HTML/SVG document
- * becomes an `artifact` panel, and a docs/canvas editor-surface turn emits
- * the `trigger_doc_edit` event its frontend needs. ChatGraph never edits the
- * doc itself — it classifies and forwards. Boards are tool-based (#1735):
- * the loop's `edit_document` tool plans ops server-side and streams
- * `editor_operations` directly, with no trigger event from this stage.
+ * becomes an `artifact` panel, and a DOCS editor-surface turn emits the
+ * `trigger_doc_edit` event its frontend needs. ChatGraph never edits the doc
+ * itself — it classifies and forwards. Every other editor surface is tool-based
+ * (boards #1735, sheets/decks, the sharepic studio #3427): the loop's
+ * `edit_document` tool plans ops server-side and streams `editor_operations`
+ * directly, with no trigger event from this stage.
  */
 
 import { createLogger } from '../../../utils/logger.js';
@@ -33,7 +34,7 @@ export interface ArtifactEmitStageParams {
   /** The loop-then-edit variant: this turn's gathered sources become the
    *  edit's reference material instead of a prior assistant turn. */
   compoundEdit: boolean;
-  editTarget: 'doc' | 'board' | null;
+  editTarget: 'doc' | 'board' | 'canvas' | null;
   /** In-loop `edit_document` already handled the edit — skip the legacy
    *  trigger round-trip. */
   editToolLoop: boolean;
@@ -101,11 +102,6 @@ export function runArtifactEmitStage({
   // compoundEdit (research + edit) forces this even when the intent isn't
   // edit_current_doc: the research loop just ran, and its gathered sources
   // become the reference material (instead of a prior assistant turn).
-  // NOTE: the CANVAS (sharepic editor) also rides this path — it sets
-  // customEnabledTools.edit_current_doc and sends currentDocument.id = docKey,
-  // so a canvas edit dispatches trigger_doc_edit here too (its handler calls
-  // /api/canvas/ai-suggest). Don't add doc-only assumptions under this branch
-  // without also checking resolveEditorSurfaceKind !== 'canvas'.
   if (
     !editToolLoop &&
     (finalState.intent === 'edit_current_doc' || (compoundEdit && editTarget === 'doc')) &&

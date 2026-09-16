@@ -904,8 +904,12 @@ describe('isEditorSurface', () => {
   it('true when an edit_current_* tool is enabled, false otherwise', () => {
     expect(isEditorSurface({ edit_current_doc: true })).toBe(true);
     expect(isEditorSurface({ edit_current_board: true })).toBe(true);
+    // The studio sidebar's key. Without it a sharepic turn loses the "never
+    // spawn a NEW artifact / no generate_image" gate in the tool catalog.
+    expect(isEditorSurface({ edit_current_canvas: true })).toBe(true);
     expect(isEditorSurface({ search: true, web: true })).toBe(false);
     expect(isEditorSurface({ edit_current_doc: false })).toBe(false);
+    expect(isEditorSurface({ edit_current_canvas: false })).toBe(false);
     expect(isEditorSurface(undefined)).toBe(false);
   });
 });
@@ -924,6 +928,7 @@ describe('resolveEditorSurfaceKind', () => {
   it('falls back to the enabled edit_current_* tool for a custom agent', () => {
     expect(resolveEditorSurfaceKind('my-custom-agent', { edit_current_board: true })).toBe('board');
     expect(resolveEditorSurfaceKind('my-custom-agent', { edit_current_doc: true })).toBe('doc');
+    expect(resolveEditorSurfaceKind(undefined, { edit_current_canvas: true })).toBe('canvas');
   });
 
   it('returns null for a non-editor turn', () => {
@@ -961,9 +966,12 @@ describe('decideEditToolLoop', () => {
     expect(decideEditToolLoop({ ...base, surfaceKind: 'board' })).toBe(true);
   });
 
-  it('keeps the legacy dispatch path for docs and canvas (no plan-and-send tool)', () => {
+  it('enters the loop for canvas too (plan-and-send)', () => {
+    expect(decideEditToolLoop({ ...base, surfaceKind: 'canvas' })).toBe(true);
+  });
+
+  it('keeps the legacy dispatch path for docs (the last surface without a tool)', () => {
     expect(decideEditToolLoop({ ...base, surfaceKind: 'doc' })).toBe(false);
-    expect(decideEditToolLoop({ ...base, surfaceKind: 'canvas' })).toBe(false);
   });
 
   it('requires the loop to be enabled', () => {

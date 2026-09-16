@@ -477,7 +477,9 @@ export function looksLikeCompoundEdit(raw: string): boolean {
  */
 export function isEditorSurface(enabledTools: Record<string, boolean> | null | undefined): boolean {
   return (
-    enabledTools?.['edit_current_doc'] === true || enabledTools?.['edit_current_board'] === true
+    enabledTools?.['edit_current_doc'] === true ||
+    enabledTools?.['edit_current_board'] === true ||
+    enabledTools?.['edit_current_canvas'] === true
   );
 }
 
@@ -624,6 +626,7 @@ export function resolveEditorSurfaceKind(
     }
   }
   if (enabledTools?.['edit_current_board'] === true) return 'board';
+  if (enabledTools?.['edit_current_canvas'] === true) return 'canvas';
   if (enabledTools?.['edit_current_doc'] === true) return 'doc';
   return null;
 }
@@ -631,14 +634,15 @@ export function resolveEditorSurfaceKind(
 /**
  * Editor surfaces with a tool-based edit path implemented — the loop plans ops
  * and streams `editor_operations` instead of the client round-trip. `board` is
- * live via this path (#1735). The dispatch surfaces (`doc`, `canvas`) are
- * absent here and keep the trigger_doc_edit path.
+ * live via this path (#1735), `canvas` since #3427. `doc` is the only dispatch
+ * surface left and keeps the trigger_doc_edit path.
  * Add a surface once its editorTools branch AND client ops handler are wired.
  */
 export const TOOL_EDIT_SURFACES: ReadonlySet<EditorSurfaceKind> = new Set([
   'sheet',
   'presentation',
   'board',
+  'canvas',
 ]);
 
 export interface EditToolLoopInput {
@@ -646,7 +650,7 @@ export interface EditToolLoopInput {
   loopEnabled: boolean;
   /** Surface resolved via {@link resolveEditorSurfaceKind}. */
   surfaceKind: EditorSurfaceKind | null;
-  /** The AI-edit toggle is ON (edit_current_doc/board enabled). When OFF, the
+  /** The AI-edit toggle is ON (edit_current_doc/board/canvas enabled). When OFF, the
    *  tool must NOT mount — otherwise the model "edits" and claims success while
    *  the client (which also gates on the toggle) refuses to apply. */
   editToolEnabled: boolean;
@@ -670,7 +674,7 @@ export interface EditToolLoopInput {
  * ("trag es in die Tabelle ein") and drops short follow-ups ("ja ab a1") into a
  * single-pass `direct` turn, both of which must still be able to edit. The same
  * single-pass kill-switches as {@link decideRunAgentic} still apply. A surface
- * without a tool path (doc/board/canvas) returns false → legacy trigger path.
+ * without a tool path (`doc`) returns false → legacy trigger path.
  */
 export function decideEditToolLoop(p: EditToolLoopInput): boolean {
   if (!p.loopEnabled) return false;

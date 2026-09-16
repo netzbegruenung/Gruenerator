@@ -6,7 +6,7 @@ import { getAvailableClientTools } from '../clientTools';
 import type { GrueneratorAdapterConfig } from './types';
 import type { parseAllMentions } from '../../lib/mentionParser';
 import type { ThreadMode } from '../../stores/chatStore';
-import type { CurrentBoard } from '@gruenerator/contracts';
+import type { CurrentBoard, CurrentCanvas } from '@gruenerator/contracts';
 
 export type FormattedMessagePart =
   | { type: 'text'; text: string }
@@ -64,6 +64,8 @@ export interface BuildRequestBodyParams {
   injectedCurrentDocument: InjectedCurrentDocument | undefined;
   /** Live board state (boards-editor surface), serialized from Yjs each request. */
   injectedCurrentBoard: CurrentBoard | undefined;
+  /** Live sharepic state (studio sidebar), read from the canvas bridge each request. */
+  injectedCurrentCanvas: CurrentCanvas | undefined;
   injectedAttachmentContext: string | undefined;
   seededInitialAssistantMessage: string | undefined;
   /** Variant marked "active for chat editing" on a sharepic card, if any. */
@@ -177,6 +179,7 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
     hasDocumentChat,
     injectedCurrentDocument,
     injectedCurrentBoard,
+    injectedCurrentCanvas,
     injectedAttachmentContext,
     seededInitialAssistantMessage,
     currentSharepic,
@@ -249,6 +252,7 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
     documentChatMode: hasDocumentChat || mergedDocChatIds.length > 0 || undefined,
     currentDocument: injectedCurrentDocument,
     currentBoard: injectedCurrentBoard,
+    currentCanvas: injectedCurrentCanvas,
     currentSharepic: currentSharepic ?? undefined,
     currentSocialPost: currentSocialPost ?? undefined,
     currentReel: currentReel ?? undefined,

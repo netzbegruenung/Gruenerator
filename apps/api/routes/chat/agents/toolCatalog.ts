@@ -855,9 +855,10 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
         },
       });
     }
-    // Editor sidebars (docs/sheets/presentations/boards) EDIT the open document
-    // — they must never spawn a NEW artifact (image OR create fat tool). Gated
-    // server-side (the frontend not setting the tools:false is not enough).
+    // Editor sidebars (docs/sheets/presentations/boards/sharepic studio) EDIT
+    // the open artifact — they must never spawn a NEW one (image OR create fat
+    // tool). Gated server-side (the frontend not setting the tools:false is not
+    // enough).
     const editorSurface = isEditorSurface(state.enabledTools);
 
     // Tool-based editor edit: the loop edits the OPEN artifact in place via

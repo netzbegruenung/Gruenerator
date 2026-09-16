@@ -496,15 +496,30 @@ function formatPerSourceContext(state: ChatGraphState): string {
 }
 
 /**
- * Format the open document (docs-editor surface) as the primary conversation
- * context. Distinct framing from `formatAttachmentContext` — this IS the
- * document the user is talking about, not a side-loaded reference.
+ * Format the open document (docs/sheets/presentations editor surfaces) as the
+ * primary conversation context. Distinct framing from `formatAttachmentContext`
+ * — this IS the document the user is talking about, not a side-loaded reference.
+ *
+ * The sharepic studio has no `currentDocument`: it sends the structured
+ * sharepic text as `currentCanvas.text`. It goes under the SAME heading, which
+ * is what the sharepic-editor prompt names ("Das **AKTUELLE DOKUMENT** ist der
+ * strukturierte Text dieses Sharepics") — the studio used to fake a
+ * `currentDocument` to get exactly this block.
  */
 function formatCurrentDocument(state: ChatGraphState): string {
-  if (!state.currentDocument) {
+  const open = state.currentDocument
+    ? state.currentDocument
+    : state.currentCanvas
+      ? {
+          title: state.currentCanvas.template,
+          markdown: state.currentCanvas.text,
+          selectionText: null,
+        }
+      : null;
+  if (!open) {
     return '';
   }
-  const { title, markdown, selectionText } = state.currentDocument;
+  const { title, markdown, selectionText } = open;
   const limitedMarkdown = limitAttachmentContext(
     markdown,
     state.contextWindowTokens,

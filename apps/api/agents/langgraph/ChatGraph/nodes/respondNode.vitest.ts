@@ -846,3 +846,42 @@ describe('formatImageContext — die Sichtbarkeitszusage folgt dem vision-Schalt
     expect(out).not.toContain('keine Beschreibung davon vor');
   });
 });
+
+/**
+ * Der Sharepic-Studio-Kanal. Die Seitenleiste schickte ihren Text bis #3427 als
+ * gefälschtes `currentDocument`, nur um diesen einen Block zu bekommen — der
+ * Agenten-Prompt nennt ihn namentlich („Das **AKTUELLE DOKUMENT** ist der
+ * strukturierte Text dieses Sharepics"). Mit dem eigenen Kanal muss dieselbe
+ * Überschrift stehen bleiben, sonst antwortet der Agent über ein Sharepic, das
+ * er nicht sieht.
+ */
+describe('formatCurrentDocument — das offene Sharepic steht unter derselben Überschrift', () => {
+  const canvasState = (over: Partial<ChatGraphState> = {}) =>
+    makeState({
+      intent: 'direct',
+      searchResults: [],
+      citations: [],
+      agentConfig: { identifier: 'gruenerator-sharepic-editor' },
+      currentCanvas: {
+        id: 'canvas-1',
+        template: 'zitat',
+        snapshot: { template: 'zitat', textFields: [], elementsSummary: [] },
+        capabilities: { supportedOperations: ['set-text'] },
+        text: 'Zitat: „Mehr Tempo beim Ausbau."',
+      },
+      ...over,
+    } as unknown as Partial<ChatGraphState>);
+
+  it('rendert currentCanvas.text als AKTUELLES DOKUMENT', async () => {
+    const out = await buildSystemMessage(canvasState());
+    expect(out).toContain('AKTUELLES DOKUMENT');
+    expect(out).toContain('Mehr Tempo beim Ausbau.');
+    // Der Anker-Zusatz hing bisher am gefälschten currentDocument.
+    expect(out).toContain('Im Editor ist ein Dokument geöffnet');
+  });
+
+  it('lässt den Block weg, wenn weder Dokument noch Sharepic offen ist', async () => {
+    const out = await buildSystemMessage(canvasState({ currentCanvas: null }));
+    expect(out).not.toContain('AKTUELLES DOKUMENT');
+  });
+});
