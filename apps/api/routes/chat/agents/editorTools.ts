@@ -15,19 +15,20 @@
  * browser, so apply is always client-side.
  *
  * Add a surface by adding an {@link EditSurfaceSpec} to EDIT_SURFACE_SPECS AND
- * the matching client `editorOpsHandler` (dispatch-strategy surfaces — docs,
- * canvas — keep their trigger_doc_edit path and are NOT specced here).
+ * the matching client `editorOpsHandler` (`doc` is the last dispatch-strategy
+ * surface, keeps its trigger_doc_edit path and is NOT specced here).
  */
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
 import { createLogger } from '../../../utils/logger.js';
 import { generateBoardOperations } from '../../boards/boardAiService.js';
+import { runCanvasSuggest } from '../../canvas/services/runCanvasSuggest.js';
 import { generatePresentationOperations } from '../../presentations/presentationAiService.js';
 import { generateSheetOperations } from '../../sheets/sheetAiService.js';
 import { type EditorSurfaceKind } from '../services/agenticLoop/routing.js';
 import { type SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
-import { emitEditorOperations, planEditorOps } from '../services/editorOpsCore.js';
+import { emitEditorOperations, planEditorOps, type EditorOp } from '../services/editorOpsCore.js';
 import { type SSEWriter } from '../services/sseHelpers.js';
 
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
@@ -60,17 +61,26 @@ interface EditSurfaceSpec {
   /**
    * Plan the typed operations. Each surface reads its own context off `state`
    * (currentDocument.markdown for sheet/presentation, structured currentBoard
-   * for board). `appliedNote` describes ops already emitted this turn (the
-   * server snapshot is stale after client-side apply); `referenceContent` is the
-   * loop's gathered sources.
+   * for board, currentCanvas.snapshot for canvas). `appliedNote` describes ops
+   * already emitted this turn (the server snapshot is stale after client-side
+   * apply); `referenceContent` is the loop's gathered sources.
    */
   planOperations: (input: {
     instruction: string;
     state: ChatGraphState;
     appliedNote: string;
     referenceContent: string | null;
-  }) => Promise<Array<{ type: string }>>;
+  }) => Promise<PlannedOps>;
 }
+
+/**
+ * What a surface's planner hands back: the typed ops, optionally with a human
+ * LABEL for the batch. Only canvas supplies one — its planner names every
+ * suggestion in German ("Zitat geschärft"), and that name is what the studio's
+ * Behalten/Verwerfen banner prints ("Vorschlag: …"). The op-type tally
+ * `summarizeEditorOps` produces would read "Vorschlag: 2× set-text" there.
+ */
+type PlannedOps = EditorOp[] | { operations: EditorOp[]; label: string };
 
 const EDIT_SURFACE_SPECS: Partial<Record<EditorSurfaceKind, EditSurfaceSpec>> = {
   sheet: {
@@ -120,6 +130,34 @@ const EDIT_SURFACE_SPECS: Partial<Record<EditorSurfaceKind, EditSurfaceSpec>> = 
         today: new Date().toISOString().slice(0, 10),
       }),
   },
+  canvas: {
+    noun: 'Sharepic',
+    gender: 'n',
+    description:
+      'Bearbeite das aktuell geöffnete Sharepic direkt (Texte, Farbschema, Elemente). Nutze dies, nachdem du – falls nötig – recherchiert hast, um die Ergebnisse einzuarbeiten. Beschreibe im "instruction"-Feld genau, was geändert werden soll, inkl. der konkreten Texte.',
+    getTarget: (state) => (state.currentCanvas ? { id: state.currentCanvas.id } : null),
+    planOperations: async ({ instruction, state, appliedNote, referenceContent }) => {
+      const canvas = state.currentCanvas;
+      // getTarget already refused a turn without a canvas; this keeps the
+      // planner honest without widening the snapshot type with a cast.
+      if (!canvas) return [];
+      const prose = referenceContent ? `${referenceContent}${appliedNote}` : appliedNote;
+      const result = await runCanvasSuggest({
+        prompt: instruction,
+        snapshot: canvas.snapshot,
+        capabilities: canvas.capabilities,
+        ...(prose ? { contextHints: { prose } } : {}),
+        logTag: 'editor_tool_canvas',
+      });
+      // Thrown, not returned empty: planEditorOps contains it as
+      // `planning_failed`, which the loop feeds back to the model. An empty
+      // list is the DIFFERENT outcome "nothing to change".
+      if (!result.ok) throw new Error(result.error);
+      const first = result.suggestions[0];
+      if (!first) return [];
+      return { operations: first.operations, label: first.title };
+    },
+  },
 };
 
 const INSTRUCTION_DESC =
@@ -127,7 +165,7 @@ const INSTRUCTION_DESC =
 
 /**
  * Builds the `edit_document` tool for the active editor surface, or null if the
- * surface has no plan-and-send tool path (docs/canvas keep the dispatch path).
+ * surface has no plan-and-send tool path (`doc` keeps the dispatch path).
  */
 export function makeEditArtifactTool(ctx: EditorToolCtx): Tool | null {
   const kind = ctx.state.editToolSurface;
@@ -158,16 +196,24 @@ export function makeEditArtifactTool(ctx: EditorToolCtx): Tool | null {
           ? `\n\nBEREITS IN DIESEM TURN ANGEWENDET (plane darauf aufbauend, wiederhole diese Änderungen nicht):\n- ${ctx.appliedOpsLog.join('\n- ')}`
           : '';
 
+      // Boxed rather than a plain `let`: the write happens inside the
+      // planEditorOps callback, which owns the failure containment and must
+      // stay the only caller of spec.planOperations.
+      const plannerLabel: { value: string | null } = { value: null };
       const planned = await planEditorOps({
         log,
         logLabel: `[EditorTool] ${kind}`,
-        plan: () =>
-          spec.planOperations({
+        plan: async () => {
+          const result = await spec.planOperations({
             instruction,
             state: ctx.state,
             appliedNote,
             referenceContent,
-          }),
+          });
+          if (Array.isArray(result)) return result;
+          plannerLabel.value = result.label;
+          return result.operations;
+        },
       });
 
       if (!planned.ok) {
@@ -186,7 +232,8 @@ export function makeEditArtifactTool(ctx: EditorToolCtx): Tool | null {
         };
       }
 
-      const { operations, summary } = planned;
+      const { operations } = planned;
+      const summary = plannerLabel.value ?? planned.summary;
       ctx.appliedOpsLog.push(`${operations.length} Op(s): ${summary}`);
       // Surface a human edit summary onto shared state so the synth prompt makes
       // the model confirm the change (not write empty text or a false refusal).

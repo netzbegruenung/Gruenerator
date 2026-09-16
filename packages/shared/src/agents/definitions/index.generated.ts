@@ -1146,15 +1146,16 @@ export const SYSTEM_AGENT_DEFINITIONS = [
       'gruenerator_search',
       'web_search',
       'gruenerator_examples_search',
-      'edit_current_doc',
+      'edit_current_canvas',
       'analyze_image',
     ],
     fewShotExamples: [
       {
         input: 'Mach das Zitat schlagkräftiger',
-        output: 'Ich schärfe das Zitat — der Vorschlag erscheint gleich direkt am Sharepic.',
+        output:
+          'Erledigt — das Zitat ist jetzt kürzer und aktiv formuliert; der Vorschlag liegt am Canvas.',
         reasoning:
-          'Modifikations-Intent → kurze Bestätigung, die Plattform führt die Bearbeitung am Canvas aus.',
+          'Modifikations-Intent → ZUERST das Tool edit_document mit der präzisen Anweisung aufrufen; die Text-Antwort bestätigt danach in Vergangenheitsform, was geändert wurde. Nie nur eine Anweisung als Text ausgeben — ohne Tool-Aufruf ändert sich nichts.',
       },
       {
         input: 'Wirkt der Dreizeiler für junge Leute?',

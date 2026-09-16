@@ -26,6 +26,11 @@ vi.mock('../../boards/boardAiService.js', () => ({
   generateBoardOperations: (o: unknown): Promise<unknown> => generateBoardOperations(o),
 }));
 
+const runCanvasSuggest = vi.fn<(o: unknown) => Promise<unknown>>();
+vi.mock('../../canvas/services/runCanvasSuggest.js', () => ({
+  runCanvasSuggest: (o: unknown): Promise<unknown> => runCanvasSuggest(o),
+}));
+
 type SseEvent = { type: string; payload: unknown };
 function fakeSse(sink: SseEvent[]) {
   return {
@@ -56,6 +61,21 @@ function boardState(overrides?: Partial<ChatGraphState>): ChatGraphState {
   } as unknown as ChatGraphState;
 }
 
+function canvasState(overrides?: Partial<ChatGraphState>): ChatGraphState {
+  return {
+    intent: 'agentic',
+    editToolSurface: 'canvas',
+    currentCanvas: {
+      id: 'canvas-1',
+      template: 'zitat',
+      snapshot: { template: 'zitat', textFields: [], elementsSummary: [] },
+      capabilities: { supportedOperations: ['set-text'] },
+      text: 'Zitat: „Mehr Tempo beim Ausbau."',
+    },
+    ...overrides,
+  } as unknown as ChatGraphState;
+}
+
 function ctx(events: SseEvent[], state: ChatGraphState): EditorToolCtx {
   return { sse: fakeSse(events), state, sourceRegistry: createSourceRegistry(), appliedOpsLog: [] };
 }
@@ -72,17 +92,89 @@ describe('makeEditArtifactTool (sheet)', () => {
     generateSheetOperations.mockReset();
     generatePresentationOperations.mockReset();
     generateBoardOperations.mockReset();
+    runCanvasSuggest.mockReset();
   });
 
-  it('is built for plan-and-send surfaces (sheet, presentation, board) only', () => {
+  it('is built for plan-and-send surfaces (sheet, presentation, board, canvas) only', () => {
     expect(makeEditArtifactTool(ctx([], sheetState()))).not.toBeNull();
     expect(
       makeEditArtifactTool(ctx([], sheetState({ editToolSurface: 'presentation' })))
     ).not.toBeNull();
     expect(makeEditArtifactTool(ctx([], boardState({ editToolSurface: 'board' })))).not.toBeNull();
-    // Dispatch-strategy surfaces (docs, canvas) have no plan-and-send tool.
-    expect(makeEditArtifactTool(ctx([], sheetState({ editToolSurface: 'canvas' })))).toBeNull();
+    expect(makeEditArtifactTool(ctx([], canvasState()))).not.toBeNull();
+    // `doc` is the last dispatch-strategy surface — no plan-and-send tool.
+    expect(makeEditArtifactTool(ctx([], sheetState({ editToolSurface: 'doc' })))).toBeNull();
     expect(makeEditArtifactTool(ctx([], sheetState({ editToolSurface: null })))).toBeNull();
+  });
+
+  it('emits editor_operations with surface=canvas and the FIRST suggestion ops', async () => {
+    runCanvasSuggest.mockResolvedValue({
+      ok: true,
+      suggestions: [
+        {
+          id: 's1',
+          title: 'Zitat geschärft',
+          operations: [
+            { kind: 'set-text', field: 'quote', label: 'Zitat', value: 'Tempo jetzt.' },
+            { kind: 'set-color-scheme', schemeId: 'sonne' },
+          ],
+        },
+        { id: 's2', title: 'Zweiter Vorschlag', operations: [{ kind: 'toggle-sunflower' }] },
+      ],
+    });
+    const events: SseEvent[] = [];
+    const c = ctx(events, canvasState());
+    const out = (await exec(makeEditArtifactTool(c)!, {
+      instruction: 'Mach das Zitat schlagkräftiger',
+    })) as { ok: boolean; operationCount: number };
+
+    expect(out).toMatchObject({ ok: true, operationCount: 2 });
+    const emitted = events.find((e) => e.type === 'editor_operations');
+    const payload = emitted!.payload as {
+      surface: string;
+      targetId: string;
+      summary: string;
+      operations: Array<{ kind: string }>;
+    };
+    expect(payload.surface).toBe('canvas');
+    expect(payload.targetId).toBe('canvas-1');
+    expect(payload.operations.map((o) => o.kind)).toEqual(['set-text', 'set-color-scheme']);
+    // The suggestion's own German title, not the "2× set-text" op tally — this
+    // string is what the studio's Behalten/Verwerfen banner prints.
+    expect(payload.summary).toBe('Zitat geschärft');
+    expect(c.appliedOpsLog).toHaveLength(1);
+  });
+
+  it('errors when no sharepic is open', async () => {
+    const events: SseEvent[] = [];
+    const out = (await exec(
+      makeEditArtifactTool(ctx(events, canvasState({ currentCanvas: null })))!,
+      { instruction: 'x' }
+    )) as { error?: string };
+    expect(out.error).toContain('Sharepic');
+    expect(runCanvasSuggest).not.toHaveBeenCalled();
+  });
+
+  it('contains a failed canvas planner as planning_failed (no event emitted)', async () => {
+    runCanvasSuggest.mockResolvedValue({ ok: false, error: 'Schema mismatch: kind' });
+    const events: SseEvent[] = [];
+    const out = (await exec(makeEditArtifactTool(ctx(events, canvasState()))!, {
+      instruction: 'Mach irgendwas',
+    })) as { error?: string };
+
+    expect(out.error).toContain('konnte nicht geplant werden');
+    expect(events.find((e) => e.type === 'editor_operations')).toBeUndefined();
+  });
+
+  it('reports a no-op when the canvas planner returns no suggestion', async () => {
+    runCanvasSuggest.mockResolvedValue({ ok: true, suggestions: [] });
+    const events: SseEvent[] = [];
+    const out = (await exec(makeEditArtifactTool(ctx(events, canvasState()))!, {
+      instruction: 'Ändere nichts',
+    })) as { ok: boolean; operationCount: number };
+
+    expect(out).toMatchObject({ ok: true, operationCount: 0 });
+    expect(events.find((e) => e.type === 'editor_operations')).toBeUndefined();
   });
 
   it('emits editor_operations with surface=board on a planned board edit', async () => {

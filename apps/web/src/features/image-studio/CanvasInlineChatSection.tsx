@@ -18,15 +18,17 @@ import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { Sparkles } from 'lucide-react';
 import { useId, useMemo, useRef, useState, type ReactNode } from 'react';
 
+import { applyCanvasEditorOps } from './applyCanvasEditorOps';
 import { useCanvasChatDoc } from './CanvasChatDocContext';
 
 import type { CanvasAiEditBridge, ChatSectionContentProps } from '@gruenerator/canvas-editor';
 
-// Same architecture as the docs/sheets/presentations editors: the main chat
-// pipeline (ChatGraph) with a dedicated editor agent. The sharepic text flows
-// through the currentDocument context channel; edit intents come back as
-// trigger_doc_edit and are executed client-side against the synchronous
-// /api/canvas/ai-suggest endpoint — no notebook anywhere.
+// Same architecture as the sheets/presentations/boards editors: the main chat
+// pipeline (ChatGraph) with a dedicated editor agent, editing through the
+// agentic loop's `edit_document` tool (plan-and-send). The sharepic text,
+// snapshot and capabilities flow up through the `currentCanvas` context
+// channel; the planned ops come back as an `editor_operations` SSE event and
+// are applied to the live canvas here — no notebook anywhere.
 const AGENT_ID = 'gruenerator-sharepic-editor';
 
 // Canvas chat is only mounted inside the (authed) studio and never collaborates,
@@ -66,7 +68,7 @@ interface InnerProps {
 function CanvasChatInner({ aiEdit, canvasType, getSharepicText }: InnerProps) {
   const chatDoc = useCanvasChatDoc();
   // Template flow (/studio/templates/:type) has no document — a synthetic key
-  // still routes the trigger_doc_edit payload back to this editor session.
+  // still routes the editor_operations payload back to this editor session.
   const draftId = useId();
   const docKey = chatDoc?.documentId ?? `sharepic-draft-${draftId}`;
   const setPendingAiSuggestion = useCanvasStoreSelector((s) => s.setPendingAiSuggestion);
@@ -119,11 +121,12 @@ function CanvasChatInner({ aiEdit, canvasType, getSharepicText }: InnerProps) {
         return result.body.id;
       },
       getRequestContext: (): ChatRequestContext => ({
-        currentDocument: {
+        currentCanvas: {
           id: docKey,
-          title: titleRef.current?.trim() || canvasTypeRef.current,
-          markdown: getTextRef.current(),
-          selectionText: null,
+          template: canvasTypeRef.current,
+          snapshot: aiEditRef.current.getSnapshot(),
+          capabilities: aiEditRef.current.capabilityList,
+          text: getTextRef.current(),
         },
       }),
       getTools: () => ({
@@ -135,43 +138,29 @@ function CanvasChatInner({ aiEdit, canvasType, getSharepicText }: InnerProps) {
           research: false,
         },
         customEnabledTools: {
-          edit_current_doc: true,
+          edit_current_canvas: true,
         },
       }),
+      // Tool-based edit: the loop's edit_document tool plans the ops
+      // server-side (runCanvasSuggest) and streams them as editor_operations;
+      // we apply them to the live canvas and raise the Behalten/Verwerfen
+      // banner. Replaces the old trigger_doc_edit → /api/canvas/ai-suggest
+      // round-trip.
       registerEditHandler: () =>
-        useChatConfigStore.getState().registerDocumentEditHandler(docKey, async (payload) => {
-          if (payload.targetDocumentId !== docKey) return;
+        useChatConfigStore.getState().registerEditorOpsHandler(docKey, (payload) => {
           setApplying(true);
-          setApplyError(null);
-          // Auto-accept any prior pending suggestion so the new one isn't
-          // shadowed by a stale banner.
-          setPendingRef.current(null);
           try {
-            const result = await getContractsClient().canvasAi.suggest({
-              body: {
-                prompt: payload.userPrompt,
-                snapshot: aiEditRef.current.getSnapshot(),
-                capabilities: aiEditRef.current.capabilityList,
-                // Chat loop's gathered research ("recherchiere X und bau es ins
-                // Sharepic ein") — grounds the suggestion in the found facts.
-                ...(payload.referenceContent ? { referenceContent: payload.referenceContent } : {}),
+            const outcome = applyCanvasEditorOps(payload, {
+              docKey,
+              applyOperations: (ops) => {
+                aiEditRef.current.applyOperations(ops);
               },
+              setPending: (pending) => setPendingRef.current(pending),
             });
-            if (result.status !== 200) {
-              setApplyError(
-                result.status === 429
-                  ? 'Zu viele Anfragen — bitte kurz warten.'
-                  : 'Konnte keinen Bearbeitungs­vorschlag erzeugen.'
-              );
-              return;
-            }
-            const first = result.body.suggestions[0];
-            if (!first) {
-              setApplyError('Keine passende Bearbeitung erkannt.');
-              return;
-            }
-            aiEditRef.current.applyOperations(first.operations);
-            setPendingRef.current({ title: first.title });
+            if (outcome.status === 'ignored') return;
+            setApplyError(
+              outcome.status === 'no_valid_ops' ? 'Keine passende Bearbeitung erkannt.' : null
+            );
           } catch (err) {
             setApplyError(err instanceof Error ? err.message : 'Unbekannter Fehler');
           } finally {
