@@ -6,7 +6,7 @@
 # =============================================================================
 FROM node:22-slim AS builder
 
-RUN corepack enable && corepack prepare pnpm@10 --activate
+RUN corepack enable
 
 WORKDIR /app
 
@@ -76,7 +76,7 @@ RUN addgroup -g 1001 gruenerator && \
     mkdir -p /app && chown gruenerator:gruenerator /app
 
 # Install pnpm
-RUN corepack enable && corepack prepare pnpm@10 --activate
+RUN corepack enable
 
 WORKDIR /app
 

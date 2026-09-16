@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     g++ \
     && rm -rf /var/lib/apt/lists/*
 
-RUN corepack enable && corepack prepare pnpm@10 --activate
+RUN corepack enable
 
 WORKDIR /app
 
@@ -107,7 +107,7 @@ RUN groupadd -g 1001 gruenerator && \
     mkdir -p /app && chown gruenerator:gruenerator /app
 
 # Install pnpm
-RUN corepack enable && corepack prepare pnpm@10 --activate
+RUN corepack enable
 
 WORKDIR /app
 
