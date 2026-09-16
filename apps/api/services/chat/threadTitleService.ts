@@ -115,19 +115,52 @@ function stripMarkdown(input: string): string {
   );
 }
 
-// Politeness lead-ins that push the actual topic out of the visible part of
-// the title ("Kannst du mir bitte den Antrag …" → "Antrag …").
+const ARTICLE = '(?:einen|eine|ein|den|die|das)?\\s*';
+
+// Openers that push the actual topic out of the visible part of the title
+// ("Kannst du mir bitte den Antrag …" → "Antrag …").
+//
+// The imperative comes last on purpose: "Bitte erstelle eine Stellenanzeige"
+// only reaches it after `^bitte\s+` has run. Listed are only forms that are
+// not also a German noun in the same spelling — "Suche", "Plane" and "Frage"
+// stay, because stripping them would eat the topic itself.
 const LEAD_IN_PATTERNS = [
-  /^(kannst|könntest|würdest)\s+du\s+(mir\s+)?(bitte\s+)?/i,
-  /^ich\s+(möchte|brauche|hätte\s+gerne)\s+/i,
-  /^bitte\s+/i,
+  new RegExp(`^(?:kannst|könntest|würdest)\\s+du\\s+(?:mir\\s+)?(?:bitte\\s+)?${ARTICLE}`, 'i'),
+  new RegExp(`^ich\\s+(?:möchte|brauche|hätte\\s+gerne)\\s+${ARTICLE}`, 'i'),
+  new RegExp(`^bitte\\s+${ARTICLE}`, 'i'),
+  new RegExp(
+    '^(?:erstelle|schreibe?|verfasse|formuliere|entwirf|generiere|erzeuge|analysiere|' +
+      'recherchiere|erkläre|übersetze|beschreibe|überarbeite|optimiere|korrigiere|ergänze|fasse)' +
+      `\\s+(?:mir\\s+|uns\\s+)?(?:bitte\\s+)?${ARTICLE}`,
+    'i'
+  ),
 ];
 
-/** Sidebar width fits ~26 characters; anything past this is never read. */
+/**
+ * The title budget, in characters — one number, shared by the prompt, the
+ * heuristic fallback and the AI title, so the three cannot drift apart.
+ *
+ * Measured, not guessed: the sidebar row leaves the title ~188px (260px panel
+ * − 16px `px-2` − 24px `px-3` − 8px gap − 24px more-button), and PT Sans at
+ * 14px fits ~26–28 German characters in that (~20 in the 220px desktop-app
+ * panel). 32 is that plus a little slack — CSS truncates whatever overflows.
+ */
 const MAX_TITLE_CHARS = 32;
-/** An AI title longer than this is a sentence, not a title — reject it. */
-const MAX_AI_TITLE_CHARS = 40;
+/** More words than this is a sentence, not a title — reject it. */
 const MAX_AI_TITLE_WORDS = 6;
+
+/** German function words — never a title on their own, never the last word. */
+const FUNCTION_WORDS =
+  'der|die|das|den|dem|des|ein|eine|einen|einem|eines|einer|und|oder|für|von|vom|' +
+  'mit|im|in|am|an|auf|zu|zum|zur|bei|über|unter|als|aus|nach|vor|durch|um';
+/**
+ * A run of them left standing at the end. Cutting on a word boundary strands
+ * articles and prepositions ("… Budget und Standortfragen" → "… Budget und");
+ * the `+` takes the whole run, so "Suche nach dem Windkraft-Beschluss" ends at
+ * "Suche" rather than at "Suche nach".
+ */
+const DANGLING_WORDS = new RegExp(`(?:\\s+(?:${FUNCTION_WORDS}))+$`, 'i');
+const ONLY_A_FUNCTION_WORD = new RegExp(`^(?:${FUNCTION_WORDS})$`, 'i');
 
 /** Cut at a word boundary, never mid-word. No ellipsis — the sidebar adds its own. */
 function clampToWords(text: string, max: number): string {
@@ -135,7 +168,25 @@ function clampToWords(text: string, max: number): string {
   const head = text.slice(0, max);
   const lastSpace = head.lastIndexOf(' ');
   // A single word longer than the cap is the only case we cut mid-word.
-  return (lastSpace > 0 ? head.slice(0, lastSpace) : head).replace(/[\s,;:–-]+$/, '');
+  const cut = (lastSpace > 0 ? head.slice(0, lastSpace) : head).replace(/[\s,;:–-]+$/, '');
+  const trimmed = cut.replace(DANGLING_WORDS, '');
+  // An article in front of one long compound ("Die Verwaltungsvorschriften-
+  // änderung") has its only word boundary after the article, so a clean cut
+  // leaves a bare "Die". A mid-word cut the sidebar can ellipsize beats that.
+  if (ONLY_A_FUNCTION_WORD.test(trimmed)) return head.replace(/[\s,;:–-]+$/, '');
+  return trimmed;
+}
+
+/**
+ * German titles start with a capital; the user messages the fallback reads
+ * often do not ("erstelle eine stellenanzeige" → "Stellenanzeige").
+ */
+function capitalizeFirst(text: string): string {
+  const [firstWord = ''] = text.split(/\s/);
+  // A word that already carries a capital is spelled that way on purpose —
+  // "iPhone-Vergleich" must not become "IPhone-Vergleich".
+  if (/[A-ZÄÖÜ]/.test(firstWord)) return text;
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 /**
@@ -158,7 +209,7 @@ export function extractFallbackTitle(text: string, hasImage?: boolean): string |
       cleaned = cleaned.trim();
       if (cleaned.length < 6) continue;
       const trimmed = cleaned.replace(/[.!?]+$/, '');
-      return clampToWords(trimmed, MAX_TITLE_CHARS);
+      return capitalizeFirst(clampToWords(trimmed, MAX_TITLE_CHARS));
     }
   }
   if (hasImage) {
@@ -170,9 +221,16 @@ export function extractFallbackTitle(text: string, hasImage?: boolean): string |
 /**
  * Normalise an AI title, or reject it (null) so the fallback stays.
  *
- * Rejects anything sentence-shaped: too long, too many words, or carrying
- * sentence punctuation. A rejected title is better than a bad one — the
- * fallback below is already a valid title.
+ * Two questions, deliberately answered differently. *Is this a title at all?*
+ * — too few characters, more than `MAX_AI_TITLE_WORDS` words, or sentence
+ * punctuation inside: reject, the fallback is the better name. *Is it too
+ * long?* — clamp it, the way the fallback is clamped.
+ *
+ * Length used to reject too, and that was wrong for German: the prompt asks
+ * for a 2-4 word nominal phrase, and two compound nouns spend the whole budget
+ * ("Sharepic Stellenanzeige Wahlkampfmanagement" is 43 characters in 3 words).
+ * A well-formed title was thrown away for a lowercase imperative fallback that
+ * the same prompt forbids. See #3400.
  */
 export function normalizeAiTitle(raw: string | null | undefined): string | null {
   const firstLine = (raw || '').split('\n')[0] ?? '';
@@ -182,23 +240,25 @@ export function normalizeAiTitle(raw: string | null | undefined): string | null 
     .replace(/[.!?:;,]+$/, '')
     .trim();
 
-  if (title.length < 3 || title.length > MAX_AI_TITLE_CHARS) return null;
+  if (title.length < 3) return null;
   if (title.split(/\s+/).length > MAX_AI_TITLE_WORDS) return null;
   if (SENTENCE_END.test(title)) return null;
-  return title;
+  return clampToWords(title, MAX_TITLE_CHARS);
 }
 
 const TITLE_PROMPT = `Du benennst einen Chat-Thread für eine schmale Seitenleiste.
 Gib eine deutsche Nominalphrase aus 2-4 Wörtern aus, die das Thema benennt — wie eine Überschrift, kein Satz.
 Regeln:
 - Kein Verb im Imperativ ("Recherchiere …" → "Recherche …"), keine Anrede, keine Füllwörter.
-- Höchstens 32 Zeichen, kein Punkt am Ende, keine Anführungszeichen.
+- Höchstens ${MAX_TITLE_CHARS} Zeichen, kein Punkt am Ende, keine Anführungszeichen.
+- Deutsche Komposita sind lang: lieber ein Wort weniger als über das Limit.
 Antworte NUR mit dem Titel.
 
 Beispiele:
 Nutzerfrage: "Kannst du mir bitte den Stand der E-Auto-Förderung recherchieren?" → E-Auto-Förderung Stand
 Nutzerfrage: "Fasse die Protokolle vom 30. Juni und 1. Juli zusammen" → Protokolle Juni/Juli
-Nutzerfrage: "Setz mir einen Timer auf 10 Minuten" → Timer setzen`;
+Nutzerfrage: "Setz mir einen Timer auf 10 Minuten" → Timer setzen
+Nutzerfrage: "erstelle eine stellenanzeige als sharepic. stellenanzeige ist wahlkampfmanagement" → Sharepic Stellenanzeige`;
 
 /**
  * Generate a thread title: writes fallback immediately, then fires off an AI call
