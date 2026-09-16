@@ -59,6 +59,11 @@ const SRC = {
   // FLUX variants exist (`modelPath`), the service only owns the EU endpoint —
   // which is prose on the page, not a table row.
   embeddings: 'apps/api/services/mistral/MistralEmbeddingService/MistralEmbeddingService.ts',
+  // Der Modellname steht seit dem 15.09.2026 nicht mehr im Dienst selbst:
+  // `embeddingPayload` braucht ihn an fünfzehn Upsert-Stellen und dürfte dafür
+  // nicht den Konstruktor samt Client mitziehen. Ohne diese Quelle liest der
+  // Generator im Dienst einen Namen, den er nicht auflösen kann, und bricht ab.
+  embeddingConstants: 'apps/api/services/mistral/MistralEmbeddingService/modelConstants.ts',
 };
 
 const OUT_FILE = 'documentation/src/generated/models.json';
@@ -402,6 +407,7 @@ function generate() {
   // (`gruenerator-small`) zieht ihren Modellnamen aus `CORTECS_SMALL_32` dort,
   // statt ihn ein zweites Mal zu behaupten.
   crossFileSources.push(parse(SRC.intermediate));
+  crossFileSources.push(parse(SRC.embeddingConstants));
 
   const chat = parse(SRC.chatProviders);
   const policy = parse(SRC.autoPolicy);
