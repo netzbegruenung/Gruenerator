@@ -168,6 +168,34 @@ input[type='number'].hide-spinner {
 }
 
 /*
+ * Die Schrift des Feldes gilt bis ins letzte Kind.
+ *
+ * Das Overlay setzt `font-family` als Inline-Style auf den RAHMEN und lässt
+ * sie nach innen erben — so, wie Größe, Farbe und Zeilenhöhe es tun. Die
+ * globale Typografie der Web-App trägt aber
+ *
+ *     p, li, div, span { font-family: 'PT Sans', Arial, sans-serif; }
+ *
+ * und ein Treffer auf dem Element selbst schlägt IMMER den geerbten Wert,
+ * egal wie niedrig seine Spezifität ist. Der ProseMirror-Knoten ist ein
+ * `div`, seine Absätze sind `p`: der Editor zeigte damit PT Sans, während
+ * die Leinwand daneben die Hausschrift zeichnete. Nur `font-family` war
+ * betroffen — für die übrigen Eigenschaften gibt es keine solche Regel,
+ * deshalb stimmten Größe und Farbe und nur die Schrift nicht.
+ *
+ * Der alte `<textarea>`-Editor war immun, weil `textarea` in jener Liste
+ * nicht vorkommt. Der Fehler kam also nicht mit tiptap, sondern mit dem
+ * Wechsel auf ein `contenteditable`-Element.
+ *
+ * `*` statt einer Aufzählung der vier Element-Namen: die Regel dort oben
+ * darf wachsen, ohne dass es hier wieder auffällt.
+ */
+.canvas-rte__content,
+.canvas-rte__content * {
+  font-family: inherit;
+}
+
+/*
  * Aufzählungen tragen den hängenden Einzug der Leinwand: der Marker steht am
  * linken Rand des FELDES, und alle Zeilen eines Punktes fluchten dahinter —
  * genau das, was `layoutRichTextBlock` zeichnet. Den Einzug reicht das Overlay
