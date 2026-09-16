@@ -18,6 +18,7 @@ import { useFloatingModuleHandlers } from '../hooks/useFloatingModuleHandlers';
 import { useCanvasLayerControls } from '../hooks/useCanvasLayerControls';
 import { useMobileBridge } from '../hooks/useMobileBridge';
 import { canDuplicateElement, duplicateElementInState } from '../utils/duplicateElement';
+import { findTemplateEntry } from '../utils/templateElementInstance';
 
 import type { ToolbarStateReport } from './GenericCanvas';
 import type { FloatingModuleState } from '../hooks/useFloatingModuleState';
@@ -106,7 +107,17 @@ export function ToolbarStateBridge<
 
   const setSelectedElement = useCanvasStoreSelector((s) => s.setSelectedElement);
 
-  const canDuplicate = canDuplicateElement(state, selectedElement);
+  /**
+   * Vorlagen-Grafiken liegen in keiner Sammlung des Zustands — gefunden werden
+   * sie nur über die Elementliste der Vorlage und das gerechnete Layout. Beides
+   * hat dieser Bridge, `duplicateElement` nicht (#3403).
+   */
+  const templateEntry = useCallback(
+    (id: string) => findTemplateEntry(config.elements, state, layout, id),
+    [config.elements, state, layout]
+  );
+
+  const canDuplicate = canDuplicateElement(state, selectedElement, templateEntry);
 
   /**
    * Dupliziert die Auswahl. `saveToHistory` ist hier nicht optional: `setState`
@@ -115,12 +126,12 @@ export function ToolbarStateBridge<
    */
   const handleDuplicate = useCallback(() => {
     if (!selectedElement) return;
-    const result = duplicateElementInState(state, selectedElement);
+    const result = duplicateElementInState(state, selectedElement, { template: templateEntry });
     if (!result) return;
     setState(result.state);
     saveToHistory(result.state);
     setSelectedElement(result.newId);
-  }, [selectedElement, state, setState, saveToHistory, setSelectedElement]);
+  }, [selectedElement, state, setState, saveToHistory, setSelectedElement, templateEntry]);
 
   const floatingHandlers = useFloatingModuleHandlers({
     activeFloatingModule,
