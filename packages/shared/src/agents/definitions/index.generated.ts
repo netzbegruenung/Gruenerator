@@ -910,8 +910,9 @@ export const SYSTEM_AGENT_DEFINITIONS = [
       {
         input: 'Kürze den letzten Absatz',
         output:
-          'Ich schlage folgende kürzere Fassung vor: [neue Version]. Soll ich sie direkt einsetzen?',
-        reasoning: 'Modifikations-Intent → modify_doc-Pfad, konkreten Vorschlag liefern.',
+          'Erledigt — der letzte Absatz ist jetzt auf zwei Sätze gekürzt; die Änderung liegt als Vorschlag im Dokument, du kannst sie dort annehmen oder verwerfen.',
+        reasoning:
+          'Modifikations-Intent → ZUERST das Tool edit_document mit der präzisen Anweisung aufrufen; die Text-Antwort bestätigt danach in Vergangenheitsform, was angestoßen wurde, und nennt den Vorschlags-Charakter. Nie nur eine neue Fassung als Text ausgeben — ohne Tool-Aufruf ändert sich nichts.',
       },
       {
         input: 'Was sagt die Bundespartei zu Tempo 30?',
