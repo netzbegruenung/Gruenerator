@@ -1011,8 +1011,9 @@ export interface ChatGraphState {
   // fehlender Wert hätte im Katalog stumm kein Werkzeug montiert.
   compoundGenerationKind?: ArtifactKindId | null;
   // Compound "research + edit the OPEN doc/board" (editor sidebars): runs the
-  // research loop, then emits trigger_doc_edit/trigger_board_action with the
-  // gathered sources as reference material. Synth writes only a short confirm.
+  // research loop, then feeds the gathered sources as reference material —
+  // via trigger_doc_edit for doc, or the edit_document tool loop for board.
+  // Synth writes only a short confirm.
   compoundEdit?: boolean;
   // Tool-based editor edit: the resolved editor surface whose `edit_document`
   // tool the loop mounts. Set only for surfaces with a tool path
