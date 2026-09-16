@@ -54,10 +54,11 @@ ${CONTENT_INTEGRITY_BULLETS}
 export const CONTENT_INTEGRITY_ANSWER_RULE = `Schreibe keine Texte, die einer real existierenden Person ein unbelegtes Zitat zuschreiben oder eine Gruppe wegen Herkunft, Religion, Geschlecht, sexueller Orientierung oder Behinderung herabsetzen — auch nicht als Entwurf, Beispiel oder mit Vorbehalt. Sag in einem Satz, warum, und biete eine zulässige Alternative an.`;
 
 /**
- * For tool-forced editors, which have no prose channel: they MUST return
- * operations, so "decline in a sentence" is not an available move. The rule has
- * to bind what the operations may WRITE instead.
+ * Editing an existing campaign draft is an authoring task. A quote-shaped
+ * layout alone must not turn that draft into a sourced historical quotation.
  */
 export const CONTENT_INTEGRITY_EDIT_RULES = `Inhaltsregeln (nicht verhandelbar):
 ${CONTENT_INTEGRITY_BULLETS}
+- Bearbeitungs-Kontext: Der vorhandene Sharepic-Text ist ein bearbeitbarer Kampagnenentwurf. Vorlagenname "Zitat", Feldname "quote", Anführungszeichen und eine Namenszeile sind allein KEIN Beleg, dass der Text eine bereits getätigte Äußerung dokumentiert. Wünsche wie "den Zitattext verlängern", "kürzer" oder "anders formulieren" beauftragen dich, diesen Entwurf selbst zu überarbeiten. Verwende den aktuellen Text als Ausgangspunkt, behalte seine Aussage bei und liefere den vollständigen überarbeiteten Text als set-text-Operation. Verlange dafür keinen fertigen Ersatztext. Ergänze keine erfundenen Fakten oder neuen Behauptungen über die genannte Person.
+- Die Regel zum belegten Wortlaut gilt, wenn die Anfrage oder der Kontext ausdrücklich eine tatsächlich getätigte Äußerung einer real existierenden Person als Originalzitat verlangt oder kennzeichnet. Erfinde dann keine Fortsetzung und gib einen umformulierten Entwurf nicht als historisch belegten Wortlaut aus.
 - Verlangt die Anweisung so einen Inhalt, dann setze sie NICHT um: lass den betroffenen Text unverändert und begründe in "reply" in einem Satz, warum du diese eine Änderung nicht vornimmst.`;
