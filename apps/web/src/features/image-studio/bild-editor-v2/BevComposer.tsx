@@ -1,5 +1,9 @@
 import { type KiLabelMode } from '@gruenerator/contracts';
-import { AI_IMAGE_TRANSPARENCY, STYLE_VARIANTS } from '@gruenerator/shared/image-studio';
+import {
+  AI_IMAGE_TRANSPARENCY,
+  IMAGE_FORMAT_IDS,
+  STYLE_VARIANTS,
+} from '@gruenerator/shared/image-studio';
 import { AIPromptInput, Popover, PopoverContent, PopoverTrigger } from '@gruenerator/ui';
 import {
   ChevronDown,
@@ -14,7 +18,7 @@ import {
 } from 'lucide-react';
 import { type ReactNode, useRef } from 'react';
 
-import { type BevAspect, type BevMode } from './types';
+import { type BevMode } from './types';
 import { type BildEditorV2, IMAGE_MODES } from './useBildEditorV2';
 
 const MODE_META: Record<
@@ -58,8 +62,6 @@ const KI_LABEL_OPTIONS: Array<{ id: KiLabelMode; label: string }> = [
   { id: 'short', label: 'Nur „KI-Generiert"' },
   { id: 'none', label: 'Keine Kennzeichnung' },
 ];
-
-const ASPECTS: BevAspect[] = ['1:1', '4:3', '3:4', '16:9', '9:16'];
 
 const chipBase =
   'rounded-full border px-3 py-1 text-xs font-semibold transition-colors cursor-pointer';
@@ -115,22 +117,41 @@ function SettingsMenu({ bev }: { bev: BildEditorV2 }) {
       <PopoverContent align="start" side="top" sideOffset={10} className="w-72">
         <div className="flex flex-col gap-4">
           {mode === 'erstellen' && (
-            <div className="flex flex-col gap-2">
-              <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-                Stil
-              </span>
-              <div className="flex flex-wrap gap-1.5">
-                {STYLE_VARIANTS.map((v) => (
-                  <OptionChip
-                    key={v.id}
-                    active={settings.variant === v.id}
-                    onClick={() => setSettings((s) => ({ ...s, variant: v.id }))}
-                  >
-                    {v.label}
-                  </OptionChip>
-                ))}
+            <>
+              <div className="flex flex-col gap-2">
+                <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                  Stil
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {STYLE_VARIANTS.map((v) => (
+                    <OptionChip
+                      key={v.id}
+                      active={settings.variant === v.id}
+                      onClick={() => setSettings((s) => ({ ...s, variant: v.id }))}
+                    >
+                      {v.label}
+                    </OptionChip>
+                  ))}
+                </div>
               </div>
-            </div>
+
+              <div className="flex flex-col gap-2">
+                <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                  Format
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {IMAGE_FORMAT_IDS.map((f) => (
+                    <OptionChip
+                      key={f}
+                      active={settings.format === f}
+                      onClick={() => setSettings((s) => ({ ...s, format: f }))}
+                    >
+                      {f}
+                    </OptionChip>
+                  ))}
+                </div>
+              </div>
+            </>
           )}
 
           {mode === 'vergroessern' && (
@@ -139,7 +160,7 @@ function SettingsMenu({ bev }: { bev: BildEditorV2 }) {
                 Ziel-Format
               </span>
               <div className="flex flex-wrap gap-1.5">
-                {ASPECTS.map((a) => (
+                {IMAGE_FORMAT_IDS.map((a) => (
                   <OptionChip
                     key={a}
                     active={settings.aspect === a}

@@ -7,6 +7,8 @@ import {
   type CanvasTemplateType,
   type DreizeilenTextResponse,
   type InfoTextResponse,
+  type ImageFormatId,
+  type KiLabelMode,
   type SimpleTextResponse,
   type SliderTextResponse,
   type VeranstaltungTextResponse,
@@ -317,6 +319,10 @@ export type GreenEditInfrastructure =
 export interface KiCreateRequest {
   description: string;
   variant: KiStyleVariant;
+  /** Output format; omitted means the variant's own default dimensions. */
+  format?: ImageFormatId;
+  /** Which AI label the backend burns in; omitted means 'full'. */
+  kiLabel?: KiLabelMode;
 }
 
 /**
