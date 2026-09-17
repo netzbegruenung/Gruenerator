@@ -20,16 +20,28 @@ import { type EditorSurfaceKind } from './agenticLoop/routing.js';
 
 import type { SSEWriter } from './sseHelpers.js';
 
-/** A planned operation. Only the discriminator is common across surfaces. */
-export interface EditorOp {
-  type: string;
+/**
+ * A planned operation. Only the discriminator is common across surfaces — and
+ * even that is spelled two ways: sheet/presentation/board ops discriminate on
+ * `type`, canvas ops on `kind` (canvasAiOperationSchema, frozen by the
+ * canvas-editor applier's exhaustive switch). Carried as a union rather than
+ * normalised, so neither vocabulary needs a cast at the planner boundary.
+ */
+export type EditorOp = { type: string } | { kind: string };
+
+/** The discriminator value of one op, whichever key the surface spells it with. */
+function opLabel(op: EditorOp): string {
+  return 'type' in op ? op.type : op.kind;
 }
 
 /** One-line summary of a planned op batch, e.g. "1× format_range". */
 export function summarizeEditorOps(operations: EditorOp[]): string {
   const counts = new Map<string, number>();
-  for (const op of operations) counts.set(op.type, (counts.get(op.type) ?? 0) + 1);
-  return [...counts.entries()].map(([type, n]) => `${n}× ${type}`).join(', ');
+  for (const op of operations) {
+    const label = opLabel(op);
+    counts.set(label, (counts.get(label) ?? 0) + 1);
+  }
+  return [...counts.entries()].map(([label, n]) => `${n}× ${label}`).join(', ');
 }
 
 export type PlanEditorOpsOutcome<T extends EditorOp> =

@@ -54,6 +54,7 @@ export interface RoutingStageParams {
   sharepicRefinement: SharepicRefinement | undefined;
   rawCurrentDocument: StreamBody['currentDocument'];
   rawCurrentBoard: StreamBody['currentBoard'];
+  rawCurrentCanvas: StreamBody['currentCanvas'];
   rawBoardIds: StreamBody['boardIds'];
   mentionBoardIds: string[];
 }
@@ -82,6 +83,7 @@ export function runRoutingStage({
   sharepicRefinement,
   rawCurrentDocument,
   rawCurrentBoard,
+  rawCurrentCanvas,
   rawBoardIds,
   mentionBoardIds,
 }: RoutingStageParams): RoutingStageResult {
@@ -140,6 +142,7 @@ export function runRoutingStage({
     hasOpenDocumentId: !!rawCurrentDocument?.id,
     hasOpenBoardId: !!rawCurrentBoard?.id,
     hasOpenBoardSurface: !!rawCurrentBoard,
+    hasOpenCanvasId: !!rawCurrentCanvas?.id,
     hasNamedBoard: (rawBoardIds?.length ?? 0) > 0 || mentionBoardIds.length > 0,
     isSharepicRefinement: !!sharepicRefinement,
     pipelineForceIntent: pipelineAgent?.forceIntent ?? null,
