@@ -52,14 +52,34 @@ export const transparencyFootprintSchema = z.object({
   emissions_g: z.number(),
   emissions_g_low: z.number(),
   emissions_g_high: z.number(),
+  /**
+   * The three ways a watt-hour can enter `energy_wh`, as shares of it. They are
+   * mutually exclusive and, wherever `energy_wh > 0`, they sum to 1 — energy
+   * that fits none of them is not counted at all and shows up as a shortfall in
+   * `covered_share` instead.
+   *
+   * Published as three fields rather than two plus a subtraction because the
+   * middle one is the LARGEST in practice, and a page that names only the ends
+   * reads as though the rest were missing.
+   */
   /** 0..1 — share of the counted energy that was metered by the provider. */
   measured_share: z.number(),
+  /** 0..1 — share whose model we metered OURSELVES and then extrapolated over
+   *  token counts. No provider figure per request, but the coefficient comes
+   *  from a measurement of that exact model, not from a neighbouring one. */
+  calibrated_share: z.number(),
   /** 0..1 — share of the energy whose MODEL was never metered anywhere, so it
    *  is valued from the bracket between two models that were. Costed at the
    *  centre of that bracket since the mid-estimate change; it used to be its
    *  ceiling, which is what the name still remembers. */
   bounded_share: z.number(),
-  /** 0..1 — share of GENERATED tokens a footprint covers. Output-weighted. */
+  /**
+   * 0..1 — share of GENERATED tokens a footprint covers. Output-weighted.
+   *
+   * NOT a fourth slice of the three above: the denominator here is tokens, not
+   * energy. A lane with no coefficient contributes no energy at all, so it
+   * never reaches the shares — it is missing from this number instead.
+   */
   covered_share: z.number(),
   /** The image half of the two totals above. One image outweighs hundreds of
    *  chat turns, so a combined figure would read as a chat footprint. */

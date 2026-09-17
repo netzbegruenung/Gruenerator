@@ -179,6 +179,7 @@ function emptyStats(days: number, sinceDay: string, suppressedDays: number, acti
       emissions_g_low: 0,
       emissions_g_high: 0,
       measured_share: 0,
+      calibrated_share: 0,
       bounded_share: 0,
       covered_share: 0,
       image_energy_wh: 0,
@@ -320,7 +321,13 @@ export async function computePlatformUsageStats(
   // coverage is weighted by OUTPUT tokens rather than by all tokens.
   let energyWms = 0;
   let emissionsUg = 0;
+  // Every watt-hour in `energyWms` lands in exactly one of these three, and the
+  // API publishes all three. Keeping the middle one as its own counter rather
+  // than as `energy - measured - bounded` is the point: a lane that one day
+  // enters the total through a fourth route would vanish into that subtraction,
+  // which is exactly how the largest class here went unnamed until 09/2026.
   let measuredEnergyWms = 0;
+  let calibratedEnergyWms = 0;
   let boundedEnergyWms = 0;
   // The two ends of the published scale. The figures above are the MIDDLE and
   // are what every headline shows; these differ from it only where a lane is
@@ -414,6 +421,7 @@ export async function computePlatformUsageStats(
           coveredOutputTokens += row.outputTokens;
           coveredRequests += row.requests;
           if (mid.basis === 'bound') boundedEnergyWms += mid.energyWms;
+          else calibratedEnergyWms += mid.energyWms;
           addProvider(row.provider, mid.energyWms, mid.emissionsUg, 'tokens');
         }
       }
@@ -438,6 +446,7 @@ export async function computePlatformUsageStats(
         imageMarketEmissionsUg += mid.marketEmissionsUg;
         if (hasMarketInstrument(row.provider)) marketBackedEnergyWms += mid.energyWms;
         if (mid.basis === 'bound') boundedEnergyWms += mid.energyWms;
+        else calibratedEnergyWms += mid.energyWms;
         addProvider(row.provider, mid.energyWms, mid.emissionsUg, 'images');
       }
     }
@@ -513,6 +522,7 @@ export async function computePlatformUsageStats(
       emissions_g_low: emissionsUgLow / UG_PER_G,
       emissions_g_high: emissionsUgHigh / UG_PER_G,
       measured_share: energyWms > 0 ? measuredEnergyWms / energyWms : 0,
+      calibrated_share: energyWms > 0 ? calibratedEnergyWms / energyWms : 0,
       bounded_share: energyWms > 0 ? boundedEnergyWms / energyWms : 0,
       covered_share: textOutputTokens > 0 ? coveredOutputTokens / textOutputTokens : 0,
       image_energy_wh: imageEnergyWms / WMS_PER_WH,
