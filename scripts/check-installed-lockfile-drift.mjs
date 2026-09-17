@@ -24,7 +24,8 @@
 // pnpm 10 cached den Workspace-Zustand in `node_modules/.pnpm-workspace-state.json`
 // und meldet danach "Already up to date" in ~130 ms — auch mit --force, und
 // auch wenn Pakete physisch fehlen (am 17.09.2026 gemessen: der Zustand war
-// von pnpm@12.4.2 geschrieben, das Repo pinnt pnpm@10.0.0). Erst das Loeschen
+// von master's pnpm@12.4.2 geschrieben, der aeltere Branch lief mit pnpm@10.0.0
+// und konnte ihn nicht lesen). Erst das Loeschen
 // dieser Datei erzwingt einen echten Install:
 //   rm node_modules/.pnpm-workspace-state.json && pnpm install --frozen-lockfile
 //
@@ -46,7 +47,13 @@ if (!existsSync(nodeModules)) {
 }
 
 const lock = readFileSync(join(root, 'pnpm-lock.yaml'), 'utf8');
-const importersSection = lock.slice(lock.indexOf('\nimporters:'), lock.indexOf('\npackages:'));
+// Seit `packageManager: pnpm@12` traegt das Lockfile ZWEI `importers:`-Bloecke:
+// der erste ist pnpms Selbstverwaltung der eigenen Binary (einziger Importer
+// `.` mit `packageManagerDependencies`), der echte Workspace kommt danach.
+// Deshalb der LETZTE `importers:` und das `packages:`, das ihm folgt — wie in
+// check-singleton-versions.mjs.
+const importersStart = lock.lastIndexOf('\nimporters:');
+const importersSection = lock.slice(importersStart, lock.indexOf('\npackages:', importersStart));
 
 // importer -> Map<paket, aufgeloeste Version>. Der Peer-Suffix hinter der
 // Version ("1.2.3(react@19.2.8)") benennt die Variante, nicht die Version.
