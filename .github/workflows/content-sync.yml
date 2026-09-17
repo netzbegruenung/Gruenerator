@@ -38,6 +38,9 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  # The setup job asks the Actions API when a full run last happened, so a
+  # dropped nightly slot can be caught up rather than silently skipped.
+  actions: read
 
 concurrency:
   group: content-sync-${{ github.event.schedule || 'manual' }}
@@ -61,11 +64,21 @@ jobs:
       single_kind: ${{ steps.set.outputs.single_kind }}
       single_value: ${{ steps.set.outputs.single_value }}
     steps:
+      # Only so the local composite action below can be loaded; this job builds
+      # nothing and needs no dependencies.
+      - uses: actions/checkout@v7
+      - id: lastfull
+        uses: ./.github/actions/last-full-sync
+        with:
+          repo: ${{ github.repository }}
+          token: ${{ github.token }}
       - id: set
         env:
           SCHEDULE: ${{ github.event.schedule }}
           INPUT_SOURCE: ${{ inputs.source }}
           INPUT_LV: ${{ inputs.landesverband }}
+          FULL_RUN_FOUND: ${{ steps.lastfull.outputs.found }}
+          HOURS_SINCE_FULL: ${{ steps.lastfull.outputs.hours_since }}
         run: |
           # Which run is the full one is decided HERE and nowhere else, and by
           # the HOUR field rather than the whole cron string.
@@ -85,8 +98,39 @@ jobs:
           SCHEDULE_HOUR=$(printf '%s' "$SCHEDULE" | awk '{print $2}')
           FULL_RUN_HOUR=2
 
+          # Second door into the full run: catch one up that never fired.
+          #
+          # GitHub drops `schedule` events rather than queueing them, and hour 2
+          # is a single slot — lose it and the nine non-LV sources, the full
+          # archive walks and the admin digest are skipped for the whole day,
+          # with every run that *did* fire reporting success. Measured on
+          # 2026-09-15: four of eighteen slots arrived, and no run at hour 2 for
+          # nine days straight, so the non-LV corpus had been stale that long
+          # while the workflow history was uniformly green.
+          #
+          # 22 h, not 24: at 24 the catch-up could never fire before the next
+          # nightly slot and would be decorative. The floor is set by the widest
+          # gap a HEALTHY schedule produces — nightly 02:17 to the last hourly
+          # at 20:23 is 18 h, plus the drift GitHub adds under load (+88 min was
+          # measured) — so 22 h clears it without firing on a schedule that is
+          # merely late.
+          #
+          # `found=false` means no full run in the inspected window at all, which
+          # is worse than a stale one, so it catches up too. An unreadable jobs
+          # API can inflate the age here (see the action's `unreadable` output);
+          # unlike the watchdog, the cost of being wrong is one redundant full
+          # run rather than a false alarm, so this deliberately does not guard
+          # against it.
+          FULL_RUN_CATCHUP_HOURS=22
+
           # Empty SCHEDULE = manual dispatch, which has always meant a full run.
           if [ "$SCHEDULE_HOUR" = "$FULL_RUN_HOUR" ] || [ -z "$SCHEDULE" ]; then
+            IS_FULL_RUN=true
+          elif [ "$FULL_RUN_FOUND" != "true" ]; then
+            echo "::warning::No full Content Sync run found in the recent history — running this one as the full sync."
+            IS_FULL_RUN=true
+          elif [ -n "$HOURS_SINCE_FULL" ] && [ "$HOURS_SINCE_FULL" -gt "$FULL_RUN_CATCHUP_HOURS" ]; then
+            echo "::warning::Last full Content Sync run was ${HOURS_SINCE_FULL}h ago (limit ${FULL_RUN_CATCHUP_HOURS}h) — catching one up now."
             IS_FULL_RUN=true
           else
             IS_FULL_RUN=false

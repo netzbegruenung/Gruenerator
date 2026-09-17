@@ -59,6 +59,11 @@
     "subtitle": "Texte & Dokumente mit DeepL übersetzen",
     "path": "/uebersetzer"
   },
+  "catalog.tool-voice": {
+    "title": "Grünerator Voice",
+    "subtitle": "Anrufbeantworter, Vorlesefassung & Audiodeskription",
+    "path": "/voice"
+  },
   "catalog.tool-vorlagen": {
     "title": "Vorlagen",
     "subtitle": "Fertige Design-Vorlagen",
@@ -232,6 +237,11 @@
     "title": "Übersetzer",
     "subtitle": "Texte & Dokumente übersetzen",
     "path": "/uebersetzer"
+  },
+  "workplace.voice": {
+    "title": "Voice",
+    "subtitle": "Text vertonen",
+    "path": "/voice"
   },
   "workplace.vorlagen": {
     "title": "Vorlagen",

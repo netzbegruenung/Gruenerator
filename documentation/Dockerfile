@@ -29,18 +29,22 @@ ARG CACHEBUST=1
 FROM node:22-alpine AS builder
 
 # Install pnpm — same activation as apps/web/Dockerfile
-RUN corepack enable && corepack prepare pnpm@10 --activate
+RUN corepack enable
 
 WORKDIR /app
 
 # Workspace configuration first (better layer caching)
-COPY pnpm-workspace.yaml package.json pnpm-lock.yaml .npmrc ./
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+# pnpm validates every `patchedDependencies` entry in pnpm-workspace.yaml
+# before it installs anything, so the patch files have to be in the image
+# even when the patched package is outside this filter's closure.
+COPY patches ./patches
 
 # Only this package's manifest: documentation declares no workspace dependency,
 # so the filtered install needs nothing else.
 COPY documentation/package.json ./documentation/
 
-# --node-linker overrides .npmrc's node-linker=hoisted (kept because Metro/RN in
+# --node-linker overrides pnpm-workspace.yaml's nodeLinker: hoisted (kept because Metro/RN in
 # apps/mobile needs it). The hoisted linker materializes the ENTIRE lockfile
 # regardless of --filter — 4799 packages / 4.5 GB for every scope, which is what
 # made a cold image build take ~1 h. --shamefully-hoist keeps the flat

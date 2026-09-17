@@ -585,6 +585,9 @@ async function hydrateThreadsAsResults(
         messageRole: 'assistant' as const,
         matchedAt: toIsoString(r.thread_updated_at),
         threadUpdatedAt: toIsoString(r.thread_updated_at),
+        // Not a guess: the query above filters archived threads out, so every
+        // row that reaches here is regular.
+        threadStatus: 'regular' as const,
       }));
   } catch (err) {
     log.warn(`[Recall] Hydration of semantic hits failed: ${err}`);

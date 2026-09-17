@@ -11,6 +11,12 @@
  * Collections a template derives from its own text fields (the slider pill,
  * the event date circle, the dreizeilen balken) are still owned by that
  * template: spread this first, then override the derived key.
+ *
+ * `layerOrder` rides along because it is the z-order OF these collections and
+ * nothing else — an id array that `buildSortedRenderList` lets outrank each
+ * element's declared `order`. It used to be missing here, so every template
+ * except `dreizeilen` and `freeform` (which read it from the props by hand)
+ * handed a user their shapes back in the default order after a reload (#3420).
  */
 
 import type { IconState } from './baseTypes';
@@ -38,6 +44,7 @@ export interface CarriedInstanceState {
   frameInstances: FrameInstance[];
   chartInstances: ChartInstance[];
   userImageInstances: UserImageInstance[];
+  layerOrder: string[];
 }
 
 /** Every key `carryInstanceState` reads, for guards and re-seed logic. */
@@ -54,6 +61,7 @@ export const CARRIED_INSTANCE_KEYS = [
   'frameInstances',
   'chartInstances',
   'userImageInstances',
+  'layerOrder',
 ] as const;
 
 function list<T>(value: unknown): T[] {
@@ -77,5 +85,6 @@ export function carryInstanceState(props: Record<string, unknown>): CarriedInsta
     frameInstances: list<FrameInstance>(props.frameInstances),
     chartInstances: list<ChartInstance>(props.chartInstances),
     userImageInstances: list<UserImageInstance>(props.userImageInstances),
+    layerOrder: list<string>(props.layerOrder),
   };
 }

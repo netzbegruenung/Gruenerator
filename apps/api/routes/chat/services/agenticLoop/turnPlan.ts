@@ -32,7 +32,9 @@ import {
   compoundGenerationKind,
   decideEditToolLoop,
   decideRunAgentic,
+  hasDocumentContextEditTool,
   isEditorSurface,
+  isEditToolEnabled,
   looksLikeCompoundEdit,
   resolveEditorSurfaceKind,
   type CompoundGenerationKind,
@@ -107,7 +109,6 @@ export interface TurnPlan {
    */
   compoundEdit: boolean;
   editToolLoop: boolean;
-  editTarget: 'doc' | 'board' | null;
   /** Die Fläche, deren `edit_document` montiert wird — nur bei `editToolLoop`. */
   editToolSurface: EditorSurfaceKind | null;
   compoundGenerationKind: CompoundGenerationKind | null;
@@ -138,7 +139,7 @@ export interface TurnPlanInput {
   isPdfFillRequest: boolean;
   classifierContradictedResearch: boolean;
   hasOwnMaterial: boolean;
-  /** Die Werkzeug-Schalter der Fläche — `edit_current_doc`/`edit_current_board`. */
+  /** Die Werkzeug-Schalter der Fläche — ein `edit_current_*`-Schlüssel je Fläche. */
   enabledTools: Record<string, boolean> | null;
   /** Agenten-Kennung, für die Auflösung der Editor-Fläche. */
   agentIdentifier: string | null;
@@ -152,6 +153,8 @@ export interface TurnPlanInput {
    * nach der id. Zusammengelegt wäre der Unterschied unsichtbar.
    */
   hasOpenBoardSurface: boolean;
+  /** Ein offenes Sharepic MIT id (Studio-Seitenleiste, `currentCanvas`). */
+  hasOpenCanvasId: boolean;
   /** Ein @board-Mention oder mitgeschickte boardIds benennen ein Ziel. */
   hasNamedBoard: boolean;
   /** Sharepic-Verfeinerung — hält die Verbund-Erzeugung aus dem Weg. */
@@ -340,12 +343,18 @@ export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
   // Das Ziel hängt am AKTIVIERTEN Bearbeitungswerkzeug, nicht daran, welches
   // Artefakt zufällig im Kontext liegt: eine Board-Seitenleiste, die auch ein
   // referenziertes Dokument trägt, muss trotzdem das BOARD bearbeiten.
-  const editTarget: 'doc' | 'board' | null =
-    p.enabledTools?.['edit_current_doc'] === true && p.hasOpenDocumentId
+  //
+  // Lokal, nicht im `TurnPlan`: der einzige Leser ausserhalb war die Stufe, die
+  // `trigger_doc_edit` schickte (#3428). Was der Plan davon trägt, sind die
+  // beiden Aussagen, die ihn steuern — `compoundEdit` und `editToolSurface`.
+  const editTarget: 'doc' | 'board' | 'canvas' | null =
+    hasDocumentContextEditTool(p.enabledTools) && p.hasOpenDocumentId
       ? 'doc'
       : p.enabledTools?.['edit_current_board'] === true && p.hasOpenBoardId
         ? 'board'
-        : null;
+        : p.enabledTools?.['edit_current_canvas'] === true && p.hasOpenCanvasId
+          ? 'canvas'
+          : null;
 
   // Verbund aus Recherche + Erzeugung: eine Erzeugungsbitte (Sharepic,
   // Präsentation, Tabelle, Textdokument, Board) MIT ausdrücklichem
@@ -372,18 +381,16 @@ export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
     looksLikeCompoundEdit(p.lastUserText);
 
   // Werkzeugbasierte Editor-Bearbeitung: der Turn geht mit dem `edit_document`
-  // der Fläche in die Schleife, damit das Modell suchen und das OFFENE Artefakt
-  // an Ort und Stelle ändern kann (`editor_operations`-SSE) statt über den
-  // Client-Umweg /api/{sheets,…}/:id/ai. Welche Flächen einen Werkzeugpfad
-  // haben und warum die noch lebenden (doc/board/canvas) beim alten
-  // trigger_doc_edit bleiben, steht bei {@link decideEditToolLoop}.
+  // der Fläche in die Schleife, damit das MODELL suchen und das OFFENE Artefakt
+  // ändern kann — vier Flächen über `editor_operations`, die Dokument-Fläche
+  // über den `trigger_doc_edit`-Versand aus demselben Werkzeug. Was passiert,
+  // wenn die Notausschalter den Turn zurückhalten, steht bei
+  // {@link decideEditToolLoop}.
   const editToolSurfaceKind = resolveEditorSurfaceKind(p.agentIdentifier, p.enabledTools);
   const editToolLoop = decideEditToolLoop({
     loopEnabled: p.loopEnabled,
     surfaceKind: editToolSurfaceKind,
-    editToolEnabled:
-      p.enabledTools?.['edit_current_doc'] === true ||
-      p.enabledTools?.['edit_current_board'] === true,
+    editToolEnabled: isEditToolEnabled(p.enabledTools),
     hasEditTarget: editTarget != null,
     forcedTool: p.forcedTool,
     isCompound: p.isCompound,
@@ -481,7 +488,6 @@ export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
     runAgentic: lane === 'loop',
     compoundEdit,
     editToolLoop,
-    editTarget,
     editToolSurface: editToolLoop ? editToolSurfaceKind : null,
     compoundGenerationKind: compoundKind,
     backfillSearchQuery: fallback.backfillSearchQuery,

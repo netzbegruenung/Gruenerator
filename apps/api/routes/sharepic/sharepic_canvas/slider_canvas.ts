@@ -17,6 +17,10 @@ import {
   bufferToBase64,
 } from '../../../services/sharepic/canvas/imageOptimizer.js';
 import { isValidHexColor } from '../../../services/sharepic/canvas/utils.js';
+import {
+  drawRichTextLines,
+  wrapTextLines as wrapText,
+} from '../../../services/sharepic/textLayout.js';
 import { createLogger } from '../../../utils/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -125,27 +129,6 @@ const ARROW_CONFIG = {
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
-
-function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
-  const words = text.split(' ');
-  const lines: string[] = [];
-  let currentLine = '';
-
-  for (let i = 0; i < words.length; i++) {
-    const testLine = currentLine + words[i] + ' ';
-    const metrics = ctx.measureText(testLine);
-    const testWidth = metrics.width;
-
-    if (testWidth > maxWidth && i > 0) {
-      lines.push(currentLine.trim());
-      currentLine = words[i] + ' ';
-    } else {
-      currentLine = testLine;
-    }
-  }
-  lines.push(currentLine.trim());
-  return lines;
-}
 
 function drawRoundedRect(
   ctx: CanvasRenderingContext2D,
@@ -278,39 +261,34 @@ async function createSliderImage(
       currentY += headlineLines.length * lineHeight + SUBTEXT_CONFIG.gapFromHeadline;
     }
 
-    // Draw subtext
+    // Draw subtext — Markdown-lite (Fett/Kursiv/Aufzählung) wie im Editor.
+    // Der Block ist fett gesetzt; ein `**` darin ändert nichts, `_kursiv_`
+    // und `<u>…</u>` greifen. Die Familie `PT Sans` trägt alle Schnitte.
     if (processedText.subtext) {
-      ctx.fillStyle = effectiveTextColor;
-      ctx.font = `bold ${subtextFontSize}px PTSans-Bold`;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
-
-      const subtextLines = wrapText(ctx, processedText.subtext, CONTENT_WIDTH);
-      const lineHeight = subtextFontSize * SUBTEXT_CONFIG.lineHeight;
-
-      subtextLines.forEach((line, index) => {
-        const textY = currentY + index * lineHeight;
-        ctx.fillText(line, MARGIN, textY);
-        log.debug(`Subtext line ${index}: "${line}" at y=${textY}`);
+      const bottom = drawRichTextLines(ctx, processedText.subtext, {
+        x: MARGIN,
+        y: currentY,
+        maxWidth: CONTENT_WIDTH,
+        lineHeight: subtextFontSize * SUBTEXT_CONFIG.lineHeight,
+        font: { fontFamily: 'PT Sans', fontSize: subtextFontSize, fontStyle: 'bold' },
+        color: effectiveTextColor,
       });
-
-      currentY += subtextLines.length * lineHeight + SUBTEXT2_CONFIG.gapFromSubtext;
+      currentY = bottom + SUBTEXT2_CONFIG.gapFromSubtext;
     }
 
     // Draw subtext2
     if (processedText.subtext2) {
-      ctx.fillStyle = effectiveTextColor;
-      ctx.font = `bold ${subtext2FontSize}px PTSans-Bold`;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
-
-      const subtext2Lines = wrapText(ctx, processedText.subtext2, CONTENT_WIDTH);
-      const lineHeight = subtext2FontSize * SUBTEXT2_CONFIG.lineHeight;
-
-      subtext2Lines.forEach((line, index) => {
-        const textY = currentY + index * lineHeight;
-        ctx.fillText(line, MARGIN, textY);
-        log.debug(`Subtext2 line ${index}: "${line}" at y=${textY}`);
+      drawRichTextLines(ctx, processedText.subtext2, {
+        x: MARGIN,
+        y: currentY,
+        maxWidth: CONTENT_WIDTH,
+        lineHeight: subtext2FontSize * SUBTEXT2_CONFIG.lineHeight,
+        font: { fontFamily: 'PT Sans', fontSize: subtext2FontSize, fontStyle: 'bold' },
+        color: effectiveTextColor,
       });
     }
 

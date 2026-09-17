@@ -247,6 +247,20 @@ export function deniesSearchAbilityDespiteSearching(
 }
 
 /**
+ * The answer asks the person to WAIT for the assistant's own work — which never
+ * comes, nothing runs after a turn ends (live 15.09.2026: "wird in diesem
+ * Moment generiert … Moment bitte"). Bound to first-person / generation
+ * idioms; "erscheint in Kürze", "bitte warten", "wird gerade bearbeitet" are
+ * ordinary content ("Laut [1] erscheint der Bericht in Kürze") and stay out.
+ */
+const PENDING_WORK_RE =
+  /(?<!\p{L})(?:moment\s+bitte|einen\s+(?:kurzen\s+)?augenblick|ich\s+melde\s+mich\s+gleich|wird\s+(?:gerade|jetzt|soeben|in\s+diesem\s+moment)\s+(?:erstellt|generiert|erzeugt|gerendert)|erscheint\s+gleich|sobald\s+(?:der\s+vorgang|die\s+erstellung|die\s+generierung)\s+abgeschlossen)(?!\p{L})/iu;
+
+export function announcesPendingWork(text: string): boolean {
+  return PENDING_WORK_RE.test(text);
+}
+
+/**
  * Whether an answer looks CUT OFF rather than finished: a completed German
  * answer ends on punctuation, so a trailing letter or digit is the signature of
  * a stream that stopped mid-sentence.

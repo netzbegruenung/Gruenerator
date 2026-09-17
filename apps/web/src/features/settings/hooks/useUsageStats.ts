@@ -5,7 +5,7 @@
  * numbers move within one flush interval (~15s) of the last request.
  */
 import { type GetUserUsageResponseDto } from '@gruenerator/contracts';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
 
 /** Shared by the hook and the tab's preload, so both hit the same cache entry. */
@@ -14,7 +14,8 @@ export function usageStatsQuery(days: number) {
     queryKey: ['user-usage', days] as const,
     queryFn: async (): Promise<GetUserUsageResponseDto> => {
       const result = await getContractsClient().userUsage.getMyUsage({ query: { days } });
-      if (result.status !== 200) throw new Error('Nutzungsdaten konnten nicht geladen werden.');
+      if (result.status !== 200)
+        throw new ApiError(result.status, 'Nutzungsdaten konnten nicht geladen werden.');
       return result.body;
     },
     staleTime: 60 * 1000,

@@ -10,7 +10,7 @@ import {
 } from '../lib/pcmDownsampleWorklet';
 import { AudioBufferQueue } from '../lib/audioBufferQueue';
 import { resolveVoiceWsUrl } from '../lib/resolveVoiceWsUrl';
-import { splitSentences } from '../lib/sentenceSplitter';
+import { splitSentences } from '@gruenerator/shared/utils';
 
 export type RealtimeVoiceErrorReason =
   | 'mic-permission-denied'

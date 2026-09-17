@@ -107,7 +107,14 @@ const PLATFORM_MAX_TOKENS: Record<string, number> = {
  * comment there) — a provider can report a "tool call" finish reason even
  * when the arguments themselves were truncated mid-stream.
  */
-const UNCAPPED_TYPES: ReadonlySet<string> = new Set(['doc_generation', 'board_generation']);
+const UNCAPPED_TYPES: ReadonlySet<string> = new Set([
+  'doc_generation',
+  'board_generation',
+  // A Vorlesefassung rewrites a source of up to SPEECH_MAX_TEXT_CHARS and its
+  // prompt forbids shortening. At the 4096 default the answer comes back cut
+  // mid-sentence with a 200 — the worst shape, because nothing looks wrong.
+  'voice_script',
+]);
 
 /**
  * Platform-specific top_p values

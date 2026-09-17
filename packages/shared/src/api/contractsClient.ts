@@ -20,6 +20,7 @@ import {
   threadsContract,
   chatThreadSharingContract,
   exportsContract,
+  speechContract,
   recentValuesContract,
   recentActivityContract,
   contentContract,
@@ -77,7 +78,6 @@ import {
   groupsContract,
   userProfileContract,
   canvasContract,
-  canvasAiContract,
   monitorContract,
   sitesContract,
   texteContract,
@@ -271,6 +271,7 @@ const VALIDATED_CLIENT_OPTS = {
 // which may not be exported in all @ts-rest/core minor versions.
 const _threadsClient = () => initClient(threadsContract, CLIENT_OPTS);
 const _exportsClient = () => initClient(exportsContract, CLIENT_OPTS);
+const _speechClient = () => initClient(speechContract, CLIENT_OPTS);
 const _recentValuesClient = () => initClient(recentValuesContract, CLIENT_OPTS);
 const _recentActivityClient = () => initClient(recentActivityContract, CLIENT_OPTS);
 const _contentClient = () => initClient(contentContract, CLIENT_OPTS);
@@ -330,7 +331,6 @@ const _groupsClient = () => initClient(groupsContract, CLIENT_OPTS);
 const _userProfileClient = () => initClient(userProfileContract, CLIENT_OPTS);
 // Validiert (nicht nur für den Studio-Tab) — siehe VALIDATED_CLIENT_OPTS.
 const _canvasClient = () => initClient(canvasContract, VALIDATED_CLIENT_OPTS);
-const _canvasAiClient = () => initClient(canvasAiContract, CLIENT_OPTS);
 const _monitorClient = () => initClient(monitorContract, CLIENT_OPTS);
 const _sitesClient = () => initClient(sitesContract, CLIENT_OPTS);
 const _texteClient = () => initClient(texteContract, CLIENT_OPTS);
@@ -345,6 +345,7 @@ const _promptsClient = () => initClient(promptsContract, CLIENT_OPTS);
 export interface ContractsClient {
   threads: ReturnType<typeof _threadsClient>;
   exports: ReturnType<typeof _exportsClient>;
+  speech: ReturnType<typeof _speechClient>;
   recentValues: ReturnType<typeof _recentValuesClient>;
   recentActivity: ReturnType<typeof _recentActivityClient>;
   content: ReturnType<typeof _contentClient>;
@@ -403,7 +404,6 @@ export interface ContractsClient {
   groups: ReturnType<typeof _groupsClient>;
   userProfile: ReturnType<typeof _userProfileClient>;
   canvas: ReturnType<typeof _canvasClient>;
-  canvasAi: ReturnType<typeof _canvasAiClient>;
   monitor: ReturnType<typeof _monitorClient>;
   sites: ReturnType<typeof _sitesClient>;
   texte: ReturnType<typeof _texteClient>;
@@ -491,7 +491,6 @@ export function getContractsClient(): ContractsClient {
     groups: _groupsClient(),
     userProfile: _userProfileClient(),
     canvas: _canvasClient(),
-    canvasAi: _canvasAiClient(),
     monitor: _monitorClient(),
     sites: _sitesClient(),
     texte: _texteClient(),
@@ -500,6 +499,7 @@ export function getContractsClient(): ContractsClient {
     imagePicker: _imagePickerClient(),
     sharesRead: _sharesReadClient(),
     prompts: _promptsClient(),
+    speech: _speechClient(),
   };
 
   return _client;

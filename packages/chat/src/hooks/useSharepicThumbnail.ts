@@ -75,7 +75,7 @@ export function useSharepicThumbnail(variant: SharepicVariant): {
       return undefined;
     }
     let cancelled = false;
-    renderFn(variant.canvasType, renderInput)
+    renderFn(variant.canvasType, renderInput, { quality: 'preview' })
       .then((dataUrl) => {
         if (cancelled) return;
         if (dataUrl) {

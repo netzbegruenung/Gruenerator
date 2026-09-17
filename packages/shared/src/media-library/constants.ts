@@ -75,6 +75,8 @@ export const UPLOAD_SOURCES = [
   'chat-sharepic-thumbnail',
   'gruenerator-vorlage',
   'template-upload',
+  // Generated speech from Grünerator Voice — a creation, never quota-gated.
+  'voice',
 ] as const;
 
 /**
@@ -124,5 +126,6 @@ export const UPLOAD_SOURCE_LABELS: Record<string, string> = {
 export const MEDIA_TYPE_LABELS: Record<string, string> = {
   image: 'Bild',
   video: 'Video',
+  audio: 'Audio',
   all: 'Alle',
 };

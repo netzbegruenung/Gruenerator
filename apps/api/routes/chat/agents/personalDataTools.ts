@@ -201,12 +201,26 @@ export function requireUserId(state: ChatGraphState): string | null {
 // find_content — cross-domain read over the user's own stuff
 // ---------------------------------------------------------------------------
 
+/**
+ * Notebooks are deliberately NOT part of this tool, and the description says so
+ * out loud. Both paths below are Postgres-backed: `searchOfficeContent` reads
+ * `collaborative_documents` (office subtypes only) and `aggregateRecentActivity`
+ * aggregates docs/boards/images/reels/canvases. A notebook lives in Qdrant and
+ * is reached through `notebooks` (list/get/search) in `notebookTools.ts`.
+ *
+ * The description named Notebooks until #3345 — a leftover from before the
+ * notebook actions moved out of this file — so "such in meinen Notebooks nach X"
+ * landed here and got a confidently empty answer. Do not put the word back
+ * without wiring a notebook source in: the obvious candidate
+ * `searchUserNotebookCollections` matches only name and description, so it finds
+ * notebooks BY title, it does not search their content.
+ */
 export function makeFindContentTool(ctx: PersonalToolCtx): Tool {
   const { state, sourceRegistry } = ctx;
   return tool({
-    description: `Durchsucht die EIGENEN Inhalte der angemeldeten Person (Dokumente, Boards, Tabellen, Präsentationen, Notebooks sowie Reels/untertitelte Videos) oder listet die zuletzt bearbeiteten. Reels werden dabei auch nach ihrem gesprochenen Untertitel-Inhalt durchsucht.
+    description: `Durchsucht die EIGENEN Inhalte der angemeldeten Person (Dokumente, Boards, Tabellen, Präsentationen sowie Reels/untertitelte Videos) oder listet die zuletzt bearbeiteten. Reels werden dabei auch nach ihrem gesprochenen Untertitel-Inhalt durchsucht.
 
-NUTZE WENN nach eigenen Inhalten gefragt wird ("zeig mir meine Dokumente", "finde mein Klima-Board", "woran habe ich zuletzt gearbeitet"). Für Detailfragen zu EINEM Board/Dokument nutze 'documents' oder 'boards_tasks'. Für das VOLLE Transkript eines Reels (z. B. um eine Caption zu schreiben) nutze 'media' mit action="transcript".`,
+NUTZE WENN nach eigenen Inhalten gefragt wird ("zeig mir meine Dokumente", "finde mein Klima-Board", "woran habe ich zuletzt gearbeitet"). Für Detailfragen zu EINEM Board/Dokument nutze 'documents' oder 'boards_tasks'. Für das VOLLE Transkript eines Reels (z. B. um eine Caption zu schreiben) nutze 'media' mit action="transcript". NOTEBOOKS erreicht dieses Werkzeug NICHT — zum Auflisten, Ansehen und inhaltlichen Befragen eines Notebooks nutze 'notebooks'.`,
     inputSchema: z.object({
       action: z.enum(['search', 'recent']),
       query: z.string().optional().describe('Suchbegriff (nur bei action="search")'),
@@ -418,6 +432,9 @@ NUTZE FÜR: eigene Dokumente auflisten (list), eines per id ansehen (get), umben
 
       if (action === 'delete') {
         if (!match) return { error: 'Dokument nicht gefunden oder kein Zugriff.' };
+        // Kein Mensch am Lauf: der `confirm=true`-Zweischritt bestätigt sich hier
+        // selbst, und die Karte, die fragen würde, ginge an einen stummen Sink.
+        if (!threadId) return { error: 'Löschen ist in diesem Kontext nicht möglich.' };
         if (!confirm) {
           const ask = `Soll das Dokument „${match.title}" wirklich gelöscht werden? Frage die Person und rufe delete erst mit confirm=true erneut auf.`;
           groundNote(sourceRegistry, 'Bestätigung nötig', ask);
@@ -827,9 +844,10 @@ NUTZE FÜR: Boards auflisten (list_boards), Karten eines Boards lesen (get_cards
 // ---------------------------------------------------------------------------
 
 export function makeMediaTool(ctx: PersonalToolCtx): Tool {
-  const { state, sourceRegistry } = ctx;
+  const { state, threadId, sourceRegistry } = ctx;
   return tool({
     description: `Zugriff auf die EIGENEN Medien der Person: Reels (untertitelte Videos), Sharepics (Social-Grafiken aus den Vorlagen) und KI-Bilder (aus dem Bild-Editor).
+NUR LESEN: Dieses Tool erstellt und bearbeitet NICHTS. Soll ein Sharepic geändert werden und du hast kein Bearbeitungs-Tool, sag das — such nicht ersatzweise die Bibliothek ab.
 
 NUTZE FÜR:
 - auflisten (list, optional type="reel"|"sharepic"|"ki"). Sharepics und KI-Bilder sind zwei verschiedene Produkte — "meine Sharepics" meint type="sharepic", "meine KI-Bilder" type="ki".
@@ -961,6 +979,9 @@ TYPISCHER ABLAUF für "such das Reel zu Thema X und schreib eine Caption": erst 
 
       // delete
       if (!ref) return { error: 'delete braucht ref (aus der Liste).' };
+      // Kein Mensch am Lauf: der `confirm=true`-Zweischritt bestätigt sich hier
+      // selbst, und die Karte, die fragen würde, ginge an einen stummen Sink.
+      if (!threadId) return { error: 'Löschen ist in diesem Kontext nicht möglich.' };
       if (!confirm) {
         return {
           needsConfirmation: true,

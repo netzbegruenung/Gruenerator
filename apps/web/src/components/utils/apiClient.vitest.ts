@@ -303,4 +303,25 @@ describe('session-teardown severity', () => {
 
     expect(teardown?.tags?.['auth.401code']).toBe('unknown');
   });
+
+  it('carries a chat-stack code into the tag and the fingerprint', async () => {
+    // GlitchTip 539: the chat stack reached this authority without a code, so
+    // an ordinary expiry was filed under 'unknown' and got its own fingerprint
+    // bucket depending on which stack won the race to the dead verdict.
+    vi.resetModules();
+    const axios = (await import('axios')).default;
+    vi.mocked(axios.get).mockRejectedValue(httpError(401));
+    const { captureAuthIssue } = await import('../../lib/observability/captureAuthIssue');
+    const { handleUnauthorized } = await import('./apiClient');
+
+    await handleUnauthorized('chat', 'no_session_cookie');
+
+    const teardown = vi
+      .mocked(captureAuthIssue)
+      .mock.calls.map(([opts]) => opts)
+      .find((o) => o.stage === 'session-teardown');
+
+    expect(teardown?.tags?.['auth.401code']).toBe('no_session_cookie');
+    expect(teardown?.fingerprintExtra).toContain('no_session_cookie');
+  });
 });

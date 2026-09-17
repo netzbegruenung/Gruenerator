@@ -1,6 +1,7 @@
 'use client';
 
 import { isUnauthorizedError } from '@gruenerator/shared/api';
+import { clampThreadTitle } from '@gruenerator/shared/utils';
 import { createAssistantStream } from 'assistant-stream';
 
 import { notifyWarning } from '../lib/notify';
@@ -186,7 +187,7 @@ function deriveLocalTitle(messages: readonly ThreadMessage[]): string | null {
 
   const sentenceEnd = fullText.search(/[.!?]/);
   const title = sentenceEnd > 0 ? fullText.slice(0, sentenceEnd) : fullText;
-  return title.length > 50 ? title.slice(0, 47) + '...' : title;
+  return clampThreadTitle(title);
 }
 
 export function createGrueneratorThreadListAdapter(

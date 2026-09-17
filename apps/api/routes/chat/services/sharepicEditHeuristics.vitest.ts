@@ -104,6 +104,109 @@ describe('isSharepicEditInstruction', () => {
     expect(isSharepicEditInstruction('zeig mir alle varianten')).toBe(false);
   });
 
+  it('matches separable ADD verbs — the live miss "Füge … ein" / "bestücken"', () => {
+    // Live 15.09.2026: "Füge folgende Bullet Points auf Variante 3 ein" hit no
+    // verb — `einfüg` is only the contiguous stem, and German splits it. The
+    // turn fell through to prose, the model searched the media library and
+    // then claimed the edit was done.
+    expect(
+      isSharepicEditInstruction(
+        'Füge folgende Bullet Points auf Variante 3 ein:\n- Hilf uns, dass unsere Inhalte künftig auch auf gruene.social zu finden sind.'
+      )
+    ).toBe(true);
+    expect(
+      isSharepicEditInstruction(
+        'Versuch noch mal, Variante 3 mit folgenden Bullet Points zu bestücken:'
+      )
+    ).toBe(true);
+    expect(isSharepicEditInstruction('Trag die Uhrzeit 15 Uhr ein')).toBe(true);
+    expect(isSharepicEditInstruction('fügst du noch das Datum in Zeile 2 hinzu?')).toBe(true);
+  });
+
+  it('does not take "verfügbar"/"Beitrag" for the new stems', () => {
+    // The lookbehind is what keeps `füg` from matching inside "verfügbar";
+    // the noun requirement is what keeps "Beitrag" a creation, not an edit.
+    expect(isSharepicEditInstruction('Ist das Sharepic schon verfügbar?')).toBe(false);
+    expect(isSharepicEditInstruction('Schreib einen Beitrag zum Sharepic')).toBe(false);
+    // Word-initial "trag"/"füg" without the particle is not the verb.
+    expect(isSharepicEditInstruction('Was ist die Tragweite des Zitats auf dem Sharepic?')).toBe(
+      false
+    );
+    expect(isSharepicEditInstruction('Kann man das Sharepic-Motiv auch auf T-Shirts tragen?')).toBe(
+      false
+    );
+  });
+
+  it('reads a mid-sentence trag-word plus a distant "ein" as prose, not as an edit', () => {
+    // Both negatives above end in "?" right after the trag-word, so the window
+    // never reached a particle and the gap they were meant to guard stayed open:
+    // a statement leaves the window running until the sentence ends, and "ein"
+    // is one of the commonest words in German.
+    expect(
+      isSharepicEditInstruction('Die Tragweite des Zitats ist für uns ein großes Thema.')
+    ).toBe(false);
+    expect(isSharepicEditInstruction('Die Tragik des Zitats auf dem Sharepic ist ein Thema')).toBe(
+      false
+    );
+    // A clause boundary ends the window — the particle of a separable verb
+    // stands in the clause of its own verb.
+    expect(
+      isSharepicEditInstruction('Die Tragweite dieses Sharepics, finde ich, ist ein Thema')
+    ).toBe(false);
+    // …while the real construction keeps matching across a long object phrase.
+    expect(isSharepicEditInstruction('Tragen Sie bitte die Uhrzeit 15 Uhr ein')).toBe(true);
+  });
+
+  it('leaves edits of OTHER artifacts alone, even with a sharepic in the thread', () => {
+    expect(isSharepicEditInstruction('Füg der Präsentation noch eine Seite hinzu')).toBe(false);
+    expect(isSharepicEditInstruction('Trag das Datum in meinen Kalender ein')).toBe(false);
+    expect(isSharepicEditInstruction('Füge das Foto in die Präsentation ein')).toBe(false);
+    expect(isSharepicEditInstruction('Trag den Text ins Dokument ein')).toBe(false);
+  });
+
+  it('matches bullet-list nouns — the live miss "mehrere stichpunkte hinzufügen"', () => {
+    // Live 16.09.2026 on an Info card that was active for chat editing: the
+    // VERB half matched (`hinzufüg`), the noun half had no word for a bullet
+    // list, and both doors share this predicate — so the turn came back with
+    // the edit-is-impossible hint while the editable card sat right above it.
+    //
+    // The separable-verb case above looks like it already covered this and
+    // does not: "Füge folgende Bullet Points auf Variante 3 ein" passes on
+    // `variante`. Naming the list WITHOUT naming a variant is the gap, which
+    // is why that test stayed green through the whole bug.
+    expect(isSharepicEditInstruction('kannst du dort mehrere stichpunkte hinzufügen')).toBe(true);
+    expect(isSharepicEditInstruction('füge dort mehrere stichpunkte hinzu')).toBe(true);
+    expect(isSharepicEditInstruction('mach eine aufzählung draus')).toBe(true);
+    expect(isSharepicEditInstruction('ergänze zwei bullet points')).toBe(true);
+    expect(isSharepicEditInstruction('mach die liste kürzer')).toBe(true);
+    // The two alternatives that shipped untested. `aufzaehl` is the ASCII
+    // sibling of `aufzähl`, and this file pairs every umlaut noun with its
+    // ASCII form elsewhere — without a case here a regex refactor could drop
+    // either branch and stay green.
+    expect(isSharepicEditInstruction('ändere das stichwort')).toBe(true);
+    expect(isSharepicEditInstruction('mach die aufzaehlung kuerzer')).toBe(true);
+    // Every spelling the trailing boundary on `bullet` has to keep.
+    expect(isSharepicEditInstruction('ergänze zwei bullets')).toBe(true);
+    expect(isSharepicEditInstruction('ergänze zwei Bulletpoints')).toBe(true);
+    expect(isSharepicEditInstruction('ergänze zwei bullet-points')).toBe(true);
+  });
+
+  it('keeps a bare "Punkt" and a noun inside a word out of the list vocabulary', () => {
+    // `punkt` is deliberately NOT a noun — "auf den Punkt bringen" asks for the
+    // opposite of adding items. Both of these carry a real edit verb, so only
+    // the noun half can decide them.
+    expect(isSharepicEditInstruction('mach den standpunkt klarer')).toBe(false);
+    // The lookbehind is what stops `liste` from matching inside "Preisliste".
+    expect(isSharepicEditInstruction('mach die Preisliste größer')).toBe(false);
+    // `bullet` needed a trailing boundary of its own: it is a prefix of
+    // "Bulletin", a real word here and an artifact this lane cannot edit.
+    // This one the lookbehind could not catch — "Bulletin" starts the word.
+    expect(isSharepicEditInstruction('Kannst du das Bulletin anpassen?')).toBe(false);
+    // "Pressebulletin" was already covered by the lookbehind; kept so a later
+    // rewrite of either guard leaves both spellings pinned.
+    expect(isSharepicEditInstruction('mach das Pressebulletin kürzer')).toBe(false);
+  });
+
   it('requires an edit verb', () => {
     expect(isSharepicEditInstruction('was steht im wahlprogramm zum klimaschutz?')).toBe(false);
   });

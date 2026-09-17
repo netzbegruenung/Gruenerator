@@ -14,12 +14,15 @@
  */
 import { withInstructionHierarchy } from '../untrustedContent.js';
 
+import { NO_PHANTOM_ACTION_RULE } from '../../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
+
 import { ARTIFACT_TOOL_NAMES, buildArtifactNotes } from './artifactNotes.js';
 import { RECENCY_RULE } from './recencyRule.js';
 import { type RecipeRegistry } from './recipeRegistry.js';
 import { type SourceRegistry } from './sourceRegistry.js';
 import {
   buildMcpOutcomeNote,
+  buildEmptyResultNote,
   buildToolFailureNote,
   buildToolPayloadNote,
   mcpHasFailure,
@@ -146,6 +149,8 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
   const mcpRan = mcpOutcome.length > 0;
   // Native tool failures — the other half of the same honesty channel.
   const toolFailures = buildToolFailureNote(ctx.steps);
+  // Ran fine, returned nothing — silence the writer used to fill with an action.
+  const toolEmpties = buildEmptyResultNote(ctx.steps);
   // Werkzeuge, die fertigen Text zurückgeben statt Quellen zu registrieren
   // (`summarize`, `product_knowledge`) — ohne das hier verpufft ihre Arbeit,
   // siehe `PAYLOAD_TOOLS`.
@@ -161,6 +166,12 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
     artifactToolMounted: ARTIFACT_TOOL_NAMES.some((name) => ctx.tools[name] != null),
     hasFailures,
   });
+  // The writer never sees buildToolUsageBlock; on an artifact thread the
+  // inventory in systemMessage already carries the sentence.
+  const phantomNote =
+    producedArtifact || ctx.systemMessage.includes(NO_PHANTOM_ACTION_RULE)
+      ? ''
+      : `\n\n${NO_PHANTOM_ACTION_RULE}`;
   // The "you researched NOTHING" note is a lie when a connector tool DID run
   // (it just doesn't register sources) — suppress it; mcpOutcome tells the
   // truth about what happened instead.
@@ -228,6 +239,6 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
   // prepareStep — mirroring how `carriedNote` is injected for unified
   // BECAUSE split gets it here.
   return withInstructionHierarchy(
-    `${ctx.systemMessage}${ctx.mcpNote}${cite}${artifacts}${mcpOutcome}${toolPayload}${toolFailures}${capabilityNote}${openingNote}${honestyNote}${ctx.recipeRegistry.render()}\n\nAntworte auf Deutsch (Du-Form, Genderstern).`
+    `${ctx.systemMessage}${ctx.mcpNote}${cite}${artifacts}${mcpOutcome}${toolPayload}${toolFailures}${toolEmpties}${capabilityNote}${phantomNote}${openingNote}${honestyNote}${ctx.recipeRegistry.render()}\n\nAntworte auf Deutsch (Du-Form, Genderstern).`
   );
 }

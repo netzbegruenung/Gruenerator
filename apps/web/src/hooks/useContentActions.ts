@@ -3,7 +3,7 @@ import {
   type ExportToDocsResponse,
   type TodoListResponse,
 } from '@gruenerator/contracts';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { toast } from '@gruenerator/ui';
 import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -127,7 +127,8 @@ export function useContentActions({
         },
       });
       // A non-201 used to fall through as a no-op, which reads as a dead button.
-      if (result.status !== 201) throw new Error('Board konnte nicht erstellt werden');
+      if (result.status !== 201)
+        throw new ApiError(result.status, 'Board konnte nicht erstellt werden');
       void navigate(`/boards/${result.body.board.id}`, {
         state: { generatedStructure: result.body.generatedStructure },
       });

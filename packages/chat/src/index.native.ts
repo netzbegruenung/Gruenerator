@@ -40,6 +40,9 @@ export {
   type ChatConfig,
   type ResolvedEndpoints,
   type ChatRequestContext,
+  type ChatRequestContextProvider,
+  type DocumentEditTriggerPayload,
+  type DocumentEditTriggerHandler,
 } from './stores/chatConfigStore';
 
 // Runtime Adapters (platform-agnostic — no web deps)
@@ -54,6 +57,11 @@ export {
   createGrueneratorThreadListAdapter,
   getThreadType,
   getNotebookCollectionId,
+  getThreadSlugSuffix,
+  getThreadAgentId,
+  getThreadAccessType,
+  isThreadReadOnly,
+  resolveThreadBySlugSuffix,
   type ExternalThreadEntry,
 } from './runtime/GrueneratorThreadListAdapter';
 
@@ -66,6 +74,7 @@ export {
   type NotebookAdapterConfig,
   type NotebookMessageMetadata,
   type NotebookAdapterCallbacks,
+  type SharepicContextConfig,
 } from './runtime/NotebookModelAdapter';
 
 // Types (from useChatGraphStream)
@@ -93,6 +102,9 @@ export { splitMathSegments, type MathSegment } from './lib/mathSegments';
 
 // Compute results (run_python stdout → ComputeData entries; shared with web)
 export { parseComputeResult } from './lib/computeResult';
+// Audio among a compute payload's file assets. Native needs it for the same
+// reason web does: its ComputeCard must not call a recording a calculation.
+export { audioAssetsOf, type ComputeFileAsset } from './lib/computeAssets';
 
 // Stores
 export {
@@ -163,7 +175,7 @@ export { computeMentionInsertion, type MentionInsertionResult } from './lib/ment
 export { useFileMentionData } from './hooks/useFileMentionData';
 
 // Admin-curated Rezepte visibility — see index.ts for the full comment.
-export { useHiddenSkillMentions } from './hooks/useMentionablesQuery';
+export { useHiddenAgentIdentifiers, useHiddenSkillMentions } from './hooks/useMentionablesQuery';
 
 // Die Landesverbands-Zuteilung aus den Profilrollen. RN-sicher: liest nur den
 // zustand-Store, kein Netz, kein DOM. Mobil erst nutzbar, seit die App den
@@ -226,10 +238,17 @@ export {
 // Citation Utils
 export { mapRawCitationsToChat, resolveCitations } from './lib/citationUtils';
 
-// Full-text loader for citation detail views. RN-safe (only react +
+// Citation context for detail views. RN-safe (only react +
 // useChatConfigStore.fetch, which mobile configures via configureMobileChat) —
-// the same hook web uses, so the source fetch stays shared, not duplicated.
-export { useFetchFullText, type FetchFullTextFn } from './context/CitationContext';
+// the same module web uses, so the source fetch stays shared, not duplicated.
+export {
+  CitationProvider,
+  useCitations,
+  useCitationContext,
+  useFetchFullText,
+  type CitationContextValue,
+  type FetchFullTextFn,
+} from './context/CitationContext';
 
 // SSE Parsing
 export { parseSSELine, type SSECurrentEvent, type SSEParseResult } from './lib/sseParser';
@@ -349,8 +368,11 @@ export {
   type ToolRegistryEntry,
 } from './lib/toolRegistry';
 
-// SerializableCitation type (Zod-derived, JSON-safe — RN-safe as a type)
-export { type SerializableCitation } from './components/tool-ui/citation/schema';
+// Zod-derived, JSON-safe citation shape and its parser — RN-safe, no DOM.
+export {
+  safeParseSerializableCitation,
+  type SerializableCitation,
+} from './components/tool-ui/citation/schema';
 
 // Grünerator loading-icon geometry (shared shapes; each platform animates them)
 export * as grueneratorHomeIconGeometry from './components/icons/grueneratorHomeIconGeometry';

@@ -5,7 +5,6 @@
  *   - TypeScript types in @gruenerator/canvas-editor (operation discriminator)
  *   - Backend Zod validation of LLM tool-call arguments
  *   - JSON-schema fed to the LLM via tool calling (zod-to-json-schema)
- *   - ts-rest contract response shape
  *
  * Design notes:
  *   - All fields use `.nullish()` per the 2026-04-12 production-incident rule
@@ -243,30 +242,16 @@ export const canvasAiCapabilitiesSchema = z.object({
 
 export type CanvasAiCapabilities = z.infer<typeof canvasAiCapabilitiesSchema>;
 
-// ── Request / response ──────────────────────────────────────────────────────
+// ── Response ─────────────────────────────────────────────────────────────────
 
-export const canvasAiSuggestRequestSchema = z.object({
-  prompt: z.string().min(1).max(2000),
-  snapshot: canvasAiSnapshotSchema,
-  capabilities: canvasAiCapabilitiesSchema,
-  /**
-   * Research the agentic chat loop gathered before dispatching the edit
-   * ("recherchiere X und bau es ins Sharepic ein"): the loop emits
-   * trigger_doc_edit with these facts as referenceContent and the sidebar
-   * forwards them here so the suggestion prompt is grounded in them.
-   */
-  referenceContent: z.string().max(8000).optional(),
-});
-
+/**
+ * The planner's (`runCanvasSuggest.ts`) output schema. Also the response
+ * shape the studio sidebar's edit_document tool path validates against.
+ */
 export const canvasAiSuggestResponseSchema = z.object({
   suggestions: z.array(canvasAiSuggestionSchema).min(0).max(6),
 });
 
-export const canvasAiSuggestErrorSchema = z.object({
-  error: z.string(),
-});
-
-export type CanvasAiSuggestRequest = z.infer<typeof canvasAiSuggestRequestSchema>;
 export type CanvasAiSuggestResponse = z.infer<typeof canvasAiSuggestResponseSchema>;
 
 // ── Sharepic chat edit (single applied edit, not suggestions) ───────────────
@@ -286,6 +271,11 @@ export const sharepicEditResponseSchema = z.object({
 });
 
 export type SharepicEditResponse = z.infer<typeof sharepicEditResponseSchema>;
+
+/** Model output may decline an edit; applied edits still require operations. */
+export const sharepicEditDecisionSchema = sharepicEditResponseSchema.extend({
+  operations: sharepicEditResponseSchema.shape.operations.min(0),
+});
 
 // ── Slider deck operations (multi-page chat editing) ────────────────────────
 

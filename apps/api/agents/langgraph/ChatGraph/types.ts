@@ -19,11 +19,13 @@ import type {
 import type { AgentConfig } from '../../../routes/chat/agents/types.js';
 import type { ArtifactKindId } from '../../../routes/chat/services/artifactKindRegistry.js';
 import type { SystemMcpKey } from '../../../services/mcp/systemMcpServers.js';
+import type { RenderedMemory } from '../../../services/memory/memoryPrompt.js';
 import type { UserAgentInput } from '../../../services/userAgents/userAgentsRepository.js';
 import type {
   WolkeFileRef,
   ConnectFileRef,
   CurrentBoard,
+  CurrentCanvas,
   ConfirmActionType,
   ChartPayload,
   ArtifactPayload,
@@ -39,9 +41,8 @@ import type {
 import type { RoleLandesverbandInput } from '@gruenerator/shared/agents';
 import type { ArtifactCreateKind } from '@gruenerator/shared/chat-intents';
 import type { ModelMessage } from 'ai';
-import type { RenderedMemory } from '../../../services/memory/memoryPrompt.js';
 
-export type { WolkeFileRef, ConnectFileRef, CurrentBoard, SocialPostPayload };
+export type { WolkeFileRef, ConnectFileRef, CurrentBoard, CurrentCanvas, SocialPostPayload };
 
 /**
  * Retrieval backends the classifier can request for one turn. When several are
@@ -553,6 +554,7 @@ export interface ChatGraphInput {
   attachedWebpageUrls?: string[] | undefined;
   currentDocument?: CurrentDocument | undefined;
   currentBoard?: CurrentBoard | undefined;
+  currentCanvas?: CurrentCanvas | undefined;
   userLocale?: UserLocale | undefined;
   clientPlatform?: ClientPlatform | undefined;
   customSystemPrompt?: string | undefined;
@@ -747,6 +749,12 @@ export interface ChatGraphState {
   // Live board state when chat is embedded in the boards editor surface. Primary
   // context for board Q&A; presence + edit keywords route to edit_current_board.
   currentBoard: CurrentBoard | null;
+
+  // Live canvas state when chat is embedded in the sharepic studio sidebar.
+  // Primary context for sharepic Q&A (`text` is injected as AKTUELLES DOKUMENT)
+  // and the target of the loop's `edit_document` tool on the canvas surface
+  // (`snapshot`/`capabilities` feed runCanvasSuggest).
+  currentCanvas: CurrentCanvas | null;
 
   // Custom system prompt (replaces entire agent system prompt when set)
   customSystemPrompt: string | null;
@@ -1010,14 +1018,14 @@ export interface ChatGraphState {
   // Literal: dieses Feld war der siebte Schreiber derselben Menge, und ein hier
   // fehlender Wert hätte im Katalog stumm kein Werkzeug montiert.
   compoundGenerationKind?: ArtifactKindId | null;
-  // Compound "research + edit the OPEN doc/board" (editor sidebars): runs the
-  // research loop, then emits trigger_doc_edit/trigger_board_action with the
-  // gathered sources as reference material. Synth writes only a short confirm.
+  // Compound "research + edit the OPEN artefact" (editor sidebars): runs the
+  // research loop, then feeds the gathered sources to the `edit_document` tool
+  // as reference material. Synth writes only a short confirm.
   compoundEdit?: boolean;
   // Tool-based editor edit: the resolved editor surface whose `edit_document`
-  // tool the loop mounts. Set only for surfaces with a tool path
-  // (routing.TOOL_EDIT_SURFACES); null/undefined keeps the legacy
-  // trigger_doc_edit path for the still-live surfaces.
+  // tool the loop mounts. Null/undefined means the turn has NO edit path at all
+  // (a kill-switch in `decideEditToolLoop` held it back) — `buildArtifactNotes`
+  // makes the model say so rather than answer as if it had edited.
   editToolSurface?: 'doc' | 'sheet' | 'presentation' | 'board' | 'canvas' | null;
   // Human summary of edits the edit_document tool made THIS turn (set by
   // editorTools). Feeds the synth prompt so the model confirms the change in
@@ -1397,4 +1405,11 @@ export interface ChatSearchResult {
   messageRole: 'user' | 'assistant';
   matchedAt: string;
   threadUpdatedAt: string;
+  /**
+   * Archive state of the matched thread. Required, not optional: every producer
+   * has to say it out loud, because a consumer that shows archived hits (the
+   * sidebar search) must be able to mark them, and one that does not must not
+   * silently inherit a default that says "regular" for a thread nobody checked.
+   */
+  threadStatus: 'regular' | 'archived';
 }

@@ -9,16 +9,16 @@
  * - Two color schemes (sand-tanne, tanne-sand)
  */
 
-import { HiPhotograph, HiSparkles } from 'react-icons/hi';
+import { HiPhotograph } from 'react-icons/hi';
 import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
-import { createAiSectionRegistration } from '../ai/createAiSectionRegistration';
 import {
   AssetsSection,
   BackgroundSection,
   CombinedTextSection,
   FrameSettingsSection,
 } from '../sidebar/sections';
+import { recolorIconInstances } from '../utils/iconInstances';
 import { createPillBadgeInstance, getPillBadgeColorsForScheme } from '../utils/pillBadgeUtils';
 import {
   DEFAULT_SLIDER_COLOR_SCHEME,
@@ -123,6 +123,9 @@ export interface SliderState extends BaseCanvasState {
   circleBadgeInstances: CircleBadgeInstance[];
   balkenInstances: BalkenInstance[];
   frameInstances: FrameInstance[];
+
+  /** z-order of the collections above; carried by `carryInstanceState`. */
+  layerOrder: string[];
 
   // Base state (from BaseCanvasState)
   assetInstances: AssetInstance[];
@@ -405,6 +408,7 @@ const subtextTextElement: TextElementConfig<SliderState> = {
   lineHeight: SLIDER_CONFIG.subtext.lineHeight,
   wrap: 'word',
   editable: true,
+  richText: true,
   draggable: true,
   fontSizeStateKey: 'customSubtextFontSize',
   opacityStateKey: 'subtextOpacity',
@@ -428,6 +432,7 @@ const subtext2TextElement: TextElementConfig<SliderState> = {
   lineHeight: SLIDER_CONFIG.subtext2.lineHeight,
   wrap: 'word',
   editable: true,
+  richText: true,
   draggable: true,
   fontSizeStateKey: 'customSubtext2FontSize',
   opacityStateKey: 'subtext2Opacity',
@@ -578,16 +583,9 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
     },
     toolsTab,
     uploadsTab,
-    {
-      id: 'ai',
-      icon: HiSparkles,
-      label: 'KI',
-      ariaLabel: 'KI-Vorschläge',
-    },
     chatTab,
   ],
 
-  // 'ai' tab kept registered but hidden — Chat tab now drives canvas-AI suggestions.
   // 'background' was hidden here and left to getAutoSwitchTab below, which
   // matched the id `background` — the colour plane, drawn `listening={false}`,
   // so it never becomes the selection and the tab never opened.
@@ -666,7 +664,6 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
       const subtext = state.subtext || '';
       return [label, headline, subtext].filter(Boolean).join('\n');
     }),
-    ai: createAiSectionRegistration('slider', sliderAiCapabilities),
   },
 
   elements: [
@@ -907,14 +904,9 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
         // darkens behind.
         const arrowColor = state.currentImageSrc ? '#FFFFFF' : colors.arrowFill;
 
-        // Update arrow icon color to match new scheme
-        const updatedIconStates = { ...state.iconStates };
-        if (updatedIconStates[ARROW_ICON_ID]) {
-          updatedIconStates[ARROW_ICON_ID] = {
-            ...updatedIconStates[ARROW_ICON_ID],
-            color: arrowColor,
-          };
-        }
+        // Update arrow icon color to match new scheme — jede Kopie des Pfeils,
+        // nicht nur das erste Exemplar unter der Katalog-ID.
+        const updatedIconStates = recolorIconInstances(state.iconStates, ARROW_ICON_ID, arrowColor);
 
         // Update pill badge colors to match new scheme
         const updatedPillBadges = state.pillBadgeInstances.map((pill) => ({
@@ -938,16 +930,14 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
         const pillColors = getPillBadgeColorsForScheme(scheme);
         const state = getState();
 
-        const updatedIconStates = { ...state.iconStates };
-        if (updatedIconStates[ARROW_ICON_ID]) {
-          updatedIconStates[ARROW_ICON_ID] = {
-            ...updatedIconStates[ARROW_ICON_ID],
-            color: getSliderColorsForState({
-              colorScheme: scheme,
-              currentImageSrc: state.currentImageSrc,
-            }).arrowFill,
-          };
-        }
+        const updatedIconStates = recolorIconInstances(
+          state.iconStates,
+          ARROW_ICON_ID,
+          getSliderColorsForState({
+            colorScheme: scheme,
+            currentImageSrc: state.currentImageSrc,
+          }).arrowFill
+        );
 
         // Update pill badge colors to match new scheme
         const updatedPillBadges = state.pillBadgeInstances.map((pill) => ({
@@ -977,14 +967,8 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
           currentImageSrc: nextSrc,
           backgroundImageFile: file,
         };
-        const arrow = state.iconStates[ARROW_ICON_ID];
-        if (arrow) {
-          const nextColor = nextSrc ? '#FFFFFF' : getSliderColors(state.colorScheme).arrowFill;
-          patch.iconStates = {
-            ...state.iconStates,
-            [ARROW_ICON_ID]: { ...arrow, color: nextColor },
-          };
-        }
+        const nextColor = nextSrc ? '#FFFFFF' : getSliderColors(state.colorScheme).arrowFill;
+        patch.iconStates = recolorIconInstances(state.iconStates, ARROW_ICON_ID, nextColor);
         setState(patch);
         saveToHistory(getState());
       },

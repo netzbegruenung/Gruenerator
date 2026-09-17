@@ -242,6 +242,10 @@
         "label": "Board"
       },
       {
+        "key": "automations",
+        "label": "Automatisierungen"
+      },
+      {
         "key": "groups",
         "label": "Gruppen"
       },
@@ -325,21 +329,21 @@
       },
       {
         "key": "agent_task_completed",
-        "label": "Agent-Aufgabe fertig",
-        "description": "Wenn der Grünerator eine an ihn delegierte Aufgabe erledigt hat",
-        "group": "board"
+        "label": "Lauf erledigt",
+        "description": "Wenn eine wiederkehrende Aufgabe oder ein Board-Zeitplan fertig ist",
+        "group": "automations"
       },
       {
         "key": "agent_task_failed",
-        "label": "Agent-Aufgabe fehlgeschlagen",
-        "description": "Wenn der Grünerator eine delegierte Aufgabe nicht erledigen konnte",
-        "group": "board"
+        "label": "Lauf fehlgeschlagen",
+        "description": "Wenn ein geplanter Lauf nicht ausgeführt werden konnte",
+        "group": "automations"
       },
       {
         "key": "agent_task_awaiting_review",
-        "label": "Agent-Aufgabe zur Prüfung",
+        "label": "Lauf wartet auf Freigabe",
         "description": "Wenn ein geplanter Lauf auf deine Freigabe wartet",
-        "group": "board"
+        "group": "automations"
       },
       {
         "key": "group_member_joined",

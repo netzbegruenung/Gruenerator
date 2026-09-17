@@ -66,6 +66,10 @@ export {
   KI_TYPE_CONFIGS,
   STYLE_VARIANTS,
   DEFAULT_STYLE_VARIANT,
+  IMAGE_FORMATS,
+  IMAGE_FORMAT_IDS,
+  DEFAULT_IMAGE_FORMAT,
+  getImageFormat,
   INFRASTRUCTURE_OPTIONS,
   isKiType,
   getKiTypeConfig,
@@ -75,7 +79,7 @@ export {
   getStyleVariant,
   getInfrastructureOption,
 } from './constants.js';
-export type { StyleVariantConfig, InfrastructureOptionConfig } from './constants.js';
+export type { StyleVariantConfig, InfrastructureOptionConfig, ImageFormatId } from './constants.js';
 
 // KI-Transparenz (Art. 50 KI-VO)
 export { AI_IMAGE_TRANSPARENCY } from './ai-transparency.js';
@@ -100,7 +104,7 @@ export type { SharepicTextType, SharepicTextResponseByType } from './api/sharepi
 // Hooks
 export { useImageStudio } from './hooks/useImageStudio.js';
 export { useImageStudioCanvas } from './hooks/useImageStudioCanvas.js';
-export { useKiImageGeneration } from './hooks/useKiImageGeneration.js';
+export { useKiImageGeneration, buildPureCreateBody } from './hooks/useKiImageGeneration.js';
 export type {
   UseImageStudioCanvasOptions,
   UseImageStudioCanvasReturn,

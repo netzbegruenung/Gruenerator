@@ -30,7 +30,12 @@ import { deriveTitle, type UserLocale } from '../boards/agentFlow/generate.js';
 import { createDocumentWithContent } from '../docs/DocGenerationService.js';
 import { createNotification } from '../notifications/NotificationService.js';
 
-import { recordRecurringTaskRun, setConsecutiveEmptyCount } from './recurringTasksRepository.js';
+import {
+  bumpRecurringFailureCount,
+  finishRecurringTaskRun,
+  resetRecurringFailureCount,
+  setConsecutiveEmptyCount,
+} from './recurringTasksRepository.js';
 import {
   verifyRecurringResult as verifyRecurringResultReal,
   type RunVerdict,
@@ -61,6 +66,8 @@ function preview(text: string, max = 140): string {
  */
 export async function runRecurringTask(
   task: RecurringTask,
+  /** Die beim Claim angelegte 'running'-Zeile, die dieser Lauf abschliesst. */
+  runId: string,
   deps: RecurringRunnerDeps = defaultDeps
 ): Promise<void> {
   const startedAt = Date.now();
@@ -89,7 +96,9 @@ export async function runRecurringTask(
     // Ersatztext des Nie-Werfen-Vertrags ist KEIN Ergebnis. 'aborted'/'failed'
     // gehen in den bestehenden Catch (wie früher ein Timeout des alten Kerns).
     if (turn.degraded === 'aborted' || turn.degraded === 'failed') {
-      throw new Error(`agentic turn degraded: ${turn.degraded}`);
+      // Der Klartext-Grund landet im Verlauf. „agentic turn degraded: failed"
+      // sagt der Person nicht, dass ihr Agent eine Rückfrage stellen wollte.
+      throw new Error(turn.degradedReason ?? `agentic turn degraded: ${turn.degraded}`);
     }
     content = turn.degraded === 'no_answer' ? '' : turn.text;
 
@@ -97,12 +106,30 @@ export async function runRecurringTask(
     // do NOT notify (avoids recurring noise). Output resets the counter.
     // Läuft VOR der Prüfung — Leeres wird nicht verifiziert.
     if (!content) {
-      await setConsecutiveEmptyCount(task.id, task.consecutive_empty_count + 1);
-      await recordRecurringTaskRun({
-        taskId: task.id,
+      const emptyStreak = task.consecutive_empty_count + 1;
+      await setConsecutiveEmptyCount(task.id, emptyStreak);
+      // Leer ist kein Fehler — es beendet aber die Fehlerserie.
+      await resetRecurringFailureCount(task.id);
+      await finishRecurringTaskRun({
+        runId,
         status: 'empty',
         durationMs: Date.now() - startedAt,
       });
+      // Nicht bei jedem Lauf melden (das war der Grund für die Unterdrückung),
+      // aber eine Aufgabe, die dauerhaft nichts findet, ist meist falsch
+      // formuliert und soll nicht schweigend weiterlaufen.
+      if (emptyStreak === 3 || emptyStreak === 10) {
+        await createNotification({
+          userId: task.user_id,
+          type: 'agent_task_completed',
+          title: `Seit ${emptyStreak} Läufen ohne Ergebnis: ${task.title}`,
+          body: 'Der Grünerator hat nichts Neues gefunden. Vielleicht ist die Anweisung zu eng gefasst.',
+          actionUrl: `/wiederkehrend?task=${task.id}`,
+          metadata: { taskId: task.id },
+          groupKey: `recurring-task-${task.id}`,
+          channelOverride: { email: false },
+        }).catch((e) => log.error(`Failed to notify empty streak for ${task.id}:`, e as Error));
+      }
       log.info(`Recurring task ${task.id} produced no output (empty run)`);
       return;
     }
@@ -131,17 +158,39 @@ export async function runRecurringTask(
   } catch (error) {
     const err = error as Error;
     log.error(`Recurring task ${task.id} failed:`, err);
-    await recordRecurringTaskRun({
-      taskId: task.id,
+    await finishRecurringTaskRun({
+      runId,
       status: 'failed',
       error: err.message,
       durationMs: Date.now() - startedAt,
     }).catch((e) => log.error(`Failed to record failed run for ${task.id}:`, e as Error));
+    // Drei Fehlschläge in Folge schalten die Aufgabe ab: sonst läuft ein
+    // dauerhafter Fehler (gelöschtes Notebook, kaputte Anweisung) für immer
+    // weiter und kostet bei jedem Termin Modellzeit.
+    const failure = await bumpRecurringFailureCount(task.id).catch((e) => {
+      log.error(`Failed to bump failure count for ${task.id}:`, e as Error);
+      return { count: 0, paused: false };
+    });
+    if (failure.paused) {
+      await createNotification({
+        userId: task.user_id,
+        type: 'agent_task_failed',
+        title: `Aufgabe pausiert: ${task.title}`,
+        body: 'Drei Läufe in Folge sind fehlgeschlagen. Die Aufgabe wurde angehalten — prüfe die Anweisung und aktiviere sie wieder.',
+        actionUrl: `/wiederkehrend?task=${task.id}`,
+        metadata: { taskId: task.id },
+        groupKey: `recurring-task-${task.id}`,
+      }).catch((e) => log.error(`Failed to notify auto-pause for ${task.id}:`, e as Error));
+      return;
+    }
     await createNotification({
       userId: task.user_id,
       type: 'agent_task_failed',
       title: `Wiederkehrende Aufgabe fehlgeschlagen: ${task.title}`,
       body: 'Ein geplanter Lauf konnte nicht ausgeführt werden. Bitte prüfe die Aufgabe.',
+      // Ohne actionUrl rendert das Web keinen Aktionsknopf — der Hinweis
+      // „prüfe die Aufgabe" führte sonst nirgendwohin.
+      actionUrl: `/wiederkehrend?task=${task.id}`,
       metadata: { taskId: task.id },
       groupKey: `recurring-task-${task.id}`,
     }).catch((e) => log.error(`Failed to notify failure for ${task.id}:`, e as Error));
@@ -153,8 +202,9 @@ export async function runRecurringTask(
   // user). Best-effort: log and move on.
   try {
     await setConsecutiveEmptyCount(task.id, 0);
-    await recordRecurringTaskRun({
-      taskId: task.id,
+    await resetRecurringFailureCount(task.id);
+    await finishRecurringTaskRun({
+      runId,
       status: 'completed',
       resultsSummary: task.delivery === 'summary' ? content : preview(content, 280),
       resultUrl: delivered.actionUrl,

@@ -1,21 +1,20 @@
 /**
- * One tool-forced LLM call that must come back as a schema-valid tool input.
+ * Chat-side adapter over `services/ai/forcedToolCall.ts`'s `runForcedToolCall`.
  *
- * Shared by the sharepic and reel edit branches, which had byte-identical
- * drivers differing only in tool name, description, response schema and log
- * prefix. The parts worth having in one place are the failure handling: the
- * retry policy, the two ways a provider can hand back a tool call
- * (`tool_calls` vs `raw_content_blocks`), and the truncated schema-mismatch
- * report that makes a bad model response debuggable.
+ * The shared parts — building the tool from a zod schema, retrying once on a
+ * provider failure or a response without the forced tool call, and
+ * extracting the call across the two transport shapes a provider can answer
+ * in (`tool_calls` vs `raw_content_blocks`) — now live there.
+ *
+ * What stays here is the chat-side contract: the `{ok, error}` result type,
+ * the fixed German user message, the `canvas_ai_suggest` lane, and the
+ * schema retry — a schema mismatch counts as a failed attempt here, which the
+ * shared helper does not validate for.
  */
 
-import { jsonSchema } from 'ai';
-import { zodToJsonSchema } from 'zod-to-json-schema';
-
-import { aiTools } from '../../../services/ai/generate.js';
+import { runForcedToolCall } from '../../../services/ai/forcedToolCall.js';
 import { createLogger } from '../../../utils/logger.js';
 
-import type { AiResult, Tool } from '../../../services/ai/types.js';
 import type { z } from 'zod';
 
 const log = createLogger('toolForcedEdit');
@@ -37,21 +36,6 @@ export interface RunToolForcedEditParams<T> {
   maxAttempts?: number;
 }
 
-function extractToolCall(result: AiResult, toolName: string): Record<string, unknown> | null {
-  if (result.tool_calls) {
-    const match = result.tool_calls.find((c) => c.name === toolName);
-    if (match) return match.input;
-  }
-  if (result.raw_content_blocks) {
-    for (const block of result.raw_content_blocks) {
-      if (block.type === 'tool_use' && block.name === toolName && block.input) {
-        return block.input;
-      }
-    }
-  }
-  return null;
-}
-
 export async function runToolForcedEdit<T>({
   toolName,
   description,
@@ -65,55 +49,48 @@ export async function runToolForcedEdit<T>({
     `Setze JETZT diese Änderung mit dem Tool ${toolName} um:\n\n${instruction}\n\n` +
     'Antworte ausschließlich über den Tool-Aufruf — keinen Begleittext.';
 
-  // jsonSchema() wrapping is required — the AI SDK's asSchema helper rejects
-  // raw JSON-Schema objects.
-  const rawSchema = zodToJsonSchema(schema, { target: 'jsonSchema7', $refStrategy: 'none' });
-  const tool: Tool = {
-    name: toolName,
-    description,
-    input_schema: jsonSchema(
-      rawSchema as Parameters<typeof jsonSchema>[0]
-    ) as unknown as Tool['input_schema'],
-  };
-
   let lastError = '';
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    // One helper attempt per driver attempt: the shared helper retries only on
+    // a provider error or a missing tool call and never validates, whereas
+    // here a schema mismatch counts as a failed attempt too. The attempt
+    // budget therefore lives in this loop, not in the helper's.
+    let toolInput: Record<string, unknown> | null;
     try {
-      const result = await aiTools({
+      toolInput = await runForcedToolCall({
         lane: 'canvas_ai_suggest',
         system: systemPrompt,
         prompt: userMessage,
-        tools: [tool],
-        toolChoice: 'required',
+        toolName,
+        toolDescription: description,
+        inputSchema: schema,
         temperature: 0.2,
+        attempts: 1,
       });
-
-      const toolInput = extractToolCall(result, toolName);
-      if (!toolInput) {
-        lastError = 'No tool call in response';
-        log.warn(
-          `${logPrefix} attempt ${attempt}: no tool call (stop_reason=${result.stop_reason ?? 'unknown'})`
-        );
-        continue;
-      }
-
-      const parsed = schema.safeParse(toolInput);
-      if (!parsed.success) {
-        lastError = `Schema mismatch: ${parsed.error.issues
-          .slice(0, 3)
-          .map((i) => `${i.path.join('.')}: ${i.message}`)
-          .join('; ')}`;
-        log.warn(
-          `${logPrefix} attempt ${attempt}: ${lastError}\n  raw: ${JSON.stringify(toolInput).slice(0, 600)}`
-        );
-        continue;
-      }
-
-      return { ok: true, edit: parsed.data };
     } catch (e) {
       lastError = e instanceof Error ? e.message : String(e);
       log.error(`${logPrefix} attempt ${attempt} threw: ${lastError}`);
+      continue;
     }
+
+    if (!toolInput) {
+      lastError = 'No tool call in response';
+      continue;
+    }
+
+    const parsed = schema.safeParse(toolInput);
+    if (!parsed.success) {
+      lastError = `Schema mismatch: ${parsed.error.issues
+        .slice(0, 3)
+        .map((i) => `${i.path.join('.')}: ${i.message}`)
+        .join('; ')}`;
+      log.warn(
+        `${logPrefix} attempt ${attempt}: ${lastError}\n  raw: ${JSON.stringify(toolInput).slice(0, 600)}`
+      );
+      continue;
+    }
+
+    return { ok: true, edit: parsed.data };
   }
 
   return { ok: false, error: lastError || 'unknown error' };

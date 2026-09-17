@@ -160,8 +160,9 @@ export function createCommonSectionEntries<TState, TActions extends CanvasAiActi
  * renders inline inside the sidebar panel.
  *
  * If a template's `TemplateAiCapabilities` is supplied, the section also
- * exposes a `CanvasAiEditBridge` so the host can drive `/api/canvas/ai-suggest`
- * + `applyOperation` without seeing the template's generic state/actions.
+ * exposes a `CanvasAiEditBridge` so the host can drive the chat loop's
+ * `edit_document` tool + `applyOperation` without seeing the template's
+ * generic state/actions.
  */
 export function createChatSection<TState, TActions extends CanvasAiActionsBase>(
   canvasType: string,

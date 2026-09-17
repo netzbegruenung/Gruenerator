@@ -19,8 +19,10 @@
 import { type ChatIntentId, degradeTargetForLocale } from '@gruenerator/shared/chat-intents';
 import { isCloudShareUrl } from '@gruenerator/shared/utils';
 
+import { agentAllowsTool } from '../../../../routes/chat/agents/agentToolWhitelist.js';
 import { isAgenticLoopEnabled } from '../../../../routes/chat/services/agenticLoop/flags.js';
 import {
+  isDocumentContextEditAllowed,
   looksLikeSelfContainedTurn,
   looksLikeToolableQuestion,
   looksLikeUnsourcedWritingOrder,
@@ -234,11 +236,10 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
   // verb "zusammenfassen".
   // Agent must allow scraping (whitelist holds 'scrape'; one agent uses the tool
   // name 'scrape_url') and the user must not have toggled it off in the composer.
-  const scrapeWhitelist = state.agentConfig?.enabledTools;
-  const agentAllowsScrape =
-    !scrapeWhitelist ||
-    scrapeWhitelist.includes('scrape') ||
-    scrapeWhitelist.includes('scrape_url');
+  const agentAllowsScrape = agentAllowsTool(
+    { enabledTools: state.agentConfig?.enabledTools },
+    'scrape'
+  );
   const scrapeEnabled = agentAllowsScrape && state.enabledTools?.['scrape'] !== false;
   // @link-attached URLs are explicit user intent — union them with auto-detected
   // ones (deduped, attached first so they rank highest in scrape_url).
@@ -623,11 +624,21 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // editor surface always has currentDocument, and we want the live-edit path
     // (Yjs-synced, undoable in-place) instead of /chat's modify_doc HITL flow
     // (DB-only update, breaks Yjs).
-    // Honor the docs-sidebar "AI may edit document" toggle: when the client
-    // explicitly disables `edit_current_doc`, fall through to normal intent
-    // classification so the assistant answers conversationally instead of
-    // patching the open document.
-    const editCurrentDocAllowed = state.enabledTools?.edit_current_doc !== false;
+    // Honor the sidebar's "AI may edit" toggle: when the client explicitly
+    // disables its surface key, fall through to normal intent classification so
+    // the assistant answers conversationally instead of patching the open
+    // document. All three currentDocument surfaces count — docs, sheets and
+    // presentations each send their own key now (#3438).
+    //
+    // Seit #3428 EMITTIERT dieses Verdikt nichts mehr von sich aus: den
+    // `trigger_doc_edit`-Versand macht das Loop-Werkzeug `edit_document`, und
+    // ob es montiert wird, entscheidet die FLÄCHE (`decideEditToolLoop`), nicht
+    // der Intent. Was `edit_current_doc` noch tut, ist steuern — es ist eines
+    // von drei Signalen der Bearbeitungs-Zusicherung (`loopGuarantees`) und
+    // wählt im Einzeldurchlauf den Antworttext. Diese Schnellbahn und
+    // `docsIntentTiebreak` bleiben deshalb bis zu einem Eval-Lauf stehen; ihre
+    // Abschaffung hängt an ihm (#3428), nicht an diesem Umbau.
+    const editCurrentDocAllowed = isDocumentContextEditAllowed(state.enabledTools);
 
     if (hasCurrentDocument && editCurrentDocAllowed && userContent.length > 0) {
       // Layer 1: fast-path regex. Covers the common explicit-edit verbs

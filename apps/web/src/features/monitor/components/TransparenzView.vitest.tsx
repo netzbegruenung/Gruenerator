@@ -44,6 +44,7 @@ const FOOTPRINT = {
   emissions_g_low: 900,
   emissions_g_high: 1900,
   measured_share: 0.42,
+  calibrated_share: 0.4,
   bounded_share: 0.18,
   covered_share: 0.93,
   image_energy_wh: 800,

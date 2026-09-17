@@ -11,7 +11,15 @@ import { SKILLS, canonicalSkillMention } from '@gruenerator/shared/agents';
 import { type ChatIntentId, isGroundableProse } from '@gruenerator/shared/chat-intents';
 
 import { roleAwareDefaultRecipeMention } from '../../../../routes/chat/agents/lvRecipePreference.js';
-import { looksLikeChitchatTurn } from '../../../../routes/chat/services/agenticLoop/routing.js';
+import {
+  EDITOR_SURFACE_NOUNS,
+  looksLikeChitchatTurn,
+  resolveEditorSurfaceKind,
+} from '../../../../routes/chat/services/agenticLoop/routing.js';
+import {
+  type ImageVisibility,
+  imageVisibility,
+} from '../../../../routes/chat/services/imageVisibility.js';
 import {
   extractTextContent,
   fairShare,
@@ -48,6 +56,7 @@ import {
   artifactsFromTurn,
   buildArtifactInventory,
   renderArtifactInventory,
+  NO_PHANTOM_ACTION_RULE,
 } from './artifactInventory.js';
 import { buildCitableSources, MAX_SOURCES, type CitableSource } from './citableSources.js';
 import { lastUserText } from './classifierHeuristics.js';
@@ -491,15 +500,30 @@ function formatPerSourceContext(state: ChatGraphState): string {
 }
 
 /**
- * Format the open document (docs-editor surface) as the primary conversation
- * context. Distinct framing from `formatAttachmentContext` — this IS the
- * document the user is talking about, not a side-loaded reference.
+ * Format the open document (docs/sheets/presentations editor surfaces) as the
+ * primary conversation context. Distinct framing from `formatAttachmentContext`
+ * — this IS the document the user is talking about, not a side-loaded reference.
+ *
+ * The sharepic studio has no `currentDocument`: it sends the structured
+ * sharepic text as `currentCanvas.text`. It goes under the SAME heading, which
+ * is what the sharepic-editor prompt names ("Das **AKTUELLE DOKUMENT** ist der
+ * strukturierte Text dieses Sharepics") — the studio used to fake a
+ * `currentDocument` to get exactly this block.
  */
 function formatCurrentDocument(state: ChatGraphState): string {
-  if (!state.currentDocument) {
+  const open = state.currentDocument
+    ? state.currentDocument
+    : state.currentCanvas
+      ? {
+          title: state.currentCanvas.template,
+          markdown: state.currentCanvas.text,
+          selectionText: null,
+        }
+      : null;
+  if (!open) {
     return '';
   }
-  const { title, markdown, selectionText } = state.currentDocument;
+  const { title, markdown, selectionText } = open;
   const limitedMarkdown = limitAttachmentContext(
     markdown,
     state.contextWindowTokens,
@@ -542,27 +566,68 @@ ${embedUntrusted('anhang', limitedContext)}`;
 }
 
 /**
+ * Warum die Bytes fehlen — je Grund ein Satz. „Nicht sichtbar“ steht nie ohne
+ * Grund da: ohne ihn liest es sich wie ein Fehler, und das Modell rät doch.
+ */
+const NOT_VISIBLE_REASON: Record<Exclude<ImageVisibility, 'visible'>, string> = {
+  // Unerreichbar — der Block unten steht hinter der Leerprüfung. Der Typ
+  // verlangt den Fall, und ein leerer Satz wäre die stillere Lüge.
+  none: 'Die Bilder sind NICHT in der Nachricht sichtbar.',
+  vision_off:
+    'Die Bildanalyse ist für diesen Grünerator ausgeschaltet — die Bilder sind NICHT in der Nachricht sichtbar.',
+  image_edit:
+    'Die Bilder sind NICHT in der Nachricht sichtbar — bei einer Bildbearbeitung bleiben die Rohbytes bewusst draußen.',
+};
+
+/**
+ * Woran sich das Modell stattdessen hält. Das entscheidet NICHT der Intent,
+ * sondern ob der BILDVERGLEICH-Block unten wirklich gerendert wird: seine
+ * Beschreibungen sind zwei Vision-Aufrufe in `imageEditNode`, die beide
+ * fehlschlagen dürfen. Auf einen fehlenden Abschnitt zu zeigen ist derselbe
+ * Fehler wie eine erfundene Sichtbarkeit — nur eine Zeile tiefer.
+ */
+const GROUNDED_CLAUSE =
+  'Stütze dich auf den BILDVERGLEICH-Block unten und rate nichts, was dort nicht steht.';
+const UNGROUNDED_CLAUSE =
+  'Es liegt auch keine Beschreibung davon vor. Sage das offen und rate den Inhalt nicht.';
+
+/**
  * Format image attachment context for the system message.
  * Instructs the model to acknowledge and describe the attached images.
  */
 function formatImageContext(state: ChatGraphState): string {
   const sections: string[] = [];
 
+  // Vision-grounded before/after descriptions populated by imageEditNode after a
+  // successful FLUX edit. Lets respondNode narrate the actual change instead of
+  // hallucinating ("I can't edit images") when the model isn't itself vision-capable.
+  // Beide Aufrufe dürfen fehlschlagen, deshalb wird die Zusage unten an DIESE
+  // Prüfung gehängt und nicht an den Intent.
+  const editDescriptions = state.imageEditDescriptions;
+  const hasEditDescriptions =
+    !!editDescriptions && !!(editDescriptions.original || editDescriptions.edited);
+
   if (state.imageAttachments && state.imageAttachments.length > 0) {
     const count = state.imageAttachments.length;
     const names = state.imageAttachments.map((img) => img.name).join(', ');
+    // Ob die Bytes wirklich in der Nachricht stehen, beantwortet EINE Stelle
+    // für alle Antwortpfade (#3307, #3313). Vorher entschied das hier ein
+    // eigener Ausdruck, und der Bearbeitungs- wie der Wiederaufnahme-Pfad
+    // widersprachen ihm — ein Modell, dem man sagt, es sehe ein Bild, das ihm
+    // niemand gegeben hat, beschreibt es trotzdem.
+    const visibility = imageVisibility(state);
+    const sentence =
+      visibility === 'visible'
+        ? 'Die Bilder sind in der Nachricht sichtbar.'
+        : `${NOT_VISIBLE_REASON[visibility]} ${hasEditDescriptions ? GROUNDED_CLAUSE : UNGROUNDED_CLAUSE}`;
     sections.push(`
 
 ## ANGEHÄNGTE BILDER
 
-Der*die Nutzer*in hat ${count} Bild${count > 1 ? 'er' : ''} angehängt (${names}). Die Bilder sind in der Nachricht sichtbar.`);
+Der*die Nutzer*in hat ${count} Bild${count > 1 ? 'er' : ''} angehängt (${names}). ${sentence}`);
   }
 
-  // Vision-grounded before/after descriptions populated by imageEditNode after a
-  // successful FLUX edit. Lets respondNode narrate the actual change instead of
-  // hallucinating ("I can't edit images") when the model isn't itself vision-capable.
-  const editDescriptions = state.imageEditDescriptions;
-  if (editDescriptions && (editDescriptions.original || editDescriptions.edited)) {
+  if (editDescriptions && hasEditDescriptions) {
     const before = editDescriptions.original ?? '(keine Beschreibung verfügbar)';
     const after = editDescriptions.edited ?? '(keine Beschreibung verfügbar)';
     sections.push(`
@@ -981,16 +1046,59 @@ Der*die Nutzer*in schreibt aus der Grünerator-App (Mobil). Dort sind einige Fun
   return '';
 }
 
-/** Strict-output modes — anchor adjuncts skipped to keep their format rules clean. */
+/**
+ * Strict-output modes — anchor adjuncts skipped to keep their format rules clean.
+ *
+ * `edit_current_doc` was in this set and is NOT any more (#3428). It was here
+ * because the mode demanded ONE sentence and the `## ZUSÄTZLICHER KONTEXT`
+ * block would have muddied it; that mode text is gone. What decides it now is
+ * consistency with the other editor surfaces: the sharepic studio reaches the
+ * SAME adjunct (`anchorContext` gives `currentCanvas` the `currentDocument`
+ * anchor) on its tool turns, under intents that were never in this set — so a
+ * doc tool turn skipping it would be the odd one out. The adjunct's wording
+ * fits both doc cases: "Schreibe das Dokument NICHT um, AUSSER der*die
+ * Nutzer*in fragt explizit danach" is satisfied by an explicit edit ask, and on
+ * a turn without the tool it is the mode guidance, not the adjunct, that says
+ * the edit cannot happen.
+ */
 const MODES_WITHOUT_ANCHORS: ReadonlySet<ChatGraphState['intent']> = new Set([
-  'edit_current_doc',
   'image_edit',
   'image',
   'chart',
 ]);
 
-const EDIT_CURRENT_DOC_GUIDANCE =
-  '\nDu hast eine Änderung am aktuellen Dokument angefordert. Antworte mit EINEM EINZIGEN kurzen Satz auf Deutsch, der bestätigt, was du gleich änderst (z.B. "Kürze den letzten Absatz."). Schreibe NICHT den geänderten Text aus — die Bearbeitung passiert direkt im Dokument. Keine Aufzählungen, keine Markdown-Formatierung, keine Quellenverweise.';
+/**
+ * Was ein `edit_current_doc`-Turn im Prompt bekommt — und das hängt NICHT am
+ * Intent allein.
+ *
+ * Dieser Prompt-Bau erreicht beide Pfade: `responseSinglePass` ruft ihn, und
+ * `responseAgentic` gibt denselben `systemMessage` an das werkzeughaltende
+ * Modell weiter. Das Verdikt `edit_current_doc` sagt also nichts darüber, ob
+ * dieser Zug bearbeiten kann — das sagt `state.editToolSurface`, gesetzt von
+ * `decideTurnPlan`, wenn `edit_document` montiert ist.
+ *
+ * Ist es montiert, schweigt diese Stelle, genau wie bei `edit_current_board`,
+ * `edit_sheet` und `edit_current_canvas`, die hier gar keinen Fall haben: die
+ * Anweisung, das Werkzeug zu rufen, steht in der Persona und in der
+ * Werkzeugbeschreibung. Ein Absagetext daneben wäre ein direkter Widerspruch
+ * dazu — und stand bis zur Korrektur genau so im Prompt jedes Dokument-Zuges,
+ * auf dem das Werkzeug lief.
+ *
+ * Der Grund für die Absage bleibt bewusst ungenannt: er ist technisch und für
+ * die Person bedeutungslos. Was zählt, ist, dass sie den Vorschlag als Text
+ * bekommt und ihn selbst einsetzen kann.
+ *
+ * Das Substantiv kommt von der Fläche, nicht vom Intent: der Doc-Fast-Path
+ * feuert auch in der Tabellen- und Präsentations-Seitenleiste (#3438).
+ */
+function getDocEditGuidance(state: ChatGraphState): string {
+  if (state.editToolSurface != null) return '';
+  const kind = resolveEditorSurfaceKind(state.agentConfig?.identifier, state.enabledTools) ?? 'doc';
+  const { noun, gender } = EDITOR_SURFACE_NOUNS[kind];
+  const das = gender === 'f' ? 'die' : 'das';
+  const es = gender === 'f' ? 'sie' : 'es';
+  return `\nDu kannst ${das} ${noun} in diesem Zug nicht direkt bearbeiten. Beginne deine Antwort auf Deutsch mit genau diesem Satz: "Ich kann ${das} ${noun} in diesem Zug nicht direkt bearbeiten — hier ist mein Vorschlag als Text:" Schreibe danach die gewünschte Fassung vollständig aus, damit sie sich von Hand übernehmen lässt. Behaupte NIEMALS, du hättest ${das} ${noun} geändert oder würdest ${es} gleich ändern.`;
+}
 
 const SUMMARY_GUIDANCE =
   '\nDer*die Nutzer*in hat eine Zusammenfassung angefordert. Präsentiere die vorbereitete Zusammenfassung klar und strukturiert.';
@@ -1109,8 +1217,7 @@ const GREETING_GUIDANCE =
 // otherwise narrates research or a delivered image FROM THE HISTORY (observed
 // live: "laut meiner Recherche …" and "hier ist dein Bild" with zero tool
 // calls). Safe unconditionally on `direct` — a direct turn produces neither.
-const DIRECT_HONESTY_NOTE =
-  '\nWICHTIG: In diesem Turn wurde NICHTS recherchiert und KEIN Bild/Dokument/Sharepic erstellt. Behaupte daher keine Recherche, keine Quellen/[N]-Belege und kein soeben erzeugtes Bild oder Dokument. Beziehst du dich auf etwas aus einem früheren Turn, mach das explizit ("vorhin"); für neue sachliche Angaben sag ehrlich, dass du sie nachschlagen müsstest.';
+const DIRECT_HONESTY_NOTE = `\nWICHTIG: In diesem Turn wurde NICHTS recherchiert und KEIN Bild/Dokument/Sharepic erstellt oder geändert. Behaupte daher keine Recherche und keine Quellen/[N]-Belege. ${NO_PHANTOM_ACTION_RULE} Beziehst du dich auf etwas aus einem früheren Turn, mach das explizit ("vorhin"); für neue sachliche Angaben sag ehrlich, dass du sie nachschlagen müsstest.`;
 
 /**
  * The no-file half of the same honesty, split out because it is needed on turns
@@ -1355,7 +1462,7 @@ export function citableSourcesAvailable(state: ChatGraphState): boolean {
 export function getModeGuidance(state: ChatGraphState): string {
   switch (state.intent) {
     case 'edit_current_doc':
-      return EDIT_CURRENT_DOC_GUIDANCE;
+      return getDocEditGuidance(state);
     case 'summary':
       return SUMMARY_GUIDANCE;
     case 'chart':

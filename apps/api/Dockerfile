@@ -14,12 +14,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     g++ \
     && rm -rf /var/lib/apt/lists/*
 
-RUN corepack enable && corepack prepare pnpm@10 --activate
+RUN corepack enable
 
 WORKDIR /app
 
 # Copy workspace config
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+# pnpm validates every `patchedDependencies` entry in pnpm-workspace.yaml
+# before it installs anything, so the patch files have to be in the image
+# even when the patched package is outside this filter's closure.
+COPY patches ./patches
 COPY tsconfig.base.json tsconfig.strict-migration.json ./
 COPY packages/shared/package.json ./packages/shared/
 COPY packages/query/package.json ./packages/query/
@@ -30,7 +34,7 @@ COPY apps/api/package.json ./apps/api/
 
 # Install dependencies
 
-# --node-linker overrides .npmrc's node-linker=hoisted (kept because Metro/RN in
+# --node-linker overrides pnpm-workspace.yaml's nodeLinker: hoisted (kept because Metro/RN in
 # apps/mobile needs it). The hoisted linker materializes the ENTIRE lockfile
 # regardless of --filter — 4799 packages / 4.5 GB for every scope, which is what
 # made a cold image build take ~1 h. --shamefully-hoist keeps the flat
@@ -101,13 +105,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     procps \
     && rm -rf /var/lib/apt/lists/*
 
-# Create non-root user and /app directory with correct ownership
+# Create non-root user and /app directory with correct ownership.
+# .cache is created here on purpose: the install below mounts a cache at
+# .cache/pnpm, and BuildKit would otherwise create that parent as root and leave
+# corepack unable to write its own .cache/node next to it (EACCES on mkdir).
 RUN groupadd -g 1001 gruenerator && \
     useradd -u 1001 -g gruenerator -s /bin/bash -m gruenerator && \
-    mkdir -p /app && chown gruenerator:gruenerator /app
+    mkdir -p /app /home/gruenerator/.cache && \
+    chown gruenerator:gruenerator /app /home/gruenerator/.cache
 
 # Install pnpm
-RUN corepack enable && corepack prepare pnpm@10 --activate
+RUN corepack enable
 
 WORKDIR /app
 
@@ -115,6 +123,7 @@ WORKDIR /app
 COPY --from=builder --chown=gruenerator:gruenerator /app/pnpm-workspace.yaml ./
 COPY --from=builder --chown=gruenerator:gruenerator /app/package.json ./
 COPY --from=builder --chown=gruenerator:gruenerator /app/pnpm-lock.yaml ./
+COPY --from=builder --chown=gruenerator:gruenerator /app/patches ./patches
 
 # Copy package.json files for workspace structure
 COPY --from=builder --chown=gruenerator:gruenerator /app/packages/shared/package.json ./packages/shared/
@@ -128,8 +137,28 @@ COPY --from=builder --chown=gruenerator:gruenerator /app/apps/api/package.json .
 USER gruenerator
 
 # Install production dependencies only (no tsx, typescript, @types/*, etc.)
-RUN --mount=type=cache,id=pnpm-prod,target=/home/gruenerator/.local/share/pnpm/store \
-    pnpm install --prod --frozen-lockfile --filter @gruenerator/api...
+# --node-linker is as load-bearing here as in the builder above, and for the
+# same reason: hoisted materializes the ENTIRE lockfile and --filter restricts
+# nothing. This stage got pnpm's isolated default for free until #3351, because
+# the only place that said `node-linker=hoisted` was .npmrc -- which no
+# production stage copies. #3351 moved the setting into pnpm-workspace.yaml,
+# which every production stage DOES copy, so the filtered prod install silently
+# became a whole-workspace one: 634 MB -> 1589 MB here, 109 MB -> 1453 MB for
+# hocuspocus, with Expo, Metro, Tauri and Docusaurus in the runtime images. The
+# build stayed green the whole time, which is why nothing caught it.
+#
+# The second mount is from the same bump. pnpm's supply-chain policies
+# (minimumReleaseAge, trustPolicy) verify every one of the ~4200 lockfile
+# entries, and pnpm 12 caches the full packument for each under ~/.cache/pnpm --
+# 2.4 GB of registry JSON (715 MB metadata + 1.7 GB metadata-full), where pnpm
+# 10 left 24.7 MB. Only the STORE was mounted, so all of it was landing in the
+# image: it alone accounted for the whole remaining install layer once the
+# linker fix was in. Mount it and it is cached between builds instead of shipped.
+# uid/gid because this stage installs as gruenerator, not root.
+RUN --mount=type=cache,id=pnpm-prod,target=/home/gruenerator/.local/share/pnpm/store,uid=1001,gid=1001 \
+    --mount=type=cache,id=pnpm-prod-meta,target=/home/gruenerator/.cache/pnpm,uid=1001,gid=1001 \
+    pnpm install --prod --frozen-lockfile --node-linker=isolated --shamefully-hoist \
+        --filter @gruenerator/api...
 
 # Copy compiled workspace packages. The package.json files already ship with
 # the correct runtime exports map (`"default": "./dist/*.js"`), so no rewrite

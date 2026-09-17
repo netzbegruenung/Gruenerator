@@ -28,3 +28,276 @@ minimumReleaseAgeExclude:
 # releases (trusted publishing -> token), the signature of a taken-over
 # maintainer account.
 trustPolicy: no-downgrade
+# Trust is compared by PUBLISH DATE, not semver, so a backport published after
+# a provenance-carrying later release reads as a downgrade: semver@6.3.1 (2023-07,
+# behind @babel/core), fbjs@3.0.5, ua-parser-js@1.0.41, tailwind-merge@2.6.0. All
+# are long-locked and shipped, and every one of them aborted `pnpm install
+# --lockfile-only` (the check stops at the first hit, so the list was unbounded).
+# Only check releases younger than one year; minimumReleaseAge above already holds
+# every new version for seven days, which is the window the hijacks this policy
+# guards against (chalk/debug, Shai-Hulud) were live. Unit is MINUTES.
+trustPolicyIgnoreAfter: 525600
+# The window does not cover the whole family. tailwind-merge@2.6.1 (2026-01-30) is
+# a 2.x backport of a single bugfix, published from the maintainer's own npm
+# account — the same one that published 2.6.0 — after the 3.x line had already
+# moved to trusted publishing. So it reads as a downgrade AND is young enough to
+# still be checked: declaring tailwind-merge in any workspace package re-resolves
+# the entry and aborts the install (#3325). Its only source is @blocknote/shadcn's
+# `^2.6.0`, so rather than excluding the package from the policy — a permanent
+# hole, and the first-hit abort only ever reveals the next offender — the pin
+# `@blocknote/shadcn>tailwind-merge` in pnpm.overrides puts that one subtree on
+# 2.6.0: same range, already in the tree for @univerjs/design, and old enough to
+# predate the trusted-publishing era. Exact on purpose — a caret resolves straight
+# back to 2.6.1.
+
+# Moved here from .npmrc: pnpm 11 reads only auth and registry settings from
+# .npmrc. Kept as hoisted because Metro/React Native in apps/mobile cannot
+# resolve through a symlinked store; the Dockerfiles override it per build with
+# --node-linker=isolated --shamefully-hoist for speed.
+nodeLinker: hoisted
+
+# pnpm 12 changed the default of this setting from `false` to `install`: every
+# `pnpm run` and `pnpm exec` first checks node_modules against the lockfile and,
+# on a mismatch, runs an install itself. That check is structurally wrong for
+# this repo, because the Dockerfiles install a deliberately FILTERED subset
+# (`--filter @gruenerator/api...`) and copy only that subset's manifests into
+# the image. The verifier compares against the whole workspace, always sees a
+# mismatch, and the install it then starts is unfiltered AND without
+# --frozen-lockfile -- so it re-resolves `workspace:*` deps whose packages were
+# never copied in and aborts:
+#
+#   × installing dependencies
+#   ╰─▶ Failed to resolve dependency tree: In /app/packages/contracts:
+#       "@gruenerator/eslint-config@workspace:*" is in the dependencies but no
+#       package named "@gruenerator/eslint-config" is present in the workspace
+#
+# That killed the api, web, gruen-o-mat and hocuspocus images (#3351 bumped
+# pnpm 10 -> 12; the doku image only survived because it is the one build whose
+# filtered scope happens to cover every manifest in its image -- it still paid
+# 27 s for the redundant install). Nothing in an image build should ever
+# re-resolve after the one explicit `pnpm install --frozen-lockfile`.
+#
+# Setting it here is the only place that works: pnpm 11+ no longer reads
+# settings from .npmrc or from `npm_config_*` env vars (both were measured
+# against pnpm 12.4.2 and ignored), and pnpm-workspace.yaml is already copied
+# into every image. `false` is also the pnpm 10 behaviour this monorepo was
+# built around -- an implicit full install fired by a `pnpm --filter x test` is
+# never wanted here, least of all on a 16 GB machine running several agents.
+verifyDepsBeforeRun: false
+
+# Moved here from package.json's `pnpm` field, which pnpm 11 no longer reads.
+# Replaces neverBuiltDependencies: ['canvas'] — canvas ships prebuilt binaries
+# we do not want compiled from source.
+allowBuilds:
+  # Written down when pnpm 11 turned unapproved builds from a warning into
+  # ERR_PNPM_IGNORED_BUILDS. The batch was NOT behaviour-preserving for the two
+  # ffmpeg packages below: the old `neverBuiltDependencies: ['canvas']` was a
+  # BLOCKLIST, so pnpm 10 ran every script except canvas's. Setting all of them
+  # to false silently stripped both media binaries out of the API image
+  # (measured against ghcr.io/...-api from 2026-09-01 vs 2026-09-16):
+  # ffmpeg gone entirely, ffprobe shipped without its execute bit. Voice
+  # answered 500 (spawn ... ENOENT), the subtitler would have hit EACCES.
+  # Flipping any of these to true grants that package arbitrary code execution
+  # at install time -- do it per package, with a reason, not as a batch.
+  canvas: false
+  # `chmod u+x ffprobe`, nothing else -- no network, no compiler. Without it the
+  # binary that ships INSIDE the tarball is installed unusable (EACCES).
+  '@ffprobe-installer/darwin-arm64': true
+  '@ffprobe-installer/darwin-x64': true
+  '@ffprobe-installer/linux-arm': true
+  '@ffprobe-installer/linux-arm64': true
+  '@ffprobe-installer/linux-ia32': true
+  '@ffprobe-installer/linux-x64': true
+  '@ffprobe-installer/win32-ia32': true
+  '@ffprobe-installer/win32-x64': true
+  '@parcel/watcher': false
+  '@swc/core': false
+  better-sqlite3: false
+  core-js: false
+  core-js-pure: false
+  esbuild: false
+  # The package is a downloader: the npm tarball carries no binary, install.js
+  # fetches ffmpeg (~80 MB, release tag pinned in its package.json) from GitHub
+  # releases. With the build off it installs as a stub and every ffmpeg call
+  # dies with ENOENT. The download is NOT covered by the lockfile integrity
+  # hash -- that is the price of this entry; the alternatives are a Debian
+  # `apt-get install ffmpeg` in the image (+459 MB, measured) or
+  # @ffmpeg-installer/ffmpeg, which ships the binary in the tarball but is
+  # stuck on ffmpeg 4.2 from 2021.
+  ffmpeg-static: true
+  msw: false
+  node-sass: false
+  protobufjs: false
+  unrs-resolver: false
+
+# The one dependency we ship with a local fix. `decode-uri-component@0.2.2`
+# (GHSA-vcc3-ghjq-m6fr) decodes malformed percent-encoded input superlinearly:
+# on the installed copy, `'%A0'.repeat(400)` (a 1.2 KB query value) takes 2.6 s
+# and `.repeat(600)` 6.8 s, on the JS thread, and it keeps growing. It is
+# reachable from untrusted input — expo-router's getStateFromPath() runs
+# queryString.parse() over the query of every incoming deep link — so any link
+# handed to a user freezes the mobile app. Guarded by
+# apps/mobile/test/queryStringDos.vitest.ts.
+#
+# Neither of the two obvious fixes works, both checked:
+#   * Bumping expo-router: every line still declares `query-string: ^7.1.3`,
+#     including 57.0.21 (latest), 58.0.3 (next) and the 58 canary.
+#   * Overriding decode-uri-component to the patched >=0.5.0: 0.4.0 and up are
+#     ESM-only, and query-string@7.1.3 is CommonJS. Verified against a real
+#     install — `queryString.parse()` dies with "decodeComponent is not a
+#     function". check-override-ranges.mjs would NOT have caught this: it only
+#     flags overrides BELOW a declared range, and `^0.2.2` -> 0.5.0 points up.
+#
+# So the patch ports upstream 0.5.0's linear scanner into the 0.2.2 CommonJS
+# file and leaves the rest byte-identical. Over 50 000 random percent-encoded
+# strings the patched output equals upstream 0.5.0 exactly; it equals 0.2.2
+# except on malformed input, where 0.2.2 fabricates characters (upstream fixed
+# that in the same rewrite). 360 KB of hostile input now decodes in 20 ms.
+#
+# Drop the patch — and the ignore below — as soon as expo-router moves off
+# query-string@7. pnpm fails the install when the patch no longer applies, so a
+# version bump underneath cannot pass silently.
+patchedDependencies:
+  decode-uri-component@0.2.2: patches/decode-uri-component@0.2.2.patch
+
+# Moved here from package.json's `pnpm.auditConfig`.
+auditConfig:
+  ignoreGhsas:
+    - GHSA-5p2g-fcmc-qvqq
+    - GHSA-w3rx-r6r6-pgpr
+    - GHSA-gv7w-rqvm-qjhr
+    - GHSA-g7r4-m6w7-qqqr
+    - GHSA-8988-4f7v-96qf
+    - GHSA-h67p-54hq-rp68
+    - GHSA-rmmh-p597-ppvv
+    - GHSA-64mm-vxmg-q3vj
+    - GHSA-7pqw-9j4j-h8q3
+    - GHSA-jmr9-qjv8-65gv
+    - GHSA-528h-pc64-c93x
+    # decode-uri-component DoS — fixed by patchedDependencies above, but
+    # pnpm audit matches the advisory by version, not by file content.
+    - GHSA-vcc3-ghjq-m6fr
+
+# Moved here from package.json's `pnpm.overrides`. scripts/sync-pnpm-overrides.mjs
+# and scripts/check-override-ranges.mjs read this block.
+overrides:
+  adm-zip: '>=0.6.1'
+  '@expo/dom-webview': ~56.0.5
+  '@types/react': 19.2.18
+  '@types/react-dom': ^19.2.4
+  '@hocuspocus/provider': ^4.1.2
+  '@base-ui/react': ~1.7.0
+  '@blocknote/shadcn>@base-ui/react': 1.6.0
+  y-prosemirror: ^1.3.7
+  diff: '>=5.2.2'
+  hono: '>=4.13.5'
+  '@hono/node-server': '>=2.0.10'
+  basic-ftp: '>=6.0.1'
+  langsmith: '>=0.4.6'
+  markdown-it: '>=14.2.0 <15'
+  tar: '>=7.5.11'
+  undici: '>=8.9.0'
+  '@qdrant/js-client-rest>undici': ^7.29.0
+  jsdom: 30.0.1
+  rollup: '>=4.59.0'
+  zod: ^3.24.1
+  better-auth>zod: ^4.3.6
+  '@better-auth/core>zod': ^4.3.6
+  '@better-auth/drizzle-adapter>@better-auth/core': 1.6.26
+  knip>zod: ^4.3.6
+  deepagents>zod: ^4.3.6
+  '@types/express-serve-static-core': ^5.0.0
+  minimatch@<4: '>=3.1.3 <4'
+  minimatch@>=5 <6: '>=5.1.7 <6'
+  minimatch@>=9 <10: '>=9.0.6 <10'
+  brace-expansion@>=1 <2: '>=1.1.18 <2'
+  brace-expansion@>=2 <3: '>=2.1.3 <3'
+  brace-expansion@>=5 <6: '>=5.0.8 <6'
+  ajv@<7: '>=6.14.0 <7'
+  serialize-javascript: '>=7.0.4'
+  webpack-dev-server: '>=5.2.5'
+  '@tootallnate/once': '>=2.0.0'
+  loader-utils: ^2.0.4
+  dompurify: '>=3.4.13'
+  mermaid: '>=11.16.1'
+  kysely: '>=0.28.17'
+  fast-uri: '>=4.1.3'
+  '@xmldom/xmldom@>=0.7 <0.9': '>=0.8.15 <0.9'
+  '@xmldom/xmldom@>=0.9 <1': '>=0.9.12 <1'
+  ip-address: '>=10.2.2'
+  '@babel/plugin-transform-modules-systemjs': '>=7.29.4 <8'
+  srvx: '>=0.11.13 <0.12'
+  file-type: '>=20.6.0'
+  nanoid: '>=5.0.9'
+  lodash-es: '>=4.18.0'
+  lodash: '>=4.18.0'
+  '@esbuild-kit/core-utils>esbuild': ^0.25.0
+  axios: '>=1.19.0'
+  postcss: '>=8.5.23'
+  uuid: '>=14.0.2'
+  qs: '>=6.16.0'
+  js-cookie: '>=3.0.7'
+  '@types/js-cookie': '>=3.0.0'
+  shell-quote: '>=1.8.4'
+  form-data: '>=4.0.6'
+  xlsx: https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz
+  '@typescript-eslint/eslint-plugin>ts-api-utils': ^2.5.0
+  '@typescript-eslint/type-utils>ts-api-utils': ^2.5.0
+  '@typescript-eslint/utils>ts-api-utils': ^2.5.0
+  joi@>=17.0.0 <18.0.0: '>=17.13.6 <18.0.0'
+  joi@>=18.0.0: '>=18.2.5 <19'
+  http-proxy-middleware: ^2.0.10
+  '@istanbuljs/load-nyc-config>js-yaml': ^4.3.2
+  gray-matter>js-yaml: ^3.15.2
+  js-yaml@>=3 <4: '>=3.15.2 <4'
+  js-yaml@>=4 <5: '>=4.3.2 <5'
+  svgo@>=3 <4: '>=3.3.5 <4'
+  colord: '>=2.9.4'
+  fflate: '>=0.4.9 <0.5'
+  '@swc/html': '>=1.16.2 <2'
+  '@opentelemetry/core': ^2.10.0
+  vite>esbuild: ^0.28.1
+  tsx>esbuild: ^0.28.1
+  '@blocknote/xl-ai>ai': ^6.0.224
+  '@blocknote/shadcn>tailwind-merge': 2.6.0
+  '@types/node': 26.3.0
+  '@tanstack/react-query': ^5.101.4
+  zustand: 5.0.15
+  katex: ^0.18.1
+  pyodide: ^314.0.5
+  react-dropzone: ^19.1.1
+  prosemirror-view: ^1.42.2
+  '@blocknote/core': ^0.54.0
+  '@blocknote/react': ^0.54.0
+  '@blocknote/shadcn': ^0.54.0
+  '@blocknote/xl-ai': ^0.54.0
+  '@blocknote/xl-docx-exporter': ^0.54.0
+  '@blocknote/xl-odt-exporter': ^0.54.0
+  '@assistant-ui/core': ^0.3.18
+  '@assistant-ui/store': ^0.3.13
+  '@assistant-ui/react': ^0.15.19
+  '@assistant-ui/tap': ^0.9.17
+  '@assistant-ui/react-markdown': ^0.14.15
+  '@assistant-ui/react-streamdown': ^0.3.14
+  '@assistant-ui/react-native': 0.1.41
+  '@tiptap/core': ^3.31.0
+  '@tiptap/extension-bold': ^3.31.0
+  '@tiptap/extension-code': ^3.31.0
+  '@tiptap/extension-collaboration': ^3.31.0
+  '@tiptap/extension-document': ^3.31.0
+  '@tiptap/extension-hard-break': ^3.31.0
+  '@tiptap/extension-heading': ^3.31.0
+  '@tiptap/extension-image': ^3.31.0
+  '@tiptap/extension-italic': ^3.31.0
+  '@tiptap/extension-list': ^3.31.0
+  '@tiptap/extension-paragraph': ^3.31.0
+  '@tiptap/extension-strike': ^3.31.0
+  '@tiptap/extension-table': ^3.31.0
+  '@tiptap/extension-text': ^3.31.0
+  '@tiptap/extension-underline': ^3.31.0
+  '@tiptap/extensions': ^3.31.0
+  '@tiptap/pm': ^3.31.0
+  '@tiptap/react': ^3.31.0
+  '@tiptap/static-renderer': ^3.31.0
+  '@babel/core': 7.29.7
+  '@react-native/community-cli-plugin>@react-native/metro-config': 0.84.1

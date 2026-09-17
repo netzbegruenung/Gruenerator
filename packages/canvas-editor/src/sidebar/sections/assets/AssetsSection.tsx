@@ -44,7 +44,6 @@ export interface ExtendedAssetsSectionProps {
   onAddAsset?: (assetId: string) => void;
   onUpdateAsset?: (id: string, partial: Partial<AssetInstance>) => void;
   onRemoveAsset?: (id: string) => void;
-  onDuplicateAsset?: (id: string) => void;
   onAddPillBadge?: (preset?: string) => void;
   onUpdatePillBadge?: (id: string, partial: unknown) => void;
   onRemovePillBadge?: (id: string) => void;
@@ -65,7 +64,6 @@ export interface ExtendedAssetsSectionProps {
   onAddShape?: (type: ShapeType, color?: string) => void;
   onUpdateShape?: (id: string, partial: Partial<ShapeInstance>) => void;
   onRemoveShape?: (id: string) => void;
-  onDuplicateShape?: (id: string) => void;
   chartInstances?: ChartInstance[];
   onAddChart?: (chartType: ChartType) => void;
   illustrationInstances?: IllustrationInstance[];

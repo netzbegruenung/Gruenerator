@@ -8,14 +8,25 @@ import { USER_SELECTABLE_TOOL_KEYS } from './userTools.js';
  * (lvPrAgents.ts & co.) and had no validation seam at all — `draft_structured`
  * and `self_review` sat in 19 definitions until #3078.
  *
- * Only a few keys gate anything at runtime:
- *   - `web` / `research` / `web_search` — web access (agentAllowsWebSearch in
- *     searchTools.ts, board flow via enabledToolKeys)
- *   - `scrape` / `scrape_url` — scraping (classifierNode scrape gate)
- *   - `examples` — example search (classifierNode, board flow)
- *   - `search` — board-flow search tools
- * The rest are metadata (raw tool names, memory infrastructure, intent
- * vocabulary). They must still name real capabilities — a key for a tool that
+ * What gates at runtime (apps/api/routes/chat/agents/agentToolWhitelist.ts):
+ *   - For USER-CREATED agents every `USER_SELECTABLE_TOOL_KEYS` entry —
+ *     `applyAgentToolWhitelist` (ChatGraph `initializeChatState`) writes an
+ *     explicit `false` into the per-request `enabledTools` record for each
+ *     picker key the agent did not choose.
+ *   - For SYSTEM agents only `web` / `research` / `web_search` (agentAllowsWebSearch
+ *     in searchTools.ts, board flow via enabledToolKeys) and `scrape` /
+ *     `scrape_url` (classifierNode scrape gate); `examples` and `search` also
+ *     steer the board flow. Their arrays are deliberately NOT whitelisted.
+ *   - Independently of the array, the per-request RECORD gates `search` /
+ *     `examples` (loop catalog), `meinungsbild`, `user_content` and `vision`
+ *     (toolCatalog.ts, responseSinglePass.ts) — the keys that reached nothing
+ *     at all until #3307. For a user agent the whitelist above is what sets
+ *     them; for a system agent only an explicit request `false` does.
+ *   - Raw tool names alias onto picker keys (`RAW_TOOL_NAME_TO_PICKER_KEY`:
+ *     `web_search`→`web`, `scrape_url`→`scrape`, `generate_image`→`image`, …);
+ *     `web` and `research` are one capability.
+ * The rest are metadata (memory infrastructure, intent vocabulary, editor-
+ * surface keys). They must still name real capabilities — a key for a tool that
  * does not exist is visible to end users (agentura detail page lists the raw
  * keys) and can leak into the few-shot prose that reaches the model (system
  * agents' `fewShotExamples` flow into the MCP prompt, see agentPrompts.ts).
@@ -42,9 +53,15 @@ export const AGENT_TOOL_KEYS: readonly string[] = [
   'edit_image',
   'analyze_image',
   // Editor-surface keys, read from the per-request `enabledTools` record
-  // (agenticLoop/routing.ts), declared by the editor agents.
-  'edit_current_doc',
+  // (agenticLoop/routing.ts), declared by the editor agents. The wire
+  // registry is `editorEditToolKeySchema` in @gruenerator/contracts; this
+  // list mirrors it by hand because `agents/` pulls no foreign packages
+  // (see agentIcons.ts). `agentToolKeys.vitest.ts` keeps the two in sync.
+  'edit_current_sheet',
+  'edit_current_presentation',
   'edit_current_board',
+  'edit_current_canvas',
+  'edit_current_doc',
   // Classifier intent names, not tools: the LV-PR agents carry
   // `pressemitteilung_examples`, the corpus agents their corpus intents.
   'pressemitteilung_examples',

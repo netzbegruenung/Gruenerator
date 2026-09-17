@@ -1,3 +1,5 @@
+import { EDITOR_EDIT_TOOL_KEYS } from '@gruenerator/contracts';
+
 import { DEFAULT_NOTEBOOK_DEPTH } from '../../lib/notebookDepth';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { useLastComputeStore } from '../../stores/lastComputeStore';
@@ -6,7 +8,7 @@ import { getAvailableClientTools } from '../clientTools';
 import type { GrueneratorAdapterConfig } from './types';
 import type { parseAllMentions } from '../../lib/mentionParser';
 import type { ThreadMode } from '../../stores/chatStore';
-import type { CurrentBoard } from '@gruenerator/contracts';
+import type { CurrentBoard, CurrentCanvas } from '@gruenerator/contracts';
 
 export type FormattedMessagePart =
   | { type: 'text'; text: string }
@@ -64,6 +66,8 @@ export interface BuildRequestBodyParams {
   injectedCurrentDocument: InjectedCurrentDocument | undefined;
   /** Live board state (boards-editor surface), serialized from Yjs each request. */
   injectedCurrentBoard: CurrentBoard | undefined;
+  /** Live sharepic state (studio sidebar), read from the canvas bridge each request. */
+  injectedCurrentCanvas: CurrentCanvas | undefined;
   injectedAttachmentContext: string | undefined;
   seededInitialAssistantMessage: string | undefined;
   /** Variant marked "active for chat editing" on a sharepic card, if any. */
@@ -105,6 +109,20 @@ const toContentMessages = (
       .map((p) => p.text)
       .join(''),
   }));
+
+const EDITOR_EDIT_TOOL_KEY_SET: ReadonlySet<string> = new Set(EDITOR_EDIT_TOOL_KEYS);
+
+/**
+ * Surface edit hooks (one per editor sidebar) belong to the surface, not the
+ * agent. SearchGraph cannot run them, so a search-route agent picked inside a
+ * sidebar must not carry any of them (#3435). Everything else (`summary`,
+ * `save_as_doc`) is harmless and stays.
+ */
+export function stripEditorEditTools(tools: Record<string, boolean>): Record<string, boolean> {
+  return Object.fromEntries(
+    Object.entries(tools).filter(([k]) => !EDITOR_EDIT_TOOL_KEY_SET.has(k))
+  );
+}
 
 /**
  * Assemble the mode-aware request body for the chat backend. Each mode
@@ -177,6 +195,7 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
     hasDocumentChat,
     injectedCurrentDocument,
     injectedCurrentBoard,
+    injectedCurrentCanvas,
     injectedAttachmentContext,
     seededInitialAssistantMessage,
     currentSharepic,
@@ -249,6 +268,7 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
     documentChatMode: hasDocumentChat || mergedDocChatIds.length > 0 || undefined,
     currentDocument: injectedCurrentDocument,
     currentBoard: injectedCurrentBoard,
+    currentCanvas: injectedCurrentCanvas,
     currentSharepic: currentSharepic ?? undefined,
     currentSocialPost: currentSocialPost ?? undefined,
     currentReel: currentReel ?? undefined,

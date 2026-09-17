@@ -85,6 +85,10 @@ const TOOL_MENTIONS_ADDED: Array<[string, string, string | undefined]> = [
   // dossier endpoint (1× per user per day). A variant rather than an intent of its
   // own, so `searchIntentSchema` is untouched.
   ['deepresearch', 'deepresearch', undefined],
+  // `create_recurring_task` ist stillgelegt und hat `forcedTool: null`, also
+  // fällt `forcedToolFor` auf die Intent-ID zurück — das Werkzeug zurrt die
+  // Erwähnung über `pinsTool` fest, nicht über `forcedTool`.
+  ['wiederkehrend', 'create_recurring_task', undefined],
 ];
 
 describe('registry totality', () => {

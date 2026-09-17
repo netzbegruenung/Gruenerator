@@ -38,17 +38,9 @@ export function sentenceRepack(
     baseMetadata?: Record<string, unknown>;
     targetChars?: number;
     overlapChars?: number;
-    originalRawText?: string;
-    pageRanges?: Array<{ start: number; end: number }>;
   } = {}
 ): Chunk[] {
-  const {
-    baseMetadata = {},
-    targetChars = 1600,
-    overlapChars = 400,
-    originalRawText: _originalRawText,
-    pageRanges: _pageRanges,
-  } = options;
+  const { baseMetadata = {}, targetChars = 1600, overlapChars = 400 } = options;
 
   if (!Array.isArray(chunks) || chunks.length === 0) return [];
 

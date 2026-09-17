@@ -19,6 +19,7 @@ const TOOL_IONICON: Record<ToolIconKey, IoniconsIconName> = {
   table: 'grid-outline',
   board: 'albums-outline',
   chart: 'bar-chart-outline',
+  audio: 'volume-high-outline',
 };
 
 export function toolIonicon(iconKey: ToolIconKey): IoniconsIconName {

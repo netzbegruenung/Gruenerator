@@ -1,3 +1,4 @@
+import { SPEECH_MAX_CHUNK_CHARS } from '@gruenerator/contracts';
 import express, { type Request, type Response, type Router } from 'express';
 
 import ttsService from '../../services/voice/ttsService.js';
@@ -9,7 +10,8 @@ const log = createLogger('ttsController');
 
 const router: Router = express.Router();
 
-const MAX_TEXT_LENGTH = 8192;
+// One provider request; Grünerator Voice splits longer texts into pieces of this size.
+const MAX_TEXT_LENGTH = SPEECH_MAX_CHUNK_CHARS;
 
 interface GenerateRequest extends Request {
   body: {

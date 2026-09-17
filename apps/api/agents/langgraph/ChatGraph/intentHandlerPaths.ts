@@ -77,9 +77,9 @@ export const INTENT_HANDLER_PATHS: Record<SearchIntent, string> = {
     'RETIRED as a verdict (09/2026) — a recurring order is classified `agentic` with `mentionPinnedTool: recurring_tasks`; the loop tool fills the schedule and creates via confirm card',
   modify_doc: 'routes to respond, then confirm_action SSE + pendingActionStore',
   edit_current_doc:
-    'routes to respond, controller emits trigger_doc_edit SSE for BlockNote AI live edit',
+    "tool-based since #3428: the loop's edit_document tool dispatches trigger_doc_edit with the MODEL's instruction (BlockNote applies it as suggestions). The verdict itself emits nothing — on the single-pass path it only selects the guidance that says the document cannot be edited this turn",
   edit_current_board:
-    'controller emits trigger_board_action SSE for the boards assistant live edit (client-side executor)',
+    "tool-based: the loop's edit_document tool plans ops (boardAiService) and streams editor_operations",
   modify_board: 'routes to respond, then confirm_action SSE + pendingActionStore',
   share_doc: 'short-circuits before LLM — resolves group, emits confirm_action SSE',
   mcp: "EXPERIMENTAL — always runs the agentic loop (streamAgenticResponse); mcpCatalog mounts the user's connected MCP tools into the same loop",

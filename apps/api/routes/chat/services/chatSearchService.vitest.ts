@@ -118,6 +118,63 @@ describe('searchChatHistory', () => {
     expect(params).toContain('notebook');
   });
 
+  it('excludes archived threads unless asked', async () => {
+    mockQuery.mockResolvedValueOnce([]);
+    await searchChatHistory('user-1', 'test');
+
+    const [sql] = mockQuery.mock.calls[0];
+    expect(sql).toContain("COALESCE(t.status, 'regular') = 'regular'");
+  });
+
+  it('drops the archive filter for includeArchived', async () => {
+    // The sidebar search is the only caller that asks. Everything else — the
+    // ⌘K palette, the agent's recall — keeps the default, so archived chats
+    // stay out of model context.
+    mockQuery.mockResolvedValueOnce([]);
+    await searchChatHistory('user-1', 'test', { includeArchived: true });
+
+    const [sql] = mockQuery.mock.calls[0];
+    expect(sql).not.toContain("COALESCE(t.status, 'regular') = 'regular'");
+  });
+
+  it('reports the archive state of each hit', async () => {
+    mockQuery.mockResolvedValueOnce([
+      {
+        thread_id: 'thread-1',
+        thread_title: 'Alt',
+        agent_id: 'universal',
+        thread_updated_at: '2026-04-01',
+        thread_status: 'archived',
+        message_content: 'test',
+        message_role: 'assistant',
+        matched_at: '2026-04-01T10:00:00Z',
+      },
+    ]);
+
+    const results = await searchChatHistory('user-1', 'test', { includeArchived: true });
+    expect(results[0].threadStatus).toBe('archived');
+  });
+
+  it('treats an unknown status value as regular', async () => {
+    // The column is a VARCHAR with no CHECK constraint; only 'archived' means
+    // archived, so a stray value must not render a live chat as put away.
+    mockQuery.mockResolvedValueOnce([
+      {
+        thread_id: 'thread-1',
+        thread_title: 'Test',
+        agent_id: 'universal',
+        thread_updated_at: '2026-04-01',
+        thread_status: 'something-else',
+        message_content: 'test',
+        message_role: 'assistant',
+        matched_at: '2026-04-01T10:00:00Z',
+      },
+    ]);
+
+    const results = await searchChatHistory('user-1', 'test');
+    expect(results[0].threadStatus).toBe('regular');
+  });
+
   it('returns snippet with context around match', async () => {
     const longContent = 'A'.repeat(200) + 'MATCH_TARGET' + 'B'.repeat(200);
     mockQuery.mockResolvedValueOnce([

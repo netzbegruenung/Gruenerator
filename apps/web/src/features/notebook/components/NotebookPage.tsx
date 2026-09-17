@@ -3,7 +3,6 @@ import {
   AssistantMessage,
   CitationPanelProvider,
   CitationSidePanel,
-  ExtraActionsProvider,
   NotebookChatProvider,
   NotebookComposer,
   UserMessage,
@@ -12,18 +11,14 @@ import {
   useAgentStore,
   type CategoryFilterConfig,
   type CategoryFilterField,
-  type ChatMessageMetadata,
-  type ExtraAction,
   type NotebookMessageMetadata,
 } from '@gruenerator/chat';
 import React, { useState, useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
-import { FaFileWord } from 'react-icons/fa';
 import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import { useAuthStore } from '../../../stores/authStore';
-import { useExportStore } from '../../../stores/core/exportStore';
 import { getNotebookConfig } from '../config/notebookPagesConfig';
 import { getNotebookById } from '../config/notebooksConfig';
 import { useNotebookChatBridge } from '../hooks/useNotebookChatBridge';
@@ -106,36 +101,6 @@ interface NotebookPageProps {
   configId: string;
 }
 
-function useNotebookExtraActionsFactory(): (message: {
-  text: string;
-  metadata?: ChatMessageMetadata;
-}) => ExtraAction[] {
-  const generateNotebookDOCX = useExportStore((state) => state.generateNotebookDOCX);
-
-  return useCallback(
-    ({ text, metadata }) => {
-      if (!metadata?.rawCitations?.length && !metadata?.citations?.length) return [];
-
-      return [
-        {
-          id: 'notebook-docx',
-          label: 'Word mit Quellen',
-          icon: <FaFileWord className="h-4 w-4" />,
-          onClick: () => {
-            void generateNotebookDOCX(
-              text,
-              metadata.question || 'Notebook-Antwort',
-              metadata.rawCitations ?? [],
-              metadata.sources ?? []
-            );
-          },
-        },
-      ];
-    },
-    [generateNotebookDOCX]
-  );
-}
-
 export const NotebookPageContent = ({
   config,
   documentIds,
@@ -154,7 +119,6 @@ export const NotebookPageContent = ({
   const isSingleSystem = !isMulti && config.collections[0]?.id.endsWith('-system');
   const systemCollectionId = isSingleSystem ? config.collections[0].id : null;
   const locale = useAuthStore((state) => state.locale);
-  const extraActionsFactory = useNotebookExtraActionsFactory();
   // Die Reihe, die sich Unterhaltung und Quellenleser teilen — das Panel misst
   // sie, um zwischen Spalte und Sheet zu entscheiden.
   const surfaceRef = useRef<HTMLDivElement>(null);
@@ -368,59 +332,57 @@ export const NotebookPageContent = ({
         {/* Der Quellenleser ist eine Geschwisterspalte, kein Overlay: ein Zitat
             nachzulesen heißt, es mit dem Satz zu vergleichen, der es benutzt. */}
         <div ref={surfaceRef} className="flex h-full min-h-0 w-full">
-          <ExtraActionsProvider factory={extraActionsFactory}>
-            <ThreadPrimitive.Root className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
-              {/* `isLoading` guards the start page while a conversation named by
-                `?thread=` is still being fetched — without it the start page
-                flashes up first and reads as "this conversation is gone". */}
-              <AuiIf condition={(s) => s.thread.isEmpty && !s.thread.isLoading}>
-                <div className="flex flex-1 flex-col overflow-y-auto">
-                  <NotebookStartpage
-                    title={config.startPageTitle}
-                    placeholder={config.placeholder}
-                    exampleQuestions={showExamples ? (config.exampleQuestions ?? []) : []}
-                    composerSourceFilters={sourceFilters}
-                    composerCategoryFilters={categoryFilters}
-                    mode={mode}
-                    onModeChange={setMode}
-                    recentCollectionIds={recentCollectionIds}
-                    showRecentSourceLabel={isMulti}
-                    showStats={showStats}
-                    showLastAdded={showLastAdded}
-                    showManualSearch={showManualSearch}
-                    hideGlobalChat={hideGlobalChat}
-                    manualSearchNotebookId={manualSearchNotebookId}
-                    notebookMention={notebookMention}
-                    notebookId={notebookId}
-                    omniComposer={omniComposer}
-                    pageGradient={pageGradient}
-                    footer={startpageFooter}
-                  />
-                </div>
-              </AuiIf>
-              <AuiIf condition={(s) => !s.thread.isEmpty}>
-                <div className="flex min-h-0 h-full flex-col">
-                  <ThreadPrimitive.Viewport className="flex flex-1 flex-col overflow-y-auto px-4">
-                    <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 py-4">
-                      <ThreadPrimitive.Messages
-                        components={{
-                          UserMessage,
-                          AssistantMessage,
-                        }}
-                      />
-                    </div>
-                  </ThreadPrimitive.Viewport>
-                  <NotebookComposer
-                    placeholder={config.placeholder}
-                    sourceFilters={sourceFilters}
-                    categoryFilters={categoryFilters}
-                    mode={mode}
-                    onModeChange={setMode}
-                  />
-                </div>
-              </AuiIf>
-            </ThreadPrimitive.Root>
-          </ExtraActionsProvider>
+          <ThreadPrimitive.Root className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
+            {/* `isLoading` guards the start page while a conversation named by
+              `?thread=` is still being fetched — without it the start page
+              flashes up first and reads as "this conversation is gone". */}
+            <AuiIf condition={(s) => s.thread.isEmpty && !s.thread.isLoading}>
+              <div className="flex flex-1 flex-col overflow-y-auto">
+                <NotebookStartpage
+                  title={config.startPageTitle}
+                  placeholder={config.placeholder}
+                  exampleQuestions={showExamples ? (config.exampleQuestions ?? []) : []}
+                  composerSourceFilters={sourceFilters}
+                  composerCategoryFilters={categoryFilters}
+                  mode={mode}
+                  onModeChange={setMode}
+                  recentCollectionIds={recentCollectionIds}
+                  showRecentSourceLabel={isMulti}
+                  showStats={showStats}
+                  showLastAdded={showLastAdded}
+                  showManualSearch={showManualSearch}
+                  hideGlobalChat={hideGlobalChat}
+                  manualSearchNotebookId={manualSearchNotebookId}
+                  notebookMention={notebookMention}
+                  notebookId={notebookId}
+                  omniComposer={omniComposer}
+                  pageGradient={pageGradient}
+                  footer={startpageFooter}
+                />
+              </div>
+            </AuiIf>
+            <AuiIf condition={(s) => !s.thread.isEmpty}>
+              <div className="flex min-h-0 h-full flex-col">
+                <ThreadPrimitive.Viewport className="flex flex-1 flex-col overflow-y-auto px-4">
+                  <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 py-4">
+                    <ThreadPrimitive.Messages
+                      components={{
+                        UserMessage,
+                        AssistantMessage,
+                      }}
+                    />
+                  </div>
+                </ThreadPrimitive.Viewport>
+                <NotebookComposer
+                  placeholder={config.placeholder}
+                  sourceFilters={sourceFilters}
+                  categoryFilters={categoryFilters}
+                  mode={mode}
+                  onModeChange={setMode}
+                />
+              </div>
+            </AuiIf>
+          </ThreadPrimitive.Root>
           <CitationSidePanel containerRef={surfaceRef} />
         </div>
       </CitationPanelProvider>

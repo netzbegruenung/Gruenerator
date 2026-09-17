@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { buildArtifactNotes } from './artifactNotes.js';
+import { buildArtifactNotes, buildPreLoopEditNotes } from './artifactNotes.js';
 
 import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/types.js';
 
@@ -31,6 +31,10 @@ function makeState(overrides: Partial<ChatGraphState> = {}): ChatGraphState {
     lastToolContext: null,
     agentConfig: { identifier: 'gruenerator-universal' },
     enabledTools: {},
+    currentDocument: null,
+    currentBoard: null,
+    currentCanvas: null,
+    editToolSurface: null,
     ...overrides,
   } as unknown as ChatGraphState;
 }
@@ -109,6 +113,158 @@ describe('buildArtifactNotes', () => {
     expect(notes).toBe('');
   });
 
+  /**
+   * Der Ausgeschaltet-Hinweis hängt an der Liste der `edit_current_*`-Schalter,
+   * und die stand dreimal von Hand da: hier (NEGIERT), in `decideTurnPlan` und
+   * in `isEditorSurface`. Als `canvas` nur in zwei davon nachgetragen wurde,
+   * behauptete dieser Hinweis auf JEDEM Studio-Turn, die Bearbeitung sei aus —
+   * eine Notiz weiter oben kündigte im selben Prompt die Änderung an. Seitdem
+   * beantwortet `isEditToolEnabled` die Frage einmal.
+   */
+  describe('KI-Bearbeitung ausgeschaltet', () => {
+    const AUS = 'Die KI-Bearbeitung ist ausgeschaltet';
+
+    it('schweigt auf einer Sharepic-Fläche mit eingeschaltetem Schalter', () => {
+      const { notes } = buildArtifactNotes(
+        makeState({
+          agentConfig: { identifier: 'gruenerator-sharepic-editor' } as never,
+          enabledTools: { edit_current_canvas: true },
+        }),
+        { artifactToolMounted: true }
+      );
+      expect(notes).not.toContain(AUS);
+    });
+
+    it('meldet sich auf einer Sharepic-Fläche mit ausgeschaltetem Schalter', () => {
+      const { notes } = buildArtifactNotes(
+        makeState({
+          agentConfig: { identifier: 'gruenerator-sharepic-editor' } as never,
+          enabledTools: { edit_current_canvas: false },
+        }),
+        { artifactToolMounted: false }
+      );
+      expect(notes).toContain(AUS);
+    });
+
+    it('gilt unverändert für Dokument- und Board-Flächen', () => {
+      const docOn = buildArtifactNotes(
+        makeState({
+          agentConfig: { identifier: 'gruenerator-docs-editor' } as never,
+          enabledTools: { edit_current_doc: true },
+        }),
+        { artifactToolMounted: true }
+      );
+      expect(docOn.notes).not.toContain(AUS);
+
+      const boardOff = buildArtifactNotes(
+        makeState({
+          agentConfig: { identifier: 'gruenerator-boards-editor' } as never,
+          enabledTools: { edit_current_board: false },
+        }),
+        { artifactToolMounted: false }
+      );
+      expect(boardOff.notes).toContain(AUS);
+    });
+  });
+
+  /**
+   * Der Turn, den `decideEditToolLoop` ablehnt, obwohl die Fläche und das Ziel
+   * da sind (Bildanhang, gewähltes Notebook, Zweit-Intent, erzwungenes
+   * Werkzeug, Verbund-Turn). Für eine Werkzeug-Fläche bleibt dann GAR kein
+   * Bearbeitungsweg — und ohne diesen Hinweis erfährt das Modell nur, dass es
+   * in einem Editor sitzt, und antwortet, als hätte es bearbeitet.
+   */
+  describe('kein Bearbeitungsweg in diesem Zug', () => {
+    const KEIN_WEG = 'nicht direkt bearbeitet werden';
+    const AUS = 'Die KI-Bearbeitung ist ausgeschaltet';
+
+    const docTurn = (overrides: Partial<ChatGraphState> = {}) =>
+      makeState({
+        agentConfig: { identifier: 'gruenerator-docs-editor' } as never,
+        enabledTools: { edit_current_doc: true },
+        currentDocument: { id: 'doc-1' } as never,
+        editToolSurface: null,
+        ...overrides,
+      });
+
+    const canvasTurn = (overrides: Partial<ChatGraphState> = {}) =>
+      makeState({
+        agentConfig: { identifier: 'gruenerator-sharepic-editor' } as never,
+        enabledTools: { edit_current_canvas: true },
+        currentCanvas: { id: 'canvas-1' } as never,
+        editToolSurface: null,
+        ...overrides,
+      });
+
+    it('meldet sich, wenn Fläche und Sharepic da sind, das Werkzeug aber nicht montiert wurde', () => {
+      const { notes } = buildArtifactNotes(canvasTurn(), { artifactToolMounted: false });
+      expect(notes).toContain(KEIN_WEG);
+      expect(notes).toContain('das geöffnete Sharepic');
+    });
+
+    it('schweigt, sobald das Werkzeug montiert ist', () => {
+      const { notes } = buildArtifactNotes(canvasTurn({ editToolSurface: 'canvas' }), {
+        artifactToolMounted: true,
+      });
+      expect(notes).not.toContain(KEIN_WEG);
+    });
+
+    it('schweigt ohne offenes Ziel — dann gibt es nichts zu bearbeiten', () => {
+      const { notes } = buildArtifactNotes(canvasTurn({ currentCanvas: null }), {
+        artifactToolMounted: false,
+      });
+      expect(notes).not.toContain(KEIN_WEG);
+    });
+
+    it('überlässt dem Ausgeschaltet-Hinweis den Vortritt — nie beide', () => {
+      const { notes } = buildArtifactNotes(
+        canvasTurn({ enabledTools: { edit_current_canvas: false } }),
+        { artifactToolMounted: false }
+      );
+      expect(notes).toContain(AUS);
+      expect(notes).not.toContain(KEIN_WEG);
+    });
+
+    it('dekliniert nach der Fläche — und nimmt die Dokument-Fläche seit #3428 mit', () => {
+      const sheet = buildArtifactNotes(
+        makeState({
+          agentConfig: { identifier: 'gruenerator-sheets-editor' } as never,
+          enabledTools: { edit_current_doc: true },
+          currentDocument: { id: 'sheet-1' } as never,
+          editToolSurface: null,
+        }),
+        { artifactToolMounted: false }
+      );
+      expect(sheet.notes).toContain('die geöffnete Tabelle');
+
+      // Der Dispatch-Weg (trigger_doc_edit) liegt jetzt IM Werkzeug — fehlt es,
+      // gibt es auf der Dokument-Fläche keinen Bearbeitungsweg mehr.
+      const doc = buildArtifactNotes(docTurn(), { artifactToolMounted: false });
+      expect(doc.notes).toContain(KEIN_WEG);
+      expect(doc.notes).toContain('das geöffnete Dokument');
+    });
+
+    it('widerspricht sich auf einem Verbund-Turn ohne Werkzeug nicht selbst', () => {
+      // `compoundEdit` und `editToolLoop` fallen getrennt (ein Zweit-Intent
+      // nimmt nur das zweite). Ohne Werkzeug fügt seit #3428 NICHTS mehr ein —
+      // die „wird gerade eingefügt"-Notiz darf dann nicht danebenstehen.
+      const { notes } = buildArtifactNotes(docTurn({ compoundEdit: true }), {
+        artifactToolMounted: false,
+      });
+      expect(notes).toContain(KEIN_WEG);
+      expect(notes).not.toContain('werden gerade in das GEÖFFNETE Dokument eingefügt');
+    });
+
+    it('lässt die Einfüge-Notiz stehen, sobald das Werkzeug montiert ist', () => {
+      const { notes } = buildArtifactNotes(
+        docTurn({ compoundEdit: true, editToolSurface: 'doc' }),
+        { artifactToolMounted: true }
+      );
+      expect(notes).not.toContain(KEIN_WEG);
+      expect(notes).toContain('werden gerade in das GEÖFFNETE Dokument eingefügt');
+    });
+  });
+
   it('verlangt EINEN Absatz statt zweier getrennter Sätze, wenn im selben Turn etwas glückte UND etwas fehlschlug', () => {
     const { capabilityNote } = buildArtifactNotes(
       makeState({ createdBoard: { boardId: 'b-1', title: 'Sprint' } as never }),
@@ -132,5 +288,50 @@ describe('buildArtifactNotes', () => {
     );
     expect(capabilityNote).toContain('wurde ein Artefakt ERSTELLT');
     expect(capabilityNote).not.toContain('zusammenhängenden Absatz');
+  });
+});
+
+/**
+ * Der Unified-Pfad hat keinen Synth-Prompt. Was er vor dem Loop wissen kann
+ * (Schalter, Bearbeitungsweg), bekommt er über diesen einen Bauer — derselbe,
+ * den auch `buildArtifactNotes` für die beiden Notizen benutzt, damit Split und
+ * Unified nie verschiedene Sätze sagen (#3439).
+ */
+describe('buildPreLoopEditNotes', () => {
+  it('liefert die Ausgeschaltet-Notiz mit dem Substantiv der Fläche', () => {
+    const state = makeState({
+      agentConfig: { identifier: 'gruenerator-sharepic-editor' } as never,
+      enabledTools: { edit_current_canvas: false },
+    });
+    const note = buildPreLoopEditNotes(state);
+    expect(note).toContain('Die KI-Bearbeitung ist ausgeschaltet');
+    expect(note).toContain('das geöffnete Sharepic');
+    expect(buildArtifactNotes(state, { artifactToolMounted: false }).notes).toContain(note.trim());
+  });
+
+  it('liefert die Kein-Weg-Notiz, wenn das Werkzeug trotz Schalter fehlt', () => {
+    const state = makeState({
+      agentConfig: { identifier: 'gruenerator-sharepic-editor' } as never,
+      enabledTools: { edit_current_canvas: true },
+      currentCanvas: { id: 'c1' } as never,
+      editToolSurface: null,
+    });
+    const note = buildPreLoopEditNotes(state);
+    expect(note).toContain('kann das geöffnete Sharepic nicht direkt bearbeitet werden');
+    expect(buildArtifactNotes(state, { artifactToolMounted: false }).notes).toContain(note.trim());
+  });
+
+  it('schweigt, wenn edit_document montiert ist oder keine Fläche offen ist', () => {
+    expect(
+      buildPreLoopEditNotes(
+        makeState({
+          agentConfig: { identifier: 'gruenerator-sharepic-editor' } as never,
+          enabledTools: { edit_current_canvas: true },
+          currentCanvas: { id: 'c1' } as never,
+          editToolSurface: 'canvas',
+        })
+      )
+    ).toBe('');
+    expect(buildPreLoopEditNotes(makeState())).toBe('');
   });
 });

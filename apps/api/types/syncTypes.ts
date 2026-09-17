@@ -24,6 +24,14 @@ export interface SourceGroupResult {
    * das Zweite kostet jede Nacht wieder einen Abruf (#3200).
    */
   skipReasons?: Record<string, number>;
+  /**
+   * KommunalWiki: Punkte gelöschter Wiki-Seiten, die dieser Lauf entfernt hat,
+   * und — wenn nicht aufgeräumt wurde — warum nicht. Das Gatter sichtbar zu
+   * machen ist der ganze Punkt: greift die Mengenschwelle, sähe der Lauf sonst
+   * exakt aus wie einer, bei dem es nichts aufzuräumen gab.
+   */
+  pruned?: number;
+  pruneSkippedReason?: string;
   duration: number;
   status: 'success' | 'failed';
   error?: string;

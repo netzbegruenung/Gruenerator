@@ -12,24 +12,14 @@ import {
   type EditorSurfaceAdapter,
 } from '@gruenerator/chat';
 import { boardOperationSchema, chatThreadResponseSchema } from '@gruenerator/contracts';
-import { getContractsClient } from '@gruenerator/shared/api';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  toast,
-} from '@gruenerator/ui';
-import { useQueryClient } from '@tanstack/react-query';
-import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
+import { toast } from '@gruenerator/ui';
+import { useMemo, useRef, type ReactNode } from 'react';
 
 import { applyBoardOperations, type BoardMutations } from './applyBoardOperations';
 import { useBoardAiEditEnabled } from './BoardAiEditToggle';
 import { useAssignableMembers } from './hooks/useAssignableMembers';
+import { type BoardView, type Row } from './types';
 import { serializeBoardForChat } from './utils/serializeBoardContext';
 
 const AGENT_ID = 'gruenerator-boards-editor';
@@ -42,7 +32,12 @@ interface BoardAssistantProviderProps {
   userId: string | null;
   userName: string | null;
   boardTitle: string | null;
-  boardState: BoardMutations;
+  /**
+   * Live board mutation surface. Wider than the executor's own `BoardMutations`
+   * (adds `rows`/`views`) because this provider also serializes the full board
+   * into chat context (`getRequestContext` below), not just applies ops.
+   */
+  boardState: BoardMutations & { rows: Row[]; views: BoardView[] };
   /** Active view's grouping field — column/status ops target this field. */
   groupByFieldId?: string;
   children: ReactNode;
@@ -58,7 +53,6 @@ export function BoardAssistantProvider({
   children,
 }: BoardAssistantProviderProps) {
   const { enabled: aiEditEnabled, toggle: toggleAiEdit } = useBoardAiEditEnabled(boardId);
-  const queryClient = useQueryClient();
   const { data: assignableMembers } = useAssignableMembers(userId ? boardId : undefined);
 
   // Refs so the long-lived board action handler always reads fresh live state.
@@ -71,21 +65,6 @@ export function BoardAssistantProvider({
   const membersRef = useRef(assignableMembers ?? []);
   membersRef.current = assignableMembers ?? [];
 
-  // Promise-based delete confirmation rendered as an AlertDialog.
-  const [pendingDelete, setPendingDelete] = useState<{
-    titles: string[];
-    resolve: (ok: boolean) => void;
-  } | null>(null);
-  const confirmDelete = useCallback((titles: string[]): Promise<boolean> => {
-    return new Promise<boolean>((resolve) => setPendingDelete({ titles, resolve }));
-  }, []);
-  const resolvePendingDelete = useCallback((ok: boolean) => {
-    setPendingDelete((prev) => {
-      prev?.resolve(ok);
-      return null;
-    });
-  }, []);
-
   const adapter = useMemo<EditorSurfaceAdapter>(
     () => ({
       surface: 'board',
@@ -95,7 +74,7 @@ export function BoardAssistantProvider({
       resolveThreadId: async () => {
         const result = await getContractsClient().boards.getChatThread({ params: { id: boardId } });
         if (result.status !== 200) {
-          throw new Error(`Chat thread lookup failed: ${result.status}`);
+          throw new ApiError(result.status, `Chat thread lookup failed: ${result.status}`);
         }
         return chatThreadResponseSchema.parse(result.body).threadId;
       },
@@ -126,8 +105,8 @@ export function BoardAssistantProvider({
       // Tool-based edit: the loop's edit_document tool plans board ops
       // server-side (generateBoardOperations) and streams them as
       // editor_operations; we apply them to the live Yjs board via the existing
-      // client executor (with its delete-confirm dialog). Replaces the old
-      // trigger_board_action → /api/boards/:id/ai round-trip.
+      // client executor. Replaces the old trigger_board_action →
+      // /api/boards/:id/ai round-trip.
       registerEditHandler: (ctx) =>
         useChatConfigStore.getState().registerEditorOpsHandler(boardId, async (payload) => {
           if (payload.targetId !== boardId || payload.surface !== 'board') return;
@@ -155,17 +134,6 @@ export function BoardAssistantProvider({
               currentUserId: userId ?? '',
               assignableMembers: membersRef.current,
               ...(groupByFieldIdRef.current ? { groupByFieldId: groupByFieldIdRef.current } : {}),
-              addComment: async (taskId, text) => {
-                const res = await getContractsClient().boardComments.createComment({
-                  params: { boardId, cardId: taskId },
-                  body: { blocks: [{ type: 'text', text }] },
-                });
-                if (res.status !== 201) throw new Error(`Kommentar fehlgeschlagen (${res.status})`);
-                void queryClient.invalidateQueries({
-                  queryKey: ['board-comments', boardId, taskId],
-                });
-              },
-              confirmDelete,
             });
             if (applied > 0) {
               toast.success(`${applied} Änderung${applied === 1 ? '' : 'en'} übernommen.`);
@@ -180,49 +148,18 @@ export function BoardAssistantProvider({
           }
         }),
     }),
-    [boardId, userId, queryClient, confirmDelete]
+    [boardId, userId]
   );
 
   return (
-    <>
-      <EditorAssistantProvider
-        adapter={adapter}
-        userId={userId}
-        userName={userName}
-        aiEditEnabled={aiEditEnabled}
-        toggleAiEdit={toggleAiEdit}
-      >
-        {children}
-      </EditorAssistantProvider>
-      <AlertDialog
-        open={pendingDelete !== null}
-        onOpenChange={(open) => {
-          if (!open) resolvePendingDelete(false);
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {pendingDelete && pendingDelete.titles.length === 1
-                ? 'Aufgabe löschen?'
-                : `${pendingDelete?.titles.length ?? 0} Aufgaben löschen?`}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {pendingDelete && pendingDelete.titles.length <= 5
-                ? pendingDelete.titles.map((t) => `„${t}"`).join(', ')
-                : 'Diese Aktion kann nicht rückgängig gemacht werden.'}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => resolvePendingDelete(false)}>
-              Abbrechen
-            </AlertDialogCancel>
-            <AlertDialogAction onClick={() => resolvePendingDelete(true)}>
-              Löschen
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
+    <EditorAssistantProvider
+      adapter={adapter}
+      userId={userId}
+      userName={userName}
+      aiEditEnabled={aiEditEnabled}
+      toggleAiEdit={toggleAiEdit}
+    >
+      {children}
+    </EditorAssistantProvider>
   );
 }

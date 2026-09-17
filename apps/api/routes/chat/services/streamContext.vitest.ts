@@ -22,7 +22,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-import { chatGraphContract } from '@gruenerator/contracts';
+import { chatGraphContract, chatStreamBodySchema } from '@gruenerator/contracts';
 import { describe, it, expect } from 'vitest';
 
 const read = (rel: string): string =>
@@ -154,13 +154,42 @@ describe('Anfrage → Graph-Zustand: jedes Feld, das der Zustand kennt, wird üb
     expect(handedOverProps().size).toBeGreaterThan(20);
   });
 
+  it('nimmt den Sharepic-Kontext über die Leitung an und gibt ihn unverändert zurück', () => {
+    // Der Kanal, über den die Studio-Seitenleiste ihr Sharepic schickt.
+    // `snapshot`/`capabilities` sind das, was der Op-Planer liest; `text` ist,
+    // was das Modell unter AKTUELLES DOKUMENT sieht. Ein Feld, das der Vertrag
+    // wegwirft, ist serverseitig nicht von „nie geschickt" zu unterscheiden.
+    const currentCanvas = {
+      id: 'canvas-1',
+      template: 'zitat',
+      snapshot: {
+        template: 'zitat',
+        textFields: [{ field: 'quote', label: 'Zitat', value: 'Mehr Tempo.' }],
+        elementsSummary: [{ id: 'el-1', kind: 'illustration' as const, label: 'Windrad' }],
+      },
+      capabilities: { supportedOperations: ['set-text', 'set-color-scheme'] },
+      text: 'Zitat: „Mehr Tempo."',
+    };
+    const parsed = chatStreamBodySchema.parse({
+      messages: [{ role: 'user', content: 'Kürze das Zitat' }],
+      currentCanvas,
+    });
+    expect(parsed.currentCanvas).toEqual(currentCanvas);
+  });
+
   it('wacht namentlich über die Editor-Flächen-Anker', () => {
     // Der konkrete Regress. Vertrag + Zustand kennen sie, also MÜSSEN sie
     // übergeben werden — unabhängig davon, ob der Mengenschnitt oben je
     // umgebaut wird.
     const handed = handedOverKeys();
     const inputKeys = stateInputKeys();
-    for (const anchor of ['currentBoard', 'currentDocument', 'docMentionIds', 'boardIds']) {
+    for (const anchor of [
+      'currentBoard',
+      'currentCanvas',
+      'currentDocument',
+      'docMentionIds',
+      'boardIds',
+    ]) {
       expect(inputKeys.has(anchor), `${anchor} fehlt in ChatGraphInput`).toBe(true);
       expect(handed.has(anchor), `${anchor} wird nicht übergeben`).toBe(true);
     }

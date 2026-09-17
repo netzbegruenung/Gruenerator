@@ -48,6 +48,14 @@ export interface IconState {
   rotation: number;
   color?: string;
   opacity?: number;
+  /**
+   * Katalog-ID des gezeigten Icons. Fehlt sie, IST der Schlüssel in
+   * `iconStates` die Katalog-ID — so liegen alle Dokumente von vor #3404 vor,
+   * und so legt die Seitenleiste das erste Exemplar bis heute ab. Erst eine
+   * Kopie braucht das Feld, weil sie eine frische Instanz-ID trägt. Aufgelöst
+   * wird immer über `catalogIconId` in `utils/iconInstances.ts`.
+   */
+  iconId?: string;
 }
 
 /** State for templates with image backgrounds */
@@ -144,7 +152,6 @@ export interface BaseCanvasActions {
   addChart: (chartType: ChartType) => void;
   updateChart: (id: string, partial: Partial<ChartInstance>) => void;
   removeChart: (id: string) => void;
-  duplicateChart: (id: string) => void;
 }
 
 /** Actions for image background templates */

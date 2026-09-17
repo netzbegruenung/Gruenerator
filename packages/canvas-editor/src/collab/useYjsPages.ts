@@ -59,13 +59,13 @@ export interface YjsPagesApi {
   seedIfEmpty: (defs: SeedPageDef[]) => void;
   addPage: (def: PageDef) => void;
   insertPage: (index: number, def: PageDef) => void;
-  /** Deep-clone a page (state + layers + config) right after the source; returns the new id. */
+  /** Deep-clone a page (state + config) right after the source; returns the new id. */
   duplicatePage: (sourceId: string) => string | null;
   removePage: (id: string) => void;
   movePage: (id: string, direction: 'up' | 'down') => void;
   /** Patch fields on a page's `state` Y.Map. */
   updatePageState: (id: string, partial: Record<string, unknown>) => void;
-  /** Convert a page to another template in place (keeps id, pos, layers). */
+  /** Convert a page to another template in place (keeps id, pos). */
   setPageConfig: (id: string, configId: string, newState: Record<string, unknown>) => void;
   /** Undo the last LOCAL page operation (add/remove/duplicate/move). */
   undoPageOp: () => void;

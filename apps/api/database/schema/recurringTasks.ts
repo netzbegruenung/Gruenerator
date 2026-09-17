@@ -53,6 +53,11 @@ export const recurring_tasks = pgTable(
     // Empty-suppression (absorbed from briefing): a run that finds nothing new
     // skips delivery and increments this; a run with output resets it to 0.
     consecutive_empty_count: integer('consecutive_empty_count').notNull().default(0),
+    // Drei Fehlschläge in Folge pausieren die Aufgabe (#3221); jeder Erfolg und
+    // jeder leere Lauf setzen zurück — leer ist kein Fehler.
+    consecutive_failure_count: integer('consecutive_failure_count').notNull().default(0),
+    /** 'auto_failures' ⇒ selbst abgeschaltet; null ⇒ von Hand pausiert. */
+    paused_reason: text('paused_reason').$type<'auto_failures' | null>(),
     next_run_at: timestamp('next_run_at', { withTimezone: true }).notNull(),
     last_run_at: timestamp('last_run_at', { withTimezone: true }),
     created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -67,7 +72,9 @@ export const recurring_tasks = pgTable(
 export type RecurringTask = InferSelectModel<typeof recurring_tasks>;
 
 // Per-execution history (absorbed from briefing_executions). Surfaced in the UI.
-export type RecurringTaskRunStatus = 'completed' | 'empty' | 'failed';
+// 'running' seit #3221: die Zeile entsteht beim Claim, nicht erst am Ende —
+// sonst hinterlässt ein mittendrin abgestürzter Lauf keine Spur.
+export type RecurringTaskRunStatus = 'running' | 'completed' | 'empty' | 'failed';
 
 export const recurring_task_runs = pgTable(
   'recurring_task_runs',
@@ -84,6 +91,10 @@ export const recurring_task_runs = pgTable(
     // kein Gate — geliefert wird unabhängig davon. Null bei alten Läufen und
     // wenn die Prüfung nicht lief (empty/failed).
     verdict: jsonb('verdict').$type<{ ok: boolean; hint?: string; repaired?: boolean } | null>(),
+    // Gesetzt beim Claim. Der Wächter erkennt an `started_at`, welcher
+    // 'running'-Lauf seine Frist überschritten hat.
+    started_at: timestamp('started_at', { withTimezone: true }),
+    finished_at: timestamp('finished_at', { withTimezone: true }),
     created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('idx_recurring_task_runs_task').on(t.task_id, t.created_at)]

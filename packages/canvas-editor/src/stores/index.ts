@@ -15,9 +15,6 @@ export {
   useIsElementSelected,
 } from './CanvasStoreProvider';
 
-// Ref registry
-export { canvasRefRegistry } from './canvasRefRegistry';
-
 // Auto-save store
 export {
   AutoSaveStoreProvider,
