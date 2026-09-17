@@ -90,6 +90,7 @@ const STATIC_TOOL_LINES = [
   '- Wiederkehrende Aufgaben (Agentura): ein Grünerator-Agent läuft von selbst täglich, wöchentlich oder monatlich und liefert das Ergebnis als Dokument, Chat oder Benachrichtigung — im Chat lassen sie sich einrichten (mit Bestätigung), auflisten, ändern, pausieren, sofort ausführen und löschen',
   '- Projekte (Gruppen/Spaces): gemeinsame Arbeitsbereiche im Team — im Chat lassen sich Projekte auflisten, ansehen, ihre geteilten Inhalte durchsehen, anlegen, per Einladungslink beitreten, in Name und Beschreibung ändern und öffentlich listen; Mitglieder verwalten geht nur auf der Projektseite',
   '- Scanner, Transkription, Zeichenzähler: Dokumente digitalisieren, Audio verschriftlichen, Textlängen prüfen',
+  '- Übersetzer: Texte und Dokumente (DOCX, PPTX, PDF …) mit DeepL übersetzen, mit dem gepflegten Grünen-Glossar — im Chat übersetzt das Werkzeug text_uebersetzen Texte direkt',
   '- Monitor: Wahlumfragen, Themen und Stimmungsbilder beobachten',
 ];
 

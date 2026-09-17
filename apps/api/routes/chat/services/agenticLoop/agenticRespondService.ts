@@ -41,7 +41,7 @@ import { turnMaterialChars } from '../turnMaterial.js';
 import { withInstructionHierarchy } from '../untrustedContent.js';
 
 import { isToolApprovalEnabled } from './approvalPolicy.js';
-import { buildNoEditPathNote } from './artifactNotes.js';
+import { buildPreLoopEditNotes } from './artifactNotes.js';
 import { createAskHumanGate, type AskHumanGate } from './askHumanGate.js';
 import { ATTACHED_DOCS_TOOL, retrievableAttachedSources } from './attachedDocuments.js';
 import {
@@ -459,12 +459,12 @@ export async function streamAgenticResponse(
     // Same predicate the catalog used to decide what to mount — read once here
     // so prompt and toolset can never disagree about whether searching is on.
     const researchBanned = forbidsNewResearch(finalState.lastUserTextNoMentions ?? lastUserText);
-    // Editor sidebar, artefact open, toggle on — and no `edit_document` this
-    // turn (image attachment, notebook, secondary intent …). Split mode gets
-    // this via `buildArtifactNotes` in the synth prompt; unified mode has no
-    // synth prompt, so it has to arrive here or the model promises an edit that
-    // nothing will make.
-    const noEditPathNote = mode === 'unified' ? buildNoEditPathNote(finalState) : '';
+    // Editor sidebar, artefact open — toggle off, or toggle on but no edit
+    // path this turn. Split mode gets both via `buildArtifactNotes` in the
+    // synth prompt; unified mode has no synth prompt, so they have to arrive
+    // here or the model promises an edit that nothing will make (or hides
+    // that editing is off).
+    const preLoopEditNotes = mode === 'unified' ? buildPreLoopEditNotes(finalState) : '';
     const toolUsageBlock = buildToolUsageBlock(
       budget.maxSteps,
       researchBanned,
@@ -474,7 +474,7 @@ export async function streamAgenticResponse(
     );
     const recipeCatalogBlock = renderRecipeCatalog(recipeCatalog);
     const toolSystem = withInstructionHierarchy(
-      `${systemMessage}\n\n${toolUsageBlock}${mcpNote}${systemNote}${connectorCatalogNote}${carriedNote}${noEditPathNote}${recipeCatalogBlock}`
+      `${systemMessage}\n\n${toolUsageBlock}${mcpNote}${systemNote}${connectorCatalogNote}${carriedNote}${preLoopEditNotes}${recipeCatalogBlock}`
     );
     // Where the ~8.700 chars come from. `system=8721c` alone says nothing about
     // which parts a turn actually needed, and a prompt is not trimmed on a
@@ -483,7 +483,7 @@ export async function streamAgenticResponse(
       `[Agentic] system prompt ${toolSystem.length}c = base ${systemMessage.length}` +
         ` + toolRules ${toolUsageBlock.length} + mcp ${mcpNote.length} + sources ${systemNote.length}` +
         ` + connectors ${connectorCatalogNote.length} + carried ${carriedNote.length}` +
-        ` + noEdit ${noEditPathNote.length} + recipes ${recipeCatalogBlock.length}`
+        ` + preLoopEdit ${preLoopEditNotes.length} + recipes ${recipeCatalogBlock.length}`
     );
     // The other half of the context, and the half nobody could see: how much of
     // the turn's OWN material survives into the writing call. A four-step chat

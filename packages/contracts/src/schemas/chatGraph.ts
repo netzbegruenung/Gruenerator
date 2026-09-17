@@ -111,6 +111,32 @@ export const currentCanvasSchema = z.object({
 });
 export type CurrentCanvas = z.infer<typeof currentCanvasSchema>;
 
+/**
+ * The per-surface "AI may edit the OPEN artefact" keys the editor sidebars put
+ * into `customEnabledTools`. One key per surface, so a custom agent inside a
+ * sidebar still resolves to the right surface (#3438) and a search-route agent
+ * can be stripped of all of them at once (#3435). Wire values: additive only,
+ * never renamed. `edit_current_doc` is also a classifier intent id; the key
+ * and the intent are different things that happen to share a spelling.
+ *
+ * THE ORDER IS LOAD-BEARING, and it is why `edit_current_doc` sits LAST rather
+ * than first: `resolveEditorSurfaceKind` walks this array and takes the first
+ * enabled key, and during the compatibility window the sheets and presentations
+ * sidebars send their own key AND `edit_current_doc` (so a backend without
+ * #3438 still mounts the edit tool). Doc-first would hand exactly those turns
+ * back to the doc surface — the bug this registry exists to fix. Specific
+ * before general; a surface that ever shares a key must go above `doc` too.
+ */
+export const editorEditToolKeySchema = z.enum([
+  'edit_current_sheet',
+  'edit_current_presentation',
+  'edit_current_board',
+  'edit_current_canvas',
+  'edit_current_doc',
+]);
+export type EditorEditToolKey = z.infer<typeof editorEditToolKeySchema>;
+export const EDITOR_EDIT_TOOL_KEYS = editorEditToolKeySchema.options;
+
 export const chatStreamBodySchema = z.object({
   messages: z.array(chatWireMessageSchema).min(1),
   agentId: z.string().nullish(),

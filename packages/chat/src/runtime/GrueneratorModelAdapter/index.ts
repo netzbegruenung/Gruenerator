@@ -24,6 +24,7 @@ import {
 import {
   buildRequestBody,
   resolveRuntimeThreadId,
+  stripEditorEditTools,
   type ThreadBinding,
   type ExtractedAttachment,
   type FormattedMessage,
@@ -500,14 +501,10 @@ export function createGrueneratorModelAdapter(
             ? 'chat'
             : storedMode;
 
-      // Surface tools (edit_current_doc) belong to the surface, not the agent —
-      // but if the user picks a search-route agent, SearchGraph can't run them.
-      // Strip the edit hook; keep save_as_doc, which is harmless.
+      // A search-route agent can't run the surface's edit hooks — see stripEditorEditTools.
       const safeCustomEnabledTools =
         activeAgentForRouting?.routeTo === 'search' && config.customEnabledTools
-          ? Object.fromEntries(
-              Object.entries(config.customEnabledTools).filter(([k]) => k !== 'edit_current_doc')
-            )
+          ? stripEditorEditTools(config.customEnabledTools)
           : config.customEnabledTools;
 
       // Skip attachment extraction and mention parsing for non-chat modes

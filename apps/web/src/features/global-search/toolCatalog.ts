@@ -120,6 +120,14 @@ export const CATALOG: ToolCatalogEntry[] = [
     keywords: ['zeichenzaehler', 'zeichen', 'woerter', 'counter', 'limit', 'laenge'],
   },
   {
+    id: 'tool-uebersetzer',
+    title: 'Übersetzer',
+    subtitle: 'Texte & Dokumente mit DeepL übersetzen',
+    path: '/uebersetzer',
+    icon: nav('uebersetzer'),
+    keywords: ['uebersetzer', 'uebersetzen', 'translate', 'deepl', 'sprache', 'englisch'],
+  },
+  {
     id: 'tool-vorlagen',
     title: 'Vorlagen',
     subtitle: 'Fertige Design-Vorlagen',
