@@ -74,6 +74,7 @@ describe('AdminPage', () => {
       'Rezepte',
       'Agenten',
       'Rollen',
+      'Glossar',
       'Vorlagen',
       'Landesverbände',
     ]);
@@ -84,7 +85,7 @@ describe('AdminPage', () => {
   it('lässt weg, was die Instanz nicht führt', async () => {
     await renderAdminOn('bgst');
 
-    expect(tabNames()).toEqual(['Nutzer:innen', 'Rezepte', 'Agenten', 'Rollen']);
+    expect(tabNames()).toEqual(['Nutzer:innen', 'Rezepte', 'Agenten', 'Rollen', 'Glossar']);
     expect(screen.queryByRole('tab', { name: 'Vorlagen' })).toBeNull();
     expect(screen.queryByRole('tab', { name: 'Landesverbände' })).toBeNull();
   });

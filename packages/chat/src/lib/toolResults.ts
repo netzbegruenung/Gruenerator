@@ -353,6 +353,19 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
     iconKey: 'cloud',
     accent: 'personal',
   },
+  text_uebersetzen: {
+    label: 'Übersetzung',
+    activeLabel: 'Übersetze',
+    iconKey: 'globe',
+    accent: 'external',
+    queryKeys: ['text', 'zielsprache'],
+    summarize: (_args, result) => {
+      if (!result || typeof result !== 'object') return null;
+      const r = result as { zielsprache?: unknown; glossarAngewendet?: unknown };
+      if (typeof r.zielsprache !== 'string') return null;
+      return `Übersetzt nach ${r.zielsprache.toUpperCase()}${r.glossarAngewendet === true ? ' (mit Glossar)' : ''}`;
+    },
+  },
   recurring_tasks: {
     label: 'Wiederkehrende Aufgaben',
     activeLabel: 'Sehe bei den Aufgaben nach',

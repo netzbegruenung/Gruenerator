@@ -75,5 +75,6 @@ export { agentVisibilityContract } from './agentVisibilityContract.js';
 export { chunkInspectorContract } from './chunkInspectorContract.js';
 export { skillVisibilityContract } from './skillVisibilityContract.js';
 export { instanceAdminOverviewContract } from './instanceAdminOverviewContract.js';
+export { translationContract } from './translationContract.js';
 export { lvAdminAssignmentContract } from './lvAdminAssignmentContract.js';
 export { landesverbandAdminContract } from './landesverbandAdminContract.js';
