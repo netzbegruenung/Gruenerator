@@ -69,12 +69,12 @@ describe('searchDocs', () => {
     // the actual guide — that is what CATEGORY_PRIOR corrects.
     const [top] = searchDocs('wie erstelle ich ein sharepic');
     expect(top).toBeDefined();
-    expect(top!.url).not.toContain('/docs/archiv/newsletter/');
+    expect(top!.url).not.toContain('/docs/sonstiges/archiv/newsletter/');
   });
 
   it('still finds the newsletter when the user asks for it', () => {
     const [top] = searchDocs('was war neu im juli 2026');
-    expect(top?.url).toContain('/docs/archiv/newsletter/');
+    expect(top?.url).toContain('/docs/sonstiges/archiv/newsletter/');
   });
 
   it('prefers the page a query names verbatim over generic heading matches', () => {

@@ -3,7 +3,7 @@ sidebar_position: 1
 description: 'Einmal sagen, wo du arbeitest — danach kennt der Grünerator die Pressemitteilungen, Beschlüsse und Vorlagen deines Landesverbands.'
 ---
 
-# Für deinen Landesverband einrichten
+# Wie richte ich den Grünerator für meinen Landesverband ein?
 
 Wenn du in einer **Landesgeschäftsstelle** arbeitest, kann der Grünerator mehr als generisch-grün schreiben: Er kennt die Pressemitteilungen, Beschlüsse und Wahlprogramme deines Landesverbands, schreibt in eurem Stil und schlägt eure Vorlagen vor.
 
@@ -68,7 +68,7 @@ Drei Stellschrauben, die unabhängig vom Landesverband für dich arbeiten:
 - **Einstellungen → Erinnerungen** — was sich der Grünerator aus euren Gesprächen merken darf.
 - **Einstellungen → Hintergrund** und **Allgemein** — Aussehen und Startseite.
 
-Alles gilt für dein Konto, also auf allen Geräten, an denen du angemeldet bist. Mehr dazu unter [Einstellungen](../../konto/einstellungen.mdx).
+Alles gilt für dein Konto, also auf allen Geräten, an denen du angemeldet bist. Mehr dazu unter [Einstellungen](../../sonstiges/einstellungen.mdx).
 
 ## Wenn nichts erscheint
 
