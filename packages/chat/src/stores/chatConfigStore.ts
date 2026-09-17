@@ -4,6 +4,7 @@ import type { SharepicVariant } from '../hooks/useChatGraphStream';
 import type {
   ClientPlatform,
   CurrentBoard,
+  CurrentCanvas,
   EditorOperationsEvent,
   RoleRef,
 } from '@gruenerator/contracts';
@@ -247,6 +248,13 @@ export interface ChatRequestContext {
    * in the boards editor. Serialized from the live Yjs board each request.
    */
   currentBoard?: CurrentBoard;
+  /**
+   * The live sharepic the user is editing — primary context when chat is
+   * embedded in the studio sidebar, and the target of the loop's
+   * `edit_document` tool on the canvas surface. Snapshot + capabilities are
+   * read fresh from the canvas bridge each request.
+   */
+  currentCanvas?: CurrentCanvas;
 }
 
 export type ChatRequestContextProvider = () => Promise<ChatRequestContext> | ChatRequestContext;

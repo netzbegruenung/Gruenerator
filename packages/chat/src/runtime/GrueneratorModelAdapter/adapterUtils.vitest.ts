@@ -117,6 +117,7 @@ describe('buildRequestBody', () => {
     hasDocumentChat: false,
     injectedCurrentDocument: undefined,
     injectedCurrentBoard: undefined,
+    injectedCurrentCanvas: undefined,
     injectedAttachmentContext: undefined,
     seededInitialAssistantMessage: undefined,
     currentSharepic: null,

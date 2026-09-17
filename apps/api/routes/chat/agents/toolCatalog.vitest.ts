@@ -220,6 +220,8 @@ describe('toolCatalog domain tool mounting', () => {
     req?: boolean;
     enabledTools?: Record<string, boolean>;
     userText?: string;
+    /** Extra graph state — e.g. the resolved editor surface + its open target. */
+    extraState?: Record<string, unknown>;
   }) {
     const sourceRegistry = createSourceRegistry();
     const sse = { send: () => {} } as unknown as NonNullable<
@@ -231,6 +233,7 @@ describe('toolCatalog domain tool mounting', () => {
       compoundGeneration: opts.kind != null,
       compoundGenerationKind: opts.kind ?? null,
       ...(opts.userText ? { messages: [{ role: 'user', content: opts.userText }] } : {}),
+      ...opts.extraState,
     } as unknown as ChatGraphState;
     return buildChatToolCatalog({
       agentConfig,
@@ -294,10 +297,50 @@ describe('toolCatalog domain tool mounting', () => {
     ).not.toContain('create_board');
   });
 
+  it('mounts edit_document for the sharepic studio surface (plan-and-send)', () => {
+    const names = genCatalog({
+      kind: null,
+      enabledTools: { edit_current_canvas: true },
+      extraState: {
+        editToolSurface: 'canvas',
+        currentCanvas: {
+          id: 'canvas-1',
+          template: 'zitat',
+          snapshot: { template: 'zitat', textFields: [], elementsSummary: [] },
+          capabilities: { supportedOperations: ['set-text'] },
+          text: 'Zitat',
+        },
+      },
+    }).toolNames;
+    expect(names).toContain('edit_document');
+    // The studio edits the OPEN sharepic — it must never spawn a new artifact.
+    expect(names).not.toContain('sharepic');
+    expect(names).not.toContain('generate_image');
+    expect(names).not.toContain('create_document');
+  });
+
+  it('mounts edit_document for the docs surface (dispatch strategy, #3428)', () => {
+    const names = genCatalog({
+      kind: null,
+      enabledTools: { edit_current_doc: true },
+      extraState: {
+        editToolSurface: 'doc',
+        currentDocument: {
+          id: 'doc-1',
+          title: 'Antrag',
+          markdown: '# Antrag',
+          selectionText: null,
+        },
+      },
+    }).toolNames;
+    expect(names).toContain('edit_document');
+    expect(names).not.toContain('create_document');
+  });
+
   it('editor sidebars NEVER spawn a new artifact (create tools gated off when edit_current_* is on)', () => {
     // A docs/sheets/presentations sidebar (edit_current_doc enabled) editing its
     // open doc must not create a NEW one, even on a compound turn.
-    for (const editKey of ['edit_current_doc', 'edit_current_board']) {
+    for (const editKey of ['edit_current_doc', 'edit_current_board', 'edit_current_canvas']) {
       for (const kind of ['sharepic', 'presentation', 'sheet', 'document', 'board'] as const) {
         const names = genCatalog({ kind, enabledTools: { [editKey]: true } }).toolNames;
         expect(names, `${kind} must not mount in an ${editKey} surface`).not.toContain(
