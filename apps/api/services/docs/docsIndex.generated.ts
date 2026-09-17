@@ -1843,7 +1843,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Weiterlesen",
     "anchor": "#weiterlesen",
     "category": "Guides",
-    "text": "Texte aus einer Quelle — ein eigenes Notebook anlegen und mit Quellen füllen"
+    "text": "Wie erstelle ich ein eigenes Notebook? — ein eigenes Notebook anlegen und mit Quellen füllen"
   },
   {
     "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
@@ -2259,7 +2259,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Verbindung verwalten",
     "anchor": "#verbindung-verwalten",
     "category": "Guides",
-    "text": "Im Bereich Verbunden kannst du einen Dienst: mit dem Schalter Aktiv pausieren oder wieder aktivieren, mit Autorisieren erneut anmelden, wenn die Berechtigung fehlt, mit Testen prüfen, oder mit Entfernen vom Grünerator trennen. Das Entfernen löscht die im Grünerator gespeicherte Verbindung. Ob beim Anbieter zusätzlich eine erteilte Berechtigung besteht, hängt vom jeweiligen Dienst ab; diese kannst du bei Bedarf auch dort widerrufen. Ein Konnektor arbeitet mit den Berechtigungen, die du beim jeweiligen Anbieter bestätigst. Verbinde nur Dienste, denen du vertraust, und prüfe vor Änderungen die im Chat angezeigte Aktion."
+    "text": "Im Bereich Verbunden kannst du einen Dienst: mit dem Schalter Aktiv pausieren oder wieder aktivieren, mit Testen prüfen, oder mit Entfernen vom Grünerator trennen. Fehlt einem OAuth-Dienst die Berechtigung, steht er stattdessen im eigenen Bereich Autorisierung erforderlich. Klicke dort auf Autorisieren, um die Anmeldung abzuschließen oder erneut durchzuführen. Das Entfernen löscht die im Grünerator gespeicherte Verbindung. Ob beim Anbieter zusätzlich eine erteilte Berechtigung besteht, hängt vom jeweiligen Dienst ab; diese kannst du bei Bedarf auch dort widerrufen. Ein Konnektor arbeitet mit den Berechtigungen, die du beim jeweiligen Anbieter bestätigst. Verbinde nur Dienste, denen du vertraust, und prüfe vor Änderungen die im Chat angezeigte Aktion."
   },
   {
     "url": "/docs/guides/fortgeschrittene/konnektoren-einrichten",
