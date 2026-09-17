@@ -2,14 +2,11 @@
  * applyBoardOperations — the client-side executor for the board AI assistant's
  * ops (agentic loop's edit_document tool → editor_operations SSE → here).
  *
- * SAFETY: `ALLOWED_OPS` (added in a0823bef4, "restrict AI assistant to creating
- * new items only") gates every op BEFORE the switch — only create_task,
- * add_column, add_field and add_view ever reach their case block. The switch
- * still has full handlers for update_task, move_task, delete_task, add_comment
- * and the rest, but they are unreachable through this function today. These
- * tests assert what the code actually does: the allowed ops apply, the
- * currently-disabled ones are reported in `skipped` and never touch the fake
- * `BoardMutations`/`addComment`/`confirmDelete`.
+ * The executor now HAS only the four create handlers (create_task, add_column,
+ * add_field, add_view) — `isCreateOperation` is a type guard gating the loop
+ * before the switch, not a set checked against a switch that still has more
+ * cases. Anything else is reported in `skipped`; that message is the contract
+ * the toast shows, so these tests assert its exact text.
  */
 import { describe, expect, it, vi } from 'vitest';
 
@@ -50,33 +47,11 @@ function makeFields(): Field[] {
   ];
 }
 
-function makeRow(id: string, title: string, statusId: string): Row {
-  return {
-    id,
-    cells: {
-      [FIELD_IDS.TITLE]: title,
-      [FIELD_IDS.STATUS]: statusId,
-      [FIELD_IDS.DESCRIPTION]: '',
-      [FIELD_IDS.DUE_DATE]: null,
-      [FIELD_IDS.LABELS]: [],
-      [FIELD_IDS.ASSIGNEE]: '',
-    },
-    createdBy: 'user-1',
-    createdAt: '2026-01-01T00:00:00.000Z',
-  };
-}
-
-/** Fake BoardMutations recording every call, seeded with one existing row. */
+/** Fake BoardMutations recording every call. */
 function makeBoardState(overrides?: Partial<BoardMutations>): BoardMutations {
   return {
     fields: makeFields(),
-    rows: [makeRow('row-1', 'Bestehende Aufgabe', 'status-todo')],
-    views: [],
     addRow: vi.fn(),
-    updateRow: vi.fn(),
-    updateRowCell: vi.fn(),
-    deleteRow: vi.fn(),
-    duplicateRow: vi.fn(),
     addField: vi.fn(),
     updateField: vi.fn(),
     addView: vi.fn(),
@@ -101,8 +76,6 @@ function makeCtx(
     boardState,
     currentUserId: 'user-1',
     assignableMembers: members,
-    addComment: vi.fn().mockResolvedValue(undefined),
-    confirmDelete: vi.fn().mockResolvedValue(true),
     ...overrides,
   };
 }
@@ -231,7 +204,7 @@ describe('applyBoardOperations', () => {
     expect(view.groupByFieldId).toBe(FIELD_IDS.STATUS);
   });
 
-  it('update_task is disabled by ALLOWED_OPS — skipped, no mutation applied', async () => {
+  it('update_task is not a create op — skipped, nothing mutated', async () => {
     const boardState = makeBoardState();
     const ctx = makeCtx(boardState);
     const ops: BoardOperation[] = [{ type: 'update_task', taskId: 'row-1', title: 'Neuer Titel' }];
@@ -242,10 +215,11 @@ describe('applyBoardOperations', () => {
     expect(result.skipped).toEqual([
       '„update_task" ist deaktiviert — die KI darf nur neue Einträge anlegen',
     ]);
-    expect(boardState.updateRowCell).not.toHaveBeenCalled();
+    expect(boardState.addRow).not.toHaveBeenCalled();
+    expect(boardState.updateField).not.toHaveBeenCalled();
   });
 
-  it('move_task is disabled by ALLOWED_OPS — skipped, no mutation applied', async () => {
+  it('move_task is not a create op — skipped, nothing mutated', async () => {
     const boardState = makeBoardState();
     const ctx = makeCtx(boardState);
     const ops: BoardOperation[] = [{ type: 'move_task', taskId: 'row-1', status: 'Erledigt' }];
@@ -256,10 +230,11 @@ describe('applyBoardOperations', () => {
     expect(result.skipped).toEqual([
       '„move_task" ist deaktiviert — die KI darf nur neue Einträge anlegen',
     ]);
-    expect(boardState.updateRowCell).not.toHaveBeenCalled();
+    expect(boardState.addRow).not.toHaveBeenCalled();
+    expect(boardState.updateField).not.toHaveBeenCalled();
   });
 
-  it('delete_task is disabled by ALLOWED_OPS — confirmDelete is never called', async () => {
+  it('delete_task is not a create op — skipped, nothing mutated', async () => {
     const boardState = makeBoardState();
     const ctx = makeCtx(boardState);
     const ops: BoardOperation[] = [{ type: 'delete_task', taskId: 'row-1' }];
@@ -270,11 +245,11 @@ describe('applyBoardOperations', () => {
     expect(result.skipped).toEqual([
       '„delete_task" ist deaktiviert — die KI darf nur neue Einträge anlegen',
     ]);
-    expect(ctx.confirmDelete).not.toHaveBeenCalled();
-    expect(boardState.deleteRow).not.toHaveBeenCalled();
+    expect(boardState.addRow).not.toHaveBeenCalled();
+    expect(boardState.updateField).not.toHaveBeenCalled();
   });
 
-  it('add_comment is disabled by ALLOWED_OPS — the injected addComment is never called', async () => {
+  it('add_comment is not a create op — skipped, nothing mutated', async () => {
     const boardState = makeBoardState();
     const ctx = makeCtx(boardState);
     const ops: BoardOperation[] = [{ type: 'add_comment', taskId: 'row-1', text: 'Hallo' }];
@@ -285,7 +260,8 @@ describe('applyBoardOperations', () => {
     expect(result.skipped).toEqual([
       '„add_comment" ist deaktiviert — die KI darf nur neue Einträge anlegen',
     ]);
-    expect(ctx.addComment).not.toHaveBeenCalled();
+    expect(boardState.addRow).not.toHaveBeenCalled();
+    expect(boardState.updateField).not.toHaveBeenCalled();
   });
 
   it('an unknown op type is counted as skipped, not thrown', async () => {
