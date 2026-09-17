@@ -6,6 +6,7 @@ import {
   looksLikeCompoundGeneration,
   looksLikeCompoundEdit,
   isEditorSurface,
+  isEditToolEnabled,
   compoundGenerationKind,
   decideRunAgentic,
   resolveEditorSurfaceKind,
@@ -904,9 +905,24 @@ describe('isEditorSurface', () => {
   it('true when an edit_current_* tool is enabled, false otherwise', () => {
     expect(isEditorSurface({ edit_current_doc: true })).toBe(true);
     expect(isEditorSurface({ edit_current_board: true })).toBe(true);
+    // The studio sidebar's key. Without it a sharepic turn loses the "never
+    // spawn a NEW artifact / no generate_image" gate in the tool catalog.
+    expect(isEditorSurface({ edit_current_canvas: true })).toBe(true);
     expect(isEditorSurface({ search: true, web: true })).toBe(false);
     expect(isEditorSurface({ edit_current_doc: false })).toBe(false);
+    expect(isEditorSurface({ edit_current_canvas: false })).toBe(false);
     expect(isEditorSurface(undefined)).toBe(false);
+  });
+});
+
+describe('isEditToolEnabled', () => {
+  it('kennt alle drei Schalter — die Liste, die dreimal von Hand dastand', () => {
+    expect(isEditToolEnabled({ edit_current_doc: true })).toBe(true);
+    expect(isEditToolEnabled({ edit_current_board: true })).toBe(true);
+    expect(isEditToolEnabled({ edit_current_canvas: true })).toBe(true);
+    expect(isEditToolEnabled({ edit_current_canvas: false })).toBe(false);
+    expect(isEditToolEnabled({ search: true })).toBe(false);
+    expect(isEditToolEnabled(undefined)).toBe(false);
   });
 });
 
@@ -924,6 +940,7 @@ describe('resolveEditorSurfaceKind', () => {
   it('falls back to the enabled edit_current_* tool for a custom agent', () => {
     expect(resolveEditorSurfaceKind('my-custom-agent', { edit_current_board: true })).toBe('board');
     expect(resolveEditorSurfaceKind('my-custom-agent', { edit_current_doc: true })).toBe('doc');
+    expect(resolveEditorSurfaceKind(undefined, { edit_current_canvas: true })).toBe('canvas');
   });
 
   it('returns null for a non-editor turn', () => {
@@ -961,9 +978,14 @@ describe('decideEditToolLoop', () => {
     expect(decideEditToolLoop({ ...base, surfaceKind: 'board' })).toBe(true);
   });
 
-  it('keeps the legacy dispatch path for docs and canvas (no plan-and-send tool)', () => {
-    expect(decideEditToolLoop({ ...base, surfaceKind: 'doc' })).toBe(false);
-    expect(decideEditToolLoop({ ...base, surfaceKind: 'canvas' })).toBe(false);
+  it('enters the loop for canvas too (plan-and-send)', () => {
+    expect(decideEditToolLoop({ ...base, surfaceKind: 'canvas' })).toBe(true);
+  });
+
+  it('enters the loop for docs too (dispatch strategy, #3428)', () => {
+    // The doc surface no longer has a path OUTSIDE the loop: the classifier
+    // stage that emitted `trigger_doc_edit` is gone, the tool dispatches it.
+    expect(decideEditToolLoop({ ...base, surfaceKind: 'doc' })).toBe(true);
   });
 
   it('requires the loop to be enabled', () => {
