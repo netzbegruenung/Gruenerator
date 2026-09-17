@@ -1,12 +1,14 @@
 /**
  * Der Store-Reset einer Flaeche darf das gemeinsame Dokument nicht anfassen.
  *
- * `bindCanvasStoreToYMap` schreibt `layers` und `config` aus dem Store in die
- * Y.Map der Seite zurueck — der Echo-Schutz (`applyingRemote`) unterdrueckt
- * nur FREMDE Updates, ein lokales `set` laeuft also durch. `resetStore()`
- * setzte beide auf den Anfangswert, und `reconcileLayers([])` loeschte daraufhin
- * jeden Eintrag aus dem Y.Doc: unter `LOCAL_ORIGIN`, also bei allen
- * Mitarbeitenden und in Hocuspocus persistiert (#3413).
+ * `bindCanvasStoreToYMap` schreibt `config` aus dem Store in die Y.Map der
+ * Seite zurueck — der Echo-Schutz (`applyingRemote`) unterdrueckt nur FREMDE
+ * Updates, ein lokales `set` laeuft also durch. `resetStore()` setzte `config`
+ * auf den Anfangswert, und `reconcileConfig` schrieb diesen Anfangswert
+ * daraufhin in die Y.Doc: es ueberschreibt jeden Schluessel, den der
+ * Anfangswert kennt, und loescht jeden, den er nicht kennt — unter
+ * `LOCAL_ORIGIN`, also bei allen Mitarbeitenden und in Hocuspocus
+ * persistiert (#3413).
  *
  * Ausgeloest wurde das von genau den zwei Faellen, die dieser Test nachstellt:
  * dem Vorlagenwechsel (`resetKey` wechselt, die Seite bleibt montiert, weil
@@ -42,34 +44,33 @@ function CaptureStore() {
   return null;
 }
 
-/** Eine Seite, wie `seedPagesIfEmpty` sie anlegt: mit freiem Element und Format. */
+/** Eine Seite, wie `seedPagesIfEmpty` sie anlegt: mit gesetztem Format. */
 function seedPage() {
   const doc = new Y.Doc();
   const page = new Y.Map<unknown>();
   doc.getMap('pagesById').set('p1', page);
 
-  const layers = new Y.Array<Y.Map<unknown>>();
-  const layer = new Y.Map<unknown>();
-  layer.set('id', 'free-1');
-  layer.set('type', 'shape');
-  layers.push([layer]);
-  page.set('layers', layers);
-
   const config = new Y.Map<unknown>();
   config.set('width', 1080);
   config.set('height', 1920);
+  // Ein Schluessel, den `createInitialState` NICHT kennt — und der einzige,
+  // an dem sich ein Echo als LOESCHUNG zeigt: `reconcileConfig` raeumt mit
+  // `if (!(k in cfg)) yConfig.delete(k)` jeden Schluessel ab, den der
+  // Anfangswert nicht traegt. Ohne ihn haenge dieser Test allein daran, dass
+  // 1920 zufaellig ungleich `DEFAULT_CANVAS_HEIGHT` ist — zoege jemand die
+  // Vorgabehoehe auf 1920 nach, liefe er gegen einen Voll-Reset gruen durch.
+  config.set('maxContainerHeight', 4242);
   page.set('config', config);
 
   return { doc, page };
 }
 
-const layerIds = (page: Y.Map<unknown>) =>
-  (page.get('layers') as Y.Array<Y.Map<unknown>>).toArray().map((m) => m.get('id'));
-
 const docConfig = (page: Y.Map<unknown>) => (page.get('config') as Y.Map<unknown>).toJSON();
 
+const EXPECTED_CONFIG = { width: 1080, height: 1920, maxContainerHeight: 4242 };
+
 describe('store reset vs. shared document', () => {
-  it('laesst freie Elemente und Format beim Vorlagenwechsel stehen', () => {
+  it('laesst das Format beim Vorlagenwechsel stehen', () => {
     const { page } = seedPage();
 
     const { rerender } = render(
@@ -77,7 +78,7 @@ describe('store reset vs. shared document', () => {
         <BoundPage resetKey="zitat" parent={page} />
       </CanvasStoreProvider>
     );
-    expect(layerIds(page)).toEqual(['free-1']);
+    expect(docConfig(page)).toMatchObject(EXPECTED_CONFIG);
 
     rerender(
       <CanvasStoreProvider>
@@ -85,11 +86,10 @@ describe('store reset vs. shared document', () => {
       </CanvasStoreProvider>
     );
 
-    expect(layerIds(page)).toEqual(['free-1']);
-    expect(docConfig(page)).toMatchObject({ width: 1080, height: 1920 });
+    expect(docConfig(page)).toMatchObject(EXPECTED_CONFIG);
   });
 
-  it('laesst sie auch beim Aushaengen der Flaeche stehen', () => {
+  it('laesst es auch beim Aushaengen der Flaeche stehen', () => {
     const { page } = seedPage();
 
     const { unmount } = render(
@@ -97,12 +97,11 @@ describe('store reset vs. shared document', () => {
         <BoundPage resetKey="zitat" parent={page} />
       </CanvasStoreProvider>
     );
-    expect(layerIds(page)).toEqual(['free-1']);
+    expect(docConfig(page)).toMatchObject(EXPECTED_CONFIG);
 
     unmount();
 
-    expect(layerIds(page)).toEqual(['free-1']);
-    expect(docConfig(page)).toMatchObject({ width: 1080, height: 1920 });
+    expect(docConfig(page)).toMatchObject(EXPECTED_CONFIG);
   });
 
   it('raeumt dabei weiterhin auf, was zur einzelnen Vorlage gehoert', () => {
@@ -133,6 +132,7 @@ describe('store reset vs. shared document', () => {
     expect(store.getState().selectedElement).toBeNull();
     expect(store.getState().history).toEqual([]);
     // … die Dokument-Daten aber nicht.
-    expect(store.getState().layers.map((l) => l.id)).toEqual(['free-1']);
+    expect(docConfig(page)).toMatchObject(EXPECTED_CONFIG);
+    expect(store.getState().config).toMatchObject(EXPECTED_CONFIG);
   });
 });
