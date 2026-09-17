@@ -22,7 +22,6 @@ import {
 import { memo, useState } from 'react';
 import { HiOutlineDocumentText } from 'react-icons/hi';
 
-import { useExtraActions } from '../../context/ExtraActionsContext';
 import { useReadonlyMode } from '../../context/ReadonlyModeContext';
 import { useRegenerateMessage } from '../../hooks/useRegenerateMessage';
 import { downloadBlob } from '../../lib/downloadBlob';
@@ -72,7 +71,6 @@ export const MessageActions = memo(function MessageActions({
   sourcesOpen = false,
   onToggleSources,
 }: MessageActionsProps) {
-  const extraActions = useExtraActions();
   const isCompact = useChatDensity() === 'compact';
   const readOnly = useReadonlyMode();
   const handleRegenerate = useRegenerateMessage();
@@ -291,18 +289,6 @@ export const MessageActions = memo(function MessageActions({
         </button>
       )}
       <MessageBranchPicker />
-      {extraActions?.map((action) => (
-        <button
-          key={action.id}
-          onClick={action.onClick}
-          disabled={action.disabled || action.loading}
-          className="rounded-lg p-1.5 text-foreground-muted hover:bg-primary/10 hover:text-foreground disabled:opacity-50"
-          aria-label={action.label}
-          title={action.label}
-        >
-          {action.loading ? <Loader2 className="h-4 w-4 animate-spin" /> : action.icon}
-        </button>
-      ))}
       {showFeedback && !readOnly && (
         <>
           <ActionBarPrimitive.FeedbackPositive
