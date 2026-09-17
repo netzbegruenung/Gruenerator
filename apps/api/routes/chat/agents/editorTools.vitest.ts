@@ -357,6 +357,43 @@ describe('makeEditArtifactTool (doc — dispatch strategy)', () => {
     expect(reference).toContain('12,4 GW zugebaut.');
     expect(reference).toContain('VORHERIGE ANTWORT AUS DIESEM CHAT:');
     expect(reference).toContain('Wir fordern mehr Tempo beim Ausbau.');
+    // Reihenfolge ist nicht Geschmack: der Deckel schneidet den Schwanz ab.
+    expect(reference.indexOf('VORHERIGE ANTWORT')).toBeLessThan(
+      reference.indexOf('RECHERCHIERTE QUELLEN')
+    );
+  });
+
+  it('opfert bei vollem Deckel die Quellen, nicht den referenzierten Text', async () => {
+    // „füge das ein" zeigt auf die frühere Antwort — genau sie darf der Deckel
+    // nicht wegschneiden, während er Quellen behält, die niemand einfügen wollte.
+    const events: SseEvent[] = [];
+    const priorTurn = `Referenzierte Fassung. ${'Wir fordern mehr Tempo beim Ausbau. '.repeat(300)}`;
+    const state = docState({
+      messages: [
+        { role: 'user', content: 'Schreib mir den Antrag' },
+        { role: 'assistant', content: priorTurn },
+        { role: 'user', content: 'Füge das ins Dokument ein' },
+      ] as never,
+    });
+    const c: EditorToolCtx = {
+      sse: fakeSse(events),
+      state,
+      sourceRegistry: createSourceRegistry(),
+      appliedOpsLog: [],
+    };
+    c.sourceRegistry.register([
+      { source: 'web', title: 'Ausbauzahlen 2026', content: 'x'.repeat(4000) },
+    ]);
+
+    await exec(makeEditArtifactTool(c)!, { instruction: 'Füge den Text ein' });
+    const reference = (events[0]!.payload as { referenceContent: string }).referenceContent;
+    expect(reference.length).toBeLessThanOrEqual(8000);
+    // Der referenzierte Text steht am Anfang und füllt den Deckel …
+    expect(reference.startsWith('VORHERIGE ANTWORT AUS DIESEM CHAT:\n')).toBe(true);
+    expect(reference).toContain(priorTurn.slice(0, 7000));
+    // … und was weggeschnitten wird, sind die Quellen.
+    expect(reference).not.toContain('RECHERCHIERTE QUELLEN');
+    expect(reference).not.toContain('Ausbauzahlen 2026');
   });
 
   it('refuses a SECOND dispatch in the same turn instead of forking twice', async () => {
