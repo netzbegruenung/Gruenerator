@@ -35,6 +35,7 @@
     "overrides:check": "node scripts/sync-pnpm-overrides.mjs --check",
     "overrides:fix": "node scripts/sync-pnpm-overrides.mjs --fix",
     "overrides:ranges": "node scripts/check-override-ranges.mjs",
+    "deps:verify": "node scripts/check-installed-lockfile-drift.mjs",
     "check:internal": "node scripts/check-internal-content.mjs",
     "check:overlays": "node scripts/check-overlay-layers.mjs",
     "build": "turbo run build",
