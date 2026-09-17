@@ -447,6 +447,9 @@ Für create genügt brief: eine Beschreibung in ganzen Sätzen, was der Agent tu
       if (action === 'share_to_group') return shareCard(userId, agent, args.groupName);
 
       // delete
+      // Kein Mensch am Lauf: der `confirm=true`-Zweischritt bestätigt sich hier
+      // selbst, und die Karte, die fragen würde, ginge an einen stummen Sink.
+      if (!threadId) return { error: 'Löschen ist in diesem Kontext nicht möglich.' };
       if (!args.confirm) {
         const ask = `Soll der Grünerator-Agent „${agent.title}" wirklich gelöscht werden? Frage die Person und rufe delete erst mit confirm=true erneut auf.`;
         groundNote(sourceRegistry, 'Bestätigung nötig', ask);

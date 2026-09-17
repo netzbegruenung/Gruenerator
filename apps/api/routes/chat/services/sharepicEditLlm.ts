@@ -6,7 +6,7 @@
  * filtering) but returns a single applied edit instead of suggestions.
  */
 import {
-  sharepicEditResponseSchema,
+  sharepicEditDecisionSchema,
   type CanvasAiOperationKind,
   type CanvasAiSnapshot,
   type SharepicEditResponse,
@@ -14,6 +14,7 @@ import {
 } from '@gruenerator/contracts';
 
 import { CONTENT_INTEGRITY_EDIT_RULES } from '../../../services/contentPolicy.js';
+import { SHAREPIC_MARKUP_RULES } from '../../sharepic/sharepic_text/unifiedHandler.js';
 
 import { runToolForcedEdit } from './toolForcedEdit.js';
 
@@ -28,7 +29,9 @@ export interface RunSharepicEditArgs {
 }
 
 export type RunSharepicEditResult =
-  { ok: true; edit: SharepicEditResponse } | { ok: false; error: string };
+  | { ok: true; edit: SharepicEditResponse }
+  | { ok: false; error: string }
+  | { ok: false; reply: string };
 
 /** Compact German description of the current sharepic content for prompts. */
 export function buildSnapshotLines(snapshot: CanvasAiSnapshot): string[] {
@@ -59,7 +62,14 @@ export function buildOperationCatalog(descriptor: SharepicTemplateDescriptor): s
   lines.push('ERLAUBTE OPERATIONEN (genaue Schemas, Schlüssel ist "kind"):');
   if (supported.has('set-text')) {
     lines.push(
-      '  - { "kind": "set-text", "field": "<field>", "label": "<Label>", "value": "<neuer Text>" }'
+      '  - { "kind": "set-text", "field": "<field>", "label": "<Label>", "value": "<neuer Text>" }',
+      // Ohne diesen Satz entstehen im Chat praktisch nie Aufzählungen: das
+      // Schema darüber liest sich wie ein Einzeiler. `value` ist ein blankes
+      // z.string(), Umbrüche erreichen den Editor also unverändert.
+      '    "value" darf Zeilenumbrüche tragen. Eine Aufzählung schreibst du als eine Zeile je Punkt, jede beginnt mit "• " — keine Leerzeilen.',
+      // Dieselbe Regel wie in der Textgenerierung, damit der Chat dieselbe
+      // Form schreibt, die der Editor zeichnet.
+      ...SHAREPIC_MARKUP_RULES.map((rule) => `    ${rule}`)
     );
   }
   if (supported.has('set-font-size')) {
@@ -123,9 +133,8 @@ export function buildOperationCatalog(descriptor: SharepicTemplateDescriptor): s
  * The catalog above lists supported ops only, which reads as an offer and not
  * as a boundary: on 11.08.2026 `dreizeilen-overlay-at` got a
  * `set-background-color` it does not support, the validator dropped it, and the
- * chat still reported the new background. The model has no refusal channel here
- * (the call is tool-forced), so the boundary has to arrive as a fact about the
- * template plus the one escape that does exist — the studio.
+ * chat still reported the new background. The boundary must arrive as a fact
+ * about the template, including the studio as an alternative.
  */
 const OPERATION_LABEL: Readonly<Record<CanvasAiOperationKind, string>> = {
   'set-text': 'Texte ändern',
@@ -160,10 +169,6 @@ export function buildUnsupportedNote(descriptor: SharepicTemplateDescriptor): st
   lines.push(
     'Erfinde niemals eine Operation, die oben nicht steht, und benenne keinen Wert außerhalb der genannten Optionen — ' +
       'beides wird verworfen, und die Bestätigung wäre dann falsch.',
-    // No "return zero operations" escape on purpose: the wire schema requires
-    // 1–8 (canvasAi.ts), and the all-rejected path already answers with the
-    // template's own reason plus the studio hint. The gap this closes is the
-    // PARTIAL one, where the reply spoke for ops that never applied.
     'Lässt sich ein TEIL der Anweisung so nicht umsetzen: setze den Rest um und schreibe in "reply" klar, ' +
       'welcher Teil nicht ging und warum — und dass sich das im Studio direkt einstellen lässt. ' +
       'Bestätige NIE etwas, wofür du keine Operation aus der Liste gesetzt hast.'
@@ -186,6 +191,8 @@ export function buildSliderDeckOperationCatalog(descriptor: SharepicTemplateDesc
     'ERLAUBTE OPERATIONEN (genaue Schemas, Schlüssel ist "kind"):',
     '  - { "kind": "edit-slide", "slide": <Nr>, "operations": [ ... ] } — ändert EINE Folie. Erlaubte innere Operationen:',
     '      { "kind": "set-text", "field": "label" | "headline" | "subtext" | "subtext2", "label": "<Label>", "value": "<neuer Text>" }',
+    '      "value" darf Zeilenumbrüche tragen; Aufzählungspunkte stehen je auf einer Zeile und beginnen mit "• ".',
+    ...SHAREPIC_MARKUP_RULES.map((rule) => `      ${rule}`),
     `      { "kind": "set-font-size", "field": "<field>", "label": "<Label>", "size": <Zahl> } (${fontBounds})`,
     `      { "kind": "set-color-scheme", "schemeId": <id> } — nur: ${schemeIds}. Gilt IMMER für das GANZE Karussell.`,
     '      Hinweis: "label" gibt es nur auf dem Cover (Slide 1), "subtext2" nur auf Inhalts-Folien.',
@@ -215,7 +222,7 @@ export function buildSystemPrompt(
       ? 'Du bist der Bearbeitungs-Assistent für Sharepics der österreichischen Grünen.'
       : 'Du bist der Bearbeitungs-Assistent für Sharepics der deutschen Grünen.',
     'Der*die Nutzer*in beschreibt EINE gewünschte Änderung am aktuellen Sharepic.',
-    'Du setzt sie als konkrete Operationen um — keine Vorschläge, keine Rückfragen.',
+    'Setze umsetzbare Änderungen als konkrete Operationen um. Fehlen notwendige Angaben, erkläre in "reply", was du brauchst.',
     '',
     'Sprachregeln: Du-Form, Genderstern (z.B. "Bürger*innen"), prägnante Kampagnen-Texte.',
     // Same substitutions as the LÄNDERKONTEXT fork in respondNode's system
@@ -246,6 +253,10 @@ export function buildSystemPrompt(
   lines.push(`Antworte AUSSCHLIESSLICH über das Tool "${SHAREPIC_EDIT_TOOL_NAME}" mit:`);
   lines.push('- "operations": 1–8 Operationen, die die Anweisung vollständig umsetzen.');
   lines.push(
+    'Wenn keine Änderung möglich oder zulässig ist, gib "operations": [] zurück und erkläre in "reply" den Grund oder frage nach den fehlenden Angaben. Erfinde keine Ersatzänderung.',
+    'Bei Textbearbeitungen ist der aktuelle Feldinhalt dein Ausgangstext. Formuliere den vollständigen neuen Text selbst und setze ihn mit "set-text"; beachte dabei die Unterscheidung zwischen Kampagnenentwurf und belegtem Originalzitat in den Inhaltsregeln.'
+  );
+  lines.push(
     '- "summary": Kurzlabel der Änderung auf Deutsch, max. 120 Zeichen (z.B. "Zeile 2 gekürzt").'
   );
   lines.push(
@@ -268,12 +279,16 @@ export function buildSystemPrompt(
 export async function runSharepicEdit(args: RunSharepicEditArgs): Promise<RunSharepicEditResult> {
   const { instruction, descriptor, snapshot, recentEditSummaries } = args;
 
-  return runToolForcedEdit({
+  const result = await runToolForcedEdit({
     toolName: SHAREPIC_EDIT_TOOL_NAME,
     description: 'Wendet eine Änderung auf das aktuelle Sharepic an.',
-    schema: sharepicEditResponseSchema,
+    schema: sharepicEditDecisionSchema,
     systemPrompt: buildSystemPrompt(descriptor, snapshot, recentEditSummaries),
     instruction,
     logPrefix: '[sharepic_edit]',
   });
+  if (result.ok && result.edit.operations.length === 0) {
+    return { ok: false, reply: result.edit.reply };
+  }
+  return result;
 }

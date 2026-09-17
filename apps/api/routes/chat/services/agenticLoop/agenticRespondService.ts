@@ -41,6 +41,7 @@ import { turnMaterialChars } from '../turnMaterial.js';
 import { withInstructionHierarchy } from '../untrustedContent.js';
 
 import { isToolApprovalEnabled } from './approvalPolicy.js';
+import { buildPreLoopEditNotes } from './artifactNotes.js';
 import { createAskHumanGate, type AskHumanGate } from './askHumanGate.js';
 import { ATTACHED_DOCS_TOOL, retrievableAttachedSources } from './attachedDocuments.js';
 import {
@@ -458,8 +459,14 @@ export async function streamAgenticResponse(
     // Same predicate the catalog used to decide what to mount — read once here
     // so prompt and toolset can never disagree about whether searching is on.
     const researchBanned = forbidsNewResearch(finalState.lastUserTextNoMentions ?? lastUserText);
+    // Editor sidebar, artefact open — toggle off, or toggle on but no edit
+    // path this turn. Split mode gets both via `buildArtifactNotes` in the
+    // synth prompt; unified mode has no synth prompt, so they have to arrive
+    // here or the model promises an edit that nothing will make (or hides
+    // that editing is off).
+    const preLoopEditNotes = mode === 'unified' ? buildPreLoopEditNotes(finalState) : '';
     const toolSystem = withInstructionHierarchy(
-      `${systemMessage}\n\n${buildToolUsageBlock(budget.maxSteps, researchBanned, mode === 'unified', Object.keys(wrapped), sourceRegistry.carriedSize > 0)}${mcpNote}${systemNote}${connectorCatalogNote}${carriedNote}${renderRecipeCatalog(recipeCatalog)}`
+      `${systemMessage}\n\n${buildToolUsageBlock(budget.maxSteps, researchBanned, mode === 'unified', Object.keys(wrapped), sourceRegistry.carriedSize > 0)}${mcpNote}${systemNote}${connectorCatalogNote}${carriedNote}${preLoopEditNotes}${renderRecipeCatalog(recipeCatalog)}`
     );
     const { abortSignal, writeAbortSignal, toolBudgetDeadline } = createTurnClocks(
       budget,
@@ -740,7 +747,16 @@ export async function streamAgenticResponse(
       // (whitespace-only) text — drop them so reload keeps cards-first.
       for (const s of steps) delete s.textOffset;
       if (finalState.editorEditsSummary) {
-        emitter.replaceAndStream(`Erledigt — ${finalState.editorEditsSummary}.`);
+        // The doc surface DISPATCHES its edit (editorTools, strategy
+        // 'dispatch'): BlockNote turns it into suggestion marks the person
+        // still has to accept. "Erledigt" would be the one claim the server
+        // cannot make — nothing acknowledges the apply, and the change is not
+        // in the document until someone says so.
+        emitter.replaceAndStream(
+          finalState.editToolSurface === 'doc'
+            ? `${finalState.editorEditsSummary} — die Änderung erscheint als Vorschlag im Dokument, den du annehmen oder verwerfen kannst.`
+            : `Erledigt — ${finalState.editorEditsSummary}.`
+        );
       } else {
         degraded = 'no_answer';
         emitter.replaceAndStream(

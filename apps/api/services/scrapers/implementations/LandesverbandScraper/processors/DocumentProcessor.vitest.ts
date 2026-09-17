@@ -28,6 +28,8 @@ vi.mock('../../../../ChunkQualityService/index.js', () => ({
 vi.mock('../../../../document-services/index.js', () => ({
   smartChunkDocument: (text: string) => Promise.resolve([{ text }]),
   buildEmbeddingTextsForChunks: (chunks: Array<{ text: string }>) => chunks.map((c) => c.text),
+  embeddingPayload: () => ({ embedding_model: 'mistral-embed' }),
+  offsetPayload: () => ({ char_start: null, char_end: null }),
   structurePayload: () => ({
     heading_path: null,
     heading: null,
@@ -155,5 +157,45 @@ describe('processAndStoreDocument — changed text', () => {
     expect(setPayload).not.toHaveBeenCalled();
     const [, , points] = batchUpsert.mock.calls[0] as [unknown, string, { payload: unknown }[]];
     expect(points[0].payload).toMatchObject({ file_hash: 'abc123' });
+  });
+});
+
+/**
+ * `maxAgeYears` is optional and three sources leave it unset, so this default
+ * is what actually decides their content. It is also the seam the pre-fetch
+ * rejected-URL gate has to match: while that gate required an explicitly
+ * configured limit, it cached those sources' rejections and never read them
+ * back — inert exactly where no counter could reveal it. Both sides now read
+ * DEFAULT_MAX_AGE_YEARS; these cases pin what it means here.
+ */
+describe('processAndStoreDocument — default age limit', () => {
+  const yearsAgo = (years: number) =>
+    new Date(Date.now() - years * 365.25 * 24 * 60 * 60 * 1000).toISOString();
+
+  /** Exactly how the scraper calls it for a source without the field set. */
+  const storeAged = (publishedAt: string) =>
+    makeProcessor().processAndStoreDocument(
+      SOURCE,
+      'beschluss',
+      URL_UNDER_TEST,
+      { title: 'Beschluss', text: TEXT, publishedAt, categories: [] },
+      'landesverbaende_documents',
+      undefined
+    );
+
+  beforeEach(() => {
+    scrollDocuments.mockResolvedValue([]);
+  });
+
+  it('rejects content past the default window', async () => {
+    await expect(storeAged(yearsAgo(12))).resolves.toEqual({ stored: false, reason: 'too_old' });
+  });
+
+  it('still stores content inside it', async () => {
+    const result = await storeAged(yearsAgo(5));
+
+    // Guards the other direction: a default of 0 would make the case above
+    // pass too, while quietly rejecting everything.
+    expect(result.stored).toBe(true);
   });
 });

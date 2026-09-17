@@ -221,6 +221,19 @@ export async function redoRun(
     scheduleId: orig.schedule_id,
     requireReview: orig.require_review,
   });
+
+  // Den zurückgewiesenen Lauf abschliessen. Ohne das bleibt er für immer
+  // 'awaiting_review' und steht in der Freigabe-Liste neben seinem Ersatz.
+  // 'failed' ist der ehrliche Endzustand und ein bereits ausgelieferter Wert
+  // des Wire-Enums — 'completed' läse sich wie angenommen.
+  await db.query(
+    `UPDATE agent_tasks
+        SET status = 'failed', error = 'Zur Überarbeitung zurückgewiesen',
+            completed_at = now(), updated_at = now()
+      WHERE id = $1 AND board_id = $2 AND status = 'awaiting_review'`,
+    [taskId, boardId]
+  );
+
   return task.id;
 }
 

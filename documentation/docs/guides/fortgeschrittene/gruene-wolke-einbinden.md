@@ -3,7 +3,7 @@ sidebar_position: 2
 description: 'Wolke-Dateien über einen Freigabe-Link lesbar machen: Ordner durchstöbern, in Notebooks importieren, im Chat erwähnen.'
 ---
 
-# Wolke einbinden
+# Wie binde ich die Grüne Wolke ein?
 
 Die Grüne Wolke ist unser sicherer Cloud-Speicher für alle grünen Organisationen. Über einen öffentlichen Freigabe-Link kann der Grünerator deine Wolke-Dateien lesen: Du kannst Ordner durchstöbern, Dateien in Notebooks importieren, Dokumente aus der Wolke in den Docs-Editor holen und Dateien im Chat erwähnen. Der Zugriff ist **ausschließlich lesend** — der Grünerator schreibt, ändert und löscht nichts in deiner Wolke.
 

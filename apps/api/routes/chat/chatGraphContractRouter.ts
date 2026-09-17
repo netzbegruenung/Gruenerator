@@ -117,6 +117,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         threadToolHistory,
         userMessageId,
       } = ctxResult.ctx;
+      // The whitelisted record (agent array applied in initializeChatState),
+      // NOT the raw body copy: the single-pass stages, the suspend base and the
+      // persisted requestContext must gate on the same record as the loop.
+      const enabledTools = initialState.enabledTools;
 
       // A placeholder assistant row was minted in buildStreamContext. Its writer
       // accumulates the streamed reply so an aborted/crashed turn keeps whatever
@@ -130,7 +134,6 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       const {
         agentId,
         forcedTools: bodyForcedTools,
-        enabledTools,
         modelId,
         documentIds: rawDocumentIds,
         documentChatIds: rawDocumentChatIds,
@@ -138,6 +141,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         boardIds: rawBoardIds,
         currentDocument: rawCurrentDocument,
         currentBoard: rawCurrentBoard,
+        currentCanvas: rawCurrentCanvas,
         currentSharepic: rawCurrentSharepic,
         currentSocialPost: rawCurrentSocialPost,
         currentReel: rawCurrentReel,
@@ -276,6 +280,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         sharepicRefinement,
         rawCurrentDocument,
         rawCurrentBoard,
+        rawCurrentCanvas,
         rawBoardIds,
         mentionBoardIds: mentionTokenFields.boardIds,
       });
@@ -426,19 +431,8 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         });
       }
 
-      // === Stages 3b–3d: chart / artifact / editor-surface triggers ===
-      runArtifactEmitStage({
-        sse,
-        finalState,
-        fullText,
-        validMessages,
-        lastUserMessage,
-        compoundEdit: plan.compoundEdit,
-        editTarget: plan.editTarget,
-        editToolLoop: plan.editToolLoop,
-        rawCurrentDocument,
-        rawCurrentBoard,
-      });
+      // === Stages 3b–3c: chart / artifact / editor-surface triggers ===
+      runArtifactEmitStage({ sse, finalState, fullText });
 
       // === Stage 4: Persist & complete ===
       return await runPersistStage({

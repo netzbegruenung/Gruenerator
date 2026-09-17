@@ -9,14 +9,6 @@ export {
 // Confirm/reject flow for chat-proposed actions (shared POST; platform cards render around it)
 export { confirmChatAction, type ConfirmActionOutcome } from './lib/confirmAction';
 
-// Extra Actions Context
-export {
-  ExtraActionsProvider,
-  useExtraActions,
-  type ExtraAction,
-  type ExtraActionFactory,
-} from './context/ExtraActionsContext';
-
 // Chat Surface Context (per-surface agent/mode/model state)
 export {
   ChatSurfaceProvider,
@@ -281,10 +273,13 @@ export {
   type SearchIntent,
   type GeneratedImage,
   type ChatProgress,
+  type MemoryContextInfo,
   type Citation,
   type SearchResult,
   type StreamMetadata,
   type ChatMessage,
+  type ChartData,
+  type ComputeData,
   type SharepicData,
   type SharepicVariant,
   type UseChatGraphStreamOptions,
@@ -327,7 +322,20 @@ export { useFileMentionData } from './hooks/useFileMentionData';
 // once high in the tree (e.g. alongside useMentionablesQuery) and read the
 // returned array directly wherever a live Rezepte catalog is rendered
 // (Agentura, SkillLibraryModal, PlusMenu).
-export { useHiddenAgentIdentifiers, useHiddenSkillMentions } from './hooks/useMentionablesQuery';
+export {
+  useHiddenAgentIdentifiers,
+  useHiddenSkillMentions,
+  useUserShareLinksQuery,
+  useWolkeBrowseQuery,
+  useConnectProvidersQuery,
+  useConnectBrowseQuery,
+  useCanvaDesignsQuery,
+  type ChatShareLink,
+  type ChatWolkeFile,
+  type ChatConnectProvider,
+  type ChatConnectFile,
+  type ChatCanvaDesign,
+} from './hooks/useMentionablesQuery';
 
 // Landesverbands-Zuteilung aus den Profilrollen. Steuert, welche LV-Agenten,
 // -Rezepte und -Notebooks eine Person überhaupt angeboten bekommt.
@@ -405,6 +413,7 @@ export {
   toolMentionables,
   visibleToolMentionables,
   visibleNotebookMentionables,
+  getMcpServerMentionables,
   filterMentionablesByCategory,
   type Mentionable,
   type MentionableType,
@@ -413,6 +422,9 @@ export {
   type UserAgentMentionable,
   type BoardMentionable,
   type DocMentionable,
+  type WolkeFileToken,
+  type ConnectFileToken,
+  type CanvaDesignToken,
 } from './lib/mentionables';
 export {
   slugifyMention,
@@ -494,6 +506,10 @@ export {
   type PressemitteilungExample,
   type ParsedPressemitteilungExamples,
 } from './lib/toolResults';
+
+// Audio among a compute payload's file assets. Shared because web and native
+// each render the card from their own file and must label it the same way.
+export { audioAssetsOf, type ComputeFileAsset } from './lib/computeAssets';
 
 // Werkzeug-Freigabe: die plattformneutrale Hälfte. Web rendert sie als Karte,
 // Native als Karte im eigenen Idiom — beide lesen dieselben Optionen und

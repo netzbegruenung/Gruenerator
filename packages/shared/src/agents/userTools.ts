@@ -39,7 +39,8 @@ export const USER_SELECTABLE_TOOLS: readonly UserSelectableTool[] = [
     // research) by query complexity. Stored under the legacy `web` key for
     // back-compat with existing agents (default has always been ['search','web']);
     // `research` stays a recognized key (see BACKWARD_COMPAT_TOOL_KEYS) and the
-    // backend treats the two as one capability (see `isToolEnabled`).
+    // backend treats the two as one capability (see `agentAllowsTool` in
+    // apps/api/routes/chat/agents/agentToolWhitelist.ts).
     key: 'web',
     label: 'Recherche',
     description:
@@ -103,13 +104,20 @@ export const USER_SELECTABLE_TOOLS: readonly UserSelectableTool[] = [
     description:
       'Durchsucht die verbundenen Wolke-Ordner, listet Dateien auf und liest sie — ausschließlich lesend.',
   },
+  {
+    key: 'vertonen',
+    label: 'Vertonen',
+    description:
+      'Macht aus einem Text eine Audiodatei zum Herunterladen – Ansage, Vorlesefassung oder Audiodeskription. Die Datei landet in der Mediathek.',
+  },
 ] as const;
 
 /**
  * Keys that are no longer shown in the picker but stay VALID so existing agent
  * configs aren't stripped by server-side validation. `research` was merged into
  * the single "Recherche" tool (stored under `web`); both keys still gate the
- * merged search capability (see `isToolEnabled` in the ChatGraph system prompt).
+ * merged search capability (see `applyAgentToolWhitelist` in
+ * apps/api/routes/chat/agents/agentToolWhitelist.ts).
  */
 export const BACKWARD_COMPAT_TOOL_KEYS: readonly string[] = ['research'];
 

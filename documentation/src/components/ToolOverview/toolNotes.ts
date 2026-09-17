@@ -93,7 +93,10 @@ export const TOOL_NOTES: Record<string, ToolNote> = {
   projekte: {
     note: 'Projekte bündeln Chats, Dokumente und Mitglieder zu einem Arbeitszusammenhang — etwa für eine Kampagne oder einen Ortsverband.',
     platform: ['web', 'desktop'],
-    readMore: { label: 'Projekte', href: '/docs/konto/projekte' },
+    readMore: {
+      label: 'Wie erstelle ich ein gemeinsames Projekt?',
+      href: '/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen',
+    },
   },
 
   // ── Weitere ───────────────────────────────────────────────────────────────
@@ -113,6 +116,10 @@ export const TOOL_NOTES: Record<string, ToolNote> = {
     note: 'Verschriftlicht Audioaufnahmen — für Interviews, Sitzungen und Sprachnotizen.',
     platform: ['web', 'desktop', 'mobile'],
   },
+  voice: {
+    note: 'Verwandelt Text in gesprochene Sprache — als Ansage für den Anrufbeantworter, Vorlesefassung eines Textes oder Audiodeskription. Die Datei landet in der Mediathek.',
+    platform: ['web', 'desktop'],
+  },
   newsletter: {
     note: 'Der Grünerator-Newsletter mit neuen Funktionen und Beispielen. Führt auf ein externes Anmeldeformular.',
     platform: ['web', 'desktop', 'mobile'],
@@ -120,6 +127,9 @@ export const TOOL_NOTES: Record<string, ToolNote> = {
   mcp: {
     note: 'Verbindet den Grünerator mit ChatGPT, Claude oder Le Chat, sodass du dort auf grüne Programme und Beschlüsse zugreifen kannst.',
     platform: ['web', 'desktop'],
-    readMore: { label: 'Konnektoren', href: '/docs/integrationen/konnektoren' },
+    readMore: {
+      label: 'Wie verbinde ich den Grünerator mit ChatGPT & Co.?',
+      href: '/docs/guides/fortgeschrittene/gruenerator-mit-ki-chat-verbinden',
+    },
   },
 };

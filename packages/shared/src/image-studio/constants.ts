@@ -3,6 +3,8 @@
  * Platform-agnostic configuration for image-studio types
  */
 
+import { type ImageFormatId } from '@gruenerator/contracts';
+
 import type {
   ImageStudioTemplateType,
   ImageStudioTypeConfig,
@@ -245,6 +247,39 @@ export const STYLE_VARIANTS: StyleVariantConfig[] = [
  * Default style variant
  */
 export const DEFAULT_STYLE_VARIANT: KiStyleVariant = 'illustration-pure';
+
+// ============================================================================
+// IMAGE FORMATS
+// ============================================================================
+
+/**
+ * Output formats offered in the Bild-Editor — both for a freshly created image
+ * (sent to `/imagine/pure` as explicit dimensions) and as the target of the
+ * „Vergrößern" outpaint (sent to `/imagine/outpaint` as the preset id).
+ *
+ * Every entry is an exact ratio whose sides are multiples of 16 and whose area
+ * stays under FLUX's 4 MP cap — the two limits `/imagine/pure` enforces.
+ */
+export const IMAGE_FORMATS = [
+  { id: '4:5', width: 1088, height: 1360 },
+  { id: '1:1', width: 1216, height: 1216 },
+  { id: '4:3', width: 1408, height: 1056 },
+  { id: '3:4', width: 1056, height: 1408 },
+  { id: '16:9', width: 1792, height: 1008 },
+  { id: '9:16', width: 1008, height: 1792 },
+] as const satisfies ReadonlyArray<{ id: ImageFormatId; width: number; height: number }>;
+
+export { type ImageFormatId };
+
+export const IMAGE_FORMAT_IDS: ImageFormatId[] = IMAGE_FORMATS.map((f) => f.id);
+
+/** Matches the dimensions every pure-create variant used before formats existed. */
+export const DEFAULT_IMAGE_FORMAT: ImageFormatId = '4:5';
+
+export function getImageFormat(id: ImageFormatId): { width: number; height: number } {
+  const found = IMAGE_FORMATS.find((f) => f.id === id);
+  return found ?? IMAGE_FORMATS[0];
+}
 
 // ============================================================================
 // GREEN-EDIT INFRASTRUCTURE OPTIONS

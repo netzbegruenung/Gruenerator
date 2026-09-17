@@ -184,6 +184,17 @@ jobs:
       - name: Overrides erfuellen die deklarierten Bereiche
         run: node scripts/check-override-ranges.mjs
 
+      # Alle anderen Dependency-Checks vergleichen Deklarationen miteinander;
+      # keiner sieht den installierten Baum. `node-linker=hoisted` legt EINEN
+      # flachen Baum an, den sich die Worktrees teilen — ein Install aus einem
+      # fremden Branch schreibt dessen Versionen hinein, und `pnpm install`
+      # meldet danach "Already up to date" (Workspace-State-Cache), auch mit
+      # --force. Sichtbar wird der Bruch erst beim Laden eines Moduls
+      # (17.09.2026: @assistant-ui/core 0.3.18 statt 0.3.16 -> vier
+      # jsdom-Suiten an einem fehlenden assistant-cloud-Export).
+      - name: node_modules deckt sich mit dem Lockfile
+        run: node scripts/check-installed-lockfile-drift.mjs
+
       - name: TypeScript type check
         run: pnpm typecheck
 
@@ -299,10 +310,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      # The interpreter is named ONCE, in the Dockerfile's FROM lines, and read
+      # from there. A literal `python-version` here is a second source of truth
+      # that cannot go red: it kept testing 3.12 no matter what the image
+      # shipped, so a base-image bump was verified against the wrong
+      # interpreter (#3304).
+      - name: Read Python version from the Dockerfile
+        id: python-version
+        run: |
+          version=$(grep -m1 -oE '^FROM python:[0-9]+\.[0-9]+' Dockerfile | cut -d: -f2)
+          test -n "$version" || { echo "::error::no 'FROM python:<x.y>' line in services/nlp/Dockerfile"; exit 1; }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
       - name: Setup Python
         uses: actions/setup-python@v7
         with:
-          python-version: '3.12'
+          python-version: ${{ steps.python-version.outputs.version }}
           cache: 'pip'
           cache-dependency-path: services/nlp/requirements-dev.txt
 

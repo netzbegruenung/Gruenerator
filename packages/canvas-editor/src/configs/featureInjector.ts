@@ -14,7 +14,10 @@
  * This eliminates 60+ lines of manual prop passing per config (83% code reduction).
  */
 
+import { selectedCatalogIconIds } from '../utils/iconInstances';
+
 import type { SectionContext } from './types';
+import type { IconState } from './factory/baseTypes';
 import type { BalkenInstance } from '../primitives/BalkenGroup';
 import type { ChartInstance } from '../utils/chartUtils';
 import type { CircleBadgeInstance } from '../primitives/CircleBadge';
@@ -26,7 +29,7 @@ import type { ShapeInstance } from '../utils/shapes';
 
 interface FeatureStateWithIcons {
   selectedIcons?: string[];
-  iconStates?: Record<string, unknown>;
+  iconStates?: Record<string, IconState>;
 }
 
 interface FeatureStateWithShapes {
@@ -94,7 +97,15 @@ export function injectFeatureProps<S extends object, A extends object>(
   // Convention: state.selectedIcons + state.iconStates + actions.toggleIcon
   if ('selectedIcons' in state && 'toggleIcon' in actions) {
     const stateWithIcons = state as FeatureStateWithIcons;
-    injected.selectedIcons = stateWithIcons.selectedIcons;
+    // Die Seitenleiste zeigt den KATALOG: je Icon ein Eintrag, unabhängig davon,
+    // wie viele Kopien davon auf der Fläche liegen. `selectedIcons` führt seit
+    // #3404 Instanz-IDs, die Auflösung auf Katalog-IDs passiert hier — sonst
+    // erschiene eine Kopie dort als eigenes, unbekanntes Icon und zählte gegen
+    // `maxIconSelections`.
+    injected.selectedIcons = selectedCatalogIconIds(
+      stateWithIcons.selectedIcons,
+      stateWithIcons.iconStates
+    );
     injected.onIconToggle = actions.toggleIcon as (id: string, selected: boolean) => void;
     injected.maxIconSelections = 3; // Standard max
 
@@ -118,10 +129,6 @@ export function injectFeatureProps<S extends object, A extends object>(
 
     if ('removeShape' in actions) {
       injected.onRemoveShape = actions.removeShape as (id: string) => void;
-    }
-
-    if ('duplicateShape' in actions) {
-      injected.onDuplicateShape = actions.duplicateShape as (id: string) => void;
     }
   }
 

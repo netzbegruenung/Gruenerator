@@ -27,6 +27,14 @@ describe('summarizeEditorOps', () => {
     ).toBe('2× set_cell, 1× format_range');
   });
 
+  it('counts canvas ops, which discriminate on `kind` instead of `type`', () => {
+    // Ohne diesen Zweig zählte jede Canvas-Op als "undefined" — die Fläche
+    // wäre still unbeschriftet in Modellnotiz und Ereignis gelandet.
+    expect(
+      summarizeEditorOps([{ kind: 'set-text' }, { kind: 'set-color-scheme' }, { kind: 'set-text' }])
+    ).toBe('2× set-text, 1× set-color-scheme');
+  });
+
   it('is empty for an empty batch', () => {
     expect(summarizeEditorOps([])).toBe('');
   });

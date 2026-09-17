@@ -60,12 +60,8 @@ const measureInfo = (
     (header ? INFO_CONFIG.header.bottomSpacing : 0);
 
   const bodyLines = body
-    ? wrapTextAccurate(
-        body,
-        INFO_CONFIG.body.maxWidth,
-        bodyFontSize,
-        INFO_CONFIG.body.remainingFont
-      ).length
+    ? wrapTextAccurate(body, INFO_CONFIG.body.maxWidth, bodyFontSize, INFO_CONFIG.body.fontFamily)
+        .length
     : 0;
   const bodyBottom = arrowY + bodyLines * bodyFontSize * INFO_CONFIG.body.lineHeightRatio;
 
@@ -190,7 +186,8 @@ const bodyTextElement = createSecondaryText<InfoState>({
   textKey: 'body',
   order: 4,
   width: INFO_CONFIG.body.maxWidth,
-  fontFamily: INFO_CONFIG.body.remainingFont,
+  fontFamily: INFO_CONFIG.body.fontFamily,
+  richText: true,
   lineHeight: INFO_CONFIG.body.lineHeightRatio,
   defaultColor: '#ffffff',
   fillFallback: metaFontColor,

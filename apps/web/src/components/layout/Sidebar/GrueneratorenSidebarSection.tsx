@@ -10,7 +10,7 @@ import {
   useIsMobile,
 } from '@gruenerator/ui';
 import { type MutableRefObject, memo, useCallback, useMemo, useState } from 'react';
-import { PiGearSix, PiSparkle } from 'react-icons/pi';
+import { PiGearSix, PiRepeat, PiSparkle } from 'react-icons/pi';
 import { RiSpyLine } from 'react-icons/ri';
 
 import { useUserAgents } from '../../../features/agents/api';
@@ -133,6 +133,12 @@ export const GrueneratorenSidebarSection = memo(function GrueneratorenSidebarSec
             ))
           )}
           <DropdownMenuSeparator />
+          {/* Die einzige Tür zu den selbstlaufenden Aufgaben: /wiederkehrend war
+              von nirgends verlinkt, obwohl Chat-Werkzeug und Doku dorthin zeigen. */}
+          <DropdownMenuItem onSelect={() => openPath('/wiederkehrend', 'Automatisierungen')}>
+            <PiRepeat className="size-4" />
+            <span>Automatisierungen</span>
+          </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => openPath('/agentura', 'Grüneratoren')}>
             <PiGearSix className="size-4" />
             <span>Alle Grüneratoren &amp; Verwaltung</span>

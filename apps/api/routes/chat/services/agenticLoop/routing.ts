@@ -9,6 +9,7 @@
  * leaf (a dependency-free `node:async_hooks` store), so recording here keeps
  * this module's unit-testability intact.
  */
+import { EDITOR_EDIT_TOOL_KEYS, type EditorEditToolKey } from '@gruenerator/contracts';
 import { type ChatIntentId, isGroundableProse } from '@gruenerator/shared/chat-intents';
 
 import {
@@ -476,9 +477,64 @@ export function looksLikeCompoundEdit(raw: string): boolean {
  * NEW one". Keyed on an edit_current_* tool being enabled.
  */
 export function isEditorSurface(enabledTools: Record<string, boolean> | null | undefined): boolean {
-  return (
-    enabledTools?.['edit_current_doc'] === true || enabledTools?.['edit_current_board'] === true
-  );
+  return isEditToolEnabled(enabledTools);
+}
+
+/**
+ * Is the surface's AI-edit toggle ON for this turn?
+ *
+ * Reads THE list of edit_current_* keys ({@link EDITOR_EDIT_TOOL_KEYS} in
+ * `@gruenerator/contracts`, one key per surface since #3438 — they are wire
+ * values, so the registry sits next to the request schema). The reason this is
+ * a function: the list existed three times by hand — here, in `decideTurnPlan`
+ * (`editToolEnabled`) and in `buildArtifactNotes`, where it is read NEGATED. A key added to two of the
+ * three made the third silently claim the toggle was off: with `canvas` added
+ * to the first two only, every studio turn got the "KI-Bearbeitung ist
+ * ausgeschaltet — behaupte NIEMALS, etwas geändert zu haben" note, directly
+ * contradicting the edit the same prompt announced one note earlier.
+ *
+ * {@link isEditorSurface} is the same question asked for a different purpose
+ * ("is this an editor sidebar at all") and delegates here: a surface whose
+ * toggle is off still must not spawn a NEW artifact.
+ */
+export function isEditToolEnabled(
+  enabledTools: Record<string, boolean> | null | undefined
+): boolean {
+  return EDITOR_EDIT_TOOL_KEYS.some((key) => enabledTools?.[key] === true);
+}
+
+/** Which surface each sidebar's edit key stands for. Total over the enum. */
+const SURFACE_BY_EDIT_TOOL_KEY: Readonly<Record<EditorEditToolKey, EditorSurfaceKind>> = {
+  edit_current_doc: 'doc',
+  edit_current_sheet: 'sheet',
+  edit_current_presentation: 'presentation',
+  edit_current_board: 'board',
+  edit_current_canvas: 'canvas',
+};
+
+/**
+ * The three surfaces that carry their open target in `currentDocument`. The
+ * turn plan's edit target and the classifier's doc fast path both key on
+ * "any of these", never on `edit_current_doc` alone (#3438).
+ */
+export const DOCUMENT_CONTEXT_EDIT_KEYS = [
+  'edit_current_doc',
+  'edit_current_sheet',
+  'edit_current_presentation',
+] as const satisfies readonly EditorEditToolKey[];
+
+export function hasDocumentContextEditTool(
+  enabledTools: Record<string, boolean> | null | undefined
+): boolean {
+  return DOCUMENT_CONTEXT_EDIT_KEYS.some((key) => enabledTools?.[key] === true);
+}
+
+/** The sidebar toggle is OFF when its key is explicitly false; an absent key
+ *  (main chat with a referenced document) does not block. */
+export function isDocumentContextEditAllowed(
+  enabledTools: Record<string, boolean> | null | undefined
+): boolean {
+  return !DOCUMENT_CONTEXT_EDIT_KEYS.some((key) => enabledTools?.[key] === false);
 }
 
 /**
@@ -600,6 +656,27 @@ export function compoundGenerationKind(
  */
 export type EditorSurfaceKind = 'doc' | 'sheet' | 'presentation' | 'board' | 'canvas';
 
+/**
+ * The German noun each surface's artefact is called, with its gender — every
+ * message that names it declines accordingly ("kein Sharepic" vs. "keine
+ * Tabelle", "am Board" vs. "an der Tabelle").
+ *
+ * One table, because two places name the same thing: the edit tool's own
+ * messages (EDIT_SURFACE_SPECS) and the synth note that has to tell the model
+ * this turn cannot edit. A surface's noun is a property of the surface, so it
+ * lives with {@link EditorSurfaceKind} rather than in the tool that happens to
+ * have needed it first. Total over the union, because both readers are.
+ */
+export const EDITOR_SURFACE_NOUNS: Readonly<
+  Record<EditorSurfaceKind, { readonly noun: string; readonly gender: 'f' | 'n' }>
+> = {
+  doc: { noun: 'Dokument', gender: 'n' },
+  sheet: { noun: 'Tabelle', gender: 'f' },
+  presentation: { noun: 'Präsentation', gender: 'f' },
+  board: { noun: 'Board', gender: 'n' },
+  canvas: { noun: 'Sharepic', gender: 'n' },
+};
+
 const EDITOR_AGENT_KIND: ReadonlyArray<readonly [string, EditorSurfaceKind]> = [
   ['gruenerator-sheets-editor', 'sheet'],
   ['gruenerator-presentations-editor', 'presentation'],
@@ -611,7 +688,12 @@ const EDITOR_AGENT_KIND: ReadonlyArray<readonly [string, EditorSurfaceKind]> = [
 /**
  * Resolves which editor surface (if any) a turn belongs to. Prefers the dedicated
  * editor agent's identifier; falls back to the enabled edit_current_* tool so a
- * turn on a custom agent inside an editor sidebar still resolves. Returns null for
+ * turn on a custom agent inside an editor sidebar still resolves. That fallback is
+ * TOTAL over {@link EDITOR_EDIT_TOOL_KEYS} — one key per surface, so a sheets or
+ * presentations sidebar no longer has to borrow the doc key (#3438). It takes the
+ * FIRST enabled key, and the registry is ordered specific-before-`doc` precisely
+ * for that: during the compatibility window those two sidebars send their own key
+ * alongside `edit_current_doc`, and doc-first would undo the fix. Returns null for
  * every non-editor turn (the common case), so the caller can early-out cheaply.
  */
 export function resolveEditorSurfaceKind(
@@ -623,23 +705,32 @@ export function resolveEditorSurfaceKind(
       if (agentIdentifier === id) return kind;
     }
   }
-  if (enabledTools?.['edit_current_board'] === true) return 'board';
-  if (enabledTools?.['edit_current_doc'] === true) return 'doc';
+  for (const key of EDITOR_EDIT_TOOL_KEYS) {
+    if (enabledTools?.[key] === true) return SURFACE_BY_EDIT_TOOL_KEY[key];
+  }
   return null;
 }
 
 /**
- * Editor surfaces with a tool-based edit path implemented — the loop plans ops
- * and streams `editor_operations` instead of the client round-trip. These are
- * NOT live yet, so there is no legacy behaviour to protect and no rollout flag:
- * the tool path is simply the default for them. The still-live surfaces
- * (`doc`, `board`, `canvas`) are absent here and keep the trigger_doc_edit path.
- * Add a surface once its editorTools branch AND client ops handler are wired.
+ * Editor surfaces whose edit runs through the loop's `edit_document` tool —
+ * i.e. all five since #3428. The MODEL decides and writes the instruction; what
+ * differs is only how the change reaches the artefact (see editorTools): four
+ * surfaces plan ops server-side and stream `editor_operations` (`board` since
+ * #1735, `canvas` since #3427), `doc` dispatches `trigger_doc_edit` and lets
+ * BlockNote compose the change client-side.
+ *
+ * The set is therefore no longer "which surfaces have a tool" — it is the total
+ * over {@link EditorSurfaceKind}. It stays a set rather than becoming `true`
+ * because it is also what `buildArtifactNotes` asks to decide whether a turn
+ * WITHOUT the tool has any edit path left at all; a sixth surface added without
+ * an edit path must be able to say so.
  */
 export const TOOL_EDIT_SURFACES: ReadonlySet<EditorSurfaceKind> = new Set([
+  'doc',
   'sheet',
   'presentation',
   'board',
+  'canvas',
 ]);
 
 export interface EditToolLoopInput {
@@ -647,9 +738,9 @@ export interface EditToolLoopInput {
   loopEnabled: boolean;
   /** Surface resolved via {@link resolveEditorSurfaceKind}. */
   surfaceKind: EditorSurfaceKind | null;
-  /** The AI-edit toggle is ON (edit_current_doc/board enabled). When OFF, the
-   *  tool must NOT mount — otherwise the model "edits" and claims success while
-   *  the client (which also gates on the toggle) refuses to apply. */
+  /** The AI-edit toggle is ON (any {@link EDITOR_EDIT_TOOL_KEYS} entry enabled).
+   *  When OFF, the tool must NOT mount — otherwise the model "edits" and claims
+   *  success while the client (which also gates on the toggle) refuses to apply. */
   editToolEnabled: boolean;
   /** A current document/board is actually open (rawCurrentDocument/Board id present). */
   hasEditTarget: boolean;
@@ -670,8 +761,10 @@ export interface EditToolLoopInput {
  * `edit_current_*` intent: it routinely mislabels edit asks as `direct`
  * ("trag es in die Tabelle ein") and drops short follow-ups ("ja ab a1") into a
  * single-pass `direct` turn, both of which must still be able to edit. The same
- * single-pass kill-switches as {@link decideRunAgentic} still apply. A surface
- * without a tool path (doc/board/canvas) returns false → legacy trigger path.
+ * single-pass kill-switches as {@link decideRunAgentic} still apply — and on a
+ * doc surface a turn they hold back now has NO edit path at all (the classifier
+ * stage that used to emit `trigger_doc_edit` is gone), which is why
+ * `buildArtifactNotes` makes the model say so.
  */
 export function decideEditToolLoop(p: EditToolLoopInput): boolean {
   if (!p.loopEnabled) return false;
@@ -739,14 +832,19 @@ export interface AgenticDecisionInput {
   /** Notebook gather pipeline — stays single-pass. */
   isCompound: boolean;
   /** The turn carries a selected notebook (`notebookIds`), whatever the agent.
-   *  Stays single-pass because `searchNode` is the ONLY place that retrieves
-   *  notebook content: `gruenerator_search` takes `collection` as a closed
-   *  `z.enum(ALL_COLLECTIONS)` (searchTools.ts), which addresses SYSTEM
-   *  collections by key — since that list is derived, every Landesverband is
-   *  among them, but there is still no parameter that could address a USER
-   *  notebook. In the loop the classifier's `gatherSources:
-   *  ['notebook-search']` is read by nobody and the chosen notebook is
-   *  silently answered around.
+   *  Stays single-pass — but no longer because the loop CANNOT reach a user
+   *  notebook. That was the original reason: `gruenerator_search` takes
+   *  `collection` as a closed `z.enum(ALL_COLLECTIONS)` (searchTools.ts), which
+   *  addresses SYSTEM collections by key and has no parameter for a USER
+   *  notebook. Since 09/2026 the `notebooks` tool has `search` (id + query, via
+   *  `runNotebookSearch`), so the capability now exists in the loop.
+   *  What has NOT been done is the measurement: `searchNode` owns the notebook
+   *  retrieval path with its own citation and rerank behaviour, and the
+   *  classifier's `gatherSources: ['notebook-search']` is still read by nobody
+   *  here, so a turn that entered the loop would be answered around the chosen
+   *  notebook unless the model happens to call `notebooks(search)` itself.
+   *  Flipping this flag is therefore a deliberate, measured change — not a
+   *  leftover. Do not remove it on the strength of the tool existing.
    *  `isCompound` covered only the NAMED-agent half of this; the universal agent
    *  reached the loop unguarded. Separate flag rather than a widened
    *  `isCompound`, because that name means "gather-then-apply pipeline" and

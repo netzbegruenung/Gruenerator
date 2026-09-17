@@ -7,8 +7,13 @@
  * - This prevents re-renders during drag for smooth UX
  */
 
+import { hasInlineMarks, hasListMarkers } from '@gruenerator/contracts';
 import { useRef, useEffect, useState, useCallback, memo } from 'react';
 import { Text as KonvaText, Transformer } from 'react-konva';
+
+import { overlayBoxForNode, useCanvasTextEditor } from '../components/CanvasTextOverlay';
+
+import { CanvasRichText } from './CanvasRichText';
 
 import { calculateSnapPosition, calculateElementSnapPosition } from '../utils/snapping';
 import { gradientToKonvaProps, type GradientFill } from '../utils/gradientFill';
@@ -49,6 +54,11 @@ export interface CanvasTextProps {
   draggable?: boolean;
   selected?: boolean;
   editable?: boolean;
+  /**
+   * Der Text trägt Markdown-lite und wird mit dem Rich-Text-Editor
+   * bearbeitet — siehe `TextElementConfig.richText`.
+   */
+  richText?: boolean;
   opacity?: number;
   transformConfig?: Partial<TransformConfig>;
   onSelect?: () => void;
@@ -118,7 +128,7 @@ function CanvasTextInner({
 }: CanvasTextProps) {
   const textRef = useRef<Konva.Text>(null);
   const trRef = useRef<Konva.Transformer>(null);
-  const [isEditing, setIsEditing] = useState(false);
+  const { open, isEditing } = useCanvasTextEditor(id);
   // Konva paints gradients in the node's local box; measure the rendered text
   // box (auto-width/height depend on wrapping) so non-vertical gradient angles
   // don't collapse to a single stop.
@@ -259,87 +269,35 @@ function CanvasTextInner({
   }, [onFontSizeChange, onTransformEnd]);
 
   const handleDblClick = useCallback(() => {
-    if (!editable) return;
-
-    const textNode = textRef.current;
-    if (!textNode) return;
-
-    const stage = textNode.getStage();
-    if (!stage) return;
-
-    setIsEditing(true);
-
-    const stageBox = stage.container().getBoundingClientRect();
-    const textPosition = textNode.getAbsolutePosition();
-    const scale = stage.scaleX();
-
-    const textarea = document.createElement('textarea');
-    document.body.appendChild(textarea);
-
-    // Calculate position accounting for window scroll (getBoundingClientRect is viewport-relative)
-    const scrollX = window.scrollX || window.pageXOffset;
-    const scrollY = window.scrollY || window.pageYOffset;
-
-    textarea.value = text;
-    textarea.style.position = 'absolute';
-    textarea.style.top = `${stageBox.top + scrollY + textPosition.y}px`;
-    textarea.style.left = `${stageBox.left + scrollX + textPosition.x}px`;
-    textarea.style.width = `${(width ?? textNode.width()) * scale}px`;
-    textarea.style.minHeight = `${textNode.height() * scale}px`;
-    textarea.style.fontSize = `${fontSize * scale}px`;
-    textarea.style.fontFamily = fontFamily;
-    textarea.style.fontStyle = fontStyle.includes('italic') ? 'italic' : 'normal';
-    textarea.style.fontWeight = fontStyle.includes('bold') ? 'bold' : 'normal';
-    textarea.style.color = fill;
-    textarea.style.textAlign = align;
-    textarea.style.lineHeight = String(lineHeight);
-    textarea.style.border = 'none';
-    textarea.style.padding = '0px';
-    textarea.style.margin = '0';
-    textarea.style.background = 'none';
-    textarea.style.outline = '2px solid #0088cc';
-    textarea.style.outlineOffset = '2px';
-    textarea.style.borderRadius = '0';
-    textarea.style.resize = 'none';
-    textarea.style.overflow = 'hidden';
-    textarea.style.zIndex = '10000';
-    textarea.style.transformOrigin = 'left top';
-
-    textarea.focus();
-    textarea.select();
-
-    const removeTextarea = () => {
-      const newText = textarea.value;
-      if (newText !== text) {
-        onTextChange?.(newText);
-      }
-      setIsEditing(false);
-      document.body.removeChild(textarea);
-    };
-
-    textarea.addEventListener('blur', removeTextarea);
-
-    textarea.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        textarea.value = text;
-        textarea.blur();
-      }
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        textarea.blur();
-      }
+    const node = textRef.current;
+    const box = node && overlayBoxForNode(node, width ?? node.width(), node.height());
+    if (!editable || !box) return;
+    open({
+      id: id ?? '',
+      box,
+      text,
+      fontFamily,
+      fontSize,
+      fontStyle,
+      fill,
+      align,
+      lineHeight,
+      opacity,
+      onTextChange,
     });
   }, [
     editable,
+    open,
+    id,
     text,
     width,
-    fontSize,
     fontFamily,
+    fontSize,
     fontStyle,
     fill,
     align,
     lineHeight,
-    padding,
+    opacity,
     onTextChange,
   ]);
 
@@ -413,8 +371,24 @@ function CanvasTextInner({
   );
 }
 
+/**
+ * Aufzählungen brauchen einen hängenden Einzug und Auszeichnung gemischte
+ * Schnitte — beides kennt ein einzelner Konva.Text nicht, das zeichnet
+ * {@link CanvasRichText} als Gruppe aus Marker-, Lauf- und Textknoten. Ein
+ * `richText`-Feld nimmt immer diesen Weg, damit sein Editor auch ohne ersten
+ * Marker der Rich-Text-Editor ist; alles andere bleibt exakt der bisherige
+ * eine Textknoten.
+ */
+function CanvasTextSwitch(props: CanvasTextProps) {
+  return props.richText || hasListMarkers(props.text) || hasInlineMarks(props.text) ? (
+    <CanvasRichText {...props} />
+  ) : (
+    <CanvasTextInner {...props} />
+  );
+}
+
 // Memoize to prevent re-renders when parent (ZitatPureCanvas) updates due to snap state changes
-export const CanvasText = memo(CanvasTextInner, (prevProps, nextProps) => {
+export const CanvasText = memo(CanvasTextSwitch, (prevProps, nextProps) => {
   // Custom comparison: only re-render if these specific props changed
   // Ignore snapTargets array reference changes (we use the values inside)
   const keysToCompare: (keyof CanvasTextProps)[] = [
@@ -443,6 +417,7 @@ export const CanvasText = memo(CanvasTextInner, (prevProps, nextProps) => {
     'draggable',
     'selected',
     'editable',
+    'richText',
     'opacity',
     'stageWidth',
     'stageHeight',

@@ -137,6 +137,12 @@
           "path": "/transkription"
         },
         {
+          "id": "voice",
+          "title": "Voice",
+          "description": "Text vertonen",
+          "path": "/voice"
+        },
+        {
           "id": "newsletter",
           "title": "Newsletter",
           "description": "Updates abonnieren"
@@ -210,6 +216,11 @@
       "title": "Übersetzer",
       "path": "/uebersetzer",
       "subtitle": "Texte & Dokumente mit DeepL übersetzen"
+    },
+    "tool-voice": {
+      "title": "Grünerator Voice",
+      "path": "/voice",
+      "subtitle": "Anrufbeantworter, Vorlesefassung & Audiodeskription"
     },
     "tool-vorlagen": {
       "title": "Vorlagen",

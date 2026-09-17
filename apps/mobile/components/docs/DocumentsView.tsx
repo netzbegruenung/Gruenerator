@@ -13,15 +13,14 @@ import {
   StyleSheet,
   RefreshControl,
   Alert,
-  Platform,
   useColorScheme,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useContentColumn, useLayout } from '../../hooks/useLayout';
+import { useTabBarClearance } from '../../hooks/useTabBarClearance';
 import { useDocsStore } from '../../stores/docsStore';
 import { lightTheme, darkTheme, colors, spacing, BODY_FONT } from '../../theme';
-import { FLOATING_TAB_BAR_HEIGHT, gridColumns } from '../../theme/layout';
+import { gridColumns } from '../../theme/layout';
 import { officeTypeColor } from '../../theme/officeColors';
 import { getSurfaceFab } from '../../theme/toolTheme';
 import { DocPreview } from '../common/DocPreview';
@@ -251,15 +250,8 @@ export function DocumentsView({
   const deleteDocument = useDocsStore((s) => s.deleteDocument);
   const clearError = useDocsStore((s) => s.clearError);
   const prefetchRecentDocs = useDocsStore((s) => s.prefetchRecentDocs);
-  const insets = useSafeAreaInsets();
   const fabTones = getSurfaceFab('arbeiten', colorScheme === 'dark');
-  // The Android tab bar is an absolutely positioned capsule, so nothing reserves
-  // space for it — the FABs and the list's bottom padding clear it themselves.
-  // On iOS the native tab bar is already inside insets.bottom.
-  const fabBottom =
-    Platform.OS === 'ios'
-      ? insets.bottom + spacing.medium
-      : insets.bottom + FLOATING_TAB_BAR_HEIGHT + spacing.small;
+  const fabBottom = useTabBarClearance(spacing.medium);
   const [createOpen, setCreateOpen] = useState(false);
   const [createTemplates, setCreateTemplates] = useState(false);
   const [isCreating, setIsCreating] = useState(false);

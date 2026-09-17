@@ -6,10 +6,8 @@
 // runtime lives in GrueneratorChatRuntime.tsx and is loaded lazily.
 
 import { type ThreadMessageLike, type ToolCallMessagePart } from '@assistant-ui/react';
-import { socialPostPayloadSchema, bahnPayloadSchema } from '@gruenerator/contracts';
 
 import {
-  coerceSharepicVariants,
   type ComputeData,
   type GeneratedImage,
   type Citation,
@@ -20,6 +18,7 @@ import { ATTACHMENT_META_PART_NAME, type AttachmentMetaData } from '../lib/attac
 import { mapRawCitationsToChat } from '../lib/citationUtils';
 import { isPastedTextAttachment, PASTED_TEXT_PREVIEW_PART_NAME } from '../lib/pastedText';
 import { TOOL_APPROVAL_OPTIONS } from '../lib/toolApproval';
+import { buildToolDerivedCustom } from '../lib/toolDerivedCustom';
 import { INTENT_TO_TOOL } from '../lib/toolMappings';
 import { type DocumentCreatedData } from '../types/messageMetadata';
 
@@ -192,8 +191,9 @@ export const PASSTHROUGH_METADATA_FIELDS = [
  * Single seam: rebuild the `custom` render metadata from a persisted message.
  * Two kinds of field —
  *  - PASSTHROUGH_METADATA_FIELDS: verbatim metadata→custom copies.
- *  - tool-derived (sharepic / reel): extracted from persisted tool-call results
- *    with the same validation the live stream applies.
+ *  - tool-derived (sharepic / social post / bahn / reel): extracted from
+ *    persisted tool-call results by `buildToolDerivedCustom`, shared with the
+ *    native adapter.
  * `senderId` and `streamMetadata` are special-cased (paired / derived).
  */
 function buildCustomMetadata(metadata: LoadedMessage['metadata']): Record<string, unknown> {
@@ -213,56 +213,9 @@ function buildCustomMetadata(metadata: LoadedMessage['metadata']): Record<string
     if (value) custom[field] = value;
   }
 
-  // Tool-derived: sharepic variant stack. Validate on reload the same way the
-  // live stream does — drop any variant with a non-canonical canvasType so the
-  // studio handoff stays safe.
-  const sharepicCall = metadata.toolCalls?.find((tc) => tc.toolName === 'sharepic');
-  const validSharepicVariants = coerceSharepicVariants(
-    (sharepicCall?.result as { variants?: unknown } | undefined)?.variants
-  );
-  if (validSharepicVariants) custom.sharepicData = { variants: validSharepicVariants };
-
-  // Tool-derived: EXPERIMENTAL combined social post (text half). Validate on
-  // reload the same way the live stream's Zod wire schema does; the persisted
-  // result additionally carries `versions`, which the head schema ignores.
-  const socialPostCall = metadata.toolCalls?.find((tc) => tc.toolName === 'social_post');
-  if (socialPostCall?.result) {
-    const parsedPost = socialPostPayloadSchema.safeParse(socialPostCall.result);
-    if (parsedPost.success) custom.socialPostData = parsedPost.data;
-  }
-
-  // Tool-derived: Deutsche-Bahn departure board. The condensed timetable a
-  // `bahn__*` loop step returned as its result IS the BahnPayload the live
-  // `bahn` SSE event carried. The LAST step that PARSES wins (freshest board) —
-  // not merely the last bahn__ step: the prompt instructs a raw
-  // get_full_timetable_changes call AFTER the condensed timetable, which must
-  // not shadow the board on reload.
-  for (const tc of [...(metadata.toolCalls ?? [])].reverse()) {
-    if (!tc.toolName.startsWith('bahn__')) continue;
-    const bahnContent = (tc.result as { content?: unknown } | undefined)?.content;
-    if (typeof bahnContent !== 'string') continue;
-    try {
-      const parsedBahn = bahnPayloadSchema.safeParse(JSON.parse(bahnContent));
-      if (parsedBahn.success) {
-        custom.bahnData = parsedBahn.data;
-        break;
-      }
-    } catch {
-      /* raw (non-condensed) tool result — keep looking */
-    }
-  }
-
-  // Tool-derived: reel cards. The persisted tool results carry payloads
-  // identical to the reel_processing / reel_picker SSE events.
-  const reelProcessingCall = metadata.toolCalls?.find((tc) => tc.toolName === 'reel_processing');
-  if (reelProcessingCall?.result) custom.reelProcessing = reelProcessingCall.result;
-  const reelPickerProjects = (
-    metadata.toolCalls?.find((tc) => tc.toolName === 'reel_picker')?.result as
-      { projects?: unknown } | undefined
-  )?.projects;
-  if (Array.isArray(reelPickerProjects) && reelPickerProjects.length > 0) {
-    custom.reelPicker = { projects: reelPickerProjects };
-  }
+  // Tool-derived (sharepic / social post / bahn / reel) — shared with the
+  // native adapter, see lib/toolDerivedCustom.ts.
+  Object.assign(custom, buildToolDerivedCustom(metadata.toolCalls));
 
   // Derived: drives the message-action affordances (copy/regenerate context)
   // and the thumbs feedback button (traceId), so it must survive reload.

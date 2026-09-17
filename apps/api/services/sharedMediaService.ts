@@ -30,6 +30,8 @@ import { deriveContentOrigin } from './sharedMediaOrigin.js';
 import type {
   SharedMediaRow,
   CreateVideoShareParams,
+  CreateAudioShareParams,
+  AudioShareResult,
   CreatePendingVideoShareParams,
   CreateImageShareParams,
   UpdateImageShareParams,
@@ -94,6 +96,35 @@ export class MediaQuotaExceededError extends Error {
     this.userMessage = userMessage;
   }
 }
+
+/**
+ * How long a new share stays reachable at its public `/share/<token>` page.
+ *
+ * **This expires the link, not the bytes.** Nothing deletes a row or a file
+ * when the date passes: the owner keeps the item in their Mediathek forever and
+ * still opens its share page (`shareFileRouter` exempts them), and every image
+ * path — `/preview`, `/thumbnail`, `/stream`, the signed `/api/thumbs/...`
+ * URLs — ignores `expires_at` entirely. That asymmetry is deliberate and
+ * load-bearing, because those paths are not share links: they are how the
+ * Mediathek, the workplace strip, the Studio galleries, the canvas editor and
+ * the candidate-site builder render every image in the product. Enforcing a
+ * deadline there would blank the product, not close a share.
+ *
+ * Auto-*deleting* media was removed on purpose in #2980 (see
+ * `MEDIA_LIBRARY_ITEM_LIMIT`); this does not bring it back.
+ */
+const SHARE_LINK_MAX_AGE_DAYS = 30;
+
+/**
+ * `expires_at` for a freshly created share, as a SQL expression.
+ *
+ * Computed by Postgres rather than in Node so every share is stamped off the
+ * same clock as its own `created_at` — the API runs in cluster mode, and a
+ * skewed worker would otherwise mint deadlines that disagree with the rows
+ * around them. Interpolated rather than bound: the value is the numeric literal
+ * above, never caller input.
+ */
+const SHARE_EXPIRY_SQL = `NOW() + INTERVAL '${SHARE_LINK_MAX_AGE_DAYS} days'`;
 
 // Responsive grid-thumbnail widths pre-generated at upload. Must stay in sync
 // with the widths the frontend requests (`buildSharedMediaSrcSet`) and the
@@ -492,8 +523,9 @@ class SharedMediaService {
       const query = `
                 INSERT INTO shared_media
                 (user_id, share_token, media_type, title, file_path, file_name, thumbnail_path,
-                 file_size, mime_type, duration, project_id, status)
-                VALUES ($1, $2, 'video', $3, $4, $5, $6, $7, 'video/mp4', $8, $9, 'ready')
+                 file_size, mime_type, duration, project_id, status, expires_at)
+                VALUES ($1, $2, 'video', $3, $4, $5, $6, $7, 'video/mp4', $8, $9, 'ready',
+                        ${SHARE_EXPIRY_SQL})
                 RETURNING id, share_token, created_at
             `;
 
@@ -530,6 +562,67 @@ class SharedMediaService {
       }
       console.error('[SharedMediaService] Failed to create video share:', error);
       throw new Error(`Failed to create video share: ${(error as Error).message}`);
+    }
+  }
+
+  /**
+   * Generated speech from Grünerator Voice. A creation (`content_origin 'ki'`):
+   * like every creation it is never refused by the Mediathek cap, but it does
+   * count toward it afterwards (one row per format). No thumbnail — the
+   * Mediathek card draws a glyph.
+   */
+  async createAudioShare(
+    userId: string,
+    params: CreateAudioShareParams
+  ): Promise<AudioShareResult> {
+    await this.ensureInitialized();
+
+    const { buffer, mimeType, extension, title, durationSeconds } = params;
+    const shareToken = this.generateShareToken();
+    const shareDir = getSafeShareDir(shareToken);
+
+    try {
+      await fs.mkdir(shareDir, { recursive: true });
+
+      const fileName = `media.${extension}`;
+      await fs.writeFile(path.join(shareDir, fileName), buffer);
+
+      const query = `
+                INSERT INTO shared_media
+                (user_id, share_token, media_type, title, file_path, file_name, thumbnail_path,
+                 file_size, mime_type, duration, status, is_library_item, upload_source,
+                 content_origin, image_metadata)
+                VALUES ($1, $2, 'audio', $3, $4, $5, NULL, $6, $7, $8, 'ready', TRUE, 'voice', 'ki', '{}')
+                RETURNING id, share_token, created_at
+            `;
+
+      const result = await this.postgres!.queryOne<{
+        id: string;
+        share_token: string;
+        created_at: Date;
+      }>(query, [
+        userId,
+        shareToken,
+        title,
+        `${shareToken}/${fileName}`,
+        fileName,
+        buffer.length,
+        mimeType,
+        durationSeconds,
+      ]);
+
+      console.log(`[SharedMediaService] Created audio share ${shareToken} for user ${userId}`);
+
+      return {
+        id: result!.id,
+        shareToken: result!.share_token,
+        shareUrl: `/share/${shareToken}`,
+        createdAt: result!.created_at,
+      };
+    } catch (error) {
+      await fs.rm(shareDir, { recursive: true, force: true }).catch(() => undefined);
+      console.error('[SharedMediaService] Failed to create audio share:', error);
+      throw new Error(`Failed to create audio share: ${(error as Error).message}`);
     }
   }
 
@@ -624,8 +717,10 @@ class SharedMediaService {
       const query = `
                 INSERT INTO shared_media
                 (user_id, share_token, media_type, title, file_path, file_name, thumbnail_path,
-                 file_size, mime_type, image_type, image_metadata, status, content_origin)
-                VALUES ($1, $2, 'image', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+                 file_size, mime_type, image_type, image_metadata, status, content_origin,
+                 expires_at)
+                VALUES ($1, $2, 'image', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
+                        ${SHARE_EXPIRY_SQL})
                 RETURNING id, share_token, created_at
             `;
 
@@ -702,8 +797,9 @@ class SharedMediaService {
       const query = `
                 INSERT INTO shared_media
                 (user_id, share_token, media_type, title, file_path, file_name, thumbnail_path,
-                 mime_type, duration, project_id, status)
-                VALUES ($1, $2, 'video', $3, NULL, NULL, $4, 'video/mp4', $5, $6, 'processing')
+                 mime_type, duration, project_id, status, expires_at)
+                VALUES ($1, $2, 'video', $3, NULL, NULL, $4, 'video/mp4', $5, $6, 'processing',
+                        ${SHARE_EXPIRY_SQL})
                 RETURNING id, share_token, created_at
             `;
 
@@ -830,13 +926,8 @@ class SharedMediaService {
                        content_origin
                 FROM shared_media
                 WHERE user_id = $1
-                  AND ${creationFeedWhere(params, status)}
+                  AND ${creationFeedWhere(params, status, mediaType)}
             `;
-
-      if (mediaType) {
-        params.push(mediaType);
-        query += ` AND media_type = $${params.length}`;
-      }
 
       params.push(Math.min(Math.max(1, Math.trunc(limit)), USER_SHARES_MAX_LIMIT));
       query += ` ORDER BY created_at DESC LIMIT $${params.length}`;
@@ -1206,8 +1297,9 @@ class SharedMediaService {
                 INSERT INTO shared_media
                 (user_id, share_token, media_type, title, file_path, file_name, thumbnail_path,
                  file_size, mime_type, status, is_library_item, alt_text, upload_source, original_filename,
-                 image_metadata, content_origin)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'ready', $10, $11, $12, $13, $14, $15)
+                 image_metadata, content_origin, expires_at)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'ready', $10, $11, $12, $13, $14, $15,
+                        ${SHARE_EXPIRY_SQL})
                 RETURNING id, share_token, created_at
             `;
 
@@ -1266,6 +1358,8 @@ class SharedMediaService {
       'video/mp4': 'mp4',
       'video/webm': 'webm',
       'video/quicktime': 'mov',
+      'audio/mpeg': 'mp3',
+      'audio/wav': 'wav',
     };
     return mimeToExt[mimeType] || 'bin';
   }

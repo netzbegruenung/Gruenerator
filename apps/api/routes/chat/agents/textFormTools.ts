@@ -180,7 +180,7 @@ function normalizeExamples(
 // ---------------------------------------------------------------------------
 
 export function makeRecipesTool(ctx: RecipeToolCtx): Tool {
-  const { state, sourceRegistry } = ctx;
+  const { state, threadId, sourceRegistry } = ctx;
   const deps = resolveRecipeDeps(ctx.deps);
   const userLocale = state.userLocale ?? null;
 
@@ -243,6 +243,9 @@ Die Beispiele für create und add_examples sind die Texte der Person selbst — 
       if (action === 'add_examples') return addExamples(userId, own, args.examples);
 
       // delete
+      // Kein Mensch am Lauf: der `confirm=true`-Zweischritt bestätigt sich hier
+      // selbst, und die Karte, die fragen würde, ginge an einen stummen Sink.
+      if (!threadId) return { error: 'Löschen ist in diesem Kontext nicht möglich.' };
       if (!args.confirm) {
         const ask = `Soll die Textform „${own.title}" (@${own.mention}) wirklich gelöscht werden? Frage die Person und rufe delete erst mit confirm=true erneut auf.`;
         groundNote(sourceRegistry, 'Bestätigung nötig', ask);

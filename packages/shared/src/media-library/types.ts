@@ -5,7 +5,7 @@
 
 import { type UPLOAD_SOURCES } from './constants.js';
 
-export type MediaType = 'image' | 'video';
+export type MediaType = 'image' | 'video' | 'audio';
 
 export type MediaStatus = 'processing' | 'ready' | 'failed';
 

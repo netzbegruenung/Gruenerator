@@ -201,6 +201,45 @@ describe('footprint band', () => {
     expect(stats.footprint.energy_wh_low).toBeGreaterThan(0);
   });
 
+  it('names extrapolation from our OWN measurement as its own share', async () => {
+    // gemma4-31b carries a metered coefficient but the provider reports nothing
+    // per request: neither `measured` (no meter on the row) nor `bounded` (the
+    // model itself was measured). Before this share existed it was the largest
+    // class on the page and had no label at all.
+    selectQueue = [...eligible(), [row()]];
+
+    const stats = await computePlatformUsageStats(30, null);
+
+    expect(stats.footprint.calibrated_share).toBeCloseTo(1, 6);
+    expect(stats.footprint.measured_share).toBeCloseTo(0, 6);
+    expect(stats.footprint.bounded_share).toBeCloseTo(0, 6);
+  });
+
+  it('accounts for every counted watt-hour across the three shares', async () => {
+    // The invariant the page rests on. A fourth way into `energy_wh` that no
+    // share claims would leave the meters reading well under 100 % with nothing
+    // saying why — which is the bug this guards against, not a rounding check.
+    selectQueue = [
+      ...eligible(),
+      [
+        row({ energyWms: 3_600_000, emissionsUg: 1_000_000 }),
+        row({ model: 'pixtral-large-latest', provider: 'regolo' }),
+        row({ model: 'mistral-small-3.2-24b-instruct-2506', provider: 'mistral' }),
+        row({ provider: 'bfl', model: 'flux-2-pro', unit: 'images', ops: 1, requests: 0 }),
+      ],
+    ];
+
+    const { footprint } = await computePlatformUsageStats(30, null);
+
+    expect(footprint.energy_wh).toBeGreaterThan(0);
+    expect(footprint.measured_share).toBeGreaterThan(0);
+    expect(footprint.calibrated_share).toBeGreaterThan(0);
+    expect(footprint.bounded_share).toBeGreaterThan(0);
+    expect(
+      footprint.measured_share + footprint.calibrated_share + footprint.bounded_share
+    ).toBeCloseTo(1, 6);
+  });
+
   it('brackets a generated image between the bare meter and the corrected one', async () => {
     selectQueue = [
       ...eligible(),

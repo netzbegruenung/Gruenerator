@@ -34,12 +34,14 @@ import { buildNotebookSlug } from '@gruenerator/shared/utils';
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
+import { getCanonicalByKey } from '../../../config/systemCollectionsConfig.js';
 import { NotebookQdrantHelper } from '../../../database/services/NotebookQdrantHelper.js';
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { findGroups } from '../../../services/groups/groupQueries.js';
 import { runNotebookSearch } from '../../../services/notebook/notebookToolSearch.js';
 import { planNotebookVisibility } from '../../../services/notebook/notebookVisibility.js';
 import { previewWolkeFolder } from '../../../services/notebook/notebookWolkeAttach.js';
+import { listPublicNotebooksForViewer } from '../../../services/notebook/publicNotebookListing.js';
 import { createLogger } from '../../../utils/logger.js';
 import { checkNotebookAccess } from '../../notebook/notebookAccess.js';
 import { emitToolConfirmAction, newActionId } from '../services/confirmActionService.js';
@@ -52,7 +54,9 @@ import {
   refuseForbiddenAction,
   requireUserId,
   type PersonalToolCtx,
+  type ResultRow,
 } from './personalDataTools.js';
+import { collectionsForLocale } from './searchTools.js';
 
 import type {
   PendingAction,
@@ -99,6 +103,7 @@ export interface NotebookToolDeps {
   >;
   access: (notebookId: string, userId: string) => Promise<NotebookAccess>;
   search: (input: NotebookSearchInput) => Promise<NotebookSearchOutcome>;
+  listPublic: (viewerLocale: UserLocale) => Promise<NotebookCollection[]>;
   preview: (input: WolkeFolderPreviewInput) => Promise<WolkeFolderPreview | { error: string }>;
   findGroups: typeof findGroups;
   db: Pick<PostgresService, 'query'>;
@@ -114,6 +119,7 @@ function resolveDeps(partial: Partial<NotebookToolDeps> | undefined): NotebookTo
     helper: partial?.helper ?? (helperSingleton ??= new NotebookQdrantHelper()),
     access: partial?.access ?? checkNotebookAccess,
     search: partial?.search ?? runNotebookSearch,
+    listPublic: partial?.listPublic ?? ((locale) => listPublicNotebooksForViewer(locale)),
     preview: partial?.preview ?? previewWolkeFolder,
     findGroups: partial?.findGroups ?? findGroups,
     db: partial?.db ?? getPostgresInstance(),
@@ -138,6 +144,39 @@ const NO_EDIT = 'Keine Berechtigung, dieses Notebook zu bearbeiten.';
 
 export function notebookUrl(c: Pick<NotebookCollection, 'id' | 'name' | 'slug_suffix'>): string {
   return `/notebooks/${c.slug_suffix ? buildNotebookSlug(c.name, c.slug_suffix) : c.id}`;
+}
+
+/**
+ * Die System-Notebooks, die dieser Turn nennen darf — ABGELEITET aus der Menge,
+ * die `gruenerator_search` durchsuchen darf, nicht aus einer eigenen Liste.
+ *
+ * `collectionsForLocale` ist genau das Enum jenes Werkzeugs: locale-gefiltert,
+ * um `NOTEBOOK_GATE.dropHiddenCollections` (Instanz-Politik) bereinigt und ohne
+ * `examples`. Damit gilt per Konstruktion, was sonst sofort abdriften würde:
+ * **was der Agent hier auflisten kann, kann er auch durchsuchen.** Eine zweite,
+ * gepflegte Liste hätte die Landesverbände oder die AT-Korpora beim nächsten
+ * Umbau still verloren — genau der Fehler, den die Ableitung in `searchTools`
+ * schon einmal behoben hat.
+ *
+ * Der Handle ist deshalb der `collection`-Schlüssel und NICHT eine URL: der
+ * nächste Schritt des Modells ist `gruenerator_search`, kein Klick. Die
+ * Web-Pfade der System-Notebooks (`/notebooks/grundsatz` für `deutschland`…)
+ * stehen nur in der Frontend-Config und sind serverseitig nicht ableitbar — ein
+ * geratener Link wäre schlechter als keiner.
+ */
+export function systemNotebookRows(locale: UserLocale | null): ResultRow[] {
+  return collectionsForLocale(locale).map((key) => {
+    const canonical = getCanonicalByKey(key);
+    return makeRow(
+      canonical?.name ?? key,
+      '',
+      'System-Notebook',
+      [canonical?.description, `Suchen mit gruenerator_search, collection="${key}"`]
+        .filter(Boolean)
+        .join(' — '),
+      key
+    );
+  });
 }
 
 function readFolders(settings: Record<string, unknown>): WolkeFolderRef[] {
@@ -203,7 +242,9 @@ export function makeNotebooksTool(ctx: NotebookToolCtx): Tool {
   return tool({
     description: `Zugriff auf die Notebooks der Person (eigene Wissenssammlungen aus Dokumenten, Wolke-Ordnern und Office-Dokumenten) — auflisten, ansehen, inhaltlich befragen, anlegen und verwalten.
 
-NUTZE FÜR: Notebooks auflisten (list), Details eines Notebooks mit Dokumenten, Wolke-Ordnern, Freigaben und wartenden Dateien (get), eine Frage AN DEN INHALT eines Notebooks stellen und belegt beantworten (search mit id + query — „was steht im Notebook X zu …?"), ein Notebook anlegen (create; mit wolkeFolder wird der Ordner sofort angehängt und importiert), einen Wolke-Ordner an ein bestehendes Notebook hängen (add_wolke_folder), eigene Dokumente oder Office-Dokumente hinzufügen (add_documents), umbenennen (rename), Sichtbarkeit und Bearbeitungsrechte ändern (set_visibility), mit einem Projekt teilen (share_to_group), löschen (delete mit confirm=true nach Zustimmung).
+NUTZE FÜR: Notebooks auflisten (list — scope="mine" die eigenen, scope="system" die vom Grünerator gepflegten Wissenssammlungen, scope="basis" die öffentlich geteilten Notebooks anderer), Details eines Notebooks mit Dokumenten, Wolke-Ordnern, Freigaben und wartenden Dateien (get), eine Frage AN DEN INHALT eines Notebooks stellen und belegt beantworten (search mit id + query — „was steht im Notebook X zu …?"), ein Notebook anlegen (create; mit wolkeFolder wird der Ordner sofort angehängt und importiert), einen Wolke-Ordner an ein bestehendes Notebook hängen (add_wolke_folder), eigene Dokumente oder Office-Dokumente hinzufügen (add_documents), umbenennen (rename), Sichtbarkeit und Bearbeitungsrechte ändern (set_visibility), mit einem Projekt teilen (share_to_group), löschen (delete mit confirm=true nach Zustimmung).
+
+Ein System-Notebook hat keine id zum Befragen — seine Zeile nennt im Feld ref den collection-Schlüssel, mit dem 'gruenerator_search' seinen Inhalt durchsucht. Notebooks von der Basis haben eine echte id: get und search funktionieren damit wie bei eigenen.
 
 NICHT für: Dateien in der Wolke durchsehen oder lesen (dafür 'cloud_files' — action=list_connections liefert die connectionId und action=list die Pfade, die wolkeFolder braucht), eigene Dokumente und Tabellen selbst (dafür 'documents'), Projekte verwalten (dafür 'groups'), die grüne Inhaltsdatenbank (dafür 'gruenerator_search').
 
@@ -221,6 +262,12 @@ Wolke-Import, Sichtbarkeit und Teilen werden der Person als Karte zur Bestätigu
         'share_to_group',
         'delete',
       ]),
+      scope: z
+        .enum(['mine', 'system', 'basis'])
+        .default('mine')
+        .describe(
+          'Nur bei list: eigene Notebooks (mine), die vom Grünerator gepflegten Wissenssammlungen (system) oder die öffentlich geteilten Notebooks anderer (basis)'
+        ),
       id: z.string().optional().describe('Notebook-ID (alle Aktionen außer list und create)'),
       name: z.string().optional().describe('Name (create) bzw. neuer Name (rename)'),
       description: z.string().optional().describe('Beschreibung (create)'),
@@ -264,6 +311,33 @@ Wolke-Import, Sichtbarkeit und Teilen werden der Person als Karte zur Bestätigu
       const { helper } = deps;
 
       if (action === 'list') {
+        if (args.scope === 'system') {
+          const results = systemNotebookRows(state.userLocale ?? null).slice(0, args.limit);
+          groundRows(sourceRegistry, results);
+          return { scope: 'system', resultCount: results.length, results };
+        }
+
+        if (args.scope === 'basis') {
+          // Eigene Notebooks fliegen raus: sie stehen schon unter scope='mine',
+          // und die Weboberfläche entdoppelt an derselben Stelle. Der Zugriff
+          // auf ein gelistetes Notebook entscheidet weiterhin
+          // `checkNotebookAccess` — get/search brauchen dafür keine Sonderregel.
+          const published = (await deps.listPublic(audience))
+            .filter((c) => c.user_id !== userId)
+            .slice(0, args.limit);
+          const results = published.map((c) =>
+            makeRow(
+              c.name,
+              notebookUrl(c),
+              'Notebook von der Basis',
+              c.description || `${c.document_count} Dokument(e)`,
+              c.id
+            )
+          );
+          groundRows(sourceRegistry, results);
+          return { scope: 'basis', resultCount: results.length, results };
+        }
+
         const collections = await helper.getUserNotebookCollections(userId, { limit: args.limit });
         const results = collections.map((c) =>
           makeRow(
@@ -275,7 +349,7 @@ Wolke-Import, Sichtbarkeit und Teilen werden der Person als Karte zur Bestätigu
           )
         );
         groundRows(sourceRegistry, results);
-        return { resultCount: results.length, results };
+        return { scope: 'mine', resultCount: results.length, results };
       }
 
       if (action === 'create') {
@@ -376,6 +450,9 @@ Wolke-Import, Sichtbarkeit und Teilen werden der Person als Karte zur Bestätigu
       if (action === 'share_to_group') return shareCard(userId, collection, args.groupName);
 
       // delete
+      // Kein Mensch am Lauf: der `confirm=true`-Zweischritt bestätigt sich hier
+      // selbst, und die Karte, die fragen würde, ginge an einen stummen Sink.
+      if (!threadId) return { error: 'Löschen ist in diesem Kontext nicht möglich.' };
       if (!args.confirm) {
         const ask = `Soll das Notebook „${collection.name}" wirklich gelöscht werden? Frage die Person und rufe delete erst mit confirm=true erneut auf.`;
         groundNote(sourceRegistry, 'Bestätigung nötig', ask);

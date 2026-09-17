@@ -6,7 +6,7 @@ import {
   type SubtitlePreference,
   type SupportedLocale,
 } from '@gruenerator/contracts';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import axios from 'axios';
 import { create } from 'zustand';
 
@@ -201,7 +201,10 @@ export const useSubtitlerExportStore = create<SubtitlerExportStoreState>((set, g
       });
 
       if (res.status !== 202) {
-        throw new Error((res.body as { error?: string })?.error ?? 'Failed to start export');
+        throw new ApiError(
+          res.status,
+          (res.body as { error?: string })?.error ?? 'Failed to start export'
+        );
       }
 
       const exportToken = res.body.exportToken;
@@ -264,7 +267,10 @@ export const useSubtitlerExportStore = create<SubtitlerExportStoreState>((set, g
           params: { exportToken },
         });
         if (res.status !== 200) {
-          throw new Error((res.body as { error?: string })?.error ?? 'Export progress not found');
+          throw new ApiError(
+            res.status,
+            (res.body as { error?: string })?.error ?? 'Export progress not found'
+          );
         }
         const progressData = res.body;
         console.log('[SubtitlerExportStore] Progress update:', progressData);

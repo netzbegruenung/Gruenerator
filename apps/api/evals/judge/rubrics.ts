@@ -4,6 +4,7 @@
  * These check text-vs-evidence consistency, not taste; the evidence (citations,
  * tool calls, earlier answers) is embedded in the prompt.
  */
+import { claimsArtifactAction, hasActionEvent } from '../assertions.js';
 import { type RubricName, type TurnResult } from '../types.js';
 
 export interface JudgePrompt {
@@ -198,11 +199,12 @@ Begründe ein pass=false NIEMALS mit dem Auftrag. Zitiere in der Begründung die
 
 /** narration_consistency auto-runs where the historical bug shapes live. */
 function autoRubrics(turn: TurnResult): RubricName[] {
+  const actionEvent = hasActionEvent(turn);
   const wantsAuto =
-    turn.editorOps ||
-    turn.sharepicUpdated ||
-    turn.imageGenerated ||
-    (turn.toolCalls.length === 0 && turn.fullText.length > 200);
+    actionEvent ||
+    (turn.toolCalls.length === 0 && turn.fullText.length > 200) ||
+    // Tools ran, none acted, text says something was done (15.09.2026 shape).
+    (!actionEvent && claimsArtifactAction(turn.fullText));
   return wantsAuto ? ['narration_consistency'] : [];
 }
 

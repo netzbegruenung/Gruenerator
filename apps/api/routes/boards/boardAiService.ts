@@ -5,9 +5,12 @@
  * operations (BoardOperation[]). The operations are applied CLIENT-SIDE by the
  * boards assistant against the live Yjs board — this service only plans them.
  *
- * Mirrors the docs AI controller's provider chain + strict tool-call approach,
- * but returns plain JSON (no streaming) since the executor needs the full op
- * list, not a token stream.
+ * Routed through the facade (lane `editor_ops_board`) rather than calling the
+ * AI SDK directly — see services/ai/generate.ts. The forced single tool call
+ * (JSON-Schema conversion, retry, transport extraction) lives in
+ * services/ai/forcedToolCall.ts, shared with sheetAiService.ts and
+ * presentationAiService.ts; this file keeps only its own prompt, board
+ * serialization, and the whole-array post-call zod validation.
  */
 
 import {
@@ -15,29 +18,12 @@ import {
   type BoardOperation,
   type CurrentBoard,
 } from '@gruenerator/contracts';
-import { generateText, tool } from 'ai';
 import { z } from 'zod';
 
+import { runForcedToolCall } from '../../services/ai/forcedToolCall.js';
 import { createLogger } from '../../utils/logger.js';
-import { getModel, isProviderConfigured } from '../chat/agents/providers.js';
-import { type AgentConfig } from '../chat/agents/types.js';
 
 const log = createLogger('BoardAI');
-
-// Mirror docs/aiController DOCS_AI_MODELS — these IDs are confirmed to return
-// finish_reason:tool_calls on their respective providers.
-const BOARD_AI_MODELS: Record<AgentConfig['provider'], string> = {
-  // Der Name wird noch gelesen (Agenten-Konfigurationen sind F0), bedient aber
-  // Cortecs — services/ai/litellmRetired.ts biegt ihn in `getModel` um. Der
-  // Eintrag nennt deshalb das Modell, das dort tatsächlich antwortet.
-  litellm: 'gemma-4-31b-it',
-  regolo: 'mistral-small-4-119b',
-  melious: 'gemma-4-31b:balanced',
-  mistral: 'mistral-medium-2604',
-  anthropic: 'mistral-medium-2604',
-  greenpt: 'mistral-medium-3.5-128b',
-  cortecs: 'gemma-4-31b-it',
-};
 
 const FIELD_IDS = {
   TITLE: 'field-title',
@@ -62,6 +48,7 @@ move_task, add_comment, set_assignee, set_assignees, set_labels, set_due_date,
 add_checklist_item, rename_column.
 
 RULES:
+- add_view only when no existing view (see "Ansichten") already has that name or that layout.
 - For "status", "assignee"/"assignees" and "labels" use HUMAN NAMES (e.g. "In Arbeit",
   "Erledigt", a member's name, "Dringend"). The client resolves them to ids and
   creates a column/label if it does not exist yet.
@@ -109,6 +96,14 @@ function serializeBoard(board: CurrentBoard, today: string): string {
   if (board.statusOptions.length === 0) lines.push('- (keine)');
   for (const opt of board.statusOptions) lines.push(`- ${opt.name}`);
 
+  const fieldNameById = new Map(board.fields.map((f) => [f.id, f.name]));
+  lines.push('\nAnsichten (vorhanden):');
+  if (board.views.length === 0) lines.push('- (keine)');
+  for (const v of board.views) {
+    const groupBy = v.groupByFieldId ? fieldNameById.get(v.groupByFieldId) : null;
+    lines.push(`- ${v.name} (${v.layout}${groupBy ? `, gruppiert nach ${groupBy}` : ''})`);
+  }
+
   const selectFields = board.fields.filter(
     (f) => f.id !== FIELD_IDS.STATUS && (f.type === 'singleSelect' || f.type === 'multiSelect')
   );
@@ -150,6 +145,9 @@ function serializeBoard(board: CurrentBoard, today: string): string {
   return lines.join('\n');
 }
 
+const TOOL_NAME = 'applyBoardOperations';
+const OPERATIONS_SCHEMA = z.object({ operations: z.array(boardOperationSchema).max(50) });
+
 /**
  * Plan board operations for a user request. Returns a validated BoardOperation[]
  * (possibly empty). Throws only on provider/model failure.
@@ -162,58 +160,37 @@ export async function generateBoardOperations(opts: {
 }): Promise<BoardOperation[]> {
   const { userPrompt, board, referenceContent, today } = opts;
 
-  const providerChain: AgentConfig['provider'][] = ['mistral', 'melious', 'cortecs'];
-  const provider = providerChain.find((p) => isProviderConfigured(p));
-  if (!provider) {
-    // Aus der Kette abgeleitet, nicht danebengeschrieben: die Liste stand hier
-    // als zweite Kopie und nannte nach der Cortecs-Umstellung noch `litellm`.
-    throw new Error(`No AI provider configured (tried: ${providerChain.join(', ')})`);
-  }
-
-  const modelId = BOARD_AI_MODELS[provider];
-  const model = getModel(provider, modelId);
-  log.info(`[BoardAI] Using provider: ${provider}, model: ${modelId}`);
-
   const referenceSection = referenceContent?.trim()
     ? `\n\nRECHERCHIERTE QUELLEN (Faktenbasis für die Bearbeitung — übernimm konkrete Zahlen, Namen und Fakten WÖRTLICH aus diesen Quellen; erfinde keine Beispielwerte):\n<recherchierte_quellen>\n${referenceContent.trim().slice(0, 8000)}\n</recherchierte_quellen>`
     : '';
 
   const system = `${BOARD_TOOL_STRICT_PROMPT}\n\nAKTUELLER BOARD-ZUSTAND:\n${serializeBoard(board, today)}${referenceSection}`;
 
-  let captured: BoardOperation[] | null = null;
-
-  const result = await generateText({
-    model,
+  const toolInput = await runForcedToolCall({
+    lane: 'editor_ops_board',
     system,
     prompt: userPrompt,
-    tools: {
-      applyBoardOperations: tool({
-        description: 'Apply a batch of operations to the board.',
-        // No `.min(1)` here (unlike boardOperationsSchema): the prompt allows an
-        // empty array to mean "nothing to change", and requiring ≥1 op would make
-        // that legitimate no-op fail tool-input validation / burn a retry.
-        inputSchema: z.object({ operations: z.array(boardOperationSchema).max(50) }),
-      }),
-    },
-    toolChoice: 'required',
-    maxRetries: 1,
+    toolName: TOOL_NAME,
+    toolDescription: 'Apply a batch of operations to the board.',
+    inputSchema: OPERATIONS_SCHEMA,
     temperature: 0.2,
   });
 
-  for (const tc of result.toolCalls) {
-    if (tc.toolName === 'applyBoardOperations') {
-      // Trust-boundary assertion + typed narrow. No `.min(1)` (empty = no-op is
-      // valid); the 50-op cap from boardOperationsSchema still applies.
-      const parsed = z
-        .array(boardOperationSchema)
-        .max(50)
-        .safeParse((tc.input as { operations: unknown }).operations);
-      if (parsed.success) {
-        captured = parsed.data;
-      } else {
-        log.warn(`[BoardAI] Operation validation failed: ${parsed.error.message}`);
-      }
+  let captured: BoardOperation[] | null = null;
+  if (toolInput) {
+    // Trust-boundary assertion + typed narrow. No `.min(1)` (empty = no-op is
+    // valid); the 50-op cap from boardOperationsSchema still applies.
+    const parsed = z
+      .array(boardOperationSchema)
+      .max(50)
+      .safeParse((toolInput as { operations: unknown }).operations);
+    if (parsed.success) {
+      captured = parsed.data;
+    } else {
+      log.warn(`[BoardAI] Operation validation failed: ${parsed.error.message}`);
     }
+  } else {
+    log.warn(`[BoardAI] no tool call after every attempt`);
   }
 
   log.info(`[BoardAI] Planned ${captured?.length ?? 0} operation(s) for prompt: "${userPrompt}"`);

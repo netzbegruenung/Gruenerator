@@ -1,5 +1,5 @@
 import { type NotebookRecentDocumentCard } from '@gruenerator/contracts';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
 
 export type RecentDocumentCard = NotebookRecentDocumentCard;
@@ -21,7 +21,7 @@ async function fetchRecent(collectionIds: string[], limit: number): Promise<Rece
       query: { limit: String(limit) },
     });
     if (result.status !== 200) {
-      throw new Error(`Failed to load recent documents (HTTP ${result.status})`);
+      throw new ApiError(result.status, `Failed to load recent documents (HTTP ${result.status})`);
     }
     return result.body.items;
   }
@@ -30,7 +30,7 @@ async function fetchRecent(collectionIds: string[], limit: number): Promise<Rece
     query: { collections: collectionIds.join(','), limit: String(limit) },
   });
   if (result.status !== 200) {
-    throw new Error(`Failed to load recent documents (HTTP ${result.status})`);
+    throw new ApiError(result.status, `Failed to load recent documents (HTTP ${result.status})`);
   }
   return result.body.items;
 }

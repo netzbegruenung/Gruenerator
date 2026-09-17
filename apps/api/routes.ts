@@ -37,7 +37,6 @@ import { mountBoardSchedulesContractRouter } from './routes/boards/boardSchedule
 import { mountBoardsContractRouter } from './routes/boards/boardsContractRouter.js';
 import { mountBoardSubscriptionsContractRouter } from './routes/boards/boardSubscriptionsContractRouter.js';
 import { mountPublicBoardsContractRouter } from './routes/boards/publicBoardsContractRouter.js';
-import { mountCanvasAiContractRouter } from './routes/canvas/aiSuggestRoute.js';
 import { mountCanvasContractRouter } from './routes/canvas/canvasContractRouter.js';
 import { mountChatGraphContractRouter } from './routes/chat/chatGraphContractRouter.js';
 import { mountChatThreadSharingContractRouter } from './routes/chat/chatThreadSharingContractRouter.js';
@@ -150,6 +149,7 @@ import v1ChatCompletionsRouter, {
 import v1CollectionsRouter from './routes/v1/collectionsRouter.js';
 import v1NotebooksRouter from './routes/v1/notebooksRouter.js';
 import { mountVideoContractRouter } from './routes/video/videoContractRouter.js';
+import { mountSpeechContractRouter } from './routes/voice/speechContractRouter.js';
 import ttsRouter from './routes/voice/ttsController.js';
 import { mountVoiceContractRouter } from './routes/voice/voiceContractRouter.js';
 import voiceRouter from './routes/voice/voiceController.js';
@@ -591,27 +591,11 @@ export async function setupRoutes(app: Application): Promise<void> {
     requireAuth,
     imagineLabelCanvasRoute
   );
-  // Canvas AI suggestions: dedicated Redis-based rate limit bucket
-  // (canvas_ai resource) plus the abuse-prevention IP limiter shared with
-  // other AI routes. The IP limiter runs first; the Redis middleware
-  // auto-increments on success so each completed suggestion request
-  // counts against the per-user daily quota.
-  // optionalAuth resolves req.user before the Redis limiter so logged-in users
-  // are bucketed as 'authenticated' (100/day) rather than the 'anonymous' 5/day
-  // fallback. Anonymous access stays allowed here (canvas_ai anonymous = 5).
-  app.use(
-    '/api/canvas/ai-suggest',
-    aiGenerationLimiter,
-    optionalAuth,
-    rateLimitMiddleware('canvas_ai', { autoIncrement: true })
-  );
-  mountCanvasAiContractRouter(app);
 
   // Canvas documents (collaborative): /api/canvas CRUD via ts-rest contract.
   // requireAuth + authenticatedReadLimiter run on the /api/canvas prefix BEFORE
   // the contract endpoints (createExpressEndpoints registers handlers directly
-  // on the app, bypassing later prefix middleware). Mounted AFTER the AI-suggest
-  // router above so /api/canvas/ai-suggest matches first.
+  // on the app, bypassing later prefix middleware).
   app.use('/api/canvas', requireAuth, authenticatedReadLimiter);
   mountCanvasContractRouter(app);
 
@@ -980,6 +964,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/voice', requireAuth, requireAiConsent, standardMutationLimiter);
   // ts-rest contract router — mount before legacy voiceController router
   mountVoiceContractRouter(app);
+  // Grünerator Voice — same prefix guard, registered before the legacy router.
+  mountSpeechContractRouter(app);
   app.use('/api/voice', voiceRouter);
   app.use('/api/voice/tts', ttsRouter);
   // Unified "search everything" over the caller's own content. requireAuth runs

@@ -604,11 +604,6 @@ const envSchema = z.object({
   METADATA_DETECT_MARKDOWN: boolFlag(true),
   METADATA_EXTRACT_PAGES: boolFlag(true),
 
-  // ── Adaptive chunking ──────────────────────────────────────────────────
-  ADAPTIVE_CHUNKING_ENABLED: boolFlag(false),
-  CHUNK_DEFAULT_SIZE: numStr(400),
-  CHUNK_OVERLAP_SIZE: numStr(100),
-
   // ── Retrieval / Query intent ───────────────────────────────────────────
   QUERY_INTENT_ENABLED: boolFlag(true),
   USE_GERMAN_PATTERNS: boolFlag(true),

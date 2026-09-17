@@ -541,21 +541,31 @@ function CoveragePanel({ footprint }: { footprint: TransparencyFootprintDto }) {
         </h2>
       </div>
       <div className={cn('flex flex-col gap-5 p-6', MONITOR_CARD)}>
+        <p className={cn('m-0 text-[0.82rem] leading-relaxed', MONITOR_MUTED)}>
+          Woraus sich die Energie oben zusammensetzt — die drei Anteile ergeben zusammen 100 %.
+        </p>
         <Meter
           label="Gemessen"
           share={footprint.measured_share}
           hint="Vom Anbieter mitgelieferte Messwerte statt eigener Hochrechnung."
         />
         <Meter
+          label="Selbst gemessen, hochgerechnet"
+          share={footprint.calibrated_share}
+          hint="Der Anbieter meldet pro Anfrage nichts, aber wir haben genau dieses Modell selbst vermessen und rechnen den Messwert über die Token-Zahl hoch."
+        />
+        <Meter
           label="Ohne eigene Messung"
           share={footprint.bounded_share}
           hint="Für dieses Modell existiert nirgends ein Messwert. Gerechnet wird mit der Mitte zwischen zwei Modellen, die wir gemessen haben — beide Enden stehen in der Spanne oben."
         />
-        <Meter
-          label="Abgedeckt"
-          share={footprint.covered_share}
-          hint="Anteil der erzeugten Tokens, für die überhaupt ein Energiewert existiert."
-        />
+        <div className="border-t border-[#eef2ef] pt-5 dark:border-grey-700/60">
+          <Meter
+            label="Abgedeckt"
+            share={footprint.covered_share}
+            hint="Anderer Maßstab als die drei Anteile darüber: nicht ein Teil der Energie, sondern der Anteil der erzeugten Tokens, für die überhaupt ein Energiewert existiert. Was fehlt, steckt in keinem der drei — es ist gar nicht mitgezählt."
+          />
+        </div>
         {(transcriptions > 0 || searches > 0 || speechSeconds > 0) && (
           <div className="border-t border-[#eef2ef] pt-4 dark:border-grey-700/60">
             <p className={cn('m-0 mb-1 text-[0.85rem] font-bold', MONITOR_HEADING)}>
@@ -953,6 +963,7 @@ const SIMPLE_GROUPS: Record<UsageFeature, string> = {
   sheets: 'Präsentationen & Tabellen',
   presentations: 'Präsentationen & Tabellen',
   subtitler: 'Untertitel',
+  voice: 'Sprachausgabe',
   search: 'Websuche',
   boards: 'Sonstiges',
   sites: 'Sonstiges',

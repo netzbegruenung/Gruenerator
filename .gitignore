@@ -15,8 +15,8 @@ coverage
 __manual_tests__
 
 # Production build outputs
-build/
-dist/
+build
+dist
 
 # Firebase / Google Services (contains API keys)
 google-services.json

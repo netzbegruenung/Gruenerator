@@ -104,6 +104,7 @@ export interface SharedMediaService {
   // straight to `fs` and turned a rejected path into a crash instead of a 404.
   getThumbnailFilePath(relativePath: string | null): string | null;
   getMediaFilePath(relativePath: string | null): string | null;
+  getExtensionFromMime(mimeType: string): string;
   getOriginalImagePath(shareToken: string, filename: string): string | null;
   clearOriginalImageMetadata(shareToken: string): Promise<void>;
 }

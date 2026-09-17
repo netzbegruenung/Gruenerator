@@ -1,12 +1,16 @@
 import { getGlobalApiClient } from '@gruenerator/shared/api';
-import { DEFAULT_STYLE_VARIANT, useKiImageGeneration } from '@gruenerator/shared/image-studio';
+import {
+  DEFAULT_IMAGE_FORMAT,
+  DEFAULT_STYLE_VARIANT,
+  useKiImageGeneration,
+} from '@gruenerator/shared/image-studio';
 import { useShareStore } from '@gruenerator/shared/share';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { editAiImage, removeImageBackground } from '../services/imageEditingService';
 
-import { type BevAspect, type BevMode, type BevSettings, type BevVersion } from './types';
+import { type BevMode, type BevSettings, type BevVersion } from './types';
 
 const STORAGE_KEY = 'gruenerator-bildeditor-v2';
 const MAX_PERSISTED = 12;
@@ -31,42 +35,6 @@ const STATUS_TEXTS = [
 
 const GREEN_DEFAULT_INSTRUCTION =
   'Verwandle diese Szene in einen grünen, lebenswerten Raum: mehr Bäume und Straßengrün, Blühflächen, geschützte Radwege und mehr Platz zum Verweilen.';
-
-// Mirrors the server-side outpaint budget used in the Workplace „Bilder" tab.
-const MIN_OUTPAINT_SIDE = 256;
-const MAX_OUTPAINT_SIDE = 2048;
-const MAX_OUTPAINT_AREA = 4_194_304;
-const SAME_RATIO_EXPANSION = 1.22;
-
-const ASPECT_VALUE: Record<BevAspect, number> = {
-  '16:9': 16 / 9,
-  '4:3': 4 / 3,
-  '1:1': 1,
-  '3:4': 3 / 4,
-  '9:16': 9 / 16,
-};
-
-function computeOutpaintGeometry(
-  srcW: number,
-  srcH: number,
-  aspect: BevAspect
-): { width: number; height: number } {
-  const target = ASPECT_VALUE[aspect];
-  const input = srcW / srcH;
-  let tw: number;
-  let th: number;
-  if (Math.abs(input - target) < 0.01) {
-    tw = Math.round(srcW * SAME_RATIO_EXPANSION);
-    th = Math.round(srcH * SAME_RATIO_EXPANSION);
-  } else if (input > target) {
-    tw = srcW;
-    th = Math.round(srcW / target);
-  } else {
-    tw = Math.round(srcH * target);
-    th = srcH;
-  }
-  return { width: tw, height: th };
-}
 
 function loadImg(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -127,6 +95,7 @@ function loadPersisted(): PersistShape | null {
 const DEFAULT_SETTINGS: BevSettings = {
   variant: DEFAULT_STYLE_VARIANT,
   kiLabel: 'full',
+  format: DEFAULT_IMAGE_FORMAT,
   aspect: '1:1',
 };
 
@@ -255,10 +224,15 @@ export function useBildEditorV2() {
 
   const runCreate = useCallback(
     async (text: string) => {
-      const image = await generatePureCreate({ description: text, variant: settings.variant });
+      const image = await generatePureCreate({
+        description: text,
+        variant: settings.variant,
+        format: settings.format,
+        kiLabel: settings.kiLabel,
+      });
       commitImage(image, text, 'create', null);
     },
-    [generatePureCreate, settings.variant, commitImage]
+    [generatePureCreate, settings.variant, settings.format, settings.kiLabel, commitImage]
   );
 
   const runEdit = useCallback(
@@ -289,22 +263,12 @@ export function useBildEditorV2() {
 
   const runOutpaint = useCallback(async () => {
     if (!active) throw new Error('Kein Bild ausgewählt');
-    const img = await loadImg(active.image);
-    const geo = computeOutpaintGeometry(img.width, img.height, settings.aspect);
-    if (Math.max(geo.width, geo.height) > MAX_OUTPAINT_SIDE) {
-      throw new Error(
-        `Dein Bild ist zu groß für das Format ${settings.aspect}. Bitte ein kleineres Bild verwenden.`
-      );
-    }
-    if (geo.width < MIN_OUTPAINT_SIDE || geo.width * geo.height > MAX_OUTPAINT_AREA) {
-      throw new Error('Zielgröße außerhalb des erlaubten Bereichs.');
-    }
+    // The server derives the canvas from the source and scales both when the
+    // budget demands it, so every offered format is reachable from here.
     const file = await dataUrlToFile(active.image, `v${active.num}.jpg`);
     const form = new FormData();
     form.append('image', file);
-    form.append('aspectRatio', 'custom');
-    form.append('width', String(geo.width));
-    form.append('height', String(geo.height));
+    form.append('aspectRatio', settings.aspect);
     if (settings.kiLabel !== 'full') form.append('kiLabel', settings.kiLabel);
     const res = await getGlobalApiClient().post<{
       success: boolean;

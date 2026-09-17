@@ -47,6 +47,10 @@ export {
   extractSlugSuffix,
 } from './slug.js';
 
+// Chat thread titles — the sidebar budget and the word-boundary clamp,
+// shared so the server's writers and the client's optimistic title agree
+export { MAX_THREAD_TITLE_CHARS, clampThreadTitle } from './threadTitle.js';
+
 // Nextcloud share links — one parser for API, web and the chat classifier
 export {
   parseCloudShareLink,
@@ -91,3 +95,8 @@ export {
   mentionTokenRegex,
 } from './mentionTokens.js';
 export type { MentionToken, MentionTokenType } from './mentionTokens.js';
+
+// German-aware sentence boundaries — read-aloud pipelining (voice) and
+// server-side chunking of long texts for Grünerator Voice (api)
+export { splitSentences } from './sentenceSplitter.js';
+export type { SplitResult } from './sentenceSplitter.js';

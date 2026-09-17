@@ -7,7 +7,7 @@
  * hover so even the first open usually finds a warm cache.
  */
 import { wpErrorResponseSchema, type WpDiscoverResponse } from '@gruenerator/contracts';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 
@@ -48,7 +48,7 @@ function discoveryOptions(siteUrl: string, queryClient: QueryClient) {
       const result = await getContractsClient().notebookWordpress.discoverSite({
         body: { site_url: siteUrl },
       });
-      if (result.status !== 200) throw new Error(wpErrorMessage(result.body));
+      if (result.status !== 200) throw new ApiError(result.status, wpErrorMessage(result.body));
       // The server normalises the URL (scheme, trailing slash). Seeding the
       // canonical key too lets a later open by stored siteUrl hit this entry
       // even though discovery ran on whatever the user typed.

@@ -56,6 +56,7 @@ export {
   documentsContract,
   subtitlerContract,
   voiceContract,
+  speechContract,
   imagePickerContract,
   videoContract,
   sharepicContract,
@@ -86,7 +87,6 @@ export {
   lvAdminAssignmentContract,
   landesverbandAdminContract,
   recurringTasksContract,
-  canvasAiContract,
   canvasContract,
   groupsContract,
   contentSyncContract,
@@ -144,6 +144,7 @@ export * from './schemas/documents.js';
 export * from './schemas/subtitler.js';
 export * from './schemas/voice.js';
 export * from './schemas/voiceLimits.js';
+export * from './schemas/speech.js';
 export * from './schemas/imagePicker.js';
 export * from './schemas/video.js';
 export * from './schemas/sharepic.js';
@@ -197,3 +198,10 @@ export * from './schemas/landesverbaende.js';
 export * from './schemas/lvAdminAssignment.js';
 export * from './schemas/instanceAdminOverview.js';
 export * from './schemas/landesverbandAdmin.js';
+
+// Canvas-Textlayout: Umbruch, Aufzählungsmarker, hängender Einzug und
+// Inline-Auszeichnung (Markdown-lite). DOM-frei, damit Client-Vorschau,
+// Server-Export und der tiptap-Editor dieselbe Logik fahren.
+export * from './text/listLayout.js';
+export * from './text/inlineMarks.js';
+export * from './text/canvasRichText.js';
