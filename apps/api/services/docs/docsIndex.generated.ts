@@ -228,9 +228,9 @@ export const DOCS_PAGES: readonly DocPage[] = [
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-agentinnen-erstellen",
-    "title": "Wie erstelle ich einen eigenen Grünerator?",
+    "title": "Wie erstelle ich einen Grünerator-Agenten?",
     "category": "Guides",
-    "lead": "Du kannst dir im Grünerator deine eigenen Grüneratoren bauen — ganz ohne technische Vorkenntnisse. Es gibt zwei Wege: per Beschreibung (die KI erstellt einen Entwurf) oder manuell über das Formular."
+    "lead": "In der Agentura kannst du einen eigenen Grünerator-Agenten für eine Aufgabe erstellen, die du häufiger erledigst, zum Beispiel für Pressemitteilungen, Recherchen oder Social-Media-Texte. Du beschreib…"
   },
   {
     "url": "/docs/guides/fortgeschrittene/gruene-wolke-einbinden",
@@ -1699,7 +1699,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "So geht's",
     "anchor": "#so-gehts",
     "category": "Guides",
-    "text": "Chat starten. Nutze einfach das Eingabefeld auf der Startseite unter /start, direkt unter der Begrüßung. Für komplexere Anträge mit längerem Verlauf empfiehlt sich der Menüpunkt . Präzisen Auftrag schreiben. Die Qualität des Entwurfs hängt von deinen Angaben ab. Definiere klar: Wer soll was tun, bis wann, woher kommt das Geld und was ist der konkrete Anlass? Gib zudem die gewünschten Abschnitte an. Wichtig: Vage Formulierungen wie „Wir wollen was zu Trinkwasser\" führen zu unpräzisen Ergebnissen. Nur wenn Zieljahr, Menge und Zuständigkeit im Auftrag stehen, landen sie auch im Beschlussvorschlag — und genau über den wird abgestimmt. Verwende die Begriffe, die euer Gremium verwendet. In Österreich heißt das Gremium Gemeinderat und der Haushalt Budget oder Voranschlag. Nenne beides im Auftrag beim Namen. Beschlussvorschlag prüfen. Dies ist der einzige Teil, über den tatsächlich abgestimmt wird. Er muss in sich geschlossen und ohne den Rest des Dokuments verständlich sein: eine Handlung, eine Zuständigkeit, eine Frist. Alle Erklärungen gehören stattdessen in den Sachverhalt oder die Begründung. Ergebnis verfeinern. Nutze den Chat, um Details nachzuschärfen. Zum Beispiel: „Formuliere…"
+    "text": "Chat starten. Nutze einfach das Eingabefeld auf der Startseite unter /start, direkt unter der Begrüßung. Präzisen Auftrag schreiben. Die Qualität des Entwurfs hängt von deinen Angaben ab. Definiere klar: Wer soll was tun, bis wann, woher kommt das Geld und was ist der konkrete Anlass? Gib zudem die gewünschten Abschnitte an. Wichtig: Vage Formulierungen wie „Wir wollen was zu Trinkwasser\" führen zu unpräzisen Ergebnissen. Nur wenn Zieljahr, Menge und Zuständigkeit im Auftrag stehen, landen sie auch im Beschlussvorschlag — und genau über den wird abgestimmt. Verwende die Begriffe, die euer Gremium verwendet. In Österreich heißt das Gremium Gemeinderat und der Haushalt Budget oder Voranschlag. Nenne beides im Auftrag beim Namen. Beschlussvorschlag prüfen. Dies ist der einzige Teil, über den tatsächlich abgestimmt wird. Er muss in sich geschlossen und ohne den Rest des Dokuments verständlich sein: eine Handlung, eine Zuständigkeit, eine Frist. Alle Erklärungen gehören stattdessen in den Sachverhalt oder die Begründung. Ergebnis verfeinern. Nutze den Chat, um Details nachzuschärfen. Zum Beispiel: „Formuliere den Beschlussvorschlag präziser\", „Ergänze einen Prüfauftrag zur…"
   },
   {
     "url": "/docs/guides/einsteigerinnen/antrag-stadtrat",
@@ -1987,7 +1987,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "So geht's",
     "anchor": "#so-gehts",
     "category": "Guides",
-    "text": "Chat starten. Nutze einfach das Eingabefeld auf der Startseite unter /start, direkt unter der Begrüßung. Für längere Gespräche mit Verlauf empfiehlt sich der Menüpunkt . Präzisen Auftrag schreiben. Der Post kann nur so konkret werden wie deine Angaben. Nenne Anlass, Ort, Uhrzeit, wer kommt, was es gibt — und für wen du schreibst. Wichtig: Dass „Instagram-Beitrag\" im Auftrag steht, genügt — die Plattform musst du nicht extra auswählen. „Schreib was zum Stadtfest\" liefert dagegen Floskeln: Uhrzeit, Adresse und Namen erfindet der Grünerator nicht. Ergebnis verfeinern. „Kürzer\", „weniger Emojis\", „anderer Einstieg\" — die Angaben musst du dabei nicht wiederholen. Bild dazuholen. „Mach ein Sharepic daraus\" oder @sharepic. Zum Feinschliff öffnet sich der Editor, der Text bleibt erhalten."
+    "text": "Chat starten. Nutze einfach das Eingabefeld auf der Startseite unter /start, direkt unter der Begrüßung. Präzisen Auftrag schreiben. Der Post kann nur so konkret werden wie deine Angaben. Nenne Anlass, Ort, Uhrzeit, wer kommt, was es gibt — und für wen du schreibst. Wichtig: Dass „Instagram-Beitrag\" im Auftrag steht, genügt — die Plattform musst du nicht extra auswählen. „Schreib was zum Stadtfest\" liefert dagegen Floskeln: Uhrzeit, Adresse und Namen erfindet der Grünerator nicht. Ergebnis verfeinern. „Kürzer\", „weniger Emojis\", „anderer Einstieg\" — die Angaben musst du dabei nicht wiederholen. Bild dazuholen. „Mach ein Sharepic daraus\" oder @sharepic. Zum Feinschliff öffnet sich der Editor, der Text bleibt erhalten."
   },
   {
     "url": "/docs/guides/einsteigerinnen/social-media-beitrag",
@@ -1999,43 +1999,59 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-agentinnen-erstellen",
-    "pageTitle": "Wie erstelle ich einen eigenen Grünerator?",
-    "heading": "Wie erstelle ich einen eigenen Grünerator?",
+    "pageTitle": "Wie erstelle ich einen Grünerator-Agenten?",
+    "heading": "Wie erstelle ich einen Grünerator-Agenten?",
     "anchor": "",
     "category": "Guides",
-    "text": "Du kannst dir im Grünerator deine eigenen Grüneratoren bauen — ganz ohne technische Vorkenntnisse. Es gibt zwei Wege: per Beschreibung (die KI erstellt einen Entwurf) oder manuell über das Formular. Noch in der Erprobung: Verhalten und Funktionen können sich ändern. Melde Probleme gern dem Team."
+    "text": "In der Agentura kannst du einen eigenen Grünerator-Agenten für eine Aufgabe erstellen, die du häufiger erledigst, zum Beispiel für Pressemitteilungen, Recherchen oder Social-Media-Texte. Du beschreibst zuerst in normalen Worten, was der Agent tun soll. Der Grünerator füllt daraus den Editor vor; vor dem Speichern kannst du alles kontrollieren und ändern. Noch in der Erprobung: Verhalten und Funktionen können sich ändern. Melde Probleme gern dem Team."
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-agentinnen-erstellen",
-    "pageTitle": "Wie erstelle ich einen eigenen Grünerator?",
-    "heading": "Schritt 1: Den Creator öffnen",
-    "anchor": "#schritt-1-den-creator-öffnen",
+    "pageTitle": "Wie erstelle ich einen Grünerator-Agenten?",
+    "heading": "Schritt 1: Die Agentura öffnen",
+    "anchor": "#schritt-1-die-agentura-öffnen",
     "category": "Guides",
-    "text": "Öffne die Agentura, scrolle zum Abschnitt Meine Grüneratoren und klicke oben rechts auf Neuer Grünerator. Alternativ rufst du den Creator direkt unter /agents/new auf."
+    "text": "Öffne die Agentura. Die Kategorie Meine Grüneratoren ist bereits ausgewählt. Klicke rechts über den Karten auf Neuer Grünerator."
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-agentinnen-erstellen",
-    "pageTitle": "Wie erstelle ich einen eigenen Grünerator?",
-    "heading": "Schritt 2: Agent beschreiben (empfohlen)",
-    "anchor": "#schritt-2-agent-beschreiben-empfohlen",
+    "pageTitle": "Wie erstelle ich einen Grünerator-Agenten?",
+    "heading": "Schritt 2: Den Agenten beschreiben",
+    "anchor": "#schritt-2-den-agenten-beschreiben",
     "category": "Guides",
-    "text": "Beschreibe in eigenen Worten, was er können soll — Zweck, Ton, Fähigkeiten. Zum Einstieg kannst du eines der Beispiele anklicken: 📰 Pressestelle, 🚲 Recherche-Bot oder 📣 Social Media. Mit Enter baut der Grünerator daraus einen Entwurf und öffnet den Editor mit vorausgefüllten Feldern. Klicke auf „Lieber manuell anlegen?\", um den Editor mit leerem Formular zu öffnen (entspricht der Adresse /agents/new/manual)."
+    "text": "Schreibe in das Eingabefeld, wofür du den Agenten brauchst, wie seine Antworten klingen sollen und welche Fähigkeiten er benötigt. Je konkreter die Beschreibung ist, desto brauchbarer wird der Entwurf. Zum Beispiel: Ein Grünerator-Agent für Pressemitteilungen unseres Kreisverbands. Er soll sachlich und verständlich schreiben, vor dem Entwurf nach Anlass, Kernbotschaft und Zitaten fragen und bei Bedarf im Web recherchieren. Du kannst stattdessen eines der Beispiele 📰 Pressestelle, 🚲 Recherche-Bot oder 📣 Social Media anklicken und den vorgeschlagenen Text anpassen. Schicke die Beschreibung mit der Pfeiltaste im Eingabefeld ab. Der Grünerator erstellt daraufhin einmalig einen Entwurf und öffnet den Editor. Gespeichert ist der Agent zu diesem Zeitpunkt noch nicht. Über „Lieber manuell anlegen?\" öffnest du denselben Editor mit leeren Feldern."
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-agentinnen-erstellen",
-    "pageTitle": "Wie erstelle ich einen eigenen Grünerator?",
-    "heading": "Schritt 3: Im Editor anpassen",
-    "anchor": "#schritt-3-im-editor-anpassen",
+    "pageTitle": "Wie erstelle ich einen Grünerator-Agenten?",
+    "heading": "Schritt 3: Den Entwurf unter „Grundlagen“ prüfen",
+    "anchor": "#schritt-3-den-entwurf-unter-grundlagen-prüfen",
     "category": "Guides",
-    "text": "Links das Formular, rechts eine Live-Vorschau. Die Felder liegen in drei Tabs. Grundlagen — die drei Pflichtfelder: Name (samt Symbol aus dem Icon-Picker), Beschreibung (ein Satz, was er macht) und Anleitung — die eigentliche Anweisung an die KI, z. B. beginnend mit „Du bist ein*e …\", mindestens 10 Zeichen. Werkzeuge — was er können soll: Ein markiert die beiden, die ab Werk aktiv sind. Darunter steht Quell-Links direkt im Antworttext — für versandfertige E-Mails und Briefe: Artikel-URLs aus der Recherche erscheinen dann inline statt nur als Quellen-Karten. Wissen — welche Notebooks er automatisch durchsucht, Mehrfachauswahl möglich: Grünerator-Notebooks und, sobald du eigene hast, Meine Notebooks. Optional aufklappbar: Begrüßung & Startfragen (Begrüßungstext und Beispielfragen, eine pro Zeile) sowie Erweiterte Einstellungen (Region de-DE/de-AT, Tags, Modell). Richte vorher ein Notebook mit euren Dokumenten ein. Wählst du es unter Wissen aus, antwortet dein Agent ausschließlich aus euren Quellen — mit nachprüfbaren Belegen."
+    "text": "Links siehst du das Formular, rechts die Vorschau der späteren Startseite. Prüfe zuerst im Tab Grundlagen die drei Pflichtfelder: Name: So erscheint der Agent in der Agentura. Über die Schaltfläche daneben kannst du sein Symbol ändern. Beschreibung: Ein kurzer Satz, der anderen den Zweck erklärt. Anleitung: Die Regeln für das Verhalten des Agenten. Hier sollte genau stehen, welche Aufgabe er hat, welche Angaben er vor dem Schreiben erfragen und wie er das Ergebnis aufbauen soll. Speichern bleibt deaktiviert, solange Name oder Beschreibung leer sind oder die Anleitung weniger als zehn Zeichen enthält. Unter Begrüßung & Startfragen kannst du optional einen Begrüßungstext und anklickbare Beispielfragen eintragen. Eine Beispielfrage kommt jeweils in eine eigene Zeile. Erweiterte Einstellungen enthält Region, Tags und Modell; für den ersten Agenten kannst du die Voreinstellungen beibehalten."
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-agentinnen-erstellen",
-    "pageTitle": "Wie erstelle ich einen eigenen Grünerator?",
-    "heading": "Schritt 4: Speichern und nutzen",
-    "anchor": "#schritt-4-speichern-und-nutzen",
+    "pageTitle": "Wie erstelle ich einen Grünerator-Agenten?",
+    "heading": "Schritt 4: Werkzeuge auswählen",
+    "anchor": "#schritt-4-werkzeuge-auswählen",
     "category": "Guides",
-    "text": "Speichern oben rechts wird aktiv, sobald die drei Pflichtfelder stehen. Danach landest du auf der Bearbeitungsseite und öffnest ihn von dort über Im Chat öffnen. Ändern kannst du ihn jederzeit über das Stift-Symbol auf seiner Karte."
+    "text": "Öffne den Tab Werkzeuge. Aktiviert ist nur, was der Agent im Gespräch verwenden darf. Prüfe die Auswahl besonders nach einem KI-Entwurf: Die KI kann passend zu deiner Beschreibung zusätzliche Werkzeuge einschalten. Beim manuellen Anlegen sind zunächst nur Grünerator-Wissen und Recherche aktiviert. Ein markiert die beiden Voreinstellungen. Schalte weitere Werkzeuge nur ein, wenn dein Agent sie tatsächlich braucht. Für einen reinen Schreibassistenten sind beispielsweise Bildgenerierung und Formulare ausfüllen nicht nötig. Die zusätzliche Option Quell-Links direkt im Antworttext ist für versandfertige E-Mails oder Briefe gedacht: Dann können konkrete Artikel-URLs aus der Recherche direkt im Text statt nur in den Quellen-Karten erscheinen."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/eigene-agentinnen-erstellen",
+    "pageTitle": "Wie erstelle ich einen Grünerator-Agenten?",
+    "heading": "Schritt 5: Optional Notebooks hinzufügen",
+    "anchor": "#schritt-5-optional-notebooks-hinzufügen",
+    "category": "Guides",
+    "text": "Im Tab Wissen kannst du ein oder mehrere Notebooks auswählen. Der Agent durchsucht die ausgewählten Notebooks dann automatisch als Wissensquelle. Neben den Grünerator-Notebooks erscheinen unter Meine Notebooks auch deine eigenen Notebooks. Ein ausgewähltes Notebook ist eine zusätzliche Wissensquelle. Es beschränkt den Agenten nicht automatisch ausschließlich auf diese Inhalte. Wenn er nur mit bestimmten Quellen arbeiten soll, schreibe diese Vorgabe zusätzlich eindeutig in die Anleitung und aktiviere keine unnötigen Recherche-Werkzeuge. Falls du eigene Dateien verwenden möchtest, erstelle zuerst ein Notebook und kehre anschließend in den Agenten-Editor zurück."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/eigene-agentinnen-erstellen",
+    "pageTitle": "Wie erstelle ich einen Grünerator-Agenten?",
+    "heading": "Schritt 6: Speichern und testen",
+    "anchor": "#schritt-6-speichern-und-testen",
+    "category": "Guides",
+    "text": "Klicke oben rechts auf Speichern. Erst jetzt wird der Grünerator-Agent angelegt. Anschließend bleibst du auf seiner Bearbeitungsseite und kannst ihn über Im Chat öffnen ausprobieren. Teste dabei mindestens: Fragt der Agent fehlende Angaben ab? Hält er Ton, Aufbau und Grenzen aus der Anleitung ein? Verwendet er nur die Werkzeuge und Wissensquellen, die du vorgesehen hast? Wenn etwas nicht passt, kehre zur Agentura zurück und wähle an der Karte Bearbeiten über das Stift-Symbol. Passe vor allem die Anleitung an, speichere erneut und teste noch einmal."
   },
   {
     "url": "/docs/guides/fortgeschrittene/gruene-wolke-einbinden",
