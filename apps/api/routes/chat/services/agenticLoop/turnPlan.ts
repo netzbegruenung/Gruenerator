@@ -108,7 +108,6 @@ export interface TurnPlan {
    */
   compoundEdit: boolean;
   editToolLoop: boolean;
-  editTarget: 'doc' | 'board' | 'canvas' | null;
   /** Die Fläche, deren `edit_document` montiert wird — nur bei `editToolLoop`. */
   editToolSurface: EditorSurfaceKind | null;
   compoundGenerationKind: CompoundGenerationKind | null;
@@ -343,6 +342,10 @@ export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
   // Das Ziel hängt am AKTIVIERTEN Bearbeitungswerkzeug, nicht daran, welches
   // Artefakt zufällig im Kontext liegt: eine Board-Seitenleiste, die auch ein
   // referenziertes Dokument trägt, muss trotzdem das BOARD bearbeiten.
+  //
+  // Lokal, nicht im `TurnPlan`: der einzige Leser ausserhalb war die Stufe, die
+  // `trigger_doc_edit` schickte (#3428). Was der Plan davon trägt, sind die
+  // beiden Aussagen, die ihn steuern — `compoundEdit` und `editToolSurface`.
   const editTarget: 'doc' | 'board' | 'canvas' | null =
     p.enabledTools?.['edit_current_doc'] === true && p.hasOpenDocumentId
       ? 'doc'
@@ -484,7 +487,6 @@ export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
     runAgentic: lane === 'loop',
     compoundEdit,
     editToolLoop,
-    editTarget,
     editToolSurface: editToolLoop ? editToolSurfaceKind : null,
     compoundGenerationKind: compoundKind,
     backfillSearchQuery: fallback.backfillSearchQuery,
