@@ -32,6 +32,7 @@ import {
   compoundGenerationKind,
   decideEditToolLoop,
   decideRunAgentic,
+  hasDocumentContextEditTool,
   isEditorSurface,
   isEditToolEnabled,
   looksLikeCompoundEdit,
@@ -138,7 +139,7 @@ export interface TurnPlanInput {
   isPdfFillRequest: boolean;
   classifierContradictedResearch: boolean;
   hasOwnMaterial: boolean;
-  /** Die Werkzeug-Schalter der Fläche — `edit_current_doc`/`-board`/`-canvas`. */
+  /** Die Werkzeug-Schalter der Fläche — ein `edit_current_*`-Schlüssel je Fläche. */
   enabledTools: Record<string, boolean> | null;
   /** Agenten-Kennung, für die Auflösung der Editor-Fläche. */
   agentIdentifier: string | null;
@@ -347,7 +348,7 @@ export function decideTurnPlan(p: TurnPlanInput): TurnPlan {
   // `trigger_doc_edit` schickte (#3428). Was der Plan davon trägt, sind die
   // beiden Aussagen, die ihn steuern — `compoundEdit` und `editToolSurface`.
   const editTarget: 'doc' | 'board' | 'canvas' | null =
-    p.enabledTools?.['edit_current_doc'] === true && p.hasOpenDocumentId
+    hasDocumentContextEditTool(p.enabledTools) && p.hasOpenDocumentId
       ? 'doc'
       : p.enabledTools?.['edit_current_board'] === true && p.hasOpenBoardId
         ? 'board'

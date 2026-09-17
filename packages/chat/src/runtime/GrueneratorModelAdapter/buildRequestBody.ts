@@ -1,3 +1,5 @@
+import { EDITOR_EDIT_TOOL_KEYS } from '@gruenerator/contracts';
+
 import { DEFAULT_NOTEBOOK_DEPTH } from '../../lib/notebookDepth';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { useLastComputeStore } from '../../stores/lastComputeStore';
@@ -107,6 +109,20 @@ const toContentMessages = (
       .map((p) => p.text)
       .join(''),
   }));
+
+const EDITOR_EDIT_TOOL_KEY_SET: ReadonlySet<string> = new Set(EDITOR_EDIT_TOOL_KEYS);
+
+/**
+ * Surface edit hooks (one per editor sidebar) belong to the surface, not the
+ * agent. SearchGraph cannot run them, so a search-route agent picked inside a
+ * sidebar must not carry any of them (#3435). Everything else (`summary`,
+ * `save_as_doc`) is harmless and stays.
+ */
+export function stripEditorEditTools(tools: Record<string, boolean>): Record<string, boolean> {
+  return Object.fromEntries(
+    Object.entries(tools).filter(([k]) => !EDITOR_EDIT_TOOL_KEY_SET.has(k))
+  );
+}
 
 /**
  * Assemble the mode-aware request body for the chat backend. Each mode
