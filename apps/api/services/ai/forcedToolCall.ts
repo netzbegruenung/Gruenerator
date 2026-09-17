@@ -12,11 +12,10 @@
  * in (`tool_calls` vs `raw_content_blocks`). Extracted here so a fourth
  * surface does not copy it a third time.
  *
- * `routes/chat/services/toolForcedEdit.ts` is a close relative with the same
- * shape (same retry count, same extraction) but a different contract —
- * `{ok, error}` plus its own caller-side zod validation and repair-echo — and
- * its own tests. Left untouched rather than folded in here; it is the
- * remaining second copy of this pattern and a follow-up candidate.
+ * `routes/chat/services/toolForcedEdit.ts` is the chat-side adapter over this
+ * helper: it adds a fixed user message, the `{ok, error}` contract and a
+ * schema retry, and calls this with `attempts: 1` so its own loop owns the
+ * budget.
  *
  * What this does NOT do: validate the tool input against a schema. The
  * `inputSchema` here only describes the tool to the model; each caller keeps
