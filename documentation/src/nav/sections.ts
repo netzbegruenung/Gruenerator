@@ -15,8 +15,8 @@ export type DocSection = {
   intro: string;
   /** Matches a key in sidebars.ts. */
   sidebarId: string;
-  /** 'direct' = own navbar entry, 'more' = inside the "Mehr" dropdown. */
-  navbar: 'direct' | 'more';
+  /** Every main section gets its own navbar entry. */
+  navbar: 'direct';
   /**
    * Position among the 'direct' navbar entries, lowest first. Entries without
    * one keep their array order behind those that have one.
@@ -80,15 +80,15 @@ export const SECTIONS: DocSection[] = [
         to: '/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen',
       },
       {
-        label: 'Texte aus einer Quelle',
+        label: 'Wie erstelle ich ein eigenes Notebook?',
         to: '/docs/guides/einsteigerinnen/eigenes-notebook-erstellen',
       },
       {
-        label: 'Grüne Wolke einbinden',
+        label: 'Wie binde ich die Grüne Wolke ein?',
         to: '/docs/guides/fortgeschrittene/gruene-wolke-einbinden',
       },
       {
-        label: 'Für deinen Landesverband einrichten',
+        label: 'Wie richte ich den Grünerator für meinen Landesverband ein?',
         to: '/docs/guides/landesverbaende/landesverband-einrichten',
       },
     ],
@@ -126,42 +126,19 @@ export const SECTIONS: DocSection[] = [
     ],
   },
   {
-    id: 'konto',
-    label: 'Konto & Projekte',
-    icon: '👤',
-    description: 'Projekte und Einstellungen.',
-    intro: '/docs/konto/projekte',
-    sidebarId: 'kontoSidebar',
-    navbar: 'more',
-    topPages: [
-      { label: 'Projekte', to: '/docs/konto/projekte' },
-      { label: 'Einstellungen', to: '/docs/konto/einstellungen' },
-    ],
-  },
-  {
-    id: 'integrationen',
-    label: 'Integrationen',
-    icon: '🔌',
-    description: 'Den Grünerator mit anderen Diensten verbinden — in beide Richtungen.',
-    intro: '/docs/integrationen/konnektoren',
-    sidebarId: 'integrationenSidebar',
-    navbar: 'more',
-    topPages: [
-      { label: 'Konnektoren', to: '/docs/integrationen/konnektoren' },
-      { label: 'KI-Chat einrichten', to: '/docs/integrationen/ki-chat-einrichten' },
-      { label: 'Was kann der MCP-Server?', to: '/docs/integrationen/mcp-was-kann-ich-fragen' },
-      { label: 'Grünerator für Chrome', to: '/docs/integrationen/chrome-erweiterung' },
-    ],
-  },
-  {
     id: 'sonstiges',
     label: 'Sonstiges',
     icon: '🗃️',
     description: 'Was in keinen der anderen Bereiche gehört.',
     intro: '/docs/sonstiges/inhaltsdatenbank',
     sidebarId: 'sonstigesSidebar',
-    navbar: 'more',
+    navbar: 'direct',
     topPages: [
+      { label: 'Einstellungen', to: '/docs/sonstiges/einstellungen' },
+      {
+        label: 'Was kann ich den Grünerator-MCP-Server fragen?',
+        to: '/docs/sonstiges/mcp-was-kann-ich-fragen',
+      },
       { label: 'Inhaltsdatenbank', to: '/docs/sonstiges/inhaltsdatenbank' },
       {
         label: 'Wie diese Doku entsteht',
@@ -202,13 +179,13 @@ export const QUICK_TASKS: QuickTask[] = [
   {
     label: 'Mit anderen Tools verbinden',
     description: 'Konnektoren einrichten — vom Kalender bis zur Grünen Wolke.',
-    to: '/docs/integrationen/konnektoren',
+    to: '/docs/guides/fortgeschrittene/konnektoren-einrichten',
   },
 ];
 
 // Small utilities that don't fit the section grid.
 export const EXTRA_LINKS = {
   webinare: { label: 'Webinare', to: '/docs/webinare' },
-  archiv: { label: 'Archiv', to: '/docs/category/newsletter' },
+  archiv: { label: 'Archiv', to: '/docs/category/archiv' },
   bildnachweise: { label: 'Bildnachweise', to: '/docs/bildnachweise' },
 } as const;

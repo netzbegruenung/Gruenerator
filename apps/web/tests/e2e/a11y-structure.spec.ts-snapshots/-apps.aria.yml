@@ -20,4 +20,4 @@
   - heading "Mein Client ist nicht dabei — was nun?" [level=3]:
     - button "Mein Client ist nicht dabei — was nun?"
   - link "Ausführliche Einrichtungsanleitung":
-    - /url: http://localhost:3002/docs/integrationen/ki-chat-einrichten
+    - /url: http://localhost:3002/docs/guides/fortgeschrittene/gruenerator-mit-ki-chat-verbinden
