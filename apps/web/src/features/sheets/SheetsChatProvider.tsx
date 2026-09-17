@@ -84,6 +84,8 @@ export function SheetsChatProvider({
         },
         customEnabledTools: {
           summary: true,
+          // edit_current_doc kept for one release so an older backend still mounts the edit tool (#3438); drop after 2026-10-17.
+          edit_current_doc: edit,
           edit_current_sheet: edit,
         },
       }),
