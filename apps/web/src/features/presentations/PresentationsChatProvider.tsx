@@ -96,7 +96,7 @@ export function PresentationsChatProvider({
         },
         customEnabledTools: {
           summary: true,
-          edit_current_doc: edit,
+          edit_current_presentation: edit,
         },
       }),
       // Presentations aren't live yet, so no legacy trigger_doc_edit path to
