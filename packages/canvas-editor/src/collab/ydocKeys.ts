@@ -26,7 +26,6 @@ export const YDOC_KEYS = {
   /** Legacy root form-state bucket — folded into pages[0].state on open. */
   formState: 'formState',
   legacyRoot: 'legacy_root',
-  layers: 'layers',
   config: 'config',
   state: 'state',
   id: 'id',

@@ -163,8 +163,8 @@ export interface GenericCanvasProps<TState, TActions extends OptionalCanvasActio
   ) => void;
   /**
    * When provided, the per-instance Zustand store is bound to the supplied
-   * page Y.Map. The page Y.Map owns its own `layers` (Y.Array<Y.Map>) and
-   * `config` (Y.Map) sub-collections so each page has independent state.
+   * page Y.Map. The page Y.Map owns its own `config` (Y.Map)
+   * sub-collection so each page has independent state.
    * Set in BOTH modes now (collab doc or the editor's local Y.Doc);
    * `provider` is only present in collab mode.
    */

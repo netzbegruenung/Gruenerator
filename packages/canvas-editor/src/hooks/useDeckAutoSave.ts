@@ -93,7 +93,7 @@ async function extractOriginalImage(
  * Gallery autosave for local (non-collab) canvas documents — the ONLY
  * gallery writer in the multi-page editor, regardless of page count (a
  * single-page doc is just a one-page deck). Every Y.Doc change (template
- * fields, layers, page ops) debounces a save of `serializeDeck` under
+ * fields, page ops) debounces a save of `serializeDeck` under
  * `metadata.content.pages`, with page 1's render as the share image. The
  * deck shape is lossless and type-agnostic, so every template round-trips —
  * unlike the legacy per-type field whitelist, which stays read-only for old

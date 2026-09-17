@@ -17,9 +17,9 @@
  * kennen). Wechselt er, laeuft dasselbe Aufraeumen wie beim Aushaengen.
  *
  * Aufgeraeumt wird dabei nur, was zur einzelnen Vorlage gehoert. Das war
- * frueher ein volles `resetStore()` und damit ein Datenverlust: `layers` und
- * `config` gehoeren bei anliegender Yjs-Bindung dem gemeinsamen Dokument, und
- * das Leeren reiste als Loeschung in die Y.Doc jedes Mitarbeitenden (#3413).
+ * frueher ein volles `resetStore()` und damit ein Datenverlust: `config`
+ * gehoert bei anliegender Yjs-Bindung dem gemeinsamen Dokument, und der
+ * Anfangswert reiste in die Y.Doc jedes Mitarbeitenden (#3413).
  * Begruendung an `resetTemplateScopedState`.
  */
 
