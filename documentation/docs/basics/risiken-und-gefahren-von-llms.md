@@ -3,7 +3,7 @@ sidebar_position: 8
 description: 'Wo Sprachmodelle an ihre Grenzen stoßen: fehlender Menschenverstand, Verzerrungen, Falschauskünfte und was daraus folgt.'
 ---
 
-# Risiken und Gefahren
+# Welche Risiken und Gefahren haben Sprachmodelle?
 
 Zugegeben, KI ist praktisch. Aber wir wären nicht bei den GRÜNEN, wenn wir nicht auch darauf achten würden, welche Risiken und Gefahren KI zugrunde liegen. Ich würde folgende Punkte fokussieren:
 

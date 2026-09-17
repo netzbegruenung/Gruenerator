@@ -1,10 +1,10 @@
 ---
 sidebar_position: 5
-title: Worauf der Grünerator aufbaut
+title: Worauf baut der Grünerator auf?
 description: 'Die freien Projekte, auf denen der Grünerator steht — was jedes davon hier tut und was technisch dahintersteckt.'
 ---
 
-# Worauf der Grünerator aufbaut
+# Worauf baut der Grünerator auf?
 
 Der Grünerator steht auf den Schultern vieler freier Open-Source-Projekte – Software, die offen entwickelt wird und die alle nutzen, einsehen und weiterentwickeln dürfen. Das passt zu unserer Haltung: Politische Werkzeuge sollten transparent und überprüfbar sein, nicht in einer Blackbox verschwinden. Hier findest du die wichtigsten Bausteine, was sie im Grünerator tun und was technisch dahintersteckt.
 

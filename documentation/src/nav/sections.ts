@@ -41,17 +41,23 @@ export const SECTIONS: DocSection[] = [
     navbar: 'direct',
     navbarOrder: 1,
     topPages: [
-      { label: 'Einführung', to: '/docs/basics/intro' },
-      { label: 'Alle Werkzeuge', to: '/docs/basics/tools' },
+      { label: 'Was ist der Grünerator?', to: '/docs/basics/intro' },
+      { label: 'Welche Werkzeuge gibt es im Grünerator?', to: '/docs/basics/tools' },
       {
         label: 'Wie nachhaltig ist der Grünerator?',
         to: '/docs/basics/nachhaltigkeit',
       },
-      { label: 'Deine Daten im Grünerator', to: '/docs/basics/notebook' },
-      { label: 'Barrierefreiheit', to: '/docs/basics/barrierefreiheit' },
-      { label: 'Wie LLMs funktionieren', to: '/docs/basics/wie-llms-funktionieren' },
-      { label: 'Risiken & Gefahren', to: '/docs/basics/risiken-und-gefahren-von-llms' },
-      { label: 'Kennzeichnungs-Guide', to: '/docs/basics/Kennzeichnungs-Guide' },
+      { label: 'Wie kommen eigene Daten in den Grünerator?', to: '/docs/basics/notebook' },
+      { label: 'Wie barrierefrei ist der Grünerator?', to: '/docs/basics/barrierefreiheit' },
+      { label: 'Wie funktionieren Sprachmodelle?', to: '/docs/basics/wie-llms-funktionieren' },
+      {
+        label: 'Welche Risiken und Gefahren haben Sprachmodelle?',
+        to: '/docs/basics/risiken-und-gefahren-von-llms',
+      },
+      {
+        label: 'Wie kennzeichne ich grünerierte Inhalte?',
+        to: '/docs/basics/Kennzeichnungs-Guide',
+      },
     ],
   },
   {
@@ -94,31 +100,17 @@ export const SECTIONS: DocSection[] = [
     ],
   },
   {
-    id: 'chat',
-    label: 'Chat',
-    icon: '✨',
-    description:
-      'Im Gespräch arbeiten: fragen, recherchieren, Dateien mitgeben, Inhalte erstellen.',
-    intro: '/docs/chat/ki-chat',
-    sidebarId: 'chatSidebar',
-    navbar: 'direct',
-    topPages: [
-      { label: 'Was kann ich fragen?', to: '/docs/chat/was-kann-ich-fragen' },
-      { label: 'KI-Modelle', to: '/docs/chat/ki-modelle' },
-      { label: 'Dateien hinzufügen', to: '/docs/chat/dateien-hinzufuegen' },
-    ],
-  },
-  {
     id: 'features',
     label: 'Features',
     icon: '📄',
-    description:
-      'Office, die Agentura und die Inhalte der Landesverbände — was der Grünerator neben dem Chat kann.',
+    description: 'Chat, Office, Agentura, Notebooks und Inhalte der Landesverbände im Überblick.',
     intro: '/docs/features/intro',
     sidebarId: 'featuresSidebar',
     navbar: 'direct',
     topPages: [
       { label: 'Überblick', to: '/docs/features/intro' },
+      { label: 'KI-Chat', to: '/docs/features/chat/ki-chat' },
+      { label: 'Was kann ich fragen?', to: '/docs/features/chat/was-kann-ich-fragen' },
       { label: 'Office', to: '/docs/features/office' },
       { label: 'Agentura', to: '/docs/features/agentura' },
       { label: 'Notebooks', to: '/docs/features/notebooks' },
@@ -154,7 +146,7 @@ export const QUICK_TASKS: QuickTask[] = [
   {
     label: 'Fragen stellen & Texte schreiben',
     description: 'Anträge, Reden und Pressemitteilungen direkt im Chat entwerfen.',
-    to: '/docs/chat/was-kann-ich-fragen',
+    to: '/docs/features/chat/was-kann-ich-fragen',
   },
   {
     label: 'Gemeinsam an einem Dokument arbeiten',

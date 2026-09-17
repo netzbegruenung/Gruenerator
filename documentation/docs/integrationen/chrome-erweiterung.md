@@ -95,7 +95,7 @@ Er benutzt deinen Browser mit deinen Anmeldungen. Wo du eingeloggt bist, ist er 
 
 ## Dateien mitgeben
 
-Über die Büroklammer hängst du Textdateien an: `.txt`, `.md`, `.markdown`, `.json`, `.csv`, `.log`, `.xml`, `.yaml`, `.yml`. Pro Datei sind **1 MB** möglich, mehrere Dateien gleichzeitig sind erlaubt. Andere Formate — etwa PDF oder DOCX — nimmt die Erweiterung nicht an; für die ist der [Chat auf gruenerator.eu](../chat/dateien-hinzufuegen) der richtige Ort.
+Über die Büroklammer hängst du Textdateien an: `.txt`, `.md`, `.markdown`, `.json`, `.csv`, `.log`, `.xml`, `.yaml`, `.yml`. Pro Datei sind **1 MB** möglich, mehrere Dateien gleichzeitig sind erlaubt. Andere Formate — etwa PDF oder DOCX — nimmt die Erweiterung nicht an; für die ist der [Chat auf gruenerator.eu](../features/chat/dateien-hinzufuegen) der richtige Ort.
 
 ## Modell wählen
 
@@ -107,7 +107,7 @@ Unter **Einstellungen → Modelle** wählst du für Navigator und Planner getren
 | **Mittel** | die Voreinstellung — der gute Mittelweg           |
 | **Ultra**  | für lange Aufgaben mit vielen Schritten           |
 
-Welches Modell hinter einer Stufe läuft, entscheidet der Grünerator. Deine Auswahl bleibt gültig, auch wenn sich das ändert — du musst nichts nachziehen. Mehr dazu: [KI-Modelle im Grünerator](../chat/ki-modelle).
+Welches Modell hinter einer Stufe läuft, entscheidet der Grünerator. Deine Auswahl bleibt gültig, auch wenn sich das ändert — du musst nichts nachziehen. Mehr dazu: [KI-Modelle im Grünerator](../features/chat/ki-modelle).
 
 ## Einstellungen im Detail
 
@@ -175,4 +175,4 @@ Warum das so ist und woran man es erkennt, steht unter [Risiken und Gefahren von
 
 - Der Grünerator lässt sich auch andersherum einbinden: [in ChatGPT, Claude und Le Chat](./ki-chat-einrichten).
 - Externe Dienste in den Chat holen: [Konnektoren](./konnektoren).
-- Für alles, was kein Browser sein muss, ist der [Chat auf gruenerator.eu](../chat/ki-chat) der schnellere Weg.
+- Für alles, was kein Browser sein muss, ist der [Chat auf gruenerator.eu](../features/chat/ki-chat) der schnellere Weg.

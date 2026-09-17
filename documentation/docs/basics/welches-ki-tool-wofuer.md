@@ -2,7 +2,7 @@
 description: 'Texte, Bilder, Recherche, Transkription: welches Werkzeug für welche Aufgabe taugt und wo der Grünerator hineinpasst.'
 ---
 
-# Welches KI-Tool wofür
+# Welches KI-Tool eignet sich wofür?
 
 ## 1. Texterstellung: Claude/Gruenerator
 

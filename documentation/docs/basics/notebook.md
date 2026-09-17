@@ -1,10 +1,10 @@
 ---
-title: Deine Daten im Grünerator
+title: Wie kommen eigene Daten in den Grünerator?
 sidebar_position: 10
 description: 'Für Landesverbände und Abgeordnetenbüros: eigene Daten einpflegen und damit die kostenfreie Nutzung für die Basis finanzieren.'
 ---
 
-# Deine Daten im Grünerator
+# Wie kommen eigene Daten in den Grünerator?
 
 Landesverbände und Abgeordnetenbüros können ein Grünerator Notebook erwerben und eigene Daten in den Grünerator einpflegen. Damit ermöglicht ihr, dass Basismitglieder und Kommunalos den Grünerator dauerhaft kostenfrei nutzen können.
 

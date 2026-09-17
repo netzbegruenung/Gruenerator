@@ -31,6 +31,6 @@ Für die Bildgenerierung kommen eigene Modelle zum Einsatz (u. a. Flux von Black
 
 Alle verfügbaren Modelle erfüllen höchste Datenschutzstandards:
 
-- **Europäische Server**: Deine Eingaben werden ausschließlich auf europäischen Servern verarbeitet – bei Mistral AI (Frankreich), Regolo (Italien) oder Cortecs (EU). Eigene, selbst gehostete Modelle setzt der Grünerator seit dem 29.08.2026 nicht mehr ein (siehe [Nachhaltigkeit](../basics/nachhaltigkeit.md)).
+- **Europäische Server**: Deine Eingaben werden ausschließlich auf europäischen Servern verarbeitet – bei Mistral AI (Frankreich), Regolo (Italien) oder Cortecs (EU). Eigene, selbst gehostete Modelle setzt der Grünerator seit dem 29.08.2026 nicht mehr ein (siehe [Wie nachhaltig ist der Grünerator?](../../basics/nachhaltigkeit.md)).
 - **Kein KI-Training**: Deine Eingaben werden nicht zum Training der KI verwendet.
 - **Offene Modelle**: Hinter **Klein** und **Mittel** stehen Modelle mit offenen Gewichten (Open Weights), die jeder prüfen und selbst betreiben kann.

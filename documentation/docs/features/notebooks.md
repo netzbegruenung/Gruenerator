@@ -1,5 +1,5 @@
 ---
-sidebar_position: 10
+sidebar_position: 11
 title: Notebooks
 description: 'Alles nach dem ersten Notebook: welche Quellarten dazukommen, wie du teilst und veröffentlichst, und wie die Verwaltung läuft.'
 ---

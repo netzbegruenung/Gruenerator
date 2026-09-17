@@ -351,7 +351,7 @@ function emit(index) {
  */
 
 export interface DocPage {
-  /** Site-relative URL path, e.g. \`/docs/chat/ki-chat\`. */
+  /** Site-relative URL path, e.g. \`/docs/features/chat/ki-chat\`. */
   url: string;
   title: string;
   category: string;
