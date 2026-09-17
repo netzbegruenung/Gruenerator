@@ -13,6 +13,12 @@
  * `blocksToMarkdownLossy` (drops those spans naturally) and *absorbs*
  * round-trip drift into the transaction instead of rejecting it, so the
  * failure mode disappears.
+ *
+ * Stays a direct AI SDK caller rather than moving onto services/ai/generate.ts
+ * (see CLAUDE.md "Ein Weg zum Modell"): it streams UIMessage chunks straight to
+ * BlockNote's transport via `pipeUIMessageStreamToResponse`, which the facade
+ * does not provide — a documented exception, see
+ * docs/chat-architecture-evaluation.md:34.
  */
 
 import { type ServerResponse } from 'node:http';

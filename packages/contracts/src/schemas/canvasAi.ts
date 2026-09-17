@@ -250,10 +250,12 @@ export const canvasAiSuggestRequestSchema = z.object({
   snapshot: canvasAiSnapshotSchema,
   capabilities: canvasAiCapabilitiesSchema,
   /**
-   * Research the agentic chat loop gathered before dispatching the edit
-   * ("recherchiere X und bau es ins Sharepic ein"): the loop emits
-   * trigger_doc_edit with these facts as referenceContent and the sidebar
-   * forwards them here so the suggestion prompt is grounded in them.
+   * Research the chat loop gathered before an edit ("recherchiere X und bau es
+   * ins Sharepic ein"). NO CLIENT SENDS THIS since #3427: the studio sidebar
+   * edits through the loop's `edit_document` tool, which calls
+   * `runCanvasSuggest` in-process with the sources already in `contextHints`.
+   * The field stays because the wire is F0 — the studio's own suggestions panel
+   * is the endpoint's only remaining caller and it never set it either.
    */
   referenceContent: z.string().max(8000).optional(),
 });

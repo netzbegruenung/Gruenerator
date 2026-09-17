@@ -6,7 +6,14 @@
  * CLIENT-SIDE by the presentations editor against the deck's Y.Doc — this
  * service only plans them.
  *
- * Mirrors sheets/sheetAiService.ts (plan-then-apply, plain JSON, no streaming).
+ * Mirrors sheets/sheetAiService.ts (plan-then-apply, plain JSON, no streaming),
+ * routed through the facade (lane `editor_ops_presentation`) rather than
+ * calling the AI SDK directly — see services/ai/generate.ts. The forced
+ * single tool call lives in services/ai/forcedToolCall.ts, shared with
+ * boardAiService.ts and sheetAiService.ts. As with the sheet lane, a lane
+ * always carries the facade's generic fallback chain: an unavailable Mistral
+ * now falls back to cortecs/melious instead of the previous pinned,
+ * chain-less "fail loudly" (#3426).
  */
 
 import {
@@ -14,20 +21,12 @@ import {
   presentationOperationSchema,
   type PresentationOperation,
 } from '@gruenerator/contracts';
-import { generateText, tool } from 'ai';
 import { z } from 'zod';
 
+import { runForcedToolCall } from '../../services/ai/forcedToolCall.js';
 import { createLogger } from '../../utils/logger.js';
-import { getModel, isProviderConfigured } from '../chat/agents/providers.js';
 
 const log = createLogger('PresentationAI');
-
-// Deck planning ALWAYS uses Mistral Medium 3.5 — the op-planner needs a strong
-// model. Pinned with no provider chain: if Mistral is unavailable we fail
-// loudly rather than silently downgrade. `mistral-medium-2604` === "Mistral
-// Medium 3.5" (see services/ai/modelDiscovery.ts).
-const PRESENTATION_AI_PROVIDER = 'mistral';
-const PRESENTATION_AI_MODEL = 'mistral-medium-2604';
 
 const buildStrictPrompt = (brand?: string | null): string => {
   const theme = getPresentationBrandTheme(brand);
@@ -71,6 +70,9 @@ BEISPIEL — die Person sagt "Füge am Ende eine Folie mit den drei wichtigsten 
 { "operations": [ { "type": "add_slide", "layout": "content", "title": "Die drei wichtigsten Argumente", "body": "- Argument 1\\n- Argument 2\\n- Argument 3" } ] }`;
 };
 
+const TOOL_NAME = 'applyPresentationOperations';
+const OPERATIONS_SCHEMA = z.object({ operations: z.array(z.unknown()).max(40) });
+
 /**
  * Plan presentation operations for a user request. Returns a validated
  * PresentationOperation[] (possibly empty). Throws only on provider/model
@@ -85,42 +87,27 @@ export async function generatePresentationOperations(opts: {
 }): Promise<PresentationOperation[]> {
   const { userPrompt, presentationContext, referenceContent, brand } = opts;
 
-  if (!isProviderConfigured(PRESENTATION_AI_PROVIDER)) {
-    throw new Error(
-      'Presentation AI requires Mistral Medium 3.5, but the Mistral provider is not configured (MISTRAL_API_KEY missing)'
-    );
-  }
-  const model = getModel(PRESENTATION_AI_PROVIDER, PRESENTATION_AI_MODEL);
-  log.info(`[PresentationAI] Using Mistral Medium 3.5 (${PRESENTATION_AI_MODEL})`);
-
   const referenceSection = referenceContent?.trim()
     ? `\n\nRECHERCHIERTE QUELLEN (Faktenbasis für die Bearbeitung — übernimm konkrete Zahlen, Namen und Fakten WÖRTLICH aus diesen Quellen; erfinde keine Beispielwerte):\n<recherchierte_quellen>\n${referenceContent.trim().slice(0, 8000)}\n</recherchierte_quellen>`
     : '';
 
   const system = `${buildStrictPrompt(brand)}\n\nAKTUELLER FOLIEN-ZUSTAND:\n${presentationContext.slice(0, 24_000)}${referenceSection}`;
 
-  const result = await generateText({
-    model,
+  const toolInput = await runForcedToolCall({
+    lane: 'editor_ops_presentation',
     system,
     prompt: userPrompt,
-    tools: {
-      applyPresentationOperations: tool({
-        description:
-          'Apply a batch of presentation operations. Each item is one operation object with a "type" field (one of the operation types documented in the system prompt).',
-        // Deliberately lenient: accept the raw array so a single malformed op
-        // does not make the SDK reject the WHOLE tool call. We validate each op
-        // ourselves below against presentationOperationSchema and keep the good
-        // ones.
-        inputSchema: z.object({ operations: z.array(z.unknown()).max(40) }),
-      }),
-    },
-    toolChoice: 'required',
-    maxRetries: 1,
+    toolName: TOOL_NAME,
+    // Deliberately lenient (`z.unknown()` items): a single malformed op must
+    // not make the whole tool call unusable. We validate each op ourselves
+    // below against presentationOperationSchema and keep the good ones.
+    toolDescription:
+      'Apply a batch of presentation operations. Each item is one operation object with a "type" field (one of the operation types documented in the system prompt).',
+    inputSchema: OPERATIONS_SCHEMA,
     temperature: 0.2,
   });
 
-  const toolCall = result.toolCalls.find((tc) => tc.toolName === 'applyPresentationOperations');
-  const rawOps = toolCall ? (toolCall.input as { operations?: unknown[] }).operations : undefined;
+  const rawOps = toolInput ? (toolInput as { operations?: unknown[] }).operations : undefined;
 
   // Per-op validation: keep every valid operation, drop (and log) only the
   // malformed ones — one bad op must never silently discard a whole batch.
@@ -140,12 +127,13 @@ export async function generatePresentationOperations(opts: {
       `[PresentationAI] Dropped ${dropped.length} malformed operation(s): ${dropped.join(' | ')}`
     );
   }
+  // `runForcedToolCall` already logs each failed attempt's stop_reason as it
+  // happens; this summarizes what reached the validation step.
   if (captured.length === 0) {
     log.warn(
-      `[PresentationAI] 0 operations for prompt "${userPrompt}" — finish=${result.finishReason}, ` +
-        `toolCall=${toolCall ? 'yes' : 'no'}, rawOpsCount=${Array.isArray(rawOps) ? rawOps.length : 'n/a'}, ` +
-        `dropped=${dropped.length}, contextChars=${presentationContext.length}, ` +
-        `modelText=${JSON.stringify(result.text.slice(0, 200))}`
+      `[PresentationAI] 0 operations for prompt "${userPrompt}" — toolCall=${toolInput ? 'yes' : 'no'}, ` +
+        `rawOpsCount=${Array.isArray(rawOps) ? rawOps.length : 'n/a'}, dropped=${dropped.length}, ` +
+        `contextChars=${presentationContext.length}`
     );
   }
 

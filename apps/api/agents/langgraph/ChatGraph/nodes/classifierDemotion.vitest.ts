@@ -469,6 +469,7 @@ describe('Tier 3.5 — NOT demoted (gates preserved)', () => {
       hasOpenDocumentId: false,
       hasOpenBoardId: false,
       hasOpenBoardSurface: false,
+      hasOpenCanvasId: false,
       hasNamedBoard: false,
       isSharepicRefinement: false,
       pipelineForceIntent: null,

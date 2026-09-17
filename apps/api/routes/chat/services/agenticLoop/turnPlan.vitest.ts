@@ -47,6 +47,7 @@ const base: TurnPlanInput = {
   hasOpenDocumentId: false,
   hasOpenBoardId: false,
   hasOpenBoardSurface: false,
+  hasOpenCanvasId: false,
   hasNamedBoard: false,
   isSharepicRefinement: false,
   pipelineForceIntent: null,
@@ -61,6 +62,13 @@ const sheetSurface: Partial<TurnPlanInput> = {
   agentIdentifier: 'gruenerator-sheets-editor',
   enabledTools: { edit_current_doc: true },
   hasOpenDocumentId: true,
+};
+
+/** Die Sharepic-Studio-Fläche — eigener Kontextkanal, eigener Werkzeugschalter. */
+const canvasSurface: Partial<TurnPlanInput> = {
+  agentIdentifier: 'gruenerator-sharepic-editor',
+  enabledTools: { edit_current_canvas: true },
+  hasOpenCanvasId: true,
 };
 
 describe('decideTurnPlan — die Lanes', () => {
@@ -97,12 +105,10 @@ describe('decideTurnPlan — die Lanes', () => {
     expect(p.runAgentic).toBe(true);
     expect(p.editToolLoop).toBe(true);
     expect(p.editToolSurface).toBe('sheet');
-    expect(p.editTarget).toBe('doc');
   });
 
   it('loop (compoundEdit): recherchieren UND ins offene Dokument einbauen', () => {
     const p = plan({
-      // Eine Fläche OHNE Werkzeugpfad (docs) — sonst gewinnt `edit-loop`.
       agentIdentifier: 'gruenerator-docs-editor',
       enabledTools: { edit_current_doc: true },
       hasOpenDocumentId: true,
@@ -112,8 +118,39 @@ describe('decideTurnPlan — die Lanes', () => {
     expect(p.lane).toBe('loop');
     expect(p.runAgentic).toBe(true);
     expect(p.compoundEdit).toBe(true);
+    // Seit #3428 trägt die Dokument-Fläche ihr `edit_document` mit: die beiden
+    // Editor-Varianten schliessen sich nicht aus, und der Verbund-Turn baut das
+    // Recherchierte über dasselbe Werkzeug ein.
+    expect(p.editToolLoop).toBe(true);
+    expect(p.editToolSurface).toBe('doc');
+  });
+
+  it('loop (Dokument-Fläche): eine Bearbeitungsbitte montiert das edit_document der doc-Fläche', () => {
+    const p = plan({
+      agentIdentifier: 'gruenerator-docs-editor',
+      enabledTools: { edit_current_doc: true },
+      hasOpenDocumentId: true,
+      intent: 'edit_current_doc',
+      lastUserText: 'Kürze den ersten Absatz',
+    });
+    expect(p.lane).toBe('loop');
+    expect(p.editToolLoop).toBe(true);
+    expect(p.editToolSurface).toBe('doc');
+  });
+
+  it('ein Zweit-Intent nimmt der Dokument-Fläche das Werkzeug — und damit jeden Bearbeitungsweg', () => {
+    // Der bewusst hingenommene Handel (#3428): solche Züge bearbeiten nicht,
+    // und `buildArtifactNotes` lässt das Modell genau das sagen.
+    const p = plan({
+      agentIdentifier: 'gruenerator-docs-editor',
+      enabledTools: { edit_current_doc: true },
+      hasOpenDocumentId: true,
+      intent: 'edit_current_doc',
+      secondaryIntent: 'save_as_doc',
+      lastUserText: 'Kürze den ersten Absatz',
+    });
     expect(p.editToolLoop).toBe(false);
-    expect(p.editTarget).toBe('doc');
+    expect(p.editToolSurface).toBeNull();
   });
 });
 
@@ -253,19 +290,36 @@ describe('decideTurnPlan — die Kippfälle', () => {
 
   it('das Bearbeitungsziel hängt am aktivierten Werkzeug, nicht am Kontext', () => {
     // Eine Board-Seitenleiste, die zusätzlich ein Dokument im Kontext trägt,
-    // bearbeitet trotzdem das BOARD.
+    // bearbeitet trotzdem das BOARD. Sichtbar an der Fläche, deren
+    // `edit_document` montiert wird — das interne `editTarget` trägt der Plan
+    // seit #3428 nicht mehr nach aussen.
     const p = plan({
       enabledTools: { edit_current_board: true },
       hasOpenBoardId: true,
       hasOpenDocumentId: true,
       intent: 'edit_current_board',
     });
-    expect(p.editTarget).toBe('board');
+    expect(p.editToolSurface).toBe('board');
+    expect(p.editToolLoop).toBe(true);
+  });
+
+  it('eine Sharepic-Fläche mit offenem Canvas montiert das edit_document der Canvas-Fläche', () => {
+    // Der Intent ist bewusst NICHT das Kriterium: der Klassifikator sieht ohne
+    // currentDocument keine edit_current_doc-Schnellbahn mehr und gibt für eine
+    // glasklare Bearbeitungsbitte `direct` heraus.
+    const p = plan({ ...canvasSurface, intent: 'direct' });
+    expect(p.editToolLoop).toBe(true);
+    expect(p.editToolSurface).toBe('canvas');
+    expect(p.runAgentic).toBe(true);
+  });
+
+  it('ohne offenes Sharepic bleibt die Canvas-Fläche ohne Ziel', () => {
+    const p = plan({ ...canvasSurface, hasOpenCanvasId: false, intent: 'direct' });
+    expect(p.editToolSurface).toBeNull();
   });
 
   it('ohne offenes Ziel gibt es weder Bearbeitungsziel noch Editor-Lane', () => {
     const p = plan({ ...sheetSurface, hasOpenDocumentId: false, intent: 'direct' });
-    expect(p.editTarget).toBeNull();
     expect(p.editToolLoop).toBe(false);
     expect(p.editToolSurface).toBeNull();
   });

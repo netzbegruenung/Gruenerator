@@ -237,6 +237,30 @@ describe('streamAgenticResponse — degraded-Marker (#3221)', () => {
     expect(outcome.fullText).toContain('Erledigt');
   });
 
+  // Die Dokument-Fläche VERSENDET ihre Bearbeitung (#3428): BlockNote macht
+  // daraus Vorschlagsmarken, die erst eine Person annimmt. „Erledigt" wäre die
+  // eine Behauptung, die der Server nicht decken kann.
+  it('meldet eine versendete Dokument-Bearbeitung als Vorschlag, nicht als erledigt', async () => {
+    const { sse } = fakeSse();
+    const outcome = await streamAgenticResponse(
+      {
+        ...baseParams(
+          fakeState({
+            editToolSurface: 'doc',
+            editorEditsSummary: 'Bearbeitung am Dokument angestoßen (Kürze den ersten Absatz)',
+          } as never),
+          'x'.repeat(4000),
+          'Frage?'
+        ),
+        sse,
+      },
+      fakeDeps({ provider: 'greenpt', loopResult: { text: '   ' } })
+    );
+    expect(outcome.degraded).toBeUndefined();
+    expect(outcome.fullText).not.toContain('Erledigt');
+    expect(outcome.fullText).toContain('als Vorschlag im Dokument');
+  });
+
   it('markiert einen geworfenen Loop als failed, einen Abbruch als aborted', async () => {
     for (const [errName, expected] of [
       ['Error', 'failed'],

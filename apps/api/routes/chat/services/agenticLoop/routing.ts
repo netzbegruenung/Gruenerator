@@ -476,8 +476,31 @@ export function looksLikeCompoundEdit(raw: string): boolean {
  * NEW one". Keyed on an edit_current_* tool being enabled.
  */
 export function isEditorSurface(enabledTools: Record<string, boolean> | null | undefined): boolean {
+  return isEditToolEnabled(enabledTools);
+}
+
+/**
+ * Is the surface's AI-edit toggle ON for this turn?
+ *
+ * THE list of edit_current_* keys, and the reason it is a function: it existed
+ * three times by hand — here, in `decideTurnPlan` (`editToolEnabled`) and in
+ * `buildArtifactNotes`, where it is read NEGATED. A key added to two of the
+ * three made the third silently claim the toggle was off: with `canvas` added
+ * to the first two only, every studio turn got the "KI-Bearbeitung ist
+ * ausgeschaltet — behaupte NIEMALS, etwas geändert zu haben" note, directly
+ * contradicting the edit the same prompt announced one note earlier.
+ *
+ * {@link isEditorSurface} is the same question asked for a different purpose
+ * ("is this an editor sidebar at all") and delegates here: a surface whose
+ * toggle is off still must not spawn a NEW artifact.
+ */
+export function isEditToolEnabled(
+  enabledTools: Record<string, boolean> | null | undefined
+): boolean {
   return (
-    enabledTools?.['edit_current_doc'] === true || enabledTools?.['edit_current_board'] === true
+    enabledTools?.['edit_current_doc'] === true ||
+    enabledTools?.['edit_current_board'] === true ||
+    enabledTools?.['edit_current_canvas'] === true
   );
 }
 
@@ -600,6 +623,27 @@ export function compoundGenerationKind(
  */
 export type EditorSurfaceKind = 'doc' | 'sheet' | 'presentation' | 'board' | 'canvas';
 
+/**
+ * The German noun each surface's artefact is called, with its gender — every
+ * message that names it declines accordingly ("kein Sharepic" vs. "keine
+ * Tabelle", "am Board" vs. "an der Tabelle").
+ *
+ * One table, because two places name the same thing: the edit tool's own
+ * messages (EDIT_SURFACE_SPECS) and the synth note that has to tell the model
+ * this turn cannot edit. A surface's noun is a property of the surface, so it
+ * lives with {@link EditorSurfaceKind} rather than in the tool that happens to
+ * have needed it first. Total over the union, because both readers are.
+ */
+export const EDITOR_SURFACE_NOUNS: Readonly<
+  Record<EditorSurfaceKind, { readonly noun: string; readonly gender: 'f' | 'n' }>
+> = {
+  doc: { noun: 'Dokument', gender: 'n' },
+  sheet: { noun: 'Tabelle', gender: 'f' },
+  presentation: { noun: 'Präsentation', gender: 'f' },
+  board: { noun: 'Board', gender: 'n' },
+  canvas: { noun: 'Sharepic', gender: 'n' },
+};
+
 const EDITOR_AGENT_KIND: ReadonlyArray<readonly [string, EditorSurfaceKind]> = [
   ['gruenerator-sheets-editor', 'sheet'],
   ['gruenerator-presentations-editor', 'presentation'],
@@ -624,21 +668,31 @@ export function resolveEditorSurfaceKind(
     }
   }
   if (enabledTools?.['edit_current_board'] === true) return 'board';
+  if (enabledTools?.['edit_current_canvas'] === true) return 'canvas';
   if (enabledTools?.['edit_current_doc'] === true) return 'doc';
   return null;
 }
 
 /**
- * Editor surfaces with a tool-based edit path implemented — the loop plans ops
- * and streams `editor_operations` instead of the client round-trip. `board` is
- * live via this path (#1735). The dispatch surfaces (`doc`, `canvas`) are
- * absent here and keep the trigger_doc_edit path.
- * Add a surface once its editorTools branch AND client ops handler are wired.
+ * Editor surfaces whose edit runs through the loop's `edit_document` tool —
+ * i.e. all five since #3428. The MODEL decides and writes the instruction; what
+ * differs is only how the change reaches the artefact (see editorTools): four
+ * surfaces plan ops server-side and stream `editor_operations` (`board` since
+ * #1735, `canvas` since #3427), `doc` dispatches `trigger_doc_edit` and lets
+ * BlockNote compose the change client-side.
+ *
+ * The set is therefore no longer "which surfaces have a tool" — it is the total
+ * over {@link EditorSurfaceKind}. It stays a set rather than becoming `true`
+ * because it is also what `buildArtifactNotes` asks to decide whether a turn
+ * WITHOUT the tool has any edit path left at all; a sixth surface added without
+ * an edit path must be able to say so.
  */
 export const TOOL_EDIT_SURFACES: ReadonlySet<EditorSurfaceKind> = new Set([
+  'doc',
   'sheet',
   'presentation',
   'board',
+  'canvas',
 ]);
 
 export interface EditToolLoopInput {
@@ -646,7 +700,7 @@ export interface EditToolLoopInput {
   loopEnabled: boolean;
   /** Surface resolved via {@link resolveEditorSurfaceKind}. */
   surfaceKind: EditorSurfaceKind | null;
-  /** The AI-edit toggle is ON (edit_current_doc/board enabled). When OFF, the
+  /** The AI-edit toggle is ON (edit_current_doc/board/canvas enabled). When OFF, the
    *  tool must NOT mount — otherwise the model "edits" and claims success while
    *  the client (which also gates on the toggle) refuses to apply. */
   editToolEnabled: boolean;
@@ -669,8 +723,10 @@ export interface EditToolLoopInput {
  * `edit_current_*` intent: it routinely mislabels edit asks as `direct`
  * ("trag es in die Tabelle ein") and drops short follow-ups ("ja ab a1") into a
  * single-pass `direct` turn, both of which must still be able to edit. The same
- * single-pass kill-switches as {@link decideRunAgentic} still apply. A surface
- * without a tool path (doc/board/canvas) returns false → legacy trigger path.
+ * single-pass kill-switches as {@link decideRunAgentic} still apply — and on a
+ * doc surface a turn they hold back now has NO edit path at all (the classifier
+ * stage that used to emit `trigger_doc_edit` is gone), which is why
+ * `buildArtifactNotes` makes the model say so.
  */
 export function decideEditToolLoop(p: EditToolLoopInput): boolean {
   if (!p.loopEnabled) return false;
