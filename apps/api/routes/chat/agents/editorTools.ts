@@ -137,14 +137,21 @@ const INSTRUCTION_ECHO_CHARS = 120;
  * (the loop's gathered sources — `recherchiere X und bau es ein`) and "welchen
  * Text meint die Person" (the previous assistant turn — `füge das ein`). The
  * docs AI sees only the document, so both have to travel with the instruction.
+ *
  * Capped TOGETHER, because the cap protects the docs-AI system prompt and that
- * prompt carries the concatenation, not either half.
+ * prompt carries the concatenation, not either half. And the PRIOR TURN comes
+ * first, because the cap cuts the tail: a turn that both searched and points at
+ * an earlier answer ("füge das ein") would otherwise lose exactly the text the
+ * word "das" refers to, while keeping sources nobody asked to insert. The
+ * prior turn is itself capped at the same ceiling upstream, so it can crowd the
+ * sources out entirely — which is the right way round: sources are material the
+ * instruction already quotes, the referenced text is not.
  */
 function buildDocReferenceContent(state: ChatGraphState, sources: string | null): string | null {
   const prior = buildPriorTurnReference(state.messages ?? []);
   const blocks = [
-    sources ? `RECHERCHIERTE QUELLEN:\n${sources}` : '',
     prior ? `VORHERIGE ANTWORT AUS DIESEM CHAT:\n${prior}` : '',
+    sources ? `RECHERCHIERTE QUELLEN:\n${sources}` : '',
   ].filter(Boolean);
   if (blocks.length === 0) return null;
   const joined = blocks.join('\n\n---\n\n');
