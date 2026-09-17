@@ -184,6 +184,17 @@ jobs:
       - name: Overrides erfuellen die deklarierten Bereiche
         run: node scripts/check-override-ranges.mjs
 
+      # Alle anderen Dependency-Checks vergleichen Deklarationen miteinander;
+      # keiner sieht den installierten Baum. `node-linker=hoisted` legt EINEN
+      # flachen Baum an, den sich die Worktrees teilen — ein Install aus einem
+      # fremden Branch schreibt dessen Versionen hinein, und `pnpm install`
+      # meldet danach "Already up to date" (Workspace-State-Cache), auch mit
+      # --force. Sichtbar wird der Bruch erst beim Laden eines Moduls
+      # (17.09.2026: @assistant-ui/core 0.3.18 statt 0.3.16 -> vier
+      # jsdom-Suiten an einem fehlenden assistant-cloud-Export).
+      - name: node_modules deckt sich mit dem Lockfile
+        run: node scripts/check-installed-lockfile-drift.mjs
+
       - name: TypeScript type check
         run: pnpm typecheck
 
