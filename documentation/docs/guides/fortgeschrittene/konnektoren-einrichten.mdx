@@ -1,0 +1,95 @@
+---
+sidebar_position: 3
+description: 'Externe Dienste mit dem Grünerator-Chat verbinden, testen und gezielt verwenden.'
+---
+
+import { ConnectorTable, Fact, ManagedConnectorTable } from '@site/src/components/Reference';
+
+# Wie richte ich Konnektoren für den Chat ein?
+
+Mit **Konnektoren** kann der Grünerator-Chat Werkzeuge externer Dienste verwenden – etwa eine Seite in Notion anlegen oder Daten aus einem verbundenen Dienst abrufen.
+
+:::warning[Experimentelles Feature]
+Konnektoren sind derzeit **experimentell**. Verfügbarkeit, Anmeldung und Funktionsumfang können sich ändern.
+:::
+
+## Konnektoren öffnen
+
+1. Klicke unten in der Seitenleiste auf deinen Account.
+2. Öffne **Einstellungen**.
+3. Wähle den Tab **Konnektoren**.
+
+Oben siehst du **Vom Grünerator bereitgestellte** Dienste. Darunter findest du unter **Dienste verbinden** das Verzeichnis weiterer Konnektoren.
+
+## Bereitgestellte Dienste verwenden
+
+Diese Dienste benötigen keine eigene Anmeldung und können direkt aktiviert, getestet oder pausiert werden:
+
+<ManagedConnectorTable />
+
+Welche Einträge tatsächlich angezeigt werden, hängt von der aktuellen Bereitstellung ab. Der Schalter **Aktiv** entscheidet, ob der Chat einen Dienst verwenden darf. Mit **Testen** kannst du prüfen, ob dessen Werkzeuge erreichbar sind.
+
+Erwähne den gewünschten Dienst in deiner ersten Anfrage möglichst ausdrücklich mit `@`, zum Beispiel:
+
+> Wie wird das Wetter am Samstag in Münster? Nutze **@wetter**.
+
+Der Chat kann einen passenden bereitgestellten Dienst teilweise auch selbst auswählen. Eine ausdrückliche `@`-Mention macht die Auswahl jedoch eindeutig.
+
+## Einen weiteren Dienst verbinden
+
+### 1. Dienst finden
+
+Suche unter **Dienste verbinden** nach dem Namen. Du kannst die Liste zusätzlich über die Kategorien filtern. Das kuratierte Verzeichnis enthält aktuell <Fact name="connectorCount" /> Einträge:
+
+<ConnectorTable />
+
+### 2. Verbindung starten
+
+Öffne den gewünschten Eintrag und klicke auf **Verbinden**. Der weitere Ablauf hängt vom Dienst ab:
+
+- Bei **OAuth** öffnet sich ein Anmeldefenster des Anbieters. Melde dich dort an und bestätige den angezeigten Zugriff.
+- Bei einem **Token** öffnet der Grünerator einen Dialog für den Zugangsschlüssel. Erstelle den Schlüssel beim jeweiligen Anbieter und füge ihn dort ein.
+- Dienste **ohne Anmeldung** werden direkt verbunden.
+
+Wenn der Browser das Anmeldefenster nicht öffnet, erlaube Pop-ups für `gruenerator.eu` und versuche es erneut. Bleibt der Status nach einer erfolgreichen Anmeldung unverändert, klicke oben auf **Aktualisieren**.
+
+Manche OAuth-Anbieter verlangen eine eigene App-Registrierung. In diesem Fall zeigt der Grünerator zusätzliche Felder für **Client-ID** und **Client Secret** sowie die benötigte Weiterleitungsadresse an.
+
+### 3. Verbindung prüfen
+
+Nach dem Verbinden erscheint der Dienst im Bereich **Verbunden**. Klicke auf **Testen**. Der Grünerator fragt den Server ab und zeigt an, ob dessen Werkzeuge verfügbar sind.
+
+### 4. Dienst im Chat auswählen
+
+Erwähne den Dienst in der ersten Anfrage per `@`, zum Beispiel:
+
+> Erstelle mit **@tally** ein Anmeldeformular für unser Sommerfest.
+
+Die Mention erscheint als Chip in deiner Nachricht. Bei einer direkt anschließenden Folgefrage kann der Chat den zuletzt gewählten Konnektor weiterverwenden. Erwähne ihn erneut, wenn du den Dienst wechselst oder die Auswahl eindeutig machen möchtest.
+
+Vor einem schreibenden oder anderweitig sensiblen Werkzeug kann der Chat deine Bestätigung verlangen. Prüfe die vorgeschlagene Aktion, bevor du sie erlaubst. Dauerhaft erteilte Freigaben kannst du in den Konnektor-Einstellungen unter **Immer erlaubte Werkzeuge** wieder entfernen; dieser Abschnitt erscheint erst, wenn eine solche Freigabe vorhanden ist.
+
+## Einen eigenen MCP-Server hinzufügen
+
+Für einen Server außerhalb des Verzeichnisses öffnest du **Eigenen MCP-Server hinzufügen** und trägst **Name** sowie **Server-URL** ein. Der aktuelle manuelle Dialog bindet den Server ohne zusätzlichen Anmeldeablauf ein. Verwende ihn deshalb nur für einen Server, der keine Anmeldung benötigt und dessen Herkunft du kennst.
+
+Benötigt ein Server OAuth oder einen Token, nutze nach Möglichkeit seinen Eintrag im Verzeichnis. Dort kann der Grünerator den passenden Anmeldeablauf anzeigen.
+
+## Verbindung verwalten
+
+Im Bereich **Verbunden** kannst du einen Dienst:
+
+- mit dem Schalter **Aktiv** pausieren oder wieder aktivieren,
+- mit **Autorisieren** erneut anmelden, wenn die Berechtigung fehlt,
+- mit **Testen** prüfen,
+- oder mit **Entfernen** vom Grünerator trennen.
+
+Das Entfernen löscht die im Grünerator gespeicherte Verbindung. Ob beim Anbieter zusätzlich eine erteilte Berechtigung besteht, hängt vom jeweiligen Dienst ab; diese kannst du bei Bedarf auch dort widerrufen.
+
+:::info[Zugriff bewusst vergeben]
+Ein Konnektor arbeitet mit den Berechtigungen, die du beim jeweiligen Anbieter bestätigst. Verbinde nur Dienste, denen du vertraust, und prüfe vor Änderungen die im Chat angezeigte Aktion.
+:::
+
+## Was ist der Unterschied zur umgekehrten Verbindung?
+
+Dieser Guide verbindet **externe Dienste mit dem Grünerator-Chat**. Wenn du den Grünerator stattdessen in ChatGPT, Claude, Le Chat oder OpenWebUI verwenden möchtest, lies **[Wie verbinde ich den Grünerator mit ChatGPT & Co.?](./gruenerator-mit-ki-chat-verbinden.md)**.

@@ -30,15 +30,15 @@ Die Prüf-KI dagegen läuft unbeaufsichtigt nach Zeitplan — und darf deshalb a
 
 Für die Teile, die reine Aufzählung sind, gibt es keine abgetippte Kopie in der Doku. Ein Skript liest die Konfigurationsdateien des Grünerators und schreibt daraus eine Datenliste, die die Doku-Seite beim Bauen einbindet:
 
-| Was                                               | Woraus                                                                        | Wo du es siehst                                                                                      |
-| ------------------------------------------------- | ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| Werkzeuge und ihre Gruppen                        | Die Kachel- und Katalog-Konfiguration der Weboberfläche                       | [Alle Werkzeuge](/docs/basics/tools)                                                                 |
-| Chat-Fähigkeiten                                  | Die Liste der Absichten, die der Chat erkennen kann, plus die @-Erwähnungen   | [Was kann ich fragen?](/docs/chat/was-kann-ich-fragen)                                               |
-| Einstellungen                                     | Der Aufbau des Einstellungen-Dialogs und alle Schalter darin                  | [Einstellungen](/docs/konto/einstellungen)                                                           |
-| Office-Funktionen                                 | Die Verträge zwischen App und KI — und was der Editor davon wirklich ausführt | [Office-Überblick](/docs/features/office)                                                            |
-| Dateilimits, Sammlungen, Konnektoren              | Die Upload-Prüfung und die Konnektor-Registry                                 | [Dateien hinzufügen](/docs/chat/dateien-hinzufuegen), [Konnektoren](/docs/integrationen/konnektoren) |
-| Regale der Agentura                               | Der Kategorien-Katalog des Marktplatzes                                       | [Agentura](/docs/features/agentura)                                                                  |
-| Namen von Werkzeugen und Menüpunkten im Fließtext | Dieselben Konfigurationen                                                     | überall dort, wo ein Name genannt wird                                                               |
+| Was                                               | Woraus                                                                        | Wo du es siehst                                                                                                           |
+| ------------------------------------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Werkzeuge und ihre Gruppen                        | Die Kachel- und Katalog-Konfiguration der Weboberfläche                       | [Alle Werkzeuge](/docs/basics/tools)                                                                                      |
+| Chat-Fähigkeiten                                  | Die Liste der Absichten, die der Chat erkennen kann, plus die @-Erwähnungen   | [Was kann ich fragen?](/docs/chat/was-kann-ich-fragen)                                                                    |
+| Einstellungen                                     | Der Aufbau des Einstellungen-Dialogs und alle Schalter darin                  | [Einstellungen](/docs/sonstiges/einstellungen)                                                                            |
+| Office-Funktionen                                 | Die Verträge zwischen App und KI — und was der Editor davon wirklich ausführt | [Office-Überblick](/docs/features/office)                                                                                 |
+| Dateilimits, Sammlungen, Konnektoren              | Die Upload-Prüfung und die Konnektor-Registry                                 | [Dateien hinzufügen](/docs/chat/dateien-hinzufuegen), [Konnektoren](/docs/guides/fortgeschrittene/konnektoren-einrichten) |
+| Regale der Agentura                               | Der Kategorien-Katalog des Marktplatzes                                       | [Agentura](/docs/features/agentura)                                                                                       |
+| Namen von Werkzeugen und Menüpunkten im Fließtext | Dieselben Konfigurationen                                                     | überall dort, wo ein Name genannt wird                                                                                    |
 
 Zwei Eigenschaften dieses Verfahrens sind entscheidend:
 

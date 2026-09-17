@@ -40,7 +40,11 @@ const EXCLUDED_TOP_FOLDERS = new Set(['intern', 'experimente']);
  * Individual pages temporarily out of the docs (docs.exclude in
  * documentation/docusaurus.config.ts) — same reason as EXCLUDED_TOP_FOLDERS.
  */
-const EXCLUDED_FILES = new Set(['basics/finetuning', 'basics/welches-ki-tool-wofuer']);
+const EXCLUDED_FILES = new Set([
+  'basics/finetuning',
+  'basics/welches-ki-tool-wofuer',
+  'integrationen/chrome-erweiterung',
+]);
 
 /** Human labels per top-level folder — becomes the page-map grouping. */
 const CATEGORY_LABELS = {
@@ -48,10 +52,7 @@ const CATEGORY_LABELS = {
   guides: 'Guides',
   chat: 'Chat',
   features: 'Features',
-  konto: 'Konto & Projekte',
-  integrationen: 'Integrationen',
   sonstiges: 'Sonstiges',
-  archiv: 'Archiv',
 };
 
 const LEAD_MAX_CHARS = 200;
@@ -280,7 +281,11 @@ function build() {
     const h1 = /^#\s+(.+?)\s*$/m.exec(body);
     const title = data.title || (h1 ? stripHeading(h1[1]) : path.basename(rel, path.extname(rel)));
     const topFolder = rel.includes('/') ? rel.slice(0, rel.indexOf('/')) : '';
-    const category = CATEGORY_LABELS[topFolder] ?? 'Allgemein';
+    // The archive is nested below Sonstiges in the navigation, but remains a
+    // separate search category so dated announcements keep their lower prior.
+    const category = rel.startsWith('sonstiges/archiv/')
+      ? 'Archiv'
+      : (CATEGORY_LABELS[topFolder] ?? 'Allgemein');
     const url = toUrl(rel);
 
     pages.push({ url, title, category, lead: firstParagraph(body) });
