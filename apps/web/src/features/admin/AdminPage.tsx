@@ -11,6 +11,7 @@ import { CURRENT_INSTANCE } from '../../config/instance';
 import RequireAdmin from './components/RequireAdmin';
 import LandesverbandAssignmentTab from './landesverband-assignment/LandesverbandAssignmentTab';
 import AgentsTab from './tabs/AgentsTab';
+import GlossarTab from './tabs/GlossarTab';
 import RolesTab from './tabs/RolesTab';
 import SkillsTab from './tabs/SkillsTab';
 import UsersTab from './tabs/UsersTab';
@@ -67,6 +68,14 @@ function buildTabs(instanceId: typeof CURRENT_INSTANCE): AdminTab[] {
       title: 'Rollenübersicht',
       description: 'Welche Rolle sich die Nutzenden selbst gegeben haben.',
       render: () => <RolesTab />,
+    },
+    {
+      value: 'glossar',
+      label: 'Glossar',
+      title: 'Übersetzungs-Glossar',
+      description:
+        'Feste Begriffe für den DeepL-Übersetzer, je Sprachpaar. Greift automatisch auf der Übersetzer-Seite und im Chat.',
+      render: () => <GlossarTab />,
     },
   ];
 

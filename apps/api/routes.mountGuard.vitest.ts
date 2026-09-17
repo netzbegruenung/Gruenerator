@@ -57,6 +57,7 @@ describe('routes.ts mount order', () => {
       { prefix: '/api/unsplash', mount: 'mountUnsplashContractRouter(app)' },
       { prefix: '/api/exports', mount: 'mountExportsContractRouter(app)' },
       { prefix: '/api/sharepic/text', mount: 'mountSharepicTextContractRouter(app)' },
+      { prefix: '/api/translation', mount: 'mountTranslationContractRouter(app)' },
       { prefix: '/api/voice', mount: 'mountSpeechContractRouter(app)' },
     ];
 

@@ -243,6 +243,15 @@ const Datenschutz = () => {
             <td>KI-Textmodelle sowie Audio-/Videotranskription (keine dauerhafte Speicherung)</td>
           </tr>
           <tr>
+            <td>DeepL SE</td>
+            <td>Deutschland (EU)</td>
+            <td>
+              Maschinelle Übersetzung von Texten und Dokumenten – nur, wenn Du den Übersetzer oder
+              das Übersetzungs-Werkzeug im Chat nutzt; Dokumente werden nach dem Abruf bei DeepL
+              gelöscht
+            </td>
+          </tr>
+          <tr>
             <td>
               <a href="https://melious.ai/de/legal/dpa" target="_blank" rel="noopener noreferrer">
                 Melious AI GmbH
