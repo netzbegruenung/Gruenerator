@@ -2,12 +2,9 @@ import { type AssignableMember, type BoardOperation } from '@gruenerator/contrac
 
 import {
   FIELD_IDS,
-  parseChecklists,
   serializeAssignees,
   type BoardView,
   type CardAssignee,
-  type CellValue,
-  type ChecklistGroup,
   type Field,
   type FieldType,
   type Row,
@@ -23,13 +20,7 @@ import { COLUMN_COLORS, LABEL_COLORS, createDefaultRow } from './utils/boardDefa
  */
 export interface BoardMutations {
   fields: Field[];
-  rows: Row[];
-  views: BoardView[];
   addRow: (row: Row) => void;
-  updateRow: (rowId: string, updates: Partial<Row>) => void;
-  updateRowCell: (rowId: string, fieldId: string, value: CellValue) => void;
-  deleteRow: (rowId: string) => void;
-  duplicateRow: (rowId: string, createdBy: string) => string | null;
   addField: (field: Field) => void;
   updateField: (fieldId: string, updates: Partial<Field>) => void;
   addView: (view: BoardView) => void;
@@ -46,10 +37,6 @@ export interface BoardExecutorCtx {
    * FIELD_IDS.STATUS (the standard every template's Kanban view groups by).
    */
   groupByFieldId?: string;
-  /** Adds a plain-text comment to a card (REST). */
-  addComment: (taskId: string, text: string) => Promise<void>;
-  /** Confirms a batch of deletions. Resolves true to proceed. */
-  confirmDelete: (titles: string[]) => Promise<boolean>;
 }
 
 export interface ApplyResult {
@@ -83,9 +70,8 @@ const VIEW_NAMES: Record<ViewLayout, string> = {
 /**
  * Apply a batch of AI-planned board operations to the live Yjs board. Status,
  * assignee and label values arrive as human names and are resolved here against
- * the live board (auto-creating missing status columns / labels). Destructive
- * deletes are batched into a single confirm. Never throws on a single bad op —
- * unresolved items are reported in `skipped`.
+ * the live board (auto-creating missing status columns / labels). Never throws
+ * on a single bad op — unresolved items are reported in `skipped`.
  */
 export async function applyBoardOperations(
   ops: BoardOperation[],
@@ -112,8 +98,6 @@ export async function applyBoardOperations(
   let labelOptions: SelectOption[] = [
     ...((labelsField?.typeOptions.options as SelectOption[] | undefined) ?? []),
   ];
-
-  const rowExists = (taskId: string): boolean => boardState.rows.some((r) => r.id === taskId);
 
   function resolveStatusId(nameOrId: string | null | undefined): string | null {
     if (!nameOrId) return null;
@@ -200,21 +184,22 @@ export async function applyBoardOperations(
 
   const fieldTypeFor = (t: FieldType): FieldType => t;
 
-  // Collect deletions to confirm once at the end.
-  const deletes: { taskId: string; title: string }[] = [];
+  /**
+   * In an existing board the assistant may only CREATE new items — it must not
+   * edit, move, assign, comment on, archive, duplicate or delete existing
+   * entries (a0823bef4). The planner prompt says the same; this guard is the
+   * trust boundary for whatever the wire actually carries. Re-enabling an op
+   * type is a product change that starts at the planner prompt, then here.
+   */
+  const CREATE_OP_TYPES = ['create_task', 'add_column', 'add_field', 'add_view'] as const;
+  type CreateOperation = Extract<BoardOperation, { type: (typeof CREATE_OP_TYPES)[number] }>;
 
-  // SAFETY: in an existing board the assistant may only CREATE new items — it must
-  // not edit, move, assign, comment on, archive, duplicate or delete existing
-  // entries (too risky). To re-enable any of those, add its op type here.
-  const ALLOWED_OPS: ReadonlySet<BoardOperation['type']> = new Set([
-    'create_task',
-    'add_column',
-    'add_field',
-    'add_view',
-  ]);
+  function isCreateOperation(op: BoardOperation): op is CreateOperation {
+    return (CREATE_OP_TYPES as readonly string[]).includes(op.type);
+  }
 
   for (const op of ops) {
-    if (!ALLOWED_OPS.has(op.type)) {
+    if (!isCreateOperation(op)) {
       skipped.push(`„${op.type}" ist deaktiviert — die KI darf nur neue Einträge anlegen`);
       continue;
     }
@@ -241,154 +226,11 @@ export async function applyBoardOperations(
           applied++;
           break;
         }
-        case 'update_task': {
-          if (!rowExists(op.taskId)) {
-            skipped.push(`Aufgabe ${op.taskId} nicht gefunden`);
-            break;
-          }
-          if (op.title != null) boardState.updateRowCell(op.taskId, FIELD_IDS.TITLE, op.title);
-          if (op.description != null)
-            boardState.updateRowCell(op.taskId, FIELD_IDS.DESCRIPTION, op.description);
-          if (op.dueDate !== undefined)
-            boardState.updateRowCell(op.taskId, FIELD_IDS.DUE_DATE, op.dueDate ?? null);
-          applied++;
-          break;
-        }
-        case 'move_task': {
-          if (!rowExists(op.taskId)) {
-            skipped.push(`Aufgabe ${op.taskId} nicht gefunden`);
-            break;
-          }
-          const statusId = resolveStatusId(op.status);
-          if (!statusId) {
-            skipped.push(`Spalte „${op.status}" konnte nicht aufgelöst werden`);
-            break;
-          }
-          boardState.updateRowCell(op.taskId, statusFieldId, statusId);
-          applied++;
-          break;
-        }
-        case 'set_assignee': {
-          if (!rowExists(op.taskId)) {
-            skipped.push(`Aufgabe ${op.taskId} nicht gefunden`);
-            break;
-          }
-          boardState.updateRowCell(op.taskId, FIELD_IDS.ASSIGNEE, resolveAssigneeCell(op.assignee));
-          applied++;
-          break;
-        }
-        case 'set_assignees': {
-          if (!rowExists(op.taskId)) {
-            skipped.push(`Aufgabe ${op.taskId} nicht gefunden`);
-            break;
-          }
-          boardState.updateRowCell(
-            op.taskId,
-            FIELD_IDS.ASSIGNEE,
-            resolveAssigneesCell(op.assignees)
-          );
-          applied++;
-          break;
-        }
-        case 'archive_task': {
-          if (!rowExists(op.taskId)) {
-            skipped.push(`Aufgabe ${op.taskId} nicht gefunden`);
-            break;
-          }
-          boardState.updateRow(op.taskId, { archivedAt: new Date().toISOString() });
-          applied++;
-          break;
-        }
-        case 'restore_task': {
-          if (!rowExists(op.taskId)) {
-            skipped.push(`Aufgabe ${op.taskId} nicht gefunden`);
-            break;
-          }
-          boardState.updateRow(op.taskId, { archivedAt: undefined });
-          applied++;
-          break;
-        }
-        case 'duplicate_task': {
-          if (!rowExists(op.taskId)) {
-            skipped.push(`Aufgabe ${op.taskId} nicht gefunden`);
-            break;
-          }
-          const id = boardState.duplicateRow(op.taskId, ctx.currentUserId);
-          if (id) applied++;
-          else skipped.push(`Aufgabe ${op.taskId} konnte nicht dupliziert werden`);
-          break;
-        }
-        case 'add_checklist_item': {
-          if (!rowExists(op.taskId)) {
-            skipped.push(`Aufgabe ${op.taskId} nicht gefunden`);
-            break;
-          }
-          const row = boardState.rows.find((r) => r.id === op.taskId);
-          const groups: ChecklistGroup[] = parseChecklists(row?.cells[FIELD_IDS.CHECKLIST]);
-          const title = op.checklistTitle?.trim() || 'Checkliste';
-          let group = groups.find((g) => g.title.trim().toLowerCase() === title.toLowerCase());
-          if (!group) {
-            group = { id: `cl-${slug(title)}-${rand()}`, title, items: [] };
-            groups.push(group);
-          }
-          group.items.push({ id: `cli-${rand()}-${rand()}`, text: op.text, done: false });
-          boardState.updateRowCell(op.taskId, FIELD_IDS.CHECKLIST, JSON.stringify(groups));
-          applied++;
-          break;
-        }
-        case 'set_labels': {
-          if (!rowExists(op.taskId)) {
-            skipped.push(`Aufgabe ${op.taskId} nicht gefunden`);
-            break;
-          }
-          boardState.updateRowCell(op.taskId, FIELD_IDS.LABELS, resolveLabelIds(op.labels));
-          applied++;
-          break;
-        }
-        case 'set_due_date': {
-          if (!rowExists(op.taskId)) {
-            skipped.push(`Aufgabe ${op.taskId} nicht gefunden`);
-            break;
-          }
-          boardState.updateRowCell(op.taskId, FIELD_IDS.DUE_DATE, op.dueDate ?? null);
-          applied++;
-          break;
-        }
-        case 'add_comment': {
-          if (!rowExists(op.taskId)) {
-            skipped.push(`Aufgabe ${op.taskId} nicht gefunden`);
-            break;
-          }
-          await ctx.addComment(op.taskId, op.text);
-          applied++;
-          break;
-        }
         case 'add_column': {
           // resolveStatusId creates the option when the name doesn't exist.
           const id = resolveStatusId(op.name);
           if (id) applied++;
           else skipped.push(`Spalte „${op.name}" konnte nicht angelegt werden`);
-          break;
-        }
-        case 'rename_column': {
-          if (!statusField) {
-            skipped.push('Kein Status-Feld vorhanden');
-            break;
-          }
-          const idx = statusOptions.findIndex(
-            (o) =>
-              o.id === op.columnId ||
-              o.name.trim().toLowerCase() === op.columnId.trim().toLowerCase()
-          );
-          if (idx === -1) {
-            skipped.push(`Spalte „${op.columnId}" nicht gefunden`);
-            break;
-          }
-          statusOptions = statusOptions.map((o, i) => (i === idx ? { ...o, name: op.name } : o));
-          boardState.updateField(statusFieldId, {
-            typeOptions: { ...statusField.typeOptions, options: statusOptions },
-          });
-          applied++;
           break;
         }
         case 'add_field': {
@@ -430,35 +272,11 @@ export async function applyBoardOperations(
           applied++;
           break;
         }
-        case 'delete_task': {
-          if (!rowExists(op.taskId)) {
-            skipped.push(`Aufgabe ${op.taskId} nicht gefunden`);
-            break;
-          }
-          const title =
-            (boardState.rows.find((r) => r.id === op.taskId)?.cells[FIELD_IDS.TITLE] as string) ||
-            op.taskId;
-          deletes.push({ taskId: op.taskId, title });
-          break;
-        }
       }
     } catch (err) {
       skipped.push(
         `Operation ${op.type} fehlgeschlagen: ${err instanceof Error ? err.message : String(err)}`
       );
-    }
-  }
-
-  // Destructive deletes: one confirm for the whole batch.
-  if (deletes.length > 0) {
-    const ok = await ctx.confirmDelete(deletes.map((d) => d.title));
-    if (ok) {
-      for (const d of deletes) {
-        boardState.deleteRow(d.taskId);
-        applied++;
-      }
-    } else {
-      skipped.push(`${deletes.length} Löschung(en) abgebrochen`);
     }
   }
 
