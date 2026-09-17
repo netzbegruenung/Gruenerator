@@ -25,7 +25,6 @@ export type {
   CanvasAiSnapshot,
   CanvasAiSuggestion,
   CanvasAiCapabilities,
-  CanvasAiSuggestRequest,
   CanvasAiSuggestResponse,
 } from '@gruenerator/contracts';
 export {
