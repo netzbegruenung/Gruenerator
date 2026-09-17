@@ -22,6 +22,7 @@ import { isCloudShareUrl } from '@gruenerator/shared/utils';
 import { agentAllowsTool } from '../../../../routes/chat/agents/agentToolWhitelist.js';
 import { isAgenticLoopEnabled } from '../../../../routes/chat/services/agenticLoop/flags.js';
 import {
+  isDocumentContextEditAllowed,
   looksLikeSelfContainedTurn,
   looksLikeToolableQuestion,
   looksLikeUnsourcedWritingOrder,
@@ -623,10 +624,11 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // editor surface always has currentDocument, and we want the live-edit path
     // (Yjs-synced, undoable in-place) instead of /chat's modify_doc HITL flow
     // (DB-only update, breaks Yjs).
-    // Honor the docs-sidebar "AI may edit document" toggle: when the client
-    // explicitly disables `edit_current_doc`, fall through to normal intent
-    // classification so the assistant answers conversationally instead of
-    // patching the open document.
+    // Honor the sidebar's "AI may edit" toggle: when the client explicitly
+    // disables its surface key, fall through to normal intent classification so
+    // the assistant answers conversationally instead of patching the open
+    // document. All three currentDocument surfaces count — docs, sheets and
+    // presentations each send their own key now (#3438).
     //
     // Seit #3428 EMITTIERT dieses Verdikt nichts mehr von sich aus: den
     // `trigger_doc_edit`-Versand macht das Loop-Werkzeug `edit_document`, und
@@ -636,7 +638,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // wählt im Einzeldurchlauf den Antworttext. Diese Schnellbahn und
     // `docsIntentTiebreak` bleiben deshalb bis zu einem Eval-Lauf stehen; ihre
     // Abschaffung hängt an ihm (#3428), nicht an diesem Umbau.
-    const editCurrentDocAllowed = state.enabledTools?.edit_current_doc !== false;
+    const editCurrentDocAllowed = isDocumentContextEditAllowed(state.enabledTools);
 
     if (hasCurrentDocument && editCurrentDocAllowed && userContent.length > 0) {
       // Layer 1: fast-path regex. Covers the common explicit-edit verbs

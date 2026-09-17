@@ -111,6 +111,24 @@ export const currentCanvasSchema = z.object({
 });
 export type CurrentCanvas = z.infer<typeof currentCanvasSchema>;
 
+/**
+ * The per-surface "AI may edit the OPEN artefact" keys the editor sidebars put
+ * into `customEnabledTools`. One key per surface, so a custom agent inside a
+ * sidebar still resolves to the right surface (#3438) and a search-route agent
+ * can be stripped of all of them at once (#3435). Wire values: additive only,
+ * never renamed. `edit_current_doc` is also a classifier intent id; the key
+ * and the intent are different things that happen to share a spelling.
+ */
+export const editorEditToolKeySchema = z.enum([
+  'edit_current_doc',
+  'edit_current_sheet',
+  'edit_current_presentation',
+  'edit_current_board',
+  'edit_current_canvas',
+]);
+export type EditorEditToolKey = z.infer<typeof editorEditToolKeySchema>;
+export const EDITOR_EDIT_TOOL_KEYS = editorEditToolKeySchema.options;
+
 export const chatStreamBodySchema = z.object({
   messages: z.array(chatWireMessageSchema).min(1),
   agentId: z.string().nullish(),
