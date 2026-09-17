@@ -12,7 +12,6 @@ import {
   generateAiImage,
 } from './services/imageSourceService';
 import { uploadBlobToMediaLibrary } from './services/mediaUploadService';
-import { useGenerateCanvasSuggestions } from './useGenerateCanvasSuggestions';
 
 import type { CanvasEditorServices } from '@gruenerator/canvas-editor';
 
@@ -28,7 +27,6 @@ export const webCanvasEditorServices: CanvasEditorServices = {
   uploadImage: uploadBlobToMediaLibrary,
   removeBackgroundFromImage,
   editAiImage,
-  useGenerateCanvasSuggestions,
   ChatSectionContent: CanvasInlineChatSection,
   apiBaseUrl: (import.meta.env.VITE_API_URL as string | undefined) ?? '',
 };

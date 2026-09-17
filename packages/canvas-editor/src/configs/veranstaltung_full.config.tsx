@@ -3,10 +3,9 @@
  * Event sharepic with photo, green section, and date circle
  */
 
-import { HiPhotograph, HiSparkles } from 'react-icons/hi';
+import { HiPhotograph } from 'react-icons/hi';
 import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
-import { createAiSectionRegistration } from '../ai/createAiSectionRegistration';
 import { AssetsSection, FrameSettingsSection, ImageBackgroundSection } from '../sidebar/sections';
 import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 import { CANVAS_RECOMMENDED_ASSETS, type AssetInstance } from '../utils/canvasAssets';
@@ -409,11 +408,9 @@ export const veranstaltungFullConfig: FullCanvasConfig<
     },
     toolsTab,
     uploadsTab,
-    { id: 'ai', icon: HiSparkles, label: 'KI', ariaLabel: 'KI-Vorschläge' },
     chatTab,
   ],
 
-  // 'ai' tab kept registered but hidden — Chat tab now drives canvas-AI suggestions.
   getVisibleTabs: () => ['image', 'text', 'assets', 'tools', 'uploads', 'chat'],
 
   getAutoSwitchTab: (selectedElement) =>
@@ -485,7 +482,6 @@ export const veranstaltungFullConfig: FullCanvasConfig<
     share: createShareSection<VeranstaltungFullState>('veranstaltung', (state) =>
       `${state.eventTitle}\n${state.beschreibung}\n${state.weekday} ${state.date} ${state.time}\n${state.locationName}`.trim()
     ),
-    ai: createAiSectionRegistration('veranstaltung', veranstaltungAiCapabilities),
   },
 
   // The date circle (rotated text) doesn't fit the generic element model and is

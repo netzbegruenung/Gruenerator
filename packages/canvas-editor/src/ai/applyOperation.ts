@@ -35,8 +35,9 @@ export type CanvasAiCleanPatch = {
  * because each method is optional — no template is forced to implement
  * actions it doesn't support.
  *
- * Exported so `AiSection` can constrain its `TActions` generic to extend
- * this shape, eliminating the need for a cast at the call site.
+ * Exported so callers (e.g. the chat section) can constrain their `TActions`
+ * generic to extend this shape, eliminating the need for a cast at the call
+ * site.
  */
 export interface CanvasAiActionsBase {
   // Common text setters — most templates expose at least one of these

@@ -5,11 +5,10 @@
  * Migrated from monolithic 1,107-line DreizeilenCanvas component.
  */
 
-import { HiCog, HiPhotograph, HiSparkles } from 'react-icons/hi';
+import { HiCog, HiPhotograph } from 'react-icons/hi';
 import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
 import { buildAssetCapability } from '../ai/assetCapability';
-import { createAiSectionRegistration } from '../ai/createAiSectionRegistration';
 import { buildIllustrationCapability } from '../ai/illustrationCapability';
 import { AssetsSection, ImageBackgroundSection } from '../sidebar';
 import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
@@ -289,12 +288,10 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
     { id: 'assets', icon: PiSquaresFourFill, label: 'Elemente', ariaLabel: 'Elemente hinzufügen' },
     toolsTab,
     uploadsTab,
-    { id: 'ai', icon: HiSparkles, label: 'KI', ariaLabel: 'KI-Vorschläge' },
     chatTab,
   ],
 
   getVisibleTabs: () => {
-    // 'ai' tab kept registered but hidden — Chat tab now drives canvas-AI suggestions.
     // 'settings' tab kept registered but hidden — opened via getAutoSwitchTab on balken
     // selection so the icon strip doesn't shift when a balken is clicked.
     // 'share' is not in `tabs`, so listing it here filtered to nothing.
@@ -387,8 +384,6 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
         ...injectFeatureProps(state, actions, context),
       }),
     }),
-
-    ai: createAiSectionRegistration('dreizeilen', dreizeilenAiCapabilities),
 
     ...createCommonSectionEntries('dreizeilen', dreizeilenAiCapabilities),
 
