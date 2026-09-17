@@ -72,7 +72,12 @@ const config: Config = {
           // finetuning + welches-ki-tool-wofuer: temporarily out of the docs —
           // remove the two entries to re-publish them (keep in sync with
           // EXCLUDED_FILES in scripts/generate-docs-index.mjs).
-          exclude: ['intern/**', 'basics/finetuning.md', 'basics/welches-ki-tool-wofuer.md'],
+          exclude: [
+            'intern/**',
+            'basics/finetuning.md',
+            'basics/welches-ki-tool-wofuer.md',
+            'integrationen/chrome-erweiterung.md',
+          ],
           // "Edit this page" points at the docs in the monorepo.
           editUrl: 'https://github.com/netzbegruenung/Gruenerator/tree/master/documentation/',
         },
@@ -169,9 +174,33 @@ const config: Config = {
             from: '/docs/ueber-den-gruenerator/inhaltsdatenbank',
             to: '/docs/sonstiges/inhaltsdatenbank',
           },
-          // projekte + Profil → konto/*
-          { from: '/docs/projekte/intro', to: '/docs/konto/projekte' },
-          { from: '/docs/Profil/einstellungen', to: '/docs/konto/einstellungen' },
+          // Former project, account and integration pages
+          {
+            from: '/docs/projekte/intro',
+            to: '/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen',
+          },
+          { from: '/docs/Profil/einstellungen', to: '/docs/sonstiges/einstellungen' },
+          {
+            from: '/docs/konto/projekte',
+            to: '/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen',
+          },
+          { from: '/docs/konto/einstellungen', to: '/docs/sonstiges/einstellungen' },
+          {
+            from: '/docs/integrationen/ki-chat-einrichten',
+            to: '/docs/guides/fortgeschrittene/gruenerator-mit-ki-chat-verbinden',
+          },
+          {
+            from: '/docs/integrationen/konnektoren',
+            to: '/docs/guides/fortgeschrittene/konnektoren-einrichten',
+          },
+          {
+            from: '/docs/integrationen/mcp-was-kann-ich-fragen',
+            to: '/docs/sonstiges/mcp-was-kann-ich-fragen',
+          },
+          {
+            from: '/docs/integrationen/chrome-erweiterung',
+            to: '/docs/guides/fortgeschrittene/gruenerator-mit-ki-chat-verbinden',
+          },
           {
             from: '/docs/Profil/gruene-wolke-tutorial',
             to: '/docs/guides/fortgeschrittene/gruene-wolke-einbinden',
@@ -245,7 +274,7 @@ const config: Config = {
           // node sits in a sidebar). Their slugs came from the old labels —
           // umlauts and all — so they are spelled out here, not computed.
           // newsletter/ and signal-nachrichten/ keep their category pages
-          // (still categories inside archivSidebar) and need no rule.
+          // inside the archive below Sonstiges and need no rule.
           {
             from: '/docs/category/über-den-grünerator',
             to: section('basics').intro,
@@ -254,20 +283,38 @@ const config: Config = {
           { from: '/docs/category/office', to: section('features').intro },
           { from: '/docs/category/wissen', to: section('features').intro },
           { from: '/docs/category/grüneratoren', to: section('features').intro },
-          { from: '/docs/category/konto--projekte', to: section('konto').intro },
-          { from: '/docs/category/integrationen', to: section('integrationen').intro },
+          {
+            from: '/docs/category/konto--projekte',
+            to: '/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen',
+          },
+          {
+            from: '/docs/category/integrationen',
+            to: '/docs/guides/fortgeschrittene/konnektoren-einrichten',
+          },
           { from: '/docs/category/grundlagen', to: section('basics').intro },
-          { from: '/docs/category/archiv', to: EXTRA_LINKS.archiv.to },
         ],
-        // The dated newsletter and Signal posts moved into archiv/ as a whole —
-        // one rule beats twelve hand-written entries.
+        // Keep both generations of archive URLs working after moving the
+        // archive below Sonstiges.
         createRedirects(existingPath: string) {
-          if (existingPath.startsWith('/docs/archiv/newsletter/')) {
-            return [existingPath.replace('/docs/archiv/newsletter/', '/docs/newsletter/')];
-          }
-          if (existingPath.startsWith('/docs/archiv/signal-nachrichten/')) {
+          if (existingPath.startsWith('/docs/sonstiges/archiv/newsletter/')) {
             return [
-              existingPath.replace('/docs/archiv/signal-nachrichten/', '/docs/signal-nachrichten/'),
+              existingPath.replace(
+                '/docs/sonstiges/archiv/newsletter/',
+                '/docs/archiv/newsletter/'
+              ),
+              existingPath.replace('/docs/sonstiges/archiv/newsletter/', '/docs/newsletter/'),
+            ];
+          }
+          if (existingPath.startsWith('/docs/sonstiges/archiv/signal-nachrichten/')) {
+            return [
+              existingPath.replace(
+                '/docs/sonstiges/archiv/signal-nachrichten/',
+                '/docs/archiv/signal-nachrichten/'
+              ),
+              existingPath.replace(
+                '/docs/sonstiges/archiv/signal-nachrichten/',
+                '/docs/signal-nachrichten/'
+              ),
             ];
           }
           return undefined;
@@ -338,18 +385,9 @@ const config: Config = {
             position: 'left' as const,
           })),
         {
-          type: 'dropdown',
-          label: 'Mehr',
+          to: EXTRA_LINKS.webinare.to,
+          label: EXTRA_LINKS.webinare.label,
           position: 'left',
-          items: [
-            ...SECTIONS.filter((s) => s.navbar === 'more').map((s) => ({
-              type: 'docSidebar' as const,
-              sidebarId: s.sidebarId,
-              label: s.label,
-            })),
-            { to: EXTRA_LINKS.webinare.to, label: EXTRA_LINKS.webinare.label },
-            { type: 'docSidebar' as const, sidebarId: 'archivSidebar', label: 'Archiv' },
-          ],
         },
       ],
     },

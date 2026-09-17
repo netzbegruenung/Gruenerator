@@ -321,7 +321,7 @@ const McpSection = () => {
       </div>
 
       <a
-        href={`${getDocsUrl()}/docs/integrationen/ki-chat-einrichten`}
+        href={`${getDocsUrl()}/docs/guides/fortgeschrittene/gruenerator-mit-ki-chat-verbinden`}
         target="_blank"
         rel="noopener noreferrer"
         className="mt-4 inline-flex items-center gap-1.5 text-sm text-link underline underline-offset-2 hover:opacity-80"
