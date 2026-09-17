@@ -41,7 +41,7 @@ import { turnMaterialChars } from '../turnMaterial.js';
 import { withInstructionHierarchy } from '../untrustedContent.js';
 
 import { isToolApprovalEnabled } from './approvalPolicy.js';
-import { buildNoEditPathNote } from './artifactNotes.js';
+import { buildPreLoopEditNotes } from './artifactNotes.js';
 import { createAskHumanGate, type AskHumanGate } from './askHumanGate.js';
 import { ATTACHED_DOCS_TOOL, retrievableAttachedSources } from './attachedDocuments.js';
 import {
@@ -459,14 +459,14 @@ export async function streamAgenticResponse(
     // Same predicate the catalog used to decide what to mount — read once here
     // so prompt and toolset can never disagree about whether searching is on.
     const researchBanned = forbidsNewResearch(finalState.lastUserTextNoMentions ?? lastUserText);
-    // Editor sidebar, artefact open, toggle on — and no `edit_document` this
-    // turn (image attachment, notebook, secondary intent …). Split mode gets
-    // this via `buildArtifactNotes` in the synth prompt; unified mode has no
-    // synth prompt, so it has to arrive here or the model promises an edit that
-    // nothing will make.
-    const noEditPathNote = mode === 'unified' ? buildNoEditPathNote(finalState) : '';
+    // Editor sidebar, artefact open — toggle off, or toggle on but no edit
+    // path this turn. Split mode gets both via `buildArtifactNotes` in the
+    // synth prompt; unified mode has no synth prompt, so they have to arrive
+    // here or the model promises an edit that nothing will make (or hides
+    // that editing is off).
+    const preLoopEditNotes = mode === 'unified' ? buildPreLoopEditNotes(finalState) : '';
     const toolSystem = withInstructionHierarchy(
-      `${systemMessage}\n\n${buildToolUsageBlock(budget.maxSteps, researchBanned, mode === 'unified', Object.keys(wrapped), sourceRegistry.carriedSize > 0)}${mcpNote}${systemNote}${connectorCatalogNote}${carriedNote}${noEditPathNote}${renderRecipeCatalog(recipeCatalog)}`
+      `${systemMessage}\n\n${buildToolUsageBlock(budget.maxSteps, researchBanned, mode === 'unified', Object.keys(wrapped), sourceRegistry.carriedSize > 0)}${mcpNote}${systemNote}${connectorCatalogNote}${carriedNote}${preLoopEditNotes}${renderRecipeCatalog(recipeCatalog)}`
     );
     const { abortSignal, writeAbortSignal, toolBudgetDeadline } = createTurnClocks(
       budget,
