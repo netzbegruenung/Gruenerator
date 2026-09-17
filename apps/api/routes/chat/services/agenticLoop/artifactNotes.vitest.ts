@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { buildArtifactNotes } from './artifactNotes.js';
+import { buildArtifactNotes, buildPreLoopEditNotes } from './artifactNotes.js';
 
 import type { ChatGraphState } from '../../../../agents/langgraph/ChatGraph/types.js';
 
@@ -288,5 +288,50 @@ describe('buildArtifactNotes', () => {
     );
     expect(capabilityNote).toContain('wurde ein Artefakt ERSTELLT');
     expect(capabilityNote).not.toContain('zusammenhängenden Absatz');
+  });
+});
+
+/**
+ * Der Unified-Pfad hat keinen Synth-Prompt. Was er vor dem Loop wissen kann
+ * (Schalter, Bearbeitungsweg), bekommt er über diesen einen Bauer — derselbe,
+ * den auch `buildArtifactNotes` für die beiden Notizen benutzt, damit Split und
+ * Unified nie verschiedene Sätze sagen (#3439).
+ */
+describe('buildPreLoopEditNotes', () => {
+  it('liefert die Ausgeschaltet-Notiz mit dem Substantiv der Fläche', () => {
+    const state = makeState({
+      agentConfig: { identifier: 'gruenerator-sharepic-editor' } as never,
+      enabledTools: { edit_current_canvas: false },
+    });
+    const note = buildPreLoopEditNotes(state);
+    expect(note).toContain('Die KI-Bearbeitung ist ausgeschaltet');
+    expect(note).toContain('das geöffnete Sharepic');
+    expect(buildArtifactNotes(state, { artifactToolMounted: false }).notes).toContain(note.trim());
+  });
+
+  it('liefert die Kein-Weg-Notiz, wenn das Werkzeug trotz Schalter fehlt', () => {
+    const state = makeState({
+      agentConfig: { identifier: 'gruenerator-sharepic-editor' } as never,
+      enabledTools: { edit_current_canvas: true },
+      currentCanvas: { id: 'c1' } as never,
+      editToolSurface: null,
+    });
+    const note = buildPreLoopEditNotes(state);
+    expect(note).toContain('kann das geöffnete Sharepic nicht direkt bearbeitet werden');
+    expect(buildArtifactNotes(state, { artifactToolMounted: false }).notes).toContain(note.trim());
+  });
+
+  it('schweigt, wenn edit_document montiert ist oder keine Fläche offen ist', () => {
+    expect(
+      buildPreLoopEditNotes(
+        makeState({
+          agentConfig: { identifier: 'gruenerator-sharepic-editor' } as never,
+          enabledTools: { edit_current_canvas: true },
+          currentCanvas: { id: 'c1' } as never,
+          editToolSurface: 'canvas',
+        })
+      )
+    ).toBe('');
+    expect(buildPreLoopEditNotes(makeState())).toBe('');
   });
 });

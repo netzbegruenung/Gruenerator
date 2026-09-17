@@ -11,7 +11,11 @@ import { SKILLS, canonicalSkillMention } from '@gruenerator/shared/agents';
 import { type ChatIntentId, isGroundableProse } from '@gruenerator/shared/chat-intents';
 
 import { roleAwareDefaultRecipeMention } from '../../../../routes/chat/agents/lvRecipePreference.js';
-import { looksLikeChitchatTurn } from '../../../../routes/chat/services/agenticLoop/routing.js';
+import {
+  EDITOR_SURFACE_NOUNS,
+  looksLikeChitchatTurn,
+  resolveEditorSurfaceKind,
+} from '../../../../routes/chat/services/agenticLoop/routing.js';
 import {
   type ImageVisibility,
   imageVisibility,
@@ -1064,17 +1068,6 @@ const MODES_WITHOUT_ANCHORS: ReadonlySet<ChatGraphState['intent']> = new Set([
 ]);
 
 /**
- * Der Text für einen `edit_current_doc`-Turn OHNE Bearbeitungsweg — und nur für
- * den. Siehe {@link getDocEditGuidance} für die Bedingung.
- *
- * Der Grund bleibt bewusst ungenannt: er ist technisch und für die Person
- * bedeutungslos. Was zählt, ist, dass sie den Vorschlag als Text bekommt und
- * ihn selbst einsetzen kann.
- */
-const EDIT_CURRENT_DOC_NO_PATH_GUIDANCE =
-  '\nDu kannst das Dokument in diesem Zug nicht direkt bearbeiten. Beginne deine Antwort auf Deutsch mit genau diesem Satz: "Ich kann das Dokument in diesem Zug nicht direkt bearbeiten — hier ist mein Vorschlag als Text:" Schreibe danach die gewünschte Fassung vollständig aus, damit sie sich von Hand übernehmen lässt. Behaupte NIEMALS, du hättest das Dokument geändert oder würdest es gleich ändern.';
-
-/**
  * Was ein `edit_current_doc`-Turn im Prompt bekommt — und das hängt NICHT am
  * Intent allein.
  *
@@ -1090,9 +1083,21 @@ const EDIT_CURRENT_DOC_NO_PATH_GUIDANCE =
  * Werkzeugbeschreibung. Ein Absagetext daneben wäre ein direkter Widerspruch
  * dazu — und stand bis zur Korrektur genau so im Prompt jedes Dokument-Zuges,
  * auf dem das Werkzeug lief.
+ *
+ * Der Grund für die Absage bleibt bewusst ungenannt: er ist technisch und für
+ * die Person bedeutungslos. Was zählt, ist, dass sie den Vorschlag als Text
+ * bekommt und ihn selbst einsetzen kann.
+ *
+ * Das Substantiv kommt von der Fläche, nicht vom Intent: der Doc-Fast-Path
+ * feuert auch in der Tabellen- und Präsentations-Seitenleiste (#3438).
  */
 function getDocEditGuidance(state: ChatGraphState): string {
-  return state.editToolSurface == null ? EDIT_CURRENT_DOC_NO_PATH_GUIDANCE : '';
+  if (state.editToolSurface != null) return '';
+  const kind = resolveEditorSurfaceKind(state.agentConfig?.identifier, state.enabledTools) ?? 'doc';
+  const { noun, gender } = EDITOR_SURFACE_NOUNS[kind];
+  const das = gender === 'f' ? 'die' : 'das';
+  const es = gender === 'f' ? 'sie' : 'es';
+  return `\nDu kannst ${das} ${noun} in diesem Zug nicht direkt bearbeiten. Beginne deine Antwort auf Deutsch mit genau diesem Satz: "Ich kann ${das} ${noun} in diesem Zug nicht direkt bearbeiten — hier ist mein Vorschlag als Text:" Schreibe danach die gewünschte Fassung vollständig aus, damit sie sich von Hand übernehmen lässt. Behaupte NIEMALS, du hättest ${das} ${noun} geändert oder würdest ${es} gleich ändern.`;
 }
 
 const SUMMARY_GUIDANCE =

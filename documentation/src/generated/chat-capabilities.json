@@ -225,6 +225,10 @@
       "label": "Frühere Chats",
       "description": "Durchsucht frühere Unterhaltungen — im aktuellen Projekt oder über alle Chats hinweg."
     },
+    "text_uebersetzen": {
+      "label": "Übersetzung",
+      "description": "Übersetzt Texte mit DeepL, inklusive Grünen-Glossar."
+    },
     "user_content": {
       "label": "Eigene Inhalte",
       "description": "Durchsucht die eigenen gespeicherten Texte und Dokumente."

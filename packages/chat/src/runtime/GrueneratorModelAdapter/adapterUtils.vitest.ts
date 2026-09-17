@@ -11,6 +11,7 @@ import {
   buildRequestBody,
   isAuiInternalThreadId,
   resolveRuntimeThreadId,
+  stripEditorEditTools,
   type BuildRequestBodyParams,
 } from './buildRequestBody';
 import { truncateAttachmentContext } from './truncation';
@@ -227,5 +228,21 @@ describe('buildRequestBody', () => {
   it('non-empty notebookIds are forwarded', () => {
     const body = buildRequestBody(baseParams({ effectiveMode: 'chat', notebookIds: ['nb-a'] }));
     expect(body.notebookIds).toEqual(['nb-a']);
+  });
+});
+
+describe('stripEditorEditTools', () => {
+  it('drops every surface edit key and keeps the rest', () => {
+    expect(
+      stripEditorEditTools({
+        edit_current_doc: true,
+        edit_current_sheet: true,
+        edit_current_presentation: false,
+        edit_current_board: true,
+        edit_current_canvas: true,
+        summary: true,
+        save_as_doc: false,
+      })
+    ).toEqual({ summary: true, save_as_doc: false });
   });
 });

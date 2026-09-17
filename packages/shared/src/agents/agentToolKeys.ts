@@ -53,10 +53,15 @@ export const AGENT_TOOL_KEYS: readonly string[] = [
   'edit_image',
   'analyze_image',
   // Editor-surface keys, read from the per-request `enabledTools` record
-  // (agenticLoop/routing.ts), declared by the editor agents.
-  'edit_current_doc',
+  // (agenticLoop/routing.ts), declared by the editor agents. The wire
+  // registry is `editorEditToolKeySchema` in @gruenerator/contracts; this
+  // list mirrors it by hand because `agents/` pulls no foreign packages
+  // (see agentIcons.ts). `agentToolKeys.vitest.ts` keeps the two in sync.
+  'edit_current_sheet',
+  'edit_current_presentation',
   'edit_current_board',
   'edit_current_canvas',
+  'edit_current_doc',
   // Classifier intent names, not tools: the LV-PR agents carry
   // `pressemitteilung_examples`, the corpus agents their corpus intents.
   'pressemitteilung_examples',

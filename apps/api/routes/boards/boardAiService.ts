@@ -48,6 +48,7 @@ move_task, add_comment, set_assignee, set_assignees, set_labels, set_due_date,
 add_checklist_item, rename_column.
 
 RULES:
+- add_view only when no existing view (see "Ansichten") already has that name or that layout.
 - For "status", "assignee"/"assignees" and "labels" use HUMAN NAMES (e.g. "In Arbeit",
   "Erledigt", a member's name, "Dringend"). The client resolves them to ids and
   creates a column/label if it does not exist yet.
@@ -94,6 +95,14 @@ function serializeBoard(board: CurrentBoard, today: string): string {
   lines.push('\nSpalten (Status):');
   if (board.statusOptions.length === 0) lines.push('- (keine)');
   for (const opt of board.statusOptions) lines.push(`- ${opt.name}`);
+
+  const fieldNameById = new Map(board.fields.map((f) => [f.id, f.name]));
+  lines.push('\nAnsichten (vorhanden):');
+  if (board.views.length === 0) lines.push('- (keine)');
+  for (const v of board.views) {
+    const groupBy = v.groupByFieldId ? fieldNameById.get(v.groupByFieldId) : null;
+    lines.push(`- ${v.name} (${v.layout}${groupBy ? `, gruppiert nach ${groupBy}` : ''})`);
+  }
 
   const selectFields = board.fields.filter(
     (f) => f.id !== FIELD_IDS.STATUS && (f.type === 'singleSelect' || f.type === 'multiSelect')

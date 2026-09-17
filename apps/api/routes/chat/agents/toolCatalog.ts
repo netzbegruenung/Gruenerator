@@ -42,6 +42,7 @@ import {
   isProductMetaQuestion,
 } from '../../../services/chat/productKnowledge.js';
 import { crawlAndDistill } from '../../../services/search/index.js';
+import { getDeepLService } from '../../../services/translation/DeepLService.js';
 import { createLogger } from '../../../utils/logger.js';
 import { validateUrlForFetch } from '../../../utils/validation/urlSecurity.js';
 import {
@@ -99,6 +100,7 @@ import { makeRecurringTasksTool } from './recurringTaskTools.js';
 import { harvestSearchImages, imageDeliveryNote } from './searchImageHarvest.js';
 import { agentAllowsWebSearch, createSearchTools } from './searchTools.js';
 import { makeRecipesTool } from './textFormTools.js';
+import { makeTranslateTool } from './translationTools.js';
 import { makeUserAgentsTool } from './userAgentTools.js';
 import { makeVertonenTool } from './voiceTools.js';
 
@@ -915,6 +917,12 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
     }
     if (state.enabledTools?.['notebooks'] !== false) {
       tools.notebooks = makeNotebooksTool(personalCtx);
+    }
+    // DeepL translation. Mounted broadly like the domain tools — the model
+    // decides — but only when a key is configured: a tool that always answers
+    // "nicht eingerichtet" would cost a schema on every turn for nothing.
+    if (getDeepLService() && state.enabledTools?.['text_uebersetzen'] !== false) {
+      tools.text_uebersetzen = makeTranslateTool({ state });
     }
     // The person's explicit memory. Only with the profile switch on: with it
     // off the prompt carries no GEDÄCHTNIS block either, and a tool that can

@@ -231,6 +231,18 @@ const envSchema = z.object({
   CORTECS_BASE_URL: z.string().optional(),
   BFL_API_KEY: z.string().optional(),
 
+  // ── DeepL (Übersetzer + Chat-Werkzeug `text_uebersetzen`) ────────────────
+  // Ohne Key bleibt das Feature aus: die Seite zeigt einen Hinweis, das
+  // Chat-Werkzeug wird nicht gemountet. Free-Keys enden auf `:fx` und werden
+  // automatisch gegen api-free.deepl.com geschickt.
+  DEEPL_API_KEY: z.string().optional(),
+  // Name des EINEN Konto-Glossars, das der Admin-Tab pflegt und das jede
+  // Übersetzung automatisch mitnimmt, sobald das Sprachpaar abgedeckt ist.
+  DEEPL_GLOSSARY_NAME: z.string().default('Grünerator'),
+  // Tagesbudget je Nutzer*in in Zeichen (Text + Dokumente; ein Dokument kostet
+  // bei DeepL mindestens 50 000 Zeichen und wird auch so gebucht).
+  DEEPL_DAILY_CHARS_PER_USER: numStr(200_000),
+
   // ── Web Search Providers ───────────────────────────────────────────────
   // Linkup (https://docs.linkup.so) — when set, replaces SearXNG for @web
   // and replaces the deep-research orchestrator for @recherche.

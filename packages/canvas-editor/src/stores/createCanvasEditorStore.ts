@@ -20,11 +20,7 @@ import { immer } from 'zustand/middleware/immer';
 import { DEFAULT_FORMAT_ID } from '../formats';
 
 import type { SnapTarget, SnapLine } from '../utils/snapping';
-import type {
-  Layer,
-  CanvasEditorConfig,
-  CanvasHistoryEntry,
-} from '@gruenerator/shared/canvas-editor';
+import type { CanvasEditorConfig, CanvasHistoryEntry } from '@gruenerator/shared/canvas-editor';
 
 // =============================================================================
 // TYPES
@@ -33,7 +29,6 @@ import type {
 export interface CanvasEditorState<
   TComponentState extends Record<string, unknown> = Record<string, unknown>,
 > {
-  layers: Layer[];
   selectedLayerIds: string[];
   selectedElement: string | null;
 
@@ -82,13 +77,6 @@ export interface CanvasEditorActions<
   setFormat: (formatId: string) => void;
   setContainerSize: (size: { width: number; height: number }) => void;
 
-  addLayer: (layer: Omit<Layer, 'id'>) => string;
-  updateLayer: (id: string, updates: Partial<Layer>) => void;
-  removeLayer: (id: string) => void;
-  reorderLayer: (id: string, newIndex: number) => void;
-  setLayers: (layers: Layer[]) => void;
-  batchUpdateLayers: (updates: Array<{ id: string; changes: Partial<Layer> }>) => void;
-
   selectLayer: (id: string, addToSelection?: boolean) => void;
   deselectAll: () => void;
 
@@ -115,7 +103,6 @@ export interface CanvasEditorGetters {
   canUndo: () => boolean;
   canRedo: () => boolean;
   isSelected: (id: string) => boolean;
-  getLayer: (id: string) => Layer | undefined;
   getSnapTargets: (excludeId: string) => SnapTarget[];
 }
 
@@ -131,7 +118,6 @@ function createInitialState<
   TComponentState extends Record<string, unknown>,
 >(): CanvasEditorState<TComponentState> {
   return {
-    layers: [],
     selectedLayerIds: [],
     selectedElement: null,
     config: {
@@ -156,12 +142,6 @@ function createInitialState<
 }
 
 // =============================================================================
-// HELPERS
-// =============================================================================
-
-const generateLayerId = () => `layer-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-// =============================================================================
 // FACTORY
 // =============================================================================
 
@@ -181,7 +161,6 @@ export function createCanvasEditorStore<
       canUndo: () => get().historyIndex > 0,
       canRedo: () => get().historyIndex < get().history.length - 1,
       isSelected: (id: string) => get().selectedLayerIds.includes(id),
-      getLayer: (id: string) => get().layers.find((l) => l.id === id),
 
       getSnapTargets: (excludeId: string) => {
         const { elementPositions } = get();
@@ -202,62 +181,6 @@ export function createCanvasEditorStore<
       setContainerSize: (size) =>
         set((state) => {
           state.containerSize = size;
-        }),
-
-      // Layer CRUD
-      addLayer: (layer: Omit<Layer, 'id'>) => {
-        const id = generateLayerId();
-        set((state) => {
-          state.layers.push({ ...layer, id } as Layer);
-          state.renderVersion++;
-        });
-        return id;
-      },
-
-      updateLayer: (id, updates) =>
-        set((state) => {
-          const layer = state.layers.find((l) => l.id === id);
-          if (layer) {
-            Object.assign(layer, updates);
-            state.renderVersion++;
-          }
-        }),
-
-      removeLayer: (id) =>
-        set((state) => {
-          const index = state.layers.findIndex((l) => l.id === id);
-          if (index !== -1) {
-            state.layers.splice(index, 1);
-            state.selectedLayerIds = state.selectedLayerIds.filter((i) => i !== id);
-            delete state.elementPositions[id];
-            state.renderVersion++;
-          }
-        }),
-
-      reorderLayer: (id, newIndex) =>
-        set((state) => {
-          const currentIndex = state.layers.findIndex((l) => l.id === id);
-          if (currentIndex === -1 || newIndex < 0 || newIndex >= state.layers.length) return;
-          const [layer] = state.layers.splice(currentIndex, 1);
-          state.layers.splice(newIndex, 0, layer);
-          state.renderVersion++;
-        }),
-
-      setLayers: (layers) =>
-        set((state) => {
-          state.layers = layers;
-          state.renderVersion++;
-        }),
-
-      batchUpdateLayers: (updates) =>
-        set((state) => {
-          for (const { id, changes } of updates) {
-            const layer = state.layers.find((l) => l.id === id);
-            if (layer) {
-              Object.assign(layer, changes);
-            }
-          }
-          state.renderVersion++;
         }),
 
       // Selection
@@ -282,7 +205,6 @@ export function createCanvasEditorStore<
       // History (Undo/Redo)
       saveToHistory: (componentState) =>
         set((state) => {
-          const layersJson = JSON.stringify(state.layers);
           const componentStateJson = componentState ? JSON.stringify(componentState) : null;
 
           // Skip no-op snapshots: drag-end events that didn't move anything,
@@ -293,16 +215,12 @@ export function createCanvasEditorStore<
             const lastComponentStateJson = lastEntry.componentState
               ? JSON.stringify(lastEntry.componentState)
               : null;
-            if (
-              JSON.stringify(lastEntry.layers) === layersJson &&
-              lastComponentStateJson === componentStateJson
-            ) {
+            if (lastComponentStateJson === componentStateJson) {
               return;
             }
           }
 
           const entry: CanvasHistoryEntry<TComponentState> = {
-            layers: JSON.parse(layersJson),
             selectedLayerIds: [...state.selectedLayerIds],
             timestamp: Date.now(),
             componentState: componentStateJson ? JSON.parse(componentStateJson) : undefined,
@@ -331,7 +249,6 @@ export function createCanvasEditorStore<
           const entry = state.history[newIndex];
           set((s) => {
             s.historyIndex = newIndex;
-            s.layers = JSON.parse(JSON.stringify(entry.layers));
             s.selectedLayerIds = [...entry.selectedLayerIds];
             s.renderVersion++;
           });
@@ -348,7 +265,6 @@ export function createCanvasEditorStore<
           const entry = state.history[newIndex];
           set((s) => {
             s.historyIndex = newIndex;
-            s.layers = JSON.parse(JSON.stringify(entry.layers));
             s.selectedLayerIds = [...entry.selectedLayerIds];
             s.renderVersion++;
           });
@@ -400,22 +316,22 @@ export function createCanvasEditorStore<
        * Zuruecksetzen auf das, was zu EINER Vorlage gehoert: Auswahl,
        * Rueckgaengig-Verlauf, Fanglinien, gemerkte Element-Positionen.
        *
-       * `layers` und `config` bleiben bewusst stehen. Liegt eine Yjs-Bindung
-       * an der Flaeche, gehoeren die beiden dem gemeinsamen Dokument:
-       * `bindCanvasStoreToYMap` schreibt jede Store-Aenderung an ihnen nach
-       * `pages[i]` zurueck, und der Echo-Schutz dort greift nur bei FREMDEN
-       * Updates. Ein vollstaendiges Zuruecksetzen kam deshalb als
-       * `reconcileLayers([])` im Y.Doc an und loeschte die freien Elemente der
-       * Seite — unter `LOCAL_ORIGIN`, also bei allen Mitarbeitenden und in
-       * Hocuspocus persistiert (#3413). `setPageConfigById` sagt genau das
-       * Gegenteil zu: beim Vorlagenwechsel ueberleben `layers` und `config`.
+       * `config` bleibt bewusst stehen. Liegt eine Yjs-Bindung an der Flaeche,
+       * gehoert es dem gemeinsamen Dokument: `bindCanvasStoreToYMap` schreibt
+       * jede Store-Aenderung daran nach `pages[i]` zurueck, und der
+       * Echo-Schutz dort greift nur bei FREMDEN Updates. Ein vollstaendiges
+       * Zuruecksetzen kam deshalb als `reconcileConfig` mit dem Anfangswert im
+       * Y.Doc an und ueberschrieb das Format der Seite — unter `LOCAL_ORIGIN`,
+       * also bei allen Mitarbeitenden und in Hocuspocus persistiert (#3413).
+       * `setPageConfigById` sagt genau das Gegenteil zu: beim Vorlagenwechsel
+       * ueberlebt `config`.
        *
-       * Die beiden Werte werden als dieselben Referenzen zurueckgelegt, damit
-       * die Store-Subscription der Bindung gar keine Aenderung sieht.
+       * Der Wert wird als dieselbe Referenz zurueckgelegt, damit die
+       * Store-Subscription der Bindung gar keine Aenderung sieht.
        */
       resetTemplateScopedState: () => {
-        const { layers, config } = get();
-        set({ ...createInitialState<TComponentState>(), layers, config });
+        const { config } = get();
+        set({ ...createInitialState<TComponentState>(), config });
       },
 
       // AI suggestion accept/revert state
