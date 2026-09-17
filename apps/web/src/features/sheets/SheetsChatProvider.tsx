@@ -84,7 +84,7 @@ export function SheetsChatProvider({
         },
         customEnabledTools: {
           summary: true,
-          edit_current_doc: edit,
+          edit_current_sheet: edit,
         },
       }),
       // Sheets aren't live yet, so there's no legacy trigger_doc_edit path to
