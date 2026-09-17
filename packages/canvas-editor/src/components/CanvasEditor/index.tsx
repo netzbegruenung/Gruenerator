@@ -231,7 +231,7 @@ function CanvasEditorInner({
   // Pinch and ctrl/cmd+wheel drive the same zoom as the CanvasMetaBar buttons
   useZoomGestures(pagesContainerRef, setZoom);
 
-  // Every page binds its layers/config to its page Y.Map — in collab mode
+  // Every page binds its config to its page Y.Map — in collab mode
   // that syncs to peers, in local mode it makes duplicate/move/undo carry
   // the full page content (the Y.Doc is the single source of truth).
   // Bindings are identity-cached per page: a fresh object per render would

@@ -29,7 +29,7 @@ export interface CanvasEditorProps {
   externalMobileMode?: boolean;
   /**
    * Collaborative mode — fed into usePageManager to back the pages list with
-   * a Yjs doc, and used to derive each page's Y.Map for layers/config sync.
+   * a Yjs doc, and used to derive each page's Y.Map for config sync.
    */
   collaborative?: {
     ydoc: import('yjs').Doc;
@@ -115,7 +115,7 @@ export interface PageWrapperProps {
    */
   autoSave?: boolean;
   /**
-   * Per-page Y.Map binding for layers/config/state. Set on every page in both
+   * Per-page Y.Map binding for config/state. Set on every page in both
    * modes; `provider` is only present in collab mode.
    */
   pageBinding?: {
