@@ -245,6 +245,18 @@ describe('getModeGuidance — edit_current_doc ohne Bearbeitungsweg', () => {
     expect(out).not.toContain('die Bearbeitung passiert direkt im Dokument');
   });
 
+  it('nennt die Tabelle, wenn der Doc-Fast-Path in der Tabellen-Seitenleiste feuert', () => {
+    const out = getModeGuidance(
+      makeState({
+        intent: 'edit_current_doc',
+        agentConfig: { identifier: 'gruenerator-sheets-editor' } as never,
+        enabledTools: { edit_current_sheet: true },
+      })
+    );
+    expect(out).toContain('Ich kann die Tabelle in diesem Zug nicht direkt bearbeiten');
+    expect(out).not.toContain('das Dokument');
+  });
+
   // Der Intent allein entscheidet das nicht: derselbe Prompt-Bau beliefert den
   // Loop, und dort IST das Werkzeug montiert. Der Absagetext stünde dann neben
   // „Rufe IMMER edit_document auf" — siehe docsEditPrompt.vitest.ts für die
