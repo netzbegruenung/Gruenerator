@@ -280,9 +280,11 @@ export type ExportToDocsResponse = z.infer<typeof exportToDocsResponseSchema>;
 // ── chat → docs live-edit bridge ─────────────────────────────────────────────
 
 /**
- * Payload of the `trigger_doc_edit` SSE event. The chat backend (ChatGraph,
- * intent=edit_current_doc) forwards a doc-edit instruction to the docs editor
- * surface, which dispatches it into BlockNote's AIExtension.
+ * Payload of the `trigger_doc_edit` SSE event. The chat backend forwards a
+ * doc-edit instruction to the docs editor surface, which dispatches it into
+ * BlockNote's AIExtension. Since #3428 the sender is the agentic loop's
+ * `edit_document` tool and `userPrompt` is the MODEL's instruction, not the raw
+ * user text a classifier verdict forwarded.
  *
  * `referenceContent` carries prior assistant text the user referenced
  * ("dies/das einfügen"); it IS sent over the wire and so must be in the type —

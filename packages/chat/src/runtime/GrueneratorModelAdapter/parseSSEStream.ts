@@ -1322,11 +1322,11 @@ export async function* parseSSEStream(
         }
 
         case 'trigger_doc_edit': {
-          // Live document edit (docs editor surface). The chat backend has
-          // classified intent=edit_current_doc and forwards the user's prompt
-          // here so the docs frontend can dispatch into BlockNote's AIExtension.
-          // Handlers are keyed by documentId — there's exactly one docs surface
-          // per document, registered when DocsAssistantChat mounts.
+          // Live document edit (docs editor surface). The loop's `edit_document`
+          // tool decided the edit and wrote the instruction; the docs frontend
+          // dispatches it into BlockNote's AIExtension, which applies it as
+          // suggestions. Handlers are keyed by documentId — there's exactly one
+          // docs surface per document, registered when DocsAssistantChat mounts.
           const parsed = triggerDocEditSchema.safeParse(data);
           if (!parsed.success) {
             console.warn('[ChatAdapter] trigger_doc_edit payload failed validation', parsed.error);
