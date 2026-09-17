@@ -10,7 +10,7 @@
  */
 
 export interface DocPage {
-  /** Site-relative URL path, e.g. `/docs/chat/ki-chat`. */
+  /** Site-relative URL path, e.g. `/docs/features/chat/ki-chat`. */
   url: string;
   title: string;
   category: string;
@@ -36,25 +36,25 @@ export const DOCS_SITE_URL = "https://doku.gruenerator.eu";
 export const DOCS_PAGES: readonly DocPage[] = [
   {
     "url": "/docs/basics/barrierefreiheit",
-    "title": "Barrierefreiheit",
+    "title": "Wie barrierefrei ist der Grünerator?",
     "category": "Basics",
     "lead": "Diese Seite sagt, wie barrierefrei der Grünerator heute ist — einschließlich der Stellen, an denen er es noch nicht ist. Eine geschönte Liste hilft niemandem: Wer auf eine Barriere stößt, die hier ni…"
   },
   {
     "url": "/docs/basics/gruenerator-pro-eu",
-    "title": "Grünerator Pro-EU",
+    "title": "Was bedeutet Grünerator Pro-EU?",
     "category": "Basics",
     "lead": "Wenn Parteien, Abgeordnete und Ehrenamtliche KI-Werkzeuge nutzen, fließen politische Inhalte durch fremde Infrastruktur – Kampagnentexte, Pressemitteilungen, interne Strategien. Bei den meisten KI-To…"
   },
   {
     "url": "/docs/basics/intro",
-    "title": "Grünerator – die Grüne KI",
+    "title": "Was ist der Grünerator?",
     "category": "Basics",
     "lead": "Der Grünerator ist ein speziell für Bündnis 90/Die Grünen entwickeltes KI-Tool. Er erstellt Texte wie Pressemitteilungen, Social-Media-Beiträge, Anträge für kommunale Parlamente und viele weitere. Au…"
   },
   {
     "url": "/docs/basics/Kennzeichnungs-Guide",
-    "title": "Kennzeichnung grünerierter Inhalte",
+    "title": "Wie kennzeichne ich grünerierte Inhalte?",
     "category": "Basics",
     "lead": "Bei der Nutzung des Grünerators stellen sich viele von euch Fragen der Transparenz: Wann muss ich kennzeichnen, dass ein Text von KI erstellt wurde und wann nicht?"
   },
@@ -66,31 +66,31 @@ export const DOCS_PAGES: readonly DocPage[] = [
   },
   {
     "url": "/docs/basics/notebook",
-    "title": "Deine Daten im Grünerator",
+    "title": "Wie kommen eigene Daten in den Grünerator?",
     "category": "Basics",
     "lead": "Landesverbände und Abgeordnetenbüros können ein Grünerator Notebook erwerben und eigene Daten in den Grünerator einpflegen. Damit ermöglicht ihr, dass Basismitglieder und Kommunalos den Grünerator da…"
   },
   {
     "url": "/docs/basics/open-source",
-    "title": "Worauf der Grünerator aufbaut",
+    "title": "Worauf baut der Grünerator auf?",
     "category": "Basics",
     "lead": "Der Grünerator steht auf den Schultern vieler freier Open-Source-Projekte – Software, die offen entwickelt wird und die alle nutzen, einsehen und weiterentwickeln dürfen. Das passt zu unserer Haltung…"
   },
   {
     "url": "/docs/basics/risiken-und-gefahren-von-llms",
-    "title": "Risiken und Gefahren",
+    "title": "Welche Risiken und Gefahren haben Sprachmodelle?",
     "category": "Basics",
     "lead": "Zugegeben, KI ist praktisch. Aber wir wären nicht bei den GRÜNEN, wenn wir nicht auch darauf achten würden, welche Risiken und Gefahren KI zugrunde liegen. Ich würde folgende Punkte fokussieren:"
   },
   {
     "url": "/docs/basics/tools",
-    "title": "Alle Werkzeuge",
+    "title": "Welche Werkzeuge gibt es im Grünerator?",
     "category": "Basics",
     "lead": "Der Grünerator ist kein einzelnes Programm, sondern eine Sammlung von Werkzeugen. Diese Seite zeigt, welche es gibt und wofür man sie nimmt — damit du nicht suchen musst, wo du etwas findest."
   },
   {
     "url": "/docs/basics/wie-llms-funktionieren",
-    "title": "Wie LLMs funktionieren",
+    "title": "Wie funktionieren Sprachmodelle?",
     "category": "Basics",
     "lead": "Ein großes Sprachmodell, wie zum Beispiel ChatGPT , ist ein KI-Modell, das darauf trainiert ist, menschenähnlichen Text zu verstehen und zu erzeugen. Es ist im Kern eine hochentwickelte Anwendung von…"
   },
@@ -99,30 +99,6 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "title": "Bildnachweise & Lizenzen",
     "category": "Allgemein",
     "lead": "Der Sharepic- und Canvas-Editor des Grünerators nutzt großartige, frei verfügbare Icon- und Illustrations-Sammlungen. Alle hier eingesetzten Sets sind kostenlos für private und kommerzielle Nutzung f…"
-  },
-  {
-    "url": "/docs/chat/dateien-hinzufuegen",
-    "title": "Dateien hinzufügen",
-    "category": "Chat",
-    "lead": "Du kannst dem Grünerator Dateien mitgeben, statt ihren Inhalt abzutippen: ein Gesetzesentwurf, eine Studie, ein Screenshot, eine Tabelle. Er liest sie und bezieht sie in die Antwort ein."
-  },
-  {
-    "url": "/docs/chat/ki-chat",
-    "title": "KI-Chat",
-    "category": "Chat",
-    "lead": "Der Grünerator Chat ist dein persönlicher KI-Assistent für grüne Politik. Du kannst Fragen stellen, Texte erstellen lassen, in Parteiprogrammen recherchieren und sogar Bilder generieren — alles in ei…"
-  },
-  {
-    "url": "/docs/chat/ki-modelle",
-    "title": "KI-Modelle",
-    "category": "Chat",
-    "lead": "Beim Grünerieren kannst du selbst wählen, welches KI-Modell deine Texte erstellt. Jedes Modell hat eigene Stärken – von besonders kreativ bis besonders schnell. Standardmäßig übernimmt der Grünerator…"
-  },
-  {
-    "url": "/docs/chat/was-kann-ich-fragen",
-    "title": "Was kann ich fragen?",
-    "category": "Chat",
-    "lead": "Der Grünerator ist kein Suchfeld mit festen Befehlen — du schreibst in normalem Deutsch, was du brauchst. Diese Seite zeigt, was dabei alles möglich ist, mit Musterfragen zum Abschauen und Weiterschr…"
   },
   {
     "url": "/docs/features/agentura",
@@ -137,6 +113,30 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "lead": "Ein Board ist eine Tafel aus Spalten und Karten — für Aufgabenverteilung, Redaktionsplanung oder den Stand einer Kampagne. Du legst es über an."
   },
   {
+    "url": "/docs/features/chat/dateien-hinzufuegen",
+    "title": "Dateien hinzufügen",
+    "category": "Features",
+    "lead": "Du kannst dem Grünerator Dateien mitgeben, statt ihren Inhalt abzutippen: ein Gesetzesentwurf, eine Studie, ein Screenshot, eine Tabelle. Er liest sie und bezieht sie in die Antwort ein."
+  },
+  {
+    "url": "/docs/features/chat/ki-chat",
+    "title": "KI-Chat",
+    "category": "Features",
+    "lead": "Der Grünerator Chat ist dein persönlicher KI-Assistent für grüne Politik. Du kannst Fragen stellen, Texte erstellen lassen, in Parteiprogrammen recherchieren und sogar Bilder generieren — alles in ei…"
+  },
+  {
+    "url": "/docs/features/chat/ki-modelle",
+    "title": "KI-Modelle",
+    "category": "Features",
+    "lead": "Beim Grünerieren kannst du selbst wählen, welches KI-Modell deine Texte erstellt. Jedes Modell hat eigene Stärken – von besonders kreativ bis besonders schnell. Standardmäßig übernimmt der Grünerator…"
+  },
+  {
+    "url": "/docs/features/chat/was-kann-ich-fragen",
+    "title": "Was kann ich fragen?",
+    "category": "Features",
+    "lead": "Der Grünerator ist kein Suchfeld mit festen Befehlen — du schreibst in normalem Deutsch, was du brauchst. Diese Seite zeigt, was dabei alles möglich ist, mit Musterfragen zum Abschauen und Weiterschr…"
+  },
+  {
     "url": "/docs/features/dokumente",
     "title": "Dokumente",
     "category": "Features",
@@ -146,7 +146,7 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "url": "/docs/features/intro",
     "title": "Features",
     "category": "Features",
-    "lead": "Neben dem Chat gibt es im Grünerator drei größere Flächen. Diese Seiten beschreiben, was es dort gibt — jede Funktion, jeden Schalter. Wenn du stattdessen eine bestimmte Aufgabe erledigen willst, sin…"
+    "lead": "Diese Seiten beschreiben die zentralen Funktionen des Grünerators — vom Chat bis zu gemeinsam bearbeitbaren Dokumenten. Wenn du stattdessen eine bestimmte Aufgabe erledigen willst, sind die Guides fü…"
   },
   {
     "url": "/docs/features/ki-im-editor",
@@ -351,15 +351,15 @@ export const DOCS_PAGES: readonly DocPage[] = [
 export const DOCS_SECTIONS: readonly DocSection[] = [
   {
     "url": "/docs/basics/barrierefreiheit",
-    "pageTitle": "Barrierefreiheit",
-    "heading": "Barrierefreiheit",
+    "pageTitle": "Wie barrierefrei ist der Grünerator?",
+    "heading": "Wie barrierefrei ist der Grünerator?",
     "anchor": "",
     "category": "Basics",
     "text": "Diese Seite sagt, wie barrierefrei der Grünerator heute ist — einschließlich der Stellen, an denen er es noch nicht ist. Eine geschönte Liste hilft niemandem: Wer auf eine Barriere stößt, die hier nicht steht, verliert Zeit mit der Frage, ob es an ihm liegt. Stand: 6. September 2026."
   },
   {
     "url": "/docs/basics/barrierefreiheit",
-    "pageTitle": "Barrierefreiheit",
+    "pageTitle": "Wie barrierefrei ist der Grünerator?",
     "heading": "Der aktuelle Stand: teilweise konform",
     "anchor": "#der-aktuelle-stand-teilweise-konform",
     "category": "Basics",
@@ -367,7 +367,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/barrierefreiheit",
-    "pageTitle": "Barrierefreiheit",
+    "pageTitle": "Wie barrierefrei ist der Grünerator?",
     "heading": "Eine Barriere melden",
     "anchor": "#eine-barriere-melden",
     "category": "Basics",
@@ -375,7 +375,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/barrierefreiheit",
-    "pageTitle": "Barrierefreiheit",
+    "pageTitle": "Wie barrierefrei ist der Grünerator?",
     "heading": "Einstellungen, die du selbst setzen kannst",
     "anchor": "#einstellungen-die-du-selbst-setzen-kannst",
     "category": "Basics",
@@ -383,7 +383,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/barrierefreiheit",
-    "pageTitle": "Barrierefreiheit",
+    "pageTitle": "Wie barrierefrei ist der Grünerator?",
     "heading": "Rechtlicher Status dieser Seite",
     "anchor": "#rechtlicher-status-dieser-seite",
     "category": "Basics",
@@ -391,7 +391,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/barrierefreiheit",
-    "pageTitle": "Barrierefreiheit",
+    "pageTitle": "Wie barrierefrei ist der Grünerator?",
     "heading": "Screenreader",
     "anchor": "#screenreader",
     "category": "Basics",
@@ -399,7 +399,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/barrierefreiheit",
-    "pageTitle": "Barrierefreiheit",
+    "pageTitle": "Wie barrierefrei ist der Grünerator?",
     "heading": "Tastaturbedienung",
     "anchor": "#tastaturbedienung",
     "category": "Basics",
@@ -407,7 +407,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/barrierefreiheit",
-    "pageTitle": "Barrierefreiheit",
+    "pageTitle": "Wie barrierefrei ist der Grünerator?",
     "heading": "Was noch nicht erfüllt ist",
     "anchor": "#was-noch-nicht-erfüllt-ist",
     "category": "Basics",
@@ -415,7 +415,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/barrierefreiheit",
-    "pageTitle": "Barrierefreiheit",
+    "pageTitle": "Wie barrierefrei ist der Grünerator?",
     "heading": "Was wir anstreben",
     "anchor": "#was-wir-anstreben",
     "category": "Basics",
@@ -423,7 +423,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/barrierefreiheit",
-    "pageTitle": "Barrierefreiheit",
+    "pageTitle": "Wie barrierefrei ist der Grünerator?",
     "heading": "Wie geprüft wurde",
     "anchor": "#wie-geprüft-wurde",
     "category": "Basics",
@@ -431,7 +431,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/gruenerator-pro-eu",
-    "pageTitle": "Grünerator Pro-EU",
+    "pageTitle": "Was bedeutet Grünerator Pro-EU?",
     "heading": "Politische Kommunikation gehört in europäische Hände",
     "anchor": "#politische-kommunikation-gehört-in-europäische-hände",
     "category": "Basics",
@@ -439,7 +439,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/gruenerator-pro-eu",
-    "pageTitle": "Grünerator Pro-EU",
+    "pageTitle": "Was bedeutet Grünerator Pro-EU?",
     "heading": "Unsere europäischen Partner",
     "anchor": "#unsere-europäischen-partner",
     "category": "Basics",
@@ -447,15 +447,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/intro",
-    "pageTitle": "Grünerator – die Grüne KI",
-    "heading": "Grünerator – die Grüne KI",
+    "pageTitle": "Was ist der Grünerator?",
+    "heading": "Was ist der Grünerator?",
     "anchor": "",
     "category": "Basics",
     "text": "Der Grünerator ist ein speziell für Bündnis 90/Die Grünen entwickeltes KI-Tool. Er erstellt Texte wie Pressemitteilungen, Social-Media-Beiträge, Anträge für kommunale Parlamente und viele weitere. Außerdem kann er Sharepics \"grünerieren\" und beim Erstellen von Untertiteln helfen."
   },
   {
     "url": "/docs/basics/intro",
-    "pageTitle": "Grünerator – die Grüne KI",
+    "pageTitle": "Was ist der Grünerator?",
     "heading": "Datenschutz per Design",
     "anchor": "#datenschutz-per-design",
     "category": "Basics",
@@ -463,7 +463,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/intro",
-    "pageTitle": "Grünerator – die Grüne KI",
+    "pageTitle": "Was ist der Grünerator?",
     "heading": "Denkt und spricht Grün",
     "anchor": "#denkt-und-spricht-grün",
     "category": "Basics",
@@ -471,7 +471,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/intro",
-    "pageTitle": "Grünerator – die Grüne KI",
+    "pageTitle": "Was ist der Grünerator?",
     "heading": "Einfache UI & modernste Technik",
     "anchor": "#einfache-ui--modernste-technik",
     "category": "Basics",
@@ -479,7 +479,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/intro",
-    "pageTitle": "Grünerator – die Grüne KI",
+    "pageTitle": "Was ist der Grünerator?",
     "heading": "Mit Herz für Open-Source",
     "anchor": "#mit-herz-für-open-source",
     "category": "Basics",
@@ -487,7 +487,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/intro",
-    "pageTitle": "Grünerator – die Grüne KI",
+    "pageTitle": "Was ist der Grünerator?",
     "heading": "Plus für Barrierefreiheit",
     "anchor": "#plus-für-barrierefreiheit",
     "category": "Basics",
@@ -495,15 +495,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/Kennzeichnungs-Guide",
-    "pageTitle": "Kennzeichnung grünerierter Inhalte",
-    "heading": "Kennzeichnung grünerierter Inhalte",
+    "pageTitle": "Wie kennzeichne ich grünerierte Inhalte?",
+    "heading": "Wie kennzeichne ich grünerierte Inhalte?",
     "anchor": "",
     "category": "Basics",
     "text": "Bei der Nutzung des Grünerators stellen sich viele von euch Fragen der Transparenz: Wann muss ich kennzeichnen, dass ein Text von KI erstellt wurde und wann nicht? ---"
   },
   {
     "url": "/docs/basics/Kennzeichnungs-Guide",
-    "pageTitle": "Kennzeichnung grünerierter Inhalte",
+    "pageTitle": "Wie kennzeichne ich grünerierte Inhalte?",
     "heading": "Bilder und Videos immer kennzeichnen",
     "anchor": "#bilder-und-videos-immer-kennzeichnen",
     "category": "Basics",
@@ -511,7 +511,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/Kennzeichnungs-Guide",
-    "pageTitle": "Kennzeichnung grünerierter Inhalte",
+    "pageTitle": "Wie kennzeichne ich grünerierte Inhalte?",
     "heading": "Grundsätzlich: Kennzeichnungspflicht bei KI-Texten",
     "anchor": "#grundsätzlich-kennzeichnungspflicht-bei-ki-texten",
     "category": "Basics",
@@ -519,7 +519,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/Kennzeichnungs-Guide",
-    "pageTitle": "Kennzeichnung grünerierter Inhalte",
+    "pageTitle": "Wie kennzeichne ich grünerierte Inhalte?",
     "heading": "Präzise Kennzeichnung",
     "anchor": "#präzise-kennzeichnung",
     "category": "Basics",
@@ -527,7 +527,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/Kennzeichnungs-Guide",
-    "pageTitle": "Kennzeichnung grünerierter Inhalte",
+    "pageTitle": "Wie kennzeichne ich grünerierte Inhalte?",
     "heading": "Wichtige Ausnahme – redaktionelle Verantwortung",
     "anchor": "#wichtige-ausnahme--redaktionelle-verantwortung",
     "category": "Basics",
@@ -615,15 +615,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/notebook",
-    "pageTitle": "Deine Daten im Grünerator",
-    "heading": "Deine Daten im Grünerator",
+    "pageTitle": "Wie kommen eigene Daten in den Grünerator?",
+    "heading": "Wie kommen eigene Daten in den Grünerator?",
     "anchor": "",
     "category": "Basics",
     "text": "Landesverbände und Abgeordnetenbüros können ein Grünerator Notebook erwerben und eigene Daten in den Grünerator einpflegen. Damit ermöglicht ihr, dass Basismitglieder und Kommunalos den Grünerator dauerhaft kostenfrei nutzen können. Zur Einführung in Funktionen, Datenschutz und Open‑Source‑Grundlagen siehe die Einführung."
   },
   {
     "url": "/docs/basics/notebook",
-    "pageTitle": "Deine Daten im Grünerator",
+    "pageTitle": "Wie kommen eigene Daten in den Grünerator?",
     "heading": "Ablauf & Kontakt",
     "anchor": "#ablauf--kontakt",
     "category": "Basics",
@@ -631,7 +631,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/notebook",
-    "pageTitle": "Deine Daten im Grünerator",
+    "pageTitle": "Wie kommen eigene Daten in den Grünerator?",
     "heading": "Preise für Landesverbände (pro Notebook / Jahr)",
     "anchor": "#preise-für-landesverbände-pro-notebook--jahr",
     "category": "Basics",
@@ -639,7 +639,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/notebook",
-    "pageTitle": "Deine Daten im Grünerator",
+    "pageTitle": "Wie kommen eigene Daten in den Grünerator?",
     "heading": "Warum ein Notebook erwerben?",
     "anchor": "#warum-ein-notebook-erwerben",
     "category": "Basics",
@@ -647,15 +647,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/open-source",
-    "pageTitle": "Worauf der Grünerator aufbaut",
-    "heading": "Worauf der Grünerator aufbaut",
+    "pageTitle": "Worauf baut der Grünerator auf?",
+    "heading": "Worauf baut der Grünerator auf?",
     "anchor": "",
     "category": "Basics",
     "text": "Der Grünerator steht auf den Schultern vieler freier Open-Source-Projekte – Software, die offen entwickelt wird und die alle nutzen, einsehen und weiterentwickeln dürfen. Das passt zu unserer Haltung: Politische Werkzeuge sollten transparent und überprüfbar sein, nicht in einer Blackbox verschwinden. Hier findest du die wichtigsten Bausteine, was sie im Grünerator tun und was technisch dahintersteckt."
   },
   {
     "url": "/docs/basics/open-source",
-    "pageTitle": "Worauf der Grünerator aufbaut",
+    "pageTitle": "Worauf baut der Grünerator auf?",
     "heading": "Boards: Kibo UI & dnd-kit",
     "anchor": "#boards-kibo-ui--dnd-kit",
     "category": "Basics",
@@ -663,7 +663,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/open-source",
-    "pageTitle": "Worauf der Grünerator aufbaut",
+    "pageTitle": "Worauf baut der Grünerator auf?",
     "heading": "Das Fundament",
     "anchor": "#das-fundament",
     "category": "Basics",
@@ -671,7 +671,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/open-source",
-    "pageTitle": "Worauf der Grünerator aufbaut",
+    "pageTitle": "Worauf baut der Grünerator auf?",
     "heading": "Dokumente: BlockNote",
     "anchor": "#dokumente-blocknote",
     "category": "Basics",
@@ -679,7 +679,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/open-source",
-    "pageTitle": "Worauf der Grünerator aufbaut",
+    "pageTitle": "Worauf baut der Grünerator auf?",
     "heading": "KI-Chat: assistant-ui",
     "anchor": "#ki-chat-assistant-ui",
     "category": "Basics",
@@ -687,7 +687,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/open-source",
-    "pageTitle": "Worauf der Grünerator aufbaut",
+    "pageTitle": "Worauf baut der Grünerator auf?",
     "heading": "Recherche & Dateiablage: Qdrant",
     "anchor": "#recherche--dateiablage-qdrant",
     "category": "Basics",
@@ -695,7 +695,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/open-source",
-    "pageTitle": "Worauf der Grünerator aufbaut",
+    "pageTitle": "Worauf baut der Grünerator auf?",
     "heading": "Untertitel: FFmpeg",
     "anchor": "#untertitel-ffmpeg",
     "category": "Basics",
@@ -703,7 +703,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/open-source",
-    "pageTitle": "Worauf der Grünerator aufbaut",
+    "pageTitle": "Worauf baut der Grünerator auf?",
     "heading": "Zusammenarbeit in Echtzeit: Yjs & Hocuspocus",
     "anchor": "#zusammenarbeit-in-echtzeit-yjs--hocuspocus",
     "category": "Basics",
@@ -711,15 +711,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/risiken-und-gefahren-von-llms",
-    "pageTitle": "Risiken und Gefahren",
-    "heading": "Risiken und Gefahren",
+    "pageTitle": "Welche Risiken und Gefahren haben Sprachmodelle?",
+    "heading": "Welche Risiken und Gefahren haben Sprachmodelle?",
     "anchor": "",
     "category": "Basics",
     "text": "Zugegeben, KI ist praktisch. Aber wir wären nicht bei den GRÜNEN, wenn wir nicht auch darauf achten würden, welche Risiken und Gefahren KI zugrunde liegen. Ich würde folgende Punkte fokussieren:"
   },
   {
     "url": "/docs/basics/risiken-und-gefahren-von-llms",
-    "pageTitle": "Risiken und Gefahren",
+    "pageTitle": "Welche Risiken und Gefahren haben Sprachmodelle?",
     "heading": "3. Regulatorische Risiken und verbotene Praktiken laut EU AI Act",
     "anchor": "#3-regulatorische-risiken-und-verbotene-praktiken-laut-eu-ai-act",
     "category": "Basics",
@@ -727,7 +727,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/risiken-und-gefahren-von-llms",
-    "pageTitle": "Risiken und Gefahren",
+    "pageTitle": "Welche Risiken und Gefahren haben Sprachmodelle?",
     "heading": "Begrenztes Kontextfenster",
     "anchor": "#begrenztes-kontextfenster",
     "category": "Basics",
@@ -735,7 +735,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/risiken-und-gefahren-von-llms",
-    "pageTitle": "Risiken und Gefahren",
+    "pageTitle": "Welche Risiken und Gefahren haben Sprachmodelle?",
     "heading": "Datenschutzbedenken",
     "anchor": "#datenschutzbedenken",
     "category": "Basics",
@@ -743,7 +743,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/risiken-und-gefahren-von-llms",
-    "pageTitle": "Risiken und Gefahren",
+    "pageTitle": "Welche Risiken und Gefahren haben Sprachmodelle?",
     "heading": "Fazit",
     "anchor": "#fazit",
     "category": "Basics",
@@ -751,7 +751,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/risiken-und-gefahren-von-llms",
-    "pageTitle": "Risiken und Gefahren",
+    "pageTitle": "Welche Risiken und Gefahren haben Sprachmodelle?",
     "heading": "Fehlinformation und Manipulation",
     "anchor": "#fehlinformation-und-manipulation",
     "category": "Basics",
@@ -759,7 +759,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/risiken-und-gefahren-von-llms",
-    "pageTitle": "Risiken und Gefahren",
+    "pageTitle": "Welche Risiken und Gefahren haben Sprachmodelle?",
     "heading": "Halluzinationen",
     "anchor": "#halluzinationen",
     "category": "Basics",
@@ -767,7 +767,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/risiken-und-gefahren-von-llms",
-    "pageTitle": "Risiken und Gefahren",
+    "pageTitle": "Welche Risiken und Gefahren haben Sprachmodelle?",
     "heading": "Kosten und Effizienz",
     "anchor": "#kosten-und-effizienz",
     "category": "Basics",
@@ -775,7 +775,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/risiken-und-gefahren-von-llms",
-    "pageTitle": "Risiken und Gefahren",
+    "pageTitle": "Welche Risiken und Gefahren haben Sprachmodelle?",
     "heading": "Mangel an gesundem Menschenverstand",
     "anchor": "#mangel-an-gesundem-menschenverstand",
     "category": "Basics",
@@ -783,7 +783,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/risiken-und-gefahren-von-llms",
-    "pageTitle": "Risiken und Gefahren",
+    "pageTitle": "Welche Risiken und Gefahren haben Sprachmodelle?",
     "heading": "Mangelnde Interpretierbarkeit",
     "anchor": "#mangelnde-interpretierbarkeit",
     "category": "Basics",
@@ -791,7 +791,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/risiken-und-gefahren-von-llms",
-    "pageTitle": "Risiken und Gefahren",
+    "pageTitle": "Welche Risiken und Gefahren haben Sprachmodelle?",
     "heading": "Schädliche Inhalte und Missbrauchspotenzial",
     "anchor": "#schädliche-inhalte-und-missbrauchspotenzial",
     "category": "Basics",
@@ -799,7 +799,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/risiken-und-gefahren-von-llms",
-    "pageTitle": "Risiken und Gefahren",
+    "pageTitle": "Welche Risiken und Gefahren haben Sprachmodelle?",
     "heading": "Schwierige Leistungsvorhersage bei Skalierung",
     "anchor": "#schwierige-leistungsvorhersage-bei-skalierung",
     "category": "Basics",
@@ -807,7 +807,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/risiken-und-gefahren-von-llms",
-    "pageTitle": "Risiken und Gefahren",
+    "pageTitle": "Welche Risiken und Gefahren haben Sprachmodelle?",
     "heading": "Systemische Risiken von KI-Modellen mit allgemeinem Verwendungszweck",
     "anchor": "#systemische-risiken-von-ki-modellen-mit-allgemeinem-verwendungszweck",
     "category": "Basics",
@@ -815,7 +815,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/risiken-und-gefahren-von-llms",
-    "pageTitle": "Risiken und Gefahren",
+    "pageTitle": "Welche Risiken und Gefahren haben Sprachmodelle?",
     "heading": "Verbotene KI-Praktiken (Artikel 5 des AI Act)",
     "anchor": "#verbotene-ki-praktiken-artikel-5-des-ai-act",
     "category": "Basics",
@@ -823,7 +823,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/risiken-und-gefahren-von-llms",
-    "pageTitle": "Risiken und Gefahren",
+    "pageTitle": "Welche Risiken und Gefahren haben Sprachmodelle?",
     "heading": "Verzerrungen (Bias)",
     "anchor": "#verzerrungen-bias",
     "category": "Basics",
@@ -831,15 +831,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/tools",
-    "pageTitle": "Alle Werkzeuge",
-    "heading": "Alle Werkzeuge",
+    "pageTitle": "Welche Werkzeuge gibt es im Grünerator?",
+    "heading": "Welche Werkzeuge gibt es im Grünerator?",
     "anchor": "",
     "category": "Basics",
     "text": "Der Grünerator ist kein einzelnes Programm, sondern eine Sammlung von Werkzeugen. Diese Seite zeigt, welche es gibt und wofür man sie nimmt — damit du nicht suchen musst, wo du etwas findest."
   },
   {
     "url": "/docs/basics/tools",
-    "pageTitle": "Alle Werkzeuge",
+    "pageTitle": "Welche Werkzeuge gibt es im Grünerator?",
     "heading": "Die Oberfläche hat zwei Tabs",
     "anchor": "#die-oberfläche-hat-zwei-tabs",
     "category": "Basics",
@@ -847,7 +847,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/tools",
-    "pageTitle": "Alle Werkzeuge",
+    "pageTitle": "Welche Werkzeuge gibt es im Grünerator?",
     "heading": "Drei Bereiche, dann die Einzelwerkzeuge",
     "anchor": "#drei-bereiche-dann-die-einzelwerkzeuge",
     "category": "Basics",
@@ -855,7 +855,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/tools",
-    "pageTitle": "Alle Werkzeuge",
+    "pageTitle": "Welche Werkzeuge gibt es im Grünerator?",
     "heading": "Wenn du etwas nicht findest",
     "anchor": "#wenn-du-etwas-nicht-findest",
     "category": "Basics",
@@ -863,15 +863,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/wie-llms-funktionieren",
-    "pageTitle": "Wie LLMs funktionieren",
-    "heading": "Wie LLMs funktionieren",
+    "pageTitle": "Wie funktionieren Sprachmodelle?",
+    "heading": "Wie funktionieren Sprachmodelle?",
     "anchor": "",
     "category": "Basics",
     "text": "Ein großes Sprachmodell, wie zum Beispiel ChatGPT , ist ein KI-Modell, das darauf trainiert ist, menschenähnlichen Text zu verstehen und zu erzeugen. Es ist im Kern eine hochentwickelte Anwendung von Sprachverarbeitung (NLP), maschinellem Lernen und Deep Learning. In vielen Filmen und Serien, insbesondere Kinderfilmen, gibt es die Rolle des alten weisen Mannes oder der alten weisen Frau, die als Mentor oder Mentorin gilt. Diese Leute haben über viele Jahre unfassbar viel gelesen, unfassbar viel Wissen angehäuft. Stellt euch ein LLM grundsätzlich so ähnlich vor, nur eben viel viel schneller trainiert."
   },
   {
     "url": "/docs/basics/wie-llms-funktionieren",
-    "pageTitle": "Wie LLMs funktionieren",
+    "pageTitle": "Wie funktionieren Sprachmodelle?",
     "heading": "1. Eingabeverarbeitung (Input Embedding & Tokenisierung)",
     "anchor": "#1-eingabeverarbeitung-input-embedding--tokenisierung",
     "category": "Basics",
@@ -879,7 +879,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/wie-llms-funktionieren",
-    "pageTitle": "Wie LLMs funktionieren",
+    "pageTitle": "Wie funktionieren Sprachmodelle?",
     "heading": "2. Kontext erfassen (Encoder)",
     "anchor": "#2-kontext-erfassen-encoder",
     "category": "Basics",
@@ -887,7 +887,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/wie-llms-funktionieren",
-    "pageTitle": "Wie LLMs funktionieren",
+    "pageTitle": "Wie funktionieren Sprachmodelle?",
     "heading": "3. Antwort-Ideen entwickeln (Decoder)",
     "anchor": "#3-antwort-ideen-entwickeln-decoder",
     "category": "Basics",
@@ -895,7 +895,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/wie-llms-funktionieren",
-    "pageTitle": "Wie LLMs funktionieren",
+    "pageTitle": "Wie funktionieren Sprachmodelle?",
     "heading": "4. Fokus setzen (Aufmerksamkeitsmechanismus)",
     "anchor": "#4-fokus-setzen-aufmerksamkeitsmechanismus",
     "category": "Basics",
@@ -903,7 +903,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/wie-llms-funktionieren",
-    "pageTitle": "Wie LLMs funktionieren",
+    "pageTitle": "Wie funktionieren Sprachmodelle?",
     "heading": "5. Wahrscheinlichkeiten abwägen (Output Projection)",
     "anchor": "#5-wahrscheinlichkeiten-abwägen-output-projection",
     "category": "Basics",
@@ -911,7 +911,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/wie-llms-funktionieren",
-    "pageTitle": "Wie LLMs funktionieren",
+    "pageTitle": "Wie funktionieren Sprachmodelle?",
     "heading": "Der Lernprozess (Training)",
     "anchor": "#der-lernprozess-training",
     "category": "Basics",
@@ -919,7 +919,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/wie-llms-funktionieren",
-    "pageTitle": "Wie LLMs funktionieren",
+    "pageTitle": "Wie funktionieren Sprachmodelle?",
     "heading": "Die Bausteine: Neuronale Netzwerke",
     "anchor": "#die-bausteine-neuronale-netzwerke",
     "category": "Basics",
@@ -927,7 +927,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/wie-llms-funktionieren",
-    "pageTitle": "Wie LLMs funktionieren",
+    "pageTitle": "Wie funktionieren Sprachmodelle?",
     "heading": "Neuere Modelle wie GPT-4 können noch mehr:",
     "anchor": "#neuere-modelle-wie-gpt-4-können-noch-mehr",
     "category": "Basics",
@@ -935,7 +935,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/wie-llms-funktionieren",
-    "pageTitle": "Wie LLMs funktionieren",
+    "pageTitle": "Wie funktionieren Sprachmodelle?",
     "heading": "Quelle",
     "anchor": "#quelle",
     "category": "Basics",
@@ -943,7 +943,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/basics/wie-llms-funktionieren",
-    "pageTitle": "Wie LLMs funktionieren",
+    "pageTitle": "Wie funktionieren Sprachmodelle?",
     "heading": "Wie ein LLM eine Antwort generiert",
     "anchor": "#wie-ein-llm-eine-antwort-generiert",
     "category": "Basics",
@@ -980,190 +980,6 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#illustrationen",
     "category": "Allgemein",
     "text": "Sammlung | Urheber:in | Anzahl | Lizenz | Quelle | --------------------- | ----------------------------- | ------ | --------------------------------------------------------------------- | --------------------------------------------------------- | unDraw | Katerina Limpitsouni | 1.608 | unDraw-Lizenz (frei, ohne Namensnennung) | undraw.co | Open Peeps | Pablo Stanley | 189 | CC0 (Public Domain) | openpeeps.com | Free Gophers Pack | Maria Letta | 153 | CC0 (Public Domain) | GitHub | illlustrations.co | Vijay Verma | 131 | MIT | illlustrations.co | Transhumans | Pablo Stanley | 38 | Kostenlos (privat & kommerziell) | transhumans.xyz | Open Doodles | Pablo Stanley | 33 | CC0 (Public Domain) | opendoodles.com | Humaaans | Pablo Stanley | 32 | Kostenlos (privat & kommerziell) | humaaans.com | React Kawaii | Miuki Miu (Elizabet Oliveira) | 11 | MIT | reactkawaii.com |"
-  },
-  {
-    "url": "/docs/chat/dateien-hinzufuegen",
-    "pageTitle": "Dateien hinzufügen",
-    "heading": "Dateien hinzufügen",
-    "anchor": "",
-    "category": "Chat",
-    "text": "Du kannst dem Grünerator Dateien mitgeben, statt ihren Inhalt abzutippen: ein Gesetzesentwurf, eine Studie, ein Screenshot, eine Tabelle. Er liest sie und bezieht sie in die Antwort ein."
-  },
-  {
-    "url": "/docs/chat/dateien-hinzufuegen",
-    "pageTitle": "Dateien hinzufügen",
-    "heading": "Grenzen",
-    "anchor": "#grenzen",
-    "category": "Chat",
-    "text": "| | ------------------------------------- | ------------------------------------- | Dateien pro Nachricht | | Größe je Datei | | Alle Dateien einer Nachricht zusammen | | Videos (eigener Weg, siehe unten) | je Datei | Videos zählen nicht in die Gesamtsumme. Sie nehmen einen anderen Weg als die übrigen Dateien — statt in die Anfrage eingebettet zu werden, laden sie separat hoch. Deshalb haben sie ein eigenes, viel höheres Limit. Wählst du mehrere Dateien auf einmal aus und der Grünerator kann eine davon nicht lesen, bekommst du für diese eine Datei einen Hinweis mit der Liste der erlaubten Typen. Die übrigen Dateien der Auswahl hängen ganz normal an — du musst nichts erneut anhängen."
-  },
-  {
-    "url": "/docs/chat/dateien-hinzufuegen",
-    "pageTitle": "Dateien hinzufügen",
-    "heading": "Was damit gut funktioniert",
-    "anchor": "#was-damit-gut-funktioniert",
-    "category": "Chat",
-    "text": "Anträge und politische Dokumente — einen bestehenden Antrag hochladen und um eine Fassung für den eigenen Kreisverband bitten. Einen Gesetzesentwurf hochladen und nach den Punkten fragen, die für die Kommune relevant sind. Pressearbeit — eine Studie hochladen und eine Pressemitteilung daraus entwickeln lassen, mit den Zahlen aus dem Papier statt aus dem Gedächtnis. Tabellen und Zahlen — eine Excel- oder CSV-Datei hochladen und daraus eine Auswertung, eine Grafik oder eine fertige Grünerator-Tabelle machen lassen. Dass eine Zahl aus deiner Datei stammt, heißt nicht, dass sie richtig übernommen wurde. Prüf sie, bevor der Text nach außen geht — mehr dazu unter Risiken und Gefahren von LLMs. Dateitypen und Grenzwerte stammen direkt aus dem Programmcode. Ändert sich dort etwas, schlägt die Doku-Prüfung an, bis diese Seite nachgezogen ist."
-  },
-  {
-    "url": "/docs/chat/dateien-hinzufuegen",
-    "pageTitle": "Dateien hinzufügen",
-    "heading": "Was du hochladen kannst",
-    "anchor": "#was-du-hochladen-kannst",
-    "category": "Chat",
-    "text": "Deutlich mehr als nur PDFs und Bilder: Quellcode-Dateien werden an ihrer Endung erkannt, nicht am Dateityp — Browser melden .ts sonst als Video und würden die Datei ablehnen."
-  },
-  {
-    "url": "/docs/chat/dateien-hinzufuegen",
-    "pageTitle": "Dateien hinzufügen",
-    "heading": "Wo du Dateien anhängst",
-    "anchor": "#wo-du-dateien-anhängst",
-    "category": "Chat",
-    "text": "Im Chat über das „+\"-Menü links im Eingabefeld. Das ist der einzige Ort — die früheren Generator-Formulare mit Büroklammer-Symbol gibt es nicht mehr, seit alles im Chat und in den zusammengelaufen ist."
-  },
-  {
-    "url": "/docs/chat/ki-chat",
-    "pageTitle": "KI-Chat",
-    "heading": "KI-Chat",
-    "anchor": "",
-    "category": "Chat",
-    "text": "Der Grünerator Chat ist dein persönlicher KI-Assistent für grüne Politik. Du kannst Fragen stellen, Texte erstellen lassen, in Parteiprogrammen recherchieren und sogar Bilder generieren — alles in einer Chat-Oberfläche. Die Tabellen auf dieser Seite (Rezepte, Quellen, Werkzeuge) werden direkt aus dem Code des Grünerators erzeugt — sie zeigen also genau das, was der Chat gerade kann. Wie das funktioniert, steht unter Wie diese Doku entsteht."
-  },
-  {
-    "url": "/docs/chat/ki-chat",
-    "pageTitle": "KI-Chat",
-    "heading": "Dateien im Chat",
-    "anchor": "#dateien-im-chat",
-    "category": "Chat",
-    "text": "Du kannst PDFs und Bilder direkt im Chat hochladen, um sie als Kontext für deine Frage zu verwenden. Öffne dazu das „+\"-Menü im Eingabefeld und wähle Datei hinzufügen. Das Panel, das sich öffnet, führt oben Fotos & Dateien hochladen und darunter deine Dokumente, Notebooks und gespeicherten Texte. Eine Webseite gibst du am schnellsten mit, indem du ihre URL direkt ins Eingabefeld einfügst. Mehr Details zu unterstützten Dateitypen und Einschränkungen findest du unter Dateien hinzufügen."
-  },
-  {
-    "url": "/docs/chat/ki-chat",
-    "pageTitle": "KI-Chat",
-    "heading": "Externe Dienste (Konnektoren)",
-    "anchor": "#externe-dienste-konnektoren",
-    "category": "Chat",
-    "text": "Du kannst auch externe Dienste wie Notion, Tally oder Todoist per @-Mention nutzen — z. B. „Erstelle ein Anmeldeformular mit @tally\". Dafür verbindest du den Dienst einmalig unter Konnektoren. Wie das geht, steht im Guide Wie richte ich Konnektoren für den Chat ein?."
-  },
-  {
-    "url": "/docs/chat/ki-chat",
-    "pageTitle": "KI-Chat",
-    "heading": "Gespräch starten",
-    "anchor": "#gespräch-starten",
-    "category": "Chat",
-    "text": "Den Chat erreichst du über den Menüpunkt in der Seitenleiste oder direkt unter /chat. Dort siehst du: Eingabefeld unten zum Schreiben deiner Nachricht Seitenleiste links mit deinem Gesprächsverlauf — Gespräche kannst du dort auch in Projekten bündeln (eigene Projekte und Gruppen, mit Übersicht unter /projekte) „+\"-Menü links im Eingabefeld — Dateien anhängen, Websuche und Dokumentensuche ein- und ausschalten, Rezepte, Rollen, Konnektoren und die Erstellen-Werkzeuge Modell-Auswahl rechts unten im Eingabefeld Jedes Gespräch wird als eigener Thread mit eigener Adresse (/chat/…) gespeichert. Du kannst jederzeit ein neues Gespräch beginnen oder in der Seitenleiste zu einem früheren Gespräch zurückkehren."
-  },
-  {
-    "url": "/docs/chat/ki-chat",
-    "pageTitle": "KI-Chat",
-    "heading": "Grüneratoren aufrufen",
-    "anchor": "#grüneratoren-aufrufen",
-    "category": "Chat",
-    "text": "Für Anträge, Reden, Wahlprogramme und Bürger*innenanfragen gibt es eigene Grüneratoren — du findest sie unter dem Menüpunkt in der Seitenleiste und kannst sie direkt im Chat öffnen. Sie stehen außerdem in derselben @-Liste wie die Rezepte: deine eigenen unter eigene. Hat jemand aus einem deiner Projekte einen Grünerator mit dem Projekt geteilt, steht er dort unter aus deinen Gruppen, mit dem Namen der Gruppe, aus der er kommt. Ein @-Aufruf wechselt für diese eine Nachricht auf diesen Grünerator; ein Rezept, das du vorher gewählt hast, bleibt dabei aktiv."
-  },
-  {
-    "url": "/docs/chat/ki-chat",
-    "pageTitle": "KI-Chat",
-    "heading": "Quellen durchsuchen",
-    "anchor": "#quellen-durchsuchen",
-    "category": "Chat",
-    "text": "Der Chat kann gezielt in grünen Parteiprogrammen, Beschlüssen und Dokumenten recherchieren. Tippe @ im Eingabefeld, um eine Quelle auszuwählen. @alle Alle Quellen @grundsatz Grundsatzprogramm @bundestagsfraktion Bundestagsfraktion @at Grüne Österreich @thüringen Grüne Thüringen @kommunalwiki KommunalWiki @berlin Grüne Berlin @gruenblog Grünblog @transparenz Abgeordnetenwatch @mv Grüne Mecklenburg-Vorpommern @brandenburg Grüne Brandenburg @bayern Grüne Bayern @sachsen-anhalt Grüne Sachsen-Anhalt @hessen Grüne Hessen @saar Grüne Saarland Weitere Landesverbände werden laufend ergänzt. Wenn dein Landesverband ein Grünerator Notebook erworben hat, erscheinen eure Daten automatisch als Quelle. Deine @-Mentions erscheinen als Chips in der gesendeten Nachricht und der Chat merkt sie sich: Folgefragen wie „fasse das kürzer\" bleiben automatisch bei der gewählten Quelle bzw. dem gewählten Werkzeug."
-  },
-  {
-    "url": "/docs/chat/ki-chat",
-    "pageTitle": "KI-Chat",
-    "heading": "Quellenangaben",
-    "anchor": "#quellenangaben",
-    "category": "Chat",
-    "text": "Wenn der Chat in Dokumenten oder im Web recherchiert, zeigt er dir die verwendeten Quellen an: Nummerierte Badges im Text (z.B. [1], [2]) verweisen auf die genutzten Quellen Klick auf einen Badge zeigt dir Titel, URL und einen Textauszug Gruppierte Quellenübersicht unterhalb der Antwort mit allen verwendeten Dokumenten Quellenangaben helfen dir, die Antworten des Grünerators nachzuvollziehen und zu überprüfen. Du kannst jede Quelle direkt anklicken, um das Originaldokument zu öffnen."
-  },
-  {
-    "url": "/docs/chat/ki-chat",
-    "pageTitle": "KI-Chat",
-    "heading": "Rezepte auswählen",
-    "anchor": "#rezepte-auswählen",
-    "category": "Chat",
-    "text": "Rezepte sind spezialisierte Schreib-Modi, die auf bestimmte Textarten optimiert sind — sie kennen den richtigen Ton, die Struktur und die Längenvorgaben der jeweiligen Plattform. So wählst du ein Rezept: Tippe @ im Eingabefeld und wähle aus der Liste — Rezepte stehen dort ganz oben, oder öffne das „+\"-Menü im Eingabefeld — dort findest du auch die Rezept-Bibliothek mit allen Rezepten @presse Pressemitteilung @instagram Instagram @facebook Facebook @twitter Twitter / X @linkedin LinkedIn @reel Reel / TikTok @aktion Aktionsideen @wahlpruefstein Wahlprüfsteine @buergermail Bürgerinnen-Mail @presse-berlin-fraktion PM Berlin (Fraktion) @presse-berlin-partei PM Berlin (Partei) @insta-berlin Insta Berlin @presse-mv-fraktion PM MV (Fraktion) @presse-mv-partei PM MV (Partei) @insta-mv Insta MV @presse-thueringen PM Thüringen @insta-thueringen Insta Thüringen @presse-brandenburg PM Brandenburg @insta-brandenburg Insta Brandenburg @presse-bayern-fraktion PM Bayern (Fraktion) @presse-bayern-partei PM Bayern (Partei) @presse-hessen-fraktion PM Hessen (Fraktion) @presse-hessen-partei PM Hessen (Partei) @presse-at Aussendung (AT) @presse-saarland PM Saarland @presse-sachsen-anhalt-fraktion PM…"
-  },
-  {
-    "url": "/docs/chat/ki-chat",
-    "pageTitle": "KI-Chat",
-    "heading": "Tipps für die Nutzung",
-    "anchor": "#tipps-für-die-nutzung",
-    "category": "Chat",
-    "text": "Kombiniere Rezept + Quelle + Thema für die besten Ergebnisse, z.B. @presse @bundestagsfraktion Kindergrundsicherung Nutze @recherche für aktuelle Nachrichten und tiefgehende Analysen — es durchsucht Web und Dokumente und wählt die Suchtiefe automatisch Starte ein neues Gespräch für jedes neue Thema — so bleibt der Kontext sauber und die Antworten präziser Lade relevante Dokumente hoch, wenn du einen bestehenden Text überarbeiten oder darauf aufbauen möchtest"
-  },
-  {
-    "url": "/docs/chat/ki-chat",
-    "pageTitle": "KI-Chat",
-    "heading": "Werkzeuge nutzen",
-    "anchor": "#werkzeuge-nutzen",
-    "category": "Chat",
-    "text": "Werkzeuge erweitern die Fähigkeiten des Chats über die reine Textgenerierung hinaus. Du kannst sie per @-Mention im Eingabefeld aktivieren — von der Recherche über Bildgenerierung bis zum Erstellen von Dokumenten, Tabellen und Präsentationen. @abgeordnetenwatch Abgeordnetenwatch @board-erstellen Board erstellen @bundestag Bundestag @canva Canva @diagramm Diagramm @verlauf Chatverlauf @rechnen Rechnen @connect Verbundene Accounts @wiederkehrend Wiederkehrende Aufgabe @deepresearch Tiefenrecherche @docs Dokument einfügen @dokument-erstellen Dokument erstellen @beispiele Beispiele @doku Hilfe & Anleitungen @bildgenerieren Bildgenerierung @stadtbegruenen Stadt begrünen @bildbearbeiten Bild bearbeiten @pdf-erstellen PDF erstellen @praesentation-erstellen Präsentation erstellen @pressemitteilungen Pressemitteilungen @recherche Recherche @dokumente Dokumente @sharepic Sharepic @tabelle-erstellen Tabelle erstellen @zusammenfassung Zusammenfassung @umfragen Umfragen @vorlagen Vorlagen @link Link @wolke Wolke Was du mit jeder dieser Fähigkeiten konkret fragen kannst, zeigt dir die Seite Was kann ich fragen? mit Musterfragen zu jeder Funktion. Im „+\"-Menü links im Eingabefeld stehen die…"
-  },
-  {
-    "url": "/docs/chat/ki-modelle",
-    "pageTitle": "KI-Modelle",
-    "heading": "KI-Modelle",
-    "anchor": "",
-    "category": "Chat",
-    "text": "Beim Grünerieren kannst du selbst wählen, welches KI-Modell deine Texte erstellt. Jedes Modell hat eigene Stärken – von besonders kreativ bis besonders schnell. Standardmäßig übernimmt der Grünerator die Wahl für dich."
-  },
-  {
-    "url": "/docs/chat/ki-modelle",
-    "pageTitle": "KI-Modelle",
-    "heading": "Automatisch (Standard)",
-    "anchor": "#automatisch-standard",
-    "category": "Chat",
-    "text": "Im Modus Automatisch wählt der Grünerator das passende Modell für deine jeweilige Aufgabe aus – du musst dich um nichts kümmern. Wenn du lieber selbst entscheidest, kannst du im Modell-Menü jederzeit ein bestimmtes Modell auswählen."
-  },
-  {
-    "url": "/docs/chat/ki-modelle",
-    "pageTitle": "KI-Modelle",
-    "heading": "Datenschutz",
-    "anchor": "#datenschutz",
-    "category": "Chat",
-    "text": "Alle verfügbaren Modelle erfüllen höchste Datenschutzstandards: Europäische Server: Deine Eingaben werden ausschließlich auf europäischen Servern verarbeitet – bei Mistral AI (Frankreich), Regolo (Italien) oder Cortecs (EU). Eigene, selbst gehostete Modelle setzt der Grünerator seit dem 29.08.2026 nicht mehr ein (siehe Nachhaltigkeit). Kein KI-Training: Deine Eingaben werden nicht zum Training der KI verwendet. Offene Modelle: Hinter Klein und Mittel stehen Modelle mit offenen Gewichten (Open Weights), die jeder prüfen und selbst betreiben kann."
-  },
-  {
-    "url": "/docs/chat/ki-modelle",
-    "pageTitle": "KI-Modelle",
-    "heading": "Verfügbare Modelle",
-    "anchor": "#verfügbare-modelle",
-    "category": "Chat",
-    "text": "Du wählst eine Größe, kein Herstellermodell – dieselben drei Stufen, die du auch in der Chrome-Erweiterung und im Excel-Add-in findest. Klein – Am schnellsten, für kurze Aufgaben. Offenes Modell (Open Weights) bei einem europäischen Anbieter. Mittel – Eine gute Mischung aus Tempo und Qualität, besonders für Kreativtexte. Offenes Modell (Open Weights) bei einem europäischen Anbieter. Ultra – Die beste Qualität, für Recherche und lange Aufgaben. Läuft auf EU-Servern (Mistral AI, Frankreich). Welches Modell hinter einer Stufe steckt, kann sich ändern, wenn ein besseres verfügbar wird – die Stufe bleibt. Welche Anbieter aktuell dahinterstehen, steht jederzeit in der Datenschutzerklärung. Für die Bildgenerierung kommen eigene Modelle zum Einsatz (u. a. Flux von Black Forest Labs, Deutschland). Auch hier gilt: Verarbeitung auf europäischen Servern."
-  },
-  {
-    "url": "/docs/chat/was-kann-ich-fragen",
-    "pageTitle": "Was kann ich fragen?",
-    "heading": "Was kann ich fragen?",
-    "anchor": "",
-    "category": "Chat",
-    "text": "Der Grünerator ist kein Suchfeld mit festen Befehlen — du schreibst in normalem Deutsch, was du brauchst. Diese Seite zeigt, was dabei alles möglich ist, mit Musterfragen zum Abschauen und Weiterschreiben. Du findest den Chat unter dem Menüpunkt . Wie du dort Rezepte, Quellen und Dateien auswählst, steht unter KI-Chat."
-  },
-  {
-    "url": "/docs/chat/was-kann-ich-fragen",
-    "pageTitle": "Was kann ich fragen?",
-    "heading": "So stellst du eine gute Frage",
-    "anchor": "#so-stellst-du-eine-gute-frage",
-    "category": "Chat",
-    "text": "Einfach lostippen. Der Grünerator erkennt an deiner Formulierung selbst, ob er nachschlagen, recherchieren, rechnen oder etwas erstellen soll. „Was steht im Grundsatzprogramm zum Mietendeckel?\" reicht — du musst kein Werkzeug auswählen. Nenne das Ziel, nicht den Weg. Statt „such im Web und schreib dann einen Post\" genügt „Schreib einen Instagram-Post zum aktuellen Stand der Wärmewende\". Mehrschrittige Aufträge löst der Grünerator in einem Rutsch. Werde konkret, wenn es darauf ankommt. Ort, Zeitraum, Länge und Zielgruppe verbessern das Ergebnis spürbar: „Pressemitteilung, etwa 2.000 Zeichen, für die Lokalpresse in Kassel.\" Mit @ steuerst du gezielt — sowohl Quellen, Dokumente und verbundene Dienste als auch Rezepte (die im Picker ganz oben erscheinen). Nachfragen ist erwünscht. Antworten lassen sich im Gespräch weiterentwickeln: „kürzer\", „sachlicher\", „mach ein Sharepic daraus\". Der Grünerator behält den Zusammenhang. „Was kannst du?\" oder „Wie erstelle ich ein Sharepic?\" beantwortet der Chat direkt — er kennt seinen eigenen Funktionsumfang."
-  },
-  {
-    "url": "/docs/chat/was-kann-ich-fragen",
-    "pageTitle": "Was kann ich fragen?",
-    "heading": "Was du fragen kannst",
-    "anchor": "#was-du-fragen-kannst",
-    "category": "Chat",
-    "text": "Anfordern musst du nichts davon — es genügt, die Frage zu stellen. Die Kennzeichnungen an den Karten bedeuten: @kürzel — für diese Fähigkeit gibt es zusätzlich eine Erwähnung, mit der du sie im Eingabefeld vorwählen kannst. Nur ein Teil der Fähigkeiten hat so ein Kürzel, und das ist Absicht: Erwähnungen gibt es dort, wo die Vorauswahl wirklich etwas ändert — bei Quellen, die man gezielt ansteuert, und bei Formaten, die man bewusst wählt. Vieles erkennt der Grünerator auch ohne Erwähnung zuverlässig an der Formulierung allein. @wetter gibt es zusätzlich als Kürzel, sobald der Wetterdienst als Zusatzquelle verbunden ist — genau wie bei Bahn, tagesschau, trivago und Gesetze (siehe unten). experimentell — noch jung. Funktioniert, kann sich aber in Bedienung und Ergebnis noch ändern und ist nicht überall verfügbar. Verlass dich für etwas Wichtiges nicht blind darauf. Werkzeug: … — diese Fähigkeit lässt sich in eigenen Grüneratoren gezielt an- und abschalten. Zusatzquelle: … — dahinter steckt ein externer Dienst (Bahn, Wetterdienst, tagesschau, trivago, Gesetze), der pro Umgebung angebunden wird. Fehlt die Anbindung gerade, bleibt die Frage nicht unbeantwortet: der Grünerator weicht auf…"
-  },
-  {
-    "url": "/docs/chat/was-kann-ich-fragen",
-    "pageTitle": "Was kann ich fragen?",
-    "heading": "Wenn etwas nicht geht",
-    "anchor": "#wenn-etwas-nicht-geht",
-    "category": "Chat",
-    "text": "Manches ist nur in der Web-Version möglich. Reel-Untertitel bearbeiten und Excel-/CSV-Vorlagen ausfüllen brauchen die große Oberfläche; in der App wirst du dorthin weitergeleitet. Sharepics entstehen dagegen auch in der App — du siehst sie direkt im Gespräch, kannst sie teilen und speichern; zum Feinschliff öffnet sich der Editor eingebettet, ohne dass du die App verlässt. Einige Quellen decken nur Deutschland ab. Bundestag, Abgeordnetenwatch, Bahn, tagesschau und Gesetze (deutsches Bundesrecht) beziehen sich auf deutsche Daten. Bei österreichischen Fragen weicht der Grünerator auf die Websuche aus. Nicht jede Zusatzquelle ist überall angebunden. Bahn, Wetterdienst, tagesschau, trivago und Gesetze werden pro Umgebung eingerichtet. Fehlt eine, greift der Grünerator auf die Websuche zurück und sagt dazu, worauf die Antwort beruht — erfundene Abfahrtszeiten gibt es nicht. Erfindet der Grünerator nichts? Bei Recherchen und Datenquellen nennt er die Belege. Prüfe Zahlen und Zitate trotzdem, bevor sie nach außen gehen — mehr dazu unter Risiken und Gefahren von LLMs. Du nutzt den Grünerator in ChatGPT, Claude oder Le Chat? Dort steht ein kleinerer Funktionsumfang bereit — was dann…"
   },
   {
     "url": "/docs/features/agentura",
@@ -1278,6 +1094,190 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "text": "Spalten sind die Stationen, die eine Aufgabe durchläuft — „Ideen\", „In Arbeit\", „Fertig\". Karten wandern per Ziehen von einer Spalte in die nächste. Jede Karte hat einen Titel, eine Beschreibung, Kommentare und kann Personen zugewiesen werden."
   },
   {
+    "url": "/docs/features/chat/dateien-hinzufuegen",
+    "pageTitle": "Dateien hinzufügen",
+    "heading": "Dateien hinzufügen",
+    "anchor": "",
+    "category": "Features",
+    "text": "Du kannst dem Grünerator Dateien mitgeben, statt ihren Inhalt abzutippen: ein Gesetzesentwurf, eine Studie, ein Screenshot, eine Tabelle. Er liest sie und bezieht sie in die Antwort ein."
+  },
+  {
+    "url": "/docs/features/chat/dateien-hinzufuegen",
+    "pageTitle": "Dateien hinzufügen",
+    "heading": "Grenzen",
+    "anchor": "#grenzen",
+    "category": "Features",
+    "text": "| | ------------------------------------- | ------------------------------------- | Dateien pro Nachricht | | Größe je Datei | | Alle Dateien einer Nachricht zusammen | | Videos (eigener Weg, siehe unten) | je Datei | Videos zählen nicht in die Gesamtsumme. Sie nehmen einen anderen Weg als die übrigen Dateien — statt in die Anfrage eingebettet zu werden, laden sie separat hoch. Deshalb haben sie ein eigenes, viel höheres Limit. Wählst du mehrere Dateien auf einmal aus und der Grünerator kann eine davon nicht lesen, bekommst du für diese eine Datei einen Hinweis mit der Liste der erlaubten Typen. Die übrigen Dateien der Auswahl hängen ganz normal an — du musst nichts erneut anhängen."
+  },
+  {
+    "url": "/docs/features/chat/dateien-hinzufuegen",
+    "pageTitle": "Dateien hinzufügen",
+    "heading": "Was damit gut funktioniert",
+    "anchor": "#was-damit-gut-funktioniert",
+    "category": "Features",
+    "text": "Anträge und politische Dokumente — einen bestehenden Antrag hochladen und um eine Fassung für den eigenen Kreisverband bitten. Einen Gesetzesentwurf hochladen und nach den Punkten fragen, die für die Kommune relevant sind. Pressearbeit — eine Studie hochladen und eine Pressemitteilung daraus entwickeln lassen, mit den Zahlen aus dem Papier statt aus dem Gedächtnis. Tabellen und Zahlen — eine Excel- oder CSV-Datei hochladen und daraus eine Auswertung, eine Grafik oder eine fertige Grünerator-Tabelle machen lassen. Dass eine Zahl aus deiner Datei stammt, heißt nicht, dass sie richtig übernommen wurde. Prüf sie, bevor der Text nach außen geht — mehr dazu unter Welche Risiken und Gefahren haben Sprachmodelle?. Dateitypen und Grenzwerte stammen direkt aus dem Programmcode. Ändert sich dort etwas, schlägt die Doku-Prüfung an, bis diese Seite nachgezogen ist."
+  },
+  {
+    "url": "/docs/features/chat/dateien-hinzufuegen",
+    "pageTitle": "Dateien hinzufügen",
+    "heading": "Was du hochladen kannst",
+    "anchor": "#was-du-hochladen-kannst",
+    "category": "Features",
+    "text": "Deutlich mehr als nur PDFs und Bilder: Quellcode-Dateien werden an ihrer Endung erkannt, nicht am Dateityp — Browser melden .ts sonst als Video und würden die Datei ablehnen."
+  },
+  {
+    "url": "/docs/features/chat/dateien-hinzufuegen",
+    "pageTitle": "Dateien hinzufügen",
+    "heading": "Wo du Dateien anhängst",
+    "anchor": "#wo-du-dateien-anhängst",
+    "category": "Features",
+    "text": "Im Chat über das „+\"-Menü links im Eingabefeld. Das ist der einzige Ort — die früheren Generator-Formulare mit Büroklammer-Symbol gibt es nicht mehr, seit alles im Chat und in den zusammengelaufen ist."
+  },
+  {
+    "url": "/docs/features/chat/ki-chat",
+    "pageTitle": "KI-Chat",
+    "heading": "KI-Chat",
+    "anchor": "",
+    "category": "Features",
+    "text": "Der Grünerator Chat ist dein persönlicher KI-Assistent für grüne Politik. Du kannst Fragen stellen, Texte erstellen lassen, in Parteiprogrammen recherchieren und sogar Bilder generieren — alles in einer Chat-Oberfläche. Die Tabellen auf dieser Seite (Rezepte, Quellen, Werkzeuge) werden direkt aus dem Code des Grünerators erzeugt — sie zeigen also genau das, was der Chat gerade kann. Wie das funktioniert, steht unter Wie diese Doku entsteht."
+  },
+  {
+    "url": "/docs/features/chat/ki-chat",
+    "pageTitle": "KI-Chat",
+    "heading": "Dateien im Chat",
+    "anchor": "#dateien-im-chat",
+    "category": "Features",
+    "text": "Du kannst PDFs und Bilder direkt im Chat hochladen, um sie als Kontext für deine Frage zu verwenden. Öffne dazu das „+\"-Menü im Eingabefeld und wähle Datei hinzufügen. Das Panel, das sich öffnet, führt oben Fotos & Dateien hochladen und darunter deine Dokumente, Notebooks und gespeicherten Texte. Eine Webseite gibst du am schnellsten mit, indem du ihre URL direkt ins Eingabefeld einfügst. Mehr Details zu unterstützten Dateitypen und Einschränkungen findest du unter Dateien hinzufügen."
+  },
+  {
+    "url": "/docs/features/chat/ki-chat",
+    "pageTitle": "KI-Chat",
+    "heading": "Externe Dienste (Konnektoren)",
+    "anchor": "#externe-dienste-konnektoren",
+    "category": "Features",
+    "text": "Du kannst auch externe Dienste wie Notion, Tally oder Todoist per @-Mention nutzen — z. B. „Erstelle ein Anmeldeformular mit @tally\". Dafür verbindest du den Dienst einmalig unter Konnektoren. Wie das geht, steht im Guide Wie richte ich Konnektoren für den Chat ein?."
+  },
+  {
+    "url": "/docs/features/chat/ki-chat",
+    "pageTitle": "KI-Chat",
+    "heading": "Gespräch starten",
+    "anchor": "#gespräch-starten",
+    "category": "Features",
+    "text": "Den Chat erreichst du über den Menüpunkt in der Seitenleiste oder direkt unter /chat. Dort siehst du: Eingabefeld unten zum Schreiben deiner Nachricht Seitenleiste links mit deinem Gesprächsverlauf — Gespräche kannst du dort auch in Projekten bündeln (eigene Projekte und Gruppen, mit Übersicht unter /projekte) „+\"-Menü links im Eingabefeld — Dateien anhängen, Websuche und Dokumentensuche ein- und ausschalten, Rezepte, Rollen, Konnektoren und die Erstellen-Werkzeuge Modell-Auswahl rechts unten im Eingabefeld Jedes Gespräch wird als eigener Thread mit eigener Adresse (/chat/…) gespeichert. Du kannst jederzeit ein neues Gespräch beginnen oder in der Seitenleiste zu einem früheren Gespräch zurückkehren."
+  },
+  {
+    "url": "/docs/features/chat/ki-chat",
+    "pageTitle": "KI-Chat",
+    "heading": "Grüneratoren aufrufen",
+    "anchor": "#grüneratoren-aufrufen",
+    "category": "Features",
+    "text": "Für Anträge, Reden, Wahlprogramme und Bürger*innenanfragen gibt es eigene Grüneratoren — du findest sie unter dem Menüpunkt in der Seitenleiste und kannst sie direkt im Chat öffnen. Sie stehen außerdem in derselben @-Liste wie die Rezepte: deine eigenen unter eigene. Hat jemand aus einem deiner Projekte einen Grünerator mit dem Projekt geteilt, steht er dort unter aus deinen Gruppen, mit dem Namen der Gruppe, aus der er kommt. Ein @-Aufruf wechselt für diese eine Nachricht auf diesen Grünerator; ein Rezept, das du vorher gewählt hast, bleibt dabei aktiv."
+  },
+  {
+    "url": "/docs/features/chat/ki-chat",
+    "pageTitle": "KI-Chat",
+    "heading": "Quellen durchsuchen",
+    "anchor": "#quellen-durchsuchen",
+    "category": "Features",
+    "text": "Der Chat kann gezielt in grünen Parteiprogrammen, Beschlüssen und Dokumenten recherchieren. Tippe @ im Eingabefeld, um eine Quelle auszuwählen. @alle Alle Quellen @grundsatz Grundsatzprogramm @bundestagsfraktion Bundestagsfraktion @at Grüne Österreich @thüringen Grüne Thüringen @kommunalwiki KommunalWiki @berlin Grüne Berlin @gruenblog Grünblog @transparenz Abgeordnetenwatch @mv Grüne Mecklenburg-Vorpommern @brandenburg Grüne Brandenburg @bayern Grüne Bayern @sachsen-anhalt Grüne Sachsen-Anhalt @hessen Grüne Hessen @saar Grüne Saarland Weitere Landesverbände werden laufend ergänzt. Wenn dein Landesverband ein Grünerator Notebook erworben hat, erscheinen eure Daten automatisch als Quelle. Deine @-Mentions erscheinen als Chips in der gesendeten Nachricht und der Chat merkt sie sich: Folgefragen wie „fasse das kürzer\" bleiben automatisch bei der gewählten Quelle bzw. dem gewählten Werkzeug."
+  },
+  {
+    "url": "/docs/features/chat/ki-chat",
+    "pageTitle": "KI-Chat",
+    "heading": "Quellenangaben",
+    "anchor": "#quellenangaben",
+    "category": "Features",
+    "text": "Wenn der Chat in Dokumenten oder im Web recherchiert, zeigt er dir die verwendeten Quellen an: Nummerierte Badges im Text (z.B. [1], [2]) verweisen auf die genutzten Quellen Klick auf einen Badge zeigt dir Titel, URL und einen Textauszug Gruppierte Quellenübersicht unterhalb der Antwort mit allen verwendeten Dokumenten Quellenangaben helfen dir, die Antworten des Grünerators nachzuvollziehen und zu überprüfen. Du kannst jede Quelle direkt anklicken, um das Originaldokument zu öffnen."
+  },
+  {
+    "url": "/docs/features/chat/ki-chat",
+    "pageTitle": "KI-Chat",
+    "heading": "Rezepte auswählen",
+    "anchor": "#rezepte-auswählen",
+    "category": "Features",
+    "text": "Rezepte sind spezialisierte Schreib-Modi, die auf bestimmte Textarten optimiert sind — sie kennen den richtigen Ton, die Struktur und die Längenvorgaben der jeweiligen Plattform. So wählst du ein Rezept: Tippe @ im Eingabefeld und wähle aus der Liste — Rezepte stehen dort ganz oben, oder öffne das „+\"-Menü im Eingabefeld — dort findest du auch die Rezept-Bibliothek mit allen Rezepten @presse Pressemitteilung @instagram Instagram @facebook Facebook @twitter Twitter / X @linkedin LinkedIn @reel Reel / TikTok @aktion Aktionsideen @wahlpruefstein Wahlprüfsteine @buergermail Bürgerinnen-Mail @presse-berlin-fraktion PM Berlin (Fraktion) @presse-berlin-partei PM Berlin (Partei) @insta-berlin Insta Berlin @presse-mv-fraktion PM MV (Fraktion) @presse-mv-partei PM MV (Partei) @insta-mv Insta MV @presse-thueringen PM Thüringen @insta-thueringen Insta Thüringen @presse-brandenburg PM Brandenburg @insta-brandenburg Insta Brandenburg @presse-bayern-fraktion PM Bayern (Fraktion) @presse-bayern-partei PM Bayern (Partei) @presse-hessen-fraktion PM Hessen (Fraktion) @presse-hessen-partei PM Hessen (Partei) @presse-at Aussendung (AT) @presse-saarland PM Saarland @presse-sachsen-anhalt-fraktion PM…"
+  },
+  {
+    "url": "/docs/features/chat/ki-chat",
+    "pageTitle": "KI-Chat",
+    "heading": "Tipps für die Nutzung",
+    "anchor": "#tipps-für-die-nutzung",
+    "category": "Features",
+    "text": "Kombiniere Rezept + Quelle + Thema für die besten Ergebnisse, z.B. @presse @bundestagsfraktion Kindergrundsicherung Nutze @recherche für aktuelle Nachrichten und tiefgehende Analysen — es durchsucht Web und Dokumente und wählt die Suchtiefe automatisch Starte ein neues Gespräch für jedes neue Thema — so bleibt der Kontext sauber und die Antworten präziser Lade relevante Dokumente hoch, wenn du einen bestehenden Text überarbeiten oder darauf aufbauen möchtest"
+  },
+  {
+    "url": "/docs/features/chat/ki-chat",
+    "pageTitle": "KI-Chat",
+    "heading": "Werkzeuge nutzen",
+    "anchor": "#werkzeuge-nutzen",
+    "category": "Features",
+    "text": "Werkzeuge erweitern die Fähigkeiten des Chats über die reine Textgenerierung hinaus. Du kannst sie per @-Mention im Eingabefeld aktivieren — von der Recherche über Bildgenerierung bis zum Erstellen von Dokumenten, Tabellen und Präsentationen. @abgeordnetenwatch Abgeordnetenwatch @board-erstellen Board erstellen @bundestag Bundestag @canva Canva @diagramm Diagramm @verlauf Chatverlauf @rechnen Rechnen @connect Verbundene Accounts @wiederkehrend Wiederkehrende Aufgabe @deepresearch Tiefenrecherche @docs Dokument einfügen @dokument-erstellen Dokument erstellen @beispiele Beispiele @doku Hilfe & Anleitungen @bildgenerieren Bildgenerierung @stadtbegruenen Stadt begrünen @bildbearbeiten Bild bearbeiten @pdf-erstellen PDF erstellen @praesentation-erstellen Präsentation erstellen @pressemitteilungen Pressemitteilungen @recherche Recherche @dokumente Dokumente @sharepic Sharepic @tabelle-erstellen Tabelle erstellen @zusammenfassung Zusammenfassung @umfragen Umfragen @vorlagen Vorlagen @link Link @wolke Wolke Was du mit jeder dieser Fähigkeiten konkret fragen kannst, zeigt dir die Seite Was kann ich fragen? mit Musterfragen zu jeder Funktion. Im „+\"-Menü links im Eingabefeld stehen die…"
+  },
+  {
+    "url": "/docs/features/chat/ki-modelle",
+    "pageTitle": "KI-Modelle",
+    "heading": "KI-Modelle",
+    "anchor": "",
+    "category": "Features",
+    "text": "Beim Grünerieren kannst du selbst wählen, welches KI-Modell deine Texte erstellt. Jedes Modell hat eigene Stärken – von besonders kreativ bis besonders schnell. Standardmäßig übernimmt der Grünerator die Wahl für dich."
+  },
+  {
+    "url": "/docs/features/chat/ki-modelle",
+    "pageTitle": "KI-Modelle",
+    "heading": "Automatisch (Standard)",
+    "anchor": "#automatisch-standard",
+    "category": "Features",
+    "text": "Im Modus Automatisch wählt der Grünerator das passende Modell für deine jeweilige Aufgabe aus – du musst dich um nichts kümmern. Wenn du lieber selbst entscheidest, kannst du im Modell-Menü jederzeit ein bestimmtes Modell auswählen."
+  },
+  {
+    "url": "/docs/features/chat/ki-modelle",
+    "pageTitle": "KI-Modelle",
+    "heading": "Datenschutz",
+    "anchor": "#datenschutz",
+    "category": "Features",
+    "text": "Alle verfügbaren Modelle erfüllen höchste Datenschutzstandards: Europäische Server: Deine Eingaben werden ausschließlich auf europäischen Servern verarbeitet – bei Mistral AI (Frankreich), Regolo (Italien) oder Cortecs (EU). Eigene, selbst gehostete Modelle setzt der Grünerator seit dem 29.08.2026 nicht mehr ein (siehe Wie nachhaltig ist der Grünerator?). Kein KI-Training: Deine Eingaben werden nicht zum Training der KI verwendet. Offene Modelle: Hinter Klein und Mittel stehen Modelle mit offenen Gewichten (Open Weights), die jeder prüfen und selbst betreiben kann."
+  },
+  {
+    "url": "/docs/features/chat/ki-modelle",
+    "pageTitle": "KI-Modelle",
+    "heading": "Verfügbare Modelle",
+    "anchor": "#verfügbare-modelle",
+    "category": "Features",
+    "text": "Du wählst eine Größe, kein Herstellermodell – dieselben drei Stufen, die du auch in der Chrome-Erweiterung und im Excel-Add-in findest. Klein – Am schnellsten, für kurze Aufgaben. Offenes Modell (Open Weights) bei einem europäischen Anbieter. Mittel – Eine gute Mischung aus Tempo und Qualität, besonders für Kreativtexte. Offenes Modell (Open Weights) bei einem europäischen Anbieter. Ultra – Die beste Qualität, für Recherche und lange Aufgaben. Läuft auf EU-Servern (Mistral AI, Frankreich). Welches Modell hinter einer Stufe steckt, kann sich ändern, wenn ein besseres verfügbar wird – die Stufe bleibt. Welche Anbieter aktuell dahinterstehen, steht jederzeit in der Datenschutzerklärung. Für die Bildgenerierung kommen eigene Modelle zum Einsatz (u. a. Flux von Black Forest Labs, Deutschland). Auch hier gilt: Verarbeitung auf europäischen Servern."
+  },
+  {
+    "url": "/docs/features/chat/was-kann-ich-fragen",
+    "pageTitle": "Was kann ich fragen?",
+    "heading": "Was kann ich fragen?",
+    "anchor": "",
+    "category": "Features",
+    "text": "Der Grünerator ist kein Suchfeld mit festen Befehlen — du schreibst in normalem Deutsch, was du brauchst. Diese Seite zeigt, was dabei alles möglich ist, mit Musterfragen zum Abschauen und Weiterschreiben. Du findest den Chat unter dem Menüpunkt . Wie du dort Rezepte, Quellen und Dateien auswählst, steht unter KI-Chat."
+  },
+  {
+    "url": "/docs/features/chat/was-kann-ich-fragen",
+    "pageTitle": "Was kann ich fragen?",
+    "heading": "So stellst du eine gute Frage",
+    "anchor": "#so-stellst-du-eine-gute-frage",
+    "category": "Features",
+    "text": "Einfach lostippen. Der Grünerator erkennt an deiner Formulierung selbst, ob er nachschlagen, recherchieren, rechnen oder etwas erstellen soll. „Was steht im Grundsatzprogramm zum Mietendeckel?\" reicht — du musst kein Werkzeug auswählen. Nenne das Ziel, nicht den Weg. Statt „such im Web und schreib dann einen Post\" genügt „Schreib einen Instagram-Post zum aktuellen Stand der Wärmewende\". Mehrschrittige Aufträge löst der Grünerator in einem Rutsch. Werde konkret, wenn es darauf ankommt. Ort, Zeitraum, Länge und Zielgruppe verbessern das Ergebnis spürbar: „Pressemitteilung, etwa 2.000 Zeichen, für die Lokalpresse in Kassel.\" Mit @ steuerst du gezielt — sowohl Quellen, Dokumente und verbundene Dienste als auch Rezepte (die im Picker ganz oben erscheinen). Nachfragen ist erwünscht. Antworten lassen sich im Gespräch weiterentwickeln: „kürzer\", „sachlicher\", „mach ein Sharepic daraus\". Der Grünerator behält den Zusammenhang. „Was kannst du?\" oder „Wie erstelle ich ein Sharepic?\" beantwortet der Chat direkt — er kennt seinen eigenen Funktionsumfang."
+  },
+  {
+    "url": "/docs/features/chat/was-kann-ich-fragen",
+    "pageTitle": "Was kann ich fragen?",
+    "heading": "Was du fragen kannst",
+    "anchor": "#was-du-fragen-kannst",
+    "category": "Features",
+    "text": "Anfordern musst du nichts davon — es genügt, die Frage zu stellen. Die Kennzeichnungen an den Karten bedeuten: @kürzel — für diese Fähigkeit gibt es zusätzlich eine Erwähnung, mit der du sie im Eingabefeld vorwählen kannst. Nur ein Teil der Fähigkeiten hat so ein Kürzel, und das ist Absicht: Erwähnungen gibt es dort, wo die Vorauswahl wirklich etwas ändert — bei Quellen, die man gezielt ansteuert, und bei Formaten, die man bewusst wählt. Vieles erkennt der Grünerator auch ohne Erwähnung zuverlässig an der Formulierung allein. @wetter gibt es zusätzlich als Kürzel, sobald der Wetterdienst als Zusatzquelle verbunden ist — genau wie bei Bahn, tagesschau, trivago und Gesetze (siehe unten). experimentell — noch jung. Funktioniert, kann sich aber in Bedienung und Ergebnis noch ändern und ist nicht überall verfügbar. Verlass dich für etwas Wichtiges nicht blind darauf. Werkzeug: … — diese Fähigkeit lässt sich in eigenen Grüneratoren gezielt an- und abschalten. Zusatzquelle: … — dahinter steckt ein externer Dienst (Bahn, Wetterdienst, tagesschau, trivago, Gesetze), der pro Umgebung angebunden wird. Fehlt die Anbindung gerade, bleibt die Frage nicht unbeantwortet: der Grünerator weicht auf…"
+  },
+  {
+    "url": "/docs/features/chat/was-kann-ich-fragen",
+    "pageTitle": "Was kann ich fragen?",
+    "heading": "Wenn etwas nicht geht",
+    "anchor": "#wenn-etwas-nicht-geht",
+    "category": "Features",
+    "text": "Manches ist nur in der Web-Version möglich. Reel-Untertitel bearbeiten und Excel-/CSV-Vorlagen ausfüllen brauchen die große Oberfläche; in der App wirst du dorthin weitergeleitet. Sharepics entstehen dagegen auch in der App — du siehst sie direkt im Gespräch, kannst sie teilen und speichern; zum Feinschliff öffnet sich der Editor eingebettet, ohne dass du die App verlässt. Einige Quellen decken nur Deutschland ab. Bundestag, Abgeordnetenwatch, Bahn, tagesschau und Gesetze (deutsches Bundesrecht) beziehen sich auf deutsche Daten. Bei österreichischen Fragen weicht der Grünerator auf die Websuche aus. Nicht jede Zusatzquelle ist überall angebunden. Bahn, Wetterdienst, tagesschau, trivago und Gesetze werden pro Umgebung eingerichtet. Fehlt eine, greift der Grünerator auf die Websuche zurück und sagt dazu, worauf die Antwort beruht — erfundene Abfahrtszeiten gibt es nicht. Erfindet der Grünerator nichts? Bei Recherchen und Datenquellen nennt er die Belege. Prüfe Zahlen und Zitate trotzdem, bevor sie nach außen gehen — mehr dazu unter Welche Risiken und Gefahren haben Sprachmodelle?. Du nutzt den Grünerator in ChatGPT, Claude oder Le Chat? Dort steht ein kleinerer Funktionsumfang…"
+  },
+  {
     "url": "/docs/features/dokumente",
     "pageTitle": "Dokumente",
     "heading": "Dokumente",
@@ -1339,7 +1339,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Features",
     "anchor": "",
     "category": "Features",
-    "text": "Neben dem Chat gibt es im Grünerator drei größere Flächen. Diese Seiten beschreiben, was es dort gibt — jede Funktion, jeden Schalter. Wenn du stattdessen eine bestimmte Aufgabe erledigen willst, sind die Guides für Einsteiger*innen der kürzere Weg. Office — Dokumente, Tabellen, Präsentationen und Boards, gemeinsam bearbeitbar und mit KI-Unterstützung direkt im Editor. Agentura — der Marktplatz für Grüneratoren und Rezepte: fertige nutzen, eigene bauen. Notebooks — eigenes Wissen bündeln und durchsuchbar machen: Quellarten, Teilen, Verwaltung. Landesverbände — welche Inhalte der Landesverbände im Grünerator stecken und was ihre Grüneratoren können."
+    "text": "Diese Seiten beschreiben die zentralen Funktionen des Grünerators — vom Chat bis zu gemeinsam bearbeitbaren Dokumenten. Wenn du stattdessen eine bestimmte Aufgabe erledigen willst, sind die Guides für Einsteiger*innen der kürzere Weg. Chat — fragen, recherchieren, Dateien mitgeben und Inhalte erstellen lassen. Office — Dokumente, Tabellen, Präsentationen und Boards, gemeinsam bearbeitbar und mit KI-Unterstützung direkt im Editor. Agentura — der Marktplatz für Grüneratoren und Rezepte: fertige nutzen, eigene bauen. Notebooks — eigenes Wissen bündeln und durchsuchbar machen: Quellarten, Teilen, Verwaltung. Landesverbände — welche Inhalte der Landesverbände im Grünerator stecken und was ihre Grüneratoren können."
   },
   {
     "url": "/docs/features/ki-im-editor",
@@ -2963,7 +2963,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Was direkt aus dem Code kommt",
     "anchor": "#was-direkt-aus-dem-code-kommt",
     "category": "Sonstiges",
-    "text": "Für die Teile, die reine Aufzählung sind, gibt es keine abgetippte Kopie in der Doku. Ein Skript liest die Konfigurationsdateien des Grünerators und schreibt daraus eine Datenliste, die die Doku-Seite beim Bauen einbindet: Was | Woraus | Wo du es siehst | ------------------------------------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | Werkzeuge und ihre Gruppen | Die Kachel- und Katalog-Konfiguration der Weboberfläche | Alle Werkzeuge | Chat-Fähigkeiten | Die Liste der Absichten, die der Chat erkennen kann, plus die @-Erwähnungen | Was kann ich fragen? | Einstellungen | Der Aufbau des Einstellungen-Dialogs und alle Schalter darin | Einstellungen | Office-Funktionen | Die Verträge zwischen App und KI — und was der Editor davon wirklich ausführt | Office-Überblick | Dateilimits, Sammlungen, Konnektoren | Die Upload-Prüfung und die Konnektor-Registry | Dateien hinzufügen, Konnektoren | Regale der Agentura | Der Kategorien-Katalog des Marktplatzes | Agentura | Namen von Werkzeugen und Menüpunkten im Fließtext |…"
+    "text": "Für die Teile, die reine Aufzählung sind, gibt es keine abgetippte Kopie in der Doku. Ein Skript liest die Konfigurationsdateien des Grünerators und schreibt daraus eine Datenliste, die die Doku-Seite beim Bauen einbindet: Was | Woraus | Wo du es siehst | ------------------------------------------------- | ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | Werkzeuge und ihre Gruppen | Die Kachel- und Katalog-Konfiguration der Weboberfläche | Alle Werkzeuge | Chat-Fähigkeiten | Die Liste der Absichten, die der Chat erkennen kann, plus die @-Erwähnungen | Was kann ich fragen? | Einstellungen | Der Aufbau des Einstellungen-Dialogs und alle Schalter darin | Einstellungen | Office-Funktionen | Die Verträge zwischen App und KI — und was der Editor davon wirklich ausführt | Office-Überblick | Dateilimits, Sammlungen, Konnektoren | Die Upload-Prüfung und die Konnektor-Registry | Dateien hinzufügen, Konnektoren | Regale der Agentura | Der Kategorien-Katalog des Marktplatzes | Agentura | Namen von Werkzeugen und Menüpunkten im…"
   },
   {
     "url": "/docs/webinare",
@@ -2971,7 +2971,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Webinare",
     "anchor": "",
     "category": "Allgemein",
-    "text": "Erweitere dein Wissen über Künstliche Intelligenz und den Grünerator mit unseren interaktiven Online-Seminaren. Alle Webinare sind kostenlos und speziell auf die Bedürfnisse grüner Kommunalpolitik zugeschnitten. Du möchtest ein Webinar für deinen Kreisverband oder Ortsverband buchen? Unter jedem Webinar findest du einen Muster-Einladungstext, den du direkt kopieren und anpassen kannst. ---"
+    "text": "Erweitere dein Wissen über Künstliche Intelligenz und den Grünerator mit unseren interaktiven Online-Seminaren. Alle Webinare sind kostenlos und speziell auf die Bedürfnisse grüner Kommunalpolitik zugeschnitten. Aus zeitlichen Gründen vergebe ich neue Termine bevorzugt an Landesverbände und kommunalpolitische Vereinigungen. Eigene Webinare für einzelne Ortsverbände kann ich derzeit nicht anbieten; Anfragen von Kreisverbänden sind in Ausnahmefällen möglich. Wenn ihr vor Ort Interesse habt, bündelt die Anfrage am besten über euren Landesverband oder eure kommunalpolitische Vereinigung. Unter jedem Webinar findest du einen Muster-Einladungstext, den die veranstaltende Organisation direkt kopieren und anpassen kann. ---"
   },
   {
     "url": "/docs/webinare",
@@ -3067,7 +3067,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Webinar anfragen",
     "anchor": "#webinar-anfragen",
     "category": "Allgemein",
-    "text": "Du möchtest ein Webinar für deinen Kreisverband, Ortsverband oder deine Fraktion buchen? Melde dich per E-Mail — wir finden gemeinsam einen passenden Termin. 📧 info@moritz-waechter.de"
+    "text": "Du möchtest ein Webinar für einen Landesverband oder eine kommunalpolitische Vereinigung anfragen? Melde dich per E-Mail. Kreisverbände können sich in Ausnahmefällen ebenfalls melden. Für einzelne Ortsverbände kann ich aus zeitlichen Gründen derzeit keine eigenen Termine anbieten. 📧 info@moritz-waechter.de"
   },
   {
     "url": "/docs/webinare",

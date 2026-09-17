@@ -81,7 +81,7 @@ describe('searchDocs', () => {
     // "wie funktioniert" is a stock heading across the corpus; naming a page is
     // the strongest relevance signal a user can give.
     const [top] = searchDocs('wie funktioniert der ki-chat');
-    expect(top?.url).toContain('/docs/chat/ki-chat');
+    expect(top?.url).toContain('/docs/features/chat/ki-chat');
   });
 
   it('does not let one long page fill the whole result list', () => {

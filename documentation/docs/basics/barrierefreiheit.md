@@ -1,10 +1,10 @@
 ---
 sidebar_position: 6
-title: Barrierefreiheit
+title: Wie barrierefrei ist der Grünerator?
 description: 'Wie barrierefrei der Grünerator heute ist, einschließlich der Stellen, an denen er es noch nicht ist. Stand: 6. September 2026.'
 ---
 
-# Barrierefreiheit
+# Wie barrierefrei ist der Grünerator?
 
 Diese Seite sagt, wie barrierefrei der Grünerator heute ist — einschließlich der Stellen, an denen er es **noch nicht** ist. Eine geschönte Liste hilft niemandem: Wer auf eine Barriere stößt, die hier nicht steht, verliert Zeit mit der Frage, ob es an ihm liegt.
 

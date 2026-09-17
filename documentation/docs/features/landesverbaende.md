@@ -1,5 +1,5 @@
 ---
-sidebar_position: 9
+sidebar_position: 10
 description: 'Regional getunte Grüneratoren, die im Stil ihres Landesverbands schreiben und in dessen Pressemitteilungen, Beschlüssen und Programmen recherchieren.'
 ---
 

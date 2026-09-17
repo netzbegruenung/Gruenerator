@@ -114,11 +114,28 @@ const config: Config = {
           // The category now is the Guides entry point; keep deep links to
           // the removed explanatory page working indefinitely.
           { from: '/docs/guides/intro', to: '/docs/category/einsteigerinnen' },
-          // gruenerieren/* → chat/*
-          { from: '/docs/gruenerieren/ki-chat', to: '/docs/chat/ki-chat' },
-          { from: '/docs/gruenerieren/was-kann-ich-fragen', to: '/docs/chat/was-kann-ich-fragen' },
-          { from: '/docs/gruenerieren/dateien-hinzufuegen', to: '/docs/chat/dateien-hinzufuegen' },
-          { from: '/docs/gruenerieren/ki-modelle', to: '/docs/chat/ki-modelle' },
+          // The chat is now a subcategory of Features. Keep both its previous
+          // top-level URLs and the older gruenerieren/* generation working.
+          { from: '/docs/chat/ki-chat', to: '/docs/features/chat/ki-chat' },
+          {
+            from: '/docs/chat/was-kann-ich-fragen',
+            to: '/docs/features/chat/was-kann-ich-fragen',
+          },
+          {
+            from: '/docs/chat/dateien-hinzufuegen',
+            to: '/docs/features/chat/dateien-hinzufuegen',
+          },
+          { from: '/docs/chat/ki-modelle', to: '/docs/features/chat/ki-modelle' },
+          { from: '/docs/gruenerieren/ki-chat', to: '/docs/features/chat/ki-chat' },
+          {
+            from: '/docs/gruenerieren/was-kann-ich-fragen',
+            to: '/docs/features/chat/was-kann-ich-fragen',
+          },
+          {
+            from: '/docs/gruenerieren/dateien-hinzufuegen',
+            to: '/docs/features/chat/dateien-hinzufuegen',
+          },
+          { from: '/docs/gruenerieren/ki-modelle', to: '/docs/features/chat/ki-modelle' },
           // social-media-post.mdx was removed; its successor is the guide
           // "Wie schreibe ich einen Social Media Beitrag?". Both spellings keep
           // resolving: /docs/chat/social-media-post was compiled into a shipped
@@ -134,7 +151,10 @@ const config: Config = {
             to: '/docs/guides/einsteigerinnen/social-media-beitrag',
           },
           // websuche.md was removed — its topic now lives in "Was kann ich fragen?".
-          { from: '/docs/gruenerieren/websuche', to: '/docs/chat/was-kann-ich-fragen' },
+          {
+            from: '/docs/gruenerieren/websuche',
+            to: '/docs/features/chat/was-kann-ich-fragen',
+          },
           // Structure rebuild 08/2026: office/, wissen/ and grueneratoren/ were
           // merged into features/, the two how-to pages moved into guides/ and
           // the Inhaltsdatenbank into sonstiges/. Same rule as every move
@@ -279,7 +299,6 @@ const config: Config = {
             from: '/docs/category/über-den-grünerator',
             to: section('basics').intro,
           },
-          { from: '/docs/category/chat', to: section('chat').intro },
           { from: '/docs/category/office', to: section('features').intro },
           { from: '/docs/category/wissen', to: section('features').intro },
           { from: '/docs/category/grüneratoren', to: section('features').intro },
