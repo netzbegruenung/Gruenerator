@@ -196,6 +196,9 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
     // Live board (boards editor surface)
     currentBoard: input.currentBoard || null,
 
+    // Live canvas (sharepic studio sidebar)
+    currentCanvas: input.currentCanvas || null,
+
     // Custom system prompt (from thread or user settings)
     customSystemPrompt: input.customSystemPrompt || null,
     roleBausteinActive: input.roleBausteinActive === true,
