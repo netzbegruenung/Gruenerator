@@ -9,6 +9,7 @@
  * leaf (a dependency-free `node:async_hooks` store), so recording here keeps
  * this module's unit-testability intact.
  */
+import { EDITOR_EDIT_TOOL_KEYS, type EditorEditToolKey } from '@gruenerator/contracts';
 import { type ChatIntentId, isGroundableProse } from '@gruenerator/shared/chat-intents';
 
 import {
@@ -482,9 +483,11 @@ export function isEditorSurface(enabledTools: Record<string, boolean> | null | u
 /**
  * Is the surface's AI-edit toggle ON for this turn?
  *
- * THE list of edit_current_* keys, and the reason it is a function: it existed
- * three times by hand — here, in `decideTurnPlan` (`editToolEnabled`) and in
- * `buildArtifactNotes`, where it is read NEGATED. A key added to two of the
+ * Reads THE list of edit_current_* keys ({@link EDITOR_EDIT_TOOL_KEYS} in
+ * `@gruenerator/contracts`, one key per surface since #3438 — they are wire
+ * values, so the registry sits next to the request schema). The reason this is
+ * a function: the list existed three times by hand — here, in `decideTurnPlan`
+ * (`editToolEnabled`) and in `buildArtifactNotes`, where it is read NEGATED. A key added to two of the
  * three made the third silently claim the toggle was off: with `canvas` added
  * to the first two only, every studio turn got the "KI-Bearbeitung ist
  * ausgeschaltet — behaupte NIEMALS, etwas geändert zu haben" note, directly
@@ -497,11 +500,41 @@ export function isEditorSurface(enabledTools: Record<string, boolean> | null | u
 export function isEditToolEnabled(
   enabledTools: Record<string, boolean> | null | undefined
 ): boolean {
-  return (
-    enabledTools?.['edit_current_doc'] === true ||
-    enabledTools?.['edit_current_board'] === true ||
-    enabledTools?.['edit_current_canvas'] === true
-  );
+  return EDITOR_EDIT_TOOL_KEYS.some((key) => enabledTools?.[key] === true);
+}
+
+/** Which surface each sidebar's edit key stands for. Total over the enum. */
+const SURFACE_BY_EDIT_TOOL_KEY: Readonly<Record<EditorEditToolKey, EditorSurfaceKind>> = {
+  edit_current_doc: 'doc',
+  edit_current_sheet: 'sheet',
+  edit_current_presentation: 'presentation',
+  edit_current_board: 'board',
+  edit_current_canvas: 'canvas',
+};
+
+/**
+ * The three surfaces that carry their open target in `currentDocument`. The
+ * turn plan's edit target and the classifier's doc fast path both key on
+ * "any of these", never on `edit_current_doc` alone (#3438).
+ */
+export const DOCUMENT_CONTEXT_EDIT_KEYS = [
+  'edit_current_doc',
+  'edit_current_sheet',
+  'edit_current_presentation',
+] as const satisfies readonly EditorEditToolKey[];
+
+export function hasDocumentContextEditTool(
+  enabledTools: Record<string, boolean> | null | undefined
+): boolean {
+  return DOCUMENT_CONTEXT_EDIT_KEYS.some((key) => enabledTools?.[key] === true);
+}
+
+/** The sidebar toggle is OFF when its key is explicitly false; an absent key
+ *  (main chat with a referenced document) does not block. */
+export function isDocumentContextEditAllowed(
+  enabledTools: Record<string, boolean> | null | undefined
+): boolean {
+  return !DOCUMENT_CONTEXT_EDIT_KEYS.some((key) => enabledTools?.[key] === false);
 }
 
 /**
@@ -655,8 +688,10 @@ const EDITOR_AGENT_KIND: ReadonlyArray<readonly [string, EditorSurfaceKind]> = [
 /**
  * Resolves which editor surface (if any) a turn belongs to. Prefers the dedicated
  * editor agent's identifier; falls back to the enabled edit_current_* tool so a
- * turn on a custom agent inside an editor sidebar still resolves. Returns null for
- * every non-editor turn (the common case), so the caller can early-out cheaply.
+ * turn on a custom agent inside an editor sidebar still resolves. That fallback is
+ * TOTAL over {@link EDITOR_EDIT_TOOL_KEYS} — one key per surface, so a sheets or
+ * presentations sidebar no longer has to borrow the doc key (#3438). Returns null
+ * for every non-editor turn (the common case), so the caller can early-out cheaply.
  */
 export function resolveEditorSurfaceKind(
   agentIdentifier: string | null | undefined,
@@ -667,9 +702,9 @@ export function resolveEditorSurfaceKind(
       if (agentIdentifier === id) return kind;
     }
   }
-  if (enabledTools?.['edit_current_board'] === true) return 'board';
-  if (enabledTools?.['edit_current_canvas'] === true) return 'canvas';
-  if (enabledTools?.['edit_current_doc'] === true) return 'doc';
+  for (const key of EDITOR_EDIT_TOOL_KEYS) {
+    if (enabledTools?.[key] === true) return SURFACE_BY_EDIT_TOOL_KEY[key];
+  }
   return null;
 }
 

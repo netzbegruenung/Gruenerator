@@ -60,7 +60,7 @@ const plan = (o: Partial<TurnPlanInput>) => decideTurnPlan({ ...base, ...o });
 /** Eine Tabellen-Fläche für den einzigen Werkzeugpfad, der heute live ist. */
 const sheetSurface: Partial<TurnPlanInput> = {
   agentIdentifier: 'gruenerator-sheets-editor',
-  enabledTools: { edit_current_doc: true },
+  enabledTools: { edit_current_sheet: true },
   hasOpenDocumentId: true,
 };
 
@@ -136,6 +136,16 @@ describe('decideTurnPlan — die Lanes', () => {
     expect(p.lane).toBe('loop');
     expect(p.editToolLoop).toBe(true);
     expect(p.editToolSurface).toBe('doc');
+  });
+
+  it('editToolSurface: a custom agent in the sheets sidebar resolves to sheet, not doc', () => {
+    const p = plan({
+      agentIdentifier: 'my-custom-agent',
+      enabledTools: { edit_current_sheet: true },
+      hasOpenDocumentId: true,
+      lastUserText: 'füge eine Spalte Summe hinzu',
+    });
+    expect(p.editToolSurface).toBe('sheet');
   });
 
   it('ein Zweit-Intent nimmt der Dokument-Fläche das Werkzeug — und damit jeden Bearbeitungsweg', () => {
