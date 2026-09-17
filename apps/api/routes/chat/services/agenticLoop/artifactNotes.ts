@@ -52,15 +52,37 @@ function hasOpenEditTarget(state: ChatGraphState, kind: EditorSurfaceKind): bool
  * every surface — which is the whole point of the trade-off `decideEditToolLoop`
  * makes: those turns are allowed to skip the edit, but never to pretend.
  */
-function noEditPathSurface(state: ChatGraphState): EditorSurfaceKind | null {
-  const kind = resolveEditorSurfaceKind(state.agentConfig?.identifier, state.enabledTools);
-  if (kind == null) return null;
+function noEditPathSurface(
+  state: ChatGraphState,
+  surface: EditSurfaceReading
+): EditorSurfaceKind | null {
+  if (surface.kind == null || !surface.toggleOn) return null;
   const orphaned =
-    isEditToolEnabled(state.enabledTools) &&
-    TOOL_EDIT_SURFACES.has(kind) &&
-    hasOpenEditTarget(state, kind) &&
+    TOOL_EDIT_SURFACES.has(surface.kind) &&
+    hasOpenEditTarget(state, surface.kind) &&
     state.editToolSurface == null;
-  return orphaned ? kind : null;
+  return orphaned ? surface.kind : null;
+}
+
+/**
+ * The two facts every note below keys on, resolved ONCE per call.
+ *
+ * Not a convenience: `buildArtifactNotes` prints two MUTUALLY EXCLUSIVE notes
+ * ("die KI-Bearbeitung ist ausgeschaltet" vs. "in diesem Zug kann nicht
+ * bearbeitet werden"), and they are only exclusive as long as both read the
+ * same answer. Asking twice is how that guarantee is lost. See
+ * `isEditToolEnabled` for the same failure one layer down.
+ */
+interface EditSurfaceReading {
+  kind: EditorSurfaceKind | null;
+  toggleOn: boolean;
+}
+
+function readEditSurface(state: ChatGraphState): EditSurfaceReading {
+  return {
+    kind: resolveEditorSurfaceKind(state.agentConfig?.identifier, state.enabledTools),
+    toggleOn: isEditToolEnabled(state.enabledTools),
+  };
 }
 
 /**
@@ -73,7 +95,7 @@ function noEditPathSurface(state: ChatGraphState): EditorSurfaceKind | null {
  * sends down the unified path.
  */
 export function buildNoEditPathNote(state: ChatGraphState): string {
-  const kind = noEditPathSurface(state);
+  const kind = noEditPathSurface(state, readEditSurface(state));
   return kind == null ? '' : `\n\n${noEditPathNote(kind)}`;
 }
 
@@ -103,14 +125,11 @@ export function buildArtifactNotes(
   }
 ): { notes: string; capabilityNote: string; producedArtifact: boolean } {
   const artifactToolMounted = opts.artifactToolMounted;
-  const editSurfaceKind = resolveEditorSurfaceKind(
-    state.agentConfig?.identifier,
-    state.enabledTools
-  );
-  // The AI-edit toggle. Read ONCE here so the two mutually exclusive notes
-  // below cannot disagree about it — see `isEditToolEnabled`.
-  const editToggleOn = isEditToolEnabled(state.enabledTools);
-  const noEditPathKind = noEditPathSurface(state);
+  // Surface + AI-edit toggle, read ONCE and passed on — see `EditSurfaceReading`.
+  const surface = readEditSurface(state);
+  const editSurfaceKind = surface.kind;
+  const editToggleOn = surface.toggleOn;
+  const noEditPathKind = noEditPathSurface(state, surface);
   // Split mode has no tool returns in the synth context — without these
   // notes the synthesizer is blind to artifacts the gather phase produced.
   const artifacts = [
