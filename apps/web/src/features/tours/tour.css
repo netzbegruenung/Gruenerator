@@ -3,6 +3,13 @@
    the popover arrows, whose colors driver.css hardcodes per side. */
 
 .driver-popover.gruenerator-tour {
+  /* driver.css setzt auf `.driver-popover` ein `all: unset` und danach
+     `font-family: var(--driver-popover-font-family, "Helvetica Neue", Inter, …)`.
+     Ohne diesen Wert stand die Sprechblase in Helvetica Neue; nur die
+     Beschreibung sah nach PT Sans aus, weil die globale `div`-Regel sie einzeln
+     traf (#3399). Die ist weg, also wird der Haken von driver.js jetzt selbst
+     bedient — sonst kippt die ganze Sprechblase auf Helvetica Neue. */
+  --driver-popover-font-family: 'PT Sans', Arial, sans-serif;
   background-color: var(--color-background);
   color: var(--color-foreground);
   border-radius: 16px;
