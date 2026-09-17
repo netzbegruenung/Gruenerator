@@ -951,6 +951,39 @@ describe('resolveEditorSurfaceKind', () => {
     expect(resolveEditorSurfaceKind(undefined, { edit_current_canvas: true })).toBe('canvas');
   });
 
+  // Die Seitenleisten schicken je EINEN Schlüssel — ausser während der
+  // Übergangsfrist, in der Tabellen und Präsentationen `edit_current_doc`
+  // mitschicken, damit ein älteres Backend das Werkzeug noch montiert (#3438).
+  // Genau dafür steht der spezifischere Schlüssel in `EDITOR_EDIT_TOOL_KEYS`
+  // VOR `edit_current_doc`: sonst fiele die Doppelsendung auf die doc-Fläche
+  // zurück — der Fehler, den dieser PR behebt.
+  it('prefers the surface-specific key when the doc key is sent alongside it', () => {
+    expect(
+      resolveEditorSurfaceKind('my-custom-agent', {
+        edit_current_doc: true,
+        edit_current_sheet: true,
+      })
+    ).toBe('sheet');
+    expect(
+      resolveEditorSurfaceKind('my-custom-agent', {
+        edit_current_doc: true,
+        edit_current_presentation: true,
+      })
+    ).toBe('presentation');
+  });
+
+  // Diese Paarung schickt niemand. Sie steht hier, damit die Reihenfolge der
+  // Registry festgenagelt ist statt zufällig: ein Gleichstand ist ein
+  // Stichentscheid, kein Merkmal.
+  it('pins the registry order for a key pair no sidebar sends', () => {
+    expect(
+      resolveEditorSurfaceKind('my-custom-agent', {
+        edit_current_doc: true,
+        edit_current_board: true,
+      })
+    ).toBe('board');
+  });
+
   it('returns null for a non-editor turn', () => {
     expect(resolveEditorSurfaceKind('gruenerator-chat', { search: true })).toBeNull();
     expect(resolveEditorSurfaceKind(undefined, undefined)).toBeNull();

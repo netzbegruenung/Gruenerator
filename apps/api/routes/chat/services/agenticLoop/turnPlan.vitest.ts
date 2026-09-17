@@ -139,9 +139,12 @@ describe('decideTurnPlan — die Lanes', () => {
   });
 
   it('editToolSurface: a custom agent in the sheets sidebar resolves to sheet, not doc', () => {
+    // Beide Schlüssel — genau das, was die Tabellen-Seitenleiste während der
+    // Übergangsfrist schickt (#3438). `edit_current_doc` darf den Zug nicht auf
+    // die doc-Fläche zurückziehen.
     const p = plan({
       agentIdentifier: 'my-custom-agent',
-      enabledTools: { edit_current_sheet: true },
+      enabledTools: { edit_current_doc: true, edit_current_sheet: true },
       hasOpenDocumentId: true,
       lastUserText: 'füge eine Spalte Summe hinzu',
     });

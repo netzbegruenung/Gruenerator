@@ -690,8 +690,11 @@ const EDITOR_AGENT_KIND: ReadonlyArray<readonly [string, EditorSurfaceKind]> = [
  * editor agent's identifier; falls back to the enabled edit_current_* tool so a
  * turn on a custom agent inside an editor sidebar still resolves. That fallback is
  * TOTAL over {@link EDITOR_EDIT_TOOL_KEYS} — one key per surface, so a sheets or
- * presentations sidebar no longer has to borrow the doc key (#3438). Returns null
- * for every non-editor turn (the common case), so the caller can early-out cheaply.
+ * presentations sidebar no longer has to borrow the doc key (#3438). It takes the
+ * FIRST enabled key, and the registry is ordered specific-before-`doc` precisely
+ * for that: during the compatibility window those two sidebars send their own key
+ * alongside `edit_current_doc`, and doc-first would undo the fix. Returns null for
+ * every non-editor turn (the common case), so the caller can early-out cheaply.
  */
 export function resolveEditorSurfaceKind(
   agentIdentifier: string | null | undefined,
@@ -735,9 +738,9 @@ export interface EditToolLoopInput {
   loopEnabled: boolean;
   /** Surface resolved via {@link resolveEditorSurfaceKind}. */
   surfaceKind: EditorSurfaceKind | null;
-  /** The AI-edit toggle is ON (edit_current_doc/board/canvas enabled). When OFF, the
-   *  tool must NOT mount — otherwise the model "edits" and claims success while
-   *  the client (which also gates on the toggle) refuses to apply. */
+  /** The AI-edit toggle is ON (any {@link EDITOR_EDIT_TOOL_KEYS} entry enabled).
+   *  When OFF, the tool must NOT mount — otherwise the model "edits" and claims
+   *  success while the client (which also gates on the toggle) refuses to apply. */
   editToolEnabled: boolean;
   /** A current document/board is actually open (rawCurrentDocument/Board id present). */
   hasEditTarget: boolean;
