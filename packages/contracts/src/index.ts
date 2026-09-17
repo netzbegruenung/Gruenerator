@@ -86,7 +86,6 @@ export {
   lvAdminAssignmentContract,
   landesverbandAdminContract,
   recurringTasksContract,
-  canvasAiContract,
   canvasContract,
   groupsContract,
   contentSyncContract,
