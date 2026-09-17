@@ -124,8 +124,8 @@ export const TOOL_NOTES: Record<string, ToolNote> = {
     note: 'Verbindet den Grünerator mit ChatGPT, Claude oder Le Chat, sodass du dort auf grüne Programme und Beschlüsse zugreifen kannst.',
     platform: ['web', 'desktop'],
     readMore: {
-      label: 'Wie richte ich Konnektoren für den Chat ein?',
-      href: '/docs/guides/fortgeschrittene/konnektoren-einrichten',
+      label: 'Wie verbinde ich den Grünerator mit ChatGPT & Co.?',
+      href: '/docs/guides/fortgeschrittene/gruenerator-mit-ki-chat-verbinden',
     },
   },
 };
