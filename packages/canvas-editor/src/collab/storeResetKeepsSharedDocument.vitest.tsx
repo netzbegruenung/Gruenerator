@@ -53,12 +53,21 @@ function seedPage() {
   const config = new Y.Map<unknown>();
   config.set('width', 1080);
   config.set('height', 1920);
+  // Ein Schluessel, den `createInitialState` NICHT kennt — und der einzige,
+  // an dem sich ein Echo als LOESCHUNG zeigt: `reconcileConfig` raeumt mit
+  // `if (!(k in cfg)) yConfig.delete(k)` jeden Schluessel ab, den der
+  // Anfangswert nicht traegt. Ohne ihn haenge dieser Test allein daran, dass
+  // 1920 zufaellig ungleich `DEFAULT_CANVAS_HEIGHT` ist — zoege jemand die
+  // Vorgabehoehe auf 1920 nach, liefe er gegen einen Voll-Reset gruen durch.
+  config.set('maxContainerHeight', 4242);
   page.set('config', config);
 
   return { doc, page };
 }
 
 const docConfig = (page: Y.Map<unknown>) => (page.get('config') as Y.Map<unknown>).toJSON();
+
+const EXPECTED_CONFIG = { width: 1080, height: 1920, maxContainerHeight: 4242 };
 
 describe('store reset vs. shared document', () => {
   it('laesst das Format beim Vorlagenwechsel stehen', () => {
@@ -69,7 +78,7 @@ describe('store reset vs. shared document', () => {
         <BoundPage resetKey="zitat" parent={page} />
       </CanvasStoreProvider>
     );
-    expect(docConfig(page)).toMatchObject({ width: 1080, height: 1920 });
+    expect(docConfig(page)).toMatchObject(EXPECTED_CONFIG);
 
     rerender(
       <CanvasStoreProvider>
@@ -77,7 +86,7 @@ describe('store reset vs. shared document', () => {
       </CanvasStoreProvider>
     );
 
-    expect(docConfig(page)).toMatchObject({ width: 1080, height: 1920 });
+    expect(docConfig(page)).toMatchObject(EXPECTED_CONFIG);
   });
 
   it('laesst es auch beim Aushaengen der Flaeche stehen', () => {
@@ -88,11 +97,11 @@ describe('store reset vs. shared document', () => {
         <BoundPage resetKey="zitat" parent={page} />
       </CanvasStoreProvider>
     );
-    expect(docConfig(page)).toMatchObject({ width: 1080, height: 1920 });
+    expect(docConfig(page)).toMatchObject(EXPECTED_CONFIG);
 
     unmount();
 
-    expect(docConfig(page)).toMatchObject({ width: 1080, height: 1920 });
+    expect(docConfig(page)).toMatchObject(EXPECTED_CONFIG);
   });
 
   it('raeumt dabei weiterhin auf, was zur einzelnen Vorlage gehoert', () => {
@@ -123,6 +132,7 @@ describe('store reset vs. shared document', () => {
     expect(store.getState().selectedElement).toBeNull();
     expect(store.getState().history).toEqual([]);
     // … die Dokument-Daten aber nicht.
-    expect(store.getState().config).toMatchObject({ width: 1080, height: 1920 });
+    expect(docConfig(page)).toMatchObject(EXPECTED_CONFIG);
+    expect(store.getState().config).toMatchObject(EXPECTED_CONFIG);
   });
 });
