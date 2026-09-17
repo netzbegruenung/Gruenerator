@@ -1,13 +1,17 @@
 ---
 sidebar_position: 8
-description: 'Kostenlose Online-Seminare zu KI und Grünerator für grüne Kommunalpolitik — mit Muster-Einladungstext für deinen Kreisverband.'
+description: 'Kostenlose Online-Seminare zu KI und Grünerator, derzeit bevorzugt für Landesverbände und kommunalpolitische Vereinigungen.'
 ---
 
 # Webinare
 
 Erweitere dein Wissen über Künstliche Intelligenz und den Grünerator mit unseren interaktiven Online-Seminaren. Alle Webinare sind kostenlos und speziell auf die Bedürfnisse grüner Kommunalpolitik zugeschnitten.
 
-Du möchtest ein Webinar für deinen Kreisverband oder Ortsverband buchen? Unter jedem Webinar findest du einen Muster-Einladungstext, den du direkt kopieren und anpassen kannst.
+:::info[Für wen ich derzeit Webinare anbiete]
+Aus zeitlichen Gründen vergebe ich neue Termine bevorzugt an **Landesverbände** und **kommunalpolitische Vereinigungen**. Eigene Webinare für einzelne **Ortsverbände** kann ich derzeit nicht anbieten; Anfragen von **Kreisverbänden** sind in Ausnahmefällen möglich. Wenn ihr vor Ort Interesse habt, bündelt die Anfrage am besten über euren Landesverband oder eure kommunalpolitische Vereinigung.
+:::
+
+Unter jedem Webinar findest du einen Muster-Einladungstext, den die veranstaltende Organisation direkt kopieren und anpassen kann.
 
 ---
 
@@ -167,6 +171,6 @@ Moritz Wächter ist der Entwickler des Grünerators. Er ist Kreisvorsitzender de
 
 ## Webinar anfragen
 
-Du möchtest ein Webinar für deinen Kreisverband, Ortsverband oder deine Fraktion buchen? Melde dich per E-Mail — wir finden gemeinsam einen passenden Termin.
+Du möchtest ein Webinar für einen Landesverband oder eine kommunalpolitische Vereinigung anfragen? Melde dich per E-Mail. Kreisverbände können sich in Ausnahmefällen ebenfalls melden. Für einzelne Ortsverbände kann ich aus zeitlichen Gründen derzeit keine eigenen Termine anbieten.
 
 📧 **[info@moritz-waechter.de](mailto:info@moritz-waechter.de)**
