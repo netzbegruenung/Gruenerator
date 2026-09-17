@@ -9,6 +9,7 @@
 import { z } from 'zod';
 
 import { currentBoardSchema } from './boards.js';
+import { canvasAiCapabilitiesSchema, canvasAiSnapshotSchema } from './canvasAi.js';
 import { computePayloadSchema } from './chatStreamEvents.js';
 import { roleRefSchema } from './roleRef.js';
 
@@ -93,6 +94,23 @@ export type ChatAttachment = z.infer<typeof chatAttachmentSchema>;
 export const clientPlatformSchema = z.enum(['web', 'app']);
 export type ClientPlatform = z.infer<typeof clientPlatformSchema>;
 
+/**
+ * Live canvas state injected by the sharepic studio's chat sidebar. Primary
+ * context for sharepic Q&A and the target of the loop's `edit_document` tool on
+ * the canvas surface: `snapshot`/`capabilities` are what the op planner
+ * (runCanvasSuggest) reads, `text` is the structured sharepic text the model
+ * reads under the "AKTUELLES DOKUMENT" heading — it replaced the
+ * `currentDocument` imitation this sidebar used to send.
+ */
+export const currentCanvasSchema = z.object({
+  id: z.string(),
+  template: z.string(),
+  snapshot: canvasAiSnapshotSchema,
+  capabilities: canvasAiCapabilitiesSchema,
+  text: z.string(),
+});
+export type CurrentCanvas = z.infer<typeof currentCanvasSchema>;
+
 export const chatStreamBodySchema = z.object({
   messages: z.array(chatWireMessageSchema).min(1),
   agentId: z.string().nullish(),
@@ -133,6 +151,7 @@ export const chatStreamBodySchema = z.object({
   // Live board state injected by the boards assistant surface (FAB on the boards
   // page). Primary context for board Q&A and the edit_current_board intent.
   currentBoard: currentBoardSchema.nullish(),
+  currentCanvas: currentCanvasSchema.nullish(),
   // The sharepic variant the user marked as "active for chat editing" (card
   // toggle). Targets the sharepic_edit branch; canvasId is set once the
   // variant has been minted into a canvas document.

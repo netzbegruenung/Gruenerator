@@ -141,6 +141,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         boardIds: rawBoardIds,
         currentDocument: rawCurrentDocument,
         currentBoard: rawCurrentBoard,
+        currentCanvas: rawCurrentCanvas,
         currentSharepic: rawCurrentSharepic,
         currentSocialPost: rawCurrentSocialPost,
         currentReel: rawCurrentReel,
@@ -279,6 +280,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         sharepicRefinement,
         rawCurrentDocument,
         rawCurrentBoard,
+        rawCurrentCanvas,
         rawBoardIds,
         mentionBoardIds: mentionTokenFields.boardIds,
       });
@@ -430,17 +432,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       }
 
       // === Stages 3b–3c: chart / artifact / editor-surface triggers ===
-      runArtifactEmitStage({
-        sse,
-        finalState,
-        fullText,
-        validMessages,
-        lastUserMessage,
-        compoundEdit: plan.compoundEdit,
-        editTarget: plan.editTarget,
-        editToolLoop: plan.editToolLoop,
-        rawCurrentDocument,
-      });
+      runArtifactEmitStage({ sse, finalState, fullText });
 
       // === Stage 4: Persist & complete ===
       return await runPersistStage({

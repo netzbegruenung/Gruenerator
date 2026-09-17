@@ -251,6 +251,12 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "lead": "In etwa zehn Minuten erstellst du einen fertigen Antragsentwurf, der genau die Struktur erfüllt, die dein Gremium erwartet: Beschlussvorschlag, Sachverhalt, Begründung und finanzielle Auswirkungen."
   },
   {
+    "url": "/docs/guides/einsteigerinnen/dokument-bearbeiten",
+    "title": "Wie bearbeite ich ein Dokument?",
+    "category": "Guides",
+    "lead": "Im Dokumenteditor gibt es drei verschiedene Wege: Du kannst Text direkt bearbeiten, den Chat um eine KI-Änderung bitten oder Änderungen für andere nachvollziehbar vorschlagen. Dieser Guide zeigt, wan…"
+  },
+  {
     "url": "/docs/guides/einsteigerinnen/eigenes-notebook-erstellen",
     "title": "Eigenes Notebook erstellen",
     "category": "Guides",
@@ -2106,6 +2112,62 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#weiterlesen",
     "category": "Guides",
     "text": "KI-Chat — alle Rezepte, Quellen und Werkzeuge im Überblick Was kann ich fragen? — Musterfragen zu jeder Fähigkeit"
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/dokument-bearbeiten",
+    "pageTitle": "Wie bearbeite ich ein Dokument?",
+    "heading": "Wie bearbeite ich ein Dokument?",
+    "anchor": "",
+    "category": "Guides",
+    "text": "Im Dokumenteditor gibt es drei verschiedene Wege: Du kannst Text direkt bearbeiten, den Chat um eine KI-Änderung bitten oder Änderungen für andere nachvollziehbar vorschlagen. Dieser Guide zeigt, wann du welchen Weg nutzt."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/dokument-bearbeiten",
+    "pageTitle": "Wie bearbeite ich ein Dokument?",
+    "heading": "Änderungen für andere vorschlagen",
+    "anchor": "#änderungen-für-andere-vorschlagen",
+    "category": "Guides",
+    "text": "Mit „Änderungen nachverfolgen (Experimentell)“ arbeitest du ähnlich wie im Änderungsmodus einer Textverarbeitung: Deine Bearbeitungen werden markiert und können später angenommen oder abgelehnt werden. Klicke oben rechts auf die drei Punkte („Mehr Aktionen“). Wähle „Änderungen nachverfolgen (Experimentell)“. Ein Häkchen im Menü zeigt, dass der Modus aktiv ist. Bearbeite den Text wie gewohnt. Einfügungen, Löschungen und Formatierungen werden nun als Vorschläge markiert. Der Modus gilt für das ganze Dokument und wird auch mit anderen Bearbeiter*innen synchronisiert. Klicke auf eine markierte Änderung, um „Annehmen“ oder „Ablehnen“ direkt am Text zu wählen. In der Seitenleiste „Änderungen“ kannst du zu jedem Vorschlag springen und ihn einzeln prüfen. Mit „Alle annehmen“ oder „Alle ablehnen“ entscheidest du über sämtliche offenen Vorschläge auf einmal; anschließend musst du die Auswahl noch bestätigen. Auf einem kleinen Bildschirm öffnet sich die Seitenleiste nicht automatisch. Öffne dann erneut „Mehr Aktionen“ und wähle „Änderungen prüfen“. KI-Bearbeitung und Änderungsmodus können nicht gleichzeitig verwendet werden. Übernimm oder verwirf zuerst einen offenen KI-Vorschlag. Beende…"
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/dokument-bearbeiten",
+    "pageTitle": "Wie bearbeite ich ein Dokument?",
+    "heading": "Das Dokument mit dem Chat bearbeiten",
+    "anchor": "#das-dokument-mit-dem-chat-bearbeiten",
+    "category": "Guides",
+    "text": "Der Chat rechts kennt den aktuellen Inhalt des geöffneten Dokuments. Er kann Fragen zum Text beantworten, Hintergründe recherchieren und auf Wunsch direkt Änderungen vorschlagen. Klicke oben rechts auf das Chat-Symbol. Prüfe den Schalter mit dem Stift neben dem Eingabefeld: An: Der Chat darf Änderungen im Dokument vorschlagen. Diese Einstellung ist bei einem neuen Dokument vorausgewählt. Aus: Der Chat kann den Inhalt lesen und Fragen beantworten, darf ihn aber nicht bearbeiten. Wenn nur eine bestimmte Stelle geändert werden soll, markiere sie zuerst im Dokument. Über dem Eingabefeld erscheint dann „Auswahl: …“. Ohne Auswahl bezieht sich der Chat auf das gesamte Dokument. Schreibe möglichst genau, was passieren soll, zum Beispiel: „Formuliere den ausgewählten Absatz kürzer und klarer.“ Mit „An“ wird nicht jede Nachricht automatisch zu einer Änderung. Für eine Bearbeitung solltest du ausdrücklich schreiben, was im Dokument geändert werden soll."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/dokument-bearbeiten",
+    "pageTitle": "Wie bearbeite ich ein Dokument?",
+    "heading": "Dokument öffnen und direkt bearbeiten",
+    "anchor": "#dokument-öffnen-und-direkt-bearbeiten",
+    "category": "Guides",
+    "text": "Öffne Office und klicke auf das gewünschte Dokument. Klicke an die Stelle im Dokument, die du ändern möchtest. Du kannst sofort schreiben, Text löschen oder neue Absätze mit Enter anlegen. Es gibt keinen Speichern-Button: Deine Änderungen werden automatisch synchronisiert. Markiere Text, um die schwebende Werkzeugleiste zu öffnen. Dort kannst du unter anderem den Absatztyp ändern, Text fett oder kursiv setzen, ausrichten, verlinken oder kommentieren. Für einen neuen Block kannst du auch / tippen und anschließend zum Beispiel eine Überschrift oder Liste auswählen. Den Dokumenttitel änderst du mit einem Klick auf den Titel oben links. Mit den Pfeilen oben rechts machst du deine letzte Bearbeitung rückgängig oder stellst sie wieder her. Auf der Tastatur funktionieren dafür auch Strg/⌘ + Z und Strg/⌘ + Umschalt + Z."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/dokument-bearbeiten",
+    "pageTitle": "Wie bearbeite ich ein Dokument?",
+    "heading": "KI-Vorschlag prüfen",
+    "anchor": "#ki-vorschlag-prüfen",
+    "category": "Guides",
+    "text": "Während „KI schreibt …“ angezeigt wird, wartest du, bis der Vorschlag fertig ist. Danach siehst du Einfügungen und Löschungen direkt im Text: Übernehmen schreibt den Vorschlag dauerhaft in das gemeinsame Dokument. Verwerfen entfernt den Vorschlag und lässt den bisherigen Text unverändert. Prüfe den geänderten Text immer vollständig, bevor du ihn übernimmst. Wenn du während der Prüfung den Tab schließt oder die Seite neu lädst, kann der noch nicht übernommene KI-Vorschlag verloren gehen."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/dokument-bearbeiten",
+    "pageTitle": "Wie bearbeite ich ein Dokument?",
+    "heading": "Welcher Weg passt wann?",
+    "anchor": "#welcher-weg-passt-wann",
+    "category": "Guides",
+    "text": "Direkt bearbeiten: für eigene, sofort gültige Korrekturen und neue Inhalte. Chat mit „An“: wenn die KI einen Abschnitt umformulieren, kürzen oder ergänzen soll. Du entscheidest anschließend über den gesamten KI-Vorschlag. Änderungen nachverfolgen: wenn andere Personen deine einzelnen manuellen Änderungen prüfen sollen. Chat mit „Aus“: wenn du nur eine Frage zum Dokument stellen oder recherchieren möchtest."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/dokument-bearbeiten",
+    "pageTitle": "Wie bearbeite ich ein Dokument?",
+    "heading": "Wenn etwas nicht klappt",
+    "anchor": "#wenn-etwas-nicht-klappt",
+    "category": "Guides",
+    "text": "Du kannst nicht tippen? Prüfe, ob oben „Lesezugriff“ angezeigt wird. Dann fehlen dir Bearbeitungsrechte. Der Chat ändert nichts? Prüfe, ob der Stift-Schalter auf „An“ steht, und formuliere ausdrücklich eine Bearbeitungsanweisung. Die KI bearbeitet die falsche Stelle? Markiere zuerst den gewünschten Text und prüfe, ob „Auswahl: …“ über dem Chatfeld erscheint. KI-Bearbeitung ist nicht verfügbar? Beende zuerst „Änderungen nachverfolgen“. Beide Funktionen verwenden dieselben Änderungsmarkierungen. Der Export ist blockiert? Nimm alle offenen Änderungen an oder lehne sie ab. Dokumente mit offenen Änderungsvorschlägen können nicht exportiert werden."
   },
   {
     "url": "/docs/guides/einsteigerinnen/eigenes-notebook-erstellen",
