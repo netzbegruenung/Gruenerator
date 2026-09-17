@@ -141,8 +141,7 @@ export interface PageDef {
   id: string;
   configId: string;
   state: Record<string, unknown>;
-  /** Optional free-element layers/config (deck seeds from serialized decks). */
-  layers?: Array<Record<string, unknown>>;
+  /** Optional config (deck seeds from serialized decks). */
   config?: Record<string, unknown>;
 }
 
@@ -180,7 +179,7 @@ function posBetween(a: string | null, b: string | null): string {
 }
 
 // Mirrors buildPage in packages/canvas-editor/src/collab/pagesDoc.ts:
-// layers & config maps are otherwise created on demand at first mount.
+// the config map is otherwise created on demand at first mount.
 function buildPageYMap(def: PageDef, pos: string): Y.Map<unknown> {
   const page = new Y.Map<unknown>();
   page.set(KEY_ID, def.id);
@@ -189,17 +188,6 @@ function buildPageYMap(def: PageDef, pos: string): Y.Map<unknown> {
   const state = new Y.Map<unknown>();
   for (const [k, v] of Object.entries(def.state)) state.set(k, v);
   page.set(KEY_STATE, state);
-  if (def.layers && def.layers.length > 0) {
-    const layers = new Y.Array<Y.Map<unknown>>();
-    layers.push(
-      def.layers.map((layer) => {
-        const m = new Y.Map<unknown>();
-        for (const [k, v] of Object.entries(layer)) m.set(k, v);
-        return m;
-      })
-    );
-    page.set('layers', layers);
-  }
   if (def.config && Object.keys(def.config).length > 0) {
     const config = new Y.Map<unknown>();
     for (const [k, v] of Object.entries(def.config)) config.set(k, v);
@@ -379,7 +367,6 @@ const isPageDef = (v: unknown): v is PageDef => {
     typeof p.state === 'object' &&
     p.state !== null &&
     !Array.isArray(p.state) &&
-    (p.layers === undefined || Array.isArray(p.layers)) &&
     (p.config === undefined || (typeof p.config === 'object' && p.config !== null))
   );
 };

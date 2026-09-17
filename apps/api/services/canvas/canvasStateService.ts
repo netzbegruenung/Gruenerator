@@ -24,8 +24,7 @@ export interface CanvasPageDef {
   id: string;
   configId: string;
   state: Record<string, unknown>;
-  /** Optional free-element layers/config (serialized deck seeds). */
-  layers?: Array<Record<string, unknown>>;
+  /** Optional config (serialized deck seeds). */
   config?: Record<string, unknown>;
 }
 
