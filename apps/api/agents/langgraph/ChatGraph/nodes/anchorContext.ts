@@ -29,6 +29,13 @@ export function getActiveAnchors(state: ChatGraphState): AnchorDescriptor[] {
       kind: 'currentDocument',
       title: state.currentDocument.title ?? 'das geöffnete Dokument',
     });
+  } else if (state.currentCanvas) {
+    // The sharepic studio carries its text as `currentCanvas.text`, which
+    // respondNode renders under the same AKTUELLES DOKUMENT heading — so it
+    // gets the same anchor. It used to reach this branch by sending a faked
+    // `currentDocument`; dropping the anchor with the fake would have silently
+    // removed the adjunct from every sharepic turn.
+    anchors.push({ kind: 'currentDocument', title: 'das geöffnete Sharepic' });
   }
 
   if (state.documentMentionContext) {

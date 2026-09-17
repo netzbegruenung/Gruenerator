@@ -231,6 +231,7 @@ export async function buildStreamContext({
     connectFiles: rawConnectFiles,
     currentDocument: rawCurrentDocument,
     currentBoard: rawCurrentBoard,
+    currentCanvas: rawCurrentCanvas,
     customSystemPrompt: rawCustomSystemPrompt,
     roleRef: rawRoleRef,
     roleName: rawRoleName,
@@ -819,6 +820,11 @@ export async function buildStreamContext({
     // the loop's `edit_document` tool aborts with "Es ist kein Board geöffnet" —
     // the router only ever read `currentBoard` off the raw body.
     currentBoard: rawCurrentBoard ?? undefined,
+    // Live canvas of the sharepic studio sidebar. Same reason as currentBoard:
+    // without it the graph state has no canvas, so the loop's `edit_document`
+    // tool aborts with "Es ist kein Sharepic geöffnet" and the model never sees
+    // the sharepic text (it rides `currentCanvas.text`, not currentDocument).
+    currentCanvas: rawCurrentCanvas ?? undefined,
     userLocale: user.locale ?? 'de-DE',
     clientPlatform: rawPlatform ?? 'web',
     customSystemPrompt,

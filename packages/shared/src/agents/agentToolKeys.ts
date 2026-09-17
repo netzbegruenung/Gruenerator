@@ -56,6 +56,7 @@ export const AGENT_TOOL_KEYS: readonly string[] = [
   // (agenticLoop/routing.ts), declared by the editor agents.
   'edit_current_doc',
   'edit_current_board',
+  'edit_current_canvas',
   // Classifier intent names, not tools: the LV-PR agents carry
   // `pressemitteilung_examples`, the corpus agents their corpus intents.
   'pressemitteilung_examples',

@@ -45,7 +45,7 @@ import type {
   ChatModelRunResult,
   CompleteAttachment,
 } from '@assistant-ui/react';
-import type { CurrentBoard } from '@gruenerator/contracts';
+import type { CurrentBoard, CurrentCanvas } from '@gruenerator/contracts';
 
 export type {
   GrueneratorMessageMetadata,
@@ -747,6 +747,7 @@ export function createGrueneratorModelAdapter(
       let injectedAttachmentContext: string | undefined;
       let injectedCurrentDocument: InjectedCurrentDocument | undefined;
       let injectedCurrentBoard: CurrentBoard | undefined;
+      let injectedCurrentCanvas: CurrentCanvas | undefined;
       if (config.threadId) {
         const provider = contextProviders.get(config.threadId);
         if (provider) {
@@ -767,6 +768,17 @@ export function createGrueneratorModelAdapter(
             // edit_document tool has a board to plan ops against — without it
             // the assistant only chats.
             if (ctx.currentBoard) injectedCurrentBoard = ctx.currentBoard;
+            // Live sharepic context (studio sidebar). Required for the loop's
+            // edit_document tool to have a canvas to plan ops against, and the
+            // only carrier of the sharepic text the model reads. `text` gets the
+            // same 80k cap as currentDocument.markdown — it replaced it.
+            if (ctx.currentCanvas) {
+              const cc = ctx.currentCanvas;
+              injectedCurrentCanvas = {
+                ...cc,
+                text: truncateAttachmentContext(cc.text, 80_000) ?? cc.text,
+              };
+            }
             const parts: string[] = [];
             if (ctx.selectionText) parts.push(`## Auswahl:\n${ctx.selectionText}`);
             if (ctx.attachmentContext) parts.push(ctx.attachmentContext);
@@ -838,6 +850,7 @@ export function createGrueneratorModelAdapter(
         hasDocumentChat,
         injectedCurrentDocument,
         injectedCurrentBoard,
+        injectedCurrentCanvas,
         injectedAttachmentContext,
         seededInitialAssistantMessage,
         currentSharepic: (() => {
