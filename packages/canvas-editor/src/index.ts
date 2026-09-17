@@ -20,17 +20,11 @@ export * from './layouts';
 
 export type { StockImage } from './common/imageSourceTypes';
 export type {
-  CanvasAiGenerateContext,
-  UseGenerateCanvasSuggestions,
-  UseGenerateCanvasSuggestionsResult,
-} from './common/canvasAiTypes';
-export type {
   CanvasAiOperation,
   CanvasAiOperationKind,
   CanvasAiSnapshot,
   CanvasAiSuggestion,
   CanvasAiCapabilities,
-  CanvasAiSuggestRequest,
   CanvasAiSuggestResponse,
 } from '@gruenerator/contracts';
 export {

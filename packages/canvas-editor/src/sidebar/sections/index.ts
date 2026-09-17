@@ -14,8 +14,6 @@ import { lazy } from 'react';
 
 export { CombinedTextSection } from './CombinedTextSection';
 export type { CombinedTextSectionProps } from './CombinedTextSection';
-export { AiSection, SuggestionCard, OperationPreview } from './AiSection';
-export type { AiSectionProps, SuggestionCardProps } from './AiSection';
 export { ChatSection } from './ChatSection';
 export type { ChatSectionProps } from './ChatSection';
 // Static: IconsSection is already statically imported/rendered by AssetsSection
