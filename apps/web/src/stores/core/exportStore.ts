@@ -1,8 +1,6 @@
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { create } from 'zustand';
 
-import apiClient from '../../components/utils/apiClient';
-
 import type { PdfExportLayout, pdfExportLetterSchema } from '@gruenerator/contracts';
 import type { z } from 'zod';
 
@@ -29,12 +27,6 @@ interface ExportState {
   loadDOCXLibrary: () => Promise<null>;
   generatePDF: (content: string, title: string, options?: PdfExportOptions) => Promise<void>;
   generateDOCX: (content: string, title: string) => Promise<void>;
-  generateNotebookDOCX: (
-    content: string,
-    title: string,
-    citations: unknown[],
-    sources?: unknown[]
-  ) => Promise<void>;
 }
 
 // Export store for managing PDF and DOCX generation
@@ -124,46 +116,6 @@ export const useExportStore = create<ExportState>((set) => ({
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error('DOCX generation error:', error);
-      throw error;
-    } finally {
-      setTimeout(() => set({ isGenerating: false }), 500);
-    }
-  },
-
-  // Notebook DOCX Generation with citations and sources
-  generateNotebookDOCX: async (
-    content: string,
-    title: string,
-    citations: unknown[],
-    sources?: unknown[]
-  ) => {
-    set({ isGenerating: true });
-    try {
-      const { extractFilenameFromContent } = await import('../../components/utils/titleExtractor');
-      const filename = `${extractFilenameFromContent(content, title)}.docx`;
-      const response = await apiClient.post<Blob>(
-        '/exports/docx',
-        {
-          content,
-          title,
-          citations,
-          sources,
-        },
-        {
-          responseType: 'blob',
-        }
-      );
-      const blob = response.data;
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Notebook DOCX generation error:', error);
       throw error;
     } finally {
       setTimeout(() => set({ isGenerating: false }), 500);

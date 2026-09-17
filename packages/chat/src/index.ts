@@ -9,14 +9,6 @@ export {
 // Confirm/reject flow for chat-proposed actions (shared POST; platform cards render around it)
 export { confirmChatAction, type ConfirmActionOutcome } from './lib/confirmAction';
 
-// Extra Actions Context
-export {
-  ExtraActionsProvider,
-  useExtraActions,
-  type ExtraAction,
-  type ExtraActionFactory,
-} from './context/ExtraActionsContext';
-
 // Chat Surface Context (per-surface agent/mode/model state)
 export {
   ChatSurfaceProvider,

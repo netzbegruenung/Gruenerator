@@ -176,16 +176,19 @@ export const AssistantMessage = memo(function AssistantMessage() {
   // aus der persistierten Nachricht (threadMessageConversion).
   const recipesUsed = custom?.streamMetadata?.recipesUsed;
 
+  // `citations` resolved, not `custom.citations`: the Word export renders its
+  // "Verwendete Quellen" appendix from this list, and a notebook answer restored
+  // from an older stored message carries its sources only as `rawCitations`.
   const actionsMetadata = useMemo(() => {
     if (!custom) return undefined;
     return {
-      citations: custom.citations,
+      citations,
       searchResults: custom.searchResults,
       intent: custom.streamMetadata?.intent,
       searchCount: custom.streamMetadata?.searchCount,
       generatedImage: custom.generatedImage,
     };
-  }, [custom]);
+  }, [custom, citations]);
 
   const showSearchResults = !isStreaming && citations.length > 0;
 
