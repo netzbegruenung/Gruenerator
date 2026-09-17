@@ -6,8 +6,7 @@
  *
  * Page structure always lives in a Y.Doc (see collab/pagesDoc.ts): the
  * host-supplied collaborative doc, or a local one this hook owns. One code
- * path for both modes means duplicate/move/undo behave identically and
- * layers survive page operations everywhere.
+ * path for both modes means duplicate/move/undo behave identically.
  *
  * Selection is tracked by page ID, not index — deleting or reordering pages
  * (locally or remotely) never silently retargets the selection.
@@ -34,15 +33,13 @@ export interface InitialPageDef {
    * addressing; omitted ids get deterministic `seed-<index>` fallbacks.
    */
   id?: string;
-  /** Free-element layers (deck restore from gallery drafts). */
-  layers?: Array<Record<string, unknown>>;
   config?: Record<string, unknown>;
 }
 
 /**
  * Validate persisted/external page JSON (initial_state.pages, gallery deck
  * drafts) into InitialPageDef[] — the shared parser for every restore entry
- * point, so id/layers/config survive uniformly.
+ * point, so id/config survive uniformly.
  */
 export function parseInitialPages(raw: unknown): InitialPageDef[] | undefined {
   if (!Array.isArray(raw) || raw.length === 0) return undefined;
@@ -55,7 +52,6 @@ export function parseInitialPages(raw: unknown): InitialPageDef[] | undefined {
       configId: p.configId as CanvasConfigId,
       state: p.state as Record<string, unknown>,
       ...(typeof p.id === 'string' ? { id: p.id } : {}),
-      ...(Array.isArray(p.layers) ? { layers: p.layers as Array<Record<string, unknown>> } : {}),
       ...(p.config && typeof p.config === 'object'
         ? { config: p.config as Record<string, unknown> }
         : {}),
@@ -97,7 +93,7 @@ export interface UsePageManagerReturn {
   movePage: (id: string, direction: 'up' | 'down') => void;
   removePage: (id: string) => void;
   updatePageState: (id: string, partial: Record<string, unknown>) => void;
-  /** Convert an existing page to another template (keeps id, position, layers). */
+  /** Convert an existing page to another template (keeps id, position). */
   setPageConfig: (id: string, configId: CanvasConfigId) => Promise<void>;
   canAddMore: boolean;
   pageCount: number;
@@ -106,7 +102,7 @@ export interface UsePageManagerReturn {
   isLoadingConfig: boolean;
   /** The Y.Doc backing the pages list (host's in collab mode, local otherwise). */
   pagesDoc: Y.Doc;
-  /** Returns the page's Y.Map for that index (layers/config/state binding). */
+  /** Returns the page's Y.Map for that index (config/state binding). */
   getPageYMap: (index: number) => Y.Map<unknown> | null;
   /** Undo the last page-level operation (add/remove/duplicate/move). */
   undoPageOp: () => void;
@@ -146,7 +142,7 @@ export function usePageManager({
   const configCacheRef = useRef<Map<CanvasConfigId, FullCanvasConfig>>(new Map());
   const [isLoadingConfig, setIsLoadingConfig] = useState(false);
 
-  // Non-collab editors own a local Y.Doc so page structure, undo and layer
+  // Non-collab editors own a local Y.Doc so page structure, undo and page
   // cloning run through the exact same pagesDoc code path as collab.
   // Not destroyed on unmount: StrictMode double-mounts would hand the second
   // mount a dead doc; an unreferenced local Y.Doc is plain GC-able.
@@ -171,7 +167,6 @@ export function usePageManager({
             configId: def.configId,
             state: def.state,
             ...(def.id ? { id: def.id } : {}),
-            ...(def.layers ? { layers: def.layers } : {}),
             ...(def.config ? { config: def.config } : {}),
           }))
         : [{ configId: initialConfigId, state: initialProps }];
@@ -300,7 +295,7 @@ export function usePageManager({
   );
 
   /**
-   * Duplicate a page (same template, same content, same layers).
+   * Duplicate a page (same template, same content).
    * Inserts right after the source and selects the copy.
    */
   const duplicatePage = useCallback(
@@ -351,9 +346,8 @@ export function usePageManager({
   );
 
   /**
-   * Convert an existing page to another template. Free elements (layers)
-   * stay; template state is rebuilt from the new config with the shared
-   * inheritance contract applied.
+   * Convert an existing page to another template. Template state is rebuilt
+   * from the new config with the shared inheritance contract applied.
    */
   const setPageConfig = useCallback(
     async (id: string, configId: CanvasConfigId) => {
