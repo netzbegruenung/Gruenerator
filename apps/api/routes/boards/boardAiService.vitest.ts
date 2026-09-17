@@ -177,4 +177,47 @@ describe('generateBoardOperations', () => {
     expect(system).toContain('RECHERCHIERTE QUELLEN');
     expect(system).toContain('Der Anteil liegt bei 42 Prozent.');
   });
+
+  it('(g) serializeBoard lists existing views with layout and grouping field', async () => {
+    aiTools.mockResolvedValueOnce(toolCallResult([]));
+
+    await generateBoardOperations({
+      userPrompt: 'leg eine Kalenderansicht an',
+      board: makeBoard({
+        fields: [
+          {
+            id: 'field-status',
+            name: 'Status',
+            type: 'singleSelect',
+            typeOptions: { options: [] },
+            order: 0,
+          },
+        ],
+        views: [
+          {
+            id: 'v1',
+            name: 'Kanban',
+            layout: 'kanban',
+            groupByFieldId: 'field-status',
+            filters: [],
+            sorts: [],
+            fieldSettings: [],
+          },
+          { id: 'v2', name: 'Alle', layout: 'table', filters: [], sorts: [], fieldSettings: [] },
+        ],
+      }),
+      today: '2026-09-17',
+    });
+
+    const { system } = lastCallArgs();
+    expect(system).toContain('Ansichten');
+    expect(system).toContain('- Kanban (kanban, gruppiert nach Status)');
+    expect(system).toContain('- Alle (table)');
+  });
+
+  it('(h) serializeBoard says so when the board has no views', async () => {
+    aiTools.mockResolvedValueOnce(toolCallResult([]));
+    await generateBoardOperations({ userPrompt: 'x', board: makeBoard(), today: '2026-09-17' });
+    expect(lastCallArgs().system).toMatch(/Ansichten[^\n]*\n- \(keine\)/);
+  });
 });
