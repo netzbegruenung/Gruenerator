@@ -62,7 +62,6 @@ export { userAgentsContract } from './userAgentsContract.js';
 export { userTextFormsContract } from './userTextFormsContract.js';
 export { recurringTasksContract } from './recurringTasksContract.js';
 export { userAgentsSharingContract } from './userAgentsSharingContract.js';
-export { canvasAiContract } from './canvasAi.js';
 export { canvasContract } from './canvasContract.js';
 export { groupsContract } from './groupsContract.js';
 export { contentSyncContract } from './contentSyncContract.js';

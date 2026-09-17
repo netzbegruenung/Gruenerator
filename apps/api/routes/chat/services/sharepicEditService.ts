@@ -19,10 +19,8 @@ import {
   getSharepicTemplateDescriptor,
   getSharepicVariantLabel,
   sharepicOpsToStatePatch,
-  sliderDeckOpsToPagePatches,
   type CanvasAiOperation,
   type SharepicTemplateDescriptor,
-  type SliderDeckOperation,
 } from '@gruenerator/contracts';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
@@ -30,10 +28,8 @@ import { escapeRegExp } from '../../../services/BaseSearchService/textUtils.js';
 import { createCanvas } from '../../../services/canvas/canvasRepository.js';
 import {
   applyCanvasStatePatch,
-  applyDeckChanges,
   getCurrentCanvasState,
   seedCanvasPages,
-  type CanvasPageDef,
 } from '../../../services/canvas/canvasStateService.js';
 import {
   insertCanvasVersion,
@@ -574,131 +570,6 @@ export async function applySharepicOpsToCanvas(args: {
     version,
     newState,
     appliedKinds,
-    rejected,
-  };
-}
-
-export type ApplySliderOpsOutcome =
-  | {
-      ok: true;
-      version: number;
-      newPages: CanvasPageDef[];
-      appliedKinds: string[];
-      rejected: Array<{ kind: string; reason: string }>;
-    }
-  | { ok: false; reason: string; rejected: Array<{ kind: string; reason: string }> };
-
-/**
- * Deck sibling of `applySharepicOpsToCanvas`: validate deck ops, write
- * pageId-addressed patches / page ops through the Hocuspocus internal API
- * (live-broadcasts into open studio tabs), snapshot a `{ pages }` version
- * and emit `sharepic_updated` with the full page set.
- */
-export async function applySliderOpsToDeck(args: {
-  canvasId: string;
-  variantId: string;
-  descriptor: SharepicTemplateDescriptor;
-  pages: CanvasPageDef[];
-  operations: SliderDeckOperation[];
-  summary: string;
-  userId: string;
-  sse: SSEWriter;
-}): Promise<ApplySliderOpsOutcome> {
-  const { canvasId, variantId, descriptor, pages, operations, summary, userId, sse } = args;
-
-  const result = sliderDeckOpsToPagePatches(descriptor, operations, pages);
-  const rejected = result.rejected.map((r) => ({ kind: r.op.kind, reason: r.reason }));
-  if (rejected.length > 0) {
-    log.warn(
-      `[SliderDeck] Rejected ops: ${rejected.map((r) => `${r.kind}: ${r.reason}`).join(' | ')}`
-    );
-  }
-
-  // Deck sibling of the single-canvas query resolution above: resolve each
-  // per-slide stock query server-side, then write the URL into three places —
-  // the per-page patch (if the slide already exists), the fold-in state of a
-  // pending `add` op (a slide minted in this batch has no page to patch yet),
-  // and the working page's state (that is what the version snapshot mirrors).
-  if (result.imageQueries.length > 0 && descriptor.backgroundImage) {
-    const stateKey = descriptor.backgroundImage.stateKey;
-    for (const { pageId, query } of result.imageQueries) {
-      try {
-        const selection = await imagePickerService.selectBestImage(query, {
-          sharepicType: descriptor.id,
-        });
-        const url = `/api/image-picker/stock-image/${encodeURIComponent(selection.selectedImage.filename)}`;
-        const patchEntry = result.pagePatches.find((p) => p.pageId === pageId);
-        if (patchEntry) {
-          patchEntry.patch[stateKey] = url;
-          patchEntry.patch.hasBackgroundImage = true;
-        }
-        const addOp = result.pageOps.find((op) => op.op === 'add' && op.page.id === pageId);
-        if (addOp && addOp.op === 'add') {
-          addOp.page.state = { ...addOp.page.state, [stateKey]: url, hasBackgroundImage: true };
-        }
-        const working = result.newPages.find((p) => p.id === pageId);
-        if (working) {
-          working.state = { ...working.state, [stateKey]: url, hasBackgroundImage: true };
-        }
-      } catch (err) {
-        log.warn(`[SliderDeck] Image selection failed for slide ${pageId}: ${err}`);
-        // Only half of the single-canvas treatment, and deliberately so:
-        // `appliedKinds` here holds the OUTER `edit-slide` op (the translator
-        // pushes it before this lookup runs), so there is no
-        // 'set-background-image' entry to drop. Dropping the right `edit-slide`
-        // would mean knowing whether its other sub-ops produced a patch, which
-        // the translator does not report per slide. Not worth changing the
-        // contracts shape while this function has no caller — deck editing is
-        // short-circuited below. Wire the deck path up and this needs finishing.
-        rejected.push({ kind: 'set-background-image', reason: NO_BACKGROUND_IMAGE_REASON });
-      }
-    }
-  }
-
-  if (result.pagePatches.length === 0 && result.pageOps.length === 0) {
-    return {
-      ok: false,
-      reason: rejected[0]?.reason ?? 'Keine anwendbare Änderung',
-      rejected,
-    };
-  }
-
-  await applyDeckChanges(canvasId, {
-    // Always sent: re-seeds decks whose mint ran while Hocuspocus was down.
-    seedPages: pages,
-    pagePatches: result.pagePatches,
-    pageOps: result.pageOps,
-    newPages: result.newPages,
-  });
-
-  const version = await insertCanvasVersion({
-    canvasId,
-    state: { pages: result.newPages },
-    summary,
-    origin: 'chat-edit',
-    userId,
-  });
-
-  sse.send('sharepic_updated', {
-    variantId,
-    canvasId,
-    version,
-    canvasType: descriptor.id,
-    pages: result.newPages.map((p) => p.state),
-    summary,
-  });
-
-  log.info(
-    `[SliderDeck] Applied v${version} on ${canvasId} (${operations.length} op(s): ${operations
-      .map((o) => o.kind)
-      .join(', ')}, ${result.newPages.length} pages)`
-  );
-
-  return {
-    ok: true,
-    version,
-    newPages: result.newPages,
-    appliedKinds: result.applied.map((o) => o.kind),
     rejected,
   };
 }

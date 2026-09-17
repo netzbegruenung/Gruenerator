@@ -5,7 +5,6 @@
  *   - TypeScript types in @gruenerator/canvas-editor (operation discriminator)
  *   - Backend Zod validation of LLM tool-call arguments
  *   - JSON-schema fed to the LLM via tool calling (zod-to-json-schema)
- *   - ts-rest contract response shape
  *
  * Design notes:
  *   - All fields use `.nullish()` per the 2026-04-12 production-incident rule
@@ -243,32 +242,16 @@ export const canvasAiCapabilitiesSchema = z.object({
 
 export type CanvasAiCapabilities = z.infer<typeof canvasAiCapabilitiesSchema>;
 
-// ── Request / response ──────────────────────────────────────────────────────
+// ── Response ─────────────────────────────────────────────────────────────────
 
-export const canvasAiSuggestRequestSchema = z.object({
-  prompt: z.string().min(1).max(2000),
-  snapshot: canvasAiSnapshotSchema,
-  capabilities: canvasAiCapabilitiesSchema,
-  /**
-   * Research the chat loop gathered before an edit ("recherchiere X und bau es
-   * ins Sharepic ein"). NO CLIENT SENDS THIS since #3427: the studio sidebar
-   * edits through the loop's `edit_document` tool, which calls
-   * `runCanvasSuggest` in-process with the sources already in `contextHints`.
-   * The field stays because the wire is F0 — the studio's own suggestions panel
-   * is the endpoint's only remaining caller and it never set it either.
-   */
-  referenceContent: z.string().max(8000).optional(),
-});
-
+/**
+ * The planner's (`runCanvasSuggest.ts`) output schema. Also the response
+ * shape the studio sidebar's edit_document tool path validates against.
+ */
 export const canvasAiSuggestResponseSchema = z.object({
   suggestions: z.array(canvasAiSuggestionSchema).min(0).max(6),
 });
 
-export const canvasAiSuggestErrorSchema = z.object({
-  error: z.string(),
-});
-
-export type CanvasAiSuggestRequest = z.infer<typeof canvasAiSuggestRequestSchema>;
 export type CanvasAiSuggestResponse = z.infer<typeof canvasAiSuggestResponseSchema>;
 
 // ── Sharepic chat edit (single applied edit, not suggestions) ───────────────

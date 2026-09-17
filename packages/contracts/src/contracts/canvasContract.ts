@@ -7,8 +7,7 @@
  *
  * Route ordering: `resize` and `clone` are literal sub-paths under `:id`
  * (POST /:id/resize, POST /:id/clone), distinct from `get`/`update`/`remove`
- * which share the `:id` param. The AI-suggest router is mounted earlier in
- * routes.ts, so `/api/canvas/ai-suggest` matches before `get`.
+ * which share the `:id` param.
  */
 import { initContract } from '@ts-rest/core';
 import { z } from 'zod';

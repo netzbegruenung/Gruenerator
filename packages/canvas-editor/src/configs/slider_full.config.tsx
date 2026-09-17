@@ -9,10 +9,9 @@
  * - Two color schemes (sand-tanne, tanne-sand)
  */
 
-import { HiPhotograph, HiSparkles } from 'react-icons/hi';
+import { HiPhotograph } from 'react-icons/hi';
 import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
-import { createAiSectionRegistration } from '../ai/createAiSectionRegistration';
 import {
   AssetsSection,
   BackgroundSection,
@@ -584,16 +583,9 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
     },
     toolsTab,
     uploadsTab,
-    {
-      id: 'ai',
-      icon: HiSparkles,
-      label: 'KI',
-      ariaLabel: 'KI-Vorschläge',
-    },
     chatTab,
   ],
 
-  // 'ai' tab kept registered but hidden — Chat tab now drives canvas-AI suggestions.
   // 'background' was hidden here and left to getAutoSwitchTab below, which
   // matched the id `background` — the colour plane, drawn `listening={false}`,
   // so it never becomes the selection and the tab never opened.
@@ -672,7 +664,6 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
       const subtext = state.subtext || '';
       return [label, headline, subtext].filter(Boolean).join('\n');
     }),
-    ai: createAiSectionRegistration('slider', sliderAiCapabilities),
   },
 
   elements: [
