@@ -147,24 +147,165 @@ describe('syncUserNotebooks failure handling', () => {
 });
 
 /**
+ * `/api/text-forms/mentionable` already applies the kind filter and the own >
+ * group > public precedence server-side, so `syncTextforms` only maps fields
+ * on the primary path.
+ */
+describe('syncTextforms — mentionable endpoint mapping', () => {
+  const fetchMentionable =
+    (forms: unknown[]): MentionableFetch =>
+    <T>(path: string): Promise<T> =>
+      path === '/api/text-forms/mentionable'
+        ? Promise.resolve({ forms } as unknown as T)
+        : Promise.reject(new Error(`unexpected path: ${path}`));
+
+  it('requests the mentionable endpoint', async () => {
+    const paths: string[] = [];
+    await syncTextforms(recordingFetch(paths));
+    expect(paths).toEqual(['/api/text-forms/mentionable']);
+  });
+
+  it('maps id, description, iconKey, sharedFromGroup, ownerName and isPublic', async () => {
+    const list = await syncTextforms(
+      fetchMentionable([
+        {
+          id: 'tf-own',
+          mention: 'omveinladungen',
+          title: 'OMV',
+          description: 'Einladungstext für Ortsmitgliederversammlungen',
+          iconKey: 'PiEnvelope',
+          kind: 'custom',
+          sharedFromGroup: null,
+          ownerName: null,
+          isPublic: false,
+        },
+        {
+          id: 'tf-group',
+          mention: 'presse-kv-koeln',
+          title: 'Presse KV Köln',
+          description: null,
+          iconKey: null,
+          kind: 'custom',
+          sharedFromGroup: 'KV Köln',
+          ownerName: 'Alex Grün',
+          isPublic: false,
+        },
+        {
+          id: 'tf-public',
+          mention: 'presse-agentura',
+          title: 'Presse Agentura',
+          description: null,
+          iconKey: null,
+          kind: 'custom',
+          sharedFromGroup: null,
+          ownerName: 'Sam Grün',
+          isPublic: true,
+        },
+      ])
+    );
+
+    expect(list).toEqual([
+      {
+        id: 'tf-own',
+        mention: 'omveinladungen',
+        title: 'OMV',
+        description: 'Einladungstext für Ortsmitgliederversammlungen',
+        iconKey: 'PiEnvelope',
+        sharedFromGroup: null,
+        ownerName: null,
+        isPublic: false,
+      },
+      {
+        id: 'tf-group',
+        mention: 'presse-kv-koeln',
+        title: 'Presse KV Köln',
+        description: null,
+        iconKey: null,
+        sharedFromGroup: 'KV Köln',
+        ownerName: 'Alex Grün',
+        isPublic: false,
+      },
+      {
+        id: 'tf-public',
+        mention: 'presse-agentura',
+        title: 'Presse Agentura',
+        description: null,
+        iconKey: null,
+        sharedFromGroup: null,
+        ownerName: 'Sam Grün',
+        isPublic: true,
+      },
+    ]);
+  });
+});
+
+/**
  * Ein Preset reitet auf der Mention seines Systemrezepts und braucht deshalb
  * keinen eigenen Eintrag — ausser es hat keines. `antrag` steht in
  * `textFormTypeSchema`, aber in keiner `SKILLS`-Zeile; ohne eigene Erwähnung war
  * der angelernte Antrags-Stil im Chat gar nicht auswählbar (#2937).
+ *
+ * Old-server fallback (remove after 2026-12-18): `/api/text-forms/mentionable`
+ * doesn't exist on a not-yet-deployed API, so a failed request falls back once
+ * to `/api/text-forms` — which never applied the kind filter server-side, so
+ * this branch re-applies `hasSystemRecipe` itself.
  */
-describe('syncTextforms — welche Formen zu Erwähnungen werden', () => {
-  const fetchForms =
+describe('syncTextforms — old-server fallback', () => {
+  const fetchOldServer =
     (forms: unknown[]): MentionableFetch =>
-    <T>(): Promise<T> =>
-      Promise.resolve({ forms } as unknown as T);
+    <T>(path: string): Promise<T> => {
+      if (path === '/api/text-forms/mentionable') return Promise.reject(new Error('404'));
+      if (path === '/api/text-forms') return Promise.resolve({ forms } as unknown as T);
+      return Promise.reject(new Error(`unexpected path: ${path}`));
+    };
 
   it('lässt Presets mit mitgeliefertem Rezept weg und nimmt eigene Formen auf', async () => {
     const list = await syncTextforms(
-      fetchForms([
-        { kind: 'preset', mention: 'presse', title: 'Presse', sharedFromGroup: null },
-        { kind: 'preset', mention: 'instagram', title: 'Instagram', sharedFromGroup: null },
-        { kind: 'recipe', mention: 'presse-bayern-partei', title: 'Bayern', sharedFromGroup: null },
-        { kind: 'custom', mention: 'omveinladungen', title: 'OMV', sharedFromGroup: null },
+      fetchOldServer([
+        {
+          id: 'preset-presse',
+          kind: 'preset',
+          mention: 'presse',
+          title: 'Presse',
+          description: null,
+          iconKey: null,
+          sharedFromGroup: null,
+          ownerName: null,
+          isPublic: false,
+        },
+        {
+          id: 'preset-instagram',
+          kind: 'preset',
+          mention: 'instagram',
+          title: 'Instagram',
+          description: null,
+          iconKey: null,
+          sharedFromGroup: null,
+          ownerName: null,
+          isPublic: false,
+        },
+        {
+          id: 'recipe-bayern',
+          kind: 'recipe',
+          mention: 'presse-bayern-partei',
+          title: 'Bayern',
+          description: null,
+          iconKey: null,
+          sharedFromGroup: null,
+          ownerName: null,
+          isPublic: false,
+        },
+        {
+          id: 'custom-omv',
+          kind: 'custom',
+          mention: 'omveinladungen',
+          title: 'OMV',
+          description: null,
+          iconKey: null,
+          sharedFromGroup: null,
+          ownerName: null,
+          isPublic: false,
+        },
       ])
     );
     expect(list.map((f) => f.mention)).toEqual(['omveinladungen']);
@@ -172,9 +313,37 @@ describe('syncTextforms — welche Formen zu Erwähnungen werden', () => {
 
   it('nimmt ein Preset ohne mitgeliefertes Rezept auf', async () => {
     const list = await syncTextforms(
-      fetchForms([{ kind: 'preset', mention: 'antrag', title: 'Anträge', sharedFromGroup: null }])
+      fetchOldServer([
+        {
+          id: 'preset-antrag',
+          kind: 'preset',
+          mention: 'antrag',
+          title: 'Anträge',
+          description: null,
+          iconKey: null,
+          sharedFromGroup: null,
+          ownerName: null,
+          isPublic: false,
+        },
+      ])
     );
-    expect(list).toEqual([{ mention: 'antrag', title: 'Anträge', sharedFromGroup: null }]);
+    expect(list).toEqual([
+      {
+        id: 'preset-antrag',
+        mention: 'antrag',
+        title: 'Anträge',
+        description: null,
+        iconKey: null,
+        sharedFromGroup: null,
+        ownerName: null,
+        isPublic: false,
+      },
+    ]);
+  });
+
+  it('resolves to an empty list when both endpoints fail', async () => {
+    const get: MentionableFetch = () => Promise.reject(new Error('down'));
+    await expect(syncTextforms(get)).resolves.toEqual([]);
   });
 });
 

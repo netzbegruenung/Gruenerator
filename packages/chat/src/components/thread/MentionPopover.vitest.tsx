@@ -149,14 +149,31 @@ describe('recipes shared from a group', () => {
       />
     );
 
+  const textform = (
+    id: string,
+    mention: string,
+    title: string,
+    sharedFromGroup: string | null = null
+  ) => ({
+    id,
+    mention,
+    title,
+    description: null,
+    iconKey: null,
+    sharedFromGroup,
+    ownerName: null,
+    isPublic: false,
+  });
+
   it('lists a shared recipe apart from the user’s own', () => {
     setTextforms([
-      { mention: 'eigene-pressemitteilung', title: 'Eigene Pressemitteilung' },
-      {
-        mention: 'geteilte-pressemitteilung',
-        title: 'Geteilte Pressemitteilung',
-        sharedFromGroup: 'Ortsverband Mitte',
-      },
+      textform('tf-eigen', 'eigene-pressemitteilung', 'Eigene Pressemitteilung'),
+      textform(
+        'tf-geteilt',
+        'geteilte-pressemitteilung',
+        'Geteilte Pressemitteilung',
+        'Ortsverband Mitte'
+      ),
     ]);
     renderPopover('pressemitteilung');
 
@@ -165,7 +182,7 @@ describe('recipes shared from a group', () => {
   });
 
   it('keeps the group section away when nothing is shared', () => {
-    setTextforms([{ mention: 'eigene-pressemitteilung', title: 'Eigene Pressemitteilung' }]);
+    setTextforms([textform('tf-eigen', 'eigene-pressemitteilung', 'Eigene Pressemitteilung')]);
     renderPopover('pressemitteilung');
 
     expect(rowTitlesUnder('eigene')).toEqual(['Eigene Pressemitteilung']);
@@ -174,12 +191,13 @@ describe('recipes shared from a group', () => {
 
   it('keeps the split consistent with the keyboard list', () => {
     setTextforms([
-      { mention: 'eigene-pressemitteilung', title: 'Eigene Pressemitteilung' },
-      {
-        mention: 'geteilte-pressemitteilung',
-        title: 'Geteilte Pressemitteilung',
-        sharedFromGroup: 'Ortsverband Mitte',
-      },
+      textform('tf-eigen', 'eigene-pressemitteilung', 'Eigene Pressemitteilung'),
+      textform(
+        'tf-geteilt',
+        'geteilte-pressemitteilung',
+        'Geteilte Pressemitteilung',
+        'Ortsverband Mitte'
+      ),
     ]);
     renderPopover('pressemitteilung');
 
