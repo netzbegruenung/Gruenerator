@@ -193,4 +193,132 @@ describe('RecipeEditor', () => {
       expect(await axe(container)).toHaveNoViolations();
     });
   });
+  it('tippt einen Bindestrich mitten in der Mention durch', async () => {
+    const { user } = renderWithProviders(
+      <RecipeEditor mode="create" initialState={customCreateForm()} />
+    );
+
+    const mentionField = screen.getByLabelText('@mention');
+    await user.type(mentionField, 'mein-rezept');
+
+    // `slugifyName` schneidet den Bindestrich am Ende ab — auf jedem
+    // Tastendruck angewandt, käme hier „meinrezept" heraus.
+    expect(mentionField).toHaveValue('mein-rezept');
+  });
+
+  it('weist eine reservierte Mention ab, ohne zu speichern', async () => {
+    const { user } = renderWithProviders(
+      <RecipeEditor mode="create" initialState={customCreateForm()} />
+    );
+
+    await user.clear(screen.getByLabelText('@mention'));
+    await user.type(screen.getByLabelText('@mention'), 'neu');
+    await fillTitleAndInstruction(user, 'Irgendein Rezept', 'Schreibe kurz und klar.');
+    await user.click(screen.getByRole('button', { name: 'Speichern' }));
+
+    expect(await screen.findByText('Dieser Name ist reserviert.')).toBeInTheDocument();
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it('erklärt eine System-Mention vor dem Speichern und verweist auf deren Seite', async () => {
+    const { user } = renderWithProviders(
+      <RecipeEditor mode="create" initialState={customCreateForm()} />
+    );
+
+    await fillTitleAndInstruction(user, 'Presse', 'Schreibe kurz und klar.');
+    await user.click(screen.getByRole('button', { name: 'Speichern' }));
+
+    expect(await screen.findByText(/gehört zu einem mitgelieferten Rezept/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Zum Rezept' })).toHaveAttribute(
+      'href',
+      '/agentura/rezept/presse'
+    );
+    expect(screen.getByRole('tab', { name: 'Grundlagen', selected: true })).toBeInTheDocument();
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it('zeigt auch einen 400 vom Server unter dem Mention-Feld', async () => {
+    save.mockResolvedValueOnce({
+      status: 400,
+      body: { success: false, message: "@presse ist ein Preset, nicht kind='custom'." },
+    });
+    const { user } = renderWithProviders(
+      <RecipeEditor mode="edit" initialState={customEditForm()} />
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Speichern' }));
+
+    expect(
+      await screen.findByText("@presse ist ein Preset, nicht kind='custom'.")
+    ).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Grundlagen', selected: true })).toBeInTheDocument();
+  });
+
+  it('speichert ein bestehendes Rezept nach einer Titeländerung auf die ALTE Mention', async () => {
+    save.mockResolvedValueOnce({
+      status: 200,
+      body: { success: true, form: { id: 'r1', mention: 'mein-rezept', title: 'Neuer Titel' } },
+    });
+    const { user } = renderWithProviders(
+      <RecipeEditor mode="edit" initialState={customEditForm()} />
+    );
+
+    await user.clear(screen.getByLabelText('Name'));
+    await user.type(screen.getByLabelText('Name'), 'Ganz anderer Titel');
+    await user.click(screen.getByRole('button', { name: 'Speichern' }));
+
+    await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
+    const call = save.mock.calls[0]?.[0] as { params: { mention: string } };
+    expect(call.params).toEqual({ mention: 'mein-rezept' });
+  });
+
+  it('speichert eine Preset-Anpassung auf die feste Mention des Presets', async () => {
+    save.mockResolvedValueOnce({
+      status: 200,
+      body: { success: true, form: { id: 'r2', mention: 'presse', title: 'Pressemitteilungen' } },
+    });
+    const { user } = renderWithProviders(
+      <RecipeEditor
+        mode="create"
+        initialState={customCreateForm({
+          kind: 'preset',
+          fixedMention: 'presse',
+          mention: 'presse',
+          textType: 'presse',
+          title: 'Pressemitteilungen',
+        })}
+      />
+    );
+
+    await user.click(screen.getByRole('tab', { name: 'Anleitung' }));
+    await user.type(screen.getByLabelText('Anleitung'), 'Schreibe sachlich.');
+    await user.click(screen.getByRole('button', { name: 'Speichern' }));
+
+    await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
+    const call = save.mock.calls[0]?.[0] as {
+      params: { mention: string };
+      body: Record<string, unknown>;
+    };
+    expect(call.params).toEqual({ mention: 'presse' });
+    expect(call.body.kind).toBe('preset');
+  });
+
+  it('ist frei von Verstößen gegen die Zugänglichkeit mit gelistetem Rezept', async () => {
+    // Erst mit `is_public: true` rendert die Eigentumsfrage — die Schaltflächen
+    // mit `aria-pressed`, die die a11y-Prüfung oben gar nicht zu sehen bekommt.
+    getShareSettings.mockResolvedValue({
+      status: 200,
+      body: { share_mode: 'authenticated', is_public: true, public_ownership: 'owner' },
+    });
+    const { container, user } = renderWithProviders(
+      <RecipeEditor mode="edit" initialState={customEditForm()} />
+    );
+
+    await user.click(screen.getByRole('tab', { name: 'Teilen' }));
+    expect(await screen.findByText('Bitte bestätige:')).toBeInTheDocument();
+
+    await waitFor(async () => {
+      expect(await axe(container)).toHaveNoViolations();
+    });
+  });
 });
