@@ -1,4 +1,8 @@
 /**
+ * Zwei reine Regeln über Textform-Zeilen: welche Zeile bei gleicher Mention
+ * gewinnt ({@link pickVisibleTextForm}), und ob eine Zeile überhaupt als
+ * eigener Eintrag auftaucht ({@link isListableTextForm}).
+ *
  * Which row wins when the same mention resolves to more than one visible
  * Textform — own, shared into a group, or public. `own` always wins (a
  * person's own override must never be shadowed by something shared at them),
@@ -7,10 +11,30 @@
  * same input always picks the same row.
  *
  * Eigenes, abhängigkeitsfreies Modul (kein Express, kein Postgres) — reine
- * Funktion über bereits geladene Zeilen, wie `recipeOverrideAccess.ts`.
+ * Funktionen über bereits geladene Zeilen, wie `recipeOverrideAccess.ts`.
  */
+import { type TextFormKind } from '@gruenerator/contracts';
+import { hasSystemRecipe } from '@gruenerator/shared/agents';
 
 export type TextFormAccess = 'own' | 'group' | 'public';
+
+/**
+ * Ist diese Zeile ein EIGENER Eintrag — im Mention-Menü, im Rezept-Katalog des
+ * Modells, überall, wo Rezepte aufgezählt werden?
+ *
+ * Presets und Rezept-Stile ersetzen den Rumpf eines mitgelieferten Rezepts; sie
+ * sind keine zweite Zeile daneben, sonst stünde der selbst gewählte Titel neben
+ * dem des Rezepts und verdrängte ihn. Gefragt wird deshalb nach dem
+ * mitgelieferten Rezept und nicht nach `kind` allein: `antrag` ist ein Preset
+ * OHNE Systemrezept, überschreibt also nichts und muss sich selbst eintragen —
+ * sonst ist der angelernte Antrags-Stil auf keinem Pfad erreichbar (#2937).
+ *
+ * Hier und nicht in der Abfrage, weil dieselbe Frage an mehreren Stellen
+ * gestellt wird und die Antwort ohne Postgres prüfbar sein soll.
+ */
+export function isListableTextForm(kind: TextFormKind, mention: string): boolean {
+  return kind === 'custom' || !hasSystemRecipe(mention);
+}
 
 const ACCESS_RANK: Record<TextFormAccess, number> = { own: 0, group: 1, public: 2 };
 

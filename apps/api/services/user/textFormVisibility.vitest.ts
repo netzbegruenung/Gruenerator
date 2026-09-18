@@ -1,12 +1,17 @@
 /**
  * Precedence when the same mention resolves to more than one visible row —
- * own, then group, then public — with a deterministic tie-break.
+ * own, then group, then public — with a deterministic tie-break; und die Frage
+ * daneben, ob eine Zeile überhaupt als eigener Eintrag aufgezählt wird.
  *
  * Run with: cd apps/api && npx vitest run services/user/textFormVisibility.vitest.ts
  */
 import { describe, expect, it } from 'vitest';
 
-import { pickVisibleTextForm, type TextFormAccess } from './textFormVisibility.js';
+import {
+  isListableTextForm,
+  pickVisibleTextForm,
+  type TextFormAccess,
+} from './textFormVisibility.js';
 
 const USER = 'user-1';
 
@@ -54,5 +59,39 @@ describe('pickVisibleTextForm', () => {
 
   it('returns undefined for an empty list', () => {
     expect(pickVisibleTextForm([], USER)).toBeUndefined();
+  });
+});
+
+/**
+ * Die Regel, an der Mention-Menü und Rezept-Katalog gemeinsam hängen. Sie sass
+ * bis zur Vereinheitlichung als Bedingung in zwei Abfragen und war damit nur
+ * mit Postgres prüfbar — genau der Grund, warum sie zwischen den beiden schon
+ * einmal auseinanderlief (#2937).
+ */
+describe('isListableTextForm', () => {
+  it('zählt eine eigene Textform auf', () => {
+    expect(isListableTextForm('custom', 'omveinladungen')).toBe(true);
+  });
+
+  it('lässt ein Preset weg, das den Rumpf eines Systemrezepts ersetzt', () => {
+    // `@presse` steht im Menü als Rezept; die angelernte Zeile füllt es aus und
+    // darf nicht mit ihrem eigenen Titel danebenstehen.
+    expect(isListableTextForm('preset', 'presse')).toBe(false);
+  });
+
+  it('zählt `antrag` auf — ein Preset ohne mitgeliefertes Rezept', () => {
+    // Es überschreibt nichts, also wäre es sonst auf keinem Pfad erreichbar.
+    expect(isListableTextForm('preset', 'antrag')).toBe(true);
+  });
+
+  it('lässt einen Rezept-Stil auf einer Landesverbands-Mention weg', () => {
+    expect(isListableTextForm('recipe', 'presse-bayern-partei')).toBe(false);
+  });
+
+  it('zählt eine eigene Textform auch dann auf, wenn die Mention ein Rezept kennt', () => {
+    // `kind` entscheidet zuerst: eine Custom-Zeile ist immer ihr eigener
+    // Eintrag. Kollidieren kann sie nicht — `resolveTextFormKind` lässt eine
+    // Custom-Mention auf einer Rezept-Mention gar nicht erst entstehen.
+    expect(isListableTextForm('custom', 'presse')).toBe(true);
   });
 });

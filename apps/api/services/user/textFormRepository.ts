@@ -21,14 +21,17 @@ import {
   type TextFormShareMode,
   type TextFormType,
 } from '@gruenerator/contracts';
-import { hasSystemRecipe } from '@gruenerator/shared/agents';
 import { and, eq } from 'drizzle-orm';
 
 import { userTextForms, type UserTextFormRow } from '../../database/schema/textForms.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 
-import { pickVisibleTextForm, type TextFormAccess } from './textFormVisibility.js';
+import {
+  isListableTextForm,
+  pickVisibleTextForm,
+  type TextFormAccess,
+} from './textFormVisibility.js';
 
 /** Discriminator in the polymorphic `group_content_shares` table. */
 const TEXT_FORM_CONTENT_TYPE = 'user_text_forms';
@@ -313,6 +316,13 @@ const GROUP_SHARE_EXISTS = `EXISTS (
 
 /** The public disjunct: listed, authenticated — and custom, never a system override. */
 const PUBLIC_VISIBLE = `(tf.is_public = TRUE AND tf.share_mode = 'authenticated' AND tf.kind = 'custom')`;
+
+/** Was der Aufrufer OHNE den offenen Katalog sieht: seine eigenen Zeilen und
+ * die, die in eines seiner Projekte geteilt sind. */
+const VISIBLE_TO_CALLER_NO_PUBLIC = `(
+          tf.user_id = $1::uuid
+          OR ${GROUP_SHARE_EXISTS}
+        )`;
 
 const VISIBLE_TO_CALLER = `(
           tf.user_id = $1::uuid
@@ -673,13 +683,22 @@ interface MentionableRow {
  * Postgres felt like returning, and the sublabel would flip between page loads.
  *
  * Presets and recipe overrides replace a system recipe's body; they are not
- * separate menu entries — except when no system recipe exists (`antrag`), which
- * is why the filter asks `hasSystemRecipe` rather than `kind` alone (#2937).
+ * separate menu entries — except when no system recipe exists (`antrag`). Die
+ * Regel steht als {@link isListableTextForm} daneben, weil dieselbe Frage auch
+ * ausserhalb dieser Abfrage gestellt wird (#2937).
+ *
+ * `includePublic: false` lässt den offenen Katalog weg — für Aufrufer, die eine
+ * AUFZÄHLUNG bauen, deren Länge etwas kostet (der Rezept-Katalog des Modells).
+ * Ein öffentliches Rezept bleibt dabei erreichbar: über die ausdrückliche
+ * Mention, die Auswahl im Composer und das `recipes`-Werkzeug — nur aufgezählt
+ * wird es dort nicht.
  */
 export async function listMentionableTextForms(
   userId: string,
-  limit = 200
+  limit = 200,
+  opts: { includePublic?: boolean } = {}
 ): Promise<MentionableTextForm[]> {
+  const includePublic = opts.includePublic ?? true;
   const pg = getPostgresInstance();
   const rows = (await pg.query(
     `SELECT tf.id, tf.user_id, tf.created_at, tf.mention, tf.title, tf.description,
@@ -697,7 +716,7 @@ export async function listMentionableTextForms(
             COALESCE(p.first_name, p.display_name) AS owner_name
        FROM user_text_forms tf
        LEFT JOIN profiles p ON p.id = tf.user_id
-      WHERE ${VISIBLE_TO_CALLER}
+      WHERE ${includePublic ? VISIBLE_TO_CALLER : VISIBLE_TO_CALLER_NO_PUBLIC}
       ORDER BY access_rank, tf.created_at, tf.id
       LIMIT $3`,
     [userId, TEXT_FORM_CONTENT_TYPE, limit]
@@ -718,14 +737,15 @@ export async function listMentionableTextForms(
   for (const candidates of byMention.values()) {
     const winner = pickVisibleTextForm(candidates, userId);
     if (!winner) continue;
-    if (winner.kind !== 'custom' && hasSystemRecipe(winner.mention)) continue;
+    const kind = winner.kind as TextFormKind;
+    if (!isListableTextForm(kind, winner.mention)) continue;
     out.push({
       id: String(winner.id),
       mention: winner.mention,
       title: winner.title,
       description: winner.description ?? null,
       iconKey: winner.icon_key ?? null,
-      kind: winner.kind as TextFormKind,
+      kind,
       sharedFromGroup: winner.access === 'group' ? (winner.group_name ?? null) : null,
       ownerName: winner.access === 'own' ? null : (winner.owner_name ?? null),
       isPublic: winner.is_public,
