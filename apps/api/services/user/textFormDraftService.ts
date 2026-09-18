@@ -107,12 +107,29 @@ function randomBase36Suffix(): string {
     .padStart(4, '0');
 }
 
+/** Bounded retries over random suffixes before falling back to the
+ * pigeonhole scan below — 10 draws from a 36^4 (~1.68M) space makes an
+ * all-collisions run astronomically unlikely for any real `taken` set. */
+const RANDOM_SUFFIX_ATTEMPTS = 10;
+
 /**
  * Resolves a validated base mention against already-taken mentions: `m`,
- * then `m-2` … `m-20`, then `m-<4 random base36 chars>`. Every candidate is
- * re-validated against `textFormMentionSchema` (a truncated stem could in
- * theory produce a shape the regex still rejects) and the stem is truncated
- * so each suffixed candidate stays within the 48-char contract max.
+ * then `m-2` … `m-20`, then up to `RANDOM_SUFFIX_ATTEMPTS` draws of
+ * `m-<4 random base36 chars>`. Every candidate is checked against BOTH
+ * `taken` and `textFormMentionSchema` (a truncated stem could in theory
+ * produce a shape the regex still rejects) and the stem is truncated so
+ * each suffixed candidate stays within the 48-char contract max.
+ *
+ * If every random draw above collides too (not provably impossible, just
+ * vanishingly unlikely), the final fallback keeps counting numeric suffixes
+ * past `-20`: `taken` is a finite set of size N, so scanning N+1 further
+ * distinct numeric suffixes is guaranteed — by pigeonhole — to hit one that
+ * isn't in `taken`, so this loop always terminates before its bound. The
+ * `return` after it is therefore unreachable by construction (every
+ * numeric-suffixed candidate is schema-valid by regex, so only the
+ * `taken`-membership check can ever fail, and the loop already exhausts
+ * every option that check could reject); it exists only so the function is
+ * total and typed.
  */
 function resolveMentionCollision(base: string, taken: ReadonlySet<string>): string {
   if (!taken.has(base) && textFormMentionSchema.safeParse(base).success) return base;
@@ -122,10 +139,17 @@ function resolveMentionCollision(base: string, taken: ReadonlySet<string>): stri
     if (!taken.has(attempt) && textFormMentionSchema.safeParse(attempt).success) return attempt;
   }
 
-  const attempt = withSuffix(base, `-${randomBase36Suffix()}`);
-  return textFormMentionSchema.safeParse(attempt).success
-    ? attempt
-    : base.slice(0, MENTION_MAX_LENGTH);
+  for (let i = 0; i < RANDOM_SUFFIX_ATTEMPTS; i++) {
+    const attempt = withSuffix(base, `-${randomBase36Suffix()}`);
+    if (!taken.has(attempt) && textFormMentionSchema.safeParse(attempt).success) return attempt;
+  }
+
+  for (let i = 21; i <= 21 + taken.size; i++) {
+    const attempt = withSuffix(base, `-${i}`);
+    if (!taken.has(attempt) && textFormMentionSchema.safeParse(attempt).success) return attempt;
+  }
+
+  return withSuffix(base, `-${21 + taken.size}`);
 }
 
 /** The model's mention if valid, else a slug derived from the title, else a
