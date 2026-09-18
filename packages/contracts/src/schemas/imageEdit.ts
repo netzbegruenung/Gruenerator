@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { imageModelIdSchema } from './imageModelPreference.js';
+import { treeBudgetStatusSchema } from './trees.js';
 
 /**
  * Schemas for POST /api/image-edit — FLUX.2 image editing with one or more
@@ -62,11 +63,7 @@ export const imageEditSuccessSchema = z.object({
   /** The structured prompt that was sent to the image model. */
   prompt: z.string(),
   model: imageModelIdSchema,
-  usage: z.object({
-    count: z.number(),
-    remaining: z.number(),
-    limit: z.number(),
-  }),
+  usage: treeBudgetStatusSchema,
 });
 
 export const imageEditErrorSchema = z.object({
@@ -75,13 +72,7 @@ export const imageEditErrorSchema = z.object({
 });
 
 export const imageEditQuotaErrorSchema = imageEditErrorSchema.extend({
-  data: z
-    .object({
-      count: z.number(),
-      remaining: z.number(),
-      limit: z.number(),
-    })
-    .nullish(),
+  data: treeBudgetStatusSchema.nullish(),
 });
 
 export type ImageEditReference = z.infer<typeof imageEditReferenceSchema>;

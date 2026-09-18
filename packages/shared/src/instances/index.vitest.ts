@@ -5,6 +5,7 @@ import {
   INSTANCES,
   getInstance,
   getPinnedLocale,
+  hasUnlimitedTrees,
   isChannelVisibleIn,
   isInstanceId,
   isToolOfferedIn,
@@ -209,6 +210,15 @@ describe('current instances', () => {
       rollen: ['Mitarbeiter*in Bundesgeschäftsstelle'],
       allowCustom: false,
     });
+  });
+
+  it('meters the Bäume budget everywhere but bgst', () => {
+    expect(getInstance('bgst').treeAllowance).toBe('unlimited');
+    expect(hasUnlimitedTrees('bgst')).toBe(true);
+    for (const id of ['production', 'beta', 'local'] as const) {
+      expect(getInstance(id).treeAllowance).toBeUndefined();
+      expect(hasUnlimitedTrees(id)).toBe(false);
+    }
   });
 
   it('leaves the role offer open everywhere else', () => {

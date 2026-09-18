@@ -12,6 +12,8 @@
  */
 import { z } from 'zod';
 
+import { treeBudgetStatusSchema } from './trees.js';
+
 export const translationFormalitySchema = z.enum(['default', 'more', 'less']);
 
 export const translationLanguageSchema = z.object({
@@ -26,10 +28,12 @@ export const translationLanguageSchema = z.object({
   glossary: z.boolean(),
 });
 
-export const translationQuotaSchema = z.object({
-  used: z.number(),
-  limit: z.number(),
-});
+/**
+ * DeepL consumption is metered in the shared daily "Bäume" budget, not in
+ * characters of its own. The alias keeps the `quota` field names the routes
+ * and the UI already use.
+ */
+export const translationQuotaSchema = treeBudgetStatusSchema;
 
 export const translationLanguagesResponseSchema = z.object({
   languages: z.array(translationLanguageSchema),
