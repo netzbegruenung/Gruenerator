@@ -12,6 +12,8 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { TextFormInjection } from '../user/textFormRepository.js';
+
 const getTextFormForInjection = vi.fn();
 const getTextFormForInjectionById = vi.fn();
 const getInternalSkillPrompt = vi.fn();
@@ -27,9 +29,10 @@ vi.mock('../skills/internalPrompts.js', () => ({
 const { resolveRecipeBody } = await import('./resolveRecipeBody.js');
 
 /** Eine Zeile aus `user_text_forms`, wie sie `TextFormInjection` trägt. */
-function injection(overrides: Record<string, unknown> = {}) {
+function injection(overrides: Partial<TextFormInjection> = {}): TextFormInjection {
   return {
     id: '11111111-1111-4111-8111-111111111111',
+    mention: 'presse',
     kind: 'preset',
     textType: 'presse',
     title: 'Meine Presse',
@@ -58,6 +61,7 @@ describe('resolveRecipeBody — Mention-Pfad (verbatim aus resolveRecipe)', () =
   it('fences a user’s style block as untrusted — it reaches the prompt unasked', async () => {
     getTextFormForInjection.mockResolvedValue(
       injection({
+        mention: 'eigen',
         kind: 'custom',
         textType: null,
         title: 'Eigen',
@@ -94,6 +98,11 @@ describe('resolveRecipeBody — Mention-Pfad (verbatim aus resolveRecipe)', () =
     expect(await resolveRecipeBody({ mention: 'gibtsnicht', userId: null })).toBeNull();
   });
 
+  it('normalisiert die getippte Form vor dem Nachschlagen', async () => {
+    await resolveRecipeBody({ mention: '@Presse ', userId: 'u1' });
+    expect(getTextFormForInjection).toHaveBeenCalledWith('u1', 'presse');
+  });
+
   it('returns null without a mention and without an id', async () => {
     expect(await resolveRecipeBody({ mention: null, userId: 'u1' })).toBeNull();
   });
@@ -120,7 +129,7 @@ describe('resolveRecipeBody — was die Aufrufstellen daran ablesen', () => {
 
   it('replacesSystem ist falsch für eine freie Mention ohne Systemrezept', async () => {
     getTextFormForInjection.mockResolvedValue(
-      injection({ kind: 'custom', textType: null, title: 'Einladungen' })
+      injection({ mention: 'omveinladungen', kind: 'custom', textType: null, title: 'Einladungen' })
     );
     const r = await resolveRecipeBody({ mention: 'omveinladungen', userId: 'u1' });
     expect(r?.replacesSystem).toBe(false);
@@ -151,6 +160,7 @@ describe('resolveRecipeBody — id-Pfad', () => {
     getTextFormForInjectionById.mockResolvedValue(
       injection({
         id: '22222222-2222-4222-8222-222222222222',
+        mention: 'gepinnte-form',
         kind: 'custom',
         textType: null,
         title: 'Gepinnt',
@@ -171,9 +181,11 @@ describe('resolveRecipeBody — id-Pfad', () => {
     expect(getTextFormForInjection).not.toHaveBeenCalled();
     expect(r).toMatchObject({
       id: '22222222-2222-4222-8222-222222222222',
+      mention: 'gepinnte-form',
       title: 'Gepinnt',
       source: 'user',
       untrusted: true,
+      replacesSystem: false,
       access: 'public',
     });
     expect(r?.body).toContain('Nur Stichpunkte.');
@@ -203,31 +215,24 @@ describe('resolveRecipeBody — id-Pfad', () => {
     expect(r?.source).toBe('system');
   });
 
-  // Ohne Mention hat der id-Pfad keinen Schlüssel für `hasSystemRecipe` — die
-  // Zeile selbst trägt die Antwort (`kind`/`textType`).
-  it('erkennt ohne Mention am kind, dass die Zeile ein Systemrezept ersetzt', async () => {
-    getTextFormForInjectionById.mockResolvedValue(injection({ kind: 'recipe', textType: null }));
+  // Die gepinnte Zeile gilt unter IHREM Namen. Entschiede die Mention des
+  // Turns, trüge das Abzeichen „Pressemitteilung" über einem fremden Rumpf und
+  // die Überschrift kippte auf „## AKTIVE PLATTFORM" (#2939).
+  it('die Mention des Turns färbt nicht auf die gepinnte Zeile ab', async () => {
+    getTextFormForInjectionById.mockResolvedValue(
+      injection({ mention: 'omveinladungen', kind: 'custom', textType: null, title: 'Einladungen' })
+    );
     const r = await resolveRecipeBody({
-      mention: null,
+      mention: 'presse',
       recipeId: '11111111-1111-4111-8111-111111111111',
       userId: 'u1',
     });
-    expect(r?.replacesSystem).toBe(true);
-    expect(r?.title).toBe('Meine Presse');
-  });
-
-  it('erkennt ohne Mention eine freie Textform als Nicht-Ersatz', async () => {
-    getTextFormForInjectionById.mockResolvedValue(injection({ kind: 'custom', textType: null }));
-    const r = await resolveRecipeBody({
-      mention: null,
-      recipeId: '11111111-1111-4111-8111-111111111111',
-      userId: 'u1',
-    });
+    expect(r?.title).toBe('Einladungen');
     expect(r?.replacesSystem).toBe(false);
-    expect(r?.mention).toBe('');
+    expect(r?.mention).toBe('omveinladungen');
   });
 
-  it('leitet ohne Mention die Preset-Mention aus dem Texttyp ab', async () => {
+  it('nimmt ohne Mention Name, Titel und Überschrift aus der Zeile', async () => {
     getTextFormForInjectionById.mockResolvedValue(injection());
     const r = await resolveRecipeBody({
       mention: null,

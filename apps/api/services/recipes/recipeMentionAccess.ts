@@ -6,7 +6,12 @@
  * jemand ein Landesverbands-Rezept, das er nirgends findet und dessen Rumpf
  * `resolveRecipeBody` ihm später auch nicht liefert.
  *
- * Deshalb wird hier nichts neu entschieden: Für eine Mention zählt die
+ * Geprüft wird die NORMALISIERTE Mention (`normalizeTextFormMention`, dieselbe
+ * Funktion, die `resolveRecipeBody` benutzt). Aufrufer müssen genau diese Form
+ * auch persistieren, nicht die getippte: ein gespeichertes „@Presse" träfe im
+ * Turn keine Zeile, obwohl es hier durchgegangen ist.
+ *
+ * Im Übrigen wird hier nichts neu entschieden: Für eine Mention zählt die
  * Mitgliedschaft im Katalog, den das Modell und das Menü ohnehin sehen
  * (`buildRecipeCatalog` — Audience, Landesverbands-Rolle, Instanz, abgeschaltete
  * Gliederungen). Für eine gepinnte Zeile zählt der Sichtbarkeitstest der Zeile
