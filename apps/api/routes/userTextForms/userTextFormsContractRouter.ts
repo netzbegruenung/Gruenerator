@@ -7,6 +7,12 @@
  * (:mention/share, /share/mode, /share/is-public).
  *
  * requireAuth is applied at the /api/text-forms prefix in routes.ts.
+ *
+ * Jede Route mit `:mention` normalisiert den Pfad-Parameter über
+ * `normalizeTextFormMention`. Gespeichert wird die kanonische Mention (das tut
+ * `save` über das Urteil), und ein führendes `@`/`/` oder ein zurückgezogenes
+ * Kürzel in der URL träfe sonst keine Zeile — die Route antwortete mit 404 auf
+ * ein Rezept, das es gibt.
  */
 
 import { userTextFormsContract } from '@gruenerator/contracts';
@@ -17,7 +23,7 @@ import { getPostgresInstance } from '../../database/services/PostgresService.js'
 import { loadUserRoles } from '../../services/roles/userRoles.js';
 import { analyzeTextForm, textTypeLabel } from '../../services/user/textFormAnalysisService.js';
 import { draftRecipeSpec } from '../../services/user/textFormDraftService.js';
-import { resolveTextFormKind } from '../../services/user/textFormKind.js';
+import { normalizeTextFormMention, resolveTextFormKind } from '../../services/user/textFormKind.js';
 import {
   deleteTextForm,
   getTextFormSharing,
@@ -236,7 +242,7 @@ export const userTextFormsContractRouter = s.router(userTextFormsContract, {
   remove: async (args) => {
     try {
       const userId = getAuthedUser(args.req).id;
-      const deleted = await deleteTextForm(userId, args.params.mention);
+      const deleted = await deleteTextForm(userId, normalizeTextFormMention(args.params.mention));
       if (!deleted) {
         return {
           status: 404 as const,
@@ -254,7 +260,10 @@ export const userTextFormsContractRouter = s.router(userTextFormsContract, {
   getShareSettings: async (args) => {
     try {
       const userId = getAuthedUser(args.req).id;
-      const sharing = await getTextFormSharing(userId, args.params.mention);
+      const sharing = await getTextFormSharing(
+        userId,
+        normalizeTextFormMention(args.params.mention)
+      );
       if (!sharing) {
         return {
           status: 404 as const,
@@ -279,7 +288,7 @@ export const userTextFormsContractRouter = s.router(userTextFormsContract, {
   setShareMode: async (args) => {
     try {
       const userId = getAuthedUser(args.req).id;
-      const mention = args.params.mention;
+      const mention = normalizeTextFormMention(args.params.mention);
       const current = await getTextFormSharing(userId, mention);
       if (!current) {
         return {
@@ -312,7 +321,7 @@ export const userTextFormsContractRouter = s.router(userTextFormsContract, {
   setIsPublic: async (args) => {
     try {
       const userId = getAuthedUser(args.req).id;
-      const mention = args.params.mention;
+      const mention = normalizeTextFormMention(args.params.mention);
       const current = await getTextFormSharing(userId, mention);
       if (!current) {
         return {
@@ -353,7 +362,11 @@ export const userTextFormsContractRouter = s.router(userTextFormsContract, {
   share: async (args) => {
     try {
       const userId = getAuthedUser(args.req).id;
-      const shares = await shareTextFormWithGroup(userId, args.params.mention, args.body.group_id);
+      const shares = await shareTextFormWithGroup(
+        userId,
+        normalizeTextFormMention(args.params.mention),
+        args.body.group_id
+      );
       if (shares === null) {
         return {
           status: 404 as const,
@@ -373,7 +386,7 @@ export const userTextFormsContractRouter = s.router(userTextFormsContract, {
       const userId = getAuthedUser(args.req).id;
       const shares = await unshareTextFormFromGroup(
         userId,
-        args.params.mention,
+        normalizeTextFormMention(args.params.mention),
         args.body.group_id
       );
       if (shares === null) {
