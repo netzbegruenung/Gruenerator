@@ -29,7 +29,11 @@ import {
   translationErrorMessage,
   TranslationUnavailableError,
 } from '../../services/translation/translate.js';
-import { TranslationQuotaExceededError } from '../../services/translation/translationQuota.js';
+import {
+  toTreeBudgetStatusDto,
+  TreeBudgetExceededError,
+  TreeBudgetUnavailableError,
+} from '../../services/trees/treeBudget.js';
 import { setContentDisposition } from '../../utils/http/contentDisposition.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -120,12 +124,19 @@ translationUploadRouter.post(
       const body: TranslationDocumentUploadResponse = job;
       res.json(body);
     } catch (error) {
-      if (error instanceof TranslationQuotaExceededError) {
-        fail(res, 429, translationErrorMessage(error), { quota: error.quota });
+      if (error instanceof TreeBudgetExceededError) {
+        fail(res, 429, translationErrorMessage(error), {
+          quota: toTreeBudgetStatusDto(error.status),
+        });
+        return;
+      }
+      // Both 503s; `code` is what tells the client whether retrying can help.
+      if (error instanceof TreeBudgetUnavailableError) {
+        fail(res, 503, translationErrorMessage(error), { code: 'budget_unavailable' });
         return;
       }
       if (error instanceof TranslationUnavailableError) {
-        fail(res, 503, translationErrorMessage(error));
+        fail(res, 503, translationErrorMessage(error), { code: 'not_configured' });
         return;
       }
       if (error instanceof DeepLError) {

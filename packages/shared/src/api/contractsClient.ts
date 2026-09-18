@@ -26,6 +26,7 @@ import {
   contentContract,
   itemUsageContract,
   userUsageContract,
+  treesContract,
   transparencyContract,
   globalSearchContract,
   researchContract,
@@ -277,6 +278,7 @@ const _recentActivityClient = () => initClient(recentActivityContract, CLIENT_OP
 const _contentClient = () => initClient(contentContract, CLIENT_OPTS);
 const _itemUsageClient = () => initClient(itemUsageContract, CLIENT_OPTS);
 const _userUsageClient = () => initClient(userUsageContract, CLIENT_OPTS);
+const _treesClient = () => initClient(treesContract, CLIENT_OPTS);
 const _transparencyClient = () => initClient(transparencyContract, CLIENT_OPTS);
 const _globalSearchClient = () => initClient(globalSearchContract, CLIENT_OPTS);
 const _researchClient = () => initClient(researchContract, CLIENT_OPTS);
@@ -351,6 +353,7 @@ export interface ContractsClient {
   content: ReturnType<typeof _contentClient>;
   itemUsage: ReturnType<typeof _itemUsageClient>;
   userUsage: ReturnType<typeof _userUsageClient>;
+  trees: ReturnType<typeof _treesClient>;
   transparency: ReturnType<typeof _transparencyClient>;
   globalSearch: ReturnType<typeof _globalSearchClient>;
   research: ReturnType<typeof _researchClient>;
@@ -438,6 +441,7 @@ export function getContractsClient(): ContractsClient {
     content: _contentClient(),
     itemUsage: _itemUsageClient(),
     userUsage: _userUsageClient(),
+    trees: _treesClient(),
     transparency: _transparencyClient(),
     globalSearch: _globalSearchClient(),
     research: _researchClient(),

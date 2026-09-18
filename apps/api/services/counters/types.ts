@@ -21,9 +21,9 @@ export interface RedisClient {
 }
 
 /**
- * Extension required by ImageGenerationCounter to support per-call increment
- * amounts (centi-credits per model). Kept off the base RedisClient interface
- * so the other counters need only the four core commands.
+ * Extension required by the tree budget (`services/trees/treeBudget.ts`) to
+ * book per-call increment amounts atomically. Kept off the base RedisClient
+ * interface so the other counters need only the four core commands.
  */
 export interface RedisIncrByClient extends RedisClient {
   incrBy(key: string, increment: number): Promise<number>;
@@ -49,38 +49,4 @@ export interface TokenStats {
   systemMessages: number;
   userMessages: number;
   assistantMessages: number;
-}
-
-/**
- * Image generation limit status
- */
-export interface ImageGenerationStatus {
-  count: number;
-  remaining: number;
-  limit: number;
-  canGenerate: boolean;
-}
-
-/**
- * Image generation increment result
- */
-export interface ImageGenerationResult extends ImageGenerationStatus {
-  success: boolean;
-}
-
-/**
- * Deep research (Linkup) daily limit status
- */
-export interface DeepResearchStatus {
-  count: number;
-  remaining: number;
-  limit: number;
-  canResearch: boolean;
-}
-
-/**
- * Deep research increment result
- */
-export interface DeepResearchResult extends DeepResearchStatus {
-  success: boolean;
 }
