@@ -36,6 +36,28 @@ export function isListableTextForm(kind: TextFormKind, mention: string): boolean
   return kind === 'custom' || !hasSystemRecipe(mention);
 }
 
+/**
+ * Darf diese Zeile über den eigenen Zugang HINAUS reichen — in ein Projekt
+ * geteilt oder in der Agentura gelistet werden, und darf sie bei fremden Leuten
+ * injiziert werden?
+ *
+ * Zwei Bedingungen, und die zweite ist nicht dieselbe Frage wie oben:
+ * `kind === 'custom'` hält Presets und Rezept-Stile draussen (sie ersetzen den
+ * Rumpf eines mitgelieferten Rezepts, und der gehört nicht dem Eigentümer, um
+ * ihn weiterzugeben); `!hasSystemRecipe(mention)` hält zusätzlich die
+ * `custom`-Zeile draussen, deren Mention ein Systemrezept VERDECKT. Solche
+ * Zeilen gibt es — aus der Zeit vor `resolveTextFormKind` —, und
+ * {@link isListableTextForm} ist für sie blind: es lässt jede `custom`-Zeile
+ * durch, weil es die andere Frage beantwortet (steht sie als eigene Menüzeile?).
+ * Geteilt tauschte so eine Zeile fremden Leuten das Systemrezept still aus.
+ *
+ * Gilt am Schreib- UND am Lesepfad: eine Zeile, die vor dieser Regel
+ * veröffentlicht wurde, wird beim Lesen wieder aussortiert.
+ */
+export function isShareableTextForm(kind: TextFormKind, mention: string): boolean {
+  return kind === 'custom' && !hasSystemRecipe(mention);
+}
+
 const ACCESS_RANK: Record<TextFormAccess, number> = { own: 0, group: 1, public: 2 };
 
 /**

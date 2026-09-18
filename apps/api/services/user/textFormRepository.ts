@@ -8,13 +8,16 @@
  *
  * Visibility is the same three-step ladder as user agents: the caller's own
  * row, then anything shared into one of their groups, then the public catalog.
- * Only `kind = 'custom'` rows may be group-shared or published — a published
- * `preset`/`recipe` row would replace a system recipe for everyone who sees it.
+ * Was über den eigenen Zugang hinausreichen darf, entscheidet `isShareableTextForm`
+ * — eine veröffentlichte `preset`/`recipe`-Zeile (und ebenso eine `custom`-Zeile
+ * auf der Mention eines Systemrezepts) ersetzte das Systemrezept für alle, die
+ * sie zu sehen bekämen.
  */
 
 import {
   type MentionableTextForm,
   type PublicOwnership,
+  type PublicTextForm,
   type TextForm,
   type TextFormGroupShare,
   type TextFormKind,
@@ -29,15 +32,13 @@ import { getPostgresInstance } from '../../database/services/PostgresService.js'
 
 import {
   isListableTextForm,
+  isShareableTextForm,
   pickVisibleTextForm,
   type TextFormAccess,
 } from './textFormVisibility.js';
 
 /** Discriminator in the polymorphic `group_content_shares` table. */
 const TEXT_FORM_CONTENT_TYPE = 'user_text_forms';
-
-/** Only custom recipes may be shared or published — see the module docblock. */
-const SHAREABLE_KIND: TextFormKind = 'custom';
 
 export interface TextFormInput {
   kind: TextFormKind;
@@ -289,25 +290,42 @@ export async function listTextForms(userId: string): Promise<TextForm[]> {
   return [...own, ...shared];
 }
 
+/** Die öffentliche Projektion einer Zeile: was der Katalog von einem fremden
+ * Rezept zeigen darf. Die Begründung steht am `publicTextFormSchema`. */
+function toPublicTextForm(form: TextForm): PublicTextForm {
+  // Weggelassen, nicht vergessen: `_sharedWithGroups` nennt die Projekte des
+  // Eigentümers, `examples` seine Originaltexte.
+  const { examples, sharedWithGroups: _sharedWithGroups, ...rest } = form;
+  return { ...rest, exampleCount: examples.length };
+}
+
 /**
  * Public Agentura discovery feed: recipes listed publicly (is_public=true atop
- * share_mode='authenticated'). `kind = 'custom'` is part of the predicate, not
- * a later filter — a published preset would replace a system recipe for every
- * reader of this list.
+ * share_mode='authenticated'). Das Prädikat ist dasselbe {@link PUBLIC_VISIBLE},
+ * das die Injektion als öffentlichen Zweig führt — zweimal geschrieben hiesse,
+ * dass der Katalog etwas anzeigen kann, was der Chat nicht lädt.
+ *
+ * `isShareableTextForm` siebt danach in TS nach: die SQL-Bedingung kennt nur
+ * `kind`, nicht ob die Mention ein Systemrezept verdeckt.
+ *
+ * Die Antwort trägt die Beispiele NICHT — es sind die Originaltexte fremder
+ * Leute; veröffentlicht ist die Anweisung, nicht ihr Rohstoff.
  */
-export async function listPublicTextForms(limit = 200): Promise<TextForm[]> {
+export async function listPublicTextForms(limit = 200): Promise<PublicTextForm[]> {
   const pg = getPostgresInstance();
   const rows = (await pg.query(
     `SELECT tf.*, COALESCE(p.first_name, p.display_name) AS owner_name
        FROM user_text_forms tf
        LEFT JOIN profiles p ON p.id = tf.user_id
-      WHERE tf.kind = $1 AND tf.is_public = TRUE AND tf.share_mode = 'authenticated'
+      WHERE ${PUBLIC_VISIBLE}
       ORDER BY tf.updated_at DESC, tf.id
-      LIMIT $2`,
-    [SHAREABLE_KIND, limit]
+      LIMIT $1`,
+    [limit]
   )) as unknown as Array<UserTextFormRow & { owner_name: string | null }>;
 
-  return rows.map((row) => rowToTextForm(row, { ownerName: row.owner_name ?? null }));
+  return rows
+    .filter((row) => isShareableTextForm(row.kind as TextFormKind, row.mention))
+    .map((row) => toPublicTextForm(rowToTextForm(row, { ownerName: row.owner_name ?? null })));
 }
 
 /** An active group share of `tf` reaching `$1::uuid`. Written once, used by
@@ -387,14 +405,22 @@ async function loadInjection(
 
   const r = rows[0];
   if (!r || !r.style_block) return null;
+  const kind = r.kind as TextFormKind;
+  const access = accessFromRank(r.access_rank);
+  // Der öffentliche Zweig der Abfrage kennt nur `kind`. Eine `custom`-Zeile,
+  // deren Mention ein Systemrezept verdeckt, kam vor dieser Regel durch die
+  // Veröffentlichung und würde Fremden hier das Systemrezept austauschen.
+  // Eigene und in ein Projekt geteilte Zeilen sind davon unberührt: dort hat
+  // jemand die Zeile bewusst gewählt bzw. bewusst hereingelassen.
+  if (access === 'public' && !isShareableTextForm(kind, r.mention)) return null;
   return {
     id: String(r.id),
     mention: r.mention,
-    kind: r.kind as TextFormKind,
+    kind,
     textType: (r.text_type as TextFormType | null) ?? null,
     title: r.title,
     styleBlock: r.style_block,
-    access: accessFromRank(r.access_rank),
+    access,
   };
 }
 
@@ -495,7 +521,13 @@ export async function updateTextFormSharing(
     .limit(1);
   const row = existing[0];
   if (!row) return { ok: true, updated: false };
-  if (row.kind !== SHAREABLE_KIND) return { ok: false, reason: 'not_custom' };
+  // Nicht nur `kind`: eine `custom`-Zeile, deren Mention ein Systemrezept
+  // verdeckt, tauschte es für alle aus, die sie bekämen (siehe
+  // `isShareableTextForm`). Der Grund heisst weiter `not_custom` — der Router
+  // bildet ihn auf 409 ab und der Text passt auf beide Fälle.
+  if (!isShareableTextForm(row.kind as TextFormKind, mention)) {
+    return { ok: false, reason: 'not_custom' };
+  }
 
   // The patch is resolved against the stored row, not applied field by field:
   // a caller that only flips `share_mode` still has to leave a consistent
@@ -541,15 +573,17 @@ async function findOwnRow(
   return row ? { id: String(row.id), kind: row.kind } : null;
 }
 
-/** Share a recipe the user owns with one of their groups. Only `custom` rows:
- * a preset or recipe override takes the same path as a missing row. */
+/** Share a recipe the user owns with one of their groups. Only Zeilen, die
+ * `isShareableTextForm` durchlässt: ein Preset, ein Rezept-Stil und eine
+ * `custom`-Zeile auf der Mention eines Systemrezepts nehmen denselben Weg wie
+ * eine fehlende Zeile. */
 export async function shareTextFormWithGroup(
   userId: string,
   mention: string,
   groupId: string
 ): Promise<TextFormGroupShare[] | null> {
   const form = await findOwnRow(userId, mention);
-  if (!form || form.kind !== SHAREABLE_KIND) return null;
+  if (!form || !isShareableTextForm(form.kind as TextFormKind, mention)) return null;
 
   const pg = getPostgresInstance();
   // Membership is checked in SQL: the insert only happens for a group the user
