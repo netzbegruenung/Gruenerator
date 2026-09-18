@@ -24,10 +24,12 @@ import {
   translationErrorMessage,
   TranslationUnavailableError,
 } from '../../services/translation/translate.js';
+import { getTreeBudget } from '../../services/trees/index.js';
 import {
-  getQuota,
-  TranslationQuotaExceededError,
-} from '../../services/translation/translationQuota.js';
+  toTreeBudgetStatusDto,
+  TreeBudgetExceededError,
+  TreeBudgetUnavailableError,
+} from '../../services/trees/treeBudget.js';
 import { requireInstanceAdmin } from '../../utils/adminAuthz.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
@@ -65,7 +67,11 @@ export const translationContractRouter = s.router(translationContract, {
     const service = getDeepLService();
     if (!service) return NOT_CONFIGURED;
     try {
-      const [languages, quota] = await Promise.all([service.getLanguages(), getQuota(user.id)]);
+      const [languages, status] = await Promise.all([
+        service.getLanguages(),
+        getTreeBudget().status(user.id),
+      ]);
+      const quota = toTreeBudgetStatusDto(status);
       let glossaryPairs: string[] = [];
       try {
         glossaryPairs = (await resolveGlossary(service))?.pairs ?? [];
@@ -90,14 +96,20 @@ export const translationContractRouter = s.router(translationContract, {
       });
       return { status: 200 as const, body: result };
     } catch (error) {
-      if (error instanceof TranslationQuotaExceededError) {
+      if (error instanceof TreeBudgetExceededError) {
         return {
           status: 429 as const,
           body: {
             success: false as const,
-            error: translationErrorMessage(error),
-            quota: error.quota,
+            error: error.message,
+            quota: toTreeBudgetStatusDto(error.status),
           },
+        };
+      }
+      if (error instanceof TreeBudgetUnavailableError) {
+        return {
+          status: 503 as const,
+          body: { success: false as const, error: error.message },
         };
       }
       if (error instanceof TranslationUnavailableError) return NOT_CONFIGURED;

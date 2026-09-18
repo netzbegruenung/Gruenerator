@@ -29,7 +29,11 @@ import {
   translationErrorMessage,
   TranslationUnavailableError,
 } from '../../services/translation/translate.js';
-import { TranslationQuotaExceededError } from '../../services/translation/translationQuota.js';
+import {
+  toTreeBudgetStatusDto,
+  TreeBudgetExceededError,
+  TreeBudgetUnavailableError,
+} from '../../services/trees/treeBudget.js';
 import { setContentDisposition } from '../../utils/http/contentDisposition.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -120,8 +124,12 @@ translationUploadRouter.post(
       const body: TranslationDocumentUploadResponse = job;
       res.json(body);
     } catch (error) {
-      if (error instanceof TranslationQuotaExceededError) {
-        fail(res, 429, translationErrorMessage(error), { quota: error.quota });
+      if (error instanceof TreeBudgetExceededError) {
+        fail(res, 429, error.message, { quota: toTreeBudgetStatusDto(error.status) });
+        return;
+      }
+      if (error instanceof TreeBudgetUnavailableError) {
+        fail(res, 503, error.message);
         return;
       }
       if (error instanceof TranslationUnavailableError) {

@@ -1,188 +1,84 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
- * One allowance, two engines.
+ * One booking, two engines.
  *
  * `@deepresearch` is answered by the research agent, or — when that one cannot
- * run — by Linkup's one-shot dossier. Both meter through the SAME Redis key, and
- * each used to carry its own limit against it (agent 3, dossier 1). The verdict
- * therefore depended on which engine happened to ask: at a count of 2 the agent
- * went ahead while the dossier refused, and a single agent run locked the
- * dossier out for the rest of the day — so the fallback that exists precisely
- * for a failing agent could not fire.
- *
- * The cases below hold both halves of the fix: one number for both engines, and
- * neither engine holding a second opinion about it.
+ * run — by Linkup's one-shot dossier. A run costs the same either way, so the
+ * caller books one Baum before either starts. What is asserted here is that
+ * this module adds nothing of its own on top: it books and releases exactly
+ * `TREE_COST_DEEP_RESEARCH` against the shared budget, and the refusal it
+ * composes names the one number the budget reports.
  */
+
+import { treeBudgetSpentMessage, type TreeBalance } from '../../../services/trees/treeBudget.js';
+import { TREE_COST_DEEP_RESEARCH } from '../../../services/trees/treeCosts.js';
 
 const USER = 'user-1';
 
-// Hoisted, because the `utils/redis` factory below is evaluated at import time
-// and would otherwise close over an uninitialised binding.
-const { fakeRedis } = vi.hoisted(() => {
-  const store = new Map<string, string>();
-  return {
-    fakeRedis: {
-      store,
-      isReady: true,
-      get: (key: string) => Promise.resolve(store.get(key) ?? null),
-      incr: (key: string) => {
-        const next = (parseInt(store.get(key) ?? '0', 10) || 0) + 1;
-        store.set(key, String(next));
-        return Promise.resolve(next);
-      },
-      expire: () => Promise.resolve(true),
-      del: (...keys: string[]) => {
-        keys.forEach((k) => store.delete(k));
-        return Promise.resolve(keys.length);
-      },
-    },
-  };
-});
-
-const runDeepAgentResearch = vi.fn<(...args: unknown[]) => Promise<unknown>>();
-const linkupDeepResearch = vi.fn<(...args: unknown[]) => Promise<unknown>>();
-
-vi.mock('../../../utils/redis/index.js', () => ({ redisClient: fakeRedis }));
-vi.mock('../../../config/env.js', () => ({ env: { CORTECS_API_KEY: 'sk-test' } }));
-vi.mock('../../../services/research/deepAgent/index.js', () => ({
-  runDeepAgentResearch: (...args: unknown[]) => runDeepAgentResearch(...args),
-}));
-vi.mock('../../../services/docs/DocGenerationService.js', () => ({
-  createDocumentWithContent: () => Promise.resolve({ id: 'doc-42' }),
-}));
-vi.mock('../../../services/research/deepAgent/runRegistry.js', () => ({
-  recordRunDocument: () => Promise.resolve(),
-}));
-vi.mock('../../../services/search/LinkupService.js', () => ({
-  getLinkupService: () => ({ deepResearch: (...args: unknown[]) => linkupDeepResearch(...args) }),
-}));
-
-const { checkDeepResearchQuota, chargeDeepResearch, DEEP_RESEARCH_DAILY_LIMIT } =
-  await import('./deepResearchQuota.js');
-const { runDeepAgentTurn } = await import('./deepAgentTurn.js');
-const { runDeepResearchTurn } = await import('./deepResearchTurn.js');
-
-/** Puts the shared key at a given count for today, the way a day's use would. */
-function seedCount(count: number): void {
-  const today = new Date().toISOString().split('T')[0];
-  fakeRedis.store.set(`deep_research:${USER}:${today}`, String(count));
-}
-
-function currentCount(): number {
-  const today = new Date().toISOString().split('T')[0];
-  return parseInt(fakeRedis.store.get(`deep_research:${USER}:${today}`) ?? '0', 10) || 0;
-}
-
-const STATE = {
-  searchQuery: 'Wiens Klimaziel 2040',
-  userLocale: 'de-AT',
-  agentConfig: { userId: USER },
-};
-
-const sse = () => ({
-  sent: [] as { event: string; payload: unknown }[],
-  send(event: string, payload: unknown) {
-    this.sent.push({ event, payload });
+const { budget } = vi.hoisted(() => ({
+  budget: {
+    reserve: vi.fn(),
+    release: vi.fn(),
   },
-  isEnded: () => false,
+}));
+vi.mock('../../../services/trees/index.js', () => ({ getTreeBudget: () => budget }));
+
+const { deepResearchQuotaSpentMessage, releaseDeepResearch, reserveDeepResearch } =
+  await import('./deepResearchQuota.js');
+
+const balance = (over: Partial<TreeBalance> = {}): TreeBalance => ({
+  usedUnits: 950,
+  limitUnits: 1000,
+  remainingUnits: 50,
+  resetsAt: new Date(Date.now() + 5 * 60 * 60 * 1000),
+  newsletterBonus: false,
+  ...over,
 });
-
-/** The two casts mark the boundary of the doubles: `STATE` is the handful of
- *  fields these turns read out of a ChatGraphState with dozens, and the writer
- *  above only records. */
-const agentTurn = () =>
-  runDeepAgentTurn({
-    state: STATE as unknown as Parameters<typeof runDeepAgentTurn>[0]['state'],
-    sse: sse() as unknown as Parameters<typeof runDeepAgentTurn>[0]['sse'],
-  });
-
-const dossierTurn = () =>
-  runDeepResearchTurn({
-    state: STATE as unknown as Parameters<typeof runDeepResearchTurn>[0]['state'],
-    sse: sse() as unknown as Parameters<typeof runDeepResearchTurn>[0]['sse'],
-  });
 
 beforeEach(() => {
-  vi.clearAllMocks();
-  fakeRedis.store.clear();
-  fakeRedis.isReady = true;
-  runDeepAgentResearch.mockResolvedValue({
-    markdown: '# Bericht\n\n## Quellen\n\n1. A — https://a.example',
-    title: 'Bericht',
-    summary: 'Wien will 2040 klimaneutral sein.',
-    partial: false,
-    threadId: 't-1',
-    sources: [{ url: 'https://a.example', title: 'A' }],
-  });
-  linkupDeepResearch.mockResolvedValue({
-    answer: 'Wien will 2040 klimaneutral sein [1].',
-    sources: [{ name: 'A', url: 'https://a.example', snippet: 'Klimaziel 2040' }],
+  budget.reserve.mockReset().mockResolvedValue({ ok: true, status: balance() });
+  budget.release.mockReset().mockResolvedValue(balance());
+});
+
+describe('reserveDeepResearch', () => {
+  it('books one Baum against the shared budget and hands the verdict back untouched', async () => {
+    const refusal = { ok: false, reason: 'exceeded', status: balance() };
+    budget.reserve.mockResolvedValue(refusal);
+
+    await expect(reserveDeepResearch(USER)).resolves.toBe(refusal);
+    expect(budget.reserve).toHaveBeenCalledWith(USER, TREE_COST_DEEP_RESEARCH);
+    expect(TREE_COST_DEEP_RESEARCH).toBe(100);
   });
 });
 
-describe('the shared allowance', () => {
-  it('reports the same verdict for every count, since only one limit exists', async () => {
-    for (let count = 0; count < DEEP_RESEARCH_DAILY_LIMIT; count++) {
-      seedCount(count);
-      const quota = await checkDeepResearchQuota(USER);
-      expect(quota).toMatchObject({ canResearch: true, count, limit: DEEP_RESEARCH_DAILY_LIMIT });
-    }
-
-    seedCount(DEEP_RESEARCH_DAILY_LIMIT);
-    expect(await checkDeepResearchQuota(USER)).toMatchObject({ canResearch: false, remaining: 0 });
-  });
-
-  it('names the reset time, which every refusal message needs', async () => {
-    expect((await checkDeepResearchQuota(USER)).resetIn).toMatch(/^(\d+h )?\d+m$/);
-  });
-
-  it('charges one run against the shared key', async () => {
-    await chargeDeepResearch(USER);
-    expect(currentCount()).toBe(1);
+describe('releaseDeepResearch', () => {
+  it('gives the same amount back', async () => {
+    await releaseDeepResearch(USER);
+    expect(budget.release).toHaveBeenCalledWith(USER, TREE_COST_DEEP_RESEARCH);
   });
 
   it('swallows a Redis failure rather than losing an answer already produced', async () => {
-    fakeRedis.isReady = false;
-    await expect(chargeDeepResearch(USER)).resolves.toBeUndefined();
+    budget.release.mockRejectedValue(new Error('redis down'));
+    await expect(releaseDeepResearch(USER)).resolves.toBeUndefined();
   });
 });
 
-/**
- * The regression itself. A count of 2 is the number that used to split the two
- * engines — under the agent's limit of 3, over the dossier path's 1.
- */
-describe('neither engine holds a second opinion about the allowance', () => {
-  it('serves the agent at a count of 2', async () => {
-    seedCount(2);
+describe('deepResearchQuotaSpentMessage', () => {
+  it('names the budget number and the fallback that happened instead', () => {
+    const status = balance();
+    const message = deepResearchQuotaSpentMessage({ ok: false, reason: 'exceeded', status });
 
-    expect(await agentTurn()).toMatchObject({ deepResearchAnswer: expect.any(String) });
-    expect(runDeepAgentResearch).toHaveBeenCalledOnce();
+    expect(message).toBe(
+      `${treeBudgetSpentMessage(status, TREE_COST_DEEP_RESEARCH)} Ich habe stattdessen normal recherchiert.`
+    );
+    expect(message).toMatch(/Ich habe stattdessen normal recherchiert\.$/);
   });
 
-  it('serves the dossier at the SAME count of 2', async () => {
-    seedCount(2);
+  it('says the budget could not be read when Redis was the problem', () => {
+    const message = deepResearchQuotaSpentMessage({ ok: false, reason: 'unavailable' });
 
-    expect(await dossierTurn()).toMatchObject({ deepResearchAnswer: expect.any(String) });
-    expect(linkupDeepResearch).toHaveBeenCalledOnce();
-  });
-
-  it('serves the dossier right after an agent run has charged the shared key', async () => {
-    seedCount(0);
-    await agentTurn();
-    expect(currentCount()).toBe(1);
-
-    // Used to be the dead end: one agent run put the count at the dossier
-    // path's own limit, so its fallback could never fire again that day.
-    expect(await dossierTurn()).toMatchObject({ deepResearchAnswer: expect.any(String) });
-    expect(currentCount()).toBe(2);
-  });
-
-  it('leaves the refusal to the caller — an exhausted key stops neither engine', async () => {
-    seedCount(DEEP_RESEARCH_DAILY_LIMIT);
-
-    expect(await agentTurn()).not.toBeNull();
-    seedCount(DEEP_RESEARCH_DAILY_LIMIT);
-    expect(await dossierTurn()).not.toBeNull();
+    expect(message).toMatch(/lässt sich gerade nicht prüfen/);
+    expect(message).toMatch(/Ich habe stattdessen normal recherchiert\.$/);
   });
 });

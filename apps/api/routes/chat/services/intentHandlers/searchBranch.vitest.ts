@@ -4,8 +4,8 @@ import { type ChatGraphState } from '../../../../agents/langgraph/ChatGraph/type
 
 /**
  * The deep-research cascade is the most expensive path in the single-pass
- * branch: two engines, one shared allowance, and each of them replaces BOTH
- * halves of the turn. What is asserted here is the ORDER and the skipping —
+ * branch: two engines, one booking out of the shared budget, and each of them
+ * replaces BOTH halves of the turn. What is asserted here is the ORDER and the skipping —
  * a regression makes the turn either pay twice or rerank a finished answer's
  * citations into the wrong order.
  */
@@ -19,15 +19,12 @@ vi.mock('../deepResearchTurn.js', () => ({
   runDeepResearchTurn: (o: unknown): Promise<unknown> => runDeepResearchTurn(o),
 }));
 
-const checkDeepResearchQuota = vi.fn(async () => ({
-  canResearch: true,
-  used: 0,
-  limit: 3,
-  resetIn: '5 Stunden',
-}));
+const reserveDeepResearch = vi.fn<(userId: string) => Promise<{ ok: boolean; reason?: string }>>();
+const releaseDeepResearch = vi.fn<(userId: string) => Promise<void>>();
 vi.mock('../deepResearchQuota.js', () => ({
-  checkDeepResearchQuota: (userId: string) => checkDeepResearchQuota(userId),
-  deepResearchQuotaSpentMessage: (q: { limit: number }) => `Kontingent (${q.limit}) aufgebraucht`,
+  reserveDeepResearch: (userId: string) => reserveDeepResearch(userId),
+  releaseDeepResearch: (userId: string) => releaseDeepResearch(userId),
+  deepResearchQuotaSpentMessage: (r: { reason: string }) => `Budget (${r.reason}) aufgebraucht`,
 }));
 
 const searchNode = vi.fn(async (_state: ChatGraphState) => ({
@@ -95,13 +92,8 @@ const run = (over: Partial<ChatGraphState> = {}, enabledTools?: Record<string, b
 beforeEach(() => {
   runDeepAgentTurn.mockReset();
   runDeepResearchTurn.mockReset();
-  checkDeepResearchQuota.mockClear();
-  checkDeepResearchQuota.mockResolvedValue({
-    canResearch: true,
-    used: 0,
-    limit: 3,
-    resetIn: '5 Stunden',
-  });
+  reserveDeepResearch.mockReset().mockResolvedValue({ ok: true });
+  releaseDeepResearch.mockReset().mockResolvedValue(undefined);
   searchNode.mockClear();
   briefGeneratorNode.mockClear();
   briefGeneratorNode.mockResolvedValue({});
@@ -137,46 +129,68 @@ describe('runSearchBranch — deep-research cascade', () => {
     expect(sse.send.mock.calls.some(([type]) => type === 'search_complete')).toBe(true);
   });
 
+  it('keeps the booking when an engine delivered', async () => {
+    runDeepAgentTurn.mockResolvedValue(null);
+    runDeepResearchTurn.mockResolvedValue({ searchResults: [] });
+
+    await run({ deepResearchRequested: true });
+
+    expect(reserveDeepResearch).toHaveBeenCalledTimes(1);
+    expect(releaseDeepResearch).not.toHaveBeenCalled();
+  });
+
   /**
-   * Both engines meter through one Redis key. A spent agent allowance is
-   * therefore also spent for the dossier — calling it would buy a doomed
-   * request and a second warning naming a different number.
+   * The booking is made before either engine runs, so a turn where neither
+   * delivered would otherwise charge a Baum for the ordinary search the user
+   * ends up with.
    */
-  it('settles the shared allowance once and skips BOTH engines when it is gone', async () => {
-    checkDeepResearchQuota.mockResolvedValue({
-      canResearch: false,
-      used: 3,
-      limit: 3,
-      resetIn: '5 Stunden',
-    });
+  it('hands the booking back when both engines return null', async () => {
+    runDeepAgentTurn.mockResolvedValue(null);
+    runDeepResearchTurn.mockResolvedValue(null);
+
+    await run({ deepResearchRequested: true });
+
+    expect(releaseDeepResearch).toHaveBeenCalledWith('u1');
+    expect(searchNode).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * Both engines cost the same one Baum. A refused booking is therefore
+   * refused for both — calling the second would buy a doomed request and a
+   * second warning naming a different number.
+   */
+  it('books once and skips BOTH engines when the budget refuses', async () => {
+    reserveDeepResearch.mockResolvedValue({ ok: false, reason: 'exceeded' });
 
     const result = await run({ deepResearchRequested: true });
 
-    expect(checkDeepResearchQuota).toHaveBeenCalledTimes(1);
+    expect(reserveDeepResearch).toHaveBeenCalledTimes(1);
     expect(runDeepAgentTurn).not.toHaveBeenCalled();
     expect(runDeepResearchTurn).not.toHaveBeenCalled();
+    expect(releaseDeepResearch).not.toHaveBeenCalled();
     expect(searchNode).toHaveBeenCalledTimes(1);
     expect(result.servedWholeTurn).toBe(false);
   });
 
   /**
-   * No userId means no meter. Asking the counter would fail closed and report
-   * "not billable" as "allowance spent".
+   * No userId means no meter. Booking would fail closed and report "not
+   * billable" as "budget spent".
    */
-  it('does not ask the counter without a userId', async () => {
+  it('does not book without a userId', async () => {
     runDeepAgentTurn.mockResolvedValue(null);
     runDeepResearchTurn.mockResolvedValue(null);
 
     await run({ deepResearchRequested: true, agentConfig: { identifier: 'x' } } as never);
 
-    expect(checkDeepResearchQuota).not.toHaveBeenCalled();
+    expect(reserveDeepResearch).not.toHaveBeenCalled();
+    expect(releaseDeepResearch).not.toHaveBeenCalled();
     expect(runDeepAgentTurn).toHaveBeenCalledTimes(1);
   });
 
-  it('leaves both engines and the counter alone when the turn never asked for deep research', async () => {
+  it('leaves both engines and the budget alone when the turn never asked for deep research', async () => {
     const result = await run();
 
-    expect(checkDeepResearchQuota).not.toHaveBeenCalled();
+    expect(reserveDeepResearch).not.toHaveBeenCalled();
 
     expect(runDeepAgentTurn).not.toHaveBeenCalled();
     expect(runDeepResearchTurn).not.toHaveBeenCalled();

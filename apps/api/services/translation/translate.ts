@@ -9,6 +9,14 @@
  * cost when none does, and detection on the whole text rather than a probe.
  */
 import { createLogger } from '../../utils/logger.js';
+import { getTreeBudget } from '../trees/index.js';
+import {
+  toTreeBudgetStatusDto,
+  TreeBudgetExceededError,
+  TreeBudgetUnavailableError,
+  type TreeBudget,
+} from '../trees/treeBudget.js';
+import { treeCostForChars } from '../trees/treeCosts.js';
 
 import {
   DeepLError,
@@ -18,12 +26,8 @@ import {
   type DeepLService,
 } from './DeepLService.js';
 import { glossaryIdFor, resolveGlossary, type GlossaryInfo } from './glossaryRegistry.js';
-import {
-  assertQuota,
-  settleQuota,
-  TranslationQuotaExceededError,
-  type QuotaStatus,
-} from './translationQuota.js';
+
+import type { TreeBudgetStatus } from '@gruenerator/contracts';
 
 const log = createLogger('Translate');
 
@@ -54,12 +58,13 @@ export interface TranslateResult {
   targetLang: string;
   billedCharacters: number;
   glossaryApplied: boolean;
-  quota: QuotaStatus;
+  quota: TreeBudgetStatus;
 }
 
 export interface TranslateDeps {
   service?: DeepLService | null;
   glossary?: (service: DeepLService) => Promise<GlossaryInfo | null>;
+  budget?: Pick<TreeBudget, 'reserveOrThrow' | 'adjust' | 'release'>;
 }
 
 export function explicitSource(sourceLang: string | null | undefined): string | null {
@@ -93,7 +98,13 @@ export async function translateWithGlossary(
     throw new RangeError(`Text länger als ${TEXT_MAX_CHARS} Zeichen`);
   }
 
-  await assertQuota(params.userId, params.text.length);
+  // Booked on the text length before DeepL sees it, corrected to what DeepL
+  // actually billed afterwards — the estimate is exact for plain text and too
+  // low only when a glossary forces a second pass.
+  const budget = deps.budget ?? getTreeBudget();
+  const reserved = treeCostForChars(params.text.length);
+  await budget.reserveOrThrow(params.userId, reserved);
+
   const glossary = await glossaryOrNull(service, deps.glossary ?? resolveGlossary);
   const formality = params.formality ?? null;
   const source = explicitSource(params.sourceLang);
@@ -103,44 +114,51 @@ export async function translateWithGlossary(
   let billed = 0;
   let glossaryApplied = false;
 
-  if (source) {
-    const glossaryId = glossaryIdFor(glossary, source, params.targetLang);
-    const [t] = await service.translateText({
-      text: [params.text],
-      targetLang: params.targetLang,
-      sourceLang: source,
-      formality,
-      glossaryId,
-    });
-    text = t!.text;
-    detectedSourceLang = t!.detectedSourceLang || rootLang(source);
-    billed = t!.billedCharacters;
-    glossaryApplied = glossaryId !== null;
-  } else {
-    const [first] = await service.translateText({
-      text: [params.text],
-      targetLang: params.targetLang,
-      formality,
-    });
-    text = first!.text;
-    detectedSourceLang = first!.detectedSourceLang;
-    billed = first!.billedCharacters;
-    const glossaryId = glossaryIdFor(glossary, detectedSourceLang, params.targetLang);
-    if (glossaryId) {
-      const [second] = await service.translateText({
+  try {
+    if (source) {
+      const glossaryId = glossaryIdFor(glossary, source, params.targetLang);
+      const [t] = await service.translateText({
         text: [params.text],
         targetLang: params.targetLang,
-        sourceLang: detectedSourceLang,
+        sourceLang: source,
         formality,
         glossaryId,
       });
-      text = second!.text;
-      billed += second!.billedCharacters;
-      glossaryApplied = true;
+      text = t!.text;
+      detectedSourceLang = t!.detectedSourceLang || rootLang(source);
+      billed = t!.billedCharacters;
+      glossaryApplied = glossaryId !== null;
+    } else {
+      const [first] = await service.translateText({
+        text: [params.text],
+        targetLang: params.targetLang,
+        formality,
+      });
+      text = first!.text;
+      detectedSourceLang = first!.detectedSourceLang;
+      billed = first!.billedCharacters;
+      const glossaryId = glossaryIdFor(glossary, detectedSourceLang, params.targetLang);
+      if (glossaryId) {
+        const [second] = await service.translateText({
+          text: [params.text],
+          targetLang: params.targetLang,
+          sourceLang: detectedSourceLang,
+          formality,
+          glossaryId,
+        });
+        text = second!.text;
+        billed += second!.billedCharacters;
+        glossaryApplied = true;
+      }
     }
+  } catch (error) {
+    await budget.release(params.userId, reserved);
+    throw error;
   }
 
-  const quota = await settleQuota(params.userId, billed || params.text.length);
+  const quota = toTreeBudgetStatusDto(
+    await budget.adjust(params.userId, treeCostForChars(billed || params.text.length) - reserved)
+  );
   return {
     text,
     detectedSourceLang,
@@ -153,9 +171,8 @@ export async function translateWithGlossary(
 
 /** German, user-facing sentence for whatever the translation path threw. */
 export function translationErrorMessage(error: unknown): string {
-  if (error instanceof TranslationQuotaExceededError) {
-    return `${error.message} Morgen steht das Budget wieder zur Verfügung.`;
-  }
+  if (error instanceof TreeBudgetExceededError) return error.message;
+  if (error instanceof TreeBudgetUnavailableError) return error.message;
   if (error instanceof TranslationUnavailableError) return error.message;
   if (error instanceof RangeError) return error.message;
   if (error instanceof DeepLError) {
