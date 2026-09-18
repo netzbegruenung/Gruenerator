@@ -38,11 +38,6 @@ vi.mock('@gruenerator/chat', async (importOriginal) => ({
   useUserLandesverbaende: () => ({ lvIds: lv.lvIds, headings: [], isHydrated: true }),
 }));
 
-vi.mock('@/stores/authStore', () => ({
-  useAuthStore: (selector: (s: unknown) => unknown) =>
-    selector({ isAuthenticated: true, locale: 'de-DE' }),
-}));
-
 const navigate = vi.fn();
 vi.mock('react-router-dom', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
@@ -87,8 +82,14 @@ function publicRow(over: Record<string, unknown> = {}) {
   };
 }
 
-function renderPage(mention: string) {
+/**
+ * `seedAuth: false` = the auth probe has not answered yet. `RequireAuth` still
+ * mounts the page in that window (warm `['authStatus']` cache), so the page
+ * must hold rather than claim the recipe is gone.
+ */
+function renderPage(mention: string, seedAuth = true) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+  if (seedAuth) client.setQueryData(['authStatus'], { isAuthenticated: true });
   return render(
     <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={[`/agentura/rezept/${mention}`]}>
@@ -137,6 +138,25 @@ describe('RecipeDetailPage — Systemrezept', () => {
     expect(
       screen.queryByRole('button', { name: 'Mit eigenen Beispielen anpassen' })
     ).not.toBeInTheDocument();
+  });
+
+  it('nimmt den angepassten Stil mit in den Chat, sobald es einen gibt', async () => {
+    list.mockResolvedValue({
+      status: 200,
+      body: { success: true, forms: [ownRow({ mention: 'presse', kind: 'preset' })] },
+    });
+    renderPage('presse');
+
+    await screen.findByText('Du hast diesen Stil angepasst');
+    await userEvent.click(screen.getByRole('button', { name: 'Im Chat verwenden' }));
+    expect(navigate).toHaveBeenCalledWith('/chat?rezept=presse&rezeptId=row-1');
+  });
+
+  it('schickt ohne eigenen Stil weiter an ?skill=', async () => {
+    renderPage('presse');
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Im Chat verwenden' }));
+    expect(navigate).toHaveBeenCalledWith('/chat?skill=presse');
   });
 
   it('zeigt einem nicht zugeteilten Landesverbands-Rezept keinen Anpassen-Knopf', async () => {
@@ -196,6 +216,13 @@ describe('RecipeDetailPage — eigenes Rezept', () => {
       expect(remove).toHaveBeenCalledWith({ params: { mention: 'mein-rezept' } })
     );
     await waitFor(() => expect(navigate).toHaveBeenCalledWith('/agentura?cat=meine'));
+  });
+
+  it('wartet auf die Auth-Antwort, statt „nicht gefunden“ zu behaupten', async () => {
+    renderPage('mein-rezept', false);
+
+    expect(await screen.findByText('Lädt…')).toBeInTheDocument();
+    expect(screen.queryByText('Rezept nicht gefunden')).not.toBeInTheDocument();
   });
 
   it('hat keine a11y-Verstöße', async () => {

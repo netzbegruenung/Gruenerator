@@ -117,6 +117,13 @@ function SystemRecipeView({
   const Icon = skill.icon ?? PiSparkle;
   const isFavorite = favorites.includes(skill.mention.toLowerCase());
   const editHref = `/agentura/rezept/${encodeURIComponent(skill.mention)}/bearbeiten`;
+  // Mit einem eigenen Override ist „Im Chat verwenden" nicht mehr dasselbe:
+  // `?skill=` aktiviert nur den Agenten, der Rumpf bliebe der mitgelieferte.
+  // `?rezept=` samt Zeilen-ID nimmt den angepassten Stil mit — genau den, den
+  // die Seite eine Zeile darüber ankündigt.
+  const chatHref = ownOverride
+    ? `/chat?rezept=${encodeURIComponent(skill.mention)}&rezeptId=${encodeURIComponent(ownOverride.id)}`
+    : `/chat?skill=${encodeURIComponent(skill.mention)}`;
 
   return (
     <PageContainer maxWidth="lg">
@@ -142,10 +149,7 @@ function SystemRecipeView({
         </div>
 
         <div className="flex shrink-0 flex-wrap items-center gap-xs">
-          <Button
-            variant="brand"
-            onClick={() => navigate(`/chat?skill=${encodeURIComponent(skill.mention)}`)}
-          >
+          <Button variant="brand" onClick={() => navigate(chatHref)}>
             <PiPaperPlaneTilt />
             Im Chat verwenden
           </Button>
@@ -347,7 +351,11 @@ function UserRecipeView({
         )}
       </div>
 
-      {deleteError && <p className="mb-md text-sm text-destructive">{deleteError}</p>}
+      {deleteError && (
+        <p role="alert" className="mb-md text-sm text-destructive">
+          {deleteError}
+        </p>
+      )}
 
       {isOwn && (
         <ShareRecipeModal mention={form.mention} open={shareOpen} onOpenChange={setShareOpen} />
