@@ -1,42 +1,66 @@
 /**
  * ts-rest contract router for per-user learned writing styles ("Texte anlernen").
  *
- * Covers list / analyze / save / remove plus the group share endpoints
- * (PUT and DELETE /api/text-forms/:mention/share).
+ * Covers list / analyze / draft / save / remove, the two discovery feeds
+ * (public, mentionable), the group share endpoints (PUT and DELETE
+ * /api/text-forms/:mention/share) and the visibility axis
+ * (:mention/share, /share/mode, /share/is-public).
  *
  * requireAuth is applied at the /api/text-forms prefix in routes.ts.
  */
 
-import {
-  textFormMentionSchema,
-  textFormTypeSchema,
-  userTextFormsContract,
-} from '@gruenerator/contracts';
-import { SKILLS, landesverbandIdsForRoles } from '@gruenerator/shared/agents';
+import { userTextFormsContract } from '@gruenerator/contracts';
+import { landesverbandIdsForRoles } from '@gruenerator/shared/agents';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
+import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { loadUserRoles } from '../../services/roles/userRoles.js';
 import { analyzeTextForm, textTypeLabel } from '../../services/user/textFormAnalysisService.js';
+import { draftRecipeSpec } from '../../services/user/textFormDraftService.js';
+import { resolveTextFormKind } from '../../services/user/textFormKind.js';
 import {
   deleteTextForm,
+  getTextFormSharing,
+  listMentionableTextForms,
+  listPublicTextForms,
+  listTextForms,
   shareTextFormWithGroup,
   unshareTextFormFromGroup,
-  listTextForms,
+  updateTextFormSharing,
   upsertTextForm,
+  type TextFormSharingPatch,
 } from '../../services/user/textFormRepository.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
 
-import { checkRecipeOverride } from './recipeOverrideAccess.js';
+import { collectTakenMentions, sharingFailure } from './textFormRouterHelpers.js';
 
 import type { Application } from 'express';
 
 const log = createLogger('userTextFormsContractRouter');
 
-const SKILL_MENTIONS = new Set<string>(SKILLS.map((s) => s.mention));
-const PRESET_TYPES = new Set<string>(textFormTypeSchema.options);
+/**
+ * The settings as they stand AFTER a write — never the request echo: the
+ * repository narrows a patch on its own (un-listing when the mode steps down,
+ * clearing the attestation when the listing goes), so only a re-read tells the
+ * client what actually landed.
+ */
+async function freshSettingsResponse(userId: string, mention: string) {
+  const sharing = await getTextFormSharing(userId, mention);
+  if (!sharing) {
+    return { status: 404 as const, body: { success: false, message: 'Rezept nicht gefunden.' } };
+  }
+  return {
+    status: 200 as const,
+    body: {
+      share_mode: sharing.share_mode,
+      is_public: sharing.is_public,
+      public_ownership: sharing.public_ownership,
+    },
+  };
+}
 
 const s = initServer();
 
@@ -73,66 +97,130 @@ export const userTextFormsContractRouter = s.router(userTextFormsContract, {
     }
   },
 
+  // Kein eigener Rate-Limiter — die Entwurfs-Routen (Agent wie Rezept) teilen
+  // sich diese Lücke, sie wird in Issue #3471 verfolgt.
+  draft: async (args) => {
+    try {
+      const userId = getAuthedUser(args.req).id;
+      const { threadId, description } = args.body;
+      const takenMentions = collectTakenMentions(await listTextForms(userId));
+
+      // Guided-assistant path: a one-shot freeform brief. No thread to load —
+      // wrap it as a single user message and synthesize directly.
+      if (description) {
+        const spec = await draftRecipeSpec({
+          messages: [{ role: 'user', content: description }],
+          takenMentions,
+        });
+        return { status: 200 as const, body: { success: true, spec } };
+      }
+
+      // Conversational path: load the (ownership-checked) thread messages.
+      if (!threadId) {
+        return {
+          status: 400 as const,
+          body: { success: false, message: 'Noch keine Unterhaltung zum Auswerten vorhanden.' },
+        };
+      }
+      const postgres = getPostgresInstance();
+      await postgres.ensureInitialized();
+
+      const threads = await postgres.query<{ user_id: string }>(
+        `SELECT user_id FROM chat_threads WHERE id = $1 LIMIT 1`,
+        [threadId]
+      );
+      if (threads.length === 0) {
+        return {
+          status: 404 as const,
+          body: { success: false, message: 'Thread nicht gefunden.' },
+        };
+      }
+      if (threads[0].user_id !== userId) {
+        return { status: 403 as const, body: { success: false, message: 'Keine Berechtigung.' } };
+      }
+
+      const rows = await postgres.query<{ role: string; content: unknown }>(
+        `SELECT role, content FROM chat_messages
+         WHERE thread_id = $1 AND role IN ('user', 'assistant')
+         ORDER BY created_at ASC
+         LIMIT 60`,
+        [threadId]
+      );
+      const messages = rows
+        .map((r) => ({ role: r.role, content: String(r.content ?? '').trim() }))
+        .filter((m) => m.content.length > 0);
+
+      if (messages.length === 0) {
+        return {
+          status: 400 as const,
+          body: { success: false, message: 'Noch keine Unterhaltung zum Auswerten vorhanden.' },
+        };
+      }
+
+      const spec = await draftRecipeSpec({ messages, takenMentions });
+      return { status: 200 as const, body: { success: true, spec } };
+    } catch (error) {
+      const err = error as Error;
+      log.error('[userTextFormsContract.draft] Error:', err);
+      return {
+        status: 500 as const,
+        body: { success: false, message: 'Entwurf konnte nicht erstellt werden.' },
+      };
+    }
+  },
+
+  listPublic: async (args) => {
+    try {
+      getAuthedUser(args.req);
+      const forms = await listPublicTextForms();
+      return { status: 200 as const, body: { success: true, forms } };
+    } catch (error) {
+      const err = error as Error;
+      log.error('[userTextFormsContract.listPublic] Error:', err);
+      return { status: 500 as const, body: { success: false, message: toUserFacingMessage(err) } };
+    }
+  },
+
+  listMentionable: async (args) => {
+    try {
+      const userId = getAuthedUser(args.req).id;
+      const forms = await listMentionableTextForms(userId);
+      return { status: 200 as const, body: { success: true, forms } };
+    } catch (error) {
+      const err = error as Error;
+      log.error('[userTextFormsContract.listMentionable] Error:', err);
+      return { status: 500 as const, body: { success: false, message: toUserFacingMessage(err) } };
+    }
+  },
+
   save: async (args) => {
     try {
       const user = getAuthedUser(args.req);
       const userId = user.id;
-      const mention = args.params.mention;
       const body = args.body;
 
-      if (body.kind === 'preset') {
-        // Presets deliberately reuse the system-skill mention (that IS the
-        // override mechanism): the path mention must equal the preset type.
-        if (!body.textType || mention !== body.textType) {
-          return {
-            status: 400 as const,
-            body: {
-              success: false,
-              message: 'Preset-Textformen müssen textType == mention haben.',
-            },
-          };
-        }
-      } else if (body.kind === 'recipe') {
-        // Ein Stil FÜR EIN mitgeliefertes Landesverbands-Rezept — er ersetzt
-        // dessen Rumpf, also entscheidet die Zuteilung (siehe dort).
-        const verdict = checkRecipeOverride({
-          mention,
-          lvIds: landesverbandIdsForRoles(await loadUserRoles(userId), user.locale ?? 'de-DE'),
-        });
-        if (!verdict.ok) {
-          return { status: verdict.status, body: { success: false, message: verdict.message } };
-        }
-      } else {
-        // Custom forms must be a valid slug that does not shadow a system skill
-        // or a preset type.
-        const parsed = textFormMentionSchema.safeParse(mention);
-        if (!parsed.success) {
-          return {
-            status: 400 as const,
-            body: {
-              success: false,
-              message: parsed.error.issues[0]?.message ?? 'Ungültige Mention.',
-            },
-          };
-        }
-        if (SKILL_MENTIONS.has(mention) || PRESET_TYPES.has(mention)) {
-          return {
-            status: 409 as const,
-            body: {
-              success: false,
-              message: `„@${mention}" ist bereits vergeben. Bitte einen anderen Namen wählen.`,
-            },
-          };
-        }
+      // Der `kind` einer Speicherung wird abgeleitet, nie geglaubt: `body.kind`
+      // geht nur als Wunsch hinein und muss zur Mention passen.
+      const verdict = resolveTextFormKind({
+        mention: args.params.mention,
+        requestedKind: body.kind,
+        textType: body.textType,
+        lvIds: landesverbandIdsForRoles(await loadUserRoles(userId), user.locale ?? 'de-DE'),
+      });
+      if (!verdict.ok) {
+        return { status: verdict.status, body: { success: false, message: verdict.message } };
       }
 
       const form = await upsertTextForm(userId, {
-        kind: body.kind,
-        textType: body.textType ?? null,
-        mention,
+        kind: verdict.kind,
+        textType: verdict.textType,
+        // Die normalisierte Mention des Urteils, nicht der rohe Pfad-Parameter.
+        mention: verdict.mention,
         title: body.title,
         examples: body.examples,
         styleBlock: body.styleBlock,
+        description: body.description ?? null,
+        iconKey: body.iconKey ?? null,
       });
       return { status: 200 as const, body: { success: true, form } };
     } catch (error) {
@@ -156,6 +244,105 @@ export const userTextFormsContractRouter = s.router(userTextFormsContract, {
     } catch (error) {
       const err = error as Error;
       log.error('[userTextFormsContract.remove] Error:', err);
+      return { status: 500 as const, body: { success: false, message: toUserFacingMessage(err) } };
+    }
+  },
+
+  getShareSettings: async (args) => {
+    try {
+      const userId = getAuthedUser(args.req).id;
+      const sharing = await getTextFormSharing(userId, args.params.mention);
+      if (!sharing) {
+        return {
+          status: 404 as const,
+          body: { success: false, message: 'Rezept nicht gefunden.' },
+        };
+      }
+      return {
+        status: 200 as const,
+        body: {
+          share_mode: sharing.share_mode,
+          is_public: sharing.is_public,
+          public_ownership: sharing.public_ownership,
+        },
+      };
+    } catch (error) {
+      const err = error as Error;
+      log.error('[userTextFormsContract.getShareSettings] Error:', err);
+      return { status: 500 as const, body: { success: false, message: toUserFacingMessage(err) } };
+    }
+  },
+
+  setShareMode: async (args) => {
+    try {
+      const userId = getAuthedUser(args.req).id;
+      const mention = args.params.mention;
+      const current = await getTextFormSharing(userId, mention);
+      if (!current) {
+        return {
+          status: 404 as const,
+          body: { success: false, message: 'Rezept nicht gefunden.' },
+        };
+      }
+
+      // Agentura-Listung sitzt ATOP share_mode='authenticated'. Ein Schritt
+      // zurück nimmt sie mit — `applySharingPatch` leitet dieselbe Regel noch
+      // einmal ab, hier steht sie, damit der Aufruf für sich lesbar bleibt.
+      const patch: TextFormSharingPatch = { share_mode: args.body.mode };
+      if (args.body.mode !== 'authenticated' && current.is_public) {
+        patch.is_public = false;
+        patch.public_ownership = null;
+      }
+
+      const failure = sharingFailure(await updateTextFormSharing(userId, mention, patch));
+      if (failure) {
+        return { status: failure.status, body: { success: false, message: failure.message } };
+      }
+      return await freshSettingsResponse(userId, mention);
+    } catch (error) {
+      const err = error as Error;
+      log.error('[userTextFormsContract.setShareMode] Error:', err);
+      return { status: 500 as const, body: { success: false, message: toUserFacingMessage(err) } };
+    }
+  },
+
+  setIsPublic: async (args) => {
+    try {
+      const userId = getAuthedUser(args.req).id;
+      const mention = args.params.mention;
+      const current = await getTextFormSharing(userId, mention);
+      if (!current) {
+        return {
+          status: 404 as const,
+          body: { success: false, message: 'Rezept nicht gefunden.' },
+        };
+      }
+
+      const { is_public, public_ownership } = args.body;
+      if (is_public && current.share_mode !== 'authenticated') {
+        return {
+          status: 400 as const,
+          body: {
+            success: false,
+            message:
+              'Bitte zuerst Sichtbarkeit auf „Mit Anmeldung" setzen, dann in Agentura listen.',
+          },
+        };
+      }
+
+      const failure = sharingFailure(
+        await updateTextFormSharing(userId, mention, {
+          is_public,
+          public_ownership: is_public ? public_ownership : null,
+        })
+      );
+      if (failure) {
+        return { status: failure.status, body: { success: false, message: failure.message } };
+      }
+      return await freshSettingsResponse(userId, mention);
+    } catch (error) {
+      const err = error as Error;
+      log.error('[userTextFormsContract.setIsPublic] Error:', err);
       return { status: 500 as const, body: { success: false, message: toUserFacingMessage(err) } };
     }
   },
