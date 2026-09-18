@@ -39,11 +39,14 @@ import type { Application } from 'express';
 
 const log = createLogger('translationContractRouter');
 
+// Both 503s, and only `code` tells the client which one it is: without a key
+// retrying never helps, without a budget reading it does.
 const NOT_CONFIGURED = {
   status: 503 as const,
   body: {
     success: false as const,
     error: 'Die Übersetzung ist auf diesem Server nicht eingerichtet.',
+    code: 'not_configured' as const,
   },
 };
 const FORBIDDEN = {
@@ -109,7 +112,11 @@ export const translationContractRouter = s.router(translationContract, {
       if (error instanceof TreeBudgetUnavailableError) {
         return {
           status: 503 as const,
-          body: { success: false as const, error: error.message },
+          body: {
+            success: false as const,
+            error: error.message,
+            code: 'budget_unavailable' as const,
+          },
         };
       }
       if (error instanceof TranslationUnavailableError) return NOT_CONFIGURED;

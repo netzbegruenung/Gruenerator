@@ -62,6 +62,8 @@ const jobSchema = z.object({
   billedCharacters: z.number().nullable(),
   /** What was booked at upload. `null` on a job written before the budget existed. */
   reservedUnits: z.number().nullable().default(null),
+  /** The UTC day the reservation sits on — a job lives 2 h and crosses midnight. */
+  reservedDay: z.string().nullable().default(null),
   message: z.string().nullable(),
 });
 
@@ -69,6 +71,28 @@ export type DocumentJob = z.infer<typeof jobSchema>;
 
 const jobKey = (jobId: string): string => `deepl:job:${jobId}`;
 const lockKey = (jobId: string): string => `deepl:job:${jobId}:fetching`;
+
+/** Jobs written before the day was persisted settle against today, as they did. */
+const currentUtcDay = (): string => new Date().toISOString().slice(0, 10);
+
+/**
+ * SET NX on the job's lock: true only for the poll that may SETTLE the
+ * reservation. Both routes out of `translating` need it — the `done` fetch
+ * (a second `/result` call would 404) and the `error` give-back (two
+ * concurrent polls would otherwise release the same reservation twice).
+ */
+async function claimSettlement(jobId: string): Promise<boolean> {
+  try {
+    const locked = await redisClient.set(lockKey(jobId), '1', {
+      NX: true,
+      EX: FETCH_LOCK_TTL_SECONDS,
+    });
+    return locked === 'OK';
+  } catch (error) {
+    log.warn(`[DeepLDocuments] lock failed, settling anyway: ${(error as Error).message}`);
+    return true;
+  }
+}
 
 async function saveJob(job: DocumentJob): Promise<void> {
   await setCachedJson(jobKey(job.jobId), job, JOB_TTL_SECONDS);
@@ -129,7 +153,7 @@ export async function startDocumentJob(
   const budget = deps.budget ?? getTreeBudget();
   // DeepL's per-file minimum is what a document costs at least, so the whole
   // amount is booked before the upload and corrected once DeepL reports.
-  await budget.reserveOrThrow(params.userId, TREE_COST_DOCUMENT);
+  const { day: reservedDay } = await budget.reserveOrThrow(params.userId, TREE_COST_DOCUMENT);
   void sweepTranslationFiles().catch(() => undefined);
 
   // A glossary needs an explicit source — with "auto" the document goes
@@ -159,7 +183,7 @@ export async function startDocumentJob(
       outputFormat: params.outputFormat ?? null,
     });
   } catch (error) {
-    await budget.release(params.userId, TREE_COST_DOCUMENT);
+    await budget.release(params.userId, TREE_COST_DOCUMENT, reservedDay);
     throw error;
   }
 
@@ -174,6 +198,7 @@ export async function startDocumentJob(
     contentType: null,
     billedCharacters: null,
     reservedUnits: TREE_COST_DOCUMENT,
+    reservedDay,
     message: null,
   };
   await saveJob(job);
@@ -205,7 +230,8 @@ function toStatus(job: DocumentJob, extra: Partial<TranslationDocumentStatusResp
  * first `done` the result is fetched to disk and the reservation corrected —
  * exactly once, the SET NX lock keeps a concurrent poll from a second
  * `/result` call. DeepL bills only completed documents, so every route to
- * `error` gives the reservation back.
+ * `error` gives the reservation back — under the same lock, so two polls of
+ * an errored job release it once.
  */
 export async function pollDocumentJob(
   jobId: string,
@@ -219,6 +245,7 @@ export async function pollDocumentJob(
   const service = resolveService(deps);
   const budget = deps.budget ?? getTreeBudget();
   const reservedUnits = job.reservedUnits ?? TREE_COST_DOCUMENT;
+  const reservedDay = job.reservedDay ?? currentUtcDay();
   const state = await service.getDocumentStatus({
     documentId: job.documentId,
     documentKey: job.documentKey,
@@ -228,21 +255,14 @@ export async function pollDocumentJob(
     job.phase = 'error';
     job.message = state.message ?? 'DeepL konnte das Dokument nicht übersetzen.';
     await saveJob(job);
-    await budget.release(userId, reservedUnits);
+    if (await claimSettlement(jobId)) await budget.release(userId, reservedUnits, reservedDay);
     return toStatus(job);
   }
   if (state.status !== 'done') {
     return toStatus(job, { status: state.status, secondsRemaining: state.secondsRemaining });
   }
 
-  let locked: unknown;
-  try {
-    locked = await redisClient.set(lockKey(jobId), '1', { NX: true, EX: FETCH_LOCK_TTL_SECONDS });
-  } catch (error) {
-    log.warn(`[DeepLDocuments] lock failed, fetching anyway: ${(error as Error).message}`);
-    locked = 'OK';
-  }
-  if (locked !== 'OK') {
+  if (!(await claimSettlement(jobId))) {
     // Another poll is fetching; report progress and let the client ask again.
     return toStatus(job, { status: 'translating', secondsRemaining: 1 });
   }
@@ -262,7 +282,8 @@ export async function pollDocumentJob(
     await saveJob(job);
     await budget.adjust(
       userId,
-      treeCostForChars(Math.max(DOCUMENT_MIN_CHARS, state.billedCharacters ?? 0)) - reservedUnits
+      treeCostForChars(Math.max(DOCUMENT_MIN_CHARS, state.billedCharacters ?? 0)) - reservedUnits,
+      reservedDay
     );
     log.info(
       `[DeepLDocuments] job ${job.jobId} ready (${job.billedCharacters ?? '?'} chars billed)`
@@ -271,7 +292,7 @@ export async function pollDocumentJob(
     job.phase = 'error';
     job.message = 'Das übersetzte Dokument konnte nicht abgeholt werden. Bitte erneut hochladen.';
     await saveJob(job);
-    await budget.release(userId, reservedUnits);
+    await budget.release(userId, reservedUnits, reservedDay);
     log.error(`[DeepLDocuments] result fetch failed for ${job.jobId}: ${(error as Error).message}`);
   } finally {
     await deleteCachedKey(lockKey(jobId));

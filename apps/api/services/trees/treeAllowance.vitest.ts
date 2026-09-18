@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { BASE_DAILY_TREES, NEWSLETTER_BONUS_TREES, allowanceFor } from './treeAllowance.js';
-import { UNITS_PER_TREE } from './treeCosts.js';
+import { allowanceFor } from './treeAllowance.js';
+import { BASE_DAILY_TREES, NEWSLETTER_BONUS_TREES, UNITS_PER_TREE } from './treeCosts.js';
 
 // The defaults reach for the instance registry and Brevo; every case injects
 // its own deps, so the real modules must never be pulled in.

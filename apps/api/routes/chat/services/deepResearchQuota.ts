@@ -31,9 +31,9 @@ export async function reserveDeepResearch(userId: string): Promise<TreeReservati
  * swallow-ok — the release happens after the turn has answered by other means,
  * and losing it to a Redis hiccup is the better trade of the two.
  */
-export async function releaseDeepResearch(userId: string): Promise<void> {
+export async function releaseDeepResearch(userId: string, day: string): Promise<void> {
   try {
-    await getTreeBudget().release(userId, TREE_COST_DEEP_RESEARCH);
+    await getTreeBudget().release(userId, TREE_COST_DEEP_RESEARCH, day);
   } catch (error) {
     log.error(`[DeepResearchQuota] Rückbuchung fehlgeschlagen: ${String(error)}`);
   }

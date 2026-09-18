@@ -7,8 +7,8 @@
  * afterwards `adjust` corrects the difference to what was really spent.
  *
  * One Redis key per user and UTC day. Key name and TTL are read from the SAME
- * clock — `ImageGenerationCounter` mixes a UTC key with a local-midnight TTL
- * and therefore resets twice a day on a non-UTC host.
+ * clock — the old image counter mixed a UTC key with a local-midnight TTL
+ * and therefore reset twice a day on a non-UTC host.
  *
  * Fail closed: a dead or erroring Redis refuses the booking instead of letting
  * it through. The allowance is worth money at the provider, and an outage must
@@ -17,7 +17,7 @@
 
 import { createLogger } from '../../utils/logger.js';
 
-import { formatTrees, unitsToTrees } from './treeCosts.js';
+import { BASE_DAILY_TREES, formatTrees, UNITS_PER_TREE, unitsToTrees } from './treeCosts.js';
 
 import type { TreeAllowance } from './treeAllowance.js';
 import type { RedisIncrByClient } from '../counters/types.js';
@@ -32,6 +32,14 @@ export interface TreeBalance {
   remainingUnits: number | null;
   resetsAt: Date;
   newsletterBonus: boolean;
+  /**
+   * UTC date (`YYYY-MM-DD`) of the key this balance belongs to. A reservation
+   * carries it so the correction settles against its OWN day: a document job
+   * runs two hours and a synthesis tens of seconds, so both routinely reconcile
+   * after midnight, when re-reading the clock would pick tomorrow's key. Not on
+   * the wire — `toTreeBudgetStatusDto` leaves it out.
+   */
+  day: string;
 }
 
 export type TreeReservation =
@@ -57,8 +65,12 @@ export class TreeBudget {
     this.now = deps.now ?? ((): Date => new Date());
   }
 
-  private key(userId: string, now: Date): string {
-    return `trees:${userId}:${now.toISOString().slice(0, 10)}`;
+  private dayOf(now: Date): string {
+    return now.toISOString().slice(0, 10);
+  }
+
+  private key(userId: string, day: string): string {
+    return `trees:${userId}:${day}`;
   }
 
   private resetsAt(now: Date): Date {
@@ -69,6 +81,41 @@ export class TreeBudget {
 
   private ttlSeconds(now: Date): number {
     return Math.max(60, Math.floor((this.resetsAt(now).getTime() - now.getTime()) / 1000));
+  }
+
+  /** Seconds left on `day`'s key, or null once that day is over and the key is gone. */
+  private ttlSecondsForDay(day: string, now: Date): number | null {
+    const midnightAfter = Date.parse(`${day}T00:00:00.000Z`) + 24 * 60 * 60 * 1000;
+    const remaining = Math.floor((midnightAfter - now.getTime()) / 1000);
+    return remaining <= 0 ? null : Math.max(60, remaining);
+  }
+
+  /**
+   * The allowance lookup asks Postgres (newsletter check) and rethrows its
+   * errors. Outside a try that turns every door into a thrower: the
+   * `finally`-adjust in speech synthesis would REPLACE the provider's error,
+   * and the chat search branch would kill the whole turn.
+   */
+  private async allowanceOrNull(userId: string): Promise<TreeAllowance | null> {
+    try {
+      return await this.allowanceFor(userId);
+    } catch (error) {
+      log.error(`[TreeBudget] Kontingent nicht ermittelbar: ${String(error)}`);
+      return null;
+    }
+  }
+
+  /**
+   * The TTL is armed after the units are booked, so a failing EXPIRE must not
+   * undo the booking — the key then lives without one until the next write
+   * re-arms it.
+   */
+  private async armTtl(key: string, seconds: number): Promise<void> {
+    try {
+      await this.redis.expire(key, seconds);
+    } catch (error) {
+      log.error(`[TreeBudget] TTL nicht gesetzt (${key}): ${String(error)}`);
+    }
   }
 
   /**
@@ -83,6 +130,7 @@ export class TreeBudget {
       remainingUnits: null,
       resetsAt: this.resetsAt(now),
       newsletterBonus: false,
+      day: this.dayOf(now),
     };
   }
 
@@ -94,6 +142,7 @@ export class TreeBudget {
       remainingUnits: Math.max(0, dailyUnits - used),
       resetsAt: this.resetsAt(now),
       newsletterBonus: bonus,
+      day: this.dayOf(now),
     };
   }
 
@@ -101,16 +150,25 @@ export class TreeBudget {
     return this.balance(dailyUnits, dailyUnits, bonus, now);
   }
 
+  /**
+   * Allowance unknown means nothing is known to be left — shown against the
+   * base allowance so the tab reads "0 von 10", not "0 von 0".
+   */
+  private unknownAllowance(now: Date): TreeBalance {
+    return this.failClosed(BASE_DAILY_TREES * UNITS_PER_TREE, false, now);
+  }
+
   async status(userId: string): Promise<TreeBalance> {
-    const allowance = await this.allowanceFor(userId);
+    const allowance = await this.allowanceOrNull(userId);
     const now = this.now();
+    if (!allowance) return this.unknownAllowance(now);
     if (allowance.unlimited) return this.unlimitedBalance(now);
 
     if (!userId || this.redis.isReady === false) {
       return this.failClosed(allowance.dailyUnits, allowance.newsletterBonus, now);
     }
     try {
-      const raw = await this.redis.get(this.key(userId, now));
+      const raw = await this.redis.get(this.key(userId, this.dayOf(now)));
       const used = parseInt(raw ?? '0', 10) || 0;
       return this.balance(used, allowance.dailyUnits, allowance.newsletterBonus, now);
     } catch (error) {
@@ -121,16 +179,17 @@ export class TreeBudget {
 
   /** Books `units` up front; rolled back and refused when that crosses the allowance. */
   async reserve(userId: string, units: number): Promise<TreeReservation> {
-    const allowance = await this.allowanceFor(userId);
+    const allowance = await this.allowanceOrNull(userId);
     const now = this.now();
+    if (!allowance) return { ok: false, reason: 'unavailable' };
     if (allowance.unlimited) return { ok: true, status: this.unlimitedBalance(now) };
 
     if (!userId || this.redis.isReady === false) return { ok: false, reason: 'unavailable' };
     const amount = Math.max(0, Math.round(units));
     try {
-      const key = this.key(userId, now);
+      const key = this.key(userId, this.dayOf(now));
       const used = await this.redis.incrBy(key, amount);
-      await this.redis.expire(key, this.ttlSeconds(now));
+      await this.armTtl(key, this.ttlSeconds(now));
       if (used > allowance.dailyUnits) {
         await this.redis.incrBy(key, -amount);
         return {
@@ -149,19 +208,33 @@ export class TreeBudget {
     }
   }
 
-  /** Corrects a reservation by the real outcome; a negative delta gives units back. */
-  async adjust(userId: string, deltaUnits: number): Promise<TreeBalance> {
-    const allowance = await this.allowanceFor(userId);
+  /**
+   * Corrects a reservation by the real outcome; a negative delta gives units
+   * back. `day` is the reservation's own day (`TreeBalance.day`), never the
+   * clock at correction time.
+   */
+  async adjust(userId: string, deltaUnits: number, day: string): Promise<TreeBalance> {
+    const allowance = await this.allowanceOrNull(userId);
     const now = this.now();
+    if (!allowance) return this.unknownAllowance(now);
     if (allowance.unlimited) return this.unlimitedBalance(now);
 
     if (!userId || this.redis.isReady === false) {
       return this.failClosed(allowance.dailyUnits, allowance.newsletterBonus, now);
     }
+    // The day is over, so its key expired with it: INCRBY would RE-CREATE it,
+    // and a give-back would sit there as a negative base. Nothing to correct.
+    const ttl = this.ttlSecondsForDay(day, now);
+    if (ttl === null) return this.status(userId);
     try {
-      const key = this.key(userId, now);
-      const used = await this.redis.incrBy(key, Math.round(deltaUnits));
-      await this.redis.expire(key, this.ttlSeconds(now));
+      const key = this.key(userId, day);
+      let used = await this.redis.incrBy(key, Math.round(deltaUnits));
+      if (used < 0) {
+        // `reserve` compares the RAW counter against the allowance, so a
+        // negative base would hand out free units for the rest of the day.
+        used = await this.redis.incrBy(key, -used);
+      }
+      await this.armTtl(key, ttl);
       return this.balance(used, allowance.dailyUnits, allowance.newsletterBonus, now);
     } catch (error) {
       log.error(`[TreeBudget] Korrektur fehlgeschlagen: ${String(error)}`);
@@ -169,8 +242,8 @@ export class TreeBudget {
     }
   }
 
-  async release(userId: string, units: number): Promise<TreeBalance> {
-    return this.adjust(userId, -units);
+  async release(userId: string, units: number, day: string): Promise<TreeBalance> {
+    return this.adjust(userId, -units, day);
   }
 
   /** For call sites that answer with an HTTP status or a tool error rather than a branch. */

@@ -77,6 +77,9 @@ describe('treesContract.getMyTrees', () => {
     const res = await router.getMyTrees({ req });
 
     expect(res.status).toBe(500);
-    expect((res.body as { error: string }).error).toBe('boom');
+    // The raw message stays in the log; the client gets a fixed sentence.
+    expect((res.body as { error: string }).error).toBe(
+      'Dein Kontingent lässt sich gerade nicht abrufen.'
+    );
   });
 });

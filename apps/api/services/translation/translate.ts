@@ -103,7 +103,7 @@ export async function translateWithGlossary(
   // low only when a glossary forces a second pass.
   const budget = deps.budget ?? getTreeBudget();
   const reserved = treeCostForChars(params.text.length);
-  await budget.reserveOrThrow(params.userId, reserved);
+  const { day } = await budget.reserveOrThrow(params.userId, reserved);
 
   const glossary = await glossaryOrNull(service, deps.glossary ?? resolveGlossary);
   const formality = params.formality ?? null;
@@ -152,12 +152,18 @@ export async function translateWithGlossary(
       }
     }
   } catch (error) {
-    await budget.release(params.userId, reserved);
+    // A failing SECOND (glossary) pass gives the whole reservation back although
+    // the first pass was billed — deliberate: user-favourable and rare.
+    await budget.release(params.userId, reserved, day);
     throw error;
   }
 
   const quota = toTreeBudgetStatusDto(
-    await budget.adjust(params.userId, treeCostForChars(billed || params.text.length) - reserved)
+    await budget.adjust(
+      params.userId,
+      treeCostForChars(billed || params.text.length) - reserved,
+      day
+    )
   );
   return {
     text,

@@ -131,7 +131,10 @@ export async function generateSpeechFiles(
     const realSeconds = sampleRate ? totalBytes / 2 / sampleRate : 0;
     quota = await deps.budget.adjust(
       userId,
-      treeCostForSpeechSeconds(Math.round(realSeconds)) - estimateUnits
+      treeCostForSpeechSeconds(Math.round(realSeconds)) - estimateUnits,
+      // A synthesis takes tens of seconds and can cross UTC midnight; the
+      // correction belongs to the day the reservation was booked on.
+      reservation.status.day
     );
   }
 

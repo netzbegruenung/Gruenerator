@@ -35,6 +35,7 @@ function fakeRedis(): RedisIncrByClient & { store: Map<string, number>; ttl: Map
 }
 
 const NOON = '2026-09-18T12:00:00.000Z';
+const DAY = '2026-09-18';
 
 function metered(dailyUnits: number, newsletterBonus = false) {
   return async () => ({ unlimited: false as const, dailyUnits, newsletterBonus });
@@ -78,15 +79,87 @@ describe('TreeBudget', () => {
     expect(await budget.status('u1')).toMatchObject({ usedUnits: 1000, remainingUnits: 0 });
   });
 
-  it('adjusts in both directions and clamps the displayed balance at zero', async () => {
+  it('adjusts in both directions and floors the stored counter at zero', async () => {
     const redis = fakeRedis();
     const budget = budgetFor(redis, metered(1000));
     await budget.reserve('u1', 500);
 
-    expect(await budget.adjust('u1', -200)).toMatchObject({ usedUnits: 300, remainingUnits: 700 });
-    expect(await budget.adjust('u1', 50)).toMatchObject({ usedUnits: 350 });
-    expect(await budget.release('u1', 350)).toMatchObject({ usedUnits: 0, remainingUnits: 1000 });
-    expect(await budget.release('u1', 100)).toMatchObject({ usedUnits: 0 });
+    expect(await budget.adjust('u1', -200, DAY)).toMatchObject({
+      usedUnits: 300,
+      remainingUnits: 700,
+    });
+    expect(await budget.adjust('u1', 50, DAY)).toMatchObject({ usedUnits: 350 });
+    expect(await budget.release('u1', 350, DAY)).toMatchObject({
+      usedUnits: 0,
+      remainingUnits: 1000,
+    });
+    expect(await budget.release('u1', 100, DAY)).toMatchObject({ usedUnits: 0 });
+    // Not just the display: a negative base would hand out free units for the
+    // rest of the day, because `reserve` compares the raw INCRBY result.
+    expect(redis.store.get(`trees:u1:${DAY}`)).toBe(0);
+  });
+
+  it('settles a release against the reservation day, not against the clock', async () => {
+    const redis = fakeRedis();
+    let nowIso = '2026-09-18T23:59:30.000Z';
+    const budget = new TreeBudget(redis, {
+      allowanceFor: metered(1000),
+      now: () => new Date(nowIso),
+    });
+
+    const reserved = await budget.reserve('u1', 300);
+    expect(reserved.ok && reserved.status.day).toBe('2026-09-18');
+
+    // The job outlived the UTC day. Yesterday's key is gone, so there is
+    // nothing to give back — and the new day must not open at -300.
+    nowIso = '2026-09-19T00:00:30.000Z';
+    expect(await budget.release('u1', 300, '2026-09-18')).toMatchObject({
+      usedUnits: 0,
+      remainingUnits: 1000,
+      day: '2026-09-19',
+    });
+    expect([...redis.store.keys()]).toEqual(['trees:u1:2026-09-18']);
+    expect(redis.store.get('trees:u1:2026-09-18')).toBe(300);
+    expect(await budget.reserve('u1', 1000)).toMatchObject({ ok: true });
+  });
+
+  it('releases onto the reservation key while that day is still running', async () => {
+    const redis = fakeRedis();
+    let nowIso = '2026-09-18T22:00:00.000Z';
+    const budget = new TreeBudget(redis, {
+      allowanceFor: metered(1000),
+      now: () => new Date(nowIso),
+    });
+    const reserved = await budget.reserve('u1', 300);
+
+    nowIso = '2026-09-18T23:30:00.000Z';
+    await budget.release('u1', 300, reserved.ok ? reserved.status.day : '');
+    expect(redis.store.get('trees:u1:2026-09-18')).toBe(0);
+  });
+
+  it('fails closed instead of throwing when the allowance lookup dies', async () => {
+    const redis = fakeRedis();
+    const budget = budgetFor(redis, async () => {
+      throw new Error('Postgres weg');
+    });
+
+    expect(await budget.reserve('u1', 100)).toEqual({ ok: false, reason: 'unavailable' });
+    await expect(budget.adjust('u1', -100, DAY)).resolves.toMatchObject({ remainingUnits: 0 });
+    await expect(budget.release('u1', 100, DAY)).resolves.toMatchObject({ remainingUnits: 0 });
+    await expect(budget.status('u1')).resolves.toMatchObject({ remainingUnits: 0 });
+    expect(redis.store.size).toBe(0);
+  });
+
+  it('keeps a booking whose TTL could not be armed', async () => {
+    const redis = fakeRedis();
+    redis.expire = vi.fn().mockRejectedValue(new Error('EXPIRE weg'));
+    const budget = budgetFor(redis, metered(1000));
+
+    expect(await budget.reserve('u1', 100)).toMatchObject({
+      ok: true,
+      status: { usedUnits: 100 },
+    });
+    expect(redis.store.get(`trees:u1:${DAY}`)).toBe(100);
   });
 
   it('never touches Redis on an unlimited instance, even with Redis down', async () => {
@@ -114,7 +187,7 @@ describe('TreeBudget', () => {
     const deadBudget = budgetFor(dead, metered(1000));
     expect(await deadBudget.reserve('u1', 100)).toEqual({ ok: false, reason: 'unavailable' });
     expect(await deadBudget.status('u1')).toMatchObject({ usedUnits: 1000, remainingUnits: 0 });
-    expect(await deadBudget.adjust('u1', -100)).toMatchObject({ usedUnits: 1000 });
+    expect(await deadBudget.adjust('u1', -100, DAY)).toMatchObject({ usedUnits: 1000 });
 
     const broken = fakeRedis();
     broken.get = vi.fn().mockRejectedValue(new Error('boom'));
@@ -155,6 +228,7 @@ describe('TreeBudget', () => {
         remainingUnits: 1250,
         resetsAt: new Date('2026-09-19T00:00:00.000Z'),
         newsletterBonus: true,
+        day: DAY,
       })
     ).toEqual({
       used: 2.5,
@@ -171,6 +245,7 @@ describe('TreeBudget', () => {
         remainingUnits: null,
         resetsAt: new Date('2026-09-19T00:00:00.000Z'),
         newsletterBonus: false,
+        day: DAY,
       })
     ).toMatchObject({ limit: null, remaining: null });
   });
@@ -197,6 +272,7 @@ describe('treeBudgetSpentMessage', () => {
         remainingUnits: 0,
         resetsAt,
         newsletterBonus: true,
+        day: DAY,
       })
     ).toBe('Dein Tagesbudget von 15 Bäumen ist aufgebraucht – in 5 h 12 min gibt es wieder 15.');
 
@@ -207,6 +283,7 @@ describe('treeBudgetSpentMessage', () => {
         remainingUnits: 0,
         resetsAt,
         newsletterBonus: false,
+        day: DAY,
       })
     ).toBe('Dein Tagesbudget von 1 Baum ist aufgebraucht – in 5 h 12 min gibt es wieder 1.');
   });
@@ -221,6 +298,7 @@ describe('treeBudgetSpentMessage', () => {
           remainingUnits: 150,
           resetsAt,
           newsletterBonus: true,
+          day: DAY,
         },
         250
       )
@@ -239,6 +317,7 @@ describe('treeBudgetSpentMessage', () => {
           remainingUnits: 50,
           resetsAt,
           newsletterBonus: false,
+          day: DAY,
         },
         100
       )

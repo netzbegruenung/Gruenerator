@@ -54,13 +54,15 @@ describe('reserveDeepResearch', () => {
 
 describe('releaseDeepResearch', () => {
   it('gives the same amount back', async () => {
-    await releaseDeepResearch(USER);
-    expect(budget.release).toHaveBeenCalledWith(USER, TREE_COST_DEEP_RESEARCH);
+    await releaseDeepResearch(USER, '2026-09-18');
+    // The day comes from the reservation, so a turn that outlived UTC midnight
+    // settles against its own key instead of opening tomorrow's below zero.
+    expect(budget.release).toHaveBeenCalledWith(USER, TREE_COST_DEEP_RESEARCH, '2026-09-18');
   });
 
   it('swallows a Redis failure rather than losing an answer already produced', async () => {
     budget.release.mockRejectedValue(new Error('redis down'));
-    await expect(releaseDeepResearch(USER)).resolves.toBeUndefined();
+    await expect(releaseDeepResearch(USER, '2026-09-18')).resolves.toBeUndefined();
   });
 });
 

@@ -76,26 +76,6 @@ router.post(
         });
       }
 
-      // One outpaint always costs one image, regardless of model — outpaint
-      // only ever runs on the 'hosted' backend below.
-      const cost = treeCostForImage(1);
-      const budget = getTreeBudget();
-      const reservation = await budget.reserve(userId, cost);
-      if (!reservation.ok) {
-        if (reservation.reason === 'unavailable') {
-          return res
-            .status(503)
-            .json({ success: false, error: new TreeBudgetUnavailableError().message });
-        }
-        const message = treeBudgetSpentMessage(reservation.status, cost);
-        return res.status(429).json({
-          success: false,
-          error: message,
-          data: toTreeBudgetStatusDto(reservation.status),
-          message,
-        });
-      }
-
       // A preset lets the server own the geometry: the canvas grows around the
       // source and, when that would break the budget, source and canvas are
       // scaled down together so every offered format is reachable (#3388).
@@ -129,16 +109,40 @@ router.post(
         `[Outpaint] User ${userId} expanding ${Math.round(req.file.size / 1024)}KB image to ${target.width}x${target.height} (${parsed.data.aspectRatio})`
       );
 
-      const flux = await FluxImageService.create('hosted');
-      let stored: Awaited<ReturnType<typeof flux.outpaintImage>>['stored'];
+      // Booked directly before the provider call: everything above — sharp's
+      // metadata read, the 400 for an unreadable image, the geometry and the
+      // resize — can still refuse or throw, and would otherwise leave the
+      // units gone. One outpaint always costs one image, regardless of model;
+      // outpaint only ever runs on the 'hosted' backend.
+      const cost = treeCostForImage(1);
+      const budget = getTreeBudget();
+      const reservation = await budget.reserve(userId, cost);
+      if (!reservation.ok) {
+        if (reservation.reason === 'unavailable') {
+          return res
+            .status(503)
+            .json({ success: false, error: new TreeBudgetUnavailableError().message });
+        }
+        const message = treeBudgetSpentMessage(reservation.status, cost);
+        return res.status(429).json({
+          success: false,
+          error: message,
+          data: toTreeBudgetStatusDto(reservation.status),
+          message,
+        });
+      }
+
+      let stored: Awaited<ReturnType<FluxImageService['outpaintImage']>>['stored'];
       try {
+        // Inside the try: a failing `create()` would otherwise keep the booking.
+        const flux = await FluxImageService.create('hosted');
         ({ stored } = await flux.outpaintImage(sourceBuffer, {
           width: target.width,
           height: target.height,
           output_format: 'jpeg',
         }));
       } catch (error) {
-        await budget.release(userId, cost);
+        await budget.release(userId, cost, reservation.status.day);
         throw error;
       }
 

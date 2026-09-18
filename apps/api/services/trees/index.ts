@@ -17,11 +17,6 @@ export function getTreeBudget(): TreeBudget {
   return budget;
 }
 
-/** Test seam: the module-level singleton would otherwise survive between cases. */
-export function _resetTreeBudgetForTests(): void {
-  budget = null;
-}
-
 export * from './treeAllowance.js';
 export * from './treeBudget.js';
 export * from './treeCosts.js';

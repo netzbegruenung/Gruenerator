@@ -139,7 +139,7 @@ export const TAB_NOTES: TabNote[] = [
     extras: [
       'Jedes Konto hat 10 Bäume am Tag; sie werden um Mitternacht (UTC) zurückgesetzt, angezeigt in deiner Ortszeit.',
       'Wer den Grünerator-Newsletter abonniert hat, bekommt 5 Bäume mehr — 15 statt 10. Das zählt nur, wenn die abonnierte Adresse dieselbe ist wie die deines Grünerator-Kontos.',
-      'Ein Baum entspricht einem KI-Bild mit dem kleinen Modell (0,5 beim großen), 3 Minuten Sprachausgabe, 20.000 Zeichen Übersetzung (2,5 für ein ganzes Dokument) oder einer Tiefenrecherche.',
+      'Ein Baum entspricht einem KI-Bild mit dem Standardmodell (0,5 beim kleinen, 2 beim großen), 3 Minuten Sprachausgabe, 20.000 Zeichen Übersetzung (2,5 für ein ganzes Dokument) oder einer Tiefenrecherche.',
       'Auf manchen Instanzen (etwa bgst) ist das Kontingent unbegrenzt.',
     ],
   },

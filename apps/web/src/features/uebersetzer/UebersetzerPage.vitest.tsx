@@ -154,12 +154,38 @@ describe('UebersetzerPage', () => {
   it('shows a notice, not an error, when the server has no DeepL key', async () => {
     server.use(
       http.get(LANGUAGES, () =>
-        HttpResponse.json({ success: false, error: 'nicht eingerichtet' }, { status: 503 })
+        HttpResponse.json(
+          { success: false, error: 'nicht eingerichtet', code: 'not_configured' },
+          { status: 503 }
+        )
       )
     );
     renderWithProviders(<UebersetzerPage />);
     expect(await screen.findByRole('status')).toHaveTextContent(/nicht eingerichtet/);
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('shows the server sentence when a 503 is the budget, not a missing key', async () => {
+    withLanguages();
+    server.use(
+      http.post(TEXT, () =>
+        HttpResponse.json(
+          {
+            success: false,
+            error: 'Das Kontingent lässt sich gerade nicht prüfen.',
+            code: 'budget_unavailable',
+          },
+          { status: 503 }
+        )
+      )
+    );
+    const { user } = renderWithProviders(<UebersetzerPage />);
+    await user.type(await screen.findByLabelText('Ausgangstext'), 'Hallo');
+    await user.click(screen.getByRole('button', { name: 'Übersetzen' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Das Kontingent lässt sich gerade nicht prüfen.'
+    );
   });
 
   it('offers the formality switch only for targets that support it', async () => {

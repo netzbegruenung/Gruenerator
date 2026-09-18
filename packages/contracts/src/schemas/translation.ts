@@ -69,6 +69,13 @@ export const translationErrorSchema = z.object({
   success: z.literal(false),
   error: z.string(),
   quota: translationQuotaSchema.nullish(),
+  /**
+   * Only set on 503, where two very different things meet: this server has no
+   * DeepL key (`not_configured` — a notice, retrying never helps) or the tree
+   * budget could not be read (`budget_unavailable` — a Redis hiccup, worth a
+   * retry). Without it the client cannot tell them apart.
+   */
+  code: z.enum(['not_configured', 'budget_unavailable']).nullish(),
 });
 
 // ── Documents ────────────────────────────────────────────────────────────
