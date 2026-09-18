@@ -52,6 +52,12 @@ export interface TextFormInput {
 export interface TextFormInjection {
   /** Row id, so a caller that resolved by mention can pin the row it got. */
   id: string;
+  /**
+   * The row's own canonical mention — NOT the one the caller asked with. A
+   * lookup by id has no other way to learn which recipe it pinned, and deciding
+   * that from the turn's mention attributed the wrong recipe (#2939).
+   */
+  mention: string;
   kind: TextFormKind;
   textType: TextFormType | null;
   title: string;
@@ -330,7 +336,7 @@ function accessFromRank(rank: number | string): TextFormAccess {
 
 /** Selector is the row-identifying predicate on `$3`; everything else is shared. */
 function injectionSql(selector: string): string {
-  return `SELECT tf.id, tf.kind, tf.text_type, tf.title, tf.style_block,
+  return `SELECT tf.id, tf.mention, tf.kind, tf.text_type, tf.title, tf.style_block,
             ${ACCESS_RANK_SQL} AS access_rank
        FROM user_text_forms tf
       WHERE ${selector}
@@ -344,6 +350,7 @@ const INJECTION_BY_ID_SQL = injectionSql('tf.id = $3::uuid');
 
 interface InjectionRow {
   id: string;
+  mention: string;
   kind: string;
   text_type: string | null;
   title: string;
@@ -367,6 +374,7 @@ async function loadInjection(
   if (!r || !r.style_block) return null;
   return {
     id: String(r.id),
+    mention: r.mention,
     kind: r.kind as TextFormKind,
     textType: (r.text_type as TextFormType | null) ?? null,
     title: r.title,
