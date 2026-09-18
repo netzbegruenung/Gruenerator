@@ -28,10 +28,12 @@ export const treesContractRouter = s.router(treesContract, {
       const status = await getTreeBudget().status(userId);
       return { status: 200 as const, body: toTreeBudgetStatusDto(status) };
     } catch (error) {
+      // The raw message can carry Redis/Postgres internals — it belongs in the
+      // log, not in the response.
       log.error('[Trees Contract] Error retrieving budget:', error);
       return {
         status: 500 as const,
-        body: { error: (error as Error).message || 'Failed to retrieve tree budget' },
+        body: { error: 'Dein Kontingent lässt sich gerade nicht abrufen.' },
       };
     }
   },

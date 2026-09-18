@@ -29,6 +29,7 @@ const { DeepLError } = await import('./DeepLService.js');
 
 const LIMIT_UNITS = 1500;
 const RESETS_AT = new Date('2026-09-19T00:00:00.000Z');
+const DAY = '2026-09-18';
 
 /** Books like the real thing so the assertions can read the running total. */
 function fakeBudget() {
@@ -39,6 +40,7 @@ function fakeBudget() {
     remainingUnits: LIMIT_UNITS - used,
     resetsAt: RESETS_AT,
     newsletterBonus: false,
+    day: DAY,
   });
   return {
     usedUnits: () => used,
@@ -46,11 +48,11 @@ function fakeBudget() {
       used += units;
       return balance();
     }),
-    adjust: vi.fn(async (_userId: string, delta: number) => {
+    adjust: vi.fn(async (_userId: string, delta: number, _day: string) => {
       used += delta;
       return balance();
     }),
-    release: vi.fn(async (_userId: string, units: number) => {
+    release: vi.fn(async (_userId: string, units: number, _day: string) => {
       used -= units;
       return balance();
     }),
@@ -172,7 +174,7 @@ describe('translateWithGlossary', () => {
     );
 
     expect(budget.reserveOrThrow).toHaveBeenCalledWith('u1', 100);
-    expect(budget.adjust).toHaveBeenCalledWith('u1', 100);
+    expect(budget.adjust).toHaveBeenCalledWith('u1', 100, DAY);
     expect(budget.usedUnits()).toBe(200);
   });
 
@@ -185,7 +187,7 @@ describe('translateWithGlossary', () => {
         { service, glossary, budget }
       )
     ).rejects.toBeInstanceOf(DeepLError);
-    expect(budget.release).toHaveBeenCalledWith('u1', treeCostForChars(11));
+    expect(budget.release).toHaveBeenCalledWith('u1', treeCostForChars(11), DAY);
     expect(budget.usedUnits()).toBe(0);
   });
 

@@ -41,6 +41,8 @@ const redis = {
 };
 vi.mock('../../utils/redis/client.js', () => ({ default: redis }));
 
+const RESERVED_DAY = '2026-09-18';
+
 /** Books like the real thing so the assertions can read the running total. */
 function fakeBudget() {
   let used = 0;
@@ -50,6 +52,7 @@ function fakeBudget() {
     remainingUnits: 1500 - used,
     resetsAt: new Date('2026-09-19T00:00:00.000Z'),
     newsletterBonus: false,
+    day: RESERVED_DAY,
   });
   return {
     usedUnits: () => used,
@@ -57,11 +60,11 @@ function fakeBudget() {
       used += units;
       return balance();
     }),
-    adjust: vi.fn(async (_userId: string, delta: number) => {
+    adjust: vi.fn(async (_userId: string, delta: number, _day: string) => {
       used += delta;
       return balance();
     }),
-    release: vi.fn(async (_userId: string, units: number) => {
+    release: vi.fn(async (_userId: string, units: number, _day: string) => {
       used -= units;
       return balance();
     }),
@@ -128,7 +131,7 @@ describe('startDocumentJob', () => {
     service.uploadDocument.mockRejectedValueOnce(new Error('DeepL 503'));
 
     await expect(start()).rejects.toThrow('DeepL 503');
-    expect(budget.release).toHaveBeenCalledWith('u1', TREE_COST_DOCUMENT);
+    expect(budget.release).toHaveBeenCalledWith('u1', TREE_COST_DOCUMENT, RESERVED_DAY);
     expect(budget.usedUnits()).toBe(0);
   });
 
@@ -183,7 +186,11 @@ describe('pollDocumentJob', () => {
     expect([first?.status, second?.status].sort()).toEqual(['done', 'translating']);
     expect(third).toMatchObject({ status: 'done', billedCharacters: 61_000 });
     expect(budget.adjust).toHaveBeenCalledTimes(1);
-    expect(budget.adjust).toHaveBeenCalledWith('u1', treeCostForChars(61_000) - TREE_COST_DOCUMENT);
+    expect(budget.adjust).toHaveBeenCalledWith(
+      'u1',
+      treeCostForChars(61_000) - TREE_COST_DOCUMENT,
+      RESERVED_DAY
+    );
     expect(budget.usedUnits()).toBe(treeCostForChars(61_000));
 
     const file = await documentJobFile(jobId, 'u1');
@@ -203,7 +210,7 @@ describe('pollDocumentJob', () => {
       message: null,
     });
     await poll(jobId);
-    expect(budget.adjust).toHaveBeenCalledWith('u1', 0);
+    expect(budget.adjust).toHaveBeenCalledWith('u1', 0, RESERVED_DAY);
     expect(budget.usedUnits()).toBe(TREE_COST_DOCUMENT);
     const file = await documentJobFile(jobId, 'u1');
     if (file) fs.unlinkSync(file.path);
@@ -225,7 +232,7 @@ describe('pollDocumentJob', () => {
     expect(service.downloadDocument).not.toHaveBeenCalled();
     expect(await documentJobFile(jobId, 'u1')).toBeNull();
     // DeepL bills completed documents only.
-    expect(budget.release).toHaveBeenCalledWith('u1', TREE_COST_DOCUMENT);
+    expect(budget.release).toHaveBeenCalledWith('u1', TREE_COST_DOCUMENT, RESERVED_DAY);
     expect(budget.usedUnits()).toBe(0);
   });
 
@@ -240,17 +247,19 @@ describe('pollDocumentJob', () => {
     service.downloadDocument.mockRejectedValueOnce(new Error('gone'));
 
     expect(await poll(jobId)).toMatchObject({ status: 'error' });
-    expect(budget.release).toHaveBeenCalledWith('u1', TREE_COST_DOCUMENT);
+    expect(budget.release).toHaveBeenCalledWith('u1', TREE_COST_DOCUMENT, RESERVED_DAY);
     expect(budget.usedUnits()).toBe(0);
   });
 
-  /** Jobs written before the budget existed carry no `reservedUnits` and must
-   *  neither be dropped by the schema nor booked against a missing number. */
-  it('treats a job from before the budget as a full reservation', async () => {
+  /** Jobs written before the budget existed carry neither `reservedUnits` nor
+   *  `reservedDay` and must neither be dropped by the schema nor booked
+   *  against a missing number — the day falls back to the current UTC one. */
+  it('treats a job from before the budget as a full reservation on today', async () => {
     const { jobId } = await start();
     const key = `deepl:job:${jobId}`;
     const legacy = JSON.parse(store.get(key)!) as Record<string, unknown>;
     delete legacy.reservedUnits;
+    delete legacy.reservedDay;
     store.set(key, JSON.stringify(legacy));
     service.getDocumentStatus.mockResolvedValue({
       status: 'error',
@@ -260,7 +269,33 @@ describe('pollDocumentJob', () => {
     });
 
     expect(await poll(jobId)).toMatchObject({ status: 'error' });
-    expect(budget.release).toHaveBeenCalledWith('u1', TREE_COST_DOCUMENT);
+    expect(budget.release).toHaveBeenCalledWith(
+      'u1',
+      TREE_COST_DOCUMENT,
+      new Date().toISOString().slice(0, 10)
+    );
+  });
+
+  /**
+   * The SET NX lock guarded only the `done` fetch, so two polls that both saw
+   * `error` handed the same reservation back twice — the counter then ran
+   * below zero and paid for the rest of the day.
+   */
+  it('releases an errored job once, however many polls see it', async () => {
+    const { jobId } = await start();
+    service.getDocumentStatus.mockResolvedValue({
+      status: 'error',
+      secondsRemaining: null,
+      billedCharacters: null,
+      message: 'kaputt',
+    });
+
+    const [first, second] = await Promise.all([poll(jobId), poll(jobId)]);
+
+    expect(first).toMatchObject({ status: 'error' });
+    expect(second).toMatchObject({ status: 'error' });
+    expect(budget.release).toHaveBeenCalledTimes(1);
+    expect(budget.usedUnits()).toBe(0);
   });
 
   it('is invisible to another user and to unknown ids', async () => {

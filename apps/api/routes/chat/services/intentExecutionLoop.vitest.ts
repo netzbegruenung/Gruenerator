@@ -54,11 +54,17 @@ vi.mock('./deepAgentTurn.js', () => ({ runDeepAgentTurn: () => runDeepAgentTurn(
 const runDeepResearchTurn = vi.fn(async () => null);
 vi.mock('./deepResearchTurn.js', () => ({ runDeepResearchTurn: () => runDeepResearchTurn() }));
 
-const reserveDeepResearch = vi.fn<(userId: string) => Promise<{ ok: boolean; reason?: string }>>();
-const releaseDeepResearch = vi.fn<(userId: string) => Promise<void>>();
+const RESERVED_DAY = '2026-09-18';
+const reserveDeepResearch =
+  vi.fn<
+    (
+      userId: string
+    ) => Promise<{ ok: boolean; reason?: string; status?: { day: string } | undefined }>
+  >();
+const releaseDeepResearch = vi.fn<(userId: string, day: string) => Promise<void>>();
 vi.mock('./deepResearchQuota.js', () => ({
   reserveDeepResearch: (userId: string) => reserveDeepResearch(userId),
-  releaseDeepResearch: (userId: string) => releaseDeepResearch(userId),
+  releaseDeepResearch: (userId: string, day: string) => releaseDeepResearch(userId, day),
   deepResearchQuotaSpentMessage: () =>
     'Dein Tagesbudget von 10 Bäumen ist aufgebraucht – in 5 h 0 min gibt es wieder 10.',
 }));
@@ -117,7 +123,7 @@ beforeEach(() => {
   sse.send.mockClear();
   runDeepAgentTurn.mockClear();
   runDeepResearchTurn.mockClear();
-  reserveDeepResearch.mockReset().mockResolvedValue({ ok: true });
+  reserveDeepResearch.mockReset().mockResolvedValue({ ok: true, status: { day: RESERVED_DAY } });
   releaseDeepResearch.mockReset().mockResolvedValue(undefined);
   scrapeReturnsNothing = false;
 });
@@ -240,8 +246,9 @@ describe('executeIntentPipeline — the shared @deepresearch booking', () => {
     expect(reserveDeepResearch).toHaveBeenCalledTimes(1);
     expect(runDeepAgentTurn).toHaveBeenCalledTimes(1);
     expect(runDeepResearchTurn).toHaveBeenCalledTimes(1);
-    // Neither engine delivered, so the Baum goes back.
-    expect(releaseDeepResearch).toHaveBeenCalledTimes(1);
+    // Neither engine delivered, so the Baum goes back — onto the day it was
+    // booked on, not onto whatever day the turn happens to end in.
+    expect(releaseDeepResearch).toHaveBeenCalledWith(expect.any(String), RESERVED_DAY);
   });
 
   it('skips BOTH engines on a refused booking, with one warning naming one number', async () => {

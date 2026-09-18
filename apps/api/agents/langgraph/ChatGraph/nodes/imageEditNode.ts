@@ -124,15 +124,15 @@ export async function imageEditNode(state: ChatGraphState): Promise<Partial<Chat
       };
     }
 
-    const flux = await FluxImageService.create();
     let generated: GenerateResult;
     try {
+      const flux = await FluxImageService.create();
       generated = await flux.generateFromImages(prompt, processed, {
         output_format: 'jpeg',
         safety_tolerance: 2,
       });
     } catch (error) {
-      await budget.release(userId, cost);
+      await budget.release(userId, cost, reservation.status.day);
       throw error;
     }
     const { stored } = generated;

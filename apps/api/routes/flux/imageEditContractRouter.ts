@@ -77,28 +77,6 @@ export const imageEditContractRouter = s.router(imageEditContract, {
         };
       }
 
-      // The model is known now, so the reservation books the exact cost —
-      // not a per-request soft check ahead of it.
-      const cost = treeCostForImage(model.costMultiplier);
-      const budget = getTreeBudget();
-      const reservation = await budget.reserve(userId, cost);
-      if (!reservation.ok) {
-        if (reservation.reason === 'unavailable') {
-          return {
-            status: 503 as const,
-            body: { success: false as const, error: new TreeBudgetUnavailableError().message },
-          };
-        }
-        return {
-          status: 429 as const,
-          body: {
-            success: false as const,
-            error: treeBudgetSpentMessage(reservation.status, cost),
-            data: toTreeBudgetStatusDto(reservation.status),
-          },
-        };
-      }
-
       const references: ReferenceImage[] = body.images.map((img) => ({
         buffer: Buffer.from(img.data, 'base64'),
         mimeType: img.type,
@@ -120,15 +98,38 @@ export const imageEditContractRouter = s.router(imageEditContract, {
         `[imageEdit] ${processed.length} reference image(s), model ${model.id}, type ${editType} (User: ${userId})`
       );
 
-      const flux = await FluxImageService.create(model.backend, model.modelPath);
+      // Booked as late as possible: `fitToBudget` above throws on a corrupt
+      // buffer, which would otherwise 500 with the units already gone.
+      const cost = treeCostForImage(model.costMultiplier);
+      const budget = getTreeBudget();
+      const reservation = await budget.reserve(userId, cost);
+      if (!reservation.ok) {
+        if (reservation.reason === 'unavailable') {
+          return {
+            status: 503 as const,
+            body: { success: false as const, error: new TreeBudgetUnavailableError().message },
+          };
+        }
+        return {
+          status: 429 as const,
+          body: {
+            success: false as const,
+            error: treeBudgetSpentMessage(reservation.status, cost),
+            data: toTreeBudgetStatusDto(reservation.status),
+          },
+        };
+      }
+
       let generated: GenerateResult;
       try {
+        // Inside the try: a failing `create()` would otherwise keep the booking.
+        const flux = await FluxImageService.create(model.backend, model.modelPath);
         generated = await flux.generateFromImages(prompt, processed, {
           output_format: 'jpeg',
           safety_tolerance: 2,
         });
       } catch (error) {
-        await budget.release(userId, cost);
+        await budget.release(userId, cost, reservation.status.day);
         throw error;
       }
       const { stored } = generated;

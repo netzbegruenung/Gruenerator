@@ -223,7 +223,6 @@ router.post(
         });
       }
 
-      const flux = await FluxImageService.create(selectedModel.backend, selectedModel.modelPath);
       const fluxOptions: {
         width: number;
         height: number;
@@ -243,12 +242,14 @@ router.post(
 
       let fluxResult: StoredImageResult;
       try {
+        // Inside the try: a failing `create()` would otherwise keep the booking.
+        const flux = await FluxImageService.create(selectedModel.backend, selectedModel.modelPath);
         ({ stored: fluxResult } = (await flux.generateFromPrompt(
           fluxPrompt,
           fluxOptions
         )) as FluxGenerationResult);
       } catch (error) {
-        await budget.release(userId, cost);
+        await budget.release(userId, cost, reservation.status.day);
         throw error;
       }
 

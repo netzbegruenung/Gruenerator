@@ -313,10 +313,11 @@ router.post(
         });
       }
 
-      const flux = await FluxImageService.create(userModel.backend, userModel.modelPath);
       log.debug(`[Image Edit] Starting image generation with model ${userModel.id}`);
       let generationResult: FluxGenerationResult;
       try {
+        // Inside the try: a failing `create()` would otherwise keep the booking.
+        const flux = await FluxImageService.create(userModel.backend, userModel.modelPath);
         generationResult = (await flux.generateFromImage(
           prompt,
           req.file.buffer,
@@ -324,7 +325,7 @@ router.post(
           { output_format: 'jpeg', safety_tolerance: 2 }
         )) as FluxGenerationResult;
       } catch (error) {
-        await budget.release(userId, cost);
+        await budget.release(userId, cost, reservation.status.day);
         throw error;
       }
       const { request, result, stored } = generationResult;
@@ -479,10 +480,11 @@ router.post(
         });
       }
 
-      const flux = await FluxImageService.create(userModel.backend, userModel.modelPath);
       let generationResult: FluxGenerationResult;
 
       try {
+        // Inside the try: a failing `create()` would otherwise keep the booking.
+        const flux = await FluxImageService.create(userModel.backend, userModel.modelPath);
         if (req.file) {
           generationResult = (await flux.generateFromImage(
             prompt,
@@ -497,7 +499,7 @@ router.post(
           })) as FluxGenerationResult;
         }
       } catch (error) {
-        await budget.release(userId, cost);
+        await budget.release(userId, cost, reservation.status.day);
         throw error;
       }
 

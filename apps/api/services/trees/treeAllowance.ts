@@ -12,10 +12,7 @@ import { hasUnlimitedTrees } from '@gruenerator/shared/instances';
 import { CURRENT_INSTANCE } from '../../config/instance.js';
 import { isNewsletterSubscriber } from '../newsletter/brevoNewsletter.js';
 
-import { UNITS_PER_TREE } from './treeCosts.js';
-
-export const BASE_DAILY_TREES = 10;
-export const NEWSLETTER_BONUS_TREES = 5;
+import { BASE_DAILY_TREES, NEWSLETTER_BONUS_TREES, UNITS_PER_TREE } from './treeCosts.js';
 
 export type TreeAllowance =
   { unlimited: true } | { unlimited: false; dailyUnits: number; newsletterBonus: boolean };

@@ -128,12 +128,13 @@ translationUploadRouter.post(
         fail(res, 429, error.message, { quota: toTreeBudgetStatusDto(error.status) });
         return;
       }
+      // Both 503s; `code` is what tells the client whether retrying can help.
       if (error instanceof TreeBudgetUnavailableError) {
-        fail(res, 503, error.message);
+        fail(res, 503, error.message, { code: 'budget_unavailable' });
         return;
       }
       if (error instanceof TranslationUnavailableError) {
-        fail(res, 503, translationErrorMessage(error));
+        fail(res, 503, translationErrorMessage(error), { code: 'not_configured' });
         return;
       }
       if (error instanceof DeepLError) {

@@ -79,7 +79,9 @@ export async function runSearchBranch(opts: {
   // which engine happened to run. Whoever delivers keeps it; if neither does,
   // it is handed back below.
   let allowanceGone = false;
-  let reserved = false;
+  // The reservation's own UTC day; a research turn can outlive midnight, and
+  // the give-back has to settle against the key it was booked on.
+  let reservedDay: string | null = null;
   const deepUserId = searchInputState.agentConfig?.userId ?? '';
   // No userId means no meter — both engines refuse on their own for that
   // reason, and booking would fail closed and mis-report it as a spent
@@ -87,7 +89,7 @@ export async function runSearchBranch(opts: {
   if (searchInputState.deepResearchRequested === true && deepUserId.length > 0) {
     const reservation = await reserveDeepResearch(deepUserId);
     if (reservation.ok) {
-      reserved = true;
+      reservedDay = reservation.status.day;
     } else {
       sendChatWarning(sse, 'deep_research_quota_spent', deepResearchQuotaSpentMessage(reservation));
       allowanceGone = true;
@@ -131,7 +133,7 @@ export async function runSearchBranch(opts: {
   }
 
   // Both engines fell through, so the booking bought nothing.
-  if (reserved) await releaseDeepResearch(deepUserId);
+  if (reservedDay !== null) await releaseDeepResearch(deepUserId, reservedDay);
 
   // A retry of a research turn whose GENERATION failed: the sources are
   // already on the thread. Re-running Linkup costs ~17s and a paid call

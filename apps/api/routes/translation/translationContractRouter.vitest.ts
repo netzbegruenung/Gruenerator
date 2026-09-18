@@ -108,9 +108,12 @@ describe('translateText', () => {
     translateWithGlossary.mockRejectedValue(new TreeBudgetUnavailableError());
     const res = await router.translateText!({ req, body });
     expect(res.status).toBe(503);
+    // `code` is the only thing that tells this 503 from the no-key one; the
+    // web hook renders the latter as a notice and would swallow the sentence.
     expect(res.body).toMatchObject({
       success: false,
       error: expect.stringContaining('Kontingent'),
+      code: 'budget_unavailable',
     });
   });
 
@@ -168,8 +171,14 @@ describe('glossary admin gate', () => {
 
   it('answers 503 when no key is configured', async () => {
     deepl.available = false;
-    expect((await router.getGlossary!({ req })).status).toBe(503);
-    expect((await router.getLanguages!({ req })).status).toBe(503);
+    expect(await router.getGlossary!({ req })).toMatchObject({
+      status: 503,
+      body: { code: 'not_configured' },
+    });
+    expect(await router.getLanguages!({ req })).toMatchObject({
+      status: 503,
+      body: { code: 'not_configured' },
+    });
   });
 
   it('returns an empty glossary shell when none exists yet', async () => {

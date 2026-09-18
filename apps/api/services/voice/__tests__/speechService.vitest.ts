@@ -18,6 +18,8 @@ function pcmSeconds(seconds: number): Buffer {
   return Buffer.alloc(seconds * RATE * 2);
 }
 
+const RESERVED_DAY = '2026-09-18';
+
 function balance(usedUnits: number): TreeBalance {
   return {
     usedUnits,
@@ -25,6 +27,7 @@ function balance(usedUnits: number): TreeBalance {
     remainingUnits: Math.max(0, LIMIT_UNITS - usedUnits),
     resetsAt: RESETS_AT,
     newsletterBonus: false,
+    day: RESERVED_DAY,
   };
 }
 
@@ -34,10 +37,18 @@ interface Calls {
   shares: number;
   reserved: number[];
   adjusted: number[];
+  adjustedDays: string[];
 }
 
 function deps(overrides: Partial<SpeechDeps> = {}): SpeechDeps & { calls: Calls } {
-  const calls: Calls = { texts: [], formats: [], shares: 0, reserved: [], adjusted: [] };
+  const calls: Calls = {
+    texts: [],
+    formats: [],
+    shares: 0,
+    reserved: [],
+    adjusted: [],
+    adjustedDays: [],
+  };
   let used = 0;
   return {
     calls,
@@ -68,8 +79,9 @@ function deps(overrides: Partial<SpeechDeps> = {}): SpeechDeps & { calls: Calls 
         used += units;
         return { ok: true as const, status: balance(used) };
       }),
-      adjust: vi.fn(async (_userId: string, delta: number) => {
+      adjust: vi.fn(async (_userId: string, delta: number, day: string) => {
         calls.adjusted.push(delta);
+        calls.adjustedDays.push(day);
         used += delta;
         return balance(used);
       }),
@@ -118,6 +130,9 @@ describe('generateSpeechFiles', () => {
     const realUnits = treeCostForSpeechSeconds(2);
     expect(d.calls.reserved).toEqual([estimateUnits]);
     expect(d.calls.adjusted).toEqual([realUnits - estimateUnits]);
+    // A synthesis can outlive UTC midnight; the correction settles against the
+    // day the reservation was booked on, not against the clock afterwards.
+    expect(d.calls.adjustedDays).toEqual([RESERVED_DAY]);
     expect(result.quota).toEqual({
       used: unitsToTrees(realUnits),
       limit: unitsToTrees(LIMIT_UNITS),

@@ -19,11 +19,17 @@ vi.mock('../deepResearchTurn.js', () => ({
   runDeepResearchTurn: (o: unknown): Promise<unknown> => runDeepResearchTurn(o),
 }));
 
-const reserveDeepResearch = vi.fn<(userId: string) => Promise<{ ok: boolean; reason?: string }>>();
-const releaseDeepResearch = vi.fn<(userId: string) => Promise<void>>();
+const RESERVED_DAY = '2026-09-18';
+const reserveDeepResearch =
+  vi.fn<
+    (
+      userId: string
+    ) => Promise<{ ok: boolean; reason?: string; status?: { day: string } | undefined }>
+  >();
+const releaseDeepResearch = vi.fn<(userId: string, day: string) => Promise<void>>();
 vi.mock('../deepResearchQuota.js', () => ({
   reserveDeepResearch: (userId: string) => reserveDeepResearch(userId),
-  releaseDeepResearch: (userId: string) => releaseDeepResearch(userId),
+  releaseDeepResearch: (userId: string, day: string) => releaseDeepResearch(userId, day),
   deepResearchQuotaSpentMessage: (r: { reason: string }) => `Budget (${r.reason}) aufgebraucht`,
 }));
 
@@ -92,7 +98,7 @@ const run = (over: Partial<ChatGraphState> = {}, enabledTools?: Record<string, b
 beforeEach(() => {
   runDeepAgentTurn.mockReset();
   runDeepResearchTurn.mockReset();
-  reserveDeepResearch.mockReset().mockResolvedValue({ ok: true });
+  reserveDeepResearch.mockReset().mockResolvedValue({ ok: true, status: { day: RESERVED_DAY } });
   releaseDeepResearch.mockReset().mockResolvedValue(undefined);
   searchNode.mockClear();
   briefGeneratorNode.mockClear();
@@ -150,7 +156,8 @@ describe('runSearchBranch — deep-research cascade', () => {
 
     await run({ deepResearchRequested: true });
 
-    expect(releaseDeepResearch).toHaveBeenCalledWith('u1');
+    // The give-back carries the reservation's day, not the clock at release.
+    expect(releaseDeepResearch).toHaveBeenCalledWith('u1', RESERVED_DAY);
     expect(searchNode).toHaveBeenCalledTimes(1);
   });
 

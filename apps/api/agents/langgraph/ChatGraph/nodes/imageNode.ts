@@ -108,9 +108,8 @@ export async function imageNode(state: ChatGraphState): Promise<Partial<ChatGrap
 
   const budget = getTreeBudget();
   // Set once the reservation succeeds, so the catch below can give the units
-  // back if the FLUX call itself fails.
-  let reservedUserId: string | null = null;
-  let reservedCost: number | null = null;
+  // back if the FLUX call itself fails — onto the day it was booked on.
+  let reserved: { userId: string; cost: number; day: string } | null = null;
 
   try {
     const { messages, agentConfig } = state;
@@ -168,8 +167,7 @@ export async function imageNode(state: ChatGraphState): Promise<Partial<ChatGrap
         error: treeBudgetSpentMessage(reservation.status, cost),
       };
     }
-    reservedUserId = userId;
-    reservedCost = cost;
+    reserved = { userId, cost, day: reservation.status.day };
 
     // Detect style from prompt
     const style = detectStyleFromPrompt(userContent);
@@ -229,8 +227,8 @@ export async function imageNode(state: ChatGraphState): Promise<Partial<ChatGrap
     );
 
     // The reservation was booked before the FLUX call; give it back on failure.
-    if (reservedUserId && reservedCost !== null) {
-      await budget.release(reservedUserId, reservedCost);
+    if (reserved) {
+      await budget.release(reserved.userId, reserved.cost, reserved.day);
     }
 
     // Handle specific error types

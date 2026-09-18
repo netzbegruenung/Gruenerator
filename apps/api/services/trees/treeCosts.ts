@@ -15,6 +15,9 @@
  */
 
 export const UNITS_PER_TREE = 100;
+/** The product decision behind everything else: what one account gets per day. */
+export const BASE_DAILY_TREES = 10;
+export const NEWSLETTER_BONUS_TREES = 5;
 export const SPEECH_SECONDS_PER_TREE = 180;
 export const CHARS_PER_TREE = 20_000;
 
