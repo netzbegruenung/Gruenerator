@@ -60,14 +60,19 @@ export interface TextFormInjection {
   access: TextFormAccess;
 }
 
-/** Sharing state of one recipe, owner-scoped. Mirrors `UserAgentSharing`
- * without `audience`: recipes have no locale. */
-export interface TextFormSharing {
-  /** The recipe's UUID — the group_content_shares.content_id for this row. */
-  id: string;
+/** The three sharing fields, without the row they belong to — what a patch
+ * resolves against and what `applySharingPatch` returns. */
+export interface TextFormSharingState {
   share_mode: TextFormShareMode;
   is_public: boolean;
   public_ownership: PublicOwnership | null;
+}
+
+/** Sharing state of one recipe, owner-scoped. Mirrors `UserAgentSharing`
+ * without `audience`: recipes have no locale. */
+export interface TextFormSharing extends TextFormSharingState {
+  /** The recipe's UUID — the group_content_shares.content_id for this row. */
+  id: string;
 }
 
 export interface TextFormSharingPatch {
@@ -79,11 +84,52 @@ export interface TextFormSharingPatch {
 /**
  * `updated: false` means "no such recipe for this owner" (the router's 404),
  * `reason: 'not_custom'` means the row exists but is a preset/recipe override
- * and must not be shared (the router's 409). Same `{ ok }` verdict shape as
- * `textFormKind.ts`, minus the HTTP status — that mapping belongs to the router.
+ * and must not be shared (409), `reason: 'ownership_required'` that the patch
+ * would list the recipe publicly without the ownership attestation (400/409).
+ * Same `{ ok }` verdict shape as `textFormKind.ts`, minus the HTTP status —
+ * that mapping belongs to the router.
  */
 export type TextFormSharingResult =
-  { ok: true; updated: boolean } | { ok: false; reason: 'not_custom' };
+  { ok: true; updated: boolean } | { ok: false; reason: 'not_custom' | 'ownership_required' };
+
+/** What {@link applySharingPatch} decided: the state to write, or why not. */
+export type SharingPatchVerdict =
+  { ok: true; next: TextFormSharingState } | { ok: false; reason: 'ownership_required' };
+
+/**
+ * The sharing state a patch leaves behind — the three fields are not
+ * independent, and this is the only place that says how.
+ *
+ *  (a) Public listing sits ATOP `share_mode = 'authenticated'`. Narrowing the
+ *      mode therefore un-lists the recipe and drops the attestation with it;
+ *      leaving `is_public = true` on a private row would re-publish it the
+ *      moment the mode widened again.
+ *  (b) Listing publicly without `public_ownership` is refused outright: the
+ *      field is the owner's legal attestation for THIS recipe, and the contract
+ *      promises it is non-null whenever `is_public` is. Nothing is written.
+ *  (c) Un-listing clears the attestation — it is a statement about a listing
+ *      that no longer exists, and keeping it would silently cover the next one.
+ *
+ * Pure, so the rule is testable without Postgres; `updateTextFormSharing` is
+ * its only caller and the single chokepoint for every sharing write.
+ */
+export function applySharingPatch(
+  current: TextFormSharingState,
+  patch: TextFormSharingPatch
+): SharingPatchVerdict {
+  const share_mode = patch.share_mode ?? current.share_mode;
+  const is_public = patch.is_public ?? current.is_public;
+  const public_ownership =
+    patch.public_ownership !== undefined ? patch.public_ownership : current.public_ownership;
+
+  if (share_mode !== 'authenticated') {
+    return { ok: true, next: { share_mode, is_public: false, public_ownership: null } };
+  }
+  if (is_public && public_ownership === null) return { ok: false, reason: 'ownership_required' };
+  if (!is_public)
+    return { ok: true, next: { share_mode, is_public: false, public_ownership: null } };
+  return { ok: true, next: { share_mode, is_public, public_ownership } };
+}
 
 // ── Injection cache ──────────────────────────────────────────────────────────
 
@@ -414,7 +460,13 @@ export async function updateTextFormSharing(
 ): Promise<TextFormSharingResult> {
   const db = getDrizzleInstance();
   const existing = await db
-    .select({ id: userTextForms.id, kind: userTextForms.kind })
+    .select({
+      id: userTextForms.id,
+      kind: userTextForms.kind,
+      share_mode: userTextForms.share_mode,
+      is_public: userTextForms.is_public,
+      public_ownership: userTextForms.public_ownership,
+    })
     .from(userTextForms)
     .where(and(eq(userTextForms.user_id, userId), eq(userTextForms.mention, mention)))
     .limit(1);
@@ -422,14 +474,27 @@ export async function updateTextFormSharing(
   if (!row) return { ok: true, updated: false };
   if (row.kind !== SHAREABLE_KIND) return { ok: false, reason: 'not_custom' };
 
-  const values: Record<string, unknown> = { updated_at: new Date() };
-  if (patch.share_mode !== undefined) values.share_mode = patch.share_mode;
-  if (patch.is_public !== undefined) values.is_public = patch.is_public;
-  if (patch.public_ownership !== undefined) values.public_ownership = patch.public_ownership;
+  // The patch is resolved against the stored row, not applied field by field:
+  // a caller that only flips `share_mode` still has to leave a consistent
+  // triple behind, and only this function sees both halves.
+  const verdict = applySharingPatch(
+    {
+      share_mode: row.share_mode as TextFormShareMode,
+      is_public: row.is_public,
+      public_ownership: (row.public_ownership as PublicOwnership | null) ?? null,
+    },
+    patch
+  );
+  if (!verdict.ok) return verdict;
 
   const updated = await db
     .update(userTextForms)
-    .set(values)
+    .set({
+      share_mode: verdict.next.share_mode,
+      is_public: verdict.next.is_public,
+      public_ownership: verdict.next.public_ownership,
+      updated_at: new Date(),
+    })
     .where(eq(userTextForms.id, row.id))
     .returning({ id: userTextForms.id });
 
@@ -437,36 +502,31 @@ export async function updateTextFormSharing(
   return { ok: true, updated: updated.length > 0 };
 }
 
-/** The recipe `mention` names, if `userId` owns it AND it may be shared.
- * A preset or recipe override takes the same path as a missing row. */
-async function findShareableOwnRow(
+/** The row `mention` names for its owner, whatever kind it is. The kind gate
+ * belongs to the callers: sharing is gated, revoking deliberately is not. */
+async function findOwnRow(
   userId: string,
   mention: string
-): Promise<{ id: string } | null> {
+): Promise<{ id: string; kind: string } | null> {
   const db = getDrizzleInstance();
   const rows = await db
-    .select({ id: userTextForms.id })
+    .select({ id: userTextForms.id, kind: userTextForms.kind })
     .from(userTextForms)
-    .where(
-      and(
-        eq(userTextForms.user_id, userId),
-        eq(userTextForms.mention, mention),
-        eq(userTextForms.kind, SHAREABLE_KIND)
-      )
-    )
+    .where(and(eq(userTextForms.user_id, userId), eq(userTextForms.mention, mention)))
     .limit(1);
   const row = rows[0];
-  return row ? { id: String(row.id) } : null;
+  return row ? { id: String(row.id), kind: row.kind } : null;
 }
 
-/** Share a recipe the user owns with one of their groups. */
+/** Share a recipe the user owns with one of their groups. Only `custom` rows:
+ * a preset or recipe override takes the same path as a missing row. */
 export async function shareTextFormWithGroup(
   userId: string,
   mention: string,
   groupId: string
 ): Promise<TextFormGroupShare[] | null> {
-  const form = await findShareableOwnRow(userId, mention);
-  if (!form) return null;
+  const form = await findOwnRow(userId, mention);
+  if (!form || form.kind !== SHAREABLE_KIND) return null;
 
   const pg = getPostgresInstance();
   // Membership is checked in SQL: the insert only happens for a group the user
@@ -488,12 +548,19 @@ export async function shareTextFormWithGroup(
   return shares.get(form.id) ?? [];
 }
 
+/**
+ * Revoke a group share. Deliberately NOT gated on `kind = 'custom'`, unlike
+ * `shareTextFormWithGroup`: shares of preset and recipe rows exist from before
+ * that gate, `GROUP_SHARE_EXISTS` still injects them, and a gate here would
+ * leave their owner no way to take them back. Taking access away is always
+ * allowed; only handing it out is restricted.
+ */
 export async function unshareTextFormFromGroup(
   userId: string,
   mention: string,
   groupId: string
 ): Promise<TextFormGroupShare[] | null> {
-  const form = await findShareableOwnRow(userId, mention);
+  const form = await findOwnRow(userId, mention);
   if (!form) return null;
 
   const pg = getPostgresInstance();
