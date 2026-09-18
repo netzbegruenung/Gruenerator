@@ -200,18 +200,80 @@ describe('AgenturaPage — Meine Rezepte', () => {
 });
 
 describe('AgenturaPage — Von der Basis', () => {
-  it('zeigt ein öffentliches Rezept, aber keine eigenen darin', async () => {
-    list.mockResolvedValue({ status: 200, body: { success: true, forms: [ownRow()] } });
-    listPublic.mockResolvedValue({
-      status: 200,
-      body: { success: true, forms: [publicRow(), publicRow({ mention: 'eigenes-rezept' })] },
-    });
+  it('zeigt ein fremdes öffentliches Rezept mit Herkunft', async () => {
+    listPublic.mockResolvedValue({ status: 200, body: { success: true, forms: [publicRow()] } });
     renderPage('/agentura?cat=community');
 
     expect(await screen.findByRole('heading', { name: 'Fremdes Rezept' })).toBeInTheDocument();
     expect(screen.getByText(/Von der Basis · Sam Beispiel/)).toBeInTheDocument();
-    // The own mention is filtered out of "Von der Basis" even though it's public.
-    expect(screen.queryByText('Eigenes Rezept')).not.toBeInTheDocument();
+  });
+
+  it('zeigt die eigene Rezept-Karte auch unter „Von der Basis", wenn sie öffentlich ist', async () => {
+    // Mirrors `communityAgents`: "owners still see their own listing" — a
+    // public own recipe shows both under "Meine Rezepte" and here.
+    list.mockResolvedValue({
+      status: 200,
+      body: { success: true, forms: [ownRow({ isPublic: true })] },
+    });
+    listPublic.mockResolvedValue({
+      status: 200,
+      body: {
+        success: true,
+        forms: [publicRow({ mention: 'eigenes-rezept', title: 'Eigenes Rezept' })],
+      },
+    });
+    renderPage('/agentura?cat=community');
+
+    expect(await screen.findByRole('heading', { name: 'Eigenes Rezept' })).toBeInTheDocument();
+  });
+
+  it('zeigt ein geteiltes und öffentliches Rezept genau einmal, unter „Geteilt mit Gruppen"', async () => {
+    // Mirrors `communityAgents`: a recipe reachable via a group share (not
+    // owned) is dropped from "Von der Basis" even though it's also public —
+    // "Geteilt mit Gruppen" already shows it once.
+    list.mockResolvedValue({
+      status: 200,
+      body: {
+        success: true,
+        forms: [sharedRow({ mention: 'team-rezept', title: 'Team Rezept', isPublic: true })],
+      },
+    });
+    listPublic.mockResolvedValue({
+      status: 200,
+      body: {
+        success: true,
+        forms: [publicRow({ mention: 'team-rezept', title: 'Team Rezept' })],
+      },
+    });
+
+    renderPage('/agentura?cat=meine');
+    expect(await screen.findAllByRole('heading', { name: 'Team Rezept' })).toHaveLength(1);
+  });
+
+  it('lässt ein nur geteiltes (nicht eigenes) Rezept aus „Von der Basis" weg', async () => {
+    list.mockResolvedValue({
+      status: 200,
+      body: {
+        success: true,
+        forms: [sharedRow({ mention: 'team-rezept', title: 'Team Rezept', isPublic: true })],
+      },
+    });
+    listPublic.mockResolvedValue({
+      status: 200,
+      body: {
+        success: true,
+        forms: [
+          publicRow({ mention: 'team-rezept', title: 'Team Rezept' }),
+          publicRow({ mention: 'anderes-rezept', title: 'Anderes Rezept' }),
+        ],
+      },
+    });
+
+    renderPage('/agentura?cat=community');
+    // A genuinely-community row proves the queries resolved before the
+    // absence check below is trusted.
+    await screen.findByRole('heading', { name: 'Anderes Rezept' });
+    expect(screen.queryByRole('heading', { name: 'Team Rezept' })).not.toBeInTheDocument();
   });
 });
 
@@ -253,7 +315,8 @@ describe('AgenturaPage — „Neu"-Menü', () => {
     renderPage();
 
     const trigger = await screen.findByRole('button', { name: 'Neu' });
-    await userEvent.click(trigger);
+    trigger.focus();
+    await userEvent.keyboard('{Enter}');
 
     const items = await screen.findAllByRole('menuitem');
     expect(items.map((el) => el.textContent)).toEqual([
@@ -262,8 +325,10 @@ describe('AgenturaPage — „Neu"-Menü', () => {
       'Wiederkehrende Aufgabe',
     ]);
 
+    // Opening via keyboard already focuses the first item (Radix's roving
+    // tabindex) — one more ArrowDown moves to "Rezept", the second entry.
     await userEvent.keyboard('{ArrowDown}{Enter}');
-    expect(navigate).toHaveBeenCalledWith('/agents/new');
+    expect(navigate).toHaveBeenCalledWith('/agentura/rezept/neu');
   });
 
   it('navigiert bei Klick auf „Rezept" zum Rezept-Ersteller', async () => {
