@@ -839,7 +839,9 @@ export async function buildStreamContext({
     // Die Zeilen-id der gewählten Textform. Kein Token-Gegenstück: Mention-Tokens
     // nennen die Mention, die id kommt nur aus dem Body — und schlägt sie im
     // Nachschlag, weil eine Umbenennung die Zeile sonst still austauschte.
-    activeRecipeId: rawActiveRecipeId ?? undefined,
+    // Genau deshalb weicht sie einem Token: siehe `activeRecipeIdForTurn`.
+    activeRecipeId:
+      activeRecipeIdForTurn(mentionTokenFields.skillMention, rawActiveRecipeId) ?? undefined,
     userInstructions,
     contextWindowTokens,
   });
@@ -940,6 +942,24 @@ export interface MentionTokenFields {
   docMentionIds: string[];
   /** Rezept/Textform aus einem `skill:`-Token — letzter gewinnt. */
   skillMention: string | null;
+}
+
+/**
+ * Welche Rezept-ZEILE der Turn pinnt.
+ *
+ * Die id kommt ausschliesslich aus dem Body und ist damit die AMBIENTE Wahl des
+ * Stores; ein `skill:`-Token steht dagegen IN der Nachricht und sagt, was
+ * genau diese Nachricht bestellt hat. Beides nebeneinander stehen zu lassen
+ * ginge schief, weil die id die Mention im Nachschlag schlägt: beim
+ * Erneut-Senden einer bearbeiteten, bereits getokenten Nachricht gewänne so das
+ * ambiente Rezept gegen das getippte. Trägt die Nachricht ein Token, fällt die
+ * id also weg — das Token nennt die Mention, und die entscheidet.
+ */
+export function activeRecipeIdForTurn(
+  tokenSkillMention: string | null,
+  bodyRecipeId: string | null | undefined
+): string | null {
+  return tokenSkillMention ? null : (bodyRecipeId ?? null);
 }
 
 function unionIds(a: string[] | null | undefined, b: string[]): string[] {
