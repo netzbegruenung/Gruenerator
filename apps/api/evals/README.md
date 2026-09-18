@@ -49,8 +49,8 @@ EVAL_BASE_URL=https://<test-host> EVAL_BYPASS_TOKEN=<token> EVAL_MODEL_ID=gemma-
 # just the multi-turn cases
 EVAL_FILTER=multiturn EVAL_BYPASS_TOKEN=<token> pnpm --filter @gruenerator/api eval:chat
 
-# the real @deepresearch runs — minutes and money each, and they spend the
-# shared daily allowance (DEEP_RESEARCH_DAILY_LIMIT = 3). Off by default.
+# the real @deepresearch runs — minutes and money each, and each one spends a
+# Baum from the shared daily budget. Off by default.
 EVAL_DEEP_RESEARCH=1 EVAL_FILTER=search-deep EVAL_BYPASS_TOKEN=<token> \
   pnpm --filter @gruenerator/api eval:chat
 ```

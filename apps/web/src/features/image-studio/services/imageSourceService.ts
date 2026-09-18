@@ -1,3 +1,4 @@
+import { type TreeBudgetStatus } from '@gruenerator/contracts';
 import {
   fetchStockImages as fetchStockImagesShared,
   searchUnsplashImages as searchUnsplashImagesShared,
@@ -68,7 +69,7 @@ export async function fetchUnsplashImageAsFile(image: StockImage): Promise<File>
 
 interface ImaginePureResponse {
   image: { base64: string; filename?: string };
-  usage?: { remaining?: number };
+  usage?: TreeBudgetStatus;
 }
 
 export async function generateAiImage(

@@ -7,6 +7,7 @@
  */
 import { z } from 'zod';
 
+import { treeBudgetStatusSchema } from './trees.js';
 import { ttsVoiceIdSchema } from './voice.js';
 import { SPEECH_MAX_SPEED, SPEECH_MAX_TEXT_CHARS, SPEECH_MIN_SPEED } from './voiceLimits.js';
 
@@ -65,10 +66,7 @@ export const generateSpeechResponseSchema = z.object({
   /** How many provider requests the text needed (long texts are split). */
   chunks: z.number(),
   files: z.array(speechFileSchema),
-  quota: z.object({
-    usedSeconds: z.number(),
-    limitSeconds: z.number(),
-  }),
+  quota: treeBudgetStatusSchema,
 });
 export type GenerateSpeechResponse = z.infer<typeof generateSpeechResponseSchema>;
 

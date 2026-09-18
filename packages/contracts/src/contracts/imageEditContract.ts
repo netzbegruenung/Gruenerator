@@ -36,7 +36,9 @@ export const imageEditContract = c.router(
         400: imageEditErrorSchema,
         401: imageEditErrorSchema,
         429: imageEditQuotaErrorSchema,
-        500: z.object({ success: z.literal(false), error: z.string() }),
+        500: imageEditErrorSchema,
+        // The Bäume budget could not be checked (Redis down) — fail closed, retry later.
+        503: imageEditErrorSchema,
       },
       summary: 'Edit an image with one or more reference images (FLUX.2)',
     },
