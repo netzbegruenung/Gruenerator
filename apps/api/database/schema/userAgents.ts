@@ -35,7 +35,14 @@ export const userAgents = pgTable(
     public_ownership: text('public_ownership'),
     plugins: jsonb('plugins').$type<string[]>(),
     enabled_tools: jsonb('enabled_tools').$type<string[]>(),
+    // Dead since 2026-09-18 — the recipe binding is `default_recipe_mention`/
+    // `default_recipe_id`; column kept, F0.
     skill_mentions: jsonb('skill_mentions').$type<string[]>(),
+    // Default recipe binding (see migrations/user_agents_default_recipe.sql).
+    // default_recipe_id names a user_text_forms row (own/shared/public) and
+    // wins over default_recipe_mention when set.
+    default_recipe_mention: text('default_recipe_mention'),
+    default_recipe_id: uuid('default_recipe_id'),
     // When true, source URLs of search hits are injected into the model context
     // so the agent writes concrete article links inline (e.g. ready-to-send mails).
     inline_source_links: boolean('inline_source_links'),
