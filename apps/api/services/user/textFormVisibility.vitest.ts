@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   isListableTextForm,
+  isShareableTextForm,
   pickVisibleTextForm,
   type TextFormAccess,
 } from './textFormVisibility.js';
@@ -93,5 +94,40 @@ describe('isListableTextForm', () => {
     // Eintrag. Kollidieren kann sie nicht — `resolveTextFormKind` lässt eine
     // Custom-Mention auf einer Rezept-Mention gar nicht erst entstehen.
     expect(isListableTextForm('custom', 'presse')).toBe(true);
+  });
+});
+
+/**
+ * Die zweite, engere Frage: darf die Zeile über den eigenen Zugang hinaus? Sie
+ * ist NICHT `isListableTextForm` mit anderem Namen — der Unterschied steht im
+ * letzten Fall.
+ */
+describe('isShareableTextForm', () => {
+  it('lässt eine eigene Textform teilen und veröffentlichen', () => {
+    expect(isShareableTextForm('custom', 'omveinladungen')).toBe(true);
+  });
+
+  it('weist ein Preset ab — es ersetzt den Rumpf eines Systemrezepts', () => {
+    expect(isShareableTextForm('preset', 'presse')).toBe(false);
+  });
+
+  it('weist einen Rezept-Stil auf einer Landesverbands-Mention ab', () => {
+    expect(isShareableTextForm('recipe', 'presse-bayern-partei')).toBe(false);
+  });
+
+  it('weist `antrag` ab, obwohl es aufgezählt wird', () => {
+    // Aufzählen und Weitergeben sind zwei Fragen: die angelernte Antrags-Zeile
+    // steht im Menü, ist aber die Füllung eines Textyps und nicht die Gabe
+    // ihres Eigentümers.
+    expect(isListableTextForm('preset', 'antrag')).toBe(true);
+    expect(isShareableTextForm('preset', 'antrag')).toBe(false);
+  });
+
+  it('weist eine Custom-Zeile ab, deren Mention ein Systemrezept verdeckt', () => {
+    // Der Fall, für den `isListableTextForm` blind ist: solche Zeilen stammen
+    // aus der Zeit vor `resolveTextFormKind` und würden Fremden das
+    // Systemrezept still austauschen.
+    expect(isListableTextForm('custom', 'presse')).toBe(true);
+    expect(isShareableTextForm('custom', 'presse')).toBe(false);
   });
 });

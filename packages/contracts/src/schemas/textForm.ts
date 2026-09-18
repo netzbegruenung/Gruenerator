@@ -306,8 +306,23 @@ export const textFormDraftResponseSchema = z.object({
   spec: draftedRecipeSpecSchema,
 });
 
-/** Public Agentura discovery feed — full recipe shapes. */
+/**
+ * Ein fremdes Rezept, wie der offene Katalog es zeigt.
+ *
+ * Ohne `examples`: das sind die Originaltexte der Person, aus denen der Stil
+ * gelernt wurde — veröffentlicht wurde die ANWEISUNG, nicht ihr Rohstoff. Ohne
+ * `sharedWithGroups`: das nennt die Projekte des Eigentümers und geht niemanden
+ * sonst etwas an. `styleBlock` bleibt drin — er IST das Veröffentlichte, und die
+ * Detailseite zeigt ihn. `exampleCount` tritt an die Stelle der Beispiele, damit
+ * die Karte sagen kann, auf wie vielen Texten ein Rezept beruht.
+ */
+export const publicTextFormSchema = textFormSchema
+  .omit({ examples: true, sharedWithGroups: true })
+  .extend({ exampleCount: z.number().int().nonnegative() });
+export type PublicTextForm = z.infer<typeof publicTextFormSchema>;
+
+/** Public Agentura discovery feed. */
 export const publicTextFormsResponseSchema = z.object({
   success: z.boolean(),
-  forms: z.array(textFormSchema),
+  forms: z.array(publicTextFormSchema),
 });
