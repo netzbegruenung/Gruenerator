@@ -11,7 +11,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-import { MAX_TEXT_FORM_STYLE_CHARS } from '@gruenerator/contracts';
+import { MAX_TEXT_FORM_STYLE_CHARS, textFormMentionSchema } from '@gruenerator/contracts';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // ─── Module mocks (hoisted before imports) ────────────────────
@@ -96,6 +96,33 @@ describe('draftRecipeSpec', () => {
       takenMentions: new Set(['presse', 'presse-2', 'presse-3']),
     });
     expect(spec.mention).toBe('presse-4');
+  });
+
+  it('falls through to a random suffix once every -2..-20 candidate is taken', async () => {
+    mockDraftResult(baseDraft({ mention: 'presse' }));
+    // 'presse' itself plus 'presse-2'..'presse-20' — every candidate the
+    // fixed numeric loop could produce is occupied, forcing the random-draw
+    // branch in resolveMentionCollision.
+    const taken = new Set(['presse', ...Array.from({ length: 19 }, (_, i) => `presse-${i + 2}`)]);
+    const spec = await draftRecipeSpec({
+      messages: [{ role: 'user', content: 'Beschreibung' }],
+      takenMentions: taken,
+    });
+    expect(spec.mention.startsWith('presse-')).toBe(true);
+    expect(taken.has(spec.mention)).toBe(false);
+    expect(textFormMentionSchema.safeParse(spec.mention).success).toBe(true);
+  });
+
+  it('truncates a near-max-length base mention so the collision suffix still fits 48 chars', async () => {
+    const longMention = 'a'.repeat(48);
+    mockDraftResult(baseDraft({ mention: longMention }));
+    const spec = await draftRecipeSpec({
+      messages: [{ role: 'user', content: 'Beschreibung' }],
+      takenMentions: new Set([longMention]),
+    });
+    expect(spec.mention.length).toBeLessThanOrEqual(48);
+    expect(spec.mention.endsWith('-2')).toBe(true);
+    expect(textFormMentionSchema.safeParse(spec.mention).success).toBe(true);
   });
 
   it('derives the mention from the title when the model mention is an invalid slug', async () => {
