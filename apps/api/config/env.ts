@@ -341,6 +341,7 @@ const envSchema = z.object({
   BREVO_SMTP_PORT: numStr(587),
   BREVO_SMTP_USER: z.string().trim().optional(),
   BREVO_SMTP_PASS: z.string().trim().optional(),
+  BREVO_API_KEY: z.string().trim().optional(),
   EMAIL_FROM: z.string().trim().optional(),
 
   // ── Credential encryption ──────────────────────────────────────────────
