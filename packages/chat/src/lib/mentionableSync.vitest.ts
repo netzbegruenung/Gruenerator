@@ -311,6 +311,26 @@ describe('syncTextforms — old-server fallback', () => {
     expect(list.map((f) => f.mention)).toEqual(['omveinladungen']);
   });
 
+  it('füllt die Felder, die ein alter Server gar nicht kennt', async () => {
+    // Genau dieser Zweig läuft nur gegen einen Server ohne die Rezept-Spalten:
+    // die Zeile trägt weder id noch description/iconKey/ownerName/isPublic.
+    const list = await syncTextforms(
+      fetchOldServer([{ kind: 'custom', mention: 'omveinladungen', title: 'OMV' }])
+    );
+    expect(list).toEqual([
+      {
+        id: 'omveinladungen',
+        mention: 'omveinladungen',
+        title: 'OMV',
+        description: null,
+        iconKey: null,
+        sharedFromGroup: null,
+        ownerName: null,
+        isPublic: false,
+      },
+    ]);
+  });
+
   it('nimmt ein Preset ohne mitgeliefertes Rezept auf', async () => {
     const list = await syncTextforms(
       fetchOldServer([

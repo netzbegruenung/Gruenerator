@@ -63,19 +63,18 @@ export interface UserNotebookListItem {
  * of retyped. Hand-narrowing it is how `sharedFromGroup` went missing: the
  * field the picker splits recipes on was simply absent from the transport
  * type, so nothing ever flagged that the mapping below dropped it (#2876).
+ *
+ * Die Rezept-Felder stehen als OPTIONAL darin, und das ist der Punkt: dieser
+ * Zweig läuft nur gegen einen ALTEN Server, dessen Zeilen `id`, `description`,
+ * `iconKey`, `ownerName` und `isPublic` gar nicht kennen. Der Contract-Typ
+ * behauptet sie, geliefert werden sie nicht — als `undefined` landeten sie in
+ * Feldern, die `| null` tragen, und das Mention-Menü zeigte Rezepte ohne
+ * Schlüssel. Bis 2026-12-18, dann fällt der Zweig weg.
  */
-export type TextFormListItem = Pick<
-  TextForm,
-  | 'id'
-  | 'kind'
-  | 'mention'
-  | 'title'
-  | 'description'
-  | 'iconKey'
-  | 'sharedFromGroup'
-  | 'ownerName'
-  | 'isPublic'
->;
+export type TextFormListItem = Pick<TextForm, 'kind' | 'mention' | 'title'> &
+  Partial<
+    Pick<TextForm, 'id' | 'description' | 'iconKey' | 'sharedFromGroup' | 'ownerName' | 'isPublic'>
+  >;
 
 /**
  * The slice of `/api/auth/custom_prompts` and `/api/auth/saved_prompts` this
@@ -224,6 +223,21 @@ function toTextformMentionable(f: TextformSource): TextformMentionable {
   };
 }
 
+/** Eine Zeile vom alten Endpunkt: die Mention trägt als id ein, was sie ohnehin
+ * ist (der Nachschlag geht über sie), der Rest fällt auf leer zurück. */
+function toLegacyTextformMentionable(f: TextFormListItem): TextformMentionable {
+  return toTextformMentionable({
+    id: f.id ?? f.mention,
+    mention: f.mention,
+    title: f.title,
+    description: f.description ?? null,
+    iconKey: f.iconKey ?? null,
+    sharedFromGroup: f.sharedFromGroup ?? null,
+    ownerName: f.ownerName ?? null,
+    isPublic: f.isPublic ?? false,
+  });
+}
+
 /**
  * User's custom text forms ("Texte anlernen") → per-form `/mention` skills.
  * Presets ride the existing system-skill mentions, so only custom forms surface
@@ -258,7 +272,7 @@ export async function syncTextforms(get: MentionableFetch): Promise<TextformMent
     list = Array.isArray(res?.forms)
       ? res.forms
           .filter((f) => f.kind === 'custom' || !hasSystemRecipe(f.mention))
-          .map(toTextformMentionable)
+          .map(toLegacyTextformMentionable)
       : [];
   }
   setTextforms(list);
