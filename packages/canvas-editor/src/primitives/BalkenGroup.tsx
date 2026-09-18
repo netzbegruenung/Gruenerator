@@ -15,6 +15,7 @@ import {
   flattenPoints,
   measureTextWidth,
 } from '../utils/dreizeilenLayout';
+import { useFontGeneration } from '../hooks/useFontGeneration';
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { calculateElementSnapPosition } from '../utils/snapping';
 
@@ -208,27 +209,12 @@ function BalkenGroupInner({
 
   const config = DREIZEILEN_CONFIG;
 
-  // Font readiness tracking to ensure text measurements use the correct font
-  const fontSpec = `${config.text.defaultFontSize}px ${config.text.fontFamily}`;
-  const [fontReady, setFontReady] = useState(
-    () => typeof document !== 'undefined' && document.fonts?.check(fontSpec)
-  );
-
-  useEffect(() => {
-    // Already loaded
-    if (fontReady) return;
-
-    // Check if now available
-    if (document.fonts?.check(fontSpec)) {
-      setFontReady(true);
-      return;
-    }
-
-    // Wait for fonts to finish loading
-    void document.fonts?.ready.then(() => {
-      setFontReady(true);
-    });
-  }, [fontSpec]);
+  // Die Balkenbreite ist eine React-seitige Messung gegen GrueneTypeNeue. Beim
+  // ersten Öffnen ist die Schrift noch nicht da (ein Konva-Paint fordert sie
+  // nicht an), also misst der erste Durchlauf Arial. Ohne diese Abhängigkeit
+  // bliebe die zu breite Ersatzschrift-Breite bis zum nächsten Regler-Griff
+  // stehen — siehe `useFontGeneration`.
+  const fontGeneration = useFontGeneration();
 
   const fontSize = config.text.defaultFontSize;
   const colorScheme = useMemo(() => getColorScheme(colorSchemeId), [colorSchemeId]);
@@ -252,7 +238,7 @@ function BalkenGroupInner({
   const { balkens, bounds } = useMemo(
     () =>
       calculateBalkenLayouts(mode, widthScale, displayTexts, stageWidth, stageHeight, barOffsets),
-    [mode, widthScale, displayTexts, stageWidth, stageHeight, barOffsets, fontReady]
+    [mode, widthScale, displayTexts, stageWidth, stageHeight, barOffsets, fontGeneration]
   );
 
   // Attach transformer when selected
