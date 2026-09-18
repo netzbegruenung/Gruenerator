@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -177,5 +180,28 @@ describe('collapsingSection', () => {
     // returned a negative opacity and a negative height.
     expect(collapsingSection(1.4, 180)).toEqual({ opacity: 0, height: 0 });
     expect(collapsingSection(1.4, 0)).toEqual({ opacity: 0 });
+  });
+});
+
+/**
+ * Every composer that docks onto the keyboard has to dock onto the *same* seam.
+ * The numbers above pin `dockingSpacer`'s arithmetic; they cannot see a screen
+ * that computes its own seam and never calls it — which is exactly how
+ * `BottomComposerBar` drifted to `spacing.xsmall` and sat 3.5dp tighter than the
+ * thread and the start screen on the same handset.
+ *
+ * Source-level on purpose: a render test pinned to 11.5dp passes just as happily
+ * against a re-inlined literal, and the literal is the thing that drifts.
+ */
+describe('composer seam', () => {
+  const DOCKING_COMPOSERS = [
+    '../components/chat/AssistantThread.tsx',
+    '../components/common/BottomComposerBar.tsx',
+    '../app/(tabs)/start.tsx',
+  ];
+
+  it.each(DOCKING_COMPOSERS)('%s docks on COMPOSER_BOTTOM_INSET_RAISED', (file) => {
+    const source = readFileSync(resolve(__dirname, file), 'utf8');
+    expect(source).toContain('COMPOSER_BOTTOM_INSET_RAISED');
   });
 });
