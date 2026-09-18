@@ -3,7 +3,7 @@
     {
       "key": "meine",
       "label": "Meine Grüneratoren",
-      "description": "Deine selbst erstellten Grüneratoren, wiederkehrende Aufgaben und was in deinen Gruppen geteilt wurde."
+      "description": "Deine selbst erstellten Grüneratoren, Rezepte, wiederkehrenden Aufgaben und was in deinen Gruppen geteilt wurde."
     },
     {
       "key": "landesverband",
@@ -13,7 +13,7 @@
     {
       "key": "community",
       "label": "Von der Basis",
-      "description": "Öffentlich geteilte Grüneratoren von der Basis."
+      "description": "Öffentlich geteilte Grüneratoren und Rezepte von der Basis."
     },
     {
       "key": "gruenerator",

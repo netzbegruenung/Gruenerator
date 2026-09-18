@@ -54,9 +54,9 @@ export const AGENTURA_CATEGORIES: AgenturaCategory[] = [
     key: 'meine',
     label: 'Meine Grüneratoren',
     description:
-      'Deine selbst erstellten Grüneratoren, wiederkehrende Aufgaben und was in deinen Gruppen geteilt wurde.',
+      'Deine selbst erstellten Grüneratoren, Rezepte, wiederkehrenden Aufgaben und was in deinen Gruppen geteilt wurde.',
     emptyText:
-      'Du hast noch keine eigenen Grüneratoren erstellt. Leg deinen ersten über „Neuer Grünerator-Agent" an.',
+      'Du hast noch keine eigenen Grüneratoren oder Rezepte erstellt. Leg deinen ersten über „Neu" an.',
     platforms: ['web', 'mobile'],
   },
   {
@@ -71,7 +71,7 @@ export const AGENTURA_CATEGORIES: AgenturaCategory[] = [
   {
     key: 'community',
     label: 'Von der Basis',
-    description: 'Öffentlich geteilte Grüneratoren von der Basis.',
+    description: 'Öffentlich geteilte Grüneratoren und Rezepte von der Basis.',
     emptyText:
       'Noch keine öffentlichen Grüneratoren. Sei der oder die Erste — teile einen deiner Grüneratoren über „Teilen" und aktiviere „Von der Basis".',
     platforms: ['web', 'mobile'],
