@@ -15,9 +15,15 @@
  * waits on a network round trip, so that page renders exactly as it did before
  * recipes grew their own rows; only the override badge arrives late.
  *
- * `isError` is NOT part of "not found": a failed list must show "konnte nicht
- * geladen werden", never the 404 page, or a transient outage looks like a
- * deleted recipe.
+ * Two things must never be reported as "not found", because both would read as
+ * a deletion that never happened:
+ *  - a failed list (`isError`), and
+ *  - an auth probe that has not answered yet. The page mounts from
+ *    `RequireAuth`, which lets the warm `['authStatus']` cache through while
+ *    the revalidation is still in flight; reading a Zustand mirror of the
+ *    auth flag here would be a SECOND clock, and on a hard load it says
+ *    "guest" for as long as the probe takes. `useAuthBootstrap` is the same
+ *    clock the guard itself uses.
  */
 import { type AgentListItem } from '@gruenerator/chat';
 import { type PublicTextForm, type TextForm } from '@gruenerator/contracts';
@@ -26,7 +32,7 @@ import { findSkillByMention } from '../lib/lookups';
 
 import { useOwnRecipes, usePublicRecipes } from './api';
 
-import { useAuthStore } from '@/stores/authStore';
+import { useAuthBootstrap } from '@/hooks/useAuthBootstrapped';
 
 export type RecipeSource = 'system' | 'own' | 'shared' | 'public';
 
@@ -52,13 +58,19 @@ const NOTHING = {
 } as const;
 
 export function useRecipeByMention(mention: string): RecipeLookup {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const { isBootstrapped, isAuthenticated } = useAuthBootstrap();
 
   const skill = findSkillByMention(mention);
-  const ownQuery = useOwnRecipes(isAuthenticated && mention.length > 0);
-  const publicQuery = usePublicRecipes();
+  // Only the caller's own list can answer for a system mention (the override);
+  // the open catalogue never can, so a system page makes no request for it.
+  const ownQuery = useOwnRecipes(isBootstrapped && isAuthenticated && mention.length > 0);
+  const publicQuery = usePublicRecipes(!skill && mention.length > 0);
 
-  const ownRow = ownQuery.data?.find((f) => f.mention === mention && !f.sharedFromGroup) ?? null;
+  // Mentions are stored exactly as typed, but a link may carry any casing.
+  const needle = mention.toLowerCase();
+  const sameMention = (form: { mention: string }) => form.mention.toLowerCase() === needle;
+
+  const ownRow = ownQuery.data?.find((f) => sameMention(f) && !f.sharedFromGroup) ?? null;
 
   if (skill) {
     return {
@@ -82,7 +94,7 @@ export function useRecipeByMention(mention: string): RecipeLookup {
     };
   }
 
-  const sharedRow = ownQuery.data?.find((f) => f.mention === mention && f.sharedFromGroup) ?? null;
+  const sharedRow = ownQuery.data?.find((f) => sameMention(f) && f.sharedFromGroup) ?? null;
   if (sharedRow) {
     return {
       status: 'ready',
@@ -94,7 +106,7 @@ export function useRecipeByMention(mention: string): RecipeLookup {
     };
   }
 
-  const publicRow = publicQuery.data?.find((f) => f.mention === mention) ?? null;
+  const publicRow = publicQuery.data?.find(sameMention) ?? null;
   if (publicRow) {
     return {
       status: 'ready',
@@ -106,7 +118,10 @@ export function useRecipeByMention(mention: string): RecipeLookup {
     };
   }
 
-  if (ownQuery.isLoading || publicQuery.isLoading) {
+  // `!isBootstrapped`: the own list is still switched off for a reason that
+  // has nothing to do with this recipe. Answering "nicht gefunden" here is the
+  // bug — it hits exactly the hard-load / pasted-link case.
+  if (!isBootstrapped || ownQuery.isLoading || publicQuery.isLoading) {
     return { status: 'loading', source: null, ...NOTHING };
   }
 

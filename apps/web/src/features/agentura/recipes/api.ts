@@ -23,7 +23,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 const OWN_RECIPES_KEY = ['text-forms'];
 const PUBLIC_RECIPES_KEY = ['text-forms', 'public'];
 
-function errorMessage(body: unknown, status: number): string {
+/**
+ * The server's own sentence, when it sent one. Shared with
+ * `useRecipeSharing.ts` so both doors surface the same text: a sharing refusal
+ * ("Angepasste System-Rezepte lassen sich nicht teilen …") is the only thing
+ * that explains the failure, and a generic `HTTP 409` in its place forces the
+ * UI to keep a second, drifting copy of the wording.
+ */
+export function textFormErrorMessage(body: unknown, status: number): string {
   if (body && typeof body === 'object' && 'message' in body) {
     return String((body as { message: unknown }).message);
   }
@@ -36,7 +43,8 @@ export const ownRecipesQuery = {
   retry: false,
   queryFn: async (): Promise<TextForm[]> => {
     const res = await getContractsClient().userTextForms.list();
-    if (res.status !== 200) throw new ApiError(res.status, errorMessage(res.body, res.status));
+    if (res.status !== 200)
+      throw new ApiError(res.status, textFormErrorMessage(res.body, res.status));
     return res.body.forms;
   },
 };
@@ -46,14 +54,20 @@ export function useOwnRecipes(enabled: boolean) {
   return useQuery({ ...ownRecipesQuery, enabled });
 }
 
-/** Public Agentura discovery feed: recipes listed publicly. */
-export function usePublicRecipes() {
+/**
+ * Public Agentura discovery feed: recipes listed publicly. `enabled` so callers
+ * that can already answer from elsewhere (a system mention is never in this
+ * list) don't pay for the round trip.
+ */
+export function usePublicRecipes(enabled = true) {
   return useQuery({
     queryKey: PUBLIC_RECIPES_KEY,
+    enabled,
     retry: false,
     queryFn: async (): Promise<PublicTextForm[]> => {
       const res = await getContractsClient().userTextForms.listPublic();
-      if (res.status !== 200) throw new ApiError(res.status, errorMessage(res.body, res.status));
+      if (res.status !== 200)
+        throw new ApiError(res.status, textFormErrorMessage(res.body, res.status));
       return res.body.forms;
     },
   });
@@ -74,7 +88,8 @@ export function useAnalyzeRecipe() {
           examples: input.examples,
         },
       });
-      if (res.status !== 200) throw new ApiError(res.status, errorMessage(res.body, res.status));
+      if (res.status !== 200)
+        throw new ApiError(res.status, textFormErrorMessage(res.body, res.status));
       return res.body.styleBlock;
     },
   });
@@ -89,7 +104,8 @@ export function useDraftRecipe() {
   return useMutation({
     mutationFn: async (input: { description: string }): Promise<DraftedRecipeSpec> => {
       const res = await getContractsClient().userTextForms.draft({ body: input });
-      if (res.status !== 200) throw new ApiError(res.status, errorMessage(res.body, res.status));
+      if (res.status !== 200)
+        throw new ApiError(res.status, textFormErrorMessage(res.body, res.status));
       return res.body.spec;
     },
   });
@@ -104,7 +120,8 @@ export function useSaveRecipe() {
         params: { mention: input.mention },
         body: input.body,
       });
-      if (res.status !== 200) throw new ApiError(res.status, errorMessage(res.body, res.status));
+      if (res.status !== 200)
+        throw new ApiError(res.status, textFormErrorMessage(res.body, res.status));
       return res.body.form;
     },
     onSuccess: () => {
@@ -118,7 +135,8 @@ export function useDeleteRecipe() {
   return useMutation({
     mutationFn: async (mention: string): Promise<void> => {
       const res = await getContractsClient().userTextForms.remove({ params: { mention } });
-      if (res.status !== 200) throw new ApiError(res.status, errorMessage(res.body, res.status));
+      if (res.status !== 200)
+        throw new ApiError(res.status, textFormErrorMessage(res.body, res.status));
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: OWN_RECIPES_KEY });
@@ -134,7 +152,8 @@ export function useShareRecipeWithGroup() {
         params: { mention: input.mention },
         body: { group_id: input.groupId },
       });
-      if (res.status !== 200) throw new ApiError(res.status, errorMessage(res.body, res.status));
+      if (res.status !== 200)
+        throw new ApiError(res.status, textFormErrorMessage(res.body, res.status));
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: OWN_RECIPES_KEY });
@@ -150,7 +169,8 @@ export function useUnshareRecipeFromGroup() {
         params: { mention: input.mention },
         body: { group_id: input.groupId },
       });
-      if (res.status !== 200) throw new ApiError(res.status, errorMessage(res.body, res.status));
+      if (res.status !== 200)
+        throw new ApiError(res.status, textFormErrorMessage(res.body, res.status));
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: OWN_RECIPES_KEY });
