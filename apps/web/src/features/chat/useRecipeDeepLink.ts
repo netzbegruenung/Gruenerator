@@ -13,19 +13,29 @@ import { useEffect } from 'react';
  * eigene Rezepte überlebten bisher nur zufällig, weil der Listener bei
  * `chatViewMode === 'thread'` und einem Wechsel auf `null` vorher aussteigt.
  *
- * Deshalb wird hier nicht gesetzt, sondern nachgehalten: der Effekt hängt auch
- * am gespeicherten Paar und trägt es wieder ein, sobald es abweicht. Die
- * Gleichheitsprüfung ist die Schleifenbremse — stimmt das Paar, passiert nichts.
+ * Deshalb wird hier nicht gesetzt, sondern nachgehalten: der Effekt hängt am
+ * gespeicherten Wert und trägt das Rezept wieder ein, sobald der Store LEER
+ * ist. Nur leer — steht dort eine andere Erwähnung, hat die Person sie selbst
+ * gewählt (ein anderes Rezept im Composer), und die gehört ihr, nicht dem
+ * Deeplink.
+ *
+ * Die eine Unschärfe, die bleibt: entfernt jemand die Erwähnung vor dem
+ * Absenden von Hand (`removePillMention` setzt ebenfalls `null`), ist das von
+ * einem `resetThreadContext()` hier nicht zu unterscheiden — der Store trägt
+ * keine Herkunft, und einen „schon gesendet"-Zeitpunkt sieht dieser Hook nicht.
+ * Der Deeplink trägt sich dann erneut ein. Bewusst so entschieden: der Weg
+ * heraus ist derselbe Klick noch einmal, nachdem der Parameter aus der URL
+ * gefallen ist — während der umgekehrte Fehler (Systemrezept verliert beim
+ * Öffnen still seinen Stil) niemandem auffällt.
  */
 export function useRecipeDeepLink(rezeptParam: string | null, rezeptIdParam: string | null): void {
   const storedMention = useAgentStore((s) => s.activeSkillMention);
-  const storedRecipeId = useAgentStore((s) => s.activeRecipeId);
 
   useEffect(() => {
     if (!rezeptParam) return;
-    if (storedMention === rezeptParam && storedRecipeId === rezeptIdParam) return;
+    if (storedMention !== null) return;
     const store = useAgentStore.getState();
     store.setActiveSkillMention(rezeptParam, rezeptIdParam);
     store.setChatViewMode('thread');
-  }, [rezeptParam, rezeptIdParam, storedMention, storedRecipeId]);
+  }, [rezeptParam, rezeptIdParam, storedMention]);
 }
