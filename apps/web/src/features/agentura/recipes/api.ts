@@ -2,13 +2,12 @@
  * React Query hooks for the Agentura recipe data layer ("Rezepte").
  *
  * Wraps the typed ts-rest client (`userTextForms` namespace). Mirrors
- * `agents/api.ts` in shape (one hook per operation, not a bundled object like
- * the settings tab's `useTextForms`). `apps/web/src/features/settings/tabs/
- * texteAnlernen/useTextForms.ts` stays in place — Task 6 replaces that tab and
- * retires it — but every hook here reproduces its behaviour exactly (same
- * query key, same `ApiError` on non-200) plus the two operations the tab never
- * needed: `useDraftRecipe` (the creator's synthesize-from-brief step) and
- * `usePublicRecipes` (the Agentura discovery feed).
+ * `agents/api.ts` in shape (one hook per operation, not a bundled object).
+ * Successor to the settings tab's `useTextForms.ts`, which is gone along with
+ * the tab's editor: every hook here reproduces its behaviour exactly (same
+ * query key, same `ApiError` on non-200) plus the two operations that tab
+ * never needed: `useDraftRecipe` (the creator's synthesize-from-brief step)
+ * and `usePublicRecipes` (the Agentura discovery feed).
  */
 import {
   type DraftedRecipeSpec,

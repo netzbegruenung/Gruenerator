@@ -51,6 +51,7 @@ import { useSkillPrompt } from './hooks/useSkillPrompt';
 import { relatedSkills } from './lib/lookups';
 import { useDeleteRecipe } from './recipes/api';
 import { classifyRecipeMention } from './recipes/recipeKind';
+import { recipeOriginLine } from './recipes/recipeMeta';
 import { useRecipeByMention, type RecipeSource } from './recipes/useRecipeByMention';
 
 import { Markdown } from '@/components/common/Markdown';
@@ -219,18 +220,6 @@ function SystemRecipeView({
 
 // ── Own, shared and public rows ──────────────────────────────────────────────
 
-/** Where this row came from, in one line — nothing for one's own. */
-function originLine(form: TextForm | PublicTextForm, source: RecipeSource): string | null {
-  if (source === 'shared') {
-    const group = form.sharedFromGroup ?? 'einem Projekt';
-    return `Geteilt aus ${group}${form.ownerName ? ` von ${form.ownerName}` : ''}`;
-  }
-  if (source === 'public') {
-    return `Von der Basis${form.ownerName ? ` · ${form.ownerName}` : ''}`;
-  }
-  return null;
-}
-
 /** Own/shared rows carry the examples themselves, public ones only the count. */
 function exampleCountOf(form: TextForm | PublicTextForm): number {
   return 'examples' in form ? form.examples.length : form.exampleCount;
@@ -254,7 +243,7 @@ function UserRecipeView({
 
   const isOwn = source === 'own';
   const isFavorite = favorites.includes(form.mention.toLowerCase());
-  const origin = originLine(form, source);
+  const origin = recipeOriginLine(form, source);
   const exampleCount = exampleCountOf(form);
 
   const handleDelete = async () => {
@@ -276,7 +265,7 @@ function UserRecipeView({
       <BackLink />
 
       <header className="mb-md flex items-center gap-md">
-        <AgentAvatar iconKey={form.iconKey ?? undefined} avatar="📝" size="lg" />
+        <AgentAvatar iconKey={form.iconKey ?? 'PiSparkle'} size="lg" />
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-sm">
             <h1 className="m-0 text-2xl font-semibold leading-tight text-foreground-heading">
