@@ -145,9 +145,9 @@ describe('buildRecipeCatalog', () => {
   });
 
   // Der Grund für den Wechsel auf `listMentionableTextForms`: `listTextForms`
-  // sah nur die eigenen Zeilen. Ein öffentliches oder in ein Projekt geteiltes
-  // Rezept stand damit im Mention-Menü, war für das Modell aber unsichtbar.
-  it('offers a public recipe of another user', async () => {
+  // sah nur die eigenen Zeilen. Ein in ein Projekt geteiltes Rezept stand damit
+  // im Mention-Menü, war für das Modell aber unsichtbar.
+  it('offers a recipe shared into one of the user’s projects', async () => {
     listMentionableTextForms.mockResolvedValue([
       {
         id: 'row-fremd',
@@ -155,9 +155,9 @@ describe('buildRecipeCatalog', () => {
         title: 'Bürger*innenbrief',
         description: 'Antwort auf Zuschriften, freundlich und konkret.',
         kind: 'custom',
-        sharedFromGroup: null,
+        sharedFromGroup: 'KV Köln',
         ownerName: 'Jamila',
-        isPublic: true,
+        isPublic: false,
       },
     ]);
     const entries = await buildRecipeCatalog({ userLocale: 'de-DE', userId: 'u1', roles: null });
@@ -167,6 +167,38 @@ describe('buildRecipeCatalog', () => {
     // Die Beschreibung der Zeile, nicht der Platzhalter — sie steht im Menü
     // ebenso und ist das Einzige, woran das Modell den Eintrag erkennt.
     expect(fremd?.description).toBe('Antwort auf Zuschriften, freundlich und konkret.');
+  });
+
+  // Der offene Katalog bleibt draussen: jede Zeile hier wird eine Katalog-Zeile
+  // UND ein `rezept_laden`-Enumwert, und die öffentlichen Rezepte der Instanz
+  // sind nach oben unbegrenzt. Erreichbar bleiben sie über die ausdrückliche
+  // Mention, die Auswahl im Composer und das `recipes`-Werkzeug.
+  it('asks for own and group recipes only, never the public catalogue', async () => {
+    await buildRecipeCatalog({ userLocale: 'de-DE', userId: 'u1', roles: null });
+    expect(listMentionableTextForms).toHaveBeenCalledWith('u1', undefined, {
+      includePublic: false,
+    });
+  });
+
+  // Ohne eigene Beschreibung sagt die Herkunft mehr als ein falscher
+  // Besitzanspruch — „Selbst angelernt" gilt nur für die eigenen Zeilen.
+  it('names the origin of a foreign row that has no description', async () => {
+    listMentionableTextForms.mockResolvedValue([
+      {
+        id: 'row-fremd',
+        mention: 'buergerbrief',
+        title: 'Bürger*innenbrief',
+        description: null,
+        kind: 'custom',
+        sharedFromGroup: null,
+        ownerName: 'Jamila',
+        isPublic: true,
+      },
+    ]);
+    const entries = await buildRecipeCatalog({ userLocale: 'de-DE', userId: 'u1', roles: null });
+    expect(entries.find((e) => e.mention === 'buergerbrief')?.description).toBe(
+      'Rezept von Jamila.'
+    );
   });
 
   it('names the project a shared form came from', async () => {
@@ -184,10 +216,12 @@ describe('buildRecipeCatalog', () => {
     expect(entries.find((e) => e.mention === 'kv-brief')?.description).toContain('KV Köln');
   });
 
-  // Die Verdrängung ist derselbe Filter wie im Mention-Menü und sitzt seit der
-  // Vereinheitlichung in `listMentionableTextForms` — die Zeile kommt hier gar
-  // nicht mehr an. Geprüft wird deshalb nur noch, dass ein Preset, das es doch
-  // täte, keinen zweiten Eintrag erzeugt.
+  // Die Verdrängung selbst — welche Zeile überhaupt aufgezählt wird — sitzt
+  // seit der Vereinheitlichung als `isListableTextForm` in
+  // `services/user/textFormVisibility.ts` und ist dort gepinnt (Preset auf
+  // `presse` raus, `antrag` rein, Rezept-Stil auf einer LV-Mention raus). Hier
+  // bleibt der Zweig daneben: kommt trotzdem eine Zeile auf der Mention eines
+  // Systemrezepts an, entsteht daraus kein zweiter Eintrag.
   it('treats a preset as an override, not a second entry', async () => {
     listMentionableTextForms.mockResolvedValue([
       {
@@ -239,28 +273,6 @@ describe('buildRecipeCatalog', () => {
     expect(resolved?.source).toBe('user');
     expect(resolved?.title).toBe('Anträge');
     expect(resolved?.body).toContain('Kurze Begründung');
-  });
-
-  // Dasselbe für einen Stil, der FÜR ein LV-Rezept angelernt wurde: er darf den
-  // Titel des Rezepts im Menü nicht verdrängen. Der Filter dafür sitzt seit der
-  // Vereinheitlichung eine Ebene tiefer — `listMentionableTextForms` lässt eine
-  // Zeile mit `kind !== 'custom'` und vorhandenem Systemrezept gar nicht erst
-  // heraus, genau wie für das Mention-Menü. Hier wird deshalb geprüft, dass der
-  // Katalog den Systemeintrag dann unangetastet lässt.
-  it('behandelt einen Rezept-Stil als Überschreibung, nicht als zweiten Eintrag', async () => {
-    listMentionableTextForms.mockResolvedValue([]);
-    const entries = await buildRecipeCatalog({
-      userLocale: 'de-DE',
-      userId: 'u1',
-      roles: [
-        { ebene: 'land', rolle: 'Mitarbeiter*in Landesgeschäftsstelle', bundesland: 'Bayern' },
-      ],
-    });
-    const bayern = entries.filter((e) => e.mention === 'presse-bayern-partei');
-    expect(bayern).toHaveLength(1);
-    expect(bayern[0]?.source).toBe('system');
-    expect(bayern[0]?.id).toBeNull();
-    expect(bayern[0]?.title).not.toBe('Unser Stil');
   });
 
   it('degrades to system recipes when the text-form lookup fails', async () => {

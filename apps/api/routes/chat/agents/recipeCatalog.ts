@@ -9,14 +9,15 @@
  *
  * Two sources, one list:
  *   - system recipes from `SKILLS` (body read from SKILLS_INTERN_DIR at boot)
- *   - the "Texte anlernen" forms the user can name: their own, the ones shared
- *     into one of their projects, and the public ones (body = the learned style
- *     block)
+ *   - the "Texte anlernen" forms belonging to the user or shared into one of
+ *     their projects (body = the learned style block). Bewusst NICHT der
+ *     öffentliche Katalog — siehe `buildRecipeCatalog`.
  *
  * A user form with the same mention as a system recipe is an override, not a
  * second entry — the same precedence `buildSystemMessage` applies for an
  * explicitly picked recipe.
  */
+import { type MentionableTextForm } from '@gruenerator/contracts';
 import {
   DISABLED_LV_AGENT_IDS,
   SKILLS,
@@ -60,6 +61,18 @@ export interface RecipeCatalogEntry {
  */
 function ownerIsVisible(identifier: string): boolean {
   return !DISABLED_LV_AGENT_IDS.has(identifier);
+}
+
+/**
+ * Der Platzhalter für eine Zeile ohne eigene Beschreibung. „Selbst angelernt"
+ * stimmt nur für die eigenen — bei einer fremden Zeile sagt die Herkunft mehr
+ * als ein falscher Besitzanspruch, und sie ist das Einzige, woran das Modell
+ * den Eintrag unterscheidet.
+ */
+function fallbackDescription(form: MentionableTextForm): string {
+  if (form.sharedFromGroup) return `Rezept aus dem Projekt \u201e${form.sharedFromGroup}\u201c.`;
+  if (form.ownerName) return `Rezept von ${form.ownerName}.`;
+  return 'Selbst angelernte Textform.';
 }
 
 export async function buildRecipeCatalog(params: {
@@ -110,25 +123,30 @@ export async function buildRecipeCatalog(params: {
 
   let user: RecipeCatalogEntry[] = [];
   try {
-    // Dieselbe Liste, die das Mention-Menü anbietet: eigene Textformen, in ein
-    // Projekt geteilte und öffentliche — bereits dedupliziert (eigen vor
-    // geteilt vor öffentlich) und bereits um die Presets bereinigt, die nur den
-    // Rumpf eines Systemrezepts ersetzen. `antrag` bleibt drin: es hat kein
-    // mitgeliefertes Rezept, überschreibt also nichts und muss sich selbst
-    // eintragen (#2937). Zuvor las diese Stelle `listTextForms` und sah damit
-    // nur die eigenen Zeilen — das Modell konnte ein geteiltes Rezept nicht
-    // laden, das im Menü danebenstand.
-    user = (await listMentionableTextForms(userId)).map((f) => ({
-      mention: f.mention,
-      title: f.title,
-      description:
-        f.description ??
-        (f.sharedFromGroup
-          ? `Angelernte Textform aus dem Projekt \u201e${f.sharedFromGroup}\u201c.`
-          : 'Selbst angelernte Textform.'),
-      source: 'user' as const,
-      id: f.id,
-    }));
+    // Dieselbe Liste, die das Mention-Menü anbietet — aber OHNE den offenen
+    // Katalog. Jede Zeile hier wird eine Katalog-Zeile UND ein Wert im
+    // `rezept_laden`-Enum, und der Werkzeugkatalog ist ohnehin der grösste
+    // Token-Posten des Turns; die öffentlichen Rezepte der ganzen Instanz sind
+    // eine Menge, die niemand nach oben begrenzt. Erreichbar bleiben sie über
+    // die ausdrückliche Mention (`resolveRecipeBody`), die Auswahl im Composer
+    // und das `recipes`-Werkzeug — das Modell bekommt sie nur nicht aufgezählt.
+    //
+    // Was bleibt: eigene Textformen und die in ein Projekt geteilten, bereits
+    // dedupliziert (eigen vor geteilt) und bereits um die Presets bereinigt,
+    // die nur den Rumpf eines Systemrezepts ersetzen. `antrag` bleibt drin: es
+    // hat kein mitgeliefertes Rezept, überschreibt also nichts und muss sich
+    // selbst eintragen (#2937). Zuvor las diese Stelle `listTextForms` und sah
+    // nur die eigenen Zeilen — ein geteiltes Rezept stand im Menü und war für
+    // das Modell unsichtbar.
+    user = (await listMentionableTextForms(userId, undefined, { includePublic: false })).map(
+      (f) => ({
+        mention: f.mention,
+        title: f.title,
+        description: f.description ?? fallbackDescription(f),
+        source: 'user' as const,
+        id: f.id,
+      })
+    );
   } catch (err) {
     // A failed lookup degrades to the system catalogue rather than killing the
     // turn — same posture as a missing SKILLS_INTERN_DIR.

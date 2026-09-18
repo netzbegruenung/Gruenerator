@@ -29,7 +29,7 @@
  * Mention wird er gar nicht gebraucht. Die id-Variante ist ein reiner Wert —
  * sie steht fertig in der Agenten-Konfiguration.
  *
- * Eigenes, abhängigkeitsfreies Modul aus demselben Grund wie `textFormMention.ts`:
+ * Eigenes, abhängigkeitsfreies Modul aus demselben Grund wie `textFormVisibility.ts`:
  * `respondNode` hat über 2000 Zeilen und `buildSystemMessage` läuft nur mit vier
  * Mocks — die Entscheidung hier ist ohne all das prüfbar.
  */
@@ -40,7 +40,7 @@ export interface EffectiveRecipeChoice {
   recipeId: string | null;
 }
 
-const NOTHING: EffectiveRecipeChoice = { mention: null, recipeId: null };
+const NOTHING: EffectiveRecipeChoice = Object.freeze({ mention: null, recipeId: null });
 
 export function resolveEffectiveRecipeMention(params: {
   /** Was die Person für DIESEN Turn gewählt hat (Mention-Popover, `@`, `skill:`-Token). */
