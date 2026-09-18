@@ -14,7 +14,11 @@ import { partitionSearchErrors } from '../../../../agents/langgraph/ChatGraph/ty
 import { resolveSearchTier, resolveTier } from '../../../../services/search/searchDepth.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { runDeepAgentTurn } from '../deepAgentTurn.js';
-import { checkDeepResearchQuota, deepResearchQuotaSpentMessage } from '../deepResearchQuota.js';
+import {
+  deepResearchQuotaSpentMessage,
+  releaseDeepResearch,
+  reserveDeepResearch,
+} from '../deepResearchQuota.js';
 import { runDeepResearchTurn } from '../deepResearchTurn.js';
 import { withImageProxy } from '../searchImagePayload.js';
 import { PROGRESS_MESSAGES, sendChatWarning, sendSearchDegradedWarning } from '../sseHelpers.js';
@@ -70,18 +74,22 @@ export async function runSearchBranch(opts: {
   // order. For both, `null` means "not served" (no key, failed run) and
   // falls through to the next one, with the warning already sent.
 
-  // The shared daily allowance is settled HERE, once, for both engines:
-  // they meter through one Redis key, and a per-engine limit against a
-  // shared key made the verdict depend on which engine happened to run.
+  // The run is booked HERE, once, for both engines: they cost the same, and a
+  // per-engine booking against the shared budget made the verdict depend on
+  // which engine happened to run. Whoever delivers keeps it; if neither does,
+  // it is handed back below.
   let allowanceGone = false;
+  let reserved = false;
   const deepUserId = searchInputState.agentConfig?.userId ?? '';
   // No userId means no meter — both engines refuse on their own for that
-  // reason, and asking the counter would fail closed and mis-report it as
-  // a spent allowance.
+  // reason, and booking would fail closed and mis-report it as a spent
+  // budget.
   if (searchInputState.deepResearchRequested === true && deepUserId.length > 0) {
-    const quota = await checkDeepResearchQuota(deepUserId);
-    if (!quota.canResearch) {
-      sendChatWarning(sse, 'deep_research_quota_spent', deepResearchQuotaSpentMessage(quota));
+    const reservation = await reserveDeepResearch(deepUserId);
+    if (reservation.ok) {
+      reserved = true;
+    } else {
+      sendChatWarning(sse, 'deep_research_quota_spent', deepResearchQuotaSpentMessage(reservation));
       allowanceGone = true;
     }
   }
@@ -121,6 +129,9 @@ export async function runSearchBranch(opts: {
       return { state: finalState, servedWholeTurn: true };
     }
   }
+
+  // Both engines fell through, so the booking bought nothing.
+  if (reserved) await releaseDeepResearch(deepUserId);
 
   // A retry of a research turn whose GENERATION failed: the sources are
   // already on the thread. Re-running Linkup costs ~17s and a paid call

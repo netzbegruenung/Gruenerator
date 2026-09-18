@@ -4,7 +4,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { DeepLError } from '../../../services/translation/DeepLService.js';
-import { TranslationQuotaExceededError } from '../../../services/translation/translationQuota.js';
+import { TreeBudgetExceededError } from '../../../services/trees/treeBudget.js';
 
 import { makeTranslateTool } from './translationTools.js';
 
@@ -27,7 +27,7 @@ describe('text_uebersetzen', () => {
       targetLang: 'EN-GB',
       billedCharacters: 10,
       glossaryApplied: true,
-      quota: { used: 10, limit: 200000 },
+      quota: { used: 0.05, limit: 10, remaining: 9.95, resetsAt: 'x', newsletterBonus: false },
     });
     const tool = makeTranslateTool({ state, translate });
 
@@ -61,7 +61,7 @@ describe('text_uebersetzen', () => {
       targetLang: 'DE',
       billedCharacters: 1,
       glossaryApplied: false,
-      quota: { used: 1, limit: 1 },
+      quota: { used: 0.01, limit: 10, remaining: 9.99, resetsAt: 'x', newsletterBonus: false },
     });
     await run(makeTranslateTool({ state, translate }), { text: 'x', zielsprache: 'DE' });
     expect(translate).toHaveBeenCalledWith(
@@ -70,9 +70,18 @@ describe('text_uebersetzen', () => {
   });
 
   it('returns the budget refusal as a readable error instead of throwing', async () => {
-    const translate = vi
-      .fn()
-      .mockRejectedValue(new TranslationQuotaExceededError({ used: 200000, limit: 200000 }));
+    const translate = vi.fn().mockRejectedValue(
+      new TreeBudgetExceededError(
+        {
+          usedUnits: 1000,
+          limitUnits: 1000,
+          remainingUnits: 0,
+          resetsAt: new Date('2026-09-19T00:00:00.000Z'),
+          newsletterBonus: false,
+        },
+        100
+      )
+    );
     const result = await run(makeTranslateTool({ state, translate }), {
       text: 'x',
       zielsprache: 'DE',

@@ -24,16 +24,19 @@ import { z } from 'zod';
 import { createLogger } from '../../utils/logger.js';
 import redisClient from '../../utils/redis/client.js';
 import { deleteCachedKey, getCachedJson, setCachedJson } from '../../utils/redis/jsonCache.js';
+import { getTreeBudget } from '../trees/index.js';
+import { type TreeBudget } from '../trees/treeBudget.js';
+import { DOCUMENT_MIN_CHARS, treeCostForChars, TREE_COST_DOCUMENT } from '../trees/treeCosts.js';
 
 import {
   getDeepLService,
   rootLang,
+  type DeepLDocumentHandle,
   type DeepLFormality,
   type DeepLService,
 } from './DeepLService.js';
 import { glossaryIdFor, resolveGlossary, type GlossaryInfo } from './glossaryRegistry.js';
 import { explicitSource, TranslationUnavailableError } from './translate.js';
-import { assertQuota, DOCUMENT_MIN_CHARS, settleQuota } from './translationQuota.js';
 
 const log = createLogger('DeepLDocuments');
 
@@ -57,6 +60,8 @@ const jobSchema = z.object({
   outputPath: z.string().nullable(),
   contentType: z.string().nullable(),
   billedCharacters: z.number().nullable(),
+  /** What was booked at upload. `null` on a job written before the budget existed. */
+  reservedUnits: z.number().nullable().default(null),
   message: z.string().nullable(),
 });
 
@@ -107,6 +112,7 @@ export interface DocumentJobDeps {
   service?: DeepLService | null;
   glossary?: (service: DeepLService) => Promise<GlossaryInfo | null>;
   now?: () => number;
+  budget?: Pick<TreeBudget, 'reserveOrThrow' | 'adjust' | 'release'>;
 }
 
 function resolveService(deps: DocumentJobDeps): DeepLService {
@@ -120,7 +126,10 @@ export async function startDocumentJob(
   deps: DocumentJobDeps = {}
 ): Promise<{ jobId: string; filename: string }> {
   const service = resolveService(deps);
-  await assertQuota(params.userId, DOCUMENT_MIN_CHARS);
+  const budget = deps.budget ?? getTreeBudget();
+  // DeepL's per-file minimum is what a document costs at least, so the whole
+  // amount is booked before the upload and corrected once DeepL reports.
+  await budget.reserveOrThrow(params.userId, TREE_COST_DOCUMENT);
   void sweepTranslationFiles().catch(() => undefined);
 
   // A glossary needs an explicit source — with "auto" the document goes
@@ -138,15 +147,21 @@ export async function startDocumentJob(
   }
 
   const filename = safeFilename(params.filename);
-  const handle = await service.uploadDocument({
-    buffer: params.buffer,
-    filename,
-    targetLang: params.targetLang,
-    sourceLang: source,
-    formality: params.formality ?? null,
-    glossaryId,
-    outputFormat: params.outputFormat ?? null,
-  });
+  let handle: DeepLDocumentHandle;
+  try {
+    handle = await service.uploadDocument({
+      buffer: params.buffer,
+      filename,
+      targetLang: params.targetLang,
+      sourceLang: source,
+      formality: params.formality ?? null,
+      glossaryId,
+      outputFormat: params.outputFormat ?? null,
+    });
+  } catch (error) {
+    await budget.release(params.userId, TREE_COST_DOCUMENT);
+    throw error;
+  }
 
   const job: DocumentJob = {
     jobId: randomUUID(),
@@ -158,6 +173,7 @@ export async function startDocumentJob(
     outputPath: null,
     contentType: null,
     billedCharacters: null,
+    reservedUnits: TREE_COST_DOCUMENT,
     message: null,
   };
   await saveJob(job);
@@ -186,8 +202,10 @@ function toStatus(job: DocumentJob, extra: Partial<TranslationDocumentStatusResp
 
 /**
  * One poll. Returns null when the job is unknown or not the caller's. On the
- * first `done` the result is fetched to disk and the quota settled — exactly
- * once, the SET NX lock keeps a concurrent poll from a second `/result` call.
+ * first `done` the result is fetched to disk and the reservation corrected —
+ * exactly once, the SET NX lock keeps a concurrent poll from a second
+ * `/result` call. DeepL bills only completed documents, so every route to
+ * `error` gives the reservation back.
  */
 export async function pollDocumentJob(
   jobId: string,
@@ -199,6 +217,8 @@ export async function pollDocumentJob(
   if (job.phase !== 'translating') return toStatus(job);
 
   const service = resolveService(deps);
+  const budget = deps.budget ?? getTreeBudget();
+  const reservedUnits = job.reservedUnits ?? TREE_COST_DOCUMENT;
   const state = await service.getDocumentStatus({
     documentId: job.documentId,
     documentKey: job.documentKey,
@@ -208,6 +228,7 @@ export async function pollDocumentJob(
     job.phase = 'error';
     job.message = state.message ?? 'DeepL konnte das Dokument nicht übersetzen.';
     await saveJob(job);
+    await budget.release(userId, reservedUnits);
     return toStatus(job);
   }
   if (state.status !== 'done') {
@@ -239,7 +260,10 @@ export async function pollDocumentJob(
     job.contentType = result.contentType;
     job.billedCharacters = state.billedCharacters;
     await saveJob(job);
-    await settleQuota(userId, Math.max(DOCUMENT_MIN_CHARS, state.billedCharacters ?? 0));
+    await budget.adjust(
+      userId,
+      treeCostForChars(Math.max(DOCUMENT_MIN_CHARS, state.billedCharacters ?? 0)) - reservedUnits
+    );
     log.info(
       `[DeepLDocuments] job ${job.jobId} ready (${job.billedCharacters ?? '?'} chars billed)`
     );
@@ -247,6 +271,7 @@ export async function pollDocumentJob(
     job.phase = 'error';
     job.message = 'Das übersetzte Dokument konnte nicht abgeholt werden. Bitte erneut hochladen.';
     await saveJob(job);
+    await budget.release(userId, reservedUnits);
     log.error(`[DeepLDocuments] result fetch failed for ${job.jobId}: ${(error as Error).message}`);
   } finally {
     await deleteCachedKey(lockKey(jobId));
