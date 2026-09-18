@@ -30,6 +30,7 @@ import {
   PiPencil,
   PiRobot,
   PiRocketLaunch,
+  PiTree,
 } from 'react-icons/pi';
 
 import { SettingsTabSkeleton } from './components/SettingsSkeleton';
@@ -85,6 +86,7 @@ const NAV: {
     label: 'Datenschutz & Barrierefreiheit',
     icon: FiShield,
   },
+  { value: 'baeume', label: 'Bäume', icon: PiTree },
   { value: 'nutzung', label: 'Nutzung', icon: FiBarChart2 },
   { value: 'support', label: 'Support', icon: FiHelpCircle },
 ];
