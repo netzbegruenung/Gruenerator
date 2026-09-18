@@ -316,9 +316,10 @@ describe('sweepTranslationFiles', () => {
     const past = Date.now() - 3 * 60 * 60 * 1000;
     fs.utimesSync(old, past / 1000, past / 1000);
 
-    const removed = await sweepTranslationFiles();
+    // No assertion on the count: startDocumentJob fires a background sweep,
+    // and one from an earlier case may already have taken the old file.
+    await sweepTranslationFiles();
 
-    expect(removed).toBeGreaterThanOrEqual(1);
     expect(fs.existsSync(old)).toBe(false);
     expect(fs.existsSync(fresh)).toBe(true);
     fs.unlinkSync(fresh);
