@@ -40,6 +40,7 @@ import { CURRENT_INSTANCE } from '@/config/instance';
 import { useUserAgents } from '@/features/agents/api';
 import ChatHero from '@/features/chat/ChatHero';
 import { LandesverbandHub } from '@/features/chat/LandesverbandHub';
+import { useRecipeDeepLink } from '@/features/chat/useRecipeDeepLink';
 import { useGroupDetails } from '@/features/groups/hooks/useGroups';
 import { resolveChatBackground } from '@/features/workplace/chatBackgrounds';
 import { useFirstName } from '@/hooks/useFirstName';
@@ -337,18 +338,9 @@ function ChatPage() {
   // Wirkung, die eine `@`-Erwähnung im Composer hat. `rezeptId` trägt die
   // Zeilen-ID eigener/geteilter/öffentlicher Rezepte mit, damit das Backend
   // über die ID auflöst statt über die Erwähnung; für ein Systemrezept bleibt
-  // sie leer.
-  //
-  // Der Effekt steht NACH der Agentenauflösung, nicht davor: `setSelectedAgent`
-  // räumt `activeSkillMention` mit ab, und würde er danach laufen, wäre das
-  // Rezept im selben Rendern wieder weg. Spätere Läufe jenes Effekts schalten
-  // den Agenten nicht erneut, greifen also nicht mehr ein.
-  useEffect(() => {
-    if (!rezeptParam) return;
-    const store = useAgentStore.getState();
-    store.setActiveSkillMention(rezeptParam, rezeptIdParam);
-    store.setChatViewMode('thread');
-  }, [rezeptParam, rezeptIdParam]);
+  // sie leer. Der Hook steht NACH der Agentenauflösung und hält das Rezept
+  // nach, solange der Parameter lebt — warum das nötig ist, steht dort.
+  useRecipeDeepLink(rezeptParam, rezeptIdParam);
 
   // "Neuer Chat in diesem Projekt" arrives as /chat?projekt=<groupId>. File the
   // freshly created thread into that Projekt, reusing the same thread-groupId
