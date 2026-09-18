@@ -7,7 +7,7 @@ import Spinner from '../../components/common/Spinner';
 import Button from '../../components/common/SubmitButton';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { SHOW_SHAREPIC_STUDIO } from '../../config/featureFlags';
-import useImageGenerationLimit from '../../hooks/useImageGenerationLimit';
+import { useTreeBudget } from '../../hooks/useTreeBudget';
 import useImageStudioStore from '../../stores/imageStudioStore';
 
 import ImageStudioCategorySelector from './components/ImageStudioCategorySelector';
@@ -100,7 +100,7 @@ const ImageStudioPageContent: React.FC = () => {
   } = useImageStudioStore();
 
   const { generateText, generateImage } = useImageGeneration();
-  const { refetch: refetchImageLimit } = useImageGenerationLimit();
+  const { refetch: refetchImageLimit } = useTreeBudget();
 
   const [_formErrors, setFormErrors] = useState<FormErrors>({});
 

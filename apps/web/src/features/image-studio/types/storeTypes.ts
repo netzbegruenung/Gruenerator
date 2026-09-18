@@ -1,5 +1,5 @@
 import { type InitialPageDef } from '@gruenerator/canvas-editor';
-import { type CanvasTemplateType } from '@gruenerator/contracts';
+import { type CanvasTemplateType, type TreeBudgetStatus } from '@gruenerator/contracts';
 
 import { type DEFAULT_COLORS } from '../../../components/utils/constants';
 import {
@@ -51,14 +51,6 @@ export interface SelectedImageData {
       html: string;
     };
   };
-  [key: string]: unknown;
-}
-
-// Image limit data (rate limiting)
-export interface ImageLimitData {
-  remaining: number;
-  limit: number;
-  resetTime?: number;
   [key: string]: unknown;
 }
 
@@ -224,7 +216,7 @@ export interface ImageStudioState {
   transparentImage: string | null;
 
   // Rate limiting (for KI types)
-  imageLimitData: ImageLimitData | null;
+  imageLimitData: TreeBudgetStatus | null;
 
   // Step wizard animation state
   navigationDirection: 'forward' | 'back';
@@ -292,7 +284,7 @@ export interface ImageStudioActions {
   setSubmitting: (isSubmitting: boolean, step?: string | null) => void;
 
   // Rate limit data
-  setImageLimitData: (data: ImageLimitData | null) => void;
+  setImageLimitData: (data: TreeBudgetStatus | null) => void;
 
   // Imagine-specific state
   setPrecisionMode: (mode: boolean) => void;

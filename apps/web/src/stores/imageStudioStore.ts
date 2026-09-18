@@ -1,4 +1,4 @@
-import { type CanvasTemplateType } from '@gruenerator/contracts';
+import { type CanvasTemplateType, type TreeBudgetStatus } from '@gruenerator/contracts';
 import { create } from 'zustand';
 
 import apiClient from '../components/utils/apiClient';
@@ -16,7 +16,6 @@ import {
   type ColorScheme,
   type VeranstaltungFieldFontSizes,
   type SelectedImageData,
-  type ImageLimitData,
   type FormDataUpdate,
   type ImageModificationData,
   type ImageStudioState,
@@ -348,7 +347,7 @@ const useImageStudioStore = create<ImageStudioStore>((set, get) => {
       }),
 
     // Rate limit data (for KI types)
-    setImageLimitData: (data: ImageLimitData | null) => set({ imageLimitData: data }),
+    setImageLimitData: (data: TreeBudgetStatus | null) => set({ imageLimitData: data }),
 
     // Imagine-specific state
     setPrecisionMode: (mode: boolean) => set({ precisionMode: mode }),
