@@ -1,5 +1,7 @@
 import {
   MAX_TEXT_FORM_DESCRIPTION_CHARS,
+  MAX_TEXT_FORM_EXAMPLES,
+  MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS,
   MAX_TEXT_FORM_STYLE_CHARS,
   type PublicOwnership,
   type TextFormShareMode,
@@ -15,12 +17,11 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Separator,
   Switch,
   Textarea,
   useConfirm,
 } from '@gruenerator/ui';
-import { useMemo, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import { HiTrash } from 'react-icons/hi';
 import { useNavigate } from 'react-router-dom';
 
@@ -85,6 +86,9 @@ function RecipeEditor({
   const confirm = useConfirm();
   const saveMut = useSaveRecipe();
   const deleteMut = useDeleteRecipe();
+  const mentionErrorId = useId();
+  const sichtbarkeitHeadingId = useId();
+  const projekteHeadingId = useId();
 
   const [form, setForm] = useState<RecipeFormState>(initialState);
   const [error, setError] = useState<string | null>(null);
@@ -97,20 +101,22 @@ function RecipeEditor({
     setForm((prev) => ({ ...prev, [k]: v }));
   };
 
-  // The mention field is read-only in edit mode (only a custom recipe's mention
-  // is editable, and only while creating it) — so the save/link target must NOT
-  // recompute from a live-changing title the way `effectiveMention` does for
-  // create mode. It stays pinned to the mention the row was hydrated with,
-  // mirroring `TextFormEditor`'s `initialForm`-present branch (which
-  // `RecipeFormState` has no equivalent field for).
+  // The mention field is read-only in edit mode (only a custom recipe's
+  // mention is editable, and only while creating it). `effectiveMention`
+  // already keeps a hydrated row's `originalMention` stable there — it does
+  // not recompute from a live-changing title once a row has one.
   const canEditMention = form.kind === 'custom' && mode === 'create';
-  const mention =
-    mode === 'edit' ? (initialState.fixedMention ?? initialState.mention) : effectiveMention(form);
+  const mention = effectiveMention(form);
 
-  const exampleCount = useMemo(
-    () => splitExamples(form.rawExamples).examples.length,
-    [form.rawExamples]
-  );
+  const split = useMemo(() => splitExamples(form.rawExamples), [form.rawExamples]);
+  const exampleCount = split.examples.length;
+  const tooManyExamples = exampleCount > MAX_TEXT_FORM_EXAMPLES;
+  const tooManyChars = form.rawExamples.trim().length > MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS;
+  const examplesBlockReason = tooManyExamples
+    ? `Höchstens ${MAX_TEXT_FORM_EXAMPLES} Beispiele erlaubt — bitte in „Beispiele“ kürzen.`
+    : tooManyChars
+      ? 'Zu viele Zeichen in den Beispielen — bitte in „Beispiele“ kürzen.'
+      : null;
 
   // The chat deep-link wants the row id too (`?rezept=<mention>&rezeptId=<id>`,
   // Task 4). Not part of `RecipeFormState` — read off the own list already
@@ -122,7 +128,13 @@ function RecipeEditor({
   const titleValid = form.title.trim().length > 0;
   const styleValid = form.styleBlock.trim().length > 0;
   const mentionValid = canEditMention ? mention.length >= 2 : true;
-  const canSave = titleValid && styleValid && mentionValid && !saveMut.isPending;
+  const canSave =
+    titleValid &&
+    styleValid &&
+    mentionValid &&
+    !tooManyExamples &&
+    !tooManyChars &&
+    !saveMut.isPending;
 
   const handleSave = async () => {
     setError(null);
@@ -244,6 +256,7 @@ function RecipeEditor({
             size="brand-sm"
             onClick={() => void handleSave()}
             disabled={!canSave}
+            title={examplesBlockReason ?? undefined}
           >
             Speichern
           </Button>
@@ -251,6 +264,9 @@ function RecipeEditor({
       </header>
 
       {error && <p className="mb-md text-sm text-destructive">{error}</p>}
+      {examplesBlockReason && (
+        <p className="mb-md text-sm text-destructive">{examplesBlockReason}</p>
+      )}
 
       <div className="grid grid-cols-1 gap-lg lg:grid-cols-[minmax(0,1fr)_minmax(0,340px)] lg:gap-2xl">
         {/* ── Form column ─────────────────────────────────────────────── */}
@@ -281,7 +297,7 @@ function RecipeEditor({
                 <label className={labelCls}>
                   @mention
                   <Input
-                    value={form.mention}
+                    value={mention}
                     onChange={(e) => {
                       setJustSaved(false);
                       setForm((prev) => ({
@@ -292,6 +308,8 @@ function RecipeEditor({
                     }}
                     maxLength={48}
                     placeholder="mein-rezept"
+                    aria-invalid={mentionError ? true : undefined}
+                    aria-describedby={mentionError ? mentionErrorId : undefined}
                   />
                 </label>
               ) : (
@@ -302,7 +320,11 @@ function RecipeEditor({
                   <p className="mt-xs text-xs text-foreground-muted">{recipeMetaLine(mention)}</p>
                 </div>
               )}
-              {mentionError && <p className="text-sm text-destructive">{mentionError}</p>}
+              {mentionError && (
+                <p id={mentionErrorId} className="text-sm text-destructive">
+                  {mentionError}
+                </p>
+              )}
 
               <label className={labelCls}>
                 Beschreibung
@@ -350,7 +372,9 @@ function RecipeEditor({
               {shareError && <p className="text-sm text-destructive">{shareError}</p>}
 
               <div>
-                <p className="mb-xs text-sm font-semibold">Sichtbarkeit</p>
+                <p id={sichtbarkeitHeadingId} className="mb-xs text-sm font-semibold">
+                  Sichtbarkeit
+                </p>
                 <Select
                   value={shareMode}
                   onValueChange={(v) => {
@@ -359,7 +383,7 @@ function RecipeEditor({
                   }}
                   disabled={setShareMode.isPending}
                 >
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger className="w-full" aria-labelledby={sichtbarkeitHeadingId}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -374,7 +398,9 @@ function RecipeEditor({
 
               {shareMode === 'groups' ? (
                 <div>
-                  <p className="mb-xs text-sm font-semibold">Projekte</p>
+                  <p id={projekteHeadingId} className="mb-xs text-sm font-semibold">
+                    Projekte
+                  </p>
                   {groupShares.length > 0 ? (
                     <ul className="mb-xs flex flex-col gap-xs">
                       {groupShares.map((share) => (
@@ -416,7 +442,7 @@ function RecipeEditor({
                       }}
                       disabled={shareGroupMut.isPending}
                     >
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger className="w-full" aria-labelledby={projekteHeadingId}>
                         <SelectValue placeholder="Projekt hinzufügen…" />
                       </SelectTrigger>
                       <SelectContent>
@@ -495,6 +521,7 @@ function RecipeEditor({
                       <button
                         key={choice}
                         type="button"
+                        aria-pressed={publicOwnership === choice}
                         onClick={() => {
                           setShareError(null);
                           setIsPublic.mutate(
@@ -525,8 +552,6 @@ function RecipeEditor({
                   </div>
                 </div>
               ) : null}
-
-              <Separator />
             </div>
           )}
         </div>

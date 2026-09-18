@@ -60,6 +60,12 @@ describe('effectiveMention', () => {
     };
     expect(effectiveMention(form)).toBe('omv-custom');
   });
+
+  it("keeps a hydrated custom form's mention when only the title changes", () => {
+    const hydrated = hydrateRecipeForm(CUSTOM_FORM);
+    const editedTitle = { ...hydrated, title: 'Ein ganz anderer Titel' };
+    expect(effectiveMention(editedTitle)).toBe(CUSTOM_FORM.mention);
+  });
 });
 
 describe('recipeFormToPayload', () => {
