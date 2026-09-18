@@ -92,10 +92,12 @@ export const userAgentSchema = z.object({
   fewShotExamples: z.array(agentFewShotExampleSchema).readonly().optional(),
   inlineSourceLinks: z.boolean().optional(),
   /** Mention of the recipe this agent defaults to. `defaultRecipeId` wins when
-   * both are set; older clients/rows only ever carry the mention. */
-  defaultRecipeMention: z.string().nullable().optional(),
+   * both are set; older clients/rows only ever carry the mention. Optional, not
+   * nullable: `rowToAgent` conditionally spreads this field in and never emits
+   * it as `null` — same convention as every other optional field above. */
+  defaultRecipeMention: z.string().optional(),
   /** Row id of the default recipe — the stable handle across renames. */
-  defaultRecipeId: z.string().uuid().nullable().optional(),
+  defaultRecipeId: z.string().uuid().optional(),
 });
 
 export type UserAgent = z.infer<typeof userAgentSchema>;
