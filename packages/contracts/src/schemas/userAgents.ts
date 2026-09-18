@@ -85,9 +85,17 @@ export const userAgentSchema = z.object({
   defaultNotebookIds: z.array(z.string()).readonly().optional(),
   plugins: z.array(z.string()).readonly().optional(),
   enabledTools: z.array(z.string()).readonly().optional(),
+  /** @deprecated 2026-09-18 — replaced by defaultRecipeMention/defaultRecipeId
+   * (a single default recipe binding, not a list). Kept readable so agents
+   * created before the switch keep rendering; not written by new saves. */
   skillMentions: z.array(z.string()).readonly().optional(),
   fewShotExamples: z.array(agentFewShotExampleSchema).readonly().optional(),
   inlineSourceLinks: z.boolean().optional(),
+  /** Mention of the recipe this agent defaults to. `defaultRecipeId` wins when
+   * both are set; older clients/rows only ever carry the mention. */
+  defaultRecipeMention: z.string().nullable().optional(),
+  /** Row id of the default recipe — the stable handle across renames. */
+  defaultRecipeId: z.string().uuid().nullable().optional(),
 });
 
 export type UserAgent = z.infer<typeof userAgentSchema>;
@@ -134,9 +142,10 @@ export const createUserAgentBodySchema = z.object({
   defaultNotebookIds: z.array(z.string()).nullish(),
   plugins: z.array(z.string()).nullish(),
   enabledTools: z.array(z.string()).nullish(),
-  skillMentions: z.array(z.string()).nullish(),
   fewShotExamples: z.array(agentFewShotExampleSchema).nullish(),
   inlineSourceLinks: z.boolean().nullish(),
+  defaultRecipeMention: z.string().nullish(),
+  defaultRecipeId: z.string().uuid().nullish(),
 });
 
 export type CreateUserAgentBody = z.infer<typeof createUserAgentBodySchema>;
@@ -209,10 +218,14 @@ export const draftedAgentSpecSchema = z.object({
   iconKey: z.string(),
   backgroundColor: z.string(),
   enabledTools: z.array(z.string()),
+  /** @deprecated — remove after 2026-12-18. The deployed web bundle still
+   * reads this field; new drafts should populate `defaultRecipeMention`
+   * instead. */
   skillMentions: z.array(z.string()),
   locale: z.string(),
   openingMessage: z.string(),
   openingQuestions: z.array(z.string()),
+  defaultRecipeMention: z.string().nullable(),
 });
 
 export type DraftedAgentSpec = z.infer<typeof draftedAgentSpecSchema>;
