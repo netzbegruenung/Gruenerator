@@ -13,13 +13,14 @@ import {
   getColorScheme,
   calculateParallelogramPoints,
   flattenPoints,
-  measureTextWidth,
 } from '../utils/dreizeilenLayout';
 import { useFontGeneration } from '../hooks/useFontGeneration';
 import { useSnapScheduler } from '../hooks/useSnapScheduler';
 import { calculateElementSnapPosition } from '../utils/snapping';
+import { runMeasurer } from '../utils/textUtils';
 
 import type { SnapTarget } from '../utils/snapping';
+import type { RunStyle } from '@gruenerator/contracts';
 import type Konva from 'konva';
 
 export type BalkenMode = 'single' | 'triple';
@@ -86,9 +87,14 @@ interface BalkenLayout {
   text: string;
 }
 
+const PLAIN_RUN: RunStyle = { bold: false, italic: false, underline: false };
+
 /**
  * Calculate bar layouts matching DreizeilenCanvas exactly
  * Uses same logic as calculateDreizeilenLayout in dreizeilenLayout.ts
+ *
+ * `fontGeneration` bindet die Messung an den Stand von `document.fonts` —
+ * siehe `useFontGeneration`.
  */
 function calculateBalkenLayouts(
   mode: BalkenMode,
@@ -96,7 +102,8 @@ function calculateBalkenLayouts(
   texts: string[],
   stageWidth: number,
   stageHeight: number,
-  barOffsets?: [number, number, number]
+  barOffsets: [number, number, number] | undefined,
+  fontGeneration: number
 ): {
   balkens: BalkenLayout[];
   bounds: { left: number; top: number; width: number; height: number };
@@ -105,13 +112,15 @@ function calculateBalkenLayouts(
   const fontSize = config.text.defaultFontSize; // 75
   const balkenHeight = fontSize * config.balken.heightFactor; // 75 * 1.6 = 120
   const padding = fontSize * config.balken.paddingFactor; // 75 * 0.3 = 22.5
+  const measure = runMeasurer(fontSize, config.text.fontFamily, 'normal', fontGeneration);
+  const measureTextWidth = (text: string) => measure(text, PLAIN_RUN);
 
   // Use provided offsets or fall back to defaults
   const balkenOffset: [number, number, number] = barOffsets ?? config.defaults.balkenOffset;
 
   if (mode === 'single') {
     const text = texts[0] || 'GRÜNE';
-    const textWidth = measureTextWidth(text, fontSize);
+    const textWidth = measureTextWidth(text);
     const baseWidth = textWidth + padding * 2 + 20;
     const rectWidth = Math.min(baseWidth * widthScale, stageWidth - 20);
 
@@ -139,7 +148,7 @@ function calculateBalkenLayouts(
 
   // Map which uses staggered layout logic
   const balkens: BalkenLayout[] = lines.map((text, index) => {
-    const textWidth = measureTextWidth(text, fontSize);
+    const textWidth = measureTextWidth(text);
     const baseWidth = textWidth + padding * 2 + 20;
     const rectWidth = Math.min(baseWidth * widthScale, stageWidth - 20);
 
@@ -237,7 +246,15 @@ function BalkenGroupInner({
 
   const { balkens, bounds } = useMemo(
     () =>
-      calculateBalkenLayouts(mode, widthScale, displayTexts, stageWidth, stageHeight, barOffsets),
+      calculateBalkenLayouts(
+        mode,
+        widthScale,
+        displayTexts,
+        stageWidth,
+        stageHeight,
+        barOffsets,
+        fontGeneration
+      ),
     [mode, widthScale, displayTexts, stageWidth, stageHeight, barOffsets, fontGeneration]
   );
 

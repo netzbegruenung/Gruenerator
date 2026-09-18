@@ -30,9 +30,11 @@ const fonts = vi.hoisted(() => {
 
 const measured = vi.hoisted(() => ({ width: 600 }));
 
+// `runMeasurer` selbst, nicht die Messfunktion darunter: die ruft es
+// modul-intern, ein gemockter Export erreicht sie nicht.
 vi.mock('../../utils/textUtils', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../utils/textUtils')>()),
-  measureTextWidthWithFont: () => measured.width,
+  runMeasurer: () => () => measured.width,
 }));
 
 function firstBarWidth(stageRef: React.RefObject<CanvasStageRef | null>): number {
