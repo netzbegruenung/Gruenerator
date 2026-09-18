@@ -73,18 +73,16 @@ const OWNERSHIP_LABELS: Record<PublicOwnership, { title: string; hint: string }>
 };
 
 /**
- * Die Fehlermeldung, die jemand lesen kann. Der Datenzugriff wirft `ApiError`
- * mit einer englischen Sammelzeile, nicht mit dem Text des Servers — die
- * beiden Fälle, die wirklich vorkommen, stehen deshalb hier im Wortlaut der
- * API (`textFormRouterHelpers.sharingFailure`).
+ * Die Fehlermeldung, die jemand lesen kann. Bei 400/409 sagt der Server selbst,
+ * was im Weg steht („Angepasste System-Rezepte lassen sich nicht teilen …") —
+ * und `useRecipeSharing` trägt diesen Satz seit dem Umbau mit. Ihn hier noch
+ * einmal zu formulieren hieße, zwei Wortlaute zu pflegen, von denen einer
+ * irgendwann falsch ist. Alles andere (500, Netzfehler) ist keine Auskunft für
+ * Nutzer*innen und bekommt die Sammelzeile.
  */
 function shareErrorText(error: unknown): string {
-  if (isApiErrorWithStatus(error, 409)) {
-    return 'Angepasste System-Rezepte lassen sich nicht teilen — nur eigene Rezepte.';
-  }
-  if (isApiErrorWithStatus(error, 400)) {
-    return 'Bitte bestätige die Quelle der Inhalte (Eigentum oder öffentlich).';
-  }
+  const explained = isApiErrorWithStatus(error, 400) || isApiErrorWithStatus(error, 409);
+  if (explained && error instanceof Error && error.message) return error.message;
   return 'Die Freigabe konnte nicht geändert werden.';
 }
 
@@ -269,7 +267,14 @@ export function ShareRecipeModal({ mention, open, onOpenChange }: ShareRecipeMod
                       public_ownership: publicOwnership ?? 'owner',
                     });
                   if (shareMode !== 'authenticated') {
-                    void setShareMode.mutateAsync('authenticated').then(list);
+                    // `.catch` nicht wegen der Anzeige — der Fehlschlag steht
+                    // ohnehin in `setShareMode.error` und damit in der Zeile
+                    // oben —, sondern damit eine abgelehnte Höherstufung keine
+                    // unbehandelte Rejection hinterlässt.
+                    void setShareMode
+                      .mutateAsync('authenticated')
+                      .then(list)
+                      .catch(() => {});
                   } else {
                     list();
                   }

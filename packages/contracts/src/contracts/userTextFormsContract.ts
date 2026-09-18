@@ -176,6 +176,11 @@ export const userTextFormsContract = c.router(
         401: textFormErrorResponseSchema,
         403: textFormErrorResponseSchema,
         404: textFormErrorResponseSchema,
+        // `sharingFailure` refuses a non-custom row (a preset / LV override is
+        // not the caller's own text form to share) with 409. The router has
+        // always returned it; declaring it keeps the client's status union
+        // honest. Additive — no existing status changes.
+        409: textFormErrorResponseSchema,
         500: textFormErrorResponseSchema,
       },
       summary: 'Set recipe share mode',
@@ -197,6 +202,11 @@ export const userTextFormsContract = c.router(
         401: textFormErrorResponseSchema,
         403: textFormErrorResponseSchema,
         404: textFormErrorResponseSchema,
+        // `sharingFailure` refuses a non-custom row (a preset / LV override is
+        // not the caller's own text form to share) with 409. The router has
+        // always returned it; declaring it keeps the client's status union
+        // honest. Additive — no existing status changes.
+        409: textFormErrorResponseSchema,
         500: textFormErrorResponseSchema,
       },
       summary: 'Toggle Agentura discovery for a recipe',

@@ -73,10 +73,13 @@ describe('ShareRecipeModal', () => {
     );
   });
 
-  it('erklärt einen 409 statt ihn zu verschlucken', async () => {
+  it('zeigt bei einem 409 den Satz des Servers, nicht eine eigene Fassung davon', async () => {
     setShareMode.mockResolvedValue({
       status: 409,
-      body: { success: false, message: 'Angepasste System-Rezepte lassen sich nicht teilen.' },
+      body: {
+        success: false,
+        message: 'Angepasste System-Rezepte lassen sich nicht teilen — nur eigene Rezepte.',
+      },
     });
     renderModal();
 
@@ -84,7 +87,22 @@ describe('ShareRecipeModal', () => {
     await userEvent.click(trigger);
     await userEvent.click(await screen.findByRole('option', { name: /Mit Anmeldung/ }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(/nur eigene Rezepte/);
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Angepasste System-Rezepte lassen sich nicht teilen — nur eigene Rezepte.'
+    );
+  });
+
+  it('fällt bei einem 500 auf die Sammelzeile zurück', async () => {
+    setShareMode.mockResolvedValue({ status: 500, body: { success: false, message: 'boom' } });
+    renderModal();
+
+    const trigger = await screen.findByLabelText('Sichtbarkeit');
+    await userEvent.click(trigger);
+    await userEvent.click(await screen.findByRole('option', { name: /Mit Anmeldung/ }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Die Freigabe konnte nicht geändert werden.'
+    );
   });
 
   it('listet die Eigentumsfrage als gedrückte Schalter', async () => {
