@@ -237,6 +237,7 @@ export async function buildStreamContext({
     roleName: rawRoleName,
     initialAssistantMessage: rawInitialAssistantMessage,
     activeSkillMention: rawActiveSkillMention,
+    activeRecipeId: rawActiveRecipeId,
     enabledTools,
     modelId,
     attachments,
@@ -835,6 +836,10 @@ export async function buildStreamContext({
     // field is the store's ambient choice (and the only carrier old clients
     // have, so it stays honored).
     activeSkillMention: mentionTokenFields.skillMention ?? rawActiveSkillMention ?? undefined,
+    // Die Zeilen-id der gewählten Textform. Kein Token-Gegenstück: Mention-Tokens
+    // nennen die Mention, die id kommt nur aus dem Body — und schlägt sie im
+    // Nachschlag, weil eine Umbenennung die Zeile sonst still austauschte.
+    activeRecipeId: rawActiveRecipeId ?? undefined,
     userInstructions,
     contextWindowTokens,
   });
