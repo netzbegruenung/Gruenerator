@@ -35,9 +35,9 @@ const TOOL_CATALOG = USER_SELECTABLE_TOOLS.map(
 const SKILL_CATALOG = SKILLS.map((s) => `- ${s.mention}: ${s.title}`).join('\n');
 const ICON_CATALOG = SUGGESTED_AGENT_ICONS.join(', ');
 
-// LLM output schema. `enabledTools`/`skillMentions` are free arrays here and
-// filtered against the catalogs after generation — strict enums would make the
-// call fail on a single near-miss value.
+// LLM output schema. `enabledTools` is a free array and `defaultRecipeMention`
+// a free string, both filtered against the catalogs after generation — strict
+// enums would make the call fail on a single near-miss value.
 // Min/max here mirror the create contract (createUserAgentBodySchema) so a
 // synthesized spec can always be persisted — otherwise a thin conversation
 // could 200 on /draft but 400 on create.
@@ -59,9 +59,10 @@ const DraftSchema = z.object({
     .describe('Icon-Schlüssel, ausschließlich aus dem Katalog (z.B. PiSparkle, PiMegaphone)'),
   backgroundColor: z.string().describe('Hex-Farbe wie #316049'),
   enabledTools: z.array(z.string()).describe('Werkzeug-Schlüssel, ausschließlich aus dem Katalog'),
-  skillMentions: z
-    .array(z.string())
-    .describe('Optionale Skill-Mentions als Schnellstarts, ausschließlich aus dem Katalog'),
+  defaultRecipeMention: z
+    .string()
+    .nullable()
+    .describe('Kern-Rezept, ausschließlich aus dem Katalog — leer lassen, wenn keins passt'),
   locale: z.enum(['de-DE', 'de-AT']).describe('Region: Deutschland oder Österreich'),
   openingMessage: z.string().describe('Begrüßung, die der*die Agent*in beim Start zeigt'),
   openingQuestions: z.array(z.string()).max(4).describe('Bis zu vier Beispiel-Startfragen'),
@@ -74,7 +75,7 @@ Regeln:
 - Der systemRole ist der wichtigste Teil: formuliere eine klare Rolle, Aufgabe, Tonalität und Arbeitsweise, passend zum besprochenen Zweck. Schreibe ihn so, als würdest du den*die Agent*in direkt instruieren ("Du bist ...").
 - enabledTools: Wähle NUR Schlüssel aus diesem Katalog, passend zum Zweck:
 ${TOOL_CATALOG}
-- skillMentions: Optionale Schnellstart-Vorlagen, NUR aus diesem Katalog (leer lassen, wenn nichts passt):
+- defaultRecipeMention: Das eine Kern-Rezept dieses Agenten, NUR aus diesem Katalog (null, wenn nichts passt):
 ${SKILL_CATALOG}
 - iconKey: Wähle GENAU EINEN passenden Icon-Schlüssel aus dieser Liste: ${ICON_CATALOG}
 - locale: 'de-AT' nur, wenn explizit Österreich besprochen wurde, sonst 'de-DE'.
@@ -105,14 +106,17 @@ export async function draftAgentSpec(
   const draft = result.object;
 
   const enabledTools = draft.enabledTools.filter((t) => TOOL_KEYS.has(t));
-  const skillMentions = draft.skillMentions.filter((m) => SKILL_MENTIONS.has(m));
+  const defaultRecipeMention =
+    draft.defaultRecipeMention && SKILL_MENTIONS.has(draft.defaultRecipeMention)
+      ? draft.defaultRecipeMention
+      : null;
   // Clamp to the curated set so the synthesized name always resolves to an icon.
   const iconKey = isSuggestedAgentIcon(draft.iconKey.trim())
     ? draft.iconKey.trim()
     : DEFAULT_AGENT_ICON;
 
   log.info(
-    `[draftAgentSpec] "${draft.title}" icon=${iconKey} tools=[${enabledTools.join(',')}] skills=[${skillMentions.join(',')}] locale=${draft.locale}`
+    `[draftAgentSpec] "${draft.title}" icon=${iconKey} tools=[${enabledTools.join(',')}] recipe=${defaultRecipeMention ?? '-'} locale=${draft.locale}`
   );
 
   return {
@@ -122,7 +126,10 @@ export async function draftAgentSpec(
     iconKey,
     backgroundColor: HEX_RE.test(draft.backgroundColor) ? draft.backgroundColor : DEFAULT_COLOR,
     enabledTools: enabledTools.length > 0 ? enabledTools : [...DEFAULT_USER_AGENT_TOOLS],
-    skillMentions,
+    // Deprecated field kept for the one-release overlap (deployed web bundle
+    // still reads it) — new drafts carry the binding via defaultRecipeMention.
+    skillMentions: [],
+    defaultRecipeMention,
     locale: draft.locale,
     openingMessage: draft.openingMessage.trim(),
     openingQuestions: draft.openingQuestions.slice(0, 4),

@@ -167,6 +167,18 @@ describe('roleAwareDefaultRecipeMention', () => {
       )
     ).toBeNull();
   });
+
+  it('lässt einen eigenen Custom-Default unangetastet — keine Rezept-Familie, keine LV-Umbiegung', () => {
+    // Ein an einen Agenten gebundenes Custom-Rezept (Task 9) ist keine der
+    // beiden LV-Familien (presse/instagram) — die Landesgeschäftsstellen-Rolle
+    // darf es trotzdem nicht auf eine LV-Variante umbiegen.
+    expect(
+      roleAwareDefaultRecipeMention(
+        { identifier: 'gruenerator-universal', defaultRecipeMention: 'omveinladungen' },
+        { userRoles: [lgs('Hessen')], userLocale: 'de-DE' }
+      )
+    ).toBe('omveinladungen');
+  });
 });
 
 describe('preferredLvRecipeMention — Instanz-Tür', () => {

@@ -1,8 +1,9 @@
 -- Default recipe binding for user agents (Agentura).
 --
--- `skill_mentions` (see userAgents.ts) stays — F0, dead since 2026-09-18, and
--- column drops aren't allowed. The recipe an agent auto-loads at chat time is
--- bound here instead:
+-- `skill_mentions` (see userAgents.ts) stays — F0, deprecated since 2026-09-18
+-- — still read/written until the web bundle stops sending it (target
+-- 2026-12-18), and column drops aren't allowed. The recipe an agent
+-- auto-loads at chat time is bound here instead:
 --   default_recipe_mention : mention-based lookup
 --   default_recipe_id      : names a user recipe row (user_text_forms.id) —
 --                            own, shared, or public — and wins over
