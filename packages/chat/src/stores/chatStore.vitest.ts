@@ -86,11 +86,20 @@ describe('setCurrentThread', () => {
 });
 
 describe('setActiveSkillMention', () => {
-  it('setzt die Rezept-Id nur, wenn sie mitgegeben wird', () => {
+  it('setzt Mention UND Rezept-Id, wenn eine Id mitgegeben wird (Auswahl einer Textform)', () => {
     useAgentStore.getState().setActiveSkillMention('omveinladungen', 'recipe-omv-1');
+    expect(useAgentStore.getState().activeSkillMention).toBe('omveinladungen');
     expect(useAgentStore.getState().activeRecipeId).toBe('recipe-omv-1');
+  });
+
+  it('räumt eine zuvor gesetzte Rezept-Id ab, wenn ohne Id aufgerufen wird (Systemrezept)', () => {
+    useAgentStore.setState({
+      activeSkillMention: 'omveinladungen',
+      activeRecipeId: 'recipe-omv-1',
+    });
 
     useAgentStore.getState().setActiveSkillMention('presse');
+
     expect(useAgentStore.getState().activeSkillMention).toBe('presse');
     expect(useAgentStore.getState().activeRecipeId).toBeNull();
   });
