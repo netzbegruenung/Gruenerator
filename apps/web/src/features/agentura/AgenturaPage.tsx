@@ -81,6 +81,7 @@ import {
 } from './lib/categories';
 import { isLandesverbandIdentifier, landesverbandRegion } from './lib/lookups';
 import { useDeleteRecipe, useOwnRecipes, usePublicRecipes } from './recipes/api';
+import { recipeOriginLine } from './recipes/recipeMeta';
 
 import type { IconType } from 'react-icons';
 
@@ -182,15 +183,6 @@ function recipeFromSkill(skill: AgentListItem): RecipeEntry {
     id: null,
     shareLabel: null,
   };
-}
-
-/** Where a shared/public row came from, in one line — mirrors `RecipeDetailPage`. */
-function recipeShareLabel(form: TextForm | PublicTextForm, source: 'shared' | 'public'): string {
-  if (source === 'shared') {
-    const group = form.sharedFromGroup ?? 'einem Projekt';
-    return `Geteilt aus ${group}${form.ownerName ? ` von ${form.ownerName}` : ''}`;
-  }
-  return `Von der Basis${form.ownerName ? ` · ${form.ownerName}` : ''}`;
 }
 
 /** A user recipe row (own, shared or public) as a recipe card. */
@@ -359,7 +351,9 @@ function AgenturaPage() {
         recipeFromForm(f, {
           editable: true,
           shareLabel: null,
-          onDelete: () => handleDeleteRecipe(f),
+          onDelete: () => {
+            void handleDeleteRecipe(f);
+          },
         })
       ),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `handleDeleteRecipe` is recreated every render but only closes over `confirmDialog`/`deleteRecipe.mutate`, both stable, so omitting it changes nothing
@@ -368,14 +362,14 @@ function AgenturaPage() {
   const sharedRecipeEntries = useMemo<RecipeEntry[]>(
     () =>
       sharedRecipes.map((f) =>
-        recipeFromForm(f, { editable: false, shareLabel: recipeShareLabel(f, 'shared') })
+        recipeFromForm(f, { editable: false, shareLabel: recipeOriginLine(f, 'shared') })
       ),
     [sharedRecipes]
   );
   const communityRecipeEntries = useMemo<RecipeEntry[]>(
     () =>
       communityRecipes.map((f) =>
-        recipeFromForm(f, { editable: false, shareLabel: recipeShareLabel(f, 'public') })
+        recipeFromForm(f, { editable: false, shareLabel: recipeOriginLine(f, 'public') })
       ),
     [communityRecipes]
   );

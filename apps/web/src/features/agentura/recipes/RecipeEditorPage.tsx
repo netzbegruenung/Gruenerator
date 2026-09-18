@@ -30,7 +30,12 @@ function RecipeEditorPage() {
   const classification = classifyRecipeMention(mention, lvIds);
 
   const { data: ownRecipes, isLoading, isError, refetch } = useOwnRecipes(true);
-  const ownForm = ownRecipes?.find((r) => r.mention === mention && !r.sharedFromGroup);
+  // Erwähnungen werden gespeichert wie getippt, ein Link kann jede Schreibung
+  // tragen — wie in `useRecipeByMention` wird deshalb ohne Groß-/Kleinschreibung
+  // verglichen. Sonst öffnet `/agentura/rezept/Presse/bearbeiten` das Anlegen
+  // statt das Bearbeiten und überschreibt beim Speichern die bestehende Zeile.
+  const needle = mention.toLowerCase();
+  const ownForm = ownRecipes?.find((r) => r.mention.toLowerCase() === needle && !r.sharedFromGroup);
 
   useDocumentTitle(`${ownForm?.title ?? classification.label} bearbeiten`);
 

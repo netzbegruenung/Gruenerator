@@ -49,9 +49,9 @@ function row(over: Record<string, unknown> = {}) {
  * is the whole point of the clock this hook reads. `seedAuth: false` leaves it
  * pending, which is what a hard load looks like before the probe answers.
  */
-function makeWrapper(seedAuth = true) {
+function makeWrapper(seedAuth = true, isAuthenticated = true) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
-  if (seedAuth) client.setQueryData(['authStatus'], { isAuthenticated: true });
+  if (seedAuth) client.setQueryData(['authStatus'], { isAuthenticated });
   return function Wrapper({ children }: { children: ReactNode }) {
     return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
   };
@@ -187,5 +187,18 @@ describe('useRecipeByMention', () => {
     });
 
     await waitFor(() => expect(result.current.source).toBe('own'));
+  });
+  it('antwortet einer abgemeldeten Person mit „nicht gefunden", ohne hängen zu bleiben', async () => {
+    // Die Gegenprobe zum Fall darüber: die Sonde HAT geantwortet, nur eben mit
+    // „Gast". Die eigene Liste bleibt dann aus — und genau dann darf `loading`
+    // nicht stehen bleiben, sonst dreht sich der Ladezustand für immer.
+    const { result } = renderHook(() => useRecipeByMention('mein-rezept'), {
+      wrapper: makeWrapper(true, false),
+    });
+
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+    expect(result.current.source).toBeNull();
+    expect(result.current.isError).toBe(false);
+    expect(list).not.toHaveBeenCalled();
   });
 });
