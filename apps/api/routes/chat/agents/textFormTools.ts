@@ -45,7 +45,9 @@ import {
   MAX_TEXT_FORM_EXAMPLES,
   MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS,
   MAX_TEXT_FORM_STYLE_CHARS,
+  textFormDescriptionSchema,
   textFormExamplesChars,
+  textFormIconKeySchema,
   textFormTypeSchema,
   type TextForm,
   type TextFormKind,
@@ -206,14 +208,10 @@ Die Beispiele für create und add_examples sind die Texte der Person selbst — 
         .max(MAX_TEXT_FORM_EXAMPLES)
         .optional()
         .describe('Beispieltexte der Person, je Eintrag ein Text (create, add_examples)'),
-      description: z
-        .string()
-        .max(500)
+      description: textFormDescriptionSchema
         .optional()
         .describe('Kurzbeschreibung für die Agentura/mention-Auswahl (create)'),
-      iconKey: z
-        .string()
-        .max(64)
+      iconKey: textFormIconKeySchema
         .optional()
         .describe(
           'Icon-Schlüssel aus dem Icon-Katalog (create); ein unbekannter Schlüssel wird auf ein Standardicon geklemmt'

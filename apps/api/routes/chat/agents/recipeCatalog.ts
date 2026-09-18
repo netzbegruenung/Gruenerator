@@ -128,8 +128,9 @@ export async function buildRecipeCatalog(params: {
     // `rezept_laden`-Enum, und der Werkzeugkatalog ist ohnehin der grösste
     // Token-Posten des Turns; die öffentlichen Rezepte der ganzen Instanz sind
     // eine Menge, die niemand nach oben begrenzt. Erreichbar bleiben sie über
-    // die ausdrückliche Mention (`resolveRecipeBody`), die Auswahl im Composer
-    // und das `recipes`-Werkzeug — das Modell bekommt sie nur nicht aufgezählt.
+    // die ausdrückliche Mention (`resolveRecipeBody`) und die Auswahl im
+    // Composer — aufgezählt bekommt das Modell sie auf keinem Weg, auch das
+    // `recipes`-Werkzeug liest dieselben Quellen wie dieser Katalog.
     //
     // Was bleibt: eigene Textformen und die in ein Projekt geteilten, bereits
     // dedupliziert (eigen vor geteilt) und bereits um die Presets bereinigt,

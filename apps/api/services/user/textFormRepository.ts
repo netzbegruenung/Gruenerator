@@ -754,8 +754,8 @@ interface MentionableRow {
  * `includePublic: false` lässt den offenen Katalog weg — für Aufrufer, die eine
  * AUFZÄHLUNG bauen, deren Länge etwas kostet (der Rezept-Katalog des Modells).
  * Ein öffentliches Rezept bleibt dabei erreichbar: über die ausdrückliche
- * Mention, die Auswahl im Composer und das `recipes`-Werkzeug — nur aufgezählt
- * wird es dort nicht.
+ * Mention und die Auswahl im Composer. Das `recipes`-Werkzeug zählt es NICHT
+ * auf — es liest dieselben Quellen wie der Katalog.
  */
 export async function listMentionableTextForms(
   userId: string,

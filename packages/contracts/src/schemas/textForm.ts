@@ -162,8 +162,11 @@ export type AnalyzeTextFormBody = z.infer<typeof analyzeTextFormBodySchema>;
  * custom; presets carry `textType` (und `recipe` trägt ihn als Beschriftung für
  * die Analyse). `styleBlock` is the edited text to inject.
  *
- * `kind` is optional: the server derives it when omitted (existing row's kind,
- * or 'custom' for a new one) — the Agentura save form doesn't ask for it.
+ * `kind` is optional — and even when sent it is only a wish. The server derives
+ * it from the MENTION (`resolveTextFormKind`), never from an existing row: the
+ * mention decides whether a save fills a preset, overrides a Landesverbands
+ * recipe or creates a custom one, and a sent `kind` that contradicts it is
+ * refused. The Agentura save form does not ask for it at all.
  */
 export const saveTextFormBodySchema = z.object({
   kind: textFormKindSchema.optional(),

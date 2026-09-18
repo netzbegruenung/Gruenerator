@@ -16,12 +16,15 @@
  * Regel ohne HTTP und ohne Werkzeug-Kontext prüfbar ist — wie
  * `recipeOverrideAccess.ts`, das diese Funktion für Schritt (3) mitbenutzt.
  */
-import { textFormMentionSchema, textFormTypeSchema } from '@gruenerator/contracts';
+import {
+  textFormMentionSchema,
+  textFormTypeSchema,
+  type TextFormKind,
+  type TextFormType,
+} from '@gruenerator/contracts';
 import { canonicalSkillMention, hasSystemRecipe, SKILLS } from '@gruenerator/shared/agents';
 
 import { checkRecipeOverride } from '../../routes/userTextForms/recipeOverrideAccess.js';
-
-import type { TextFormKind, TextFormType } from '@gruenerator/contracts';
 
 export type TextFormKindVerdict =
   | { ok: true; kind: TextFormKind; textType: TextFormType | null; mention: string }
