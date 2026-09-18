@@ -32,10 +32,10 @@
 import { type TextFormKind } from '@gruenerator/contracts';
 import { hasSystemRecipe, SKILLS } from '@gruenerator/shared/agents';
 
-import { deriveTextFormMention } from '../../agents/langgraph/ChatGraph/nodes/textFormMention.js';
 import { embedUntrusted } from '../../routes/chat/services/untrustedContent.js';
 import { createLogger } from '../../utils/logger.js';
 import { getInternalSkillPrompt } from '../skills/internalPrompts.js';
+import { normalizeTextFormMention } from '../user/textFormKind.js';
 import {
   getTextFormForInjection,
   getTextFormForInjectionById,
@@ -49,9 +49,8 @@ export interface ResolvedRecipeBody {
   /** Die Zeile aus `user_text_forms`, oder `null` für einen Systemrumpf. */
   id: string | null;
   /**
-   * Die kanonische Mention, unter der das Rezept läuft. Leer nur im Fall
-   * „per id gepinnt, ohne Mention und ohne ableitbare Preset-Mention": dann
-   * identifizieren `id` und `title` die Zeile.
+   * Die kanonische Mention, unter der das Rezept läuft — bei einer Textform die
+   * der ZEILE, nicht die der Anfrage. Immer gesetzt.
    */
   mention: string;
   title: string;
@@ -59,48 +58,32 @@ export interface ResolvedRecipeBody {
   source: 'user' | 'system';
   /** Siehe Kopfkommentar: steuert die Überschrift der Aufrufstelle. */
   replacesSystem: boolean;
-  /** Siehe Kopfkommentar: der Aufrufer zählt das in `hasUntrusted` mit. */
+  /**
+   * Siehe Kopfkommentar: der Aufrufer zählt das in `hasUntrusted` mit. `body`
+   * ist bereits eingefasst — NICHT erneut mit `embedUntrusted` umhüllen, das
+   * ist nicht idempotent.
+   */
   untrusted: boolean;
   kind: TextFormKind | null;
   access: TextFormAccess | null;
 }
 
 /**
- * Die Preset-Mention IST der Texttyp (`textFormKind.ts`) — der einzige Weg, von
- * einer per id gepinnten Zeile ohne mitgegebene Mention auf ihren Schlüssel zu
- * kommen. `TextFormInjection` trägt die Mention selbst nicht.
+ * Entschieden wird an der ZEILE, nicht an der Mention der Anfrage: ein per id
+ * gepinntes Rezept gilt auch dann unter seinem eigenen Namen, wenn im Composer
+ * gerade eine andere Mention steht (#2939).
  */
-function presetMention(form: TextFormInjection): string | null {
-  return form.kind === 'preset' ? form.textType : null;
-}
-
-/**
- * Ob dieser angelernte Stil den Rumpf eines mitgelieferten Rezepts ersetzt.
- *
- * Mit bekannter Mention ist das schlicht `hasSystemRecipe`. Ohne sie (id-Pfad
- * ohne Mention) antwortet die Zeile selbst: `kind: 'recipe'` entsteht laut
- * `resolveTextFormKind` ausschliesslich für Mentions mit Systemrezept, `custom`
- * ausschliesslich für solche ohne, und ein Preset hängt an seinem Texttyp
- * (`antrag` hat als einziges keinen Eintrag in `SKILLS`).
- */
-function overridesSystemRecipe(form: TextFormInjection, mention: string): boolean {
-  if (mention) return hasSystemRecipe(mention);
-  if (form.kind === 'recipe') return true;
-  const preset = presetMention(form);
-  return preset !== null && hasSystemRecipe(preset);
-}
-
-function fromUserForm(form: TextFormInjection, mention: string): ResolvedRecipeBody {
-  const skill = mention ? SKILLS.find((s) => s.mention === mention) : undefined;
+function fromUserForm(form: TextFormInjection): ResolvedRecipeBody {
+  const skill = SKILLS.find((s) => s.mention === form.mention);
   return {
     id: form.id,
-    mention,
+    mention: form.mention,
     // Gibt es ein Systemrezept, trägt die Überschrift dessen Titel — der Stil
     // ersetzt den Rezepttext, nicht das Rezept (#2939).
     title: skill?.title ?? form.title,
     body: embedUntrusted('nutzer_anweisung', form.styleBlock),
     source: 'user',
-    replacesSystem: overridesSystemRecipe(form, mention),
+    replacesSystem: hasSystemRecipe(form.mention),
     untrusted: true,
     kind: form.kind,
     access: form.access,
@@ -131,12 +114,17 @@ export async function resolveRecipeBody(params: {
   userId: string | null;
 }): Promise<ResolvedRecipeBody | null> {
   const { userId } = params;
-  const mention = deriveTextFormMention(params.mention);
+  // Dieselbe Normalisierung wie `isRecipeUsableForAgent`: ein getipptes
+  // „@Presse" und ein gespeichertes „presse" müssen dieselbe Zeile treffen.
+  // `normalizeTextFormMention` ist die Obermenge von `canonicalSkillMention`
+  // (streift @ und /, trimmt, kleinschreibt) — eine zurückgezogene Mention
+  // landet weiterhin auf ihrer Nachfolgerin.
+  const mention = params.mention ? normalizeTextFormMention(params.mention) : null;
   const recipeId = params.recipeId ?? null;
 
   if (recipeId && userId) {
     const form = await getTextFormForInjectionById(recipeId, userId);
-    if (form) return fromUserForm(form, mention ?? presetMention(form) ?? '');
+    if (form) return fromUserForm(form);
     log.debug(
       `[Rezept] gepinnte id nicht sichtbar, faellt auf Mention zurueck id=${recipeId} mention=${mention ?? '-'}`
     );
@@ -144,7 +132,7 @@ export async function resolveRecipeBody(params: {
 
   if (userId && mention) {
     const form = await getTextFormForInjection(userId, mention);
-    if (form) return fromUserForm(form, mention);
+    if (form) return fromUserForm(form);
   }
 
   const skill = mention ? SKILLS.find((s) => s.mention === mention) : undefined;
