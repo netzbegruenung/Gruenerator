@@ -1,64 +1,86 @@
+import { useUserLandesverbaende } from '@gruenerator/chat';
 import {
   MAX_TEXT_FORM_DESCRIPTION_CHARS,
   MAX_TEXT_FORM_EXAMPLES,
   MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS,
   MAX_TEXT_FORM_STYLE_CHARS,
-  type PublicOwnership,
-  type TextFormShareMode,
 } from '@gruenerator/contracts';
 import { isApiErrorWithStatus } from '@gruenerator/shared/api';
 import { slugifyName } from '@gruenerator/shared/utils';
-import {
-  Button,
-  Input,
-  Label,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Switch,
-  Textarea,
-  useConfirm,
-} from '@gruenerator/ui';
+import { Button, Input, Textarea, useConfirm } from '@gruenerator/ui';
 import { useId, useMemo, useState } from 'react';
-import { HiTrash } from 'react-icons/hi';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import { AgentAvatar } from '../../agents/icons/AgentAvatar';
 import { IconPicker } from '../../agents/icons/IconPicker';
-import { useMyGroupsForSharing } from '../hooks/useMyGroupsForSharing';
 
-import {
-  useDeleteRecipe,
-  useOwnRecipes,
-  useSaveRecipe,
-  useShareRecipeWithGroup,
-  useUnshareRecipeFromGroup,
-} from './api';
+import { useDeleteRecipe, useOwnRecipes, useSaveRecipe } from './api';
 import { ExamplesPanel } from './ExamplesPanel';
 import { effectiveMention, recipeFormToPayload, type RecipeFormState } from './recipeFormState';
+import { classifyRecipeMention } from './recipeKind';
 import { recipeMetaLine } from './recipeMeta';
 import { RecipePreview } from './RecipePreview';
+import { RecipeSharingPanel } from './RecipeSharingPanel';
 import { splitExamples } from './splitExamples';
-import {
-  useRecipeGroupShares,
-  useRecipeShareSettings,
-  useSetRecipeIsPublic,
-  useSetRecipeShareMode,
-} from './useRecipeSharing';
 
 import PageContainer from '@/components/common/PageContainer';
 import { UnderlineTabs } from '@/components/common/UnderlineTabs';
-import { cn } from '@/utils/cn';
 
 const labelCls = 'flex flex-col gap-xs text-sm font-medium';
 
-const SHARE_MODE_LABELS: Record<TextFormShareMode, string> = {
-  private: 'Privat — nur ich',
-  groups: 'Mit Projekten geteilt',
-  authenticated: 'Mit Anmeldung — alle eingeloggten Nutzer*innen',
-};
+/**
+ * `slugifyName` kappt bei 40 Zeichen — das Eingabefeld darf nicht mehr
+ * zulassen, sonst tippt jemand ins Leere und der gespeicherte Name weicht
+ * stillschweigend vom eingegebenen ab.
+ */
+const MAX_MENTION_CHARS = 40;
+
+/**
+ * Pfadsegmente der Rezept-Routen (`/agentura/rezept/neu`,
+ * `…/:mention/bearbeiten`). Als Erwähnung vergeben, wäre die eigene
+ * Detailseite des Rezepts nicht mehr erreichbar.
+ */
+const RESERVED_MENTIONS = ['neu', 'bearbeiten'];
+
+/**
+ * Was der Erwähnung im Weg steht, bevor irgendetwas zum Server geht. Der
+ * Server lehnt beides ohnehin ab (400 „… ist ein Preset, nicht kind='custom'."
+ * bzw. 403 für einen nicht zugeteilten Landesverband) — aber erst nach dem
+ * Klick auf Speichern und in seinen Worten. Wer „Presse" als Titel tippt, soll
+ * vorher wissen, wohin der eigene Stil stattdessen gehört.
+ */
+function mentionBlocker(
+  mention: string,
+  lvIds: readonly string[] | null
+): { text: string; href: string | null } | null {
+  if (RESERVED_MENTIONS.includes(mention)) {
+    return { text: 'Dieser Name ist reserviert.', href: null };
+  }
+  const classification = classifyRecipeMention(mention, lvIds);
+  if (classification.kind === 'custom') return null;
+  return {
+    text: `@${mention} gehört zu einem mitgelieferten Rezept — dort kannst du deinen eigenen Stil hinterlegen.`,
+    href: `/agentura/rezept/${encodeURIComponent(mention)}`,
+  };
+}
+
+/**
+ * Beim Tippen slugifizieren, ohne den gerade getippten Trenner zu schlucken:
+ * `slugifyName` schneidet Bindestriche am Ende ab, weshalb „mein-" zu „mein"
+ * wurde und „mein-rezept" nie zustande kam. Umlaute gehen weiterhin durch die
+ * echte Transliteration (ä→ae), statt hier ein zweites Mal beschrieben zu
+ * werden. Beim Verlassen des Feldes räumt {@link normalizeMention} nach.
+ */
+function typeMention(raw: string): string {
+  const slug = slugifyName(raw, '');
+  const endsOnSeparator = /[^a-zA-Z0-9]$/.test(raw);
+  return endsOnSeparator && slug.length > 0 && slug.length < MAX_MENTION_CHARS ? `${slug}-` : slug;
+}
+
+/** Der Endstand des Feldes — ohne den hängenden Bindestrich aus dem Tippen. */
+function normalizeMention(value: string): string {
+  return slugifyName(value, '');
+}
 
 type Section = 'grund' | 'anleitung' | 'beispiele' | 'teilen';
 
@@ -87,12 +109,13 @@ function RecipeEditor({
   const saveMut = useSaveRecipe();
   const deleteMut = useDeleteRecipe();
   const mentionErrorId = useId();
-  const sichtbarkeitHeadingId = useId();
-  const projekteHeadingId = useId();
+  const { lvIds } = useUserLandesverbaende();
 
   const [form, setForm] = useState<RecipeFormState>(initialState);
   const [error, setError] = useState<string | null>(null);
-  const [mentionError, setMentionError] = useState<string | null>(null);
+  const [mentionError, setMentionError] = useState<{ text: string; href: string | null } | null>(
+    null
+  );
   const [justSaved, setJustSaved] = useState(false);
   const [section, setSection] = useState<Section>(initialSection);
 
@@ -107,6 +130,13 @@ function RecipeEditor({
   // not recompute from a live-changing title once a row has one.
   const canEditMention = form.kind === 'custom' && mode === 'create';
   const mention = effectiveMention(form);
+  // Was im Feld steht, solange niemand getippt hat: derselbe aus dem Titel
+  // abgeleitete Entwurf, aber ohne `effectiveMention`s Notfallnamen — der stand
+  // sonst als „textform" im noch leeren Feld und jedes getippte Zeichen hängte
+  // sich daran. Gespeichert wird weiterhin `mention`, und dort ist der Titel zu
+  // dem Zeitpunkt ohnehin gefüllt (`canSave`).
+  const mentionFieldValue =
+    canEditMention && !form.mentionTouched ? slugifyName(form.title, '') : mention;
 
   const split = useMemo(() => splitExamples(form.rawExamples), [form.rawExamples]);
   const exampleCount = split.examples.length;
@@ -122,8 +152,14 @@ function RecipeEditor({
   // Task 4). Not part of `RecipeFormState` — read off the own list already
   // cached by `RecipeEditorPage`'s own-vs-create lookup.
   const ownRecipesQuery = useOwnRecipes(mode === 'edit');
+  // Erwähnungen werden gespeichert wie getippt, ein Link kann jede Schreibung
+  // tragen — verglichen wird deshalb ohne Groß-/Kleinschreibung, wie in
+  // `useRecipeByMention`.
   const recipeId =
-    mode === 'edit' ? (ownRecipesQuery.data?.find((r) => r.mention === mention)?.id ?? null) : null;
+    mode === 'edit'
+      ? (ownRecipesQuery.data?.find((r) => r.mention.toLowerCase() === mention.toLowerCase())?.id ??
+        null)
+      : null;
 
   const titleValid = form.title.trim().length > 0;
   const styleValid = form.styleBlock.trim().length > 0;
@@ -139,6 +175,17 @@ function RecipeEditor({
   const handleSave = async () => {
     setError(null);
     setMentionError(null);
+    // Nur eine frei getippte Erwähnung kann kollidieren: eine Preset-/LV-
+    // Anpassung trägt ihre feste Erwähnung absichtlich und soll genau dorthin
+    // speichern.
+    if (canEditMention) {
+      const blocker = mentionBlocker(mention, lvIds);
+      if (blocker) {
+        setMentionError(blocker);
+        setSection('grund');
+        return;
+      }
+    }
     try {
       const payload = recipeFormToPayload(form);
       const saved = await saveMut.mutateAsync({ mention, body: payload });
@@ -148,8 +195,19 @@ function RecipeEditor({
         setJustSaved(true);
       }
     } catch (err) {
-      if (isApiErrorWithStatus(err, 409)) {
-        setMentionError(err instanceof Error ? err.message : 'Diese Mention ist bereits vergeben.');
+      // 400/403/409 sind hier allesamt Auskünfte über die Erwähnung: sie ist
+      // vergeben, sie gehört einem Preset, oder der Landesverband ist nicht
+      // zugeteilt. Als Banner ganz oben stünde die Erklärung weit weg von dem
+      // Feld, das sie meint.
+      const aboutMention =
+        isApiErrorWithStatus(err, 409) ||
+        isApiErrorWithStatus(err, 400) ||
+        isApiErrorWithStatus(err, 403);
+      if (aboutMention) {
+        setMentionError({
+          text: err instanceof Error ? err.message : 'Diese Mention ist bereits vergeben.',
+          href: null,
+        });
         setSection('grund');
         return;
       }
@@ -167,7 +225,7 @@ function RecipeEditor({
     if (!ok) return;
     try {
       await deleteMut.mutateAsync(mention);
-      void navigate('/agentura');
+      void navigate('/agentura?cat=meine');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Löschen fehlgeschlagen.');
     }
@@ -175,28 +233,6 @@ function RecipeEditor({
 
   // ── Teilen tab — only for a custom recipe the user already owns. ───────────
   const showTeilen = mode === 'edit' && form.kind === 'custom';
-  const shareSettingsQuery = useRecipeShareSettings(showTeilen ? mention : null);
-  const groupShares = useRecipeGroupShares(showTeilen ? mention : null);
-  const myGroupsQuery = useMyGroupsForSharing(showTeilen);
-  const setShareMode = useSetRecipeShareMode(mention);
-  const setIsPublic = useSetRecipeIsPublic(mention);
-  const shareGroupMut = useShareRecipeWithGroup();
-  const unshareGroupMut = useUnshareRecipeFromGroup();
-  const [shareError, setShareError] = useState<string | null>(null);
-
-  const shareMode = shareSettingsQuery.data?.share_mode ?? 'private';
-  const isPublic = shareSettingsQuery.data?.is_public ?? false;
-  const publicOwnership = shareSettingsQuery.data?.public_ownership ?? null;
-
-  const sharedGroupIds = useMemo(() => new Set(groupShares.map((g) => g.groupId)), [groupShares]);
-  const availableGroups = useMemo(
-    () => (myGroupsQuery.data ?? []).filter((g) => !sharedGroupIds.has(g.id)),
-    [myGroupsQuery.data, sharedGroupIds]
-  );
-
-  const onShareError = (err: unknown) => {
-    setShareError(err instanceof Error ? err.message : 'Teilen fehlgeschlagen.');
-  };
 
   const sectionTabs = [
     { key: 'grund' as const, label: 'Grundlagen' },
@@ -219,7 +255,11 @@ function RecipeEditor({
           </div>
         </div>
         <div className="flex items-center gap-sm">
-          {justSaved && <span className="text-sm text-foreground-muted">Gespeichert ✓</span>}
+          {justSaved && (
+            <span role="status" className="text-sm text-foreground-muted">
+              Gespeichert ✓
+            </span>
+          )}
           {mode === 'edit' && (
             <Button
               variant="brand-outline"
@@ -263,7 +303,11 @@ function RecipeEditor({
         </div>
       </header>
 
-      {error && <p className="mb-md text-sm text-destructive">{error}</p>}
+      {error && (
+        <p role="alert" className="mb-md text-sm text-destructive">
+          {error}
+        </p>
+      )}
       {examplesBlockReason && (
         <p className="mb-md text-sm text-destructive">{examplesBlockReason}</p>
       )}
@@ -297,16 +341,23 @@ function RecipeEditor({
                 <label className={labelCls}>
                   @mention
                   <Input
-                    value={mention}
+                    value={mentionFieldValue}
                     onChange={(e) => {
                       setJustSaved(false);
                       setForm((prev) => ({
                         ...prev,
                         mentionTouched: true,
-                        mention: slugifyName(e.target.value, 'textform'),
+                        mention: typeMention(e.target.value),
                       }));
                     }}
-                    maxLength={48}
+                    onBlur={() =>
+                      setForm((prev) =>
+                        prev.mentionTouched
+                          ? { ...prev, mention: normalizeMention(prev.mention) }
+                          : prev
+                      )
+                    }
+                    maxLength={MAX_MENTION_CHARS}
                     placeholder="mein-rezept"
                     aria-invalid={mentionError ? true : undefined}
                     aria-describedby={mentionError ? mentionErrorId : undefined}
@@ -321,8 +372,16 @@ function RecipeEditor({
                 </div>
               )}
               {mentionError && (
-                <p id={mentionErrorId} className="text-sm text-destructive">
-                  {mentionError}
+                <p id={mentionErrorId} role="alert" className="text-sm text-destructive">
+                  {mentionError.text}
+                  {mentionError.href && (
+                    <>
+                      {' '}
+                      <Link to={mentionError.href} className="underline">
+                        Zum Rezept
+                      </Link>
+                    </>
+                  )}
                 </p>
               )}
 
@@ -367,193 +426,7 @@ function RecipeEditor({
             />
           )}
 
-          {section === 'teilen' && (
-            <div className="flex flex-col gap-md">
-              {shareError && <p className="text-sm text-destructive">{shareError}</p>}
-
-              <div>
-                <p id={sichtbarkeitHeadingId} className="mb-xs text-sm font-semibold">
-                  Sichtbarkeit
-                </p>
-                <Select
-                  value={shareMode}
-                  onValueChange={(v) => {
-                    setShareError(null);
-                    setShareMode.mutate(v as TextFormShareMode, { onError: onShareError });
-                  }}
-                  disabled={setShareMode.isPending}
-                >
-                  <SelectTrigger className="w-full" aria-labelledby={sichtbarkeitHeadingId}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(Object.keys(SHARE_MODE_LABELS) as TextFormShareMode[]).map((m) => (
-                      <SelectItem key={m} value={m}>
-                        {SHARE_MODE_LABELS[m]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {shareMode === 'groups' ? (
-                <div>
-                  <p id={projekteHeadingId} className="mb-xs text-sm font-semibold">
-                    Projekte
-                  </p>
-                  {groupShares.length > 0 ? (
-                    <ul className="mb-xs flex flex-col gap-xs">
-                      {groupShares.map((share) => (
-                        <li
-                          key={share.groupId}
-                          className="flex items-center justify-between rounded-md border border-grey-200 bg-background p-xs dark:border-grey-700"
-                        >
-                          <span className="truncate text-sm">{share.groupName}</span>
-                          <Button
-                            variant="ghost"
-                            size="xs"
-                            onClick={() => {
-                              setShareError(null);
-                              unshareGroupMut.mutate(
-                                { mention, groupId: share.groupId },
-                                { onError: onShareError }
-                              );
-                            }}
-                            disabled={unshareGroupMut.isPending}
-                            aria-label={`${share.groupName} entfernen`}
-                          >
-                            <HiTrash size={14} />
-                          </Button>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="mb-xs text-xs text-foreground-muted">
-                      Noch keine Projekte hinzugefügt.
-                    </p>
-                  )}
-                  {availableGroups.length > 0 ? (
-                    <Select
-                      value=""
-                      onValueChange={(v) => {
-                        if (!v) return;
-                        setShareError(null);
-                        shareGroupMut.mutate({ mention, groupId: v }, { onError: onShareError });
-                      }}
-                      disabled={shareGroupMut.isPending}
-                    >
-                      <SelectTrigger className="w-full" aria-labelledby={projekteHeadingId}>
-                        <SelectValue placeholder="Projekt hinzufügen…" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableGroups.map((g) => (
-                          <SelectItem key={g.id} value={g.id}>
-                            {g.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : myGroupsQuery.data && myGroupsQuery.data.length === 0 ? (
-                    <p className="text-xs text-foreground-muted">
-                      Du bist noch in keinem Projekt. Tritt einem Projekt bei, um Rezepte zu teilen.
-                    </p>
-                  ) : null}
-                </div>
-              ) : null}
-
-              {shareMode === 'authenticated' ? (
-                <p className="text-xs text-foreground-muted">
-                  Sichtbar nur für eingeloggte Nutzer*innen aus deinem Land.
-                </p>
-              ) : null}
-
-              {/* "Von der Basis" public listing — shown in every visibility mode so
-                  it's discoverable; enabling it from a lower mode first promotes
-                  Sichtbarkeit to 'authenticated' (the backend invariant for an
-                  Agentura listing). Mirrors `ShareAgentModal`. */}
-              <div className="flex items-start justify-between gap-md rounded-lg border border-grey-200 p-md dark:border-grey-700">
-                <div className="space-y-xs">
-                  <Label htmlFor="recipe-agentura-toggle" className="text-sm">
-                    Auf „Von der Basis“ listen
-                  </Label>
-                  <p className="text-xs text-foreground-muted">
-                    Dein Rezept erscheint dann in der Agentura unter „Von der Basis“ zum Entdecken.
-                  </p>
-                  {!isPublic && shareMode !== 'authenticated' ? (
-                    <p className="text-xs text-foreground-muted">
-                      Beim Aktivieren wird die Sichtbarkeit auf „Mit Anmeldung — alle eingeloggten
-                      Nutzer*innen“ gesetzt.
-                    </p>
-                  ) : null}
-                </div>
-                <Switch
-                  id="recipe-agentura-toggle"
-                  checked={isPublic}
-                  onCheckedChange={(checked) => {
-                    setShareError(null);
-                    if (!checked) {
-                      setIsPublic.mutate(
-                        { is_public: false, public_ownership: null },
-                        { onError: onShareError }
-                      );
-                      return;
-                    }
-                    const list = () =>
-                      setIsPublic.mutate(
-                        { is_public: true, public_ownership: publicOwnership ?? 'owner' },
-                        { onError: onShareError }
-                      );
-                    if (shareMode !== 'authenticated') {
-                      void setShareMode.mutateAsync('authenticated').then(list).catch(onShareError);
-                    } else {
-                      list();
-                    }
-                  }}
-                  disabled={setIsPublic.isPending || setShareMode.isPending}
-                />
-              </div>
-
-              {isPublic ? (
-                <div className="space-y-sm">
-                  <p className="text-sm text-foreground-heading">Bitte bestätige:</p>
-                  <div className="grid grid-cols-1 gap-sm sm:grid-cols-2">
-                    {(['owner', 'public_data'] as const).map((choice: PublicOwnership) => (
-                      <button
-                        key={choice}
-                        type="button"
-                        aria-pressed={publicOwnership === choice}
-                        onClick={() => {
-                          setShareError(null);
-                          setIsPublic.mutate(
-                            { is_public: true, public_ownership: choice },
-                            { onError: onShareError }
-                          );
-                        }}
-                        disabled={setIsPublic.isPending}
-                        className={cn(
-                          'flex flex-col gap-xs rounded-lg border p-md text-left transition-colors',
-                          publicOwnership === choice
-                            ? 'border-primary-500 bg-primary-50 dark:bg-primary-950/20'
-                            : 'border-grey-200 hover:border-primary-300 dark:border-grey-700 dark:hover:border-primary-600'
-                        )}
-                      >
-                        <span className="text-sm font-medium text-foreground">
-                          {choice === 'owner'
-                            ? 'Ich besitze die Inhalte'
-                            : 'Inhalte sind öffentlich verfügbar'}
-                        </span>
-                        <span className="text-xs text-foreground-muted">
-                          {choice === 'owner'
-                            ? '… oder habe die Rechte zur Veröffentlichung'
-                            : 'z.B. offizielle Inhalte, Pressematerial'}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-            </div>
-          )}
+          {section === 'teilen' && <RecipeSharingPanel mention={mention} enabled />}
         </div>
 
         {/* ── Preview pane ────────────────────────────────────────────── */}
