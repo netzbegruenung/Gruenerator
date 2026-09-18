@@ -14,7 +14,7 @@
  *  - `custom`  — anything else. Always entitled: a custom mention is the
  *                user's own to create.
  */
-import { type TextFormType } from '@gruenerator/contracts';
+import { type TextFormKind, type TextFormType } from '@gruenerator/contracts';
 import {
   SKILLS,
   isLandesverbandIdentifier,
@@ -29,7 +29,7 @@ export const PRESETS: { textType: TextFormType; label: string; hint: string }[] 
 ];
 
 export interface RecipeClassification {
-  kind: 'preset' | 'custom' | 'recipe';
+  kind: TextFormKind;
   mention: string;
   textType: TextFormType | null;
   label: string;
