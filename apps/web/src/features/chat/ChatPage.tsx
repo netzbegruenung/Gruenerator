@@ -246,7 +246,18 @@ function ChatPage() {
   // instead of the generic overview greeting. Lowest priority in the chain so
   // an explicit ?agent= or path slug still wins.
   const skillParam = hub ? null : searchParams.get('skill');
-  const resolvedFromSkill = skillParam ? resolveSkillMention(skillParam) : null;
+  // Rezept-Deeplink aus der Agentura: `/chat?rezept=<mention>&rezeptId=<id>`.
+  // `?skill=` allein aktiviert das Rezept NICHT — es löst nur den Agenten auf,
+  // der Rumpf des Rezepts blieb dabei ungenutzt. `?rezept=` aktiviert die
+  // Erwähnung selbst (unten); trifft sie zusätzlich ein Systemrezept, läuft
+  // dieselbe Agentenauflösung weiter mit.
+  const rezeptParam = hub ? null : searchParams.get('rezept');
+  const rezeptIdParam = hub ? null : searchParams.get('rezeptId');
+  const resolvedFromSkill = skillParam
+    ? resolveSkillMention(skillParam)
+    : rezeptParam
+      ? resolveSkillMention(rezeptParam)
+      : null;
   // Path-based /agents/:slug is the canonical form; ?agent= is legacy but
   // still wins when explicitly set so old deep links keep their behavior.
   const agentParam = hub
@@ -264,7 +275,8 @@ function ChatPage() {
   // For deep links this also keeps the hero's ChatInner (which resets chat
   // context and switches to a new thread on mount) from racing the thread
   // resolution.
-  const effectiveViewMode = agentParam || threadSlug || modeParam ? 'thread' : chatViewMode;
+  const effectiveViewMode =
+    agentParam || threadSlug || modeParam || rezeptParam ? 'thread' : chatViewMode;
 
   useDocumentTitle(hub ? hub.name : effectiveViewMode === 'thread' ? currentThreadTitle : null);
 
@@ -320,6 +332,23 @@ function ChatPage() {
       store.setChatViewMode('thread');
     }
   }, [agentParam, modeParam, threadSlug, userLocale, userAgents]);
+
+  // `?rezept=<mention>` aktiviert das Rezept für den nächsten Turn — dieselbe
+  // Wirkung, die eine `@`-Erwähnung im Composer hat. `rezeptId` trägt die
+  // Zeilen-ID eigener/geteilter/öffentlicher Rezepte mit, damit das Backend
+  // über die ID auflöst statt über die Erwähnung; für ein Systemrezept bleibt
+  // sie leer.
+  //
+  // Der Effekt steht NACH der Agentenauflösung, nicht davor: `setSelectedAgent`
+  // räumt `activeSkillMention` mit ab, und würde er danach laufen, wäre das
+  // Rezept im selben Rendern wieder weg. Spätere Läufe jenes Effekts schalten
+  // den Agenten nicht erneut, greifen also nicht mehr ein.
+  useEffect(() => {
+    if (!rezeptParam) return;
+    const store = useAgentStore.getState();
+    store.setActiveSkillMention(rezeptParam, rezeptIdParam);
+    store.setChatViewMode('thread');
+  }, [rezeptParam, rezeptIdParam]);
 
   // "Neuer Chat in diesem Projekt" arrives as /chat?projekt=<groupId>. File the
   // freshly created thread into that Projekt, reusing the same thread-groupId
