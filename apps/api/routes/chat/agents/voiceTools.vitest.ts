@@ -7,6 +7,14 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+import {
+  TreeBudgetExceededError,
+  TreeBudgetUnavailableError,
+  treeBudgetSpentMessage,
+  type TreeBalance,
+} from '../../../services/trees/index.js';
+import { toUserFacingMessage } from '../../../utils/errors/index.js';
+
 import { makeVertonenTool } from './voiceTools.js';
 
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
@@ -14,23 +22,17 @@ import type { SSEWriter } from '../services/sseHelpers.js';
 
 const generateSpeechFiles = vi.fn();
 
-// The error class is declared INSIDE the factory: the factory runs while the
-// tool module is imported, which is before a top-level class statement here
-// would have been evaluated.
-vi.mock('../../../services/voice/speechService.js', () => {
-  class SpeechQuotaExceededError extends Error {
-    override readonly name = 'SpeechQuotaExceededError';
-  }
-  return {
-    generateSpeechFiles: (...args: unknown[]) => generateSpeechFiles(...args),
-    SpeechQuotaExceededError,
-  };
-});
+vi.mock('../../../services/voice/speechService.js', () => ({
+  generateSpeechFiles: (...args: unknown[]) => generateSpeechFiles(...args),
+}));
 
-async function quotaError(message: string): Promise<Error> {
-  const { SpeechQuotaExceededError } = await import('../../../services/voice/speechService.js');
-  return new SpeechQuotaExceededError(message);
-}
+const EXCEEDED_STATUS: TreeBalance = {
+  usedUnits: 100,
+  limitUnits: 100,
+  remainingUnits: 0,
+  resetsAt: new Date('2024-01-02T00:00:00.000Z'),
+  newsletterBonus: false,
+};
 
 function makeCtx(userId: string | null = 'user-1') {
   const sent: Array<{ event: string; payload: unknown }> = [];
@@ -63,7 +65,13 @@ const speechResult = (over: Record<string, unknown> = {}) => ({
       shareUrl: '/share/tok-123',
     },
   ],
-  quota: { usedSeconds: 83, limitSeconds: 1800 },
+  quota: {
+    used: 0.83,
+    limit: 18,
+    remaining: 17.17,
+    resetsAt: '2024-01-02T00:00:00.000Z',
+    newsletterBonus: false,
+  },
   ...over,
 });
 
@@ -159,13 +167,25 @@ describe('vertonen', () => {
     expect(String(second.note)).toMatch(/bereits eine Audiodatei/);
   });
 
-  it('hands the quota message to the model unchanged', async () => {
-    generateSpeechFiles.mockRejectedValue(await quotaError('Kontingent aufgebraucht.'));
+  it('hands the budget message to the model unchanged', async () => {
+    generateSpeechFiles.mockRejectedValue(new TreeBudgetExceededError(EXCEEDED_STATUS, 10));
     const { ctx, sent } = makeCtx();
 
     const result = await run(makeVertonenTool(ctx), { text: 'Zu viel' });
 
-    expect(result.error).toBe('Kontingent aufgebraucht.');
+    expect(result.error).toBe(treeBudgetSpentMessage(EXCEEDED_STATUS, 10));
+    expect(sent).toHaveLength(0);
+  });
+
+  it('hands the unavailable message to the model unchanged', async () => {
+    generateSpeechFiles.mockRejectedValue(new TreeBudgetUnavailableError());
+    const { ctx, sent } = makeCtx();
+
+    const result = await run(makeVertonenTool(ctx), { text: 'Zu viel' });
+
+    // Goes through toUserFacingMessage like every other error here — assert
+    // against that, not the raw error text, since the classifier may rewrite it.
+    expect(result.error).toBe(toUserFacingMessage(new TreeBudgetUnavailableError()));
     expect(sent).toHaveLength(0);
   });
 

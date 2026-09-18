@@ -166,6 +166,16 @@ export interface InstanceDefinition {
    * `utils/greeting.ts`. Same `@Vorname` token as the rotation templates.
    */
   heroGreeting?: string;
+  /**
+   * Daily "Bäume" budget. Absent = the standard allowance; the number itself lives
+   * in `apps/api/services/trees/treeAllowance.ts`, not here — it is a product
+   * decision, not an instance property. `'unlimited'` switches metering off for
+   * every user of the instance. A field rather than `id === 'bgst'` (see the
+   * AdminPage convention): a future instance sets the same field and gets the
+   * same behaviour. Widen to `'unlimited' | { dailyTrees: number }` if an
+   * instance ever needs its own number.
+   */
+  treeAllowance?: 'unlimited';
 }
 
 /**
@@ -221,6 +231,7 @@ export const INSTANCES = [
     defaultLocale: 'de-DE',
     lockedLocale: true,
     heroGreeting: 'Willkommen zur Bgst-KI, @Vorname',
+    treeAllowance: 'unlimited',
   },
   {
     id: 'local',
@@ -380,4 +391,9 @@ export function policyCoversSkill(
 export function getPinnedLocale(instanceId: InstanceId): 'de-DE' | 'de-AT' | null {
   const instance = getInstance(instanceId);
   return instance.lockedLocale === true && instance.defaultLocale ? instance.defaultLocale : null;
+}
+
+/** Does this instance meter the daily "Bäume" budget at all? */
+export function hasUnlimitedTrees(instanceId: InstanceId): boolean {
+  return getInstance(instanceId).treeAllowance === 'unlimited';
 }

@@ -132,7 +132,8 @@ export async function editAiImageMobile(
     result.status === 400 ||
     result.status === 401 ||
     result.status === 429 ||
-    result.status === 500
+    result.status === 500 ||
+    result.status === 503
   ) {
     throw new Error(result.body.error);
   }

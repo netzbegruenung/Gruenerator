@@ -122,7 +122,8 @@ export async function editAiImage(
     result.status === 400 ||
     result.status === 401 ||
     result.status === 429 ||
-    result.status === 500
+    result.status === 500 ||
+    result.status === 503
   ) {
     throw new ApiError(result.status, result.body.error);
   }

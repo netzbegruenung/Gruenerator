@@ -24,8 +24,8 @@ import {
   sourceOptions,
   targetOptions,
 } from './languageOptions';
-import { QuotaLine } from './QuotaLine';
 
+import { TreeBudgetLine } from '@/components/common/TreeBudgetLine';
 import { cn } from '@/utils/cn';
 
 interface DocumentTranslatorProps {
@@ -272,7 +272,7 @@ export function DocumentTranslator({ data }: DocumentTranslatorProps) {
 
       <div className="flex flex-wrap items-center justify-between gap-sm">
         <div className="flex flex-col gap-xs">
-          <QuotaLine quota={quota} />
+          <TreeBudgetLine status={quota} />
           <p className="m-0 text-xs text-grey-500">
             DeepL rechnet jedes Dokument mit mindestens 50.000 Zeichen ab.
           </p>
