@@ -99,16 +99,22 @@ export function fontStyleForRun(
  * Lauf mit dessen Stil, denn ein fettes Wort ist breiter, und der Umbruch
  * muss das wissen. Vier mögliche Stile, darum ein kleiner Cache je
  * Kombination statt eines Canvas je Messung.
+ *
+ * `fontGeneration` ist der Stand von `document.fonts`, gegen den gemessen
+ * wird (`useFontGeneration`). Er steht im Cache-Schlüssel, damit er ein
+ * echter Eingang der Messung ist — nur so bleibt er im Memo des Aufrufers
+ * eine Abhängigkeit, die der React-Compiler nicht wegkürzt.
  */
 export function runMeasurer(
   fontSize: number,
   fontFamily: string,
-  fontStyle: string = 'normal'
+  fontStyle: string = 'normal',
+  fontGeneration = 0
 ): MeasureRun {
   const cache = new Map<string, number>();
   return (text, style) => {
     const konvaStyle = fontStyleForRun(fontStyle, style);
-    const key = `${konvaStyle}:${text}`;
+    const key = `${fontGeneration}:${konvaStyle}:${text}`;
     let width = cache.get(key);
     if (width === undefined) {
       width = measureTextWidthWithFont(text, fontSize, fontFamily, konvaStyle);

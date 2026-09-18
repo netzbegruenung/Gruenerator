@@ -12,6 +12,13 @@
  * Der Zähler ist die fehlende Abhängigkeit. Er hängt an `loadingdone`, nicht an
  * einem einmaligen Tor: die Schnitte treffen einzeln ein, und jeder von ihnen
  * kann den Umbruch verschieben.
+ *
+ * Der Wert muss in die Messung HINEINGEREICHT werden (`runMeasurer(…, gen)`,
+ * `calculateBalkenLayouts(…, gen)`), nicht bloß in der Deps-Liste eines
+ * `useMemo` stehen: der React-Compiler (dom-Testlane und `vite build`) leitet
+ * den Cache-Schlüssel aus dem ab, was der Körper liest, und streicht eine
+ * Abhängigkeit, die nur in der Liste steht — auch `void gen` im Körper fällt
+ * als toter Ausdruck weg. Gemessen am kompilierten Output, 18.09.2026.
  */
 import { useSyncExternalStore } from 'react';
 
