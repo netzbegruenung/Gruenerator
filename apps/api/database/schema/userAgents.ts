@@ -35,8 +35,9 @@ export const userAgents = pgTable(
     public_ownership: text('public_ownership'),
     plugins: jsonb('plugins').$type<string[]>(),
     enabled_tools: jsonb('enabled_tools').$type<string[]>(),
-    // Dead since 2026-09-18 — the recipe binding is `default_recipe_mention`/
-    // `default_recipe_id`; column kept, F0.
+    // Deprecated since 2026-09-18 — still read/written until the web bundle
+    // stops sending it (target 2026-12-18); the live binding is
+    // default_recipe_mention/default_recipe_id.
     skill_mentions: jsonb('skill_mentions').$type<string[]>(),
     // Default recipe binding (see migrations/user_agents_default_recipe.sql).
     // default_recipe_id names a user_text_forms row (own/shared/public) and
