@@ -10,6 +10,12 @@
  * `useShareRecipeWithGroup`/`useUnshareRecipeFromGroup` in `api.ts` (PUT/DELETE
  * `:mention/share`) — this file only covers the visibility axis
  * (share_mode / is_public), same method-split as agent sharing.
+ *
+ * Every non-200 throws with the SERVER's sentence (`textFormErrorMessage`),
+ * not a generic `HTTP <code>` line: the only thing that explains a 409 here is
+ * the server's "Angepasste System-Rezepte lassen sich nicht teilen — nur
+ * eigene Rezepte.", and swallowing it forces every dialog to keep its own
+ * drifting copy of that wording.
  */
 import {
   type PublicOwnership,
@@ -20,7 +26,7 @@ import {
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { useOwnRecipes } from './api';
+import { textFormErrorMessage, useOwnRecipes } from './api';
 
 const SHARE_SETTINGS_KEY = (mention: string) => ['recipe', 'share', 'settings', mention];
 
@@ -35,7 +41,7 @@ export function useRecipeShareSettings(mention: string | null) {
         params: { mention: mention as string },
       });
       if (result.status !== 200) {
-        throw new ApiError(result.status, `Failed to fetch share settings (HTTP ${result.status})`);
+        throw new ApiError(result.status, textFormErrorMessage(result.body, result.status));
       }
       return result.body;
     },
@@ -63,7 +69,7 @@ export function useSetRecipeShareMode(mention: string) {
         body: { mode },
       });
       if (result.status !== 200) {
-        throw new ApiError(result.status, `Failed to set share mode (HTTP ${result.status})`);
+        throw new ApiError(result.status, textFormErrorMessage(result.body, result.status));
       }
       return result.body;
     },
@@ -83,7 +89,7 @@ export function useSetRecipeIsPublic(mention: string) {
         body: input,
       });
       if (result.status !== 200) {
-        throw new ApiError(result.status, `Failed to set Agentura listing (HTTP ${result.status})`);
+        throw new ApiError(result.status, textFormErrorMessage(result.body, result.status));
       }
       return result.body;
     },
