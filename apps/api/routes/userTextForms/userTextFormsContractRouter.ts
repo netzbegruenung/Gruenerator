@@ -219,8 +219,11 @@ export const userTextFormsContractRouter = s.router(userTextFormsContract, {
         title: body.title,
         examples: body.examples,
         styleBlock: body.styleBlock,
-        description: body.description ?? null,
-        iconKey: body.iconKey ?? null,
+        // Durchgereicht, NICHT auf `null` gefaltet: der ausgelieferte Editor
+        // sendet die beiden Felder gar nicht mit, und `?? null` löschte sie
+        // damit bei jedem Speichern (#3472). Ein `null` im Body leert weiter.
+        description: body.description,
+        iconKey: body.iconKey,
       });
       return { status: 200 as const, body: { success: true, form } };
     } catch (error) {
