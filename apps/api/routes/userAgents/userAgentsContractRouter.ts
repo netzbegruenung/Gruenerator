@@ -55,6 +55,15 @@ function invalidTools(tools: readonly string[] | null | undefined): string[] {
  * `null`/absent (clearing, or untouched) needs no check — only an actual value
  * has to resolve in the caller's own catalog, the same test the mention menu
  * itself uses (`isRecipeUsableForAgent`, Task 5).
+ *
+ * The two fields are checked INDEPENDENTLY, one `isRecipeUsableForAgent` call
+ * per present field, not a single combined call. `isRecipeUsableForAgent`
+ * itself has `recipeId`-wins precedence — a single call with both forwarded
+ * would silently skip the mention check whenever a `recipeId` is also present.
+ * Both are persisted regardless (`defaultRecipeId` wins over
+ * `defaultRecipeMention` only at chat time, in `resolveEffectiveRecipeMention`),
+ * so a later patch that clears `defaultRecipeId` would leave a never-validated
+ * `defaultRecipeMention` as the live pointer.
  */
 async function validateDefaultRecipe(params: {
   userId: string;
@@ -63,15 +72,31 @@ async function validateDefaultRecipe(params: {
   userLocale: string | null;
 }): Promise<string | null> {
   if (!params.mention && !params.recipeId) return null;
-  const ok = await isRecipeUsableForAgent({
-    userId: params.userId,
-    mention: params.mention ?? null,
-    recipeId: params.recipeId ?? null,
-    userLocale: params.userLocale,
-    roles: await loadUserRoles(params.userId),
-  });
-  if (ok) return null;
-  return `„@${params.recipeId ?? params.mention}" ist kein Rezept, das dir zur Verfügung steht.`;
+  const roles = await loadUserRoles(params.userId);
+
+  if (params.mention) {
+    const ok = await isRecipeUsableForAgent({
+      userId: params.userId,
+      mention: params.mention,
+      recipeId: null,
+      userLocale: params.userLocale,
+      roles,
+    });
+    if (!ok) return `„@${params.mention}" ist kein Rezept, das dir zur Verfügung steht.`;
+  }
+
+  if (params.recipeId) {
+    const ok = await isRecipeUsableForAgent({
+      userId: params.userId,
+      mention: null,
+      recipeId: params.recipeId,
+      userLocale: params.userLocale,
+      roles,
+    });
+    if (!ok) return `Rezept-ID ${params.recipeId} ist kein Rezept, das dir zur Verfügung steht.`;
+  }
+
+  return null;
 }
 
 /**
