@@ -12,14 +12,18 @@ import { useId, useMemo, useRef, useState } from 'react';
 import { FiShare2, FiTrash2, FiUpload } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 
-import { EXAMPLE_FILE_ACCEPT, extractExampleText } from './extractExampleText';
-import { recipeMetaLine } from './recipeMeta';
+import {
+  EXAMPLE_FILE_ACCEPT,
+  extractExampleText,
+} from '../../../agentura/recipes/extractExampleText';
+import { recipeMetaLine } from '../../../agentura/recipes/recipeMeta';
 import {
   EXAMPLE_SEPARATOR,
   joinExamples,
   splitExamples,
   splitStrategyLabel,
-} from './splitExamples';
+} from '../../../agentura/recipes/splitExamples';
+
 import { type useTextForms } from './useTextForms';
 
 const TEXTAREA_CLASS =
