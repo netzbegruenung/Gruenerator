@@ -52,10 +52,7 @@ import { mountFeedbackContractRouter } from './routes/feedback/feedbackContractR
 import imaginePureRoute from './routes/flux/imaginePure.js';
 import outpaintRoute from './routes/flux/outpaint.js';
 import { mountImagePickerContractRouter } from './routes/image/imagePickerContractRouter.js';
-import {
-  pickerController as imagePickerRoute,
-  generationController as imageGenerationRouter,
-} from './routes/image/index.js';
+import { pickerController as imagePickerRoute } from './routes/image/index.js';
 import { mountContentSyncContractRouter } from './routes/internal/contentSyncContractRouter.js';
 import {
   offboardingRouter,
@@ -132,6 +129,7 @@ import { mountTexteContractRouter } from './routes/texte/texteContractRouter.js'
 import { mountTranslationContractRouter } from './routes/translation/translationContractRouter.js';
 import { translationUploadRouter } from './routes/translation/translationUploadRouter.js';
 import { mountTransparencyContractRouter } from './routes/transparency/transparencyContractRouter.js';
+import { mountTreesContractRouter } from './routes/trees/treesContractRouter.js';
 import { mountUnsplashContractRouter } from './routes/unsplash/unsplashContractRouter.js';
 import { mountItemUsageContractRouter } from './routes/usage/itemUsageContractRouter.js';
 import { mountUserUsageContractRouter } from './routes/usage/userUsageContractRouter.js';
@@ -484,6 +482,10 @@ export async function setupRoutes(app: Application): Promise<void> {
   // requireAuth at the prefix — strictly the caller's own data.
   app.use('/api/usage', requireAuth, publicReadLimiter);
   mountUserUsageContractRouter(app);
+  // ts-rest contract router for /api/trees (the daily "Bäume" budget).
+  // requireAuth at the prefix — strictly the caller's own allowance.
+  app.use('/api/trees', requireAuth, publicReadLimiter);
+  mountTreesContractRouter(app);
   // ts-rest contract router for /api/transparency (platform-wide footprint).
   // NO requireAuth, and that is the point: the response is an aggregate over
   // every user with small cells suppressed, and a transparency figure hidden
@@ -511,8 +513,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   // DeepL-Übersetzer (Seite + Admin-Glossar). Anmeldung und Art.-9-Einwilligung
   // am Präfix, VOR dem Vertrags-Mount (createExpressEndpoints registriert auf
   // der App). Kein aiGenerationLimiter: der Dokument-Status wird alle 3 s
-  // gepollt, die eigentliche Kostenbremse ist das Zeichenbudget je Nutzer*in
-  // (services/translation/translationQuota.ts). Der rohe Router danach trägt
+  // gepollt, die eigentliche Kostenbremse ist das Tagesbudget je Nutzer*in
+  // (services/trees/). Der rohe Router danach trägt
   // Upload (multipart) und Download (binär), die ts-rest nicht abbildet.
   app.use('/api/translation', requireAuth, requireAiConsent, standardMutationLimiter);
   mountTranslationContractRouter(app);
@@ -1002,7 +1004,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   // prefix middleware must be in place first to gate them).
   app.use('/api/research', requireAuth, standardMutationLimiter);
   mountResearchContractRouter(app);
-  app.use('/api/image-generation', aiGenerationLimiter, imageGenerationRouter);
   app.use('/api/rate-limit', publicReadLimiter, rateLimitRouter);
 
   // Debug: log all requests to /api/releases/*
