@@ -12,7 +12,6 @@ import { imageEditContract } from '@gruenerator/contracts';
 import { IMAGE_MODEL_BY_ID } from '@gruenerator/shared/models';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
-import { ImageGenerationCounter } from '../../services/counters/index.js';
 import {
   FluxImageService,
   buildUniversalPrompt,
@@ -20,11 +19,17 @@ import {
   type ReferenceImage,
 } from '../../services/flux/index.js';
 import { fitToBudget } from '../../services/flux/referenceImages.js';
+import {
+  getTreeBudget,
+  toTreeBudgetStatusDto,
+  treeBudgetSpentMessage,
+  treeCostForImage,
+  TreeBudgetUnavailableError,
+} from '../../services/trees/index.js';
 import { getImageModelForUser } from '../../services/user/imageModelPreference.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
-import { redisClient } from '../../utils/redis/index.js';
 import { applyKiLabel } from '../sharepic/sharepic_canvas/imagine_label_canvas.js';
 
 import { buildGreenEditPrompt, buildAllyMakerPrompt } from './imageEditing.js';
@@ -35,28 +40,11 @@ import type { Application } from 'express';
 const log = createLogger('imageEditContractRouter');
 
 const s = initServer();
-const imageCounter = new ImageGenerationCounter(redisClient);
 
 export const imageEditContractRouter = s.router(imageEditContract, {
   edit: async ({ req, body }) => {
     try {
       const userId = getAuthedUser(req).id;
-
-      const limitStatus = await imageCounter.checkLimit(userId);
-      if (!limitStatus.canGenerate) {
-        return {
-          status: 429 as const,
-          body: {
-            success: false as const,
-            error: `Tageslimit von ${limitStatus.limit} Bildgenerierungen erreicht. Versuche es morgen wieder.`,
-            data: {
-              count: limitStatus.count,
-              remaining: limitStatus.remaining,
-              limit: limitStatus.limit,
-            },
-          },
-        };
-      }
 
       const modelId: ImageModelId = body.imageModel ?? (await getImageModelForUser(userId));
       const model = IMAGE_MODEL_BY_ID[modelId];
@@ -89,6 +77,28 @@ export const imageEditContractRouter = s.router(imageEditContract, {
         };
       }
 
+      // The model is known now, so the reservation books the exact cost —
+      // not a per-request soft check ahead of it.
+      const cost = treeCostForImage(model.costMultiplier);
+      const budget = getTreeBudget();
+      const reservation = await budget.reserve(userId, cost);
+      if (!reservation.ok) {
+        if (reservation.reason === 'unavailable') {
+          return {
+            status: 503 as const,
+            body: { success: false as const, error: new TreeBudgetUnavailableError().message },
+          };
+        }
+        return {
+          status: 429 as const,
+          body: {
+            success: false as const,
+            error: treeBudgetSpentMessage(reservation.status, cost),
+            data: toTreeBudgetStatusDto(reservation.status),
+          },
+        };
+      }
+
       const references: ReferenceImage[] = body.images.map((img) => ({
         buffer: Buffer.from(img.data, 'base64'),
         mimeType: img.type,
@@ -111,19 +121,21 @@ export const imageEditContractRouter = s.router(imageEditContract, {
       );
 
       const flux = await FluxImageService.create(model.backend, model.modelPath);
-      const { stored }: GenerateResult = await flux.generateFromImages(prompt, processed, {
-        output_format: 'jpeg',
-        safety_tolerance: 2,
-      });
+      let generated: GenerateResult;
+      try {
+        generated = await flux.generateFromImages(prompt, processed, {
+          output_format: 'jpeg',
+          safety_tolerance: 2,
+        });
+      } catch (error) {
+        await budget.release(userId, cost);
+        throw error;
+      }
+      const { stored } = generated;
 
       const rawBuffer = Buffer.from(stored.base64, 'base64');
       const outputBuffer = await applyKiLabel(rawBuffer, body.kiLabel ?? 'full');
       fs.writeFileSync(stored.filePath, outputBuffer);
-
-      const incrementResult = await imageCounter.incrementCount(
-        userId,
-        Math.round(model.costMultiplier * 100)
-      );
 
       return {
         status: 200 as const,
@@ -135,11 +147,7 @@ export const imageEditContractRouter = s.router(imageEditContract, {
           },
           prompt,
           model: model.id,
-          usage: {
-            count: incrementResult.count,
-            remaining: incrementResult.remaining,
-            limit: incrementResult.limit,
-          },
+          usage: toTreeBudgetStatusDto(reservation.status),
         },
       };
     } catch (error) {
