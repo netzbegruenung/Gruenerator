@@ -35,6 +35,33 @@ describe('useRecipeDeepLink', () => {
     expect(useAgentStore.getState().activeRecipeId).toBeNull();
   });
 
+  it('überschreibt eine selbst gewählte andere Erwähnung nicht', () => {
+    renderHook(() => useRecipeDeepLink('presse', null));
+    expect(useAgentStore.getState().activeSkillMention).toBe('presse');
+
+    act(() => {
+      useAgentStore.getState().setActiveSkillMention('antrag', null);
+    });
+
+    // Der Deeplink steht weiter in der URL — trotzdem gehört die Wahl der
+    // Person, nicht dem Parameter.
+    expect(useAgentStore.getState().activeSkillMention).toBe('antrag');
+  });
+
+  it('trägt sich auch nach einem Entfernen von Hand wieder ein (dokumentierte Unschärfe)', () => {
+    // `removePillMention` setzt denselben `null`-Wert wie
+    // `resetThreadContext()`; der Store trägt keine Herkunft. Der Hook
+    // entscheidet sich für das Nachtragen — hier festgehalten, damit die
+    // Entscheidung nicht unbemerkt kippt.
+    renderHook(() => useRecipeDeepLink('presse', null));
+
+    act(() => {
+      useAgentStore.getState().setActiveSkillMention(null, null);
+    });
+
+    expect(useAgentStore.getState().activeSkillMention).toBe('presse');
+  });
+
   it('rührt den Store ohne Parameter nicht an', () => {
     act(() => {
       useAgentStore.getState().setActiveSkillMention('handgetippt', null);
