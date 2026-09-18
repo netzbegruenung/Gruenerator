@@ -206,6 +206,19 @@ describe('RecipeEditor', () => {
     expect(mentionField).toHaveValue('mein-rezept');
   });
 
+  it('sperrt Speichern, wenn der Titel auf keine Mention slugt', async () => {
+    const { user } = renderWithProviders(
+      <RecipeEditor mode="create" initialState={customCreateForm()} />
+    );
+
+    await fillTitleAndInstruction(user, '!!!', 'Schreibe kurz und klar.');
+    await user.click(screen.getByRole('tab', { name: 'Grundlagen' }));
+
+    expect(screen.getByLabelText('@mention')).toHaveValue('');
+    expect(screen.getByText('Bitte einen Namen für die Mention angeben.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Speichern' })).toBeDisabled();
+  });
+
   it('weist eine reservierte Mention ab, ohne zu speichern', async () => {
     const { user } = renderWithProviders(
       <RecipeEditor mode="create" initialState={customCreateForm()} />

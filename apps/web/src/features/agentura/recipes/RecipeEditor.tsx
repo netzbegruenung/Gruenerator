@@ -109,6 +109,7 @@ function RecipeEditor({
   const saveMut = useSaveRecipe();
   const deleteMut = useDeleteRecipe();
   const mentionErrorId = useId();
+  const mentionHintId = useId();
   const { lvIds } = useUserLandesverbaende();
 
   const [form, setForm] = useState<RecipeFormState>(initialState);
@@ -163,7 +164,15 @@ function RecipeEditor({
 
   const titleValid = form.title.trim().length > 0;
   const styleValid = form.styleBlock.trim().length > 0;
-  const mentionValid = canEditMention ? mention.length >= 2 : true;
+  // Geprüft wird, was IM FELD steht, nicht `effectiveMention`: slugt der Titel
+  // auf nichts (etwa „!!!"), zeigt das Feld leer und `effectiveMention` fiele
+  // auf „textform" zurück — gespeichert würde dann ein Name, den niemand
+  // gesehen hat.
+  const mentionValid = canEditMention ? mentionFieldValue.length >= 2 : true;
+  const mentionHint =
+    canEditMention && mentionFieldValue.length === 0
+      ? 'Bitte einen Namen für die Mention angeben.'
+      : null;
   const canSave =
     titleValid &&
     styleValid &&
@@ -360,7 +369,9 @@ function RecipeEditor({
                     maxLength={MAX_MENTION_CHARS}
                     placeholder="mein-rezept"
                     aria-invalid={mentionError ? true : undefined}
-                    aria-describedby={mentionError ? mentionErrorId : undefined}
+                    aria-describedby={
+                      mentionError ? mentionErrorId : mentionHint ? mentionHintId : undefined
+                    }
                   />
                 </label>
               ) : (
@@ -370,6 +381,11 @@ function RecipeEditor({
                   </span>
                   <p className="mt-xs text-xs text-foreground-muted">{recipeMetaLine(mention)}</p>
                 </div>
+              )}
+              {mentionHint && !mentionError && (
+                <p id={mentionHintId} className="text-sm text-foreground-muted">
+                  {mentionHint}
+                </p>
               )}
               {mentionError && (
                 <p id={mentionErrorId} role="alert" className="text-sm text-destructive">
