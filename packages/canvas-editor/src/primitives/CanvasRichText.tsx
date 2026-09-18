@@ -86,10 +86,10 @@ export function CanvasRichText({
 
   // Ein nachgeladener Schriftschnitt misst anders. Ohne diese Abhängigkeit
   // bliebe der mit der Ersatzschrift gerechnete Umbruch stehen — siehe
-  // `useFontGeneration`.
+  // `useFontGeneration`, auch dazu, warum der Wert ins Argument muss.
   const fontGeneration = useFontGeneration();
   const measure = useMemo(
-    () => runMeasurer(fontSize, fontFamily, fontStyle),
+    () => runMeasurer(fontSize, fontFamily, fontStyle, fontGeneration),
     [fontSize, fontFamily, fontStyle, fontGeneration]
   );
 
