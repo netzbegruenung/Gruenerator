@@ -6,6 +6,7 @@ import {
   useUserLandesverbaende,
   type AgentListItem,
 } from '@gruenerator/chat';
+import { type PublicTextForm, type TextForm } from '@gruenerator/contracts';
 import {
   getAgentSlug,
   getVisibleSystemAgentsForLocale,
@@ -18,12 +19,18 @@ import {
 import { sortByUsage, type UsageMap } from '@gruenerator/shared/utils';
 import {
   Button,
+  ConfirmDialogProvider,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
   Input,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
+  useConfirm,
 } from '@gruenerator/ui';
 import { useEffect, useMemo, type ReactNode } from 'react';
 import {
@@ -73,6 +80,7 @@ import {
   type AgenturaSort,
 } from './lib/categories';
 import { isLandesverbandIdentifier, landesverbandRegion } from './lib/lookups';
+import { useDeleteRecipe, useOwnRecipes, usePublicRecipes } from './recipes/api';
 
 import type { IconType } from 'react-icons';
 
@@ -92,13 +100,24 @@ function matchesQuery(haystack: string[], q: string): boolean {
   return haystack.some((v) => v.toLowerCase().includes(q));
 }
 
-function EmptyState({ icon: Icon, text }: { icon: IconType; text: string }) {
+function EmptyState({
+  icon: Icon,
+  text,
+  action,
+}: {
+  icon: IconType;
+  text: string;
+  action?: ReactNode;
+}) {
   return (
     <div className="rounded-lg border border-dashed border-grey-300 bg-background-alt/40 p-2xl text-center dark:border-grey-700">
       <span className="mx-auto mb-sm flex h-12 w-12 items-center justify-center rounded-lg bg-hover-alt text-foreground-muted">
         <Icon className="h-5 w-5" />
       </span>
       <p className="mx-auto max-w-[380px] text-sm text-foreground-muted">{text}</p>
+      {action && (
+        <div className="mt-md flex flex-wrap items-center justify-center gap-sm">{action}</div>
+      )}
     </div>
   );
 }
@@ -130,6 +149,65 @@ interface AgentEntry {
   agent: Agent;
   isUser: boolean;
   editable: boolean;
+}
+
+/**
+ * One shape for every recipe card, whether it comes from the shipped catalogue
+ * (`AgentListItem`) or from a user's own/shared/public row (`TextForm` /
+ * `PublicTextForm`). `id` is `null` for catalogue skills — they have no row of
+ * their own. `shareLabel` is the muted origin line ("Geteilt aus …" / "Von der
+ * Basis …"), rendered in the card footer; `null` for one's own and for
+ * catalogue skills.
+ */
+interface RecipeEntry {
+  mention: string;
+  title: string;
+  description: string;
+  icon: ReactNode;
+  editable: boolean;
+  id: string | null;
+  shareLabel: string | null;
+  onDelete?: () => void;
+}
+
+/** A catalogue skill as a recipe card — never editable, no share label. */
+function recipeFromSkill(skill: AgentListItem): RecipeEntry {
+  const Icon = skill.icon ?? PiSparkle;
+  return {
+    mention: skill.mention,
+    title: skill.title,
+    description: skill.description,
+    icon: <Icon />,
+    editable: false,
+    id: null,
+    shareLabel: null,
+  };
+}
+
+/** Where a shared/public row came from, in one line — mirrors `RecipeDetailPage`. */
+function recipeShareLabel(form: TextForm | PublicTextForm, source: 'shared' | 'public'): string {
+  if (source === 'shared') {
+    const group = form.sharedFromGroup ?? 'einem Projekt';
+    return `Geteilt aus ${group}${form.ownerName ? ` von ${form.ownerName}` : ''}`;
+  }
+  return `Von der Basis${form.ownerName ? ` · ${form.ownerName}` : ''}`;
+}
+
+/** A user recipe row (own, shared or public) as a recipe card. */
+function recipeFromForm(
+  form: TextForm | PublicTextForm,
+  opts: { editable: boolean; shareLabel: string | null; onDelete?: () => void }
+): RecipeEntry {
+  return {
+    mention: form.mention,
+    title: form.title,
+    description: form.description ?? '',
+    icon: <PhosphorIcon name={form.iconKey ?? 'PiSparkle'} />,
+    editable: opts.editable,
+    id: form.id,
+    shareLabel: opts.shareLabel,
+    onDelete: opts.onDelete,
+  };
 }
 
 interface MarketSection {
@@ -196,9 +274,13 @@ function AgenturaPage() {
   const { data: agentUsage = {} } = useItemUsage('agent');
   const { data: recurringTasks = [] } = useRecurringTasks();
 
+  const { data: ownAndSharedRecipes = [] } = useOwnRecipes(true);
+  const { data: publicRecipes = [] } = usePublicRecipes();
+  const deleteRecipe = useDeleteRecipe();
+  const confirmDialog = useConfirm();
+
   const q = search.toLowerCase();
 
-  const isSkillFav = (s: AgentListItem) => favorites.includes(s.mention.toLowerCase());
   const isAgentFav = (a: Agent) => agentFavorites.includes(a.identifier);
 
   // Group-shared agents are system + user-created agents, deduped by identifier.
@@ -236,6 +318,73 @@ function AgenturaPage() {
     const sharedIds = new Set(sharedAgents.map((e) => e.agent.identifier));
     return publicAgents.filter((a) => ownIds.has(a.identifier) || !sharedIds.has(a.identifier));
   }, [publicAgents, userAgents, sharedAgents]);
+
+  // Own recipes ("Meine Rezepte"): genuinely own, custom-mention rows — a
+  // preset/recipe override (`kind !== 'custom'`) has no identity of its own,
+  // it just adjusts the matching catalogue skill and stays out of this list.
+  // `useOwnRecipes` returns own AND shared-into-a-group rows in one list; the
+  // two are told apart by `sharedFromGroup`.
+  const ownRecipes = useMemo(
+    () => ownAndSharedRecipes.filter((f) => f.kind === 'custom' && !f.sharedFromGroup),
+    [ownAndSharedRecipes]
+  );
+  const sharedRecipes = useMemo(
+    () => ownAndSharedRecipes.filter((f) => f.sharedFromGroup),
+    [ownAndSharedRecipes]
+  );
+  // "Von der Basis": the public feed minus what's already one's own — mirrors
+  // `communityAgents`, without the shared-agent exception (a shared recipe
+  // that is also public still shows here for its owner's sake).
+  const communityRecipes = useMemo(() => {
+    const ownMentions = new Set(ownRecipes.map((f) => f.mention));
+    return publicRecipes.filter((f) => !ownMentions.has(f.mention));
+  }, [publicRecipes, ownRecipes]);
+
+  const handleDeleteRecipe = async (form: TextForm) => {
+    const confirmed = await confirmDialog({
+      title: 'Rezept löschen?',
+      description: `„${form.title}" wird dauerhaft entfernt — samt Beispielen und Anleitung.`,
+    });
+    if (!confirmed) return;
+    deleteRecipe.mutate(form.mention);
+  };
+
+  const ownRecipeEntries = useMemo<RecipeEntry[]>(
+    () =>
+      ownRecipes.map((f) =>
+        recipeFromForm(f, {
+          editable: true,
+          shareLabel: null,
+          onDelete: () => handleDeleteRecipe(f),
+        })
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `handleDeleteRecipe` closes over `confirmDialog`/`deleteRecipe`, stable across renders in effect
+    [ownRecipes]
+  );
+  const sharedRecipeEntries = useMemo<RecipeEntry[]>(
+    () =>
+      sharedRecipes.map((f) =>
+        recipeFromForm(f, { editable: false, shareLabel: recipeShareLabel(f, 'shared') })
+      ),
+    [sharedRecipes]
+  );
+  const communityRecipeEntries = useMemo<RecipeEntry[]>(
+    () =>
+      communityRecipes.map((f) =>
+        recipeFromForm(f, { editable: false, shareLabel: recipeShareLabel(f, 'public') })
+      ),
+    [communityRecipes]
+  );
+  // Own, shared and public recipes deduped by mention — own wins. Feeds
+  // favourites (a mention might be starred before its source is known) and
+  // cross-category search.
+  const allUserRecipeEntries = useMemo<RecipeEntry[]>(() => {
+    const map = new Map<string, RecipeEntry>();
+    for (const e of ownRecipeEntries) map.set(e.mention, e);
+    for (const e of sharedRecipeEntries) if (!map.has(e.mention)) map.set(e.mention, e);
+    for (const e of communityRecipeEntries) if (!map.has(e.mention)) map.set(e.mention, e);
+    return [...map.values()];
+  }, [ownRecipeEntries, sharedRecipeEntries, communityRecipeEntries]);
 
   const systemAgents = useMemo(() => {
     const sharedIds = new Set(sharedAgents.map((e) => e.agent.identifier));
@@ -277,6 +426,20 @@ function AgenturaPage() {
     () => allSkills.filter((s) => favorites.includes(s.mention.toLowerCase())),
     [allSkills, favorites]
   );
+  const favoriteUserRecipeEntries = useMemo(
+    () => allUserRecipeEntries.filter((e) => favorites.includes(e.mention.toLowerCase())),
+    [allUserRecipeEntries, favorites]
+  );
+  // Recipe search pool: own/shared/public (own wins) plus the catalogue,
+  // deduped by mention. A custom mention never collides with a catalogue one
+  // (presets/LV recipes have their own reserved keys), so this is mostly
+  // belt-and-braces.
+  const searchableRecipeEntries = useMemo<RecipeEntry[]>(() => {
+    const map = new Map<string, RecipeEntry>();
+    for (const e of allUserRecipeEntries) map.set(e.mention, e);
+    for (const s of allSkills) if (!map.has(s.mention)) map.set(s.mention, recipeFromSkill(s));
+    return [...map.values()];
+  }, [allUserRecipeEntries, allSkills]);
 
   // Skills grouped by category (LV skills live in the Landesverbände aisle instead).
   const byCategory = useMemo(() => {
@@ -327,8 +490,8 @@ function AgenturaPage() {
     );
   }, [favoriteAgents, recordFavoriteTitles]);
 
-  const handleSelectSkill = (skill: AgentListItem) => {
-    void navigate(`/agentura/rezept/${encodeURIComponent(skill.mention)}`);
+  const handleSelectRecipe = (mention: string) => {
+    void navigate(`/agentura/rezept/${encodeURIComponent(mention)}`);
   };
   const handleSelectAgent = (agent: Agent) => {
     void navigate(`/agentura/agent/${encodeURIComponent(getAgentSlug(agent.identifier))}`);
@@ -358,21 +521,30 @@ function AgenturaPage() {
     />
   );
 
-  const skillCard = (skill: AgentListItem): ReactNode => {
-    const Icon = skill.icon ?? PiSparkle;
-    return (
-      <MarketCard
-        key={`s-${skill.mention}`}
-        icon={<Icon />}
-        title={skill.title}
-        kind="skill"
-        description={skill.description}
-        onSelect={() => handleSelectSkill(skill)}
-        isFavorite={isSkillFav(skill)}
-        onToggleFavorite={() => toggleFavorite(skill.mention)}
-      />
-    );
-  };
+  /** One card renderer for every recipe, catalogue or user's own/shared/public. */
+  const recipeCard = (entry: RecipeEntry): ReactNode => (
+    <MarketCard
+      key={`s-${entry.id ?? entry.mention}`}
+      icon={entry.icon}
+      title={entry.title}
+      kind="skill"
+      description={entry.description}
+      onSelect={() => handleSelectRecipe(entry.mention)}
+      isFavorite={favorites.includes(entry.mention.toLowerCase())}
+      onToggleFavorite={() => toggleFavorite(entry.mention)}
+      footer={
+        entry.shareLabel ? (
+          <p className="m-0 text-xs text-foreground-muted">{entry.shareLabel}</p>
+        ) : undefined
+      }
+      onEdit={
+        entry.editable
+          ? () => navigate(`/agentura/rezept/${encodeURIComponent(entry.mention)}/bearbeiten`)
+          : undefined
+      }
+      onDelete={entry.onDelete}
+    />
+  );
 
   const sortAgentEntries = (entries: AgentEntry[]) =>
     sortBy(entries, sort, (e) => e.agent.title, {
@@ -380,6 +552,7 @@ function AgenturaPage() {
       map: agentUsage,
     });
   const sortSkills = (skills: AgentListItem[]) => sortBy(skills, sort, (s) => s.title);
+  const sortRecipeEntries = (entries: RecipeEntry[]) => sortBy(entries, sort, (e) => e.title);
 
   // A market aisle renders as one or more sections; `gruenerator`, `meine` and
   // `landesverband` use headed sub-sections, every other aisle is a single
@@ -432,15 +605,35 @@ function AgenturaPage() {
             'Noch keine wiederkehrenden Aufgaben. Lass einen Grünerator regelmäßig automatisch arbeiten (experimentell).',
         },
         {
-          // Kein eigenes Regal mehr: geteilte Grüneratoren sind für die
-          // empfangende Person Teil dessen, womit sie arbeitet, nicht eine
-          // eigene Gattung. Ohne Freigaben erscheint der Abschnitt gar nicht.
+          key: 'meine-rezepte',
+          heading: 'Meine Rezepte',
+          icon: PiFileText,
+          action: (
+            <Link
+              to="/agentura/rezept/neu"
+              className="inline-flex items-center gap-xs text-sm font-medium text-secondary-700 hover:underline dark:text-secondary-300"
+            >
+              <PiPlus className="h-4 w-4" />
+              Neues Rezept
+            </Link>
+          ),
+          cards: sortRecipeEntries(ownRecipeEntries).map(recipeCard),
+          emptyHint: 'Du hast noch keine eigenen Rezepte. Leg dein erstes über „Neues Rezept" an.',
+        },
+        {
+          // Kein eigenes Regal mehr: geteilte Grüneratoren (und mit einem
+          // Projekt geteilte Rezepte) sind für die empfangende Person Teil
+          // dessen, womit sie arbeitet, nicht eine eigene Gattung. Ohne
+          // Freigaben erscheint der Abschnitt gar nicht.
           key: 'meine-gruppen',
           heading: 'Geteilt mit Gruppen',
           icon: PiUsersThree,
-          cards: sortAgentEntries(
-            sharedAgents.map((e) => ({ agent: e.agent, isUser: false, editable: false }))
-          ).map(agentCard),
+          cards: [
+            ...sortAgentEntries(
+              sharedAgents.map((e) => ({ agent: e.agent, isUser: false, editable: false }))
+            ).map(agentCard),
+            ...sortRecipeEntries(sharedRecipeEntries).map(recipeCard),
+          ],
         },
       ];
     if (key === 'landesverband') {
@@ -464,7 +657,9 @@ function AgenturaPage() {
           cards: agents,
         });
 
-      const skills = byRegion(lvSkills, (s) => s.identifier).map(skillCard);
+      const skills = byRegion(lvSkills, (s) => s.identifier).map((s) =>
+        recipeCard(recipeFromSkill(s))
+      );
       if (skills.length > 0)
         sections.push({
           key: 'lv-skills',
@@ -479,9 +674,12 @@ function AgenturaPage() {
       return [
         {
           key: 'community',
-          cards: sortAgentEntries(
-            communityAgents.map((a) => ({ agent: a, isUser: false, editable: false }))
-          ).map(agentCard),
+          cards: [
+            ...sortAgentEntries(
+              communityAgents.map((a) => ({ agent: a, isUser: false, editable: false }))
+            ).map(agentCard),
+            ...sortRecipeEntries(communityRecipeEntries).map(recipeCard),
+          ],
         },
       ];
     if (key === 'gruenerator') {
@@ -515,7 +713,9 @@ function AgenturaPage() {
             ]
           : [{ key: 'off-agents', cards: rest }];
       for (const cat of SKILL_CATEGORY_ORDER) {
-        const cards = sortSkills(byCategory.get(cat) ?? []).map(skillCard);
+        const cards = sortSkills(byCategory.get(cat) ?? []).map((s) =>
+          recipeCard(recipeFromSkill(s))
+        );
         if (cards.length)
           sections.push({
             key: `off-${cat}`,
@@ -532,7 +732,8 @@ function AgenturaPage() {
         key: 'favoriten',
         cards: [
           ...sortAgentEntries(favoriteAgents).map(agentCard),
-          ...sortSkills(favoriteSkills).map(skillCard),
+          ...sortRecipeEntries(favoriteSkills.map(recipeFromSkill)).map(recipeCard),
+          ...sortRecipeEntries(favoriteUserRecipeEntries).map(recipeCard),
         ],
       },
     ];
@@ -549,15 +750,21 @@ function AgenturaPage() {
         // Mobil-only; im Web zählt diese Auswahl in `gruenerator` mit.
         return featuredAgents.length;
       case 'meine':
-        return userAgents.length + recurringTasks.length + sharedAgents.length;
+        return (
+          userAgents.length +
+          recurringTasks.length +
+          sharedAgents.length +
+          ownRecipes.length +
+          sharedRecipes.length
+        );
       case 'landesverband':
         return lvSystemAgents.length + lvSkills.length;
       case 'community':
-        return communityAgents.length;
+        return communityAgents.length + communityRecipeEntries.length;
       case 'gruenerator':
         return generalSystemAgents.length + skillTotal;
       case 'favoriten':
-        return favoriteAgents.length + favoriteSkills.length;
+        return favoriteAgents.length + favoriteSkills.length + favoriteUserRecipeEntries.length;
     }
   };
 
@@ -582,7 +789,9 @@ function AgenturaPage() {
         visibleCategories[0]?.key ??
         DEFAULT_CATEGORY);
 
-  // Cross-category search results (agents + skills), overriding the category view.
+  // Cross-category search results (agents + recipes), overriding the category
+  // view. Recipes cover the catalogue and every own/shared/public row, deduped
+  // by mention (own wins) in `searchableRecipeEntries`.
   const searchCards: ReactNode[] = useMemo(() => {
     if (!q) return [];
     const agents = sortAgentEntries(
@@ -590,12 +799,12 @@ function AgenturaPage() {
         matchesQuery([e.agent.title, e.agent.identifier, e.agent.description], q)
       )
     );
-    const skills = sortSkills(
-      allSkills.filter((s) => matchesQuery([s.title, s.mention, s.description], q))
+    const recipes = sortRecipeEntries(
+      searchableRecipeEntries.filter((e) => matchesQuery([e.title, e.mention, e.description], q))
     );
-    return [...agents.map(agentCard), ...skills.map(skillCard)];
+    return [...agents.map(agentCard), ...recipes.map(recipeCard)];
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, allAgentEntries, allSkills, sort, agentFavorites, favorites]);
+  }, [q, allAgentEntries, searchableRecipeEntries, sort, agentFavorites, favorites]);
 
   const activeCategory = webCategories.find((c) => c.key === activeCat);
   const searching = q.length > 0;
@@ -675,12 +884,28 @@ function AgenturaPage() {
               ))}
             </SelectContent>
           </Select>
-          <Button asChild variant="brand" size="brand-sm">
-            <Link to="/agents/new">
-              <PiPlus />
-              Neuer Grünerator
-            </Link>
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="brand" size="brand-sm">
+                <PiPlus />
+                Neu
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => navigate('/agents/new')}>
+                <PiSparkle />
+                <span>Grünerator</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate('/agentura/rezept/neu')}>
+                <PiFileText />
+                <span>Rezept</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate('/agents/new?mode=recurring')}>
+                <PiRepeat />
+                <span>Wiederkehrende Aufgabe</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -719,10 +944,41 @@ function AgenturaPage() {
           )}
         </div>
       ) : (
-        <EmptyState icon={EmptyIcon} text={emptyText} />
+        <EmptyState
+          icon={EmptyIcon}
+          text={emptyText}
+          action={
+            !searching && activeCat === 'meine' ? (
+              <>
+                <Button asChild variant="brand" size="brand-sm">
+                  <Link to="/agents/new">
+                    <PiPlus />
+                    Grünerator erstellen
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" size="brand-sm">
+                  <Link to="/agentura/rezept/neu">
+                    <PiFileText />
+                    Rezept erstellen
+                  </Link>
+                </Button>
+              </>
+            ) : undefined
+          }
+        />
       )}
     </PageContainer>
   );
 }
 
-export default withAuthRequired(AgenturaPage, { title: 'Agentura' });
+/** Gives the recipe-delete flow a real AlertDialog instead of `useConfirm`'s
+ *  degraded `window.confirm` fallback — mirrors `RecipeDetailPage`'s dispatcher. */
+function AgenturaPageWithConfirm() {
+  return (
+    <ConfirmDialogProvider>
+      <AgenturaPage />
+    </ConfirmDialogProvider>
+  );
+}
+
+export default withAuthRequired(AgenturaPageWithConfirm, { title: 'Agentura' });
