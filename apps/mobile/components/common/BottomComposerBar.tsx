@@ -3,7 +3,8 @@ import { Keyboard, Platform, View } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 
 import { useTabBarClearance } from '../../hooks/useTabBarClearance';
-import { spacing } from '../../theme';
+import { spacing, typeScale } from '../../theme';
+import { COMPOSER_BOTTOM_INSET_RAISED } from '../../theme/layout';
 
 import { Composer, useComposerEdge, type ComposerProps } from './Composer';
 
@@ -49,10 +50,14 @@ export function BottomComposerBar({
     };
   }, []);
 
-  // Keyboard open → collapse to a gap (the tab bar hides) and let
-  // KeyboardAvoidingView lift the composer.
+  // Keyboard open → collapse to the seam and let KeyboardAvoidingView lift the
+  // composer (the tab bar hides, so there is nothing left to clear). The seam is
+  // `COMPOSER_BOTTOM_INSET_RAISED` — the same number the thread's composer and the
+  // start screen's docking spacer dock onto. This bar carried its own `spacing.xsmall`
+  // from before that constant was measured, which put it 3.5dp tighter than the other
+  // two composers on the same handset.
   const idlePadding = useTabBarClearance(spacing.xsmall);
-  const paddingBottom = keyboardVisible ? spacing.xsmall : idlePadding;
+  const paddingBottom = keyboardVisible ? typeScale(COMPOSER_BOTTOM_INSET_RAISED) : idlePadding;
 
   return (
     // `automaticOffset`: the bar is nested below the header + inside a flex column,
