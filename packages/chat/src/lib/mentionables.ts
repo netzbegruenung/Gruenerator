@@ -354,28 +354,48 @@ export function getCustomAgentMentionables(): Mentionable[] {
 // `/`-submit parser doesn't swap the agent — the style rides `activeSkillMention`
 // (set by the composer on select) exactly like a system skill.
 export interface TextformMentionable {
+  /** Row id — the request body's `activeRecipeId` carrier once this recipe
+   *  becomes the active skill mention (a user recipe, unlike a system skill). */
+  id: string;
   mention: string;
   title: string;
+  description: string | null;
+  iconKey: string | null;
   /**
    * Name of the group this recipe was shared from, `null` for the user's own.
    * The picker splits the recipe section on it, so dropping it here makes a
    * colleague's recipe look like one of your own (#2876).
    */
-  sharedFromGroup?: string | null;
+  sharedFromGroup: string | null;
+  /**
+   * Display name of the recipe's owner. The server sets this only for a
+   * foreign recipe (group share or public directory pick) — always `null` for
+   * the user's own, `isPublic` or not.
+   */
+  ownerName: string | null;
+  /** Listed in the public Agentura directory. */
+  isPublic: boolean;
 }
 
 export function textformToMentionable(t: TextformMentionable): Mentionable {
+  const description = t.sharedFromGroup
+    ? `Rezept aus ${t.sharedFromGroup}`
+    : t.isPublic && t.ownerName
+      ? `Rezept von ${t.ownerName}`
+      : (t.description ?? 'Eigene Textform');
   return {
     type: 'textform',
     category: 'skill',
     trigger: '@',
-    identifier: t.mention,
+    identifier: t.id,
     title: t.title,
-    description: t.sharedFromGroup ? `Rezept aus ${t.sharedFromGroup}` : 'Eigene Textform',
+    description,
     avatar: '✍️',
     backgroundColor: '#316049',
     mention: t.mention,
+    ...(t.iconKey ? { iconKey: t.iconKey } : {}),
     ...(t.sharedFromGroup ? { sharedFromGroup: t.sharedFromGroup } : {}),
+    ...(t.isPublic && t.ownerName ? { savedFromOwner: t.ownerName } : {}),
   };
 }
 
