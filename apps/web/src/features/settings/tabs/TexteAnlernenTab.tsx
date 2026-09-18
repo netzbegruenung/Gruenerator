@@ -10,9 +10,9 @@ import { type QueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { FiArrowLeft, FiChevronRight, FiPlus } from 'react-icons/fi';
 
+import { recipeMetaLine } from '../../agentura/recipes/recipeMeta';
 import { SettingsCardsSkeleton } from '../components/SettingsSkeleton';
 
-import { recipeMetaLine } from './texteAnlernen/recipeMeta';
 import TextFormEditor from './texteAnlernen/TextFormEditor';
 import { textFormsQuery, useTextForms } from './texteAnlernen/useTextForms';
 
