@@ -332,13 +332,17 @@ function AgenturaPage() {
     () => ownAndSharedRecipes.filter((f) => f.sharedFromGroup),
     [ownAndSharedRecipes]
   );
-  // "Von der Basis": the public feed minus what's already one's own — mirrors
-  // `communityAgents`, without the shared-agent exception (a shared recipe
-  // that is also public still shows here for its owner's sake).
+  // "Von der Basis": mirrors `communityAgents` exactly — owners still see
+  // their own public listing, but a recipe only reachable via a group share
+  // (not owned) is dropped: "Geteilt mit Gruppen" already shows it once, and
+  // without this exception it would show a second time here.
   const communityRecipes = useMemo(() => {
     const ownMentions = new Set(ownRecipes.map((f) => f.mention));
-    return publicRecipes.filter((f) => !ownMentions.has(f.mention));
-  }, [publicRecipes, ownRecipes]);
+    const sharedMentions = new Set(sharedRecipes.map((f) => f.mention));
+    return publicRecipes.filter(
+      (f) => ownMentions.has(f.mention) || !sharedMentions.has(f.mention)
+    );
+  }, [publicRecipes, ownRecipes, sharedRecipes]);
 
   const handleDeleteRecipe = async (form: TextForm) => {
     const confirmed = await confirmDialog({
@@ -358,7 +362,7 @@ function AgenturaPage() {
           onDelete: () => handleDeleteRecipe(f),
         })
       ),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `handleDeleteRecipe` closes over `confirmDialog`/`deleteRecipe`, stable across renders in effect
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `handleDeleteRecipe` is recreated every render but only closes over `confirmDialog`/`deleteRecipe.mutate`, both stable, so omitting it changes nothing
     [ownRecipes]
   );
   const sharedRecipeEntries = useMemo<RecipeEntry[]>(
@@ -573,7 +577,7 @@ function AgenturaPage() {
           // Grüneratoren). Ist alles leer, steht statt aller Abschnitte der
           // große Leerzustand mit derselben Aufforderung.
           emptyHint:
-            'Du hast noch keine eigenen Grüneratoren. Leg deinen ersten über „Neuer Grünerator" an.',
+            'Du hast noch keine eigenen Grüneratoren. Leg deinen ersten über „Neu" → Grünerator an.',
         },
         {
           key: 'meine-recurring',
