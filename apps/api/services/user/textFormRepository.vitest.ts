@@ -11,6 +11,7 @@ import {
   applySharingPatch,
   injectionCacheKey,
   injectionTtlMs,
+  mergeOptionalColumn,
   type TextFormInjection,
   type TextFormSharingState,
 } from './textFormRepository.js';
@@ -128,5 +129,26 @@ describe('applySharingPatch', () => {
       ok: true,
       next: { share_mode: 'private', is_public: false, public_ownership: null },
     });
+  });
+});
+
+describe('mergeOptionalColumn', () => {
+  /** Am Aufrufort die Spaltenreferenz; hier nur ein unterscheidbarer Wert. */
+  const STORED = Symbol('gespeicherte Spalte');
+
+  it('keeps the stored value when the field was not sent (undefined)', () => {
+    expect(mergeOptionalColumn(undefined, STORED)).toBe(STORED);
+  });
+
+  it('clears the column when null was sent explicitly', () => {
+    expect(mergeOptionalColumn(null, STORED)).toBeNull();
+  });
+
+  it('replaces the stored value with a sent one', () => {
+    expect(mergeOptionalColumn('Kurz und knapp', STORED)).toBe('Kurz und knapp');
+  });
+
+  it('treats the empty string as a sent value, not as absence', () => {
+    expect(mergeOptionalColumn('', STORED)).toBe('');
   });
 });

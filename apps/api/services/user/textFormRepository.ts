@@ -21,7 +21,7 @@ import {
   type TextFormShareMode,
   type TextFormType,
 } from '@gruenerator/contracts';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 
 import { userTextForms, type UserTextFormRow } from '../../database/schema/textForms.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
@@ -47,8 +47,13 @@ export interface TextFormInput {
   examples: Array<{ content: string }>;
   styleBlock: string;
   model?: string | null;
-  description?: string | null;
-  iconKey?: string | null;
+  /**
+   * `undefined` heisst „nicht mitgesendet" und lässt den gespeicherten Wert
+   * stehen; `null` leert das Feld ausdrücklich. Siehe {@link mergeOptionalColumn}.
+   */
+  description?: string | null | undefined;
+  /** Wie {@link TextFormInput.description}: `undefined` behält, `null` leert. */
+  iconKey?: string | null | undefined;
 }
 
 /** The minimal slice the injection path needs — no examples, no timestamps. */
@@ -594,6 +599,28 @@ export async function unshareTextFormFromGroup(
 }
 
 /**
+ * Was eine optionale Spalte im Konflikt-Zweig eines Upserts trägt: `undefined`
+ * behält den gespeicherten Wert (`stored`), `null` leert, ein Wert ersetzt.
+ *
+ * Nötig, weil nicht jeder Schreiber alle Felder kennt: `recipes.add_examples`
+ * und der ausgelieferte Agentura-Editor senden weder `description` noch
+ * `iconKey`. Ein bedingungsloses `input.description ?? null` im `set` löschte
+ * beides bei jedem Nachschieben von Beispielen (#3472) — genau die Felder, die
+ * ein Rezept in der Agentura auffindbar machen.
+ *
+ * `stored` ist am Aufrufort die Spaltenreferenz selbst, damit Postgres den alten
+ * Wert einsetzt und niemand ihn vorher lesen muss (ein Lesen davor wäre ein
+ * Rennen gegen den parallelen Schreiber). Die Entscheidung bleibt trotzdem rein
+ * und ohne Postgres prüfbar.
+ */
+export function mergeOptionalColumn<TValue, TStored>(
+  input: TValue | null | undefined,
+  stored: TStored
+): TValue | TStored | null {
+  return input === undefined ? stored : input;
+}
+
+/**
  * Create or replace the caller's recipe under `mention`.
  *
  * `share_mode`, `is_public` and `public_ownership` are NOT in the conflict set:
@@ -601,6 +628,9 @@ export async function unshareTextFormFromGroup(
  * where `public_ownership` is a legal attestation about THIS row. An edit must
  * not silently re-publish a recipe the owner un-published, nor carry an old
  * attestation over to new content.
+ *
+ * `description` und `icon_key` stehen zwar im `set`, aber über
+ * {@link mergeOptionalColumn}: wer sie nicht mitschickt, ändert sie nicht.
  */
 export async function upsertTextForm(userId: string, input: TextFormInput): Promise<TextForm> {
   const db = getDrizzleInstance();
@@ -631,8 +661,8 @@ export async function upsertTextForm(userId: string, input: TextFormInput): Prom
         examples: values.examples,
         style_block: values.style_block,
         model: values.model,
-        description: values.description,
-        icon_key: values.icon_key,
+        description: mergeOptionalColumn(input.description, sql`${userTextForms.description}`),
+        icon_key: mergeOptionalColumn(input.iconKey, sql`${userTextForms.icon_key}`),
         analyzed_at: values.analyzed_at,
         updated_at: values.updated_at,
       },
