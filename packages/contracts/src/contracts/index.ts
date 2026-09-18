@@ -10,6 +10,7 @@ export { recentActivityContract } from './recentActivityContract.js';
 export { contentContract } from './contentContract.js';
 export { itemUsageContract } from './itemUsageContract.js';
 export { userUsageContract } from './userUsageContract.js';
+export { treesContract } from './treesContract.js';
 export { transparencyContract } from './transparencyContract.js';
 export { globalSearchContract } from './globalSearchContract.js';
 export { researchContract } from './researchContract.js';

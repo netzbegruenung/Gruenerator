@@ -19,9 +19,10 @@ import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
 import {
-  SpeechQuotaExceededError,
-  generateSpeechFiles,
-} from '../../../services/voice/speechService.js';
+  TreeBudgetExceededError,
+  TreeBudgetUnavailableError,
+} from '../../../services/trees/index.js';
+import { generateSpeechFiles } from '../../../services/voice/speechService.js';
 import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
 
@@ -114,7 +115,10 @@ NICHT für das Vorlesen im Chat selbst — dafür gibt es in der Oberfläche ein
           title: titel ?? null,
         });
       } catch (error) {
-        if (error instanceof SpeechQuotaExceededError) {
+        if (
+          error instanceof TreeBudgetExceededError ||
+          error instanceof TreeBudgetUnavailableError
+        ) {
           // The budget message is written for people, so the classifier keeps it
           // as it is — the model repeats a true reason instead of inventing one.
           return { error: toUserFacingMessage(error) };

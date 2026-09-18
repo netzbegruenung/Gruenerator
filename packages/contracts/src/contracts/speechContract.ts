@@ -34,9 +34,11 @@ export const speechContract = c.router(
         400: speechErrorSchema,
         401: speechErrorSchema,
         403: speechErrorSchema,
-        // Daily speech budget used up.
+        // Daily Bäume budget used up.
         429: speechErrorSchema,
         500: speechErrorSchema,
+        // The budget could not be checked (Redis down) — fail closed, retry later.
+        503: speechErrorSchema,
       },
       summary: 'Generate a downloadable audio file from text',
     },

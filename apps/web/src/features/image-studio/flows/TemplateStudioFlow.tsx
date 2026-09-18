@@ -5,7 +5,7 @@ import { useShallow } from 'zustand/react/shallow';
 
 import { StatusBadge } from '../../../components/common/StatusBadge';
 import ErrorBoundary from '../../../components/ErrorBoundary';
-import useImageGenerationLimit from '../../../hooks/useImageGenerationLimit';
+import { useTreeBudget } from '../../../hooks/useTreeBudget';
 import useImageStudioStore from '../../../stores/imageStudioStore';
 import { cn } from '../../../utils/cn';
 import StepFlow from '../components/StepFlow';
@@ -135,7 +135,7 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
   const fieldConfig = useMemo(() => getTemplateFieldConfig(type || ''), [type]);
 
   const { generateImage, loading, error, setError } = useImageGeneration();
-  const { data: imageLimitData, refetch: refetchImageLimit } = useImageGenerationLimit();
+  const { data: imageLimitData, refetch: refetchImageLimit } = useTreeBudget();
 
   const handleGoBackToCanvas = useCallback(() => {
     useImageStudioStore.getState().setCurrentStep(FORM_STEPS.CANVAS_EDIT);
@@ -290,7 +290,9 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
                         <StepFlow
                           onBack={onBack}
                           onStepChange={handleStepChange}
-                          imageLimitData={typeConfig?.hasRateLimit ? imageLimitData : null}
+                          imageLimitData={
+                            typeConfig?.hasRateLimit ? (imageLimitData ?? null) : null
+                          }
                         />
                       ) : null;
                     })()}

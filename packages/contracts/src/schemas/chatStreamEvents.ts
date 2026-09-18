@@ -88,8 +88,8 @@ export const chatWarningCodeSchema = z.enum([
   // Quellen weiter, der Hinweis steht darunter.
   'evidence_weak',
   'research_plan_failed',
-  // `@deepresearch` was asked for but not served: the daily quota is spent or the
-  // call failed. Distinct from `research_plan_failed` — the turn did NOT degrade
+  // `@deepresearch` was asked for but not served: the daily Bäume budget is
+  // spent, could not be checked, or the call failed. Distinct from `research_plan_failed` — the turn did NOT degrade
   // in quality accidentally, it was capped on purpose, and the message names the
   // reset time. Always carries a `messageOverride`.
   'deep_research_quota_spent',

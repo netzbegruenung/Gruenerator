@@ -48,8 +48,3 @@ export const SPEECH_MAX_TEXT_CHARS = 3 * SPEECH_MAX_CHUNK_CHARS;
 /** Provider range for pitch-preserving time stretching; outside it the API answers 400. */
 export const SPEECH_MIN_SPEED = 0.8;
 export const SPEECH_MAX_SPEED = 1.2;
-/**
- * Seconds of generated audio one account may produce per day. Thirty minutes
- * is one maximum-length Vorlesefassung or dozens of mailbox greetings.
- */
-export const SPEECH_DAILY_LIMIT_SECONDS = 1800;

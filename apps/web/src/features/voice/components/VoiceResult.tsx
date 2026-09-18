@@ -4,6 +4,7 @@ import { Download } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import AudioPlayer from '../../../components/common/AudioPlayer';
+import { TreeBudgetLine } from '../../../components/common/TreeBudgetLine';
 import { formatAudioDuration } from '../../../utils/formatAudioDuration';
 import { formatFileSize } from '../../../utils/formatFileSize';
 import { getPublicAppOrigin } from '../../../utils/platform';
@@ -20,11 +21,6 @@ export interface VoiceResultProps {
 }
 
 export default function VoiceResult({ result, playable, title, onDownload }: VoiceResultProps) {
-  const minutesLeft = Math.max(
-    0,
-    Math.floor((result.quota.limitSeconds - result.quota.usedSeconds) / 60)
-  );
-
   return (
     <section
       aria-labelledby="voice-result-heading"
@@ -52,9 +48,9 @@ export default function VoiceResult({ result, playable, title, onDownload }: Voi
         ))}
       </div>
       <p className="m-0 text-sm text-muted-foreground">
-        In der <Link to="/media-library">Mediathek</Link> gespeichert. Heute noch {minutesLeft}{' '}
-        Minuten Sprachausgabe übrig.
+        In der <Link to="/media-library">Mediathek</Link> gespeichert.
       </p>
+      <TreeBudgetLine status={result.quota} className="text-sm text-muted-foreground" />
       <CopyLinkRow
         value={`${getPublicAppOrigin()}${playable.shareUrl}`}
         copyLabel="Link kopieren"
