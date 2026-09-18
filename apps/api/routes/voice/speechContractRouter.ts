@@ -15,10 +15,8 @@ import { SPEECH_MAX_TEXT_CHARS, speechContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { aiText } from '../../services/ai/generate.js';
-import {
-  SpeechQuotaExceededError,
-  generateSpeechFiles,
-} from '../../services/voice/speechService.js';
+import { TreeBudgetExceededError, TreeBudgetUnavailableError } from '../../services/trees/index.js';
+import { generateSpeechFiles } from '../../services/voice/speechService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
@@ -55,10 +53,16 @@ const speechContractRouter = s.router(speechContract, {
       });
       return { status: 200 as const, body: { success: true as const, ...result } };
     } catch (error) {
-      if (error instanceof SpeechQuotaExceededError) {
+      if (error instanceof TreeBudgetExceededError) {
         // The message is written for people; the classifier passes it through.
         return {
           status: 429 as const,
+          body: { success: false as const, error: toUserFacingMessage(error) },
+        };
+      }
+      if (error instanceof TreeBudgetUnavailableError) {
+        return {
+          status: 503 as const,
           body: { success: false as const, error: toUserFacingMessage(error) },
         };
       }

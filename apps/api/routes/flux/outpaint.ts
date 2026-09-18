@@ -10,7 +10,6 @@ import { z } from 'zod';
 import { requireAuth } from '../../middleware/authMiddleware.js';
 import { requireAiConsent } from '../../middleware/requireAiConsent.js';
 import { type AuthenticatedRequest } from '../../middleware/types.js';
-import { ImageGenerationCounter } from '../../services/counters/index.js';
 import { FluxImageService } from '../../services/flux/index.js';
 import {
   computeOutpaintGeometry,
@@ -19,14 +18,19 @@ import {
   OUTPAINT_MAX_SIDE,
   OUTPAINT_MIN_SIDE,
 } from '../../services/flux/outpaintGeometry.js';
+import {
+  getTreeBudget,
+  toTreeBudgetStatusDto,
+  treeBudgetSpentMessage,
+  treeCostForImage,
+  TreeBudgetUnavailableError,
+} from '../../services/trees/index.js';
 import { createLogger } from '../../utils/logger.js';
-import { redisClient } from '../../utils/redis/index.js';
 import { applyKiLabel } from '../sharepic/sharepic_canvas/imagine_label_canvas.js';
 
 const log = createLogger('outpaint');
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
-const imageCounter = new ImageGenerationCounter(redisClient);
 
 // Multipart form field: which AI label to burn into the result — 'full'
 // ("KI-Generiert mit dem Grünerator", default), 'short' ("KI-Generiert"),
@@ -72,13 +76,23 @@ router.post(
         });
       }
 
-      const limitStatus = await imageCounter.checkLimit(userId);
-      if (!limitStatus.canGenerate) {
+      // One outpaint always costs one image, regardless of model — outpaint
+      // only ever runs on the 'hosted' backend below.
+      const cost = treeCostForImage(1);
+      const budget = getTreeBudget();
+      const reservation = await budget.reserve(userId, cost);
+      if (!reservation.ok) {
+        if (reservation.reason === 'unavailable') {
+          return res
+            .status(503)
+            .json({ success: false, error: new TreeBudgetUnavailableError().message });
+        }
+        const message = treeBudgetSpentMessage(reservation.status, cost);
         return res.status(429).json({
           success: false,
-          error: 'Daily image generation limit reached',
-          data: limitStatus,
-          message: `Du hast dein Tageskontingent von ${limitStatus.limit} Bildern erreicht.`,
+          error: message,
+          data: toTreeBudgetStatusDto(reservation.status),
+          message,
         });
       }
 
@@ -116,11 +130,17 @@ router.post(
       );
 
       const flux = await FluxImageService.create('hosted');
-      const { stored } = await flux.outpaintImage(sourceBuffer, {
-        width: target.width,
-        height: target.height,
-        output_format: 'jpeg',
-      });
+      let stored: Awaited<ReturnType<typeof flux.outpaintImage>>['stored'];
+      try {
+        ({ stored } = await flux.outpaintImage(sourceBuffer, {
+          width: target.width,
+          height: target.height,
+          output_format: 'jpeg',
+        }));
+      } catch (error) {
+        await budget.release(userId, cost);
+        throw error;
+      }
 
       const fluxBuffer = fs.readFileSync(stored.filePath);
       const kiLabel = parsed.data.kiLabel ?? 'full';
@@ -134,9 +154,6 @@ router.post(
       const filename = `outpaint_${now.toISOString().replace(/[:.]/g, '-')}.jpg`;
       const filePath = path.join(baseDir, filename);
       fs.writeFileSync(filePath, labeledBuffer);
-
-      await imageCounter.incrementCount(userId);
-      const updatedStatus = await imageCounter.checkLimit(userId);
 
       return res.json({
         success: true,
@@ -152,11 +169,7 @@ router.post(
           aspectRatio: parsed.data.aspectRatio,
           timestamp: now.toISOString(),
         },
-        usage: {
-          count: updatedStatus.count,
-          remaining: updatedStatus.remaining,
-          limit: updatedStatus.limit,
-        },
+        usage: toTreeBudgetStatusDto(reservation.status),
       });
     } catch (error: unknown) {
       const errMsg = error instanceof Error ? error.message : String(error);

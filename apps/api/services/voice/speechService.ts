@@ -1,13 +1,18 @@
 import {
-  SPEECH_DAILY_LIMIT_SECONDS,
   type SpeechFile,
   type SpeechOutputFormat,
   type SpeechPreset,
+  type TreeBudgetStatus,
 } from '@gruenerator/contracts';
 
-import { redisClient } from '../../utils/redis/index.js';
-import { SpeechSecondsCounter, type SpeechQuotaStatus } from '../counters/SpeechSecondsCounter.js';
 import { getSharedMediaService } from '../sharedMediaService.js';
+import {
+  getTreeBudget,
+  treeCostForSpeechSeconds,
+  toTreeBudgetStatusDto,
+  TreeBudgetExceededError,
+  TreeBudgetUnavailableError,
+} from '../trees/index.js';
 
 import { pcm16ToWav } from './pcmCodec.js';
 import { chunkForSpeech } from './speechChunker.js';
@@ -15,10 +20,7 @@ import { encodeSpeech, type EncodedSpeech } from './speechEncoder.js';
 import ttsService, { type PcmSpeech, type TTSOptions } from './ttsService.js';
 
 import type { AudioShareResult, CreateAudioShareParams } from '../../types/media.js';
-
-export class SpeechQuotaExceededError extends Error {
-  override readonly name = 'SpeechQuotaExceededError';
-}
+import type { TreeBalance, TreeBudget } from '../trees/index.js';
 
 /** Silence between two provider requests, so a joined text does not run on. */
 const CHUNK_GAP_MS = 300;
@@ -55,7 +57,7 @@ export interface GenerateSpeechOutput {
   durationSeconds: number;
   chunks: number;
   files: SpeechFile[];
-  quota: SpeechQuotaStatus;
+  quota: TreeBudgetStatus;
 }
 
 /** Seams for the unit test; production wiring is `defaultDeps()`. */
@@ -63,17 +65,15 @@ export interface SpeechDeps {
   generatePcm: (text: string, options: TTSOptions) => Promise<PcmSpeech>;
   encode: (wav: Buffer, format: SpeechOutputFormat) => Promise<EncodedSpeech>;
   createAudioShare: (userId: string, params: CreateAudioShareParams) => Promise<AudioShareResult>;
-  counter: Pick<SpeechSecondsCounter, 'reserve' | 'adjust'>;
+  budget: Pick<TreeBudget, 'reserve' | 'adjust'>;
 }
-
-const counter = new SpeechSecondsCounter(redisClient, SPEECH_DAILY_LIMIT_SECONDS);
 
 function defaultDeps(): SpeechDeps {
   return {
     generatePcm: (text, options) => ttsService.generatePcm(text, options),
     encode: encodeSpeech,
     createAudioShare: (userId, params) => getSharedMediaService().createAudioShare(userId, params),
-    counter,
+    budget: getTreeBudget(),
   };
 }
 
@@ -90,24 +90,20 @@ export async function generateSpeechFiles(
   input: GenerateSpeechInput,
   deps: SpeechDeps = defaultDeps()
 ): Promise<GenerateSpeechOutput> {
-  const estimateSeconds = Math.ceil(input.text.length / CHARS_PER_SECOND);
-  const reservation = await deps.counter.reserve(userId, estimateSeconds);
+  const estimateUnits = treeCostForSpeechSeconds(Math.ceil(input.text.length / CHARS_PER_SECOND));
+  const reservation = await deps.budget.reserve(userId, estimateUnits);
   if (!reservation.ok) {
     if (reservation.reason === 'exceeded') {
-      throw new SpeechQuotaExceededError(
-        `Das tägliche Kontingent von ${Math.round(SPEECH_DAILY_LIMIT_SECONDS / 60)} Minuten Sprachausgabe ist aufgebraucht. Morgen geht es weiter.`
-      );
+      throw new TreeBudgetExceededError(reservation.status, estimateUnits);
     }
-    throw new Error(
-      'Das Kontingent lässt sich gerade nicht prüfen. Bitte versuch es gleich noch einmal.'
-    );
+    throw new TreeBudgetUnavailableError();
   }
 
   const chunks = chunkForSpeech(input.text);
   const parts: Buffer[] = [];
   let sampleRate = 0;
   let totalBytes = 0;
-  let quota: SpeechQuotaStatus;
+  let quota: TreeBalance;
   try {
     for (const chunk of chunks) {
       const piece = await deps.generatePcm(chunk, {
@@ -133,7 +129,10 @@ export async function generateSpeechFiles(
     // Reconcile with what was really generated — on failure or abort too: the
     // provider was paid for those chunks, and a retry must not get them free.
     const realSeconds = sampleRate ? totalBytes / 2 / sampleRate : 0;
-    quota = await deps.counter.adjust(userId, Math.round(realSeconds) - estimateSeconds);
+    quota = await deps.budget.adjust(
+      userId,
+      treeCostForSpeechSeconds(Math.round(realSeconds)) - estimateUnits
+    );
   }
 
   if (input.signal?.aborted) {
@@ -169,6 +168,6 @@ export async function generateSpeechFiles(
     durationSeconds: Math.round(durationSeconds * 10) / 10,
     chunks: chunks.length,
     files,
-    quota,
+    quota: toTreeBudgetStatusDto(quota),
   };
 }

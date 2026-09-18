@@ -9,18 +9,22 @@ import { z } from 'zod';
 import { requireAuth } from '../../middleware/authMiddleware.js';
 import { requireAiConsent } from '../../middleware/requireAiConsent.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
-import { ImageGenerationCounter } from '../../services/counters/index.js';
 import { FluxImageService, buildUniversalPrompt } from '../../services/flux/index.js';
+import {
+  getTreeBudget,
+  toTreeBudgetStatusDto,
+  treeBudgetSpentMessage,
+  treeCostForImage,
+  TreeBudgetUnavailableError,
+} from '../../services/trees/index.js';
 import { getImageModelForUser } from '../../services/user/imageModelPreference.js';
 import { createLogger } from '../../utils/logger.js';
-import { redisClient } from '../../utils/redis/index.js';
 import { applyKiLabel } from '../sharepic/sharepic_canvas/imagine_label_canvas.js';
 
 const log = createLogger('imageEditing');
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
-const imageCounter = new ImageGenerationCounter(redisClient);
 
 // ============================================================================
 // Type Definitions
@@ -239,23 +243,10 @@ router.post(
         return res.status(401).json({ success: false, error: 'Authentication required' });
       }
 
-      const limitStatus = await imageCounter.checkLimit(userId);
-      if (!limitStatus.canGenerate) {
-        log.debug(
-          `[Image Edit] Request rejected: User ${userId} has reached daily limit (${limitStatus.count}/${limitStatus.limit})`
-        );
-        return res.status(429).json({
-          success: false,
-          error: 'Daily image generation limit reached',
-          data: limitStatus,
-          message: `You have reached your daily limit of ${limitStatus.limit} image generations. Try again tomorrow.`,
-        });
-      }
-
       const userText = req.body.text || req.body.instruction || '';
       const isPrecision = req.body.precision === 'true' || req.body.precision === true;
       log.debug(
-        `[Image Edit] Processing request with instruction: "${userText?.substring(0, 100)}..." (User: ${userId}, Usage: ${limitStatus.count + 1}/${limitStatus.limit}, Precision: ${isPrecision})`
+        `[Image Edit] Processing request with instruction: "${userText?.substring(0, 100)}..." (User: ${userId}, Precision: ${isPrecision})`
       );
 
       if (!userText || userText.trim().length === 0) {
@@ -303,14 +294,40 @@ router.post(
             : buildGreenEditPrompt(userText, isPrecision);
 
       const userModel = IMAGE_MODEL_BY_ID[await getImageModelForUser(userId)];
+      const cost = treeCostForImage(userModel.costMultiplier);
+      const budget = getTreeBudget();
+      const reservation = await budget.reserve(userId, cost);
+      if (!reservation.ok) {
+        if (reservation.reason === 'unavailable') {
+          return res
+            .status(503)
+            .json({ success: false, error: new TreeBudgetUnavailableError().message });
+        }
+        log.debug(`[Image Edit] Request rejected: User ${userId} has reached the tree budget`);
+        const message = treeBudgetSpentMessage(reservation.status, cost);
+        return res.status(429).json({
+          success: false,
+          error: message,
+          data: toTreeBudgetStatusDto(reservation.status),
+          message,
+        });
+      }
+
       const flux = await FluxImageService.create(userModel.backend, userModel.modelPath);
       log.debug(`[Image Edit] Starting image generation with model ${userModel.id}`);
-      const { request, result, stored } = (await flux.generateFromImage(
-        prompt,
-        req.file.buffer,
-        req.file.mimetype,
-        { output_format: 'jpeg', safety_tolerance: 2 }
-      )) as FluxGenerationResult;
+      let generationResult: FluxGenerationResult;
+      try {
+        generationResult = (await flux.generateFromImage(
+          prompt,
+          req.file.buffer,
+          req.file.mimetype,
+          { output_format: 'jpeg', safety_tolerance: 2 }
+        )) as FluxGenerationResult;
+      } catch (error) {
+        await budget.release(userId, cost);
+        throw error;
+      }
+      const { request, result, stored } = generationResult;
 
       log.debug(
         `[Image Edit] Image generation completed successfully, output size: ${Math.round(stored.size / 1024)}KB`
@@ -320,12 +337,6 @@ router.post(
       const labeledBuffer = await applyKiLabel(fluxImageBuffer);
       const labeledBase64 = labeledBuffer.toString('base64');
       fs.writeFileSync(stored.filePath, labeledBuffer);
-
-      const incrementResult = await imageCounter.incrementCount(
-        userId,
-        Math.round(userModel.costMultiplier * 100)
-      );
-      log.debug(`[Image Edit] Updated usage counter for user ${userId}:`, incrementResult);
 
       return res.json({
         success: true,
@@ -347,6 +358,7 @@ router.post(
           base64: `data:image/jpeg;base64,${labeledBase64}`,
         },
         mode: 'pro',
+        usage: toTreeBudgetStatusDto(reservation.status),
       });
     } catch (error: unknown) {
       const errMsg = error instanceof Error ? error.message : String(error);
@@ -406,23 +418,10 @@ router.post(
         return res.status(401).json({ success: false, error: 'Authentication required' });
       }
 
-      const limitStatus = await imageCounter.checkLimit(userId);
-      if (!limitStatus.canGenerate) {
-        log.debug(
-          `[Image Edit Generate] Request rejected: User ${userId} has reached daily limit (${limitStatus.count}/${limitStatus.limit})`
-        );
-        return res.status(429).json({
-          success: false,
-          error: 'Daily image generation limit reached',
-          data: limitStatus,
-          message: `You have reached your daily limit of ${limitStatus.limit} image generations. Try again tomorrow.`,
-        });
-      }
-
       const userText = req.body.text || req.body.instruction || '';
       const isPrecision = req.body.precision === 'true' || req.body.precision === true;
       log.debug(
-        `[Image Edit Generate] Processing request with instruction: "${userText?.substring(0, 100)}..." (User: ${userId}, Usage: ${limitStatus.count + 1}/${limitStatus.limit}, Precision: ${isPrecision})`
+        `[Image Edit Generate] Processing request with instruction: "${userText?.substring(0, 100)}..." (User: ${userId}, Precision: ${isPrecision})`
       );
 
       if (!userText || userText.trim().length === 0) {
@@ -459,21 +458,47 @@ router.post(
             : buildGreenEditPrompt(userText, isPrecision);
 
       const userModel = IMAGE_MODEL_BY_ID[await getImageModelForUser(userId)];
+      const cost = treeCostForImage(userModel.costMultiplier);
+      const budget = getTreeBudget();
+      const reservation = await budget.reserve(userId, cost);
+      if (!reservation.ok) {
+        if (reservation.reason === 'unavailable') {
+          return res
+            .status(503)
+            .json({ success: false, error: new TreeBudgetUnavailableError().message });
+        }
+        log.debug(
+          `[Image Edit Generate] Request rejected: User ${userId} has reached the tree budget`
+        );
+        const message = treeBudgetSpentMessage(reservation.status, cost);
+        return res.status(429).json({
+          success: false,
+          error: message,
+          data: toTreeBudgetStatusDto(reservation.status),
+          message,
+        });
+      }
+
       const flux = await FluxImageService.create(userModel.backend, userModel.modelPath);
       let generationResult: FluxGenerationResult;
 
-      if (req.file) {
-        generationResult = (await flux.generateFromImage(
-          prompt,
-          req.file.buffer,
-          req.file.mimetype,
-          { output_format: 'jpeg', safety_tolerance: 2 }
-        )) as FluxGenerationResult;
-      } else {
-        generationResult = (await flux.generateFromPrompt(prompt, {
-          output_format: 'jpeg',
-          safety_tolerance: 2,
-        })) as FluxGenerationResult;
+      try {
+        if (req.file) {
+          generationResult = (await flux.generateFromImage(
+            prompt,
+            req.file.buffer,
+            req.file.mimetype,
+            { output_format: 'jpeg', safety_tolerance: 2 }
+          )) as FluxGenerationResult;
+        } else {
+          generationResult = (await flux.generateFromPrompt(prompt, {
+            output_format: 'jpeg',
+            safety_tolerance: 2,
+          })) as FluxGenerationResult;
+        }
+      } catch (error) {
+        await budget.release(userId, cost);
+        throw error;
       }
 
       const { request, result, stored } = generationResult;
@@ -486,12 +511,6 @@ router.post(
       const labeledBuffer = await applyKiLabel(fluxImageBuffer);
       const labeledBase64 = labeledBuffer.toString('base64');
       fs.writeFileSync(stored.filePath, labeledBuffer);
-
-      const incrementResult = await imageCounter.incrementCount(
-        userId,
-        Math.round(userModel.costMultiplier * 100)
-      );
-      log.debug(`[Image Edit Generate] Updated usage counter for user ${userId}:`, incrementResult);
 
       return res.json({
         success: true,
@@ -506,6 +525,7 @@ router.post(
           base64: `data:image/jpeg;base64,${labeledBase64}`,
         },
         mode: 'pro',
+        usage: toTreeBudgetStatusDto(reservation.status),
       });
     } catch (error: unknown) {
       const errMsg = error instanceof Error ? error.message : String(error);

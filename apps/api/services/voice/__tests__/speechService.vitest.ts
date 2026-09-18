@@ -1,17 +1,31 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import {
-  SpeechQuotaExceededError,
-  generateSpeechFiles,
-  type SpeechDeps,
-} from '../speechService.js';
+  TreeBudgetExceededError,
+  TreeBudgetUnavailableError,
+  treeCostForSpeechSeconds,
+  unitsToTrees,
+  type TreeBalance,
+} from '../../trees/index.js';
+import { generateSpeechFiles, type SpeechDeps } from '../speechService.js';
 
 const RATE = 24000;
-const LIMIT = 1800;
+const LIMIT_UNITS = 1000;
+const RESETS_AT = new Date('2024-01-02T00:00:00.000Z');
 
 /** `seconds` of PCM16 silence at the provider rate. */
 function pcmSeconds(seconds: number): Buffer {
   return Buffer.alloc(seconds * RATE * 2);
+}
+
+function balance(usedUnits: number): TreeBalance {
+  return {
+    usedUnits,
+    limitUnits: LIMIT_UNITS,
+    remainingUnits: Math.max(0, LIMIT_UNITS - usedUnits),
+    resetsAt: RESETS_AT,
+    newsletterBonus: false,
+  };
 }
 
 interface Calls {
@@ -48,16 +62,16 @@ function deps(overrides: Partial<SpeechDeps> = {}): SpeechDeps & { calls: Calls 
         createdAt: new Date(),
       };
     }),
-    counter: {
-      reserve: vi.fn(async (_userId: string, seconds: number) => {
-        calls.reserved.push(seconds);
-        used += seconds;
-        return { ok: true as const, status: { usedSeconds: used, limitSeconds: LIMIT } };
+    budget: {
+      reserve: vi.fn(async (_userId: string, units: number) => {
+        calls.reserved.push(units);
+        used += units;
+        return { ok: true as const, status: balance(used) };
       }),
       adjust: vi.fn(async (_userId: string, delta: number) => {
         calls.adjusted.push(delta);
         used += delta;
-        return { usedSeconds: used, limitSeconds: LIMIT };
+        return balance(used);
       }),
     },
     ...overrides,
@@ -99,10 +113,18 @@ describe('generateSpeechFiles', () => {
   it('reserves the estimate up front and reconciles to the real seconds', async () => {
     const d = deps();
     const result = await generateSpeechFiles('u1', input, d);
-    const estimate = Math.ceil(input.text.length / 15);
-    expect(d.calls.reserved).toEqual([estimate]);
-    expect(d.calls.adjusted).toEqual([2 - estimate]);
-    expect(result.quota).toEqual({ usedSeconds: 2, limitSeconds: LIMIT });
+    const estimateSeconds = Math.ceil(input.text.length / 15);
+    const estimateUnits = treeCostForSpeechSeconds(estimateSeconds);
+    const realUnits = treeCostForSpeechSeconds(2);
+    expect(d.calls.reserved).toEqual([estimateUnits]);
+    expect(d.calls.adjusted).toEqual([realUnits - estimateUnits]);
+    expect(result.quota).toEqual({
+      used: unitsToTrees(realUnits),
+      limit: unitsToTrees(LIMIT_UNITS),
+      remaining: unitsToTrees(LIMIT_UNITS - realUnits),
+      resetsAt: RESETS_AT.toISOString(),
+      newsletterBonus: false,
+    });
   });
 
   it('uses the preset title and passes voice, speed and signal through', async () => {
@@ -136,31 +158,40 @@ describe('generateSpeechFiles', () => {
     expect(result.chunks).toBeGreaterThan(1);
     expect(d.calls.texts.length).toBe(result.chunks);
     // n chunks of 2 s each plus (n-1) gaps of 0.3 s.
-    const expected = result.chunks * 2 + (result.chunks - 1) * 0.3;
-    expect(result.durationSeconds).toBeCloseTo(expected, 1);
-    expect(result.quota.usedSeconds).toBe(Math.round(expected));
+    const expectedSeconds = result.chunks * 2 + (result.chunks - 1) * 0.3;
+    expect(result.durationSeconds).toBeCloseTo(expectedSeconds, 1);
+    expect(result.quota.used).toBe(
+      unitsToTrees(treeCostForSpeechSeconds(Math.round(expectedSeconds)))
+    );
   });
 
   it('refuses before synthesising when the reservation does not fit', async () => {
     const d = deps({
-      counter: {
-        reserve: vi.fn(async () => ({ ok: false as const, reason: 'exceeded' as const })),
+      budget: {
+        reserve: vi.fn(async () => ({
+          ok: false as const,
+          reason: 'exceeded' as const,
+          status: balance(LIMIT_UNITS),
+        })),
         adjust: vi.fn(),
       },
     });
     await expect(generateSpeechFiles('u1', input, d)).rejects.toBeInstanceOf(
-      SpeechQuotaExceededError
+      TreeBudgetExceededError
     );
     expect(d.generatePcm).not.toHaveBeenCalled();
   });
 
-  it('fails closed with a different message when the quota store is unavailable', async () => {
+  it('fails closed with a different message when the budget is unavailable', async () => {
     const d = deps({
-      counter: {
+      budget: {
         reserve: vi.fn(async () => ({ ok: false as const, reason: 'unavailable' as const })),
         adjust: vi.fn(),
       },
     });
+    await expect(generateSpeechFiles('u1', input, d)).rejects.toBeInstanceOf(
+      TreeBudgetUnavailableError
+    );
     await expect(generateSpeechFiles('u1', input, d)).rejects.toThrow(/nicht prüfen/);
   });
 
@@ -175,8 +206,10 @@ describe('generateSpeechFiles', () => {
     await expect(
       generateSpeechFiles('u1', { ...input, text: longText, formats: ['mp3'] }, d)
     ).rejects.toThrow('provider stalled');
-    const estimate = Math.ceil(longText.length / 15);
-    expect(d.calls.adjusted).toEqual([2 - estimate]);
+    const estimateSeconds = Math.ceil(longText.length / 15);
+    const estimateUnits = treeCostForSpeechSeconds(estimateSeconds);
+    const realUnits = treeCostForSpeechSeconds(2);
+    expect(d.calls.adjusted).toEqual([realUnits - estimateUnits]);
     expect(d.encode).not.toHaveBeenCalled();
   });
 
