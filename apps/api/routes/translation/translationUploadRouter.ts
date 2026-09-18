@@ -125,12 +125,14 @@ translationUploadRouter.post(
       res.json(body);
     } catch (error) {
       if (error instanceof TreeBudgetExceededError) {
-        fail(res, 429, error.message, { quota: toTreeBudgetStatusDto(error.status) });
+        fail(res, 429, translationErrorMessage(error), {
+          quota: toTreeBudgetStatusDto(error.status),
+        });
         return;
       }
       // Both 503s; `code` is what tells the client whether retrying can help.
       if (error instanceof TreeBudgetUnavailableError) {
-        fail(res, 503, error.message, { code: 'budget_unavailable' });
+        fail(res, 503, translationErrorMessage(error), { code: 'budget_unavailable' });
         return;
       }
       if (error instanceof TranslationUnavailableError) {

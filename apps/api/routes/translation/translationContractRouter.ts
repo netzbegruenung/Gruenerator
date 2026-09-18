@@ -104,7 +104,7 @@ export const translationContractRouter = s.router(translationContract, {
           status: 429 as const,
           body: {
             success: false as const,
-            error: error.message,
+            error: translationErrorMessage(error),
             quota: toTreeBudgetStatusDto(error.status),
           },
         };
@@ -114,7 +114,7 @@ export const translationContractRouter = s.router(translationContract, {
           status: 503 as const,
           body: {
             success: false as const,
-            error: error.message,
+            error: translationErrorMessage(error),
             code: 'budget_unavailable' as const,
           },
         };
