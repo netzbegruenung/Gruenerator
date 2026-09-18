@@ -5,7 +5,11 @@
  * `mention` handling follows `TextFormEditor`'s existing rule: a preset or LV
  * recipe carries a `fixedMention` the user can't change; a custom recipe
  * either keeps the mention the user typed (`mentionTouched`) or derives it
- * from the title as they type (`slugifyName`).
+ * from the title as they type (`slugifyName`) — UNLESS it already has an
+ * `originalMention` (an existing saved row), in which case that wins over a
+ * live-changing title, mirroring `TextFormEditor`'s `if (initialForm) return
+ * initialForm.mention` branch. Without this, editing a saved custom recipe's
+ * title would silently re-slug the PUT target on every keystroke.
  */
 import {
   type DraftedRecipeSpec,
@@ -31,6 +35,8 @@ export interface RecipeFormState {
   iconKey: string;
   styleBlock: string;
   rawExamples: string;
+  /** The mention an already-saved row was loaded with; `null` for a new (or drafted) recipe. */
+  originalMention: string | null;
 }
 
 export const EMPTY_RECIPE_FORM: RecipeFormState = {
@@ -44,11 +50,13 @@ export const EMPTY_RECIPE_FORM: RecipeFormState = {
   iconKey: DEFAULT_AGENT_ICON,
   styleBlock: '',
   rawExamples: '',
+  originalMention: null,
 };
 
 /** The mention a save actually uses — same precedence as `TextFormEditor`. */
 export function effectiveMention(form: RecipeFormState): string {
   if (form.fixedMention) return form.fixedMention;
+  if (form.originalMention) return form.originalMention;
   return form.mentionTouched ? form.mention : slugifyName(form.title, 'textform');
 }
 
@@ -79,6 +87,7 @@ export function hydrateRecipeForm(form: TextForm): RecipeFormState {
     iconKey: form.iconKey ?? DEFAULT_AGENT_ICON,
     styleBlock: form.styleBlock,
     rawExamples: joinExamples(form.examples),
+    originalMention: form.mention,
   };
 }
 
