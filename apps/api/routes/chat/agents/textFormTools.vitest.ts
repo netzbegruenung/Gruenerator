@@ -628,6 +628,39 @@ describe('recipes: create — Überschreiben eines Systemrezepts', () => {
     );
   });
 
+  it('canonicalizes a mention DERIVED from the title, not just an explicit one', async () => {
+    // „Presse Hessen" leitet sich auf das zurückgezogene `presse-hessen` ab.
+    // Gespeichert wird die Mention des Urteils, nicht die abgeleitete — sonst
+    // läge die Zeile unter einem Kürzel, das kein Nachschlag je anfragt.
+    const { run, deps } = makeCtx({ forms: [], roles: [HESSEN_ROLE] });
+    const out = await run({ ...CREATE_ARGS, title: 'Presse Hessen' });
+    expect(out).toMatchObject({ ok: true, recipe: { kind: 'recipe' } });
+    expect(deps.upsertTextForm).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({ kind: 'recipe', mention: 'presse-hessen-partei' })
+    );
+  });
+
+  it('checks the collision against the canonical mention, not the derived one', async () => {
+    const { run, deps } = makeCtx({
+      forms: [form({ mention: 'presse-hessen-partei', kind: 'recipe', title: 'PM Hessen' })],
+      roles: [HESSEN_ROLE],
+    });
+    expect(await run({ ...CREATE_ARGS, title: 'Presse Hessen' })).toMatchObject({
+      error: expect.stringMatching(/gibt es schon.*add_examples/),
+    });
+    expect(deps.upsertTextForm).not.toHaveBeenCalled();
+  });
+
+  it('leaves a custom mention derived from the title alone', async () => {
+    const { run, deps } = makeCtx({ forms: [] });
+    await run({ ...CREATE_ARGS, title: 'OV Einladungen' });
+    expect(deps.upsertTextForm).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({ kind: 'custom', mention: 'ov-einladungen' })
+    );
+  });
+
   it('refuses a foreign Landesverband recipe without touching the model', async () => {
     const { run, deps } = makeCtx({ forms: [], roles: [] });
     expect(await run({ ...CREATE_ARGS, mention: 'presse-hessen-partei' })).toMatchObject({

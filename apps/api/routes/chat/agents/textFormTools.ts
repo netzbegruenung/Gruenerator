@@ -434,9 +434,34 @@ Die Beispiele für create und add_examples sind die Texte der Person selbst — 
     const examples = normalizeExamples(args.examples);
     if ('error' in examples) return examples;
 
-    const mention = args.mention?.trim()
+    const requested = args.mention?.trim()
       ? normalizeTextFormMention(args.mention)
       : deriveRecipeMention(title);
+
+    // Welche Art entsteht — dieselbe Regel wie `userTextFormsContractRouter.save`.
+    // Sie läuft VOR der Kollisionsprüfung, weil sie die Mention noch
+    // verschiebt: ein zurückgezogenes Kürzel löst auf seinen Nachfolger auf
+    // (`presse-hessen` → `presse-hessen-partei`). Gespeichert und geprüft wird
+    // deshalb `verdict.mention`, nicht die hier abgeleitete — sonst legte das
+    // Werkzeug eine Zeile an, die keine Mention je erreicht.
+    const verdict = resolveTextFormKind({
+      mention: requested,
+      textType: args.textType ?? null,
+      lvIds: await lvIdsFor(userId),
+    });
+    if (!verdict.ok) {
+      // Zwei verschiedene Fehlerarten teilen sich hier einen Status: eine
+      // ungültige Custom-Mention (Formfehler) und ein Systemrezept, das sich
+      // so nicht überschreiben lässt (Zuteilung/Berechtigung) — nur Letzteres
+      // gehört zu `hasSystemRecipe`.
+      if (hasSystemRecipe(requested)) {
+        return {
+          error: `${verdict.message} Ein mitgeliefertes Rezept lässt sich so nicht überschreiben — wähle eine andere Mention, dann entsteht eine zusätzliche Textform.`,
+        };
+      }
+      return { error: `Ungültige Mention „${requested}": ${verdict.message}` };
+    }
+    const { kind, textType, mention } = verdict;
 
     // Eine Mention gehört genau einer Zeile; `upsert` würde die bestehende
     // still ersetzen — mitsamt allen Beispielen, die die Person dort schon
@@ -449,26 +474,6 @@ Die Beispiele für create und add_examples sind die Texte der Person selbst — 
         error: `Die Textform „${existing.title}" (@${mention}) gibt es schon. Beispiele nachschieben geht mit add_examples, neu anfangen mit delete.`,
       };
     }
-
-    // Welche Art entsteht — dieselbe Regel wie `userTextFormsContractRouter.save`.
-    const verdict = resolveTextFormKind({
-      mention,
-      textType: args.textType ?? null,
-      lvIds: await lvIdsFor(userId),
-    });
-    if (!verdict.ok) {
-      // Zwei verschiedene Fehlerarten teilen sich hier einen Status: eine
-      // ungültige Custom-Mention (Formfehler) und ein Systemrezept, das sich
-      // so nicht überschreiben lässt (Zuteilung/Berechtigung) — nur Letzteres
-      // gehört zu `hasSystemRecipe`.
-      if (hasSystemRecipe(mention)) {
-        return {
-          error: `${verdict.message} Ein mitgeliefertes Rezept lässt sich so nicht überschreiben — wähle eine andere Mention, dann entsteht eine zusätzliche Textform.`,
-        };
-      }
-      return { error: `Ungültige Mention „${mention}": ${verdict.message}` };
-    }
-    const { kind, textType } = verdict;
 
     const description = args.description?.trim() ? args.description.trim() : null;
     const iconKeyInput = args.iconKey?.trim();
