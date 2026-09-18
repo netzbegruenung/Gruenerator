@@ -33,7 +33,13 @@ const okResponse = {
       shareUrl: '/share/tok-mp3',
     },
   ],
-  quota: { usedSeconds: 12, limitSeconds: 1800 },
+  quota: {
+    used: 0.07,
+    limit: 10,
+    remaining: 9.93,
+    resetsAt: '2026-09-19T00:00:00.000Z',
+    newsletterBonus: false,
+  },
 };
 
 beforeAll(() => {

@@ -20,8 +20,8 @@ import {
   sourceOptions,
   targetOptions,
 } from './languageOptions';
-import { QuotaLine } from './QuotaLine';
 
+import { TreeBudgetLine } from '@/components/common/TreeBudgetLine';
 import { cn } from '@/utils/cn';
 
 interface TextTranslatorProps {
@@ -220,7 +220,7 @@ export function TextTranslator({ data }: TextTranslatorProps) {
       ) : null}
 
       <div className="flex flex-wrap items-center justify-between gap-sm">
-        <QuotaLine quota={quota} />
+        <TreeBudgetLine status={quota} />
         <Button type="button" variant="brand" disabled={!canTranslate} onClick={run}>
           {translate.isPending ? 'Übersetze …' : 'Übersetzen'}
         </Button>

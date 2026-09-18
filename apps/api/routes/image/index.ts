@@ -5,20 +5,15 @@
  * This allows flexibility in how routes are mounted in the main app.
  *
  * Controllers:
- * - generationController: Image generation limits and status (/api/image-generation)
  * - pickerController: AI-powered image selection (/api/image-picker)
  */
 
-import generationController from './generationController.js';
 import pickerController from './pickerController.js';
 
-export { generationController, pickerController };
+export { pickerController };
 
 export type {
   AuthenticatedRequest,
-  GenerationStatusResponse,
-  GenerationIncrementResponse,
-  GenerationResetResponse,
   ImageSelectRequestBody,
   ImageValidateRequestBody,
   ImageSelectResponse,

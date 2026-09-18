@@ -53,6 +53,10 @@
       "label": "Datenschutz & Barrierefreiheit"
     },
     {
+      "value": "baeume",
+      "label": "Bäume"
+    },
+    {
       "value": "nutzung",
       "label": "Nutzung"
     },
@@ -161,6 +165,11 @@
       "tab": "konnektoren",
       "title": "Konnektoren",
       "description": "Verbundene Dienste, die im Chat als eigene Quelle ansprechbar sind"
+    },
+    "baeume.stand": {
+      "tab": "baeume",
+      "title": "Bäume",
+      "description": "Dein tägliches Kontingent für Bilder, Sprachausgabe, Übersetzungen und Tiefenrecherche"
     },
     "nutzung.uebersicht": {
       "tab": "nutzung",

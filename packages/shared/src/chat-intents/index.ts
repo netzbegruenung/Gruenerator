@@ -320,7 +320,7 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
     // are expensive: the research agent (`deepAgentTurn`, runs for minutes and
     // files a document) by default, and — when it lacks a key, or a run yields
     // nothing — Linkup's `sourcedAnswer` endpoint
-    // (`deepResearchTurn`). Both meter through `DeepResearchCounter`. Without
+    // (`deepResearchTurn`). A run costs one Baum of the daily budget. Without
     // this mention no path reaches either, not even the agentic loop: there is
     // no tool for it.
     variantMentions: [

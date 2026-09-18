@@ -376,9 +376,9 @@ export const evalScenarioSchema = z
      *
      * Eigene Lane, weil ein Lauf Minuten dauert und Geld kostet — der
      * Rechercheagent kauft gewöhnliche Suchen plus bis zu zwei `deep`-Suchen —
-     * und weil die Tagesration (`DEEP_RESEARCH_DAILY_LIMIT`, 3) geteilt ist:
-     * jeder Default-Lauf würde sie verbrauchen und den nächsten Lauf mit einer
-     * Absage messen statt mit einem Lauf. Der Weg war bis hierher komplett
+     * und weil jeder Lauf einen Baum aus dem geteilten Tagesbudget kostet:
+     * jeder Default-Lauf würde davon zehren und den nächsten Lauf irgendwann
+     * mit einer Absage messen statt mit einem Lauf. Der Weg war bis hierher komplett
      * unbeobachtet (R1 §5: null Szenarien), was ihn zur gefährlichsten Lücke
      * machte — die Lane existiert, damit „unbeobachtet" zu „auf Abruf messbar"
      * wird.
