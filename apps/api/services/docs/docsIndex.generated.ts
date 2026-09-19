@@ -233,6 +233,12 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "lead": "In der Agentura kannst du einen eigenen Grünerator-Agenten für eine Aufgabe erstellen, die du häufiger erledigst, zum Beispiel für Pressemitteilungen, Recherchen oder Social-Media-Texte. Du beschreib…"
   },
   {
+    "url": "/docs/guides/fortgeschrittene/eigene-rezepte-erstellen",
+    "title": "Wie erstelle ich ein eigenes Rezept?",
+    "category": "Guides",
+    "lead": "Ein Rezept ist eine Schreibvorgabe für eine bestimmte Textsorte: Aufbau, Ton und Länge, einmal festgelegt und danach per @mention auf jeden Grünerator-Agenten anwendbar. Anders als ein Grünerator-Age…"
+  },
+  {
     "url": "/docs/guides/fortgeschrittene/gruene-wolke-einbinden",
     "title": "Wie binde ich die Grüne Wolke ein?",
     "category": "Guides",
@@ -1179,7 +1185,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Detailseiten",
     "anchor": "#detailseiten",
     "category": "Features",
-    "text": "Jeder Grünerator und jedes Rezept hat eine eigene Detailseite — wie ein Produkt im Laden. Grüneratoren (/agentura/agent/...): Kopfbereich mit den Aktionen Im Chat öffnen, Favorit und — bei deinen eigenen Grüneratoren — Teilen. Bei allen anderen heißt dieselbe Schaltfläche Link kopieren. Übersicht — Beschreibung des Grünerator-Agenten. Gesprächsbeginn — Begrüßungsnachricht und eine Vorschau auf Beispiel-Antworten. Fähigkeiten — welche Werkzeuge der Grünerator-Agent nutzt und auf welches Wissen er zugreift. Verwandte — ähnliche Grüneratoren, die zum Thema passen. Rezepte (/agentura/rezept/...): Kopfbereich mit den Aktionen Im Chat verwenden, Favorit und Link kopieren. Der vollständige Rezept-Text als Markdown — so siehst du genau, was das Rezept macht, bevor du es nutzt. Eine Vorlage und verwandte Rezepte."
+    "text": "Jeder Grünerator und jedes Rezept hat eine eigene Detailseite — wie ein Produkt im Laden. Grüneratoren (/agentura/agent/...): Kopfbereich mit den Aktionen Im Chat öffnen, Favorit und — bei deinen eigenen Grüneratoren — Teilen. Bei allen anderen heißt dieselbe Schaltfläche Link kopieren. Übersicht — Beschreibung des Grünerator-Agenten. Gesprächsbeginn — Begrüßungsnachricht und eine Vorschau auf Beispiel-Antworten. Fähigkeiten — welche Werkzeuge der Grünerator-Agent nutzt und auf welches Wissen er zugreift. Verwandte — ähnliche Grüneratoren, die zum Thema passen. Rezepte (/agentura/rezept/...): Kopfbereich mit den Aktionen Im Chat verwenden und Favorit. Bei deinen eigenen Rezepten kommen Bearbeiten, Teilen und Löschen hinzu; bei allen anderen heißt die Teilen-Schaltfläche Link kopieren. Bei mitgelieferten Rezepten, die du anpassen darfst (z. B. Presse, Instagram, Landesverbands-Rezepte), zeigt der Kopfbereich zusätzlich Mit eigenen Beispielen anpassen. Hast du bereits einen eigenen Stil hinterlegt, heißt dieselbe Schaltfläche Angepassten Stil bearbeiten und ein Abzeichen zeigt Du hast diesen Stil angepasst. Der vollständige Rezept-Text als Markdown — so siehst du genau, was das…"
   },
   {
     "url": "/docs/features/agentura",
@@ -1188,6 +1194,14 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#eigene-grüneratoren-bauen",
     "category": "Features",
     "text": "Das Herzstück der Agentura: Du kannst deine eigenen Grüneratoren bauen — ganz ohne technische Vorkenntnisse. Wie das Schritt für Schritt geht, liest du unter Eigene Grüneratoren erstellen."
+  },
+  {
+    "url": "/docs/features/agentura",
+    "pageTitle": "Agentura",
+    "heading": "Eigene Rezepte bauen",
+    "anchor": "#eigene-rezepte-bauen",
+    "category": "Features",
+    "text": "Genauso kannst du dir eigene Rezepte bauen — eine Schreibvorgabe für eine bestimmte Textsorte, die du danach per @mention auf jeden Grünerator-Agenten anwendest. Wie das Schritt für Schritt geht, liest du unter Eigene Rezepte erstellen. Die Einstellung Texte anlernen verweist inzwischen nur noch hierher — eigene Rezepte legst du direkt in der Agentura an."
   },
   {
     "url": "/docs/features/agentura",
@@ -1203,7 +1217,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Grüneratoren und Rezepte",
     "anchor": "#grüneratoren-und-rezepte",
     "category": "Features",
-    "text": "In der Agentura leben zwei Arten von Helfern: Grüneratoren sind spezialisierte KI-Persönlichkeiten mit eigenem Ton, eigenem Wissen und eigenen Werkzeugen. Du öffnest sie direkt im Chat und arbeitest dort mit ihnen — oder rufst sie mitten im Gespräch mit @ auf, so wie ein Rezept. Rezepte sind kurze Schnellbefehle für eine konkrete Aufgabe (z. B. eine Pressemitteilung im Stil deines Landesverbands). Du rufst sie im Chat mit @ auf. Eine Faustregel: Ein Grünerator-Agent ist ein eigenständiges Gegenüber für ein ganzes Themenfeld. Ein Rezept ist eine einzelne Vorlage, die du auf jeden beliebigen Grünerator-Agenten anwenden kannst. In der Mehrzahl heißen sie Grüneratoren. In der Einzahl sagen wir Grünerator-Agent — „der Grünerator\" ohne Zusatz meint das Produkt als Ganzes."
+    "text": "In der Agentura leben zwei Arten von Helfern: Grüneratoren sind spezialisierte KI-Persönlichkeiten mit eigenem Ton, eigenem Wissen und eigenen Werkzeugen. Du öffnest sie direkt im Chat und arbeitest dort mit ihnen — oder rufst sie mitten im Gespräch mit @ auf, so wie ein Rezept. Rezepte sind kurze Schnellbefehle für eine konkrete Aufgabe (z. B. eine Pressemitteilung im Stil deines Landesverbands). Du rufst sie im Chat mit @ auf. Eine Faustregel: Ein Grünerator-Agent ist ein eigenständiges Gegenüber für ein ganzes Themenfeld. Ein Rezept ist eine einzelne Vorlage, die du auf jeden beliebigen Grünerator-Agenten anwenden kannst. In der Mehrzahl heißen sie Grüneratoren. In der Einzahl sagen wir Grünerator-Agent — „der Grünerator\" ohne Zusatz meint das Produkt als Ganzes. Eigene Rezepte baust du genauso einfach wie eigene Grüneratoren — über Neu → Rezept oder direkt im Regal Meine Rezepte."
   },
   {
     "url": "/docs/features/agentura",
@@ -1211,7 +1225,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Im Marktplatz stöbern",
     "anchor": "#im-marktplatz-stöbern",
     "category": "Features",
-    "text": "Die Agentura ist wie ein Marktladen aufgebaut. Es gibt Regale, angezeigt als Reihe farbiger Pillen-Buttons oberhalb der Karten — auf schmalen Bildschirmen umbricht die Reihe automatisch in mehrere Zeilen. Regale ohne Inhalt werden ausgeblendet, du siehst also nur, was bei dir tatsächlich etwas enthält — mit zwei Ausnahmen: Meine Grüneratoren und Von der Basis bleiben immer stehen und laden dich stattdessen zum Anlegen ein. Im offiziellen Regal sind die Rezepte zusätzlich nach Rubriken sortiert: . Über das Suchfeld findest du Grüneratoren und Rezepte nach Name oder Beschreibung; sortieren kannst du nach . Ein Grünerator-Agent kann auch nach Zeitplan laufen — etwa „jeden Montag eine Presseschau\". Angelegt wird er über den Link Neue wiederkehrende Aufgabe im Regal Meine Grüneratoren, Unterabschnitt Wiederkehrende Aufgaben (ein eigenes Regal gibt es dafür nicht). Im Editor erscheint dann ein zusätzlicher Zeitplan-Tab; denselben Tab siehst du, wenn du später einen Agenten mit Zeitplan bearbeitest. Auf den Karten der Grüneratoren siehst du außerdem Fähigkeits-Hinweise: welche Werkzeuge sie nutzen, ob sie auf ein Wissens-Notebook zugreifen und für welche Region sie gedacht sind. Suche,…"
+    "text": "Die Agentura ist wie ein Marktladen aufgebaut. Es gibt Regale, angezeigt als Reihe farbiger Pillen-Buttons oberhalb der Karten — auf schmalen Bildschirmen umbricht die Reihe automatisch in mehrere Zeilen. Regale ohne Inhalt werden ausgeblendet, du siehst also nur, was bei dir tatsächlich etwas enthält — mit zwei Ausnahmen: Meine Grüneratoren und Von der Basis bleiben immer stehen und laden dich stattdessen zum Anlegen ein. Im offiziellen Regal sind die Rezepte zusätzlich nach Rubriken sortiert: . Über das Suchfeld findest du Grüneratoren und Rezepte nach Name oder Beschreibung; sortieren kannst du nach . Oben rechts legst du über die Schaltfläche Neu etwas Eigenes an: Grünerator, Rezept oder Wiederkehrende Aufgabe. Ein Grünerator-Agent kann auch nach Zeitplan laufen — etwa „jeden Montag eine Presseschau\". Angelegt wird er über Neu → Wiederkehrende Aufgabe oder den Link Neue wiederkehrende Aufgabe im Regal Meine Grüneratoren, Unterabschnitt Wiederkehrende Aufgaben (ein eigenes Regal gibt es dafür nicht). Im Editor erscheint dann ein zusätzlicher Zeitplan-Tab; denselben Tab siehst du, wenn du später einen Agenten mit Zeitplan bearbeitest. Auf den Karten der Grüneratoren siehst du…"
   },
   {
     "url": "/docs/features/agentura",
@@ -2011,7 +2025,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Schritt 1: Die Agentura öffnen",
     "anchor": "#schritt-1-die-agentura-öffnen",
     "category": "Guides",
-    "text": "Öffne die Agentura. Die Kategorie Meine Grüneratoren ist bereits ausgewählt. Klicke rechts über den Karten auf Neuer Grünerator."
+    "text": "Öffne die Agentura. Die Kategorie Meine Grüneratoren ist bereits ausgewählt. Klicke rechts über den Karten auf Neu → Grünerator."
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-agentinnen-erstellen",
@@ -2052,6 +2066,94 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#schritt-6-speichern-und-testen",
     "category": "Guides",
     "text": "Klicke oben rechts auf Speichern. Erst jetzt wird der Grünerator-Agent angelegt. Anschließend bleibst du auf seiner Bearbeitungsseite und kannst ihn über Im Chat öffnen ausprobieren. Teste dabei mindestens: Fragt der Agent fehlende Angaben ab? Hält er Ton, Aufbau und Grenzen aus der Anleitung ein? Verwendet er nur die Werkzeuge und Wissensquellen, die du vorgesehen hast? Wenn etwas nicht passt, kehre zur Agentura zurück und wähle an der Karte Bearbeiten über das Stift-Symbol. Passe vor allem die Anleitung an, speichere erneut und teste noch einmal."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/eigene-rezepte-erstellen",
+    "pageTitle": "Wie erstelle ich ein eigenes Rezept?",
+    "heading": "Wie erstelle ich ein eigenes Rezept?",
+    "anchor": "",
+    "category": "Guides",
+    "text": "Ein Rezept ist eine Schreibvorgabe für eine bestimmte Textsorte: Aufbau, Ton und Länge, einmal festgelegt und danach per @mention auf jeden Grünerator-Agenten anwendbar. Anders als ein Grünerator-Agent ist ein Rezept kein eigenständiges Gegenüber — es ist eine Vorlage, die du im Chat kurz aktivierst, etwa @presse für eine Pressemitteilung oder ein selbst gebautes @einladung für Einladungen zur Mitgliederversammlung. In der Agentura kannst du dir eigene Rezepte für Textsorten bauen, die du häufiger schreibst."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/eigene-rezepte-erstellen",
+    "pageTitle": "Wie erstelle ich ein eigenes Rezept?",
+    "heading": "Als Standard-Rezept an einem eigenen Grünerator hinterlegen",
+    "anchor": "#als-standard-rezept-an-einem-eigenen-grünerator-hinterlegen",
+    "category": "Guides",
+    "text": "Baust du einen eigenen Grünerator-Agenten, kannst du im Tab Grundlagen unter Standard-Rezept (optional) eines deiner Rezepte auswählen. Der Grünerator-Agent verwendet es dann automatisch, sobald du im Chat kein anderes Rezept per @mention wählst. Wie du einen eigenen Grünerator-Agenten anlegst, steht unter Eigene Grüneratoren erstellen."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/eigene-rezepte-erstellen",
+    "pageTitle": "Wie erstelle ich ein eigenes Rezept?",
+    "heading": "Ein mitgeliefertes Rezept anpassen",
+    "anchor": "#ein-mitgeliefertes-rezept-anpassen",
+    "category": "Guides",
+    "text": "Rezepte, die der Grünerator mitbringt (z. B. Presse, Instagram, Facebook, Landesverbands-Rezepte), kannst du mit deinem eigenen Stil überschreiben, ohne sie neu zu bauen: Öffne das Rezept in der Agentura und klicke auf seiner Detailseite auf „Mit eigenen Beispielen anpassen\". Das öffnet denselben Editor — Name und @mention sind dabei fest vorgegeben, Anleitung und Beispiele füllst du selbst. Danach zeigt die Detailseite des Rezepts das Abzeichen „Du hast diesen Stil angepasst\", und die Schaltfläche heißt fortan „Angepassten Stil bearbeiten\"."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/eigene-rezepte-erstellen",
+    "pageTitle": "Wie erstelle ich ein eigenes Rezept?",
+    "heading": "Schritt 1: Die Agentura öffnen",
+    "anchor": "#schritt-1-die-agentura-öffnen",
+    "category": "Guides",
+    "text": "Öffne die Agentura und klicke rechts über den Karten auf Neu → Rezept. Alternativ öffnest du die Kategorie Meine Rezepte und klickst dort auf Neues Rezept."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/eigene-rezepte-erstellen",
+    "pageTitle": "Wie erstelle ich ein eigenes Rezept?",
+    "heading": "Schritt 2: Einen Weg wählen",
+    "anchor": "#schritt-2-einen-weg-wählen",
+    "category": "Guides",
+    "text": "Auf der Startseite des Rezept-Erstellers stehen dir drei Wege offen: Beschreiben: Schreibe ins Eingabefeld, wofür das Rezept gedacht ist — zum Beispiel „Ein Rezept für Einladungen zur Mitgliederversammlung: förmlicher Ton, mit Tagesordnung und Anmeldehinweis.\" Der Grünerator erstellt daraus einmalig einen Entwurf und öffnet den Editor. Aus Beispielen anlernen: Über den Link „Aus Beispielen anlernen\" öffnest du den Editor direkt im Tab Beispiele, ohne einen Entwurf beschreiben zu müssen. Manuell: Über „Lieber manuell anlegen?\" öffnest du denselben Editor mit leeren Feldern. Gespeichert ist das Rezept in keinem der drei Fälle, solange du nicht auf Speichern klickst."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/eigene-rezepte-erstellen",
+    "pageTitle": "Wie erstelle ich ein eigenes Rezept?",
+    "heading": "Schritt 3: Grundlagen prüfen",
+    "anchor": "#schritt-3-grundlagen-prüfen",
+    "category": "Guides",
+    "text": "Links siehst du das Formular, rechts die Vorschau. Im Tab Grundlagen legst du fest: Name: So erscheint das Rezept in der Agentura. Über die Schaltfläche daneben kannst du sein Symbol ändern. @mention: Der Name, mit dem du das Rezept im Chat aufrufst (z. B. @einladung). Er wird beim Anlegen aus dem Namen abgeleitet und lässt sich danach nicht mehr ändern. Beschreibung: Ein kurzer Satz, der erklärt, wofür das Rezept gedacht ist. Speichern bleibt deaktiviert, solange Name oder Anleitung leer sind."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/eigene-rezepte-erstellen",
+    "pageTitle": "Wie erstelle ich ein eigenes Rezept?",
+    "heading": "Schritt 4: Die Anleitung schreiben",
+    "anchor": "#schritt-4-die-anleitung-schreiben",
+    "category": "Guides",
+    "text": "Im Tab Anleitung trägst du die eigentliche Schreibvorgabe ein: Ton, Aufbau, Länge und alles, was das Ergebnis konsequent einhalten soll. Dieser Text wird dem Modell als Schreibvorgabe gegeben. Baue je Textsorte ein eigenes Rezept, statt mehrere Anlässe in eine Anleitung zu mischen — das hält die Vorgabe eindeutig und das Ergebnis vorhersehbar. Die Anleitung beschreibt Stil und Aufbau — nicht Inhalte. Konkrete Fakten, Namen oder Themen gibst du beim Aufruf im Chat mit (@einladung Klimaschutz-AG, 12. März), nicht fest in der Anleitung. So bleibt das Rezept für jeden Anlass wiederverwendbar."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/eigene-rezepte-erstellen",
+    "pageTitle": "Wie erstelle ich ein eigenes Rezept?",
+    "heading": "Schritt 5: Optional aus Beispielen anlernen",
+    "anchor": "#schritt-5-optional-aus-beispielen-anlernen",
+    "category": "Guides",
+    "text": "Statt die Anleitung selbst zu schreiben, kannst du sie aus vorhandenen Texten ableiten lassen. Öffne dazu den Tab Beispiele: Füge mehrere Beispieltexte in das eine Textfeld ein — hintereinander, getrennt durch eine Zeile aus ---, eine Überschrift wie „Beispiel 2\", eine Nummerierung oder doppelte Leerzeilen. Alternativ lädst du PDF-, Word-, PowerPoint-, Bild- oder Textdateien hoch. Klicke auf „Gemeinsamkeiten erkennen\". Der Grünerator leitet daraus eine Anleitung ab und trägt sie in den Tab Anleitung ein. Prüfe und passe das Ergebnis dort an — die KI liefert einen Entwurf, keine endgültige Vorgabe."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/eigene-rezepte-erstellen",
+    "pageTitle": "Wie erstelle ich ein eigenes Rezept?",
+    "heading": "Schritt 6: Speichern und testen",
+    "anchor": "#schritt-6-speichern-und-testen",
+    "category": "Guides",
+    "text": "Klicke oben rechts auf Speichern. Anschließend kannst du das Rezept über Im Chat verwenden direkt ausprobieren. Teste dabei, ob Ton, Aufbau und Länge der Anleitung entsprechen — passt etwas nicht, kehre in den Tab Anleitung zurück, passe sie an und speichere erneut."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/eigene-rezepte-erstellen",
+    "pageTitle": "Wie erstelle ich ein eigenes Rezept?",
+    "heading": "Teilen",
+    "anchor": "#teilen",
+    "category": "Guides",
+    "text": "Im Tab Teilen (nur bei bereits gespeicherten eigenen Rezepten) legst du die Sichtbarkeit fest: Privat — nur du siehst das Rezept. Mit Projekten geteilt — du wählst eines oder mehrere deiner Projekte aus; alle Mitglieder können das Rezept dann im Chat nutzen. Mit Anmeldung — alle eingeloggten Nutzer*innen können es aufrufen. Zusätzlich kannst du dein Rezept „Von der Basis\" listen, damit es andere in der Agentura entdecken. Dafür bestätigst du einmal, dass du die Inhalte besitzt (oder zur Veröffentlichung berechtigt bist) oder dass sie öffentlich verfügbar sind — dieses Attest erscheint, sobald du die Listung aktivierst."
+  },
+  {
+    "url": "/docs/guides/fortgeschrittene/eigene-rezepte-erstellen",
+    "pageTitle": "Wie erstelle ich ein eigenes Rezept?",
+    "heading": "Tipps für die Nutzung",
+    "anchor": "#tipps-für-die-nutzung",
+    "category": "Guides",
+    "text": "Ein Rezept je Textsorte — mische nicht mehrere Anlässe in eine Anleitung. Keine Fakten oder Namen in die Anleitung — die gibst du beim Aufruf im Chat mit. Kombiniere Rezept + Quelle + Thema im Chat, z. B. @presse @grundsatz Klimaschutz in Kommunen. Schau dir ähnliche Rezepte in der Agentura an, bevor du eines neu baust — vielleicht reicht ein angepasster Stil eines mitgelieferten Rezepts."
   },
   {
     "url": "/docs/guides/fortgeschrittene/gruene-wolke-einbinden",
