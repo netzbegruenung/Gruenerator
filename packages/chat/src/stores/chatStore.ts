@@ -154,10 +154,15 @@ interface AgentState {
    *  when a skill mention is inserted; cleared on agent change / new thread.
    *  Sent to backend so it appends only the relevant skill's prompt fragment. */
   activeSkillMention: string | null;
+  /** Row id of `activeSkillMention` when it names a user recipe (own, group-
+   *  shared or public text form) rather than a system skill — sent alongside
+   *  it so the backend can resolve by id instead of by mention. `null` for a
+   *  system skill, and everywhere `activeSkillMention` resets to `null`. */
+  activeRecipeId: string | null;
   /** Pinned MCP connector (session-scoped, not persisted). Set from the
    *  composer's "Konnektoren" menu; cleared on new thread / new chat. */
   pinnedConnector: PinnedConnector | null;
-  setActiveSkillMention: (mention: string | null) => void;
+  setActiveSkillMention: (mention: string | null, recipeId?: string | null) => void;
   setPinnedConnector: (connector: PinnedConnector | null) => void;
   setSelectedAgent: (agentId: string | null) => void;
   setSelectedProvider: (provider: Provider) => void;
@@ -253,18 +258,26 @@ export const useAgentStore = create<AgentState>()(
       roleRefSource: 'load',
       customEnabledTools: null,
       activeSkillMention: null,
+      activeRecipeId: null,
       pinnedConnector: null,
 
-      setActiveSkillMention: (mention) => set({ activeSkillMention: mention }),
+      setActiveSkillMention: (mention, recipeId = null) =>
+        set({ activeSkillMention: mention, activeRecipeId: recipeId }),
 
       setPinnedConnector: (connector) => set({ pinnedConnector: connector }),
 
       setSelectedAgent: (agentId) =>
-        set({ selectedAgentId: agentId, activeSkillMention: null, pinnedConnector: null }),
+        set({
+          selectedAgentId: agentId,
+          activeSkillMention: null,
+          activeRecipeId: null,
+          pinnedConnector: null,
+        }),
 
       resetThreadContext: () =>
         set({
           activeSkillMention: null,
+          activeRecipeId: null,
           pinnedConnector: null,
           customSystemPrompt: null,
           customRoleName: null,
@@ -278,6 +291,7 @@ export const useAgentStore = create<AgentState>()(
         set({
           selectedAgentId: null,
           activeSkillMention: null,
+          activeRecipeId: null,
           pinnedConnector: null,
           customEnabledTools: null,
           // Die Standardrolle synchron mit anwenden, statt zu nullen und auf
@@ -717,7 +731,9 @@ function switchThread(threadId: string | null, opts: { keepMentions: boolean }):
     compactionState: { ...DEFAULT_COMPACTION_STATE },
     messageCount: 0,
     needsCompaction: false,
-    ...(opts.keepMentions ? {} : { activeSkillMention: null, pinnedConnector: null }),
+    ...(opts.keepMentions
+      ? {}
+      : { activeSkillMention: null, activeRecipeId: null, pinnedConnector: null }),
   });
   // The Sharepic-Modus (docked artifact panel) is thread-scoped: a
   // variant from the old thread must not stay pinned — nor be sent as

@@ -19,11 +19,13 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { TextFormInjection } from '../../../../services/user/textFormRepository.js';
+
 const getInternalSkillPrompt = vi.fn<(mention: string) => string | null>();
 const getTextFormForInjection =
-  vi.fn<
-    (userId: string, mention: string) => Promise<{ title: string; styleBlock: string } | null>
-  >();
+  vi.fn<(userId: string, mention: string) => Promise<TextFormInjection | null>>();
+const getTextFormForInjectionById =
+  vi.fn<(id: string, userId: string) => Promise<TextFormInjection | null>>();
 
 vi.mock('../../../../services/skills/internalPrompts.js', () => ({
   getInternalSkillPrompt: (mention: string) => getInternalSkillPrompt(mention),
@@ -32,6 +34,8 @@ vi.mock('../../../../services/skills/internalPrompts.js', () => ({
 vi.mock('../../../../services/user/textFormRepository.js', () => ({
   getTextFormForInjection: (userId: string, mention: string) =>
     getTextFormForInjection(userId, mention),
+  getTextFormForInjectionById: (id: string, userId: string) =>
+    getTextFormForInjectionById(id, userId),
 }));
 
 const { craftGuidanceForPlatform, rubricForPlatform } =
@@ -41,11 +45,26 @@ const RECIPE = 'REZEPTTEXT-AUS-DEM-INTERNEN-REPO';
 const STYLE = 'ANGELERNTER-STILBLOCK';
 const USER = 'user-1';
 
+/** Eine vollständige Zeile — der gemeinsame Nachschlag liest auch `mention`. */
+function learnedForm(mention: string): TextFormInjection {
+  return {
+    id: `row-${mention}`,
+    mention,
+    kind: 'custom',
+    textType: null,
+    title: 'Mein Insta',
+    styleBlock: STYLE,
+    access: 'own',
+  };
+}
+
 beforeEach(() => {
   getInternalSkillPrompt.mockReset();
   getInternalSkillPrompt.mockReturnValue(null);
   getTextFormForInjection.mockReset();
   getTextFormForInjection.mockResolvedValue(null);
+  getTextFormForInjectionById.mockReset();
+  getTextFormForInjectionById.mockResolvedValue(null);
 });
 
 describe('craftGuidanceForPlatform — das Rezept gewinnt', () => {
@@ -125,7 +144,7 @@ describe('craftGuidanceForPlatform — das Rezept gewinnt', () => {
 describe('craftGuidanceForPlatform — der angelernte Stil gewinnt', () => {
   it('ersetzt das Rezept zur erkannten Plattform', async () => {
     getInternalSkillPrompt.mockReturnValue(RECIPE);
-    getTextFormForInjection.mockResolvedValue({ title: 'Mein Insta', styleBlock: STYLE });
+    getTextFormForInjection.mockResolvedValue(learnedForm('instagram'));
 
     const guidance = await craftGuidanceForPlatform('instagram', null, USER);
 
@@ -138,7 +157,7 @@ describe('craftGuidanceForPlatform — der angelernte Stil gewinnt', () => {
   });
 
   it('ersetzt auch die eingebaute Rubrik, wenn kein Rezept ausgerollt ist', async () => {
-    getTextFormForInjection.mockResolvedValue({ title: 'Mein Insta', styleBlock: STYLE });
+    getTextFormForInjection.mockResolvedValue(learnedForm('instagram'));
     const guidance = await craftGuidanceForPlatform('instagram', null, USER);
     expect(guidance).toContain(STYLE);
     expect(guidance).not.toContain('INSTAGRAM-HANDWERK');
@@ -148,7 +167,7 @@ describe('craftGuidanceForPlatform — der angelernte Stil gewinnt', () => {
   // — dieselbe Grenze, die `respondNode` und `resolveRecipe` ziehen. Und die
   // Markierung braucht die Regelhierarchie, sonst steht sie unerklärt im Prompt.
   it('fasst den Stilblock als Material ein und erklärt die Markierung', async () => {
-    getTextFormForInjection.mockResolvedValue({ title: 'Mein Insta', styleBlock: STYLE });
+    getTextFormForInjection.mockResolvedValue(learnedForm('instagram'));
     const guidance = await craftGuidanceForPlatform('instagram', null, USER);
     expect(guidance).toContain('<untrusted_content');
     expect(guidance).toContain('REGELHIERARCHIE');
