@@ -269,6 +269,16 @@ describe('assembleToolCatalog — Rezept-Werkzeug', () => {
     expect(assembled.tools.rezept_laden).toBeUndefined();
   });
 
+  it('fragt den Katalog gar nicht ab, wenn ein Rezept per Id gepinnt ist', async () => {
+    const buildRecipeCatalog = vi.fn(async () => catalog);
+    const assembled = await assemble(
+      fakeState({ activeSkillMention: null, activeRecipeId: 'presse' }),
+      withRecipes({ buildRecipeCatalog })
+    );
+    expect(buildRecipeCatalog).not.toHaveBeenCalled();
+    expect(assembled.tools.rezept_laden).toBeUndefined();
+  });
+
   it('respektiert das ausgeschaltete Werkzeug', async () => {
     const assembled = await assemble(
       fakeState({ enabledTools: { rezept_laden: false } }),

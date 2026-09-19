@@ -4,6 +4,7 @@ import {
   useUserLandesverbaende,
   type AgentListItem,
 } from '@gruenerator/chat';
+import { type TextForm } from '@gruenerator/contracts';
 import {
   SKILL_CATEGORY_LABELS,
   SKILL_CATEGORY_ORDER,
@@ -38,6 +39,7 @@ import { agentIcon } from '../../components/chat/sidebarIcons';
 import { ChipGroup, ListGroup, ListRow, SkeletonRows } from '../../components/common';
 import { ScreenScaffold } from '../../components/navigation/ScreenScaffold';
 import { CURRENT_INSTANCE } from '../../config/instance';
+import { useOwnRecipes } from '../../hooks/agents/useOwnRecipes';
 import { usePublicUserAgents } from '../../hooks/agents/usePublicUserAgents';
 import { useUserAgents } from '../../hooks/agents/useUserAgents';
 import { spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../theme';
@@ -72,6 +74,7 @@ export default function AgentsScreen() {
     isLoading: publicLoading,
     error: publicError,
   } = usePublicUserAgents();
+  const { data: ownRecipes = [] } = useOwnRecipes();
 
   // Die Landesverbands-Zuteilung: LV-Grüneratoren und -Rezepte gehören den
   // Leuten des jeweiligen Verbands, gebunden an die Rolle „Mitarbeiter*in
@@ -161,16 +164,21 @@ export default function AgentsScreen() {
   // A recipe is a composer mention, not an agent selection: open a fresh chat
   // with the mention already typed, so the next thing the user does is describe
   // the task rather than remember the syntax.
-  const openSkill = useCallback(
-    (skill: AgentListItem) => {
+  const openWithComposerText = useCallback(
+    (text: string) => {
       router.push(
         routeWithParams('/(focused)/chat-conversation', {
           threadId: 'new',
-          initialComposerText: `${skill.mention} `,
+          initialComposerText: text,
         })
       );
     },
     [router]
+  );
+
+  const openSkill = useCallback(
+    (skill: AgentListItem) => openWithComposerText(`${skill.mention} `),
+    [openWithComposerText]
   );
 
   const shelves = useMemo(() => agenturaCategoriesForPlatform('mobile'), []);
@@ -199,6 +207,20 @@ export default function AgentsScreen() {
       value={skill.description}
       valueLines={2}
       onPress={() => openSkill(skill)}
+      last={last}
+    />
+  );
+
+  // A user's own recipe behaves exactly like a system one here: its mention is
+  // what the chat needs, so the row opens a fresh chat with it already typed.
+  const recipeRow = (recipe: TextForm, last: boolean): ReactNode => (
+    <ListRow
+      key={recipe.id}
+      icon={agentIcon(recipe.iconKey ?? 'sparkles')}
+      title={recipe.title}
+      value={recipe.description ?? `@${recipe.mention}`}
+      valueLines={2}
+      onPress={() => openWithComposerText(`@${recipe.mention} `)}
       last={last}
     />
   );
@@ -238,12 +260,21 @@ export default function AgentsScreen() {
       matches([a.title, a.description, a.identifier])
     );
     const foundSkills = skills.filter((s) => matches([s.title, s.description, s.mention]));
+    const foundRecipes = ownRecipes.filter((r) =>
+      matches([r.title, r.description ?? undefined, r.mention])
+    );
     body =
-      foundAgents.length + foundSkills.length === 0 ? (
+      foundAgents.length + foundSkills.length + foundRecipes.length === 0 ? (
         emptyNote('Keine Treffer. Versuch ein anderes Stichwort.')
       ) : (
         <View style={styles.sections}>
           {foundAgents.length > 0 && section('s-agents', 'Grüneratoren', agentGroup(foundAgents))}
+          {foundRecipes.length > 0 &&
+            section(
+              's-recipes',
+              'Meine Rezepte',
+              group(foundRecipes.map((r, i) => recipeRow(r, i === foundRecipes.length - 1)))
+            )}
           {foundSkills.length > 0 &&
             section(
               's-skills',
@@ -259,15 +290,33 @@ export default function AgentsScreen() {
     // of a shelf that never needed the network.
     body = agentGroup(featuredAgents);
   } else if (shelf === 'meine') {
-    body = isLoading
-      ? shelfSkeleton
-      : error
-        ? emptyNote('Deine Grüneratoren konnten nicht geladen werden.')
-        : userAgents.length > 0
-          ? agentGroup(userAgents)
-          : emptyNote(
-              'Du hast noch keine eigenen Grüneratoren. Anlegen geht am Rechner — hier findest du sie danach wieder.'
-            );
+    // Recipes share the shelf with the Grüneratoren: both are things this user
+    // made, and both are built on the web. The recipe section stays out of the
+    // way when there is none — its absence is not an error worth a note.
+    const ownRecipesSection =
+      ownRecipes.length > 0
+        ? section(
+            'meine-rezepte',
+            'Meine Rezepte',
+            group(ownRecipes.map((r, i) => recipeRow(r, i === ownRecipes.length - 1)))
+          )
+        : null;
+
+    body = isLoading ? (
+      shelfSkeleton
+    ) : error ? (
+      emptyNote('Deine Grüneratoren konnten nicht geladen werden.')
+    ) : userAgents.length > 0 || ownRecipesSection ? (
+      <View style={styles.sections}>
+        {userAgents.length > 0 &&
+          section('meine-agenten', 'Meine Grüneratoren', agentGroup(userAgents))}
+        {ownRecipesSection}
+      </View>
+    ) : (
+      emptyNote(
+        'Du hast noch keine eigenen Grüneratoren oder Rezepte. Anlegen geht am Rechner — hier findest du sie danach wieder.'
+      )
+    );
   } else if (shelf === 'community') {
     body = publicLoading
       ? shelfSkeleton
