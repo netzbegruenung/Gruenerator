@@ -86,20 +86,18 @@ describe('remarkCitationMarkers', () => {
   it('descends into inline containers such as strong and strikethrough', () => {
     const tree = run(
       root(
-        paragraph(
-          { type: 'delete', children: [text('falsch [1]')] },
-          text(' richtig '),
-          { type: 'strong', children: [text('[2]')] }
-        )
+        paragraph({ type: 'delete', children: [text('falsch [1]')] }, text(' richtig '), {
+          type: 'strong',
+          children: [text('[2]')],
+        })
       )
     );
     expect(tree).toEqual(
       root(
-        paragraph(
-          { type: 'delete', children: [text('falsch '), cite('1')] },
-          text(' richtig '),
-          { type: 'strong', children: [cite('2')] }
-        )
+        paragraph({ type: 'delete', children: [text('falsch '), cite('1')] }, text(' richtig '), {
+          type: 'strong',
+          children: [cite('2')],
+        })
       )
     );
   });
