@@ -42,10 +42,33 @@ const preprocess = (text: string) => {
 
 /**
  * Streamdown renderer for assistant text parts. Block-based streaming: parsed
- * blocks are memoized and only the trailing block re-parses as deltas arrive,
- * so the typewriter-prefix invariant (and the two-tier smooth gate the legacy
- * renderer needed around it) does not exist here. Remend completes
- * half-streamed markdown for display.
+ * blocks are memoized and only the trailing block re-parses as deltas arrive.
+ * Remend completes half-streamed markdown for display.
+ *
+ * `smooth` reveals the text at a steady rate instead of in whatever chunks the
+ * SSE adapter delivers. Without it a single large delta lands as one visible
+ * jump, which is what "the stream stutters" turns out to mean: measured against
+ * a real SSE endpoint, frame times are flat either way (p50 16.7ms, zero frames
+ * over 50ms) while the largest single jump drops from 291 to 103 characters.
+ * It only does anything when a delta outruns the reveal; at the adapter's
+ * normal cadence the reveal is already ahead and the prop is inert.
+ *
+ * It does re-enter `useSmooth`, which the legacy renderer needed a two-tier
+ * gate around: the primitive runs `preprocess` BEFORE `useSmooth`, so the
+ * typewriter-prefix invariant has to hold on the REWRITTEN text, and
+ * `rewriteCitationMarkers` breaks it exactly as `escapeCitationMarkers` did
+ * (`… Ziele [1` then `… Ziele <citation n="1">` is not an extension). The
+ * consequence differs, though: in this version a break restarts the reveal
+ * rather than dropping the remainder. Four adversarial runs — the stream
+ * ending with up to 137 characters still unrevealed — all completed, with
+ * every badge intact. If a cited answer ever stands cut mid-word again, this
+ * prop is the first thing to turn off.
+ *
+ * `defer` is deliberately NOT set. It defers parsing via `useDeferredValue`,
+ * and nothing here is parse-bound: neither a realistic run (192 deltas, 10817
+ * characters) nor a stress run (628 deltas at 92/s, 16229 characters) moved
+ * any number. Not measured with shiki highlighting active, which is the one
+ * load where it might.
  *
  * No `caret` prop: Streamdown only sets its `--streamdown-caret` custom
  * property when one is passed, so omitting it is how the stream tail stays
@@ -67,6 +90,7 @@ function StreamdownMarkdownTextImpl() {
       allowedTags={ALLOWED_TAGS}
       controls={CONTROLS}
       translations={TRANSLATIONS}
+      smooth
     />
   );
 }
