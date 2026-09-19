@@ -3,8 +3,13 @@
  *
  * CRUD over `user_text_forms` plus the chat hot-path reads
  * `getTextFormForInjection` (by mention) and `getTextFormForInjectionById`
- * (by row id), both served from an in-process cache. The row is converted to
- * the camelCase `TextForm` contract shape at the boundary.
+ * (by row id). Both read Postgres on every call: the selectors are indexed
+ * (`idx_user_text_forms_mention`, the primary key), and a chat turn does at
+ * most two of them next to an LLM call that costs seconds. They were cached
+ * in-process until #3470 — the API runs in cluster mode, so a write only ever
+ * invalidated the one worker that handled it while every other worker kept
+ * serving its stale answer until the TTL ran out. The row is converted to the
+ * camelCase `TextForm` contract shape at the boundary.
  *
  * Visibility is the same three-step ladder as user agents: the caller's own
  * row, then anything shared into one of their groups, then the public catalog.
@@ -144,57 +149,6 @@ export function applySharingPatch(
   if (!is_public)
     return { ok: true, next: { share_mode, is_public: false, public_ownership: null } };
   return { ok: true, next: { share_mode, is_public, public_ownership } };
-}
-
-// ── Injection cache ──────────────────────────────────────────────────────────
-
-/** A row the caller owns changes only when they change it, and every writer
- * runs `invalidateInjectionCache` — so it may be held for an hour. */
-const OWN_TTL_MS = 60 * 60 * 1000;
-/**
- * A foreign row (group-shared or public) — and a `null` result, which a foreign
- * row could turn into a hit — is held for five minutes only.
- *
- * The cache is per PROCESS, and the API runs in cluster mode: a share toggled
- * in worker A does not reach worker B's map, so B keeps serving its stale
- * answer until this TTL runs out. Issue #3470 records that limitation; until it
- * is fixed, this number IS the propagation delay for every sharing change.
- */
-const FOREIGN_TTL_MS = 5 * 60 * 1000;
-
-const injectionCache = new Map<string, { value: TextFormInjection | null; expires: number }>();
-
-/** Cache key. The scope prefix keeps the two lookups apart; the `::` before the
- * lookup value is what `invalidateInjectionCache` matches on. */
-export function injectionCacheKey(scope: 'mention' | 'id', userId: string, value: string): string {
-  return `${scope}:${userId}::${value}`;
-}
-
-/** TTL policy: own rows an hour, everything else (including a miss) five minutes. */
-export function injectionTtlMs(value: TextFormInjection | null): number {
-  return value && value.access === 'own' ? OWN_TTL_MS : FOREIGN_TTL_MS;
-}
-
-/**
- * Drops every cached entry for this row — under both scopes and for EVERY user,
- * not just the owner: a recipe shared or published reaches other users' caches
- * too, and they key it by their own id. Hence the suffix match rather than the
- * owner's key; `userId` is deliberately not a parameter.
- */
-function invalidateInjectionCache(mention: string, id: string | null): void {
-  const suffixes = id ? [`::${mention}`, `::${id}`] : [`::${mention}`];
-  for (const key of injectionCache.keys()) {
-    if (suffixes.some((suffix) => key.endsWith(suffix))) injectionCache.delete(key);
-  }
-}
-
-/**
- * A sharing change moves a row between access levels for an unbounded set of
- * users, so there is no cheap key set to invalidate — the map is small and
- * refills from the hot path within a turn.
- */
-function invalidateAllTextFormInjections(): void {
-  injectionCache.clear();
 }
 
 function rowToTextForm(
@@ -424,18 +378,6 @@ async function loadInjection(
   };
 }
 
-async function cachedInjection(
-  key: string,
-  load: () => Promise<TextFormInjection | null>
-): Promise<TextFormInjection | null> {
-  const cached = injectionCache.get(key);
-  if (cached && cached.expires > Date.now()) return cached.value;
-
-  const value = await load();
-  injectionCache.set(key, { value, expires: Date.now() + injectionTtlMs(value) });
-  return value;
-}
-
 /**
  * Chat hot-path read: the injectable style for `(userId, mention)`, or null when
  * no visible recipe carries it. Own recipe first, then one shared into one of the
@@ -446,9 +388,7 @@ export async function getTextFormForInjection(
   userId: string,
   mention: string
 ): Promise<TextFormInjection | null> {
-  return cachedInjection(injectionCacheKey('mention', userId, mention), () =>
-    loadInjection(INJECTION_BY_MENTION_SQL, userId, mention)
-  );
+  return loadInjection(INJECTION_BY_MENTION_SQL, userId, mention);
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -466,9 +406,7 @@ export async function getTextFormForInjectionById(
   userId: string
 ): Promise<TextFormInjection | null> {
   if (!UUID_RE.test(id)) return null;
-  return cachedInjection(injectionCacheKey('id', userId, id), () =>
-    loadInjection(INJECTION_BY_ID_SQL, userId, id)
-  );
+  return loadInjection(INJECTION_BY_ID_SQL, userId, id);
 }
 
 /** Owner-scoped lookup of a recipe's sharing state (and its UUID). */
@@ -553,7 +491,6 @@ export async function updateTextFormSharing(
     .where(eq(userTextForms.id, row.id))
     .returning({ id: userTextForms.id });
 
-  invalidateAllTextFormInjections();
   return { ok: true, updated: updated.length > 0 };
 }
 
@@ -600,7 +537,6 @@ export async function shareTextFormWithGroup(
     [userId, TEXT_FORM_CONTENT_TYPE, form.id, groupId]
   );
 
-  invalidateAllTextFormInjections();
   const shares = await loadSharesFor([form.id]);
   return shares.get(form.id) ?? [];
 }
@@ -627,7 +563,6 @@ export async function unshareTextFormFromGroup(
     [TEXT_FORM_CONTENT_TYPE, form.id, groupId]
   );
 
-  invalidateAllTextFormInjections();
   const shares = await loadSharesFor([form.id]);
   return shares.get(form.id) ?? [];
 }
@@ -704,7 +639,6 @@ export async function upsertTextForm(userId: string, input: TextFormInput): Prom
     .returning();
   const row = rows[0];
   if (!row) throw new Error('Failed to upsert text form');
-  invalidateInjectionCache(input.mention, String(row.id));
   return rowToTextForm(row);
 }
 
@@ -714,7 +648,6 @@ export async function deleteTextForm(userId: string, mention: string): Promise<b
     .delete(userTextForms)
     .where(and(eq(userTextForms.user_id, userId), eq(userTextForms.mention, mention)))
     .returning({ id: userTextForms.id });
-  invalidateInjectionCache(mention, rows[0] ? String(rows[0].id) : null);
   return rows.length > 0;
 }
 
