@@ -9,7 +9,6 @@
  */
 import {
   type NotebookAudience,
-  type NotebookUserGroup,
   type PublicOwnership,
   type UserAgentGroupShare,
   type UserAgentShareMode,
@@ -18,9 +17,12 @@ import {
 import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+import { useMyGroupsForSharing } from './useMyGroupsForSharing';
+
+export { useMyGroupsForSharing };
+
 const SHARE_SETTINGS_KEY = (id: string) => ['agent', 'share', 'settings', id];
 const GROUP_SHARES_KEY = (id: string) => ['agent', 'share', 'groups', id];
-const MY_GROUPS_KEY = ['notebook', 'share', 'my-groups']; // shared endpoint
 
 export function useAgentShareSettings(identifier: string | null, enabled: boolean) {
   return useQuery({
@@ -52,22 +54,6 @@ export function useAgentGroupShares(identifier: string | null, enabled: boolean)
       });
       if (result.status !== 200) {
         throw new ApiError(result.status, `Failed to fetch group shares (HTTP ${result.status})`);
-      }
-      return result.body;
-    },
-  });
-}
-
-export function useMyGroupsForSharing(enabled: boolean) {
-  return useQuery({
-    queryKey: MY_GROUPS_KEY,
-    enabled,
-    retry: false,
-    queryFn: async (): Promise<NotebookUserGroup[]> => {
-      const client = getContractsClient();
-      const result = await client.notebookSharing.listMyGroups({});
-      if (result.status !== 200) {
-        throw new ApiError(result.status, `Failed to fetch user groups (HTTP ${result.status})`);
       }
       return result.body;
     },

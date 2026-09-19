@@ -5,7 +5,6 @@
  * Used by the @stadtbegruenen tool mention for green urban transformation.
  */
 
-import { ImageGenerationCounter } from '../../../../services/counters/index.js';
 import {
   FluxImageService,
   buildGreenEditPrompt,
@@ -14,15 +13,18 @@ import {
   type ReferenceImage,
 } from '../../../../services/flux/index.js';
 import { MAX_REFERENCE_IMAGES, fitToBudget } from '../../../../services/flux/referenceImages.js';
+import {
+  getTreeBudget,
+  treeBudgetSpentMessage,
+  treeCostForImage,
+  TreeBudgetUnavailableError,
+} from '../../../../services/trees/index.js';
 import { visionService } from '../../../../services/vision/VisionService.js';
 import { createLogger } from '../../../../utils/logger.js';
-import { redisClient } from '../../../../utils/redis/index.js';
 
 import type { ChatGraphState, GeneratedImageResult, ImageEditStyle, ImageStyle } from '../types.js';
 
 const log = createLogger('ChatGraph:ImageEditNode');
-
-const imageCounter = new ImageGenerationCounter(redisClient);
 
 /**
  * Image edit node implementation.
@@ -51,20 +53,6 @@ export async function imageEditNode(state: ChatGraphState): Promise<Partial<Chat
         imageStyle: null,
         imageTimeMs: Date.now() - startTime,
         error: 'User authentication required for image editing',
-      };
-    }
-
-    const limitStatus = await imageCounter.checkLimit(userId);
-    if (!limitStatus.canGenerate) {
-      log.info(
-        `[ImageEditNode] User ${userId} has reached daily image limit (${limitStatus.count}/${limitStatus.limit})`
-      );
-      return {
-        generatedImage: null,
-        imagePrompt: userContent,
-        imageStyle: null,
-        imageTimeMs: Date.now() - startTime,
-        error: `Du hast dein tägliches Limit von ${limitStatus.limit} Bildern erreicht. Versuche es morgen wieder.`,
       };
     }
 
@@ -111,19 +99,46 @@ export async function imageEditNode(state: ChatGraphState): Promise<Partial<Chat
       `[ImageEditNode] Built ${editStyle} prompt (${prompt.length} chars, ${references.length} reference image(s))`
     );
 
-    const flux = await FluxImageService.create();
-    const { stored }: GenerateResult = await flux.generateFromImages(prompt, processed, {
-      output_format: 'jpeg',
-      safety_tolerance: 2,
-    });
+    // This node always calls FluxImageService.create() with no model override,
+    // so it always pays the single-image rate.
+    const cost = treeCostForImage(1);
+    const budget = getTreeBudget();
+    const reservation = await budget.reserve(userId, cost);
+    if (!reservation.ok) {
+      if (reservation.reason === 'unavailable') {
+        return {
+          generatedImage: null,
+          imagePrompt: userContent,
+          imageStyle: null,
+          imageTimeMs: Date.now() - startTime,
+          error: new TreeBudgetUnavailableError().message,
+        };
+      }
+      log.info(`[ImageEditNode] User ${userId} has reached the tree budget`);
+      return {
+        generatedImage: null,
+        imagePrompt: userContent,
+        imageStyle: null,
+        imageTimeMs: Date.now() - startTime,
+        error: treeBudgetSpentMessage(reservation.status, cost),
+      };
+    }
 
-    await imageCounter.incrementCount(userId);
-    const updatedStatus = await imageCounter.checkLimit(userId);
+    let generated: GenerateResult;
+    try {
+      const flux = await FluxImageService.create();
+      generated = await flux.generateFromImages(prompt, processed, {
+        output_format: 'jpeg',
+        safety_tolerance: 2,
+      });
+    } catch (error) {
+      await budget.release(userId, cost, reservation.status.day);
+      throw error;
+    }
+    const { stored } = generated;
 
     const imageTimeMs = Date.now() - startTime;
-    log.info(
-      `[ImageEditNode] Image edited in ${imageTimeMs}ms, user usage: ${updatedStatus.count}/${updatedStatus.limit}`
-    );
+    log.info(`[ImageEditNode] Image edited in ${imageTimeMs}ms`);
 
     const imageUrl = `/uploads/flux/results/${stored.relativePath.split('/').slice(-2).join('/')}`;
 

@@ -27,17 +27,19 @@ beforeEach(() => {
     currentThreadId: null,
     pinnedConnector: { ...PINNED },
     activeSkillMention: 'presse',
+    activeRecipeId: 'recipe-presse-1',
     messageCount: 5,
   });
 });
 
 describe('mintThreadFromDraft', () => {
-  it('behält Konnektor und Rezept, wenn der Entwurf zum Thread wird', () => {
+  it('behält Konnektor und Rezept (samt Rezept-Id), wenn der Entwurf zum Thread wird', () => {
     useAgentStore.getState().mintThreadFromDraft('thread-neu');
 
     const state = useAgentStore.getState();
     expect(state.pinnedConnector).toEqual(PINNED);
     expect(state.activeSkillMention).toBe('presse');
+    expect(state.activeRecipeId).toBe('recipe-presse-1');
   });
 
   it('setzt den restlichen Thread-Zustand beim Münzen trotzdem zurück', () => {
@@ -57,6 +59,7 @@ describe('setCurrentThread', () => {
     const state = useAgentStore.getState();
     expect(state.pinnedConnector).toBeNull();
     expect(state.activeSkillMention).toBeNull();
+    expect(state.activeRecipeId).toBeNull();
   });
 
   it('räumt beim Wechsel zwischen zwei Threads ab', () => {
@@ -67,6 +70,7 @@ describe('setCurrentThread', () => {
     const state = useAgentStore.getState();
     expect(state.pinnedConnector).toBeNull();
     expect(state.activeSkillMention).toBeNull();
+    expect(state.activeRecipeId).toBeNull();
   });
 
   it('räumt beim Verlassen in den Entwurf ab (neuer Chat)', () => {
@@ -77,5 +81,44 @@ describe('setCurrentThread', () => {
     const state = useAgentStore.getState();
     expect(state.pinnedConnector).toBeNull();
     expect(state.activeSkillMention).toBeNull();
+    expect(state.activeRecipeId).toBeNull();
+  });
+});
+
+describe('setActiveSkillMention', () => {
+  it('setzt Mention UND Rezept-Id, wenn eine Id mitgegeben wird (Auswahl einer Textform)', () => {
+    useAgentStore.getState().setActiveSkillMention('omveinladungen', 'recipe-omv-1');
+    expect(useAgentStore.getState().activeSkillMention).toBe('omveinladungen');
+    expect(useAgentStore.getState().activeRecipeId).toBe('recipe-omv-1');
+  });
+
+  it('räumt eine zuvor gesetzte Rezept-Id ab, wenn ohne Id aufgerufen wird (Systemrezept)', () => {
+    useAgentStore.setState({
+      activeSkillMention: 'omveinladungen',
+      activeRecipeId: 'recipe-omv-1',
+    });
+
+    useAgentStore.getState().setActiveSkillMention('presse');
+
+    expect(useAgentStore.getState().activeSkillMention).toBe('presse');
+    expect(useAgentStore.getState().activeRecipeId).toBeNull();
+  });
+});
+
+describe('setSelectedAgent / resetThreadContext / resetChatContext', () => {
+  it('räumen die Rezept-Id mit der Skill-Mention gemeinsam ab', () => {
+    useAgentStore.getState().setSelectedAgent('anderer-agent');
+    expect(useAgentStore.getState().activeSkillMention).toBeNull();
+    expect(useAgentStore.getState().activeRecipeId).toBeNull();
+
+    useAgentStore.setState({ activeSkillMention: 'presse', activeRecipeId: 'recipe-presse-1' });
+    useAgentStore.getState().resetThreadContext();
+    expect(useAgentStore.getState().activeSkillMention).toBeNull();
+    expect(useAgentStore.getState().activeRecipeId).toBeNull();
+
+    useAgentStore.setState({ activeSkillMention: 'presse', activeRecipeId: 'recipe-presse-1' });
+    useAgentStore.getState().resetChatContext();
+    expect(useAgentStore.getState().activeSkillMention).toBeNull();
+    expect(useAgentStore.getState().activeRecipeId).toBeNull();
   });
 });

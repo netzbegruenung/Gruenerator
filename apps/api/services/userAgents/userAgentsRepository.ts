@@ -36,6 +36,8 @@ export interface UserAgentInput {
   skillMentions?: string[];
   fewShotExamples?: Array<{ input: string; output: string; reasoning?: string }>;
   inlineSourceLinks?: boolean;
+  defaultRecipeMention?: string | null;
+  defaultRecipeId?: string | null;
 }
 
 export type UserAgentPatch = Partial<UserAgentInput>;
@@ -67,6 +69,8 @@ function rowToAgent(row: UserAgentRow): Agent {
     ...(row.skill_mentions ? { skillMentions: row.skill_mentions } : {}),
     ...(row.few_shot_examples ? { fewShotExamples: row.few_shot_examples } : {}),
     ...(row.inline_source_links != null ? { inlineSourceLinks: row.inline_source_links } : {}),
+    ...(row.default_recipe_mention ? { defaultRecipeMention: row.default_recipe_mention } : {}),
+    ...(row.default_recipe_id ? { defaultRecipeId: row.default_recipe_id } : {}),
   };
 }
 
@@ -95,6 +99,8 @@ function inputToInsertValues(userId: string, input: UserAgentInput) {
     skill_mentions: input.skillMentions ?? null,
     few_shot_examples: input.fewShotExamples ?? null,
     inline_source_links: input.inlineSourceLinks ?? null,
+    default_recipe_mention: input.defaultRecipeMention ?? null,
+    default_recipe_id: input.defaultRecipeId ?? null,
   };
 }
 
@@ -121,6 +127,9 @@ function patchToUpdateValues(patch: UserAgentPatch): Record<string, unknown> {
   if (patch.skillMentions !== undefined) out.skill_mentions = patch.skillMentions;
   if (patch.fewShotExamples !== undefined) out.few_shot_examples = patch.fewShotExamples;
   if (patch.inlineSourceLinks !== undefined) out.inline_source_links = patch.inlineSourceLinks;
+  if (patch.defaultRecipeMention !== undefined)
+    out.default_recipe_mention = patch.defaultRecipeMention;
+  if (patch.defaultRecipeId !== undefined) out.default_recipe_id = patch.defaultRecipeId;
   return out;
 }
 

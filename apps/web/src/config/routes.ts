@@ -291,7 +291,9 @@ const AgentCreatorPage = lazy(() => import('../features/agents/AgentCreatorPage'
 const AgentSettingsPage = lazy(() => import('../features/agents/AgentSettingsPage'));
 const AgenturaPage = lazy(() => import('../features/agentura/AgenturaPage'));
 const AgentDetailPage = lazy(() => import('../features/agentura/AgentDetailPage'));
-const SkillDetailPage = lazy(() => import('../features/agentura/SkillDetailPage'));
+const RecipeDetailPage = lazy(() => import('../features/agentura/RecipeDetailPage'));
+const RecipeEditorPage = lazy(() => import('../features/agentura/recipes/RecipeEditorPage'));
+const RecipeCreatorPage = lazy(() => import('../features/agentura/recipes/RecipeCreatorPage'));
 
 /**
  * Lazy loading für Grüneratoren Bundle
@@ -348,6 +350,8 @@ const standardRoutes: RouteConfig[] = [
         { path: '/agents/new', component: AgentCreatorPage },
         { path: '/agents/new/manual', component: AgentBuilderPage },
         { path: '/agents/:identifier/edit', component: AgentSettingsPage },
+        { path: '/agentura/rezept/neu', component: RecipeCreatorPage },
+        { path: '/agentura/rezept/:mention/bearbeiten', component: RecipeEditorPage },
       ] satisfies RouteConfig[])
     : []),
   // EXPERIMENTAL — recurring agent tasks management.
@@ -356,7 +360,7 @@ const standardRoutes: RouteConfig[] = [
   // under /agentura/agent/<slug> and /agentura/rezept/<mention>; the storefront
   // is /agentura. Old library links (/agents, /skills) redirect here.
   { path: '/agentura/agent/:slug', component: AgentDetailPage },
-  { path: '/agentura/rezept/:mention', component: SkillDetailPage },
+  { path: '/agentura/rezept/:mention', component: RecipeDetailPage },
   { path: '/agentura/skill/:mention', component: LegacySkillMentionRedirect },
   { path: '/agentura', component: AgenturaPage },
   {

@@ -1,13 +1,11 @@
 /**
  * Counter Services
- * Utilities for counting tokens, image generations, and privacy mode requests
+ * Utilities for counting tokens. The daily image/speech/deep-research quotas
+ * that used to live here are one tree budget now — see `services/trees/`.
  */
 
 // Class exports
 export { TokenCounter, tokenCounter } from './TokenCounter.js';
-export { ImageGenerationCounter } from './ImageGenerationCounter.js';
-export { DeepResearchCounter } from './DeepResearchCounter.js';
-export { SpeechSecondsCounter } from './SpeechSecondsCounter.js';
 
 // Named function exports from TokenCounter (backward compatibility)
 export {
@@ -19,16 +17,5 @@ export {
   formatTokenCount,
 } from './TokenCounter.js';
 
-// Default exports for backward compatibility
-export { default as ImageGenerationCounterClass } from './ImageGenerationCounter.js';
-
 // Type exports
-export type {
-  Message,
-  TokenStats,
-  ImageGenerationStatus,
-  ImageGenerationResult,
-  DeepResearchStatus,
-  DeepResearchResult,
-  RedisClient,
-} from './types.js';
+export type { Message, TokenStats, RedisClient } from './types.js';

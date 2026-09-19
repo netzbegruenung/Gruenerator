@@ -8,21 +8,23 @@
 import { IMAGE_MODEL_BY_ID } from '@gruenerator/shared/models';
 
 import { resolveReferentialTopic } from '../../../../routes/chat/services/referentialTopic.js';
-import { ImageGenerationCounter } from '../../../../services/counters/index.js';
 import {
   FluxImageService,
   buildFluxPrompt,
   type VariantKey,
 } from '../../../../services/flux/index.js';
+import {
+  getTreeBudget,
+  treeBudgetSpentMessage,
+  treeCostForImage,
+  TreeBudgetUnavailableError,
+} from '../../../../services/trees/index.js';
 import { getImageModelForUser } from '../../../../services/user/imageModelPreference.js';
 import { createLogger } from '../../../../utils/logger.js';
-import { redisClient } from '../../../../utils/redis/index.js';
 
 import type { ChatGraphState, ImageStyle, GeneratedImageResult } from '../types.js';
 
 const log = createLogger('ChatGraph:ImageNode');
-
-const imageCounter = new ImageGenerationCounter(redisClient);
 
 /**
  * Detect image style from German prompt keywords.
@@ -104,6 +106,11 @@ export async function imageNode(state: ChatGraphState): Promise<Partial<ChatGrap
   const startTime = Date.now();
   log.info('[ImageNode] Starting image generation');
 
+  const budget = getTreeBudget();
+  // Set once the reservation succeeds, so the catch below can give the units
+  // back if the FLUX call itself fails — onto the day it was booked on.
+  let reserved: { userId: string; cost: number; day: string } | null = null;
+
   try {
     const { messages, agentConfig } = state;
 
@@ -137,20 +144,30 @@ export async function imageNode(state: ChatGraphState): Promise<Partial<ChatGrap
       };
     }
 
-    // Check rate limit
-    const limitStatus = await imageCounter.checkLimit(userId);
-    if (!limitStatus.canGenerate) {
-      log.info(
-        `[ImageNode] User ${userId} has reached daily image limit (${limitStatus.count}/${limitStatus.limit})`
-      );
+    // Resolve the model first: the tree budget cost depends on it.
+    const userModel = IMAGE_MODEL_BY_ID[await getImageModelForUser(userId)];
+    const cost = treeCostForImage(userModel.costMultiplier);
+    const reservation = await budget.reserve(userId, cost);
+    if (!reservation.ok) {
+      if (reservation.reason === 'unavailable') {
+        return {
+          generatedImage: null,
+          imagePrompt: userContent,
+          imageStyle: null,
+          imageTimeMs: Date.now() - startTime,
+          error: new TreeBudgetUnavailableError().message,
+        };
+      }
+      log.info(`[ImageNode] User ${userId} has reached the tree budget`);
       return {
         generatedImage: null,
         imagePrompt: userContent,
         imageStyle: null,
         imageTimeMs: Date.now() - startTime,
-        error: `Du hast dein tägliches Limit von ${limitStatus.limit} Bildern erreicht. Versuche es morgen wieder.`,
+        error: treeBudgetSpentMessage(reservation.status, cost),
       };
     }
+    reserved = { userId, cost, day: reservation.status.day };
 
     // Detect style from prompt
     const style = detectStyleFromPrompt(userContent);
@@ -173,7 +190,6 @@ export async function imageNode(state: ChatGraphState): Promise<Partial<ChatGrap
     );
 
     // Generate image with user's chosen model
-    const userModel = IMAGE_MODEL_BY_ID[await getImageModelForUser(userId)];
     const flux = await FluxImageService.create(userModel.backend, userModel.modelPath);
     const { stored } = await flux.generateFromPrompt(fluxPrompt, {
       width: dimensions.width,
@@ -182,13 +198,8 @@ export async function imageNode(state: ChatGraphState): Promise<Partial<ChatGrap
       safety_tolerance: 2,
     });
 
-    await imageCounter.incrementCount(userId, Math.round(userModel.costMultiplier * 100));
-    const updatedStatus = await imageCounter.checkLimit(userId);
-
     const imageTimeMs = Date.now() - startTime;
-    log.info(
-      `[ImageNode] Image generated in ${imageTimeMs}ms, user usage: ${updatedStatus.count}/${updatedStatus.limit}`
-    );
+    log.info(`[ImageNode] Image generated in ${imageTimeMs}ms`);
 
     // Construct URL for the image
     const imageUrl = `/uploads/flux/results/${stored.relativePath.split('/').slice(-2).join('/')}`;
@@ -214,6 +225,11 @@ export async function imageNode(state: ChatGraphState): Promise<Partial<ChatGrap
       '[ImageNode] Error generating image:',
       error instanceof Error ? error.message : String(error)
     );
+
+    // The reservation was booked before the FLUX call; give it back on failure.
+    if (reserved) {
+      await budget.release(reserved.userId, reserved.cost, reserved.day);
+    }
 
     // Handle specific error types
     let errorMessage = 'Bildgenerierung fehlgeschlagen. Bitte versuche es erneut.';

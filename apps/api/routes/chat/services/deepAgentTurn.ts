@@ -16,9 +16,10 @@
  * 2. **The answer is a document, not a message.** So there is no source registry
  *    to feed and no `[N]` to reconcile — the report carries its own numbered
  *    `## Quellen` list, and the chat message is a short summary plus the link.
- * 3. **The quota is charged only on success.** A run that produces nothing costs
- *    the user minutes; it must not also cost them their allowance. Whether there
- *    IS an allowance is decided by the caller — see `deepResearchQuota.ts`.
+ * 3. **The run is not metered here.** The caller books one run for both engines
+ *    before either starts and hands the booking back when neither delivered, so
+ *    a run that produces nothing costs the user minutes but not Bäume — see
+ *    `deepResearchQuota.ts`.
  */
 
 import { env } from '../../../config/env.js';
@@ -30,7 +31,6 @@ import { DEFAULT_BUDGET } from '../../../services/research/deepAgent/types.js';
 import { getLinkupService } from '../../../services/search/LinkupService.js';
 import { createLogger } from '../../../utils/logger.js';
 
-import { chargeDeepResearch } from './deepResearchQuota.js';
 import { sendChatWarning } from './sseHelpers.js';
 
 import type { SSEWriter } from './sseHelpers.js';
@@ -53,8 +53,8 @@ function toLogSteps(steps: ResearchStep[]): ResearchLogStep[] {
 /**
  * Returns a state patch on success and `null` in every case where the turn
  * should fall through to the sourcedAnswer path — no key, no question, no
- * meterable user, or a failed run. The shared allowance is NOT one of those
- * cases: the caller settles it once for both engines before either starts.
+ * meterable user, or a failed run. The shared budget is NOT one of those
+ * cases: the caller books it once for both engines before either starts.
  */
 export async function runDeepAgentTurn(params: {
   state: ChatGraphState;
@@ -145,8 +145,7 @@ export async function runDeepAgentTurn(params: {
   if (!result) {
     sse.send('research_log_update', { id: logId, status: 'failed' });
     sendChatWarning(sse, 'deep_agent_failed');
-    // Nothing was charged, so the old path still has whatever allowance the
-    // shared key leaves it — let it try.
+    // The booking is the caller's and still stands, so the old path runs on it.
     return null;
   }
 
@@ -160,7 +159,7 @@ export async function runDeepAgentTurn(params: {
     );
   } catch (error) {
     // The research succeeded and only the filing failed — nothing to hand over,
-    // so the quota stays free and the old path answers instead.
+    // so the old path answers on the same booking instead.
     log.error(`[DeepAgent] Dokument konnte nicht angelegt werden: ${String(error)}`);
     sse.send('research_log_update', { id: logId, status: 'failed' });
     sendChatWarning(sse, 'deep_agent_failed');
@@ -173,9 +172,6 @@ export async function runDeepAgentTurn(params: {
   await recordRunDocument(result.threadId, document.id);
 
   const url = `/office/${document.id}`;
-
-  // Counted only now: a run without a document must not cost the allowance.
-  await chargeDeepResearch(userId);
 
   sse.send('research_log_update', {
     id: logId,

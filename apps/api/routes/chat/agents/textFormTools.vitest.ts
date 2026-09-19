@@ -6,11 +6,13 @@
  * ECHT: sie ist die parteiinterne Grenze, und ein Fake davon bewiese nichts.
  */
 import { MAX_TEXT_FORM_EXAMPLES, MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS } from '@gruenerator/contracts';
+import { DEFAULT_AGENT_ICON } from '@gruenerator/shared/agents';
 import { describe, expect, it, vi } from 'vitest';
 
 import { createSourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
+import { deriveRecipeMention } from '../../../services/user/textFormKind.js';
 
-import { deriveRecipeMention, makeRecipesTool, type RecipeToolDeps } from './textFormTools.js';
+import { makeRecipesTool, type RecipeToolDeps } from './textFormTools.js';
 
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { RecipeCatalogEntry } from './recipeCatalog.js';
@@ -41,6 +43,11 @@ function form(over: Partial<TextForm> = {}): TextForm {
     sharedWithGroups: [],
     sharedFromGroup: null,
     ownerName: null,
+    description: null,
+    iconKey: null,
+    shareMode: 'private',
+    isPublic: false,
+    publicOwnership: null,
     ...over,
   };
 }
@@ -142,7 +149,7 @@ function makeCtx(opts: CtxOptions = {}) {
       { limit: 40, confirm: false, ...args },
       {}
     )) ?? {};
-  return { run, notes, registered, deps };
+  return { run, notes, registered, deps, tool };
 }
 
 const CREATE_ARGS = {
@@ -309,6 +316,39 @@ describe('recipes: get', () => {
       error: expect.stringMatching(/nicht|Kein/),
     });
   });
+
+  it('shows description and the three visibility labels', async () => {
+    const { run: runPrivate } = makeCtx({
+      forms: [form({ description: 'Für Ortsverbands-Post.' })],
+    });
+    expect(
+      (
+        (await runPrivate({ action: 'get', mention: 'omveinladungen' })) as {
+          recipe: Record<string, unknown>;
+        }
+      ).recipe
+    ).toMatchObject({ description: 'Für Ortsverbands-Post.', visibility: 'privat' });
+
+    const { run: runGroups } = makeCtx({ forms: [form({ shareMode: 'groups' })] });
+    expect(
+      (
+        (await runGroups({ action: 'get', mention: 'omveinladungen' })) as {
+          recipe: Record<string, unknown>;
+        }
+      ).recipe
+    ).toMatchObject({ visibility: 'mit Projekten geteilt' });
+
+    const { run: runPublic } = makeCtx({
+      forms: [form({ shareMode: 'authenticated', isPublic: true })],
+    });
+    expect(
+      (
+        (await runPublic({ action: 'get', mention: 'omveinladungen' })) as {
+          recipe: Record<string, unknown>;
+        }
+      ).recipe
+    ).toMatchObject({ visibility: 'öffentlich in Agentura' });
+  });
 });
 
 describe('recipes: parteiinterne Grenze — Systemrezepte ohne Rumpf', () => {
@@ -357,6 +397,20 @@ describe('recipes: parteiinterne Grenze — Systemrezepte ohne Rumpf', () => {
   });
 });
 
+describe('recipes: F0 — action enum stays list/get/create/add_examples/delete', () => {
+  it('has no share/publish/draft action: widening visibility stays a human decision', () => {
+    const { tool } = makeCtx();
+    const schema = tool.inputSchema as { shape: { action: { options: string[] } } };
+    expect(schema.shape.action.options).toEqual([
+      'list',
+      'get',
+      'create',
+      'add_examples',
+      'delete',
+    ]);
+  });
+});
+
 describe('recipes: create (direct)', () => {
   it('needs a title and at least one example, and writes nothing without them', async () => {
     const { run, deps } = makeCtx();
@@ -398,8 +452,45 @@ describe('recipes: create (direct)', () => {
       ],
       styleBlock: '## STIL: neu\n\nKnapp.',
       model: 'test-model',
+      description: null,
+      iconKey: null,
     });
     expect(notes[0][1]).toContain('als @newsletter-intro nutzbar');
+  });
+
+  it('stores description and a valid iconKey verbatim', async () => {
+    const { run, deps } = makeCtx();
+    const out = await run({
+      ...CREATE_ARGS,
+      mention: 'stil-mit-icon',
+      description: 'Kurz und knapp für OV-Post.',
+      iconKey: 'PiMegaphone',
+    });
+    expect(out).toMatchObject({
+      ok: true,
+      recipe: { description: 'Kurz und knapp für OV-Post.', iconKey: 'PiMegaphone' },
+    });
+    expect(deps.upsertTextForm).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({
+        description: 'Kurz und knapp für OV-Post.',
+        iconKey: 'PiMegaphone',
+      })
+    );
+  });
+
+  it('clamps an iconKey outside the suggested set to the default icon', async () => {
+    const { run, deps } = makeCtx();
+    const out = await run({
+      ...CREATE_ARGS,
+      mention: 'stil-mit-halluziniertem-icon',
+      iconKey: 'NichtImKatalog',
+    });
+    expect(out).toMatchObject({ ok: true, recipe: { iconKey: DEFAULT_AGENT_ICON } });
+    expect(deps.upsertTextForm).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({ iconKey: DEFAULT_AGENT_ICON })
+    );
   });
 
   it('keeps umlauts in a derived mention and validates it against the contract', () => {
@@ -534,6 +625,39 @@ describe('recipes: create — Überschreiben eines Systemrezepts', () => {
     expect(deps.upsertTextForm).toHaveBeenCalledWith(
       'user-1',
       expect.objectContaining({ kind: 'recipe', mention: 'presse-hessen-partei' })
+    );
+  });
+
+  it('canonicalizes a mention DERIVED from the title, not just an explicit one', async () => {
+    // „Presse Hessen" leitet sich auf das zurückgezogene `presse-hessen` ab.
+    // Gespeichert wird die Mention des Urteils, nicht die abgeleitete — sonst
+    // läge die Zeile unter einem Kürzel, das kein Nachschlag je anfragt.
+    const { run, deps } = makeCtx({ forms: [], roles: [HESSEN_ROLE] });
+    const out = await run({ ...CREATE_ARGS, title: 'Presse Hessen' });
+    expect(out).toMatchObject({ ok: true, recipe: { kind: 'recipe' } });
+    expect(deps.upsertTextForm).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({ kind: 'recipe', mention: 'presse-hessen-partei' })
+    );
+  });
+
+  it('checks the collision against the canonical mention, not the derived one', async () => {
+    const { run, deps } = makeCtx({
+      forms: [form({ mention: 'presse-hessen-partei', kind: 'recipe', title: 'PM Hessen' })],
+      roles: [HESSEN_ROLE],
+    });
+    expect(await run({ ...CREATE_ARGS, title: 'Presse Hessen' })).toMatchObject({
+      error: expect.stringMatching(/gibt es schon.*add_examples/),
+    });
+    expect(deps.upsertTextForm).not.toHaveBeenCalled();
+  });
+
+  it('leaves a custom mention derived from the title alone', async () => {
+    const { run, deps } = makeCtx({ forms: [] });
+    await run({ ...CREATE_ARGS, title: 'OV Einladungen' });
+    expect(deps.upsertTextForm).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({ kind: 'custom', mention: 'ov-einladungen' })
     );
   });
 

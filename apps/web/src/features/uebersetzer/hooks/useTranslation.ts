@@ -40,6 +40,15 @@ export class TranslationRequestError extends Error {
   }
 }
 
+/**
+ * Two very different things answer 503: this server has no DeepL key, and the
+ * tree budget could not be read (Redis). Only the first is a notice — the
+ * second is a real error whose sentence the server already wrote.
+ */
+function isNotConfigured(status: number, body: unknown): boolean {
+  return status === 503 && (body as { code?: unknown } | null)?.code !== 'budget_unavailable';
+}
+
 function errorText(body: unknown, fallback: string): string {
   const error = (body as { error?: unknown } | null)?.error;
   return typeof error === 'string' && error ? error : fallback;
@@ -51,7 +60,7 @@ export function useTranslationLanguages() {
     queryFn: async (): Promise<TranslationLanguagesResponse> => {
       const result = await getContractsClient().translation.getLanguages();
       if (result.status === 200) return result.body;
-      if (result.status === 503) throw new TranslationNotConfiguredError();
+      if (isNotConfigured(result.status, result.body)) throw new TranslationNotConfiguredError();
       throw new TranslationRequestError(
         errorText(result.body, 'Sprachen konnten nicht geladen werden.'),
         result.status
@@ -78,7 +87,7 @@ export function useTranslateText() {
     mutationFn: async (body: TranslateTextBody): Promise<TranslateTextResponse> => {
       const result = await getContractsClient().translation.translateText({ body });
       if (result.status === 200) return result.body;
-      if (result.status === 503) throw new TranslationNotConfiguredError();
+      if (isNotConfigured(result.status, result.body)) throw new TranslationNotConfiguredError();
       const quota = (result.body as { quota?: TranslationQuota | null } | null)?.quota ?? null;
       throw new TranslationRequestError(
         errorText(result.body, 'Die Übersetzung ist fehlgeschlagen.'),
@@ -121,7 +130,8 @@ export function useUploadDocument() {
       } catch (error) {
         if (isAxiosError(error) && error.response) {
           const status = error.response.status;
-          if (status === 503) throw new TranslationNotConfiguredError();
+          if (isNotConfigured(status, error.response.data))
+            throw new TranslationNotConfiguredError();
           const data = error.response.data as { quota?: TranslationQuota | null } | null;
           throw new TranslationRequestError(
             errorText(data, 'Das Dokument konnte nicht hochgeladen werden.'),
@@ -154,7 +164,7 @@ export function useDocumentStatus(jobId: string | null) {
         }
         return result.body;
       }
-      if (result.status === 503) throw new TranslationNotConfiguredError();
+      if (isNotConfigured(result.status, result.body)) throw new TranslationNotConfiguredError();
       throw new TranslationRequestError(
         errorText(result.body, 'Der Stand der Übersetzung ist unbekannt.'),
         result.status
