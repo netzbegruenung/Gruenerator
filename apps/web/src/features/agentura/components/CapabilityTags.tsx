@@ -1,6 +1,7 @@
 import { type Agent } from '@gruenerator/shared/agents';
 import { PiBookOpenText, PiMapPin, PiWrench } from 'react-icons/pi';
 
+import { hasKnowledge, toolCount } from '../lib/capabilities';
 import { isLandesverbandIdentifier, landesverbandLabel } from '../lib/lookups';
 
 interface CapabilityTagsProps {
@@ -13,18 +14,6 @@ interface Chip {
   key: string;
   icon: typeof PiWrench;
   label: string;
-}
-
-function toolCount(agent: Agent): number {
-  return (agent.enabledTools?.length ?? 0) + (agent.plugins?.length ?? 0);
-}
-
-function hasKnowledge(agent: Agent): boolean {
-  return Boolean(
-    (agent.defaultNotebookIds?.length ?? 0) > 0 ||
-    agent.toolRestrictions?.defaultCollection ||
-    (agent.toolRestrictions?.allowedCollections?.length ?? 0) > 0
-  );
 }
 
 /**
