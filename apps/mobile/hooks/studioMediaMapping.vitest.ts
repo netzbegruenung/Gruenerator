@@ -174,25 +174,50 @@ describe('toKiImageItems', () => {
     expect(item?.href).toBe('/share/tok-123');
   });
 
-  it('falls back to the on-demand preview when no thumbnail exists yet', () => {
-    // A share created seconds ago has no thumbnail until the variants pass
-    // finishes; without this the freshest image is the one that renders blank.
+  it('falls back to the on-demand preview when the API mints no tile URL', () => {
+    // Two rows look like this and both must still render: one served by an API
+    // older than `thumbnailUrl`, and one the server declined to mint for (no
+    // signing key). The versioned URL is the fast path, not the only one.
     const [item] = toKiImageItems([share({ shareToken: 'tok', imageType: 'imagine' })]);
 
     expect(item?.thumbnailUrl).toBe('/api/share/tok/preview?w=400&fmt=webp');
   });
 
-  // Was "prefers the real thumbnail once there is one", asserting a
-  // `share.thumbnailUrl` that `/api/share/recent` has never sent — it selects
-  // `thumbnail_path`. The preferred branch could not run, so the test only ever
-  // confirmed the fallback under a different name. Pinned to the truth instead;
-  // routing the stored path through is a separate change.
-  it('uses the preview route even for a share that already has a thumbnail stored', () => {
+  // The whole point of the field. `/preview` carries no version segment, so the
+  // route caps it at five minutes of freshness and every cold start refetched
+  // all eighteen tiles; the signed URL changes when the content does and is
+  // served `immutable` for a year. Composing the legacy path when the server
+  // already handed us the good one is the regression this pins.
+  it('prefers the signed tile URL the endpoint mints', () => {
     const [item] = toKiImageItems([
-      share({ shareToken: 'tok', imageType: 'imagine', thumbnailPath: 'uploads/tok.webp' }),
+      share({
+        shareToken: 'tok',
+        imageType: 'imagine',
+        thumbnailPath: 'uploads/tok.webp',
+        thumbnailUrl: '/api/thumbs/media/tok/abc?sig=s&w=400&fmt=webp',
+      }),
     ]);
 
-    expect(item?.thumbnailUrl).toBe('/api/share/tok/preview?w=400&fmt=webp');
+    expect(item?.thumbnailUrl).toBe('/api/thumbs/media/tok/abc?sig=s&w=400&fmt=webp');
+  });
+
+  it('carries the blurhash through so a loading tile is not a blank plate', () => {
+    const [item] = toKiImageItems([
+      share({ shareToken: 'tok', imageType: 'imagine', imageMetadata: { blurhash: 'LKO2' } }),
+    ]);
+
+    expect(item?.blurhash).toBe('LKO2');
+  });
+
+  it('omits the blurhash rather than passing a non-string through', () => {
+    // `imageMetadata` is `Record<string, unknown>` — a row written before the
+    // variants pass existed can hold anything here, and expo-image throws on a
+    // malformed placeholder rather than ignoring it.
+    const [item] = toKiImageItems([
+      share({ shareToken: 'tok', imageType: 'imagine', imageMetadata: { blurhash: 42 } }),
+    ]);
+
+    expect(item?.blurhash).toBeUndefined();
   });
 
   it('names an untitled share instead of rendering an empty label', () => {

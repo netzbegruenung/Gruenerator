@@ -188,6 +188,22 @@ export const shareListItemSchema = z.object({
   mediaType: z.string(),
   title: z.string().nullable(),
   thumbnailPath: z.string().nullable(),
+  /**
+   * The 400px WebP tile as a signed, versioned `/api/thumbs/media/...` URL.
+   *
+   * Prefer it over composing `/api/share/<token>/preview?w=400&fmt=webp`. That
+   * path carries no version segment, and an edit overwrites the bytes under the
+   * same share token, so it is capped at five minutes of freshness — every cold
+   * client start refetches every tile. This one changes whenever the content
+   * can, so it is served `immutable` for a year.
+   *
+   * Optional, and absent for three reasons that all mean "no picture to point
+   * at": thumbnail signing is not configured, the row is audio or a transfer,
+   * or it is a video whose poster frame has not been written. Consumers keep
+   * their existing fallback — a shipped mobile binary may be talking to an API
+   * older than this field.
+   */
+  thumbnailUrl: z.string().optional(),
   // BIGINT / NUMERIC arrive as strings from `pg`; older rows may hold numbers.
   fileSize: z.union([z.number(), z.string()]).nullable(),
   duration: z.union([z.number(), z.string()]).nullable(),
