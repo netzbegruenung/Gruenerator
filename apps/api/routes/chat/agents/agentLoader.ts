@@ -17,6 +17,7 @@ import { getPostgresInstance } from '../../../database/services/PostgresService.
 import { getInternalAgentPrompt } from '../../../services/skills/internalPrompts.js';
 import {
   getGroupSharedUserAgent,
+  getPublicUserAgent,
   getUserAgent as getUserAgentRow,
 } from '../../../services/userAgents/userAgentsRepository.js';
 import { createLogger } from '../../../utils/logger.js';
@@ -101,8 +102,9 @@ export function clearAgentsCache(): void {
 /**
  * Resolves an agent for a user: system registry → user-created agents
  * (`user_agents` table, owner-scoped) → agents shared into a group the user is
- * an active member of. Returns undefined if none match; legacy `custom_prompts`
- * fallback lives in `getAgentOrCustomPrompt` below.
+ * an active member of → agents their owner opened to every signed-in user
+ * (`share_mode='authenticated'`). Returns undefined if none match; legacy
+ * `custom_prompts` fallback lives in `getAgentOrCustomPrompt` below.
  *
  * Converted custom generators are plain `user_agents` rows (identifier
  * `cg-<slug>`), so they resolve through the same path as any other user agent.
@@ -122,6 +124,13 @@ export async function getAgentForUser(
     // groups (dedicated agent-share flow, keyed by the agent's UUID).
     const sharedAgent = await getGroupSharedUserAgent(identifier, userId);
     if (sharedAgent) return { ...sharedAgent, isUserAgent: true } as AgentConfig;
+
+    // Neither owner nor group member. The agent may still be one its owner
+    // opened to every signed-in user — that is what the Agentura community
+    // shelf offers, and without this branch the card was clickable but the
+    // chat route could not load the config behind it (#3469).
+    const publicAgent = await getPublicUserAgent(identifier);
+    if (publicAgent) return { ...publicAgent, isUserAgent: true } as AgentConfig;
   } catch (error) {
     log.error('[AgentLoader] Error looking up user agent:', error);
   }
