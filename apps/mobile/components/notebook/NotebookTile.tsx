@@ -63,7 +63,18 @@ export const NotebookTile = memo(function NotebookTile({
       ]}
     >
       {cover ? (
-        <Image source={cover} style={{ width: size, height: size }} contentFit="cover" />
+        <Image
+          source={cover}
+          style={{ width: size, height: size }}
+          contentFit="cover"
+          // The covers are bundled, so there is nothing to download — but
+          // expo-image's default `disk` policy still re-decodes all eleven from
+          // storage every time this gallery remounts, which is every switch back
+          // to the Wissen tab. The memory cache is a hint rather than a promise
+          // (expo-image purges it aggressively under pressure), and the tiles are
+          // decoded at view size, so the ceiling is single-digit megabytes.
+          cachePolicy="memory-disk"
+        />
       ) : coverNode ? (
         coverNode
       ) : (

@@ -5,6 +5,7 @@ import { isKiImage } from '@gruenerator/shared/media-library/contentOrigin';
 import { type RecentItem } from './useRecentActivity';
 
 function shareToItem(share: ShareListItem): RecentItem {
+  const blurhash = (share.imageMetadata as { blurhash?: unknown }).blurhash;
   return {
     // The share token, not a row id — `useOpenRecentItem` hands this straight to
     // the in-app viewer as `shareToken`.
@@ -13,11 +14,21 @@ function shareToItem(share: ShareListItem): RecentItem {
     date: share.createdAt,
     type: 'image',
     href: `/share/${share.shareToken}`,
-    // The preview route renders a thumbnail on demand, which is what every row
-    // gets: `/share/recent` selects `thumbnail_path`, never a ready-made URL.
-    // (The old `share.thumbnailUrl ?? …` read a field the endpoint never sends,
-    // so this fallback was already the only branch that ever ran.)
-    thumbnailUrl: `/api/share/${share.shareToken}/preview?w=400&fmt=webp`,
+    // `thumbnailUrl` is the signed `/api/thumbs/media/…` tile: it carries a
+    // version segment, so it is served `immutable` for a year. The composed
+    // `/preview` path is the fallback, and it is the reason this matters — that
+    // URL has no version, an edit rewrites the bytes under the same token, and
+    // the route therefore caps freshness at five minutes. Every app start more
+    // than five minutes after the last one refetched all eighteen tiles.
+    //
+    // The fallback stays because a shipped binary may be talking to an API
+    // older than the field, and because a row with no picture (audio, a
+    // posterless video) mints nothing.
+    thumbnailUrl: share.thumbnailUrl ?? `/api/share/${share.shareToken}/preview?w=400&fmt=webp`,
+    // Pre-generated into `image_metadata` at upload. It is the only thing that
+    // helps the genuinely first load, which no cache can: the tile draws the
+    // blur immediately instead of sitting blank until the bytes land.
+    ...(typeof blurhash === 'string' ? { blurhash } : {}),
   };
 }
 
