@@ -10,6 +10,13 @@
  * Einwilligung werde „vor der ersten Nutzung der KI-Funktionen gesondert"
  * eingeholt, für App-Nutzer*innen schlicht falsch.
  *
+ * Hier steht ausserdem der Erinnerungshinweis nach Art. 50 Abs. 4 KI-VO, der
+ * bis dahin unter jedem Eingabefeld sass. Er hat mit der Einwilligung nach
+ * Art. 9 DSGVO nichts zu tun und ist deshalb bewusst ein eigener Absatz neben
+ * dem Haken, nicht Teil seines Textes: worin eingewilligt wird, muss bestimmt
+ * bleiben. Er steht hier, weil dies die eine Stelle ist, an der jemand aktiv
+ * bestaetigt, mit KI zu arbeiten.
+ *
  * `Modal` mit `onRequestClose`-No-op statt eines Bottom Sheets: Ein Sheet lässt
  * sich wegwischen, und „weggewischt" wäre weder Zustimmung noch Ablehnung. Der
  * Ausgang liegt deshalb im Dialog selbst — ohne ihn wäre die Einwilligung nicht
@@ -103,6 +110,12 @@ export function AiConsentGate() {
             </Pressable>
 
             {error != null && <Text style={[styles.error, { color: theme.text }]}>{error}</Text>}
+
+            <Text style={[styles.body, { color: theme.text }]}>
+              Prüfe KI-Ergebnisse, bevor Du sie veröffentlichst. Genau diese redaktionelle Kontrolle
+              ist der Grund, warum Texte aus dem Grünerator nicht als KI-generiert gekennzeichnet
+              werden müssen (Art. 50 Abs. 4 KI-VO).
+            </Text>
 
             <Text style={[styles.hint, { color: theme.textSecondary }]}>
               Du kannst diese Einwilligung jederzeit mit Wirkung für die Zukunft widerrufen — in den
