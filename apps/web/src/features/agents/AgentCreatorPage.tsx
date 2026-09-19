@@ -24,7 +24,7 @@ function specToFormState(spec: DraftedAgentSpec): Partial<FormState> {
     openingMessage: spec.openingMessage,
     openingQuestions: spec.openingQuestions.join('\n'),
     enabledTools: spec.enabledTools,
-    skillMentions: spec.skillMentions,
+    defaultRecipeMention: spec.defaultRecipeMention ?? null,
   };
 }
 

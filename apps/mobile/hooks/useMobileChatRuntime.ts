@@ -32,6 +32,7 @@ export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
     customEnabledTools,
     pinnedConnector,
     activeSkillMention,
+    activeRecipeId,
   } = useAgentStore(
     useShallow((s) => ({
       selectedAgentId: s.selectedAgentId,
@@ -46,6 +47,7 @@ export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
       customEnabledTools: s.customEnabledTools,
       pinnedConnector: s.pinnedConnector,
       activeSkillMention: s.activeSkillMention,
+      activeRecipeId: s.activeRecipeId,
     }))
   );
   // Notebook filter selection (facets, sources) — only honoured while it belongs
@@ -100,6 +102,10 @@ export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
       // Likewise for recipes: the `/mention` is stripped from the text, so this
       // is what carries the recipe's prompt fragment and scoping to the server.
       activeSkillMention,
+      // A user recipe is resolved by row id, not by name: two people may own a
+      // recipe called the same thing, and the mention alone cannot tell them
+      // apart. Null for system recipes, which have no row.
+      activeRecipeId,
     }),
     [
       selectedAgentId,
@@ -116,6 +122,7 @@ export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
       customEnabledTools,
       pinnedConnector,
       activeSkillMention,
+      activeRecipeId,
     ]
   );
 
