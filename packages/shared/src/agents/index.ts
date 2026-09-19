@@ -54,7 +54,10 @@ export {
 
 export {
   AGENTURA_CATEGORIES,
+  AGENTURA_TYPE_LABELS,
+  AGENTURA_TYPE_VALUES,
   DEFAULT_CATEGORY,
+  DEFAULT_TYPE,
   SKILL_CATEGORY_ORDER,
   SORT_LABELS,
   SORT_VALUES,
@@ -63,7 +66,14 @@ export {
   type AgenturaCategoryKey,
   type AgenturaPlatform,
   type AgenturaSort,
+  type AgenturaType,
 } from './agenturaCategories.js';
+
+export {
+  agenturaMetaLine,
+  matchesAgenturaType,
+  type AgenturaFilterable,
+} from './agenturaFilter.js';
 
 export { getAgentSlug, resolveAgentSlug } from './slug.js';
 

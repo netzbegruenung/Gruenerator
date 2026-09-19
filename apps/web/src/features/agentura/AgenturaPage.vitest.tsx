@@ -1,11 +1,13 @@
 /**
- * The Agentura market now learns user recipes: "Meine Rezepte" between the
- * recurring-tasks and shared-groups sections, shared recipes in
- * "Geteilt mit Gruppen", public ones in "Von der Basis" (minus one's own),
- * favourites and cross-source search, and a "Neu" menu replacing the single
- * "Neuer Grünerator" button. Agents and the system skill catalogue are mocked
- * to empty/no-op so these tests stay about the recipe wiring, not the whole
- * page's every other shelf.
+ * Der Markt kennt eigene Rezepte: unter „Meine Grüneratoren", geteilte und
+ * öffentliche jeweils dort, wo sie herkommen, dazu Favoriten und die Suche über
+ * alle Quellen. Seit dem Redesign ist ein Regal EIN flaches Raster — die
+ * Zugehörigkeit steht in der Meta-Zeile der Karte, nicht mehr in einer
+ * Abschnittsüberschrift, und die Kartenaktionen liegen im Kebab-Menü.
+ *
+ * Agenten und der mitgelieferte Rezeptkatalog sind auf leer gesetzt, damit
+ * diese Prüfungen von der Rezept-Verdrahtung handeln und nicht vom Rest der
+ * Seite.
  */
 import { useSkillFavoritesStore } from '@gruenerator/chat';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -48,6 +50,9 @@ vi.mock('../agents/api', () => ({
   useSharedUserAgents: () => ({ data: [] }),
   usePublicUserAgents: () => ({ data: [] }),
   useDeleteUserAgent: () => ({ mutate: vi.fn() }),
+  // Duplizieren legt einen neuen Agenten an — die Kachel zieht den Haken über
+  // `useDuplicateAgent`, auch wenn keine dieser Prüfungen ihn auslöst.
+  useCreateUserAgent: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
 vi.mock('../recurring-tasks/api', () => ({
@@ -142,10 +147,7 @@ beforeEach(() => {
 });
 
 describe('AgenturaPage — Meine Rezepte', () => {
-  it('zeigt eigene Rezepte zwischen den wiederkehrenden Aufgaben und den Gruppen', async () => {
-    // A shared row too, so "Geteilt mit Gruppen" actually renders (it drops
-    // out entirely when empty — see the section's own comment) and the
-    // ordering can be checked against a real heading.
+  it('zeigt eigenes und geteiltes Rezept in einem flachen Raster, eigenes zuerst', async () => {
     list.mockResolvedValue({
       status: 200,
       body: { success: true, forms: [ownRow(), sharedRow()] },
@@ -153,39 +155,45 @@ describe('AgenturaPage — Meine Rezepte', () => {
     const { container } = renderPage();
 
     expect(await screen.findByRole('heading', { name: 'Eigenes Rezept' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Neues Rezept/ })).toHaveAttribute(
-      'href',
-      '/agentura/rezept/neu'
-    );
+    expect(screen.getByRole('heading', { name: 'Geteiltes Rezept' })).toBeInTheDocument();
 
     const text = container.textContent ?? '';
-    const recurringIdx = text.indexOf('Wiederkehrende Aufgaben');
-    const rezepteIdx = text.indexOf('Meine Rezepte');
-    const gruppenIdx = text.indexOf('Geteilt mit Gruppen');
-    expect(recurringIdx).toBeGreaterThan(-1);
-    expect(rezepteIdx).toBeGreaterThan(recurringIdx);
-    expect(gruppenIdx).toBeGreaterThan(rezepteIdx);
+    // Die Abschnitte sind weg — stünde eine dieser Überschriften noch da, wäre
+    // das Raster wieder in Regalfächer zerfallen.
+    expect(text).not.toContain('Wiederkehrende Aufgaben');
+    expect(text).not.toContain('Geteilt mit Gruppen');
+    expect(text.indexOf('Eigenes Rezept')).toBeLessThan(text.indexOf('Geteiltes Rezept'));
   });
 
-  it('bietet für ein eigenes Rezept Bearbeiten und Löschen an', async () => {
+  it('bietet für ein eigenes Rezept Bearbeiten und Löschen im Kartenmenü an', async () => {
     list.mockResolvedValue({ status: 200, body: { success: true, forms: [ownRow()] } });
     renderPage();
 
     const card = (await screen.findByRole('heading', { name: 'Eigenes Rezept' })).closest(
       '[class*="rounded-lg"]'
     ) as HTMLElement;
-    expect(within(card).getByRole('button', { name: 'Bearbeiten' })).toBeInTheDocument();
-    expect(within(card).getByRole('button', { name: 'Löschen' })).toBeInTheDocument();
+    await userEvent.click(within(card).getByRole('button', { name: 'Aktionen' }));
+
+    const menu = await screen.findByRole('menu');
+    expect(within(menu).getByRole('menuitem', { name: /Bearbeiten/ })).toBeInTheDocument();
+    expect(within(menu).getByRole('menuitem', { name: /Löschen/ })).toBeInTheDocument();
   });
 
   it('führt eine geteilte Gruppen-Rezept-Karte unter „Geteilt mit Gruppen"', async () => {
     list.mockResolvedValue({ status: 200, body: { success: true, forms: [sharedRow()] } });
     renderPage();
 
-    expect(await screen.findByRole('heading', { name: 'Geteiltes Rezept' })).toBeInTheDocument();
-    expect(screen.getByText(/Geteilt aus OV Mitte von Alex Beispiel/)).toBeInTheDocument();
+    const card = (await screen.findByRole('heading', { name: 'Geteiltes Rezept' })).closest(
+      '[class*="rounded-lg"]'
+    ) as HTMLElement;
+    // Die Herkunft steht jetzt in der Meta-Zeile der Karte.
+    expect(within(card).getByText(/Geteilt aus OV Mitte von Alex Beispiel/)).toBeInTheDocument();
+
     // Shared rows are not editable — no owner actions.
-    expect(screen.queryByRole('button', { name: 'Löschen' })).not.toBeInTheDocument();
+    await userEvent.click(within(card).getByRole('button', { name: 'Aktionen' }));
+    const menu = await screen.findByRole('menu');
+    expect(within(menu).queryByRole('menuitem', { name: /Bearbeiten/ })).not.toBeInTheDocument();
+    expect(within(menu).queryByRole('menuitem', { name: /Löschen/ })).not.toBeInTheDocument();
   });
 
   it('zeigt einen Leerzustand mit Verweis auf „Neu", wenn gar nichts vorhanden ist', async () => {
@@ -278,9 +286,25 @@ describe('AgenturaPage — Von der Basis', () => {
 });
 
 describe('AgenturaPage — Favoriten', () => {
-  it('zeigt ein favorisiertes eigenes Rezept', async () => {
-    list.mockResolvedValue({ status: 200, body: { success: true, forms: [ownRow()] } });
+  // Favoriten ist kein Regal mehr, sondern der fünfte Typ-Filter — er verengt
+  // das aktive Regal, statt ein eigenes zu sein.
+  it('zeigt unter dem Favoriten-Filter nur das favorisierte Rezept', async () => {
+    list.mockResolvedValue({
+      status: 200,
+      body: {
+        success: true,
+        forms: [ownRow(), ownRow({ id: 'row-3', mention: 'zweites', title: 'Zweites Rezept' })],
+      },
+    });
     useSkillFavoritesStore.setState({ favorites: ['eigenes-rezept'] });
+    renderPage('/agentura?cat=meine&type=fav');
+
+    expect(await screen.findByRole('heading', { name: 'Eigenes Rezept' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Zweites Rezept' })).not.toBeInTheDocument();
+  });
+
+  it('ein veralteter Link auf das Favoriten-Regal landet im Startregal', async () => {
+    list.mockResolvedValue({ status: 200, body: { success: true, forms: [ownRow()] } });
     renderPage('/agentura?cat=favoriten');
 
     expect(await screen.findByRole('heading', { name: 'Eigenes Rezept' })).toBeInTheDocument();
@@ -323,6 +347,9 @@ describe('AgenturaPage — „Neu"-Menü', () => {
       'Grünerator',
       'Rezept',
       'Wiederkehrende Aufgabe',
+      // „Verlauf & Steuerung" hing vorher an der Abschnittsüberschrift der
+      // wiederkehrenden Aufgaben, die es im flachen Raster nicht mehr gibt.
+      'Verlauf & Steuerung',
     ]);
 
     // Opening via keyboard already focuses the first item (Radix's roving
