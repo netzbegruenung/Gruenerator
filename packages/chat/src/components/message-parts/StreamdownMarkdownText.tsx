@@ -45,7 +45,13 @@ const preprocess = (text: string) => {
  * blocks are memoized and only the trailing block re-parses as deltas arrive,
  * so the typewriter-prefix invariant (and the two-tier smooth gate the legacy
  * renderer needed around it) does not exist here. Remend completes
- * half-streamed markdown for display; the caret marks the stream tail.
+ * half-streamed markdown for display.
+ *
+ * No `caret` prop: Streamdown only sets its `--streamdown-caret` custom
+ * property when one is passed, so omitting it is how the stream tail stays
+ * unmarked. `CaretStyle` is `"block" | "circle"` — there is no `"none"`.
+ * The running stream is already announced by the status line above the
+ * answer, and the block caret (U+258B) read as a stray glyph in the prose.
  *
  * Fenced code renders in Streamdown's own chrome (StreamdownCodeBlock via the
  * `code` override), highlighted by our shiki core through `plugins.code`.
@@ -61,7 +67,6 @@ function StreamdownMarkdownTextImpl() {
       allowedTags={ALLOWED_TAGS}
       controls={CONTROLS}
       translations={TRANSLATIONS}
-      caret="block"
     />
   );
 }
