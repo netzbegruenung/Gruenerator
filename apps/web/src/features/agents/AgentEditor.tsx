@@ -5,6 +5,7 @@ import { Button, Input, Textarea } from '@gruenerator/ui';
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { RecipePicker } from '../agentura/recipes/RecipePicker';
 import { useCreateRecurringTask, useUpdateRecurringTask } from '../recurring-tasks/api';
 import { RecurrenceFields } from '../recurring-tasks/RecurrenceFields';
 import {
@@ -310,6 +311,18 @@ function AgentEditor({
                   placeholder="Du bist ein*e …"
                 />
               </label>
+
+              <RecipePicker
+                value={{ mention: form.defaultRecipeMention, id: form.defaultRecipeId }}
+                onChange={(next) => {
+                  setJustSaved(false);
+                  setForm((prev) => ({
+                    ...prev,
+                    defaultRecipeMention: next.mention,
+                    defaultRecipeId: next.id,
+                  }));
+                }}
+              />
 
               {/* Conversation */}
               <details className="rounded-lg border border-grey-200 p-md dark:border-grey-700">
