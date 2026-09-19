@@ -20,7 +20,10 @@ import { sortByUsage } from '@gruenerator/shared/utils';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { isRecipeUsableForAgent } from '../../services/recipes/recipeMentionAccess.js';
+import { loadUserRoles } from '../../services/roles/userRoles.js';
 import { getUsageMap } from '../../services/usage/ItemUsageService.js';
+import { normalizeTextFormMention } from '../../services/user/textFormKind.js';
 import { draftAgentSpec } from '../../services/userAgents/agentDraftService.js';
 import {
   createUserAgent,
@@ -45,6 +48,64 @@ const log = createLogger('userAgentsContractRouter');
 function invalidTools(tools: readonly string[] | null | undefined): string[] {
   if (!tools) return [];
   return tools.filter((t) => !isUserSelectableTool(t));
+}
+
+/**
+ * Validates a `defaultRecipeMention`/`defaultRecipeId` the body wants to set.
+ * `null`/absent (clearing, or untouched) needs no check — only an actual value
+ * has to resolve in the caller's own catalog, the same test the mention menu
+ * itself uses (`isRecipeUsableForAgent`, Task 5).
+ *
+ * The two fields are checked INDEPENDENTLY, one `isRecipeUsableForAgent` call
+ * per present field, not a single combined call. `isRecipeUsableForAgent`
+ * itself has `recipeId`-wins precedence — a single call with both forwarded
+ * would silently skip the mention check whenever a `recipeId` is also present.
+ * Both are persisted regardless (`defaultRecipeId` wins over
+ * `defaultRecipeMention` only at chat time, in `resolveEffectiveRecipeMention`),
+ * so a later patch that clears `defaultRecipeId` would leave a never-validated
+ * `defaultRecipeMention` as the live pointer.
+ */
+async function validateDefaultRecipe(params: {
+  userId: string;
+  mention: string | null | undefined;
+  recipeId: string | null | undefined;
+  userLocale: string | null;
+}): Promise<string | null> {
+  if (!params.mention && !params.recipeId) return null;
+  const roles = await loadUserRoles(params.userId);
+
+  if (params.mention) {
+    const ok = await isRecipeUsableForAgent({
+      userId: params.userId,
+      mention: params.mention,
+      recipeId: null,
+      userLocale: params.userLocale,
+      roles,
+    });
+    if (!ok) return `„@${params.mention}" ist kein Rezept, das dir zur Verfügung steht.`;
+  }
+
+  if (params.recipeId) {
+    const ok = await isRecipeUsableForAgent({
+      userId: params.userId,
+      mention: null,
+      recipeId: params.recipeId,
+      userLocale: params.userLocale,
+      roles,
+    });
+    if (!ok) return `Rezept-ID ${params.recipeId} ist kein Rezept, das dir zur Verfügung steht.`;
+  }
+
+  return null;
+}
+
+/**
+ * Persist the NORMALIZED mention, not the typed one — `recipeMentionAccess.ts`'s
+ * docblock: a stored "@Presse" would miss the catalog row `resolveRecipeBody`
+ * looks up at chat time.
+ */
+function toStoredRecipeMention(mention: string | null | undefined): string | null {
+  return mention ? normalizeTextFormMention(mention) : null;
 }
 
 /**
@@ -84,7 +145,8 @@ export const userAgentsContractRouter = s.router(userAgentsContract, {
 
   create: async (args) => {
     try {
-      const userId = getAuthedUser(args.req).id;
+      const user = getAuthedUser(args.req);
+      const userId = user.id;
       const body = args.body;
 
       if (body.identifier.startsWith('gruenerator-')) {
@@ -100,6 +162,16 @@ export const userAgentsContractRouter = s.router(userAgentsContract, {
           status: 400 as const,
           body: { success: false, message: `Unbekannte Tools: ${bad.join(', ')}` },
         };
+      }
+
+      const recipeError = await validateDefaultRecipe({
+        userId,
+        mention: body.defaultRecipeMention,
+        recipeId: body.defaultRecipeId,
+        userLocale: user.locale ?? null,
+      });
+      if (recipeError) {
+        return { status: 400 as const, body: { success: false, message: recipeError } };
       }
 
       const input: UserAgentInput = {
@@ -122,11 +194,14 @@ export const userAgentsContractRouter = s.router(userAgentsContract, {
         ...(body.defaultNotebookIds != null ? { defaultNotebookIds: body.defaultNotebookIds } : {}),
         ...(body.plugins != null ? { plugins: body.plugins } : {}),
         ...(body.enabledTools != null ? { enabledTools: body.enabledTools } : {}),
-        ...(body.skillMentions != null ? { skillMentions: body.skillMentions } : {}),
         ...(body.fewShotExamples != null
           ? { fewShotExamples: toFewShot(body.fewShotExamples) }
           : {}),
         ...(body.inlineSourceLinks != null ? { inlineSourceLinks: body.inlineSourceLinks } : {}),
+        ...(body.defaultRecipeMention !== undefined
+          ? { defaultRecipeMention: toStoredRecipeMention(body.defaultRecipeMention) }
+          : {}),
+        ...(body.defaultRecipeId !== undefined ? { defaultRecipeId: body.defaultRecipeId } : {}),
       };
 
       const agent = await createUserAgent(userId, input);
@@ -245,7 +320,8 @@ export const userAgentsContractRouter = s.router(userAgentsContract, {
 
   update: async (args) => {
     try {
-      const userId = getAuthedUser(args.req).id;
+      const user = getAuthedUser(args.req);
+      const userId = user.id;
       const b = args.body;
 
       const bad = invalidTools(b.enabledTools);
@@ -254,6 +330,16 @@ export const userAgentsContractRouter = s.router(userAgentsContract, {
           status: 400 as const,
           body: { success: false, message: `Unbekannte Tools: ${bad.join(', ')}` },
         };
+      }
+
+      const recipeError = await validateDefaultRecipe({
+        userId,
+        mention: b.defaultRecipeMention,
+        recipeId: b.defaultRecipeId,
+        userLocale: user.locale ?? null,
+      });
+      if (recipeError) {
+        return { status: 400 as const, body: { success: false, message: recipeError } };
       }
 
       // Build the patch field-by-field: only keys present on the body mutate a
@@ -279,9 +365,11 @@ export const userAgentsContractRouter = s.router(userAgentsContract, {
       if (b.defaultNotebookIds != null) patch.defaultNotebookIds = b.defaultNotebookIds;
       if (b.plugins != null) patch.plugins = b.plugins;
       if (b.enabledTools != null) patch.enabledTools = b.enabledTools;
-      if (b.skillMentions != null) patch.skillMentions = b.skillMentions;
       if (b.fewShotExamples != null) patch.fewShotExamples = toFewShot(b.fewShotExamples);
       if (b.inlineSourceLinks != null) patch.inlineSourceLinks = b.inlineSourceLinks;
+      if (b.defaultRecipeMention !== undefined)
+        patch.defaultRecipeMention = toStoredRecipeMention(b.defaultRecipeMention);
+      if (b.defaultRecipeId !== undefined) patch.defaultRecipeId = b.defaultRecipeId;
 
       const agent = await updateUserAgent(userId, args.params.identifier, patch);
       if (!agent) {

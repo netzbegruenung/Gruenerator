@@ -19,11 +19,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ChatGraphState } from '../types.js';
 
 const getTextFormForInjection = vi.fn();
+const getTextFormForInjectionById = vi.fn();
 
 vi.mock('../../../../services/docs/docsIndex.js', () => ({ buildDocsPageMap: async () => '' }));
 vi.mock('../../../../services/user/textFormRepository.js', () => ({
   getTextFormForInjection: (userId: string, mention: string) =>
     getTextFormForInjection(userId, mention) as unknown,
+  getTextFormForInjectionById: (id: string, userId: string) =>
+    getTextFormForInjectionById(id, userId) as unknown,
 }));
 // Der Rezept-Rumpf liegt im privaten Repo und fehlt im Test-Lauf; er wird hier
 // gestellt, damit sich „Rezept im Prompt" von „nichts im Prompt" unterscheiden
@@ -68,11 +71,15 @@ function state(overrides: Partial<ChatGraphState> = {}): ChatGraphState {
 beforeEach(() => {
   getTextFormForInjection.mockReset();
   getTextFormForInjection.mockResolvedValue(null);
+  getTextFormForInjectionById.mockReset();
+  getTextFormForInjectionById.mockResolvedValue(null);
 });
 
 describe('angelernter Stil — er ersetzt das Rezept, das er meint', () => {
   it('ersetzt beim generischen Rezept dessen Vorgaben', async () => {
     getTextFormForInjection.mockResolvedValue({
+      id: 'row-presse',
+      mention: 'presse',
       kind: 'preset',
       textType: 'presse',
       title: 'Pressemitteilungen',
@@ -93,7 +100,14 @@ describe('angelernter Stil — er ersetzt das Rezept, das er meint', () => {
     getTextFormForInjection.mockImplementation((_userId: string, mention: string) =>
       Promise.resolve(
         mention === 'presse'
-          ? { kind: 'preset', textType: 'presse', title: 'Pressemitteilungen', styleBlock: STIL }
+          ? {
+              id: 'row-presse',
+              mention: 'presse',
+              kind: 'preset',
+              textType: 'presse',
+              title: 'Pressemitteilungen',
+              styleBlock: STIL,
+            }
           : null
       )
     );
@@ -108,7 +122,14 @@ describe('angelernter Stil — er ersetzt das Rezept, das er meint', () => {
     getTextFormForInjection.mockImplementation((_userId: string, mention: string) =>
       Promise.resolve(
         mention === 'presse-hessen-partei'
-          ? { kind: 'recipe', textType: 'presse', title: 'PM Hessen (Partei)', styleBlock: STIL }
+          ? {
+              id: 'row-hessen',
+              mention: 'presse-hessen-partei',
+              kind: 'recipe',
+              textType: 'presse',
+              title: 'PM Hessen (Partei)',
+              styleBlock: STIL,
+            }
           : null
       )
     );
@@ -133,6 +154,8 @@ describe('angelernter Stil — er ist Nutzertext', () => {
     // auf dem Loop-Pfad. Roh injiziert war derselbe Text hier zwei
     // Behandlungen unterworfen.
     getTextFormForInjection.mockResolvedValue({
+      id: 'row-presse',
+      mention: 'presse',
       kind: 'preset',
       textType: 'presse',
       title: 'Pressemitteilungen',
@@ -150,6 +173,8 @@ describe('angelernter Stil — er ist Nutzertext', () => {
     // `hasUntrusted` hing vorher ausschließlich an Anhang, Dokument und Suche;
     // dieser Turn hat nichts davon, und genau der ist der häufige.
     getTextFormForInjection.mockResolvedValue({
+      id: 'row-presse',
+      mention: 'presse',
       kind: 'preset',
       textType: 'presse',
       title: 'Pressemitteilungen',
@@ -194,6 +219,8 @@ describe('angelernter Stil — Prompt-Titel und Ausweis sind derselbe', () => {
       Promise.resolve(
         mention === 'presse-hessen-partei'
           ? {
+              id: 'row-hessen',
+              mention: 'presse-hessen-partei',
               kind: 'recipe',
               textType: 'presse',
               title: 'Mein Hessen-Stil',
@@ -208,7 +235,12 @@ describe('angelernter Stil — Prompt-Titel und Ausweis sind derselbe', () => {
 
     expect(prompt).toContain('## AKTIVE PLATTFORM: PM Hessen (Partei)');
     expect(s.usedRecipes).toEqual([
-      { mention: 'presse-hessen-partei', title: 'PM Hessen (Partei)', source: 'user' },
+      {
+        mention: 'presse-hessen-partei',
+        title: 'PM Hessen (Partei)',
+        source: 'user',
+        id: 'row-hessen',
+      },
     ]);
   });
 
@@ -216,6 +248,8 @@ describe('angelernter Stil — Prompt-Titel und Ausweis sind derselbe', () => {
     // Ohne Systemrezept gibt es keinen zweiten Titel; hier MUSS die Textform
     // gewinnen, sonst stünde die Kennung statt eines Namens im Abzeichen.
     getTextFormForInjection.mockResolvedValue({
+      id: 'row-omv',
+      mention: 'omveinladungen',
       kind: 'custom',
       textType: null,
       title: 'OMV-Einladungen',
@@ -227,7 +261,7 @@ describe('angelernter Stil — Prompt-Titel und Ausweis sind derselbe', () => {
 
     expect(prompt).toContain('## AKTIVE TEXTFORM: OMV-Einladungen');
     expect(s.usedRecipes).toEqual([
-      { mention: 'omveinladungen', title: 'OMV-Einladungen', source: 'user' },
+      { mention: 'omveinladungen', title: 'OMV-Einladungen', source: 'user', id: 'row-omv' },
     ]);
   });
 
@@ -239,5 +273,58 @@ describe('angelernter Stil — Prompt-Titel und Ausweis sind derselbe', () => {
     expect(s.usedRecipes).toEqual([
       { mention: 'presse-hessen-partei', title: 'PM Hessen (Partei)', source: 'system' },
     ]);
+  });
+});
+
+/**
+ * Die gepinnte Zeile: gewählt wird über die id, und die Überschrift entscheidet
+ * sich dann an der Zeile — nicht an der Mention der Anfrage. `replacesSystem`
+ * ist genau diese Frage („gibt es zu DIESER Zeile ein mitgeliefertes Rezept?"),
+ * und sie fällt im gemeinsamen Nachschlag, nicht mehr hier.
+ */
+describe('gepinntes Rezept — die Überschrift folgt der Zeile', () => {
+  it('läuft unter der Plattform-Überschrift, wenn die Zeile ein Systemrezept ersetzt', async () => {
+    getTextFormForInjectionById.mockResolvedValue({
+      id: 'row-hessen',
+      mention: 'presse-hessen-partei',
+      kind: 'recipe',
+      textType: 'presse',
+      title: 'Mein Hessen-Stil',
+      styleBlock: STIL,
+    });
+
+    const s = state({ activeSkillMention: null, activeRecipeId: 'row-hessen' });
+    const prompt = await buildSystemMessage(s);
+
+    expect(getTextFormForInjectionById).toHaveBeenCalledWith('row-hessen', 'u1');
+    expect(prompt).toContain('## AKTIVE PLATTFORM: PM Hessen (Partei)');
+    expect(prompt).toContain(STIL);
+    expect(s.usedRecipes).toEqual([
+      {
+        mention: 'presse-hessen-partei',
+        title: 'PM Hessen (Partei)',
+        source: 'user',
+        id: 'row-hessen',
+      },
+    ]);
+  });
+
+  it('läuft unter der Textform-Überschrift, wenn es zur Zeile kein Rezept gibt', async () => {
+    getTextFormForInjectionById.mockResolvedValue({
+      id: 'row-omv',
+      mention: 'omveinladungen',
+      kind: 'custom',
+      textType: null,
+      title: 'OMV-Einladungen',
+      styleBlock: STIL,
+    });
+
+    const s = state({ activeSkillMention: null, activeRecipeId: 'row-omv' });
+    const prompt = await buildSystemMessage(s);
+
+    expect(prompt).toContain('## AKTIVE TEXTFORM: OMV-Einladungen');
+    // Und die Einfassung kommt mit ihrer Regel — die Zeile ist Nutzertext.
+    expect(prompt).toContain('untrusted_content');
+    expect(prompt).toContain('REGELHIERARCHIE');
   });
 });

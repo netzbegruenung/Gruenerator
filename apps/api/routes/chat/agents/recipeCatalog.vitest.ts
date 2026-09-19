@@ -1,12 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const listTextForms = vi.fn();
+const listMentionableTextForms = vi.fn();
 const getTextFormForInjection = vi.fn();
+const getTextFormForInjectionById = vi.fn();
 const getInternalSkillPrompt = vi.fn();
 
 vi.mock('../../../services/user/textFormRepository.js', () => ({
-  listTextForms: (...a: unknown[]) => listTextForms(...a),
+  listMentionableTextForms: (...a: unknown[]) => listMentionableTextForms(...a),
   getTextFormForInjection: (...a: unknown[]) => getTextFormForInjection(...a),
+  getTextFormForInjectionById: (...a: unknown[]) => getTextFormForInjectionById(...a),
 }));
 vi.mock('../../../services/skills/internalPrompts.js', () => ({
   getInternalSkillPrompt: (...a: unknown[]) => getInternalSkillPrompt(...a),
@@ -17,8 +19,9 @@ const { buildRecipeCatalog, renderRecipeCatalog, resolveRecipe } =
 
 beforeEach(() => {
   vi.clearAllMocks();
-  listTextForms.mockResolvedValue([]);
+  listMentionableTextForms.mockResolvedValue([]);
   getTextFormForInjection.mockResolvedValue(null);
+  getTextFormForInjectionById.mockResolvedValue(null);
   getInternalSkillPrompt.mockReturnValue('Prompt-Body');
 });
 
@@ -28,6 +31,8 @@ describe('buildRecipeCatalog', () => {
     const mentions = entries.map((e) => e.mention);
     expect(mentions).toContain('presse');
     expect(mentions).toContain('instagram');
+    // Ein mitgeliefertes Rezept hat keine Zeile hinter sich.
+    expect(entries.find((e) => e.mention === 'presse')?.id).toBeNull();
   });
 
   it('keeps de-DE Landesverband recipes away from an Austrian user', async () => {
@@ -122,26 +127,111 @@ describe('buildRecipeCatalog', () => {
   });
 
   it('adds the user’s own learned forms', async () => {
-    listTextForms.mockResolvedValue([
-      { mention: 'omveinladungen', title: 'OMV-Einladung', kind: 'custom', sharedFromGroup: null },
+    listMentionableTextForms.mockResolvedValue([
+      {
+        id: 'row-omv',
+        mention: 'omveinladungen',
+        title: 'OMV-Einladung',
+        description: null,
+        kind: 'custom',
+        sharedFromGroup: null,
+      },
     ]);
     const entries = await buildRecipeCatalog({ userLocale: 'de-DE', userId: 'u1', roles: null });
     const own = entries.find((e) => e.mention === 'omveinladungen');
     expect(own?.source).toBe('user');
     expect(own?.title).toBe('OMV-Einladung');
+    expect(own?.id).toBe('row-omv');
+  });
+
+  // Der Grund für den Wechsel auf `listMentionableTextForms`: `listTextForms`
+  // sah nur die eigenen Zeilen. Ein in ein Projekt geteiltes Rezept stand damit
+  // im Mention-Menü, war für das Modell aber unsichtbar.
+  it('offers a recipe shared into one of the user’s projects', async () => {
+    listMentionableTextForms.mockResolvedValue([
+      {
+        id: 'row-fremd',
+        mention: 'buergerbrief',
+        title: 'Bürger*innenbrief',
+        description: 'Antwort auf Zuschriften, freundlich und konkret.',
+        kind: 'custom',
+        sharedFromGroup: 'KV Köln',
+        ownerName: 'Jamila',
+        isPublic: false,
+      },
+    ]);
+    const entries = await buildRecipeCatalog({ userLocale: 'de-DE', userId: 'u1', roles: null });
+    const fremd = entries.find((e) => e.mention === 'buergerbrief');
+    expect(fremd?.source).toBe('user');
+    expect(fremd?.id).toBe('row-fremd');
+    // Die Beschreibung der Zeile, nicht der Platzhalter — sie steht im Menü
+    // ebenso und ist das Einzige, woran das Modell den Eintrag erkennt.
+    expect(fremd?.description).toBe('Antwort auf Zuschriften, freundlich und konkret.');
+  });
+
+  // Der offene Katalog bleibt draussen: jede Zeile hier wird eine Katalog-Zeile
+  // UND ein `rezept_laden`-Enumwert, und die öffentlichen Rezepte der Instanz
+  // sind nach oben unbegrenzt. Erreichbar bleiben sie über die ausdrückliche
+  // Mention, die Auswahl im Composer und das `recipes`-Werkzeug.
+  it('asks for own and group recipes only, never the public catalogue', async () => {
+    await buildRecipeCatalog({ userLocale: 'de-DE', userId: 'u1', roles: null });
+    expect(listMentionableTextForms).toHaveBeenCalledWith('u1', undefined, {
+      includePublic: false,
+    });
+  });
+
+  // Ohne eigene Beschreibung sagt die Herkunft mehr als ein falscher
+  // Besitzanspruch — „Selbst angelernt" gilt nur für die eigenen Zeilen.
+  it('names the origin of a foreign row that has no description', async () => {
+    listMentionableTextForms.mockResolvedValue([
+      {
+        id: 'row-fremd',
+        mention: 'buergerbrief',
+        title: 'Bürger*innenbrief',
+        description: null,
+        kind: 'custom',
+        sharedFromGroup: null,
+        ownerName: 'Jamila',
+        isPublic: true,
+      },
+    ]);
+    const entries = await buildRecipeCatalog({ userLocale: 'de-DE', userId: 'u1', roles: null });
+    expect(entries.find((e) => e.mention === 'buergerbrief')?.description).toBe(
+      'Rezept von Jamila.'
+    );
   });
 
   it('names the project a shared form came from', async () => {
-    listTextForms.mockResolvedValue([
-      { mention: 'kv-brief', title: 'KV-Brief', kind: 'custom', sharedFromGroup: 'KV Köln' },
+    listMentionableTextForms.mockResolvedValue([
+      {
+        id: 'row-kv',
+        mention: 'kv-brief',
+        title: 'KV-Brief',
+        description: null,
+        kind: 'custom',
+        sharedFromGroup: 'KV Köln',
+      },
     ]);
     const entries = await buildRecipeCatalog({ userLocale: 'de-DE', userId: 'u1', roles: null });
     expect(entries.find((e) => e.mention === 'kv-brief')?.description).toContain('KV Köln');
   });
 
+  // Die Verdrängung selbst — welche Zeile überhaupt aufgezählt wird — sitzt
+  // seit der Vereinheitlichung als `isListableTextForm` in
+  // `services/user/textFormVisibility.ts` und ist dort gepinnt (Preset auf
+  // `presse` raus, `antrag` rein, Rezept-Stil auf einer LV-Mention raus). Hier
+  // bleibt der Zweig daneben: kommt trotzdem eine Zeile auf der Mention eines
+  // Systemrezepts an, entsteht daraus kein zweiter Eintrag.
   it('treats a preset as an override, not a second entry', async () => {
-    listTextForms.mockResolvedValue([
-      { mention: 'presse', title: 'Presse', kind: 'preset', sharedFromGroup: null },
+    listMentionableTextForms.mockResolvedValue([
+      {
+        id: 'row-presse',
+        mention: 'presse',
+        title: 'Presse',
+        description: null,
+        kind: 'preset',
+        sharedFromGroup: null,
+      },
     ]);
     const entries = await buildRecipeCatalog({ userLocale: 'de-DE', userId: 'u1', roles: null });
     expect(entries.filter((e) => e.mention === 'presse')).toHaveLength(1);
@@ -151,18 +241,28 @@ describe('buildRecipeCatalog', () => {
   // `SKILLS` nicht. Es überschreibt also nichts und muss sich selbst eintragen,
   // sonst kann das Modell den angelernten Antrags-Stil nie laden (#2937).
   it('trägt ein Preset ohne mitgeliefertes Rezept als eigenen Eintrag ein', async () => {
-    listTextForms.mockResolvedValue([
-      { mention: 'antrag', title: 'Anträge', kind: 'preset', sharedFromGroup: null },
+    listMentionableTextForms.mockResolvedValue([
+      {
+        id: 'row-antrag',
+        mention: 'antrag',
+        title: 'Anträge',
+        description: null,
+        kind: 'preset',
+        sharedFromGroup: null,
+      },
     ]);
     const entries = await buildRecipeCatalog({ userLocale: 'de-DE', userId: 'u1', roles: null });
     const antrag = entries.filter((e) => e.mention === 'antrag');
     expect(antrag).toHaveLength(1);
     expect(antrag[0]?.source).toBe('user');
     expect(antrag[0]?.title).toBe('Anträge');
+    expect(antrag[0]?.id).toBe('row-antrag');
   });
 
   it('lädt den angelernten Antrags-Stil, obwohl es kein Systemrezept gibt', async () => {
     getTextFormForInjection.mockResolvedValue({
+      id: 'row-antrag',
+      mention: 'antrag',
       kind: 'preset',
       textType: 'antrag',
       title: 'Anträge',
@@ -175,35 +275,8 @@ describe('buildRecipeCatalog', () => {
     expect(resolved?.body).toContain('Kurze Begründung');
   });
 
-  // Dasselbe für einen Stil, der FÜR ein LV-Rezept angelernt wurde. Die Zeile
-  // muss `kind === 'custom'` verfehlen, sonst verdrängt der eigene Titel den
-  // des Rezepts im Menü (`userMentions`-Filter weiter unten in der Funktion) —
-  // genau der Grund, warum es dafür einen dritten `kind` gibt und nicht
-  // `custom` wiederverwendet wird.
-  it('behandelt einen Rezept-Stil als Überschreibung, nicht als zweiten Eintrag', async () => {
-    listTextForms.mockResolvedValue([
-      {
-        mention: 'presse-bayern-partei',
-        title: 'Unser Stil',
-        kind: 'recipe',
-        sharedFromGroup: null,
-      },
-    ]);
-    const entries = await buildRecipeCatalog({
-      userLocale: 'de-DE',
-      userId: 'u1',
-      roles: [
-        { ebene: 'land', rolle: 'Mitarbeiter*in Landesgeschäftsstelle', bundesland: 'Bayern' },
-      ],
-    });
-    const bayern = entries.filter((e) => e.mention === 'presse-bayern-partei');
-    expect(bayern).toHaveLength(1);
-    expect(bayern[0]?.source).toBe('system');
-    expect(bayern[0]?.title).not.toBe('Unser Stil');
-  });
-
   it('degrades to system recipes when the text-form lookup fails', async () => {
-    listTextForms.mockRejectedValue(new Error('db weg'));
+    listMentionableTextForms.mockRejectedValue(new Error('db weg'));
     const entries = await buildRecipeCatalog({ userLocale: 'de-DE', userId: 'u1', roles: null });
     expect(entries.length).toBeGreaterThan(0);
     expect(entries.every((e) => e.source === 'system')).toBe(true);
@@ -222,6 +295,7 @@ describe('renderRecipeCatalog', () => {
         title: 'Pressemitteilung',
         description: 'PM verfassen',
         source: 'system',
+        id: null,
       },
     ]);
     expect(block).toContain('- presse: Pressemitteilung — PM verfassen');
@@ -232,6 +306,8 @@ describe('renderRecipeCatalog', () => {
 describe('resolveRecipe', () => {
   it('prefers a user’s learned form over the shipped prompt', async () => {
     getTextFormForInjection.mockResolvedValue({
+      id: 'row-presse',
+      mention: 'presse',
       kind: 'preset',
       textType: 'presse',
       title: 'Meine Presse',
@@ -245,6 +321,8 @@ describe('resolveRecipe', () => {
 
   it('fences a user’s style block as untrusted — it reaches the prompt unasked', async () => {
     getTextFormForInjection.mockResolvedValue({
+      id: 'row-eigen',
+      mention: 'eigen',
       kind: 'custom',
       textType: null,
       title: 'Eigen',

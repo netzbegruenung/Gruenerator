@@ -93,10 +93,9 @@ export const TAB_NOTES: TabNote[] = [
   {
     tab: 'texte-anlernen',
     intro:
-      'Hier bringst du dem Grünerator deinen Schreibstil bei: Du hinterlegst eigene Texte, er leitet daraus Ton, Satzbau und Länge ab und schreibt künftig ähnlich.',
+      'Rezepte lernst du jetzt in der Agentura an. Dieser Bereich verweist nur noch dorthin — Tab und Link bleiben, damit alte Verknüpfungen weiter funktionieren.',
     extras: [
-      'Für die häufigsten Textarten gibt es Vorlagen (siehe unten); zusätzlich kannst du eigene Textarten anlegen.',
-      'Pro Textart siehst du, ob und wann zuletzt angelernt wurde.',
+      'Im Marktplatz der Agentura legst du eigene Rezepte an oder bearbeitest bestehende — inklusive Beispieltexte, Stilanalyse und Teilen mit deinen Gruppen.',
     ],
   },
   {

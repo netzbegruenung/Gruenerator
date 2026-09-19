@@ -162,7 +162,7 @@ const TAB_SKELETONS: Record<SettingsTab, () => React.ReactElement> = {
   friends: () => <SettingsCardsSkeleton cards={4} />,
   personalisierung: () => <SettingsFormSkeleton />,
   briefe: () => <SettingsCardsSkeleton cards={2} />,
-  'texte-anlernen': () => <SettingsCardsSkeleton cards={4} />,
+  'texte-anlernen': () => <SettingsCardsSkeleton cards={1} />,
   erinnerungen: () => <SettingsCardsSkeleton cards={4} />,
   benachrichtigungen: () => <SettingsRowsSkeleton rows={2} />,
   wolke: () => <SettingsCardsSkeleton cards={2} />,
