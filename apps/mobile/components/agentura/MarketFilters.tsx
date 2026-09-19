@@ -12,6 +12,11 @@ import { BODY_FONT, borderRadius, colors, darkTheme, lightTheme, spacing } from 
  *
  * Die Lautstärke ist Absicht und unterscheidet die beiden: das Regal ist die
  * Entscheidung und trägt Grün, der Typ verengt nur darin und bleibt grau.
+ *
+ * Das Grün des aktiven Reiters ist `secondary[600]`, nicht `primary[500]`:
+ * weiße Schrift erreicht darauf 4,65:1 statt 3,73:1. Dieselbe Paarung trägt
+ * der primäre Knopf, und im Web fiel genau diese Stelle durch die
+ * axe-Prüfung.
  */
 export function ShelfTabs<T extends string>({
   options,
@@ -36,7 +41,7 @@ export function ShelfTabs<T extends string>({
       {options.map((option) => {
         const selected = option.id === active;
         const background = selected
-          ? colors.primary[500]
+          ? colors.secondary[600]
           : isDark
             ? theme.surface
             : colors.primary[50];
