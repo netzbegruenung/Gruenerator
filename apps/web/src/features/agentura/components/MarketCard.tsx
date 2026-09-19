@@ -35,6 +35,13 @@ interface MarketCardProps {
   onDelete?: () => void;
   /** Zusätzliche Bedienelemente unter der Beschreibung (z. B. Takt-Steuerung). */
   footer?: ReactNode;
+  /**
+   * Überschriftenebene des Kartentitels. Im Markt steht die Karte direkt unter
+   * dem Seitentitel (`h2`), im Rezept-Startbildschirm unter einer
+   * Abschnittsüberschrift (`h3`). Eine feste Ebene würde in einem der beiden
+   * Fälle eine Stufe überspringen — `heading-order` fängt das.
+   */
+  headingLevel?: 2 | 3;
 }
 
 export function MarketCard({
@@ -49,7 +56,9 @@ export function MarketCard({
   onDuplicate,
   onDelete,
   footer,
+  headingLevel = 2,
 }: MarketCardProps) {
+  const Heading = headingLevel === 3 ? 'h3' : 'h2';
   return (
     <InteractiveCard
       label={title}
@@ -62,14 +71,11 @@ export function MarketCard({
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-xs">
-            <h3 className="m-0 min-w-0 text-base font-semibold leading-tight text-foreground-heading">
+            <Heading className="m-0 min-w-0 text-base font-semibold leading-tight text-foreground-heading">
               {title}
-            </h3>
+            </Heading>
             {isFavorite && (
-              <PiStarFill
-                aria-label="Favorit"
-                className="h-3.5 w-3.5 shrink-0 text-primary"
-              />
+              <PiStarFill aria-label="Favorit" className="h-3.5 w-3.5 shrink-0 text-primary" />
             )}
           </div>
           {meta && <p className="m-0 mt-0.5 text-[13px] text-foreground-muted">{meta}</p>}

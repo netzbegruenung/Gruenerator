@@ -38,9 +38,7 @@ describe('MarketCard', () => {
     const onSelect = vi.fn();
     const onEdit = vi.fn();
     const user = userEvent.setup();
-    render(
-      <MarketCard {...base} onSelect={onSelect} onEdit={onEdit} onToggleFavorite={vi.fn()} />
-    );
+    render(<MarketCard {...base} onSelect={onSelect} onEdit={onEdit} onToggleFavorite={vi.fn()} />);
 
     await user.click(screen.getByRole('button', { name: 'Aktionen' }));
     expect(onSelect).not.toHaveBeenCalled();

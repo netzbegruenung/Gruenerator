@@ -28,8 +28,13 @@ describe('Agentura-Regale', () => {
     expect(webKeys()).not.toContain('empfohlen');
   });
 
-  it('behält „Empfohlen" mobil, wo es das Startregal ist', () => {
-    expect(agenturaCategoriesForPlatform('mobile').map((c) => c.key)).toContain('empfohlen');
+  it('hat auch mobil kein „Empfohlen"-Regal mehr — die Auswahl ist eine Reihung', () => {
+    expect(agenturaCategoriesForPlatform('mobile').map((c) => c.key)).not.toContain('empfohlen');
+  });
+
+  it('zeigt auf beiden Plattformen dieselben vier Regale', () => {
+    expect(agenturaCategoriesForPlatform('mobile').map((c) => c.key)).toEqual(webKeys());
+    expect(webKeys()).toEqual(['meine', 'landesverband', 'community', 'gruenerator']);
   });
 
   it('führt das eigene Landesverbands-Regal', () => {

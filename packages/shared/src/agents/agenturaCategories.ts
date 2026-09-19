@@ -42,13 +42,15 @@ export interface AgenturaCategory {
  */
 export const AGENTURA_CATEGORIES: AgenturaCategory[] = [
   {
-    // Nur noch mobil ein eigenes Regal. Im Web ist „Empfohlen" ein Abschnitt
-    // über den offiziellen Grüneratoren: dieselben sechs Karten, aber ohne
-    // eigenes Regal, aus dem man wieder heraus muss, um den Rest zu sehen.
+    // Auf keiner Plattform mehr ein eigenes Regal: es war immer eine Auswahl
+    // aus den offiziellen Grüneratoren, und wer sie gesehen hatte, musste das
+    // Regal wechseln, um den Rest zu sehen. Die Auswahl lebt als Reihung
+    // weiter — `pinnedToSidebar` steht bei der Sortierung „Empfohlen" oben.
+    // Schlüssel bleibt: Registry-IDs werden stillgelegt, nicht entfernt.
     key: 'empfohlen',
     label: 'Empfohlen',
     description: 'Beliebte Grüneratoren zum Einstieg — eine Auswahl über alle Regale hinweg.',
-    platforms: ['mobile'],
+    platforms: [],
   },
   {
     key: 'meine',
@@ -67,6 +69,7 @@ export const AGENTURA_CATEGORIES: AgenturaCategory[] = [
     key: 'landesverband',
     label: 'Dein Landesverband',
     description: 'Die Grüneratoren und Rezepte deines Landesverbands, über deine Rolle zugeteilt.',
+    platforms: ['web', 'mobile'],
   },
   {
     key: 'community',
