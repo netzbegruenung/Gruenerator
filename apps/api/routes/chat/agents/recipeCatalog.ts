@@ -9,19 +9,20 @@
  *
  * Two sources, one list:
  *   - system recipes from `SKILLS` (body read from SKILLS_INTERN_DIR at boot)
- *   - the user's own "Texte anlernen" forms (body = the learned style block)
+ *   - the "Texte anlernen" forms belonging to the user or shared into one of
+ *     their projects (body = the learned style block). Bewusst NICHT der
+ *     öffentliche Katalog — siehe `buildRecipeCatalog`.
  *
  * A user form with the same mention as a system recipe is an override, not a
  * second entry — the same precedence `buildSystemMessage` applies for an
  * explicitly picked recipe.
  */
+import { type MentionableTextForm } from '@gruenerator/contracts';
 import {
   DISABLED_LV_AGENT_IDS,
-  canonicalSkillMention,
   SKILLS,
   type RoleLandesverbandInput,
   type Skill,
-  hasSystemRecipe,
   isLvItemVisibleForRoles,
   isSkillOfferedIn,
   landesverbandIdsForRoles,
@@ -29,15 +30,13 @@ import {
 } from '@gruenerator/shared/agents';
 import { type InstanceId } from '@gruenerator/shared/instances';
 
-import { deriveTextFormMention } from '../../../agents/langgraph/ChatGraph/nodes/textFormMention.js';
 import { CURRENT_INSTANCE } from '../../../config/instance.js';
-import { getInternalSkillPrompt } from '../../../services/skills/internalPrompts.js';
 import {
-  getTextFormForInjection,
-  listTextForms,
-} from '../../../services/user/textFormRepository.js';
+  resolveRecipeBody,
+  type ResolvedRecipeBody,
+} from '../../../services/recipes/resolveRecipeBody.js';
+import { listMentionableTextForms } from '../../../services/user/textFormRepository.js';
 import { createLogger } from '../../../utils/logger.js';
-import { embedUntrusted } from '../services/untrustedContent.js';
 
 const log = createLogger('recipeCatalog');
 
@@ -46,6 +45,8 @@ export interface RecipeCatalogEntry {
   title: string;
   description: string;
   source: 'system' | 'user';
+  /** Die Zeile hinter dem Eintrag — `null` für ein mitgeliefertes Systemrezept. */
+  id: string | null;
 }
 
 /**
@@ -60,6 +61,18 @@ export interface RecipeCatalogEntry {
  */
 function ownerIsVisible(identifier: string): boolean {
   return !DISABLED_LV_AGENT_IDS.has(identifier);
+}
+
+/**
+ * Der Platzhalter für eine Zeile ohne eigene Beschreibung. „Selbst angelernt"
+ * stimmt nur für die eigenen — bei einer fremden Zeile sagt die Herkunft mehr
+ * als ein falscher Besitzanspruch, und sie ist das Einzige, woran das Modell
+ * den Eintrag unterscheidet.
+ */
+function fallbackDescription(form: MentionableTextForm): string {
+  if (form.sharedFromGroup) return `Rezept aus dem Projekt \u201e${form.sharedFromGroup}\u201c.`;
+  if (form.ownerName) return `Rezept von ${form.ownerName}.`;
+  return 'Selbst angelernte Textform.';
 }
 
 export async function buildRecipeCatalog(params: {
@@ -103,31 +116,38 @@ export async function buildRecipeCatalog(params: {
       title: s.title,
       description: s.description,
       source: 'system' as const,
+      id: null,
     }));
 
   if (!userId) return system;
 
   let user: RecipeCatalogEntry[] = [];
   try {
-    user = (await listTextForms(userId))
-      // Presets override a system recipe's body; they are not separate menu
-      // entries. Custom and group-shared forms are the ones the model cannot
-      // otherwise know about.
-      //
-      // …ausser das Systemrezept existiert gar nicht. `antrag` ist ein Preset
-      // ohne Eintrag in `SKILLS`, also überschreibt es nichts und stand mangels
-      // eigener Zeile auch nirgends — die angelernte Zeile war auf keinem Pfad
-      // erreichbar (#2937). Ein Preset ohne mitgeliefertes Rezept trägt sich
-      // deshalb selbst in den Katalog ein, genau wie eine eigene Textform.
-      .filter((f) => f.kind === 'custom' || !hasSystemRecipe(f.mention))
-      .map((f) => ({
+    // Dieselbe Liste, die das Mention-Menü anbietet — aber OHNE den offenen
+    // Katalog. Jede Zeile hier wird eine Katalog-Zeile UND ein Wert im
+    // `rezept_laden`-Enum, und der Werkzeugkatalog ist ohnehin der grösste
+    // Token-Posten des Turns; die öffentlichen Rezepte der ganzen Instanz sind
+    // eine Menge, die niemand nach oben begrenzt. Erreichbar bleiben sie über
+    // die ausdrückliche Mention (`resolveRecipeBody`) und die Auswahl im
+    // Composer — aufgezählt bekommt das Modell sie auf keinem Weg, auch das
+    // `recipes`-Werkzeug liest dieselben Quellen wie dieser Katalog.
+    //
+    // Was bleibt: eigene Textformen und die in ein Projekt geteilten, bereits
+    // dedupliziert (eigen vor geteilt) und bereits um die Presets bereinigt,
+    // die nur den Rumpf eines Systemrezepts ersetzen. `antrag` bleibt drin: es
+    // hat kein mitgeliefertes Rezept, überschreibt also nichts und muss sich
+    // selbst eintragen (#2937). Zuvor las diese Stelle `listTextForms` und sah
+    // nur die eigenen Zeilen — ein geteiltes Rezept stand im Menü und war für
+    // das Modell unsichtbar.
+    user = (await listMentionableTextForms(userId, undefined, { includePublic: false })).map(
+      (f) => ({
         mention: f.mention,
         title: f.title,
-        description: f.sharedFromGroup
-          ? `Angelernte Textform aus dem Projekt „${f.sharedFromGroup}".`
-          : 'Selbst angelernte Textform.',
+        description: f.description ?? fallbackDescription(f),
         source: 'user' as const,
-      }));
+        id: f.id,
+      })
+    );
   } catch (err) {
     // A failed lookup degrades to the system catalogue rather than killing the
     // turn — same posture as a missing SKILLS_INTERN_DIR.
@@ -152,18 +172,14 @@ export function renderRecipeCatalog(entries: readonly RecipeCatalogEntry[]): str
   ].join('\n');
 }
 
-export interface ResolvedRecipe {
-  title: string;
-  body: string;
-  source: 'system' | 'user';
-}
+/** Was die Werkzeug-Tür (`rezept_laden`) vom Nachschlag braucht. */
+export type ResolvedRecipe = Pick<ResolvedRecipeBody, 'title' | 'body' | 'source'>;
 
 /**
- * Fetch a recipe body. Same precedence `buildSystemMessage` uses: a user's
- * learned form wins over the shipped prompt — aber nur die, die FÜR DIESE
- * Mention angelernt wurde. Ein generischer `presse`-Stil greift nicht mehr in
- * `presse-bayern-partei` hinein; die Faltung ist mit #2930 gefallen (siehe
- * `nodes/textFormMention.ts`).
+ * Rezept-Rumpf für die Werkzeug-Tür. Die Entscheidung — angelernter Stil vor
+ * mitgeliefertem Rezepttext, die Mention der Zeile, die Einfassung — trifft
+ * `services/recipes/resolveRecipeBody.ts`; hier steht nur noch der Aufruf,
+ * damit die drei Wege nicht wieder auseinanderlaufen (#2930, #2937, #2939).
  *
  * Returns null when nothing is available — notably when SKILLS_INTERN_DIR was
  * never rolled out. The caller MUST surface that as a failure: on the
@@ -175,28 +191,5 @@ export async function resolveRecipe(params: {
   mention: string;
   userId: string | null;
 }): Promise<ResolvedRecipe | null> {
-  const { mention, userId } = params;
-  const skill = SKILLS.find((s) => s.mention === canonicalSkillMention(mention));
-
-  if (userId) {
-    const textFormMention = deriveTextFormMention(mention);
-    if (textFormMention) {
-      const form = await getTextFormForInjection(userId, textFormMention);
-      if (form) {
-        return {
-          title: skill?.title ?? form.title,
-          // User-authored text reaching a system prompt without the user
-          // deliberately picking it this turn — fenced like every other
-          // untrusted source, same as the profile instructions.
-          body: embedUntrusted('nutzer_anweisung', form.styleBlock),
-          source: 'user',
-        };
-      }
-    }
-  }
-
-  if (!skill) return null;
-  const internal = getInternalSkillPrompt(skill.mention);
-  if (!internal) return null;
-  return { title: skill.title, body: internal, source: 'system' };
+  return resolveRecipeBody(params);
 }

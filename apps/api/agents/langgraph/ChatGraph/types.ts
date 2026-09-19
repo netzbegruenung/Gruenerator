@@ -566,6 +566,8 @@ export interface ChatGraphInput {
    */
   userRoles?: readonly RoleLandesverbandInput[] | undefined;
   activeSkillMention?: string | undefined;
+  /** Zeilen-id der gewählten Textform. Schlägt die Mention beim Nachschlag. */
+  activeRecipeId?: string | undefined;
   userInstructions?: string | undefined;
   contextWindowTokens?: number | undefined;
 }
@@ -773,13 +775,22 @@ export interface ChatGraphState {
   // appends the skill's `skillSystemPrompt` as an additive section.
   activeSkillMention: string | null;
 
+  // Zeilen-id der gewählten angelernten Textform. Sie ist der stabile
+  // Schlüssel: eine Umbenennung der Mention tauscht das Rezept damit nicht
+  // still aus. Gesetzt schlägt sie die Mention im Nachschlag
+  // (`resolveRecipeBody`) und zählt wie diese als ausdrückliche Wahl.
+  activeRecipeId: string | null;
+
   // Nachvollziehbarkeit: die Rezepte, die diesen Turn tatsächlich geformt
   // haben. Gesetzt von `buildSystemMessage` (Prompt-Tür: explizite/implizite
   // Mention oder Agent-Default) bzw. vom Loop aus der Rezept-Registry
   // (`rezept_laden`). Wandert in die `done`-Metadaten und die persistierte
   // Nachricht, damit die Oberfläche dezent ausweisen kann, welche
   // Schreibvorgabe galt.
-  usedRecipes?: { mention: string; title: string; source: 'system' | 'user' }[];
+  // `id` ist die Zeile, die den Turn getragen hat — vorhanden nur für eine
+  // angelernte Textform, weggelassen (nicht `null`) für einen Systemrumpf und
+  // für die Registry-Einträge des Loops, die keine id führen.
+  usedRecipes?: { mention: string; title: string; source: 'system' | 'user'; id?: string }[];
 
   // User profile instructions (from profiles.custom_prompt, additive to all modes)
   userInstructions: string | null;

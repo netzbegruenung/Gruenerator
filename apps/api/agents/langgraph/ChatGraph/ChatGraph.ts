@@ -206,6 +206,9 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
 
     // Active skill (drives platform-specific prompt fragment in respondNode)
     activeSkillMention: input.activeSkillMention || null,
+    // Die Zeile dazu, falls die Oberfläche eine id mitschickt — sie schlägt die
+    // Mention im Nachschlag (`resolveRecipeBody`).
+    activeRecipeId: input.activeRecipeId || null,
 
     // User profile instructions (from profiles.custom_prompt)
     userInstructions: input.userInstructions || null,
