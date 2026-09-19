@@ -25,7 +25,10 @@ import type { IconType } from 'react-icons';
  * into the Metro bundle.
  */
 export {
+  AGENTURA_TYPE_LABELS,
+  AGENTURA_TYPE_VALUES,
   DEFAULT_CATEGORY,
+  DEFAULT_TYPE,
   agenturaCategoriesForPlatform,
   SKILL_CATEGORY_LABELS,
   SKILL_CATEGORY_ORDER,
@@ -34,6 +37,7 @@ export {
   type AgenturaCategory,
   type AgenturaCategoryKey,
   type AgenturaSort,
+  type AgenturaType,
 } from '@gruenerator/shared/agents';
 
 /** Aisle sign icon per skill category. */
