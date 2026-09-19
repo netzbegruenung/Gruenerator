@@ -45,16 +45,21 @@ vi.mock('../../services/translation/glossaryRegistry.js', async (importOriginal)
     glossaryName: () => 'Grünerator',
   };
 });
-vi.mock('../../services/translation/translationQuota.js', async (importOriginal) => {
-  const mod =
-    await importOriginal<typeof import('../../services/translation/translationQuota.js')>();
-  return { ...mod, getQuota: vi.fn().mockResolvedValue({ used: 0, limit: 10 }) };
-});
+const BALANCE = {
+  usedUnits: 0,
+  limitUnits: 1000,
+  remainingUnits: 1000,
+  resetsAt: new Date('2026-09-19T00:00:00.000Z'),
+  newsletterBonus: false,
+};
+vi.mock('../../services/trees/index.js', () => ({
+  getTreeBudget: () => ({ status: () => Promise.resolve(BALANCE) }),
+}));
 
 const { translationContractRouter } = await import('./translationContractRouter.js');
 const { DeepLError } = await import('../../services/translation/DeepLService.js');
-const { TranslationQuotaExceededError } =
-  await import('../../services/translation/translationQuota.js');
+const { TreeBudgetExceededError, TreeBudgetUnavailableError } =
+  await import('../../services/trees/treeBudget.js');
 
 type Handler = (args: Record<string, unknown>) => Promise<{ status: number; body: unknown }>;
 const router = translationContractRouter as unknown as Record<string, Handler>;
@@ -78,7 +83,7 @@ describe('translateText', () => {
       targetLang: 'en-GB',
       billedCharacters: 5,
       glossaryApplied: false,
-      quota: { used: 5, limit: 10 },
+      quota: { used: 0.05, limit: 10, remaining: 9.95, resetsAt: 'x', newsletterBonus: false },
     };
     translateWithGlossary.mockResolvedValue(result);
     await expect(router.translateText!({ req, body })).resolves.toEqual({
@@ -87,13 +92,29 @@ describe('translateText', () => {
     });
   });
 
-  it('maps the budget refusal to 429 with the quota', async () => {
+  it('maps the budget refusal to 429 with the quota in Bäume', async () => {
     translateWithGlossary.mockRejectedValue(
-      new TranslationQuotaExceededError({ used: 10, limit: 10 })
+      new TreeBudgetExceededError({ ...BALANCE, usedUnits: 1000, remainingUnits: 0 }, 100)
     );
     const res = await router.translateText!({ req, body });
     expect(res.status).toBe(429);
-    expect(res.body).toMatchObject({ success: false, quota: { used: 10, limit: 10 } });
+    expect(res.body).toMatchObject({
+      success: false,
+      quota: { used: 10, limit: 10, remaining: 0 },
+    });
+  });
+
+  it('maps an unreadable budget to 503', async () => {
+    translateWithGlossary.mockRejectedValue(new TreeBudgetUnavailableError());
+    const res = await router.translateText!({ req, body });
+    expect(res.status).toBe(503);
+    // `code` is the only thing that tells this 503 from the no-key one; the
+    // web hook renders the latter as a notice and would swallow the sentence.
+    expect(res.body).toMatchObject({
+      success: false,
+      error: expect.stringContaining('Kontingent'),
+      code: 'budget_unavailable',
+    });
   });
 
   it('maps DeepL 400 to 400 and an outage to 502', async () => {
@@ -101,6 +122,27 @@ describe('translateText', () => {
     expect((await router.translateText!({ req, body })).status).toBe(400);
     translateWithGlossary.mockRejectedValueOnce(new DeepLError('DeepL 503: down', 503));
     expect((await router.translateText!({ req, body })).status).toBe(502);
+  });
+});
+
+describe('getLanguages', () => {
+  it('reports the shared daily budget beside the languages', async () => {
+    service.getLanguages.mockResolvedValue([]);
+    const res = await router.getLanguages!({ req });
+    expect(res).toEqual({
+      status: 200,
+      body: {
+        languages: [],
+        glossaryPairs: ['de>en'],
+        quota: {
+          used: 0,
+          limit: 10,
+          remaining: 10,
+          resetsAt: BALANCE.resetsAt.toISOString(),
+          newsletterBonus: false,
+        },
+      },
+    });
   });
 });
 
@@ -129,8 +171,14 @@ describe('glossary admin gate', () => {
 
   it('answers 503 when no key is configured', async () => {
     deepl.available = false;
-    expect((await router.getGlossary!({ req })).status).toBe(503);
-    expect((await router.getLanguages!({ req })).status).toBe(503);
+    expect(await router.getGlossary!({ req })).toMatchObject({
+      status: 503,
+      body: { code: 'not_configured' },
+    });
+    expect(await router.getLanguages!({ req })).toMatchObject({
+      status: 503,
+      body: { code: 'not_configured' },
+    });
   });
 
   it('returns an empty glossary shell when none exists yet', async () => {

@@ -40,6 +40,7 @@ import { CURRENT_INSTANCE } from '@/config/instance';
 import { useUserAgents } from '@/features/agents/api';
 import ChatHero from '@/features/chat/ChatHero';
 import { LandesverbandHub } from '@/features/chat/LandesverbandHub';
+import { useRecipeDeepLink } from '@/features/chat/useRecipeDeepLink';
 import { useGroupDetails } from '@/features/groups/hooks/useGroups';
 import { resolveChatBackground } from '@/features/workplace/chatBackgrounds';
 import { useFirstName } from '@/hooks/useFirstName';
@@ -246,7 +247,18 @@ function ChatPage() {
   // instead of the generic overview greeting. Lowest priority in the chain so
   // an explicit ?agent= or path slug still wins.
   const skillParam = hub ? null : searchParams.get('skill');
-  const resolvedFromSkill = skillParam ? resolveSkillMention(skillParam) : null;
+  // Rezept-Deeplink aus der Agentura: `/chat?rezept=<mention>&rezeptId=<id>`.
+  // `?skill=` allein aktiviert das Rezept NICHT — es löst nur den Agenten auf,
+  // der Rumpf des Rezepts blieb dabei ungenutzt. `?rezept=` aktiviert die
+  // Erwähnung selbst (unten); trifft sie zusätzlich ein Systemrezept, läuft
+  // dieselbe Agentenauflösung weiter mit.
+  const rezeptParam = hub ? null : searchParams.get('rezept');
+  const rezeptIdParam = hub ? null : searchParams.get('rezeptId');
+  const resolvedFromSkill = skillParam
+    ? resolveSkillMention(skillParam)
+    : rezeptParam
+      ? resolveSkillMention(rezeptParam)
+      : null;
   // Path-based /agents/:slug is the canonical form; ?agent= is legacy but
   // still wins when explicitly set so old deep links keep their behavior.
   const agentParam = hub
@@ -264,7 +276,8 @@ function ChatPage() {
   // For deep links this also keeps the hero's ChatInner (which resets chat
   // context and switches to a new thread on mount) from racing the thread
   // resolution.
-  const effectiveViewMode = agentParam || threadSlug || modeParam ? 'thread' : chatViewMode;
+  const effectiveViewMode =
+    agentParam || threadSlug || modeParam || rezeptParam ? 'thread' : chatViewMode;
 
   useDocumentTitle(hub ? hub.name : effectiveViewMode === 'thread' ? currentThreadTitle : null);
 
@@ -320,6 +333,14 @@ function ChatPage() {
       store.setChatViewMode('thread');
     }
   }, [agentParam, modeParam, threadSlug, userLocale, userAgents]);
+
+  // `?rezept=<mention>` aktiviert das Rezept für den nächsten Turn — dieselbe
+  // Wirkung, die eine `@`-Erwähnung im Composer hat. `rezeptId` trägt die
+  // Zeilen-ID eigener/geteilter/öffentlicher Rezepte mit, damit das Backend
+  // über die ID auflöst statt über die Erwähnung; für ein Systemrezept bleibt
+  // sie leer. Der Hook steht NACH der Agentenauflösung und hält das Rezept
+  // nach, solange der Parameter lebt — warum das nötig ist, steht dort.
+  useRecipeDeepLink(rezeptParam, rezeptIdParam);
 
   // "Neuer Chat in diesem Projekt" arrives as /chat?projekt=<groupId>. File the
   // freshly created thread into that Projekt, reusing the same thread-groupId

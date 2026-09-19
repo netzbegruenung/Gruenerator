@@ -239,9 +239,6 @@ const envSchema = z.object({
   // Name des EINEN Konto-Glossars, das der Admin-Tab pflegt und das jede
   // Übersetzung automatisch mitnimmt, sobald das Sprachpaar abgedeckt ist.
   DEEPL_GLOSSARY_NAME: z.string().default('Grünerator'),
-  // Tagesbudget je Nutzer*in in Zeichen (Text + Dokumente; ein Dokument kostet
-  // bei DeepL mindestens 50 000 Zeichen und wird auch so gebucht).
-  DEEPL_DAILY_CHARS_PER_USER: numStr(200_000),
 
   // ── Web Search Providers ───────────────────────────────────────────────
   // Linkup (https://docs.linkup.so) — when set, replaces SearXNG for @web

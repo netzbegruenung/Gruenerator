@@ -53,7 +53,13 @@ const LANGUAGE_LIST = {
     },
   ],
   glossaryPairs: ['de>en'],
-  quota: { used: 1200, limit: 200000 },
+  quota: {
+    used: 2,
+    limit: 10,
+    remaining: 8,
+    resetsAt: '2026-09-19T00:00:00.000Z',
+    newsletterBonus: false,
+  },
 };
 
 beforeAll(() => {
@@ -81,7 +87,13 @@ describe('UebersetzerPage', () => {
           targetLang: 'en-GB',
           billedCharacters: 10,
           glossaryApplied: true,
-          quota: { used: 1210, limit: 200000 },
+          quota: {
+            used: 2.1,
+            limit: 10,
+            remaining: 7.9,
+            resetsAt: '2026-09-19T00:00:00.000Z',
+            newsletterBonus: false,
+          },
         });
       })
     );
@@ -95,7 +107,7 @@ describe('UebersetzerPage', () => {
     ).toEqual(['Automatisch erkennen', 'Deutsch', 'Englisch', 'Französisch']);
     const target = screen.getByLabelText('Nach') as HTMLSelectElement;
     expect(target.value).toBe('en-GB');
-    expect(screen.getByText('Heute: 1.200 / 200.000 Zeichen')).toBeInTheDocument();
+    expect(screen.getByText('Heute noch 8 von 10 Bäumen.')).toBeInTheDocument();
 
     await user.type(screen.getByLabelText('Ausgangstext'), 'Hallo Welt');
     await user.click(screen.getByRole('button', { name: 'Übersetzen' }));
@@ -108,7 +120,7 @@ describe('UebersetzerPage', () => {
       formality: null,
     });
     expect(screen.getByText('Erkannt: Deutsch · Grünen-Glossar angewendet')).toBeInTheDocument();
-    expect(screen.getByText('Heute: 1.210 / 200.000 Zeichen')).toBeInTheDocument();
+    expect(screen.getByText('Heute noch 7,9 von 10 Bäumen.')).toBeInTheDocument();
   });
 
   it('shows the budget refusal as an alert and updates the budget line', async () => {
@@ -118,8 +130,14 @@ describe('UebersetzerPage', () => {
         HttpResponse.json(
           {
             success: false,
-            error: 'Tagesbudget für Übersetzungen erschöpft (200.000 von 200.000 Zeichen).',
-            quota: { used: 200000, limit: 200000 },
+            error: 'Tagesbudget für Übersetzungen erschöpft (10 von 10 Bäumen).',
+            quota: {
+              used: 10,
+              limit: 10,
+              remaining: 0,
+              resetsAt: '2026-09-19T00:00:00.000Z',
+              newsletterBonus: false,
+            },
           },
           { status: 429 }
         )
@@ -130,18 +148,44 @@ describe('UebersetzerPage', () => {
     await user.click(screen.getByRole('button', { name: 'Übersetzen' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/Tagesbudget/);
-    expect(screen.getByText('Heute: 200.000 / 200.000 Zeichen')).toBeInTheDocument();
+    expect(screen.getByText('Heute noch 0 von 10 Bäumen.')).toBeInTheDocument();
   });
 
   it('shows a notice, not an error, when the server has no DeepL key', async () => {
     server.use(
       http.get(LANGUAGES, () =>
-        HttpResponse.json({ success: false, error: 'nicht eingerichtet' }, { status: 503 })
+        HttpResponse.json(
+          { success: false, error: 'nicht eingerichtet', code: 'not_configured' },
+          { status: 503 }
+        )
       )
     );
     renderWithProviders(<UebersetzerPage />);
     expect(await screen.findByRole('status')).toHaveTextContent(/nicht eingerichtet/);
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('shows the server sentence when a 503 is the budget, not a missing key', async () => {
+    withLanguages();
+    server.use(
+      http.post(TEXT, () =>
+        HttpResponse.json(
+          {
+            success: false,
+            error: 'Das Kontingent lässt sich gerade nicht prüfen.',
+            code: 'budget_unavailable',
+          },
+          { status: 503 }
+        )
+      )
+    );
+    const { user } = renderWithProviders(<UebersetzerPage />);
+    await user.type(await screen.findByLabelText('Ausgangstext'), 'Hallo');
+    await user.click(screen.getByRole('button', { name: 'Übersetzen' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Das Kontingent lässt sich gerade nicht prüfen.'
+    );
   });
 
   it('offers the formality switch only for targets that support it', async () => {

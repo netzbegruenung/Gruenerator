@@ -39,12 +39,11 @@ import { CONTENT_INTEGRITY_ANSWER_RULE } from '../../../../services/contentPolic
 import { buildDocsPageMap } from '../../../../services/docs/docsIndex.js';
 import { localizePlaceholders } from '../../../../services/localization/index.js';
 import { type Locale } from '../../../../services/localization/types.js';
+import { resolveRecipeBody } from '../../../../services/recipes/resolveRecipeBody.js';
 import {
   selectRelevantExcerpt,
   type ExcerptMode,
 } from '../../../../services/search/relevantExcerpt.js';
-import { getInternalSkillPrompt } from '../../../../services/skills/internalPrompts.js';
-import { getTextFormForInjection } from '../../../../services/user/textFormRepository.js';
 import { recordDecision, type BranchOf } from '../../../../utils/decisionJournal.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { formatGermanDate } from '../../../../utils/stringUtils.js';
@@ -63,7 +62,6 @@ import { lastUserText } from './classifierHeuristics.js';
 import { looksLikeDocsHelpQuestion, looksLikeGeltungsfrage } from './classifierSignals.js';
 import { resolveEffectiveRecipeMention } from './effectiveRecipeMention.js';
 import { stripQuotedSpans } from './fastPathGuards.js';
-import { deriveTextFormMention } from './textFormMention.js';
 
 import type { ChatGraphState, DocumentSource, SearchResult, ThreadAttachment } from '../types.js';
 
@@ -2064,8 +2062,9 @@ export async function buildSystemMessage(
     !looksLikeChitchatTurn(userQuestion) &&
     !isProductMetaQuestion(userQuestion) &&
     !docsPageMap;
-  const effectiveSkillMention = resolveEffectiveRecipeMention({
+  const effectiveRecipe = resolveEffectiveRecipeMention({
     activeSkillMention: state.activeSkillMention,
+    activeRecipeId: state.activeRecipeId,
     customSystemPrompt: state.customSystemPrompt,
     isWriteEligibleTurn,
     agentDefault: () =>
@@ -2073,48 +2072,40 @@ export async function buildSystemMessage(
         userRoles: state.userRoles,
         userLocale: state.userLocale,
       }),
+    agentDefaultRecipeId: agentConfig.defaultRecipeId ?? null,
   });
-  const activeSkill = effectiveSkillMention
-    ? SKILLS.find((s) => s.mention === canonicalSkillMention(effectiveSkillMention))
-    : undefined;
+  const effectiveSkillMention = effectiveRecipe.mention;
 
-  // Per-user learned writing style ("Texte anlernen") takes precedence over the
-  // standard skill prompt when the user has trained one FOR THIS mention:
-  //   - system skill (`presse`, `presse-hessen-partei`, …): the learned block
-  //     REPLACES that skill's standard prompt (komplett ersetzen);
-  //   - custom mention (no system skill, e.g. /omveinladungen): injected as its
-  //     own "## AKTIVE TEXTFORM" block onto the base agent.
-  // Nachgeschlagen wird unter der Mention selbst — ein generischer `presse`-Stil
-  // greift NICHT mehr in ein Landesverbands-Rezept hinein (siehe
-  // `textFormMention.ts`). See services/user/textFormRepository.ts (cached, no
-  // LLM on the hot path).
-  const textFormMention = deriveTextFormMention(effectiveSkillMention);
-  const userTextForm =
-    !isNeutralTurn && agentConfig.userId && textFormMention
-      ? await getTextFormForInjection(agentConfig.userId, textFormMention)
+  // Der EINE Nachschlag. Gepinnte Zeile vor angelerntem Stil („Texte anlernen")
+  // vor mitgeliefertem Rezepttext — und er entscheidet gleich mit, unter welcher
+  // Überschrift das Ergebnis läuft (`replacesSystem`) und ob es eingefasst ist
+  // (`untrusted`). Hier standen dafür bis zur Vereinheitlichung drei eigene
+  // Aufrufe, und sie sind dreimal von den beiden anderen Pfaden abgewichen
+  // (#2930, #2937, #2939); die Herleitung steht im Kopf von
+  // `services/recipes/resolveRecipeBody.ts`.
+  //
+  // `userId` fällt auf dem neutralen Zusammenfassungs-Turn weg — genau wie
+  // bisher: der angelernte Stil hat in einer objektiven Zusammenfassung nichts
+  // zu suchen, ein ausdrücklich gewähltes Systemrezept schon.
+  const resolved =
+    effectiveSkillMention || effectiveRecipe.recipeId
+      ? await resolveRecipeBody({
+          mention: effectiveSkillMention,
+          recipeId: effectiveRecipe.recipeId,
+          userId: isNeutralTurn ? null : (agentConfig.userId ?? null),
+        })
       : null;
 
-  let skillFragment = '';
-  if (userTextForm) {
-    // Eingefasst wie jede andere Nutzereingabe, die einen Systemprompt erreicht,
-    // ohne dass die Person sie in DIESEM Turn ausgewählt hat — dieselbe Grenze,
-    // die `resolveRecipe` auf dem Loop-Pfad seit jeher zieht. Roh injiziert war
-    // derselbe Text hier zwei Behandlungen unterworfen, und der ungefasste Weg
-    // war der häufigere.
-    const styleBlock = embedUntrusted('nutzer_anweisung', userTextForm.styleBlock);
-    skillFragment = activeSkill
-      ? `\n\n## AKTIVE PLATTFORM: ${activeSkill.title}\n${styleBlock}`
-      : `\n\n## AKTIVE TEXTFORM: ${userTextForm.title}\n${styleBlock}`;
-  } else if (activeSkill) {
-    // The prompt body is party-internal and deliberately absent from `SKILLS`,
-    // which ships in the web and mobile bundles — it is read from disk here
-    // instead. Null means the directory was never rolled out; the turn then runs
-    // on the agent's base systemRole. See services/skills/internalPrompts.ts.
-    const internalPrompt = getInternalSkillPrompt(activeSkill.mention);
-    if (internalPrompt) {
-      skillFragment = `\n\n## AKTIVE PLATTFORM: ${activeSkill.title}\n${internalPrompt}`;
-    }
-  }
+  // Der Rumpf einer angelernten Textform ist im Nachschlag BEREITS eingefasst
+  // (`embedUntrusted`) — hier nicht ein zweites Mal, das ist nicht idempotent.
+  //
+  // Die Überschrift: gibt es ein Systemrezept, steht dessen Titel darin
+  // („## AKTIVE PLATTFORM: PM Hessen (Partei)"), auch wenn der Rumpf ein
+  // angelernter Stil ist — der Stil ersetzt den Rezepttext, nicht das Rezept.
+  // Nur die freie Mention ohne Systemrezept läuft unter ihrem eigenen Namen.
+  const skillFragment = resolved
+    ? `\n\n## AKTIVE ${resolved.replacesSystem || resolved.source === 'system' ? 'PLATTFORM' : 'TEXTFORM'}: ${resolved.title}\n${resolved.body}`
+    : '';
 
   // Dieselbe Vokabel wie die Werkzeug-Tür (`[recipeTools] [Rezept] gewählt=…
   // quelle=…`), damit im Log vergleichbar wird, welcher der beiden Wege ein
@@ -2122,25 +2113,15 @@ export async function buildSystemMessage(
   // mit ausdrücklicher Wahl sieht im Log exakt aus wie einer ohne, weil die
   // Wahl `rezept_laden` gerade abhängt (`catalogAssembly`). Genau daran ließ
   // sich der Ausfall vom 20.08.2026 nicht am Log entscheiden.
-  // Was das Modell wirklich vor sich hat — leer, wenn kein Rezepttext gefunden
-  // wurde. Die Formatregel unten hängt daran, nicht an der blossen Absicht.
-  //
-  // Reihenfolge WIE IM PROMPT-KOPF oben: gibt es ein Systemrezept, steht dessen
-  // Titel in der Überschrift („## AKTIVE PLATTFORM: PM Hessen (Partei)"), auch
-  // wenn der Rumpf ein angelernter Stil ist — der Stil ersetzt den Rezepttext,
-  // nicht das Rezept. Nur die freie Mention ohne Systemrezept wird unter dem
-  // Titel der Textform ausgewiesen, und genau so heisst sie dann auch oben.
-  // Umgekehrt sortiert wies die Abzeichenzeile „Pressemitteilungen" aus,
-  // während das Modell „PM Hessen (Partei)" vor sich hatte (#2939). Der
-  // Loop-Pfad sortiert seit jeher so (`recipeCatalog.resolveRecipe`).
-  const activeTextFormTitle = skillFragment
-    ? (activeSkill?.title ?? userTextForm?.title ?? effectiveSkillMention)
-    : null;
+  // Was das Modell wirklich vor sich hat — `quelle=fehlt`, wenn kein Rezepttext
+  // gefunden wurde. Die Formatregel unten hängt daran, nicht an der blossen
+  // Absicht.
+  const activeTextFormTitle = resolved ? resolved.title : null;
 
-  if (effectiveSkillMention) {
-    const quelle = userTextForm ? 'nutzer' : skillFragment ? 'system' : 'fehlt';
+  if (effectiveSkillMention || effectiveRecipe.recipeId) {
+    const quelle = resolved?.source ?? 'fehlt';
     log.info(
-      `[Rezept] Prompt-Fragment mention=${effectiveSkillMention} quelle=${quelle} gewaehlt=${state.activeSkillMention ? 'ja' : 'agent-standard'}`
+      `[Rezept] Prompt-Fragment mention=${effectiveSkillMention ?? '-'} id=${effectiveRecipe.recipeId ?? '-'} quelle=${quelle} gewaehlt=${state.activeSkillMention || state.activeRecipeId ? 'ja' : 'agent-standard'}`
     );
   }
 
@@ -2148,12 +2129,18 @@ export async function buildSystemMessage(
   // Absicht ohne gefundenen Rezepttext (`quelle=fehlt`) bleibt draußen. Auf
   // Loop-Turns überschreibt die Registry diesen Wert, wenn das Modell selbst
   // lädt (`agenticRespondService`).
-  if (skillFragment && effectiveSkillMention) {
+  //
+  // Ausgewiesen wird die Mention der ZEILE, nicht die der Anfrage: ein per id
+  // gepinntes Rezept läuft unter seinem eigenen Namen, und die Abzeichenzeile
+  // soll dasselbe nennen wie die Überschrift im Prompt (#2939). Der Prompttext
+  // bleibt draußen — hier steht nur, WAS galt.
+  if (resolved) {
     state.usedRecipes = [
       {
-        mention: canonicalSkillMention(effectiveSkillMention),
-        title: activeTextFormTitle ?? effectiveSkillMention,
-        source: userTextForm ? 'user' : 'system',
+        mention: resolved.mention,
+        title: resolved.title,
+        source: resolved.source,
+        ...(resolved.id ? { id: resolved.id } : {}),
       },
     ];
   }
@@ -2211,7 +2198,7 @@ ${CONTENT_INTEGRITY_ANSWER_RULE}${INSTRUCTION_HIERARCHY_RULE}${state.injectionSu
     attachmentContext !== '' ||
     searchContext !== '' ||
     perSourceContext !== '' ||
-    userTextForm !== null ||
+    Boolean(resolved?.untrusted) ||
     !!state.userInstructions ||
     !!memoryContext;
   const hierarchyRule = hasUntrusted ? INSTRUCTION_HIERARCHY_RULE : '';
