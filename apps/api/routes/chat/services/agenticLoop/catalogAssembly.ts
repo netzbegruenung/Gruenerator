@@ -272,6 +272,10 @@ export async function assembleToolCatalog(
   //     `buildSystemMessage` already injected it. Letting the model pick a
   //     second one would overrule an explicit choice — same double-injection
   //     guard `product_knowledge` uses.
+  //   - `activeRecipeId`: the id came pinned onto the turn (Agentura deep
+  //     link, not a mention), but it is just as explicit a choice as the
+  //     mention — self-loading a second recipe on top would overrule it the
+  //     same way.
   //   - `customSystemPrompt`: a thread-level prompt replaces the whole
   //     persona; self-loading a recipe into it would fight the user. A
   //     CATALOGUE role's baustein is the exception (`roleBausteinActive`):
@@ -280,6 +284,7 @@ export async function assembleToolCatalog(
   let recipeCatalog: RecipeCatalogEntry[] = [];
   if (
     !state.activeSkillMention &&
+    !state.activeRecipeId &&
     (!state.customSystemPrompt || state.roleBausteinActive) &&
     state.enabledTools?.['rezept_laden'] !== false
   ) {
