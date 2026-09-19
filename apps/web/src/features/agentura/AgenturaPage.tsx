@@ -224,9 +224,7 @@ function AgenturaPage() {
     ? (searchParams.get('sort') as AgenturaSort)
     : 'empfohlen';
   const catParam = searchParams.get('cat') as AgenturaCategoryKey | null;
-  const type: AgenturaType = AGENTURA_TYPE_VALUES.includes(
-    searchParams.get('type') as AgenturaType
-  )
+  const type: AgenturaType = AGENTURA_TYPE_VALUES.includes(searchParams.get('type') as AgenturaType)
     ? (searchParams.get('type') as AgenturaType)
     : DEFAULT_TYPE;
 
@@ -606,7 +604,9 @@ function AgenturaPage() {
       getId: (e) => e.agent.identifier,
       map: agentUsage,
     });
-    return sort === 'empfohlen' ? pinnedFirst(sorted, (e) => Boolean(e.agent.pinnedToSidebar)) : sorted;
+    return sort === 'empfohlen'
+      ? pinnedFirst(sorted, (e) => Boolean(e.agent.pinnedToSidebar))
+      : sorted;
   };
   const sortSkills = (skills: AgentListItem[]) => sortBy(skills, sort, (s) => s.title);
   const sortRecipeEntries = (entries: RecipeEntry[]) => sortBy(entries, sort, (e) => e.title);
@@ -794,7 +794,9 @@ function AgenturaPage() {
             aria-label={`Sortierung: ${SORT_LABELS[sort]} — umschalten auf ${
               SORT_LABELS[sort === 'empfohlen' ? 'az' : 'empfohlen']
             }`}
-            onClick={() => updateParam('sort', sort === 'empfohlen' ? 'az' : 'empfohlen', 'empfohlen')}
+            onClick={() =>
+              updateParam('sort', sort === 'empfohlen' ? 'az' : 'empfohlen', 'empfohlen')
+            }
           >
             <PiArrowsDownUp aria-hidden="true" />
             {SORT_LABELS[sort]}

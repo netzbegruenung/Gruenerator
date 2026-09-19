@@ -94,6 +94,7 @@ function RecipeStartScreen({
                 key={recipe.id}
                 icon={<PhosphorIcon name={recipe.iconKey ?? 'PiSparkle'} />}
                 title={recipe.title}
+                headingLevel={3}
                 meta="Rezept"
                 description={recipe.description ?? ''}
                 onSelect={() =>
