@@ -14,7 +14,7 @@
  * against a service that returns *fewer* rows than the account holds, which is
  * exactly the situation both old implementations got wrong.
  */
-import { mySharesQuerySchema } from '@gruenerator/contracts';
+import { mySharesQuerySchema, type ShareListItem } from '@gruenerator/contracts';
 import { describe, expect, it, vi } from 'vitest';
 
 import { USER_SHARES_MAX_LIMIT } from '../../services/sharedMediaFilters.js';
@@ -32,9 +32,18 @@ vi.mock('./shareServices.js', () => ({
   getSharedMediaService: () => Promise.resolve({ getUserShares, getLibraryUsage }),
 }));
 
+// Only the signing secret is overridden; everything else stays the real env, so
+// this mock cannot quietly starve whatever else the router pulls in. Without a
+// secret `buildThumbnailTileUrl` returns null for every row and the tile-URL
+// assertions below would pass while proving nothing.
+vi.mock('../../config/env.js', async (importOriginal) => {
+  const actual = await importOriginal<{ env: Record<string, unknown> }>();
+  return { env: { ...actual.env, MEDIA_URL_SIGNING_SECRET: 'test-key' } };
+});
+
 const { shareReadContractRouter } = await import('./shareReadContractRouter.js');
 
-function row(id: string): SharedMediaRow {
+function row(id: string, over: Partial<SharedMediaRow> = {}): SharedMediaRow {
   return {
     id,
     share_token: `tok-${id}`,
@@ -48,7 +57,15 @@ function row(id: string): SharedMediaRow {
     status: 'ready',
     download_count: 0,
     created_at: new Date('2026-08-28T00:00:00Z'),
+    ...over,
   } as unknown as SharedMediaRow;
+}
+
+/** The rows a list endpoint answered with, as the contract declares them. */
+async function listed(rows: SharedMediaRow[]): Promise<ShareListItem[]> {
+  getUserShares.mockResolvedValue(rows);
+  const res = await shareReadContractRouter.listMyShares({ req, query: {} } as never);
+  return (res.body as { shares: ShareListItem[] }).shares;
 }
 
 const req = { user: { id: 'user-1' } } as unknown as Request;
@@ -161,5 +178,61 @@ describe('mySharesQuerySchema', () => {
 
   it('leaves both filters optional', () => {
     expect(mySharesQuerySchema.safeParse({}).success).toBe(true);
+  });
+});
+
+/**
+ * `thumbnailUrl` — the versioned tile URL the list hands out.
+ *
+ * It exists because the alternative every consumer used to compose,
+ * `/api/share/<token>/preview?w=400&fmt=webp`, carries no version segment: an
+ * edit rewrites the bytes under the same share token, so the route caps it at
+ * five minutes of freshness and every cold client start refetched every tile.
+ *
+ * The three omissions are not caution, they are what `resolveMedia`
+ * (thumbnailResolvers.ts) will do when the URL is redeemed. A minted URL that
+ * can only 404 is worse than none, because the consumer's placeholder branch
+ * runs on absence, not on a failed request.
+ */
+describe('thumbnailUrl on the share list', () => {
+  it('mints a versioned tile URL instead of the unversioned preview path', async () => {
+    const [item] = await listed([row('a')]);
+
+    expect(item.thumbnailUrl).toContain('/api/thumbs/media/tok-a/');
+    expect(item.thumbnailUrl).toContain('sig=');
+    expect(item.thumbnailUrl).not.toContain('/preview');
+  });
+
+  it('moves the URL when an edit rewrites the bytes under the same token', async () => {
+    // The reason `versionFromShareRow` prefers `image_metadata.updatedAt` over
+    // `created_at`: a gallery edit does not move the creation time, so a version
+    // derived from it would leave every client on the pre-edit picture for the
+    // full year this URL is cached.
+    const [before] = await listed([row('a')]);
+    const [after] = await listed([
+      row('a', { image_metadata: { updatedAt: '2026-09-01T00:00:00Z' } }),
+    ]);
+
+    expect(after.thumbnailUrl).not.toBe(before.thumbnailUrl);
+  });
+
+  it('omits it for audio, which has no picture at all', async () => {
+    const [item] = await listed([row('a', { media_type: 'audio' })]);
+
+    expect(item.thumbnailUrl).toBeUndefined();
+  });
+
+  it('omits it for a video whose poster frame was never written', async () => {
+    const [item] = await listed([row('a', { media_type: 'video', thumbnail_path: null })]);
+
+    expect(item.thumbnailUrl).toBeUndefined();
+  });
+
+  it('mints it for a video that has a poster frame', async () => {
+    const [item] = await listed([
+      row('a', { media_type: 'video', thumbnail_path: 'shares/tok-a/thumbnail.jpg' }),
+    ]);
+
+    expect(item.thumbnailUrl).toContain('/api/thumbs/media/tok-a/');
   });
 });

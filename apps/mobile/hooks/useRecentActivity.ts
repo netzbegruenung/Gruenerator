@@ -16,6 +16,8 @@ export interface RecentItem {
   type: RecentItemType;
   href: string;
   thumbnailUrl?: string;
+  /** BlurHash from the share's `image_metadata`, drawn while the tile loads. */
+  blurhash?: string;
   content?: string;
   documentType?: string;
   creatorName?: string;
