@@ -93,11 +93,11 @@
 @source "../../../../../packages/chat/src/**/*.{js,ts,jsx,tsx}";
 
 /*
- * Streamdown ships Tailwind utility classes in its dist (streaming caret,
- * built-in controls). Tailwind v4 does not scan node_modules, so register the
- * hoisted (node-linker=hoisted) workspace-root copies explicitly — without
- * these the caret and any Streamdown chrome render unstyled. Only installed
- * plugins need a line.
+ * Streamdown ships Tailwind utility classes in its dist (built-in controls,
+ * code and table chrome). Tailwind v4 does not scan node_modules, so register
+ * the hoisted (node-linker=hoisted) workspace-root copies explicitly — without
+ * these any Streamdown chrome renders unstyled. Only installed plugins need a
+ * line.
  */
 @source "../../../../../node_modules/streamdown/dist/*.js";
 @source "../../../../../node_modules/@streamdown/math/dist/*.js";
