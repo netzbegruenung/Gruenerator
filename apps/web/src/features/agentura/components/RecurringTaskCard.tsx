@@ -5,6 +5,7 @@
  * reuse the recurring-task hooks; creation still happens in the agent builder.
  */
 import { type RecurringTask } from '@gruenerator/contracts';
+import { agenturaMetaLine } from '@gruenerator/shared/agents';
 import { PiPause, PiPencilSimple, PiPlay, PiRepeat, PiTrash } from 'react-icons/pi';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -31,9 +32,9 @@ export function RecurringTaskCard({ task }: { task: RecurringTask }) {
     : 'noch nie';
 
   return (
-    <div className="group flex flex-col gap-sm rounded-lg border border-grey-200 bg-card p-md shadow-xs transition-all duration-300 ease-out hover:border-grey-300 hover:shadow-md dark:border-grey-700 dark:hover:border-grey-600">
+    <div className="group flex flex-col gap-sm rounded-lg border border-grey-200 bg-card p-md shadow-xs transition-all duration-300 ease-out hover:border-primary hover:shadow-md dark:border-grey-700">
       <div className="flex items-start gap-sm">
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-grey-100 text-2xl text-foreground-heading dark:bg-grey-800">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-background-alt text-xl text-foreground-heading">
           <PiRepeat />
         </span>
         <div className="min-w-0 flex-1">
@@ -49,8 +50,10 @@ export function RecurringTaskCard({ task }: { task: RecurringTask }) {
               </span>
             )}
           </div>
-          <p className="m-0 mt-xs line-clamp-2 text-sm leading-relaxed text-foreground">
-            {task.instruction}
+          {/* „Wiederkehrend · montags 8:00" — dieselbe Meta-Zeile, die eine
+              Grünerator- und eine Rezept-Kachel trägt. */}
+          <p className="m-0 mt-0.5 text-[13px] text-foreground-muted">
+            {agenturaMetaLine(['Wiederkehrend', describeRecurrence(task.recurrence)])}
           </p>
         </div>
         <div className="flex shrink-0 gap-1">
@@ -77,10 +80,13 @@ export function RecurringTaskCard({ task }: { task: RecurringTask }) {
         </div>
       </div>
 
+      <p className="m-0 line-clamp-2 text-sm leading-relaxed text-foreground-muted">
+        {task.instruction}
+      </p>
+
       <div className="border-t border-grey-100 pt-sm dark:border-grey-800">
         <p className="m-0 mb-sm text-xs text-foreground-muted">
-          {describeRecurrence(task.recurrence)} · {DELIVERY_LABEL[task.delivery]} · Nächste:{' '}
-          {nextRun} · Zuletzt: {lastRun}
+          {DELIVERY_LABEL[task.delivery]} · Nächste: {nextRun} · Zuletzt: {lastRun}
         </p>
         <div className="flex flex-wrap gap-xs">
           <button

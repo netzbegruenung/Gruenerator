@@ -19,11 +19,6 @@
       "key": "gruenerator",
       "label": "Offizielle Grüneratoren",
       "description": "Fertige Grüneratoren sowie Presse- & Social-Rezepte von Grünerator."
-    },
-    {
-      "key": "favoriten",
-      "label": "Favoriten",
-      "description": "Deine gemerkten Grüneratoren und Rezepte."
     }
   ],
   "defaultCategory": "meine",

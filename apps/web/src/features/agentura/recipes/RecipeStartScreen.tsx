@@ -94,7 +94,8 @@ function RecipeStartScreen({
                 key={recipe.id}
                 icon={<PhosphorIcon name={recipe.iconKey ?? 'PiSparkle'} />}
                 title={recipe.title}
-                kind="skill"
+                headingLevel={3}
+                meta="Rezept"
                 description={recipe.description ?? ''}
                 onSelect={() =>
                   void navigate(`/agentura/rezept/${encodeURIComponent(recipe.mention)}`)
