@@ -306,6 +306,13 @@ describe('pollDocumentJob', () => {
   });
 });
 
+/**
+ * The sweep runs against the real, shared `TRANSLATIONS_DIR`, and `startDocumentJob`
+ * kicks off its own fire-and-forget sweep over the same directory. The return value is
+ * therefore not a property of this test: whoever gets there first deletes the file and
+ * counts it, and the loser counts zero. What is pinned here is the rule itself — a file
+ * past the TTL is gone, a fresh one stays — and that holds no matter which sweep did it.
+ */
 describe('sweepTranslationFiles', () => {
   it('removes files older than the job TTL and keeps fresh ones', async () => {
     fs.mkdirSync(jobs.TRANSLATIONS_DIR, { recursive: true });
@@ -316,8 +323,6 @@ describe('sweepTranslationFiles', () => {
     const past = Date.now() - 3 * 60 * 60 * 1000;
     fs.utimesSync(old, past / 1000, past / 1000);
 
-    // No assertion on the count: startDocumentJob fires a background sweep,
-    // and one from an earlier case may already have taken the old file.
     await sweepTranslationFiles();
 
     expect(fs.existsSync(old)).toBe(false);
