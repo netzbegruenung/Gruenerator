@@ -234,6 +234,10 @@ export const chatStreamBodySchema = z.object({
   // appends its `skillSystemPrompt` to the agent's systemRole for this turn,
   // so platform-specific spec only loads when the relevant skill is active.
   activeSkillMention: z.string().nullish(),
+  // Row id of the active user recipe ("angelernte Textform"). Wins over
+  // activeSkillMention when both are set — old clients only ever send the
+  // mention, so they keep working unchanged.
+  activeRecipeId: z.string().uuid().nullish(),
   // Regenerate the last assistant turn: the backend skips re-persisting the
   // (unchanged) user message and deletes the trailing assistant message(s)
   // before streaming the replacement. Keeps chat_messages linear (no dupes).

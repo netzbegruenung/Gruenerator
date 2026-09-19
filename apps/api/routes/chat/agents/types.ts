@@ -83,6 +83,12 @@ export interface AgentConfig {
    * none — the agent's core text form. See `Agent.defaultRecipeMention`.
    */
   defaultRecipeMention?: string | undefined;
+  /**
+   * Row id of that recipe, when the agent pins one. The stable key: renaming a
+   * mention no longer swaps the agent's text form silently. Beats
+   * `defaultRecipeMention` when both are set. See `Agent.defaultRecipeId`.
+   */
+  defaultRecipeId?: string | undefined;
 }
 
 export interface Thread {

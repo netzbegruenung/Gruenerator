@@ -586,8 +586,16 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
 
       // Skill mentions activate a per-turn prompt fragment on the backend.
       // Capture the mention key in the chat store so the next request includes it.
+      // A textform's `identifier` IS its row id (`textformToMentionable`) — carry
+      // it as `activeRecipeId` so the backend can resolve by id instead of by
+      // mention; every other skill (system skill, custom prompt) passes `null`.
       if (mentionable.category === 'skill') {
-        useAgentStore.getState().setActiveSkillMention(mentionable.mention);
+        useAgentStore
+          .getState()
+          .setActiveSkillMention(
+            mentionable.mention,
+            mentionable.type === 'textform' ? mentionable.identifier : null
+          );
       }
 
       setPillMentions((prev) =>
