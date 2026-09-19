@@ -83,9 +83,15 @@ export const AGENTURA_CATEGORIES: AgenturaCategory[] = [
     platforms: ['web', 'mobile'],
   },
   {
+    // Kein Regal mehr, sondern ein Typ-Filter (`AGENTURA_TYPE_VALUES`), der
+    // innerhalb des aktiven Regals filtert: „Favoriten" war nie eine eigene
+    // Gattung, sondern eine Markierung auf den anderen. Der Schlüssel bleibt
+    // trotzdem stehen — Registry-IDs werden nicht entfernt, nur stillgelegt,
+    // und `AGENTURA_CATEGORY_ICONS` ist auf die volle Union getippt.
     key: 'favoriten',
     label: 'Favoriten',
     description: 'Deine gemerkten Grüneratoren und Rezepte.',
+    platforms: [],
   },
 ];
 
@@ -110,6 +116,29 @@ export const SKILL_CATEGORY_ORDER: SkillCategory[] = [
   'recherche',
   'sonstiges',
 ];
+
+/**
+ * Die Typ-Filter der Steuerleiste — quer zu den Regalen, nicht unter ihnen.
+ *
+ * Ein Regal sagt, *woher* etwas kommt (meins, mein Landesverband, die Basis,
+ * offiziell), der Typ-Filter sagt, *was* es ist. Beide greifen gleichzeitig:
+ * „Meine Grüneratoren" + `recipe` sind die eigenen Rezepte. `fav` filtert
+ * ebenfalls innerhalb des aktiven Regals und ersetzt damit das frühere
+ * Favoriten-Regal.
+ */
+export const AGENTURA_TYPE_VALUES = ['all', 'agent', 'recipe', 'task', 'fav'] as const;
+export type AgenturaType = (typeof AGENTURA_TYPE_VALUES)[number];
+
+export const AGENTURA_TYPE_LABELS: Record<AgenturaType, string> = {
+  all: 'Alle',
+  agent: 'Grüneratoren',
+  recipe: 'Rezepte',
+  task: 'Wiederkehrend',
+  fav: 'Favoriten',
+};
+
+/** Womit die Steuerleiste aufmacht. */
+export const DEFAULT_TYPE: AgenturaType = 'all';
 
 /** Sort options offered in the market header. */
 export const SORT_VALUES = ['empfohlen', 'az'] as const;

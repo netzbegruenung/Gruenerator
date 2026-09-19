@@ -1,114 +1,113 @@
-import { InteractiveCard, cn, interactiveCardControl } from '@gruenerator/ui';
+import {
+  CardActionsMenu,
+  DropdownMenuItem,
+  InteractiveCard,
+  cn,
+  interactiveCardControl,
+} from '@gruenerator/ui';
 import { type ReactNode } from 'react';
-import { PiPencilSimple, PiStar, PiStarFill, PiTrash } from 'react-icons/pi';
-
-import { TypeBadge } from './cards';
+import { PiCopySimple, PiPencilSimple, PiStar, PiStarFill } from 'react-icons/pi';
 
 /**
- * Die Marktkacheln tragen bewusst keine grüne Akzentfarbe: auf einer Seite, die
- * aus nichts als Kacheln besteht, färbt der Akzent nicht mehr das Wichtige ein,
- * sondern alles. Grün bleibt den Stellen, die eine Entscheidung tragen
- * (Regal-Pillen, primäre Knöpfe, Detailseiten); die Kachel selbst ist grau.
+ * Die Marktkachel — eine Form für Grüneratoren, Rezepte und wiederkehrende
+ * Aufgaben, damit das flache Raster als ein Raster liest.
+ *
+ * Grün trägt hier genau zwei Dinge: den Favoritenstern und den Rand beim
+ * Überfahren. Alles andere bleibt grau — auf einer Seite, die aus nichts als
+ * Kacheln besteht, färbt ein großzügiger Akzent nicht das Wichtige ein,
+ * sondern alles.
+ *
+ * Die Gattung steht als Wort in `meta` („Agent · 5 Tools · Wissen"), nicht mehr
+ * als Badge: im Raster standen drei Badges nebeneinander und sagten weniger als
+ * eine Zeile Text.
  */
-const ICON_BTN = 'rounded-md p-2 text-foreground-muted transition-colors hover:bg-hover-alt';
-
 interface MarketCardProps {
   icon: ReactNode;
   title: string;
-  kind: 'agent' | 'skill';
+  /** Meta-Zeile unter dem Titel — Gattung plus, was die Kachel sonst ausmacht. */
+  meta: string;
   description: string;
   onSelect: () => void;
   isFavorite?: boolean;
   onToggleFavorite?: () => void;
-  /** Meta line rendered below a divider (e.g. `<CapabilityTags>`). */
-  footer?: ReactNode;
   onEdit?: () => void;
+  onDuplicate?: () => void;
   onDelete?: () => void;
+  /** Zusätzliche Bedienelemente unter der Beschreibung (z. B. Takt-Steuerung). */
+  footer?: ReactNode;
 }
 
-/**
- * Unified market card for agents and skills. Column layout: icon chip + title with
- * a type badge, a two-line description, and an optional meta footer. Mirrors the
- * Agentura design mockup; used only on the market page.
- */
 export function MarketCard({
   icon,
   title,
-  kind,
+  meta,
   description,
   onSelect,
   isFavorite,
   onToggleFavorite,
-  footer,
   onEdit,
+  onDuplicate,
   onDelete,
+  footer,
 }: MarketCardProps) {
   return (
     <InteractiveCard
       label={title}
       onActivate={onSelect}
-      className="group flex cursor-pointer flex-col gap-sm rounded-lg border border-grey-200 bg-card p-md shadow-xs transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-grey-300 hover:shadow-md dark:border-grey-700 dark:hover:border-grey-600"
+      className="group flex cursor-pointer flex-col gap-sm rounded-lg border border-grey-200 bg-card p-md shadow-xs transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-primary hover:shadow-md dark:border-grey-700"
     >
       <div className="flex items-start gap-sm">
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-grey-100 text-2xl text-foreground-heading dark:bg-grey-800">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-background-alt text-xl text-foreground-heading">
           {icon}
         </span>
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-xs">
-            <h3 className="m-0 text-base font-semibold leading-tight text-foreground-heading">
+          <div className="flex items-center gap-xs">
+            <h3 className="m-0 min-w-0 text-base font-semibold leading-tight text-foreground-heading">
               {title}
             </h3>
-            <TypeBadge kind={kind} />
+            {isFavorite && (
+              <PiStarFill
+                aria-label="Favorit"
+                className="h-3.5 w-3.5 shrink-0 text-primary"
+              />
+            )}
           </div>
-          <p className="m-0 mt-xs line-clamp-2 text-sm leading-relaxed text-foreground">
-            {description}
-          </p>
+          {meta && <p className="m-0 mt-0.5 text-[13px] text-foreground-muted">{meta}</p>}
         </div>
-        <div className={cn('flex shrink-0 gap-1', interactiveCardControl)}>
+        {/* `interactiveCardControl` hebt das Menü über die unsichtbare Klickfläche
+            der Karte; ohne das liegt der Auslöser darunter und ist mit der Maus
+            nicht erreichbar. `CardActionsMenu` bringt preventDefault/stopPropagation
+            schon mit. */}
+        <CardActionsMenu
+          className={cn('-mr-2 -mt-1.5', interactiveCardControl)}
+          onDelete={onDelete}
+        >
           {onToggleFavorite && (
-            <button
-              type="button"
-              aria-label={isFavorite ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleFavorite();
-              }}
-              className={ICON_BTN}
-            >
-              {isFavorite ? <PiStarFill className="h-4 w-4" /> : <PiStar className="h-4 w-4" />}
-            </button>
+            <DropdownMenuItem onClick={onToggleFavorite}>
+              {isFavorite ? <PiStarFill /> : <PiStar />}
+              {isFavorite ? 'Aus Favoriten entfernen' : 'Zu Favoriten'}
+            </DropdownMenuItem>
           )}
           {onEdit && (
-            <button
-              type="button"
-              aria-label="Bearbeiten"
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit();
-              }}
-              className={ICON_BTN}
-            >
-              <PiPencilSimple className="h-4 w-4" />
-            </button>
+            <DropdownMenuItem onClick={onEdit}>
+              <PiPencilSimple />
+              Bearbeiten
+            </DropdownMenuItem>
           )}
-          {onDelete && (
-            <button
-              type="button"
-              aria-label="Löschen"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete();
-              }}
-              className="rounded-md p-2 text-red-600 transition-colors hover:bg-red-600/10"
-            >
-              <PiTrash className="h-4 w-4" />
-            </button>
+          {onDuplicate && (
+            <DropdownMenuItem onClick={onDuplicate}>
+              <PiCopySimple />
+              Duplizieren
+            </DropdownMenuItem>
           )}
-        </div>
+        </CardActionsMenu>
       </div>
-      {footer && (
-        <div className="border-t border-grey-100 pt-sm dark:border-grey-800">{footer}</div>
+      {description && (
+        <p className="m-0 line-clamp-2 text-sm leading-relaxed text-foreground-muted">
+          {description}
+        </p>
       )}
+      {footer}
     </InteractiveCard>
   );
 }
