@@ -56,7 +56,8 @@ export function useRecipeShareSettings(mention: string | null) {
 export function useRecipeGroupShares(mention: string | null): TextFormGroupShare[] {
   const { data } = useOwnRecipes(!!mention);
   if (!mention) return [];
-  return data?.find((form) => form.mention === mention)?.sharedWithGroups ?? [];
+  const target = mention.toLowerCase();
+  return data?.find((form) => form.mention.toLowerCase() === target)?.sharedWithGroups ?? [];
 }
 
 export function useSetRecipeShareMode(mention: string) {
