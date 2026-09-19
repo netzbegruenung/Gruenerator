@@ -7,8 +7,8 @@ import { useCitations } from '../../context/CitationContext';
 import { CitationBadge } from './CitationPopover';
 
 /**
- * Renders a `<citation n="…">` element emitted by `rewriteCitationMarkers`
- * (Streamdown path) as a CitationBadge. Resolves the backing citation from
+ * Renders the `citation` element that `remarkCitationMarkers` builds on the
+ * syntax tree (Streamdown path) as a CitationBadge. Resolves the backing citation from
  * CitationContext at render time, so the badge needs no closure over the
  * citation map and the Streamdown components map can stay a module-level
  * constant.
