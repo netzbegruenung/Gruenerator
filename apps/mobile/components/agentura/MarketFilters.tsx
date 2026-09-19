@@ -30,6 +30,7 @@ export function ShelfTabs<T extends string>({
       horizontal
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={styles.row}
+      style={styles.scroller}
       accessibilityRole="tablist"
     >
       {options.map((option) => {
@@ -74,6 +75,7 @@ export function TypeFilterRow<T extends string>({
       horizontal
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={styles.typeRow}
+      style={styles.scroller}
     >
       {options.map((option) => {
         const selected = option.id === active;
@@ -103,6 +105,14 @@ export function TypeFilterRow<T extends string>({
 }
 
 const styles = StyleSheet.create({
+  /**
+   * Eine waagerechte `ScrollView` dehnt sich in einer Spalte trotzdem in die
+   * Höhe und nimmt der Kartenliste den Platz weg. `flexGrow: 0` hält sie auf
+   * der Höhe ihres Inhalts.
+   */
+  scroller: {
+    flexGrow: 0,
+  },
   row: {
     gap: spacing.small,
     paddingHorizontal: spacing.medium,
