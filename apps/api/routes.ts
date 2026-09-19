@@ -762,12 +762,20 @@ export async function setupRoutes(app: Application): Promise<void> {
   // createExpressEndpoints registers handlers directly on the app, bypassing
   // any later prefix middleware.
   app.use('/api/user-agents', requireAuth);
+  // `draft` synthesizes an agent spec through Mistral. The limiter hangs on the
+  // sub-path, not the prefix, so listing and reading the user's own agents do
+  // not spend the AI budget.
+  app.use('/api/user-agents/draft', aiGenerationLimiter);
   // Sharing router FIRST so the static `/api/user-agents/public` route resolves
   // before the CRUD `/api/user-agents/:identifier` param route.
   mountUserAgentsSharingContractRouter(app);
   mountUserAgentsContractRouter(app);
   // Per-user learned writing styles ("Texte anlernen"). requireAuth at the prefix.
   app.use('/api/text-forms', requireAuth);
+  // `analyze` runs mistral-large over up to 140k characters and `draft`
+  // synthesizes a recipe — same reasoning as /api/user-agents/draft above.
+  app.use('/api/text-forms/analyze', aiGenerationLimiter);
+  app.use('/api/text-forms/draft', aiGenerationLimiter);
   mountUserTextFormsContractRouter(app);
   // EXPERIMENTAL: recurring agent tasks. Scheduler worker lives in server.ts.
   app.use('/api/recurring-tasks', requireAuth, authenticatedReadLimiter);
