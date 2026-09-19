@@ -14,6 +14,7 @@
 import { sharesReadContract, type ShareListItem } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
+import { buildThumbnailTileUrl, versionFromShareRow } from '../../services/media/thumbnailUrl.js';
 import { USER_SHARES_MAX_LIMIT } from '../../services/sharedMediaFilters.js';
 import { toCamelCase } from '../../utils/case.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
@@ -37,6 +38,24 @@ function getUserId(req: Request): string | undefined {
 }
 
 /**
+ * The signed tile URL for a share row, or null when there is no picture behind
+ * it.
+ *
+ * The three exclusions mirror what `resolveMedia` (thumbnailResolvers.ts) will
+ * actually do when the URL is redeemed, rather than guessing: audio rows have
+ * no image at all, a transfer is a file bundle, and a video resolves through
+ * the poster frame written at upload — so one without `thumbnail_path` would
+ * mint a URL that can only ever 404. Minting a dead URL is worse than minting
+ * none, because the consumer's placeholder branch only runs when the field is
+ * absent.
+ */
+function shareTileUrl(row: SharedMediaRow): string | null {
+  if (row.media_type === 'audio' || row.media_type === 'transfer') return null;
+  if (row.media_type === 'video' && !row.thumbnail_path) return null;
+  return buildThumbnailTileUrl('media', row.share_token, versionFromShareRow(row));
+}
+
+/**
  * A `shared_media` row as the list contract declares it.
  *
  * Written out column by column instead of running the row through the generic
@@ -48,12 +67,17 @@ function getUserId(req: Request): string | undefined {
  * Only the columns `getUserShares` actually SELECTs appear here.
  */
 function toShareListItem(row: SharedMediaRow): ShareListItem {
+  const thumbnailUrl = shareTileUrl(row);
   return {
     id: row.id,
     shareToken: row.share_token,
     mediaType: row.media_type,
     title: row.title,
     thumbnailPath: row.thumbnail_path,
+    // Omitted rather than null: the field is optional so that a client built
+    // before it existed keeps composing its own `/preview` URL, and
+    // `exactOptionalPropertyTypes` makes the distinction one the compiler sees.
+    ...(thumbnailUrl ? { thumbnailUrl } : {}),
     fileSize: row.file_size,
     duration: row.duration,
     imageType: row.image_type,
