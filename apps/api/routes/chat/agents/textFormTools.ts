@@ -118,7 +118,7 @@ const SYSTEM_BODY_NOTE =
 const TYPE_SYSTEM = 'Rezept';
 const TYPE_USER = 'Eigene Textform';
 
-export const RECIPES_SETTINGS_URL = '/settings/texte-anlernen';
+export const RECIPES_SETTINGS_URL = '/agentura?cat=meine';
 
 /** Wie viel Beispieltext und Stilblock die Antwort zeigt. */
 const EXAMPLE_PREVIEW_CHARS = 200;
@@ -308,7 +308,7 @@ Die Beispiele für create und add_examples sind die Texte der Person selbst — 
       );
     });
     if (results.length === 0) {
-      const note = `Es sind keine Rezepte verfügbar. Eigene Textformen lassen sich hier mit create oder in den Einstellungen (${RECIPES_SETTINGS_URL}) anlernen.`;
+      const note = `Es sind keine Rezepte verfügbar. Eigene Textformen lassen sich hier mit create oder in der Agentura (${RECIPES_SETTINGS_URL}) anlernen.`;
       groundNote(sourceRegistry, 'Rezepte', note);
       return { resultCount: 0, results: [], note };
     }
@@ -499,8 +499,8 @@ Die Beispiele für create und add_examples sind die Texte der Person selbst — 
     const count = `${examples.length} Beispiel${examples.length === 1 ? '' : 'en'}`;
     const note =
       kind === 'custom'
-        ? `Textform „${form.title}" aus ${count} angelernt — im Chat als @${form.mention} nutzbar, ändern in den Einstellungen (${RECIPES_SETTINGS_URL}).`
-        : `Eigener Stil für @${form.mention} aus ${count} angelernt — er ersetzt ab jetzt die mitgelieferten Vorgaben dieses Rezepts. Ändern in den Einstellungen (${RECIPES_SETTINGS_URL}).`;
+        ? `Textform „${form.title}" aus ${count} angelernt — im Chat als @${form.mention} nutzbar, ändern in der Agentura (${RECIPES_SETTINGS_URL}).`
+        : `Eigener Stil für @${form.mention} aus ${count} angelernt — er ersetzt ab jetzt die mitgelieferten Vorgaben dieses Rezepts. Ändern in der Agentura (${RECIPES_SETTINGS_URL}).`;
     groundNote(sourceRegistry, 'Textform angelernt', note);
     return { ok: true, note, ...summarize(form) };
   }
@@ -553,7 +553,7 @@ Die Beispiele für create und add_examples sind die Texte der Person selbst — 
     } catch (err) {
       const reason = err instanceof Error ? err.message : String(err);
       return {
-        error: `Die Stilanalyse ist fehlgeschlagen (${reason}). Es wurde nichts gespeichert — später erneut versuchen oder in den Einstellungen (${RECIPES_SETTINGS_URL}) anlernen.`,
+        error: `Die Stilanalyse ist fehlgeschlagen (${reason}). Es wurde nichts gespeichert — später erneut versuchen oder in der Agentura (${RECIPES_SETTINGS_URL}) anlernen.`,
       };
     }
   }

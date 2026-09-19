@@ -180,7 +180,15 @@ function asPickerSource(type: Mentionable['type']): MentionPickerSource | null {
  */
 function rememberSkill(mentionable: Mentionable): void {
   if (mentionable.category === 'skill') {
-    useAgentStore.getState().setActiveSkillMention(mentionable.mention);
+    // A textform's `identifier` IS its row id, and a user recipe is resolved by
+    // that id — the mention alone cannot separate two recipes of the same name.
+    // Every other skill (system recipe, custom prompt) has no row, so: null.
+    useAgentStore
+      .getState()
+      .setActiveSkillMention(
+        mentionable.mention,
+        mentionable.type === 'textform' ? mentionable.identifier : null
+      );
   }
 }
 
