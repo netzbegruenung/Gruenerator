@@ -76,6 +76,31 @@ describe('routes.ts mount order', () => {
   });
 
   /**
+   * Endpoints that call a model are rate-limited on their own sub-path rather
+   * than on the prefix, so that listing and reading the surrounding CRUD does
+   * not spend the AI budget. Same mount-order rule as above: a limiter added
+   * after the ts-rest mount never runs for the contract's routes.
+   */
+  it('rate-limits the AI sub-paths before their contract mount', () => {
+    const cases = [
+      { path: '/api/user-agents/draft', mount: 'mountUserAgentsContractRouter(app)' },
+      { path: '/api/text-forms/analyze', mount: 'mountUserTextFormsContractRouter(app)' },
+      { path: '/api/text-forms/draft', mount: 'mountUserTextFormsContractRouter(app)' },
+    ];
+
+    for (const { path: subPath, mount } of cases) {
+      const limiter = routesSource.search(
+        new RegExp(`app\\.use\\('${escapeRegExp(subPath)}',[^)]*aiGenerationLimiter`)
+      );
+      const mountCall = firstIndexOf(mount);
+
+      expect(limiter, `${subPath} has no aiGenerationLimiter`).toBeGreaterThan(-1);
+      expect(mountCall).toBeGreaterThan(-1);
+      expect(limiter, `${subPath} limiter must precede ${mount}`).toBeLessThan(mountCall);
+    }
+  });
+
+  /**
    * The inverse invariant. `/api/thumbs` must stay OPEN: a native `<Image>` and
    * a plain `<img>` cannot send an Authorization header, so the permission
    * travels in the URL as an HMAC minted by an endpoint that already checked
