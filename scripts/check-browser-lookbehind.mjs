@@ -30,7 +30,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const SOURCE_DIRS = ['apps/web/src', 'apps/docs/src', 'apps/gruen-o-mat/src', 'packages'];
+const SOURCE_DIRS = ['apps/web/src', 'apps/gruen-o-mat/src', 'packages'];
 const SKIP_DIRS = new Set([
   'node_modules',
   'dist',
