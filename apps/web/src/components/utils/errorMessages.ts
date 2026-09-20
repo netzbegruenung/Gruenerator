@@ -111,7 +111,16 @@ const errorMessages: Record<ErrorCode, ErrorMessageInfo> = {
     message:
       'Der Server hat eine ungültige Antwort gesendet. Bitte versuchen Sie es später erneut.',
   },
-  ERR_TIMEOUT: {
+  // Axios has no `ERR_TIMEOUT`: its XHR adapter throws `ECONNABORTED` on
+  // timeout, or `ETIMEDOUT` when `transitional.clarifyTimeoutError` is set.
+  // Keyed on the former, every timeout fell through to `default`, which
+  // `toastApiError` treats as unclassified — and therefore reported to
+  // Sentry (GlitchTip issue 613, "timeout of 900000ms exceeded").
+  ECONNABORTED: {
+    title: 'Zeitüberschreitung',
+    message: 'Die Anfrage hat zu lange gedauert. Bitte versuchen Sie es später erneut.',
+  },
+  ETIMEDOUT: {
     title: 'Zeitüberschreitung',
     message: 'Die Anfrage hat zu lange gedauert. Bitte versuchen Sie es später erneut.',
   },

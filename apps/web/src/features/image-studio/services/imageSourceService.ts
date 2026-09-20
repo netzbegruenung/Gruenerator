@@ -6,7 +6,7 @@ import {
   trackUnsplashDownloadLive as trackUnsplashDownloadLiveShared,
 } from '@gruenerator/shared/image-studio';
 
-import apiClient from '../../../components/utils/apiClient';
+import apiClient, { SERVER_TASK_TIMEOUT_MS } from '../../../components/utils/apiClient';
 
 export type {
   StockImageAttribution,
@@ -77,12 +77,16 @@ export async function generateAiImage(
   opts: { variant: 'illustration' | 'realistic' | 'pixel'; width?: number; height?: number }
 ): Promise<{ file: File; remaining: number | null }> {
   const variantValue = `${opts.variant}-pure`;
-  const response = await apiClient.post<ImaginePureResponse>('/imagine/pure', {
-    prompt,
-    variant: variantValue,
-    backend: 'melious',
-    ...(opts.width && opts.height ? { width: opts.width, height: opts.height } : {}),
-  });
+  const response = await apiClient.post<ImaginePureResponse>(
+    '/imagine/pure',
+    {
+      prompt,
+      variant: variantValue,
+      backend: 'melious',
+      ...(opts.width && opts.height ? { width: opts.width, height: opts.height } : {}),
+    },
+    { timeout: SERVER_TASK_TIMEOUT_MS }
+  );
 
   const base64 = response.data?.image?.base64;
   if (!base64) {
