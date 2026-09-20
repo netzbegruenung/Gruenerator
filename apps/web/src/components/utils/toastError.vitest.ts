@@ -138,3 +138,48 @@ describe('toastApiError', () => {
     expect(captureExceptionMock).toHaveBeenCalledTimes(1);
   });
 });
+
+/**
+ * A stalled request (laptop sleep, network drop) fails as an AxiosError with
+ * NO `response` and `code: 'ECONNABORTED'` — axios' XHR adapter emits that
+ * code, or `'ETIMEDOUT'` when `transitional.clarifyTimeoutError` is set.
+ * Neither is an app bug, so neither may reach Sentry. Regression guard for
+ * GlitchTip issue 613 ("AxiosError: timeout of 900000ms exceeded"), where the
+ * dictionary keyed timeouts under `ERR_TIMEOUT` — a code axios never emits —
+ * so every timeout fell through to the unclassified branch and was reported.
+ */
+describe('toastApiError — axios timeouts', () => {
+  beforeEach(() => {
+    toastErrorMock.mockClear();
+    captureExceptionMock.mockClear();
+  });
+
+  function timeoutError(code: 'ECONNABORTED' | 'ETIMEDOUT') {
+    return {
+      isAxiosError: true,
+      name: 'AxiosError',
+      code,
+      message: 'timeout of 900000ms exceeded',
+    };
+  }
+
+  it.each(['ECONNABORTED', 'ETIMEDOUT'] as const)(
+    'classifies a %s timeout on a query and does not report it to Sentry',
+    (code) => {
+      toastApiError(timeoutError(code), { source: 'query' });
+
+      expect(captureExceptionMock).not.toHaveBeenCalled();
+      expect(toastErrorMock).toHaveBeenCalledWith('Zeitüberschreitung', expect.anything());
+    }
+  );
+
+  it('shows the timeout toast — not the generic fallback — for a mutation', () => {
+    toastApiError(timeoutError('ECONNABORTED'), { source: 'mutation' });
+
+    expect(captureExceptionMock).not.toHaveBeenCalled();
+    expect(toastErrorMock).toHaveBeenCalledWith(
+      'Zeitüberschreitung',
+      expect.objectContaining({ description: expect.stringContaining('zu lange gedauert') })
+    );
+  });
+});
