@@ -259,7 +259,7 @@ const Datenschutz = () => {
             </td>
             <td>Deutschland (EU)</td>
             <td>
-              KI-Textmodelle sowie Bildgenerierung (FLUX.2 [dev]);{' '}
+              KI-Textmodelle sowie Bildgenerierung (FLUX.2 [klein]);{' '}
               <a href="https://melious.ai/de/legal/dpa" target="_blank" rel="noopener noreferrer">
                 Auftragsverarbeitungsvertrag
               </a>
@@ -440,10 +440,10 @@ const Datenschutz = () => {
         an den Anbieter des gewählten Bildmodells weitergeleitet und dort ausschließlich zur
         Bearbeitung verwendet. Im Bild-Studio ist Black Forest Labs (FLUX, EU-API api.eu.bfl.ai)
         voreingestellt; für den Melious-Fallback verarbeitet Melious AI GmbH (Deutschland) Deine
-        Eingaben mit FLUX.2 [dev]. Die Funktion „KI-Bild erstellen“ im Sharepic-Editor nutzt diesen
-        Melious-Fallback; dort gibt es keine Modellwahl. Wir speichern die Bilder nicht auf unseren
-        Servern; eine Nutzung zum KI-Training findet nicht statt. Rechtsgrundlage ist Art. 6 Abs. 1
-        lit. b DSGVO.
+        Eingaben mit FLUX.2 [klein]. Die Funktion „KI-Bild erstellen“ im Sharepic-Editor nutzt
+        diesen Melious-Fallback; dort gibt es keine Modellwahl. Wir speichern die Bilder nicht auf
+        unseren Servern; eine Nutzung zum KI-Training findet nicht statt. Rechtsgrundlage ist Art. 6
+        Abs. 1 lit. b DSGVO.
       </p>
 
       <h3>Audio- und Videotranskription (Reel-Grünerator, Sprachaufnahme)</h3>
