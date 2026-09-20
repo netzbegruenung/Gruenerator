@@ -98,6 +98,14 @@ describe('a markdown table round-trips as a table', () => {
     expect(roundTrip(md)).toBe(md);
   });
 
+  // Two pipes in a row are the case a naive `(^|[^\\])\|` rewrite gets wrong:
+  // the first match eats the character before the second pipe, so that one goes
+  // out unescaped and the cell splits into three on the way back.
+  it('escapes every pipe in a cell, not every other one', () => {
+    const md = ['| Feld |', '| --- |', '| a \\| b \\| c |'].join('\n');
+    expect(roundTrip(md)).toBe(md);
+  });
+
   it('survives a header-only table', () => {
     const md = '| Eins | Zwei |\n| --- | --- |';
     expect(roundTrip(md)).toBe(md);

@@ -286,6 +286,7 @@ overrides:
 
 patchedDependencies:
   decode-uri-component@0.2.2: efa600a56fa59998c51b9e41afe5d7ca60e49734c2262a9d33e0c085c7b9e88e
+  mdast-util-gfm-autolink-literal@2.0.1: 2f431426d0a77b1cf3ad1b3e4e3418fad391a3a68a8c63fc2154142a48e4f3e7
 
 importers:
 
@@ -42780,7 +42781,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  mdast-util-gfm-autolink-literal@2.0.1:
+  mdast-util-gfm-autolink-literal@2.0.1(patch_hash=2f431426d0a77b1cf3ad1b3e4e3418fad391a3a68a8c63fc2154142a48e4f3e7):
     dependencies:
       '@types/mdast': 4.0.4
       ccount: 2.0.1
@@ -42828,7 +42829,7 @@ snapshots:
   mdast-util-gfm@3.1.0:
     dependencies:
       mdast-util-from-markdown: 2.0.3
-      mdast-util-gfm-autolink-literal: 2.0.1
+      mdast-util-gfm-autolink-literal: 2.0.1(patch_hash=2f431426d0a77b1cf3ad1b3e4e3418fad391a3a68a8c63fc2154142a48e4f3e7)
       mdast-util-gfm-footnote: 2.1.0
       mdast-util-gfm-strikethrough: 2.0.0
       mdast-util-gfm-table: 2.0.0
