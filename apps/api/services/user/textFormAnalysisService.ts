@@ -133,3 +133,13 @@ export async function analyzeTextForm(
 export function textTypeLabel(textType: TextFormType): string {
   return TEXT_TYPE_LABELS[textType];
 }
+
+/**
+ * The label a style is analyzed and rendered under. A preset relabels itself
+ * canonically ("Pressemitteilungen" reads better in the rendered block than a
+ * recipe's own title); everything else is labelled by its title. Single source
+ * for a decision `analyze`, `create` and `add_examples` each re-implemented.
+ */
+export function textFormLabel(textType: TextFormType | null | undefined, title: string): string {
+  return textType ? textTypeLabel(textType) : title;
+}

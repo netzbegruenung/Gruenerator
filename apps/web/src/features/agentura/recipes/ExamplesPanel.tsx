@@ -11,7 +11,7 @@ import {
   MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS,
   type TextFormType,
 } from '@gruenerator/contracts';
-import { Button, Textarea, toast } from '@gruenerator/ui';
+import { Button, Input, Textarea, toast } from '@gruenerator/ui';
 import { useId, useMemo, useRef, useState } from 'react';
 import { FiUpload } from 'react-icons/fi';
 
@@ -28,6 +28,12 @@ interface ExamplesPanelProps {
   textType: TextFormType | null;
   /** Recipe title — labels the analysis request when there's no preset type. */
   title: string;
+  /**
+   * Edits the recipe title. The name lives on the Grundlagen tab, but it is
+   * *required here*: without it there is no label to analyse under. Offering it
+   * on this tab too is what keeps the examples-first entry from dead-ending.
+   */
+  onTitleChange: (value: string) => void;
   /** Called with the distilled style block; the parent writes it into `styleBlock`. */
   onAnalyzed: (styleBlock: string) => void;
 }
@@ -37,10 +43,12 @@ export function ExamplesPanel({
   onChange,
   textType,
   title,
+  onTitleChange,
   onAnalyzed,
 }: ExamplesPanelProps) {
   const examplesFieldId = useId();
   const examplesStatusId = useId();
+  const titleFieldId = useId();
   const [isReadingFiles, setIsReadingFiles] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const analyzeMut = useAnalyzeRecipe();
@@ -50,6 +58,8 @@ export function ExamplesPanel({
   const usedChars = rawExamples.trim().length;
   const tooManyExamples = filledExamples.length > MAX_TEXT_FORM_EXAMPLES;
   const tooManyChars = usedChars > MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS;
+  // A preset labels itself server-side; everything else is labelled by its title.
+  const labelMissing = !textType && title.trim().length === 0;
 
   /**
    * Uploaded files are appended to the one field, separated by the same rule the
@@ -120,9 +130,14 @@ export function ExamplesPanel({
       );
       return;
     }
+    if (labelMissing) {
+      toast.error('Bitte gib dem Rezept zuerst einen Namen.');
+      return;
+    }
     try {
       const block = await analyzeMut.mutateAsync({
-        ...(textType ? { textType } : { title: title.trim() }),
+        ...(textType ? { textType } : {}),
+        title: title.trim(),
         examples: filledExamples.map((content) => ({ content })),
       });
       onAnalyzed(block);
@@ -134,6 +149,25 @@ export function ExamplesPanel({
 
   return (
     <div className="flex flex-col gap-md">
+      {!textType && (
+        <div className="flex flex-col gap-xs">
+          <label htmlFor={titleFieldId} className="text-sm font-medium">
+            Name
+          </label>
+          <Input
+            id={titleFieldId}
+            value={title}
+            onChange={(e) => onTitleChange(e.target.value)}
+            maxLength={100}
+            placeholder="Gib deinem Rezept einen Namen"
+          />
+          <p className="m-0 text-xs text-foreground-muted">
+            Der Name beschriftet den erkannten Stil — ohne ihn lässt sich nicht analysieren. Er
+            steht auch auf dem Tab „Grundlagen“.
+          </p>
+        </div>
+      )}
+
       <div className="flex flex-col gap-sm">
         <label htmlFor={examplesFieldId} className="text-sm font-medium">
           Beispiele — alle in dieses Feld, bis zu {MAX_TEXT_FORM_EXAMPLES} Stück
@@ -200,7 +234,9 @@ export function ExamplesPanel({
         variant="outline"
         className="self-start"
         onClick={() => void handleAnalyze()}
-        disabled={analyzeMut.isPending || filledExamples.length === 0 || tooManyExamples}
+        disabled={
+          analyzeMut.isPending || filledExamples.length === 0 || tooManyExamples || labelMissing
+        }
       >
         {analyzeMut.isPending ? 'Analysiere…' : 'Gemeinsamkeiten erkennen'}
       </Button>
