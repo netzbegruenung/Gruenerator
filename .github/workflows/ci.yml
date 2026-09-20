@@ -114,6 +114,13 @@ jobs:
       - name: Overlay z-index layers
         run: node scripts/check-overlay-layers.mjs
 
+      # `(?<=…)`/`(?<!…)` need Safari 16.4; apps/web builds for safari15. WebKit
+      # below that throws `Invalid regular expression: invalid group specifier
+      # name` at the pattern and unmounts the React subtree around it. Neither
+      # tsc, ESLint, esbuild nor vitest (V8) sees it — GlitchTip issue 561.
+      - name: No regex lookbehind in browser code
+        run: node scripts/check-browser-lookbehind.mjs
+
       # A swallowed error in the chat stack is invisible: the turn looks
       # successful and the artefact/answer is silently missing. Ratchet against
       # a baseline — the count may fall, never rise.
