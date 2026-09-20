@@ -41,12 +41,18 @@ export const useGroupDetails = (groupId: string | null | undefined) =>
       if (res.status !== 200)
         throw apiErrorFromResponse(res, 'Fehler beim Laden der Gruppendetails.');
       return {
-        group: res.body.group as GroupDetail,
+        group: res.body.group,
         membership: res.body.membership as GroupMembership,
       };
     },
     enabled: !!groupId,
     staleTime: 60 * 1000,
+    // Opening a Projekt must not show a name/role from an earlier visit.
+    refetchOnMount: 'always',
+    // Callers render this failure inline (GroupDetailSection has its own 403
+    // panel, ChatPage only loses a greeting name), so the global query toast
+    // stays out of it.
+    meta: { silent: true },
   });
 
 export const useGroupMembers = (groupId: string | null | undefined) =>
