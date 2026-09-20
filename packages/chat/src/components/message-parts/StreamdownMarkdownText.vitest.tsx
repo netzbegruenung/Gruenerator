@@ -14,7 +14,7 @@ import { StreamdownMarkdownText } from './StreamdownMarkdownText';
  *
  * 1. `smooth` comes from `MarkdownStreamingContext`, not from a literal. A
  *    bare prop renders identically in general chat (context default `true`)
- *    and only breaks notebook and read-only threads, which set `false`.
+ *    and only breaks read-only threads, which set `false`.
  *
  * 2. Citation markers reach the primitive as RAW `[N]` text and become
  *    elements on the syntax tree. The primitive runs `preprocess` before
