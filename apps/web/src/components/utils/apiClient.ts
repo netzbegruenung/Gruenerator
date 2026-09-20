@@ -564,6 +564,54 @@ const useCredentials: boolean = !isDesktopApp();
 //                via the latch), so the rejected promise just unblocks awaiters.
 //   - 'stay'   → return false WITHOUT redirect (logging out, public page, or an
 //                infra-blip indeterminate verdict), so an outage never logs out.
+/**
+ * A small JSON call must not inherit a timeout sized for the slowest upload.
+ *
+ * This never bounds a slow *server response*: nginx caps `location /api/` at
+ * `proxy_read_timeout 300s`, so the backend's own 504 always arrives first.
+ * What it bounds is a socket that stalls without ever erroring — laptop sleep,
+ * dropped Wi-Fi — which is how a `GET /auth/notebook-collections` sat pending
+ * for 15 minutes before failing (GlitchTip 613). TanStack Query retries twice
+ * behind this, so the old 900_000 could wedge a single read for ~45 minutes.
+ */
+const DEFAULT_TIMEOUT_MS = 60_000;
+
+/**
+ * Bulk transfers are bounded by payload size, not by server think time: nginx
+ * accepts bodies up to `client_max_body_size 500M`, and a blob response keeps
+ * streaming past the per-read timeout. Both can legitimately outlast
+ * DEFAULT_TIMEOUT_MS on a slow line.
+ *
+ * Applied by request *shape* (FormData body, blob response type) rather than by
+ * a list of endpoints, so a new upload or download route is covered the day it
+ * is written instead of the day someone remembers to add it to a table.
+ */
+const BULK_TRANSFER_TIMEOUT_MS = 900_000;
+
+/**
+ * For endpoints that do real work server-side: model calls, crawls, imports.
+ * Deliberately just *above* nginx's 300s cut, so the server's own 504 wins the
+ * race and the user gets "Der Server reagiert nicht" instead of a client-side
+ * abort carrying no status. Anything slower than this was already unreachable
+ * through nginx, so this is not a restriction — it is the real ceiling, named.
+ */
+export const SERVER_TASK_TIMEOUT_MS = 310_000;
+
+/**
+ * Widen the timeout for bulk transfers — but only when the caller left the
+ * default in place. An explicit per-request `timeout` is an opinion and wins;
+ * axios merges the instance default into `config` before interceptors run, so
+ * "still equal to the default" is the one honest signal that nobody chose.
+ */
+function widenTimeoutForBulkTransfer(config: InternalAxiosRequestConfig): void {
+  if (config.timeout !== DEFAULT_TIMEOUT_MS) return;
+  const isUpload = typeof FormData !== 'undefined' && config.data instanceof FormData;
+  const isDownload = config.responseType === 'blob';
+  if (isUpload || isDownload) {
+    config.timeout = BULK_TRANSFER_TIMEOUT_MS;
+  }
+}
+
 const sharedApiClient = createApiClient({
   baseURL,
   authMode: isDesktopApp() ? 'bearer' : 'cookie',
@@ -584,7 +632,11 @@ const sharedApiClient = createApiClient({
     }
     return false;
   },
-  timeout: 900000,
+  timeout: DEFAULT_TIMEOUT_MS,
+});
+sharedApiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  widenTimeoutForBulkTransfer(config);
+  return config;
 });
 setGlobalApiClient(sharedApiClient);
 
@@ -609,7 +661,7 @@ setApiLocale(detectBrowserLocale());
 
 const apiClient = axios.create({
   baseURL: baseURL,
-  timeout: 900000,
+  timeout: DEFAULT_TIMEOUT_MS,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -620,6 +672,7 @@ const apiClient = axios.create({
 apiClient.interceptors.request.use(
   async (config: InternalAxiosRequestConfig): Promise<InternalAxiosRequestConfig> => {
     config.headers['X-User-Locale'] = getApiLocale();
+    widenTimeoutForBulkTransfer(config);
     // Desktop app uses JWT token from localStorage
     if (isDesktopApp()) {
       const token = await getDesktopToken();
@@ -761,7 +814,9 @@ export const processText = async (
     const { onRetry, ...cleanFormData } = formData;
 
     const response = await retryWithExponentialBackoff(
-      () => apiClient.post<unknown>(endpoint, cleanFormData),
+      // The generator endpoints wait on a model, not on a transfer — they need
+      // more than the default a small JSON call gets.
+      () => apiClient.post<unknown>(endpoint, cleanFormData, { timeout: SERVER_TASK_TIMEOUT_MS }),
       0,
       onRetry
     );
