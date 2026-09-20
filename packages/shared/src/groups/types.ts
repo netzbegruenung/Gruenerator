@@ -1,3 +1,5 @@
+import { type GroupDetailDto } from '@gruenerator/contracts';
+
 import { PRODUCTION_WEB_ORIGIN } from '../instances/index.js';
 import { buildGroupSlug } from '../utils/slug.js';
 
@@ -77,19 +79,13 @@ export interface GroupMember {
   [key: string]: unknown;
 }
 
-export interface GroupDetail {
-  id: string;
-  name: string;
-  description?: string | null;
-  avatar_url?: string | null;
-  join_token?: string;
-  created_at?: string;
-  created_by?: string;
-  links?: GroupLink[];
-  settings?: Record<string, unknown> | null;
-  /** Stable 6-char tail for the Notion-style URL `/gruppen/<name>-<suffix>`. */
-  slug_suffix?: string | null;
-}
+/**
+ * One group as `GET /api/auth/groups/:groupId/details` returns it. Derived from
+ * `groupDetailSchema` rather than hand-written: the copy that used to live here
+ * silently lacked `is_public`, `audience` and `group_type`, so every consumer
+ * that needed them had to cast the shape away.
+ */
+export type GroupDetail = GroupDetailDto;
 
 export interface GroupMembership {
   role: string;
