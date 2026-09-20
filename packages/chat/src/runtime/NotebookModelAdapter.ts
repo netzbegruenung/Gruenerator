@@ -343,7 +343,17 @@ export function createNotebookModelAdapter(
       let linkConfigAccum: LinkConfig | undefined;
       let evidenceWeakAccum: string | undefined;
 
-      function buildResult(): ChatModelRunResult {
+      /**
+       * Live yields carry the text RAW. `useSmooth` (assistant-ui) only
+       * animates while each new text extends the displayed one; `[cite:3` →
+       * `[3]` is not an extension, so rewriting mid-stream reset the reveal on
+       * every completed marker. The renderer handles both wire forms on the
+       * syntax tree (`remarkCitationMarkers`). Only the final yield normalises
+       * — and it marks the message complete in the SAME yield, because it also
+       * swaps in the renumbered backend answer: on a non-running message
+       * useSmooth snaps to the new text instead of re-typing it.
+       */
+      function buildResult(final = false): ChatModelRunResult {
         const custom: Record<string, unknown> = {};
         if (currentProgress) custom.progress = currentProgress;
         if (completionCitations.length > 0) custom.citations = completionCitations;
@@ -370,11 +380,15 @@ export function createNotebookModelAdapter(
         if (accumulatedReasoning) {
           parts.push({ type: 'reasoning' as const, text: accumulatedReasoning });
         }
-        parts.push({ type: 'text' as const, text: normalizeCiteMarkers(accumulatedText) });
+        parts.push({
+          type: 'text' as const,
+          text: final ? normalizeCiteMarkers(accumulatedText) : accumulatedText,
+        });
 
         return {
           content: parts,
           metadata: { custom },
+          ...(final && { status: { type: 'complete' as const, reason: 'stop' as const } }),
         };
       }
 
@@ -601,7 +615,7 @@ export function createNotebookModelAdapter(
         // the wrong sources or fall off the map entirely.
         accumulatedText = completionData.answer;
 
-        yield buildResult();
+        yield buildResult(true);
 
         const metadata: NotebookMessageMetadata = {
           citations: completionCitations,
@@ -627,9 +641,9 @@ export function createNotebookModelAdapter(
         // interruption notice, and mark the turn failed so the retry
         // affordance appears.
         accumulatedText += `\n\n⚠️ **${STREAM_INTERRUPTED_MESSAGE}**`;
-        yield { ...buildResult(), status: errorStatus(streamErrorEncountered) };
+        yield { ...buildResult(true), status: errorStatus(streamErrorEncountered) };
       } else if (accumulatedText) {
-        yield buildResult();
+        yield buildResult(true);
       } else if (streamErrorEncountered) {
         // Stream errored before any answer arrived — surface the real cause
         // (e.g. backend `error` SSE event) instead of the misleading
@@ -641,7 +655,7 @@ export function createNotebookModelAdapter(
       } else {
         accumulatedText =
           'Leider konnte ich keine passende Antwort finden. Bitte versuche es mit einer anderen Frage.';
-        yield buildResult();
+        yield buildResult(true);
       }
     },
   };
