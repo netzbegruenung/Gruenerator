@@ -1,13 +1,17 @@
 'use client';
 
-import { StreamdownTextPrimitive } from '@assistant-ui/react-streamdown';
+import {
+  StreamdownTextPrimitive,
+  type StreamdownTextPrimitiveProps,
+} from '@assistant-ui/react-streamdown';
 import { createMathPlugin } from '@streamdown/math';
 import { memo } from 'react';
+import { defaultRemarkPlugins } from 'streamdown';
 
 import { useMarkdownSmooth } from '../../context/MarkdownStreamingContext';
 import { maybeLoadKatexCss } from '../../lib/katexCss';
 import { normalizeMathDelimiters, normalizeUnicodeMath } from '../../lib/normalizeMathDelimiters';
-import { rewriteCitationMarkers } from '../../lib/rewriteCitationMarkers';
+import { remarkCitationMarkers } from '../../lib/remarkCitationMarkers';
 import { shikiCodePlugin } from '../../lib/shikiHighlight';
 import { streamdownComponents } from '../../lib/streamdownComponents';
 
@@ -16,9 +20,18 @@ import { streamdownComponents } from '../../lib/streamdownComponents';
 // fine-grained shiki core, not @streamdown/code (which bundles every grammar).
 const plugins = { code: shikiCodePlugin, math: createMathPlugin({ singleDollarTextMath: true }) };
 
-// `<citation n="…">` is our own element (rewriteCitationMarkers); the
-// sanitize/harden layer passes it through only because it is declared here.
+// `citation` is our own element (remarkCitationMarkers builds it on the tree);
+// the sanitize/harden layer passes it through only because it is declared here.
 const ALLOWED_TAGS: Record<string, string[]> = { citation: ['n'] };
+
+// A `remarkPlugins` prop REPLACES Streamdown's default list (gfm, codeMeta)
+// rather than extending it — tables and fence metadata would silently vanish
+// without the spread. The math plugin's remark half is merged by Streamdown
+// separately and needs no entry here.
+const remarkPlugins: NonNullable<StreamdownTextPrimitiveProps['remarkPlugins']> = [
+  ...Object.values(defaultRemarkPlugins),
+  remarkCitationMarkers,
+];
 
 // Code controls (copy/download) are read by StreamdownCodeBlock exactly as
 // Streamdown's own code component would. Tables and mermaid keep our
@@ -32,13 +45,15 @@ const TRANSLATIONS = {
   downloadFile: 'Code herunterladen',
 };
 
-// Same transform order as the legacy renderer: math delimiters first (bare
-// `[1]` cannot collide with `\[…\]`), Unicode operators inside math spans,
-// then citation markers → elements. The KaTeX stylesheet + mhchem keep
-// lazy-loading on first math via the same shared-katex side effect.
+// Math only: delimiters first, then Unicode operators inside math spans. Both
+// are prefix-stable under streaming (they rewrite closed spans, and a closed
+// span never reopens). Citation markers are deliberately NOT rewritten here —
+// see remarkCitationMarkers for why the reveal must never see the markup. The
+// KaTeX stylesheet + mhchem keep lazy-loading on first math via the same
+// shared-katex side effect.
 const preprocess = (text: string) => {
   maybeLoadKatexCss(text);
-  return rewriteCitationMarkers(normalizeUnicodeMath(normalizeMathDelimiters(text)));
+  return normalizeUnicodeMath(normalizeMathDelimiters(text));
 };
 
 /**
@@ -57,23 +72,26 @@ const preprocess = (text: string) => {
  * throttle to 50ms, and at that cadence the reveal is inert anyway.
  *
  * Where it is on, it reveals the text at a steady rate instead of in whatever
- * chunks the SSE adapter delivers. Without it a single large delta lands as one visible
- * jump, which is what "the stream stutters" turns out to mean: measured against
- * a real SSE endpoint, frame times are flat either way (p50 16.7ms, zero frames
- * over 50ms) while the largest single jump drops from 291 to 103 characters.
- * It only does anything when a delta outruns the reveal; at the adapter's
- * normal cadence the reveal is already ahead and the prop is inert.
+ * chunks the SSE adapter delivers. Without it a single large delta lands as
+ * one visible jump, which is what "the stream stutters" turns out to mean:
+ * measured against a real SSE endpoint, frame times are flat either way (p50
+ * 16.7ms, zero frames over 50ms) while the largest single jump drops from 291
+ * to 103 characters. It only does anything when a delta outruns the reveal; at
+ * the adapter's normal cadence the reveal is already ahead and the prop is
+ * inert.
  *
- * It does re-enter `useSmooth`, which the legacy renderer needed a two-tier
- * gate around: the primitive runs `preprocess` BEFORE `useSmooth`, so the
- * typewriter-prefix invariant has to hold on the REWRITTEN text, and
- * `rewriteCitationMarkers` breaks it exactly as `escapeCitationMarkers` did
- * (`… Ziele [1` then `… Ziele <citation n="1">` is not an extension). The
- * consequence differs, though: in this version a break restarts the reveal
- * rather than dropping the remainder. Four adversarial runs — the stream
- * ending with up to 137 characters still unrevealed — all completed, with
- * every badge intact. If a cited answer ever stands cut mid-word again, this
- * prop is the first thing to turn off.
+ * It re-enters `useSmooth`, which the legacy renderer had to gate off for
+ * every cited answer because `escapeCitationMarkers` broke the typewriter's
+ * prefix invariant. That gate is NOT ported here, and it must not be: the
+ * invariant is honoured structurally instead. The primitive runs `preprocess`
+ * BEFORE `useSmooth`, so anything rewritten there is walked by the reveal
+ * cursor — which is exactly what went wrong the first time citations met this
+ * renderer (a 27-character `<citation>` tag per marker under the cursor, and a
+ * full reset to "" whenever a delta split a marker). Citations therefore
+ * become elements on the syntax tree, AFTER the reveal, where the cursor only
+ * ever sees raw text. The measurement and the mechanism live with
+ * remarkCitationMarkers. If cited answers ever jump again, check that
+ * `preprocess` still leaves `[N]` alone before touching `smooth`.
  *
  * `defer` is deliberately NOT set. It defers parsing via `useDeferredValue`,
  * and nothing here is parse-bound: neither a realistic run (192 deltas, 10817
@@ -98,6 +116,7 @@ function StreamdownMarkdownTextImpl() {
       plugins={plugins}
       components={streamdownComponents}
       preprocess={preprocess}
+      remarkPlugins={remarkPlugins}
       allowedTags={ALLOWED_TAGS}
       controls={CONTROLS}
       translations={TRANSLATIONS}
