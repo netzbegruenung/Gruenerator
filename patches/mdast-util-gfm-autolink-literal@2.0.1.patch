@@ -1,0 +1,21 @@
+diff --git a/lib/index.js b/lib/index.js
+index c5ca771..d854439 100644
+--- a/lib/index.js
++++ b/lib/index.js
+@@ -132,7 +132,15 @@ function transformGfmAutolinkLiterals(tree) {
+     tree,
+     [
+       [/(https?:\/\/|www(?=\.))([-.\w]+)([^ \t\r\n]*)/gi, findUrl],
+-      [/(?<=^|\s|\p{P}|\p{S})([-.\w+]+)@([-\w]+(?:\.[-\w]+)+)/gu, findEmail]
++      // Patched: the upstream pattern opens with `(?<=^|\s|\p{P}|\p{S})`.
++      // WebKit without lookbehind support throws `SyntaxError: Invalid regular
++      // expression: invalid group specifier name` here and takes the whole
++      // markdown render down with it. The assertion is redundant: `findEmail`
++      // rejects the very same matches through `previous(match, true)`, which
++      // tests `index === 0 || unicodeWhitespace(code) || unicodePunctuation(code)`,
++      // and micromark’s `unicodePunctuation` is exactly `/\p{P}|\p{S}/u`. Without
++      // the property escapes the `u` flag has nothing left to do either.
++      [/([-.\w+]+)@([-\w]+(?:\.[-\w]+)+)/g, findEmail]
+     ],
+     {ignore: ['link', 'linkReference']}
+   )
