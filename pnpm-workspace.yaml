@@ -130,7 +130,7 @@ allowBuilds:
   protobufjs: false
   unrs-resolver: false
 
-# The one dependency we ship with a local fix. `decode-uri-component@0.2.2`
+# The two dependencies we ship with a local fix. `decode-uri-component@0.2.2`
 # (GHSA-vcc3-ghjq-m6fr) decodes malformed percent-encoded input superlinearly:
 # on the installed copy, `'%A0'.repeat(400)` (a 1.2 KB query value) takes 2.6 s
 # and `.repeat(600)` 6.8 s, on the JS thread, and it keeps growing. It is
@@ -157,8 +157,34 @@ allowBuilds:
 # Drop the patch — and the ignore below — as soon as expo-router moves off
 # query-string@7. pnpm fails the install when the patch no longer applies, so a
 # version bump underneath cannot pass silently.
+#
+# `mdast-util-gfm-autolink-literal@2.0.1` builds its email autolink pattern with
+# `new RegExp()` at transform time, and that pattern opens with the lookbehind
+# `(?<=^|\s|\p{P}|\p{S})`. WebKit without lookbehind support (Safari below
+# 16.4 — `target: [..., 'safari15']` in apps/web/vite.config.ts is the support
+# line we build for) throws `SyntaxError: Invalid regular expression: invalid
+# group specifier name` out of it, which unmounts every markdown surface behind
+# an error boundary: chat messages, tool output, research cards, slides.
+# GlitchTip issue 561, event 01a0b96f8e3e754db3acf39980a54365.
+#
+# esbuild rewrites lookbehind in a regex LITERAL into a `new RegExp()` call for
+# such a target (a runtime error instead of a whole chunk failing to parse),
+# but a pattern the package assembles itself is a string — the build cannot see
+# it, so nothing warns. remark-gfm has no option to turn the extension off, and
+# 2.0.1 is the latest release.
+#
+# The assertion is redundant, which is what makes dropping it safe: `findEmail`
+# rejects the same matches through `previous(match, true)`, whose test is
+# `index === 0 || unicodeWhitespace(code) || unicodePunctuation(code)`, and
+# micromark's `unicodePunctuation` is exactly `/\p{P}|\p{S}/u`. A rejected
+# match resumes at `index + 1`, which is where the lookbehind would have let the
+# engine continue anyway. Checked against the unpatched package over 20 052
+# inputs (52 hand-picked, 20 000 random strings over an alphabet of letters,
+# `@`, `.`, `-`, `_`, `+`, `/`, `,`, umlauts, an emoji, `§` and newlines): the
+# produced link nodes are identical for every one of them.
 patchedDependencies:
   decode-uri-component@0.2.2: patches/decode-uri-component@0.2.2.patch
+  mdast-util-gfm-autolink-literal@2.0.1: patches/mdast-util-gfm-autolink-literal@2.0.1.patch
 
 # Moved here from package.json's `pnpm.auditConfig`.
 auditConfig:
