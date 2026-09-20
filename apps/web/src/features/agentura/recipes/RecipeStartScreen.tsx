@@ -15,7 +15,7 @@ interface RecipeStartScreenProps {
   onGenerate: () => void;
   isLoading: boolean;
   error?: string | null;
-  /** Skip the AI draft and open the wizard straight on the Beispiele tab. */
+  /** Skip the AI draft and open the wizard straight on the Anleitung tab, where the examples option lives. */
   onLearnFromExamples: () => void;
   /** Skip the AI draft and open an empty wizard. */
   onManual: () => void;

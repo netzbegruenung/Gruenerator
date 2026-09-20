@@ -64,7 +64,11 @@ import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
 import { loadUserRoles } from '../../../services/roles/userRoles.js';
-import { analyzeTextForm, textTypeLabel } from '../../../services/user/textFormAnalysisService.js';
+import {
+  analyzeTextForm,
+  textFormLabel,
+  textTypeLabel,
+} from '../../../services/user/textFormAnalysisService.js';
 import {
   deriveRecipeMention,
   normalizeTextFormMention,
@@ -481,7 +485,7 @@ Die Beispiele für create und add_examples sind die Texte der Person selbst — 
         : DEFAULT_AGENT_ICON
       : null;
 
-    const label = textType ? textTypeLabel(textType) : title;
+    const label = textFormLabel(textType, title);
     const analyzed = await analyzeSafely(label, examples);
     if ('error' in analyzed) return analyzed;
 
@@ -517,7 +521,7 @@ Die Beispiele für create und add_examples sind die Texte der Person selbst — 
     const examples = normalizeExamples(raw, form.examples);
     if ('error' in examples) return examples;
 
-    const label = form.textType ? textTypeLabel(form.textType) : form.title;
+    const label = textFormLabel(form.textType, form.title);
     const analyzed = await analyzeSafely(label, examples);
     if ('error' in analyzed) return analyzed;
 

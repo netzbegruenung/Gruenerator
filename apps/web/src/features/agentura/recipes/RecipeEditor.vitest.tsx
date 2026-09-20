@@ -111,7 +111,10 @@ describe('RecipeEditor', () => {
     await fillTitleAndInstruction(user, 'Mein Testrezept', 'Schreibe kurz und klar.');
     expect(screen.getByRole('button', { name: 'Speichern' })).toBeEnabled();
 
-    await user.click(screen.getByRole('tab', { name: 'Beispiele' }));
+    // Examples live under the Anleitung tab now, behind the "Aus Beispielen
+    // lernen" disclosure — they are raw material for that field, not a tab.
+    await user.click(screen.getByRole('tab', { name: /^Anleitung/ }));
+    await user.click(screen.getByText(/^Aus Beispielen lernen/));
     const tooMany = Array.from({ length: 21 }, (_, i) => `Beispiel ${i}`).join(EXAMPLE_SEPARATOR);
     fireEvent.change(screen.getByRole('textbox', { name: /Beispiele/ }), {
       target: { value: tooMany },

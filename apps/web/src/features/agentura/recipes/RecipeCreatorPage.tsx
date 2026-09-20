@@ -20,7 +20,7 @@ function RecipeCreatorPage() {
   const draftMut = useDraftRecipe();
   const [description, setDescription] = useState('');
   const [initialState, setInitialState] = useState<Partial<RecipeFormState> | null>(null);
-  const [initialSection, setInitialSection] = useState<'grund' | 'beispiele'>('grund');
+  const [initialSection, setInitialSection] = useState<'grund' | 'anleitung'>('grund');
   const [phase, setPhase] = useState<'start' | 'build'>('start');
   const [error, setError] = useState<string | null>(null);
 
@@ -41,7 +41,7 @@ function RecipeCreatorPage() {
 
   const handleLearnFromExamples = useCallback(() => {
     setInitialState(null);
-    setInitialSection('beispiele');
+    setInitialSection('anleitung');
     setPhase('build');
   }, []);
 

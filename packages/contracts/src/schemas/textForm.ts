@@ -143,12 +143,14 @@ export type TextForm = z.infer<typeof textFormSchema>;
 
 /**
  * POST /api/text-forms/analyze — distill a style block from examples (not
- * persisted). For presets pass `textType`; for custom forms pass `title` so the
- * prompt can label the analysis. At least one example is required.
+ * persisted). `title` labels the analysis and is always required — same field,
+ * same bounds as `saveTextFormBodySchema`. `textType` only overrides that label
+ * with the canonical preset name, so there is no "one of the two" rule to
+ * enforce at runtime. At least one example is required.
  */
 export const analyzeTextFormBodySchema = z.object({
   textType: textFormTypeSchema.nullish(),
-  title: z.string().min(1).max(80).nullish(),
+  title: z.string().trim().min(1).max(80),
   examples: z
     .array(textFormExampleSchema)
     .min(1)
