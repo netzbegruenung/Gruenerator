@@ -1,9 +1,15 @@
 /**
  * Melious image generation service.
  *
- * Melious exposes OpenAI-compatible image generations. FLUX.2 [dev] is the
+ * Melious exposes OpenAI-compatible image generations. FLUX.2 [klein] 9B is the
  * selected Melious fallback model; unlike the former Qwen endpoint it accepts
  * the requested dimensions directly.
+ *
+ * Not FLUX.2 [dev]: measured 20.09.2026 against the live endpoint, `flux-2-dev`
+ * answered in 380 s / 157 s / 76 s over three runs while `flux-2-klein-9b`
+ * answered the same prompt in ~2 s. Generation is one synchronous request here,
+ * so a slow model blocks the caller for its full duration — hence the deadline
+ * below, which no earlier version had.
  */
 
 import fs from 'fs';
@@ -22,7 +28,9 @@ import type {
 } from './FluxImageService.js';
 
 const MELIOUS_BASE_URL = 'https://api.melious.ai/v1';
-const DEFAULT_MODEL = 'flux-2-dev';
+const DEFAULT_MODEL = 'flux-2-klein-9b';
+/** Generous enough for a cold start (~60 s measured on a sibling model), still bounded. */
+const REQUEST_TIMEOUT_MS = 120_000;
 
 interface MeliousImageResponse {
   data: Array<{ b64_json?: string; url?: string; revised_prompt?: string }>;
@@ -52,6 +60,7 @@ class MeliousImageService {
         size: `${width}x${height}`,
         response_format: 'b64_json',
       }),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
 
     if (!response.ok) {
