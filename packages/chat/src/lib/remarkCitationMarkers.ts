@@ -1,5 +1,5 @@
 /**
- * Turns `[N]` / `[N, M]` citation markers into `citation` elements — as a
+ * Turns `[N]` / `[N, M]` / `[cite:N]` citation markers into `citation` elements — as a
  * remark plugin on the syntax tree, NOT as a string rewrite in `preprocess`.
  *
  * The distinction is the whole point. `StreamdownTextPrimitive` runs
@@ -44,7 +44,12 @@ interface CitationNode {
 }
 type TreeNode = ParentNode | TextNode | CitationNode | { type: string };
 
-const CITATION_MARKER_RE = /\[(\d+(?:\s*,\s*\d+)*)\]/g;
+/**
+ * Both wire forms: `[N]` / `[N, M]` (chat) and `[cite:N]` (notebook — the
+ * SearchGraph prompt has the model write it literally, and the adapter no
+ * longer rewrites it mid-stream, for the same prefix-invariant reason as above).
+ */
+const CITATION_MARKER_RE = /\[(?:cite:)?(\d+(?:\s*,\s*\d+)*)\]/g;
 const MAX_CITATION_ID = 999;
 
 function isParent(node: TreeNode): node is ParentNode {

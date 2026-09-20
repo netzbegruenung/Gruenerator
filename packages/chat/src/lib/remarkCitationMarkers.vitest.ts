@@ -49,6 +49,27 @@ describe('splitCitationText', () => {
     expect(splitCitationText('Siehe [Anhang] und [a, b].')).toBeNull();
   });
 
+  it('accepts the notebook wire form [cite:N]', () => {
+    expect(splitCitationText('Laut Bericht [cite:12] steigt der Anteil.')).toEqual([
+      text('Laut Bericht '),
+      cite('12'),
+      text(' steigt der Anteil.'),
+    ]);
+  });
+
+  it('turns adjacent [cite:N][cite:M] markers into adjacent badges', () => {
+    expect(splitCitationText('Fakt [cite:1][cite:3].')).toEqual([
+      text('Fakt '),
+      cite('1'),
+      cite('3'),
+      text('.'),
+    ]);
+  });
+
+  it('leaves a half-streamed [cite:N marker as literal text', () => {
+    expect(splitCitationText('Laut Bericht [cite:1')).toBeNull();
+  });
+
   it('handles several markers in one text node', () => {
     expect(splitCitationText('[1] und [2] und [3]')).toEqual([
       cite('1'),
