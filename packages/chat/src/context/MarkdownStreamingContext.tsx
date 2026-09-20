@@ -6,18 +6,20 @@ import { createContext, useContext, type ReactNode } from 'react';
  * Per-thread switch for assistant-ui's `MarkdownTextPrimitive` smooth-text
  * animation.
  *
- * Default: `true` (matches assistant-ui's own default, used by general chat).
+ * Default: `true` — general chat and notebook threads alike.
  *
- * Notebook chats override this to `false` because:
- *   - Notebook answers are dense with `[N]` citation markers that become
- *     inline `<sup>` badges via `processChildren(..., true)`. Smooth's
- *     character-at-a-time reveal makes line wrap (and badge placement)
- *     recalculate on every frame, producing the visible up/down jump pattern.
- *   - The notebook adapter already throttles SSE yields to 50ms; a second
- *     animation layer doesn't help perceived smoothness.
+ * Only replayed threads (`ReadonlyThreadProvider`) set it to `false`: nothing
+ * streams there, so there is nothing to animate.
  *
- * General chat keeps it `true` because chat answers have fewer citations,
- * shorter messages, and benefit from the typewriter feel.
+ * Notebook threads used to opt out because citation-dense answers visibly
+ * jumped under smooth. The cause was never the badge density: the reveal
+ * (`useSmooth`) only animates while each new text extends the displayed one,
+ * and two things broke that — marker rewriting under the reveal cursor (now a
+ * remark plugin, `remarkCitationMarkers`) and the notebook adapter swapping in
+ * the renumbered backend answer while the message was still `running` (now
+ * yielded together with `status: complete`, so the reveal snaps instead of
+ * re-typing). Measured against a real SSE stream: 2 resets of ~800 chars per
+ * answer before, none after — indistinguishable from smooth off.
  */
 const MarkdownStreamingContext = createContext<boolean>(true);
 

@@ -11,7 +11,6 @@ import { VoxtralDictationAdapter } from '@gruenerator/voice';
 import { type ReactNode, useMemo, useCallback, useRef, useState } from 'react';
 
 import { createNotebookHistoryAdapter } from '../adapters/notebookHistoryAdapter';
-import { MarkdownStreamingProvider } from '../context/MarkdownStreamingContext';
 import { handleDictationError } from '../lib/dictationErrorHandler';
 
 import { GrueneratorAttachmentAdapter } from './GrueneratorAttachmentAdapter';
@@ -208,11 +207,7 @@ function NotebookChatProviderInner({
     },
   });
 
-  return (
-    <AssistantRuntimeProvider runtime={runtime}>
-      <MarkdownStreamingProvider smooth={false}>{children}</MarkdownStreamingProvider>
-    </AssistantRuntimeProvider>
-  );
+  return <AssistantRuntimeProvider runtime={runtime}>{children}</AssistantRuntimeProvider>;
 }
 
 export function NotebookChatProvider(props: NotebookChatProviderProps) {
