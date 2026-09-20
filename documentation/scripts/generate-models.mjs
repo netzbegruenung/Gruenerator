@@ -98,7 +98,9 @@ const MODEL_LABELS = {
   'verdigado-pro': 'GPT-OSS 120B',
   'voxtral-mini-latest': 'Voxtral Mini',
   'green-s-pro': 'Green S Pro',
-  'flux-2-dev': 'FLUX.2 [dev]',
+  // Dieselben Gewichte wie BFLs `/v1/flux-2-klein-9b`, Melious' Kennung —
+  // deshalb DERSELBE lesbare Name, wie bei Gemma 4 oben.
+  'flux-2-klein-9b': 'FLUX 2 Klein',
   '/v1/flux-2-pro': 'FLUX 2 Pro',
   '/v1/flux-2-klein-9b': 'FLUX 2 Klein',
   '/v1/flux-2-max': 'FLUX 2 Max',
