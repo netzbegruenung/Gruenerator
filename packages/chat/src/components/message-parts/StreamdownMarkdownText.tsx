@@ -61,15 +61,10 @@ const preprocess = (text: string) => {
  * blocks are memoized and only the trailing block re-parses as deltas arrive.
  * Remend completes half-streamed markdown for display.
  *
- * `smooth` comes from `MarkdownStreamingContext`, NOT from a literal: notebook
- * threads (NotebookChatProvider) and read-only threads (ReadonlyThreadProvider)
- * set it to `false`, and this renderer serves those surfaces too now that
- * `DEFAULT_STREAMDOWN` is true. Their reason survives the move off the legacy
- * renderer — a citation badge is an inline box either way, and revealing
- * character by character makes line wrap and badge placement recompute every
- * frame, which is the up/down jump the context was created to stop. The
- * measurement below says the same thing from the other side: those adapters
- * throttle to 50ms, and at that cadence the reveal is inert anyway.
+ * `smooth` comes from `MarkdownStreamingContext`, NOT from a literal: read-only
+ * threads (ReadonlyThreadProvider) set it to `false`, and this renderer serves
+ * that surface too now that `DEFAULT_STREAMDOWN` is true. Notebook threads
+ * used to opt out as well; why they no longer need to is with the context.
  *
  * Where it is on, it reveals the text at a steady rate instead of in whatever
  * chunks the SSE adapter delivers. Without it a single large delta lands as

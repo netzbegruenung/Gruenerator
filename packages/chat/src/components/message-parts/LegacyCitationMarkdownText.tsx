@@ -53,8 +53,7 @@ const preprocess = (text: string) => {
  *      back to the marker regex, flipping smooth off at the first `[N]`.
  *
  * Cited answers stream fine without the animation: the SSE adapter already
- * yields at most every 50ms, which is the perceived streaming. Same trade the
- * notebook thread makes wholesale — see MarkdownStreamingContext.
+ * yields at most every 50ms, which is the perceived streaming.
  */
 const CITATION_MARKER_RE = /\[\d+(?:\s*,\s*\d+)*\]/;
 
