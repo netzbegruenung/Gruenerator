@@ -177,7 +177,7 @@ export const MODEL_OPTIONS: ModelOption[] = [
     // resolves to Melious; it must not cause another Qwen request.
     id: 'regolo-image',
     family: 'melious',
-    name: '🌿 FLUX.2 [dev]',
+    name: '🌿 FLUX.2 [klein]',
     description: 'Melious-Fallback für Bilder',
     backend: 'melious',
     costMultiplier: 1,
@@ -191,7 +191,7 @@ export const IMAGE_FAMILIES: ImageFamilyOption[] = [
   {
     id: 'melious',
     name: '🌿 Melious',
-    description: 'FLUX.2 [dev], europäisch geroutet',
+    description: 'FLUX.2 [klein], europäisch geroutet',
     region: 'eu',
   },
 ];
