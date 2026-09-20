@@ -8,7 +8,7 @@ import { toast } from '@gruenerator/ui';
 import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import apiClient from '../components/utils/apiClient';
+import apiClient, { SERVER_TASK_TIMEOUT_MS } from '../components/utils/apiClient';
 import { extractHTMLContent } from '../components/utils/contentExtractor';
 
 interface UseContentActionsOptions {
@@ -85,10 +85,11 @@ export function useContentActions({
     try {
       const content = getContent();
       const title = getTitle();
-      const res = await apiClient.post<TodoListResponse>('/voice/todo-list', {
-        text: content,
-        title,
-      });
+      const res = await apiClient.post<TodoListResponse>(
+        '/voice/todo-list',
+        { text: content, title },
+        { timeout: SERVER_TASK_TIMEOUT_MS }
+      );
       const html = res.data?.content ?? '';
       const docRes = await apiClient.post<ExportToDocsResponse>('/docs/from-export', {
         content: html,
