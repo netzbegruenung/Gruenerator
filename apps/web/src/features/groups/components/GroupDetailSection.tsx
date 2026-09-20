@@ -1,10 +1,5 @@
 import { SYSTEM_AGENTS } from '@gruenerator/shared/agents';
-import {
-  apiErrorFromResponse,
-  getContractsClient,
-  isApiErrorWithStatus,
-} from '@gruenerator/shared/api';
-import { useQuery } from '@tanstack/react-query';
+import { isApiErrorWithStatus } from '@gruenerator/shared/api';
 import { motion } from 'motion/react';
 import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -13,7 +8,13 @@ import { useAuthStore } from '../../../stores/authStore';
 import { getPublicAppOrigin } from '../../../utils/platform';
 import { getNotebookById } from '../../notebook/config/notebooksConfig';
 import { useGroupPresence } from '../hooks/useGroupPresence';
-import { useGroups, useGroupAvatar, useGroupLinks, useGroupSharing } from '../hooks/useGroups';
+import {
+  useGroups,
+  useGroupAvatar,
+  useGroupDetails,
+  useGroupLinks,
+  useGroupSharing,
+} from '../hooks/useGroups';
 
 import GroupInfoSection, { type GroupData, type SharedItem } from './GroupInfoSection';
 
@@ -40,36 +41,45 @@ const GroupDetailSection = memo(
 
     const isInitialized = useRef(false);
 
+    // `groupDetailsKey(groupId)` is one cache entry with ONE shape. This view
+    // needs a different shape, so it derives it here instead of fetching the
+    // same endpoint under the same key again: a second `useQuery` on that key
+    // used to overwrite the entry with `{ groupInfo, isAdmin, … }`, and the
+    // next reader of `{ group, membership }` (ChatPage's `?projekt=` greeting)
+    // crashed on `projektDetails.group.name`.
     const {
-      data: rawData,
+      data: details,
       isLoading: isLoadingDetails,
       isError: isErrorDetails,
       error: errorDetails,
       refetch: refetchGroupData,
-    } = useQuery({
-      queryKey: ['groupDetails', groupId],
-      queryFn: async () => {
-        const res = await getContractsClient().groups.getDetails({ params: { groupId } });
-        if (res.status !== 200)
-          throw apiErrorFromResponse(res, 'Fehler beim Laden der Gruppendetails.');
-        return {
-          groupInfo: res.body.group,
-          isAdmin: res.body.membership.isAdmin,
-          membership: res.body.membership,
-          joinToken: res.body.group.join_token ?? undefined,
-          knowledge: [] as unknown[],
-        };
-      },
-      enabled: !!groupId,
-      staleTime: 5 * 60 * 1000,
-      refetchOnWindowFocus: false,
-      refetchOnMount: 'always' as const,
-      // This component renders the failure inline (including the 403 "no
-      // access" panel below), so the global toast layer stays out of it.
-      meta: { silent: true },
-    });
+    } = useGroupDetails(groupId);
 
-    const data = rawData as GroupData | undefined;
+    const data = useMemo<GroupData | undefined>(
+      () =>
+        details
+          ? {
+              // The wire shape spells "absent" as `null`, `GroupInfo` spells it
+              // as `undefined` — normalise rather than cast the mismatch away.
+              groupInfo: {
+                ...details.group,
+                description: details.group.description ?? undefined,
+                created_by: details.group.created_by ?? undefined,
+                links: details.group.links?.map((link) => ({
+                  ...link,
+                  description: link.description ?? undefined,
+                })),
+                is_public: details.group.is_public ?? undefined,
+                audience: details.group.audience ?? undefined,
+                group_type: details.group.group_type ?? undefined,
+              },
+              isAdmin: details.membership.isAdmin,
+              membership: details.membership,
+              joinToken: details.group.join_token ?? undefined,
+            }
+          : undefined,
+      [details]
+    );
 
     const navigate = useNavigate();
 
