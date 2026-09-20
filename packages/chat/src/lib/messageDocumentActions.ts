@@ -80,7 +80,12 @@ export function messageTitle(content: string): string {
     .replace(/[*_`~[\]]/g, '')
     .replace(/\s+/g, ' ')
     .trim();
-  const firstSentence = text.split(/(?<=[.!?])\s/)[0] ?? text;
+  // A lazy match with a lookahead, not `split(/(?<=[.!?])\s/)`: WebKit
+  // without lookbehind support cannot compile that pattern and throws
+  // `SyntaxError: Invalid regular expression: invalid group specifier name`
+  // instead of returning a title. The cut is the same — everything up to and
+  // including the first sentence end that is followed by whitespace.
+  const firstSentence = /^[\s\S]*?[.!?](?=\s)/.exec(text)?.[0] ?? text;
   return firstSentence.slice(0, 60).trim() || 'Chat-Nachricht';
 }
 
