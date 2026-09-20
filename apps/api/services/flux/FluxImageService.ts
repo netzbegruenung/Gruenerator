@@ -145,7 +145,7 @@ class FluxImageService {
       configuredBackend === 'regolo' ? 'melious' : (configuredBackend as FluxBackend);
 
     if (useBackend === 'melious') {
-      console.log('[FluxImageService] Using Melious FLUX.2 [dev] backend');
+      console.log('[FluxImageService] Using Melious FLUX.2 [klein] backend');
       const mod = await import('./MeliousImageService.js');
       return new mod.MeliousImageService() as unknown as FluxImageService;
     }

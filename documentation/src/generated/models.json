@@ -179,9 +179,9 @@
           "role": "primary"
         },
         {
-          "model": "flux-2-dev",
-          "code": "flux-2-dev",
-          "label": "FLUX.2 [dev]",
+          "model": "flux-2-klein-9b",
+          "code": "flux-2-klein-9b",
+          "label": "FLUX 2 Klein",
           "provider": "melious",
           "host": "Melious",
           "flag": "🇪🇺",
