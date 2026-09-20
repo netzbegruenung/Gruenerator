@@ -47,6 +47,13 @@ describe('messageTitle', () => {
     );
   });
 
+  // The cut needs whitespace AFTER the sentence end, so a decimal point or an
+  // abbreviation inside the sentence does not end the title early.
+  it('cuts only at a sentence end that is followed by whitespace', () => {
+    expect(messageTitle('Version 1.2 ist da. Mehr dazu.')).toBe('Version 1.2 ist da.');
+    expect(messageTitle('Ein Satz ohne Ende')).toBe('Ein Satz ohne Ende');
+  });
+
   it('caps the length and never returns an empty title', () => {
     expect(messageTitle('#'.repeat(3) + ' ' + 'a'.repeat(200)).length).toBe(60);
     expect(messageTitle('   ')).toBe('Chat-Nachricht');
