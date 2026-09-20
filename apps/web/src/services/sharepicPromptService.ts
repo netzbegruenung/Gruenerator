@@ -1,4 +1,4 @@
-import apiClient from '../components/utils/apiClient';
+import apiClient, { SERVER_TASK_TIMEOUT_MS } from '../components/utils/apiClient';
 
 interface SharepicGeneratedData {
   // Dreizeilen
@@ -80,7 +80,8 @@ export async function generateSharepicFromPrompt(
       '/sharepic/generate-from-prompt',
       {
         prompt,
-      }
+      },
+      { timeout: SERVER_TASK_TIMEOUT_MS }
     );
 
     const responseData = response.data;
