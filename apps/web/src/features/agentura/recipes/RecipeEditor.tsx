@@ -4,6 +4,7 @@ import {
   MAX_TEXT_FORM_EXAMPLES,
   MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS,
   MAX_TEXT_FORM_STYLE_CHARS,
+  MAX_TEXT_FORM_TITLE_CHARS,
 } from '@gruenerator/contracts';
 import { isApiErrorWithStatus } from '@gruenerator/shared/api';
 import { slugifyName } from '@gruenerator/shared/utils';
@@ -82,7 +83,7 @@ function normalizeMention(value: string): string {
   return slugifyName(value, '');
 }
 
-type Section = 'grund' | 'anleitung' | 'beispiele' | 'teilen';
+type Section = 'grund' | 'anleitung' | 'teilen';
 
 interface RecipeEditorProps {
   mode: 'create' | 'edit';
@@ -94,7 +95,7 @@ interface RecipeEditorProps {
 
 /**
  * Single-page recipe editor: a sticky action header, the form split into
- * Grundlagen / Anleitung / Beispiele / Teilen tabs, and a live preview pane
+ * Grundlagen / Anleitung / Teilen tabs, and a live preview pane
  * alongside. Shared by the create and edit routes, so create and edit behave
  * identically. Mirrors `agents/AgentEditor.tsx`.
  */
@@ -119,6 +120,12 @@ function RecipeEditor({
   );
   const [justSaved, setJustSaved] = useState(false);
   const [section, setSection] = useState<Section>(initialSection);
+  // Open the examples disclosure where it is the point: a recipe that already
+  // carries examples, and the "Aus Beispielen anlernen" entry — the only thing
+  // that opens the editor on the Anleitung tab.
+  const [examplesOpen, setExamplesOpen] = useState(
+    initialSection === 'anleitung' || initialState.rawExamples.trim().length > 0
+  );
 
   const set = <K extends keyof RecipeFormState>(k: K, v: RecipeFormState[K]) => {
     setJustSaved(false);
@@ -144,9 +151,9 @@ function RecipeEditor({
   const tooManyExamples = exampleCount > MAX_TEXT_FORM_EXAMPLES;
   const tooManyChars = form.rawExamples.trim().length > MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS;
   const examplesBlockReason = tooManyExamples
-    ? `Höchstens ${MAX_TEXT_FORM_EXAMPLES} Beispiele erlaubt — bitte in „Beispiele“ kürzen.`
+    ? `Höchstens ${MAX_TEXT_FORM_EXAMPLES} Beispiele erlaubt — bitte unter „Aus Beispielen lernen“ kürzen.`
     : tooManyChars
-      ? 'Zu viele Zeichen in den Beispielen — bitte in „Beispiele“ kürzen.'
+      ? 'Zu viele Zeichen in den Beispielen — bitte unter „Aus Beispielen lernen“ kürzen.'
       : null;
 
   // The chat deep-link wants the row id too (`?rezept=<mention>&rezeptId=<id>`,
@@ -163,6 +170,8 @@ function RecipeEditor({
       : null;
 
   const titleValid = form.title.trim().length > 0;
+  // Doppelte Rolle: Speicherbedingung und — im Beispiel-Panel — die Frage, ob
+  // eine Analyse etwas überschreiben würde.
   const styleValid = form.styleBlock.trim().length > 0;
   // Geprüft wird, was IM FELD steht, nicht `effectiveMention`: slugt der Titel
   // auf nichts (etwa „!!!"), zeigt das Feld leer und `effectiveMention` fiele
@@ -245,8 +254,7 @@ function RecipeEditor({
 
   const sectionTabs = [
     { key: 'grund' as const, label: 'Grundlagen' },
-    { key: 'anleitung' as const, label: 'Anleitung' },
-    { key: 'beispiele' as const, label: `Beispiele${exampleCount ? ` · ${exampleCount}` : ''}` },
+    { key: 'anleitung' as const, label: `Anleitung${exampleCount ? ` · ${exampleCount}` : ''}` },
     ...(showTeilen ? [{ key: 'teilen' as const, label: 'Teilen' }] : []),
   ];
 
@@ -339,7 +347,7 @@ function RecipeEditor({
                   <Input
                     value={form.title}
                     onChange={(e) => set('title', e.target.value)}
-                    maxLength={100}
+                    maxLength={MAX_TEXT_FORM_TITLE_CHARS}
                     placeholder="Gib deinem Rezept einen Namen"
                   />
                 </label>
@@ -429,17 +437,33 @@ function RecipeEditor({
               <p className="text-xs text-foreground-muted">
                 wird dem Modell als Schreibvorgabe gegeben
               </p>
-            </div>
-          )}
 
-          {section === 'beispiele' && (
-            <ExamplesPanel
-              rawExamples={form.rawExamples}
-              onChange={(v) => set('rawExamples', v)}
-              textType={form.textType}
-              title={form.title}
-              onAnalyzed={(styleBlock) => set('styleBlock', styleBlock)}
-            />
+              {/* Examples are raw material for the Anleitung above, not a
+                  subject of their own — they sit next to the field they fill
+                  instead of on a tab that hides the Name field from them. */}
+              <details
+                open={examplesOpen}
+                onToggle={(e) => setExamplesOpen(e.currentTarget.open)}
+                className="mt-md border-t border-grey-200 pt-md dark:border-grey-700"
+              >
+                <summary className="cursor-pointer text-sm font-medium">
+                  Aus Beispielen lernen{exampleCount ? ` · ${exampleCount}` : ''}
+                </summary>
+                <p className="mb-md mt-xs text-xs text-foreground-muted">
+                  Füge Beispieltexte ein — daraus wird eine Anleitung erkannt, die du oben weiter
+                  anpassen kannst.
+                </p>
+                <ExamplesPanel
+                  rawExamples={form.rawExamples}
+                  onChange={(v) => set('rawExamples', v)}
+                  textType={form.textType}
+                  title={form.title}
+                  onTitleChange={(v) => set('title', v)}
+                  hasStyleBlock={styleValid}
+                  onAnalyzed={(styleBlock) => set('styleBlock', styleBlock)}
+                />
+              </details>
+            </div>
           )}
 
           {section === 'teilen' && <RecipeSharingPanel mention={mention} enabled />}

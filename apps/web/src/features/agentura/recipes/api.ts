@@ -72,18 +72,23 @@ export function usePublicRecipes(enabled = true) {
   });
 }
 
-/** Distill a style block from examples (not persisted). */
+/**
+ * Distill a style block from examples (not persisted). `title` is required by
+ * the contract and carried through as-is — the previous `input.title ? … : {}`
+ * spread dropped an empty title from the body entirely, so the request arrived
+ * with no label at all and the server answered 400.
+ */
 export function useAnalyzeRecipe() {
   return useMutation({
     mutationFn: async (input: {
       textType?: TextFormType | null;
-      title?: string | null;
+      title: string;
       examples: Array<{ content: string }>;
     }): Promise<string> => {
       const res = await getContractsClient().userTextForms.analyze({
         body: {
           ...(input.textType ? { textType: input.textType } : {}),
-          ...(input.title ? { title: input.title } : {}),
+          title: input.title,
           examples: input.examples,
         },
       });

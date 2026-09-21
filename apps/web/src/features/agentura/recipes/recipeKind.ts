@@ -21,9 +21,20 @@ import {
   isLvItemVisibleForRoles,
 } from '@gruenerator/shared/agents';
 
+/**
+ * `label` wird zum Titel des Rezepts (`RecipeEditorPage` seedet ihn daraus) und
+ * beschriftet damit auch den analysierten Stilblock. Es muss deshalb dieselbe
+ * Schreibung sein wie `TEXT_FORM_TYPE_LABELS` in den Contracts, nicht eine
+ * zweite, kürzere — sonst stünde im Editor „Instagram" und im erzeugten Block
+ * „Instagram-Posts". Bewacht von `recipeKind.vitest.ts`.
+ *
+ * Als Literale und nicht als Verweis auf die Contracts-Tabelle, weil
+ * `documentation/scripts/generate-settings.mjs` diese Liste per AST liest und
+ * dabei bewusst nur String-Literale auflöst.
+ */
 export const PRESETS: { textType: TextFormType; label: string; hint: string }[] = [
-  { textType: 'instagram', label: 'Instagram', hint: 'Instagram-Posts' },
-  { textType: 'facebook', label: 'Facebook', hint: 'Facebook-Posts' },
+  { textType: 'instagram', label: 'Instagram-Posts', hint: 'Instagram-Posts' },
+  { textType: 'facebook', label: 'Facebook-Posts', hint: 'Facebook-Posts' },
   { textType: 'presse', label: 'Pressemitteilungen', hint: 'Pressetexte' },
   { textType: 'antrag', label: 'Anträge', hint: 'Anträge' },
 ];
