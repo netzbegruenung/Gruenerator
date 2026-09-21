@@ -21,7 +21,7 @@ import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { loadUserRoles } from '../../services/roles/userRoles.js';
-import { analyzeTextForm, textTypeLabel } from '../../services/user/textFormAnalysisService.js';
+import { analyzeTextForm, textFormLabel } from '../../services/user/textFormAnalysisService.js';
 import { draftRecipeSpec } from '../../services/user/textFormDraftService.js';
 import { normalizeTextFormMention, resolveTextFormKind } from '../../services/user/textFormKind.js';
 import {
@@ -87,14 +87,9 @@ export const userTextFormsContractRouter = s.router(userTextFormsContract, {
     try {
       getAuthedUser(args.req);
       const { textType, title, examples } = args.body;
-      const label = textType ? textTypeLabel(textType) : (title?.trim() ?? '').slice(0, 80);
-      if (!label) {
-        return {
-          status: 400 as const,
-          body: { success: false, message: 'textType oder title ist erforderlich.' },
-        };
-      }
-      const { styleBlock } = await analyzeTextForm(label, examples);
+      // No "one of the two" check: the contract requires `title`, so a label
+      // always exists. A 400 here can now only come from Zod.
+      const { styleBlock } = await analyzeTextForm(textFormLabel(textType, title), examples);
       return { status: 200 as const, body: { success: true, styleBlock } };
     } catch (error) {
       const err = error as Error;

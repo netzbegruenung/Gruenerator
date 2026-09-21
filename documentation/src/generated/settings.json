@@ -221,12 +221,12 @@
   "textFormPresets": [
     {
       "textType": "instagram",
-      "label": "Instagram",
+      "label": "Instagram-Posts",
       "hint": "Instagram-Posts"
     },
     {
       "textType": "facebook",
-      "label": "Facebook",
+      "label": "Facebook-Posts",
       "hint": "Facebook-Posts"
     },
     {
