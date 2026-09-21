@@ -380,6 +380,39 @@ describe('RecipeEditor', () => {
     );
   });
 
+  it('sperrt die Analyse eines Presets, dessen Name geleert wurde', async () => {
+    // Der Textyp galt einmal als Ersatzbeschriftung, also hielt der Wächter ein
+    // Preset für beschriftet, auch ohne Namen — der Knopf blieb aktiv und der
+    // Server antwortete mit einem rohen 400.
+    const { user } = renderWithProviders(
+      <RecipeEditor
+        mode="create"
+        initialState={customCreateForm({
+          kind: 'preset',
+          fixedMention: 'presse',
+          mention: 'presse',
+          textType: 'presse',
+          title: 'Pressemitteilungen',
+        })}
+      />
+    );
+
+    await user.clear(screen.getByLabelText('Name'));
+    await openExamples(user);
+    fireEvent.change(screen.getByRole('textbox', { name: /Beispiele/ }), {
+      target: { value: 'Ein Beispieltext.' },
+    });
+
+    expect(screen.getByRole('button', { name: 'Gemeinsamkeiten erkennen' })).toBeDisabled();
+    expect(analyze).not.toHaveBeenCalled();
+    // Und der Name ist von hier aus nachtragbar, statt den Pfad zu blockieren:
+    // die Tabs rendern nicht gleichzeitig, das Feld hier ist also das einzige.
+    const nameHere = screen.getByLabelText('Name');
+    expect(nameHere).toHaveValue('');
+    await user.type(nameHere, 'Pressemitteilungen Hessen');
+    expect(screen.getByRole('button', { name: 'Gemeinsamkeiten erkennen' })).toBeEnabled();
+  });
+
   it('meldet eine fehlgeschlagene Analyse dauerhaft neben dem Knopf, nicht als Toast', async () => {
     analyze.mockRejectedValueOnce(new Error('Analyse fehlgeschlagen: Modell nicht erreichbar.'));
     const { user } = renderWithProviders(

@@ -25,14 +25,15 @@ const NUM = (n: number) => n.toLocaleString('de-DE');
 interface ExamplesPanelProps {
   rawExamples: string;
   onChange: (value: string) => void;
-  /** Preset text type, when this recipe is one — labels the analysis request. */
+  /** Preset text type, when this recipe is one — carried on the request. */
   textType: TextFormType | null;
-  /** Recipe title — labels the analysis request when there's no preset type. */
+  /** Recipe title — labels the analysis. Required, whatever the text type. */
   title: string;
   /**
    * Edits the recipe title. The name lives on the Grundlagen tab, but it is
    * *required here*: without it there is no label to analyse under. Offering it
-   * on this tab too is what keeps the examples-first entry from dead-ending.
+   * on this tab too is what keeps the examples-first entry from dead-ending —
+   * including on a preset whose seeded name someone cleared.
    */
   onTitleChange: (value: string) => void;
   /**
@@ -71,8 +72,11 @@ export function ExamplesPanel({
   const usedChars = rawExamples.trim().length;
   const tooManyExamples = filledExamples.length > MAX_TEXT_FORM_EXAMPLES;
   const tooManyChars = usedChars > MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS;
-  // A preset labels itself server-side; everything else is labelled by its title.
-  const labelMissing = !textType && title.trim().length === 0;
+  // Der Titel beschriftet die Analyse — immer, auch bei einem Preset. Die
+  // frühere Fassung ließ `textType` als Ersatz gelten; wer den Namen eines
+  // Preset-Rezepts leerte, bekam damit einen aktiven Knopf und einen rohen 400
+  // statt dieser Meldung.
+  const labelMissing = title.trim().length === 0;
 
   /**
    * Uploaded files are appended to the one field, separated by the same rule the
@@ -174,24 +178,22 @@ export function ExamplesPanel({
 
   return (
     <div className="flex flex-col gap-md">
-      {!textType && (
-        <div className="flex flex-col gap-xs">
-          <label htmlFor={titleFieldId} className="text-sm font-medium">
-            Name
-          </label>
-          <Input
-            id={titleFieldId}
-            value={title}
-            onChange={(e) => onTitleChange(e.target.value)}
-            maxLength={MAX_TEXT_FORM_TITLE_CHARS}
-            placeholder="Gib deinem Rezept einen Namen"
-          />
-          <p className="m-0 text-xs text-foreground-muted">
-            Der Name beschriftet den erkannten Stil — ohne ihn lässt sich nicht analysieren. Er
-            steht auch auf dem Tab „Grundlagen“.
-          </p>
-        </div>
-      )}
+      <div className="flex flex-col gap-xs">
+        <label htmlFor={titleFieldId} className="text-sm font-medium">
+          Name
+        </label>
+        <Input
+          id={titleFieldId}
+          value={title}
+          onChange={(e) => onTitleChange(e.target.value)}
+          maxLength={MAX_TEXT_FORM_TITLE_CHARS}
+          placeholder="Gib deinem Rezept einen Namen"
+        />
+        <p className="m-0 text-xs text-foreground-muted">
+          Der Name beschriftet den erkannten Stil — ohne ihn lässt sich nicht analysieren. Er steht
+          auch auf dem Tab „Grundlagen“.
+        </p>
+      </div>
 
       <div className="flex flex-col gap-sm">
         <label htmlFor={examplesFieldId} className="text-sm font-medium">
