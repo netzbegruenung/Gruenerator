@@ -1,3 +1,4 @@
+import { TEXT_FORM_TYPE_LABELS } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
 import { PRESETS, classifyRecipeMention } from './recipeKind';
@@ -65,6 +66,16 @@ describe('classifyRecipeMention', () => {
       const result = classifyRecipeMention(preset.textType, null);
       expect(result.kind).toBe('preset');
       expect(result.textType).toBe(preset.textType);
+    }
+  });
+
+  it('beschriftet jedes Preset wie die Contracts, nicht kürzer', () => {
+    // `label` wird der Titel des Rezepts und damit die Überschrift des
+    // analysierten Stilblocks. Wich sie ab, stünde im Editor „Instagram" und
+    // im erzeugten Block „Instagram-Posts". Die Liste steht hier als Literale,
+    // weil der Doku-Generator sie per AST liest — der Abgleich ist dieser Test.
+    for (const preset of PRESETS) {
+      expect(preset.label).toBe(TEXT_FORM_TYPE_LABELS[preset.textType]);
     }
   });
 });
