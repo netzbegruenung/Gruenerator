@@ -4,6 +4,7 @@ import {
   MAX_TEXT_FORM_EXAMPLES,
   MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS,
   MAX_TEXT_FORM_STYLE_CHARS,
+  MAX_TEXT_FORM_TITLE_CHARS,
 } from '@gruenerator/contracts';
 import { isApiErrorWithStatus } from '@gruenerator/shared/api';
 import { slugifyName } from '@gruenerator/shared/utils';
@@ -169,6 +170,8 @@ function RecipeEditor({
       : null;
 
   const titleValid = form.title.trim().length > 0;
+  // Doppelte Rolle: Speicherbedingung und — im Beispiel-Panel — die Frage, ob
+  // eine Analyse etwas überschreiben würde.
   const styleValid = form.styleBlock.trim().length > 0;
   // Geprüft wird, was IM FELD steht, nicht `effectiveMention`: slugt der Titel
   // auf nichts (etwa „!!!"), zeigt das Feld leer und `effectiveMention` fiele
@@ -344,7 +347,7 @@ function RecipeEditor({
                   <Input
                     value={form.title}
                     onChange={(e) => set('title', e.target.value)}
-                    maxLength={100}
+                    maxLength={MAX_TEXT_FORM_TITLE_CHARS}
                     placeholder="Gib deinem Rezept einen Namen"
                   />
                 </label>
@@ -456,6 +459,7 @@ function RecipeEditor({
                   textType={form.textType}
                   title={form.title}
                   onTitleChange={(v) => set('title', v)}
+                  hasStyleBlock={styleValid}
                   onAnalyzed={(styleBlock) => set('styleBlock', styleBlock)}
                 />
               </details>

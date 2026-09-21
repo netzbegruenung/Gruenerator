@@ -21,6 +21,19 @@ export const textFormTypeSchema = z.enum(['instagram', 'facebook', 'presse', 'an
 export type TextFormType = z.infer<typeof textFormTypeSchema>;
 
 /**
+ * Wie ein Textyp benannt wird — im Titelfeld der Agentura wie in der Überschrift
+ * des analysierten Stilblocks („## STIL: Instagram-Posts"). Eine Quelle, weil
+ * beide Seiten dieselbe Beschriftung meinen: stünde im Editor „Instagram" und im
+ * Block „Instagram-Posts", wäre unklar, welche der beiden das Modell liest.
+ */
+export const TEXT_FORM_TYPE_LABELS: Record<TextFormType, string> = {
+  instagram: 'Instagram-Posts',
+  facebook: 'Facebook-Posts',
+  presse: 'Pressemitteilungen',
+  antrag: 'Anträge',
+};
+
+/**
  * Wer eine Textform sehen/nutzen darf — dieselbe Achse wie bei User-Agenten
  * (`userAgentShareModeSchema`), nur ohne `audience`: Rezepte haben keine
  * Länder-Zielgruppe, das Feld existiert für Agenten wegen ihres `locale`.
@@ -73,6 +86,12 @@ export const MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS = 140_000;
  */
 export const MAX_TEXT_FORM_EXAMPLE_CHARS = MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS;
 export const MAX_TEXT_FORM_STYLE_CHARS = 8000;
+
+/**
+ * Titellänge. Das Eingabefeld muss dieselbe Zahl tragen — stand dort mehr (es
+ * waren 100), ließ sich ein Name tippen, den erst der Server ablehnt.
+ */
+export const MAX_TEXT_FORM_TITLE_CHARS = 80;
 
 export const MAX_TEXT_FORM_DESCRIPTION_CHARS = 500;
 /** Short blurb shown next to the recipe in the Agentura/mention picker. */
@@ -144,13 +163,13 @@ export type TextForm = z.infer<typeof textFormSchema>;
 /**
  * POST /api/text-forms/analyze — distill a style block from examples (not
  * persisted). `title` labels the analysis and is always required — same field,
- * same bounds as `saveTextFormBodySchema`. `textType` only overrides that label
- * with the canonical preset name, so there is no "one of the two" rule to
- * enforce at runtime. At least one example is required.
+ * same bounds as `saveTextFormBodySchema`, so there is no "one of the two" rule
+ * to enforce at runtime. `textType` is carried for the record, not to relabel:
+ * the label is what the person typed. At least one example is required.
  */
 export const analyzeTextFormBodySchema = z.object({
   textType: textFormTypeSchema.nullish(),
-  title: z.string().trim().min(1).max(80),
+  title: z.string().trim().min(1).max(MAX_TEXT_FORM_TITLE_CHARS),
   examples: z
     .array(textFormExampleSchema)
     .min(1)
@@ -173,7 +192,7 @@ export type AnalyzeTextFormBody = z.infer<typeof analyzeTextFormBodySchema>;
 export const saveTextFormBodySchema = z.object({
   kind: textFormKindSchema.optional(),
   textType: textFormTypeSchema.nullish(),
-  title: z.string().min(1).max(80),
+  title: z.string().min(1).max(MAX_TEXT_FORM_TITLE_CHARS),
   examples: z
     .array(textFormExampleSchema)
     .max(MAX_TEXT_FORM_EXAMPLES)

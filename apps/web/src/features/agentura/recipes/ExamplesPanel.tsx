@@ -9,9 +9,10 @@
 import {
   MAX_TEXT_FORM_EXAMPLES,
   MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS,
+  MAX_TEXT_FORM_TITLE_CHARS,
   type TextFormType,
 } from '@gruenerator/contracts';
-import { Button, Input, Textarea, toast } from '@gruenerator/ui';
+import { Button, Input, Textarea, toast, useConfirm } from '@gruenerator/ui';
 import { useId, useMemo, useRef, useState } from 'react';
 import { FiUpload } from 'react-icons/fi';
 
@@ -34,6 +35,12 @@ interface ExamplesPanelProps {
    * on this tab too is what keeps the examples-first entry from dead-ending.
    */
   onTitleChange: (value: string) => void;
+  /**
+   * Whether the Anleitung above already holds text. The analysis replaces it
+   * wholesale, so a filled one is confirmed away before the request goes out —
+   * asking afterwards would spend the model call only to discard its result.
+   */
+  hasStyleBlock: boolean;
   /** Called with the distilled style block; the parent writes it into `styleBlock`. */
   onAnalyzed: (styleBlock: string) => void;
 }
@@ -44,13 +51,19 @@ export function ExamplesPanel({
   textType,
   title,
   onTitleChange,
+  hasStyleBlock,
   onAnalyzed,
 }: ExamplesPanelProps) {
   const examplesFieldId = useId();
   const examplesStatusId = useId();
   const titleFieldId = useId();
   const [isReadingFiles, setIsReadingFiles] = useState(false);
+  // Warum die Analyse nicht lief — als Meldung neben dem Knopf statt als Toast.
+  // Ein Toast ist nach Sekunden weg, und der Editor stellt seine Fehler ohnehin
+  // dort auf, wo sie hingehören (siehe `mentionError` in `RecipeEditor`).
+  const [analyzeError, setAnalyzeError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const confirm = useConfirm();
   const analyzeMut = useAnalyzeRecipe();
 
   const split = useMemo(() => splitExamples(rawExamples), [rawExamples]);
@@ -114,25 +127,37 @@ export function ExamplesPanel({
   };
 
   const handleAnalyze = async () => {
+    setAnalyzeError(null);
     if (filledExamples.length === 0) {
-      toast.error('Bitte mindestens ein Beispiel einfügen.');
+      setAnalyzeError('Bitte mindestens ein Beispiel einfügen.');
       return;
     }
     if (tooManyExamples) {
-      toast.error(
+      setAnalyzeError(
         `${filledExamples.length} Beispiele erkannt — höchstens ${MAX_TEXT_FORM_EXAMPLES} sind möglich.`
       );
       return;
     }
     if (tooManyChars) {
-      toast.error(
+      setAnalyzeError(
         `Zu viel Text: ${NUM(usedChars)} von ${NUM(MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS)} Zeichen.`
       );
       return;
     }
     if (labelMissing) {
-      toast.error('Bitte gib dem Rezept zuerst einen Namen.');
+      setAnalyzeError('Bitte gib dem Rezept zuerst einen Namen.');
       return;
+    }
+    if (hasStyleBlock) {
+      const ok = await confirm({
+        title: 'Vorhandene Anleitung ersetzen?',
+        description:
+          'Die Analyse schreibt die Anleitung komplett neu. Was jetzt darin steht — auch selbst Geschriebenes — geht dabei verloren.',
+        confirmLabel: 'Neu analysieren',
+        cancelLabel: 'Behalten',
+        variant: 'default',
+      });
+      if (!ok) return;
     }
     try {
       const block = await analyzeMut.mutateAsync({
@@ -143,7 +168,7 @@ export function ExamplesPanel({
       onAnalyzed(block);
       toast.success('Stil erkannt — du kannst ihn jetzt anpassen.');
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Analyse fehlgeschlagen.');
+      setAnalyzeError(err instanceof Error ? err.message : 'Analyse fehlgeschlagen.');
     }
   };
 
@@ -158,7 +183,7 @@ export function ExamplesPanel({
             id={titleFieldId}
             value={title}
             onChange={(e) => onTitleChange(e.target.value)}
-            maxLength={100}
+            maxLength={MAX_TEXT_FORM_TITLE_CHARS}
             placeholder="Gib deinem Rezept einen Namen"
           />
           <p className="m-0 text-xs text-foreground-muted">
@@ -228,18 +253,25 @@ export function ExamplesPanel({
         </div>
       </div>
 
-      <Button
-        type="button"
-        size="sm"
-        variant="outline"
-        className="self-start"
-        onClick={() => void handleAnalyze()}
-        disabled={
-          analyzeMut.isPending || filledExamples.length === 0 || tooManyExamples || labelMissing
-        }
-      >
-        {analyzeMut.isPending ? 'Analysiere…' : 'Gemeinsamkeiten erkennen'}
-      </Button>
+      <div className="flex flex-col gap-xs">
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="self-start"
+          onClick={() => void handleAnalyze()}
+          disabled={
+            analyzeMut.isPending || filledExamples.length === 0 || tooManyExamples || labelMissing
+          }
+        >
+          {analyzeMut.isPending ? 'Analysiere…' : 'Gemeinsamkeiten erkennen'}
+        </Button>
+        {analyzeError && (
+          <p role="alert" className="m-0 text-sm text-destructive">
+            {analyzeError}
+          </p>
+        )}
+      </div>
     </div>
   );
 }
