@@ -1,3 +1,4 @@
+import { ConfirmDialogProvider } from '@gruenerator/ui';
 import { useCallback, useState } from 'react';
 
 import { useDraftRecipe } from './api';
@@ -56,13 +57,18 @@ function RecipeCreatorPage() {
   }, []);
 
   if (phase === 'build') {
+    // Wie `RecipeEditorPage`: der Editor fragt nach, bevor eine Analyse eine
+    // vorhandene Anleitung ersetzt — und hier ist die Anleitung oft der gerade
+    // erzeugte Entwurf. Ohne Provider fiele die Frage auf `window.confirm`.
     return (
-      <RecipeEditor
-        mode="create"
-        initialState={{ ...EMPTY_RECIPE_FORM, ...initialState }}
-        initialSection={initialSection}
-        onCancel={handleBack}
-      />
+      <ConfirmDialogProvider>
+        <RecipeEditor
+          mode="create"
+          initialState={{ ...EMPTY_RECIPE_FORM, ...initialState }}
+          initialSection={initialSection}
+          onCancel={handleBack}
+        />
+      </ConfirmDialogProvider>
     );
   }
 

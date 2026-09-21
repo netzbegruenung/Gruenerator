@@ -507,10 +507,12 @@ describe('recipes: create (direct)', () => {
     expect(deps.analyzeTextForm).not.toHaveBeenCalled();
   });
 
-  it('uses the text-type label for the analysis when textType is given', async () => {
+  it('labels the analysis with the title, not the text type', async () => {
+    // Umgekehrter Vorrang seit 09/2026: der Textyp beschriftete die Analyse und
+    // verwarf dabei den genaueren eigenen Namen.
     const { run, deps } = makeCtx();
     await run({ ...CREATE_ARGS, textType: 'instagram', mention: 'insta-kv' });
-    expect(deps.analyzeTextForm).toHaveBeenCalledWith('Instagram-Posts', expect.any(Array));
+    expect(deps.analyzeTextForm).toHaveBeenCalledWith('Newsletter Intro', expect.any(Array));
     expect(deps.upsertTextForm).toHaveBeenCalledWith(
       'user-1',
       expect.objectContaining({ kind: 'custom', textType: 'instagram', mention: 'insta-kv' })
@@ -579,7 +581,8 @@ describe('recipes: create — Überschreiben eines Systemrezepts', () => {
       ok: true,
       recipe: { kind: 'preset', overridesSystemRecipe: true },
     });
-    expect(deps.analyzeTextForm).toHaveBeenCalledWith('Pressemitteilungen', expect.any(Array));
+    // Auch beim Überschreiben eines Presets beschriftet der eigene Titel.
+    expect(deps.analyzeTextForm).toHaveBeenCalledWith('Meine PMs', expect.any(Array));
     expect(deps.upsertTextForm).toHaveBeenCalledWith(
       'user-1',
       expect.objectContaining({ kind: 'preset', textType: 'presse', mention: 'presse' })

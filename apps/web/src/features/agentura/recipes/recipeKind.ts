@@ -14,18 +14,27 @@
  *  - `custom`  — anything else. Always entitled: a custom mention is the
  *                user's own to create.
  */
-import { type TextFormKind, type TextFormType } from '@gruenerator/contracts';
+import {
+  TEXT_FORM_TYPE_LABELS,
+  type TextFormKind,
+  type TextFormType,
+} from '@gruenerator/contracts';
 import {
   SKILLS,
   isLandesverbandIdentifier,
   isLvItemVisibleForRoles,
 } from '@gruenerator/shared/agents';
 
+/**
+ * `label` wird zum Titel des Rezepts (`RecipeEditorPage` seedet ihn daraus) und
+ * beschriftet damit auch den analysierten Stilblock — es ist deshalb dieselbe
+ * Beschriftung, die der Server kennt, und keine zweite, kürzere Schreibung.
+ */
 export const PRESETS: { textType: TextFormType; label: string; hint: string }[] = [
-  { textType: 'instagram', label: 'Instagram', hint: 'Instagram-Posts' },
-  { textType: 'facebook', label: 'Facebook', hint: 'Facebook-Posts' },
-  { textType: 'presse', label: 'Pressemitteilungen', hint: 'Pressetexte' },
-  { textType: 'antrag', label: 'Anträge', hint: 'Anträge' },
+  { textType: 'instagram', label: TEXT_FORM_TYPE_LABELS.instagram, hint: 'Instagram-Posts' },
+  { textType: 'facebook', label: TEXT_FORM_TYPE_LABELS.facebook, hint: 'Facebook-Posts' },
+  { textType: 'presse', label: TEXT_FORM_TYPE_LABELS.presse, hint: 'Pressetexte' },
+  { textType: 'antrag', label: TEXT_FORM_TYPE_LABELS.antrag, hint: 'Anträge' },
 ];
 
 export interface RecipeClassification {

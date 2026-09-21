@@ -2,6 +2,7 @@ import {
   analyzeTextFormBodySchema,
   MAX_TEXT_FORM_EXAMPLES,
   MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS,
+  MAX_TEXT_FORM_TITLE_CHARS,
   saveTextFormBodySchema,
 } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
@@ -38,6 +39,28 @@ describe('analyze needs a label', () => {
       examples: [example(10)],
     });
     expect(parsed.success && parsed.data.title).toBe('Newsletter Intro');
+  });
+
+  // Das Eingabefeld ließ 100 Zeichen zu, beide Schemata deckeln bei 80 — die
+  // Grenze steht jetzt als Konstante, an der auch das Feld hängt.
+  it('caps both bodies at the one title length', () => {
+    const tooLong = 'x'.repeat(MAX_TEXT_FORM_TITLE_CHARS + 1);
+    expect(
+      analyzeTextFormBodySchema.safeParse({ title: tooLong, examples: [example(10)] }).success
+    ).toBe(false);
+    expect(
+      saveTextFormBodySchema.safeParse({
+        title: tooLong,
+        examples: [],
+        styleBlock: 'Schreibe kurz.',
+      }).success
+    ).toBe(false);
+    expect(
+      analyzeTextFormBodySchema.safeParse({
+        title: 'x'.repeat(MAX_TEXT_FORM_TITLE_CHARS),
+        examples: [example(10)],
+      }).success
+    ).toBe(true);
   });
 });
 
