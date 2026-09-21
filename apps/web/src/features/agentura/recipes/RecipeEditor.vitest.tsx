@@ -8,6 +8,7 @@
  * the mention field on the Grundlagen tab rather than as a banner, and the
  * Teilen tab is accessible.
  */
+import { ConfirmDialogProvider } from '@gruenerator/ui';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import RecipeEditor from './RecipeEditor';
@@ -17,6 +18,7 @@ import { EXAMPLE_SEPARATOR } from './splitExamples';
 import { axe, fireEvent, renderWithProviders, screen, waitFor } from '@/test-utils';
 
 const save = vi.hoisted(() => vi.fn());
+const analyze = vi.hoisted(() => vi.fn());
 const list = vi.hoisted(() => vi.fn());
 const getShareSettings = vi.hoisted(() => vi.fn());
 const listMyGroups = vi.hoisted(() => vi.fn());
@@ -24,7 +26,7 @@ const listMyGroups = vi.hoisted(() => vi.fn());
 vi.mock('@gruenerator/shared/api', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   getContractsClient: () => ({
-    userTextForms: { save, list, getShareSettings },
+    userTextForms: { save, analyze, list, getShareSettings },
     notebookSharing: { listMyGroups },
   }),
 }));
@@ -61,8 +63,15 @@ async function fillTitleAndInstruction(
   await user.type(screen.getByLabelText('Anleitung'), instruction);
 }
 
+/** Anleitung-Tab öffnen und die Klappe „Aus Beispielen lernen" aufziehen. */
+async function openExamples(user: ReturnType<typeof renderWithProviders>['user']) {
+  await user.click(screen.getByRole('tab', { name: /^Anleitung/ }));
+  await user.click(screen.getByText(/^Aus Beispielen lernen/));
+}
+
 beforeEach(() => {
   save.mockReset();
+  analyze.mockReset();
   navigate.mockReset();
   list.mockReset().mockResolvedValue({ status: 200, body: { success: true, forms: [] } });
   getShareSettings.mockReset().mockResolvedValue({
@@ -111,7 +120,10 @@ describe('RecipeEditor', () => {
     await fillTitleAndInstruction(user, 'Mein Testrezept', 'Schreibe kurz und klar.');
     expect(screen.getByRole('button', { name: 'Speichern' })).toBeEnabled();
 
-    await user.click(screen.getByRole('tab', { name: 'Beispiele' }));
+    // Examples live under the Anleitung tab now, behind the "Aus Beispielen
+    // lernen" disclosure — they are raw material for that field, not a tab.
+    await user.click(screen.getByRole('tab', { name: /^Anleitung/ }));
+    await user.click(screen.getByText(/^Aus Beispielen lernen/));
     const tooMany = Array.from({ length: 21 }, (_, i) => `Beispiel ${i}`).join(EXAMPLE_SEPARATOR);
     fireEvent.change(screen.getByRole('textbox', { name: /Beispiele/ }), {
       target: { value: tooMany },
@@ -314,6 +326,107 @@ describe('RecipeEditor', () => {
     };
     expect(call.params).toEqual({ mention: 'presse' });
     expect(call.body.kind).toBe('preset');
+  });
+
+  it('fragt nach, bevor eine Analyse die vorhandene Anleitung ersetzt', async () => {
+    const { user } = renderWithProviders(
+      <ConfirmDialogProvider>
+        <RecipeEditor
+          mode="create"
+          initialState={customCreateForm({
+            title: 'Mein Rezept',
+            styleBlock: 'Ein Entwurf, den niemand verlieren will.',
+          })}
+        />
+      </ConfirmDialogProvider>
+    );
+
+    await openExamples(user);
+    fireEvent.change(screen.getByRole('textbox', { name: /Beispiele/ }), {
+      target: { value: 'Ein Beispieltext.' },
+    });
+    await user.click(screen.getByRole('button', { name: 'Gemeinsamkeiten erkennen' }));
+
+    expect(await screen.findByText('Vorhandene Anleitung ersetzen?')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Behalten' }));
+
+    // Abgelehnt heißt: keine Anfrage und der Entwurf steht noch da.
+    expect(analyze).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Anleitung')).toHaveValue(
+      'Ein Entwurf, den niemand verlieren will.'
+    );
+  });
+
+  it('analysiert ohne Rückfrage, solange die Anleitung leer ist', async () => {
+    analyze.mockResolvedValueOnce({
+      status: 200,
+      body: { success: true, styleBlock: '## STIL: Mein Rezept', model: 'test' },
+    });
+    const { user } = renderWithProviders(
+      <RecipeEditor mode="create" initialState={customCreateForm({ title: 'Mein Rezept' })} />
+    );
+
+    await openExamples(user);
+    fireEvent.change(screen.getByRole('textbox', { name: /Beispiele/ }), {
+      target: { value: 'Ein Beispieltext.' },
+    });
+    await user.click(screen.getByRole('button', { name: 'Gemeinsamkeiten erkennen' }));
+
+    await waitFor(() => expect(analyze).toHaveBeenCalledTimes(1));
+    const body = (analyze.mock.calls[0]?.[0] as { body: Record<string, unknown> }).body;
+    expect(body.title).toBe('Mein Rezept');
+    await waitFor(() =>
+      expect(screen.getByLabelText('Anleitung')).toHaveValue('## STIL: Mein Rezept')
+    );
+  });
+
+  it('sperrt die Analyse eines Presets, dessen Name geleert wurde', async () => {
+    // Der Textyp galt einmal als Ersatzbeschriftung, also hielt der Wächter ein
+    // Preset für beschriftet, auch ohne Namen — der Knopf blieb aktiv und der
+    // Server antwortete mit einem rohen 400.
+    const { user } = renderWithProviders(
+      <RecipeEditor
+        mode="create"
+        initialState={customCreateForm({
+          kind: 'preset',
+          fixedMention: 'presse',
+          mention: 'presse',
+          textType: 'presse',
+          title: 'Pressemitteilungen',
+        })}
+      />
+    );
+
+    await user.clear(screen.getByLabelText('Name'));
+    await openExamples(user);
+    fireEvent.change(screen.getByRole('textbox', { name: /Beispiele/ }), {
+      target: { value: 'Ein Beispieltext.' },
+    });
+
+    expect(screen.getByRole('button', { name: 'Gemeinsamkeiten erkennen' })).toBeDisabled();
+    expect(analyze).not.toHaveBeenCalled();
+    // Und der Name ist von hier aus nachtragbar, statt den Pfad zu blockieren:
+    // die Tabs rendern nicht gleichzeitig, das Feld hier ist also das einzige.
+    const nameHere = screen.getByLabelText('Name');
+    expect(nameHere).toHaveValue('');
+    await user.type(nameHere, 'Pressemitteilungen Hessen');
+    expect(screen.getByRole('button', { name: 'Gemeinsamkeiten erkennen' })).toBeEnabled();
+  });
+
+  it('meldet eine fehlgeschlagene Analyse dauerhaft neben dem Knopf, nicht als Toast', async () => {
+    analyze.mockRejectedValueOnce(new Error('Analyse fehlgeschlagen: Modell nicht erreichbar.'));
+    const { user } = renderWithProviders(
+      <RecipeEditor mode="create" initialState={customCreateForm({ title: 'Mein Rezept' })} />
+    );
+
+    await openExamples(user);
+    fireEvent.change(screen.getByRole('textbox', { name: /Beispiele/ }), {
+      target: { value: 'Ein Beispieltext.' },
+    });
+    await user.click(screen.getByRole('button', { name: 'Gemeinsamkeiten erkennen' }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Analyse fehlgeschlagen: Modell nicht erreichbar.');
   });
 
   it('ist frei von Verstößen gegen die Zugänglichkeit mit gelistetem Rezept', async () => {

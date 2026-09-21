@@ -1,7 +1,7 @@
 /**
  * `RecipeCreatorPage` is the guided recipe creator entry
  * (`/agentura/rezept/neu`): describe → AI draft, or skip straight into the
- * shared `RecipeEditor` via "Aus Beispielen anlernen" (Beispiele tab) or
+ * shared `RecipeEditor` via "Aus Beispielen anlernen" (Anleitung tab) or
  * "Lieber manuell anlegen?" (empty, Grundlagen tab). These tests cover the
  * three entry paths plus the start screen's own-recipes grid and a11y.
  */
@@ -65,12 +65,13 @@ describe('RecipeCreatorPage', () => {
     expect(screen.getByRole('tab', { name: 'Grundlagen', selected: true })).toBeInTheDocument();
   });
 
-  it('„Aus Beispielen anlernen" öffnet den Editor leer auf dem Beispiele-Tab', async () => {
+  it('„Aus Beispielen anlernen" öffnet den Editor leer auf dem Anleitung-Tab', async () => {
     const { user } = renderWithProviders(<RecipeCreatorPage />);
 
     await user.click(screen.getByRole('button', { name: 'Aus Beispielen anlernen' }));
 
-    expect(screen.getByRole('tab', { name: 'Beispiele', selected: true })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /^Anleitung/, selected: true })).toBeInTheDocument();
+    // This entry opens the examples disclosure for you — that is its whole point.
     expect(screen.getByLabelText(/^Beispiele — alle in dieses Feld/)).toHaveValue('');
     expect(draft).not.toHaveBeenCalled();
 

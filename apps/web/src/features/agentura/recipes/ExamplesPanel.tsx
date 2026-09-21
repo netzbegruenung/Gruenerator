@@ -9,9 +9,10 @@
 import {
   MAX_TEXT_FORM_EXAMPLES,
   MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS,
+  MAX_TEXT_FORM_TITLE_CHARS,
   type TextFormType,
 } from '@gruenerator/contracts';
-import { Button, Textarea, toast } from '@gruenerator/ui';
+import { Button, Input, Textarea, toast, useConfirm } from '@gruenerator/ui';
 import { useId, useMemo, useRef, useState } from 'react';
 import { FiUpload } from 'react-icons/fi';
 
@@ -24,10 +25,23 @@ const NUM = (n: number) => n.toLocaleString('de-DE');
 interface ExamplesPanelProps {
   rawExamples: string;
   onChange: (value: string) => void;
-  /** Preset text type, when this recipe is one — labels the analysis request. */
+  /** Preset text type, when this recipe is one — carried on the request. */
   textType: TextFormType | null;
-  /** Recipe title — labels the analysis request when there's no preset type. */
+  /** Recipe title — labels the analysis. Required, whatever the text type. */
   title: string;
+  /**
+   * Edits the recipe title. The name lives on the Grundlagen tab, but it is
+   * *required here*: without it there is no label to analyse under. Offering it
+   * on this tab too is what keeps the examples-first entry from dead-ending —
+   * including on a preset whose seeded name someone cleared.
+   */
+  onTitleChange: (value: string) => void;
+  /**
+   * Whether the Anleitung above already holds text. The analysis replaces it
+   * wholesale, so a filled one is confirmed away before the request goes out —
+   * asking afterwards would spend the model call only to discard its result.
+   */
+  hasStyleBlock: boolean;
   /** Called with the distilled style block; the parent writes it into `styleBlock`. */
   onAnalyzed: (styleBlock: string) => void;
 }
@@ -37,12 +51,20 @@ export function ExamplesPanel({
   onChange,
   textType,
   title,
+  onTitleChange,
+  hasStyleBlock,
   onAnalyzed,
 }: ExamplesPanelProps) {
   const examplesFieldId = useId();
   const examplesStatusId = useId();
+  const titleFieldId = useId();
   const [isReadingFiles, setIsReadingFiles] = useState(false);
+  // Warum die Analyse nicht lief — als Meldung neben dem Knopf statt als Toast.
+  // Ein Toast ist nach Sekunden weg, und der Editor stellt seine Fehler ohnehin
+  // dort auf, wo sie hingehören (siehe `mentionError` in `RecipeEditor`).
+  const [analyzeError, setAnalyzeError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const confirm = useConfirm();
   const analyzeMut = useAnalyzeRecipe();
 
   const split = useMemo(() => splitExamples(rawExamples), [rawExamples]);
@@ -50,6 +72,11 @@ export function ExamplesPanel({
   const usedChars = rawExamples.trim().length;
   const tooManyExamples = filledExamples.length > MAX_TEXT_FORM_EXAMPLES;
   const tooManyChars = usedChars > MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS;
+  // Der Titel beschriftet die Analyse — immer, auch bei einem Preset. Die
+  // frühere Fassung ließ `textType` als Ersatz gelten; wer den Namen eines
+  // Preset-Rezepts leerte, bekam damit einen aktiven Knopf und einen rohen 400
+  // statt dieser Meldung.
+  const labelMissing = title.trim().length === 0;
 
   /**
    * Uploaded files are appended to the one field, separated by the same rule the
@@ -104,36 +131,70 @@ export function ExamplesPanel({
   };
 
   const handleAnalyze = async () => {
+    setAnalyzeError(null);
     if (filledExamples.length === 0) {
-      toast.error('Bitte mindestens ein Beispiel einfügen.');
+      setAnalyzeError('Bitte mindestens ein Beispiel einfügen.');
       return;
     }
     if (tooManyExamples) {
-      toast.error(
+      setAnalyzeError(
         `${filledExamples.length} Beispiele erkannt — höchstens ${MAX_TEXT_FORM_EXAMPLES} sind möglich.`
       );
       return;
     }
     if (tooManyChars) {
-      toast.error(
+      setAnalyzeError(
         `Zu viel Text: ${NUM(usedChars)} von ${NUM(MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS)} Zeichen.`
       );
       return;
     }
+    if (labelMissing) {
+      setAnalyzeError('Bitte gib dem Rezept zuerst einen Namen.');
+      return;
+    }
+    if (hasStyleBlock) {
+      const ok = await confirm({
+        title: 'Vorhandene Anleitung ersetzen?',
+        description:
+          'Die Analyse schreibt die Anleitung komplett neu. Was jetzt darin steht — auch selbst Geschriebenes — geht dabei verloren.',
+        confirmLabel: 'Neu analysieren',
+        cancelLabel: 'Behalten',
+        variant: 'default',
+      });
+      if (!ok) return;
+    }
     try {
       const block = await analyzeMut.mutateAsync({
-        ...(textType ? { textType } : { title: title.trim() }),
+        ...(textType ? { textType } : {}),
+        title: title.trim(),
         examples: filledExamples.map((content) => ({ content })),
       });
       onAnalyzed(block);
       toast.success('Stil erkannt — du kannst ihn jetzt anpassen.');
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Analyse fehlgeschlagen.');
+      setAnalyzeError(err instanceof Error ? err.message : 'Analyse fehlgeschlagen.');
     }
   };
 
   return (
     <div className="flex flex-col gap-md">
+      <div className="flex flex-col gap-xs">
+        <label htmlFor={titleFieldId} className="text-sm font-medium">
+          Name
+        </label>
+        <Input
+          id={titleFieldId}
+          value={title}
+          onChange={(e) => onTitleChange(e.target.value)}
+          maxLength={MAX_TEXT_FORM_TITLE_CHARS}
+          placeholder="Gib deinem Rezept einen Namen"
+        />
+        <p className="m-0 text-xs text-foreground-muted">
+          Der Name beschriftet den erkannten Stil — ohne ihn lässt sich nicht analysieren. Er steht
+          auch auf dem Tab „Grundlagen“.
+        </p>
+      </div>
+
       <div className="flex flex-col gap-sm">
         <label htmlFor={examplesFieldId} className="text-sm font-medium">
           Beispiele — alle in dieses Feld, bis zu {MAX_TEXT_FORM_EXAMPLES} Stück
@@ -194,16 +255,25 @@ export function ExamplesPanel({
         </div>
       </div>
 
-      <Button
-        type="button"
-        size="sm"
-        variant="outline"
-        className="self-start"
-        onClick={() => void handleAnalyze()}
-        disabled={analyzeMut.isPending || filledExamples.length === 0 || tooManyExamples}
-      >
-        {analyzeMut.isPending ? 'Analysiere…' : 'Gemeinsamkeiten erkennen'}
-      </Button>
+      <div className="flex flex-col gap-xs">
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="self-start"
+          onClick={() => void handleAnalyze()}
+          disabled={
+            analyzeMut.isPending || filledExamples.length === 0 || tooManyExamples || labelMissing
+          }
+        >
+          {analyzeMut.isPending ? 'Analysiere…' : 'Gemeinsamkeiten erkennen'}
+        </Button>
+        {analyzeError && (
+          <p role="alert" className="m-0 text-sm text-destructive">
+            {analyzeError}
+          </p>
+        )}
+      </div>
     </div>
   );
 }
