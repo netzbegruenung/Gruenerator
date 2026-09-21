@@ -14,11 +14,7 @@
  *  - `custom`  — anything else. Always entitled: a custom mention is the
  *                user's own to create.
  */
-import {
-  TEXT_FORM_TYPE_LABELS,
-  type TextFormKind,
-  type TextFormType,
-} from '@gruenerator/contracts';
+import { type TextFormKind, type TextFormType } from '@gruenerator/contracts';
 import {
   SKILLS,
   isLandesverbandIdentifier,
@@ -27,14 +23,20 @@ import {
 
 /**
  * `label` wird zum Titel des Rezepts (`RecipeEditorPage` seedet ihn daraus) und
- * beschriftet damit auch den analysierten Stilblock — es ist deshalb dieselbe
- * Beschriftung, die der Server kennt, und keine zweite, kürzere Schreibung.
+ * beschriftet damit auch den analysierten Stilblock. Es muss deshalb dieselbe
+ * Schreibung sein wie `TEXT_FORM_TYPE_LABELS` in den Contracts, nicht eine
+ * zweite, kürzere — sonst stünde im Editor „Instagram" und im erzeugten Block
+ * „Instagram-Posts". Bewacht von `recipeKind.vitest.ts`.
+ *
+ * Als Literale und nicht als Verweis auf die Contracts-Tabelle, weil
+ * `documentation/scripts/generate-settings.mjs` diese Liste per AST liest und
+ * dabei bewusst nur String-Literale auflöst.
  */
 export const PRESETS: { textType: TextFormType; label: string; hint: string }[] = [
-  { textType: 'instagram', label: TEXT_FORM_TYPE_LABELS.instagram, hint: 'Instagram-Posts' },
-  { textType: 'facebook', label: TEXT_FORM_TYPE_LABELS.facebook, hint: 'Facebook-Posts' },
-  { textType: 'presse', label: TEXT_FORM_TYPE_LABELS.presse, hint: 'Pressetexte' },
-  { textType: 'antrag', label: TEXT_FORM_TYPE_LABELS.antrag, hint: 'Anträge' },
+  { textType: 'instagram', label: 'Instagram-Posts', hint: 'Instagram-Posts' },
+  { textType: 'facebook', label: 'Facebook-Posts', hint: 'Facebook-Posts' },
+  { textType: 'presse', label: 'Pressemitteilungen', hint: 'Pressetexte' },
+  { textType: 'antrag', label: 'Anträge', hint: 'Anträge' },
 ];
 
 export interface RecipeClassification {
