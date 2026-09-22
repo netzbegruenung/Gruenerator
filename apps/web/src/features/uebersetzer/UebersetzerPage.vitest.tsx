@@ -3,10 +3,15 @@
  * a translation lands in the right pane with its detected language and the
  * glossary note, a budget refusal shows as an alert, and a server without a
  * key shows a notice rather than an error. Plus axe over the rendered page —
- * the selects and the swap button carry hand-written labels.
+ * the pickers, the swap button and the output region carry hand-written labels.
+ *
+ * Since the redesign nothing is pressed to translate: it runs by itself after
+ * a pause in typing. The guard rails around that are the expensive part to get
+ * wrong (every run is billed), so they are asserted by counting the POSTs the
+ * page actually sends.
  */
 import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
-import { http, HttpResponse } from 'msw';
+import { delay, http, HttpResponse } from 'msw';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import { server } from '../../test/msw-server';
@@ -80,7 +85,7 @@ describe('UebersetzerPage', () => {
     let sent: unknown = null;
     server.use(
       http.post(TEXT, async ({ request }) => {
-        sent = await request.json();
+        sent = (await request.json()) as unknown;
         return HttpResponse.json({
           text: 'Hello world',
           detectedSourceLang: 'de',
@@ -110,9 +115,11 @@ describe('UebersetzerPage', () => {
     expect(screen.getByText('Heute noch 8 von 10 Bäumen.')).toBeInTheDocument();
 
     await user.type(screen.getByLabelText('Ausgangstext'), 'Hallo Welt');
-    await user.click(screen.getByRole('button', { name: 'Übersetzen' }));
 
-    await waitFor(() => expect(screen.getByLabelText('Übersetzung')).toHaveValue('Hello world'));
+    await waitFor(
+      () => expect(screen.getByLabelText('Übersetzung')).toHaveTextContent('Hello world'),
+      { timeout: 4000 }
+    );
     expect(sent).toEqual({
       text: 'Hallo Welt',
       targetLang: 'en-GB',
@@ -145,9 +152,10 @@ describe('UebersetzerPage', () => {
     );
     const { user } = renderWithProviders(<UebersetzerPage />);
     await user.type(await screen.findByLabelText('Ausgangstext'), 'Hallo');
-    await user.click(screen.getByRole('button', { name: 'Übersetzen' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(/Tagesbudget/);
+    expect(await screen.findByRole('alert', {}, { timeout: 4000 })).toHaveTextContent(
+      /Tagesbudget/
+    );
     expect(screen.getByText('Heute noch 0 von 10 Bäumen.')).toBeInTheDocument();
   });
 
@@ -181,9 +189,8 @@ describe('UebersetzerPage', () => {
     );
     const { user } = renderWithProviders(<UebersetzerPage />);
     await user.type(await screen.findByLabelText('Ausgangstext'), 'Hallo');
-    await user.click(screen.getByRole('button', { name: 'Übersetzen' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
+    expect(await screen.findByRole('alert', {}, { timeout: 4000 })).toHaveTextContent(
       'Das Kontingent lässt sich gerade nicht prüfen.'
     );
   });
@@ -192,9 +199,167 @@ describe('UebersetzerPage', () => {
     withLanguages();
     const { user } = renderWithProviders(<UebersetzerPage />);
     await screen.findByLabelText('Von');
-    expect(screen.queryByText('Anrede')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Anrede' })).not.toBeInTheDocument();
     await user.selectOptions(screen.getByLabelText('Nach'), 'fr');
-    expect(screen.getByText('Anrede')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Anrede' })).toBeInTheDocument();
+  });
+
+  it('blocks auto-detect in both halves of the picker when a glossary needs the source', async () => {
+    withLanguages();
+    const { user } = renderWithProviders(<UebersetzerPage />);
+    await screen.findByLabelText('Von');
+    await user.click(screen.getByRole('tab', { name: /Dokument/ }));
+
+    // `de>en` translates into the default target `en-GB`, so the source must be explicit.
+    const source = await screen.findByLabelText('Von');
+    expect(within(source).getByRole('option', { name: 'Bitte wählen' })).toBeDisabled();
+    // The quick-pick tab is the same control — it must not hand `auto` back.
+    expect(screen.getByRole('button', { name: 'Bitte wählen' })).toBeDisabled();
+
+    // The reason is announced with the picker, not left as a loose paragraph.
+    const hint = source.getAttribute('aria-describedby');
+    expect(hint).toBeTruthy();
+    expect(document.getElementById(hint!)).toHaveTextContent(
+      'Für diese Zielsprache gibt es ein Glossar'
+    );
+  });
+
+  it('translates a long text only on demand, never on its own', async () => {
+    withLanguages();
+    let posts = 0;
+    server.use(
+      http.post(TEXT, () => {
+        posts += 1;
+        return HttpResponse.json({
+          text: 'long',
+          detectedSourceLang: 'de',
+          targetLang: 'en-GB',
+          billedCharacters: 2001,
+          glossaryApplied: false,
+          quota: LANGUAGE_LIST.quota,
+        });
+      })
+    );
+    const { user } = renderWithProviders(<UebersetzerPage />);
+    const input = await screen.findByLabelText('Ausgangstext');
+    await user.click(input);
+    // Past AUTO_MAX_CHARS a run would cost real Bäume per pause in typing.
+    await user.paste('a'.repeat(2001));
+
+    const button = await screen.findByRole('button', { name: 'Übersetzen' });
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    expect(posts).toBe(0);
+
+    await user.click(button);
+    await waitFor(() => expect(posts).toBe(1));
+  });
+
+  it('sends one request per text — a finished translation does not retrigger itself', async () => {
+    withLanguages();
+    let posts = 0;
+    server.use(
+      http.post(TEXT, () => {
+        posts += 1;
+        return HttpResponse.json({
+          text: 'Hello',
+          detectedSourceLang: 'de',
+          targetLang: 'en-GB',
+          billedCharacters: 5,
+          glossaryApplied: false,
+          // A changed quota re-renders the page; without the sent-key guard
+          // that re-render would start the very same translation again.
+          quota: { ...LANGUAGE_LIST.quota, used: 2.1, remaining: 7.9 },
+        });
+      })
+    );
+    const { user } = renderWithProviders(<UebersetzerPage />);
+    await user.type(await screen.findByLabelText('Ausgangstext'), 'Hallo');
+    await waitFor(() => expect(posts).toBe(1), { timeout: 4000 });
+
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    expect(posts).toBe(1);
+  });
+
+  it('sends one request when the shortcut beats the debounce to the same text', async () => {
+    withLanguages();
+    let posts = 0;
+    server.use(
+      http.post(TEXT, () => {
+        posts += 1;
+        return HttpResponse.json({
+          text: 'Hello',
+          detectedSourceLang: 'de',
+          targetLang: 'en-GB',
+          billedCharacters: 5,
+          glossaryApplied: false,
+          quota: { ...LANGUAGE_LIST.quota, used: 2.1, remaining: 7.9 },
+        });
+      })
+    );
+    const { user } = renderWithProviders(<UebersetzerPage />);
+    await user.type(await screen.findByLabelText('Ausgangstext'), 'Hallo');
+    // Well inside the debounce — that is what the shortcut is for, since waiting
+    // it out would have translated anyway.
+    await user.keyboard('{Meta>}{Enter}{/Meta}');
+    await waitFor(() => expect(posts).toBe(1), { timeout: 4000 });
+
+    // The timer the last keystroke scheduled must not bill the same text again.
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    expect(posts).toBe(1);
+  });
+
+  it('still translates text typed while an earlier request is in flight', async () => {
+    withLanguages();
+    const sent: string[] = [];
+    server.use(
+      http.post(TEXT, async ({ request }) => {
+        sent.push(((await request.json()) as { text: string }).text);
+        // Long enough that the next keystrokes land while this one is running.
+        await delay(600);
+        return HttpResponse.json({
+          text: 'Hello',
+          detectedSourceLang: 'de',
+          targetLang: 'en-GB',
+          billedCharacters: 5,
+          glossaryApplied: false,
+          quota: { ...LANGUAGE_LIST.quota, used: 2.1, remaining: 7.9 },
+        });
+      })
+    );
+    const { user } = renderWithProviders(<UebersetzerPage />);
+    const input = await screen.findByLabelText('Ausgangstext');
+    await user.type(input, 'Hallo');
+    await waitFor(() => expect(sent).toEqual(['Hallo']), { timeout: 4000 });
+
+    // Typing on while the answer is still out: the timer this schedules fires
+    // into a closure that believes a run is going on, so only a fresh one sent
+    // after the first settles gets this text translated at all.
+    await user.type(input, 'x');
+    await waitFor(() => expect(sent).toEqual(['Hallo', 'Hallox']), { timeout: 4000 });
+  });
+
+  it('does not translate by itself once the daily budget is used up', async () => {
+    server.use(
+      http.get(LANGUAGES, () =>
+        HttpResponse.json({
+          ...LANGUAGE_LIST,
+          quota: { ...LANGUAGE_LIST.quota, used: 10, remaining: 0 },
+        })
+      )
+    );
+    let posts = 0;
+    server.use(
+      http.post(TEXT, () => {
+        posts += 1;
+        return HttpResponse.json({});
+      })
+    );
+    const { user } = renderWithProviders(<UebersetzerPage />);
+    await user.type(await screen.findByLabelText('Ausgangstext'), 'Hallo');
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+
+    expect(posts).toBe(0);
+    expect(screen.getByText('Das Tagesbudget ist aufgebraucht.')).toBeInTheDocument();
   });
 
   it('has no axe violations once loaded', async () => {
