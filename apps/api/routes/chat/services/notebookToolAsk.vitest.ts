@@ -32,6 +32,9 @@ describe('looksLikeNotebookToolAsk — trifft (Verb)', () => {
     'Zitiere die Passage zur Wärmepumpe',
     'Belege das mit einem Zitat aus dem Notebook',
     'Kannst du die Quelle umbenennen?',
+    'Kannst du die Anträge nach Datum sortieren?',
+    'Bitte alle Quellen auflisten',
+    'Verschiebe die Quelle in ein anderes Notebook',
     'Entferne die alte Pressemitteilung aus dem Notebook',
   ])('%s', (text) => {
     expect(looksLikeNotebookToolAsk(text)).toBe(true);
@@ -76,6 +79,19 @@ describe('looksLikeNotebookToolAsk — trifft NICHT', () => {
     'Ist eine Verschiebung der Wahl geplant?',
     // „wie oft" als Inhaltsfrage, nicht als Zählauftrag.
     'Wie oft tagt der Kreisvorstand laut Satzung?',
+    // Flektierte Verbformen in Inhaltsfragen (Review-Befund, Runde 1): alle
+    // trafen, solange die Liste `-t`/`-en` zuliess.
+    'Welche Maßnahmen zählen zum Klimapaket?',
+    'Was zählt laut Programm als erneuerbare Energie?',
+    'Wie weit sind wir vom 1,5-Grad-Ziel entfernt?',
+    'Wie ordnet das Programm die Atomkraft ein?',
+    'Wie verschiebt sich der Kohleausstieg?',
+    'Was sagt das Notebook zum Entfernen von Schottergärten?',
+    'Wer wird im Dokument zitiert?',
+    'Wie oft wird der Vorstand gewählt?',
+    'Ich finde die Stelle gut, was meinst du?',
+    'Was zeigt die Quelle zur Mietpreisbremse?',
+    'Kannst du mir sagen, welche Maßnahmen zum Klimapaket zählen?',
     '',
   ])('%s', (text) => {
     expect(looksLikeNotebookToolAsk(text)).toBe(false);
