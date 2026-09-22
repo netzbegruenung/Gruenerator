@@ -68,6 +68,11 @@ describe('looksLikeToolableQuestion', () => {
     ['personal quellen', 'sortier meine quellen nach datum'],
     ['personal notizen', 'meine notizen bitte'],
     ['notizbuch singular', 'kopier das in meinem notizbuch'],
+    // Ein Adjektiv zwischen `meinem` und dem Notebook darf nicht aus dem Loop fallen.
+    ['meinem alten notebook', 'entferne die Quelle aus meinem alten Notebook'],
+    ['meinem geteilten notebook', 'leg eine Notiz in meinem geteilten Notebook an'],
+    ['meinem eigenen notizbuch', 'kopier das in meinem eigenen notizbuch'],
+    ['räum aus meinem geteilten notebook', 'räum das aus meinem geteilten Notebook'],
   ];
   it.each(toolable)('routes a real question into the loop: %s', (_label, q) => {
     expect(looksLikeToolableQuestion(q)).toBe(true);
@@ -98,6 +103,10 @@ describe('looksLikeToolableQuestion', () => {
     // `meinem` gilt nur vor Notebook, `Quellen` nur nach mein/meine.
     ['rede zu meinem projekt', 'schreib eine Rede zu meinem Projekt'],
     ['quellen im eigenen text', 'prüfe in meinem Text die Quellen'],
+    // „erzähl mir was zu meinem neuen Projekt" ginge über das Fragewort „was"
+    // (TOOLABLE_QUESTION_RE) in den Loop, nicht über diesen Wortschatz — die
+    // Variante ohne Fragewort prüft, was hier zu prüfen ist.
+    ['meinem neuen projekt', 'schreib einen Post zu meinem neuen Projekt'],
   ];
   it.each(fastPath)('keeps a fast-path turn out of the loop: %s', (_label, q) => {
     expect(looksLikeToolableQuestion(q)).toBe(false);
