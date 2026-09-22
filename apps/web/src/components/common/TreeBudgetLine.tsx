@@ -66,7 +66,7 @@ export function TreeBudgetChip({ status, hint, className }: TreeBudgetChipProps)
     <LiteTooltip label={hint ? `${sentence} ${hint}` : sentence} side="top">
       <span
         className={cn(
-          'inline-flex h-9 cursor-default items-center gap-xxs rounded-full px-xs text-xs font-semibold text-primary-600',
+          'inline-flex h-9 cursor-default items-center gap-xxs rounded-full px-xs text-xs font-semibold text-primary-600 dark:text-primary-300',
           className
         )}
       >

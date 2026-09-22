@@ -103,7 +103,7 @@ export function TranslationExportMenu({
           type="button"
           variant="ghost"
           size="sm"
-          className="rounded-full text-primary-600 hover:bg-primary-100"
+          className="rounded-full text-primary-600 hover:bg-primary-100 dark:text-primary-300 dark:hover:bg-primary-900"
           disabled={!text || busy !== null}
         >
           <PiFileArrowDown aria-hidden="true" />
