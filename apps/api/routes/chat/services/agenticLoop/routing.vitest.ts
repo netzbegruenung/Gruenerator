@@ -61,6 +61,13 @@ describe('looksLikeToolableQuestion', () => {
     // Eigene Textformen und Rezepte.
     ['personal textformen', 'zeig meine textformen'],
     ['personal rezepte', 'meine rezepte bitte'],
+    // Quellen im Notebook verwalten (notebook_quellen) — „meinem" fehlte in der
+    // Possessiv-Liste, „Quelle"/„Notiz" als Nomen.
+    ['source remove, dativ', 'entferne die Quelle Radweg aus meinem Notebook'],
+    ['note into notebook', 'leg eine Notiz in mein Notebook'],
+    ['personal quellen', 'sortier meine quellen nach datum'],
+    ['personal notizen', 'meine notizen bitte'],
+    ['notizbuch singular', 'kopier das in meinem notizbuch'],
   ];
   it.each(toolable)('routes a real question into the loop: %s', (_label, q) => {
     expect(looksLikeToolableQuestion(q)).toBe(true);
