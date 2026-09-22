@@ -987,7 +987,7 @@ class NotebookQdrantHelper {
   /**
    * The same join for MANY notebooks in one filtered scroll.
    *
-   * The public "Von der Basis" listing enriches up to 200 notebooks per
+   * The public „Öffentlich" listing enriches up to 200 notebooks per
    * request; asking per notebook turns one page load into 200 Qdrant round
    * trips. `any` on `collection_id` collapses that into a paged scroll whose
    * cost tracks the number of LINKS, not the number of notebooks.
@@ -1281,7 +1281,7 @@ class NotebookQdrantHelper {
 
   /**
    * List all notebook collections marked is_public=true across all users.
-   * Powers the "Von der Basis" community section on /notebooks. `is_public`
+   * Powers the „Öffentlich" community section on /notebooks. `is_public`
    * is a discovery flag orthogonal to `share_mode`; access is still governed
    * by `checkNotebookAccess`, which requires share_mode='authenticated' (or
    * group membership) for non-owner reads.

@@ -686,7 +686,7 @@ const GroupInfoSection = memo(
                 getLink: (item) => `/notebook/${item.id}`,
               },
               {
-                label: 'Grüneratoren',
+                label: 'Agents',
                 items: sharedContent.agents,
                 contentType: 'user_agents',
                 icon: PiRobot,

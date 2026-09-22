@@ -365,7 +365,7 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
       // with the user — whether via a group (share_mode='groups') or as
       // link-readable authenticated notebooks (share_mode='authenticated') — are
       // intentionally NOT listed here. They stay reachable by direct link and,
-      // when is_public, via the public "Von der Basis" listing
+      // when is_public, via the public „Öffentlich" listing
       // (listPublicCollections). Merging shared buckets into this list let
       // another user's authenticated-shared notebook surface in everyone's
       // "Eigene" list — a privacy leak. Access on direct URL is still governed
@@ -575,7 +575,7 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
       // 'private' in storeNotebookCollection). A notebook can only be public
       // once it is share_mode='authenticated', which is set afterwards via the
       // share modal (PUT /share). Creating straight to is_public=true would
-      // mint an orphan — listed in "Von der Basis" but access-denied for
+      // mint an orphan — listed in „Öffentlich" but access-denied for
       // non-owners — the same invariant setShareMode enforces when stepping
       // share_mode down. So reject is_public at create time.
       if (is_public === true) {

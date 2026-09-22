@@ -3,7 +3,7 @@ import { getContractsClient } from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
 
 // Read-only mirror of web's usePublicUserAgents (apps/web/src/features/agents/api.ts).
-// Public "Von der Basis" agents — listed via the shared `listPublic` endpoint,
+// Public „Öffentlich" agents — listed via the shared `listPublic` endpoint,
 // which already locale-filters (de-DE/de-AT) server-side. Mobile only discovers
 // and chats with them; creation/editing/sharing stays web-only.
 export function usePublicUserAgents() {

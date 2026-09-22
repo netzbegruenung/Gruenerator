@@ -34,7 +34,7 @@ const SECTIONS: SectionConfig[] = [
   { key: 'boards', label: 'Boards', icon: 'grid-outline' },
   { key: 'generators', label: 'Grüneratoren', icon: 'sparkles-outline' },
   { key: 'notebooks', label: 'Notebooks', icon: 'book-outline' },
-  { key: 'agents', label: 'Agent*innen', icon: 'chatbubbles-outline' },
+  { key: 'agents', label: 'Agents', icon: 'chatbubbles-outline' },
   { key: 'texts', label: 'Texte', icon: 'reader-outline' },
   { key: 'templates', label: 'Vorlagen', icon: 'albums-outline' },
   { key: 'documents', label: 'Dateien', icon: 'folder-outline' },

@@ -41,7 +41,12 @@ vi.mock('@gruenerator/chat', async (importOriginal) => ({
   agentsList: [],
   useHiddenAgentIdentifiers: () => [],
   useHiddenSkillMentions: () => [],
-  useUserLandesverbaende: () => ({ lvIds: null, headings: { agents: '', skills: '' } }),
+  useUserLandesverbaende: () => ({
+    lvIds: null,
+    headings: { agents: '', skills: '' },
+    shelfLabel: 'Dein Landesverband',
+    isHydrated: true,
+  }),
 }));
 
 vi.mock('../agents/api', () => ({
@@ -200,23 +205,23 @@ describe('AgenturaPage — Meine Rezepte', () => {
     renderPage();
 
     expect(
-      await screen.findByText(/Du hast noch keine eigenen Grüneratoren oder Rezepte erstellt/)
+      await screen.findByText(/Du hast noch keine eigenen Agents oder Rezepte erstellt/)
     ).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Grünerator erstellen/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Agent erstellen/ })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Rezept erstellen/ })).toBeInTheDocument();
   });
 });
 
-describe('AgenturaPage — Von der Basis', () => {
+describe('AgenturaPage — Öffentlich', () => {
   it('zeigt ein fremdes öffentliches Rezept mit Herkunft', async () => {
     listPublic.mockResolvedValue({ status: 200, body: { success: true, forms: [publicRow()] } });
     renderPage('/agentura?cat=community');
 
     expect(await screen.findByRole('heading', { name: 'Fremdes Rezept' })).toBeInTheDocument();
-    expect(screen.getByText(/Von der Basis · Sam Beispiel/)).toBeInTheDocument();
+    expect(screen.getByText(/Öffentlich · Sam Beispiel/)).toBeInTheDocument();
   });
 
-  it('zeigt die eigene Rezept-Karte auch unter „Von der Basis", wenn sie öffentlich ist', async () => {
+  it('zeigt die eigene Rezept-Karte auch unter „Öffentlich", wenn sie öffentlich ist', async () => {
     // Mirrors `communityAgents`: "owners still see their own listing" — a
     // public own recipe shows both under "Meine Rezepte" and here.
     list.mockResolvedValue({
@@ -237,7 +242,7 @@ describe('AgenturaPage — Von der Basis', () => {
 
   it('zeigt ein geteiltes und öffentliches Rezept genau einmal, unter „Geteilt mit Gruppen"', async () => {
     // Mirrors `communityAgents`: a recipe reachable via a group share (not
-    // owned) is dropped from "Von der Basis" even though it's also public —
+    // owned) is dropped from „Öffentlich" even though it's also public —
     // "Geteilt mit Gruppen" already shows it once.
     list.mockResolvedValue({
       status: 200,
@@ -258,7 +263,7 @@ describe('AgenturaPage — Von der Basis', () => {
     expect(await screen.findAllByRole('heading', { name: 'Team Rezept' })).toHaveLength(1);
   });
 
-  it('lässt ein nur geteiltes (nicht eigenes) Rezept aus „Von der Basis" weg', async () => {
+  it('lässt ein nur geteiltes (nicht eigenes) Rezept aus „Öffentlich" weg', async () => {
     list.mockResolvedValue({
       status: 200,
       body: {
@@ -344,7 +349,7 @@ describe('AgenturaPage — „Neu"-Menü', () => {
 
     const items = await screen.findAllByRole('menuitem');
     expect(items.map((el) => el.textContent)).toEqual([
-      'Grünerator',
+      'Agent',
       'Rezept',
       'Wiederkehrende Aufgabe',
       // „Verlauf & Steuerung" hing vorher an der Abschnittsüberschrift der

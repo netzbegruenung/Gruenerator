@@ -161,7 +161,7 @@ export const notebookSharingContractRouter = s.router(notebookSharingContract, {
         status: 200 as const,
         body: {
           success: true,
-          message: is_public ? 'Notebook auf Von der Basis gelistet' : 'Listung entfernt',
+          message: is_public ? 'Notebook auf „Öffentlich" gelistet' : 'Listung entfernt',
         },
       };
     } catch (error) {

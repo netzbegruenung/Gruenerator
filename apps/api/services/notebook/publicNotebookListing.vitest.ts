@@ -1,5 +1,5 @@
 /**
- * Die Audience-Regel der „Von der Basis"-Listung — der einzige Grund, warum
+ * Die Audience-Regel der „Öffentlich"-Listung — der einzige Grund, warum
  * diese Auswahl geteilt und nicht kopiert wird.
  */
 import { describe, expect, it, vi } from 'vitest';
