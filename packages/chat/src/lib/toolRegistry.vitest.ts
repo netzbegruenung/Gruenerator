@@ -523,6 +523,85 @@ describe('loop-catalog tool parsers', () => {
     ).toEqual({ kind: 'text-note', text: 'Quelle nicht in diesem Notebook oder kein Zugriff.' });
   });
 
+  // notebook_quellen grep/stats/rank/cite (notebookSourceReadActions.ts): Zeilen je
+  // Quelle, Zählung als Schlüssel/Wert, Zitatprüfung als Zitatliste. Eine
+  // unvollständige Zählung sagt das auch in der Karte.
+  it('notebook_quellen renders grep, stats, rank and cite', () => {
+    const parse = resolveToolEntry('notebook_quellen').parse;
+
+    expect(
+      parse(
+        { action: 'grep' },
+        {
+          phrase: 'Radweg',
+          exhaustive: false,
+          totalHits: 3,
+          perSource: [
+            { sourceId: 'd1', title: 'Antrag', count: 2, contexts: [] },
+            { sourceId: 'd2', title: 'Protokoll', count: 1, contexts: [] },
+          ],
+        }
+      )
+    ).toMatchObject({
+      kind: 'key-value',
+      entries: [
+        { label: '„Radweg"', value: 'mindestens 3 Treffer (nicht alle Quellen gelesen)' },
+        { label: 'Antrag', value: '2 Treffer' },
+        { label: 'Protokoll', value: '1 Treffer' },
+      ],
+    });
+
+    expect(
+      parse(
+        { action: 'stats' },
+        {
+          exhaustive: true,
+          totals: { chars: 49, words: 8, sentences: 3, paragraphs: 2, pages: 2, chunks: 4 },
+          lemmas: [{ lemma: 'radweg', pos: 'NOUN', count: 2 }],
+          note: 'Lemma-Zählungen sind gerade nicht verfügbar.',
+        }
+      )
+    ).toMatchObject({
+      kind: 'key-value',
+      entries: [
+        { label: 'Wörter', value: '8' },
+        { label: 'Zeichen', value: '49' },
+        { label: 'Sätze', value: '3' },
+        { label: 'Absätze', value: '2' },
+        { label: 'Seiten', value: '2' },
+        { label: 'Chunks', value: '4' },
+        { label: 'Häufigste Lemmata', value: 'radweg 2' },
+        { label: 'Hinweis', value: 'Lemma-Zählungen sind gerade nicht verfügbar.' },
+      ],
+    });
+
+    expect(
+      parse(
+        { action: 'rank' },
+        { ranking: [{ rank: 1, sourceId: 'd2', title: 'Protokoll', value: 9, unit: 'Seiten' }] }
+      )
+    ).toMatchObject({ kind: 'key-value', entries: [{ label: '1. Protokoll', value: '9 Seiten' }] });
+
+    const found = parse(
+      { action: 'cite' },
+      { found: true, title: 'Antrag', pageNumber: 2, matched: 'Der Radweg kommt 2027' }
+    );
+    expect(found.kind).toBe('citations');
+    if (found.kind === 'citations') {
+      expect(found.citations[0]).toMatchObject({
+        title: 'Antrag, S. 2',
+        snippet: 'Der Radweg kommt 2027',
+      });
+    }
+
+    expect(
+      parse(
+        { action: 'cite' },
+        { found: false, candidates: [], note: 'Das Zitat steht so in keiner Quelle.' }
+      )
+    ).toEqual({ kind: 'text-note', text: 'Das Zitat steht so in keiner Quelle.' });
+  });
+
   // groups: `get` liefert ein `{group}`-Detailobjekt (groupTools.ts); `content`
   // und `list` bleiben Zeilen → Zitatliste.
   it('groups get renders the detail rows, not the raw object', () => {
