@@ -839,7 +839,9 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       if (
         !isNonDefaultAgent &&
         state.notebookIds.some(isUserNotebookId) &&
-        looksLikeNotebookToolAsk(userContent)
+        // Ohne Erwähnungen gelesen: `messages` tragen sie als „@Label", und ein
+        // Notebook namens „Kapitel 3 Satzung" pinnte sonst bei jeder Erwähnung.
+        looksLikeNotebookToolAsk(state.lastUserTextNoMentions ?? userContent)
       ) {
         log.info('[Classifier] Notebook tool ask → loop with notebook_quellen pinned');
         recordDecision('classifier.tier', 'tier2_notebook_tool_ask', {});

@@ -773,6 +773,19 @@ describe('Notebook branch — tool ask pins notebook_quellen', () => {
     expect(result.mentionPinnedTool).toBeUndefined();
   });
 
+  it('a mention label is not read as the ask ("@Kapitel 3 Satzung" + plain question → no pin)', async () => {
+    // Die Nachrichten tragen Erwähnungen als „@Label"; ein Notebook-Name mit
+    // „Kapitel 3" pinnte sonst bei jeder Erwähnung.
+    const state = buildState({
+      userMessage: '@Kapitel 3 Satzung Was steht zur Wärmewende?',
+      lastUserTextNoMentions: 'Was steht zur Wärmewende?',
+      notebookIds: [USER_NOTEBOOK],
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('search');
+    expect(result.mentionPinnedTool).toBeUndefined();
+  });
+
   it('system notebook only → stays a search (notebook_quellen rejects system notebooks)', async () => {
     const state = buildState({
       userMessage: 'Sortiere die Quellen nach Datum',
