@@ -75,7 +75,16 @@ const UebersetzerPage = () => {
               Bild
             </TabsTrigger>
           </TabsList>
-          <TabsContent value="text">
+          {/* Radix unmounts whatever tab is not on top. That is fine for a
+              panel that only holds a form, but this one holds a paid-for
+              answer: coming back to a fresh `TextTranslator` means an empty
+              result pane and a debounce that sends the *unchanged* text to
+              DeepL a second time, billed again against the Bäume budget. So it
+              stays mounted and is merely hidden. `forceMount` alone would show
+              it next to the active tab — Radix then derives `hidden` from
+              presence, which is now always true — but it spreads our props
+              afterwards, so the explicit `hidden` wins. */}
+          <TabsContent value="text" forceMount hidden={tab !== 'text'}>
             <TextTranslator data={languages.data} text={text} onTextChange={setText} />
           </TabsContent>
           <TabsContent value="dokument">

@@ -258,11 +258,16 @@ describe('UebersetzerPage', () => {
     await screen.findByLabelText('Von');
     await user.click(screen.getByRole('tab', { name: /Dokument/ }));
 
+    // Scoped to the panel on top: the text panel stays mounted behind this one
+    // so a translation is not paid for twice, and it has a "Von" of its own.
+    // `getByRole('tabpanel')` picks the visible one for us — Radix marks the
+    // others `hidden`, which is exactly what role queries skip.
+    const panel = within(screen.getByRole('tabpanel'));
     // `de>en` translates into the default target `en-GB`, so the source must be explicit.
-    const source = await screen.findByLabelText('Von');
+    const source = await panel.findByLabelText('Von');
     expect(within(source).getByRole('option', { name: 'Bitte wählen' })).toBeDisabled();
     // The quick-pick tab is the same control — it must not hand `auto` back.
-    expect(screen.getByRole('button', { name: 'Bitte wählen' })).toBeDisabled();
+    expect(panel.getByRole('button', { name: 'Bitte wählen' })).toBeDisabled();
 
     // The reason is announced with the picker, not left as a loose paragraph.
     const hint = source.getAttribute('aria-describedby');
@@ -324,6 +329,38 @@ describe('UebersetzerPage', () => {
     await user.type(await screen.findByLabelText('Ausgangstext'), 'Hallo');
     await waitFor(() => expect(posts).toBe(1), { timeout: 4000 });
 
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    expect(posts).toBe(1);
+  });
+
+  it('keeps the translation over a tab switch instead of buying it twice', async () => {
+    withLanguages();
+    let posts = 0;
+    server.use(
+      http.post(TEXT, () => {
+        posts += 1;
+        return HttpResponse.json({
+          text: 'Hello world',
+          detectedSourceLang: 'de',
+          targetLang: 'en-GB',
+          billedCharacters: 10,
+          glossaryApplied: false,
+          quota: { ...LANGUAGE_LIST.quota, used: 2.1, remaining: 7.9 },
+        });
+      })
+    );
+    const { user } = renderWithProviders(<UebersetzerPage />);
+    await user.type(await screen.findByLabelText('Ausgangstext'), 'Hallo');
+    await waitFor(() => expect(posts).toBe(1), { timeout: 4000 });
+    expect(await screen.findByText('Hello world')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: 'Dokument' }));
+    await user.click(screen.getByRole('tab', { name: 'Text' }));
+
+    // The text survives the switch because the page owns it. The answer has to
+    // survive with it: a panel that comes back without its answer restarts the
+    // debounce on an unchanged text and bills the identical characters twice.
+    expect(await screen.findByText('Hello world')).toBeInTheDocument();
     await new Promise((resolve) => setTimeout(resolve, 1500));
     expect(posts).toBe(1);
   });
