@@ -127,6 +127,10 @@ interface CtxOptions {
   chunks?: DocumentChunkItem[];
   searchResults?: unknown[];
   registry?: SourceRegistry;
+  chunkError?: string;
+  searchError?: string;
+  /** `getCollectionDocuments` wirft diesen Rohtext. */
+  linksThrow?: string;
 }
 
 function makeCtx(opts: CtxOptions = {}) {
@@ -153,9 +157,14 @@ function makeCtx(opts: CtxOptions = {}) {
   const rows = opts.rows ?? [docRow()];
   const helper = {
     getNotebookCollection: vi.fn(async (id: string) => (row && id === row.id ? row : null)),
-    getCollectionDocuments: vi.fn(async () =>
-      (opts.links ?? ['d1']).map((document_id) => ({ document_id, added_at: '', added_by: null }))
-    ),
+    getCollectionDocuments: vi.fn(async () => {
+      if (opts.linksThrow) throw new Error(opts.linksThrow);
+      return (opts.links ?? ['d1']).map((document_id) => ({
+        document_id,
+        added_at: '',
+        added_by: null,
+      }));
+    }),
     isDocumentInCollection: vi.fn(async () => opts.inCollection ?? true),
   };
   const db = {
@@ -174,13 +183,18 @@ function makeCtx(opts: CtxOptions = {}) {
     }),
   };
   const documentService = {
-    getDocumentChunks: vi.fn(async () => ({
-      success: true,
-      chunks: opts.chunks ?? CHUNKS,
-      chunkCount: (opts.chunks ?? CHUNKS).length,
-    })),
+    getDocumentChunks: vi.fn(async () =>
+      opts.chunkError
+        ? { success: false, chunks: [], chunkCount: 0, error: opts.chunkError }
+        : {
+            success: true,
+            chunks: opts.chunks ?? CHUNKS,
+            chunkCount: (opts.chunks ?? CHUNKS).length,
+          }
+    ),
     search: vi.fn(async () => ({
-      success: true,
+      success: !opts.searchError,
+      ...(opts.searchError ? { error: opts.searchError } : {}),
       results: opts.searchResults ?? [],
       query: '',
       searchType: 'hybrid',
@@ -446,6 +460,58 @@ describe('find', () => {
     const out = await run({ action: 'find', query: 'Mond' });
     expect(out.resultCount).toBe(0);
     expect(notes).toHaveLength(1);
+  });
+});
+
+/**
+ * Ein ausgefallener Dienst darf nie wie ein leerer Befund aussehen: sonst sagt
+ * das Modell „dazu steht nichts im Notebook", obwohl nur Qdrant weg war.
+ */
+describe('Ausfälle sind keine Leermeldungen', () => {
+  it('find: a failed search is an error, not "keine Passage gefunden"', async () => {
+    const { run, notes, registered } = makeCtx({ searchError: 'embedding service down' });
+    const out = await run({ action: 'find', query: 'Radweg' });
+    expect(out.error).toMatch(/fehlgeschlagen/);
+    expect(out).not.toHaveProperty('resultCount');
+    expect(notes).toEqual([]);
+    expect(registered).toEqual([]);
+  });
+
+  it('read: a failed chunk read is an error, not "keine Seitenzahlen"', async () => {
+    const { run, notes } = makeCtx({ chunkError: 'Qdrant not available' });
+    const out = await run({ action: 'read', sourceId: 'd1', seite: 2 });
+    expect(out.error).toBe(
+      'Die Quelle ließ sich gerade nicht lesen — bitte später erneut versuchen.'
+    );
+    expect(notes).toEqual([]);
+  });
+
+  it('outline: a failed chunk read is an error, not "keine Gliederung"', async () => {
+    const { run, notes, registered } = makeCtx({ chunkError: 'Qdrant not available' });
+    const out = await run({ action: 'outline', sourceId: 'd1' });
+    expect(out.error).toMatch(/nicht, dass die Quelle keine hat/);
+    expect(notes).toEqual([]);
+    expect(registered).toEqual([]);
+  });
+
+  it('keeps raw internal error text away from the model', async () => {
+    const { run } = makeCtx({ linksThrow: 'Too many document IDs' });
+    for (const action of ['list', 'find'] as const) {
+      const out = await run({ action, query: 'Radweg' });
+      expect(typeof out.error).toBe('string');
+      expect(JSON.stringify(out)).not.toContain('Too many document IDs');
+    }
+  });
+});
+
+describe('leeres Notebook', () => {
+  it('find on an empty notebook finds nothing and never searches the personal library', async () => {
+    const { run, notes, documentService } = makeCtx({ links: [] });
+    const out = await run({ action: 'find', query: 'Radweg' });
+    expect(out).toMatchObject({ resultCount: 0, passages: [] });
+    expect(documentService.search).not.toHaveBeenCalled();
+    expect(notes).toHaveLength(1);
+    expect(notes[0]?.[1]).toMatch(/Keine Passage/);
   });
 });
 

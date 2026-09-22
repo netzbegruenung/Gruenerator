@@ -21,7 +21,10 @@ import type { PostgresService } from '../../database/services/PostgresService.js
 import type { NotebookAccess } from '../../routes/notebook/notebookAccess.js';
 import type { DocumentResult, TopChunk } from '../BaseSearchService/types.js';
 import type { DocumentSearchService } from '../document-services/DocumentSearchService/DocumentSearchService.js';
-import type { DocumentChunkItem } from '../document-services/DocumentSearchService/types.js';
+import type {
+  DocumentChunkItem,
+  DocumentChunksResult,
+} from '../document-services/DocumentSearchService/types.js';
 import type { ExpandedChunkResult } from '../search/types.js';
 
 /**
@@ -93,13 +96,17 @@ export interface DocumentMetadataRow {
  */
 export async function fetchDocumentMetadata(
   db: Pick<PostgresService, 'query'>,
-  ids: readonly string[]
+  ids: readonly string[],
+  opts: { withChars?: boolean } = {}
 ): Promise<DocumentMetadataRow[]> {
   if (ids.length === 0) return [];
+  // `length(markdown_content)` muss bis zu 500k Zeichen je Zeile entpacken —
+  // nur die Quellenliste braucht die Zahl, die Notebook-Seite nicht.
+  const chars = opts.withChars ? 'length(markdown_content)' : 'NULL::int';
   return db.query<DocumentMetadataRow>(
     `SELECT id, user_id, title, filename, page_count, file_size, status, source_type, source_url,
             document_type, created_at, vector_count, wolke_share_link_id, metadata,
-            length(markdown_content) AS chars
+            ${chars} AS chars
        FROM documents WHERE id = ANY($1)`,
     [ids]
   );
@@ -234,7 +241,8 @@ export async function listNotebookSources(
   const links = await deps.helper.getCollectionDocuments(input.collectionId);
   const rows = await fetchDocumentMetadata(
     deps.db,
-    links.map((l) => l.document_id)
+    links.map((l) => l.document_id),
+    { withChars: true }
   );
   const sortBy = input.sortBy ?? 'date';
   const order = input.order ?? (DESC_BY_DEFAULT.has(sortBy) ? 'desc' : 'asc');
@@ -341,6 +349,20 @@ function locateInJoined(chunks: DocumentChunkItem[]): ChunkLocator[] {
   });
 }
 
+/** Der Fehlertext von `getDocumentChunks` für eine Quelle ohne Chunks. */
+const NO_CHUNKS_FOUND = 'No chunks found';
+
+/**
+ * Die Chunks eines Lesevorgangs. „No chunks found" ist ein legitimer Befund
+ * (Quelle ohne Chunks); jeder andere Fehlschlag wird geworfen — sonst läse ein
+ * Qdrant-Ausfall sich als „keine Seitenzahlen" oder „keine Gliederung".
+ */
+export function chunksOrThrow(result: DocumentChunksResult): DocumentChunkItem[] {
+  if (result.success) return result.chunks;
+  if (result.error === NO_CHUNKS_FOUND) return [];
+  throw new Error(`getDocumentChunks failed: ${result.error ?? 'unknown error'}`);
+}
+
 export async function readSourceText(
   input: { sourceId: string; ownerUserId: string },
   deps: Pick<NotebookSourcesDeps, 'db' | 'documentService'>
@@ -352,7 +374,7 @@ export async function readSourceText(
     ),
     deps.documentService.getDocumentChunks(input.ownerUserId, input.sourceId),
   ]);
-  const chunks = chunkResult.success ? chunkResult.chunks : [];
+  const chunks = chunksOrThrow(chunkResult);
   const original = rows[0]?.markdown_content ?? '';
   if (original.trim()) {
     return {
@@ -557,6 +579,12 @@ export async function findPassages(
     },
     filters: { documentIds: [...input.documentIds] },
   });
+
+  // Ein Fehlschlag (Qdrant, Einbettung) kommt als `success:false` mit leeren
+  // Treffern zurück — ungeprüft läse er sich als „steht nicht im Notebook".
+  if (!resp.success) {
+    throw new Error(`notebook search failed: ${resp.error ?? resp.message ?? 'unknown error'}`);
+  }
 
   // Stabile Sortierung: gleiche Dokumentwerte behalten die Chunk-Reihenfolge der Suche.
   const flat = (resp.results ?? [])

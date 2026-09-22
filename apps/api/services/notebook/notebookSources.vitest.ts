@@ -54,6 +54,10 @@ function makeDeps(
     markdown?: string | null;
     chunks?: DocumentChunkItem[];
     searchResults?: unknown[];
+    /** `getDocumentChunks` schlägt mit diesem Fehlertext fehl. */
+    chunkError?: string;
+    /** `search` antwortet mit `success:false` und diesem Fehlertext. */
+    searchError?: string;
   } = {}
 ) {
   const db = {
@@ -79,13 +83,14 @@ function makeDeps(
     getNotebookCollection: vi.fn(async () => ({ id: 'n1', name: 'Kreisverband' })),
   };
   const documentService = {
-    getDocumentChunks: vi.fn(async () => ({
-      success: true,
-      chunks: opts.chunks ?? [],
-      chunkCount: (opts.chunks ?? []).length,
-    })),
+    getDocumentChunks: vi.fn(async () =>
+      opts.chunkError
+        ? { success: false, chunks: [], chunkCount: 0, error: opts.chunkError }
+        : { success: true, chunks: opts.chunks ?? [], chunkCount: (opts.chunks ?? []).length }
+    ),
     search: vi.fn(async () => ({
-      success: true,
+      success: !opts.searchError,
+      ...(opts.searchError ? { error: opts.searchError } : {}),
       results: opts.searchResults ?? [],
       query: '',
       searchType: 'hybrid',
@@ -136,6 +141,18 @@ describe('fetchDocumentMetadata', () => {
     const rows = await fetchDocumentMetadata(db, ['d1']);
     expect(rows).toHaveLength(1);
     expect(db.query).toHaveBeenCalledTimes(1);
+    expect(String(db.query.mock.calls[0]?.[0])).toContain('NULL::int AS chars');
+  });
+
+  it('computes the text length only when asked — the notebook page does not need it', async () => {
+    const { db } = makeDeps();
+    await fetchDocumentMetadata(db, ['d1'], { withChars: true });
+    expect(String(db.query.mock.calls[0]?.[0])).toContain('length(markdown_content) AS chars');
+  });
+
+  it('asks for the text length from the source list', async () => {
+    const { deps, db } = makeDeps();
+    await listNotebookSources({ collectionId: 'n1' }, deps);
     expect(String(db.query.mock.calls[0]?.[0])).toContain('length(markdown_content) AS chars');
   });
 });
@@ -336,6 +353,21 @@ describe('readSourceText', () => {
       [0, 4],
       [6, 10],
     ]);
+  });
+});
+
+describe('readSourceText — failed chunk reads', () => {
+  it('throws when the chunk read fails, instead of reading as "no pages"', async () => {
+    const { deps } = makeDeps({ markdown: 'Text', chunkError: 'Qdrant not available' });
+    await expect(readSourceText({ sourceId: 'd1', ownerUserId: 'o' }, deps)).rejects.toThrow(
+      /Qdrant not available/
+    );
+  });
+
+  it('treats "No chunks found" as a source without chunks, not as a failure', async () => {
+    const { deps } = makeDeps({ markdown: 'Nur Original', chunkError: 'No chunks found' });
+    const out = await readSourceText({ sourceId: 'd1', ownerUserId: 'o' }, deps);
+    expect(out).toMatchObject({ text: 'Nur Original', origin: 'original', chunkMap: [] });
   });
 });
 
@@ -574,6 +606,26 @@ describe('findPassages', () => {
     );
     expect(rerank).not.toHaveBeenCalled();
     expect(out.reranked).toBe(false);
+  });
+
+  it('throws on a failed search instead of returning no passages', async () => {
+    const { deps } = makeDeps({ searchError: 'embedding service down' });
+    await expect(
+      findPassages(
+        { documentIds: ['d1'], query: 'q', mode: 'hybrid', limit: 5, rerank: false, userId: 'u' },
+        deps
+      )
+    ).rejects.toThrow(/embedding service down/);
+  });
+
+  it('never searches for an empty notebook — that would scan the whole personal library', async () => {
+    const { deps, documentService } = makeDeps({ searchResults });
+    const out = await findPassages(
+      { documentIds: [], query: 'Radweg', mode: 'hybrid', limit: 5, rerank: false, userId: 'u' },
+      deps
+    );
+    expect(out).toEqual({ passages: [], reranked: false });
+    expect(documentService.search).not.toHaveBeenCalled();
   });
 
   it('caps limit at 20', async () => {
