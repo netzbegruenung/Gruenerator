@@ -30,6 +30,7 @@ import { getPostgresInstance } from '../../../database/services/PostgresService.
 import { getQdrantDocumentService } from '../../../services/document-services/DocumentSearchService/index.js';
 import {
   charRangeOfChunks,
+  chunksOrThrow,
   findPassages,
   listNotebookSources,
   outlineSource,
@@ -77,6 +78,15 @@ const NOT_FOUND = 'Notebook nicht gefunden oder kein Zugriff.';
 const NO_NOTEBOOK =
   'Kein Notebook ausgewählt — gib notebookId an (aus notebooks action="list", Feld ref).';
 const EXCERPT_CHARS = 300;
+
+/** Fester Text je Aktion, wenn ein Dienst ausfällt — nie „nichts gefunden". */
+const FAILURE_BY_ACTION: Record<(typeof READ_ACTIONS)[number], string> = {
+  list: 'Die Quellen des Notebooks ließen sich gerade nicht laden — bitte später erneut versuchen.',
+  outline:
+    'Die Gliederung ließ sich gerade nicht laden — das heißt nicht, dass die Quelle keine hat.',
+  read: 'Die Quelle ließ sich gerade nicht lesen — bitte später erneut versuchen.',
+  find: 'Die Suche im Notebook ist fehlgeschlagen — das heißt nicht, dass dazu nichts im Notebook steht.',
+};
 
 let helperSingleton: NotebookQdrantHelper | null = null;
 
@@ -233,6 +243,8 @@ Die sourceId stammt aus list (Feld ref) — rate sie nie. Ohne notebookId gilt d
     execute: async (args) => {
       const userId = requireUserId(state);
       if (!userId) return { error: NO_SESSION };
+      // `return await` in allen Zweigen: ohne `await` liefe eine abgelehnte
+      // Zusage am `catch` vorbei, samt Rohtext bis zum Modell.
       try {
         const target = await resolveNotebook(args.notebookId);
         if ('error' in target) return target;
@@ -240,10 +252,10 @@ Die sourceId stammt aus list (Feld ref) — rate sie nie. Ohne notebookId gilt d
 
         if (args.action === 'list') {
           if (!(await canRead(collection.id, userId))) return { error: NOT_FOUND };
-          return listSources(collection, args);
+          return await listSources(collection, args);
         }
 
-        if (args.action === 'find') return find(collection, userId, args);
+        if (args.action === 'find') return await find(collection, userId, args);
 
         if (!args.sourceId)
           return { error: `${args.action} braucht sourceId (aus list, Feld ref).` };
@@ -252,13 +264,13 @@ Die sourceId stammt aus list (Feld ref) — rate sie nie. Ohne notebookId gilt d
           deps
         );
         if (!source.ok) return { error: source.error };
-        if (args.action === 'outline') return outline(collection, args.sourceId, source);
-        return read(collection, args.sourceId, source, args);
+        if (args.action === 'outline') return await outline(collection, args.sourceId, source);
+        return await read(collection, args.sourceId, source, args);
       } catch (err) {
+        // Der Rohtext bleibt im Log: englische Interna („Too many document
+        // IDs") sind keine Auskunft für das Modell.
         log.warn(`[notebook_quellen] ${args.action} failed`, err);
-        return {
-          error: `Die Notebook-Quellen ließen sich gerade nicht lesen: ${err instanceof Error ? err.message : String(err)}`,
-        };
+        return { error: FAILURE_BY_ACTION[args.action] };
       }
     },
   });
@@ -312,7 +324,7 @@ Die sourceId stammt aus list (Feld ref) — rate sie nie. Ohne notebookId gilt d
     source: Extract<ResolvedSource, { ok: true }>
   ): Promise<Record<string, unknown>> {
     const chunkResult = await deps.documentService.getDocumentChunks(source.ownerUserId, sourceId);
-    const entries = outlineSource(chunkResult.success ? chunkResult.chunks : []);
+    const entries = outlineSource(chunksOrThrow(chunkResult));
     if (entries.length === 0) {
       return { error: 'Für diese Quelle liegt (noch) keine Gliederung vor — lies sie mit read.' };
     }
