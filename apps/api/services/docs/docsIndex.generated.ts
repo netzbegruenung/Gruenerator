@@ -227,6 +227,18 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "lead": "In etwa fünf Minuten erstellst du einen fertigen Post für Instagram, Facebook, LinkedIn, X oder ein Reel — im Ton der Plattform, in der passenden Länge, auf Wunsch mit Sharepic."
   },
   {
+    "url": "/docs/guides/einsteigerinnen/text-vertonen",
+    "title": "Wie vertone ich einen Text?",
+    "category": "Guides",
+    "lead": "Mit Grünerator Voice verwandelst du Text in eine Audiodatei. Du kannst damit eine Vorlesefassung, eine Ansage für den Anrufbeantworter oder eine Audiodeskription erstellen. Am Ende kannst du das Erge…"
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/texte-dokumente-uebersetzen",
+    "title": "Wie übersetze ich Texte und Dokumente?",
+    "category": "Guides",
+    "lead": "Der Übersetzer überträgt eingegebenen Text oder eine vollständige Datei mit DeepL in eine andere Sprache. Das Grünen-Glossar wird automatisch verwendet, wenn für das gewählte Sprachpaar eines hinterl…"
+  },
+  {
     "url": "/docs/guides/experimentell/android-app-installieren",
     "title": "Wie installiere ich die Grünerator-App auf Android?",
     "category": "Guides",
@@ -2022,6 +2034,94 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#weiterlesen",
     "category": "Guides",
     "text": "KI-Chat — alle Rezepte, Quellen und Werkzeuge im Überblick Was kann ich fragen? — Musterfragen zu jeder Fähigkeit"
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/text-vertonen",
+    "pageTitle": "Wie vertone ich einen Text?",
+    "heading": "Wie vertone ich einen Text?",
+    "anchor": "",
+    "category": "Guides",
+    "text": "Mit Grünerator Voice verwandelst du Text in eine Audiodatei. Du kannst damit eine Vorlesefassung, eine Ansage für den Anrufbeantworter oder eine Audiodeskription erstellen. Am Ende kannst du das Ergebnis anhören, herunterladen oder per Link teilen."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/text-vertonen",
+    "pageTitle": "Wie vertone ich einen Text?",
+    "heading": "Damit die Aufnahme natürlich klingt",
+    "anchor": "#damit-die-aufnahme-natürlich-klingt",
+    "category": "Guides",
+    "text": "Schreibe fürs Ohr. Kurze Sätze und klare Übergänge lassen sich leichter verstehen als verschachtelte Schriftsprache. Schreibe Abkürzungen aus. Aus „OV“, „z. B.“ oder einer Webadresse entsteht sonst nicht immer die gewünschte Aussprache. Prüfe Eigennamen besonders sorgfältig. Bei ungewöhnlichen Namen kann eine lautnahe Schreibweise helfen. Höre das Ergebnis danach noch einmal vollständig an. Nutze Pausen gezielt. Eine Pause zwischen Begrüßung, Information und Kontaktmöglichkeit macht besonders Anrufbeantworter-Ansagen verständlicher. Kontrolliere KI-Entwürfe. Der Entwurfsassistent hilft beim Formulieren, kennt aber nicht automatisch eure tatsächlichen Erreichbarkeiten oder Kontaktdaten."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/text-vertonen",
+    "pageTitle": "Wie vertone ich einen Text?",
+    "heading": "So geht's",
+    "anchor": "#so-gehts",
+    "category": "Guides",
+    "text": "Voice öffnen. Öffne im Bereich Arbeiten unter Weitere den Eintrag Voice. Direkt erreichbar ist das Werkzeug auch unter /voice. Art der Aufnahme wählen. Rechts legst du fest, wofür du die Aufnahme brauchst: Vorlesefassung: macht aus einem geschriebenen Text eine Hörfassung. Diese Auswahl ist beim Öffnen voreingestellt. Anrufbeantworter: erstellt eine Ansage für ein Büro, eine Ortsgruppe oder ein Abgeordnetenbüro. Audiodeskription: beschreibt ein Sharepic, Plakat oder Video für Menschen, die es nicht sehen. Wähle die Art am besten vor dem Schreiben. Dadurch ändern sich die Hinweise und die voreingestellten Ausgabeformate. Text einfügen und für das Hören prüfen. Trage links den Text ein, der gesprochen werden soll. Voice liest grundsätzlich das vor, was dort steht. Schreibe deshalb Abkürzungen aus und entferne Links, Fußnoten oder Zeichen, die nicht mitgesprochen werden sollen. Wenn du noch keinen fertigen Text hast, klicke auf „Text mit KI entwerfen“. Je nach Aufnahmeart fragt der Grünerator nach den nötigen Angaben und setzt anschließend einen Entwurf in das Textfeld. Der Entwurf wird noch nicht vertont: Lies ihn vollständig durch und korrigiere Namen, Telefonnummern, Uhrzeiten und…"
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/text-vertonen",
+    "pageTitle": "Wie vertone ich einen Text?",
+    "heading": "Weiterlesen",
+    "anchor": "#weiterlesen",
+    "category": "Guides",
+    "text": "Barrierefreiheit — Inhalte für möglichst viele Menschen zugänglich machen Deine Daten im Grünerator — wie der Grünerator mit Inhalten und Daten umgeht"
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/text-vertonen",
+    "pageTitle": "Wie vertone ich einen Text?",
+    "heading": "Wenn es nicht klappt",
+    "anchor": "#wenn-es-nicht-klappt",
+    "category": "Guides",
+    "text": "„Vertonen“ ist ausgegraut? Das Textfeld ist leer, es ist kein Ausgabeformat ausgewählt oder eine Aufnahme wird bereits erzeugt. Der Text wird an einer Stelle falsch gesprochen? Ändere die Schreibweise im Textfeld und erzeuge eine neue Aufnahme. Satzzeichen und ausgeschriebene Begriffe helfen bei Betonung und Aussprache. Der Text ist zu lang? Beachte den Zeichenzähler über dem Textfeld. Die Vorlesefassung erlaubt bis zu 24.576 Zeichen; Anrufbeantworter und Audiodeskription haben niedrigere, in der Oberfläche angezeigte Grenzen. Das Tagesbudget ist aufgebraucht? Voice zeigt nach einer Aufnahme die verbleibenden Bäume an. Neue Vertonungen sind wieder möglich, sobald das tägliche Budget zurückgesetzt wurde. Der Download schlägt fehl? Die Aufnahme bleibt in der Mediathek gespeichert. Öffne „Zuletzt vertont“ und versuche den Download dort erneut."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/texte-dokumente-uebersetzen",
+    "pageTitle": "Wie übersetze ich Texte und Dokumente?",
+    "heading": "Wie übersetze ich Texte und Dokumente?",
+    "anchor": "",
+    "category": "Guides",
+    "text": "Der Übersetzer überträgt eingegebenen Text oder eine vollständige Datei mit DeepL in eine andere Sprache. Das Grünen-Glossar wird automatisch verwendet, wenn für das gewählte Sprachpaar eines hinterlegt ist."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/texte-dokumente-uebersetzen",
+    "pageTitle": "Wie übersetze ich Texte und Dokumente?",
+    "heading": "Ein vollständiges Dokument übersetzen",
+    "anchor": "#ein-vollständiges-dokument-übersetzen",
+    "category": "Guides",
+    "text": "Wechsle oben zum Bereich „Dokument“. Klicke auf „Datei auswählen oder hierher ziehen“ oder ziehe die Datei in das Upload-Feld. Unterstützt werden unter anderem Word-, PowerPoint-, Excel-, PDF-, Text-, HTML-, Untertitel- und Bilddateien; die vollständige Liste steht direkt unter dem Feld. Die Datei darf höchstens 30 MB groß sein. Wähle Ausgangssprache und Zielsprache. Wenn für die Zielsprache ein Grünen-Glossar vorhanden ist, musst du die Ausgangssprache ausdrücklich auswählen. „Automatisch erkennen“ ist dann deaktiviert und die Oberfläche erklärt den Grund. Bei einer PDF-Datei kannst du zusätzlich „Als bearbeitbare Word-Datei (.docx) ausgeben“ auswählen. Ohne diese Option bleibt das Ausgabeformat eine PDF. Klicke auf „Dokument übersetzen“. Die Seite zeigt den Fortschritt und gegebenenfalls die geschätzte Restzeit an. Sobald „Fertig“ erscheint, klicke auf „Herunterladen“. Der Dateiname wird automatisch für die übersetzte Fassung angepasst. Dokumente werden von DeepL mit mindestens 50.000 Zeichen abgerechnet. Der Übersetzer zeigt dein verbleibendes tägliches Baum-Budget direkt auf der Seite an; 20.000 Zeichen entsprechen einem Baum."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/texte-dokumente-uebersetzen",
+    "pageTitle": "Wie übersetze ich Texte und Dokumente?",
+    "heading": "Einen Text übersetzen",
+    "anchor": "#einen-text-übersetzen",
+    "category": "Guides",
+    "text": "Übersetzer öffnen. Öffne im Bereich Arbeiten unter Weitere den Eintrag Übersetzer. Direkt erreichbar ist das Werkzeug auch unter /uebersetzer. Der Bereich „Text“ ist beim Öffnen bereits ausgewählt. Sprachen wählen. Links unter „Von“ legst du die Ausgangssprache fest. In den meisten Fällen kannst du „Automatisch erkennen“ ausgewählt lassen. Rechts unter „Nach“ wählst du die gewünschte Zielsprache. Häufig verwendete Sprachen stehen direkt in der Leiste; über den Pfeil öffnest du die vollständige Liste. Wenn die Zielsprache verschiedene Anreden unterstützt, erscheint rechts ein Regler-Symbol mit dem Namen „Anrede“. Dort kannst du „Standard“, „Förmlich (Sie)“ oder „Vertraut (du)“ wählen. Text eingeben oder einfügen. Schreibe den Ausgangstext in das linke Feld. Bei Texten mit höchstens 2.000 Zeichen beginnt die Übersetzung automatisch, sobald du kurz nicht mehr tippst. Du musst keine Schaltfläche drücken. Lange Texte bewusst starten. Hat der Text mehr als 2.000 Zeichen, erscheint der Hinweis „Langer Text — auf Knopfdruck übersetzen.“ Klicke dann auf „Übersetzen“. Insgesamt sind bis zu 50.000 Zeichen möglich. Ergebnis prüfen und kopieren. Die Übersetzung erscheint rechts. Bei…"
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/texte-dokumente-uebersetzen",
+    "pageTitle": "Wie übersetze ich Texte und Dokumente?",
+    "heading": "Gute Übersetzungen prüfen",
+    "anchor": "#gute-übersetzungen-prüfen",
+    "category": "Guides",
+    "text": "Namen, Zahlen und Links kontrollieren. Sie sollten in der Übersetzung unverändert oder passend formatiert sein. Anrede bewusst festlegen. „Sie“ und „du“ prägen den ganzen Text. Prüfe trotzdem, ob die Übersetzung durchgängig zur Zielgruppe passt. Fachbegriffe nicht blind übernehmen. Der Hinweis „Grünen-Glossar angewendet“ bestätigt, dass hinterlegte Begriffe verwendet wurden. Er ersetzt nicht die inhaltliche Schlussprüfung. Layout von Dokumenten ansehen. Öffne die heruntergeladene Datei und kontrolliere Seitenumbrüche, Tabellen, Textfelder und Schriftgrößen. Übersetzter Text kann länger oder kürzer als das Original sein. Besonders wichtige Inhalte gegenlesen lassen. Bei rechtlichen, finanziellen oder öffentlich sensiblen Texten sollte eine sprachkundige Person die Fassung freigeben."
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/texte-dokumente-uebersetzen",
+    "pageTitle": "Wie übersetze ich Texte und Dokumente?",
+    "heading": "Weiterlesen",
+    "anchor": "#weiterlesen",
+    "category": "Guides",
+    "text": "Wie bearbeite ich ein Dokument? — übersetzten Text im Office weiterbearbeiten Deine Daten im Grünerator — wie der Grünerator mit Inhalten und Daten umgeht"
+  },
+  {
+    "url": "/docs/guides/einsteigerinnen/texte-dokumente-uebersetzen",
+    "pageTitle": "Wie übersetze ich Texte und Dokumente?",
+    "heading": "Wenn es nicht klappt",
+    "anchor": "#wenn-es-nicht-klappt",
+    "category": "Guides",
+    "text": "Es erscheint keine Übersetzung? Warte nach dem Tippen einen kurzen Moment. Bei mehr als 2.000 Zeichen musst du „Übersetzen“ anklicken. „Dokument übersetzen“ ist ausgegraut? Prüfe, ob eine unterstützte Datei gewählt ist und ob Ausgangs- und Zielsprache vollständig festgelegt sind. Für ein Glossar kann eine ausdrücklich gewählte Ausgangssprache nötig sein. Die Datei wird abgelehnt? Prüfe Dateiendung und Größe. Zulässige Formate und die Grenze von 30 MB stehen unter dem Upload-Feld. Das Tagesbudget ist aufgebraucht? Die Seite zeigt die verbleibenden Bäume an. Neue Übersetzungen sind wieder möglich, sobald das tägliche Budget zurückgesetzt wurde. Der Download schlägt fehl? Klicke nach der Fehlermeldung erneut auf „Herunterladen“. Das fertige Ergebnis bleibt für einen weiteren Versuch verfügbar."
   },
   {
     "url": "/docs/guides/experimentell/android-app-installieren",
