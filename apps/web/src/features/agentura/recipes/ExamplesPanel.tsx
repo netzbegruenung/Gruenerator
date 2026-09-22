@@ -9,10 +9,9 @@
 import {
   MAX_TEXT_FORM_EXAMPLES,
   MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS,
-  MAX_TEXT_FORM_TITLE_CHARS,
   type TextFormType,
 } from '@gruenerator/contracts';
-import { Button, Input, Textarea, toast, useConfirm } from '@gruenerator/ui';
+import { Button, Textarea, toast, useConfirm } from '@gruenerator/ui';
 import { useId, useMemo, useRef, useState } from 'react';
 import { FiUpload } from 'react-icons/fi';
 
@@ -27,15 +26,12 @@ interface ExamplesPanelProps {
   onChange: (value: string) => void;
   /** Preset text type, when this recipe is one — carried on the request. */
   textType: TextFormType | null;
-  /** Recipe title — labels the analysis. Required, whatever the text type. */
-  title: string;
   /**
-   * Edits the recipe title. The name lives on the Grundlagen tab, but it is
-   * *required here*: without it there is no label to analyse under. Offering it
-   * on this tab too is what keeps the examples-first entry from dead-ending —
-   * including on a preset whose seeded name someone cleared.
+   * Recipe title — labels the analysis, and required for it whatever the text
+   * type. Edited in the form above this disclosure; this panel only reads it,
+   * and says so when it is missing.
    */
-  onTitleChange: (value: string) => void;
+  title: string;
   /**
    * Whether the Anleitung above already holds text. The analysis replaces it
    * wholesale, so a filled one is confirmed away before the request goes out —
@@ -51,13 +47,11 @@ export function ExamplesPanel({
   onChange,
   textType,
   title,
-  onTitleChange,
   hasStyleBlock,
   onAnalyzed,
 }: ExamplesPanelProps) {
   const examplesFieldId = useId();
   const examplesStatusId = useId();
-  const titleFieldId = useId();
   const [isReadingFiles, setIsReadingFiles] = useState(false);
   // Warum die Analyse nicht lief — als Meldung neben dem Knopf statt als Toast.
   // Ein Toast ist nach Sekunden weg, und der Editor stellt seine Fehler ohnehin
@@ -75,7 +69,7 @@ export function ExamplesPanel({
   // Der Titel beschriftet die Analyse — immer, auch bei einem Preset. Die
   // frühere Fassung ließ `textType` als Ersatz gelten; wer den Namen eines
   // Preset-Rezepts leerte, bekam damit einen aktiven Knopf und einen rohen 400
-  // statt dieser Meldung.
+  // statt dieser Sperre.
   const labelMissing = title.trim().length === 0;
 
   /**
@@ -178,23 +172,6 @@ export function ExamplesPanel({
 
   return (
     <div className="flex flex-col gap-md">
-      <div className="flex flex-col gap-xs">
-        <label htmlFor={titleFieldId} className="text-sm font-medium">
-          Name
-        </label>
-        <Input
-          id={titleFieldId}
-          value={title}
-          onChange={(e) => onTitleChange(e.target.value)}
-          maxLength={MAX_TEXT_FORM_TITLE_CHARS}
-          placeholder="Gib deinem Rezept einen Namen"
-        />
-        <p className="m-0 text-xs text-foreground-muted">
-          Der Name beschriftet den erkannten Stil — ohne ihn lässt sich nicht analysieren. Er steht
-          auch auf dem Tab „Grundlagen“.
-        </p>
-      </div>
-
       <div className="flex flex-col gap-sm">
         <label htmlFor={examplesFieldId} className="text-sm font-medium">
           Beispiele — alle in dieses Feld, bis zu {MAX_TEXT_FORM_EXAMPLES} Stück
@@ -268,6 +245,11 @@ export function ExamplesPanel({
         >
           {analyzeMut.isPending ? 'Analysiere…' : 'Gemeinsamkeiten erkennen'}
         </Button>
+        {labelMissing && (
+          <p className="m-0 text-xs text-foreground-muted">
+            Gib dem Rezept oben einen Namen — er beschriftet den erkannten Stil.
+          </p>
+        )}
         {analyzeError && (
           <p role="alert" className="m-0 text-sm text-destructive">
             {analyzeError}

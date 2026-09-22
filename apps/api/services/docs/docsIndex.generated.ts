@@ -2205,7 +2205,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Schritt 2: Einen Weg wählen",
     "anchor": "#schritt-2-einen-weg-wählen",
     "category": "Guides",
-    "text": "Auf der Startseite des Rezept-Erstellers stehen dir drei Wege offen: Beschreiben: Schreibe ins Eingabefeld, wofür das Rezept gedacht ist — zum Beispiel „Ein Rezept für Einladungen zur Mitgliederversammlung: förmlicher Ton, mit Tagesordnung und Anmeldehinweis.\" Der Grünerator erstellt daraus einmalig einen Entwurf und öffnet den Editor. Aus Beispielen anlernen: Über den Link „Aus Beispielen anlernen\" öffnest du den Editor direkt im Tab Beispiele, ohne einen Entwurf beschreiben zu müssen. Manuell: Über „Lieber manuell anlegen?\" öffnest du denselben Editor mit leeren Feldern. Gespeichert ist das Rezept in keinem der drei Fälle, solange du nicht auf Speichern klickst."
+    "text": "Auf der Startseite des Rezept-Erstellers stehen dir zwei Wege offen: Beschreiben: Schreibe ins Eingabefeld, wofür das Rezept gedacht ist — zum Beispiel „Ein Rezept für Einladungen zur Mitgliederversammlung: förmlicher Ton, mit Tagesordnung und Anmeldehinweis.\" Der Grünerator erstellt daraus einmalig einen Entwurf und öffnet den Editor. Manuell: Über „Lieber manuell anlegen?\" öffnest du denselben Editor mit leeren Feldern. Gespeichert ist das Rezept in keinem der beiden Fälle, solange du nicht auf Speichern klickst."
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-rezepte-erstellen",
@@ -2213,7 +2213,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Schritt 3: Grundlagen prüfen",
     "anchor": "#schritt-3-grundlagen-prüfen",
     "category": "Guides",
-    "text": "Links siehst du das Formular, rechts die Vorschau. Im Tab Grundlagen legst du fest: Name: So erscheint das Rezept in der Agentura. Über die Schaltfläche daneben kannst du sein Symbol ändern. @mention: Der Name, mit dem du das Rezept im Chat aufrufst (z. B. @einladung). Er wird beim Anlegen aus dem Namen abgeleitet und lässt sich danach nicht mehr ändern. Beschreibung: Ein kurzer Satz, der erklärt, wofür das Rezept gedacht ist. Speichern bleibt deaktiviert, solange Name oder Anleitung leer sind."
+    "text": "Links siehst du das Formular, rechts die Vorschau. Das Formular ist nicht aufgeteilt — alle Felder stehen untereinander. Oben legst du fest: Name: So erscheint das Rezept in der Agentura. Über die Schaltfläche daneben kannst du sein Symbol ändern. @mention: Der Name, mit dem du das Rezept im Chat aufrufst (z. B. @einladung). Er wird beim Anlegen aus dem Namen abgeleitet und lässt sich danach nicht mehr ändern. Beschreibung: Ein kurzer Satz, der erklärt, wofür das Rezept gedacht ist. Speichern bleibt deaktiviert, solange Name oder Anleitung leer sind."
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-rezepte-erstellen",
@@ -2221,7 +2221,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Schritt 4: Die Anleitung schreiben",
     "anchor": "#schritt-4-die-anleitung-schreiben",
     "category": "Guides",
-    "text": "Im Tab Anleitung trägst du die eigentliche Schreibvorgabe ein: Ton, Aufbau, Länge und alles, was das Ergebnis konsequent einhalten soll. Dieser Text wird dem Modell als Schreibvorgabe gegeben. Baue je Textsorte ein eigenes Rezept, statt mehrere Anlässe in eine Anleitung zu mischen — das hält die Vorgabe eindeutig und das Ergebnis vorhersehbar. Die Anleitung beschreibt Stil und Aufbau — nicht Inhalte. Konkrete Fakten, Namen oder Themen gibst du beim Aufruf im Chat mit (@einladung Klimaschutz-AG, 12. März), nicht fest in der Anleitung. So bleibt das Rezept für jeden Anlass wiederverwendbar."
+    "text": "Unter Anleitung trägst du die eigentliche Schreibvorgabe ein: Ton, Aufbau, Länge und alles, was das Ergebnis konsequent einhalten soll. Dieser Text wird dem Modell als Schreibvorgabe gegeben. Baue je Textsorte ein eigenes Rezept, statt mehrere Anlässe in eine Anleitung zu mischen — das hält die Vorgabe eindeutig und das Ergebnis vorhersehbar. Die Anleitung beschreibt Stil und Aufbau — nicht Inhalte. Konkrete Fakten, Namen oder Themen gibst du beim Aufruf im Chat mit (@einladung Klimaschutz-AG, 12. März), nicht fest in der Anleitung. So bleibt das Rezept für jeden Anlass wiederverwendbar."
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-rezepte-erstellen",
@@ -2229,7 +2229,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Schritt 5: Optional aus Beispielen anlernen",
     "anchor": "#schritt-5-optional-aus-beispielen-anlernen",
     "category": "Guides",
-    "text": "Statt die Anleitung selbst zu schreiben, kannst du sie aus vorhandenen Texten ableiten lassen. Öffne dazu den Tab Beispiele: Füge mehrere Beispieltexte in das eine Textfeld ein — hintereinander, getrennt durch eine Zeile aus ---, eine Überschrift wie „Beispiel 2\", eine Nummerierung oder doppelte Leerzeilen. Alternativ lädst du PDF-, Word-, PowerPoint-, Bild- oder Textdateien hoch. Klicke auf „Gemeinsamkeiten erkennen\". Der Grünerator leitet daraus eine Anleitung ab und trägt sie in den Tab Anleitung ein. Prüfe und passe das Ergebnis dort an — die KI liefert einen Entwurf, keine endgültige Vorgabe."
+    "text": "Statt die Anleitung selbst zu schreiben, kannst du sie aus vorhandenen Texten ableiten lassen. Öffne dazu unterhalb des Anleitungsfeldes die Klappe „Aus Beispielen lernen\": Füge mehrere Beispieltexte in das eine Textfeld ein — hintereinander, getrennt durch eine Zeile aus ---, eine Überschrift wie „Beispiel 2\", eine Nummerierung oder doppelte Leerzeilen. Alternativ lädst du PDF-, Word-, PowerPoint-, Bild- oder Textdateien hoch. Klicke auf „Gemeinsamkeiten erkennen\". Der Grünerator leitet daraus eine Anleitung ab und trägt sie in das Feld Anleitung darüber ein. Der Knopf bleibt gesperrt, solange das Rezept keinen Namen hat — der Name beschriftet den erkannten Stil. Prüfe und passe das Ergebnis dort an — die KI liefert einen Entwurf, keine endgültige Vorgabe. Steht schon eine Anleitung im Feld, fragt der Grünerator vorher nach: die Analyse schreibt sie komplett neu."
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-rezepte-erstellen",
@@ -2237,7 +2237,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Schritt 6: Speichern und testen",
     "anchor": "#schritt-6-speichern-und-testen",
     "category": "Guides",
-    "text": "Klicke oben rechts auf Speichern. Anschließend kannst du das Rezept über Im Chat verwenden direkt ausprobieren. Teste dabei, ob Ton, Aufbau und Länge der Anleitung entsprechen — passt etwas nicht, kehre in den Tab Anleitung zurück, passe sie an und speichere erneut."
+    "text": "Klicke oben rechts auf Speichern. Anschließend kannst du das Rezept über Im Chat verwenden direkt ausprobieren. Teste dabei, ob Ton, Aufbau und Länge der Anleitung entsprechen — passt etwas nicht, passe die Anleitung an und speichere erneut."
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-rezepte-erstellen",
@@ -2245,7 +2245,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Teilen",
     "anchor": "#teilen",
     "category": "Guides",
-    "text": "Im Tab Teilen (nur bei bereits gespeicherten eigenen Rezepten) legst du die Sichtbarkeit fest: Privat — nur du siehst das Rezept. Mit Projekten geteilt — du wählst eines oder mehrere deiner Projekte aus; alle Mitglieder können das Rezept dann im Chat nutzen. Mit Anmeldung — alle eingeloggten Nutzer*innen können es aufrufen. Zusätzlich kannst du dein Rezept „Öffentlich\" listen, damit es andere in der Agentura entdecken. Dafür bestätigst du einmal, dass du die Inhalte besitzt (oder zur Veröffentlichung berechtigt bist) oder dass sie öffentlich verfügbar sind — dieses Attest erscheint, sobald du die Listung aktivierst."
+    "text": "Unter Teilen am Ende des Formulars (nur bei bereits gespeicherten eigenen Rezepten) legst du die Sichtbarkeit fest: Privat — nur du siehst das Rezept. Mit Projekten geteilt — du wählst eines oder mehrere deiner Projekte aus; alle Mitglieder können das Rezept dann im Chat nutzen. Mit Anmeldung — alle eingeloggten Nutzer*innen können es aufrufen. Zusätzlich kannst du dein Rezept „Öffentlich\" listen, damit es andere in der Agentura entdecken. Dafür bestätigst du einmal, dass du die Inhalte besitzt (oder zur Veröffentlichung berechtigt bist) oder dass sie öffentlich verfügbar sind — dieses Attest erscheint, sobald du die Listung aktivierst."
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-rezepte-erstellen",
