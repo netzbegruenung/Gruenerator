@@ -94,7 +94,17 @@ export function useAnalyzeRecipe() {
       });
       if (res.status !== 200)
         throw new ApiError(res.status, textFormErrorMessage(res.body, res.status));
-      return res.body.styleBlock;
+      // A 200 does not guarantee the field. ts-rest's `validateResponse` is inert
+      // with our custom `api`, so a body that misses `styleBlock` arrives
+      // unchecked, `undefined` lands in `form.styleBlock` and the editor's next
+      // `.trim()` replaces the whole page with the error boundary — instead of
+      // the inline line `ExamplesPanel` keeps for exactly this. Empty counts as
+      // failed too: the editor rejects an empty style block anyway, so writing
+      // one in and reporting success is the same failure with a green label.
+      const styleBlock: unknown = res.body.styleBlock;
+      if (typeof styleBlock !== 'string' || styleBlock.trim().length === 0)
+        throw new ApiError(res.status, 'Die Analyse kam ohne Ergebnis zurück.');
+      return styleBlock;
     },
   });
 }
