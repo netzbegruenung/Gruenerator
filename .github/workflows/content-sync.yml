@@ -579,7 +579,9 @@ jobs:
 
   # ─── Single-source / single-LV manual dispatch ─────────────────
   sync-single:
-    name: Sync ${{ needs.setup.outputs.single_value }}
+    # Not "Sync <value>": last-full-sync marks a full run by the matrix job
+    # named "Sync gruene-de", and a single run of gruene-de would forge it.
+    name: Sync single ${{ needs.setup.outputs.single_value }}
     needs: setup
     if: needs.setup.outputs.single_kind != ''
     runs-on: ubuntu-latest
