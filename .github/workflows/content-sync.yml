@@ -1,6 +1,11 @@
 name: Content Sync
 
 on:
+  # The Grünerator API dispatches this workflow on the same slots
+  # (apps/api/services/scrapers/contentSyncDispatcher.ts, `mode` input below),
+  # because GitHub throttles these crons to ~5 of 18 runs a day (#3048). The
+  # crons stay as a fallback until the dispatch token is verified in
+  # production; a follow-up removes them. Duplicate runs meanwhile are expected.
   schedule:
     # Minute 23/17, not 0. GitHub deprioritises `schedule` events under load and
     # drops them rather than queueing when the delay outgrows the next
@@ -14,6 +19,17 @@ on:
     - cron: '17 2 * * *' # Daily 03:00 CET → all sources
   workflow_dispatch:
     inputs:
+      mode:
+        # What the API dispatcher sends. 'hourly' behaves exactly like the hourly
+        # cron (LV-only, `recent`, still promotable to full by the catch-up
+        # below); 'full' — the default, so a bare manual dispatch keeps meaning
+        # a full run — like the nightly one. Ignored with source/landesverband.
+        description: 'Run kind: full (all sources) or hourly (Landesverbände only)'
+        type: choice
+        options:
+          - full
+          - hourly
+        default: full
       source:
         description: 'Single non-LV source (gruenblog, gruene-at, kommunalwiki, boell-stiftung, bundestag, abgeordnetenwatch, grundsatz, gruene-de, oesterreich). Mutually exclusive with landesverband.'
         required: false
@@ -43,7 +59,11 @@ permissions:
   actions: read
 
 concurrency:
-  group: content-sync-${{ github.event.schedule || 'manual' }}
+  # One group per run kind. A newer run cancels a *pending* one in the same
+  # group, so dispatched hourly and full runs must not share one — an hourly
+  # dispatch would otherwise drop a full run that is waiting its turn. Single
+  # source/LV runs get their own group for the same reason.
+  group: content-sync-${{ github.event.schedule || ((inputs.source || inputs.landesverband) && 'single') || inputs.mode || 'full' }}
   cancel-in-progress: false
 
 jobs:
@@ -75,6 +95,7 @@ jobs:
       - id: set
         env:
           SCHEDULE: ${{ github.event.schedule }}
+          INPUT_MODE: ${{ inputs.mode }}
           INPUT_SOURCE: ${{ inputs.source }}
           INPUT_LV: ${{ inputs.landesverband }}
           FULL_RUN_FOUND: ${{ steps.lastfull.outputs.found }}
@@ -123,8 +144,12 @@ jobs:
           # against it.
           FULL_RUN_CATCHUP_HOURS=22
 
-          # Empty SCHEDULE = manual dispatch, which has always meant a full run.
-          if [ "$SCHEDULE_HOUR" = "$FULL_RUN_HOUR" ] || [ -z "$SCHEDULE" ]; then
+          # Empty SCHEDULE = dispatch. Without mode=hourly that has always meant
+          # a full run; with it (the API's hourly slots) it is decided exactly
+          # like an hourly cron, catch-up included.
+          if [ "$SCHEDULE_HOUR" = "$FULL_RUN_HOUR" ]; then
+            IS_FULL_RUN=true
+          elif [ -z "$SCHEDULE" ] && [ "$INPUT_MODE" != "hourly" ]; then
             IS_FULL_RUN=true
           elif [ "$FULL_RUN_FOUND" != "true" ]; then
             echo "::warning::No full Content Sync run found in the recent history — running this one as the full sync."
@@ -157,13 +182,13 @@ jobs:
             echo "lv_matrix=$EMPTY" >> "$GITHUB_OUTPUT"
             echo "source_matrix=$EMPTY" >> "$GITHUB_OUTPUT"
           elif [ "$IS_FULL_RUN" = "true" ]; then
-            # Daily 3 AM CET or manual dispatch (no input) → both matrices
+            # Nightly, full dispatch or catch-up → both matrices
             echo "single_kind=" >> "$GITHUB_OUTPUT"
             echo "single_value=" >> "$GITHUB_OUTPUT"
             echo "lv_matrix=$ALL_LVS" >> "$GITHUB_OUTPUT"
             echo "source_matrix=$ALL_SOURCES" >> "$GITHUB_OUTPUT"
           else
-            # Hourly schedule → LVs only
+            # Hourly schedule or hourly dispatch → LVs only
             echo "single_kind=" >> "$GITHUB_OUTPUT"
             echo "single_value=" >> "$GITHUB_OUTPUT"
             echo "lv_matrix=$ALL_LVS" >> "$GITHUB_OUTPUT"
