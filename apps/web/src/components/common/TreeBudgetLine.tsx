@@ -40,13 +40,27 @@ export interface TreeBudgetChipProps {
 }
 
 /**
- * The budget as a leaf and a number, for crowded toolbars.
+ * Below this many Bäume left the chip shows up; above it, it stays away. At 10
+ * Bäume a day and ~0,01 for a short text the remaining count is almost always
+ * beside the point, and a number nobody needs still takes the eye every time.
+ * The full balance is in Einstellungen → Bäume either way.
+ */
+export const TREE_CHIP_THRESHOLD = 5;
+
+/**
+ * The budget as a leaf and a number, for crowded toolbars — and only while it
+ * is worth a glance, see `TREE_CHIP_THRESHOLD`.
  *
  * `LiteTooltip` opens on hover only — no focus, no touch, and its text is not
  * wired to the chip. So the sentence also rides along visually hidden: without
  * it the budget would exist for mouse users alone.
  */
 export function TreeBudgetChip({ status, hint, className }: TreeBudgetChipProps) {
+  // An unlimited instance has no balance to run down, so there is never
+  // anything to warn about.
+  if (status.limit === null) return null;
+  if (remainingOf(status) >= TREE_CHIP_THRESHOLD) return null;
+
   const sentence = treeBudgetSentence(status);
   return (
     <LiteTooltip label={hint ? `${sentence} ${hint}` : sentence} side="top">
@@ -57,9 +71,7 @@ export function TreeBudgetChip({ status, hint, className }: TreeBudgetChipProps)
         )}
       >
         <PiLeaf aria-hidden="true" className="text-base" />
-        <span aria-hidden="true">
-          {status.limit === null ? '∞' : formatTrees(remainingOf(status))}
-        </span>
+        <span aria-hidden="true">{formatTrees(remainingOf(status))}</span>
         <span className="sr-only">{sentence}</span>
       </span>
     </LiteTooltip>
