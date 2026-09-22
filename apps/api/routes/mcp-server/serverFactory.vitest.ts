@@ -142,3 +142,32 @@ describe('method discovery', () => {
     expect(build(['content:read']).tools.has('gruenerator_get_filters')).toBe(false);
   });
 });
+
+describe('notebook source management', () => {
+  it('offers the notebook_quellen write actions and notebooks.update only with content:write', () => {
+    const writer = build(['content:read', 'content:write']);
+    expect(enumOptions(writer, 'notebook_quellen', 'action')).toEqual([
+      'list',
+      'outline',
+      'read',
+      'find',
+      'remove',
+      'move',
+      'copy',
+      'rename',
+      'tag',
+      'add_note',
+      'add_url',
+    ]);
+    expect(enumOptions(writer, 'notebooks', 'action')).toContain('update');
+
+    const reader = build(['content:read']);
+    expect(enumOptions(reader, 'notebook_quellen', 'action')).toEqual([
+      'list',
+      'outline',
+      'read',
+      'find',
+    ]);
+    expect(enumOptions(reader, 'notebooks', 'action')).not.toContain('update');
+  });
+});
