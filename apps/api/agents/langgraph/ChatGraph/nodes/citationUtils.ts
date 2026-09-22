@@ -133,7 +133,7 @@ export function projectCitation(source: CitableSource): Citation {
     title: source.title || r.title,
     url: source.url ?? '',
     snippet: r.content.slice(0, 200),
-    citedText: r.content.length > 50 ? r.content.slice(0, 1500) : undefined,
+    citedText: r.citedText ?? (r.content.length > 50 ? r.content.slice(0, 1500) : undefined),
     source: r.source,
     collectionName: resolveCollectionName(r.source),
     domain: extractDomain(source.url),
@@ -145,6 +145,7 @@ export function projectCitation(source: CitableSource): Citation {
     chunkIndex: r.chunkIndex,
     similarityScore: r.similarityScore,
     collectionId: r.collectionId,
+    ...(r.pageNumber != null ? { pageNumber: r.pageNumber } : {}),
     documentSourceId: typeof r.documentSourceId === 'string' ? r.documentSourceId : undefined,
   };
 }
