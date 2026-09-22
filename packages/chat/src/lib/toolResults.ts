@@ -341,6 +341,12 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
     iconKey: 'book',
     accent: 'personal',
   },
+  notebook_quellen: {
+    label: 'Notebook-Quellen',
+    activeLabel: 'Liest Notebook-Quellen',
+    iconKey: 'book',
+    accent: 'personal',
+  },
   read_artifact: {
     label: 'Artefakt',
     activeLabel: 'Öffne das Artefakt',
