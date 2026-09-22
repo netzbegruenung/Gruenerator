@@ -147,7 +147,14 @@ export const useGroups = ({ isActive }: UseGroupsOptions = {}) => {
 
   return {
     userGroups: query.data ?? ([] as GroupSummary[]),
-    isLoadingGroups: query.isPending,
+    // `isLoading` ist `isPending && isFetching` — der erste Abruf, der wirklich
+    // läuft. Die beiden Hälften taugen einzeln nicht als Ladeanzeige:
+    // `isPending` bleibt true, solange die Abfrage deaktiviert ist (abgemeldet,
+    // Auth lädt noch) und ergäbe eine Anzeige, die nie endet; `isFetching` ist
+    // auch bei jedem Hintergrund-Refetch true und blendete die längst geladene
+    // Liste wieder aus — etwa bei der Invalidierung nach einem im Chat
+    // angelegten Projekt.
+    isLoadingGroups: query.isLoading,
     isFetchingGroups: query.isFetching,
     isErrorGroups: query.isError,
     errorGroups: query.error,
