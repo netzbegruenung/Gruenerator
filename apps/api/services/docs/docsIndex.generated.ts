@@ -3041,7 +3041,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Aktualisierung",
     "anchor": "#aktualisierung",
     "category": "Sonstiges",
-    "text": "Landesverbände: Stündlich zwischen 06:00 und 22:00 Uhr Alle anderen Quellen: Täglich um 03:00 Uhr Die Synchronisation läuft automatisch über GitHub Actions. Neue Inhalte werden erkannt, in Textabschnitte aufgeteilt und als Vektoren (Embeddings) gespeichert."
+    "text": "Landesverbände: Etwa alle drei Stunden zwischen 07:00 und 22:00 Uhr Alle anderen Quellen: Täglich um 03:00 Uhr Die Synchronisation läuft automatisch über GitHub Actions. Neue Inhalte werden erkannt, in Textabschnitte aufgeteilt und als Vektoren (Embeddings) gespeichert."
   },
   {
     "url": "/docs/sonstiges/inhaltsdatenbank",
