@@ -89,9 +89,9 @@ import {
   promptsContract,
 } from '@gruenerator/contracts';
 import { initClient, isZodType, type AppRoute } from '@ts-rest/core';
-import { AxiosError, isAxiosError } from 'axios';
+import { isAxiosError } from 'axios';
 
-import { getGlobalApiClient } from './client.js';
+import { getGlobalApiClient, rejectAbortedResponse } from './client.js';
 
 // ── Axios-backed fetch adapter ───────────────────────────────────────────────
 
@@ -183,22 +183,10 @@ async function axiosFetcher({
       throw error;
     });
 
-  // A request the browser tore down (page reload/navigation while it was in
-  // flight) ends with status 0. axios `settle()` resolves any response whose
-  // status is falsy without consulting `validateStatus` above, so it would
-  // arrive here looking like an HTTP answer. No contract declares status 0,
-  // and callers treat "not 200" as a generic failure — turning a network
-  // drop into an unclassified error that toastApiError then reports to
-  // Sentry (GlitchTip #576). Reject it the way axios itself rejects a network
-  // error, so the retry predicate and error dictionary recognise it.
-  if (response.status === 0) {
-    throw new AxiosError(
-      'Network Error',
-      AxiosError.ERR_NETWORK,
-      response.config,
-      response.request
-    );
-  }
+  // Status 0 (request torn down mid-flight) resolves past `validateStatus`;
+  // no contract declares it, and callers would turn it into an unclassified
+  // error that toastApiError reports to Sentry (GlitchTip #576).
+  rejectAbortedResponse(response);
 
   // Convert axios headers (AxiosResponseHeaders) to native Headers
   const nativeHeaders = new Headers();
