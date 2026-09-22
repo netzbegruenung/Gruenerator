@@ -123,6 +123,7 @@ describe('citeQuote', () => {
       found: false,
       method: null,
       exhaustive: true,
+      incompleteReason: null,
       sourcesScanned: 1,
       candidates: [],
     });

@@ -555,11 +555,10 @@ describe('grep', () => {
     );
   });
 
-  it('reports an invalid regex', async () => {
-    const { run } = makeCtx();
-    expect((await run({ action: 'grep', phrase: 'Rad(', regex: true })).error).toMatch(
-      /Ungültiger regulärer Ausdruck/
-    );
+  it('matches a phrase with regex metacharacters literally', async () => {
+    const { run } = makeCtx({ markdown: 'Kurs: C++ (Programmiersprache) für Einsteiger.' });
+    const out = await run({ action: 'grep', phrase: 'C++ (Programmiersprache)' });
+    expect(out).toMatchObject({ totalHits: 1, exhaustive: true });
   });
 
   it('notes zero hits instead of registering nothing silently', async () => {
@@ -682,7 +681,15 @@ describe('rank', () => {
   it('needs by, and a query for relevance and term', async () => {
     const { run } = makeCtx();
     expect((await run({ action: 'rank' })).error).toMatch(/by/);
-    expect((await run({ action: 'rank', by: 'term' })).error).toBe('rank by="term" braucht query.');
+    expect((await run({ action: 'rank', by: 'term' })).error).toBe(
+      'rank by="term" braucht query (mindestens 2 Zeichen).'
+    );
+    expect((await run({ action: 'rank', by: 'term', query: 'a' })).error).toBe(
+      'rank by="term" braucht query (mindestens 2 Zeichen).'
+    );
+    expect((await run({ action: 'rank', by: 'relevance' })).error).toBe(
+      'rank by="relevance" braucht query.'
+    );
   });
 });
 
