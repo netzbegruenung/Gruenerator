@@ -11,7 +11,7 @@
  * page actually sends.
  */
 import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
-import { http, HttpResponse } from 'msw';
+import { delay, http, HttpResponse } from 'msw';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import { server } from '../../test/msw-server';
@@ -278,6 +278,64 @@ describe('UebersetzerPage', () => {
 
     await new Promise((resolve) => setTimeout(resolve, 1500));
     expect(posts).toBe(1);
+  });
+
+  it('sends one request when the shortcut beats the debounce to the same text', async () => {
+    withLanguages();
+    let posts = 0;
+    server.use(
+      http.post(TEXT, () => {
+        posts += 1;
+        return HttpResponse.json({
+          text: 'Hello',
+          detectedSourceLang: 'de',
+          targetLang: 'en-GB',
+          billedCharacters: 5,
+          glossaryApplied: false,
+          quota: { ...LANGUAGE_LIST.quota, used: 2.1, remaining: 7.9 },
+        });
+      })
+    );
+    const { user } = renderWithProviders(<UebersetzerPage />);
+    await user.type(await screen.findByLabelText('Ausgangstext'), 'Hallo');
+    // Well inside the debounce — that is what the shortcut is for, since waiting
+    // it out would have translated anyway.
+    await user.keyboard('{Meta>}{Enter}{/Meta}');
+    await waitFor(() => expect(posts).toBe(1), { timeout: 4000 });
+
+    // The timer the last keystroke scheduled must not bill the same text again.
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    expect(posts).toBe(1);
+  });
+
+  it('still translates text typed while an earlier request is in flight', async () => {
+    withLanguages();
+    const sent: string[] = [];
+    server.use(
+      http.post(TEXT, async ({ request }) => {
+        sent.push(((await request.json()) as { text: string }).text);
+        // Long enough that the next keystrokes land while this one is running.
+        await delay(600);
+        return HttpResponse.json({
+          text: 'Hello',
+          detectedSourceLang: 'de',
+          targetLang: 'en-GB',
+          billedCharacters: 5,
+          glossaryApplied: false,
+          quota: { ...LANGUAGE_LIST.quota, used: 2.1, remaining: 7.9 },
+        });
+      })
+    );
+    const { user } = renderWithProviders(<UebersetzerPage />);
+    const input = await screen.findByLabelText('Ausgangstext');
+    await user.type(input, 'Hallo');
+    await waitFor(() => expect(sent).toEqual(['Hallo']), { timeout: 4000 });
+
+    // Typing on while the answer is still out: the timer this schedules fires
+    // into a closure that believes a run is going on, so only a fresh one sent
+    // after the first settles gets this text translated at all.
+    await user.type(input, 'x');
+    await waitFor(() => expect(sent).toEqual(['Hallo', 'Hallox']), { timeout: 4000 });
   });
 
   it('does not translate by itself once the daily budget is used up', async () => {
