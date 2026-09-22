@@ -22,6 +22,7 @@ import {
   sourceOptions,
   targetOptions,
 } from './languageOptions';
+import { TranslationExportMenu } from './TranslationExportMenu';
 
 import { TreeBudgetChip } from '@/components/common/TreeBudgetLine';
 import { cn } from '@/utils/cn';
@@ -293,6 +294,14 @@ export function TextTranslator({ data }: TextTranslatorProps) {
               </span>
               <span className="ml-auto inline-flex items-center gap-xxs">
                 <TreeBudgetChip status={quota} hint="20.000 Zeichen = 1 Baum." />
+                <TranslationExportMenu
+                  text={result?.text ?? ''}
+                  sourceName={languageName(
+                    languages,
+                    sourceLang === AUTO ? (result?.detectedSourceLang ?? AUTO) : sourceLang
+                  )}
+                  targetName={languageName(languages, targetLang)}
+                />
                 <Button
                   type="button"
                   variant="ghost"
