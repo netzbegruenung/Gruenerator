@@ -36,7 +36,7 @@ export function recipeOriginLine(
     return `Geteilt aus ${group}${form.ownerName ? ` von ${form.ownerName}` : ''}`;
   }
   if (source === 'public') {
-    return `Von der Basis${form.ownerName ? ` · ${form.ownerName}` : ''}`;
+    return `Öffentlich${form.ownerName ? ` · ${form.ownerName}` : ''}`;
   }
   return null;
 }

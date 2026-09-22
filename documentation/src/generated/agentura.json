@@ -3,22 +3,22 @@
     {
       "key": "meine",
       "label": "Meine Grüneratoren",
-      "description": "Deine selbst erstellten Grüneratoren, Rezepte, wiederkehrenden Aufgaben und was in deinen Gruppen geteilt wurde."
+      "description": "Deine selbst erstellten Agents, Rezepte, wiederkehrenden Aufgaben und was in deinen Gruppen geteilt wurde."
     },
     {
       "key": "landesverband",
       "label": "Dein Landesverband",
-      "description": "Die Grüneratoren und Rezepte deines Landesverbands, über deine Rolle zugeteilt."
+      "description": "Die Agents und Rezepte deines Landesverbands, über deine Rolle zugeteilt."
     },
     {
       "key": "community",
-      "label": "Von der Basis",
-      "description": "Öffentlich geteilte Grüneratoren und Rezepte von der Basis."
+      "label": "Öffentlich",
+      "description": "Öffentlich geteilte Agents und Rezepte von der Basis."
     },
     {
       "key": "gruenerator",
       "label": "Offizielle Grüneratoren",
-      "description": "Fertige Grüneratoren sowie Presse- & Social-Rezepte von Grünerator."
+      "description": "Fertige Agents sowie Presse- & Social-Rezepte von Grünerator."
     }
   ],
   "defaultCategory": "meine",

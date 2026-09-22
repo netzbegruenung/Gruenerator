@@ -3,7 +3,7 @@
  *
  * Mounts the two cover variants of `NotebookGalleryCard` side by side — the
  * designed webp (`coverImage`, wie Landesverbände) und die gerenderte Cover-Art
- * (`coverNode`, wie „Von der Basis" und die eigenen Notebooks) — plus die
+ * (`coverNode`, wie „Öffentlich" und die eigenen Notebooks) — plus die
  * dauerhaft sichtbare Aktion. Die /wissen-Seite selbst bräuchte Anmeldung,
  * Backend und öffentliche Notebooks, und keines davon sagt etwas über die
  * Stapelreihenfolge der Karte.
@@ -43,8 +43,8 @@ function Harness() {
       </div>
       <div data-testid="card-cover-node" className="w-[220px]">
         <NotebookGalleryCard
-          title="Von der Basis"
-          coverNode={<NotebookCoverArt title="Von der Basis" subtitle="3 öffentliche Notebooks" />}
+          title="Öffentlich"
+          coverNode={<NotebookCoverArt title="Öffentlich" subtitle="3 öffentliche Notebooks" />}
           accent="pink"
           onActivate={() => record('cover-node')}
           action={

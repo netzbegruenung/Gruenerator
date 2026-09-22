@@ -1,5 +1,5 @@
 /**
- * Die „Von der Basis"-Auswahl — welche öffentlich gelisteten Notebooks eine
+ * Die „Öffentlich"-Auswahl — welche öffentlich gelisteten Notebooks eine
  * Person überhaupt sehen darf.
  *
  * Herausgezogen aus `notebookCollectionsContractRouter.listPublicCollections`,

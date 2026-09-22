@@ -18,7 +18,7 @@ import { NotebookCoverArt } from './NotebookCoverArt';
 import { NotebookTile, notebookTileGridStyle, useNotebookTileGrid } from './NotebookTile';
 
 /**
- * "Von der Basis" — public community notebooks (web's VonDerBasisSection). Same
+ * „Öffentlich" — public community notebooks (web's BasisNotebooks). Same
  * tile as every other shelf, with drawn cover art (a community notebook has no
  * shipped webp) and the heart pinned in the corner, as on web. Gated on
  * `enabled` (auth) so the auth-required endpoints never query-storm for
@@ -51,7 +51,7 @@ export function CommunityNotebooksSection({
 
   return (
     <View style={styles.section}>
-      <Text style={[styles.sectionTitle, { color: theme.text }]}>Von der Basis</Text>
+      <Text style={[styles.sectionTitle, { color: theme.text }]}>Öffentlich</Text>
       {publicNotebooks.length > 4 && (
         <View
           style={[styles.search, { backgroundColor: theme.surface, borderColor: theme.cardBorder }]}

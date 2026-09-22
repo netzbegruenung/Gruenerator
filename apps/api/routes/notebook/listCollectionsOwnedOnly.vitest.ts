@@ -11,7 +11,7 @@
  * locks that: listCollections fetches only getUserNotebookCollections(userId)
  * and NEVER reaches for the cross-user helpers
  * (getNotebookCollectionsByShareMode / getNotebookCollectionsByIds). Shared
- * notebooks stay reachable by direct link / the public "Von der Basis" listing.
+ * notebooks stay reachable by direct link / the public „Öffentlich" listing.
  *
  * Run: `pnpm --filter @gruenerator/api test`
  */

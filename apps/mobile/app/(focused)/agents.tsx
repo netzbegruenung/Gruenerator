@@ -85,7 +85,7 @@ const MOBILE_TYPE_FILTERS = (['all', 'agent', 'recipe'] as const).map((id) => ({
  * Read-only by construction: creating, editing, sharing and favouriting all stay
  * on web. Deshalb trägt die Kachel hier kein Aktionsmenü und die Seite keinen
  * „Neu"-Knopf — beides zeigte nur Wege, die auf dem Telefon nirgends hinführen.
- * Aus demselben Grund bietet der Typ-Filter nur „Alle", „Grüneratoren" und
+ * Aus demselben Grund bietet der Typ-Filter nur „Alle", „Agents" und
  * „Rezepte": wiederkehrende Aufgaben und Favoriten gibt es mobil nicht, und ein
  * Filter, der immer leer zurückkommt, ist ein kaputter Filter.
  *
@@ -113,7 +113,7 @@ export default function AgentsScreen() {
   } = usePublicUserAgents();
   const { data: ownRecipes = [] } = useOwnRecipes();
 
-  // Die Landesverbands-Zuteilung: LV-Grüneratoren und -Rezepte gehören den
+  // Die Landesverbands-Zuteilung: LV-Agents und -Rezepte gehören den
   // Leuten des jeweiligen Verbands, gebunden an die Rolle „Mitarbeiter*in
   // Landesgeschäftsstelle". Gefiltert wird an der QUELLE — beide Regale, die
   // Kategorien und die Suche erben es damit von selbst; ein Filter nur auf den
@@ -121,7 +121,7 @@ export default function AgentsScreen() {
   //
   // `lvIds === null` heißt „Rollen noch nicht geladen" und lässt durch, damit
   // die Ladephase nichts wegnimmt, was gleich wieder erscheint.
-  const { lvIds } = useUserLandesverbaende();
+  const { lvIds, shelfLabel: lvShelfLabel, isHydrated: rolesLoaded } = useUserLandesverbaende();
 
   const systemAgents = useMemo(
     () =>
@@ -140,7 +140,7 @@ export default function AgentsScreen() {
     [systemAgents]
   );
 
-  // "Von der Basis": publicly-listed community agents, minus the ones the user
+  // „Öffentlich": publicly-listed community agents, minus the ones the user
   // already owns (those show under "Meine Grüneratoren").
   const communityAgents = useMemo(
     () => publicAgents.filter((pa) => !userAgents.some((ua) => ua.identifier === pa.identifier)),
@@ -212,7 +212,18 @@ export default function AgentsScreen() {
     [openWithComposerText]
   );
 
-  const shelves = useMemo(() => agenturaCategoriesForPlatform('mobile'), []);
+  // Das Landesverbands-Regal nennt seinen Verband beim Namen („Grüne Hessen").
+  // Vor der Hydratation ist `lvIds` `null` — der Name stünde also nicht fest und
+  // das Regal zeigte obendrein die Inhalte ALLER Verbände (der sichere Ausgang
+  // für Filter, siehe `useUserLandesverbaende`). Deshalb erscheint es erst, wenn
+  // die Rollen geladen sind, und trägt dann `lvShelfLabel` statt `cat.label`.
+  const shelves = useMemo(
+    () =>
+      agenturaCategoriesForPlatform('mobile')
+        .filter((c) => c.key !== 'landesverband' || rolesLoaded)
+        .map((c) => (c.key === 'landesverband' ? { ...c, label: lvShelfLabel } : c)),
+    [rolesLoaded, lvShelfLabel]
+  );
   const activeShelf = shelves.find((c) => c.key === shelf);
 
   const matches = (fields: (string | undefined)[]) =>
@@ -242,7 +253,7 @@ export default function AgentsScreen() {
     icon: agentIcon(agent.iconKey),
     title: agent.title,
     meta: agenturaMetaLine([
-      'Grünerator',
+      'Agent',
       isLandesverbandIdentifier(agent.identifier) && landesverbandLabel(agent.identifier),
     ]),
     description: agent.description,
@@ -310,7 +321,7 @@ export default function AgentsScreen() {
     ];
   } else if (shelf === 'meine') {
     loading = isLoading;
-    loadError = error ? 'Deine Grüneratoren konnten nicht geladen werden.' : null;
+    loadError = error ? 'Deine Agents konnten nicht geladen werden.' : null;
     shelfItems = [...userAgents.map(agentItem), ...ownRecipes.map(recipeItem)];
   } else if (shelf === 'landesverband') {
     const byRegion = <T,>(list: readonly T[], id: (t: T) => string): T[] =>
@@ -323,7 +334,7 @@ export default function AgentsScreen() {
     ];
   } else if (shelf === 'community') {
     loading = publicLoading;
-    loadError = publicError ? 'Die Grüneratoren von der Basis konnten nicht geladen werden.' : null;
+    loadError = publicError ? 'Die öffentlichen Agents konnten nicht geladen werden.' : null;
     shelfItems = communityAgents.map(agentItem);
   } else {
     // „Offizielle": die angehefteten zuerst — das ist, was „Empfohlen" als
