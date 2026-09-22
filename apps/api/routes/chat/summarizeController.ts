@@ -6,6 +6,7 @@
 import { z } from 'zod';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { requireAiConsent } from '../../middleware/requireAiConsent.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
@@ -104,6 +105,7 @@ const summarizeSchema = z.object({
  */
 router.post(
   '/',
+  requireAiConsent,
   validateBody(summarizeSchema),
   async (req: TypedRequest<z.infer<typeof summarizeSchema>>, res) => {
     try {

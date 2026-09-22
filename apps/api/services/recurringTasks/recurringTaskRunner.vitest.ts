@@ -15,6 +15,7 @@ const {
   createDoc,
   createThreadMock,
   createMessageMock,
+  consent,
 } = vi.hoisted(() => ({
   finishRun: vi.fn(async () => {}),
   setEmptyCount: vi.fn(async () => {}),
@@ -24,6 +25,7 @@ const {
   createDoc: vi.fn(async () => ({ id: 'doc-1' })),
   createThreadMock: vi.fn(async () => ({ id: 'thread-1' })),
   createMessageMock: vi.fn(async () => ({})),
+  consent: vi.fn(async () => true),
 }));
 
 vi.mock('./recurringTasksRepository.js', () => ({
@@ -38,6 +40,8 @@ vi.mock('../../routes/chat/services/threadPersistenceService.js', () => ({
   createThread: createThreadMock,
   createMessage: createMessageMock,
 }));
+
+vi.mock('../../middleware/requireAiConsent.js', () => ({ hasAiConsent: consent }));
 
 import { runRecurringTask, type RecurringRunnerDeps } from './recurringTaskRunner.js';
 
@@ -109,6 +113,26 @@ function makeDeps(opts: {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  consent.mockResolvedValue(true);
+});
+
+describe('runRecurringTask — Art.-9-Einwilligung', () => {
+  it('ohne Einwilligung kein Modellaufruf, Lauf als gescheitert verbucht', async () => {
+    consent.mockResolvedValue(false);
+    const deps = makeDeps({ turns: [turn()] });
+    await runRecurringTask(task(), RUN_ID, deps);
+
+    expect(consent).toHaveBeenCalledWith('user-1');
+    expect(deps.runTurnMock).not.toHaveBeenCalled();
+    expect(createDoc).not.toHaveBeenCalled();
+    expect(finishRun).toHaveBeenCalledWith(
+      expect.objectContaining({
+        runId: RUN_ID,
+        status: 'failed',
+        error: expect.stringContaining('Einwilligung'),
+      })
+    );
+  });
 });
 
 describe('runRecurringTask — Mapping degraded→Pfad', () => {
