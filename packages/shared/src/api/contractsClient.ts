@@ -91,7 +91,7 @@ import {
 import { initClient, isZodType, type AppRoute } from '@ts-rest/core';
 import { isAxiosError } from 'axios';
 
-import { getGlobalApiClient, rejectAbortedResponse } from './client.js';
+import { getGlobalApiClient } from './client.js';
 
 // ── Axios-backed fetch adapter ───────────────────────────────────────────────
 
@@ -182,11 +182,6 @@ async function axiosFetcher({
       if (isAxiosError(error) && error.response) return error.response;
       throw error;
     });
-
-  // Status 0 (request torn down mid-flight) resolves past `validateStatus`;
-  // no contract declares it, and callers would turn it into an unclassified
-  // error that toastApiError reports to Sentry (GlitchTip #576).
-  rejectAbortedResponse(response);
 
   // Convert axios headers (AxiosResponseHeaders) to native Headers
   const nativeHeaders = new Headers();
