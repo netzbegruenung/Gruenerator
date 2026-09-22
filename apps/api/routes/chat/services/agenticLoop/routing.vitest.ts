@@ -94,6 +94,10 @@ describe('looksLikeToolableQuestion', () => {
     ['empty', '   '],
     // „Agentur" ist kein Agent — die Wortgrenze hinter `agent(en)?` hält es draußen.
     ['agentur, not agent', 'meine Agentur für Arbeit'],
+    // Der Notebook-Wortschatz darf keine Schreibaufträge in den Loop ziehen:
+    // `meinem` gilt nur vor Notebook, `Quellen` nur nach mein/meine.
+    ['rede zu meinem projekt', 'schreib eine Rede zu meinem Projekt'],
+    ['quellen im eigenen text', 'prüfe in meinem Text die Quellen'],
   ];
   it.each(fastPath)('keeps a fast-path turn out of the loop: %s', (_label, q) => {
     expect(looksLikeToolableQuestion(q)).toBe(false);
