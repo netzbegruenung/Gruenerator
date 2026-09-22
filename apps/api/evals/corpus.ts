@@ -92,6 +92,8 @@ export interface CorpusFilter {
   deepResearch: boolean;
   /** Szenarien, die den BGSt-Beschlussbestand als Sammlung brauchen. */
   bgstKorpus: boolean;
+  /** Szenarien, die ein eigenes Notebook des Eval-Kontos brauchen. */
+  userNotebook: boolean;
 }
 
 /** Glob evals/corpus/*.jsonl plus the legacy single-file corpus, then filter. */
@@ -125,6 +127,7 @@ export function loadCorpus(here: string, opts: CorpusFilter): EvalScenario[] {
     if (s.notebookLane && !opts.notebook) return false;
     if (s.deepResearchLane && !opts.deepResearch) return false;
     if (s.bgstKorpusLane && !opts.bgstKorpus) return false;
+    if (s.userNotebookLane && !opts.userNotebook) return false;
     if (!opts.filter) return true;
     return opts.filter
       .split(',')
