@@ -207,6 +207,40 @@ export async function installApiFixtures(page: Page): Promise<void> {
     '/api/canvas': [],
     // ts-rest `groups.discoverPublicGroups`, ebenfalls nackt — `/projekte`.
     '/api/auth/groups/discover': [],
+    // `/uebersetzer`. Ohne diese Zeile beantwortet die Auffangregel die
+    // Sprachliste mit `{data: [], items: []}`, `sourceOptions` ruft
+    // `languages.filter` auf `undefined` und die Seite zeigt den Fehlerhinweis
+    // statt der Übersetzerfläche — geprüft würde dann eine Fehlermeldung.
+    // Mindestens zwei Sprachen, sonst steht in der Schnellwahl nichts, dessen
+    // Farben zu messen wären.
+    '/api/translation/languages': {
+      languages: [
+        {
+          code: 'de',
+          name: 'Deutsch',
+          usableAsSource: true,
+          usableAsTarget: true,
+          formality: true,
+          glossary: true,
+        },
+        {
+          code: 'en-GB',
+          name: 'Englisch (britisch)',
+          usableAsSource: false,
+          usableAsTarget: true,
+          formality: false,
+          glossary: true,
+        },
+      ],
+      glossaryPairs: ['de>en'],
+      quota: {
+        used: 2,
+        limit: 10,
+        remaining: 8,
+        resetsAt: ZEITPUNKT,
+        newsletterBonus: false,
+      },
+    },
     // `MediaListResponse`: die Liste heißt `data` (nicht `items`), und
     // `pagination` ist nicht optional — `getNextPageParam` liest es ohne Umweg,
     // `flatMap((page) => page.data)` ebenso. Mit `items` statt `data` ergibt der

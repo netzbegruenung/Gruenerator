@@ -102,6 +102,11 @@ const ROUTES = [
   '/transkription',
   '/suche',
   '/projekte',
+  // Der Übersetzer war nie in dieser Liste, und genau deshalb konnte #3507
+  // entstehen und unbemerkt bleiben: seine Ergebnisfläche stand dunkel auf
+  // 1,04:1, und die einzige Stelle im Haus, die den Dunkelmodus überhaupt
+  // misst, sah die Route nicht an.
+  '/uebersetzer',
 ];
 
 /**
