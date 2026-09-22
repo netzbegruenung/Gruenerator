@@ -35,7 +35,12 @@ vi.mock('@gruenerator/chat', async (importOriginal) => ({
   // Both hit the network in the real hooks and neither is what these tests are
   // about; the Landesverband roles are steered per test through `lv`.
   useHiddenSkillMentions: () => [],
-  useUserLandesverbaende: () => ({ lvIds: lv.lvIds, headings: [], isHydrated: true }),
+  useUserLandesverbaende: () => ({
+    lvIds: lv.lvIds,
+    headings: { agents: '', skills: '' },
+    shelfLabel: 'Dein Landesverband',
+    isHydrated: true,
+  }),
 }));
 
 const navigate = vi.fn();
@@ -239,7 +244,7 @@ describe('RecipeDetailPage — fremdes Rezept', () => {
     renderPage('fremdes-rezept');
 
     await screen.findByText('Fremdes Rezept');
-    expect(screen.getByText(/Von der Basis · Alex Beispiel/)).toBeInTheDocument();
+    expect(screen.getByText(/Öffentlich · Alex Beispiel/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Link kopieren' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Bearbeiten' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Teilen' })).not.toBeInTheDocument();

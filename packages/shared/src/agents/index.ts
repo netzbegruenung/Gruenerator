@@ -91,6 +91,7 @@ export {
   landesverbandHeadings,
   landesverbandIdsForRoles,
   landesverbandOfferForBundesland,
+  landesverbandShelfLabel,
   landesverbandTitle,
   lvSkillMentionsForRoles,
   type LandesverbandOffer,
