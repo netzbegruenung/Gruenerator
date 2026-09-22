@@ -35,13 +35,24 @@
  * (Stand 10.08.2026) und dem EU-AVV vom 19.08.2026. Polen steht seitdem in der
  * Länderliste: KugelAudio führt Scaleway mit den Standorten FR/NL/PL als
  * Unterauftragnehmer.
+ *
+ * Am 23.09.2026 an den Code angeglichen (#3517): Cortecs fehlte, obwohl es seit
+ * August die meisten Antworten schreibt (`GEMMA_31B_PRIMARY` in
+ * `services/ai/gemmaHosts.ts`); Scaleway rechnet Mistral Medium 3.5 nur noch
+ * hinter `SCALEWAY_MISTRAL_ROUTING` (Standard aus); Regolo erzeugt keine Bilder
+ * mehr (`services/flux/` kennt nur BFL und Melious); die selbst gehosteten
+ * Modelle der netzbegrünung sind seit 29.08.2026 stillgelegt
+ * (`services/ai/litellmRetired.ts`). Die DOCX-Fassung liest diese Datei
+ * (`apps/api/scripts/generate-legal-docx.mjs`), und
+ * `scripts/check-privacy-subprocessors.mjs` bricht ab, wenn ein Host aus
+ * `documentation/src/generated/models.json` hier keine Zeile hat.
  */
 
 const Datenschutz = () => {
   return (
     <div className="page-container">
       <h1>Datenschutzerklärung</h1>
-      <p>Stand: 2. September 2026</p>
+      <p>Stand: 23. September 2026</p>
 
       <h2>Einleitung</h2>
       <p>
@@ -213,7 +224,7 @@ const Datenschutz = () => {
             <td>
               Kerninfrastruktur, Datenbank (PostgreSQL), Keycloak-Authentifizierung, Redis,
               Vektorsuche (Qdrant, pseudonymisiert), kollaboratives Schreiben (Etherpad, Pad-IDs
-              ohne Personenbezug), eigene KI-Modelle
+              ohne Personenbezug)
             </td>
           </tr>
           <tr>
@@ -233,14 +244,26 @@ const Datenschutz = () => {
             <td>Scaleway SAS</td>
             <td>Frankreich (EU)</td>
             <td>
-              Rechenleistung für das KI-Textmodell Mistral Medium 3.5 (das Modell selbst stammt von
-              Mistral AI)
+              Rechenleistung für KI-Textmodelle (Gemma 4) – derzeit nur ausnahmsweise, etwa wenn
+              Cortecs eine Anfrage an Scaleway vermittelt
             </td>
           </tr>
           <tr>
             <td>GreenPT BV</td>
             <td>Niederlande (Sitz), Frankreich (Verarbeitung, EU)</td>
-            <td>KI-Textmodelle sowie Audio-/Videotranskription (keine dauerhafte Speicherung)</td>
+            <td>
+              KI-Textmodelle, Reranking von Suchergebnissen sowie Audio-/Videotranskription (keine
+              dauerhafte Speicherung)
+            </td>
+          </tr>
+          <tr>
+            <td>Cortecs GmbH</td>
+            <td>Österreich (Sitz), EU/EWR (Verarbeitung)</td>
+            <td>
+              Vermittlung von KI-Textmodellen (u. a. Gemma 4, Mistral Small) ausschließlich an
+              Rechenzentrumsbetreiber, die in der EU bzw. im EWR ansässig sind und Eingaben nicht
+              speichern (Zero Data Retention)
+            </td>
           </tr>
           <tr>
             <td>DeepL SE</td>
@@ -269,8 +292,8 @@ const Datenschutz = () => {
             <td>Seeweb S.r.l. / Regolo AI</td>
             <td>Italien (EU)</td>
             <td>
-              KI-Textmodelle, Reranking sowie – wenn Du sie wählst – Bildgenerierung mit dem Modell
-              Qwen-Image (Zero Data Retention)
+              KI-Textmodelle (u. a. Bildverstehen) sowie Reranking als Ausweichweg (Zero Data
+              Retention)
             </td>
           </tr>
           <tr>
@@ -306,12 +329,12 @@ const Datenschutz = () => {
         Gunzenhausen, Deutschland · netzbegrünung – Verein für grüne Netzkultur e.V., Deutschland ·
         Mistral AI, 15 rue des Halles, 75001 Paris, Frankreich · Scaleway SAS, 8 rue de la
         Ville-l&apos;Évêque, 75008 Paris, Frankreich (RCS Paris 433 115 904) · GreenPT BV,
-        Plompetorengracht 4, 3512 CC Utrecht, Niederlande (KvK 97084360) · KugelAudio GmbH,
-        Rosenthaler Str. 36, 10178 Berlin, Deutschland (Amtsgericht Charlottenburg, HRB 277989 B) ·
-        Seeweb S.r.l., C.so Lazio 9/a, 03100 Frosinone, Italien · Melious AI GmbH, Universität des
-        Saarlandes, Campus Starterzentrum, Geb. A1.2, 66123 Saarbrücken, Deutschland · Linkup
-        Technologies SAS, 28 avenue des Pépinières, 94260 Fresnes, Frankreich (RCS Créteil 930 910
-        740).
+        Plompetorengracht 4, 3512 CC Utrecht, Niederlande (KvK 97084360) · Cortecs GmbH,
+        Althanstraße 4, 1090 Wien, Österreich (FN 560802i) · KugelAudio GmbH, Rosenthaler Str. 36,
+        10178 Berlin, Deutschland (Amtsgericht Charlottenburg, HRB 277989 B) · Seeweb S.r.l., C.so
+        Lazio 9/a, 03100 Frosinone, Italien · Melious AI GmbH, Universität des Saarlandes, Campus
+        Starterzentrum, Geb. A1.2, 66123 Saarbrücken, Deutschland · Linkup Technologies SAS, 28
+        avenue des Pépinières, 94260 Fresnes, Frankreich (RCS Créteil 930 910 740).
       </p>
 
       <p>
@@ -325,11 +348,11 @@ const Datenschutz = () => {
       <p>
         Die Verarbeitung Deiner Daten findet ausschließlich auf dem Gebiet der Europäischen Union
         bzw. des Europäischen Wirtschaftsraums statt (insbesondere Deutschland, Frankreich,
-        Finnland, Italien, die Niederlande und Polen). Eine Übermittlung personenbezogener Daten in
-        Drittländer außerhalb der EU/des EWR findet nicht statt. Sollte künftig ausnahmsweise eine
-        Drittlandübermittlung erfolgen, geschieht dies nur auf Grundlage eines
-        Angemessenheitsbeschlusses (Art. 45 DSGVO) oder geeigneter Garantien wie der
-        EU-Standardvertragsklauseln (Art. 46 DSGVO); wir informieren Dich hierüber gesondert.
+        Finnland, Italien, Luxemburg, die Niederlande, Österreich, Polen und Schweden). Eine
+        Übermittlung personenbezogener Daten in Drittländer außerhalb der EU/des EWR findet nicht
+        statt. Sollte künftig ausnahmsweise eine Drittlandübermittlung erfolgen, geschieht dies nur
+        auf Grundlage eines Angemessenheitsbeschlusses (Art. 45 DSGVO) oder geeigneter Garantien wie
+        der EU-Standardvertragsklauseln (Art. 46 DSGVO); wir informieren Dich hierüber gesondert.
       </p>
 
       <h2>Allgemeiner Hinweis zur Löschung von Daten</h2>
@@ -419,19 +442,20 @@ const Datenschutz = () => {
       <h3 id="ki-textgenerierung">KI-Textgenerierung und Chat</h3>
       <p>
         Die von Dir eingegebenen Texte werden zur Bearbeitung an KI-Dienstleister mit Verarbeitung
-        in der EU weitergeleitet (Mistral AI/FR, KI-Modelle der netzbegrünung/EU, Melious/DE,
-        Seeweb/Regolo AI/IT, GreenPT/NL mit Verarbeitung in FR). Welcher Dienstleister eingesetzt
-        wird, richtet sich nach der genutzten Funktion: Im Chat kannst Du das Modell selbst wählen;
-        voreingestellt ist „Automatisch“, bei dieser Einstellung wählt die Plattform den
-        Dienstleister anhand von Funktion und Verfügbarkeit. Bei allen übrigen Funktionen (u. a.
-        Anträge, Reden, Sharepic-Texte, Notebooks, Präsentationen) ist der Dienstleister je
-        Funktionstyp fest vorgegeben. Das Modell Mistral Medium 3.5 läuft dabei auf Rechenleistung
-        von Scaleway/FR; fällt Scaleway aus, geht dieselbe Anfrage direkt an Mistral AI. Eine
-        Nutzung Deiner Eingaben zum Training der KI findet nicht statt. Rechtsgrundlage ist Art. 6
-        Abs. 1 lit. b DSGVO; enthalten Deine Eingaben besondere Kategorien (z. B. politische
-        Meinungen), stützt sich deren Verarbeitung auf Art. 9 Abs. 2 lit. a DSGVO (Deine
-        ausdrückliche Einwilligung, die wir vor der ersten Nutzung der KI-Funktionen gesondert
-        einholen).
+        in der EU weitergeleitet (Mistral AI/FR, Cortecs/AT mit Verarbeitung bei
+        Rechenzentrumsbetreibern in der EU, Melious/DE, Seeweb/Regolo AI/IT, GreenPT/NL mit
+        Verarbeitung in FR). Welcher Dienstleister eingesetzt wird, richtet sich nach der genutzten
+        Funktion: Im Chat kannst Du das Modell selbst wählen; voreingestellt ist „Automatisch“, bei
+        dieser Einstellung wählt die Plattform den Dienstleister anhand von Funktion und
+        Verfügbarkeit. Bei allen übrigen Funktionen (u. a. Anträge, Reden, Sharepic-Texte,
+        Notebooks, Präsentationen) ist der Dienstleister je Funktionstyp fest vorgegeben. Cortecs
+        vermittelt Anfragen ausschließlich an Rechenzentrumsbetreiber, die in der EU bzw. im EWR
+        ansässig sind und Eingaben nicht speichern; welcher Betreiber eine Anfrage bearbeitet hat,
+        teilt Cortecs bei jeder Antwort mit, und wir prüfen es nach. Eine Nutzung Deiner Eingaben
+        zum Training der KI findet nicht statt. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO;
+        enthalten Deine Eingaben besondere Kategorien (z. B. politische Meinungen), stützt sich
+        deren Verarbeitung auf Art. 9 Abs. 2 lit. a DSGVO (Deine ausdrückliche Einwilligung, die wir
+        vor der ersten Nutzung der KI-Funktionen gesondert einholen).
       </p>
 
       <h3>Bildbearbeitung und -generierung (Grünerator Imagine)</h3>
