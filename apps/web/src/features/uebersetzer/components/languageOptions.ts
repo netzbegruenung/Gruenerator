@@ -7,6 +7,8 @@ export function rootLang(code: string): string {
 
 export const AUTO = 'auto';
 
+export const AUTO_LABEL = 'Automatisch erkennen';
+
 export function sourceOptions(languages: readonly TranslationLanguage[]): TranslationLanguage[] {
   return languages
     .filter((l) => l.usableAsSource)
@@ -45,6 +47,35 @@ export function defaultTarget(languages: readonly TranslationLanguage[]): string
 
 export const NF = new Intl.NumberFormat('de-DE');
 
-/** Native select styled like `Input` (the agents feature's `selectCls` convention). */
-export const selectCls =
-  'h-11 w-full rounded-sm border-0 bg-input-bg px-sm text-sm text-input-text outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50';
+/** How many languages the quick-pick strip holds before the oldest drops off. */
+export const RECENT_MAX = 4;
+
+/**
+ * Seeds the quick-pick strip. Wishes that this DeepL account does not offer are
+ * dropped and the strip is topped up from the start of the list, so the bar is
+ * never short and never shows a code the `<select>` does not have.
+ */
+export function initialRecent(
+  options: readonly TranslationLanguage[],
+  preferred: readonly string[],
+  max: number = RECENT_MAX
+): string[] {
+  const codes = new Set(options.map((l) => l.code));
+  const picked = preferred.filter((c) => c === AUTO || codes.has(c));
+  for (const l of options) {
+    if (picked.length >= max) break;
+    if (!picked.includes(l.code)) picked.push(l.code);
+  }
+  return picked.slice(0, max);
+}
+
+/** Most recently chosen language first; `auto` stays pinned to the front. */
+export function pushRecent(
+  recent: readonly string[],
+  code: string,
+  max: number = RECENT_MAX
+): string[] {
+  if (recent.includes(code)) return [...recent];
+  const pinned = recent.includes(AUTO) && code !== AUTO ? [AUTO] : [];
+  return [...pinned, code, ...recent.filter((c) => c !== AUTO)].slice(0, max);
+}

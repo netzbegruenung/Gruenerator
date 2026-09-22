@@ -15,8 +15,6 @@ interface RecipeStartScreenProps {
   onGenerate: () => void;
   isLoading: boolean;
   error?: string | null;
-  /** Skip the AI draft and open the wizard straight on the Anleitung tab, where the examples option lives. */
-  onLearnFromExamples: () => void;
   /** Skip the AI draft and open an empty wizard. */
   onManual: () => void;
 }
@@ -47,7 +45,6 @@ function RecipeStartScreen({
   onGenerate,
   isLoading,
   error,
-  onLearnFromExamples,
   onManual,
 }: RecipeStartScreenProps) {
   const navigate = useNavigate();
@@ -75,10 +72,7 @@ function RecipeStartScreen({
           examples={EXAMPLE_PROMPTS}
           rows={2}
         />
-        <div className="flex justify-center gap-sm">
-          <Button variant="link" size="sm" onClick={onLearnFromExamples}>
-            Aus Beispielen anlernen
-          </Button>
+        <div className="flex justify-center">
           <Button variant="link" size="sm" onClick={onManual}>
             Lieber manuell anlegen?
           </Button>

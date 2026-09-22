@@ -4,7 +4,7 @@ import {
   TRANSLATION_DOCUMENT_EXTENSIONS,
   TRANSLATION_DOCUMENT_MAX_BYTES,
 } from '@gruenerator/contracts';
-import { Alert, AlertDescription, Button, Label } from '@gruenerator/ui';
+import { Alert, AlertDescription, Button } from '@gruenerator/ui';
 import { useId, useRef, useState, type DragEvent } from 'react';
 import { PiDownloadSimple, PiFileText, PiUploadSimple } from 'react-icons/pi';
 
@@ -14,18 +14,20 @@ import {
   useUploadDocument,
 } from '../hooks/useTranslation';
 
-import { FormalityToggle } from './FormalityToggle';
+import { FormalityMenu } from './FormalityMenu';
+import { LanguageBar } from './LanguageBar';
 import {
   AUTO,
   defaultTarget,
   glossaryTargets,
+  initialRecent,
   NF,
-  selectCls,
+  pushRecent,
   sourceOptions,
   targetOptions,
 } from './languageOptions';
 
-import { TreeBudgetLine } from '@/components/common/TreeBudgetLine';
+import { TreeBudgetChip } from '@/components/common/TreeBudgetLine';
 import { cn } from '@/utils/cn';
 
 interface DocumentTranslatorProps {
@@ -56,14 +58,19 @@ export function DocumentTranslator({ data }: DocumentTranslatorProps) {
   const [dragging, setDragging] = useState(false);
   const [jobId, setJobId] = useState<string | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [recentSource, setRecentSource] = useState(() =>
+    initialRecent(sources, [AUTO, 'de', defaultTarget(languages)])
+  );
+  const [recentTarget, setRecentTarget] = useState(() =>
+    initialRecent(targets, [defaultTarget(languages), 'de'], 3)
+  );
 
   const upload = useUploadDocument();
   const status = useDocumentStatus(jobId);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileId = useId();
-  const sourceId = useId();
-  const targetId = useId();
   const docxId = useId();
+  const sourceHintId = useId();
 
   const target = targets.find((l) => l.code === targetLang);
   // A glossary needs an explicit source. Whenever a dictionary translates INTO
@@ -148,7 +155,7 @@ export function DocumentTranslator({ data }: DocumentTranslatorProps) {
         onDragLeave={() => setDragging(false)}
         onDrop={onDrop}
         className={cn(
-          'flex cursor-pointer flex-col items-center justify-center gap-sm rounded-lg border-2 border-dashed px-md py-xl text-center transition-colors',
+          'flex cursor-pointer flex-col items-center justify-center gap-sm rounded-[14px] border-2 border-dashed px-md py-xl text-center transition-colors',
           'outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
           dragging
             ? 'border-primary-500 bg-primary-50 dark:bg-primary-950'
@@ -180,49 +187,44 @@ export function DocumentTranslator({ data }: DocumentTranslatorProps) {
         </p>
       </div>
 
-      <div className="grid gap-sm md:grid-cols-2">
-        <div className="flex flex-col gap-xs">
-          <Label htmlFor={sourceId}>Von</Label>
-          <select
-            id={sourceId}
-            className={selectCls}
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,300px),1fr))] items-start gap-x-xl gap-y-md">
+        <div className="min-w-0">
+          <LanguageBar
+            label="Von"
+            quickLabel="Ausgangssprache"
             value={sourceLang}
-            onChange={(e) => setSourceLang(e.target.value)}
-            aria-describedby={sourceRequired ? `${sourceId}-hint` : undefined}
-          >
-            <option value={AUTO} disabled={sourceRequired}>
-              {sourceRequired ? 'Bitte wählen' : 'Automatisch erkennen'}
-            </option>
-            {sources.map((l) => (
-              <option key={l.code} value={l.code}>
-                {l.name}
-              </option>
-            ))}
-          </select>
+            onChange={(code) => {
+              setSourceLang(code);
+              setRecentSource((r) => pushRecent(r, code));
+            }}
+            options={sources}
+            recent={recentSource}
+            withAuto
+            autoDisabled={sourceRequired}
+            describedBy={sourceRequired ? sourceHintId : undefined}
+          />
           {sourceRequired ? (
-            <p id={`${sourceId}-hint`} className="m-0 text-xs text-grey-500">
+            <p id={sourceHintId} className="m-0 mt-xs text-xs text-grey-500">
               Für diese Zielsprache gibt es ein Glossar — dafür braucht DeepL die Ausgangssprache.
             </p>
           ) : null}
         </div>
-        <div className="flex flex-col gap-xs">
-          <Label htmlFor={targetId}>Nach</Label>
-          <select
-            id={targetId}
-            className={selectCls}
+        <div className="min-w-0">
+          <LanguageBar
+            label="Nach"
+            quickLabel="Zielsprache"
             value={targetLang}
-            onChange={(e) => setTargetLang(e.target.value)}
+            onChange={(code) => {
+              setTargetLang(code);
+              setRecentTarget((r) => pushRecent(r, code, 3));
+            }}
+            options={targets}
+            recent={recentTarget}
           >
-            {targets.map((l) => (
-              <option key={l.code} value={l.code}>
-                {l.name}
-              </option>
-            ))}
-          </select>
+            {target?.formality ? <FormalityMenu value={formality} onChange={setFormality} /> : null}
+          </LanguageBar>
         </div>
       </div>
-
-      {target?.formality ? <FormalityToggle value={formality} onChange={setFormality} /> : null}
 
       {isPdf ? (
         <label htmlFor={docxId} className="flex items-center gap-xs text-sm text-foreground">
@@ -243,7 +245,7 @@ export function DocumentTranslator({ data }: DocumentTranslatorProps) {
       ) : null}
 
       {jobState ? (
-        <div className="flex flex-col gap-xs rounded-md bg-background-alt p-md" aria-live="polite">
+        <div className="flex flex-col gap-xs rounded-[14px] bg-primary-50 p-md" aria-live="polite">
           {jobState.status === 'done' ? (
             <>
               <p className="m-0 text-sm text-foreground">
@@ -271,8 +273,8 @@ export function DocumentTranslator({ data }: DocumentTranslatorProps) {
       ) : null}
 
       <div className="flex flex-wrap items-center justify-between gap-sm">
-        <div className="flex flex-col gap-xs">
-          <TreeBudgetLine status={quota} />
+        <div className="flex items-center gap-xs">
+          <TreeBudgetChip status={quota} hint="20.000 Zeichen = 1 Baum." />
           <p className="m-0 text-xs text-grey-500">
             DeepL rechnet jedes Dokument mit mindestens 50.000 Zeichen ab.
           </p>
