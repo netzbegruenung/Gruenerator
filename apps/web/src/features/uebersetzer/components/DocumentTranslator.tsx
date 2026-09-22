@@ -245,7 +245,10 @@ export function DocumentTranslator({ data }: DocumentTranslatorProps) {
       ) : null}
 
       {jobState ? (
-        <div className="flex flex-col gap-xs rounded-[14px] bg-primary-50 p-md" aria-live="polite">
+        <div
+          className="flex flex-col gap-xs rounded-[14px] bg-primary-50 p-md dark:bg-primary-950"
+          aria-live="polite"
+        >
           {jobState.status === 'done' ? (
             <>
               <p className="m-0 text-sm text-foreground">

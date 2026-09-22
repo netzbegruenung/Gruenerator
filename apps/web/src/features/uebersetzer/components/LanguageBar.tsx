@@ -55,7 +55,7 @@ export function LanguageBar({
   const nameOf = (code: string) => (code === AUTO ? AUTO_LABEL : languageName(options, code));
 
   return (
-    <div className="flex items-center gap-xxs border-b border-grey-200 px-xxs">
+    <div className="flex items-center gap-xxs border-b border-grey-200 px-xxs dark:border-grey-700">
       <div
         role="group"
         aria-label={`Schnellwahl ${quickLabel}`}
@@ -76,8 +76,8 @@ export function LanguageBar({
                 'outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
                 'disabled:cursor-not-allowed disabled:text-grey-500 disabled:shadow-none',
                 active
-                  ? 'text-primary-600 shadow-[inset_0_-3px_0_var(--primary-500)]'
-                  : 'text-grey-700 hover:text-primary-600'
+                  ? 'text-primary-600 shadow-[inset_0_-3px_0_var(--primary-500)] dark:text-primary-300'
+                  : 'text-grey-700 hover:text-primary-600 dark:text-grey-300 dark:hover:text-primary-300'
               )}
             >
               {blocked ? AUTO_OFF_LABEL : nameOf(code)}
@@ -88,7 +88,7 @@ export function LanguageBar({
 
       {/* The real control: invisible over the chevron, so every language stays
           reachable by keyboard and the picker keeps one accessible name. */}
-      <div className="relative flex h-10 w-9 shrink-0 items-center justify-center rounded-sm text-grey-700 has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/50">
+      <div className="relative flex h-10 w-9 shrink-0 items-center justify-center rounded-sm text-grey-700 dark:text-grey-300 has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/50">
         <PiCaretDown aria-hidden="true" className="text-lg" />
         <select
           aria-label={label}

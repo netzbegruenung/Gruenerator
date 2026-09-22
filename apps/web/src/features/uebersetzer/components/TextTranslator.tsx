@@ -29,6 +29,10 @@ import { cn } from '@/utils/cn';
 
 interface TextTranslatorProps {
   data: TranslationLanguagesResponse;
+  /** The Ausgangstext. It is owned by the page so the Bild tab can put its
+   *  recognised text straight into it — and so it survives a tab switch. */
+  text: string;
+  onTextChange: (next: string) => void;
 }
 
 const AUTO_DEBOUNCE_MS = 800;
@@ -50,7 +54,7 @@ export const AUTO_MAX_CHARS = 2000;
  *
  * Cmd/Ctrl+Enter always translates immediately.
  */
-export function TextTranslator({ data }: TextTranslatorProps) {
+export function TextTranslator({ data, text, onTextChange }: TextTranslatorProps) {
   const { languages, quota } = data;
   const sources = sourceOptions(languages);
   const targets = targetOptions(languages);
@@ -58,7 +62,6 @@ export function TextTranslator({ data }: TextTranslatorProps) {
   const [sourceLang, setSourceLang] = useState<string>(AUTO);
   const [targetLang, setTargetLang] = useState<string>(() => defaultTarget(languages));
   const [formality, setFormality] = useState<TranslationFormality>('default');
-  const [text, setText] = useState('');
   const [result, setResult] = useState<TranslateTextResponse | null>(null);
   const [copied, setCopied] = useState(false);
   const [recentSource, setRecentSource] = useState(() =>
@@ -160,7 +163,7 @@ export function TextTranslator({ data }: TextTranslatorProps) {
   const clear = () => {
     sentKey.current = null;
     pendingKey.current = null;
-    setText('');
+    onTextChange('');
     setResult(null);
   };
 
@@ -176,7 +179,7 @@ export function TextTranslator({ data }: TextTranslatorProps) {
     pickSource(sources.find((l) => l.code === newSource)?.code ?? newSource.split('-')[0]!);
     pickTarget(newTarget);
     if (result) {
-      setText(result.text);
+      onTextChange(result.text);
       setResult(null);
     }
   };
@@ -220,11 +223,11 @@ export function TextTranslator({ data }: TextTranslatorProps) {
             onSwap={swap}
             swapDisabled={sourceLang === AUTO && !result}
           />
-          <div className="relative mt-sm flex flex-col rounded-[14px] border border-grey-200 focus-within:border-primary-500">
+          <div className="relative mt-sm flex flex-col rounded-[14px] border border-grey-200 focus-within:border-primary-500 dark:border-grey-700">
             <textarea
               aria-label="Ausgangstext"
               value={text}
-              onChange={(e) => setText(e.target.value)}
+              onChange={(e) => onTextChange(e.target.value)}
               onKeyDown={onKeyDown}
               placeholder="Text eingeben oder einfügen …"
               aria-invalid={tooLong || undefined}
@@ -267,7 +270,7 @@ export function TextTranslator({ data }: TextTranslatorProps) {
           >
             {target?.formality ? <FormalityMenu value={formality} onChange={setFormality} /> : null}
           </LanguageBar>
-          <div className="mt-sm flex min-h-[262px] flex-col rounded-[14px] bg-primary-50">
+          <div className="mt-sm flex min-h-[262px] flex-col rounded-[14px] bg-primary-50 dark:bg-primary-950">
             {/* The translation now arrives without anyone pressing anything, so
                 it has to announce itself. The status line below therefore stays
                 silent — two live regions would double every message. */}
@@ -277,17 +280,17 @@ export function TextTranslator({ data }: TextTranslatorProps) {
               aria-live="polite"
               className={cn(
                 'flex-1 px-md py-md text-lg leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere] md:text-[22px]',
-                result ? 'text-foreground-heading' : 'text-grey-500'
+                result ? 'text-foreground-heading' : 'text-grey-500 dark:text-grey-300'
               )}
             >
               {result?.text ?? 'Übersetzung'}
             </div>
-            <div className="flex flex-wrap items-center justify-between gap-xs pb-xs pl-md pr-sm text-xs text-grey-500">
+            <div className="flex flex-wrap items-center justify-between gap-xs pb-xs pl-md pr-sm text-xs text-grey-500 dark:text-grey-300">
               <span className="inline-flex min-h-9 items-center gap-xs">
                 {translate.isPending ? (
                   <span
                     aria-hidden="true"
-                    className="inline-block size-3 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"
+                    className="inline-block size-3 animate-spin rounded-full border-2 border-primary-500 border-t-transparent dark:border-primary-300 dark:border-t-transparent"
                   />
                 ) : null}
                 {status}
@@ -306,7 +309,7 @@ export function TextTranslator({ data }: TextTranslatorProps) {
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="rounded-full text-primary-600 hover:bg-primary-100"
+                  className="rounded-full text-primary-600 hover:bg-primary-100 dark:text-primary-300 dark:hover:bg-primary-900"
                   disabled={!result}
                   onClick={() => void copy()}
                 >
