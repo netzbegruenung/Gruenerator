@@ -405,6 +405,27 @@ describe('RecipeEditor', () => {
     expect(screen.getByRole('button', { name: 'Gemeinsamkeiten erkennen' })).toBeEnabled();
   });
 
+  it('behandelt eine 200 ohne styleBlock als fehlgeschlagene Analyse', async () => {
+    // Eine wohlgeformte 200 ist nicht garantiert: ts-rest prüft die Antwort mit
+    // unserem eigenen `api` nicht nach. Fehlte das Feld, landete `undefined` im
+    // Formular und das nächste `form.styleBlock.trim()` riss die ganze Seite in
+    // die Fehlergrenze — statt der Zeile, die es dafür längst gibt (#3503).
+    analyze.mockResolvedValueOnce({ status: 200, body: { success: true, model: 'test' } });
+    const { user } = renderWithProviders(
+      <RecipeEditor mode="create" initialState={customCreateForm({ title: 'Mein Rezept' })} />
+    );
+
+    await openExamples(user);
+    fireEvent.change(screen.getByRole('textbox', { name: /Beispiele/ }), {
+      target: { value: 'Ein Beispieltext.' },
+    });
+    await user.click(screen.getByRole('button', { name: 'Gemeinsamkeiten erkennen' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('ohne Ergebnis');
+    // Das Formular steht noch, die Anleitung ist unberührt.
+    expect(screen.getByLabelText('Anleitung')).toHaveValue('');
+  });
+
   it('meldet eine fehlgeschlagene Analyse dauerhaft neben dem Knopf, nicht als Toast', async () => {
     analyze.mockRejectedValueOnce(new Error('Analyse fehlgeschlagen: Modell nicht erreichbar.'));
     const { user } = renderWithProviders(
