@@ -50,13 +50,17 @@ def compute_text_stats(doc: Doc, top_n: int, lemma_of: list[str]) -> dict:
     tokens = [t for t in doc if not t.is_space]
     lemma_counts: Counter[str] = Counter()
     pos_by_lemma: dict[str, Counter[str]] = defaultdict(Counter)
-    wanted = {lemma.lower(): lemma for lemma in lemma_of}
+    # Case-insensitive: "Wald" and "wald" are one lemma, and each requested
+    # spelling gets the forms under its own key.
+    wanted: dict[str, list[str]] = defaultdict(list)
+    for requested in dict.fromkeys(lemma_of):
+        wanted[requested.lower()].append(requested)
     forms: dict[str, Counter[str]] = {lemma: Counter() for lemma in lemma_of}
 
     for token in tokens:
         lemma = token.lemma_.lower()
-        if lemma in wanted:
-            forms[wanted[lemma]][token.text] += 1
+        for requested in wanted.get(lemma, ()):
+            forms[requested][token.text] += 1
         if token.pos_ not in LEMMA_POS or token.is_stop or token.is_punct or not lemma:
             continue
         lemma_counts[lemma] += 1
