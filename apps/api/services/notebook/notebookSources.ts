@@ -112,7 +112,8 @@ export async function fetchDocumentMetadata(
   );
 }
 
-export type SourceSortBy = 'name' | 'date' | 'pages' | 'size' | 'words' | 'status' | 'type';
+export type SourceSortBy =
+  'name' | 'date' | 'pages' | 'size' | 'words' | 'chars' | 'status' | 'type';
 export type SortOrder = 'asc' | 'desc';
 
 export interface SourceFilter {
@@ -187,11 +188,18 @@ const SORT_KEY: Record<SourceSortBy, (r: NotebookSourceRow) => string | number |
   pages: (r) => r.pages,
   size: (r) => r.sizeBytes,
   words: (r) => r.words,
+  chars: (r) => r.chars,
   status: (r) => r.status,
   type: (r) => r.sourceType,
 };
 
-const DESC_BY_DEFAULT: ReadonlySet<SourceSortBy> = new Set(['date', 'pages', 'size', 'words']);
+const DESC_BY_DEFAULT: ReadonlySet<SourceSortBy> = new Set([
+  'date',
+  'pages',
+  'size',
+  'words',
+  'chars',
+]);
 
 function compareRows(sortBy: SourceSortBy, order: SortOrder) {
   const key = SORT_KEY[sortBy];
