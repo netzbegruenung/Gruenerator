@@ -578,6 +578,62 @@ describe('rename', () => {
   });
 });
 
+describe('update', () => {
+  it('needs at least one field', async () => {
+    const { run, helper } = makeCtx();
+    expect(String((await run({ action: 'update', id: 'n1' })).error)).toContain('customPrompt');
+    expect(helper.updateNotebookCollection).not.toHaveBeenCalled();
+  });
+
+  it('is refused for a reader', async () => {
+    const { run, helper } = makeCtx({ access: READER });
+    const result = await run({ action: 'update', id: 'n1', description: 'Neu' });
+    expect(String(result.error)).toContain('Berechtigung');
+    expect(helper.updateNotebookCollection).not.toHaveBeenCalled();
+  });
+
+  it('is refused when the message rules out persistent changes', async () => {
+    const { run, helper } = makeCtx({ userText: 'Ändere nichts, antworte nur im Chat.' });
+    const result = await run({ action: 'update', id: 'n1', description: 'Neu' });
+    expect(String(result.error)).toContain('schließt Änderungen aus');
+    expect(helper.updateNotebookCollection).not.toHaveBeenCalled();
+  });
+
+  it('refuses more than 10 labels or labels over 40 characters', async () => {
+    const { run, helper } = makeCtx();
+    const many = Array.from({ length: 11 }, (_, i) => `L${i}`);
+    expect(String((await run({ action: 'update', id: 'n1', labels: many })).error)).toContain('10');
+    expect(
+      String((await run({ action: 'update', id: 'n1', labels: ['x'.repeat(41)] })).error)
+    ).toContain('40');
+    expect(helper.updateNotebookCollection).not.toHaveBeenCalled();
+  });
+
+  it('writes description, custom prompt and labels, keeping the other settings', async () => {
+    const { run, helper, notes } = makeCtx({ access: EDITOR });
+    const result = await run({
+      action: 'update',
+      id: 'n1',
+      description: ' Anträge ',
+      customPrompt: 'Antworte knapp.',
+      labels: [' Verkehr ', '', 'Klima'],
+    });
+    expect(result.ok).toBe(true);
+    expect(helper.updateNotebookCollection).toHaveBeenCalledWith('n1', {
+      description: 'Anträge',
+      custom_prompt: 'Antworte knapp.',
+      settings: { wolke_folders: [], linked_docs: [], labels: ['Verkehr', 'Klima'] },
+    });
+    expect(notes).toHaveLength(1);
+  });
+
+  it('touches only the fields it was given', async () => {
+    const { run, helper } = makeCtx();
+    await run({ action: 'update', id: 'n1', customPrompt: '' });
+    expect(helper.updateNotebookCollection).toHaveBeenCalledWith('n1', { custom_prompt: null });
+  });
+});
+
 describe('set_visibility', () => {
   it('emits the card with the resulting state, explaining „Mit Anmeldung"', async () => {
     const { run, sseEvents, helper } = makeCtx();
