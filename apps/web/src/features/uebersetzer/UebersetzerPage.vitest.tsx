@@ -204,6 +204,26 @@ describe('UebersetzerPage', () => {
     expect(screen.getByRole('button', { name: 'Anrede' })).toBeInTheDocument();
   });
 
+  it('blocks auto-detect in both halves of the picker when a glossary needs the source', async () => {
+    withLanguages();
+    const { user } = renderWithProviders(<UebersetzerPage />);
+    await screen.findByLabelText('Von');
+    await user.click(screen.getByRole('tab', { name: /Dokument/ }));
+
+    // `de>en` translates into the default target `en-GB`, so the source must be explicit.
+    const source = await screen.findByLabelText('Von');
+    expect(within(source).getByRole('option', { name: 'Bitte wählen' })).toBeDisabled();
+    // The quick-pick tab is the same control — it must not hand `auto` back.
+    expect(screen.getByRole('button', { name: 'Bitte wählen' })).toBeDisabled();
+
+    // The reason is announced with the picker, not left as a loose paragraph.
+    const hint = source.getAttribute('aria-describedby');
+    expect(hint).toBeTruthy();
+    expect(document.getElementById(hint!)).toHaveTextContent(
+      'Für diese Zielsprache gibt es ein Glossar'
+    );
+  });
+
   it('translates a long text only on demand, never on its own', async () => {
     withLanguages();
     let posts = 0;

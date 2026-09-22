@@ -7,6 +7,9 @@ import { AUTO, AUTO_LABEL, languageName } from './languageOptions';
 
 import { cn } from '@/utils/cn';
 
+/** Stands in for "Automatisch erkennen" wherever auto is off — tab and option alike. */
+const AUTO_OFF_LABEL = 'Bitte wählen';
+
 interface LanguageBarProps {
   /** Screen-reader name of the picker — "Von" or "Nach". */
   label: string;
@@ -21,6 +24,8 @@ interface LanguageBarProps {
   withAuto?: boolean;
   /** A glossary translates into the chosen target — auto would silently drop it. */
   autoDisabled?: boolean;
+  /** Id of a hint that explains the picker — announced with it, e.g. why auto is off. */
+  describedBy?: string;
   onSwap?: () => void;
   swapDisabled?: boolean;
   /** Sits at the right end of the bar, e.g. the formality menu. */
@@ -42,6 +47,7 @@ export function LanguageBar({
   recent,
   withAuto = false,
   autoDisabled = false,
+  describedBy,
   onSwap,
   swapDisabled,
   children,
@@ -57,21 +63,24 @@ export function LanguageBar({
       >
         {recent.map((code) => {
           const active = code === value;
+          const blocked = code === AUTO && autoDisabled;
           return (
             <button
               key={code}
               type="button"
               aria-pressed={active}
+              disabled={blocked}
               onClick={() => onChange(code)}
               className={cn(
                 'h-10 shrink-0 cursor-pointer whitespace-nowrap border-0 bg-transparent px-sm text-sm font-semibold',
                 'outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
+                'disabled:cursor-not-allowed disabled:text-grey-500 disabled:shadow-none',
                 active
                   ? 'text-primary-600 shadow-[inset_0_-3px_0_var(--primary-500)]'
                   : 'text-grey-700 hover:text-primary-600'
               )}
             >
-              {nameOf(code)}
+              {blocked ? AUTO_OFF_LABEL : nameOf(code)}
             </button>
           );
         })}
@@ -83,13 +92,14 @@ export function LanguageBar({
         <PiCaretDown aria-hidden="true" className="text-lg" />
         <select
           aria-label={label}
+          aria-describedby={describedBy}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           className="absolute inset-0 cursor-pointer opacity-0"
         >
           {withAuto ? (
             <option value={AUTO} disabled={autoDisabled}>
-              {autoDisabled ? 'Bitte wählen' : AUTO_LABEL}
+              {autoDisabled ? AUTO_OFF_LABEL : AUTO_LABEL}
             </option>
           ) : null}
           {options.map((l) => (

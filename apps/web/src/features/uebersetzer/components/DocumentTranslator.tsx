@@ -70,6 +70,7 @@ export function DocumentTranslator({ data }: DocumentTranslatorProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const fileId = useId();
   const docxId = useId();
+  const sourceHintId = useId();
 
   const target = targets.find((l) => l.code === targetLang);
   // A glossary needs an explicit source. Whenever a dictionary translates INTO
@@ -200,9 +201,10 @@ export function DocumentTranslator({ data }: DocumentTranslatorProps) {
             recent={recentSource}
             withAuto
             autoDisabled={sourceRequired}
+            describedBy={sourceRequired ? sourceHintId : undefined}
           />
           {sourceRequired ? (
-            <p className="m-0 mt-xs text-xs text-grey-500">
+            <p id={sourceHintId} className="m-0 mt-xs text-xs text-grey-500">
               Für diese Zielsprache gibt es ein Glossar — dafür braucht DeepL die Ausgangssprache.
             </p>
           ) : null}
