@@ -74,6 +74,20 @@ describe('method texts', () => {
     expect(text).toContain('action="search"');
   });
 
+  it('walks the notebook method from list over find and read to the locators', () => {
+    const text = buildNotebookMethodText('Mein Notebook');
+    const order = [
+      '`notebooks` mit `action="list"`',
+      '`action="find"`',
+      '`action="read"`',
+      'Fundstelle belegen',
+    ];
+    const positions = order.map((needle) => text.indexOf(needle));
+    expect(positions.every((p) => p >= 0)).toBe(true);
+    expect([...positions].sort((a, b) => a - b)).toEqual(positions);
+    expect(text).not.toContain('Rerank');
+  });
+
   it('tells the client that synthesis is its own job, with the one exception', () => {
     const doc = buildMethodDocument();
     expect(doc).toContain('liefert Belege, keine fertigen Texte');
