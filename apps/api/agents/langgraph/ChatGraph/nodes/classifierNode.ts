@@ -842,7 +842,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
         looksLikeNotebookToolAsk(userContent)
       ) {
         log.info('[Classifier] Notebook tool ask → loop with notebook_quellen pinned');
-        recordDecision('classifier.tier', 'notebook_tool_ask', {});
+        recordDecision('classifier.tier', 'tier2_notebook_tool_ask', {});
         return {
           intent: 'agentic',
           mentionPinnedTool: 'notebook_quellen',
