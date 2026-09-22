@@ -25,7 +25,6 @@ import { RecipeSharingPanel } from './RecipeSharingPanel';
 import { splitExamples } from './splitExamples';
 
 import PageContainer from '@/components/common/PageContainer';
-import { UnderlineTabs } from '@/components/common/UnderlineTabs';
 
 const labelCls = 'flex flex-col gap-xs text-sm font-medium';
 
@@ -83,28 +82,26 @@ function normalizeMention(value: string): string {
   return slugifyName(value, '');
 }
 
-type Section = 'grund' | 'anleitung' | 'teilen';
-
 interface RecipeEditorProps {
   mode: 'create' | 'edit';
   /** EMPTY_RECIPE_FORM (or a classification-seeded variant) for create, hydrateRecipeForm(form) for edit. */
   initialState: RecipeFormState;
-  initialSection?: Section;
   onCancel?: () => void;
 }
 
 /**
- * Single-page recipe editor: a sticky action header, the form split into
- * Grundlagen / Anleitung / Teilen tabs, and a live preview pane
+ * Single-page recipe editor: a sticky action header, one continuous form —
+ * name, mention, description, Anleitung, the examples disclosure that fills
+ * it, and (for a saved own recipe) sharing — and a live preview pane
  * alongside. Shared by the create and edit routes, so create and edit behave
- * identically. Mirrors `agents/AgentEditor.tsx`.
+ * identically.
+ *
+ * The form used to be split across Grundlagen / Anleitung / Teilen tabs. Six
+ * fields do not need three tabs, and the split had a cost: the name sat on a
+ * tab the examples disclosure could not see, so that disclosure grew a second
+ * name field of its own. One form, one name field.
  */
-function RecipeEditor({
-  mode,
-  initialState,
-  initialSection = 'grund',
-  onCancel,
-}: RecipeEditorProps) {
+function RecipeEditor({ mode, initialState, onCancel }: RecipeEditorProps) {
   const navigate = useNavigate();
   const confirm = useConfirm();
   const saveMut = useSaveRecipe();
@@ -119,13 +116,9 @@ function RecipeEditor({
     null
   );
   const [justSaved, setJustSaved] = useState(false);
-  const [section, setSection] = useState<Section>(initialSection);
-  // Open the examples disclosure where it is the point: a recipe that already
-  // carries examples, and the "Aus Beispielen anlernen" entry — the only thing
-  // that opens the editor on the Anleitung tab.
-  const [examplesOpen, setExamplesOpen] = useState(
-    initialSection === 'anleitung' || initialState.rawExamples.trim().length > 0
-  );
+  // Open the disclosure where it is the point: a recipe that already carries
+  // examples. Otherwise it stays folded — raw material, not a required step.
+  const [examplesOpen, setExamplesOpen] = useState(initialState.rawExamples.trim().length > 0);
 
   const set = <K extends keyof RecipeFormState>(k: K, v: RecipeFormState[K]) => {
     setJustSaved(false);
@@ -200,7 +193,6 @@ function RecipeEditor({
       const blocker = mentionBlocker(mention, lvIds);
       if (blocker) {
         setMentionError(blocker);
-        setSection('grund');
         return;
       }
     }
@@ -226,7 +218,6 @@ function RecipeEditor({
           text: err instanceof Error ? err.message : 'Diese Mention ist bereits vergeben.',
           href: null,
         });
-        setSection('grund');
         return;
       }
       setError(err instanceof Error ? err.message : 'Speichern fehlgeschlagen.');
@@ -249,14 +240,8 @@ function RecipeEditor({
     }
   };
 
-  // ── Teilen tab — only for a custom recipe the user already owns. ───────────
+  // ── Teilen — only for a custom recipe the user already owns. ──────────────
   const showTeilen = mode === 'edit' && form.kind === 'custom';
-
-  const sectionTabs = [
-    { key: 'grund' as const, label: 'Grundlagen' },
-    { key: 'anleitung' as const, label: `Anleitung${exampleCount ? ` · ${exampleCount}` : ''}` },
-    ...(showTeilen ? [{ key: 'teilen' as const, label: 'Teilen' }] : []),
-  ];
 
   return (
     <PageContainer maxWidth="lg" noPadTop>
@@ -331,142 +316,133 @@ function RecipeEditor({
 
       <div className="grid grid-cols-1 gap-lg lg:grid-cols-[minmax(0,1fr)_minmax(0,340px)] lg:gap-2xl">
         {/* ── Form column ─────────────────────────────────────────────── */}
-        <div className="min-w-0">
-          <UnderlineTabs
-            tabs={sectionTabs}
-            value={section}
-            onChange={setSection}
-            className="mb-lg"
-          />
+        <div className="flex min-w-0 flex-col gap-lg">
+          <div className="flex items-end gap-sm">
+            <label className={`${labelCls} flex-1`}>
+              Name
+              <Input
+                value={form.title}
+                onChange={(e) => set('title', e.target.value)}
+                maxLength={MAX_TEXT_FORM_TITLE_CHARS}
+                placeholder="Gib deinem Rezept einen Namen"
+              />
+            </label>
+            <IconPicker compact value={form.iconKey} onChange={(v) => set('iconKey', v)} />
+          </div>
 
-          {section === 'grund' && (
-            <div className="flex flex-col gap-lg">
-              <div className="flex items-end gap-sm">
-                <label className={`${labelCls} flex-1`}>
-                  Name
-                  <Input
-                    value={form.title}
-                    onChange={(e) => set('title', e.target.value)}
-                    maxLength={MAX_TEXT_FORM_TITLE_CHARS}
-                    placeholder="Gib deinem Rezept einen Namen"
-                  />
-                </label>
-                <IconPicker compact value={form.iconKey} onChange={(v) => set('iconKey', v)} />
-              </div>
-
-              {canEditMention ? (
-                <label className={labelCls}>
-                  @mention
-                  <Input
-                    value={mentionFieldValue}
-                    onChange={(e) => {
-                      setJustSaved(false);
-                      setForm((prev) => ({
-                        ...prev,
-                        mentionTouched: true,
-                        mention: typeMention(e.target.value),
-                      }));
-                    }}
-                    onBlur={() =>
-                      setForm((prev) =>
-                        prev.mentionTouched
-                          ? { ...prev, mention: normalizeMention(prev.mention) }
-                          : prev
-                      )
-                    }
-                    maxLength={MAX_MENTION_CHARS}
-                    placeholder="mein-rezept"
-                    aria-invalid={mentionError ? true : undefined}
-                    aria-describedby={
-                      mentionError ? mentionErrorId : mentionHint ? mentionHintId : undefined
-                    }
-                  />
-                </label>
-              ) : (
-                <div>
-                  <span className="inline-flex items-center rounded-full border border-grey-200 px-sm py-0.5 text-xs text-foreground-muted dark:border-grey-700">
-                    @{mention}
-                  </span>
-                  <p className="mt-xs text-xs text-foreground-muted">{recipeMetaLine(mention)}</p>
-                </div>
-              )}
-              {mentionHint && !mentionError && (
-                <p id={mentionHintId} className="text-sm text-foreground-muted">
-                  {mentionHint}
-                </p>
-              )}
-              {mentionError && (
-                <p id={mentionErrorId} role="alert" className="text-sm text-destructive">
-                  {mentionError.text}
-                  {mentionError.href && (
-                    <>
-                      {' '}
-                      <Link to={mentionError.href} className="underline">
-                        Zum Rezept
-                      </Link>
-                    </>
-                  )}
-                </p>
-              )}
-
-              <label className={labelCls}>
-                Beschreibung
-                <Input
-                  value={form.description}
-                  onChange={(e) => set('description', e.target.value)}
-                  maxLength={MAX_TEXT_FORM_DESCRIPTION_CHARS}
-                  placeholder="Beschreibe dein Rezept und wie es funktioniert"
-                />
-              </label>
+          {canEditMention ? (
+            <label className={labelCls}>
+              @mention
+              <Input
+                value={mentionFieldValue}
+                onChange={(e) => {
+                  setJustSaved(false);
+                  setForm((prev) => ({
+                    ...prev,
+                    mentionTouched: true,
+                    mention: typeMention(e.target.value),
+                  }));
+                }}
+                onBlur={() =>
+                  setForm((prev) =>
+                    prev.mentionTouched
+                      ? { ...prev, mention: normalizeMention(prev.mention) }
+                      : prev
+                  )
+                }
+                maxLength={MAX_MENTION_CHARS}
+                placeholder="mein-rezept"
+                aria-invalid={mentionError ? true : undefined}
+                aria-describedby={
+                  mentionError ? mentionErrorId : mentionHint ? mentionHintId : undefined
+                }
+              />
+            </label>
+          ) : (
+            <div>
+              <span className="inline-flex items-center rounded-full border border-grey-200 px-sm py-0.5 text-xs text-foreground-muted dark:border-grey-700">
+                @{mention}
+              </span>
+              <p className="mt-xs text-xs text-foreground-muted">{recipeMetaLine(mention)}</p>
             </div>
           )}
+          {mentionHint && !mentionError && (
+            <p id={mentionHintId} className="text-sm text-foreground-muted">
+              {mentionHint}
+            </p>
+          )}
+          {mentionError && (
+            <p id={mentionErrorId} role="alert" className="text-sm text-destructive">
+              {mentionError.text}
+              {mentionError.href && (
+                <>
+                  {' '}
+                  <Link to={mentionError.href} className="underline">
+                    Zum Rezept
+                  </Link>
+                </>
+              )}
+            </p>
+          )}
 
-          {section === 'anleitung' && (
-            <div className="flex flex-col gap-sm">
-              <label className={labelCls}>
-                Anleitung
-                <Textarea
-                  className="min-h-[320px] font-mono"
-                  value={form.styleBlock}
-                  onChange={(e) => set('styleBlock', e.target.value)}
-                  maxLength={MAX_TEXT_FORM_STYLE_CHARS}
-                  rows={16}
-                  placeholder="Schreibe im Stil von…"
-                />
-              </label>
-              <p className="text-xs text-foreground-muted">
-                wird dem Modell als Schreibvorgabe gegeben
+          <label className={labelCls}>
+            Beschreibung
+            <Input
+              value={form.description}
+              onChange={(e) => set('description', e.target.value)}
+              maxLength={MAX_TEXT_FORM_DESCRIPTION_CHARS}
+              placeholder="Beschreibe dein Rezept und wie es funktioniert"
+            />
+          </label>
+
+          <div className="flex flex-col gap-sm">
+            <label className={labelCls}>
+              Anleitung
+              <Textarea
+                className="min-h-[320px] font-mono"
+                value={form.styleBlock}
+                onChange={(e) => set('styleBlock', e.target.value)}
+                maxLength={MAX_TEXT_FORM_STYLE_CHARS}
+                rows={16}
+                placeholder="Schreibe im Stil von…"
+              />
+            </label>
+            <p className="text-xs text-foreground-muted">
+              wird dem Modell als Schreibvorgabe gegeben
+            </p>
+
+            {/* Examples are raw material for the Anleitung above, not a
+                  subject of their own — they sit right under the field they
+                  fill, folded away until someone wants them. */}
+            <details
+              open={examplesOpen}
+              onToggle={(e) => setExamplesOpen(e.currentTarget.open)}
+              className="mt-md border-t border-grey-200 pt-md dark:border-grey-700"
+            >
+              <summary className="cursor-pointer text-sm font-medium">
+                Aus Beispielen lernen{exampleCount ? ` · ${exampleCount}` : ''}
+              </summary>
+              <p className="mb-md mt-xs text-xs text-foreground-muted">
+                Füge Beispieltexte ein — daraus wird eine Anleitung erkannt, die du oben weiter
+                anpassen kannst.
               </p>
+              <ExamplesPanel
+                rawExamples={form.rawExamples}
+                onChange={(v) => set('rawExamples', v)}
+                textType={form.textType}
+                title={form.title}
+                hasStyleBlock={styleValid}
+                onAnalyzed={(styleBlock) => set('styleBlock', styleBlock)}
+              />
+            </details>
+          </div>
 
-              {/* Examples are raw material for the Anleitung above, not a
-                  subject of their own — they sit next to the field they fill
-                  instead of on a tab that hides the Name field from them. */}
-              <details
-                open={examplesOpen}
-                onToggle={(e) => setExamplesOpen(e.currentTarget.open)}
-                className="mt-md border-t border-grey-200 pt-md dark:border-grey-700"
-              >
-                <summary className="cursor-pointer text-sm font-medium">
-                  Aus Beispielen lernen{exampleCount ? ` · ${exampleCount}` : ''}
-                </summary>
-                <p className="mb-md mt-xs text-xs text-foreground-muted">
-                  Füge Beispieltexte ein — daraus wird eine Anleitung erkannt, die du oben weiter
-                  anpassen kannst.
-                </p>
-                <ExamplesPanel
-                  rawExamples={form.rawExamples}
-                  onChange={(v) => set('rawExamples', v)}
-                  textType={form.textType}
-                  title={form.title}
-                  onTitleChange={(v) => set('title', v)}
-                  hasStyleBlock={styleValid}
-                  onAnalyzed={(styleBlock) => set('styleBlock', styleBlock)}
-                />
-              </details>
-            </div>
+          {showTeilen && (
+            <section className="flex flex-col gap-md border-t border-grey-200 pt-lg dark:border-grey-700">
+              <h2 className="m-0 text-sm font-medium">Teilen</h2>
+              <RecipeSharingPanel mention={mention} enabled />
+            </section>
           )}
-
-          {section === 'teilen' && <RecipeSharingPanel mention={mention} enabled />}
         </div>
 
         {/* ── Preview pane ────────────────────────────────────────────── */}
