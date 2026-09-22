@@ -31,7 +31,12 @@ vi.mock('./chunkingPipeline.js', () => ({
   chunkAndEmbedText: (...args: unknown[]) => chunkAndEmbedText(...args) as unknown,
 }));
 
-const { processFileUpload } = await import('./fileProcessing.js');
+const hasAiConsent = vi.fn(async () => true);
+vi.mock('../../../middleware/requireAiConsent.js', () => ({
+  hasAiConsent: (...args: unknown[]) => hasAiConsent(...(args as [])),
+}));
+
+const { processFileUpload, processUploadedDocument } = await import('./fileProcessing.js');
 
 const file = {
   buffer: Buffer.from('%PDF-1.4 …'),
@@ -89,5 +94,37 @@ describe('processFileUpload — knownText', () => {
 
     expect(extractTextFromFile).toHaveBeenCalledOnce();
     expect(chunkAndEmbedText.mock.calls[0]?.[0]).toBe('aus der Datei gelesen');
+  });
+});
+
+describe('processUploadedDocument — Art.-9-Einwilligung', () => {
+  it('liest ohne Einwilligung nichts aus und verbucht den Grund am Dokument', async () => {
+    hasAiConsent.mockResolvedValueOnce(false);
+    const updateDocumentMetadata = vi.fn().mockResolvedValue(undefined);
+    const getDocumentById = vi.fn();
+
+    await expect(
+      processUploadedDocument(
+        { updateDocumentMetadata, getDocumentById } as never,
+        { storeDocumentVectors } as never,
+        'doc-1',
+        'u1'
+      )
+    ).rejects.toThrow(/Einwilligung/);
+
+    expect(hasAiConsent).toHaveBeenCalledWith('u1');
+    expect(getDocumentById).not.toHaveBeenCalled();
+    expect(extractTextFromFile).not.toHaveBeenCalled();
+    expect(chunkAndEmbedText).not.toHaveBeenCalled();
+    expect(updateDocumentMetadata).toHaveBeenCalledWith(
+      'doc-1',
+      'u1',
+      expect.objectContaining({
+        status: 'failed',
+        additionalMetadata: expect.objectContaining({
+          processing_error: expect.stringContaining('Einwilligung'),
+        }),
+      })
+    );
   });
 });
