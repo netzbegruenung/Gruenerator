@@ -146,6 +146,8 @@ export interface SourceStatsResult {
   /** `null`: keine Lemmata gefragt, der Dienst wurde nicht gerufen. */
   nlpAvailable: boolean | null;
   totals: TextCounts & { pages: number; chunks: number };
+  /** Nur bei `scope: 'source'`. */
+  source?: { id: string; title: string };
   perSource?: StatsRow[];
   lemmas?: LemmaCount[];
   lemmaOf?: LemmaOfEntry[];
@@ -208,7 +210,9 @@ export async function computeSourceStats(
       pages: sum((r) => r.pages),
       chunks: sum((r) => r.chunks),
     },
-    ...(input.sourceId ? {} : { perSource: rows }),
+    ...(input.sourceId
+      ? { source: { id: input.sourceId, title: rows[0]?.title ?? '(ohne Titel)' } }
+      : { perSource: rows }),
   };
 
   const lemmaOf = input.lemmaOf ?? [];

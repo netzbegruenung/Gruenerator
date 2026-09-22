@@ -154,6 +154,7 @@ describe('computeSourceStats', () => {
     if ('error' in out) throw new Error(out.error);
     expect(out.scope).toBe('source');
     expect(out.perSource).toBeUndefined();
+    expect(out.source).toEqual({ id: 'd2', title: 'Protokoll' });
     expect(out.totals.words).toBe(2);
   });
 
