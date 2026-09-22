@@ -64,10 +64,27 @@ describe('ProjektePage — Leerzustand', () => {
     expect(screen.getByText(EMPTY_TEXT)).toBeInTheDocument();
   });
 
-  it('sagt während des Abrufs nicht, dass es keine Projekte gibt', () => {
-    useGroups.mockReturnValue(groupsResult({ isFetchingGroups: true }));
+  it('sagt während des ersten Abrufs nicht, dass es keine Projekte gibt', () => {
+    useGroups.mockReturnValue(groupsResult({ isLoadingGroups: true, isFetchingGroups: true }));
     renderWithProviders(<ProjektePage />);
     expect(screen.queryByText(EMPTY_TEXT)).not.toBeInTheDocument();
+  });
+
+  // `isFetching` allein taugt nicht als Ladeanzeige: es ist auch bei jedem
+  // Hintergrund-Refetch true — etwa bei der Invalidierung, nachdem im Chat ein
+  // Projekt angelegt wurde. Die bereits geladenen Kacheln müssen stehen
+  // bleiben, sonst blinkt die Liste bei jeder Mutation weg.
+  it('behält die geladenen Kacheln während eines Hintergrund-Refetchs', () => {
+    useGroups.mockReturnValue(
+      groupsResult({
+        userGroups: [{ id: 'g1', name: 'Mein Projekt', role: 'admin', isAdmin: true }],
+        isLoadingGroups: false,
+        isFetchingGroups: true,
+      })
+    );
+    renderWithProviders(<ProjektePage />);
+    expect(screen.getByText('Mein Projekt')).toBeInTheDocument();
+    expect(screen.queryByText(/Projekte werden geladen/i)).not.toBeInTheDocument();
   });
 
   it('meldet einen gescheiterten Abruf als Fehler statt als Leerzustand', () => {

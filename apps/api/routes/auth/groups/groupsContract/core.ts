@@ -267,8 +267,13 @@ export const coreRoutes = {
       // erreicht per `excludeUserId` gerade die löschende Person nicht — ein
       // Solo-Projekt verschwand damit spurlos, und die Frage „gelöscht oder nie
       // angelegt?" war hinterher nicht mehr zu beantworten.
+      // Der Name kommt von der Person und geht ungeprüft durch: `JSON.stringify`
+      // escapt Zeilenumbrüche und Anführungszeichen, sonst könnte ein Name wie
+      // `x\n[groupsContract.deleteGroup] deleted group=…` eine zweite, erfundene
+      // Zeile ins Log schreiben — und damit genau die Beweiskraft zerstören,
+      // für die diese Zeile da ist.
       log.info(
-        `[groupsContract.deleteGroup] deleted group=${groupId} name="${groupData.name}" ` +
+        `[groupsContract.deleteGroup] deleted group=${groupId} name=${JSON.stringify(groupData.name)} ` +
           `type=${groupData.group_type ?? 'unknown'} members=${memberCount} by=${userId}`
       );
 
