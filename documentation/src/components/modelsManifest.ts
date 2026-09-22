@@ -47,6 +47,7 @@ export const PROVIDER_HOSTS = [
   'Black Forest Labs',
   'Cortecs',
   'GreenPT',
+  'Melious',
   'Mistral AI',
   'Regolo',
   'Scaleway',

@@ -3,6 +3,8 @@ sidebar_position: 4
 description: 'Welches KI-Modell deine Texte schreibt: was der Modus „Automatisch" entscheidet und wann sich eine eigene Wahl lohnt.'
 ---
 
+import { ModelHosts } from '@site/src/components/ModelTable';
+
 # KI-Modelle
 
 Beim Grünerieren kannst du selbst wählen, welches KI-Modell deine Texte erstellt. Jedes Modell hat eigene Stärken – von besonders kreativ bis besonders schnell. Standardmäßig übernimmt der Grünerator die Wahl für dich.
@@ -31,6 +33,6 @@ Für die Bildgenerierung kommen eigene Modelle zum Einsatz (u. a. Flux von Black
 
 Alle verfügbaren Modelle erfüllen höchste Datenschutzstandards:
 
-- **Europäische Server**: Deine Eingaben werden ausschließlich auf europäischen Servern verarbeitet – bei Mistral AI (Frankreich), Regolo (Italien) oder Cortecs (EU). Eigene, selbst gehostete Modelle setzt der Grünerator seit dem 29.08.2026 nicht mehr ein (siehe [Nachhaltigkeit](../basics/nachhaltigkeit.md)).
+- **Europäische Server**: Deine Eingaben werden ausschließlich von europäischen Anbietern verarbeitet. Die KI-Modelle laufen derzeit bei <ModelHosts />; welcher Anbieter welche Aufgabe übernimmt, steht unter [Grünerator Pro-EU](../basics/gruenerator-pro-eu.md). Dazu kommen Dienste, die selbst kein Modell rechnen, deine Eingaben aber trotzdem sehen – etwa die Websuche. Vollständig und verbindlich sind alle Anbieter in der [Datenschutzerklärung](https://gruenerator.de/datenschutz) aufgeführt. Eigene, selbst gehostete Modelle setzt der Grünerator seit dem 29.08.2026 nicht mehr ein (siehe [Nachhaltigkeit](../basics/nachhaltigkeit.md)).
 - **Kein KI-Training**: Deine Eingaben werden nicht zum Training der KI verwendet.
 - **Offene Modelle**: Hinter **Klein** und **Mittel** stehen Modelle mit offenen Gewichten (Open Weights), die jeder prüfen und selbst betreiben kann.
