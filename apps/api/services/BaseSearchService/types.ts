@@ -92,6 +92,9 @@ export interface RawChunk {
   content_type?: string | undefined;
   page_number?: number | undefined;
   chunk_type?: string | undefined;
+  /** Offsets im Originaltext (`buildChunkPayloadFields`); `null` vor #3223. */
+  char_start?: number | null;
+  char_end?: number | null;
   url?: string | undefined;
   metadata?: {
     content_type?: string | undefined;
@@ -117,6 +120,8 @@ export interface ChunkData {
   content_type?: string | null | undefined;
   page_number?: number | null | undefined;
   chunk_type?: string | null | undefined;
+  char_start?: number | null;
+  char_end?: number | null;
   similarity: number;
   similarity_adjusted?: number | undefined;
   has_term?: boolean | undefined;
@@ -224,6 +229,13 @@ export interface TopChunk {
   chunk_type?: string | null | undefined;
   quality_score?: number | null | undefined;
   has_term?: boolean | undefined;
+  /**
+   * Wo der Chunk im Originaltext (`documents.markdown_content`) steht — die
+   * Fundstelle, mit der `notebook_quellen` zitiert. `null` bei Chunks von vor
+   * #3223 und bei Sammlungen ohne Offsets.
+   */
+  char_start?: number | null;
+  char_end?: number | null;
   /** Short excerpt for display in the UI's citation list. */
   preview: string;
   /**

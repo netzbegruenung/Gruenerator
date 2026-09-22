@@ -22,6 +22,7 @@ import {
   executeDirectSearch,
 } from '../chat/agents/directSearchExecutors.js';
 import { makeGroupsTool } from '../chat/agents/groupTools.js';
+import { makeNotebookSourcesTool } from '../chat/agents/notebookSourceTools.js';
 import { makeNotebooksTool } from '../chat/agents/notebookTools.js';
 import {
   makeBoardsTasksTool,
@@ -648,6 +649,13 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
           : {}),
       },
       ...(contentWrite ? {} : { readOnly: true }),
+    });
+
+    // Alle vier Aktionen lesen nur — dieselbe Liste für content:read und content:write.
+    registerAiTool(server, 'notebook_quellen', makeNotebookSourcesTool(ctx), {
+      description: `Die Quellen EINES Notebooks (notebookId aus notebooks action="list"): auflisten (list, sortier- und filterbar — die sourceId steht im ref), gliedern (outline), lesen (read — ab Zeichen mit abschnitt.von, eine seite, eine section aus outline oder ein chunks-Bereich) und Passagen finden (find mit query, optional nur in einer sourceId). find liefert Rohpassagen mit Seite und Zeichenbereich — belege damit selbst.`,
+      actions: ['list', 'outline', 'read', 'find'],
+      readOnly: true,
     });
   }
 

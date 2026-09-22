@@ -415,20 +415,14 @@ pnpm run build:documentation   # Build documentation site
 
 ```
 documentation/
-├── docs/           # Main documentation pages
-│   ├── basics/            # What the Grünerator is, how LLMs work
-│   ├── konto/             # Profile and cloud features
-│   ├── chat/              # Content generation features
-│   ├── grueneratoren/     # Specialized generators
-│   ├── wissen/            # Notebooks and knowledge sources
-│   ├── office/            # Docs, boards, sheets, presentations
-│   ├── integrationen/     # MCP and third-party connectors
-│   ├── experimente/       # Monitor and other experimental features
-│   └── archiv/            # Newsletter and Signal message archive
+├── docs/           # Articles, grouped by section
 ├── blog/           # News and updates
-├── src/            # Custom pages and components
+├── src/
+│   └── nav/sections.ts   # The sections: startpage grid, navbar, footer
 └── static/         # Images and assets
 ```
+
+The sections under `docs/` are deliberately not listed here: they are defined once in [`documentation/src/nav/sections.ts`](documentation/src/nav/sections.ts), and a copy in this README went stale the last time they were reorganised.
 
 ### Keeping Docs (and this README) Fresh
 

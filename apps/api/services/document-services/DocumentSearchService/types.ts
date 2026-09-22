@@ -225,6 +225,13 @@ export interface DocumentChunkItem {
   text: string;
   tokens: number;
   pageNumber?: number | null | undefined;
+  /** Offsets in `documents.markdown_content`; `null` vor #3223 oder nicht auffindbar. */
+  charStart?: number | null;
+  charEnd?: number | null;
+  headingPath?: string[] | null;
+  heading?: string | null;
+  sectionIndex?: number | null;
+  chunkType?: string | null;
 }
 
 /** Ein Chunk, wie der Inspektor ihn zeigt — nur, was im Punkt liegt. */

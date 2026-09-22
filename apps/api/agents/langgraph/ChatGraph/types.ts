@@ -288,6 +288,12 @@ export interface SearchResult {
   chunkIndex?: number | undefined;
   similarityScore?: number | undefined;
   collectionId?: string | undefined;
+  /** Fundstelle im Dokument (`notebook_quellen`): Seite und Zeichenbereich im Originaltext. */
+  pageNumber?: number | null;
+  charStart?: number | null;
+  charEnd?: number | null;
+  /** Der belegte Wortlaut, wenn er nicht der Anfang von `content` ist. */
+  citedText?: string;
   [key: string]: unknown;
 }
 
@@ -330,6 +336,7 @@ export interface Citation {
   chunkIndex?: number | undefined;
   similarityScore?: number | undefined;
   collectionId?: string | undefined;
+  pageNumber?: number | null;
   // Set when this citation came from a fan-out per-document retrieval
   // (multi-document chat). Lets the UI group source cards by referenced doc.
   documentSourceId?: string | undefined;
