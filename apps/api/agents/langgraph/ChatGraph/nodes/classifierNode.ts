@@ -19,6 +19,7 @@
 import { type ChatIntentId, degradeTargetForLocale } from '@gruenerator/shared/chat-intents';
 import { isCloudShareUrl } from '@gruenerator/shared/utils';
 
+import { isUserNotebookId } from '../../../../config/notebookCollectionMap.js';
 import { agentAllowsTool } from '../../../../routes/chat/agents/agentToolWhitelist.js';
 import { isAgenticLoopEnabled } from '../../../../routes/chat/services/agenticLoop/flags.js';
 import {
@@ -27,6 +28,7 @@ import {
   looksLikeToolableQuestion,
   looksLikeUnsourcedWritingOrder,
 } from '../../../../routes/chat/services/agenticLoop/routing.js';
+import { looksLikeNotebookToolAsk } from '../../../../routes/chat/services/notebookToolAsk.js';
 import { isSharepicEditInstruction } from '../../../../routes/chat/services/sharepicEditHeuristics.js';
 import { containsInstructionMarkers } from '../../../../routes/chat/services/untrustedContent.js';
 import { escapeRegExp } from '../../../../services/BaseSearchService/textUtils.js';
@@ -824,6 +826,36 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // Also detect compound queries: notebook + non-default agent = gather-then-apply pipeline.
     if (hasNotebooks) {
       const isNonDefaultAgent = state.agentConfig.identifier !== 'gruenerator-universal';
+
+      // Ein Werkzeugauftrag an ein EIGENES Notebook („sortiere die Quellen",
+      // „was steht auf Seite 12") geht in die Schleife, mit `notebook_quellen`
+      // als erstem Aufruf — dieselbe Form wie der Dauerauftrag in Tier 3.4. Der
+      // Pin macht den Turn zu `mustLoop` (`turnPlan`), das hebt die
+      // Notebook-Sperre in `decideRunAgentic` auf; das Werkzeug fällt ohne
+      // `notebookId` auf das gewählte Notebook zurück. Nicht bei benannten
+      // Agenten (`isCompound` hält sie im Einzeldurchlauf, der Pin liefe dort
+      // ins Leere) und nicht bei reinen System-Notebooks, die das Werkzeug
+      // ablehnt. Alles andere bleibt die gemessene Notebook-Suche unten.
+      if (
+        !isNonDefaultAgent &&
+        state.notebookIds.some(isUserNotebookId) &&
+        looksLikeNotebookToolAsk(userContent)
+      ) {
+        log.info('[Classifier] Notebook tool ask → loop with notebook_quellen pinned');
+        recordDecision('classifier.tier', 'notebook_tool_ask', {});
+        return {
+          intent: 'agentic',
+          mentionPinnedTool: 'notebook_quellen',
+          searchSources: [],
+          searchQuery: userContent.slice(0, 500),
+          detectedFilters: null,
+          reasoning: 'Werkzeugauftrag an ein gewähltes Notebook → Werkzeug notebook_quellen',
+          hasTemporal: temporal.hasTemporal,
+          complexity,
+          classificationTimeMs: Date.now() - startTime,
+        };
+      }
+
       const gatherSources: GatherSource[] = ['notebook-search'];
 
       // Empty user content after mention stripping (e.g., "@hamburg @presse")
