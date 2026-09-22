@@ -470,6 +470,59 @@ describe('loop-catalog tool parsers', () => {
     expect(vm.kind).toBe('citations');
   });
 
+  // notebook_quellen: vier Formen (notebookSourceTools.ts) — Zeilen, Gliederung,
+  // Textscheibe, Passagen mit Fundstelle.
+  it('notebook_quellen renders list, outline, read and find in their own shapes', () => {
+    const parse = resolveToolEntry('notebook_quellen').parse;
+    expect(
+      parse({ action: 'list' }, { results: [{ title: 'Antrag', url: '/notebooks/x', ref: 'd1' }] })
+        .kind
+    ).toBe('citations');
+
+    const outline = parse(
+      { action: 'outline' },
+      { outline: [{ heading: 'Beschluss', chunkFrom: 1, chunkTo: 2, pageFrom: 2, pageTo: 3 }] }
+    );
+    expect(outline).toMatchObject({
+      kind: 'key-value',
+      entries: [{ label: 'Beschluss', value: 'Chunks 1–2 · S. 2–3' }],
+    });
+
+    const read = parse(
+      { action: 'read' },
+      {
+        source: { id: 'd1', title: 'Antrag' },
+        from: 0,
+        to: 22,
+        total: 60,
+        text: 'Der Radweg kommt 2027.',
+      }
+    );
+    expect(read).toEqual({
+      kind: 'text-note',
+      text: 'Antrag · Zeichen 0–22 von 60\n\nDer Radweg kommt 2027.',
+    });
+
+    const find = parse(
+      { action: 'find' },
+      {
+        notebook: 'Kreisverband',
+        passages: [{ title: 'Antrag', pageNumber: 2, excerpt: 'Der Radweg kommt 2027.' }],
+      }
+    );
+    expect(find.kind).toBe('key-value');
+    if (find.kind === 'key-value') {
+      expect(find.citations[0]).toMatchObject({
+        title: 'Antrag, S. 2',
+        snippet: 'Der Radweg kommt 2027.',
+      });
+    }
+
+    expect(
+      parse({ action: 'read' }, { error: 'Quelle nicht in diesem Notebook oder kein Zugriff.' })
+    ).toEqual({ kind: 'text-note', text: 'Quelle nicht in diesem Notebook oder kein Zugriff.' });
+  });
+
   // groups: `get` liefert ein `{group}`-Detailobjekt (groupTools.ts); `content`
   // und `list` bleiben Zeilen → Zitatliste.
   it('groups get renders the detail rows, not the raw object', () => {

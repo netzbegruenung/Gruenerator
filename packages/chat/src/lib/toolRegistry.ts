@@ -55,6 +55,7 @@ export const UI_TOOL_NAMES = z.enum([
   'groups',
   'media',
   'notebooks',
+  'notebook_quellen',
   'read_pdf_form',
   'fill_pdf_form',
   'cloud_files',
@@ -445,6 +446,68 @@ function parseNotebooksVM(args: unknown, result: unknown): ToolResultVM {
   return parsePersonalDataVM(args, result);
 }
 
+// notebook_quellen: list sind Zeilen wie bei den anderen Personal-Data-Werkzeugen;
+// outline eine Gliederung (eine Zeile je Abschnitt), read eine Textscheibe und
+// find Rohpassagen mit Fundstelle — als Zitatliste wie `notebooks.search`.
+function parseNotebookSourcesVM(args: unknown, result: unknown): ToolResultVM {
+  const error = getString(result, 'error');
+  if (error) return { kind: 'text-note', text: error };
+
+  const outline = getArray(result, 'outline');
+  if (outline) {
+    const entries: KeyValueEntry[] = outline.map((e) => {
+      const heading = getString(e, 'heading') ?? '(ohne Überschrift)';
+      const pageFrom = getNumber(e, 'pageFrom');
+      const pageTo = getNumber(e, 'pageTo');
+      const pages =
+        pageFrom == null
+          ? ''
+          : pageFrom === pageTo
+            ? ` · S. ${pageFrom}`
+            : ` · S. ${pageFrom}–${pageTo}`;
+      return {
+        label: heading,
+        value: `Chunks ${getNumber(e, 'chunkFrom') ?? '?'}–${getNumber(e, 'chunkTo') ?? '?'}${pages}`,
+      };
+    });
+    return { kind: 'key-value', entries, citations: [], markdown: null, imageUrl: null };
+  }
+
+  const text = getString(result, 'text');
+  if (text) {
+    const title = getString(getObject(result, 'source'), 'title') ?? 'Quelle';
+    const from = getNumber(result, 'from');
+    const to = getNumber(result, 'to');
+    const total = getNumber(result, 'total');
+    const range =
+      from != null && to != null && total != null ? ` · Zeichen ${from}–${to} von ${total}` : '';
+    return { kind: 'text-note', text: `${title}${range}\n\n${text}` };
+  }
+
+  const passages = getArray(result, 'passages');
+  if (passages) {
+    const citations = passages.slice(0, 5).map((p, i) => {
+      const page = getNumber(p, 'pageNumber');
+      const title = getString(p, 'title') ?? 'Quelle';
+      return toSerializableCitation(
+        { title: page != null ? `${title}, S. ${page}` : title, excerpt: getString(p, 'excerpt') },
+        i,
+        'document'
+      );
+    });
+    const notebook = getString(result, 'notebook');
+    return {
+      kind: 'key-value',
+      entries: notebook ? [{ label: 'Notebook', value: notebook }] : [],
+      citations,
+      markdown: null,
+      imageUrl: null,
+    };
+  }
+
+  return parsePersonalDataVM(args, result);
+}
+
 // groups: `get` liefert ein `{group}`-Detailobjekt (groupTools.ts) — ohne Zweig
 // fiel es in den generischen <dl>-Dump mit englischen Schlüsseln. Listen
 // (list/find/content) und Vorgänge gehen weiter über `parsePersonalDataVM`.
@@ -732,6 +795,7 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   groups: entry('groups', 'citations', parseGroupsVM),
   media: entry('media', 'citations', parsePersonalDataVM),
   notebooks: entry('notebooks', 'citations', parseNotebooksVM),
+  notebook_quellen: entry('notebook_quellen', 'citations', parseNotebookSourcesVM),
   read_pdf_form: entry('read_pdf_form', 'key-value', parsePdfFormReadVM),
   // The filled file itself renders in the compute card (fileAssets); the tool
   // card only reports what happened.
