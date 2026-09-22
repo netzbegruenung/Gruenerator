@@ -84,6 +84,14 @@ export const SECTIONS: DocSection[] = [
         to: '/docs/guides/einsteigerinnen/eigenes-notebook-erstellen',
       },
       {
+        label: 'Wie vertone ich einen Text?',
+        to: '/docs/guides/einsteigerinnen/text-vertonen',
+      },
+      {
+        label: 'Wie übersetze ich Texte und Dokumente?',
+        to: '/docs/guides/einsteigerinnen/texte-dokumente-uebersetzen',
+      },
+      {
         label: 'Wie binde ich die Grüne Wolke ein?',
         to: '/docs/guides/fortgeschrittene/gruene-wolke-einbinden',
       },
