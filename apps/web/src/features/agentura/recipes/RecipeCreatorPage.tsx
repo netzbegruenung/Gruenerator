@@ -13,15 +13,13 @@ import { useDocumentTitle } from '@/components/hooks/useDocumentTitle';
  * Guided recipe creator entry (`/agentura/rezept/neu`). A one-shot brief is
  * drafted by the AI, then handed to the same single-page {@link RecipeEditor}
  * the create/edit route uses — pre-filled, never persisted until the user
- * saves. "Aus Beispielen anlernen" and "Lieber manuell anlegen?" skip the
- * draft and open the same editor with an empty form instead. Mirrors
- * `agents/AgentCreatorPage.tsx`.
+ * saves. "Lieber manuell anlegen?" skips the draft and opens the same editor
+ * with an empty form instead. Mirrors `agents/AgentCreatorPage.tsx`.
  */
 function RecipeCreatorPage() {
   const draftMut = useDraftRecipe();
   const [description, setDescription] = useState('');
   const [initialState, setInitialState] = useState<Partial<RecipeFormState> | null>(null);
-  const [initialSection, setInitialSection] = useState<'grund' | 'anleitung'>('grund');
   const [phase, setPhase] = useState<'start' | 'build'>('start');
   const [error, setError] = useState<string | null>(null);
 
@@ -33,22 +31,14 @@ function RecipeCreatorPage() {
     try {
       const spec = await draftMut.mutateAsync({ description: description.trim() });
       setInitialState(draftToRecipeForm(spec));
-      setInitialSection('grund');
       setPhase('build');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Entwurf fehlgeschlagen.');
     }
   }, [description, draftMut]);
 
-  const handleLearnFromExamples = useCallback(() => {
-    setInitialState(null);
-    setInitialSection('anleitung');
-    setPhase('build');
-  }, []);
-
   const handleManual = useCallback(() => {
     setInitialState(null);
-    setInitialSection('grund');
     setPhase('build');
   }, []);
 
@@ -65,7 +55,6 @@ function RecipeCreatorPage() {
         <RecipeEditor
           mode="create"
           initialState={{ ...EMPTY_RECIPE_FORM, ...initialState }}
-          initialSection={initialSection}
           onCancel={handleBack}
         />
       </ConfirmDialogProvider>
@@ -79,7 +68,6 @@ function RecipeCreatorPage() {
       onGenerate={() => void handleGenerate()}
       isLoading={draftMut.isPending}
       error={error}
-      onLearnFromExamples={handleLearnFromExamples}
       onManual={handleManual}
     />
   );

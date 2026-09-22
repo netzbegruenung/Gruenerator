@@ -1,9 +1,8 @@
 /**
  * `RecipeCreatorPage` is the guided recipe creator entry
- * (`/agentura/rezept/neu`): describe → AI draft, or skip straight into the
- * shared `RecipeEditor` via "Aus Beispielen anlernen" (Anleitung tab) or
- * "Lieber manuell anlegen?" (empty, Grundlagen tab). These tests cover the
- * three entry paths plus the start screen's own-recipes grid and a11y.
+ * (`/agentura/rezept/neu`): describe → AI draft, or skip straight into an
+ * empty shared `RecipeEditor` via "Lieber manuell anlegen?". These tests cover
+ * both entry paths plus the start screen's own-recipes grid and a11y.
  */
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
@@ -62,33 +61,28 @@ describe('RecipeCreatorPage', () => {
     expect(screen.getByLabelText('Beschreibung')).toHaveValue(
       'Einladung zur Mitgliederversammlung'
     );
-    expect(screen.getByRole('tab', { name: 'Grundlagen', selected: true })).toBeInTheDocument();
+    expect(screen.getByLabelText('Anleitung')).toHaveValue('Förmlicher Ton, mit Tagesordnung.');
   });
 
-  it('„Aus Beispielen anlernen" öffnet den Editor leer auf dem Anleitung-Tab', async () => {
-    const { user } = renderWithProviders(<RecipeCreatorPage />);
-
-    await user.click(screen.getByRole('button', { name: 'Aus Beispielen anlernen' }));
-
-    expect(screen.getByRole('tab', { name: /^Anleitung/, selected: true })).toBeInTheDocument();
-    // This entry opens the examples disclosure for you — that is its whole point.
-    expect(screen.getByLabelText(/^Beispiele — alle in dieses Feld/)).toHaveValue('');
-    expect(draft).not.toHaveBeenCalled();
-
-    // Confirms the form itself is empty, not just the tab selection: switch
-    // to Grundlagen and check the Name field the way the manual-entry test does.
-    await user.click(screen.getByRole('tab', { name: 'Grundlagen' }));
-    expect(screen.getByLabelText('Name')).toHaveValue('');
-  });
-
-  it('„Lieber manuell anlegen?" öffnet den Editor leer auf Grundlagen', async () => {
+  it('„Lieber manuell anlegen?" öffnet den Editor leer', async () => {
     const { user } = renderWithProviders(<RecipeCreatorPage />);
 
     await user.click(screen.getByRole('button', { name: 'Lieber manuell anlegen?' }));
 
-    expect(screen.getByRole('tab', { name: 'Grundlagen', selected: true })).toBeInTheDocument();
+    // Ein Formular, keine Tabs: Name und Anleitung stehen gleichzeitig da.
     expect(screen.getByLabelText('Name')).toHaveValue('');
+    expect(screen.getByLabelText('Anleitung')).toHaveValue('');
     expect(draft).not.toHaveBeenCalled();
+  });
+
+  it('bietet keinen zweiten Einstieg mehr an, der dasselbe täte', async () => {
+    renderWithProviders(<RecipeCreatorPage />);
+
+    // „Aus Beispielen anlernen" öffnete denselben leeren Editor wie „manuell",
+    // nur auf einem anderen Tab — und die Tabs gibt es nicht mehr.
+    expect(
+      screen.queryByRole('button', { name: 'Aus Beispielen anlernen' })
+    ).not.toBeInTheDocument();
   });
 
   it('zeigt „Meine Rezepte" nicht, wenn die eigene Liste leer ist', async () => {
