@@ -13,6 +13,11 @@ import { type SkillCategory } from './types.js';
  * `documentation/scripts/generate-agentura.mjs` parses this file by AST to
  * build the docs page, so the shape of the array literal is load-bearing:
  * keep the entries as plain object literals with string-literal values.
+ *
+ * Wording: „Grüneratoren" ist der Überbegriff über alles, was hier liegt —
+ * Agents, Rezepte und wiederkehrende Aufgaben. Wo das Wort neben „Rezepte"
+ * steht, benennt es die Gattung und heißt deshalb „Agents"; wo es für den
+ * ganzen Markt steht, bleibt es.
  */
 
 /** Where a shelf exists. Omitted means web-only — the safe default, since a
@@ -49,16 +54,16 @@ export const AGENTURA_CATEGORIES: AgenturaCategory[] = [
     // Schlüssel bleibt: Registry-IDs werden stillgelegt, nicht entfernt.
     key: 'empfohlen',
     label: 'Empfohlen',
-    description: 'Beliebte Grüneratoren zum Einstieg — eine Auswahl über alle Regale hinweg.',
+    description: 'Beliebte Agents zum Einstieg — eine Auswahl über alle Regale hinweg.',
     platforms: [],
   },
   {
     key: 'meine',
     label: 'Meine Grüneratoren',
     description:
-      'Deine selbst erstellten Grüneratoren, Rezepte, wiederkehrenden Aufgaben und was in deinen Gruppen geteilt wurde.',
+      'Deine selbst erstellten Agents, Rezepte, wiederkehrenden Aufgaben und was in deinen Gruppen geteilt wurde.',
     emptyText:
-      'Du hast noch keine eigenen Grüneratoren oder Rezepte erstellt. Leg deinen ersten über „Neu" an.',
+      'Du hast noch keine eigenen Agents oder Rezepte erstellt. Leg deinen ersten über „Neu" an.',
     platforms: ['web', 'mobile'],
   },
   {
@@ -66,23 +71,28 @@ export const AGENTURA_CATEGORIES: AgenturaCategory[] = [
     // Landesgeschäftsstelle" (AT: Landesorganisation) IST der Zugang. Ohne sie
     // wäre das Regal leer, und ein leeres Regal für elf fremde Landesverbände
     // ist genau das Rauschen, das die Zuteilung abgeschafft hat.
+    //
+    // `label` ist nur noch der Notfall-Rückfall: beide Plattformen ersetzen ihn
+    // beim Rendern durch `landesverbandShelfLabel(lvIds)` und zeigen den Verband
+    // beim Namen („Grüne Hessen"). Das Literal bleibt trotzdem stehen — der
+    // Docs-Generator liest es per AST und verträgt keinen Funktionsaufruf.
     key: 'landesverband',
     label: 'Dein Landesverband',
-    description: 'Die Grüneratoren und Rezepte deines Landesverbands, über deine Rolle zugeteilt.',
+    description: 'Die Agents und Rezepte deines Landesverbands, über deine Rolle zugeteilt.',
     platforms: ['web', 'mobile'],
   },
   {
     key: 'community',
-    label: 'Von der Basis',
-    description: 'Öffentlich geteilte Grüneratoren und Rezepte von der Basis.',
+    label: 'Öffentlich',
+    description: 'Öffentlich geteilte Agents und Rezepte von der Basis.',
     emptyText:
-      'Noch keine öffentlichen Grüneratoren. Sei der oder die Erste — teile einen deiner Grüneratoren über „Teilen" und aktiviere „Von der Basis".',
+      'Noch keine öffentlichen Agents. Sei der oder die Erste — teile einen deiner Agents über „Teilen" und aktiviere „Öffentlich".',
     platforms: ['web', 'mobile'],
   },
   {
     key: 'gruenerator',
     label: 'Offizielle Grüneratoren',
-    description: 'Fertige Grüneratoren sowie Presse- & Social-Rezepte von Grünerator.',
+    description: 'Fertige Agents sowie Presse- & Social-Rezepte von Grünerator.',
     platforms: ['web', 'mobile'],
   },
   {
@@ -93,7 +103,7 @@ export const AGENTURA_CATEGORIES: AgenturaCategory[] = [
     // und `AGENTURA_CATEGORY_ICONS` ist auf die volle Union getippt.
     key: 'favoriten',
     label: 'Favoriten',
-    description: 'Deine gemerkten Grüneratoren und Rezepte.',
+    description: 'Deine gemerkten Agents und Rezepte.',
     platforms: [],
   },
 ];
@@ -134,7 +144,7 @@ export type AgenturaType = (typeof AGENTURA_TYPE_VALUES)[number];
 
 export const AGENTURA_TYPE_LABELS: Record<AgenturaType, string> = {
   all: 'Alle',
-  agent: 'Grüneratoren',
+  agent: 'Agents',
   recipe: 'Rezepte',
   task: 'Wiederkehrend',
   fav: 'Favoriten',

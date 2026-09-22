@@ -6,7 +6,7 @@
  *   - share_mode : who can SEE/USE the agent (private | groups | authenticated)
  *   - is_public  : list the agent in the public Agentura directory, on top of
  *                  share_mode='authenticated' (the agent equivalent of the
- *                  notebooks' "Von der Basis" discovery listing).
+ *                  notebooks' „Öffentlich" discovery listing).
  * Group shares live in the polymorphic `group_content_shares` table with
  * `content_type='user_agents'`. Agents are USED, not co-edited — there is no
  * per-user grant and no edit_policy. The agent's `locale` doubles as the

@@ -250,3 +250,21 @@ export function landesverbandHeadings(lvIds: readonly string[] | null): {
   }
   return { agents: 'Landesverbände', skills: 'Rezepte der Landesverbände' };
 }
+
+/**
+ * Beschriftung des Landesverbands-Regals in der Agentura, z. B. `['hessen']` →
+ * `'Grüne Hessen'`. Gleiche Beugung wie `landesverbandHeadings`, damit Reiter
+ * und Abschnitts-Überschrift nie auseinanderlaufen.
+ *
+ * Der Unterschied liegt allein im leeren Fall: eine Abschnitts-Überschrift darf
+ * „Landesverbände" heißen, ein persönlicher Reiter nicht. Beide Plattformen
+ * zeigen das Regal erst, wenn die Rollen geladen sind (`isHydrated`) — der
+ * Rückfall greift daher nur noch bei einer Rolle für einen Verband, den
+ * `LANDESVERBAENDE` nicht kennt.
+ */
+export function landesverbandShelfLabel(lvIds: readonly string[] | null): string {
+  const titles = (lvIds ?? []).map(landesverbandTitle).filter((t): t is string => t !== null);
+  if (titles.length === 1) return `Grüne ${titles[0]}`;
+  if (titles.length > 1) return 'Deine Landesverbände';
+  return 'Dein Landesverband';
+}

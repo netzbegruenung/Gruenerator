@@ -181,7 +181,7 @@ describe('list', () => {
     expect(rows.map((r) => r.ref)).not.toContain('hessen');
   });
 
-  it('lists notebooks from Von der Basis without the caller’s own', async () => {
+  it('lists publicly listed notebooks without the caller’s own', async () => {
     const mine = collection({ id: 'n1', user_id: 'user-1', name: 'Meins' });
     const theirs = collection({
       id: 'n2',
@@ -199,7 +199,7 @@ describe('list', () => {
       {
         title: 'Klimaanträge',
         url: '/notebooks/klimaantraege-Qq7wE2',
-        type: 'Notebook von der Basis',
+        type: 'Öffentliches Notebook',
         snippet: 'Anträge aus dem Kreisverband',
         ref: 'n2',
       },

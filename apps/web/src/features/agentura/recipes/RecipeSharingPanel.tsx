@@ -1,7 +1,7 @@
 /**
  * Die Freigabe-Bedienelemente eines eigenen Rezepts: Sichtbarkeit (privat /
  * Projekte / mit Anmeldung), die Projekte, in die es geteilt ist, und die
- * Listung „Von der Basis" samt Eigentumsfrage.
+ * Listung „Öffentlich" samt Eigentumsfrage.
  *
  * Eine Fläche, zwei Aufrufer — {@link ShareRecipeModal} (Detailseite) und der
  * Teilen-Tab des {@link RecipeEditor}. Vorher stand derselbe Block zweimal im
@@ -215,17 +215,17 @@ export function RecipeSharingPanel({ mention, enabled }: RecipeSharingPanelProps
         <p className="text-xs text-grey-500">Sichtbar nur für eingeloggte Nutzer*innen.</p>
       ) : null}
 
-      {/* „Von der Basis" — in jedem Sichtbarkeitsmodus zu sehen, damit die
+      {/* „Öffentlich" — in jedem Sichtbarkeitsmodus zu sehen, damit die
           Listung auffindbar bleibt. Aus einem niedrigeren Modus heraus hebt das
           Aktivieren zuerst die Sichtbarkeit auf „Mit Anmeldung" (die Bedingung
           des Servers für eine Listung) und listet dann. */}
       <div className="flex items-start justify-between gap-md rounded-lg border border-grey-200 p-md dark:border-grey-700">
         <div className="space-y-xs">
           <Label htmlFor={listingToggleId} className="text-sm">
-            Auf „Von der Basis“ listen
+            Auf „Öffentlich“ listen
           </Label>
           <p className="text-xs text-grey-500 dark:text-grey-400">
-            Dein Rezept erscheint dann in der Agentura unter „Von der Basis“ zum Entdecken.
+            Dein Rezept erscheint dann in der Agentura unter „Öffentlich“ zum Entdecken.
           </p>
           {!isPublic && shareMode !== 'authenticated' ? (
             <p className="text-xs text-grey-500 dark:text-grey-400">

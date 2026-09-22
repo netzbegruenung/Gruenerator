@@ -75,7 +75,7 @@ export const notebookCollectionsContract = c.router(
     /**
      * GET /api/auth/notebook-collections/public
      * List all notebook collections marked is_public=true across all users.
-     * Powers the "Von der Basis" section on /notebooks.
+     * Powers the „Öffentlich" section on /notebooks.
      */
     listPublicCollections: {
       method: 'GET',

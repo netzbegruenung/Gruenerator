@@ -241,7 +241,7 @@ export function NotebookShareModal({
                 <div className="flex items-start justify-between gap-md rounded-lg border border-grey-200 p-md dark:border-grey-700">
                   <div className="space-y-xs">
                     <Label htmlFor="notebook-von-der-basis-toggle" className="text-sm">
-                      Auf „Von der Basis" listen
+                      Auf „Öffentlich" listen
                     </Label>
                     <p className="text-xs text-grey-500 dark:text-grey-400">
                       Dein Notebook erscheint dann auf der Notebooks-Seite zum Entdecken.

@@ -1,4 +1,8 @@
-import { landesverbandHeadings, landesverbandIdsForRoles } from '@gruenerator/shared/agents';
+import {
+  landesverbandHeadings,
+  landesverbandIdsForRoles,
+  landesverbandShelfLabel,
+} from '@gruenerator/shared/agents';
 import { useMemo } from 'react';
 
 import { useUserProfileStore } from '../stores/userProfileStore';
@@ -12,6 +16,8 @@ export interface UserLandesverbaende {
   lvIds: readonly string[] | null;
   /** Überschriften für den LV-Abschnitt, passend gebeugt. */
   headings: { agents: string; skills: string };
+  /** Beschriftung des LV-Regals in der Agentura, z. B. „Grüne Hessen". */
+  shelfLabel: string;
   /** Ob die Profilrollen schon geladen sind. */
   isHydrated: boolean;
 }
@@ -26,9 +32,11 @@ export interface UserLandesverbaende {
  * liefert der Hook bis zur Hydratation `null` und erst danach die echte,
  * womöglich leere Antwort.
  *
- * Nur Web: `useHydrateUserProfile` läuft in `apps/web`. In der Mobile-App bleibt
- * `isHydrated` falsch und damit `lvIds` `null`, also filtert dort nichts — das
- * ist der sichere Ausgang, nicht ein vergessener.
+ * Beide Plattformen hydrieren: `apps/web/src/hooks/useHydrateUserProfile.ts` und
+ * seit #2931 `apps/mobile/hooks/useHydrateUserProfile.ts` (gerufen in
+ * `app/_layout.tsx`). Solange eine von beiden das nicht täte, bliebe `lvIds`
+ * dort `null` und ihre LV-Filter ließen alles durch — genau der Fehler, den
+ * #2931 behoben hat.
  */
 export function useUserLandesverbaende(): UserLandesverbaende {
   const roles = useUserProfileStore((s) => s.roles);
@@ -40,6 +48,7 @@ export function useUserLandesverbaende(): UserLandesverbaende {
     [roles, locale, isHydrated]
   );
   const headings = useMemo(() => landesverbandHeadings(lvIds), [lvIds]);
+  const shelfLabel = useMemo(() => landesverbandShelfLabel(lvIds), [lvIds]);
 
-  return { lvIds, headings, isHydrated };
+  return { lvIds, headings, shelfLabel, isHydrated };
 }

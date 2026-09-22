@@ -9,7 +9,7 @@ const KEY = ['user-agents'] as const;
 
 /**
  * `enabled` exists for the chat screen: it only needs this list to name a user's
- * own Grünerator in the header, and a chat opened with a system agent — or with
+ * own Agent in the header, and a chat opened with a system agent — or with
  * none — should not fire the request at all.
  */
 export function useUserAgents(enabled = true) {
@@ -19,7 +19,7 @@ export function useUserAgents(enabled = true) {
     queryFn: async (): Promise<Agent[]> => {
       const res = await getContractsClient().userAgents.list();
       if (res.status === 200) return res.body.agents;
-      throw new Error('Deine Grüneratoren konnten nicht geladen werden.');
+      throw new Error('Deine Agents konnten nicht geladen werden.');
     },
   });
 }
