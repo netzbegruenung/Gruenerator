@@ -177,7 +177,7 @@ ${lvRows}
 
 ## Aktualisierung
 
-- **Landesverbände**: Stündlich zwischen 06:00 und 22:00 Uhr
+- **Landesverbände**: Etwa alle drei Stunden zwischen 07:00 und 22:00 Uhr
 - **Alle anderen Quellen**: Täglich um 03:00 Uhr
 
 Die Synchronisation läuft automatisch über GitHub Actions.

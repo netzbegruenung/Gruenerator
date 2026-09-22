@@ -69,7 +69,7 @@ User-facing/shareable resource URLs use a Notion-style slug — `slugifyName(nam
 
 ### Content Sync & Scraping
 
-Scrapers in `apps/api/services/scrapers/`. Automated via GitHub Actions (`content-sync.yml`): hourly for Landesverbände, daily for rest. Entry: `apps/api/update-all-content.ts`.
+Scrapers in `apps/api/services/scrapers/`. Automated via GitHub Actions (`content-sync.yml`): every 3 h for Landesverbände, daily for rest. Entry: `apps/api/update-all-content.ts`.
 
 **NEVER full rescrape** (`--force` on all). Only targeted subsets (e.g. PDFs via `reprocess-pdfs.ts`). `satzungen_documents` is dormant — exclude.
 

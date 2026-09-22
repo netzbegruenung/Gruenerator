@@ -10,7 +10,15 @@ on:
     # busiest moment in that queue. Unproven as a remedy — nothing here can make
     # the scheduler reliable, which is why the watchdog in
     # content-sync-watchdog.yml exists to make a dropped run visible.
-    - cron: '23 4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20 * * *' # Hourly 06-22 CET → landesverbände only
+    #
+    # Every 3 h, not hourly. From 2026-08-27 on, 17 hourly slots produced 4-6
+    # runs a day, for four weeks straight — and the repo's other hourly
+    # workflows (wolke-watch-hourly, monitor-refresh) got the same 5-8 of 24,
+    # so it is a per-repo throttle, not something this file can fix. Hourly
+    # slots were not buying freshness, only dropped events and a watchdog that
+    # stayed red for a month. Six slots is about what GitHub was delivering
+    # anyway; declaring that makes a real collapse distinguishable again.
+    - cron: '23 5,8,11,14,17,20 * * *' # Every 3 h 07-22 CEST → landesverbände only
     - cron: '17 2 * * *' # Daily 03:00 CET → all sources
   workflow_dispatch:
     inputs:
@@ -92,7 +100,7 @@ jobs:
           # digest sent, and nothing red anywhere. Exactly the silence #2972 is
           # about, introduced by the fix for it.
           #
-          # The hourly cron covers hours 04-20, so hour 2 is unambiguous, and
+          # The LV cron covers hours 05-20, so hour 2 is unambiguous, and
           # the old '0 2 * * *' still resolves to it for any event already in
           # flight when this lands.
           SCHEDULE_HOUR=$(printf '%s' "$SCHEDULE" | awk '{print $2}')

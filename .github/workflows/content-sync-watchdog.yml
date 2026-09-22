@@ -3,7 +3,7 @@ name: Content Sync Watchdog
 # Makes a *missing* content sync visible.
 #
 # A cron that never fires produces no run, so the workflow history of Content
-# Sync looks uniformly green whether it ran 18 times or twice. It has been both:
+# Sync looks uniformly green whether it ran every slot or twice. It has been both:
 # on 2026-08-26 three of 17 hourly slots were lost and the rest drifted up to
 # +88 min; on 2026-08-27 the daily full sync fired 10 h 16 min late and 14 of 15
 # hourly slots never fired at all (#2972). Nothing turned red, no digest was
@@ -58,10 +58,14 @@ jobs:
 
       - name: Judge the measurement
         env:
-          # 17 hourly slots (04-20 UTC) + 1 daily = 18 expected in 24 h. The
-          # floor is deliberately well below that: individual drops are normal
+          # 6 LV slots (05-20 UTC, every 3 h) + 1 daily = 7 expected in 24 h.
+          # The floor is deliberately below that: individual drops are normal
           # and not worth an issue, a collapse is. On 2026-08-27 the count was 2.
-          MIN_RUNS_24H: 12
+          # The nightly slot has not fired on its own since late August (the
+          # catch-up in content-sync.yml covers it), so 6 is the healthy
+          # ceiling in practice and 4 leaves room for one or two more drops.
+          EXPECTED_RUNS_24H: 7
+          MIN_RUNS_24H: 4
           # The daily 02:17 run is the only one that walks every archive fully
           # and the only one that syncs the nine non-LV sources at all, so its
           # absence is the expensive one.
@@ -118,7 +122,7 @@ jobs:
           # not — and a real collapse shows up here first anyway: fewer runs is
           # what a dropped schedule *is*.
           if [ "$RUNS_24H" -lt "$MIN_RUNS_24H" ]; then
-            echo "::error::Only $RUNS_24H successful Content Sync runs in the last 24 h (expected 18, floor $MIN_RUNS_24H). GitHub is dropping the schedule — see #2972."
+            echo "::error::Only $RUNS_24H successful Content Sync runs in the last 24 h (expected $EXPECTED_RUNS_24H, floor $MIN_RUNS_24H). GitHub is dropping the schedule — see #2972."
             FAILED=1
           fi
 
