@@ -135,8 +135,8 @@
     "agentSlug": "gruene-thueringen"
   },
   "menu.apps": {
-    "title": "Connect",
-    "subtitle": "KI-Chat-Integration über MCP",
+    "title": "Apps & Connect",
+    "subtitle": "Apps und KI-Chat-Integration",
     "path": "/apps"
   },
   "menu.grueneratoren": {
