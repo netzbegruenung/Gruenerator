@@ -94,6 +94,7 @@ const USER_NOTEBOOK_ID = process.env.EVAL_USER_NOTEBOOK_ID?.trim() ?? '';
 function withUserNotebook(text: string): string {
   return text.replaceAll('{{EVAL_USER_NOTEBOOK_ID}}', USER_NOTEBOOK_ID);
 }
+
 const CONCURRENCY = (() => {
   const n = Number.parseInt(process.env.EVAL_CONCURRENCY ?? '', 10);
   return Number.isInteger(n) && n >= 1 ? n : 1;
