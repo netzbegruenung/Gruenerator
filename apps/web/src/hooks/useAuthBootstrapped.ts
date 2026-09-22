@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
+import { hashKey, useQueryClient } from '@tanstack/react-query';
+import { useCallback, useSyncExternalStore } from 'react';
 
 import { type AuthData } from './useAuth';
 
@@ -28,16 +29,28 @@ import { type AuthData } from './useAuth';
  * flip the bit on the "already-guest" branch. Reading the query status removes
  * the mirror, the guards, and the bug.
  *
- * `enabled: false` makes this consumer read-only — it subscribes to the cache
- * populated by `AuthBootstrap`'s active fetch (or by `initialData`). React
- * Query dedupes by `queryKey`, so every subscriber sees the same state.
+ * Read-only means reading the query cache, not a second `useQuery`. An
+ * observer without `queryFn` logs a missing-`queryFn` error on every render
+ * (#3500), and its options overwrite the shared query's, wiping the active
+ * observer's `queryFn` and `meta: { silent: true }`. `skipToken` would silence
+ * the log but leave a skip token on the query for option-less refetches. The
+ * cache is populated by `AuthBootstrap`'s active query (or its `initialData`).
  */
+const AUTH_STATUS_HASH = hashKey(['authStatus']);
+
 export const useAuthBootstrap = (): {
   isBootstrapped: boolean;
   isError: boolean;
   isAuthenticated: boolean;
 } => {
-  const { status, data } = useQuery<AuthData>({ queryKey: ['authStatus'], enabled: false });
+  const cache = useQueryClient().getQueryCache();
+  const subscribe = useCallback((onChange: () => void) => cache.subscribe(onChange), [cache]);
+  const state = useSyncExternalStore(
+    subscribe,
+    () => cache.get<AuthData>(AUTH_STATUS_HASH)?.state ?? null
+  );
+  const status = state?.status ?? 'pending';
+  const data = state?.data;
   return {
     isBootstrapped: status !== 'pending',
     isError: status === 'error',
