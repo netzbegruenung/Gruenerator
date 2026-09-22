@@ -182,6 +182,17 @@ describe('buildCitations — enriched fields', () => {
     expect(citations[0].collectionId).toBe('deutschland');
   });
 
+  it('threads pageNumber from SearchResult to Citation, and only when present', () => {
+    expect(buildCitations([makeResult({ pageNumber: 12 })])[0].pageNumber).toBe(12);
+    expect(buildCitations([makeResult({ pageNumber: null })])[0]).not.toHaveProperty('pageNumber');
+  });
+
+  it('prefers an explicit citedText over the start of content', () => {
+    const content = makeLongContent(3000);
+    const citations = buildCitations([makeResult({ content, citedText: 'genau diese Stelle' })]);
+    expect(citations[0].citedText).toBe('genau diese Stelle');
+  });
+
   it('leaves enriched fields undefined when not present', () => {
     const citations = buildCitations([makeResult()]);
     expect(citations[0].documentId).toBeUndefined();

@@ -85,6 +85,7 @@ import {
 import { makeEditArtifactTool } from './editorTools.js';
 import { makeGroupsTool } from './groupTools.js';
 import { makeMemoryTool } from './memoryTools.js';
+import { makeNotebookSourcesTool } from './notebookSourceTools.js';
 import { makeNotebooksTool } from './notebookTools.js';
 import { makeReadPdfFormTool, makeFillPdfFormTool } from './pdfFormTools.js';
 import {
@@ -917,6 +918,9 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
     }
     if (state.enabledTools?.['notebooks'] !== false) {
       tools.notebooks = makeNotebooksTool(personalCtx);
+    }
+    if (userContentAllowed && state.enabledTools?.['notebook_quellen'] !== false) {
+      tools.notebook_quellen = makeNotebookSourcesTool(personalCtx);
     }
     // DeepL translation. Mounted broadly like the domain tools — the model
     // decides — but only when a key is configured: a tool that always answers

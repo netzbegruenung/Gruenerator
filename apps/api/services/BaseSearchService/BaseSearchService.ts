@@ -527,6 +527,8 @@ export class BaseSearchService {
           chunk_type: tc.chunk_type ?? null,
           quality_score: typeof tc.quality_score === 'number' ? tc.quality_score : null,
           has_term: !!tc.has_term,
+          char_start: tc.char_start ?? null,
+          char_end: tc.char_end ?? null,
           preview:
             normQuery && tc.has_term
               ? extractMatchedExcerpt(tc.text, query, contentConfig.maxExcerptLength)
@@ -735,6 +737,8 @@ export class BaseSearchService {
       content_type: rawChunk.content_type ?? rawChunk.metadata?.content_type,
       page_number: rawChunk.page_number ?? rawChunk.metadata?.page_number,
       chunk_type: rawChunk.chunk_type ?? rawChunk.metadata?.chunk_type,
+      char_start: rawChunk.char_start ?? null,
+      char_end: rawChunk.char_end ?? null,
       similarity: rawChunk.similarity || 0,
       token_count: rawChunk.token_count,
     };
@@ -1068,6 +1072,8 @@ export class BaseSearchService {
           chunk_type: tc.chunk_type ?? null,
           quality_score: typeof tc.quality_score === 'number' ? tc.quality_score : null,
           has_term: !!tc.has_term,
+          char_start: tc.char_start ?? null,
+          char_end: tc.char_end ?? null,
           preview:
             normQuery && tc.has_term
               ? extractMatchedExcerpt(tc.text, query, contentConfig.maxExcerptLength)
