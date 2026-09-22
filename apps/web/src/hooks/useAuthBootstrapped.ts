@@ -1,7 +1,6 @@
-import { hashKey, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useSyncExternalStore } from 'react';
+import { useQuery } from '@tanstack/react-query';
 
-import { type AuthData } from './useAuth';
+import { authStatusQueryOptions } from './useAuth';
 
 /**
  * Read-only subscription to the canonical `authStatus` query — the single
@@ -29,28 +28,19 @@ import { type AuthData } from './useAuth';
  * flip the bit on the "already-guest" branch. Reading the query status removes
  * the mirror, the guards, and the bug.
  *
- * Read-only means reading the query cache, not a second `useQuery`. An
- * observer without `queryFn` logs a missing-`queryFn` error on every render
- * (#3500), and its options overwrite the shared query's, wiping the active
- * observer's `queryFn` and `meta: { silent: true }`. `skipToken` would silence
- * the log but leave a skip token on the query for option-less refetches. The
- * cache is populated by `AuthBootstrap`'s active query (or its `initialData`).
+ * `enabled: false` makes this consumer read-only — it subscribes to the cache
+ * populated by `AuthBootstrap`'s active fetch (or by `initialData`), and keeps
+ * that query alive while a gate is mounted. It passes the shared
+ * `authStatusQueryOptions` rather than a bare key: an observer without
+ * `queryFn` logs a dev error on every render (#3500) and writes its options
+ * over the active observer's, dropping `queryFn` and `meta.silent`.
  */
-const AUTH_STATUS_HASH = hashKey(['authStatus']);
-
 export const useAuthBootstrap = (): {
   isBootstrapped: boolean;
   isError: boolean;
   isAuthenticated: boolean;
 } => {
-  const cache = useQueryClient().getQueryCache();
-  const subscribe = useCallback((onChange: () => void) => cache.subscribe(onChange), [cache]);
-  const state = useSyncExternalStore(
-    subscribe,
-    () => cache.get<AuthData>(AUTH_STATUS_HASH)?.state ?? null
-  );
-  const status = state?.status ?? 'pending';
-  const data = state?.data;
+  const { status, data } = useQuery({ ...authStatusQueryOptions, enabled: false });
   return {
     isBootstrapped: status !== 'pending',
     isError: status === 'error',

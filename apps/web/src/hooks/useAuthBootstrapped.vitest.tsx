@@ -3,12 +3,13 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { type ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { authStatusQueryOptions } from './useAuth';
 import { useAuthBootstrap } from './useAuthBootstrapped';
 
-const KEY = ['authStatus'];
+const KEY = authStatusQueryOptions.queryKey;
 
-function setup() {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+function setup(gcTime?: number) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime } } });
   const wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={client}>{children}</QueryClientProvider>
   );
@@ -18,10 +19,12 @@ function setup() {
 afterEach(() => vi.restoreAllMocks());
 
 describe('useAuthBootstrap', () => {
-  it('logs no missing-queryFn error across renders (#3500)', () => {
+  it('logs no missing-queryFn error across renders (#3500)', async () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});
     const { client, rerender } = setup();
-    act(() => client.setQueryData(KEY, { isAuthenticated: true }));
+    await act(async () => {
+      client.setQueryData(KEY, { isAuthenticated: true });
+    });
     rerender();
     expect(error.mock.calls.flat().join(' ')).not.toContain('No queryFn');
   });
@@ -34,7 +37,9 @@ describe('useAuthBootstrap', () => {
       isAuthenticated: false,
     });
 
-    act(() => client.setQueryData(KEY, { isAuthenticated: true }));
+    await act(async () => {
+      client.setQueryData(KEY, { isAuthenticated: true });
+    });
     await waitFor(() =>
       expect(result.current).toEqual({
         isBootstrapped: true,
@@ -42,9 +47,15 @@ describe('useAuthBootstrap', () => {
         isAuthenticated: true,
       })
     );
+  });
 
-    act(() => client.removeQueries({ queryKey: KEY }));
-    await waitFor(() => expect(result.current.isBootstrapped).toBe(false));
+  it('keeps the query alive while mounted, even with gcTime 0', async () => {
+    const { client, result } = setup(0);
+    await act(async () => {
+      client.setQueryData(KEY, { isAuthenticated: true });
+    });
+    await act(() => new Promise((resolve) => setTimeout(resolve, 20)));
+    expect(result.current.isAuthenticated).toBe(true);
   });
 
   it('reports an errored probe', async () => {
@@ -58,13 +69,11 @@ describe('useAuthBootstrap', () => {
     expect(result.current.isBootstrapped).toBe(true);
   });
 
-  it("does not overwrite the active query's options", () => {
+  it('leaves the shared queryFn and silent meta on the query', () => {
     const { client, rerender } = setup();
-    const queryFn = () => Promise.resolve({ isAuthenticated: false });
-    act(() => void client.prefetchQuery({ queryKey: KEY, queryFn, meta: { silent: true } }));
     rerender();
     const query = client.getQueryCache().find({ queryKey: KEY, exact: true });
-    expect(query?.options.queryFn).toBe(queryFn);
+    expect(query?.options.queryFn).toBe(authStatusQueryOptions.queryFn);
     expect(query?.meta).toEqual({ silent: true });
   });
 });
