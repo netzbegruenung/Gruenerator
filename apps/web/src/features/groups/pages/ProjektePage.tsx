@@ -44,7 +44,7 @@ const ProjektePage = () => {
 
   const {
     userGroups,
-    isFetchingGroups,
+    isLoadingGroups,
     isErrorGroups,
     refetchGroups,
     createGroup,
@@ -193,11 +193,9 @@ const ProjektePage = () => {
           `query.data ?? []`, also auch dann leer, wenn noch geladen wird oder
           der Abruf gescheitert ist — ein Fehler bliebe hier sonst als „du hast
           nichts" stehen, weil `refetchOnWindowFocus` aus ist und der Toast bei
-          401 unterdrückt wird.
-          `isFetchingGroups` und nicht `isLoadingGroups`: letzteres ist
-          `query.isPending` und bleibt auch dann true, wenn die Abfrage gar
-          nicht läuft, weil sie deaktiviert ist. */}
-      {isFetchingGroups ? (
+          401 unterdrückt wird. Warum `isLoadingGroups` genau der richtige
+          Ladezustand ist, steht am Hook. */}
+      {isLoadingGroups ? (
         <p className="text-sm text-grey-500 dark:text-grey-400 py-lg text-center">
           Projekte werden geladen…
         </p>
