@@ -113,7 +113,7 @@ const MIN_TILE = 160;
 
 /**
  * The one tile geometry for the whole Wissen gallery. Every shelf — the system
- * sections, "Meine Notebooks", "Von der Basis" — reads its tile size here, which
+ * sections, "Meine Notebooks", „Öffentlich" — reads its tile size here, which
  * is what keeps them a single grid down the page rather than three that happen
  * to agree today.
  */

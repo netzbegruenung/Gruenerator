@@ -128,7 +128,7 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "url": "/docs/features/agentura",
     "title": "Agentura",
     "category": "Features",
-    "lead": "Die Agentura ist der Marktplatz für alle Grüneratoren und Rezepte. Hier findest du an einem Ort alle verfügbaren Grüneratoren — vom Pressestellen-Profi bis zum Landesverbands-Assistenten — entdeckst…"
+    "lead": "Die Agentura ist der Marktplatz für alle Grüneratoren. Hier findest du an einem Ort alle verfügbaren Agents und Rezepte — vom Pressestellen-Profi bis zum Landesverbands-Assistenten — entdeckst neue W…"
   },
   {
     "url": "/docs/features/boards",
@@ -156,9 +156,9 @@ export const DOCS_PAGES: readonly DocPage[] = [
   },
   {
     "url": "/docs/features/landesverbaende",
-    "title": "Landesverband-Grüneratoren",
+    "title": "Landesverband-Agents",
     "category": "Features",
-    "lead": "Der Grünerator hat für mehrere Landesverbände eigene, regional getunte Grüneratoren. Sie schreiben nicht generisch-grün, sondern im konkreten Stil des jeweiligen Landesverbands — mit den richtigen Sp…"
+    "lead": "Der Grünerator hat für mehrere Landesverbände eigene, regional getunte Agents. Sie schreiben nicht generisch-grün, sondern im konkreten Stil des jeweiligen Landesverbands — mit den richtigen Sprecher…"
   },
   {
     "url": "/docs/features/notebooks",
@@ -240,15 +240,15 @@ export const DOCS_PAGES: readonly DocPage[] = [
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-agentinnen-erstellen",
-    "title": "Wie erstelle ich einen Grünerator-Agenten?",
+    "title": "Wie erstelle ich einen Agenten?",
     "category": "Guides",
-    "lead": "In der Agentura kannst du einen eigenen Grünerator-Agenten für eine Aufgabe erstellen, die du häufiger erledigst, zum Beispiel für Pressemitteilungen, Recherchen oder Social-Media-Texte. Du beschreib…"
+    "lead": "In der Agentura kannst du einen eigenen Agenten für eine Aufgabe erstellen, die du häufiger erledigst, zum Beispiel für Pressemitteilungen, Recherchen oder Social-Media-Texte. Du beschreibst zuerst i…"
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-rezepte-erstellen",
     "title": "Wie erstelle ich ein eigenes Rezept?",
     "category": "Guides",
-    "lead": "Ein Rezept ist eine Schreibvorgabe für eine bestimmte Textsorte: Aufbau, Ton und Länge, einmal festgelegt und danach per @mention auf jeden Grünerator-Agenten anwendbar. Anders als ein Grünerator-Age…"
+    "lead": "Ein Rezept ist eine Schreibvorgabe für eine bestimmte Textsorte: Aufbau, Ton und Länge, einmal festgelegt und danach per @mention auf jeden Agenten anwendbar. Anders als ein Agent ist ein Rezept kein…"
   },
   {
     "url": "/docs/guides/fortgeschrittene/gruene-wolke-einbinden",
@@ -877,7 +877,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Wenn du etwas nicht findest",
     "anchor": "#wenn-du-etwas-nicht-findest",
     "category": "Basics",
-    "text": "Such nach dem Namen. Die Suche im Grünerator kennt auch die gängigen Bezeichnungen — „Untertitel\" findet die Reels, „OCR\" den Scanner. Manches gibt es nur im Web. Einige Werkzeuge brauchen eine große Oberfläche. In der App siehst du die Inhalte dann, kannst sie aber nicht überall bearbeiten. Bei jedem Werkzeug oben steht, wo es läuft. Namen, Beschreibungen und Pfade stammen direkt aus dem Programmcode des Grünerators. Kommt ein Werkzeug dazu oder wird eines umbenannt, meldet sich die Doku-Prüfung automatisch, bis die Seite nachgezogen ist — sie kann also nicht stillschweigend veralten. Es gibt mehrere Grünerator-Instanzen — neben dem allgemeinen etwa eine Testumgebung und eine für die Bundesgeschäftsstelle. Einzelne Instanzen können abweichen: nicht jede bietet alle hier beschriebenen Werkzeuge, Notebooks und Grüneratoren an. Was deine Instanz anbietet, siehst du immer in ihrer eigenen Oberfläche."
+    "text": "Such nach dem Namen. Die Suche im Grünerator kennt auch die gängigen Bezeichnungen — „Untertitel\" findet die Reels, „OCR\" den Scanner. Manches gibt es nur im Web. Einige Werkzeuge brauchen eine große Oberfläche. In der App siehst du die Inhalte dann, kannst sie aber nicht überall bearbeiten. Bei jedem Werkzeug oben steht, wo es läuft. Namen, Beschreibungen und Pfade stammen direkt aus dem Programmcode des Grünerators. Kommt ein Werkzeug dazu oder wird eines umbenannt, meldet sich die Doku-Prüfung automatisch, bis die Seite nachgezogen ist — sie kann also nicht stillschweigend veralten. Es gibt mehrere Grünerator-Instanzen — neben dem allgemeinen etwa eine Testumgebung und eine für die Bundesgeschäftsstelle. Einzelne Instanzen können abweichen: nicht jede bietet alle hier beschriebenen Werkzeuge, Notebooks und Agents an. Was deine Instanz anbietet, siehst du immer in ihrer eigenen Oberfläche."
   },
   {
     "url": "/docs/basics/wie-llms-funktionieren",
@@ -1050,6 +1050,14 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   {
     "url": "/docs/chat/ki-chat",
     "pageTitle": "KI-Chat",
+    "heading": "Agents aufrufen",
+    "anchor": "#agents-aufrufen",
+    "category": "Chat",
+    "text": "Für Anträge, Reden, Wahlprogramme und Bürger*innenanfragen gibt es eigene Agents — du findest sie unter dem Menüpunkt in der Seitenleiste und kannst sie direkt im Chat öffnen. Sie stehen außerdem in derselben @-Liste wie die Rezepte: deine eigenen unter eigene. Hat jemand aus einem deiner Projekte einen Agenten mit dem Projekt geteilt, steht er dort unter aus deinen Gruppen, mit dem Namen der Gruppe, aus der er kommt. Ein @-Aufruf wechselt für diese eine Nachricht auf diesen Agenten; ein Rezept, das du vorher gewählt hast, bleibt dabei aktiv."
+  },
+  {
+    "url": "/docs/chat/ki-chat",
+    "pageTitle": "KI-Chat",
     "heading": "Dateien im Chat",
     "anchor": "#dateien-im-chat",
     "category": "Chat",
@@ -1070,14 +1078,6 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#gespräch-starten",
     "category": "Chat",
     "text": "Den Chat erreichst du über den Menüpunkt in der Seitenleiste oder direkt unter /chat. Dort siehst du: Eingabefeld unten zum Schreiben deiner Nachricht Seitenleiste links mit deinem Gesprächsverlauf — Gespräche kannst du dort auch in Projekten bündeln (eigene Projekte und Gruppen, mit Übersicht unter /projekte) „+\"-Menü links im Eingabefeld — Dateien anhängen, Websuche und Dokumentensuche ein- und ausschalten, Rezepte, Rollen, Konnektoren und die Erstellen-Werkzeuge Modell-Auswahl rechts unten im Eingabefeld Jedes Gespräch wird als eigener Thread mit eigener Adresse (/chat/…) gespeichert. Du kannst jederzeit ein neues Gespräch beginnen oder in der Seitenleiste zu einem früheren Gespräch zurückkehren."
-  },
-  {
-    "url": "/docs/chat/ki-chat",
-    "pageTitle": "KI-Chat",
-    "heading": "Grüneratoren aufrufen",
-    "anchor": "#grüneratoren-aufrufen",
-    "category": "Chat",
-    "text": "Für Anträge, Reden, Wahlprogramme und Bürger*innenanfragen gibt es eigene Grüneratoren — du findest sie unter dem Menüpunkt in der Seitenleiste und kannst sie direkt im Chat öffnen. Sie stehen außerdem in derselben @-Liste wie die Rezepte: deine eigenen unter eigene. Hat jemand aus einem deiner Projekte einen Grünerator mit dem Projekt geteilt, steht er dort unter aus deinen Gruppen, mit dem Namen der Gruppe, aus der er kommt. Ein @-Aufruf wechselt für diese eine Nachricht auf diesen Grünerator; ein Rezept, das du vorher gewählt hast, bleibt dabei aktiv."
   },
   {
     "url": "/docs/chat/ki-chat",
@@ -1173,7 +1173,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Was du fragen kannst",
     "anchor": "#was-du-fragen-kannst",
     "category": "Chat",
-    "text": "Anfordern musst du nichts davon — es genügt, die Frage zu stellen. Die Kennzeichnungen an den Karten bedeuten: @kürzel — für diese Fähigkeit gibt es zusätzlich eine Erwähnung, mit der du sie im Eingabefeld vorwählen kannst. Nur ein Teil der Fähigkeiten hat so ein Kürzel, und das ist Absicht: Erwähnungen gibt es dort, wo die Vorauswahl wirklich etwas ändert — bei Quellen, die man gezielt ansteuert, und bei Formaten, die man bewusst wählt. Vieles erkennt der Grünerator auch ohne Erwähnung zuverlässig an der Formulierung allein. @wetter gibt es zusätzlich als Kürzel, sobald der Wetterdienst als Zusatzquelle verbunden ist — genau wie bei Bahn, tagesschau, trivago und Gesetze (siehe unten). experimentell — noch jung. Funktioniert, kann sich aber in Bedienung und Ergebnis noch ändern und ist nicht überall verfügbar. Verlass dich für etwas Wichtiges nicht blind darauf. Werkzeug: … — diese Fähigkeit lässt sich in eigenen Grüneratoren gezielt an- und abschalten. Zusatzquelle: … — dahinter steckt ein externer Dienst (Bahn, Wetterdienst, tagesschau, trivago, Gesetze), der pro Umgebung angebunden wird. Fehlt die Anbindung gerade, bleibt die Frage nicht unbeantwortet: der Grünerator weicht auf…"
+    "text": "Anfordern musst du nichts davon — es genügt, die Frage zu stellen. Die Kennzeichnungen an den Karten bedeuten: @kürzel — für diese Fähigkeit gibt es zusätzlich eine Erwähnung, mit der du sie im Eingabefeld vorwählen kannst. Nur ein Teil der Fähigkeiten hat so ein Kürzel, und das ist Absicht: Erwähnungen gibt es dort, wo die Vorauswahl wirklich etwas ändert — bei Quellen, die man gezielt ansteuert, und bei Formaten, die man bewusst wählt. Vieles erkennt der Grünerator auch ohne Erwähnung zuverlässig an der Formulierung allein. @wetter gibt es zusätzlich als Kürzel, sobald der Wetterdienst als Zusatzquelle verbunden ist — genau wie bei Bahn, tagesschau, trivago und Gesetze (siehe unten). experimentell — noch jung. Funktioniert, kann sich aber in Bedienung und Ergebnis noch ändern und ist nicht überall verfügbar. Verlass dich für etwas Wichtiges nicht blind darauf. Werkzeug: … — diese Fähigkeit lässt sich in eigenen Agents gezielt an- und abschalten. Zusatzquelle: … — dahinter steckt ein externer Dienst (Bahn, Wetterdienst, tagesschau, trivago, Gesetze), der pro Umgebung angebunden wird. Fehlt die Anbindung gerade, bleibt die Frage nicht unbeantwortet: der Grünerator weicht auf die…"
   },
   {
     "url": "/docs/chat/was-kann-ich-fragen",
@@ -1189,7 +1189,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Agentura",
     "anchor": "",
     "category": "Features",
-    "text": "RecipeCategories, ShelfCount, SortOptions, } from '@site/src/components/AgenturaShelves'; Die Agentura ist der Marktplatz für alle Grüneratoren und Rezepte. Hier findest du an einem Ort alle verfügbaren Grüneratoren — vom Pressestellen-Profi bis zum Landesverbands-Assistenten — entdeckst neue Werkzeuge und baust dir mit wenigen Klicks deine eigenen. Du erreichst die Agentura über den Menüpunkt in der Seitenleiste oder direkt unter /agentura. Die alten Adressen /agents und /skills leiten automatisch dorthin weiter. Was früher Agent*innen hieß, heißt jetzt Grüneratoren; aus Skills sind Rezepte geworden. Ältere Screenshots und Newsletter benutzen noch die alten Begriffe — gemeint ist dasselbe."
+    "text": "RecipeCategories, ShelfCount, SortOptions, } from '@site/src/components/AgenturaShelves'; Die Agentura ist der Marktplatz für alle Grüneratoren. Hier findest du an einem Ort alle verfügbaren Agents und Rezepte — vom Pressestellen-Profi bis zum Landesverbands-Assistenten — entdeckst neue Werkzeuge und baust dir mit wenigen Klicks deine eigenen. Du erreichst die Agentura über den Menüpunkt in der Seitenleiste oder direkt unter /agentura. Die alten Adressen /agents und /skills leiten automatisch dorthin weiter. Aus Skills sind Rezepte geworden, und der Reiter Von der Basis heißt jetzt Öffentlich. Ältere Screenshots und Newsletter benutzen noch die alten Begriffe — gemeint ist dasselbe."
+  },
+  {
+    "url": "/docs/features/agentura",
+    "pageTitle": "Agentura",
+    "heading": "Agents und Rezepte",
+    "anchor": "#agents-und-rezepte",
+    "category": "Features",
+    "text": "In der Agentura leben zwei Arten von Helfern: Agents sind spezialisierte KI-Persönlichkeiten mit eigenem Ton, eigenem Wissen und eigenen Werkzeugen. Du öffnest sie direkt im Chat und arbeitest dort mit ihnen — oder rufst sie mitten im Gespräch mit @ auf, so wie ein Rezept. Rezepte sind kurze Schnellbefehle für eine konkrete Aufgabe (z. B. eine Pressemitteilung im Stil deines Landesverbands). Du rufst sie im Chat mit @ auf. Eine Faustregel: Ein Agent ist ein eigenständiges Gegenüber für ein ganzes Themenfeld. Ein Rezept ist eine einzelne Vorlage, die du auf jeden beliebigen Agenten anwenden kannst. Grüneratoren ist der Überbegriff für alles, was in der Agentura liegt: Agents, Rezepte und wiederkehrende Aufgaben. Die einzelne KI-Persönlichkeit heißt Agent. „Der Grünerator\" ohne Zusatz meint das Produkt als Ganzes. Eigene Rezepte baust du genauso einfach wie eigene Agents — über Neu → Rezept oder direkt im Regal Meine Rezepte."
   },
   {
     "url": "/docs/features/agentura",
@@ -1197,15 +1205,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Detailseiten",
     "anchor": "#detailseiten",
     "category": "Features",
-    "text": "Jeder Grünerator und jedes Rezept hat eine eigene Detailseite — wie ein Produkt im Laden. Grüneratoren (/agentura/agent/...): Kopfbereich mit den Aktionen Im Chat öffnen, Favorit und — bei deinen eigenen Grüneratoren — Teilen. Bei allen anderen heißt dieselbe Schaltfläche Link kopieren. Übersicht — Beschreibung des Grünerator-Agenten. Gesprächsbeginn — Begrüßungsnachricht und eine Vorschau auf Beispiel-Antworten. Fähigkeiten — welche Werkzeuge der Grünerator-Agent nutzt und auf welches Wissen er zugreift. Verwandte — ähnliche Grüneratoren, die zum Thema passen. Rezepte (/agentura/rezept/...): Kopfbereich mit den Aktionen Im Chat verwenden und Favorit. Bei deinen eigenen Rezepten kommen Bearbeiten, Teilen und Löschen hinzu; bei allen anderen heißt die Teilen-Schaltfläche Link kopieren. Bei mitgelieferten Rezepten, die du anpassen darfst (z. B. Presse, Instagram, Landesverbands-Rezepte), zeigt der Kopfbereich zusätzlich Mit eigenen Beispielen anpassen. Hast du bereits einen eigenen Stil hinterlegt, heißt dieselbe Schaltfläche Angepassten Stil bearbeiten und ein Abzeichen zeigt Du hast diesen Stil angepasst. Der vollständige Rezept-Text als Markdown — so siehst du genau, was das…"
+    "text": "Jeder Agent und jedes Rezept hat eine eigene Detailseite — wie ein Produkt im Laden. Agents (/agentura/agent/...): Kopfbereich mit den Aktionen Im Chat öffnen, Favorit und — bei deinen eigenen Agents — Teilen. Bei allen anderen heißt dieselbe Schaltfläche Link kopieren. Übersicht — Beschreibung des Agenten. Gesprächsbeginn — Begrüßungsnachricht und eine Vorschau auf Beispiel-Antworten. Fähigkeiten — welche Werkzeuge der Agent nutzt und auf welches Wissen er zugreift. Verwandte — ähnliche Agents, die zum Thema passen. Rezepte (/agentura/rezept/...): Kopfbereich mit den Aktionen Im Chat verwenden und Favorit. Bei deinen eigenen Rezepten kommen Bearbeiten, Teilen und Löschen hinzu; bei allen anderen heißt die Teilen-Schaltfläche Link kopieren. Bei mitgelieferten Rezepten, die du anpassen darfst (z. B. Presse, Instagram, Landesverbands-Rezepte), zeigt der Kopfbereich zusätzlich Mit eigenen Beispielen anpassen. Hast du bereits einen eigenen Stil hinterlegt, heißt dieselbe Schaltfläche Angepassten Stil bearbeiten und ein Abzeichen zeigt Du hast diesen Stil angepasst. Der vollständige Rezept-Text als Markdown — so siehst du genau, was das Rezept macht, bevor du es nutzt. Eine Vorlage und…"
   },
   {
     "url": "/docs/features/agentura",
     "pageTitle": "Agentura",
-    "heading": "Eigene Grüneratoren bauen",
-    "anchor": "#eigene-grüneratoren-bauen",
+    "heading": "Eigene Agents bauen",
+    "anchor": "#eigene-agents-bauen",
     "category": "Features",
-    "text": "Das Herzstück der Agentura: Du kannst deine eigenen Grüneratoren bauen — ganz ohne technische Vorkenntnisse. Wie das Schritt für Schritt geht, liest du unter Eigene Grüneratoren erstellen."
+    "text": "Das Herzstück der Agentura: Du kannst deine eigenen Agents bauen — ganz ohne technische Vorkenntnisse. Wie das Schritt für Schritt geht, liest du unter Eigene Agents erstellen."
   },
   {
     "url": "/docs/features/agentura",
@@ -1213,7 +1221,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Eigene Rezepte bauen",
     "anchor": "#eigene-rezepte-bauen",
     "category": "Features",
-    "text": "Genauso kannst du dir eigene Rezepte bauen — eine Schreibvorgabe für eine bestimmte Textsorte, die du danach per @mention auf jeden Grünerator-Agenten anwendest. Wie das Schritt für Schritt geht, liest du unter Eigene Rezepte erstellen. Die Einstellung Texte anlernen verweist inzwischen nur noch hierher — eigene Rezepte legst du direkt in der Agentura an."
+    "text": "Genauso kannst du dir eigene Rezepte bauen — eine Schreibvorgabe für eine bestimmte Textsorte, die du danach per @mention auf jeden Agenten anwendest. Wie das Schritt für Schritt geht, liest du unter Eigene Rezepte erstellen. Die Einstellung Texte anlernen verweist inzwischen nur noch hierher — eigene Rezepte legst du direkt in der Agentura an."
   },
   {
     "url": "/docs/features/agentura",
@@ -1221,15 +1229,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Favoriten",
     "anchor": "#favoriten",
     "category": "Features",
-    "text": "Mit dem Stern auf einer Karte oder Detailseite markierst du einen Grünerator-Agenten oder ein Rezept als Favorit. Was danach passiert, ist für beide unterschiedlich. Grüneratoren heftest du damit an deine Seitenleiste an und öffnest sie von dort mit einem Klick im Chat. Das gilt für alle: eigene, System- und Landesverbands-Grüneratoren ebenso wie solche, die jemand anderes gebaut und über ein Projekt oder öffentlich mit dir geteilt hat. Ändert der Ersteller den Namen eines mit dir geteilten Grünerators, zeigt deine Seitenleiste den neuen Namen, wenn du die Agentura das nächste Mal öffnest — bis dahin bleibt der bisherige Name stehen. Rezepte werden nicht an die Seitenleiste geheftet. Sie sammeln sich im Favoriten-Regal oben in der Agentura — und im Chat stehen sie danach direkt im Plus-Menü neben dem Eingabefeld, ohne dass du sie erst suchen musst. Das gilt am Rechner wie in der App."
-  },
-  {
-    "url": "/docs/features/agentura",
-    "pageTitle": "Agentura",
-    "heading": "Grüneratoren und Rezepte",
-    "anchor": "#grüneratoren-und-rezepte",
-    "category": "Features",
-    "text": "In der Agentura leben zwei Arten von Helfern: Grüneratoren sind spezialisierte KI-Persönlichkeiten mit eigenem Ton, eigenem Wissen und eigenen Werkzeugen. Du öffnest sie direkt im Chat und arbeitest dort mit ihnen — oder rufst sie mitten im Gespräch mit @ auf, so wie ein Rezept. Rezepte sind kurze Schnellbefehle für eine konkrete Aufgabe (z. B. eine Pressemitteilung im Stil deines Landesverbands). Du rufst sie im Chat mit @ auf. Eine Faustregel: Ein Grünerator-Agent ist ein eigenständiges Gegenüber für ein ganzes Themenfeld. Ein Rezept ist eine einzelne Vorlage, die du auf jeden beliebigen Grünerator-Agenten anwenden kannst. In der Mehrzahl heißen sie Grüneratoren. In der Einzahl sagen wir Grünerator-Agent — „der Grünerator\" ohne Zusatz meint das Produkt als Ganzes. Eigene Rezepte baust du genauso einfach wie eigene Grüneratoren — über Neu → Rezept oder direkt im Regal Meine Rezepte."
+    "text": "Mit dem Stern auf einer Karte oder Detailseite markierst du einen Agenten oder ein Rezept als Favorit. Was danach passiert, ist für beide unterschiedlich. Agents heftest du damit an deine Seitenleiste an und öffnest sie von dort mit einem Klick im Chat. Das gilt für alle: eigene, System- und Landesverbands-Agents ebenso wie solche, die jemand anderes gebaut und über ein Projekt oder öffentlich mit dir geteilt hat. Ändert der Ersteller den Namen eines mit dir geteilten Agenten, zeigt deine Seitenleiste den neuen Namen, wenn du die Agentura das nächste Mal öffnest — bis dahin bleibt der bisherige Name stehen. Rezepte werden nicht an die Seitenleiste geheftet. Sie sammeln sich im Favoriten-Regal oben in der Agentura — und im Chat stehen sie danach direkt im Plus-Menü neben dem Eingabefeld, ohne dass du sie erst suchen musst. Das gilt am Rechner wie in der App."
   },
   {
     "url": "/docs/features/agentura",
@@ -1237,7 +1237,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Im Marktplatz stöbern",
     "anchor": "#im-marktplatz-stöbern",
     "category": "Features",
-    "text": "Die Agentura ist wie ein Marktladen aufgebaut. Es gibt Regale, angezeigt als Reihe farbiger Pillen-Buttons oberhalb der Karten — auf schmalen Bildschirmen umbricht die Reihe automatisch in mehrere Zeilen. Regale ohne Inhalt werden ausgeblendet, du siehst also nur, was bei dir tatsächlich etwas enthält — mit zwei Ausnahmen: Meine Grüneratoren und Von der Basis bleiben immer stehen und laden dich stattdessen zum Anlegen ein. Im offiziellen Regal sind die Rezepte zusätzlich nach Rubriken sortiert: . Über das Suchfeld findest du Grüneratoren und Rezepte nach Name oder Beschreibung; sortieren kannst du nach . Oben rechts legst du über die Schaltfläche Neu etwas Eigenes an: Grünerator, Rezept oder Wiederkehrende Aufgabe. Ein Grünerator-Agent kann auch nach Zeitplan laufen — etwa „jeden Montag eine Presseschau\". Angelegt wird er über Neu → Wiederkehrende Aufgabe oder den Link Neue wiederkehrende Aufgabe im Regal Meine Grüneratoren, Unterabschnitt Wiederkehrende Aufgaben (ein eigenes Regal gibt es dafür nicht). Im Editor erscheint dann ein zusätzlicher Zeitplan-Tab; denselben Tab siehst du, wenn du später einen Agenten mit Zeitplan bearbeitest. Auf den Karten der Grüneratoren siehst du…"
+    "text": "Die Agentura ist wie ein Marktladen aufgebaut. Es gibt Regale, angezeigt als Reihe farbiger Pillen-Buttons oberhalb der Karten — auf schmalen Bildschirmen umbricht die Reihe automatisch in mehrere Zeilen. Regale ohne Inhalt werden ausgeblendet, du siehst also nur, was bei dir tatsächlich etwas enthält — mit zwei Ausnahmen: Meine Grüneratoren und Öffentlich bleiben immer stehen und laden dich stattdessen zum Anlegen ein. Das Regal deines Landesverbands trägt dessen Namen — bei den Grünen Hessen heißt der Reiter also Grüne Hessen. Im offiziellen Regal sind die Rezepte zusätzlich nach Rubriken sortiert: . Über das Suchfeld findest du Agents und Rezepte nach Name oder Beschreibung; sortieren kannst du nach . Oben rechts legst du über die Schaltfläche Neu etwas Eigenes an: Agent, Rezept oder Wiederkehrende Aufgabe. Ein Agent kann auch nach Zeitplan laufen — etwa „jeden Montag eine Presseschau\". Angelegt wird er über Neu → Wiederkehrende Aufgabe oder den Link Neue wiederkehrende Aufgabe im Regal Meine Grüneratoren, Unterabschnitt Wiederkehrende Aufgaben (ein eigenes Regal gibt es dafür nicht). Im Editor erscheint dann ein zusätzlicher Zeitplan-Tab; denselben Tab siehst du, wenn du…"
   },
   {
     "url": "/docs/features/agentura",
@@ -1245,7 +1245,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Schnell hinkommen",
     "anchor": "#schnell-hinkommen",
     "category": "Features",
-    "text": "In der Seitenleiste liegt als eigener Eintrag. Ein Klick öffnet eine kurze Auswahl deiner Favoriten und der zuletzt genutzten Grüneratoren — von dort startest du direkt ein Gespräch, ohne den Umweg über den Marktplatz. Der Eintrag Alle Grüneratoren & Verwaltung führt in die Agentura."
+    "text": "In der Seitenleiste liegt als eigener Eintrag. Ein Klick öffnet eine kurze Auswahl deiner Favoriten und der zuletzt genutzten Agents — von dort startest du direkt ein Gespräch, ohne den Umweg über den Marktplatz. Der Eintrag Alle Grüneratoren & Verwaltung führt in die Agentura."
   },
   {
     "url": "/docs/features/agentura",
@@ -1253,7 +1253,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Tipps für die Nutzung",
     "anchor": "#tipps-für-die-nutzung",
     "category": "Features",
-    "text": "Öffne einen Grünerator-Agenten direkt aus der Agentura im Chat — die ganze Konfiguration ist dann schon aktiv. Markiere häufig genutzte Grüneratoren als Favorit, damit sie in der Seitenleiste auftauchen. Schau dir vor dem Bauen ähnliche Grüneratoren an — über die „Verwandte\"-Liste auf den Detailseiten findest du Vorbilder. Mehr zum Arbeiten mit Grüneratoren im Gespräch findest du unter KI-Chat."
+    "text": "Öffne einen Agenten direkt aus der Agentura im Chat — die ganze Konfiguration ist dann schon aktiv. Markiere häufig genutzte Agents als Favorit, damit sie in der Seitenleiste auftauchen. Schau dir vor dem Bauen ähnliche Agents an — über die „Verwandte\"-Liste auf den Detailseiten findest du Vorbilder. Mehr zum Arbeiten mit Agents im Gespräch findest du unter KI-Chat."
   },
   {
     "url": "/docs/features/boards",
@@ -1365,7 +1365,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Features",
     "anchor": "",
     "category": "Features",
-    "text": "Neben dem Chat gibt es im Grünerator drei größere Flächen. Diese Seiten beschreiben, was es dort gibt — jede Funktion, jeden Schalter. Wenn du stattdessen eine bestimmte Aufgabe erledigen willst, sind die Guides für Einsteiger*innen der kürzere Weg. Office — Dokumente, Tabellen, Präsentationen und Boards, gemeinsam bearbeitbar und mit KI-Unterstützung direkt im Editor. Agentura — der Marktplatz für Grüneratoren und Rezepte: fertige nutzen, eigene bauen. Notebooks — eigenes Wissen bündeln und durchsuchbar machen: Quellarten, Teilen, Verwaltung. Landesverbände — welche Inhalte der Landesverbände im Grünerator stecken und was ihre Grüneratoren können."
+    "text": "Neben dem Chat gibt es im Grünerator drei größere Flächen. Diese Seiten beschreiben, was es dort gibt — jede Funktion, jeden Schalter. Wenn du stattdessen eine bestimmte Aufgabe erledigen willst, sind die Guides für Einsteiger*innen der kürzere Weg. Office — Dokumente, Tabellen, Präsentationen und Boards, gemeinsam bearbeitbar und mit KI-Unterstützung direkt im Editor. Agentura — der Marktplatz für Grüneratoren und Rezepte: fertige nutzen, eigene bauen. Notebooks — eigenes Wissen bündeln und durchsuchbar machen: Quellarten, Teilen, Verwaltung. Landesverbände — welche Inhalte der Landesverbände im Grünerator stecken und was ihre Agents können."
   },
   {
     "url": "/docs/features/ki-im-editor",
@@ -1401,39 +1401,39 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/features/landesverbaende",
-    "pageTitle": "Landesverband-Grüneratoren",
-    "heading": "Landesverband-Grüneratoren",
+    "pageTitle": "Landesverband-Agents",
+    "heading": "Landesverband-Agents",
     "anchor": "",
     "category": "Features",
-    "text": "Der Grünerator hat für mehrere Landesverbände eigene, regional getunte Grüneratoren. Sie schreiben nicht generisch-grün, sondern im konkreten Stil des jeweiligen Landesverbands — mit den richtigen Sprecher*innen, den lokalen Themen und der typischen Tonalität. Im Hintergrund recherchieren sie automatisch in der Wissensdatenbank des Landesverbands (Pressemitteilungen, Beschlüsse, Wahlprogramme) und im Web. Es gibt drei Sorten von Landesverband-Grüneratoren: Öffentlichkeitsarbeit — schreibt Pressemitteilungen und Social-Media-Posts im Stil des Landesverbands. Bürger*innenanfragen — formuliert versandfertige, recherchebasierte Antwort-E-Mails auf Anfragen von Bürger*innen. Wahlprüfsteine — beantwortet Fragenkataloge von Verbänden und Initiativen, im Format des Katalogs und im Stil des Landesverbands. Die Grüneratoren, Rezepte und Notebooks eines Landesverbands sind seinen Leuten zugeteilt: Sie erscheinen, sobald du in deinem Profil die Rolle Mitarbeiter*in Landesgeschäftsstelle (Österreich: Landesorganisation) mit deinem Bundesland hinterlegt hast. Wie das geht, steht unter Für deinen Landesverband einrichten."
+    "text": "Der Grünerator hat für mehrere Landesverbände eigene, regional getunte Agents. Sie schreiben nicht generisch-grün, sondern im konkreten Stil des jeweiligen Landesverbands — mit den richtigen Sprecher*innen, den lokalen Themen und der typischen Tonalität. Im Hintergrund recherchieren sie automatisch in der Wissensdatenbank des Landesverbands (Pressemitteilungen, Beschlüsse, Wahlprogramme) und im Web. Es gibt drei Sorten von Landesverband-Agents: Öffentlichkeitsarbeit — schreibt Pressemitteilungen und Social-Media-Posts im Stil des Landesverbands. Bürger*innenanfragen — formuliert versandfertige, recherchebasierte Antwort-E-Mails auf Anfragen von Bürger*innen. Wahlprüfsteine — beantwortet Fragenkataloge von Verbänden und Initiativen, im Format des Katalogs und im Stil des Landesverbands. Die Agents, Rezepte und Notebooks eines Landesverbands sind seinen Leuten zugeteilt: Sie erscheinen, sobald du in deinem Profil die Rolle Mitarbeiter*in Landesgeschäftsstelle (Österreich: Landesorganisation) mit deinem Bundesland hinterlegt hast. Wie das geht, steht unter Für deinen Landesverband einrichten."
   },
   {
     "url": "/docs/features/landesverbaende",
-    "pageTitle": "Landesverband-Grüneratoren",
+    "pageTitle": "Landesverband-Agents",
     "heading": "Abgedeckte Landesverbände",
     "anchor": "#abgedeckte-landesverbände",
     "category": "Features",
-    "text": "Jede Kachel verlinkt auf die Landesverband-Seite — sie bietet die drei Grüneratoren des Landesverbands zur Auswahl an: Öffentlichkeitsarbeit, Bürger*innenservice und Wahlprüfsteine (alle siehe unten). Darunter stehen die Rezept-Abkürzungen und ein Link zur Wissensdatenbank (Notebook). Die Grünen Österreich sind kein Landesverband, sondern die Bundespartei — sie haben aber dieselben drei Grünerator-Typen (erreichbar unter /agents/gruene-oesterreich, Wissensdatenbank /notebooks/oesterreich · @at). Diese Grüneratoren verwenden österreichisches Vokabular (Nationalrat, Klubobfrau*Klubobmann, Klimaticket) und erscheinen nur für Nutzer*innen mit österreichischer Einstellung."
+    "text": "Jede Kachel verlinkt auf die Landesverband-Seite — sie bietet die drei Agents des Landesverbands zur Auswahl an: Öffentlichkeitsarbeit, Bürger*innenservice und Wahlprüfsteine (alle siehe unten). Darunter stehen die Rezept-Abkürzungen und ein Link zur Wissensdatenbank (Notebook). Die Grünen Österreich sind kein Landesverband, sondern die Bundespartei — sie haben aber dieselben drei Agent-Typen (erreichbar unter /agents/gruene-oesterreich, Wissensdatenbank /notebooks/oesterreich · @at). Diese Agents verwenden österreichisches Vokabular (Nationalrat, Klubobfrau*Klubobmann, Klimaticket) und erscheinen nur für Nutzer*innen mit österreichischer Einstellung."
   },
   {
     "url": "/docs/features/landesverbaende",
-    "pageTitle": "Landesverband-Grüneratoren",
+    "pageTitle": "Landesverband-Agents",
     "heading": "Bürger*innenanfragen beantworten",
     "anchor": "#bürgerinnenanfragen-beantworten",
     "category": "Features",
-    "text": "Die Bürger*innenanfragen-Grüneratoren helfen dir, eingehende E-Mails von Bürger*innen zu beantworten. Du fügst die Anfrage ein, der Grünerator-Agent recherchiert die Positionen des Landesverbands (die Treffer erscheinen als Recherche-Karten im Chat) und formuliert eine versandfertige Antwort-E-Mail nach festem Aufbau: Anrede → Dank → inhaltliche Antwort → weiterführende Links. Du erreichst sie über die Landesverband-Seite (z. B. /agents/gruene-berlin) — dort wählst du den Bürger*innenservice statt der Öffentlichkeitsarbeit."
+    "text": "Die Bürger*innenanfragen-Agents helfen dir, eingehende E-Mails von Bürger*innen zu beantworten. Du fügst die Anfrage ein, der Agent recherchiert die Positionen des Landesverbands (die Treffer erscheinen als Recherche-Karten im Chat) und formuliert eine versandfertige Antwort-E-Mail nach festem Aufbau: Anrede → Dank → inhaltliche Antwort → weiterführende Links. Du erreichst sie über die Landesverband-Seite (z. B. /agents/gruene-berlin) — dort wählst du den Bürger*innenservice statt der Öffentlichkeitsarbeit."
   },
   {
     "url": "/docs/features/landesverbaende",
-    "pageTitle": "Landesverband-Grüneratoren",
+    "pageTitle": "Landesverband-Agents",
     "heading": "Die Wissensdatenbank dahinter",
     "anchor": "#die-wissensdatenbank-dahinter",
     "category": "Features",
-    "text": "Jeder Landesverband hat ein Notebook — eine durchsuchbare Sammlung seiner offiziellen Inhalte (Pressemitteilungen, Beschlüsse, Wahlprogramme). Die LV-Grüneratoren durchsuchen es automatisch und auf den richtigen Landesverband gefiltert, du musst nichts einstellen. Du kannst dasselbe Notebook auch direkt nutzen: Aufrufen & durchstöbern: über seine Adresse, z. B. /notebooks/berlin. Im Chat als Quelle einbinden: tippe die @-Erwähnung, z. B. @berlin, @mv, @thüringen, @brandenburg, @bayern, @sachsen-anhalt, @hessen oder @saar. Der Chat zieht dann seine Antworten aus diesem Notebook. Mehr zu Notebooks allgemein findest du unter Notebooks."
+    "text": "Jeder Landesverband hat ein Notebook — eine durchsuchbare Sammlung seiner offiziellen Inhalte (Pressemitteilungen, Beschlüsse, Wahlprogramme). Die LV-Agents durchsuchen es automatisch und auf den richtigen Landesverband gefiltert, du musst nichts einstellen. Du kannst dasselbe Notebook auch direkt nutzen: Aufrufen & durchstöbern: über seine Adresse, z. B. /notebooks/berlin. Im Chat als Quelle einbinden: tippe die @-Erwähnung, z. B. @berlin, @mv, @thüringen, @brandenburg, @bayern, @sachsen-anhalt, @hessen oder @saar. Der Chat zieht dann seine Antworten aus diesem Notebook. Mehr zu Notebooks allgemein findest du unter Notebooks."
   },
   {
     "url": "/docs/features/landesverbaende",
-    "pageTitle": "Landesverband-Grüneratoren",
+    "pageTitle": "Landesverband-Agents",
     "heading": "LV-Rezepte im Überblick",
     "anchor": "#lv-rezepte-im-überblick",
     "category": "Features",
@@ -1441,19 +1441,19 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/features/landesverbaende",
-    "pageTitle": "Landesverband-Grüneratoren",
+    "pageTitle": "Landesverband-Agents",
     "heading": "Pressemitteilungen & Social Media schreiben",
     "anchor": "#pressemitteilungen--social-media-schreiben",
     "category": "Features",
-    "text": "Du erreichst den Öffentlichkeitsarbeit-Grünerator auf zwei Wegen: 1. Über die Landesverband-Seite — öffne die LV-Adresse (z. B. /agents/gruene-berlin) und wähle dort Öffentlichkeitsarbeit; oder wähle den Grünerator-Agent direkt in der Auswahl im Chat aus. Er bleibt für das ganze Gespräch im LV-Stil. 2. Über eine Rezept-Abkürzung — tippe im Chat @presse-berlin-partei und direkt dahinter dein Thema. Das Rezept schickt deine Anfrage an den passenden LV-Grünerator und gibt ihm gleich die richtige Aufgabe mit (Pressemitteilung bzw. Instagram-Post)."
+    "text": "Du erreichst den Öffentlichkeitsarbeit-Agenten auf zwei Wegen: 1. Über die Landesverband-Seite — öffne die LV-Adresse (z. B. /agents/gruene-berlin) und wähle dort Öffentlichkeitsarbeit; oder wähle den Agenten direkt in der Auswahl im Chat aus. Er bleibt für das ganze Gespräch im LV-Stil. 2. Über eine Rezept-Abkürzung — tippe im Chat @presse-berlin-partei und direkt dahinter dein Thema. Das Rezept schickt deine Anfrage an den passenden LV-Agenten und gibt ihm gleich die richtige Aufgabe mit (Pressemitteilung bzw. Instagram-Post)."
   },
   {
     "url": "/docs/features/landesverbaende",
-    "pageTitle": "Landesverband-Grüneratoren",
+    "pageTitle": "Landesverband-Agents",
     "heading": "Wahlprüfsteine beantworten",
     "anchor": "#wahlprüfsteine-beantworten",
     "category": "Features",
-    "text": "Die Wahlprüfstein-Grüneratoren beantworten Fragenkataloge von Verbänden und Initiativen (Wahlprüfsteine): Du fügst den Katalog ein, der Grünerator-Agent recherchiert die Positionen des Landesverbands und antwortet im Format des Katalogs und im Stil des Landesverbands. Auch sie erreichst du über die Landesverband-Seite — dort wählst du Wahlprüfsteine."
+    "text": "Die Wahlprüfstein-Agents beantworten Fragenkataloge von Verbänden und Initiativen (Wahlprüfsteine): Du fügst den Katalog ein, der Agent recherchiert die Positionen des Landesverbands und antwortet im Format des Katalogs und im Stil des Landesverbands. Auch sie erreichst du über die Landesverband-Seite — dort wählst du Wahlprüfsteine."
   },
   {
     "url": "/docs/features/notebooks",
@@ -1466,10 +1466,10 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   {
     "url": "/docs/features/notebooks",
     "pageTitle": "Notebooks",
-    "heading": "Auf „Von der Basis\" listen",
-    "anchor": "#auf-von-der-basis-listen",
+    "heading": "Auf „Öffentlich\" listen",
+    "anchor": "#auf-öffentlich-listen",
     "category": "Features",
-    "text": "Im Modus „Mit Anmeldung\" kannst du zusätzlich den Schalter „Auf ‚Von der Basis' listen\" aktivieren. Dann erscheint dein Notebook für andere auf der Wissen-Seite: in der Notebook-Reihe gibt es die Kachel „Von der Basis\", die alle so gelisteten Notebooks aufklappt. Zusätzlich taucht es in der Suche der Wissen-Seite auf, die System-Notebooks, eigene und öffentliche Notebooks gemeinsam durchsucht. Sobald du den Schalter aktivierst, musst du eine der beiden Aussagen bestätigen: „Ich besitze die Daten\" — … oder habe die Rechte zur Veröffentlichung; z.&nbsp;B. eigene Texte, Beschlüsse deines Verbands, Material, das du selbst veröffentlichen darfst. „Daten sind öffentlich verfügbar\" — z.&nbsp;B. offizielle Dokumente, Pressemitteilungen, frei zugängliche Veröffentlichungen. Ohne diese Bestätigung lässt sich das Notebook nicht listen. Hintergrund: Damit stellen wir sicher, dass nur Inhalte mit klarer Rechtelage veröffentlicht werden. Wenn du dir bei den Rechten unsicher bist, lass das Notebook privat — du kannst die Sichtbarkeit jederzeit später ändern."
+    "text": "Im Modus „Mit Anmeldung\" kannst du zusätzlich den Schalter „Auf ‚Öffentlich' listen\" aktivieren. Dann erscheint dein Notebook für andere auf der Wissen-Seite: in der Notebook-Reihe gibt es die Kachel „Öffentlich\", die alle so gelisteten Notebooks aufklappt. Zusätzlich taucht es in der Suche der Wissen-Seite auf, die System-Notebooks, eigene und öffentliche Notebooks gemeinsam durchsucht. Sobald du den Schalter aktivierst, musst du eine der beiden Aussagen bestätigen: „Ich besitze die Daten\" — … oder habe die Rechte zur Veröffentlichung; z.&nbsp;B. eigene Texte, Beschlüsse deines Verbands, Material, das du selbst veröffentlichen darfst. „Daten sind öffentlich verfügbar\" — z.&nbsp;B. offizielle Dokumente, Pressemitteilungen, frei zugängliche Veröffentlichungen. Ohne diese Bestätigung lässt sich das Notebook nicht listen. Hintergrund: Damit stellen wir sicher, dass nur Inhalte mit klarer Rechtelage veröffentlicht werden. Wenn du dir bei den Rechten unsicher bist, lass das Notebook privat — du kannst die Sichtbarkeit jederzeit später ändern."
   },
   {
     "url": "/docs/features/notebooks",
@@ -1493,7 +1493,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Häufige Fragen",
     "anchor": "#häufige-fragen",
     "category": "Features",
-    "text": "Wo schalte ich ein Notebook öffentlich? Nicht mehr in der Erstellung. Öffne das Notebook über Bearbeiten und klicke oben rechts auf „Teilen\". Wähle im Dialog die Sichtbarkeit „Mit Anmeldung\" und aktiviere „Auf ‚Von der Basis' listen\", damit es auf der Wissen-Seite unter der Kachel „Von der Basis\" und in der Suche auffindbar wird. Was passiert mit Dokumenten, wenn ich ein Notebook lösche? Die Dokumente bleiben in deiner persönlichen Dokumenten-Bibliothek erhalten — nur die Sammlung wird gelöscht. Kann ich dasselbe Dokument in mehrere Notebooks aufnehmen? Ja. Beim Bearbeiten eines Notebooks kannst du beliebige Dokumente aus deiner Bibliothek auswählen. Wie lange dauert die Indexierung? Bei Text-PDFs und reinen Textdateien meist nur Sekunden. Eingescannte PDFs (mit OCR) und sehr große Dateien können einige Minuten brauchen. Das Notebook ist trotzdem sofort nutzbar — neue Dokumente erscheinen in den Antworten, sobald die Indexierung abgeschlossen ist. Mein Dokument wird nicht akzeptiert. Prüfe die Dateiendung (PDF, DOCX, PPTX, TXT, MD, CSV, PNG, JPG, AVIF) und die Dateigröße (max. 50 MB). Andere Formate — darunter .doc, .odt und .rtf — musst du vorher als PDF oder DOCX speichern. Ein…"
+    "text": "Wo schalte ich ein Notebook öffentlich? Nicht mehr in der Erstellung. Öffne das Notebook über Bearbeiten und klicke oben rechts auf „Teilen\". Wähle im Dialog die Sichtbarkeit „Mit Anmeldung\" und aktiviere „Auf ‚Öffentlich' listen\", damit es auf der Wissen-Seite unter der Kachel „Öffentlich\" und in der Suche auffindbar wird. Was passiert mit Dokumenten, wenn ich ein Notebook lösche? Die Dokumente bleiben in deiner persönlichen Dokumenten-Bibliothek erhalten — nur die Sammlung wird gelöscht. Kann ich dasselbe Dokument in mehrere Notebooks aufnehmen? Ja. Beim Bearbeiten eines Notebooks kannst du beliebige Dokumente aus deiner Bibliothek auswählen. Wie lange dauert die Indexierung? Bei Text-PDFs und reinen Textdateien meist nur Sekunden. Eingescannte PDFs (mit OCR) und sehr große Dateien können einige Minuten brauchen. Das Notebook ist trotzdem sofort nutzbar — neue Dokumente erscheinen in den Antworten, sobald die Indexierung abgeschlossen ist. Mein Dokument wird nicht akzeptiert. Prüfe die Dateiendung (PDF, DOCX, PPTX, TXT, MD, CSV, PNG, JPG, AVIF) und die Dateigröße (max. 50 MB). Andere Formate — darunter .doc, .odt und .rtf — musst du vorher als PDF oder DOCX speichern. Ein…"
   },
   {
     "url": "/docs/features/notebooks",
@@ -1813,7 +1813,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Weiterlesen",
     "anchor": "#weiterlesen",
     "category": "Guides",
-    "text": "Notebooks — Quellarten, Teilen, Verwaltung, häufige Fragen Wie binde ich die Grüne Wolke ein? — Voraussetzung, um Wolke-Ordner anzuhängen Landesverband-Grüneratoren — Österreich: vorgefertigte Wissensdatenbank der Grünen Österreich"
+    "text": "Notebooks — Quellarten, Teilen, Verwaltung, häufige Fragen Wie binde ich die Grüne Wolke ein? — Voraussetzung, um Wolke-Ordner anzuhängen Landesverband-Agents — Österreich: vorgefertigte Wissensdatenbank der Grünen Österreich"
   },
   {
     "url": "/docs/guides/einsteigerinnen/gemeinsames-projekt-erstellen",
@@ -2113,31 +2113,31 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-agentinnen-erstellen",
-    "pageTitle": "Wie erstelle ich einen Grünerator-Agenten?",
-    "heading": "Wie erstelle ich einen Grünerator-Agenten?",
+    "pageTitle": "Wie erstelle ich einen Agenten?",
+    "heading": "Wie erstelle ich einen Agenten?",
     "anchor": "",
     "category": "Guides",
-    "text": "In der Agentura kannst du einen eigenen Grünerator-Agenten für eine Aufgabe erstellen, die du häufiger erledigst, zum Beispiel für Pressemitteilungen, Recherchen oder Social-Media-Texte. Du beschreibst zuerst in normalen Worten, was der Agent tun soll. Der Grünerator füllt daraus den Editor vor; vor dem Speichern kannst du alles kontrollieren und ändern. Noch in der Erprobung: Verhalten und Funktionen können sich ändern. Melde Probleme gern dem Team."
+    "text": "In der Agentura kannst du einen eigenen Agenten für eine Aufgabe erstellen, die du häufiger erledigst, zum Beispiel für Pressemitteilungen, Recherchen oder Social-Media-Texte. Du beschreibst zuerst in normalen Worten, was der Agent tun soll. Der Grünerator füllt daraus den Editor vor; vor dem Speichern kannst du alles kontrollieren und ändern. Noch in der Erprobung: Verhalten und Funktionen können sich ändern. Melde Probleme gern dem Team."
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-agentinnen-erstellen",
-    "pageTitle": "Wie erstelle ich einen Grünerator-Agenten?",
+    "pageTitle": "Wie erstelle ich einen Agenten?",
     "heading": "Schritt 1: Die Agentura öffnen",
     "anchor": "#schritt-1-die-agentura-öffnen",
     "category": "Guides",
-    "text": "Öffne die Agentura. Die Kategorie Meine Grüneratoren ist bereits ausgewählt. Klicke rechts über den Karten auf Neu → Grünerator."
+    "text": "Öffne die Agentura. Die Kategorie Meine Grüneratoren ist bereits ausgewählt. Klicke rechts über den Karten auf Neu → Agent."
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-agentinnen-erstellen",
-    "pageTitle": "Wie erstelle ich einen Grünerator-Agenten?",
+    "pageTitle": "Wie erstelle ich einen Agenten?",
     "heading": "Schritt 2: Den Agenten beschreiben",
     "anchor": "#schritt-2-den-agenten-beschreiben",
     "category": "Guides",
-    "text": "Schreibe in das Eingabefeld, wofür du den Agenten brauchst, wie seine Antworten klingen sollen und welche Fähigkeiten er benötigt. Je konkreter die Beschreibung ist, desto brauchbarer wird der Entwurf. Zum Beispiel: Ein Grünerator-Agent für Pressemitteilungen unseres Kreisverbands. Er soll sachlich und verständlich schreiben, vor dem Entwurf nach Anlass, Kernbotschaft und Zitaten fragen und bei Bedarf im Web recherchieren. Du kannst stattdessen eines der Beispiele 📰 Pressestelle, 🚲 Recherche-Bot oder 📣 Social Media anklicken und den vorgeschlagenen Text anpassen. Schicke die Beschreibung mit der Pfeiltaste im Eingabefeld ab. Der Grünerator erstellt daraufhin einmalig einen Entwurf und öffnet den Editor. Gespeichert ist der Agent zu diesem Zeitpunkt noch nicht. Über „Lieber manuell anlegen?\" öffnest du denselben Editor mit leeren Feldern."
+    "text": "Schreibe in das Eingabefeld, wofür du den Agenten brauchst, wie seine Antworten klingen sollen und welche Fähigkeiten er benötigt. Je konkreter die Beschreibung ist, desto brauchbarer wird der Entwurf. Zum Beispiel: Ein Agent für Pressemitteilungen unseres Kreisverbands. Er soll sachlich und verständlich schreiben, vor dem Entwurf nach Anlass, Kernbotschaft und Zitaten fragen und bei Bedarf im Web recherchieren. Du kannst stattdessen eines der Beispiele 📰 Pressestelle, 🚲 Recherche-Bot oder 📣 Social Media anklicken und den vorgeschlagenen Text anpassen. Schicke die Beschreibung mit der Pfeiltaste im Eingabefeld ab. Der Grünerator erstellt daraufhin einmalig einen Entwurf und öffnet den Editor. Gespeichert ist der Agent zu diesem Zeitpunkt noch nicht. Über „Lieber manuell anlegen?\" öffnest du denselben Editor mit leeren Feldern."
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-agentinnen-erstellen",
-    "pageTitle": "Wie erstelle ich einen Grünerator-Agenten?",
+    "pageTitle": "Wie erstelle ich einen Agenten?",
     "heading": "Schritt 3: Den Entwurf unter „Grundlagen“ prüfen",
     "anchor": "#schritt-3-den-entwurf-unter-grundlagen-prüfen",
     "category": "Guides",
@@ -2145,7 +2145,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-agentinnen-erstellen",
-    "pageTitle": "Wie erstelle ich einen Grünerator-Agenten?",
+    "pageTitle": "Wie erstelle ich einen Agenten?",
     "heading": "Schritt 4: Werkzeuge auswählen",
     "anchor": "#schritt-4-werkzeuge-auswählen",
     "category": "Guides",
@@ -2153,7 +2153,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-agentinnen-erstellen",
-    "pageTitle": "Wie erstelle ich einen Grünerator-Agenten?",
+    "pageTitle": "Wie erstelle ich einen Agenten?",
     "heading": "Schritt 5: Optional Notebooks hinzufügen",
     "anchor": "#schritt-5-optional-notebooks-hinzufügen",
     "category": "Guides",
@@ -2161,11 +2161,11 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-agentinnen-erstellen",
-    "pageTitle": "Wie erstelle ich einen Grünerator-Agenten?",
+    "pageTitle": "Wie erstelle ich einen Agenten?",
     "heading": "Schritt 6: Speichern und testen",
     "anchor": "#schritt-6-speichern-und-testen",
     "category": "Guides",
-    "text": "Klicke oben rechts auf Speichern. Erst jetzt wird der Grünerator-Agent angelegt. Anschließend bleibst du auf seiner Bearbeitungsseite und kannst ihn über Im Chat öffnen ausprobieren. Teste dabei mindestens: Fragt der Agent fehlende Angaben ab? Hält er Ton, Aufbau und Grenzen aus der Anleitung ein? Verwendet er nur die Werkzeuge und Wissensquellen, die du vorgesehen hast? Wenn etwas nicht passt, kehre zur Agentura zurück und wähle an der Karte Bearbeiten über das Stift-Symbol. Passe vor allem die Anleitung an, speichere erneut und teste noch einmal."
+    "text": "Klicke oben rechts auf Speichern. Erst jetzt wird der Agent angelegt. Anschließend bleibst du auf seiner Bearbeitungsseite und kannst ihn über Im Chat öffnen ausprobieren. Teste dabei mindestens: Fragt der Agent fehlende Angaben ab? Hält er Ton, Aufbau und Grenzen aus der Anleitung ein? Verwendet er nur die Werkzeuge und Wissensquellen, die du vorgesehen hast? Wenn etwas nicht passt, kehre zur Agentura zurück und wähle an der Karte Bearbeiten über das Stift-Symbol. Passe vor allem die Anleitung an, speichere erneut und teste noch einmal."
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-rezepte-erstellen",
@@ -2173,15 +2173,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Wie erstelle ich ein eigenes Rezept?",
     "anchor": "",
     "category": "Guides",
-    "text": "Ein Rezept ist eine Schreibvorgabe für eine bestimmte Textsorte: Aufbau, Ton und Länge, einmal festgelegt und danach per @mention auf jeden Grünerator-Agenten anwendbar. Anders als ein Grünerator-Agent ist ein Rezept kein eigenständiges Gegenüber — es ist eine Vorlage, die du im Chat kurz aktivierst, etwa @presse für eine Pressemitteilung oder ein selbst gebautes @einladung für Einladungen zur Mitgliederversammlung. In der Agentura kannst du dir eigene Rezepte für Textsorten bauen, die du häufiger schreibst."
+    "text": "Ein Rezept ist eine Schreibvorgabe für eine bestimmte Textsorte: Aufbau, Ton und Länge, einmal festgelegt und danach per @mention auf jeden Agenten anwendbar. Anders als ein Agent ist ein Rezept kein eigenständiges Gegenüber — es ist eine Vorlage, die du im Chat kurz aktivierst, etwa @presse für eine Pressemitteilung oder ein selbst gebautes @einladung für Einladungen zur Mitgliederversammlung. In der Agentura kannst du dir eigene Rezepte für Textsorten bauen, die du häufiger schreibst."
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-rezepte-erstellen",
     "pageTitle": "Wie erstelle ich ein eigenes Rezept?",
-    "heading": "Als Standard-Rezept an einem eigenen Grünerator hinterlegen",
-    "anchor": "#als-standard-rezept-an-einem-eigenen-grünerator-hinterlegen",
+    "heading": "Als Standard-Rezept an einem eigenen Agenten hinterlegen",
+    "anchor": "#als-standard-rezept-an-einem-eigenen-agenten-hinterlegen",
     "category": "Guides",
-    "text": "Baust du einen eigenen Grünerator-Agenten, kannst du im Tab Grundlagen unter Standard-Rezept (optional) eines deiner Rezepte auswählen. Der Grünerator-Agent verwendet es dann automatisch, sobald du im Chat kein anderes Rezept per @mention wählst. Wie du einen eigenen Grünerator-Agenten anlegst, steht unter Eigene Grüneratoren erstellen."
+    "text": "Baust du einen eigenen Agenten, kannst du im Tab Grundlagen unter Standard-Rezept (optional) eines deiner Rezepte auswählen. Der Agent verwendet es dann automatisch, sobald du im Chat kein anderes Rezept per @mention wählst. Wie du einen eigenen Agenten anlegst, steht unter Eigene Agents erstellen."
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-rezepte-erstellen",
@@ -2245,7 +2245,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Teilen",
     "anchor": "#teilen",
     "category": "Guides",
-    "text": "Unter Teilen am Ende des Formulars (nur bei bereits gespeicherten eigenen Rezepten) legst du die Sichtbarkeit fest: Privat — nur du siehst das Rezept. Mit Projekten geteilt — du wählst eines oder mehrere deiner Projekte aus; alle Mitglieder können das Rezept dann im Chat nutzen. Mit Anmeldung — alle eingeloggten Nutzer*innen können es aufrufen. Zusätzlich kannst du dein Rezept „Von der Basis\" listen, damit es andere in der Agentura entdecken. Dafür bestätigst du einmal, dass du die Inhalte besitzt (oder zur Veröffentlichung berechtigt bist) oder dass sie öffentlich verfügbar sind — dieses Attest erscheint, sobald du die Listung aktivierst."
+    "text": "Unter Teilen am Ende des Formulars (nur bei bereits gespeicherten eigenen Rezepten) legst du die Sichtbarkeit fest: Privat — nur du siehst das Rezept. Mit Projekten geteilt — du wählst eines oder mehrere deiner Projekte aus; alle Mitglieder können das Rezept dann im Chat nutzen. Mit Anmeldung — alle eingeloggten Nutzer*innen können es aufrufen. Zusätzlich kannst du dein Rezept „Öffentlich\" listen, damit es andere in der Agentura entdecken. Dafür bestätigst du einmal, dass du die Inhalte besitzt (oder zur Veröffentlichung berechtigt bist) oder dass sie öffentlich verfügbar sind — dieses Attest erscheint, sobald du die Listung aktivierst."
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-rezepte-erstellen",
@@ -2509,7 +2509,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Schritt 1: Deine Rolle eintragen",
     "anchor": "#schritt-1-deine-rolle-eintragen",
     "category": "Guides",
-    "text": "Öffne die Einstellungen — über dein Profilbild unten in der Seitenleiste oder direkt über /settings. Geh zu Personalisierung. Wenn du den Grünerator zum ersten Mal benutzt, ist das gleich der erste Schritt der Einrichtung („Was machst du bei den Grünen?“). Unter Deine Rollen auf Hinzufügen. Wähle nacheinander: Ebene: Land Bundesland: dein Landesverband Rolle: Mitarbeiter*in Landesgeschäftsstelle (in Österreich: Mitarbeiter*in Landesorganisation) Der Assistent zeigt dir zum Schluss, was diese Rolle freischaltet — zum Beispiel „3 Agenten und 3 Rezepte sowie das Notebook Hessen erscheinen künftig in deiner Agentur und im Chat“. Speichern, fertig. Danach steht unter deinen Rollen ein Knopf „Zu deinem Landesverband“, der dich direkt in dein neues Regal bringt. Die Inhalte eines Landesverbands hängen an der Geschäftsstellen-Rolle und nur an ihr. Landtagsfraktion, MdL-Büro, Kreisverband oder Ortsverband geben zwar auch ein Bundesland an, schalten die LV-Grüneratoren aber nicht frei — sie sind das Material eines bestimmten Landesverbands, kein allgemeiner Bestand. Umgekehrt gilt: Ohne passende Rolle siehst du die LV-Inhalte nicht. Das ist Absicht und kein Fehler — vor der Zuteilung stand…"
+    "text": "Öffne die Einstellungen — über dein Profilbild unten in der Seitenleiste oder direkt über /settings. Geh zu Personalisierung. Wenn du den Grünerator zum ersten Mal benutzt, ist das gleich der erste Schritt der Einrichtung („Was machst du bei den Grünen?“). Unter Deine Rollen auf Hinzufügen. Wähle nacheinander: Ebene: Land Bundesland: dein Landesverband Rolle: Mitarbeiter*in Landesgeschäftsstelle (in Österreich: Mitarbeiter*in Landesorganisation) Der Assistent zeigt dir zum Schluss, was diese Rolle freischaltet — zum Beispiel „3 Agenten und 3 Rezepte sowie das Notebook Hessen erscheinen künftig in deiner Agentur und im Chat“. Speichern, fertig. Danach steht unter deinen Rollen ein Knopf „Zu deinem Landesverband“, der dich direkt in dein neues Regal bringt. Die Inhalte eines Landesverbands hängen an der Geschäftsstellen-Rolle und nur an ihr. Landtagsfraktion, MdL-Büro, Kreisverband oder Ortsverband geben zwar auch ein Bundesland an, schalten die LV-Agents aber nicht frei — sie sind das Material eines bestimmten Landesverbands, kein allgemeiner Bestand. Umgekehrt gilt: Ohne passende Rolle siehst du die LV-Inhalte nicht. Das ist Absicht und kein Fehler — vor der Zuteilung stand dort…"
   },
   {
     "url": "/docs/guides/landesverbaende/landesverband-einrichten",
@@ -2517,7 +2517,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Schritt 2: Was du jetzt hast",
     "anchor": "#schritt-2-was-du-jetzt-hast",
     "category": "Guides",
-    "text": "Ein eigenes Regal in der Agentura. Unter Dein Landesverband stehen die drei Grüneratoren deines Verbands — Öffentlichkeitsarbeit, Bürger*innenanfragen und Wahlprüfsteine — und darunter eure Rezepte, überschrieben mit dem Namen deines Landesverbands. Eure Rezepte im Chat. Die Presse- und Instagram-Rezepte deines Landesverbands tauchen jetzt in der Rezept-Liste des Chats auf und lassen sich mit @ erwähnen, etwa @presse-hessen-partei oder @insta-hessen. Welche es je Landesverband gibt, steht unter Landesverband-Grüneratoren. Euer Notebook. Die Wissensdatenbank deines Landesverbands (Pressemitteilungen, Beschlüsse, Wahlprogramme) erscheint in der Auswahl und lässt sich im Chat als Quelle erwähnen. Und die Automatik: Bittest du den Chat einfach um „eine Pressemitteilung zu …“, nimmt er von selbst eure Vorlage statt der allgemeinen. Du musst dafür nichts erwähnen und nichts einstellen — die Rolle in deinem Profil genügt. Das gilt im normalen Chat genauso wie dann, wenn du gerade in einer Rolle aus der Auswahlliste schreibst. Rollen, die du selbst formuliert hast, statt sie aus der Liste zu wählen, bringen ihre eigene Beschreibung mit — und die hat dann Vorrang vor der Automatik. Solange…"
+    "text": "Ein eigenes Regal in der Agentura. Das Regal trägt den Namen deines Landesverbands (bei Hessen also „Grüne Hessen“). Darin stehen die drei Agents deines Verbands — Öffentlichkeitsarbeit, Bürger*innenanfragen und Wahlprüfsteine — und darunter eure Rezepte, ebenfalls mit dem Namen deines Landesverbands überschrieben. Eure Rezepte im Chat. Die Presse- und Instagram-Rezepte deines Landesverbands tauchen jetzt in der Rezept-Liste des Chats auf und lassen sich mit @ erwähnen, etwa @presse-hessen-partei oder @insta-hessen. Welche es je Landesverband gibt, steht unter Landesverband-Agents. Euer Notebook. Die Wissensdatenbank deines Landesverbands (Pressemitteilungen, Beschlüsse, Wahlprogramme) erscheint in der Auswahl und lässt sich im Chat als Quelle erwähnen. Und die Automatik: Bittest du den Chat einfach um „eine Pressemitteilung zu …“, nimmt er von selbst eure Vorlage statt der allgemeinen. Du musst dafür nichts erwähnen und nichts einstellen — die Rolle in deinem Profil genügt. Das gilt im normalen Chat genauso wie dann, wenn du gerade in einer Rolle aus der Auswahlliste schreibst. Rollen, die du selbst formuliert hast, statt sie aus der Liste zu wählen, bringen ihre eigene…"
   },
   {
     "url": "/docs/guides/landesverbaende/landesverband-einrichten",
@@ -2525,7 +2525,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Wenn nichts erscheint",
     "anchor": "#wenn-nichts-erscheint",
     "category": "Guides",
-    "text": "Dein Bundesland ist nicht dabei. Nicht jeder Landesverband hat eigene Grüneratoren, und einzelne haben sich gegen ein eigenes Notebook entschieden. Welche Landesverbände abgedeckt sind, steht aktuell auf der Seite Landesverband-Grüneratoren. Ist deiner nicht dabei, bleibt der Assistent stumm und verspricht nichts — die allgemeinen Rezepte (@presse, @instagram, @facebook, …) stehen dir wie allen anderen offen. Du hast die Rolle gerade erst angelegt. Das Regal erscheint, sobald die Einstellungen gespeichert sind; ein Neuladen der Seite hilft, wenn ein Tab schon länger offen stand. In der App genügt es, sie einmal neu zu starten. --- Was ihr mit den drei Grüneratoren jeweils machen könnt — Pressemitteilungen, Bürger*innenanfragen, Wahlprüfsteine — steht ausführlich unter Landesverband-Grüneratoren."
+    "text": "Dein Bundesland ist nicht dabei. Nicht jeder Landesverband hat eigene Agents, und einzelne haben sich gegen ein eigenes Notebook entschieden. Welche Landesverbände abgedeckt sind, steht aktuell auf der Seite Landesverband-Agents. Ist deiner nicht dabei, bleibt der Assistent stumm und verspricht nichts — die allgemeinen Rezepte (@presse, @instagram, @facebook, …) stehen dir wie allen anderen offen. Du hast die Rolle gerade erst angelegt. Das Regal erscheint, sobald die Einstellungen gespeichert sind; ein Neuladen der Seite hilft, wenn ein Tab schon länger offen stand. In der App genügt es, sie einmal neu zu starten. --- Was ihr mit den drei Agents jeweils machen könnt — Pressemitteilungen, Bürger*innenanfragen, Wahlprüfsteine — steht ausführlich unter Landesverband-Agents."
   },
   {
     "url": "/docs/sonstiges/archiv/newsletter/2025-03-gruugo",
@@ -2925,7 +2925,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Einstellungen",
     "anchor": "",
     "category": "Sonstiges",
-    "text": "Alles, was du am Grünerator für dich einstellen kannst, liegt in einem Fenster: Einstellungen. Du öffnest es über dein Profilbild unten in der Seitenleiste oder direkt über die Adresse /settings. Es legt sich über die Seite, auf der du gerade bist — du verlierst also nichts, was du angefangen hast. Was du hier änderst, gilt für dein Konto und damit auf allen Geräten, an denen du angemeldet bist. Gespeichert wird sofort; nur bei längeren Texten wie den Anweisungen gibt es einen Speichern-Knopf. Zwei Dinge werden häufig hier gesucht und sind woanders: Was der Chat kann — steht unter KI-Chat Einstellungen einzelner Grüneratoren (Region, Modell, Werkzeuge) — die gehören zum jeweiligen Grünerator, nicht zu deinem Konto, siehe Eigene Grüneratoren erstellen"
+    "text": "Alles, was du am Grünerator für dich einstellen kannst, liegt in einem Fenster: Einstellungen. Du öffnest es über dein Profilbild unten in der Seitenleiste oder direkt über die Adresse /settings. Es legt sich über die Seite, auf der du gerade bist — du verlierst also nichts, was du angefangen hast. Was du hier änderst, gilt für dein Konto und damit auf allen Geräten, an denen du angemeldet bist. Gespeichert wird sofort; nur bei längeren Texten wie den Anweisungen gibt es einen Speichern-Knopf. Zwei Dinge werden häufig hier gesucht und sind woanders: Was der Chat kann — steht unter KI-Chat Einstellungen einzelner Agents (Region, Modell, Werkzeuge) — die gehören zum jeweiligen Agenten, nicht zu deinem Konto, siehe Eigene Agents erstellen"
   },
   {
     "url": "/docs/sonstiges/einstellungen",
@@ -3213,7 +3213,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Das lernst du im Webinar",
     "anchor": "#das-lernst-du-im-webinar",
     "category": "Allgemein",
-    "text": "Profil: Wie du einen Account erstellst und konfigurierst Eigene Grüneratoren: Wie du dir deinen ersten eigenen Grünerator erstellst Wolke: Wie du unsere Grüne Nextcloud einbindest"
+    "text": "Profil: Wie du einen Account erstellst und konfigurierst Eigene Agents: Wie du dir deinen ersten eigenen Agenten erstellst Wolke: Wie du unsere Grüne Nextcloud einbindest"
   },
   {
     "url": "/docs/webinare",
@@ -3237,7 +3237,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Grünerator Advanced",
     "anchor": "#grünerator-advanced",
     "category": "Allgemein",
-    "text": "| | ------------------- | ------------------------------------------ | Dauer | 90 Minuten | Level | Fortgeschritten | Voraussetzungen | Grundkenntnisse erforderlich | Referent | Moritz Wächter, Entwickler des Grünerators | Du kennst den Grünerator schon? Dann lerne jetzt die fortgeschrittenen Funktionen kennen. Im Webinar zeige ich dir, wie du einen Account erstellst und konfigurierst, wie du dir deinen ersten eigenen Grünerator erstellst und wie du unsere Grüne Nextcloud einbindest."
+    "text": "| | ------------------- | ------------------------------------------ | Dauer | 90 Minuten | Level | Fortgeschritten | Voraussetzungen | Grundkenntnisse erforderlich | Referent | Moritz Wächter, Entwickler des Grünerators | Du kennst den Grünerator schon? Dann lerne jetzt die fortgeschrittenen Funktionen kennen. Im Webinar zeige ich dir, wie du einen Account erstellst und konfigurierst, wie du dir deinen ersten eigenen Agenten erstellst und wie du unsere Grüne Nextcloud einbindest."
   },
   {
     "url": "/docs/webinare",
@@ -3245,7 +3245,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "GRÜNERATOR Advanced – Eigene KI-Tools erstellen",
     "anchor": "#grünerator-advanced--eigene-ki-tools-erstellen",
     "category": "Allgemein",
-    "text": "Du hast bereits Erfahrung mit dem Grünerator und möchtest noch mehr aus dem Tool herausholen? In diesem fortgeschrittenen Webinar zeige ich Dir, wie Du eigene Grüneratoren erstellst und die Cloud-Anbindung optimal nutzt. Der Grünerator ist ein speziell für die Grünen entwickeltes KI-Tool, das grüne Inhalte nach Wahl erstellen kann. In diesem zweiten Webinar gehen wir über die Grundlagen hinaus und tauchen in die erweiterten Funktionen ein. Du lernst, wie Du das Tool an Deine spezifischen Bedürfnisse anpasst und noch effizienter in Deiner politischen Arbeit einsetzt. Das lernst du im Webinar: Profil: Wie du einen Account erstellst und konfigurierst Eigene Grüneratoren: Wie du dir deinen ersten eigenen Grünerator erstellst Wolke: Wie du unsere Grüne Nextcloud einbindest Über den Referenten Moritz Wächter ist der Entwickler des Grünerators. Er ist Kreisvorsitzender der Grünen im Rhein-Sieg-Kreis und seit zehn Jahren ehrenamtlich auf kommunaler Ebene unterwegs. ---"
+    "text": "Du hast bereits Erfahrung mit dem Grünerator und möchtest noch mehr aus dem Tool herausholen? In diesem fortgeschrittenen Webinar zeige ich Dir, wie Du eigene Agents erstellst und die Cloud-Anbindung optimal nutzt. Der Grünerator ist ein speziell für die Grünen entwickeltes KI-Tool, das grüne Inhalte nach Wahl erstellen kann. In diesem zweiten Webinar gehen wir über die Grundlagen hinaus und tauchen in die erweiterten Funktionen ein. Du lernst, wie Du das Tool an Deine spezifischen Bedürfnisse anpasst und noch effizienter in Deiner politischen Arbeit einsetzt. Das lernst du im Webinar: Profil: Wie du einen Account erstellst und konfigurierst Eigene Agents: Wie du dir deinen ersten eigenen Agenten erstellst Wolke: Wie du unsere Grüne Nextcloud einbindest Über den Referenten Moritz Wächter ist der Entwickler des Grünerators. Er ist Kreisvorsitzender der Grünen im Rhein-Sieg-Kreis und seit zehn Jahren ehrenamtlich auf kommunaler Ebene unterwegs. ---"
   },
   {
     "url": "/docs/webinare",

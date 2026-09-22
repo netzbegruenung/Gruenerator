@@ -86,7 +86,7 @@ export const TOOL_NOTES: Record<string, ToolNote> = {
 
   // ── Organisieren ──────────────────────────────────────────────────────────
   agents: {
-    note: 'Die Agentura: eigene Grüneratoren mit festem Auftrag und eigenen Quellen anlegen, dazu Rezepte für wiederkehrende Schreibaufgaben.',
+    note: 'Die Agentura: eigene Agents mit festem Auftrag und eigenen Quellen anlegen, dazu Rezepte für wiederkehrende Schreibaufgaben.',
     platform: ['web', 'desktop', 'mobile'],
     readMore: { label: 'Agentura', href: '/docs/features/agentura' },
   },

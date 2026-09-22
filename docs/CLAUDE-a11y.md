@@ -86,7 +86,7 @@ Deutsche Labels, Verb + Objekt (`accessibilityLabel="Aufnahme starten"`). **Nie*
 „Button"/„Schaltfläche" im Label — die Rolle sagt das System an.
 `accessibilityHint` nur, wenn die Folge nicht aus dem Label hervorgeht.
 Dekoratives mit `accessibilityElementsHidden` ausblenden statt zu beschriften.
-Produkt-Wording gilt auch hier („Grüneratoren", „Rezepte", „Projekte").
+Produkt-Wording gilt auch hier („Agents", „Rezepte", „Projekte").
 
 Ein statischer Linter ist kein Laufzeit-Audit: Kontrast, Fokusreihenfolge und
 die Ansagen von VoiceOver/TalkBack sind damit **nicht** geprüft. Für React
