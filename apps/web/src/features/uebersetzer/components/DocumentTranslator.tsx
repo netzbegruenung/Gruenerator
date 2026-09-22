@@ -5,7 +5,7 @@ import {
   TRANSLATION_DOCUMENT_MAX_BYTES,
 } from '@gruenerator/contracts';
 import { Alert, AlertDescription, Button } from '@gruenerator/ui';
-import { useId, useRef, useState, type DragEvent } from 'react';
+import { useId, useState, type DragEvent } from 'react';
 import { PiDownloadSimple, PiFileText, PiUploadSimple } from 'react-icons/pi';
 
 import {
@@ -67,7 +67,6 @@ export function DocumentTranslator({ data }: DocumentTranslatorProps) {
 
   const upload = useUploadDocument();
   const status = useDocumentStatus(jobId);
-  const inputRef = useRef<HTMLInputElement>(null);
   const fileId = useId();
   const docxId = useId();
   const sourceHintId = useId();
@@ -133,58 +132,60 @@ export function DocumentTranslator({ data }: DocumentTranslatorProps) {
 
   return (
     <div className="flex flex-col gap-md">
-      {/* The whole zone is the picker button: click, Enter or Space open the
-          native file dialog, dragging a file onto it is the pointer shortcut. */}
+      {/* The drag listeners sit on this plain wrapper rather than on the label:
+          a `<label>` is a semantic, non-interactive element and jsx-a11y
+          refuses pointer handlers on one. The rule wants a role and a keyboard
+          path beside any pointer handler — dragging has none by nature, and the
+          keyboard and screen-reader path is the file input itself. Giving this
+          wrapper a role would recreate the very violation below. */}
+      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
       <div
-        role="button"
-        tabIndex={0}
-        aria-label={
-          file ? `Datei: ${file.name}. Andere Datei wählen` : 'Datei auswählen oder hierher ziehen'
-        }
-        onClick={() => inputRef.current?.click()}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            inputRef.current?.click();
-          }
-        }}
         onDragOver={(e) => {
           e.preventDefault();
           setDragging(true);
         }}
         onDragLeave={() => setDragging(false)}
         onDrop={onDrop}
-        className={cn(
-          'flex cursor-pointer flex-col items-center justify-center gap-sm rounded-[14px] border-2 border-dashed px-md py-xl text-center transition-colors',
-          'outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
-          dragging
-            ? 'border-primary-500 bg-primary-50 dark:bg-primary-950'
-            : 'border-grey-300 hover:border-grey-400 dark:border-grey-600 dark:hover:border-grey-500'
-        )}
       >
-        <input
-          ref={inputRef}
-          id={fileId}
-          type="file"
-          accept={ACCEPT}
-          tabIndex={-1}
-          aria-hidden="true"
-          className="sr-only"
-          onChange={(e) => pick(e.target.files?.[0] ?? null)}
-        />
-        <PiUploadSimple aria-hidden="true" className="text-2xl text-grey-500" />
-        {file ? (
-          <p className="m-0 flex flex-wrap items-center justify-center gap-xs text-sm text-foreground">
-            <PiFileText aria-hidden="true" className="shrink-0" />
-            <span className="break-all">{file.name}</span>
-            <span className="text-grey-500">({NF.format(Math.ceil(file.size / 1024))} KB)</span>
+        {/* A real label around a real file input. This zone used to be a
+            `role="button"` holding a `tabindex="-1" aria-hidden` input, and axe
+            rejects that as `nested-interactive`: a negative tabindex keeps the
+            input out of the tab order but not out of the accessibility tree, so
+            the zone announced itself as a button containing a second control.
+            The label needs no role, no tabIndex and no key handler — focus,
+            Enter and Space come from the browser, and the label's text becomes
+            the input's accessible name. */}
+        <label
+          htmlFor={fileId}
+          className={cn(
+            'flex cursor-pointer flex-col items-center justify-center gap-sm rounded-[14px] border-2 border-dashed px-md py-xl text-center transition-colors',
+            'has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/50',
+            dragging
+              ? 'border-primary-500 bg-primary-50 dark:bg-primary-950'
+              : 'border-grey-300 hover:border-grey-400 dark:border-grey-600 dark:hover:border-grey-500'
+          )}
+        >
+          <input
+            id={fileId}
+            type="file"
+            accept={ACCEPT}
+            className="sr-only"
+            onChange={(e) => pick(e.target.files?.[0] ?? null)}
+          />
+          <PiUploadSimple aria-hidden="true" className="text-2xl text-grey-500" />
+          {file ? (
+            <p className="m-0 flex flex-wrap items-center justify-center gap-xs text-sm text-foreground">
+              <PiFileText aria-hidden="true" className="shrink-0" />
+              <span className="break-all">{file.name}</span>
+              <span className="text-grey-500">({NF.format(Math.ceil(file.size / 1024))} KB)</span>
+            </p>
+          ) : (
+            <p className="m-0 text-sm text-foreground">Datei auswählen oder hierher ziehen</p>
+          )}
+          <p className="m-0 text-xs text-grey-500">
+            {ACCEPT.replaceAll(',', ', ')} — bis {MAX_MB} MB
           </p>
-        ) : (
-          <p className="m-0 text-sm text-foreground">Datei auswählen oder hierher ziehen</p>
-        )}
-        <p className="m-0 text-xs text-grey-500">
-          {ACCEPT.replaceAll(',', ', ')} — bis {MAX_MB} MB
-        </p>
+        </label>
       </div>
 
       <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,300px),1fr))] items-start gap-x-xl gap-y-md">
