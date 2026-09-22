@@ -1,6 +1,6 @@
 import { buildGroupPath } from '@gruenerator/shared/groups';
 import { extractSlugSuffix } from '@gruenerator/shared/utils';
-import { SectionHeader, StatusBanner } from '@gruenerator/ui';
+import { Button, SectionHeader, StatusBanner } from '@gruenerator/ui';
 import { useState, useCallback, useRef } from 'react';
 import { HiUser, HiUserGroup } from 'react-icons/hi';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -42,8 +42,16 @@ const ProjektePage = () => {
   const successTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const errorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const { userGroups, createGroup, isCreatingGroup, isCreateGroupError, createGroupError } =
-    useGroups({ isActive: true });
+  const {
+    userGroups,
+    isFetchingGroups,
+    isErrorGroups,
+    refetchGroups,
+    createGroup,
+    isCreatingGroup,
+    isCreateGroupError,
+    createGroupError,
+  } = useGroups({ isActive: true });
   const inviteToGroup = useInviteToGroup();
 
   const showSuccess = useCallback((msg: string) => {
@@ -180,7 +188,27 @@ const ProjektePage = () => {
       </section>
 
       <SectionHeader title="Deine Projekte" />
-      {userGroups && userGroups.length === 0 ? (
+      {/* „Noch keine Projekte" ist die härteste Aussage dieser Fläche und darf
+          nur aus einer bestätigt leeren Liste kommen. `userGroups` ist
+          `query.data ?? []`, also auch dann leer, wenn noch geladen wird oder
+          der Abruf gescheitert ist — ein Fehler bliebe hier sonst als „du hast
+          nichts" stehen, weil `refetchOnWindowFocus` aus ist und der Toast bei
+          401 unterdrückt wird.
+          `isFetchingGroups` und nicht `isLoadingGroups`: letzteres ist
+          `query.isPending` und bleibt auch dann true, wenn die Abfrage gar
+          nicht läuft, weil sie deaktiviert ist. */}
+      {isFetchingGroups ? (
+        <p className="text-sm text-grey-500 dark:text-grey-400 py-lg text-center">
+          Projekte werden geladen…
+        </p>
+      ) : isErrorGroups ? (
+        <div className="py-lg text-center">
+          <p className="mb-md text-foreground">Deine Projekte konnten nicht geladen werden.</p>
+          <Button variant="outline" size="sm" onClick={() => void refetchGroups()}>
+            Erneut versuchen
+          </Button>
+        </div>
+      ) : userGroups.length === 0 ? (
         <p className="text-sm text-grey-500 dark:text-grey-400 py-lg text-center">
           Noch keine Projekte vorhanden. Erstelle dein erstes Projekt über das Feld oben.
         </p>
