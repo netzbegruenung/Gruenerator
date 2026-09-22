@@ -5,6 +5,7 @@
    with "Cannot read properties of undefined (reading 'jest')". */
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { confirmChatAction } from '@gruenerator/chat';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
 import { ActivityIndicator } from 'react-native';
@@ -38,8 +39,17 @@ const ACTION: ConfirmActionData = {
   threadId: 't1',
 };
 
+// Die Karte invalidiert nach einem bestätigten `create_group`/`join_group` die
+// Projektliste und braucht dafür denselben QueryClient, den `app/_layout.tsx`
+// um die App legt.
 const renderCard = (action: ConfirmActionData = ACTION) =>
-  render(<ConfirmActionCard action={action} theme={lightTheme} />);
+  render(
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
+      <ConfirmActionCard action={action} theme={lightTheme} />
+    </QueryClientProvider>
+  );
 
 /**
  * Settle the confirmChatAction promise and let React commit the state it sets.

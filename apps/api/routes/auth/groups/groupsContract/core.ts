@@ -62,7 +62,8 @@ export const coreRoutes = {
         `SELECT g.id, g.name, g.description, g.created_at, g.created_by, g.join_token, g.settings,
                 g.avatar_url, g.links, g.slug_suffix, g.group_type,
                 (SELECT COUNT(*)::int FROM group_memberships gm WHERE gm.group_id = g.id) AS member_count
-           FROM groups g WHERE g.id = ANY($1)`,
+           FROM groups g WHERE g.id = ANY($1)
+          ORDER BY g.created_at DESC`, // neuestes Projekt zuerst — ohne das ist die Reihenfolge beliebig
         [groupIds],
         { table: 'groups' }
       )) as Array<{
@@ -194,10 +195,15 @@ export const coreRoutes = {
       await postgres.ensureInitialized();
 
       const groupData = (await postgres.queryOne(
-        'SELECT name, created_by, avatar_url FROM groups WHERE id = $1',
+        'SELECT name, created_by, avatar_url, group_type FROM groups WHERE id = $1',
         [groupId],
         { table: 'groups' }
-      )) as { name: string; created_by: string; avatar_url?: string | null } | null;
+      )) as {
+        name: string;
+        created_by: string;
+        avatar_url?: string | null;
+        group_type?: string | null;
+      } | null;
 
       if (!groupData) {
         return {
@@ -232,6 +238,7 @@ export const coreRoutes = {
         actionUrl: '/gruppen',
       });
 
+      let memberCount = 0;
       await postgres.transaction(async (client) => {
         await postgres.transactionExec(
           client,
@@ -243,16 +250,32 @@ export const coreRoutes = {
           'DELETE FROM group_content_shares WHERE group_id = $1',
           [groupId]
         );
-        await postgres.transactionExec(
+        const memberships = await postgres.transactionExec(
           client,
           'DELETE FROM group_memberships WHERE group_id = $1',
           [groupId]
         );
+        memberCount = memberships.changes;
         const result = await postgres.transactionExec(client, 'DELETE FROM groups WHERE id = $1', [
           groupId,
         ]);
         if (result.changes === 0) throw new Error('Group not found or already deleted');
       });
+
+      // Der einzige Beleg, dass es diese Gruppe je gab. Das Löschen ist hart
+      // (kein `deleted_at`, keine Audit-Zeile), und die Benachrichtigung oben
+      // erreicht per `excludeUserId` gerade die löschende Person nicht — ein
+      // Solo-Projekt verschwand damit spurlos, und die Frage „gelöscht oder nie
+      // angelegt?" war hinterher nicht mehr zu beantworten.
+      // Der Name kommt von der Person und geht ungeprüft durch: `JSON.stringify`
+      // escapt Zeilenumbrüche und Anführungszeichen, sonst könnte ein Name wie
+      // `x\n[groupsContract.deleteGroup] deleted group=…` eine zweite, erfundene
+      // Zeile ins Log schreiben — und damit genau die Beweiskraft zerstören,
+      // für die diese Zeile da ist.
+      log.info(
+        `[groupsContract.deleteGroup] deleted group=${groupId} name=${JSON.stringify(groupData.name)} ` +
+          `type=${groupData.group_type ?? 'unknown'} members=${memberCount} by=${userId}`
+      );
 
       if (groupData.avatar_url) {
         const avatarPath = path.join(AVATAR_UPLOAD_DIR, path.basename(groupData.avatar_url));
