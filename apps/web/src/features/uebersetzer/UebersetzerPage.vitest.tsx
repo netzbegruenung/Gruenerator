@@ -258,11 +258,16 @@ describe('UebersetzerPage', () => {
     await screen.findByLabelText('Von');
     await user.click(screen.getByRole('tab', { name: /Dokument/ }));
 
+    // Scoped to the panel on top: the text panel stays mounted behind this one
+    // so a translation is not paid for twice, and it has a "Von" of its own.
+    // `getByRole('tabpanel')` picks the visible one for us — Radix marks the
+    // others `hidden`, which is exactly what role queries skip.
+    const panel = within(screen.getByRole('tabpanel'));
     // `de>en` translates into the default target `en-GB`, so the source must be explicit.
-    const source = await screen.findByLabelText('Von');
+    const source = await panel.findByLabelText('Von');
     expect(within(source).getByRole('option', { name: 'Bitte wählen' })).toBeDisabled();
     // The quick-pick tab is the same control — it must not hand `auto` back.
-    expect(screen.getByRole('button', { name: 'Bitte wählen' })).toBeDisabled();
+    expect(panel.getByRole('button', { name: 'Bitte wählen' })).toBeDisabled();
 
     // The reason is announced with the picker, not left as a loose paragraph.
     const hint = source.getAttribute('aria-describedby');
@@ -324,6 +329,38 @@ describe('UebersetzerPage', () => {
     await user.type(await screen.findByLabelText('Ausgangstext'), 'Hallo');
     await waitFor(() => expect(posts).toBe(1), { timeout: 4000 });
 
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    expect(posts).toBe(1);
+  });
+
+  it('keeps the translation over a tab switch instead of buying it twice', async () => {
+    withLanguages();
+    let posts = 0;
+    server.use(
+      http.post(TEXT, () => {
+        posts += 1;
+        return HttpResponse.json({
+          text: 'Hello world',
+          detectedSourceLang: 'de',
+          targetLang: 'en-GB',
+          billedCharacters: 10,
+          glossaryApplied: false,
+          quota: { ...LANGUAGE_LIST.quota, used: 2.1, remaining: 7.9 },
+        });
+      })
+    );
+    const { user } = renderWithProviders(<UebersetzerPage />);
+    await user.type(await screen.findByLabelText('Ausgangstext'), 'Hallo');
+    await waitFor(() => expect(posts).toBe(1), { timeout: 4000 });
+    expect(await screen.findByText('Hello world')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: 'Dokument' }));
+    await user.click(screen.getByRole('tab', { name: 'Text' }));
+
+    // The text survives the switch because the page owns it. The answer has to
+    // survive with it: a panel that comes back without its answer restarts the
+    // debounce on an unchanged text and bills the identical characters twice.
+    expect(await screen.findByText('Hello world')).toBeInTheDocument();
     await new Promise((resolve) => setTimeout(resolve, 1500));
     expect(posts).toBe(1);
   });
@@ -514,10 +551,113 @@ describe('UebersetzerPage', () => {
     useExportStore.setState(original);
   });
 
+  it('reads the text out of an image into the source field and translates it', async () => {
+    withLanguages();
+    withTranslation();
+    let uploaded: { type: string; size: number } | null = null;
+    server.use(
+      // Wildcard for the same reason as the editor handler above: the OCR call
+      // rides on apps/web's own axios instance and its relative '/api'.
+      http.post('*/api/scanner/extract', async ({ request }) => {
+        const form = await request.formData();
+        const entry = form.get('file');
+        // Type and size, not the filename: by the time the multipart body has
+        // been through axios' XHR adapter and msw's interceptor the name has
+        // become "blob". That is the test environment, not the product — the
+        // server reads `file.originalname` from a real request — so asserting
+        // the name here would only guard the round trip.
+        // Duck-typed, not `instanceof Blob`: msw's File comes from undici's
+        // realm, so it fails an identity check against jsdom's global Blob
+        // while being a perfectly good file.
+        const datei = entry as { type?: string; size?: number } | null;
+        uploaded =
+          datei && typeof datei.size === 'number'
+            ? { type: datei.type ?? '', size: datei.size }
+            : null;
+        return HttpResponse.json({
+          success: true,
+          text: '  Mehr Klimaschutz jetzt  ',
+          pageCount: 1,
+          method: 'mistral-ocr',
+          fileInfo: { originalname: 'schild.png', size: 4, mimetype: 'image/png' },
+        });
+      })
+    );
+
+    const { user, container } = renderWithProviders(<UebersetzerPage />);
+    await screen.findByLabelText('Von');
+    await user.click(screen.getByRole('tab', { name: /Bild/ }));
+
+    const picker = container.querySelector('input[type="file"]');
+    await user.upload(
+      picker as HTMLInputElement,
+      new File(['png'], 'schild.png', { type: 'image/png' })
+    );
+
+    // The recognised text lands in the source field — trimmed — and the page is
+    // back on the text tab, which is the whole point of the Bild tab.
+    await waitFor(() =>
+      expect(screen.getByLabelText('Ausgangstext')).toHaveValue('Mehr Klimaschutz jetzt')
+    );
+    // The exact byte count is not asserted either: the multipart round trip
+    // through the interceptor does not preserve it. That an image-typed,
+    // non-empty file arrived is the claim that matters here.
+    expect(uploaded).not.toBeNull();
+    expect(uploaded!.type).toBe('image/png');
+    expect(uploaded!.size).toBeGreaterThan(0);
+    expect(screen.getByRole('tab', { name: /Text/ })).toHaveAttribute('aria-selected', 'true');
+
+    // And it is translated like anything typed, without a second gesture.
+    expect(
+      await screen.findByText('Hello world', undefined, { timeout: 4000 })
+    ).toBeInTheDocument();
+  });
+
+  it('says so when the picture carries no text, instead of switching to an empty field', async () => {
+    withLanguages();
+    server.use(
+      http.post('*/api/scanner/extract', () =>
+        HttpResponse.json({
+          success: true,
+          text: '   \n  ',
+          pageCount: 1,
+          method: 'mistral-ocr',
+          fileInfo: { originalname: 'wiese.png', size: 4, mimetype: 'image/png' },
+        })
+      )
+    );
+
+    const { user, container } = renderWithProviders(<UebersetzerPage />);
+    await screen.findByLabelText('Von');
+    await user.click(screen.getByRole('tab', { name: /Bild/ }));
+
+    const picker = container.querySelector('input[type="file"]');
+    await user.upload(
+      picker as HTMLInputElement,
+      new File(['png'], 'wiese.png', { type: 'image/png' })
+    );
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Auf diesem Bild wurde kein Text gefunden.'
+    );
+    // Staying put matters: a jump to an empty source field would look like the
+    // upload was lost rather than like a picture without writing on it.
+    expect(screen.getByRole('tab', { name: /Bild/ })).toHaveAttribute('aria-selected', 'true');
+  });
+
   it('has no axe violations once loaded', async () => {
     withLanguages();
     const { container } = renderWithProviders(<UebersetzerPage />);
     await screen.findByLabelText('Von');
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('has no axe violations in the Bild tab', async () => {
+    withLanguages();
+    const { user, container } = renderWithProviders(<UebersetzerPage />);
+    await screen.findByLabelText('Von');
+    await user.click(screen.getByRole('tab', { name: /Bild/ }));
+    await screen.findByLabelText(/Bild auswählen oder hierher ziehen/);
     expect(await axe(container)).toHaveNoViolations();
   });
 });
