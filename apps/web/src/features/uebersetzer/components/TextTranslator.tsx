@@ -72,6 +72,8 @@ export function TextTranslator({ data }: TextTranslatorProps) {
   const pendingKey = useRef<string | null>(null);
   /** What has already been asked, so an unchanged text never asks twice. */
   const sentKey = useRef<string | null>(null);
+  /** The automatic run still on the clock, so a manual one can call it off. */
+  const autoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const target = targets.find((l) => l.code === targetLang);
   const tooLong = text.length > TRANSLATION_TEXT_MAX_CHARS;
@@ -88,6 +90,16 @@ export function TextTranslator({ data }: TextTranslatorProps) {
 
   const run = () => {
     if (!canTranslate || translate.isPending) return;
+    // Starting a run calls off the automatic one waiting for the same text.
+    // Nothing else would: the effect below reschedules on `key`, which
+    // Cmd/Ctrl+Enter does not change, so its timer outlives the manual send and
+    // fires into a closure whose `translate.isPending` is frozen at false —
+    // billing the identical text twice. Cancelling only past the guards above
+    // leaves a timer for *newer* text alone.
+    if (autoTimer.current !== null) {
+      clearTimeout(autoTimer.current);
+      autoTimer.current = null;
+    }
     sentKey.current = key;
     pendingKey.current = key;
     translate.mutate(
@@ -106,14 +118,26 @@ export function TextTranslator({ data }: TextTranslatorProps) {
     );
   };
 
+  // `translate.isPending` is a dependency for a reason of its own: text typed
+  // while a request is in flight schedules a timer whose closure sees that run
+  // still going, so when it fires it refuses to send and — `key` having not
+  // changed since — nothing ever asks again. Re-running on settle replaces that
+  // timer with one that can actually do the work.
   useEffect(() => {
     if (!canTranslate || manualOnly || outOfBudget) return;
     if (sentKey.current === key) return;
-    const timer = setTimeout(run, AUTO_DEBOUNCE_MS);
-    return () => clearTimeout(timer);
-    // `run` is rebuilt on every render; `key` already carries everything it reads.
+    const timer = setTimeout(() => {
+      autoTimer.current = null;
+      run();
+    }, AUTO_DEBOUNCE_MS);
+    autoTimer.current = timer;
+    return () => {
+      autoTimer.current = null;
+      clearTimeout(timer);
+    };
+    // `run` is rebuilt on every render; the deps carry everything it reads.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, canTranslate, manualOnly, outOfBudget]);
+  }, [key, canTranslate, manualOnly, outOfBudget, translate.isPending]);
 
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
