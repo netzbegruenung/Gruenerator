@@ -1,5 +1,5 @@
 import { type UserProfile } from '@gruenerator/contracts';
-import { queryOptions, useQuery, useQueryClient } from '@tanstack/react-query';
+import { type QueryClient, queryOptions, useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import apiClient, { notifyAuthConfirmed } from '../components/utils/apiClient';
@@ -469,7 +469,7 @@ const buildE2EBypassAuthData = (): AuthData => {
  * that short-circuited the bootstrap signal. Running side effects exactly once
  * per fetch in the queryFn body has no equivalent silent-skip path.
  */
-const applyAuthAnswer = (data: AuthData, queryClient: ReturnType<typeof useQueryClient>) => {
+const applyAuthAnswer = (data: AuthData, queryClient: QueryClient) => {
   const { isAuthenticated: currentIsAuthenticated, user: currentUser } = useAuthStore.getState();
 
   if (data.isAuthenticated && data.user) {
