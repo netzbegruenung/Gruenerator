@@ -222,6 +222,7 @@ export interface QuoteLocated {
   context: string;
   /** `false`: nicht alle Quellen gelesen — ob das Zitat auch anderswo steht, ist offen. */
   exhaustive: boolean;
+  incompleteReason: string | null;
 }
 
 export interface QuoteNotLocated {
@@ -229,6 +230,7 @@ export interface QuoteNotLocated {
   method: null;
   /** `false`: nicht alle Quellen durchsucht — „nicht gefunden" heißt dann nicht „steht nirgends". */
   exhaustive: boolean;
+  incompleteReason: string | null;
   sourcesScanned: number;
   /** Mehrere Quellen tragen das Zitat — welche gemeint ist, bleibt offen. */
   candidates: CiteCandidate[];
@@ -288,12 +290,14 @@ export async function citeQuote(
         .replace(/\s+/g, ' ')
         .trim(),
       exhaustive: loaded.exhaustive,
+      incompleteReason: loaded.incompleteReason,
     };
   }
   return {
     found: false,
     method: null,
     exhaustive: loaded.exhaustive,
+    incompleteReason: loaded.incompleteReason,
     sourcesScanned: loaded.sources.length,
     candidates: hits.map(toCandidate),
   };

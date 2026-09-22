@@ -31,7 +31,11 @@ const LEMMA_PER_TEXT = 500;
  * des Scan-Budgets.
  */
 const LEMMA_CHAR_BUDGET = 400_000;
-const NLP_TIMEOUT_MS = 30_000;
+/**
+ * Eine Frist für alle NLP-Stapel zusammen. Mit dem Health-Check (5 s) davor
+ * bleibt der Weg zu `nlpAvailable: false` innerhalb der 45 s des Werkzeugs.
+ */
+const NLP_DEADLINE_MS = 20_000;
 
 const NLP_UNAVAILABLE =
   'Lemma-Zählungen sind gerade nicht verfügbar (Sprachdienst nicht erreichbar) — die Zahlen oben sind reine Textzählungen.';
@@ -143,6 +147,8 @@ export interface StatsRow extends TextCounts {
 export interface SourceStatsResult {
   scope: 'source' | 'notebook';
   exhaustive: boolean;
+  /** Warum nicht alles gelesen wurde (`loadScanTexts`). */
+  incompleteReason: string | null;
   /** `null`: keine Lemmata gefragt, der Dienst wurde nicht gerufen. */
   nlpAvailable: boolean | null;
   totals: TextCounts & { pages: number; chunks: number };
@@ -201,6 +207,7 @@ export async function computeSourceStats(
   const result: SourceStatsResult = {
     scope: input.sourceId ? 'source' : 'notebook',
     exhaustive: loaded.exhaustive,
+    incompleteReason: loaded.incompleteReason,
     nlpAvailable: null,
     totals: {
       chars: sum((r) => r.chars),
@@ -238,7 +245,7 @@ export async function computeSourceStats(
     ? await deps.nlp.textStatsBatched(texts, {
         topN: LEMMA_PER_TEXT,
         lemmaOf,
-        timeoutMs: NLP_TIMEOUT_MS,
+        deadlineMs: NLP_DEADLINE_MS,
       })
     : [];
   // `textStatsBatched` meldet einen Ausfall als `[]` — eine kürzere Liste ist nie ein Befund.

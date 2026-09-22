@@ -4,15 +4,17 @@
  * Gesamtzahl gemeldet — deshalb prüfen die Tests die Wortgrenzen mit Umlauten,
  * die Trennungen und `exhaustive`.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+const warn = vi.hoisted(() => vi.fn());
+vi.mock('../../utils/logger.js', () => ({
+  createLogger: () => ({ info: vi.fn(), warn, error: vi.fn(), debug: vi.fn() }),
+}));
 
 import { fakeChunk, fakeNotebookDeps, DENIED } from './__fixtures__/fakeNotebookSources.js';
 import { grepSources, grepText, loadScanTexts, type GrepTextResult } from './sourceGrep.js';
 
-function ok(result: GrepTextResult | { error: string }): GrepTextResult {
-  if ('error' in result) throw new Error(result.error);
-  return result;
-}
+const ok = (result: GrepTextResult): GrepTextResult => result;
 
 describe('grepText', () => {
   it('matches whole words only', () => {
@@ -41,6 +43,21 @@ describe('grepText', () => {
     expect(ok(grepText('Die STRAẞE', 'straße', {})).count).toBe(1);
   });
 
+  it('folds decomposed (NFD) text and phrases', () => {
+    const nfd = 'Herr Mu\u0308ller kommt.';
+    const r = ok(grepText(nfd, 'Müller', {}));
+    expect(r.count).toBe(1);
+    expect(nfd.slice(r.hits[0]!.charStart, r.hits[0]!.charEnd)).toBe('Mu\u0308ller');
+    expect(ok(grepText('Herr Müller kommt.', 'Mu\u0308ller', {})).count).toBe(1);
+  });
+
+  it('keeps a trailing NFD accent inside the hit', () => {
+    const text = 'Das Cafe\u0301 hat zu.';
+    const r = ok(grepText(text, 'Café', {}));
+    expect(r.count).toBe(1);
+    expect(text.slice(r.hits[0]!.charStart, r.hits[0]!.charEnd)).toBe('Cafe\u0301');
+  });
+
   it('honours caseSensitive', () => {
     expect(ok(grepText('Grüne und grüne', 'Grüne', { caseSensitive: true })).count).toBe(1);
   });
@@ -61,25 +78,23 @@ describe('grepText', () => {
     expect(ok(grepText('Rad-\nWege', 'RadWege', {})).count).toBe(0);
   });
 
+  it('keeps a completion hyphen before a conjunction at the line break', () => {
+    const text = 'Wind-\nund Solarenergie';
+    expect(ok(grepText(text, 'Wind', {})).count).toBe(1);
+    expect(ok(grepText(text, 'Windund', {})).count).toBe(0);
+  });
+
   it('matches any whitespace between the words of a phrase', () => {
     const r = ok(grepText('die grüne\n  Partei und die grüne Partei', 'grüne Partei', {}));
     expect(r.count).toBe(2);
   });
 
-  it('escapes regex characters when regex is off', () => {
+  it('matches regex metacharacters literally', () => {
     expect(ok(grepText('Wert 125 und 1.5', '1.5', {})).count).toBe(1);
     expect(ok(grepText('(a+b) ist nicht ab', '(a+b)', {})).count).toBe(1);
-  });
-
-  it('runs a user regex and rejects an invalid one', () => {
-    expect(ok(grepText('Radweg, Radwege, Radfahrer', 'Radwege?', { regex: true })).count).toBe(2);
-    expect(grepText('x', 'Rad(', { regex: true })).toEqual({
-      error: 'Ungültiger regulärer Ausdruck — prüfe die Klammern und Sonderzeichen.',
-    });
-  });
-
-  it('does not loop on an empty regex match', () => {
-    expect(ok(grepText('abc', 'x*', { regex: true })).count).toBe(0);
+    const text = 'Sie lernt C++ (Programmiersprache) und C.';
+    expect(ok(grepText(text, 'C++ (Programmiersprache)', {})).count).toBe(1);
+    expect(ok(grepText('aaaa', '(a+)+$', {})).count).toBe(0);
   });
 
   it('returns at most `contexts` hits, each with ±120 collapsed chars', () => {
@@ -108,7 +123,6 @@ describe('grepSources', () => {
       'Radweg',
       {}
     );
-    if ('error' in out) throw new Error(out.error);
     expect(out.totalHits).toBe(3);
     expect(out.perSource.map((s) => [s.sourceId, s.count])).toEqual([
       ['d2', 2],
@@ -168,7 +182,9 @@ describe('loadScanTexts', () => {
     );
     if ('error' in out) throw new Error(out.error);
     expect(out.exhaustive).toBe(false);
+    expect(out.incompleteReason).toBe('Notebook zu groß');
     expect(out.sources.map((s) => s.sourceId)).toEqual(['d1']);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('[notebook_quellen:scan-prefilter]'));
     expect(documentService.search).toHaveBeenCalledWith(
       expect.objectContaining({
         query: 'Radweg',
@@ -193,6 +209,15 @@ describe('loadScanTexts', () => {
     expect(await loadScanTexts({ collectionId: 'n1', userId: 'u1' }, deps)).toEqual({
       error: 'Notebook nicht gefunden oder kein Zugriff.',
     });
+  });
+
+  it('names unreadable sources, not size, when a resolve failed', async () => {
+    const { deps } = fakeNotebookDeps(small, { notInCollection: ['d2'] });
+    const out = await loadScanTexts({ collectionId: 'n1', userId: 'u1' }, deps);
+    if ('error' in out) throw new Error(out.error);
+    expect(out.exhaustive).toBe(false);
+    expect(out.incompleteReason).toBe('1 Quelle nicht lesbar');
+    expect(out.sources.map((s) => s.sourceId)).toEqual(['d1']);
   });
 
   it('checks a single source against the notebook', async () => {

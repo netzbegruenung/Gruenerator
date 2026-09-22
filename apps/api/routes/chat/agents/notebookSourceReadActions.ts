@@ -53,10 +53,11 @@ export const SCAN_FAILURE_BY_ACTION: Record<ScanReadAction, string> = {
 };
 
 const NOT_FOUND = 'Notebook nicht gefunden oder kein Zugriff.';
-const NOT_EXHAUSTIVE_GREP =
-  'Nicht alle Quellen wurden gelesen (Notebook zu groß) — totalHits ist eine Untergrenze, keine Gesamtzahl.';
-const NOT_EXHAUSTIVE_COUNTS =
-  'Nicht alle Quellen wurden (ganz) gelesen (Notebook zu groß) — die Zahlen sind Untergrenzen, keine Gesamtzahlen.';
+/** Der Grund steht dabei: „Notebook zu groß" und „nicht lesbar" verlangen verschiedene Auskünfte. */
+const notExhaustiveGrep = (reason: string | null) =>
+  `Nicht alle Quellen wurden gelesen (${reason ?? 'unvollständig'}) — totalHits ist eine Untergrenze, keine Gesamtzahl.`;
+const notExhaustiveCounts = (reason: string | null) =>
+  `Nicht alle Quellen wurden (ganz) gelesen (${reason ?? 'unvollständig'}) — die Zahlen sind Untergrenzen, keine Gesamtzahlen.`;
 const STATS_CHARS = 4000;
 const RANK_DEFAULT_LIMIT = 10;
 const RANK_MIN_SCORE = 0.2;
@@ -68,7 +69,6 @@ export function isScanReadAction(action: string): action is ScanReadAction {
 export interface ScanActionArgs {
   sourceId?: string | undefined;
   phrase?: string | undefined;
-  regex?: boolean | undefined;
   caseSensitive?: boolean | undefined;
   contexts?: number | undefined;
   lemmas?: boolean | undefined;
@@ -119,24 +119,21 @@ async function grep(args: ScanActionArgs, ctx: ScanActionCtx): Promise<Record<st
       collectionId: collection.id,
       userId,
       sourceId: args.sourceId,
-      // Ein Regex ist keine Suchanfrage — ohne Vorfilter liest der Scan der Reihe nach.
-      prefilterQuery: args.regex ? undefined : phrase,
+      prefilterQuery: phrase,
     },
     deps
   );
   if ('error' in loaded) return loaded;
   const counted = grepSources(loaded.sources, phrase, {
-    regex: args.regex,
     caseSensitive: args.caseSensitive,
     contexts: args.contexts,
   });
-  if ('error' in counted) return counted;
 
   if (counted.perSource.length === 0) {
     groundNote(
       sourceRegistry,
       `Notebook „${collection.name}"`,
-      `Keine Treffer für „${phrase}".${loaded.exhaustive ? '' : ` ${NOT_EXHAUSTIVE_GREP}`}`
+      `Keine Treffer für „${phrase}".${loaded.exhaustive ? '' : ` ${notExhaustiveGrep(loaded.incompleteReason)}`}`
     );
   } else {
     sourceRegistry.register(
@@ -163,7 +160,7 @@ async function grep(args: ScanActionArgs, ctx: ScanActionCtx): Promise<Record<st
     sourcesScanned: loaded.sources.length,
     sourcesWithHits: counted.perSource.length,
     perSource: counted.perSource,
-    ...(loaded.exhaustive ? {} : { note: NOT_EXHAUSTIVE_GREP }),
+    ...(loaded.exhaustive ? {} : { note: notExhaustiveGrep(loaded.incompleteReason) }),
   };
 }
 
@@ -191,7 +188,7 @@ function renderStats(heading: string, s: SourceStatsResult): string {
       .filter(Boolean)
       .join(' · ');
   const lines = [`Statistik: ${heading}`, `Gesamt: ${counts(s.totals)}`];
-  if (!s.exhaustive) lines.push(NOT_EXHAUSTIVE_COUNTS);
+  if (!s.exhaustive) lines.push(notExhaustiveCounts(s.incompleteReason));
   for (const r of s.perSource ?? []) lines.push(`${r.title}: ${counts(r)}`);
   if (s.lemmas?.length) {
     lines.push(
@@ -237,7 +234,10 @@ async function stats(args: ScanActionArgs, ctx: ScanActionCtx): Promise<Record<s
     ],
     { snippetChars: STATS_CHARS }
   );
-  const note = [result.exhaustive ? null : NOT_EXHAUSTIVE_COUNTS, result.note ?? null]
+  const note = [
+    result.exhaustive ? null : notExhaustiveCounts(result.incompleteReason),
+    result.note ?? null,
+  ]
     .filter(Boolean)
     .join(' ');
   return { notebook: collection.name, ...result, ...(note ? { note } : {}) };
@@ -279,14 +279,16 @@ async function rank(args: ScanActionArgs, ctx: ScanActionCtx): Promise<Record<st
   const by = args.by;
   if (!by) return { error: 'rank braucht by (relevance, term, date, length oder pages).' };
   const query = args.query?.trim() ?? '';
-  if ((by === 'relevance' || by === 'term') && !query) {
-    return { error: `rank by="${by}" braucht query.` };
+  if (by === 'relevance' && !query) return { error: 'rank by="relevance" braucht query.' };
+  if (by === 'term' && query.length < 2) {
+    return { error: 'rank by="term" braucht query (mindestens 2 Zeichen).' };
   }
   const limit = Math.min(50, Math.max(1, Math.floor(args.limit ?? RANK_DEFAULT_LIMIT)));
   const { collection, userId, deps } = ctx;
 
   let rows: Array<Omit<RankRow, 'rank'>>;
   let exhaustive: boolean | null = null;
+  let incompleteReason: string | null = null;
 
   if (by === 'term') {
     const loaded = await loadScanTexts(
@@ -295,8 +297,8 @@ async function rank(args: ScanActionArgs, ctx: ScanActionCtx): Promise<Record<st
     );
     if ('error' in loaded) return loaded;
     const counted = grepSources(loaded.sources, query, {});
-    if ('error' in counted) return counted;
     exhaustive = loaded.exhaustive;
+    incompleteReason = loaded.incompleteReason;
     rows = counted.perSource.slice(0, limit).map((s) => ({
       sourceId: s.sourceId,
       title: s.title,
@@ -347,7 +349,7 @@ async function rank(args: ScanActionArgs, ctx: ScanActionCtx): Promise<Record<st
     by,
     ...(query ? { query } : {}),
     ...(exhaustive === null ? {} : { exhaustive }),
-    ...(exhaustive === false ? { note: NOT_EXHAUSTIVE_COUNTS } : {}),
+    ...(exhaustive === false ? { note: notExhaustiveCounts(incompleteReason) } : {}),
     ranking,
   };
 }
@@ -463,7 +465,7 @@ async function cite(args: ScanActionArgs, ctx: ScanActionCtx): Promise<Record<st
   }
   const missing = out.exhaustive
     ? `Das Zitat „${quote}" steht so in keiner Quelle.`
-    : `Das Zitat „${quote}" steht in keiner der gelesenen Quellen — nicht alle Quellen wurden gelesen.`;
+    : `Das Zitat „${quote}" steht in keiner der gelesenen Quellen — nicht alle Quellen wurden gelesen (${out.incompleteReason ?? 'unvollständig'}).`;
   groundNote(sourceRegistry, `Notebook „${collection.name}"`, missing);
   return { ...out, note: missing };
 }

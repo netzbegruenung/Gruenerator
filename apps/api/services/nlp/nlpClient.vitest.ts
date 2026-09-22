@@ -80,6 +80,20 @@ describe('textStatsBatched', () => {
     expect(out.map((r) => r.id)).toEqual(['a', 'b', 'c']);
   });
 
+  it('gives up at the shared deadline when the service stalls', async () => {
+    vi.useFakeTimers();
+    try {
+      postMock.mockImplementation(() => new Promise(() => {}));
+      const pending = textStatsBatched(texts, { deadlineMs: 1000 }, 2);
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(await pending).toEqual([]);
+      expect(postMock).toHaveBeenCalledTimes(1);
+      expect(postMock.mock.calls[0]?.[2]).toEqual({ timeout: 1000 });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('returns [] when one batch fails, never a partial count', async () => {
     postMock
       .mockResolvedValueOnce({ data: { results: [result('a'), result('b')] } })

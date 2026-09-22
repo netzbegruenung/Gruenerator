@@ -174,7 +174,7 @@ describe('computeSourceStats', () => {
         { id: 'd1', text: 'Der Radweg kommt. Er ist grün.' },
         { id: 'd2', text: 'Radweg beschlossen.' },
       ],
-      expect.objectContaining({ lemmaOf: ['Radweg'] })
+      expect.objectContaining({ lemmaOf: ['Radweg'], deadlineMs: 20_000 })
     );
   });
 
@@ -214,6 +214,7 @@ describe('computeSourceStats', () => {
     );
     if ('error' in out) throw new Error(out.error);
     expect(out.exhaustive).toBe(false);
+    expect(out.incompleteReason).toBe('Notebook zu groß');
     expect(out.totals.chars).toBe(20);
   });
 });
