@@ -98,6 +98,15 @@ function withTranslation() {
 
 const DOC_ID = '3f1a2b4c-5d6e-4f70-8a91-b2c3d4e5f607';
 
+/**
+ * The panel on top. Text and Dokument stay mounted behind each other (each
+ * holds a paid-for answer), so "Von", "Nach" and the budget chip exist twice;
+ * Radix marks the idle one `hidden`, which is exactly what role queries skip.
+ */
+async function visiblePanel() {
+  return within(await screen.findByRole('tabpanel'));
+}
+
 describe('UebersetzerPage', () => {
   it('fills the pickers from the API and translates into the right pane', async () => {
     withLanguages();
@@ -123,13 +132,14 @@ describe('UebersetzerPage', () => {
     );
     const { user } = renderWithProviders(<UebersetzerPage />);
 
-    const source = await screen.findByLabelText('Von');
+    const panel = await visiblePanel();
+    const source = panel.getByLabelText('Von');
     expect(
       within(source)
         .getAllByRole('option')
         .map((o) => o.textContent)
     ).toEqual(['Automatisch erkennen', 'Deutsch', 'Englisch', 'Französisch']);
-    const target = screen.getByLabelText('Nach') as HTMLSelectElement;
+    const target = panel.getByLabelText('Nach') as HTMLSelectElement;
     expect(target.value).toBe('en-GB');
     // 8 of 10 Bäume is a comfortable balance, so the chip keeps quiet.
     expect(screen.queryByText(/Heute noch/)).not.toBeInTheDocument();
@@ -166,7 +176,7 @@ describe('UebersetzerPage', () => {
       )
     );
     const { user } = renderWithProviders(<UebersetzerPage />);
-    await screen.findByLabelText('Von');
+    await screen.findByRole('tabpanel');
     // Starting at 8 of 10 there is nothing to say …
     expect(screen.queryByText(/Heute noch/)).not.toBeInTheDocument();
 
@@ -174,7 +184,9 @@ describe('UebersetzerPage', () => {
 
     // … and the answer is what brings the balance under the threshold.
     expect(
-      await screen.findByText('Heute noch 4,2 von 10 Bäumen.', {}, { timeout: 4000 })
+      await (
+        await visiblePanel()
+      ).findByText('Heute noch 4,2 von 10 Bäumen.', {}, { timeout: 4000 })
     ).toBeInTheDocument();
   });
 
@@ -204,7 +216,7 @@ describe('UebersetzerPage', () => {
     expect(await screen.findByRole('alert', {}, { timeout: 4000 })).toHaveTextContent(
       /Tagesbudget/
     );
-    expect(screen.getByText('Heute noch 0 von 10 Bäumen.')).toBeInTheDocument();
+    expect((await visiblePanel()).getByText('Heute noch 0 von 10 Bäumen.')).toBeInTheDocument();
   });
 
   it('shows a notice, not an error, when the server has no DeepL key', async () => {
@@ -246,23 +258,19 @@ describe('UebersetzerPage', () => {
   it('offers the formality switch only for targets that support it', async () => {
     withLanguages();
     const { user } = renderWithProviders(<UebersetzerPage />);
-    await screen.findByLabelText('Von');
+    await screen.findByRole('tabpanel');
     expect(screen.queryByRole('button', { name: 'Anrede' })).not.toBeInTheDocument();
-    await user.selectOptions(screen.getByLabelText('Nach'), 'fr');
+    await user.selectOptions((await visiblePanel()).getByLabelText('Nach'), 'fr');
     expect(screen.getByRole('button', { name: 'Anrede' })).toBeInTheDocument();
   });
 
   it('blocks auto-detect in both halves of the picker when a glossary needs the source', async () => {
     withLanguages();
     const { user } = renderWithProviders(<UebersetzerPage />);
-    await screen.findByLabelText('Von');
+    await screen.findByRole('tabpanel');
     await user.click(screen.getByRole('tab', { name: /Dokument/ }));
 
-    // Scoped to the panel on top: the text panel stays mounted behind this one
-    // so a translation is not paid for twice, and it has a "Von" of its own.
-    // `getByRole('tabpanel')` picks the visible one for us — Radix marks the
-    // others `hidden`, which is exactly what role queries skip.
-    const panel = within(screen.getByRole('tabpanel'));
+    const panel = await visiblePanel();
     // `de>en` translates into the default target `en-GB`, so the source must be explicit.
     const source = await panel.findByLabelText('Von');
     expect(within(source).getByRole('option', { name: 'Bitte wählen' })).toBeDisabled();
@@ -365,6 +373,46 @@ describe('UebersetzerPage', () => {
     expect(posts).toBe(1);
   });
 
+  it('keeps a running document job over a tab switch', async () => {
+    withLanguages();
+    server.use(
+      http.post('*/api/translation/document', () =>
+        HttpResponse.json({ jobId: 'job-1', filename: 'antrag.docx' })
+      ),
+      http.get('*/api/translation/document/:jobId/status', () =>
+        HttpResponse.json({
+          jobId: 'job-1',
+          status: 'translating',
+          filename: 'antrag.docx',
+          secondsRemaining: 12,
+          billedCharacters: null,
+          message: null,
+        })
+      )
+    );
+    const { user } = renderWithProviders(<UebersetzerPage />);
+    await user.click(await screen.findByRole('tab', { name: 'Dokument' }));
+    const datei = new File(['x'], 'antrag.docx', {
+      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    });
+    await user.upload(
+      screen.getByRole('tabpanel').querySelector('input[type="file"]') as HTMLInputElement,
+      datei
+    );
+    // The `de>en` glossary translates into the default target, so DeepL needs an
+    // explicit source before the button comes alive.
+    await user.selectOptions((await visiblePanel()).getByLabelText('Von'), 'de');
+    await user.click(screen.getByRole('button', { name: 'Dokument übersetzen' }));
+    expect(await screen.findByText(/DeepL übersetzt/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: 'Text' }));
+    await user.click(screen.getByRole('tab', { name: 'Dokument' }));
+
+    // The job id is the only handle on a translation DeepL has already billed;
+    // a panel that comes back without it strands the result on the server.
+    expect(await screen.findByText(/DeepL übersetzt/)).toBeInTheDocument();
+  });
+
   it('sends one request when the shortcut beats the debounce to the same text', async () => {
     withLanguages();
     let posts = 0;
@@ -451,7 +499,7 @@ describe('UebersetzerPage', () => {
     withLanguages();
     withTranslation();
     const { user } = renderWithProviders(<UebersetzerPage />);
-    await screen.findByLabelText('Von');
+    await screen.findByRole('tabpanel');
 
     const trigger = screen.getByRole('button', { name: 'Als Dokument' });
     expect(trigger).toBeDisabled();
@@ -584,11 +632,11 @@ describe('UebersetzerPage', () => {
       })
     );
 
-    const { user, container } = renderWithProviders(<UebersetzerPage />);
-    await screen.findByLabelText('Von');
+    const { user } = renderWithProviders(<UebersetzerPage />);
+    await screen.findByRole('tabpanel');
     await user.click(screen.getByRole('tab', { name: /Bild/ }));
 
-    const picker = container.querySelector('input[type="file"]');
+    const picker = screen.getByRole('tabpanel').querySelector('input[type="file"]');
     await user.upload(
       picker as HTMLInputElement,
       new File(['png'], 'schild.png', { type: 'image/png' })
@@ -627,11 +675,11 @@ describe('UebersetzerPage', () => {
       )
     );
 
-    const { user, container } = renderWithProviders(<UebersetzerPage />);
-    await screen.findByLabelText('Von');
+    const { user } = renderWithProviders(<UebersetzerPage />);
+    await screen.findByRole('tabpanel');
     await user.click(screen.getByRole('tab', { name: /Bild/ }));
 
-    const picker = container.querySelector('input[type="file"]');
+    const picker = screen.getByRole('tabpanel').querySelector('input[type="file"]');
     await user.upload(
       picker as HTMLInputElement,
       new File(['png'], 'wiese.png', { type: 'image/png' })
@@ -648,14 +696,14 @@ describe('UebersetzerPage', () => {
   it('has no axe violations once loaded', async () => {
     withLanguages();
     const { container } = renderWithProviders(<UebersetzerPage />);
-    await screen.findByLabelText('Von');
+    await screen.findByRole('tabpanel');
     expect(await axe(container)).toHaveNoViolations();
   });
 
   it('has no axe violations in the Bild tab', async () => {
     withLanguages();
     const { user, container } = renderWithProviders(<UebersetzerPage />);
-    await screen.findByLabelText('Von');
+    await screen.findByRole('tabpanel');
     await user.click(screen.getByRole('tab', { name: /Bild/ }));
     await screen.findByLabelText(/Bild auswählen oder hierher ziehen/);
     expect(await axe(container)).toHaveNoViolations();
@@ -664,7 +712,7 @@ describe('UebersetzerPage', () => {
   it('has no axe violations in the Dokument tab', async () => {
     withLanguages();
     const { user, container } = renderWithProviders(<UebersetzerPage />);
-    await screen.findByLabelText('Von');
+    await screen.findByRole('tabpanel');
     await user.click(screen.getByRole('tab', { name: /Dokument/ }));
     // The drop zone used to be a `role="button"` holding an `aria-hidden`
     // file input, which axe rejects as `nested-interactive`. That the input
@@ -676,7 +724,7 @@ describe('UebersetzerPage', () => {
   it('lets the page style the active tab in dark mode too', async () => {
     withLanguages();
     renderWithProviders(<UebersetzerPage />);
-    await screen.findByLabelText('Von');
+    await screen.findByRole('tabpanel');
     const aktiv = screen.getByRole('tab', { name: /Text/ });
 
     // jsdom has no styles, so this asserts the class list rather than a colour.
