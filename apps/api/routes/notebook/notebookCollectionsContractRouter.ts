@@ -32,6 +32,7 @@ import {
   unlikeEntity,
 } from '../../services/entityLikes/EntityLikesService.js';
 import { summarizeDocumentRows } from '../../services/notebook/corpusState.js';
+import { fetchDocumentMetadata } from '../../services/notebook/notebookSources.js';
 import { listPublicNotebooksForViewer } from '../../services/notebook/publicNotebookListing.js';
 import { createNotification } from '../../services/notifications/NotificationService.js';
 import { getUsageMap } from '../../services/usage/ItemUsageService.js';
@@ -213,26 +214,30 @@ async function enrichNotebookCollection(
     // unreadable documents on open. `metadata` is read here but never returned:
     // it also holds the on-disk filePath, which has no business leaving the
     // server.
-    const rows = await postgres.query<
-      DocumentRecord & { metadata?: unknown; vector_count?: number | null }
-    >(
-      'SELECT id, title, page_count, created_at, source_type, wolke_share_link_id, status, vector_count, metadata FROM documents WHERE id = ANY($1)',
-      [documentIds]
-    );
+    const rows = await fetchDocumentMetadata(postgres, documentIds);
     // `vector_count` never reaches the client — it only feeds the readiness
     // derivation below, where a `completed` document without vectors has to
     // count as failed rather than ready.
     vectorCounts = new Map(rows.map((row) => [row.id, row.vector_count ?? null]));
-    documents = rows.map(({ metadata, vector_count: _vectorCount, ...doc }) => {
+    // The shared query reads more columns than this response carries (the
+    // chat's source list needs them). Pick the response fields explicitly, in
+    // their old order, so the wire shape stays exactly what it was.
+    documents = rows.map((row) => {
       const meta = (
-        typeof metadata === 'string'
-          ? (JSON.parse(metadata) as Record<string, unknown>)
-          : ((metadata ?? {}) as Record<string, unknown>)
+        typeof row.metadata === 'string'
+          ? (JSON.parse(row.metadata) as Record<string, unknown>)
+          : ((row.metadata ?? {}) as Record<string, unknown>)
       ) as { processing_error?: unknown };
       return {
-        ...doc,
+        id: row.id,
+        title: row.title,
+        page_count: row.page_count,
+        created_at: row.created_at,
+        source_type: row.source_type,
+        wolke_share_link_id: row.wolke_share_link_id,
+        status: row.status,
         processing_error: typeof meta.processing_error === 'string' ? meta.processing_error : null,
-      };
+      } as DocumentRecord & { processing_error: string | null };
     });
   }
 

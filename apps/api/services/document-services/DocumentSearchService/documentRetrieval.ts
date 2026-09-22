@@ -118,6 +118,10 @@ export function documentIdentityClause(documentId: string): {
   return { key, match: { value: documentId } };
 }
 
+function numberOrNull(value: unknown): number | null {
+  return typeof value === 'number' ? value : null;
+}
+
 /**
  * Get individual chunks for a document, sorted by chunk_index.
  * Supports both user documents (in 'documents' collection with user_id)
@@ -154,6 +158,14 @@ export async function getDocumentChunks(
         tokens: typeof chunk.payload.token_count === 'number' ? chunk.payload.token_count : 0,
         pageNumber:
           typeof chunk.payload.page_number === 'number' ? chunk.payload.page_number : null,
+        charStart: numberOrNull(chunk.payload.char_start),
+        charEnd: numberOrNull(chunk.payload.char_end),
+        headingPath: Array.isArray(chunk.payload.heading_path)
+          ? chunk.payload.heading_path.filter((h): h is string => typeof h === 'string')
+          : null,
+        heading: typeof chunk.payload.heading === 'string' ? chunk.payload.heading : null,
+        sectionIndex: numberOrNull(chunk.payload.section_index),
+        chunkType: typeof chunk.payload.chunk_type === 'string' ? chunk.payload.chunk_type : null,
       }))
       .filter((c) => c.text.trim().length > 0)
       .sort((a, b) => a.index - b.index);

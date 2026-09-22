@@ -193,6 +193,9 @@ export const DEFAULT_LOOP_BUDGET: LoopBudget = {
  */
 export const TOOL_TIMEOUT_OVERRIDES_MS: Record<string, number> = {
   research: 30_000,
+  // Ein ganzes Notebook durchsuchen und dazu Postgres + Qdrant für jede Quelle —
+  // bei großen Notebooks mehr als die Standardfrist.
+  notebook_quellen: 30_000,
   // A long text is several provider requests plus an ffmpeg encode, and the
   // provider runs them one at a time (#3208). Idempotent per turn, so this
   // cannot stack either.
@@ -222,6 +225,8 @@ export const NEAR_DUPLICATE_EXEMPT_TOOLS: ReadonlySet<string> = new Set([
   'documents',
   'read_artifact',
   'notebooks',
+  // list → outline → read auf dieselbe sourceId: nur action und Navigation unterscheiden sie.
+  'notebook_quellen',
   'memory',
   // get → content auf dasselbe Projekt teilen sich bis auf die action jedes Token.
   'groups',
