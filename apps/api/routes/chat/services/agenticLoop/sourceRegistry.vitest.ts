@@ -547,6 +547,20 @@ describe('sourceRegistry.note', () => {
       expect(reg.renderAll()).not.toContain('ALT aus dem Vorturn');
     });
 
+    it('hält Fundstellen mit Zeichenbereich im selben Dokument auseinander', () => {
+      // `notebook_quellen` registriert Passagen und gelesene Scheiben mit ihrer
+      // Fundstelle. Zwei Stellen aus einer Quelle sind zwei Belege — unter
+      // dem Dokumentschlüssel fiele die zweite still weg.
+      const reg = createSourceRegistry();
+      reg.register([
+        doc({ content: 'Stelle A', charStart: 0, charEnd: 8, chunkIndex: 0 }),
+        doc({ content: 'Stelle B', charStart: 900, charEnd: 908, chunkIndex: 3 }),
+        doc({ content: 'Stelle A doppelt', charStart: 0, charEnd: 8, chunkIndex: 0 }),
+      ]);
+      expect(reg.size).toBe(2);
+      expect(reg.renderAll()).toContain('Stelle B');
+    });
+
     it('hält zwei verschiedene Dokumente auseinander', () => {
       const reg = createSourceRegistry();
       reg.register([
