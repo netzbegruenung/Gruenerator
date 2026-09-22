@@ -105,9 +105,8 @@ export const getFooterLinks = (): MenuItemType[] => [
   {
     id: 'apps',
     path: '/apps',
-    // Solange SHOW_APPS in AppsPage.tsx false ist, zeigt /apps nur den MCP-Teil.
-    title: 'Connect',
-    description: 'KI-Chat-Integration über MCP',
+    title: 'Apps & Connect',
+    description: 'Apps und KI-Chat-Integration',
   },
   {
     id: 'support',

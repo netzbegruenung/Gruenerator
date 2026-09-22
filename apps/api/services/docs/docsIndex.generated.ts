@@ -227,6 +227,18 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "lead": "In etwa fünf Minuten erstellst du einen fertigen Post für Instagram, Facebook, LinkedIn, X oder ein Reel — im Ton der Plattform, in der passenden Länge, auf Wunsch mit Sharepic."
   },
   {
+    "url": "/docs/guides/experimentell/android-app-installieren",
+    "title": "Wie installiere ich die Grünerator-App auf Android?",
+    "category": "Guides",
+    "lead": "In wenigen Minuten installierst du die experimentelle Grünerator-App direkt über Google Play. Der Play Store prüft automatisch, ob dein Smartphone oder Tablet kompatibel ist."
+  },
+  {
+    "url": "/docs/guides/experimentell/iphone-ipad-app-installieren",
+    "title": "Wie installiere ich die Grünerator-App auf iPhone oder iPad?",
+    "category": "Guides",
+    "lead": "In wenigen Minuten installierst du die experimentelle Grünerator-App über Apples TestFlight auf einem iPhone oder iPad. Du benötigst iOS oder iPadOS 16.4 oder neuer und einen Apple Account für den Ap…"
+  },
+  {
     "url": "/docs/guides/fortgeschrittene/eigene-agentinnen-erstellen",
     "title": "Wie erstelle ich einen Grünerator-Agenten?",
     "category": "Guides",
@@ -2010,6 +2022,94 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#weiterlesen",
     "category": "Guides",
     "text": "KI-Chat — alle Rezepte, Quellen und Werkzeuge im Überblick Was kann ich fragen? — Musterfragen zu jeder Fähigkeit"
+  },
+  {
+    "url": "/docs/guides/experimentell/android-app-installieren",
+    "pageTitle": "Wie installiere ich die Grünerator-App auf Android?",
+    "heading": "Wie installiere ich die Grünerator-App auf Android?",
+    "anchor": "",
+    "category": "Guides",
+    "text": "In wenigen Minuten installierst du die experimentelle Grünerator-App direkt über Google Play. Der Play Store prüft automatisch, ob dein Smartphone oder Tablet kompatibel ist. Die App kann noch Fehler enthalten und sich kurzfristig ändern. Installiere angebotene Updates deshalb zeitnah und melde Probleme möglichst mit Gerätetyp und Android-Version."
+  },
+  {
+    "url": "/docs/guides/experimentell/android-app-installieren",
+    "pageTitle": "Wie installiere ich die Grünerator-App auf Android?",
+    "heading": "Damit die App aktuell bleibt",
+    "anchor": "#damit-die-app-aktuell-bleibt",
+    "category": "Guides",
+    "text": "Google Play aktualisiert die App normalerweise automatisch. Du kannst auf der Store-Seite auch selbst auf Aktualisieren tippen, sobald eine neue Version angeboten wird. Weil die App noch experimentell ist, können sich Oberfläche und Funktionen zwischen zwei Versionen verändern."
+  },
+  {
+    "url": "/docs/guides/experimentell/android-app-installieren",
+    "pageTitle": "Wie installiere ich die Grünerator-App auf Android?",
+    "heading": "Installation vom Computer aus",
+    "anchor": "#installation-vom-computer-aus",
+    "category": "Guides",
+    "text": "Bist du am Computer bei Google Play angemeldet, heißt die Schaltfläche Auf weiteren Geräten installieren. Wähle dort dein Android-Gerät aus. Dafür muss auf dem Gerät derselbe Google-Account verwendet werden; die Installation startet anschließend automatisch."
+  },
+  {
+    "url": "/docs/guides/experimentell/android-app-installieren",
+    "pageTitle": "Wie installiere ich die Grünerator-App auf Android?",
+    "heading": "So geht's",
+    "anchor": "#so-gehts",
+    "category": "Guides",
+    "text": "Store-Seite öffnen. Öffne auf deinem Android-Gerät die Seite Apps & Connect und tippe bei Android auf Bei Google Play. Du kannst auch direkt die Grünerator-App bei Google Play öffnen. App installieren. Prüfe, dass als App Grünerator und als Anbieter Moritz Wächter angezeigt werden. Tippe anschließend auf Installieren. Google Play lädt die passende Version und legt die App auf deinem Gerät ab. App öffnen und anmelden. Tippe nach der Installation auf Öffnen, gehe durch die kurze Einführung und melde dich mit deinem Grünerator-Zugang an."
+  },
+  {
+    "url": "/docs/guides/experimentell/android-app-installieren",
+    "pageTitle": "Wie installiere ich die Grünerator-App auf Android?",
+    "heading": "Weiterlesen",
+    "anchor": "#weiterlesen",
+    "category": "Guides",
+    "text": "Wie installiere ich die Grünerator-App auf iPhone oder iPad? Was kann ich den KI-Chat fragen?"
+  },
+  {
+    "url": "/docs/guides/experimentell/android-app-installieren",
+    "pageTitle": "Wie installiere ich die Grünerator-App auf Android?",
+    "heading": "Wenn die Installation nicht klappt",
+    "anchor": "#wenn-die-installation-nicht-klappt",
+    "category": "Guides",
+    "text": "„Installieren“ fehlt: Prüfe, ob du im Play Store mit einem Google-Account angemeldet bist und ob die Seite dein Gerät als kompatibel anzeigt. Das falsche Gerät wird ausgewählt: Öffne die Store-Seite direkt auf dem gewünschten Android-Gerät oder wähle es am Computer unter Auf weiteren Geräten installieren aus. Die App startet nicht oder verhält sich unerwartet: Installiere zuerst das neueste Update. Bleibt der Fehler bestehen, nutze den Feedback-Button im Grünerator und nenne Gerätetyp, Android-Version und die Schritte bis zum Fehler. Weitere Hinweise zur Installation enthält Google Play-Hilfe: Apps und digitale Inhalte herunterladen."
+  },
+  {
+    "url": "/docs/guides/experimentell/iphone-ipad-app-installieren",
+    "pageTitle": "Wie installiere ich die Grünerator-App auf iPhone oder iPad?",
+    "heading": "Wie installiere ich die Grünerator-App auf iPhone oder iPad?",
+    "anchor": "",
+    "category": "Guides",
+    "text": "In wenigen Minuten installierst du die experimentelle Grünerator-App über Apples TestFlight auf einem iPhone oder iPad. Du benötigst iOS oder iPadOS 16.4 oder neuer und einen Apple Account für den App Store. Die App kann noch Fehler enthalten und sich kurzfristig ändern. TestFlight-Builds sind höchstens 90 Tage gültig; installiere angebotene Updates deshalb zeitnah."
+  },
+  {
+    "url": "/docs/guides/experimentell/iphone-ipad-app-installieren",
+    "pageTitle": "Wie installiere ich die Grünerator-App auf iPhone oder iPad?",
+    "heading": "Damit die App aktuell bleibt",
+    "anchor": "#damit-die-app-aktuell-bleibt",
+    "category": "Guides",
+    "text": "TestFlight informiert dich über neue Versionen. Du kannst auf der Grünerator-Seite in TestFlight Automatische Updates aktivieren oder neue Builds mit Update selbst installieren. Über Beta-Feedback senden kannst du Probleme direkt aus TestFlight melden."
+  },
+  {
+    "url": "/docs/guides/experimentell/iphone-ipad-app-installieren",
+    "pageTitle": "Wie installiere ich die Grünerator-App auf iPhone oder iPad?",
+    "heading": "So geht's",
+    "anchor": "#so-gehts",
+    "category": "Guides",
+    "text": "Beta-Einladung öffnen. Öffne auf deinem iPhone oder iPad die Seite Apps & Connect und tippe bei iOS auf Über TestFlight. Du kannst auch direkt die öffentliche TestFlight-Einladung öffnen. TestFlight installieren. Auf der Apple-Seite steht unter Schritt 1 „TestFlight laden“. Tippe auf Im App Store anzeigen, installiere die kostenlose App TestFlight und kehre danach zur Beta-Einladung im Browser zurück. Einladung in TestFlight öffnen. Tippe auf der Einladungsseite unter Schritt 2 auf In TestFlight anzeigen. Der öffentliche Link öffnet TestFlight direkt; du brauchst keinen Einlösecode. Grünerator installieren. Wenn du erstmals teilnimmst, tippe in TestFlight zuerst auf Akzeptieren und anschließend auf Installieren. Hast du die Beta bereits genutzt, steht dort stattdessen Update oder Öffnen. App öffnen und anmelden. Öffne die Grünerator-App auf deinem Home-Bildschirm, gehe durch die kurze Einführung und melde dich mit deinem Grünerator-Zugang an."
+  },
+  {
+    "url": "/docs/guides/experimentell/iphone-ipad-app-installieren",
+    "pageTitle": "Wie installiere ich die Grünerator-App auf iPhone oder iPad?",
+    "heading": "Weiterlesen",
+    "anchor": "#weiterlesen",
+    "category": "Guides",
+    "text": "Wie installiere ich die Grünerator-App auf Android? Was kann ich den KI-Chat fragen?"
+  },
+  {
+    "url": "/docs/guides/experimentell/iphone-ipad-app-installieren",
+    "pageTitle": "Wie installiere ich die Grünerator-App auf iPhone oder iPad?",
+    "heading": "Wenn die Installation nicht klappt",
+    "anchor": "#wenn-die-installation-nicht-klappt",
+    "category": "Guides",
+    "text": "TestFlight zeigt nur „Code einlösen“: Öffne die öffentliche Einladung erneut im Browser und tippe dort auf In TestFlight anzeigen. Für diesen Link gibt es keinen separaten Code. „Installieren“ fehlt: Prüfe unter Einstellungen → Allgemein → Info, ob mindestens iOS oder iPadOS 16.4 installiert ist. Apple zeigt den Button nur an, wenn ein kompatibler Build verfügbar ist. Der Build ist abgelaufen: Öffne TestFlight und installiere das neueste Update. Ist kein Build verfügbar, versuche es später erneut. Die allgemeinen Regeln zu Laufzeit, Updates und Feedback erklärt auch Apple: Apps mit TestFlight testen."
   },
   {
     "url": "/docs/guides/fortgeschrittene/eigene-agentinnen-erstellen",
