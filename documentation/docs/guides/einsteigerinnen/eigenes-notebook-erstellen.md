@@ -36,4 +36,4 @@ Beim Erstellen gehört das Notebook nur dir. Ob und für wen es sichtbar wird, e
 
 - [Notebooks](../../features/notebooks.md) — Quellarten, Teilen, Verwaltung, häufige Fragen
 - [Wie binde ich die Grüne Wolke ein?](../fortgeschrittene/gruene-wolke-einbinden.md) — Voraussetzung, um Wolke-Ordner anzuhängen
-- [Landesverband-Grüneratoren](../../features/landesverbaende.md) — Österreich: vorgefertigte Wissensdatenbank der Grünen Österreich
+- [Landesverband-Agents](../../features/landesverbaende.md) — Österreich: vorgefertigte Wissensdatenbank der Grünen Österreich

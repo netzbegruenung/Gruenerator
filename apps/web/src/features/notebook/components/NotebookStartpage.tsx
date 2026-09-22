@@ -108,7 +108,7 @@ const subInactive = cn(
 
 const BROWSE_TABS: { id: BrowseTab; label: string; Icon: typeof HiOutlineClock }[] = [
   { id: 'zuletzt', label: 'Zuletzt', Icon: HiOutlineClock },
-  { id: 'agenten', label: 'Grüneratoren', Icon: HiOutlineSparkles },
+  { id: 'agenten', label: 'Agents', Icon: HiOutlineSparkles },
   { id: 'stats', label: 'Statistiken', Icon: HiOutlineChartBar },
 ];
 

@@ -25,7 +25,7 @@ Dafür musst du ihm einmal sagen, wo du arbeitest. Das dauert eine Minute und is
 Danach steht unter deinen Rollen ein Knopf **„Zu deinem Landesverband“**, der dich direkt in dein neues Regal bringt.
 
 :::info[Genau diese Rolle ist der Schlüssel]
-Die Inhalte eines Landesverbands hängen an der **Geschäftsstellen-Rolle** und nur an ihr. Landtagsfraktion, MdL-Büro, Kreisverband oder Ortsverband geben zwar auch ein Bundesland an, schalten die LV-Grüneratoren aber nicht frei — sie sind das Material eines bestimmten Landesverbands, kein allgemeiner Bestand.
+Die Inhalte eines Landesverbands hängen an der **Geschäftsstellen-Rolle** und nur an ihr. Landtagsfraktion, MdL-Büro, Kreisverband oder Ortsverband geben zwar auch ein Bundesland an, schalten die LV-Agents aber nicht frei — sie sind das Material eines bestimmten Landesverbands, kein allgemeiner Bestand.
 
 Umgekehrt gilt: Ohne passende Rolle siehst du die LV-Inhalte nicht. Das ist Absicht und kein Fehler — vor der Zuteilung stand dort ein Regal mit elf fremden Landesverbänden, das für alle anderen nur Rauschen war.
 :::
@@ -34,11 +34,11 @@ Du kannst mehrere Rollen anlegen (etwa Landesgeschäftsstelle **und** Kreisverba
 
 ## Schritt 2: Was du jetzt hast
 
-**Ein eigenes Regal in der Agentura.** Unter [Dein Landesverband](/docs/features/agentura) stehen die drei Grüneratoren deines Verbands — **Öffentlichkeitsarbeit**, **Bürger\*innenanfragen** und **Wahlprüfsteine** — und darunter eure Rezepte, überschrieben mit dem Namen deines Landesverbands.
+**Ein eigenes Regal in der [Agentura](/docs/features/agentura).** Das Regal trägt den Namen deines Landesverbands (bei Hessen also „Grüne Hessen“). Darin stehen die drei Agents deines Verbands — **Öffentlichkeitsarbeit**, **Bürger\*innenanfragen** und **Wahlprüfsteine** — und darunter eure Rezepte, ebenfalls mit dem Namen deines Landesverbands überschrieben.
 
-![Die Agentura mit ausgewähltem Regal „Dein Landesverband“: der Abschnitt „Grüne Hessen“ mit den drei Grüneratoren Öffentlichkeitsarbeit, Bürger\*innenanfragen und Wahlprüfsteine, darunter der Abschnitt „Rezepte aus Hessen“ mit PM Hessen (Fraktion), PM Hessen (Partei) und Insta Hessen.](/assets/images/landesverband-tutorial/lv-regal.webp)
+![Die Agentura mit ausgewähltem Regal „Grüne Hessen“ — der Reiter trägt den Namen des Landesverbands: die drei Agents Öffentlichkeitsarbeit, Bürger\*innenanfragen und Wahlprüfsteine, darunter der Abschnitt „Rezepte aus Hessen“ mit PM Hessen (Fraktion), PM Hessen (Partei) und Insta Hessen.](/assets/images/landesverband-tutorial/lv-regal.webp)
 
-**Eure Rezepte im Chat.** Die Presse- und Instagram-Rezepte deines Landesverbands tauchen jetzt in der Rezept-Liste des Chats auf und lassen sich mit `@` erwähnen, etwa `@presse-hessen-partei` oder `@insta-hessen`. Welche es je Landesverband gibt, steht unter [Landesverband-Grüneratoren](/docs/features/landesverbaende).
+**Eure Rezepte im Chat.** Die Presse- und Instagram-Rezepte deines Landesverbands tauchen jetzt in der Rezept-Liste des Chats auf und lassen sich mit `@` erwähnen, etwa `@presse-hessen-partei` oder `@insta-hessen`. Welche es je Landesverband gibt, steht unter [Landesverband-Agents](/docs/features/landesverbaende).
 
 **Euer Notebook.** Die Wissensdatenbank deines Landesverbands (Pressemitteilungen, Beschlüsse, Wahlprogramme) erscheint in der Auswahl und lässt sich im Chat als Quelle erwähnen.
 
@@ -72,10 +72,10 @@ Alles gilt für dein Konto, also auf allen Geräten, an denen du angemeldet bist
 
 ## Wenn nichts erscheint
 
-**Dein Bundesland ist nicht dabei.** Nicht jeder Landesverband hat eigene Grüneratoren, und einzelne haben sich gegen ein eigenes Notebook entschieden. Welche Landesverbände abgedeckt sind, steht aktuell auf der Seite [Landesverband-Grüneratoren](/docs/features/landesverbaende). Ist deiner nicht dabei, bleibt der Assistent stumm und verspricht nichts — die allgemeinen Rezepte (`@presse`, `@instagram`, `@facebook`, …) stehen dir wie allen anderen offen.
+**Dein Bundesland ist nicht dabei.** Nicht jeder Landesverband hat eigene Agents, und einzelne haben sich gegen ein eigenes Notebook entschieden. Welche Landesverbände abgedeckt sind, steht aktuell auf der Seite [Landesverband-Agents](/docs/features/landesverbaende). Ist deiner nicht dabei, bleibt der Assistent stumm und verspricht nichts — die allgemeinen Rezepte (`@presse`, `@instagram`, `@facebook`, …) stehen dir wie allen anderen offen.
 
 **Du hast die Rolle gerade erst angelegt.** Das Regal erscheint, sobald die Einstellungen gespeichert sind; ein Neuladen der Seite hilft, wenn ein Tab schon länger offen stand. In der App genügt es, sie einmal neu zu starten.
 
 ---
 
-Was ihr mit den drei Grüneratoren jeweils machen könnt — Pressemitteilungen, Bürger\*innenanfragen, Wahlprüfsteine — steht ausführlich unter [Landesverband-Grüneratoren](/docs/features/landesverbaende).
+Was ihr mit den drei Agents jeweils machen könnt — Pressemitteilungen, Bürger\*innenanfragen, Wahlprüfsteine — steht ausführlich unter [Landesverband-Agents](/docs/features/landesverbaende).

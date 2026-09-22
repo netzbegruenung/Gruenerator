@@ -244,7 +244,7 @@ export function makeNotebooksTool(ctx: NotebookToolCtx): Tool {
 
 NUTZE FÜR: Notebooks auflisten (list — scope="mine" die eigenen, scope="system" die vom Grünerator gepflegten Wissenssammlungen, scope="basis" die öffentlich geteilten Notebooks anderer), Details eines Notebooks mit Dokumenten, Wolke-Ordnern, Freigaben und wartenden Dateien (get), eine Frage AN DEN INHALT eines Notebooks stellen und belegt beantworten (search mit id + query — „was steht im Notebook X zu …?"), ein Notebook anlegen (create; mit wolkeFolder wird der Ordner sofort angehängt und importiert), einen Wolke-Ordner an ein bestehendes Notebook hängen (add_wolke_folder), eigene Dokumente oder Office-Dokumente hinzufügen (add_documents), umbenennen (rename), Sichtbarkeit und Bearbeitungsrechte ändern (set_visibility), mit einem Projekt teilen (share_to_group), löschen (delete mit confirm=true nach Zustimmung).
 
-Ein System-Notebook hat keine id zum Befragen — seine Zeile nennt im Feld ref den collection-Schlüssel, mit dem 'gruenerator_search' seinen Inhalt durchsucht. Notebooks von der Basis haben eine echte id: get und search funktionieren damit wie bei eigenen.
+Ein System-Notebook hat keine id zum Befragen — seine Zeile nennt im Feld ref den collection-Schlüssel, mit dem 'gruenerator_search' seinen Inhalt durchsucht. Öffentlich gelistete Notebooks haben eine echte id: get und search funktionieren damit wie bei eigenen.
 
 NICHT für: Dateien in der Wolke durchsehen oder lesen (dafür 'cloud_files' — action=list_connections liefert die connectionId und action=list die Pfade, die wolkeFolder braucht), eigene Dokumente und Tabellen selbst (dafür 'documents'), Projekte verwalten (dafür 'groups'), die grüne Inhaltsdatenbank (dafür 'gruenerator_search').
 
@@ -289,7 +289,7 @@ Wolke-Import, Sichtbarkeit und Teilen werden der Person als Karte zur Bestätigu
         .boolean()
         .optional()
         .describe(
-          'set_visibility: in „Von der Basis" listen (braucht shareMode=authenticated und publicOwnership)'
+          'set_visibility: in „Öffentlich" listen (braucht shareMode=authenticated und publicOwnership)'
         ),
       publicOwnership: z
         .enum(['owner', 'public_data'])
@@ -329,7 +329,7 @@ Wolke-Import, Sichtbarkeit und Teilen werden der Person als Karte zur Bestätigu
             makeRow(
               c.name,
               notebookUrl(c),
-              'Notebook von der Basis',
+              'Öffentliches Notebook',
               c.description || `${c.document_count} Dokument(e)`,
               c.id
             )
@@ -521,7 +521,7 @@ Wolke-Import, Sichtbarkeit und Teilen werden der Person als Karte zur Bestätigu
       `Notebook „${collection.name}" — ${url}`,
       collection.description ? `Beschreibung: ${collection.description}` : null,
       `${docLinks.length} Dokument(e)${linkedDocs.length ? `, ${linkedDocs.length} verknüpfte Office-Dokument(e)` : ''}${pendingCount ? `, ${pendingCount} neue Datei(en) aus der Wolke warten` : ''}`,
-      `Sichtbarkeit: ${SHARE_MODE_LABEL[collection.share_mode]}; bearbeiten: ${EDIT_POLICY_LABEL[collection.edit_policy]}${collection.is_public ? '; gelistet in „Von der Basis"' : ''}`,
+      `Sichtbarkeit: ${SHARE_MODE_LABEL[collection.share_mode]}; bearbeiten: ${EDIT_POLICY_LABEL[collection.edit_policy]}${collection.is_public ? '; gelistet in „Öffentlich"' : ''}`,
       folders.length
         ? `Wolke-Ordner: ${folders.map((f) => `${f.folderName} (${f.folderPath}${f.includeSubfolders ? ', mit Unterordnern' : ''})`).join('; ')}`
         : null,
@@ -805,7 +805,7 @@ Wolke-Import, Sichtbarkeit und Teilen werden der Person als Karte zur Bestätigu
       { key: 'Notebook', value: collection.name },
       { key: 'Sichtbarkeit', value: SHARE_MODE_LABEL[nextMode] },
       { key: 'Bearbeiten', value: EDIT_POLICY_LABEL[nextPolicy] },
-      { key: 'Von der Basis', value: nextPublic ? 'gelistet' : 'nicht gelistet' },
+      { key: 'Öffentlich', value: nextPublic ? 'gelistet' : 'nicht gelistet' },
     ]);
     const note = `Bestätigung angefordert: Notebook „${collection.name}" auf „${SHARE_MODE_LABEL[nextMode]}" stellen.`;
     groundNote(sourceRegistry, 'Sichtbarkeit', note);

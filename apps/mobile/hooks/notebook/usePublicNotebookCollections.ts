@@ -2,7 +2,7 @@ import { getContractsClient } from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
 
 /**
- * Public "Von der Basis" notebooks. Reuses the contracted `listPublicCollections`
+ * Public „Öffentlich" notebooks. Reuses the contracted `listPublicCollections`
  * endpoint web uses — the backend already locale-filters (de-DE/de-AT) and enriches
  * each row with `creator_name` + `likes_count`, so mobile adds no backend.
  *

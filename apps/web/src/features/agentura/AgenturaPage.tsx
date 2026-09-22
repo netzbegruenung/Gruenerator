@@ -63,6 +63,7 @@ import { RecurringTaskCard } from './components/RecurringTaskCard';
 import { ShelfTabs } from './components/ShelfTabs';
 import { TypeFilterRow } from './components/TypeFilterRow';
 import { useDuplicateAgent } from './hooks/useDuplicateAgent';
+import { hasKnowledge, toolCount } from './lib/capabilities';
 import {
   AGENTURA_EMPTY_ICONS,
   AGENTURA_TYPE_VALUES,
@@ -77,7 +78,6 @@ import {
   type AgenturaCategoryKey,
   type AgenturaSort,
 } from './lib/categories';
-import { hasKnowledge, toolCount } from './lib/capabilities';
 import { isLandesverbandIdentifier, landesverbandLabel, landesverbandRegion } from './lib/lookups';
 import { pinnedFirst } from './lib/marketFilter';
 import { useDeleteRecipe, useOwnRecipes, usePublicRecipes } from './recipes/api';
@@ -258,7 +258,7 @@ function AgenturaPage() {
 
   const favorites = useSkillFavoritesStore((s) => s.favorites);
   const toggleFavorite = useSkillFavoritesStore((s) => s.toggleFavorite);
-  const { lvIds } = useUserLandesverbaende();
+  const { lvIds, shelfLabel: lvShelfLabel, isHydrated: rolesLoaded } = useUserLandesverbaende();
 
   const { data: userAgents = [] } = useUserAgents();
   const { data: sharedSystemAgents = [] } = useSharedSystemAgents();
@@ -310,7 +310,7 @@ function AgenturaPage() {
     [userLocale, hiddenSkillMentions]
   );
 
-  // Public community agents ("Von der Basis"): owners still see their own listing,
+  // Public community agents („Öffentlich"): owners still see their own listing,
   // but drop agents only reachable via a group share (and not owned).
   const communityAgents = useMemo(() => {
     const ownIds = new Set(userAgents.map((a) => a.identifier));
@@ -331,7 +331,7 @@ function AgenturaPage() {
     () => ownAndSharedRecipes.filter((f) => f.sharedFromGroup),
     [ownAndSharedRecipes]
   );
-  // "Von der Basis": mirrors `communityAgents` exactly — owners still see
+  // „Öffentlich": mirrors `communityAgents` exactly — owners still see
   // their own public listing, but a recipe only reachable via a group share
   // (not owned) is dropped: "Geteilt mit Gruppen" already shows it once, and
   // without this exception it would show a second time here.
@@ -535,7 +535,7 @@ function AgenturaPage() {
   const agentMeta = (agent: Agent): string => {
     const tools = toolCount(agent);
     return agenturaMetaLine([
-      'Grünerator',
+      'Agent',
       tools > 0 && `${tools} Tools`,
       hasKnowledge(agent) && 'Wissen',
       isLandesverbandIdentifier(agent.identifier) && landesverbandLabel(agent.identifier),
@@ -703,13 +703,25 @@ function AgenturaPage() {
   };
 
   // "meine" and "community" stay visible even when empty (CTA / empty state);
-  // every other category appears only once it has entries. Für „Dein
-  // Landesverband" ist das die Zuteilung selbst: ohne Rolle kein Regal.
-  const isVisible = (cat: AgenturaCategory): boolean =>
-    cat.key === 'meine' || cat.key === 'community' || countFor(cat.key) > 0;
+  // every other category appears only once it has entries. Für den
+  // Landesverband ist das die Zuteilung selbst: ohne Rolle kein Regal.
+  //
+  // Zusätzlich an `rolesLoaded` gebunden, weil das Regal seinen Verband beim
+  // Namen nennt: `lvIds === null` lässt vor der Hydratation ALLE LV-Inhalte
+  // durch (der sichere Ausgang für Filter, siehe `useUserLandesverbaende`) —
+  // das Regal hieße dann kurz „Dein Landesverband" und zeigte fremde Verbände,
+  // bevor es auf „Grüne Hessen" umspringt.
+  const isVisible = (cat: AgenturaCategory): boolean => {
+    if (cat.key === 'meine' || cat.key === 'community') return true;
+    if (cat.key === 'landesverband' && !rolesLoaded) return false;
+    return countFor(cat.key) > 0;
+  };
 
   const webCategories = useMemo(() => agenturaCategoriesForPlatform('web'), []);
-  const visibleCategories = webCategories.filter(isVisible);
+  const visibleCategories = webCategories
+    .filter(isVisible)
+    // Das Regal trägt den Namen des Verbands; `cat.label` ist nur der Rückfall.
+    .map((cat) => (cat.key === 'landesverband' ? { ...cat, label: lvShelfLabel } : cat));
 
   const requestedCat = catParam && webCategories.some((c) => c.key === catParam) ? catParam : null;
   // Der Markt öffnet immer auf „Meine Grüneratoren" (`DEFAULT_CATEGORY`), egal
@@ -816,7 +828,7 @@ function AgenturaPage() {
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => navigate('/agents/new')}>
                 <PiSparkle />
-                <span>Grünerator</span>
+                <span>Agent</span>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => navigate('/agentura/rezept/neu')}>
                 <PiFileText />
@@ -859,7 +871,7 @@ function AgenturaPage() {
                 <Button asChild variant="brand" size="brand-sm">
                   <Link to="/agents/new">
                     <PiPlus />
-                    Grünerator erstellen
+                    Agent erstellen
                   </Link>
                 </Button>
                 <Button asChild variant="outline" size="brand-sm">
