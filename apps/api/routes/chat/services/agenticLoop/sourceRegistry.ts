@@ -184,6 +184,12 @@ export interface SourceRegistry {
  * kollabieren würden.
  */
 function resultKey(r: SearchResult): string {
+  // Ausnahme: eine Fundstelle mit Zeichenbereich (`notebook_quellen`) IST eine
+  // bestimmte Stelle, kein bester Chunk einer Anfrage — zwei Stellen aus einer
+  // Quelle sind zwei Belege. Nur wer `charStart` setzt, landet hier.
+  if (r.documentId && 'charStart' in r) {
+    return `doc::${r.collectionId ?? ''}::${r.documentId}::${r.charStart ?? ''}::${r.chunkIndex ?? ''}`;
+  }
   if (r.documentId) return `doc::${r.collectionId ?? ''}::${r.documentId}`;
   return `${r.url ?? ''}::${r.title ?? ''}::${(r.content ?? '').slice(0, 80)}`;
 }
