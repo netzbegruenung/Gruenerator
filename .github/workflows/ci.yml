@@ -162,6 +162,12 @@ jobs:
       - name: Image build filters cover their Dockerfiles
         run: node scripts/check-image-build-filters.mjs
 
+      # The routing table is generated; the privacy notice's list of
+      # sub-processors is hand-kept. Cortecs wrote most answers for a month
+      # without being named there (#3517).
+      - name: Privacy notice names every model host
+        run: node scripts/check-privacy-subprocessors.mjs
+
   typecheck:
     name: Typecheck
     runs-on: ubuntu-latest
