@@ -660,4 +660,31 @@ describe('UebersetzerPage', () => {
     await screen.findByLabelText(/Bild auswählen oder hierher ziehen/);
     expect(await axe(container)).toHaveNoViolations();
   });
+
+  it('has no axe violations in the Dokument tab', async () => {
+    withLanguages();
+    const { user, container } = renderWithProviders(<UebersetzerPage />);
+    await screen.findByLabelText('Von');
+    await user.click(screen.getByRole('tab', { name: /Dokument/ }));
+    // The drop zone used to be a `role="button"` holding an `aria-hidden`
+    // file input, which axe rejects as `nested-interactive`. That the input
+    // answers to its own label is the other half of the same claim: it is a
+    // real control now, not a hidden one behind a fake button.
+    await screen.findByLabelText(/Datei auswählen oder hierher ziehen/);
+    expect(await axe(container)).toHaveNoViolations();
+  });
+  it('lets the page style the active tab in dark mode too', async () => {
+    withLanguages();
+    renderWithProviders(<UebersetzerPage />);
+    await screen.findByLabelText('Von');
+    const aktiv = screen.getByRole('tab', { name: /Text/ });
+
+    // jsdom has no styles, so this asserts the class list rather than a colour.
+    // That is where the defect lived: `TabsTrigger` carried its own
+    // `dark:data-[state=active]:bg-…`, a different Tailwind variant from the
+    // page's `data-[state=active]:bg-secondary-600`, so tailwind-merge kept
+    // both and the dark one won — the brand pill existed in light mode only.
+    expect(aktiv.className).toContain('data-[state=active]:bg-secondary-600');
+    expect(aktiv.className).not.toMatch(/dark:data-\[state=active\]:(bg|text|border)-/);
+  });
 });
