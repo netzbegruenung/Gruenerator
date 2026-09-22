@@ -102,6 +102,14 @@ class TestForms:
             ]
         }
 
+    def test_two_spellings_of_one_lemma_both_get_the_forms(self, make_doc):
+        doc = make_doc(["Wälder"], lemmas=["Wald"], pos=["NOUN"])
+        stats = compute_text_stats(doc, top_n=50, lemma_of=["Wald", "wald"])
+        assert stats["forms"] == {
+            "Wald": [{"form": "Wälder", "count": 1}],
+            "wald": [{"form": "Wälder", "count": 1}],
+        }
+
     def test_a_lemma_that_does_not_occur_has_no_forms(self, klima_doc):
         assert compute_text_stats(klima_doc, top_n=50, lemma_of=["mond"])["forms"] == {"mond": []}
 
