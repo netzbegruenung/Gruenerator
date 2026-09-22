@@ -12,8 +12,9 @@
  */
 import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
 import { delay, http, HttpResponse } from 'msw';
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { useExportStore } from '../../stores/core/exportStore';
 import { server } from '../../test/msw-server';
 import { axe, renderWithProviders, screen, waitFor, within } from '../../test-utils';
 
@@ -79,6 +80,24 @@ function withLanguages() {
   server.use(http.get(LANGUAGES, () => HttpResponse.json(LANGUAGE_LIST)));
 }
 
+/** A plain successful translation, for the tests that are about what follows it. */
+function withTranslation() {
+  server.use(
+    http.post(TEXT, () =>
+      HttpResponse.json({
+        text: 'Hello world',
+        detectedSourceLang: 'de',
+        targetLang: 'en-GB',
+        billedCharacters: 10,
+        glossaryApplied: true,
+        quota: { ...LANGUAGE_LIST.quota, used: 2.1, remaining: 7.9 },
+      })
+    )
+  );
+}
+
+const DOC_ID = '3f1a2b4c-5d6e-4f70-8a91-b2c3d4e5f607';
+
 describe('UebersetzerPage', () => {
   it('fills the pickers from the API and translates into the right pane', async () => {
     withLanguages();
@@ -112,7 +131,8 @@ describe('UebersetzerPage', () => {
     ).toEqual(['Automatisch erkennen', 'Deutsch', 'Englisch', 'Französisch']);
     const target = screen.getByLabelText('Nach') as HTMLSelectElement;
     expect(target.value).toBe('en-GB');
-    expect(screen.getByText('Heute noch 8 von 10 Bäumen.')).toBeInTheDocument();
+    // 8 of 10 Bäume is a comfortable balance, so the chip keeps quiet.
+    expect(screen.queryByText(/Heute noch/)).not.toBeInTheDocument();
 
     await user.type(screen.getByLabelText('Ausgangstext'), 'Hallo Welt');
 
@@ -127,7 +147,35 @@ describe('UebersetzerPage', () => {
       formality: null,
     });
     expect(screen.getByText('Erkannt: Deutsch · Grünen-Glossar angewendet')).toBeInTheDocument();
-    expect(screen.getByText('Heute noch 7,9 von 10 Bäumen.')).toBeInTheDocument();
+    // The answer costs 0,1 Bäume — still nothing worth a chip.
+    expect(screen.queryByText(/Heute noch/)).not.toBeInTheDocument();
+  });
+
+  it('shows the budget only once it gets tight', async () => {
+    withLanguages();
+    server.use(
+      http.post(TEXT, () =>
+        HttpResponse.json({
+          text: 'Hello',
+          detectedSourceLang: 'de',
+          targetLang: 'en-GB',
+          billedCharacters: 5,
+          glossaryApplied: false,
+          quota: { ...LANGUAGE_LIST.quota, used: 5.8, remaining: 4.2 },
+        })
+      )
+    );
+    const { user } = renderWithProviders(<UebersetzerPage />);
+    await screen.findByLabelText('Von');
+    // Starting at 8 of 10 there is nothing to say …
+    expect(screen.queryByText(/Heute noch/)).not.toBeInTheDocument();
+
+    await user.type(screen.getByLabelText('Ausgangstext'), 'Hallo');
+
+    // … and the answer is what brings the balance under the threshold.
+    expect(
+      await screen.findByText('Heute noch 4,2 von 10 Bäumen.', {}, { timeout: 4000 })
+    ).toBeInTheDocument();
   });
 
   it('shows the budget refusal as an alert and updates the budget line', async () => {
@@ -360,6 +408,110 @@ describe('UebersetzerPage', () => {
 
     expect(posts).toBe(0);
     expect(screen.getByText('Das Tagesbudget ist aufgebraucht.')).toBeInTheDocument();
+  });
+
+  it('offers the document export only once there is a translation', async () => {
+    withLanguages();
+    withTranslation();
+    const { user } = renderWithProviders(<UebersetzerPage />);
+    await screen.findByLabelText('Von');
+
+    const trigger = screen.getByRole('button', { name: 'Als Dokument' });
+    expect(trigger).toBeDisabled();
+
+    await user.type(screen.getByLabelText('Ausgangstext'), 'Hallo');
+    await waitFor(() => expect(trigger).toBeEnabled(), { timeout: 4000 });
+
+    await user.click(trigger);
+    expect((await screen.findAllByRole('menuitem')).map((item) => item.textContent)).toEqual([
+      'Im Editor bearbeiten',
+      'Als Word (.docx)',
+      'Als PDF',
+    ]);
+  });
+
+  it('sends the translation, not the source text, to the editor', async () => {
+    withLanguages();
+    withTranslation();
+    let body: { content?: string; title?: string; documentType?: string } | null = null;
+    server.use(
+      // A wildcard, not the absolute URL the other handlers use: the editor path
+      // goes through apps/web's own axios instance, whose baseURL is the
+      // relative '/api' — so the origin is jsdom's, not the one the contracts
+      // client was configured with.
+      http.post('*/api/docs/from-export', async ({ request }) => {
+        body = (await request.json()) as typeof body;
+        return HttpResponse.json({ documentId: DOC_ID, url: `/document/${DOC_ID}`, success: true });
+      })
+    );
+    // jsdom has no window.open; without the stub it only logs "Not implemented"
+    // and the assertion below would have nothing to look at.
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+    const { user } = renderWithProviders(<UebersetzerPage />);
+    await user.type(await screen.findByLabelText('Ausgangstext'), 'Hallo');
+    await waitFor(
+      () => expect(screen.getByLabelText('Übersetzung')).toHaveTextContent('Hello world'),
+      { timeout: 4000 }
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Als Dokument' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Im Editor bearbeiten' }));
+
+    await waitFor(() => expect(body).not.toBeNull());
+    expect(body!.content).toContain('Hello world');
+    expect(body!.content).not.toContain('Hallo');
+    expect(body!.title).toBe('Übersetzung: Deutsch → Englisch (britisch)');
+    // Anything the server does not know is silently downgraded to 'blank', so
+    // the subtype is only ever wrong-looking, never loud.
+    expect(body!.documentType).toBe('notizen');
+    await waitFor(() =>
+      expect(open).toHaveBeenCalledWith(`/office/${DOC_ID}`, '_blank', 'noopener,noreferrer')
+    );
+    open.mockRestore();
+  });
+
+  /**
+   * The two file formats are checked at the store's door rather than over MSW:
+   * the store asks axios for a Blob, and msw's XHR interceptor cannot build a
+   * Response around a jsdom Blob at all ("object.stream is not a function"), so
+   * the request would always die on the way back. What the store then does with
+   * the text has its own test (stores/core/exportStore.vitest.ts); what belongs
+   * here is that the menu hands over the translation and not the source.
+   */
+  it('hands the translation and a title naming both languages to the file exports', async () => {
+    withLanguages();
+    withTranslation();
+    const generateDOCX = vi.fn().mockResolvedValue(undefined);
+    const generatePDF = vi.fn().mockResolvedValue(undefined);
+    const original = useExportStore.getState();
+    useExportStore.setState({ generateDOCX, generatePDF });
+
+    const { user } = renderWithProviders(<UebersetzerPage />);
+    await user.type(await screen.findByLabelText('Ausgangstext'), 'Hallo');
+    await waitFor(
+      () => expect(screen.getByLabelText('Übersetzung')).toHaveTextContent('Hello world'),
+      { timeout: 4000 }
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Als Dokument' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Als Word (.docx)' }));
+    await waitFor(() =>
+      expect(generateDOCX).toHaveBeenCalledWith(
+        'Hello world',
+        'Übersetzung: Deutsch → Englisch (britisch)'
+      )
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Als Dokument' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Als PDF' }));
+    await waitFor(() =>
+      expect(generatePDF).toHaveBeenCalledWith(
+        'Hello world',
+        'Übersetzung: Deutsch → Englisch (britisch)'
+      )
+    );
+
+    useExportStore.setState(original);
   });
 
   it('has no axe violations once loaded', async () => {
