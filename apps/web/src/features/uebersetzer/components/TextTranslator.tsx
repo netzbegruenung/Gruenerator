@@ -29,6 +29,10 @@ import { cn } from '@/utils/cn';
 
 interface TextTranslatorProps {
   data: TranslationLanguagesResponse;
+  /** The Ausgangstext. It is owned by the page so the Bild tab can put its
+   *  recognised text straight into it — and so it survives a tab switch. */
+  text: string;
+  onTextChange: (next: string) => void;
 }
 
 const AUTO_DEBOUNCE_MS = 800;
@@ -50,7 +54,7 @@ export const AUTO_MAX_CHARS = 2000;
  *
  * Cmd/Ctrl+Enter always translates immediately.
  */
-export function TextTranslator({ data }: TextTranslatorProps) {
+export function TextTranslator({ data, text, onTextChange }: TextTranslatorProps) {
   const { languages, quota } = data;
   const sources = sourceOptions(languages);
   const targets = targetOptions(languages);
@@ -58,7 +62,6 @@ export function TextTranslator({ data }: TextTranslatorProps) {
   const [sourceLang, setSourceLang] = useState<string>(AUTO);
   const [targetLang, setTargetLang] = useState<string>(() => defaultTarget(languages));
   const [formality, setFormality] = useState<TranslationFormality>('default');
-  const [text, setText] = useState('');
   const [result, setResult] = useState<TranslateTextResponse | null>(null);
   const [copied, setCopied] = useState(false);
   const [recentSource, setRecentSource] = useState(() =>
@@ -160,7 +163,7 @@ export function TextTranslator({ data }: TextTranslatorProps) {
   const clear = () => {
     sentKey.current = null;
     pendingKey.current = null;
-    setText('');
+    onTextChange('');
     setResult(null);
   };
 
@@ -176,7 +179,7 @@ export function TextTranslator({ data }: TextTranslatorProps) {
     pickSource(sources.find((l) => l.code === newSource)?.code ?? newSource.split('-')[0]!);
     pickTarget(newTarget);
     if (result) {
-      setText(result.text);
+      onTextChange(result.text);
       setResult(null);
     }
   };
@@ -224,7 +227,7 @@ export function TextTranslator({ data }: TextTranslatorProps) {
             <textarea
               aria-label="Ausgangstext"
               value={text}
-              onChange={(e) => setText(e.target.value)}
+              onChange={(e) => onTextChange(e.target.value)}
               onKeyDown={onKeyDown}
               placeholder="Text eingeben oder einfügen …"
               aria-invalid={tooLong || undefined}

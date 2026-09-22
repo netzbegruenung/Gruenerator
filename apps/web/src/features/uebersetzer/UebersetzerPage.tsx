@@ -7,11 +7,13 @@ import {
   TabsList,
   TabsTrigger,
 } from '@gruenerator/ui';
-import { PiFileText, PiTextAa } from 'react-icons/pi';
+import { useState } from 'react';
+import { PiFileText, PiImage, PiTextAa } from 'react-icons/pi';
 
 import PageContainer from '../../components/common/PageContainer';
 
 import { DocumentTranslator } from './components/DocumentTranslator';
+import { ImageTranslator } from './components/ImageTranslator';
 import { TextTranslator } from './components/TextTranslator';
 import { TranslationNotConfiguredError, useTranslationLanguages } from './hooks/useTranslation';
 
@@ -27,6 +29,13 @@ const TAB_CLS =
  */
 const UebersetzerPage = () => {
   const languages = useTranslationLanguages();
+  // Both live here rather than in `TextTranslator` because reading an image
+  // ends by writing into the text tab and switching to it. Owning the text in
+  // one place makes that an ordinary state update instead of a handover
+  // protocol between two tabs — and it is why the text now survives a tab
+  // switch, which Radix would otherwise throw away by unmounting the panel.
+  const [tab, setTab] = useState('text');
+  const [text, setText] = useState('');
 
   return (
     <PageContainer
@@ -49,7 +58,7 @@ const UebersetzerPage = () => {
           <AlertDescription>{languages.error.message}</AlertDescription>
         </Alert>
       ) : (
-        <Tabs defaultValue="text">
+        <Tabs value={tab} onValueChange={setTab}>
           {/* The design's pill pair, but still a real Radix tablist — two bare
               buttons would drop the tab/tabpanel wiring the page has today. */}
           <TabsList className="mb-lg h-auto gap-xs bg-transparent p-0">
@@ -61,12 +70,24 @@ const UebersetzerPage = () => {
               <PiFileText aria-hidden="true" />
               Dokument
             </TabsTrigger>
+            <TabsTrigger value="bild" className={TAB_CLS}>
+              <PiImage aria-hidden="true" />
+              Bild
+            </TabsTrigger>
           </TabsList>
           <TabsContent value="text">
-            <TextTranslator data={languages.data} />
+            <TextTranslator data={languages.data} text={text} onTextChange={setText} />
           </TabsContent>
           <TabsContent value="dokument">
             <DocumentTranslator data={languages.data} />
+          </TabsContent>
+          <TabsContent value="bild">
+            <ImageTranslator
+              onExtracted={(erkannt) => {
+                setText(erkannt);
+                setTab('text');
+              }}
+            />
           </TabsContent>
         </Tabs>
       )}
