@@ -22,7 +22,7 @@ import {
   executeDirectSearch,
 } from '../chat/agents/directSearchExecutors.js';
 import { makeGroupsTool } from '../chat/agents/groupTools.js';
-import { makeNotebookSourcesTool } from '../chat/agents/notebookSourceTools.js';
+import { makeNotebookSourcesTool, READ_ACTIONS } from '../chat/agents/notebookSourceTools.js';
 import { WRITE_ACTIONS } from '../chat/agents/notebookSourceWriteActions.js';
 import { makeNotebooksTool } from '../chat/agents/notebookTools.js';
 import {
@@ -660,9 +660,7 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
       description: contentWrite
         ? `${quellenRead} Verwalten, direkt ohne Rückfrage: entfernen (remove — bleiben in der Bibliothek), verschieben oder kopieren (move/copy mit targetNotebookId), eigene Uploads umbenennen (rename) oder verschlagworten (tag mit add/remove), eine Notiz anlegen (add_note mit title + text) und EINE Webseite importieren (add_url — eine Seite, keine Website; erzeugt Einbettungen).`
         : quellenRead,
-      actions: contentWrite
-        ? ['list', 'outline', 'read', 'find', ...WRITE_ACTIONS]
-        : ['list', 'outline', 'read', 'find'],
+      actions: contentWrite ? [...READ_ACTIONS, ...WRITE_ACTIONS] : [...READ_ACTIONS],
       ...(contentWrite ? {} : { readOnly: true }),
     });
   }
