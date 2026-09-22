@@ -41,6 +41,7 @@ export const RAW_TOOL_NAME_TO_PICKER_KEY: Readonly<Record<string, string>> = {
   gruenerator_search: 'search',
   gruenerator_examples_search: 'examples',
   find_content: 'user_content',
+  notebook_quellen: 'user_content',
 };
 
 /**

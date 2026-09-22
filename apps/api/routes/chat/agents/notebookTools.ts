@@ -246,7 +246,7 @@ NUTZE FÜR: Notebooks auflisten (list — scope="mine" die eigenen, scope="syste
 
 Ein System-Notebook hat keine id zum Befragen — seine Zeile nennt im Feld ref den collection-Schlüssel, mit dem 'gruenerator_search' seinen Inhalt durchsucht. Öffentlich gelistete Notebooks haben eine echte id: get und search funktionieren damit wie bei eigenen.
 
-NICHT für: Dateien in der Wolke durchsehen oder lesen (dafür 'cloud_files' — action=list_connections liefert die connectionId und action=list die Pfade, die wolkeFolder braucht), eigene Dokumente und Tabellen selbst (dafür 'documents'), Projekte verwalten (dafür 'groups'), die grüne Inhaltsdatenbank (dafür 'gruenerator_search').
+NICHT für: Dateien in der Wolke durchsehen oder lesen (dafür 'cloud_files' — action=list_connections liefert die connectionId und action=list die Pfade, die wolkeFolder braucht), eigene Dokumente und Tabellen selbst (dafür 'documents'), Projekte verwalten (dafür 'groups'), die grüne Inhaltsdatenbank (dafür 'gruenerator_search'). Quellen lesen, durchsuchen oder auflisten: dafür 'notebook_quellen'.
 
 Wolke-Import, Sichtbarkeit und Teilen werden der Person als Karte zur Bestätigung angezeigt — kündige nichts als erledigt an, was nur angefordert ist. Die id stammt aus list (Feld ref) oder get; rate sie nie.`,
     inputSchema: z.object({
