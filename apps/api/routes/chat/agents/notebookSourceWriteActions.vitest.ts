@@ -266,6 +266,25 @@ describe('remove', () => {
     expect(notes).toHaveLength(1);
   });
 
+  // add_documents nimmt nur eigene Dokumente — der Rückweg gilt nur für sie.
+  it('names who can re-add a removed foreign upload instead of promising add_documents', async () => {
+    const { run } = makeCtx({
+      access: { n1: EDITOR },
+      docs: {
+        d1: { user_id: 'owner-2', title: 'Fremd' },
+        d2: { user_id: 'user-1', title: 'Eigen' },
+      },
+    });
+    const out = await run({ action: 'remove', sourceIds: ['d1', 'd2'] });
+    expect(out.ok).toBe(true);
+    const note = String(out.note);
+    expect(note).not.toContain(
+      'Aus dem Notebook entfernt — die Dokumente bleiben in der Bibliothek (rückgängig mit notebooks add_documents).'
+    );
+    expect(note).toContain('1 davon hat jemand anderes hochgeladen');
+    expect(note).toContain('nur diese Person kann sie wieder hinzufügen');
+  });
+
   it('works for an editor of a shared notebook', async () => {
     const { run, helper } = makeCtx({ access: { n1: EDITOR } });
     expect((await run({ action: 'remove', sourceIds: ['d2'] })).ok).toBe(true);
@@ -359,6 +378,17 @@ describe('move / copy', () => {
     expect(helper.updateNotebookCollection).toHaveBeenCalledWith('n2', { document_count: 2 });
     expect(helper.updateNotebookCollection).toHaveBeenCalledWith('n1', { document_count: 0 });
     expect(out).toMatchObject({ ok: true, moved: 2 });
+  });
+
+  it('reports a half-done move honestly when removing from the source fails', async () => {
+    const { run, helper, members } = makeCtx();
+    helper.removeDocumentsFromCollection.mockRejectedValueOnce(new Error('Qdrant timeout'));
+    const out = await run({ action: 'move', sourceIds: ['d1'], targetNotebookId: 'n2' });
+    expect(members.n2?.has('d1')).toBe(true);
+    expect(out.ok).toBe(false);
+    expect(out.error).toBe(
+      'Die Quellen wurden nach „Wahlkampf" kopiert, ließen sich aber nicht aus „Kreisverband" entfernen — ein erneuter move schließt das Verschieben ab.'
+    );
   });
 
   it('does not add twice what the target already holds', async () => {

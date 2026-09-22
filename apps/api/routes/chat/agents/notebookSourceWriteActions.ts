@@ -260,7 +260,7 @@ function cleanIds(ids: string[] | undefined): string[] {
 async function removeSources(
   collection: NotebookCollection,
   args: WriteArgs,
-  { deps, sourceRegistry }: WriteContext
+  { deps, userId, sourceRegistry }: WriteContext
 ): Promise<Outcome> {
   const ids = cleanIds(args.sourceIds);
   if (ids.length === 0) return { error: 'remove braucht sourceIds (aus list, Feld ref).' };
@@ -272,12 +272,32 @@ async function removeSources(
     return { error: `Nicht in diesem Notebook: ${skipped.join(', ')}. Die IDs stammen aus list.` };
   }
 
+  // `add_documents` nimmt nur eigene Dokumente — für fremde Uploads gibt es
+  // keinen Rückweg über dieses Werkzeug, also verspricht die Notiz keinen.
+  const owners = await deps.db.query<{ id: string; user_id: string | null }>(
+    'SELECT id, user_id FROM documents WHERE id = ANY($1)',
+    [known]
+  );
+  const own = new Set(owners.filter((r) => r.user_id === userId).map((r) => String(r.id)));
+  const foreignCount = known.filter((i) => !own.has(i)).length;
+
   await deps.helper.removeDocumentsFromCollection(collection.id, known);
   const remaining = await recount(deps, collection.id);
 
+  const undo =
+    foreignCount === 0
+      ? REMOVE_NOTE
+      : [
+          `Aus dem Notebook entfernt — ${foreignCount} davon hat jemand anderes hochgeladen: sie bleiben in der Bibliothek dieser Person, und nur diese Person kann sie wieder hinzufügen.`,
+          foreignCount < known.length
+            ? 'Die eigenen bleiben in deiner Bibliothek (rückgängig mit notebooks add_documents).'
+            : '',
+        ]
+          .filter(Boolean)
+          .join(' ');
   const note = [
     `${known.length} Quelle(n) aus „${collection.name}" entfernt.`,
-    REMOVE_NOTE,
+    undo,
     skipped.length ? `Nicht im Notebook, übersprungen: ${skipped.join(', ')}.` : '',
   ]
     .filter(Boolean)
@@ -341,7 +361,17 @@ async function transferSources(
   }
   await recount(deps, targetNotebook.id);
   if (args.action === 'move') {
-    await deps.helper.removeDocumentsFromCollection(collection.id, movable);
+    // Das Ziel hat sie schon: ein Fehlschlag hier ist ein halbes Verschieben,
+    // kein „nichts passiert". Ein zweiter move fügt nichts doppelt hinzu.
+    try {
+      await deps.helper.removeDocumentsFromCollection(collection.id, movable);
+    } catch (err) {
+      log.warn(`[notebook_quellen] move: removal from ${collection.id} failed`, err);
+      return {
+        ok: false,
+        error: `Die Quellen wurden nach „${targetNotebook.name}" kopiert, ließen sich aber nicht aus „${collection.name}" entfernen — ein erneuter move schließt das Verschieben ab.`,
+      };
+    }
     await recount(deps, collection.id);
   }
 
