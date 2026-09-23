@@ -308,6 +308,18 @@ export class ContentExtractor {
   }
 
   /**
+   * Titel landen in Chat-Listen, Zitaten, `titleContains` und der Sortierung.
+   * Manche CMS maskieren `&nbsp;` doppelt (cheerio dekodiert nur einmal, übrig
+   * bleibt das Literal) oder brechen den Titel um (gruene.berlin, #3560).
+   */
+  static normalizeTitle(title: string): string {
+    return title
+      .replace(/&nbsp;/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  /**
    * Extract page content based on CMS type
    * Fetches URL and routes to appropriate extractor
    */
@@ -336,6 +348,7 @@ export class ContentExtractor {
         break;
     }
 
+    extracted.title = ContentExtractor.normalizeTitle(extracted.title);
     return extracted;
   }
 }
