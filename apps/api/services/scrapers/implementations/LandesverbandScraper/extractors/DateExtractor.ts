@@ -31,14 +31,17 @@ const GERMAN_MONTH_PATTERN =
 export class DateExtractor {
   /**
    * Extract date from PDF URL, title, or context string
-   * Returns date, dateString, and isTooOld flag (>10 years old)
+   * Returns date, dateString, and isTooOld flag (> maxAgeYears old)
    *
    * Cost optimization: This runs BEFORE expensive Mistral OCR
    * Saved ~96% of OCR costs on test data by filtering old PDFs
    */
-  static extractDateFromPdfInfo(url: string, title: string, context: string): DateExtractionResult {
-    const tenYearsAgo = new Date();
-    tenYearsAgo.setFullYear(tenYearsAgo.getFullYear() - 10);
+  static extractDateFromPdfInfo(
+    url: string,
+    title: string,
+    context: string,
+    maxAgeYears: number
+  ): DateExtractionResult {
     const currentYear = new Date().getFullYear();
 
     // Full-date patterns (in priority order)
@@ -106,7 +109,7 @@ export class DateExtractor {
               return {
                 date,
                 dateString: `${year}-${mm}-${dd}`,
-                isTooOld: date < tenYearsAgo,
+                isTooOld: this.isDateTooOld(date, maxAgeYears),
               };
             }
           }
