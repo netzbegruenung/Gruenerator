@@ -2,9 +2,9 @@ import { memo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { borderRadius, chatType, spacing } from '../../../theme';
+import { type Theme } from '../../../theme/colors';
 
-import type { AnswerModeChipView } from './answerModeChipView';
-import type { Theme } from '../../../theme/colors';
+import { type AnswerModeChipView } from './answerModeChipView';
 
 /**
  * Which notebook answer mode wrote this answer — "Präzisionsmodus" or

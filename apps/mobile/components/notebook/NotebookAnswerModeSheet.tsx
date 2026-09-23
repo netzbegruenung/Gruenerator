@@ -1,4 +1,5 @@
 import { NOTEBOOK_ANSWER_MODES, notebookAnswerModeDef } from '@gruenerator/chat';
+import { type NotebookAnswerMode } from '@gruenerator/contracts';
 import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { memo, useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
@@ -6,12 +7,10 @@ import { Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native'
 import { useTheme } from '../../hooks/useTheme';
 import { usePreferencesStore } from '../../stores/preferencesStore';
 import { spacing } from '../../theme';
+import { type Theme } from '../../theme/colors';
 import { BottomSheet } from '../common/BottomSheet';
+import { type ComposerAccessory } from '../common/Composer';
 import { ListGroup, ListRow } from '../common/ListRow';
-
-import type { Theme } from '../../theme/colors';
-import type { ComposerAccessory } from '../common/Composer';
-import type { NotebookAnswerMode } from '@gruenerator/contracts';
 
 export const ANSWER_MODE_ICONS: Record<NotebookAnswerMode, IoniconsIconName> = {
   auto: 'sparkles-outline',

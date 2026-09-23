@@ -1,6 +1,8 @@
 import { answerModeAutoHint, answerModeLabel } from '@gruenerator/chat';
-
-import type { NotebookAnswerModeReason, NotebookResolvedAnswerMode } from '@gruenerator/contracts';
+import {
+  type NotebookAnswerModeReason,
+  type NotebookResolvedAnswerMode,
+} from '@gruenerator/contracts';
 
 export interface AnswerModeChipView {
   label: string;
@@ -19,7 +21,7 @@ export function buildAnswerModeChipView(metadata: {
 }): AnswerModeChipView | null {
   if (!metadata.answerMode) return null;
   const label = answerModeLabel(metadata.answerMode);
-  const hint = answerModeAutoHint(metadata.answerModeReason);
+  const hint = answerModeAutoHint(metadata.answerModeReason ?? null);
   return {
     label,
     hint,
