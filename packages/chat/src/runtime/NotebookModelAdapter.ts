@@ -1,4 +1,15 @@
 import {
+  notebookAnswerModeReasonSchema,
+  notebookResolvedAnswerModeSchema,
+  type NotebookAnswerMode,
+  type NotebookAnswerModeReason,
+  type NotebookCitation,
+  type NotebookDepth,
+  type NotebookResolvedAnswerMode,
+  type NotebookSource,
+} from '@gruenerator/contracts';
+
+import {
   type ChatProgress,
   type Citation as ChatCitation,
   type FallbackInfo,
@@ -10,18 +21,26 @@ import { useChatConfigStore } from '../stores/chatConfigStore';
 import { useAgentStore } from '../stores/chatStore';
 
 import {
+  applyToolStepResult,
+  buildToolStepCard,
+  toolStepResultMessage,
+  toolStepTitle,
+  type ToolStepResultData,
+  type ToolStepStartData,
+} from './GrueneratorModelAdapter/toolStepCards';
+import {
   ChatStreamError,
   errorStatus,
   streamErrorMessage,
   STREAM_INTERRUPTED_MESSAGE,
 } from './streamErrorMessage';
 
+import type { ToolCallPart } from './GrueneratorModelAdapter/types';
 import type {
   ChatModelAdapter,
   ChatModelRunOptions,
   ChatModelRunResult,
 } from '@assistant-ui/react';
-import type { NotebookCitation, NotebookDepth, NotebookSource } from '@gruenerator/contracts';
 
 function normalizeCiteMarkers(text: string): string {
   return text.replace(/\[cite:(\d+)\]/g, '[$1]');
@@ -32,10 +51,15 @@ const HISTORY_MAX_MESSAGES = 12;
 /** Carried passages only need to identify the cited place, not repeat the chunk. */
 const HISTORY_CITATION_TEXT_MAX_CHARS = 600;
 
+/** Status line while a precision turn works through the sources. */
+const PRAEZISION_PROGRESS_MESSAGE = 'Präzisionsmodus: arbeite direkt mit den Quellen…';
+
 interface WireHistoryMessage {
   role: 'user' | 'assistant';
   content: string;
   citations?: Array<Record<string, unknown>>;
+  /** The mode an earlier answer ran in — the auto guard carries it forward. */
+  answerMode?: NotebookResolvedAnswerMode;
 }
 
 /**
@@ -83,16 +107,22 @@ function buildWireHistory(
       .join('')
       .trim();
     if (!text) continue;
-    const raw = (m.metadata?.custom as Record<string, unknown> | undefined)?.rawCitations;
+    const custom = m.metadata?.custom as Record<string, unknown> | undefined;
+    const raw = custom?.rawCitations;
     const citations = Array.isArray(raw)
       ? (raw as Array<Record<string, unknown>>)
           .filter((c) => c && typeof c === 'object')
           .map(pickHistoryCitation)
       : [];
+    const answerMode =
+      m.role === 'assistant'
+        ? notebookResolvedAnswerModeSchema.safeParse(custom?.answerMode)
+        : null;
     history.push({
       role: m.role,
       content: text,
       ...(citations.length > 0 && { citations }),
+      ...(answerMode?.success && { answerMode: answerMode.data }),
     });
   }
   return history.slice(-HISTORY_MAX_MESSAGES);
@@ -135,6 +165,8 @@ export interface NotebookAdapterConfig {
    */
   getExtraParams?: () => Record<string, unknown> | undefined;
   mode?: NotebookDepth;
+  /** Answer mode (Automatisch/Chat/Präzision). Omitted ⇒ the server answers in chat mode. */
+  answerMode?: NotebookAnswerMode;
   endpoint?: string;
   documentIds?: string[];
   threadId?: string | null;
@@ -275,6 +307,7 @@ export function createNotebookModelAdapter(
           : { collectionId: config.collectionId || config.collectionIds?.[0] }),
         ...(config.filters && { filters: config.filters }),
         ...(config.mode && { mode: config.mode }),
+        ...(config.answerMode && { answerMode: config.answerMode }),
         ...(config.documentIds?.length && { documentIds: config.documentIds }),
         ...(config.threadId && { threadId: config.threadId }),
         model: selectedModel,
@@ -342,6 +375,12 @@ export function createNotebookModelAdapter(
       let resultIdAccum: string | undefined;
       let linkConfigAccum: LinkConfig | undefined;
       let evidenceWeakAccum: string | undefined;
+      let answerModeAccum: NotebookResolvedAnswerMode | undefined;
+      let answerModeReasonAccum: NotebookAnswerModeReason | undefined;
+      // Precision turns run the agentic loop: its tool steps render as cards
+      // above the answer text, keyed by stepId (parallel steps interleave).
+      const toolCards: ToolCallPart[] = [];
+      const toolCardsById = new Map<string, ToolCallPart>();
 
       /**
        * Live yields carry the text RAW. `useSmooth` (assistant-ui) only
@@ -372,14 +411,18 @@ export function createNotebookModelAdapter(
           };
         }
         if (evidenceWeakAccum) custom.evidenceWeak = evidenceWeakAccum;
+        if (answerModeAccum) custom.answerMode = answerModeAccum;
+        if (answerModeReasonAccum) custom.answerModeReason = answerModeReasonAccum;
         custom.question = question;
         custom.answerText = accumulatedText;
 
-        const parts: Array<{ type: 'text'; text: string } | { type: 'reasoning'; text: string }> =
-          [];
+        const parts: Array<
+          { type: 'text'; text: string } | { type: 'reasoning'; text: string } | ToolCallPart
+        > = [];
         if (accumulatedReasoning) {
           parts.push({ type: 'reasoning' as const, text: accumulatedReasoning });
         }
+        parts.push(...toolCards);
         parts.push({
           type: 'text' as const,
           text: final ? normalizeCiteMarkers(accumulatedText) : accumulatedText,
@@ -411,6 +454,54 @@ export function createNotebookModelAdapter(
                 const { threadId } = data as { threadId: string };
                 console.debug('[Notebook] Thread created:', threadId);
                 callbacks.onThreadCreated?.(threadId);
+                break;
+              }
+
+              case 'answer_mode': {
+                // Which mode this answer runs in — the chip on the message shows
+                // it from here on. An unknown mode shows no chip rather than a
+                // guessed one; an unknown reason just drops the hint.
+                const payload = data as { resolved?: unknown; reason?: unknown };
+                const resolved = notebookResolvedAnswerModeSchema.safeParse(payload.resolved);
+                if (!resolved.success) break;
+                answerModeAccum = resolved.data;
+                const reason = notebookAnswerModeReasonSchema.safeParse(payload.reason);
+                if (reason.success) answerModeReasonAccum = reason.data;
+                if (answerModeAccum === 'praezision') {
+                  currentProgress = { stage: 'searching', message: PRAEZISION_PROGRESS_MESSAGE };
+                }
+                yield buildResult();
+                break;
+              }
+
+              case 'tool_step_start': {
+                const stepData = data as ToolStepStartData;
+                const title = toolStepTitle(stepData);
+                if (!toolCardsById.has(stepData.stepId)) {
+                  const card = buildToolStepCard(stepData, title, stepData.narration);
+                  toolCardsById.set(stepData.stepId, card);
+                  toolCards.push(card);
+                }
+                currentProgress = { stage: 'searching', message: title };
+                yield buildResult();
+                break;
+              }
+
+              case 'tool_step_result': {
+                const resultData = data as ToolStepResultData;
+                const pending = toolCardsById.get(resultData.stepId);
+                if (pending) {
+                  const updated = applyToolStepResult(pending, resultData);
+                  toolCardsById.set(resultData.stepId, updated);
+                  toolCards[toolCards.indexOf(pending)] = updated;
+                }
+                // Parallel steps: the stage moves on only once none is running.
+                const stillOpen = toolCards.some((c) => c.result == null);
+                const message = toolStepResultMessage(resultData);
+                currentProgress = stillOpen
+                  ? { ...currentProgress, stage: 'searching', message }
+                  : { stage: 'generating', message };
+                yield buildResult();
                 break;
               }
 
