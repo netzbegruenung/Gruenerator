@@ -50,14 +50,17 @@ const NOTEBOOK_TOOL_ASK = new RegExp(
       `(?:kannst|k(?:ö|oe)nntest|w(?:ü|ue)rdest|bitte)\\s+[^.?!,]{0,80}?(?<![\\wäöüß])${REQUEST_INFINITIVES}`,
       // ── Orte und Mengen ──
       // „wie oft" nur als Zählauftrag — „wie oft wird der Vorstand gewählt"
-      // ist eine Inhaltsfrage.
-      'wie\\s+oft\\s+(?:wird|kommt|taucht|steht)\\s+[^.?!]{0,80}?(?<![\\wäöüß])(?:erw(?:ä|ae)hnt|genannt|verwendet|vor|auf)',
+      // ist eine Inhaltsfrage. „vor"/„auf" nur als abgetrennte Vorsilbe am
+      // Satzende („kommt … vor?"), nicht als Präposition („steht vor Gericht").
+      'wie\\s+oft\\s+(?:wird|kommt|taucht|steht)\\s+[^.?!]{0,80}?(?<![\\wäöüß])(?:erw(?:ä|ae)hnt|genannt|verwendet|(?:vor|auf)(?=\\s*(?:[.?!]|$)))',
       'wie\\s+viele\\s+(?:w(?:ö|oe)rter|seiten|quellen|dokumente|treffer)',
       'seite\\s+\\d+',
       'abschnitt\\s+\\d+',
       'kapitel\\s+\\d+',
       'w(?:ö|oe)rtlich',
-      '(?:nach|sortiert\\s+nach)\\s+(?:datum|name|l(?:ä|ae)nge|seiten|relevanz)',
+      // Nur hinter einem Sortier-Partizip — „je nach Datum des Antrags" ist
+      // eine Inhaltsfrage.
+      '(?:sortiert|geordnet|gereiht|gruppiert)\\s+nach\\s+(?:datum|name|l(?:ä|ae)nge|seiten|relevanz)',
       '(?:quellen?|dokumente?)\\s+(?:ist|sind)\\s+(?:die|das|am)\\s+(?:l(?:ä|ae)ngst|k(?:ü|ue)rzest|neuest|(?:ä|ae)ltest)\\w*',
     ].join('|'),
     ')(?![\\wäöüß])',

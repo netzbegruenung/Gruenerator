@@ -92,6 +92,12 @@ describe('looksLikeNotebookToolAsk — trifft NICHT', () => {
     'Ich finde die Stelle gut, was meinst du?',
     'Was zeigt die Quelle zur Mietpreisbremse?',
     'Kannst du mir sagen, welche Maßnahmen zum Klimapaket zählen?',
+    // Präpositionen, keine trennbaren Verben (PR-Review-Befund): „vor"/„auf"
+    // zählen nur am Satzende, „nach Datum" nur hinter einem Sortier-Partizip.
+    'Wie oft steht der Vorstand vor Gericht?',
+    'Wie oft steht die Partei vor der Frage, ob sie koaliert?',
+    'Gibt es Unterschiede in der Förderung, je nach Datum des Antrags?',
+    'Welche Fristen gelten nach Name des Verfahrens?',
     '',
   ])('%s', (text) => {
     expect(looksLikeNotebookToolAsk(text)).toBe(false);
