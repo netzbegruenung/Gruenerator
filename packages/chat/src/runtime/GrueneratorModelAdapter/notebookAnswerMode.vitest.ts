@@ -3,18 +3,18 @@
  * notebook threads take (`/notebook/stream` via `effectiveMode === 'notebook'`).
  * Web's notebook page uses NotebookModelAdapter and is covered there.
  */
+import {
+  type ChatModelAdapter,
+  type ChatModelRunOptions,
+  type ChatModelRunResult,
+} from '@assistant-ui/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 
-import { createGrueneratorModelAdapter } from './index';
+import { type GrueneratorAdapterConfig } from './types';
 
-import type { GrueneratorAdapterConfig } from './types';
-import type {
-  ChatModelAdapter,
-  ChatModelRunOptions,
-  ChatModelRunResult,
-} from '@assistant-ui/react';
+import { createGrueneratorModelAdapter } from './index';
 
 const THREAD_ID = 'e4d1c0aa-0000-4000-8000-000000000043';
 
