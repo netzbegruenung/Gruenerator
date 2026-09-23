@@ -32,4 +32,22 @@ describe('buildContextSummary', () => {
     );
     expect(out).toContain('2. Antrag — "Windkraft massiv ausbauen"');
   });
+
+  it('beschriftet eine reine Upload-Zeit als hochgeladen, nicht als Datum', () => {
+    const map: ReferencesMap = {
+      '1': ref({ title: 'Beschluss', date: null, uploaded_at: '2026-03-12T10:00:00Z' }),
+    };
+    const out = buildContextSummary(map, new Date('2026-09-02T12:00:00Z'));
+    expect(out).toContain('1. (hochgeladen: März 2026) Beschluss');
+    expect(out).not.toContain('Datum: März 2026');
+  });
+
+  it('zeigt das echte Datum, wenn es eines gibt', () => {
+    const map: ReferencesMap = {
+      '1': ref({ title: 'Beschluss', date: '2024-01-08', uploaded_at: '2026-03-12T10:00:00Z' }),
+    };
+    const out = buildContextSummary(map, new Date('2026-09-02T12:00:00Z'));
+    expect(out).toContain('1. (Datum: Januar 2024) Beschluss');
+    expect(out).not.toContain('hochgeladen');
+  });
 });

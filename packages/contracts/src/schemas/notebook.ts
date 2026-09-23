@@ -71,8 +71,8 @@ export type NotebookPersonInfo = z.infer<typeof notebookPersonInfoSchema>;
  * apps/api/services/notebook/types.ts — most fields are `.nullish()` because the
  * person-query path emits a different field subset than the document path).
  *
- * `date` is the source's real publication date (or upload date for user docs);
- * `null` when the source carries no usable date. Set in
+ * `date` is the source's real publication date; `null` when the source carries
+ * no usable date. The upload time of a user document is never a `date`. Set in
  * `buildReferencesMap` (SearchResultProcessor) from the Qdrant `published_at`
  * payload — NOT the response timestamp.
  */

@@ -122,3 +122,27 @@ describe('setSelectedAgent / resetThreadContext / resetChatContext', () => {
     expect(useAgentStore.getState().activeRecipeId).toBeNull();
   });
 });
+
+describe('notebookAnswerMode persistence (v18)', () => {
+  const options = useAgentStore.persist.getOptions();
+  const migrate = (persisted: Record<string, unknown>, version: number) =>
+    options.migrate!(persisted, version) as Record<string, unknown>;
+
+  it('seeds "auto" for a store written before v18', () => {
+    const state = migrate({ notebookDepth: 'deep' }, 17);
+    expect(state.notebookAnswerMode).toBe('auto');
+    expect(state.notebookDepth).toBe('deep');
+  });
+
+  it('drops a value that is not a wire mode', () => {
+    expect(migrate({ notebookAnswerMode: 'turbo' }, 17).notebookAnswerMode).toBe('auto');
+  });
+
+  it('is persisted and settable', () => {
+    useAgentStore.getState().setNotebookAnswerMode('praezision');
+    expect(useAgentStore.getState().notebookAnswerMode).toBe('praezision');
+    const persisted = options.partialize!(useAgentStore.getState()) as Record<string, unknown>;
+    expect(persisted.notebookAnswerMode).toBe('praezision');
+    expect(options.version).toBe(18);
+  });
+});

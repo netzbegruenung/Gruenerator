@@ -11,6 +11,7 @@ import path from 'path';
 import { DOCUMENT_UPLOAD_FORMAT_HINT, resolveDocumentUploadFormat } from '@gruenerator/contracts';
 
 import { ocrService } from '../../OcrService/index.js';
+import { stripPageMarkers, type PageMarkerOptions } from '../../OcrService/pageMarkers.js';
 
 import type { UploadedFile } from './types.js';
 
@@ -32,6 +33,7 @@ export function capStoredText(text: string): string | null {
  */
 export function generateContentPreview(text: string, limit: number = 600): string {
   if (!text || typeof text !== 'string') return '';
+  text = stripPageMarkers(text);
   if (text.length <= limit) return text;
 
   const truncated = text.slice(0, limit);
@@ -49,6 +51,19 @@ export function generateContentPreview(text: string, limit: number = 600): strin
   return lastSpace > limit * 0.6 ? `${truncated.slice(0, lastSpace)}...` : `${truncated}...`;
 }
 
+export interface FileExtraction {
+  text: string;
+  /** Aus der OCR-Kette; `null` für Textformate, die keine Seiten kennen. */
+  pageCount: number | null;
+  /** `pdfjs-direct`, `mistral-ocr`, `docling`; `null` für Textformate. */
+  extractionMethod: string | null;
+}
+
+/** Nur der Text — für Aufrufer, die ihn Menschen oder dem Modell zeigen. */
+export async function extractTextFromFile(file: UploadedFile): Promise<string> {
+  return (await extractDocumentFromFile(file)).text;
+}
+
 /**
  * Extract text from a file buffer.
  *
@@ -57,7 +72,10 @@ export function generateContentPreview(text: string, limit: number = 600): strin
  * `.md` uploads, because browsers send those as an empty type and the deferred
  * pipeline then widens that to `application/octet-stream`.
  */
-export async function extractTextFromFile(file: UploadedFile): Promise<string> {
+export async function extractDocumentFromFile(
+  file: UploadedFile,
+  options: PageMarkerOptions = {}
+): Promise<FileExtraction> {
   const format = resolveDocumentUploadFormat(file.originalname, file.mimetype);
 
   if (format?.kind === 'ocr') {
@@ -72,8 +90,12 @@ export async function extractTextFromFile(file: UploadedFile): Promise<string> {
     await fs.writeFile(tempFilePath, file.buffer);
 
     try {
-      const ocrResult = await ocrService.extractTextFromDocument(tempFilePath);
-      return ocrResult.text;
+      const ocrResult = await ocrService.extractTextFromDocument(tempFilePath, undefined, options);
+      return {
+        text: ocrResult.text,
+        pageCount: typeof ocrResult.pageCount === 'number' ? ocrResult.pageCount : null,
+        extractionMethod: ocrResult.extractionMethod ?? null,
+      };
     } catch (validationError: unknown) {
       if (
         validationError instanceof Error &&
@@ -87,7 +109,7 @@ export async function extractTextFromFile(file: UploadedFile): Promise<string> {
       await fs.unlink(tempFilePath);
     }
   } else if (format?.kind === 'text' || file.mimetype.startsWith('text/')) {
-    return file.buffer.toString('utf-8');
+    return { text: file.buffer.toString('utf-8'), pageCount: null, extractionMethod: null };
   } else {
     const ext = path
       .extname(file.originalname || '')

@@ -24,6 +24,11 @@ import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import {
+  reindexDocument,
+  reindexNotebookSources,
+} from '../../services/document-services/DocumentProcessingService/reindex.js';
+import { isReindexable } from '../../services/document-services/DocumentProcessingService/reindexOrigin.js';
 import { getQdrantDocumentService } from '../../services/document-services/DocumentSearchService/index.js';
 import {
   getLikeCountsForEntities,
@@ -54,6 +59,27 @@ import type { UserProfile } from '../../services/user/types.js';
 import type { Application, Request } from 'express';
 
 const log = createLogger('notebookCollectionsContractRouter');
+
+const AI_CONSENT_MISSING = 'Für die KI-Verarbeitung fehlt die Einwilligung nach Art. 9 DSGVO.';
+
+function describeNotebookReindex(result: {
+  queued: string[];
+  unavailable: number;
+  consentMissing: number;
+}): string {
+  const parts = [
+    result.queued.length === 1
+      ? '1 Quelle wird neu indexiert.'
+      : `${result.queued.length} Quellen werden neu indexiert.`,
+  ];
+  if (result.unavailable > 0) {
+    parts.push(`${result.unavailable} ohne Original übersprungen — diese bitte neu hochladen.`);
+  }
+  if (result.consentMissing > 0) {
+    parts.push(`${result.consentMissing} übersprungen, weil die Einwilligung fehlt.`);
+  }
+  return parts.join(' ');
+}
 const notebookHelper = new NotebookQdrantHelper();
 
 /**
@@ -237,7 +263,8 @@ async function enrichNotebookCollection(
         wolke_share_link_id: row.wolke_share_link_id,
         status: row.status,
         processing_error: typeof meta.processing_error === 'string' ? meta.processing_error : null,
-      } as DocumentRecord & { processing_error: string | null };
+        reindexable: isReindexable(row),
+      } as DocumentRecord & { processing_error: string | null; reindexable: boolean };
     });
   }
 
@@ -1141,6 +1168,64 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
       };
     } catch (error) {
       log.error('[notebookCollectionsContract.removeDocument] Error:', error);
+      return { status: 500 as const, body: { error: 'Internal server error' } };
+    }
+  },
+
+  reindexDocument: async (args) => {
+    try {
+      const userId = getUserId(args.req);
+      const collectionId = fromParam<NotebookId>(args.params.id);
+      const documentId = fromParam<DocumentId>(args.params.documentId);
+
+      const result = await reindexDocument(documentId, userId, { notebookId: collectionId });
+      switch (result.status) {
+        case 'not_found':
+          return { status: 404 as const, body: { error: 'Quelle nicht gefunden' } };
+        case 'forbidden':
+          return { status: 403 as const, body: { error: 'Keine Berechtigung' } };
+        case 'consent_missing':
+          return { status: 403 as const, body: { error: AI_CONSENT_MISSING } };
+        case 'queued':
+        case 'unavailable':
+          return {
+            status: 200 as const,
+            body: { success: true as const, status: result.status, message: result.message },
+          };
+      }
+    } catch (error) {
+      log.error('[notebookCollectionsContract.reindexDocument] Error:', error);
+      return { status: 500 as const, body: { error: 'Internal server error' } };
+    }
+  },
+
+  reindexNotebook: async (args) => {
+    try {
+      const userId = getUserId(args.req);
+      const collectionId = fromParam<NotebookId>(args.params.id);
+
+      const result = await reindexNotebookSources(collectionId, userId);
+      switch (result.status) {
+        case 'not_found':
+          return { status: 404 as const, body: { error: 'Notebook nicht gefunden' } };
+        case 'forbidden':
+          return { status: 403 as const, body: { error: 'Keine Berechtigung' } };
+        case 'consent_missing':
+          return { status: 403 as const, body: { error: AI_CONSENT_MISSING } };
+        case 'ok':
+          return {
+            status: 200 as const,
+            body: {
+              success: true as const,
+              queued: result.queued,
+              unavailable: result.unavailable,
+              consent_missing: result.consentMissing,
+              message: describeNotebookReindex(result),
+            },
+          };
+      }
+    } catch (error) {
+      log.error('[notebookCollectionsContract.reindexNotebook] Error:', error);
       return { status: 500 as const, body: { error: 'Internal server error' } };
     }
   },

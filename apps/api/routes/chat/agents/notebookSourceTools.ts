@@ -34,15 +34,18 @@ import {
   chunksOrThrow,
   findPassages,
   listNotebookSources,
+  loadPassagePageEnds,
   outlineSource,
   readSourceText,
   renderOutline,
   resolveSourceInNotebook,
   sliceSource,
+  sortDateOf,
   OUTLINE_CHARS,
   SLICE_REGISTER_CHARS,
   type NotebookSourceRow,
   type NotebookSourcesDeps,
+  type Passage,
   type ResolvedSource,
 } from '../../../services/notebook/notebookSources.js';
 import { rerankNotebookResults } from '../../../services/notebook/rerankNotebookResults.js';
@@ -90,6 +93,7 @@ import { collectionsForLocale } from './searchTools.js';
 import type { SearchResult } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { NotebookCollection } from '../../../database/services/NotebookQdrantHelper.js';
 import type { QdrantFilter } from '../../../database/services/QdrantService/types.js';
+import type { DocDateKind } from '../../../services/documentMeta/headerMeta.js';
 import type { StatsNlp } from '../../../services/notebook/sourceStats.js';
 import type { SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 import type { PersistedStep } from '../services/agenticLoop/types.js';
@@ -116,12 +120,17 @@ export type NotebookSourceToolCtx = PersonalToolCtx & {
 const NO_NOTEBOOK =
   'Kein Notebook ausgewählt — gib notebookId an: bei eigenen Notebooks den ref aus notebooks action="list", bei System-Notebooks den Schlüssel (z. B. berlin, deutschland).';
 const TOOL_NAME = 'notebook_quellen';
+const OUT_OF_SCOPE =
+  'Im Präzisionsmodus sind nur die Notebooks dieser Seite freigegeben — lass notebookId weg oder nimm eines davon.';
+const READ_ONLY_MODE =
+  'Im Präzisionsmodus wird nur gelesen — Quellen entfernen, verschieben, umbenennen oder anlegen geht hier nicht.';
 /** Die Filterfelder, die ein Modell gern eine Ebene zu hoch setzt. */
 const FILTER_KEYS = [
   'sourceType',
   'status',
   'titleContains',
   'tag',
+  'gremium',
   'category',
   'dateFrom',
   'dateTo',
@@ -257,10 +266,23 @@ async function qdrantScrollPage(
 const isReadAction = (action: string): boolean =>
   (READ_ACTIONS as readonly string[]).includes(action);
 
+const DOC_DATE_LABEL: Record<DocDateKind, string> = {
+  beschluss: 'Beschluss',
+  stand: 'Stand',
+  published: 'Datum',
+  inkrafttreten: 'in Kraft',
+  filename: 'Dateiname',
+};
+
+/** Dokumentdatum mit Art und Gremium vor der Upload-Zeit — nie das eine als das andere. */
 function rowDetail(r: NotebookSourceRow): string {
+  const docDate = r.docDate
+    ? `${r.docDateKind ? `${DOC_DATE_LABEL[r.docDateKind]} ` : ''}${r.docDate.slice(0, 10)}${r.gremium ? ` (${r.gremium})` : ''}`
+    : r.gremium;
   return [
     r.sourceType ?? r.documentType,
-    r.createdAt?.slice(0, 10),
+    docDate,
+    r.createdAt ? `hochgeladen ${r.createdAt.slice(0, 10)}` : null,
     r.pages !== null ? `${r.pages} S.` : null,
     r.words !== null ? `${r.wordsEstimated ? '~' : ''}${r.words} Wörter` : null,
   ]
@@ -326,6 +348,7 @@ const filterSchema = z.object({
   status: z.string().optional(),
   titleContains: z.string().optional(),
   tag: z.string().optional(),
+  gremium: z.string().optional().describe('beschließendes Gremium, z. B. Bundesvorstand'),
   category: z.string().optional().describe('System-Notebooks: Kategorie'),
   dateFrom: z.string().optional().describe('System-Notebooks: ab Datum (JJJJ-MM-TT)'),
   dateTo: z.string().optional().describe('System-Notebooks: bis Datum (JJJJ-MM-TT)'),
@@ -446,8 +469,38 @@ export function makeNotebookSourcesTool(ctx: NotebookSourceToolCtx): Tool {
     const target = await resolveNotebook(explicit);
     if (!('error' in target) || target.error !== NO_NOTEBOOK) return { target, from: null };
     const previous = await notebookFromThread();
-    if (!previous) return { target, from: null };
+    if (!previous || !inScope(previous)) return { target, from: null };
     return { target: await resolveNotebook(previous), from: 'thread' };
+  }
+
+  /**
+   * Die Notebooks der Seite im Präzisionsmodus, als Vergleichsschlüssel: ein
+   * System-Notebook über seinen Sammlungsschlüssel (so treffen `hamburg`,
+   * `hamburg-system` und `hamburg-notebook` dasselbe), ein eigenes über die id.
+   * `null` ⇒ keine Sperre.
+   */
+  function scopeKeys(): Set<string> | null {
+    const lock = state.notebookScopeLock;
+    if (!lock) return null;
+    return new Set(lock.ids.map(scopeKey));
+  }
+
+  function scopeKey(id: string): string {
+    const system = resolveSystemCollection(id, collectionsForLocale(state.userLocale ?? null));
+    return system && !('error' in system) ? `system:${system.collection.key}` : `user:${id}`;
+  }
+
+  function inScope(id: string): boolean {
+    const keys = scopeKeys();
+    return keys == null || keys.has(scopeKey(id));
+  }
+
+  function targetInScope(target: Exclude<Target, { error: string }>): boolean {
+    const keys = scopeKeys();
+    if (keys == null) return true;
+    return keys.has(
+      target.kind === 'system' ? `system:${target.collection.key}` : `user:${target.collection.id}`
+    );
   }
 
   /**
@@ -495,8 +548,8 @@ export function makeNotebookSourcesTool(ctx: NotebookSourceToolCtx): Tool {
   return tool({
     description: `Die Quellen EINES Notebooks: auflisten, gliedern, lesen und Passagen mit Fundstelle finden.
 
-NUTZE FÜR: welche Dokumente im Notebook liegen, mit Typ, Datum, Seiten und Umfang, sortier- und filterbar (list); die Gliederung einer Quelle (outline); eine Quelle lesen — ab Zeichen (abschnitt), eine Seite (seite), einen Abschnitt aus outline (section) oder Chunks (read); die Stellen finden, an denen etwas steht, als Rohpassagen mit Seite und Zeichenbereich zum Zitieren (find, optional nur in einer Quelle).
-NUTZE FÜR: wie oft ein Wort wörtlich vorkommt, je Quelle (grep).
+NUTZE FÜR: welche Dokumente im Notebook liegen, mit Typ, Datum (Beschluss/Stand aus dem Dokument, sonst Upload — die Zeile sagt, welches), Gremium, Seiten und Umfang, sortier- und filterbar (list, filter.gremium); die Gliederung einer Quelle (outline); eine Quelle lesen — ab Zeichen (abschnitt), eine Seite (seite), einen Abschnitt aus outline (section) oder Chunks (read); die Stellen finden, an denen etwas steht, als Rohpassagen mit Seite und Zeichenbereich zum Zitieren (find, optional nur in einer Quelle).
+NUTZE FÜR: wie oft ein Wort wörtlich vorkommt, je Quelle, Fundstellen mit Seite (grep). „Auf welcher Seite …?": grep (Begriff) oder cite (Zitat), dann die Seite nennen.
 NUTZE FÜR: Wörter, Sätze, Seiten zählen, optional Lemmata (stats).
 NUTZE FÜR: Quellen ordnen nach Relevanz, Treffern, Datum, Länge, Seiten (rank).
 NUTZE FÜR: ein Zitat prüfen (zitat) oder Belege für eine Behauptung finden (claim) (cite).
@@ -518,13 +571,16 @@ System-Notebooks: notebookId ist der Sammlungsschlüssel aus notebooks action="l
       // Zusage am `catch` vorbei, samt Rohtext bis zum Modell.
       try {
         if (isWriteAction(args.action)) {
+          if (state.notebookScopeLock?.readOnly) return { error: READ_ONLY_MODE };
           return await runWriteAction(
             { ...args, action: args.action },
             { state, sourceRegistry, userId, deps: writeDeps, resolveNotebook: resolveOwnNotebook }
           );
         }
+        if (args.notebookId && !inScope(args.notebookId)) return { error: OUT_OF_SCOPE };
         const { target, from } = await resolveReadNotebook(args.notebookId);
         if ('error' in target) return target;
+        if (!targetInScope(target)) return { error: OUT_OF_SCOPE };
         const read = await runRead(target, args, userId);
         if ('error' in read) return read;
         const result =
@@ -632,7 +688,11 @@ System-Notebooks: notebookId ist der Sammlungsschlüssel aus notebooks action="l
       sortBy: args.sortBy ?? 'date',
       ...(args.filter ? { filter: args.filter } : {}),
       refs: compactRefs(
-        items.map((r) => ({ title: r.title, ref: r.id, detail: r.createdAt?.slice(0, 10) ?? null }))
+        items.map((r) => ({
+          title: r.title,
+          ref: r.id,
+          detail: sortDateOf(r)?.slice(0, 10) ?? null,
+        }))
       ),
       results,
     };
@@ -687,7 +747,7 @@ System-Notebooks: notebookId ist der Sammlungsschlüssel aus notebooks action="l
     );
     if (!text.trim()) return { error: 'Die Quelle hat (noch) keinen lesbaren Text.' };
 
-    const range = pickRange(args, chunkMap, chunks);
+    const range = pickRange(args, chunkMap, chunks, text);
     if ('error' in range) return range;
 
     const s = sliceSource(text, range, chunkMap);
@@ -719,6 +779,29 @@ System-Notebooks: notebookId ist der Sammlungsschlüssel aus notebooks action="l
     };
   }
 
+  /**
+   * Die letzte Seite einer Passage, die über einen Seitenwechsel reicht — der
+   * Chunk trägt nur die Seite, auf der er beginnt. Ein Fehler hier kostet nur
+   * `pageTo`, nie das Ergebnis.
+   */
+  async function withPageEnds(
+    passages: readonly Passage[]
+  ): Promise<Array<Passage & { pageTo: number | null }>> {
+    const spans = passages.flatMap((p, k) =>
+      p.charStart !== null && p.charEnd !== null && p.charEnd > p.charStart
+        ? [{ k, sourceId: p.sourceId, charStart: p.charStart, charEnd: p.charEnd }]
+        : []
+    );
+    let ends = new Map<number, number>();
+    try {
+      ends = await loadPassagePageEnds(deps.db, spans);
+    } catch (err) {
+      log.warn('[notebook_quellen] find: page ends lookup failed', err);
+    }
+    const byPassage = new Map(spans.map((s, n) => [s.k, ends.get(n) ?? null]));
+    return passages.map((p, k) => ({ ...p, pageTo: byPassage.get(k) ?? null }));
+  }
+
   async function find(
     collection: NotebookCollection,
     userId: string,
@@ -748,10 +831,12 @@ System-Notebooks: notebookId ist der Sammlungsschlüssel aus notebooks action="l
       );
     }
 
-    const { passages, reranked } = await findPassages(
+    const found = await findPassages(
       { documentIds, query, mode: args.mode, limit: args.limit ?? 10, rerank: args.rerank, userId },
       deps
     );
+    const { reranked } = found;
+    const passages = await withPageEnds(found.passages);
     const base = { notebook: collection.name, query, mode: args.mode, reranked };
     if (passages.length === 0) {
       groundNote(
@@ -784,6 +869,7 @@ System-Notebooks: notebookId ist der Sammlungsschlüssel aus notebooks action="l
         title: p.title,
         chunkIndex: p.chunkIndex,
         pageNumber: p.pageNumber,
+        ...(p.pageTo !== null && p.pageTo !== p.pageNumber ? { pageTo: p.pageTo } : {}),
         charStart: p.charStart,
         charEnd: p.charEnd,
         score: p.score,

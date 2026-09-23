@@ -106,3 +106,36 @@ describe('extractTextFromFile — formats the pipeline cannot read', () => {
     await expect(extractTextFromFile(asFile(name, mimetype))).rejects.toThrow(/PDF oder DOCX/);
   });
 });
+
+describe('extractDocumentFromFile — Seitenzahl und Methode bleiben erhalten', () => {
+  it('reicht pageMarkers durch und gibt pageCount und extractionMethod zurück', async () => {
+    const { extractDocumentFromFile } = await import('./textExtraction.js');
+    extractTextFromDocument.mockResolvedValue({
+      text: '## Seite 1\n\nText',
+      pageCount: 12,
+      extractionMethod: 'pdfjs-direct',
+    });
+
+    const result = await extractDocumentFromFile(asFile('antrag.pdf', 'application/pdf'), {
+      pageMarkers: true,
+    });
+
+    expect(extractTextFromDocument.mock.calls[0]?.[2]).toEqual({ pageMarkers: true });
+    expect(result).toEqual({
+      text: '## Seite 1\n\nText',
+      pageCount: 12,
+      extractionMethod: 'pdfjs-direct',
+    });
+  });
+
+  it('extractTextFromFile bittet NICHT um Marken — der Text geht an Menschen und das Modell', async () => {
+    await extractTextFromFile(asFile('antrag.pdf', 'application/pdf'));
+    expect(extractTextFromDocument.mock.calls[0]?.[2]).toEqual({});
+  });
+
+  it('Textformate haben keine Seiten', async () => {
+    const { extractDocumentFromFile } = await import('./textExtraction.js');
+    const result = await extractDocumentFromFile(asFile('notiz.md', 'text/markdown', 'Seite 3'));
+    expect(result).toEqual({ text: 'Seite 3', pageCount: null, extractionMethod: null });
+  });
+});
