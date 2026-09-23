@@ -39,6 +39,7 @@ import {
   renderOutline,
   resolveSourceInNotebook,
   sliceSource,
+  sortDateOf,
   OUTLINE_CHARS,
   SLICE_REGISTER_CHARS,
   type NotebookSourceRow,
@@ -90,6 +91,7 @@ import { collectionsForLocale } from './searchTools.js';
 import type { SearchResult } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { NotebookCollection } from '../../../database/services/NotebookQdrantHelper.js';
 import type { QdrantFilter } from '../../../database/services/QdrantService/types.js';
+import type { DocDateKind } from '../../../services/documentMeta/headerMeta.js';
 import type { StatsNlp } from '../../../services/notebook/sourceStats.js';
 import type { SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 import type { PersistedStep } from '../services/agenticLoop/types.js';
@@ -126,6 +128,7 @@ const FILTER_KEYS = [
   'status',
   'titleContains',
   'tag',
+  'gremium',
   'category',
   'dateFrom',
   'dateTo',
@@ -261,10 +264,23 @@ async function qdrantScrollPage(
 const isReadAction = (action: string): boolean =>
   (READ_ACTIONS as readonly string[]).includes(action);
 
+const DOC_DATE_LABEL: Record<DocDateKind, string> = {
+  beschluss: 'Beschluss',
+  stand: 'Stand',
+  published: 'Datum',
+  inkrafttreten: 'in Kraft',
+  filename: 'Dateiname',
+};
+
+/** Dokumentdatum mit Art und Gremium vor der Upload-Zeit — nie das eine als das andere. */
 function rowDetail(r: NotebookSourceRow): string {
+  const docDate = r.docDate
+    ? `${r.docDateKind ? `${DOC_DATE_LABEL[r.docDateKind]} ` : ''}${r.docDate.slice(0, 10)}${r.gremium ? ` (${r.gremium})` : ''}`
+    : r.gremium;
   return [
     r.sourceType ?? r.documentType,
-    r.createdAt?.slice(0, 10),
+    docDate,
+    r.createdAt ? `hochgeladen ${r.createdAt.slice(0, 10)}` : null,
     r.pages !== null ? `${r.pages} S.` : null,
     r.words !== null ? `${r.wordsEstimated ? '~' : ''}${r.words} Wörter` : null,
   ]
@@ -330,6 +346,7 @@ const filterSchema = z.object({
   status: z.string().optional(),
   titleContains: z.string().optional(),
   tag: z.string().optional(),
+  gremium: z.string().optional().describe('beschließendes Gremium, z. B. Bundesvorstand'),
   category: z.string().optional().describe('System-Notebooks: Kategorie'),
   dateFrom: z.string().optional().describe('System-Notebooks: ab Datum (JJJJ-MM-TT)'),
   dateTo: z.string().optional().describe('System-Notebooks: bis Datum (JJJJ-MM-TT)'),
@@ -529,7 +546,7 @@ export function makeNotebookSourcesTool(ctx: NotebookSourceToolCtx): Tool {
   return tool({
     description: `Die Quellen EINES Notebooks: auflisten, gliedern, lesen und Passagen mit Fundstelle finden.
 
-NUTZE FÜR: welche Dokumente im Notebook liegen, mit Typ, Datum, Seiten und Umfang, sortier- und filterbar (list); die Gliederung einer Quelle (outline); eine Quelle lesen — ab Zeichen (abschnitt), eine Seite (seite), einen Abschnitt aus outline (section) oder Chunks (read); die Stellen finden, an denen etwas steht, als Rohpassagen mit Seite und Zeichenbereich zum Zitieren (find, optional nur in einer Quelle).
+NUTZE FÜR: welche Dokumente im Notebook liegen, mit Typ, Datum (Beschluss/Stand aus dem Dokument, sonst Upload — die Zeile sagt, welches), Gremium, Seiten und Umfang, sortier- und filterbar (list, filter.gremium); die Gliederung einer Quelle (outline); eine Quelle lesen — ab Zeichen (abschnitt), eine Seite (seite), einen Abschnitt aus outline (section) oder Chunks (read); die Stellen finden, an denen etwas steht, als Rohpassagen mit Seite und Zeichenbereich zum Zitieren (find, optional nur in einer Quelle).
 NUTZE FÜR: wie oft ein Wort wörtlich vorkommt, je Quelle (grep).
 NUTZE FÜR: Wörter, Sätze, Seiten zählen, optional Lemmata (stats).
 NUTZE FÜR: Quellen ordnen nach Relevanz, Treffern, Datum, Länge, Seiten (rank).
@@ -669,7 +686,11 @@ System-Notebooks: notebookId ist der Sammlungsschlüssel aus notebooks action="l
       sortBy: args.sortBy ?? 'date',
       ...(args.filter ? { filter: args.filter } : {}),
       refs: compactRefs(
-        items.map((r) => ({ title: r.title, ref: r.id, detail: r.createdAt?.slice(0, 10) ?? null }))
+        items.map((r) => ({
+          title: r.title,
+          ref: r.id,
+          detail: sortDateOf(r)?.slice(0, 10) ?? null,
+        }))
       ),
       results,
     };
