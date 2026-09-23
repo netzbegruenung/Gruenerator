@@ -165,6 +165,22 @@ export const DECISION_POINTS = {
       'invalid_retry_failed',
     ],
   },
+
+  /** Antwortmodus der Notebook-Seite. Das Wire-Event `answer_mode` zeigt nur
+   *  Modus und Grund; ob ein `explicit` Chat oder Präzision war und welches
+   *  Wächter-Verdikt fiel, steht nur hier. */
+  'notebook.answer_mode': {
+    branches: [
+      'explicit_chat',
+      'explicit_praezision',
+      'pregate',
+      'guard_chat',
+      'guard_praezision',
+      'guard_fallback',
+      'ineligible',
+      'default',
+    ],
+  },
 } as const satisfies Record<string, { readonly branches: readonly string[] }>;
 
 export type DecisionPointId = keyof typeof DECISION_POINTS;
