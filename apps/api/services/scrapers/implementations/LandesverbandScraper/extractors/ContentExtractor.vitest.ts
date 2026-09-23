@@ -225,14 +225,14 @@ describe('ContentExtractor — Seitenchrome im Artikeltext (#3574)', () => {
     );
 
     // Drei getrennte <p>-Elemente — die Blocktrennung (#3573) setzt einen
-    // Zeilenumbruch zwischen sie, statt "Landesausschuss:Der" zusammenzukleben.
-    // Zwischen dem ersten und zweiten <p> bleibt es eine echte Leerzeile: die
-    // Fixture hat dort schon eingerücktes Whitespace vor `</p>` (Zeile 30/31 im
-    // Quelltext), das addiert sich mit unserem eingefügten Trenner zu zwei
-    // Zeilenumbrüchen — zwischen zweitem und drittem <p> steht im Quelltext
-    // kein Whitespace, dort bleibt es bei einem.
+    // Trenner vor UND nach jedem Block, statt "Landesausschuss:Der"
+    // zusammenzukleben. An JEDER der beiden Grenzen treffen ein "nach"- und
+    // ein "vor"-Trenner aufeinander, macht durchgängig eine Leerzeile —
+    // unabhängig von der Einrückung im Quelltext (die wird vor dem Einfügen
+    // der eigenen Trenner zu einem einzelnen Leerzeichen kollabiert, Important
+    // 1 aus dem Review).
     expect(extracted.text).toBe(
-      '09.04.25 –\n\nBeschluss auf dem Landesausschuss:\nDer Landesausschuss beschließt, eine außerordentliche FLINTA-Vollversammlung einzuberufen.'
+      '09.04.25 –\n\nBeschluss auf dem Landesausschuss:\n\nDer Landesausschuss beschließt, eine außerordentliche FLINTA-Vollversammlung einzuberufen.'
     );
     expect(extracted.text).not.toContain('Kontakt');
     expect(extracted.text).not.toContain('Kategorie');
@@ -256,27 +256,65 @@ describe('ContentExtractor — Seitenchrome im Artikeltext (#3574)', () => {
 /**
  * cheerio's `.text()` joins adjacent block elements without a separator, so
  * the last word of one block fuses with the first word of the next —
- * "prüfenDas", "ermöglichenDie", "ausDer" (#3573). `blockText` inserts a
- * separator after block elements and turns `<br>` into a newline before
- * reading the text. Inline elements (span, a, strong, em) must NOT get a
- * separator — that would split words apart instead ("Grü nen").
+ * "prüfenDas", "ermöglichenDie", "ausDer", "IntroPara" (#3573). `blockText`
+ * inserts a separator before AND after block elements and turns `<br>` into a
+ * newline before reading the text. Inline elements (span, a, strong, em,
+ * small) must NOT get a separator — that would split words apart instead
+ * ("Grü nen", "inkl.MwSt"). `fullText` runs the same
+ * `normalizeWhitespace(blockText(...))` pipeline every real caller uses, so
+ * these tests see the actual stored shape, not `blockText`'s raw
+ * (unnormalized, leading/trailing-newline) intermediate output.
  */
 describe('ContentExtractor.blockText (#3573)', () => {
-  function textOf(html: string, selector = '#c'): string {
+  function rawBlockText(html: string, selector = '#c'): string {
     const $ = cheerio.load(html);
     return ContentExtractor.blockText($, $(selector));
   }
 
+  function fullText(html: string, selector = '#c'): string {
+    return ContentExtractor.normalizeWhitespace(rawBlockText(html, selector));
+  }
+
   it('trennt Geschwister-Blockelemente ohne Whitespace im Quelltext', () => {
-    expect(textOf('<div id="c"><h1>A</h1><h3>B</h3></div>')).toBe('A\nB\n');
+    // Jede der beiden Grenzen bekommt einen "nach"-Trenner vom vorigen UND
+    // einen "vor"-Trenner vom nächsten Block — daraus wird eine Leerzeile.
+    expect(fullText('<div id="c"><h1>A</h1><h3>B</h3></div>')).toBe('A\n\nB');
   });
 
   it('ersetzt <br> durch einen Zeilenumbruch', () => {
-    expect(textOf('<div id="c">A<br>B</div>')).toBe('A\nB');
+    expect(fullText('<div id="c">A<br>B</div>')).toBe('A\nB');
   });
 
   it('fügt bei Inline-Elementen keinen Trenner ein (kein "Grü nen")', () => {
-    expect(textOf('<p id="c">x <strong>fett</strong>y</p>')).toBe('x fetty');
+    expect(fullText('<p id="c">x <strong>fett</strong>y</p>')).toBe('x fetty');
+  });
+
+  it('small bleibt inline — kein Trenner, kein "inkl. MwSt" wird zu drei Zeilen (Minor 3)', () => {
+    expect(fullText('<p id="c">Preis <small>inkl.</small>MwSt</p>')).toBe('Preis inkl.MwSt');
+  });
+
+  it('ein Quelltext-Zeilenumbruch INNERHALB eines Textknotens bleibt eine Zeile (Important 1)', () => {
+    // Vorher: die Einrückung selbst wurde zum harten Trenner, `full_text` und
+    // `content_hash` hingen an der Formatierung des Templates statt am Inhalt.
+    expect(fullText('<p id="c">Lorem ipsum\n      dolor</p>')).toBe('Lorem ipsum dolor');
+  });
+
+  it('trennt Text, der VOR einem Blockelement steht (Important 2a)', () => {
+    expect(fullText('<div id="c">Intro<p>Para</p></div>')).toBe('Intro\nPara');
+  });
+
+  it('trennt eine verschachtelte Liste, statt Elterntext mit Kindtext zu verkleben (Important 2a)', () => {
+    expect(fullText('<li id="c">a<ul><li>b</li></ul></li>')).toBe('a\nb');
+  });
+
+  it('trennt mehrere vom Content-Selektor getroffene Geschwister-Wurzeln (Important 2b)', () => {
+    // z. B. `.wp-block-paragraph` mit 2 Treffern auf derselben Ebene — jede
+    // Wurzel landet für sich in `el`, keine gemeinsame Elternselektion.
+    const $ = cheerio.load(
+      '<div class="wrap"><p class="x">Satz eins.</p><p class="x">Satz zwei.</p></div>'
+    );
+    const text = ContentExtractor.normalizeWhitespace(ContentExtractor.blockText($, $('.x')));
+    expect(text).toBe('Satz eins.\nSatz zwei.');
   });
 
   it('mutiert das freigegebene Dokument nicht (Datum bleibt für spätere Selektoren lesbar)', () => {
