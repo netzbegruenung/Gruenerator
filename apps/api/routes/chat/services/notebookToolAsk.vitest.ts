@@ -105,6 +105,9 @@ describe('looksLikeNotebookToolAsk — trifft NICHT', () => {
     'Was sagt das Notebook zum Entfernen von Schottergärten?',
     'Wer wird im Dokument zitiert?',
     'Wie oft wird der Vorstand gewählt?',
+    // „vorkommen" als Redewendung mit Nebensatz (PR-Review #3620).
+    'Wie oft kommt es vor, dass Anträge abgelehnt werden?',
+    'Wie oft kommt das vor, wenn der Vorstand tagt?',
     'Ich finde die Stelle gut, was meinst du?',
     'Was zeigt die Quelle zur Mietpreisbremse?',
     'Kannst du mir sagen, welche Maßnahmen zum Klimapaket zählen?',
