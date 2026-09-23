@@ -157,6 +157,7 @@ function reportLandesverbandResult(result: {
   skipped: number;
   errors: number;
   skipReasons: Record<string, number>;
+  qualityFlags: Record<string, number>;
 }): {
   stored: number;
   updated: number;
@@ -164,6 +165,7 @@ function reportLandesverbandResult(result: {
   fetchErrors: number;
   errors: number;
   skipReasons: Record<string, number>;
+  qualityFlags: Record<string, number>;
 } {
   return {
     stored: result.stored,
@@ -172,6 +174,7 @@ function reportLandesverbandResult(result: {
     fetchErrors: 0,
     errors: result.errors,
     skipReasons: result.skipReasons,
+    qualityFlags: result.qualityFlags,
   };
 }
 

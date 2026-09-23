@@ -25,6 +25,12 @@ export interface SourceGroupResult {
    */
   skipReasons?: Record<string, number>;
   /**
+   * Landesverbände: Zähler je Datenqualitäts-Defektklasse unter den
+   * gespeicherten/aktualisierten Dokumenten. Siehe
+   * `contentSyncResultSchema.qualityFlags`.
+   */
+  qualityFlags?: Record<string, number>;
+  /**
    * KommunalWiki: Punkte gelöschter Wiki-Seiten, die dieser Lauf entfernt hat,
    * und — wenn nicht aufgeräumt wurde — warum nicht. Das Gatter sichtbar zu
    * machen ist der ganze Punkt: greift die Mengenschwelle, sähe der Lauf sonst
