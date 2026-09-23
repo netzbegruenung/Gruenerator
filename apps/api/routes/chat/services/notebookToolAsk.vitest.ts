@@ -52,6 +52,8 @@ describe('looksLikeNotebookToolAsk — trifft (Ort oder Menge)', () => {
     'Welche Position vertreten wir zu Seite 3 des Koalitionsvertrags?',
     'Wie oft kommt das Wort Klimaneutralität vor?',
     'Wie oft wird Wasserstoff erwähnt?',
+    // Testserver 23.09.2026: „vor" vor einem Komma, nicht am Satzende.
+    'Wie oft kommt das Wort „Klimaschutz“ im Berlin-Notebook vor, und in welchen Quellen am häufigsten?',
     'Wie viele Seiten hat der Antrag?',
     'Wie viele Quellen liegen im Notebook?',
     'Wörtlich bitte: was steht zum Ehrenamt?',
@@ -103,6 +105,9 @@ describe('looksLikeNotebookToolAsk — trifft NICHT', () => {
     'Was sagt das Notebook zum Entfernen von Schottergärten?',
     'Wer wird im Dokument zitiert?',
     'Wie oft wird der Vorstand gewählt?',
+    // „vorkommen" als Redewendung mit Nebensatz (PR-Review #3620).
+    'Wie oft kommt es vor, dass Anträge abgelehnt werden?',
+    'Wie oft kommt das vor, wenn der Vorstand tagt?',
     'Ich finde die Stelle gut, was meinst du?',
     'Was zeigt die Quelle zur Mietpreisbremse?',
     'Kannst du mir sagen, welche Maßnahmen zum Klimapaket zählen?',

@@ -22,7 +22,11 @@ import {
   supportClaim,
   type CiteCandidate,
 } from '../../../services/notebook/sourceCite.js';
-import { grepSources, loadScanTexts } from '../../../services/notebook/sourceGrep.js';
+import {
+  grepSources,
+  loadScanTexts,
+  shownGrepSources,
+} from '../../../services/notebook/sourceGrep.js';
 import {
   computeSourceStats,
   type SourceStatsResult,
@@ -158,6 +162,7 @@ async function grep(args: ScanActionArgs, ctx: ScanActionCtx): Promise<Record<st
     caseSensitive: args.caseSensitive,
     contexts: args.contexts,
   });
+  const shown = shownGrepSources(counted.perSource, args.limit);
 
   if (counted.perSource.length === 0) {
     groundNote(
@@ -167,7 +172,7 @@ async function grep(args: ScanActionArgs, ctx: ScanActionCtx): Promise<Record<st
     );
   } else {
     sourceRegistry.register(
-      counted.perSource.map((s): SearchResult => {
+      shown.map((s): SearchResult => {
         const first = s.contexts[0];
         return {
           source: 'notebook',
@@ -189,7 +194,7 @@ async function grep(args: ScanActionArgs, ctx: ScanActionCtx): Promise<Record<st
     totalHits: counted.totalHits,
     sourcesScanned: loaded.sources.length,
     sourcesWithHits: counted.perSource.length,
-    perSource: counted.perSource,
+    perSource: shown,
     ...(loaded.exhaustive ? {} : { note: notExhaustiveGrep(loaded.incompleteReason) }),
   };
 }
