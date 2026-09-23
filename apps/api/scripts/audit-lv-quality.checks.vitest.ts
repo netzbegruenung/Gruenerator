@@ -196,7 +196,7 @@ describe('identity checks', () => {
   it('treats a Wolke share route fragment as part of the identity', () => {
     const wolke = (file: string) =>
       point({
-        source_url: `https://wolke.netzbegruenung.de/s/xfFABYzM7pX83Fj#/Wahlprüfsteine aus 2021/${file}`,
+        source_url: `https://wolke.netzbegruenung.de/s/TESTTOKEN#/Wahlprüfsteine aus 2021/${file}`,
         title: file,
         content_hash: file,
         wolke_etag: '"e"',

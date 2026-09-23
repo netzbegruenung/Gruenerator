@@ -50,6 +50,7 @@ import {
   isSameFile,
 } from '../../utils/binaryFingerprint.js';
 import { collectWolkeShareFiles, extractWolkeFileText } from '../../utils/wolkeShareHandler.js';
+import { resolveWolkeShareLink } from '../../utils/wolkeShareSecrets.js';
 
 import { staleDocumentsFilter } from './archiveFilter.js';
 import { ContentExtractor } from './extractors/ContentExtractor.js';
@@ -417,17 +418,26 @@ export class LandesverbandScraper extends BaseScraper {
     } else if (contentPath.wolkeShare) {
       // Public Nextcloud "Wolke" share as a content source. etag dedup skips
       // download+OCR for unchanged files (so this stays cheap on re-runs).
-      const { shareLink, recursive = true } = contentPath.wolkeShare;
+      const { shareKey, recursive = true } = contentPath.wolkeShare;
+      const shareLink = resolveWolkeShareLink(shareKey);
+      if (!shareLink) {
+        console.warn(
+          `[Landesverband] Wolke share "${shareKey}" (${source.id}) is missing from ` +
+            `<INTERN_CONTENT_DIR>/wolke-shares.json — skipping`
+        );
+        result.skipReasons.wolke_share_missing = (result.skipReasons.wolke_share_missing ?? 0) + 1;
+        return result;
+      }
       let collected: Awaited<ReturnType<typeof collectWolkeShareFiles>>;
       try {
         collected = await collectWolkeShareFiles(shareLink, recursive, this.log.bind(this));
       } catch (error) {
         const msg = error instanceof Error ? error.message : 'Unknown error';
         console.error(
-          `[Landesverband] Wolke share list failed for ${source.id} (${shareLink}): ${msg}`
+          `[Landesverband] Wolke share list failed for ${source.id} (${shareKey}): ${msg}`
         );
         result.errors++;
-        addErrorSamples(result, `Wolke-Share ${shareLink}: ${msg}`);
+        addErrorSamples(result, `Wolke-Share ${shareKey}: ${msg}`);
         return result;
       }
 
