@@ -48,6 +48,7 @@ import {
   readScanSources,
   SCAN_CHAR_BUDGET,
   type ScanLoad,
+  type ScannedSource,
 } from './sourceGrep.js';
 
 import type { QdrantFilter } from '../../database/services/QdrantService/types.js';
@@ -118,6 +119,11 @@ export interface SystemNotebookSourcesDeps {
     'getSystemDocumentFullTextByUrl' | 'getDocumentChunks' | 'search'
   >;
   rerank: typeof rerankNotebookResults;
+  /**
+   * Die Parameter des Volltextindex auf `chunk_text` (`payload_schema`) —
+   * `null` ohne Index. Nur mit genau dem geprüften Index zählt grep über ihn.
+   */
+  chunkTextIndex: (qdrantCollection: string) => Promise<Record<string, unknown> | null>;
 }
 
 // ---------------------------------------------------------------------------
@@ -259,6 +265,20 @@ function matchesSystemFilter(row: NotebookSourceRow, f: SystemSourceFilter | und
   return true;
 }
 
+/**
+ * Wie viele Quellen ein Datumsbereich still ausschließt, weil sie kein
+ * `published_at` tragen — gezählt nur unter denen, die die übrigen
+ * Filterfelder behalten hätten. Berlin: 326 von 1.547 Quellen (23.09.2026).
+ */
+function countUndatedExcluded(
+  rows: readonly NotebookSourceRow[],
+  f: SystemSourceFilter | undefined
+): number {
+  if (!f?.dateFrom && !f?.dateTo) return 0;
+  const withoutDate = { ...f, dateFrom: undefined, dateTo: undefined };
+  return rows.filter((r) => !r.createdAt && matchesSystemFilter(r, withoutDate)).length;
+}
+
 export const hasSystemFilter = (f: SystemSourceFilter | undefined): boolean =>
   Boolean(f && (f.category || f.titleContains || f.dateFrom || f.dateTo));
 
@@ -286,6 +306,8 @@ export async function listSystemSources(
   items: NotebookSourceRow[];
   exhaustive: boolean;
   categories: Record<string, number>;
+  /** Quellen ohne Datum, die `filter.dateFrom/dateTo` ausgeschlossen hat. */
+  undatedExcluded: number;
 }> {
   const { rows, exhaustive } = await scrollSystemSources(input.collection, deps);
   const sortBy = input.sortBy ?? 'date';
@@ -303,6 +325,7 @@ export async function listSystemSources(
     items: filtered.slice(offset, offset + limit),
     exhaustive,
     categories: countCategories(rows),
+    undatedExcluded: countUndatedExcluded(rows, input.filter),
   };
 }
 
@@ -317,11 +340,12 @@ export async function listSystemSources(
 export async function filterSystemSourceUrls(
   input: { collection: SystemCollection; filter: SystemSourceFilter },
   deps: Pick<SystemNotebookSourcesDeps, 'scrollPage'>
-): Promise<{ urls: string[]; exhaustive: boolean }> {
+): Promise<{ urls: string[]; exhaustive: boolean; undatedExcluded: number }> {
   const { rows, exhaustive } = await scrollSystemSources(input.collection, deps);
   return {
     urls: rows.filter((r) => matchesSystemFilter(r, input.filter)).map((r) => r.id),
     exhaustive,
+    undatedExcluded: countUndatedExcluded(rows, input.filter),
   };
 }
 
@@ -639,10 +663,11 @@ export async function loadSystemScanTexts(
     charBudget?: number | undefined;
   },
   deps: SystemNotebookSourcesDeps
-): Promise<ScanLoad | { error: string }> {
+): Promise<(ScanLoad & { undatedExcluded: number }) | { error: string }> {
   const { collection } = input;
   const budget = input.charBudget ?? SCAN_CHAR_BUDGET;
   let tooLarge = false;
+  let undatedExcluded = 0;
   let ids: string[];
 
   if (input.sourceUrl) {
@@ -650,10 +675,16 @@ export async function loadSystemScanTexts(
   } else {
     const listed = await scrollSystemSources(collection, deps);
     tooLarge = !listed.exhaustive;
+    undatedExcluded = countUndatedExcluded(listed.rows, input.filter);
     ids = listed.rows.filter((r) => matchesSystemFilter(r, input.filter)).map((r) => r.id);
     if (ids.length === 0) {
       const reason = incompleteReason(tooLarge, 0, false);
-      return { sources: [], exhaustive: reason === null, incompleteReason: reason };
+      return {
+        sources: [],
+        exhaustive: reason === null,
+        incompleteReason: reason,
+        undatedExcluded,
+      };
     }
     if (ids.length > SYSTEM_SCAN_MAX_SOURCES) {
       tooLarge = true;
@@ -698,7 +729,281 @@ export async function loadSystemScanTexts(
     read.unreadable,
     Boolean(input.sourceUrl)
   );
-  return { sources: read.sources, exhaustive: reason === null, incompleteReason: reason };
+  return {
+    sources: read.sources,
+    exhaustive: reason === null,
+    incompleteReason: reason,
+    undatedExcluded,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Volltextindex (grep, rank by=term)
+// ---------------------------------------------------------------------------
+
+/**
+ * Höchstens so viele Punkte liest die Volltextsuche je Aufruf. „Klimaschutz"
+ * trifft in Berlin 405 von 7.251 Punkten (23.09.2026); erst ein Allerweltswort
+ * über eine ganze Bundessammlung erreicht den Deckel.
+ */
+export const SYSTEM_TEXT_MATCH_MAX_POINTS = 5000;
+const TEXT_MATCH_PAYLOAD = [
+  'source_url',
+  'title',
+  'chunk_index',
+  'chunk_text',
+  'char_start',
+  'char_end',
+  'page_number',
+] as const;
+/**
+ * Kürzer ist eine gemeinsame Kante zweier Nachbar-Chunks Zufall („…n" / „n…").
+ * Gemessen in Berlin (23.09.2026): 5.051 von 5.704 Nachbarpaaren überlappen,
+ * meist um 100–400 Zeichen; von den 653 übrigen teilen 31 eine zufällige
+ * Kante von 1–16 Zeichen. `char_start`/`char_end` tragen nur 40 von 7.251
+ * Punkten — dort gilt ihre Überlappung (bei allen 40: keine).
+ */
+const MIN_CHUNK_OVERLAP = 20;
+
+/**
+ * Hat ein Text für den `chunk_text`-Index (`tokenizer: word`,
+ * `min_token_len: 2`, `max_token_len: 50`, `lowercase`) ein Wort? Eine
+ * Anfrage ohne eines trifft in Qdrant NICHTS (gemessen: `match.text: "a"` →
+ * 0 Punkte) — sie darf deshalb nie als Bedingung in den Filter.
+ */
+function hasIndexToken(text: string): boolean {
+  return text
+    .split(/[^\p{L}\p{N}]+/u)
+    .some((t) => [...t].length >= 2 && Buffer.byteLength(t) <= 50);
+}
+
+const SUBSCRIPT_DIGITS = '₀₁₂₃₄₅₆₇₈₉';
+const SUPERSCRIPT_DIGITS = '⁰¹²³⁴⁵⁶⁷⁸⁹';
+
+const bare = (s: string): string =>
+  s.normalize('NFD').replace(/\p{M}/gu, '').normalize('NFC').toLowerCase();
+
+/**
+ * Die Schreibweisen eines Worts, die gezählt werden, und die Anfragen, die sie
+ * im Index finden. Gezählt wird das Wort so, wie es dasteht, oder ganz ohne
+ * Akzente („Klimaneutralitat"), Ziffern auch tief- oder hochgestellt („CO₂") —
+ * Groß/klein egal. Der Index faltet nur Groß/klein: jede weitere Faltung des
+ * Zählers („Charite" trifft „Charité") fände er nicht, und die Zahl wäre still
+ * eine Untergrenze. Alle Formen gehen auch zerlegt (NFD) in die Anfrage: die
+ * Berliner Sammlung hat 28 Chunks mit zerlegten Umlauten, die eine NFC-Anfrage
+ * nicht trifft.
+ */
+function wordForms(word: string): { accepted: Set<string>; queries: string[] } {
+  const plain = bare(word).normalize('NFKC');
+  const accepted = new Set([word.normalize('NFC').toLowerCase(), bare(word), plain]);
+  // Der Zähler faltet „CO₂" zu „co2" (NFKD je Zeichen); der Index kennt „co₂"
+  // als eigenes Token. Berlin: 29 Chunks mit „CO₂", die „CO2" sonst nicht fände.
+  if (/\d/.test(plain)) {
+    accepted.add(plain.replace(/\d/g, (d) => SUBSCRIPT_DIGITS[Number(d)]!));
+    accepted.add(plain.replace(/\d/g, (d) => SUPERSCRIPT_DIGITS[Number(d)]!));
+  }
+  const queries = [...accepted].flatMap((w) => [w, w.normalize('NFD')]);
+  return { accepted, queries: [...new Set(queries)].filter(hasIndexToken) };
+}
+
+/** Wie viele Zeichen Chunk `b` am Anfang mit dem Ende von Chunk `a` teilt. */
+function chunkOverlap(a: TermChunk, b: TermChunk): number {
+  if (a.charEnd !== null && b.charStart !== null) {
+    return Math.min(b.text.length, Math.max(0, a.charEnd - b.charStart));
+  }
+  if (b.text.length < MIN_CHUNK_OVERLAP) return 0;
+  const probe = b.text.slice(0, MIN_CHUNK_OVERLAP);
+  // Die früheste Fundstelle, deren Rest `b` anfängt, ist die längste Überlappung.
+  for (
+    let i = a.text.indexOf(probe, Math.max(0, a.text.length - b.text.length));
+    i !== -1;
+    i = a.text.indexOf(probe, i + 1)
+  ) {
+    if (b.text.startsWith(a.text.slice(i))) return a.text.length - i;
+  }
+  return 0;
+}
+
+interface TermChunk {
+  index: number;
+  text: string;
+  charStart: number | null;
+  charEnd: number | null;
+  pageNumber: number | null;
+}
+
+const num = (v: unknown): number | null => (typeof v === 'number' ? v : null);
+
+/**
+ * Die gefundenen Chunks einer Quelle als EIN Text: Nachbar-Chunks ohne ihre
+ * Überlappung, sonst durch eine Leerzeile getrennt. Ohne das zählte jeder
+ * Treffer in einer Überlappung doppelt.
+ */
+function joinTermChunks(chunks: readonly TermChunk[]): Omit<ScannedSource, 'sourceId' | 'title'> {
+  let text = '';
+  const chunkMap: ChunkLocator[] = [];
+  let prev: TermChunk | null = null;
+  for (const c of chunks) {
+    const overlap = prev && c.index === prev.index + 1 ? chunkOverlap(prev, c) : 0;
+    if (prev && overlap === 0) text += '\n\n';
+    const charStart = text.length;
+    text += c.text.slice(overlap);
+    chunkMap.push({ index: c.index, charStart, charEnd: text.length, pageNumber: c.pageNumber });
+    prev = c;
+  }
+  return { text, chunkMap };
+}
+
+/**
+ * Der Index, gegen den die Vollständigkeit geprüft ist (live, 23.09.2026, alle
+ * System-Sammlungen hinter `collectionsForLocale` für de-DE und de-AT). Ein
+ * anderer Tokenizer, ohne `lowercase`, mit Stemmer oder Stoppwörtern fände
+ * andere Chunks; ohne Index fiele Qdrant auf einen Teilstring-Vergleich
+ * zurück. In beiden Fällen gilt die Zusicherung nicht — dann nie über den Index.
+ */
+function isVerifiedTextIndex(params: Record<string, unknown> | null): boolean {
+  return (
+    params !== null &&
+    params.type === 'text' &&
+    params.tokenizer === 'word' &&
+    params.lowercase === true &&
+    params.min_token_len === 2 &&
+    params.max_token_len === 50 &&
+    !params.stemmer &&
+    !params.stopwords &&
+    !params.ascii_folding
+  );
+}
+
+/**
+ * `chunkTextIndex` aus einem `payload_schema`-Abruf, je Sammlung einmal. Ein
+ * Fehler wird nicht gemerkt — der nächste Aufruf fragt neu, bis dahin gilt
+ * „kein Index" (der Lesepfad, nie eine falsche Vollständigkeit).
+ */
+export function cachedChunkTextIndex(
+  fetchSchema: (qdrantCollection: string) => Promise<Record<string, unknown>>
+): SystemNotebookSourcesDeps['chunkTextIndex'] {
+  const cache = new Map<string, Record<string, unknown> | null>();
+  return async (qdrantCollection) => {
+    const hit = cache.get(qdrantCollection);
+    if (hit !== undefined) return hit;
+    try {
+      const field = (await fetchSchema(qdrantCollection)).chunk_text as
+        { data_type?: unknown; params?: unknown } | undefined;
+      const params =
+        field?.data_type === 'text' && field.params && typeof field.params === 'object'
+          ? (field.params as Record<string, unknown>)
+          : null;
+      cache.set(qdrantCollection, params);
+      return params;
+    } catch {
+      return null;
+    }
+  };
+}
+
+/**
+ * Der Filter, der alle Chunks mit jedem Wort der Phrase holt (unter dem
+ * Standardfilter, optional nur aus `sourceUrls`), und die Schreibweisen, die
+ * danach zählen. `null`: kein Wort der Phrase kennt der Index.
+ */
+export function systemTermQuery(
+  collection: SystemCollection,
+  phrase: string,
+  sourceUrls?: readonly string[]
+): { filter: QdrantFilter; accept: (matched: string) => boolean } | null {
+  const words = phrase.replaceAll('\u00AD', '').trim().split(/\s+/).map(wordForms);
+  const clauses = words
+    .filter((w) => w.queries.length > 0)
+    .map((w) => ({ should: w.queries.map((text) => ({ key: 'chunk_text', match: { text } })) }));
+  if (clauses.length === 0) return null;
+  const scope = sourceUrls ? [{ key: 'source_url', match: { any: [...sourceUrls] } }] : [];
+  // Verschachtelte `should`-Bedingungen kennt `QdrantFilter` nicht — Qdrant schon.
+  const filter = applyDefaultFilter(collection.systemId, {
+    must: [...scope, ...clauses],
+  } as QdrantFilter) as QdrantFilter;
+  const accept = (matched: string): boolean => {
+    const got = matched.normalize('NFC').toLowerCase().split(/\s+/);
+    return got.length === words.length && got.every((w, i) => words[i]!.accepted.has(w));
+  };
+  return { filter, accept };
+}
+
+/**
+ * grep und rank by=term über den Volltextindex auf `chunk_text`: statt
+ * höchstens `SYSTEM_SCAN_MAX_SOURCES` ganze Quellen zu lesen, holt ein Scroll
+ * genau die Chunks, die jedes Wort der Phrase enthalten — unter dem
+ * Standardfilter und, mit `sourceUrls`, nur aus diesen Quellen. Gezählt wird
+ * danach mit `grepText`, eingeschränkt über `accept` auf die Schreibweisen
+ * aus `wordForms`: genau die findet der Index, also ist die Zählung
+ * vollständig, sobald der Scroll durchläuft. Gegen die echte Berliner Sammlung
+ * geprüft in `notebookSourceTools.live.vitest.ts`.
+ *
+ * `null`: die Phrase hat kein Wort, das der Index kennt, oder die Sammlung
+ * hat nicht den geprüften Index (`isVerifiedTextIndex`) — dann liest der
+ * Aufrufer die Texte wie bisher.
+ */
+export async function loadSystemTermMatches(
+  input: {
+    collection: SystemCollection;
+    phrase: string;
+    /** Nur diese URLs (aus `filterSystemSourceUrls`). */
+    sourceUrls?: readonly string[];
+  },
+  deps: Pick<SystemNotebookSourcesDeps, 'scrollPage' | 'chunkTextIndex'>
+): Promise<(ScanLoad & { accept: (matched: string) => boolean }) | null> {
+  const { collection } = input;
+  const query = systemTermQuery(collection, input.phrase, input.sourceUrls);
+  if (!query) return null;
+  if (!isVerifiedTextIndex(await deps.chunkTextIndex(collection.qdrantCollection))) return null;
+  const { filter, accept } = query;
+
+  const byUrl = new Map<string, { title: string; chunks: TermChunk[] }>();
+  let scrolled = 0;
+  let offset: string | number | null = null;
+  let more = true;
+  while (more && scrolled < SYSTEM_TEXT_MATCH_MAX_POINTS) {
+    const page = await deps.scrollPage(collection.qdrantCollection, filter, {
+      limit: Math.min(SCROLL_PAGE, SYSTEM_TEXT_MATCH_MAX_POINTS - scrolled),
+      offset,
+      payload: TEXT_MATCH_PAYLOAD,
+    });
+    scrolled += page.points.length;
+    for (const { payload } of page.points) {
+      const url = str(payload.source_url);
+      if (!url) continue;
+      const entry = byUrl.get(url) ?? { title: str(payload.title) ?? url, chunks: [] };
+      entry.chunks.push({
+        index: num(payload.chunk_index) ?? 0,
+        text: typeof payload.chunk_text === 'string' ? payload.chunk_text : '',
+        charStart: num(payload.char_start),
+        charEnd: num(payload.char_end),
+        pageNumber: num(payload.page_number),
+      });
+      byUrl.set(url, entry);
+    }
+    offset = page.nextOffset;
+    more = offset !== null && page.points.length > 0;
+  }
+  if (more) {
+    capLog.warn(
+      `[notebook_quellen:system-text-match] count cap hit: >${SYSTEM_TEXT_MATCH_MAX_POINTS} → ${SYSTEM_TEXT_MATCH_MAX_POINTS} items (rest not scrolled, ${collection.key})`
+    );
+  }
+
+  const sources = [...byUrl].map(([sourceId, { title, chunks }]) => ({
+    sourceId,
+    title,
+    ...joinTermChunks([...chunks].sort((a, b) => a.index - b.index)),
+  }));
+  return {
+    sources,
+    exhaustive: !more,
+    incompleteReason: more
+      ? `mehr als ${SYSTEM_TEXT_MATCH_MAX_POINTS} Abschnitte mit dem Begriff`
+      : null,
+    accept,
+  };
 }
 
 /** Seiten und Chunks einer gelesenen System-Quelle — aus ihrer Chunk-Karte. */

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { COLLECTION_MAP } from './collectionMap.js';
+import { LANDESVERBAENDE_CONFIG } from './landesverbaendeConfig.js';
 import {
   SYSTEM_COLLECTIONS,
   getSystemCollectionConfig,
@@ -103,5 +104,21 @@ describe('derived COLLECTION_MAP', () => {
       qdrantCollection: 'ricarda_lang_tweets',
       systemId: 'ricarda-lang-tweets-system',
     });
+  });
+});
+
+describe('Landesverband notebook filters', () => {
+  it('cover every landesverband code a scraper source writes', () => {
+    const covered = new Set<string>();
+    for (const c of Object.values(SYSTEM_COLLECTIONS)) {
+      if (c.qdrantCollection !== 'landesverbaende_documents') continue;
+      if (c.defaultFilter?.field !== 'landesverband') continue;
+      const v = c.defaultFilter.value;
+      for (const code of Array.isArray(v) ? v : [v]) covered.add(code);
+    }
+    const uncovered = LANDESVERBAENDE_CONFIG.sources
+      .map((s) => s.shortName)
+      .filter((code) => !covered.has(code));
+    expect(uncovered).toEqual([]);
   });
 });
