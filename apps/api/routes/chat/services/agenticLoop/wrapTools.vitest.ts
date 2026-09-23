@@ -728,4 +728,33 @@ describe('wrapToolsForLoop — interne Felder', () => {
     expect(out.results).toEqual([{ ref: 'a' }]);
     expect(seen[0]).toMatchObject({ refs: 'A — https://x.de/a' });
   });
+
+  it('gibt statt gekürzter Zeilen die refs, wenn die Zeilen nicht in den Deckel passen (#3590)', async () => {
+    const rows = Array.from({ length: 40 }, (_, i) => ({
+      title: `Pressemitteilung ${i}: ${'lang '.repeat(20)}`,
+      ref: `https://gruene.berlin/presse/mitteilung-${i}`,
+      sourceType: 'Webseite',
+    }));
+    const refs = rows.map((r) => `${r.title.slice(0, 40)} — ${r.ref}`).join('\n');
+    const { ctx } = makeCtx();
+    const tools = wrapToolsForLoop(
+      {
+        notebook_quellen: {
+          execute: () => Promise.resolve({ total: 40, exhaustive: true, refs, results: rows }),
+        },
+      } as unknown as ToolSet,
+      ctx
+    );
+
+    const out = (await run(tools, 'notebook_quellen', { action: 'list' })) as Record<
+      string,
+      unknown
+    >;
+
+    expect(out).not.toHaveProperty('preview');
+    expect(out).not.toHaveProperty('results');
+    expect(out.refs).toBe(refs);
+    expect(out.refs).toContain('mitteilung-39');
+    expect(out).toMatchObject({ total: 40, exhaustive: true });
+  });
 });
