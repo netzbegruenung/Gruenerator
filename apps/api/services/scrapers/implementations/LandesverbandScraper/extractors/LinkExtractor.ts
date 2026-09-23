@@ -250,6 +250,13 @@ export class LinkExtractor {
    * Deduplicates by URL (pages may list the same PDF in multiple sections)
    */
   async extractPdfLinks(source: LandesverbandSource, contentPath: ContentPath): Promise<PdfLink[]> {
+    if (contentPath.staticUrls?.length) {
+      return contentPath.staticUrls
+        .map((url) => this.normalizeUrl(url, source.baseUrl))
+        .filter((url): url is string => url !== null)
+        .map((url) => ({ url, title: '', context: '' }));
+    }
+
     const pageUrl = source.baseUrl + contentPath.path;
     const response = await this.fetchUrl(pageUrl);
     const html = await response.text();
