@@ -18,6 +18,9 @@ import type { AnyNode } from 'domhandler';
 
 const FALLBACK_TITLE = 'Dokument';
 
+const DATED_HEADING =
+  /\d{1,2}\.\s*(?:\d{1,2}\.\s*\d{2,4}|(?:Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s+\d{4})/i;
+
 const GENERIC_LINK_TEXT = /^(dokument|herunterladen|download|pdf|hier)?[.:!…]*$/i;
 
 /** Linktexte, die nichts über das Dokument sagen, zählen als leer (#3577). */
@@ -300,30 +303,61 @@ export class LinkExtractor {
   /**
    * Extract context text including nearest preceding heading
    * PDF archive pages often have dates in <h3>/<h4> headings above groups of links.
-   * Walks up to the nearest container, then looks for preceding headings.
+   * Order: a heading sibling of the link's <p>/<li> (BB: h3 + p inside one
+   * div), then headings before the surrounding containers, and on Elementor
+   * pages the last dated heading anywhere before the link (MV: heading and
+   * download list are sibling widgets). A file-name anchor next to the link
+   * goes first so the length cap never drops it (BE-F dlm-downloads).
    */
   private extractContextWithHeadings($: CheerioAPI, el: AnyNode): string {
     const parentText = $(el).parent().text().trim().substring(0, 200);
+    const fileName = this.#fileNameAnchorText($, el);
+    const headingText =
+      ($(el).closest('.elementor-widget').length ? this.#lastDatedHeadingBefore($, el) : '') ||
+      this.#nearestHeading($, el);
+
+    const prefix = [fileName, headingText].filter(Boolean).join(' | ');
+    if (!prefix) return parentText;
+    return `${prefix} | ${parentText}`.substring(0, 300);
+  }
+
+  #nearestHeading($: CheerioAPI, el: AnyNode): string {
+    const sibling = $(el).closest('p, li').prevAll('h3, h4, h2').first();
+    if (sibling.length) return sibling.text().trim();
 
     // Walk up to the nearest structural container
     const container = $(el).closest('div, section, article, li');
-    if (!container.length) return parentText;
+    if (!container.length) return '';
 
     // Look for preceding h3/h4 headings (sibling to the container or its ancestors)
-    let headingText = '';
     let current = container;
     for (let depth = 0; depth < 4; depth++) {
       const heading = current.prevAll('h3, h4, h2').first();
-      if (heading.length) {
-        headingText = heading.text().trim();
-        break;
-      }
+      if (heading.length) return heading.text().trim();
       const parent = current.parent();
       if (!parent.length || parent.is('body, html')) break;
       current = parent;
     }
+    return '';
+  }
 
-    if (!headingText) return parentText;
-    return `${headingText} | ${parentText}`.substring(0, 300);
+  #lastDatedHeadingBefore($: CheerioAPI, el: AnyNode): string {
+    // add() sorts into document order
+    const nodes = $('h2, h3, h4').add(el).toArray();
+    for (let i = nodes.indexOf(el) - 1; i >= 0; i--) {
+      const text = $(nodes[i]).text().replace(/\s+/g, ' ').trim();
+      if (DATED_HEADING.test(text)) return text;
+    }
+    return '';
+  }
+
+  #fileNameAnchorText($: CheerioAPI, el: AnyNode): string {
+    const href = $(el).attr('href');
+    const fileAnchor = $(el)
+      .closest('li')
+      .find('a')
+      .filter((_, a) => $(a).attr('href') === href && /\.pdf$/i.test($(a).text().trim()))
+      .first();
+    return fileAnchor.text().trim();
   }
 }
