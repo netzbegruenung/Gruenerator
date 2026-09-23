@@ -254,6 +254,14 @@ function publishedDay(r: SearchResult): string {
 // correction — which is how an answer reported a mandate given up months
 // earlier. The ranking already reads `publishedDate` (recencyBoost); showing it
 // closes the gap between what ranks the sources and what writes the answer.
+/** `S. 2` oder `S. 2–3`, wenn die Fundstelle über einen Seitenwechsel reicht. */
+function pageLabel(r: SearchResult): string | null {
+  const from = r.pageNumber;
+  if (typeof from !== 'number' || from <= 0) return null;
+  const to = r.pageTo;
+  return typeof to === 'number' && to > from ? `S. ${from}–${to}` : `S. ${from}`;
+}
+
 function snippetLine(index: number, r: SearchResult, cap = SNIPPET_CHARS, prior = false): string {
   const title = (r.title || r.source || 'Quelle').trim();
   const body = applyContextCap(
@@ -267,7 +275,7 @@ function snippetLine(index: number, r: SearchResult, cap = SNIPPET_CHARS, prior 
   // Die Seite gehört in die Zeile: der Schreiber im split-Modus sieht nur sie.
   // Ohne sie las er `read seite=2` als Text ohne Seitenangabe und meldete
   // „keine Seitenmarkierungen" (Testserver 24.09.2026).
-  const page = typeof r.pageNumber === 'number' && r.pageNumber > 0 ? `S. ${r.pageNumber}` : null;
+  const page = pageLabel(r);
   const meta = [day, page].filter(Boolean).join(', ');
   const date = meta ? ` (${meta})` : '';
   const mark = prior ? ' (frühere Recherche)' : '';
