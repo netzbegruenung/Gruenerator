@@ -81,6 +81,18 @@ describe('looksLikeNotebookToolAsk — trifft (Ort oder Menge)', () => {
     'Zeig alle Stellen zum Radverkehr',
     'Nenne mir die 10 relevantesten Quellen aus 2025 zum Thema Klimaneutralität.',
     'Nenn mir die wichtigsten drei Quellen zum Radverkehr',
+    // Fundort-Fragen: die Seite eines Treffers kommt aus grep/cite.
+    'Auf welcher Seite steht „Klimaneutralität 2035"?',
+    'Auf welcher Seite im Wahlprogramm steht das Tempolimit?',
+    'Auf welcher Seite des Antrags findet sich die Forderung nach mehr Radwegen?',
+    'Auf welcher Seite wird die Wärmepumpe erwähnt?',
+    'Auf welchen Seiten geht es um Mobilität?',
+    'Auf welcher Seite kommt der Begriff Verkehrswende vor?',
+    'Auf welcher Seite steht, dass die Kita-Gebühren fallen sollen?',
+    'Welche Seiten im Koalitionsvertrag behandeln die Schuldenbremse?',
+    'Welche Seite ist das Zitat zum Ehrenamt?',
+    'Gib mir die Seitenzahl zu diesem Zitat',
+    'Nenne die Seitenzahlen für die Stellen zum Radverkehr',
   ])('%s', (text) => {
     expect(looksLikeNotebookToolAsk(text)).toBe(true);
   });
@@ -96,6 +108,13 @@ describe('looksLikeNotebookToolAsk — trifft NICHT', () => {
     // Wortgrenze: „Seite" steckt im Ortsnamen.
     'Wie ist die Lage in Seitenstetten?',
     'Auf welcher Seite stehen wir beim Tempolimit?',
+    // „Seite" als Position in einem Streit, nicht als Blatt.
+    'Auf welcher Seite stehen die Grünen in der Debatte?',
+    'Auf welcher Seite steht die SPD beim Heizungsgesetz?',
+    'Welche Seite hat recht, wenn der Antrag abgelehnt wird?',
+    'Auf welcher Seite der Straße soll der Radweg entstehen?',
+    'Welche Seiten der Stadt profitieren vom Ausbau?',
+    'Die Seitenzahl ist mir egal, was fordern wir zum Klimaschutz?',
     // Nomen, die wie Verben anfangen.
     'Welche Zahlen nennt das Notebook zum Haushalt?',
     'Gibt es eine Reihe von Maßnahmen zur Verkehrswende?',
