@@ -280,6 +280,88 @@ describe('processAndStoreDocument — unchanged text, write budget and date guar
   });
 });
 
+/**
+ * PDFs pass `date_precision` (#3575). The guard reads it instead of the
+ * `-06-15` regex, and a refused date never leaves its precision behind —
+ * stored date and precision must describe the same value.
+ */
+describe('processAndStoreDocument — unchanged text, date precision', () => {
+  const HASH = `hash:${TEXT.length}`;
+  const storePdf = (publishedAt: string | null, precision: string | null) =>
+    makeProcessor().processAndStoreDocument(
+      SOURCE,
+      'beschluss',
+      URL_UNDER_TEST,
+      { title: 'Beschluss', text: TEXT, publishedAt, categories: [] },
+      'landesverbaende_documents',
+      10,
+      { file_hash: 'abc123', date_precision: precision }
+    );
+  const stored = (payload: Record<string, unknown>) =>
+    scrollDocuments.mockResolvedValue([
+      { payload: { content_hash: HASH, title: 'Beschluss', file_hash: 'abc123', ...payload } },
+    ]);
+
+  it('refuses a year-precision date over a stored one and keeps the stored precision', async () => {
+    stored({ published_at: '2023-04-29', date_precision: 'day' });
+
+    await storePdf('2023-06-15', 'year');
+
+    expect(setPayload.mock.calls[0][2]).toEqual({ checked_at: expect.any(String) });
+  });
+
+  it('refuses a year guess over a stored date that has no precision yet, and writes none', async () => {
+    stored({ published_at: '2023-04-29' });
+
+    await storePdf('2023-06-15', 'year');
+
+    expect(setPayload.mock.calls[0][2]).toEqual({ checked_at: expect.any(String) });
+  });
+
+  it('heals a stored -06-15 year guess with a day date and writes both', async () => {
+    stored({ published_at: '2022-06-15', date_precision: 'year' });
+
+    await storePdf('2022-03-26', 'day');
+
+    expect(setPayload.mock.calls[0][2]).toEqual({
+      published_at: '2022-03-26',
+      date_precision: 'day',
+      checked_at: expect.any(String),
+    });
+  });
+
+  it('trusts precision over the regex: a real 15 June with day precision is written', async () => {
+    stored({ published_at: '2022-06-01', date_precision: 'month' });
+
+    await storePdf('2022-06-15', 'day');
+
+    expect(setPayload.mock.calls[0][2]).toEqual({
+      published_at: '2022-06-15',
+      date_precision: 'day',
+      checked_at: expect.any(String),
+    });
+  });
+
+  it('backfills the precision of an unchanged date', async () => {
+    stored({ published_at: '2022-03-26' });
+
+    await storePdf('2022-03-26', 'day');
+
+    expect(setPayload.mock.calls[0][2]).toEqual({
+      date_precision: 'day',
+      checked_at: expect.any(String),
+    });
+  });
+
+  it('an undated extraction writes neither date nor a null precision over stored ones', async () => {
+    stored({ published_at: '2023-04-29', date_precision: 'day' });
+
+    await storePdf(null, null);
+
+    expect(setPayload.mock.calls[0][2]).toEqual({ checked_at: expect.any(String) });
+  });
+});
+
 describe('processAndStoreDocument — changed text', () => {
   it('carries the fingerprint into the freshly written points', async () => {
     scrollDocuments.mockResolvedValue([]);

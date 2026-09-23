@@ -33,7 +33,10 @@ import type { LandesverbandSource } from '../../../../../config/landesverbaendeC
 import type { ProcessResult, ExtractedContent } from '../types.js';
 import type { QdrantClient } from '@qdrant/js-client-rest';
 
-/** DateExtractor's year-only fallback — never a better date than one already stored. */
+/**
+ * DateExtractor's year-only fallback — never a better date than one already
+ * stored. Only for callers without `date_precision` (HTML pages); PDFs say it.
+ */
 const YEAR_ONLY_GUESS = /-06-15$/;
 const CHECKED_AT_REFRESH_MS = 24 * 60 * 60 * 1000;
 
@@ -289,7 +292,9 @@ export class DocumentProcessor {
    * which the staggered re-check keys (`indexed_at` stays the embedding time).
    * An empty title or a null date is never written over a stored value — SL
    * PDFs with processUndatedPdfs and every Wolke file pass `publishedAt: null`;
-   * neither is the `-06-15` year-only PDF guess over a stored date. Young pages
+   * neither is a year-only guess over a stored date (`date_precision: 'year'`,
+   * or the `-06-15` regex for callers that pass no precision). A refused date
+   * takes its `date_precision` with it, so the pair stays consistent. Young pages
    * are re-fetched on every run past RECHECK_AFTER_MS (this branch never bumps
    * `indexed_at`), so a bare `checked_at` is only rewritten once it is a day old.
    */
@@ -304,11 +309,14 @@ export class DocumentProcessor {
     // Normalisiert wie beim Speichern (STEP 5), sonst kippte der Titel hin und her.
     const title = ContentExtractor.normalizeTitle(extracted.title);
     if (title) candidates.title = title;
-    if (
-      extracted.publishedAt &&
-      !(existingPayload.published_at && YEAR_ONLY_GUESS.test(extracted.publishedAt))
-    ) {
+    const yearOnly =
+      extraPayload && 'date_precision' in extraPayload
+        ? extraPayload.date_precision === 'year'
+        : YEAR_ONLY_GUESS.test(extracted.publishedAt ?? '');
+    if (extracted.publishedAt && !(existingPayload.published_at && yearOnly)) {
       candidates.published_at = extracted.publishedAt;
+    } else {
+      delete candidates.date_precision;
     }
     const patch = Object.fromEntries(
       Object.entries(candidates).filter(([key, value]) => existingPayload[key] !== value)
