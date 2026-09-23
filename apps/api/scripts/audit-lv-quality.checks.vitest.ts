@@ -171,6 +171,11 @@ describe('content checks', () => {
     expect(codes([point({ chunk_index: 1, full_text: null })])).toEqual(['chunk_zero_missing']);
   });
 
+  it('flags a repeated chunk index other than 0', () => {
+    const second = point({ chunk_index: 1, full_text: null });
+    expect(codes([point(), second, { ...second }])).toEqual(['chunk_repeated']);
+  });
+
   it('flags points the NLP enrichment never reached', () => {
     expect(codes([point({ nlp_version: null })])).toEqual(['nlp_missing']);
   });

@@ -61,6 +61,7 @@ export const CHECK_CODES = [
   'chunk_gap',
   'chunk_zero_repeated',
   'chunk_zero_missing',
+  'chunk_repeated',
   'nlp_missing',
   'url_query_or_fragment',
   'url_normalized_duplicate',
@@ -230,6 +231,10 @@ function chunkFindings(doc: Doc): Array<[CheckCode, string]> {
   if (zeros === 0) out.push(['chunk_zero_missing', `${doc.chunks.length} chunks`]);
   if (zeros > 1) out.push(['chunk_zero_repeated', `${zeros}× chunk 0`]);
   const indices = [...new Set(doc.chunks.map((c) => c.chunk_index))].sort((a, b) => a - b);
+  const repeated = indices.filter(
+    (i) => i > 0 && doc.chunks.filter((c) => c.chunk_index === i).length > 1
+  );
+  if (repeated.length > 0) out.push(['chunk_repeated', repeated.join(',')]);
   if (zeros > 0 && indices[indices.length - 1] !== indices.length - 1) {
     out.push(['chunk_gap', indices.join(',')]);
   }
