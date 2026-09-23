@@ -158,11 +158,14 @@ export async function updateDocumentMetadata(
       updateData.markdown_content = updates.markdownContent;
     if (updates.pageCount !== undefined) updateData.page_count = updates.pageCount;
 
-    // Metadaten atomar in der Datenbank zusammenführen, nicht lesen-ändern-
-    // schreiben: ein langer Verarbeitungslauf überschrieb sonst Tags oder
-    // Felder, die in der Zwischenzeit jemand anderes gesetzt hatte. `undefined`
+    // EINE Anweisung für Spalten und Metadaten. Metadaten werden in der
+    // Datenbank zusammengeführt, nicht lesen-ändern-schreiben: ein langer
+    // Verarbeitungslauf überschrieb sonst Tags, die in der Zwischenzeit jemand
+    // setzte. Und nicht in zwei Anweisungen: stürzt der Prozess dazwischen,
+    // stünden Metadaten (filePath entfernt) ohne Spalten (status). `undefined`
     // heißt wie bisher „Schlüssel entfernen".
-    let metadataRow: Record<string, unknown> | undefined;
+    const params: unknown[] = [documentId, userId];
+    const sets: string[] = [];
     if (updates.additionalMetadata !== undefined) {
       const patch: Record<string, unknown> = {};
       const removed: string[] = [];
@@ -170,31 +173,35 @@ export async function updateDocumentMetadata(
         if (value === undefined) removed.push(key);
         else patch[key] = value;
       }
-      const rows = await postgres.query(
-        `UPDATE documents
-            SET metadata = (
+      params.push(removed, JSON.stringify(patch));
+      sets.push(`metadata = (
                   CASE jsonb_typeof(metadata)
                     WHEN 'object' THEN metadata
                     WHEN 'string' THEN (metadata #>> '{}')::jsonb
                     ELSE '{}'::jsonb
                   END - $3::text[]
-                ) || $4::jsonb
-          WHERE id = $1 AND user_id = $2
-          RETURNING *`,
-        [documentId, userId, removed, JSON.stringify(patch)]
-      );
-      metadataRow = rows[0] as Record<string, unknown> | undefined;
+                ) || $4::jsonb`);
+    }
+    // Spaltennamen stammen aus der festen Liste oben, nie aus der Eingabe.
+    for (const [column, value] of Object.entries(updateData)) {
+      params.push(value);
+      sets.push(`${column} = $${params.length}`);
     }
 
     const row =
-      Object.keys(updateData).length > 0 || !metadataRow
+      sets.length > 0
         ? ((
+            await postgres.query(
+              `UPDATE documents SET ${sets.join(', ')} WHERE id = $1 AND user_id = $2 RETURNING *`,
+              params
+            )
+          )[0] as Record<string, unknown>)
+        : ((
             await postgres.update('documents', updateData, {
               id: documentId,
               user_id: userId,
             })
-          ).data[0] as Record<string, unknown>)
-        : metadataRow;
+          ).data[0] as Record<string, unknown>);
 
     console.log(`[PostgresDocumentService] Document ${documentId} updated`);
     const createdAt =

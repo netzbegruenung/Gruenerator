@@ -23,10 +23,14 @@ function fakePostgres() {
 }
 
 describe('updateDocumentMetadata — atomare Zusammenführung', () => {
-  it('schickt nur den Patch und die zu entfernenden Schlüssel, nie den ganzen Stand', async () => {
+  it('schreibt Spalten und Metadaten-Patch in EINER Anweisung', async () => {
+    // Zwei Anweisungen hießen: stürzt der Prozess dazwischen, stehen die
+    // Metadaten (filePath weg) ohne die Spalten (status) — der Worker holt
+    // die Zeile zurück und findet keine Datei mehr.
     const pg = fakePostgres();
     await updateDocumentMetadata(pg as never, 'doc-1', 'u1', {
       status: 'completed',
+      vectorCount: 3,
       additionalMetadata: {
         content_preview: 'neu',
         filePath: undefined,
@@ -34,28 +38,36 @@ describe('updateDocumentMetadata — atomare Zusammenführung', () => {
       },
     });
 
+    expect(pg.query).toHaveBeenCalledTimes(1);
+    expect(pg.update).not.toHaveBeenCalled();
     const [sql, params] = pg.query.mock.calls[0] as unknown as [string, unknown[]];
     expect(sql).toMatch(/- \$3::text\[\]\s*\) \|\| \$4::jsonb/);
+    expect(sql).toMatch(/status = \$5/);
+    expect(sql).toMatch(/vector_count = \$6/);
     expect(params).toEqual([
       'doc-1',
       'u1',
       ['filePath', 'reindex_origin'],
       '{"content_preview":"neu"}',
+      'completed',
+      3,
     ]);
-    // Die übrigen Spalten gehen weiter über das normale Update — ohne `metadata`.
-    expect(pg.update).toHaveBeenCalledWith(
-      'documents',
-      { status: 'completed' },
-      { id: 'doc-1', user_id: 'u1' }
-    );
   });
 
-  it('nur Metadaten: kein leeres Spalten-Update', async () => {
+  it('nur Metadaten: eine Anweisung, keine Spalten', async () => {
     const pg = fakePostgres();
     await updateDocumentMetadata(pg as never, 'doc-1', 'u1', {
       additionalMetadata: { processing_stage: 'chunking' },
     });
     expect(pg.query).toHaveBeenCalledTimes(1);
     expect(pg.update).not.toHaveBeenCalled();
+  });
+
+  it('nur Spalten: eine Anweisung ohne metadata', async () => {
+    const pg = fakePostgres();
+    await updateDocumentMetadata(pg as never, 'doc-1', 'u1', { status: 'failed' });
+    const [sql, params] = pg.query.mock.calls[0] as unknown as [string, unknown[]];
+    expect(sql).not.toContain('metadata =');
+    expect(params).toEqual(['doc-1', 'u1', 'failed']);
   });
 });
