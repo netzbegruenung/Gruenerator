@@ -47,3 +47,11 @@ pnpm lint               # No lint violations
 pnpm build:web          # Frontend builds
 # Then manually: visit /gruene-{name}, check /notebook gallery, type @alias in chat
 ```
+
+Nach dem ersten Sync-Lauf zusätzlich eine schreibfreie Bestandsaufnahme der Datenqualität:
+
+```bash
+npx tsx scripts/audit-lv-quality.ts --source <id>
+```
+
+Jeder Code ungleich null muss erklärt oder behoben werden, bevor die neue Quelle als eingerichtet gilt. Im laufenden Betrieb danach die `qualityFlags` im Sync-Bericht im Auge behalten (`title_fallback`, `title_generic`, `date_missing_html`, `date_year_only`, `body_fallback`) — ein plötzlicher Anstieg zeigt an, dass die Seite ihre Struktur geändert hat.
