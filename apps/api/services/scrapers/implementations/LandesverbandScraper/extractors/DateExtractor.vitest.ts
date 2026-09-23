@@ -291,3 +291,117 @@ describe('DateExtractor.extractDateFromPdfInfo — precision (#3575)', () => {
     expect(result.dateString).toBeNull();
   });
 });
+
+/**
+ * #3564: BE-F dlm-downloads file names use a compact YYMMDD leading token
+ * (250117_Positionspapier….pdf, 180828_Beschluss….pdf), not the YYYYMMDD form
+ * already handled above. Must not fire on a Drucksache number or any other
+ * digit run that isn't followed by `_`/`-`, and never on a future date.
+ */
+describe('DateExtractor.extractDateFromPdfInfo — BE-F leading YYMMDD file names (#3564)', () => {
+  it.each([
+    {
+      name: 'YYMMDD_ at the start of the file name',
+      fileName: '250117_Positionspapier_Klimaschutz.pdf',
+      dateString: '2025-01-17',
+      precision: 'day',
+    },
+    {
+      name: 'YYMMDD- at the start of the file name',
+      fileName: '180828-Beschluss_Verkehrswende.pdf',
+      dateString: '2018-08-28',
+      precision: 'day',
+    },
+  ])('$name', ({ fileName, dateString, precision }) => {
+    const result = DateExtractor.extractDateFromPdfInfo(fileName, fileName, '', 10);
+
+    expect(result.dateString).toBe(dateString);
+    expect(result.precision).toBe(precision);
+  });
+
+  it('a 6-digit Drucksache number that is not at the start of the name is not a date', () => {
+    const result = DateExtractor.extractDateFromPdfInfo(
+      'Drs_182345_Antrag.pdf',
+      'Drs_182345_Antrag.pdf',
+      '',
+      10
+    );
+
+    expect(result.dateString).toBeNull();
+  });
+
+  it('6 digits with no separator after them is not a date', () => {
+    const result = DateExtractor.extractDateFromPdfInfo('123456.pdf', '123456.pdf', '', 10);
+
+    expect(result.dateString).toBeNull();
+  });
+
+  it('a future leading YYMMDD token is rejected', () => {
+    const result = DateExtractor.extractDateFromPdfInfo(
+      '301231_Beschluss.pdf',
+      '301231_Beschluss.pdf',
+      '',
+      10
+    );
+
+    expect(result.dateString).toBeNull();
+  });
+});
+
+/**
+ * #3564: Wolke share files (Berlin Wahlprüfsteine, Saarland Parteitags-
+ * protokolle) are stored with `publishedAt: null` today even though the file
+ * name often carries a real date. `extractWolkeFileNameDate` runs the bare
+ * file name through the normal file-name day tier, but — unlike PDFs — a
+ * month/year fallback is never good enough: a bare year in the name is often
+ * just a mention or a target year, not a publish date, so only a literal day
+ * date counts and anything less precise comes back null.
+ */
+describe('DateExtractor.extractWolkeFileNameDate (#3564)', () => {
+  it.each([
+    {
+      name: 'DD.MM.YYYY in an LPT file name',
+      fileName: 'LPT 08.11.2025 samt Anhang.pdf',
+      dateString: '2025-11-08',
+      precision: 'day',
+    },
+    {
+      name: 'YYYY-MM-DD leading a folder-style file name',
+      fileName: '2026-03-22-WKV Neunkirchen Protokoll',
+      dateString: '2026-03-22',
+      precision: 'day',
+    },
+    {
+      name: 'MM-DD-YYYY read as month-day, never rolled over',
+      fileName: '12-13-2025 Protokoll Parteirat.pdf',
+      dateString: '2025-12-13',
+      precision: 'day',
+    },
+  ])('$name', ({ fileName, dateString, precision }) => {
+    const result = DateExtractor.extractWolkeFileNameDate(fileName);
+
+    expect(result.dateString).toBe(dateString);
+    expect(result.precision).toBe(precision);
+  });
+
+  it('a file name without any date stays null, never invented', () => {
+    const result = DateExtractor.extractWolkeFileNameDate('Wahlpruefstein_Verband_Antwort.pdf');
+
+    expect(result.dateString).toBeNull();
+    expect(result.precision).toBeNull();
+  });
+
+  it('a bare mentioned year is a mention, not a publish date', () => {
+    const result = DateExtractor.extractWolkeFileNameDate('Wahlprüfsteine 2021 BUND.pdf');
+
+    expect(result.dateString).toBeNull();
+    expect(result.precision).toBeNull();
+  });
+
+  it('a target year in the file name is not a publish date either', () => {
+    const result = DateExtractor.extractWolkeFileNameDate('Landtagswahl-2026-Programm.pdf');
+
+    expect(result.dateString).toBeNull();
+    expect(result.precision).toBeNull();
+  });
+});
