@@ -6,6 +6,7 @@ import {
   NotebookChatProvider,
   NotebookComposer,
   UserMessage,
+  notebookAnswerModeDef,
   notebookDepthDef,
   notebookMentionables,
   useAgentStore,
@@ -132,6 +133,9 @@ export const NotebookPageContent = ({
   const storedDepth = useAgentStore((s) => s.notebookDepth);
   const setMode = useAgentStore((s) => s.setNotebookDepth);
   const mode = notebookDepthDef(storedDepth).depth;
+  const storedAnswerMode = useAgentStore((s) => s.notebookAnswerMode);
+  const setAnswerMode = useAgentStore((s) => s.setNotebookAnswerMode);
+  const answerMode = notebookAnswerModeDef(storedAnswerMode).mode;
   const [searchParams, setSearchParams] = useSearchParams();
   // `?thread=` names the conversation to open — that is how a thread row in the
   // sidebar links here, and how a reload finds its way back to what was on
@@ -325,6 +329,7 @@ export const NotebookPageContent = ({
       onThreadCreated={handleThreadCreated}
       threadId={threadId}
       mode={mode}
+      answerMode={answerMode}
       documentIds={documentIds}
     >
       <PendingQuestionSender />
@@ -346,6 +351,8 @@ export const NotebookPageContent = ({
                   composerCategoryFilters={categoryFilters}
                   mode={mode}
                   onModeChange={setMode}
+                  answerMode={answerMode}
+                  onAnswerModeChange={setAnswerMode}
                   recentCollectionIds={recentCollectionIds}
                   showRecentSourceLabel={isMulti}
                   showStats={showStats}
@@ -379,6 +386,8 @@ export const NotebookPageContent = ({
                   categoryFilters={categoryFilters}
                   mode={mode}
                   onModeChange={setMode}
+                  answerMode={answerMode}
+                  onAnswerModeChange={setAnswerMode}
                 />
               </div>
             </AuiIf>
