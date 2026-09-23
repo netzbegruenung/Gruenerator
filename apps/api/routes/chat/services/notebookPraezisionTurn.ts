@@ -21,7 +21,7 @@ import {
 import { withLangfuseTrace } from '../../../services/telemetry/langfuseTelemetry.js';
 import { createLogger } from '../../../utils/logger.js';
 import { getDefaultAgentId } from '../agents/agentLoader.js';
-import { notebookForPrompt } from '../agents/notebookSourceTools.js';
+import { notebookForPrompt, sourcesForPrompt } from '../agents/notebookSourceTools.js';
 import { formatStandingInstructions } from '../notebookStreamCore.js';
 
 import { streamAgenticResponse } from './agenticLoop/agenticRespondService.js';
@@ -92,12 +92,18 @@ export interface NotebookPraezisionDeps {
   initializeChatState: typeof initializeChatState;
   buildSystemMessage: typeof buildSystemMessage;
   streamAgenticResponse: typeof streamAgenticResponse;
+  sourcesForPrompt: (
+    collectionId: string,
+    userId: string,
+    limit: number
+  ) => ReturnType<typeof sourcesForPrompt>;
 }
 
 const defaultDeps: NotebookPraezisionDeps = {
   initializeChatState,
   buildSystemMessage,
   streamAgenticResponse,
+  sourcesForPrompt: (collectionId, userId, limit) => sourcesForPrompt(collectionId, userId, limit),
 };
 
 export interface NotebookPraezisionParams {
@@ -126,6 +132,42 @@ export interface NotebookPraezisionResult {
   degraded: AgenticResponseOutcome['degraded'] | null;
 }
 
+/** So viele Quellen je Notebook stehen im Prompt; darüber hinaus hilft list. */
+const PROMPT_SOURCE_LIMIT = 30;
+
+/**
+ * Die Quellenliste im Prompt: ohne sie ist der gepinnte erste Aufruf blind und
+ * rät die sourceId (Testserver 23.09.2026: „was steht auf seite 2 der
+ * niederschrift" → read mit geratener ID → Fehler, Turn aufgegeben). Ein
+ * Fehler hier kostet nur die Liste, nie den Turn.
+ */
+async function sourceListBlock(
+  collectionIds: readonly string[],
+  userId: string,
+  deps: NotebookPraezisionDeps
+): Promise<string> {
+  const lists = await Promise.all(
+    collectionIds.map(async (id) => {
+      try {
+        return { id, list: await deps.sourcesForPrompt(id, userId, PROMPT_SOURCE_LIMIT) };
+      } catch (err) {
+        log.warn('[NotebookPraezision] source list for prompt failed', err);
+        return { id, list: null };
+      }
+    })
+  );
+  const blocks = lists.flatMap(({ id, list }) => {
+    if (!list || list.items.length === 0) return [];
+    const more =
+      list.total > list.items.length
+        ? `\n- … ${list.total - list.items.length} weitere — list mit filter.titleContains`
+        : '';
+    const rows = list.items.map((r) => `- ref ${r.ref}: ${r.title}`).join('\n');
+    return [`Quellen in notebookId ${id} (sourceId = ref):\n${rows}${more}`];
+  });
+  return blocks.length ? `\n\n${blocks.join('\n\n')}` : '';
+}
+
 function praezisionBlock(collectionIds: readonly string[], locale: UserLocale): string {
   const notebooks = collectionIds
     .map((id) => notebookForPrompt(id, locale))
@@ -138,6 +180,7 @@ function praezisionBlock(collectionIds: readonly string[], locale: UserLocale): 
 
 Du beantwortest die Frage direkt aus den Quellen dieser Notebooks: ${notebooks}.
 - Arbeite ausschließlich mit dem Werkzeug ${TOOL}; ohne notebookId gilt das erste Notebook der Liste.
+- Die sourceId ist immer ein ref aus der Quellenliste unten (oder aus list) — nie ein Name oder Dateiname.
 - Belege jede Aussage aus den Quellen mit [N].
 - Steht in einem Ergebnis exhaustive=false, wurde nicht alles gelesen — nenne eine Zahl daraus nie als Gesamtzahl.
 - Hier wird nur gelesen: Quellen entfernen, verschieben, umbenennen oder anlegen geht in diesem Modus nicht. Sag das, wenn danach gefragt wird.
@@ -202,7 +245,8 @@ export async function runNotebookPraezisionTurn(
     state.lastUserTextNoMentions = question;
 
     const baseSystem = await deps.buildSystemMessage(state, { retrievalExpected: true });
-    const systemMessage = `${baseSystem}${praezisionBlock(collectionIds, userLocale)}${formatStandingInstructions(params.standingInstructions)}`;
+    const sourceList = await sourceListBlock(collectionIds, userId, deps);
+    const systemMessage = `${baseSystem}${praezisionBlock(collectionIds, userLocale)}${sourceList}${formatStandingInstructions(params.standingInstructions)}`;
 
     outcome = await withLangfuseTrace(
       {

@@ -87,6 +87,10 @@ function setup(
       loopSse.send('completion', { text: 'x', citations: [] });
       return opts.outcome ?? outcome();
     }) as unknown as NotebookPraezisionDeps['streamAgenticResponse'],
+    sourcesForPrompt: vi.fn(async () => ({
+      total: 32,
+      items: [{ ref: 'doc-9', title: 'Niederschrift Ausschuss Digitalisierung' }],
+    })),
   };
   const run = () =>
     runNotebookPraezisionTurn(
@@ -130,6 +134,24 @@ describe('runNotebookPraezisionTurn', () => {
     expect(system.startsWith('BASIS')).toBe(true);
     expect(system).toContain('PRÄZISIONSMODUS');
     expect(system).toContain('Immer duzen.');
+  });
+
+  it('lists the notebook sources with their refs so the pinned first call needs no guess', async () => {
+    const { run, loopCalls, deps } = setup();
+    await run();
+    const system = loopCalls[0]!.systemMessage as string;
+    expect(system).toContain(`Quellen in notebookId ${NB} (sourceId = ref):`);
+    expect(system).toContain('- ref doc-9: Niederschrift Ausschuss Digitalisierung');
+    expect(system).toContain('… 31 weitere — list mit filter.titleContains');
+    expect(deps.sourcesForPrompt).toHaveBeenCalledWith(NB, 'user-1', 30);
+  });
+
+  it('still runs the turn when the source list fails', async () => {
+    const { run, loopCalls, deps } = setup();
+    vi.mocked(deps.sourcesForPrompt).mockRejectedValueOnce(new Error('qdrant down'));
+    await run();
+    expect(loopCalls).toHaveLength(1);
+    expect(loopCalls[0]!.systemMessage as string).not.toContain('sourceId = ref):');
   });
 
   it('hands the loop plain role/content history, no citations', async () => {
