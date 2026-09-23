@@ -98,15 +98,35 @@ runs:
           done
         }
 
-        # status=success only: a failed run is already reported by
+        # Successful runs only: a failed run is already reported by
         # ci-failure-issue.yml, and counting it here would mask a collapse
         # behind runs that produced nothing.
+        ROW_FILTER='[.workflow_runs[] | select(.conclusion == "success")
+          | {id: .id, created_at: .created_at, url: .html_url}]'
         if ! RUNS=$(api_with_retry \
           "/repos/$REPO/actions/workflows/content-sync.yml/runs?status=success&per_page=100" \
-          '[.workflow_runs[] | {id: .id, created_at: .created_at, url: .html_url}]'); then
+          "$ROW_FILTER"); then
           echo "::error::Could not read the Content Sync run list from the GitHub API. This says nothing about the schedule — the walk could not look."
           exit 1
         fi
+
+        # The list can come back stale. Run 35734991521 (2026-09-22 13:40Z) got
+        # one whose newest entries were all over 24 h old, with an August run
+        # third, while two runs had succeeded that morning — and reported a
+        # total collapse (#3528). A stale answer can only OMIT runs, never
+        # invent them, so a second, differently filtered read is merged in
+        # rather than retried until it looks better: in a real collapse there
+        # is no fresh run for either read to find, and the alarm still fires.
+        # If the second read fails, the first stands alone as it always did.
+        if SECOND=$(api_with_retry \
+          "/repos/$REPO/actions/workflows/content-sync.yml/runs?per_page=100" \
+          "$ROW_FILTER"); then
+          echo "Run list: $(printf '%s' "$RUNS" | jq length) from status=success, $(printf '%s' "$SECOND" | jq length) successful from the unfiltered list."
+          RUNS=$(printf '%s\n%s' "$RUNS" "$SECOND" | jq -s -c 'add | unique_by(.id)')
+        fi
+        # The walk below stops at the first full run, so it depends on
+        # newest-first order. Sorted here instead of trusted from the API.
+        RUNS=$(printf '%s' "$RUNS" | jq -c 'sort_by(.created_at) | reverse')
 
         RUNS_24H=$(printf '%s' "$RUNS" | jq --argjson now "$NOW" '
           [.[] | select((.created_at | fromdateiso8601) > ($now - 86400))] | length')
