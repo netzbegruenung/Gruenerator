@@ -508,9 +508,13 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           listSelector: '.press-teaser__title a',
           disableOffPathFilter: true,
           paginationLinkSelector: '.page-navigation__next a',
-          // ~3.75 listing pages/month; 230 pages reaches back ~5 years to match the
-          // maxAgeYears window. Articles past the 5-year cutoff are dropped at processing.
-          maxPages: 230,
+          // 230 pages walked back ~6.4 years (to April 2020), past the 5-year
+          // maxAgeYears window — undated legacy pages in that overshoot bypass the
+          // age filter entirely and get stored (#3580). Verified live (page=160
+          // ≈ late June/early July 2021, page=150 ≈ October 2021): 160 pages
+          // reaches just past the 5-year-back cutoff. Articles past the cutoff
+          // are still dropped at processing.
+          maxPages: 160,
         },
       ],
       contentSelectors: {
