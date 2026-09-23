@@ -293,6 +293,7 @@ describe('processAndStoreDocument — unchanged text, date precision', () => {
       'beschluss',
       URL_UNDER_TEST,
       { title: 'Beschluss', text: TEXT, publishedAt, categories: [] },
+      true, // isFile — PDF
       'landesverbaende_documents',
       10,
       { file_hash: 'abc123', date_precision: precision }
@@ -600,7 +601,7 @@ describe('processAndStoreDocument — title normalization for file sources', () 
   });
 
   it('falls back to the source label when the title is only whitespace', async () => {
-    await makeProcessor().processAndStoreDocument(
+    const result = await makeProcessor().processAndStoreDocument(
       SOURCE,
       'beschluss',
       URL_UNDER_TEST,
@@ -612,5 +613,9 @@ describe('processAndStoreDocument — title normalization for file sources', () 
 
     const points = batchUpsert.mock.calls[0][2] as Array<{ payload: { title: string } }>;
     expect(points[0].payload.title).toMatch(/^Grüne Berlin - /);
+    // Regression: title_fallback used to be decided from the RAW title, so a
+    // whitespace/&nbsp;-only title (normalizes to '', then falls back) never
+    // set the flag even though the fallback fired.
+    expect(result.qualityFlags).toMatchObject({ title_fallback: 1 });
   });
 });
