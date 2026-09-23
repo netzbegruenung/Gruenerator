@@ -43,7 +43,13 @@ export interface ContentPath {
   sitemapFilter?: string; // Optional: filter sitemap URLs (e.g., '/presse/')
   staticUrls?: string[]; // Optional: fixed list of URLs to scrape directly (bypasses pagination and sitemap)
   disableOffPathFilter?: boolean; // Optional: when true, skip the post-discovery filter that requires URLs to share the listing-path prefix. Auto-applied when sitemapUrls or wpApi is set, since both yield canonical URLs that rarely match the human-facing listing path (e.g. TYPO3 sitemaps emit /news/ while listings live under /nachrichten/; WP root-permalinks publish at /<slug>/ regardless of the /category/X listing seed).
-  wpApi?: { categoryId?: number; categoryIds?: number[]; maxPages?: number; boundByAge?: boolean }; // Optional: discover articles via WordPress REST API (/wp-json/wp/v2/posts?categories=…). Bypasses HTML-listing pagination entirely; required for WP sites with root-permalink structure where /category/X/ is a virtual index. Pass `categoryIds` to union several categories in one query (comma-separated = WP OR) instead of one source per category. Set `boundByAge` to add an `after=<now - maxAgeYears>` filter on full runs, so discovery skips out-of-window posts server-side instead of fetching (and 404-ing on) years of ancient archive entries that the store-stage age filter would drop anyway.
+  wpApi?: {
+    categoryId?: number;
+    categoryIds?: number[];
+    excludeCategoryIds?: number[];
+    maxPages?: number;
+    boundByAge?: boolean;
+  }; // Optional: discover articles via WordPress REST API (/wp-json/wp/v2/posts?categories=…). Bypasses HTML-listing pagination entirely; required for WP sites with root-permalink structure where /category/X/ is a virtual index. Pass `categoryIds` to union several categories in one query (comma-separated = WP OR) instead of one source per category. Pass `excludeCategoryIds` for `categories_exclude` (WP AND NOT) to drop posts that also carry a non-article category (e.g. event notices). Set `boundByAge` to add an `after=<now - maxAgeYears>` filter on full runs, so discovery skips out-of-window posts server-side instead of fetching (and 404-ing on) years of ancient archive entries that the store-stage age filter would drop anyway.
   wolkeShare?: { shareLink: string; recursive?: boolean }; // Optional: pull documents from a public Nextcloud "Wolke" share (wolke.netzbegruenung.de/s/<token>) via WebDAV instead of HTML/WP discovery. Files are etag-deduped, so an unchanged file is skipped before download+OCR. Reusable by any source; see services/scrapers/utils/wolkeShareHandler.ts.
   recentSkip?: boolean; // Optional: skip this content path in the incremental hourly `--recent` run so heavy PDF/OCR/Wolke paths only run in the nightly full crawl. etag/freshness dedup still bounds the nightly cost.
 }
@@ -1089,15 +1095,22 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           // Topic categories the user listed (bildung, demokratie-recht, energie,
           // europa, finanzen, geschlechtergerechtigkeit, gesundheit, kultur,
           // landwirtschaft, soziales, tierschutz, umwelt, verkehr, wirtschaft,
-          // wissenschaft) unioned in one query. Overlap with pressemitteilungen is
-          // deduped by source_url in Qdrant.
+          // wissenschaft), plus Allgemein/Klimaschutzkonzept-Check/Sommerreihe/
+          // Positionspapiere (id-verified live via /wp-json/wp/v2/categories, see
+          // #3580: the whitelist missed ~48 political posts filed only under
+          // these) unioned in one query. Overlap with pressemitteilungen is
+          // deduped by source_url in Qdrant. excludeCategoryIds drops Termine
+          // (122) meeting notices — presse (cat 7) does NOT get this exclusion,
+          // 8 real press releases also carry Termine.
           type: 'blog',
           path: '/',
           listSelector: 'article a[href], .entry-title a, h2 a, h3 a',
           wpApi: {
             categoryIds: [
-              109, 108, 117, 118, 115, 113, 112, 119, 111, 116, 106, 114, 105, 107, 110,
+              109, 108, 117, 118, 115, 113, 112, 119, 111, 116, 106, 114, 105, 107, 110, 1, 154,
+              155, 142,
             ],
+            excludeCategoryIds: [122],
             boundByAge: true,
           },
         },
