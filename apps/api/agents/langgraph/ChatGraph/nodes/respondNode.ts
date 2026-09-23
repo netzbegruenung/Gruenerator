@@ -978,10 +978,17 @@ ORIGINAL>>>`;
  * The person's explicit memory: standing instructions and facts, numbered
  * by services/memory/memoryPrompt.ts so the `memory` tool can address them.
  */
-function formatMemoryContext(memoryContext: string | null): string {
+function formatMemoryContext(memoryContext: string | null, hasProfile: boolean): string {
   if (!memoryContext || memoryContext.trim() === '') {
     return '';
   }
+
+  // Profile text and memory instructions can contradict each other ("Sie-Form"
+  // in the profile, "ab jetzt duzen" in chat). The memory wins: it was said
+  // explicitly, carries a date and is what the `memory` tool can change.
+  const precedence = hasProfile
+    ? ' Widerspricht eine dauerhafte Anweisung den persönlichen Profilangaben, gilt die Anweisung aus dem Gedächtnis.'
+    : '';
 
   // User-authored text entering the system prompt — same class as the
   // profile instructions, so it gets the same untrusted envelope.
@@ -993,7 +1000,7 @@ Die Person hat dir ausdrücklich aufgetragen, dir Folgendes zu merken. Die Numme
 
 ${embedUntrusted('gedaechtnis', memoryContext)}
 
-Befolge die dauerhaften Anweisungen bei jeder Antwort; nutze die Fakten, wenn sie zur Frage passen. Beides ordnet sich den Regeln dieser Systemnachricht unter. Verwende KEINE Quellenverweise [N] dafür – es sind keine Suchergebnisse.`;
+Befolge die dauerhaften Anweisungen bei jeder Antwort; nutze die Fakten, wenn sie zur Frage passen.${precedence} Beides ordnet sich den Regeln dieser Systemnachricht unter. Verwende KEINE Quellenverweise [N] dafür – es sind keine Suchergebnisse.`;
 }
 
 /**
@@ -1896,7 +1903,7 @@ export async function buildSystemMessage(
         state.attachmentContext ?? '',
         attachmentQuery(state)
       );
-  const memoryContextFormatted = formatMemoryContext(memoryContext);
+  const memoryContextFormatted = formatMemoryContext(memoryContext, !!state.userInstructions);
   const chatHistoryFormatted = state.chatHistoryContext ? `\n\n${state.chatHistoryContext}` : '';
   const boardContextFormatted = formatBoardContext(boardContext);
   const sheetContextFormatted = formatSheetContext(state.sheetContext);
