@@ -8,10 +8,15 @@
  * test fails if a field ever stops being mapped.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
 import { buildChunkPayloadFields } from './searchOperations.js';
 import type { QdrantResultPayload } from './types.js';
+
+vi.mock('../../scrapers/utils/wolkeShareSecrets.js', () => ({
+  resolveWolkeDisplayUrl: (url: string) =>
+    url.replace('wolke://berlin-wps/', 'https://wolke.netzbegruenung.de/s/TESTTOKEN#/'),
+}));
 
 const FULL_PAYLOAD: QdrantResultPayload = {
   document_id: 'doc-1',
@@ -110,5 +115,20 @@ describe('buildChunkPayloadFields', () => {
     expect(out.char_end).toBeNull();
     expect(out.published_at).toBeNull();
     expect(out.documents.title).toBe('Untitled');
+  });
+});
+
+describe('buildChunkPayloadFields with a Wolke payload', () => {
+  it('resolves the display url and keeps the stored key everywhere else', () => {
+    const out = buildChunkPayloadFields({
+      ...FULL_PAYLOAD,
+      document_id: undefined,
+      source_url: 'wolke://berlin-wps/WPS 2026/Grüne Antwort.pdf',
+    } as QdrantResultPayload);
+    expect(out.url).toBe('https://wolke.netzbegruenung.de/s/TESTTOKEN#/WPS 2026/Grüne Antwort.pdf');
+    expect(out.document_id).toBe('wolke://berlin-wps/WPS 2026/Grüne Antwort.pdf');
+    expect(out.documents.id).toBe('wolke://berlin-wps/WPS 2026/Grüne Antwort.pdf');
+    expect(out.chunk_text).toBe('hello');
+    expect(out.source_id).toBe('src-9');
   });
 });
