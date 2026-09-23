@@ -130,6 +130,33 @@ describe('buildToolObservationReplay', () => {
     const out = (msgs[1].content as Array<{ output: { value: string } }>)[0].output.value;
     expect(out.length).toBeGreaterThan(3000);
   });
+
+  it('gives a result with compact refs the reference budget, a bare row list only the preview', () => {
+    const rows = Array.from({ length: 20 }, (_, i) => ({
+      title: `Quelle ${i}`,
+      url: `https://gruene.berlin/${i}`,
+      ref: `https://gruene.berlin/${i}`,
+    }));
+    const withRefs = mcpStep({
+      toolName: 'gruenerator_search',
+      serverName: undefined,
+      result: { refs: rows.map((r) => `${r.title} — ${r.ref}`).join('\n'), results: rows },
+    });
+    const bare = mcpStep({
+      toolCallId: 'c2',
+      toolName: 'gruenerator_search',
+      serverName: undefined,
+      result: { results: rows },
+    });
+    const msgs = buildToolObservationReplay([withRefs, bare], catalog);
+    const [refsOut, bareOut] = (msgs[1].content as Array<{ output: { value: string } }>).map(
+      (c) => c.output.value
+    );
+    for (const r of rows) expect(refsOut).toContain(r.ref);
+    // Die Zeilen selbst bleiben zurück — refs ist ihre kurze Form.
+    expect(refsOut).not.toContain('"results"');
+    expect(bareOut!.length).toBeLessThanOrEqual(501);
+  });
 });
 
 describe('spliceToolReplay', () => {

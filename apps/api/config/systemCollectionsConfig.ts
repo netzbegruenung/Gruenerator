@@ -499,7 +499,8 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     mcpExposed: true,
     qdrantCollection: 'landesverbaende_documents',
     name: 'Grüne Mecklenburg-Vorpommern',
-    description: 'Pressemitteilungen und Parteitagsbeschlüsse der Grünen Mecklenburg-Vorpommern',
+    description:
+      'Pressemitteilungen und Parteitagsbeschlüsse der Grünen Mecklenburg-Vorpommern (Landesverband & Fraktion)',
     minQuality: 0.3,
     recallLimit: 60,
     filterableFields: [
@@ -509,7 +510,7 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
       { field: 'subcategories', label: 'Unterkategorien', type: 'keyword' },
       { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
-    defaultFilter: { field: 'landesverband', value: 'MV' },
+    defaultFilter: { field: 'landesverband', value: ['MV', 'MV-F'] },
   },
   'brandenburg-system': {
     id: 'brandenburg-system',

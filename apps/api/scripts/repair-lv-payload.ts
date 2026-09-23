@@ -50,6 +50,7 @@
  * beim Import) — daher die dynamischen Importe.
  */
 import { basename } from 'node:path';
+import { setTimeout as sleep } from 'node:timers/promises';
 
 import dotenv from 'dotenv';
 
@@ -97,6 +98,10 @@ const USAGE =
 const DEFAULT_COLLECTION = 'landesverbaende_documents';
 const UA = 'Gruenerator-Bot/1.0 (+https://gruenerator.eu)';
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}/;
+// Dieselbe Pause wie der Scraper zwischen zwei Abrufen (`crawlDelay` in
+// LandesverbandScraper.ts). Dort ist sie ein privates Instanzfeld; die Klasse
+// hier zu importieren zöge die App-Umgebung vor dotenv mit.
+const REFETCH_DELAY_MS = 300;
 
 export function parseCliArgs(argv: string[]): { args: CliArgs } | { error: string } {
   const args: CliArgs = {
@@ -286,13 +291,29 @@ async function scrollChunkZero(
   return points;
 }
 
+const withoutTrailingSlash = (url: string): string => url.replace(/\/+$/, '');
+
+/**
+ * Nur die angefragte Seite taugt als Titelquelle. Ohne diese Prüfung läse der
+ * Extraktor die 404-Seite („Uuups ...") als Titel — oder, wenn eine gelöschte
+ * Seite auf die Liste weiterleitet, deren Titel.
+ */
+export function assertSamePage(
+  requested: string,
+  res: Pick<Response, 'ok' | 'status' | 'redirected' | 'url'>
+): void {
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  if (res.redirected || withoutTrailingSlash(res.url) !== withoutTrailingSlash(requested)) {
+    throw new Error(`Weiterleitung auf ${res.url}`);
+  }
+}
+
 async function fetchOk(url: string): Promise<Response> {
   const res = await fetch(url, {
     headers: { 'User-Agent': UA },
     signal: AbortSignal.timeout(15000),
   });
-  // Ohne diese Prüfung läse der Extraktor die 404-Seite („Uuups ...") als Titel.
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  assertSamePage(url, res);
   return res;
 }
 
@@ -435,6 +456,7 @@ async function main(): Promise<void> {
             extra.fetchFailed++;
             console.warn(`  [fetch] ${point.source_url}: ${(error as Error).message}`);
           }
+          await sleep(REFETCH_DELAY_MS);
         }
         patch = planRepair(point, extracted) ?? {};
       }
