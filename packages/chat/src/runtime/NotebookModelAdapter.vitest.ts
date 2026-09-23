@@ -231,6 +231,36 @@ describe('NotebookModelAdapter — answer mode', () => {
     expect('answerMode' in history[0]!).toBe(false);
   });
 
+  describe('wire history by depth and answer mode', () => {
+    const PRIOR = [
+      { role: 'user', content: [{ type: 'text', text: 'Wie viele Quellen?' }] },
+      {
+        role: 'assistant',
+        content: [{ type: 'text', text: 'Zwölf.' }],
+        metadata: { custom: { answerMode: 'chat' } },
+      },
+    ];
+    const historyLength = async (config: Record<string, unknown>) =>
+      ((await runTurn([COMPLETION], config, PRIOR)).body.messages as unknown[]).length - 1;
+
+    it('is sent at deep depth with an answer mode, carrying the earlier mode', async () => {
+      const { body } = await runTurn([COMPLETION], { mode: 'deep', answerMode: 'auto' }, PRIOR);
+      const messages = body.messages as Array<Record<string, unknown>>;
+      expect(messages).toHaveLength(3);
+      expect(messages[1]).toMatchObject({ role: 'assistant', answerMode: 'chat' });
+    });
+
+    it('is sent even at fast depth when auto or precision may run', async () => {
+      expect(await historyLength({ mode: 'fast', answerMode: 'auto' })).toBe(2);
+      expect(await historyLength({ mode: 'fast', answerMode: 'praezision' })).toBe(2);
+    });
+
+    it('stays off at fast depth without an answer mode or with explicit chat (Grün-O-Mat)', async () => {
+      expect(await historyLength({ mode: 'fast' })).toBe(0);
+      expect(await historyLength({ mode: 'fast', answerMode: 'chat' })).toBe(0);
+    });
+  });
+
   it('stamps answer_mode on the message live, with a precision progress line', async () => {
     const { results } = await runTurn([
       {
