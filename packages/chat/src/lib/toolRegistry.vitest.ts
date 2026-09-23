@@ -523,6 +523,29 @@ describe('loop-catalog tool parsers', () => {
     ).toEqual({ kind: 'text-note', text: 'Quelle nicht in diesem Notebook oder kein Zugriff.' });
   });
 
+  // Die Schreibaktionen (notebookSourceWriteActions.ts) liefern {ok, note, …} —
+  // die Notiz ist das Ergebnis, nicht ein <dl>-Dump der Zähler.
+  it('notebook_quellen renders write outcomes as their note', () => {
+    const parse = resolveToolEntry('notebook_quellen').parse;
+    const note =
+      '1 Quelle(n) aus „Kreisverband" entfernt. Aus dem Notebook entfernt — die Dokumente bleiben in der Bibliothek (rückgängig mit notebooks add_documents).';
+    expect(
+      parse({ action: 'remove' }, { ok: true, removed: 1, skipped: [], remaining: 1, note })
+    ).toEqual({ kind: 'text-note', text: note });
+    expect(
+      parse(
+        { action: 'add_url' },
+        {
+          ok: true,
+          sourceId: 'd9',
+          title: 'Seite',
+          documentCount: 3,
+          note: 'Seite „Seite" liegt jetzt im Notebook „Kreisverband".',
+        }
+      )
+    ).toEqual({ kind: 'text-note', text: 'Seite „Seite" liegt jetzt im Notebook „Kreisverband".' });
+  });
+
   // groups: `get` liefert ein `{group}`-Detailobjekt (groupTools.ts); `content`
   // und `list` bleiben Zeilen → Zitatliste.
   it('groups get renders the detail rows, not the raw object', () => {

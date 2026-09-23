@@ -36,7 +36,9 @@ export async function runClassifyStage({
 }: ClassifyStageParams): Promise<ChatGraphState> {
   const classifiedState = {
     ...initialState,
-    ...(await classifierNode(initialState)),
+    // Der erwähnungsfreie Text schon für den Klassifikator — der Notebook-Zweig
+    // darf ein „@Label" nicht als Auftrag lesen.
+    ...(await classifierNode({ ...initialState, lastUserTextNoMentions })),
   } as ChatGraphState;
   classifiedState.lastUserTextNoMentions = lastUserTextNoMentions;
   // Third routing signal next to intent and complexity: the output

@@ -14,11 +14,11 @@
  *   Teilen. Ausgeführt in `confirmController.executeAction`.
  * - `confirm=true` im Werkzeug: Löschen.
  * - direkt: private, umkehrbare Änderungen (anlegen, umbenennen, Dokumente
- *   hinzufügen).
+ *   hinzufügen, Beschreibung/Anweisung/Labels ändern).
  *
  * Zugriff über `checkNotebookAccess`, nicht über `user_id === userId`: geteilte
  * Notebooks sind lesbar (get/search) und je nach edit_policy bearbeitbar
- * (rename/add_documents); Ordner, Sichtbarkeit, Teilen und Löschen bleiben
+ * (rename/add_documents/update); Ordner, Sichtbarkeit, Teilen und Löschen bleiben
  * Owner-only — Pending-Zeilen und der Wächter laufen als Owner, und
  * `getShareLink` löst nur eigene Links auf.
  *
@@ -89,6 +89,10 @@ const DETAIL_SNIPPET_CHARS = 4000;
 
 /** Deckel des Inline-Imports — die Zahl steht auf der Karte. */
 const INLINE_IMPORT_MAX = 5;
+
+/** Labels eines Notebooks (`settings.labels`). */
+const LABEL_MAX_COUNT = 10;
+const LABEL_MAX_CHARS = 40;
 
 export interface NotebookToolDeps {
   helper: Pick<
@@ -242,7 +246,7 @@ export function makeNotebooksTool(ctx: NotebookToolCtx): Tool {
   return tool({
     description: `Zugriff auf die Notebooks der Person (eigene Wissenssammlungen aus Dokumenten, Wolke-Ordnern und Office-Dokumenten) — auflisten, ansehen, inhaltlich befragen, anlegen und verwalten.
 
-NUTZE FÜR: Notebooks auflisten (list — scope="mine" die eigenen, scope="system" die vom Grünerator gepflegten Wissenssammlungen, scope="basis" die öffentlich geteilten Notebooks anderer), Details eines Notebooks mit Dokumenten, Wolke-Ordnern, Freigaben und wartenden Dateien (get), eine Frage AN DEN INHALT eines Notebooks stellen und belegt beantworten (search mit id + query — „was steht im Notebook X zu …?"), ein Notebook anlegen (create; mit wolkeFolder wird der Ordner sofort angehängt und importiert), einen Wolke-Ordner an ein bestehendes Notebook hängen (add_wolke_folder), eigene Dokumente oder Office-Dokumente hinzufügen (add_documents), umbenennen (rename), Sichtbarkeit und Bearbeitungsrechte ändern (set_visibility), mit einem Projekt teilen (share_to_group), löschen (delete mit confirm=true nach Zustimmung).
+NUTZE FÜR: Notebooks auflisten (list — scope="mine" die eigenen, scope="system" die vom Grünerator gepflegten Wissenssammlungen, scope="basis" die öffentlich geteilten Notebooks anderer), Details eines Notebooks mit Dokumenten, Wolke-Ordnern, Freigaben und wartenden Dateien (get), eine Frage AN DEN INHALT eines Notebooks stellen und belegt beantworten (search mit id + query — „was steht im Notebook X zu …?"), ein Notebook anlegen (create; mit wolkeFolder wird der Ordner sofort angehängt und importiert), einen Wolke-Ordner an ein bestehendes Notebook hängen (add_wolke_folder), eigene Dokumente oder Office-Dokumente hinzufügen (add_documents), umbenennen (rename), Beschreibung, Anweisung (customPrompt) und Labels ändern (update), Sichtbarkeit und Bearbeitungsrechte ändern (set_visibility), mit einem Projekt teilen (share_to_group), löschen (delete mit confirm=true nach Zustimmung).
 
 Ein System-Notebook hat keine id zum Befragen — seine Zeile nennt im Feld ref den collection-Schlüssel, mit dem 'gruenerator_search' seinen Inhalt durchsucht. Öffentlich gelistete Notebooks haben eine echte id: get und search funktionieren damit wie bei eigenen.
 
@@ -258,6 +262,7 @@ Wolke-Import, Sichtbarkeit und Teilen werden der Person als Karte zur Bestätigu
         'add_wolke_folder',
         'add_documents',
         'rename',
+        'update',
         'set_visibility',
         'share_to_group',
         'delete',
@@ -270,7 +275,16 @@ Wolke-Import, Sichtbarkeit und Teilen werden der Person als Karte zur Bestätigu
         ),
       id: z.string().optional().describe('Notebook-ID (alle Aktionen außer list und create)'),
       name: z.string().optional().describe('Name (create) bzw. neuer Name (rename)'),
-      description: z.string().optional().describe('Beschreibung (create)'),
+      description: z.string().optional().describe('Beschreibung (create, update)'),
+      customPrompt: z
+        .string()
+        .optional()
+        .describe('update: Anweisung, die bei jeder Frage an das Notebook gilt'),
+      labels: z
+        .array(z.string().max(LABEL_MAX_CHARS))
+        .max(LABEL_MAX_COUNT)
+        .optional()
+        .describe('update: Labels des Notebooks (ersetzt die bisherigen)'),
       query: z.string().optional().describe('Frage an den Inhalt (search)'),
       documentIds: z
         .array(z.string())
@@ -430,6 +444,13 @@ Wolke-Import, Sichtbarkeit und Teilen werden der Person als Karte zur Bestätigu
         return addDocuments(userId, collection, args.documentIds ?? []);
       }
 
+      if (action === 'update') {
+        const forbidden = refuseForbiddenAction(state);
+        if (forbidden) return forbidden;
+        if (!access.canEdit) return { error: NO_EDIT };
+        return updateNotebook(collection, args);
+      }
+
       // Ab hier Owner-only.
       if (!access.isOwner) return { error: OWNER_ONLY };
 
@@ -569,6 +590,53 @@ Wolke-Import, Sichtbarkeit und Teilen werden der Person als Karte zur Bestätigu
         ...(note ? { note } : {}),
       },
     };
+  }
+
+  // -------------------------------------------------------------------------
+  // update — Beschreibung, Anweisung, Labels; nur was angegeben ist
+  // -------------------------------------------------------------------------
+
+  async function updateNotebook(
+    collection: NotebookCollection,
+    args: {
+      description?: string | undefined;
+      customPrompt?: string | undefined;
+      labels?: string[] | undefined;
+    }
+  ): Promise<Record<string, unknown>> {
+    const patch: {
+      description?: string | null;
+      custom_prompt?: string | null;
+      settings?: Record<string, unknown>;
+    } = {};
+    const changed: string[] = [];
+    if (args.description !== undefined) {
+      patch.description = args.description.trim() || null;
+      changed.push('Beschreibung');
+    }
+    if (args.customPrompt !== undefined) {
+      patch.custom_prompt = args.customPrompt.trim() || null;
+      changed.push('Anweisung');
+    }
+    if (args.labels !== undefined) {
+      const labels = [...new Set(args.labels.map((l) => l.trim()).filter(Boolean))];
+      if (labels.length > LABEL_MAX_COUNT) {
+        return { error: `Ein Notebook trägt höchstens ${LABEL_MAX_COUNT} Labels.` };
+      }
+      const tooLong = labels.find((l) => l.length > LABEL_MAX_CHARS);
+      if (tooLong) {
+        return { error: `Ein Label hat höchstens ${LABEL_MAX_CHARS} Zeichen: „${tooLong}".` };
+      }
+      patch.settings = { ...collection.settings, labels };
+      changed.push('Labels');
+    }
+    if (changed.length === 0) {
+      return { error: 'update braucht description, customPrompt oder labels.' };
+    }
+    await deps.helper.updateNotebookCollection(collection.id, patch);
+    const note = `Notebook „${collection.name}" aktualisiert: ${changed.join(', ')}.`;
+    groundNote(sourceRegistry, 'Notebook aktualisiert', note);
+    return { ok: true, note };
   }
 
   // -------------------------------------------------------------------------
