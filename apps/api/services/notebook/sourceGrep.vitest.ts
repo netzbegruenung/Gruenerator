@@ -62,6 +62,15 @@ describe('grepText', () => {
     expect(ok(grepText('Grüne und grüne', 'Grüne', { caseSensitive: true })).count).toBe(1);
   });
 
+  it('caseSensitive keeps accents exact, also for NFD text', () => {
+    const nfd = 'Das Cafe\u0301 und das Cafe.';
+    const r = ok(grepText(nfd, 'Cafe', { caseSensitive: true }));
+    expect(r.count).toBe(1);
+    expect(nfd.slice(r.hits[0]!.charStart, r.hits[0]!.charEnd)).toBe('Cafe');
+    expect(ok(grepText(nfd, 'Cafe\u0301', { caseSensitive: true })).count).toBe(1);
+    expect(ok(grepText('Das Café.', 'Cafe', { caseSensitive: true })).count).toBe(0);
+  });
+
   it('ignores soft hyphens and line-break hyphenation, keeping original offsets', () => {
     const soft = 'Der Klima\u00ADschutz zählt.';
     const r = ok(grepText(soft, 'Klimaschutz', {}));
@@ -137,6 +146,18 @@ describe('grepSources', () => {
 });
 
 describe('loadScanTexts', () => {
+  it('names the source, not the notebook, when one requested source exceeds the budget', async () => {
+    const { deps } = fakeNotebookDeps([{ id: 'd1', title: 'Lang', text: 'x'.repeat(50) }]);
+    const out = await loadScanTexts(
+      { collectionId: 'n1', userId: 'u1', sourceId: 'd1', charBudget: 20 },
+      deps
+    );
+    if ('error' in out) throw new Error(out.error);
+    expect(out.exhaustive).toBe(false);
+    expect(out.incompleteReason).toBe('Quelle zu groß — lies sie mit read abschnittsweise');
+    expect(out.sources[0]!.text).toHaveLength(20);
+  });
+
   const small = [
     { id: 'd1', text: 'Der Radweg kommt.' },
     { id: 'd2', text: 'Kein Thema.' },
