@@ -13,7 +13,7 @@ interface ContentSelectors {
   date: string[];
   content: string[];
   categories?: string[];
-  /** Elements to strip from the matched content selector before reading its text (#3574) */
+  /** Elements to strip from the whole page before content matching (#3574) */
   removeSelectors?: string[];
 }
 
@@ -67,6 +67,10 @@ export class ContentExtractor {
     $('.breadcrumb, .breadcrumb-nav, [aria-label*="Breadcrumb"]').remove();
     $('.social-share, .share-buttons, .related-content, .comments').remove();
     $('.elementor-location-header, .elementor-location-footer').remove();
+    // Per-source chrome (#3574)
+    if (selectors.removeSelectors?.length) {
+      $(selectors.removeSelectors.join(', ')).remove();
+    }
 
     // Extract main content
     let contentText = '';
@@ -151,7 +155,7 @@ export class ContentExtractor {
     // Remove unwanted elements (after title/date extraction)
     $('script, style, noscript, iframe, nav, header, footer').remove();
     $('.navigation, .cookie-consent, .breadcrumb, .social-share').remove();
-    // Per-source chrome (photo credit, date label, back-link — #3574)
+    // Per-source chrome (#3574)
     if (selectors.removeSelectors?.length) {
       $(selectors.removeSelectors.join(', ')).remove();
     }
@@ -254,7 +258,7 @@ export class ContentExtractor {
     $('.navigation, .cookie-consent, .breadcrumb, .social-share').remove();
     // Typo3-specific: remove pagination inside blog plugin
     $('.tx_xblog_pi1 .pagination, .tx_xblog_pi1 .page-navigation').remove();
-    // Per-source chrome (share bar, contact box — #3574)
+    // Per-source chrome (#3574)
     if (selectors.removeSelectors?.length) {
       $(selectors.removeSelectors.join(', ')).remove();
     }

@@ -54,9 +54,9 @@ export interface ContentSelectors {
   content: string[];
   categories: string[];
   author: string[];
-  // Optional: elements to strip from the matched content selector before
-  // reading its text — e.g. a share bar or contact box nested inside the
-  // content container that a selector change alone can't remove (#3574).
+  // Optional: elements to strip from the whole page before content matching —
+  // e.g. a share bar or contact box nested inside the content container that a
+  // selector change alone can't remove (#3574).
   removeSelectors?: string[];
 }
 

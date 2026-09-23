@@ -46,7 +46,7 @@ export interface ExtractedContent {
    * back to `main`/`body` — a signal that the stored text may carry page chrome
    * (nav, sidebar, footer) instead of the article (#3574).
    */
-  bodyFallback?: boolean | undefined;
+  bodyFallback: boolean;
 }
 
 /**
