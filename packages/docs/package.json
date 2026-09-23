@@ -45,7 +45,7 @@
     "@handlewithcare/prosemirror-suggest-changes": "^0.1.8",
     "@hocuspocus/provider": "^4.6.0",
     "@tiptap/core": "^3.31.3",
-    "ai": "^7.0.94",
+    "ai": "^7.0.102",
     "lucide-react": "^1.43.0",
     "prosemirror-model": "^1.25.11",
     "prosemirror-state": "^1.4.4",
