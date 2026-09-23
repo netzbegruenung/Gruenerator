@@ -51,6 +51,7 @@ import { checkNotebookAccess } from '../../notebook/notebookAccess.js';
 
 import {
   isWriteAction,
+  NOT_FOUND,
   resolveWriteDeps,
   runWriteAction,
   WRITE_ACTIONS,
@@ -82,7 +83,6 @@ export type NotebookSourceToolCtx = PersonalToolCtx & {
   deps?: Partial<NotebookSourceToolDeps> & Partial<NotebookSourceWriteDeps>;
 };
 
-const NOT_FOUND = 'Notebook nicht gefunden oder kein Zugriff.';
 const NO_NOTEBOOK =
   'Kein Notebook ausgewählt — gib notebookId an (aus notebooks action="list", Feld ref).';
 const EXCERPT_CHARS = 300;
