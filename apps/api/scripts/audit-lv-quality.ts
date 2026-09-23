@@ -155,7 +155,7 @@ async function main(): Promise<void> {
       limit: 1000,
       with_payload: { exclude: ['chunk_text'] },
       with_vector: false,
-      ...(offset !== undefined && offset !== null ? { offset } : {}),
+      ...(offset !== undefined ? { offset } : {}),
     });
     for (const p of res.points) {
       const point = toCensusPoint(p.id, (p.payload ?? {}) as Record<string, unknown>);
