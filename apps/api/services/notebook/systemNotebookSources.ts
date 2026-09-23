@@ -307,11 +307,12 @@ export async function listSystemSources(
 }
 
 /**
- * Die URLs, die zu `filter` passen — für `find`, `rank` und die Scans, die
- * selbst nicht nach Datum oder Kategorie filtern können: `published_at` trägt
- * nur einen Keyword-Index, eine Qdrant-Bereichsabfrage griffe dort nicht. Die
- * Menge geht als `source_url`-`any` in den Suchfilter, filtert also VOR dem
- * Limit statt danach.
+ * Die URLs, die zu `filter` passen — für `find`, `rank` und die Scans. Aus
+ * derselben Liste wie `list`, damit alle Aktionen dieselbe Filterregel haben
+ * (Titel ohne Groß/klein, Kategorie über `primary_category` ODER
+ * `content_type`, Datum als Tag); ein nativer Qdrant-Filter gälte nur dort,
+ * wo die Sammlung die Felder indiziert. Die Menge geht als `source_url`-`any`
+ * in den Suchfilter, filtert also VOR dem Limit statt danach.
  */
 export async function filterSystemSourceUrls(
   input: { collection: SystemCollection; filter: SystemSourceFilter },
