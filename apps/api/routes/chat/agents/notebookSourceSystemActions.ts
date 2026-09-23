@@ -54,6 +54,10 @@ import {
   type SystemNotebookSourcesDeps,
   type SystemSourceFilter,
 } from '../../../services/notebook/systemNotebookSources.js';
+import {
+  resolveWolkeDisplayUrl,
+  toStoredWolkeUrl,
+} from '../../../services/scrapers/utils/wolkeShareSecrets.js';
 import { rankManualSearchResults } from '../../../services/search/manualSearchRanking.js';
 
 import { pickRange, type CharRange } from './notebookSourceRange.js';
@@ -118,7 +122,8 @@ function grounded(
     source: 'notebook',
     title,
     content,
-    url,
+    // Nur der Link wird aufgelöst — `documentId` bleibt der gespeicherte Schlüssel (Registry-Dedup).
+    url: resolveWolkeDisplayUrl(url),
     documentId: url,
     collectionId: collection.key,
   };
@@ -628,7 +633,9 @@ async function stats(
         title: `Statistik: ${heading}`,
         content: renderStats(heading, result),
         collectionId: collection.key,
-        ...(result.source ? { documentId: result.source.id, url: result.source.id } : {}),
+        ...(result.source
+          ? { documentId: result.source.id, url: resolveWolkeDisplayUrl(result.source.id) }
+          : {}),
       },
     ],
     { snippetChars: STATS_CHARS }
@@ -690,7 +697,10 @@ async function rank(
       deps
     );
     rows = rankManualSearchResults({
-      results: docs.map((d) => ({ ...d, document_id: d.source_url || d.document_id })),
+      results: docs.map((d) => ({
+        ...d,
+        document_id: d.source_url ? toStoredWolkeUrl(d.source_url) : d.document_id,
+      })),
       sortBy: 'relevance',
       minScore: RANK_MIN_SCORE,
       limit,

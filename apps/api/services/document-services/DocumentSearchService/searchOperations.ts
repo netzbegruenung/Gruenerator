@@ -9,6 +9,7 @@
  */
 
 import { vectorConfig } from '../../../config/vectorConfig.js';
+import { resolveWolkeDisplayUrl } from '../../scrapers/utils/wolkeShareSecrets.js';
 
 import type {
   DocumentSearchOptions,
@@ -80,7 +81,8 @@ export function buildChunkPayloadFields(payload: QdrantResultPayload | undefined
     created_at: p.created_at as string | undefined,
     published_at: (p.published_at as string) ?? (metadata?.published_at as string) ?? null,
     source_id: (p.source_id as string) ?? null,
-    url: (p.source_url as string) || (p.url as string) || undefined,
+    // Anzeige-Link; ein `wolke://`-Schlüssel wird erst hier zum Freigabe-Link.
+    url: resolveWolkeDisplayUrl((p.source_url as string) || (p.url as string) || '') || undefined,
     documents: {
       id: documentId,
       title: (p.title as string) || (metadata?.title as string) || 'Untitled',

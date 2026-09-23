@@ -768,6 +768,7 @@ ${PRIMARY_URL}`;
 }
 
 import { type NewArticle } from '../scrapers/implementations/LandesverbandScraper/types.js';
+import { resolveWolkeDisplayUrl } from '../scrapers/utils/wolkeShareSecrets.js';
 
 export interface LvSyncNotificationTemplateParams {
   lvName: string;
@@ -779,7 +780,9 @@ export function renderLvSyncNotificationTemplate(params: LvSyncNotificationTempl
   html: string;
   text: string;
 } {
-  const { lvName, newArticles, syncDate } = params;
+  const { lvName, syncDate } = params;
+  // Wolke-Dateien sind als `wolke://…` gespeichert; die Mail braucht den Freigabe-Link.
+  const newArticles = params.newArticles.map((a) => ({ ...a, url: resolveWolkeDisplayUrl(a.url) }));
 
   const dateStr = new Date(syncDate).toLocaleDateString('de-DE', {
     day: '2-digit',
