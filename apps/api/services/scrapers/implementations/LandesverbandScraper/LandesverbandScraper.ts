@@ -60,6 +60,7 @@ import {
   addDeadLinkSamples,
   addErrorSamples,
   foldDeadLinksIfNothingWorked,
+  mergeQualityFlags,
   mergeSkipReasons,
 } from './resultSamples.js';
 
@@ -247,6 +248,7 @@ export class LandesverbandScraper extends BaseScraper {
       deadLinkMessages: [],
       totalVectors: 0,
       skipReasons: {},
+      qualityFlags: {},
       newArticles: [],
     };
 
@@ -413,6 +415,7 @@ export class LandesverbandScraper extends BaseScraper {
               result.newArticles.push({ title: pdf.title, url: pdf.url, type: contentPath.type });
             }
             result.totalVectors += storeResult.vectors || 0;
+            mergeQualityFlags(result, storeResult.qualityFlags ?? {});
             this.log(
               `✓ PDF [${i + 1}/${toProcess.length}] ${pdf.title} (${pdf.dateInfo.dateString || 'no date'})`
             );
@@ -522,6 +525,7 @@ export class LandesverbandScraper extends BaseScraper {
               result.newArticles.push({ title, url: file.url, type: contentPath.type });
             }
             result.totalVectors += storeResult.vectors || 0;
+            mergeQualityFlags(result, storeResult.qualityFlags ?? {});
             this.log(`✓ Wolke [${i + 1}/${toProcess.length}] ${title}`);
           } else {
             result.skipped++;
@@ -706,6 +710,7 @@ export class LandesverbandScraper extends BaseScraper {
               result.newArticles.push({ title: content.title || url, url, type: contentPath.type });
             }
             result.totalVectors += storeResult.vectors || 0;
+            mergeQualityFlags(result, storeResult.qualityFlags ?? {});
             this.log(`✓ [${n}/${toProcess.length}] ${content.title?.substring(0, 60) || url}`);
           } else {
             result.skipped++;
@@ -780,6 +785,7 @@ export class LandesverbandScraper extends BaseScraper {
       deadLinkMessages: [],
       totalVectors: 0,
       skipReasons: {},
+      qualityFlags: {},
       contentTypes: {},
       newArticles: [],
     };
@@ -799,6 +805,7 @@ export class LandesverbandScraper extends BaseScraper {
       addDeadLinkSamples(result, ...pathResult.deadLinkMessages);
       result.totalVectors += pathResult.totalVectors;
       mergeSkipReasons(result, pathResult.skipReasons);
+      mergeQualityFlags(result, pathResult.qualityFlags);
       // Accumulate into the per-type bucket: a source can have several paths of the
       // same content type (e.g. multiple `beschluss` PDF archives + Wolke shares),
       // so overwriting would report only the last path's counts for that type.
@@ -814,6 +821,7 @@ export class LandesverbandScraper extends BaseScraper {
         existing.totalVectors += pathResult.totalVectors;
         existing.newArticles.push(...pathResult.newArticles);
         mergeSkipReasons(existing, pathResult.skipReasons);
+        mergeQualityFlags(existing, pathResult.qualityFlags);
       } else {
         result.contentTypes[contentPath.type] = pathResult;
       }
@@ -905,6 +913,7 @@ export class LandesverbandScraper extends BaseScraper {
       deadLinkMessages: [],
       totalVectors: 0,
       skipReasons: {},
+      qualityFlags: {},
       bySource: {},
       duration: 0,
     };
@@ -956,6 +965,7 @@ export class LandesverbandScraper extends BaseScraper {
         addDeadLinkSamples(totalResult, ...outcome.result.deadLinkMessages);
         totalResult.totalVectors += outcome.result.totalVectors;
         mergeSkipReasons(totalResult, outcome.result.skipReasons);
+        mergeQualityFlags(totalResult, outcome.result.qualityFlags);
         totalResult.bySource[outcome.sourceId] = outcome.result;
       } else {
         totalResult.errors++;

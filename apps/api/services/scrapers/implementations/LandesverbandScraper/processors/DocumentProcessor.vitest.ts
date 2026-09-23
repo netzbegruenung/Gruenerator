@@ -49,7 +49,7 @@ vi.mock('../../../syncEventRecorder.js', () => ({
   toExcerpt: (t: string) => t.slice(0, 10),
 }));
 
-const { DocumentProcessor } = await import('./DocumentProcessor.js');
+const { DocumentProcessor, qualityFlagsFor } = await import('./DocumentProcessor.js');
 
 const SOURCE = {
   id: 'be',
@@ -157,6 +157,119 @@ describe('processAndStoreDocument — changed text', () => {
     expect(setPayload).not.toHaveBeenCalled();
     const [, , points] = batchUpsert.mock.calls[0] as [unknown, string, { payload: unknown }[]];
     expect(points[0].payload).toMatchObject({ file_hash: 'abc123' });
+  });
+});
+
+describe('processAndStoreDocument — qualityFlags', () => {
+  it('counts a fallback title on a freshly stored document', async () => {
+    scrollDocuments.mockResolvedValue([]);
+
+    const result = await makeProcessor().processAndStoreDocument(
+      SOURCE,
+      'beschluss',
+      URL_UNDER_TEST,
+      { title: '', text: TEXT, publishedAt: '2023-05-20', categories: [], bodyFallback: false },
+      'landesverbaende_documents',
+      10
+    );
+
+    expect(result.stored).toBe(true);
+    expect(result.qualityFlags).toMatchObject({ title_fallback: 1 });
+  });
+
+  it('does not count anything for an unchanged document', async () => {
+    scrollDocuments.mockResolvedValue([{ payload: { content_hash: `hash:${TEXT.length}` } }]);
+
+    const result = await makeProcessor().processAndStoreDocument(
+      SOURCE,
+      'beschluss',
+      URL_UNDER_TEST,
+      { title: '', text: TEXT, publishedAt: '2023-05-20', categories: [], bodyFallback: false },
+      'landesverbaende_documents',
+      10
+    );
+
+    expect(result).toEqual({ stored: false, reason: 'unchanged' });
+    expect(result.qualityFlags).toBeUndefined();
+  });
+});
+
+/**
+ * The data-quality defect classes counted at store time (#3573–#3580). Each
+ * case flips exactly one input to isolate what triggers the flag.
+ */
+describe('qualityFlagsFor', () => {
+  const base = {
+    originalTitle: 'Beschluss zur Klimapolitik',
+    storedTitle: 'Beschluss zur Klimapolitik',
+    url: 'https://gruene-berlin.de/beschluss.pdf',
+    publishedAt: '2023-05-20',
+    bodyFallback: false,
+  };
+
+  it('flags title_fallback when the content had no title', () => {
+    expect(qualityFlagsFor({ ...base, originalTitle: '' })).toContain('title_fallback');
+  });
+
+  it('does not flag title_fallback when the content had a title', () => {
+    expect(qualityFlagsFor(base)).not.toContain('title_fallback');
+  });
+
+  it.each(['Dokument', 'Herunterladen', 'Download:', 'PDF', 'Hier.', 'hier!'])(
+    'flags title_generic for the generic stored title %j',
+    (storedTitle) => {
+      expect(qualityFlagsFor({ ...base, storedTitle })).toContain('title_generic');
+    }
+  );
+
+  it('does not flag title_generic for a real title', () => {
+    expect(qualityFlagsFor(base)).not.toContain('title_generic');
+  });
+
+  it('flags date_missing_html for an HTML document with no publish date', () => {
+    expect(
+      qualityFlagsFor({
+        ...base,
+        url: 'https://gruene-berlin.de/artikel/klimapolitik',
+        publishedAt: null,
+      })
+    ).toContain('date_missing_html');
+  });
+
+  it('does not flag date_missing_html when a date was found', () => {
+    expect(
+      qualityFlagsFor({ ...base, url: 'https://gruene-berlin.de/artikel/klimapolitik' })
+    ).not.toContain('date_missing_html');
+  });
+
+  it('does not flag date_missing_html for a file URL with no publish date (Wolke shares)', () => {
+    expect(qualityFlagsFor({ ...base, publishedAt: null })).not.toContain('date_missing_html');
+  });
+
+  it('flags date_year_only for the year-only guess (-06-15) on a file URL', () => {
+    expect(qualityFlagsFor({ ...base, publishedAt: '2023-06-15' })).toContain('date_year_only');
+  });
+
+  it('does not flag date_year_only for a real date on a file URL', () => {
+    expect(qualityFlagsFor(base)).not.toContain('date_year_only');
+  });
+
+  it('does not flag date_year_only for an HTML document, even with a -06-15 date', () => {
+    expect(
+      qualityFlagsFor({
+        ...base,
+        url: 'https://gruene-berlin.de/artikel/klimapolitik',
+        publishedAt: '2023-06-15',
+      })
+    ).not.toContain('date_year_only');
+  });
+
+  it('flags body_fallback when the extractor fell back to main/body', () => {
+    expect(qualityFlagsFor({ ...base, bodyFallback: true })).toContain('body_fallback');
+  });
+
+  it('does not flag body_fallback when a configured selector matched', () => {
+    expect(qualityFlagsFor(base)).not.toContain('body_fallback');
   });
 });
 

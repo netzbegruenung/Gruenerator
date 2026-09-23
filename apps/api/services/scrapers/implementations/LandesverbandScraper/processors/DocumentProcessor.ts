@@ -25,12 +25,69 @@ import {
   structurePayload,
 } from '../../../../document-services/index.js';
 import { mistralEmbeddingService } from '../../../../mistral/index.js';
+import {
+  WOLKE_PLAINTEXT_EXTENSIONS,
+  WOLKE_SCRAPER_OCR_EXTENSIONS,
+} from '../../../../sync/supportedFileTypes.js';
 import { recordSyncEvent, toExcerpt } from '../../../syncEventRecorder.js';
 import { DateExtractor } from '../extractors/DateExtractor.js';
 
 import type { LandesverbandSource } from '../../../../../config/landesverbaendeConfig.js';
 import type { ProcessResult, ExtractedContent } from '../types.js';
 import type { QdrantClient } from '@qdrant/js-client-rest';
+
+/** Stored title matching one of the LV sites' generic link-label texts, not a real title. */
+const GENERIC_TITLE_PATTERN = /^(dokument|herunterladen|download|pdf|hier)[.:!…]*$/i;
+
+/**
+ * Extensions the LV pipeline downloads and reads as a file (PDF archive, Wolke
+ * share) rather than scraping as an HTML page — reused from the Wolke extractor
+ * lists so "file URL" means the same thing everywhere in this scraper.
+ */
+const FILE_URL_EXTENSIONS: readonly string[] = [
+  ...WOLKE_SCRAPER_OCR_EXTENSIONS,
+  ...WOLKE_PLAINTEXT_EXTENSIONS,
+];
+
+function isFileUrl(url: string): boolean {
+  const withoutQuery = url.split('?')[0].toLowerCase();
+  return FILE_URL_EXTENSIONS.some((ext) => withoutQuery.endsWith(ext));
+}
+
+/** Input `qualityFlagsFor` needs to decide which defect classes apply. */
+export interface QualityFlagDoc {
+  /** `content.title` before the `<source.name> - <label>` fallback. */
+  originalTitle: string;
+  /** The title actually stored (after the fallback, if any). */
+  storedTitle: string;
+  url: string;
+  publishedAt: string | null;
+  bodyFallback: boolean;
+}
+
+/**
+ * Data-quality defect classes for one stored/updated document (#3573–#3580).
+ * Pure and side-effect-free so it can be tested as a truth table; the caller
+ * turns the result into per-run counts (see `resultSamples.mergeQualityFlags`).
+ */
+export function qualityFlagsFor(doc: QualityFlagDoc): string[] {
+  const flags: string[] = [];
+
+  if (!doc.originalTitle) flags.push('title_fallback');
+  if (GENERIC_TITLE_PATTERN.test(doc.storedTitle.trim())) flags.push('title_generic');
+
+  const fileUrl = isFileUrl(doc.url);
+  if (!fileUrl && doc.publishedAt === null) flags.push('date_missing_html');
+  // DateExtractor.extractDateFromPdfInfo's year-only fallback guesses June
+  // 15th when only a year is found. A precision field would say this
+  // outright; until one exists (P4, not on this branch) the date's shape is
+  // the only signal available here.
+  if (fileUrl && doc.publishedAt?.endsWith('-06-15')) flags.push('date_year_only');
+
+  if (doc.bodyFallback) flags.push('body_fallback');
+
+  return flags;
+}
 
 /**
  * Document processing orchestration
@@ -199,11 +256,20 @@ export class DocumentProcessor {
       publishedAt: publishedAt || null,
     });
 
+    const flags = qualityFlagsFor({
+      originalTitle: title,
+      storedTitle: documentTitle,
+      url,
+      publishedAt: publishedAt || null,
+      bodyFallback: content.bodyFallback,
+    });
+
     return {
       stored: true,
       chunks: chunks.length,
       vectors: points.length,
       updated: existing,
+      qualityFlags: Object.fromEntries(flags.map((flag) => [flag, 1])),
     };
   }
 
