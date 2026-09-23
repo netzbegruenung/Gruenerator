@@ -38,6 +38,14 @@ export const userUsageDaily = pgTable(
      */
     energyWms: bigint('energy_wms', { mode: 'number' }).notNull().default(0),
     emissionsUg: bigint('emissions_ug', { mode: 'number' }).notNull().default(0),
+    /**
+     * The share of this row the measured footprint covers. A row mixes calls
+     * that reported an impact with calls that did not (Melious streams never
+     * do); the read path estimates only the remainder.
+     */
+    measuredRequests: integer('measured_requests').notNull().default(0),
+    measuredInputTokens: bigint('measured_input_tokens', { mode: 'number' }).notNull().default(0),
+    measuredOutputTokens: bigint('measured_output_tokens', { mode: 'number' }).notNull().default(0),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [

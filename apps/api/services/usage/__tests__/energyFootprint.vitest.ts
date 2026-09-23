@@ -12,6 +12,7 @@ import {
   isPueEstimated,
   pueFor,
   referenceFootprint,
+  unmeasuredRemainder,
 } from '../energyFootprint.js';
 
 /**
@@ -288,6 +289,57 @@ describe('estimateFootprint', () => {
     // the band stays a statement about the input/output split.
     expect(result?.energyWms).toBeGreaterThan(7000);
     expect(result?.energyWms).toBeLessThan(9500);
+  });
+});
+
+describe('unmeasuredRemainder', () => {
+  const booked = { requests: 10, inputTokens: 5000, outputTokens: 1000 };
+
+  it('leaves a row without any measurement whole', () => {
+    expect(
+      unmeasuredRemainder({
+        ...booked,
+        measuredRequests: 0,
+        measuredInputTokens: 0,
+        measuredOutputTokens: 0,
+      })
+    ).toEqual(booked);
+  });
+
+  it('subtracts the calls the measurement covers (#3544)', () => {
+    expect(
+      unmeasuredRemainder({
+        ...booked,
+        measuredRequests: 6,
+        measuredInputTokens: 3000,
+        measuredOutputTokens: 600,
+      })
+    ).toEqual({ requests: 4, inputTokens: 2000, outputTokens: 400 });
+  });
+
+  it('leaves nothing to estimate on a fully measured row', () => {
+    expect(
+      unmeasuredRemainder({
+        ...booked,
+        measuredRequests: 10,
+        measuredInputTokens: 5000,
+        measuredOutputTokens: 1000,
+      })
+    ).toEqual({ requests: 0, inputTokens: 0, outputTokens: 0 });
+  });
+
+  it('clamps each count at zero where the meter saw more than was booked', () => {
+    // Rerank books no tokens of its own; its measured call still carries usage.
+    expect(
+      unmeasuredRemainder({
+        requests: 0,
+        inputTokens: 0,
+        outputTokens: 0,
+        measuredRequests: 1,
+        measuredInputTokens: 800,
+        measuredOutputTokens: 0,
+      })
+    ).toEqual({ requests: 0, inputTokens: 0, outputTokens: 0 });
   });
 });
 
