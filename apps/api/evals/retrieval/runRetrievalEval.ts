@@ -11,7 +11,47 @@
  *   EVAL_FILTER      only run cases whose id contains this substring
  *   EVAL_DEPTH       depth profile: fast | deep | ultra (default fast;
  *                    notebook defaults to deep, the production notebook default)
- *   EVAL_RERANK=1    additionally score the post-rerank ranking (Regolo), qa only
+ *   EVAL_RERANK=1    additionally score the post-rerank ranking (Regolo). qa,
+ *                    notebook, and chat-notebook — manual has no rerank stage.
+ *   EVAL_RERANK_INSTRUCT  preset key from `rerankInstructs.ts` (`service`
+ *                    default, `chat`, `qa`, `de`, `de-strict`). Needs
+ *                    EVAL_RERANK=1. Applies to the qa arm's rerankPipeline
+ *                    call and, for EVAL_PIPELINE=notebook, to
+ *                    rerankNotebookResults. chat-notebook always sends its
+ *                    own instruct (rerankNode's text minus the temporal hint)
+ *                    and ignores this. `service` sends no `instruct` — the
+ *                    cross-encoder service's own default text applies, i.e.
+ *                    the eval's behaviour before this preset existed.
+ *   EVAL_RERANK_MODE  sort (default, today) | filter | blend. Needs
+ *                    EVAL_RERANK=1. qa arm and EVAL_PIPELINE=notebook only —
+ *                    how the reranked order and the retrieval order combine
+ *                    into the final ranking (`applyRerankMode` in
+ *                    `rerankMode.ts`). `sort` is the reranker's own order.
+ *                    `filter` keeps retrieval order for the first
+ *                    EVAL_RERANK_KEEP_HEAD slots and fills the rest in
+ *                    reranker order; a candidate the reranker drops stays
+ *                    dropped. `blend` is reciprocal-rank fusion of both
+ *                    orders. Measures hypothesis (b): the reranker is a good
+ *                    filter and a bad sorter, so retrieval order should win
+ *                    the head and the reranker should only shape the tail.
+ *   EVAL_RERANK_KEEP_HEAD  integer, default 3. EVAL_RERANK_MODE=filter only —
+ *                    how many head slots keep retrieval order.
+ *   EVAL_RERANK_MMR  on (default, today) | off. Needs EVAL_RERANK=1. qa arm
+ *                    and EVAL_PIPELINE=notebook only. `off` passes
+ *                    `applyDiversity: false` to `rerankPipeline`, skipping
+ *                    the MMR diversity pass (RERANK_MMR_LAMBDA /
+ *                    RERANK_MMR_KEEP_TOP) that runs by default — measures
+ *                    whether MMR, not the cross-encoder score itself, is what
+ *                    moves the gold document down (rerank-matrix-2026-09-03.md).
+ *   EVAL_RERANK_SHAPE  full (default, today) | prod. qa arm only. `full`
+ *                    keeps the eval's own knobs (`inputLimit: results.length,
+ *                    outputLimit: MRR_K, minRelevance: 0` — rerank the WHOLE
+ *                    candidate list). `prod` uses the config-driven knobs
+ *                    `rerankNode` actually reads (RERANK_INPUT_LIMIT /
+ *                    RERANK_OUTPUT_LIMIT / RERANK_MIN_RELEVANCE via
+ *                    vectorConfig), omits `minKeep` (rerankNode never sets it
+ *                    either — pipeline default 0) and leaves MMR at the
+ *                    pipeline's own default, matching what production sends.
  *   EVAL_RERANK_EXCERPT  what the cross-encoder gets to read. Needs EVAL_RERANK=1.
  *                      off (default) — `relevant_content` whole, up to
  *                        CONTENT_MAX_EXCERPT_LENGTH. NOT what `rerankNode`
@@ -154,17 +194,25 @@ const { selectRelevantExcerpt } = await import('../../services/search/relevantEx
 const { vectorConfig } = await import('../../config/vectorConfig.js');
 const { rankManualSearchResults } = await import('../../services/search/manualSearchRanking.js');
 const { notebookQAService } = await import('../../services/notebook/NotebookQAService.js');
+const { rerankNotebookResults } = await import('../../services/notebook/rerankNotebookResults.js');
 const { normalizeNotebookHistory, buildRewriteTranscript } =
   await import('../../routes/chat/services/notebookHistoryService.js');
 const { expandQuery } = await import('../../services/search/QueryExpansionService.js');
 
 const { RETRIEVAL_CASES } = await import('./cases.js');
+const { RERANK_INSTRUCT_PRESETS, isRerankInstructPreset } = await import('./rerankInstructs.js');
+const { rerankDelta } = await import('./rerankDelta.js');
+const { applyRerankMode } = await import('./rerankMode.js');
 const { resolveEvalCandidate, resolveEvalTarget } = await import('./embedCandidates.js');
 const { encodeCandidateQuery, resolveBm25Candidate, resolveBm25Target } =
   await import('./bm25Candidates.js');
 const { createCandidateEmbedder } = await import('./candidateEmbedder.js');
 
+import { type ExpandedChunkResult } from '../../services/search/types.js';
+
 import { type RetrievalCase } from './cases.js';
+import { type RerankInstructPreset } from './rerankInstructs.js';
+import { type RerankMode } from './rerankMode.js';
 
 import type { Bm25Candidate } from './bm25Candidates.js';
 import type { CandidateEmbedder } from './candidateEmbedder.js';
@@ -182,6 +230,19 @@ const MRR_K = 10;
  * window the node does not use. EVAL_RERANK_WINDOW overrides it for sweeps.
  */
 const RERANK_WINDOW = vectorConfig.get('content').maxExcerptLength;
+
+/**
+ * Production's config-driven rerank knobs — the same source `rerankNode`
+ * reads (`vectorConfig.get('rerank')`, itself `env.RERANK_*`). Used by
+ * EVAL_RERANK_SHAPE=prod so that arm measures the real thresholds instead of
+ * the eval's own `results.length` / `MRR_K` / `0`.
+ */
+const rerankCfg = vectorConfig.get('rerank');
+
+type RerankShape = 'full' | 'prod';
+
+/** Default head size for `EVAL_RERANK_MODE=filter` (EVAL_RERANK_KEEP_HEAD). */
+const DEFAULT_KEEP_HEAD = 3;
 
 /**
  * `node` ist der Arm, der den ausgelieferten Zustand nachbildet — und der ist
@@ -326,6 +387,11 @@ async function runCase(
   excerptMode: ExcerptArm,
   loopShaped: boolean,
   withChunkRerank: boolean,
+  rerankShape: RerankShape,
+  instructText: string | null,
+  rerankMode: RerankMode,
+  keepHead: number,
+  mmrEnabled: boolean,
   embedder: CandidateEmbedder | null
 ): Promise<CaseOutcome> {
   const config = getSystemCollectionConfig(evalCase.collection);
@@ -395,19 +461,43 @@ async function runCase(
     };
 
     if (withRerank && results.length > 2) {
+      // `full` (default) reranks the WHOLE candidate list — the eval's own
+      // knobs, unrelated to what production sends. `prod` mirrors
+      // `rerankNode`'s actual config-driven thresholds; see EVAL_RERANK_SHAPE
+      // in the header.
+      const shapeOpts =
+        rerankShape === 'prod'
+          ? {
+              inputLimit: rerankCfg.inputLimit,
+              outputLimit: rerankCfg.outputLimit,
+              minRelevance: rerankCfg.minRelevance,
+            }
+          : { inputLimit: results.length, outputLimit: MRR_K, minRelevance: 0 };
       const rerank = await rerankPipeline({
         query: evalCase.query,
         items: results.map((r) => ({
           title: r.title || '',
           content: excerptFor(r.relevant_content || '', evalCase.query, excerptMode),
         })),
-        inputLimit: results.length,
-        outputLimit: MRR_K,
-        minRelevance: 0,
+        ...shapeOpts,
+        ...(instructText !== null && { instruct: instructText }),
+        ...(!mmrEnabled && { applyDiversity: false }),
       });
       if (!rerank.failed) {
-        const reranked = rerank.rankedIndices.map((i) => results[i]);
-        outcome.rerankRank = firstMatchRank(reranked, evalCase);
+        // `EVAL_RERANK_MODE`: `sort` (default) leaves this byte-identical to
+        // the reranker's own order; `filter`/`blend` combine it with the
+        // retrieval order the candidates arrived in (0..consideredCount-1,
+        // the slice `rerankPipeline` actually sent to the cross-encoder).
+        const consideredCount = Math.min(results.length, shapeOpts.inputLimit);
+        const retrievalOrder = Array.from({ length: consideredCount }, (_, i) => i);
+        const finalOrder = applyRerankMode(
+          rerankMode,
+          retrievalOrder,
+          rerank.rankedIndices,
+          keepHead
+        );
+        const reordered = finalOrder.map((i) => results[i]);
+        outcome.rerankRank = firstMatchRank(reordered, evalCase);
       }
       // #2824 wollte diese Zahl gegen die Turn-Latenz gehalten haben (Loop-Turns
       // lagen am 24.08.2026 bei 7,9 s und 9,4 s). Sie fiel hier schon an und
@@ -508,7 +598,12 @@ async function runManualCase(
  */
 async function runNotebookCase(
   evalCase: RetrievalCase,
-  depth: NotebookDepth
+  depth: NotebookDepth,
+  withRerank: boolean,
+  instructText: string | null,
+  rerankMode: RerankMode,
+  keepHead: number,
+  mmrEnabled: boolean
 ): Promise<CaseOutcome> {
   const base: CaseOutcome = {
     id: evalCase.id,
@@ -570,12 +665,51 @@ async function runNotebookCase(
     });
 
     const results = ctx?.sortedResults ?? [];
-    return {
+    const outcome: CaseOutcome = {
       ...base,
       rank: firstMatchRank(results, evalCase),
       topTitles: results.slice(0, 5).map((r) => r.title || r.source_url || '?'),
       ...(ctx === null && { error: 'search returned no results' }),
     };
+
+    // Wie `notebookStreamCore.ts`: kein Längen-Tor am Aufrufort, `rerankNotebookResults`
+    // entscheidet selbst (Schwelle 3), und die Anfrage ist `queries[0]` —
+    // dieselbe umgeschriebene Frage, die auch `getSearchContext` bekam.
+    if (withRerank && ctx) {
+      const reranked = await rerankNotebookResults({
+        results: ctx.sortedResults,
+        referencesMap: ctx.referencesMap,
+        question: queries[0],
+        limit: profile.rerankOutput,
+        inputLimit: profile.rerankInput,
+        ...(instructText !== null && { instruct: instructText }),
+        ...(!mmrEnabled && { applyDiversity: false }),
+      });
+      // Wie im qa-Arm: ein ausgefallener oder übersprungener Rerank zählt nicht
+      // als rerankter Fall (Eingabe-Reihenfolge wäre sonst ein „Ergebnis").
+      if (reranked.reranked) {
+        // `rerankNotebookResults` returns results, not indices — derive both
+        // orders by chunk identity (`document_id:chunk_index`) against the
+        // same candidate slice it reranked internally (`sortedResults.slice(0,
+        // inputLimit)`), then reorder that slice with EVAL_RERANK_MODE.
+        const identityOf = (r: ExpandedChunkResult) => `${r.document_id}:${r.chunk_index}`;
+        const candidates = ctx.sortedResults.slice(0, profile.rerankInput);
+        const indexByIdentity = new Map(candidates.map((r, i) => [identityOf(r), i]));
+        const retrievalOrder = candidates.map((_, i) => i);
+        const rerankOrder = reranked.results
+          .map((r) => indexByIdentity.get(identityOf(r)))
+          .filter((i): i is number => i !== undefined);
+        const finalOrder = applyRerankMode(rerankMode, retrievalOrder, rerankOrder, keepHead);
+        const reordered = finalOrder.map((i) => candidates[i]);
+        outcome.rerankRank = firstMatchRank(reordered, evalCase);
+      }
+      // Zeit und Batch zählen auch bei Ausfall oder Skip — wie im qa-Arm: ein
+      // Timeout kostet Wanduhr genauso.
+      outcome.rerankTimeMs = reranked.rerankTimeMs;
+      outcome.rerankBatch = Math.min(results.length, profile.rerankInput);
+    }
+
+    return outcome;
   } catch (error) {
     return { ...base, error: (error as Error).message };
   }
@@ -770,6 +904,17 @@ async function main() {
   const loopShaped = loopRerankEnv === '0' || loopRerankEnv === '1';
   const withChunkRerank = loopRerankEnv === '1';
   const excerptMode = (process.env.EVAL_RERANK_EXCERPT ?? 'off') as ExcerptArm;
+  const rerankShape: RerankShape = process.env.EVAL_RERANK_SHAPE === 'prod' ? 'prod' : 'full';
+  const instructEnv = process.env.EVAL_RERANK_INSTRUCT;
+  const instructPreset: RerankInstructPreset =
+    instructEnv && isRerankInstructPreset(instructEnv) ? instructEnv : 'service';
+  const instructText = RERANK_INSTRUCT_PRESETS[instructPreset];
+  const modeEnv = process.env.EVAL_RERANK_MODE;
+  const rerankMode: RerankMode = modeEnv === 'filter' || modeEnv === 'blend' ? modeEnv : 'sort';
+  const keepHead = process.env.EVAL_RERANK_KEEP_HEAD
+    ? Number(process.env.EVAL_RERANK_KEEP_HEAD)
+    : DEFAULT_KEEP_HEAD;
+  const mmrEnabled = process.env.EVAL_RERANK_MMR !== 'off';
   const verbose = process.env.EVAL_VERBOSE === '1';
   const collectionFilter = process.env.EVAL_COLLECTION;
   const idFilter = process.env.EVAL_FILTER;
@@ -831,14 +976,22 @@ async function main() {
     pipeline === 'manual'
       ? 'manual search'
       : pipeline === 'notebook'
-        ? `notebook getSearchContext depth=${depth}`
+        ? `notebook getSearchContext depth=${depth}${
+            withRerank
+              ? `, +rerank(${instructPreset}, mode=${rerankMode}, keepHead=${keepHead}, mmr=${mmrEnabled ? 'on' : 'off'})`
+              : ''
+          }`
         : pipeline === 'chat-notebook'
           ? `searchNode notebook scope, ${withChatExpand ? 2 : 1} Formulierung(en)${
               withRerank ? ', +rerank' : ''
             }`
-          : `depth=${depth}${withRerank ? `, +rerank(${excerptMode})` : ''}${
-              loopShaped ? `, loopLimit=${loopLimit}` : ''
-            }${withChunkRerank ? ', +chunkRerank' : ''}`;
+          : `depth=${depth}${
+              withRerank
+                ? `, +rerank(${excerptMode}, shape=${rerankShape}, ${instructPreset}, mode=${rerankMode}, keepHead=${keepHead}, mmr=${mmrEnabled ? 'on' : 'off'})`
+                : ''
+            }${loopShaped ? `, loopLimit=${loopLimit}` : ''}${
+              withChunkRerank ? ', +chunkRerank' : ''
+            }`;
   console.log(
     `Running ${cases.length} retrieval cases (${modeLabel}) against ${process.env.QDRANT_URL || 'QDRANT_URL unset!'}`
   );
@@ -856,7 +1009,15 @@ async function main() {
       pipeline === 'manual'
         ? await runManualCase(searchService, evalCase, embedder)
         : pipeline === 'notebook'
-          ? await runNotebookCase(evalCase, depth)
+          ? await runNotebookCase(
+              evalCase,
+              depth,
+              withRerank,
+              instructText,
+              rerankMode,
+              keepHead,
+              mmrEnabled
+            )
           : pipeline === 'chat-notebook'
             ? await runChatNotebookCase(evalCase, withChatExpand, withRerank)
             : await runCase(
@@ -867,6 +1028,11 @@ async function main() {
                 excerptMode,
                 loopShaped,
                 withChunkRerank,
+                rerankShape,
+                instructText,
+                rerankMode,
+                keepHead,
+                mmrEnabled,
                 embedder
               );
     outcomes.push(outcome);
@@ -929,20 +1095,38 @@ async function main() {
     // Nur die Fälle, für die ein Rerank WIRKLICH lief: `rerankRank` bleibt
     // `undefined`, wenn das Tor bei ≤2 Kandidaten zugeblieben ist oder der
     // Cross-Encoder scheiterte, und ist `null`, wenn er das Gold aus der Liste
-    // geschoben hat. Der frühere `?? o.rank` hat beides eingeebnet und einem
-    // Rerank-Miss seinen Rang VOR dem Rerank gutgeschrieben — auf dem
-    // Stichwort-Set war das Hit@1 65,0 % statt 41,2 % (keyword-cases-2026-09-03.md).
+    // geschoben hat — das zählt als Fehltreffer. Der frühere `?? o.rank` hat
+    // beides eingeebnet (#3197, keyword-cases-2026-09-03.md).
     const reranked = outcomes.filter((o) => o.rerankRank !== undefined);
     const skipped = outcomes.length - reranked.length;
-    console.log('\n── Ergebnisse (nach Rerank) ──');
+    const rerankedBy = new Map<string, CaseOutcome[]>();
+    for (const o of reranked) {
+      rerankedBy.set(o.collection, [...(rerankedBy.get(o.collection) ?? []), o]);
+    }
+    console.log('\n── Ergebnisse (nach Rerank; nur rerankte Fälle, fallen gelassen = miss) ──');
+    for (const [collection, list] of rerankedBy) {
+      console.log(
+        `${collection.padEnd(28)} n=${String(list.length).padStart(2)}  ${computeMetrics(list, (o) => o.rerankRank ?? null).line}`
+      );
+    }
     console.log(
       `${'GESAMT'.padEnd(28)} n=${String(reranked.length).padStart(2)}  ${computeMetrics(reranked, (o) => o.rerankRank ?? null).line}`
+    );
+    console.log(
+      `${'vor Rerank (dieselben)'.padEnd(28)} n=${String(reranked.length).padStart(2)}  ${computeMetrics(reranked, (o) => o.rank).line}`
     );
     if (skipped > 0) {
       console.log(
         `${''.padEnd(28)} ${skipped} Fälle ohne Rerank (≤2 Kandidaten oder Fehlschlag) — nicht eingerechnet`
       );
     }
+
+    const delta = rerankDelta(outcomes);
+    console.log(
+      `\ndelta: improved ${delta.improved.length} (${delta.improved.join(', ') || 'none'})` +
+        `  worsened ${delta.worsened.length} (${delta.worsened.join(', ') || 'none'})` +
+        `  unchanged ${delta.unchanged.length}`
+    );
 
     const timings = outcomes
       .map((o) => o.rerankTimeMs)
@@ -986,6 +1170,18 @@ async function main() {
           pipeline,
           depth,
           withRerank,
+          ...(withRerank &&
+            (pipeline === 'qa' || pipeline === 'notebook') && {
+              instruct: instructPreset,
+              mode: rerankMode,
+              mmr: mmrEnabled ? 'on' : 'off',
+            }),
+          ...(pipeline === 'qa' &&
+            withRerank && {
+              shape: rerankShape,
+              excerpt: excerptMode,
+              window: evalWindow,
+            }),
           ...(embedCandidate && {
             embedCandidate: {
               slug: embedCandidate.slug,
