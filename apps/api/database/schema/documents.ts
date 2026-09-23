@@ -1,5 +1,14 @@
 import { type InferSelectModel } from 'drizzle-orm';
-import { bigint, integer, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import {
+  bigint,
+  boolean,
+  integer,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from 'drizzle-orm/pg-core';
 
 export const documents = pgTable('documents', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -32,6 +41,9 @@ export const documents = pgTable('documents', {
   // 'processing' forever.
   processing_started_at: timestamp('processing_started_at', { withTimezone: true }),
   processing_attempts: integer('processing_attempts').notNull().default(0),
+  // Kopfdaten-Worker: FALSE für Zeilen von vor der Migration (nur per Backfill),
+  // TRUE für jede spätere — services/documentMeta/documentMetaWorker.ts.
+  doc_meta_auto: boolean('doc_meta_auto').notNull().default(true),
 });
 
 export type Document = InferSelectModel<typeof documents>;
