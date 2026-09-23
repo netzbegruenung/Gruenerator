@@ -166,8 +166,10 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           disableOffPathFilter: true,
         },
         {
-          // Wahlprogramm PDF given directly. staticUrls + isPdfArchive OCRs the
-          // PDF (the year 2026 is parsed from the filename for the date).
+          // Wahlprogramm PDF given directly. staticUrls on an isPdfArchive path
+          // skips fetching a listing page entirely and OCRs these PDFs directly
+          // (the year 2026 is parsed from the filename for the date); path and
+          // listSelector below are unused in this case (#3579).
           type: 'wahlprogramm',
           path: '/',
           listSelector: 'a[href$=".pdf"]',
