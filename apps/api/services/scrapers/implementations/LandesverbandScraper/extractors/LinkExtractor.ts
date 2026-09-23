@@ -269,9 +269,15 @@ export class LinkExtractor {
    */
   async extractPdfLinks(source: LandesverbandSource, contentPath: ContentPath): Promise<PdfLink[]> {
     if (contentPath.staticUrls?.length) {
+      const seenStaticUrls = new Set<string>();
       return contentPath.staticUrls
         .map((url) => this.normalizeUrl(url, source.baseUrl))
         .filter((url): url is string => url !== null)
+        .filter((url) => {
+          if (seenStaticUrls.has(url)) return false;
+          seenStaticUrls.add(url);
+          return true;
+        })
         .map((url) => ({ url, title: titleFromPdfUrl(url), context: '' }));
     }
 

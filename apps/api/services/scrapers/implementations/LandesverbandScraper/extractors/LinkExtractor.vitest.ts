@@ -104,6 +104,42 @@ describe('LinkExtractor.extractPdfLinks — staticUrls', () => {
     ]);
     expect(fetchUrl).not.toHaveBeenCalled();
   });
+
+  it('dedupes staticUrls that normalize to the same URL, keeping the first', async () => {
+    const fetchUrl = vi.fn();
+    const extractor = new LinkExtractor(
+      fetchUrl,
+      normalizeUrl,
+      () => false,
+      () => Promise.resolve()
+    );
+
+    const source = makeSource();
+    const contentPath: ContentPath = {
+      type: 'wahlprogramm',
+      path: '/',
+      listSelector: 'a[href$=".pdf"]',
+      isPdfArchive: true,
+      staticUrls: [
+        'https://www.gruene-lsa.de/wp-content/uploads/2026/05/Programm-zur-Landtagswahl-2026.pdf',
+        // Same document, written relative — a plausible copy/paste slip in a
+        // hand-maintained config list. Must normalize to the same URL and be
+        // dropped, not OCR'd/stored twice.
+        '/wp-content/uploads/2026/05/Programm-zur-Landtagswahl-2026.pdf',
+      ],
+    };
+
+    const links = await extractor.extractPdfLinks(source, contentPath);
+
+    expect(links).toEqual([
+      {
+        url: 'https://www.gruene-lsa.de/wp-content/uploads/2026/05/Programm-zur-Landtagswahl-2026.pdf',
+        title: 'Programm zur Landtagswahl 2026',
+        context: '',
+      },
+    ]);
+    expect(fetchUrl).not.toHaveBeenCalled();
+  });
 });
 
 describe('titleFromPdfUrl', () => {
