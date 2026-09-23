@@ -21,6 +21,8 @@ export const FUZZY_THRESHOLD = 0.9;
 const CONTEXT_RADIUS = 200;
 const CLAIM_PASSAGES = 8;
 const CLAIM_CANDIDATES = 5;
+/** Ein kurzes Zitat kann in vielen Quellen stehen — mehr Kandidaten nennt niemand beim Namen. */
+const QUOTE_CANDIDATES = 10;
 const CLAIM_MIN_OVERLAP = 2;
 const CONTENT_TOKEN_MIN = 4;
 
@@ -233,8 +235,10 @@ export interface QuoteNotLocated {
   exhaustive: boolean;
   incompleteReason: string | null;
   sourcesScanned: number;
-  /** Mehrere Quellen tragen das Zitat — welche gemeint ist, bleibt offen. */
+  /** Mehrere Quellen tragen das Zitat — welche gemeint ist, bleibt offen (höchstens `QUOTE_CANDIDATES`). */
   candidates: CiteCandidate[];
+  /** Wie viele Quellen das Zitat wirklich tragen — kann über `candidates.length` liegen. */
+  candidatesTotal: number;
 }
 
 type Located = Extract<LocateResult, { found: true }> & { source: ScannedSource };
@@ -308,7 +312,8 @@ export function locateQuoteInSources(
     exhaustive: loaded.exhaustive,
     incompleteReason: loaded.incompleteReason,
     sourcesScanned: loaded.sources.length,
-    candidates: hits.map(toCandidate),
+    candidates: hits.slice(0, QUOTE_CANDIDATES).map(toCandidate),
+    candidatesTotal: hits.length,
   };
 }
 
