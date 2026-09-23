@@ -8,9 +8,12 @@
  * Suchpfad bleiben. Ein Nomen allein („Zahlen", „Reihe", „Belege", „Liste")
  * reicht nie — es braucht ein Verb oder einen ausdrücklichen Ort.
  */
+import { fileURLToPath } from 'node:url';
+
 import { describe, expect, it } from 'vitest';
 
-import { looksLikeNotebookToolAsk } from './notebookToolAsk.js';
+import { loadCorpus } from '../../../evals/corpus.js';
+import { looksLikeNotebookToolAsk, looksLikeNotebookWriteAsk } from './notebookToolAsk.js';
 
 describe('looksLikeNotebookToolAsk — trifft (Verb)', () => {
   it.each([
@@ -54,6 +57,11 @@ describe('looksLikeNotebookToolAsk — trifft (Ort oder Menge)', () => {
     'Wörtlich bitte: was steht zum Ehrenamt?',
     'Gib mir die Anträge sortiert nach Datum',
     'Welche Quelle ist die längste?',
+    // Live-Test Berlin-Notebook 23.09.2026: Filter nach Titel, Stellen mit
+    // Zahl und Relevanz-Rangfolge sind Werkzeugaufträge, keine Inhaltsfragen.
+    'Welche Quellen im Berlin-Notebook haben „Wahlprogramm" im Titel?',
+    'Finde im Berlin-Notebook die fünf Stellen, an denen es am konkretesten um die Verkehrswende geht.',
+    'Welche 10 Quellen aus 2025 im Berlin-Notebook sind am relevantesten für Klimaneutralität?',
   ])('%s', (text) => {
     expect(looksLikeNotebookToolAsk(text)).toBe(true);
   });
@@ -98,6 +106,16 @@ describe('looksLikeNotebookToolAsk — trifft NICHT', () => {
     'Wie oft steht die Partei vor der Frage, ob sie koaliert?',
     'Gibt es Unterschiede in der Förderung, je nach Datum des Antrags?',
     'Welche Fristen gelten nach Name des Verfahrens?',
+    // „finde" als Meinung, auch mit Wörtern dazwischen.
+    'Die Formulierung finde ich an vielen Stellen zu weich.',
+    'Ich finde, an mehreren Stellen fehlt der Bezug.',
+    // „am relevantesten" ohne Quellen-Bezug ist eine Inhaltsfrage.
+    'Welche Maßnahme ist am relevantesten für den Klimaschutz?',
+    'Welche Quellen belegen, welche Maßnahmen am relevantesten sind?',
+    // „im Titel" ohne Quellen als Gegenstand (Review-Befund PR #3568).
+    'Was bedeutet das Wort im Titel des Wahlprogramms?',
+    'Warum steht im Titel des Antrags Klimagerechtigkeit?',
+    'Was meint die Partei mit dem Begriff im Titel?',
     '',
   ])('%s', (text) => {
     expect(looksLikeNotebookToolAsk(text)).toBe(false);
@@ -106,5 +124,62 @@ describe('looksLikeNotebookToolAsk — trifft NICHT', () => {
   it('nimmt null und undefined', () => {
     expect(looksLikeNotebookToolAsk(null)).toBe(false);
     expect(looksLikeNotebookToolAsk(undefined)).toBe(false);
+  });
+});
+
+// Der Eval-Korpus als Wächter: jede Frage, deren Erwartung `notebook_quellen`
+// verlangt, muss treffen; jede, die es verbietet oder den Suchpfad verlangt,
+// darf nicht. So bleibt die Messlatte „0 Fehlalarme auf echten
+// Notebook-Fragen" ein Test statt einer Einmal-Prüfung.
+describe('looksLikeNotebookToolAsk — gegen den Eval-Korpus', () => {
+  const all = {
+    filter: '',
+    slow: true,
+    mcp: true,
+    notebook: true,
+    systemMcp: true,
+    deepResearch: true,
+    bgstKorpus: true,
+    userNotebook: true,
+  };
+  const turns = loadCorpus(fileURLToPath(new URL('../../../evals', import.meta.url)), all).flatMap(
+    (s) => s.turns
+  );
+  const wants = (t: (typeof turns)[number]) =>
+    t.expect.toolsMustInclude?.includes('notebook_quellen') ?? false;
+  const forbids = (t: (typeof turns)[number]) =>
+    t.expect.toolsMustNotInclude?.includes('notebook_quellen') ?? false;
+
+  it('trifft jede Frage, die notebook_quellen verlangt', () => {
+    expect(turns.filter(wants).length).toBeGreaterThanOrEqual(19);
+    const missed = turns.filter(wants).filter((t) => !looksLikeNotebookToolAsk(t.prompt));
+    expect(missed.map((t) => t.prompt)).toEqual([]);
+  });
+
+  it('trifft keine Frage, die notebook_quellen verbietet', () => {
+    expect(turns.filter(forbids).length).toBeGreaterThanOrEqual(9);
+    const hit = turns.filter(forbids).filter((t) => looksLikeNotebookToolAsk(t.prompt));
+    expect(hit.map((t) => t.prompt)).toEqual([]);
+  });
+});
+
+describe('looksLikeNotebookWriteAsk — Schreibaufträge (System-Notebooks sind schreibgeschützt)', () => {
+  it.each([
+    'Entferne die alte Pressemitteilung aus dem Notebook',
+    'Verschiebe die Quelle in ein anderes Notebook',
+    'Kannst du die Quelle umbenennen?',
+    'Kopiere die Quelle in mein Notebook',
+    'Tagge die Quelle mit Verkehr',
+  ])('%s', (text) => {
+    expect(looksLikeNotebookWriteAsk(text)).toBe(true);
+  });
+
+  it.each([
+    'Sortiere die Quellen nach Datum',
+    'Liste die 20 neuesten Quellen im Berlin-Notebook aus 2026.',
+    'Wie weit sind wir vom 1,5-Grad-Ziel entfernt?',
+    'Was sagt das Notebook zum Entfernen von Schottergärten?',
+  ])('kein Schreibauftrag: %s', (text) => {
+    expect(looksLikeNotebookWriteAsk(text)).toBe(false);
   });
 });
