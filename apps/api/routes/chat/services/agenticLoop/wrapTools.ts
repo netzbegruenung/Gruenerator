@@ -501,7 +501,9 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
           because: block.kind,
           inputs: { toolName },
         });
-        return { error: block.modelMessage };
+        // `guard` markiert die Absage als Weisung: die Wiederholungs-Nudge in
+        // `loopEngine` darf ihr nicht mit „versuch es erneut" widersprechen.
+        return { error: block.modelMessage, guard: block.guard };
       }
 
       // Freigabe-Gate an derselben Stelle und mit derselben Begründung wie ein

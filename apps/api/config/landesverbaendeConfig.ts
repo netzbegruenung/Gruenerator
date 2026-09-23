@@ -563,7 +563,11 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
         },
       ],
       contentSelectors: {
-        title: ['h1', 'meta[property="og:title"]'],
+        // Die Einzelseiten haben kein <h1>; der Titel steht als <h2> im Kopf der
+        // Einzelansicht. og:title taugt nicht als Titel: EXT:seo_dynamic_tag hängt
+        // dort den Anrisstext an („Titel: Heute haben die…", #3560). Die Kacheln
+        // der Seitenleiste tragen ebenfalls <h2>, darum der Pfad über .xBlog.single.
+        title: ['.xBlog.single .xBlogItem header h2', 'h1', 'meta[property="og:title"]'],
         date: ['time[datetime]', '.tx_xblog_pi1 .date', 'meta[property="article:published_time"]'],
         // gruene.berlin (TYPO3 xBlog) renders the page body in .ce-bodytext inside
         // the single-view .xBlog.single — NOT .tx_xblog_pi1 (empty in the rendered
@@ -633,7 +637,8 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
         },
       ],
       contentSelectors: {
-        title: ['h1', 'meta[property="og:title"]'],
+        // Titel: siehe berlin-lv-presse (#3560).
+        title: ['.xBlog.single .xBlogItem header h2', 'h1', 'meta[property="og:title"]'],
         date: ['time[datetime]', '.tx_xblog_pi1 .date', 'meta[property="article:published_time"]'],
         // gruene.berlin (TYPO3 xBlog) renders the page body in .ce-bodytext inside
         // the single-view .xBlog.single — NOT .tx_xblog_pi1 (empty in the rendered

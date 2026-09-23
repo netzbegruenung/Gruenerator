@@ -157,6 +157,16 @@ describe('buildToolFailureNote', () => {
     expect(note).toMatch(/Erfinde keine IDs/);
   });
 
+  // Live 23.09.2026: nach „Kein Notebook ausgewählt" schrieb die Antwort, es
+  // gebe keine Funktion, das Notebook zu durchsuchen.
+  it('forbids claiming the capability does not exist', () => {
+    const note = buildToolFailureNote([
+      step({ toolName: 'notebook_quellen', result: { error: 'Kein Notebook ausgewählt' } }),
+    ]);
+    expect(note).toMatch(/Behaupte NIE, dir fehle eine Funktion/);
+    expect(note).toMatch(/fehlgeschlagen ist und warum/);
+  });
+
   it('stays silent on a clean turn', () => {
     expect(buildToolFailureNote([])).toBe('');
     expect(buildToolFailureNote([step({ toolName: 'web_search', result: { results: [] } })])).toBe(
