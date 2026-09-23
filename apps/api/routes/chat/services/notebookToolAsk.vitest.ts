@@ -52,6 +52,8 @@ describe('looksLikeNotebookToolAsk — trifft (Ort oder Menge)', () => {
     'Welche Position vertreten wir zu Seite 3 des Koalitionsvertrags?',
     'Wie oft kommt das Wort Klimaneutralität vor?',
     'Wie oft wird Wasserstoff erwähnt?',
+    // Testserver 23.09.2026: „vor" vor einem Komma, nicht am Satzende.
+    'Wie oft kommt das Wort „Klimaschutz“ im Berlin-Notebook vor, und in welchen Quellen am häufigsten?',
     'Wie viele Seiten hat der Antrag?',
     'Wie viele Quellen liegen im Notebook?',
     'Wörtlich bitte: was steht zum Ehrenamt?',
