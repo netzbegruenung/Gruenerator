@@ -252,14 +252,6 @@ describe('notebook resolution', () => {
     expect(helper.getNotebookCollection).toHaveBeenCalledWith('n1');
   });
 
-  it('refuses system collections with the gruenerator_search hint', async () => {
-    const { run } = makeCtx();
-    const out = await run({ action: 'list', notebookId: 'grundsatz-system' });
-    expect(out.error).toBe(
-      'System-Notebooks werden von notebook_quellen noch nicht unterstützt — nutze gruenerator_search mit collection="deutschland".'
-    );
-  });
-
   it('says so when no notebook is selected', async () => {
     const { run } = makeCtx({ notebookIds: [] });
     expect((await run({ action: 'list' })).error).toMatch(/notebookId/);

@@ -12,8 +12,11 @@
  * Zugriff: das Notebook über `checkNotebookAccess`, jede einzelne Quelle über
  * `resolveSourceInNotebook` (Lesezugriff UND Mitgliedschaft) — gelesen wird
  * danach mit der user_id der Eigentümer*in, damit geteilte Notebooks gehen.
- * System-Notebooks sind (noch) außen vor: ihre Inhalte liegen in eigenen
- * Qdrant-Sammlungen ohne `documents`-Zeilen.
+ * System-Notebooks (Grundsatzprogramm, Landesverbände, …) laufen über eine
+ * zweite, nur lesende Naht (`notebookSourceSystemActions.ts` auf
+ * `systemNotebookSources.ts`): die Entscheidung fällt einmal, oben in
+ * `execute`. Dort gilt statt `resolveSourceInNotebook` „Schlüssel ∈
+ * `collectionsForLocale`" und „die URL hat Punkte unter dem Standardfilter".
  *
  * Aktionen stehen in `READ_ACTIONS`; schreibende Aktionen kommen als eigene
  * Liste dazu.
@@ -21,16 +24,12 @@
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
-import {
-  getCanonicalByKey,
-  getSystemCollectionConfig,
-} from '../../../config/systemCollectionsConfig.js';
 import { NotebookQdrantHelper } from '../../../database/services/NotebookQdrantHelper.js';
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
+import { getQdrantInstance } from '../../../database/services/QdrantService/index.js';
 import { getQdrantDocumentService } from '../../../services/document-services/DocumentSearchService/index.js';
 import { checkHealth, textStatsBatched } from '../../../services/nlp/nlpClient.js';
 import {
-  charRangeOfChunks,
   chunksOrThrow,
   findPassages,
   listNotebookSources,
@@ -41,15 +40,21 @@ import {
   sliceSource,
   OUTLINE_CHARS,
   SLICE_REGISTER_CHARS,
-  type ChunkLocator,
   type NotebookSourceRow,
   type NotebookSourcesDeps,
   type ResolvedSource,
 } from '../../../services/notebook/notebookSources.js';
 import { rerankNotebookResults } from '../../../services/notebook/rerankNotebookResults.js';
+import {
+  resolveSystemCollection,
+  SYSTEM_READ_ONLY,
+  type SystemCollection,
+  type SystemNotebookSourcesDeps,
+} from '../../../services/notebook/systemNotebookSources.js';
 import { createLogger } from '../../../utils/logger.js';
 import { checkNotebookAccess } from '../../notebook/notebookAccess.js';
 
+import { pickRange } from './notebookSourceRange.js';
 import {
   isScanReadAction,
   RANK_BY,
@@ -57,6 +62,7 @@ import {
   SCAN_FAILURE_BY_ACTION,
   SCAN_READ_ACTIONS,
 } from './notebookSourceReadActions.js';
+import { runSystemAction } from './notebookSourceSystemActions.js';
 import { notebookUrl } from './notebookTools.js';
 import {
   groundNote,
@@ -66,17 +72,23 @@ import {
   requireUserId,
   type PersonalToolCtx,
 } from './personalDataTools.js';
+import { collectionsForLocale } from './searchTools.js';
 
 import type { SearchResult } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { NotebookCollection } from '../../../database/services/NotebookQdrantHelper.js';
-import type { DocumentChunkItem } from '../../../services/document-services/DocumentSearchService/types.js';
+import type { QdrantFilter } from '../../../database/services/QdrantService/types.js';
 import type { StatsNlp } from '../../../services/notebook/sourceStats.js';
 
 const log = createLogger('notebookSourceTools');
 
 export const READ_ACTIONS = ['list', 'outline', 'read', 'find', ...SCAN_READ_ACTIONS] as const;
 
-export type NotebookSourceToolDeps = NotebookSourcesDeps & { nlp: StatsNlp };
+export type NotebookSourceToolDeps = Omit<NotebookSourcesDeps, 'documentService'> & {
+  nlp: StatsNlp;
+  scrollPage: SystemNotebookSourcesDeps['scrollPage'];
+  documentService: NotebookSourcesDeps['documentService'] &
+    SystemNotebookSourcesDeps['documentService'];
+};
 
 /** `PersonalToolCtx` plus optionale Fakes — der Katalog reicht den Ctx ohne `deps`. */
 export type NotebookSourceToolCtx = PersonalToolCtx & {
@@ -108,16 +120,40 @@ function resolveDeps(partial: Partial<NotebookSourceToolDeps> | undefined): Note
     documentService: partial?.documentService ?? getQdrantDocumentService(),
     rerank: partial?.rerank ?? rerankNotebookResults,
     nlp: partial?.nlp ?? { checkHealth, textStatsBatched },
+    scrollPage: partial?.scrollPage ?? qdrantScrollPage,
   };
 }
 
-function systemCollectionError(id: string): { error: string } | null {
-  const config = getSystemCollectionConfig(id) ?? getCanonicalByKey(id);
-  if (!config) return null;
+/** Eine Scroll-Seite samt Folge-Offset — `scrollDocuments` liefert den Offset nicht. */
+async function qdrantScrollPage(
+  qdrantCollection: string,
+  filter: QdrantFilter,
+  opts: { limit: number; offset: string | number | null; payload: readonly string[] }
+): Promise<{
+  points: Array<{ payload: Record<string, unknown> }>;
+  nextOffset: string | number | null;
+}> {
+  const qdrant = getQdrantInstance();
+  await qdrant.init();
+  if (!qdrant.client) throw new Error('Qdrant not available');
+  const result = await qdrant.client.scroll(qdrantCollection, {
+    filter: filter as Record<string, unknown>,
+    limit: opts.limit,
+    with_payload: [...opts.payload],
+    with_vector: false,
+    ...(opts.offset !== null ? { offset: opts.offset } : {}),
+  });
+  const next = result.next_page_offset;
   return {
-    error: `System-Notebooks werden von notebook_quellen noch nicht unterstützt — nutze gruenerator_search mit collection="${config.key}".`,
+    points: (result.points ?? []).map((p) => ({
+      payload: (p.payload as Record<string, unknown> | null) ?? {},
+    })),
+    nextOffset: typeof next === 'string' || typeof next === 'number' ? next : null,
   };
 }
+
+const isReadAction = (action: string): boolean =>
+  (READ_ACTIONS as readonly string[]).includes(action);
 
 function rowDetail(r: NotebookSourceRow): string {
   return [
@@ -135,80 +171,49 @@ const filterSchema = z.object({
   status: z.string().optional(),
   titleContains: z.string().optional(),
   tag: z.string().optional(),
+  category: z.string().optional().describe('System-Notebooks: Kategorie'),
+  dateFrom: z.string().optional().describe('System-Notebooks: ab Datum (JJJJ-MM-TT)'),
+  dateTo: z.string().optional().describe('System-Notebooks: bis Datum (JJJJ-MM-TT)'),
 });
-
-type CharRange = { von: number; zeichen?: number | undefined };
-
-/** Die eine Navigationsangabe von `read` als Zeichenbereich im Text. */
-function pickRange(
-  args: {
-    abschnitt?: CharRange | undefined;
-    seite?: number | undefined;
-    section?: number | undefined;
-    chunks?: { from: number; to: number } | undefined;
-  },
-  chunkMap: readonly ChunkLocator[],
-  chunks: readonly DocumentChunkItem[]
-): CharRange | { error: string } {
-  if (args.seite !== undefined) {
-    const pages = chunkMap.flatMap((c) => (c.pageNumber === null ? [] : [c.pageNumber]));
-    if (pages.length === 0) {
-      return {
-        error:
-          'Diese Quelle hat keine Seitenzahlen — lies mit abschnitt{von} (Zeichen) oder chunks{from,to}.',
-      };
-    }
-    return (
-      charRangeOfChunks(chunkMap, (c) => c.pageNumber === args.seite) ?? {
-        error: `Seite ${args.seite} gibt es nicht (Seiten ${Math.min(...pages)}–${Math.max(...pages)}).`,
-      }
-    );
-  }
-  if (args.section !== undefined) {
-    const entry = outlineSource(chunks).find((e) => e.sectionIndex === args.section);
-    const range = entry
-      ? charRangeOfChunks(chunkMap, (c) => c.index >= entry.chunkFrom && c.index <= entry.chunkTo)
-      : null;
-    return (
-      range ?? { error: `section ${args.section} gibt es nicht — die Nummern stehen in outline.` }
-    );
-  }
-  if (args.chunks !== undefined) {
-    const { from, to } = args.chunks;
-    return (
-      charRangeOfChunks(chunkMap, (c) => c.index >= from && c.index <= to) ?? {
-        error: `Keine Chunks im Bereich ${from}–${to}.`,
-      }
-    );
-  }
-  return args.abschnitt ?? { von: 0 };
-}
 
 export function makeNotebookSourcesTool(ctx: NotebookSourceToolCtx): Tool {
   const { state, sourceRegistry } = ctx;
   const deps = resolveDeps(ctx.deps);
 
-  /** Ausdrückliche id, sonst das erste im Chat gewählte eigene Notebook. */
-  async function resolveNotebook(
-    explicit: string | undefined
-  ): Promise<{ collection: NotebookCollection } | { error: string }> {
+  /** Die System-Sammlungen dieses Turns — dieselbe Menge wie bei `gruenerator_search`. */
+  const allowedSystemKeys = collectionsForLocale(state.userLocale ?? null);
+
+  type Target =
+    | { kind: 'user'; collection: NotebookCollection }
+    | { kind: 'system'; collection: SystemCollection }
+    | { error: string };
+
+  /**
+   * Ausdrückliche id, sonst das erste im Chat gewählte eigene Notebook, sonst
+   * das erste gewählte System-Notebook. Eine id, die eine System-Sammlung
+   * nennt (Schlüssel, System-Id oder Notebook-Slug), wird nie als eigenes
+   * Notebook nachgeschlagen.
+   */
+  async function resolveNotebook(explicit: string | undefined): Promise<Target> {
     if (explicit) {
-      const system = systemCollectionError(explicit);
-      if (system) return system;
+      const system = resolveSystemCollection(explicit, allowedSystemKeys);
+      if (system) return 'error' in system ? system : { kind: 'system', ...system };
       const collection = await deps.helper.getNotebookCollection(explicit);
-      return collection ? { collection } : { error: NOT_FOUND };
+      return collection ? { kind: 'user', collection } : { error: NOT_FOUND };
     }
-    let firstSystem: { error: string } | null = null;
+    let firstSystem: Target | null = null;
+    let firstSystemError: { error: string } | null = null;
     for (const id of state.notebookIds ?? []) {
-      const system = systemCollectionError(id);
+      const system = resolveSystemCollection(id, allowedSystemKeys);
       if (system) {
-        firstSystem ??= system;
+        if ('error' in system) firstSystemError ??= system;
+        else firstSystem ??= { kind: 'system', ...system };
         continue;
       }
       const collection = await deps.helper.getNotebookCollection(id);
-      if (collection) return { collection };
+      if (collection) return { kind: 'user', collection };
     }
-    return firstSystem ?? { error: NO_NOTEBOOK };
+    return firstSystem ?? firstSystemError ?? { error: NO_NOTEBOOK };
   }
 
   return tool({
@@ -223,10 +228,16 @@ exhaustive=false: nicht alles gelesen — Zahlen nie als Gesamtzahl nennen.
 
 NICHT für: Notebooks auflisten/anlegen/teilen (dafür 'notebooks'), die grüne Inhaltsdatenbank (dafür 'gruenerator_search').
 
-Die sourceId stammt aus list (Feld ref) — rate sie nie. Ohne notebookId gilt das im Chat ausgewählte Notebook.`,
+Die sourceId stammt aus list (Feld ref) — rate sie nie. Ohne notebookId gilt das im Chat ausgewählte Notebook.
+System-Notebooks: notebookId ist der Sammlungsschlüssel aus notebooks action="list" scope="system" (z. B. deutschland, hamburg); die sourceId ist dort die URL der Quelle. Nur lesen.`,
     inputSchema: z.object({
       action: z.enum(READ_ACTIONS),
-      notebookId: z.string().optional().describe('Notebook-ID; ohne Angabe das ausgewählte'),
+      notebookId: z
+        .string()
+        .optional()
+        .describe(
+          'Notebook-ID oder Sammlungsschlüssel eines System-Notebooks; ohne Angabe das ausgewählte'
+        ),
       sourceId: z
         .string()
         .optional()
@@ -279,6 +290,16 @@ Die sourceId stammt aus list (Feld ref) — rate sie nie. Ohne notebookId gilt d
       try {
         const target = await resolveNotebook(args.notebookId);
         if ('error' in target) return target;
+        if (target.kind === 'system') {
+          // Vor jeder Aktion: sobald schreibende Aktionen im Enum stehen,
+          // erreichen sie ein System-Notebook nie.
+          if (!isReadAction(args.action)) return { error: SYSTEM_READ_ONLY };
+          return await runSystemAction(args, {
+            collection: target.collection,
+            deps,
+            sourceRegistry,
+          });
+        }
         const { collection } = target;
 
         if (args.action === 'list') {

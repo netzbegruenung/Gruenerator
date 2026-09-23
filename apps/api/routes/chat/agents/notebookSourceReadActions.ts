@@ -42,7 +42,7 @@ export const SCAN_READ_ACTIONS = ['grep', 'stats', 'rank', 'cite'] as const;
 export type ScanReadAction = (typeof SCAN_READ_ACTIONS)[number];
 
 export const RANK_BY = ['relevance', 'term', 'date', 'length', 'pages'] as const;
-type RankBy = (typeof RANK_BY)[number];
+export type RankBy = (typeof RANK_BY)[number];
 
 /** Fester Text je Aktion, wenn ein Dienst ausfällt — nie „nichts gefunden". */
 export const SCAN_FAILURE_BY_ACTION: Record<ScanReadAction, string> = {
@@ -54,13 +54,13 @@ export const SCAN_FAILURE_BY_ACTION: Record<ScanReadAction, string> = {
 
 const NOT_FOUND = 'Notebook nicht gefunden oder kein Zugriff.';
 /** Der Grund steht dabei: „Notebook zu groß" und „nicht lesbar" verlangen verschiedene Auskünfte. */
-const notExhaustiveGrep = (reason: string | null) =>
+export const notExhaustiveGrep = (reason: string | null) =>
   `Nicht alle Quellen wurden gelesen (${reason ?? 'unvollständig'}) — totalHits ist eine Untergrenze, keine Gesamtzahl.`;
-const notExhaustiveCounts = (reason: string | null) =>
+export const notExhaustiveCounts = (reason: string | null) =>
   `Nicht alle Quellen wurden (ganz) gelesen (${reason ?? 'unvollständig'}) — die Zahlen sind Untergrenzen, keine Gesamtzahlen.`;
-const STATS_CHARS = 4000;
-const RANK_DEFAULT_LIMIT = 10;
-const RANK_MIN_SCORE = 0.2;
+export const STATS_CHARS = 4000;
+export const RANK_DEFAULT_LIMIT = 10;
+export const RANK_MIN_SCORE = 0.2;
 
 export function isScanReadAction(action: string): action is ScanReadAction {
   return (SCAN_READ_ACTIONS as readonly string[]).includes(action);
@@ -168,7 +168,7 @@ async function grep(args: ScanActionArgs, ctx: ScanActionCtx): Promise<Record<st
 // stats
 // ---------------------------------------------------------------------------
 
-function renderStats(heading: string, s: SourceStatsResult): string {
+export function renderStats(heading: string, s: SourceStatsResult): string {
   const counts = (c: {
     chars: number;
     words: number;
@@ -247,9 +247,9 @@ async function stats(args: ScanActionArgs, ctx: ScanActionCtx): Promise<Record<s
 // rank
 // ---------------------------------------------------------------------------
 
-type RankUnit = 'score' | 'Treffer' | 'Datum' | 'Zeichen' | 'Seiten';
+export type RankUnit = 'score' | 'Treffer' | 'Datum' | 'Zeichen' | 'Seiten';
 
-interface RankRow {
+export interface RankRow {
   rank: number;
   sourceId: string;
   title: string;
