@@ -39,6 +39,17 @@ describe('looksLikeNotebookToolAsk — trifft (Verb)', () => {
     'Bitte alle Quellen auflisten',
     'Verschiebe die Quelle in ein anderes Notebook',
     'Entferne die alte Pressemitteilung aus dem Notebook',
+    // Suchaufträge an ein Dokument (Nachfrage 23.09.2026): „such in X nach Y" —
+    // nur mit einem Suchziel (Anführungszeichen, Begriff/Stelle/…) oder einem
+    // Dokument als Ort.
+    'Suche im Wahlprogramm nach „Mietendeckel“',
+    'Suche im Wahlprogramm nach Mietendeckel',
+    'Durchsuche das Wahlprogramm nach dem Begriff Mietendeckel',
+    'Suche nach dem Satz „Berlin bleibt lebenswert“',
+    'Suche nach „Mietendeckel“',
+    'Such mir aus dem Koalitionsvertrag die Stelle zum Tempolimit raus',
+    // #3627: zweiteiliger Auftrag, „dann" zwischen Verb und Menge.
+    'Welche Kategorien gibt es? Zeig mir dann alle Quellen aus der Kategorie Wahlprogramm.',
   ])('%s', (text) => {
     expect(looksLikeNotebookToolAsk(text)).toBe(true);
   });
@@ -107,6 +118,14 @@ describe('looksLikeNotebookToolAsk — trifft NICHT', () => {
     'Wie oft wird der Vorstand gewählt?',
     // „vorkommen" als Redewendung mit Nebensatz (PR-Review #3620).
     'Wie oft kommt es vor, dass Anträge abgelehnt werden?',
+    // „suchen" als gewöhnliches Verb — kein Suchziel, kein Dokument.
+    'Ich suche nach einer Idee für den Wahlkampf',
+    'Wir suchen nach Lösungen für bezahlbare Mieten',
+    'Suche nach Lösungen für bezahlbares Wohnen',
+    'Suche in Berlin nach einer Wohnung – was tun die Grünen dagegen?',
+    'Such mir ein gutes Rezept für Kürbissuppe raus',
+    'Suche eine Formulierung für meinen Antrag',
+    'Zeig mir dann, wie das geht',
     'Wie oft kommt das vor, wenn der Vorstand tagt?',
     'Ich finde die Stelle gut, was meinst du?',
     'Was zeigt die Quelle zur Mietpreisbremse?',
@@ -158,9 +177,14 @@ describe('looksLikeNotebookToolAsk — gegen den Eval-Korpus', () => {
     bgstKorpus: true,
     userNotebook: true,
   };
-  const turns = loadCorpus(fileURLToPath(new URL('../../../evals', import.meta.url)), all).flatMap(
-    (s) => s.turns
-  );
+  // Fälle, die notebook_quellen NICHT über dieses Tor erreichen sollen: eine
+  // Inhaltsfrage im Thread eines Notebooks geht über den Hinweis im
+  // Planer-Prompt (`buildToolUsageBlock`, #3630) — pinnte das Tor sie, wäre
+  // der Hinweis ein Scope.
+  const REACHED_BY_PLANNER_HINT = new Set(['nbtool-berlin-thread-followup-content']);
+  const turns = loadCorpus(fileURLToPath(new URL('../../../evals', import.meta.url)), all)
+    .filter((s) => !REACHED_BY_PLANNER_HINT.has(s.id))
+    .flatMap((s) => s.turns);
   const wants = (t: (typeof turns)[number]) =>
     t.expect.toolsMustInclude?.includes('notebook_quellen') ?? false;
   const forbids = (t: (typeof turns)[number]) =>
