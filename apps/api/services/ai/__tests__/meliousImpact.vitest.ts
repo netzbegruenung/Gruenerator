@@ -10,10 +10,13 @@ describe('parseMeliousImpact', () => {
           energy_kwh: 0.00015,
           carbon_g_co2: 0.06,
         },
+        usage: { prompt_tokens: 120, completion_tokens: 30, total_tokens: 150 },
       })
     ).toEqual({
       energyWms: 540_000,
       emissionsUg: 60_000,
+      inputTokens: 120,
+      outputTokens: 30,
     });
   });
 

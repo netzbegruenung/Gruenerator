@@ -27,6 +27,9 @@ const log = createLogger('greenptImpact');
 interface ImpactTotals {
   energyWms: number;
   emissionsUg: number;
+  /** The measured call's own tokens, so the usage row knows what the figure covers. */
+  inputTokens: number;
+  outputTokens: number;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -39,6 +42,16 @@ function total(value: unknown): number {
   return typeof value.total === 'number' && Number.isFinite(value.total) ? value.total : 0;
 }
 
+function count(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+}
+
+/** Token counts off an OpenAI-shaped `usage` object; zeros when absent. */
+export function parseUsageTokens(body: unknown): { inputTokens: number; outputTokens: number } {
+  const usage = isRecord(body) && isRecord(body.usage) ? body.usage : {};
+  return { inputTokens: count(usage.prompt_tokens), outputTokens: count(usage.completion_tokens) };
+}
+
 /**
  * Pull the impact totals out of a parsed response body. Returns null when the
  * field is absent (every non-GreenPT shape, and GreenPT's own STT endpoint) or
@@ -49,7 +62,7 @@ export function parseImpact(body: unknown): ImpactTotals | null {
   const energyWms = total(body.impact.energy);
   const emissionsUg = total(body.impact.emissions);
   if (energyWms <= 0 && emissionsUg <= 0) return null;
-  return { energyWms, emissionsUg };
+  return { energyWms, emissionsUg, ...parseUsageTokens(body) };
 }
 
 /**
@@ -131,8 +144,7 @@ export function captureImpact(
       model,
       userId,
       feature,
-      energyWms: impact.energyWms,
-      emissionsUg: impact.emissionsUg,
+      ...impact,
     });
   };
 
