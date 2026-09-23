@@ -41,6 +41,13 @@ describe('isReasoningStreamModel', () => {
     expect(isReasoningStreamModel('cortecs', 'gemma4-31b')).toBe(false);
   });
 
+  // Melious' Gemma ist der Ausweich der Antwortlane. Ohne diesen Zweig liefe ein
+  // Denk-Zug nach dem Ausweich über das SDK, wo meliousThinkingFetch `none`
+  // setzt — das Denken wäre still weg.
+  it('returns true for gemma-4-31b:balanced on melious', () => {
+    expect(isReasoningStreamModel('melious', 'gemma-4-31b:balanced')).toBe(true);
+  });
+
   it('returns false for a regolo-only model asked on litellm', () => {
     expect(isReasoningStreamModel('litellm', 'gpt-oss-120b')).toBe(false);
   });
