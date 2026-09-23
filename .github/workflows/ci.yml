@@ -289,21 +289,24 @@ jobs:
     # zero the way a fresh instance does on first boot (#2895). A grown
     # database never shows a migration that only works on top of another.
     # Trust auth on a throwaway container: no password literals, which secret
-    # scanners (GitGuardian) would flag.
+    # scanners (GitGuardian) would flag. Port 55432, not 5432: other suites
+    # fall back to localhost:5432/gruenerator when no DB is configured
+    # (authRegressions, deepAgentTurn) and would otherwise run against, and
+    # pre-fill, the database this test needs empty.
     services:
       postgres:
         image: postgres:17
         env:
           POSTGRES_HOST_AUTH_METHOD: trust
         ports:
-          - 5432:5432
+          - 55432:5432
         options: >-
           --health-cmd "pg_isready -U postgres"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
     env:
-      MIGRATIONS_TEST_DATABASE_URL: postgresql://gruenerator@localhost:5432/gruenerator
+      MIGRATIONS_TEST_DATABASE_URL: postgresql://gruenerator@localhost:55432/gruenerator
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -324,7 +327,7 @@ jobs:
       # its own extensions, which only works while they stay trusted ones.
       - name: Create the app role and its empty database
         run: >-
-          psql postgresql://postgres@localhost:5432/postgres
+          psql postgresql://postgres@localhost:55432/postgres
           -c "CREATE ROLE gruenerator LOGIN"
           -c "CREATE DATABASE gruenerator OWNER gruenerator"
 
