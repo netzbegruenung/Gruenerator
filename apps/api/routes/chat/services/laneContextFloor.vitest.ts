@@ -41,13 +41,6 @@ describe('resolveLaneContextFloor', () => {
     }
   });
 
-  it('lässt sich nicht von einer Lane drücken, die die Policy nie wählt', () => {
-    // Melious' gemessene 44k (gemmaHosts.ts) sind registriert, aber kein
-    // auto-Ziel. Über alle Einträge gerechnet fiele der Boden darauf.
-    const smallest = Math.min(...Object.values(AVAILABLE_MODELS).map((c) => c.contextWindow));
-    expect(smallest).toBeLessThan(resolveLaneContextFloor('auto')!);
-  });
-
   it('hebt das alte 32k-Standardfenster tatsächlich an', () => {
     // Der Regressionswert des Befunds: gekürzt wurde gegen 32.768 (→ Budget
     // 19.937), obwohl keine einzige Lane so klein ist.

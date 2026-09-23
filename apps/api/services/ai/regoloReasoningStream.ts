@@ -23,6 +23,7 @@ import { env } from '../../config/env.js';
 
 import { cortecsBaseUrl } from './cortecsEndpoint.js';
 import { assertSovereignUpstream, SOVEREIGN_ZDR_PROVIDERS } from './cortecsRequestPolicy.js';
+import { meliousWireModel } from './meliousThinkingFetch.js';
 import { recordModelSample } from './modelHealth.js';
 import {
   isScalewayMistralRoutingEnabled,
@@ -296,6 +297,16 @@ export async function* streamWithReasoning(
     throw new Error(`Endpoint for '${params.provider}' reasoning stream is not configured`);
   }
 
+  const body: Record<string, unknown> = {
+    model: config.model ?? params.model,
+    messages: params.messages,
+    ...(params.maxTokens != null && { max_tokens: params.maxTokens }),
+    temperature: params.temperature,
+    stream: true,
+    ...config.bodyExtras,
+  };
+  if (params.provider === 'melious') body.model = meliousWireModel(body) ?? body.model;
+
   const startedAt = Date.now();
   const response = await fetch(config.endpoint, {
     method: 'POST',
@@ -303,14 +314,7 @@ export async function* streamWithReasoning(
       Authorization: `Bearer ${config.apiKey}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      model: config.model ?? params.model,
-      messages: params.messages,
-      ...(params.maxTokens != null && { max_tokens: params.maxTokens }),
-      temperature: params.temperature,
-      stream: true,
-      ...config.bodyExtras,
-    }),
+    body: JSON.stringify(body),
     ...(params.signal && { signal: params.signal }),
   });
 
