@@ -53,7 +53,7 @@ import {
   streamWithFallback,
 } from './services/responseStreamingService.js';
 import { PROGRESS_MESSAGES, SSEWriter, sendChatWarning } from './services/sseHelpers.js';
-import { embedUntrusted } from './services/untrustedContent.js';
+import { embedUntrusted, withInstructionHierarchy } from './services/untrustedContent.js';
 
 import type { SearchContext } from '../../services/notebook/types.js';
 import type { CollectionConfig, SourcesByCollection } from '../../services/search/types.js';
@@ -505,8 +505,12 @@ export async function handleNotebookStream(
       history,
       primaryResolution.contextWindow
     );
-    let systemPromptFinal =
-      searchContext.systemPrompt + formatStandingInstructions(options.standingInstructions);
+    const standingBlock = formatStandingInstructions(options.standingInstructions);
+    // The block is delimited material, so the rule that says what the
+    // delimiter means has to travel with it.
+    let systemPromptFinal = standingBlock
+      ? withInstructionHierarchy(searchContext.systemPrompt + standingBlock)
+      : searchContext.systemPrompt;
     if (droppedTurns > 0) {
       systemPromptFinal +=
         '\n\nHinweis: Ältere Nachrichten dieses Gesprächs wurden aus Platzgründen ausgelassen.';
