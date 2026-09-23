@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   assertSamePage,
   classifyPoint,
+  groupSourcesByHost,
   isRefetchable,
   parseCliArgs,
   planDateRepair,
@@ -24,6 +25,7 @@ describe('parseCliArgs', () => {
         refetch: false,
         write: false,
         limit: null,
+        parallel: 4,
       },
     });
   });
@@ -51,6 +53,7 @@ describe('parseCliArgs', () => {
         refetch: true,
         write: true,
         limit: 5,
+        parallel: 4,
       },
     });
   });
@@ -84,6 +87,7 @@ describe('parseCliArgs', () => {
         refetch: false,
         write: false,
         limit: null,
+        parallel: 4,
       },
     });
   });
@@ -97,6 +101,19 @@ describe('parseCliArgs', () => {
     expect(
       parseCliArgs(['--source', 'x', '--overwrite-dates', 'mid-june', '--refetch'])
     ).toHaveProperty('error');
+  });
+
+  it('nimmt --parallel als Zahl ≥ 1, Standard ist 4', () => {
+    expect(parseCliArgs(['--titles', '--all'])).toHaveProperty('args.parallel', 4);
+    expect(parseCliArgs(['--titles', '--all', '--parallel', '3'])).toHaveProperty(
+      'args.parallel',
+      3
+    );
+  });
+
+  it('lehnt --parallel unter 1 und Nicht-Zahlen ab', () => {
+    expect(parseCliArgs(['--titles', '--all', '--parallel', '0'])).toHaveProperty('error');
+    expect(parseCliArgs(['--titles', '--all', '--parallel', 'x'])).toHaveProperty('error');
   });
 });
 
@@ -348,5 +365,21 @@ describe('assertSamePage', () => {
     expect(() => assertSamePage(URL_, res({ url: 'https://gruene.berlin/' }))).toThrow(
       /Weiterleitung/
     );
+  });
+});
+
+describe('groupSourcesByHost', () => {
+  it('gruppiert zwei Quellen desselben Hosts zusammen, andere einzeln', () => {
+    const berlinPresse = { sourceId: 'berlin-lv-presse', baseUrl: 'https://gruene.berlin' };
+    const berlinBeschluesse = {
+      sourceId: 'berlin-lv-beschluesse',
+      baseUrl: 'https://gruene.berlin',
+    };
+    const sachsen = { sourceId: 'sachsen-lv', baseUrl: 'https://gruene-sachsen.de' };
+
+    expect(groupSourcesByHost([berlinPresse, sachsen, berlinBeschluesse])).toEqual([
+      [berlinPresse, berlinBeschluesse],
+      [sachsen],
+    ]);
   });
 });
