@@ -706,4 +706,26 @@ describe('wrapToolsForLoop — interne Felder', () => {
     expect(out).not.toHaveProperty('rerankDegraded');
     expect(seen[0]).toMatchObject({ rerankDegraded: true });
   });
+
+  it('gibt refs nur dem Replay späterer Turns — das Modell hat die Zeilen schon', async () => {
+    const seen: unknown[] = [];
+    const { ctx } = makeCtx({ hooks: { afterToolCall: (e) => seen.push(e.result) } });
+    const tools = wrapToolsForLoop(
+      {
+        notebook_quellen: {
+          execute: () => Promise.resolve({ refs: 'A — https://x.de/a', results: [{ ref: 'a' }] }),
+        },
+      } as unknown as ToolSet,
+      ctx
+    );
+
+    const out = (await run(tools, 'notebook_quellen', { action: 'list' })) as Record<
+      string,
+      unknown
+    >;
+
+    expect(out).not.toHaveProperty('refs');
+    expect(out.results).toEqual([{ ref: 'a' }]);
+    expect(seen[0]).toMatchObject({ refs: 'A — https://x.de/a' });
+  });
 });

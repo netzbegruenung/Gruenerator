@@ -115,6 +115,26 @@ export function stripInternalFields<T>(output: T): T {
 }
 
 /**
+ * Felder, die nur der Replay späterer Turns braucht (`mcpReplay.ts`). `refs`
+ * wiederholt die Zeilen eines `notebook_quellen`-list/rank-Ergebnisses als eine
+ * Zeile je Quelle — im laufenden Turn stehen dieselben Zeilen schon in
+ * `results`/`ranking`; doppelt geschickt schöbe es das Ergebnis über die
+ * 6000 Zeichen von `truncateResultForModel`.
+ */
+// `refs` ist für `notebook_quellen` reserviert: ein anderes Werkzeug mit `refs` verlöre es
+// hier still aus dem laufenden Turn.
+const REPLAY_ONLY_FIELDS: readonly string[] = ['refs'];
+
+function stripReplayOnlyFields<T>(output: T): T {
+  if (!output || typeof output !== 'object' || Array.isArray(output)) return output;
+  const record = output as Record<string, unknown>;
+  if (!REPLAY_ONLY_FIELDS.some((field) => field in record)) return output;
+  const copy = { ...record };
+  for (const field of REPLAY_ONLY_FIELDS) delete copy[field];
+  return copy as T;
+}
+
+/**
  * Beobachtende Hooks sind Fire-and-Forget: eine Ausnahme darf den Turn nicht
  * kippen. Die Rückgabe ist `void` typisiert, das hindert einen Handler aber
  * nicht daran, `async` zu sein — eine abgelehnte Zusage käme dann als
@@ -671,7 +691,10 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
 
       // Model-facing payload only — the full result already went to the card /
       // persisted step above, and the hooks above have seen the internal fields.
-      return truncateResultForModel(stripInternalFields(output), maxResultChars);
+      return truncateResultForModel(
+        stripReplayOnlyFields(stripInternalFields(output)),
+        maxResultChars
+      );
     };
 
     wrapped[toolName] = { ...toolDef, execute: wrappedExecute } as ToolSet[string];
