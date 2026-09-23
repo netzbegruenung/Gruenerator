@@ -25,6 +25,8 @@ import {
   WOLKE_SCRAPER_OCR_EXTENSIONS,
 } from '../../sync/supportedFileTypes.js';
 
+import { redactShareTokens } from './wolkeShareSecrets.js';
+
 /**
  * Read straight off the wire as UTF-8 — never reaches OCR, so no media type
  * needed. Abgeleitet aus `supportedFileTypes.ts`, der einen Liste.
@@ -73,6 +75,28 @@ export function isAppleDoubleSidecar(name: string): boolean {
   return name.startsWith('._');
 }
 
+/**
+ * A production check of LV Berlin's Wahlprüfsteine share (271 files) found
+ * drafts and side files stored as if they were final answers
+ * (`…-NABU_Antwortentwurf.pdf`, `…-DWE-Antwortvorlage.pdf`,
+ * `…_Landesmusikrat_Anschreiben.pdf`, `…_ausgefülltes Formular.pdf`). Matched
+ * on the file name only (not the folder path), case-insensitive.
+ */
+const DEFAULT_EXCLUDED_NAME_SUBSTRINGS = ['entwurf', 'vorlage', 'anschreiben', 'formular'];
+
+// „intern" nur als eigenes Wort — als Teilstring träfe es „International", „Internet".
+const INTERN_WORD = /(^|[^a-zäöüß])intern([^a-zäöüß]|$)/;
+
+export function isExcludedWolkeFileName(name: string, extra: string[] = []): boolean {
+  const lower = name.toLowerCase();
+  return (
+    INTERN_WORD.test(lower) ||
+    [...DEFAULT_EXCLUDED_NAME_SUBSTRINGS, ...extra].some((needle) =>
+      lower.includes(needle.toLowerCase())
+    )
+  );
+}
+
 function hasSupportedExtension(name: string): boolean {
   const lower = name.toLowerCase();
   return SUPPORTED_EXTENSIONS.some((ext) => lower.endsWith(ext));
@@ -89,12 +113,16 @@ function hrefToRelativePath(href: string): string {
  * Enumerate all supported files in a public Nextcloud share (optionally
  * recursing into subfolders). Returns the initialized client so the caller can
  * download without re-authenticating.
+ *
+ * `excludeNames` extends `isExcludedWolkeFileName`'s defaults — files it drops
+ * are counted in `excludedByName` so the caller can report them.
  */
 export async function collectWolkeShareFiles(
   shareLink: string,
   recursive: boolean,
-  log: (msg: string) => void = () => {}
-): Promise<{ client: NextcloudApiClient; files: WolkeShareFile[] }> {
+  log: (msg: string) => void = () => {},
+  excludeNames: string[] = []
+): Promise<{ client: NextcloudApiClient; files: WolkeShareFile[]; excludedByName: number }> {
   const client = await NextcloudApiClient.create(shareLink);
 
   // Ein Walker für beide Pfade. Der Scraper darf tiefer und ohne Dateideckel
@@ -111,8 +139,13 @@ export async function collectWolkeShareFiles(
   );
 
   const files: WolkeShareFile[] = [];
+  let excludedByName = 0;
   for (const entry of walk.files) {
     if (isAppleDoubleSidecar(entry.name) || !hasSupportedExtension(entry.name)) continue;
+    if (isExcludedWolkeFileName(entry.name, excludeNames)) {
+      excludedByName++;
+      continue;
+    }
     const rel = hrefToRelativePath(entry.href);
     files.push({
       url: `${shareLink}#/${rel}`,
@@ -125,8 +158,11 @@ export async function collectWolkeShareFiles(
     });
   }
 
-  log(`[Wolke] ${shareLink}: ${files.length} supported file(s)`);
-  return { client, files };
+  log(
+    `[Wolke] ${redactShareTokens(shareLink)}: ${files.length} supported file(s)` +
+      (excludedByName > 0 ? `, ${excludedByName} excluded by name` : '')
+  );
+  return { client, files, excludedByName };
 }
 
 /** What one share file cost to read — see `extractionRecorder.ts`. */
