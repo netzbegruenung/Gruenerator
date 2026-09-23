@@ -145,6 +145,66 @@ describe('ContentExtractor — sichtbares Datum statt Datensatzstand (#3565)', (
 
     expect(extracted.publishedAt).toBe('2024-01-02T10:00:00');
   });
+
+  it('eine Prosa mit eingebettetem Datum ist kein Datum — der Selektor muss am Anfang treffen', async () => {
+    // bayern-fraktion-presse: eine Legacy-Seite ohne gedrucktes Datum, deren erster
+    // .l-column > p Fließtext mit einem eingebetteten Datum ist ("am Donnerstag,
+    // 2. März 2023"), nicht das Datum selbst. Ohne Anker am Textanfang würde
+    // normalizeGermanDate dieses eingebettete Datum aus dem Selektortreffer
+    // herausziehen, statt auf den <main>-Rückfall-Scan durchzufallen — der hier,
+    // weil die Unterzeile im <header> ein ANDERES Datum nennt, ein anderes
+    // Ergebnis liefert und die beiden Pfade so unterscheidbar macht.
+    const html = `<!DOCTYPE html><html><body>
+      <main>
+        <article class="document-content">
+          <header class="document-content__header"><div class="l-container"><div class="l-column">
+            <p>Grüner Dringlichkeitsantrag vom 5. April 2023.</p>
+          </div></div></header>
+          <div class="document-content__main"><div class="l-container"><div class="l-column">
+            <p>Der Antrag wurde am Donnerstag, 2. März 2023 im Plenum eingebracht.</p>
+          </div></div></div>
+        </article>
+      </main>
+    </body></html>`;
+
+    const extracted = await ContentExtractor.extractPageContent(
+      'https://www.gruene-fraktion-bayern.de/x',
+      sourceById('bayern-fraktion-presse'),
+      () => Promise.resolve(new Response(html))
+    );
+
+    // Der Selektor fällt durch (kein Datum am Anfang der Prosa) und landet beim
+    // <main>-Scan, der die frühere Unterzeile im <header> findet — nicht das
+    // eingebettete Datum in der Prosa des Selektortreffers.
+    expect(extracted.publishedAt).toBe('2023-04-05');
+  });
+
+  it('brandenburg-archive-presse: eine Sitzungsangabe mitten im Text ist keine Meldedatum-Prosa', async () => {
+    const html = `<!DOCTYPE html><html><head>
+      <meta property="article:published_time" content="2019-03-15T09:00:00" />
+    </head><body>
+      <div class="ce-bodytext"><p class="inlineleft">Beschluss der Sitzung vom 12.03.2019</p></div>
+    </body></html>`;
+
+    const extracted = await ContentExtractor.extractPageContent(
+      'https://archiv.gruene-brandenburg.de/startseite/single-news/x',
+      sourceById('brandenburg-archive-presse'),
+      () => Promise.resolve(new Response(html))
+    );
+
+    // "Beschluss der Sitzung vom 12.03.2019" beginnt nicht mit dem Datum — fällt
+    // durch auf die Meta-Angabe statt das eingebettete Datum herauszulesen.
+    expect(extracted.publishedAt).toBe('2019-03-15T09:00:00');
+  });
+});
+
+describe('ContentExtractor.normalizeGermanDate', () => {
+  it('normalisiert DD.MM.YY mit Pivot bei 50: >50 wird 19xx, sonst 20xx', () => {
+    expect(ContentExtractor.normalizeGermanDate('29.04.99')).toBe('1999-04-29');
+    expect(ContentExtractor.normalizeGermanDate('26.07.26')).toBe('2026-07-26');
+    expect(ContentExtractor.normalizeGermanDate('01.01.50')).toBe('2050-01-01');
+    expect(ContentExtractor.normalizeGermanDate('01.01.51')).toBe('1951-01-01');
+  });
 });
 
 describe('ContentExtractor.normalizeTitle', () => {
