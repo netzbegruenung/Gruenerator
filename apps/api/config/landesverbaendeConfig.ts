@@ -705,9 +705,12 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           // Eigener content_type, damit sie im „Typ"-Filter als eigene Kategorie
           // stehen und nicht unter Beschlüsse verschwinden.
           //
-          // Wolke-Dateien werden ohne published_at gespeichert (der WebDAV-mtime
-          // ist kein Veröffentlichungsdatum). Das ist hier erwünscht: sonst
-          // würde der 5-Jahres-Alterfilter die 2021er-Antworten wieder wegwerfen.
+          // Wolke-Dateien werden seit #3564 aus dem Dateinamen datiert (der
+          // WebDAV-mtime bleibt ungenutzt); ein Name ohne erkennbares Datum
+          // bleibt weiterhin null statt geraten. Der Share ist ein kuratierter
+          // Ordner — ein Datum darf eine Datei nie aus dem Alterfilter fallen
+          // lassen, deshalb ruft LandesverbandScraper processAndStoreDocument
+          // mit ignoreMaxAge: true auf (kein Backfill der alten Punkte hier).
           // `path`/`listSelector` sind bei wolkeShare ungenutzte Pflichtfelder.
           type: 'wahlpruefstein',
           path: '/wolke/xfFABYzM7pX83Fj/',
@@ -791,7 +794,11 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
       type: 'fraktion',
       baseUrl: 'https://gruene-fraktion.berlin',
       cms: 'wordpress',
-      maxAgeYears: 5,
+      // Beschluss-/Positionspapiere bleiben aktuelle Positionen der Fraktion,
+      // nicht Tagesnachrichten — 10 Jahre statt 5 halten die 2017er-Papiere,
+      // sobald sie nach #3564 korrekt aus dem Dateinamen datiert werden (sonst
+      // würden ~30 von 56 gespeicherten Papieren beim nächsten Lauf `too_old`).
+      maxAgeYears: 10,
       contentPaths: [
         {
           type: 'beschluss',
