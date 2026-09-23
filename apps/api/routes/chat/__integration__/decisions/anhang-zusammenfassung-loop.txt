@@ -12,5 +12,6 @@ classifier.tier                  = (not reached)
 respond.answer_format            = brief                          complexity=simple intent=search retrievalExpected=true sourceCount=0 synthesisMode=none taskShape=none
 loop.tool_guard                  = (none)
 loop.synth_verdict               = accepted                       textLength=135
+notebook.answer_mode             = (not reached)
 -- wire --
 intent=search agentic=true tools=[summarize] warnings=[] interrupts=0 confirmActions=[] documentCreated=false sharepicGenerated=false answerChars=135

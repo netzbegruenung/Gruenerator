@@ -154,6 +154,15 @@ export {
   type NotebookDepthIconKey,
 } from './lib/notebookDepth';
 
+// Notebook answer mode — shared registry for the notebook page's mode picker
+export {
+  NOTEBOOK_ANSWER_MODES,
+  DEFAULT_NOTEBOOK_ANSWER_MODE,
+  notebookAnswerModeDef,
+  answerModeLabel,
+  type NotebookAnswerModeDef,
+} from './lib/notebookAnswerMode';
+
 export { useDocumentChatStore } from './stores/documentChatStore';
 export { useSkillFavoritesStore } from './stores/skillFavoritesStore';
 

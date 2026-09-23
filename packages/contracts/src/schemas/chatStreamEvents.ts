@@ -3,6 +3,12 @@ import { z } from 'zod';
 import { bahnPayloadSchema } from './bahn.js';
 import { canvasTemplateTypeSchema } from './canvasTemplateDescriptors.js';
 import { notebookCitationSchema } from './notebook.js';
+import {
+  notebookAnswerModeEventSchema,
+  notebookAnswerModeReasonSchema,
+  notebookAnswerModeSchema,
+  notebookResolvedAnswerModeSchema,
+} from './notebookAnswerMode.js';
 import { socialPostPayloadSchema } from './socialPost.js';
 
 /**
@@ -115,6 +121,9 @@ export const chatWarningCodeSchema = z.enum([
   // noch `drifted`: der Server ist gesund, wir haben ihn nur nicht gefragt.
   // Anders als die uebrigen Konnektor-Codes kann die Person das abstellen.
   'mcp_not_consulted',
+  // Notebook-Seite: Präzision war ausdrücklich gewählt, aber kein Notebook der
+  // Seite ist für `notebook_quellen` lesbar — die Antwort läuft im Chatmodus.
+  'notebook_praezision_unavailable',
   // Compute
   'compute_failed',
   // Provider / privacy
@@ -597,6 +606,16 @@ export type ChatCitation = z.infer<typeof chatCitationBase>;
 
 export const chatStreamEventSchemas: Record<string, z.ZodTypeAny> = {
   thread_created: z.object({ threadId: z.string() }).passthrough(),
+  // Notebook page: which answer mode this turn runs in. `.catch` for the same
+  // reason as `intent` below — the gate DROPS a rejected event, and a reason or
+  // mode added later must not cost an older client the whole event.
+  answer_mode: notebookAnswerModeEventSchema
+    .extend({
+      requested: notebookAnswerModeSchema.nullable().catch(null),
+      resolved: notebookResolvedAnswerModeSchema.catch('chat'),
+      reason: notebookAnswerModeReasonSchema.catch('default'),
+    })
+    .passthrough(),
   intent: z
     .object({
       // `.catch` instead of a bare enum: the gate DROPS any event it rejects,

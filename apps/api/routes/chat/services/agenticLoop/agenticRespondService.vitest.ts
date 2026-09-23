@@ -521,3 +521,29 @@ describe('wrapAssembledTools — Zeitgrenze der Erstellungs-Werkzeuge', () => {
     }
   });
 });
+
+describe('streamAgenticResponse — toolAllowlist', () => {
+  it('reicht die Liste an die Katalog-Montage durch', async () => {
+    const { sse } = fakeSse();
+    const assemble = vi.fn(async () => EMPTY_CATALOG);
+    await streamAgenticResponse(
+      {
+        ...baseParams(fakeState(), 'x'.repeat(4000), 'Frage?'),
+        sse,
+        toolAllowlist: ['notebook_quellen'],
+      },
+      fakeDeps({ assemble: assemble as unknown as AgenticRespondDeps['assembleToolCatalog'] })
+    );
+    expect(assemble.mock.calls[0]![0]).toMatchObject({ toolAllowlist: ['notebook_quellen'] });
+  });
+
+  it('lässt das Feld weg, wenn keine Liste kommt', async () => {
+    const { sse } = fakeSse();
+    const assemble = vi.fn(async () => EMPTY_CATALOG);
+    await streamAgenticResponse(
+      { ...baseParams(fakeState(), 'x'.repeat(4000), 'Frage?'), sse },
+      fakeDeps({ assemble: assemble as unknown as AgenticRespondDeps['assembleToolCatalog'] })
+    );
+    expect(assemble.mock.calls[0]![0]).not.toHaveProperty('toolAllowlist');
+  });
+});

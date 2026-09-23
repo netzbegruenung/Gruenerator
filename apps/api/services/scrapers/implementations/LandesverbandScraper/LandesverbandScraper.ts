@@ -226,12 +226,21 @@ export class LandesverbandScraper extends BaseScraper {
       this.log(`Found ${pdfLinks.length} PDF links`);
 
       const ageLimit = source.maxAgeYears ?? DEFAULT_MAX_AGE_YEARS;
+      const ageExempt = contentPath.ageExempt === true;
 
       // Extract dates BEFORE expensive OCR (cost optimization)
-      const pdfLinksWithDates = pdfLinks.map((pdf) => ({
-        ...pdf,
-        dateInfo: DateExtractor.extractDateFromPdfInfo(pdf.url, pdf.title, pdf.context, ageLimit),
-      }));
+      const pdfLinksWithDates = pdfLinks.map((pdf) => {
+        const dateInfo = DateExtractor.extractDateFromPdfInfo(
+          pdf.url,
+          pdf.title,
+          pdf.context,
+          ageLimit
+        );
+        return {
+          ...pdf,
+          dateInfo: ageExempt && dateInfo.isTooOld ? { ...dateInfo, isTooOld: false } : dateInfo,
+        };
+      });
 
       // No rejectedUrlGate here (unlike the HTML branch): DocumentProcessor's
       // own too_old check (STEP 2) can never fire for a PDF that reaches it —
@@ -294,6 +303,18 @@ export class LandesverbandScraper extends BaseScraper {
         const pdf = toProcess[i];
         try {
           const stored = forceUpdate ? null : await this.#storedPayload(pdf.url, targetCollection);
+          // Backfill for points stored before the path was exempt: the gates
+          // below skip an unchanged PDF before it reaches the store, so the
+          // marker would otherwise never land and the archive pass would still
+          // age it out (#3606).
+          if (ageExempt && stored && stored.age_exempt !== true) {
+            await setPayload(
+              this.qdrantClient,
+              targetCollection,
+              { age_exempt: true },
+              { must: [{ key: 'source_url', match: { value: pdf.url } }] }
+            );
+          }
           if (isFreshlyIndexed(pdf.url, stored, Date.now())) {
             result.skipped++;
             recordExtractionSkip('freshly_indexed');
@@ -383,7 +404,12 @@ export class LandesverbandScraper extends BaseScraper {
             targetCollection,
             source.maxAgeYears,
             // date_precision: 'year' heißt, das -06-15 ist geraten (#3575)
-            { ...fingerprint, date_precision: pdf.dateInfo.precision }
+            {
+              ...fingerprint,
+              date_precision: pdf.dateInfo.precision,
+              ...(ageExempt ? { age_exempt: true } : {}),
+            },
+            ageExempt
           );
 
           if (storeResult.stored) {
