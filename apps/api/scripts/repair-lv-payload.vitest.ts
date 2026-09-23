@@ -94,6 +94,13 @@ describe('parseCliArgs', () => {
       parseCliArgs(['--source', 'x', '--overwrite-dates', 'mid-june', '--refetch'])
     ).toHaveProperty('error');
   });
+
+  it('verweigert --overwrite-dates visible-date zusammen mit --all — das wäre ein Voll-Abruf aller Seiten', () => {
+    expect(parseCliArgs(['--all', '--overwrite-dates', 'visible-date'])).toHaveProperty('error');
+    expect(
+      parseCliArgs(['--source', 'berlin-lv-presse', '--overwrite-dates', 'visible-date'])
+    ).not.toHaveProperty('error');
+  });
 });
 
 describe('isRefetchable', () => {
@@ -213,6 +220,45 @@ describe('planDateRepair — mid-june', () => {
         'mid-june'
       )
     ).toBe('unchanged');
+  });
+});
+
+describe('planDateRepair — visible-date (#3565)', () => {
+  const html = (url: string, published_at: string | null) => ({
+    source_url: url,
+    title: 'X',
+    published_at,
+  });
+  const URL_ = 'https://gruene.berlin/pressemitteilungen/berlin-steht-zusammen_3856';
+
+  it('patcht, wenn das neu ausgelesene sichtbare Datum vom gespeicherten abweicht', () => {
+    expect(
+      planDateRepair(html(URL_, '2026-07-23T11:11:58'), 'visible-date', {
+        title: 'X',
+        publishedAt: '2026-07-26',
+      })
+    ).toEqual({ published_at: '2026-07-26' });
+  });
+
+  it('zählt als unchanged, wenn das sichtbare Datum dem gespeicherten entspricht', () => {
+    expect(
+      planDateRepair(html(URL_, '2026-07-26'), 'visible-date', {
+        title: 'X',
+        publishedAt: '2026-07-26',
+      })
+    ).toBe('unchanged');
+  });
+
+  it('zählt als unresolved statt null über ein vorhandenes Datum zu schreiben, wenn kein Abruf vorliegt oder kein sichtbares Datum gefunden wurde', () => {
+    expect(planDateRepair(html(URL_, '2026-07-23T11:11:58'), 'visible-date', null)).toBe(
+      'unresolved'
+    );
+    expect(
+      planDateRepair(html(URL_, '2026-07-23T11:11:58'), 'visible-date', {
+        title: 'X',
+        publishedAt: null,
+      })
+    ).toBe('unresolved');
   });
 });
 

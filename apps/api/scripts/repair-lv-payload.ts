@@ -26,6 +26,12 @@
  *       aus URL und Titel per `DateExtractor.extractDateFromPdfInfo`, ohne
  *       Abruf; liefert auch die Neuberechnung nur ein Jahr oder gar nichts,
  *       zählt der Punkt als `unresolved` und bleibt, wie er ist.
+ *       visible-date — das gedruckte Datum statt des TYPO3-Datensatzstands
+ *       (#3565). Holt jede HTML-Seite der Quelle neu (derselbe Abrufpfad wie
+ *       `--titles --refetch`, inkl. Pause und `assertSamePage`) und liest sie
+ *       mit den aktuellen `contentSelectors` aus; PDFs und Wolke-Dateien
+ *       bleiben unresolved. Nur mit `--source` (kein `--all` — das wäre ein
+ *       Voll-Abruf).
  *
  * Geschrieben wird per `setPayload` auf alle Chunks derselben `source_url`.
  * Die Vektoren bleiben unverändert — sie wurden mit dem alten Titel als
@@ -35,6 +41,7 @@
  *   npx tsx scripts/repair-lv-payload.ts --titles --source berlin-lv-presse --source berlin-lv-beschluesse --refetch
  *   npx tsx scripts/repair-lv-payload.ts --titles --all
  *   npx tsx scripts/repair-lv-payload.ts --overwrite-dates mid-june --all
+ *   npx tsx scripts/repair-lv-payload.ts --overwrite-dates visible-date --source berlin-lv-presse
  *   … jeweils mit --write, um wirklich zu schreiben; --limit N begrenzt die Punkte je Quelle.
  *
  * dotenv muss vor jedem App-Import laufen (config/env.js liest die Umgebung
@@ -128,6 +135,11 @@ export function parseCliArgs(argv: string[]): { args: CliArgs } | { error: strin
   if (args.all && args.refetch) {
     return { error: '--refetch nur mit --source: --all --refetch holt jede Seite neu.' };
   }
+  if (args.overwriteDates === 'visible-date' && args.all) {
+    return {
+      error: '--overwrite-dates visible-date nur mit --source: --all holt jede Seite neu ab.',
+    };
+  }
   return { args };
 }
 
@@ -152,7 +164,10 @@ export function planRepair(stored: StoredFields, extracted: Extracted | null): P
 
 /** `unchanged`: der Defekt liegt nicht vor. `unresolved`: er liegt vor, aber es gibt keinen besseren Wert. */
 type DateVerdict = { published_at: string } | 'unchanged' | 'unresolved';
-type DateRule = (point: Pick<StoredPoint, 'source_url' | 'title' | 'published_at'>) => DateVerdict;
+type DateRule = (
+  point: Pick<StoredPoint, 'source_url' | 'title' | 'published_at'>,
+  extracted: Extracted | null
+) => DateVerdict;
 
 const MID_JUNE = /-06-15/;
 
@@ -164,13 +179,24 @@ export const DATE_RULES: Record<string, DateRule> = {
     if (!dateString || MID_JUNE.test(dateString)) return 'unresolved';
     return dateString === point.published_at ? 'unchanged' : { published_at: dateString };
   },
+  // Das gedruckte Datum auf der Seite statt des TYPO3-Datensatzstands (#3565).
+  // Der Abruf passiert am Aufrufer (derselbe --refetch-Pfad wie --titles); ohne
+  // Treffer oder ohne sichtbares Datum bleibt der Punkt unresolved statt eines
+  // null-Patches.
+  'visible-date': (point, extracted) => {
+    if (!extracted?.publishedAt || !ISO_DATE.test(extracted.publishedAt)) return 'unresolved';
+    return extracted.publishedAt === point.published_at
+      ? 'unchanged'
+      : { published_at: extracted.publishedAt };
+  },
 };
 
 export function planDateRepair(
   point: Pick<StoredPoint, 'source_url' | 'title' | 'published_at'>,
-  rule: string
+  rule: string,
+  extracted: Extracted | null = null
 ): DateVerdict {
-  return DATE_RULES[rule](point);
+  return DATE_RULES[rule](point, extracted);
 }
 
 /**
@@ -317,7 +343,24 @@ async function main(): Promise<void> {
       }
 
       if (args.overwriteDates) {
-        const verdict = planDateRepair(point, args.overwriteDates);
+        let extracted: Extracted | null = null;
+        if (args.overwriteDates === 'visible-date') {
+          const source = getSourceById(point.source_id);
+          if (source && isRefetchable(point.source_url, source)) {
+            try {
+              extracted = await ContentExtractor.extractPageContent(
+                point.source_url,
+                source,
+                fetchOk
+              );
+            } catch (error) {
+              extra.fetchFailed++;
+              console.warn(`  [fetch] ${point.source_url}: ${(error as Error).message}`);
+            }
+            await sleep(REFETCH_DELAY_MS);
+          }
+        }
+        const verdict = planDateRepair(point, args.overwriteDates, extracted);
         if (verdict === 'unresolved') unresolved = true;
         else if (verdict !== 'unchanged') patch.published_at = verdict.published_at;
       }
