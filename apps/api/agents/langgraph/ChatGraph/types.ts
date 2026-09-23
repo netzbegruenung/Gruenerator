@@ -290,6 +290,8 @@ export interface SearchResult {
   collectionId?: string | undefined;
   /** Fundstelle im Dokument (`notebook_quellen`): Seite und Zeichenbereich im Originaltext. */
   pageNumber?: number | null;
+  /** Letzte Seite, wenn die Fundstelle über einen Seitenwechsel reicht. */
+  pageTo?: number | null;
   charStart?: number | null;
   charEnd?: number | null;
   /** Der belegte Wortlaut, wenn er nicht der Anfang von `content` ist. */
