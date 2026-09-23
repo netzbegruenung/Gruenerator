@@ -174,7 +174,25 @@ async function formatLinkedDocs(card: BoardRow, userId: string): Promise<string 
   const parsed = linkedDocsSchema.safeParse(json);
   if (!parsed.success || parsed.data.length === 0) return undefined;
 
-  const ids = parsed.data.slice(0, MAX_DOCS).map((d) => d.id);
+  return formatDocuments(
+    parsed.data.slice(0, MAX_DOCS).map((d) => d.id),
+    userId,
+    'Verknüpfte Dokumente'
+  );
+}
+
+/**
+ * Text content of the given documents under a `### heading`, access-checked
+ * against `userId`. Also feeds a later board step the result documents of the
+ * steps it builds on (#3549) — those sit in board_card_documents, not in the
+ * card's linked-docs cell, so the card context alone never reaches them.
+ */
+export async function formatDocuments(
+  ids: string[],
+  userId: string,
+  heading: string
+): Promise<string | undefined> {
+  if (ids.length === 0) return undefined;
   const docs = await db.query<{ id: string; title: string; content: string | null }>(
     `SELECT id, title, content FROM collaborative_documents
       WHERE id = ANY($1::uuid[]) AND is_deleted = false AND document_subtype != 'boards'
@@ -190,7 +208,7 @@ async function formatLinkedDocs(card: BoardRow, userId: string): Promise<string 
     .filter((d) => d.content)
     .map((d) => `#### ${d.title}\n${truncate(stripHtml(d.content ?? ''), PER_DOC_CHARS)}`);
 
-  return parts.length > 0 ? `### Verknüpfte Dokumente\n${parts.join('\n\n')}` : undefined;
+  return parts.length > 0 ? `### ${heading}\n${parts.join('\n\n')}` : undefined;
 }
 
 /**
