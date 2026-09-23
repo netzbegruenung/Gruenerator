@@ -1,17 +1,11 @@
-import {
-  type SpeechOutputFormat,
-  type SpeechPreset,
-  type TtsVoiceId,
-} from '@gruenerator/contracts';
-import { Checkbox, Label, ToggleGroup, ToggleGroupItem } from '@gruenerator/ui';
+import { type SpeechPreset, type TtsVoiceId } from '@gruenerator/contracts';
+import { ToggleGroup, ToggleGroupItem } from '@gruenerator/ui';
 
-import { FORMAT_LABELS, SPEED_OPTIONS, VOICE_PRESETS, VOICE_PRESET_ORDER } from '../presets';
+import { SPEED_OPTIONS, VOICE_PRESETS, VOICE_PRESET_ORDER } from '../presets';
 
 import VoicePicker from './VoicePicker';
 
 import type { ReactNode } from 'react';
-
-const FORMAT_ORDER: readonly SpeechOutputFormat[] = ['mp3', 'wav_phone'];
 
 export interface VoiceSettingsProps {
   preset: SpeechPreset;
@@ -20,20 +14,19 @@ export interface VoiceSettingsProps {
   onVoiceChange: (next: TtsVoiceId) => void;
   speed: number;
   onSpeedChange: (next: number) => void;
-  formats: readonly SpeechOutputFormat[];
-  onFormatsChange: (next: readonly SpeechOutputFormat[]) => void;
-  /** The submit button and its duration estimate — the rail's last block. */
-  footer: ReactNode;
+  /**
+   * `inline` opens inside the editor card on wide screens: presets as one
+   * segmented row with the active description below. `sheet` is the phone's
+   * bottom sheet: presets as stacked cards with their descriptions, thumb-sized.
+   */
+  variant: 'inline' | 'sheet';
 }
 
-/** Same lead-in for each block, so the rail reads as one list of decisions. */
+/** Same lead-in for each block, so the settings read as one list of decisions. */
 function Group({ id, label, children }: { id: string; label: string; children: ReactNode }) {
   return (
-    <div className="flex flex-col gap-sm">
-      <span
-        id={id}
-        className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
-      >
+    <div className="flex flex-col gap-xs">
+      <span id={id} className="text-xs font-semibold text-muted-foreground">
         {label}
       </span>
       {children}
@@ -41,13 +34,13 @@ function Group({ id, label, children }: { id: string; label: string; children: R
   );
 }
 
-/**
- * Everything about the recording rather than the words: what it is for, who
- * reads it, how fast, and what comes out.
- *
- * A rail beside the editor on wide screens, a stack below it on narrow ones —
- * which also puts the submit button last in the reading order on a phone.
- */
+const SEGMENTED = 'w-full gap-1 rounded-lg bg-grey-100 p-1 dark:bg-grey-800';
+const SEGMENT =
+  'h-auto min-h-8 shrink grow basis-0 whitespace-normal rounded-md py-1 hover:bg-transparent hover:text-foreground data-[state=on]:bg-background-pure dark:data-[state=on]:bg-grey-700 data-[state=on]:font-medium data-[state=on]:text-foreground data-[state=on]:shadow-sm';
+const CARD =
+  'h-auto min-h-14 w-full flex-col items-start gap-xxs whitespace-normal rounded-lg border border-grey-200 px-sm py-sm text-left hover:bg-hover-alt hover:text-foreground dark:border-grey-700 data-[state=on]:border-primary-500 data-[state=on]:bg-primary-500/5 data-[state=on]:text-foreground dark:data-[state=on]:border-primary-400 dark:data-[state=on]:bg-primary-400/10';
+
+/** What the recording is for, who reads it and how fast — nothing about the words. */
 export default function VoiceSettings({
   preset,
   onPresetChange,
@@ -55,103 +48,69 @@ export default function VoiceSettings({
   onVoiceChange,
   speed,
   onSpeedChange,
-  formats,
-  onFormatsChange,
-  footer,
+  variant,
 }: VoiceSettingsProps) {
-  const toggleFormat = (format: SpeechOutputFormat, checked: boolean) => {
-    onFormatsChange(FORMAT_ORDER.filter((f) => (f === format ? checked : formats.includes(f))));
-  };
+  const sheet = variant === 'sheet';
 
   return (
-    <div className="flex flex-col gap-lg">
-      <Group id="voice-preset-label" label="Art der Aufnahme">
-        <ToggleGroup
-          type="single"
-          value={preset}
-          onValueChange={(value) => {
-            if (value) onPresetChange(value as SpeechPreset);
-          }}
-          aria-labelledby="voice-preset-label"
-          spacing={2}
-          className="w-full flex-col items-stretch gap-xs"
-        >
-          {VOICE_PRESET_ORDER.map((id) => (
-            <ToggleGroupItem
-              key={id}
-              value={id}
-              className="h-auto w-full flex-col items-start gap-xxs whitespace-normal rounded-lg border border-grey-200 px-sm py-sm text-left hover:bg-hover-alt hover:text-foreground dark:border-grey-700 data-[state=on]:border-primary-500 data-[state=on]:bg-primary-500/5 data-[state=on]:text-foreground dark:data-[state=on]:border-primary-400 dark:data-[state=on]:bg-primary-400/10"
-            >
-              <span className="text-sm font-medium">{VOICE_PRESETS[id].title}</span>
-              <span className="text-xs font-normal text-muted-foreground">
-                {VOICE_PRESETS[id].description}
-              </span>
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
-      </Group>
+    <div className={sheet ? 'flex flex-col gap-lg' : 'grid gap-md sm:grid-cols-2'}>
+      <div className="sm:col-span-full">
+        <Group id={`voice-preset-label-${variant}`} label="Art der Aufnahme">
+          <ToggleGroup
+            type="single"
+            value={preset}
+            onValueChange={(value) => {
+              if (value) onPresetChange(value as SpeechPreset);
+            }}
+            aria-labelledby={`voice-preset-label-${variant}`}
+            spacing={sheet ? 2 : 1}
+            className={sheet ? 'w-full flex-col items-stretch gap-xs' : SEGMENTED}
+          >
+            {VOICE_PRESET_ORDER.map((id) => (
+              <ToggleGroupItem key={id} value={id} className={sheet ? CARD : SEGMENT}>
+                <span className={sheet ? 'text-base font-medium' : undefined}>
+                  {VOICE_PRESETS[id].title}
+                </span>
+                {sheet ? (
+                  <span className="text-xs font-normal text-muted-foreground">
+                    {VOICE_PRESETS[id].description}
+                  </span>
+                ) : null}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+          {sheet ? null : (
+            <p className="m-0 text-xs text-muted-foreground">{VOICE_PRESETS[preset].description}</p>
+          )}
+        </Group>
+      </div>
 
-      <Group id="voice-voice-label" label="Stimme">
+      <Group id={`voice-voice-label-${variant}`} label="Stimme">
         <VoicePicker value={voiceId} onChange={onVoiceChange} />
       </Group>
 
-      <Group id="voice-speed-label" label="Tempo">
+      <Group id={`voice-speed-label-${variant}`} label="Tempo">
         <ToggleGroup
           type="single"
           value={String(speed)}
           onValueChange={(value) => {
             if (value) onSpeedChange(Number(value));
           }}
-          aria-labelledby="voice-speed-label"
+          aria-labelledby={`voice-speed-label-${variant}`}
           spacing={1}
-          className="w-full gap-1 rounded-lg bg-grey-100 p-1 dark:bg-grey-800"
+          className={SEGMENTED}
         >
           {SPEED_OPTIONS.map((option) => (
             <ToggleGroupItem
               key={option.value}
               value={String(option.value)}
-              className="shrink grow basis-0 rounded-md hover:bg-transparent hover:text-foreground data-[state=on]:bg-background-pure data-[state=on]:font-medium data-[state=on]:text-foreground data-[state=on]:shadow-sm"
+              className={sheet ? `${SEGMENT} min-h-10` : SEGMENT}
             >
               {option.label}
             </ToggleGroupItem>
           ))}
         </ToggleGroup>
       </Group>
-
-      <fieldset className="m-0 flex flex-col gap-sm border-0 p-0">
-        <legend className="mb-sm text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Ausgabeformat
-        </legend>
-        {FORMAT_ORDER.map((format) => {
-          const id = `voice-format-${format}`;
-          return (
-            <div
-              key={format}
-              className="flex items-start gap-sm rounded-lg border border-grey-200 px-sm py-sm dark:border-grey-700"
-            >
-              <Checkbox
-                id={id}
-                checked={formats.includes(format)}
-                onCheckedChange={(checked) => toggleFormat(format, checked === true)}
-                className="mt-0.5"
-              />
-              <Label htmlFor={id} className="flex flex-col gap-xxs font-normal">
-                <span className="text-sm font-medium">{FORMAT_LABELS[format].label}</span>
-                <span className="text-xs text-muted-foreground">{FORMAT_LABELS[format].hint}</span>
-              </Label>
-            </div>
-          );
-        })}
-        {formats.length === 0 ? (
-          <p className="m-0 text-sm text-destructive" role="alert">
-            Mindestens ein Format auswählen.
-          </p>
-        ) : null}
-      </fieldset>
-
-      <div className="flex flex-col gap-sm border-t border-grey-200 pt-md dark:border-grey-700">
-        {footer}
-      </div>
     </div>
   );
 }
