@@ -443,22 +443,22 @@ describe('rebuildChunkPayload', () => {
     expect(fliesstext.chunk_type).toBe('text');
   });
 
-  it('führt page_number mit, wenn der Kopf es trägt — und schätzt es sonst nie', () => {
-    const mitSeite = rebuildChunkPayload({ ...HEAD_PAYLOAD, page_number: 12 }, chunkOf('a'), {
+  it('übernimmt page_number nie vom Kopf, nur aus den Markern des Chunkers', () => {
+    const kopfMitSeite = rebuildChunkPayload({ ...HEAD_PAYLOAD, page_number: 12 }, chunkOf('a'), {
       index: 4,
       fullText: 'x',
       qualityScore: 0.5,
       now: NOW,
     });
-    const ohneSeite = rebuildChunkPayload(HEAD_PAYLOAD, chunkOf('a'), {
+    const ausMarker = rebuildChunkPayload(HEAD_PAYLOAD, chunkOf('a', { page_number: 7 }), {
       index: 4,
       fullText: 'x',
       qualityScore: 0.5,
       now: NOW,
     });
 
-    expect(mitSeite.page_number).toBe(12);
-    expect('page_number' in ohneSeite).toBe(false);
+    expect('page_number' in kopfMitSeite).toBe(false);
+    expect(ausMarker.page_number).toBe(7);
   });
 
   it('führt token_count nur, wo die Sammlung das Feld führt', () => {
