@@ -26,7 +26,8 @@
  */
 export const TRUNCATION_MIN_WORDS = 5;
 
-const CLOSING_FORMULA_RE = /(?<![\wäöüß])(?:grü(?:ß|ss)e[n]?|gru(?:ß|ss))(?![\wäöüß])/iu;
+// No lookbehind: the client bundle targets Safari 15 (check-browser-lookbehind.mjs).
+const CLOSING_FORMULA_RE = /(?:^|[^\wäöüß])(?:grü(?:ß|ss)e[n]?|gru(?:ß|ss))(?![\wäöüß])/iu;
 const SIGNATURE_LINE_MAX = 60;
 const SIGNATURE_MAX_LINES = 4;
 
