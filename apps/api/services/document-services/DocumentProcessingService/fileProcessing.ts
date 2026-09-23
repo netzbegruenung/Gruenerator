@@ -246,6 +246,16 @@ export async function processUploadedDocument(
     // derived from the position, so a retry that produces fewer chunks would
     // leave the surplus behind — orphaned points that still match searches.
     // Cheap no-op on a first run, and it makes re-processing idempotent.
+    if (reindex) {
+      // Ab hier gibt es die alte Fassung nicht mehr. Erst in der Zeile
+      // festhalten, dann löschen: stürzt der Lauf danach ab und gibt der Worker
+      // auf, darf er nicht auf „bisherige Fassung bleibt durchsuchbar" fallen.
+      // Nicht best-effort — ohne die Markierung wird nicht gelöscht.
+      await postgresDocumentService.updateDocumentMetadata(documentId, userId, {
+        additionalMetadata: { reindex_prev_searchable: false },
+      });
+      prevSearchable = false;
+    }
     vectorsReplaced = true;
     if (qdrantDocumentService.deleteDocumentVectors) {
       try {

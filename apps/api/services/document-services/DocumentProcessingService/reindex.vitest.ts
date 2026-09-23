@@ -351,6 +351,43 @@ describe('processUploadedDocument — neu indexieren', () => {
     );
   });
 
+  it('setzt reindex_prev_searchable auf false, BEVOR die alten Punkte gelöscht werden', async () => {
+    // Stürzt der Lauf nach dem Löschen ab und gibt der Worker später auf,
+    // darf er nicht „alte Fassung bleibt durchsuchbar" melden — es gibt keine.
+    storeDocumentVectors.mockRejectedValue(new Error('qdrant weg'));
+
+    await expect(run()).rejects.toThrow('qdrant weg');
+
+    const markerCall = updateDocumentMetadata.mock.calls.findIndex(
+      (c) =>
+        (c[2] as { additionalMetadata?: Record<string, unknown> }).additionalMetadata
+          ?.reindex_prev_searchable === false
+    );
+    expect(markerCall).toBeGreaterThanOrEqual(0);
+    expect(updateDocumentMetadata.mock.invocationCallOrder[markerCall]).toBeLessThan(
+      deleteDocumentVectors.mock.invocationCallOrder[0]!
+    );
+    // Nach dem Löschen gescheitert: failed, nicht completed.
+    expect(updateDocumentMetadata).toHaveBeenLastCalledWith(
+      'doc-1',
+      OWNER,
+      expect.objectContaining({ status: 'failed' })
+    );
+  });
+
+  it('lässt die alten Punkte stehen, wenn die Markierung nicht geschrieben werden kann', async () => {
+    updateDocumentMetadata.mockImplementation(
+      async (_id, _u, u: { additionalMetadata?: object }) => {
+        if (u.additionalMetadata && 'reindex_prev_searchable' in u.additionalMetadata) {
+          throw new Error('db weg');
+        }
+      }
+    );
+
+    await expect(run()).rejects.toThrow('db weg');
+    expect(deleteDocumentVectors).not.toHaveBeenCalled();
+  });
+
   it('war die Quelle schon vorher nicht durchsuchbar, bleibt sie failed — mit Grund', async () => {
     fetchOriginal.mockRejectedValue(new Error('Die Wolke-Freigabe ist nicht mehr verfügbar.'));
     const broken = {
