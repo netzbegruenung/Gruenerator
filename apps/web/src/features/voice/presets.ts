@@ -11,7 +11,6 @@ export interface VoicePresetDef {
   /** One line above the editor: what a good text for this preset looks like. */
   hint: string;
   placeholder: string;
-  defaultFormats: readonly SpeechOutputFormat[];
   maxChars: number;
 }
 
@@ -27,7 +26,6 @@ export const VOICE_PRESETS: Readonly<Record<SpeechPreset, VoicePresetDef>> = {
     hint: 'Kurz und freundlich: wer spricht, wann ihr erreichbar seid und was Anrufende jetzt tun können.',
     placeholder:
       'Hallo, hier ist das Grüne Büro in Musterstadt. Wir sind gerade nicht erreichbar …',
-    defaultFormats: ['wav_phone', 'mp3'],
     maxChars: 1500,
   },
   vorlesefassung: {
@@ -35,7 +33,6 @@ export const VOICE_PRESETS: Readonly<Record<SpeechPreset, VoicePresetDef>> = {
     description: 'Einen Text als Hörfassung anbieten – barrierefrei und zum Mitnehmen',
     hint: 'Gesprochen wird, was dasteht: Abkürzungen ausschreiben, Links und Fußnoten weglassen.',
     placeholder: 'Text einfügen …',
-    defaultFormats: ['mp3'],
     maxChars: SPEECH_MAX_TEXT_CHARS,
   },
   audiodeskription: {
@@ -43,7 +40,6 @@ export const VOICE_PRESETS: Readonly<Record<SpeechPreset, VoicePresetDef>> = {
     description: 'Beschreibt Sharepic, Plakat oder Video für Menschen, die es nicht sehen',
     hint: 'Beschreibe sachlich, was zu sehen ist – Bildaufbau, Text im Bild, Personen, Stimmung – in der Reihenfolge, in der das Auge es liest.',
     placeholder: 'Ein grünes Sharepic. Oben in weißer Schrift steht …',
-    defaultFormats: ['mp3'],
     maxChars: SPEECH_MAX_CHUNK_CHARS,
   },
 };
@@ -53,6 +49,13 @@ export const VOICE_PRESET_ORDER: readonly SpeechPreset[] = [
   'vorlesefassung',
   'audiodeskription',
 ];
+
+/**
+ * Every recording comes out in both formats. The server synthesises once and
+ * only encodes twice, so asking for both costs no extra speech — and nobody has
+ * to decide before hearing the result where the file will end up.
+ */
+export const ALL_FORMATS: readonly SpeechOutputFormat[] = ['mp3', 'wav_phone'];
 
 export const FORMAT_LABELS: Readonly<Record<SpeechOutputFormat, { label: string; hint: string }>> =
   {
