@@ -92,15 +92,6 @@ export interface CanvasHistoryEntry<TComponentState = Record<string, unknown>> {
 }
 
 // =============================================================================
-// EVENT TYPES
-// =============================================================================
-
-export interface CanvasEvents {
-  onExport?: (result: ExportResult) => void;
-  onHistoryChange?: (canUndo: boolean, canRedo: boolean) => void;
-}
-
-// =============================================================================
 // CONSTANTS
 // =============================================================================
 
