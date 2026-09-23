@@ -26,6 +26,18 @@
  *       aus URL und Titel per `DateExtractor.extractDateFromPdfInfo`, ohne
  *       Abruf; liefert auch die Neuberechnung nur ein Jahr oder gar nichts,
  *       zählt der Punkt als `unresolved` und bleibt, wie er ist.
+ *       visible-date — das gedruckte Datum statt des TYPO3-Datensatzstands
+ *       (#3565). Holt jede HTML-Seite der Quelle neu (derselbe Abrufpfad wie
+ *       `--titles --refetch`, inkl. Pause und `assertSamePage` — läuft
+ *       zusammen mit `--titles --refetch`, teilen sich beide denselben Abruf)
+ *       und liest sie mit den aktuellen `contentSelectors` aus; PDFs, Wolke-
+ *       Dateien und eine leere xBlog-Platzhalterseite ("kein Eintrag
+ *       vorhanden" — falscher Content-Typ-Pfad zur URL) bleiben unresolved.
+ *       Nur mit `--source` (kein `--all` — das wäre ein Voll-Abruf). Das
+ *       gespeicherte `published_at` trägt teils eine Uhrzeit, das sichtbare
+ *       Datum nie — ein Tag, der nur die Uhrzeit verliert, zählt trotzdem als
+ *       Abweichung und damit als Patch (die Zeichenketten sind schlicht
+ *       verschieden), nicht als `unchanged`.
  *   - `--gone` (nur mit `--source`, allein): holt jede HTML-Seite der Quelle
  *     (1 Anfrage/s) und LÖSCHT mit `--write` alle Punkte einer URL, die
  *     `goneState.classifyFetch` als weg (404/410, Weiterleitung auf Startseite,
@@ -43,6 +55,7 @@
  *   npx tsx scripts/repair-lv-payload.ts --titles --source berlin-lv-presse --source berlin-lv-beschluesse --refetch
  *   npx tsx scripts/repair-lv-payload.ts --titles --all
  *   npx tsx scripts/repair-lv-payload.ts --overwrite-dates mid-june --all
+ *   npx tsx scripts/repair-lv-payload.ts --overwrite-dates visible-date --source berlin-lv-presse
  *   npx tsx scripts/repair-lv-payload.ts --gone --source sachsen-anhalt-lv
  *   … jeweils mit --write, um wirklich zu schreiben; --limit N begrenzt die Punkte je Quelle.
  *
@@ -50,7 +63,10 @@
  * gleichzeitig, gruppiert nach Host ihrer `baseUrl` — zwei Quellen desselben
  * LV-Webauftritts (z. B. gruene.berlin) laufen nie parallel, das Pacing
  * innerhalb einer Quelle (300 ms bzw. 1/s) bleibt unverändert. Die Ausgabe je
- * Quelle erscheint erst als ganzer Block, wenn diese Quelle fertig ist.
+ * Quelle erscheint erst als ganzer Block, wenn diese Quelle fertig ist. Wirft
+ * eine Quelle einen Fehler, bricht das nur ihre eigene Host-Gruppe ab
+ * (restliche Quellen dieser Gruppe werden übersprungen); alle anderen Gruppen
+ * laufen weiter, der Prozess endet am Schluss mit Exit-Code 1.
  *
  * dotenv muss vor jedem App-Import laufen (config/env.js liest die Umgebung
  * beim Import) — daher die dynamischen Importe.
@@ -107,6 +123,12 @@ const USAGE =
 const DEFAULT_COLLECTION = 'landesverbaende_documents';
 const UA = 'Gruenerator-Bot/1.0 (+https://gruenerator.eu)';
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}/;
+// TYPO3 xBlog antwortet mit HTTP 200 und dieser Meldung, wenn die angefragte
+// URL vom falschen Content-Typ-Widget bedient wird (z. B. eine Beschluss-URL
+// unter dem Presse-Pfad) — kein Redirect, `assertSamePage` greift also nicht.
+// Die Seiten-Meta (article:published_time) bleibt trotzdem gefüllt und würde
+// sonst wie ein gültiges sichtbares Datum aussehen (#3565).
+const XBLOG_PLACEHOLDER = 'kein Eintrag vorhanden';
 // Dieselbe Pause wie der Scraper zwischen zwei Abrufen (`crawlDelay` in
 // LandesverbandScraper.ts). Dort ist sie ein privates Instanzfeld; die Klasse
 // hier zu importieren zöge die App-Umgebung vor dotenv mit.
@@ -167,6 +189,11 @@ export function parseCliArgs(argv: string[]): { args: CliArgs } | { error: strin
   if (args.all && args.refetch) {
     return { error: '--refetch nur mit --source: --all --refetch holt jede Seite neu.' };
   }
+  if (args.overwriteDates === 'visible-date' && args.all) {
+    return {
+      error: '--overwrite-dates visible-date nur mit --source: --all holt jede Seite neu ab.',
+    };
+  }
   return { args };
 }
 
@@ -196,6 +223,38 @@ export function groupSourcesByHost<T extends { baseUrl: string }>(sources: T[]):
   return [...groups.values()];
 }
 
+/**
+ * Führt Host-Gruppen über `parallelLimit`, isoliert dabei aber Fehler: Wirft
+ * `worker` für eine Quelle, bricht das nur ihre eigene Gruppe ab (die
+ * restlichen Quellen dieser Gruppe werden übersprungen) — alle anderen
+ * Gruppen laufen unbeeinflusst weiter. Ohne diese Isolation würde eine
+ * einzelne Ablehnung `parallelLimit` insgesamt scheitern lassen und
+ * Nachbar-Gruppen, die noch mitten im Schreiben sind, hart abbrechen.
+ */
+export async function runGroups<T extends { sourceId: string | null; collection: string }>(
+  groups: T[][],
+  worker: (scope: T) => Promise<void>,
+  parallel: number
+): Promise<{ failed: string[] }> {
+  const failed: string[] = [];
+  await parallelLimit(
+    groups.map((group) => async () => {
+      for (const scope of group) {
+        try {
+          await worker(scope);
+        } catch (error) {
+          const id = scope.sourceId ?? scope.collection;
+          console.error(`[error] ${id}: ${(error as Error).message}`);
+          failed.push(id);
+          return;
+        }
+      }
+    }),
+    parallel
+  );
+  return { failed };
+}
+
 export function planRepair(stored: StoredFields, extracted: Extracted | null): Patch | null {
   const patch: Patch = {};
   const title = extracted?.title || ContentExtractor.normalizeTitle(stored.title);
@@ -208,7 +267,10 @@ export function planRepair(stored: StoredFields, extracted: Extracted | null): P
 
 /** `unchanged`: der Defekt liegt nicht vor. `unresolved`: er liegt vor, aber es gibt keinen besseren Wert. */
 type DateVerdict = { published_at: string } | 'unchanged' | 'unresolved';
-type DateRule = (point: Pick<StoredPoint, 'source_url' | 'title' | 'published_at'>) => DateVerdict;
+type DateRule = (
+  point: Pick<StoredPoint, 'source_url' | 'title' | 'published_at'>,
+  extracted: Extracted | null
+) => DateVerdict;
 
 const MID_JUNE = /-06-15/;
 
@@ -220,13 +282,87 @@ export const DATE_RULES: Record<string, DateRule> = {
     if (!dateString || MID_JUNE.test(dateString)) return 'unresolved';
     return dateString === point.published_at ? 'unchanged' : { published_at: dateString };
   },
+  // Das gedruckte Datum auf der Seite statt des TYPO3-Datensatzstands (#3565).
+  // Der Abruf passiert am Aufrufer (derselbe --refetch-Pfad wie --titles); ohne
+  // Treffer oder ohne sichtbares Datum bleibt der Punkt unresolved statt eines
+  // null-Patches.
+  'visible-date': (point, extracted) => {
+    if (!extracted?.publishedAt || !ISO_DATE.test(extracted.publishedAt)) return 'unresolved';
+    return extracted.publishedAt === point.published_at
+      ? 'unchanged'
+      : { published_at: extracted.publishedAt };
+  },
 };
 
 export function planDateRepair(
   point: Pick<StoredPoint, 'source_url' | 'title' | 'published_at'>,
-  rule: string
+  rule: string,
+  extracted: Extracted | null = null
 ): DateVerdict {
-  return DATE_RULES[rule](point);
+  return DATE_RULES[rule](point, extracted);
+}
+
+export function isEmptyPlaceholder(text: string): boolean {
+  return text.includes(XBLOG_PLACEHOLDER);
+}
+
+interface RepairContext {
+  titles: boolean;
+  refetch: boolean;
+  overwriteDates: string | null;
+}
+
+interface RepairResult {
+  patch: Patch;
+  unresolved: boolean;
+  fetchAttempted: boolean;
+  fetchError: string | null;
+}
+
+/**
+ * Verarbeitet einen Punkt für --titles und --overwrite-dates gemeinsam. Beide
+ * teilen sich HÖCHSTENS EINEN Abruf: --titles --refetch und --overwrite-dates
+ * visible-date brauchen dieselbe frisch ausgelesene Seite, ein zweiter Abruf
+ * wäre unnötiger Netzverkehr und eine zweite Pause (#3565). `refetchable`
+ * kommt vom Aufrufer (kennt `getSourceById` + `isRefetchable`), `fetchExtracted`
+ * kapselt den eigentlichen Netzzugriff — so bleibt diese Funktion ohne echten
+ * Abruf testbar.
+ */
+export async function planPointRepair(
+  point: Pick<StoredPoint, 'source_url' | 'title' | 'published_at'>,
+  ctx: RepairContext,
+  refetchable: boolean,
+  fetchExtracted: () => Promise<Extracted & { text: string }>
+): Promise<RepairResult> {
+  const needsRefetch = (ctx.titles && ctx.refetch) || ctx.overwriteDates === 'visible-date';
+  let extracted: Extracted | null = null;
+  let fetchAttempted = false;
+  let fetchError: string | null = null;
+
+  if (needsRefetch && refetchable) {
+    fetchAttempted = true;
+    try {
+      const result = await fetchExtracted();
+      // Eine leere xBlog-Platzhalterseite zählt als kein Abruf — sonst würde
+      // ihre stehengebliebene Meta-Angabe wie ein gültiges sichtbares Datum
+      // durchgereicht (#3565).
+      if (!isEmptyPlaceholder(result.text)) extracted = result;
+    } catch (error) {
+      fetchError = (error as Error).message;
+    }
+  }
+
+  let patch: Patch = {};
+  if (ctx.titles) patch = planRepair(point, extracted) ?? {};
+
+  let unresolved = false;
+  if (ctx.overwriteDates) {
+    const verdict = planDateRepair(point, ctx.overwriteDates, extracted);
+    if (verdict === 'unresolved') unresolved = true;
+    else if (verdict !== 'unchanged') patch.published_at = verdict.published_at;
+  }
+
+  return { patch, unresolved, fetchAttempted, fetchError };
 }
 
 /**
@@ -407,53 +543,118 @@ async function main(): Promise<void> {
     collection: string;
   }): Promise<void> {
     const lines: string[] = [];
-    const all = await scrollChunkZero(client, scope.collection, scope.sourceId);
-    const points = args.limit ? all.slice(0, args.limit) : all;
+    try {
+      const all = await scrollChunkZero(client, scope.collection, scope.sourceId);
+      const points = args.limit ? all.slice(0, args.limit) : all;
 
-    if (args.gone && scope.sourceId) {
-      const source = getSourceById(scope.sourceId);
-      const listingPaths = source ? source.contentPaths.map((cp) => cp.path) : [];
-      const tally: Record<FetchOutcome | 'skipped', number> = {
-        live: 0,
-        moved: 0,
-        gone: 0,
-        transient: 0,
-        skipped: 0,
-      };
-      let targetMissing = 0;
-      const isIndexed = async (url: string): Promise<boolean> => {
-        const res = await client.scroll(scope.collection, {
-          filter: { must: [{ key: 'source_url', match: { value: url } }] },
-          limit: 1,
-          with_payload: false,
-          with_vector: false,
-        });
-        return res.points.length > 0;
-      };
-      const goneSamples: string[] = [];
-      let wouldDelete = 0;
-      let deleted = 0;
-      for (const point of points) {
-        if (!source || !isRefetchable(point.source_url, source)) {
-          tally.skipped++;
-          continue;
+      if (args.gone && scope.sourceId) {
+        const source = getSourceById(scope.sourceId);
+        const listingPaths = source ? source.contentPaths.map((cp) => cp.path) : [];
+        const tally: Record<FetchOutcome | 'skipped', number> = {
+          live: 0,
+          moved: 0,
+          gone: 0,
+          transient: 0,
+          skipped: 0,
+        };
+        let targetMissing = 0;
+        const isIndexed = async (url: string): Promise<boolean> => {
+          const res = await client.scroll(scope.collection, {
+            filter: { must: [{ key: 'source_url', match: { value: url } }] },
+            limit: 1,
+            with_payload: false,
+            with_vector: false,
+          });
+          return res.points.length > 0;
+        };
+        const goneSamples: string[] = [];
+        let wouldDelete = 0;
+        let deleted = 0;
+        for (const point of points) {
+          if (!source || !isRefetchable(point.source_url, source)) {
+            tally.skipped++;
+            continue;
+          }
+          const result = await probe(point.source_url);
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          const plan = await planGone(point.source_url, result, listingPaths, isIndexed);
+          const { outcome, remove } = plan;
+          tally[outcome]++;
+          if (plan.targetMissing) targetMissing++;
+          if (!remove) continue;
+          wouldDelete++;
+          if (goneSamples.length < 10) {
+            goneSamples.push(
+              `  [${outcome}] ${point.source_url} (HTTP ${result.status}${result.finalUrl && result.finalUrl !== point.source_url ? ` → ${result.finalUrl}` : ''})`
+            );
+          }
+          if (args.write) {
+            await client.delete(scope.collection, {
+              wait: true,
+              filter: {
+                must: [
+                  { key: 'source_id', match: { value: point.source_id } },
+                  { key: 'source_url', match: { value: point.source_url } },
+                ],
+              },
+            });
+            deleted++;
+          }
         }
-        const result = await probe(point.source_url);
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        const plan = await planGone(point.source_url, result, listingPaths, isIndexed);
-        const { outcome, remove } = plan;
-        tally[outcome]++;
-        if (plan.targetMissing) targetMissing++;
-        if (!remove) continue;
-        wouldDelete++;
-        if (goneSamples.length < 10) {
-          goneSamples.push(
-            `  [${outcome}] ${point.source_url} (HTTP ${result.status}${result.finalUrl && result.finalUrl !== point.source_url ? ` → ${result.finalUrl}` : ''})`
+        lines.push(`\n═══ ${scope.sourceId} — --gone ═══`);
+        lines.push(goneSamples.join('\n'));
+        lines.push(
+          `  geprüft ${points.length} = live ${tally.live} + umgezogen ${tally.moved} (davon Ziel nicht indexiert, behalten: ${targetMissing}) + weg ${tally.gone} + vorübergehend ${tally.transient} + nicht abgerufen ${tally.skipped}`
+        );
+        lines.push(
+          `  ${args.write ? 'gelöscht' : 'würde löschen'} ${args.write ? deleted : wouldDelete} URL(s)`
+        );
+        console.log(lines.join('\n'));
+        return;
+      }
+
+      const counts = { scanned: points.length, wouldPatch: 0, unchanged: 0, unresolved: 0 };
+      const extra = { title: 0, date: 0, fetchFailed: 0, written: 0 };
+      const samples: string[] = [];
+
+      for (const point of points) {
+        const source = getSourceById(point.source_id);
+        const refetchable = Boolean(source) && isRefetchable(point.source_url, source!);
+
+        const result = await planPointRepair(
+          point,
+          { titles: args.titles, refetch: args.refetch, overwriteDates: args.overwriteDates },
+          refetchable,
+          () => ContentExtractor.extractPageContent(point.source_url, source!, fetchOk)
+        );
+        if (result.fetchAttempted) await sleep(REFETCH_DELAY_MS);
+        if (result.fetchError) {
+          extra.fetchFailed++;
+          // Sofort auf stderr (nicht erst im Block am Ende) — bei parallelen
+          // Quellen ist das sonst die einzige Stelle, die sofort auffällt, wenn
+          // eine Quelle beim Abruf hängt oder durchgängig fehlschlägt.
+          console.warn(
+            `[fetch:${scope.sourceId ?? scope.collection}] ${point.source_url}: ${result.fetchError}`
+          );
+          lines.push(`  [fetch] ${point.source_url}: ${result.fetchError}`);
+        }
+
+        const { patch, unresolved } = result;
+        if (patch.title !== undefined) extra.title++;
+        if (patch.published_at !== undefined) extra.date++;
+        const bucket = classifyPoint(patch, unresolved);
+        counts[bucket]++;
+        if (bucket !== 'wouldPatch') continue;
+        if (samples.length < 5) {
+          const old = { title: point.title, published_at: point.published_at };
+          samples.push(
+            `  ${point.source_url}\n    ${JSON.stringify(old)}\n  → ${JSON.stringify(patch)}`
           );
         }
+
         if (args.write) {
-          await client.delete(scope.collection, {
-            wait: true,
+          await client.setPayload(scope.collection, {
+            payload: patch as Record<string, unknown>,
             filter: {
               must: [
                 { key: 'source_id', match: { value: point.source_id } },
@@ -461,89 +662,25 @@ async function main(): Promise<void> {
               ],
             },
           });
-          deleted++;
+          extra.written++;
         }
       }
-      lines.push(`\n═══ ${scope.sourceId} — --gone ═══`);
-      lines.push(goneSamples.join('\n'));
+
+      lines.push(`\n═══ ${scope.sourceId ?? `${scope.collection} (alle Quellen)`} ═══`);
+      lines.push(samples.join('\n'));
       lines.push(
-        `  geprüft ${points.length} = live ${tally.live} + umgezogen ${tally.moved} (davon Ziel nicht indexiert, behalten: ${targetMissing}) + weg ${tally.gone} + vorübergehend ${tally.transient} + nicht abgerufen ${tally.skipped}`
+        `  geprüft ${counts.scanned} = would-patch ${counts.wouldPatch} + unchanged ${counts.unchanged} + unresolved ${counts.unresolved} (unresolved nur ohne jeden Patch)`
       );
       lines.push(
-        `  ${args.write ? 'gelöscht' : 'würde löschen'} ${args.write ? deleted : wouldDelete} URL(s)`
+        `  davon Titel ${extra.title} · Datum ${extra.date} · Abruf fehlgeschlagen ${extra.fetchFailed} · geschrieben ${extra.written}`
       );
       console.log(lines.join('\n'));
-      return;
+    } catch (error) {
+      // Der Block dieser Quelle ist noch nichts wert (keine Zusammenfassung),
+      // aber was bis zum Fehler gesammelt wurde, geht nicht verloren.
+      if (lines.length > 0) console.log(lines.join('\n'));
+      throw error;
     }
-
-    const counts = { scanned: points.length, wouldPatch: 0, unchanged: 0, unresolved: 0 };
-    const extra = { title: 0, date: 0, fetchFailed: 0, written: 0 };
-    const samples: string[] = [];
-
-    for (const point of points) {
-      let patch: Patch = {};
-      let unresolved = false;
-
-      if (args.titles) {
-        const source = getSourceById(point.source_id);
-        let extracted: Extracted | null = null;
-        if (args.refetch && source && isRefetchable(point.source_url, source)) {
-          try {
-            extracted = await ContentExtractor.extractPageContent(
-              point.source_url,
-              source,
-              fetchOk
-            );
-          } catch (error) {
-            extra.fetchFailed++;
-            lines.push(`  [fetch] ${point.source_url}: ${(error as Error).message}`);
-          }
-          await sleep(REFETCH_DELAY_MS);
-        }
-        patch = planRepair(point, extracted) ?? {};
-      }
-
-      if (args.overwriteDates) {
-        const verdict = planDateRepair(point, args.overwriteDates);
-        if (verdict === 'unresolved') unresolved = true;
-        else if (verdict !== 'unchanged') patch.published_at = verdict.published_at;
-      }
-
-      if (patch.title !== undefined) extra.title++;
-      if (patch.published_at !== undefined) extra.date++;
-      const bucket = classifyPoint(patch, unresolved);
-      counts[bucket]++;
-      if (bucket !== 'wouldPatch') continue;
-      if (samples.length < 5) {
-        const old = { title: point.title, published_at: point.published_at };
-        samples.push(
-          `  ${point.source_url}\n    ${JSON.stringify(old)}\n  → ${JSON.stringify(patch)}`
-        );
-      }
-
-      if (args.write) {
-        await client.setPayload(scope.collection, {
-          payload: patch as Record<string, unknown>,
-          filter: {
-            must: [
-              { key: 'source_id', match: { value: point.source_id } },
-              { key: 'source_url', match: { value: point.source_url } },
-            ],
-          },
-        });
-        extra.written++;
-      }
-    }
-
-    lines.push(`\n═══ ${scope.sourceId ?? `${scope.collection} (alle Quellen)`} ═══`);
-    lines.push(samples.join('\n'));
-    lines.push(
-      `  geprüft ${counts.scanned} = would-patch ${counts.wouldPatch} + unchanged ${counts.unchanged} + unresolved ${counts.unresolved} (unresolved nur ohne jeden Patch)`
-    );
-    lines.push(
-      `  davon Titel ${extra.title} · Datum ${extra.date} · Abruf fehlgeschlagen ${extra.fetchFailed} · geschrieben ${extra.written}`
-    );
-    console.log(lines.join('\n'));
   }
 
   if (args.all) {
@@ -551,13 +688,15 @@ async function main(): Promise<void> {
   } else {
     // Innerhalb einer Host-Gruppe sequentiell (dasselbe Pacing wie heute);
     // Parallelität nur über Host-Gruppen hinweg, per --parallel begrenzt.
+    // Fehler in einer Quelle isolieren nur ihre Gruppe (runGroups) — sonst
+    // würde eine einzelne Ablehnung parallelLimit insgesamt scheitern lassen
+    // und Nachbar-Gruppen mitten im Schreiben abbrechen.
     const hostGroups = groupSourcesByHost(sourceScopes);
-    await parallelLimit(
-      hostGroups.map((group) => async () => {
-        for (const scope of group) await processScope(scope);
-      }),
-      args.parallel
-    );
+    const { failed } = await runGroups(hostGroups, processScope, args.parallel);
+    if (failed.length > 0) {
+      console.error(`[repair-lv-payload] fehlgeschlagen: ${failed.join(', ')}`);
+      process.exitCode = 1;
+    }
   }
 }
 

@@ -362,6 +362,28 @@ describe('live findings 23.09.2026', () => {
     expect(normalizeArgs(find)).toBe(find);
   });
 
+  // Testserver 23.09.2026: der Planer gab das Suchwort als `query` und bekam
+  // „grep braucht phrase" — ein Fehlversuch pro Zählfrage.
+  it('takes query as the phrase for grep', async () => {
+    expect(normalizeArgs({ action: 'grep', query: 'Hafen' })).toMatchObject({ phrase: 'Hafen' });
+    expect(normalizeArgs({ action: 'grep', query: 'Hafen', phrase: 'Klima' })).toMatchObject({
+      phrase: 'Klima',
+    });
+    const { run } = makeCtx();
+    const out = await run({ action: 'grep', notebookId: 'hamburg', query: 'Wärmepumpe' });
+    expect(out).toMatchObject({ phrase: 'Wärmepumpe', totalHits: 2 });
+  });
+
+  // Testserver 23.09.2026: „Klimaschutz" im Berlin-Notebook — 203 Quellen mit
+  // Treffern, alle als Quelle registriert, 166k Zeichen im gespeicherten Ergebnis.
+  it('grep shows and grounds only the sources with the most hits, but counts all', async () => {
+    const { run, registered } = makeCtx({ extraPoints: true });
+    const out = await run({ action: 'grep', notebookId: 'hamburg', phrase: 'Hafen', limit: 1 });
+    expect(out).toMatchObject({ totalHits: 2, sourcesWithHits: 2 });
+    expect(out.perSource).toHaveLength(1);
+    expect(registered).toHaveLength(1);
+  });
+
   it('list filters a flat titleContains and says which filter it applied', async () => {
     const { run } = makeCtx();
     const out = await run({ action: 'list', notebookId: 'hamburg', titleContains: 'hafen' });
