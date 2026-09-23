@@ -32,6 +32,22 @@ describe('thueringen-lv — Wahlprogramm/Beschluss PDF paths (#3579)', () => {
     expect(path?.staticUrls?.length).toBe(THUERINGEN_BESCHLUESSE.length);
   });
 
+  it("carries each PDF's curated date through into staticUrls, so it wins over the upload-year folder", () => {
+    const wahlprogrammPath = source?.contentPaths.find((cp) => cp.type === 'wahlprogramm');
+    const beschlussPath = source?.contentPaths.find((cp) => cp.type === 'beschluss');
+
+    for (const [path, pdfs] of [
+      [wahlprogrammPath, THUERINGEN_WAHLPROGRAMME],
+      [beschlussPath, THUERINGEN_BESCHLUESSE],
+    ] as const) {
+      const entries = path?.staticUrls ?? [];
+      pdfs.forEach((pdf, i) => {
+        const entry = entries[i];
+        expect(typeof entry === 'string' ? undefined : entry?.date).toBe(pdf.date);
+      });
+    }
+  });
+
   it('does not re-enable the dormant thueringen-fraktion source', () => {
     const fraktion = getSourceById('thueringen-fraktion');
     expect(fraktion?.dormant).toBe(true);
