@@ -28,6 +28,7 @@ import {
 } from '../../../services/notebook/sourceCite.js';
 import {
   grepSources,
+  shownGrepSources,
   type GrepOptions,
   type ScanLoad,
 } from '../../../services/notebook/sourceGrep.js';
@@ -544,6 +545,7 @@ async function grep(
     caseSensitive: args.caseSensitive,
     contexts: args.contexts,
   });
+  const shown = shownGrepSources(counted.perSource, args.limit);
   if (counted.perSource.length === 0) {
     groundNote(
       sourceRegistry,
@@ -552,7 +554,7 @@ async function grep(
     );
   } else {
     sourceRegistry.register(
-      counted.perSource.map((s): SearchResult => {
+      shown.map((s): SearchResult => {
         const first = s.contexts[0];
         return {
           ...grounded(
@@ -580,7 +582,7 @@ async function grep(
       sourcesScanned: loaded.index?.scopeSize ?? loaded.sources.length,
       sourcesWithHits: counted.perSource.length,
       ...extra,
-      perSource: counted.perSource.map((s) => ({ ...s, url: s.sourceId })),
+      perSource: shown.map((s) => ({ ...s, url: s.sourceId })),
       ...joinNote(loaded.exhaustive ? null : notExhaustiveGrep(loaded.incompleteReason), note),
     },
     loaded.undatedExcluded
