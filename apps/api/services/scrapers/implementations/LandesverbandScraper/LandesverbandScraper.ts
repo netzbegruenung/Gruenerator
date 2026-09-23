@@ -50,7 +50,7 @@ import {
   isSameFile,
 } from '../../utils/binaryFingerprint.js';
 import { collectWolkeShareFiles, extractWolkeFileText } from '../../utils/wolkeShareHandler.js';
-import { resolveWolkeShareLink } from '../../utils/wolkeShareSecrets.js';
+import { redactShareTokens, resolveWolkeShareLink } from '../../utils/wolkeShareSecrets.js';
 
 import { staleDocumentsFilter } from './archiveFilter.js';
 import { ContentExtractor } from './extractors/ContentExtractor.js';
@@ -546,7 +546,9 @@ export class LandesverbandScraper extends BaseScraper {
           await this.delay(this.crawlDelay);
         } catch (error) {
           const msg = error instanceof Error ? error.message : 'Unknown error';
-          console.error(`[Landesverband] ✗ Wolke error in ${source.id} (${file.url}): ${msg}`);
+          console.error(
+            `[Landesverband] ✗ Wolke error in ${source.id} (${redactShareTokens(file.url)}): ${msg}`
+          );
           result.errors++;
           addErrorSamples(result, `Wolke ${file.url}: ${msg}`);
         }
