@@ -220,18 +220,27 @@ export class LandesverbandScraper extends BaseScraper {
       const pdfLinks = await this.linkExtractor.extractPdfLinks(source, contentPath);
       this.log(`Found ${pdfLinks.length} PDF links`);
 
+      const ageLimit = source.maxAgeYears ?? DEFAULT_MAX_AGE_YEARS;
+
       // Extract dates BEFORE expensive OCR (cost optimization)
       const pdfLinksWithDates = pdfLinks.map((pdf) => ({
         ...pdf,
-        dateInfo: DateExtractor.extractDateFromPdfInfo(pdf.url, pdf.title, pdf.context),
+        dateInfo: DateExtractor.extractDateFromPdfInfo(pdf.url, pdf.title, pdf.context, ageLimit),
       }));
 
+      // No rejectedUrlGate here (unlike the HTML branch): DocumentProcessor's
+      // own too_old check (STEP 2) can never fire for a PDF that reaches it —
+      // it re-evaluates the exact same dateInfo.dateString against the exact
+      // same ageLimit computed above, and an undated PDF passes publishedAt:
+      // null, which skips that check entirely. A pre-filtered too_old PDF is
+      // also rejected here, before any download, so there is nothing to save
+      // by remembering it. See #3576 review round 2.
       const recentPdfs = pdfLinksWithDates.filter((pdf) => pdf.dateInfo.isTooOld === false);
       const oldPdfs = pdfLinksWithDates.filter((pdf) => pdf.dateInfo.isTooOld === true);
       const undatedPdfs = pdfLinksWithDates.filter((pdf) => pdf.dateInfo.isTooOld === null);
 
       if (oldPdfs.length > 0) {
-        this.log(`Skipping ${oldPdfs.length} PDFs older than 10 years`);
+        this.log(`Skipping ${oldPdfs.length} PDFs older than ${ageLimit} years`);
         result.skipped += oldPdfs.length;
         result.skipReasons['too_old'] = (result.skipReasons['too_old'] || 0) + oldPdfs.length;
       }
@@ -355,6 +364,7 @@ export class LandesverbandScraper extends BaseScraper {
               text,
               publishedAt: pdf.dateInfo.dateString,
               categories: [],
+              bodyFallback: false,
             },
             targetCollection,
             source.maxAgeYears,
@@ -464,7 +474,7 @@ export class LandesverbandScraper extends BaseScraper {
             source,
             contentPath.type,
             file.url,
-            { title, text, publishedAt: null, categories: [] },
+            { title, text, publishedAt: null, categories: [], bodyFallback: false },
             targetCollection,
             source.maxAgeYears,
             file.etag ? { wolke_etag: file.etag } : undefined
@@ -1140,7 +1150,7 @@ export class LandesverbandScraper extends BaseScraper {
       source,
       'beschluss',
       pdfUrl,
-      { title, text, publishedAt, categories: [] },
+      { title, text, publishedAt, categories: [], bodyFallback: false },
       targetCollection,
       source.maxAgeYears
     );
