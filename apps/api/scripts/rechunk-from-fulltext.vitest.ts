@@ -457,7 +457,7 @@ describe('rebuildChunkPayload', () => {
       now: NOW,
     });
 
-    expect('page_number' in kopfMitSeite).toBe(false);
+    expect(kopfMitSeite.page_number).toBeNull();
     expect(ausMarker.page_number).toBe(7);
   });
 
