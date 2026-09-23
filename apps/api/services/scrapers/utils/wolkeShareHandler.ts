@@ -25,6 +25,8 @@ import {
   WOLKE_SCRAPER_OCR_EXTENSIONS,
 } from '../../sync/supportedFileTypes.js';
 
+import { redactShareTokens } from './wolkeShareSecrets.js';
+
 /**
  * Read straight off the wire as UTF-8 — never reaches OCR, so no media type
  * needed. Abgeleitet aus `supportedFileTypes.ts`, der einen Liste.
@@ -125,7 +127,7 @@ export async function collectWolkeShareFiles(
     });
   }
 
-  log(`[Wolke] ${shareLink}: ${files.length} supported file(s)`);
+  log(`[Wolke] ${redactShareTokens(shareLink)}: ${files.length} supported file(s)`);
   return { client, files };
 }
 
