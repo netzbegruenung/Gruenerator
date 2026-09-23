@@ -10,7 +10,7 @@
  * nothing. `loadCorpus()` now safeParses every line and names the file, line
  * number and offending path.
  */
-import { notebookDepthSchema } from '@gruenerator/contracts';
+import { memoryKindSchema, notebookDepthSchema } from '@gruenerator/contracts';
 import { DISPOSITION_BY_INTENT } from '@gruenerator/shared/chat-intents';
 import { z } from 'zod';
 
@@ -416,6 +416,19 @@ export const evalScenarioSchema = z
      * Prompt und `notebookIds`.
      */
     userNotebookLane: z.boolean().optional(),
+    /**
+     * Das Gedächtnis des Eval-Kontos für dieses Szenario: vor dem ersten Turn
+     * über `/api/memory` angelegt, danach wieder gelöscht. Übersprungen ohne
+     * EVAL_MEMORY=1.
+     *
+     * Eigene Lane, weil das Gedächtnis am KONTO hängt, nicht am Thread: jedes
+     * parallel laufende Szenario desselben Kontos sähe diese Einträge mit. Der
+     * Runner fährt die Lane deshalb nur mit EVAL_CONCURRENCY=1 und nur gegen
+     * ein Konto, dessen Gedächtnis vorher leer ist.
+     */
+    memories: z
+      .array(z.object({ kind: memoryKindSchema, text: z.string().min(1) }).strict())
+      .optional(),
   })
   .strict()
   .refine((s) => s.surface !== 'notebook' || (s.collectionIds?.length ?? 0) > 0, {

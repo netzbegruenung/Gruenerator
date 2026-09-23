@@ -25,34 +25,20 @@ import {
   structurePayload,
 } from '../../../../document-services/index.js';
 import { mistralEmbeddingService } from '../../../../mistral/index.js';
-import {
-  WOLKE_PLAINTEXT_EXTENSIONS,
-  WOLKE_SCRAPER_OCR_EXTENSIONS,
-} from '../../../../sync/supportedFileTypes.js';
 import { recordSyncEvent, toExcerpt } from '../../../syncEventRecorder.js';
+import { ContentExtractor } from '../extractors/ContentExtractor.js';
 import { DateExtractor } from '../extractors/DateExtractor.js';
 
 import type { LandesverbandSource } from '../../../../../config/landesverbaendeConfig.js';
 import type { ProcessResult, ExtractedContent } from '../types.js';
 import type { QdrantClient } from '@qdrant/js-client-rest';
 
+/** DateExtractor's year-only fallback — never a better date than one already stored. */
+const YEAR_ONLY_GUESS = /-06-15$/;
+const CHECKED_AT_REFRESH_MS = 24 * 60 * 60 * 1000;
+
 /** Stored title matching one of the LV sites' generic link-label texts, not a real title. */
 const GENERIC_TITLE_PATTERN = /^(dokument|herunterladen|download|pdf|hier)[.:!…]*$/i;
-
-/**
- * Extensions the LV pipeline downloads and reads as a file (PDF archive, Wolke
- * share) rather than scraping as an HTML page — reused from the Wolke extractor
- * lists so "file URL" means the same thing everywhere in this scraper.
- */
-const FILE_URL_EXTENSIONS: readonly string[] = [
-  ...WOLKE_SCRAPER_OCR_EXTENSIONS,
-  ...WOLKE_PLAINTEXT_EXTENSIONS,
-];
-
-function isFileUrl(url: string): boolean {
-  const withoutQuery = url.split('?')[0].toLowerCase();
-  return FILE_URL_EXTENSIONS.some((ext) => withoutQuery.endsWith(ext));
-}
 
 /** Input `qualityFlagsFor` needs to decide which defect classes apply. */
 export interface QualityFlagDoc {
@@ -60,7 +46,15 @@ export interface QualityFlagDoc {
   originalTitle: string;
   /** The title actually stored (after the fallback, if any). */
   storedTitle: string;
-  url: string;
+  /**
+   * Whether this document came from the PDF-archive or Wolke-share path
+   * (downloaded and read as a file) rather than the HTML-article path
+   * (scraped as a page). Passed in by the caller — the scraper already knows
+   * which path it is running, so this is never guessed from the URL's shape
+   * (a URL guess previously misclassified extension-less `/download/` links
+   * and `.pdf#page=2` fragments).
+   */
+  isFile: boolean;
   publishedAt: string | null;
   bodyFallback: boolean;
 }
@@ -76,13 +70,14 @@ export function qualityFlagsFor(doc: QualityFlagDoc): string[] {
   if (!doc.originalTitle) flags.push('title_fallback');
   if (GENERIC_TITLE_PATTERN.test(doc.storedTitle.trim())) flags.push('title_generic');
 
-  const fileUrl = isFileUrl(doc.url);
-  if (!fileUrl && doc.publishedAt === null) flags.push('date_missing_html');
+  if (!doc.isFile && doc.publishedAt === null) flags.push('date_missing_html');
   // DateExtractor.extractDateFromPdfInfo's year-only fallback guesses June
   // 15th when only a year is found. A precision field would say this
   // outright; until one exists (P4, not on this branch) the date's shape is
   // the only signal available here.
-  if (fileUrl && doc.publishedAt?.endsWith('-06-15')) flags.push('date_year_only');
+  if (doc.isFile && doc.publishedAt && YEAR_ONLY_GUESS.test(doc.publishedAt)) {
+    flags.push('date_year_only');
+  }
 
   if (doc.bodyFallback) flags.push('body_fallback');
 
@@ -105,6 +100,9 @@ export class DocumentProcessor {
   /**
    * Process and store document in Qdrant
    * Full pipeline: validate → deduplicate → chunk → embed → store
+   * @param isFile - Whether the caller is the PDF-archive or Wolke-share path
+   *   (downloaded file) rather than the HTML-article path (scraped page). Only
+   *   used for `qualityFlagsFor` — the caller already knows which path it runs.
    * @param collectionOverride - Optional collection name override (uses default if not provided)
    * @param maxAgeYears - Optional max age in years (default: 10)
    */
@@ -113,6 +111,7 @@ export class DocumentProcessor {
     contentType: string,
     url: string,
     content: ExtractedContent,
+    isFile: boolean,
     collectionOverride?: string,
     maxAgeYears?: number,
     extraPayload?: Record<string, unknown>
@@ -165,7 +164,15 @@ export class DocumentProcessor {
       // zurückkehren, bliebe der Punkt für immer ohne Fingerprint und die Datei
       // würde in jedem Lauf neu heruntergeladen und ausgelesen — genau der
       // Aufwand, den der Fingerprint einspart.
-      await this.#refreshExtraPayload(targetCollection, url, extraPayload, existingPayload);
+      // Dasselbe gilt für Titel und Datum: ein reparierter Extraktor erreicht
+      // sonst nur Seiten, deren Text sich geändert hat (#3578).
+      await this.#refreshStoredPayload(
+        targetCollection,
+        url,
+        { title, publishedAt },
+        extraPayload,
+        existingPayload
+      );
       return { stored: false, reason: 'unchanged' };
     }
 
@@ -176,9 +183,10 @@ export class DocumentProcessor {
       });
     }
 
-    // STEP 5: Build document title
+    // STEP 5: Build document title — hier treffen HTML-, PDF- und Wolke-Pfad
+    // zusammen; Dateinamen-Titel sähen den HTML-Extraktor sonst nie (#3560).
     const documentTitle =
-      title ||
+      ContentExtractor.normalizeTitle(title) ||
       `${source.name} - ${(CONTENT_TYPE_LABELS as Record<string, string>)[effectiveContentType] || effectiveContentType}`;
 
     // STEP 6: Chunk document
@@ -204,6 +212,7 @@ export class DocumentProcessor {
 
     // STEP 8: Build Qdrant points (with quality scoring)
     const curatedLists = getCuratedListsForUrl(url);
+    const now = new Date().toISOString();
     const points = chunks.map((chunk, index) => ({
       id: this.generatePointId(url, index),
       vector: embeddings[index],
@@ -229,7 +238,8 @@ export class DocumentProcessor {
         primary_category: categories?.[0] || null,
         subcategories: categories || [],
         published_at: publishedAt || null,
-        indexed_at: new Date().toISOString(),
+        indexed_at: now,
+        checked_at: now,
         source: 'landesverbaende_gruene',
         ...(curatedLists.length > 0 ? { curated_lists: curatedLists } : {}),
         ...(extraPayload ?? {}),
@@ -259,7 +269,7 @@ export class DocumentProcessor {
     const flags = qualityFlagsFor({
       originalTitle: title,
       storedTitle: documentTitle,
-      url,
+      isFile,
       publishedAt: publishedAt || null,
       bodyFallback: content.bodyFallback,
     });
@@ -274,24 +284,44 @@ export class DocumentProcessor {
   }
 
   /**
-   * Write back only those `extraPayload` keys whose stored value differs.
-   * Nothing to patch → no Qdrant call, so the common steady-state re-check stays
-   * a single scroll.
+   * One `setPayload` per unchanged document: the `extraPayload` keys and the
+   * extracted title/date whose stored value differs, plus `checked_at`, on
+   * which the staggered re-check keys (`indexed_at` stays the embedding time).
+   * An empty title or a null date is never written over a stored value — SL
+   * PDFs with processUndatedPdfs and every Wolke file pass `publishedAt: null`;
+   * neither is the `-06-15` year-only PDF guess over a stored date. Young pages
+   * are re-fetched on every run past RECHECK_AFTER_MS (this branch never bumps
+   * `indexed_at`), so a bare `checked_at` is only rewritten once it is a day old.
    */
-  async #refreshExtraPayload(
+  async #refreshStoredPayload(
     targetCollection: string,
     url: string,
+    extracted: { title: string; publishedAt: string | null },
     extraPayload: Record<string, unknown> | undefined,
     existingPayload: Record<string, unknown>
   ): Promise<void> {
-    if (!extraPayload) return;
+    const candidates: Record<string, unknown> = { ...(extraPayload ?? {}) };
+    // Normalisiert wie beim Speichern (STEP 5), sonst kippte der Titel hin und her.
+    const title = ContentExtractor.normalizeTitle(extracted.title);
+    if (title) candidates.title = title;
+    if (
+      extracted.publishedAt &&
+      !(existingPayload.published_at && YEAR_ONLY_GUESS.test(extracted.publishedAt))
+    ) {
+      candidates.published_at = extracted.publishedAt;
+    }
     const patch = Object.fromEntries(
-      Object.entries(extraPayload).filter(([key, value]) => existingPayload[key] !== value)
+      Object.entries(candidates).filter(([key, value]) => existingPayload[key] !== value)
     );
-    if (Object.keys(patch).length === 0) return;
 
-    await setPayload(this.qdrantClient, targetCollection, patch, {
-      must: [{ key: 'source_url', match: { value: url } }],
-    });
+    const checkedAt = new Date(String(existingPayload.checked_at ?? '')).getTime();
+    if (Object.keys(patch).length === 0 && Date.now() - checkedAt < CHECKED_AT_REFRESH_MS) return;
+
+    await setPayload(
+      this.qdrantClient,
+      targetCollection,
+      { ...patch, checked_at: new Date().toISOString() },
+      { must: [{ key: 'source_url', match: { value: url } }] }
+    );
   }
 }
