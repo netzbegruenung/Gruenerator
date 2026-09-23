@@ -26,7 +26,7 @@ import { createLogger } from '../../utils/logger.js';
 
 import { checkBoardAccess } from './boardAccess.js';
 
-import type { AgentTaskStatus } from '../../database/schema/agentTasks.js';
+import type { AgentTask, AgentTaskStatus } from '../../database/schema/agentTasks.js';
 import type { Application } from 'express';
 
 const log = createLogger('boardSchedulesContract');
@@ -42,6 +42,7 @@ interface RunRow {
   status: AgentTaskStatus;
   result_document_id: string | null;
   error: string | null;
+  verdict: AgentTask['verdict'];
   created_at: Date;
   completed_at: Date | null;
 }
@@ -55,6 +56,7 @@ function toRunRecord(row: RunRow): BoardAgentRunRecord {
     status: row.status,
     resultDocumentId: row.result_document_id,
     error: row.error,
+    reviewHint: row.verdict?.ok === false ? (row.verdict.hint ?? null) : null,
     createdAt: row.created_at.toISOString(),
     completedAt: row.completed_at ? row.completed_at.toISOString() : null,
   };
@@ -206,7 +208,7 @@ export const boardSchedulesContractRouter = s.router(boardSchedulesContract, {
       }
 
       const rows = await db.query<RunRow>(
-        `SELECT id, board_id, card_id, schedule_id, status, result_document_id, error, created_at, completed_at
+        `SELECT id, board_id, card_id, schedule_id, status, result_document_id, error, verdict, created_at, completed_at
            FROM agent_tasks
           WHERE ${conditions.join(' AND ')}
           ORDER BY created_at DESC
