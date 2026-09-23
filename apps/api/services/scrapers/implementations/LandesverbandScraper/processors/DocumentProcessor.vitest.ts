@@ -321,3 +321,37 @@ describe('processAndStoreDocument — default age limit', () => {
     expect(result.stored).toBe(true);
   });
 });
+
+describe('processAndStoreDocument — title normalization for file sources', () => {
+  beforeEach(() => {
+    scrollDocuments.mockResolvedValue([]);
+  });
+
+  it('normalizes a Wolke/PDF file-name title the HTML extractor never sees', async () => {
+    await makeProcessor().processAndStoreDocument(
+      SOURCE,
+      'wahlpruefstein',
+      'https://wolke.netzbegruenung.de/s/x#/LSVD Saar .docx',
+      { title: 'LSVD Saar  \n', text: TEXT, publishedAt: null, categories: [] },
+      'landesverbaende_documents',
+      10
+    );
+
+    const points = batchUpsert.mock.calls[0][2] as Array<{ payload: { title: string } }>;
+    expect(points.map((p) => p.payload.title)).toEqual(points.map(() => 'LSVD Saar'));
+  });
+
+  it('falls back to the source label when the title is only whitespace', async () => {
+    await makeProcessor().processAndStoreDocument(
+      SOURCE,
+      'beschluss',
+      URL_UNDER_TEST,
+      { title: ' &nbsp; ', text: TEXT, publishedAt: null, categories: [] },
+      'landesverbaende_documents',
+      10
+    );
+
+    const points = batchUpsert.mock.calls[0][2] as Array<{ payload: { title: string } }>;
+    expect(points[0].payload.title).toMatch(/^Grüne Berlin - /);
+  });
+});

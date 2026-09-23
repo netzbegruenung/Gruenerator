@@ -62,6 +62,36 @@ export const STATS_CHARS = 4000;
 export const RANK_DEFAULT_LIMIT = 10;
 export const RANK_MIN_SCORE = 0.2;
 
+/**
+ * Die Zeilen eines list-/rank-Ergebnisses als eine Zeile je Quelle (Titel —
+ * ref, Datum bzw. Wert). Nur für den Replay späterer Turns (`mcpReplay.ts`
+ * erkennt `refs`): dort bliebe vom ganzen Ergebnis sonst eine 500-Zeichen-
+ * Vorschau, und die Folgefrage „lies die dritte" fände keinen ref mehr (#3561).
+ */
+export function compactRefs(
+  rows: ReadonlyArray<{ title: string; ref: string; detail?: string | null }>
+): string {
+  return rows
+    .map((r) => `${shortTitle(r.title)} — ${r.ref}${r.detail ? ` (${r.detail})` : ''}`)
+    .join('\n');
+}
+
+/** Gescrapte Titel tragen Tab-Kaskaden und Teaser („…: Die Berliner Grünen haben am..."). */
+const REF_TITLE_CHARS = 80;
+function shortTitle(title: string): string {
+  const t = title.replace(/\s+/g, ' ').trim();
+  return t.length > REF_TITLE_CHARS ? `${t.slice(0, REF_TITLE_CHARS - 1)}…` : t;
+}
+
+export const rankRefs = (ranking: readonly RankRow[]): string =>
+  compactRefs(
+    ranking.map((r) => ({
+      title: `${r.rank}. ${r.title}`,
+      ref: r.sourceId,
+      detail: `${r.value ?? '—'} ${r.unit}`,
+    }))
+  );
+
 export function isScanReadAction(action: string): action is ScanReadAction {
   return (SCAN_READ_ACTIONS as readonly string[]).includes(action);
 }
@@ -350,6 +380,7 @@ async function rank(args: ScanActionArgs, ctx: ScanActionCtx): Promise<Record<st
     ...(query ? { query } : {}),
     ...(exhaustive === null ? {} : { exhaustive }),
     ...(exhaustive === false ? { note: notExhaustiveCounts(incompleteReason) } : {}),
+    refs: rankRefs(ranking),
     ranking,
   };
 }
