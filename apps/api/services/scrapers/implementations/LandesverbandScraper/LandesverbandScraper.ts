@@ -1333,11 +1333,6 @@ export class LandesverbandScraper extends BaseScraper {
     return excludePatterns.some((pattern) => url.includes(pattern));
   }
 
-  /**
-   * Payload of one already-stored chunk for this URL, or null when the URL has
-   * never been indexed. Read once per document and handed to both the freshness
-   * gate and the file-fingerprint gate, so a re-check still costs one scroll.
-   */
   /** Whether any point is stored under the wolke:// url and under the legacy link. */
   async #wolkeStored(
     collection: string,
@@ -1356,6 +1351,11 @@ export class LandesverbandScraper extends BaseScraper {
     return { newExists: await has(url), legacyExists: await has(legacyUrl) };
   }
 
+  /**
+   * Payload of one already-stored chunk for this URL, or null when the URL has
+   * never been indexed. Read once per document and handed to both the freshness
+   * gate and the file-fingerprint gate, so a re-check still costs one scroll.
+   */
   async #storedPayload(
     url: string,
     targetCollection: string
