@@ -17,6 +17,24 @@ import type { CheerioAPI } from 'cheerio';
 import type { AnyNode } from 'domhandler';
 
 /**
+ * Derives a title from a PDF URL's filename. staticUrls skips the listing
+ * page entirely, so there's no `<a>` text to read a title from (#3579).
+ */
+export function titleFromPdfUrl(url: string): string {
+  const filename = url.split('/').pop() ?? '';
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(filename);
+  } catch {
+    decoded = filename;
+  }
+  return decoded
+    .replace(/\.[^./]+$/, '')
+    .replace(/[-_]+/g, ' ')
+    .trim();
+}
+
+/**
  * Link extraction with pagination support
  * Dependencies injected via constructor for easy testing
  */
@@ -254,7 +272,7 @@ export class LinkExtractor {
       return contentPath.staticUrls
         .map((url) => this.normalizeUrl(url, source.baseUrl))
         .filter((url): url is string => url !== null)
-        .map((url) => ({ url, title: '', context: '' }));
+        .map((url) => ({ url, title: titleFromPdfUrl(url), context: '' }));
     }
 
     const pageUrl = source.baseUrl + contentPath.path;
