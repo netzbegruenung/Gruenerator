@@ -11,6 +11,7 @@ import {
   type SocialPostPayload,
   type BahnPayload,
   type SharepicUpdatedEvent,
+  looksCutOff,
 } from '@gruenerator/contracts';
 import { subtypeToArtifactKind } from '@gruenerator/shared/docs';
 
@@ -1491,23 +1492,15 @@ export async function* parseSSEStream(
     }
   }
 
-  // Client half of the truncation cross-check. The server runs the identical
-  // test on the text it generated (`looksCutOff`, apps/api/.../outputSanity.ts)
-  // and logs its own char count as `chars=N`. Comparing the two numbers is what
-  // localises a "the answer just stops" report without a repro:
+  // Client half of the truncation cross-check: the server runs the same
+  // `looksCutOff` on the text it generated and logs its count as `chars=N`.
   //   same count   → the model stopped early (check finishReason in the backend)
   //   fewer here   → the tail was lost between server and screen
-  // Only warns on the suspicious shape, so a normal turn stays quiet.
   const assembled = orderedContent
     .filter((el): el is TextSegment => el.type === 'text')
     .map((el) => el.text)
     .join('');
-  // Mirrors TRUNCATION_MIN_WORDS on the server: under five words, "ends on a
-  // letter" is the shape of a demanded one-liner ("KEINE DATEN") as often as of
-  // a severed sentence, and warning on both is how the real cut got read as
-  // noise.
-  const tail = assembled.trimEnd();
-  if (tail.split(/\s+/).filter(Boolean).length >= 5 && /[\p{L}\p{N}]$/u.test(tail)) {
+  if (looksCutOff(assembled)) {
     console.warn(
       `[GrueneratorModelAdapter] answer ends mid-sentence after ${assembled.length} chars ` +
         `(compare the backend's "chars=" line) — tail: ${JSON.stringify(assembled.slice(-60))}`

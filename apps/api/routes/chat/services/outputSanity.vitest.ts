@@ -1,10 +1,10 @@
+import { looksCutOff } from '@gruenerator/contracts';
 import { describe, it, expect } from 'vitest';
 
 import {
   announcesPendingWork,
   defersToSearchDespiteSources,
   deniesSearchAbilityDespiteSearching,
-  looksCutOff,
   looksLikeToolCallLeak,
   stripFabricatedArtifactDelivery,
   stripFabricatedSystemClaims,
@@ -148,6 +148,44 @@ describe('looksCutOff — short answers are not evidence', () => {
 
   it('still flags the shortest real cut it exists for', () => {
     expect(looksCutOff('Im Vergleich zu anderen rechtspopulistischen Pa')).toBe(true);
+  });
+});
+
+describe('looksCutOff — closing blocks are finished (#3628)', () => {
+  it('accepts the live letter ending in a signature', () => {
+    const letter =
+      'Wir setzen uns für barrierefreie Haltestellen ein.\n\nMit freundlichen Grüßen\n\n[Dein Name]\nBündnis 90/Die Grünen';
+    expect(looksCutOff(letter)).toBe(false);
+  });
+
+  it('accepts other closing formulas and a bare closing line', () => {
+    expect(looksCutOff('Danke für eure Unterstützung im Wahlkampf.\n\nGrüne Grüße\nAnna')).toBe(
+      false
+    );
+    expect(looksCutOff('Danke für eure Unterstützung im Wahlkampf.\n\nLiebe Grüße')).toBe(false);
+    expect(looksCutOff('Danke für eure Unterstützung im Wahlkampf.\n\nViele Grüsse aus Wien')).toBe(
+      false
+    );
+  });
+
+  it('accepts a post ending in a hashtag line', () => {
+    expect(looksCutOff('Heute pflanzen wir 100 Bäume im Park.\n\n#Klimaschutz #Grüne')).toBe(false);
+  });
+
+  it('still flags a cut after a closing formula higher up', () => {
+    expect(
+      looksCutOff(
+        'Mit freundlichen Grüßen\n\nNachtrag: Im Vergleich zu anderen rechtspopulistischen Parteien sehen wir deutlich mehr Pa'
+      )
+    ).toBe(true);
+  });
+
+  it('still flags a cut paragraph that merely mentions Grüße', () => {
+    expect(
+      looksCutOff(
+        'Er richtete Grüße der Landesregierung aus und sagte, man werde die Förderung bis'
+      )
+    ).toBe(true);
   });
 });
 
