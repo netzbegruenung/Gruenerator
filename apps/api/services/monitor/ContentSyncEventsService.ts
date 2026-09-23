@@ -33,6 +33,7 @@ import { getQdrantInstance } from '../../database/services/QdrantService/index.j
 import { toError } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { deleteCachedKey, getCachedJson, setCachedJson } from '../../utils/redis/jsonCache.js';
+import { resolveWolkeDisplayUrl } from '../scrapers/utils/wolkeShareSecrets.js';
 
 import { generateDayDigest, type DigestArticle } from './SummaryGraph.js';
 
@@ -394,7 +395,8 @@ export async function getWhatHappened(query: WhatHappenedQuery): Promise<WhatHap
       dayBuckets.set(date, bucket);
     }
     bucket.counts.stored += 1;
-    bucket.articles.push(article);
+    // Stored and cached as `wolke://…`; the share link only in the response.
+    bucket.articles.push({ ...article, sourceUrl: resolveWolkeDisplayUrl(article.sourceUrl) });
   }
 
   // Newest day first; articles within a day already arrive newest-first.
@@ -426,7 +428,7 @@ export async function getWhatHappenedDaySummary(
 
   const digestArticles: DigestArticle[] = dayArticles.slice(0, DIGEST_ARTICLE_LIMIT).map((a) => ({
     title: a.title,
-    url: a.sourceUrl,
+    url: resolveWolkeDisplayUrl(a.sourceUrl),
     source: a.sourceName,
     excerpt: a.excerpt ?? '',
   }));

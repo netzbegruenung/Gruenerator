@@ -19,6 +19,7 @@ import { getQdrantInstance } from '../../../database/services/QdrantService.js';
 import { InputValidator } from '../../../utils/validation/index.js';
 import { BaseSearchService } from '../../BaseSearchService/index.js';
 import { mistralEmbeddingService } from '../../mistral/index.js';
+import { toStoredWolkeUrl } from '../../scrapers/utils/wolkeShareSecrets.js';
 
 import * as docRetrieval from './documentRetrieval.js';
 import * as scoring from './scoring.js';
@@ -639,9 +640,11 @@ export class DocumentSearchService extends BaseSearchService {
    */
   async getSystemDocumentFullTextByUrl(
     qdrantCollection: string,
-    sourceUrl: string,
+    url: string,
     defaultFilter?: QdrantServiceFilter
   ): Promise<DocumentFullTextResult & { title?: string }> {
+    // Clients carry the resolved Wolke link; the payload stores `wolke://…`.
+    const sourceUrl = toStoredWolkeUrl(url);
     await this.ensureInitialized();
     if (!this.qdrantOps) {
       return { success: false, fullText: '', chunkCount: 0, error: 'Qdrant not available' };

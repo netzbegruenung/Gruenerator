@@ -12,6 +12,7 @@ import {
 } from '../../config/systemCollectionsConfig.js';
 import { getQdrantInstance } from '../../database/services/QdrantService/index.js';
 import { createLogger } from '../../utils/logger.js';
+import { resolveWolkeDisplayUrl } from '../scrapers/utils/wolkeShareSecrets.js';
 
 import type { ScrollPoint } from '../../database/services/QdrantService/operations/types.js';
 import type { NotebookRecentDocumentCard } from '@gruenerator/contracts';
@@ -66,7 +67,7 @@ function toCard(
     collectionName,
     title,
     snippet: snippet ? (snippet.length > 220 ? `${snippet.slice(0, 217)}…` : snippet) : null,
-    url,
+    url: url ? resolveWolkeDisplayUrl(url) : null,
     publishedAt,
     sourceLabel,
   };
