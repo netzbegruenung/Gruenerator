@@ -646,6 +646,12 @@ export interface ChatGraphState {
    * `listThreadArtifacts`; empty when the thread produced none.
    */
   threadArtifacts?: ThreadToolContext[];
+  /**
+   * The notebook of the thread's last successful `notebook_quellen` call
+   * (`notebookIdFromSteps`). A follow-up tool ask that no longer names the
+   * notebook pins the tool on it; the tool resolves the same id itself.
+   */
+  threadNotebookId?: string | null;
   /** Last user text with mention tokens fully REMOVED — for regex heuristics
    *  that would false-positive on labels ("Bild generieren"). The messages on
    *  state carry the label form ("@Label") instead. */

@@ -42,6 +42,7 @@ import { createLogger } from '../../../utils/logger.js';
 import { captureSseError } from '../../../utils/observability/captureSseError.js';
 import { ThreadId, UserId } from '../../../utils/types/branded.js';
 import { withTimeout } from '../../../utils/withTimeout.js';
+import { notebookIdFromSteps } from '../agents/notebookSourceTools.js';
 import { getPipelineAgent } from '../agents/pipelines/index.js';
 import { getContextWindow } from '../agents/providers.js';
 
@@ -879,6 +880,7 @@ export async function buildStreamContext({
     ]);
     initialState.lastToolContext = toolContext;
     initialState.threadArtifacts = history?.artifacts() ?? [];
+    initialState.threadNotebookId = notebookIdFromSteps(history?.toolSteps() ?? []);
     // Weitergereicht statt verworfen: der agentische Loop las bis hierher
     // dieselben Zeilen ein zweites und drittes Mal (Tool-Replay und
     // Quellen-Rehydrierung). Bleibt es null, weil der Lesevorgang scheiterte,

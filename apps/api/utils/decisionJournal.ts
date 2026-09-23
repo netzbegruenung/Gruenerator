@@ -84,6 +84,7 @@ export const DECISION_POINTS = {
     branches: [
       // Gewähltes Notebook + Werkzeugauftrag → Schleife mit `notebook_quellen`.
       'tier2_notebook_tool_ask',
+      'tier2_thread_notebook_tool_ask',
       'tier2.7_mcp_followup',
       'tier2.7_sharepic_followup',
       'tier2.9_docs_help',
