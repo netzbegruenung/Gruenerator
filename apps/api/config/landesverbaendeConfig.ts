@@ -43,7 +43,7 @@ export interface ContentPath {
   paginateWithinAgeLimit?: boolean; // Optional: stop paginating once a listing page holds no item within source.maxAgeYears. Reverse-chronological listings only. Bounds discovery to the age window instead of maxPages (which mis-covers archives deeper/shallower than the window). Reads listing dates via contentSelectors.date; no-op if maxAgeYears is unset or no date parses.
   sitemapUrls?: string[]; // Optional: fetch URLs from sitemaps instead of pagination
   sitemapFilter?: string; // Optional: filter sitemap URLs (e.g., '/presse/')
-  staticUrls?: (string | { url: string; title: string })[]; // Optional: fixed list of URLs to scrape directly (bypasses pagination and sitemap). A plain string derives its title from the filename (isPdfArchive) or the fetched page (HTML branch); { url, title } overrides that with a given title — isPdfArchive only, the HTML branch reads only `.url`.
+  staticUrls?: (string | { url: string; title: string; date?: string })[]; // Optional: fixed list of URLs to scrape directly (bypasses pagination and sitemap). A plain string derives its title from the filename (isPdfArchive) or the fetched page (HTML branch); { url, title } overrides that with a given title — isPdfArchive only, the HTML branch reads only `.url`. `date` (ISO YYYY-MM-DD) is optional and isPdfArchive-only: it rides through extractPdfLinks as `context`, so DateExtractor's strong ISO pattern picks it up before ever falling back to the WordPress upload-year folder in the URL (#3579).
   disableOffPathFilter?: boolean; // Optional: when true, skip the post-discovery filter that requires URLs to share the listing-path prefix. Auto-applied when sitemapUrls or wpApi is set, since both yield canonical URLs that rarely match the human-facing listing path (e.g. TYPO3 sitemaps emit /news/ while listings live under /nachrichten/; WP root-permalinks publish at /<slug>/ regardless of the /category/X listing seed).
   wpApi?: { categoryId?: number; categoryIds?: number[]; maxPages?: number; boundByAge?: boolean }; // Optional: discover articles via WordPress REST API (/wp-json/wp/v2/posts?categories=…). Bypasses HTML-listing pagination entirely; required for WP sites with root-permalink structure where /category/X/ is a virtual index. Pass `categoryIds` to union several categories in one query (comma-separated = WP OR) instead of one source per category. Set `boundByAge` to add an `after=<now - maxAgeYears>` filter on full runs, so discovery skips out-of-window posts server-side instead of fetching (and 404-ing on) years of ancient archive entries that the store-stage age filter would drop anyway.
   wolkeShare?: { shareLink: string; recursive?: boolean }; // Optional: pull documents from a public Nextcloud "Wolke" share (wolke.netzbegruenung.de/s/<token>) via WebDAV instead of HTML/WP discovery. Files are etag-deduped, so an unchanged file is skipped before download+OCR. Reusable by any source; see services/scrapers/utils/wolkeShareHandler.ts.
@@ -775,18 +775,25 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
         {
           // Wahlprogramm PDFs previously only lived in the hand-run scrape-thueringen.ts
           // (source_id 'thueringen-lv-wahlprogramme', not part of this config — #3579).
-          // staticUrls + isPdfArchive skips fetching a listing page; titles come from
-          // THUERINGEN_WAHLPROGRAMME rather than the filename. maxAgeYears above (12y)
-          // already covers a Landtagswahlprogramm through its ~5y legislative period.
-          // recentSkip: 98 PDFs total across both paths below — too heavy for the hourly
-          // --recent run, nightly-only like every other multi-PDF isPdfArchive path here.
+          // staticUrls + isPdfArchive skips fetching a listing page; titles AND dates come
+          // from THUERINGEN_WAHLPROGRAMME rather than the filename/upload-path — several of
+          // these PDFs were re-uploaded under a later /uploads/YYYY/MM/ folder, and without
+          // an explicit date DateExtractor would date them by that reupload year instead of
+          // their real one. maxAgeYears above (12y) already covers a Landtagswahlprogramm
+          // through its ~5y legislative period. recentSkip: 98 PDFs total across both paths
+          // below — too heavy for the hourly --recent run, nightly-only like every other
+          // multi-PDF isPdfArchive path in this file.
           type: 'wahlprogramm',
           path: '/',
           listSelector: 'a[href$=".pdf"]',
           isPdfArchive: true,
           processUndatedPdfs: true,
           recentSkip: true,
-          staticUrls: THUERINGEN_WAHLPROGRAMME.map((pdf) => ({ url: pdf.url, title: pdf.title })),
+          staticUrls: THUERINGEN_WAHLPROGRAMME.map((pdf) => ({
+            url: pdf.url,
+            title: pdf.title,
+            date: pdf.date,
+          })),
         },
         {
           // Same fix, for the LDK-Beschluss PDFs (previously scrape-thueringen.ts, #3579).
@@ -796,7 +803,11 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           isPdfArchive: true,
           processUndatedPdfs: true,
           recentSkip: true,
-          staticUrls: THUERINGEN_BESCHLUESSE.map((pdf) => ({ url: pdf.url, title: pdf.title })),
+          staticUrls: THUERINGEN_BESCHLUESSE.map((pdf) => ({
+            url: pdf.url,
+            title: pdf.title,
+            date: pdf.date,
+          })),
         },
       ],
       contentSelectors: {
