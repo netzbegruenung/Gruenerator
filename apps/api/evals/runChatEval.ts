@@ -36,6 +36,10 @@
  *                   (bahn/wetter/news/hotel; tagged `systemMcpLane`). Ohne die
  *                   `SYSTEM_MCP_*_URL` am Backend weicht der Loop auf
  *                   `web_search` aus — rot, ohne Aussage über den Code.
+ *   EVAL_USER_NOTEBOOK_ID  include scenarios tagged `userNotebookLane` and
+ *                   substitute this id for `{{EVAL_USER_NOTEBOOK_ID}}` in their
+ *                   prompts and `notebookIds`. Must be a notebook the bypass
+ *                   user owns (see corpus/notebook-tools.jsonl).
  *   EVAL_CONCURRENCY  scenarios to run in parallel (default 1; turns stay serial)
  *   EVAL_BASELINE   baseline JSON path (default ./evals/baseline.json)
  *   EVAL_UPDATE_BASELINE=1  overwrite the baseline with this run's results
@@ -85,6 +89,12 @@ const SLOW = process.env.EVAL_SLOW === '1';
  * prüfen dann diese Zusicherung statt `expect`.
  */
 const LOOP_OFF = process.env.EVAL_LOOP_OFF === '1';
+const USER_NOTEBOOK_ID = process.env.EVAL_USER_NOTEBOOK_ID?.trim() ?? '';
+
+function withUserNotebook(text: string): string {
+  return text.replaceAll('{{EVAL_USER_NOTEBOOK_ID}}', USER_NOTEBOOK_ID);
+}
+
 const CONCURRENCY = (() => {
   const n = Number.parseInt(process.env.EVAL_CONCURRENCY ?? '', 10);
   return Number.isInteger(n) && n >= 1 ? n : 1;
@@ -122,6 +132,7 @@ function selectedCorpus(): EvalScenario[] {
     systemMcp: process.env.EVAL_SYSTEM_MCP === '1',
     deepResearch: process.env.EVAL_DEEP_RESEARCH === '1',
     bgstKorpus: process.env.EVAL_BGST_KORPUS === '1',
+    userNotebook: USER_NOTEBOOK_ID !== '',
   });
 }
 
@@ -183,7 +194,11 @@ async function runTurn(
     });
   }
 
-  const userMessage = wireMessage(`eval-${scenario.id}-t${turnIdx}`, 'user', turn.prompt);
+  const userMessage = wireMessage(
+    `eval-${scenario.id}-t${turnIdx}`,
+    'user',
+    withUserNotebook(turn.prompt)
+  );
   const messages = [...padded, ...ctx.history, userMessage];
   const modelId = scenario.modelId ?? MODEL_ID;
   // Mimic the client's "Im Chat bearbeiten" toggle: target the variant created
@@ -215,6 +230,9 @@ async function runTurn(
         ...(modelId ? { modelId } : {}),
         ...(ctx.threadId ? { threadId: ctx.threadId } : {}),
         ...(currentSharepic ? { currentSharepic } : {}),
+        ...(scenario.notebookIds
+          ? { notebookIds: scenario.notebookIds.map(withUserNotebook) }
+          : {}),
       };
 
   const logId = `${scenario.id}.t${turnIdx}`;
