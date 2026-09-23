@@ -744,6 +744,82 @@ describe('convertNotebookLoadedMessages', () => {
     expect(custom.sources).toEqual([]);
     expect(custom.question).toBe('');
   });
+
+  describe('answer mode (precision turns)', () => {
+    const precisionRow: LoadedMessage = {
+      id: 'a1',
+      role: 'assistant',
+      content: 'Es sind drei Quellen [1].',
+      metadata: {
+        answerMode: 'praezision',
+        answerModeReason: 'guard',
+        toolCalls: [
+          {
+            toolCallId: 's1',
+            toolName: 'notebook_quellen',
+            args: { action: 'list' },
+            result: { count: 3 },
+          },
+          {
+            toolCallId: 's2',
+            toolName: 'notebook_quellen',
+            args: { action: 'read' },
+            result: { error: 'nicht gefunden' },
+            ok: false,
+          },
+        ],
+      },
+    };
+
+    it('brings the mode and its reason back for the chip', () => {
+      const [answer] = convertNotebookLoadedMessages([precisionRow]);
+      const custom = answer?.metadata?.custom as Record<string, unknown>;
+      expect(custom.answerMode).toBe('praezision');
+      expect(custom.answerModeReason).toBe('guard');
+    });
+
+    it('rebuilds the loop steps as cards before the text, failures included', () => {
+      const [answer] = convertNotebookLoadedMessages([precisionRow]);
+      expect(answer?.content).toEqual([
+        {
+          type: 'tool-call',
+          toolCallId: 's1',
+          toolName: 'notebook_quellen',
+          args: { query: '' },
+          result: { count: 3 },
+        },
+        {
+          type: 'tool-call',
+          toolCallId: 's2',
+          toolName: 'notebook_quellen',
+          args: { query: '' },
+          result: { error: 'nicht gefunden', ok: false },
+        },
+        { type: 'text', text: 'Es sind drei Quellen [1].' },
+      ]);
+    });
+
+    it('keeps the mode without a reason (older rows persist only the mode)', () => {
+      const [answer] = convertNotebookLoadedMessages([
+        { id: 'a1', role: 'assistant', content: 'Antwort.', metadata: { answerMode: 'chat' } },
+      ]);
+      const custom = answer?.metadata?.custom as Record<string, unknown>;
+      expect(custom.answerMode).toBe('chat');
+      expect('answerModeReason' in custom).toBe(false);
+    });
+
+    it('shows no mode for an answer without one, or with an unknown value', () => {
+      const [plain, unknown] = convertNotebookLoadedMessages([
+        { id: 'a1', role: 'assistant', content: 'Alt.' },
+        { id: 'a2', role: 'assistant', content: 'Neu.', metadata: { answerMode: 'turbo' } },
+      ]);
+      for (const m of [plain, unknown]) {
+        const custom = m?.metadata?.custom as Record<string, unknown>;
+        expect(custom.answerMode).toBeUndefined();
+        expect(custom.answerModeReason).toBeUndefined();
+      }
+    });
+  });
 });
 
 describe('convertToThreadMessageLike — offene Loop-Rückfrage (#3220)', () => {

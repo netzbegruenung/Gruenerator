@@ -6,6 +6,10 @@
 // runtime lives in GrueneratorChatRuntime.tsx and is loaded lazily.
 
 import { type ThreadMessageLike, type ToolCallMessagePart } from '@assistant-ui/react';
+import {
+  notebookAnswerModeReasonSchema,
+  notebookResolvedAnswerModeSchema,
+} from '@gruenerator/contracts';
 
 import {
   type ComputeData,
@@ -74,6 +78,10 @@ export interface LoadedMessage {
     computeData?: ComputeData;
     agentId?: string;
     toolCalls?: PersistedToolCall[];
+    /** Notebook answers only: the mode the answer ran in, and why (see
+     *  `notebookAnswerModeEventSchema`). Read defensively — `unknown` on purpose. */
+    answerMode?: unknown;
+    answerModeReason?: unknown;
     senderId?: string;
     senderName?: string | null;
     roleName?: string;
@@ -106,6 +114,55 @@ export interface LoadedMessage {
       resolved?: boolean;
       answer?: string;
     };
+  };
+}
+
+type ToolCallLike = {
+  readonly type: 'tool-call';
+  readonly toolCallId: string;
+  readonly toolName: string;
+  readonly args: ToolCallMessagePart['args'];
+  readonly result?: unknown;
+  readonly parentId?: string;
+  readonly narration?: string;
+  readonly approval?: ToolCallMessagePart['approval'];
+  readonly title?: string;
+  readonly serverName?: string;
+};
+
+/**
+ * One persisted loop step → the tool-call part the live stream built for it.
+ * Shared by the chat and the notebook reload.
+ */
+function persistedToolCallToPart(tc: PersistedToolCall, fallbackId: string): ToolCallLike {
+  // Eine beantwortete Loop-Rückfrage: die Karte liest `args.question`/
+  // `args.options` und rendert `String(result)` als Antwort-Pill — das
+  // generische `{query}`-Mapping und das Ergebnis-Objekt zeigten sonst
+  // eine leere Frage und "[object Object]".
+  if (tc.toolName === 'ask_human') {
+    const args = (tc.args ?? {}) as Record<string, unknown>;
+    const answer = (tc.result as Record<string, unknown> | undefined)?.answer;
+    return {
+      type: 'tool-call' as const,
+      toolCallId: tc.toolCallId || fallbackId,
+      toolName: tc.toolName,
+      args: args as ToolCallMessagePart['args'],
+      result: answer != null ? String(answer) : tc.result,
+    };
+  }
+  return {
+    type: 'tool-call' as const,
+    toolCallId: tc.toolCallId || fallbackId,
+    toolName: tc.toolName,
+    args: { query: String((tc.args as Record<string, unknown>)?.query ?? '') },
+    // Live, parseSSEStream folds `ok` into `result`; do the same here so a
+    // reloaded card reaches the identical shape and reports the identical
+    // outcome. Without this a failed call reloads as a green tick.
+    result:
+      tc.ok === false && tc.result && typeof tc.result === 'object'
+        ? { ...(tc.result as Record<string, unknown>), ok: false }
+        : tc.result,
+    ...(tc.narration ? { narration: tc.narration } : {}),
   };
 }
 
@@ -272,6 +329,8 @@ export function convertNotebookLoadedMessages(messages: LoadedMessage[]): Thread
     // snake_case records its retrieval returned. On a notebook thread it is
     // always the latter, and mapping is what turns them into badges.
     const rawCitations = (m.metadata?.citations ?? []) as unknown[];
+    const answerMode = notebookResolvedAnswerModeSchema.safeParse(m.metadata?.answerMode);
+    const answerModeReason = notebookAnswerModeReasonSchema.safeParse(m.metadata?.answerModeReason);
     const custom: Record<string, unknown> = {
       citations: mapRawCitationsToChat(rawCitations),
       rawCitations,
@@ -288,11 +347,24 @@ export function convertNotebookLoadedMessages(messages: LoadedMessage[]): Thread
             },
           }
         : {}),
+      // The mode chip — the reload half of the live `answer_mode` event.
+      ...(answerMode.success
+        ? {
+            answerMode: answerMode.data,
+            ...(answerModeReason.success && { answerModeReason: answerModeReason.data }),
+          }
+        : {}),
     };
+
+    // Precision answers ran the agentic loop: its steps come back as the
+    // cards the live stream showed, above the text (no interleaving offsets).
+    const cards = (m.metadata?.toolCalls ?? []).map((tc) =>
+      persistedToolCallToPart(tc, `tc_${m.id}`)
+    );
 
     return {
       role: 'assistant' as const,
-      content: [{ type: 'text' as const, text }],
+      content: [...cards, { type: 'text' as const, text }],
       id: m.id,
       metadata: { custom },
     };
@@ -316,54 +388,12 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMes
     .map((m) => {
       const textContent = extractContent(m.content);
 
-      type ToolCallLike = {
-        readonly type: 'tool-call';
-        readonly toolCallId: string;
-        readonly toolName: string;
-        readonly args: ToolCallMessagePart['args'];
-        readonly result?: unknown;
-        readonly parentId?: string;
-        readonly narration?: string;
-        readonly approval?: ToolCallMessagePart['approval'];
-        readonly title?: string;
-        readonly serverName?: string;
-      };
-
       const contentParts: Array<{ type: 'text'; text: string } | ToolCallLike> = [];
 
-      const cardFor = (tc: PersistedToolCall, parentId: string): ToolCallLike => {
-        // Eine beantwortete Loop-Rückfrage: die Karte liest `args.question`/
-        // `args.options` und rendert `String(result)` als Antwort-Pill — das
-        // generische `{query}`-Mapping und das Ergebnis-Objekt zeigten sonst
-        // eine leere Frage und "[object Object]".
-        if (tc.toolName === 'ask_human') {
-          const args = (tc.args ?? {}) as Record<string, unknown>;
-          const answer = (tc.result as Record<string, unknown> | undefined)?.answer;
-          return {
-            type: 'tool-call' as const,
-            toolCallId: tc.toolCallId || `tc_${m.id}`,
-            toolName: tc.toolName,
-            args: args as ToolCallMessagePart['args'],
-            result: answer != null ? String(answer) : tc.result,
-            parentId,
-          };
-        }
-        return {
-          type: 'tool-call' as const,
-          toolCallId: tc.toolCallId || `tc_${m.id}`,
-          toolName: tc.toolName,
-          args: { query: String((tc.args as Record<string, unknown>)?.query ?? '') },
-          // Live, parseSSEStream folds `ok` into `result`; do the same here so a
-          // reloaded card reaches the identical shape and reports the identical
-          // outcome. Without this a failed call reloads as a green tick.
-          result:
-            tc.ok === false && tc.result && typeof tc.result === 'object'
-              ? { ...(tc.result as Record<string, unknown>), ok: false }
-              : tc.result,
-          parentId,
-          ...(tc.narration ? { narration: tc.narration } : {}),
-        };
-      };
+      const cardFor = (tc: PersistedToolCall, parentId: string): ToolCallLike => ({
+        ...persistedToolCallToPart(tc, `tc_${m.id}`),
+        parentId,
+      });
 
       const toolCalls = m.metadata?.toolCalls;
       const hasOffsets = toolCalls?.some((tc) => typeof tc.textOffset === 'number') ?? false;
