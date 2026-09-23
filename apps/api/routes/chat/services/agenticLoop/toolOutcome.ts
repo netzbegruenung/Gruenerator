@@ -60,7 +60,11 @@ export function buildToolFailureNote(steps: PersistedStep[]): string {
     'Diese Aufrufe haben KEIN Ergebnis geliefert. Sag ehrlich und konkret, was nicht geklappt hat. ' +
     'Tu NICHT so, als hättest du die Inhalte trotzdem gesehen: keine Zusammenfassung, kein Vergleich, ' +
     'kein Prüfergebnis und keine Bestätigung zu etwas, das nur über einen dieser Aufrufe zu erfahren ' +
-    'gewesen wäre. Erfinde keine IDs, Links, Dateinamen oder Inhalte als Ersatz.'
+    'gewesen wäre. Erfinde keine IDs, Links, Dateinamen oder Inhalte als Ersatz. ' +
+    // Live 23.09.2026: „Kein Notebook ausgewählt" wurde zu „ich habe keine
+    // Funktion, das Notebook zu durchsuchen" — das Werkzeug gab es.
+    'Behaupte NIE, dir fehle eine Funktion oder ein Werkzeug dafür — sag, dass der Aufruf ' +
+    'fehlgeschlagen ist und warum.'
   );
 }
 

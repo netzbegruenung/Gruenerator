@@ -408,8 +408,10 @@ export const evalScenarioSchema = z
      */
     notebookIds: z.array(z.string()).optional(),
     /**
-     * Braucht ein EIGENES Notebook des Eval-Kontos — `notebook_quellen` lehnt
-     * System-Notebooks ab, und der Runner kann keines anlegen. Übersprungen ohne
+     * Braucht ein EIGENES Notebook des Eval-Kontos — für Fälle, die das
+     * Verhalten auf eigenen Quellen prüfen (System-Notebooks liest
+     * `notebook_quellen` seit #3536 nur lesend), und der Runner kann keines
+     * anlegen. Übersprungen ohne
      * EVAL_USER_NOTEBOOK_ID; dessen Wert ersetzt `{{EVAL_USER_NOTEBOOK_ID}}` in
      * Prompt und `notebookIds`.
      */

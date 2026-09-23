@@ -19,8 +19,12 @@
 import { type ChatIntentId, degradeTargetForLocale } from '@gruenerator/shared/chat-intents';
 import { isCloudShareUrl } from '@gruenerator/shared/utils';
 
-import { isUserNotebookId } from '../../../../config/notebookCollectionMap.js';
+import {
+  isUserNotebookId,
+  resolveNotebookCollections,
+} from '../../../../config/notebookCollectionMap.js';
 import { agentAllowsTool } from '../../../../routes/chat/agents/agentToolWhitelist.js';
+import { collectionsForLocale } from '../../../../routes/chat/agents/searchTools.js';
 import { isAgenticLoopEnabled } from '../../../../routes/chat/services/agenticLoop/flags.js';
 import {
   isDocumentContextEditAllowed,
@@ -28,7 +32,10 @@ import {
   looksLikeToolableQuestion,
   looksLikeUnsourcedWritingOrder,
 } from '../../../../routes/chat/services/agenticLoop/routing.js';
-import { looksLikeNotebookToolAsk } from '../../../../routes/chat/services/notebookToolAsk.js';
+import {
+  looksLikeNotebookToolAsk,
+  looksLikeNotebookWriteAsk,
+} from '../../../../routes/chat/services/notebookToolAsk.js';
 import { isSharepicEditInstruction } from '../../../../routes/chat/services/sharepicEditHeuristics.js';
 import { containsInstructionMarkers } from '../../../../routes/chat/services/untrustedContent.js';
 import { escapeRegExp } from '../../../../services/BaseSearchService/textUtils.js';
@@ -103,6 +110,14 @@ import { parseRelativeDateRange } from './relativeDates.js';
 import type { ChatGraphState, GatherSource, SearchIntent } from '../types.js';
 
 const log = createLogger('ChatGraph:Classifier');
+
+/** Liest `notebook_quellen` dieses System-Notebook? Eine Sammlung, und die
+ *  steht der Locale zu — dieselbe Prüfung wie im Werkzeug
+ *  (`resolveSystemCollection` gegen `collectionsForLocale`). */
+function toolReadsSystemNotebook(id: string, locale: string | null): boolean {
+  const keys = resolveNotebookCollections([id]);
+  return keys.length === 1 && collectionsForLocale(locale).includes(keys[0]!);
+}
 
 /**
  * Verdicts the compare upgrade may rewrite when ≥2 doc sources meet a compare
@@ -834,11 +849,18 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       // Notebook-Sperre in `decideRunAgentic` auf; das Werkzeug fällt ohne
       // `notebookId` auf das gewählte Notebook zurück. Nicht bei benannten
       // Agenten (`isCompound` hält sie im Einzeldurchlauf, der Pin liefe dort
-      // ins Leere) und nicht bei reinen System-Notebooks, die das Werkzeug
-      // ablehnt. Alles andere bleibt die gemessene Notebook-Suche unten.
+      // ins Leere). Ein System-Notebook nur, wenn das Werkzeug es lesen kann —
+      // EINE Sammlung, in der Locale des Turns — und nicht für einen
+      // Schreibauftrag (schreibgeschützt). Alles andere bleibt die gemessene
+      // Notebook-Suche unten.
       if (
         !isNonDefaultAgent &&
-        state.notebookIds.some(isUserNotebookId) &&
+        state.notebookIds.some(
+          (id) =>
+            isUserNotebookId(id) ||
+            (toolReadsSystemNotebook(id, state.userLocale ?? null) &&
+              !looksLikeNotebookWriteAsk(state.lastUserTextNoMentions ?? userContent))
+        ) &&
         // Ohne Erwähnungen gelesen: `messages` tragen sie als „@Label", und ein
         // Notebook namens „Kapitel 3 Satzung" pinnte sonst bei jeder Erwähnung.
         looksLikeNotebookToolAsk(state.lastUserTextNoMentions ?? userContent)
