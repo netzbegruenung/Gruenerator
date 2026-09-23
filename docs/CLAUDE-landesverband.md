@@ -47,3 +47,11 @@ pnpm lint               # No lint violations
 pnpm build:web          # Frontend builds
 # Then manually: visit /gruene-{name}, check /notebook gallery, type @alias in chat
 ```
+
+After the first sync run, also run a read-only data-quality census:
+
+```bash
+cd apps/api && npx tsx scripts/audit-lv-quality.ts --source <id>
+```
+
+Every non-zero code must be explained or fixed before the new source counts as set up. After that, keep an eye on the `qualityFlags` in the ongoing sync report (`title_fallback`, `title_generic`, `date_missing_html`, `date_year_only`, `body_fallback`) — a sudden increase means the site changed its structure.
