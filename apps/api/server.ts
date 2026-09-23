@@ -41,6 +41,7 @@ import { startCardDueReminderWorker } from './services/boards/cardDueReminderWor
 import { startNotebookLinkCleanup } from './services/cleanup/notebookLinkCleanupService.js';
 import { startUploadsCleanup } from './services/cleanup/uploadsCleanupService.js';
 import { startDocumentIngestWorker } from './services/document-services/DocumentProcessingService/documentIngestWorker.js';
+import { startDocumentMetaWorker } from './services/documentMeta/documentMetaWorker.js';
 import { startNotificationCleanup } from './services/notifications/notificationCleanupService.js';
 import { startRecurringTaskWorker } from './services/recurringTasks/recurringTaskWorker.js';
 import { startDeepResearchCleanup } from './services/research/deepAgent/resumableRuns.js';
@@ -305,6 +306,7 @@ async function startWorker(): Promise<void> {
   // reclaims rows whose processing died with a previous process, which used to
   // strand them on 'processing' forever.
   startDocumentIngestWorker();
+  startDocumentMetaWorker();
 
   // Dispatches the Content Sync workflow on its schedule — GitHub throttles the
   // cron itself (#2972). Cluster-safe: each slot is claimed once in Redis.
