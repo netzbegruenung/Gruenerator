@@ -24,6 +24,7 @@ import { env } from '../config/env.js';
 import { getProfileService } from '../services/user/index.js';
 import { createLogger } from '../utils/logger.js';
 
+import { type ApiKeyContext } from './apiKeyMiddleware.js';
 import { type AuthenticatedRequest } from './types.js';
 
 const log = createLogger('requireAiConsent');
@@ -117,7 +118,10 @@ export async function requireApiKeyAiConsent(
   res: Response,
   next: NextFunction
 ): Promise<void> {
-  const userId = req.apiKey?.userId;
+  // Der Typ-Import zieht die `req.apiKey`-Erweiterung auch in Programme, die
+  // `apiKeyMiddleware.ts` sonst nicht sehen (tsconfig.integration.json).
+  const apiKey: ApiKeyContext | undefined = req.apiKey;
+  const userId = apiKey?.userId;
   if (!userId || (await hasAiConsent(userId))) return next();
   log.warn('[AiConsent] blocked api-key user=%s path=%s', userId, req.originalUrl.split('?')[0]);
   res.status(403).json(CONSENT_REQUIRED_BODY);
