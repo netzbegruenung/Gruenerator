@@ -30,12 +30,17 @@ import { grepSources } from '../../../services/notebook/sourceGrep.js';
 import { statsFromLoad, type StatsNlp } from '../../../services/notebook/sourceStats.js';
 import {
   checkSystemSource,
+  filterSystemSourceUrls,
   findSystemPassages,
+  hasSystemFilter,
   listSystemSources,
   loadSystemScanTexts,
   outlineSystemSource,
   readSystemSourceText,
+  NOT_A_URL,
   searchSystemDocuments,
+  SOURCE_NOT_FOUND,
+  suggestSystemSources,
   SYSTEM_LIST_SCROLL_MAX,
   systemSourceSize,
   type SystemCollection,
@@ -102,7 +107,66 @@ function grounded(
   };
 }
 
+/** `filter` des Werkzeugs als Systemfilter — `sourceType` ist dort die Kategorie. */
+function systemFilter(args: SystemActionArgs): SystemSourceFilter | undefined {
+  const f = args.filter;
+  if (!f) return undefined;
+  const out: SystemSourceFilter = {
+    category: f.category ?? f.sourceType,
+    titleContains: f.titleContains,
+    dateFrom: f.dateFrom,
+    dateTo: f.dateTo,
+  };
+  return hasSystemFilter(out) ? out : undefined;
+}
+
+/** Nur die gesetzten Felder — so steht im Ergebnis, wonach wirklich gefiltert wurde. */
+function echoFilter(f: SystemSourceFilter | undefined): Record<string, unknown> {
+  if (!f) return {};
+  return {
+    filter: Object.fromEntries(Object.entries(f).filter(([, v]) => v !== undefined)),
+  };
+}
+
+/**
+ * Die URLs unter `filter` — `null` ohne Filter (ganze Sammlung). Eine leere
+ * Menge ist eine Antwort, kein Fehler: dann passt keine Quelle.
+ */
+async function scopedUrls(
+  filter: SystemSourceFilter | undefined,
+  ctx: SystemActionCtx
+): Promise<string[] | null> {
+  if (!filter) return null;
+  return (await filterSystemSourceUrls({ collection: ctx.collection, filter }, ctx.deps)).urls;
+}
+
+const NO_SOURCE_IN_FILTER = 'Keine Quelle passt zu filter — lockere ihn oder prüfe ihn mit list.';
+
 export async function runSystemAction(
+  args: SystemActionArgs,
+  ctx: SystemActionCtx
+): Promise<Record<string, unknown>> {
+  const result = await dispatch(args, ctx);
+  const error = result.error;
+  if (args.sourceId && (error === SOURCE_NOT_FOUND || error === NOT_A_URL)) {
+    const suggestions = await suggestSystemSources(
+      { collection: ctx.collection, sourceId: args.sourceId },
+      ctx.deps
+    );
+    if (suggestions.length > 0) {
+      return {
+        error: `${error} Meintest du eine dieser Quellen? Nimm ihren ref als sourceId.`,
+        suggestions,
+      };
+    }
+    return {
+      error: `${error} Suche sie mit list (filter.titleContains) oder find, statt sie zu raten.`,
+    };
+  }
+  return result;
+}
+
+async function dispatch(
   args: SystemActionArgs,
   ctx: SystemActionCtx
 ): Promise<Record<string, unknown>> {
@@ -137,18 +201,13 @@ async function list(
   ctx: SystemActionCtx
 ): Promise<Record<string, unknown>> {
   const { collection, deps, sourceRegistry } = ctx;
-  const f = args.filter;
-  const { total, items, exhaustive } = await listSystemSources(
+  const filter = systemFilter(args);
+  const { total, items, exhaustive, categories } = await listSystemSources(
     {
       collection,
       sortBy: args.sortBy,
       order: args.order,
-      filter: f && {
-        category: f.category ?? f.sourceType,
-        titleContains: f.titleContains,
-        dateFrom: f.dateFrom,
-        dateTo: f.dateTo,
-      },
+      filter,
       offset: args.offset,
       limit: args.limit,
     },
@@ -176,6 +235,8 @@ async function list(
     offset: args.offset ?? 0,
     limit: Math.min(50, args.limit ?? 20),
     sortBy: args.sortBy ?? 'date',
+    ...echoFilter(filter),
+    categories,
     results,
     ...(exhaustive ? {} : { note: LIST_CAPPED }),
   };
@@ -268,11 +329,15 @@ async function find(
     const missing = await checkSystemSource({ collection, sourceUrl: args.sourceId }, deps);
     if (missing) return missing;
   }
+  const filter = args.sourceId ? undefined : systemFilter(args);
+  const urls = await scopedUrls(filter, ctx);
+  if (urls?.length === 0) return { error: NO_SOURCE_IN_FILTER, ...echoFilter(filter) };
   const { passages, reranked } = await findSystemPassages(
     {
       collection,
       query,
       sourceUrl: args.sourceId,
+      ...(urls ? { sourceUrls: urls } : {}),
       mode: args.mode,
       limit: args.limit ?? 10,
       rerank: args.rerank,
@@ -285,6 +350,7 @@ async function find(
     query,
     mode: args.mode,
     reranked,
+    ...echoFilter(filter),
   };
   if (passages.length === 0) {
     groundNote(
@@ -335,8 +401,9 @@ async function grep(
   const phrase = args.phrase?.trim() ?? '';
   if (phrase.length < 2) return { error: 'grep braucht phrase (mindestens 2 Zeichen).' };
   const { collection, deps, sourceRegistry } = ctx;
+  const filter = args.sourceId ? undefined : systemFilter(args);
   const loaded = await loadSystemScanTexts(
-    { collection, sourceUrl: args.sourceId, prefilterQuery: phrase },
+    { collection, sourceUrl: args.sourceId, filter, prefilterQuery: phrase },
     deps
   );
   if ('error' in loaded) return loaded;
@@ -372,6 +439,7 @@ async function grep(
     notebook: collection.name,
     collection: collection.key,
     phrase,
+    ...echoFilter(filter),
     exhaustive: loaded.exhaustive,
     totalHits: counted.totalHits,
     sourcesScanned: loaded.sources.length,
@@ -386,7 +454,8 @@ async function stats(
   ctx: SystemActionCtx
 ): Promise<Record<string, unknown>> {
   const { collection, deps, sourceRegistry } = ctx;
-  const loaded = await loadSystemScanTexts({ collection, sourceUrl: args.sourceId }, deps);
+  const filter = args.sourceId ? undefined : systemFilter(args);
+  const loaded = await loadSystemScanTexts({ collection, sourceUrl: args.sourceId, filter }, deps);
   if ('error' in loaded) return loaded;
   const result = await statsFromLoad(
     loaded,
@@ -421,6 +490,7 @@ async function stats(
   return {
     notebook: collection.name,
     collection: collection.key,
+    ...echoFilter(filter),
     ...result,
     ...(note ? { note } : {}),
   };
@@ -439,14 +509,23 @@ async function rank(
   }
   const limit = Math.min(50, Math.max(1, Math.floor(args.limit ?? RANK_DEFAULT_LIMIT)));
   const { collection, deps } = ctx;
+  const filter = systemFilter(args);
 
   let rows: Array<Omit<RankRow, 'rank'>>;
   let exhaustive: boolean | null = null;
   let incompleteReason: string | null = null;
 
   if (by === 'relevance') {
+    const urls = await scopedUrls(filter, ctx);
+    if (urls?.length === 0) return { error: NO_SOURCE_IN_FILTER, ...echoFilter(filter) };
     const docs = await searchSystemDocuments(
-      { collection, query, mode: 'hybrid', limit: limit * 3 },
+      {
+        collection,
+        query,
+        ...(urls ? { sourceUrls: urls } : {}),
+        mode: 'hybrid',
+        limit: limit * 3,
+      },
       deps
     );
     rows = rankManualSearchResults({
@@ -461,7 +540,7 @@ async function rank(
       unit: 'score',
     }));
   } else if (by === 'date') {
-    const listed = await listSystemSources({ collection, sortBy: 'date', limit }, deps);
+    const listed = await listSystemSources({ collection, sortBy: 'date', filter, limit }, deps);
     exhaustive = listed.exhaustive;
     incompleteReason = listed.exhaustive ? null : 'Sammlung zu groß';
     rows = listed.items.map((r) => ({
@@ -474,7 +553,7 @@ async function rank(
     // term, length, pages: aus den gelesenen Texten — Länge und Seiten stehen
     // bei System-Quellen in keiner Liste.
     const loaded = await loadSystemScanTexts(
-      { collection, ...(by === 'term' ? { prefilterQuery: query } : {}) },
+      { collection, filter, ...(by === 'term' ? { prefilterQuery: query } : {}) },
       deps
     );
     if ('error' in loaded) return loaded;
@@ -524,6 +603,7 @@ async function rank(
     collection: collection.key,
     by,
     ...(query ? { query } : {}),
+    ...echoFilter(filter),
     ...(exhaustive === null ? {} : { exhaustive }),
     ...(exhaustive === false ? { note: notExhaustiveCounts(incompleteReason) } : {}),
     ranking,
@@ -550,17 +630,21 @@ async function cite(
   if (!zitat === !claim) return { error: 'cite braucht genau eines: zitat oder claim.' };
   const { collection, deps, sourceRegistry } = ctx;
   const label = `System-Notebook „${collection.name}"`;
+  const filter = args.sourceId ? undefined : systemFilter(args);
 
   if (claim) {
     if (args.sourceId) {
       const missing = await checkSystemSource({ collection, sourceUrl: args.sourceId }, deps);
       if (missing) return missing;
     }
+    const urls = await scopedUrls(filter, ctx);
+    if (urls?.length === 0) return { error: NO_SOURCE_IN_FILTER, ...echoFilter(filter) };
     const { passages } = await findSystemPassages(
       {
         collection,
         query: claim,
         sourceUrl: args.sourceId,
+        ...(urls ? { sourceUrls: urls } : {}),
         mode: 'hybrid',
         limit: CLAIM_PASSAGES,
         rerank: true,
@@ -582,7 +666,7 @@ async function cite(
 
   const quote = zitat as string;
   const loaded = await loadSystemScanTexts(
-    { collection, sourceUrl: args.sourceId, prefilterQuery: quote },
+    { collection, sourceUrl: args.sourceId, filter, prefilterQuery: quote },
     deps
   );
   if ('error' in loaded) return loaded;
