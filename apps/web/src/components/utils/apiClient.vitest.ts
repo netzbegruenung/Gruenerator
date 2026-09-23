@@ -325,3 +325,23 @@ describe('session-teardown severity', () => {
     expect(teardown?.fingerprintExtra).toContain('no_session_cookie');
   });
 });
+
+// Issue #3211: the legacy instance's success interceptor passed a status-0
+// response (XHR torn down by a page reload) through, so callers got `''` as data.
+describe('legacy apiClient and aborted requests', () => {
+  it('rejects a status-0 response as an axios network error', async () => {
+    vi.resetModules();
+    const { AxiosError } = await import('axios');
+    const { default: apiClient } = await import('./apiClient');
+
+    const error = await apiClient
+      .get('/user-agents', {
+        adapter: (config) =>
+          Promise.resolve({ status: 0, statusText: '', data: '', headers: {}, config }),
+      })
+      .catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(AxiosError);
+    expect((error as InstanceType<typeof AxiosError>).code).toBe(AxiosError.ERR_NETWORK);
+  });
+});

@@ -1,7 +1,7 @@
 import { AxiosError } from 'axios';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { setGlobalApiClient } from './client.js';
+import { createApiClient, setGlobalApiClient } from './client.js';
 import { getContractsClient, resetContractsClient } from './contractsClient.js';
 
 import type { AxiosInstance } from 'axios';
@@ -17,7 +17,8 @@ import type { AxiosInstance } from 'axios';
  * network drop and reported it.
  *
  * Status 0 is not an HTTP status and appears in no contract's response map; the
- * bridge must reject it as the network error it is.
+ * shared client's success interceptor rejects it as the network error it is,
+ * before the bridge ever sees it.
  */
 function fakeAxios(status: number, data: unknown = ''): AxiosInstance {
   return {
@@ -31,7 +32,10 @@ describe('contracts bridge and aborted requests', () => {
   });
 
   it('rejects a status-0 response as an axios network error', async () => {
-    setGlobalApiClient(fakeAxios(0));
+    const client = createApiClient({ baseURL: 'http://localhost/api', authMode: 'cookie' });
+    client.defaults.adapter = (config) =>
+      Promise.resolve({ status: 0, statusText: '', data: '', headers: {}, config });
+    setGlobalApiClient(client);
 
     const error = await getContractsClient()
       .userAgents.list()
