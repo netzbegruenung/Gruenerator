@@ -16,7 +16,15 @@
  * stündlich. Was eine feste Zahl braucht (das Wahlprogramm hat sieben Teile),
  * steht als Untergrenze da.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+// Nur lesen: ohne das gleicht `init()` Sammlungen und Indizes der Produktion ab
+// (#3167). Gehoben, weil schon die Importe unten den Qdrant-Singleton starten.
+await vi.hoisted(async () => {
+  if (process.env.NOTEBOOK_LIVE !== '1') return;
+  const qdrant = await import('../../../database/services/QdrantService/index.js');
+  qdrant.useQdrantConnectOnly();
+});
 
 import { applyDefaultFilter } from '../../../config/systemCollectionsConfig.js';
 import { getQdrantInstance } from '../../../database/services/QdrantService/index.js';
@@ -244,6 +252,9 @@ describe.runIf(LIVE)('notebook_quellen live — Berlin', () => {
       // 23.09.2026: 193 Quellen — Untergrenze, die Sammlung wächst.
       expect(whole.sourcesWithHits).toBeGreaterThan(150);
       expect(whole.totalHits).toBeGreaterThanOrEqual(whole.sourcesWithHits);
+      // Durchsucht sind alle Quellen, nicht nur die mit Treffer.
+      expect(whole.sourcesScanned).toBeGreaterThan(1000);
+      expect(whole.countRule).toMatch(/Groß\/klein/);
 
       const ranked = await run({
         action: 'rank',
@@ -264,9 +275,10 @@ describe.runIf(LIVE)('notebook_quellen live — Berlin', () => {
         phrase: 'Klimaschutz',
         filter: { category: 'wahlprogramm' },
       });
+      // 7 Quellen: ganz gelesen, mit voller Faltung — kein Index, keine Zählregel.
       expect(program.exhaustive).toBe(true);
-      expect(program.sourcesWithHits).toBeGreaterThan(0);
-      expect(program.sourcesWithHits).toBeLessThanOrEqual(program.sourcesScanned);
+      expect(program.sourcesScanned).toBeGreaterThanOrEqual(7);
+      expect(program.countRule).toBeUndefined();
     },
     TIMEOUT * 2
   );
@@ -336,6 +348,37 @@ describe.runIf(LIVE)('notebook_quellen live — Berlin', () => {
       console.log(`[Q6b] ${all.length} Berlin chunks\n${report.join('\n')}`);
     },
     TIMEOUT * 4
+  );
+
+  it(
+    'Q6c every reachable system collection has the verified chunk_text index',
+    async () => {
+      const qdrant = getQdrantInstance();
+      await qdrant.init();
+      if (!qdrant.client) throw new Error('Qdrant not available');
+      const names = new Set<string>();
+      for (const locale of ['de-DE', 'de-AT'] as const) {
+        for (const key of collectionsForLocale(locale)) {
+          const r = resolveSystemCollection(key, collectionsForLocale(locale));
+          if (r && 'collection' in r) names.add(r.collection.qdrantCollection);
+        }
+      }
+      const report: string[] = [];
+      for (const name of names) {
+        const schema = (await qdrant.client.getCollection(name)).payload_schema ?? {};
+        const params = (schema.chunk_text as { params?: unknown } | undefined)?.params;
+        report.push(`${name}: ${JSON.stringify(params)}`);
+        expect(params, name).toEqual({
+          type: 'text',
+          tokenizer: 'word',
+          min_token_len: 2,
+          max_token_len: 50,
+          lowercase: true,
+        });
+      }
+      console.log(`[Q6c]\n${report.join('\n')}`);
+    },
+    TIMEOUT
   );
 
   it(

@@ -3,16 +3,18 @@
  * — kein Qdrant. Die Landesverbände teilen sich `landesverbaende_documents`;
  * daran hängt die Zugehörigkeitsregel.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   fakeDoc,
   fakeSearchDoc,
   makeSystemDeps,
+  VERIFIED_TEXT_INDEX,
   type FakePoint,
 } from './__fixtures__/fakeSystemCollection.js';
 import { grepSources } from './sourceGrep.js';
 import {
+  cachedChunkTextIndex,
   checkSystemSource,
   filterSystemSourceUrls,
   findSystemPassages,
@@ -504,6 +506,28 @@ describe('undated sources under a date filter', () => {
   });
 });
 
+describe('cachedChunkTextIndex', () => {
+  it('asks Qdrant once per collection and does not keep a failure', async () => {
+    let fail = true;
+    const fetchSchema = vi.fn(async (c: string) => {
+      if (fail) throw new Error('down');
+      return { chunk_text: { data_type: 'text', params: { ...VERIFIED_TEXT_INDEX } }, c };
+    });
+    const lookup = cachedChunkTextIndex(fetchSchema);
+    expect(await lookup('a')).toBeNull();
+    fail = false;
+    expect(await lookup('a')).toEqual(VERIFIED_TEXT_INDEX);
+    expect(await lookup('a')).toEqual(VERIFIED_TEXT_INDEX);
+    expect(await lookup('b')).toEqual(VERIFIED_TEXT_INDEX);
+    expect(fetchSchema).toHaveBeenCalledTimes(3);
+  });
+
+  it('is null without a chunk_text text index', async () => {
+    const lookup = cachedChunkTextIndex(async () => ({ chunk_text: { data_type: 'keyword' } }));
+    expect(await lookup('a')).toBeNull();
+  });
+});
+
 describe('loadSystemTermMatches', () => {
   const count = (
     load: { sources: Parameters<typeof grepSources>[0]; accept: (m: string) => boolean },
@@ -653,6 +677,16 @@ describe('loadSystemTermMatches', () => {
     expect(filter.must).toContainEqual({
       should: [{ key: 'chunk_text', match: { text: 'wohnungsbau' } }],
     });
+  });
+
+  it('gives up (null) when the collection has no chunk_text index, or another one', async () => {
+    for (const textIndex of [null, { ...VERIFIED_TEXT_INDEX, tokenizer: 'multilingual' }]) {
+      const { deps, scrollPage } = makeSystemDeps(lvPoints(), { textIndex });
+      expect(
+        await loadSystemTermMatches({ collection: resolved('hamburg'), phrase: 'Klima' }, deps)
+      ).toBeNull();
+      expect(scrollPage).not.toHaveBeenCalled();
+    }
   });
 
   it('gives up (null) when no word of the phrase is long enough for the index', async () => {

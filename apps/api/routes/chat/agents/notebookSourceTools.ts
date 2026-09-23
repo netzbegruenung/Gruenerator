@@ -46,6 +46,7 @@ import {
 } from '../../../services/notebook/notebookSources.js';
 import { rerankNotebookResults } from '../../../services/notebook/rerankNotebookResults.js';
 import {
+  cachedChunkTextIndex,
   resolveSystemCollection,
   SYSTEM_READ_ONLY,
   type SystemCollection,
@@ -98,6 +99,7 @@ export const READ_ACTIONS = ['list', 'outline', 'read', 'find', ...SCAN_READ_ACT
 export type NotebookSourceToolDeps = Omit<NotebookSourcesDeps, 'documentService'> & {
   nlp: StatsNlp;
   scrollPage: SystemNotebookSourcesDeps['scrollPage'];
+  chunkTextIndex: SystemNotebookSourcesDeps['chunkTextIndex'];
   documentService: NotebookSourcesDeps['documentService'] &
     SystemNotebookSourcesDeps['documentService'];
   /** Die letzten Werkzeugschritte des Threads — für das Notebook des vorigen Turns. */
@@ -145,6 +147,7 @@ function resolveDeps(partial: Partial<NotebookSourceToolDeps> | undefined): Note
     rerank: partial?.rerank ?? rerankNotebookResults,
     nlp: partial?.nlp ?? { checkHealth, textStatsBatched },
     scrollPage: partial?.scrollPage ?? qdrantScrollPage,
+    chunkTextIndex: partial?.chunkTextIndex ?? qdrantChunkTextIndex,
     recentSteps: partial?.recentSteps ?? ((threadId) => getRecentToolSteps(threadId)),
   };
 }
@@ -173,6 +176,15 @@ export function normalizeArgs<T extends { action: string; query?: string | undef
   if (Object.keys(lifted).length === 0) return args;
   return { ...args, filter: { ...nested, ...lifted } };
 }
+
+/** Der `chunk_text`-Index je Sammlung aus dem `payload_schema` — einmal je Prozess. */
+const qdrantChunkTextIndex = cachedChunkTextIndex(async (qdrantCollection) => {
+  const qdrant = getQdrantInstance();
+  await qdrant.init();
+  if (!qdrant.client) throw new Error('Qdrant not available');
+  const info = await qdrant.client.getCollection(qdrantCollection);
+  return (info.payload_schema ?? {}) as Record<string, unknown>;
+});
 
 /** Eine Scroll-Seite samt Folge-Offset — `scrollDocuments` liefert den Offset nicht. */
 async function qdrantScrollPage(
@@ -408,7 +420,7 @@ NUTZE FÜR (direkt, umkehrbar): Quellen aus dem Notebook entfernen (remove — s
 
 Die sourceId stammt aus list (Feld ref) — rate sie nie. Eine Quelle nach Namen suchen: list mit filter.titleContains; nach Inhalt: find.
 Ohne notebookId gilt das im Chat ausgewählte Notebook, sonst das zuletzt in diesem Chat genutzte.
-System-Notebooks: notebookId ist der Sammlungsschlüssel aus notebooks action="list" scope="system" (z. B. deutschland, hamburg, berlin); die sourceId ist dort die URL der Quelle. list nennt die Kategorien (categories) für filter.category; filter.dateFrom/dateTo grenzen auch find, rank, grep und stats ein (Quellen ohne Datum fallen dann weg — undatedExcluded). grep zählt dort alle Quellen; Akzente schreibe wie im Original (Charité, nicht Charite). Nur lesen.`,
+System-Notebooks: notebookId ist der Sammlungsschlüssel aus notebooks action="list" scope="system" (z. B. deutschland, hamburg, berlin); die sourceId ist dort die URL der Quelle. list nennt die Kategorien (categories) für filter.category; filter.dateFrom/dateTo grenzen auch find, rank, grep und stats ein (Quellen ohne Datum fallen dann weg — undatedExcluded). grep zählt dort alle Quellen; über 200 Quellen nur die Schreibweise der Phrase (Groß/klein egal, countRule) — Akzentvarianten (Charité/Charite) einzeln zählen. Nur lesen.`,
     inputSchema,
     execute: async (rawArgs) => {
       const userId = requireUserId(state);
@@ -528,7 +540,7 @@ System-Notebooks: notebookId ist der Sammlungsschlüssel aus notebooks action="l
       sortBy: args.sortBy ?? 'date',
       ...(args.filter ? { filter: args.filter } : {}),
       refs: compactRefs(
-        items.map((r) => ({ title: r.title, ref: r.id, detail: r.createdAt?.slice(0, 10) }))
+        items.map((r) => ({ title: r.title, ref: r.id, detail: r.createdAt?.slice(0, 10) ?? null }))
       ),
       results,
     };

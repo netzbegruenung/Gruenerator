@@ -26,7 +26,11 @@ import {
   locateQuoteInSources,
   type CiteCandidate,
 } from '../../../services/notebook/sourceCite.js';
-import { grepSources, type ScanLoad } from '../../../services/notebook/sourceGrep.js';
+import {
+  grepSources,
+  type GrepOptions,
+  type ScanLoad,
+} from '../../../services/notebook/sourceGrep.js';
 import { statsFromLoad, type StatsNlp } from '../../../services/notebook/sourceStats.js';
 import {
   checkSystemSource,
@@ -43,6 +47,7 @@ import {
   SOURCE_NOT_FOUND,
   suggestSystemSources,
   SYSTEM_LIST_SCROLL_MAX,
+  SYSTEM_SCAN_MAX_SOURCES,
   systemSourceSize,
   type SystemCollection,
   type SystemNotebookSourcesDeps,
@@ -161,14 +166,18 @@ function withUndated(result: Record<string, unknown>, undated: number): Record<s
 }
 
 type TermLoad = ScanLoad & {
-  accept?: ((matched: string) => boolean) | undefined;
   undatedExcluded: number;
+  /** Nur über den Volltextindex: die Zählregel und wie viele Quellen im Umfang lagen. */
+  index?: { accept: (matched: string) => boolean; scopeSize: number };
 };
 
 /**
- * Die Texte für grep und rank by=term über die ganze Sammlung (bzw. `filter`):
- * zuerst über den Volltextindex (`loadSystemTermMatches`, vollständig), nur
- * wenn die Phrase dort kein Wort hat, über das Lesen ganzer Quellen.
+ * Die Texte für grep und rank by=term. Ein Umfang von höchstens
+ * `SYSTEM_SCAN_MAX_SOURCES` Quellen wird ganz gelesen — vollständig und mit
+ * der vollen Faltung des Zählers (Akzente egal, Worttrennung am Zeilenende).
+ * Erst darüber zählt der Volltextindex (`loadSystemTermMatches`), der nur die
+ * Schreibweisen findet, die er kennt — das Ergebnis sagt es dann
+ * (`countRule`). Ohne passenden Index bleibt es beim Lesen mit Deckel.
  */
 async function loadTermTexts(
   phrase: string,
@@ -176,28 +185,81 @@ async function loadTermTexts(
   ctx: SystemActionCtx
 ): Promise<TermLoad | { error: string }> {
   const { collection, deps } = ctx;
-  const scope = await scopedUrls(filter, ctx);
-  const undatedExcluded = scope?.undatedExcluded ?? 0;
-  if (scope?.urls.length === 0) {
-    const reason = scope.exhaustive ? null : 'Sammlung zu groß';
-    return { sources: [], exhaustive: reason === null, incompleteReason: reason, undatedExcluded };
+  const scope = await filterSystemSourceUrls({ collection, filter: filter ?? {} }, deps);
+  const { undatedExcluded } = scope;
+  if (scope.exhaustive && scope.urls.length <= SYSTEM_SCAN_MAX_SOURCES) {
+    return await loadSystemScanTexts({ collection, filter }, deps);
   }
   const matched = await loadSystemTermMatches(
-    { collection, phrase, ...(scope ? { sourceUrls: scope.urls } : {}) },
+    { collection, phrase, ...(filter ? { sourceUrls: scope.urls } : {}) },
     deps
   );
   if (!matched) {
     return await loadSystemScanTexts({ collection, filter, prefilterQuery: phrase }, deps);
   }
-  if (scope && !scope.exhaustive) {
+  const { accept, ...load } = matched;
+  const index = { accept, scopeSize: scope.urls.length };
+  // Mit Filter ist der Umfang die URL-Liste — reißt sie am Deckel ab, fehlt ein Teil.
+  if (filter && !scope.exhaustive) {
     return {
-      ...matched,
+      ...load,
       exhaustive: false,
-      incompleteReason: [matched.incompleteReason, 'Sammlung zu groß'].filter(Boolean).join(', '),
+      incompleteReason: [load.incompleteReason, 'Sammlung zu groß'].filter(Boolean).join(', '),
       undatedExcluded,
+      index,
     };
   }
-  return { ...matched, undatedExcluded };
+  return { ...load, undatedExcluded, index };
+}
+
+const COUNT_RULE =
+  'Gezählt über den Volltextindex: die Schreibweise der Phrase, nur Groß/klein egal (ohne Akzente und CO2/CO₂ gelten als gleich). Andere Akzente (Charite/Charité) und am Zeilenende getrennte Wörter zählen getrennt — suche jede Schreibweise einzeln.';
+const OTHER_SPELLINGS_MAX = 5;
+
+/**
+ * Zählt `phrase` in den geladenen Texten. Über den Index zusätzlich: welche
+ * anderen Schreibweisen der Zähler in den gefundenen Abschnitten sah, aber
+ * nicht mitzählte — ein Hinweis, keine Gesamtzahl (Abschnitte NUR mit der
+ * anderen Schreibweise holt der Index nicht).
+ */
+function countTerm(
+  loaded: TermLoad,
+  phrase: string,
+  opts: Pick<GrepOptions, 'caseSensitive' | 'contexts'>
+): {
+  counted: ReturnType<typeof grepSources>;
+  extra: Record<string, unknown>;
+  note: string | null;
+} {
+  const index = loaded.index;
+  if (!index) return { counted: grepSources(loaded.sources, phrase, opts), extra: {}, note: null };
+  const other = new Map<string, number>();
+  const counted = grepSources(loaded.sources, phrase, {
+    ...opts,
+    accept: (m) => {
+      if (index.accept(m)) return true;
+      const key = m.normalize('NFC').toLowerCase().replace(/\s+/g, ' ');
+      other.set(key, (other.get(key) ?? 0) + 1);
+      return false;
+    },
+  });
+  const top = [...other].sort((a, b) => b[1] - a[1]).slice(0, OTHER_SPELLINGS_MAX);
+  const note = top.length
+    ? `„${phrase}" steht in den gefundenen Abschnitten außerdem ${top.map(([w, n]) => `${n}× als „${w}"`).join(', ')} — nicht mitgezählt; für alle Stellen grep je Schreibweise.`
+    : null;
+  return {
+    counted,
+    extra: {
+      countRule: COUNT_RULE,
+      ...(top.length ? { otherSpellings: Object.fromEntries(top) } : {}),
+    },
+    note,
+  };
+}
+
+function joinNote(...parts: Array<string | null>): { note?: string } {
+  const note = parts.filter(Boolean).join(' ');
+  return note ? { note } : {};
 }
 
 const NO_SOURCE_IN_FILTER = 'Keine Quelle passt zu filter — lockere ihn oder prüfe ihn mit list.';
@@ -300,7 +362,7 @@ async function list(
       categories,
       ...(exhaustive ? {} : { note: LIST_CAPPED }),
       refs: compactRefs(
-        items.map((r) => ({ title: r.title, ref: r.id, detail: r.createdAt?.slice(0, 10) }))
+        items.map((r) => ({ title: r.title, ref: r.id, detail: r.createdAt?.slice(0, 10) ?? null }))
       ),
       results,
     },
@@ -478,10 +540,9 @@ async function grep(
     ? await loadSystemScanTexts({ collection, sourceUrl: args.sourceId }, deps)
     : await loadTermTexts(phrase, filter, ctx);
   if ('error' in loaded) return loaded;
-  const counted = grepSources(loaded.sources, phrase, {
+  const { counted, extra, note } = countTerm(loaded, phrase, {
     caseSensitive: args.caseSensitive,
     contexts: args.contexts,
-    accept: loaded.accept,
   });
   if (counted.perSource.length === 0) {
     groundNote(
@@ -515,10 +576,12 @@ async function grep(
       ...echoFilter(filter),
       exhaustive: loaded.exhaustive,
       totalHits: counted.totalHits,
-      sourcesScanned: loaded.sources.length,
+      // Über den Index: die Quellen im Umfang — durchsucht sind alle, gelesen nur die Treffer.
+      sourcesScanned: loaded.index?.scopeSize ?? loaded.sources.length,
       sourcesWithHits: counted.perSource.length,
+      ...extra,
       perSource: counted.perSource.map((s) => ({ ...s, url: s.sourceId })),
-      ...(loaded.exhaustive ? {} : { note: notExhaustiveGrep(loaded.incompleteReason) }),
+      ...joinNote(loaded.exhaustive ? null : notExhaustiveGrep(loaded.incompleteReason), note),
     },
     loaded.undatedExcluded
   );
@@ -594,6 +657,8 @@ async function rank(
   let exhaustive: boolean | null = null;
   let incompleteReason: string | null = null;
   let undated = 0;
+  let termExtra: Record<string, unknown> = {};
+  let termNote: string | null = null;
 
   if (by === 'relevance') {
     const scope = await scopedUrls(filter, ctx);
@@ -639,8 +704,11 @@ async function rank(
     exhaustive = loaded.exhaustive;
     incompleteReason = loaded.incompleteReason;
     undated = loaded.undatedExcluded;
-    rows = grepSources(loaded.sources, query, { accept: loaded.accept })
-      .perSource.slice(0, limit)
+    const term = countTerm(loaded, query, {});
+    termExtra = term.extra;
+    termNote = term.note;
+    rows = term.counted.perSource
+      .slice(0, limit)
       .map((s) => ({ sourceId: s.sourceId, title: s.title, value: s.count, unit: 'Treffer' }));
   } else {
     // length, pages: aus den gelesenen Texten — Länge und Seiten stehen bei
@@ -691,7 +759,8 @@ async function rank(
       ...(query ? { query } : {}),
       ...echoFilter(filter),
       ...(exhaustive === null ? {} : { exhaustive }),
-      ...(exhaustive === false ? { note: notExhaustiveCounts(incompleteReason) } : {}),
+      ...termExtra,
+      ...joinNote(exhaustive === false ? notExhaustiveCounts(incompleteReason) : null, termNote),
       refs: rankRefs(ranking),
       ranking,
     },
