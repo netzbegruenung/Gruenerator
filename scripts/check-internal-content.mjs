@@ -2,7 +2,7 @@
 /**
  * Guards the boundary between this public repo and party-internal content.
  *
- * Two failure modes, both of which have already happened once:
+ * Three failure modes, all of which have already happened:
  *
  * 1. **Ignored but tracked.** `.gitignore` does not apply to files git already
  *    tracks. `documentation/docs/intern/` was listed in `.gitignore` and 26 of
@@ -23,6 +23,9 @@
  *    binary — and a shipped binary cannot be un-shipped. `build-skills.ts` and
  *    `build-agents.ts` already refuse to emit one; this repeats the check
  *    without running codegen, so a hand-edited generated file is caught too.
+ *
+ * 3. **A Wolke share token in any tracked file.** Nine had reached the history
+ *    by 09/2026 — in config, templates, tests and eval dumps.
  */
 import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -97,6 +100,30 @@ if (nonEmptyRoles.length > 0) {
     `${AGENTS_DIR}/index.generated.ts has ${nonEmptyRoles.length} non-empty systemRole(s).\n` +
       `  Agent personas are party-internal and loaded at runtime; this file is bundled.\n` +
       `  Re-run: pnpm --filter @gruenerator/shared build:agents`
+  );
+}
+
+// ── 3. Wolke share links ────────────────────────────────────────────────────
+// A share token is a credential for the whole share. LV shares are resolved at
+// runtime from <INTERN_CONTENT_DIR>/wolke-shares.json; tests use a short fake
+// token (`/s/TESTTOKEN`). Real Nextcloud tokens are 15 characters.
+const SHARE_TOKEN = String.raw`wolke\.netzbegruenung\.de/(index\.php/)?s/[A-Za-z0-9]{12,}`;
+let shareHits = '';
+try {
+  shareHits = execFileSync('git', ['grep', '-nE', SHARE_TOKEN], { encoding: 'utf8' });
+} catch (error) {
+  if (error.status !== 1) throw error; // 1 = no match
+}
+if (shareHits) {
+  failures.push(
+    `Wolke share token(s) in tracked files:\n` +
+      shareHits
+        .trim()
+        .split('\n')
+        .map((line) => `  · ${line.split(':').slice(0, 2).join(':')}`)
+        .join('\n') +
+      `\n\n  Put the link into <INTERN_CONTENT_DIR>/wolke-shares.json and reference it by` +
+      ` \`shareKey\`; in tests use /s/TESTTOKEN.`
   );
 }
 
