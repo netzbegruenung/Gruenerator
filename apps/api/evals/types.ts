@@ -400,6 +400,20 @@ export const evalScenarioSchema = z
      * misst damit alles NACH dem Retrieval.
      */
     bgstKorpusLane: z.boolean().optional(),
+    /**
+     * Die Notebook-Auswahl des Composers, als `notebookIds` im Chat-Body
+     * (nur `surface: 'chat'`). Anders als ein `@[…](notebook:…)`-Token im
+     * Prompt ist das die stille Auswahl, die jeden Turn scoped. Darf den
+     * Platzhalter `{{EVAL_USER_NOTEBOOK_ID}}` tragen (siehe `userNotebookLane`).
+     */
+    notebookIds: z.array(z.string()).optional(),
+    /**
+     * Braucht ein EIGENES Notebook des Eval-Kontos — `notebook_quellen` lehnt
+     * System-Notebooks ab, und der Runner kann keines anlegen. Übersprungen ohne
+     * EVAL_USER_NOTEBOOK_ID; dessen Wert ersetzt `{{EVAL_USER_NOTEBOOK_ID}}` in
+     * Prompt und `notebookIds`.
+     */
+    userNotebookLane: z.boolean().optional(),
   })
   .strict()
   .refine((s) => s.surface !== 'notebook' || (s.collectionIds?.length ?? 0) > 0, {

@@ -88,6 +88,10 @@ Guards in `agenticLoop/loopGuards.ts`: `MAX_FAILURES_PER_TOOL` 2, `MAX_TOTAL_FAI
 
 Verschiebungen auf Rang 1: 9 Fälle verloren, 8 gewonnen; bei Top-3: 3 verloren, 3 gewonnen — kein Ausreißer, sondern Rauschen um einen leichten Verlust bei +1,35 s Median-Aufpreis pro Suche. **Entscheidung: `LOOP_RERANK_ENABLED` bleibt aus.** Die dokumentbezogene Eval zeigt keinen Gewinn, der den Aufpreis rechtfertigt — aber sie misst auch nicht das, was der Entwurf eigentlich als Nutzen benennt: welcher CHUNK eines Dokuments nach `truncateText(relevant_content, 800)` beim Modell ankommt. Eine chunk-genaue Messung ist die Anschlussarbeit, bevor der Default kippt.
 
+### 2.8 Notebook-Turns: Werkzeugaufträge gehen in die Schleife (23.09.2026)
+
+Ein gewähltes Notebook (`notebookIds`) hält den Turn weiterhin im Einzeldurchlauf (`hasSelectedNotebook` in `routing.ts`) — mit einer Ausnahme: will der Turn etwas MIT den Quellen tun (sortieren, zählen, eine Seite oder einen Abschnitt lesen, eine Stelle finden, wörtlich zitieren), setzt der Klassifikator im Notebook-Zweig `intent: 'agentic'` mit `mentionPinnedTool: 'notebook_quellen'` und ohne `gatherSources` (Tier-Eintrag `tier2_notebook_tool_ask`). Der Pin macht den Turn in `turnPlan` zu `mustLoop`, das hebt die Notebook-Sperre auf; `pinnedFirstTool` benennt `notebook_quellen` als ersten Aufruf, und das Werkzeug fällt ohne `notebookId` auf das gewählte Notebook zurück. Die Weiche ist `looksLikeNotebookToolAsk` (`routes/chat/services/notebookToolAsk.ts`): sie verlangt ein Verb oder einen ausdrücklichen Ort (Seite 3, Kapitel 2, wie viele Seiten, wörtlich), nie ein Nomen allein. Nicht gepinnt wird bei benannten Agenten (`isCompound` hebt auch `mustLoop` nicht auf) und wenn nur System-Notebooks gewählt sind (`notebook_quellen` lehnt sie ab). Gewöhnliche Notebook-Fragen bleiben unverändert auf `searchNode`. Die Messung dazu ist `evals/corpus/notebook-tools.jsonl` (Lane `userNotebookLane`, braucht `EVAL_USER_NOTEBOOK_ID` — ein eigenes Notebook des Eval-Kontos; der Runner kann keines anlegen).
+
 ---
 
 ## 3. Bewertung: Deep Agents
