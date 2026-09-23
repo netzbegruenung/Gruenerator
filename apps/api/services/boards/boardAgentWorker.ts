@@ -34,7 +34,7 @@ import {
   createSheetFromText,
   generateTaskList,
 } from './agentFlow/artifactGen.js';
-import { buildCardAgentContext } from './agentFlow/cardContext.js';
+import { buildCardAgentContext, formatDocuments } from './agentFlow/cardContext.js';
 import { deriveTitle, prepareAgentState } from './agentFlow/generate.js';
 import { runFlow } from './agentFlow/index.js';
 import { agentTaskSubset } from './agentFlow/taskListParse.js';
@@ -285,13 +285,13 @@ async function processTask(task: AgentTask): Promise<void> {
     // answer with a short explanation and finish cleanly (structured artifacts
     // are exempt — they are documents/cards, not media).
     if (!isStructured && UNSUPPORTED_INTENTS.has(finalState.intent)) {
-      await completeAgentTask(task.id, null);
       await finishComment([
         {
           type: 'text',
           text: 'Ich kann auf Boards aktuell nur Text-Dokumente, Tabellen, Präsentationen und Aufgaben erstellen (keine Bilder, Sharepics oder Diagramme). Formuliere die Aufgabe gerne entsprechend.',
         },
       ]);
+      await completeAgentTask(task.id, null);
       log.info(`Agent task ${task.id} completed without document (intent: ${finalState.intent})`);
       return;
     }
@@ -482,8 +482,11 @@ async function processTask(task: AgentTask): Promise<void> {
     }
 
     if (!isDocument && !looksLongForm(content)) {
-      await completeAgentTask(task.id, null, verdict);
+      // Comment first: the comment IS the result, and 'completed' releases the
+      // tasks that build on it (#3549) — another cluster worker may claim one
+      // the moment the status flips and must find the result on this card.
       await finishComment([{ type: 'text', text: note ? `${content}\n\n${note}` : content }]);
+      await completeAgentTask(task.id, null, verdict);
       await createNotification({
         userId: task.requested_by,
         type: 'agent_task_completed',
@@ -553,10 +556,10 @@ async function classifyDeliverable(taskText: string): Promise<DeliverableKind> {
 
 /**
  * The card's own context, plus — for a child of a decomposing run (#3549) — the
- * request it was split from and the context of each predecessor's card, which
- * carries its result comment and linked result document. That is how a later
- * step sees what an earlier one did. Kept out of task_text on purpose: the
- * deliverable classifier reads task_text and must see only the card's own ask.
+ * request it was split from and what each predecessor delivered: its card
+ * context (which carries a comment result) and its result document. That is how
+ * a later step sees what an earlier one did. Kept out of task_text on purpose:
+ * the deliverable classifier reads task_text and must see only the card's own ask.
  */
 async function buildTaskContext(task: AgentTask): Promise<string | undefined> {
   const own = await buildCardAgentContext(task.board_id, task.card_id, task.requested_by);
@@ -564,11 +567,19 @@ async function buildTaskContext(task: AgentTask): Promise<string | undefined> {
   const graph = await taskGraphContext(task);
   const predecessors = (
     await Promise.all(
-      graph.predecessorCardIds.map((cardId) =>
-        buildCardAgentContext(task.board_id, cardId, task.requested_by)
-      )
+      graph.predecessors.map(async (p) => {
+        const [card, result] = await Promise.all([
+          buildCardAgentContext(task.board_id, p.cardId, task.requested_by),
+          formatDocuments(
+            p.resultDocumentId ? [p.resultDocumentId] : [],
+            task.requested_by,
+            'Ergebnis-Dokument'
+          ),
+        ]);
+        return [card, result].filter(Boolean).join('\n\n');
+      })
     )
-  ).filter((c): c is string => Boolean(c));
+  ).filter(Boolean);
   const parts = [
     own,
     graph.parentTaskText &&
