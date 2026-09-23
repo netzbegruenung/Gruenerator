@@ -21,11 +21,15 @@ import { maskPageMarkers } from '../document-services/TextChunker/pageMarkerProc
 import {
   fetchDocumentMetadata,
   findPassages,
+  markedPageAt,
+  markedPageRanges,
   readSourceText,
   resolveSourceInNotebook,
   type ChunkLocator,
   type NotebookSourcesDeps,
 } from './notebookSources.js';
+
+import type { PageRange } from '../document-services/TextChunker/types.js';
 
 /** Obergrenze gelesener Zeichen je Aufruf. */
 export const SCAN_CHAR_BUDGET = 4_000_000;
@@ -201,8 +205,18 @@ export interface ScannedSource {
   chunkMap: ChunkLocator[];
 }
 
-/** Die Seite, auf der ein Offset liegt — `null`, wenn die Quelle keine Seiten kennt. */
-export function pageAt(chunkMap: readonly ChunkLocator[], offset: number): number | null {
+/**
+ * Die Seite, auf der ein Offset liegt — `null`, wenn die Quelle keine Seiten
+ * kennt. Mit `## Seite N`-Marken (`marked`) zählt die Marke, sonst die Seite
+ * des Chunks (System-Notebooks: geschätzte Seiten, keine Marken).
+ */
+export function pageAt(
+  chunkMap: readonly ChunkLocator[],
+  offset: number,
+  marked: readonly PageRange[] = []
+): number | null {
+  const byMarker = markedPageAt(marked, offset);
+  if (byMarker !== null) return byMarker;
   const hit = chunkMap.find(
     (c) => c.pageNumber !== null && c.charStart <= offset && offset < c.charEnd
   );
@@ -232,13 +246,14 @@ export function grepSources(
     const r = grepText(s.text, phrase, opts);
     if (r.count === 0) continue;
     totalHits += r.count;
+    const marked = markedPageRanges(s.text);
     perSource.push({
       sourceId: s.sourceId,
       title: s.title,
       count: r.count,
       contexts: r.hits.map((h) => ({
         charStart: h.charStart,
-        pageNumber: pageAt(s.chunkMap, h.charStart),
+        pageNumber: pageAt(s.chunkMap, h.charStart, marked),
         text: h.context,
       })),
     });
