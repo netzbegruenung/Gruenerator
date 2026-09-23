@@ -29,7 +29,8 @@
  *   - `--gone` (nur mit `--source`, allein): holt jede HTML-Seite der Quelle
  *     (1 Anfrage/s) und LÖSCHT mit `--write` alle Punkte einer URL, die
  *     `goneState.classifyFetch` als weg (404/410, Weiterleitung auf Startseite,
- *     Listing oder fremden Host) oder umgezogen (anderer Pfad) einstuft (#3566).
+ *     Listing oder fremden Host) oder umgezogen (anderer Pfad) einstuft (#3566);
+ *     eine umgezogene nur, wenn ihr Ziel schon indexiert ist.
  *     Der Lauf zählt als bestätigende zweite Sichtung, die Marke
  *     `lv_gone_since` des Scrapers wird übersprungen. 403, 5xx und Netzfehler
  *     löschen nie.
@@ -55,6 +56,7 @@ import dotenv from 'dotenv';
 import { ContentExtractor } from '../services/scrapers/implementations/LandesverbandScraper/extractors/ContentExtractor.js';
 import { DateExtractor } from '../services/scrapers/implementations/LandesverbandScraper/extractors/DateExtractor.js';
 import {
+  GONE_CONFIRM_AFTER_MS,
   classifyFetch,
   goneVerdict,
   type FetchOutcome,
@@ -209,16 +211,40 @@ interface Probe {
   finalUrl: string | null;
 }
 
-/** Wie ein Scraper-Lauf, dessen Marke schon älter als 24 h ist: jedes `gone`/`moved` wird gelöscht. */
-const CONFIRMED_MARK = { lv_gone_since: new Date(0).toISOString() };
+/** Wie `LandesverbandScraper.#normalizeUrl` für absolute URLs: ohne Fragment und `tmstv`. */
+function normalizeStoredUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    parsed.hash = '';
+    parsed.searchParams.delete('tmstv');
+    const search = parsed.searchParams.toString();
+    return parsed.origin + parsed.pathname + (search ? '?' + search : '');
+  } catch {
+    return url;
+  }
+}
 
-export function planGone(
+/**
+ * Wie ein Scraper-Lauf, dessen Marke genau 24 h alt ist: jedes `gone`/`moved`
+ * wird gelöscht. Eine umgezogene URL nur, wenn ihr Ziel schon indexiert ist —
+ * sonst ist die alte URL die einzige Kopie (`targetMissing`).
+ */
+export async function planGone(
   url: string,
   probe: Probe,
-  listingPaths: string[]
-): { outcome: FetchOutcome; remove: boolean } {
+  listingPaths: string[],
+  isIndexed: (url: string) => Promise<boolean>
+): Promise<{ outcome: FetchOutcome; remove: boolean; targetMissing?: true }> {
   const outcome = classifyFetch({ requestedUrl: url, ...probe, listingPaths });
-  return { outcome, remove: goneVerdict(outcome, CONFIRMED_MARK, Date.now()) === 'delete' };
+  const now = Date.now();
+  const mark = { lv_gone_since: new Date(now - GONE_CONFIRM_AFTER_MS).toISOString() };
+  const remove = goneVerdict(outcome, mark, now) === 'delete';
+  if (remove && outcome === 'moved' && probe.finalUrl) {
+    if (!(await isIndexed(normalizeStoredUrl(probe.finalUrl)))) {
+      return { outcome, remove: false, targetMissing: true };
+    }
+  }
+  return { outcome, remove };
 }
 
 interface StoredPoint {
@@ -332,6 +358,16 @@ async function main(): Promise<void> {
         transient: 0,
         skipped: 0,
       };
+      let targetMissing = 0;
+      const isIndexed = async (url: string): Promise<boolean> => {
+        const res = await client.scroll(scope.collection, {
+          filter: { must: [{ key: 'source_url', match: { value: url } }] },
+          limit: 1,
+          with_payload: false,
+          with_vector: false,
+        });
+        return res.points.length > 0;
+      };
       const goneSamples: string[] = [];
       let wouldDelete = 0;
       let deleted = 0;
@@ -342,8 +378,10 @@ async function main(): Promise<void> {
         }
         const result = await probe(point.source_url);
         await new Promise((resolve) => setTimeout(resolve, 1000));
-        const { outcome, remove } = planGone(point.source_url, result, listingPaths);
+        const plan = await planGone(point.source_url, result, listingPaths, isIndexed);
+        const { outcome, remove } = plan;
         tally[outcome]++;
+        if (plan.targetMissing) targetMissing++;
         if (!remove) continue;
         wouldDelete++;
         if (goneSamples.length < 10) {
@@ -367,7 +405,7 @@ async function main(): Promise<void> {
       console.log(`\n═══ ${scope.sourceId} — --gone ═══`);
       console.log(goneSamples.join('\n'));
       console.log(
-        `  geprüft ${points.length} = live ${tally.live} + umgezogen ${tally.moved} + weg ${tally.gone} + vorübergehend ${tally.transient} + nicht abgerufen ${tally.skipped}`
+        `  geprüft ${points.length} = live ${tally.live} + umgezogen ${tally.moved} (davon Ziel nicht indexiert, behalten: ${targetMissing}) + weg ${tally.gone} + vorübergehend ${tally.transient} + nicht abgerufen ${tally.skipped}`
       );
       console.log(
         `  ${args.write ? 'gelöscht' : 'würde löschen'} ${args.write ? deleted : wouldDelete} URL(s)`

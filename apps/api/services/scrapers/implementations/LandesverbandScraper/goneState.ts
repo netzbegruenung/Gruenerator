@@ -12,10 +12,28 @@
 export const GONE_CONFIRM_AFTER_MS = 24 * 60 * 60 * 1000;
 
 /**
+ * A mark older than this is stale evidence (the page may have been back in
+ * between without being visited): re-mark and confirm afresh instead of deleting.
+ */
+export const GONE_MARK_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
+
+/**
+ * Circuit breaker per content path: a CMS that 404s every post (broken
+ * permalink flush while the listing stays up) must not empty a source
+ * unattended. Deletes run only while they stay at or below
+ * max(5, 20 % of the processed URLs); above that the marks are kept.
+ */
+export function allowGoneDeletes(deletes: number, processed: number): boolean {
+  return deletes <= Math.max(5, 0.2 * processed);
+}
+
+/**
  * - `live`: answered without moving (a changed trailing slash, query, `www.` or
  *   scheme is not a move);
  * - `moved`: redirected to another path on the same host — store under the
- *   final URL, the requested one is gone;
+ *   final URL, the requested one is gone. fetch follows redirects and hides the
+ *   code, so 302/307 count like 301; acceptable because a move only deletes
+ *   after persisting 24h and within the allowGoneDeletes cap;
  * - `gone`: 404/410, or redirected to another host, the site root or a listing
  *   page — nothing there to store;
  * - `transient`: anything else, including network errors (`status: null`).
@@ -80,6 +98,6 @@ export function goneVerdict(
   const marked = Number.isFinite(since);
 
   if (outcome === 'live') return stored.lv_gone_since != null ? 'clear' : 'none';
-  if (!marked) return 'mark';
+  if (!marked || now - since > GONE_MARK_MAX_AGE_MS) return 'mark';
   return now - since >= GONE_CONFIRM_AFTER_MS ? 'delete' : 'none';
 }
