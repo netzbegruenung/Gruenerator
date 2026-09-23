@@ -123,16 +123,21 @@ describe('goneVerdict — Bestätigungsfenster', () => {
 
 describe('allowGoneDeletes — Schutzschalter', () => {
   it('erlaubt bis zu fünf Löschungen auch bei kleinen Läufen', () => {
-    expect(allowGoneDeletes(5, 3)).toBe(true);
-    expect(allowGoneDeletes(6, 10)).toBe(false);
+    expect(allowGoneDeletes({ deletes: 5, fetched: 3 })).toBe(true);
+    expect(allowGoneDeletes({ deletes: 6, fetched: 10 })).toBe(false);
   });
 
-  it('erlaubt bis zu 20 % der verarbeiteten URLs', () => {
-    expect(allowGoneDeletes(20, 100)).toBe(true);
-    expect(allowGoneDeletes(21, 100)).toBe(false);
+  it('erlaubt bis zu 20 % der abgerufenen URLs', () => {
+    expect(allowGoneDeletes({ deletes: 20, fetched: 100 })).toBe(true);
+    expect(allowGoneDeletes({ deletes: 21, fetched: 100 })).toBe(false);
+  });
+
+  it('misst gegen die abgerufenen Seiten, nicht gegen das Listing', () => {
+    // Listing 500, davon 60 wirklich abgerufen (Rest vom Frische-Gatter übersprungen), alle 60 weg.
+    expect(allowGoneDeletes({ deletes: 60, fetched: 60 })).toBe(false);
   });
 
   it('hält eine Quelle auf, die jede Seite mit 404 beantwortet', () => {
-    expect(allowGoneDeletes(400, 400)).toBe(false);
+    expect(allowGoneDeletes({ deletes: 400, fetched: 400 })).toBe(false);
   });
 });

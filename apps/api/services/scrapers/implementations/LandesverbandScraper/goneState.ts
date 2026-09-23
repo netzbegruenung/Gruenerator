@@ -21,10 +21,12 @@ export const GONE_MARK_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
  * Circuit breaker per content path: a CMS that 404s every post (broken
  * permalink flush while the listing stays up) must not empty a source
  * unattended. Deletes run only while they stay at or below
- * max(5, 20 % of the processed URLs); above that the marks are kept.
+ * max(5, 20 % of the URLs actually fetched in this run); above that the marks
+ * are kept. Not the listing size: the freshness gate skips most listed URLs,
+ * so 60 fetched-and-gone out of 500 listed is an outage, not 12 %.
  */
-export function allowGoneDeletes(deletes: number, processed: number): boolean {
-  return deletes <= Math.max(5, 0.2 * processed);
+export function allowGoneDeletes(run: { deletes: number; fetched: number }): boolean {
+  return run.deletes <= Math.max(5, 0.2 * run.fetched);
 }
 
 /**
