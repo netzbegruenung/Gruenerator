@@ -78,6 +78,14 @@ import type { SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 const EXCERPT_CHARS = 300;
 const CLAIM_PASSAGES = 8;
 const LIST_CAPPED = `Die Sammlung ist größer, als list durchsieht — total zählt nur die ersten ${SYSTEM_LIST_SCROLL_MAX} Quellen. Grenze mit filter ein oder suche mit find.`;
+/**
+ * Nur für den Planer, nicht in der Schreiber-Notiz (`SUMMARY_FIELDS`): der
+ * Schreiber hat keine Werkzeuge. „Welche Kategorien gibt es? Zeig mir dann die
+ * Quellen aus X" endete live nach diesem einen Aufruf, und der Schreiber meldete
+ * X als leer, weil die gezeigte Seite keine davon enthielt (#3627).
+ */
+const LIST_PARTIAL_CATEGORIES =
+  'Gezeigt ist nur ein Teil der Quellen. Fragt der Auftrag nach den Quellen einer Kategorie, rufe list erneut mit filter.category (Wert aus categories) auf — aus dieser Seite lässt sich nicht schließen, dass eine Kategorie leer ist.';
 
 export interface SystemActionArgs extends ScanActionArgs {
   action: string;
@@ -362,6 +370,9 @@ async function list(
       ...echoFilter(filter),
       categories,
       ...(exhaustive ? {} : { note: LIST_CAPPED }),
+      ...(!filter?.category && total > (args.offset ?? 0) + items.length
+        ? { hint: LIST_PARTIAL_CATEGORIES }
+        : {}),
       refs: compactRefs(
         items.map((r) => ({ title: r.title, ref: r.id, detail: r.createdAt?.slice(0, 10) ?? null }))
       ),
