@@ -41,7 +41,7 @@
     "@tauri-apps/plugin-store": "^2.4.4",
     "@tauri-apps/plugin-updater": "^2.11.0",
     "@uidotdev/usehooks": "^2.4.1",
-    "ai": "^7.0.94",
+    "ai": "^7.0.102",
     "axios": "^1.20.0",
     "better-auth": "^1.6.26",
     "browser-image-compression": "^2.0.2",
