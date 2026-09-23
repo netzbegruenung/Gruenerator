@@ -76,7 +76,7 @@ export function SharepicVariantStack({ data }: SharepicVariantStackProps) {
             key={variant.id}
             variant={variant}
             isSelected={variant.id === selected.id}
-            onSelect={() => setSelectedId(variant.id)}
+            onSelect={setSelectedId}
           />
         ))}
       </div>
@@ -92,7 +92,7 @@ export const SharepicVariantThumb = memo(function SharepicVariantThumb({
 }: {
   variant: SharepicVariant;
   isSelected: boolean;
-  onSelect: () => void;
+  onSelect: (variantId: string) => void;
   className?: string;
 }) {
   const { imageBase64, failed } = useSharepicThumbnail(variant);
@@ -101,7 +101,7 @@ export const SharepicVariantThumb = memo(function SharepicVariantThumb({
   return (
     <button
       type="button"
-      onClick={onSelect}
+      onClick={() => onSelect(variant.id)}
       aria-pressed={isSelected}
       aria-label={`Variante „${label}" anzeigen`}
       className={cn(

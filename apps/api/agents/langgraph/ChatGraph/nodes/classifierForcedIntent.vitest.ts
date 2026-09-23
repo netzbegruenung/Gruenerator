@@ -731,3 +731,80 @@ describe('Tier 2.7 — follow-up on the thread last artifact (lastToolContext)',
     expect(result.intent).not.toBe('mcp');
   });
 });
+
+// ── Notebook-Werkzeugauftrag ─────────────────────────────────────────────
+// Ein gewähltes Notebook zwingt den Turn in die Suche — ausser er will etwas
+// MIT den Quellen tun (sortieren, zählen, eine Seite lesen). Dann geht er mit
+// `notebook_quellen` gepinnt in die Schleife, wie der Dauerauftrag in Tier 3.4.
+
+describe('Notebook branch — tool ask pins notebook_quellen', () => {
+  const USER_NOTEBOOK = '3f1c2b7a-9d4e-4c5b-8a6f-1e2d3c4b5a69';
+
+  it('user notebook + tool ask → agentic with the pin, no gather sources', async () => {
+    const state = buildState({
+      userMessage: 'Sortiere die Quellen nach Datum',
+      notebookIds: [USER_NOTEBOOK],
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('agentic');
+    expect(result.mentionPinnedTool).toBe('notebook_quellen');
+    expect(result.gatherSources).toBeUndefined();
+  });
+
+  it('user notebook + locator ask → agentic with the pin', async () => {
+    const state = buildState({
+      userMessage: 'Was steht auf Seite 12?',
+      notebookIds: [USER_NOTEBOOK],
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('agentic');
+    expect(result.mentionPinnedTool).toBe('notebook_quellen');
+  });
+
+  it.each([
+    'Was steht im Notebook zur Wärmewende?',
+    'Fasse das Notebook zusammen',
+    'Wie ist die Lage in Seitenstetten?',
+  ])('plain notebook question stays a notebook search: %s', async (userMessage) => {
+    const state = buildState({ userMessage, notebookIds: [USER_NOTEBOOK] });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('search');
+    expect(result.gatherSources).toEqual(['notebook-search']);
+    expect(result.mentionPinnedTool).toBeUndefined();
+  });
+
+  it('a mention label is not read as the ask ("@Kapitel 3 Satzung" + plain question → no pin)', async () => {
+    // Die Nachrichten tragen Erwähnungen als „@Label"; ein Notebook-Name mit
+    // „Kapitel 3" pinnte sonst bei jeder Erwähnung.
+    const state = buildState({
+      userMessage: '@Kapitel 3 Satzung Was steht zur Wärmewende?',
+      lastUserTextNoMentions: 'Was steht zur Wärmewende?',
+      notebookIds: [USER_NOTEBOOK],
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('search');
+    expect(result.mentionPinnedTool).toBeUndefined();
+  });
+
+  it('system notebook only → stays a search (notebook_quellen rejects system notebooks)', async () => {
+    const state = buildState({
+      userMessage: 'Sortiere die Quellen nach Datum',
+      notebookIds: ['grundsatz-system'],
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('search');
+    expect(result.mentionPinnedTool).toBeUndefined();
+  });
+
+  it('named agent → stays the gather-then-apply search (isCompound keeps it single-pass)', async () => {
+    const state = buildState({
+      userMessage: 'Sortiere die Quellen nach Datum',
+      notebookIds: [USER_NOTEBOOK],
+      agentConfig: { ...STUB_AGENT_CONFIG, identifier: 'pressesprecher', isSystemDefault: false },
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('search');
+    expect(result.gatherSources).toEqual(['notebook-search']);
+    expect(result.mentionPinnedTool).toBeUndefined();
+  });
+});

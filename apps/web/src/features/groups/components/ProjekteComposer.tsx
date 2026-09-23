@@ -48,7 +48,7 @@ export function ProjekteComposer({ projekte, isCreating, onCreate }: ProjekteCom
   const isMobile = useIsMobile();
   const [q, setQ] = useState('');
   const [open, setOpen] = useState(false);
-  const [active, setActive] = useState(0);
+  const [active, setActive] = useState<number | null>(null);
   const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(
@@ -115,20 +115,23 @@ export function ProjekteComposer({ projekte, isCreating, onCreate }: ProjekteCom
     ? [...createOptions, ...searchOptions]
     : [...searchOptions, ...createOptions];
 
-  const clampedActive = Math.min(active, Math.max(0, options.length - 1));
+  // No match means the text is most likely not a name at all (#3498: a chat prompt became a
+  // Projekt), so nothing is preselected: creating takes a click or an arrow key first.
+  const selected = active === null ? (promptMode ? -1 : 0) : Math.min(active, options.length - 1);
+  const selectedOption = options[selected];
+  const submit = () => selectedOption?.onSelect();
   const showDropdown = open && query.length > 0 && options.length > 0;
 
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setActive((a) => Math.min(a + 1, options.length - 1));
+      setActive(Math.min(selected + 1, options.length - 1));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setActive((a) => Math.max(a - 1, 0));
+      setActive(Math.max(selected - 1, 0));
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      const opt = options[clampedActive];
-      if (opt) opt.onSelect();
+      submit();
     } else if (e.key === 'Escape') {
       setOpen(false);
     }
@@ -153,7 +156,7 @@ export function ProjekteComposer({ projekte, isCreating, onCreate }: ProjekteCom
             value={q}
             onChange={(e) => {
               setQ(e.target.value);
-              setActive(0);
+              setActive(null);
               setOpen(true);
             }}
             onFocus={() => setOpen(true)}
@@ -169,9 +172,9 @@ export function ProjekteComposer({ projekte, isCreating, onCreate }: ProjekteCom
         <button
           type="button"
           onMouseDown={(e) => e.preventDefault()}
-          onClick={() => runCreate('personal')}
-          disabled={query.length === 0 || isCreating}
-          aria-label="Projekt erstellen"
+          onClick={submit}
+          disabled={!selectedOption || isCreating}
+          aria-label="Auswahl bestätigen"
           className="flex h-[42px] w-[42px] flex-none items-center justify-center rounded-full bg-[#4C8A6E] text-white transition-[background,transform] hover:bg-[#3E7A5F] active:scale-95 disabled:opacity-50"
         >
           {isCreating ? (
@@ -214,7 +217,7 @@ export function ProjekteComposer({ projekte, isCreating, onCreate }: ProjekteCom
               onMouseEnter={() => setActive(i)}
               onClick={opt.onSelect}
               className={`flex w-full min-w-0 items-center rounded-xl px-3 py-2.5 text-left transition-colors ${
-                i === clampedActive
+                i === selected
                   ? 'bg-[#F2F6F3] dark:bg-grey-700/60'
                   : 'hover:bg-[#F2F6F3] dark:hover:bg-grey-700/60'
               }`}
