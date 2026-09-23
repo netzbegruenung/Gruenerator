@@ -295,8 +295,14 @@ export class ContentExtractor {
     for (const sel of selectors.date) {
       const el = $(sel).first();
       if (el.length) {
-        publishedAt = el.attr('datetime') || el.attr('content') || el.text().trim();
-        if (publishedAt) break;
+        const candidate = el.attr('datetime') || el.attr('content') || el.text().trim();
+        // A selector's text only wins if it actually looks like a date — the
+        // first match for some sources is a teaser/prose paragraph, not the
+        // date itself (#3565). Otherwise fall through to the next selector.
+        if (candidate && ContentExtractor.looksLikeDate(candidate)) {
+          publishedAt = candidate;
+          break;
+        }
       }
     }
 
@@ -347,6 +353,22 @@ export class ContentExtractor {
   }
 
   /**
+   * Whether `text` STARTS WITH a date (ISO, DD.MM.YY(YY), or a German
+   * long-form month name — optional trailing text like " –" is fine) — used to
+   * skip a date selector whose first match is prose that merely CONTAINS a
+   * date ("am Donnerstag, 2. März 2023", "Sitzung vom 12.03.2019") rather than
+   * being the date itself (#3565). Anchored at the start: an unanchored check
+   * would let `normalizeGermanDate` pull an embedded date out of that prose.
+   */
+  private static looksLikeDate(text: string): boolean {
+    const trimmed = text.trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) return true;
+    return /^\d{1,2}\.\s*(?:\d{1,2}\.\d{2,4}|(?:Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s+\d{4})(?!\d)/i.test(
+      trimmed
+    );
+  }
+
+  /**
    * Normalize German date formats (DD.MM.YY or DD.MM.YYYY) to ISO (YYYY-MM-DD).
    * Passes through already-ISO strings unchanged.
    */
@@ -391,12 +413,15 @@ export class ContentExtractor {
       return `${year}-${month}-${day}`;
     }
 
-    // DD.MM.YY (e.g., "19.02.26")
+    // DD.MM.YY (e.g., "19.02.26"). Pivot at 50: 00-50 is 20xx, 51-99 is 19xx —
+    // none of our sources predate 1951, and this keeps a stray "29.04.99" from
+    // landing in the future as 2099.
     const shortMatch = trimmed.match(/(\d{1,2})\.(\d{1,2})\.(\d{2})(?!\d)/);
     if (shortMatch) {
       const day = shortMatch[1].padStart(2, '0');
       const month = shortMatch[2].padStart(2, '0');
-      const year = parseInt(shortMatch[3], 10) + 2000;
+      const yy = parseInt(shortMatch[3], 10);
+      const year = yy > 50 ? 1900 + yy : 2000 + yy;
       return `${year}-${month}-${day}`;
     }
 
