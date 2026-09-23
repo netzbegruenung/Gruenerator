@@ -10,6 +10,8 @@
  *    result check + one repair round), then answer in the comment thread or
  *    create a document; notify the requester.
  */
+import { randomUUID } from 'node:crypto';
+
 import { type CommentBlock } from '@gruenerator/contracts';
 
 import { type AgentTask } from '../../database/schema/agentTasks.js';
@@ -32,18 +34,24 @@ import {
   createSheetFromText,
   generateTaskList,
 } from './agentFlow/artifactGen.js';
-import { buildCardAgentContext } from './agentFlow/cardContext.js';
+import { buildCardAgentContext, formatDocuments } from './agentFlow/cardContext.js';
 import { deriveTitle, prepareAgentState } from './agentFlow/generate.js';
 import { runFlow } from './agentFlow/index.js';
+import { agentTaskSubset } from './agentFlow/taskListParse.js';
 import {
   BOARD_REPAIR_DEADLINE_MS,
   BOARD_TURN_DEADLINE_MS,
+  type ChildAgentTask,
+  cardTaskText,
   claimNextAgentTask,
   completeAgentTask,
+  completeWithChildAgentTasks,
   failOrRetryAgentTask,
+  failTasksBlockedByFailure,
   postBotComment,
   updateBotComment,
   sweepDeadAgentTasks,
+  taskGraphContext,
 } from './agentTaskService.js';
 import { addRowsToBoardLive } from './boardLiveRowService.js';
 import { resolveNewCardColumn } from './BoardService.js';
@@ -57,21 +65,22 @@ const log = createLogger('boardAgentWorker');
 const POLL_INTERVAL_MS = 5_000;
 
 /** What the tagged comment wants the agent to produce. */
-type DeliverableKind = 'comment' | 'document' | 'sheet' | 'presentation' | 'tasks';
+type DeliverableKind = 'comment' | 'document' | 'sheet' | 'presentation' | 'tasks' | 'tasks_run';
 
 // Decides how the Grünerator reacts to a tagged board comment: a short reply, a
 // text document, a spreadsheet, a presentation, or new task cards on the board.
 const DELIVERABLE_PROMPT = `Du entscheidest, wie der Grünerator auf eine Aufgabe in einem Board-Kommentar reagieren soll.
 
-Antworte NUR mit einem JSON-Objekt: {"format":"comment"} ODER {"format":"document"} ODER {"format":"sheet"} ODER {"format":"presentation"} ODER {"format":"tasks"}.
+Antworte NUR mit einem JSON-Objekt: {"format":"comment"} ODER {"format":"document"} ODER {"format":"sheet"} ODER {"format":"presentation"} ODER {"format":"tasks"} ODER {"format":"tasks_run"}.
 
 "comment" = der Nutzer stellt eine Frage oder will eine kurze Auskunft/Einschätzung, die als Antwort im Kommentar-Thread passt.
 "document" = der Nutzer möchte einen eigenständigen Text (z. B. Pressemitteilung, Rede, Antrag, Brief, Konzept, längerer Entwurf; "schreib/erstelle/verfasse …").
 "sheet" = der Nutzer bittet ausdrücklich um eine Tabelle / Spreadsheet / Kalkulation (Wörter wie "Tabelle", "Spreadsheet", "Liste als Tabelle", "Budget", "Übersicht in Spalten").
 "presentation" = der Nutzer bittet ausdrücklich um eine Präsentation / Folien / Slides ("Präsentation", "Folien", "Slides", "Foliensatz").
 "tasks" = der Nutzer möchte, dass neue Aufgaben/Karten im Board angelegt werden ("leg Aufgaben an", "zerlege das in To-Dos", "erstelle Karten für …", "unterteile die Aufgabe").
+"tasks_run" = wie "tasks", UND der Nutzer verlangt ausdrücklich, dass der Grünerator die angelegten Aufgaben danach auch selbst bearbeitet ("zerlege das und erledige die Schritte", "leg Aufgaben an und arbeite sie ab").
 
-Wähle "sheet" oder "presentation" NUR bei ausdrücklicher Bitte um dieses Format; sonst "document". Im Zweifel: eine Frage → "comment"; ein Auftrag, einen Text zu erstellen → "document".`;
+Wähle "sheet" oder "presentation" NUR bei ausdrücklicher Bitte um dieses Format; sonst "document". Wähle "tasks_run" NUR, wenn das Selbst-Erledigen ausdrücklich verlangt ist; sonst "tasks". Im Zweifel: eine Frage → "comment"; ein Auftrag, einen Text zu erstellen → "document".`;
 
 // Intents that produce a non-text artifact (image/sharepic/chart) the board
 // agent can't deliver as a document — answered with a short explanation instead.
@@ -144,6 +153,14 @@ async function drain(): Promise<void> {
     for (const dead of await sweepDeadAgentTasks()) {
       log.warn(`Agent task ${dead.id} nach Absturz als fehlgeschlagen verbucht`);
       await notifyAgentTaskFailed(dead);
+    }
+    // Keine Benachrichtigung je Nachfolger: die Person hat schon die über den
+    // gescheiterten Vorgänger bekommen; der Grund steht im Lauf jeder Karte.
+    let cancelled: AgentTask[];
+    while ((cancelled = await failTasksBlockedByFailure()).length > 0) {
+      log.warn(
+        `Agent task(s) ${cancelled.map((t) => t.id).join(', ')} abgebrochen: Vorgänger fehlgeschlagen`
+      );
     }
 
     let task: AgentTask | null;
@@ -236,7 +253,7 @@ async function processTask(task: AgentTask): Promise<void> {
 
     // Gather the card's context (column + comments + linked-document contents) so the
     // agent doesn't work half-blind. Best-effort: undefined on any failure.
-    const cardContext = await buildCardAgentContext(task.board_id, task.card_id, task.requested_by);
+    const cardContext = await buildTaskContext(task);
 
     // Classify only — the model does its own retrieval via the search/research
     // tools during authoring. The classifier gives us the intent (for the
@@ -250,22 +267,31 @@ async function processTask(task: AgentTask): Promise<void> {
 
     // Decide the deliverable up front. Sheet/presentation/tasks are text-JSON
     // artifacts, so they bypass the image/sharepic/chart guard below.
-    const deliverable = await classifyDeliverable(task.task_text);
+    // A child of a decomposing run (#3549) works its card; splitting it again
+    // would let one request fan out without bound.
+    const classified = await classifyDeliverable(task.task_text);
+    const deliverable =
+      task.parent_task_id && (classified === 'tasks' || classified === 'tasks_run')
+        ? 'document'
+        : classified;
     const isStructured =
-      deliverable === 'sheet' || deliverable === 'presentation' || deliverable === 'tasks';
+      deliverable === 'sheet' ||
+      deliverable === 'presentation' ||
+      deliverable === 'tasks' ||
+      deliverable === 'tasks_run';
 
     // The board agent can't deliver image/sharepic/chart artifacts. For those
     // intents the graph would burn work producing something we can't attach, so
     // answer with a short explanation and finish cleanly (structured artifacts
     // are exempt — they are documents/cards, not media).
     if (!isStructured && UNSUPPORTED_INTENTS.has(finalState.intent)) {
-      await completeAgentTask(task.id, null);
       await finishComment([
         {
           type: 'text',
           text: 'Ich kann auf Boards aktuell nur Text-Dokumente, Tabellen, Präsentationen und Aufgaben erstellen (keine Bilder, Sharepics oder Diagramme). Formuliere die Aufgabe gerne entsprechend.',
         },
       ]);
+      await completeAgentTask(task.id, null);
       log.info(`Agent task ${task.id} completed without document (intent: ${finalState.intent})`);
       return;
     }
@@ -334,33 +360,58 @@ async function processTask(task: AgentTask): Promise<void> {
       return;
     }
 
-    if (deliverable === 'tasks') {
+    if (deliverable === 'tasks' || deliverable === 'tasks_run') {
       const researched = await research();
       const tasks = await generateTaskList(researched || task.task_text);
       if (tasks.length === 0) throw new Error('Der Agent konnte keine Aufgaben ableiten');
 
       // Place new cards in the source card's column (fallback: first column).
+      // Ids are chosen here so the children below can point at their cards.
       const statusId = await resolveNewCardColumn(task.board_id, task.card_id);
-      const rows = tasks.map((t) => ({
+      const rows = tasks.map((t, i) => ({
+        id: `row-${Date.now()}-${i}-${randomUUID().slice(0, 8)}`,
         title: t.title,
         status: statusId,
         ...(t.description != null && { description: t.description }),
         ...(t.dueDate != null && { dueDate: t.dueDate }),
       }));
       await addRowsToBoardLive(task.board_id, rows, task.requested_by);
-      await completeAgentTask(task.id, null);
+
+      // tasks_run (#3549): the cards the Grünerator can do itself get their own
+      // run; dependencies between them order the runs and carry results forward.
+      const children: ChildAgentTask[] =
+        deliverable === 'tasks_run'
+          ? agentTaskSubset(tasks).map(({ index, dependsOn }) => ({
+              cardId: rows[index].id,
+              taskText: cardTaskText(tasks[index].title, tasks[index].description ?? null),
+              dependsOn,
+            }))
+          : [];
+      if (children.length > 0) {
+        await completeWithChildAgentTasks(task, children);
+      } else {
+        await completeAgentTask(task.id, null);
+      }
 
       const countLabel = tasks.length === 1 ? '1 Aufgabe' : `${tasks.length} Aufgaben`;
+      const runLabel =
+        deliverable !== 'tasks_run'
+          ? ''
+          : children.length === 0
+            ? ' Keine davon kann ich selbst erledigen – sie brauchen Menschen.'
+            : ` ${children.length === tasks.length ? 'Alle' : `${children.length} davon`} bearbeite ich jetzt selbst${
+                children.some((c) => c.dependsOn.length > 0) ? ', aufeinander aufbauend' : ''
+              }; die Ergebnisse landen auf den jeweiligen Karten.`;
       await createNotification({
         userId: task.requested_by,
         type: 'agent_task_completed',
         title: `${countLabel} angelegt`,
-        body: `Der Grünerator hat ${countLabel} im Board erstellt.`,
+        body: `Der Grünerator hat ${countLabel} im Board erstellt.${runLabel}`,
         actionUrl: `/boards/${task.board_id}?card=${task.card_id}`,
         metadata: { boardId: task.board_id, cardId: task.card_id, taskId: task.id },
         groupKey: `agent-task-${task.id}`,
       });
-      await finishComment([{ type: 'text', text: `✅ ${countLabel} angelegt.` }]);
+      await finishComment([{ type: 'text', text: `✅ ${countLabel} angelegt.${runLabel}` }]);
       log.info(`Agent task ${task.id} created ${tasks.length} card(s)`);
       return;
     }
@@ -431,8 +482,11 @@ async function processTask(task: AgentTask): Promise<void> {
     }
 
     if (!isDocument && !looksLongForm(content)) {
-      await completeAgentTask(task.id, null, verdict);
+      // Comment first: the comment IS the result, and 'completed' releases the
+      // tasks that build on it (#3549) — another cluster worker may claim one
+      // the moment the status flips and must find the result on this card.
       await finishComment([{ type: 'text', text: note ? `${content}\n\n${note}` : content }]);
+      await completeAgentTask(task.id, null, verdict);
       await createNotification({
         userId: task.requested_by,
         type: 'agent_task_completed',
@@ -488,7 +542,8 @@ async function classifyDeliverable(taskText: string): Promise<DeliverableKind> {
       format === 'comment' ||
       format === 'sheet' ||
       format === 'presentation' ||
-      format === 'tasks'
+      format === 'tasks' ||
+      format === 'tasks_run'
     ) {
       return format;
     }
@@ -497,6 +552,42 @@ async function classifyDeliverable(taskText: string): Promise<DeliverableKind> {
     log.warn('Deliverable classification failed, defaulting to document', { error: errMsg(err) });
     return 'document';
   }
+}
+
+/**
+ * The card's own context, plus — for a child of a decomposing run (#3549) — the
+ * request it was split from and what each predecessor delivered: its card
+ * context (which carries a comment result) and its result document. That is how
+ * a later step sees what an earlier one did. Kept out of task_text on purpose:
+ * the deliverable classifier reads task_text and must see only the card's own ask.
+ */
+async function buildTaskContext(task: AgentTask): Promise<string | undefined> {
+  const own = await buildCardAgentContext(task.board_id, task.card_id, task.requested_by);
+  if (!task.parent_task_id) return own;
+  const graph = await taskGraphContext(task);
+  const predecessors = (
+    await Promise.all(
+      graph.predecessors.map(async (p) => {
+        const [card, result] = await Promise.all([
+          buildCardAgentContext(task.board_id, p.cardId, task.requested_by),
+          formatDocuments(
+            p.resultDocumentId ? [p.resultDocumentId] : [],
+            task.requested_by,
+            'Ergebnis-Dokument'
+          ),
+        ]);
+        return [card, result].filter(Boolean).join('\n\n');
+      })
+    )
+  ).filter(Boolean);
+  const parts = [
+    own,
+    graph.parentTaskText &&
+      `## Übergeordneter Auftrag, aus dem diese Karte entstand\n${graph.parentTaskText}`,
+    predecessors.length > 0 &&
+      `## Ergebnisse der vorausgehenden Aufgaben\n\n${predecessors.join('\n\n---\n\n')}`,
+  ].filter((p): p is string => Boolean(p));
+  return parts.length > 0 ? parts.join('\n\n') : undefined;
 }
 
 /**

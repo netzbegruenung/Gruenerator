@@ -103,7 +103,7 @@ const ScriptAssistant = ({ preset, onDraft }: ScriptAssistantProps) => {
       <DialogTrigger asChild>
         <Button type="button" variant="ghost" size="sm" className="text-primary-600">
           <Sparkles aria-hidden="true" />
-          Text mit KI entwerfen
+          <span className="max-sm:sr-only">Text mit KI entwerfen</span>
         </Button>
       </DialogTrigger>
       <DialogContent>

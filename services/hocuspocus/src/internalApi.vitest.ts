@@ -209,6 +209,7 @@ describe('isNewBoardRow', () => {
       isNewBoardRow({ title: 'A', status: 's1', description: 'd', dueDate: '2026-01-01' })
     ).toBe(true);
     expect(isNewBoardRow({ title: 'A', dueDate: null })).toBe(true);
+    expect(isNewBoardRow({ id: 'row-1', title: 'A' })).toBe(true);
   });
 
   it('rejects a missing/invalid title or wrong field types', () => {
@@ -216,11 +217,21 @@ describe('isNewBoardRow', () => {
     expect(isNewBoardRow({ title: 42 })).toBe(false);
     expect(isNewBoardRow({ title: 'A', status: 5 })).toBe(false);
     expect(isNewBoardRow({ title: 'A', dueDate: 5 })).toBe(false);
+    expect(isNewBoardRow({ id: 7, title: 'A' })).toBe(false);
+    expect(isNewBoardRow({ id: '', title: 'A' })).toBe(false);
     expect(isNewBoardRow(null)).toBe(false);
   });
 });
 
 describe('appendRowsToBoardDoc', () => {
+  it('keeps a caller-chosen id and generates the rest', () => {
+    const doc = new Y.Doc();
+    appendRowsToBoardDoc(doc, [{ id: 'row-fixed', title: 'A' }, { title: 'B' }], 'user-1');
+    const ids = (doc.getArray('rows').toJSON() as Array<{ id: string }>).map((r) => r.id);
+    expect(ids[0]).toBe('row-fixed');
+    expect(ids[1]).toMatch(/^row-\d+-1-/);
+  });
+
   it('appends rows with the well-known cell layout', () => {
     const doc = new Y.Doc();
     appendRowsToBoardDoc(

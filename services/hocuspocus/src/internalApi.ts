@@ -44,6 +44,8 @@ export const BOARD_FIELD_IDS = {
 const MAX_ROWS_PER_CALL = 50;
 
 interface NewBoardRow {
+  /** Caller-chosen card id, so it can queue work for the card it just created. */
+  id?: string;
   title: string;
   status?: string;
   description?: string;
@@ -54,6 +56,7 @@ export const isNewBoardRow = (v: unknown): v is NewBoardRow => {
   if (!v || typeof v !== 'object') return false;
   const r = v as Record<string, unknown>;
   return (
+    (r.id === undefined || (typeof r.id === 'string' && r.id.length > 0)) &&
     typeof r.title === 'string' &&
     (r.status === undefined || typeof r.status === 'string') &&
     (r.description === undefined || typeof r.description === 'string') &&
@@ -73,7 +76,10 @@ export function appendRowsToBoardDoc(doc: Y.Doc, rows: NewBoardRow[], userId: st
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       const newRow = new Y.Map<unknown>();
-      newRow.set('id', `row-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 8)}`);
+      newRow.set(
+        'id',
+        row.id ?? `row-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 8)}`
+      );
       newRow.set('createdBy', userId);
       newRow.set('createdAt', now);
 
@@ -659,7 +665,7 @@ export function registerInternalApi(app: express.Express, deps: InternalApiDeps)
     const userId = typeof body.userId === 'string' ? body.userId : '';
     if (!Array.isArray(body.rows) || body.rows.length === 0 || !body.rows.every(isNewBoardRow)) {
       res.status(400).json({
-        error: 'rows must be a non-empty array of {title, status?, description?, dueDate?}',
+        error: 'rows must be a non-empty array of {id?, title, status?, description?, dueDate?}',
       });
       return;
     }
