@@ -177,10 +177,14 @@ export function notebookIdFromSteps(steps: readonly PersistedStep[]): string | n
  * 20 neuesten Quellen, als wäre gefiltert worden (Testserver 23.09.2026).
  * Aus demselben Grund wird `query` bei `list` zum Titelfilter: `list` kennt
  * keine Suche, und ein übergangenes Suchwort sähe aus wie „nichts gefunden".
+ * Bei `grep` wird `query` zur `phrase` — sonst kostete jede Zählfrage einen
+ * Fehlversuch (Testserver 23.09.2026).
  */
-export function normalizeArgs<T extends { action: string; query?: string | undefined }>(
-  args: T
-): T {
+export function normalizeArgs<
+  T extends { action: string; query?: string | undefined; phrase?: string | undefined },
+>(args: T): T {
+  const grepQuery = args.action === 'grep' && !args.phrase ? args.query?.trim() : undefined;
+  if (grepQuery) return normalizeArgs({ ...args, phrase: grepQuery });
   const nested = ((args as { filter?: unknown }).filter ?? {}) as Record<string, unknown>;
   const lifted: Record<string, string> = {};
   for (const key of FILTER_KEYS) {
@@ -337,7 +341,9 @@ const inputSchema = z
       .min(1)
       .max(50)
       .optional()
-      .describe('list, rank (bis 50), find (bis 20)'),
+      .describe(
+        'list, rank (bis 50), find (bis 20), grep: Quellen mit den meisten Treffern (Standard 10)'
+      ),
     abschnitt: z
       .object({
         von: z.number().int().min(0),
