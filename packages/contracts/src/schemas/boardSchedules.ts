@@ -94,6 +94,8 @@ export const boardAgentRunRecordSchema = z.object({
   status: boardRunStatusSchema,
   resultDocumentId: z.string().nullable(),
   error: z.string().nullable(),
+  /** Why the result check still objects after its repair round (#3221); null when it passed or never ran. */
+  reviewHint: z.string().nullable(),
   createdAt: z.string(),
   completedAt: z.string().nullable(),
 });
