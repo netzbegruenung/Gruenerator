@@ -85,9 +85,10 @@ const LIST_PAYLOAD = [
   'content_type',
 ] as const;
 
-const SOURCE_NOT_FOUND =
+export const SOURCE_NOT_FOUND =
   'Quelle nicht in diesem System-Notebook — die sourceId ist die URL aus list (Feld ref).';
-const NOT_A_URL = 'Bei System-Notebooks ist die sourceId die URL der Quelle (aus list, Feld ref).';
+export const NOT_A_URL =
+  'Bei System-Notebooks ist die sourceId die URL der Quelle (aus list, Feld ref).';
 /** Der Fehlertext von `getSystemDocumentFullTextByUrl`, wenn die URL unter dem Filter nichts hat. */
 const DOCUMENT_NOT_FOUND = 'Document not found';
 
@@ -258,6 +259,18 @@ function matchesSystemFilter(row: NotebookSourceRow, f: SystemSourceFilter | und
   return true;
 }
 
+export const hasSystemFilter = (f: SystemSourceFilter | undefined): boolean =>
+  Boolean(f && (f.category || f.titleContains || f.dateFrom || f.dateTo));
+
+/** Wie viele Quellen je Kategorie — damit das Modell `filter.category` nicht raten muss. */
+function countCategories(rows: readonly NotebookSourceRow[]): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const r of rows) {
+    if (r.sourceType) out[r.sourceType] = (out[r.sourceType] ?? 0) + 1;
+  }
+  return out;
+}
+
 export async function listSystemSources(
   input: {
     collection: SystemCollection;
@@ -268,7 +281,12 @@ export async function listSystemSources(
     limit?: number | undefined;
   },
   deps: Pick<SystemNotebookSourcesDeps, 'scrollPage'>
-): Promise<{ total: number; items: NotebookSourceRow[]; exhaustive: boolean }> {
+): Promise<{
+  total: number;
+  items: NotebookSourceRow[];
+  exhaustive: boolean;
+  categories: Record<string, number>;
+}> {
   const { rows, exhaustive } = await scrollSystemSources(input.collection, deps);
   const sortBy = input.sortBy ?? 'date';
   const order = input.order ?? (DESC_BY_DEFAULT.has(sortBy) ? 'desc' : 'asc');
@@ -280,7 +298,78 @@ export async function listSystemSources(
     LIST_MAX_LIMIT,
     Math.max(1, Math.floor(input.limit ?? LIST_DEFAULT_LIMIT))
   );
-  return { total: filtered.length, items: filtered.slice(offset, offset + limit), exhaustive };
+  return {
+    total: filtered.length,
+    items: filtered.slice(offset, offset + limit),
+    exhaustive,
+    categories: countCategories(rows),
+  };
+}
+
+/**
+ * Die URLs, die zu `filter` passen — für `find`, `rank` und die Scans. Aus
+ * derselben Liste wie `list`, damit alle Aktionen dieselbe Filterregel haben
+ * (Titel ohne Groß/klein, Kategorie über `primary_category` ODER
+ * `content_type`, Datum als Tag); ein nativer Qdrant-Filter gälte nur dort,
+ * wo die Sammlung die Felder indiziert. Die Menge geht als `source_url`-`any`
+ * in den Suchfilter, filtert also VOR dem Limit statt danach.
+ */
+export async function filterSystemSourceUrls(
+  input: { collection: SystemCollection; filter: SystemSourceFilter },
+  deps: Pick<SystemNotebookSourcesDeps, 'scrollPage'>
+): Promise<{ urls: string[]; exhaustive: boolean }> {
+  const { rows, exhaustive } = await scrollSystemSources(input.collection, deps);
+  return {
+    urls: rows.filter((r) => matchesSystemFilter(r, input.filter)).map((r) => r.id),
+    exhaustive,
+  };
+}
+
+const SUGGEST_MAX = 5;
+const SUGGEST_MIN_WORD = 4;
+
+/** Die Wörter einer geratenen sourceId: bei einer URL der letzte Pfadteil. */
+function guessWords(sourceId: string): string[] {
+  let text = sourceId;
+  if (isUrl(sourceId)) {
+    try {
+      const segments = new URL(sourceId).pathname.split('/').filter(Boolean);
+      text = segments[segments.length - 1] ?? '';
+    } catch {
+      text = '';
+    }
+  }
+  return [
+    ...new Set(
+      text
+        .toLocaleLowerCase('de')
+        .split(/[^\p{L}]+/u)
+        .filter((w) => w.length >= SUGGEST_MIN_WORD)
+    ),
+  ];
+}
+
+/**
+ * Quellen, die eine nicht gefundene sourceId gemeint haben könnte — nach
+ * Wörtern im Titel. Ein Modell, das eine URL rät, bekommt so die echten
+ * `ref`s zurück, statt beim nächsten Versuch wieder zu raten.
+ */
+export async function suggestSystemSources(
+  input: { collection: SystemCollection; sourceId: string },
+  deps: Pick<SystemNotebookSourcesDeps, 'scrollPage'>
+): Promise<Array<{ title: string; ref: string; date: string | null }>> {
+  const words = guessWords(input.sourceId);
+  if (words.length === 0) return [];
+  const { rows } = await scrollSystemSources(input.collection, deps);
+  return rows
+    .map((r) => {
+      const title = r.title.toLocaleLowerCase('de');
+      return { r, hits: words.filter((w) => title.includes(w)).length };
+    })
+    .filter((x) => x.hits > 0)
+    .sort((a, b) => b.hits - a.hits || (b.r.createdAt ?? '').localeCompare(a.r.createdAt ?? ''))
+    .slice(0, SUGGEST_MAX)
+    .map(({ r }) => ({ title: r.title, ref: r.id, date: r.createdAt?.slice(0, 10) ?? null }));
 }
 
 // ---------------------------------------------------------------------------
@@ -425,6 +514,8 @@ export async function searchSystemDocuments(
     collection: SystemCollection;
     query: string;
     sourceUrl?: string | undefined;
+    /** Nur diese URLs (aus `filterSystemSourceUrls`) — neben `sourceUrl` nicht nötig. */
+    sourceUrls?: readonly string[] | undefined;
     mode: FindMode;
     limit: number;
   },
@@ -432,11 +523,14 @@ export async function searchSystemDocuments(
 ): Promise<DocumentResult[]> {
   const { collection } = input;
   const params = getSearchParams(collection.systemId);
+  const scope = input.sourceUrl
+    ? { key: 'source_url', match: { value: input.sourceUrl } }
+    : input.sourceUrls
+      ? { key: 'source_url', match: { any: [...input.sourceUrls] } }
+      : null;
   const additionalFilter = applyDefaultFilter(
     collection.systemId,
-    input.sourceUrl
-      ? { must: [{ key: 'source_url', match: { value: input.sourceUrl } }] }
-      : undefined
+    scope ? { must: [scope] } : undefined
   );
   const resp = await deps.documentService.search({
     query: input.query,
@@ -469,6 +563,7 @@ export async function findSystemPassages(
     collection: SystemCollection;
     query: string;
     sourceUrl?: string | undefined;
+    sourceUrls?: readonly string[] | undefined;
     mode: FindMode;
     limit: number;
     rerank: boolean;
@@ -538,6 +633,8 @@ export async function loadSystemScanTexts(
   input: {
     collection: SystemCollection;
     sourceUrl?: string | undefined;
+    /** Grenzt die Sammlung vor dem Lesen ein — ein enger Filter macht den Scan vollständig. */
+    filter?: SystemSourceFilter | undefined;
     prefilterQuery?: string | undefined;
     charBudget?: number | undefined;
   },
@@ -553,7 +650,11 @@ export async function loadSystemScanTexts(
   } else {
     const listed = await scrollSystemSources(collection, deps);
     tooLarge = !listed.exhaustive;
-    ids = listed.rows.map((r) => r.id);
+    ids = listed.rows.filter((r) => matchesSystemFilter(r, input.filter)).map((r) => r.id);
+    if (ids.length === 0) {
+      const reason = incompleteReason(tooLarge, 0, false);
+      return { sources: [], exhaustive: reason === null, incompleteReason: reason };
+    }
     if (ids.length > SYSTEM_SCAN_MAX_SOURCES) {
       tooLarge = true;
       if (input.prefilterQuery) {
@@ -561,6 +662,7 @@ export async function loadSystemScanTexts(
           {
             collection,
             query: input.prefilterQuery,
+            ...(hasSystemFilter(input.filter) ? { sourceUrls: ids } : {}),
             mode: 'text',
             limit: PREFILTER_LIMIT,
             rerank: false,
