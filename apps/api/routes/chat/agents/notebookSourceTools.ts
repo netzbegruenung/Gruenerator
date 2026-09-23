@@ -180,9 +180,6 @@ export function makeNotebookSourcesTool(ctx: NotebookSourceToolCtx): Tool {
   const { state, sourceRegistry } = ctx;
   const deps = resolveDeps(ctx.deps);
 
-  /** Die System-Sammlungen dieses Turns — dieselbe Menge wie bei `gruenerator_search`. */
-  const allowedSystemKeys = collectionsForLocale(state.userLocale ?? null);
-
   type Target =
     | { kind: 'user'; collection: NotebookCollection }
     | { kind: 'system'; collection: SystemCollection }
@@ -195,6 +192,10 @@ export function makeNotebookSourcesTool(ctx: NotebookSourceToolCtx): Tool {
    * Notebook nachgeschlagen.
    */
   async function resolveNotebook(explicit: string | undefined): Promise<Target> {
+    // Erst beim Aufruf, nicht in der Fabrik: der Katalog baut das Werkzeug in
+    // jedem Turn, und die Fabrik bleibt wie die anderen persönlichen Werkzeuge
+    // ohne Arbeit. Dieselbe Menge wie bei `gruenerator_search`.
+    const allowedSystemKeys = collectionsForLocale(state.userLocale ?? null);
     if (explicit) {
       const system = resolveSystemCollection(explicit, allowedSystemKeys);
       if (system) return 'error' in system ? system : { kind: 'system', ...system };
