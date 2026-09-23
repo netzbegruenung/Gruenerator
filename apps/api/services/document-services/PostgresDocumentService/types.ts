@@ -24,6 +24,7 @@ export interface DocumentMetadata {
   sourceUrl?: string | null | undefined;
   /** Extracted plain text, kept so the source never has to be fetched again. */
   markdownContent?: string | null | undefined;
+  pageCount?: number | undefined;
   additionalMetadata?: Record<string, unknown> | null | undefined;
 }
 
@@ -60,6 +61,7 @@ export interface DocumentUpdateData {
   lastSyncedAt?: string | undefined;
   /** Extracted plain text, kept so the source never has to be fetched again. */
   markdownContent?: string | null | undefined;
+  pageCount?: number | undefined;
   additionalMetadata?: Record<string, unknown> | undefined;
 }
 

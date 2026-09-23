@@ -74,3 +74,11 @@ export function buildPageRangesFromRaw(text: string): PageRange[] {
 
   return ranges;
 }
+
+/**
+ * Ersetzt jede `## Seite N`-Marke durch gleich viele Leerzeichen — Indizes
+ * bleiben die des Rohtexts, der Chunker sieht keine Marke mehr.
+ */
+export function maskPageMarkers(text: string): string {
+  return text.replace(/##\s*Seite\s+\d+/gi, (m) => m.replace(/[^\n]/g, ' '));
+}

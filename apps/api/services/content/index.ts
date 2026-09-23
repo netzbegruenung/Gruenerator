@@ -12,7 +12,6 @@ export {
   detectContentType,
   detectMarkdownStructure,
   extractHeaderLevel,
-  extractPageNumber,
   detectGermanPatterns,
 } from './ContentDetector.js';
 

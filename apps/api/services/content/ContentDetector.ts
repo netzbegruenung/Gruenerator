@@ -96,14 +96,6 @@ export class ContentDetector {
   }
 
   /**
-   * Extract page number from textual markers like "## Seite X" or "Seite 12"
-   */
-  extractPageNumber(text: string): number | null {
-    const m = (text || '').match(/(?:^|\n)\s*(?:##\s*)?Seite\s+(\d{1,5})\b/i);
-    return m ? parseInt(m[1], 10) : null;
-  }
-
-  /**
    * Detect German-specific indicators in text
    */
   detectGermanPatterns(text: string): GermanPatterns {
@@ -131,7 +123,5 @@ export const detectMarkdownStructure = (text: string) =>
   contentDetector.detectMarkdownStructure(text);
 
 export const extractHeaderLevel = (text: string) => contentDetector.extractHeaderLevel(text);
-
-export const extractPageNumber = (text: string) => contentDetector.extractPageNumber(text);
 
 export const detectGermanPatterns = (text: string) => contentDetector.detectGermanPatterns(text);
