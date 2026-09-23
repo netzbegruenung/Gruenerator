@@ -134,9 +134,16 @@ export function CardAutomationSection({
               key={r.id}
               className="flex items-center justify-between gap-2 rounded-md border border-amber-300 dark:border-amber-800 bg-amber-50/60 dark:bg-amber-950/20 px-2.5 py-1.5"
             >
-              <span className="text-xs text-foreground">
-                Lauf vom {new Date(r.createdAt).toLocaleString('de-DE')}
-              </span>
+              <div className="min-w-0">
+                <div className="text-xs text-foreground">
+                  Lauf vom {new Date(r.createdAt).toLocaleString('de-DE')}
+                </div>
+                {r.reviewHint && (
+                  <div className="text-[11px] text-grey-600 dark:text-grey-300">
+                    Automatische Prüfung: {r.reviewHint}
+                  </div>
+                )}
+              </div>
               <div className="flex items-center gap-1.5">
                 <Button type="button" size="sm" onClick={() => acceptRun.mutate(r.id)}>
                   <FiCheck size={12} className="mr-1" />
