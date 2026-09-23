@@ -15,6 +15,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 // unsafe return the type-aware lint rules reject.
 const runDeepAgentResearch = vi.fn<(...args: unknown[]) => Promise<unknown>>();
 const createDocumentWithContent = vi.fn<(...args: unknown[]) => Promise<{ id: string }>>();
+const recordRunDocument = vi.fn<(...args: unknown[]) => Promise<void>>();
 let linkupService: unknown = {};
 const envMock = {
   CORTECS_API_KEY: 'sk-test',
@@ -23,6 +24,11 @@ const envMock = {
 vi.mock('../../../config/env.js', () => ({ env: envMock }));
 vi.mock('../../../services/research/deepAgent/index.js', () => ({
   runDeepAgentResearch: (...args: unknown[]) => runDeepAgentResearch(...args),
+}));
+// The registry writes through the real PostgresService, which boots and migrates
+// whatever database answers on localhost:5432 (#3552).
+vi.mock('../../../services/research/deepAgent/runRegistry.js', () => ({
+  recordRunDocument: (...args: unknown[]) => recordRunDocument(...args),
 }));
 vi.mock('../../../services/docs/DocGenerationService.js', () => ({
   createDocumentWithContent: (...args: unknown[]) => createDocumentWithContent(...args),
@@ -55,6 +61,7 @@ const STATE = {
 const GOOD_RESULT = {
   markdown: `# Bericht\n\n${'Text. '.repeat(100)}\n\n## Quellen\n\n1. A — https://a.example`,
   title: 'Bericht',
+  threadId: 'thread-7',
   summary: 'Wien will 2040 klimaneutral sein.',
   partial: false,
   sources: [{ url: 'https://a.example', title: 'A' }],
@@ -132,6 +139,7 @@ describe('success', () => {
     expect(markdown).toContain('## Quellen');
     expect(subtype).toBe('docs');
     expect(userId).toBe('user-1');
+    expect(recordRunDocument).toHaveBeenCalledWith('thread-7', 'doc-42');
 
     expect(patch.deepResearchAnswer).toBe('Wien will 2040 klimaneutral sein.');
     expect(sse.payloadOf('document_created')).toMatchObject({
