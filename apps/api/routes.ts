@@ -389,6 +389,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   // requires authentication and the contract router does not inherit the
   // later `app.use('/api/auth', ...)` middleware.
   app.use('/api/auth/user-templates', requireAuth);
+  app.use('/api/auth/user-templates/describe-image', requireAiConsent);
   mountUserTemplatesContractRouter(app);
   // ts-rest contract router for template likes & favorites — mounts BEFORE the
   // legacy authRouter so contract routes match first. requireAuth is applied at
@@ -442,6 +443,9 @@ export async function setupRoutes(app: Application): Promise<void> {
   // so per-handler `requireAuthUser()` gates the writes and the public/:token
   // routes still work.
   app.use('/api/auth/notebook', optionalAuth);
+  // `:id` deckt auch `multi/ask`. Öffentliche Notebooks fragen oft anonym —
+  // die lässt requireAiConsent durch, angemeldete Aufrufe nicht.
+  app.use(['/api/auth/notebook/:id/ask', '/api/auth/notebook/public/:token/ask'], requireAiConsent);
   mountNotebookContractRouter(app);
   // External API for partner integrations (MCP / programmatic access).
   // Auth: per-route Bearer API key middleware (requireApiKey). Rate-limited
@@ -459,6 +463,17 @@ export async function setupRoutes(app: Application): Promise<void> {
   // so ts-rest matches its own routes first; unmatched paths fall through.
   // requireAuth is applied at the prefix because all 3 contract routes require auth.
   app.use('/api/documents', requireAuth);
+  // Nur die Datei-Uploads (OCR); reine Text-/URL-Aufnahme bettet bloß ein.
+  // `upload-only` verarbeitet im Ingest-Worker, der selbst noch einmal prüft.
+  app.use(
+    [
+      '/api/documents/upload-manual',
+      '/api/documents/upload-default',
+      '/api/documents/upload-only',
+      '/api/documents/wolke/import',
+    ],
+    requireAiConsent
+  );
   mountDocumentsContractRouter(app);
   // Public read endpoints — soft limiter prevents scraping
   app.use('/api/documents', publicReadLimiter, documentsRouter);
@@ -473,6 +488,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   // ts-rest contract router for /api/reisekosten (Fahrtkosten-Grünerator).
   // requireAuth at the prefix — all routes handle user-entered expense data.
   app.use('/api/reisekosten', requireAuth, standardMutationLimiter);
+  app.use('/api/reisekosten/extract-beleg', requireAiConsent);
   mountReisekostenContractRouter(app);
   // ts-rest contract router for /api/item-usage (usage-based "favourites first"
   // ordering). requireAuth at the prefix — returns user-specific data.
@@ -494,7 +510,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   // denial-of-service lever.
   app.use('/api/transparency', publicReadLimiter);
   mountTransparencyContractRouter(app);
-  app.use('/api/antraege', requireAuth, standardMutationLimiter, antraegeRouter);
+  app.use('/api/antraege', requireAuth, requireAiConsent, standardMutationLimiter, antraegeRouter);
   app.use('/api/scanner', publicReadLimiter, scannerRouter);
   app.use('/api/protokoll', publicReadLimiter, protokollRouter);
 
@@ -545,6 +561,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   // nothing — unless NODE_ENV is development AND the directory is configured.
   const decisionLog = decisionLogMiddleware();
   if (decisionLog) app.use('/api/chat-graph', decisionLog);
+  // Nur der Titel-Generator: der Verlauf muss nach einem Widerruf lesbar bleiben.
+  app.use('/api/chat-service/threads/:threadId/generate-title', requireAiConsent);
   mountThreadsContractRouter(app);
   mountChatThreadSharingContractRouter(app);
   mountChatGraphContractRouter(app);
@@ -644,7 +662,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   // Auth und Limiter haengen am PRAEFIX und VOR dem Mount: createExpressEndpoints
   // registriert die Handler direkt auf `app` und erbt keine spaetere
   // Prefix-Middleware. Ohne diese Zeile waeren die Vertragsrouten offen.
-  app.use('/api/sharepic/text', aiGenerationLimiter, requireAuth);
+  app.use('/api/sharepic/text', aiGenerationLimiter, requireAuth, requireAiConsent);
   mountSharepicTextContractRouter(app);
 
   // Rest-Fallback hinter dem Vertrag: bedient nur noch `default`, dessen
@@ -674,6 +692,7 @@ export async function setupRoutes(app: Application): Promise<void> {
       deprecatedRoute(`/api/sharepic/text/${type}`),
       aiGenerationLimiter,
       requireAuth,
+      requireAiConsent,
       async (req: Request, res: Response): Promise<void> => {
         await runSharepicText(type, req, res);
       }
@@ -688,6 +707,7 @@ export async function setupRoutes(app: Application): Promise<void> {
     '/api/generate-sharepic',
     aiGenerationLimiter,
     requireAuth,
+    requireAiConsent,
     async (req: Request, res: Response): Promise<void> => {
       try {
         const { type, ...requestBody } = req.body as { type?: string; [key: string]: unknown };
@@ -765,7 +785,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   // `draft` synthesizes an agent spec through Mistral. The limiter hangs on the
   // sub-path, not the prefix, so listing and reading the user's own agents do
   // not spend the AI budget.
-  app.use('/api/user-agents/draft', aiGenerationLimiter);
+  app.use('/api/user-agents/draft', aiGenerationLimiter, requireAiConsent);
   // Sharing router FIRST so the static `/api/user-agents/public` route resolves
   // before the CRUD `/api/user-agents/:identifier` param route.
   mountUserAgentsSharingContractRouter(app);
@@ -774,11 +794,12 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/text-forms', requireAuth);
   // `analyze` runs mistral-large over up to 140k characters and `draft`
   // synthesizes a recipe — same reasoning as /api/user-agents/draft above.
-  app.use('/api/text-forms/analyze', aiGenerationLimiter);
-  app.use('/api/text-forms/draft', aiGenerationLimiter);
+  app.use('/api/text-forms/analyze', aiGenerationLimiter, requireAiConsent);
+  app.use('/api/text-forms/draft', aiGenerationLimiter, requireAiConsent);
   mountUserTextFormsContractRouter(app);
   // EXPERIMENTAL: recurring agent tasks. Scheduler worker lives in server.ts.
   app.use('/api/recurring-tasks', requireAuth, authenticatedReadLimiter);
+  app.use('/api/recurring-tasks/:id/run', requireAiConsent);
   mountRecurringTasksContractRouter(app);
   // Auth + rate-limiting must run before the contract mount — createExpressEndpoints
   // registers handlers directly on the app, bypassing the legacy prefix middleware.
@@ -926,6 +947,10 @@ export async function setupRoutes(app: Application): Promise<void> {
   // routers above are registered first, so public docs requests match and
   // terminate before this middleware runs.
   app.use('/api/docs', requireAuth);
+  app.use(
+    ['/api/docs/generate', '/api/docs/ai', '/api/docs/from-import', '/api/docs/from-wolke'],
+    requireAiConsent
+  );
   mountDocsContractRouter(app);
   app.use('/api/docs', authenticatedReadLimiter, docsRouter);
 
@@ -943,6 +968,15 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/board-schedules', requireAuth, authenticatedReadLimiter);
   app.use('/api/board-attachments', requireAuth, authenticatedReadLimiter);
   app.use('/api/board-card-documents', requireAuth, authenticatedReadLimiter);
+  app.use(
+    [
+      '/api/boards/generate',
+      '/api/boards/:boardId/cards/:cardId/agent-run',
+      '/api/board-schedules/:boardId/schedules/:scheduleId/run',
+      '/api/board-schedules/:boardId/runs/:taskId/redo',
+    ],
+    requireAiConsent
+  );
   mountBoardsContractRouter(app);
   mountBoardCommentsContractRouter(app);
   mountBoardAgentContractRouter(app);
@@ -956,9 +990,11 @@ export async function setupRoutes(app: Application): Promise<void> {
   mountBoardCardDocumentsContractRouter(app);
   // Sheets (Univer): only the AI planning route — CRUD/share run via /api/docs/*.
   app.use('/api/sheets', requireAuth, authenticatedReadLimiter);
+  app.use(['/api/sheets/generate', '/api/sheets/:id/ai'], requireAiConsent);
   mountSheetsContractRouter(app);
   // Presentations (reveal.js): AI planning route + PPTX export — CRUD/share via /api/docs/*.
   app.use('/api/presentations', requireAuth, authenticatedReadLimiter);
+  app.use(['/api/presentations/generate', '/api/presentations/:id/ai'], requireAiConsent);
   mountPresentationsContractRouter(app);
   app.use('/api/presentations', presentationExportRouter);
   app.use('/api/users', requireAuth, publicReadLimiter, usersRouter);
@@ -986,7 +1022,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   // Auth + rate-limiting run on the prefix because createExpressEndpoints
   // registers the contract handlers directly on `app`, bypassing any middleware
   // passed to app.use() alongside a router.
-  app.use('/api/search-graph', requireAuth);
+  app.use('/api/search-graph', requireAuth, requireAiConsent);
   app.use('/api/search-graph', standardMutationLimiter);
   mountSearchGraphContractRouter(app);
   // requireAuth goes on the prefix BEFORE the contract mounts, not onto the
@@ -1083,6 +1119,7 @@ export async function setupRoutes(app: Application): Promise<void> {
 
   // ts-rest contract router — mount before legacy videoRouter
   app.use('/api/video', requireAuth);
+  app.use('/api/video/transcribe', requireAiConsent);
   mountVideoContractRouter(app);
   app.use('/api/video', requireAuth, standardMutationLimiter, videoRouter);
   app.use('/api/nextcloud', requireAuth, standardMutationLimiter, nextcloudApiRouter);

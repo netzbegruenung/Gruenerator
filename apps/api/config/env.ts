@@ -365,6 +365,9 @@ const envSchema = z.object({
   SYNC_SUMMARY_PATH: z.string().optional(),
   // API base the content-sync CI run POSTs its article events to.
   CONTENT_SYNC_API_URL: z.string().trim().optional(),
+  // GitHub PAT (actions: write) the API uses to dispatch the Content Sync
+  // workflow on its own clock. Production only; unset = nothing is dispatched.
+  CONTENT_SYNC_DISPATCH_TOKEN: z.string().trim().optional(),
 
   // ── GitHub CI (content sync) ───────────────────────────────────────────
   GITHUB_REPOSITORY: z.string().optional(),

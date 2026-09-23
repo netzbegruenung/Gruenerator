@@ -1,3 +1,4 @@
+import { requireAiConsent } from '../../middleware/requireAiConsent.js';
 import { aiText } from '../../services/ai/generate.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
@@ -48,7 +49,7 @@ Der*die Nutzer*in beschreibt Ebene, Rolle und Aufgabe. Du machst daraus einen ku
 
 Antworte NUR mit dem Auftrag, ohne Erklärungen oder Kommentare.`;
 
-router.post('/', async (req, res) => {
+router.post('/', requireAiConsent, async (req, res) => {
   try {
     const user = getUser(req);
     if (!user?.id) {

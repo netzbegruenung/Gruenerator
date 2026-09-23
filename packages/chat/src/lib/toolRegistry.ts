@@ -451,9 +451,12 @@ function parseNotebooksVM(args: unknown, result: unknown): ToolResultVM {
 // find Rohpassagen mit Fundstelle — als Zitatliste wie `notebooks.search`.
 // grep/rank sind Zeilen je Quelle, stats Schlüssel/Wert, cite eine Zitatliste
 // (notebookSourceReadActions.ts). `exhaustive: false` steht sichtbar in der Karte.
+// Die Schreibaktionen liefern {ok, note, …}: die Notiz ist das Ergebnis.
 function parseNotebookSourcesVM(args: unknown, result: unknown): ToolResultVM {
   const error = getString(result, 'error');
   if (error) return { kind: 'text-note', text: error };
+  const note = getString(result, 'note');
+  if (note && getBoolean(result, 'ok')) return { kind: 'text-note', text: note };
 
   const scan = parseNotebookSourceScanVM(result);
   if (scan) return scan;

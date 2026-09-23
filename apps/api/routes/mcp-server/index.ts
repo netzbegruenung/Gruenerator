@@ -23,6 +23,7 @@ import {
   consumeApiKeyRateLimit,
 } from '../../middleware/apiKeyRateLimitMiddleware.js';
 import { hasAiConsent } from '../../middleware/requireAiConsent.js';
+import { getProfileService } from '../../services/user/ProfileService.js';
 import { createLogger } from '../../utils/logger.js';
 
 import { resolveMcpAuth } from './mcpAuth.js';
@@ -136,10 +137,15 @@ router.post('/', async (req, res) => {
   reqWithUser.user ??= { id: authCtx.userId };
 
   try {
+    // Web und Mobile lesen die Locale in streamContext aus dem Profil; der
+    // MCP-Pfad muss es selbst tun, sonst gibt collectionsForLocale jedem
+    // Konnektor die de-DE-Sammlungen.
+    const profile = await getProfileService().getProfileById(authCtx.userId);
     const server = buildAuthenticatedMcpServer({
       userId: authCtx.userId,
       scopes: authCtx.scopes,
       ...(authCtx.apiKey ? { apiKey: authCtx.apiKey } : {}),
+      userLocale: profile?.locale === 'de-AT' ? 'de-AT' : 'de-DE',
       req,
     });
     // No sessionIdGenerator → stateless mode (exactOptionalPropertyTypes

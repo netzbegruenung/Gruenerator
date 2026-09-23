@@ -70,30 +70,33 @@ describe('parseDataUrl bei Payloads in Megabyte-Groesse', () => {
   });
 
   it('bleibt konstant schnell — der Payload wird nicht gescannt', () => {
-    const small = `data:image/jpeg;base64,${'A'.repeat(1_000)}`;
     const huge = `data:image/jpeg;base64,${HUGE_PAYLOAD}`;
 
-    const timeOf = (url: string): number => {
-      const started = performance.now();
-      for (let i = 0; i < 50; i++) parseDataUrl(url);
-      return performance.now() - started;
+    // Minimum ueber mehrere Runden: Last auf dem Runner (GC, Preemption) kann
+    // eine Messung nur verlaengern, nie verkuerzen. Die erste Runde traegt
+    // auch den First Touch des 7,4-MB-Strings und faellt damit heraus.
+    const fastestOf = (run: () => void): number => {
+      let best = Number.POSITIVE_INFINITY;
+      for (let round = 0; round < 5; round++) {
+        const started = performance.now();
+        run();
+        best = Math.min(best, performance.now() - started);
+      }
+      return best;
     };
 
-    // BEIDE Faelle warmlaufen lassen. Der erste Zugriff auf den 7,4-MB-String
-    // kostet Allokation und First Touch — auf einem ausgelasteten CI-Runner
-    // zweistellige Millisekunden, gemessen ohne dass irgendwer scannt. Genau
-    // das liess den Test flaken (9,6 ms und 16,6 ms gegen ein 5-ms-Budget).
-    timeOf(small);
-    timeOf(huge);
+    // Referenz ist EIN Durchlauf ueber den Payload auf demselben Runner — die
+    // billigste Form von Scan (SIMD-`indexOf`, ~0,1 ms lokal; die alte
+    // `(.+)$`-Variante braucht ~1,8 ms pro Aufruf). Frueher stand hier ein
+    // Quotient gegen 50 Parses eines 1-kB-Payloads: die liegen unter der
+    // Timer-Aufloesung, die Basis war also die 0,1-ms-Klemme und das Budget
+    // eine feste Wanduhr-Zeit (#3457).
+    const scanMs = fastestOf(() => huge.indexOf('!'));
+    const parseMs = fastestOf(() => {
+      for (let i = 0; i < 10; i++) parseDataUrl(huge);
+    });
 
-    const smallMs = Math.max(timeOf(small), 0.1);
-    const hugeMs = timeOf(huge);
-
-    // Grosszuegig: es geht nur darum, dass die Laufzeit nicht mit dem Payload
-    // waechst. Ein Scan ueber 7,4 MB waere um Groessenordnungen langsamer —
-    // die alte `(.+)$`-Variante braucht fuer dieselben 50 Durchlaeufe ~90 ms,
-    // das Budget hier liegt bei 5 ms.
-    expect(hugeMs).toBeLessThan(smallMs * 50);
+    expect(parseMs).toBeLessThan(scanMs);
   });
 });
 
