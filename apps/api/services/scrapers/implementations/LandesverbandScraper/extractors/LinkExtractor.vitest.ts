@@ -104,6 +104,78 @@ describe('LinkExtractor.extractPdfLinks — staticUrls', () => {
     ]);
     expect(fetchUrl).not.toHaveBeenCalled();
   });
+
+  it('uses the given title for an object staticUrls entry ({ url, title })', async () => {
+    const fetchUrl = vi.fn();
+    const extractor = new LinkExtractor(
+      fetchUrl,
+      normalizeUrl,
+      () => false,
+      () => Promise.resolve()
+    );
+
+    const source = makeSource();
+    const contentPath: ContentPath = {
+      type: 'wahlprogramm',
+      path: '/',
+      listSelector: 'a[href$=".pdf"]',
+      isPdfArchive: true,
+      staticUrls: [
+        {
+          url: 'https://www.gruene-lsa.de/dateien/Regierungsprogramm_final_22_06_2023.pdf',
+          title: 'Regierungsprogramm der Grünen Bayern 2023',
+        },
+      ],
+    };
+
+    const links = await extractor.extractPdfLinks(source, contentPath);
+
+    expect(links).toEqual([
+      {
+        url: 'https://www.gruene-lsa.de/dateien/Regierungsprogramm_final_22_06_2023.pdf',
+        title: 'Regierungsprogramm der Grünen Bayern 2023',
+        context: '',
+      },
+    ]);
+    expect(fetchUrl).not.toHaveBeenCalled();
+  });
+
+  it('still derives the filename title for a plain string entry alongside an object entry', async () => {
+    const fetchUrl = vi.fn();
+    const extractor = new LinkExtractor(
+      fetchUrl,
+      normalizeUrl,
+      () => false,
+      () => Promise.resolve()
+    );
+
+    const source = makeSource();
+    const contentPath: ContentPath = {
+      type: 'wahlprogramm',
+      path: '/',
+      listSelector: 'a[href$=".pdf"]',
+      isPdfArchive: true,
+      staticUrls: [
+        { url: 'https://www.gruene-lsa.de/dateien/Regierungsprogramm_2023.pdf', title: 'Custom' },
+        'https://www.gruene-lsa.de/wp-content/uploads/2024/08/programm.pdf',
+      ],
+    };
+
+    const links = await extractor.extractPdfLinks(source, contentPath);
+
+    expect(links).toEqual([
+      {
+        url: 'https://www.gruene-lsa.de/dateien/Regierungsprogramm_2023.pdf',
+        title: 'Custom',
+        context: '',
+      },
+      {
+        url: 'https://www.gruene-lsa.de/wp-content/uploads/2024/08/programm.pdf',
+        title: 'programm',
+        context: '',
+      },
+    ]);
+  });
 });
 
 describe('titleFromPdfUrl', () => {

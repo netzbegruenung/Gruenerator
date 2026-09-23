@@ -270,9 +270,14 @@ export class LinkExtractor {
   async extractPdfLinks(source: LandesverbandSource, contentPath: ContentPath): Promise<PdfLink[]> {
     if (contentPath.staticUrls?.length) {
       return contentPath.staticUrls
-        .map((url) => this.normalizeUrl(url, source.baseUrl))
-        .filter((url): url is string => url !== null)
-        .map((url) => ({ url, title: titleFromPdfUrl(url), context: '' }));
+        .map((entry) => {
+          const rawUrl = typeof entry === 'string' ? entry : entry.url;
+          const normalized = this.normalizeUrl(rawUrl, source.baseUrl);
+          if (!normalized) return null;
+          const title = typeof entry === 'string' ? titleFromPdfUrl(normalized) : entry.title;
+          return { url: normalized, title, context: '' };
+        })
+        .filter((link): link is PdfLink => link !== null);
     }
 
     const pageUrl = source.baseUrl + contentPath.path;
