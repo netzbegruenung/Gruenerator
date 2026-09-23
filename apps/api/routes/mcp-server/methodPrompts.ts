@@ -38,7 +38,8 @@ const NOTEBOOK_WORKFLOW = [
   '1. **`notebooks` mit `action="list"`** — die IDs stammen immer von dort, nie aus einer Vermutung.',
   '2. **`notebook_quellen` mit `action="find"`, `notebookId` und `query`** — liefert Rohpassagen mit `sourceId`, Seite (`pageNumber`) und Zeichenbereich (`charStart`–`charEnd`). Hat das Thema mehrere Aspekte, suche je Aspekt einzeln.',
   '3. **`notebook_quellen` mit `action="read"` und `sourceId`** — den Zusammenhang einer Fundstelle lesen (`seite`, `abschnitt.von` oder eine `section` aus `action="outline"`). Welche Quellen im Notebook liegen, zeigt `action="list"`.',
-  '4. **Mit der Fundstelle belegen.** Nenne je Beleg Titel und Seite bzw. Zeichenbereich aus dem Tool-Ergebnis und nummeriere deine Quellenliste selbst.',
+  '4. **Zitate prüfen: `notebook_quellen` mit `action="cite"` und `zitat`** — bestätigt, dass ein wörtliches Zitat so in der Quelle steht, und liefert seine genaue Fundstelle; mit `claim` statt `zitat` sucht es Sätze, die eine Behauptung belegen könnten.',
+  '5. **Mit der Fundstelle belegen.** Nenne je Beleg Titel und Seite bzw. Zeichenbereich aus dem Tool-Ergebnis und nummeriere deine Quellenliste selbst.',
   '',
   'Eine fertige, belegte Antwort statt Rohpassagen liefert `notebooks` mit `action="search"`, `id` und `query` — dann die `[n]`-Marker samt Quellenliste unverändert weitergeben.',
 ].join('\n');

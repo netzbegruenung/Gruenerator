@@ -181,6 +181,17 @@ describe('list', () => {
     expect(rows.map((r) => r.ref)).not.toContain('hessen');
   });
 
+  it('points each system notebook at notebook_quellen with its key', async () => {
+    const { run } = makeCtx();
+    const rows = (await run({ action: 'list', scope: 'system' })).results as Array<{
+      ref: string;
+      snippet: string;
+    }>;
+    for (const r of rows) {
+      expect(r.snippet).toContain(`notebook_quellen mit notebookId=${r.ref}`);
+    }
+  });
+
   it('lists publicly listed notebooks without the caller’s own', async () => {
     const mine = collection({ id: 'n1', user_id: 'user-1', name: 'Meins' });
     const theirs = collection({
