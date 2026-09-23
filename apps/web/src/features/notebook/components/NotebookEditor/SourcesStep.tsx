@@ -254,6 +254,8 @@ export default function SourcesStep({ state }: SourcesStepProps) {
             loading={loading}
             onRemove={handleRemoveDocument}
             onRemoveMany={handleRemoveDocuments}
+            onReindex={null}
+            onReindexAll={null}
             onAddClick={() => fileInputRef.current?.click()}
           />
         </section>

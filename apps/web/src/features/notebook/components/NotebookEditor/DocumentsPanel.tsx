@@ -1,7 +1,7 @@
 import { Button, Input, SectionHeader } from '@gruenerator/ui';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { HiSearch, HiX } from 'react-icons/hi';
+import { HiRefresh, HiSearch, HiX } from 'react-icons/hi';
 
 import { cn } from '../../../../utils/cn';
 
@@ -26,6 +26,9 @@ interface DocumentsPanelProps {
   loading: boolean;
   onRemove: (id: string) => void;
   onRemoveMany: (ids: string[]) => void;
+  /** Null outside an existing notebook — there is nothing on the server to re-index yet. */
+  onReindex: ((id: string) => void) | null;
+  onReindexAll: (() => void) | null;
   onAddClick: () => void;
 }
 
@@ -37,6 +40,8 @@ export default function DocumentsPanel({
   loading,
   onRemove,
   onRemoveMany,
+  onReindex,
+  onReindexAll,
   onAddClick,
 }: DocumentsPanelProps) {
   const [query, setQuery] = useState('');
@@ -88,6 +93,7 @@ export default function DocumentsPanel({
   }, [onRemoveMany, visibleSelectedIds]);
 
   const filtered = Boolean(query.trim()) || activeSource !== null;
+  const anyReindexable = useMemo(() => documents.some((e) => e.doc.reindexable), [documents]);
 
   // Failed documents stay in the list — they still occupy a slot and the user
   // may want to see which file it was — but they get named up front, because a
@@ -104,11 +110,26 @@ export default function DocumentsPanel({
         onCreate={onAddClick}
         createLabel="Dokumente hinzufügen"
         actions={
-          <span
-            className="text-sm text-grey-500"
-            title="Alle Quellen zusammen — Uploads, Wolke, verlinkte Docs und WordPress."
-          >
-            {documentCount}/{MAX_DOCUMENTS} gesamt
+          <span className="flex items-center gap-sm">
+            {onReindexAll && anyReindexable && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={onReindexAll}
+                disabled={loading}
+                title="Holt Wolke-Dateien, Webseiten und WordPress-Beiträge neu und indexiert sie mit Seitenzahlen. Hochgeladene Dateien ohne Original bleiben, wie sie sind."
+              >
+                <HiRefresh size={12} aria-hidden />
+                Alle neu indexieren
+              </Button>
+            )}
+            <span
+              className="text-sm text-grey-500"
+              title="Alle Quellen zusammen — Uploads, Wolke, verlinkte Docs und WordPress."
+            >
+              {documentCount}/{MAX_DOCUMENTS} gesamt
+            </span>
           </span>
         }
       />
@@ -258,6 +279,7 @@ export default function DocumentsPanel({
                         loading={loading}
                         onToggleSelect={toggleSelect}
                         onRemove={onRemove}
+                        onReindex={entry.doc.reindexable ? onReindex : null}
                       />
                     </div>
                   );

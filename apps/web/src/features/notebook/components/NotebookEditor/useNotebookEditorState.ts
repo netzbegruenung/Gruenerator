@@ -4,6 +4,7 @@ import {
   type WolkeFolderRef,
   type WordpressSiteRef,
 } from '@gruenerator/contracts';
+import { getContractsClient } from '@gruenerator/shared/api';
 import { toast } from '@gruenerator/ui';
 import { useState, useEffect, useCallback, useMemo, useRef, type DragEvent } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
@@ -24,6 +25,14 @@ import {
   type NotebookEditorFormData,
   type UploadedDocument,
 } from './shared';
+
+function reindexErrorMessage(result: { status: number; body: unknown }): string {
+  const body = result.body as { error?: unknown } | null;
+  if ((result.status === 403 || result.status === 404) && typeof body?.error === 'string') {
+    return body.error;
+  }
+  return 'Neu indexieren ist fehlgeschlagen.';
+}
 
 interface UseNotebookEditorStateArgs {
   onSave: (data: NotebookEditorSavePayload) => Promise<void>;
@@ -87,6 +96,7 @@ export function useNotebookEditorState({
           editingCollection.documents.map((doc) => ({
             id: doc.id,
             title: doc.title || 'Dokument',
+            ...(doc.reindexable ? { reindexable: true } : {}),
             ...(doc.source_type === 'wolke'
               ? { source: 'wolke' as const }
               : doc.source_type === 'wordpress'
@@ -178,7 +188,12 @@ export function useNotebookEditorState({
               });
               return;
             }
-            if (result.status !== 'failed') return;
+            if (result.status !== 'failed') {
+              // Only a failed re-index leaves a reason on a completed document:
+              // the old version stays searchable, but the user asked for a new one.
+              if (result.error) toast.error(result.error);
+              return;
+            }
             setFailedDocs((prev) => {
               const next = new Map(prev);
               next.set(id, result.error ?? 'Das Dokument konnte nicht gelesen werden.');
@@ -349,6 +364,50 @@ export function useNotebookEditorState({
     },
     [forgetFailed]
   );
+
+  const collectionId = editingCollection?.id ?? null;
+
+  const handleReindexDocument = useCallback(
+    async (id: string) => {
+      if (!collectionId) return;
+      try {
+        const result = await getContractsClient().notebookCollections.reindexDocument({
+          params: { id: collectionId, documentId: id },
+        });
+        if (result.status !== 200) {
+          toast.error(reindexErrorMessage(result));
+          return;
+        }
+        if (result.body.status === 'unavailable') {
+          toast.error(result.body.message);
+          return;
+        }
+        toast.success(result.body.message);
+        watchIndexing([id]);
+      } catch {
+        toast.error('Neu indexieren ist fehlgeschlagen.');
+      }
+    },
+    [collectionId, watchIndexing]
+  );
+
+  const handleReindexAll = useCallback(async () => {
+    if (!collectionId) return;
+    try {
+      const result = await getContractsClient().notebookCollections.reindexNotebook({
+        params: { id: collectionId },
+      });
+      if (result.status !== 200) {
+        toast.error(reindexErrorMessage(result));
+        return;
+      }
+      if (result.body.queued.length === 0) toast.error(result.body.message);
+      else toast.success(result.body.message);
+      watchIndexing(result.body.queued);
+    } catch {
+      toast.error('Neu indexieren ist fehlgeschlagen.');
+    }
+  }, [collectionId, watchIndexing]);
 
   const handleDocsImported = useCallback(
     (docs: ImportedLinkedDoc[]) => {
@@ -569,6 +628,8 @@ export function useNotebookEditorState({
     handleDragLeave,
     handleRemoveDocument,
     handleRemoveDocuments,
+    handleReindexDocument: collectionId ? handleReindexDocument : null,
+    handleReindexAll: collectionId ? handleReindexAll : null,
     handleUnstageFile,
     handleCommitStagedUpload,
     handleWolkeDocsImported,
