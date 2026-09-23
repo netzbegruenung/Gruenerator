@@ -206,6 +206,55 @@ describe('processAndStoreDocument — unchanged text', () => {
   });
 });
 
+describe('processAndStoreDocument — unchanged text, write budget and date guard', () => {
+  const HASH = `hash:${TEXT.length}`;
+  const hoursAgo = (h: number) => new Date(Date.now() - h * 60 * 60 * 1000).toISOString();
+
+  it('skips the write when nothing moved and checked_at is younger than 24h', async () => {
+    scrollDocuments.mockResolvedValue([
+      { payload: { content_hash: HASH, title: 'Beschluss', checked_at: hoursAgo(2) } },
+    ]);
+
+    await store(undefined);
+
+    expect(setPayload).not.toHaveBeenCalled();
+  });
+
+  it('refreshes checked_at when nothing moved but it is older than 24h', async () => {
+    scrollDocuments.mockResolvedValue([
+      { payload: { content_hash: HASH, title: 'Beschluss', checked_at: hoursAgo(25) } },
+    ]);
+
+    await store(undefined);
+
+    expect(setPayload).toHaveBeenCalledTimes(1);
+    expect(setPayload.mock.calls[0][2]).toEqual({ checked_at: expect.any(String) });
+  });
+
+  it('still writes a real change even when checked_at is fresh', async () => {
+    scrollDocuments.mockResolvedValue([
+      { payload: { content_hash: HASH, title: 'Beschluss', checked_at: hoursAgo(2) } },
+    ]);
+
+    await store({ file_hash: 'abc123' });
+
+    expect(setPayload.mock.calls[0][2]).toEqual({
+      file_hash: 'abc123',
+      checked_at: expect.any(String),
+    });
+  });
+
+  it('never downgrades a stored date to the -06-15 year-only guess', async () => {
+    scrollDocuments.mockResolvedValue([
+      { payload: { content_hash: HASH, title: 'Beschluss', published_at: '2023-04-29' } },
+    ]);
+
+    await storeWith({ publishedAt: '2023-06-15' });
+
+    expect(setPayload.mock.calls[0][2]).toEqual({ checked_at: expect.any(String) });
+  });
+});
+
 describe('processAndStoreDocument — changed text', () => {
   it('carries the fingerprint into the freshly written points', async () => {
     scrollDocuments.mockResolvedValue([]);

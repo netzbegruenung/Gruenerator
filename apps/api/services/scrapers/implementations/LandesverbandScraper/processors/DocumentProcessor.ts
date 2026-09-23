@@ -32,6 +32,10 @@ import type { LandesverbandSource } from '../../../../../config/landesverbaendeC
 import type { ProcessResult, ExtractedContent } from '../types.js';
 import type { QdrantClient } from '@qdrant/js-client-rest';
 
+/** DateExtractor's year-only fallback — never a better date than one already stored. */
+const YEAR_ONLY_GUESS = /-06-15$/;
+const CHECKED_AT_REFRESH_MS = 24 * 60 * 60 * 1000;
+
 /**
  * Document processing orchestration
  * Dependencies injected via constructor for testability
@@ -222,7 +226,10 @@ export class DocumentProcessor {
    * extracted title/date whose stored value differs, plus `checked_at`, on
    * which the staggered re-check keys (`indexed_at` stays the embedding time).
    * An empty title or a null date is never written over a stored value — SL
-   * PDFs with processUndatedPdfs and every Wolke file pass `publishedAt: null`.
+   * PDFs with processUndatedPdfs and every Wolke file pass `publishedAt: null`;
+   * neither is the `-06-15` year-only PDF guess over a stored date. Young pages
+   * are re-fetched on every run past RECHECK_AFTER_MS (this branch never bumps
+   * `indexed_at`), so a bare `checked_at` is only rewritten once it is a day old.
    */
   async #refreshStoredPayload(
     targetCollection: string,
@@ -233,10 +240,18 @@ export class DocumentProcessor {
   ): Promise<void> {
     const candidates: Record<string, unknown> = { ...(extraPayload ?? {}) };
     if (extracted.title) candidates.title = extracted.title;
-    if (extracted.publishedAt) candidates.published_at = extracted.publishedAt;
+    if (
+      extracted.publishedAt &&
+      !(existingPayload.published_at && YEAR_ONLY_GUESS.test(extracted.publishedAt))
+    ) {
+      candidates.published_at = extracted.publishedAt;
+    }
     const patch = Object.fromEntries(
       Object.entries(candidates).filter(([key, value]) => existingPayload[key] !== value)
     );
+
+    const checkedAt = new Date(String(existingPayload.checked_at ?? '')).getTime();
+    if (Object.keys(patch).length === 0 && Date.now() - checkedAt < CHECKED_AT_REFRESH_MS) return;
 
     await setPayload(
       this.qdrantClient,
