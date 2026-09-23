@@ -121,6 +121,8 @@ export function stripInternalFields<T>(output: T): T {
  * `results`/`ranking`; doppelt geschickt schöbe es das Ergebnis über die
  * 6000 Zeichen von `truncateResultForModel`.
  */
+// `refs` ist für `notebook_quellen` reserviert: ein anderes Werkzeug mit `refs` verlöre es
+// hier still aus dem laufenden Turn.
 const REPLAY_ONLY_FIELDS: readonly string[] = ['refs'];
 
 function stripReplayOnlyFields<T>(output: T): T {

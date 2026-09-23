@@ -119,6 +119,11 @@ export interface SystemNotebookSourcesDeps {
     'getSystemDocumentFullTextByUrl' | 'getDocumentChunks' | 'search'
   >;
   rerank: typeof rerankNotebookResults;
+  /**
+   * Die Parameter des Volltextindex auf `chunk_text` (`payload_schema`) —
+   * `null` ohne Index. Nur mit genau dem geprüften Index zählt grep über ihn.
+   */
+  chunkTextIndex: (qdrantCollection: string) => Promise<Record<string, unknown> | null>;
 }
 
 // ---------------------------------------------------------------------------
@@ -850,6 +855,54 @@ function joinTermChunks(chunks: readonly TermChunk[]): Omit<ScannedSource, 'sour
 }
 
 /**
+ * Der Index, gegen den die Vollständigkeit geprüft ist (live, 23.09.2026, alle
+ * System-Sammlungen hinter `collectionsForLocale` für de-DE und de-AT). Ein
+ * anderer Tokenizer, ohne `lowercase`, mit Stemmer oder Stoppwörtern fände
+ * andere Chunks; ohne Index fiele Qdrant auf einen Teilstring-Vergleich
+ * zurück. In beiden Fällen gilt die Zusicherung nicht — dann nie über den Index.
+ */
+function isVerifiedTextIndex(params: Record<string, unknown> | null): boolean {
+  return (
+    params !== null &&
+    params.type === 'text' &&
+    params.tokenizer === 'word' &&
+    params.lowercase === true &&
+    params.min_token_len === 2 &&
+    params.max_token_len === 50 &&
+    !params.stemmer &&
+    !params.stopwords &&
+    !params.ascii_folding
+  );
+}
+
+/**
+ * `chunkTextIndex` aus einem `payload_schema`-Abruf, je Sammlung einmal. Ein
+ * Fehler wird nicht gemerkt — der nächste Aufruf fragt neu, bis dahin gilt
+ * „kein Index" (der Lesepfad, nie eine falsche Vollständigkeit).
+ */
+export function cachedChunkTextIndex(
+  fetchSchema: (qdrantCollection: string) => Promise<Record<string, unknown>>
+): SystemNotebookSourcesDeps['chunkTextIndex'] {
+  const cache = new Map<string, Record<string, unknown> | null>();
+  return async (qdrantCollection) => {
+    const hit = cache.get(qdrantCollection);
+    if (hit !== undefined) return hit;
+    try {
+      const field = (await fetchSchema(qdrantCollection)).chunk_text as
+        { data_type?: unknown; params?: unknown } | undefined;
+      const params =
+        field?.data_type === 'text' && field.params && typeof field.params === 'object'
+          ? (field.params as Record<string, unknown>)
+          : null;
+      cache.set(qdrantCollection, params);
+      return params;
+    } catch {
+      return null;
+    }
+  };
+}
+
+/**
  * Der Filter, der alle Chunks mit jedem Wort der Phrase holt (unter dem
  * Standardfilter, optional nur aus `sourceUrls`), und die Schreibweisen, die
  * danach zählen. `null`: kein Wort der Phrase kennt der Index.
@@ -886,7 +939,8 @@ export function systemTermQuery(
  * vollständig, sobald der Scroll durchläuft. Gegen die echte Berliner Sammlung
  * geprüft in `notebookSourceTools.live.vitest.ts`.
  *
- * `null`: die Phrase hat kein Wort, das der Index kennt — dann liest der
+ * `null`: die Phrase hat kein Wort, das der Index kennt, oder die Sammlung
+ * hat nicht den geprüften Index (`isVerifiedTextIndex`) — dann liest der
  * Aufrufer die Texte wie bisher.
  */
 export async function loadSystemTermMatches(
@@ -894,13 +948,14 @@ export async function loadSystemTermMatches(
     collection: SystemCollection;
     phrase: string;
     /** Nur diese URLs (aus `filterSystemSourceUrls`). */
-    sourceUrls?: readonly string[] | undefined;
+    sourceUrls?: readonly string[];
   },
-  deps: Pick<SystemNotebookSourcesDeps, 'scrollPage'>
+  deps: Pick<SystemNotebookSourcesDeps, 'scrollPage' | 'chunkTextIndex'>
 ): Promise<(ScanLoad & { accept: (matched: string) => boolean }) | null> {
   const { collection } = input;
   const query = systemTermQuery(collection, input.phrase, input.sourceUrls);
   if (!query) return null;
+  if (!isVerifiedTextIndex(await deps.chunkTextIndex(collection.qdrantCollection))) return null;
   const { filter, accept } = query;
 
   const byUrl = new Map<string, { title: string; chunks: TermChunk[] }>();

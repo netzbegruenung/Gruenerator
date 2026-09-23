@@ -69,7 +69,7 @@ export const RANK_MIN_SCORE = 0.2;
  * Vorschau, und die Folgefrage „lies die dritte" fände keinen ref mehr (#3561).
  */
 export function compactRefs(
-  rows: ReadonlyArray<{ title: string; ref: string; detail?: string | null | undefined }>
+  rows: ReadonlyArray<{ title: string; ref: string; detail?: string | null }>
 ): string {
   return rows
     .map((r) => `${shortTitle(r.title)} — ${r.ref}${r.detail ? ` (${r.detail})` : ''}`)

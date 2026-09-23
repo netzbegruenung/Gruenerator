@@ -58,7 +58,7 @@ export interface GrepOptions {
    * Volltextsuche der System-Notebooks (`loadSystemTermMatches`) engt damit
    * die Faltung auf die Schreibweisen ein, die ihr Index sicher findet.
    */
-  accept?: ((matched: string) => boolean) | undefined;
+  accept?: (matched: string) => boolean;
 }
 
 export interface GrepHit {

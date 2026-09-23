@@ -11,6 +11,15 @@ import { vi } from 'vitest';
 import type { DocumentResult } from '../../BaseSearchService/types.js';
 import type { SystemNotebookSourcesDeps } from '../systemNotebookSources.js';
 
+/** Die `chunk_text`-Indexparameter aller System-Sammlungen (live, 23.09.2026). */
+export const VERIFIED_TEXT_INDEX = {
+  type: 'text',
+  tokenizer: 'word',
+  min_token_len: 2,
+  max_token_len: 50,
+  lowercase: true,
+};
+
 export interface FakePoint {
   qdrantCollection: string;
   payload: Record<string, unknown>;
@@ -84,6 +93,8 @@ export function makeSystemDeps(
     searchError?: string;
     /** Jede Scroll-Seite ist voll und hat eine Folgeseite — für den Deckel. */
     endless?: boolean;
+    /** Was `chunkTextIndex` meldet — Standard: der geprüfte Index der Produktion. */
+    textIndex?: Record<string, unknown> | null;
   } = {}
 ) {
   const scrollPage = vi.fn(
@@ -185,13 +196,25 @@ export function makeSystemDeps(
   }));
 
   const rerank = vi.fn();
+  const chunkTextIndex = vi.fn(async () =>
+    opts.textIndex === undefined ? { ...VERIFIED_TEXT_INDEX } : opts.textIndex
+  );
 
   const deps = {
     scrollPage,
     documentService: { getSystemDocumentFullTextByUrl, getDocumentChunks, search },
     rerank,
+    chunkTextIndex,
   } as unknown as SystemNotebookSourcesDeps;
-  return { deps, scrollPage, getSystemDocumentFullTextByUrl, getDocumentChunks, search, rerank };
+  return {
+    deps,
+    scrollPage,
+    getSystemDocumentFullTextByUrl,
+    getDocumentChunks,
+    search,
+    rerank,
+    chunkTextIndex,
+  };
 }
 
 /** Ein Suchtreffer der Dokumentsuche, wie sie für System-Sammlungen antwortet. */

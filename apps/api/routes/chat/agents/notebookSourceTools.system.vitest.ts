@@ -70,6 +70,9 @@ function makeCtx(
     recentSteps?: PersistedStep[];
     /** Eine Hamburger Quelle ohne Datum. */
     extraPoints?: boolean;
+    /** Weitere Hamburger Quellen — über SYSTEM_SCAN_MAX_SOURCES geht grep an den Index. */
+    more?: FakePoint[];
+    textIndex?: Record<string, unknown> | null;
   } = {}
 ) {
   const registered: Array<Record<string, any>> = [];
@@ -93,8 +96,9 @@ function makeCtx(
         title: 'Ohne Datum',
       })
     : [];
-  const system = makeSystemDeps([...points(), ...undated], {
+  const system = makeSystemDeps([...points(), ...undated, ...(opts.more ?? [])], {
     ...(opts.searchResults ? { searchResults: opts.searchResults } : {}),
+    ...(opts.textIndex !== undefined ? { textIndex: opts.textIndex } : {}),
   });
   const helper = {
     getNotebookCollection: vi.fn(async () => null),
@@ -107,6 +111,7 @@ function makeCtx(
     access: vi.fn(),
     rerank: system.rerank,
     scrollPage: system.scrollPage,
+    chunkTextIndex: system.chunkTextIndex,
     documentService: system.deps.documentService,
     recentSteps: vi.fn(async () => opts.recentSteps ?? []),
     ...(opts.nlp ? { nlp: opts.nlp } : {}),
@@ -288,8 +293,7 @@ describe('grep, stats, rank, cite', () => {
   it('counts a phrase across the collection, never outside it', async () => {
     const { run, registered } = makeCtx();
     const out = await run({ action: 'grep', notebookId: 'hamburg', phrase: 'Wärmepumpe' });
-    // Gelesen werden nur die Quellen, in denen der Volltextindex das Wort fand.
-    expect(out).toMatchObject({ exhaustive: true, totalHits: 2, sourcesScanned: 1 });
+    expect(out).toMatchObject({ exhaustive: true, totalHits: 2, sourcesScanned: 2 });
     expect(out.perSource).toEqual([expect.objectContaining({ sourceId: HH_A, url: HH_A })]);
     expect(registered[0]).toMatchObject({ url: HH_A, collectionId: 'hamburg' });
   });
@@ -431,15 +435,62 @@ describe('live findings 23.09.2026', () => {
     expect(system.search).not.toHaveBeenCalled();
   });
 
-  it('grep and rank by=term count over the chunk_text index, not by reading every source', async () => {
+  // Mehr als SYSTEM_SCAN_MAX_SOURCES Hamburger Quellen, eine mit zwei Schreibweisen.
+  const manyHamburg = (): FakePoint[] =>
+    Array.from({ length: 205 }, (_, i) =>
+      fakeDoc(
+        LV,
+        `https://gruene-hamburg.de/n/${i}`,
+        [i === 7 ? 'Charite und Charité.' : `Text ${i}.`],
+        {
+          landesverband: 'HH',
+          title: `Nr ${i}`,
+          published_at: '2024-01-01',
+        }
+      )
+    ).flat();
+
+  const usedIndex = (system: ReturnType<typeof makeCtx>['system']) =>
+    system.scrollPage.mock.calls.some((c) => JSON.stringify(c[1]).includes('"chunk_text"'));
+
+  it('reads a scope of at most 200 sources whole — accents fold, no count rule needed', async () => {
     const { run, system } = makeCtx();
-    const grep = await run({ action: 'grep', notebookId: 'hamburg', phrase: 'Wärmepumpe' });
-    expect(grep.exhaustive).toBe(true);
-    const ranked = await run({ action: 'rank', notebookId: 'hamburg', by: 'term', query: 'Klima' });
+    const out = await run({ action: 'grep', notebookId: 'hamburg', phrase: 'Warmepumpe' });
+    expect(out).toMatchObject({ exhaustive: true, totalHits: 2, sourcesScanned: 2 });
+    expect(out.countRule).toBeUndefined();
+    expect(usedIndex(system)).toBe(false);
+  });
+
+  it('counts over the chunk_text index beyond 200 sources and says what it counted', async () => {
+    const { run, system } = makeCtx({ more: manyHamburg() });
+    const grep = await run({ action: 'grep', notebookId: 'hamburg', phrase: 'Charite' });
+    expect(grep).toMatchObject({
+      exhaustive: true,
+      totalHits: 1,
+      sourcesScanned: 207,
+      sourcesWithHits: 1,
+      otherSpellings: { charité: 1 },
+    });
+    expect(grep.countRule).toMatch(/nur Groß\/klein egal/);
+    expect(grep.note).toMatch(/1× als „charité"/);
+    const ranked = await run({
+      action: 'rank',
+      notebookId: 'hamburg',
+      by: 'term',
+      query: 'Charite',
+    });
     expect(ranked.exhaustive).toBe(true);
+    expect(ranked.countRule).toMatch(/nur Groß\/klein egal/);
+    expect(usedIndex(system)).toBe(true);
     expect(system.getSystemDocumentFullTextByUrl).not.toHaveBeenCalled();
-    const filters = system.scrollPage.mock.calls.map((c) => JSON.stringify(c[1]));
-    expect(filters.some((f) => f.includes('"chunk_text"'))).toBe(true);
+  });
+
+  it('does not claim exhaustive via the index when the collection has none', async () => {
+    const { run, system } = makeCtx({ more: manyHamburg(), textIndex: null });
+    const grep = await run({ action: 'grep', notebookId: 'hamburg', phrase: 'Charite' });
+    expect(grep.exhaustive).toBe(false);
+    expect(grep.countRule).toBeUndefined();
+    expect(usedIndex(system)).toBe(false);
   });
 
   it('says how many undated sources a date filter left out', async () => {
