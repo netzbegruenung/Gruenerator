@@ -1,5 +1,4 @@
-import { GEMMA_31B_ON_MELIOUS } from './gemmaHosts.js';
-import { meliousFetchWithImpact } from './meliousImpactFetch.js';
+import { captureMeliousImpact, meliousModelFromRequest } from './meliousImpact.js';
 
 /**
  * Der Flavor-Suffix wählt bei Melious den Upstream — und damit das Fenster.
@@ -10,9 +9,14 @@ import { meliousFetchWithImpact } from './meliousImpactFetch.js';
  *
  * `:balanced` bleibt der Standard: ein eigener Host neben Cortecs (der ebenfalls
  * an infercom vermittelt) und bei kurzen Prompts gut doppelt so schnell. Was
- * dort nicht hineinpasst, geht auf `:speed`. Der logische Modellname bleibt
- * `gemma-4-31b:balanced` — getauscht wird nur auf dem Draht, damit Nutzung,
- * Geschwister-Tabellen und Fallback-Ketten nichts davon merken.
+ * auf den FI-Knoten nicht passt, geht auf `:speed` — egal welcher FI-Flavor
+ * eingestellt ist, damit das 128k-Fenster der Lane auch bei einem
+ * `MELIOUS_DEFAULT_MODEL`-Override stimmt. Ein ausdrückliches `:speed` bleibt.
+ *
+ * Getauscht wird nur auf dem Draht. Der logische Name bleibt, auch in der
+ * Messung: `meliousFetch` bucht den gemessenen Verbrauch auf den Namen VOR dem
+ * Tausch, denn die Token-Zeile des SDK (`usageModelMiddleware`) kennt nur
+ * diesen — sonst lägen Tokens und Energie in zwei Zeilen.
  *
  * Gezählt wird über Zeichen, nicht Tokens: deutscher Text lag bei ~4,3
  * Zeichen/Token, Code und JSON dichter. 3 Zeichen/Token über den ganzen
@@ -27,8 +31,11 @@ const BALANCED_TOKEN_LIMIT = 40_000;
 const CHARS_PER_TOKEN = 3;
 const DEFAULT_OUTPUT_RESERVE = 4_096;
 
+/** Flavors, die Melious auf den FI-Knoten mit ~45k legt (gemessen 23.09.2026). */
+const FI_NODE_MODELS = new Set(['gemma-4-31b', 'gemma-4-31b:balanced', 'gemma-4-31b:eco']);
+
 export function meliousWireModel(body: Record<string, unknown>): string | null {
-  if (body.model !== GEMMA_31B_ON_MELIOUS.model) return null;
+  if (typeof body.model !== 'string' || !FI_NODE_MODELS.has(body.model)) return null;
   const output = typeof body.max_tokens === 'number' ? body.max_tokens : DEFAULT_OUTPUT_RESERVE;
   const estimate = JSON.stringify(body).length / CHARS_PER_TOKEN + output;
   return estimate > BALANCED_TOKEN_LIMIT ? MELIOUS_WIDE_MODEL : null;
@@ -55,6 +62,7 @@ export function meliousWireModel(body: Record<string, unknown>): string | null {
  * still zum No-Op wird.
  */
 export const meliousFetch: typeof fetch = async (input, init) => {
+  const logicalModel = meliousModelFromRequest(init?.body);
   if (init?.body && typeof init.body === 'string') {
     try {
       const parsed = JSON.parse(init.body) as Record<string, unknown>;
@@ -67,5 +75,6 @@ export const meliousFetch: typeof fetch = async (input, init) => {
       // Non-JSON body (e.g. multipart upload), pass through unchanged
     }
   }
-  return meliousFetchWithImpact(input, init);
+  // Die HTTP-Grenze ist der einzige Ort, an dem Melious' Umweltdaten überleben.
+  return captureMeliousImpact(await fetch(input, init), logicalModel, init?.signal);
 };
