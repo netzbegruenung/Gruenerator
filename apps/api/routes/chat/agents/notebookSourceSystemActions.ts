@@ -443,6 +443,7 @@ async function read(
         ...grounded(collection, args.sourceId, source.title, s.slice),
         ...(firstChunk ? { chunkIndex: firstChunk.index } : {}),
         pageNumber: s.pageRange?.from ?? null,
+        pageTo: s.pageRange?.to ?? null,
         charStart: s.from,
         charEnd: s.to,
         citedText: s.slice,

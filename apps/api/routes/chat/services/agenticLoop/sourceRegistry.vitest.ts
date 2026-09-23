@@ -51,7 +51,7 @@ describe('createSourceRegistry', () => {
 
   // Im split-Modus sieht der Schreiber nur diese Zeile: ohne Seite las er
   // `read seite=2` als Text ohne Seitenangabe (Testserver 24.09.2026).
-  it('puts the page in the snippet line, next to the date', () => {
+  it('puts the page or page span in the snippet line, next to the date', () => {
     const reg = createSourceRegistry();
     const block = reg.register([
       result({ title: 'Niederschrift', content: 'TOP 3', pageNumber: 2 }),
@@ -62,9 +62,17 @@ describe('createSourceRegistry', () => {
         publishedDate: '2026-02-24T00:00:00.000Z',
       }),
       result({ title: 'Notiz', content: 'ohne', pageNumber: null }),
+      result({ title: 'Satzung', content: 'Paragraf', pageNumber: 2, pageTo: 3 }),
+      result({ title: 'Antrag', content: 'eine Seite', pageNumber: 5, pageTo: 5 }),
     ]);
     expect(block).toBe(
-      '[1] Niederschrift (S. 2) — TOP 3\n[2] Beschluss (2026-02-24, S. 4) — Radweg\n[3] Notiz — ohne'
+      [
+        '[1] Niederschrift (S. 2) — TOP 3',
+        '[2] Beschluss (2026-02-24, S. 4) — Radweg',
+        '[3] Notiz — ohne',
+        '[4] Satzung (S. 2–3) — Paragraf',
+        '[5] Antrag (S. 5) — eine Seite',
+      ].join('\n')
     );
   });
 
