@@ -76,7 +76,7 @@ const store = (fingerprint?: Record<string, unknown>) =>
     SOURCE,
     'beschluss',
     URL_UNDER_TEST,
-    { title: 'Beschluss', text: TEXT, publishedAt: null, categories: [] },
+    { title: 'Beschluss', text: TEXT, publishedAt: null, categories: [], bodyFallback: false },
     'landesverbaende_documents',
     10,
     fingerprint
@@ -178,7 +178,7 @@ describe('processAndStoreDocument — default age limit', () => {
       SOURCE,
       'beschluss',
       URL_UNDER_TEST,
-      { title: 'Beschluss', text: TEXT, publishedAt, categories: [] },
+      { title: 'Beschluss', text: TEXT, publishedAt, categories: [], bodyFallback: false },
       'landesverbaende_documents',
       undefined
     );
