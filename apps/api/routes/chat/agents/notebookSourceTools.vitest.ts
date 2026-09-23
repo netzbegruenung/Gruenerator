@@ -135,6 +135,9 @@ interface CtxOptions {
   /** Originaltext je Quelle; sonst gilt `markdown` für alle. */
   markdownById?: Record<string, string>;
   nlp?: StatsNlp;
+  scopeLock?: { ids: string[]; readOnly: boolean };
+  /** notebookId des vorigen Turns (Thread-Rückfall). */
+  threadNotebookId?: string;
 }
 
 function makeCtx(opts: CtxOptions = {}) {
@@ -155,6 +158,7 @@ function makeCtx(opts: CtxOptions = {}) {
     userLocale: 'de-DE',
     messages: [],
     notebookIds: opts.notebookIds ?? ['n1'],
+    ...(opts.scopeLock ? { notebookScopeLock: opts.scopeLock } : {}),
   } as unknown as ChatGraphState;
 
   const row = opts.collection === undefined ? collection() : opts.collection;
@@ -213,7 +217,18 @@ function makeCtx(opts: CtxOptions = {}) {
     documentService,
     access: vi.fn(async () => opts.access ?? OWNER),
     rerank: vi.fn(),
-    recentSteps: vi.fn(async () => []),
+    recentSteps: vi.fn(async () =>
+      opts.threadNotebookId
+        ? [
+            {
+              toolCallId: 'c0',
+              toolName: 'notebook_quellen',
+              args: { action: 'list', notebookId: opts.threadNotebookId },
+              result: {},
+            },
+          ]
+        : []
+    ),
     ...(opts.nlp ? { nlp: opts.nlp } : {}),
   } as unknown as NotebookSourceToolDeps;
   const tool = makeNotebookSourcesTool({ state, sse, threadId: 't1', sourceRegistry, deps });
@@ -934,5 +949,58 @@ describe('was der Schreiber im split-Modus sieht', () => {
     await run({ action: 'find', query: 'Mond' });
     expect(registry.freshSize).toBe(0);
     expect(registry.renderAll()).toContain('VORGÄNGE IN DIESEM TURN');
+  });
+});
+
+describe('Präzisionsmodus: Scope-Sperre', () => {
+  const LOCK = { ids: ['n1'], readOnly: true };
+
+  it('refuses a notebook outside the page, even one the person could read', async () => {
+    const { run, deps } = makeCtx({
+      scopeLock: LOCK,
+      collection: collection({ id: 'n2', name: 'Anderes' }),
+    });
+    const out = await run({ action: 'list', notebookId: 'n2' });
+    expect(out.error).toMatch(/Präzisionsmodus/);
+    expect(deps.access).not.toHaveBeenCalled();
+  });
+
+  it('reads a notebook of the page', async () => {
+    const { run } = makeCtx({ scopeLock: LOCK });
+    expect((await run({ action: 'list', notebookId: 'n1' })).notebook).toBe('Kreisverband');
+  });
+
+  it('falls back to the thread notebook only when it is on the page', async () => {
+    const outside = makeCtx({
+      scopeLock: LOCK,
+      notebookIds: [],
+      threadNotebookId: 'n2',
+      collection: collection({ id: 'n2' }),
+    });
+    const refused = await outside.run({ action: 'list' });
+    expect(refused.error).toMatch(/notebookId/);
+    expect(outside.helper.getNotebookCollection).not.toHaveBeenCalledWith('n2');
+
+    const inside = makeCtx({ scopeLock: LOCK, notebookIds: [], threadNotebookId: 'n1' });
+    expect((await inside.run({ action: 'list' })).notebook).toBe('Kreisverband');
+  });
+
+  it('refuses every write action when read-only, before touching anything', async () => {
+    const { run, deps, db } = makeCtx({ scopeLock: LOCK });
+    for (const args of [
+      { action: 'remove', sourceIds: ['d1'] },
+      { action: 'add_note', title: 'Notiz', text: 'x'.repeat(40) },
+      { action: 'move', sourceIds: ['d1'], targetNotebookId: 'n1' },
+    ]) {
+      expect((await run(args)).error).toMatch(/Präzisionsmodus/);
+    }
+    expect(deps.access).not.toHaveBeenCalled();
+    expect(db.query).not.toHaveBeenCalled();
+  });
+
+  it('leaves writes alone when the lock is not read-only', async () => {
+    const { run } = makeCtx({ scopeLock: { ids: ['n1'], readOnly: false } });
+    const out = await run({ action: 'remove', sourceIds: ['d1'] });
+    expect(String(out.error ?? '')).not.toMatch(/Präzisionsmodus/);
   });
 });

@@ -369,6 +369,12 @@ export function buildChatToolCatalog(params: {
    * Fehlt ⇒ Verhalten unverändert.
    */
   searchToolKeys?: readonly string[];
+  /**
+   * Nur diese Werkzeuge montieren — Endfilter über den fertigen Katalog (der
+   * Präzisionsmodus der Notebook-Seite fährt nur `notebook_quellen`). Fehlt ⇒
+   * Verhalten unverändert.
+   */
+  toolAllowlist?: readonly string[];
 }): ChatToolCatalog {
   const { agentConfig, sourceRegistry, recipeRegistry, loop } = params;
 
@@ -1129,6 +1135,13 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
           tools[loopToolName] = mount[kind]();
         }
       }
+    }
+  }
+
+  if (params.toolAllowlist) {
+    const allowed = new Set(params.toolAllowlist);
+    for (const name of Object.keys(tools)) {
+      if (!allowed.has(name)) delete tools[name];
     }
   }
 
