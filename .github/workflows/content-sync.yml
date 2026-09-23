@@ -541,6 +541,22 @@ jobs:
               echo ""
             fi
 
+            # Landesverbände only: Datenqualitäts-Defektklassen unter den
+            # gespeicherten/aktualisierten Dokumenten (siehe Q4 /
+            # DocumentProcessor.qualityFlagsFor) — ohne diesen Zähler fielen
+            # Fallback-Titel, generische Titel und geratene Daten nur auf, wenn
+            # jemand von Hand hinsah (#3573–#3580).
+            QUALITY_FLAGS=$(jq -r '
+              .sources[] | select((.qualityFlags // {}) | length > 0)
+              | "- **\(.name):** " + ([.qualityFlags | to_entries | sort_by(-.value)[] | "\(.key) \(.value)"] | join(" · "))
+            ' "$SUMMARY_FILE")
+            if [ -n "$QUALITY_FLAGS" ]; then
+              echo "### 🔍 Datenqualität"
+              echo ""
+              echo "$QUALITY_FLAGS"
+              echo ""
+            fi
+
             NEW_CONTENT=$(jq -r '.sources[] | select(.stored > 0) | "- **\(.name):** +\(.stored) new documents"' "$SUMMARY_FILE")
             if [ -n "$NEW_CONTENT" ]; then
               echo "### 📥 New Content"
@@ -700,6 +716,8 @@ jobs:
             fi
             jq -r '.sources[] | select((.skipReasons // {}) | length > 0)
               | "**Übersprungen:** " + ([.skipReasons | to_entries | sort_by(-.value)[] | "\(.key) \(.value)"] | join(" · "))' "$SUMMARY_FILE"
+            jq -r '.sources[] | select((.qualityFlags // {}) | length > 0)
+              | "**Datenqualität:** " + ([.qualityFlags | to_entries | sort_by(-.value)[] | "\(.key) \(.value)"] | join(" · "))' "$SUMMARY_FILE"
             if [ "$(jq -r 'has("extraction")' "$SUMMARY_FILE")" = "true" ]; then
               jq -r '.extraction | "**Read:** \(.documents) docs / \(.pages) pages (OCR: \(.ocrDocuments)/\(.ocrPages)) | **For nothing:** \(.redundant) | **Gated:** \(.skipped.not_modified + .skipped.same_bytes + .skipped.freshly_indexed)"' "$SUMMARY_FILE"
             fi
