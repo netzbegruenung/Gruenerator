@@ -809,6 +809,37 @@ describe('Notebook branch — tool ask pins notebook_quellen', () => {
     expect(result.mentionPinnedTool).toBeUndefined();
   });
 
+  // Review PR #3568: ein System-Notebook außerhalb der Locale lehnt das
+  // Werkzeug ab, ein Schreibauftrag an ein System-Notebook ebenso
+  // (schreibgeschützt) — beides bleibt die Suche wie vorher.
+  it('system notebook outside the user locale → stays a search', async () => {
+    const state = buildState({
+      userMessage: 'Liste die 20 neuesten Quellen im Berlin-Notebook aus 2026.',
+      notebookIds: ['berlin-notebook'],
+      userLocale: 'de-AT',
+    });
+    const result = await classifierNode(state);
+    expect(result.mentionPinnedTool).toBeUndefined();
+  });
+
+  it('write ask on a system notebook → stays a search (read-only)', async () => {
+    const state = buildState({
+      userMessage: 'Entferne die alte Pressemitteilung aus dem Notebook',
+      notebookIds: ['berlin-notebook'],
+    });
+    const result = await classifierNode(state);
+    expect(result.mentionPinnedTool).toBeUndefined();
+  });
+
+  it('write ask on a user notebook still pins', async () => {
+    const state = buildState({
+      userMessage: 'Entferne die alte Pressemitteilung aus dem Notebook',
+      notebookIds: [USER_NOTEBOOK],
+    });
+    const result = await classifierNode(state);
+    expect(result.mentionPinnedTool).toBe('notebook_quellen');
+  });
+
   it('multi-collection system notebook → stays a search (notebook_quellen cannot open it)', async () => {
     const state = buildState({
       userMessage: 'Sortiere die Quellen nach Datum',
