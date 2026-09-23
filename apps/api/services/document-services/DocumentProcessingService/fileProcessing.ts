@@ -8,6 +8,7 @@ import fs from 'fs';
 import { hasAiConsent } from '../../../middleware/requireAiConsent.js';
 
 import { chunkAndEmbedText } from './chunkingPipeline.js';
+import { fetchOriginal, reindexOrigin, type ReindexOrigin } from './reindexOrigin.js';
 import {
   capStoredText,
   extractDocumentFromFile,
@@ -102,6 +103,26 @@ export async function processFileUpload(
 }
 
 /**
+ * Was ein Neu-Indexieren aus der alten Nutzlast mitnehmen muss, weil es die
+ * Punkte löscht und neu schreibt: die Quell-URL und — sobald der
+ * Metadaten-Worker sie gesetzt hat — Datum und Gremium. Der Worker läuft für
+ * ein Dokument nicht zweimal; ohne das hier wären sie nach dem ersten Klick weg.
+ */
+function reindexCarryPayload(
+  origin: ReindexOrigin,
+  metadata: Record<string, unknown> | null
+): Record<string, unknown> {
+  const docMeta = metadata?.doc_meta;
+  const gremium =
+    docMeta && typeof docMeta === 'object' ? (docMeta as { gremium?: unknown }).gremium : null;
+  return {
+    ...(origin.kind === 'url' ? { source_url: origin.url } : {}),
+    ...(typeof metadata?.published_at === 'string' ? { published_at: metadata.published_at } : {}),
+    ...(typeof gremium === 'string' && gremium ? { gremium } : {}),
+  };
+}
+
+/**
  * Process a previously uploaded document (deferred OCR + vectorization).
  * Reads the file from disk, extracts text, chunks, embeds, and stores vectors.
  * Updates the document status throughout the process.
@@ -115,6 +136,10 @@ export async function processUploadedDocument(
   console.log(`[DocumentProcessingService] Deferred processing for document: ${documentId}`);
 
   let filePath: string | null = null;
+  // Gesetzt, wenn die Zeile über „Neu indexieren" kam und das Original erst
+  // geholt werden muss. Bis `vectorsReplaced` bleiben die alten Punkte stehen.
+  let reindex: ReindexOrigin | null = null;
+  let vectorsReplaced = false;
 
   // Helper: write current pipeline stage into documents.metadata JSONB so the
   // frontend status poll can surface "Wird gescannt / Wird zerlegt / Wird indexiert".
@@ -159,22 +184,45 @@ export async function processUploadedDocument(
 
     const metadata = (
       typeof document.metadata === 'string' ? JSON.parse(document.metadata) : document.metadata
-    ) as { filePath?: string; mimetype?: string } | null;
+    ) as
+      | ({ filePath?: string; mimetype?: string; reindex_origin?: unknown } & Record<
+          string,
+          unknown
+        >)
+      | null;
     filePath = metadata?.filePath ?? null;
 
-    if (!filePath || !fs.existsSync(filePath)) {
-      throw new Error('Uploaded file not found on disk');
+    await markStage('extracting');
+    let file: UploadedFile;
+    if (filePath && fs.existsSync(filePath)) {
+      const buffer = fs.readFileSync(filePath);
+      file = {
+        buffer,
+        mimetype: metadata?.mimetype || 'application/octet-stream',
+        originalname: document.filename || 'document',
+        size: buffer.length,
+      };
+    } else {
+      reindex = metadata?.reindex_origin
+        ? reindexOrigin({
+            id: documentId,
+            user_id: userId,
+            filename: document.filename ?? null,
+            status: null,
+            source_url: typeof document.source_url === 'string' ? document.source_url : null,
+            wolke_share_link_id:
+              typeof document.wolke_share_link_id === 'string'
+                ? document.wolke_share_link_id
+                : null,
+            wolke_file_path:
+              typeof document.wolke_file_path === 'string' ? document.wolke_file_path : null,
+            metadata,
+          })
+        : null;
+      if (!reindex) throw new Error('Uploaded file not found on disk');
+      file = await fetchOriginal(reindex, document, userId);
     }
 
-    const buffer = fs.readFileSync(filePath);
-    const file: UploadedFile = {
-      buffer,
-      mimetype: metadata?.mimetype || 'application/octet-stream',
-      originalname: document.filename || 'document',
-      size: buffer.length,
-    };
-
-    await markStage('extracting');
     const extraction = await extractDocumentFromFile(file, { pageMarkers: true });
     const extractedText = extraction.text;
     if (!extractedText || extractedText.trim().length === 0) {
@@ -193,6 +241,7 @@ export async function processUploadedDocument(
     // derived from the position, so a retry that produces fewer chunks would
     // leave the surplus behind — orphaned points that still match searches.
     // Cheap no-op on a first run, and it makes re-processing idempotent.
+    vectorsReplaced = true;
     if (qdrantDocumentService.deleteDocumentVectors) {
       try {
         await qdrantDocumentService.deleteDocumentVectors(documentId, userId);
@@ -212,6 +261,12 @@ export async function processUploadedDocument(
         sourceType: document.source_type || 'manual',
         title: document.title,
         filename: document.filename,
+        // Ein neu indexiertes Dokument behält, was sein erster Ingest in die
+        // Nutzlast schrieb: Wolke-Herkunft bzw. die Quell-URL.
+        ...(reindex?.kind === 'wolke'
+          ? { wolkeShareLinkId: reindex.shareLinkId, wolkeFilePath: reindex.filePath }
+          : {}),
+        ...(reindex ? { additionalPayload: reindexCarryPayload(reindex, metadata) } : {}),
       },
       async (upserted, total) => {
         await markStage('upserting', { current: upserted, total });
@@ -229,20 +284,23 @@ export async function processUploadedDocument(
       additionalMetadata: {
         ...metadata,
         filePath: undefined,
+        reindex_origin: null,
         content_preview: generateContentPreview(extractedText),
         ...(extraction.extractionMethod ? { extractionMethod: extraction.extractionMethod } : {}),
       },
     });
 
-    // Clean up temp file
-    try {
-      fs.unlinkSync(filePath);
-      const dir = filePath.substring(0, filePath.lastIndexOf('/'));
-      if (fs.existsSync(dir) && fs.readdirSync(dir).length === 0) {
-        fs.rmdirSync(dir);
+    // Clean up temp file (a reindex fetched its original into memory)
+    if (filePath && !reindex) {
+      try {
+        fs.unlinkSync(filePath);
+        const dir = filePath.substring(0, filePath.lastIndexOf('/'));
+        if (fs.existsSync(dir) && fs.readdirSync(dir).length === 0) {
+          fs.rmdirSync(dir);
+        }
+      } catch {
+        // Non-critical cleanup error
       }
-    } catch {
-      // Non-critical cleanup error
     }
 
     console.log(
@@ -262,17 +320,34 @@ export async function processUploadedDocument(
     );
 
     try {
-      // Keep the reason with the row: `status='failed'` alone left the upload UI
-      // with nothing to say, so the spinner simply vanished and the document
-      // looked fine while being unsearchable.
-      await postgresDocumentService.updateDocumentMetadata(documentId, userId, {
-        status: 'failed',
-        additionalMetadata: {
-          processing_error: error instanceof Error ? error.message : 'Verarbeitung fehlgeschlagen',
-          processing_stage: null,
-          processing_progress: null,
-        },
-      });
+      if (reindex && !vectorsReplaced) {
+        // Das Original war nicht zu holen oder nicht zu lesen, die alten Punkte
+        // stehen noch: die Quelle bleibt durchsuchbar, der Grund steht dabei.
+        await postgresDocumentService.updateDocumentMetadata(documentId, userId, {
+          status: 'completed',
+          additionalMetadata: {
+            reindex_origin: null,
+            processing_error: `Neu indexieren fehlgeschlagen: ${
+              error instanceof Error ? error.message : 'unbekannter Fehler'
+            } Die bisherige Fassung bleibt durchsuchbar.`,
+            processing_stage: null,
+            processing_progress: null,
+          },
+        });
+      } else {
+        // Keep the reason with the row: `status='failed'` alone left the upload UI
+        // with nothing to say, so the spinner simply vanished and the document
+        // looked fine while being unsearchable.
+        await postgresDocumentService.updateDocumentMetadata(documentId, userId, {
+          status: 'failed',
+          additionalMetadata: {
+            processing_error:
+              error instanceof Error ? error.message : 'Verarbeitung fehlgeschlagen',
+            processing_stage: null,
+            processing_progress: null,
+          },
+        });
+      }
     } catch {
       // Ignore status update failure
     }

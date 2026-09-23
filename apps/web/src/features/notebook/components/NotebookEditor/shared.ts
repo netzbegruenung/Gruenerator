@@ -35,6 +35,8 @@ export interface UploadedDocument {
   title: string;
   filename?: string;
   source?: 'wolke' | 'wordpress';
+  /** The original is still reachable (Wolke, URL, WordPress) — "Neu indexieren" works. */
+  reindexable?: boolean;
   [key: string]: unknown;
 }
 
