@@ -14,14 +14,15 @@
  * correction of THIS text is not a memory (decision 2026-09-01); only the
  * generalised forms ("ab jetzt immer", "generell") are.
  *
- * Two forms are held on a short leash because the same words are politics:
- * "bitte immer/nie" only opens a sentence, and "nie wieder …" only counts
- * with a closing "bitte" — "Nie wieder Krieg" is a slogan, not a rule.
+ * The newer forms are held on a short leash because the same words are
+ * politics: "von nun an"/"beim nächsten Mal" only with "bitte" or "immer",
+ * "bitte immer/nie" only opening a sentence, and "nie wieder …" only with a
+ * closing "bitte" — "Nie wieder Krieg" is a slogan, not a rule.
  *
  * Lookarounds instead of `\b`: `\b` is ASCII-only and dies next to umlauts.
  */
 const MEMORY_REQUEST_RE =
-  /(?<![\p{L}\d_])(?:merk(?:e|st)?\s+(?:es\s+|das\s+|dir\s+das\s+)?dir|(?:dir|das)\s+(?:bitte\s+)?merken|notier(?:e)?\s+dir|speicher(?:e)?\s+(?:dir|das\s+als\s+erinnerung)|denk(?:e)?\s+(?:bitte\s+)?daran|vergiss(?:t)?(?=\s)|erinner(?:e)?\s+dich|(?:ab\s+(?:jetzt|sofort|heute)|von\s+nun\s+an|beim\s+nächsten\s+mal|nächstes\s+mal)\s+(?:immer|nie|niemals|bitte|nur|keine?)|(?:künftig|zukünftig|in\s+zukunft|generell|grundsätzlich)\s+(?:immer|nie|niemals|nur|bitte|keine?)|(?<=^\s*|[.!?]\s+)bitte\s+(?:immer|nie|niemals)|nie\s+wieder\s+[^.!?]{1,40}?[\s,]bitte(?=\s*(?:[.!]|$)))(?![\p{L}\d_])/iu;
+  /(?<![\p{L}\d_])(?:merk(?:e|st)?\s+(?:es\s+|das\s+|dir\s+das\s+)?dir|(?:dir|das)\s+(?:bitte\s+)?merken|notier(?:e)?\s+dir|speicher(?:e)?\s+(?:dir|das\s+als\s+erinnerung)|denk(?:e)?\s+(?:bitte\s+)?daran|vergiss(?:t)?(?=\s)|erinner(?:e)?\s+dich|ab\s+(?:jetzt|sofort|heute)\s+(?:immer|nie|niemals|bitte|nur|keine?)|(?:von\s+nun\s+an|beim\s+nächsten\s+mal|nächstes\s+mal)\s+(?:bitte|immer)|(?:künftig|zukünftig|in\s+zukunft|generell|grundsätzlich)\s+(?:immer|nie|niemals|nur|bitte|keine?)|(?<=^\s*|[.!?]\s+)bitte\s+(?:immer|nie|niemals)|nie\s+wieder\s+[^.!?]{1,40}?[\s,]bitte(?=\s*(?:[.!]|$)))(?![\p{L}\d_])/iu;
 
 export function looksLikeMemoryRequest(text: string): boolean {
   return MEMORY_REQUEST_RE.test(text ?? '');
