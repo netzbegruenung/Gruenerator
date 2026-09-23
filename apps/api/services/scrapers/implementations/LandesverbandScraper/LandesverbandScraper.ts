@@ -56,6 +56,7 @@ import { LinkExtractor } from './extractors/LinkExtractor.js';
 import { WpApiExtractor } from './extractors/WpApiExtractor.js';
 import { SearchOperations } from './operations/SearchOperations.js';
 import { DocumentProcessor } from './processors/DocumentProcessor.js';
+import { isFreshlyIndexed } from './recheckSchedule.js';
 import {
   addDeadLinkSamples,
   addErrorSamples,
@@ -72,53 +73,6 @@ import type {
   ProcessResult,
 } from './types.js';
 import type { ScraperResult } from '../../types.js';
-
-/**
- * Re-fetch an already-indexed URL once its last indexing is older than this.
- * Living documents (Wahlprogramme, revised Beschlüsse) keep a stable URL but
- * change in place; a permanent "URL exists → skip" gate froze them forever.
- * On a re-fetch the content-hash diff in DocumentProcessor decides whether to
- * actually re-embed, so unchanged pages cost only an HTTP GET, not embeddings.
- */
-const RECHECK_AFTER_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
-
-/**
- * Content published longer ago than this is treated as settled: it no longer
- * changes in place, so once indexed we never re-fetch it. This bounds the
- * per-run re-check set to recent/living content instead of re-walking a
- * multi-year archive every run — the re-fetch cost that pushed big LVs (BE, HH)
- * past the sync timeout. Pages without a parseable published date fall through
- * to the RECHECK_AFTER_MS window, so unknown-age content is still re-checked.
- */
-const RECHECK_MAX_CONTENT_AGE_MS = 2 * 365 * 24 * 60 * 60 * 1000; // ~2 years
-
-/**
- * Layer-1 freshness gate. True when the caller should skip the document entirely.
- * Skips an already-indexed URL when EITHER:
- *   - its content was published more than RECHECK_MAX_CONTENT_AGE_MS ago
- *     (settled history — never re-fetched once indexed), OR
- *   - it was last indexed within RECHECK_AFTER_MS (recently re-checked).
- * Missing, timestamp-less (legacy), or stale recent points return false so the
- * caller re-fetches. What the re-fetch then costs is decided one layer down: for
- * PDFs by the file fingerprint (before extraction), for HTML pages by the
- * DocumentProcessor content-hash diff (before embedding).
- */
-function isFreshlyIndexed(payload: Record<string, unknown> | null): boolean {
-  if (!payload) return false;
-
-  const publishedAt = payload.published_at as string | undefined;
-  if (publishedAt) {
-    const contentAge = Date.now() - new Date(publishedAt).getTime();
-    if (Number.isFinite(contentAge) && contentAge > RECHECK_MAX_CONTENT_AGE_MS) {
-      return true;
-    }
-  }
-
-  const indexedAt = payload.indexed_at as string | undefined;
-  if (!indexedAt) return false;
-  const age = Date.now() - new Date(indexedAt).getTime();
-  return Number.isFinite(age) && age >= 0 && age < RECHECK_AFTER_MS;
-}
 
 /**
  * Cold archive collection for documents past their source's maxAgeYears. Stale
@@ -324,7 +278,7 @@ export class LandesverbandScraper extends BaseScraper {
         const pdf = toProcess[i];
         try {
           const stored = forceUpdate ? null : await this.#storedPayload(pdf.url, targetCollection);
-          if (isFreshlyIndexed(stored)) {
+          if (isFreshlyIndexed(pdf.url, stored, Date.now())) {
             result.skipped++;
             recordExtractionSkip('freshly_indexed');
             continue;
@@ -656,7 +610,10 @@ export class LandesverbandScraper extends BaseScraper {
       const tasks = toProcess.map((url) => async (): Promise<void> => {
         const n = ++processed;
         try {
-          if (!forceUpdate && isFreshlyIndexed(await this.#storedPayload(url, targetCollection))) {
+          if (
+            !forceUpdate &&
+            isFreshlyIndexed(url, await this.#storedPayload(url, targetCollection), Date.now())
+          ) {
             result.skipped++;
             return;
           }
@@ -1197,11 +1154,12 @@ export class LandesverbandScraper extends BaseScraper {
    *
    * The DocumentProcessor age filter only rejects new content at ingestion.
    * Documents indexed before a source's window was tightened linger forever:
-   * isFreshlyIndexed never re-fetches settled history (published > 2y ago) and
-   * dedup only ever touches URLs that are re-encountered. Sachsen-Anhalt, for
-   * example, was scraped under the 10-year default before its 5-year cap was
-   * set, so 2016–2020 documents stayed in the live collection and surfaced in
-   * the notebook.
+   * isFreshlyIndexed re-fetches settled history (published > 2y ago) only once
+   * per RECHECK_SPREAD_DAYS, and dedup only ever touches URLs that are
+   * re-encountered — and a re-fetch past the cap ends in `too_old`, it does
+   * not remove the stored point. Sachsen-Anhalt, for example, was scraped
+   * under the 10-year default before its 5-year cap was set, so 2016–2020
+   * documents stayed in the live collection and surfaced in the notebook.
    *
    * Stale points (published_at older than maxAgeYears) are copied — vectors and
    * payload intact — into LANDESVERBAENDE_ARCHIVE_COLLECTION, then deleted from
