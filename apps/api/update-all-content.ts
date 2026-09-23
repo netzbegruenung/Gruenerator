@@ -16,7 +16,7 @@
  *   --force                  Force re-process even if already stored
  *   --recent                 Incremental: only discover the newest items (WP REST
  *                             modified_after window; first pages of HTML listings).
- *                             For hourly runs; the nightly run omits it for a full walk.
+ *                             For the 3-hourly LV runs; the nightly run omits it for a full walk.
  *   --dry-run                Preview without storing (only supported by landesverbaende)
  *   --concurrency <n>        Max parallel source groups (default: 2)
  *   --prune-max-share <n>    KommunalWiki only: raise the cap on removing points
@@ -70,7 +70,7 @@ interface CliArgs {
   landesverband?: string;
   force: boolean;
   dryRun: boolean;
-  /** Incremental run: discover only the newest items (hourly). Off = full walk (nightly). */
+  /** Incremental run: discover only the newest items (3-hourly LV runs). Off = full walk (nightly). */
   recent: boolean;
   concurrency: number;
   noEmail: boolean;

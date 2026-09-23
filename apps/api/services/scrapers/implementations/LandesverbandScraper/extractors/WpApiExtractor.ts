@@ -48,7 +48,7 @@ export class WpApiExtractor {
     }
     const perPage = 100;
     // Incremental window: restrict to posts changed since `modifiedAfter`, newest
-    // first, so an hourly run pulls the handful of recent edits instead of the
+    // first, so an incremental run pulls the handful of recent edits instead of the
     // whole category. Catches edits to existing posts, not just new ones.
     let recentQuery = '';
     if (modifiedAfter) {

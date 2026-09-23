@@ -6,7 +6,7 @@
  * existing NextcloudApiClient (WebDAV over public.php/webdav, share token as
  * Basic-auth username) — no new auth code. The etag returned by the WebDAV
  * PROPFIND is the dedup key the caller compares against the stored payload so an
- * unchanged file is skipped BEFORE the expensive download + OCR (i.e. hourly
+ * unchanged file is skipped BEFORE the expensive download + OCR (i.e. incremental
  * runs never re-OCR a file that hasn't changed).
  *
  * Not LV-specific: any scraper/notebook can call `collectWolkeShareFiles` +

@@ -158,7 +158,7 @@ export interface LandesverbandScrapeOptions {
   /**
    * Incremental discovery: only surface the newest items — WP REST modified_after
    * window, and the first pages of HTML listings — instead of walking the full
-   * archive. For hourly runs; the nightly run leaves it off for a complete walk.
+   * archive. For the 3-hourly runs; the nightly run leaves it off for a complete walk.
    */
   recent?: boolean | undefined;
 }

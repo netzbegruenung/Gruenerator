@@ -227,7 +227,7 @@ export class LandesverbandScraper extends BaseScraper {
     options: LandesverbandScrapeOptions = {}
   ): Promise<ContentPathResult> {
     const { forceUpdate = false, maxDocuments = null, dryRun = false, recent = false } = options;
-    // Incremental hourly window (see --recent): WP REST discovery gets a
+    // Incremental window (see --recent): WP REST discovery gets a
     // modified_after filter; HTML listings are capped to their first pages. The
     // nightly run leaves `recent` off for a full walk. A 2-day lookback is
     // stateless and gap-proof across the overnight pause, and re-seeing an
@@ -252,8 +252,8 @@ export class LandesverbandScraper extends BaseScraper {
 
     this.log(`\nScraping ${source.name} - ${contentPath.type} from ${contentPath.path}`);
 
-    // Incremental hourly runs skip heavy PDF/OCR/Wolke paths (recentSkip) — those
-    // only run in the nightly full crawl, so PDFs aren't re-fetched every hour.
+    // Incremental runs skip heavy PDF/OCR/Wolke paths (recentSkip) — those
+    // only run in the nightly full crawl, so PDFs aren't re-fetched on every run.
     if (recent && contentPath.recentSkip) {
       this.log(`Incremental run: skipping ${contentPath.type} (${contentPath.path}) — recentSkip`);
       return result;
