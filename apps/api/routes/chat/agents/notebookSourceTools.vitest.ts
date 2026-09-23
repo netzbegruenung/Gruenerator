@@ -559,11 +559,13 @@ describe('find', () => {
   const marked = '## Seite 2\n' + 'x'.repeat(13) + 'Der\n## Seite 3\nRadweg kommt 2027.';
 
   it('reports the last page a passage reaches from the markers inside its span', async () => {
-    const { run } = makeCtx({ searchResults, markdownById: { d1: marked } });
+    const { run, registered } = makeCtx({ searchResults, markdownById: { d1: marked } });
     const out = await run({ action: 'find', query: 'Radweg' });
     expect(out.passages).toEqual([
       expect.objectContaining({ pageNumber: 2, pageTo: 3, charStart: 24, charEnd: 46 }),
     ]);
+    // Die Quellenzeile des Schreibers liest die Spanne aus dem Registereintrag.
+    expect(registered[0]!.results[0]).toMatchObject({ pageNumber: 2, pageTo: 3 });
   });
 
   it('omits pageTo when no page content starts inside the passage', async () => {
