@@ -53,6 +53,7 @@ import {
 } from '../../../services/notebook/systemNotebookSources.js';
 import { createLogger } from '../../../utils/logger.js';
 import { checkNotebookAccess } from '../../notebook/notebookAccess.js';
+import { getRecentToolSteps } from '../services/threadPersistenceService.js';
 
 import { pickRange } from './notebookSourceRange.js';
 import {
@@ -87,6 +88,7 @@ import type { SearchResult } from '../../../agents/langgraph/ChatGraph/types.js'
 import type { NotebookCollection } from '../../../database/services/NotebookQdrantHelper.js';
 import type { QdrantFilter } from '../../../database/services/QdrantService/types.js';
 import type { StatsNlp } from '../../../services/notebook/sourceStats.js';
+import type { PersistedStep } from '../services/agenticLoop/types.js';
 
 const log = createLogger('notebookSourceTools');
 
@@ -97,6 +99,8 @@ export type NotebookSourceToolDeps = Omit<NotebookSourcesDeps, 'documentService'
   scrollPage: SystemNotebookSourcesDeps['scrollPage'];
   documentService: NotebookSourcesDeps['documentService'] &
     SystemNotebookSourcesDeps['documentService'];
+  /** Die letzten Werkzeugschritte des Threads — für das Notebook des vorigen Turns. */
+  recentSteps: (threadId: string) => Promise<PersistedStep[]>;
 };
 
 /** `PersonalToolCtx` plus optionale Fakes — der Katalog reicht den Ctx ohne `deps`. */
@@ -105,7 +109,18 @@ export type NotebookSourceToolCtx = PersonalToolCtx & {
 };
 
 const NO_NOTEBOOK =
-  'Kein Notebook ausgewählt — gib notebookId an (aus notebooks action="list", Feld ref).';
+  'Kein Notebook ausgewählt — gib notebookId an: bei eigenen Notebooks den ref aus notebooks action="list", bei System-Notebooks den Schlüssel (z. B. berlin, deutschland).';
+const TOOL_NAME = 'notebook_quellen';
+/** Die Filterfelder, die ein Modell gern eine Ebene zu hoch setzt. */
+const FILTER_KEYS = [
+  'sourceType',
+  'status',
+  'titleContains',
+  'tag',
+  'category',
+  'dateFrom',
+  'dateTo',
+] as const;
 const EXCERPT_CHARS = 300;
 
 /** Fester Text je Aktion, wenn ein Dienst ausfällt — nie „nichts gefunden". */
@@ -129,7 +144,33 @@ function resolveDeps(partial: Partial<NotebookSourceToolDeps> | undefined): Note
     rerank: partial?.rerank ?? rerankNotebookResults,
     nlp: partial?.nlp ?? { checkHealth, textStatsBatched },
     scrollPage: partial?.scrollPage ?? qdrantScrollPage,
+    recentSteps: partial?.recentSteps ?? ((threadId) => getRecentToolSteps(threadId)),
   };
+}
+
+/**
+ * Filterfelder auf oberster Ebene gehören in `filter`. Das Schema lässt
+ * unbekannte Felder durch (`passthrough`), damit sie hier ankommen — sonst
+ * striche Zod `{titleContains: …}` still, und `list` lieferte die ungefilterten
+ * 20 neuesten Quellen, als wäre gefiltert worden (Testserver 23.09.2026).
+ * Aus demselben Grund wird `query` bei `list` zum Titelfilter: `list` kennt
+ * keine Suche, und ein übergangenes Suchwort sähe aus wie „nichts gefunden".
+ */
+export function normalizeArgs<T extends { action: string; query?: string | undefined }>(
+  args: T
+): T {
+  const nested = ((args as { filter?: unknown }).filter ?? {}) as Record<string, unknown>;
+  const lifted: Record<string, string> = {};
+  for (const key of FILTER_KEYS) {
+    const top = (args as Record<string, unknown>)[key];
+    if (nested[key] === undefined && typeof top === 'string' && top.trim()) lifted[key] = top;
+  }
+  const query = args.query?.trim();
+  if (args.action === 'list' && query && nested.titleContains === undefined) {
+    lifted.titleContains ??= query;
+  }
+  if (Object.keys(lifted).length === 0) return args;
+  return { ...args, filter: { ...nested, ...lifted } };
 }
 
 /** Eine Scroll-Seite samt Folge-Offset — `scrollDocuments` liefert den Offset nicht. */
@@ -184,6 +225,81 @@ const filterSchema = z.object({
   dateTo: z.string().optional().describe('System-Notebooks: bis Datum (JJJJ-MM-TT)'),
 });
 
+const inputSchema = z
+  .object({
+    action: z.enum([...READ_ACTIONS, ...WRITE_ACTIONS]),
+    notebookId: z
+      .string()
+      .optional()
+      .describe(
+        'Notebook-ID oder Sammlungsschlüssel eines System-Notebooks; ohne Angabe das ausgewählte'
+      ),
+    sourceId: z
+      .string()
+      .optional()
+      .describe('Quelle aus list (ref) — outline, read; bei find, grep, stats, cite optional'),
+    sortBy: z
+      .enum(['name', 'date', 'pages', 'size', 'words', 'status', 'type'])
+      .optional()
+      .describe('list'),
+    order: z.enum(['asc', 'desc']).optional().describe('list'),
+    filter: filterSchema
+      .optional()
+      .describe('list; bei System-Notebooks auch find, rank, grep, stats, cite (z. B. nur 2025)'),
+    offset: z.number().int().min(0).optional().describe('list'),
+    limit: z
+      .number()
+      .int()
+      .min(1)
+      .max(50)
+      .optional()
+      .describe('list, rank (bis 50), find (bis 20)'),
+    abschnitt: z
+      .object({
+        von: z.number().int().min(0),
+        zeichen: z.number().int().min(200).optional(),
+      })
+      .optional()
+      .describe('read: ab Zeichen von'),
+    seite: z.number().int().min(1).optional().describe('read: Seitenzahl'),
+    section: z.number().int().min(0).optional().describe('read: section aus outline'),
+    chunks: z
+      .object({ from: z.number().int().min(0), to: z.number().int().min(0) })
+      .optional()
+      .describe('read: Chunk-Bereich'),
+    query: z.string().optional().describe('find, rank (relevance, term): wonach gesucht wird'),
+    mode: z.enum(['hybrid', 'vector', 'text']).default('hybrid').describe('find'),
+    rerank: z.boolean().default(false).describe('find: Passagen neu bewerten (langsamer)'),
+    phrase: z.string().min(2).optional().describe('grep: Wort oder Wortfolge'),
+    caseSensitive: z
+      .boolean()
+      .optional()
+      .describe('grep: Groß/klein beachten (dann zählen auch Akzente exakt)'),
+    contexts: z.number().int().min(0).max(5).optional().describe('grep: Fundstellen je Quelle'),
+    lemmas: z.boolean().optional().describe('stats: häufigste Lemmata'),
+    lemmaOf: z.array(z.string()).optional().describe('stats: Wortformen dieser Lemmata'),
+    topN: z.number().int().min(5).max(100).optional().describe('stats: Anzahl Lemmata'),
+    by: z.enum(RANK_BY).optional().describe('rank: Kriterium'),
+    zitat: z.string().min(8).optional().describe('cite: wörtliches Zitat'),
+    claim: z.string().min(8).optional().describe('cite: Behauptung'),
+    sourceIds: z
+      .array(z.string())
+      .min(1)
+      .max(50)
+      .optional()
+      .describe('remove, move, copy: Quellen aus list (ref)'),
+    targetNotebookId: z.string().optional().describe('move, copy: Ziel-Notebook'),
+    title: z.string().min(1).max(200).optional().describe('rename, add_note; add_url optional'),
+    add: z.array(z.string()).optional().describe('tag: hinzufügen'),
+    remove: z.array(z.string()).optional().describe('tag: entfernen'),
+    text: z.string().min(20).max(200_000).optional().describe('add_note: Inhalt'),
+    url: z.string().optional().describe('add_url: eine öffentliche http(s)-Seite'),
+  })
+  // Unbekannte Felder durchlassen — `normalizeArgs` hebt verrutschte Filter an ihren Platz.
+  .passthrough();
+
+type ToolArgs = z.infer<typeof inputSchema>;
+
 export function makeNotebookSourcesTool(ctx: NotebookSourceToolCtx): Tool {
   const { state, sourceRegistry } = ctx;
   const deps = resolveDeps(ctx.deps);
@@ -193,6 +309,45 @@ export function makeNotebookSourcesTool(ctx: NotebookSourceToolCtx): Tool {
     | { kind: 'user'; collection: NotebookCollection }
     | { kind: 'system'; collection: SystemCollection }
     | { error: string };
+
+  /**
+   * Die notebookId des letzten erfolgreichen `notebook_quellen`-Aufrufs in
+   * diesem Thread. Ein Folgeturn („wie oft kommt X vor?") nennt das Notebook
+   * nicht mehr, und kleine Planer lassen die id dann weg, obwohl sie im Replay
+   * steht. Ein Ausfall hier ist kein Fehler des Aufrufs — dann bleibt es bei
+   * „kein Notebook".
+   */
+  async function notebookFromThread(): Promise<string | null> {
+    if (!ctx.threadId) return null;
+    try {
+      const steps = await deps.recentSteps(ctx.threadId);
+      for (let i = steps.length - 1; i >= 0; i--) {
+        const step = steps[i]!;
+        const id = step.args.notebookId;
+        if (step.toolName === TOOL_NAME && step.ok !== false && typeof id === 'string' && id) {
+          return id;
+        }
+      }
+    } catch (err) {
+      log.warn('[notebook_quellen] thread notebook lookup failed', err);
+    }
+    return null;
+  }
+
+  /**
+   * Nur für Leseaktionen: ohne id und ohne Auswahl das Notebook, mit dem der
+   * Thread zuletzt gearbeitet hat. `from: 'thread'` landet als Hinweis im
+   * Ergebnis, damit die Antwort sagt, welches Notebook gemeint war.
+   */
+  async function resolveReadNotebook(
+    explicit: string | undefined
+  ): Promise<{ target: Target; from: 'thread' | null }> {
+    const target = await resolveNotebook(explicit);
+    if (!('error' in target) || target.error !== NO_NOTEBOOK) return { target, from: null };
+    const previous = await notebookFromThread();
+    if (!previous) return { target, from: null };
+    return { target: await resolveNotebook(previous), from: 'thread' };
+  }
 
   /**
    * Ausdrückliche id, sonst das erste im Chat gewählte eigene Notebook, sonst
@@ -250,78 +405,14 @@ NICHT für: Notebooks auflisten/anlegen/teilen (dafür 'notebooks'), die grüne 
 
 NUTZE FÜR (direkt, umkehrbar): Quellen aus dem Notebook entfernen (remove — sie bleiben in der Bibliothek), in ein anderes Notebook verschieben oder kopieren (move/copy mit targetNotebookId), eigene Uploads umbenennen (rename) oder verschlagworten (tag), eine Notiz anlegen (add_note) und EINE Webseite importieren (add_url — eine Seite, keine ganze Website; erzeugt Einbettungen, kostet).
 
-Die sourceId stammt aus list (Feld ref) — rate sie nie. Ohne notebookId gilt das im Chat ausgewählte Notebook.
-System-Notebooks: notebookId ist der Sammlungsschlüssel aus notebooks action="list" scope="system" (z. B. deutschland, hamburg); die sourceId ist dort die URL der Quelle. Nur lesen.`,
-    inputSchema: z.object({
-      action: z.enum([...READ_ACTIONS, ...WRITE_ACTIONS]),
-      notebookId: z
-        .string()
-        .optional()
-        .describe(
-          'Notebook-ID oder Sammlungsschlüssel eines System-Notebooks; ohne Angabe das ausgewählte'
-        ),
-      sourceId: z
-        .string()
-        .optional()
-        .describe('Quelle aus list (ref) — outline, read; bei find, grep, stats, cite optional'),
-      sortBy: z
-        .enum(['name', 'date', 'pages', 'size', 'words', 'status', 'type'])
-        .optional()
-        .describe('list'),
-      order: z.enum(['asc', 'desc']).optional().describe('list'),
-      filter: filterSchema.optional().describe('list'),
-      offset: z.number().int().min(0).optional().describe('list'),
-      limit: z
-        .number()
-        .int()
-        .min(1)
-        .max(50)
-        .optional()
-        .describe('list, rank (bis 50), find (bis 20)'),
-      abschnitt: z
-        .object({
-          von: z.number().int().min(0),
-          zeichen: z.number().int().min(200).optional(),
-        })
-        .optional()
-        .describe('read: ab Zeichen von'),
-      seite: z.number().int().min(1).optional().describe('read: Seitenzahl'),
-      section: z.number().int().min(0).optional().describe('read: section aus outline'),
-      chunks: z
-        .object({ from: z.number().int().min(0), to: z.number().int().min(0) })
-        .optional()
-        .describe('read: Chunk-Bereich'),
-      query: z.string().optional().describe('find, rank (relevance, term): wonach gesucht wird'),
-      mode: z.enum(['hybrid', 'vector', 'text']).default('hybrid').describe('find'),
-      rerank: z.boolean().default(false).describe('find: Passagen neu bewerten (langsamer)'),
-      phrase: z.string().min(2).optional().describe('grep: Wort oder Wortfolge'),
-      caseSensitive: z
-        .boolean()
-        .optional()
-        .describe('grep: Groß/klein beachten (dann zählen auch Akzente exakt)'),
-      contexts: z.number().int().min(0).max(5).optional().describe('grep: Fundstellen je Quelle'),
-      lemmas: z.boolean().optional().describe('stats: häufigste Lemmata'),
-      lemmaOf: z.array(z.string()).optional().describe('stats: Wortformen dieser Lemmata'),
-      topN: z.number().int().min(5).max(100).optional().describe('stats: Anzahl Lemmata'),
-      by: z.enum(RANK_BY).optional().describe('rank: Kriterium'),
-      zitat: z.string().min(8).optional().describe('cite: wörtliches Zitat'),
-      claim: z.string().min(8).optional().describe('cite: Behauptung'),
-      sourceIds: z
-        .array(z.string())
-        .min(1)
-        .max(50)
-        .optional()
-        .describe('remove, move, copy: Quellen aus list (ref)'),
-      targetNotebookId: z.string().optional().describe('move, copy: Ziel-Notebook'),
-      title: z.string().min(1).max(200).optional().describe('rename, add_note; add_url optional'),
-      add: z.array(z.string()).optional().describe('tag: hinzufügen'),
-      remove: z.array(z.string()).optional().describe('tag: entfernen'),
-      text: z.string().min(20).max(200_000).optional().describe('add_note: Inhalt'),
-      url: z.string().optional().describe('add_url: eine öffentliche http(s)-Seite'),
-    }),
-    execute: async (args) => {
+Die sourceId stammt aus list (Feld ref) — rate sie nie. Eine Quelle nach Namen suchen: list mit filter.titleContains; nach Inhalt: find.
+Ohne notebookId gilt das im Chat ausgewählte Notebook, sonst das zuletzt in diesem Chat genutzte.
+System-Notebooks: notebookId ist der Sammlungsschlüssel aus notebooks action="list" scope="system" (z. B. deutschland, hamburg, berlin); die sourceId ist dort die URL der Quelle. list nennt die Kategorien (categories) für filter.category; filter.dateFrom/dateTo grenzen auch find, rank, grep und stats ein. Nur lesen.`,
+    inputSchema,
+    execute: async (rawArgs) => {
       const userId = requireUserId(state);
       if (!userId) return { error: NO_SESSION };
+      const args = normalizeArgs(rawArgs);
       // `return await` in allen Zweigen: ohne `await` liefe eine abgelehnte
       // Zusage am `catch` vorbei, samt Rohtext bis zum Modell.
       try {
@@ -331,44 +422,15 @@ System-Notebooks: notebookId ist der Sammlungsschlüssel aus notebooks action="l
             { state, sourceRegistry, userId, deps: writeDeps, resolveNotebook: resolveOwnNotebook }
           );
         }
-        const target = await resolveNotebook(args.notebookId);
+        const { target, from } = await resolveReadNotebook(args.notebookId);
         if ('error' in target) return target;
-        if (target.kind === 'system') {
-          // Vor jeder Aktion: sobald schreibende Aktionen im Enum stehen,
-          // erreichen sie ein System-Notebook nie.
-          if (!isReadAction(args.action)) return { error: SYSTEM_READ_ONLY };
-          return await runSystemAction(args, {
-            collection: target.collection,
-            deps,
-            sourceRegistry,
-          });
-        }
-        const { collection } = target;
-
-        if (args.action === 'list') {
-          if (!(await canRead(collection.id, userId))) return { error: NOT_FOUND };
-          return await listSources(collection, args);
-        }
-
-        if (args.action === 'find') return await find(collection, userId, args);
-        if (isScanReadAction(args.action)) {
-          return await runScanReadAction(args.action, args, {
-            collection,
-            userId,
-            deps,
-            sourceRegistry,
-          });
-        }
-
-        if (!args.sourceId)
-          return { error: `${args.action} braucht sourceId (aus list, Feld ref).` };
-        const source = await resolveSourceInNotebook(
-          { collectionId: collection.id, sourceId: args.sourceId, userId },
-          deps
-        );
-        if (!source.ok) return { error: source.error };
-        if (args.action === 'outline') return await outline(collection, args.sourceId, source);
-        return await read(collection, args.sourceId, source, args);
+        const result = await runRead(target, args, userId);
+        if (from !== 'thread' || 'error' in result) return result;
+        const name = target.collection.name;
+        return {
+          ...result,
+          notebookFrom: `Ohne notebookId: das zuletzt in diesem Chat genutzte Notebook „${name}".`,
+        };
       } catch (err) {
         // Der Rohtext bleibt im Log: englische Interna („Too many document
         // IDs") sind keine Auskunft für das Modell.
@@ -381,6 +443,48 @@ System-Notebooks: notebookId ist der Sammlungsschlüssel aus notebooks action="l
       }
     },
   });
+
+  async function runRead(
+    target: Exclude<Target, { error: string }>,
+    args: ToolArgs,
+    userId: string
+  ): Promise<Record<string, unknown>> {
+    if (target.kind === 'system') {
+      // Vor jeder Aktion: sobald schreibende Aktionen im Enum stehen,
+      // erreichen sie ein System-Notebook nie.
+      if (!isReadAction(args.action)) return { error: SYSTEM_READ_ONLY };
+      return await runSystemAction(args, {
+        collection: target.collection,
+        deps,
+        sourceRegistry,
+      });
+    }
+    const { collection } = target;
+
+    if (args.action === 'list') {
+      if (!(await canRead(collection.id, userId))) return { error: NOT_FOUND };
+      return await listSources(collection, args);
+    }
+
+    if (args.action === 'find') return await find(collection, userId, args);
+    if (isScanReadAction(args.action)) {
+      return await runScanReadAction(args.action, args, {
+        collection,
+        userId,
+        deps,
+        sourceRegistry,
+      });
+    }
+
+    if (!args.sourceId) return { error: `${args.action} braucht sourceId (aus list, Feld ref).` };
+    const source = await resolveSourceInNotebook(
+      { collectionId: collection.id, sourceId: args.sourceId, userId },
+      deps
+    );
+    if (!source.ok) return { error: source.error };
+    if (args.action === 'outline') return await outline(collection, args.sourceId, source);
+    return await read(collection, args.sourceId, source, args);
+  }
 
   async function canRead(collectionId: string, userId: string): Promise<boolean> {
     const access = await deps.access(collectionId, userId);
@@ -421,6 +525,7 @@ System-Notebooks: notebookId ist der Sammlungsschlüssel aus notebooks action="l
       offset: args.offset ?? 0,
       limit: Math.min(50, args.limit ?? 20),
       sortBy: args.sortBy ?? 'date',
+      ...(args.filter ? { filter: args.filter } : {}),
       results,
     };
   }

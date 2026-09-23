@@ -14,12 +14,17 @@ import {
 } from '../../../services/notebook/__fixtures__/fakeSystemCollection.js';
 import { SYSTEM_READ_ONLY } from '../../../services/notebook/systemNotebookSources.js';
 
-import { makeNotebookSourcesTool, type NotebookSourceToolDeps } from './notebookSourceTools.js';
+import {
+  makeNotebookSourcesTool,
+  normalizeArgs,
+  type NotebookSourceToolDeps,
+} from './notebookSourceTools.js';
 
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { DocumentResult } from '../../../services/BaseSearchService/types.js';
 import type { StatsNlp } from '../../../services/notebook/sourceStats.js';
 import type { SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
+import type { PersistedStep } from '../services/agenticLoop/types.js';
 import type { SSEWriter } from '../services/sseHelpers.js';
 
 type ToolResult = Record<string, any>;
@@ -61,6 +66,7 @@ function makeCtx(
     locale?: 'de-DE' | 'de-AT';
     searchResults?: DocumentResult[];
     nlp?: StatsNlp;
+    recentSteps?: PersistedStep[];
   } = {}
 ) {
   const registered: Array<Record<string, any>> = [];
@@ -93,6 +99,7 @@ function makeCtx(
     rerank: system.rerank,
     scrollPage: system.scrollPage,
     documentService: system.deps.documentService,
+    recentSteps: vi.fn(async () => opts.recentSteps ?? []),
     ...(opts.nlp ? { nlp: opts.nlp } : {}),
   } as unknown as NotebookSourceToolDeps;
   const tool = makeNotebookSourcesTool({
@@ -313,5 +320,117 @@ describe('grep, stats, rank, cite', () => {
     const { run } = makeCtx();
     const out = await run({ action: 'cite', notebookId: 'hamburg', zitat: 'Berlin Wärmepumpe.' });
     expect(out).toMatchObject({ found: false, exhaustive: true, candidates: [] });
+  });
+});
+
+// Befunde vom Testserver, 23.09.2026 — das Berlin-Notebook mit ~1.500 Quellen.
+// Dieselben Fragen gegen die echte Qdrant: `notebookSourceTools.live.vitest.ts`.
+describe('live findings 23.09.2026', () => {
+  const step = (args: Record<string, unknown>, ok?: false): PersistedStep => ({
+    toolCallId: `c${Math.random()}`,
+    toolName: 'notebook_quellen',
+    args,
+    result: {},
+    ...(ok === false ? { ok } : {}),
+  });
+
+  it('moves filter fields set one level too high into filter, and list query into titleContains', () => {
+    expect(normalizeArgs({ action: 'list', titleContains: 'Hafen' })).toMatchObject({
+      filter: { titleContains: 'Hafen' },
+    });
+    expect(normalizeArgs({ action: 'list', query: 'Hafen' })).toMatchObject({
+      filter: { titleContains: 'Hafen' },
+    });
+    expect(
+      normalizeArgs({ action: 'list', dateFrom: '2026-01-01', filter: { dateFrom: '2025-01-01' } })
+    ).toMatchObject({ filter: { dateFrom: '2025-01-01' } });
+    const find = { action: 'find', query: 'Hafen' };
+    expect(normalizeArgs(find)).toBe(find);
+  });
+
+  it('list filters a flat titleContains and says which filter it applied', async () => {
+    const { run } = makeCtx();
+    const out = await run({ action: 'list', notebookId: 'hamburg', titleContains: 'hafen' });
+    expect(out.results.map((r: ToolResult) => r.ref)).toEqual([HH_B]);
+    expect(out.filter).toEqual({ titleContains: 'hafen' });
+  });
+
+  it('falls back to the notebook of the last successful call in the thread', async () => {
+    const { run } = makeCtx({
+      recentSteps: [step({ notebookId: 'hamburg' }), step({ notebookId: 'berlin' }, false)],
+    });
+    const out = await run({ action: 'list' });
+    expect(out.collection).toBe('hamburg');
+    expect(out.notebookFrom).toMatch(/Hamburg|hamburg/);
+  });
+
+  it('never falls back for write actions', async () => {
+    const { run } = makeCtx({ recentSteps: [step({ notebookId: 'hamburg' })] });
+    const out = await run({ action: 'rename', sourceId: HH_A, title: 'Neu' });
+    expect(out.error).toMatch(/notebookId/);
+  });
+
+  it('keeps "no notebook" when the thread has none', async () => {
+    const { run } = makeCtx();
+    expect((await run({ action: 'list' })).error).toMatch(/notebookId/);
+  });
+
+  it('answers a guessed URL with the sources it may have meant', async () => {
+    const { run } = makeCtx();
+    const out = await run({
+      action: 'read',
+      notebookId: 'hamburg',
+      sourceId: 'https://gruene-hamburg.de/hafen-2026',
+    });
+    expect(out.error).toMatch(/Meintest du/);
+    expect(out.suggestions).toEqual([{ title: 'Hafen', ref: HH_B, date: '2026-01-15' }]);
+  });
+
+  it('tells the model to search instead of guess when nothing resembles the id', async () => {
+    const { run } = makeCtx();
+    const out = await run({ action: 'read', notebookId: 'hamburg', sourceId: 'Wahlprogramm' });
+    expect(out.error).toMatch(/list \(filter.titleContains\) oder find/);
+    expect(out.suggestions).toBeUndefined();
+  });
+
+  it('scopes find and rank by date to the URLs inside the range, before the limit', async () => {
+    const { run, system } = makeCtx({
+      searchResults: [fakeSearchDoc(HH_A, 'Radverkehr', 0.9, [{ chunk_index: 0, text: 'x' }])],
+    });
+    const filter = { dateFrom: '2025-01-01', dateTo: '2025-12-31' };
+    const found = await run({ action: 'find', notebookId: 'hamburg', query: 'Rad', filter });
+    expect(found.filter).toEqual(filter);
+    await run({ action: 'rank', notebookId: 'hamburg', by: 'relevance', query: 'Rad', filter });
+    for (const call of system.search.mock.calls as unknown as Array<[Record<string, any>]>) {
+      expect(call[0].options.additionalFilter.must).toContainEqual({
+        key: 'source_url',
+        match: { any: [HH_A] },
+      });
+    }
+  });
+
+  it('says so when no source matches the filter, without searching', async () => {
+    const { run, system } = makeCtx();
+    const out = await run({
+      action: 'find',
+      notebookId: 'hamburg',
+      query: 'Rad',
+      filter: { dateFrom: '2030-01-01' },
+    });
+    expect(out.error).toMatch(/Keine Quelle passt zu filter/);
+    expect(system.search).not.toHaveBeenCalled();
+  });
+
+  it('grep over a narrow filter reads only those sources', async () => {
+    const { run } = makeCtx();
+    const out = await run({
+      action: 'grep',
+      notebookId: 'hamburg',
+      phrase: 'Wärmepumpe',
+      filter: { dateTo: '2025-12-31' },
+    });
+    expect(out.sourcesScanned).toBe(1);
+    expect(out.totalHits).toBe(2);
+    expect(out.exhaustive).toBe(true);
   });
 });
