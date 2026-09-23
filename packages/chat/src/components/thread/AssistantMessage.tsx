@@ -19,6 +19,7 @@ import { cn } from '../../lib/utils';
 import { useUserAgentsRegistry } from '../../stores/userAgentsRegistry';
 import { HiddenReasoning, HiddenReasoningGroup } from '../assistant-ui/reasoning';
 import { GrueneratorHomeIconLoading } from '../icons';
+import { AnswerModeChip } from '../message-parts/AnswerModeChip';
 import { ArtifactCard } from '../message-parts/ArtifactCard';
 import { BahnCard } from '../message-parts/BahnCard';
 import { ChatChart } from '../message-parts/ChatChart';
@@ -284,6 +285,13 @@ export const AssistantMessage = memo(function AssistantMessage() {
               title={messageAgent.title}
               backgroundColor={messageAgent.backgroundColor}
             />
+          )}
+          {/* Notebook answers: which mode ran — live from `answer_mode`, and
+              after a reload from the persisted row. Older answers carry none. */}
+          {custom?.answerMode && (
+            <div>
+              <AnswerModeChip mode={custom.answerMode} reason={custom.answerModeReason ?? null} />
+            </div>
           )}
 
           <StreamingStatusLine

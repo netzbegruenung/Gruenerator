@@ -8,7 +8,11 @@ import { getAvailableClientTools } from '../clientTools';
 import type { GrueneratorAdapterConfig } from './types';
 import type { parseAllMentions } from '../../lib/mentionParser';
 import type { ThreadMode } from '../../stores/chatStore';
-import type { CurrentBoard, CurrentCanvas } from '@gruenerator/contracts';
+import type {
+  CurrentBoard,
+  CurrentCanvas,
+  NotebookResolvedAnswerMode,
+} from '@gruenerator/contracts';
 
 export type FormattedMessagePart =
   | { type: 'text'; text: string }
@@ -19,6 +23,9 @@ export interface FormattedMessage {
   id: string;
   role: string;
   parts: FormattedMessagePart[];
+  /** Notebook answers only: the mode the answer ran in, so the server's auto
+   *  guard can carry it into a follow-up question. */
+  answerMode?: NotebookResolvedAnswerMode;
 }
 
 export interface ExtractedAttachment {
@@ -101,13 +108,14 @@ const lastUserText = (formattedMessages: FormattedMessage[]): string =>
  */
 const toContentMessages = (
   formattedMessages: FormattedMessage[]
-): Array<{ role: string; content: string }> =>
+): Array<{ role: string; content: string; answerMode?: NotebookResolvedAnswerMode }> =>
   formattedMessages.map((m) => ({
     role: m.role,
     content: m.parts
       .filter((p): p is { type: 'text'; text: string } => p.type === 'text')
       .map((p) => p.text)
       .join(''),
+    ...(m.answerMode ? { answerMode: m.answerMode } : {}),
   }));
 
 const EDITOR_EDIT_TOOL_KEY_SET: ReadonlySet<string> = new Set(EDITOR_EDIT_TOOL_KEYS);
@@ -240,6 +248,9 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
         ? { filters: notebookFilters }
         : {}),
       mode: config.notebookMode || DEFAULT_NOTEBOOK_DEPTH,
+      // Omitted when unset: the server reads a missing field as `chat`, the
+      // behaviour every request had before answer modes existed.
+      ...(config.notebookAnswerMode ? { answerMode: config.notebookAnswerMode } : {}),
       threadId: config.threadId,
     };
   }

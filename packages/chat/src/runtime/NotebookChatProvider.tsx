@@ -6,7 +6,7 @@ import {
   useLocalRuntime,
   type ThreadMessageLike,
 } from '@assistant-ui/react';
-import { type NotebookDepth } from '@gruenerator/contracts';
+import { type NotebookAnswerMode, type NotebookDepth } from '@gruenerator/contracts';
 import { VoxtralDictationAdapter } from '@gruenerator/voice';
 import { type ReactNode, useMemo, useCallback, useRef, useState } from 'react';
 
@@ -51,6 +51,8 @@ export interface NotebookChatProviderProps {
   onComplete?: (metadata: NotebookMessageMetadata) => void;
   onThreadCreated?: (threadId: string) => void;
   mode?: NotebookDepth;
+  /** Answer mode sent with each request; omitted ⇒ the server answers in chat mode. */
+  answerMode?: NotebookAnswerMode;
   endpoint?: string;
   documentIds?: string[];
   threadId?: string | null;
@@ -81,6 +83,7 @@ function NotebookChatProviderInner({
   onComplete,
   onThreadCreated,
   mode,
+  answerMode,
   endpoint,
   documentIds,
   threadId: initialThreadId,
@@ -108,6 +111,8 @@ function NotebookChatProviderInner({
   extraParamsRef.current = extraParams;
   const modeRef = useRef(mode);
   modeRef.current = mode;
+  const answerModeRef = useRef(answerMode);
+  answerModeRef.current = answerMode;
   const endpointRef = useRef(endpoint);
   endpointRef.current = endpoint;
   const documentIdsRef = useRef(documentIds);
@@ -143,6 +148,7 @@ function NotebookChatProviderInner({
       extraParams: extraParamsRef.current,
       getExtraParams: stableGetExtraParams,
       mode: modeRef.current,
+      ...(answerModeRef.current ? { answerMode: answerModeRef.current } : {}),
       endpoint: endpointRef.current,
       documentIds: documentIdsRef.current,
       threadId: threadIdRef.current,
