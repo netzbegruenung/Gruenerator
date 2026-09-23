@@ -10,6 +10,7 @@
  */
 import { describe, it, expect } from 'vitest';
 
+import { AUTO_LANE_IDS } from '../agents/autoPolicy.js';
 import { AVAILABLE_MODELS, getModelConfig } from '../agents/providers.js';
 
 import { resolveLaneContextFloor } from './laneContextFloor.js';
@@ -32,12 +33,19 @@ describe('resolveLaneContextFloor', () => {
     }
   });
 
-  it('nimmt für auto den Boden über alle Lanes', () => {
-    const perLane = Object.keys(AVAILABLE_MODELS).map((id) => resolveLaneContextFloor(id) ?? 0);
+  it('nimmt für auto den Boden über die Lanes, die die Policy wählen kann', () => {
+    const perLane = AUTO_LANE_IDS.map((id) => resolveLaneContextFloor(id) ?? 0);
     const expected = Math.min(...perLane);
     for (const id of [undefined, null, 'auto', 'mistral']) {
       expect(resolveLaneContextFloor(id), String(id)).toBe(expected);
     }
+  });
+
+  it('lässt sich nicht von einer Lane drücken, die die Policy nie wählt', () => {
+    // Melious' gemessene 44k (gemmaHosts.ts) sind registriert, aber kein
+    // auto-Ziel. Über alle Einträge gerechnet fiele der Boden darauf.
+    const smallest = Math.min(...Object.values(AVAILABLE_MODELS).map((c) => c.contextWindow));
+    expect(smallest).toBeLessThan(resolveLaneContextFloor('auto')!);
   });
 
   it('hebt das alte 32k-Standardfenster tatsächlich an', () => {
