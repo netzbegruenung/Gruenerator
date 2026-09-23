@@ -433,6 +433,7 @@ export class LandesverbandScraper extends BaseScraper {
       try {
         collected = await collectWolkeShareFiles(
           shareLink,
+          shareKey,
           recursive,
           this.log.bind(this),
           excludeNames

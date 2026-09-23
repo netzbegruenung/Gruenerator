@@ -25,7 +25,7 @@ import {
   WOLKE_SCRAPER_OCR_EXTENSIONS,
 } from '../../sync/supportedFileTypes.js';
 
-import { redactShareTokens } from './wolkeShareSecrets.js';
+import { buildWolkeFileUrl, redactShareTokens } from './wolkeShareSecrets.js';
 
 /**
  * Read straight off the wire as UTF-8 — never reaches OCR, so no media type
@@ -50,7 +50,7 @@ const MAX_RECURSION_DEPTH = 5;
 const WEBDAV_PREFIX = '/public.php/webdav';
 
 export interface WolkeShareFile {
-  /** Stable dedup key / source_url: `<shareLink>#<relative-path>`. */
+  /** Stable dedup key / source_url: `wolke://<shareKey>/<relative-path>` (see `buildWolkeFileUrl`). */
   url: string;
   /** WebDAV href passed verbatim to NextcloudApiClient.downloadFile. */
   href: string;
@@ -116,9 +116,13 @@ function hrefToRelativePath(href: string): string {
  *
  * `excludeNames` extends `isExcludedWolkeFileName`'s defaults — files it drops
  * are counted in `excludedByName` so the caller can report them.
+ *
+ * The share link only opens the WebDAV client; file urls carry `shareKey`, so
+ * the token never reaches a stored payload.
  */
 export async function collectWolkeShareFiles(
   shareLink: string,
+  shareKey: string,
   recursive: boolean,
   log: (msg: string) => void = () => {},
   excludeNames: string[] = []
@@ -148,7 +152,7 @@ export async function collectWolkeShareFiles(
     }
     const rel = hrefToRelativePath(entry.href);
     files.push({
-      url: `${shareLink}#/${rel}`,
+      url: buildWolkeFileUrl(shareKey, rel),
       href: entry.href,
       name: entry.name,
       // Bereits vom Client normalisiert — die zweite Fassung, die es hier gab,
