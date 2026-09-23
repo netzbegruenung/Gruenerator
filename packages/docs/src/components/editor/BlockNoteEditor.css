@@ -163,50 +163,6 @@
   background: var(--grey-900, #111827);
 }
 
-@media (max-width: 767px) {
-  .blocknote-static-toolbar .bn-formatting-toolbar {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    top: auto;
-    margin: 0;
-    padding: 0.375rem 0.75rem;
-    padding-bottom: calc(0.375rem + env(safe-area-inset-bottom, 0));
-    justify-content: flex-start;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    border-top: 1px solid var(--grey-200, #e5e7eb);
-    border-bottom: none;
-    box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.05);
-    border-radius: 0;
-    z-index: 50;
-    background: var(--grey-100, #f3f4f6);
-    transition:
-      opacity 0.15s ease-out,
-      transform 0.15s ease-out;
-    touch-action: pan-x;
-    opacity: 0;
-    transform: translateY(100%);
-    pointer-events: none;
-  }
-
-  .blocknote-static-toolbar.has-selection .bn-formatting-toolbar {
-    opacity: 1;
-    /* Lift above the on-screen keyboard via a compositor transform: iOS WebKit
-       (incl. Chrome for iPad) keeps `position: fixed` anchored to the layout
-       viewport, so `bottom` won't clear the keyboard, but a transform tracks it. */
-    transform: translateY(calc(-1 * var(--mobile-keyboard-offset, 0px)));
-    pointer-events: auto;
-  }
-
-  [data-theme='dark'] .blocknote-static-toolbar .bn-formatting-toolbar {
-    border-top-color: var(--grey-700, #374151);
-    box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.2);
-    background: var(--grey-900, #111827);
-  }
-}
-
 .blocknote-static-toolbar .bn-suggestion-menu {
   max-height: 30dvh;
 }
