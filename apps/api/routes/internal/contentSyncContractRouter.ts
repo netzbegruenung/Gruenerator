@@ -50,7 +50,36 @@ interface SyncResult {
   /** Links upstream still lists but no longer serves — see the contract schema. */
   deadLinks?: number;
   deadLinkSamples?: string[];
+  /**
+   * Two shapes meet here: the Landesverband scraper counts plainly, the other
+   * scrapers keep `{ count, examples }` per reason. The wire carries counts
+   * only — see `skipReasonCounts`.
+   */
+  skipReasons?: Record<string, number | { count: number }>;
+  /**
+   * Landesverbände only: Zähler je Datenqualitäts-Defektklasse unter den
+   * gespeicherten/aktualisierten Dokumenten. Plain counts, unlike
+   * `skipReasons` — nur dieser Scraper füllt das Feld.
+   */
+  qualityFlags?: Record<string, number>;
+  /**
+   * KommunalWiki: aufgeräumte Punkte gelöschter Seiten bzw. warum nicht.
+   * `null` statt `undefined`, weil `CrawlResult` den Nicht-Fall ausdrücklich
+   * als `null` führt und der Scraper hier direkt durchgereicht wird.
+   */
+  pruned?: number;
+  pruneSkippedReason?: string | null;
   fetchErrors?: number;
+}
+
+function skipReasonCounts(reasons: SyncResult['skipReasons']): Record<string, number> | undefined {
+  if (!reasons) return undefined;
+  const counts: Record<string, number> = {};
+  for (const [reason, value] of Object.entries(reasons)) {
+    const count = typeof value === 'number' ? value : value.count;
+    if (count > 0) counts[reason] = count;
+  }
+  return Object.keys(counts).length > 0 ? counts : undefined;
 }
 
 interface RunOpts {
@@ -374,7 +403,8 @@ async function runScopedLandesverband(
 
   // Hard errors stay hard. This used to return `fetchErrors: result.errors,
   // errors: 0` — but the Landesverband scraper reports a single undifferentiated
-  // error count (no `skipReasons`, unlike the gruenblog/böll scrapers), so that
+  // error count (its `skipReasons` count skips, not failures, unlike the
+  // gruenblog/böll scrapers whose `fetch_error` bucket lives there), so that
   // split was invented, not measured. Calling every failure "unreachable" is
   // what let a Landesverband scrape nothing for weeks and still read as a clean
   // run in the GitHub Actions summary.
@@ -387,6 +417,8 @@ async function runScopedLandesverband(
     errorSamples: result.errorMessages,
     deadLinks: result.deadLinks,
     deadLinkSamples: result.deadLinkMessages,
+    skipReasons: result.skipReasons,
+    qualityFlags: result.qualityFlags,
   };
 }
 
@@ -470,6 +502,12 @@ async function executeSyncRun(
     if (result.deadLinkSamples?.length) {
       log.info(`Content sync dead links: ${lockKey} — ${result.deadLinkSamples.join(' | ')}`);
     }
+    // Warnstufe: ein abgewürgtes Aufräumen sieht in den Zahlen sonst exakt
+    // aus wie ein Lauf, bei dem es nichts aufzuräumen gab.
+    if (result.pruneSkippedReason) {
+      log.warn(`Content sync prune skipped: ${lockKey} — ${result.pruneSkippedReason}`);
+    }
+    const skipReasons = skipReasonCounts(result.skipReasons);
 
     return {
       status: 200,
@@ -484,6 +522,12 @@ async function executeSyncRun(
         ...(result.errorSamples?.length ? { errorSamples: result.errorSamples } : {}),
         ...(result.deadLinks ? { deadLinks: result.deadLinks } : {}),
         ...(result.deadLinkSamples?.length ? { deadLinkSamples: result.deadLinkSamples } : {}),
+        ...(skipReasons ? { skipReasons } : {}),
+        ...(result.qualityFlags && Object.keys(result.qualityFlags).length > 0
+          ? { qualityFlags: result.qualityFlags }
+          : {}),
+        ...(result.pruned ? { pruned: result.pruned } : {}),
+        ...(result.pruneSkippedReason ? { pruneSkippedReason: result.pruneSkippedReason } : {}),
         fetchErrors: result.fetchErrors ?? 0,
         durationMs,
       },

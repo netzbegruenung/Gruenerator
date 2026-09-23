@@ -23,7 +23,6 @@ import type {
   CanvasAiSuggestion,
   ReelPickerProject,
   TriggerDocEdit,
-  TriggerBoardAction,
   ConfirmActionEvent,
   DocumentCreatedEvent,
   EditorOperationsEvent,
@@ -80,7 +79,6 @@ export type SSEEventType =
   | 'document_indexed'
   | 'document_created'
   | 'trigger_doc_edit'
-  | 'trigger_board_action'
   | 'editor_operations'
   | 'confirm_action'
   | 'chart_data'
@@ -262,7 +260,6 @@ export interface SSEEventPayloads {
   document_indexed: { documentId: string; title: string };
   document_created: DocumentCreatedEvent;
   trigger_doc_edit: TriggerDocEdit;
-  trigger_board_action: TriggerBoardAction;
   editor_operations: EditorOperationsEvent;
   interrupt: {
     // 'clarification' = ask_human (a human answers via UI). 'client_tool' = a
@@ -615,6 +612,28 @@ export function createDeferredSSE(): DeferredSSE {
 export function createSSEStream(res: Response): SSEWriter {
   SSEWriter.initHeaders(res);
   return new SSEWriter(res);
+}
+
+/**
+ * Ein SSEWriter ohne Leitung — der headless Einstieg in den agentischen Loop
+ * (#3221). Ein ECHTER SSEWriter über einer stummen Response statt eines
+ * eigenen Interfaces: `sse` fließt vom Loop in gut ein Dutzend Tool-Fabriken
+ * weiter, und jede davon auf ein schmaleres Interface umzuschreiben wäre ein
+ * Riesen-Diff für dasselbe Verhalten. Der Writer berührt die Response nur mit
+ * write/end/writableEnded/destroyed — hier alles stumm bedient.
+ * `setTextListener` funktioniert weiter, falls ein headless Aufrufer den
+ * Textstrom doch abgreifen will.
+ */
+export function createNullSSE(): SSEWriter {
+  const noopRes = {
+    write: () => true,
+    end: () => noopRes,
+    writableEnded: false,
+    destroyed: false,
+    json: () => noopRes,
+    send: () => noopRes,
+  } as unknown as Response;
+  return new SSEWriter(noopRes);
 }
 
 /**

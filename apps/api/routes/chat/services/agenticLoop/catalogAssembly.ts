@@ -13,6 +13,7 @@
  * Die Lader werden injiziert (`CatalogDeps`), damit die Montage ohne DB, ohne
  * Netz und ohne echte MCP-Server prüfbar ist.
  */
+import { makeAskHumanTool } from '../../agents/askHumanTool.js';
 import { preferredLvRecipeMention } from '../../agents/lvRecipePreference.js';
 import { loadManagedMcpCatalog as loadManagedMcpCatalogReal } from '../../agents/managedMcpCatalog.js';
 import { loadMcpCatalog as loadMcpCatalogReal, type McpCatalog } from '../../agents/mcpCatalog.js';
@@ -31,13 +32,14 @@ import {
   type ThreadToolHistory,
 } from '../threadPersistenceService.js';
 
+import { type AskHumanGate } from './askHumanGate.js';
 import {
   ATTACHED_DOC_SNIPPET_CHARS,
   attachedDocsQuery,
   retrievableAttachedSources,
   retrieveAttachedDocuments,
 } from './attachedDocuments.js';
-import { isMcpReplayEnabled } from './flags.js';
+import { isLoopAskHumanEnabled, isMcpReplayEnabled } from './flags.js';
 import { createToolLoopGuards } from './loopGuards.js';
 import { buildToolObservationReplay } from './mcpReplay.js';
 import { createRecipeRegistry, type RecipeRegistry } from './recipeRegistry.js';
@@ -82,6 +84,10 @@ const NON_REPLAYABLE_ACTION_TOOLS: ReadonlySet<string> = new Set([
   'create_pdf',
   'generate_image',
   'sharepic',
+  // The audio file renders from the compute card's persisted metadata. Replayed
+  // as a tool message it would tell the model a file exists this turn — and the
+  // model would announce a download nobody just made.
+  'vertonen',
   // A replayed save would tell the model it already remembered — and the
   // person reading the replayed card would see a save that did not happen
   // this turn.
@@ -154,11 +160,18 @@ export async function assembleToolCatalog(
     sourceRegistry: SourceRegistry;
     sse: SSEWriter;
     req?: Request;
+    /** Headless-Läufe (#3221): weder Nutzer-MCP noch verwaltete Connectoren
+     *  montieren — BEIDE Blöcke, die verwalteten hängen nicht am Intent,
+     *  sondern an `state.managedSourceKeys`. */
+    disableMcp?: boolean;
+    /** Suchfamilie auf die Picker-Auswahl eines gebundenen Agenten beschränken
+     *  (siehe `buildChatToolCatalog.searchToolKeys`). */
+    searchToolKeys?: readonly string[];
     threadId: string | null;
   },
   deps: CatalogDeps = defaultDeps
 ): Promise<AssembledCatalog> {
-  const { state, sourceRegistry, sse, req, threadId } = params;
+  const { state, sourceRegistry, sse, req, disableMcp, searchToolKeys, threadId } = params;
   const agentConfig = state.agentConfig;
 
   // Vor dem Werkzeugkatalog angelegt, obwohl `rezept_laden` erst weiter unten
@@ -173,6 +186,7 @@ export async function assembleToolCatalog(
     sourceRegistry,
     recipeRegistry,
     loop: { sse, state, ...(req && { req }), threadId },
+    ...(searchToolKeys?.length ? { searchToolKeys } : {}),
   });
 
   // Phase 2: an `mcp` turn also mounts the user's connected MCP server tools
@@ -188,7 +202,7 @@ export async function assembleToolCatalog(
   const mcpMountStart = Date.now();
   let mcpCatalog: McpCatalog | null = null;
   let systemCatalog: McpCatalog | null = null;
-  if ((state.intent === 'mcp' || state.intent === 'agentic') && userId) {
+  if (!disableMcp && (state.intent === 'mcp' || state.intent === 'agentic') && userId) {
     // Scope precedence: explicit @mention/name-match > this thread's sticky
     // last-used server > null (fan out over all connected servers).
     const explicitScope = state.mcpServerScope ?? null;
@@ -239,7 +253,7 @@ export async function assembleToolCatalog(
   // The loader also applies the per-user opt-out and the country filter, so no
   // caller can forget either.
   const managedKeys = state.managedSourceKeys ?? [];
-  if (managedKeys.length > 0) {
+  if (!disableMcp && managedKeys.length > 0) {
     systemCatalog = await deps.loadManagedMcpCatalog({
       keys: managedKeys,
       sse,
@@ -258,6 +272,10 @@ export async function assembleToolCatalog(
   //     `buildSystemMessage` already injected it. Letting the model pick a
   //     second one would overrule an explicit choice — same double-injection
   //     guard `product_knowledge` uses.
+  //   - `activeRecipeId`: the id came pinned onto the turn (Agentura deep
+  //     link, not a mention), but it is just as explicit a choice as the
+  //     mention — self-loading a second recipe on top would overrule it the
+  //     same way.
   //   - `customSystemPrompt`: a thread-level prompt replaces the whole
   //     persona; self-loading a recipe into it would fight the user. A
   //     CATALOGUE role's baustein is the exception (`roleBausteinActive`):
@@ -266,6 +284,7 @@ export async function assembleToolCatalog(
   let recipeCatalog: RecipeCatalogEntry[] = [];
   if (
     !state.activeSkillMention &&
+    !state.activeRecipeId &&
     (!state.customSystemPrompt || state.roleBausteinActive) &&
     state.enabledTools?.['rezept_laden'] !== false
   ) {
@@ -293,6 +312,14 @@ export async function assembleToolCatalog(
           }),
       });
     }
+  }
+
+  // `ask_human`: die Rückfrage aus dem Loop (#3220). Nur mit Thread — eine
+  // Klärung, die der Client nicht fortsetzen kann, ist schlechter als keine
+  // (dasselbe Gate wie `clarificationStage`). Der Aufruf wird in `wrapTools`
+  // abgefangen, nie ausgeführt.
+  if (threadId != null && isLoopAskHumanEnabled()) {
+    tools.ask_human = makeAskHumanTool();
   }
 
   // Tool-card labels for BOTH catalogs (user connectors + system sources).
@@ -583,6 +610,8 @@ export function wrapAssembledTools(
     toolLabels: Map<string, ToolLabel>;
     /** Freigabe-Gate. Nicht gesetzt ⇒ es wird nie gefragt. */
     approvalGate?: Pick<ToolApprovalGate, 'hold'>;
+    /** Rückfrage-Gate für `ask_human`. Nicht gesetzt ⇒ das Tool tut nichts. */
+    askGate?: Pick<AskHumanGate, 'hold'>;
     /** Only unified mode streams answer text WHILE tools run, so its `text`
      *  length is a meaningful per-tool offset. In split mode the answer stays
      *  empty through the whole gather phase → return null so no (all-0) offsets
@@ -617,6 +646,7 @@ export function wrapAssembledTools(
     takeNarration: ctx.takeNarration,
     ...(ctx.hooks ? { hooks: ctx.hooks } : {}),
     ...(ctx.approvalGate ? { approvalGate: ctx.approvalGate } : {}),
+    ...(ctx.askGate ? { askGate: ctx.askGate } : {}),
     ...(ctx.toolLabels.size > 0
       ? {
           titleFor: (name: string) => {

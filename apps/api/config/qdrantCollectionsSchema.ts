@@ -35,7 +35,7 @@ export interface HnswConfig {
 export type IndexTypeKey = 'keyword' | 'keywordTenant' | 'text' | 'datetime';
 
 export interface IndexTypeConfig extends Record<string, unknown> {
-  type: 'keyword' | 'text';
+  type: 'keyword' | 'text' | 'datetime';
   is_tenant?: boolean;
   tokenizer?: string;
   min_token_len?: number;
@@ -177,7 +177,7 @@ export const INDEX_TYPES: Record<IndexTypeKey, IndexTypeConfig> = {
   keyword: { type: 'keyword' },
   keywordTenant: { type: 'keyword', is_tenant: true },
   text: { type: 'text', tokenizer: 'word', min_token_len: 2, max_token_len: 50, lowercase: true },
-  datetime: { type: 'keyword' },
+  datetime: { type: 'datetime' },
 };
 
 // =============================================================================
@@ -194,7 +194,7 @@ export const SYSTEM_COLLECTION_STANDARD_INDEXES: CollectionSchemaIndex[] = [
   { field: 'content_type', type: 'keyword' },
   { field: 'subcategories', type: 'keyword' },
   { field: 'country', type: 'keyword' },
-  { field: 'published_at', type: 'keyword' },
+  { field: 'published_at', type: 'datetime' },
   { field: 'indexed_at', type: 'keyword' },
   { field: 'chunk_text', type: 'text' },
 ];
@@ -375,7 +375,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
       { field: 'source_url', type: 'keyword' },
       { field: 'primary_category', type: 'keyword' },
       { field: 'country', type: 'keyword' },
-      { field: 'published_at', type: 'keyword' },
+      { field: 'published_at', type: 'datetime' },
       { field: 'indexed_at', type: 'keyword' },
       { field: 'chunk_text', type: 'text' },
     ],
@@ -388,7 +388,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
       { field: 'source_url', type: 'keyword' },
       { field: 'primary_category', type: 'keyword' },
       { field: 'country', type: 'keyword' },
-      { field: 'published_at', type: 'keyword' },
+      { field: 'published_at', type: 'datetime' },
       { field: 'indexed_at', type: 'keyword' },
       { field: 'chunk_text', type: 'text' },
     ],
@@ -401,7 +401,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
       { field: 'source_url', type: 'keyword' },
       { field: 'primary_category', type: 'keyword' },
       { field: 'country', type: 'keyword' },
-      { field: 'published_at', type: 'keyword' },
+      { field: 'published_at', type: 'datetime' },
       { field: 'indexed_at', type: 'keyword' },
       { field: 'chunk_text', type: 'text' },
     ],
@@ -429,7 +429,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
       { field: 'primary_category', type: 'keyword' },
       { field: 'content_type', type: 'keyword' },
       { field: 'subcategories', type: 'keyword' },
-      { field: 'published_at', type: 'keyword' },
+      { field: 'published_at', type: 'datetime' },
       { field: 'indexed_at', type: 'keyword' },
       { field: 'chunk_text', type: 'text' },
     ],
@@ -457,7 +457,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
       { field: 'primary_category', type: 'keyword' },
       { field: 'landesverband', type: 'keyword' },
       { field: 'source_id', type: 'keyword' },
-      { field: 'published_at', type: 'keyword' },
+      { field: 'published_at', type: 'datetime' },
       { field: 'indexed_at', type: 'keyword' },
       { field: 'chunk_text', type: 'text' },
     ],
@@ -479,7 +479,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
       { field: 'primary_category', type: 'keyword' },
       { field: 'landesverband', type: 'keyword' },
       { field: 'source_id', type: 'keyword' },
-      { field: 'published_at', type: 'keyword' },
+      { field: 'published_at', type: 'datetime' },
       { field: 'indexed_at', type: 'keyword' },
       { field: 'chunk_text', type: 'text' },
     ],
@@ -502,7 +502,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
       { field: 'person', type: 'keyword' },
       { field: 'income_level', type: 'keyword' },
       { field: 'gruene_vote', type: 'keyword' },
-      { field: 'published_at', type: 'keyword' },
+      { field: 'published_at', type: 'datetime' },
       { field: 'indexed_at', type: 'keyword' },
       { field: 'chunk_text', type: 'text' },
     ],

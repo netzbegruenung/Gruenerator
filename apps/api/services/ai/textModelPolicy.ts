@@ -11,7 +11,7 @@
  *
  * ── Was hier AUSDRÜCKLICH NICHT geregelt wird ──
  *
- * **Bild und Rerank bleiben.** `Qwen-Image` (`services/flux/RegoloImageService.ts`)
+ * **Bild und Rerank bleiben.** `FLUX.2 [klein]` via Melious
  * und `Qwen3-Reranker-4B` (`services/search/GreenPTRerankService.ts` mit
  * `RegoloRerankService.ts` als Rückfall — dieselben Gewichte, zwei Hosts) sind
  * bewusst weiter im Einsatz: das eine ist eine ausgewiesene Modellwahl im UI,

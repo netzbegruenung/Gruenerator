@@ -9,7 +9,7 @@
  *     Shared with apps/mobile, which shows a subset marked by `platforms`.
  *   - the choices          (apps/web … settings/tabs/GeneralTab.tsx) — theme,
  *     locale and start-page options as the user sees them labelled
- *   - writing-style presets (apps/web … settings/tabs/TexteAnlernenTab.tsx)
+ *   - writing-style presets (apps/web … agentura/recipes/recipeKind.ts)
  *   - notification types   (apps/web … notifications/notificationPreferenceMeta.ts,
  *     `RAW_TYPE_META` + `LEVEL_OPTIONS`) and their groups
  *
@@ -50,7 +50,7 @@ const SRC = {
   // Shared with apps/mobile, which renders a subset of the same rows.
   catalog: 'packages/shared/src/settings/catalog.ts',
   general: 'apps/web/src/features/settings/tabs/GeneralTab.tsx',
-  texteAnlernen: 'apps/web/src/features/settings/tabs/TexteAnlernenTab.tsx',
+  texteAnlernen: 'apps/web/src/features/agentura/recipes/recipeKind.ts',
   notificationMeta: 'apps/web/src/features/notifications/notificationPreferenceMeta.ts',
   notificationGroups: 'apps/web/src/features/notifications/types/index.ts',
 };

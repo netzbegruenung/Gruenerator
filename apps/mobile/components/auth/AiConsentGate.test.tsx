@@ -58,6 +58,19 @@ describe('AiConsentGate (mobile)', () => {
     expect(screen.getByText(TITLE)).toBeTruthy();
   });
 
+  // Der einzige Test hier, der an einem Wortlaut haengt, und zwar mit Absicht:
+  // der Erinnerungshinweis nach Art. 50 Abs. 4 KI-VO stand frueher unter jedem
+  // Eingabefeld und steht seitdem NUR noch hier. Faellt er weg, faellt er
+  // ersatzlos weg — das ist kein Schoenheitsfehler, sondern genau die
+  // redaktionelle Kontrolle, auf die sich die Ausnahme von der
+  // Kennzeichnungspflicht stuetzt. Geprueft wird die Aussage, nicht der Satzbau.
+  it('nennt die redaktionelle Pruefung, die die Kennzeichnung ersetzt', () => {
+    mockStore({ ai_consent_at: null });
+    render(<AiConsentGate />);
+    expect(screen.getByText(/Art\. 50 Abs\. 4 KI-VO/)).toBeTruthy();
+    expect(screen.getByText(/bevor Du sie ver\u00f6ffentlichst/)).toBeTruthy();
+  });
+
   // `await waitFor` und nicht bloß `expect`: der Bestätigen-Pfad setzt nach dem
   // await noch `saving` zurück. Ohne das Abwarten landet dieses setState nach
   // dem Testende und React meldet eine act()-Warnung — eine, die man sich

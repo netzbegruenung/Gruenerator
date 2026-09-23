@@ -22,6 +22,34 @@ export function addErrorSamples(target: { errorMessages: string[] }, ...messages
   }
 }
 
+/**
+ * Skip reasons are counts, not samples: they are summed unchanged from content
+ * path to source to the full result, so the report can say how many of the
+ * `skipped` were `too_old` versus `unchanged` — the split #3200 could not see.
+ */
+export function mergeSkipReasons(
+  target: { skipReasons: Record<string, number> },
+  from: Record<string, number>
+): void {
+  for (const [reason, count] of Object.entries(from)) {
+    target.skipReasons[reason] = (target.skipReasons[reason] || 0) + count;
+  }
+}
+
+/**
+ * Quality flags are counts too, and merge exactly like skipReasons: summed
+ * unchanged from document (`DocumentProcessor.qualityFlagsFor`) to content path
+ * to source to the full result.
+ */
+export function mergeQualityFlags(
+  target: { qualityFlags: Record<string, number> },
+  from: Record<string, number>
+): void {
+  for (const [flag, count] of Object.entries(from)) {
+    target.qualityFlags[flag] = (target.qualityFlags[flag] || 0) + count;
+  }
+}
+
 export function addDeadLinkSamples(
   target: { deadLinkMessages: string[] },
   ...messages: string[]

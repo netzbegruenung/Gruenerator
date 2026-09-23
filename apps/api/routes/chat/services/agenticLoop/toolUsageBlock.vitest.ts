@@ -34,6 +34,43 @@ describe('buildToolUsageBlock', () => {
   });
 });
 
+describe('buildToolUsageBlock — Aktion ohne Werkzeug', () => {
+  it('verlangt im Unified-Modus bei jedem Katalog das ehrliche „kann ich hier nicht"', () => {
+    // Live 15.09.2026: kein Sharepic-Edit-Tool montiert, das Modell suchte die
+    // Medienbibliothek und meldete den Edit als erledigt. Die Regel hängt an
+    // keinem Tool, denn sie gilt genau dann, wenn das Tool FEHLT.
+    for (const block of [
+      buildToolUsageBlock(5, false, true, []),
+      buildToolUsageBlock(5, true, true, ['media']),
+    ]) {
+      expect(block).toContain('hast du dafür kein passendes Tool, sag das in EINEM Satz');
+      expect(block).toContain('kündige nichts für „gleich" an');
+    }
+  });
+
+  it('fehlt in der Sammelphase des Split-Modus — die schreibt keine Antwort', () => {
+    expect(buildToolUsageBlock(5)).not.toContain('kündige nichts für „gleich" an');
+    expect(buildToolUsageBlock(5, true)).not.toContain('kündige nichts für „gleich" an');
+  });
+});
+
+describe('buildToolUsageBlock — ask_human-Regel', () => {
+  it('nur wenn das Tool wirklich montiert ist', () => {
+    const withAsk = buildToolUsageBlock(6, false, false, ['gruenerator_search', 'ask_human']);
+    expect(withAsk).toContain('RÜCKFRAGE MIT ask_human');
+    expect(withAsk).toContain('EINZIGER Aufruf des Schritts');
+  });
+
+  it('fehlt ohne Montage — auch wenn die Werkzeugnamen unbekannt sind', () => {
+    // Anders als die übrigen Gates (Default: Regel behalten): eine Anweisung
+    // auf ein fehlendes Tool wäre eine Anweisung ins Leere.
+    expect(buildToolUsageBlock(6, false, false, ['gruenerator_search'])).not.toContain(
+      'RÜCKFRAGE MIT ask_human'
+    );
+    expect(buildToolUsageBlock(6)).not.toContain('RÜCKFRAGE MIT ask_human');
+  });
+});
+
 describe('buildToolUsageBlock with includeArtifactOutcomeRule (unified mode)', () => {
   const unifiedBlock = buildToolUsageBlock(6, false, true);
 
@@ -221,5 +258,33 @@ describe('materialDominatesTurn — when the writer gives up the tool catalog', 
     it('a small document does not make every question material', () => {
       expect(materialDominatesTurn('Was steht da zum Hitzeschutz?', SYSTEM, 400)).toBe(false);
     });
+  });
+});
+
+// Testserver 23.09.2026: im Thread des Berlin-Notebooks ging „analysiere die
+// neuesten Beiträge zum Thema Verkehr und beantworte eine Bürgeranfrage" an die
+// Websuche. Der Planer sah das Notebook nur indirekt (Verlauf, alte Aufrufe),
+// die einzige Suchregel nannte gruenerator_search und das Web.
+describe('buildToolUsageBlock — Notebook des Threads', () => {
+  const TOOLS = ['notebook_quellen', 'gruenerator_search', 'web_search'];
+  const berlin = { id: 'berlin', name: 'Berlin' };
+
+  it('nennt das Notebook samt id und stellt es vor die allgemeine Suchregel', () => {
+    const block = buildToolUsageBlock(6, false, false, TOOLS, false, berlin);
+    expect(block).toContain('„Berlin"');
+    expect(block).toContain('notebookId: berlin');
+    expect(block.indexOf('notebook_quellen')).toBeLessThan(block.indexOf('interne Dokumentsuche'));
+  });
+
+  it('nennt bei einem eigenen Notebook ohne Namen nur die id', () => {
+    const block = buildToolUsageBlock(6, false, false, TOOLS, false, { id: 'nb-1', name: null });
+    expect(block).toContain('notebookId: nb-1');
+  });
+
+  it('fehlt ohne Notebook und ohne montiertes notebook_quellen', () => {
+    expect(buildToolUsageBlock(6, false, false, TOOLS)).not.toContain('notebookId:');
+    expect(
+      buildToolUsageBlock(6, false, false, ['gruenerator_search', 'web_search'], false, berlin)
+    ).not.toContain('notebookId:');
   });
 });

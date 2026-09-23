@@ -1,6 +1,11 @@
 name: Content Sync
 
 on:
+  # The Grünerator API dispatches this workflow on the same slots
+  # (apps/api/services/scrapers/contentSyncDispatcher.ts, `mode` input below),
+  # because GitHub throttles these crons to ~5 of 18 runs a day (#3048). The
+  # crons stay as a fallback until the dispatch token is verified in
+  # production; a follow-up removes them. Duplicate runs meanwhile are expected.
   schedule:
     # Minute 23/17, not 0. GitHub deprioritises `schedule` events under load and
     # drops them rather than queueing when the delay outgrows the next
@@ -14,6 +19,17 @@ on:
     - cron: '17 2 * * *' # Daily 03:00 CET → all sources
   workflow_dispatch:
     inputs:
+      mode:
+        # What the API dispatcher sends. 'hourly' behaves exactly like the hourly
+        # cron (LV-only, `recent`, still promotable to full by the catch-up
+        # below); 'full' — the default, so a bare manual dispatch keeps meaning
+        # a full run — like the nightly one. Ignored with source/landesverband.
+        description: 'Run kind: full (all sources) or hourly (Landesverbände only)'
+        type: choice
+        options:
+          - full
+          - hourly
+        default: full
       source:
         description: 'Single non-LV source (gruenblog, gruene-at, kommunalwiki, boell-stiftung, bundestag, abgeordnetenwatch, grundsatz, gruene-de, oesterreich). Mutually exclusive with landesverband.'
         required: false
@@ -38,9 +54,16 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  # The setup job asks the Actions API when a full run last happened, so a
+  # dropped nightly slot can be caught up rather than silently skipped.
+  actions: read
 
 concurrency:
-  group: content-sync-${{ github.event.schedule || 'manual' }}
+  # One group per run kind. A newer run cancels a *pending* one in the same
+  # group, so dispatched hourly and full runs must not share one — an hourly
+  # dispatch would otherwise drop a full run that is waiting its turn. Single
+  # source/LV runs get their own group for the same reason.
+  group: content-sync-${{ github.event.schedule || ((inputs.source || inputs.landesverband) && 'single') || inputs.mode || 'full' }}
   cancel-in-progress: false
 
 jobs:
@@ -61,11 +84,22 @@ jobs:
       single_kind: ${{ steps.set.outputs.single_kind }}
       single_value: ${{ steps.set.outputs.single_value }}
     steps:
+      # Only so the local composite action below can be loaded; this job builds
+      # nothing and needs no dependencies.
+      - uses: actions/checkout@v7
+      - id: lastfull
+        uses: ./.github/actions/last-full-sync
+        with:
+          repo: ${{ github.repository }}
+          token: ${{ github.token }}
       - id: set
         env:
           SCHEDULE: ${{ github.event.schedule }}
+          INPUT_MODE: ${{ inputs.mode }}
           INPUT_SOURCE: ${{ inputs.source }}
           INPUT_LV: ${{ inputs.landesverband }}
+          FULL_RUN_FOUND: ${{ steps.lastfull.outputs.found }}
+          HOURS_SINCE_FULL: ${{ steps.lastfull.outputs.hours_since }}
         run: |
           # Which run is the full one is decided HERE and nowhere else, and by
           # the HOUR field rather than the whole cron string.
@@ -85,8 +119,43 @@ jobs:
           SCHEDULE_HOUR=$(printf '%s' "$SCHEDULE" | awk '{print $2}')
           FULL_RUN_HOUR=2
 
-          # Empty SCHEDULE = manual dispatch, which has always meant a full run.
-          if [ "$SCHEDULE_HOUR" = "$FULL_RUN_HOUR" ] || [ -z "$SCHEDULE" ]; then
+          # Second door into the full run: catch one up that never fired.
+          #
+          # GitHub drops `schedule` events rather than queueing them, and hour 2
+          # is a single slot — lose it and the nine non-LV sources, the full
+          # archive walks and the admin digest are skipped for the whole day,
+          # with every run that *did* fire reporting success. Measured on
+          # 2026-09-15: four of eighteen slots arrived, and no run at hour 2 for
+          # nine days straight, so the non-LV corpus had been stale that long
+          # while the workflow history was uniformly green.
+          #
+          # 22 h, not 24: at 24 the catch-up could never fire before the next
+          # nightly slot and would be decorative. The floor is set by the widest
+          # gap a HEALTHY schedule produces — nightly 02:17 to the last hourly
+          # at 20:23 is 18 h, plus the drift GitHub adds under load (+88 min was
+          # measured) — so 22 h clears it without firing on a schedule that is
+          # merely late.
+          #
+          # `found=false` means no full run in the inspected window at all, which
+          # is worse than a stale one, so it catches up too. An unreadable jobs
+          # API can inflate the age here (see the action's `unreadable` output);
+          # unlike the watchdog, the cost of being wrong is one redundant full
+          # run rather than a false alarm, so this deliberately does not guard
+          # against it.
+          FULL_RUN_CATCHUP_HOURS=22
+
+          # Empty SCHEDULE = dispatch. Without mode=hourly that has always meant
+          # a full run; with it (the API's hourly slots) it is decided exactly
+          # like an hourly cron, catch-up included.
+          if [ "$SCHEDULE_HOUR" = "$FULL_RUN_HOUR" ]; then
+            IS_FULL_RUN=true
+          elif [ -z "$SCHEDULE" ] && [ "$INPUT_MODE" != "hourly" ]; then
+            IS_FULL_RUN=true
+          elif [ "$FULL_RUN_FOUND" != "true" ]; then
+            echo "::warning::No full Content Sync run found in the recent history — running this one as the full sync."
+            IS_FULL_RUN=true
+          elif [ -n "$HOURS_SINCE_FULL" ] && [ "$HOURS_SINCE_FULL" -gt "$FULL_RUN_CATCHUP_HOURS" ]; then
+            echo "::warning::Last full Content Sync run was ${HOURS_SINCE_FULL}h ago (limit ${FULL_RUN_CATCHUP_HOURS}h) — catching one up now."
             IS_FULL_RUN=true
           else
             IS_FULL_RUN=false
@@ -113,13 +182,13 @@ jobs:
             echo "lv_matrix=$EMPTY" >> "$GITHUB_OUTPUT"
             echo "source_matrix=$EMPTY" >> "$GITHUB_OUTPUT"
           elif [ "$IS_FULL_RUN" = "true" ]; then
-            # Daily 3 AM CET or manual dispatch (no input) → both matrices
+            # Nightly, full dispatch or catch-up → both matrices
             echo "single_kind=" >> "$GITHUB_OUTPUT"
             echo "single_value=" >> "$GITHUB_OUTPUT"
             echo "lv_matrix=$ALL_LVS" >> "$GITHUB_OUTPUT"
             echo "source_matrix=$ALL_SOURCES" >> "$GITHUB_OUTPUT"
           else
-            # Hourly schedule → LVs only
+            # Hourly schedule or hourly dispatch → LVs only
             echo "single_kind=" >> "$GITHUB_OUTPUT"
             echo "single_value=" >> "$GITHUB_OUTPUT"
             echo "lv_matrix=$ALL_LVS" >> "$GITHUB_OUTPUT"
@@ -154,6 +223,10 @@ jobs:
           # run does the per-URL walk. Decided in `setup`, not re-derived here.
           RECENT=false
           if [ "${{ needs.setup.outputs.is_full_run }}" != "true" ]; then RECENT=true; fi
+          # SL nur inkrementell, bis #3631 in Produktion ausgerollt ist: die Wolke-
+          # Pfade laufen nur im Voll-Lauf (recentSkip), und der alte Code würde die
+          # zwei gesperrten Freigaben sonst wieder einlesen. Nach dem Rollout entfernen.
+          if [ "${{ matrix.lv }}" = "SL" ]; then RECENT=true; fi
           FORCE=false
           if [ "${{ inputs.force }}" = "true" ]; then FORCE=true; fi
           DRY_RUN=false
@@ -458,6 +531,36 @@ jobs:
               echo ""
             fi
 
+            # `skipped` allein verbirgt, was ein Lauf kostet: `unchanged` und
+            # die Freshness-Gatter sind gratis, ein `too_old` wird jede Nacht
+            # neu abgerufen, bevor der Altersfilter es verwirft (#3200).
+            SKIP_REASONS=$(jq -r '
+              .sources[] | select((.skipReasons // {}) | length > 0)
+              | "- **\(.name):** " + ([.skipReasons | to_entries | sort_by(-.value)[] | "\(.key) \(.value)"] | join(" · "))
+            ' "$SUMMARY_FILE")
+            if [ -n "$SKIP_REASONS" ]; then
+              echo "### ⏭️ Übersprungen, nach Grund"
+              echo ""
+              echo "$SKIP_REASONS"
+              echo ""
+            fi
+
+            # Landesverbände only: Datenqualitäts-Defektklassen unter den
+            # gespeicherten/aktualisierten Dokumenten (siehe Q4 /
+            # DocumentProcessor.qualityFlagsFor) — ohne diesen Zähler fielen
+            # Fallback-Titel, generische Titel und geratene Daten nur auf, wenn
+            # jemand von Hand hinsah (#3573–#3580).
+            QUALITY_FLAGS=$(jq -r '
+              .sources[] | select((.qualityFlags // {}) | length > 0)
+              | "- **\(.name):** " + ([.qualityFlags | to_entries | sort_by(-.value)[] | "\(.key) \(.value)"] | join(" · "))
+            ' "$SUMMARY_FILE")
+            if [ -n "$QUALITY_FLAGS" ]; then
+              echo "### 🔍 Datenqualität"
+              echo ""
+              echo "$QUALITY_FLAGS"
+              echo ""
+            fi
+
             NEW_CONTENT=$(jq -r '.sources[] | select(.stored > 0) | "- **\(.name):** +\(.stored) new documents"' "$SUMMARY_FILE")
             if [ -n "$NEW_CONTENT" ]; then
               echo "### 📥 New Content"
@@ -521,7 +624,9 @@ jobs:
 
   # ─── Single-source / single-LV manual dispatch ─────────────────
   sync-single:
-    name: Sync ${{ needs.setup.outputs.single_value }}
+    # Not "Sync <value>": last-full-sync marks a full run by the matrix job
+    # named "Sync gruene-de", and a single run of gruene-de would forge it.
+    name: Sync single ${{ needs.setup.outputs.single_value }}
     needs: setup
     if: needs.setup.outputs.single_kind != ''
     runs-on: ubuntu-latest
@@ -613,6 +718,10 @@ jobs:
               jq -r '.sources[] | select((.deadLinkSamples // []) | length > 0)
                 | "Tote Links (Upstream, \(.deadLinks)):\n" + ([.deadLinkSamples[] | "- `" + . + "`"] | join("\n"))' "$SUMMARY_FILE"
             fi
+            jq -r '.sources[] | select((.skipReasons // {}) | length > 0)
+              | "**Übersprungen:** " + ([.skipReasons | to_entries | sort_by(-.value)[] | "\(.key) \(.value)"] | join(" · "))' "$SUMMARY_FILE"
+            jq -r '.sources[] | select((.qualityFlags // {}) | length > 0)
+              | "**Datenqualität:** " + ([.qualityFlags | to_entries | sort_by(-.value)[] | "\(.key) \(.value)"] | join(" · "))' "$SUMMARY_FILE"
             if [ "$(jq -r 'has("extraction")' "$SUMMARY_FILE")" = "true" ]; then
               jq -r '.extraction | "**Read:** \(.documents) docs / \(.pages) pages (OCR: \(.ocrDocuments)/\(.ocrPages)) | **For nothing:** \(.redundant) | **Gated:** \(.skipped.not_modified + .skipped.same_bytes + .skipped.freshly_indexed)"' "$SUMMARY_FILE"
             fi

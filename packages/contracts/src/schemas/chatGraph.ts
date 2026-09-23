@@ -9,6 +9,7 @@
 import { z } from 'zod';
 
 import { currentBoardSchema } from './boards.js';
+import { canvasAiCapabilitiesSchema, canvasAiSnapshotSchema } from './canvasAi.js';
 import { computePayloadSchema } from './chatStreamEvents.js';
 import { roleRefSchema } from './roleRef.js';
 
@@ -93,6 +94,49 @@ export type ChatAttachment = z.infer<typeof chatAttachmentSchema>;
 export const clientPlatformSchema = z.enum(['web', 'app']);
 export type ClientPlatform = z.infer<typeof clientPlatformSchema>;
 
+/**
+ * Live canvas state injected by the sharepic studio's chat sidebar. Primary
+ * context for sharepic Q&A and the target of the loop's `edit_document` tool on
+ * the canvas surface: `snapshot`/`capabilities` are what the op planner
+ * (runCanvasSuggest) reads, `text` is the structured sharepic text the model
+ * reads under the "AKTUELLES DOKUMENT" heading — it replaced the
+ * `currentDocument` imitation this sidebar used to send.
+ */
+export const currentCanvasSchema = z.object({
+  id: z.string(),
+  template: z.string(),
+  snapshot: canvasAiSnapshotSchema,
+  capabilities: canvasAiCapabilitiesSchema,
+  text: z.string(),
+});
+export type CurrentCanvas = z.infer<typeof currentCanvasSchema>;
+
+/**
+ * The per-surface "AI may edit the OPEN artefact" keys the editor sidebars put
+ * into `customEnabledTools`. One key per surface, so a custom agent inside a
+ * sidebar still resolves to the right surface (#3438) and a search-route agent
+ * can be stripped of all of them at once (#3435). Wire values: additive only,
+ * never renamed. `edit_current_doc` is also a classifier intent id; the key
+ * and the intent are different things that happen to share a spelling.
+ *
+ * THE ORDER IS LOAD-BEARING, and it is why `edit_current_doc` sits LAST rather
+ * than first: `resolveEditorSurfaceKind` walks this array and takes the first
+ * enabled key, and during the compatibility window the sheets and presentations
+ * sidebars send their own key AND `edit_current_doc` (so a backend without
+ * #3438 still mounts the edit tool). Doc-first would hand exactly those turns
+ * back to the doc surface — the bug this registry exists to fix. Specific
+ * before general; a surface that ever shares a key must go above `doc` too.
+ */
+export const editorEditToolKeySchema = z.enum([
+  'edit_current_sheet',
+  'edit_current_presentation',
+  'edit_current_board',
+  'edit_current_canvas',
+  'edit_current_doc',
+]);
+export type EditorEditToolKey = z.infer<typeof editorEditToolKeySchema>;
+export const EDITOR_EDIT_TOOL_KEYS = editorEditToolKeySchema.options;
+
 export const chatStreamBodySchema = z.object({
   messages: z.array(chatWireMessageSchema).min(1),
   agentId: z.string().nullish(),
@@ -133,6 +177,7 @@ export const chatStreamBodySchema = z.object({
   // Live board state injected by the boards assistant surface (FAB on the boards
   // page). Primary context for board Q&A and the edit_current_board intent.
   currentBoard: currentBoardSchema.nullish(),
+  currentCanvas: currentCanvasSchema.nullish(),
   // The sharepic variant the user marked as "active for chat editing" (card
   // toggle). Targets the sharepic_edit branch; canvasId is set once the
   // variant has been minted into a canvas document.
@@ -189,6 +234,10 @@ export const chatStreamBodySchema = z.object({
   // appends its `skillSystemPrompt` to the agent's systemRole for this turn,
   // so platform-specific spec only loads when the relevant skill is active.
   activeSkillMention: z.string().nullish(),
+  // Row id of the active user recipe ("angelernte Textform"). Wins over
+  // activeSkillMention when both are set — old clients only ever send the
+  // mention, so they keep working unchanged.
+  activeRecipeId: z.string().uuid().nullish(),
   // Regenerate the last assistant turn: the backend skips re-persisting the
   // (unchanged) user message and deletes the trailing assistant message(s)
   // before streaming the replacement. Keeps chat_messages linear (no dupes).

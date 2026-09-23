@@ -104,3 +104,64 @@ export function gridColumns(available: number, minTile: number, gap: number): nu
  */
 export const COMPOSER_BOTTOM_INSET = 20;
 export const COMPOSER_BOTTOM_INSET_RAISED = 12;
+
+/**
+ * The bottom spacer of a block that is centred while the keyboard is down and
+ * docks onto it while it is up. `resting` is what the block keeps under itself
+ * with the keyboard away (safe-area inset, tab bar, gap), `raised` the seam it
+ * keeps once docked. Both are computed on the JS thread by the caller (insets,
+ * `typeScale`) and handed over as numbers — a worklet may capture numbers, it
+ * may not call back into a module.
+ *
+ * The two arguments from the keyboard do different jobs, and it is a bug to let
+ * either do the other's:
+ *
+ * - `progress` (0 → 1) paces the *centring*. It has to be presence, not extent,
+ *   so the block glides while the keyboard travels instead of diving to meet it
+ *   and rising again. Android does not clamp it — `persistentKeyboardHeight` is
+ *   deliberately stale across a switch to a taller emoji panel — so a value
+ *   above 1 is possible and would otherwise give the spacer a negative flexGrow.
+ * - `keyboardHeight` (dp, ≥ 0) sets the *clearance*. A keyboard that covers less
+ *   than the resting clearance has to give the rest of it back: with a hardware
+ *   or floating keyboard `progress` still reaches 1 while only a ~55dp shortcut
+ *   strip is on screen, and pacing the height off `progress` would drop the
+ *   block to the seam and leave it behind the Android tab bar.
+ *
+ * So the block never keeps less than `resting` between itself and the screen
+ * edge, counting what the keyboard already occupies.
+ *
+ * The `'worklet'` directive is what lets `useAnimatedStyle` call this on the UI
+ * thread; under Node it is an inert string, which is what lets the geometry be
+ * unit-tested.
+ */
+export function dockingSpacer(
+  progress: number,
+  keyboardHeight: number,
+  resting: number,
+  raised: number
+): { flexGrow: number; height: number } {
+  'worklet';
+  return {
+    flexGrow: Math.max(0, 1 - progress),
+    height: Math.max(resting - keyboardHeight, raised),
+  };
+}
+
+/**
+ * A section that folds away as the keyboard comes up. `measuredHeight` is its
+ * natural height from `onLayout`; until that is known no height is set at all —
+ * a height of 0 from a measurement that never happened would keep the section
+ * from ever laying out, and so from ever reporting one.
+ *
+ * `progress` is clamped for the same reason `dockingSpacer` clamps it: the
+ * callers hand both of them the same unclamped shared value, and above 1 this
+ * would otherwise return a negative opacity and a negative height.
+ */
+export function collapsingSection(
+  progress: number,
+  measuredHeight: number
+): { opacity: number; height?: number } {
+  'worklet';
+  const open = Math.max(0, 1 - progress);
+  return measuredHeight > 0 ? { opacity: open, height: measuredHeight * open } : { opacity: open };
+}

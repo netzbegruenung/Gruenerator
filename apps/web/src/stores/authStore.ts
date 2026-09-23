@@ -4,12 +4,14 @@ import {
   type FeedbackButtonMode,
   type StartPage,
   type SupportedLocale,
+  type TtsVoiceId,
   type UserProfile,
 } from '@gruenerator/contracts';
 import {
+  ApiError,
   getContractsClient,
-  setApiLocale,
   registerAiConsentRequiredHandler,
+  setApiLocale,
 } from '@gruenerator/shared/api';
 import { getPinnedLocale } from '@gruenerator/shared/instances';
 import { toast } from '@gruenerator/ui';
@@ -95,6 +97,7 @@ export interface AuthStore {
   updateLocale: (newLocale: SupportedLocale) => Promise<boolean>;
   updateChatBackground: (background: ChatBackground) => Promise<boolean>;
   updateStartPage: (page: StartPage) => Promise<boolean>;
+  updateTtsVoice: (voiceId: TtsVoiceId | null) => Promise<boolean>;
   updateFeedbackButton: (mode: FeedbackButtonMode) => Promise<boolean>;
   updateA11yPreference: (
     field: 'reduce_motion' | 'reduce_transparency' | 'show_skip_link',
@@ -294,7 +297,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
     const res = await getContractsClient().userProfile.updateProfile({ body });
     if (res.status !== 200) {
-      throw new Error(`Profil-Update fehlgeschlagen (HTTP ${res.status})`);
+      throw new ApiError(res.status, `Profil-Update fehlgeschlagen (HTTP ${res.status})`);
     }
 
     // Update user in store with new profile data
@@ -311,7 +314,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       body: { avatar_robot_id: Number(avatarRobotId) },
     });
     if (res.status !== 200) {
-      throw new Error(`Avatar-Update fehlgeschlagen (HTTP ${res.status})`);
+      throw new ApiError(res.status, `Avatar-Update fehlgeschlagen (HTTP ${res.status})`);
     }
 
     // Update user in store with new avatar
@@ -330,7 +333,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     try {
       const res = await getContractsClient().userProfile.updateMessageColor({ body: { color } });
       if (res.status !== 200) {
-        throw new Error(`Message Color Update fehlgeschlagen (HTTP ${res.status})`);
+        throw new ApiError(res.status, `Message Color Update fehlgeschlagen (HTTP ${res.status})`);
       }
 
       return res.body.messageColor;
@@ -528,7 +531,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       });
 
       if (res.status !== 200) {
-        throw new Error(`Konto-Löschung fehlgeschlagen (HTTP ${res.status})`);
+        throw new ApiError(res.status, `Konto-Löschung fehlgeschlagen (HTTP ${res.status})`);
       }
 
       // Clear local auth state
@@ -705,7 +708,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         body: { background },
       });
       if (result.status !== 200) {
-        throw new Error(`HTTP ${result.status}`);
+        throw new ApiError(result.status, `HTTP ${result.status}`);
       }
       return true;
     } catch (error: unknown) {
@@ -743,6 +746,37 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error('[AuthStore] Error updating start page:', errorMessage);
       toast.error('Startseite konnte nicht gespeichert werden.');
+      return false;
+    }
+  },
+
+  // Voice for speech output. `null` clears the choice; the server then uses
+  // DEFAULT_TTS_VOICE_ID. Persisted via the profile update contract like the
+  // start page, so the session caches learn about it on the same path.
+  updateTtsVoice: async (voiceId: TtsVoiceId | null): Promise<boolean> => {
+    try {
+      const result = await getContractsClient().userProfile.updateProfile({
+        body: { tts_voice_id: voiceId },
+      });
+      if (result.status !== 200) {
+        console.error('[AuthStore] Error updating voice:', result.status);
+        toast.error('Stimme konnte nicht gespeichert werden.');
+        return false;
+      }
+
+      set((state) => ({
+        // The profile omits the field when cleared; drop the stale value so the
+        // settings row falls back to "Standard" instead of showing the old one.
+        user: state.user
+          ? { ...state.user, tts_voice_id: undefined, ...result.body.profile }
+          : null,
+      }));
+
+      return true;
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('[AuthStore] Error updating voice:', errorMessage);
+      toast.error('Stimme konnte nicht gespeichert werden.');
       return false;
     }
   },
@@ -789,7 +823,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         body: { [field]: enabled },
       });
       if (result.status !== 200) {
-        throw new Error(`HTTP ${result.status}`);
+        throw new ApiError(result.status, `HTTP ${result.status}`);
       }
       return true;
     } catch (error: unknown) {
@@ -809,7 +843,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         body: { ai_consent: granted },
       });
       if (result.status !== 200) {
-        throw new Error(`HTTP ${result.status}`);
+        throw new ApiError(result.status, `HTTP ${result.status}`);
       }
       const ai_consent_at = result.body.profile?.ai_consent_at ?? null;
       set((state) => ({

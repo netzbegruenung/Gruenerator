@@ -24,6 +24,8 @@ interface TextElementOptions<TState> {
   fontFamily: string;
   fontStyle?: 'bold' | 'normal' | 'italic' | 'bold italic';
   lineHeight?: number;
+  /** Markdown-lite im Text, Bearbeitung mit dem Rich-Text-Editor — siehe `TextElementConfig.richText`. */
+  richText?: boolean;
   /** Hard-coded fallback colour when neither state nor `fillFallback` resolves. */
   defaultColor: string;
   /**
@@ -101,6 +103,7 @@ function buildBaseElement<TState>(
     wrap: 'word',
     padding: 0,
     editable: true,
+    richText: options.richText ?? false,
     draggable: true,
     fontSizeStateKey,
     opacityStateKey,

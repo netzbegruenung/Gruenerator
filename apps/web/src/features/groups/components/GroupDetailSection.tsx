@@ -1,6 +1,5 @@
 import { SYSTEM_AGENTS } from '@gruenerator/shared/agents';
-import { getContractsClient } from '@gruenerator/shared/api';
-import { useQuery } from '@tanstack/react-query';
+import { isApiErrorWithStatus } from '@gruenerator/shared/api';
 import { motion } from 'motion/react';
 import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -9,7 +8,13 @@ import { useAuthStore } from '../../../stores/authStore';
 import { getPublicAppOrigin } from '../../../utils/platform';
 import { getNotebookById } from '../../notebook/config/notebooksConfig';
 import { useGroupPresence } from '../hooks/useGroupPresence';
-import { useGroups, useGroupAvatar, useGroupLinks, useGroupSharing } from '../hooks/useGroups';
+import {
+  useGroups,
+  useGroupAvatar,
+  useGroupDetails,
+  useGroupLinks,
+  useGroupSharing,
+} from '../hooks/useGroups';
 
 import GroupInfoSection, { type GroupData, type SharedItem } from './GroupInfoSection';
 
@@ -36,32 +41,45 @@ const GroupDetailSection = memo(
 
     const isInitialized = useRef(false);
 
+    // `groupDetailsKey(groupId)` is one cache entry with ONE shape. This view
+    // needs a different shape, so it derives it here instead of fetching the
+    // same endpoint under the same key again: a second `useQuery` on that key
+    // used to overwrite the entry with `{ groupInfo, isAdmin, … }`, and the
+    // next reader of `{ group, membership }` (ChatPage's `?projekt=` greeting)
+    // crashed on `projektDetails.group.name`.
     const {
-      data: rawData,
+      data: details,
       isLoading: isLoadingDetails,
       isError: isErrorDetails,
       error: errorDetails,
       refetch: refetchGroupData,
-    } = useQuery({
-      queryKey: ['groupDetails', groupId],
-      queryFn: async () => {
-        const res = await getContractsClient().groups.getDetails({ params: { groupId } });
-        if (res.status !== 200) throw new Error('Failed to fetch group details');
-        return {
-          groupInfo: res.body.group,
-          isAdmin: res.body.membership.isAdmin,
-          membership: res.body.membership,
-          joinToken: res.body.group.join_token ?? undefined,
-          knowledge: [] as unknown[],
-        };
-      },
-      enabled: !!groupId,
-      staleTime: 5 * 60 * 1000,
-      refetchOnWindowFocus: false,
-      refetchOnMount: 'always' as const,
-    });
+    } = useGroupDetails(groupId);
 
-    const data = rawData as GroupData | undefined;
+    const data = useMemo<GroupData | undefined>(
+      () =>
+        details
+          ? {
+              // The wire shape spells "absent" as `null`, `GroupInfo` spells it
+              // as `undefined` — normalise rather than cast the mismatch away.
+              groupInfo: {
+                ...details.group,
+                description: details.group.description ?? undefined,
+                created_by: details.group.created_by ?? undefined,
+                links: details.group.links?.map((link) => ({
+                  ...link,
+                  description: link.description ?? undefined,
+                })),
+                is_public: details.group.is_public ?? undefined,
+                audience: details.group.audience ?? undefined,
+                group_type: details.group.group_type ?? undefined,
+              },
+              isAdmin: details.membership.isAdmin,
+              membership: details.membership,
+              joinToken: details.group.join_token ?? undefined,
+            }
+          : undefined,
+      [details]
+    );
 
     const navigate = useNavigate();
 
@@ -259,16 +277,39 @@ const GroupDetailSection = memo(
       refetchGroupData,
     ]);
 
-    if (isLoadingDetails || !data) {
-      return null;
-    }
-
+    // Error branch first: a failed query has no `data`, so the `!data` bail
+    // below used to swallow it and render a blank page (GlitchTip #590).
     if (isErrorDetails) {
+      // 403 is the designed answer for a non-member, not a fault — say so
+      // plainly instead of showing a red error box.
+      if (isApiErrorWithStatus(errorDetails, 403)) {
+        return (
+          <div className="rounded-md border border-grey-200 bg-grey-50 p-lg text-center dark:border-grey-700 dark:bg-grey-800/40">
+            <p className="text-base font-medium text-grey-900 dark:text-grey-100">
+              Kein Zugriff auf dieses Projekt
+            </p>
+            <p className="mt-xs text-sm text-grey-600 dark:text-grey-400">
+              {errorDetails?.message || 'Du bist nicht Mitglied dieser Gruppe.'}
+            </p>
+            <button
+              type="button"
+              onClick={() => void navigate('/projekte')}
+              className="mt-md text-sm font-medium underline text-grey-700 dark:text-grey-300"
+            >
+              Zu meinen Projekten
+            </button>
+          </div>
+        );
+      }
       return (
         <div className="rounded-md border border-red-200 bg-red-50 p-md text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
           Fehler beim Laden der Gruppendetails: {errorDetails?.message || 'Unbekannter Fehler'}
         </div>
       );
+    }
+
+    if (isLoadingDetails || !data) {
+      return null;
     }
 
     return (

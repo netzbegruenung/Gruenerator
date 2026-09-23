@@ -49,8 +49,8 @@ EVAL_BASE_URL=https://<test-host> EVAL_BYPASS_TOKEN=<token> EVAL_MODEL_ID=gemma-
 # just the multi-turn cases
 EVAL_FILTER=multiturn EVAL_BYPASS_TOKEN=<token> pnpm --filter @gruenerator/api eval:chat
 
-# the real @deepresearch runs — minutes and money each, and they spend the
-# shared daily allowance (DEEP_RESEARCH_DAILY_LIMIT = 3). Off by default.
+# the real @deepresearch runs — minutes and money each, and each one spends a
+# Baum from the shared daily budget. Off by default.
 EVAL_DEEP_RESEARCH=1 EVAL_FILTER=search-deep EVAL_BYPASS_TOKEN=<token> \
   pnpm --filter @gruenerator/api eval:chat
 ```
@@ -145,6 +145,7 @@ Log-Lücke halten, bevor daraus ein Befund wird.
 | `EVAL_MCP=1`                    | —                       | include `"mcpLane"` scenarios (needs setup)        |
 | `EVAL_SYSTEM_MCP=1`             | —                       | include `"systemMcpLane"` (bahn/wetter/news/hotel) |
 | `EVAL_ALLOW_GENERIC_PERSONAS=1` | —                       | run without `INTERN_CONTENT_DIR` (warns)           |
+| `EVAL_MEMORY=1`                 | —                       | include `memories` scenarios (seed + clean memory) |
 | `EVAL_CONCURRENCY`              | 1                       | scenarios in parallel (turns stay serial)          |
 | `EVAL_BASELINE`                 | `./baseline.json`       | regression baseline (per-lane in CI)               |
 | `EVAL_UPDATE_BASELINE=1`        | —                       | overwrite the baseline with this run               |

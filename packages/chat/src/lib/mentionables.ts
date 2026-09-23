@@ -1,7 +1,6 @@
 import {
   isAdminVisibleSkill,
   isLvItemVisibleForRoles,
-  isLvNotebookVisibleForRoles,
   isSkillOfferedIn,
 } from '@gruenerator/shared/agents';
 import {
@@ -35,6 +34,7 @@ import {
   PiCloudSun,
   PiChartLine,
   PiCalculator,
+  PiRepeat,
 } from '@gruenerator/shared/icons';
 import { NOTEBOOK_ICONS } from '@gruenerator/shared/notebook-icons';
 import {
@@ -321,15 +321,20 @@ export function visibleToolMentionables(): Mentionable[] {
  * a notebook this instance does not offer must not be listed — while a token for
  * it in an existing thread keeps resolving, which is what makes `hidden`
  * different from `blocked`.
+ *
+ * The „Mitarbeiter*in Landesgeschäftsstelle" role deliberately does NOT filter
+ * here. It decides who writes in the name of a Landesverband — agents and
+ * recipes, i.e. `isLvItemVisibleForRoles` above. A notebook is reading material:
+ * both galleries (`NotebooksIndexPage`, mobile `(recherche)/index.tsx`) list all
+ * eleven Landesverbände and check only `audience` and `enabled`. While the
+ * picker filtered by role on top of that, the same person could open Bayern and
+ * chat in it, but typing `@bayern` offered nothing.
  */
 export function visibleNotebookMentionables(): Mentionable[] {
   const locale = mentionLocale === 'de-AT' ? 'de-AT' : 'de-DE';
   const allowed = new Set<string>(getNotebooksForAudience(locale).map((n) => n.id));
   return notebookMentionables.filter(
-    (m) =>
-      allowed.has(m.identifier) &&
-      isNotebookOfferedIn(m.identifier, getMentionInstance()) &&
-      isLvNotebookVisibleForRoles(m.identifier, mentionLandesverbaende)
+    (m) => allowed.has(m.identifier) && isNotebookOfferedIn(m.identifier, getMentionInstance())
   );
 }
 
@@ -349,28 +354,48 @@ export function getCustomAgentMentionables(): Mentionable[] {
 // `/`-submit parser doesn't swap the agent — the style rides `activeSkillMention`
 // (set by the composer on select) exactly like a system skill.
 export interface TextformMentionable {
+  /** Row id — the request body's `activeRecipeId` carrier once this recipe
+   *  becomes the active skill mention (a user recipe, unlike a system skill). */
+  id: string;
   mention: string;
   title: string;
+  description: string | null;
+  iconKey: string | null;
   /**
    * Name of the group this recipe was shared from, `null` for the user's own.
    * The picker splits the recipe section on it, so dropping it here makes a
    * colleague's recipe look like one of your own (#2876).
    */
-  sharedFromGroup?: string | null;
+  sharedFromGroup: string | null;
+  /**
+   * Display name of the recipe's owner. The server sets this only for a
+   * foreign recipe (group share or public directory pick) — always `null` for
+   * the user's own, `isPublic` or not.
+   */
+  ownerName: string | null;
+  /** Listed in the public Agentura directory. */
+  isPublic: boolean;
 }
 
 export function textformToMentionable(t: TextformMentionable): Mentionable {
+  const description = t.sharedFromGroup
+    ? `Rezept aus ${t.sharedFromGroup}`
+    : t.isPublic && t.ownerName
+      ? `Rezept von ${t.ownerName}`
+      : (t.description ?? 'Eigene Textform');
   return {
     type: 'textform',
     category: 'skill',
     trigger: '@',
-    identifier: t.mention,
+    identifier: t.id,
     title: t.title,
-    description: t.sharedFromGroup ? `Rezept aus ${t.sharedFromGroup}` : 'Eigene Textform',
+    description,
     avatar: '✍️',
     backgroundColor: '#316049',
     mention: t.mention,
+    ...(t.iconKey ? { iconKey: t.iconKey } : {}),
     ...(t.sharedFromGroup ? { sharedFromGroup: t.sharedFromGroup } : {}),
+    ...(t.isPublic && t.ownerName ? { savedFromOwner: t.ownerName } : {}),
   };
 }
 
@@ -500,6 +525,7 @@ const TOOL_MENTION_ICONS: Record<string, React.ComponentType<{ className?: strin
   wetter: PiCloudSun,
   diagramm: PiChartLine,
   rechnen: PiCalculator,
+  wiederkehrend: PiRepeat,
 };
 
 /**
@@ -528,6 +554,7 @@ const TOOL_MENTION_ORDER: readonly string[] = [
   'beispiele',
   'pressemitteilungen',
   'verlauf',
+  'wiederkehrend',
 ];
 
 /**

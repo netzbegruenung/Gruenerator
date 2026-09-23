@@ -18,6 +18,10 @@ import {
   optimizeCanvasBuffer,
   bufferToBase64,
 } from '../../../services/sharepic/canvas/imageOptimizer.js';
+import {
+  drawRichTextLines,
+  wrapTextLines as wrapText,
+} from '../../../services/sharepic/textLayout.js';
 import { createLogger } from '../../../utils/logger.js';
 
 const log = createLogger('veranstaltung_canvas');
@@ -93,26 +97,6 @@ interface VeranstaltungRequestBody {
 
 interface MulterRequest extends Request {
   file?: Express.Multer.File;
-}
-
-function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
-  const words = text.split(' ');
-  const lines: string[] = [];
-  let currentLine = '';
-
-  for (let i = 0; i < words.length; i++) {
-    const testLine = currentLine + words[i] + ' ';
-    const testWidth = ctx.measureText(testLine).width;
-
-    if (testWidth > maxWidth && i > 0) {
-      lines.push(currentLine.trim());
-      currentLine = words[i] + ' ';
-    } else {
-      currentLine = testLine;
-    }
-  }
-  lines.push(currentLine.trim());
-  return lines;
 }
 
 function drawPhotoSection(ctx: CanvasRenderingContext2D, image: Image): void {
@@ -199,26 +183,16 @@ function drawEventText(
 
   if (beschreibung && beschreibung.trim()) {
     const fontSize = scaledFontSizes.beschreibung;
-    const lineHeight = Math.round(fontSize * 1.17);
-
-    ctx.font = `${fontSize}px GrueneTypeNeue`;
-    ctx.fillStyle = '#FFFFFF';
-
-    const words = beschreibung.split(' ');
-    let line = '';
-
-    for (let i = 0; i < words.length; i++) {
-      const testLine = line + words[i] + ' ';
-      const testWidth = ctx.measureText(testLine).width;
-      if (testWidth > TEXT_MAX_WIDTH && i > 0) {
-        ctx.fillText(line.trim(), TEXT_LEFT_MARGIN, currentY);
-        line = words[i] + ' ';
-        currentY += lineHeight;
-      } else {
-        line = testLine;
-      }
-    }
-    ctx.fillText(line.trim(), TEXT_LEFT_MARGIN, currentY);
+    // Umbruch, Aufzählung und Auszeichnung aus dem geteilten Helfer — die
+    // private Schleife hier kannte weder `\n` noch Marker.
+    drawRichTextLines(ctx, beschreibung, {
+      x: TEXT_LEFT_MARGIN,
+      y: currentY,
+      maxWidth: TEXT_MAX_WIDTH,
+      lineHeight: Math.round(fontSize * 1.17),
+      font: { fontFamily: 'GrueneTypeNeue', fontSize },
+      color: '#FFFFFF',
+    });
   }
 }
 

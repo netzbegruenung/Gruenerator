@@ -78,6 +78,17 @@ export interface PendingToolCall {
 }
 
 /**
+ * Eine Rückfrage aus dem laufenden Loop (`ask_human`-Tool), die auf die Antwort
+ * der Nutzer*in wartet. Wie `PendingToolCall` trägt sie alles, was Karte und
+ * Fortsetzung brauchen — beim Antworten ist der Zug beendet.
+ */
+export interface PendingAskRequest {
+  toolCallId: string;
+  question: string;
+  options?: string[];
+}
+
+/**
  * What an MCP connector tool call yields: EITHER text content OR an error
  * string — never both. `mcpCatalog.ts`'s `dynamicTool` returns exactly this
  * shape (`{ content } | { error }`), so it is the contract the split synth
@@ -182,6 +193,14 @@ export const DEFAULT_LOOP_BUDGET: LoopBudget = {
  */
 export const TOOL_TIMEOUT_OVERRIDES_MS: Record<string, number> = {
   research: 30_000,
+  // Ein ganzes Notebook durchsuchen und dazu Postgres + Qdrant für jede Quelle —
+  // bei großen Notebooks mehr als die Standardfrist. grep/stats lesen bis zu
+  // 4 Mio. Zeichen, stats mit Lemmata wartet dazu bis 30 s auf den NLP-Dienst.
+  notebook_quellen: 45_000,
+  // A long text is several provider requests plus an ffmpeg encode, and the
+  // provider runs them one at a time (#3208). Idempotent per turn, so this
+  // cannot stack either.
+  vertonen: 120_000,
   create_pdf: 90_000,
   create_presentation: 90_000,
   create_document: 90_000,
@@ -200,10 +219,15 @@ export const TOOL_TIMEOUT_OVERRIDES_MS: Record<string, number> = {
  */
 export const NEAR_DUPLICATE_EXEMPT_TOOLS: ReadonlySet<string> = new Set([
   'create_board',
+  // Zwei Absätze desselben Flyers teilen sich fast jedes Token — jeder Aufruf
+  // ist trotzdem eine eigene, bezahlte Übersetzung.
+  'text_uebersetzen',
   'boards_tasks',
   'documents',
   'read_artifact',
   'notebooks',
+  // list → outline → read auf dieselbe sourceId: nur action und Navigation unterscheiden sie.
+  'notebook_quellen',
   'memory',
   // get → content auf dasselbe Projekt teilen sich bis auf die action jedes Token.
   'groups',

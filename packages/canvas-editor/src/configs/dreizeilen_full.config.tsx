@@ -5,11 +5,10 @@
  * Migrated from monolithic 1,107-line DreizeilenCanvas component.
  */
 
-import { HiCog, HiPhotograph, HiSparkles } from 'react-icons/hi';
+import { HiCog, HiPhotograph } from 'react-icons/hi';
 import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
 import { buildAssetCapability } from '../ai/assetCapability';
-import { createAiSectionRegistration } from '../ai/createAiSectionRegistration';
 import { buildIllustrationCapability } from '../ai/illustrationCapability';
 import { AssetsSection, ImageBackgroundSection } from '../sidebar';
 import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
@@ -78,13 +77,16 @@ const SUNFLOWER_CONFIG = {
 // HELPER: CREATE BALKEN INSTANCE
 // ============================================================================
 
+/** The one balken this template owns; everything else on the canvas is the user's. */
+const PRIMARY_BALKEN_ID = 'dreizeilen-balken';
+
 /**
  * Creates a single BalkenInstance for the 3-bar Dreizeilen canvas
  * This is computed from state rather than being stored directly
  */
 function createBalkenInstance(state: Partial<DreizeilenFullState>): BalkenInstance {
   return {
-    id: 'dreizeilen-balken',
+    id: PRIMARY_BALKEN_ID,
     mode: 'triple' as const,
     colorSchemeId: state.colorSchemeId ?? 'tanne-sand',
     widthScale: state.balkenWidthScale ?? 1,
@@ -95,6 +97,24 @@ function createBalkenInstance(state: Partial<DreizeilenFullState>): BalkenInstan
     opacity: state.balkenOpacity ?? 1,
     barOffsets: state.barOffsets,
   };
+}
+
+/**
+ * Regenerates the derived primary balken and keeps every hand-added one.
+ *
+ * Both the seed and the edit path go through here so the rule lives once. It
+ * is also what lets `GenericCanvas.handleRemotePageState` hand the collection
+ * straight back in: the primary is fully derived from the scalar state fields
+ * (`balkenOffset`, `balkenScale`, `barOffsets`, the three lines, …), so
+ * rebuilding it is deterministic and never ping-pongs across clients, while
+ * the decorative ones survive a remote text edit (#3421).
+ */
+function reconcileBalkenInstances(
+  state: Partial<DreizeilenFullState>,
+  existing: BalkenInstance[] | undefined
+): BalkenInstance[] {
+  const decorative = (existing ?? []).filter((b) => b.id !== PRIMARY_BALKEN_ID);
+  return [createBalkenInstance(state), ...decorative];
 }
 
 // ============================================================================
@@ -268,12 +288,10 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
     { id: 'assets', icon: PiSquaresFourFill, label: 'Elemente', ariaLabel: 'Elemente hinzufügen' },
     toolsTab,
     uploadsTab,
-    { id: 'ai', icon: HiSparkles, label: 'KI', ariaLabel: 'KI-Vorschläge' },
     chatTab,
   ],
 
   getVisibleTabs: () => {
-    // 'ai' tab kept registered but hidden — Chat tab now drives canvas-AI suggestions.
     // 'settings' tab kept registered but hidden — opened via getAutoSwitchTab on balken
     // selection so the icon strip doesn't shift when a balken is clicked.
     // 'share' is not in `tabs`, so listing it here filtered to nothing.
@@ -303,7 +321,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
           onRemoveBalken: actions.removeBalken,
           onDuplicateBalken: actions.duplicateBalken,
           colorSchemes: COLOR_SCHEMES,
-          isPrimary: (selectedId ?? 'dreizeilen-balken') === 'dreizeilen-balken',
+          isPrimary: (selectedId ?? PRIMARY_BALKEN_ID) === PRIMARY_BALKEN_ID,
         };
       },
     }),
@@ -366,8 +384,6 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
         ...injectFeatureProps(state, actions, context),
       }),
     }),
-
-    ai: createAiSectionRegistration('dreizeilen', dreizeilenAiCapabilities),
 
     ...createCommonSectionEntries('dreizeilen', dreizeilenAiCapabilities),
 
@@ -460,121 +476,117 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
 
   calculateLayout,
 
-  createInitialState: (props: Record<string, unknown>) => ({
-    // Text Content
-    line1: (props.line1 as string | undefined) ?? '',
-    line2: (props.line2 as string | undefined) ?? '',
-    line3: (props.line3 as string | undefined) ?? '',
+  createInitialState: (props: Record<string, unknown>) => {
+    const state = {
+      // Text Content
+      line1: (props.line1 as string | undefined) ?? '',
+      line2: (props.line2 as string | undefined) ?? '',
+      line3: (props.line3 as string | undefined) ?? '',
 
-    // Text Formatting
-    colorSchemeId: (props.colorSchemeId as string | undefined) ?? 'tanne-sand',
-    fontSize: (props.fontSize as number | undefined) ?? 60,
-    balkenWidthScale: (props.balkenWidthScale as number | undefined) ?? 1,
-    barOffsets:
-      (props.barOffsets as [number, number, number] | undefined) ??
-      DREIZEILEN_CONFIG.defaults.balkenOffset,
+      // Text Formatting
+      colorSchemeId: (props.colorSchemeId as string | undefined) ?? 'tanne-sand',
+      fontSize: (props.fontSize as number | undefined) ?? 60,
+      balkenWidthScale: (props.balkenWidthScale as number | undefined) ?? 1,
+      barOffsets:
+        (props.barOffsets as [number, number, number] | undefined) ??
+        DREIZEILEN_CONFIG.defaults.balkenOffset,
 
-    // Balken Position
-    balkenOffset: (props.balkenOffset as { x: number; y: number } | undefined) ?? { x: 0, y: 0 },
-    balkenOpacity: (props.balkenOpacity as number | undefined) ?? 1,
-    balkenScale: (props.balkenScale as number | undefined) ?? 1,
-    balkenRotation: (props.balkenRotation as number | undefined) ?? 0,
+      // Balken Position
+      balkenOffset: (props.balkenOffset as { x: number; y: number } | undefined) ?? { x: 0, y: 0 },
+      balkenOpacity: (props.balkenOpacity as number | undefined) ?? 1,
+      balkenScale: (props.balkenScale as number | undefined) ?? 1,
+      balkenRotation: (props.balkenRotation as number | undefined) ?? 0,
 
-    // Asset Instances
-    assetInstances: (props.assetInstances as AssetInstance[] | undefined) ?? [],
+      // Asset Instances
+      assetInstances: (props.assetInstances as AssetInstance[] | undefined) ?? [],
 
-    // Sunflower (legacy state maintained for backward compatibility)
-    sunflowerPos: (props.sunflowerPos as { x: number; y: number } | null | undefined) ?? null,
-    sunflowerSize: (props.sunflowerSize as { w: number; h: number } | null | undefined) ?? null,
-    sunflowerVisible: (props.sunflowerVisible as boolean | undefined) ?? true,
-    sunflowerOpacity:
-      (props.sunflowerOpacity as number | undefined) ?? SUNFLOWER_CONFIG.defaultOpacity,
+      // Sunflower (legacy state maintained for backward compatibility)
+      sunflowerPos: (props.sunflowerPos as { x: number; y: number } | null | undefined) ?? null,
+      sunflowerSize: (props.sunflowerSize as { w: number; h: number } | null | undefined) ?? null,
+      sunflowerVisible: (props.sunflowerVisible as boolean | undefined) ?? true,
+      sunflowerOpacity:
+        (props.sunflowerOpacity as number | undefined) ?? SUNFLOWER_CONFIG.defaultOpacity,
 
-    // Background Colour — the plane under the photo. Written explicitly (not
-    // via a passthrough) so a fresh mint lands on Tanne instead of
-    // CanvasBackground's white fallback.
-    backgroundColor: (props.backgroundColor as string | undefined) ?? DEFAULT_PHOTO_BACKGROUND_DE,
+      // Background Colour — the plane under the photo. Written explicitly (not
+      // via a passthrough) so a fresh mint lands on Tanne instead of
+      // CanvasBackground's white fallback.
+      backgroundColor: (props.backgroundColor as string | undefined) ?? DEFAULT_PHOTO_BACKGROUND_DE,
 
-    // Background Image
-    currentImageSrc: props.currentImageSrc as string | undefined,
-    backgroundImageFile: (props.backgroundImageFile as File | Blob | null | undefined) ?? null,
-    imageOffset: (props.imageOffset as { x: number; y: number } | undefined) ?? { x: 0, y: 0 },
-    imageScale: (props.imageScale as number | undefined) ?? 1,
-    imageAttribution: (props.imageAttribution as StockImageAttribution | null | undefined) ?? null,
-    hasBackgroundImage: !!props.currentImageSrc,
-    bgImageDimensions:
-      (props.bgImageDimensions as { width: number; height: number } | null | undefined) ?? null,
-    backgroundImageOpacity: (props.backgroundImageOpacity as number | undefined) ?? 1,
+      // Background Image
+      currentImageSrc: props.currentImageSrc as string | undefined,
+      backgroundImageFile: (props.backgroundImageFile as File | Blob | null | undefined) ?? null,
+      imageOffset: (props.imageOffset as { x: number; y: number } | undefined) ?? { x: 0, y: 0 },
+      imageScale: (props.imageScale as number | undefined) ?? 1,
+      imageAttribution:
+        (props.imageAttribution as StockImageAttribution | null | undefined) ?? null,
+      hasBackgroundImage: !!props.currentImageSrc,
+      bgImageDimensions:
+        (props.bgImageDimensions as { width: number; height: number } | null | undefined) ?? null,
+      backgroundImageOpacity: (props.backgroundImageOpacity as number | undefined) ?? 1,
 
-    // Icons & Shapes
-    selectedIcons: (props.selectedIcons as string[] | undefined) ?? [],
-    iconStates:
-      (props.iconStates as
-        | Record<
-            string,
-            {
-              x: number;
-              y: number;
-              scale: number;
-              rotation: number;
-              color?: string;
-              opacity?: number;
-            }
-          >
-        | undefined) ?? {},
-    shapeInstances: (props.shapeInstances as ShapeInstance[] | undefined) ?? [],
-    selectedShapeId: null,
+      // Icons & Shapes
+      selectedIcons: (props.selectedIcons as string[] | undefined) ?? [],
+      iconStates:
+        (props.iconStates as
+          | Record<
+              string,
+              {
+                x: number;
+                y: number;
+                scale: number;
+                rotation: number;
+                color?: string;
+                opacity?: number;
+              }
+            >
+          | undefined) ?? {},
+      shapeInstances: (props.shapeInstances as ShapeInstance[] | undefined) ?? [],
+      selectedShapeId: null,
 
-    // Illustrations
-    illustrationInstances:
-      (props.illustrationInstances as IllustrationInstance[] | undefined) ?? [],
-    selectedIllustrationId: null,
+      // Illustrations
+      illustrationInstances:
+        (props.illustrationInstances as IllustrationInstance[] | undefined) ?? [],
+      selectedIllustrationId: null,
 
-    // Additional Texts
-    additionalTexts: (props.additionalTexts as AdditionalText[] | undefined) ?? [],
+      // Additional Texts
+      additionalTexts: (props.additionalTexts as AdditionalText[] | undefined) ?? [],
 
-    // Balken Instances (computed from state)
-    balkenInstances: (props.balkenInstances as BalkenInstance[] | undefined) ?? [
-      createBalkenInstance({
-        line1: (props.line1 as string | undefined) ?? '',
-        line2: (props.line2 as string | undefined) ?? '',
-        line3: (props.line3 as string | undefined) ?? '',
-        colorSchemeId: (props.colorSchemeId as string | undefined) ?? 'tanne-sand',
-        balkenWidthScale: (props.balkenWidthScale as number | undefined) ?? 1,
-        balkenOffset: (props.balkenOffset as { x: number; y: number } | undefined) ?? {
-          x: 0,
-          y: 0,
-        },
-        balkenOpacity: (props.balkenOpacity as number | undefined) ?? 1,
-      }),
-    ],
+      // Pill Badge & Circle Badge Instances
+      pillBadgeInstances: (props.pillBadgeInstances as PillBadgeInstance[] | undefined) ?? [],
+      circleBadgeInstances: (props.circleBadgeInstances as CircleBadgeInstance[] | undefined) ?? [],
+      // Wie die Nachbarn darueber aus den Props: sonst raeumt jede
+      // Chat-Bearbeitung Rahmen, Diagramme und hochgeladene Bilder ab.
+      frameInstances: (props.frameInstances as FrameInstance[] | undefined) ?? [],
+      chartInstances: (props.chartInstances as ChartInstance[] | undefined) ?? [],
+      userImageInstances: (props.userImageInstances as UserImageInstance[] | undefined) ?? [],
 
-    // Pill Badge & Circle Badge Instances
-    pillBadgeInstances: (props.pillBadgeInstances as PillBadgeInstance[] | undefined) ?? [],
-    circleBadgeInstances: (props.circleBadgeInstances as CircleBadgeInstance[] | undefined) ?? [],
-    // Wie die Nachbarn darueber aus den Props: sonst raeumt jede
-    // Chat-Bearbeitung Rahmen, Diagramme und hochgeladene Bilder ab.
-    frameInstances: (props.frameInstances as FrameInstance[] | undefined) ?? [],
-    chartInstances: (props.chartInstances as ChartInstance[] | undefined) ?? [],
-    userImageInstances: (props.userImageInstances as UserImageInstance[] | undefined) ?? [],
+      // Layer Ordering
+      layerOrder: (props.layerOrder as string[] | undefined) ?? [],
 
-    // Layer Ordering
-    layerOrder: (props.layerOrder as string[] | undefined) ?? [],
+      // UI State
+      isDesktop:
+        (props.isDesktop as boolean | undefined) ??
+        (typeof window !== 'undefined' && window.innerWidth >= 900),
+    };
 
-    // UI State
-    isDesktop:
-      (props.isDesktop as boolean | undefined) ??
-      (typeof window !== 'undefined' && window.innerWidth >= 900),
-  }),
+    // `balkenInstances` is not a plain passthrough like its neighbours: the
+    // first entry is this template's own bar, derived from the text and the
+    // scalar balken fields above. Deriving it here — instead of only when a
+    // seed happens to carry none — is what keeps a hand-added balken alive
+    // through a remote edit (#3421).
+    return {
+      ...state,
+      balkenInstances: reconcileBalkenInstances(
+        state,
+        props.balkenInstances as BalkenInstance[] | undefined
+      ),
+    };
+  },
 
   createActions: (getState, setState, saveToHistory, debouncedSaveToHistory, callbacks) => {
     // Helper: Update balken instances when balken-related state changes
-    // Preserves decorative balkens (added via addBalken) alongside the primary dreizeilen balken
-    const updateBalkenInstances = (state: DreizeilenFullState): BalkenInstance[] => {
-      const primary = createBalkenInstance(state);
-      const decorative = state.balkenInstances.filter((b) => b.id !== 'dreizeilen-balken');
-      return [primary, ...decorative];
-    };
+    const updateBalkenInstances = (state: DreizeilenFullState): BalkenInstance[] =>
+      reconcileBalkenInstances(state, state.balkenInstances);
 
     // Use common action creators for shared functionality
     const assetActions = createAssetActions(
@@ -748,7 +760,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
       },
 
       setBalkenText: (id: string, index: number, text: string) => {
-        if (id === 'dreizeilen-balken') {
+        if (id === PRIMARY_BALKEN_ID) {
           const field = index === 0 ? 'line1' : index === 1 ? 'line2' : 'line3';
           setState((prev) => {
             const newState = { ...prev, [field]: text };
@@ -770,7 +782,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
       },
 
       updateBalken: (id: string, partial: Partial<BalkenInstance>) => {
-        if (id === 'dreizeilen-balken') {
+        if (id === PRIMARY_BALKEN_ID) {
           setState((prev) => {
             const updates: Partial<DreizeilenFullState> = {};
             if (partial.offset !== undefined) updates.balkenOffset = partial.offset;

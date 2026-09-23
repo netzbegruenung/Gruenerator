@@ -124,6 +124,7 @@ export const userProfileContractRouter = s.router(userProfileContract, {
         reduce_motion,
         reduce_transparency,
         show_skip_link,
+        tts_voice_id,
         memory_enabled,
         ai_consent,
       } = args.body;
@@ -143,6 +144,7 @@ export const userProfileContractRouter = s.router(userProfileContract, {
       if (reduce_motion !== undefined) updateData.reduce_motion = reduce_motion;
       if (reduce_transparency !== undefined) updateData.reduce_transparency = reduce_transparency;
       if (show_skip_link !== undefined) updateData.show_skip_link = show_skip_link;
+      if (tts_voice_id !== undefined) updateData.tts_voice_id = tts_voice_id;
       if (memory_enabled !== undefined) updateData.memory_enabled = memory_enabled;
       // Der Zeitstempel kommt vom Server, nicht vom Client: er ist der Nachweis
       // der Einwilligung (Art. 7 Abs. 1 DSGVO). Widerruf löscht ihn, damit der

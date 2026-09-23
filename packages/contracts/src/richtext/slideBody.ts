@@ -337,11 +337,15 @@ function serializeImage(node: PMNode): string {
  * literal pipe is escaped (marked's `splitCells` unescapes it again).
  */
 function serializeCell(cell: PMNode): string {
+  // The pipe is escaped by matching the backslash rather than asserting it away
+  // with `(?<!\\)`: WebKit without lookbehind support cannot compile that
+  // pattern, and this module is bundled into the slide editor. `\\?\|` prefers
+  // the escaped form, so an already-escaped pipe is left alone.
   return (cell.content ?? [])
     .map((block) => serializeInline(block.content))
     .join(' ')
     .replace(/\s*\n\s*/g, '<br>')
-    .replace(/(?<!\\)\|/g, '\\|')
+    .replace(/\\?\|/g, (pipe) => (pipe === '|' ? '\\|' : pipe))
     .replace(/\s+/g, ' ')
     .trim();
 }

@@ -41,3 +41,27 @@ export const contentSyncArticles = pgTable(
   ]
 );
 export type ContentSyncArticleRow = InferSelectModel<typeof contentSyncArticles>;
+
+/**
+ * URLs a scraper fetched and then rejected, so the next walk can skip them
+ * before paying for the fetch (#3200).
+ *
+ * Runtime DDL: migrations/zz_20260915_scraper_rejected_urls.sql, which carries
+ * the reasoning — in short, only *monotone* rejections belong here ('too_old'),
+ * and `published_at` is stored rather than a bare flag so the gate re-decides
+ * against the source's current maxAgeYears instead of blocking forever.
+ */
+export const scraperRejectedUrls = pgTable(
+  'scraper_rejected_urls',
+  {
+    source_url: text('source_url').primaryKey(),
+    source_id: text('source_id').notNull(),
+    reason: text('reason').notNull(),
+    published_at: timestamp('published_at', { withTimezone: true, mode: 'string' }).notNull(),
+    rejected_at: timestamp('rejected_at', { withTimezone: true, mode: 'string' })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index('idx_scraper_rejected_source').on(t.source_id)]
+);
+export type ScraperRejectedUrlRow = InferSelectModel<typeof scraperRejectedUrls>;

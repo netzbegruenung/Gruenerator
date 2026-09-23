@@ -15,7 +15,6 @@ import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ioni
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   View,
-  Text,
   TextInput,
   Pressable,
   StyleSheet,
@@ -36,7 +35,7 @@ import {
   pickedDocumentToAttachment,
   type PickedDocument,
 } from '../../services/documentPicker';
-import { BODY_FONT, colors, spacing } from '../../theme';
+import { colors, spacing } from '../../theme';
 import { ComposerAttachmentUI } from '../chat/AttachmentUI';
 import { ComposerActionSheet } from '../chat/ComposerActionSheet';
 import { DocumentBrowserSheet } from '../chat/DocumentBrowserSheet';
@@ -124,15 +123,6 @@ export interface ComposerProps {
   testIDPrefix?: string;
   autoFocus?: boolean;
   /**
-   * Erinnerungshinweis nach Art. 50 Abs. 4 KI-VO unter dem Feld.
-   *
-   * An: überall, wo die Eingabe an ein Modell geht — der Hinweis begründet die
-   * Ausnahme von der Kennzeichnungspflicht für KI-Text und muss deshalb an
-   * jedem solchen Feld stehen, auf dem Telefon wie im Web. Aus nur, wenn eine
-   * Fläche gar nicht an ein Modell schickt.
-   */
-  showDisclaimer?: boolean;
-  /**
    * Called when the input loses focus while empty — for composers revealed on
    * demand (the Wissen tab's FAB) that fold away again when the user dismisses
    * the keyboard without typing.
@@ -180,7 +170,15 @@ function asPickerSource(type: Mentionable['type']): MentionPickerSource | null {
  */
 function rememberSkill(mentionable: Mentionable): void {
   if (mentionable.category === 'skill') {
-    useAgentStore.getState().setActiveSkillMention(mentionable.mention);
+    // A textform's `identifier` IS its row id, and a user recipe is resolved by
+    // that id — the mention alone cannot separate two recipes of the same name.
+    // Every other skill (system recipe, custom prompt) has no row, so: null.
+    useAgentStore
+      .getState()
+      .setActiveSkillMention(
+        mentionable.mention,
+        mentionable.type === 'textform' ? mentionable.identifier : null
+      );
   }
 }
 
@@ -440,15 +438,6 @@ function ComposerBody({
         theme={theme}
         minHeight={props.minHeight}
         style={props.style}
-        belowBox={
-          props.showDisclaimer === false ? null : (
-            // Kurzfassung, nicht die volle: über der Tastatur frisst der lange
-            // Satz drei Zeilen. Web macht unterhalb `sm` dasselbe.
-            <Text style={[styles.disclaimer, { color: theme.textSecondary }]}>
-              KI-Ergebnisse vor der Veröffentlichung prüfen.
-            </Text>
-          )
-        }
         aboveBox={
           <>
             {showMentions && input.mention?.visible && (
@@ -742,12 +731,6 @@ const styles = StyleSheet.create({
   },
   edge: {
     paddingTop: spacing.xsmall,
-  },
-  disclaimer: {
-    fontFamily: BODY_FONT,
-    fontSize: 11,
-    textAlign: 'center',
-    marginTop: 4,
   },
 });
 

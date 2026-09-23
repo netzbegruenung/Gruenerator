@@ -103,7 +103,8 @@ export type ToolIconKey =
   | 'presentation'
   | 'table'
   | 'board'
-  | 'chart';
+  | 'chart'
+  | 'audio';
 
 /**
  * Semantic accent, NOT a class name — a Tailwind string could not cross into
@@ -340,6 +341,12 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
     iconKey: 'book',
     accent: 'personal',
   },
+  notebook_quellen: {
+    label: 'Notebook-Quellen',
+    activeLabel: 'Liest Notebook-Quellen',
+    iconKey: 'book',
+    accent: 'personal',
+  },
   read_artifact: {
     label: 'Artefakt',
     activeLabel: 'Öffne das Artefakt',
@@ -351,6 +358,19 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
     activeLabel: 'Sehe in der Wolke nach',
     iconKey: 'cloud',
     accent: 'personal',
+  },
+  text_uebersetzen: {
+    label: 'Übersetzung',
+    activeLabel: 'Übersetze',
+    iconKey: 'globe',
+    accent: 'external',
+    queryKeys: ['text', 'zielsprache'],
+    summarize: (_args, result) => {
+      if (!result || typeof result !== 'object') return null;
+      const r = result as { zielsprache?: unknown; glossarAngewendet?: unknown };
+      if (typeof r.zielsprache !== 'string') return null;
+      return `Übersetzt nach ${r.zielsprache.toUpperCase()}${r.glossarAngewendet === true ? ' (mit Glossar)' : ''}`;
+    },
   },
   recurring_tasks: {
     label: 'Wiederkehrende Aufgaben',
@@ -451,6 +471,12 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
     label: 'Formular ausfüllen',
     activeLabel: 'Fülle das Formular',
     iconKey: 'file',
+    accent: 'create',
+  },
+  vertonen: {
+    label: 'Vertonung',
+    activeLabel: 'Vertone den Text',
+    iconKey: 'audio',
     accent: 'create',
   },
   sharepic_edit: {

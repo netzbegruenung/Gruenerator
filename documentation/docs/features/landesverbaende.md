@@ -1,41 +1,41 @@
 ---
 sidebar_position: 9
-description: 'Regional getunte Grüneratoren, die im Stil ihres Landesverbands schreiben und in dessen Pressemitteilungen, Beschlüssen und Programmen recherchieren.'
+description: 'Regional getunte Agents, die im Stil ihres Landesverbands schreiben und in dessen Pressemitteilungen, Beschlüssen und Programmen recherchieren.'
 ---
 
 import AgentTiles from '@site/src/components/AgentTiles';
 
-# Landesverband-Grüneratoren
+# Landesverband-Agents
 
-Der Grünerator hat für mehrere Landesverbände **eigene, regional getunte Grüneratoren**. Sie schreiben nicht generisch-grün, sondern im konkreten Stil des jeweiligen Landesverbands — mit den richtigen Sprecher\*innen, den lokalen Themen und der typischen Tonalität. Im Hintergrund recherchieren sie automatisch in der Wissensdatenbank des Landesverbands (Pressemitteilungen, Beschlüsse, Wahlprogramme) und im Web.
+Der Grünerator hat für mehrere Landesverbände **eigene, regional getunte Agents**. Sie schreiben nicht generisch-grün, sondern im konkreten Stil des jeweiligen Landesverbands — mit den richtigen Sprecher\*innen, den lokalen Themen und der typischen Tonalität. Im Hintergrund recherchieren sie automatisch in der Wissensdatenbank des Landesverbands (Pressemitteilungen, Beschlüsse, Wahlprogramme) und im Web.
 
-Es gibt drei Sorten von Landesverband-Grüneratoren:
+Es gibt drei Sorten von Landesverband-Agents:
 
 - **Öffentlichkeitsarbeit** — schreibt Pressemitteilungen und Social-Media-Posts im Stil des Landesverbands.
 - **Bürger\*innenanfragen** — formuliert versandfertige, recherchebasierte Antwort-E-Mails auf Anfragen von Bürger\*innen.
 - **Wahlprüfsteine** — beantwortet Fragenkataloge von Verbänden und Initiativen, im Format des Katalogs und im Stil des Landesverbands.
 
 :::info[Sichtbar mit der Rolle deiner Landesgeschäftsstelle]
-Die Grüneratoren, Rezepte und Notebooks eines Landesverbands sind seinen Leuten zugeteilt: Sie erscheinen, sobald du in deinem Profil die Rolle _Mitarbeiter\*in Landesgeschäftsstelle_ (Österreich: _Landesorganisation_) mit deinem Bundesland hinterlegt hast. Wie das geht, steht unter [Für deinen Landesverband einrichten](/docs/guides/landesverbaende/landesverband-einrichten).
+Die Agents, Rezepte und Notebooks eines Landesverbands sind seinen Leuten zugeteilt: Sie erscheinen, sobald du in deinem Profil die Rolle _Mitarbeiter\*in Landesgeschäftsstelle_ (Österreich: _Landesorganisation_) mit deinem Bundesland hinterlegt hast. Wie das geht, steht unter [Für deinen Landesverband einrichten](/docs/guides/landesverbaende/landesverband-einrichten).
 :::
 
 ## Abgedeckte Landesverbände
 
 <AgentTiles />
 
-Jede Kachel verlinkt auf die **Landesverband-Seite** — sie bietet die drei Grüneratoren des Landesverbands zur Auswahl an: **Öffentlichkeitsarbeit**, **Bürger\*innenservice** und **Wahlprüfsteine** (alle siehe unten). Darunter stehen die Rezept-Abkürzungen und ein Link zur Wissensdatenbank (Notebook).
+Jede Kachel verlinkt auf die **Landesverband-Seite** — sie bietet die drei Agents des Landesverbands zur Auswahl an: **Öffentlichkeitsarbeit**, **Bürger\*innenservice** und **Wahlprüfsteine** (alle siehe unten). Darunter stehen die Rezept-Abkürzungen und ein Link zur Wissensdatenbank (Notebook).
 
 :::note[Österreich]
-Die Grünen Österreich sind kein Landesverband, sondern die Bundespartei — sie haben aber dieselben drei Grünerator-Typen (erreichbar unter `/agents/gruene-oesterreich`, Wissensdatenbank `/notebooks/oesterreich` · `@at`). Diese Grüneratoren verwenden österreichisches Vokabular (Nationalrat, Klubobfrau\*Klubobmann, Klimaticket) und erscheinen nur für Nutzer\*innen mit österreichischer Einstellung.
+Die Grünen Österreich sind kein Landesverband, sondern die Bundespartei — sie haben aber dieselben drei Agent-Typen (erreichbar unter `/agents/gruene-oesterreich`, Wissensdatenbank `/notebooks/oesterreich` · `@at`). Diese Agents verwenden österreichisches Vokabular (Nationalrat, Klubobfrau\*Klubobmann, Klimaticket) und erscheinen nur für Nutzer\*innen mit österreichischer Einstellung.
 :::
 
 ## Pressemitteilungen & Social Media schreiben
 
-Du erreichst den Öffentlichkeitsarbeit-Grünerator auf zwei Wegen:
+Du erreichst den Öffentlichkeitsarbeit-Agenten auf zwei Wegen:
 
-**1. Über die Landesverband-Seite** — öffne die LV-Adresse (z. B. `/agents/gruene-berlin`) und wähle dort **Öffentlichkeitsarbeit**; oder wähle den Grünerator-Agent direkt in der Auswahl im Chat aus. Er bleibt für das ganze Gespräch im LV-Stil.
+**1. Über die Landesverband-Seite** — öffne die LV-Adresse (z. B. `/agents/gruene-berlin`) und wähle dort **Öffentlichkeitsarbeit**; oder wähle den Agenten direkt in der Auswahl im Chat aus. Er bleibt für das ganze Gespräch im LV-Stil.
 
-**2. Über eine Rezept-Abkürzung** — tippe im Chat `@presse-berlin-partei` und direkt dahinter dein Thema. Das Rezept schickt deine Anfrage an den passenden LV-Grünerator und gibt ihm gleich die richtige Aufgabe mit (Pressemitteilung bzw. Instagram-Post).
+**2. Über eine Rezept-Abkürzung** — tippe im Chat `@presse-berlin-partei` und direkt dahinter dein Thema. Das Rezept schickt deine Anfrage an den passenden LV-Agenten und gibt ihm gleich die richtige Aufgabe mit (Pressemitteilung bzw. Instagram-Post).
 
 ### LV-Rezepte im Überblick
 
@@ -64,19 +64,19 @@ Unabhängig vom Landesverband gibt es allgemeine Rezepte für jede Plattform: `@
 
 ## Bürger\*innenanfragen beantworten
 
-Die Bürger\*innenanfragen-Grüneratoren helfen dir, eingehende E-Mails von Bürger\*innen zu beantworten. Du fügst die Anfrage ein, der Grünerator-Agent recherchiert die Positionen des Landesverbands (die Treffer erscheinen als Recherche-Karten im Chat) und formuliert eine **versandfertige Antwort-E-Mail** nach festem Aufbau: Anrede → Dank → inhaltliche Antwort → weiterführende Links.
+Die Bürger\*innenanfragen-Agents helfen dir, eingehende E-Mails von Bürger\*innen zu beantworten. Du fügst die Anfrage ein, der Agent recherchiert die Positionen des Landesverbands (die Treffer erscheinen als Recherche-Karten im Chat) und formuliert eine **versandfertige Antwort-E-Mail** nach festem Aufbau: Anrede → Dank → inhaltliche Antwort → weiterführende Links.
 
 Du erreichst sie über die Landesverband-Seite (z. B. `/agents/gruene-berlin`) — dort wählst du den **Bürger\*innenservice** statt der Öffentlichkeitsarbeit.
 
 ## Wahlprüfsteine beantworten
 
-Die Wahlprüfstein-Grüneratoren beantworten **Fragenkataloge von Verbänden und Initiativen** (Wahlprüfsteine): Du fügst den Katalog ein, der Grünerator-Agent recherchiert die Positionen des Landesverbands und antwortet im Format des Katalogs und im Stil des Landesverbands.
+Die Wahlprüfstein-Agents beantworten **Fragenkataloge von Verbänden und Initiativen** (Wahlprüfsteine): Du fügst den Katalog ein, der Agent recherchiert die Positionen des Landesverbands und antwortet im Format des Katalogs und im Stil des Landesverbands.
 
 Auch sie erreichst du über die Landesverband-Seite — dort wählst du **Wahlprüfsteine**.
 
 ## Die Wissensdatenbank dahinter
 
-Jeder Landesverband hat ein **Notebook** — eine durchsuchbare Sammlung seiner offiziellen Inhalte (Pressemitteilungen, Beschlüsse, Wahlprogramme). Die LV-Grüneratoren durchsuchen es automatisch und auf den richtigen Landesverband gefiltert, du musst nichts einstellen.
+Jeder Landesverband hat ein **Notebook** — eine durchsuchbare Sammlung seiner offiziellen Inhalte (Pressemitteilungen, Beschlüsse, Wahlprogramme). Die LV-Agents durchsuchen es automatisch und auf den richtigen Landesverband gefiltert, du musst nichts einstellen.
 
 Du kannst dasselbe Notebook auch direkt nutzen:
 

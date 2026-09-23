@@ -55,9 +55,11 @@ export const UI_TOOL_NAMES = z.enum([
   'groups',
   'media',
   'notebooks',
+  'notebook_quellen',
   'read_pdf_form',
   'fill_pdf_form',
   'cloud_files',
+  'text_uebersetzen',
   'recurring_tasks',
   'user_agents',
   'recipes',
@@ -66,6 +68,8 @@ export const UI_TOOL_NAMES = z.enum([
   // apps/api enforces exactly that. F0: additive only, never renamed.
   'rezept_laden',
   'sharepic',
+  // Persisted by the deterministic edit lane (sharepicEditService), not the loop.
+  'sharepic_edit',
   'create_document',
   'create_presentation',
   'create_sheet',
@@ -80,6 +84,7 @@ export const UI_TOOL_NAMES = z.enum([
   'search_threads',
   'read_artifact',
   'memory',
+  'vertonen',
 ]);
 export type UiToolName = z.infer<typeof UI_TOOL_NAMES>;
 
@@ -196,6 +201,19 @@ function parsePdfFormReadVM(args: unknown, result: unknown): ToolResultVM {
   return { kind: 'key-value', entries, citations: [], markdown: null, imageUrl: null };
 }
 
+/** Vertonung outcome. The file itself renders in the compute card below. */
+function parseVertonenVM(args: unknown, result: unknown): ToolResultVM {
+  const error = getString(result, 'error');
+  if (error) return { kind: 'text-note', text: error };
+  const fileName = getString(result, 'fileName');
+  if (!fileName) return parseGenericFallback(args, result);
+  const laenge = getString(result, 'laenge');
+  return {
+    kind: 'text-note',
+    text: laenge ? `„${fileName}" erstellt · ${laenge}` : `„${fileName}" erstellt.`,
+  };
+}
+
 /** Fill outcome. Counts, not the field list — the arrays may be truncated. */
 function parsePdfFormFillVM(args: unknown, result: unknown): ToolResultVM {
   const fileName = getString(result, 'fileName');
@@ -207,6 +225,16 @@ function parsePdfFormFillVM(args: unknown, result: unknown): ToolResultVM {
     kind: 'text-note',
     text: `${filled} Feld(er) in „${fileName}" ausgefüllt.${skipNote}`,
   };
+}
+
+// text_uebersetzen: the card IS the translation — the model repeats it in
+// the answer, but the card lets the person copy the untouched DeepL output.
+function parseTranslationVM(args: unknown, result: unknown): ToolResultVM {
+  const error = getString(result, 'error');
+  if (error) return { kind: 'text-note', text: error };
+  const text = getString(result, 'uebersetzung');
+  if (!text) return parseGenericFallback(args, result);
+  return { kind: 'text-note', text };
 }
 
 function parseTextNoteVM(args: unknown, result: unknown): ToolResultVM {
@@ -303,6 +331,15 @@ function parseSharepicVM(args: unknown, result: unknown): ToolResultVM {
   if (error) return { kind: 'text-note', text: error };
   const note = getString(result, 'note');
   return note ? { kind: 'text-note', text: note } : parseGenericFallback(args, result);
+}
+
+// The edited picture re-renders via `sharepic_updated`; the card names the
+// change. The rest of the result is canvas/variant UUIDs nobody should see.
+function parseSharepicEditVM(args: unknown, result: unknown): ToolResultVM {
+  const error = getString(result, 'error');
+  if (error) return { kind: 'text-note', text: error };
+  const summary = getString(result, 'summary');
+  return summary ? { kind: 'text-note', text: summary } : parseGenericFallback(args, result);
 }
 
 // read_artifact has an ambiguous-match branch (`candidates`) that the generic
@@ -407,6 +444,178 @@ function parseNotebooksVM(args: unknown, result: unknown): ToolResultVM {
     return { kind: 'key-value', entries, citations: [], markdown: null, imageUrl: null };
   }
   return parsePersonalDataVM(args, result);
+}
+
+// notebook_quellen: list sind Zeilen wie bei den anderen Personal-Data-Werkzeugen;
+// outline eine Gliederung (eine Zeile je Abschnitt), read eine Textscheibe und
+// find Rohpassagen mit Fundstelle — als Zitatliste wie `notebooks.search`.
+// grep/rank sind Zeilen je Quelle, stats Schlüssel/Wert, cite eine Zitatliste
+// (notebookSourceReadActions.ts). `exhaustive: false` steht sichtbar in der Karte.
+// Die Schreibaktionen liefern {ok, note, …}: die Notiz ist das Ergebnis.
+function parseNotebookSourcesVM(args: unknown, result: unknown): ToolResultVM {
+  const error = getString(result, 'error');
+  if (error) return { kind: 'text-note', text: error };
+  const note = getString(result, 'note');
+  if (note && getBoolean(result, 'ok')) return { kind: 'text-note', text: note };
+
+  const scan = parseNotebookSourceScanVM(result);
+  if (scan) return scan;
+
+  const outline = getArray(result, 'outline');
+  if (outline) {
+    const entries: KeyValueEntry[] = outline.map((e) => {
+      const heading = getString(e, 'heading') ?? '(ohne Überschrift)';
+      const pageFrom = getNumber(e, 'pageFrom');
+      const pageTo = getNumber(e, 'pageTo');
+      const pages =
+        pageFrom == null
+          ? ''
+          : pageFrom === pageTo
+            ? ` · S. ${pageFrom}`
+            : ` · S. ${pageFrom}–${pageTo}`;
+      return {
+        label: heading,
+        value: `Chunks ${getNumber(e, 'chunkFrom') ?? '?'}–${getNumber(e, 'chunkTo') ?? '?'}${pages}`,
+      };
+    });
+    return { kind: 'key-value', entries, citations: [], markdown: null, imageUrl: null };
+  }
+
+  const text = getString(result, 'text');
+  if (text) {
+    const title = getString(getObject(result, 'source'), 'title') ?? 'Quelle';
+    const from = getNumber(result, 'from');
+    const to = getNumber(result, 'to');
+    const total = getNumber(result, 'total');
+    const range =
+      from != null && to != null && total != null ? ` · Zeichen ${from}–${to} von ${total}` : '';
+    return { kind: 'text-note', text: `${title}${range}\n\n${text}` };
+  }
+
+  const passages = getArray(result, 'passages');
+  if (passages) {
+    const citations = passages.slice(0, 5).map((p, i) => {
+      const page = getNumber(p, 'pageNumber');
+      const title = getString(p, 'title') ?? 'Quelle';
+      return toSerializableCitation(
+        { title: page != null ? `${title}, S. ${page}` : title, excerpt: getString(p, 'excerpt') },
+        i,
+        'document'
+      );
+    });
+    const notebook = getString(result, 'notebook');
+    return {
+      kind: 'key-value',
+      entries: notebook ? [{ label: 'Notebook', value: notebook }] : [],
+      citations,
+      markdown: null,
+      imageUrl: null,
+    };
+  }
+
+  return parsePersonalDataVM(args, result);
+}
+
+function keyValue(entries: KeyValueEntry[]): ToolResultVM {
+  return { kind: 'key-value', entries, citations: [], markdown: null, imageUrl: null };
+}
+
+function notebookSourceCitation(item: unknown, index: number, excerptKey: string) {
+  const page = getNumber(item, 'pageNumber');
+  const title = getString(item, 'title') ?? 'Quelle';
+  return toSerializableCitation(
+    { title: page != null ? `${title}, S. ${page}` : title, excerpt: getString(item, excerptKey) },
+    index,
+    'document'
+  );
+}
+
+/** grep, stats, rank und cite — `null` für die übrigen Formen. */
+function parseNotebookSourceScanVM(result: unknown): ToolResultVM | null {
+  // `getBoolean` meldet ein fehlendes Feld als false — hier zählt, ob es da ist.
+  const has = (key: string) => typeof result === 'object' && result !== null && key in result;
+  const incomplete = has('exhaustive') && !getBoolean(result, 'exhaustive');
+  const note = getString(result, 'note');
+
+  const totals = getObject(result, 'totals');
+  if (totals) {
+    const labels: Array<[string, string]> = [
+      ['words', 'Wörter'],
+      ['chars', 'Zeichen'],
+      ['sentences', 'Sätze'],
+      ['paragraphs', 'Absätze'],
+      ['pages', 'Seiten'],
+      ['chunks', 'Chunks'],
+    ];
+    const entries: KeyValueEntry[] = labels.flatMap(([key, label]) => {
+      const n = getNumber(totals, key);
+      return n == null ? [] : [{ label, value: incomplete ? `mindestens ${n}` : String(n) }];
+    });
+    const lemmas = getArray(result, 'lemmas') ?? [];
+    if (lemmas.length) {
+      entries.push({
+        label: 'Häufigste Lemmata',
+        value: lemmas
+          .slice(0, 10)
+          .map((l) => `${getString(l, 'lemma') ?? '?'} ${getNumber(l, 'count') ?? '?'}`)
+          .join(', '),
+      });
+    }
+    for (const l of getArray(result, 'lemmaOf') ?? []) {
+      entries.push({
+        label: `Formen von „${getString(l, 'lemma') ?? '?'}"`,
+        value: String(getNumber(l, 'total') ?? 0),
+      });
+    }
+    if (note) entries.push({ label: 'Hinweis', value: note });
+    return keyValue(entries);
+  }
+
+  const totalHits = getNumber(result, 'totalHits');
+  const perSource = getArray(result, 'perSource');
+  if (totalHits != null && perSource) {
+    const phrase = getString(result, 'phrase') ?? '';
+    return keyValue([
+      {
+        label: `„${phrase}"`,
+        value: incomplete
+          ? `mindestens ${totalHits} Treffer (nicht alle Quellen gelesen)`
+          : `${totalHits} Treffer`,
+      },
+      ...perSource.map((p) => ({
+        label: getString(p, 'title') ?? 'Quelle',
+        value: `${getNumber(p, 'count') ?? 0} Treffer`,
+      })),
+    ]);
+  }
+
+  const ranking = getArray(result, 'ranking');
+  if (ranking) {
+    const entries: KeyValueEntry[] = ranking.map((r) => {
+      const value = getString(r, 'value') ?? getNumber(r, 'value');
+      return {
+        label: `${getNumber(r, 'rank') ?? '?'}. ${getString(r, 'title') ?? 'Quelle'}`,
+        value: `${value ?? '—'} ${getString(r, 'unit') ?? ''}`.trim(),
+      };
+    });
+    if (note) entries.push({ label: 'Hinweis', value: note });
+    return keyValue(entries);
+  }
+
+  if (has('found') && getBoolean(result, 'found')) {
+    return { kind: 'citations', citations: [notebookSourceCitation(result, 0, 'matched')] };
+  }
+  const candidates = getArray(result, 'candidates');
+  if (has('found') || candidates) {
+    if (!candidates?.length) {
+      return { kind: 'text-note', text: note ?? 'Keine passende Stelle gefunden.' };
+    }
+    return {
+      kind: 'citations',
+      citations: candidates.slice(0, 5).map((c, i) => notebookSourceCitation(c, i, 'sentence')),
+    };
+  }
+  return null;
 }
 
 // groups: `get` liefert ein `{group}`-Detailobjekt (groupTools.ts) — ohne Zweig
@@ -696,11 +905,16 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   groups: entry('groups', 'citations', parseGroupsVM),
   media: entry('media', 'citations', parsePersonalDataVM),
   notebooks: entry('notebooks', 'citations', parseNotebooksVM),
+  notebook_quellen: entry('notebook_quellen', 'citations', parseNotebookSourcesVM),
   read_pdf_form: entry('read_pdf_form', 'key-value', parsePdfFormReadVM),
   // The filled file itself renders in the compute card (fileAssets); the tool
   // card only reports what happened.
   fill_pdf_form: entry('fill_pdf_form', 'text-note', parsePdfFormFillVM),
+  // The audio file itself renders in the compute card (fileAssets); the tool
+  // card only reports what was made.
+  vertonen: entry('vertonen', 'text-note', parseVertonenVM),
   cloud_files: entry('cloud_files', 'key-value', parseCloudFilesVM),
+  text_uebersetzen: entry('text_uebersetzen', 'text-note', parseTranslationVM),
   recurring_tasks: entry('recurring_tasks', 'citations', parseRecurringTasksVM),
   user_agents: entry('user_agents', 'citations', parseUserAgentsVM),
   recipes: entry('recipes', 'citations', parseRecipesVM),
@@ -708,6 +922,7 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   // --- Loop-catalog tools, previously falling through to the raw-name pill ---
   rezept_laden: entry('rezept_laden', 'text-note', parseRecipeVM),
   sharepic: entry('sharepic', 'text-note', parseSharepicVM),
+  sharepic_edit: entry('sharepic_edit', 'text-note', parseSharepicEditVM),
   create_document: entry('create_document', 'text-note', parseArtifactCreatedVM),
   create_presentation: entry('create_presentation', 'text-note', parseArtifactCreatedVM),
   create_sheet: entry('create_sheet', 'text-note', parseArtifactCreatedVM),

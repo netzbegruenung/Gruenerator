@@ -114,6 +114,13 @@ jobs:
       - name: Overlay z-index layers
         run: node scripts/check-overlay-layers.mjs
 
+      # `(?<=…)`/`(?<!…)` need Safari 16.4; apps/web builds for safari15. WebKit
+      # below that throws `Invalid regular expression: invalid group specifier
+      # name` at the pattern and unmounts the React subtree around it. Neither
+      # tsc, ESLint, esbuild nor vitest (V8) sees it — GlitchTip issue 561.
+      - name: No regex lookbehind in browser code
+        run: node scripts/check-browser-lookbehind.mjs
+
       # A swallowed error in the chat stack is invisible: the turn looks
       # successful and the artefact/answer is silently missing. Ratchet against
       # a baseline — the count may fall, never rise.
@@ -148,12 +155,19 @@ jobs:
       - name: No orphaned test files
         run: node scripts/check-orphan-tests.mjs
 
-      # A package copied by a Dockerfile but missing from that image's
-      # paths-filter means a change to it builds nothing: the workflow runs
-      # (`packages/**` is in the trigger), every job is skipped, and the merged
-      # change never ships. Nothing turns red — so this does.
+      # A file copied by a Dockerfile but missing from that image's
+      # paths-filter means a change to it builds nothing: the workflow runs,
+      # every job is skipped, and the merged change never ships. Nothing turns
+      # red — so this does. Also checks the push/pull_request triggers against
+      # the filters, the second layer that can drift the same way (#3389).
       - name: Image build filters cover their Dockerfiles
         run: node scripts/check-image-build-filters.mjs
+
+      # The routing table is generated; the privacy notice's list of
+      # sub-processors is hand-kept. Cortecs wrote most answers for a month
+      # without being named there (#3517).
+      - name: Privacy notice names every model host
+        run: node scripts/check-privacy-subprocessors.mjs
 
   typecheck:
     name: Typecheck
@@ -183,6 +197,17 @@ jobs:
       # node_modules und haengt deshalb an diesem Job statt an `guards`.
       - name: Overrides erfuellen die deklarierten Bereiche
         run: node scripts/check-override-ranges.mjs
+
+      # Alle anderen Dependency-Checks vergleichen Deklarationen miteinander;
+      # keiner sieht den installierten Baum. `node-linker=hoisted` legt EINEN
+      # flachen Baum an, den sich die Worktrees teilen — ein Install aus einem
+      # fremden Branch schreibt dessen Versionen hinein, und `pnpm install`
+      # meldet danach "Already up to date" (Workspace-State-Cache), auch mit
+      # --force. Sichtbar wird der Bruch erst beim Laden eines Moduls
+      # (17.09.2026: @assistant-ui/core 0.3.18 statt 0.3.16 -> vier
+      # jsdom-Suiten an einem fehlenden assistant-cloud-Export).
+      - name: node_modules deckt sich mit dem Lockfile
+        run: node scripts/check-installed-lockfile-drift.mjs
 
       - name: TypeScript type check
         run: pnpm typecheck
@@ -261,6 +286,28 @@ jobs:
   test:
     name: Tests
     runs-on: ubuntu-latest
+    # An empty database for `migrations.db.vitest.ts`: builds the schema from
+    # zero the way a fresh instance does on first boot (#2895). A grown
+    # database never shows a migration that only works on top of another.
+    # Trust auth on a throwaway container: no password literals, which secret
+    # scanners (GitGuardian) would flag. Port 55432, not 5432: other suites
+    # fall back to localhost:5432/gruenerator when no DB is configured
+    # (authRegressions, deepAgentTurn) and would otherwise run against, and
+    # pre-fill, the database this test needs empty.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      MIGRATIONS_TEST_DATABASE_URL: postgresql://gruenerator@localhost:55432/gruenerator
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -276,6 +323,14 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      # The app role owns its database but is no superuser. schema.sql creates
+      # its own extensions, which only works while they stay trusted ones.
+      - name: Create the app role and its empty database
+        run: >-
+          psql postgresql://postgres@localhost:55432/postgres
+          -c "CREATE ROLE gruenerator LOGIN"
+          -c "CREATE DATABASE gruenerator OWNER gruenerator"
 
       - name: Run tests
         run: pnpm test
@@ -299,10 +354,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      # The interpreter is named ONCE, in the Dockerfile's FROM lines, and read
+      # from there. A literal `python-version` here is a second source of truth
+      # that cannot go red: it kept testing 3.12 no matter what the image
+      # shipped, so a base-image bump was verified against the wrong
+      # interpreter (#3304).
+      - name: Read Python version from the Dockerfile
+        id: python-version
+        run: |
+          version=$(grep -m1 -oE '^FROM python:[0-9]+\.[0-9]+' Dockerfile | cut -d: -f2)
+          test -n "$version" || { echo "::error::no 'FROM python:<x.y>' line in services/nlp/Dockerfile"; exit 1; }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
       - name: Setup Python
         uses: actions/setup-python@v7
         with:
-          python-version: '3.12'
+          python-version: ${{ steps.python-version.outputs.version }}
           cache: 'pip'
           cache-dependency-path: services/nlp/requirements-dev.txt
 

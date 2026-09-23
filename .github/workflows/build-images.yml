@@ -11,8 +11,31 @@ on:
       - 'packages/**'
       - 'documentation/**'
       - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'package.json'
+      - 'patches/**'
+      - '.dockerignore'
+      - 'tsconfig.base.json'
+      - 'tsconfig.strict-migration.json'
+      - 'CHANGELOG.md'
       - 'nginx.conf'
       - 'docker-compose.prod.yml'
+      - '.github/workflows/build-images.yml'
+  # Build (never push) on PRs that change what an image build does, so an
+  # install break surfaces on the PR instead of on master after the merge
+  # (#3366, #3368 were green on their PRs). Narrower than the push paths on
+  # purpose: app code already has typecheck/test, the image build is the only
+  # check for Dockerfiles and the root install files. Every path here must
+  # also be in a per-image filter below, or the run is green and builds nothing.
+  pull_request:
+    paths:
+      - '**/Dockerfile'
+      - '**/*.dockerignore'
+      - '.dockerignore'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'package.json'
+      - 'patches/**'
       - '.github/workflows/build-images.yml'
   # Sunday 03:00 UTC: rebuild every image so base-image patches (node:22-*,
   # python:3.12-slim) reach the registry without waiting for a code push.
@@ -66,7 +89,7 @@ permissions:
 # `:sha-XXXXXXX` tag, and `:latest` always reflects merge order.
 concurrency:
   group: build-images-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   REGISTRY: ghcr.io
@@ -74,7 +97,13 @@ env:
 
 jobs:
   detect-changes:
+    # Fork PRs get neither the Docker Hub secrets nor a writable token.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # paths-filter lists a PR's files through the API instead of git.
+      pull-requests: read
     outputs:
       web: ${{ steps.filter.outputs.web }}
       api: ${{ steps.filter.outputs.api }}
@@ -114,11 +143,27 @@ jobs:
           # For a sync merge the first parent is the previous tip, so the whole
           # incoming master delta is diffed and the right images get built.
           base: ${{ steps.diffbase.outputs.sha }}
+          # `install` lists the root files every node image copies before
+          # `pnpm install`; they decide what the install does, so a change to
+          # any of them must rebuild every node image. Keep it in sync with the
+          # push/pull_request `paths:` above — the two layers are independent,
+          # and a path only the trigger knows yields a green run that built
+          # nothing.
           filters: |
+            install: &install
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'package.json'
+              - 'patches/**'
+              - '.dockerignore'
+              - '.github/workflows/build-images.yml'
+            tsconfig: &tsconfig
+              - 'tsconfig.base.json'
+              - 'tsconfig.strict-migration.json'
             shared:
               - 'packages/shared/**'
               - 'packages/core/**'
-              - 'pnpm-lock.yaml'
+              - *install
             web:
               - 'apps/web/**'
               - 'packages/shared/**'
@@ -136,21 +181,26 @@ jobs:
               - 'packages/wolke/**'
               - 'packages/sites/**'
               - 'packages/sites-design/**'
-              - 'pnpm-lock.yaml'
+              - 'CHANGELOG.md'
+              - *install
+              - *tsconfig
             api:
               - 'apps/api/**'
+              - 'services/hocuspocus/**'
               - 'packages/shared/**'
               - 'packages/core/**'
               - 'packages/contracts/**'
               - 'packages/query/**'
-              - 'pnpm-lock.yaml'
+              - *install
+              - *tsconfig
             hocuspocus:
               - 'services/hocuspocus/**'
               - 'packages/shared/**'
               - 'packages/core/**'
               - 'packages/contracts/**'
               - 'packages/query/**'
-              - 'pnpm-lock.yaml'
+              - *install
+              - *tsconfig
             gruen-o-mat:
               - 'apps/gruen-o-mat/**'
               - 'packages/chat/**'
@@ -161,11 +211,13 @@ jobs:
               - 'packages/query/**'
               - 'packages/ui/**'
               - 'packages/collab/**'
-              - 'pnpm-lock.yaml'
+              - *install
+              - *tsconfig
             nlp:
               - 'services/nlp/**'
             doku:
               - 'documentation/**'
+              - *install
   build-web:
     needs: detect-changes
     if: >
@@ -181,6 +233,8 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Login to Docker Hub
+        # Dependabot PRs see only Dependabot secrets; they pull anonymously.
+        if: github.event.pull_request.user.login != 'dependabot[bot]'
         uses: docker/login-action@v4.6.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -211,11 +265,11 @@ jobs:
         with:
           context: .
           file: apps/web/Dockerfile
-          push: true
+          push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=registry,ref=${{ env.IMAGE_PREFIX }}-web:buildcache
-          cache-to: type=registry,ref=${{ env.IMAGE_PREFIX }}-web:buildcache,mode=max,image-manifest=true,oci-mediatypes=true
+          cache-to: ${{ github.event_name != 'pull_request' && format('type=registry,ref={0}-web:buildcache,mode=max,image-manifest=true,oci-mediatypes=true', env.IMAGE_PREFIX) || '' }}
           build-args: |
             VITE_API_BASE_URL=/api
             VITE_APP_ENV=production
@@ -236,6 +290,8 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Login to Docker Hub
+        # Dependabot PRs see only Dependabot secrets; they pull anonymously.
+        if: github.event.pull_request.user.login != 'dependabot[bot]'
         uses: docker/login-action@v4.6.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -266,11 +322,11 @@ jobs:
         with:
           context: .
           file: apps/api/Dockerfile
-          push: true
+          push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=registry,ref=${{ env.IMAGE_PREFIX }}-api:buildcache
-          cache-to: type=registry,ref=${{ env.IMAGE_PREFIX }}-api:buildcache,mode=max,image-manifest=true,oci-mediatypes=true
+          cache-to: ${{ github.event_name != 'pull_request' && format('type=registry,ref={0}-api:buildcache,mode=max,image-manifest=true,oci-mediatypes=true', env.IMAGE_PREFIX) || '' }}
 
   build-hocuspocus:
     needs: detect-changes
@@ -287,6 +343,8 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Login to Docker Hub
+        # Dependabot PRs see only Dependabot secrets; they pull anonymously.
+        if: github.event.pull_request.user.login != 'dependabot[bot]'
         uses: docker/login-action@v4.6.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -317,11 +375,11 @@ jobs:
         with:
           context: .
           file: services/hocuspocus/Dockerfile
-          push: true
+          push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=registry,ref=${{ env.IMAGE_PREFIX }}-hocuspocus:buildcache
-          cache-to: type=registry,ref=${{ env.IMAGE_PREFIX }}-hocuspocus:buildcache,mode=max,image-manifest=true,oci-mediatypes=true
+          cache-to: ${{ github.event_name != 'pull_request' && format('type=registry,ref={0}-hocuspocus:buildcache,mode=max,image-manifest=true,oci-mediatypes=true', env.IMAGE_PREFIX) || '' }}
 
   build-gruen-o-mat:
     needs: detect-changes
@@ -338,6 +396,8 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Login to Docker Hub
+        # Dependabot PRs see only Dependabot secrets; they pull anonymously.
+        if: github.event.pull_request.user.login != 'dependabot[bot]'
         uses: docker/login-action@v4.6.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -368,11 +428,11 @@ jobs:
         with:
           context: .
           file: apps/gruen-o-mat/Dockerfile
-          push: true
+          push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=registry,ref=${{ env.IMAGE_PREFIX }}-gruen-o-mat:buildcache
-          cache-to: type=registry,ref=${{ env.IMAGE_PREFIX }}-gruen-o-mat:buildcache,mode=max,image-manifest=true,oci-mediatypes=true
+          cache-to: ${{ github.event_name != 'pull_request' && format('type=registry,ref={0}-gruen-o-mat:buildcache,mode=max,image-manifest=true,oci-mediatypes=true', env.IMAGE_PREFIX) || '' }}
 
   build-nlp:
     needs: detect-changes
@@ -389,6 +449,8 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Login to Docker Hub
+        # Dependabot PRs see only Dependabot secrets; they pull anonymously.
+        if: github.event.pull_request.user.login != 'dependabot[bot]'
         uses: docker/login-action@v4.6.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -419,11 +481,11 @@ jobs:
         with:
           context: ./services/nlp
           file: services/nlp/Dockerfile
-          push: true
+          push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=registry,ref=${{ env.IMAGE_PREFIX }}-nlp:buildcache
-          cache-to: type=registry,ref=${{ env.IMAGE_PREFIX }}-nlp:buildcache,mode=max,image-manifest=true,oci-mediatypes=true
+          cache-to: ${{ github.event_name != 'pull_request' && format('type=registry,ref={0}-nlp:buildcache,mode=max,image-manifest=true,oci-mediatypes=true', env.IMAGE_PREFIX) || '' }}
 
   build-doku:
     needs: detect-changes
@@ -440,6 +502,8 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Login to Docker Hub
+        # Dependabot PRs see only Dependabot secrets; they pull anonymously.
+        if: github.event.pull_request.user.login != 'dependabot[bot]'
         uses: docker/login-action@v4.6.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -476,7 +540,7 @@ jobs:
           # `documentation/` and would drop the very source being built.
           context: .
           file: documentation/Dockerfile
-          push: true
+          push: ${{ github.event_name != 'pull_request' }}
           # Always rebuild the static site from scratch. The Docusaurus output is
           # cheap to build, but the registry buildcache has repeatedly served a
           # stale COPY/build layer (missing newly-merged docs pages), so caching
@@ -486,7 +550,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=registry,ref=${{ env.IMAGE_PREFIX }}-doku:buildcache
-          cache-to: type=registry,ref=${{ env.IMAGE_PREFIX }}-doku:buildcache,mode=max,image-manifest=true,oci-mediatypes=true
+          cache-to: ${{ github.event_name != 'pull_request' && format('type=registry,ref={0}-doku:buildcache,mode=max,image-manifest=true,oci-mediatypes=true', env.IMAGE_PREFIX) || '' }}
 
   summary:
     needs: [build-web, build-api, build-hocuspocus, build-gruen-o-mat, build-nlp, build-doku]

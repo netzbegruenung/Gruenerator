@@ -547,6 +547,51 @@ describe('sourceRegistry.note', () => {
       expect(reg.renderAll()).not.toContain('ALT aus dem Vorturn');
     });
 
+    it('hält Fundstellen mit Zeichenbereich im selben Dokument auseinander', () => {
+      // `notebook_quellen` registriert Passagen und gelesene Scheiben mit ihrer
+      // Fundstelle. Zwei Stellen aus einer Quelle sind zwei Belege — unter
+      // dem Dokumentschlüssel fiele die zweite still weg.
+      const reg = createSourceRegistry();
+      reg.register([
+        doc({ content: 'Stelle A', charStart: 0, charEnd: 8, chunkIndex: 0 }),
+        doc({ content: 'Stelle B', charStart: 900, charEnd: 908, chunkIndex: 3 }),
+        doc({ content: 'Stelle A doppelt', charStart: 0, charEnd: 8, chunkIndex: 0 }),
+      ]);
+      expect(reg.size).toBe(2);
+      expect(reg.renderAll()).toContain('Stelle B');
+    });
+
+    /**
+     * #3626, live 23.09.2026: `grep` registrierte ein Wahlprogramm-Kapitel als
+     * Fundstelle, `list` im nächsten Turn als ganze Quelle — die Antwort zitierte
+     * es mit zwei Nummern nebeneinander („Kapitel 1 3 16").
+     */
+    it('gibt einer ganzen Quelle die Nummer ihrer mitgeführten Fundstelle', () => {
+      const reg = createSourceRegistry();
+      reg.seedCarried([doc({ content: '12× „Klimaschutz"', charStart: 40, chunkIndex: 1 })]);
+      const block = reg.register([doc({ content: 'System-Quelle — Kapitel 1 — wahlprogramm' })]);
+
+      expect(reg.size).toBe(1);
+      expect(block).toMatch(/^\[1\] /);
+      // Der Beleg bleibt, die Listenzeile trägt nur Metadaten.
+      expect(reg.renderAll()).toContain('12× „Klimaschutz"');
+      expect(reg.carriedSize).toBe(0);
+    });
+
+    it('lässt eine Fundstelle die Nummer einer zuvor gelisteten Quelle übernehmen', () => {
+      const reg = createSourceRegistry();
+      reg.seedCarried([doc({ content: 'System-Quelle — Kapitel 1' })]);
+      reg.register([doc({ content: 'Stelle A', charStart: 0, chunkIndex: 0 })]);
+      reg.register([doc({ content: 'Stelle B', charStart: 900, chunkIndex: 3 })]);
+      reg.register([doc({ content: 'System-Quelle — Kapitel 1 erneut gelistet' })]);
+
+      expect(reg.size).toBe(2);
+      const block = reg.renderAll();
+      expect(block).toMatch(/\[1\][^\n]*Stelle A/);
+      expect(block).toMatch(/\[2\][^\n]*Stelle B/);
+      expect(block).not.toContain('gelistet');
+    });
+
     it('hält zwei verschiedene Dokumente auseinander', () => {
       const reg = createSourceRegistry();
       reg.register([

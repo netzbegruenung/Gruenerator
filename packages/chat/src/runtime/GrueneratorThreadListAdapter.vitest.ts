@@ -9,7 +9,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useAgentStore } from '../stores/chatStore';
 
-import { createGrueneratorThreadListAdapter } from './GrueneratorThreadListAdapter';
+import {
+  createGrueneratorThreadListAdapter,
+  getThreadAgentId,
+  getThreadSlugSuffix,
+  resolveThreadBySlugSuffix,
+} from './GrueneratorThreadListAdapter';
 
 import type { ChatApiClient } from '../context/ChatContext';
 import type { ThreadMessage } from '@assistant-ui/react';
@@ -74,12 +79,34 @@ describe('generateTitle', () => {
       ])
     );
 
-    expect(title).toBe('Wie hoch ist die Pendlerpauschale');
+    // 33 characters, one past the sidebar budget — cut on the word boundary,
+    // then the stranded article goes too.
+    expect(title).toBe('Wie hoch ist');
     // Generated titles have a single writer, the server. A PATCH from here looks
     // exactly like a manual rename to the server's conditional write and would
     // lock its own AI refinement out. Only `rename()` may PATCH.
     expect(apiClient.patch).not.toHaveBeenCalled();
     expect(apiClient.post).toHaveBeenCalledOnce();
+  });
+
+  it('clamps the optimistic title to the sidebar budget, without an ellipsis (#3411)', async () => {
+    // The row ellipsizes itself (CSS `truncate` on web, `numberOfLines` on
+    // native), so a literal "..." either sat past the cut or doubled it. The
+    // clamp is `clampThreadTitle` from @gruenerator/shared — the same one the
+    // server writes with, so the optimistic title cannot drift from it.
+    const apiClient = makeApiClient({ status: 'accepted', title: 'Radinfrastruktur' });
+    const adapter = createGrueneratorThreadListAdapter(apiClient, 'chat');
+
+    const title = await titleFrom(
+      await adapter.generateTitle('thread-long', [
+        userMessage([
+          { type: 'text', text: 'Antrag zur Radinfrastruktur in der Innenstadt vorbereiten' },
+        ]),
+      ])
+    );
+
+    expect(title).toBe('Antrag zur Radinfrastruktur');
+    expect(title).not.toContain('...');
   });
 
   it('survives a failing title endpoint without rejecting the stream', async () => {
@@ -140,5 +167,42 @@ describe('initialize', () => {
     await adapter.initialize('__LOCALID_2');
 
     expect(apiClient.patch).not.toHaveBeenCalled();
+  });
+});
+
+describe('delete', () => {
+  it('räumt die Routing-Caches auf, damit der gelöschte Thread nicht re-resolvierbar ist', async () => {
+    // GlitchTip #566, second leg: a deleted thread whose slug still sat in the
+    // routing cache could be re-resolved by the routing effect, starting a
+    // switch to the slot delete() just hid. delete() must drop every cache
+    // entry for the remoteId.
+    const apiClient = makeApiClient();
+    const old = Date.now() - 3_600_000;
+    apiClient.get = vi.fn().mockResolvedValue([
+      {
+        id: 'thread-loeschen',
+        slugSuffix: 'zzdelt1',
+        agentId: 'chat',
+        title: 'Zum Löschen',
+        status: 'archived',
+        updatedAt: new Date(old).toISOString(),
+        lastMessage: { content: 'x', role: 'user', created_at: new Date(old).toISOString() },
+      },
+    ]);
+    const adapter = createGrueneratorThreadListAdapter(apiClient, 'chat');
+
+    await adapter.list();
+    expect(getThreadSlugSuffix('thread-loeschen')).toBe('zzdelt1');
+    expect(resolveThreadBySlugSuffix('zzdelt1')).toBe('thread-loeschen');
+    expect(getThreadAgentId('thread-loeschen')).toBe('chat');
+
+    await adapter.delete('thread-loeschen');
+
+    expect(apiClient.delete).toHaveBeenCalledWith(
+      '/api/chat-service/threads?threadId=thread-loeschen'
+    );
+    expect(getThreadSlugSuffix('thread-loeschen')).toBeNull();
+    expect(resolveThreadBySlugSuffix('zzdelt1')).toBeNull();
+    expect(getThreadAgentId('thread-loeschen')).toBeNull();
   });
 });

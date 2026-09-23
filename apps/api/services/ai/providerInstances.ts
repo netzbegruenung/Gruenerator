@@ -27,6 +27,7 @@ import { cortecsBaseUrl } from './cortecsEndpoint.js';
 import { cortecsFetchWithPolicy } from './cortecsRequestPolicy.js';
 import { greenptFetchWithThinkingDisabled } from './greenptThinkingFetch.js';
 import { litellmFetchWithThinkingDisabled } from './litellmThinkingFetch.js';
+import { meliousFetch } from './meliousThinkingFetch.js';
 import { regoloFetchWithThinkingDisabled } from './regoloThinkingFetch.js';
 import { scalewayBaseUrl } from './scalewayEndpoint.js';
 import { scalewayFetchWithMistralFallback } from './scalewayMistralFallbackFetch.js';
@@ -36,6 +37,7 @@ const log = createLogger('providerInstances');
 
 export const LITELLM_DEFAULT_BASE_URL = 'https://litellm.netzbegruenung.verdigado.net';
 export const REGOLO_BASE_URL = 'https://api.regolo.ai/v1';
+export const MELIOUS_BASE_URL = 'https://api.melious.ai/v1';
 export const GREENPT_BASE_URL = 'https://api.greenpt.ai/v1';
 
 /**
@@ -65,6 +67,7 @@ export const MISTRAL_API_URL =
 let mistralInstance: ReturnType<typeof createMistral> | null = null;
 let litellmInstance: ReturnType<typeof createOpenAI> | null = null;
 let regoloInstance: ReturnType<typeof createOpenAI> | null = null;
+let meliousInstance: ReturnType<typeof createOpenAI> | null = null;
 let greenptInstance: ReturnType<typeof createOpenAI> | null = null;
 let scalewayInstance: ReturnType<typeof createOpenAI> | null = null;
 let scalewayTextInstance: ReturnType<typeof createOpenAI> | null = null;
@@ -125,6 +128,28 @@ export function getRegoloProvider(): ReturnType<typeof createOpenAI> {
     });
   }
   return regoloInstance;
+}
+
+/**
+ * Melious. Its chat-completions API is OpenAI-compatible and routes requests
+ * between European inference providers. The model's `:balanced` suffix is part
+ * of the model id (not a provider option), therefore callers can still choose
+ * another documented Melious routing flavor explicitly when needed.
+ */
+export function getMeliousProvider(): ReturnType<typeof createOpenAI> {
+  if (!meliousInstance) {
+    const apiKey = env.MELIOUS_API_KEY;
+    if (!apiKey) {
+      throw new Error('MELIOUS_API_KEY environment variable is required');
+    }
+    meliousInstance = createOpenAI({
+      baseURL: MELIOUS_BASE_URL,
+      apiKey,
+      name: 'melious',
+      fetch: meliousFetch,
+    });
+  }
+  return meliousInstance;
 }
 
 /**
@@ -401,6 +426,8 @@ export function isProviderConfigured(provider: string): boolean {
       return !!env.LITELLM_API_KEY;
     case 'regolo':
       return !!env.REGOLO_API_KEY;
+    case 'melious':
+      return !!env.MELIOUS_API_KEY;
     case 'greenpt':
       return !!env.GREENPT_API_KEY;
     case 'anthropic':

@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 
-import { type AuthData } from './useAuth';
+import { authStatusQueryOptions } from './useAuth';
 
 /**
  * Read-only subscription to the canonical `authStatus` query — the single
@@ -29,15 +29,18 @@ import { type AuthData } from './useAuth';
  * the mirror, the guards, and the bug.
  *
  * `enabled: false` makes this consumer read-only — it subscribes to the cache
- * populated by `AuthBootstrap`'s active fetch (or by `initialData`). React
- * Query dedupes by `queryKey`, so every subscriber sees the same state.
+ * populated by `AuthBootstrap`'s active fetch (or by `initialData`), and keeps
+ * that query alive while a gate is mounted. It passes the shared
+ * `authStatusQueryOptions` rather than a bare key: an observer without
+ * `queryFn` logs a dev error on every render (#3500) and writes its options
+ * over the active observer's, dropping `queryFn` and `meta.silent`.
  */
 export const useAuthBootstrap = (): {
   isBootstrapped: boolean;
   isError: boolean;
   isAuthenticated: boolean;
 } => {
-  const { status, data } = useQuery<AuthData>({ queryKey: ['authStatus'], enabled: false });
+  const { status, data } = useQuery({ ...authStatusQueryOptions, enabled: false });
   return {
     isBootstrapped: status !== 'pending',
     isError: status === 'error',

@@ -20,21 +20,22 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@assistant-ui/react-markdown": "^0.14.13",
+    "@assistant-ui/react-markdown": "^0.14.15",
     "@base-ui/react": "^1.7.0",
-    "ai": "^7.0.68",
+    "ai": "^7.0.102",
     "blurhash": "^2.0.5",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "date-fns": "^4.4.0",
-    "lucide-react": "^1.32.0",
-    "motion": "^12.42.2",
-    "nanoid": "^6.0.0",
+    "lucide-react": "^1.43.0",
+    "motion": "^12.43.0",
+    "nanoid": "^6.0.1",
     "next-themes": "^0.4.6",
     "radix-ui": "^1.6.7",
     "react-day-picker": "^10.0.1",
-    "react-dropzone": "^19.1.1",
+    "react-dropzone": "^19.3.0",
+    "react-icons": "^5.7.0",
     "recharts": "3.10.1",
     "remark-gfm": "^4.0.1",
     "rough-notation": "^0.5.1",
@@ -43,12 +44,12 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
-    "@rolldown/plugin-babel": "^0.2.3",
+    "@rolldown/plugin-babel": "^0.2.4",
     "@types/react": "19.2.18",
-    "@types/react-dom": "^19.2.4",
+    "@types/react-dom": "^19.2.7",
     "eslint": "^9.39.5",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.67.0"
+    "typescript-eslint": "^8.70.0"
   },
   "peerDependencies": {
     "react": "^19.0.0",

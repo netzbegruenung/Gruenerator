@@ -323,7 +323,7 @@ describe('runAgentPipeline — Sibling bei Langsamkeit', () => {
       await vi.advanceTimersByTimeAsync(300_000);
       const appended = await promise;
 
-      expect(calls.filter((c) => c.provider === 'regolo')).not.toHaveLength(0);
+      expect(calls.filter((c) => c.provider === 'melious')).not.toHaveLength(0);
       expect(appended).toContain('Vom Sibling.');
       // Und nicht als Ausfall verbucht: der Schritt hat geliefert.
       expect(appended).not.toContain('nicht zustande gekommen');
@@ -349,7 +349,7 @@ describe('runAgentPipeline — Sibling bei Langsamkeit', () => {
       await laufe();
 
       // Kein Tick auf der Uhr, und der Primär wurde gar nicht erst gefragt.
-      expect(zweiter.calls.map((c) => c.provider)).toEqual(['regolo', 'regolo']);
+      expect(zweiter.calls.map((c) => c.provider)).toEqual(['melious', 'melious']);
     } finally {
       vi.useRealTimers();
     }
@@ -366,15 +366,16 @@ describe('runAgentPipeline — Sibling bei Langsamkeit', () => {
       // tut, hier aber den Prüfgegenstand verdeckt.
       //
       // Unterschieden wird über die REIHENFOLGE und nicht über den
-      // Providernamen: seit dem 21.08.2026 ist `regolo` beides — Ausweich
+      // Providernamen: seit dem 14.09.2026 ist `melious` beides — Ausweich
       // dieser Stufe UND zweiter Eintrag der generischen Kette. Der Mock sieht
       // das Modell nicht (`req.model` ist auf diesem Pfad leer), das es sonst
       // auseinanderhielte.
       //
       // Genau darin liegt übrigens der verbliebene Wert des Hedges: die Kette
-      // fragt Regolo mit dessen Standardmodell, der Hedge mit `gemma4-31b`,
-      // dem Modell, für das diese Stufe ausgewählt wurde.
-      const PRIMAER_UND_KETTE = 3; // cortecs → regolo → mistral
+      // fragt Melious mit dessen Standardmodell, der Hedge mit
+      // `gemma-4-31b:balanced`, dem Modell, für das diese Stufe ausgewählt
+      // wurde.
+      const PRIMAER_UND_KETTE = 3; // cortecs → melious → mistral
       let rueckAufrufe = 0;
       const { calls } = poolNachProvider(async (_provider, type) => {
         if (type !== RUECK_TYPE) return null;
@@ -389,10 +390,10 @@ describe('runAgentPipeline — Sibling bei Langsamkeit', () => {
       const rueck = calls.filter((c) => c.type === RUECK_TYPE);
       expect(rueck.map((c) => c.provider)).toEqual([
         'cortecs',
-        'regolo',
+        'melious',
         'mistral',
         // Der Hedge: derselbe Prüfer beim anderen Vertragspartner.
-        'regolo',
+        'melious',
       ]);
       expect(await promise).toContain('Vom Sibling.');
     } finally {

@@ -40,7 +40,7 @@ enabledTools:
   - web_search
   - research
   - summarize
-  - edit_current_doc
+  - edit_current_sheet
   - scrape_url
   - find_content
   - recall_memory

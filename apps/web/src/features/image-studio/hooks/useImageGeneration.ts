@@ -1,7 +1,7 @@
 import { generateSharepicText, type SharepicTextType } from '@gruenerator/shared/image-studio';
 import { useState, useCallback } from 'react';
 
-import apiClient from '../../../components/utils/apiClient';
+import apiClient, { SERVER_TASK_TIMEOUT_MS } from '../../../components/utils/apiClient';
 import useImageStudioStore from '../../../stores/imageStudioStore';
 import { IMAGE_STUDIO_TYPES, getTypeConfig } from '../utils/typeConfig';
 
@@ -402,7 +402,11 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
           }),
         };
 
-        const response = await apiClient.post<{ image: { base64: string } }>(endpoint, requestData);
+        const response = await apiClient.post<{ image: { base64: string } }>(
+          endpoint,
+          requestData,
+          { timeout: SERVER_TASK_TIMEOUT_MS }
+        );
 
         if (!response.data?.image?.base64) {
           throw new Error('Keine Bilddaten empfangen');

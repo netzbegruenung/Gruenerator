@@ -23,6 +23,7 @@ import {
   optimizeCanvasBuffer,
   bufferToBase64,
 } from '../../../services/sharepic/canvas/imageOptimizer.js';
+import { wrapTextLines as wrapText } from '../../../services/sharepic/textLayout.js';
 import { createLogger } from '../../../utils/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -237,26 +238,6 @@ function loadCampaignConfig(campaignId: string, typeId: string): CampaignConfig 
     log.error(`[CampaignCanvas] Failed to load config:`, error);
     return null;
   }
-}
-
-function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
-  const words = text.split(' ');
-  const lines: string[] = [];
-  let currentLine = '';
-
-  for (let i = 0; i < words.length; i++) {
-    const testLine = currentLine + words[i] + ' ';
-    const testWidth = ctx.measureText(testLine).width;
-
-    if (testWidth > maxWidth && i > 0) {
-      lines.push(currentLine.trim());
-      currentLine = words[i] + ' ';
-    } else {
-      currentLine = testLine;
-    }
-  }
-  lines.push(currentLine.trim());
-  return lines;
 }
 
 async function renderBackground(

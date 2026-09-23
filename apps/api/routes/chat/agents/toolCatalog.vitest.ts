@@ -24,12 +24,23 @@ vi.mock('./searchTools.js', async (importOriginal) => ({
     return {
       gruenerator_search: { description: 'd', inputSchema: {}, execute: searchExec },
       web_search: { description: 'd', inputSchema: {}, execute: webExec },
+      // Die Beispielkorpora tragen keine Quellen und kommen darum ohne
+      // eigenes `execute` aus — sie werden nur montiert oder eben nicht.
+      gruenerator_examples_search: { description: 'd', inputSchema: {} },
+      gruenerator_pressemitteilung_examples: { description: 'd', inputSchema: {} },
     };
   },
   // Real implementation: the catalog's web gate is what the tests below assert,
   // so stubbing it would make them prove nothing.
   agentAllowsWebSearch: (await importOriginal<typeof import('./searchTools.js')>())
     .agentAllowsWebSearch,
+}));
+
+// DeepL is a paid, key-gated door: the catalog must only carry the tool when
+// a service exists. Toggled per test, never a real client.
+const deeplConfigured = vi.hoisted(() => ({ current: false }));
+vi.mock('../../../services/translation/DeepLService.js', () => ({
+  getDeepLService: () => (deeplConfigured.current ? {} : null),
 }));
 
 const validateUrlForFetch = vi.fn<(u: string) => Promise<unknown>>();
@@ -199,6 +210,28 @@ describe('toolCatalog domain tool mounting', () => {
     );
   });
 
+  it('mounts text_uebersetzen only with a DeepL key, and respects the agent opt-out', () => {
+    deeplConfigured.current = false;
+    expect(catalogFor('search').toolNames).not.toContain('text_uebersetzen');
+
+    deeplConfigured.current = true;
+    expect(catalogFor('search').toolNames).toContain('text_uebersetzen');
+    expect(catalogFor('direct').toolNames).toContain('text_uebersetzen');
+
+    const sourceRegistry = createSourceRegistry();
+    const sse = { send: () => {} } as unknown as NonNullable<
+      Parameters<typeof buildChatToolCatalog>[0]['loop']
+    >['sse'];
+    const state = {
+      intent: 'search',
+      enabledTools: { text_uebersetzen: false },
+    } as unknown as ChatGraphState;
+    expect(
+      buildChatToolCatalog({ agentConfig, sourceRegistry, loop: { sse, state } }).toolNames
+    ).not.toContain('text_uebersetzen');
+    deeplConfigured.current = false;
+  });
+
   it('mounts no domain tools without a loop context (unit-test / non-loop path)', () => {
     const sourceRegistry = createSourceRegistry();
     const { toolNames } = buildChatToolCatalog({ agentConfig, sourceRegistry });
@@ -216,6 +249,8 @@ describe('toolCatalog domain tool mounting', () => {
     req?: boolean;
     enabledTools?: Record<string, boolean>;
     userText?: string;
+    /** Extra graph state — e.g. the resolved editor surface + its open target. */
+    extraState?: Record<string, unknown>;
   }) {
     const sourceRegistry = createSourceRegistry();
     const sse = { send: () => {} } as unknown as NonNullable<
@@ -227,6 +262,7 @@ describe('toolCatalog domain tool mounting', () => {
       compoundGeneration: opts.kind != null,
       compoundGenerationKind: opts.kind ?? null,
       ...(opts.userText ? { messages: [{ role: 'user', content: opts.userText }] } : {}),
+      ...opts.extraState,
     } as unknown as ChatGraphState;
     return buildChatToolCatalog({
       agentConfig,
@@ -290,10 +326,50 @@ describe('toolCatalog domain tool mounting', () => {
     ).not.toContain('create_board');
   });
 
+  it('mounts edit_document for the sharepic studio surface (plan-and-send)', () => {
+    const names = genCatalog({
+      kind: null,
+      enabledTools: { edit_current_canvas: true },
+      extraState: {
+        editToolSurface: 'canvas',
+        currentCanvas: {
+          id: 'canvas-1',
+          template: 'zitat',
+          snapshot: { template: 'zitat', textFields: [], elementsSummary: [] },
+          capabilities: { supportedOperations: ['set-text'] },
+          text: 'Zitat',
+        },
+      },
+    }).toolNames;
+    expect(names).toContain('edit_document');
+    // The studio edits the OPEN sharepic — it must never spawn a new artifact.
+    expect(names).not.toContain('sharepic');
+    expect(names).not.toContain('generate_image');
+    expect(names).not.toContain('create_document');
+  });
+
+  it('mounts edit_document for the docs surface (dispatch strategy, #3428)', () => {
+    const names = genCatalog({
+      kind: null,
+      enabledTools: { edit_current_doc: true },
+      extraState: {
+        editToolSurface: 'doc',
+        currentDocument: {
+          id: 'doc-1',
+          title: 'Antrag',
+          markdown: '# Antrag',
+          selectionText: null,
+        },
+      },
+    }).toolNames;
+    expect(names).toContain('edit_document');
+    expect(names).not.toContain('create_document');
+  });
+
   it('editor sidebars NEVER spawn a new artifact (create tools gated off when edit_current_* is on)', () => {
     // A docs/sheets/presentations sidebar (edit_current_doc enabled) editing its
     // open doc must not create a NEW one, even on a compound turn.
-    for (const editKey of ['edit_current_doc', 'edit_current_board']) {
+    for (const editKey of ['edit_current_doc', 'edit_current_board', 'edit_current_canvas']) {
       for (const kind of ['sharepic', 'presentation', 'sheet', 'document', 'board'] as const) {
         const names = genCatalog({ kind, enabledTools: { [editKey]: true } }).toolNames;
         expect(names, `${kind} must not mount in an ${editKey} surface`).not.toContain(
@@ -629,6 +705,37 @@ describe('toolCatalog: Formularwerkzeuge hängen am Formular, nicht am MIME-Typ'
       threadAttachments: [pdf({ mimeType: 'text/plain', hasFileData: true })],
     });
     expect(names).not.toContain('read_pdf_form');
+  });
+});
+
+/**
+ * `vertonen` erzeugt eine NEUE Datei. In einer Editor-Seitenleiste ist das
+ * falsch — dort wird das offene Dokument bearbeitet, nichts Neues angelegt.
+ */
+describe('toolCatalog: vertonen', () => {
+  const catalogFor = (state: Record<string, unknown>) => {
+    const sourceRegistry = createSourceRegistry();
+    const sse = { send: () => {} } as unknown as NonNullable<
+      Parameters<typeof buildChatToolCatalog>[0]['loop']
+    >['sse'];
+    const { toolNames } = buildChatToolCatalog({
+      agentConfig,
+      sourceRegistry,
+      loop: { sse, state: { intent: 'search', ...state } as unknown as ChatGraphState },
+    });
+    return toolNames;
+  };
+
+  it('ist im normalen Chat montiert', () => {
+    expect(catalogFor({})).toContain('vertonen');
+  });
+
+  it('fehlt, wenn die Agentin es abgeschaltet hat', () => {
+    expect(catalogFor({ enabledTools: { vertonen: false } })).not.toContain('vertonen');
+  });
+
+  it('fehlt in einer Editor-Seitenleiste', () => {
+    expect(catalogFor({ enabledTools: { edit_current_doc: true } })).not.toContain('vertonen');
   });
 });
 
@@ -1484,5 +1591,88 @@ describe('toolCatalog memory tool mounting', () => {
     expect(
       catalogWith({ memoryEnabled: true, enabledTools: { memory: false } }).toolNames
     ).not.toContain('memory');
+  });
+});
+
+/**
+ * Drei Picker-Schlüssel standen im Agenten-Baukasten und erreichten kein
+ * einziges Gatter, und die Suchfamilie gehorchte auf dem Loop-Pfad anderen
+ * Regeln als auf dem Einzelpfad (#3307). Die Kästchen waren also nicht streng
+ * oder lasch — sie waren wirkungslos, was die teurere Ausfallform ist: die
+ * Person sieht eine Einstellung, die sie getroffen hat, und das Werkzeug
+ * antwortet trotzdem.
+ */
+describe('toolCatalog: Picker-Schlüssel, die nichts erreichten (#3307)', () => {
+  const catalogFor = (enabledTools: Record<string, boolean>) => {
+    const sourceRegistry = createSourceRegistry();
+    const sse = { send: () => {} } as unknown as NonNullable<
+      Parameters<typeof buildChatToolCatalog>[0]['loop']
+    >['sse'];
+    return buildChatToolCatalog({
+      agentConfig,
+      sourceRegistry,
+      loop: {
+        sse,
+        state: { intent: 'agentic', enabledTools, agentConfig } as unknown as ChatGraphState,
+      },
+    }).toolNames;
+  };
+
+  it('lässt einen Turn ohne Abwahl unverändert', () => {
+    const names = catalogFor({});
+    expect(names).toEqual(
+      expect.arrayContaining([
+        'gruenerator_search',
+        'gruenerator_examples_search',
+        'umfragen',
+        'find_content',
+        'documents',
+        'read_artifact',
+      ])
+    );
+  });
+
+  it('nimmt den Grünerator-Korpus weg, wenn `search` abgewählt ist', () => {
+    // Der Einzelpfad tat das längst (searchBranch über den Intent-Namen), der
+    // Loop montierte weiter — dasselbe Werkzeug, zwei Regeln.
+    const names = catalogFor({ search: false });
+    expect(names).not.toContain('gruenerator_search');
+    expect(names).toContain('web_search');
+  });
+
+  it('nimmt beide Beispielkorpora weg, wenn `examples` abgewählt ist', () => {
+    const names = catalogFor({ examples: false });
+    expect(names).not.toContain('gruenerator_examples_search');
+    expect(names).not.toContain('gruenerator_pressemitteilung_examples');
+    expect(names).toContain('gruenerator_search');
+  });
+
+  it('nimmt nur die Presse-Beispiele weg, wenn der Composer sie einzeln abwählt', () => {
+    // `pressemitteilung_examples` ist ein eigener Composer-Schalter (ToolKey in
+    // chatStore.ts) und ein eigener Klassifikator-Intent — der Einzelpfad
+    // gehorchte ihm, der Loop kannte nur `examples`.
+    const names = catalogFor({ pressemitteilung_examples: false });
+    expect(names).not.toContain('gruenerator_pressemitteilung_examples');
+    expect(names).toContain('gruenerator_examples_search');
+  });
+
+  it('lässt `umfragen` weg, wenn `meinungsbild` abgewählt ist', () => {
+    expect(catalogFor({ meinungsbild: false })).not.toContain('umfragen');
+  });
+
+  it('nimmt mit `user_content` die eigenen Inhalte weg — samt `read_artifact`', () => {
+    const names = catalogFor({ user_content: false });
+    expect(names).not.toContain('find_content');
+    expect(names).not.toContain('documents');
+    expect(names).not.toContain('read_artifact');
+    // Der Nachbar im selben Block bleibt: `search_threads` hat seinen eigenen
+    // Schlüssel ("Frühere Chats") und ist nicht gemeint.
+    expect(names).toContain('search_threads');
+  });
+
+  it('lässt die feineren Werkzeugschlüssel daneben weiter gelten', () => {
+    const names = catalogFor({ find_content: false });
+    expect(names).not.toContain('find_content');
+    expect(names).toContain('documents');
   });
 });

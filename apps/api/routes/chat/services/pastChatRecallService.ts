@@ -14,9 +14,10 @@
  *    subtitle content, reusing `searchReels`.
  * `rerankRecall` then cross-ranks all three sources.
  *
- * This is deliberately separate from mem0 fact memory: mem0 stores distilled
- * facts about the user; this returns raw conversation excerpts and document
- * references with titles and dates the model can reference naturally.
+ * This is deliberately separate from the explicit memory (services/memory),
+ * which stores what the user asked to be remembered; this returns raw
+ * conversation excerpts and document references with titles and dates the
+ * model can reference naturally.
  */
 
 import { sanitizeMentionTokens } from '@gruenerator/shared/utils';
@@ -585,6 +586,9 @@ async function hydrateThreadsAsResults(
         messageRole: 'assistant' as const,
         matchedAt: toIsoString(r.thread_updated_at),
         threadUpdatedAt: toIsoString(r.thread_updated_at),
+        // Not a guess: the query above filters archived threads out, so every
+        // row that reaches here is regular.
+        threadStatus: 'regular' as const,
       }));
   } catch (err) {
     log.warn(`[Recall] Hydration of semantic hits failed: ${err}`);

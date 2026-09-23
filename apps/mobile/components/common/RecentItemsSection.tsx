@@ -134,6 +134,16 @@ export function RecentItemsSection({
                 source={{ uri: thumbUri }}
                 style={thumbStyle}
                 contentFit="cover"
+                // expo-image defaults to `disk`, which re-reads and re-decodes
+                // every tile from storage each time this section remounts — and
+                // it remounts on every switch back to the Studio tab. The tiles
+                // are 400px WebP, so holding them in memory as well is cheap.
+                cachePolicy="memory-disk"
+                // Drawn from `image_metadata.blurhash` where the API has one, so
+                // a tile whose bytes are still in flight shows the picture's
+                // colours rather than an empty plate.
+                placeholder={item.blurhash ? { blurhash: item.blurhash } : undefined}
+                transition={200}
                 onError={() => setFailedThumbs((prev) => new Set(prev).add(key))}
               />
             ) : docContent ? (

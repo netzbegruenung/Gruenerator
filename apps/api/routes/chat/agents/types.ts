@@ -34,7 +34,7 @@ export interface AgentConfig {
   tags: string[];
   model: string;
   defaultModel?: string | undefined;
-  provider: 'mistral' | 'anthropic' | 'litellm' | 'regolo' | 'greenpt' | 'cortecs';
+  provider: 'mistral' | 'anthropic' | 'litellm' | 'regolo' | 'melious' | 'greenpt' | 'cortecs';
   params: {
     max_tokens: number;
     temperature: number;
@@ -83,6 +83,12 @@ export interface AgentConfig {
    * none — the agent's core text form. See `Agent.defaultRecipeMention`.
    */
   defaultRecipeMention?: string | undefined;
+  /**
+   * Row id of that recipe, when the agent pins one. The stable key: renaming a
+   * mention no longer swaps the agent's text form silently. Beats
+   * `defaultRecipeMention` when both are set. See `Agent.defaultRecipeId`.
+   */
+  defaultRecipeId?: string | undefined;
 }
 
 export interface Thread {

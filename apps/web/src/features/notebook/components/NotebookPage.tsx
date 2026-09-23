@@ -3,7 +3,6 @@ import {
   AssistantMessage,
   CitationPanelProvider,
   CitationSidePanel,
-  ExtraActionsProvider,
   NotebookChatProvider,
   NotebookComposer,
   UserMessage,
@@ -12,18 +11,14 @@ import {
   useAgentStore,
   type CategoryFilterConfig,
   type CategoryFilterField,
-  type ChatMessageMetadata,
-  type ExtraAction,
   type NotebookMessageMetadata,
 } from '@gruenerator/chat';
-import React, { useState, useCallback, useEffect, useMemo, type ReactNode } from 'react';
-import { FaFileWord } from 'react-icons/fa';
+import React, { useState, useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import { useAuthStore } from '../../../stores/authStore';
-import { useExportStore } from '../../../stores/core/exportStore';
 import { getNotebookConfig } from '../config/notebookPagesConfig';
 import { getNotebookById } from '../config/notebooksConfig';
 import { useNotebookChatBridge } from '../hooks/useNotebookChatBridge';
@@ -106,36 +101,6 @@ interface NotebookPageProps {
   configId: string;
 }
 
-function useNotebookExtraActionsFactory(): (message: {
-  text: string;
-  metadata?: ChatMessageMetadata;
-}) => ExtraAction[] {
-  const generateNotebookDOCX = useExportStore((state) => state.generateNotebookDOCX);
-
-  return useCallback(
-    ({ text, metadata }) => {
-      if (!metadata?.rawCitations?.length && !metadata?.citations?.length) return [];
-
-      return [
-        {
-          id: 'notebook-docx',
-          label: 'Word mit Quellen',
-          icon: <FaFileWord className="h-4 w-4" />,
-          onClick: () => {
-            void generateNotebookDOCX(
-              text,
-              metadata.question || 'Notebook-Antwort',
-              metadata.rawCitations ?? [],
-              metadata.sources ?? []
-            );
-          },
-        },
-      ];
-    },
-    [generateNotebookDOCX]
-  );
-}
-
 export const NotebookPageContent = ({
   config,
   documentIds,
@@ -154,7 +119,9 @@ export const NotebookPageContent = ({
   const isSingleSystem = !isMulti && config.collections[0]?.id.endsWith('-system');
   const systemCollectionId = isSingleSystem ? config.collections[0].id : null;
   const locale = useAuthStore((state) => state.locale);
-  const extraActionsFactory = useNotebookExtraActionsFactory();
+  // Die Reihe, die sich Unterhaltung und Quellenleser teilen — das Panel misst
+  // sie, um zwischen Spalte und Sheet zu entscheiden.
+  const surfaceRef = useRef<HTMLDivElement>(null);
   const { getFiltersForCollection, fetchFilterValues, setActiveFilter, clearAllFilters } =
     useNotebookStore();
   const filterValuesCache = useNotebookStore((s) => s.filterValuesCache);
@@ -362,11 +329,13 @@ export const NotebookPageContent = ({
     >
       <PendingQuestionSender />
       <CitationPanelProvider>
-        <ExtraActionsProvider factory={extraActionsFactory}>
-          <ThreadPrimitive.Root className="flex h-full min-h-0 flex-col">
+        {/* Der Quellenleser ist eine Geschwisterspalte, kein Overlay: ein Zitat
+            nachzulesen heißt, es mit dem Satz zu vergleichen, der es benutzt. */}
+        <div ref={surfaceRef} className="flex h-full min-h-0 w-full">
+          <ThreadPrimitive.Root className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
             {/* `isLoading` guards the start page while a conversation named by
-                `?thread=` is still being fetched — without it the start page
-                flashes up first and reads as "this conversation is gone". */}
+              `?thread=` is still being fetched — without it the start page
+              flashes up first and reads as "this conversation is gone". */}
             <AuiIf condition={(s) => s.thread.isEmpty && !s.thread.isLoading}>
               <div className="flex flex-1 flex-col overflow-y-auto">
                 <NotebookStartpage
@@ -414,8 +383,8 @@ export const NotebookPageContent = ({
               </div>
             </AuiIf>
           </ThreadPrimitive.Root>
-        </ExtraActionsProvider>
-        <CitationSidePanel />
+          <CitationSidePanel containerRef={surfaceRef} />
+        </div>
       </CitationPanelProvider>
     </NotebookChatProvider>
   );

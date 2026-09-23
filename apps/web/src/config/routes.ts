@@ -175,6 +175,7 @@ const GrueneApiTestPage = lazy(() => import('../features/admin/GrueneApiTestPage
 // Route bleibt auskommentiert, bis entschieden ist, ob sie zurückkommt.
 // const PlaygroundPage = lazy(() => import('../features/playground/PlaygroundPage'));
 const IconAnimationTestPage = lazy(() => import('../features/playground/IconAnimationTestPage'));
+const KugelVoiceTestPage = lazy(() => import('../features/playground/KugelVoiceTestPage'));
 // Auth-Komponenten importieren (only components still used after Authentic integration)
 const LoginPage = lazy(() => import('../features/auth/pages/LoginPage'));
 const OAuthConsentPage = lazy(() => import('../features/auth/pages/OAuthConsentPage'));
@@ -224,6 +225,7 @@ const SubtitlerBetaPage = lazy(
 const SubStudioPage = lazy(() => import('../features/subtitler-beta/components/SubStudioPage'));
 const SharedVideoPage = lazy(() => import('../features/subtitler/components/SharedVideoPage'));
 const SharedMediaPage = lazy(() => import('../features/shared-media/SharedMediaPage'));
+const SharedChatPage = lazy(() => import('../features/chat/SharedChatPage'));
 const ImageStudioPage = lazy(() => import('../features/image-studio/ImageStudioPage'));
 const ImageGallery = lazy(() => import('../features/image-studio/gallery'));
 const AppsPage = lazy(() => import('../features/apps/AppsPage'));
@@ -242,6 +244,8 @@ const MobileRenderPage = lazy(() => import('../pages/MobileRenderPage'));
 
 const ScannerPage = lazy(() => import('../features/scanner/ScannerPage'));
 const ZeichenzaehlerPage = lazy(() => import('../features/zeichenzaehler/ZeichenzaehlerPage'));
+const UebersetzerPage = lazy(() => import('../features/uebersetzer/UebersetzerPage'));
+const VoicePage = lazy(() => import('../features/voice/VoicePage'));
 const TranskriptionPage = lazy(() => import('../features/transkription/TranskriptionPage'));
 const RecurringTasksPage = lazy(() => import('../features/recurring-tasks/RecurringTasksPage'));
 const WorkplacePage = lazy(() => import('../features/workplace/WorkplacePage'));
@@ -287,7 +291,9 @@ const AgentCreatorPage = lazy(() => import('../features/agents/AgentCreatorPage'
 const AgentSettingsPage = lazy(() => import('../features/agents/AgentSettingsPage'));
 const AgenturaPage = lazy(() => import('../features/agentura/AgenturaPage'));
 const AgentDetailPage = lazy(() => import('../features/agentura/AgentDetailPage'));
-const SkillDetailPage = lazy(() => import('../features/agentura/SkillDetailPage'));
+const RecipeDetailPage = lazy(() => import('../features/agentura/RecipeDetailPage'));
+const RecipeEditorPage = lazy(() => import('../features/agentura/recipes/RecipeEditorPage'));
+const RecipeCreatorPage = lazy(() => import('../features/agentura/recipes/RecipeCreatorPage'));
 
 /**
  * Lazy loading für Grüneratoren Bundle
@@ -344,6 +350,8 @@ const standardRoutes: RouteConfig[] = [
         { path: '/agents/new', component: AgentCreatorPage },
         { path: '/agents/new/manual', component: AgentBuilderPage },
         { path: '/agents/:identifier/edit', component: AgentSettingsPage },
+        { path: '/agentura/rezept/neu', component: RecipeCreatorPage },
+        { path: '/agentura/rezept/:mention/bearbeiten', component: RecipeEditorPage },
       ] satisfies RouteConfig[])
     : []),
   // EXPERIMENTAL — recurring agent tasks management.
@@ -352,7 +360,7 @@ const standardRoutes: RouteConfig[] = [
   // under /agentura/agent/<slug> and /agentura/rezept/<mention>; the storefront
   // is /agentura. Old library links (/agents, /skills) redirect here.
   { path: '/agentura/agent/:slug', component: AgentDetailPage },
-  { path: '/agentura/rezept/:mention', component: SkillDetailPage },
+  { path: '/agentura/rezept/:mention', component: RecipeDetailPage },
   { path: '/agentura/skill/:mention', component: LegacySkillMentionRedirect },
   { path: '/agentura', component: AgenturaPage },
   {
@@ -473,6 +481,7 @@ const standardRoutes: RouteConfig[] = [
   { path: '/admin/gruene-api', component: GrueneApiTestPage },
   // { path: '/playground', component: PlaygroundPage },
   { path: '/icon-test', component: IconAnimationTestPage, channel: 'internal' },
+  { path: '/kugel-test', component: KugelVoiceTestPage, channel: 'internal' },
   { path: '/vorlagen', component: GrueneratorenBundle.VorlagenListe },
   { path: '/vorlagen/meine', component: MeineVorlagenPage },
   // Link-shared Vorlage. `public` because the öffentlich mode has to open
@@ -606,6 +615,8 @@ const standardRoutes: RouteConfig[] = [
   { path: '/reel/studio', component: SubStudioPage },
   { path: '/scanner', component: GrueneratorenBundle.Scanner },
   { path: '/zeichenzaehler', component: ZeichenzaehlerPage },
+  { path: '/uebersetzer', component: UebersetzerPage },
+  { path: '/voice', component: VoicePage },
   { path: '/transfer', component: TransferRedirect, channel: 'internal' },
   { path: '/transkription', component: GrueneratorenBundle.Transkription },
   {
@@ -681,12 +692,22 @@ const standardRoutes: RouteConfig[] = [
   // PageLayout, the sidebar and its thread-list portal on the very first thread
   // a user opens. React Router ranks the static /chat/settings above this
   // dynamic segment.
+  // Geteilte (nur-lesen) Chat-Ansicht. Own entry on purpose — it renders a
+  // different page, so the one-entry remount rule of /chat below does not
+  // apply; React Router ranks the static `geteilt` segment above the dynamic
+  // :threadSlug. Login required (no `public: true`) — link shares are
+  // authenticated-only by design.
+  {
+    path: '/chat/geteilt/:threadSlug',
+    component: SharedChatPage,
+    layoutMode: 'noChrome',
+  },
   {
     path: '/chat/:threadSlug?',
     component: GrueneratorenBundle.Chat,
     layoutMode: 'sidebarOnly',
   },
-  { path: '/voice', component: VoiceAgentPage, layoutMode: 'noChrome' },
+  { path: '/voice-agent', component: VoiceAgentPage, layoutMode: 'noChrome' },
   // Apps & Connect Page
   { path: '/apps', component: AppsPage },
   // Media Library Route

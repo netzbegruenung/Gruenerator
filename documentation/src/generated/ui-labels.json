@@ -54,6 +54,16 @@
     "subtitle": "Audio mit KI verschriftlichen",
     "path": "/transkription"
   },
+  "catalog.tool-uebersetzer": {
+    "title": "Übersetzer",
+    "subtitle": "Texte & Dokumente mit DeepL übersetzen",
+    "path": "/uebersetzer"
+  },
+  "catalog.tool-voice": {
+    "title": "Grünerator Voice",
+    "subtitle": "Anrufbeantworter, Vorlesefassung & Audiodeskription",
+    "path": "/voice"
+  },
   "catalog.tool-vorlagen": {
     "title": "Vorlagen",
     "subtitle": "Fertige Design-Vorlagen",
@@ -125,8 +135,8 @@
     "agentSlug": "gruene-thueringen"
   },
   "menu.apps": {
-    "title": "Connect",
-    "subtitle": "KI-Chat-Integration über MCP",
+    "title": "Apps & Connect",
+    "subtitle": "Apps und KI-Chat-Integration",
     "path": "/apps"
   },
   "menu.grueneratoren": {
@@ -182,7 +192,7 @@
     "subtitle": "Leeres Textdokument"
   },
   "workplace.mcp": {
-    "title": "MCP",
+    "title": "Apps & MCP",
     "subtitle": "ChatGPT & Co verbinden",
     "path": "/apps"
   },
@@ -222,6 +232,16 @@
     "title": "Transkription",
     "subtitle": "Audio zu Text",
     "path": "/transkription"
+  },
+  "workplace.uebersetzer": {
+    "title": "Übersetzer",
+    "subtitle": "Texte & Dokumente übersetzen",
+    "path": "/uebersetzer"
+  },
+  "workplace.voice": {
+    "title": "Voice",
+    "subtitle": "Text vertonen",
+    "path": "/voice"
   },
   "workplace.vorlagen": {
     "title": "Vorlagen",

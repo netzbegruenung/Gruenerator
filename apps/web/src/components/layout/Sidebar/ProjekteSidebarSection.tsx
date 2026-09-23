@@ -39,7 +39,7 @@ export const ProjekteSidebarSection = memo(function ProjekteSidebarSection({
 }: ProjekteSidebarSectionProps) {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
-  const { userGroups } = useGroups({ isActive: true });
+  const { userGroups, isLoadingGroups, isErrorGroups } = useGroups({ isActive: true });
   const [open, setOpen] = useState(false);
 
   const projekte = userGroups ?? [];
@@ -91,7 +91,17 @@ export const ProjekteSidebarSection = memo(function ProjekteSidebarSection({
           className="w-72 bg-background/85 supports-[backdrop-filter]:bg-background/70 backdrop-blur-xl"
         >
           <DropdownMenuLabel>Projekte</DropdownMenuLabel>
-          {projekte.length === 0 ? (
+          {isLoadingGroups ? (
+            <div className="px-2 py-1.5 text-xs text-grey-500">Wird geladen…</div>
+          ) : isErrorGroups ? (
+            // Nicht auf „Noch keine Projekte." zurückfallen: `userGroups` ist
+            // `query.data ?? []` und damit auch bei einem gescheiterten Abruf
+            // leer — der Satz behauptete dann etwas über die Person statt über
+            // den Abruf.
+            <div className="px-2 py-1.5 text-xs text-grey-500">
+              Projekte konnten nicht geladen werden.
+            </div>
+          ) : projekte.length === 0 ? (
             <div className="px-2 py-1.5 text-xs text-grey-500">Noch keine Projekte.</div>
           ) : (
             // Rows are plain buttons (not DropdownMenuItem) so the trailing "Neuer

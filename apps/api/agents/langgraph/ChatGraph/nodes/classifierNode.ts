@@ -19,12 +19,23 @@
 import { type ChatIntentId, degradeTargetForLocale } from '@gruenerator/shared/chat-intents';
 import { isCloudShareUrl } from '@gruenerator/shared/utils';
 
+import {
+  isUserNotebookId,
+  resolveNotebookCollections,
+} from '../../../../config/notebookCollectionMap.js';
+import { agentAllowsTool } from '../../../../routes/chat/agents/agentToolWhitelist.js';
+import { collectionsForLocale } from '../../../../routes/chat/agents/searchTools.js';
 import { isAgenticLoopEnabled } from '../../../../routes/chat/services/agenticLoop/flags.js';
 import {
+  isDocumentContextEditAllowed,
   looksLikeSelfContainedTurn,
   looksLikeToolableQuestion,
   looksLikeUnsourcedWritingOrder,
 } from '../../../../routes/chat/services/agenticLoop/routing.js';
+import {
+  looksLikeNotebookToolAsk,
+  looksLikeNotebookWriteAsk,
+} from '../../../../routes/chat/services/notebookToolAsk.js';
 import { isSharepicEditInstruction } from '../../../../routes/chat/services/sharepicEditHeuristics.js';
 import { containsInstructionMarkers } from '../../../../routes/chat/services/untrustedContent.js';
 import { escapeRegExp } from '../../../../services/BaseSearchService/textUtils.js';
@@ -99,6 +110,14 @@ import { parseRelativeDateRange } from './relativeDates.js';
 import type { ChatGraphState, GatherSource, SearchIntent } from '../types.js';
 
 const log = createLogger('ChatGraph:Classifier');
+
+/** Liest `notebook_quellen` dieses System-Notebook? Eine Sammlung, und die
+ *  steht der Locale zu — dieselbe Prüfung wie im Werkzeug
+ *  (`resolveSystemCollection` gegen `collectionsForLocale`). */
+function toolReadsSystemNotebook(id: string, locale: string | null): boolean {
+  const keys = resolveNotebookCollections([id]);
+  return keys.length === 1 && collectionsForLocale(locale).includes(keys[0]!);
+}
 
 /**
  * Verdicts the compare upgrade may rewrite when ≥2 doc sources meet a compare
@@ -234,11 +253,10 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
   // verb "zusammenfassen".
   // Agent must allow scraping (whitelist holds 'scrape'; one agent uses the tool
   // name 'scrape_url') and the user must not have toggled it off in the composer.
-  const scrapeWhitelist = state.agentConfig?.enabledTools;
-  const agentAllowsScrape =
-    !scrapeWhitelist ||
-    scrapeWhitelist.includes('scrape') ||
-    scrapeWhitelist.includes('scrape_url');
+  const agentAllowsScrape = agentAllowsTool(
+    { enabledTools: state.agentConfig?.enabledTools },
+    'scrape'
+  );
   const scrapeEnabled = agentAllowsScrape && state.enabledTools?.['scrape'] !== false;
   // @link-attached URLs are explicit user intent — union them with auto-detected
   // ones (deduped, attached first so they rank highest in scrape_url).
@@ -623,11 +641,21 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // editor surface always has currentDocument, and we want the live-edit path
     // (Yjs-synced, undoable in-place) instead of /chat's modify_doc HITL flow
     // (DB-only update, breaks Yjs).
-    // Honor the docs-sidebar "AI may edit document" toggle: when the client
-    // explicitly disables `edit_current_doc`, fall through to normal intent
-    // classification so the assistant answers conversationally instead of
-    // patching the open document.
-    const editCurrentDocAllowed = state.enabledTools?.edit_current_doc !== false;
+    // Honor the sidebar's "AI may edit" toggle: when the client explicitly
+    // disables its surface key, fall through to normal intent classification so
+    // the assistant answers conversationally instead of patching the open
+    // document. All three currentDocument surfaces count — docs, sheets and
+    // presentations each send their own key now (#3438).
+    //
+    // Seit #3428 EMITTIERT dieses Verdikt nichts mehr von sich aus: den
+    // `trigger_doc_edit`-Versand macht das Loop-Werkzeug `edit_document`, und
+    // ob es montiert wird, entscheidet die FLÄCHE (`decideEditToolLoop`), nicht
+    // der Intent. Was `edit_current_doc` noch tut, ist steuern — es ist eines
+    // von drei Signalen der Bearbeitungs-Zusicherung (`loopGuarantees`) und
+    // wählt im Einzeldurchlauf den Antworttext. Diese Schnellbahn und
+    // `docsIntentTiebreak` bleiben deshalb bis zu einem Eval-Lauf stehen; ihre
+    // Abschaffung hängt an ihm (#3428), nicht an diesem Umbau.
+    const editCurrentDocAllowed = isDocumentContextEditAllowed(state.enabledTools);
 
     if (hasCurrentDocument && editCurrentDocAllowed && userContent.length > 0) {
       // Layer 1: fast-path regex. Covers the common explicit-edit verbs
@@ -813,6 +841,45 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // Also detect compound queries: notebook + non-default agent = gather-then-apply pipeline.
     if (hasNotebooks) {
       const isNonDefaultAgent = state.agentConfig.identifier !== 'gruenerator-universal';
+
+      // Ein Werkzeugauftrag an ein EIGENES Notebook („sortiere die Quellen",
+      // „was steht auf Seite 12") geht in die Schleife, mit `notebook_quellen`
+      // als erstem Aufruf — dieselbe Form wie der Dauerauftrag in Tier 3.4. Der
+      // Pin macht den Turn zu `mustLoop` (`turnPlan`), das hebt die
+      // Notebook-Sperre in `decideRunAgentic` auf; das Werkzeug fällt ohne
+      // `notebookId` auf das gewählte Notebook zurück. Nicht bei benannten
+      // Agenten (`isCompound` hält sie im Einzeldurchlauf, der Pin liefe dort
+      // ins Leere). Ein System-Notebook nur, wenn das Werkzeug es lesen kann —
+      // EINE Sammlung, in der Locale des Turns — und nicht für einen
+      // Schreibauftrag (schreibgeschützt). Alles andere bleibt die gemessene
+      // Notebook-Suche unten.
+      if (
+        !isNonDefaultAgent &&
+        state.notebookIds.some(
+          (id) =>
+            isUserNotebookId(id) ||
+            (toolReadsSystemNotebook(id, state.userLocale ?? null) &&
+              !looksLikeNotebookWriteAsk(state.lastUserTextNoMentions ?? userContent))
+        ) &&
+        // Ohne Erwähnungen gelesen: `messages` tragen sie als „@Label", und ein
+        // Notebook namens „Kapitel 3 Satzung" pinnte sonst bei jeder Erwähnung.
+        looksLikeNotebookToolAsk(state.lastUserTextNoMentions ?? userContent)
+      ) {
+        log.info('[Classifier] Notebook tool ask → loop with notebook_quellen pinned');
+        recordDecision('classifier.tier', 'tier2_notebook_tool_ask', {});
+        return {
+          intent: 'agentic',
+          mentionPinnedTool: 'notebook_quellen',
+          searchSources: [],
+          searchQuery: userContent.slice(0, 500),
+          detectedFilters: null,
+          reasoning: 'Werkzeugauftrag an ein gewähltes Notebook → Werkzeug notebook_quellen',
+          hasTemporal: temporal.hasTemporal,
+          complexity,
+          classificationTimeMs: Date.now() - startTime,
+        };
+      }
+
       const gatherSources: GatherSource[] = ['notebook-search'];
 
       // Empty user content after mention stripping (e.g., "@hamburg @presse")
@@ -850,6 +917,36 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
         startTime,
         gatherSources,
       });
+    }
+
+    // Kein Notebook im Turn, aber der Thread hat schon mit `notebook_quellen`
+    // gearbeitet: ein Werkzeugauftrag („zeig mir fünf Stellen …", „nenne mir die
+    // 10 relevantesten Quellen …") pinnt das Werkzeug, das dann das Notebook des
+    // Threads nimmt. Ohne Pin griff der Planer zu `gruenerator_search` und riet
+    // die Sammlung — live einmal „deutschland" statt Berlin (Testserver
+    // 24.09.2026). Kein Scope wie oben: eine Inhaltsfrage im selben Thread
+    // bleibt frei. Ein System-Notebook nicht für Schreibaufträge.
+    const threadNotebookId = state.threadNotebookId;
+    const askText = state.lastUserTextNoMentions ?? userContent;
+    if (
+      threadNotebookId &&
+      state.agentConfig.identifier === 'gruenerator-universal' &&
+      looksLikeNotebookToolAsk(askText) &&
+      (isUserNotebookId(threadNotebookId) || !looksLikeNotebookWriteAsk(askText))
+    ) {
+      log.info('[Classifier] Tool ask in a notebook thread → loop with notebook_quellen pinned');
+      recordDecision('classifier.tier', 'tier2_thread_notebook_tool_ask', {});
+      return {
+        intent: 'agentic',
+        mentionPinnedTool: 'notebook_quellen',
+        searchSources: [],
+        searchQuery: userContent.slice(0, 500),
+        detectedFilters: null,
+        reasoning: 'Werkzeugauftrag im Thread eines Notebooks → Werkzeug notebook_quellen',
+        hasTemporal: temporal.hasTemporal,
+        complexity,
+        classificationTimeMs: Date.now() - startTime,
+      };
     }
 
     // Context-only fallback branches — fire only when no search-capable

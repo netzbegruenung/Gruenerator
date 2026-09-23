@@ -1,5 +1,5 @@
 import { type NotebookStatsResponse } from '@gruenerator/contracts';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
 
 export type NotebookStats = NotebookStatsResponse;
@@ -21,7 +21,7 @@ async function fetchStats(collectionIds: string[]): Promise<NotebookStats> {
       query: { refresh: null },
     });
     if (result.status !== 200) {
-      throw new Error(`Failed to load notebook stats (HTTP ${result.status})`);
+      throw new ApiError(result.status, `Failed to load notebook stats (HTTP ${result.status})`);
     }
     return result.body;
   }
@@ -30,7 +30,7 @@ async function fetchStats(collectionIds: string[]): Promise<NotebookStats> {
     query: { collections: collectionIds.join(','), refresh: null },
   });
   if (result.status !== 200) {
-    throw new Error(`Failed to load notebook stats (HTTP ${result.status})`);
+    throw new ApiError(result.status, `Failed to load notebook stats (HTTP ${result.status})`);
   }
   return result.body;
 }

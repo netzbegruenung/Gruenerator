@@ -19,12 +19,14 @@ export { initClient, type ClientInferRequest, type ClientInferResponses } from '
 // ── Contracts ───────────────────────────────────────────────────────────────
 export {
   threadsContract,
+  chatThreadSharingContract,
   exportsContract,
   recentValuesContract,
   recentActivityContract,
   contentContract,
   itemUsageContract,
   userUsageContract,
+  treesContract,
   transparencyContract,
   globalSearchContract,
   researchContract,
@@ -55,6 +57,7 @@ export {
   documentsContract,
   subtitlerContract,
   voiceContract,
+  speechContract,
   imagePickerContract,
   videoContract,
   sharepicContract,
@@ -81,10 +84,10 @@ export {
   chunkInspectorContract,
   skillVisibilityContract,
   instanceAdminOverviewContract,
+  translationContract,
   lvAdminAssignmentContract,
   landesverbandAdminContract,
   recurringTasksContract,
-  canvasAiContract,
   canvasContract,
   groupsContract,
   contentSyncContract,
@@ -98,6 +101,7 @@ export {
 // ── Schemas (Zod) ───────────────────────────────────────────────────────────
 export * from './schemas/roleRef.js';
 export * from './schemas/threads.js';
+export * from './schemas/chatThreadSharing.js';
 export * from './schemas/textForm.js';
 export * from './schemas/exports.js';
 export * from './schemas/recentValues.js';
@@ -105,6 +109,7 @@ export * from './schemas/recentActivity.js';
 export * from './schemas/content.js';
 export * from './schemas/itemUsage.js';
 export * from './schemas/userUsage.js';
+export * from './schemas/trees.js';
 export * from './schemas/transparency.js';
 export * from './schemas/globalSearch.js';
 export * from './schemas/research.js';
@@ -141,6 +146,7 @@ export * from './schemas/documents.js';
 export * from './schemas/subtitler.js';
 export * from './schemas/voice.js';
 export * from './schemas/voiceLimits.js';
+export * from './schemas/speech.js';
 export * from './schemas/imagePicker.js';
 export * from './schemas/video.js';
 export * from './schemas/sharepic.js';
@@ -150,6 +156,7 @@ export * from './schemas/notifications.js';
 export * from './schemas/memory.js';
 export * from './schemas/email.js';
 export * from './schemas/feedback.js';
+export * from './schemas/translation.js';
 export * from './schemas/modelPreferences.js';
 export * from './schemas/imageModelPreference.js';
 export * from './schemas/mcpServers.js';
@@ -193,3 +200,10 @@ export * from './schemas/landesverbaende.js';
 export * from './schemas/lvAdminAssignment.js';
 export * from './schemas/instanceAdminOverview.js';
 export * from './schemas/landesverbandAdmin.js';
+
+// Canvas-Textlayout: Umbruch, Aufzählungsmarker, hängender Einzug und
+// Inline-Auszeichnung (Markdown-lite). DOM-frei, damit Client-Vorschau,
+// Server-Export und der tiptap-Editor dieselbe Logik fahren.
+export * from './text/listLayout.js';
+export * from './text/inlineMarks.js';
+export * from './text/canvasRichText.js';

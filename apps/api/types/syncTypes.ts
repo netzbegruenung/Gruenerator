@@ -17,6 +17,27 @@ export interface SourceGroupResult {
    */
   deadLinks?: number;
   deadLinkSamples?: string[];
+  /**
+   * Warum Dokumente übersprungen wurden (`too_old`, `unchanged`, `too_short`, …),
+   * als Zähler. `skipped` allein sagt nicht, ob ein Dokument VOR dem Abruf
+   * (Freshness-Gatter) oder DANACH (Altersfilter) verworfen wurde — und nur
+   * das Zweite kostet jede Nacht wieder einen Abruf (#3200).
+   */
+  skipReasons?: Record<string, number>;
+  /**
+   * Landesverbände: Zähler je Datenqualitäts-Defektklasse unter den
+   * gespeicherten/aktualisierten Dokumenten. Siehe
+   * `contentSyncResultSchema.qualityFlags`.
+   */
+  qualityFlags?: Record<string, number>;
+  /**
+   * KommunalWiki: Punkte gelöschter Wiki-Seiten, die dieser Lauf entfernt hat,
+   * und — wenn nicht aufgeräumt wurde — warum nicht. Das Gatter sichtbar zu
+   * machen ist der ganze Punkt: greift die Mengenschwelle, sähe der Lauf sonst
+   * exakt aus wie einer, bei dem es nichts aufzuräumen gab.
+   */
+  pruned?: number;
+  pruneSkippedReason?: string;
   duration: number;
   status: 'success' | 'failed';
   error?: string;

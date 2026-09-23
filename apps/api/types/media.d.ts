@@ -3,6 +3,8 @@
  * Backend-specific types for shared media service and controller
  */
 
+import type { SpeechMimeType, StoredMediaType } from '@gruenerator/contracts';
+
 // Re-export shared types for convenience
 export type { MediaType, MediaStatus, UploadSource, SortOrder } from '@gruenerator/shared';
 export type {
@@ -25,7 +27,7 @@ export interface SharedMediaRow {
   id: string;
   user_id: string;
   share_token: string;
-  media_type: 'image' | 'video' | 'transfer';
+  media_type: StoredMediaType;
   title: string | null;
   file_path: string | null;
   file_name: string | null;
@@ -98,6 +100,20 @@ export interface CreateVideoShareParams {
 }
 
 /**
+ * Parameters for storing generated speech (Grünerator Voice) in the Mediathek
+ */
+export interface CreateAudioShareParams {
+  buffer: Buffer;
+  mimeType: SpeechMimeType;
+  extension: 'mp3' | 'wav';
+  title: string;
+  durationSeconds: number;
+}
+
+/** Narrower than {@link ShareResult}: audio never has an original image or a status. */
+export type AudioShareResult = Pick<ShareResult, 'id' | 'shareToken' | 'shareUrl' | 'createdAt'>;
+
+/**
  * Parameters for creating a pending video share (processing)
  */
 export interface CreatePendingVideoShareParams {
@@ -159,7 +175,7 @@ export interface UpdateMediaMetadataParams {
  * Internal filters for media library queries
  */
 export interface MediaLibraryFiltersInternal {
-  type: 'image' | 'video' | 'all';
+  type: 'image' | 'video' | 'audio' | 'all';
   search: string | null;
   limit: number;
   offset: number;

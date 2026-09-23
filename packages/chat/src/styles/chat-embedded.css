@@ -9,6 +9,23 @@
 
 :root {
   --radius: 0.5rem;
+
+  /*
+   * shadcn-style raw tokens consumed by Streamdown's built-in components
+   * (caret, controls). The host app's @theme registers the `--color-*`
+   * namespace; this bridge aliases it. var() chains resolve at use time, so
+   * host dark-mode overrides of --color-* apply automatically.
+   */
+  --background: var(--color-background);
+  --foreground: var(--color-foreground);
+  --card: var(--color-card);
+  --card-foreground: var(--color-card-foreground);
+  --muted: var(--color-muted);
+  --muted-foreground: var(--color-muted-foreground);
+  --border: var(--color-border);
+  --input: var(--color-input);
+  --primary: var(--color-primary);
+  --primary-foreground: var(--color-primary-foreground);
 }
 
 /* Base border color for Tailwind border utilities */

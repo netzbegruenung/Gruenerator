@@ -5,14 +5,27 @@
  */
 
 import * as cheerio from 'cheerio';
+import { type AnyNode } from 'domhandler';
 
 import type { ExtractedContent } from '../types.js';
+
+/**
+ * Block-level Elemente, vor UND nach denen `blockText` einen Trenner einfügt.
+ * Inline-Elemente (span, a, strong, em, small, …) sind absichtlich NICHT
+ * dabei — ein Trenner dort würde Wörter auseinanderreißen ("Grü nen",
+ * "inkl.MwSt" bei `<small>`). Der Foto-Credit-Fall (`<small>Foto: …</small>`
+ * verklebt mit dem folgenden Datum) läuft über `removeSelectors`, nicht hier.
+ */
+const BLOCK_SEPARATOR_SELECTOR =
+  'p, li, h1, h2, h3, h4, h5, h6, div, td, th, tr, blockquote, section, article, header, footer, figcaption, dt, dd';
 
 interface ContentSelectors {
   title: string[];
   date: string[];
   content: string[];
   categories?: string[];
+  /** Elements to strip from the whole page before content matching (#3574) */
+  removeSelectors?: string[];
 }
 
 interface SourceConfig {
@@ -25,6 +38,123 @@ interface SourceConfig {
  * Supports WordPress and Neos CMS with different extraction strategies
  */
 export class ContentExtractor {
+  /**
+   * Text von `el` mit einem Trenner vor UND nach jedem Block-Element und nach
+   * `<br>`. cheerio klebt beim reinen `.text()` sonst benachbarte Blöcke ohne
+   * Trennzeichen zusammen ("prüfenDas", "ausDer", "IntroPara", #3573). Läuft
+   * pro Element aus `el` einzeln und fügt die Ergebnisse mit `\n\n` zusammen —
+   * derselbe Absatztrenner wie an einer berührenden Blockgrenze innerhalb
+   * eines Wurzelelements (einheitlich, nicht ein Einzel- gegen ein
+   * Doppel-`\n`). Matcht der Content-Selektor mehrere Geschwister-Wurzeln
+   * (z. B. `.wp-block-paragraph` mit 2 Treffern), bräuchten die sonst
+   * ebenfalls einen Trenner, aber cheerios `.before()`/`.after()` sind No-Ops
+   * auf einem eigenständig geklonten (elternlosen) Wurzelknoten — verifiziert,
+   * bevor hier auf `$clone.filter(SEL).add($clone.find(SEL))` gesetzt wurde:
+   * das ändert am geklonten Text nichts, weil die Wurzel keinen Parent hat, an
+   * dem ein Geschwisterknoten hängen könnte.
+   *
+   * Arbeitet je Wurzel auf einem Klon — mutiert nie das geteilte Dokument,
+   * das spätere Selektoren (Datum, Kategorien) im selben Aufruf noch lesen.
+   */
+  static blockText($: cheerio.CheerioAPI, el: cheerio.Cheerio<AnyNode>): string {
+    return el
+      .map((_, node) => {
+        const $clone = $(node).clone();
+        // HTML kollabiert jede Whitespace-Folge (auch Zeilenumbrüche aus der
+        // Quelltext-Einrückung) zu einem Leerzeichen. Das muss VOR dem
+        // Einfügen unserer eigenen Trenner passieren, sonst hinge `full_text`
+        // (und `content_hash`) von der Einrückung des Templates ab.
+        $clone
+          .find('*')
+          .addBack()
+          .contents()
+          .each((_, contentNode) => {
+            if (contentNode.type === 'text') {
+              contentNode.data = contentNode.data.replace(/\s+/g, ' ');
+            }
+          });
+        $clone.find('br').replaceWith('\n');
+        const blocks = $clone.find(BLOCK_SEPARATOR_SELECTOR);
+        blocks.before('\n');
+        blocks.after('\n');
+        return $clone.text();
+      })
+      .get()
+      .join('\n\n');
+  }
+
+  /**
+   * Whitespace-Normalisierung für extrahierten Text. Läuft zeilenweise, damit
+   * die von `blockText` gesetzten Zeilenumbrüche (Absatzgrenzen) erhalten
+   * bleiben — der Chunker (`smartChunkDocument` → `cleanTextForEmbedding(text,
+   * true)`) erkennt Überschriften/Absätze zeilenweise, ein einzeiliger Text
+   * würde ihm die Struktur nehmen. Reihenfolge ist wichtig: erst pro Zeile
+   * Whitespace kollabieren, DANN 3+ Zeilenumbrüche zusammenziehen — umgekehrt
+   * (wie zuvor) frisst `/\s+/g` die Zeilenumbrüche schon vorher weg und macht
+   * die Zeilenumbruch-Regel zu totem Code.
+   *
+   * `[^\S\n]` trifft jedes Whitespace-Zeichen außer `\n` — also Tab, Formfeed,
+   * Vertical-Tab, NBSP, die Unicode-Leerräume U+2000–U+200A/U+3000, nicht nur
+   * das ASCII-Leerzeichen. Nötig bleibt der Schritt trotz der Kollabierung in
+   * `blockText`, weil zwei für sich schon kollabierte Textknoten an einer
+   * Grenze (z. B. Inline-Element-Rand) immer noch zwei Leerzeichen aneinander-
+   * reihen können.
+   */
+  static normalizeWhitespace(text: string): string {
+    return text
+      .split('\n')
+      .map((line) => line.replace(/[^\S\n]+/g, ' ').trim())
+      .join('\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  }
+
+  /**
+   * Wählt den Content-Text — identisch in allen drei CMS-Extraktionsmethoden,
+   * deshalb hier einmal statt dreimal dupliziert.
+   *
+   * Der 200-Zeichen-Schwellenwert wird auf dem UNGETRENNTEN Text gemessen
+   * (`el.text()`), nicht auf dem mit `blockText` separator-versehenen — das
+   * entspricht exakt dem in #3574 austarierten Selektor-Verhalten. Würde man
+   * auf der getrennten Länge gaten, könnten die eingefügten Trenner einen
+   * knapp unter 200 Zeichen liegenden Container (der z. B. zusätzlich eine
+   * "Kategorie"/"Zurück"-Seitenleiste enthält) über die Schwelle heben und
+   * genau die Seitenchrome hereinziehen, die der Schwellenwert ausschließen
+   * soll.
+   *
+   * Fällt keiner der Selektoren durch die Schwelle, nimmt der Rückfall den
+   * ERSTEN Selektor mit irgendeinem nicht-leeren Text (nicht den längsten, der
+   * weiterhin Seitenchrome mitziehen kann) — erst wenn auch das leer bleibt,
+   * main/body (#3574). `main`s Text wird getrimmt geprüft, nicht nur auf
+   * Leerstring: ein `<main>` ohne echten Inhalt (nur verschachtelte leere
+   * Blockelemente) kann nach `blockText` allein aus eingefügten
+   * Zeilenumbrüchen bestehen — das ist kein Inhalt und muss auf `body`
+   * zurückfallen.
+   */
+  static #extractContentText(
+    $: cheerio.CheerioAPI,
+    selectors: string[]
+  ): { text: string; bodyFallback: boolean } {
+    for (const sel of selectors) {
+      const el = $(sel);
+      if (el.length && el.text().trim().length > 200) {
+        return { text: ContentExtractor.blockText($, el), bodyFallback: false };
+      }
+    }
+
+    for (const sel of selectors) {
+      const el = $(sel);
+      if (el.length && el.text().trim()) {
+        return { text: ContentExtractor.blockText($, el), bodyFallback: false };
+      }
+    }
+
+    const main = $('main');
+    const mainText = main.length ? ContentExtractor.blockText($, main) : '';
+    const text = mainText.trim() ? mainText : ContentExtractor.blockText($, $('body'));
+    return { text, bodyFallback: true };
+  }
+
   /**
    * Extract content from WordPress page
    * Handles Elementor, Gutenberg, and classic themes
@@ -65,21 +195,14 @@ export class ContentExtractor {
     $('.breadcrumb, .breadcrumb-nav, [aria-label*="Breadcrumb"]').remove();
     $('.social-share, .share-buttons, .related-content, .comments').remove();
     $('.elementor-location-header, .elementor-location-footer').remove();
-
-    // Extract main content
-    let contentText = '';
-    for (const sel of selectors.content) {
-      const el = $(sel);
-      if (el.length && el.text().trim().length > 200) {
-        contentText = el.text();
-        break;
-      }
+    // Per-source chrome (#3574)
+    if (selectors.removeSelectors?.length) {
+      $(selectors.removeSelectors.join(', ')).remove();
     }
 
-    // Fallback to main/body if no content found
-    if (!contentText || contentText.trim().length < 200) {
-      contentText = $('main').text() || $('body').text();
-    }
+    const picked = ContentExtractor.#extractContentText($, selectors.content);
+    let contentText = picked.text;
+    const bodyFallback = picked.bodyFallback;
 
     // Extract categories
     const categories: string[] = [];
@@ -91,13 +214,9 @@ export class ContentExtractor {
       }
     });
 
-    // Clean text
-    contentText = contentText
-      .replace(/\s+/g, ' ') // Collapse whitespace
-      .replace(/\n{3,}/g, '\n\n') // Normalize line breaks
-      .trim();
+    contentText = ContentExtractor.normalizeWhitespace(contentText);
 
-    return { title, publishedAt, text: contentText, categories };
+    return { title, publishedAt, text: contentText, categories, bodyFallback };
   }
 
   /**
@@ -132,21 +251,14 @@ export class ContentExtractor {
     // Remove unwanted elements (after title/date extraction)
     $('script, style, noscript, iframe, nav, header, footer').remove();
     $('.navigation, .cookie-consent, .breadcrumb, .social-share').remove();
-
-    // Extract main content
-    let contentText = '';
-    for (const sel of selectors.content) {
-      const el = $(sel);
-      if (el.length && el.text().trim().length > 200) {
-        contentText = el.text();
-        break;
-      }
+    // Per-source chrome (#3574)
+    if (selectors.removeSelectors?.length) {
+      $(selectors.removeSelectors.join(', ')).remove();
     }
 
-    // Fallback to main/body if no content found
-    if (!contentText || contentText.trim().length < 200) {
-      contentText = $('main').text() || $('body').text();
-    }
+    const picked = ContentExtractor.#extractContentText($, selectors.content);
+    let contentText = picked.text;
+    const bodyFallback = picked.bodyFallback;
 
     // Extract categories
     const categories: string[] = [];
@@ -158,13 +270,9 @@ export class ContentExtractor {
       }
     });
 
-    // Clean text
-    contentText = contentText
-      .replace(/\s+/g, ' ') // Collapse whitespace
-      .replace(/\n{3,}/g, '\n\n') // Normalize line breaks
-      .trim();
+    contentText = ContentExtractor.normalizeWhitespace(contentText);
 
-    return { title, publishedAt, text: contentText, categories };
+    return { title, publishedAt, text: contentText, categories, bodyFallback };
   }
 
   /**
@@ -187,8 +295,14 @@ export class ContentExtractor {
     for (const sel of selectors.date) {
       const el = $(sel).first();
       if (el.length) {
-        publishedAt = el.attr('datetime') || el.attr('content') || el.text().trim();
-        if (publishedAt) break;
+        const candidate = el.attr('datetime') || el.attr('content') || el.text().trim();
+        // A selector's text only wins if it actually looks like a date — the
+        // first match for some sources is a teaser/prose paragraph, not the
+        // date itself (#3565). Otherwise fall through to the next selector.
+        if (candidate && ContentExtractor.looksLikeDate(candidate)) {
+          publishedAt = candidate;
+          break;
+        }
       }
     }
 
@@ -214,21 +328,14 @@ export class ContentExtractor {
     $('.navigation, .cookie-consent, .breadcrumb, .social-share').remove();
     // Typo3-specific: remove pagination inside blog plugin
     $('.tx_xblog_pi1 .pagination, .tx_xblog_pi1 .page-navigation').remove();
-
-    // Extract main content
-    let contentText = '';
-    for (const sel of selectors.content) {
-      const el = $(sel);
-      if (el.length && el.text().trim().length > 200) {
-        contentText = el.text();
-        break;
-      }
+    // Per-source chrome (#3574)
+    if (selectors.removeSelectors?.length) {
+      $(selectors.removeSelectors.join(', ')).remove();
     }
 
-    // Fallback to main/body if no content found
-    if (!contentText || contentText.trim().length < 200) {
-      contentText = $('main').text() || $('body').text();
-    }
+    const picked = ContentExtractor.#extractContentText($, selectors.content);
+    let contentText = picked.text;
+    const bodyFallback = picked.bodyFallback;
 
     // Extract categories
     const categories: string[] = [];
@@ -240,13 +347,25 @@ export class ContentExtractor {
       }
     });
 
-    // Clean text
-    contentText = contentText
-      .replace(/\s+/g, ' ')
-      .replace(/\n{3,}/g, '\n\n')
-      .trim();
+    contentText = ContentExtractor.normalizeWhitespace(contentText);
 
-    return { title, publishedAt, text: contentText, categories };
+    return { title, publishedAt, text: contentText, categories, bodyFallback };
+  }
+
+  /**
+   * Whether `text` STARTS WITH a date (ISO, DD.MM.YY(YY), or a German
+   * long-form month name — optional trailing text like " –" is fine) — used to
+   * skip a date selector whose first match is prose that merely CONTAINS a
+   * date ("am Donnerstag, 2. März 2023", "Sitzung vom 12.03.2019") rather than
+   * being the date itself (#3565). Anchored at the start: an unanchored check
+   * would let `normalizeGermanDate` pull an embedded date out of that prose.
+   */
+  private static looksLikeDate(text: string): boolean {
+    const trimmed = text.trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) return true;
+    return /^\d{1,2}\.\s*(?:\d{1,2}\.\d{2,4}|(?:Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s+\d{4})(?!\d)/i.test(
+      trimmed
+    );
   }
 
   /**
@@ -294,17 +413,32 @@ export class ContentExtractor {
       return `${year}-${month}-${day}`;
     }
 
-    // DD.MM.YY (e.g., "19.02.26")
+    // DD.MM.YY (e.g., "19.02.26"). Pivot at 50: 00-50 is 20xx, 51-99 is 19xx —
+    // none of our sources predate 1951, and this keeps a stray "29.04.99" from
+    // landing in the future as 2099.
     const shortMatch = trimmed.match(/(\d{1,2})\.(\d{1,2})\.(\d{2})(?!\d)/);
     if (shortMatch) {
       const day = shortMatch[1].padStart(2, '0');
       const month = shortMatch[2].padStart(2, '0');
-      const year = parseInt(shortMatch[3], 10) + 2000;
+      const yy = parseInt(shortMatch[3], 10);
+      const year = yy > 50 ? 1900 + yy : 2000 + yy;
       return `${year}-${month}-${day}`;
     }
 
     // Already ISO or other format — pass through
     return trimmed;
+  }
+
+  /**
+   * Titel landen in Chat-Listen, Zitaten, `titleContains` und der Sortierung.
+   * Manche CMS maskieren `&nbsp;` doppelt (cheerio dekodiert nur einmal, übrig
+   * bleibt das Literal) oder brechen den Titel um (gruene.berlin, #3560).
+   */
+  static normalizeTitle(title: string): string {
+    return title
+      .replace(/&nbsp;/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
   }
 
   /**
@@ -336,6 +470,7 @@ export class ContentExtractor {
         break;
     }
 
+    extracted.title = ContentExtractor.normalizeTitle(extracted.title);
     return extracted;
   }
 }

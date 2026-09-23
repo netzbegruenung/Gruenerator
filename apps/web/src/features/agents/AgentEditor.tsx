@@ -5,6 +5,7 @@ import { Button, Input, Textarea } from '@gruenerator/ui';
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { RecipePicker } from '../agentura/recipes/RecipePicker';
 import { useCreateRecurringTask, useUpdateRecurringTask } from '../recurring-tasks/api';
 import { RecurrenceFields } from '../recurring-tasks/RecurrenceFields';
 import {
@@ -137,15 +138,16 @@ function AgentEditor({
           // Suffix lowercased to satisfy the identifier regex `^[a-z0-9-]+$`.
           const created = await createMut.mutateAsync({
             identifier: `${slug}-${generateSlugSuffix().toLowerCase()}`,
-            author: 'Eigener Grünerator-Agent',
+            author: 'Eigener Agent',
             ...payload,
           });
           agentId = created.identifier;
           createdIdentifierRef.current = agentId;
         }
         if (variant === 'recurring') {
+          let newTaskId: string | null = null;
           try {
-            await createTaskMut.mutateAsync({
+            const createdTask = await createTaskMut.mutateAsync({
               title: form.title.trim(),
               instruction: form.systemRole.trim(),
               agentIdentifier: agentId,
@@ -156,13 +158,17 @@ function AgentEditor({
               locale: form.locale,
               enabled: true,
             });
+            newTaskId = createdTask.id;
           } catch {
             setError(
-              'Grünerator-Agent angelegt, aber der Zeitplan konnte nicht gespeichert werden. Bitte erneut speichern.'
+              'Agent angelegt, aber der Zeitplan konnte nicht gespeichert werden. Bitte erneut speichern.'
             );
             return;
           }
-          void navigate('/agentura?cat=wiederkehrend');
+          // `wiederkehrend` ist kein AgenturaCategoryKey — der Wert wurde
+          // verworfen und die Person landete auf dem Standardregal statt bei
+          // ihrer neuen Aufgabe. Ziel ist jetzt der Verlauf genau dieser Aufgabe.
+          void navigate(newTaskId != null ? `/wiederkehrend?task=${newTaskId}` : '/wiederkehrend');
         } else {
           void navigate(`/agents/${agentId}/edit`);
         }
@@ -218,9 +224,7 @@ function AgentEditor({
             size="md"
           />
           <h1 className="truncate text-lg font-bold tracking-tight text-foreground-heading">
-            {mode === 'create'
-              ? 'Neuer Grünerator-Agent'
-              : form.title || 'Grünerator-Agent bearbeiten'}
+            {mode === 'create' ? 'Neuer Agent' : form.title || 'Agent bearbeiten'}
           </h1>
         </div>
         <div className="flex items-center gap-sm">
@@ -276,7 +280,7 @@ function AgentEditor({
                     value={form.title}
                     onChange={(e) => set('title', e.target.value)}
                     maxLength={100}
-                    placeholder="Gib deinem Grünerator-Agenten einen Namen"
+                    placeholder="Gib deinem Agenten einen Namen"
                   />
                 </label>
                 <IconPicker
@@ -292,7 +296,7 @@ function AgentEditor({
                   value={form.description}
                   onChange={(e) => set('description', e.target.value)}
                   maxLength={500}
-                  placeholder="Beschreibe deinen Grünerator-Agenten und wie er funktioniert"
+                  placeholder="Beschreibe deinen Agenten und wie er funktioniert"
                 />
               </label>
               <label className={labelCls}>
@@ -305,6 +309,18 @@ function AgentEditor({
                   placeholder="Du bist ein*e …"
                 />
               </label>
+
+              <RecipePicker
+                value={{ mention: form.defaultRecipeMention, id: form.defaultRecipeId }}
+                onChange={(next) => {
+                  setJustSaved(false);
+                  setForm((prev) => ({
+                    ...prev,
+                    defaultRecipeMention: next.mention,
+                    defaultRecipeId: next.id,
+                  }));
+                }}
+              />
 
               {/* Conversation */}
               <details className="rounded-lg border border-grey-200 p-md dark:border-grey-700">
@@ -424,8 +440,8 @@ function AgentEditor({
               <div className="mb-md">
                 <h2 className="m-0 text-base font-bold text-foreground-heading">Wissen</h2>
                 <p className="m-0 mt-1 text-sm text-foreground-muted">
-                  Notebooks, die der Grünerator-Agent automatisch als Wissensquelle durchsucht.
-                  Mehrfachauswahl möglich.
+                  Notebooks, die der Agent automatisch als Wissensquelle durchsucht. Mehrfachauswahl
+                  möglich.
                 </p>
               </div>
               <div className="mb-xs text-xs font-medium uppercase tracking-wide text-foreground-muted">
@@ -470,8 +486,8 @@ function AgentEditor({
               <div className="mb-md">
                 <h2 className="m-0 text-base font-bold text-foreground-heading">Zeitplan</h2>
                 <p className="m-0 mt-1 text-sm text-foreground-muted">
-                  Wann und wie oft der Grünerator-Agent automatisch läuft. Ausgeführt wird dabei die
-                  Anleitung des Grünerator-Agenten; das Ergebnis wird wie gewählt geliefert.
+                  Wann und wie oft der Agent automatisch läuft. Ausgeführt wird dabei die Anleitung
+                  des Agenten; das Ergebnis wird wie gewählt geliefert.
                 </p>
               </div>
               <RecurrenceFields value={schedule} onChange={setSchedule} />

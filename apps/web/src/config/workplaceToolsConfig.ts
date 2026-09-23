@@ -17,6 +17,7 @@ import { RiSpyLine } from 'react-icons/ri';
 
 import { getIcon } from './icons';
 import { CURRENT_INSTANCE } from './instance';
+import { NEWSLETTER_SIGNUP_URL } from './newsletter';
 
 import type { IconType } from './icons';
 import type { OfficeCreateKind, OfficeSuiteActionId, ToolId } from './toolRegistry';
@@ -178,9 +179,6 @@ export const CANVAS_TOOLS: WorkplaceToolItem[] = [
   },
 ] satisfies RegisteredTile[];
 
-const NEWSLETTER_URL =
-  'https://896ca129.sibforms.com/serve/MUIFAFnH3lov98jrw3d75u_DFByChA39XRS6JkBKqjTsN9gx0MxCvDn1FMnkvHLgzxEh1JBcEOiyHEkyzRC-XUO2DffKsVccZ4r7CCaYiugoiLf1a-yoTxDwoctxuzCsmDuodwrVwEwnofr7K42jQc-saIKeVuB_8UxrwS18QIaahZml1qMExNno2sEC7HyMy9Nz4f2f8-UJ4QmW';
-
 // Creation tools that join the colored "Office" strip on the Arbeiten tab.
 // (Reels moved to the /studio "Bilder & Videos" landing; "Bilder & Videos"
 // covers KI-Bilder, Sharepics and Reels now.)
@@ -211,6 +209,34 @@ export const TOOL_MENUS: WorkplaceToolMenu[] = [
     icon: getIcon('navigation', 'tools')!,
     items: [
       {
+        id: 'uebersetzer',
+        title: 'Übersetzer',
+        description: 'Texte & Dokumente übersetzen',
+        path: '/uebersetzer',
+        icon: getIcon('navigation', 'uebersetzer')!,
+      },
+      {
+        id: 'mcp',
+        title: 'Apps & MCP',
+        description: 'ChatGPT & Co verbinden',
+        path: '/apps',
+        icon: getIcon('actions', 'link')!,
+      },
+      {
+        id: 'voice',
+        title: 'Voice',
+        description: 'Text vertonen',
+        path: '/voice',
+        icon: getIcon('navigation', 'voice')!,
+      },
+      {
+        id: 'transkription',
+        title: 'Transkription',
+        description: 'Audio zu Text',
+        path: '/transkription',
+        icon: getIcon('navigation', 'transkription')!,
+      },
+      {
         id: 'scanner',
         title: 'Scanner',
         description: 'Fotos & Scans zu Text',
@@ -225,25 +251,11 @@ export const TOOL_MENUS: WorkplaceToolMenu[] = [
         icon: getIcon('navigation', 'zeichenzaehler')!,
       },
       {
-        id: 'transkription',
-        title: 'Transkription',
-        description: 'Audio zu Text',
-        path: '/transkription',
-        icon: getIcon('navigation', 'transkription')!,
-      },
-      {
         id: 'newsletter',
         title: 'Newsletter',
         description: 'Updates abonnieren',
-        href: NEWSLETTER_URL,
+        href: NEWSLETTER_SIGNUP_URL,
         icon: getIcon('navigation', 'presse-social')!,
-      },
-      {
-        id: 'mcp',
-        title: 'MCP',
-        description: 'ChatGPT & Co verbinden',
-        path: '/apps',
-        icon: getIcon('actions', 'link')!,
       },
     ],
   },

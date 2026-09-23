@@ -230,6 +230,43 @@ describe('getModeGuidance — bestellte Textform auf einem Such-Turn', () => {
   });
 });
 
+/**
+ * Der Einzeldurchlauf mit `edit_current_doc` heisst seit #3428: die Bearbeitung
+ * findet NICHT statt. Bearbeitet wird nur noch aus der Schleife heraus, und
+ * hierher kommt genau der Zug, den `decideEditToolLoop` draussen gehalten hat
+ * (Bildanhang, Notebook, Zweit-Intent). Der alte Text versprach trotzdem eine
+ * Änderung — die Stufe, die sie ausgelöst hätte, gibt es nicht mehr.
+ */
+describe('getModeGuidance — edit_current_doc ohne Bearbeitungsweg', () => {
+  it('verspricht keine Bearbeitung mehr, sondern bestellt den Vorschlag als Text', () => {
+    const out = getModeGuidance(makeState({ intent: 'edit_current_doc' }));
+    expect(out).toContain('nicht direkt bearbeiten');
+    expect(out).toContain('hier ist mein Vorschlag als Text');
+    expect(out).not.toContain('die Bearbeitung passiert direkt im Dokument');
+  });
+
+  it('nennt die Tabelle, wenn der Doc-Fast-Path in der Tabellen-Seitenleiste feuert', () => {
+    const out = getModeGuidance(
+      makeState({
+        intent: 'edit_current_doc',
+        agentConfig: { identifier: 'gruenerator-sheets-editor' } as never,
+        enabledTools: { edit_current_sheet: true },
+      })
+    );
+    expect(out).toContain('Ich kann die Tabelle in diesem Zug nicht direkt bearbeiten');
+    expect(out).not.toContain('das Dokument');
+  });
+
+  // Der Intent allein entscheidet das nicht: derselbe Prompt-Bau beliefert den
+  // Loop, und dort IST das Werkzeug montiert. Der Absagetext stünde dann neben
+  // „Rufe IMMER edit_document auf" — siehe docsEditPrompt.vitest.ts für die
+  // Prüfung am fertigen Prompt.
+  it('schweigt, sobald das edit_document der Dokument-Fläche montiert ist', () => {
+    const out = getModeGuidance(makeState({ intent: 'edit_current_doc', editToolSurface: 'doc' }));
+    expect(out).toBe('');
+  });
+});
+
 describe('getModeGuidance turn-outcome honesty (direct path)', () => {
   it('a direct turn carries the no-research/no-artifact honesty note', () => {
     const out = getModeGuidance(makeState({ intent: 'direct', searchResults: [] }));
@@ -746,5 +783,142 @@ describe('Pipeline-Turn: genau ein Ausgangstext im Prompt', () => {
     const out = await buildSystemMessage(state({ pipelineSourceText: null }));
     expect(out).not.toContain('ZU ÜBERTRAGENDER TEXT');
     expect(out).toContain('Radwege');
+  });
+});
+
+/**
+ * `vision` ("Bildanalyse") war der dritte Schlüssel ohne Gatter (#3307). Die
+ * Bytes hängt `responseSinglePass` an die Nachricht; dieser Prompt-Block sagt
+ * dem Modell, dass sie da sind. Beide müssen dieselbe Antwort geben — ein
+ * Prompt, der Sichtbarkeit behauptet, während die Injektion ausblieb, ist die
+ * Bauanleitung für eine erfundene Bildbeschreibung.
+ */
+describe('formatImageContext — die Sichtbarkeitszusage folgt dem vision-Schalter', () => {
+  const withImages = (enabledTools: Record<string, boolean>) =>
+    makeState({
+      intent: 'direct',
+      searchResults: [],
+      citations: [],
+      agentConfig: { identifier: 'gruenerator-universal' },
+      enabledTools,
+      imageAttachments: [{ name: 'plakat.png', type: 'image/png', data: 'AAAA' }],
+    } as unknown as Partial<ChatGraphState>);
+
+  it('sagt dem Modell, dass die Bilder sichtbar sind, wenn vision an ist', async () => {
+    const out = await buildSystemMessage(withImages({}));
+    expect(out).toContain('ANGEHÄNGTE BILDER');
+    expect(out).toContain('plakat.png');
+    expect(out).toContain('sind in der Nachricht sichtbar');
+  });
+
+  it('nennt die Bilder weiter, sagt aber, dass sie NICHT sichtbar sind', async () => {
+    // Verschweigen wäre die andere Falle: die Person hat ein Bild angehängt
+    // und erwartet eine Reaktion darauf, nicht Schweigen.
+    const out = await buildSystemMessage(withImages({ vision: false }));
+    expect(out).toContain('plakat.png');
+    expect(out).toContain('NICHT in der Nachricht sichtbar');
+    expect(out).not.toContain('Die Bilder sind in der Nachricht sichtbar');
+  });
+
+  it('zeigt bei image_edit auf den BILDVERGLEICH — wenn es ihn gibt', async () => {
+    // Der Einzeldurchlauf lässt die Bytes hier bewusst draußen; das Modell
+    // erzählt aus den Beschreibungen. Der Prompt behauptete trotzdem das
+    // Gegenteil, auf dem häufigsten Bild-Zug überhaupt (#3313).
+    const out = await buildSystemMessage(
+      makeState({
+        intent: 'image_edit',
+        searchResults: [],
+        citations: [],
+        agentConfig: { identifier: 'gruenerator-universal' },
+        enabledTools: {},
+        imageAttachments: [{ name: 'plakat.png', type: 'image/png', data: 'AAAA' }],
+        imageEditDescriptions: { original: 'ein rotes Plakat', edited: 'ein blaues Plakat' },
+      } as unknown as Partial<ChatGraphState>)
+    );
+    expect(out).toContain('plakat.png');
+    expect(out).toContain('NICHT in der Nachricht sichtbar');
+    // Nicht bloß das Wort: der Abschnitt muss wirklich dastehen.
+    expect(out).toContain('## BILDVERGLEICH');
+    expect(out).toContain('ein blaues Plakat');
+    expect(out).not.toContain('Die Bilder sind in der Nachricht sichtbar.');
+  });
+
+  it('zeigt auf keinen BILDVERGLEICH, wenn beide Vision-Aufrufe fehlschlugen', async () => {
+    // `imageEditNode` fängt beide describe()-Fehler zu null ab. Dann rendert der
+    // Abschnitt nicht — und ein Prompt, der auf ihn zeigt, ist derselbe Fehler
+    // wie eine erfundene Sichtbarkeit, nur eine Zeile tiefer.
+    const out = await buildSystemMessage(
+      makeState({
+        intent: 'image_edit',
+        searchResults: [],
+        citations: [],
+        agentConfig: { identifier: 'gruenerator-universal' },
+        enabledTools: {},
+        imageAttachments: [{ name: 'plakat.png', type: 'image/png', data: 'AAAA' }],
+        imageEditDescriptions: null,
+      } as unknown as Partial<ChatGraphState>)
+    );
+    expect(out).toContain('NICHT in der Nachricht sichtbar');
+    expect(out).toContain('keine Beschreibung davon vor');
+    expect(out).not.toContain('## BILDVERGLEICH');
+    expect(out).not.toContain('Stütze dich auf den BILDVERGLEICH-Block');
+  });
+
+  it('verweist auch bei abgeschalteter Bildanalyse auf vorhandene Beschreibungen', async () => {
+    // „Bildanalyse“ und „Bildbearbeitung“ sind zwei unabhängige Schalter: die
+    // Erdung kann da sein, während die Bytes es nicht sind.
+    const out = await buildSystemMessage(
+      makeState({
+        intent: 'image_edit',
+        searchResults: [],
+        citations: [],
+        agentConfig: { identifier: 'gruenerator-universal' },
+        enabledTools: { vision: false },
+        imageAttachments: [{ name: 'plakat.png', type: 'image/png', data: 'AAAA' }],
+        imageEditDescriptions: { original: 'ein rotes Plakat', edited: 'ein blaues Plakat' },
+      } as unknown as Partial<ChatGraphState>)
+    );
+    expect(out).toContain('Bildanalyse ist für diesen Grünerator ausgeschaltet');
+    expect(out).toContain('Stütze dich auf den BILDVERGLEICH-Block');
+    expect(out).not.toContain('keine Beschreibung davon vor');
+  });
+});
+
+/**
+ * Der Sharepic-Studio-Kanal. Die Seitenleiste schickte ihren Text bis #3427 als
+ * gefälschtes `currentDocument`, nur um diesen einen Block zu bekommen — der
+ * Agenten-Prompt nennt ihn namentlich („Das **AKTUELLE DOKUMENT** ist der
+ * strukturierte Text dieses Sharepics"). Mit dem eigenen Kanal muss dieselbe
+ * Überschrift stehen bleiben, sonst antwortet der Agent über ein Sharepic, das
+ * er nicht sieht.
+ */
+describe('formatCurrentDocument — das offene Sharepic steht unter derselben Überschrift', () => {
+  const canvasState = (over: Partial<ChatGraphState> = {}) =>
+    makeState({
+      intent: 'direct',
+      searchResults: [],
+      citations: [],
+      agentConfig: { identifier: 'gruenerator-sharepic-editor' },
+      currentCanvas: {
+        id: 'canvas-1',
+        template: 'zitat',
+        snapshot: { template: 'zitat', textFields: [], elementsSummary: [] },
+        capabilities: { supportedOperations: ['set-text'] },
+        text: 'Zitat: „Mehr Tempo beim Ausbau."',
+      },
+      ...over,
+    } as unknown as Partial<ChatGraphState>);
+
+  it('rendert currentCanvas.text als AKTUELLES DOKUMENT', async () => {
+    const out = await buildSystemMessage(canvasState());
+    expect(out).toContain('AKTUELLES DOKUMENT');
+    expect(out).toContain('Mehr Tempo beim Ausbau.');
+    // Der Anker-Zusatz hing bisher am gefälschten currentDocument.
+    expect(out).toContain('Im Editor ist ein Dokument geöffnet');
+  });
+
+  it('lässt den Block weg, wenn weder Dokument noch Sharepic offen ist', async () => {
+    const out = await buildSystemMessage(canvasState({ currentCanvas: null }));
+    expect(out).not.toContain('AKTUELLES DOKUMENT');
   });
 });

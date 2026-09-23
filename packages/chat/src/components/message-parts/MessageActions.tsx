@@ -22,9 +22,8 @@ import {
 import { memo, useState } from 'react';
 import { HiOutlineDocumentText } from 'react-icons/hi';
 
-import { useExtraActions } from '../../context/ExtraActionsContext';
+import { useReadonlyMode } from '../../context/ReadonlyModeContext';
 import { useRegenerateMessage } from '../../hooks/useRegenerateMessage';
-// import { MessageTTSButton } from './MessageTTSButton';
 import { downloadBlob } from '../../lib/downloadBlob';
 import { formatSourcesMarkdown } from '../../lib/formatSourcesMarkdown';
 import {
@@ -40,6 +39,7 @@ import { useChatDensity } from '../thread/chatDensityContext';
 import { MessageBranchPicker } from './MessageBranchPicker';
 import { MessageSourcesButton } from './MessageSourcesButton';
 import { MessageTime } from './MessageTimestamp';
+import { MessageTTSButton } from './MessageTTSButton';
 
 import type { Citation, ChatMessage } from '../../hooks/useChatGraphStream';
 import type { ExportToDocsBody, ExportToDocsResponse } from '@gruenerator/contracts';
@@ -71,8 +71,8 @@ export const MessageActions = memo(function MessageActions({
   sourcesOpen = false,
   onToggleSources,
 }: MessageActionsProps) {
-  const extraActions = useExtraActions();
   const isCompact = useChatDensity() === 'compact';
+  const readOnly = useReadonlyMode();
   const handleRegenerate = useRegenerateMessage();
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState<DocumentActionId | null>(null);
@@ -226,7 +226,7 @@ export const MessageActions = memo(function MessageActions({
       >
         {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
       </button>
-      {/* <MessageTTSButton content={content} /> */}
+      <MessageTTSButton content={content} />
       {/*
         One document button, four destinations. Download and "im Editor
         bearbeiten" used to be two glyphs side by side, which left no room for
@@ -278,28 +278,18 @@ export const MessageActions = memo(function MessageActions({
           </ResponsiveMenuSection>
         }
       />
-      <button
-        onClick={handleRegenerate}
-        className="rounded-lg p-1.5 text-foreground-muted hover:bg-primary/10 hover:text-foreground"
-        aria-label="Neu generieren"
-        title="Neu generieren"
-      >
-        <RefreshCw className="h-4 w-4" />
-      </button>
-      <MessageBranchPicker />
-      {extraActions?.map((action) => (
+      {!readOnly && (
         <button
-          key={action.id}
-          onClick={action.onClick}
-          disabled={action.disabled || action.loading}
-          className="rounded-lg p-1.5 text-foreground-muted hover:bg-primary/10 hover:text-foreground disabled:opacity-50"
-          aria-label={action.label}
-          title={action.label}
+          onClick={handleRegenerate}
+          className="rounded-lg p-1.5 text-foreground-muted hover:bg-primary/10 hover:text-foreground"
+          aria-label="Neu generieren"
+          title="Neu generieren"
         >
-          {action.loading ? <Loader2 className="h-4 w-4 animate-spin" /> : action.icon}
+          <RefreshCw className="h-4 w-4" />
         </button>
-      ))}
-      {showFeedback && (
+      )}
+      <MessageBranchPicker />
+      {showFeedback && !readOnly && (
         <>
           <ActionBarPrimitive.FeedbackPositive
             className="rounded-lg p-1.5 text-foreground-muted hover:bg-primary/10 hover:text-foreground data-[submitted]:text-primary"

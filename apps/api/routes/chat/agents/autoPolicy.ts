@@ -65,7 +65,8 @@ type ReasoningRule = ReasoningSetting | Record<Complexity, ReasoningSetting>;
  * left this union with the 07.08.2026 lane fold — they stay registered in
  * providers.ts for persisted thread ids and intermediate stages only.
  */
-export type AutoLaneId = 'gemma-litellm' | 'mistral-medium-3.5';
+export const AUTO_LANE_IDS = ['gemma-litellm', 'mistral-medium-3.5'] as const;
+export type AutoLaneId = (typeof AUTO_LANE_IDS)[number];
 
 interface AutoEntry {
   modelId: AutoLaneId;
@@ -501,7 +502,7 @@ export function resolveAutoSelection(input: AutoSelectionInput): AutoSelection {
  * planner's fixed tool-usage prefix is re-billed every turn — same as before.
  *
  * The two lower tiers keep the loop alive when GreenPT is not configured:
- * regolo stays the self-hosted option, Mistral the last resort.
+ * melious stays the self-hosted option, Mistral the last resort.
  */
 export const LOOP_PLANNER_PRIMARY = {
   provider: 'greenpt' as const,
@@ -543,8 +544,8 @@ export const LOOP_PLANNER_HEALTHY_ALT = {
   model: GEMMA_31B_ON_CORTECS.model,
 };
 export const LOOP_PLANNER_SELFHOSTED = {
-  provider: 'regolo' as const,
-  model: 'mistral-small-4-119b',
+  provider: 'melious' as const,
+  model: 'gemma-4-31b:balanced',
 };
 /**
  * Die letzte Stufe. Stand bis zum 29.08.2026 auf `litellm/verdigado-pro` und

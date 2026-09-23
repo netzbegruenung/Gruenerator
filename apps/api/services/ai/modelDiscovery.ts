@@ -7,6 +7,7 @@ import {
   LITELLM_DEFAULT_BASE_URL,
   MISTRAL_API_URL,
   REGOLO_BASE_URL,
+  MELIOUS_BASE_URL,
   GREENPT_BASE_URL,
   isProviderConfigured,
 } from './providers.js';
@@ -61,6 +62,12 @@ const MODEL_METADATA: Record<string, { name: string; reasoning: boolean; vision:
   //   vision-fähigen Sibling (Regolo) und tauscht innerhalb der Lane dorthin —
   //   ein geprüfter Pfad, und sie protokolliert es.
   'gemma-4-31b-it': { name: 'Gemma 4 31B', reasoning: false, vision: false },
+  // Dasselbe Modell über Melious. Beide Flags aus demselben Grund wie eine
+  // Zeile höher: `reasoning: false`, weil der SDK-Pfad das Denken abschaltet
+  // (meliousThinkingFetch.ts); `vision: false` GEMESSEN — ein echter Bild-Turn
+  // antwortete am 23.09.2026 mit HTTP 400, obwohl die Hub-Seite Bildeingabe
+  // führt. Bild-Züge gehen damit an VISION_MODEL.
+  'gemma-4-31b:balanced': { name: 'Gemma 4 31B', reasoning: false, vision: false },
   // Scaleway's Gemma 4, MoE with 4B active parameters — the `heavy` stage.
   // `reasoning: true` is the honest flag (it thinks by DEFAULT), which is
   // exactly why its client forces `reasoning_effort: 'none'`; see
@@ -122,6 +129,7 @@ const CATEGORY_NAMES: Record<ProviderName, string> = {
   mistral: 'Mistral',
   litellm: 'Cortecs (ehem. LiteLLM)',
   regolo: 'Regolo',
+  melious: 'Melious',
   greenpt: 'GreenPT',
   scaleway: 'Scaleway',
   cortecs: 'Cortecs',
@@ -130,6 +138,7 @@ const CATEGORY_NAMES: Record<ProviderName, string> = {
 const CAT_ORDER: Record<string, number> = {
   Mistral: 0,
   Regolo: 1,
+  Melious: 1,
   LiteLLM: 2,
   GreenPT: 3,
   Scaleway: 4,
@@ -243,6 +252,10 @@ const PROVIDER_ENDPOINTS: Record<
     url: () => `${REGOLO_BASE_URL}/models`,
     getApiKey: () => env.REGOLO_API_KEY ?? null,
   },
+  melious: {
+    url: () => `${MELIOUS_BASE_URL}/models`,
+    getApiKey: () => env.MELIOUS_API_KEY ?? null,
+  },
   scaleway: {
     url: () => `${scalewayBaseUrl()}/models`,
     getApiKey: () => env.SCALEWAY_API_KEY ?? null,
@@ -264,11 +277,7 @@ function fetchModelsForProvider(provider: ProviderName): Promise<PlaygroundModel
  *  Aufruf danach still umbiegt. */
 const FALLBACK_MODELS: PlaygroundModel[] = ['mistral-medium-2604', 'mistral-small-latest']
   .map((id) => enrichModel(id, 'mistral'))
-  .concat(
-    ['mistral-small-4-119b', 'Llama-3.3-70B-Instruct', 'gpt-oss-120b', 'mistral-small3.2'].map(
-      (id) => enrichModel(id, 'regolo')
-    )
-  );
+  .concat(['gemma-4-31b:balanced'].map((id) => enrichModel(id, 'melious')));
 
 async function discoverModels(): Promise<PlaygroundModel[]> {
   // `greenpt`, `scaleway` und `cortecs` sind bewusst abwesend, nicht vergessen:
@@ -280,7 +289,7 @@ async function discoverModels(): Promise<PlaygroundModel[]> {
   // für uns nur zwei Denkmodelle, und beide sind stillgelegt
   // (./litellmRetired.ts). Ein Modell im Playground anzubieten, das der
   // Aufruf danach umbiegt, wäre eine Lüge in der Auswahl.
-  const providers: ProviderName[] = ['mistral', 'regolo'];
+  const providers: ProviderName[] = ['mistral', 'melious'];
   const results = await Promise.allSettled(
     providers.filter((p) => isProviderConfigured(p)).map((p) => fetchModelsForProvider(p))
   );

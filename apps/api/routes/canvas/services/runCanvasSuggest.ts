@@ -1,7 +1,9 @@
 /**
- * Canvas-suggest LLM call — extracted from `aiSuggestRoute.ts`, which is now
- * its only caller. The streaming chat-edit controller that used to share this
- * retry/validation/filtering logic has been removed.
+ * Canvas-suggest LLM call — planner behind the chat loop's `edit_document`
+ * tool (`editorTools.ts`), its only caller now that `aiSuggestRoute.ts` (the
+ * dead studio "KI" tab's endpoint) has been removed. The streaming chat-edit
+ * controller that used to share this retry/validation/filtering logic has
+ * also been removed.
  *
  * This was the third hand-rolled copy of the forced-tool-call pattern
  * (alongside sharepicEditLlm and the artifact generators). It now runs on

@@ -44,6 +44,7 @@ import { startDocumentIngestWorker } from './services/document-services/Document
 import { startNotificationCleanup } from './services/notifications/notificationCleanupService.js';
 import { startRecurringTaskWorker } from './services/recurringTasks/recurringTaskWorker.js';
 import { startDeepResearchCleanup } from './services/research/deepAgent/resumableRuns.js';
+import { startContentSyncDispatcher } from './services/scrapers/contentSyncDispatcher.js';
 import { startCleanupScheduler as startExportCleanup } from './services/subtitler/exportCleanupService.js';
 import { tusServer, handleBinaryUpload } from './services/subtitler/tusService.js';
 import { shutdownLangfuseTelemetry } from './services/telemetry/langfuseTelemetry.js';
@@ -304,6 +305,10 @@ async function startWorker(): Promise<void> {
   // reclaims rows whose processing died with a previous process, which used to
   // strand them on 'processing' forever.
   startDocumentIngestWorker();
+
+  // Dispatches the Content Sync workflow on its schedule — GitHub throttles the
+  // cron itself (#2972). Cluster-safe: each slot is claimed once in Redis.
+  startContentSyncDispatcher();
 
   // TUS Upload Handler — registered before compression middleware.
   // TUS uploads are binary streams that don't benefit from compression

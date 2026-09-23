@@ -9,6 +9,7 @@
 
 import { buildSystemMessage } from '../../../agents/langgraph/ChatGraph/index.js';
 import { knownArtifactRefs } from '../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
+import { looksLikeMemoryRequest } from '../../../services/memory/memoryRequest.js';
 import {
   BOTH_LANES_FAILED,
   buildAiTelemetry,
@@ -23,8 +24,10 @@ import {
 } from '../services/artifactConfirmations.js';
 import { injectImageAttachments } from '../services/attachmentProcessingService.js';
 import { applyCompaction, pruneMessages } from '../services/contextPruningService.js';
+import { imageVisibility } from '../services/imageVisibility.js';
 import { executeIntentPipeline } from '../services/intentExecutionService.js';
 import {
+  announcesPendingWork,
   stripFabricatedArtifactDelivery,
   stripFabricatedSystemClaims,
 } from '../services/outputSanity.js';
@@ -37,7 +40,6 @@ import {
 import { PROGRESS_MESSAGES, type SSEWriter } from '../services/sseHelpers.js';
 import { persistSourcesOnFailure } from '../services/threadPersistenceService.js';
 import { turnMaterialChars } from '../services/turnMaterial.js';
-import { looksLikeMemoryRequest } from '../../../services/memory/memoryRequest.js';
 
 import { type SharepicRefinement } from './earlyHandlerStage.js';
 import { type BuildTurnTrace } from './responseAgentic.js';
@@ -174,6 +176,9 @@ export async function runSinglePassAnswer({
         }. Erledige den Rest der Nachricht normal.`
       : '';
     const systemMessage = (await buildSystemMessage(finalState)) + memoryNote;
+    // Die eine Antwort auf „sieht das Modell die Bilder?“ — dieselbe, die
+    // `formatImageContext` oben in den Prompt geschrieben hat (#3313).
+    const imagesVisible = imageVisibility(finalState) === 'visible';
     const agentConfigForResolve = {
       provider: finalState.agentConfig.provider as string,
       model: finalState.agentConfig.model,
@@ -182,7 +187,10 @@ export async function runSinglePassAnswer({
       }),
     };
     const resolution = await resolveModel(agentConfigForResolve, modelId ?? undefined, requestId, {
-      hasImages: imageAttachments.length > 0,
+      // Die Vision-Weiche soll das Modell tauschen, damit es die Bytes SEHEN
+      // kann. Bleiben sie draußen, wäre der Tausch umsonst — er nähme dem Zug
+      // das gewählte Modell für ein Bild, das nie ankommt.
+      hasImages: imagesVisible,
       intent: finalState.intent,
       ...(finalState.taskShape != null && { taskShape: finalState.taskShape }),
       materialChars: turnMaterialChars(finalState),
@@ -226,11 +234,10 @@ export async function runSinglePassAnswer({
       finalSystemMessage,
       contextMessages as Parameters<typeof buildMessagesForAI>[1]
     );
-    // image_edit narrates from BILDVERGLEICH text descriptions; the raw image
-    // would put bytes in front of a non-vision model (since we no longer
-    // force-switch above) and create a redundant grounding source for vision
-    // models — skip injection so the descriptions are the single source.
-    if (finalState.intent !== 'image_edit') {
+    // Welche Züge die Bytes bekommen — und warum nicht — steht in
+    // `imageVisibility`: `image_edit` erzählt aus den BILDVERGLEICH-
+    // Beschreibungen, und „Bildanalyse“ aus ist die Wahl der Person (#3307).
+    if (imagesVisible) {
       messagesForAI = injectImageAttachments(
         messagesForAI as Parameters<typeof injectImageAttachments>[0],
         imageAttachments,
@@ -330,6 +337,12 @@ export async function runSinglePassAnswer({
     if (delivery.removed.length > 0) {
       log.warn(`[ChatGraph] Removed fabricated artefact delivery: ${delivery.removed.join(', ')}`);
       fullText = delivery.text;
+    }
+    // Telemetry only — the text is already on the wire; the prompt rules are the fix.
+    if (announcesPendingWork(fullText)) {
+      log.warn(
+        `[ChatGraph] answer asks the user to wait for work that will not happen (intent=${finalState.intent ?? 'null'}): ${JSON.stringify(fullText.trim().slice(0, 100))}`
+      );
     }
     const citeClamp = stripOutOfRangeCitations(fullText, finalState.citations.length);
     if (citeClamp.changed || sanity.fabricated.length > 0 || delivery.removed.length > 0) {

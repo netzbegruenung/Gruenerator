@@ -215,7 +215,7 @@ const GATHER_SUFFIX = [
   '- PRÜFE ZUERST das Material im Gespräch: eingefügter Text, Anhänge, ein geöffnetes Dokument, Quellen aus früheren Turns. Steht die Antwort dort, antworte DARAUS und suche NICHT. Suche nur nach Fakten, die dieses Material gar nicht enthalten KANN (tagesaktuelle Zahlen, externe Ereignisse). Nach einem Namen, den es nur in diesem Gespräch gibt — ein internes Projekt, ein zitierter Entwurf, eine erfundene Fallstudie — suchst du NIE.',
   '- scrape_url NUR für URLs, die tatsächlich in Suchergebnissen erscheinen — rate keine Adressen.',
   '- Wenn der*die Nutzer*in ausdrücklich eine ERSTELLUNG wünscht (z.B. ein Sharepic, Bild, eine Präsentation, Tabelle, ein Dokument oder ein Board), MUSST du das passende Erstellungs-Tool (z.B. sharepic / generate_image / create_presentation / create_sheet / create_document / create_board) in dieser Phase aufrufen — recherchiere zuerst die Fakten, dann rufe das Tool mit dem belegten, konkreten Auftrag auf. Verweigere die Erstellung NICHT.',
-  '- Schreibe in dieser Phase KEINE finale Antwort und KEINE Zusammenfassung. Du darfst vor einem Tool-Aufruf in EINEM kurzen Satz ankündigen, was du als Nächstes tust (z.B. "Ich suche jetzt im Wahlprogramm nach Windkraft."). Verlangt der Turn erkennbar MEHRERE Erstellungen (z.B. Board UND Dokument UND PDF), nenne in der ERSTEN Ankündigung gleich das ganze Vorhaben (z.B. "Ich erstelle zuerst ein Board, dann ein Dokument und ein PDF."), nicht nur den nächsten einzelnen Schritt. Sobald die Belege reichen und angeforderte Inhalte erstellt sind, beende die Tool-Aufrufe ohne weiteren Text.',
+  '- Schreibe in dieser Phase KEINE finale Antwort und KEINE Zusammenfassung. Du darfst vor einem Tool-Aufruf in EINEM kurzen Satz ankündigen, was du als Nächstes tust (z.B. "Ich suche jetzt im Wahlprogramm nach Windkraft.") — aber NUR im selben Schritt wie der Aufruf selbst; eine Ankündigung ohne Tool-Aufruf ist keine Antwort. Verlangt der Turn erkennbar MEHRERE Erstellungen (z.B. Board UND Dokument UND PDF), nenne in der ERSTEN Ankündigung gleich das ganze Vorhaben (z.B. "Ich erstelle zuerst ein Board, dann ein Dokument und ein PDF."), nicht nur den nächsten einzelnen Schritt. Sobald die Belege reichen und angeforderte Inhalte erstellt sind, beende die Tool-Aufrufe ohne weiteren Text.',
 ].join('\n');
 
 /** Best-effort recovery of a malformed JSON tool-argument string. */
@@ -236,6 +236,60 @@ function tryLenientJsonParse(raw: string): unknown {
     }
     return null;
   }
+}
+
+/** Was `prepareStep` von einem gelaufenen Schritt liest — ein Ausschnitt von
+ *  `StepResult`, damit die Tests ohne das SDK auskommen. */
+export interface PreparedStepView {
+  content: ReadonlyArray<{ type: string; toolName?: string; output?: unknown; error?: unknown }>;
+}
+
+const errorText = (value: unknown): string =>
+  value instanceof Error
+    ? value.message
+    : typeof value === 'string'
+      ? value
+      : JSON.stringify(value);
+
+/**
+ * Hat JEDER Werkzeugaufruf dieses Schritts gescheitert, die Nudge für den
+ * nächsten — sonst null. Gescheitert heißt: ein `tool-error` (geworfen) oder
+ * ein Ergebnis `{ error }` (so meldet `wrapToolsForLoop` jeden Fehlschlag).
+ *
+ * Live 23.09.2026: `notebook_quellen` scheiterte mit „Kein Notebook ausgewählt
+ * — gib notebookId an (aus notebooks action="list", Feld ref)", der Planer
+ * hörte nach diesem einen Schritt auf, und die Antwort behauptete, eine solche
+ * Funktion gebe es nicht. Die Meldung sagte, wie es weitergeht; gelesen hat sie
+ * niemand. Kein erzwungener Aufruf (`toolChoice`): ist der Fehler nicht zu
+ * beheben (Dienst down), soll das Modell ehrlich antworten dürfen.
+ */
+export function failedStepRetryNudge(step: PreparedStepView | null): string | null {
+  if (!step) return null;
+  const outcomes = step.content.flatMap((part) => {
+    if (part.type === 'tool-error') {
+      return [{ toolName: part.toolName, error: part.error, guarded: false }];
+    }
+    if (part.type !== 'tool-result') return [];
+    const output =
+      part.output && typeof part.output === 'object'
+        ? (part.output as { error?: unknown; guard?: unknown })
+        : null;
+    return [
+      { toolName: part.toolName, error: output?.error ?? null, guarded: output?.guard != null },
+    ];
+  });
+  // Eine Wächter-Absage (`wrapToolsForLoop`, Feld `guard`) ist eine Weisung
+  // („hör auf", „andere Suche") — keine Nudge, die ihr widerspricht.
+  if (outcomes.length === 0 || outcomes.some((o) => o.error == null || o.guarded)) return null;
+  const lines = outcomes
+    .map((o) => `- ${o.toolName ?? 'Werkzeug'}: ${errorText(o.error).slice(0, 300)}`)
+    .join('\n');
+  return (
+    `\n\nDER LETZTE WERKZEUGAUFRUF IST FEHLGESCHLAGEN:\n${lines}\n` +
+    'Lies die Fehlermeldung. Sagt sie, was fehlt oder falsch war (z. B. eine Angabe, die ein anderes Werkzeug liefert), dann korrigiere den Aufruf und versuche es JETZT genau einmal erneut. ' +
+    'Behaupte NIE, dir fehle dafür eine Funktion oder ein Werkzeug — das Werkzeug gibt es, nur dieser Aufruf ist fehlgeschlagen. ' +
+    'Lässt sich der Fehler nicht beheben, sag ehrlich, dass der Aufruf fehlgeschlagen ist und warum.'
+  );
 }
 
 /** prepareStep shared by both modes: on the last step (or when forceFinish
@@ -266,15 +320,25 @@ export function buildPrepareStep(
    *  (see {@link pinnedFirstTool}). Only consulted while `forceFirstToolCall`
    *  holds — the research ban vetoes both, and it vetoes first. */
   firstToolName: string | null = null
-): ({ stepNumber }: { stepNumber: number }) => {
+): ({ stepNumber, steps }: { stepNumber: number; steps?: ReadonlyArray<PreparedStepView> }) => {
   toolChoice?: 'none' | 'required' | { type: 'tool'; toolName: string };
   system?: string;
 } {
-  return ({ stepNumber }) => {
-    const extra = extraSystem();
+  // Eine Nudge pro Zug: scheitert auch der zweite Versuch, bleibt es dabei.
+  let retryNudged = false;
+  return ({ stepNumber, steps }) => {
     if (stepNumber >= maxSteps - 1 || forceFinish()) {
-      return { toolChoice: 'none' as const, system: `${baseSystem}${extra}${finishSuffix}` };
+      return {
+        toolChoice: 'none' as const,
+        system: `${baseSystem}${extraSystem()}${finishSuffix}`,
+      };
     }
+    let nudge = '';
+    if (stepNumber > 0 && !retryNudged) {
+      nudge = failedStepRetryNudge(steps?.at(-1) ?? null) ?? '';
+      if (nudge) retryNudged = true;
+    }
+    const extra = `${extraSystem()}${nudge}`;
     // Explicit-scope MCP FOLLOW-UP: the small planner otherwise answers from
     // prose without ever calling the connector (observed: intent=mcp steps=0,
     // "Tally gibt nur die interne ID zurück" fabricated). Require a tool call on

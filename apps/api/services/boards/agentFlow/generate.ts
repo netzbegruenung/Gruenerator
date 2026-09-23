@@ -1,20 +1,15 @@
 /**
- * Shared agent generation core.
+ * Shared agent preparation for background runs.
  *
- * Both the legacy @-mention path (boardAgentWorker) and the AI-column flow path
- * (runFlow) produce text the same way: classify → build an intent/locale-aware
- * system prompt → generate with live search/research tools. This module owns that
- * core so neither caller duplicates it.
+ * Board tasks (@-mention, card assignment, Grünerator-Spalte) and recurring tasks
+ * all run the full agentic loop headless (`runHeadlessAgenticTurn`, #3221). This
+ * module owns what that entry needs from the board side: agent resolution +
+ * classification (`prepareAgentState`), the document/comment mode suffixes, and
+ * the result title.
  */
-import { generateText, isStepCount, type ModelMessage } from 'ai';
+import { type ModelMessage } from 'ai';
 
-import {
-  buildSystemMessage,
-  classifierNode,
-  initializeChatState,
-} from '../../../agents/langgraph/ChatGraph/index.js';
-import { createSearchTools } from '../../../routes/chat/agents/searchTools.js';
-import { resolveModel } from '../../../routes/chat/services/responseStreamingService.js';
+import { classifierNode, initializeChatState } from '../../../agents/langgraph/ChatGraph/index.js';
 import { createLogger } from '../../../utils/logger.js';
 
 const log = createLogger('boardAgentGenerate');
@@ -29,24 +24,16 @@ export interface AgentSelection {
   userId?: string;
 }
 
-// Hard ceiling on a single generation so one hung model call can't stall the
-// sequential drain loop.
-const GENERATION_TIMEOUT_MS = 180_000;
-
-// Documents can be long-form; never let a chat-tuned token budget truncate below this.
-const MIN_DOCUMENT_TOKENS = 4000;
-
-// Max model<->tool round-trips while authoring (search/research then write).
-const MAX_TOOL_STEPS = 5;
-
-const DOCUMENT_MODE = `
+// Vom headless Loop-Einstieg (#3221, `runHeadlessAgenticTurn`) an den
+// Systemprompt gehängt.
+export const DOCUMENT_MODE = `
 
 ## DOKUMENT-MODUS (vorrangig)
 Du erstellst ein eigenständiges, vollständiges Dokument — KEINE kurze Chat-Antwort. Die Längen- und Knappheitsregeln aus den ANTWORT-REGELN gelten hier NICHT. Schreibe so ausführlich und strukturiert, wie die Aufgabe es verlangt: mit aussagekräftiger Überschrift (#), sinnvollen Zwischenüberschriften und vollständig ausformulierten Absätzen.
 
 Du hast Recherche-Tools (gruenerator_search, web_search, research, …). Nutze sie aktiv, um Fakten und grüne Positionen zu belegen, bevor du schreibst — verlasse dich nicht nur auf vorhandenen Kontext. Gib am Ende AUSSCHLIESSLICH den Dokumentinhalt als Markdown aus — keine Meta-Kommentare, keine Rückfragen.`;
 
-const COMMENT_MODE = `
+export const COMMENT_MODE = `
 
 ## KOMMENTAR-MODUS
 Du antwortest direkt in einem Board-Kommentar-Thread. Antworte knapp und konkret auf die Frage. Nutze bei Faktenbedarf zuerst die Recherche-Tools. Gib NUR die Antwort aus — keine Anrede, keine Meta-Kommentare, keine Überschrift.
@@ -115,79 +102,6 @@ export async function prepareAgentState(
 }
 
 export type PreparedAgentState = Awaited<ReturnType<typeof prepareAgentState>>;
-
-/**
- * Generate the result text from a prepared state. `longForm` picks document mode
- * (overrides the universal agent's short ANTWORT-REGELN) vs. concise comment mode.
- */
-export async function generateFromState(
-  prepared: PreparedAgentState,
-  opts: {
-    longForm: boolean;
-    slotLabel: string;
-    contextBlock?: string;
-    /** Restrict the search tools to the resolved agent's own `enabledTools`. */
-    restrictToAgentTools?: boolean;
-  }
-): Promise<string> {
-  const { finalState, userMessage } = prepared;
-  const baseSystemMessage = await buildSystemMessage(finalState);
-  const systemMessage = `${baseSystemMessage}${opts.longForm ? DOCUMENT_MODE : COMMENT_MODE}`;
-
-  // The card context (column, comments, attached documents) belongs in the user
-  // message as material for this task — NOT in the system prompt (which is the agent's
-  // standing persona/instructions). The task itself stays at the top so the model has
-  // a clear instruction, with the context appended as background below it.
-  const baseContent = typeof userMessage.content === 'string' ? userMessage.content : '';
-  const taskMessage: ModelMessage = {
-    role: 'user',
-    content: opts.contextBlock
-      ? `${baseContent}\n\n---\n## Kontext der Karte (Hintergrundmaterial für genau diese Aufgabe)\n${opts.contextBlock}`
-      : baseContent,
-  };
-
-  const { agentConfig } = finalState;
-  // Resolve via the same path as the chat controller so overflow-lane slots and
-  // provider fallback are handled; release any acquired slot afterwards.
-  const resolution = await resolveModel(
-    {
-      provider: agentConfig.provider as string,
-      model: agentConfig.model,
-      ...(agentConfig.defaultModel != null && { defaultModel: agentConfig.defaultModel }),
-    },
-    undefined,
-    opts.slotLabel,
-    { intent: finalState.intent }
-  );
-
-  const generated = await generateText({
-    model: resolution.model,
-    system: systemMessage,
-    messages: [taskMessage],
-    tools: createSearchTools(agentConfig, {
-      // The board flow has known the locale all along — `runFlow` derives it
-      // from the task and threads it into the chat state — it just never
-      // reached the search tools. That was survivable while the collection
-      // list mixed both countries; now that it is locale-filtered, omitting
-      // it would silently hand an Austrian board task the German corpora.
-      // It also fixes the older half of the same gap: the default collection
-      // was `deutschland` for an AT board task even before the filter.
-      userLocale: finalState.userLocale,
-      // Only restrict when the agent has a non-empty selection; an empty/absent
-      // list means "no per-agent narrowing", not "no tools at all".
-      ...(opts.restrictToAgentTools && agentConfig.enabledTools?.length
-        ? { enabledToolKeys: agentConfig.enabledTools }
-        : {}),
-    }),
-    stopWhen: isStepCount(MAX_TOOL_STEPS),
-    maxOutputTokens: opts.longForm
-      ? Math.max(agentConfig.params.max_tokens, MIN_DOCUMENT_TOKENS)
-      : agentConfig.params.max_tokens,
-    temperature: agentConfig.params.temperature,
-    abortSignal: AbortSignal.timeout(GENERATION_TIMEOUT_MS),
-  });
-  return generated.text.trim();
-}
 
 /**
  * Reduce a heading to plain text. The title is stored and re-rendered

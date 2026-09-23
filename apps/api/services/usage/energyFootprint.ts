@@ -149,6 +149,28 @@ const MODEL_ENERGY: Readonly<Record<string, EnergyCoefficients>> = {
     mWhFixed: 0,
     basis: 'measured',
   },
+  // Melious' `gemma-4-31b` — dieselben Gewichte, aber NICHT der Koeffizient
+  // darüber. Melious meldet nicht-gestreamte Aufrufe selbst
+  // (`environment_impact`, services/ai/meliousImpact.ts); gestreamte bekommen
+  // laut Melious-Doku KEIN `environment_impact` („streaming keeps these fields
+  // off the wire"), und die Chat-Antworten streamen. Für genau diese Zeilen
+  // steht der Eintrag hier, und er ist aus Melious' EIGENEN Meldungen
+  // kalibriert, damit gestreamte und gemeldete Zeilen desselben Hosts
+  // zueinander passen: 9 Aufrufe am 23.09.2026, `reasoning_effort: 'none'`,
+  // 16–15.589 Tokens Eingabe, 5–798 Ausgabe. Eingabe 0,021 mWh/Token (zwei
+  // reine Prefill-Punkte, 0,021/0,022), Ausgabe 3,8–9,5 mWh/Token, Median ~4,5
+  // — die Streuung deutet auf zeitbasierte Messung. Melious rechnet mit PUE
+  // 1,2; die Tabelle trägt 1,25, also × 1,25/1,2.
+  //
+  // Das ist rund das Sechsfache des GreenPT-Werts für dieselben Gewichte. Den
+  // GreenPT-Wert hier einzusetzen hiesse, Melious' gestreamte Züge sechsmal
+  // sauberer auszuweisen als Melious selbst seine nicht-gestreamten.
+  'gemma-4-31b:balanced': {
+    mWhPerOutputToken: 4.69,
+    mWhPerInputToken: 0.0219,
+    mWhFixed: 0,
+    basis: 'measured',
+  },
   // `gemma-4-26b-a4b-it` (Scaleway, die `heavy`-Stufe seit 01.08.2026) fehlt
   // hier BEWUSST und bleibt „nicht abgedeckt". Es ist eine andere Architektur
   // als das 31B — MoE mit 4B aktiven Parametern —, der Koeffizient des 31B gilt
@@ -351,6 +373,12 @@ const GRID_INTENSITY_G_PER_KWH: Readonly<Record<string, number>> = {
   // vorsichtigere Wahl — die Zahl steht unter Vorbehalt, bis das Land benannt
   // ist, nicht mehr bis der Header sie nennt.
   berget: 45,
+  // Melious' eigener Faktor, NICHT ein Landeswert: jede nicht-gestreamte
+  // Antwort am 23.09.2026 (9 von 9, `location: 'FI'`) ergab carbon_g_co2 /
+  // energy_kwh = 193,0 — konstant, obwohl die Doku stündliche electricity-map-
+  // Daten verspricht. Steht hier für die gestreamten Züge, damit sie mit
+  // demselben Faktor gerechnet werden wie die gemeldeten.
+  melious: 193,
   // Black Forest Labs (image generation) — German mix, and here is the whole
   // chain of what is known and what is not.
   //
@@ -548,6 +576,9 @@ const PUE_BY_PROVIDER: Readonly<Record<string, number>> = {
   scaleway: 1.25,
   // Derselbe Standort über den Vermittler — siehe oben.
   cortecs: 1.25,
+  // Melious meldet den PUE in jeder Antwort mit (`environment_impact.pue`,
+  // 1,2 bei allen Aufrufen am 23.09.2026) und rechnet seine eigenen Werte damit.
+  melious: 1.2,
   // GreenPT selbst. Steht hier als VERÖFFENTLICHTER Wert und nicht als
   // Rückfall, obwohl beide 1,25 ergäben: die GreenPT-Zeilen sind gemessen, ihre
   // Energie trägt genau diesen PUE bereits in sich. Ein Schätzwert an dieser
@@ -995,6 +1026,51 @@ const BOUND_MID: EnergyCoefficients = {
   basis: 'bound',
 };
 
+/**
+ * Public, model-neutral inputs for independently checking token estimates.
+ *
+ * The profile list is derived from the active coefficient table, rather than
+ * maintained in documentation. Model IDs deliberately do not leave this
+ * module: an auditor needs the arithmetic, not a moving product catalogue.
+ */
+export function getPublicTextCalculationProfiles(): Array<{
+  basis: 'calibrated' | 'bounded';
+  input_mwh_per_token: number;
+  output_mwh_per_token: number;
+  fixed_mwh_per_request: number;
+}> {
+  const profiles = new Map<string, EnergyCoefficients>();
+  for (const profile of Object.values(MODEL_ENERGY)) {
+    if (profile.basis === 'measured') {
+      profiles.set(
+        `${profile.mWhPerInputToken}|${profile.mWhPerOutputToken}|${profile.mWhFixed}`,
+        profile
+      );
+    }
+  }
+  for (const profile of [BOUND_FLOOR, BOUND_MID, BOUND_CEILING]) {
+    profiles.set(
+      `${profile.mWhPerInputToken}|${profile.mWhPerOutputToken}|${profile.mWhFixed}`,
+      profile
+    );
+  }
+  return [...profiles.values()]
+    .map((profile) => ({
+      basis: profile.basis === 'measured' ? ('calibrated' as const) : ('bounded' as const),
+      input_mwh_per_token: profile.mWhPerInputToken,
+      output_mwh_per_token: profile.mWhPerOutputToken,
+      fixed_mwh_per_request: profile.mWhFixed,
+    }))
+    .sort(
+      (a, b) =>
+        a.output_mwh_per_token - b.output_mwh_per_token ||
+        a.input_mwh_per_token - b.input_mwh_per_token
+    );
+}
+
+/** PUE included in the measurement that calibrates token coefficients. */
+export const TOKEN_CALIBRATION_PUE = GREENPT_PUE;
+
 /** Which of the three bracket points a `bound` text entry is costed at. */
 function boundedCoefficients(bound: EnergyBound): EnergyCoefficients {
   if (bound === 'low') return BOUND_FLOOR;
@@ -1005,6 +1081,27 @@ function boundedCoefficients(bound: EnergyBound): EnergyCoefficients {
 /** True when this model has measured coefficients behind it. */
 export function hasEnergyCoefficients(model: string): boolean {
   return model in MODEL_ENERGY;
+}
+
+/**
+ * The part of a token row its measured footprint does NOT cover, to be
+ * estimated. Clamped at zero: a measured call can land in a row whose tokens
+ * were never booked (rerank, embeddings), and that must not subtract from
+ * anything.
+ */
+export function unmeasuredRemainder(row: {
+  requests: number;
+  inputTokens: number;
+  outputTokens: number;
+  measuredRequests: number;
+  measuredInputTokens: number;
+  measuredOutputTokens: number;
+}): { requests: number; inputTokens: number; outputTokens: number } {
+  return {
+    requests: Math.max(0, row.requests - row.measuredRequests),
+    inputTokens: Math.max(0, row.inputTokens - row.measuredInputTokens),
+    outputTokens: Math.max(0, row.outputTokens - row.measuredOutputTokens),
+  };
 }
 
 /**

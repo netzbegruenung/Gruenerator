@@ -1,5 +1,7 @@
 import { confirmChatAction } from '@gruenerator/chat';
+import { GROUPS_QUERY_KEY } from '@gruenerator/shared/groups';
 import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
+import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { View, Text, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
@@ -41,8 +43,20 @@ const GROUP_ACTION_TYPES: ReadonlySet<ConfirmActionData['type']> = new Set([
   'share_user_agent',
 ]);
 
+/**
+ * Nur diese beiden ändern die eigene Mitgliedschaftsliste und machen damit die
+ * zwischengespeicherte Projektliste falsch — etwas IN eine Gruppe zu teilen
+ * nicht. Darum eine andere Menge als `GROUP_ACTION_TYPES` oben, das nur die
+ * Beschriftung steuert.
+ */
+const GROUP_LIST_CHANGING_TYPES: ReadonlySet<ConfirmActionData['type']> = new Set([
+  'create_group',
+  'join_group',
+]);
+
 export function ConfirmActionCard({ action, theme }: { action: ConfirmActionData; theme: Theme }) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [status, setStatus] = useState<CardStatus>('idle');
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -58,10 +72,16 @@ export function ConfirmActionCard({ action, theme }: { action: ConfirmActionData
       }
       if (outcome.status === 'confirmed') {
         setResultUrl(outcome.url);
+        // `confirmChatAction` POSTet an React Query vorbei, und `useUserGroups`
+        // hält seine Antwort zwei Minuten für frisch — ohne das hier zeigt die
+        // Projektliste das eben angelegte Projekt so lange nicht.
+        if (GROUP_LIST_CHANGING_TYPES.has(action.type)) {
+          void queryClient.invalidateQueries({ queryKey: GROUPS_QUERY_KEY });
+        }
       }
       setStatus(outcome.status);
     },
-    [action]
+    [action, queryClient]
   );
 
   const openResult = useCallback(() => {

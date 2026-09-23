@@ -25,9 +25,18 @@
  * Überschreiben: eine eigene Textform mit der Mention eines Systemrezepts
  * ersetzt dessen Rumpf (`kind: 'preset'` für die vier Textyp-Schlüssel,
  * `kind: 'recipe'` für ein Landesverbands-Rezept — dieselbe Zuteilung wie
- * `userTextFormsContractRouter.save`). Ein Systemrezept ohne Landesverband
+ * `userTextFormsContractRouter.save`, über die gemeinsame Regel in
+ * `resolveTextFormKind`). Ein Systemrezept ohne Landesverband
  * (`wahlpruefstein`) ist nicht überschreibbar; das sagt das Werkzeug, statt
  * die Mention still als `custom` zu speichern, was die Route mit 409 abweist.
+ *
+ * Keine Freigabe- oder Veröffentlichungs-Aktion: `public_ownership` ist eine
+ * menschliche Rechtsversicherung für die Auflistung in der Agentura, die ein
+ * Modell nicht selbst abgeben darf. Eine Projekt-Freigabe über dieses
+ * Werkzeug hätte dasselbe Problem — das Modell würde die Sichtbarkeit
+ * ausweiten und die eigene Rückfrage gleich mit beantworten. `description`
+ * und `iconKey` lassen sich beim Anlernen mitgeben (create); Freigeben an
+ * Projekte und Veröffentlichen bleiben Sache der Einstellungen/Agentura.
  *
  * Dienste kommen über `ctx.deps` herein, damit der Test ohne Postgres und
  * Modellaufruf jede Aktion durchspielen kann.
@@ -36,16 +45,18 @@ import {
   MAX_TEXT_FORM_EXAMPLES,
   MAX_TEXT_FORM_EXAMPLES_TOTAL_CHARS,
   MAX_TEXT_FORM_STYLE_CHARS,
+  textFormDescriptionSchema,
   textFormExamplesChars,
-  textFormMentionSchema,
+  textFormIconKeySchema,
   textFormTypeSchema,
   type TextForm,
   type TextFormKind,
   type TextFormType,
 } from '@gruenerator/contracts';
 import {
-  canonicalSkillMention,
+  DEFAULT_AGENT_ICON,
   hasSystemRecipe,
+  isSuggestedAgentIcon,
   landesverbandIdsForRoles,
   type RoleLandesverbandInput,
 } from '@gruenerator/shared/agents';
@@ -53,13 +64,21 @@ import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
 import { loadUserRoles } from '../../../services/roles/userRoles.js';
-import { analyzeTextForm, textTypeLabel } from '../../../services/user/textFormAnalysisService.js';
+import {
+  analyzeTextForm,
+  textFormLabel,
+  textTypeLabel,
+} from '../../../services/user/textFormAnalysisService.js';
+import {
+  deriveRecipeMention,
+  normalizeTextFormMention,
+  resolveTextFormKind,
+} from '../../../services/user/textFormKind.js';
 import {
   deleteTextForm,
   listTextForms,
   upsertTextForm,
 } from '../../../services/user/textFormRepository.js';
-import { checkRecipeOverride } from '../../userTextForms/recipeOverrideAccess.js';
 
 import {
   groundNote,
@@ -103,7 +122,7 @@ const SYSTEM_BODY_NOTE =
 const TYPE_SYSTEM = 'Rezept';
 const TYPE_USER = 'Eigene Textform';
 
-export const RECIPES_SETTINGS_URL = '/settings/texte-anlernen';
+export const RECIPES_SETTINGS_URL = '/agentura?cat=meine';
 
 /** Wie viel Beispieltext und Stilblock die Antwort zeigt. */
 const EXAMPLE_PREVIEW_CHARS = 200;
@@ -116,36 +135,20 @@ const KIND_LABEL: Record<TextFormKind, string> = {
   custom: 'Eigene Textform',
 };
 
-const PRESET_TYPES = new Set<string>(textFormTypeSchema.options);
-
 export function recipeUrl(mention: string): string {
   return `/agentura/rezept/${mention}`;
 }
 
-/** Ein Mention darf mit `@` oder `/` getippt kommen; gespeichert wird der nackte Schlüssel. */
-function normalizeMention(raw: string): string {
-  return canonicalSkillMention(
-    raw
-      .trim()
-      .replace(/^[@/]+/, '')
-      .toLowerCase()
-  );
-}
-
 /**
- * Mention aus dem Titel: kleingeschrieben, Umlaute bleiben (der Contract
- * erlaubt sie), Leerzeichen und alles andere werden Bindestriche, auf die
- * Contract-Länge gekürzt. Bewusst NICHT `slugifyName`: das transliteriert
- * `ä` → `ae`, und die Person würde ihre Textform dann unter einem Namen
- * suchen, den sie nie getippt hat.
+ * `shareMode`/`isPublic` als eine der drei Stufen, die die Person hier zu
+ * sehen bekommt. Es gibt keine Freigabe-Aktion in diesem Werkzeug (s.
+ * Docblock) — `authenticated` ohne `isPublic` ist von hier aus nicht
+ * herstellbar und zeigt sich darum als „privat".
  */
-export function deriveRecipeMention(title: string): string {
-  return title
-    .toLowerCase()
-    .replace(/[^a-z0-9äöüß]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 48)
-    .replace(/-+$/, '');
+function visibilityLabel(form: TextForm): string {
+  if (form.isPublic) return 'öffentlich in Agentura';
+  if (form.shareMode === 'groups') return 'mit Projekten geteilt';
+  return 'privat';
 }
 
 function truncate(text: string, max: number): string {
@@ -180,7 +183,7 @@ function normalizeExamples(
 // ---------------------------------------------------------------------------
 
 export function makeRecipesTool(ctx: RecipeToolCtx): Tool {
-  const { state, sourceRegistry } = ctx;
+  const { state, threadId, sourceRegistry } = ctx;
   const deps = resolveRecipeDeps(ctx.deps);
   const userLocale = state.userLocale ?? null;
 
@@ -209,6 +212,14 @@ Die Beispiele für create und add_examples sind die Texte der Person selbst — 
         .max(MAX_TEXT_FORM_EXAMPLES)
         .optional()
         .describe('Beispieltexte der Person, je Eintrag ein Text (create, add_examples)'),
+      description: textFormDescriptionSchema
+        .optional()
+        .describe('Kurzbeschreibung für die Agentura/mention-Auswahl (create)'),
+      iconKey: textFormIconKeySchema
+        .optional()
+        .describe(
+          'Icon-Schlüssel aus dem Icon-Katalog (create); ein unbekannter Schlüssel wird auf ein Standardicon geklemmt'
+        ),
       confirm: z
         .boolean()
         .default(false)
@@ -224,7 +235,7 @@ Die Beispiele für create und add_examples sind die Texte der Person selbst — 
       if (action === 'create') return createTextForm(userId, args);
 
       // Alle weiteren Aktionen zielen auf EINE Mention.
-      const mention = args.mention?.trim() ? normalizeMention(args.mention) : '';
+      const mention = args.mention?.trim() ? normalizeTextFormMention(args.mention) : '';
       if (!mention) return { error: 'Diese Aktion braucht mention (aus list, Feld ref).' };
 
       if (action === 'get') return getRecipe(userId, mention);
@@ -243,6 +254,9 @@ Die Beispiele für create und add_examples sind die Texte der Person selbst — 
       if (action === 'add_examples') return addExamples(userId, own, args.examples);
 
       // delete
+      // Kein Mensch am Lauf: der `confirm=true`-Zweischritt bestätigt sich hier
+      // selbst, und die Karte, die fragen würde, ginge an einen stummen Sink.
+      if (!threadId) return { error: 'Löschen ist in diesem Kontext nicht möglich.' };
       if (!args.confirm) {
         const ask = `Soll die Textform „${own.title}" (@${own.mention}) wirklich gelöscht werden? Frage die Person und rufe delete erst mit confirm=true erneut auf.`;
         groundNote(sourceRegistry, 'Bestätigung nötig', ask);
@@ -298,7 +312,7 @@ Die Beispiele für create und add_examples sind die Texte der Person selbst — 
       );
     });
     if (results.length === 0) {
-      const note = `Es sind keine Rezepte verfügbar. Eigene Textformen lassen sich hier mit create oder in den Einstellungen (${RECIPES_SETTINGS_URL}) anlernen.`;
+      const note = `Es sind keine Rezepte verfügbar. Eigene Textformen lassen sich hier mit create oder in der Agentura (${RECIPES_SETTINGS_URL}) anlernen.`;
       groundNote(sourceRegistry, 'Rezepte', note);
       return { resultCount: 0, results: [], note };
     }
@@ -356,6 +370,8 @@ Die Beispiele für create und add_examples sind die Texte der Person selbst — 
     const lines = [
       `Textform „${form.title}" (@${form.mention}) — ${url}`,
       `Art: ${KIND_LABEL[form.kind]}${overrides ? ` — ersetzt die Vorgaben von @${form.mention}` : ''}`,
+      `Beschreibung: ${form.description ?? '—'}`,
+      `Sichtbarkeit: ${visibilityLabel(form)}`,
       `Textsorte: ${form.textType ? textTypeLabel(form.textType) : '—'}`,
       `Beispiele: ${form.examples.length}${examples.length ? ` — ${examples.map((e) => `„${e}"`).join(' · ')}` : ''}`,
       `Angelernt am: ${form.analyzedAt ? form.analyzedAt.slice(0, 10) : '—'}`,
@@ -381,6 +397,9 @@ Die Beispiele für create und add_examples sind die Texte der Person selbst — 
         kindLabel: KIND_LABEL[form.kind],
         textType: form.textType,
         textTypeLabel: form.textType ? textTypeLabel(form.textType) : null,
+        description: form.description,
+        iconKey: form.iconKey,
+        visibility: visibilityLabel(form),
         overridesSystemRecipe: overrides,
         exampleCount: form.examples.length,
         examples,
@@ -405,6 +424,8 @@ Die Beispiele für create und add_examples sind die Texte der Person selbst — 
       mention?: string | undefined;
       textType?: TextFormType | undefined;
       examples?: string[] | undefined;
+      description?: string | undefined;
+      iconKey?: string | undefined;
     }
   ): Promise<Record<string, unknown>> {
     const forbidden = refuseForbiddenAction(state);
@@ -415,15 +436,34 @@ Die Beispiele für create und add_examples sind die Texte der Person selbst — 
     const examples = normalizeExamples(args.examples);
     if ('error' in examples) return examples;
 
-    const mention = args.mention?.trim()
-      ? normalizeMention(args.mention)
+    const requested = args.mention?.trim()
+      ? normalizeTextFormMention(args.mention)
       : deriveRecipeMention(title);
-    const parsed = textFormMentionSchema.safeParse(mention);
-    if (!parsed.success) {
-      return {
-        error: `Ungültige Mention „${mention}": ${parsed.error.issues[0]?.message ?? 'nur Kleinbuchstaben, Ziffern, Bindestriche.'}`,
-      };
+
+    // Welche Art entsteht — dieselbe Regel wie `userTextFormsContractRouter.save`.
+    // Sie läuft VOR der Kollisionsprüfung, weil sie die Mention noch
+    // verschiebt: ein zurückgezogenes Kürzel löst auf seinen Nachfolger auf
+    // (`presse-hessen` → `presse-hessen-partei`). Gespeichert und geprüft wird
+    // deshalb `verdict.mention`, nicht die hier abgeleitete — sonst legte das
+    // Werkzeug eine Zeile an, die keine Mention je erreicht.
+    const verdict = resolveTextFormKind({
+      mention: requested,
+      textType: args.textType ?? null,
+      lvIds: await lvIdsFor(userId),
+    });
+    if (!verdict.ok) {
+      // Zwei verschiedene Fehlerarten teilen sich hier einen Status: eine
+      // ungültige Custom-Mention (Formfehler) und ein Systemrezept, das sich
+      // so nicht überschreiben lässt (Zuteilung/Berechtigung) — nur Letzteres
+      // gehört zu `hasSystemRecipe`.
+      if (hasSystemRecipe(requested)) {
+        return {
+          error: `${verdict.message} Ein mitgeliefertes Rezept lässt sich so nicht überschreiben — wähle eine andere Mention, dann entsteht eine zusätzliche Textform.`,
+        };
+      }
+      return { error: `Ungültige Mention „${requested}": ${verdict.message}` };
     }
+    const { kind, textType, mention } = verdict;
 
     // Eine Mention gehört genau einer Zeile; `upsert` würde die bestehende
     // still ersetzen — mitsamt allen Beispielen, die die Person dort schon
@@ -437,27 +477,15 @@ Die Beispiele für create und add_examples sind die Texte der Person selbst — 
       };
     }
 
-    // Welche Art entsteht — dieselbe Zuteilung wie `userTextFormsContractRouter.save`.
-    let kind: TextFormKind;
-    let textType: TextFormType | null;
-    if (PRESET_TYPES.has(mention)) {
-      kind = 'preset';
-      textType = mention as TextFormType;
-    } else if (hasSystemRecipe(mention)) {
-      const verdict = checkRecipeOverride({ mention, lvIds: await lvIdsFor(userId) });
-      if (!verdict.ok) {
-        return {
-          error: `${verdict.message} Ein mitgeliefertes Rezept lässt sich so nicht überschreiben — wähle eine andere Mention, dann entsteht eine zusätzliche Textform.`,
-        };
-      }
-      kind = 'recipe';
-      textType = args.textType ?? null;
-    } else {
-      kind = 'custom';
-      textType = args.textType ?? null;
-    }
+    const description = args.description?.trim() ? args.description.trim() : null;
+    const iconKeyInput = args.iconKey?.trim();
+    const iconKey = iconKeyInput
+      ? isSuggestedAgentIcon(iconKeyInput)
+        ? iconKeyInput
+        : DEFAULT_AGENT_ICON
+      : null;
 
-    const label = textType ? textTypeLabel(textType) : title;
+    const label = textFormLabel(textType, title);
     const analyzed = await analyzeSafely(label, examples);
     if ('error' in analyzed) return analyzed;
 
@@ -469,12 +497,14 @@ Die Beispiele für create und add_examples sind die Texte der Person selbst — 
       examples,
       styleBlock: analyzed.styleBlock,
       model: analyzed.model,
+      description,
+      iconKey,
     });
     const count = `${examples.length} Beispiel${examples.length === 1 ? '' : 'en'}`;
     const note =
       kind === 'custom'
-        ? `Textform „${form.title}" aus ${count} angelernt — im Chat als @${form.mention} nutzbar, ändern in den Einstellungen (${RECIPES_SETTINGS_URL}).`
-        : `Eigener Stil für @${form.mention} aus ${count} angelernt — er ersetzt ab jetzt die mitgelieferten Vorgaben dieses Rezepts. Ändern in den Einstellungen (${RECIPES_SETTINGS_URL}).`;
+        ? `Textform „${form.title}" aus ${count} angelernt — im Chat als @${form.mention} nutzbar, ändern in der Agentura (${RECIPES_SETTINGS_URL}).`
+        : `Eigener Stil für @${form.mention} aus ${count} angelernt — er ersetzt ab jetzt die mitgelieferten Vorgaben dieses Rezepts. Ändern in der Agentura (${RECIPES_SETTINGS_URL}).`;
     groundNote(sourceRegistry, 'Textform angelernt', note);
     return { ok: true, note, ...summarize(form) };
   }
@@ -491,7 +521,7 @@ Die Beispiele für create und add_examples sind die Texte der Person selbst — 
     const examples = normalizeExamples(raw, form.examples);
     if ('error' in examples) return examples;
 
-    const label = form.textType ? textTypeLabel(form.textType) : form.title;
+    const label = textFormLabel(form.textType, form.title);
     const analyzed = await analyzeSafely(label, examples);
     if ('error' in analyzed) return analyzed;
 
@@ -527,7 +557,7 @@ Die Beispiele für create und add_examples sind die Texte der Person selbst — 
     } catch (err) {
       const reason = err instanceof Error ? err.message : String(err);
       return {
-        error: `Die Stilanalyse ist fehlgeschlagen (${reason}). Es wurde nichts gespeichert — später erneut versuchen oder in den Einstellungen (${RECIPES_SETTINGS_URL}) anlernen.`,
+        error: `Die Stilanalyse ist fehlgeschlagen (${reason}). Es wurde nichts gespeichert — später erneut versuchen oder in der Agentura (${RECIPES_SETTINGS_URL}) anlernen.`,
       };
     }
   }
@@ -541,6 +571,9 @@ Die Beispiele für create und add_examples sind die Texte der Person selbst — 
         kind: form.kind,
         kindLabel: KIND_LABEL[form.kind],
         textTypeLabel: form.textType ? textTypeLabel(form.textType) : null,
+        description: form.description,
+        iconKey: form.iconKey,
+        visibility: visibilityLabel(form),
         overridesSystemRecipe: hasSystemRecipe(form.mention),
         exampleCount: form.examples.length,
         url: RECIPES_SETTINGS_URL,

@@ -86,7 +86,7 @@ export class PostgresService {
       // Run pending migrations (non-critical — log internally)
       let migrationsOk = true;
       try {
-        await runMigrations(this.pool);
+        migrationsOk = await runMigrations(this.pool);
       } catch (error) {
         migrationsOk = false;
         console.warn(

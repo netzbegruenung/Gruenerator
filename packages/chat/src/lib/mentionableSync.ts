@@ -17,6 +17,7 @@
 
 import {
   type CustomPrompt,
+  type MentionableTextForm,
   type MentionableUserAgent,
   type TextForm,
 } from '@gruenerator/contracts';
@@ -57,13 +58,23 @@ export interface UserNotebookListItem {
 }
 
 /**
- * The slice of `/api/text-forms` this module reads, derived from the contract
- * schema instead of retyped. Hand-narrowing it is how `sharedFromGroup` went
- * missing: the field the picker splits recipes on was simply absent from the
- * transport type, so nothing ever flagged that the mapping below dropped it
- * (#2876).
+ * The slice of `/api/text-forms` — the old-server fallback `syncTextforms`
+ * falls back to — this module reads, derived from the contract schema instead
+ * of retyped. Hand-narrowing it is how `sharedFromGroup` went missing: the
+ * field the picker splits recipes on was simply absent from the transport
+ * type, so nothing ever flagged that the mapping below dropped it (#2876).
+ *
+ * Die Rezept-Felder stehen als OPTIONAL darin, und das ist der Punkt: dieser
+ * Zweig läuft nur gegen einen ALTEN Server, dessen Zeilen `id`, `description`,
+ * `iconKey`, `ownerName` und `isPublic` gar nicht kennen. Der Contract-Typ
+ * behauptet sie, geliefert werden sie nicht — als `undefined` landeten sie in
+ * Feldern, die `| null` tragen, und das Mention-Menü zeigte Rezepte ohne
+ * Schlüssel. Bis 2026-12-18, dann fällt der Zweig weg.
  */
-export type TextFormListItem = Pick<TextForm, 'kind' | 'mention' | 'title' | 'sharedFromGroup'>;
+export type TextFormListItem = Pick<TextForm, 'kind' | 'mention' | 'title'> &
+  Partial<
+    Pick<TextForm, 'id' | 'description' | 'iconKey' | 'sharedFromGroup' | 'ownerName' | 'isPublic'>
+  >;
 
 /**
  * The slice of `/api/auth/custom_prompts` and `/api/auth/saved_prompts` this
@@ -185,35 +196,85 @@ export async function syncUserAgents(get: MentionableFetch): Promise<UserAgentMe
   return list;
 }
 
+/** Shared field set of `MentionableTextForm` and `TextFormListItem` — the two
+ *  shapes `syncTextforms` maps from (new endpoint, old-server fallback). */
+type TextformSource = Pick<
+  MentionableTextForm,
+  | 'id'
+  | 'mention'
+  | 'title'
+  | 'description'
+  | 'iconKey'
+  | 'sharedFromGroup'
+  | 'ownerName'
+  | 'isPublic'
+>;
+
+function toTextformMentionable(f: TextformSource): TextformMentionable {
+  return {
+    id: f.id,
+    mention: f.mention,
+    title: f.title,
+    description: f.description,
+    iconKey: f.iconKey,
+    sharedFromGroup: f.sharedFromGroup,
+    ownerName: f.ownerName,
+    isPublic: f.isPublic,
+  };
+}
+
+/** Eine Zeile vom alten Endpunkt: die Mention trägt als id ein, was sie ohnehin
+ * ist (der Nachschlag geht über sie), der Rest fällt auf leer zurück. */
+function toLegacyTextformMentionable(f: TextFormListItem): TextformMentionable {
+  return toTextformMentionable({
+    id: f.id ?? f.mention,
+    mention: f.mention,
+    title: f.title,
+    description: f.description ?? null,
+    iconKey: f.iconKey ?? null,
+    sharedFromGroup: f.sharedFromGroup ?? null,
+    ownerName: f.ownerName ?? null,
+    isPublic: f.isPublic ?? false,
+  });
+}
+
 /**
  * User's custom text forms ("Texte anlernen") → per-form `/mention` skills.
  * Presets ride the existing system-skill mentions, so only custom forms surface
  * here. Anonymous users / no forms resolve to an empty list.
+ *
+ * `/api/text-forms/mentionable` already applies the kind filter (drops presets
+ * that ride a system recipe) and the own > group > public precedence
+ * server-side, so this only maps fields.
+ *
+ * Old-server fallback: a new web bundle can briefly meet an API that hasn't
+ * deployed the new endpoint yet during a rollout (mobile binaries in the wild
+ * talk to new servers, but a fresh web bundle can hit an old one for a few
+ * minutes). On failure, fall back once to `/api/text-forms` and re-apply the
+ * client-side kind filter this endpoint used to need. Remove this branch after
+ * 2026-12-18, once every deployed server has the new endpoint.
  *
  * Ausnahme ist das Preset, dessen Systemrezept es nicht gibt: `antrag` steht in
  * `textFormTypeSchema`, aber in keiner `SKILLS`-Zeile. Es reitet also auf nichts,
  * und ohne eigenen Eintrag war der angelernte Antrags-Stil im Chat gar nicht
  * auswählbar — auf keinem Pfad (#2937). `hasSystemRecipe` entscheidet das
  * strukturell, damit Backend-Katalog und Mention-Menü dieselbe Regel fahren.
- *
- * `sharedFromGroup` rides along: `/api/text-forms` returns the user's own forms
- * plus every form shared into one of their groups, and both arrive with the
- * owner's `kind: 'custom'`. Without the field the picker cannot tell them apart
- * and lists a colleague's recipe as one of your own.
  */
 export async function syncTextforms(get: MentionableFetch): Promise<TextformMentionable[]> {
-  const res = await get<{ forms?: TextFormListItem[] }>('/api/text-forms').catch(() => ({
-    forms: [],
-  }));
-  const list = Array.isArray(res?.forms)
-    ? res.forms
-        .filter((f) => f.kind === 'custom' || !hasSystemRecipe(f.mention))
-        .map((f) => ({
-          mention: f.mention,
-          title: f.title,
-          sharedFromGroup: f.sharedFromGroup ?? null,
-        }))
-    : [];
+  let list: TextformMentionable[];
+  try {
+    const res = await get<{ forms?: MentionableTextForm[] }>('/api/text-forms/mentionable');
+    list = Array.isArray(res?.forms) ? res.forms.map(toTextformMentionable) : [];
+  } catch {
+    const res = await get<{ forms?: TextFormListItem[] }>('/api/text-forms').catch(() => ({
+      forms: [],
+    }));
+    list = Array.isArray(res?.forms)
+      ? res.forms
+          .filter((f) => f.kind === 'custom' || !hasSystemRecipe(f.mention))
+          .map(toLegacyTextformMentionable)
+      : [];
+  }
   setTextforms(list);
   return list;
 }

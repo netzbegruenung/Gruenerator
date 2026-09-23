@@ -48,23 +48,25 @@ vi.mock('../../../agents/langgraph/ChatGraph/index.js', () => ({
 const runDeepAgentTurn = vi.fn(async () => null);
 vi.mock('./deepAgentTurn.js', () => ({ runDeepAgentTurn: () => runDeepAgentTurn() }));
 
-// The `@deepresearch` engines and their shared allowance. Both are stubbed so
-// the quota cases below can drive the VERDICT and watch what the caller does
+// The `@deepresearch` engines and the booking they share. Both are stubbed so
+// the budget cases below can drive the VERDICT and watch what the caller does
 // with it — that decision moved out of the engines and into this caller.
 const runDeepResearchTurn = vi.fn(async () => null);
 vi.mock('./deepResearchTurn.js', () => ({ runDeepResearchTurn: () => runDeepResearchTurn() }));
 
-const checkDeepResearchQuota = vi.fn(async () => ({
-  canResearch: true,
-  count: 0,
-  remaining: 3,
-  limit: 3,
-  resetIn: '5h 0m',
-}));
+const RESERVED_DAY = '2026-09-18';
+const reserveDeepResearch =
+  vi.fn<
+    (
+      userId: string
+    ) => Promise<{ ok: boolean; reason?: string; status?: { day: string } | undefined }>
+  >();
+const releaseDeepResearch = vi.fn<(userId: string, day: string) => Promise<void>>();
 vi.mock('./deepResearchQuota.js', () => ({
-  checkDeepResearchQuota: (userId: string) => checkDeepResearchQuota(userId),
-  deepResearchQuotaSpentMessage: (q: { limit: number; resetIn: string }) =>
-    `aufgebraucht (${q.limit}× pro Tag, neu in ${q.resetIn})`,
+  reserveDeepResearch: (userId: string) => reserveDeepResearch(userId),
+  releaseDeepResearch: (userId: string, day: string) => releaseDeepResearch(userId, day),
+  deepResearchQuotaSpentMessage: () =>
+    'Dein Tagesbudget von 10 Bäumen ist aufgebraucht – in 5 h 0 min gibt es wieder 10.',
 }));
 
 // The chat_history branch runs its OWN retrieval (not searchNode) and writes
@@ -121,7 +123,8 @@ beforeEach(() => {
   sse.send.mockClear();
   runDeepAgentTurn.mockClear();
   runDeepResearchTurn.mockClear();
-  checkDeepResearchQuota.mockClear();
+  reserveDeepResearch.mockReset().mockResolvedValue({ ok: true, status: { day: RESERVED_DAY } });
+  releaseDeepResearch.mockReset().mockResolvedValue(undefined);
   scrapeReturnsNothing = false;
 });
 
@@ -229,10 +232,10 @@ describe('executeIntentPipeline — ein `mcp`-Turn ohne Schleife', () => {
   });
 });
 
-describe('executeIntentPipeline — the shared @deepresearch allowance', () => {
+describe('executeIntentPipeline — the shared @deepresearch booking', () => {
   const deepState = () => buildState({ intent: 'web', deepResearchRequested: true });
 
-  it('asks once and lets both engines run while the allowance holds', async () => {
+  it('books once and lets both engines run on that booking', async () => {
     await executeIntentPipeline({
       classifiedState: deepState(),
       sse: sse as never,
@@ -240,19 +243,16 @@ describe('executeIntentPipeline — the shared @deepresearch allowance', () => {
       imageAttachments: [],
     });
 
-    expect(checkDeepResearchQuota).toHaveBeenCalledTimes(1);
+    expect(reserveDeepResearch).toHaveBeenCalledTimes(1);
     expect(runDeepAgentTurn).toHaveBeenCalledTimes(1);
     expect(runDeepResearchTurn).toHaveBeenCalledTimes(1);
+    // Neither engine delivered, so the Baum goes back — onto the day it was
+    // booked on, not onto whatever day the turn happens to end in.
+    expect(releaseDeepResearch).toHaveBeenCalledWith(expect.any(String), RESERVED_DAY);
   });
 
-  it('skips BOTH engines on a spent allowance, with one warning naming one number', async () => {
-    checkDeepResearchQuota.mockResolvedValue({
-      canResearch: false,
-      count: 3,
-      remaining: 0,
-      limit: 3,
-      resetIn: '5h 0m',
-    });
+  it('skips BOTH engines on a refused booking, with one warning naming one number', async () => {
+    reserveDeepResearch.mockResolvedValue({ ok: false, reason: 'exceeded' });
 
     await executeIntentPipeline({
       classifiedState: deepState(),
@@ -266,10 +266,10 @@ describe('executeIntentPipeline — the shared @deepresearch allowance', () => {
 
     const warnings = sse.send.mock.calls.filter(([event]) => event === 'warning');
     expect(warnings).toHaveLength(1);
-    expect(JSON.stringify(warnings[0]?.[1])).toContain('3× pro Tag');
+    expect(JSON.stringify(warnings[0]?.[1])).toContain('10 Bäumen');
   });
 
-  it('does not consult the counter without a userId — it would fail closed and mislabel', async () => {
+  it('does not book without a userId — it would fail closed and mislabel', async () => {
     await executeIntentPipeline({
       classifiedState: buildState({
         intent: 'web',
@@ -281,9 +281,9 @@ describe('executeIntentPipeline — the shared @deepresearch allowance', () => {
       imageAttachments: [],
     });
 
-    expect(checkDeepResearchQuota).not.toHaveBeenCalled();
+    expect(reserveDeepResearch).not.toHaveBeenCalled();
     // The engines refuse an unmeterable run on their own, which is a different
-    // thing from "your allowance is gone" and must not be narrated as one.
+    // thing from "your budget is gone" and must not be narrated as one.
     expect(sse.send.mock.calls.filter(([event]) => event === 'warning')).toHaveLength(0);
   });
 });

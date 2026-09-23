@@ -1,6 +1,6 @@
 import { isAiConsentRequiredBody } from '@gruenerator/contracts';
 import { getSystemAgent } from '@gruenerator/shared/agents';
-import { notifyAiConsentRequired } from '@gruenerator/shared/api';
+import { notifyAiConsentRequired, unauthorizedInfoFromResponse } from '@gruenerator/shared/api';
 import { buildMentionToken } from '@gruenerator/shared/utils';
 
 import { hasExplicitMcpScope, parseAllMentions } from '../../lib/mentionParser';
@@ -24,6 +24,7 @@ import {
 import {
   buildRequestBody,
   resolveRuntimeThreadId,
+  stripEditorEditTools,
   type ThreadBinding,
   type ExtractedAttachment,
   type FormattedMessage,
@@ -45,7 +46,7 @@ import type {
   ChatModelRunResult,
   CompleteAttachment,
 } from '@assistant-ui/react';
-import type { CurrentBoard } from '@gruenerator/contracts';
+import type { CurrentBoard, CurrentCanvas } from '@gruenerator/contracts';
 
 export type {
   GrueneratorMessageMetadata,
@@ -145,7 +146,10 @@ async function routeUnauthorized(response: Response): Promise<boolean> {
       return true;
     }
   }
-  void useChatConfigStore.getState().onUnauthorized?.();
+  // Ohne den `code` aus dem Rumpf meldet der Abbau, den dies auslösen kann,
+  // `auth.401code: unknown` — dieselbe Lücke wie im Chat-apiClient.
+  const info = await unauthorizedInfoFromResponse(response);
+  void useChatConfigStore.getState().onUnauthorized?.(info);
   return false;
 }
 
@@ -497,14 +501,10 @@ export function createGrueneratorModelAdapter(
             ? 'chat'
             : storedMode;
 
-      // Surface tools (edit_current_doc) belong to the surface, not the agent —
-      // but if the user picks a search-route agent, SearchGraph can't run them.
-      // Strip the edit hook; keep save_as_doc, which is harmless.
+      // A search-route agent can't run the surface's edit hooks — see stripEditorEditTools.
       const safeCustomEnabledTools =
         activeAgentForRouting?.routeTo === 'search' && config.customEnabledTools
-          ? Object.fromEntries(
-              Object.entries(config.customEnabledTools).filter(([k]) => k !== 'edit_current_doc')
-            )
+          ? stripEditorEditTools(config.customEnabledTools)
           : config.customEnabledTools;
 
       // Skip attachment extraction and mention parsing for non-chat modes
@@ -744,6 +744,7 @@ export function createGrueneratorModelAdapter(
       let injectedAttachmentContext: string | undefined;
       let injectedCurrentDocument: InjectedCurrentDocument | undefined;
       let injectedCurrentBoard: CurrentBoard | undefined;
+      let injectedCurrentCanvas: CurrentCanvas | undefined;
       if (config.threadId) {
         const provider = contextProviders.get(config.threadId);
         if (provider) {
@@ -760,9 +761,21 @@ export function createGrueneratorModelAdapter(
               };
             }
             // Live board context (boards-editor surface). Required for the
-            // classifier to route to edit_current_board and emit
-            // trigger_board_action — without it the assistant only chats.
+            // classifier to route to edit_current_board so the loop's
+            // edit_document tool has a board to plan ops against — without it
+            // the assistant only chats.
             if (ctx.currentBoard) injectedCurrentBoard = ctx.currentBoard;
+            // Live sharepic context (studio sidebar). Required for the loop's
+            // edit_document tool to have a canvas to plan ops against, and the
+            // only carrier of the sharepic text the model reads. `text` gets the
+            // same 80k cap as currentDocument.markdown — it replaced it.
+            if (ctx.currentCanvas) {
+              const cc = ctx.currentCanvas;
+              injectedCurrentCanvas = {
+                ...cc,
+                text: truncateAttachmentContext(cc.text, 80_000) ?? cc.text,
+              };
+            }
             const parts: string[] = [];
             if (ctx.selectionText) parts.push(`## Auswahl:\n${ctx.selectionText}`);
             if (ctx.attachmentContext) parts.push(ctx.attachmentContext);
@@ -834,6 +847,7 @@ export function createGrueneratorModelAdapter(
         hasDocumentChat,
         injectedCurrentDocument,
         injectedCurrentBoard,
+        injectedCurrentCanvas,
         injectedAttachmentContext,
         seededInitialAssistantMessage,
         currentSharepic: (() => {

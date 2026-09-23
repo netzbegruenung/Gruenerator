@@ -474,7 +474,7 @@ describe('die Registry entscheidet, welche Erwähnung ein Werkzeug pinnt', () =>
   // Der Pin ersetzt die frühere Regel „das Werkzeug heisst wie der Intent". Der
   // Test hängt deshalb an der Registry und nicht an einer zweiten Liste hier:
   // wer `pinsTool` setzt oder wegnimmt, ändert eine Aussage über den Loop.
-  it('fünf Erwähnungen pinnen ein Werkzeug — und nur die', () => {
+  it('sechs Erwähnungen pinnen ein Werkzeug — und nur die', () => {
     const pinned = allIntentMentions()
       .filter(({ mention }) => mention.pinsTool != null)
       .map(({ mention }) => mention.pinsTool)
@@ -484,6 +484,9 @@ describe('die Registry entscheidet, welche Erwähnung ein Werkzeug pinnt', () =>
       'bundestag',
       'gruenerator_docs_search',
       'gruenerator_pressemitteilung_examples',
+      // `@wiederkehrend` (#3221): stillgelegter Intent, dessen Erwähnung das
+      // Loop-Werkzeug pinnt — dieselbe Bauform wie `@umfragen`.
+      'recurring_tasks',
       'umfragen',
     ]);
   });

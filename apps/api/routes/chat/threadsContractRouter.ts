@@ -13,7 +13,10 @@ import { sanitizeMentionTokens } from '@gruenerator/shared/utils';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
-import { deleteThreadRecallPoint } from '../../services/chat/threadRecallEmbeddingService.js';
+import {
+  deleteThreadRecallPoint,
+  upsertThreadRecallPoint,
+} from '../../services/chat/threadRecallEmbeddingService.js';
 import { generateThreadTitle, threadNeedsTitle } from '../../services/chat/threadTitleService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
@@ -77,6 +80,16 @@ export const threadsContractRouter = s.router(threadsContract, {
                   WHEN t.permissions ? $2::text THEN 'shared'
                   ELSE 'group'
                 END as access_type,
+                CASE
+                  WHEN t.user_id::text = $1 OR t.permissions ? $2::text OR t.is_public = true THEN false
+                  ELSE NOT COALESCE((
+                    SELECT bool_or(COALESCE((gcs.permissions->>'write')::boolean, true))
+                    FROM group_content_shares gcs
+                    INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id::text = $1 AND gm.is_active = TRUE
+                    WHERE gcs.content_type = 'chat_threads' AND gcs.content_id = t.id::text
+                      AND COALESCE((gcs.permissions->>'read')::boolean, true) = true
+                  ), true)
+                END as read_only,
                 m.content as last_msg_content, m.role as last_msg_role, m.created_at as last_msg_created_at
          FROM chat_threads t
          LEFT JOIN LATERAL (
@@ -94,6 +107,7 @@ export const threadsContractRouter = s.router(threadsContract, {
              SELECT gcs.content_id::uuid FROM group_content_shares gcs
              INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id::text = $1 AND gm.is_active = TRUE
              WHERE gcs.content_type = 'chat_threads'
+               AND COALESCE((gcs.permissions->>'read')::boolean, true) = true
            )
          )${statusClause}
          ORDER BY t.updated_at DESC`,
@@ -111,6 +125,8 @@ export const threadsContractRouter = s.router(threadsContract, {
         groupId: (row.group_id as string) || null,
         tags: (row.tags as string[]) ?? [],
         slugSuffix: (row.slug_suffix as string) ?? null,
+        accessType: (row.access_type as 'owner' | 'shared' | 'group') ?? null,
+        readOnly: row.read_only === true,
         createdAt: row.created_at as Date | string,
         updatedAt: row.updated_at as Date | string,
         user_id: row.user_id as string,
@@ -138,6 +154,8 @@ export const threadsContractRouter = s.router(threadsContract, {
         groupId: t.groupId ?? null,
         tags: t.tags,
         slugSuffix: t.slugSuffix,
+        accessType: t.accessType,
+        readOnly: t.readOnly,
         createdAt: toIsoString(t.createdAt),
         updatedAt: toIsoString(t.updatedAt),
         lastMessage: t.lastMessage
@@ -204,7 +222,7 @@ export const threadsContractRouter = s.router(threadsContract, {
       const postgres = getPostgresInstance();
 
       const existingThreads = await postgres.query(
-        `SELECT id, user_id FROM chat_threads WHERE id = $1 LIMIT 1`,
+        `SELECT id, user_id, COALESCE(status, 'regular') AS status FROM chat_threads WHERE id = $1 LIMIT 1`,
         [threadId]
       );
 
@@ -215,6 +233,8 @@ export const threadsContractRouter = s.router(threadsContract, {
       if (existingThreads[0].user_id !== userId) {
         return { status: 403 as const, body: { error: 'Forbidden' } };
       }
+
+      const previousStatus = existingThreads[0].status as string;
 
       // Filing into a Space: only into a group the user belongs to (personal or
       // team). null clears the home space.
@@ -269,6 +289,31 @@ export const threadsContractRouter = s.router(threadsContract, {
       }
 
       const thread = result[0];
+
+      // A recall point exists in Qdrant for exactly the regular threads, and
+      // this is the only place that flips a thread between the two — so both
+      // directions have to be carried here, or neither works. Archiving alone
+      // leaves a point that `searchThreadRecall` (which filters on user_id, not
+      // status) can hand a top-k slot to, only for `hydrateThreadsAsResults` to
+      // drop the row again: the slot is spent on nothing. Deleting on archive
+      // alone is the trap — `upsertThreadRecallPoint` refuses archived threads
+      // outright, so nothing would ever rebuild the point and an unarchived
+      // thread would stay invisible to semantic recall. Nothing is lost by
+      // deleting: the point is derived from Postgres and is rebuilt from
+      // scratch on the way back.
+      //
+      // Fire-and-forget: re-embedding costs a Mistral round-trip that must not
+      // hold up the PATCH, and a Qdrant outage must not fail an archive.
+      if (thread.status !== previousStatus) {
+        const synced =
+          thread.status === 'archived'
+            ? deleteThreadRecallPoint(threadId)
+            : upsertThreadRecallPoint(threadId);
+        synced.catch((err) =>
+          log.warn(`[threadsContract] Recall point sync failed for thread ${threadId}:`, err)
+        );
+      }
+
       return {
         status: 200 as const,
         body: {

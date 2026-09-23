@@ -3,12 +3,14 @@
  * Import from '@gruenerator/contracts' (the package root).
  */
 export { threadsContract } from './threadsContract.js';
+export { chatThreadSharingContract } from './chatThreadSharingContract.js';
 export { exportsContract } from './exportsContract.js';
 export { recentValuesContract } from './recentValuesContract.js';
 export { recentActivityContract } from './recentActivityContract.js';
 export { contentContract } from './contentContract.js';
 export { itemUsageContract } from './itemUsageContract.js';
 export { userUsageContract } from './userUsageContract.js';
+export { treesContract } from './treesContract.js';
 export { transparencyContract } from './transparencyContract.js';
 export { globalSearchContract } from './globalSearchContract.js';
 export { researchContract } from './researchContract.js';
@@ -38,6 +40,7 @@ export { docsContract } from './docsContract.js';
 export { documentsContract } from './documentsContract.js';
 export { subtitlerContract } from './subtitlerContract.js';
 export { voiceContract } from './voiceContract.js';
+export { speechContract } from './speechContract.js';
 export { imagePickerContract } from './imagePickerContract.js';
 export { videoContract } from './videoContract.js';
 export { sharepicContract } from './sharepicContract.js';
@@ -60,7 +63,6 @@ export { userAgentsContract } from './userAgentsContract.js';
 export { userTextFormsContract } from './userTextFormsContract.js';
 export { recurringTasksContract } from './recurringTasksContract.js';
 export { userAgentsSharingContract } from './userAgentsSharingContract.js';
-export { canvasAiContract } from './canvasAi.js';
 export { canvasContract } from './canvasContract.js';
 export { groupsContract } from './groupsContract.js';
 export { contentSyncContract } from './contentSyncContract.js';
@@ -74,5 +76,6 @@ export { agentVisibilityContract } from './agentVisibilityContract.js';
 export { chunkInspectorContract } from './chunkInspectorContract.js';
 export { skillVisibilityContract } from './skillVisibilityContract.js';
 export { instanceAdminOverviewContract } from './instanceAdminOverviewContract.js';
+export { translationContract } from './translationContract.js';
 export { lvAdminAssignmentContract } from './lvAdminAssignmentContract.js';
 export { landesverbandAdminContract } from './landesverbandAdminContract.js';

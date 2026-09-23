@@ -17,7 +17,7 @@ import { resolveIntermediateChain } from '../providers.js';
 /** Nur die Konfigurationsfrage wird gestellt, alles andere bleibt echt — die
  *  Kette soll gegen die WIRKLICHE Ausweich-Logik geprüft werden, nicht gegen
  *  eine Attrappe davon. */
-const configured = new Set(['greenpt', 'cortecs', 'mistral', 'regolo', 'litellm']);
+const configured = new Set(['greenpt', 'cortecs', 'mistral', 'regolo', 'melious', 'litellm']);
 vi.mock('../providerInstances.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../providerInstances.js')>()),
   isProviderConfigured: (p: string) => configured.has(p),
@@ -202,7 +202,7 @@ describe('resolveIntermediateChain under a slow verdict', () => {
   beforeEach(() => {
     _resetModelHealthForTests();
     configured.clear();
-    for (const p of ['greenpt', 'cortecs', 'mistral', 'regolo', 'litellm']) configured.add(p);
+    for (const p of ['greenpt', 'cortecs', 'mistral', 'melious', 'litellm']) configured.add(p);
   });
 
   it('is a no-op while nothing is flagged', () => {
@@ -210,12 +210,12 @@ describe('resolveIntermediateChain under a slow verdict', () => {
       'greenpt',
       'cortecs',
       'mistral',
-      'regolo',
+      'melious',
     ]);
   });
 
   it('does not collapse heavy onto one provider when cortecs is flagged', () => {
-    // cortecs/gemma-4-31b-it und regolo/gemma4-31b sind einander als
+    // cortecs/gemma-4-31b-it und melious/gemma-4-31b:balanced sind einander als
     // Geschwister eingetragen. Ohne Veto würde Glied 1 zu Glied 2 — zwei
     // Aufrufe an dasselbe Konto, bevor Mistral drankommt.
     markSlow('cortecs', 'gemma-4-31b-it');
@@ -223,7 +223,7 @@ describe('resolveIntermediateChain under a slow verdict', () => {
     const providers = resolveIntermediateChain('heavy').map((t) => t.provider);
     expect(new Set(providers).size).toBe(providers.length);
     // Zäh heisst hinten, nicht weg: das Ziel antwortet langsam, nicht falsch.
-    expect(providers).toEqual(['regolo', 'mistral', 'cortecs']);
+    expect(providers).toEqual(['melious', 'mistral', 'cortecs']);
   });
 
   it('keeps every declared target when one is flagged — nothing is dropped', () => {
@@ -231,7 +231,7 @@ describe('resolveIntermediateChain under a slow verdict', () => {
 
     const chain = resolveIntermediateChain('trivial');
     expect(chain).toHaveLength(4);
-    expect(chain.map((t) => t.provider)).toEqual(['cortecs', 'mistral', 'regolo', 'greenpt']);
+    expect(chain.map((t) => t.provider)).toEqual(['cortecs', 'mistral', 'melious', 'greenpt']);
   });
 
   it('never splices a foreign model into a small stage', () => {
@@ -267,7 +267,7 @@ describe('resolveIntermediateChain under a slow verdict', () => {
 
     expect(resolveIntermediateChain('standard').map((t) => t.provider)).toEqual([
       'cortecs',
-      'regolo',
+      'melious',
     ]);
   });
 

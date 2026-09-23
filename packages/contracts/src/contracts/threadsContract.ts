@@ -19,6 +19,7 @@ import {
   tabularFilesResponseSchema,
   successResponseSchema,
   errorResponseSchema,
+  threadStatusSchema,
 } from '../schemas/threads.js';
 
 const c = initContract();
@@ -34,7 +35,7 @@ export const threadsContract = c.router(
       method: 'GET',
       path: '/api/chat-service/threads',
       query: z.object({
-        status: z.enum(['regular', 'archived']).optional(),
+        status: threadStatusSchema.optional(),
       }),
       responses: {
         200: threadListResponseSchema,

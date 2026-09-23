@@ -15,14 +15,41 @@
 // a plain text answer and the sharepic was never touched. Adding to an existing
 // artifact is an edit by any reading — the pattern simply only knew how to
 // CHANGE and to REMOVE.
+// `füg … ein`/`trag … ein`/`bestück`: German splits these, so the contiguous stems
+// never saw them — live 15.09.2026 "Füge … auf Variante 3 ein" fell through.
+//
+// Two restrictions, and both are load-bearing (a `\p{L}*` suffix over an 80-char
+// window read "Die Tragweite des Zitats ist für uns ein großes Thema." as an edit):
+//  - the stem takes only a VERB ending, so "Tragweite"/"tragbar"/"Tragik" are out
+//    while "trag/trage/tragt/tragen" and "füg/füge/fügst/fügt" stay in;
+//  - the particle must sit in the SAME clause, which is where German puts it —
+//    hence `,` and `;` end the window alongside sentence punctuation.
 const EDIT_VERB_PATTERN =
-  /(?<!\p{L})(änder|aender|mach|verschieb|beweg|setz|tausch|ersetz|wechsel|vergrößer|vergroesser|verklein|größer|groesser|kleiner|höher|hoeher|tiefer|kürz|kuerz|verläng|verlaeng|anpass|entfern|ausblend|einblend|zeig|versteck|ergänz|ergaenz|hinzufüg|hinzufueg|einfüg|einfueg|nach\s+(?:oben|unten|links|rechts)|anderes?|neues?)/iu;
+  /(?<!\p{L})(änder|aender|mach|verschieb|beweg|setz|tausch|ersetz|wechsel|vergrößer|vergroesser|verklein|größer|groesser|kleiner|höher|hoeher|tiefer|kürz|kuerz|verläng|verlaeng|anpass|entfern|ausblend|einblend|zeig|versteck|ergänz|ergaenz|hinzufüg|hinzufueg|einfüg|einfueg|(?:füg|fueg|trag)(?:e|st|t|en)?\s[^.!?,;\n]{0,80}?(?<!\p{L})(?:ein|hinzu|dazu|rein)(?!\p{L})|bestück|bestueck|nach\s+(?:oben|unten|links|rechts)|anderes?|neues?)/iu;
 
 // `uhrzeit`/`datum` for the same reason: an invitation sharepic is exactly the
 // template where they are the fields being edited. Kept to the two unambiguous
 // nouns — a bare `zeit` would match "Zeitung", "zur Zeit", "Zeitpunkt".
+//
+// `stichpunkt`/`aufzähl`/`bullet`/`liste`: bullet lists became a sharepic
+// capability on 15.09.2026, and the noun list never learned their name — the
+// same hole as `uhrzeit`, one feature later. Live 16.09.2026, on an Info card
+// that was active for chat editing: "kannst du dort mehrere stichpunkte
+// hinzufügen" carries a valid edit VERB, fails the noun half, and both doors
+// (classifier Tier 2.7, router edit lane) share this predicate — so the turn
+// was answered with the edit-is-impossible hint while the editable card sat
+// right there. `set-text` already knows how to write them ("• " per line), so
+// the vocabulary was the only thing missing.
+//
+// A bare `punkt` stays out: "bring es auf den Punkt" is the opposite request.
+//
+// `bullet` is the one new noun that needed a trailing boundary: it is a prefix
+// of "Bulletin" (Amtsbulletin, Pressebulletin — ordinary AT/CH administrative
+// German), so bare prefix matching would route "Kannst du das Bulletin
+// anpassen?" into the sharepic edit lane. The optional tail keeps the forms
+// people actually write (bullets, bullet point, Bulletpoints, bullet-points).
 const EDIT_NOUN_PATTERN =
-  /(?<!\p{L})(zeile\s*[123]?|text|balken|schrift|font|farb|hintergrund|bild|foto|motiv|sonnenblume|logo|zitat|überschrift|ueberschrift|header|sharepic|variante|slides?|folien?|seite\s*\d*|karussell|slider|deck|cover|abschluss(folie)?|headline|untertext|zusatztext|label|uhrzeit|datum)/iu;
+  /(?<!\p{L})(zeile\s*[123]?|text|balken|schrift|font|farb|hintergrund|bild|foto|motiv|sonnenblume|logo|zitat|überschrift|ueberschrift|header|sharepic|variante|slides?|folien?|seite\s*\d*|karussell|slider|deck|cover|abschluss(folie)?|headline|untertext|zusatztext|label|uhrzeit|datum|stichpunkt|stichwort|aufzähl|aufzaehl|bullet(?:[\s-]?points?|s)?(?!\p{L})|liste)/iu;
 
 /** Phrases that mean "generate fresh variants" — never treated as an edit. */
 const NEW_VARIANTS_PATTERN =
@@ -85,9 +112,17 @@ export function isVerificationQuestion(text: string): boolean {
  * sharepic (vs. a request for a fresh one). Only meaningful when the thread
  * actually has a sharepic to edit — callers check target existence.
  */
+// "Füg der Präsentation eine Seite hinzu" / "Trag das Datum in meinen Kalender
+// ein" carry an edit verb and a field noun, but the definite object is a
+// different artifact. `threadHasSharepic` stays true for the thread's lifetime,
+// so without this the sharepic lane would claim them.
+const OTHER_ARTIFACT_OBJECT_PATTERN =
+  /(?<!\p{L})(?:im|ins|in\s+(?:der|die|das|dem|den|mein\w*)|der|die|das|dem|den|zur|zum)\s+(?:dokument|pr(?:ä|ae)sentation|tabelle|board|kalender|newsletter|pressemitteilung|post(?:ing)?)(?!\p{L})/iu;
+
 export function isSharepicEditInstruction(text: string): boolean {
   if (NEW_VARIANTS_PATTERN.test(text)) return false;
   if (NEW_ARTIFACT_PATTERN.test(text)) return false;
+  if (OTHER_ARTIFACT_OBJECT_PATTERN.test(text)) return false;
   if (isVerificationQuestion(text)) return false;
   return EDIT_VERB_PATTERN.test(text) && EDIT_NOUN_PATTERN.test(text);
 }

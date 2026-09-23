@@ -24,6 +24,7 @@ import { createLogger } from '../../../../utils/logger.js';
 import { truncateResultForModel } from './truncate.js';
 import { readMcpResult, type PersistedStep } from './types.js';
 
+import type { AskHumanGate } from './askHumanGate.js';
 import type { ToolLoopGuards } from './loopGuards.js';
 import type { ToolActivity } from './toolActivity.js';
 import type { ToolApprovalGate } from './toolApprovalGate.js';
@@ -111,6 +112,34 @@ export function stripInternalFields<T>(output: T): T {
   const copy = { ...record } as T;
   for (const field of INTERNAL_RESULT_FIELDS) delete (copy as Record<string, unknown>)[field];
   return copy;
+}
+
+/**
+ * `refs` wiederholt die Zeilen eines `notebook_quellen`-list/rank-Ergebnisses
+ * (`results`/`ranking`) als eine Zeile je Quelle, Titel gekappt, höchstens
+ * 50 Zeilen. Passen die Zeilen unter `maxChars`, sieht das Modell nur sie und
+ * `refs` bleibt dem Replay späterer Turns (`mcpReplay.ts`). Passen sie nicht,
+ * machte `truncateResultForModel` daraus eine abgeschnittene Vorschau und die
+ * hinteren Quellen kämen nie an (#3590) — dann bekommt das Modell `refs` statt
+ * der Zeilen, ungekürzt, weil der Erzeuger es schon begrenzt hat.
+ */
+// `refs` ist für `notebook_quellen` reserviert: ein anderes Werkzeug mit `refs` verlöre es
+// hier still aus dem laufenden Turn.
+const REFS_FIELD = 'refs';
+const ROWS_REPEATED_BY_REFS: readonly string[] = ['results', 'ranking'];
+const REFS_EXEMPT: ReadonlySet<string> = new Set(['sources', REFS_FIELD]);
+
+function resultForModel(output: unknown, maxChars: number): unknown {
+  if (!output || typeof output !== 'object' || Array.isArray(output)) {
+    return truncateResultForModel(output, maxChars);
+  }
+  const { [REFS_FIELD]: refs, ...rows } = output as Record<string, unknown>;
+  if (typeof refs !== 'string') return truncateResultForModel(output, maxChars);
+  const lean = truncateResultForModel(rows, maxChars) as Record<string, unknown>;
+  if (lean._truncated !== true) return lean;
+  const compact: Record<string, unknown> = { ...rows, [REFS_FIELD]: refs };
+  for (const field of ROWS_REPEATED_BY_REFS) delete compact[field];
+  return truncateResultForModel(compact, maxChars, REFS_EXEMPT);
 }
 
 /**
@@ -230,6 +259,9 @@ export interface WrapToolsContext {
   hooks?: ToolHooks;
   /** Freigabe-Gate. Nicht gesetzt ⇒ jeder Aufruf läuft wie bisher durch. */
   approvalGate?: Pick<ToolApprovalGate, 'hold'>;
+  /** Rückfrage-Gate für `ask_human`. Nicht gesetzt ⇒ der Aufruf wird wie ein
+   *  gewöhnliches Tool ausgeführt (und liefert nur den defensiven Stub). */
+  askGate?: Pick<AskHumanGate, 'hold'>;
 }
 
 function isErrorResult(value: unknown): boolean {
@@ -256,6 +288,11 @@ function summarize(result: unknown): string | undefined {
     return `${r.connectionCount} Verbindung${r.connectionCount === 1 ? '' : 'en'}`;
   }
   if (typeof r.entryCount === 'number') return `${r.entryCount} Einträge`;
+  // `text_uebersetzen`: Zielsprache und die bezahlten Zeichen sind das, was
+  // man in der Logzeile wissen will.
+  if (typeof r.uebersetzung === 'string' && typeof r.zielsprache === 'string') {
+    return `Übersetzung nach ${r.zielsprache}${typeof r.zeichen === 'number' ? ` (${r.zeichen} Zeichen)` : ''}`;
+  }
   // `notebooks`: search liefert Antwort + Zitate, get ein Detailobjekt, die
   // Karten-Aktionen eine Bestätigungsanfrage — alle drei sagten sonst nur „ok".
   if (typeof r.answer === 'string' && typeof r.resultCount === 'number') {
@@ -474,7 +511,9 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
           because: block.kind,
           inputs: { toolName },
         });
-        return { error: block.modelMessage };
+        // `guard` markiert die Absage als Weisung: die Wiederholungs-Nudge in
+        // `loopEngine` darf ihr nicht mit „versuch es erneut" widersprechen.
+        return { error: block.modelMessage, guard: block.guard };
       }
 
       // Freigabe-Gate an derselben Stelle und mit derselben Begründung wie ein
@@ -485,6 +524,15 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
       // Antwort für ein Geschwister, das den Abbruch noch überholt.
       if (ctx.approvalGate?.hold({ toolName, stepId, args })) {
         return { error: 'Warte auf die Freigabe durch die Nutzer*in.' };
+      }
+
+      // `ask_human` an derselben Stelle: die Frage hat noch nicht stattgefunden
+      // — keine Karte, kein Schritt, kein `noteCall` (die Karte kommt erst im
+      // Suspend, mit der Wire-Form der Pre-Loop-Klärung). Der Rückgabewert ist
+      // die harmlose Antwort für ein Geschwister, das den Abbruch überholt.
+      if (toolName === 'ask_human' && ctx.askGate) {
+        ctx.askGate.hold({ stepId, args });
+        return { error: 'Warte auf die Antwort der Nutzer*in.' };
       }
 
       // Captured at tool START (before execution) — the semantics of textOffset.
@@ -651,7 +699,7 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
 
       // Model-facing payload only — the full result already went to the card /
       // persisted step above, and the hooks above have seen the internal fields.
-      return truncateResultForModel(stripInternalFields(output), maxResultChars);
+      return resultForModel(stripInternalFields(output), maxResultChars);
     };
 
     wrapped[toolName] = { ...toolDef, execute: wrappedExecute } as ToolSet[string];

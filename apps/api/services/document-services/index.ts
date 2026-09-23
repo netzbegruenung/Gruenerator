@@ -36,6 +36,14 @@ export { buildEmbeddingText, buildEmbeddingTextsForChunks } from './embeddingTex
 export { structurePayload } from './structurePayload.js';
 export type { ChunkStructurePayload } from './structurePayload.js';
 
+// Einbettungs-Herkunft für das Qdrant-Payload
+export { embeddingPayload } from './embeddingProvenance.js';
+export type { EmbeddingProvenancePayload } from './embeddingProvenance.js';
+
+// Zeichen-Offsets im Quelldokument für das Qdrant-Payload
+export { offsetPayload } from './offsetPayload.js';
+export type { ChunkOffsetPayload } from './offsetPayload.js';
+
 // TextChunker - Text segmentation utilities
 export {
   smartChunkDocument,

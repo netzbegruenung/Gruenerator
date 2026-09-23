@@ -13,6 +13,12 @@
  * `blocksToMarkdownLossy` (drops those spans naturally) and *absorbs*
  * round-trip drift into the transaction instead of rejecting it, so the
  * failure mode disappears.
+ *
+ * Stays a direct AI SDK caller rather than moving onto services/ai/generate.ts
+ * (see CLAUDE.md "Ein Weg zum Modell"): it streams UIMessage chunks straight to
+ * BlockNote's transport via `pipeUIMessageStreamToResponse`, which the facade
+ * does not provide — a documented exception, see
+ * docs/chat-architecture-evaluation.md:34.
  */
 
 import { type ServerResponse } from 'node:http';
@@ -102,6 +108,7 @@ const DOCS_AI_MODELS: Record<AgentConfig['provider'], string> = {
   // Eintrag nennt deshalb das Modell, das dort tatsächlich antwortet.
   litellm: 'gemma-4-31b-it',
   regolo: 'mistral-small-4-119b',
+  melious: 'gemma-4-31b:balanced',
   mistral: 'mistral-medium-2604',
   anthropic: 'mistral-medium-2604',
   greenpt: 'mistral-medium-3.5-128b',
@@ -137,11 +144,11 @@ export async function handleAiRequest(req: TypedRequest<AiRequestBody>, res: Res
     // bis zum 29.08.2026 und war der schlechteste denkbare letzte Halt: es
     // beantwortet einen erzwungenen Tool-Call mit Prosa, und dieser Endpunkt
     // tut nichts anderes als Tools aufzurufen.
-    const providerChain: AgentConfig['provider'][] = ['mistral', 'regolo', 'cortecs'];
+    const providerChain: AgentConfig['provider'][] = ['mistral', 'melious', 'cortecs'];
     const provider = providerChain.find((p) => isProviderConfigured(p));
 
     if (!provider) {
-      log.error('[DocsAI] No AI provider configured (tried: mistral, regolo, cortecs)');
+      log.error('[DocsAI] No AI provider configured (tried: mistral, melious, cortecs)');
       return res.status(500).json({ error: 'AI provider not configured' });
     }
 

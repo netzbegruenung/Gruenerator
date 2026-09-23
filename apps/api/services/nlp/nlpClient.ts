@@ -3,7 +3,12 @@ import axios from 'axios';
 import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
 
-import type { KeywordEntry, NlpClassificationResult, PersonEntry } from './types.js';
+import type {
+  KeywordEntry,
+  NlpClassificationResult,
+  PersonEntry,
+  TextStatsResult,
+} from './types.js';
 
 const log = createLogger('NlpClient');
 
@@ -171,6 +176,91 @@ export async function extractPersonsBatched(
     .map(([person, count]) => ({ person, count }))
     .sort((a, b) => b.count - a.count)
     .slice(0, topN);
+}
+
+export interface TextStatsOptions extends NlpRequestOptions {
+  topN?: number;
+  lemmaOf?: string[];
+  /**
+   * Eine Frist für ALLE Stapel zusammen (`textStatsBatched`). Ohne sie liefe
+   * jeder Stapel bis zu `timeoutMs` — ein hängender Dienst überzöge dann die
+   * Frist des aufrufenden Werkzeugs, bevor der Ausfall gemeldet werden kann.
+   */
+  deadlineMs?: number;
+}
+
+/** Counts and top lemmas per text, in input order. `[]` on failure. */
+export async function textStats(
+  texts: Array<{ id: string; text: string }>,
+  options: TextStatsOptions = {}
+): Promise<TextStatsResult[]> {
+  if (texts.length === 0) return [];
+
+  try {
+    const response = await axios.post<{ results: TextStatsResult[] }>(
+      `${NLP_SERVICE_URL}/analyze/text-stats`,
+      { texts, top_n: options.topN ?? 50, lemma_of: options.lemmaOf ?? [] },
+      { timeout: options.timeoutMs ?? NLP_TIMEOUT_MS }
+    );
+    return response.data.results;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      log.error(
+        `NLP text-stats call failed: ${error.message} (${error.response?.status ?? 'no response'})`
+      );
+    } else {
+      log.error(`NLP text-stats call failed: ${error}`);
+    }
+    return [];
+  }
+}
+
+/** `textStats`, aber spätestens nach `ms` mit `[]` — auch wenn die Anfrage selbst nie endet. */
+async function textStatsWithin(
+  batch: Array<{ id: string; text: string }>,
+  options: TextStatsOptions,
+  ms: number
+): Promise<TextStatsResult[]> {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const expired = new Promise<TextStatsResult[]>((resolve) => {
+    timer = setTimeout(() => {
+      log.error(`NLP text-stats call exceeded the shared deadline (${ms} ms left)`);
+      resolve([]);
+    }, ms);
+  });
+  try {
+    return await Promise.race([textStats(batch, { ...options, timeoutMs: ms }), expired]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+/**
+ * `textStats` in chunks. Results are per text, so they are concatenated. One
+ * failed batch fails the whole call (`[]`): a partial list would read as a
+ * complete count. With `deadlineMs`, all batches share that one deadline.
+ */
+export async function textStatsBatched(
+  texts: Array<{ id: string; text: string }>,
+  options: TextStatsOptions = {},
+  batchSize = 10
+): Promise<TextStatsResult[]> {
+  const deadline = options.deadlineMs === undefined ? null : Date.now() + options.deadlineMs;
+  const results: TextStatsResult[] = [];
+  for (let i = 0; i < texts.length; i += batchSize) {
+    const batch = texts.slice(i, i + batchSize);
+    let batchResults: TextStatsResult[];
+    if (deadline === null) {
+      batchResults = await textStats(batch, options);
+    } else {
+      const left = Math.min(options.timeoutMs ?? NLP_TIMEOUT_MS, deadline - Date.now());
+      if (left <= 0) return [];
+      batchResults = await textStatsWithin(batch, options, left);
+    }
+    if (batchResults.length !== batch.length) return [];
+    results.push(...batchResults);
+  }
+  return results;
 }
 
 export async function checkHealth(): Promise<boolean> {

@@ -130,12 +130,12 @@ Moritz Wächter ist der Entwickler des Grünerators. Er ist Kreisvorsitzender de
 | **Voraussetzungen** | Grundkenntnisse erforderlich               |
 | **Referent**        | Moritz Wächter, Entwickler des Grünerators |
 
-Du kennst den Grünerator schon? Dann lerne jetzt die fortgeschrittenen Funktionen kennen. Im Webinar zeige ich dir, wie du einen Account erstellst und konfigurierst, wie du dir deinen ersten eigenen Grünerator erstellst und wie du unsere Grüne Nextcloud einbindest.
+Du kennst den Grünerator schon? Dann lerne jetzt die fortgeschrittenen Funktionen kennen. Im Webinar zeige ich dir, wie du einen Account erstellst und konfigurierst, wie du dir deinen ersten eigenen Agenten erstellst und wie du unsere Grüne Nextcloud einbindest.
 
 ### Das lernst du im Webinar
 
 - **Profil**: Wie du einen Account erstellst und konfigurierst
-- **Eigene Grüneratoren**: Wie du dir deinen ersten eigenen Grünerator erstellst
+- **Eigene Agents**: Wie du dir deinen ersten eigenen Agenten erstellst
 - **Wolke**: Wie du unsere Grüne Nextcloud einbindest
 
 ### Über den Referenten
@@ -147,14 +147,14 @@ Moritz Wächter ist der Entwickler des Grünerators. Er ist Kreisvorsitzender de
 
 ### GRÜNERATOR Advanced – Eigene KI-Tools erstellen
 
-Du hast bereits Erfahrung mit dem Grünerator und möchtest noch mehr aus dem Tool herausholen? In diesem fortgeschrittenen Webinar zeige ich Dir, wie Du eigene Grüneratoren erstellst und die Cloud-Anbindung optimal nutzt.
+Du hast bereits Erfahrung mit dem Grünerator und möchtest noch mehr aus dem Tool herausholen? In diesem fortgeschrittenen Webinar zeige ich Dir, wie Du eigene Agents erstellst und die Cloud-Anbindung optimal nutzt.
 
 Der Grünerator ist ein speziell für die Grünen entwickeltes KI-Tool, das grüne Inhalte nach Wahl erstellen kann. In diesem zweiten Webinar gehen wir über die Grundlagen hinaus und tauchen in die erweiterten Funktionen ein. Du lernst, wie Du das Tool an Deine spezifischen Bedürfnisse anpasst und noch effizienter in Deiner politischen Arbeit einsetzt.
 
 **Das lernst du im Webinar:**
 
 - Profil: Wie du einen Account erstellst und konfigurierst
-- Eigene Grüneratoren: Wie du dir deinen ersten eigenen Grünerator erstellst
+- Eigene Agents: Wie du dir deinen ersten eigenen Agenten erstellst
 - Wolke: Wie du unsere Grüne Nextcloud einbindest
 
 **Über den Referenten**

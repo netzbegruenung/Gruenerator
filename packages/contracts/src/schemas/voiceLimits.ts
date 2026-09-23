@@ -33,3 +33,18 @@ export const MAX_VIDEO_UPLOAD_MB = MAX_VIDEO_UPLOAD_BYTES / 1024 / 1024;
 /** Human-readable forms, so the advertised limit cannot drift from the enforced one. */
 export const MAX_FILE_SIZE_LABEL = `${MAX_AUDIO_MB}MB`;
 export const MAX_DURATION_LABEL = `${MAX_AUDIO_MINUTES} Minuten`;
+
+/**
+ * Grünerator Voice (text → audio file).
+ *
+ * SPEECH_MAX_CHUNK_CHARS is what one provider request may carry — the same
+ * cap the read-aloud controller enforces. KugelAudio itself accepts 10 000
+ * (docs, 2026-09-15), so the number is ours, not theirs. Longer texts are split
+ * on sentence boundaries server-side and the audio is joined; the total is
+ * capped so one synchronous request stays inside the HTTP budget.
+ */
+export const SPEECH_MAX_CHUNK_CHARS = 8192;
+export const SPEECH_MAX_TEXT_CHARS = 3 * SPEECH_MAX_CHUNK_CHARS;
+/** Provider range for pitch-preserving time stretching; outside it the API answers 400. */
+export const SPEECH_MIN_SPEED = 0.8;
+export const SPEECH_MAX_SPEED = 1.2;

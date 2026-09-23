@@ -1,49 +1,49 @@
 /**
- * Reference material for a doc/board edit trigger.
+ * Reference material for a doc edit: the previous substantive assistant turn.
  *
- * Lands in the docs-AI route's *system prompt* as labeled instructional
- * context, never concatenated into the user prompt — an earlier attempt did
- * that and the model inserted the wrapper text verbatim into the document.
+ * The docs AI sees only the DOCUMENT, never the chat history — so a referential
+ * ask ("übernimm deine letzte Antwort", "füge das ein") has to carry the text
+ * with it. It lands in the docs-AI route's *system prompt* as labeled
+ * instructional context, never concatenated into the user prompt — an earlier
+ * attempt did that and the model inserted the wrapper text verbatim into the
+ * document.
+ *
+ * The turn's own gathered sources are the OTHER channel and do not come from
+ * here: inside the loop they are `sourceRegistry.renderReference()`, which the
+ * `edit_document` tool merges with this block under its own headings.
  */
 
 import { extractTextContent } from '../services/messageHelpers.js';
 
-import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { ModelMessage } from 'ai';
 
-/** Cap on how much gathered reference material rides in a doc/board edit — keeps
- *  the docs-AI system prompt bounded. Matches the single-pass edit ref cap. */
-const EDIT_REFERENCE_CHAR_CAP = 8000;
+/** Cap on how much gathered reference material rides in a doc edit — keeps the
+ *  docs-AI system prompt bounded. Matches the single-pass edit ref cap, and is
+ *  the cap the tool applies to BOTH channels together. */
+export const EDIT_REFERENCE_CHAR_CAP = 8000;
 
 /** A prior assistant turn must be at least this long to count as the edit's
  *  reference material — skips the brief "Ich passe das Dokument an…" confirmation
  *  and lands on the earlier turn that actually holds the content. */
 const EDIT_REFERENCE_SUBSTANTIVE_THRESHOLD = 200;
 
-/** Render the loop's gathered sources into a reference block for a compound-edit
- *  turn — the material the docs/boards AI composes the insert from (title +
- *  content per source). Empty-content sources are dropped (they'd otherwise leak
- *  a bare title placeholder and waste the budget). */
-function renderReferenceFromResults(results: ChatGraphState['searchResults']): string {
-  const block = results
-    .filter((r) => (r.content ?? '').trim())
-    .map((r) => `${r.title ?? 'Quelle'}\n${(r.content ?? '').trim()}`)
-    .join('\n\n---\n\n');
-  return block.length > EDIT_REFERENCE_CHAR_CAP ? block.slice(0, EDIT_REFERENCE_CHAR_CAP) : block;
-}
-
-/** Reference material for a doc/board edit trigger (shared by the doc + board
- *  branches). compoundEdit uses this turn's freshly-gathered sources; a plain
- *  single-pass edit uses the prior substantive assistant turn. */
-export function buildEditReferenceContent(
-  compoundEdit: boolean,
-  searchResults: ChatGraphState['searchResults'],
-  validMessages: ModelMessage[],
-  lastUserMessage: ModelMessage | undefined
-): string {
-  if (compoundEdit) return renderReferenceFromResults(searchResults);
-  const lastUserIdx = lastUserMessage ? validMessages.indexOf(lastUserMessage) : -1;
-  const priorMessages = lastUserIdx > 0 ? validMessages.slice(0, lastUserIdx) : [];
+/**
+ * The last substantive assistant turn BEFORE this turn's user message, or ''.
+ *
+ * The cut is at the last user message on purpose: everything after it belongs
+ * to the turn being answered right now (the loop's own narration, a held-back
+ * opening), and quoting that back into the document would insert the
+ * confirmation instead of the content.
+ */
+export function buildPriorTurnReference(messages: ModelMessage[]): string {
+  let lastUserIdx = -1;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i]?.role === 'user') {
+      lastUserIdx = i;
+      break;
+    }
+  }
+  const priorMessages = lastUserIdx > 0 ? messages.slice(0, lastUserIdx) : [];
   const prev =
     [...priorMessages]
       .reverse()

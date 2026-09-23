@@ -47,7 +47,8 @@
  * for the same explicit model. Fix it for both paths in `resolveModelTuple`,
  * not for one path here.
  */
-import { AVAILABLE_MODELS, getModelConfig, type ModelConfig } from '../agents/providers.js';
+import { AUTO_LANE_IDS } from '../agents/autoPolicy.js';
+import { getModelConfig, type ModelConfig } from '../agents/providers.js';
 
 /** Smallest window this lane can serve. Bis zum 29.08.2026 konnte eine Lane
  *  zwei verschieden grosse Seiten haben (Verdigado-Primär, Regolo-Überlauf) und
@@ -56,12 +57,20 @@ function laneFloor(config: ModelConfig): number {
   return config.contextWindow;
 }
 
-/** Floor across every lane the auto policy could land on. Computed from the
- *  table rather than from the policy's branches so a new lane cannot slip past
- *  it: a lane that exists is a lane this bound already covers. */
+/** Floor across every lane the auto policy could land on. Taken from
+ *  `AUTO_LANE_IDS`, the registry `AutoLaneId` is derived from, so a new auto
+ *  lane cannot slip past it.
+ *
+ *  Bis zum 23.09.2026 lief das über ALLE Einträge in AVAILABLE_MODELS. Das war
+ *  nur deshalb harmlos, weil jedes Fenster dort ≥ 128k war. Mit Melious'
+ *  damals eingetragenen 44k hätte ein Eintrag, den die Policy nie wählt, jedem
+ *  agentischen auto-Zug das Budget gedrittelt. */
 function autoFloor(): number {
   let min = Infinity;
-  for (const config of Object.values(AVAILABLE_MODELS)) min = Math.min(min, laneFloor(config));
+  for (const id of AUTO_LANE_IDS) {
+    const config = getModelConfig(id);
+    if (config) min = Math.min(min, laneFloor(config));
+  }
   return Number.isFinite(min) ? min : 0;
 }
 

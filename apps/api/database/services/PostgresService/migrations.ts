@@ -9,21 +9,24 @@ import fs from 'fs';
 
 import { env } from '../../../config/env.js';
 
-import { getMigrationsPath } from './schema.js';
+import { getMigrationsPath, getSchemaPath } from './schema.js';
 
-import type { Pool } from 'pg';
+import type { Pool, PoolClient } from 'pg';
 
 const MIGRATION_LOCK_ID = 42_000_001;
 
 /**
- * Run database migrations with advisory lock and timeout protection
+ * Run database migrations with advisory lock and timeout protection.
+ *
+ * Returns false when a migration (or the base schema) failed to apply, so the
+ * caller can report it — a failed migration is otherwise only visible in the log.
  */
-export async function runMigrations(pool: Pool): Promise<void> {
+export async function runMigrations(pool: Pool): Promise<boolean> {
   const migrationsPath = getMigrationsPath();
 
   if (!fs.existsSync(migrationsPath)) {
     console.log('[PostgresService] Migrations directory not found, skipping migrations');
-    return;
+    return true;
   }
 
   const client = await pool.connect();
@@ -35,10 +38,15 @@ export async function runMigrations(pool: Pool): Promise<void> {
     );
     if (!lockResult.rows[0].acquired) {
       console.log('[PostgresService] Migrations already running in another worker, skipping');
-      return;
+      return true;
     }
 
     try {
+      // The migrations are deltas on top of schema.sql — without it, most of
+      // them fail on missing tables like `profiles`. Load it under the lock so
+      // cluster workers can't race on an empty database.
+      if (!(await loadBaseSchemaIfMissing(client))) return false;
+
       await client.query(`
         CREATE TABLE IF NOT EXISTS schema_migrations (
           id SERIAL PRIMARY KEY,
@@ -54,7 +62,7 @@ export async function runMigrations(pool: Pool): Promise<void> {
 
       if (migrationFiles.length === 0) {
         console.log('[PostgresService] No migration files found');
-        return;
+        return true;
       }
 
       const appliedResult = await client.query('SELECT filename FROM schema_migrations');
@@ -76,16 +84,37 @@ export async function runMigrations(pool: Pool): Promise<void> {
             : '')
       );
 
-      if (pendingFiles.length === 0) return;
+      if (pendingFiles.length === 0) return true;
 
-      for (const filename of pendingFiles) {
-        await runSingleMigration(pool, migrationsPath, filename);
+      // Files run in lexicographic order, not dependency order: e.g.
+      // `add_agent_task_agent_id.sql` sorts before the migration that creates
+      // `agent_tasks`. On a grown database that never shows; on an empty one
+      // it does. Retry the failed ones until a pass makes no progress.
+      let remaining = pendingFiles;
+      while (remaining.length > 0) {
+        const failed: string[] = [];
+        for (const filename of remaining) {
+          if (!(await runSingleMigration(pool, migrationsPath, filename))) failed.push(filename);
+        }
+        if (failed.length === remaining.length) break;
+        if (failed.length > 0) {
+          console.log(`[PostgresService] Retrying ${failed.length} failed migration(s)...`);
+        }
+        remaining = failed;
       }
+      if (remaining.length > 0) {
+        console.error(
+          `[PostgresService] ❌ ${remaining.length} migration(s) failed: ${remaining.join(', ')}`
+        );
+        return false;
+      }
+      return true;
     } finally {
       await client.query(`SELECT pg_advisory_unlock(${MIGRATION_LOCK_ID})`);
     }
   } catch (error) {
     console.error('[PostgresService] Error running migrations:', error);
+    return false;
   } finally {
     try {
       await client.query('SET statement_timeout = 0');
@@ -97,13 +126,42 @@ export async function runMigrations(pool: Pool): Promise<void> {
 }
 
 /**
+ * Load schema.sql into a database that has none yet (no `profiles` table).
+ * Grown databases are left alone: there, schema.sql is history the migrations
+ * have already built upon. Sent as one query, so it applies atomically.
+ *
+ * Needs the `uuid-ossp` and `pg_trgm` extensions, which schema.sql creates
+ * itself — both are trusted since PostgreSQL 13, so the app role only needs
+ * CREATE on the database (e.g. by owning it), not superuser.
+ */
+async function loadBaseSchemaIfMissing(client: PoolClient): Promise<boolean> {
+  const existing = await client.query<{ present: boolean }>(
+    `SELECT to_regclass('public.profiles') IS NOT NULL AS present`
+  );
+  if (existing.rows[0].present) return true;
+
+  console.log('[PostgresService] Empty database — loading base schema from schema.sql');
+  try {
+    await client.query(fs.readFileSync(getSchemaPath(), 'utf8'));
+    console.log('[PostgresService] ✅ Base schema loaded');
+    return true;
+  } catch (error) {
+    console.error(
+      '[PostgresService] ❌ Base schema failed to load, skipping migrations:',
+      (error as Error).message
+    );
+    return false;
+  }
+}
+
+/**
  * Run a single migration file using the already-locked client
  */
 async function runSingleMigration(
   pool: Pool,
   migrationsPath: string,
   filename: string
-): Promise<void> {
+): Promise<boolean> {
   console.log(`[PostgresService] Running migration ${filename}...`);
   const startTime = Date.now();
 
@@ -122,6 +180,7 @@ async function runSingleMigration(
 
     const duration = Date.now() - startTime;
     console.log(`[PostgresService] ✅ Migration ${filename} applied successfully in ${duration}ms`);
+    return true;
   } catch (error) {
     try {
       await migrationClient.query('ROLLBACK');
@@ -133,6 +192,7 @@ async function runSingleMigration(
     }
 
     console.error(`[PostgresService] ❌ Migration ${filename} failed:`, (error as Error).message);
+    return false;
   } finally {
     try {
       await migrationClient.query('SET statement_timeout = 0');

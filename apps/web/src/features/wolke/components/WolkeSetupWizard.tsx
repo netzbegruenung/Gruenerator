@@ -191,7 +191,8 @@ const WolkeSetupWizard = ({ onSuccess, onError, onCancel }: WolkeSetupWizardProp
                 </p>
                 <p className="text-xs text-grey-400 m-0">
                   Die Standard-Berechtigung „Nur anzeigen" genügt — der Grünerator liest deine Wolke
-                  nur.
+                  nur. Wähle nicht „Dateien ablegen": Eine reine Upload-Freigabe kann der Grünerator
+                  nicht lesen.
                 </p>
                 <StepImage
                   src="/images/wolke-tutorial/step5.png"
@@ -295,8 +296,17 @@ const WolkeSetupWizard = ({ onSuccess, onError, onCancel }: WolkeSetupWizardProp
 
                 {errorCode === 'invalid_link' && (
                   <p className="text-sm text-foreground leading-relaxed m-0">
-                    Der Link funktioniert nicht mehr. Erstelle in der Wolke einen neuen über
-                    „Teilen" → „Öffentlichen Link erstellen".
+                    Der Link funktioniert nicht (mehr) — die Freigabe wurde gelöscht, ist abgelaufen
+                    oder ist passwortgeschützt. Erstelle in der Wolke einen neuen Link ohne Passwort
+                    über „Teilen" → „Öffentlichen Link erstellen".
+                  </p>
+                )}
+
+                {errorCode === 'file_drop' && (
+                  <p className="text-sm text-foreground leading-relaxed m-0">
+                    Der Link ist eine Upload-Freigabe („Dateien ablegen"). Damit kann der Grünerator
+                    nichts lesen. Erstelle in der Wolke einen neuen Freigabe-Link mit der
+                    Berechtigung „Nur anzeigen".
                   </p>
                 )}
 

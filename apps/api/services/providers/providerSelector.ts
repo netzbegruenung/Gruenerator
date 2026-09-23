@@ -92,6 +92,13 @@ const STRUCTURE_TYPES: ReadonlySet<string> = new Set([
   // drin — siehe ARTIFACT_MODEL.
   'board_generation',
   'canvas_ai_suggest', // Canvas-Vorschläge + Sharepic-/Social-Edits
+  // Editor-Op-Planer (board/sheet/presentation) hinter `edit_document`. Matcht
+  // hier ohnehin nur den Basis-Default (mistral/STRUCTURE_MODEL) — explizit
+  // notiert wie ihre Geschwister oben, für den Fall, dass der Default je
+  // divergiert.
+  'editor_ops_board',
+  'editor_ops_sheet',
+  'editor_ops_presentation',
   'website', // Kandidat*innen-Seiten: langes strukturiertes JSON
   // Sharepics — Slogans und Zitatzeilen, keine Fließtexte. Bleiben auf
   // Mistral: dass es hier "noticeably better German slogans/quotes" liefert,
@@ -129,6 +136,8 @@ const TEXT_TYPES: ReadonlySet<string> = new Set([
   'social',
   'social_post_edit',
   'subtitler_social',
+  // Grünerator Voice — der gesprochene Entwurf (/api/voice/speech/script)
+  'voice_script',
 ]);
 
 /** `mistral-medium-2604` === "Mistral Medium 3.5" (services/ai/modelDiscovery.ts). */
@@ -249,7 +258,8 @@ export function selectProviderAndModel({
     type === 'antrag_question_generation' ||
     type === 'antrag_qa_summary' ||
     type === 'gruenerator_ask' ||
-    type === 'gruenerator_ask_grundsatz'
+    type === 'gruenerator_ask_grundsatz' ||
+    type === 'background_verify'
   ) {
     provider = LANE.provider;
     model = options.model || LANE.model;

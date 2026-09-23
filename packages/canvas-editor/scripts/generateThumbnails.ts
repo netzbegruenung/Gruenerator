@@ -1,6 +1,6 @@
 /**
  * Generates PNG thumbnails (128×128) from SVG illustrations.
- * Uses @napi-rs/canvas (already installed in apps/api).
+ * Uses @napi-rs/canvas.
  *
  * Usage: pnpm generate:thumbs
  */
@@ -24,7 +24,6 @@ const SOURCES = [
 const THUMB_SIZE = 128;
 
 async function loadCanvas() {
-  // @napi-rs/canvas is installed in apps/api — resolve from there
   const canvasModule = await import('@napi-rs/canvas');
   return canvasModule;
 }

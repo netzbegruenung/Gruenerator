@@ -7,7 +7,7 @@
  * / breakdowns happens in memory rather than in four separate SQL aggregates.
  */
 
-import { userUsageContract } from '@gruenerator/contracts';
+import { usageFeatureSchema, userUsageContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 import { and, eq, gte } from 'drizzle-orm';
 
@@ -20,6 +20,7 @@ import {
   marketIntensityFor,
   estimateImageFootprint,
   referenceFootprint,
+  unmeasuredRemainder,
 } from '../../services/usage/energyFootprint.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
@@ -33,21 +34,7 @@ const log = createLogger('userUsageContract');
 const s = initServer();
 
 /** Rows predate schema changes; an unknown slug must not break the response. */
-const KNOWN_FEATURES = new Set<string>([
-  'chat',
-  'docs',
-  'sheets',
-  'presentations',
-  'boards',
-  'sharepic',
-  'subtitler',
-  'search',
-  'monitor',
-  'sites',
-  'texte',
-  'notebook',
-  'other',
-]);
+const KNOWN_FEATURES = new Set<string>(usageFeatureSchema.options);
 
 function usageFeatureFallback(feature: string): UsageFeature {
   // Boundary cast: the Set membership check IS the runtime assertion.
@@ -158,8 +145,10 @@ export const userUsageContractRouter = s.router(userUsageContract, {
 
         if (unit === 'tokens') {
           textOutputTokens += row.outputTokens;
+          const rest = unmeasuredRemainder(row);
           if (row.energyWms > 0) {
-            // Measured beats estimated: GreenPT already told us the truth.
+            // Measured beats estimated: the provider already told us the truth —
+            // but only for the calls it measured, see `unmeasuredRemainder`.
             energyWms += row.energyWms;
             measuredEnergyWms += row.energyWms;
             emissionsUg += row.emissionsUg;
@@ -171,25 +160,21 @@ export const userUsageContractRouter = s.router(userUsageContract, {
               marketIntensityFor(row.provider)
             );
             if (hasMarketInstrument(row.provider)) marketBackedEnergyWms += row.energyWms;
-            coveredOutputTokens += row.outputTokens;
-            coveredRequests += row.requests;
-          } else {
-            const estimate = estimateFootprint({
-              provider: row.provider,
-              model: row.model,
-              inputTokens: row.inputTokens,
-              outputTokens: row.outputTokens,
-              requests: row.requests,
-            });
-            if (estimate) {
-              energyWms += estimate.energyWms;
-              emissionsUg += estimate.emissionsUg;
-              marketEmissionsUg += estimate.marketEmissionsUg;
-              if (hasMarketInstrument(row.provider)) marketBackedEnergyWms += estimate.energyWms;
-              coveredOutputTokens += row.outputTokens;
-              coveredRequests += row.requests;
-              if (estimate.basis === 'bound') boundedEnergyWms += estimate.energyWms;
-            }
+            coveredOutputTokens += row.outputTokens - rest.outputTokens;
+            coveredRequests += row.requests - rest.requests;
+          }
+          const estimate =
+            rest.requests + rest.inputTokens + rest.outputTokens > 0
+              ? estimateFootprint({ provider: row.provider, model: row.model, ...rest })
+              : null;
+          if (estimate) {
+            energyWms += estimate.energyWms;
+            emissionsUg += estimate.emissionsUg;
+            marketEmissionsUg += estimate.marketEmissionsUg;
+            if (hasMarketInstrument(row.provider)) marketBackedEnergyWms += estimate.energyWms;
+            coveredOutputTokens += rest.outputTokens;
+            coveredRequests += rest.requests;
+            if (estimate.basis === 'bound') boundedEnergyWms += estimate.energyWms;
           }
         }
 

@@ -34,11 +34,15 @@ import { createLogger } from '../../../utils/logger.js';
 import { getContextWindow } from '../agents/providers.js';
 
 import { runToolApprovalResume } from './agenticLoop/approvalResume.js';
+import { runClarificationLoopResume } from './agenticLoop/clarificationResume.js';
 import { ARTIFACT_CONFIRMATION_TEXTS, buildSharepicConfirmation } from './artifactConfirmations.js';
+import { injectImageAttachments } from './attachmentProcessingService.js';
 import { persistComputeAssets } from './computeAssetStorage.js';
 import { hasBrokenComputeValues } from './computeResultSanity.js';
 import { pruneMessages } from './contextPruningService.js';
+import { imageVisibility } from './imageVisibility.js';
 import { executeIntentPipeline, reportUnavailableSources } from './intentExecutionService.js';
+import { loopClarificationStateStore } from './loopClarificationStateStore.js';
 import { extractTextContent } from './messageHelpers.js';
 import { createPendingAssistantWriter } from './pendingAssistantWriter.js';
 import { pipelineStateStore } from './pipelineStateStore.js';
@@ -150,6 +154,38 @@ export async function runChatGraphResume({
     const user = getUser(req);
     if (!user?.id) {
       return sseFail(sse, PROGRESS_MESSAGES.unauthorized, { code: 'unauthorized' });
+    }
+
+    // Eine ask_human-Antwort hat zwei mögliche Absender-Zustände: die
+    // Pre-Loop-Klärung (pipelineStateStore, Single-Pass-Fortsetzung unten) und
+    // die Loop-Rückfrage (#3220, eigener Zustand + agentische Fortsetzung).
+    // Der Wire-Body ist identisch — entschieden wird am gespeicherten Zustand.
+    // Liegen BEIDE vor (Stale-Shadowing: 24 h gegen 10 min TTL), gewinnt der
+    // jüngere.
+    if (resumeInput.kind === 'ask_human') {
+      const loopState = await loopClarificationStateStore.get(threadId);
+      if (loopState) {
+        const pipelineState = await pipelineStateStore.get(threadId);
+        if (!pipelineState || loopState.createdAt >= pipelineState.createdAt) {
+          const result = await runClarificationLoopResume({
+            req,
+            sse,
+            threadId,
+            userId: user.id,
+            answer: resumeInput.answer,
+            fail: (message, code) => ({
+              handled: true as const,
+              ...sseFail(sse, message, { code }),
+            }),
+          });
+          return { status: result.status, body: result.body };
+        }
+        // Der jüngere Pre-Loop-Zustand gewinnt — dann ist der ältere
+        // Loop-Zustand überholt und muss WEG: sonst überlebt er (24 h TTL)
+        // den 10-Minuten-Zustand und eine spätere ask_human-Antwort liefe
+        // gegen die falsche, längst überholte Frage.
+        await loopClarificationStateStore.delete(threadId);
+      }
     }
 
     const stored = await pipelineStateStore.get(threadId);
@@ -562,6 +598,11 @@ export async function runChatGraphResume({
 
     const systemMessage = await buildSystemMessage(finalState);
     const resumeImageAttachments = requestContext.imageAttachments ?? [];
+    // Dieselbe Frage wie im Einzeldurchlauf, dieselbe Antwort: sieht das Modell
+    // die Bilder? Dieser Pfad baute die Nachrichtenliste bisher OHNE sie und
+    // ließ den Systemprompt trotzdem „sind in der Nachricht sichtbar“ sagen
+    // (#3313) — die Bauanleitung für eine erfundene Bildbeschreibung.
+    const resumeImagesVisible = imageVisibility(finalState) === 'visible';
     const agentConfigForResolve2 = {
       provider: finalState.agentConfig.provider as string,
       model: finalState.agentConfig.model,
@@ -571,7 +612,7 @@ export async function runChatGraphResume({
     };
     const resumeRequestId = `resume_contract_${Date.now()}`;
     const resolution2 = await resolveModel(agentConfigForResolve2, modelId, resumeRequestId, {
-      hasImages: resumeImageAttachments.length > 0,
+      hasImages: resumeImagesVisible,
       intent: finalState.intent,
       agentId: finalState.agentConfig.identifier,
       ...(finalState.complexity != null && { complexity: finalState.complexity }),
@@ -589,7 +630,14 @@ export async function runChatGraphResume({
     // persisted to Redis, so entries written before this change would arrive
     // without the field for the whole 10-minute TTL window.
     const prunedValidMessages = pruneMessages(validMessages, getContextWindow(modelId));
-    const messagesForAI = buildMessagesForAI(systemMessage, prunedValidMessages);
+    let messagesForAI = buildMessagesForAI(systemMessage, prunedValidMessages);
+    if (resumeImagesVisible) {
+      messagesForAI = injectImageAttachments(
+        messagesForAI as Parameters<typeof injectImageAttachments>[0],
+        resumeImageAttachments,
+        resumeRequestId
+      );
+    }
     const lastUserMsg = [...validMessages].reverse().find((m) => m.role === 'user');
     const traceInput = lastUserMsg ? extractTextContent(lastUserMsg.content) : '';
 

@@ -22,12 +22,15 @@ import {
   type TransparencyDayEntryDto,
   type TransparencyFeatureEntryDto,
   type TransparencyFootprintDto,
+  type TransparencyLocale,
   type TransparencyProviderEntryDto,
   type UsageFeature,
 } from '@gruenerator/contracts';
+import { getPinnedLocale } from '@gruenerator/shared/instances';
 import { cn, LoadingSection, StatusBanner } from '@gruenerator/ui';
 import { useSearchParams } from 'react-router-dom';
 
+import { CURRENT_INSTANCE } from '../../../config/instance';
 import { getDocsUrl } from '../../../utils/docsUrl';
 import {
   carComparison,
@@ -146,6 +149,72 @@ export function ViewSwitcher({
       <PillButton size="sm" active={expert} onClick={() => onChange(true)}>
         Expert*innenübersicht
       </PillButton>
+    </div>
+  );
+}
+
+/* ── Land wählen ──────────────────────────────────────────────────────────── */
+
+const LOCALE_LABELS: Record<TransparencyLocale, string> = {
+  de: 'Deutschland',
+  at: 'Österreich',
+};
+
+function isTransparencyLocale(value: string | null): value is TransparencyLocale {
+  return value === 'de' || value === 'at';
+}
+
+/**
+ * Which country's users the figure describes; `null` is the whole instance and
+ * the default. Unlike the monitor's locale param this does NOT default from the
+ * profile: the platform total is the figure this page exists for, and the
+ * split is a drill-down into it.
+ *
+ * An instance that pins its locale (bgst) has nothing to split, so the param
+ * is ignored there and `available` tells the page not to offer the switch.
+ */
+export function useTransparencyLocaleParam(): {
+  locale: TransparencyLocale | null;
+  setLocale: (locale: TransparencyLocale | null) => void;
+  available: boolean;
+} {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const available = getPinnedLocale(CURRENT_INSTANCE) === null;
+  const raw = searchParams.get('locale');
+  const locale = available && isTransparencyLocale(raw) ? raw : null;
+
+  const setLocale = (next: TransparencyLocale | null) => {
+    setSearchParams(
+      (prev) => {
+        const params = new URLSearchParams(prev);
+        if (next) params.set('locale', next);
+        else params.delete('locale');
+        return params;
+      },
+      { replace: true }
+    );
+  };
+
+  return { locale, setLocale, available };
+}
+
+export function LocaleSwitcher({
+  locale,
+  onChange,
+}: {
+  locale: TransparencyLocale | null;
+  onChange: (locale: TransparencyLocale | null) => void;
+}) {
+  return (
+    <div className={MONITOR_PILL_TRACK}>
+      <PillButton size="sm" active={locale === null} onClick={() => onChange(null)}>
+        Alle
+      </PillButton>
+      {(Object.keys(LOCALE_LABELS) as TransparencyLocale[]).map((entry) => (
+        <PillButton key={entry} size="sm" active={locale === entry} onClick={() => onChange(entry)}>
+          {LOCALE_LABELS[entry]}
+        </PillButton>
+      ))}
     </div>
   );
 }
@@ -472,21 +541,31 @@ function CoveragePanel({ footprint }: { footprint: TransparencyFootprintDto }) {
         </h2>
       </div>
       <div className={cn('flex flex-col gap-5 p-6', MONITOR_CARD)}>
+        <p className={cn('m-0 text-[0.82rem] leading-relaxed', MONITOR_MUTED)}>
+          Woraus sich die Energie oben zusammensetzt — die drei Anteile ergeben zusammen 100 %.
+        </p>
         <Meter
           label="Gemessen"
           share={footprint.measured_share}
           hint="Vom Anbieter mitgelieferte Messwerte statt eigener Hochrechnung."
         />
         <Meter
+          label="Selbst gemessen, hochgerechnet"
+          share={footprint.calibrated_share}
+          hint="Der Anbieter meldet pro Anfrage nichts, aber wir haben genau dieses Modell selbst vermessen und rechnen den Messwert über die Token-Zahl hoch."
+        />
+        <Meter
           label="Ohne eigene Messung"
           share={footprint.bounded_share}
           hint="Für dieses Modell existiert nirgends ein Messwert. Gerechnet wird mit der Mitte zwischen zwei Modellen, die wir gemessen haben — beide Enden stehen in der Spanne oben."
         />
-        <Meter
-          label="Abgedeckt"
-          share={footprint.covered_share}
-          hint="Anteil der erzeugten Tokens, für die überhaupt ein Energiewert existiert."
-        />
+        <div className="border-t border-[#eef2ef] pt-5 dark:border-grey-700/60">
+          <Meter
+            label="Abgedeckt"
+            share={footprint.covered_share}
+            hint="Anderer Maßstab als die drei Anteile darüber: nicht ein Teil der Energie, sondern der Anteil der erzeugten Tokens, für die überhaupt ein Energiewert existiert. Was fehlt, steckt in keinem der drei — es ist gar nicht mitgezählt."
+          />
+        </div>
         {(transcriptions > 0 || searches > 0 || speechSeconds > 0) && (
           <div className="border-t border-[#eef2ef] pt-4 dark:border-grey-700/60">
             <p className={cn('m-0 mb-1 text-[0.85rem] font-bold', MONITOR_HEADING)}>
@@ -884,6 +963,7 @@ const SIMPLE_GROUPS: Record<UsageFeature, string> = {
   sheets: 'Präsentationen & Tabellen',
   presentations: 'Präsentationen & Tabellen',
   subtitler: 'Untertitel',
+  voice: 'Sprachausgabe',
   search: 'Websuche',
   boards: 'Sonstiges',
   sites: 'Sonstiges',
@@ -1029,6 +1109,63 @@ function SimpleView({ data }: { data: GetTransparencyStatsResponseDto }) {
 
 /* ── Ansicht ──────────────────────────────────────────────────────────────── */
 
+function CalculationPanel({ data }: { data: GetTransparencyStatsResponseDto }) {
+  const { calculation } = data;
+
+  return (
+    <section className="mt-12">
+      <h2 className={cn('mb-5 text-[1.35rem] font-semibold tracking-[-0.01em]', MONITOR_HEADING)}>
+        Rechenweg
+      </h2>
+      <div className={cn('flex flex-col gap-4 p-6', MONITOR_CARD)}>
+        <p className={cn('m-0 text-[0.9rem] leading-relaxed', MONITOR_BODY)}>
+          Direkt gemeldete Werte übernehmen wir als{' '}
+          <code>{calculation.direct_measurement.energy}</code> und{' '}
+          <code>{calculation.direct_measurement.emissions}</code>. Für Schätzungen gilt:
+        </p>
+        <code className={cn('overflow-x-auto rounded-md p-3 text-[0.78rem]', MONITOR_TAG)}>
+          {calculation.estimated_text.formula}
+        </code>
+        <p className={cn('m-0 text-[0.82rem] leading-relaxed', MONITOR_FAINT)}>
+          Kalibrierungs-PUE: {oneDecimal.format(calculation.estimated_text.calibration_pue)}. Die
+          Faktoren unten werden direkt aus dem laufenden Berechnungsprofil veröffentlicht und
+          enthalten keine Modellnamen.
+        </p>
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-left text-[0.78rem]">
+            <thead className={MONITOR_FAINT}>
+              <tr>
+                <th className="pb-2 pr-4 font-medium">Grundlage</th>
+                <th className="pb-2 pr-4 font-medium">Eingabe mWh/Token</th>
+                <th className="pb-2 pr-4 font-medium">Ausgabe mWh/Token</th>
+                <th className="pb-2 font-medium">Grundwert mWh/Anfrage</th>
+              </tr>
+            </thead>
+            <tbody className={MONITOR_BODY}>
+              {calculation.estimated_text.profiles.map((profile) => (
+                <tr
+                  key={`${profile.basis}-${profile.input_mwh_per_token}-${profile.output_mwh_per_token}`}
+                >
+                  <td className="py-1.5 pr-4">
+                    {profile.basis === 'calibrated' ? 'kalibriert' : 'Bandbreite'}
+                  </td>
+                  <td className="py-1.5 pr-4 tabular-nums">{profile.input_mwh_per_token}</td>
+                  <td className="py-1.5 pr-4 tabular-nums">{profile.output_mwh_per_token}</td>
+                  <td className="py-1.5 tabular-nums">{profile.fixed_mwh_per_request}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className={cn('m-0 text-[0.82rem] leading-relaxed', MONITOR_FAINT)}>
+          Anschließend gilt: <code>{calculation.emissions_formula}</code>. Netzintensität und PUE
+          stehen in der Anbieterübersicht; Bandbreiten zeigen die verbleibende Unsicherheit.
+        </p>
+      </div>
+    </section>
+  );
+}
+
 function ExpertView({ data }: { data: GetTransparencyStatsResponseDto }) {
   const { footprint, totals, daily, byFeature, byModel, providers } = data;
 
@@ -1070,6 +1207,7 @@ function ExpertView({ data }: { data: GetTransparencyStatsResponseDto }) {
         suppressedDays={data.suppressed_days}
       />
       <ReferencePanel footprint={footprint} />
+      <CalculationPanel data={data} />
 
       <div className="grid grid-cols-1 gap-x-12 lg:grid-cols-2">
         <FeaturePanel byFeature={byFeature} />
@@ -1081,8 +1219,16 @@ function ExpertView({ data }: { data: GetTransparencyStatsResponseDto }) {
   );
 }
 
-export function TransparenzView({ days, expert }: { days: number; expert: boolean }) {
-  const { data, isLoading, isError } = useTransparencyStats(days);
+export function TransparenzView({
+  days,
+  expert,
+  locale,
+}: {
+  days: number;
+  expert: boolean;
+  locale: TransparencyLocale | null;
+}) {
+  const { data, isLoading, isError } = useTransparencyStats(days, locale);
 
   if (isLoading) return <LoadingSection label="Verbrauchsdaten werden geladen..." />;
 
@@ -1104,10 +1250,11 @@ export function TransparenzView({ days, expert }: { days: number; expert: boolea
           Zu wenige Personen für eine veröffentlichbare Zahl
         </p>
         <p className={cn('m-0 mt-2 text-[0.9rem] leading-relaxed', MONITOR_MUTED)}>
-          In den letzten {data.days} Tagen waren weniger als {data.min_group_size} Personen aktiv.
-          Ein Verbrauchswert aus so wenigen Personen beschreibt keine Plattform, sondern einzelne
-          Nachmittage — deshalb zeigen wir hier nichts. Mit einem größeren Zeitraum kann die
-          Auswertung greifen.
+          In den letzten {data.days} Tagen waren
+          {locale ? ` aus ${LOCALE_LABELS[locale]}` : ''} weniger als {data.min_group_size} Personen
+          aktiv. Ein Verbrauchswert aus so wenigen Personen beschreibt keine Plattform, sondern
+          einzelne Nachmittage — deshalb zeigen wir hier nichts. Mit einem größeren Zeitraum kann
+          die Auswertung greifen.
         </p>
       </div>
     );

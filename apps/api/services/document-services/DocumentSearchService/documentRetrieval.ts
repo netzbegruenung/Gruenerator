@@ -52,13 +52,11 @@ export async function getDocumentFullText(
       ],
     };
 
-    const chunks = await qdrantOps.scrollDocuments('documents', filter, {
-      limit: 1000,
-      withPayload: true,
-      withVector: false,
-    });
+    // Seitenweise statt einem einzelnen `limit: 1000`-Scroll — der schnitt
+    // Dokumente mit mehr als 1000 Punkten still ab (#3255).
+    const chunks = await scrollAllChunks(qdrantOps, 'documents', filter);
 
-    if (!chunks || chunks.length === 0) {
+    if (chunks.length === 0) {
       return {
         success: false,
         fullText: '',
@@ -104,6 +102,27 @@ export async function getDocumentFullText(
 }
 
 /**
+ * Identitätsklausel für Dokumente in expliziten Qdrant-Collections: gescrapte
+ * Systemsammlungen (kommunalwiki_documents, grundsatz_documents, …) tragen
+ * KEIN document_id in der Nutzlast — ihre Identität ist die indizierte
+ * source_url, und genau diese URL mintet SearchResultProcessor.ts:39
+ * (`r.document_id || sourceUrl`) als documentId der Zitationen. Eine
+ * URL-förmige ID ist also per Konstruktion eine source_url; alles andere
+ * bleibt beim document_id-Filter.
+ */
+export function documentIdentityClause(documentId: string): {
+  key: string;
+  match: { value: string };
+} {
+  const key = /^https?:\/\//.test(documentId) ? 'source_url' : 'document_id';
+  return { key, match: { value: documentId } };
+}
+
+function numberOrNull(value: unknown): number | null {
+  return typeof value === 'number' ? value : null;
+}
+
+/**
  * Get individual chunks for a document, sorted by chunk_index.
  * Supports both user documents (in 'documents' collection with user_id)
  * and system documents (in named collections without user_id).
@@ -117,20 +136,18 @@ export async function getDocumentChunks(
   try {
     const collectionName = options?.qdrantCollection || 'documents';
     const mustFilters: QdrantFilter['must'] = [
-      { key: 'document_id', match: { value: documentId } },
+      options?.qdrantCollection
+        ? documentIdentityClause(documentId)
+        : { key: 'document_id', match: { value: documentId } },
     ];
     if (!options?.qdrantCollection) {
       mustFilters.unshift({ key: 'user_id', match: { value: userId } });
     }
     const filter: QdrantFilter = { must: mustFilters };
 
-    const rawChunks = await qdrantOps.scrollDocuments(collectionName, filter, {
-      limit: 1000,
-      withPayload: true,
-      withVector: false,
-    });
+    const rawChunks = await scrollAllChunks(qdrantOps, collectionName, filter);
 
-    if (!rawChunks || rawChunks.length === 0) {
+    if (rawChunks.length === 0) {
       return { success: false, chunks: [], chunkCount: 0, error: 'No chunks found' };
     }
 
@@ -141,6 +158,14 @@ export async function getDocumentChunks(
         tokens: typeof chunk.payload.token_count === 'number' ? chunk.payload.token_count : 0,
         pageNumber:
           typeof chunk.payload.page_number === 'number' ? chunk.payload.page_number : null,
+        charStart: numberOrNull(chunk.payload.char_start),
+        charEnd: numberOrNull(chunk.payload.char_end),
+        headingPath: Array.isArray(chunk.payload.heading_path)
+          ? chunk.payload.heading_path.filter((h): h is string => typeof h === 'string')
+          : null,
+        heading: typeof chunk.payload.heading === 'string' ? chunk.payload.heading : null,
+        sectionIndex: numberOrNull(chunk.payload.section_index),
+        chunkType: typeof chunk.payload.chunk_type === 'string' ? chunk.payload.chunk_type : null,
       }))
       .filter((c) => c.text.trim().length > 0)
       .sort((a, b) => a.index - b.index);
@@ -234,10 +259,164 @@ export async function getChunkWithContext(
   }
 }
 
+/**
+ * Ein Chunk mit Nachbarn aus einer System-Collection (grundsatz, kommunalwiki, …).
+ *
+ * #3232: die Vorgängerin (als Methode an DocumentSearchService) filterte
+ * document_id und fiel auf title zurück — nie auf source_url. Gescrapte
+ * Sammlungen tragen aber KEIN document_id in der Nutzlast; ihre Identität ist
+ * die indizierte source_url, und genau die mintet SearchResultProcessor als
+ * documentId der Zitationen. documentIdentityClause (oben) wählt das Feld.
+ * Der title-Rückfall bleibt für die von Hand benannten Alt-IDs
+ * ('Gruenes-Grundsatzprogramm' u. ä.), die nur als title existieren.
+ */
+export async function getSystemChunkWithContext(
+  qdrantOps: QdrantOperations,
+  collectionName: string,
+  documentId: string,
+  chunkIndex: number,
+  options: { window?: number } = {}
+): Promise<ChunkWithContextResult> {
+  const windowSize = options.window ?? 2;
+
+  try {
+    const filter: QdrantFilter = {
+      must: [
+        documentIdentityClause(documentId),
+        { key: 'chunk_index', match: { value: chunkIndex } },
+      ],
+    };
+
+    let scrollResult = await qdrantOps.scrollDocuments(collectionName, filter, {
+      limit: 1,
+      withPayload: true,
+    });
+
+    if (!scrollResult || scrollResult.length === 0) {
+      const titleFilter: QdrantFilter = {
+        must: [
+          { key: 'title', match: { value: documentId } },
+          { key: 'chunk_index', match: { value: chunkIndex } },
+        ],
+      };
+
+      scrollResult = await qdrantOps.scrollDocuments(collectionName, titleFilter, {
+        limit: 1,
+        withPayload: true,
+      });
+
+      if (!scrollResult || scrollResult.length === 0) {
+        return { success: false, error: 'Chunk not found in collection' };
+      }
+    }
+
+    const centerPoint = scrollResult[0];
+
+    const contextResult = await qdrantOps.getChunkWithContext(
+      collectionName,
+      { id: centerPoint.id, payload: centerPoint.payload },
+      { window: windowSize }
+    );
+
+    if (!contextResult.center) {
+      return { success: false, error: 'Failed to retrieve context' };
+    }
+
+    const centerChunk = {
+      text: (contextResult.center.payload.chunk_text as string) || '',
+      chunkIndex: (contextResult.center.payload.chunk_index as number) ?? chunkIndex,
+    };
+
+    const contextChunks: ChunkContextItem[] = contextResult.context.map((chunk) => ({
+      text: (chunk.payload.chunk_text as string) || '',
+      chunkIndex: (chunk.payload.chunk_index as number) ?? 0,
+      isCenter: chunk.id === contextResult.center?.id,
+    }));
+
+    return { success: true, centerChunk, contextChunks };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`[DocumentRetrieval] getSystemChunkWithContext error: ${message}`);
+    return { success: false, error: message };
+  }
+}
+
+/**
+ * Findet die System-Collection, die ein Dokument enthält.
+ *
+ * #3232: die should-Klauseln prüften nur document_id und title — eine
+ * URL-förmige ID (gescrapte Sammlungen, s. documentIdentityClause) fand nie
+ * etwas, die Erkennung fiel auf 'user' zurück und die Route lief in
+ * getDocumentById(url) → 404.
+ */
+export async function detectSystemCollection(
+  qdrantOps: QdrantOperations,
+  systemCollections: Array<{ type: string; collection: string }>,
+  documentId: string
+): Promise<string> {
+  for (const { type, collection } of systemCollections) {
+    try {
+      const filter: QdrantFilter = {
+        should: [
+          documentIdentityClause(documentId),
+          { key: 'title', match: { value: documentId } },
+        ],
+      };
+
+      const result = await qdrantOps.scrollDocuments(collection, filter, {
+        limit: 1,
+        withPayload: false,
+      });
+
+      if (result && result.length > 0) {
+        console.log(
+          `[DocumentRetrieval] Found document '${documentId}' in collection '${collection}'`
+        );
+        return type;
+      }
+    } catch {
+      // Collection might not exist, continue to next
+    }
+  }
+
+  return 'user';
+}
+
 /** Eine Scroll-Seite; klein genug für Qdrant, gross genug für wenige Runden. */
-const INSPECT_SCROLL_PAGE_SIZE = 256;
+const CHUNK_SCROLL_PAGE_SIZE = 256;
 /** Deckel gegen ein Dokument mit absurd vielen Punkten (256 * 40 = 10 240). */
-const INSPECT_MAX_SCROLL_PAGES = 40;
+const CHUNK_MAX_SCROLL_PAGES = 40;
+
+/**
+ * Alle Punkte eines Dokuments seitenweise einsammeln. Ein einzelner Scroll
+ * mit `limit: 1000` schnitt grössere Dokumente still ab (#3255) — das hier
+ * ist die eine geteilte Schleife für getDocumentFullText, getDocumentChunks
+ * und inspectDocumentChunks.
+ */
+async function scrollAllChunks(
+  qdrantOps: QdrantOperations,
+  collectionName: string,
+  filter: QdrantFilter
+): Promise<ScrollPoint[]> {
+  const points: ScrollPoint[] = [];
+  let cursor: string | number | null = null;
+  for (let page = 0; page < CHUNK_MAX_SCROLL_PAGES; page++) {
+    const batch = await qdrantOps.scrollDocuments(collectionName, filter, {
+      limit: CHUNK_SCROLL_PAGE_SIZE,
+      withPayload: true,
+      withVector: false,
+      offset: cursor,
+    });
+    // Qdrants Scroll-Offset ist eine Punkt-ID und inklusiv: der Cursor-Punkt
+    // kommt als erstes Element der nächsten Seite noch einmal.
+    // Gleiche Behandlung wie NotebookQdrantHelper.ts:615-617.
+    const fresh = cursor === null ? batch : batch.filter((p) => p.id !== cursor);
+    points.push(...fresh);
+    if (batch.length < CHUNK_SCROLL_PAGE_SIZE) break;
+    cursor = batch[batch.length - 1].id;
+  }
+  return points;
+}
 
 function readVectorPresence(raw: unknown): {
   embeddingPresent: boolean;
@@ -316,27 +495,10 @@ export async function inspectDocumentChunks(
 ): Promise<InspectDocumentChunksResult> {
   try {
     const filter: QdrantFilter = {
-      must: [{ key: 'document_id', match: { value: documentId } }],
+      must: [documentIdentityClause(documentId)],
     };
 
-    const points: ScrollPoint[] = [];
-    let cursor: string | number | null = null;
-
-    for (let page = 0; page < INSPECT_MAX_SCROLL_PAGES; page++) {
-      const batch = await qdrantOps.scrollDocuments(qdrantCollection, filter, {
-        limit: INSPECT_SCROLL_PAGE_SIZE,
-        withPayload: true,
-        withVector: false,
-        offset: cursor,
-      });
-      // Qdrants Scroll-Offset ist eine Punkt-ID und inklusiv: der Cursor-Punkt
-      // kommt als erstes Element der nächsten Seite noch einmal.
-      // Gleiche Behandlung wie NotebookQdrantHelper.ts:615-617.
-      const fresh = cursor === null ? batch : batch.filter((p) => p.id !== cursor);
-      points.push(...fresh);
-      if (batch.length < INSPECT_SCROLL_PAGE_SIZE) break;
-      cursor = batch[batch.length - 1].id;
-    }
+    const points = await scrollAllChunks(qdrantOps, qdrantCollection, filter);
 
     if (points.length === 0) {
       return {
@@ -440,7 +602,7 @@ export async function getMultipleDocumentsFullText(
 ): Promise<BulkDocumentResult> {
   try {
     if (!documentIds || documentIds.length === 0) {
-      return { documents: [], errors: [] };
+      return { documents: [], errors: [], capped: false };
     }
 
     console.log(
@@ -454,17 +616,37 @@ export async function getMultipleDocumentsFullText(
       ],
     };
 
-    const chunks = await qdrantOps.scrollDocuments('documents', filter, {
-      limit: documentIds.length * 20,
+    // Bewusstes Budget für LLM-Kontext-Pfade — hier ist ein Deckel gewollt,
+    // anders als in getDocumentFullText (#3255). Aber er ist GEMEINSAM über
+    // alle Dokumente und der Scroll ist unsortiert: ein grosses Dokument kann
+    // einem anderen das Budget wegnehmen, und einem Dokument können dabei
+    // mittlere Chunks fehlen, nicht nur das Ende. `capped` macht das sichtbar.
+    const pointBudget = documentIds.length * 20;
+    // Ein Punkt mehr als das Budget: eine einzige, unpaginierte Scroll-Anfrage
+    // kann "Limit ausgeschöpft" sonst nicht von "passt exakt" unterscheiden —
+    // bei exakt vollem Budget wäre jedes Dokument vollständig und `capped`
+    // trotzdem true. Der Überhang-Punkt wird verworfen; er beweist nur, dass
+    // hinter dem Budget noch etwas lag.
+    const fetched = await qdrantOps.scrollDocuments('documents', filter, {
+      limit: pointBudget + 1,
       withPayload: true,
       withVector: false,
     });
 
-    if (!chunks || chunks.length === 0) {
+    if (!fetched || fetched.length === 0) {
       return {
         documents: [],
         errors: documentIds.map((id) => ({ documentId: id, error: 'No chunks found' })),
+        capped: false,
       };
+    }
+
+    const capped = fetched.length > pointBudget;
+    const chunks = capped ? fetched.slice(0, pointBudget) : fetched;
+    if (capped) {
+      console.warn(
+        `[DocumentRetrieval] Bulk reconstruction hit its shared point budget (${pointBudget} points for ${documentIds.length} documents) — at least one document is incomplete`
+      );
     }
 
     const chunksByDocument = new Map<string, QdrantDocument[]>();
@@ -518,6 +700,7 @@ export async function getMultipleDocumentsFullText(
     return {
       documents,
       errors,
+      capped,
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -525,6 +708,7 @@ export async function getMultipleDocumentsFullText(
     return {
       documents: [],
       errors: documentIds.map((id) => ({ documentId: id, error: errorMessage })),
+      capped: false,
     };
   }
 }

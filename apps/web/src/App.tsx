@@ -40,6 +40,7 @@ import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@ta
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { Toaster, toast, TooltipProvider } from '@gruenerator/ui';
 
+import { shouldRetryQuery } from './components/utils/queryRetry';
 import { toastApiError } from './components/utils/toastError';
 // PopupNutzungsbedingungen moved to inline HTML in index.html — see the
 // `terms-banner` block there. It was the LCP element on / for fresh
@@ -80,15 +81,7 @@ const queryClient = new QueryClient({
       gcTime: 15 * 60 * 1000, // Keep data in cache for 15 minutes (was cacheTime)
       refetchOnWindowFocus: false, // Verhindert unnötige Neuladungen
       refetchOnReconnect: 'always', // Nur bei Reconnect neu laden
-      retry: (failureCount, error: unknown) => {
-        // Smart retry logic. Status lives at `.status` on AxiosErrors and
-        // ApiErrors, but at `.response.status` on older transformed shapes —
-        // read both so 401/403/404 are reliably excluded from retries.
-        const err = error as { status?: number; response?: { status?: number } } | undefined;
-        const status = err?.status ?? err?.response?.status;
-        if (status === 404 || status === 401 || status === 403) return false;
-        return failureCount < 2; // Max 2 retries
-      },
+      retry: shouldRetryQuery,
       retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
     },
   },
@@ -189,7 +182,7 @@ function App() {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <UserProfileHydrationBridge />
-        <Toaster richColors position="top-right" />
+        <Toaster richColors position="top-right" theme={darkMode ? 'dark' : 'light'} />
         <TooltipProvider>
           <Router>
             <AuthBootstrap />

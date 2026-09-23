@@ -69,9 +69,8 @@ const errorMessages: Record<ErrorCode, ErrorMessageInfo> = {
       'Es wurden zu viele Anfragen gestellt. Bitte warten Sie einen Moment und versuchen Sie es dann erneut.',
   },
   500: {
-    title: 'KI-Dienst nicht verfügbar',
-    message:
-      'Ein unerwarteter Fehler ist in der KI aufgetreten. Bitte versuchen Sie es später erneut.',
+    title: 'Serverfehler',
+    message: 'Auf dem Server ist ein Fehler aufgetreten. Bitte versuchen Sie es später erneut.',
   },
   502: {
     title: 'Server nicht erreichbar',
@@ -112,7 +111,16 @@ const errorMessages: Record<ErrorCode, ErrorMessageInfo> = {
     message:
       'Der Server hat eine ungültige Antwort gesendet. Bitte versuchen Sie es später erneut.',
   },
-  ERR_TIMEOUT: {
+  // Axios has no `ERR_TIMEOUT`: its XHR adapter throws `ECONNABORTED` on
+  // timeout, or `ETIMEDOUT` when `transitional.clarifyTimeoutError` is set.
+  // Keyed on the former, every timeout fell through to `default`, which
+  // `toastApiError` treats as unclassified — and therefore reported to
+  // Sentry (GlitchTip issue 613, "timeout of 900000ms exceeded").
+  ECONNABORTED: {
+    title: 'Zeitüberschreitung',
+    message: 'Die Anfrage hat zu lange gedauert. Bitte versuchen Sie es später erneut.',
+  },
+  ETIMEDOUT: {
     title: 'Zeitüberschreitung',
     message: 'Die Anfrage hat zu lange gedauert. Bitte versuchen Sie es später erneut.',
   },

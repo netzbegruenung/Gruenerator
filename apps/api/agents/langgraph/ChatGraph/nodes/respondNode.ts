@@ -11,7 +11,15 @@ import { SKILLS, canonicalSkillMention } from '@gruenerator/shared/agents';
 import { type ChatIntentId, isGroundableProse } from '@gruenerator/shared/chat-intents';
 
 import { roleAwareDefaultRecipeMention } from '../../../../routes/chat/agents/lvRecipePreference.js';
-import { looksLikeChitchatTurn } from '../../../../routes/chat/services/agenticLoop/routing.js';
+import {
+  EDITOR_SURFACE_NOUNS,
+  looksLikeChitchatTurn,
+  resolveEditorSurfaceKind,
+} from '../../../../routes/chat/services/agenticLoop/routing.js';
+import {
+  type ImageVisibility,
+  imageVisibility,
+} from '../../../../routes/chat/services/imageVisibility.js';
 import {
   extractTextContent,
   fairShare,
@@ -31,12 +39,11 @@ import { CONTENT_INTEGRITY_ANSWER_RULE } from '../../../../services/contentPolic
 import { buildDocsPageMap } from '../../../../services/docs/docsIndex.js';
 import { localizePlaceholders } from '../../../../services/localization/index.js';
 import { type Locale } from '../../../../services/localization/types.js';
+import { resolveRecipeBody } from '../../../../services/recipes/resolveRecipeBody.js';
 import {
   selectRelevantExcerpt,
   type ExcerptMode,
 } from '../../../../services/search/relevantExcerpt.js';
-import { getInternalSkillPrompt } from '../../../../services/skills/internalPrompts.js';
-import { getTextFormForInjection } from '../../../../services/user/textFormRepository.js';
 import { recordDecision, type BranchOf } from '../../../../utils/decisionJournal.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { formatGermanDate } from '../../../../utils/stringUtils.js';
@@ -48,13 +55,13 @@ import {
   artifactsFromTurn,
   buildArtifactInventory,
   renderArtifactInventory,
+  NO_PHANTOM_ACTION_RULE,
 } from './artifactInventory.js';
 import { buildCitableSources, MAX_SOURCES, type CitableSource } from './citableSources.js';
 import { lastUserText } from './classifierHeuristics.js';
 import { looksLikeDocsHelpQuestion, looksLikeGeltungsfrage } from './classifierSignals.js';
 import { resolveEffectiveRecipeMention } from './effectiveRecipeMention.js';
 import { stripQuotedSpans } from './fastPathGuards.js';
-import { deriveTextFormMention } from './textFormMention.js';
 
 import type { ChatGraphState, DocumentSource, SearchResult, ThreadAttachment } from '../types.js';
 
@@ -491,15 +498,30 @@ function formatPerSourceContext(state: ChatGraphState): string {
 }
 
 /**
- * Format the open document (docs-editor surface) as the primary conversation
- * context. Distinct framing from `formatAttachmentContext` — this IS the
- * document the user is talking about, not a side-loaded reference.
+ * Format the open document (docs/sheets/presentations editor surfaces) as the
+ * primary conversation context. Distinct framing from `formatAttachmentContext`
+ * — this IS the document the user is talking about, not a side-loaded reference.
+ *
+ * The sharepic studio has no `currentDocument`: it sends the structured
+ * sharepic text as `currentCanvas.text`. It goes under the SAME heading, which
+ * is what the sharepic-editor prompt names ("Das **AKTUELLE DOKUMENT** ist der
+ * strukturierte Text dieses Sharepics") — the studio used to fake a
+ * `currentDocument` to get exactly this block.
  */
 function formatCurrentDocument(state: ChatGraphState): string {
-  if (!state.currentDocument) {
+  const open = state.currentDocument
+    ? state.currentDocument
+    : state.currentCanvas
+      ? {
+          title: state.currentCanvas.template,
+          markdown: state.currentCanvas.text,
+          selectionText: null,
+        }
+      : null;
+  if (!open) {
     return '';
   }
-  const { title, markdown, selectionText } = state.currentDocument;
+  const { title, markdown, selectionText } = open;
   const limitedMarkdown = limitAttachmentContext(
     markdown,
     state.contextWindowTokens,
@@ -542,27 +564,68 @@ ${embedUntrusted('anhang', limitedContext)}`;
 }
 
 /**
+ * Warum die Bytes fehlen — je Grund ein Satz. „Nicht sichtbar“ steht nie ohne
+ * Grund da: ohne ihn liest es sich wie ein Fehler, und das Modell rät doch.
+ */
+const NOT_VISIBLE_REASON: Record<Exclude<ImageVisibility, 'visible'>, string> = {
+  // Unerreichbar — der Block unten steht hinter der Leerprüfung. Der Typ
+  // verlangt den Fall, und ein leerer Satz wäre die stillere Lüge.
+  none: 'Die Bilder sind NICHT in der Nachricht sichtbar.',
+  vision_off:
+    'Die Bildanalyse ist für diesen Grünerator ausgeschaltet — die Bilder sind NICHT in der Nachricht sichtbar.',
+  image_edit:
+    'Die Bilder sind NICHT in der Nachricht sichtbar — bei einer Bildbearbeitung bleiben die Rohbytes bewusst draußen.',
+};
+
+/**
+ * Woran sich das Modell stattdessen hält. Das entscheidet NICHT der Intent,
+ * sondern ob der BILDVERGLEICH-Block unten wirklich gerendert wird: seine
+ * Beschreibungen sind zwei Vision-Aufrufe in `imageEditNode`, die beide
+ * fehlschlagen dürfen. Auf einen fehlenden Abschnitt zu zeigen ist derselbe
+ * Fehler wie eine erfundene Sichtbarkeit — nur eine Zeile tiefer.
+ */
+const GROUNDED_CLAUSE =
+  'Stütze dich auf den BILDVERGLEICH-Block unten und rate nichts, was dort nicht steht.';
+const UNGROUNDED_CLAUSE =
+  'Es liegt auch keine Beschreibung davon vor. Sage das offen und rate den Inhalt nicht.';
+
+/**
  * Format image attachment context for the system message.
  * Instructs the model to acknowledge and describe the attached images.
  */
 function formatImageContext(state: ChatGraphState): string {
   const sections: string[] = [];
 
+  // Vision-grounded before/after descriptions populated by imageEditNode after a
+  // successful FLUX edit. Lets respondNode narrate the actual change instead of
+  // hallucinating ("I can't edit images") when the model isn't itself vision-capable.
+  // Beide Aufrufe dürfen fehlschlagen, deshalb wird die Zusage unten an DIESE
+  // Prüfung gehängt und nicht an den Intent.
+  const editDescriptions = state.imageEditDescriptions;
+  const hasEditDescriptions =
+    !!editDescriptions && !!(editDescriptions.original || editDescriptions.edited);
+
   if (state.imageAttachments && state.imageAttachments.length > 0) {
     const count = state.imageAttachments.length;
     const names = state.imageAttachments.map((img) => img.name).join(', ');
+    // Ob die Bytes wirklich in der Nachricht stehen, beantwortet EINE Stelle
+    // für alle Antwortpfade (#3307, #3313). Vorher entschied das hier ein
+    // eigener Ausdruck, und der Bearbeitungs- wie der Wiederaufnahme-Pfad
+    // widersprachen ihm — ein Modell, dem man sagt, es sehe ein Bild, das ihm
+    // niemand gegeben hat, beschreibt es trotzdem.
+    const visibility = imageVisibility(state);
+    const sentence =
+      visibility === 'visible'
+        ? 'Die Bilder sind in der Nachricht sichtbar.'
+        : `${NOT_VISIBLE_REASON[visibility]} ${hasEditDescriptions ? GROUNDED_CLAUSE : UNGROUNDED_CLAUSE}`;
     sections.push(`
 
 ## ANGEHÄNGTE BILDER
 
-Der*die Nutzer*in hat ${count} Bild${count > 1 ? 'er' : ''} angehängt (${names}). Die Bilder sind in der Nachricht sichtbar.`);
+Der*die Nutzer*in hat ${count} Bild${count > 1 ? 'er' : ''} angehängt (${names}). ${sentence}`);
   }
 
-  // Vision-grounded before/after descriptions populated by imageEditNode after a
-  // successful FLUX edit. Lets respondNode narrate the actual change instead of
-  // hallucinating ("I can't edit images") when the model isn't itself vision-capable.
-  const editDescriptions = state.imageEditDescriptions;
-  if (editDescriptions && (editDescriptions.original || editDescriptions.edited)) {
+  if (editDescriptions && hasEditDescriptions) {
     const before = editDescriptions.original ?? '(keine Beschreibung verfügbar)';
     const after = editDescriptions.edited ?? '(keine Beschreibung verfügbar)';
     sections.push(`
@@ -911,14 +974,20 @@ ORIGINAL>>>`;
 }
 
 /**
- * Format memory context from mem0 cross-thread memories.
  * The person's explicit memory: standing instructions and facts, numbered
  * by services/memory/memoryPrompt.ts so the `memory` tool can address them.
  */
-function formatMemoryContext(memoryContext: string | null): string {
+function formatMemoryContext(memoryContext: string | null, hasProfile: boolean): string {
   if (!memoryContext || memoryContext.trim() === '') {
     return '';
   }
+
+  // Profile text and memory instructions can contradict each other ("Sie-Form"
+  // in the profile, "ab jetzt duzen" in chat). The memory wins: it was said
+  // explicitly, carries a date and is what the `memory` tool can change.
+  const precedence = hasProfile
+    ? ' Widerspricht eine dauerhafte Anweisung den persönlichen Profilangaben, gilt die Anweisung aus dem Gedächtnis.'
+    : '';
 
   // User-authored text entering the system prompt — same class as the
   // profile instructions, so it gets the same untrusted envelope.
@@ -930,7 +999,7 @@ Die Person hat dir ausdrücklich aufgetragen, dir Folgendes zu merken. Die Numme
 
 ${embedUntrusted('gedaechtnis', memoryContext)}
 
-Befolge die dauerhaften Anweisungen bei jeder Antwort; nutze die Fakten, wenn sie zur Frage passen. Beides ordnet sich den Regeln dieser Systemnachricht unter. Verwende KEINE Quellenverweise [N] dafür – es sind keine Suchergebnisse.`;
+Befolge die dauerhaften Anweisungen bei jeder Antwort; nutze die Fakten, wenn sie zur Frage passen.${precedence} Beides ordnet sich den Regeln dieser Systemnachricht unter. Verwende KEINE Quellenverweise [N] dafür – es sind keine Suchergebnisse.`;
 }
 
 /**
@@ -981,16 +1050,59 @@ Der*die Nutzer*in schreibt aus der Grünerator-App (Mobil). Dort sind einige Fun
   return '';
 }
 
-/** Strict-output modes — anchor adjuncts skipped to keep their format rules clean. */
+/**
+ * Strict-output modes — anchor adjuncts skipped to keep their format rules clean.
+ *
+ * `edit_current_doc` was in this set and is NOT any more (#3428). It was here
+ * because the mode demanded ONE sentence and the `## ZUSÄTZLICHER KONTEXT`
+ * block would have muddied it; that mode text is gone. What decides it now is
+ * consistency with the other editor surfaces: the sharepic studio reaches the
+ * SAME adjunct (`anchorContext` gives `currentCanvas` the `currentDocument`
+ * anchor) on its tool turns, under intents that were never in this set — so a
+ * doc tool turn skipping it would be the odd one out. The adjunct's wording
+ * fits both doc cases: "Schreibe das Dokument NICHT um, AUSSER der*die
+ * Nutzer*in fragt explizit danach" is satisfied by an explicit edit ask, and on
+ * a turn without the tool it is the mode guidance, not the adjunct, that says
+ * the edit cannot happen.
+ */
 const MODES_WITHOUT_ANCHORS: ReadonlySet<ChatGraphState['intent']> = new Set([
-  'edit_current_doc',
   'image_edit',
   'image',
   'chart',
 ]);
 
-const EDIT_CURRENT_DOC_GUIDANCE =
-  '\nDu hast eine Änderung am aktuellen Dokument angefordert. Antworte mit EINEM EINZIGEN kurzen Satz auf Deutsch, der bestätigt, was du gleich änderst (z.B. "Kürze den letzten Absatz."). Schreibe NICHT den geänderten Text aus — die Bearbeitung passiert direkt im Dokument. Keine Aufzählungen, keine Markdown-Formatierung, keine Quellenverweise.';
+/**
+ * Was ein `edit_current_doc`-Turn im Prompt bekommt — und das hängt NICHT am
+ * Intent allein.
+ *
+ * Dieser Prompt-Bau erreicht beide Pfade: `responseSinglePass` ruft ihn, und
+ * `responseAgentic` gibt denselben `systemMessage` an das werkzeughaltende
+ * Modell weiter. Das Verdikt `edit_current_doc` sagt also nichts darüber, ob
+ * dieser Zug bearbeiten kann — das sagt `state.editToolSurface`, gesetzt von
+ * `decideTurnPlan`, wenn `edit_document` montiert ist.
+ *
+ * Ist es montiert, schweigt diese Stelle, genau wie bei `edit_current_board`,
+ * `edit_sheet` und `edit_current_canvas`, die hier gar keinen Fall haben: die
+ * Anweisung, das Werkzeug zu rufen, steht in der Persona und in der
+ * Werkzeugbeschreibung. Ein Absagetext daneben wäre ein direkter Widerspruch
+ * dazu — und stand bis zur Korrektur genau so im Prompt jedes Dokument-Zuges,
+ * auf dem das Werkzeug lief.
+ *
+ * Der Grund für die Absage bleibt bewusst ungenannt: er ist technisch und für
+ * die Person bedeutungslos. Was zählt, ist, dass sie den Vorschlag als Text
+ * bekommt und ihn selbst einsetzen kann.
+ *
+ * Das Substantiv kommt von der Fläche, nicht vom Intent: der Doc-Fast-Path
+ * feuert auch in der Tabellen- und Präsentations-Seitenleiste (#3438).
+ */
+function getDocEditGuidance(state: ChatGraphState): string {
+  if (state.editToolSurface != null) return '';
+  const kind = resolveEditorSurfaceKind(state.agentConfig?.identifier, state.enabledTools) ?? 'doc';
+  const { noun, gender } = EDITOR_SURFACE_NOUNS[kind];
+  const das = gender === 'f' ? 'die' : 'das';
+  const es = gender === 'f' ? 'sie' : 'es';
+  return `\nDu kannst ${das} ${noun} in diesem Zug nicht direkt bearbeiten. Beginne deine Antwort auf Deutsch mit genau diesem Satz: "Ich kann ${das} ${noun} in diesem Zug nicht direkt bearbeiten — hier ist mein Vorschlag als Text:" Schreibe danach die gewünschte Fassung vollständig aus, damit sie sich von Hand übernehmen lässt. Behaupte NIEMALS, du hättest ${das} ${noun} geändert oder würdest ${es} gleich ändern.`;
+}
 
 const SUMMARY_GUIDANCE =
   '\nDer*die Nutzer*in hat eine Zusammenfassung angefordert. Präsentiere die vorbereitete Zusammenfassung klar und strukturiert.';
@@ -1109,8 +1221,7 @@ const GREETING_GUIDANCE =
 // otherwise narrates research or a delivered image FROM THE HISTORY (observed
 // live: "laut meiner Recherche …" and "hier ist dein Bild" with zero tool
 // calls). Safe unconditionally on `direct` — a direct turn produces neither.
-const DIRECT_HONESTY_NOTE =
-  '\nWICHTIG: In diesem Turn wurde NICHTS recherchiert und KEIN Bild/Dokument/Sharepic erstellt. Behaupte daher keine Recherche, keine Quellen/[N]-Belege und kein soeben erzeugtes Bild oder Dokument. Beziehst du dich auf etwas aus einem früheren Turn, mach das explizit ("vorhin"); für neue sachliche Angaben sag ehrlich, dass du sie nachschlagen müsstest.';
+const DIRECT_HONESTY_NOTE = `\nWICHTIG: In diesem Turn wurde NICHTS recherchiert und KEIN Bild/Dokument/Sharepic erstellt oder geändert. Behaupte daher keine Recherche und keine Quellen/[N]-Belege. ${NO_PHANTOM_ACTION_RULE} Beziehst du dich auf etwas aus einem früheren Turn, mach das explizit ("vorhin"); für neue sachliche Angaben sag ehrlich, dass du sie nachschlagen müsstest.`;
 
 /**
  * The no-file half of the same honesty, split out because it is needed on turns
@@ -1355,7 +1466,7 @@ export function citableSourcesAvailable(state: ChatGraphState): boolean {
 export function getModeGuidance(state: ChatGraphState): string {
   switch (state.intent) {
     case 'edit_current_doc':
-      return EDIT_CURRENT_DOC_GUIDANCE;
+      return getDocEditGuidance(state);
     case 'summary':
       return SUMMARY_GUIDANCE;
     case 'chart':
@@ -1791,7 +1902,7 @@ export async function buildSystemMessage(
         state.attachmentContext ?? '',
         attachmentQuery(state)
       );
-  const memoryContextFormatted = formatMemoryContext(memoryContext);
+  const memoryContextFormatted = formatMemoryContext(memoryContext, !!state.userInstructions);
   const chatHistoryFormatted = state.chatHistoryContext ? `\n\n${state.chatHistoryContext}` : '';
   const boardContextFormatted = formatBoardContext(boardContext);
   const sheetContextFormatted = formatSheetContext(state.sheetContext);
@@ -1957,8 +2068,9 @@ export async function buildSystemMessage(
     !looksLikeChitchatTurn(userQuestion) &&
     !isProductMetaQuestion(userQuestion) &&
     !docsPageMap;
-  const effectiveSkillMention = resolveEffectiveRecipeMention({
+  const effectiveRecipe = resolveEffectiveRecipeMention({
     activeSkillMention: state.activeSkillMention,
+    activeRecipeId: state.activeRecipeId,
     customSystemPrompt: state.customSystemPrompt,
     isWriteEligibleTurn,
     agentDefault: () =>
@@ -1966,48 +2078,40 @@ export async function buildSystemMessage(
         userRoles: state.userRoles,
         userLocale: state.userLocale,
       }),
+    agentDefaultRecipeId: agentConfig.defaultRecipeId ?? null,
   });
-  const activeSkill = effectiveSkillMention
-    ? SKILLS.find((s) => s.mention === canonicalSkillMention(effectiveSkillMention))
-    : undefined;
+  const effectiveSkillMention = effectiveRecipe.mention;
 
-  // Per-user learned writing style ("Texte anlernen") takes precedence over the
-  // standard skill prompt when the user has trained one FOR THIS mention:
-  //   - system skill (`presse`, `presse-hessen-partei`, …): the learned block
-  //     REPLACES that skill's standard prompt (komplett ersetzen);
-  //   - custom mention (no system skill, e.g. /omveinladungen): injected as its
-  //     own "## AKTIVE TEXTFORM" block onto the base agent.
-  // Nachgeschlagen wird unter der Mention selbst — ein generischer `presse`-Stil
-  // greift NICHT mehr in ein Landesverbands-Rezept hinein (siehe
-  // `textFormMention.ts`). See services/user/textFormRepository.ts (cached, no
-  // LLM on the hot path).
-  const textFormMention = deriveTextFormMention(effectiveSkillMention);
-  const userTextForm =
-    !isNeutralTurn && agentConfig.userId && textFormMention
-      ? await getTextFormForInjection(agentConfig.userId, textFormMention)
+  // Der EINE Nachschlag. Gepinnte Zeile vor angelerntem Stil („Texte anlernen")
+  // vor mitgeliefertem Rezepttext — und er entscheidet gleich mit, unter welcher
+  // Überschrift das Ergebnis läuft (`replacesSystem`) und ob es eingefasst ist
+  // (`untrusted`). Hier standen dafür bis zur Vereinheitlichung drei eigene
+  // Aufrufe, und sie sind dreimal von den beiden anderen Pfaden abgewichen
+  // (#2930, #2937, #2939); die Herleitung steht im Kopf von
+  // `services/recipes/resolveRecipeBody.ts`.
+  //
+  // `userId` fällt auf dem neutralen Zusammenfassungs-Turn weg — genau wie
+  // bisher: der angelernte Stil hat in einer objektiven Zusammenfassung nichts
+  // zu suchen, ein ausdrücklich gewähltes Systemrezept schon.
+  const resolved =
+    effectiveSkillMention || effectiveRecipe.recipeId
+      ? await resolveRecipeBody({
+          mention: effectiveSkillMention,
+          recipeId: effectiveRecipe.recipeId,
+          userId: isNeutralTurn ? null : (agentConfig.userId ?? null),
+        })
       : null;
 
-  let skillFragment = '';
-  if (userTextForm) {
-    // Eingefasst wie jede andere Nutzereingabe, die einen Systemprompt erreicht,
-    // ohne dass die Person sie in DIESEM Turn ausgewählt hat — dieselbe Grenze,
-    // die `resolveRecipe` auf dem Loop-Pfad seit jeher zieht. Roh injiziert war
-    // derselbe Text hier zwei Behandlungen unterworfen, und der ungefasste Weg
-    // war der häufigere.
-    const styleBlock = embedUntrusted('nutzer_anweisung', userTextForm.styleBlock);
-    skillFragment = activeSkill
-      ? `\n\n## AKTIVE PLATTFORM: ${activeSkill.title}\n${styleBlock}`
-      : `\n\n## AKTIVE TEXTFORM: ${userTextForm.title}\n${styleBlock}`;
-  } else if (activeSkill) {
-    // The prompt body is party-internal and deliberately absent from `SKILLS`,
-    // which ships in the web and mobile bundles — it is read from disk here
-    // instead. Null means the directory was never rolled out; the turn then runs
-    // on the agent's base systemRole. See services/skills/internalPrompts.ts.
-    const internalPrompt = getInternalSkillPrompt(activeSkill.mention);
-    if (internalPrompt) {
-      skillFragment = `\n\n## AKTIVE PLATTFORM: ${activeSkill.title}\n${internalPrompt}`;
-    }
-  }
+  // Der Rumpf einer angelernten Textform ist im Nachschlag BEREITS eingefasst
+  // (`embedUntrusted`) — hier nicht ein zweites Mal, das ist nicht idempotent.
+  //
+  // Die Überschrift: gibt es ein Systemrezept, steht dessen Titel darin
+  // („## AKTIVE PLATTFORM: PM Hessen (Partei)"), auch wenn der Rumpf ein
+  // angelernter Stil ist — der Stil ersetzt den Rezepttext, nicht das Rezept.
+  // Nur die freie Mention ohne Systemrezept läuft unter ihrem eigenen Namen.
+  const skillFragment = resolved
+    ? `\n\n## AKTIVE ${resolved.replacesSystem || resolved.source === 'system' ? 'PLATTFORM' : 'TEXTFORM'}: ${resolved.title}\n${resolved.body}`
+    : '';
 
   // Dieselbe Vokabel wie die Werkzeug-Tür (`[recipeTools] [Rezept] gewählt=…
   // quelle=…`), damit im Log vergleichbar wird, welcher der beiden Wege ein
@@ -2015,25 +2119,15 @@ export async function buildSystemMessage(
   // mit ausdrücklicher Wahl sieht im Log exakt aus wie einer ohne, weil die
   // Wahl `rezept_laden` gerade abhängt (`catalogAssembly`). Genau daran ließ
   // sich der Ausfall vom 20.08.2026 nicht am Log entscheiden.
-  // Was das Modell wirklich vor sich hat — leer, wenn kein Rezepttext gefunden
-  // wurde. Die Formatregel unten hängt daran, nicht an der blossen Absicht.
-  //
-  // Reihenfolge WIE IM PROMPT-KOPF oben: gibt es ein Systemrezept, steht dessen
-  // Titel in der Überschrift („## AKTIVE PLATTFORM: PM Hessen (Partei)"), auch
-  // wenn der Rumpf ein angelernter Stil ist — der Stil ersetzt den Rezepttext,
-  // nicht das Rezept. Nur die freie Mention ohne Systemrezept wird unter dem
-  // Titel der Textform ausgewiesen, und genau so heisst sie dann auch oben.
-  // Umgekehrt sortiert wies die Abzeichenzeile „Pressemitteilungen" aus,
-  // während das Modell „PM Hessen (Partei)" vor sich hatte (#2939). Der
-  // Loop-Pfad sortiert seit jeher so (`recipeCatalog.resolveRecipe`).
-  const activeTextFormTitle = skillFragment
-    ? (activeSkill?.title ?? userTextForm?.title ?? effectiveSkillMention)
-    : null;
+  // Was das Modell wirklich vor sich hat — `quelle=fehlt`, wenn kein Rezepttext
+  // gefunden wurde. Die Formatregel unten hängt daran, nicht an der blossen
+  // Absicht.
+  const activeTextFormTitle = resolved ? resolved.title : null;
 
-  if (effectiveSkillMention) {
-    const quelle = userTextForm ? 'nutzer' : skillFragment ? 'system' : 'fehlt';
+  if (effectiveSkillMention || effectiveRecipe.recipeId) {
+    const quelle = resolved?.source ?? 'fehlt';
     log.info(
-      `[Rezept] Prompt-Fragment mention=${effectiveSkillMention} quelle=${quelle} gewaehlt=${state.activeSkillMention ? 'ja' : 'agent-standard'}`
+      `[Rezept] Prompt-Fragment mention=${effectiveSkillMention ?? '-'} id=${effectiveRecipe.recipeId ?? '-'} quelle=${quelle} gewaehlt=${state.activeSkillMention || state.activeRecipeId ? 'ja' : 'agent-standard'}`
     );
   }
 
@@ -2041,12 +2135,18 @@ export async function buildSystemMessage(
   // Absicht ohne gefundenen Rezepttext (`quelle=fehlt`) bleibt draußen. Auf
   // Loop-Turns überschreibt die Registry diesen Wert, wenn das Modell selbst
   // lädt (`agenticRespondService`).
-  if (skillFragment && effectiveSkillMention) {
+  //
+  // Ausgewiesen wird die Mention der ZEILE, nicht die der Anfrage: ein per id
+  // gepinntes Rezept läuft unter seinem eigenen Namen, und die Abzeichenzeile
+  // soll dasselbe nennen wie die Überschrift im Prompt (#2939). Der Prompttext
+  // bleibt draußen — hier steht nur, WAS galt.
+  if (resolved) {
     state.usedRecipes = [
       {
-        mention: canonicalSkillMention(effectiveSkillMention),
-        title: activeTextFormTitle ?? effectiveSkillMention,
-        source: userTextForm ? 'user' : 'system',
+        mention: resolved.mention,
+        title: resolved.title,
+        source: resolved.source,
+        ...(resolved.id ? { id: resolved.id } : {}),
       },
     ];
   }
@@ -2104,7 +2204,7 @@ ${CONTENT_INTEGRITY_ANSWER_RULE}${INSTRUCTION_HIERARCHY_RULE}${state.injectionSu
     attachmentContext !== '' ||
     searchContext !== '' ||
     perSourceContext !== '' ||
-    userTextForm !== null ||
+    Boolean(resolved?.untrusted) ||
     !!state.userInstructions ||
     !!memoryContext;
   const hierarchyRule = hasUntrusted ? INSTRUCTION_HIERARCHY_RULE : '';

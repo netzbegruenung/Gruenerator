@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 
 import {
   buildMcpOutcomeNote,
+  buildEmptyResultNote,
   buildToolFailureNote,
   buildToolPayloadNote,
   mcpHasFailure,
@@ -156,6 +157,16 @@ describe('buildToolFailureNote', () => {
     expect(note).toMatch(/Erfinde keine IDs/);
   });
 
+  // Live 23.09.2026: nach „Kein Notebook ausgewählt" schrieb die Antwort, es
+  // gebe keine Funktion, das Notebook zu durchsuchen.
+  it('forbids claiming the capability does not exist', () => {
+    const note = buildToolFailureNote([
+      step({ toolName: 'notebook_quellen', result: { error: 'Kein Notebook ausgewählt' } }),
+    ]);
+    expect(note).toMatch(/Behaupte NIE, dir fehle eine Funktion/);
+    expect(note).toMatch(/fehlgeschlagen ist und warum/);
+  });
+
   it('stays silent on a clean turn', () => {
     expect(buildToolFailureNote([])).toBe('');
     expect(buildToolFailureNote([step({ toolName: 'web_search', result: { results: [] } })])).toBe(
@@ -170,6 +181,36 @@ describe('buildToolFailureNote', () => {
       result: { error: 'no workspace' },
     });
     expect(buildToolFailureNote([mcpFailure])).toBe('');
+  });
+});
+
+describe('buildEmptyResultNote', () => {
+  it('names a native tool that ran fine and returned nothing', () => {
+    // The live shape: `media` answered { resultCount: 0, results: [] } and the
+    // writer reported an edit.
+    const note = buildEmptyResultNote([
+      step({ toolName: 'media', result: { resultCount: 0, results: [] } }),
+    ]);
+    expect(note).toMatch(/media: lieferte KEINE Einträge/);
+  });
+
+  it('stays silent when results exist, on errors, and on connector steps', () => {
+    expect(
+      buildEmptyResultNote([step({ toolName: 'media', result: { resultCount: 1, results: [{}] } })])
+    ).toBe('');
+    // Failures belong to buildToolFailureNote — no double report.
+    expect(buildEmptyResultNote([step({ toolName: 'media', result: { error: 'boom' } })])).toBe('');
+    // A notebook answer with zero citations is an answer, not an empty result.
+    expect(
+      buildEmptyResultNote([
+        step({ toolName: 'notebooks', result: { answer: 'Die Satzung …', resultCount: 0 } }),
+      ])
+    ).toBe('');
+    expect(
+      buildEmptyResultNote([
+        step({ serverName: 'Tally', toolName: 'm1__list', result: { content: '' } }),
+      ])
+    ).toBe('');
   });
 });
 

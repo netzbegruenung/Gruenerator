@@ -40,7 +40,11 @@ const EXCLUDED_TOP_FOLDERS = new Set(['intern', 'experimente']);
  * Individual pages temporarily out of the docs (docs.exclude in
  * documentation/docusaurus.config.ts) — same reason as EXCLUDED_TOP_FOLDERS.
  */
-const EXCLUDED_FILES = new Set(['basics/finetuning', 'basics/welches-ki-tool-wofuer']);
+const EXCLUDED_FILES = new Set([
+  'basics/finetuning',
+  'basics/welches-ki-tool-wofuer',
+  'integrationen/chrome-erweiterung',
+]);
 
 /** Human labels per top-level folder — becomes the page-map grouping. */
 const CATEGORY_LABELS = {
@@ -48,10 +52,7 @@ const CATEGORY_LABELS = {
   guides: 'Guides',
   chat: 'Chat',
   features: 'Features',
-  konto: 'Konto & Projekte',
-  integrationen: 'Integrationen',
   sonstiges: 'Sonstiges',
-  archiv: 'Archiv',
 };
 
 const LEAD_MAX_CHARS = 200;
@@ -127,12 +128,17 @@ function slugifyHeading(text) {
 const MDX_ESM_RE = /^\s*(import|export)\s/;
 
 /**
- * The manifest behind the `ChatTables` components. Loaded lazily so the index
- * generator keeps working (minus the expansions) if the file is ever absent.
+ * A generated manifest under `documentation/src/generated/`, read once. Loaded
+ * lazily so the index generator keeps working (minus the expansions) if a
+ * file is ever absent.
  */
-function loadChatCapabilities() {
-  const file = path.join(REPO_ROOT, 'documentation/src/generated/chat-capabilities.json');
-  return existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : null;
+const manifestCache = new Map();
+function loadManifest(name) {
+  if (!manifestCache.has(name)) {
+    const file = path.join(REPO_ROOT, 'documentation/src/generated', name);
+    manifestCache.set(name, existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : null);
+  }
+  return manifestCache.get(name);
 }
 
 /**
@@ -141,32 +147,54 @@ function loadChatCapabilities() {
  * could then no longer answer "welche Rezepte gibt es?" from the very page
  * that lists them. For components whose content IS a generated manifest, we
  * can do better: expand them to flat prose before stripping. One entry per
- * component; an unknown component still strips to nothing, as before.
+ * component, naming the manifest it renders; an unknown component still
+ * strips to nothing, as before.
  *
  * Deliberately compact — command/mention + title, no descriptions. The full
  * rows tripled some section lengths, which shifted the BM25 corpus statistics
  * enough to flip borderline rankings on unrelated pages (docsIndex.vitest.ts
  * caught one). The identifiers and titles are the terms people search for; the
  * descriptions live on the page, not in the index.
+ *
+ * `ModelHosts` sits inside a sentence ("laufen derzeit bei <ModelHosts />"),
+ * so stripping it would leave the chat a sentence with a hole where the
+ * answer to "bei welchen Anbietern?" belongs.
  */
 const COMPONENT_EXPANSIONS = {
-  RecipeTables: (m) => m.skills.map((s) => `${s.command} ${s.title}`).join('\n'),
-  SourceTable: (m) => m.notebookSources.map((s) => `${s.mention} ${s.title}`).join('\n'),
-  ToolMentionTable: (m) =>
-    Object.values(m.mentionables)
-      .filter((t) => t.mention)
-      .map((t) => `${t.mention} ${t.title}`)
-      .join('\n'),
-  SharepicVariantTable: (m) =>
-    m.sharepicVariants.map((v) => `${v.type}: ${v.keywords.join(', ')}`).join('\n'),
+  RecipeTables: {
+    manifest: 'chat-capabilities.json',
+    expand: (m) => m.skills.map((s) => `${s.command} ${s.title}`).join('\n'),
+  },
+  SourceTable: {
+    manifest: 'chat-capabilities.json',
+    expand: (m) => m.notebookSources.map((s) => `${s.mention} ${s.title}`).join('\n'),
+  },
+  ToolMentionTable: {
+    manifest: 'chat-capabilities.json',
+    expand: (m) =>
+      Object.values(m.mentionables)
+        .filter((t) => t.mention)
+        .map((t) => `${t.mention} ${t.title}`)
+        .join('\n'),
+  },
+  SharepicVariantTable: {
+    manifest: 'chat-capabilities.json',
+    expand: (m) => m.sharepicVariants.map((v) => `${v.type}: ${v.keywords.join(', ')}`).join('\n'),
+  },
+  ModelHosts: {
+    manifest: 'models.json',
+    inline: true,
+    expand: (m) => m.hosts.join(', '),
+  },
 };
 
 function expandGeneratedComponents(body) {
-  const manifest = loadChatCapabilities();
-  if (!manifest) return body;
   return body.replace(/<(\w+)\s*\/>/g, (match, name) => {
-    const expand = COMPONENT_EXPANSIONS[name];
-    return expand ? `\n${expand(manifest)}\n` : match;
+    const entry = COMPONENT_EXPANSIONS[name];
+    const manifest = entry && loadManifest(entry.manifest);
+    if (!manifest) return match;
+    const text = entry.expand(manifest);
+    return entry.inline ? text : `\n${text}\n`;
   });
 }
 
@@ -280,7 +308,11 @@ function build() {
     const h1 = /^#\s+(.+?)\s*$/m.exec(body);
     const title = data.title || (h1 ? stripHeading(h1[1]) : path.basename(rel, path.extname(rel)));
     const topFolder = rel.includes('/') ? rel.slice(0, rel.indexOf('/')) : '';
-    const category = CATEGORY_LABELS[topFolder] ?? 'Allgemein';
+    // The archive is nested below Sonstiges in the navigation, but remains a
+    // separate search category so dated announcements keep their lower prior.
+    const category = rel.startsWith('sonstiges/archiv/')
+      ? 'Archiv'
+      : (CATEGORY_LABELS[topFolder] ?? 'Allgemein');
     const url = toUrl(rel);
 
     pages.push({ url, title, category, lead: firstParagraph(body) });

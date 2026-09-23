@@ -6,7 +6,7 @@
  * kann deshalb nicht sehen, ob im Browser etwas ÜBER ihm liegt. Genau dort saß
  * der Fehler: `NotebookCoverArt` ist selbst `position: relative` und landet
  * damit in derselben Mal-Ebene wie der `z-0`-Streckknopf der Karte — in
- * Baumreihenfolge dahinter, also darüber. Ein Klick auf „Von der Basis" (und auf
+ * Baumreihenfolge dahinter, also darüber. Ein Klick auf „Öffentlich" (und auf
  * jedes eigene Notebook) traf das Cover statt den Knopf und tat nichts;
  * Landesverbände blieb heil, weil ein nicht positioniertes <img> eine Ebene
  * tiefer malt.

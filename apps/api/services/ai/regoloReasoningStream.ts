@@ -23,8 +23,13 @@ import { env } from '../../config/env.js';
 
 import { cortecsBaseUrl } from './cortecsEndpoint.js';
 import { assertSovereignUpstream, SOVEREIGN_ZDR_PROVIDERS } from './cortecsRequestPolicy.js';
+import { meliousWireModel } from './meliousThinkingFetch.js';
 import { recordModelSample } from './modelHealth.js';
-import { isScalewayMistralRoutingEnabled, SCALEWAY_MISTRAL_MODELS } from './providerInstances.js';
+import {
+  isScalewayMistralRoutingEnabled,
+  MELIOUS_BASE_URL,
+  SCALEWAY_MISTRAL_MODELS,
+} from './providerInstances.js';
 import { scalewayBaseUrl } from './scalewayEndpoint.js';
 
 import type { ModelMessage } from 'ai';
@@ -122,6 +127,19 @@ const LITELLM_REASONING_MODELS = new Set<string>();
 const CORTECS_REASONING_MODELS = new Set(['gemma-4-31b-it']);
 
 /**
+ * Melious' Gemma 4 31B (`gemmaHosts.ts`, GEMMA_31B_ON_MELIOUS) — der Ausweich
+ * der Gemma-Antwortlane und die zweite Seite von `heavy`/`pruefung`.
+ *
+ * Der Hebel ist `reasoning_effort`, wie bei Regolo: `none` schaltet ab (das tut
+ * `meliousThinkingFetch.ts` auf dem SDK-Pfad), die gradierten Werte schalten
+ * an. Gemessen 23.09.2026, Reasoning-Tokens: low 252 · medium 1124 · high 572
+ * auf zwei verschiedenen Fragen — also „an", keine verlässliche Stufe, derselbe
+ * Befund wie bei Regolos Gemma. `chat_template_kwargs.enable_thinking` wirkt
+ * hier NICHT. Das Denken kommt als `delta.reasoning_content`.
+ */
+const MELIOUS_REASONING_MODELS = new Set(['gemma-4-31b:balanced']);
+
+/**
  * Mistral Medium 3.5 on Scaleway, when Scaleway is configured.
  *
  * The `mistral` lane is the odd one out: Scaleway is an UPSTREAM, not a
@@ -151,6 +169,7 @@ export function isReasoningStreamModel(provider: string, model: string): boolean
   if (provider === 'regolo') return REGOLO_REASONING_MODELS.has(model);
   if (provider === 'litellm') return LITELLM_REASONING_MODELS.has(model);
   if (provider === 'cortecs') return CORTECS_REASONING_MODELS.has(model);
+  if (provider === 'melious') return MELIOUS_REASONING_MODELS.has(model);
   if (provider === 'mistral') return scalewayReasoningModel(model) !== null;
   return false;
 }
@@ -233,6 +252,13 @@ function resolveConfig(
       },
     };
   }
+  if (provider === 'melious') {
+    return {
+      endpoint: `${MELIOUS_BASE_URL}/chat/completions`,
+      apiKey: env.MELIOUS_API_KEY,
+      bodyExtras: { reasoning_effort: effort ?? 'high' },
+    };
+  }
   if (provider === 'mistral') {
     const scalewayModel = scalewayReasoningModel(model);
     if (!scalewayModel) return null;
@@ -271,6 +297,16 @@ export async function* streamWithReasoning(
     throw new Error(`Endpoint for '${params.provider}' reasoning stream is not configured`);
   }
 
+  const body: Record<string, unknown> = {
+    model: config.model ?? params.model,
+    messages: params.messages,
+    ...(params.maxTokens != null && { max_tokens: params.maxTokens }),
+    temperature: params.temperature,
+    stream: true,
+    ...config.bodyExtras,
+  };
+  if (params.provider === 'melious') body.model = meliousWireModel(body) ?? body.model;
+
   const startedAt = Date.now();
   const response = await fetch(config.endpoint, {
     method: 'POST',
@@ -278,14 +314,7 @@ export async function* streamWithReasoning(
       Authorization: `Bearer ${config.apiKey}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      model: config.model ?? params.model,
-      messages: params.messages,
-      ...(params.maxTokens != null && { max_tokens: params.maxTokens }),
-      temperature: params.temperature,
-      stream: true,
-      ...config.bodyExtras,
-    }),
+    body: JSON.stringify(body),
     ...(params.signal && { signal: params.signal }),
   });
 

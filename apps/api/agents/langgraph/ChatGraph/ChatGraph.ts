@@ -30,6 +30,10 @@ import {
   getAgentForUser,
   getDefaultAgentId,
 } from '../../../routes/chat/agents/agentLoader.js';
+import {
+  applyAgentToolWhitelist,
+  shouldApplyAgentToolWhitelist,
+} from '../../../routes/chat/agents/agentToolWhitelist.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import type { ChatGraphInput, ChatGraphState, SearchIntent } from './types.js';
@@ -108,19 +112,28 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
       ? (await resolveUserNotebookDocumentIds(input.userId, agentUserNotebookUuids)).documentIds
       : [];
 
+  // The request record carries the composer toggles; a user-created agent's
+  // `enabledTools` array narrows it here (explicit `false` per unchosen picker
+  // key — the gates read `!== false`). Computed AFTER the skill-mention block
+  // so it sees the final agentConfig. See agentToolWhitelist.ts / #3299.
+  const requestedTools = input.enabledTools || {
+    search: true,
+    web: true,
+    person: true,
+    examples: true,
+    research: true,
+    image: true,
+  };
+  const enabledTools = shouldApplyAgentToolWhitelist(agentConfig)
+    ? applyAgentToolWhitelist(agentConfig, requestedTools)
+    : requestedTools;
+
   return {
     // Input
     messages: input.messages,
     threadId: input.threadId || null,
     agentConfig,
-    enabledTools: input.enabledTools || {
-      search: true,
-      web: true,
-      person: true,
-      examples: true,
-      research: true,
-      image: true,
-    },
+    enabledTools,
     userLocale: input.userLocale || 'de-DE',
     clientPlatform: input.clientPlatform || 'web',
     lastToolContext: null,
@@ -183,6 +196,9 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
     // Live board (boards editor surface)
     currentBoard: input.currentBoard || null,
 
+    // Live canvas (sharepic studio sidebar)
+    currentCanvas: input.currentCanvas || null,
+
     // Custom system prompt (from thread or user settings)
     customSystemPrompt: input.customSystemPrompt || null,
     roleBausteinActive: input.roleBausteinActive === true,
@@ -190,6 +206,9 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
 
     // Active skill (drives platform-specific prompt fragment in respondNode)
     activeSkillMention: input.activeSkillMention || null,
+    // Die Zeile dazu, falls die Oberfläche eine id mitschickt — sie schlägt die
+    // Mention im Nachschlag (`resolveRecipeBody`).
+    activeRecipeId: input.activeRecipeId || null,
 
     // User profile instructions (from profiles.custom_prompt)
     userInstructions: input.userInstructions || null,

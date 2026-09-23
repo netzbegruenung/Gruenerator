@@ -270,7 +270,7 @@ function PanelInner({
                   </AlertDialogContent>
                 </AlertDialog>
                 <button
-                  onClick={download}
+                  onClick={() => void download()}
                   className="flex size-11 items-center justify-center rounded-full bg-white text-grey-900 shadow-lg transition-transform hover:scale-105"
                   aria-label="Sharepic herunterladen"
                 >

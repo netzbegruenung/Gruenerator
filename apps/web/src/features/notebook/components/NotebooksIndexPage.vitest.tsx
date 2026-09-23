@@ -57,13 +57,13 @@ afterEach(() => {
   server.resetHandlers();
 });
 
-describe('NotebooksIndexFooter — "Von der Basis"', () => {
+describe('NotebooksIndexFooter — „Öffentlich"', () => {
   it('shows the category tile with the public notebook count', async () => {
     serveCollections([publicCollection(), publicCollection({ id: 'basis-2', name: 'Zweites' })]);
 
     renderWithProviders(<NotebooksIndexFooter />);
 
-    expect(await screen.findByRole('button', { name: /Von der Basis/ })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /Öffentlich/ })).toBeInTheDocument();
     expect(screen.getByText('2 öffentliche Notebooks')).toBeInTheDocument();
   });
 
@@ -79,11 +79,11 @@ describe('NotebooksIndexFooter — "Von der Basis"', () => {
     serveCollections([publicCollection()]);
 
     const { user } = renderWithProviders(<NotebooksIndexFooter />);
-    await user.click(await screen.findByRole('button', { name: /Von der Basis/ }));
+    await user.click(await screen.findByRole('button', { name: /Öffentlich/ }));
 
     // The card title is an h3, the section header an h2 — level pins the latter.
     const section = screen
-      .getByRole('heading', { level: 2, name: 'Von der Basis' })
+      .getByRole('heading', { level: 2, name: 'Öffentlich' })
       .closest('section');
     expect(section).not.toBeNull();
     expect(within(section!).getByText('Kommunalpolitik Nord')).toBeInTheDocument();
@@ -98,7 +98,7 @@ describe('NotebooksIndexFooter — "Von der Basis"', () => {
     // The Tools row renders unconditionally — wait for it so the absence below
     // is measured after the public query settled, not before it resolved.
     expect(await screen.findByText('Neues Notebook erstellen')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Von der Basis/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Öffentlich/ })).not.toBeInTheDocument();
   });
 });
 

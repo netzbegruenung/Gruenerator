@@ -197,6 +197,11 @@ const envSchema = z.object({
   LITELLM_BASE_URL: z.string().optional(),
   REGOLO_API_KEY: z.string().optional(),
   REGOLO_DEFAULT_MODEL: z.string().optional(),
+  // Melious — OpenAI-compatible European inference router,
+  // https://api.melious.ai/v1. The default model includes the documented
+  // `:balanced` is the default routing flavor for chat.
+  MELIOUS_API_KEY: z.string().optional(),
+  MELIOUS_DEFAULT_MODEL: z.string().optional(),
   // GreenPT — OpenAI-compatible, https://api.greenpt.ai/v1
   GREENPT_API_KEY: z.string().optional(),
   GREENPT_DEFAULT_MODEL: z.string().optional(),
@@ -225,6 +230,15 @@ const envSchema = z.object({
   CORTECS_API_KEY: z.string().optional(),
   CORTECS_BASE_URL: z.string().optional(),
   BFL_API_KEY: z.string().optional(),
+
+  // ── DeepL (Übersetzer + Chat-Werkzeug `text_uebersetzen`) ────────────────
+  // Ohne Key bleibt das Feature aus: die Seite zeigt einen Hinweis, das
+  // Chat-Werkzeug wird nicht gemountet. Free-Keys enden auf `:fx` und werden
+  // automatisch gegen api-free.deepl.com geschickt.
+  DEEPL_API_KEY: z.string().optional(),
+  // Name des EINEN Konto-Glossars, das der Admin-Tab pflegt und das jede
+  // Übersetzung automatisch mitnimmt, sobald das Sprachpaar abgedeckt ist.
+  DEEPL_GLOSSARY_NAME: z.string().default('Grünerator'),
 
   // ── Web Search Providers ───────────────────────────────────────────────
   // Linkup (https://docs.linkup.so) — when set, replaces SearXNG for @web
@@ -324,6 +338,7 @@ const envSchema = z.object({
   BREVO_SMTP_PORT: numStr(587),
   BREVO_SMTP_USER: z.string().trim().optional(),
   BREVO_SMTP_PASS: z.string().trim().optional(),
+  BREVO_API_KEY: z.string().trim().optional(),
   EMAIL_FROM: z.string().trim().optional(),
 
   // ── Credential encryption ──────────────────────────────────────────────
@@ -350,6 +365,9 @@ const envSchema = z.object({
   SYNC_SUMMARY_PATH: z.string().optional(),
   // API base the content-sync CI run POSTs its article events to.
   CONTENT_SYNC_API_URL: z.string().trim().optional(),
+  // GitHub PAT (actions: write) the API uses to dispatch the Content Sync
+  // workflow on its own clock. Production only; unset = nothing is dispatched.
+  CONTENT_SYNC_DISPATCH_TOKEN: z.string().trim().optional(),
 
   // ── GitHub CI (content sync) ───────────────────────────────────────────
   GITHUB_REPOSITORY: z.string().optional(),
@@ -367,7 +385,6 @@ const envSchema = z.object({
   ENABLE_DEBUG: boolFlag(false),
   ENABLE_VERBOSE: boolFlag(false),
   ENABLE_TELEMETRY: boolFlag(true),
-  MEM0_TELEMETRY: z.string().optional(),
 
   // ── Rate limiting ──────────────────────────────────────────────────────
   DISABLE_RATE_LIMITS: boolFlag(false),
@@ -586,11 +603,6 @@ const envSchema = z.object({
   METADATA_DETECT_TYPES: boolFlag(true),
   METADATA_DETECT_MARKDOWN: boolFlag(true),
   METADATA_EXTRACT_PAGES: boolFlag(true),
-
-  // ── Adaptive chunking ──────────────────────────────────────────────────
-  ADAPTIVE_CHUNKING_ENABLED: boolFlag(false),
-  CHUNK_DEFAULT_SIZE: numStr(400),
-  CHUNK_OVERLAP_SIZE: numStr(100),
 
   // ── Retrieval / Query intent ───────────────────────────────────────────
   QUERY_INTENT_ENABLED: boolFlag(true),

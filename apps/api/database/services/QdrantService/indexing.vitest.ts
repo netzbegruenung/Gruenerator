@@ -84,4 +84,47 @@ describe('indexBundestagContent', () => {
 
     expect((upserted[0].payload as { chunk_type: string }).chunk_type).toBe('table');
   });
+
+  /**
+   * #3224: ohne dieses Feld sind Vektoren aus zwei Modellen in derselben
+   * Sammlung nicht unterscheidbar, ein Modellwechsel also weder prüfbar noch
+   * teilweise reparierbar. Es hängt an keinem Chunk-Feld, sondern an der
+   * Konstante des einzigen Einbettungs-Backends — deshalb muss es auch auf
+   * einem Chunk ganz ohne Metadaten stehen.
+   */
+  it('schreibt das Einbettungsmodell in jedes Payload, auch ohne Chunk-Metadaten', async () => {
+    const { client, upserted } = fakeClient();
+
+    await indexBundestagContent(client, 'bundestag_content', 'https://example.org/d', [
+      { embedding: [0.1], text: 'Mit Metadaten.', metadata: { chunkType: 'table' } },
+      { embedding: [0.2], text: 'Ohne Metadaten.' },
+    ]);
+
+    expect(upserted).toHaveLength(2);
+    for (const point of upserted) {
+      expect(point.payload).toMatchObject({ embedding_model: 'mistral-embed' });
+    }
+  });
+
+  /**
+   * #3223: mit den Offsets lässt sich eine Fundstelle im Quelldokument
+   * markieren statt nur die Seite zu nennen. Ein Chunk ohne auffindbare
+   * Position trägt zweimal `null` — nie ein halbes Paar, das eine Sprungmarke
+   * ins Leere laufen ließe.
+   */
+  it('schreibt die Zeichen-Offsets ins Payload und für einen Chunk ohne sie null', async () => {
+    const { client, upserted } = fakeClient();
+
+    await indexBundestagContent(client, 'bundestag_content', 'https://example.org/e', [
+      {
+        embedding: [0.1],
+        text: 'Mit Position.',
+        metadata: { startPosition: 120, endPosition: 1580 },
+      },
+      { embedding: [0.2], text: 'Ohne Position.' },
+    ]);
+
+    expect(upserted[0].payload).toMatchObject({ char_start: 120, char_end: 1580 });
+    expect(upserted[1].payload).toMatchObject({ char_start: null, char_end: null });
+  });
 });

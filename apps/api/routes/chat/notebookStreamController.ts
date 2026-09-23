@@ -8,10 +8,13 @@
 import { notebookDepthSchema } from '@gruenerator/contracts';
 import { z } from 'zod';
 
+import { requireAiConsent } from '../../middleware/requireAiConsent.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
+import { memoryService } from '../../services/memory/index.js';
 import { withRetry } from '../../services/search/searchRetryStrategy.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
+import { withTimeout } from '../../utils/withTimeout.js';
 
 import { handleNotebookStream } from './notebookStreamCore.js';
 import { createSSEStream, sendChatWarning } from './services/sseHelpers.js';
@@ -56,6 +59,24 @@ type NotebookStreamRequestBody = z.infer<typeof notebookStreamRequestSchema>;
 const router = createAuthenticatedRouter();
 const log = createLogger('notebookStream');
 
+const MEMORY_TIMEOUT_MS = 3_000;
+
+/**
+ * Standing instructions hold on every surface, so the notebook gets them too;
+ * the profile switch and the chat's failure mode (answer without) carry over
+ * from `streamContext`.
+ */
+async function loadStandingInstructions(userId: string, memoryEnabled: boolean): Promise<string[]> {
+  if (!memoryEnabled) return [];
+  try {
+    const rows = await withTimeout(memoryService.list(userId), MEMORY_TIMEOUT_MS, 'memory lookup');
+    return rows.filter((r) => r.kind === 'anweisung').map((r) => r.text);
+  } catch (err) {
+    log.warn('Memory lookup failed (continuing without):', err);
+    return [];
+  }
+}
+
 /**
  * POST /api/chat-service/notebook/stream
  * Stream answers to notebook questions with sources/citations.
@@ -63,6 +84,7 @@ const log = createLogger('notebookStream');
  */
 router.post(
   '/',
+  requireAiConsent,
   validateBody(notebookStreamRequestSchema),
   async (req: TypedRequest<NotebookStreamRequestBody>, res) => {
     const user = getUser(req);
@@ -144,6 +166,11 @@ router.post(
           })
         : null;
 
+    const standingInstructions = await loadStandingInstructions(
+      user.id,
+      user.memory_enabled ?? true
+    );
+
     const result = await handleNotebookStream({
       req,
       res,
@@ -156,6 +183,7 @@ router.post(
       ...(documentIds != null && { documentIds }),
       userId: user.id,
       allowUserCollections: true,
+      ...(standingInstructions.length > 0 && { standingInstructions }),
       sse,
       // Keep the stream open past the answer so the persistence step below can
       // still report a failure — sendChatWarning no-ops once the stream ended,

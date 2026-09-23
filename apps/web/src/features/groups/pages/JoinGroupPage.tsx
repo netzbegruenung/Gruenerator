@@ -1,4 +1,4 @@
-import { getContractsClient } from '@gruenerator/shared/api';
+import { apiErrorFromResponse, getContractsClient } from '@gruenerator/shared/api';
 import { Button, Card, CardHeader, CardTitle, CardContent } from '@gruenerator/ui';
 import { useQuery } from '@tanstack/react-query';
 import React, { useState } from 'react';
@@ -31,7 +31,7 @@ const JoinGroupPage = () => {
         params: { joinToken: joinToken ?? '' },
       });
       if (res.status !== 200) {
-        throw new Error('Ungültiger Einladungslink');
+        throw apiErrorFromResponse(res, 'Ungültiger Einladungslink');
       }
       return { group: { name: res.body.group.name }, alreadyMember: res.body.alreadyMember };
     },

@@ -46,6 +46,7 @@ export type SettingsTab =
   | 'wolke'
   | 'websites'
   | 'konnektoren'
+  | 'baeume'
   | 'nutzung'
   | 'support';
 
@@ -120,6 +121,14 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
     tab: 'allgemein',
     title: 'Startseite',
     description: 'Was das Start-Symbol in der Seitenleiste öffnet',
+  },
+  {
+    // Web-only for now: the choice is applied server-side, so the app speaks
+    // with it too — it just has no row to change it yet.
+    id: 'allgemein.stimme',
+    tab: 'allgemein',
+    title: 'Stimme',
+    description: 'Mit welcher Stimme dir der Grünerator Texte vorliest',
   },
   {
     id: 'allgemein.feedbackButton',
@@ -245,6 +254,15 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
     tab: 'konnektoren',
     title: 'Konnektoren',
     description: 'Verbundene Dienste, die im Chat als eigene Quelle ansprechbar sind',
+  },
+  {
+    // Web-only: der Fortschrittsbalken und die Newsletter-Karte sind eine
+    // eigene Fläche, keine Zeile, wie bei der Nutzungsübersicht.
+    id: 'baeume.stand',
+    tab: 'baeume',
+    title: 'Bäume',
+    description:
+      'Dein tägliches Kontingent für Bilder, Sprachausgabe, Übersetzungen und Tiefenrecherche',
   },
   {
     // Web-only: die Übersicht ist eine Tabelle über Zeiträume hinweg. Sie

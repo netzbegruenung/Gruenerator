@@ -14,7 +14,8 @@
     },
     "lint:fix": {},
     "test": {
-      "dependsOn": ["^build"]
+      "dependsOn": ["^build"],
+      "env": ["MIGRATIONS_TEST_DATABASE_URL"]
     },
     "dev": {
       "cache": false,

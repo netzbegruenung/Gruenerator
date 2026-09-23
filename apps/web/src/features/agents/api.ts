@@ -4,7 +4,7 @@ import {
   type DraftedAgentSpec,
 } from '@gruenerator/contracts';
 import { SYSTEM_AGENTS, type Agent } from '@gruenerator/shared/agents';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { ApiError, getContractsClient } from '@gruenerator/shared/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { useOptimizedAuth } from '../../hooks/useAuth';
@@ -42,7 +42,7 @@ export function useUserAgents() {
     queryFn: async (): Promise<Agent[]> => {
       const res = await getContractsClient().userAgents.list();
       if (res.status === 200) return res.body.agents;
-      throw new Error('Grüneratoren konnten nicht geladen werden.');
+      throw new Error('Agents konnten nicht geladen werden.');
     },
   });
 }
@@ -56,7 +56,7 @@ export function useUserAgent(identifier: string | undefined) {
       const res = await getContractsClient().userAgents.get({ params: { identifier } });
       if (res.status === 200) return res.body.agent;
       if (res.status === 404) return null;
-      throw new Error('Grünerator-Agent konnte nicht geladen werden.');
+      throw new Error('Agent konnte nicht geladen werden.');
     },
   });
 }
@@ -122,7 +122,7 @@ export function useShareSystemAgentWithGroup() {
           permissions: { read: true, write: false, collaborative: false },
         },
       });
-      if (res.status !== 200) throw new Error('share failed');
+      if (res.status !== 200) throw new ApiError(res.status, 'share failed');
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['shared-system-agents'] });
@@ -228,7 +228,7 @@ export function usePublicUserAgents() {
     queryFn: async (): Promise<Agent[]> => {
       const res = await getContractsClient().userAgentsSharing.listPublic();
       if (res.status === 200) return res.body.agents;
-      throw new Error('Öffentliche Grüneratoren konnten nicht geladen werden.');
+      throw new Error('Öffentliche Agents konnten nicht geladen werden.');
     },
   });
 }
@@ -238,7 +238,7 @@ export function useDeleteUserAgent() {
   return useMutation({
     mutationFn: async (identifier: string): Promise<void> => {
       const res = await getContractsClient().userAgents.remove({ params: { identifier } });
-      if (res.status !== 200) throw new Error('Löschen fehlgeschlagen.');
+      if (res.status !== 200) throw new ApiError(res.status, 'Löschen fehlgeschlagen.');
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: KEY });
