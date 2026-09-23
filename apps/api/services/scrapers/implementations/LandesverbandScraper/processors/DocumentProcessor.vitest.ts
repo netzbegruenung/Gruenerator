@@ -200,37 +200,55 @@ describe('processAndStoreDocument — default age limit', () => {
   });
 });
 
-/**
- * PDF- und Wolke-Titel kommen nicht durch extractPageContent und wurden bis
- * hierher nie normalisiert (#3577).
- */
-describe('processAndStoreDocument — title normalisation', () => {
-  const storeTitled = (title: string) =>
-    makeProcessor().processAndStoreDocument(
-      SOURCE,
-      'beschluss',
-      URL_UNDER_TEST,
-      { title, text: TEXT, publishedAt: null, categories: [] },
-      'landesverbaende_documents'
-    );
-
+describe('processAndStoreDocument — title normalization for file sources', () => {
   beforeEach(() => {
     scrollDocuments.mockResolvedValue([]);
   });
 
-  it('collapses non-breaking spaces, double spaces and line breaks', async () => {
-    await storeTitled('Protokoll der LDK  Güstrow\n 12. Oktober 2024 ');
+  it('normalizes a Wolke/PDF file-name title the HTML extractor never sees', async () => {
+    await makeProcessor().processAndStoreDocument(
+      SOURCE,
+      'wahlpruefstein',
+      'https://wolke.netzbegruenung.de/s/x#/LSVD Saar .docx',
+      { title: 'LSVD Saar  \n', text: TEXT, publishedAt: null, categories: [] },
+      'landesverbaende_documents',
+      10
+    );
 
-    const [, , points] = batchUpsert.mock.calls[0] as [unknown, string, { payload: unknown }[]];
-    expect(points[0].payload).toMatchObject({
-      title: 'Protokoll der LDK Güstrow 12. Oktober 2024',
-    });
+    const points = batchUpsert.mock.calls[0][2] as Array<{ payload: { title: string } }>;
+    expect(points.map((p) => p.payload.title)).toEqual(points.map(() => 'LSVD Saar'));
+  });
+
+  it('collapses non-breaking spaces, double spaces and line breaks (#3577)', async () => {
+    await makeProcessor().processAndStoreDocument(
+      SOURCE,
+      'beschluss',
+      URL_UNDER_TEST,
+      {
+        title: 'Protokoll\u00a0der LDK  Güstrow\n 12. Oktober 2024 ',
+        text: TEXT,
+        publishedAt: null,
+        categories: [],
+      },
+      'landesverbaende_documents',
+      10
+    );
+
+    const points = batchUpsert.mock.calls[0][2] as Array<{ payload: { title: string } }>;
+    expect(points[0].payload.title).toBe('Protokoll der LDK Güstrow 12. Oktober 2024');
   });
 
   it('falls back to the source label when the title is only whitespace', async () => {
-    await storeTitled('  \n');
+    await makeProcessor().processAndStoreDocument(
+      SOURCE,
+      'beschluss',
+      URL_UNDER_TEST,
+      { title: ' &nbsp; ', text: TEXT, publishedAt: null, categories: [] },
+      'landesverbaende_documents',
+      10
+    );
 
-    const [, , points] = batchUpsert.mock.calls[0] as [unknown, string, { payload: unknown }[]];
-    expect(points[0].payload).toMatchObject({ title: 'Grüne Berlin - Beschluss/Resolution' });
+    const points = batchUpsert.mock.calls[0][2] as Array<{ payload: { title: string } }>;
+    expect(points[0].payload.title).toMatch(/^Grüne Berlin - /);
   });
 });

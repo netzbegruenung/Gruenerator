@@ -120,9 +120,10 @@ export class DocumentProcessor {
       });
     }
 
-    // STEP 5: Build document title
+    // STEP 5: Build document title — hier treffen HTML-, PDF- und Wolke-Pfad
+    // zusammen; Dateinamen-Titel sähen den HTML-Extraktor sonst nie (#3560).
     const documentTitle =
-      ContentExtractor.normalizeTitle(title || '') ||
+      ContentExtractor.normalizeTitle(title) ||
       `${source.name} - ${(CONTENT_TYPE_LABELS as Record<string, string>)[effectiveContentType] || effectiveContentType}`;
 
     // STEP 6: Chunk document

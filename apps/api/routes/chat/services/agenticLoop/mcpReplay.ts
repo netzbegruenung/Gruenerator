@@ -46,9 +46,15 @@ const SOURCE_RESULT_CHARS = 4000;
  * `knowledge` block and registers no sources, so on 03.08.2026 its replay was
  * capped at 500 of 3.876 characters — 87 % dropped — and the next turn answered
  * about the product from an eighth of what it had just been told.
+ *
+ * `refs` is the one-line-per-row digest `notebook_quellen` list/rank attach
+ * (`compactRefs`): a 20-row Berlin list is ~7.5k chars of JSON, so the preview
+ * kept one and a half rows and "lies die dritte Quelle" found no ref (#3561).
+ * Only tools that emit `refs` get the larger budget — a bare row list
+ * (documents, boards, media) stays at the preview.
  */
 function carriesReferenceText(result: Record<string, unknown>): boolean {
-  return ['sources', 'knowledge'].some(
+  return ['sources', 'knowledge', 'refs'].some(
     (key) => typeof result[key] === 'string' && (result[key] as string).trim().length > 0
   );
 }
@@ -63,11 +69,22 @@ function stripReplayCitationMarkers(s: string): string {
   return s.replace(/\[(\d+(?:\s*,\s*\d+)*)\]/g, '');
 }
 
+/**
+ * `refs` is the digest of the row array next to it — one line per row with
+ * title, ref and date. Replayed together, the rows (~7.5k chars for 20 Berlin
+ * sources) would push the digest past the budget, so the rows stay behind.
+ */
+function withoutDigestedRows(result: Record<string, unknown>): Record<string, unknown> {
+  if (typeof result.refs !== 'string') return result;
+  const { results: _results, ranking: _ranking, ...rest } = result;
+  return rest;
+}
+
 function shortValue(result: Record<string, unknown>): string {
   // The persisted step is deliberately raw (card + debugging) — internal-only
   // fields like `rerankDegraded` are stripped HERE, at replay serialization,
   // not before `recordStep`. See `stripInternalFields`'s doc comment.
-  const replayable = stripInternalFields(result);
+  const replayable = withoutDigestedRows(stripInternalFields(result));
   let s: string;
   try {
     s = JSON.stringify(replayable);
