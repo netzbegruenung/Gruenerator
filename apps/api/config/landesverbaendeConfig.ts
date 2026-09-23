@@ -205,7 +205,16 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
         categories: ['a[href*="/themen/"]', '.tags a'],
         author: ['.author', '.written-by'],
       },
-      excludePatterns: ['/_Resources/', '/assets/', '#', 'javascript:', '.pdf', '.jpg', '.png'],
+      excludePatterns: [
+        '/_Resources/',
+        '/assets/',
+        '/pressemitteilungen/pressefotos',
+        '#',
+        'javascript:',
+        '.pdf',
+        '.jpg',
+        '.png',
+      ],
     },
 
     // ═══════════════════════════════════════════════════════════════════
