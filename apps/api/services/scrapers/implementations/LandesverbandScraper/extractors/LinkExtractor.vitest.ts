@@ -11,8 +11,13 @@
  * sind keine Titel. Bis hierher hießen alle zwölf MV-Beschlüsse „Dokument" und
  * das Brandenburger Wahlprogramm „Herunterladen".
  */
-import { describe, it, expect, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
+import { describe, expect, it, vi } from 'vitest';
+
+import { DateExtractor } from './DateExtractor.js';
 import { isGenericLinkText, LinkExtractor, titleFromPdfUrl } from './LinkExtractor.js';
 
 import type {
@@ -410,5 +415,113 @@ describe('extractPdfLinks — titles', () => {
     const links = await extractor(html).extractPdfLinks(SOURCE, CONTENT_PATH);
 
     expect(links.map((l) => l.title)).toEqual(['Wahlprogramm LTW 2024', 'Dokument']);
+  });
+});
+
+const FIXTURES = path.join(path.dirname(fileURLToPath(import.meta.url)), '__fixtures__');
+
+async function linksFromFixture(file: string, baseUrl: string, listSelector: string) {
+  const html = readFileSync(path.join(FIXTURES, file), 'utf8');
+  const source = { baseUrl } as LandesverbandSource;
+  const links = await extractor(html).extractPdfLinks(source, {
+    path: '/',
+    listSelector,
+  } as ContentPath);
+  return (slug: string) => {
+    const link = links.find((l) => l.url.includes(slug));
+    if (!link) throw new Error(`no link for ${slug}`);
+    return {
+      ...link,
+      date: DateExtractor.extractDateFromPdfInfo(link.url, link.title, link.context, 10),
+    };
+  };
+}
+
+/**
+ * Das Datum stand auf der Seite direkt über dem Link — es kam nur nicht im
+ * Kontext an, also erfand DateExtractor den 15. Juni (#3575).
+ */
+describe('extractPdfLinks — context carries the date (#3575)', () => {
+  it('BB: the dated h3 is a sibling of the link paragraph', async () => {
+    const link = await linksFromFixture(
+      'gruene-bb-archiv-beschluesse-2022.html',
+      'https://archiv.gruene-brandenburg.de',
+      'a[href$=".pdf"]'
+    );
+
+    expect(link('L1NEU_Halbzeit').context).toContain('Landesdelegiertenkonferenz am 26.03.22');
+    expect(link('L1NEU_Halbzeit').date.dateString).toBe('2022-03-26');
+    expect(link('V11NEU_2024').context).toContain('Landesdelegiertenkonferenz am 19.11.22');
+    expect(link('V11NEU_2024').date.dateString).toBe('2022-11-19');
+  });
+
+  it('MV: the last dated Elementor heading before the download widget', async () => {
+    const link = await linksFromFixture(
+      'gruene-mv-parteitags-beschluesse.html',
+      'https://gruene-mv.de',
+      'a[href*="/download/"], a[href$=".pdf"], article a[href]'
+    );
+
+    expect(link('meilensteine-zur-landtagswahl-2026').context).toContain(
+      '24. Mai 2025 - LDK Güstrow'
+    );
+    expect(link('meilensteine-zur-landtagswahl-2026').date).toMatchObject({
+      dateString: '2025-05-24',
+      precision: 'day',
+    });
+    // Zwischen "24. September 2022" und dem Widget steht noch "26. März 2022".
+    expect(link('kommunalwahl-2024').context).toContain('26. März 2022 - LDR Greifswald');
+    expect(link('kommunalwahl-2024').date.dateString).toBe('2022-03-26');
+  });
+
+  it('Elementor: an undated section heading stops the walk back to an older dated one', async () => {
+    const html = `
+      <div class="e-con">
+        <div class="elementor-widget elementor-widget-heading"><h3>24. Mai 2025 - LDK Güstrow</h3></div>
+        <div class="elementor-widget"><a href="/download/beschluss-a/">Beschluss A</a></div>
+        <div class="elementor-widget elementor-widget-heading"><h2>Satzung und Geschäftsordnung</h2></div>
+        <div class="elementor-widget"><a href="/download/satzung/">Satzung</a></div>
+      </div>`;
+
+    const links = await extractor(html).extractPdfLinks(SOURCE, CONTENT_PATH);
+    const satzung = links.find((l) => l.url.includes('satzung'));
+
+    expect(links.find((l) => l.url.includes('beschluss-a'))?.context).toContain('24. Mai 2025');
+    expect(satzung?.context).not.toContain('24. Mai 2025');
+    expect(
+      DateExtractor.extractDateFromPdfInfo(satzung!.url, satzung!.title, satzung!.context, 10)
+        .dateString
+    ).toBeNull();
+  });
+
+  it('Elementor: an undated stop is final, the unbounded container walk does not undo it', async () => {
+    // The dated h3 is a direct sibling of the list; the undated h4 sits one
+    // level deeper, so the container walk alone would skip it.
+    const html = `
+      <div class="elementor-widget">
+        <h3>24. Mai 2025 - LDK Güstrow</h3>
+        <div class="inner"><h4>Satzung und Geschäftsordnung</h4></div>
+        <div class="list"><a href="/download/satzung/">Satzung</a></div>
+      </div>`;
+
+    const [satzung] = await extractor(html).extractPdfLinks(SOURCE, CONTENT_PATH);
+
+    expect(satzung.context).not.toContain('24. Mai 2025');
+    expect(
+      DateExtractor.extractDateFromPdfInfo(satzung.url, satzung.title, satzung.context, 10)
+        .dateString
+    ).toBeNull();
+  });
+
+  it('BE-F: the file-name anchor of a dlm-downloads item reaches the context', async () => {
+    const link = await linksFromFixture(
+      'gruene-fraktion-berlin-beschluesse-dlm.html',
+      'https://gruene-fraktion.berlin',
+      'ul.dlm-downloads a[href*="/download/"]'
+    );
+
+    const neutralitaet = link('positionspapier-neutralitaetsgesetz-abschaffen');
+    expect(neutralitaet.context).toContain('20230905_Neutralitaetsgesetz-abschaffen.pdf');
+    expect(neutralitaet.date).toMatchObject({ dateString: '2023-09-05', precision: 'day' });
   });
 });

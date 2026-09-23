@@ -93,3 +93,21 @@ describe('isFreshlyIndexed — alte Inhalte (gestaffelte Nachprüfung)', () => {
     expect(recheckBucket(URL_UNDER_TEST)).not.toBe(recheckBucket(OTHER_URL));
   });
 });
+
+describe('isFreshlyIndexed — als weg markierte Punkte (#3566)', () => {
+  const now = Date.UTC(2026, 8, 23, 12);
+
+  it('holt einen markierten Punkt immer neu, damit die Bestätigung nicht 90 Tage wartet', () => {
+    const mark = { lv_gone_since: iso(now - 2 * DAY) };
+    expect(
+      isFreshlyIndexed(
+        URL_UNDER_TEST,
+        { published_at: iso(now - 3 * 365 * DAY), checked_at: iso(now - DAY), ...mark },
+        now + DAY
+      )
+    ).toBe(false);
+    expect(isFreshlyIndexed(URL_UNDER_TEST, { indexed_at: iso(now - DAY), ...mark }, now)).toBe(
+      false
+    );
+  });
+});
