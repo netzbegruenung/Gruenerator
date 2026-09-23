@@ -5,6 +5,7 @@ import {
   isRefetchable,
   parseCliArgs,
   planDateRepair,
+  planGone,
   planRepair,
 } from './repair-lv-payload.js';
 
@@ -18,6 +19,7 @@ describe('parseCliArgs', () => {
         all: false,
         titles: true,
         overwriteDates: null,
+        gone: false,
         refetch: false,
         write: false,
         limit: null,
@@ -44,6 +46,7 @@ describe('parseCliArgs', () => {
         all: false,
         titles: true,
         overwriteDates: null,
+        gone: false,
         refetch: true,
         write: true,
         limit: 5,
@@ -76,6 +79,7 @@ describe('parseCliArgs', () => {
         all: true,
         titles: false,
         overwriteDates: 'mid-june',
+        gone: false,
         refetch: false,
         write: false,
         limit: null,
@@ -220,5 +224,75 @@ describe('classifyPoint', () => {
     expect(classifyPoint({ title: 'X' }, true)).toBe('wouldPatch');
     expect(classifyPoint({}, true)).toBe('unresolved');
     expect(classifyPoint({}, false)).toBe('unchanged');
+  });
+});
+
+describe('parseCliArgs — --gone', () => {
+  it('nimmt --gone mit --source', () => {
+    const parsed = parseCliArgs(['--gone', '--source', 'berlin-lv-presse']);
+    expect(parsed).toHaveProperty('args.gone', true);
+    expect(parsed).toHaveProperty('args.write', false);
+  });
+
+  it('verweigert --gone mit --all — jede Seite aller Quellen abzurufen ist zu viel Last', () => {
+    expect(parseCliArgs(['--gone', '--all'])).toHaveProperty('error');
+  });
+
+  it('verweigert --gone zusammen mit einer Payload-Regel — gelöschte Punkte patcht man nicht', () => {
+    expect(parseCliArgs(['--gone', '--titles', '--source', 'x'])).toHaveProperty('error');
+    expect(
+      parseCliArgs(['--gone', '--overwrite-dates', 'mid-june', '--source', 'x'])
+    ).toHaveProperty('error');
+  });
+});
+
+describe('planGone', () => {
+  const URL_OLD =
+    'https://gruene-sachsen-anhalt.de/pressemitteilungen/landesregierung-beim-hitzeschutz';
+  const LISTING = ['/pressemitteilungen/'];
+
+  it('löscht 404 und 410 — der Lauf zählt als bestätigender zweiter', () => {
+    expect(planGone(URL_OLD, { status: 404, finalUrl: null }, LISTING)).toEqual({
+      outcome: 'gone',
+      remove: true,
+    });
+    expect(planGone(URL_OLD, { status: 410, finalUrl: null }, LISTING).remove).toBe(true);
+  });
+
+  it('löscht die alte URL eines umbenannten Slugs', () => {
+    expect(
+      planGone(
+        URL_OLD,
+        {
+          status: 200,
+          finalUrl: 'https://gruene-sachsen-anhalt.de/pressemitteilungen/hitzeschutz-im-blindflug',
+        },
+        LISTING
+      )
+    ).toEqual({ outcome: 'moved', remove: true });
+  });
+
+  it('löscht eine Weiterleitung auf die Listing-Seite', () => {
+    expect(
+      planGone(
+        URL_OLD,
+        { status: 200, finalUrl: 'https://gruene-sachsen-anhalt.de/pressemitteilungen' },
+        LISTING
+      ).remove
+    ).toBe(true);
+  });
+
+  it('behält lebende Seiten, Schrägstrich-Weiterleitungen und vorübergehende Fehler', () => {
+    expect(planGone(URL_OLD, { status: 200, finalUrl: URL_OLD }, LISTING)).toEqual({
+      outcome: 'live',
+      remove: false,
+    });
+    expect(planGone(URL_OLD, { status: 200, finalUrl: `${URL_OLD}/` }, LISTING).remove).toBe(false);
+    for (const status of [503, 403, null]) {
+      expect(planGone(URL_OLD, { status, finalUrl: null }, LISTING)).toEqual({
+        outcome: 'transient',
+        remove: false,
+      });
+    }
   });
 });
