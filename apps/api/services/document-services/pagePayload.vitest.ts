@@ -6,7 +6,7 @@
 import { describe, it, expect, vi } from 'vitest';
 
 import { pickRange } from '../../routes/chat/agents/notebookSourceRange.js';
-import { outlineSource, readSourceText } from '../notebook/notebookSources.js';
+import { outlineSource, readSourceText, sliceSource } from '../notebook/notebookSources.js';
 
 import { getDocumentChunks } from './DocumentSearchService/documentRetrieval.js';
 import { storeDocumentVectors } from './DocumentSearchService/vectorOperations.js';
@@ -170,6 +170,49 @@ describe('Seitenzahlen über Abschnittsgrenzen hinweg', () => {
       const firstWord = (p.payload.chunk_text as string).split(/\s+/)[0].replace(/\s+/g, '');
       expect(raw.startsWith(firstWord)).toBe(true);
     }
+  });
+});
+
+describe('seite=N liest zwischen den Marken, nicht über Chunks', () => {
+  // Seite 2 ist eine kurze Zeile: sie liegt ganz im Chunk, der auf Seite 1
+  // beginnt, hat also keinen eigenen Chunk — die Marken kennen sie trotzdem.
+  const SHORT_PAGE = [
+    '## Seite 1',
+    '',
+    para('Seite-eins-Inhalt'),
+    '',
+    '## Seite 2',
+    '',
+    'Nur eine kurze Zeile.',
+    '',
+    '## Seite 3',
+    '',
+    para('Seite-drei-Inhalt'),
+  ].join('\n');
+
+  it('liefert für eine kurze Seite genau ihre Zeile', async () => {
+    const { source } = await roundTrip(SHORT_PAGE);
+    const range = pickRange({ seite: 2 }, source.chunkMap, source.chunks, source.text);
+    if ('error' in range) throw new Error(range.error);
+    const slice = source.text.slice(range.von, range.von + (range.zeichen ?? 0));
+    expect(slice.trim()).toBe('Nur eine kurze Zeile.');
+
+    const s = sliceSource(source.text, range, source.chunkMap);
+    expect(s.pageRange).toEqual({ from: 2, to: 2 });
+  });
+
+  it('meldet eine fehlende Seite mit dem Bereich aus den Marken', async () => {
+    const { source } = await roundTrip(SHORT_PAGE);
+    expect(pickRange({ seite: 7 }, source.chunkMap, source.chunks, source.text)).toEqual({
+      error: 'Seite 7 gibt es nicht (Seiten 1–3).',
+    });
+  });
+
+  it('abschnitt-Scheiben nennen die Seiten aus den Marken', async () => {
+    const { source } = await roundTrip(SHORT_PAGE);
+    const from = source.text.indexOf('Nur eine kurze Zeile.');
+    const s = sliceSource(source.text, { von: from, zeichen: 60 }, source.chunkMap);
+    expect(s.pageRange).toEqual({ from: 2, to: 3 });
   });
 });
 

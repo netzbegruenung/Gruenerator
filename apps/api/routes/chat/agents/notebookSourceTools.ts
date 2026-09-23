@@ -724,7 +724,7 @@ System-Notebooks: notebookId ist der Sammlungsschlüssel aus notebooks action="l
     );
     if (!text.trim()) return { error: 'Die Quelle hat (noch) keinen lesbaren Text.' };
 
-    const range = pickRange(args, chunkMap, chunks);
+    const range = pickRange(args, chunkMap, chunks, text);
     if ('error' in range) return range;
 
     const s = sliceSource(text, range, chunkMap);
