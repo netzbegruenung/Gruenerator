@@ -974,7 +974,6 @@ ORIGINAL>>>`;
 }
 
 /**
- * Format memory context from mem0 cross-thread memories.
  * The person's explicit memory: standing instructions and facts, numbered
  * by services/memory/memoryPrompt.ts so the `memory` tool can address them.
  */

@@ -92,6 +92,8 @@ export interface CorpusFilter {
   deepResearch: boolean;
   /** Szenarien, die den BGSt-Beschlussbestand als Sammlung brauchen. */
   bgstKorpus: boolean;
+  /** Szenarien, die dem Eval-Konto Erinnerungen anlegen (`memories`). */
+  memory: boolean;
   /** Szenarien, die ein eigenes Notebook des Eval-Kontos brauchen. */
   userNotebook: boolean;
 }
@@ -128,6 +130,7 @@ export function loadCorpus(here: string, opts: CorpusFilter): EvalScenario[] {
     if (s.deepResearchLane && !opts.deepResearch) return false;
     if (s.bgstKorpusLane && !opts.bgstKorpus) return false;
     if (s.userNotebookLane && !opts.userNotebook) return false;
+    if (s.memories && !opts.memory) return false;
     if (!opts.filter) return true;
     return opts.filter
       .split(',')
