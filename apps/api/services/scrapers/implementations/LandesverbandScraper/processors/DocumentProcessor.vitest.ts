@@ -77,10 +77,12 @@ const store = (fingerprint?: Record<string, unknown>) =>
     'beschluss',
     URL_UNDER_TEST,
     { title: 'Beschluss', text: TEXT, publishedAt: null, categories: [], bodyFallback: false },
-    true, // isFile — URL_UNDER_TEST is a .pdf
-    'landesverbaende_documents',
-    10,
-    fingerprint
+    {
+      isFile: true, // URL_UNDER_TEST is a .pdf
+      collectionOverride: 'landesverbaende_documents',
+      maxAgeYears: 10,
+      extraPayload: fingerprint,
+    }
   );
 
 const storeWith = (content: { title?: string; publishedAt?: string | null }) =>
@@ -89,9 +91,11 @@ const storeWith = (content: { title?: string; publishedAt?: string | null }) =>
     'beschluss',
     URL_UNDER_TEST,
     { title: 'Beschluss', text: TEXT, publishedAt: null, categories: [], ...content },
-    true, // isFile — URL_UNDER_TEST is a .pdf
-    'landesverbaende_documents',
-    10
+    {
+      isFile: true, // URL_UNDER_TEST is a .pdf
+      collectionOverride: 'landesverbaende_documents',
+      maxAgeYears: 10,
+    }
   );
 
 beforeEach(() => {
@@ -293,10 +297,12 @@ describe('processAndStoreDocument — unchanged text, date precision', () => {
       'beschluss',
       URL_UNDER_TEST,
       { title: 'Beschluss', text: TEXT, publishedAt, categories: [] },
-      true, // isFile — PDF
-      'landesverbaende_documents',
-      10,
-      { file_hash: 'abc123', date_precision: precision }
+      {
+        isFile: true, // PDF
+        collectionOverride: 'landesverbaende_documents',
+        maxAgeYears: 10,
+        extraPayload: { file_hash: 'abc123', date_precision: precision },
+      }
     );
   const stored = (payload: Record<string, unknown>) =>
     scrollDocuments.mockResolvedValue([
@@ -399,9 +405,11 @@ describe('processAndStoreDocument — qualityFlags', () => {
       'beschluss',
       URL_UNDER_TEST,
       { title: '', text: TEXT, publishedAt: '2023-05-20', categories: [], bodyFallback: false },
-      true, // isFile
-      'landesverbaende_documents',
-      10
+      {
+        isFile: true,
+        collectionOverride: 'landesverbaende_documents',
+        maxAgeYears: 10,
+      }
     );
 
     expect(result.stored).toBe(true);
@@ -416,9 +424,11 @@ describe('processAndStoreDocument — qualityFlags', () => {
       'beschluss',
       URL_UNDER_TEST,
       { title: '', text: TEXT, publishedAt: '2023-05-20', categories: [], bodyFallback: false },
-      true, // isFile
-      'landesverbaende_documents',
-      10
+      {
+        isFile: true,
+        collectionOverride: 'landesverbaende_documents',
+        maxAgeYears: 10,
+      }
     );
 
     expect(result).toEqual({ stored: false, reason: 'unchanged' });
@@ -439,9 +449,11 @@ describe('processAndStoreDocument — qualityFlags', () => {
       'beschluss',
       'https://gruene-berlin.de/download/dokument123',
       { title: 'Beschluss', text: TEXT, publishedAt: null, categories: [], bodyFallback: false },
-      true, // isFile — the PDF-archive path knows this is a file even without a .pdf extension
-      'landesverbaende_documents',
-      10
+      {
+        isFile: true, // the PDF-archive path knows this is a file even without a .pdf extension
+        collectionOverride: 'landesverbaende_documents',
+        maxAgeYears: 10,
+      }
     );
 
     expect(result.qualityFlags).not.toHaveProperty('date_missing_html');
@@ -538,9 +550,10 @@ describe('processAndStoreDocument — default age limit', () => {
       'beschluss',
       URL_UNDER_TEST,
       { title: 'Beschluss', text: TEXT, publishedAt, categories: [], bodyFallback: false },
-      true, // isFile
-      'landesverbaende_documents',
-      undefined
+      {
+        isFile: true,
+        collectionOverride: 'landesverbaende_documents',
+      }
     );
 
   beforeEach(() => {
@@ -577,11 +590,12 @@ describe('processAndStoreDocument — ignoreMaxAge (Wolke, #3564)', () => {
       'wahlpruefstein',
       URL_UNDER_TEST,
       { title: 'Antwort', text: TEXT, publishedAt, categories: [] },
-      true, // isFile — Wolke share
-      'landesverbaende_documents',
-      5,
-      undefined,
-      ignoreMaxAge
+      {
+        isFile: true, // Wolke share
+        collectionOverride: 'landesverbaende_documents',
+        maxAgeYears: 5,
+        ignoreMaxAge,
+      }
     );
 
   it('rejects a 2019 doc under a 5-year source by default', async () => {
@@ -616,11 +630,13 @@ describe('processAndStoreDocument — wolke heals a null date to a day-precision
       'wahlpruefstein',
       URL_UNDER_TEST,
       { title: 'Antwort', text: TEXT, publishedAt: '2025-11-08', categories: [] },
-      true, // isFile — Wolke share
-      'landesverbaende_documents',
-      5,
-      { wolke_etag: '"v2"', date_precision: 'day' },
-      true
+      {
+        isFile: true, // Wolke share
+        collectionOverride: 'landesverbaende_documents',
+        maxAgeYears: 5,
+        extraPayload: { wolke_etag: '"v2"', date_precision: 'day' },
+        ignoreMaxAge: true,
+      }
     );
 
     expect(result).toEqual({ stored: false, reason: 'unchanged' });
@@ -644,9 +660,11 @@ describe('processAndStoreDocument — title normalization for file sources', () 
       'wahlpruefstein',
       'https://wolke.netzbegruenung.de/s/x#/LSVD Saar .docx',
       { title: 'LSVD Saar  \n', text: TEXT, publishedAt: null, categories: [] },
-      true, // isFile — Wolke share
-      'landesverbaende_documents',
-      10
+      {
+        isFile: true, // Wolke share
+        collectionOverride: 'landesverbaende_documents',
+        maxAgeYears: 10,
+      }
     );
 
     const points = batchUpsert.mock.calls[0][2] as Array<{ payload: { title: string } }>;
@@ -664,9 +682,11 @@ describe('processAndStoreDocument — title normalization for file sources', () 
         publishedAt: null,
         categories: [],
       },
-      true, // isFile
-      'landesverbaende_documents',
-      10
+      {
+        isFile: true,
+        collectionOverride: 'landesverbaende_documents',
+        maxAgeYears: 10,
+      }
     );
 
     const points = batchUpsert.mock.calls[0][2] as Array<{ payload: { title: string } }>;
@@ -679,9 +699,11 @@ describe('processAndStoreDocument — title normalization for file sources', () 
       'beschluss',
       URL_UNDER_TEST,
       { title: ' &nbsp; ', text: TEXT, publishedAt: null, categories: [] },
-      true, // isFile
-      'landesverbaende_documents',
-      10
+      {
+        isFile: true,
+        collectionOverride: 'landesverbaende_documents',
+        maxAgeYears: 10,
+      }
     );
 
     const points = batchUpsert.mock.calls[0][2] as Array<{ payload: { title: string } }>;
