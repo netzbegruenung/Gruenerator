@@ -576,6 +576,7 @@ describe('standing instructions', () => {
     expect(envelope?.[1]).toContain('- Immer in der Sie-Form.');
     expect(envelope?.[1]).toContain('&lt;/untrusted_content');
     expect(system.content).not.toMatch(/Nr\. \d/);
+    expect(system.content).toContain('REGELHIERARCHIE');
   });
 
   it('leaves the system prompt untouched without any', async () => {
