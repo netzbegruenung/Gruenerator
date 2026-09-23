@@ -26,6 +26,18 @@
  *       aus URL und Titel per `DateExtractor.extractDateFromPdfInfo`, ohne
  *       Abruf; liefert auch die Neuberechnung nur ein Jahr oder gar nichts,
  *       zählt der Punkt als `unresolved` und bleibt, wie er ist.
+ *       visible-date — das gedruckte Datum statt des TYPO3-Datensatzstands
+ *       (#3565). Holt jede HTML-Seite der Quelle neu (derselbe Abrufpfad wie
+ *       `--titles --refetch`, inkl. Pause und `assertSamePage` — läuft
+ *       zusammen mit `--titles --refetch`, teilen sich beide denselben Abruf)
+ *       und liest sie mit den aktuellen `contentSelectors` aus; PDFs, Wolke-
+ *       Dateien und eine leere xBlog-Platzhalterseite ("kein Eintrag
+ *       vorhanden" — falscher Content-Typ-Pfad zur URL) bleiben unresolved.
+ *       Nur mit `--source` (kein `--all` — das wäre ein Voll-Abruf). Das
+ *       gespeicherte `published_at` trägt teils eine Uhrzeit, das sichtbare
+ *       Datum nie — ein Tag, der nur die Uhrzeit verliert, zählt trotzdem als
+ *       Abweichung und damit als Patch (die Zeichenketten sind schlicht
+ *       verschieden), nicht als `unchanged`.
  *   - `--gone` (nur mit `--source`, allein): holt jede HTML-Seite der Quelle
  *     (1 Anfrage/s) und LÖSCHT mit `--write` alle Punkte einer URL, die
  *     `goneState.classifyFetch` als weg (404/410, Weiterleitung auf Startseite,
@@ -43,6 +55,7 @@
  *   npx tsx scripts/repair-lv-payload.ts --titles --source berlin-lv-presse --source berlin-lv-beschluesse --refetch
  *   npx tsx scripts/repair-lv-payload.ts --titles --all
  *   npx tsx scripts/repair-lv-payload.ts --overwrite-dates mid-june --all
+ *   npx tsx scripts/repair-lv-payload.ts --overwrite-dates visible-date --source berlin-lv-presse
  *   npx tsx scripts/repair-lv-payload.ts --gone --source sachsen-anhalt-lv
  *   … jeweils mit --write, um wirklich zu schreiben; --limit N begrenzt die Punkte je Quelle.
  *
@@ -98,6 +111,12 @@ const USAGE =
 const DEFAULT_COLLECTION = 'landesverbaende_documents';
 const UA = 'Gruenerator-Bot/1.0 (+https://gruenerator.eu)';
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}/;
+// TYPO3 xBlog antwortet mit HTTP 200 und dieser Meldung, wenn die angefragte
+// URL vom falschen Content-Typ-Widget bedient wird (z. B. eine Beschluss-URL
+// unter dem Presse-Pfad) — kein Redirect, `assertSamePage` greift also nicht.
+// Die Seiten-Meta (article:published_time) bleibt trotzdem gefüllt und würde
+// sonst wie ein gültiges sichtbares Datum aussehen (#3565).
+const XBLOG_PLACEHOLDER = 'kein Eintrag vorhanden';
 // Dieselbe Pause wie der Scraper zwischen zwei Abrufen (`crawlDelay` in
 // LandesverbandScraper.ts). Dort ist sie ein privates Instanzfeld; die Klasse
 // hier zu importieren zöge die App-Umgebung vor dotenv mit.
@@ -153,6 +172,11 @@ export function parseCliArgs(argv: string[]): { args: CliArgs } | { error: strin
   if (args.all && args.refetch) {
     return { error: '--refetch nur mit --source: --all --refetch holt jede Seite neu.' };
   }
+  if (args.overwriteDates === 'visible-date' && args.all) {
+    return {
+      error: '--overwrite-dates visible-date nur mit --source: --all holt jede Seite neu ab.',
+    };
+  }
   return { args };
 }
 
@@ -177,7 +201,10 @@ export function planRepair(stored: StoredFields, extracted: Extracted | null): P
 
 /** `unchanged`: der Defekt liegt nicht vor. `unresolved`: er liegt vor, aber es gibt keinen besseren Wert. */
 type DateVerdict = { published_at: string } | 'unchanged' | 'unresolved';
-type DateRule = (point: Pick<StoredPoint, 'source_url' | 'title' | 'published_at'>) => DateVerdict;
+type DateRule = (
+  point: Pick<StoredPoint, 'source_url' | 'title' | 'published_at'>,
+  extracted: Extracted | null
+) => DateVerdict;
 
 const MID_JUNE = /-06-15/;
 
@@ -189,13 +216,87 @@ export const DATE_RULES: Record<string, DateRule> = {
     if (!dateString || MID_JUNE.test(dateString)) return 'unresolved';
     return dateString === point.published_at ? 'unchanged' : { published_at: dateString };
   },
+  // Das gedruckte Datum auf der Seite statt des TYPO3-Datensatzstands (#3565).
+  // Der Abruf passiert am Aufrufer (derselbe --refetch-Pfad wie --titles); ohne
+  // Treffer oder ohne sichtbares Datum bleibt der Punkt unresolved statt eines
+  // null-Patches.
+  'visible-date': (point, extracted) => {
+    if (!extracted?.publishedAt || !ISO_DATE.test(extracted.publishedAt)) return 'unresolved';
+    return extracted.publishedAt === point.published_at
+      ? 'unchanged'
+      : { published_at: extracted.publishedAt };
+  },
 };
 
 export function planDateRepair(
   point: Pick<StoredPoint, 'source_url' | 'title' | 'published_at'>,
-  rule: string
+  rule: string,
+  extracted: Extracted | null = null
 ): DateVerdict {
-  return DATE_RULES[rule](point);
+  return DATE_RULES[rule](point, extracted);
+}
+
+export function isEmptyPlaceholder(text: string): boolean {
+  return text.includes(XBLOG_PLACEHOLDER);
+}
+
+interface RepairContext {
+  titles: boolean;
+  refetch: boolean;
+  overwriteDates: string | null;
+}
+
+interface RepairResult {
+  patch: Patch;
+  unresolved: boolean;
+  fetchAttempted: boolean;
+  fetchError: string | null;
+}
+
+/**
+ * Verarbeitet einen Punkt für --titles und --overwrite-dates gemeinsam. Beide
+ * teilen sich HÖCHSTENS EINEN Abruf: --titles --refetch und --overwrite-dates
+ * visible-date brauchen dieselbe frisch ausgelesene Seite, ein zweiter Abruf
+ * wäre unnötiger Netzverkehr und eine zweite Pause (#3565). `refetchable`
+ * kommt vom Aufrufer (kennt `getSourceById` + `isRefetchable`), `fetchExtracted`
+ * kapselt den eigentlichen Netzzugriff — so bleibt diese Funktion ohne echten
+ * Abruf testbar.
+ */
+export async function planPointRepair(
+  point: Pick<StoredPoint, 'source_url' | 'title' | 'published_at'>,
+  ctx: RepairContext,
+  refetchable: boolean,
+  fetchExtracted: () => Promise<Extracted & { text: string }>
+): Promise<RepairResult> {
+  const needsRefetch = (ctx.titles && ctx.refetch) || ctx.overwriteDates === 'visible-date';
+  let extracted: Extracted | null = null;
+  let fetchAttempted = false;
+  let fetchError: string | null = null;
+
+  if (needsRefetch && refetchable) {
+    fetchAttempted = true;
+    try {
+      const result = await fetchExtracted();
+      // Eine leere xBlog-Platzhalterseite zählt als kein Abruf — sonst würde
+      // ihre stehengebliebene Meta-Angabe wie ein gültiges sichtbares Datum
+      // durchgereicht (#3565).
+      if (!isEmptyPlaceholder(result.text)) extracted = result;
+    } catch (error) {
+      fetchError = (error as Error).message;
+    }
+  }
+
+  let patch: Patch = {};
+  if (ctx.titles) patch = planRepair(point, extracted) ?? {};
+
+  let unresolved = false;
+  if (ctx.overwriteDates) {
+    const verdict = planDateRepair(point, ctx.overwriteDates, extracted);
+    if (verdict === 'unresolved') unresolved = true;
+    else if (verdict !== 'unchanged') patch.published_at = verdict.published_at;
+  }
+
+  return { patch, unresolved, fetchAttempted, fetchError };
 }
 
 /**
@@ -439,34 +540,22 @@ async function main(): Promise<void> {
     const samples: string[] = [];
 
     for (const point of points) {
-      let patch: Patch = {};
-      let unresolved = false;
+      const source = getSourceById(point.source_id);
+      const refetchable = Boolean(source) && isRefetchable(point.source_url, source!);
 
-      if (args.titles) {
-        const source = getSourceById(point.source_id);
-        let extracted: Extracted | null = null;
-        if (args.refetch && source && isRefetchable(point.source_url, source)) {
-          try {
-            extracted = await ContentExtractor.extractPageContent(
-              point.source_url,
-              source,
-              fetchOk
-            );
-          } catch (error) {
-            extra.fetchFailed++;
-            console.warn(`  [fetch] ${point.source_url}: ${(error as Error).message}`);
-          }
-          await sleep(REFETCH_DELAY_MS);
-        }
-        patch = planRepair(point, extracted) ?? {};
+      const result = await planPointRepair(
+        point,
+        { titles: args.titles, refetch: args.refetch, overwriteDates: args.overwriteDates },
+        refetchable,
+        () => ContentExtractor.extractPageContent(point.source_url, source!, fetchOk)
+      );
+      if (result.fetchAttempted) await sleep(REFETCH_DELAY_MS);
+      if (result.fetchError) {
+        extra.fetchFailed++;
+        console.warn(`  [fetch] ${point.source_url}: ${result.fetchError}`);
       }
 
-      if (args.overwriteDates) {
-        const verdict = planDateRepair(point, args.overwriteDates);
-        if (verdict === 'unresolved') unresolved = true;
-        else if (verdict !== 'unchanged') patch.published_at = verdict.published_at;
-      }
-
+      const { patch, unresolved } = result;
       if (patch.title !== undefined) extra.title++;
       if (patch.published_at !== undefined) extra.date++;
       const bucket = classifyPoint(patch, unresolved);
