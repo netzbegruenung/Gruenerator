@@ -5,10 +5,23 @@
  * Die `documents`-Tabelle ist die Queue, wie beim Ingest-Worker: geclaimt wird
  * mit `FOR UPDATE SKIP LOCKED`, also darf jeder Cluster-Prozess mitlaufen.
  *
- * WELCHE Dokumente: neue immer (`doc_meta_auto` ist für jede Zeile gesetzt,
- * die nach der Migration angelegt wurde, und für keine davor). Bestand und
- * Dokumente einer älteren `DOC_META_VERSION` nur mit `DOCUMENT_META_BACKFILL`
- * — erst nach einem Trockenlauf (`scripts/document-meta-backfill.ts`).
+ * WELCHE Dokumente: neue immer — angelegt ab dem Zeitpunkt, den die Migration
+ * in `document_meta_boundary` festhält. Fehlt die Grenze (Migration nicht
+ * gelaufen, zurückgerollt, oder ein Cluster-Prozess war schneller als sie),
+ * claimt der Worker NICHTS: die Grenze hängt bewusst an keinem Spalten-Default,
+ * den `syncSchemaColumns` aus schema.sql über den ganzen Bestand legen könnte.
+ * Bestand und Dokumente einer älteren `DOC_META_VERSION` nur mit
+ * `DOCUMENT_META_BACKFILL` — erst nach einem Trockenlauf
+ * (`scripts/document-meta-backfill.ts`).
+ *
+ * Nur gesetzte Zeilen: `status='completed'` steht in mehreren Ingest-Pfaden,
+ * BEVOR die Vektoren geschrieben sind. Deshalb erst nach `SETTLE_MS` Ruhe, und
+ * vor dem Schreiben muss Qdrant mindestens `vector_count` Punkte tragen — sonst
+ * wirft der Lauf und der Claim kommt wieder.
+ *
+ * Takt: höchstens `MAX_PER_TICK` Dokumente pro Minute UND Prozess — clusterweit
+ * also das Vielfache der Prozesszahl. Der Modell-Rückfall läuft auf GreenPT,
+ * dessen 600 Anfragen/15 min pro Konto mit Rerank und Planer geteilt sind.
  *
  * Ein Modell fragt nur `extractDocumentMeta`, und nur mit Einwilligung der
  * Eigentümer*in. Die Heuristik ist lokal und läuft immer.
@@ -39,6 +52,8 @@ const TICK_INTERVAL_MS = 60_000;
 const MAX_PER_TICK = 10;
 const MAX_ATTEMPTS = 3;
 const STALE_CLAIM_MS = 10 * 60 * 1000;
+/** So lange muss eine Zeile unverändert sein, bevor sie als fertig gilt. */
+const SETTLE_MS = 2 * 60 * 1000;
 
 const MIRRORED_KINDS: ReadonlySet<string> = new Set(['beschluss', 'published', 'stand']);
 
@@ -61,6 +76,7 @@ export interface ClaimedDocMetaRow {
   content_preview: string | null;
   existing_published_at: string | null;
   previous_mirror: string | null;
+  vector_count: number | null;
 }
 
 export interface DocMetaDeps {
@@ -71,8 +87,9 @@ export interface DocMetaDeps {
   ) => Promise<{ success: boolean; chunks: Array<{ index: number; text: string }> }>;
   setPayload: (
     target: { documentId: string; userId: string },
-    payload: Record<string, string>
+    payload: Record<string, string | null>
   ) => Promise<void>;
+  countPoints: (documentId: string, userId: string) => Promise<number>;
   hasAiConsent: (userId: string) => Promise<boolean>;
   aiObject: typeof aiObject;
   backfill: boolean;
@@ -90,9 +107,14 @@ export const CLAIM_SQL = `UPDATE documents d
      WHERE status = 'completed'
        AND user_id IS NOT NULL
        AND (
-             (doc_meta_auto AND NOT (COALESCE(metadata, '{}'::jsonb) ? 'doc_meta'))
+             (
+               $5::timestamptz IS NOT NULL
+               AND created_at >= $5::timestamptz
+               AND NOT (COALESCE(metadata, '{}'::jsonb) ? 'doc_meta')
+             )
              OR ($2::boolean AND COALESCE((metadata->'doc_meta'->>'version')::int, 0) <> $1)
            )
+       AND GREATEST(created_at, updated_at) < NOW() - ($6::text || ' milliseconds')::interval
        AND COALESCE((metadata->'doc_meta_claim'->>'attempts')::int, 0) < $3
        AND (
              metadata->'doc_meta_claim' IS NULL
@@ -107,15 +129,23 @@ export const CLAIM_SQL = `UPDATE documents d
             LEFT(d.markdown_content, ${LLM_INPUT_CHARS}) AS head,
             d.metadata->>'content_preview' AS content_preview,
             d.metadata->>'published_at' AS existing_published_at,
-            d.metadata->'doc_meta'->>'publishedAt' AS previous_mirror`;
+            d.metadata->'doc_meta'->>'publishedAt' AS previous_mirror,
+            d.vector_count`;
 
 /**
  * Atomarer jsonb-Merge — nie Lesen-Ändern-Schreiben: der Tag-Schreiber und der
  * Ingest schreiben dieselbe Spalte. `published_at` nur, wo keines steht oder
- * das stehende unser eigener früherer Spiegel ist.
+ * das stehende unser eigener früherer Spiegel ist; `$4` räumt diesen eigenen
+ * Spiegel ab, wenn die neue Version kein Datum mehr findet.
  */
 export const STORE_SQL = `UPDATE documents
-    SET metadata = (COALESCE(metadata, '{}'::jsonb) - 'doc_meta_claim')
+    SET metadata = (
+          CASE
+            WHEN $4::boolean
+             AND metadata->>'published_at' = metadata->'doc_meta'->>'publishedAt'
+            THEN COALESCE(metadata, '{}'::jsonb) - 'published_at'
+            ELSE COALESCE(metadata, '{}'::jsonb)
+          END - 'doc_meta_claim')
           || jsonb_build_object('doc_meta', $2::jsonb)
           || CASE
                WHEN $3::text IS NOT NULL
@@ -154,21 +184,30 @@ async function loadHead(
 export async function computeDocMeta(
   row: ClaimedDocMetaRow,
   deps: DocMetaDeps
-): Promise<{ record: DocMetaRecord; mirror: string | null }> {
+): Promise<{ record: DocMetaRecord; mirror: string | null; clearMirror: boolean }> {
   const now = deps.now?.() ?? new Date();
   const [{ text, origin }, profile, aiAllowed] = await Promise.all([
     loadHead(row, deps),
     deps.db.query('SELECT locale FROM profiles WHERE id = $1', [row.user_id]) as Promise<
       Array<{ locale: string | null }>
     >,
-    deps.hasAiConsent(row.user_id),
+    // Ein Lesefehler ist hier ein Nein: im Hintergrund wartet niemand.
+    deps.hasAiConsent(row.user_id).catch(() => false),
   ]);
+  if (origin === 'none') {
+    // Kein Text ist kein Befund — meist ist der Ingest noch nicht durch.
+    throw new Error(`Kein Text für ${row.id} ladbar — später erneut`);
+  }
   const meta = await extractDocumentMeta(
     { text, filename: row.filename, locale: profile[0]?.locale ?? null, aiAllowed, now },
     deps
   );
+  // Nur taggenau: `published_at` sortiert und filtert Suchtreffer, ein
+  // „März 2024" als 2024-03-01 wäre dort ein erfundener Tag.
   const candidate =
-    meta.date && meta.dateKind && MIRRORED_KINDS.has(meta.dateKind) ? meta.date : null;
+    meta.date && meta.dateKind && MIRRORED_KINDS.has(meta.dateKind) && meta.precision === 'day'
+      ? meta.date
+      : null;
   const mayMirror =
     candidate !== null &&
     (row.existing_published_at === null || row.existing_published_at === row.previous_mirror);
@@ -179,35 +218,73 @@ export async function computeDocMeta(
     textOrigin: origin,
     publishedAt: mayMirror ? candidate : null,
   };
-  return { record, mirror: record.publishedAt };
+  const clearMirror =
+    candidate === null &&
+    row.previous_mirror !== null &&
+    row.existing_published_at === row.previous_mirror;
+  return { record, mirror: record.publishedAt, clearMirror };
 }
 
 async function processDocument(row: ClaimedDocMetaRow, deps: DocMetaDeps): Promise<void> {
-  const { record, mirror } = await computeDocMeta(row, deps);
+  const points = await deps.countPoints(row.id, row.user_id);
+  if (points === 0 || points < (row.vector_count ?? 0)) {
+    throw new Error(
+      `Vektoren für ${row.id} noch nicht vollständig (${points}/${row.vector_count ?? 0})`
+    );
+  }
+  const { record, mirror, clearMirror } = await computeDocMeta(row, deps);
 
-  const payload: Record<string, string> = {};
+  const payload: Record<string, string | null> = {};
   if (mirror) payload.published_at = mirror;
+  if (clearMirror) payload.published_at = null;
   if (record.gremium) payload.gremium = record.gremium;
   if (Object.keys(payload).length > 0) {
     await deps.setPayload({ documentId: row.id, userId: row.user_id }, payload);
   }
 
-  await deps.db.query(STORE_SQL, [row.id, JSON.stringify(record), record.publishedAt]);
+  await deps.db.query(STORE_SQL, [row.id, JSON.stringify(record), record.publishedAt, clearMirror]);
 }
 
 let draining = false;
 
-export async function drainDocMetaQueue(deps: DocMetaDeps = defaultDeps()): Promise<number> {
+/**
+ * Die Grenze zwischen Bestand und neu, wie die Migration sie gesetzt hat — oder
+ * null, wenn Tabelle oder Zeile fehlen. Null heisst: kein Neu-Zweig.
+ */
+async function readBoundary(deps: DocMetaDeps): Promise<string | null> {
+  try {
+    const rows = (await deps.db.query(
+      'SELECT since FROM document_meta_boundary WHERE id = 1'
+    )) as Array<{ since: Date | string | null }>;
+    const since = rows[0]?.since ?? null;
+    return since instanceof Date ? since.toISOString() : since;
+  } catch {
+    return null;
+  }
+}
+
+export async function drainDocMetaQueue(
+  deps: DocMetaDeps = defaultDeps(),
+  opts: { maxDocs?: number } = {}
+): Promise<number> {
   if (draining) return 0;
   draining = true;
   let processed = 0;
   try {
-    while (processed < MAX_PER_TICK) {
+    const boundary = await readBoundary(deps);
+    if (boundary === null && !deps.backfill) {
+      log.debug('Keine Grenze aus der Migration — nichts zu tun');
+      return 0;
+    }
+    const maxDocs = opts.maxDocs ?? MAX_PER_TICK;
+    while (processed < maxDocs) {
       const rows = (await deps.db.query(CLAIM_SQL, [
         DOC_META_VERSION,
         deps.backfill,
         MAX_ATTEMPTS,
         String(STALE_CLAIM_MS),
+        boundary,
+        String(SETTLE_MS),
       ])) as ClaimedDocMetaRow[];
       const row = rows[0];
       if (!row) break;
@@ -248,7 +325,22 @@ export function defaultDeps(): DocMetaDeps {
         wait: true,
       });
     },
-    hasAiConsent,
+    countPoints: async (documentId, userId) => {
+      const qdrant = getQdrantInstance();
+      await qdrant.init();
+      if (!qdrant.client) throw new Error('Qdrant nicht verfügbar');
+      const result = await qdrant.client.count('documents', {
+        filter: {
+          must: [
+            { key: 'user_id', match: { value: userId } },
+            { key: 'document_id', match: { value: documentId } },
+          ],
+        },
+        exact: true,
+      });
+      return result.count;
+    },
+    hasAiConsent: (userId) => hasAiConsent(userId, { failClosed: true }),
     aiObject,
     backfill: env.DOCUMENT_META_BACKFILL,
   };
