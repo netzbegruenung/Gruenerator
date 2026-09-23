@@ -134,6 +134,7 @@ interface CtxOptions {
   linksThrow?: string;
   /** Originaltext je Quelle; sonst gilt `markdown` für alle. */
   markdownById?: Record<string, string>;
+  pageEndsError?: string;
   nlp?: StatsNlp;
   scopeLock?: { ids: string[]; readOnly: boolean };
   /** notebookId des vorigen Turns (Thread-Rückfall). */
@@ -177,6 +178,15 @@ function makeCtx(opts: CtxOptions = {}) {
   };
   const db = {
     query: vi.fn(async (sql: string, params: unknown[]) => {
+      if (sql.includes('regexp_matches')) {
+        if (opts.pageEndsError) throw new Error(opts.pageEndsError);
+        const [ids, starts, ends] = params as [string[], number[], number[]];
+        return ids.map((id, k) => {
+          const span = (opts.markdownById?.[id] ?? '').slice(starts[k], ends[k]);
+          const pages = [...span.matchAll(/##\s*Seite\s+(\d+)\s*\S/gi)].map((m) => Number(m[1]));
+          return { i: String(k + 1), page: pages.length ? Math.max(...pages) : null };
+        });
+      }
       if (sql.includes('markdown_content FROM documents')) {
         const own = opts.markdownById?.[String(params[0])];
         if (own !== undefined) return [{ markdown_content: own }];
@@ -493,6 +503,37 @@ describe('find', () => {
       relevance: 0.8,
       citedText: 'Der Radweg kommt 2027.',
     });
+  });
+
+  // Die Passage (24–46) beginnt auf Seite 2 und reicht über die Marke von Seite 3.
+  const marked = '## Seite 2\n' + 'x'.repeat(13) + 'Der\n## Seite 3\nRadweg kommt 2027.';
+
+  it('reports the last page a passage reaches from the markers inside its span', async () => {
+    const { run } = makeCtx({ searchResults, markdownById: { d1: marked } });
+    const out = await run({ action: 'find', query: 'Radweg' });
+    expect(out.passages).toEqual([
+      expect.objectContaining({ pageNumber: 2, pageTo: 3, charStart: 24, charEnd: 46 }),
+    ]);
+  });
+
+  it('omits pageTo when no page content starts inside the passage', async () => {
+    // Die Marke steht am Ende der Passage, ohne Inhalt der neuen Seite davor.
+    const trailing = '## Seite 2\n' + 'x'.repeat(13) + 'Der Radweg\n## Seite 3\nkommt 2027.';
+    const { run } = makeCtx({ searchResults, markdownById: { d1: trailing } });
+    const out = await run({ action: 'find', query: 'Radweg' });
+    expect(out.passages).toEqual([expect.not.objectContaining({ pageTo: expect.anything() })]);
+  });
+
+  it('still answers when the page lookup fails', async () => {
+    const { run } = makeCtx({
+      searchResults,
+      markdownById: { d1: marked },
+      pageEndsError: 'db down',
+    });
+    const out = await run({ action: 'find', query: 'Radweg' });
+    expect(out.resultCount).toBe(1);
+    expect(out.passages).toEqual([expect.objectContaining({ pageNumber: 2 })]);
+    expect(out.passages).toEqual([expect.not.objectContaining({ pageTo: expect.anything() })]);
   });
 
   it('narrows to one source after checking it belongs to the notebook', async () => {

@@ -459,6 +459,42 @@ export function markedPageRanges(text: string): PageRange[] {
   return buildPageRangesFromRaw(text);
 }
 
+/**
+ * Die Seite eines Offsets nach den `## Seite N`-Marken — `null` ohne Marken
+ * oder vor der ersten. Ein Chunk trägt die Seite, auf der er BEGINNT; ein
+ * Treffer hinter einem Seitenwechsel im selben Chunk stünde sonst eine Seite zu früh.
+ */
+export function markedPageAt(marked: readonly PageRange[], offset: number): number | null {
+  return marked.find((r) => r.start <= offset && offset < r.end)?.page ?? null;
+}
+
+/**
+ * Die letzte Seite, die eine Passage erreicht: die höchste `## Seite N`-Marke
+ * INNERHALB ihres Zeichenbereichs, auf die dort noch Text folgt. Die Startseite kennt
+ * der Chunk schon genau. Gelesen werden nur die Seitenzahlen, nicht der Text.
+ * Schlüssel ist der Index in `spans`; ohne Marke im Bereich kein Eintrag.
+ */
+export async function loadPassagePageEnds(
+  db: Pick<PostgresService, 'query'>,
+  spans: ReadonlyArray<{ sourceId: string; charStart: number; charEnd: number }>
+): Promise<Map<number, number>> {
+  if (spans.length === 0) return new Map();
+  const rows = await db.query<{ i: string | number; page: number | null }>(
+    `SELECT x.i,
+            (SELECT max(m[1]::int)
+               FROM regexp_matches(substr(d.markdown_content, x.s + 1, x.e - x.s),
+                                   '##\\s*Seite\\s+(\\d+)\\s*\\S', 'gi') AS m) AS page
+       FROM unnest($1::uuid[], $2::int[], $3::int[]) WITH ORDINALITY AS x(id, s, e, i)
+       JOIN documents d ON d.id = x.id`,
+    [spans.map((p) => p.sourceId), spans.map((p) => p.charStart), spans.map((p) => p.charEnd)]
+  );
+  const out = new Map<number, number>();
+  for (const r of rows) {
+    if (r.page !== null) out.set(Number(r.i) - 1, Number(r.page));
+  }
+  return out;
+}
+
 export function sliceSource(
   text: string,
   opts: { von: number; zeichen?: number | undefined },

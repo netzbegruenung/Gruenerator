@@ -34,6 +34,7 @@ import {
   chunksOrThrow,
   findPassages,
   listNotebookSources,
+  loadPassagePageEnds,
   outlineSource,
   readSourceText,
   renderOutline,
@@ -44,6 +45,7 @@ import {
   SLICE_REGISTER_CHARS,
   type NotebookSourceRow,
   type NotebookSourcesDeps,
+  type Passage,
   type ResolvedSource,
 } from '../../../services/notebook/notebookSources.js';
 import { rerankNotebookResults } from '../../../services/notebook/rerankNotebookResults.js';
@@ -547,7 +549,7 @@ export function makeNotebookSourcesTool(ctx: NotebookSourceToolCtx): Tool {
     description: `Die Quellen EINES Notebooks: auflisten, gliedern, lesen und Passagen mit Fundstelle finden.
 
 NUTZE FÜR: welche Dokumente im Notebook liegen, mit Typ, Datum (Beschluss/Stand aus dem Dokument, sonst Upload — die Zeile sagt, welches), Gremium, Seiten und Umfang, sortier- und filterbar (list, filter.gremium); die Gliederung einer Quelle (outline); eine Quelle lesen — ab Zeichen (abschnitt), eine Seite (seite), einen Abschnitt aus outline (section) oder Chunks (read); die Stellen finden, an denen etwas steht, als Rohpassagen mit Seite und Zeichenbereich zum Zitieren (find, optional nur in einer Quelle).
-NUTZE FÜR: wie oft ein Wort wörtlich vorkommt, je Quelle (grep).
+NUTZE FÜR: wie oft ein Wort wörtlich vorkommt, je Quelle, Fundstellen mit Seite (grep). „Auf welcher Seite …?": grep (Begriff) oder cite (Zitat), dann die Seite nennen.
 NUTZE FÜR: Wörter, Sätze, Seiten zählen, optional Lemmata (stats).
 NUTZE FÜR: Quellen ordnen nach Relevanz, Treffern, Datum, Länge, Seiten (rank).
 NUTZE FÜR: ein Zitat prüfen (zitat) oder Belege für eine Behauptung finden (claim) (cite).
@@ -777,6 +779,29 @@ System-Notebooks: notebookId ist der Sammlungsschlüssel aus notebooks action="l
     };
   }
 
+  /**
+   * Die letzte Seite einer Passage, die über einen Seitenwechsel reicht — der
+   * Chunk trägt nur die Seite, auf der er beginnt. Ein Fehler hier kostet nur
+   * `pageTo`, nie das Ergebnis.
+   */
+  async function withPageEnds(
+    passages: readonly Passage[]
+  ): Promise<Array<Passage & { pageTo: number | null }>> {
+    const spans = passages.flatMap((p, k) =>
+      p.charStart !== null && p.charEnd !== null && p.charEnd > p.charStart
+        ? [{ k, sourceId: p.sourceId, charStart: p.charStart, charEnd: p.charEnd }]
+        : []
+    );
+    let ends = new Map<number, number>();
+    try {
+      ends = await loadPassagePageEnds(deps.db, spans);
+    } catch (err) {
+      log.warn('[notebook_quellen] find: page ends lookup failed', err);
+    }
+    const byPassage = new Map(spans.map((s, n) => [s.k, ends.get(n) ?? null]));
+    return passages.map((p, k) => ({ ...p, pageTo: byPassage.get(k) ?? null }));
+  }
+
   async function find(
     collection: NotebookCollection,
     userId: string,
@@ -806,10 +831,12 @@ System-Notebooks: notebookId ist der Sammlungsschlüssel aus notebooks action="l
       );
     }
 
-    const { passages, reranked } = await findPassages(
+    const found = await findPassages(
       { documentIds, query, mode: args.mode, limit: args.limit ?? 10, rerank: args.rerank, userId },
       deps
     );
+    const { reranked } = found;
+    const passages = await withPageEnds(found.passages);
     const base = { notebook: collection.name, query, mode: args.mode, reranked };
     if (passages.length === 0) {
       groundNote(
@@ -842,6 +869,7 @@ System-Notebooks: notebookId ist der Sammlungsschlüssel aus notebooks action="l
         title: p.title,
         chunkIndex: p.chunkIndex,
         pageNumber: p.pageNumber,
+        ...(p.pageTo !== null && p.pageTo !== p.pageNumber ? { pageTo: p.pageTo } : {}),
         charStart: p.charStart,
         charEnd: p.charEnd,
         score: p.score,

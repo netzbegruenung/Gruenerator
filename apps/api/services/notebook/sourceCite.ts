@@ -10,6 +10,7 @@
  */
 import {
   findPassages,
+  markedPageRanges,
   resolveSourceInNotebook,
   type NotebookSourcesDeps,
   type Passage,
@@ -250,7 +251,7 @@ function toCandidate(hit: Located): CiteCandidate {
     sentence: hit.matched,
     charStart: hit.charStart,
     charEnd: hit.charEnd,
-    pageNumber: pageAt(hit.source.chunkMap, hit.charStart),
+    pageNumber: pageAt(hit.source.chunkMap, hit.charStart, markedPageRanges(hit.source.text)),
     chunkIndex: chunkAt(hit.source.chunkMap, hit.charStart),
     score: hit.score,
   };
@@ -295,7 +296,7 @@ export function locateQuoteInSources(
       title: only.source.title,
       charStart: only.charStart,
       charEnd: only.charEnd,
-      pageNumber: pageAt(chunkMap, only.charStart),
+      pageNumber: pageAt(chunkMap, only.charStart, markedPageRanges(text)),
       chunkIndex: chunkAt(chunkMap, only.charStart),
       matched: only.matched,
       context: text
