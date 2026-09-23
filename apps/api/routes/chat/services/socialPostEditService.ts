@@ -22,6 +22,10 @@ import { SOCIAL_PLATFORM_INFO, type SocialPostToolResult } from '@gruenerator/co
 import { craftGuidanceForPlatform } from '../../../agents/langgraph/ChatGraph/nodes/socialMediaComposerNode.js';
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { aiText } from '../../../services/ai/generate.js';
+import {
+  CONTENT_INTEGRITY_POST_EDIT_RULES,
+  CONTENT_REFUSAL_MARKER_RE,
+} from '../../../services/contentPolicy.js';
 import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
 
@@ -204,9 +208,10 @@ ${craftGuidance}
 ## ZEICHENBUDGET
 Ziel: ~${info.recommendedChars} Zeichen. Hartes Maximum: ${info.maxChars} Zeichen (inklusive Hashtags).
 
+${CONTENT_INTEGRITY_POST_EDIT_RULES}
+
 ## REGELN
 - Setze NUR die Anweisung um; alles andere (Aussage, Fakten, Struktur) bleibt so nah wie möglich am Original.
-- Erfinde keine Fakten oder Zitate.
 - Kein Meta-Text ("Hier ist der überarbeitete Post...") — antworte NUR mit dem fertigen Post inklusive Hashtags.`;
 
     const userPrompt = `## AKTUELLER POST\n${post.text}\n\n## ANWEISUNG\n${instruction}`;
@@ -236,11 +241,15 @@ Ziel: ~${info.recommendedChars} Zeichen. Hartes Maximum: ${info.maxChars} Zeiche
     // A decline is not an edit. Without this the refusal string itself was
     // persisted as the new version — "I'm sorry, but I can't help with that."
     // replaced a perfectly good post, and the chat still reported success.
-    // Checked on the raw content too: a refusal ending in a stray hashtag
-    // would otherwise reach the gate already stripped.
-    if (looksLikeRefusal(edited) || looksLikeRefusal(parsed.text)) {
+    // The ABLEHNUNG marker is the channel the prompt asks for; the prose
+    // detector stays for models that decline in their own words. Checked on
+    // the raw content too: a refusal ending in a stray hashtag would otherwise
+    // reach the gate already stripped.
+    const marker = CONTENT_REFUSAL_MARKER_RE.exec(edited);
+    if (marker || looksLikeRefusal(edited) || looksLikeRefusal(parsed.text)) {
       log.info(
-        `[SocialPostEdit] ${post.postId} — model declined the instruction; ` +
+        `[SocialPostEdit] ${post.postId} — model declined the instruction` +
+          `${marker?.[1] ? ` ("${marker[1].trim()}")` : ''}; ` +
           `post left at v${post.version ?? 1}, no version written`
       );
       await finishWithText(args, SOCIAL_EDIT_REFUSAL_TEXT);
