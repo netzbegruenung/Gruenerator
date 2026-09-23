@@ -58,7 +58,7 @@ describe('answerModeAutoHint', () => {
     expect(answerModeAutoHint('pregate')).toBe('automatisch gewählt');
     expect(answerModeAutoHint('guard')).toBe('automatisch gewählt');
     expect(answerModeAutoHint('guard_fallback')).toBe('automatisch gewählt');
-    for (const r of ['explicit', 'ineligible', 'default', null, undefined] as const) {
+    for (const r of ['explicit', 'ineligible', 'default', null] as const) {
       expect(answerModeAutoHint(r)).toBeNull();
     }
   });

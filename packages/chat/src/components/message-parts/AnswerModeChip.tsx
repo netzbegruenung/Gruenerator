@@ -19,7 +19,7 @@ interface AnswerModeChipProps {
  */
 export const AnswerModeChip = memo(function AnswerModeChip({ mode, reason }: AnswerModeChipProps) {
   const Icon = mode === 'praezision' ? BookOpenCheck : MessageSquareText;
-  const hint = answerModeAutoHint(reason);
+  const hint = answerModeAutoHint(reason ?? null);
   return (
     <div className="mb-1.5 inline-flex items-center gap-1.5 rounded-full bg-primary/5 px-2.5 py-1 text-xs text-foreground-muted">
       <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />

@@ -1,6 +1,6 @@
 import { formatNamespacedToolLabel } from '../../lib/toolMappings';
 
-import type { ToolCallPart } from './types';
+import { type ToolCallPart } from './types';
 
 /** Display titles for agentic loop steps (tool_step_start events). */
 const TOOL_STEP_TITLES: Record<string, string> = {

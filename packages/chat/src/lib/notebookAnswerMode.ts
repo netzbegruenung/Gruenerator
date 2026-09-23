@@ -74,8 +74,6 @@ const AUTO_CHOSEN_REASONS: ReadonlySet<NotebookAnswerModeReason> = new Set([
 ]);
 
 /** The quiet hint beside the chip when auto decided; `null` otherwise. */
-export function answerModeAutoHint(
-  reason: NotebookAnswerModeReason | null | undefined
-): string | null {
+export function answerModeAutoHint(reason: NotebookAnswerModeReason | null): string | null {
   return reason && AUTO_CHOSEN_REASONS.has(reason) ? 'automatisch gewählt' : null;
 }
