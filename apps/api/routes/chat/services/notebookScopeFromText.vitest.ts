@@ -10,6 +10,8 @@ import {
   findNotebookNamedInText,
   notebookIdsForTurn,
   OWN_NOTEBOOK_LIST_TIMEOUT_MS,
+  mayNameOwnNotebook,
+  ownNotebookNameCacheSize,
   resetOwnNotebookNameCache,
   resolveNotebookScopeFromText,
   systemNotebookCandidates,
@@ -160,6 +162,48 @@ describe('resolveNotebookScopeFromText', () => {
     }
   });
 
+  it('ein Ausfall wird kurz gemerkt — der nächste Turn wartet nicht erneut', async () => {
+    const listOwn = vi.fn(async () => {
+      throw new Error('qdrant down');
+    });
+    const args = { userId: 'u1', text: 'im Berlin-Notebook', locale: 'de-DE', listOwn };
+    await resolveNotebookScopeFromText(args);
+    await resolveNotebookScopeFromText(args);
+    expect(listOwn).toHaveBeenCalledTimes(1);
+  });
+
+  it('abgelaufene Einträge fliegen beim nächsten Schreiben raus', async () => {
+    vi.useFakeTimers();
+    try {
+      const listOwn = vi.fn(async () => []);
+      await resolveNotebookScopeFromText({
+        userId: 'a',
+        text: 'im Berlin-Notebook',
+        locale: 'de-DE',
+        listOwn,
+      });
+      await vi.advanceTimersByTimeAsync(10 * 60_000);
+      await resolveNotebookScopeFromText({
+        userId: 'b',
+        text: 'im Berlin-Notebook',
+        locale: 'de-DE',
+        listOwn,
+      });
+      expect(ownNotebookNameCacheSize()).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it.each(['Hallo', 'Was ist der Stand beim Tempolimit?', 'Schreib mir einen Post zur Wärmewende'])(
+    'ein Text, der kein eigenes Notebook nennen kann, fragt die Liste nicht ab: %s',
+    async (text) => {
+      const listOwn = vi.fn(async () => []);
+      await resolveNotebookScopeFromText({ userId: 'u1', text, locale: 'de-DE', listOwn });
+      expect(listOwn).not.toHaveBeenCalled();
+    }
+  );
+
   it('leerer Text fragt die Liste gar nicht erst ab', async () => {
     const listOwn = vi.fn(async () => []);
     const id = await resolveNotebookScopeFromText({
@@ -207,4 +251,22 @@ describe('notebookIdsForTurn — nur ohne gewähltes Notebook', () => {
     });
     expect(ids).toEqual([]);
   });
+});
+
+describe('mayNameOwnNotebook — das billige Tor vor der Liste', () => {
+  it.each([
+    'Sortiere im Notebook die Quellen',
+    'Was steht im Berlin-Notizbuch?',
+    'Was steht in Kreisverband Nord zur Satzung?',
+    'Lies aus meinem „Kreisverband Nord" vor',
+  ])('fragt nach: %s', (text) => {
+    expect(mayNameOwnNotebook(text)).toBe(true);
+  });
+
+  it.each(['Hallo', 'Was steht in der Satzung?', 'Wie ist das Wetter in Berlin?', ''])(
+    'fragt nicht: %s',
+    (text) => {
+      expect(mayNameOwnNotebook(text)).toBe(false);
+    }
+  );
 });

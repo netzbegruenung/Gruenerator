@@ -286,7 +286,7 @@ export async function buildStreamContext({
     hasDefaultNotebook: !!rawDefaultNotebookId,
     userId,
     text: sanitizeMentionTokens(lastUserTextFromClient(clientMessages), 'remove'),
-    locale: user.locale,
+    locale: user.locale ?? null,
   });
 
   // @notebook mentions are the turn naming a notebook out loud — the one case a
