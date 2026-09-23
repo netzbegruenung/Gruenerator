@@ -62,6 +62,8 @@ describe('GreenPTRerankService', () => {
       model: 'green-rerank',
       energyWms: 4126,
       emissionsUg: 64,
+      inputTokens: 0,
+      outputTokens: 0,
     });
   });
 
