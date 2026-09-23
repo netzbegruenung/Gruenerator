@@ -65,14 +65,19 @@ describe('GET /api/chat-service/messages — notebook answer mode', () => {
       type: 'notebook',
       citations: [],
       answerMode: 'praezision',
+      answerModeReason: 'guard',
       toolCalls: [{ toolCallId: 'c1', toolName: 'notebook_quellen', args: {}, result: {} }],
     });
     expect(meta.answerMode).toBe('praezision');
+    expect(meta.answerModeReason).toBe('guard');
     expect(meta.toolCalls).toHaveLength(1);
   });
 
   it('drops a value that is not a resolved mode', async () => {
     expect(await load({ type: 'notebook', answerMode: 'auto' })).not.toHaveProperty('answerMode');
     expect(await load({ type: 'notebook' })).not.toHaveProperty('answerMode');
+    expect(
+      await load({ type: 'notebook', answerMode: 'chat', answerModeReason: 'erraten' })
+    ).not.toHaveProperty('answerModeReason');
   });
 });
