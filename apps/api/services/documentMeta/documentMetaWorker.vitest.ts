@@ -30,6 +30,9 @@ function makeDeps(opts: {
   consent?: boolean;
   chunks?: string[];
   llm?: unknown;
+  /** Grenze aus der Migration; `null` = Migration nicht gelaufen. */
+  boundary?: string | null;
+  points?: number;
 }) {
   const pending = [...opts.claims];
   const query = vi.fn((sql: string, _params?: unknown[]) => {
@@ -38,6 +41,10 @@ function makeDeps(opts: {
       return Promise.resolve(next ? [next] : []);
     }
     if (sql.includes('FROM profiles')) return Promise.resolve([{ locale: 'de-DE' }]);
+    if (sql.includes('document_meta_boundary')) {
+      const b = opts.boundary === undefined ? '2026-09-24T00:00:00Z' : opts.boundary;
+      return Promise.resolve([{ since: b }]);
+    }
     return Promise.resolve([]);
   });
   const deps = {
@@ -49,7 +56,8 @@ function makeDeps(opts: {
           : { success: false, chunks: [] }
       )
     ),
-    setPayload: vi.fn(() => Promise.resolve()),
+    setPayload: vi.fn((_t: unknown, _p: unknown) => Promise.resolve()),
+    countPoints: vi.fn(() => Promise.resolve(opts.points ?? 3)),
     hasAiConsent: vi.fn(() => Promise.resolve(opts.consent ?? true)),
     aiObject: vi.fn(() =>
       Promise.resolve(opts.llm ? { ok: true, data: opts.llm } : { ok: false, error: 'aus' })
@@ -74,6 +82,7 @@ const doc = (over: Row = {}): Row => ({
   content_preview: null,
   existing_published_at: null,
   previous_mirror: null,
+  vector_count: 3,
   ...over,
 });
 
@@ -82,28 +91,56 @@ beforeEach(() => {
 });
 
 describe('Claim', () => {
-  it('nimmt neue Dokumente immer, bestehende nur mit Backfill-Schalter', async () => {
-    const deps = makeDeps({ claims: [] });
+  it('nimmt neue Dokumente ab der Migrationsgrenze, bestehende nur mit Backfill-Schalter', async () => {
+    const deps = makeDeps({ claims: [], boundary: '2026-09-24T00:00:00Z' });
     await drainDocMetaQueue(deps);
     const [sql, params] = claimSql(deps);
     expect(sql).toContain('FOR UPDATE SKIP LOCKED');
     expect(sql).toContain("status = 'completed'");
-    expect(sql).toContain('doc_meta_auto');
-    // Neue: kein doc_meta. Alle anderen (auch Versionswechsel) nur mit $2.
+    // Neu = nach der Grenze UND ohne doc_meta. Kein Spalten-Default entscheidet das.
+    expect(sql).not.toContain('doc_meta_auto');
     expect(sql).toMatch(
-      /doc_meta_auto AND NOT \(COALESCE\(metadata, '\{\}'::jsonb\) \? 'doc_meta'\)/
+      /\$5::timestamptz IS NOT NULL\s+AND created_at >= \$5::timestamptz\s+AND NOT \(COALESCE\(metadata, '\{\}'::jsonb\) \? 'doc_meta'\)/
     );
     expect(sql).toMatch(
       /\$2::boolean AND COALESCE\(\(metadata->'doc_meta'->>'version'\)::int, 0\) <> \$1/
     );
     expect(params?.[0]).toBe(DOC_META_VERSION);
     expect(params?.[1]).toBe(false);
+    expect(params?.[4]).toBe('2026-09-24T00:00:00Z');
   });
 
-  it('reicht den Backfill-Schalter in den Claim durch', async () => {
-    const deps = makeDeps({ claims: [], backfill: true });
+  it('claimt nichts, solange die Grenze fehlt (Migration nicht gelaufen) und kein Backfill an ist', async () => {
+    const deps = makeDeps({ claims: [doc()], boundary: null });
+    expect(await drainDocMetaQueue(deps)).toBe(0);
+    expect(deps.db.query.mock.calls.some(([sql]) => sql.includes('FOR UPDATE'))).toBe(false);
+  });
+
+  it('claimt nichts, wenn die Grenztabelle gar nicht existiert', async () => {
+    const deps = makeDeps({ claims: [doc()] });
+    deps.db.query.mockImplementation((sql: string) =>
+      sql.includes('document_meta_boundary')
+        ? Promise.reject(new Error('relation "document_meta_boundary" does not exist'))
+        : Promise.resolve([])
+    );
+    expect(await drainDocMetaQueue(deps)).toBe(0);
+    expect(deps.db.query.mock.calls.some(([sql]) => sql.includes('FOR UPDATE'))).toBe(false);
+  });
+
+  it('mit Backfill-Schalter läuft der Bestand auch ohne Grenze, aber nie über den Neu-Zweig', async () => {
+    const deps = makeDeps({ claims: [], backfill: true, boundary: null });
     await drainDocMetaQueue(deps);
-    expect(claimSql(deps)[1]?.[1]).toBe(true);
+    const [, params] = claimSql(deps);
+    expect(params?.[1]).toBe(true);
+    expect(params?.[4]).toBeNull();
+  });
+
+  it('nimmt nur gesetzte Zeilen: seit Minuten unverändert', async () => {
+    const deps = makeDeps({ claims: [] });
+    await drainDocMetaQueue(deps);
+    const [sql, params] = claimSql(deps);
+    expect(sql).toMatch(/GREATEST\(created_at, updated_at\) < NOW\(\) - \(\$6::text/);
+    expect(Number(params?.[5])).toBeGreaterThanOrEqual(120_000);
   });
 
   it('markiert den Claim mit Zeit und Versuchszähler, damit ein toter Lauf zurückkommt', async () => {
@@ -112,6 +149,103 @@ describe('Claim', () => {
     const [sql] = claimSql(deps);
     expect(sql).toContain("'doc_meta_claim'");
     expect(sql).toContain("'attempts'");
+  });
+
+  it('hält sich an eine übergebene Obergrenze pro Lauf', async () => {
+    const deps = makeDeps({ claims: [doc(), doc({ id: 'doc-2' }), doc({ id: 'doc-3' })] });
+    expect(await drainDocMetaQueue(deps, { maxDocs: 2 })).toBe(2);
+  });
+});
+
+describe('Bereitschaft der Vektoren', () => {
+  it('schreibt nichts, solange Qdrant weniger Punkte hat als vector_count', async () => {
+    const deps = makeDeps({ claims: [doc({ vector_count: 5 })], points: 2 });
+    await drainDocMetaQueue(deps);
+    expect(deps.countPoints).toHaveBeenCalledWith('doc-1', 'user-1');
+    expect(storeCall(deps)).toBeUndefined();
+    expect(deps.setPayload).not.toHaveBeenCalled();
+  });
+
+  it('schreibt nichts ohne einen einzigen Punkt, auch bei vector_count 0', async () => {
+    const deps = makeDeps({ claims: [doc({ vector_count: 0 })], points: 0 });
+    await drainDocMetaQueue(deps);
+    expect(storeCall(deps)).toBeUndefined();
+  });
+
+  it('speichert kein leeres doc_meta, wenn der Text nicht ladbar war', async () => {
+    const deps = makeDeps({ claims: [doc({ head: null, content_preview: null })] });
+    await drainDocMetaQueue(deps);
+    expect(storeCall(deps)).toBeUndefined();
+  });
+});
+
+describe('Einwilligung', () => {
+  it('wertet einen Fehler beim Lesen der Einwilligung als Nein', async () => {
+    const deps = makeDeps({ claims: [doc({ head: 'Stand: 08.01.2024' })] });
+    deps.hasAiConsent.mockRejectedValueOnce(new Error('db weg'));
+    await drainDocMetaQueue(deps);
+    expect(deps.aiObject).not.toHaveBeenCalled();
+    const record = JSON.parse(String(storeCall(deps)![1]?.[1])) as Record<string, unknown>;
+    expect(record.date).toBe('2024-01-08');
+  });
+});
+
+describe('Spiegel nach published_at', () => {
+  it('spiegelt nur taggenaue Daten', async () => {
+    const deps = makeDeps({
+      claims: [doc({ head: 'Beschluss des Parteirats vom März 2024', filename: 'x.pdf' })],
+      consent: false,
+    });
+    await drainDocMetaQueue(deps);
+    const [, params] = storeCall(deps)!;
+    const record = JSON.parse(String(params?.[1])) as Record<string, unknown>;
+    expect(record).toMatchObject({ date: '2024-03-01', precision: 'month', publishedAt: null });
+    expect(params?.[2]).toBeNull();
+    expect(deps.setPayload).toHaveBeenCalledWith(
+      { documentId: 'doc-1', userId: 'user-1' },
+      { gremium: 'Parteirat' }
+    );
+  });
+
+  it('räumt einen eigenen früheren Spiegel ab, wenn die neue Version kein Datum findet', async () => {
+    const deps = makeDeps({
+      claims: [
+        doc({
+          head: 'Ohne Kopfdaten.',
+          filename: 'x.pdf',
+          existing_published_at: '2024-03-12',
+          previous_mirror: '2024-03-12',
+        }),
+      ],
+      backfill: true,
+      consent: false,
+    });
+    await drainDocMetaQueue(deps);
+    const [sql, params] = storeCall(deps)!;
+    expect(params?.[2]).toBeNull();
+    expect(params?.[3]).toBe(true);
+    expect(sql).toContain("- 'published_at'");
+    expect(deps.setPayload).toHaveBeenCalledWith(
+      { documentId: 'doc-1', userId: 'user-1' },
+      { published_at: null }
+    );
+  });
+
+  it('lässt ein fremdes published_at stehen, auch wenn nichts gefunden wird', async () => {
+    const deps = makeDeps({
+      claims: [
+        doc({
+          head: 'Ohne Kopfdaten.',
+          filename: 'x.pdf',
+          existing_published_at: '2020-01-01',
+          previous_mirror: null,
+        }),
+      ],
+      consent: false,
+    });
+    await drainDocMetaQueue(deps);
+    expect(storeCall(deps)![1]?.[3]).toBe(false);
+    expect(deps.setPayload).not.toHaveBeenCalled();
   });
 });
 
@@ -122,7 +256,7 @@ describe('Verarbeitung', () => {
     expect(processed).toBe(1);
 
     const [sql, params] = storeCall(deps)!;
-    expect(sql).toContain("COALESCE(metadata, '{}'::jsonb) - 'doc_meta_claim'");
+    expect(sql).toMatch(/END - 'doc_meta_claim'\)/);
     expect(sql).toContain('||');
     expect(params?.[0]).toBe('doc-1');
     const record = JSON.parse(String(params?.[1])) as Record<string, unknown>;
