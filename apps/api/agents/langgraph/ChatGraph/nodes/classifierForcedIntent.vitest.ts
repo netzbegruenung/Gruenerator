@@ -831,6 +831,15 @@ describe('Notebook branch — tool ask pins notebook_quellen', () => {
     expect(result.mentionPinnedTool).toBeUndefined();
   });
 
+  it('„Notiere" on a system notebook → no pin (write verb shared with the tool-ask gate)', async () => {
+    const state = buildState({
+      userMessage: 'Notiere im Berlin-Notebook, dass die Frist verlängert ist',
+      notebookIds: ['berlin-notebook'],
+    });
+    const result = await classifierNode(state);
+    expect(result.mentionPinnedTool).toBeUndefined();
+  });
+
   it('write ask on a user notebook still pins', async () => {
     const state = buildState({
       userMessage: 'Entferne die alte Pressemitteilung aus dem Notebook',
