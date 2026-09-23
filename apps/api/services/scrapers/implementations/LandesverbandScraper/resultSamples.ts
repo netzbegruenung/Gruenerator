@@ -6,6 +6,8 @@
  * importing `LandesverbandScraper.ts` pulls in Qdrant clients, the embedding
  * service and the whole source config at module load.
  */
+import { redactShareTokens } from '../../utils/wolkeShareSecrets.js';
+
 import { type SourceResult } from './types.js';
 
 /**
@@ -15,10 +17,14 @@ import { type SourceResult } from './types.js';
  */
 export const MAX_ERROR_SAMPLES = 25;
 
+// Beide Stichproben landen wörtlich im öffentlichen Actions-Log (jeder
+// Sync-Pfad, nicht nur der per-LV-Lauf) und tragen gespeicherte
+// `source_url`s — bei Wolke-Dateien samt Freigabe-Token. Deshalb wird hier
+// maskiert, an der einen Stelle, die beide füllt.
 export function addErrorSamples(target: { errorMessages: string[] }, ...messages: string[]): void {
   for (const message of messages) {
     if (target.errorMessages.length >= MAX_ERROR_SAMPLES) return;
-    target.errorMessages.push(message);
+    target.errorMessages.push(redactShareTokens(message));
   }
 }
 
@@ -56,7 +62,7 @@ export function addDeadLinkSamples(
 ): void {
   for (const message of messages) {
     if (target.deadLinkMessages.length >= MAX_ERROR_SAMPLES) return;
-    target.deadLinkMessages.push(message);
+    target.deadLinkMessages.push(redactShareTokens(message));
   }
 }
 
