@@ -625,9 +625,12 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           // Eigener content_type, damit sie im „Typ"-Filter als eigene Kategorie
           // stehen und nicht unter Beschlüsse verschwinden.
           //
-          // Wolke-Dateien werden ohne published_at gespeichert (der WebDAV-mtime
-          // ist kein Veröffentlichungsdatum). Das ist hier erwünscht: sonst
-          // würde der 5-Jahres-Alterfilter die 2021er-Antworten wieder wegwerfen.
+          // Wolke-Dateien werden seit #3564 aus dem Dateinamen datiert (der
+          // WebDAV-mtime bleibt ungenutzt); ein Name ohne erkennbares Datum
+          // bleibt weiterhin null statt geraten. Der Etag-Gate hält bereits
+          // gespeicherte, unveränderte Antworten aus dem 5-Jahres-Alterfilter
+          // heraus — nur neue/geänderte Dateien durchlaufen ihn (kein Backfill
+          // der alten Punkte hier, siehe #3564).
           // `path`/`listSelector` sind bei wolkeShare ungenutzte Pflichtfelder.
           type: 'wahlpruefstein',
           path: '/wolke/xfFABYzM7pX83Fj/',

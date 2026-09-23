@@ -523,14 +523,28 @@ export class LandesverbandScraper extends BaseScraper {
           recordExtraction({ method: extraction.method, pages: extraction.pages });
           const text = extraction.text;
           const title = file.name.replace(/\.[^.]+$/, '');
+          // Der WebDAV-mtime ist kein Veröffentlichungsdatum, aber der
+          // Dateiname trägt oft ein echtes Datum (LPT 08.11.2025 samt
+          // Anhang.pdf, 2026-03-22-…). Nur der Dateiname zählt (kein Ordner,
+          // kein Jahres-Fallback) — ein Name ohne erkennbares Datum bleibt
+          // null statt geraten (#3564).
+          const dateInfo = DateExtractor.extractDateFromPdfInfo(
+            file.name,
+            file.name,
+            '',
+            source.maxAgeYears ?? DEFAULT_MAX_AGE_YEARS
+          );
           const storeResult = await this.documentProcessor.processAndStoreDocument(
             source,
             contentPath.type,
             file.url,
-            { title, text, publishedAt: null, categories: [] },
+            { title, text, publishedAt: dateInfo.dateString, categories: [] },
             targetCollection,
             source.maxAgeYears,
-            file.etag ? { wolke_etag: file.etag } : undefined
+            {
+              ...(file.etag ? { wolke_etag: file.etag } : {}),
+              date_precision: dateInfo.precision,
+            }
           );
 
           if (storeResult.stored) {
