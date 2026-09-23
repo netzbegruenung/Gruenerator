@@ -63,8 +63,8 @@ function laneFloor(config: ModelConfig): number {
  *
  *  Bis zum 23.09.2026 lief das über ALLE Einträge in AVAILABLE_MODELS. Das war
  *  nur deshalb harmlos, weil jedes Fenster dort ≥ 128k war. Mit Melious'
- *  gemessenen 44k (GEMMA_31B_ON_MELIOUS) hätte ein Eintrag, den die Policy nie
- *  wählt, jedem agentischen auto-Zug das Budget gedrittelt. */
+ *  damals eingetragenen 44k hätte ein Eintrag, den die Policy nie wählt, jedem
+ *  agentischen auto-Zug das Budget gedrittelt. */
 function autoFloor(): number {
   let min = Infinity;
   for (const id of AUTO_LANE_IDS) {
