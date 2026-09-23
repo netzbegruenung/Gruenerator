@@ -36,7 +36,7 @@ import { rankManualSearchResults } from '../../../services/search/manualSearchRa
 import { applyContextCap } from '../../../utils/contextCap.js';
 
 import { notebookUrl } from './notebookTools.js';
-import { groundNote, groundRows, makeRow } from './personalDataTools.js';
+import { groundNote, groundSourceRows, makeRow } from './personalDataTools.js';
 
 import type { SearchResult } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { NotebookCollection } from '../../../database/services/NotebookQdrantHelper.js';
@@ -366,7 +366,7 @@ async function rank(args: ScanActionArgs, ctx: ScanActionCtx): Promise<Record<st
   if (ranking.length === 0) {
     groundNote(ctx.sourceRegistry, `Notebook „${collection.name}"`, 'Keine Quellen zum Ordnen.');
   } else {
-    groundRows(
+    groundSourceRows(
       ctx.sourceRegistry,
       ranking.map((r) =>
         makeRow(
@@ -376,7 +376,8 @@ async function rank(args: ScanActionArgs, ctx: ScanActionCtx): Promise<Record<st
           `${r.rank}. ${r.value ?? '—'} ${r.unit}`,
           r.sourceId
         )
-      )
+      ),
+      collection.id
     );
   }
   return {
