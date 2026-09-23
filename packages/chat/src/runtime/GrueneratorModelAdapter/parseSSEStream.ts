@@ -3,7 +3,11 @@ import {
   editorOperationsEventSchema,
   isCanvasTemplateType,
   chatStreamEventSchemas,
+  notebookAnswerModeReasonSchema,
+  notebookResolvedAnswerModeSchema,
   type ChatErrorEventPayload,
+  type NotebookAnswerModeReason,
+  type NotebookResolvedAnswerMode,
   type SocialPostPayload,
   type BahnPayload,
   type SharepicUpdatedEvent,
@@ -11,6 +15,7 @@ import {
 import { subtypeToArtifactKind } from '@gruenerator/shared/docs';
 
 import { coerceSharepicVariants } from '../../hooks/useChatGraphStream';
+import { PRAEZISION_PROGRESS_MESSAGE } from '../../lib/notebookAnswerMode';
 import { notifyError, notifyWarning } from '../../lib/notify';
 import { pickStageLabels } from '../../lib/progressLabels';
 import { parseSSELine } from '../../lib/sseParser';
@@ -20,7 +25,6 @@ import {
   ARTIFACT_TOOL_NAMES,
   INTENT_TO_TOOL,
   DEEP_TOOL_MAP,
-  formatNamespacedToolLabel,
 } from '../../lib/toolMappings';
 import {
   canAutoOpenArtifactPanel,
@@ -34,6 +38,15 @@ import { useReelLiveStore } from '../../stores/reelLiveStore';
 import { useSharepicLiveStore } from '../../stores/sharepicLiveStore';
 import { useSocialPostLiveStore } from '../../stores/socialPostLiveStore';
 import { ChatStreamError } from '../streamErrorMessage';
+
+import {
+  applyToolStepResult,
+  buildToolStepCard,
+  toolStepResultMessage,
+  toolStepTitle,
+  type ToolStepResultData,
+  type ToolStepStartData,
+} from './toolStepCards';
 
 import type {
   GrueneratorAdapterCallbacks,
@@ -81,14 +94,6 @@ const NO_RETRIEVAL_STAGE_INTENTS: ReadonlySet<string> = new Set([
   'greeting',
   'compute',
 ]);
-
-/** Display titles for agentic loop steps (tool_step_start events). */
-const TOOL_STEP_TITLES: Record<string, string> = {
-  read_sharepic_state: 'Lese aktuellen Zustand…',
-  apply_sharepic_ops: 'Wende Änderung an…',
-  restore_version: 'Stelle Version wieder her…',
-  rezept_laden: 'Lade Schreibvorgaben…',
-};
 
 export async function* parseSSEStream(
   response: Response,
@@ -202,6 +207,9 @@ export async function* parseSSEStream(
   let receivedReelProcessing: ReelProcessingData | null = null;
   let receivedReelPicker: ReelPickerData | null = null;
   let evidenceWeakAccum: string | null = null;
+  // Notebook answers only (`answer_mode`): which mode this turn runs in.
+  let receivedAnswerMode: NotebookResolvedAnswerMode | null = null;
+  let receivedAnswerModeReason: NotebookAnswerModeReason | null = null;
   let activeToolCall: ToolCallPart | null = null;
   const allToolCalls: ToolCallPart[] = [...(carryOver?.toolCalls ?? [])];
   // Agentic tool-loop steps, keyed by stepId. The loop can run several tools in
@@ -341,6 +349,10 @@ export async function* parseSSEStream(
     if (receivedReelProcessing) custom.reelProcessing = receivedReelProcessing;
     if (receivedReelPicker) custom.reelPicker = receivedReelPicker;
     if (evidenceWeakAccum) custom.evidenceWeak = evidenceWeakAccum;
+    if (receivedAnswerMode) {
+      custom.answerMode = receivedAnswerMode;
+      if (receivedAnswerModeReason) custom.answerModeReason = receivedAnswerModeReason;
+    }
     if (agentInfo?.agentId) {
       custom.agentId = agentInfo.agentId;
       if (agentInfo.agentMention) custom.agentMention = agentInfo.agentMention;
@@ -887,48 +899,19 @@ export async function* parseSSEStream(
         // archive-and-replace mechanics (including the duplicate-stepId guard).
         case 'tool_step_start': {
           breakReasoningBlock();
-          const {
-            stepId,
-            toolName,
-            args,
-            title: serverTitle,
-            serverName,
-            narration: serverNarration,
-          } = data as {
-            stepId: string;
-            toolName: string;
-            args?: Record<string, unknown>;
-            title?: string;
-            serverName?: string;
-            narration?: string;
-          };
+          const stepData = data as ToolStepStartData;
+          const { stepId, toolName } = stepData;
           // Associate narration with this card: prefer the server-stamped value
           // (also survives reload); else drain the client buffer (old server).
           const cardNarration =
-            serverNarration ??
+            stepData.narration ??
             (pendingNarration.length > 0 ? pendingNarration.join(' ') : undefined);
           pendingNarration = [];
-          // Prefer a server-provided title; else the legacy mcpToolNode
-          // `mcp_tool` server/tool label; else the sharepic-specific map; else a
-          // generic label derived from the (possibly MCP-namespaced) name.
-          const title =
-            serverTitle ??
-            (toolName === 'mcp_tool'
-              ? `${(args?.server as string) ?? 'MCP'}${args?.tool ? ` · ${args.tool as string}` : ''}`
-              : (TOOL_STEP_TITLES[toolName] ??
-                `${formatNamespacedToolLabel(toolName, serverName)}…`));
+          const title = toolStepTitle(stepData);
           const alreadyKnown =
             toolStepsById.has(stepId) || allToolCalls.some((tc) => tc.toolCallId === stepId);
           if (!alreadyKnown) {
-            const toolArgs = { query: title, ...(args ?? {}) };
-            const toolCall: ToolCallPart = {
-              type: 'tool-call',
-              toolCallId: stepId,
-              toolName,
-              args: toolArgs as Record<string, string | number | boolean | null>,
-              argsText: JSON.stringify(toolArgs),
-              ...(cardNarration ? { narration: cardNarration } : {}),
-            };
+            const toolCall = buildToolStepCard(stepData, title, cardNarration);
             // Push immediately so a parallel sibling's start doesn't orphan this
             // card; the result updates it in place. orderPushCard breaks the
             // current text run so a preceding text_delta stays a separate segment.
@@ -950,45 +933,13 @@ export async function* parseSSEStream(
         }
 
         case 'tool_step_result': {
-          const { stepId, ok, summary, result } = data as {
-            stepId: string;
-            toolName: string;
-            ok: boolean;
-            summary?: string;
-            result?: Record<string, unknown>;
-          };
+          const resultData = data as ToolStepResultData;
+          const { stepId } = resultData;
           const pending = toolStepsById.get(stepId);
           if (pending) {
-            // Stamp the rich per-tool result (results/examples/researchMeta) so
-            // the tool-ui card renders mid-stream from the real tool output,
-            // not just an ok/summary status. ok/summary are folded in for the
-            // generic status chip. Replace by identity so memoized consumers
-            // re-render.
-            // A system MCP tool may ship an MCP-Apps widget: lift its `ui://`
-            // pointer onto `mcp.app` so assistant-ui's mcpApp renderer mounts
-            // the sandboxed widget iframe in place of the normal tool card.
-            const uiResource = (result as { uiResource?: { uri?: unknown; mimeType?: unknown } })
-              ?.uiResource;
-            const widgetUri =
-              uiResource && typeof uiResource.uri === 'string' && uiResource.uri.startsWith('ui://')
-                ? uiResource.uri
-                : null;
-            const updated: ToolCallPart = {
-              ...pending,
-              result: { ...(result ?? {}), ok, ...(summary ? { summary } : {}) },
-              ...(widgetUri
-                ? {
-                    mcp: {
-                      app: {
-                        resourceUri: widgetUri,
-                        ...(typeof uiResource?.mimeType === 'string'
-                          ? { mimeType: uiResource.mimeType }
-                          : {}),
-                      },
-                    },
-                  }
-                : {}),
-            };
+            // Stamp the rich per-tool result so the tool-ui card renders
+            // mid-stream from the real tool output (see applyToolStepResult).
+            const updated = applyToolStepResult(pending, resultData);
             toolStepsById.set(stepId, updated);
             const idx = allToolCalls.indexOf(pending);
             if (idx >= 0) allToolCalls[idx] = updated;
@@ -1008,7 +959,7 @@ export async function* parseSSEStream(
           // sibling is still working — the tracker would claim the retrieval was
           // done and go on to "Formuliere Antwort".
           const stepStillOpen = [...toolStepsById.values()].some((s) => s.result == null);
-          const message = summary ?? (ok ? 'Änderung angewendet' : 'Schritt fehlgeschlagen');
+          const message = toolStepResultMessage(resultData);
           if (stepStillOpen) {
             currentProgress = { ...currentProgress, message };
           } else {
@@ -1443,6 +1394,23 @@ export async function* parseSSEStream(
         }
 
         // ── Notebook mode events ──
+        case 'answer_mode': {
+          // Read from the raw frame: the wire gate coerces an unknown mode to
+          // `chat`, and a guessed chip is worse than none. Same rule as web.
+          const raw = rawData as { resolved?: unknown; reason?: unknown };
+          const resolved = notebookResolvedAnswerModeSchema.safeParse(raw.resolved);
+          if (!resolved.success) break;
+          receivedAnswerMode = resolved.data;
+          const reason = notebookAnswerModeReasonSchema.safeParse(raw.reason);
+          receivedAnswerModeReason = reason.success ? reason.data : null;
+          if (receivedAnswerMode === 'praezision') {
+            transitionStep('searching', PRAEZISION_PROGRESS_MESSAGE);
+            currentProgress = { stage: 'searching', message: PRAEZISION_PROGRESS_MESSAGE };
+          }
+          yield buildResult();
+          break;
+        }
+
         case 'completion': {
           sawTerminalEvent = true;
           // `completion` carries EITHER shape (see the union in the wire

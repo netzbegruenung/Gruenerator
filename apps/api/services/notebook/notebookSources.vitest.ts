@@ -9,6 +9,9 @@ import {
   fetchDocumentMetadata,
   findPassages,
   listNotebookSources,
+  loadPassagePageEnds,
+  markedPageAt,
+  markedPageRanges,
   outlineSource,
   readSourceText,
   resolveSourceInNotebook,
@@ -266,6 +269,59 @@ describe('listNotebookSources', () => {
   });
 });
 
+describe('listNotebookSources — Dokumentdatum und Gremium', () => {
+  const docMeta = (date: string, kind: string, gremium: string | null) => ({
+    doc_meta: { version: 1, date, dateKind: kind, gremium },
+  });
+  const rows = [
+    // Hochgeladen zuletzt, beschlossen am frühesten.
+    docRow({
+      id: 'bv',
+      title: 'Klimaschutz jetzt',
+      created_at: new Date('2026-03-12'),
+      metadata: docMeta('2024-01-08', 'beschluss', 'Bundesvorstand'),
+    }),
+    docRow({
+      id: 'pr',
+      title: 'Klimaschutz jetzt',
+      created_at: new Date('2026-01-01'),
+      metadata: docMeta('2025-06-01', 'beschluss', 'Parteirat'),
+    }),
+    // Ohne Dokumentdatum: die Upload-Zeit zählt.
+    docRow({ id: 'up', title: 'Notiz', created_at: new Date('2024-06-01'), metadata: {} }),
+  ];
+
+  it('trägt Dokumentdatum, Art und Gremium in die Zeile', async () => {
+    const { deps } = makeDeps({ rows, links: ['bv', 'pr', 'up'] });
+    const out = await listNotebookSources({ collectionId: 'n1' }, deps);
+    expect(out.items.find((i) => i.id === 'bv')).toMatchObject({
+      docDate: '2024-01-08',
+      docDateKind: 'beschluss',
+      gremium: 'Bundesvorstand',
+    });
+    expect(out.items.find((i) => i.id === 'up')).toMatchObject({
+      docDate: null,
+      docDateKind: null,
+      gremium: null,
+    });
+  });
+
+  it('sortiert nach Dokumentdatum, sonst nach Upload', async () => {
+    const { deps } = makeDeps({ rows, links: ['bv', 'pr', 'up'] });
+    const out = await listNotebookSources({ collectionId: 'n1', sortBy: 'date' }, deps);
+    expect(out.items.map((i) => i.id)).toEqual(['pr', 'up', 'bv']);
+  });
+
+  it('filtert nach Gremium, gross/klein egal, ohne gleichnamige Titel zu verschmelzen', async () => {
+    const { deps } = makeDeps({ rows, links: ['bv', 'pr', 'up'] });
+    const out = await listNotebookSources(
+      { collectionId: 'n1', filter: { gremium: 'parteirat' } },
+      deps
+    );
+    expect(out.items.map((i) => i.id)).toEqual(['pr']);
+  });
+});
+
 describe('resolveSourceInNotebook', () => {
   it('returns the owner of the source, not the caller', async () => {
     const { deps } = makeDeps({ rows: [docRow({ user_id: 'owner-9' })] });
@@ -403,6 +459,42 @@ describe('sliceSource', () => {
       { index: 2, charStart: 260, charEnd: 300, pageNumber: 5 },
     ]);
     expect(out.pageRange).toEqual({ from: 3, to: 4 });
+  });
+});
+
+describe('markedPageAt', () => {
+  const TEXT_3P = '## Seite 1\nEins.\n## Seite 2\nZwei.\n## Seite 3\nDrei.';
+
+  it('maps an offset to the page whose marker precedes it', () => {
+    const ranges = markedPageRanges(TEXT_3P);
+    expect(markedPageAt(ranges, TEXT_3P.indexOf('Eins'))).toBe(1);
+    expect(markedPageAt(ranges, TEXT_3P.indexOf('Zwei'))).toBe(2);
+    expect(markedPageAt(ranges, TEXT_3P.indexOf('Drei'))).toBe(3);
+  });
+
+  it('returns null without markers', () => {
+    expect(markedPageAt(markedPageRanges('Kein Marker.'), 3)).toBeNull();
+  });
+});
+
+describe('loadPassagePageEnds', () => {
+  it('skips the query without spans and returns the highest marker page per span', async () => {
+    const query = vi.fn(async () => [
+      { i: '1', page: 3 },
+      { i: '2', page: null },
+    ]);
+    expect((await loadPassagePageEnds({ query } as never, [])).size).toBe(0);
+    expect(query).not.toHaveBeenCalled();
+    const out = await loadPassagePageEnds({ query } as never, [
+      { sourceId: 'd1', charStart: 0, charEnd: 50 },
+      { sourceId: 'd1', charStart: 50, charEnd: 90 },
+    ]);
+    expect(query).toHaveBeenCalledWith(expect.stringContaining('regexp_matches'), [
+      ['d1', 'd1'],
+      [0, 50],
+      [50, 90],
+    ]);
+    expect([...out]).toEqual([[0, 3]]);
   });
 });
 

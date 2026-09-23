@@ -159,6 +159,36 @@ describe('grepSources', () => {
       text: 'Radweg hier.',
     });
   });
+
+  // Drei markierte Seiten; der eine Chunk beginnt auf Seite 1 und reicht bis Seite 3.
+  const MARKED = '## Seite 1\nEinleitung.\n\n## Seite 2\nDer Radweg kommt.\n\n## Seite 3\nSchluss.';
+  const ONE_CHUNK = [{ index: 0, charStart: 0, charEnd: MARKED.length, pageNumber: 1 }];
+
+  it('takes the page of a hit from the page markers, not from the chunk start', () => {
+    const out = grepSources(
+      [{ sourceId: 'd1', title: 'Eins', text: MARKED, chunkMap: ONE_CHUNK }],
+      'Radweg',
+      {}
+    );
+    expect(out.perSource[0]!.contexts[0]!.pageNumber).toBe(2);
+  });
+
+  it('keeps the chunk page when the text has no page markers', () => {
+    const plain = MARKED.replace(/## Seite \d\n/g, '');
+    const out = grepSources(
+      [
+        {
+          sourceId: 'd1',
+          title: 'Eins',
+          text: plain,
+          chunkMap: [{ index: 0, charStart: 0, charEnd: plain.length, pageNumber: 1 }],
+        },
+      ],
+      'Radweg',
+      {}
+    );
+    expect(out.perSource[0]!.contexts[0]!.pageNumber).toBe(1);
+  });
 });
 
 describe('loadScanTexts', () => {

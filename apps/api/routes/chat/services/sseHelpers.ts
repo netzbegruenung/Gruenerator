@@ -35,6 +35,7 @@ import type {
   ChatWarningCode,
   ResearchLogStart,
   ResearchLogUpdate,
+  NotebookAnswerModeEvent,
 } from '@gruenerator/contracts';
 import type { Response } from 'express';
 
@@ -47,6 +48,8 @@ export type { SearchResultPayload, SearchImagePayload, ThinkingStepPayload };
  */
 export type SSEEventType =
   | 'thread_created'
+  // Notebook page: the answer mode this turn runs in, sent before the answer.
+  | 'answer_mode'
   | 'compound_start'
   | 'intent'
   | 'search_start'
@@ -125,6 +128,7 @@ export type ProgressStepPayload = ThinkingStepPayload;
  */
 export interface SSEEventPayloads {
   thread_created: { threadId: string };
+  answer_mode: NotebookAnswerModeEvent;
   compound_start: {
     stages: GatherSource[];
     message: string;
@@ -883,6 +887,12 @@ export const CHAT_WARNINGS = {
     message: 'Der gewählte Server wurde für diese Anfrage nicht befragt.',
     severity: 'warning',
     attribution: 'user',
+  },
+  notebook_praezision_unavailable: {
+    message:
+      'Der Präzisionsmodus kann die Notebooks dieser Seite nicht lesen — die Antwort kommt im Chatmodus.',
+    severity: 'info',
+    attribution: 'system',
   },
   compute_failed: {
     message: 'Die Berechnung ist fehlgeschlagen — Zahlen in der Antwort sind ungeprüft.',

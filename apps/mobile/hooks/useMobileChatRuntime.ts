@@ -61,6 +61,7 @@ export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
     }))
   );
   const notebookDepth = usePreferencesStore((s) => s.notebookDepth);
+  const notebookAnswerMode = usePreferencesStore((s) => s.notebookAnswerMode);
   const notebookScope =
     selectedNotebookId && notebookFilterState.notebookId === selectedNotebookId
       ? notebookFilterState
@@ -89,6 +90,7 @@ export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
         : undefined,
       notebookFilters: notebookScope?.keywordFilters,
       notebookMode: notebookDepth,
+      notebookAnswerMode,
       threadMode,
       searchMode,
       customSystemPrompt,
@@ -114,6 +116,7 @@ export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
       selectedNotebookId,
       notebookScope,
       notebookDepth,
+      notebookAnswerMode,
       threadMode,
       searchMode,
       customSystemPrompt,

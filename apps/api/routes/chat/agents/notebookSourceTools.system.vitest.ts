@@ -80,6 +80,7 @@ function makeCtx(
     /** Weitere Hamburger Quellen — über SYSTEM_SCAN_MAX_SOURCES geht grep an den Index. */
     more?: FakePoint[];
     textIndex?: Record<string, unknown> | null;
+    scopeLock?: { ids: string[]; readOnly: boolean };
   } = {}
 ) {
   const registered: Array<Record<string, any>> = [];
@@ -96,6 +97,7 @@ function makeCtx(
     userLocale: opts.locale ?? 'de-DE',
     messages: [],
     notebookIds: opts.notebookIds ?? [],
+    ...(opts.scopeLock ? { notebookScopeLock: opts.scopeLock } : {}),
   } as unknown as ChatGraphState;
   const undated = opts.extraPoints
     ? fakeDoc(LV, 'https://gruene-hamburg.de/ohne-datum', ['Hafen ohne Datum.'], {
@@ -213,6 +215,20 @@ describe('resolution', () => {
       })
     ).toEqual({ error: SYSTEM_READ_ONLY });
     expect(intoSystem.helper.getCollectionDocuments).not.toHaveBeenCalled();
+  });
+});
+
+describe('Präzisionsmodus: Scope-Sperre über normalisierte Schlüssel', () => {
+  it('matches a key against the page slug and refuses another Landesverband', async () => {
+    const lock = { ids: ['hamburg-notebook'], readOnly: true };
+    const { run, system } = makeCtx({ notebookIds: ['hamburg-notebook'], scopeLock: lock });
+    expect((await run({ action: 'list', notebookId: 'hamburg' })).collection).toBe('hamburg');
+    expect((await run({ action: 'list', notebookId: 'hamburg-system' })).collection).toBe(
+      'hamburg'
+    );
+    const calls = system.scrollPage.mock.calls.length;
+    expect((await run({ action: 'list', notebookId: 'berlin' })).error).toMatch(/Präzisionsmodus/);
+    expect(system.scrollPage.mock.calls.length).toBe(calls);
   });
 });
 

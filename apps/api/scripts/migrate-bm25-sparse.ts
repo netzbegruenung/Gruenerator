@@ -17,9 +17,15 @@
  * Collections that already declare `bm25` are backfilled in place
  * (updateVectors, no re-embedding, no copy).
  *
+ * Every write path ends with a coverage check: each point whose chunk_text
+ * encodes to a non-empty sparse vector must carry one. Point counts alone
+ * never showed that a writer upserting around the enrichment (the
+ * kommunalwiki scraper until 09/2026) left new points dense-only.
+ *
  * Usage (from apps/api):
  *   npx tsx scripts/migrate-bm25-sparse.ts --collection grundsatz_documents
  *   npx tsx scripts/migrate-bm25-sparse.ts --all [--dry-run]
+ *   npx tsx scripts/migrate-bm25-sparse.ts --collection <name> --verify-only
  *
  * NOTE: dotenv must run before any app import (config/env.js parses the
  * environment at import time) — hence the dynamic imports below.
@@ -49,10 +55,11 @@ interface CliArgs {
   collection: string | null;
   all: boolean;
   dryRun: boolean;
+  verifyOnly: boolean;
 }
 
 function parseArgs(): CliArgs {
-  const args: CliArgs = { collection: null, all: false, dryRun: false };
+  const args: CliArgs = { collection: null, all: false, dryRun: false, verifyOnly: false };
   const argv = process.argv.slice(2);
   for (let i = 0; i < argv.length; i++) {
     switch (argv[i]) {
@@ -65,13 +72,18 @@ function parseArgs(): CliArgs {
       case '--dry-run':
         args.dryRun = true;
         break;
+      case '--verify-only':
+        args.verifyOnly = true;
+        break;
       default:
         console.error(`Unknown argument: ${argv[i]}`);
         process.exit(1);
     }
   }
   if (!args.collection && !args.all) {
-    console.error('Usage: migrate-bm25-sparse.ts --collection <name> | --all [--dry-run]');
+    console.error(
+      'Usage: migrate-bm25-sparse.ts --collection <name> | --all [--dry-run | --verify-only]'
+    );
     process.exit(1);
   }
   return args;
@@ -240,6 +252,48 @@ async function backfill(client: QdrantClient, collection: string, dryRun: boolea
   );
 }
 
+/**
+ * Throws when a point that should carry a bm25 vector does not. Points without
+ * usable chunk_text stay dense-only by design and are only reported.
+ */
+async function verifyCoverage(client: QdrantClient, collection: string): Promise<void> {
+  let offset: string | number | undefined | null = undefined;
+  let total = 0;
+  let missing = 0;
+  let withoutText = 0;
+
+  for (;;) {
+    const page = await client.scroll(collection, {
+      limit: BACKFILL_SCROLL_BATCH,
+      with_payload: ['chunk_text'],
+      with_vector: [BM25_SPARSE_VECTOR_NAME],
+      ...(offset != null && { offset }),
+    });
+
+    for (const p of page.points) {
+      total++;
+      if (!sparseFor(p.payload as Record<string, unknown>)) {
+        withoutText++;
+        continue;
+      }
+      const sparse = (p.vector as Record<string, { indices?: number[] }> | null)?.[
+        BM25_SPARSE_VECTOR_NAME
+      ];
+      if (!sparse?.indices?.length) missing++;
+    }
+
+    offset = page.next_page_offset as string | number | null;
+    if (offset == null) break;
+  }
+
+  console.log(
+    `[verify] ${collection}: ${total} points, ${missing} missing ${BM25_SPARSE_VECTOR_NAME}, ${withoutText} without chunk_text`
+  );
+  if (missing > 0) {
+    throw new Error(`${collection}: ${missing} points with chunk_text lack a bm25 vector`);
+  }
+}
+
 async function migrate(client: QdrantClient, collection: string, dryRun: boolean): Promise<void> {
   const tmp = `${collection}${TMP_SUFFIX}`;
   const existing = new Set((await client.getCollections()).collections.map((c) => c.name));
@@ -271,12 +325,14 @@ async function migrate(client: QdrantClient, collection: string, dryRun: boolean
           `${collection}: count mismatch after resumed copy-back (${finalCount} != ${tmpCount}) — tmp copy ${tmp} kept`
         );
       }
+      await verifyCoverage(client, collection);
       await client.deleteCollection(tmp);
       console.log(`[done] ${collection}: ${restored} points restored, tmp removed`);
       return;
     }
     console.log(`[ok] ${collection}: already declares ${BM25_SPARSE_VECTOR_NAME} — backfilling`);
     await backfill(client, collection, dryRun);
+    if (!dryRun) await verifyCoverage(client, collection);
     return;
   }
 
@@ -332,6 +388,7 @@ async function migrate(client: QdrantClient, collection: string, dryRun: boolean
       `${collection}: count mismatch after copy-back (${finalCount} != ${tmpCount}) — tmp copy ${tmp} kept`
     );
   }
+  await verifyCoverage(client, collection);
 
   await client.deleteCollection(tmp);
   console.log(`[done] ${collection}: ${restored} points migrated, tmp removed`);
@@ -352,7 +409,11 @@ async function main(): Promise<void> {
 
   for (const collection of targets) {
     try {
-      await migrate(client, collection, args.dryRun);
+      if (args.verifyOnly) {
+        await verifyCoverage(client, collection);
+      } else {
+        await migrate(client, collection, args.dryRun);
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.error(`[error] ${collection}: ${message}`);
