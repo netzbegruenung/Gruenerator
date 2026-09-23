@@ -55,7 +55,6 @@ import { DateExtractor } from './extractors/DateExtractor.js';
 import { isGenericLinkText, LinkExtractor } from './extractors/LinkExtractor.js';
 import { WpApiExtractor } from './extractors/WpApiExtractor.js';
 import { SearchOperations } from './operations/SearchOperations.js';
-import { partitionPdfLinksByAge } from './pdfAgeGate.js';
 import { fetchPdfDocument } from './pdfResponse.js';
 import { DocumentProcessor } from './processors/DocumentProcessor.js';
 import {
@@ -274,43 +273,36 @@ export class LandesverbandScraper extends BaseScraper {
         dateInfo: DateExtractor.extractDateFromPdfInfo(pdf.url, pdf.title, pdf.context, ageLimit),
       }));
 
-      // Third gate, mirrors the HTML branch (~647-685, #3576): a PDF
-      // DocumentProcessor already rejected as too_old is remembered so it
-      // isn't downloaded and OCRed again on every run. Loaded once per
-      // content path; forceUpdate bypasses it like every other gate.
-      const rejectedUrls = forceUpdate
-        ? new Map<string, string>()
-        : await loadRejectedUrls(source.id);
+      // No rejectedUrlGate here (unlike the HTML branch): DocumentProcessor's
+      // own too_old check (STEP 2) can never fire for a PDF that reaches it —
+      // it re-evaluates the exact same dateInfo.dateString against the exact
+      // same ageLimit computed above, and an undated PDF passes publishedAt:
+      // null, which skips that check entirely. A pre-filtered too_old PDF is
+      // also rejected here, before any download, so there is nothing to save
+      // by remembering it. See #3576 review round 2.
+      const recentPdfs = pdfLinksWithDates.filter((pdf) => pdf.dateInfo.isTooOld === false);
+      const oldPdfs = pdfLinksWithDates.filter((pdf) => pdf.dateInfo.isTooOld === true);
+      const undatedPdfs = pdfLinksWithDates.filter((pdf) => pdf.dateInfo.isTooOld === null);
 
-      const { gated, tooOld, undated, candidates } = partitionPdfLinksByAge(
-        pdfLinksWithDates,
-        rejectedUrls,
-        ageLimit
-      );
-
-      if (gated.length > 0) {
-        result.skipped += gated.length;
-        result.skipReasons['too_old_gated'] =
-          (result.skipReasons['too_old_gated'] || 0) + gated.length;
+      if (oldPdfs.length > 0) {
+        this.log(`Skipping ${oldPdfs.length} PDFs older than ${ageLimit} years`);
+        result.skipped += oldPdfs.length;
+        result.skipReasons['too_old'] = (result.skipReasons['too_old'] || 0) + oldPdfs.length;
       }
 
-      if (tooOld.length > 0) {
-        this.log(`Skipping ${tooOld.length} PDFs older than ${ageLimit} years`);
-        result.skipped += tooOld.length;
-        result.skipReasons['too_old'] = (result.skipReasons['too_old'] || 0) + tooOld.length;
-      }
-
-      if (undated.length > 0) {
+      if (undatedPdfs.length > 0) {
         if (contentPath.processUndatedPdfs) {
-          this.log(`Found ${undated.length} PDFs without detectable dates (will process)`);
+          this.log(`Found ${undatedPdfs.length} PDFs without detectable dates (will process)`);
         } else {
-          this.log(`Skipping ${undated.length} PDFs without detectable dates`);
-          result.skipped += undated.length;
-          result.skipReasons['no_date'] = (result.skipReasons['no_date'] || 0) + undated.length;
+          this.log(`Skipping ${undatedPdfs.length} PDFs without detectable dates`);
+          result.skipped += undatedPdfs.length;
+          result.skipReasons['no_date'] = (result.skipReasons['no_date'] || 0) + undatedPdfs.length;
         }
       }
 
-      const processable = contentPath.processUndatedPdfs ? [...candidates, ...undated] : candidates;
+      const processable = contentPath.processUndatedPdfs
+        ? [...recentPdfs, ...undatedPdfs]
+        : recentPdfs;
       const toProcess = maxDocuments ? processable.slice(0, maxDocuments) : processable;
 
       // Dry run: check Qdrant for existing PDFs, report counts, skip processing
@@ -447,17 +439,6 @@ export class LandesverbandScraper extends BaseScraper {
               (result.skipReasons[storeResult.reason || 'unknown'] || 0) + 1;
             // Ausgelesen und danach doch unverändert — kein Gatter hat gegriffen.
             if (storeResult.reason === 'unchanged') recordRedundantExtraction();
-            // Remembered like the HTML branch (see rejectedUrlGate): only the
-            // too_old reason is monotone, and only PDFs with a context-derived
-            // date qualify — published_at is NOT NULL on the table.
-            if (storeResult.reason === CACHEABLE_REJECTION_REASON && pdf.dateInfo.dateString) {
-              await rememberRejection({
-                url: pdf.url,
-                sourceId: source.id,
-                reason: storeResult.reason,
-                publishedAt: pdf.dateInfo.dateString,
-              });
-            }
           }
 
           await this.delay(this.crawlDelay);
