@@ -62,6 +62,12 @@ describe('looksLikeNotebookToolAsk — trifft (Ort oder Menge)', () => {
     'Welche Quellen im Berlin-Notebook haben „Wahlprogramm" im Titel?',
     'Finde im Berlin-Notebook die fünf Stellen, an denen es am konkretesten um die Verkehrswende geht.',
     'Welche 10 Quellen aus 2025 im Berlin-Notebook sind am relevantesten für Klimaneutralität?',
+    // Testserver 24.09.2026: Menge oder Superlativ vor dem Nomen, und „nenne".
+    'Zeig mir fünf Stellen zur Verkehrswende.',
+    'Zeige mir die 10 neuesten Quellen',
+    'Zeig alle Stellen zum Radverkehr',
+    'Nenne mir die 10 relevantesten Quellen aus 2025 zum Thema Klimaneutralität.',
+    'Nenn mir die wichtigsten drei Quellen zum Radverkehr',
   ])('%s', (text) => {
     expect(looksLikeNotebookToolAsk(text)).toBe(true);
   });
@@ -116,6 +122,11 @@ describe('looksLikeNotebookToolAsk — trifft NICHT', () => {
     'Was bedeutet das Wort im Titel des Wahlprogramms?',
     'Warum steht im Titel des Antrags Klimagerechtigkeit?',
     'Was meint die Partei mit dem Begriff im Titel?',
+    // „nenne"/„zeig" ohne Quellen oder Stellen als Gegenstand (24.09.2026).
+    'Nenne mir die wichtigsten Forderungen zur Verkehrswende',
+    'Nenne mir drei Gründe für die Verkehrswende',
+    'Zeig mir, wie die Verkehrswende funktionieren soll',
+    'Zeig mir die wichtigsten Unterschiede zwischen den Programmen',
     '',
   ])('%s', (text) => {
     expect(looksLikeNotebookToolAsk(text)).toBe(false);

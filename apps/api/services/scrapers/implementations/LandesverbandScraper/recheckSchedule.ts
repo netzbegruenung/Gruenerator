@@ -54,7 +54,7 @@ function ageMs(value: unknown, now: number): number | null {
  *   - settled content (published > RECHECK_MAX_CONTENT_AGE_MS ago) is skipped
  *     unless its staggered re-check is due (see RECHECK_SPREAD_DAYS);
  *   - everything else is skipped while it was indexed within RECHECK_AFTER_MS.
- * Missing, timestamp-less (legacy), or stale recent points return false so the
+ * Missing, timestamp-less (legacy), gone-marked or stale recent points return false so the
  * caller re-fetches. What the re-fetch then costs is decided one layer down: for
  * PDFs by the file fingerprint (before extraction), for HTML pages by the
  * DocumentProcessor content-hash diff (before embedding).
@@ -65,6 +65,9 @@ export function isFreshlyIndexed(
   now: number
 ): boolean {
   if (!payload) return false;
+  // A page marked gone (goneState.ts) is re-fetched every run so the confirming
+  // second sighting does not wait for the next re-check window.
+  if (payload.lv_gone_since != null) return false;
 
   const contentAge = ageMs(payload.published_at, now);
   if (contentAge !== null && contentAge > RECHECK_MAX_CONTENT_AGE_MS) {

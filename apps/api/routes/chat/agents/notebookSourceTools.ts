@@ -90,6 +90,7 @@ import type { SearchResult } from '../../../agents/langgraph/ChatGraph/types.js'
 import type { NotebookCollection } from '../../../database/services/NotebookQdrantHelper.js';
 import type { QdrantFilter } from '../../../database/services/QdrantService/types.js';
 import type { StatsNlp } from '../../../services/notebook/sourceStats.js';
+import type { SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 import type { PersistedStep } from '../services/agenticLoop/types.js';
 
 const log = createLogger('notebookSourceTools');
@@ -150,6 +151,23 @@ function resolveDeps(partial: Partial<NotebookSourceToolDeps> | undefined): Note
     chunkTextIndex: partial?.chunkTextIndex ?? qdrantChunkTextIndex,
     recentSteps: partial?.recentSteps ?? ((threadId) => getRecentToolSteps(threadId)),
   };
+}
+
+/**
+ * Die notebookId des letzten erfolgreichen `notebook_quellen`-Aufrufs unter
+ * `steps` (älteste zuerst). EINE Regel für zwei Stellen: das Werkzeug fällt
+ * darauf zurück, und der Klassifikator pinnt das Werkzeug nur, wenn es hier
+ * etwas gibt (`threadNotebookId`).
+ */
+export function notebookIdFromSteps(steps: readonly PersistedStep[]): string | null {
+  for (let i = steps.length - 1; i >= 0; i--) {
+    const step = steps[i]!;
+    const id = step.args.notebookId;
+    if (step.toolName === TOOL_NAME && step.ok !== false && typeof id === 'string' && id) {
+      return id;
+    }
+  }
+  return null;
 }
 
 /**
@@ -226,6 +244,59 @@ function rowDetail(r: NotebookSourceRow): string {
   ]
     .filter(Boolean)
     .join(' · ');
+}
+
+/**
+ * Der Schreiber im split-Modus sieht keine Werkzeug-Rückgaben, nur Quellen und
+ * Notizen. list, grep und rank registrieren ihre Zeilen — die Kennzahlen daneben
+ * (Gesamtzahl, vollständig?, Kategorien, Filter, Treffer insgesamt) stünden nur
+ * im Rückgabewert, und „welche Kategorien gibt es?" wurde live zu „keine"
+ * (Testserver 24.09.2026). find/read/outline/cite/stats tragen alles in ihren Quellen.
+ */
+const SUMMARY_ACTIONS: ReadonlySet<string> = new Set(['list', 'grep', 'rank']);
+const SUMMARY_FIELDS = [
+  'total',
+  'exhaustive',
+  'totalHits',
+  'sourcesWithHits',
+  'sourcesScanned',
+  'countRule',
+  'by',
+  'query',
+  'phrase',
+  'sortBy',
+  'offset',
+  'filter',
+  'categories',
+  'undatedExcluded',
+  'note',
+  'notebookFrom',
+] as const;
+
+function summaryValue(value: unknown): string {
+  if (typeof value === 'boolean') return value ? 'ja' : 'nein';
+  if (value && typeof value === 'object') {
+    const separator = Object.values(value).every((v) => typeof v === 'number') ? ' ' : '=';
+    return Object.entries(value)
+      .map(([k, v]) => `${k}${separator}${String(v)}`)
+      .join(', ');
+  }
+  return String(value);
+}
+
+function noteSummary(
+  reg: SourceRegistry,
+  action: string,
+  notebook: string,
+  result: Record<string, unknown>
+): void {
+  if (!SUMMARY_ACTIONS.has(action)) return;
+  const lines = SUMMARY_FIELDS.filter((f) => result[f] !== undefined && result[f] !== null).map(
+    (f) => `${f}: ${summaryValue(result[f])}`
+  );
+  const shown = result.results ?? result.ranking ?? result.perSource;
+  if (Array.isArray(shown)) lines.push(`gezeigt: ${shown.length} Zeilen`);
+  groundNote(reg, `notebook_quellen ${action} — „${notebook}"`, lines.join('; '));
 }
 
 const filterSchema = z.object({
@@ -333,14 +404,7 @@ export function makeNotebookSourcesTool(ctx: NotebookSourceToolCtx): Tool {
   async function notebookFromThread(): Promise<string | null> {
     if (!ctx.threadId) return null;
     try {
-      const steps = await deps.recentSteps(ctx.threadId);
-      for (let i = steps.length - 1; i >= 0; i--) {
-        const step = steps[i]!;
-        const id = step.args.notebookId;
-        if (step.toolName === TOOL_NAME && step.ok !== false && typeof id === 'string' && id) {
-          return id;
-        }
-      }
+      return notebookIdFromSteps(await deps.recentSteps(ctx.threadId));
     } catch (err) {
       log.warn('[notebook_quellen] thread notebook lookup failed', err);
     }
@@ -437,13 +501,17 @@ System-Notebooks: notebookId ist der Sammlungsschlüssel aus notebooks action="l
         }
         const { target, from } = await resolveReadNotebook(args.notebookId);
         if ('error' in target) return target;
-        const result = await runRead(target, args, userId);
-        if (from !== 'thread' || 'error' in result) return result;
-        const name = target.collection.name;
-        return {
-          ...result,
-          notebookFrom: `Ohne notebookId: das zuletzt in diesem Chat genutzte Notebook „${name}".`,
-        };
+        const read = await runRead(target, args, userId);
+        if ('error' in read) return read;
+        const result =
+          from === 'thread'
+            ? {
+                ...read,
+                notebookFrom: `Ohne notebookId: das zuletzt in diesem Chat genutzte Notebook „${target.collection.name}".`,
+              }
+            : read;
+        noteSummary(sourceRegistry, args.action, target.collection.name, result);
+        return result;
       } catch (err) {
         // Der Rohtext bleibt im Log: englische Interna („Too many document
         // IDs") sind keine Auskunft für das Modell.
