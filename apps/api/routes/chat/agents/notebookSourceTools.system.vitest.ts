@@ -220,6 +220,29 @@ describe('list', () => {
       ['Radverkehr', HH_A, HH_A],
     ]);
     expect(registered.map((r) => r.url)).toEqual([HH_B, HH_A]);
+    expect(out.hint).toBeUndefined();
+  });
+
+  it('grounds rows under the same source key as grep/find passages (#3626)', async () => {
+    const { run, registered } = makeCtx();
+    await run({ action: 'list', notebookId: 'hamburg' });
+    expect(registered.map((r) => [r.documentId, r.collectionId, r.source])).toEqual([
+      [HH_B, 'hamburg', 'notebook'],
+      [HH_A, 'hamburg', 'notebook'],
+    ]);
+  });
+
+  it('tells the planner to filter by category when only a page was shown (#3627)', async () => {
+    const { run } = makeCtx();
+    const page = await run({ action: 'list', notebookId: 'hamburg', limit: 1 });
+    expect(page.hint).toMatch(/filter\.category/);
+    const filtered = await run({
+      action: 'list',
+      notebookId: 'hamburg',
+      limit: 1,
+      filter: { category: 'beschluss' },
+    });
+    expect(filtered.hint).toBeUndefined();
   });
 });
 
