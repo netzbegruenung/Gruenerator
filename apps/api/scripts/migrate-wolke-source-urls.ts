@@ -4,6 +4,12 @@
  * Zugangsschlüssel und gehört nicht in die Qdrant-Nutzlast. Standardmäßig ein
  * Trockenlauf.
  *
+ * Freigaben mit Eintrag in `wolke-shares.json` heilt der Scraper selbst: vor dem
+ * ETag-Gatter schreibt er eine nur unter der Altform liegende Datei um
+ * (`wolkeUrlMigration.ts`, Zähler `wolke_url_migrated`). Dieses Skript bleibt
+ * für das, was er nicht erreicht — Punkte entfernter Freigaben ohne Eintrag
+ * (Saarland) und die Zeilen in `content_sync_articles`.
+ *
  * Token → shareKey per Rückwärtssuche in `<INTERN_CONTENT_DIR>/wolke-shares.json`.
  * Ein Token ohne Eintrag (z. B. die entfernten Saarland-Freigaben, deren Punkte
  * noch liegen) braucht ein explizites `--map <token>=<key>` (wiederholbar);
@@ -11,12 +17,13 @@
  * nie ganz, nur seine ersten drei Zeichen.
  *
  * Geschrieben wird per `setPayload` auf alle Chunks derselben alten
- * `source_url`, dazu dieselbe Umbenennung in `content_sync_articles`. Der
+ * `source_url`; `content_sync_articles` bekommt einen eigenen Plan aus seinen
+ * eigenen Alt-URLs (der Scraper heilt nur Qdrant) und dieselbe Umbenennung. Der
  * Pfad bleibt roh (nicht URL-kodiert) — derselbe String, der heute hinter `#/`
  * steht; `resolveWolkeDisplayUrl` ist die Umkehrung. Liegt das Ziel schon
  * gespeichert vor (der Scraper lief nach dem Deploy vor dieser Migration),
- * wird nicht umgeschrieben, sondern als Konflikt gezählt: dann gäbe es zwei
- * Chunk-Sätze unter einer `source_url`.
+ * wird in Qdrant nicht umgeschrieben, sondern als Konflikt gezählt: dann gäbe
+ * es zwei Chunk-Sätze unter einer `source_url`.
  *
  * Aufruf (aus apps/api):
  *   npx tsx scripts/migrate-wolke-source-urls.ts [--map <token>=<key> …] [--write]
@@ -185,37 +192,54 @@ async function main(): Promise<void> {
     offset = res.next_page_offset as typeof offset;
   } while (offset !== null && offset !== undefined);
 
-  const plan = planWolkeMigration(urls, readWolkeShares(), args.map);
-  console.log(formatPlan(plan));
-  if (!args.write || plan.rewrites.length === 0) return;
+  const shares = readWolkeShares();
+  const plan = planWolkeMigration(urls, shares, args.map);
+  console.log(`Qdrant ${COLLECTION}:\n${formatPlan(plan)}`);
 
+  // Eigener Plan statt der Qdrant-Umschreibungen: hat der Scraper einen Punkt
+  // schon selbst geheilt, steht die Altform nur noch hier.
   const db = getPostgresInstance();
-  let rows = 0;
-  for (const r of plan.rewrites) {
-    await client.setPayload(COLLECTION, {
-      payload: { source_url: r.to },
-      filter: { must: [{ key: 'source_url', match: { value: r.from } }] },
-      wait: true,
-    });
-    // (source_url, event_date) ist eindeutig: wo die neue URL am selben Tag
-    // schon eine Zeile hat, ist die alte ein Duplikat und fällt weg.
-    const updated = await db.query(
-      `UPDATE content_sync_articles o SET source_url = $1
-        WHERE o.source_url = $2
-          AND NOT EXISTS (SELECT 1 FROM content_sync_articles n
-                           WHERE n.source_url = $1 AND n.event_date = o.event_date)
-        RETURNING o.id`,
-      [r.to, r.from]
-    );
-    const dropped = await db.query(
-      `DELETE FROM content_sync_articles WHERE source_url = $1 RETURNING id`,
-      [r.from]
-    );
-    rows += updated.length + dropped.length;
-  }
-  console.log(
-    `[migrate-wolke-source-urls] geschrieben: ${plan.rewrites.length} Dokument(e), ${rows} content_sync_articles-Zeile(n)`
+  const syncRows = await db.query<{ source_url: string }>(
+    `SELECT DISTINCT source_url FROM content_sync_articles
+      WHERE source_url LIKE 'https://wolke.netzbegruenung.de/%'`
   );
+  const syncPlan = planWolkeMigration(
+    syncRows.map((r) => r.source_url),
+    shares,
+    args.map
+  );
+  console.log(`content_sync_articles:\n${formatPlan(syncPlan)}`);
+
+  if (args.write) {
+    for (const r of plan.rewrites) {
+      await client.setPayload(COLLECTION, {
+        payload: { source_url: r.to },
+        filter: { must: [{ key: 'source_url', match: { value: r.from } }] },
+        wait: true,
+      });
+    }
+    let rows = 0;
+    for (const r of syncPlan.rewrites) {
+      // (source_url, event_date) ist eindeutig: wo die neue URL am selben Tag
+      // schon eine Zeile hat, ist die alte ein Duplikat und fällt weg.
+      const updated = await db.query(
+        `UPDATE content_sync_articles o SET source_url = $1
+          WHERE o.source_url = $2
+            AND NOT EXISTS (SELECT 1 FROM content_sync_articles n
+                             WHERE n.source_url = $1 AND n.event_date = o.event_date)
+          RETURNING o.id`,
+        [r.to, r.from]
+      );
+      const dropped = await db.query(
+        `DELETE FROM content_sync_articles WHERE source_url = $1 RETURNING id`,
+        [r.from]
+      );
+      rows += updated.length + dropped.length;
+    }
+    console.log(
+      `[migrate-wolke-source-urls] geschrieben: ${plan.rewrites.length} Dokument(e), ${rows} content_sync_articles-Zeile(n)`
+    );
+  }
   await db.close();
 }
 

@@ -50,6 +50,11 @@ export function buildWolkeFileUrl(shareKey: string, rel: string): string {
   return `${WOLKE_SCHEME}${shareKey}/${rel}`;
 }
 
+/** `<share link>#/<rel>` — the link form, and the `source_url` stored before `wolke://`. */
+export function buildLegacyWolkeFileUrl(shareLink: string, rel: string): string {
+  return `${shareLink}#/${rel}`;
+}
+
 /**
  * The clickable form of a stored url for a user: `<share link>#/<rel>`. Any
  * other url, and a `wolke://` url whose key is not (or no longer) registered,
@@ -61,7 +66,7 @@ export function resolveWolkeDisplayUrl(url: string, root: string = internContent
   const slash = rest.indexOf('/');
   if (slash <= 0) return url;
   const link = resolveWolkeShareLink(rest.slice(0, slash), root);
-  return link ? `${link}#/${rest.slice(slash + 1)}` : url;
+  return link ? buildLegacyWolkeFileUrl(link, rest.slice(slash + 1)) : url;
 }
 
 /**

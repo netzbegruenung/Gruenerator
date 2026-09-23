@@ -51,7 +51,11 @@ import {
 } from '../../utils/binaryFingerprint.js';
 import { scrubThirdPartyContacts } from '../../utils/contactScrub.js';
 import { collectWolkeShareFiles, extractWolkeFileText } from '../../utils/wolkeShareHandler.js';
-import { redactShareTokens, resolveWolkeShareLink } from '../../utils/wolkeShareSecrets.js';
+import {
+  buildLegacyWolkeFileUrl,
+  redactShareTokens,
+  resolveWolkeShareLink,
+} from '../../utils/wolkeShareSecrets.js';
 
 import { staleDocumentsFilter } from './archiveFilter.js';
 import { ContentExtractor } from './extractors/ContentExtractor.js';
@@ -70,6 +74,7 @@ import {
   mergeQualityFlags,
   mergeSkipReasons,
 } from './resultSamples.js';
+import { decideWolkeUrlMigration } from './wolkeUrlMigration.js';
 
 import type {
   SourceResult,
@@ -457,22 +462,28 @@ export class LandesverbandScraper extends BaseScraper {
       const toProcess = maxDocuments ? files.slice(0, maxDocuments) : files;
 
       // Dry run: report new vs already-stored, don't download/OCR/store.
+      // A file stored only under its legacy url counts as stored — the real
+      // run would migrate it, not read it again.
       if (dryRun) {
         let newCount = 0;
         let existingCount = 0;
+        let wouldMigrate = 0;
         for (const file of toProcess) {
-          const points = await scrollDocuments(
-            this.qdrantClient,
+          const stored = await this.#wolkeStored(
             targetCollection,
-            { must: [{ key: 'source_url', match: { value: file.url } }] },
-            { limit: 1, withPayload: false, withVector: false }
+            file.url,
+            buildLegacyWolkeFileUrl(shareLink, file.rel)
           );
-          if (points.length > 0) existingCount++;
+          if (decideWolkeUrlMigration(stored) === 'migrate') wouldMigrate++;
+          if (stored.newExists || stored.legacyExists) existingCount++;
           else newCount++;
         }
         result.stored = newCount;
         result.skipped += existingCount;
-        this.log(`[DRY RUN] ${newCount} new Wolke files, ${existingCount} already stored`);
+        this.log(
+          `[DRY RUN] ${newCount} new Wolke files, ${existingCount} already stored` +
+            (wouldMigrate > 0 ? ` (${wouldMigrate} under the legacy url, would migrate)` : '')
+        );
         return result;
       }
 
@@ -481,6 +492,26 @@ export class LandesverbandScraper extends BaseScraper {
       for (let i = 0; i < toProcess.length; i++) {
         const file = toProcess[i];
         try {
+          // Before the etag gate: a file still stored under its legacy
+          // (token-bearing) url is moved to the wolke:// url, so the gate
+          // below finds it and skips the download+OCR.
+          const legacyUrl = buildLegacyWolkeFileUrl(shareLink, file.rel);
+          const urlAction = decideWolkeUrlMigration(
+            await this.#wolkeStored(targetCollection, file.url, legacyUrl)
+          );
+          if (urlAction === 'migrate') {
+            await this.qdrantClient.setPayload(targetCollection, {
+              payload: { source_url: file.url },
+              filter: { must: [{ key: 'source_url', match: { value: legacyUrl } }] },
+              wait: true,
+            });
+            result.qualityFlags.wolke_url_migrated =
+              (result.qualityFlags.wolke_url_migrated ?? 0) + 1;
+          } else if (urlAction === 'duplicate') {
+            result.qualityFlags.wolke_url_duplicate =
+              (result.qualityFlags.wolke_url_duplicate ?? 0) + 1;
+          }
+
           // Layer-1 dedup: skip the download+OCR when the stored etag matches.
           // Only applies to files that stored successfully (the etag is persisted
           // on the point). Files that failed to store (OCR error, or <100-char
@@ -1307,6 +1338,24 @@ export class LandesverbandScraper extends BaseScraper {
    * never been indexed. Read once per document and handed to both the freshness
    * gate and the file-fingerprint gate, so a re-check still costs one scroll.
    */
+  /** Whether any point is stored under the wolke:// url and under the legacy link. */
+  async #wolkeStored(
+    collection: string,
+    url: string,
+    legacyUrl: string
+  ): Promise<{ newExists: boolean; legacyExists: boolean }> {
+    const has = async (value: string): Promise<boolean> =>
+      (
+        await scrollDocuments(
+          this.qdrantClient,
+          collection,
+          { must: [{ key: 'source_url', match: { value } }] },
+          { limit: 1, withPayload: false, withVector: false }
+        )
+      ).length > 0;
+    return { newExists: await has(url), legacyExists: await has(legacyUrl) };
+  }
+
   async #storedPayload(
     url: string,
     targetCollection: string

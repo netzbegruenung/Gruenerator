@@ -52,6 +52,8 @@ const WEBDAV_PREFIX = '/public.php/webdav';
 export interface WolkeShareFile {
   /** Stable dedup key / source_url: `wolke://<shareKey>/<relative-path>` (see `buildWolkeFileUrl`). */
   url: string;
+  /** Decoded path inside the share, no leading slash. */
+  rel: string;
   /** WebDAV href passed verbatim to NextcloudApiClient.downloadFile. */
   href: string;
   /** File name incl. extension. */
@@ -153,6 +155,7 @@ export async function collectWolkeShareFiles(
     const rel = hrefToRelativePath(entry.href);
     files.push({
       url: buildWolkeFileUrl(shareKey, rel),
+      rel,
       href: entry.href,
       name: entry.name,
       // Bereits vom Client normalisiert — die zweite Fassung, die es hier gab,

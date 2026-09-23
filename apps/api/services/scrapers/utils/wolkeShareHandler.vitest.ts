@@ -89,5 +89,9 @@ describe('collectWolkeShareFiles', () => {
       'wolke://berlin-wps/WPS 2026/Unterordner/Grüne Antwort (ADFC).pdf',
     ]);
     expect(files.every((f) => !f.url.includes('TESTTOKEN'))).toBe(true);
+    expect(files.map((f) => f.rel)).toEqual([
+      'Antwort.pdf',
+      'WPS 2026/Unterordner/Grüne Antwort (ADFC).pdf',
+    ]);
   });
 });
