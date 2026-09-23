@@ -96,6 +96,23 @@ describe('bayern — Regierungsprogramm PDF path (#3579)', () => {
   });
 });
 
+describe('ageExempt (#3606)', () => {
+  it('keeps the Bayern Regierungsprogramm past the 5-year window until the next election', () => {
+    const path = getSourceById('bayern-lv-beschluesse')?.contentPaths.find(
+      (cp) => cp.type === 'wahlprogramm'
+    );
+    expect(path?.ageExempt).toBe(true);
+  });
+
+  it('is only set on isPdfArchive paths — the HTML branch never reads it', () => {
+    for (const source of LANDESVERBAENDE_CONFIG.sources) {
+      for (const cp of source.contentPaths) {
+        if (cp.ageExempt) expect(cp.isPdfArchive, `${source.id} ${cp.path}`).toBe(true);
+      }
+    }
+  });
+});
+
 describe('saarland-lv wpApi.excludeCategoryIds', () => {
   const source = LANDESVERBAENDE_CONFIG.sources.find((s) => s.id === 'saarland-lv');
 
