@@ -4,9 +4,9 @@
  * drafts and side files stored as if they were final answers — see
  * `isExcludedWolkeFileName`'s call site in `collectWolkeShareFiles`.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
-import { isExcludedWolkeFileName } from './wolkeShareHandler.js';
+import { collectWolkeShareFiles, isExcludedWolkeFileName } from './wolkeShareHandler.js';
 
 describe('isExcludedWolkeFileName', () => {
   it.each([
@@ -51,5 +51,47 @@ describe('isExcludedWolkeFileName', () => {
     expect(isExcludedWolkeFileName('Geheimpapier.pdf', ['geheim'])).toBe(true);
     // Defaults still apply once `extra` is given.
     expect(isExcludedWolkeFileName('Antwortentwurf.pdf', ['geheim'])).toBe(true);
+  });
+});
+
+vi.mock('../../api-clients/nextcloudApiClient.js', () => ({
+  default: { create: vi.fn(async () => ({ listFolder: vi.fn() })) },
+}));
+vi.mock('../../OcrService/index.js', () => ({ ocrService: {} }));
+vi.mock('../../sync/folderWalk.js', () => ({
+  walkWolkeFolder: vi.fn(async () => ({
+    files: [
+      {
+        name: 'Antwort.pdf',
+        href: '/public.php/webdav/Antwort.pdf',
+        etag: 'e1',
+        lastModified: null,
+      },
+      {
+        name: 'Grüne Antwort (ADFC).pdf',
+        href: '/public.php/webdav/WPS%202026/Unterordner/Gr%C3%BCne%20Antwort%20(ADFC).pdf',
+        etag: 'e2',
+        lastModified: null,
+      },
+    ],
+  })),
+}));
+
+describe('collectWolkeShareFiles', () => {
+  it('stores a token-free wolke:// url with the decoded relative path', async () => {
+    const { files } = await collectWolkeShareFiles(
+      'https://wolke.netzbegruenung.de/s/TESTTOKEN',
+      'berlin-wps',
+      true
+    );
+    expect(files.map((f) => f.url)).toEqual([
+      'wolke://berlin-wps/Antwort.pdf',
+      'wolke://berlin-wps/WPS 2026/Unterordner/Grüne Antwort (ADFC).pdf',
+    ]);
+    expect(files.every((f) => !f.url.includes('TESTTOKEN'))).toBe(true);
+    expect(files.map((f) => f.rel)).toEqual([
+      'Antwort.pdf',
+      'WPS 2026/Unterordner/Grüne Antwort (ADFC).pdf',
+    ]);
   });
 });

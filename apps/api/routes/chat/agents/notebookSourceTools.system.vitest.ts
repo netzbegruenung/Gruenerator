@@ -31,6 +31,12 @@ import type { SSEWriter } from '../services/sseHelpers.js';
 
 type ToolResult = Record<string, any>;
 
+const WOLKE_LINK = 'https://wolke.netzbegruenung.de/s/TESTTOKEN#/';
+vi.mock('../../../services/scrapers/utils/wolkeShareSecrets.js', () => ({
+  resolveWolkeDisplayUrl: (url: string) => url.replace('wolke://hh-share/', WOLKE_LINK),
+  toStoredWolkeUrl: (url: string) => url.replace(WOLKE_LINK, 'wolke://hh-share/'),
+}));
+
 const LV = 'landesverbaende_documents';
 const HH_A = 'https://gruene-hamburg.de/a';
 const HH_B = 'https://gruene-hamburg.de/b';
@@ -697,5 +703,61 @@ describe('notebookForPrompt', () => {
   it('is null without an id or for a system notebook this locale cannot read', () => {
     expect(notebookForPrompt(null, 'de-DE')).toBeNull();
     expect(notebookForPrompt('hamburg', 'de-AT')).toBeNull();
+  });
+});
+
+describe('Wolke sources (stored as wolke://)', () => {
+  const HH_W = 'wolke://hh-share/Ordner/Grüne Antwort.pdf';
+  const wolkeDoc = () =>
+    fakeDoc(LV, HH_W, ['Wolke Wärmepumpe.'], {
+      landesverband: 'HH',
+      title: 'Grüne Antwort',
+      published_at: '2026-02-01',
+    });
+
+  it('grounds a read with the resolved link and keeps the stored key as documentId', async () => {
+    const { run, registered } = makeCtx({ more: wolkeDoc() });
+    const out = await run({ action: 'read', notebookId: 'hamburg', sourceId: HH_W });
+    expect(out.source).toMatchObject({ id: HH_W });
+    expect(registered.at(-1)).toMatchObject({
+      url: `${WOLKE_LINK}Ordner/Grüne Antwort.pdf`,
+      documentId: HH_W,
+    });
+  });
+
+  it('find hands back the stored key when search shows the resolved link', async () => {
+    const hit = fakeSearchDoc(`${WOLKE_LINK}Ordner/Grüne Antwort.pdf`, 'Grüne Antwort', 0.7, [
+      { chunk_index: 0, text: 'Wolke Wärmepumpe.' },
+    ]);
+    const { run, registered } = makeCtx({ more: wolkeDoc(), searchResults: [hit] });
+    const out = await run({ action: 'find', notebookId: 'hamburg', query: 'Wärmepumpe' });
+    expect(out.passages[0]).toMatchObject({ sourceId: HH_W });
+    expect(registered[0]).toMatchObject({
+      url: `${WOLKE_LINK}Ordner/Grüne Antwort.pdf`,
+      documentId: HH_W,
+    });
+  });
+
+  it('rank by relevance names the stored key, not the resolved link', async () => {
+    const hit = fakeSearchDoc(`${WOLKE_LINK}Ordner/Grüne Antwort.pdf`, 'Grüne Antwort', 0.7, [
+      { chunk_index: 0, text: 'Wolke Wärmepumpe.' },
+    ]);
+    const { run } = makeCtx({ more: wolkeDoc(), searchResults: [hit] });
+    const out = await run({
+      action: 'rank',
+      notebookId: 'hamburg',
+      by: 'relevance',
+      query: 'Wärmepumpe',
+    });
+    expect(out.ranking.map((r: any) => r.sourceId)).toEqual([HH_W]);
+  });
+
+  it('grounds stats of one Wolke source like read: resolved url, stored documentId', async () => {
+    const { run, registered } = makeCtx({ more: wolkeDoc() });
+    await run({ action: 'stats', notebookId: 'hamburg', sourceId: HH_W });
+    expect(registered.at(-1)).toMatchObject({
+      url: `${WOLKE_LINK}Ordner/Grüne Antwort.pdf`,
+      documentId: HH_W,
+    });
   });
 });

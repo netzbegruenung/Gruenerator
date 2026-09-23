@@ -154,8 +154,10 @@ function isFile(p: CensusPoint): boolean {
 }
 
 /**
- * Ein Wolke-Link trägt den Dateipfad im Fragment (`/s/<token>#/Ordner/Datei.pdf`)
- * — dort ist das Fragment Teil der Identität, kein Anhängsel.
+ * Wolke-Dateien sind als `wolke://<shareKey>/Ordner/Datei.pdf` gespeichert —
+ * dort trägt der Pfad die Identität. Die Altform (`/s/<token>#/Ordner/Datei.pdf`,
+ * vor der Migration) trug den Dateipfad im Fragment; das Fragment ist dort Teil
+ * der Identität, kein Anhängsel.
  */
 function routeFragment(u: URL): string {
   return u.hash.startsWith('#/') ? u.hash : '';

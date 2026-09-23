@@ -25,6 +25,7 @@ import {
 } from '../../config/systemCollectionsConfig.js';
 import { applyCountCap } from '../../utils/contextCap.js';
 import { createLogger } from '../../utils/logger.js';
+import { toStoredWolkeUrl } from '../scrapers/utils/wolkeShareSecrets.js';
 
 import {
   chunksOrThrow,
@@ -411,7 +412,8 @@ export interface SystemSourceText {
   chunks: DocumentChunkItem[];
 }
 
-const isUrl = (s: string): boolean => /^https?:\/\//.test(s);
+// `wolke://` ist der gespeicherte Schlüssel einer Wolke-Datei (`buildWolkeFileUrl`).
+const isUrl = (s: string): boolean => /^(https?|wolke):\/\//.test(s);
 
 /**
  * Text einer System-Quelle. DIE Zugehörigkeitsregel, und ihre Reihenfolge
@@ -602,7 +604,8 @@ export async function findSystemPassages(
   const flat = docs
     .flatMap((doc) =>
       (doc.top_chunks ?? []).map((tc): Passage => ({
-        sourceId: doc.source_url || doc.document_id,
+        // Die Suche liefert den Anzeige-Link; die sourceId muss der gespeicherte Schlüssel sein.
+        sourceId: doc.source_url ? toStoredWolkeUrl(doc.source_url) : doc.document_id,
         title: doc.title || '(ohne Titel)',
         chunkIndex: tc.chunk_index,
         pageNumber: tc.page_number ?? null,
