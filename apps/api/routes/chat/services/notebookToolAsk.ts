@@ -34,6 +34,25 @@ const COUNT =
   '(?:\\d+|zwei|drei|vier|f(?:ü|ue)nf|sechs|sieben|acht|neun|zehn|zw(?:ö|oe)lf|zwanzig)';
 const AMOUNT = `(?:(?:die|alle)\\s+)?(?:${COUNT}\\s+)?(?:[a-zäöüß]+sten\\s+)?(?:${COUNT}\\s+)?`;
 
+/**
+ * Suchaufträge an ein Dokument: „such im Wahlprogramm nach …", „durchsuche das
+ * Programm nach dem Begriff …", „such mir aus X die Stelle zu Y raus". „Suchen"
+ * allein ist ein gewöhnliches Verb („Suche nach Lösungen für …", „such mir ein
+ * Rezept raus") — es zählt nur mit einem SUCHZIEL hinter „nach" (Anführungszeichen,
+ * Begriff, Satz, Stelle, …), einem DOKUMENT als Ort davor oder einer Stelle als
+ * Gegenstand von „raus". „Ich suche …" ist eine Aussage, kein Auftrag.
+ */
+const SEARCH_VERB = '(?<!ich\\s{1,3})(?:durch)?such(?:e)?\\s+(?:mir\\s+)?';
+const SEARCH_TARGET =
+  '(?:(?:dem|den|der|die|das)\\s+)?(?:[„"»‚\'“]\\S*|begriff\\w*|w(?:ö|oe)rt\\w*|wort|s(?:a|ä|ae)tz\\w*|zitat\\w*|formulierung\\w*|stellen?|passagen?|textstellen?)';
+const DOCUMENT_NOUN =
+  '(?:notebook|dokument|quelle|wahlprogramm|programm|kapitel|koalitionsvertrag|antr(?:a|ä|ae)g|beschl(?:u|ü|ue)ss|pdf|protokoll|satzung|positionspapier|pressemitteilung)\\w*';
+const SEARCH_ASKS = [
+  `${SEARCH_VERB}[^.?!,]{0,80}?nach\\s+${SEARCH_TARGET}`,
+  `${SEARCH_VERB}(?:(?:im|in|aus|das|die|den|dem|der|meinem|meiner|meinen|unserem|unserer)\\s+)*${DOCUMENT_NOUN}[^.?!,]{0,60}?(?<![\\wäöüß])nach(?![\\wäöüß])`,
+  `${SEARCH_VERB}[^.?!,]{0,80}?(?<![\\wäöüß])(?:stellen?|passagen?|textstellen?|zitate?)(?![\\wäöüß])[^.?!,]{0,60}?(?<![\\wäöüß])(?:raus|heraus)`,
+];
+
 const REQUEST_INFINITIVES = `(?:sortieren|z(?:ä|ae)hlen|ordnen|auflisten|vorlesen|(?:ö|oe)ffnen|zitieren|${WRITE_INFINITIVES})`;
 
 /** Bittrahmen mit Infinitiv — nicht über ein Komma hinweg. */
@@ -55,7 +74,9 @@ const NOTEBOOK_TOOL_ASK = new RegExp(
       'liste?\\s+(?:mir\\s+)?(?:alle|die)',
       'lies',
       '(?:ö|oe)ffne',
-      `zeige?\\s+(?:mir\\s+)?${AMOUNT}(?:seiten?|quellen?|stellen?|gliederung|inhaltsverzeichnis)`,
+      // „dann": der zweite Teil eines Auftrags („Welche Kategorien gibt es?
+      // Zeig mir dann alle Quellen …", #3627).
+      `zeige?\\s+(?:mir\\s+)?(?:dann\\s+)?${AMOUNT}(?:seiten?|quellen?|stellen?|gliederung|inhaltsverzeichnis)`,
       // „Nenne mir die 10 relevantesten Quellen" — nur mit Quellen als Gegenstand:
       // „nenne mir die wichtigsten Forderungen" ist eine Inhaltsfrage.
       `nenne?\\s+(?:mir\\s+)?${AMOUNT}quellen`,
@@ -66,6 +87,7 @@ const NOTEBOOK_TOOL_ASK = new RegExp(
       // „Finde im Notebook die fünf Stellen …" — Wörter dazwischen, aber nicht
       // „finde ich" und nicht über ein Komma („Ich finde, an mehreren Stellen …").
       '(?<!ich\\s{1,3})finde?\\s+(?!ich(?![\\wäöüß]))[^.?!,]{0,60}?(?<![\\wäöüß])(?:stellen|passagen|textstellen)',
+      ...SEARCH_ASKS,
       ...WRITE_IMPERATIVES,
       // Bittrahmen mit Infinitiv: „kannst du die Quellen sortieren", „bitte
       // alle Anträge auflisten". Nicht über ein Komma hinweg — „kannst du mir
