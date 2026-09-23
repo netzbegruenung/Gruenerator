@@ -208,3 +208,4 @@ export * from './schemas/landesverbandAdmin.js';
 export * from './text/listLayout.js';
 export * from './text/inlineMarks.js';
 export * from './text/canvasRichText.js';
+export * from './text/truncation.js';
