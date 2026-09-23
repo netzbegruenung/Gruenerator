@@ -108,7 +108,15 @@ export class DocumentProcessor {
       // zurückkehren, bliebe der Punkt für immer ohne Fingerprint und die Datei
       // würde in jedem Lauf neu heruntergeladen und ausgelesen — genau der
       // Aufwand, den der Fingerprint einspart.
-      await this.#refreshExtraPayload(targetCollection, url, extraPayload, existingPayload);
+      // Dasselbe gilt für Titel und Datum: ein reparierter Extraktor erreicht
+      // sonst nur Seiten, deren Text sich geändert hat (#3578).
+      await this.#refreshStoredPayload(
+        targetCollection,
+        url,
+        { title, publishedAt },
+        extraPayload,
+        existingPayload
+      );
       return { stored: false, reason: 'unchanged' };
     }
 
@@ -147,6 +155,7 @@ export class DocumentProcessor {
 
     // STEP 8: Build Qdrant points (with quality scoring)
     const curatedLists = getCuratedListsForUrl(url);
+    const now = new Date().toISOString();
     const points = chunks.map((chunk, index) => ({
       id: this.generatePointId(url, index),
       vector: embeddings[index],
@@ -172,7 +181,8 @@ export class DocumentProcessor {
         primary_category: categories?.[0] || null,
         subcategories: categories || [],
         published_at: publishedAt || null,
-        indexed_at: new Date().toISOString(),
+        indexed_at: now,
+        checked_at: now,
         source: 'landesverbaende_gruene',
         ...(curatedLists.length > 0 ? { curated_lists: curatedLists } : {}),
         ...(extraPayload ?? {}),
@@ -208,24 +218,31 @@ export class DocumentProcessor {
   }
 
   /**
-   * Write back only those `extraPayload` keys whose stored value differs.
-   * Nothing to patch → no Qdrant call, so the common steady-state re-check stays
-   * a single scroll.
+   * One `setPayload` per unchanged document: the `extraPayload` keys and the
+   * extracted title/date whose stored value differs, plus `checked_at`, on
+   * which the staggered re-check keys (`indexed_at` stays the embedding time).
+   * An empty title or a null date is never written over a stored value — SL
+   * PDFs with processUndatedPdfs and every Wolke file pass `publishedAt: null`.
    */
-  async #refreshExtraPayload(
+  async #refreshStoredPayload(
     targetCollection: string,
     url: string,
+    extracted: { title: string; publishedAt: string | null },
     extraPayload: Record<string, unknown> | undefined,
     existingPayload: Record<string, unknown>
   ): Promise<void> {
-    if (!extraPayload) return;
+    const candidates: Record<string, unknown> = { ...(extraPayload ?? {}) };
+    if (extracted.title) candidates.title = extracted.title;
+    if (extracted.publishedAt) candidates.published_at = extracted.publishedAt;
     const patch = Object.fromEntries(
-      Object.entries(extraPayload).filter(([key, value]) => existingPayload[key] !== value)
+      Object.entries(candidates).filter(([key, value]) => existingPayload[key] !== value)
     );
-    if (Object.keys(patch).length === 0) return;
 
-    await setPayload(this.qdrantClient, targetCollection, patch, {
-      must: [{ key: 'source_url', match: { value: url } }],
-    });
+    await setPayload(
+      this.qdrantClient,
+      targetCollection,
+      { ...patch, checked_at: new Date().toISOString() },
+      { must: [{ key: 'source_url', match: { value: url } }] }
+    );
   }
 }
