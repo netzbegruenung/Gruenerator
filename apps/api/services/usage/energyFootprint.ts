@@ -1053,6 +1053,27 @@ export function hasEnergyCoefficients(model: string): boolean {
 }
 
 /**
+ * The part of a token row its measured footprint does NOT cover, to be
+ * estimated. Clamped at zero: a measured call can land in a row whose tokens
+ * were never booked (rerank, embeddings), and that must not subtract from
+ * anything.
+ */
+export function unmeasuredRemainder(row: {
+  requests: number;
+  inputTokens: number;
+  outputTokens: number;
+  measuredRequests: number;
+  measuredInputTokens: number;
+  measuredOutputTokens: number;
+}): { requests: number; inputTokens: number; outputTokens: number } {
+  return {
+    requests: Math.max(0, row.requests - row.measuredRequests),
+    inputTokens: Math.max(0, row.inputTokens - row.measuredInputTokens),
+    outputTokens: Math.max(0, row.outputTokens - row.measuredOutputTokens),
+  };
+}
+
+/**
  * Estimate the footprint of token usage that carries no measurement.
  *
  * Returns null only for a model missing from the table entirely — a new lane
