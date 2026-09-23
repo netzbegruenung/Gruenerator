@@ -530,7 +530,11 @@ export class LandesverbandScraper extends BaseScraper {
 
       if (contentPath.staticUrls && contentPath.staticUrls.length > 0) {
         this.log(`Using ${contentPath.staticUrls.length} static URLs for ${contentPath.type}`);
-        articleLinks = contentPath.staticUrls;
+        // { url, title } entries exist for isPdfArchive titles; the HTML branch
+        // derives its own title from the fetched page, so only the url matters here.
+        articleLinks = contentPath.staticUrls.map((entry) =>
+          typeof entry === 'string' ? entry : entry.url
+        );
       } else if (contentPath.wpApi) {
         this.log(
           `Using WordPress REST API discovery (category ${contentPath.wpApi.categoryId}) for ${contentPath.type}`
