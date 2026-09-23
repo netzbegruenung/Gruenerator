@@ -4,12 +4,9 @@
  *
  * Seit #3221 läuft die Generierung über den VOLLEN agentischen Loop
  * (`runHeadlessAgenticTurn`: Budget, Stall-Guards, Quellen-Registry, kompletter
- * interner Werkzeugkatalog) statt über den 5-Schritt-Kern `generateFromState`
- * — der bleibt für die Board-Pfade. Dazu kommt die Ergebnis-Prüfung
- * (`verifyRecurringResult`): ein Verdikt pro Lauf, bei Beanstandung GENAU EINE
- * Reparatur-Runde (ein if, keine Schleife), geliefert wird IMMER — das Verdikt
- * ist Messwert, kein Gate, und steht als `recurring_task_runs.verdict` im
- * Verlauf.
+ * interner Werkzeugkatalog), mit Ergebnis-Prüfung und höchstens einer
+ * Reparatur-Runde (`runVerifiedTurn`). Geliefert wird IMMER; das Verdikt steht
+ * als `recurring_task_runs.verdict` im Verlauf.
  *
  * Der Loop wirft nie, sondern ersetzt harte Ausfälle durch Ersatztext — für
  * den Chat die ehrliche Auskunft, hier ein falsches Ergebnisdokument. Deshalb
@@ -19,14 +16,16 @@
 import { type RecurringTask } from '../../database/schema/recurringTasks.js';
 import { hasAiConsent } from '../../middleware/requireAiConsent.js';
 import {
-  runHeadlessAgenticTurn as runHeadlessAgenticTurnReal,
-  type HeadlessTurnResult,
-} from '../../routes/chat/services/agenticLoop/runHeadlessAgenticTurn.js';
-import {
   createMessage,
   createThread,
 } from '../../routes/chat/services/threadPersistenceService.js';
 import { createLogger } from '../../utils/logger.js';
+import { type RunVerdict } from '../backgroundRuns/runVerifier.js';
+import {
+  defaultVerifiedTurnDeps,
+  runVerifiedTurn,
+  type VerifiedTurnDeps,
+} from '../backgroundRuns/verifiedTurn.js';
 import { deriveTitle, type UserLocale } from '../boards/agentFlow/generate.js';
 import { createDocumentWithContent } from '../docs/DocGenerationService.js';
 import { createNotification } from '../notifications/NotificationService.js';
@@ -37,24 +36,12 @@ import {
   resetRecurringFailureCount,
   setConsecutiveEmptyCount,
 } from './recurringTasksRepository.js';
-import {
-  verifyRecurringResult as verifyRecurringResultReal,
-  type RunVerdict,
-} from './runVerifier.js';
 
 const log = createLogger('recurringTaskRunner');
 
 /** Injizierbar (Repo-Muster: agenticRespondService, catalogAssembly), damit der
  *  Runner ohne Modell, DB und Redis prüfbar ist. */
-export interface RecurringRunnerDeps {
-  runTurn: typeof runHeadlessAgenticTurnReal;
-  verify: typeof verifyRecurringResultReal;
-}
-
-const defaultDeps: RecurringRunnerDeps = {
-  runTurn: runHeadlessAgenticTurnReal,
-  verify: verifyRecurringResultReal,
-};
+export type RecurringRunnerDeps = VerifiedTurnDeps;
 
 function preview(text: string, max = 140): string {
   const clean = text.replace(/\s+/g, ' ').trim();
@@ -69,7 +56,7 @@ export async function runRecurringTask(
   task: RecurringTask,
   /** Die beim Claim angelegte 'running'-Zeile, die dieser Lauf abschliesst. */
   runId: string,
-  deps: RecurringRunnerDeps = defaultDeps
+  deps: RecurringRunnerDeps = defaultVerifiedTurnDeps
 ): Promise<void> {
   const startedAt = Date.now();
   const userLocale: UserLocale = task.locale === 'de-AT' ? 'de-AT' : 'de-DE';
@@ -79,25 +66,31 @@ export async function runRecurringTask(
   let delivered: { actionUrl: string | null; notifyTitle: string; notifyBody: string };
   let content: string;
   let verdict: RunVerdict | null = null;
-  let turn: HeadlessTurnResult;
   try {
     // Art.-9-Einwilligung: der Lauf hat keinen Request, `requireAiConsent`
     // sieht ihn nie. Ein Widerruf nach dem Anlegen muss auch hier greifen.
     if (!(await hasAiConsent(task.user_id))) {
       throw new Error('Für die KI-Funktionen fehlt die Einwilligung nach Art. 9 DSGVO.');
     }
-    const turnParams = {
-      instruction: task.instruction,
-      userId: task.user_id,
-      agentId: task.agent_identifier,
-      userLocale,
-      longForm,
-      slotLabel: `recurring-task-${task.id}`,
-      // Honor the bound agent's tool selection; the default universal agent
-      // (no agent_identifier) keeps the full tool set.
-      restrictToAgentTools: !!task.agent_identifier,
-    };
-    turn = await deps.runTurn(turnParams);
+    const {
+      turn,
+      content: verified,
+      verdict: v,
+    } = await runVerifiedTurn(
+      {
+        instruction: task.instruction,
+        userId: task.user_id,
+        agentId: task.agent_identifier,
+        userLocale,
+        longForm,
+        slotLabel: `recurring-task-${task.id}`,
+        // Honor the bound agent's tool selection; the default universal agent
+        // (no agent_identifier) keeps the full tool set.
+        restrictToAgentTools: !!task.agent_identifier,
+      },
+      { verifyInstruction: task.instruction },
+      deps
+    );
 
     // Ersatztext des Nie-Werfen-Vertrags ist KEIN Ergebnis. 'aborted'/'failed'
     // gehen in den bestehenden Catch (wie früher ein Timeout des alten Kerns).
@@ -106,11 +99,12 @@ export async function runRecurringTask(
       // sagt der Person nicht, dass ihr Agent eine Rückfrage stellen wollte.
       throw new Error(turn.degradedReason ?? `agentic turn degraded: ${turn.degraded}`);
     }
-    content = turn.degraded === 'no_answer' ? '' : turn.text;
+    content = verified;
+    verdict = v;
 
     // Empty-suppression: nothing to deliver → record 'empty', bump the counter,
     // do NOT notify (avoids recurring noise). Output resets the counter.
-    // Läuft VOR der Prüfung — Leeres wird nicht verifiziert.
+    // Leeres hat `runVerifiedTurn` gar nicht erst geprüft.
     if (!content) {
       const emptyStreak = task.consecutive_empty_count + 1;
       await setConsecutiveEmptyCount(task.id, emptyStreak);
@@ -138,26 +132,6 @@ export async function runRecurringTask(
       }
       log.info(`Recurring task ${task.id} produced no output (empty run)`);
       return;
-    }
-
-    // Ergebnis-Prüfung + höchstens EINE Reparatur-Runde. Scheitert die
-    // Reparatur (degraded oder leer), bleibt der Erstentwurf — fail-open
-    // schlägt Zurückhalten, es wartet niemand, der nachbessern könnte.
-    verdict = await deps.verify({ instruction: task.instruction, resultText: content });
-    if (!verdict.ok && verdict.hint) {
-      const second = await deps.runTurn({
-        ...turnParams,
-        feedback: { hint: verdict.hint, priorDraft: content },
-      });
-      if (second.degraded === 'none' && second.text.trim()) {
-        content = second.text;
-        verdict = {
-          ...(await deps.verify({ instruction: task.instruction, resultText: content })),
-          repaired: true,
-        };
-      } else {
-        verdict = { ...verdict, repaired: false };
-      }
     }
 
     delivered = await deliver(task, content);
