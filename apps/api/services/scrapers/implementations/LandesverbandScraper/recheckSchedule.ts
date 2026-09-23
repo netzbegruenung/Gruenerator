@@ -30,7 +30,10 @@ const RECHECK_MAX_CONTENT_AGE_MS = 2 * 365 * 24 * 60 * 60 * 1000; // ~2 years
  * that its URL hashes to. Without the re-check extractor fixes never reached
  * half the corpus, and gone pages were never noticed (#3578). Without the
  * spread the first run after deploy would re-fetch every old page at once —
- * none of them carries a `checked_at` yet.
+ * none of them carries a `checked_at` yet. PDFs stopped at the 304 /
+ * same-bytes gates never reach DocumentProcessor and so never get a
+ * `checked_at`: on their bucket day they are re-checked on every run (bounded,
+ * conditional GETs).
  */
 export const RECHECK_SPREAD_DAYS = 90;
 const DAY_MS = 24 * 60 * 60 * 1000;

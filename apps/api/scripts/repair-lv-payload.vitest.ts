@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { isRefetchable, parseCliArgs, planDateRepair, planRepair } from './repair-lv-payload.js';
+import {
+  classifyPoint,
+  isRefetchable,
+  parseCliArgs,
+  planDateRepair,
+  planRepair,
+} from './repair-lv-payload.js';
 
 const BERLIN = { baseUrl: 'https://gruene.berlin' };
 
@@ -206,5 +212,13 @@ describe('planDateRepair — mid-june', () => {
         'mid-june'
       )
     ).toBe('unchanged');
+  });
+});
+
+describe('classifyPoint', () => {
+  it('zählt jeden Punkt genau einmal — ein Patch schlägt unresolved', () => {
+    expect(classifyPoint({ title: 'X' }, true)).toBe('wouldPatch');
+    expect(classifyPoint({}, true)).toBe('unresolved');
+    expect(classifyPoint({}, false)).toBe('unchanged');
   });
 });

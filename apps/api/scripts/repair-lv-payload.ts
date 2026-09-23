@@ -168,6 +168,19 @@ export function planDateRepair(
   return DATE_RULES[rule](point);
 }
 
+/**
+ * Jeder Punkt landet in genau einem Topf, damit die Zählung `geprüft` ergibt:
+ * wer irgendeinen Patch bekommt, ist `wouldPatch`, auch wenn eine Datumsregel
+ * für ihn `unresolved` meldet.
+ */
+export function classifyPoint(
+  patch: Patch,
+  unresolved: boolean
+): 'wouldPatch' | 'unresolved' | 'unchanged' {
+  if (Object.keys(patch).length > 0) return 'wouldPatch';
+  return unresolved ? 'unresolved' : 'unchanged';
+}
+
 interface StoredPoint {
   source_url: string;
   source_id: string;
@@ -289,13 +302,9 @@ async function main(): Promise<void> {
 
       if (patch.title !== undefined) extra.title++;
       if (patch.published_at !== undefined) extra.date++;
-      if (Object.keys(patch).length === 0) {
-        if (unresolved) counts.unresolved++;
-        else counts.unchanged++;
-        continue;
-      }
-      counts.wouldPatch++;
-      if (unresolved) counts.unresolved++;
+      const bucket = classifyPoint(patch, unresolved);
+      counts[bucket]++;
+      if (bucket !== 'wouldPatch') continue;
       if (samples.length < 5) {
         const old = { title: point.title, published_at: point.published_at };
         samples.push(
@@ -320,7 +329,7 @@ async function main(): Promise<void> {
     console.log(`\n═══ ${scope.sourceId ?? `${scope.collection} (alle Quellen)`} ═══`);
     console.log(samples.join('\n'));
     console.log(
-      `  geprüft ${counts.scanned} · would-patch ${counts.wouldPatch} · unchanged ${counts.unchanged} · unresolved ${counts.unresolved}`
+      `  geprüft ${counts.scanned} = would-patch ${counts.wouldPatch} + unchanged ${counts.unchanged} + unresolved ${counts.unresolved} (unresolved nur ohne jeden Patch)`
     );
     console.log(
       `  davon Titel ${extra.title} · Datum ${extra.date} · Abruf fehlgeschlagen ${extra.fetchFailed} · geschrieben ${extra.written}`
