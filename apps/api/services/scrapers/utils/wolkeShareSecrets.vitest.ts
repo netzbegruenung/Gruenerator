@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
+  buildLegacyWolkeFileUrl,
   buildWolkeFileUrl,
   redactShareTokens,
   resolveWolkeDisplayUrl,
@@ -84,6 +85,12 @@ describe('wolke:// source urls', () => {
   it('builds a token-free url from the key and the raw relative path', () => {
     expect(buildWolkeFileUrl('berlin-wps', 'WPS 2026/Grüne Antwort (ADFC).pdf')).toBe(
       'wolke://berlin-wps/WPS 2026/Grüne Antwort (ADFC).pdf'
+    );
+  });
+
+  it('builds the legacy link form the scraper stored before wolke:// urls', () => {
+    expect(buildLegacyWolkeFileUrl(LINK, 'WPS 2026/Grüne Antwort.pdf')).toBe(
+      'https://wolke.netzbegruenung.de/s/TESTTOKEN#/WPS 2026/Grüne Antwort.pdf'
     );
   });
 
