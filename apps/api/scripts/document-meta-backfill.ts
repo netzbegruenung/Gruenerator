@@ -8,11 +8,18 @@
  *   pnpm --filter @gruenerator/api exec tsx scripts/document-meta-backfill.ts --dry-run [--limit 50]
  *   # dasselbe mit Modell-Rückfall (kostet; nur mit Einwilligung der Eigentümer*in):
  *   … --dry-run --with-llm
- *   # schreibt — nur mit DOCUMENT_META_BACKFILL=true:
- *   DOCUMENT_META_BACKFILL=true … --write
+ *   # schreibt — nur mit DOCUMENT_META_BACKFILL=true, gedrosselt:
+ *   DOCUMENT_META_BACKFILL=true … --write [--per-minute 10]
+ *
+ * ACHTUNG: schon `--dry-run` initialisiert Postgres und führt dabei alle
+ * ausstehenden Migrationen aus. Nur aus einem deployten master-Build starten,
+ * nie aus einem Feature-Branch gegen eine geteilte Datenbank.
  *
  * `--write` arbeitet über denselben Claim wie der Worker, darf also parallel zu
- * laufenden Servern laufen.
+ * laufenden Servern laufen — deren Worker drosseln sich aber nicht mit: der
+ * Takt ist `--per-minute` hier PLUS 10/min je laufendem API-Prozess. Der
+ * Modell-Rückfall läuft auf GreenPT, dessen 600 Anfragen/15 min pro Konto mit
+ * Rerank und Planer geteilt sind; eng bemessen lassen.
  */
 import 'dotenv/config';
 
@@ -39,7 +46,8 @@ async function dryRun(limit: number, withLlm: boolean): Promise<void> {
             LEFT(markdown_content, ${LLM_INPUT_CHARS}) AS head,
             metadata->>'content_preview' AS content_preview,
             metadata->>'published_at' AS existing_published_at,
-            metadata->'doc_meta'->>'publishedAt' AS previous_mirror
+            metadata->'doc_meta'->>'publishedAt' AS previous_mirror,
+            vector_count
        FROM documents
       WHERE status = 'completed'
         AND user_id IS NOT NULL
@@ -59,7 +67,16 @@ async function dryRun(limit: number, withLlm: boolean): Promise<void> {
 
   console.log(`Trockenlauf: ${rows.length} Dokument(e), Version ${DOC_META_VERSION}`);
   for (const row of rows) {
-    const { record, mirror } = await computeDocMeta(row, deps);
+    let computed: Awaited<ReturnType<typeof computeDocMeta>>;
+    try {
+      computed = await computeDocMeta(row, deps);
+    } catch (err) {
+      console.log(
+        JSON.stringify({ id: row.id, title: row.title, skipped: (err as Error).message })
+      );
+      continue;
+    }
+    const { record, mirror, clearMirror } = computed;
     console.log(
       JSON.stringify({
         id: row.id,
@@ -71,35 +88,41 @@ async function dryRun(limit: number, withLlm: boolean): Promise<void> {
         dates: record.dates.map((d) => `${d.kind}:${d.date}`),
         source: record.source,
         textOrigin: record.textOrigin,
+        precision: record.precision,
         wouldMirrorPublishedAt: mirror,
+        wouldClearPublishedAt: clearMirror,
         existingPublishedAt: row.existing_published_at,
       })
     );
   }
 }
 
-async function write(): Promise<void> {
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function write(perMinute: number): Promise<void> {
   if (!env.DOCUMENT_META_BACKFILL) {
     console.error('--write braucht DOCUMENT_META_BACKFILL=true (erst --dry-run prüfen).');
     process.exit(2);
   }
   let total = 0;
   for (;;) {
-    const n = await drainDocMetaQueue(defaultDeps());
+    const n = await drainDocMetaQueue(defaultDeps(), { maxDocs: perMinute });
     if (n === 0) break;
     total += n;
-    console.log(`  ${total} verarbeitet`);
+    console.log(`  ${total} verarbeitet — Pause 60 s`);
+    await sleep(60_000);
   }
   console.log(`Fertig: ${total} Dokument(e).`);
 }
 
 async function main(): Promise<void> {
   if (process.argv.includes('--write')) {
-    await write();
+    const perMinute = Math.max(1, Math.floor(Number(arg('--per-minute') ?? 10)));
+    await write(perMinute);
   } else if (process.argv.includes('--dry-run')) {
     await dryRun(Number(arg('--limit') ?? 20), process.argv.includes('--with-llm'));
   } else {
-    console.error('Aufruf: --dry-run [--limit N] [--with-llm] | --write');
+    console.error('Aufruf: --dry-run [--limit N] [--with-llm] | --write [--per-minute N]');
     process.exit(2);
   }
   process.exit(0);
